@@ -75,7 +75,7 @@
          die Rückmeldung — deshalb sagt die Unterzeile des Sammelknopfs, welcher Lauf gerade läuft
          (`ecoRunMenuState`, verdrahtet unten). Ohne diese Zeile darf hier nichts hinein. -->
     <div class="rb-menu">
-      <button type="button" class="avm-tile" id="ecoRunMenu" aria-haspopup="true" aria-expanded="false" title="Die fünf Läufe, die dieser Editor anstößt: Zugehörigkeit, Höhenraster, Wegprofile, Beschriftungskurven und das Nachziehen der Wiki-Zuweisung an die Beschriftungen. Jeder legt sein Ergebnis ab; keiner wird beim Anzeigen nachgerechnet."><span class="t1">Rechnen ▾</span><span class="t2" id="ecoRunMenuState">fünf Läufe</span></button>
+      <button type="button" class="avm-tile" id="ecoRunMenu" aria-haspopup="true" aria-expanded="false" title="Die fünf Läufe, die dieser Editor anstößt: Zugehörigkeit, Höhenraster, Wegprofile, Beschriftungskurven und das Nachziehen von Wiki-Landschaft und Art an die Beschriftungen. Jeder legt sein Ergebnis ab; keiner wird beim Anzeigen nachgerechnet."><span class="t1">Rechnen ▾</span><span class="t2" id="ecoRunMenuState">fünf Läufe</span></button>
       <div class="rb-menu__panel type-filter__menu" id="ecoRunMenuPanel" hidden>
         <div class="rb-menu__row">
           <div class="rb-menu__txt"><b data-i18n="ecosystem.editor.ribbon.raycast">Zugehörigkeit</b><span id="ecoRaycastInfo" data-i18n="ecosystem.editor.ribbon.raycastIdle">noch nicht gerechnet</span></div>
@@ -94,8 +94,8 @@
           <button type="button" class="rb-menu__sw" id="ecoCurves" title="Rechnet die Beschriftungskurven aller eingeschalteten Landschaftsflächen neu und legt sie ab. Läuft einige Sekunden.">starten</button>
         </div>
         <div class="rb-menu__row">
-          <div class="rb-menu__txt"><b>Wiki-Zuweisung</b><span id="ecoLabelWikiInfo">noch nicht geprüft</span></div>
-          <button type="button" class="rb-menu__sw" id="ecoLabelWiki" title="Trägt die Wiki-Landschaft einer Fläche an ihre Beschriftungen nach. Zeigt erst, wie viele es betrifft, und fragt dann nach. Neue Zuweisungen wandern seit dem 01.09.2026 von selbst mit; dies ist für den Bestand.">prüfen</button>
+          <div class="rb-menu__txt"><b>Wiki &amp; Art</b><span id="ecoLabelWikiInfo">noch nicht geprüft</span></div>
+          <button type="button" class="rb-menu__sw" id="ecoLabelWiki" title="Trägt Wiki-Landschaft und Art einer Fläche an ihre Beschriftungen nach. Zeigt erst, wie viele es betrifft, und fragt dann nach. Neue Angaben wandern von selbst mit; dies ist für den Bestand. Grösse und Ab-Zoom der Beschriftung bleiben unberührt.">prüfen</button>
         </div>
       </div>
     </div>
@@ -341,6 +341,36 @@
           Findet ein Name innerhalb von <strong>Drift</strong> keinen freien Platz, wird er
           <strong>ausgeblendet</strong> — wie ein Ortsname. Ein kleiner Deckel hält die Namen dicht
           an ihrem Punkt und lässt dafür mehr davon verschwinden.
+        </p>
+      </div>
+      <!-- Kollision je Namensart (Owner 02.09.2026: „berggipfel werden derzeit in die
+           kollisionserkennung aufgenommen und verschoben"). Zwei Häkchen je Art, Mockup
+           docs/label-kollision-matrix-mockup.html.
+           🔴 Die vier Namensarten OHNE gleichnamige Flächenart (Berggipfel, Vulkan, Fluss, Ebene)
+           stehen bei DEROGRAPHIE -- Owner-Entscheid am selben Tag; er beantwortet den offenen Punkt
+           in ecoDisplayZeilen(). Klimazonen tragen den Abschnitt nicht, wie Band und Plot. -->
+      <div class="dg__section" id="ecoDisplayKollisionSection">
+        <div class="dg__head">
+          <h3>Namen — Kollision</h3>
+          <span class="dg__src">Gilt je Namensart · was hier steht, gilt für alle Beschriftungen dieser Art</span>
+        </div>
+        <div class="dg-scroll"><table class="dt">
+          <thead>
+            <tr>
+              <th>Art</th>
+              <th class="km-count">Namen</th>
+              <th class="km-col dt-sep">Bei Kollisions&shy;erkennung berücksichtigen</th>
+              <th class="km-col">Verschiebung bei Kollision unterdrücken</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="ecoDisplayKollisionRows"></tbody>
+        </table></div>
+        <p class="dg-plot-caption" id="ecoDisplayKollisionFoot"></p>
+        <p class="dg-plot-caption">
+          Ohne das linke Häkchen weicht der Name niemandem aus — aber es weicht ihm auch niemand
+          aus, und ein Straßen- oder Flussname darf durch ihn hindurch gezeichnet werden. Wer einen
+          Namen auf seinem Punkt <em>halten</em> will, nimmt das rechte.
         </p>
       </div>
       <!-- Die Kurvenfeinheiten samt Vorschau (Entwurf 5.6, 7). Die Werte kommen aus
@@ -1505,9 +1535,9 @@ async function runCurveLabels() {
 	}
 }
 
-// „Wiki-Zuweisung" — der BESTANDSLAUF zum Durchtrag im Server (01.09.2026).
+// „Wiki & Art" — der BESTANDSLAUF zu den zwei Durchträgen im Server (01./02.09.2026).
 //
-// 🔴 WOFÜR ER DA IST: eine Landschaft trägt ihre Wiki-Zuweisung an ZWEI Stellen — an der Fläche und
+// 🔴 WOFÜR ER DA IST: eine Landschaft trägt Wiki-Zuweisung UND Art an ZWEI Stellen — an der Fläche und
 // an ihrer Beschriftung. Seit dem 01.09.2026 reicht jedes Speichern die Zuweisung der Fläche an ihre
 // Beschriftungen durch; davor tat das nur der Flächendialog. Übrig blieb ein Bestand, dessen Namen
 // der Prüfhaken „Keine Wiki-Zuweisung" auf der Karte rot markiert, obwohl die Fläche zugewiesen ist.
@@ -1524,32 +1554,41 @@ async function runLabelWikiPush() {
 	info.textContent = "prüft …";
 	try {
 		const probe = await ecoPost("push_wiki_regions_to_labels", {});
-		const offen = Number(probe.regions || 0);
+		// 🔴 ZWEI Zahlen, getrennt genannt: „3 ohne Zuweisung" und „31 mit abweichender Art" sind zwei
+		// verschiedene Befunde, und eine addierte Zahl sagt dem Editor nicht, was ihn erwartet.
+		// ⚠️ Die Rückfälle auf `probe.regions` tragen den Fall, dass eine ältere Serverfassung antwortet.
+		const wikiOffen = Number(probe.wiki ? probe.wiki.regions : probe.regions || 0);
+		const artOffen = Number(probe.art ? probe.art.regions : 0);
+		const offen = wikiOffen + artOffen;
 		if (offen === 0) {
 			info.textContent = "nichts offen";
-			flashStatus("Wiki-Zuweisung: jede Beschriftung trägt die Zuweisung ihrer Fläche.", "ok");
+			flashStatus("Wiki & Art: jede Beschriftung trägt, was an ihrer Fläche steht.", "ok");
 			return;
 		}
 		// 🔴 Der Deckel der Namensliste wird MITGESAGT (`names_truncated`) — eine gekürzte Aufzählung,
 		// die sich für vollständig ausgibt, liest sich wie „das sind alle".
 		const namen = (probe.names || []).join(", ") + (probe.names_truncated ? " …" : "");
-		info.textContent = offen + (offen === 1 ? " Fläche offen" : " Flächen offen");
-		const frage = offen === 1
-			? "Eine Beschriftung erbt die Wiki-Landschaft ihrer Fläche:\n\n" + namen + "\n\nJetzt nachtragen?"
-			: offen + " Beschriftungen erben die Wiki-Landschaft ihrer Fläche:\n\n" + namen + "\n\nJetzt nachtragen?";
+		const teile = [];
+		if (wikiOffen > 0) { teile.push(wikiOffen + "× Wiki"); }
+		if (artOffen > 0) { teile.push(artOffen + "× Art"); }
+		info.textContent = teile.join(" · ") + " offen";
+		const frage = "Nachzutragen an den Beschriftungen:\n\n"
+			+ (wikiOffen > 0 ? "· " + wikiOffen + " × die Wiki-Landschaft ihrer Fläche\n" : "")
+			+ (artOffen > 0 ? "· " + artOffen + " × die Art ihrer Fläche (Grösse und Ab-Zoom bleiben)\n" : "")
+			+ "\n" + namen + "\n\nJetzt nachtragen?";
 		if (!window.confirm(frage)) {
-			info.textContent = offen + " offen — nicht übernommen";
+			info.textContent = teile.join(" · ") + " — nicht übernommen";
 			return;
 		}
 		info.textContent = "trägt nach …";
 		const lauf = await ecoPost("push_wiki_regions_to_labels", { dry_run: false, confirm: "apply" });
 		const geschrieben = Number(lauf.labels || 0);
-		info.textContent = geschrieben + (geschrieben === 1 ? " nachgetragen" : " nachgetragen");
-		flashStatus("Wiki-Zuweisung: " + geschrieben
+		info.textContent = geschrieben + " nachgetragen";
+		flashStatus("Wiki & Art: " + geschrieben
 			+ (geschrieben === 1 ? " Beschriftung nachgetragen." : " Beschriftungen nachgetragen."), "ok");
 	} catch (error) {
 		info.textContent = "fehlgeschlagen";
-		flashStatus("Wiki-Zuweisung: " + (error && error.message ? error.message : String(error)), "bad");
+		flashStatus("Wiki & Art: " + (error && error.message ? error.message : String(error)), "bad");
 	} finally {
 		tile.disabled = false;
 	}
@@ -2550,7 +2589,7 @@ const RECHNEN_LAEUFE = [
 	["ecoHeightmap", "Höhenraster"],
 	["ecoProfiles", "Wegprofile"],
 	["ecoCurves", "Kurven"],
-	["ecoLabelWiki", "Wiki-Zuweisung"],
+	["ecoLabelWiki", "Wiki & Art"],
 ];
 let rechnenZuletzt = "";
 
@@ -2749,7 +2788,7 @@ let ecoDisplayBearbeitet = false;
 // fuenftes Mal in ecoDisplayZumSenden. Ein neuer Abschnitt musste damit fuenfmal nachgezogen werden,
 // und wer eine Stelle vergisst, bekommt einen Regler, der beim Zuruecksetzen wiederkommt oder beim
 // Speichern verschwindet -- lautlos, denn `t.abstaende || {}` fehlt einfach.
-const ECO_DISPLAY_ABSCHNITTE = ["flaeche", "deckkraft", "global", "farbe", "groesse", "vorgabe", "kurve", "abstaende"];
+const ECO_DISPLAY_ABSCHNITTE = ["flaeche", "deckkraft", "global", "farbe", "groesse", "vorgabe", "kurve", "abstaende", "kollision"];
 
 /** Eine Tafel aus einer Serverantwort. ⚠️ Alles, was kein Objekt ist, gilt als „nichts uebersteuert". */
 function ecoDisplayTafelAus(t) {
@@ -2863,13 +2902,69 @@ function ecoDisplayZeilen(kind) {
 		key: String(t.type_key), label: String(t.label || t.type_key),
 		hatFlaeche: true, hatName: ecoDisplayNamensarten.indexOf(String(t.type_key)) >= 0, ohne: false,
 	}));
-	// 🔧 OFFEN, UND HIER AUSDRUECKLICH GESAGT: `fluss`, `berggipfel`, `vulkan` und `ebene` sind
-	// Namensarten OHNE gleichnamige Flaechenart. Sie erscheinen in diesem Fenster (noch) nicht,
-	// weil es keine Stelle gibt, die sagt, zu welcher Ebene sie gehoeren -- der Entwurf ordnet sie
-	// „inhaltlich" zu, und genau das ist eine Entscheidung, keine Ableitung. Sie zu erfinden waere
-	// ein zweites Vokabular (AGENTS.md §5). Ihre Namensfarbe bleibt bis dahin die aus map-labels.css.
+	// 🔧 OFFEN FUER DIESE TABELLE, UND HIER AUSDRUECKLICH GESAGT: `fluss`, `berggipfel`, `vulkan`
+	// und `ebene` sind Namensarten OHNE gleichnamige Flaechenart. Sie erscheinen in DIESER Tabelle
+	// (und damit im Zoomband und im Groessenplot) weiterhin nicht; ihre Namensfarbe bleibt die aus
+	// map-labels.css.
+	// 🔴 IM ABSCHNITT „Namen -- Kollision" STEHEN SIE SEHR WOHL, bei Derographie (Owner 02.09.2026)
+	// -- siehe ecoDisplayKollisionZeilen. Der Auftrag galt jener Matrix; die drei Abschnitte hier
+	// mitzuziehen waere eine sichtbare Aenderung, die niemand bestellt hat.
 	// ⚠️ Kein Schweigen: der Fussnotentext unter der Tabelle nennt sie beim Namen.
 	return zeilen;
+}
+
+/**
+ * Die Zeilen der Kollisionsmatrix -- die Flaechenarten dieser Ebene PLUS, bei Derographie, die
+ * Namensarten ohne eigene Flaechenart (Owner 02.09.2026: „freie label sollen mit bei derographie
+ * gelistet werden").
+ *
+ * 💣 DIE LISTE DER FREIEN WIRD GERECHNET, NICHT AUFGESCHRIEBEN: „Namensart, die in KEINER Ebene
+ * eine Flaechenart gleichen Namens hat". Eine feste Liste der heute vier waere ein zweites
+ * Vokabular (AGENTS.md §5) und liefe beim naechsten neuen Subtyp auseinander -- und zwar still,
+ * denn eine fehlende Zeile sieht aus wie „diese Art gibt es nicht", nicht wie „sie ist
+ * durchgefallen".
+ * 🔴 Nur eine Art, die WIRKLICH Beschriftungen hat, steht hier (`ecoDisplayNamensarten` kommt aus
+ * dem Bestand) -- eine Art ohne einen einzigen Namen hat nichts zu kollidieren.
+ */
+function ecoDisplayKollisionZeilen(kind) {
+	const zeilen = ecoDisplayZeilen(kind).filter((z) => z.hatName);
+	if (String(kind) !== "derographisch") {
+		return zeilen;
+	}
+	const mitFlaeche = new Set(regionTypes.map((t) => String(t.type_key)));
+	ecoDisplayNamensarten
+		.filter((art) => !mitFlaeche.has(String(art)))
+		.forEach((art) => zeilen.push({
+			key: String(art), label: ecoDisplayArtBeschriftung(art),
+			hatFlaeche: false, hatName: true, ohne: true, frei: true,
+		}));
+	return zeilen;
+}
+
+/**
+ * Die deutsche Beschriftung einer Namensart OHNE Flaechenart.
+ *
+ * 🔴 GEHOLT, NICHT ERFUNDEN: die Vokabelliste der Namensarten ist das `<select>` des
+ * Beschriftungsdialogs im Hauptfenster (`#label-edit-type` in index.html) -- dieselbe Quelle, auf
+ * die sich schon avesmapsEcosystemDisplayLabelSubtypes serverseitig bezieht. Eine Abschrift hier
+ * waere die zweite Wahrheit, und sie beträfe ausgerechnet die vier Arten, die sonst nirgends
+ * stehen.
+ * ⚠️ Rueckfall ist der grossgeschriebene Schluessel („berggipfel" -> „Berggipfel"). Er greift, wenn
+ * die Seite ohne Hauptfenster geoeffnet wird -- lesbar und ehrlich, statt eines leeren Feldes.
+ */
+function ecoDisplayArtBeschriftung(art) {
+	const schluessel = String(art || "");
+	try {
+		const wahl = window.parent && window.parent !== window
+			? window.parent.document.getElementById("label-edit-type")
+			: null;
+		const option = wahl ? wahl.querySelector('option[value="' + schluessel.replace(/"/g, "") + '"]') : null;
+		const text = option ? String(option.textContent || "").trim() : "";
+		if (text !== "") { return text; }
+	} catch (fehler) {
+		// Ein fremdes Dokument (anderer Ursprung) oder gar keins -- der Rueckfall unten traegt.
+	}
+	return schluessel.charAt(0).toUpperCase() + schluessel.slice(1);
 }
 
 
@@ -4004,6 +4099,139 @@ function ecoDisplayZeichneAbstaende() {
 	});
 }
 
+// ---- Namen — Kollision: zwei Häkchen je Namensart ----------------------------------------------
+//
+// 🔴 DIE REGEL STEHT IN js/map-features/ecosystem-display.js, nicht hier: dieselbe Datei, die auch
+// die Karte lädt. Dieses Fenster schreibt sie und lässt sich den Satz darunter von
+// avesmapsEcosystemDisplayKollisionsRolle sagen -- eine eigene Auslegung hier wäre die zweite
+// Wahrheit, und das Fenster behauptete dann etwas anderes, als die Karte tut.
+// Mockup: docs/label-kollision-matrix-mockup.html
+
+// 💣 GELESEN WIRD DIE ARBEITSTAFEL DIESES FENSTERS, NICHT DER MODULZUSTAND -- deshalb
+// `avesmapsEcosystemKollisionAus(...)` mit dem eigenen Satz statt
+// `avesmapsEcosystemDisplayKollision(art)`. Die Arbeitstafel per Install ins Modul zu schieben ist
+// genau der Fehler, den ecoDisplayInstalliereKurve weiter unten ausdrücklich vermeidet: das Modul
+// wäre danach ein Spiegel des Fensters und gäbe beim Zurücksetzen den getippten Wert als Vorgabe
+// zurück. Die REGEL bleibt trotzdem eine einzige -- sie steht im Modul und wird nur gefüttert.
+function ecoDisplayKollisionRegel(art) {
+	return avesmapsEcosystemKollisionAus(ecoDisplayTeil("kollision")[art]);
+}
+
+/** Was die zwei Häkchen zusammen BEDEUTEN -- ausgeschrieben, damit niemand die Matrix im Kopf hat. */
+function ecoDisplayKollisionSatz(art) {
+	switch (avesmapsEcosystemKollisionsRolleAus(ecoDisplayKollisionRegel(art))) {
+		case "aus": return "Steht fest. Andere Namen wissen nichts von ihm und dürfen ihn überschreiben.";
+		case "fest": return "Steht fest. Andere Namen weichen ihm aus.";
+		default: return "Weicht aus; findet er nichts, verschwindet er.";
+	}
+}
+
+/**
+ * Ein Häkchen setzen.
+ * 🔴 GESPEICHERT WIRD NUR DIE ABWEICHUNG: steht die Zeile wieder auf der Vorgabe, fliegt sie ganz
+ * raus. Eine Kopie der Vorgabe in der Datenbank veraltet, sobald jemand die Vorgabe im Browser
+ * ändert -- und niemand merkt es, weil ja etwas dasteht (dieselbe Regel wie beim Zurücksetzen).
+ */
+function ecoDisplaySetzKollision(art, feld, wert) {
+	const jetzt = ecoDisplayKollisionRegel(art);
+	const satz = { teil: jetzt.teil, fest: jetzt.fest };
+	satz[feld] = wert;
+	const vorgabe = AVESMAPS_ECOSYSTEM_DISPLAY_KOLLISION_VORGABE;
+	if (satz.teil === vorgabe.teil && satz.fest === vorgabe.fest) {
+		delete ecoDisplayTafel.kollision[art];
+	} else {
+		ecoDisplayTafel.kollision[art] = satz;
+	}
+	ecoDisplayBearbeitet = true;
+	ecoDisplayZeichneKollision();
+}
+
+function ecoDisplayZeichneKollision() {
+	const kind = ecoDisplayReiter;
+	// 🔴 Klimazonen tragen keinen Namen auf der Karte -- also auch nichts zu kollidieren.
+	const zeigen = kind !== "klima";
+	$("ecoDisplayKollisionSection").hidden = !zeigen;
+	const tb = $("ecoDisplayKollisionRows");
+	tb.innerHTML = "";
+	// ⚠️ Die Fußnote MIT leeren, nicht nur die Zeilen: sie ist zwar in einem versteckten Abschnitt,
+	// aber ein stehengebliebener ↗-Satz aus dem vorigen Reiter wäre beim nächsten Aufklappen kurz
+	// da und nennte eine Zahl, die zu diesem Reiter nicht gehört.
+	if (!zeigen) { $("ecoDisplayKollisionFoot").textContent = ""; return; }
+
+	const zeilen = ecoDisplayKollisionZeilen(kind);
+	let kurvenGesamt = 0;
+	let ersteFreie = true;
+
+	zeilen.forEach((z) => {
+		// Die freien Namensarten bekommen EINE Zwischenüberschrift -- sie stehen hier zu Gast, und
+		// ohne den Trenner läse sich „Berggipfel" wie eine derographische Flächenart.
+		if (z.frei && ersteFreie) {
+			ersteFreie = false;
+			const kopf = document.createElement("tr");
+			kopf.className = "km-group";
+			kopf.innerHTML = '<td colspan="5">' + esc("Freie Namensarten — ohne eigene Flächenart") + "</td>";
+			tb.appendChild(kopf);
+		}
+
+		const m = ecoDisplayMedian[z.key] || {};
+		const anzahl = Number(m.n) || 0;
+		const kurve = Number(m.kurve) || 0;
+		kurvenGesamt += kurve;
+		const regel = ecoDisplayKollisionRegel(z.key);
+
+		const tr = document.createElement("tr");
+		tr.className = (z.frei ? "km-frei " : "") + (regel.teil ? "" : "km-aus");
+
+		const art = document.createElement("td");
+		art.className = "dt__art";
+		art.innerHTML = esc(z.label) + '<span class="fl-key">' + esc(z.key) + "</span>";
+
+		const anz = document.createElement("td");
+		anz.className = "km-count";
+		anz.innerHTML = anzahl === 0
+			? "—"
+			: "<b>" + anzahl + "</b> Namen" + (kurve
+				? '<br><span class="km-mark" title="Auf einer gerechneten Kurve — bei diesen wirkt nur das linke Häkchen.">↗ '
+					+ kurve + " auf Kurve</span>"
+				: "");
+
+		const tdTeil = document.createElement("td");
+		tdTeil.className = "km-col dt-sep";
+		const cbTeil = document.createElement("input");
+		cbTeil.type = "checkbox";
+		cbTeil.checked = regel.teil;
+		cbTeil.disabled = !ecoDisplayDarfSpeichern;
+		cbTeil.setAttribute("aria-label", "Bei Kollisionserkennung berücksichtigen: " + z.label);
+		cbTeil.addEventListener("change", () => ecoDisplaySetzKollision(z.key, "teil", cbTeil.checked));
+
+		const tdFest = document.createElement("td");
+		tdFest.className = "km-col km-fest";
+		const cbFest = document.createElement("input");
+		cbFest.type = "checkbox";
+		cbFest.checked = regel.fest;
+		// 🔴 Ohne das erste Häkchen hat das zweite keinen Gegenstand -- wer gar nicht teilnimmt, wird
+		// ohnehin nicht verschoben. Es wird STUMM, nicht weggenommen: der hinterlegte Wert bleibt
+		// sichtbar und kommt unverändert zurück. Dieselbe Regel wie bei der globalen Deckkraft.
+		cbFest.disabled = !ecoDisplayDarfSpeichern || !regel.teil;
+		cbFest.setAttribute("aria-label", "Verschiebung bei Kollision unterdrücken: " + z.label);
+		cbFest.addEventListener("change", () => ecoDisplaySetzKollision(z.key, "fest", cbFest.checked));
+
+		const wirkung = document.createElement("td");
+		wirkung.className = "km-wirkung";
+		wirkung.textContent = ecoDisplayKollisionSatz(z.key);
+
+		tdTeil.appendChild(cbTeil);
+		tdFest.appendChild(cbFest);
+		tr.append(art, anz, tdTeil, tdFest, wirkung);
+		tb.appendChild(tr);
+	});
+
+	$("ecoDisplayKollisionFoot").innerHTML = kurvenGesamt
+		? '<span class="km-mark">↗</span> Diese Namen liegen auf einer gerechneten Kurve ihrer Fläche '
+			+ "und werden gesetzt, <em>bevor</em> die Kollision läuft — für sie zählt nur das linke Häkchen."
+		: "";
+}
+
 function ecoDisplayZeichneKurvenwerte() {
 	const kind = ecoDisplayReiter;
 	// 🔴 Klimazonen tragen keinen Namen auf der Karte -- also auch keine Kurvenfeinheiten.
@@ -4217,6 +4445,7 @@ function ecoDisplayZeichne() {
 	ecoDisplayZeichneBand();
 	ecoDisplayZeichnePlot();
 	ecoDisplayZeichneAbstaende();
+	ecoDisplayZeichneKollision();
 	ecoDisplayZeichneKurvenwerte();
 	ecoDisplayZeichneKurvenWahl();
 	ecoDisplayZeichneKurvenVorschau();
@@ -4283,6 +4512,13 @@ async function ecoDisplayOeffnen() {
 		ecoDisplayMedianAlle().then(() => {
 			if ($("ecoDisplayDialog").hidden) { return; }
 			ecoDisplayZeichneBand();
+			// 💣 UND DIE KOLLISIONSMATRIX -- sie liest denselben Median (die Zahl der Namen je Art
+			// und wie viele davon auf einer Kurve liegen). Ohne diese Zeile bleibt ihre Spalte
+			// „Namen" bei jedem, der schneller ist als die Anfrage, dauerhaft auf „—" stehen, und
+			// der ↗-Vermerk fehlt ganz: die Tafel sähe aus, als gäbe es zu diesen Arten nichts zu
+			// sagen. Beim ersten Bau übersehen und im Ablauf gefunden, nicht von einem Test --
+			// gemessen am zweiten Öffnen des Fensters (02.09.2026).
+			ecoDisplayZeichneKollision();
 		});
 		ecoDisplayHoleKurven().then(() => {
 			if ($("ecoDisplayDialog").hidden) { return; }

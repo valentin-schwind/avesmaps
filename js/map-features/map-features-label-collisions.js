@@ -258,6 +258,13 @@ function getCollisionEntries() {
 				|| (typeof ecosystemRegionOfLabel === "function"
 					? String(ecosystemRegionOfLabel(entry.label)?.public_id || "")
 					: ""),
+			// 🔴 DIE KOLLISIONSREGEL SEINER NAMENSART -- „aus" | „fest" | „beweglich", eingestellt
+			// im Fenster „Darstellung" des Regioneneditors (Owner 02.09.2026). Die Art steht schon
+			// am Label (`labelType` ist der feature_subtype); es gibt dafuer kein neues Feld und
+			// keinen neuen Datenweg. Entschieden wird in ecosystem-display.js, nicht hier.
+			rolle: typeof avesmapsEcosystemDisplayKollisionsRolle === "function"
+				? avesmapsEcosystemDisplayKollisionsRolle(entry.label.labelType)
+				: "beweglich",
 		}));
 	const locationLabelEntries = locationNameLabels
 		.filter((entry) => map.hasLayer(entry.marker))
@@ -268,13 +275,16 @@ function getCollisionEntries() {
 			// zuerst platziert, was schon länger sichtbar ist.
 			minZoom: avesmapsLocationZoomBandMinZoom("label", entry.markerEntry?.locationType) ?? 0,
 			group: "",                                 // Orte gehoeren zu keiner Flaeche
+			// ⚠️ Ortsnamen kennen die Tafel NICHT. Sie ist die der Landschaften, und ein Ortsname
+			// hat mit ihren Reitern nichts zu tun -- er bleibt immer beweglich.
+			rolle: "beweglich",
 		}));
 
 	return [...locationLabelEntries, ...freeLabelEntries].filter(({ element }) => element);
 }
 
 function resolveLabelCollisions(seedRects = []) {
-	const visibleEntries = getCollisionEntries();
+	const alleEintraege = getCollisionEntries();
 	// 🔴 DIE FREIEN KARTENLABELS (Landschaften, Meere, Gipfel) HABEN SEIT DEM 31.08.2026 EIGENE
 	// ABSTÄNDE -- Fenster „Darstellung" im Regioneneditor, Tafel in js/map-features/ecosystem-display.js.
 	// Vorher waren es neun feste Stellen mit höchstens ±12 px waagerecht und ±8 px senkrecht; bei
@@ -292,10 +302,36 @@ function resolveLabelCollisions(seedRects = []) {
 	);
 
 	// Schreibphase 1: alle Offsets zurücksetzen, damit die Basis-Box bei Offset 0 gemessen wird.
-	visibleEntries.forEach(({ element }) => {
+	// 💣 ÜBER ALLE, auch über die, die gar nicht teilnehmen. Ein Name, den die Tafel aus dem
+	// Durchgang nimmt, behielte sonst den Versatz, den der LETZTE Durchgang ihm gegeben hat -- er
+	// bliebe für immer dort stehen, wohin ihn ein Nachbar geschoben hat, den es längst nicht mehr
+	// gibt. „Nimmt nicht teil" heißt: steht auf seinem Punkt, nicht: eingefroren, wo er zuletzt lag.
+	alleEintraege.forEach(({ element }) => {
 		element.classList.remove("is-colliding");
 		setLabelElementOffset(element, 0, 0);
 	});
+
+	// 🔴 DIE FESTGENAGELTEN: gemessen und VORGELEGT, nicht platziert. Damit ist die zweite
+	// Häkchenspalte („Verschiebung bei Kollision unterdrücken") gebaut, OHNE den reinen Löser
+	// anzufassen -- er nimmt eine Vorbelegung seit jeher entgegen, und genau diesen Weg gehen die
+	// Namen auf gerechneten Kurven schon lange.
+	// 💣 IHRE GRUPPE REIST MIT. Ohne sie blockierte ein festgenagelter Name die übrigen Namen
+	// SEINER EIGENEN Fläche -- der Finsterkamm verlöre seinen zweiten Namen (Owner 2026-07-28), und
+	// zwar lautlos. Die Vorbelegung von außen (Gebiets- und Kurvennamen) hat keine Gruppe und
+	// blockiert weiterhin jeden; das ist unverändert.
+	// ⚠️ Ein Rechteck der Größe 0 wandert NICHT hinein: das ist kein Hindernis, sondern ein Label,
+	// das gerade nichts misst (abgemeldeter Marker, Bild noch nicht da).
+	const vorbelegung = Array.isArray(seedRects) ? seedRects.slice() : [];
+	alleEintraege.forEach(({ element, group, rolle }) => {
+		if (rolle !== "fest") { return; }
+		const rect = measureLabelCollisionRect(element, freeLabelRepel);
+		if (rect.width <= 0 || rect.height <= 0) { return; }
+		vorbelegung.push({ ...rect, group });
+	});
+
+	// Was übrig bleibt, geht in den Durchgang: die Beweglichen. „aus" ist gar nicht dabei -- weder
+	// als Teilnehmer noch als Hindernis.
+	const visibleEntries = alleEintraege.filter(({ rolle }) => rolle === "beweglich");
 
 	// Lesephase: jedes Label GENAU EINMAL messen + Kandidaten vorberechnen (gebatcht -> ein Reflow
 	// statt N x Kandidaten erzwungener Reflows). Kandidaten werden anschließend rein in JS getestet.
@@ -337,7 +373,7 @@ function resolveLabelCollisions(seedRects = []) {
 			// des Fensters „Zoombänder", über avesmapsLabelSpacingOf).
 			maxDrift: isLocation ? undefined : freeLabelDrift,
 		})),
-		{ seedRects: Array.isArray(seedRects) ? seedRects : [] }
+		{ seedRects: vorbelegung }
 	);
 	const writes = measured.map(({ element, isLocation, baseOffset }, i) => ({
 		element,

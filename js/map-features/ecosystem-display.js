@@ -154,6 +154,81 @@ const AVESMAPS_ECOSYSTEM_DISPLAY_ABSTAND_LIMITS = {
 	drift: { min: 0, max: 150 },
 };
 
+// ---- Kollision je NAMENSART: nimmt der Name teil, und darf er verschoben werden? --------------
+// 🔴 ZWEI HAEKCHEN, UND SIE HAENGEN VONEINANDER AB (Owner 02.09.2026: „berggipfel werden derzeit in
+// die kollisionserkennung aufgenommen und verschoben").
+//   teil   nimmt dieser Name am Ausweichen ueberhaupt teil? Aus heisst: er steht, wo er steht --
+//          er wird nie verschoben, nie ausgeblendet, und er belegt NICHTS.
+//   fest   er nimmt teil, aber ER rueckt nicht: sein Rechteck wird VORGELEGT (wie das eines Namens
+//          auf einer gerechneten Kurve), die anderen weichen ihm aus.
+//
+// 🔴 DIE VORGABE IST DAS HEUTIGE BILD, Ziffer fuer Ziffer: teilnehmen ja, verschieben ja. Beim
+// Ausliefern aendert sich damit nichts -- dieselbe Regel wie bei den Zoombaendern.
+//
+// 💣 `fest` HEISST AUCH: NIE AUSGEBLENDET. Findet ein festgenagelter Name keinen Platz, bleibt er
+// stehen und ueberlappt notfalls. Die Gegenrichtung („steht still ODER verschwindet") machte aus
+// „verschieb meine Gipfel nicht" ein „loesch meine Gipfel" -- gemessen an der Kartenlage waere
+// genau das der haeufige Fall, weil ein Gipfel dicht bei seinen Nachbarn steht.
+//
+// ⚠️ `fest` OHNE `teil` HAT KEINEN GEGENSTAND -- wer gar nicht teilnimmt, wird ohnehin nicht
+// verschoben. Der gespeicherte Wert bleibt trotzdem stehen (das Fenster macht das Haekchen nur
+// stumm), damit er unveraendert zurueckkommt, wenn `teil` wieder gesetzt wird.
+const AVESMAPS_ECOSYSTEM_DISPLAY_KOLLISION_VORGABE = { teil: true, fest: false };
+
+/**
+ * Die Kollisionsregel einer Namensart, wie sie WIRKT: `{ teil, fest }`.
+ *
+ * 🔴 FAELLT OFFEN AUS: alles, was keine ausdrueckliche Uebersteuerung ist (fehlender Schluessel,
+ * kaputter Wert, kein Boolean), gilt als Vorgabe -- also als „so wie heute". Der schlimmste Fall
+ * eines kaputten Einstellungswertes ist damit „es bleibt beim Alten" und nie „alle Namen
+ * verschwinden".
+ * ⚠️ Steht im Kollisionsdurchgang und laeuft je Beschriftung und je Bild -- kein Wurf, keine
+ * Meldung, dieselbe Begruendung wie bei avesmapsEcosystemDisplayAbstand.
+ */
+function avesmapsEcosystemDisplayKollision(subtype) {
+	return avesmapsEcosystemKollisionAus(avesmapsEcosystemDisplayTeil("kollision")[String(subtype || "")]);
+}
+
+/**
+ * Dieselbe Regel, aber aus einem MITGEGEBENEN Satz -- ohne den Modulzustand anzufassen.
+ *
+ * 🔴 DAFUER GIBT ES EINEN GRUND, und er steht als Warnung im Landschaften-Editor: wer die
+ * Arbeitstafel des Fensters per avesmapsEcosystemDisplayInstall in dieses Modul schiebt, macht aus
+ * dem Vorgabengeber einen Spiegel des Fensters -- danach liefert es beim Zuruecksetzen den gerade
+ * getippten Wert als „Vorgabe" zurueck (am 24.08.2026 im Browser gemessen, von keinem Test).
+ * Das Fenster reicht seinen Satz deshalb HEREIN, statt ihn dort abzulegen.
+ */
+function avesmapsEcosystemKollisionAus(eigen) {
+	const raus = {
+		teil: AVESMAPS_ECOSYSTEM_DISPLAY_KOLLISION_VORGABE.teil,
+		fest: AVESMAPS_ECOSYSTEM_DISPLAY_KOLLISION_VORGABE.fest,
+	};
+	if (eigen && typeof eigen === "object" && !Array.isArray(eigen)) {
+		if (typeof eigen.teil === "boolean") { raus.teil = eigen.teil; }
+		if (typeof eigen.fest === "boolean") { raus.fest = eigen.fest; }
+	}
+	return raus;
+}
+
+/**
+ * Die ROLLE eines freien Kartenlabels im Kollisionsdurchgang -- „aus" | „fest" | „beweglich".
+ *
+ * 🔴 EINE Ableitung, drei Leser: der Durchgang selbst (map-features-label-collisions.js), die
+ * Namen auf gerechneten Kurven (map-features-path-label-canvas-overlay.js) und das Fenster
+ * „Darstellung", das den Satz darunter schreibt. Eine Regel, die einen von drei Erzeugern bindet,
+ * ist keine Regel -- dieselbe Lehre wie bei der Verkehrsmittel-Sperre (AGENTS.md §11).
+ * ⚠️ Das Fenster geht ueber avesmapsEcosystemKollisionsRolleAus -- siehe dort, warum.
+ */
+function avesmapsEcosystemDisplayKollisionsRolle(subtype) {
+	return avesmapsEcosystemKollisionsRolleAus(avesmapsEcosystemDisplayKollision(subtype));
+}
+
+/** Die Rolle aus einem fertigen `{ teil, fest }`. Der eine Ort, an dem die drei Namen entstehen. */
+function avesmapsEcosystemKollisionsRolleAus(regel) {
+	if (!regel || regel.teil !== true) { return "aus"; }
+	return regel.fest === true ? "fest" : "beweglich";
+}
+
 // 🔴 Die Karte kennt Stufe 8 nicht (maxZoom: 7 in js/app/bootstrap.js). z8 erbt z7 -- dieselbe
 // Regel wie bei den Zoombaendern.
 const AVESMAPS_ECOSYSTEM_DISPLAY_BAND_MAX = 7;
@@ -410,4 +485,5 @@ if (typeof globalThis !== "undefined") {
 	globalThis.AVESMAPS_ECOSYSTEM_DISPLAY_BAND_MAX = AVESMAPS_ECOSYSTEM_DISPLAY_BAND_MAX;
 	globalThis.AVESMAPS_ECOSYSTEM_DISPLAY_ABSTAND_VORGABE = AVESMAPS_ECOSYSTEM_DISPLAY_ABSTAND_VORGABE;
 	globalThis.AVESMAPS_ECOSYSTEM_DISPLAY_ABSTAND_LIMITS = AVESMAPS_ECOSYSTEM_DISPLAY_ABSTAND_LIMITS;
+	globalThis.AVESMAPS_ECOSYSTEM_DISPLAY_KOLLISION_VORGABE = AVESMAPS_ECOSYSTEM_DISPLAY_KOLLISION_VORGABE;
 }

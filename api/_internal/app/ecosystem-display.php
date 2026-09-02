@@ -292,6 +292,36 @@ function avesmapsEcosystemDisplayValidate(mixed $incoming): ?array
         $clean['abstaende'] = $rein;
     }
 
+    // ---- Kollision je Namensart: teilnehmen? verschieben? ---------------------------------------
+    // 🔴 Zwei Wahrheitswerte je Art, beide OPTIONAL: was nicht dasteht, gilt als Vorgabe -- und die
+    // Vorgabe steht im BROWSER (AVESMAPS_ECOSYSTEM_DISPLAY_KOLLISION_VORGABE), nicht hier. Der
+    // Server fuehrt weiterhin keine Artenliste; er prueft die FORM.
+    // 💣 EIN UNBEKANNTES FELD WIRD ABGELEHNT, nicht ueberlesen. `test` statt `fest` faende sonst
+    // niemand: der Browser liest den Tippfehler nicht, faellt stumm auf die Vorgabe zurueck, und
+    // das Haekchen taete einfach nichts -- dieselbe Begruendung wie bei `abstaende` darueber.
+    // 💣 UND ES MUESSEN BOOLEANS SEIN. `1` und `"true"` sehen aus wie ja und sind es nicht; der
+    // Browser prueft `typeof === "boolean"` und liesse beides auf die Vorgabe zurueckfallen.
+    if (array_key_exists('kollision', $incoming)) {
+        if (!avesmapsEcosystemDisplayIsObject($incoming['kollision'])) {
+            return null;
+        }
+        $rein = [];
+        foreach ($incoming['kollision'] as $k => $satz) {
+            if (!avesmapsEcosystemDisplayIsArtKey($k) || !avesmapsEcosystemDisplayIsObject($satz)) {
+                return null;
+            }
+            $reinerSatz = [];
+            foreach ($satz as $feld => $wert) {
+                if (($feld !== 'teil' && $feld !== 'fest') || !is_bool($wert)) {
+                    return null;
+                }
+                $reinerSatz[$feld] = $wert;
+            }
+            $rein[$k] = $reinerSatz;
+        }
+        $clean['kollision'] = $rein;
+    }
+
     // ---- Die Kurvenfeinheiten -------------------------------------------------------------------
     // ⚠️ Der Server fuehrt auch hier KEINE Schluesselliste: die zwoelf Werte stehen in
     // js/map-features/curve-label-fit.js (AVESMAPS_CURVE_LABEL_DEFAULTS), und eine Abschrift hier
@@ -404,7 +434,7 @@ function avesmapsEcosystemDisplayReset(PDO $pdo): void
  * Vorgabe einzusetzen faelschte den Median in ihre Richtung -- und genau die Frage, ob die Vorgabe
  * stimmt, soll er ja beantworten.
  *
- * @return array<string, array{n:int, ab?:int, bis?:int, curveMax?:int, prio?:int}>
+ * @return array<string, array{n:int, kurve?:int, ab?:int, bis?:int, curveMax?:int, prio?:int}>
  */
 function avesmapsEcosystemDisplayMedians(PDO $pdo): array
 {
@@ -428,6 +458,18 @@ function avesmapsEcosystemDisplayMedians(PDO $pdo): array
             continue;
         }
         $eimer[$art]['n'] = ($eimer[$art]['n'] ?? 0) + 1;
+        // 💣 Wie viele dieser Art werden auf einer gerechneten KURVE gemalt? Sie laufen an der
+        // Kollisionsmatrix zur Haelfte vorbei -- ein Kurvenname wird vor dem Durchgang gesetzt und
+        // rueckt ohnehin nie aus, bei ihm wirkt nur „teilnehmen". Ohne diese Zahl behauptete die
+        // Matrix stillschweigend etwas, das fuer einen Teil der Art nicht gilt; mit ihr steht der
+        // ↗-Vermerk an genau den betroffenen Zeilen.
+        // ⚠️ Gefragt wird das GELIEFERTE Feld (`curve_label_line`), dasselbe, das der Browser liest
+        // (readLabelCurveLine) -- und mit derselben Mindestlaenge 2, sonst zaehlte diese Zahl
+        // Kurven, die nie eine werden.
+        $kurve = $p['curve_label_line'] ?? null;
+        if (is_array($kurve) && count($kurve) >= 2) {
+            $eimer[$art]['kurve'] = ($eimer[$art]['kurve'] ?? 0) + 1;
+        }
         foreach ($felder as $feld => $schluessel) {
             if (isset($p[$schluessel]) && is_numeric($p[$schluessel])) {
                 $eimer[$art][$feld][] = (int) $p[$schluessel];
@@ -438,6 +480,9 @@ function avesmapsEcosystemDisplayMedians(PDO $pdo): array
     $raus = [];
     foreach ($eimer as $art => $gesammelt) {
         $eintrag = ['n' => (int) ($gesammelt['n'] ?? 0)];
+        if (($gesammelt['kurve'] ?? 0) > 0) {
+            $eintrag['kurve'] = (int) $gesammelt['kurve'];
+        }
         // Wie einheitlich steht das UNTERE Bandende? In Prozent der Beschriftungen, die den
         // haeufigsten Wert tragen -- 100 heisst „alle gleich", 33 heisst „ein Drittel".
         $unten = $gesammelt['ab'] ?? [];

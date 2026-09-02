@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Namen — Kollision: Häkchenmatrix im Fenster „Darstellung" (Entwurf, 2026-09-02)</title>
+<script>
+  /* Wie jede Editorseite: gespeicherte Wahl schlaegt OS-Schema, vor dem ersten Anstrich. */
+  (function () {
+    function isDark() {
+      var s = null; try { s = localStorage.getItem("avesmaps-theme"); } catch (e) {}
+      if (s === "dark") { return true; }
+      if (s === "light") { return false; }
+      return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    }
+    function apply() {
+      if (isDark()) { document.documentElement.setAttribute("data-theme", "dark"); }
+      else { document.documentElement.removeAttribute("data-theme"); }
+    }
+    apply();
+    if (window.matchMedia) {
+      var mq = window.matchMedia("(prefers-color-scheme: dark)");
+      if (mq.addEventListener) { mq.addEventListener("change", apply); }
+      else if (mq.addListener) { mq.addListener(apply); }
+    }
+  })();
+</script>
+<!-- 🔴 RELATIVE Pfade, Absicht: eine docs/-Datei, die per file:// geoeffnet wird. Geladen wird die
+     ECHTE CSS-Kette des Landschaften-Editors -- damit steht in dieser Datei KEINE Farbe und KEINE
+     Bauform der Tabelle: beides kommt aus dem Stylesheet, das auch das Fenster „Darstellung" laedt.
+     Vorbild: docs/landschaften-label-kollision-mockup.html. -->
+<link rel="stylesheet" href="../css/base/fonts.css">
+<link rel="stylesheet" href="../css/base/tokens.css">
+<link rel="stylesheet" href="../css/components/editor-page.css">
+<link rel="stylesheet" href="../css/pages/landschaften-editor.css">
+<link rel="stylesheet" href="../css/features/map-labels.css">
+<!-- 🔴 UND DIE ECHTE RECHENSTRECKE. `label-placement.js` ist rein (kein DOM, kein Leaflet, kein
+     Modulzustand) und laesst sich deshalb hier laden. Der Beweis unten laeuft durch DENSELBEN Loeser
+     wie die Karte -- er wird nicht nachgebaut. Genau das ist der Sinn dieses Mockups: die Frage
+     „geht das mit der Kollisionserkennung?" wird nicht behauptet, sondern gefahren.
+     ⚠️ `location-zoom-bands.js` davor, wie in index.html: label-placement.js faellt fuer einen
+     fehlenden Abstand auf avesmapsLocationLabelSpacing zurueck. -->
+<script src="../js/map-features/location-zoom-bands.js"></script>
+<script src="../js/map-features/label-placement.js"></script>
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════════════════════
+   Kein hartkodierter Farbwert, kein hartkodierter Radius, keine Schrift unter 11px
+   (AGENTS.md §12). Alles unten sind Tokens aus css/base/tokens.css.
+   Die Tabelle selbst erbt .dt / .dg__section / .dg-tabs aus css/pages/landschaften-editor.css --
+   das ist die ECHTE Bauform des Fensters, nicht eine nachgebaute.
+   ═══════════════════════════════════════════════════════════════════════════════════════════ */
+
+.proto-page { max-width: 1180px; margin: 0 auto; padding: var(--space-24) var(--space-16); }
+.proto-h1 { margin: 0 0 var(--space-4); font-size: var(--font-size-title); }
+.proto-sub { margin: 0 0 var(--space-16); color: var(--color-text-muted); font-size: var(--font-size-small); }
+
+.proto-note {
+	margin: 0 0 var(--space-16);
+	padding: var(--space-10) var(--space-12);
+	border: 1px solid var(--color-border);
+	border-left: 3px solid var(--color-accent-brown);
+	border-radius: var(--radius-md);
+	background: var(--color-panel-soft);
+	color: var(--color-text-muted);
+	font-size: var(--font-size-small);
+	line-height: 1.55;
+}
+.proto-note strong { color: var(--color-text); }
+.proto-note ul { margin: var(--space-6) 0 0; padding-left: var(--space-16); }
+.proto-note li { margin-bottom: var(--space-4); }
+
+/* Die Fensterhuelle nur ANGEDEUTET -- .avm-modal ist ein Overlay und wuerde die Seite decken. */
+.proto-window {
+	margin-bottom: var(--space-24);
+	padding: var(--space-16);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-panel);
+}
+.proto-window__title { margin: 0 0 var(--space-2); font-family: var(--font-display, var(--font-ui)); font-size: 17px; font-weight: 600; }
+.proto-window__sub { margin: 0 0 var(--space-16); color: var(--color-text-muted); font-size: 12px; }
+
+/* ---- Die zwei Haekchenspalten ------------------------------------------------------------ */
+.km-col { width: 132px; text-align: center; }
+.dt th.km-col, .dt td.km-col { text-align: center; }
+.dt td.km-col input { cursor: pointer; }
+/* Eine Spalte, die von der anderen abhaengt, wird STUMM -- nicht weggenommen: man sieht weiter,
+   was hinterlegt ist, und das Haekchen daneben gibt es unveraendert zurueck. Dieselbe Regel wie
+   bei der globalen Deckkraft (.dt tr.is-stumm im echten Fenster). */
+.dt tr.km-aus td.km-fest { opacity: 0.4; }
+
+/* 💣 `.dt th, .dt td` aus dem echten Stylesheet ist (0,1,1) und schlaegt ein blankes `.km-count`
+   (0,1,0) -- die Ausrichtung waere lautlos wirkungslos geblieben. Deshalb mit Element davor. */
+.dt th.km-count, .dt td.km-count { color: var(--color-text-muted); font-size: 11px; white-space: nowrap; text-align: right; }
+.dt td.km-count b { color: var(--color-text); font-weight: 600; }
+
+/* Die Gruppenzeile fuer die freien Namensarten. Trenner, kein Kasten (§12). */
+.dt tr.km-group td {
+	padding-top: var(--space-10);
+	border-bottom: 1px solid var(--color-divider);
+	color: var(--color-text-muted);
+	font-size: 11px;
+	font-weight: 600;
+}
+.dt tr.km-frei .dt__art { font-style: italic; }
+
+.km-warn { color: var(--color-warning); }
+.km-mark { color: var(--color-accent-brown); }
+
+/* ---- Der Beweis: dieselbe Szene, gefahren durch den echten Loeser ------------------------- */
+.pv-wrap { display: grid; gap: var(--space-16); grid-template-columns: minmax(0, 1fr) 300px; }
+@media (max-width: 900px) { .pv-wrap { grid-template-columns: minmax(0, 1fr); } }
+
+.pv-stage {
+	position: relative;
+	height: 340px;
+	overflow: hidden;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-panel-soft);
+}
+.pv-dot {
+	position: absolute;
+	width: 5px; height: 5px;
+	margin: -3px 0 0 -3px;
+	border-radius: 50%;
+	background: var(--color-accent-brown);
+}
+.pv-name {
+	position: absolute;
+	padding: 1px 3px;
+	border-radius: var(--radius-md);
+	white-space: nowrap;
+	font-size: 13px;
+	line-height: 1.25;
+	transform: translate(-50%, -50%);
+}
+.pv-name.is-gipfel { color: var(--color-text); font-weight: 600; }
+.pv-name.is-flaeche { color: var(--color-text-muted); }
+.pv-name.is-weg { color: var(--color-text-muted); font-style: italic; }
+.pv-name.is-fort { outline: 1px dashed var(--color-accent-brown); }
+.pv-name.is-weggeblendet { display: none; }
+/* Der Weg vom Punkt zur ausgewichenen Stelle. */
+.pv-leine {
+	position: absolute;
+	height: 1px;
+	background: var(--color-accent-brown);
+	opacity: 0.7;
+	transform-origin: 0 0;
+}
+
+.pv-legend { color: var(--color-text-muted); font-size: 11px; line-height: 1.6; }
+.pv-legend b { color: var(--color-text); }
+.pv-bilanz { margin-top: var(--space-8); font-size: 12px; }
+.pv-bilanz b { color: var(--color-text); }
+
+.pv-schalter { display: grid; gap: var(--space-6); margin-bottom: var(--space-10); }
+.pv-schalter label { display: flex; align-items: center; gap: var(--space-6); font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="proto-page">
+
+<h1 class="proto-h1">Namen — Kollision</h1>
+<p class="proto-sub">
+	Ein neuer Abschnitt im Fenster <strong>Darstellung</strong> des Landschaften-Editors ·
+	Entwurfsstand 02.09.2026 · alle Zahlen am Livebestand gemessen (1018&nbsp;Beschriftungen in
+	30&nbsp;Arten, <code>GET /api/app/map-features.php</code>, 02.09.2026)
+</p>
+
+<div class="proto-note">
+	<strong>Worum es geht.</strong> Ein Berggipfel wird heute genauso behandelt wie ein
+	Landschaftsname: er wandert aus dem Weg, wenn ein anderer Name seinen Platz braucht, und
+	verschwindet, wenn er keinen findet. Ein Gipfel <em>ist</em> aber sein Punkt — er darf nicht
+	danebenrutschen. Diese Tafel gibt jeder Namensart zwei Häkchen:
+	<ul>
+		<li><strong>Bei Kollisionserkennung berücksichtigen</strong> — nimmt dieser Name am
+			Ausweichen überhaupt teil? Häkchen weg: er steht, wo er steht, und die anderen Namen
+			wissen nichts von ihm.</li>
+		<li><strong>Verschiebung bei Kollision unterdrücken</strong> — er nimmt teil, aber
+			<em>er</em> rückt nicht: die anderen weichen <em>ihm</em> aus.</li>
+	</ul>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════════════════
+     DAS FENSTER
+     ═══════════════════════════════════════════════════════════════════════════════════════════ -->
+<div class="proto-window">
+	<div class="proto-window__title">Darstellung</div>
+	<div class="proto-window__sub">Wie Landschaftsflächen und ihre Namen auf der Karte aussehen.</div>
+
+	<div class="dg-tabs" id="kmTabs"></div>
+
+	<div class="dg__section">
+		<div class="dg__head">
+			<h3>Namen — Kollision</h3>
+			<span class="dg__src">Gilt je Namensart · was hier steht, gilt für alle Beschriftungen dieser Art</span>
+		</div>
+		<div class="dg-scroll">
+			<table class="dt">
+				<thead>
+					<tr>
+						<th>Art</th>
+						<th class="km-count">Namen</th>
+						<th class="km-col dt-sep">Bei Kollisions&shy;erkennung<br>berücksichtigen</th>
+						<th class="km-col">Verschiebung bei<br>Kollision unterdrücken</th>
+						<th></th>
+					</tr>
+				</thead>
+				<tbody id="kmRows"></tbody>
+			</table>
+		</div>
+		<p class="dg-plot-caption" id="kmFoot"></p>
+	</div>
+</div>
+
+<div class="proto-note">
+	<strong>Die Vorgabe ändert nichts.</strong> Beide Häkchen stehen ab Werk so, wie die Karte
+	heute zeichnet: teilnehmen&nbsp;<em>ja</em>, verschieben&nbsp;<em>ja</em>. In der Tafel oben
+	sind <strong>Berggipfel</strong> und <strong>Vulkan</strong> beispielhaft schon auf
+	„nicht verschieben" gestellt — das ist der gemeldete Fall, nicht die Auslieferung.
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════════════════
+     DER BEWEIS
+     ═══════════════════════════════════════════════════════════════════════════════════════════ -->
+<div class="proto-window">
+	<div class="proto-window__title">Geht das mit der Kollisionserkennung?</div>
+	<div class="proto-window__sub">
+		Die Szene unten ist echt (vier Gipfel und ein Gebirgsname um <em>Drei Schwestern</em>,
+		Livebestand 02.09.2026) und läuft durch <code>avesmapsResolveLabelPlacements</code> aus
+		<code>js/map-features/label-placement.js</code> — denselben Löser wie die Karte, geladen,
+		nicht nachgebaut. Die Häkchen darunter sind die aus der Tafel.
+	</div>
+
+	<div class="pv-wrap">
+		<div>
+			<div class="pv-stage" id="pvStage"></div>
+			<p class="pv-bilanz" id="pvBilanz"></p>
+		</div>
+		<div>
+			<div class="pv-schalter">
+				<label><input type="checkbox" id="pvTeil" checked> Berggipfel: bei Kollisionserkennung berücksichtigen</label>
+				<label><input type="checkbox" id="pvFest"> Berggipfel: Verschiebung unterdrücken</label>
+			</div>
+			<p class="pv-legend">
+				<b>Fett</b> = Berggipfel · <b>grau</b> = Gebirgsname — beide echt, samt der zwei
+				gleichnamigen <em>Hoher Stumpen</em>, die dort wirklich nebeneinanderliegen.<br>
+				<b>Kursiv</b> = Wegname, und der ist ein <b>Platzhalter</b>: er vertritt die
+				Canvas-Seite, die zuletzt zeichnet und nur die Belegung liest.<br>
+				Ein <b>gestrichelter Rahmen</b> heißt: dieser Name ist festgenagelt und wurde als
+				Hindernis vorgelegt.<br>
+				Der Punkt ist die echte Stelle des Namens — was danebensteht, ist ausgewichen.
+			</p>
+		</div>
+	</div>
+</div>
+
+<div class="proto-note">
+	<strong>Antwort: ja, und zwar ohne Eingriff in den Löser.</strong> Beide Häkchen sind
+	Verdrahtung in <code>getCollisionEntries</code> / <code>resolveLabelCollisions</code>
+	(<code>js/map-features/map-features-label-collisions.js</code>); die reine Rechenstrecke in
+	<code>label-placement.js</code> bleibt <em>unangetastet</em>.
+	<ul>
+		<li><strong>Die Art steht schon am Namen.</strong> <code>entry.label.labelType</code> ist
+			der <code>feature_subtype</code> — kein neues Feld, kein neuer Datenweg.</li>
+		<li><strong>„nicht berücksichtigen"</strong> = der Eintrag kommt gar nicht erst in den
+			Durchgang. Er wird nie verschoben, nie ausgeblendet — und belegt nichts.</li>
+		<li><strong>„nicht verschieben"</strong> = sein Rechteck wird <em>vorgelegt</em>, so wie
+			es die Namen auf gerechneten Kurven längst tun (<code>seedRects</code>). Der Name steht
+			fest, alle anderen weichen ihm aus. <em>Dafür ist im Löser nichts zu ändern</em> — er
+			nimmt eine Vorbelegung seit jeher entgegen, und sie darf ihre Flächen-Gruppe mittragen,
+			damit ein zweiter Name derselben Fläche weiterhin danebenstehen darf.</li>
+	</ul>
+</div>
+
+<div class="proto-note">
+	<strong>Drei Dinge, die dabei mitentschieden werden — sie stehen hier, damit sie nicht
+	unbemerkt mitlaufen.</strong>
+	<ul>
+		<li><span class="km-warn">⚠</span> <strong>Ohne Teilnahme schützt den Namen auch niemand
+			mehr.</strong> Er belegt nichts, also darf ein Straßen- oder Flussname quer durch ihn
+			gezeichnet werden (die Wegnamen lesen dieselbe Belegungskarte). Für einen Gipfel ist
+			deshalb <em>„nicht verschieben"</em> das Richtige und nicht <em>„nicht teilnehmen"</em>.</li>
+		<li><span class="km-warn">⚠</span> <strong>Festgenagelt heißt auch: nie ausgeblendet.</strong>
+			Findet ein festgenagelter Name keinen Platz, bleibt er trotzdem stehen und überlappt
+			notfalls. Die Gegenrichtung — „steht still <em>oder</em> verschwindet" — würde aus
+			„verschieb meine Gipfel nicht" ein „lösch meine Gipfel" machen; deshalb so herum.</li>
+		<li><span class="km-warn">⚠</span> <strong>Namen auf gerechneten Kurven laufen an beiden
+			Häkchen vorbei</strong> — sie werden <em>vor</em> dem Durchgang gesetzt und als feste
+			Hindernisse übergeben. Live sind das <strong>85</strong> Namen, davon 44&nbsp;Gebirge
+			und 12&nbsp;Wald. Für Gipfel ist das gegenstandslos (0&nbsp;Kurven, sie hängen an keiner
+			Fläche); für die Tafel als Ganzes heißt es: „nicht berücksichtigen" muss dort dieselbe
+			Regel lesen, sonst blockieren 44 von 75 Gebirgsnamen weiter. In der Tafel oben tragen
+			diese Arten deshalb einen <span class="km-mark">↗</span>-Vermerk.</li>
+	</ul>
+</div>
+
+<div class="proto-note">
+	<strong>Zwei Entscheidungen zur Tafel selbst.</strong>
+	<ul>
+		<li><strong>Eine Zeile je Art, nicht je Beschriftung.</strong> Das ganze Fenster arbeitet so
+			(Farbe je Art, Größe je Art, Zoomband je Art); 1018&nbsp;Einzelzeilen wären keine
+			Matrix mehr. Aus 1018&nbsp;Namen werden <strong>33&nbsp;Zeilen</strong>.</li>
+		<li><strong>Die vier freien Namensarten stehen bei Derographie</strong> — wie gewünscht.
+			Sie sind gemessen genau die vier, die keine gleichnamige Flächenart haben
+			(<em>Berggipfel, Vulkan, Fluss, Ebene</em>), und zugleich genau die vier, von deren
+			<strong>97&nbsp;Beschriftungen keine einzige an einer Fläche hängt</strong>. Bisher
+			kamen sie in diesem Fenster überhaupt nicht vor — im Code steht dazu seit dem 24.08.2026
+			ein offener Punkt („es gibt keine Stelle, die sagt, zu welcher Ebene sie gehören").
+			Diese Zuordnung ist eine <em>Auflistung</em>, keine Umschlüsselung: ihre Flächenspalten
+			bleiben leer, sie bekommen keine Flächenart.</li>
+	</ul>
+	<strong>Klimazonen tragen den Abschnitt nicht</strong> — sie haben keine Namensart (0 von 1018),
+	genau wie sie schon das Zoomband und den Größenplot nicht tragen.
+</div>
+
+<script>
+"use strict";
+(function () {
+
+const $ = (id) => document.getElementById(id);
+function esc(s) {
+	return String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════════════════
+   DIE ZEILEN. Alle Zahlen sind gemessen (map-features.php, 02.09.2026):
+     `n`     Beschriftungen dieser Art
+     `kurve` davon auf einer gerechneten Kurve -- die laufen an beiden Haekchen vorbei
+     `frei`  Namensart OHNE gleichnamige Flaechenart (die vier, die der Owner bei Derographie will)
+   🔴 Die Zeilenmenge je Reiter ist die der ECHTEN Tabelle: die Flaechenarten dieser Ebene
+   (ecoDisplayZeilen -> typesOfKind). `region` steht deshalb EINMAL, bei Derographie -- auch wenn
+   34 seiner 158 Namen an Vegetationsflaechen haengen. Die Zeile gehoert der ART, nicht dem
+   einzelnen Namen; genau so verteilt das Fenster heute schon Farbe und Groesse.
+   ═══════════════════════════════════════════════════════════════════════════════════════════ */
+const ARTEN = {
+	derographisch: [
+		{ key: "region",       label: "Region",            n: 158, kurve: 4 },
+		{ key: "inselgruppe",  label: "Inselgruppe",       n: 5,   kurve: 0 },
+		{ key: "kontinent",    label: "Kontinent",         n: 1,   kurve: 0 },
+		{ key: "sonstiges",    label: "Sonstiges",         n: 1,   kurve: 0 },
+		{ gruppe: "Freie Namensarten — ohne eigene Flächenart" },
+		{ key: "berggipfel",   label: "Berggipfel",        n: 56,  kurve: 0, frei: true },
+		{ key: "vulkan",       label: "Vulkan",            n: 20,  kurve: 0, frei: true },
+		{ key: "fluss",        label: "Fluss",             n: 19,  kurve: 0, frei: true },
+		{ key: "ebene",        label: "Ebene",             n: 2,   kurve: 0, frei: true },
+	],
+	vegetation: [
+		{ key: "wald",                label: "Wald",               n: 175, kurve: 12 },
+		{ key: "urwald",              label: "Urwald",             n: 5,   kurve: 1 },
+		{ key: "suempfe_moore",       label: "Sümpfe und Moore",   n: 47,  kurve: 1 },
+		{ key: "steppe",              label: "Steppe",             n: 9,   kurve: 0 },
+		{ key: "tundra",              label: "Tundra",             n: 0,   kurve: 0 },
+		{ key: "auenlandschaft",      label: "Auenlandschaft",     n: 10,  kurve: 2 },
+		{ key: "wueste",              label: "Wüste",              n: 5,   kurve: 0 },
+		{ key: "graslandschaft",      label: "Graslandschaft",     n: 8,   kurve: 0 },
+		{ key: "flussland_flusstal",  label: "Flussland/Flusstal", n: 31,  kurve: 5 },
+		{ key: "dschungel",           label: "Dschungel",          n: 13,  kurve: 5 },
+		{ key: "wuestenoase",         label: "Wüstenoase",         n: 9,   kurve: 0 },
+		{ key: "kulturlandschaft",    label: "Kulturlandschaft",   n: 9,   kurve: 0 },
+	],
+	topographie: [
+		{ key: "gebirge",                   label: "Gebirge",            n: 75,  kurve: 44 },
+		{ key: "see",                       label: "See",                n: 150, kurve: 2 },
+		{ key: "meer",                      label: "Meer",               n: 33,  kurve: 1 },
+		{ key: "kueste",                    label: "Küste",              n: 5,   kurve: 0 },
+		{ key: "huegelland",                label: "Hügelland",          n: 23,  kurve: 3 },
+		{ key: "wadi",                      label: "Wadi",               n: 4,   kurve: 2 },
+		{ key: "schlucht",                  label: "Schlucht",           n: 0,   kurve: 0 },
+		{ key: "hochebene",                 label: "Hochebene",          n: 5,   kurve: 0 },
+		{ key: "tiefebene",                 label: "Tiefebene",          n: 5,   kurve: 0 },
+		{ key: "tal",                       label: "Tal",                n: 32,  kurve: 3 },
+		{ key: "flussdelta",                label: "Flussdelta",         n: 2,   kurve: 0 },
+		{ key: "insel",                     label: "Insel",              n: 101, kurve: 0 },
+		{ key: "vorgebirge_mittelgebirge",  label: "Vor-/Mittelgebirge", n: 0,   kurve: 0 },
+	],
+};
+
+const EBENEN = [
+	["derographisch", "Derographie"],
+	["vegetation", "Vegetation"],
+	["topographie", "Topographie"],
+	["klima", "Klimazonen"],
+];
+
+/* Der gespeicherte Stand. 🔴 Vorgabe = wie die Karte HEUTE zeichnet: teilnehmen ja, verschieben ja.
+   Nur wer hier steht, weicht davon ab -- Berggipfel und Vulkan sind der gemeldete Fall und
+   beispielhaft gesetzt. */
+const stand = {
+	berggipfel: { teil: true, fest: true },
+	vulkan: { teil: true, fest: true },
+};
+const regelVon = (key) => stand[key] || { teil: true, fest: false };
+
+let reiter = "derographisch";
+
+function zeichneReiter() {
+	const el = $("kmTabs");
+	el.innerHTML = "";
+	EBENEN.forEach(([key, label]) => {
+		const b = document.createElement("button");
+		b.type = "button";
+		b.className = "dg-tab" + (key === reiter ? " is-active" : "");
+		b.textContent = label;
+		b.addEventListener("click", () => { reiter = key; zeichne(); });
+		el.appendChild(b);
+	});
+}
+
+function zeichne() {
+	zeichneReiter();
+	const tb = $("kmRows");
+	tb.innerHTML = "";
+	const zeilen = ARTEN[reiter];
+
+	if (!zeilen) {
+		// Klimazonen: kein Abschnitt, und das wird GESAGT statt verschwiegen.
+		const tr = document.createElement("tr");
+		tr.innerHTML = '<td colspan="5" class="dt__leer">Klimazonen tragen keine eigene Namensart — hier gibt es nichts einzustellen.</td>';
+		tb.appendChild(tr);
+		$("kmFoot").textContent = "";
+		return;
+	}
+
+	zeilen.forEach((z) => {
+		const tr = document.createElement("tr");
+		if (z.gruppe) {
+			tr.className = "km-group";
+			tr.innerHTML = '<td colspan="5">' + esc(z.gruppe) + "</td>";
+			tb.appendChild(tr);
+			return;
+		}
+		const regel = regelVon(z.key);
+		tr.className = (z.frei ? "km-frei " : "") + (regel.teil ? "" : "km-aus");
+
+		const art = document.createElement("td");
+		art.className = "dt__art";
+		art.innerHTML = esc(z.label) + '<span class="fl-key">' + esc(z.key) + "</span>";
+
+		const anz = document.createElement("td");
+		anz.className = "km-count";
+		anz.innerHTML = z.n === 0
+			? "—"
+			: "<b>" + z.n + "</b> Namen" + (z.kurve
+				? '<br><span class="km-mark">↗ ' + z.kurve + " auf Kurve</span>"
+				: "");
+
+		const tdTeil = document.createElement("td");
+		tdTeil.className = "km-col dt-sep";
+		const cbTeil = document.createElement("input");
+		cbTeil.type = "checkbox";
+		cbTeil.checked = regel.teil;
+		cbTeil.setAttribute("aria-label", "Bei Kollisionserkennung berücksichtigen: " + z.label);
+
+		const tdFest = document.createElement("td");
+		tdFest.className = "km-col km-fest";
+		const cbFest = document.createElement("input");
+		cbFest.type = "checkbox";
+		cbFest.checked = regel.fest;
+		// 🔴 Das zweite Haekchen hat ohne das erste keinen Gegenstand: wer gar nicht teilnimmt,
+		// wird ohnehin nicht verschoben. Es wird STUMM, nicht weggenommen -- der hinterlegte Wert
+		// bleibt sichtbar und kommt unveraendert zurueck, wenn das erste wieder gesetzt wird.
+		cbFest.disabled = !regel.teil;
+		cbFest.setAttribute("aria-label", "Verschiebung bei Kollision unterdrücken: " + z.label);
+
+		const wirkung = document.createElement("td");
+		wirkung.className = "dg-plot-caption";
+		wirkung.style.margin = "0";
+		wirkung.textContent = beschreibe(regel);
+
+		function merke() {
+			stand[z.key] = { teil: cbTeil.checked, fest: cbFest.checked };
+			zeichne();
+			zeichneBeweis();
+		}
+		cbTeil.addEventListener("change", merke);
+		cbFest.addEventListener("change", merke);
+
+		tdTeil.appendChild(cbTeil);
+		tdFest.appendChild(cbFest);
+		tr.append(art, anz, tdTeil, tdFest, wirkung);
+		tb.appendChild(tr);
+	});
+
+	const kurven = zeilen.reduce((s, z) => s + (z.kurve || 0), 0);
+	$("kmFoot").innerHTML = kurven
+		? '<span class="km-mark">↗</span> Diese Namen liegen auf einer gerechneten Kurve ihrer Fläche '
+			+ "und werden gesetzt, <em>bevor</em> die Kollision läuft — für sie zählt nur das linke Häkchen."
+		: "";
+}
+
+/** Was die zwei Haekchen zusammen BEDEUTEN -- ausgeschrieben, damit niemand die Matrix im Kopf hat. */
+function beschreibe(regel) {
+	if (!regel.teil) { return "Steht fest. Andere Namen wissen nichts von ihm und dürfen ihn überschreiben."; }
+	if (regel.fest) { return "Steht fest. Andere Namen weichen ihm aus."; }
+	return "Weicht aus; findet er nichts, verschwindet er.";
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════════════════
+   DER BEWEIS -- durch den ECHTEN Loeser.
+
+   💣 Der einzige Nachbau hier ist die MESSUNG (die Karte misst mit getBoundingClientRect, wir
+   rechnen die Kaesten aus der Namenslaenge). Alles, was ENTSCHEIDET, ist die geladene Fassung:
+   avesmapsFreeLabelCandidatePlacements baut den Ausweichring, avesmapsResolveLabelPlacements
+   verteilt die Plaetze. Wer hier eine zweite Ordnung einbaute, haette ein Mockup, das etwas
+   anderes zeigt als die Karte -- schlimmer als gar keins.
+   ═══════════════════════════════════════════════════════════════════════════════════════════ */
+
+// Die Szene, echt: vier Gipfel und ein Gebirgsname um „Drei Schwestern" (Livebestand 02.09.2026),
+// dazu ein Wegname als Vertreter der Canvas-Seite, die zuletzt zeichnet.
+// Kartenkoordinaten -> Bildschirm: 64 px je Karteneinheit (Zoom 6), y gespiegelt (y waechst nach NORDEN).
+const SZENE = [
+	{ text: "Drei Schwestern", art: "berggipfel", x: 525.914, y: 647.766, gr: 16 },
+	{ text: "Hoher Stumpen",   art: "berggipfel", x: 527.969, y: 647.609, gr: 15 },
+	{ text: "Hoher Stumpen",   art: "berggipfel", x: 527.719, y: 646.203, gr: 14 },
+	{ text: "Finsterkopp",     art: "berggipfel", x: 523.828, y: 646.297, gr: 16 },
+	{ text: "Schwarzkuppen",   art: "gebirge",    x: 530.344, y: 652.281, gr: 20 },
+];
+// ⚠️ PLATZHALTER, und das steht auch unter der Buehne: er vertritt die Canvas-Seite (Weg- und
+// Flussnamen), die ZULETZT zeichnet und nur die Belegung liest. Die fuenf Namen darueber sind echt.
+const WEGNAME = { text: "Reichsstraße 4", x: 526.6, y: 647.75 };
+
+// 🔴 Ausschnitt und Massstab werden GERECHNET, nicht abgeschrieben: eine feste Buehnenbreite war
+// beim ersten Bau um 64 px daneben, und „Schwarzkuppen" stand 65 px ueber dem oberen Rand -- fuer
+// den Betrachter sah die Szene damit vollstaendig aus, obwohl ein Name fehlte.
+const RAND = 110;   // Platz fuer die halbe Namensbreite an jeder Seite
+let MITTE = { x: 0, y: 0 };
+let PX_JE_EINHEIT = 48;
+let STAGE_W = 760, STAGE_H = 340;
+
+function passeAusschnittAn(stage) {
+	const box = stage.getBoundingClientRect();
+	STAGE_W = box.width || 760;
+	STAGE_H = box.height || 340;
+	const xs = SZENE.map((s) => s.x), ys = SZENE.map((s) => s.y);
+	const minX = Math.min(...xs), maxX = Math.max(...xs);
+	const minY = Math.min(...ys), maxY = Math.max(...ys);
+	MITTE = { x: (minX + maxX) / 2, y: (minY + maxY) / 2 };
+	// 💣 UNTERGRENZE UEBER NULL. In einem Fenster, das gerade keine Breite hat (verborgener Tab,
+	// Vorschaubild), ist `STAGE_W - RAND * 2` NEGATIV -- und ein negativer Massstab spiegelt die
+	// ganze Szene, statt sie zu verkleinern. Gemessen: die Namen standen bei -108 px, also links
+	// ausserhalb, und die Buehne sah einfach leer aus. Dieselbe Klasse Falle wie beim `versatz`
+	// von 0 in avesmapsFreeLabelCandidatePlacements.
+	PX_JE_EINHEIT = Math.max(6, Math.min(
+		(STAGE_W - RAND * 2) / Math.max(0.001, maxX - minX),
+		(STAGE_H - 60) / Math.max(0.001, maxY - minY)
+	));
+}
+
+function aufSchirm(x, y) {
+	return {
+		sx: STAGE_W / 2 + (x - MITTE.x) * PX_JE_EINHEIT,
+		sy: STAGE_H / 2 - (y - MITTE.y) * PX_JE_EINHEIT,
+	};
+}
+// Breite eines Namens abschaetzen. ⚠️ NUR die Messung ist geschaetzt, nicht die Ordnung.
+function mass(text, gr) {
+	return { w: text.length * gr * 0.52 + 8, h: gr * 1.35 + 4 };
+}
+function rectUm(sx, sy, w, h, repel) {
+	return { left: sx - w / 2 - repel, right: sx + w / 2 + repel, top: sy - h / 2 - repel, bottom: sy + h / 2 + repel, width: w + repel * 2, height: h + repel * 2 };
+}
+
+function zeichneBeweis() {
+	const stage = $("pvStage");
+	stage.innerHTML = "";
+	passeAusschnittAn(stage);
+
+	const gipfelRegel = { teil: $("pvTeil").checked, fest: $("pvFest").checked };
+	// Die Tafel und die zwei Schalter sind DASSELBE -- der Schalter schreibt in denselben Stand.
+	stand.berggipfel = { teil: gipfelRegel.teil, fest: gipfelRegel.fest };
+
+	// Die echten Abstaende der Landschaftsnamen (Vorgabe aus ecosystem-display.js).
+	const REPEL = 2, VERSATZ = 8, DRIFT = 72;
+	const kandidaten = avesmapsFreeLabelCandidatePlacements(VERSATZ, DRIFT);
+
+	const seeds = [];       // festgenagelte Namen: Vorbelegung, wie die Kurvennamen
+	const eintraege = [];   // alles, was am Durchgang teilnimmt
+	const meta = [];
+
+	SZENE.forEach((s) => {
+		const p = aufSchirm(s.x, s.y);
+		const m = mass(s.text, s.gr);
+		const regel = s.art === "berggipfel" ? gipfelRegel : { teil: true, fest: false };
+		const rect = rectUm(p.sx, p.sy, m.w, m.h, REPEL);
+		const info = { s, p, m, regel, kandidat: { dx: 0, dy: 0 }, weg: false, fest: false };
+
+		if (!regel.teil) {
+			// Nimmt nicht teil: steht auf seinem Punkt, belegt NICHTS.
+			meta.push(info);
+			return;
+		}
+		if (regel.fest) {
+			// Festgenagelt = Vorbelegung. Genau der Weg, den die Kurvennamen schon gehen.
+			seeds.push({ ...rect, group: "" });
+			info.fest = true;
+			meta.push(info);
+			return;
+		}
+		info.index = eintraege.length;
+		eintraege.push({
+			kollisionsRect: rect,
+			basisOffset: { x: 0, y: 0 },
+			kandidaten: kandidaten,
+			gruppe: "",
+			relativ: false,
+			prioritaet: 1000 + 3,
+			minZoom: 0,
+			maxDrift: DRIFT,
+		});
+		meta.push(info);
+	});
+
+	// 🔴 HIER LAEUFT DIE ECHTE FASSUNG.
+	const { ergebnisse, belegt } = avesmapsResolveLabelPlacements(eintraege, { seedRects: seeds, maxDrift: DRIFT });
+
+	let verschoben = 0, weg = 0, fest = 0;
+	meta.forEach((info) => {
+		if (typeof info.index === "number") {
+			const e = ergebnisse[info.index];
+			info.kandidat = e.kandidat;
+			info.weg = e.kollidiert;
+			if (e.kollidiert) { weg++; }
+			else if (e.kandidat.dx !== 0 || e.kandidat.dy !== 0) { verschoben++; }
+		}
+		if (info.fest) { fest++; }
+
+		const dot = document.createElement("div");
+		dot.className = "pv-dot";
+		dot.style.left = info.p.sx + "px";
+		dot.style.top = info.p.sy + "px";
+		stage.appendChild(dot);
+
+		// Ist er ausgewichen, wird der Weg dorthin GEZEICHNET. Ein Versatz von 24 px ist echt und
+		// richtig -- aber ohne die Linie sieht man ihn nicht, und dann liest sich „ausgewichen" wie
+		// eine Behauptung ueber ein Bild, in dem nichts passiert.
+		if (!info.weg && (info.kandidat.dx !== 0 || info.kandidat.dy !== 0)) {
+			const laenge = Math.hypot(info.kandidat.dx, info.kandidat.dy);
+			const strich = document.createElement("div");
+			strich.className = "pv-leine";
+			strich.style.left = info.p.sx + "px";
+			strich.style.top = info.p.sy + "px";
+			strich.style.width = laenge + "px";
+			strich.style.transform = "rotate(" + Math.atan2(info.kandidat.dy, info.kandidat.dx) + "rad)";
+			strich.title = "ausgewichen um " + Math.round(laenge) + " px";
+			stage.appendChild(strich);
+		}
+
+		const el = document.createElement("div");
+		el.className = "pv-name " + (info.s.art === "berggipfel" ? "is-gipfel" : "is-flaeche")
+			+ (info.fest ? " is-fort" : "") + (info.weg ? " is-weggeblendet" : "");
+		el.style.left = (info.p.sx + info.kandidat.dx) + "px";
+		el.style.top = (info.p.sy + info.kandidat.dy) + "px";
+		el.style.fontSize = info.s.gr + "px";
+		el.textContent = info.s.text;
+		stage.appendChild(el);
+	});
+
+	// Der Wegname zuletzt -- er liest die BELEGUNG und weicht nur an seiner eigenen Linie aus.
+	// Vereinfacht: er rutscht waagerecht, bis er frei ist, sonst wird er gar nicht gezeichnet.
+	const wp = aufSchirm(WEGNAME.x, WEGNAME.y);
+	const wm = mass(WEGNAME.text, 13);
+	let wegDx = null;
+	for (let d = 0; d <= 180; d += 6) {
+		for (const s of (d === 0 ? [0] : [-d, d])) {
+			const r = rectUm(wp.sx + s, wp.sy, wm.w, wm.h, REPEL);
+			const frei = !belegt.some((b) => r.left < b.right && r.right > b.left && r.top < b.bottom && r.bottom > b.top);
+			if (frei) { wegDx = s; break; }
+		}
+		if (wegDx !== null) { break; }
+	}
+	if (wegDx !== null) {
+		const wl = document.createElement("div");
+		wl.className = "pv-name is-weg";
+		wl.style.left = (wp.sx + wegDx) + "px";
+		wl.style.top = wp.sy + "px";
+		wl.textContent = WEGNAME.text;
+		stage.appendChild(wl);
+	}
+
+	const teile = [];
+	teile.push("<b>" + fest + "</b> festgenagelt");
+	teile.push("<b>" + verschoben + "</b> ausgewichen");
+	teile.push("<b>" + weg + "</b> ausgeblendet");
+	teile.push(wegDx === null
+		? "der Wegname findet <b>keinen</b> Platz"
+		: (wegDx === 0 ? "der Wegname steht auf seiner Linie" : "der Wegname weicht <b>" + Math.abs(wegDx) + " px</b> aus"));
+	if (!gipfelRegel.teil) {
+		teile.push('<span class="km-warn">die vier Gipfel belegen nichts — der Wegname darf durch sie hindurch</span>');
+	}
+	$("pvBilanz").innerHTML = teile.join(" · ");
+}
+
+$("pvTeil").addEventListener("change", () => {
+	$("pvFest").disabled = !$("pvTeil").checked;
+	zeichne();
+	zeichneBeweis();
+});
+$("pvFest").addEventListener("change", () => { zeichne(); zeichneBeweis(); });
+
+// Anfangsstellung: die Tafel oben hat Berggipfel auf „festgenagelt" -- die Schalter folgen ihr.
+$("pvTeil").checked = regelVon("berggipfel").teil;
+$("pvFest").checked = regelVon("berggipfel").fest;
+$("pvFest").disabled = !$("pvTeil").checked;
+
+zeichne();
+zeichneBeweis();
+
+})();
+</script>
+
+</div>
+</body>
+</html>

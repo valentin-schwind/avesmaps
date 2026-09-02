@@ -646,12 +646,32 @@
 	// bekommt so seine Container-Pixel zurueck (map-features-label-occupancy.js). Wer das vergisst,
 	// laesst die Kurvenlabels an der falschen Stelle blockieren -- kein Absturz, nur „hier fehlt
 	// komisch oft ein Ortsname".
+	// 🔴 UND SIE LIEST DIE KOLLISIONSREGEL DER NAMENSART (Owner 02.09.2026, „kurven auch
+	// nachziehen"). Ein Name auf einer gerechneten Kurve laeuft NICHT durch den Durchgang -- er wird
+	// davor gesetzt und hier nur als Hindernis gemeldet. Ohne diese Zeile waere „nimmt nicht teil"
+	// fuer ihn wirkungslos, und zwar in der schlimmsten Form: die Tafel behauptete etwas, das fuer
+	// 85 von 1018 Beschriftungen nicht gilt -- darunter 44 der 75 Gebirgsnamen (live gemessen
+	// 02.09.2026). Eine Regel, die einen von mehreren Erzeugern bindet, ist keine Regel.
+	//
+	// 🔴 NUR DAS LINKE HAEKCHEN WIRKT HIER, und das ist kein Versaeumnis: ein Kurvenname RUECKT
+	// ohnehin nicht aus (er sitzt auf der Kurve seiner Flaeche), er ist also von Bauart schon
+	// „festgenagelt". `fest` waere fuer ihn eine Aussage ueber etwas, das er gar nicht kann.
+	//
+	// ⚠️ GEZEICHNET WIRD ER WEITER. „Nicht beruecksichtigen" ist eine Aussage ueber die Kollision,
+	// nicht ueber die Sichtbarkeit -- der Name bleibt auf der Karte, er haelt nur niemanden mehr ab.
+	// Deshalb steht der Riegel HIER und nicht in berechneKurvenlabels() oder im Zeichner.
+	function kurvenlabelIstHindernis(label) {
+		if (typeof avesmapsEcosystemDisplayKollisionsRolle !== "function") { return true; }
+		return avesmapsEcosystemDisplayKollisionsRolle(label && label.labelType) !== "aus";
+	}
+
 	window.avesmapsKurvenlabelPlatzierungen = function (containerOrigin) {
 		const ablage = berechneKurvenlabels();
 		const links = Number(containerOrigin && containerOrigin.left) || 0;
 		const oben = Number(containerOrigin && containerOrigin.top) || 0;
 		const rechtecke = [];
 		for (const eintrag of ablage.eintraege) {
+			if (!kurvenlabelIstHindernis(eintrag.label)) { continue; }
 			for (const f of eintrag.fenster) {
 				for (const kasten of f.kaesten) {
 					rechtecke.push({

@@ -226,6 +226,35 @@
 .dt tr.is-stumm .fl-range,
 .dt tr.is-stumm .fl-pctnum { opacity: 0.4; }
 
+/* ── „Namen — Kollision": zwei Häkchen je Namensart (Owner 02.09.2026) ─────────────────────────
+   Prototyp docs/label-kollision-matrix-mockup.html. Sie liegt in derselben .dt-Tabelle wie oben --
+   keine zweite Tabellenbauform (dieselbe Regel wie bei den Listenzeilen, AGENTS.md §11).
+   💣 `.dt th, .dt td` ist (0,1,1) und schlägt ein blankes `.km-col` (0,1,0): ohne das Element davor
+   bliebe die Ausrichtung lautlos wirkungslos. */
+.dt th.km-col, .dt td.km-col { width: 132px; text-align: center; }
+.dt td.km-col input { cursor: pointer; }
+.dt th.km-count, .dt td.km-count {
+	color: var(--color-text-muted);
+	font-size: 11px;
+	white-space: nowrap;
+	text-align: right;
+}
+.dt td.km-count b { color: var(--color-text); font-weight: 600; }
+.dt td.km-wirkung { color: var(--color-text-muted); font-size: 11px; line-height: 1.4; }
+/* Hängt die zweite Spalte am ersten Häkchen, ist sie nicht weg, sondern STUMM -- man sieht weiter,
+   welcher Wert hinterlegt ist, und er kommt unverändert zurück. Wie bei `.dt tr.is-stumm` oben. */
+.dt tr.km-aus td.km-fest { opacity: 0.4; }
+/* Die freien Namensarten stehen hier zu Gast -- eine Zwischenüberschrift, kein Kasten (§12). */
+.dt tr.km-group td {
+	padding-top: var(--space-10);
+	border-bottom: 1px solid var(--color-divider);
+	color: var(--color-text-muted);
+	font-size: 11px;
+	font-weight: 600;
+}
+.dt tr.km-frei .dt__art { font-style: italic; }
+.km-mark { color: var(--color-accent-brown); }
+
 /* ── Die globale Deckkraft je Ebene ────────────────────────────────────────────────────────── */
 .fl-global {
 	display: grid;

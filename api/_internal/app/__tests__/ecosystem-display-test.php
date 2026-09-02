@@ -170,6 +170,46 @@ assert(avesmapsEcosystemDisplayValidate(['abstaende' => [1, 2, 3]]) === null, 'e
 assert(avesmapsEcosystemDisplayValidate(['abstaende' => ['drift' => 40]])['abstaende'] === ['drift' => 40.0],
     'ein einzelner Wert genuegt');
 
+// ---- H2. Kollision je Namensart (Owner 02.09.2026) ----------------------------------------------
+// Zwei Haekchen je Art: `teil` (nimmt am Ausweichen teil) und `fest` (rueckt selbst nicht).
+// 🔴 Der Server kennt die VORGABE nicht -- die steht im Browser. Er prueft die FORM.
+$ok = avesmapsEcosystemDisplayValidate(['kollision' => ['berggipfel' => ['teil' => true, 'fest' => true]]]);
+assert($ok['kollision']['berggipfel'] === ['teil' => true, 'fest' => true], 'beide Haekchen gehen durch');
+
+// Ein Teilsatz ist gueltig: wer nur eines der beiden verstellt, schickt nur eines.
+assert(avesmapsEcosystemDisplayValidate(['kollision' => ['vulkan' => ['fest' => true]]])['kollision']
+    === ['vulkan' => ['fest' => true]], 'ein einzelnes Feld genuegt');
+assert(avesmapsEcosystemDisplayValidate(['kollision' => ['fluss' => []]])['kollision']
+    === ['fluss' => []], 'ein leerer Satz ist gueltig -- er sagt nichts, und das ist eine Aussage');
+
+// 💣 EIN UNBEKANNTES FELD WIRD ABGELEHNT, nicht ueberlesen. `test` statt `fest` faende sonst
+// niemand: der Browser liest den Tippfehler nicht, faellt stumm auf die Vorgabe zurueck, und das
+// Haekchen taete einfach nichts -- dieselbe Begruendung wie bei `abstaende` darueber.
+assert(avesmapsEcosystemDisplayValidate(['kollision' => ['berggipfel' => ['test' => true]]]) === null,
+    'ein Tippfehler im Feldnamen faellt raus, statt lautlos nichts zu tun');
+
+// 💣 UND ES MUESSEN WAHRHEITSWERTE SEIN. `1`, `"true"` und `0` sehen aus wie ja/nein und sind es
+// nicht; der Browser prueft `typeof === "boolean"` und liesse jeden davon auf die Vorgabe
+// zurueckfallen -- ein Wert, den der Server annimmt und der Browser dann verwirft, ist eine stille
+// Luege (dieselbe Regel wie beim `versatz` von 1).
+foreach ([1, 0, 'true', 'false', null, 1.0, []] as $mist) {
+    assert(avesmapsEcosystemDisplayValidate(['kollision' => ['berggipfel' => ['teil' => $mist]]]) === null,
+        'nur echte Wahrheitswerte: ' . var_export($mist, true) . ' faellt raus');
+}
+
+// Schluesselform und Grobform wie bei den uebrigen Abschnitten.
+assert(avesmapsEcosystemDisplayValidate(['kollision' => ['Berggipfel' => ['teil' => false]]]) === null,
+    'Grossbuchstaben sind kein Artenschluessel');
+assert(avesmapsEcosystemDisplayValidate(['kollision' => ['berggipfel' => true]]) === null,
+    'der Wert einer Art ist ein Satz, kein blanker Wahrheitswert');
+assert(avesmapsEcosystemDisplayValidate(['kollision' => [1, 2, 3]]) === null, 'eine Liste ist keine Tafel');
+assert(avesmapsEcosystemDisplayValidate(['kollision' => []])['kollision'] === [], 'leer ist gueltig');
+
+// 🔴 `teil => false` MUSS durchkommen -- „nimmt nicht teil" ist eine Einstellung, kein Nichtwissen.
+// Ein Filter, der falsy Werte wegwirft, macht daraus lautlos „nichts gespeichert".
+assert(avesmapsEcosystemDisplayValidate(['kollision' => ['ebene' => ['teil' => false, 'fest' => false]]])['kollision']
+    === ['ebene' => ['teil' => false, 'fest' => false]], 'false ueberlebt die Pruefung');
+
 // ---- I. Deckel ----------------------------------------------------------------------------------
 $riesig = ['farbe' => []];
 for ($i = 0; $i < 6000; $i += 1) {
@@ -219,5 +259,38 @@ $eng->exec("CREATE TRIGGER kuerzen AFTER INSERT ON app_setting BEGIN
 END");
 assert(avesmapsEcosystemDisplayWrite($eng, $tafel) === false,
     'eine gekuerzte Ablage meldet FALSE statt stillen Erfolg');
+
+// ---- L. Der Median je Namensart -- und die Zahl der KURVENNAMEN ----------------------------------
+// 🔴 Die Zahl der Kurvennamen ist seit dem 02.09.2026 dabei, und sie traegt eine Aussage: ein Name
+// auf einer gerechneten Kurve laeuft an der Kollisionsmatrix zur HAELFTE vorbei (er wird vor dem
+// Durchgang gesetzt und rueckt ohnehin nie aus, bei ihm wirkt nur „teilnehmen"). Ohne diese Zahl
+// behauptete die Matrix stillschweigend etwas, das fuer einen Teil der Art nicht gilt.
+// ⚠️ Dieselbe Mindestlaenge 2 wie im Browser (readLabelCurveLine) -- sonst zaehlte sie Kurven,
+// die nie eine werden.
+$m = new AvesmapsEcosystemDisplayTestPdo('sqlite::memory:', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+$m->exec('CREATE TABLE map_features (
+    feature_type TEXT, feature_subtype TEXT, is_active INTEGER, properties_json TEXT
+)');
+$setze = static function (string $art, array $props) use ($m): void {
+    $m->prepare('INSERT INTO map_features VALUES (?, ?, 1, ?)')
+        ->execute(['label', $art, json_encode($props)]);
+};
+$setze('gebirge', ['min_zoom' => 2, 'max_zoom' => 7, 'curve_label_line' => [[1, 1], [2, 2], [3, 3]]]);
+$setze('gebirge', ['min_zoom' => 2, 'max_zoom' => 7, 'curve_label_line' => [[1, 1], [2, 2]]]);
+$setze('gebirge', ['min_zoom' => 3, 'max_zoom' => 7]);
+$setze('gebirge', ['min_zoom' => 2, 'max_zoom' => 7, 'curve_label_line' => [[1, 1]]]);   // zu kurz
+$setze('berggipfel', ['min_zoom' => 4, 'max_zoom' => 7]);
+// Eine INAKTIVE Zeile zaehlt nicht -- sonst meldete die Matrix Namen, die auf keiner Karte stehen.
+$m->prepare('INSERT INTO map_features VALUES (?, ?, 0, ?)')
+    ->execute(['label', 'berggipfel', json_encode(['min_zoom' => 6, 'curve_label_line' => [[1, 1], [2, 2]]])]);
+
+$median = avesmapsEcosystemDisplayMedians($m);
+assert($median['gebirge']['n'] === 4, 'vier aktive Gebirgsnamen');
+assert($median['gebirge']['kurve'] === 2, 'davon zwei mit einer brauchbaren Kurve -- die einpunktige nicht');
+assert($median['gebirge']['ab'] === 2, 'der Median des unteren Bandendes');
+assert(!array_key_exists('kurve', $median['berggipfel']),
+    'ohne Kurvennamen fehlt der Schluessel ganz -- „0" und „gar keine" sind dieselbe Aussage, und '
+    . 'der Schluessel waere nur Ballast in einer Antwort, die ohnehin je Art eine Zeile traegt');
+assert($median['berggipfel']['n'] === 1, 'die inaktive Zeile zaehlt nicht mit');
 
 echo "ecosystem-display: alle Zusicherungen gruen\n";
