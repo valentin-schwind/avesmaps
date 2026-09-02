@@ -2044,7 +2044,12 @@ async function bindungSuchen(q) {
   const kasten = $('bindung-treffer');
   if (!kasten) return;
   try {
-    const r = await api('wiki_binding_candidates', { method:'POST', body:{ query: q } });
+    // ⭐ Der Deckel ist der GETEILTE (AVESMAPS_WIKI_ASSIGN_TREFFER_LIMIT = 40) -- dieselbe Zahl,
+    // die der Ortspicker zeigt. Abgeschrieben wäre sie die nächste, die auseinanderläuft.
+    const r = await api('wiki_binding_candidates', {
+      method: 'POST',
+      body: { query: q, limit: AVESMAPS_WIKI_ASSIGN_TREFFER_LIMIT },
+    });
     bindungTreffer = r.rows || [];
     bindungAktiv = 0;
     bindungTrefferZeichnen();
