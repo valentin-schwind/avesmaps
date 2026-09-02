@@ -31,7 +31,15 @@
 		if (!map.getPane(PANE_NAME)) {
 			map.createPane(PANE_NAME);
 			const pane = map.getPane(PANE_NAME);
-			pane.style.zIndex = 639;
+			// 🔴 UNTER JEDER BESCHRIFTUNG, und die niedrigste entscheidet: der Wegenamen-Canvas (470,
+			// map-features-path-label-canvas-overlay.js) traegt die FLUSSNAMEN -- also genau den Namen,
+			// der auf demselben Fluss steht wie das Dreieck. Bis zum 02.09.2026 stand hier 639: unter
+			// labelsPane (650) und damit scheinbar richtig einsortiert, aber ueber den Flussnamen, und
+			// ein Dreieck fiel mitten ins Wort (Owner: „sollten aber darunter einsortiert sein").
+			// ⚠️ Nicht weiter herunter: ueber roadsPane (400) muss es bleiben, sonst saesse das Dreieck
+			// unter seinem eigenen Fluss. Bewacht von __tests__/stroemungspfeile-unter-labels.test.js,
+			// das beide Zahlen aus dem Code liest statt eine erwartete festzuschreiben.
+			pane.style.zIndex = 469;
 			pane.style.pointerEvents = "none";
 		}
 		const canvas = document.createElement("canvas");
