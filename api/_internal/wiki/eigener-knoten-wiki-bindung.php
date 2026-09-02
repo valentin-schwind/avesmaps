@@ -527,33 +527,59 @@ function avesmapsEigenerKnotenBindungKandidaten(PDO $pdo, string $suche, int $li
     if ($suche === '') {
         return [];
     }
-    $statement = $pdo->prepare(
-        'SELECT wiki_key, name, type, wiki_url, founded_text, dissolved_text
-           FROM political_territory_wiki
-          WHERE name LIKE :q
-          ORDER BY name ASC
-          LIMIT ' . max(1, min(100, $limit))
-    );
-    $statement->execute(['q' => '%' . $suche . '%']);
 
+    // 🔴 BEIDE TABELLEN, und das ist der Kern. Ein frisch gesyncter Artikel liegt AUSSCHLIESSLICH
+    // im Staging: avesmapsWikiDumpPersistTerritoryRecords schreibt political_territory_wiki_test,
+    // niemals den Spiegel -- in den kommt er erst mit "3 · Uebernehmen". Genau das sind aber die
+    // inoffiziellen Gebiete, um die es hier geht.
+    // 🪤 Live gemessen 02.09.2026: mit nur dem Spiegel meldete der Kasten "Kein Artikel gefunden"
+    // fuer Inoffiziell:Táyârret, obwohl der Sync eine Stunde vorher gelaufen war. Der Entwurf nannte
+    // beide Tabellen; die erste Umsetzung las eine. Gefunden hat es der Blick im Browser, kein Test.
     $zeilen = [];
-    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $r) {
-        $url = (string) ($r['wiki_url'] ?? '');
-        $ns = $url !== '' ? avesmapsWikiNamespaceFromWikiUrl($url) : null;
-        $zeilen[] = [
-            'wiki_key' => (string) $r['wiki_key'],
-            'name' => (string) $r['name'],
-            'type' => (string) ($r['type'] ?? ''),
-            'wiki_url' => $url,
-            'official' => $ns === null ? null : avesmapsWikiNamespaceIsOfficial($ns),
-            'period' => trim(implode(' - ', array_filter([
-                trim((string) ($r['founded_text'] ?? '')),
-                trim((string) ($r['dissolved_text'] ?? '')),
-            ]))),
-        ];
+    $gesehen = [];
+    foreach ([
+        ['political_territory_wiki', false],
+        [AVESMAPS_WIKI_SYNC_MONITOR_STAGING_TABLE, true],
+    ] as [$tabelle, $istStaging]) {
+        $statement = $pdo->prepare(
+            "SELECT wiki_key, name, type, wiki_url, founded_text, dissolved_text
+               FROM {$tabelle}
+              WHERE name LIKE :q
+              ORDER BY name ASC
+              LIMIT " . max(1, min(100, $limit))
+        );
+        $statement->execute(['q' => '%' . $suche . '%']);
+
+        foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $r) {
+            $key = (string) $r['wiki_key'];
+            // ⚠️ Der SPIEGEL gewinnt: dieselbe Seite steht nach einer Uebernahme in beiden, und die
+            // gepflegte Fassung ist die, gegen die der Editor entscheiden soll.
+            if (isset($gesehen[$key])) {
+                continue;
+            }
+            $gesehen[$key] = true;
+            $url = (string) ($r['wiki_url'] ?? '');
+            $ns = $url !== '' ? avesmapsWikiNamespaceFromWikiUrl($url) : null;
+            $zeilen[] = [
+                'wiki_key' => $key,
+                'name' => (string) $r['name'],
+                'type' => (string) ($r['type'] ?? ''),
+                'wiki_url' => $url,
+                'official' => $ns === null ? null : avesmapsWikiNamespaceIsOfficial($ns),
+                // ⚠️ Der Editor MUSS sehen, dass eine Zeile nur im Staging liegt: sie ist noch nicht
+                // uebernommen, und ihre Werte koennen sich mit dem naechsten "Uebernehmen" aendern.
+                'staging_only' => $istStaging,
+                'period' => trim(implode(' - ', array_filter([
+                    trim((string) ($r['founded_text'] ?? '')),
+                    trim((string) ($r['dissolved_text'] ?? '')),
+                ]))),
+            ];
+        }
     }
 
-    return $zeilen;
+    usort($zeilen, static fn(array $a, array $b): int => strcmp($a['name'], $b['name']));
+
+    return array_slice($zeilen, 0, max(1, min(100, $limit)));
 }
 
 /**
@@ -572,9 +598,21 @@ function avesmapsEigenerKnotenBindungKandidaten(PDO $pdo, string $suche, int $li
  */
 function avesmapsEigenerKnotenBindungVorschlaege(PDO $pdo): array
 {
+    // 🔴 BEIDE TABELLEN -- siehe avesmapsEigenerKnotenBindungKandidaten. Der Sammellauf ist genau
+    // fuer die frisch gesyncten inoffiziellen Gebiete gedacht, und die liegen im Staging.
+    // ⚠️ Ein Schluessel, der in beiden steht, zaehlt EINMAL -- sonst gaelte jeder uebernommene
+    // Artikel als "zwei Treffer auf einen Namen" und waere damit faelschlich mehrdeutig.
     $artikelNachName = [];
-    foreach ($pdo->query('SELECT wiki_key, name FROM political_territory_wiki')->fetchAll(PDO::FETCH_ASSOC) as $r) {
-        $artikelNachName[avesmapsPoliticalSlug((string) $r['name'])][] = $r;
+    $gesehen = [];
+    foreach (['political_territory_wiki', AVESMAPS_WIKI_SYNC_MONITOR_STAGING_TABLE] as $tabelle) {
+        foreach ($pdo->query("SELECT wiki_key, name FROM {$tabelle}")->fetchAll(PDO::FETCH_ASSOC) as $r) {
+            $key = (string) $r['wiki_key'];
+            if (isset($gesehen[$key])) {
+                continue;
+            }
+            $gesehen[$key] = true;
+            $artikelNachName[avesmapsPoliticalSlug((string) $r['name'])][] = $r;
+        }
     }
 
     $eigene = $pdo->query(
@@ -615,14 +653,28 @@ function avesmapsEigenerKnotenBindungVorschlaege(PDO $pdo): array
     return $roh;
 }
 
-/** LESEND: die Wiki-Werte eines Zielschluessels, in der Form, die Vorschau und Uebernahme lesen. */
+/**
+ * LESEND: die Wiki-Werte eines Zielschluessels, in der Form, die Vorschau und Uebernahme lesen.
+ *
+ * 🔴 DERSELBE RUECKFALL WIE BEI DER SUCHE, und er ist zwingend: was die Kandidatenliste aus dem
+ * Staging anbietet, muss die Uebernahme auch LESEN koennen. Ohne ihn faende der Editor den Artikel,
+ * klickte ihn an -- und bekaeme eine Zielzeile mit nichts als dem Namen darin, weil der Spiegel die
+ * Seite noch nicht kennt. Ein Anbieten ohne Lesenkoennen ist die schlimmere Haelfte des Fehlers vom
+ * 02.09.2026.
+ * ⚠️ Der Spiegel gewinnt, aus demselben Grund wie dort: er ist die gepflegte Fassung.
+ */
 function avesmapsEigenerKnotenBindungZielWerte(PDO $pdo, string $zielKey): array
 {
-    $s = $pdo->prepare('SELECT * FROM political_territory_wiki WHERE wiki_key = :k LIMIT 1');
-    $s->execute(['k' => $zielKey]);
-    $r = $s->fetch(PDO::FETCH_ASSOC);
+    foreach (['political_territory_wiki', AVESMAPS_WIKI_SYNC_MONITOR_STAGING_TABLE] as $tabelle) {
+        $s = $pdo->prepare("SELECT * FROM {$tabelle} WHERE wiki_key = :k LIMIT 1");
+        $s->execute(['k' => $zielKey]);
+        $r = $s->fetch(PDO::FETCH_ASSOC);
+        if (is_array($r)) {
+            return $r;
+        }
+    }
 
-    return is_array($r) ? $r : [];
+    return [];
 }
 
 /**

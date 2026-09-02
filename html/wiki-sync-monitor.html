@@ -1963,7 +1963,11 @@ document.addEventListener('input', (e) => {
       kasten.innerHTML = zeilen.length
         ? zeilen.map(row => {
             const kanon = row.official === false ? '<b>Inoffiziell</b>' : (row.official === true ? 'Kanon' : '');
-            const teile = [kanon, esc(row.type || ''), esc(row.period || '')].filter(Boolean);
+            // ⚠️ „nur Staging" heisst: der Artikel ist gesynct, aber noch nicht übernommen. Seine
+            // Werte können sich mit dem nächsten „3 · Übernehmen" noch ändern — das gehört vor den
+            // Klick, nicht dahinter.
+            const stand = row.staging_only ? 'nur gesynct' : '';
+            const teile = [kanon, esc(row.type || ''), esc(row.period || ''), stand].filter(Boolean);
             return `<div data-bind-key="${esc(row.wiki_key)}">${esc(row.name)}` +
                    (teile.length ? ` <span class="dt-bindung__kanon">${teile.join(' · ')}</span>` : '') +
                    `</div>`;

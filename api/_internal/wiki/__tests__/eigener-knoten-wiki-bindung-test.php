@@ -144,6 +144,18 @@ function bindungDb(): PDO {
             founded_start_bf INTEGER, dissolved_end_bf INTEGER
         )'
     );
+    // 🔴 Das STAGING. Hierhin schreibt avesmapsWikiDumpPersistTerritoryRecords; in den Spiegel
+    // daneben kommt eine Seite erst mit "3 · Uebernehmen". Ohne diese Tabelle im Test war der
+    // Fehler vom 02.09.2026 unsichtbar (Suche fand einen frisch gesyncten Artikel nicht).
+    $db->exec(
+        'CREATE TABLE political_territory_wiki_test (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, wiki_key TEXT UNIQUE, name TEXT, type TEXT,
+            continent TEXT, status TEXT, capital_name TEXT, seat_name TEXT, ruler TEXT,
+            population TEXT, wiki_url TEXT, coat_of_arms_url TEXT,
+            founded_text TEXT, dissolved_text TEXT,
+            founded_start_bf INTEGER, dissolved_end_bf INTEGER
+        )'
+    );
     $db->exec(
         'CREATE TABLE sync_decision (
             kind TEXT, entity_key TEXT, change_type TEXT, PRIMARY KEY (kind, entity_key, change_type)
@@ -451,5 +463,45 @@ pruefe($nachKey['eigener-knoten:knoten070']['unique'] === false,
     '... aber als MEHRDEUTIG -- zwei Artikel auf einen Namen wird nie vorangehakt.');
 
 pruefe(!isset($nachKey['eigener-knoten:knoten071']), 'Ein Knoten ohne Treffer steht gar nicht in der Liste.');
+
+// ---- Teil 5b: das STAGING zaehlt mit ------------------------------------------------------------
+//
+// 🪤 DER FEHLER, DEN ERST DER BROWSER ZEIGTE (02.09.2026). Der Kasten meldete "Kein Artikel
+// gefunden" fuer Inoffiziell:Táyârret, obwohl der Dump-Sync eine Stunde vorher gelaufen war:
+// avesmapsWikiDumpPersistTerritoryRecords schreibt AUSSCHLIESSLICH political_territory_wiki_test,
+// und die Suche las nur den Spiegel. Der Entwurf nannte beide Tabellen; die Umsetzung eine.
+// ⚠️ Kein Test hat das gefangen -- weil die Fixture die Staging-Tabelle gar nicht hatte. Genau die
+// Luecke schliessen die vier Zusicherungen hier.
+$dbS = bindungDb();
+$dbS->exec("INSERT INTO political_territory_wiki_test (wiki_key, name, type, wiki_url) VALUES
+    ('wiki:inoffiziell-frisch', 'Frischgesynct', 'Baronie', 'https://de.wiki-aventurica.de/wiki/Inoffiziell:Frischgesynct')");
+
+$frisch = avesmapsEigenerKnotenBindungKandidaten($dbS, 'Frischgesynct');
+pruefe(count($frisch) === 1, 'Ein nur im Staging liegender Artikel wird GEFUNDEN.');
+pruefe($frisch[0]['staging_only'] === true, 'Und er sagt, dass er noch nicht uebernommen ist.');
+pruefe($frisch[0]['official'] === false, 'Das Kanon-Etikett gilt auch fuer die Staging-Zeile.');
+
+// 🔴 Und er muss auch LESBAR sein -- ein Anbieten ohne Lesenkoennen ist die schlimmere Haelfte:
+// die Uebernahme legte sonst eine Zielzeile mit nichts als dem Namen an.
+$werte = avesmapsEigenerKnotenBindungZielWerte($dbS, 'wiki:inoffiziell-frisch');
+pruefe(($werte['type'] ?? '') === 'Baronie', 'Die Zielwerte kommen auch aus dem Staging.');
+
+// Der Spiegel gewinnt, und dieselbe Seite in beiden Tabellen zaehlt EINMAL.
+$dbS->exec("INSERT INTO political_territory_wiki (wiki_key, name, type) VALUES
+    ('wiki:inoffiziell-frisch', 'Frischgesynct', 'GEPFLEGT')");
+$doppelt = avesmapsEigenerKnotenBindungKandidaten($dbS, 'Frischgesynct');
+pruefe(count($doppelt) === 1, 'Dieselbe Seite in beiden Tabellen steht EINMAL in der Liste.');
+pruefe($doppelt[0]['type'] === 'GEPFLEGT', 'Und zwar mit der gepflegten Fassung aus dem Spiegel.');
+pruefe($doppelt[0]['staging_only'] === false, 'Die dann auch nicht mehr als "nur Staging" gilt.');
+pruefe((avesmapsEigenerKnotenBindungZielWerte($dbS, 'wiki:inoffiziell-frisch')['type'] ?? '') === 'GEPFLEGT',
+    'Die Zielwerte nehmen ebenfalls den Spiegel.');
+
+// ⚠️ Und im Sammellauf darf dieselbe Seite aus zwei Tabellen NICHT als mehrdeutig gelten.
+$dbS->exec("INSERT INTO wiki_territory_model (wiki_key, source_origin, metadata_overrides_json)
+            VALUES ('eigener-knoten:knoten090', 'custom', '{\"name\":\"Frischgesynct\"}')");
+$v = avesmapsEigenerKnotenBindungVorschlaege($dbS);
+pruefe(count($v) === 1 && $v[0]['unique'] === true,
+    '💣 Ein in beiden Tabellen stehender Artikel ist EIN Treffer, nicht zwei -- sonst waere jeder '
+    . 'uebernommene Artikel faelschlich mehrdeutig und nie vorangehakt.');
 
 echo "eigener-knoten-wiki-bindung: {$checks} Zusicherungen gruen.\n";
