@@ -181,6 +181,45 @@ async function selectSettlementWikiResultWhileCreating(title, treffer) {
  * rufen diese Funktion mit dem blossen Titel -- so, wie es der alte Picker tat -- und pruefen
  * damit genau den Teil, der sich NICHT geaendert hat (das versteckte wiki_url-Feld).
  */
+/**
+ * Was die INFOBOX nach einer Zuweisung braucht -- und nur die Karte hier weiss, wo es hingehoert.
+ *
+ * 🔴 ZWEI DINGE, DIE `wikiSettlement` NICHT ABDECKT (Owner 02.09.2026: „ich musste nach der
+ * zuweisung F5 druecken"):
+ *   1. `location.wikiUrl` -- daraus baut der Quellenkasten seine ERSTE Zeile (den Wiki-Artikel
+ *      samt Lizenz, buildSourceListMarkup). Bis hierher wurde nur das versteckte Formularfeld
+ *      nachgezogen, nicht der Wert, aus dem die Anzeige liest.
+ *   2. Das Kanon-Etikett. Die Karte traegt ihre Tafel aus der Nutzlast (`window.__featureKanon`,
+ *      einmal beim Laden gesetzt, routing.js) -- eine Zuweisung nach ns 222 aendert das Etikett,
+ *      die Tafel weiss davon nichts.
+ *
+ * 💣 DER KANON WIRD NICHT GERECHNET, SONDERN UEBERNOMMEN. Der Server schickt ihn in der Antwort
+ * (avesmapsFeatureSourcesKanonFuerEines) -- aus DERSELBEN Ableitung, die die Nutzlast fuellt. Eine
+ * zweite Rechnung im Browser waere genau die Divergenz, an der die Rangfolge im August schon einmal
+ * auseinanderlief (ns 222 gegen Quellzeile).
+ * ⚠️ `null` heisst „kein Etikett" und ist ein GUELTIGER Zustand -- der Eintrag wird dann ENTFERNT,
+ * nicht stehengelassen. Ein liegengebliebenes Etikett waere schlimmer als ein fehlendes: es
+ * behauptet etwas ueber Quellen, die es nicht mehr gibt.
+ * ⚠️ Fehlt `kanon` in der Antwort ganz (alte Serverfassung), wird NICHTS angefasst -- „nicht
+ * mitgeschickt" und „ausdruecklich keins" sind zweierlei.
+ */
+function settlementWikiInfoboxNachziehen(entry, result) {
+	if (entry && entry.location) {
+		const url = String((result && result.settlement && result.settlement.wiki_url) || "").trim();
+		entry.location.wikiUrl = url;
+	}
+	const publicId = entry && entry.publicId;
+	if (publicId && result && Object.prototype.hasOwnProperty.call(result, "kanon")
+		&& window.__featureKanon && window.__featureKanon.abweichungen) {
+		const schluessel = "settlement:" + publicId;
+		if (result.kanon) {
+			window.__featureKanon.abweichungen[schluessel] = result.kanon;
+		} else {
+			delete window.__featureKanon.abweichungen[schluessel];
+		}
+	}
+}
+
 async function selectSettlementWikiResult(title, treffer) {
 	const publicId = settlementWikiCurrentPublicId();
 	if (!publicId) {
@@ -206,6 +245,7 @@ async function selectSettlementWikiResult(title, treffer) {
 		wikiUrlField.value = chosenWikiUrl;
 	}
 	const entry = settlementWikiCurrentMarkerEntry();
+	settlementWikiInfoboxNachziehen(entry, result);
 	if (entry && entry.location) {
 		entry.location.wikiSettlement = result.settlement || null;
 		if (result.settlement) {
@@ -327,6 +367,7 @@ async function removeSettlementWiki() {
 		throw error;
 	}
 	const entry = settlementWikiCurrentMarkerEntry();
+	settlementWikiInfoboxNachziehen(entry, result);
 	if (entry && entry.location) {
 		delete entry.location.wikiSettlement;
 		if (result && result.revision) {

@@ -1103,6 +1103,33 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 			Object.assign({}, ui, { ungespeichert: ungespeichert }));
 	}
 
+	/**
+	 * Die INFOBOX nachziehen -- die Flaeche, die der Besucher sieht, nicht dieser Kasten.
+	 *
+	 * 🔴 WOFUER (Owner 02.09.2026: „ich musste nach der zuweisung F5 druecken, um was zu sehen").
+	 * Der Zuweisungskasten zeichnet sich selbst neu, die Infobox daneben nicht: sie haengt an
+	 * `lastPanelRender` und wird nur angestossen, wenn jemand es sagt. `avesmapsRefreshInfopanel`
+	 * gibt es seit dem 17.07.2026 und traegt in seinem Kopf genau diesen Fall („ein Editor hat gerade
+	 * etwas geaendert ... man sah seine eigene Aenderung erst nach F5") -- er wurde von hier aus nur
+	 * nie gerufen.
+	 *
+	 * 💣 HIER UND NICHT IN DEN SECHS OBERFLAECHEN. Zuweisen, Loesen und die Sync-Uebernahme aendern
+	 * alle drei, was die Infobox zeigt, und es gibt sie fuer Ort, Weg, Landschaft, Label, Territorium
+	 * und Karte. Sechs Abschriften waeren fuenf Gelegenheiten, eine zu vergessen -- dieselbe Lehre wie
+	 * bei den Listenzeilen und der Wiki-Zuweisung selbst.
+	 *
+	 * ⚠️ `typeof`-Riegel, kein blanker Aufruf: diese Datei laeuft AUCH in den Editor-iframes
+	 * (wiki-sync-*.html), und dort gibt es weder Infobox noch Funktion. Ein blanker Aufruf waere
+	 * derselbe ReferenceError, der dort schon einmal den ganzen Kasten gekostet haette.
+	 * ⚠️ Er zeichnet nur, er laedt nichts -- deshalb ist er auch dann harmlos, wenn gerade gar keine
+	 * Infobox offen ist (die Funktion steigt selbst aus, wenn ihr Anker fehlt).
+	 */
+	function infoboxNachziehen() {
+		if (typeof window !== "undefined" && typeof window.avesmapsRefreshInfopanel === "function") {
+			window.avesmapsRefreshInfopanel();
+		}
+	}
+
 	function zeichne() {
 		const modell = modellJetzt();
 		behaelter.innerHTML = avesmapsWikiAssignMarkup(modell, skin);
@@ -1369,6 +1396,7 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 			// Ein zugewiesener Artikel und „es gibt keinen“ schliessen einander aus.
 			daten.keinArtikel = false;
 			ungespeichert = true;
+			infoboxNachziehen();
 			ui = neuerZustand("zugewiesen");
 			zeichne();
 		}, (fehler) => {
@@ -1468,6 +1496,7 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 			avesmapsWikiAssignRufen(opt.loesen).then(() => {
 				daten.artikel = null;
 				ungespeichert = true;
+				infoboxNachziehen();
 				ui = neuerZustand("offen");
 				zeichne();
 			}, () => {
@@ -1491,6 +1520,7 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 		if (aktion === "sync-uebernehmen") {
 			const gehakt = ui.syncZeilen.filter((zeile) => zeile.gehakt);
 			avesmapsWikiAssignRufen(opt.syncUebernehmen, gehakt).then(() => {
+				infoboxNachziehen();
 				ui = neuerZustand("zugewiesen");
 				zeichne();
 			}, () => {

@@ -14,6 +14,10 @@ require_once __DIR__ . '/../../_internal/wiki/territories.php';
 require_once __DIR__ . '/../../_internal/political/territory.php';
 require_once __DIR__ . '/../../_internal/wiki/sync-monitor.php';
 require_once __DIR__ . '/../../_internal/wiki/settlements.php';
+// Fuer avesmapsFeatureSourcesKanonFuerEines: die Antwort einer Zuweisung traegt das neue
+// Kanon-Etikett des Objekts mit, damit die Infobox es ohne Neuladen zeigen kann. Die REGEL bleibt
+// dort -- der Endpunkt rechnet nichts nach.
+require_once __DIR__ . '/../../_internal/app/feature-sources.php';
 require_once __DIR__ . '/../../_internal/wiki/settlements-coat-localize.php';
 require_once __DIR__ . '/../../_internal/wiki/wappen-aufraeumen.php';
 

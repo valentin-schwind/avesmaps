@@ -987,6 +987,14 @@ function avesmapsWikiSettlementAssignTo(PDO $pdo, string $title, string $publicI
 
     avesmapsWikiSettlementCacheDetails($pdo, $settlement['title'], $settlement);
 
+    // 🔴 DAS NEUE KANON-ETIKETT REIST MIT. Die Karte traegt ihre Kanon-Tafel aus der Nutzlast
+    // (`feature_kanon`, einmal beim Laden); ohne diese Zeile saehe der Editor sein eigenes
+    // Ergebnis erst nach F5 -- gemeldet 02.09.2026.
+    // ⚠️ Gerechnet wird mit avesmapsFeatureSourcesKanonFuerEines, also mit DERSELBEN Ableitung,
+    // die auch die Nutzlast fuellt. Eine zweite Rechnung hier waere die Divergenz, an der die
+    // Rangfolge schon einmal auseinanderlief.
+    // ⚠️ `null` heisst „kein Etikett" und ist ein gueltiger Zustand -- der Client muss den Eintrag
+    // dann ENTFERNEN, nicht stehenlassen.
     return [
         'ok' => true,
         'dry_run' => false,
@@ -995,6 +1003,9 @@ function avesmapsWikiSettlementAssignTo(PDO $pdo, string $title, string $publicI
         'target_name' => (string) $target['name'],
         'settlement' => $settlement,
         'revision' => $revision,
+        'kanon' => avesmapsFeatureSourcesKanonFuerEines(
+            $pdo, 'settlement', $publicId, (string) ($settlement['wiki_url'] ?? '')
+        ),
     ];
 }
 
@@ -1027,7 +1038,17 @@ function avesmapsWikiSettlementClearAssign(PDO $pdo, string $publicId, bool $dry
     $update->execute(['pj' => avesmapsWikiSyncEncodeJson($props), 'rev' => $revision, 'id' => (int) $target['id']]);
     avesmapsWikiSettlementAuditAssignment($pdo, $auditBefore, $props, $revision, $userId);
 
-    return ['ok' => true, 'dry_run' => false, 'applied' => 1, 'target_name' => (string) $target['name'], 'revision' => $revision];
+    // Auch das LOESEN aendert das Etikett -- siehe die Begruendung bei assign_to. Der Wiki-Artikel
+    // ist weg, also faellt der Namensraum als Rang 2 aus; uebrig bleibt, was die Quellen sagen.
+    // ⚠️ Leere Adresse, nicht die alte: avesmapsWikiSettlementClearAssign hat sie gerade entfernt.
+    return [
+        'ok' => true,
+        'dry_run' => false,
+        'applied' => 1,
+        'target_name' => (string) $target['name'],
+        'revision' => $revision,
+        'kanon' => avesmapsFeatureSourcesKanonFuerEines($pdo, 'settlement', $publicId, ''),
+    ];
 }
 
 // ===== Bulk-Verbinden: alle eindeutig per Name passenden, noch unverbundenen Orte =====

@@ -2142,6 +2142,61 @@ function avesmapsMapFeaturesWikiNamespaces(array $features): array
  * @param array<string, int> $wikiNamespaces "typ:public_id" => Namensraum des Wiki-Artikels
  * @return array<string, array<string, mixed>> "typ:public_id" => {kanon, bezeichner_*}
  */
+/**
+ * DAS KANON-ETIKETT EINES EINZELNEN OBJEKTS -- fuer die Antwort einer Schreibaktion.
+ *
+ * 🔴 WOFUER: nach einer Wiki-Zuweisung ist das Etikett des Objekts ein anderes, aber die Karte
+ * traegt ihre Kanon-Tafel aus der Nutzlast (`feature_kanon`, einmal beim Laden). Ohne diese
+ * Auskunft sieht der Editor sein eigenes Ergebnis erst nach F5 -- gemeldet 02.09.2026, und es ist
+ * dieselbe Klasse Fehler, die `avesmapsRefreshInfopanel` am 17.07.2026 fuer die Kataloge geloest
+ * hat.
+ *
+ * 💣 SIE LEITET NICHTS SELBST AB. Sie sammelt nur die drei Eingaben ein und reicht sie an
+ * avesmapsFeatureSourcesDeriveKanon weiter -- dieselbe Funktion, die auch die Nutzlast fuellt. Eine
+ * zweite Rechnung fuer denselben Wert waere genau die Divergenz, an der die Rangfolge schon einmal
+ * auseinandergelaufen ist (ns 222 gegen Quellzeile, 31.08.-02.09.2026).
+ *
+ * ⚠️ Sie laedt Katalog UND Verweise VOLLSTAENDIG, statt eine engere Abfrage zu bauen. Das ist
+ * Absicht: die engere Abfrage waere neues SQL neben zwei erprobten Ladern, und der einzige Aufrufer
+ * ist eine EDITOR-Schreibaktion -- nicht der oeffentliche Lesepfad, den CLAUDE.md schuetzt. Wer sie
+ * je in eine Schleife stellt, baut genau die Last, vor der dort gewarnt wird.
+ *
+ * ⚠️ Der Namensraum kommt aus der uebergebenen Adresse, nicht aus der Datenbank: der Aufrufer hat
+ * sie gerade geschrieben und kennt sie genauer als ein zweiter Lesevorgang, der mit ihr um die
+ * Reihenfolge konkurrierte.
+ *
+ * @return array{kanon:string, bezeichner_label?:string, bezeichner_type?:string, bezeichner_count?:int}|null
+ *         `null` heisst „kein Etikett" -- ein gueltiger Zustand, kein Fehler.
+ */
+function avesmapsFeatureSourcesKanonFuerEines(
+    PDO $pdo,
+    string $entityType,
+    string $publicId,
+    string $wikiUrl
+): ?array {
+    $entityType = trim($entityType);
+    $publicId = trim($publicId);
+    if ($entityType === '' || $publicId === '') {
+        return null;
+    }
+    $key = $entityType . ':' . $publicId;
+
+    $raeume = [];
+    $ns = avesmapsWikiNamespaceFromWikiUrl(trim($wikiUrl));
+    if ($ns !== null) {
+        $raeume[$key] = $ns;
+    }
+
+    $refs = avesmapsLoadFeatureSourceRefs($pdo);
+    $kanon = avesmapsFeatureSourcesDeriveKanon(
+        avesmapsLoadFeatureSourceCatalog($pdo),
+        isset($refs[$key]) ? [$key => $refs[$key]] : [],
+        $raeume
+    );
+
+    return $kanon[$key] ?? null;
+}
+
 function avesmapsFeatureSourcesDeriveKanon(array $catalog, array $refs, array $wikiNamespaces = []): array
 {
     $out = [];
