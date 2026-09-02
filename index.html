@@ -3504,10 +3504,12 @@
 		     document delegiert braeche der Ablauf "Neue Position vorschlagen" -- der blendet sein
 		     Overlay aus und laesst den Nutzer EINEN Punkt auf der Karte waehlen; dieser Kartenklick
 		     waere dort ein Hintergrundklick, und Schliessen heisst hier Formular zuruecksetzen.
-		     💣 UND DESHALB STEHT HIER KEIN DATEIPFAD: zwei Tests messen die Ladereihenfolge mit
-		     html.indexOf("js/app/…") und lesen Kommentare mit. Ein Pfad an dieser Stelle ist fuer
-		     sie ein frueheres script-Tag und dreht ihr Ergebnis um -- genau daran ist
-		     js/ui/__tests__/zoomstufe-anzeige.test.js beim Bau dieser Zeile umgefallen. -->
+		     💣 UND DESHALB STEHT HIER KEIN DATEIPFAD: Ladereihenfolge-Tests messen mit
+		     html.indexOf(…), und ein Pfad in einem Kommentar ist fuer sie ein frueheres
+		     script-Tag -- er dreht ihr Ergebnis um. Daran ist zoomstufe-anzeige.test.js beim Bau
+		     dieser Zeile umgefallen; efd669eab hat daraufhin acht Tests die Kommentare strippen
+		     lassen (29 Pfade stehen in Kommentaren, gemessen). Die Regel hier bleibt trotzdem: der
+		     naechste Test bringt sein indexOf ungeschuetzt mit. -->
 		<script src="js/ui/dialog-hintergrund-schliessen.js"></script>
 		<script src="js/ui/filter-bar.js"></script>
 		<script src="js/ui/feature-source-markup.js"></script>
