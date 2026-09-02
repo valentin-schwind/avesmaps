@@ -1,0 +1,455 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — „Innerorts einfügen"</title>
+<style>
+/* Die Farben, Grade, Abstände und Radien stammen 1:1 aus css/base/tokens.css (helles Thema,
+   darunter der Block :root[data-theme="dark"]) -- abgeschrieben aus docs/garetien-importer-mockup.html,
+   damit beide Mockups desselben Fensters nicht auseinanderlaufen. NICHTS hier ist geraten.
+   🔴 Kein Blau: dieses Mockup zeigt nur Fenster-Chrome, keine Kartendaten (AGENTS.md §12). */
+@font-face {
+	font-family: "Faculty Glyphic";
+	src: url("../fonts/FacultyGlyphic-Regular.woff2") format("woff2");
+	font-display: swap;
+}
+
+:root {
+	--font-ui: "Faculty Glyphic", "Arial", sans-serif;
+	--font-size-caption: 11px;
+	--font-size-small: 12px;
+	--font-size-body: 13px;
+	--font-size-reading: 14px;
+	--font-size-subhead: 16px;
+	--font-size-title: 20px;
+	--leading-snug: 1.25;
+	--leading-normal: 1.45;
+
+	--color-page-bg: #f3f0e8;
+	--color-panel: #fffdf9;
+	--color-panel-soft: #faf6ee;
+	--color-panel-muted: #f1ece1;
+	--color-panel-active: #e7ddc9;
+	--color-text: #2e271e;
+	--color-text-strong: #3c3327;
+	--color-text-muted: #706557;
+	--color-border: #ddd3c3;
+	--color-border-strong: #cdbfa8;
+	--color-divider: rgba(125, 115, 96, 0.30);
+	--color-button: #5b5548;
+	--color-button-border: #635b4d;
+	--color-button-text: #f6efe1;
+	--color-button-soft: #efe9db;
+	--color-button-soft-text: #564b3b;
+	--color-button-soft-border: #cdbda0;
+	--color-button-soft-hover: #e7ddc9;
+	--color-accent: #bfa03a;
+	--color-accent-strong: #9c7f22;
+	--color-link: #8f7326;
+	--color-pill: #f3ecd9;
+	--color-pill-border: #d7c7a2;
+	--color-pill-text: #675024;
+	--color-danger: #9d3a2e;
+	--color-danger-soft-text: #8a2d22;
+	--color-danger-soft-border: #d3a79c;
+	--color-success-soft: #eef6e2;
+	--color-success-soft-border: #a9c07f;
+	--color-success-soft-text: #3c5a1c;
+	--color-warning-soft: #faeeda;
+	--color-warning-soft-border: #ef9f27;
+	--color-warning-soft-text: #854f0b;
+	--color-disabled-bg: #ece7dd;
+	--color-disabled-text: #a99f8e;
+	--color-disabled-border: #dcd3c4;
+
+	--space-2: 4px;  --space-4: 6px;  --space-6: 8px;  --space-8: 10px;
+	--space-10: 12px; --space-12: 14px; --space-16: 18px; --space-20: 22px; --space-24: 26px;
+	--radius-sm: 5px; --radius-md: 8px; --radius-lg: 10px;
+	--avm-control-h: 32px;
+	--shadow-panel: 0 8px 24px rgba(0, 0, 0, 0.16);
+}
+
+:root[data-theme="dark"] {
+	--color-page-bg: #211f19;
+	--color-panel: #312e26;
+	--color-panel-soft: #37342b;
+	--color-panel-muted: #39352b;
+	--color-panel-active: #4c4636;
+	--color-text: #eee7da;
+	--color-text-strong: #f5f0e4;
+	--color-text-muted: #b4a895;
+	--color-border: #514a3c;
+	--color-border-strong: #615a49;
+	--color-divider: rgba(207, 197, 171, 0.24);
+	--color-button: #6b6456;
+	--color-button-border: #7a7361;
+	--color-button-text: #f5ebd7;
+	--color-button-soft: #3a362c;
+	--color-button-soft-text: #eae1cf;
+	--color-button-soft-border: #585142;
+	--color-button-soft-hover: #453f32;
+	--color-accent: #cfb767;
+	--color-accent-strong: #dcc77e;
+	--color-link: #d7c38b;
+	--color-pill: #3b3522;
+	--color-pill-border: #5c5237;
+	--color-pill-text: #e7d7a5;
+	--color-danger: #d27566;
+	--color-danger-soft-text: #e29c8f;
+	--color-danger-soft-border: #6b463f;
+	--color-success-soft: #2c3a24;
+	--color-success-soft-border: #4d6b3a;
+	--color-success-soft-text: #9cd39a;
+	--color-warning-soft: #3b3122;
+	--color-warning-soft-border: #6d5629;
+	--color-warning-soft-text: #e0b45c;
+	--color-disabled-bg: #2c2921;
+	--color-disabled-text: #776f61;
+	--color-disabled-border: #453f33;
+}
+
+* { box-sizing: border-box; }
+
+body {
+	margin: 0;
+	padding: var(--space-24);
+	background: var(--color-page-bg);
+	color: var(--color-text);
+	font: var(--font-size-body)/var(--leading-normal) var(--font-ui);
+}
+
+h1 { font-size: var(--font-size-title); margin: 0 0 var(--space-4); color: var(--color-text-strong); }
+h2 {
+	font-size: var(--font-size-subhead); margin: var(--space-24) 0 var(--space-8);
+	color: var(--color-text-strong);
+	border-bottom: 1px solid var(--color-divider); padding-bottom: var(--space-4);
+}
+p.lead { margin: 0 0 var(--space-16); color: var(--color-text-muted); max-width: 78ch; }
+.note {
+	max-width: 78ch; margin: var(--space-8) 0 0;
+	font-size: var(--font-size-small); color: var(--color-text-muted);
+}
+
+.themenschalter {
+	position: fixed; top: var(--space-10); right: var(--space-10); z-index: 5;
+	height: var(--avm-control-h); padding: 0 var(--space-12);
+	background: var(--color-button-soft); color: var(--color-button-soft-text);
+	border: 1px solid var(--color-button-soft-border); border-radius: var(--radius-md);
+	font: var(--font-size-small)/1 var(--font-ui); cursor: pointer;
+}
+
+.buehne { display: flex; gap: var(--space-24); flex-wrap: wrap; align-items: flex-start; }
+
+/* ---- Die Detailspalte des Importers ------------------------------------------------------- */
+.gi-detail {
+	width: 380px; flex: 0 0 380px;
+	background: var(--color-panel); border: 1px solid var(--color-border);
+	border-radius: var(--radius-lg); padding: var(--space-12);
+	box-shadow: var(--shadow-panel);
+}
+.gi-titel { font-size: var(--font-size-subhead); color: var(--color-text-strong); margin: 0; }
+.gi-meta { font-size: var(--font-size-small); color: var(--color-text-muted); margin: 0 0 var(--space-10); }
+.gi-sec {
+	margin: var(--space-16) 0 var(--space-6); font-size: var(--font-size-caption);
+	letter-spacing: .06em; text-transform: uppercase; color: var(--color-accent-strong);
+}
+.gi-why { margin: 0 0 var(--space-8); font-size: var(--font-size-small); color: var(--color-text-muted); }
+.gi-insert__kopf { color: var(--color-text); }
+.gi-insert__row {
+	display: flex; align-items: center; justify-content: space-between; gap: var(--space-8);
+	margin: 0 0 var(--space-4); font-size: var(--font-size-small);
+}
+.gi-insert__val { color: var(--color-text-muted); }
+.gi-insert__select {
+	height: 28px; min-width: 190px; padding: 0 var(--space-6);
+	background: var(--color-panel-soft); color: var(--color-text);
+	border: 1px solid var(--color-border); border-radius: var(--radius-sm);
+	font: var(--font-size-small)/1 var(--font-ui);
+}
+/* 🔴 Der Kasten wird beim Überfahren des Innerorts-Knopfes ABGEBLENDET, nicht ausgeblendet:
+   verschwände er, spränge die Spalte und der Editor verlöre den Bezug. */
+.gi-insert { transition: opacity 120ms ease; }
+.gi-detail.zeigt-innerorts .gi-insert { opacity: .38; }
+
+.gi-fuss {
+	display: flex; gap: var(--space-6); margin-top: var(--space-16);
+	padding-top: var(--space-10); border-top: 1px solid var(--color-divider); flex-wrap: wrap;
+}
+.btn {
+	height: var(--avm-control-h); padding: 0 var(--space-12);
+	border-radius: var(--radius-md); font: var(--font-size-small)/1 var(--font-ui);
+	cursor: pointer; display: inline-flex; align-items: center; gap: var(--space-4);
+}
+/* 🔴 ALLE KNOEPFE DIESER LEISTE SIND WEICH -- die eine gefuellte Handlung des Fensters heisst
+   „Angehakte uebernehmen" und steht im Fuss; eine Zeilenhandlung ist nie die Haupthandlung der
+   Seite (AGENTS.md §12, und so steht es in css/components/garetien-importer.css).
+   🔴 Owner 02.09.2026: „‚Neu einfuegen' sollte immer gruen und ‚Ablehnen' immer rot sein … Der
+   rest sollte eher neutral sein." SCHRIFT UND RAHMEN, KEINE FUELLUNG -- gefuellt-gruen ist schon
+   der Zustand „alle Items vorgemerkt" (.btn--done) und waere sonst ununterscheidbar.
+   💣 Die Tokens sind `--color-*-soft-text`, NICHT `--color-success`/`--color-danger`: das ist eine
+   Kontrastmessung, kein Geschmack (danger 3,71:1 dunkel gegen 5,38 mit dem weichen Token). */
+.btn--neu {
+	background: var(--color-button-soft); color: var(--color-success-soft-text);
+	border: 1px solid var(--color-success-soft-border);
+}
+.btn--soft {
+	background: var(--color-button-soft); color: var(--color-button-soft-text);
+	border: 1px solid var(--color-button-soft-border);
+}
+.btn--soft:hover { background: var(--color-button-soft-hover); }
+.btn--danger {
+	background: var(--color-button-soft); color: var(--color-danger-soft-text);
+	border: 1px solid var(--color-danger-soft-border);
+}
+.btn--aus {
+	background: var(--color-disabled-bg); color: var(--color-disabled-text);
+	border: 1px solid var(--color-disabled-border); cursor: not-allowed;
+}
+
+.pill {
+	display: inline-block; padding: 1px var(--space-6); border-radius: 999px;
+	background: var(--color-pill); border: 1px solid var(--color-pill-border);
+	color: var(--color-pill-text); font-size: var(--font-size-caption);
+}
+
+.grund {
+	margin: var(--space-8) 0 0; padding: var(--space-6) var(--space-8);
+	background: var(--color-warning-soft); border: 1px solid var(--color-warning-soft-border);
+	border-left-width: 3px; border-radius: var(--radius-sm);
+	color: var(--color-warning-soft-text); font-size: var(--font-size-small);
+}
+.grund.ok {
+	background: var(--color-success-soft); border-color: var(--color-success-soft-border);
+	color: var(--color-success-soft-text);
+}
+
+/* ---- Die Infobox eines Ortes -------------------------------------------------------------- */
+.infobox {
+	width: 330px; flex: 0 0 330px;
+	background: var(--color-panel); border: 1px solid var(--color-border);
+	border-radius: var(--radius-lg); padding: var(--space-12); box-shadow: var(--shadow-panel);
+}
+.infobox h3 { margin: 0; font-size: var(--font-size-subhead); color: var(--color-text-strong); }
+.infobox .sub { margin: 0 0 var(--space-10); font-size: var(--font-size-small); color: var(--color-text-muted); }
+.lore-zeile { border-top: 1px solid var(--color-divider); padding-top: var(--space-8); margin-top: var(--space-8); }
+details > summary {
+	cursor: pointer; font-size: var(--font-size-small); color: var(--color-text);
+	list-style: none; display: flex; align-items: center; gap: var(--space-4);
+}
+details > summary::-webkit-details-marker { display: none; }
+details > summary::before { content: "▸"; color: var(--color-text-muted); }
+details[open] > summary::before { content: "▾"; }
+.gruppe { margin: var(--space-6) 0 0 var(--space-10); }
+.gruppe > b { font-size: var(--font-size-caption); color: var(--color-accent-strong); font-weight: 400; }
+.gruppe ul { margin: var(--space-2) 0 0; padding-left: var(--space-16); }
+.gruppe li { font-size: var(--font-size-small); }
+.gruppe a { color: var(--color-link); text-decoration: none; }
+.neu { background: var(--color-hover-wash, rgba(191,160,58,.14)); border-radius: var(--radius-sm); }
+
+table.mess { border-collapse: collapse; font-size: var(--font-size-small); margin-top: var(--space-8); }
+table.mess th, table.mess td {
+	border-bottom: 1px solid var(--color-divider); padding: var(--space-4) var(--space-10);
+	text-align: left;
+}
+table.mess th { color: var(--color-text-muted); font-weight: 400; }
+table.mess td.z { text-align: right; font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+
+<button class="themenschalter" id="schalter" type="button">Dunkel / Hell</button>
+
+<h1>„Innerorts einfügen" — Mockup</h1>
+<p class="lead">
+	Ein Objekt aus dem Garetien-Export, das in einer Stadt liegt, soll bei uns <em>gelistet</em>
+	werden, ohne auf der Karte platziert zu werden. Entwurf:
+	<code>docs/superpowers/specs/2026-09-02-innerorts-import-design.md</code>
+</p>
+
+<h2>1 · Der Kandidat — beide Signale treffen zu</h2>
+
+<div class="buehne">
+
+	<div class="gi-detail zeigt-innerorts">
+		<p class="gi-titel">Wandlether Rondra-Tempel</p>
+		<p class="gi-meta">Wiki-Artikel ↗ · LOD 7–14 · ggp / Ortschaften_2</p>
+
+		<p class="gi-sec">Der Grund</p>
+		<p class="gi-why">0,2 Meilen von „Wandleth" (bei uns Kleinstadt) · Name nennt den Ort</p>
+
+		<p class="gi-sec">Eingefügt wird</p>
+		<div class="gi-insert">
+			<p class="gi-why gi-insert__kopf">Tempel (garetien.de) → Bauwerk (Avesmaps)</p>
+			<p class="gi-insert__row">Form
+				<span class="gi-insert__val"><select class="gi-insert__select"><option>Ort</option></select></span>
+			</p>
+			<p class="gi-insert__row">Art
+				<span class="gi-insert__val"><select class="gi-insert__select"><option>Bauwerk</option></select></span>
+			</p>
+			<p class="gi-insert__row">Nodix <span class="gi-insert__val">☐</span></p>
+		</div>
+
+		<p class="grund ok">
+			<b>Liegt vermutlich innerorts.</b> 0,2 Meilen von Wandleth entfernt, und der Name nennt
+			den Ort. Innerorts eingefügt bekommt das Objekt <b>keine Kartenposition</b> — es steht in
+			der Infobox von Wandleth und in der Suche.
+		</p>
+
+		<div class="gi-fuss">
+			<button class="btn btn--neu" type="button">Neu einfügen</button>
+			<button class="btn btn--soft" type="button">Innerorts einfügen (Wandleth)</button>
+			<button class="btn btn--danger" type="button">Ablehnen</button>
+		</div>
+	</div>
+
+	<div>
+		<p class="note" style="margin-top:0">
+			🔴 <b>Der Ortsname steht IM Knopf.</b> Der Editor entscheidet nicht „innerorts ja/nein",
+			sondern „innerorts <em>in Wandleth</em>" — ist der Ort falsch, sieht er es vor dem Klick.
+		</p>
+		<p class="note">
+			🔴 <b>Der Kasten „Eingefügt wird" wird abgeblendet, nicht ausgeblendet.</b> Er beschreibt,
+			was auf der <em>Karte</em> entstünde; innerorts entsteht dort nichts. Verschwände er,
+			spränge die Spalte und der Bezug ginge verloren.
+		</p>
+		<p class="note">
+			🔴 <b>Neutral, nicht grün.</b> Grün heißt in dieser Leiste „legt etwas an" und Rot
+			„nimmt heraus" (Owner 02.09.2026); ein zweiter grüner Knopf machte die Aussage
+			mehrdeutig — zumal Grün gefüllt schon der Zustand „alle Items vorgemerkt" ist.
+		</p>
+		<p class="note">
+			⚠️ Die Leiste <b>bricht um</b>, sobald der dritte Knopf dazukommt. Das ist die Hausform
+			(<code>.gi-acts</code> ist seit jeher <code>flex-wrap: wrap</code>) und kein Fehler —
+			aber es ist die sichtbare Folge dieses Entwurfs.
+		</p>
+		<p class="note">
+			⚠️ Der Knopf erscheint <b>nur</b>, wenn beide Signale zusammentreffen. Sonst steht er gar
+			nicht da — ein dauerhaft ausgegrauter Knopf behauptet eine Möglichkeit, die es nicht gibt.
+		</p>
+	</div>
+</div>
+
+<h2>2 · Kein Kandidat — der Knopf fehlt</h2>
+
+<div class="buehne">
+	<div class="gi-detail">
+		<p class="gi-titel">Turm Dohlentrutz</p>
+		<p class="gi-meta">Wiki-Artikel ↗ · LOD 7–14 · ggp / Ortschaften_2</p>
+
+		<p class="gi-sec">Der Grund</p>
+		<p class="gi-why">nichts desselben Typs in der Nähe</p>
+
+		<p class="gi-sec">Eingefügt wird</p>
+		<div class="gi-insert">
+			<p class="gi-why gi-insert__kopf">Gebaeude (garetien.de) → Bauwerk (Avesmaps)</p>
+			<p class="gi-insert__row">Form
+				<span class="gi-insert__val"><select class="gi-insert__select"><option>Ort</option></select></span>
+			</p>
+			<p class="gi-insert__row">Art
+				<span class="gi-insert__val"><select class="gi-insert__select"><option>Bauwerk</option></select></span>
+			</p>
+		</div>
+
+		<div class="gi-fuss">
+			<button class="btn btn--neu" type="button">Neu einfügen</button>
+			<button class="btn btn--danger" type="button">Ablehnen</button>
+		</div>
+	</div>
+
+	<div>
+		<p class="note" style="margin-top:0">
+			Der nächste Ort ist 14,3 Meilen entfernt, und „Dohlentrutz" nennt ihn nicht. Der Artikel
+			sagt „liegt am Schattenbachpass" — ein Wachturm im Land. <b>Kein zweiter Knopf.</b>
+		</p>
+		<p class="note">
+			💣 So sieht die Mehrheit aus: von 1048 Bauwerken des Exports liegen <b>27</b> näher als
+			eine halbe Meile an einer Ortschaft, der Median ist <b>12,4 Meilen</b>. VolkoV verortet
+			seine Bauwerke.
+		</p>
+	</div>
+</div>
+
+<h2>3 · Danach — die Stätte steht in der Infobox ihres Ortes</h2>
+
+<div class="buehne">
+	<div class="infobox">
+		<h3>Wandleth</h3>
+		<p class="sub">Kleinstadt · Garetien</p>
+
+		<div class="lore-zeile">
+			<details open>
+				<summary>4 besondere Stätten verzeichnet</summary>
+				<div class="gruppe">
+					<b>Tempel</b>
+					<ul><li class="neu"><a href="#">Wandlether Rondra-Tempel</a> <span class="pill">neu</span></li></ul>
+				</div>
+				<div class="gruppe">
+					<b>Gebäude</b>
+					<ul>
+						<li><a href="#">Armbrustmanufaktur</a></li>
+						<li><a href="#">Brauerei Wiesenschlösschen</a></li>
+						<li><a href="#">Wandlether Baumeisterzunft</a></li>
+					</ul>
+				</div>
+			</details>
+		</div>
+	</div>
+
+	<div>
+		<p class="note" style="margin-top:0">
+			🔴 <b>Keine neue Bauform.</b> Das ist die vorhandene Zeile
+			(<code>map-features-settlement-places.js</code>) mit ihren Lore-Klassen; Gruppen klappen ab
+			25 Einträgen zu. Eine dritte Rezeptur für „Liste von Namen in einer Infobox-Klappzeile"
+			wäre genau die Divergenz, vor der AGENTS.md §11 warnt.
+		</p>
+		<p class="note">
+			⚠️ Die Zeile speist sich heute aus <b>drei</b> abgeleiteten Quellen der
+			Wiki-Aventurica-Registry. Der Importer bekommt eine <b>vierte</b>, eigene Tabelle — er darf
+			nicht in fremde schreiben (Abbau-Vertrag).
+		</p>
+	</div>
+</div>
+
+<h2>4 · Warum genau dieses Kriterium</h2>
+
+<p class="lead">Vier Kandidaten, alle am Livebestand gemessen — drei sind ausgeschieden.</p>
+
+<table class="mess">
+	<tr><th>Kriterium</th><th>Messung</th><th>Urteil</th></tr>
+	<tr>
+		<td>keine Koordinate</td>
+		<td>359 Zeilen, <b>alle</b> aus dem Kosch-Wiki, 358 auf einer Seite</td>
+		<td>Rückstand, kein Innerorts-Signal</td>
+	</tr>
+	<tr>
+		<td>Standort-Feld im Artikel</td>
+		<td>10 von 10 Bauwerksartikeln <b>ohne</b> Feld; Lage steht im Fließtext</td>
+		<td>gibt es bei garetien.de nicht</td>
+	</tr>
+	<tr>
+		<td>Abstand allein</td>
+		<td>Bauwerke 4,5 % unter 1 Meile — <b>Kontrollgruppe Ortschaften: 4,5 %</b></td>
+		<td>trennt nicht</td>
+	</tr>
+	<tr>
+		<td><b>Abstand UND Name</b></td>
+		<td>&lt; 0,5 Meilen: 11 von 27 mit Ortsname · &gt; 5 Meilen: 4 von 698 (0,6 %)</td>
+		<td><b>68-fache Anreicherung</b></td>
+	</tr>
+</table>
+
+<p class="note">
+	🪤 Ohne die <b>Kontrollgruppe</b> hätte „4,5 % der Bauwerke liegen dicht an einer Stadt" wie ein
+	Befund ausgesehen. Erst dieselbe Messung an den Ortschaften zeigt, dass die Zahl nichts sagt.
+</p>
+
+<script>
+document.getElementById("schalter").addEventListener("click", function () {
+	var w = document.documentElement;
+	w.setAttribute("data-theme", w.getAttribute("data-theme") === "dark" ? "light" : "dark");
+});
+</script>
+
+</body>
+</html>
