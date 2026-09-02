@@ -156,10 +156,34 @@
 			+ value + '" aria-label="' + escapeHtml(ariaLabel) + '"' + (disabled ? " disabled" : "") + ">";
 	}
 
-	function getJson(url) {
-		return fetch(url, { credentials: "same-origin" }).then(function (response) {
-			return response.json();
+	/**
+	 * 💣 EINE ANTWORT, DIE KEIN JSON IST, MUSS IHREN STATUSCODE NENNEN -- nicht den Parserfehler.
+	 *
+	 * Owner-Meldung 02.09.2026: „Zuweisen fehlgeschlagen: Unexpected token '<', "<!DOCTYPE "... is
+	 * not valid JSON". Das ist keine Auskunft, sondern ein Symptom: `response.json()` lief ohne
+	 * Statusprüfung, also erfuhr der Editor vom Server genau NICHTS -- weder ob die Adresse fehlt
+	 * (404), noch ob PHP gestorben ist (500), noch ob der Rumpf zu gross war (413). Alle drei sehen
+	 * gleich aus, und alle drei brauchen etwas anderes.
+	 *
+	 * ⭐ Das Geschwister im Ortseditor macht es seit jeher richtig (`settlementDetailPost` in
+	 * html/wiki-sync-settlement-editor.html): parsen mit `catch`, und bei nicht-`ok` den Status
+	 * werfen. Dieselbe Form, nicht eine zweite Erfindung.
+	 * ⚠️ Die HTML-Seite selbst wird NICHT gezeigt -- sie ist seitenlang und sagt einem Editor
+	 * nichts. Der Statuscode ist die Auskunft.
+	 */
+	function leseAntwort(response) {
+		return response.json().catch(function () { return null; }).then(function (payload) {
+			if (!response.ok || !payload) {
+				var grund = payload && payload.error && payload.error.message;
+				throw new Error(grund || ("HTTP " + response.status
+					+ (response.status === 401 ? " — bist du noch angemeldet?" : "")));
+			}
+			return payload;
 		});
+	}
+
+	function getJson(url) {
+		return fetch(url, { credentials: "same-origin" }).then(leseAntwort);
 	}
 
 	function postJson(url, body) {
@@ -168,7 +192,7 @@
 			credentials: "same-origin",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify(body)
-		}).then(function (response) { return response.json(); });
+		}).then(leseAntwort);
 	}
 
 	// ── Liste ─────────────────────────────────────────────────────────────────────────────────
