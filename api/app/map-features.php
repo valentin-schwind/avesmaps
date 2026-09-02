@@ -106,7 +106,11 @@ require_once __DIR__ . '/../_internal/app/map-features-cache.php';
 //    FELD -- und damit wieder derselbe Riegel wie bei 18: `map_revision` bewegt sich davon nicht,
 //    ein warmer Browser bekaeme sein 304 samt alter Nutzlast und saehe nie ein Etikett. Der Bump
 //    ist die einzige Stelle, an der diese Antwort ihren Zwischenspeicher verlaesst.
-const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 19;
+// 20 (02.09.2026): die RANGFOLGE des Kanon-Etiketts steht wieder so, wie Entwurf §2.1 sie
+//    festhaelt -- ns 222 VOR den inoffiziellen Quellen. Wieder derselbe Riegel: der Inhalt der
+//    Antwort aendert sich, `map_revision` bewegt sich nicht, und ein warmer Browser saehe an
+//    einem ns-222-Objekt weiter „INOFFIZIELL │ Apfeldorn" statt „│ Wiki Aventurica".
+const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 20;
 
 // 🔴 avesmapsMapFeaturesWikiNamespaces() UND die zugehoerige Typ-Zuordnung stehen NICHT hier,
 // sondern in api/_internal/app/feature-sources.php, direkt neben avesmapsFeatureSourcesDeriveKanon,

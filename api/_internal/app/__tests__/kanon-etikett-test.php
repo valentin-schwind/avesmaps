@@ -234,15 +234,43 @@ $kanon = avesmapsFeatureSourcesDeriveKanon($katalog,
 assert($kanon['settlement:p-doppelt'] === ['kanon' => 'offiziell'],
     'eine offizielle Quelle schlaegt auch den inoffiziellen Namensraum');
 
-// ---- 9. Rang 2 darf den GENAUEREN Bezeichner nicht verschlucken -------------------------------
-// 💣 Die erste Fassung liess den Namensraum VOR den Quellen entscheiden. Beide Raenge sagen
-// 'inoffiziell', also aenderte er nie den Kanon -- er ueberschrieb nur den Bezeichner: ein
-// ns-222-Ort MIT Briefspielquelle stand als „Wiki Aventurica" da. Owner 27.08.2026, woertlich:
-// „trotzdem find ichs nett, wenn da briefspiel steht, wenns ein briefspiel-ort ist".
+// ---- 9. RANG 2 STEHT VOR RANG 3 -- der Namensraum schlaegt die Quellzeile ---------------------
+// 🔴 SO HAELT ES ENTWURF §2.1 FEST (Owner-Freigabe 27.08.2026): offizielle Quelle · ns 222 ·
+// inoffizielle Quelle · ohne Quelle. Vom 31.08. bis zum 02.09.2026 stand hier das GEGENTEIL,
+// mit dieser Begruendung:
+//
+//   „trotzdem find ichs nett, wenn da briefspiel steht, wenns ein briefspiel-ort ist"
+//   (Owner 27.08.2026)
+//
+// 💣 DER SATZ GILT WEITER -- ER TRIFFT DIESEN FALL NUR NICHT. Bei einem ns-222-Objekt IST die
+// „Quelle" der Wiki-Artikel selbst, und ihr `label` ist deshalb der SEITENTITEL, kein
+// Korpusname: es stand „INOFFIZIELL │ Apfeldorn" da, wo „│ Wiki Aventurica" hingehoert
+// (Owner-Meldung 02.09.2026). Ein Seitentitel an der Stelle eines Korpusnamens ist nicht
+// genauer, sondern eine andere Aussage.
+// ⭐ Und die echten Korpora bleiben unberuehrt: von 608 inoffiziellen Objekten des Livebestands
+// liegt genau EINES in ns 222 (02.09.2026 gemessen).
 $kanon = avesmapsFeatureSourcesDeriveKanon($katalog,
     ['settlement:p-beides' => [['source_id' => 2]]], ['settlement:p-beides' => 222]);
-assert($kanon['settlement:p-beides'] === ['kanon' => 'inoffiziell', 'bezeichner_label' => 'Briefspiel (Garetien)'],
-    'die genauere Quelle behaelt ihren Namen, der Namensraum aendert das Urteil ohnehin nicht');
+assert($kanon['settlement:p-beides'] === ['kanon' => 'inoffiziell', 'bezeichner_label' => 'Wiki Aventurica'],
+    'ns 222 schlaegt die inoffizielle Quellzeile -- ihr Label waere hier der Seitentitel');
+
+// ⚠️ UND DIE GEGENPROBE, die diese Zusicherung erst zu einer macht: OHNE ns 222 behaelt dieselbe
+// Quelle ihren Namen. Sonst waere „Wiki Aventurica" ein Rueckfall fuer alles, und die 283
+// „Briefspiel"-, 113 „AlmadaWiki"- und 54 „Albernisches Briefspiel"-Objekte verloeren ihn.
+$kanon = avesmapsFeatureSourcesDeriveKanon($katalog,
+    ['settlement:p-nurquelle' => [['source_id' => 2]]], []);
+assert($kanon['settlement:p-nurquelle'] === ['kanon' => 'inoffiziell', 'bezeichner_label' => 'Briefspiel (Garetien)'],
+    'ohne inoffiziellen Namensraum bleibt der Korpusname der Quelle stehen');
+
+// 🔴 Und „Wiki Aventurica" gilt NUR dem Wiki (Owner 02.09.2026: „soll nur dranstehen, wenn es ein
+// ns222 fall ist"). Ein Raum, der KEIN Inhalt ist, loest nichts aus -- das prueft Abschnitt 8
+// oben; hier die zweite Haelfte: ein OFFIZIELLER Inhaltsraum ebenso wenig.
+foreach ([0 => 'Hauptraum', 218 => 'DSK', 220 => 'Elf'] as $raum => $name) {
+    $kanon = avesmapsFeatureSourcesDeriveKanon($katalog,
+        ['settlement:p-raum' => [['source_id' => 2]]], ['settlement:p-raum' => $raum]);
+    assert($kanon['settlement:p-raum'] === ['kanon' => 'inoffiziell', 'bezeichner_label' => 'Briefspiel (Garetien)'],
+        "ns {$raum} ({$name}) ist offiziell und darf die Quellzeile nicht ueberschreiben");
+}
 
 // ---- 10. Beide Mengen bilden den Suchraum -----------------------------------------------------
 // Objekte, deren einzige Herkunft ihr Wiki-Artikel ist, stehen NICHT in $refs.

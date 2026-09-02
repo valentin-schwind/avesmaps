@@ -2203,18 +2203,34 @@ function avesmapsFeatureSourcesDeriveKanon(array $catalog, array $refs, array $w
         $ns = $wikiNamespaces[$key] ?? null;
         $raumIstInoffiziell = $ns !== null && avesmapsWikiNamespaceIsOfficial((int) $ns) === false;
 
+        // 🔴 RANG 2 STEHT WIEDER VOR RANG 3 -- so, wie der Entwurf §2.1 es festhaelt (Owner-Freigabe
+        // 27.08.2026: offizielle Quelle · ns 222 · inoffizielle Quelle · ohne Quelle). Vom
+        // 31.08. bis zum 02.09.2026 war die Reihenfolge hier GETAUSCHT, mit einer Begruendung, die
+        // fuer sich genommen richtig war und den entscheidenden Fall uebersehen hat:
+        //
+        //   „trotzdem find ichs nett, wenn da briefspiel steht, wenns ein briefspiel-ort ist"
+        //   (Owner 27.08.2026)
+        //
+        // 💣 DER SATZ GILT WEITER -- ER TRIFFT DIESEN FALL NUR NICHT. Bei einem Objekt in ns 222
+        // IST die „Quelle" der Wiki-Artikel selbst, und ihr `label` ist deshalb der SEITENTITEL,
+        // kein Korpusname: es stand „INOFFIZIELL │ Apfeldorn" da, wo „INOFFIZIELL │ Wiki
+        // Aventurica" hingehoert (Owner-Meldung 02.09.2026). Ein Seitentitel an der Stelle eines
+        // Korpusnamens ist nicht genauer, sondern eine andere Aussage -- er sieht aus wie die
+        // Angabe eines Angebots und ist der Name eines Artikels.
+        // ⭐ Und die echten Korpora bleiben unberuehrt: von den 608 inoffiziellen Objekten des
+        // Livebestands liegt genau EINES in ns 222 (02.09.2026 gemessen; „Briefspiel" 283,
+        // „AlmadaWiki" 113, „Albernisches Briefspiel" 54 -- alle ohne ns-222-Adresse). Die
+        // Rangfolge nimmt also keinem Briefspielort seinen Namen, sie nimmt nur dem Wiki-Artikel
+        // den Anschein, einer zu sein.
+        // ⚠️ Wer sie erneut tauschen will, braucht zuerst einen KORPUSNAMEN an der ns-222-Quelle --
+        // solange dort der Seitentitel steht, ist der genauere Bezeichner der ungenauere.
+        if ($raumIstInoffiziell) {
+            $out[$key] = ['kanon' => 'inoffiziell', 'bezeichner_label' => 'Wiki Aventurica'];
+            continue;
+        }
+
         if ($inoffizielle < 1) {
-            // 🔴 RANG 2 SPRICHT NUR, WENN RANG 3 SCHWEIGT. Die erste Fassung liess ihn VOR den
-            // Quellen entscheiden -- und weil beide Raenge auf dasselbe Urteil hinauslaufen
-            // ('inoffiziell'), aenderte er nie den Kanon, sondern ueberschrieb nur den genaueren
-            // Bezeichner: ein ns-222-Ort MIT Briefspielquelle stand als „Wiki Aventurica" statt
-            // als „Briefspiel (Garetien)" da. Owner 27.08.2026, woertlich: „trotzdem find ichs
-            // nett, wenn da briefspiel steht, wenns ein briefspiel-ort ist". Die Vorrangregel des
-            // Owners galt „offiziell schlaegt inoffiziell", nicht „ungenau schlaegt genau".
-            if ($raumIstInoffiziell) {
-                $out[$key] = ['kanon' => 'inoffiziell', 'bezeichner_label' => 'Wiki Aventurica'];
-            }
-            continue; // sonst: keine verwertbare Quelle, kein inoffizieller Raum -- kein Etikett
+            continue; // keine verwertbare Quelle, kein inoffizieller Raum -- kein Etikett
         }
 
         $eintragOut = ['kanon' => 'inoffiziell'];
