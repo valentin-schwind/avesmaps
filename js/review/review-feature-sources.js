@@ -465,6 +465,12 @@ function renderFeatureSourceAddRow(escape, tr) {
     // Domain und wird gerechnet, nie getippt; hier steht nur seine BESCHRIFTUNG. Die Meta-Zeile
     // daneben nennt den Schlüssel und die Reichweite, damit sichtbar ist, was eine Umbenennung
     // trifft (Entwurf §3, Mockup Schritt 2).
+    // 🔴 DER RAHMEN ZIEHT DIE GRENZE (Owner 02.09.2026: „du kannst gerne alles einrahmen, was zum
+    // korpus gehört (seiten z.b. nicht)"). Was hier drinsteht, gilt fuer ALLE Belege dieses Wirts;
+    // was draussen steht, gehoert dieser einen Fundstelle. Ohne die sichtbare Grenze sieht ein
+    // Editor der Zeile nicht an, dass ein Griff zur Lizenz 50 Objekte trifft.
+    '<span class="fs-korpus" data-fs-korpus-gruppe>' +
+    '<span class="fs-korpus__l">' + escape(tr("sources.add.corpusGroup", "Gilt für den ganzen Korpus")) + "</span>" +
     '<label class="fs-af fs-af--korpus"><span class="fs-af__l">' +
     escape(tr("sources.add.corpusLabel", "Name des Korpus")) +
     '<span class="fs-af__meta" data-fs-corpus-meta></span></span>' +
@@ -477,16 +483,11 @@ function renderFeatureSourceAddRow(escape, tr) {
     '<button type="button" class="fs-add-picked__x" data-fs-unpick aria-label="' +
     escape(tr("sources.add.unpick", "Auswahl aufheben")) + '">✕</button>' +
     "</span>" +
-    '<label class="fs-af fs-af--pages"><span class="fs-af__l">' +
-    escape(tr("sources.add.pages", "Seite(n)")) + "</span>" +
-    '<input type="text" class="fs-add-pages" placeholder="' + escape(tr("sources.add.pagesHint", "optional")) + '"></label>' +
     // ⚠️ Die vier Marker „· vom Korpus" hängen an einem `hidden`-Attribut und werden gesetzt, wenn
     // der Korpus den Wert wirklich vorgibt. Ein dauerhaft sichtbarer Marker wäre eine Behauptung.
     '<label class="fs-af fs-af--art"><span class="fs-af__l">' + escape(tr("sources.add.typeLabel", "Art")) +
     '<span class="fs-af__from" data-fs-from="type" hidden> · ' + escape(tr("sources.add.fromCorpus", "vom Korpus")) + "</span></span>" +
     '<select class="fs-add-type">' + options + "</select></label>" +
-    '<label class="fs-af fs-af--kind"><span class="fs-af__l">' + escape(tr("sources.add.kindLabel", "Abdeckung")) + "</span>" +
-    '<select class="fs-add-kind" title="' + escape(tr("sources.add.kind", "Abdeckung: Ausführlich/Ergänzend → Offiziell-Tab, Erwähnung → Erwähnt-Tab, sonst normale Quellenzeile")) + '">' + kindOptions + "</select></label>" +
     '<label class="fs-af fs-af--license"><span class="fs-af__l">' + escape(tr("sources.add.licenseLabel", "Lizenz")) +
     '<span class="fs-af__from" data-fs-from="license" hidden> · ' + escape(tr("sources.add.fromCorpus", "vom Korpus")) + "</span></span>" +
     '<select class="fs-add-license" title="' + escape(tr("sources.add.licenseHint", "Unter welcher Lizenz steht die Quelle? Leer heißt „nicht erfasst“, nicht „keine Lizenz“.")) + '">' + licenseOptions + "</select></label>" +
@@ -498,6 +499,14 @@ function renderFeatureSourceAddRow(escape, tr) {
     '<input type="checkbox" class="fs-add-official"> ' + escape(tr("sources.add.official", "offiziell")) +
     '<span class="fs-af__from" data-fs-from="official" hidden> · ' + escape(tr("sources.add.fromCorpus", "vom Korpus")) + "</span>" +
     "</label>" +
+    "</span>" +
+    // ⚠️ AUSSERHALB des Rahmens, und das ist der Sinn der Ordnung: Seiten und Abdeckung
+    // beschreiben DIESE Fundstelle, nicht den Wirt. Owner: „(seiten z.b. nicht)".
+    '<label class="fs-af fs-af--pages"><span class="fs-af__l">' +
+    escape(tr("sources.add.pages", "Seite(n)")) + "</span>" +
+    '<input type="text" class="fs-add-pages" placeholder="' + escape(tr("sources.add.pagesHint", "optional")) + '"></label>' +
+    '<label class="fs-af fs-af--kind"><span class="fs-af__l">' + escape(tr("sources.add.kindLabel", "Abdeckung")) + "</span>" +
+    '<select class="fs-add-kind" title="' + escape(tr("sources.add.kind", "Abdeckung: Ausführlich/Ergänzend → Offiziell-Tab, Erwähnung → Erwähnt-Tab, sonst normale Quellenzeile")) + '">' + kindOptions + "</select></label>" +
     '<button type="button" class="fs-row__add" data-fs-add-submit>' + escape(tr("sources.add.submit", "Hinzufügen")) + "</button>" +
     "</div>" +
     // Platz für die Absage. Ohne ihn verschluckte der Knopf den Klick wortlos, sobald die URL fehlte
@@ -1316,6 +1325,124 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
   }
 
   /**
+   * 🔴 DIE FELDER, DIE DEM KORPUS GEHÖREN. Owner-Entscheid 02.09.2026: „ändere ich ART, LIZENZ,
+   * Namensnennung oder Name, ändert sich alles mit."
+   *
+   * 💣 Seiten, Abdeckung, Titel und Adresse stehen NICHT darin -- die gehören dieser einen
+   * Fundstelle. Der Rahmen in der Oberfläche zeigt genau diese Grenze („du kannst gerne alles
+   * einrahmen, was zum korpus gehört (seiten z.b. nicht)").
+   */
+  const KORPUS_FELDER = [
+    { selektor: ".fs-add-type", feld: "source_type" },
+    { selektor: ".fs-add-license", feld: "license" },
+    { selektor: ".fs-add-attribution", feld: "attribution" },
+    { selektor: ".fs-add-official", feld: "is_official", haken: true },
+  ];
+
+  /**
+   * Ein Korpusfeld wurde geändert — das gilt für ALLE Belege dieses Wirts.
+   *
+   * ⚠️ Nur bei einem BEKANNTEN Korpus. Existiert er noch nicht, hat er auch keine anderen Belege;
+   * seine Werte reisen dann mit dem ersten Eintrag mit (`korpusAnlageAusZeile`) und legen ihn an.
+   * Sonst entstünde für jede halb ausgefüllte, nie abgeschickte Zeile ein Korpus.
+   */
+  async function speichereKorpusFeld(eintrag) {
+    const korpus = letzterKorpus;
+    if (!korpus || korpus.known !== true || !korpus.corpus_key) {
+      return;
+    }
+    const el = containerEl.querySelector(eintrag.selektor);
+    if (!el) {
+      return;
+    }
+    const jetzt = eintrag.haken ? el.checked === true : String(el.value || "");
+    const vorher = eintrag.haken ? korpus[eintrag.feld] === true : String(korpus[eintrag.feld] || "");
+    if (jetzt === vorher) {
+      return;
+    }
+    const felder = {};
+    felder[eintrag.feld] = jetzt;
+    if (!await bestaetigeKorpusAenderung(korpus)) {
+      // zurücksetzen, sonst zeigt die Zeile einen Wert, den niemand gespeichert hat
+      if (eintrag.haken) {
+        el.checked = vorher;
+      } else {
+        el.value = vorher;
+      }
+      return;
+    }
+    await schreibeKorpus(korpus.corpus_key, felder);
+  }
+
+  /**
+   * Schreibt zurück, was der Editor in der Eingabezeile schon stehen hatte.
+   *
+   * ⚠️ Ohne dieses Gegenstück kostet jede Korpusänderung die halbe Eingabe -- und der Editor
+   * lernt daraus, den Korpus nicht anzufassen. Genau das soll er aber tun.
+   */
+  function stelleAddZeileWiederHer(werte) {
+    if (!werte) {
+      return;
+    }
+    const setze = (selektor, wert) => {
+      const el = containerEl.querySelector(selektor);
+      if (el && wert) {
+        el.value = wert;
+      }
+    };
+    setze(".fs-add-url", werte.url);
+    setze(".fs-add-label", werte.label);
+    setze(".fs-add-pages", werte.pages);
+    setze(".fs-add-kind", werte.reference_kind);
+  }
+
+  /** Die Rückfrage — sie nennt die ZAHL, denn „gilt überall" ohne Grösse ist keine Warnung. */
+  async function bestaetigeKorpusAenderung(korpus) {
+    const objekte = Number(korpus.objects) || 0;
+    if (objekte < FEATURE_SOURCE_CONFIRM_THRESHOLD) {
+      return true;
+    }
+    const frage = tr("sources.add.corpusFieldConfirm",
+      "Das gilt für alle {n} Objekte des Korpus „{name}“. Fortfahren?")
+      .replace("{n}", String(objekte))
+      .replace("{name}", String(korpus.label || korpus.corpus_key || ""));
+    return typeof window === "undefined" || typeof window.confirm !== "function" || window.confirm(frage);
+  }
+
+  /** Der EINE Schreibweg zum Korpus -- Umbenennen und Feldänderung münden hier. */
+  async function schreibeKorpus(key, felder) {
+    const daten = await featureSourceFetch({
+      action: "save_corpus",
+      entity_type: entityType,
+      corpus_key: key,
+      fields: felder,
+      confirm_corpus: true,
+    });
+    if (!daten || daten.ok !== true) {
+      setzeAdressZustand(null, (daten && daten.error && daten.error.message)
+        || tr("sources.add.corpusFailed", "Der Korpus ließ sich nicht speichern."));
+      return null;
+    }
+    letzterKorpus = Object.assign({}, letzterKorpus, daten.corpus || {}, { known: true });
+    // 🔴 DIE FELDER MÜSSEN NACHZIEHEN (Owner 02.09.2026). Der Korpus hat gerade JEDE Quelle dieses
+    // Wirts umgeschrieben -- die Zeilen darüber zeigen sonst weiter den alten Stand, und der
+    // Editor sieht eine Liste, die seiner eigenen Änderung widerspricht.
+    // ⚠️ `renderFromServer` zeichnet die Eingabezeile mit neu und leert sie. Was der Editor dort
+    // schon getippt hat, wird deshalb vorher gerettet und danach zurückgeschrieben -- sonst
+    // bestraft ihn eine Korpusänderung mit dem Verlust seiner halben Eingabe.
+    const gerettet = readAddRowValues();
+    await renderFromServer("list");
+    stelleAddZeileWiederHer(gerettet);
+    uebernehmeKorpus(letzterKorpus);
+    const betroffen = Number(daten.corpus && daten.corpus.objects) || 0;
+    showAddRowNote(betroffen > 0
+      ? tr("sources.add.corpusApplied", "Übernommen — das gilt jetzt für alle {n} Objekte dieses Korpus.")
+        .replace("{n}", String(betroffen))
+      : tr("sources.add.corpusStored", "Übernommen."), "ok");
+    return daten;
+  }
+
+  /**
    * Den Korpus umbenennen. 🔴 Das trifft JEDEN Beleg dieses Wirts -- deshalb die Rückfrage, und
    * deshalb steht die Reichweite schon vorher neben dem Feld.
    */
@@ -1339,23 +1466,11 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
         return;
       }
     }
-    const daten = await featureSourceFetch({
-      action: "save_corpus",
-      entity_type: entityType,
-      corpus_key: letzterKorpus.corpus_key,
-      fields: { label: neu },
-      confirm_corpus: true,
-    });
-    if (!daten || daten.ok !== true) {
+    // 🔴 Derselbe Schreibweg wie jede andere Korpusänderung -- eine Regel, die einen von zwei
+    // Erzeugern bindet, ist keine Regel.
+    if (!await schreibeKorpus(letzterKorpus.corpus_key, { label: neu })) {
       feld.value = alt;
-      setzeAdressZustand(null, (daten && daten.error && daten.error.message)
-        || tr("sources.add.corpusFailed", "Der Korpus ließ sich nicht speichern."));
-      return;
     }
-    letzterKorpus = Object.assign({}, letzterKorpus, daten.corpus || {}, { known: true });
-    uebernehmeKorpus(letzterKorpus);
-    setzeAdressZustand("bekannt", tr("sources.add.corpusSaved",
-      "Der Korpus heißt jetzt „{neu}“ — das gilt für alle seine Belege.").replace("{neu}", neu));
   }
 
   // Nach jedem Neuzeichnen: das Adressfeld ist ein neues Element, direkte Listener sind weg.
@@ -1389,6 +1504,13 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
     });
     // Der Korpusname wird beim Verlassen des Feldes gespeichert, nicht bei jedem Tastendruck --
     // eine Umbenennung, die alle Belege trifft, gehört nicht an ein `input`-Ereignis.
+    // Jedes Korpusfeld schreibt beim Verlassen durch -- auf ALLE Belege des Wirts.
+    KORPUS_FELDER.forEach((eintrag) => {
+      const el = containerEl.querySelector(eintrag.selektor);
+      if (el) {
+        el.addEventListener("change", () => { speichereKorpusFeld(eintrag); });
+      }
+    });
     const korpusFeld = containerEl.querySelector("[data-fs-corpus]");
     if (korpusFeld) {
       korpusFeld.addEventListener("blur", speichereKorpus);
@@ -1523,7 +1645,31 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
           ? String(fehler.message)
           : tr("sources.edit.failed", "Konnte nicht gespeichert werden."));
       }
+      return;
     }
+    // 🔴 BENANNT, nicht verschwiegen: hat die Änderung über den Korpus gewirkt, hat sie JEDEN
+    // Beleg dieses Wirts getroffen -- nicht nur die eine Zeile, die der Editor vor sich hatte.
+    // Eine stille Änderung mit dieser Reichweite ist dieselbe Falle wie die stille
+    // Nicht-Änderung, aus der Meldung #105 entstand.
+    const korpus = daten.corpus_applied;
+    if (korpus) {
+      showAddRowNote(tr("sources.edit.corpusApplied",
+        "„{feld}“ gilt dem Korpus „{name}“ — die Änderung wurde auf alle {n} Objekte übernommen.")
+        .replace("{feld}", (korpus.fields || []).map(featureSourceFieldLabel).join(", "))
+        .replace("{name}", String(korpus.label || korpus.corpus_key || ""))
+        .replace("{n}", String(Number(korpus.objects) || 0)), "ok");
+    }
+  }
+
+  /** Feldnamen für Menschen — dieselben Wörter wie die Beschriftungen der Eingabezeile. */
+  function featureSourceFieldLabel(name) {
+    const tafel = {
+      source_type: tr("sources.add.typeLabel", "Art"),
+      license: tr("sources.add.licenseLabel", "Lizenz"),
+      attribution: tr("sources.add.attributionShort", "Namensnennung"),
+      is_official: tr("sources.add.official", "offiziell"),
+    };
+    return tafel[name] || name;
   }
 
   containerEl.addEventListener("click", async (event) => {

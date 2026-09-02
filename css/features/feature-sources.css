@@ -235,6 +235,38 @@
 	color: var(--color-text-muted);
 	font-weight: normal;
 }
+/* ── Der Korpus-Rahmen (02.09.2026) ──────────────────────────────────────────────────────────
+   Owner: „du kannst gerne alles einrahmen, was zum korpus gehört (seiten z.b. nicht)."
+   🔴 Was hier drinsteht, gilt für ALLE Belege dieses Wirts -- eine Änderung an der Lizenz trifft
+   bei westlande.de 50 Objekte. Ohne die sichtbare Grenze sieht ein Editor der Zeile nicht an,
+   welcher Griff weit reicht und welcher nur diese eine Fundstelle betrifft.
+   ⚠️ Er ist ein Rahmen, kein Kasten: gestrichelt und ohne eigene Fläche, damit er die Zeile
+   gliedert statt sie in zwei Formulare zu zerschneiden. */
+.fs-korpus {
+	display: flex;
+	align-items: flex-end;
+	flex-wrap: wrap;
+	gap: 6px;
+	flex: 1 1 100%;
+	position: relative;
+	border: 1px dashed var(--color-accent-brown);
+	border-radius: var(--radius-md);
+	padding: 16px 8px 8px;
+	margin-top: 4px;
+}
+/* Die Aufschrift sitzt AUF dem Rahmen -- sie erklärt ihn, statt eine weitere Zeile zu kosten. */
+.fs-korpus__l {
+	position: absolute;
+	top: -7px;
+	left: 8px;
+	padding: 0 5px;
+	font-size: 10px;
+	line-height: 1.2;
+	letter-spacing: 0.02em;
+	text-transform: uppercase;
+	color: var(--color-accent-brown);
+	background: var(--color-panel-soft);
+}
 /* 💣 Der Prüfknopf sitzt NEBEN der Adresse, also darf sie nicht mehr 100 % nehmen -- sonst
    umbricht er auf eine eigene Zeile und steht sinnlos allein da. 36px = 30px Knopf + 6px `gap`
    der Zeile; wer den Knopf breiter macht, zieht diese Zahl mit. */

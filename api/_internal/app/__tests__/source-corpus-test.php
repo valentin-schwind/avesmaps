@@ -302,12 +302,103 @@ assert($geputzt['corpus']['form'] === '' && $geputzt['corpus']['source_type'] ==
     'unbekannte Werte werden zur Nicht-Aussage, nicht zu einer geratenen Aussage');
 $zaehl();
 
-// 💣 KEIN ZWEITES QUELLENSYSTEM (AGENTS.md §5). Dieses Modul darf `sources`/`feature_sources`
-// nirgends schreiben -- wer hier Quellen ablegt, baut den Lore-Fehler von 2026-07-21 nach.
+// ══ 7 · Der Korpus schreibt auf ALLE seine Quellen durch ════════════════════════════════════════
+
+// 🔴 Owner-Entscheid 02.09.2026: „aenderungen am korpus [beziehen sich] auf alle eintraege des
+// korpus -- wie versprochen. aender ich ART, LIZENZ, Namensnennung oder Name, aendert sich alles
+// mit." Ohne diesen Schritt waere der Korpus eine blosse VORGABE fuer kuenftige Eintraege
+// gewesen, und die Oberflaeche behauptete „gilt fuer alle 50 Objekte", waehrend sich nichts regt.
+$pdo3 = new PDO('sqlite::memory:');
+$pdo3->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+avesmapsEnsureFeatureSourceTables($pdo3);
+avesmapsEnsureSourceCorpusTable($pdo3);
+$anlegen3 = $pdo3->prepare(
+    'INSERT INTO sources (url, url_hash, label, source_type, is_official, license, attribution)
+     VALUES (:u, :h, :l, "sonstiges", 0, "", "")'
+);
+$ids3 = [];
+foreach ([
+    'Apfeldorn' => 'https://westlande.de/albernia/index.php?title=Apfeldorn',
+    'Falkenhain' => 'https://westlande.de/albernia/index.php?title=Falkenhain',
+    'Fremd' => 'https://fremd.example/seite',
+] as $titel => $adresse) {
+    $anlegen3->execute(['u' => $adresse, 'h' => hash('sha256', $adresse), 'l' => $titel]);
+    $ids3[$titel] = (int) $pdo3->lastInsertId();
+}
+
+$durch = avesmapsSourceCorpusSave($pdo3, 'westlande.de', [
+    'label' => 'AlberniaWiki', 'source_type' => 'briefspiel',
+    'license' => 'cc-by-sa-4.0', 'attribution' => 'Freundeskreis',
+], 0, true);
+assert(($durch['ok'] ?? false) === true, 'der Korpus wird gespeichert');
+$zaehl();
+
+$stand = [];
+foreach ($pdo3->query('SELECT id, label, source_type, license, attribution FROM sources') as $z) {
+    $stand[(int) $z['id']] = $z;
+}
+assert($stand[$ids3['Apfeldorn']]['source_type'] === 'briefspiel'
+    && $stand[$ids3['Falkenhain']]['source_type'] === 'briefspiel',
+    'die Art erreicht BEIDE Quellen des Wirts, nicht nur die zuletzt angefasste');
+$zaehl();
+assert($stand[$ids3['Apfeldorn']]['license'] === 'cc-by-sa-4.0'
+    && $stand[$ids3['Falkenhain']]['attribution'] === 'Freundeskreis',
+    'Lizenz und Namensnennung ebenso');
+$zaehl();
+
+// 💣 DER TITEL WANDERT NICHT MIT. `sources.label` ist der Name DIESER Seite („Apfeldorn"),
+// `source_corpus.label` der Name des ANGEBOTS („AlberniaWiki") -- sie teilen sich zufaellig den
+// Spaltennamen und bedeuten Gegenteiliges. Waere `label` in den durchgeschriebenen Feldern,
+// hiessen alle 39 Seiten von westlande.de danach „AlberniaWiki".
+assert($stand[$ids3['Apfeldorn']]['label'] === 'Apfeldorn'
+    && $stand[$ids3['Falkenhain']]['label'] === 'Falkenhain',
+    'die Seitentitel ueberleben das Durchschreiben');
+$zaehl();
+assert(!in_array('label', AVESMAPS_SOURCE_CORPUS_OWNED_FIELDS, true)
+    && !in_array('form', AVESMAPS_SOURCE_CORPUS_OWNED_FIELDS, true),
+    'weder der Name noch die Form gehoeren zu den durchgeschriebenen Feldern');
+$zaehl();
+
+// ⚠️ Ein FREMDER Wirt bleibt unberuehrt -- gruppiert wird ueber die Schluesselregel, nicht ueber
+// ein `LIKE`.
+assert($stand[$ids3['Fremd']]['source_type'] === 'sonstiges'
+    && $stand[$ids3['Fremd']]['license'] === '',
+    'eine Quelle eines anderen Wirts wird nicht angefasst');
+$zaehl();
+
+// ⚠️ Und ein Korpus OHNE eigene Quellen schreibt nichts durch, statt zu scheitern.
+$leerer = avesmapsSourceCorpusSave($pdo3, 'gibtesnicht.de', ['source_type' => 'briefspiel'], 0, true);
+assert(($leerer['ok'] ?? false) === true, 'ein Korpus ohne Quellen laesst sich trotzdem anlegen');
+$zaehl();
+
+// 💣 KEIN ZWEITES QUELLENSYSTEM (AGENTS.md §5) -- und die Grenze verlaeuft seit dem 02.09.2026
+// anders, als hier stand.
+//
+// 🪤 Bis dahin: „das Korpus-Modul schreibt NIE in sources oder feature_sources". Das war richtig,
+// solange der Korpus nur eine VORGABE fuer kuenftige Eintraege war. Owner-Entscheid: er BESITZT
+// Art, Lizenz und Namensnennung, und eine Aenderung daran gilt fuer jeden Beleg des Wirts -- also
+// MUSS er in `sources` schreiben, sonst waere das Versprechen leer.
+//
+// 🔴 Was bleibt: er legt NIE eine Quelle an und fasst `feature_sources` GAR NICHT an. Genau das
+// waere der Lore-Fehler von 2026-07-21 -- ein zweites System, das Quellen fuehrt.
 $quelltext = (string) file_get_contents(__DIR__ . '/../source-corpus.php');
 $ohneKommentare = preg_replace('#/\*[\s\S]*?\*/|^[ \t]*//.*$#m', '', $quelltext) ?? '';
-assert(preg_match('/\b(INSERT|UPDATE|DELETE)\b[\s\S]{0,80}\b(sources|feature_sources)\b/i', $ohneKommentare) !== 1,
-    'das Korpus-Modul schreibt NIE in sources oder feature_sources');
+assert(preg_match('/\bINSERT\s+INTO\s+sources\b/i', $ohneKommentare) !== 1,
+    'der Korpus legt NIE eine Quelle an');
+$zaehl();
+assert(preg_match('/\bDELETE\b[\s\S]{0,40}\bsources\b/i', $ohneKommentare) !== 1,
+    'und loescht auch keine');
+$zaehl();
+assert(preg_match('/\b(INSERT|UPDATE|DELETE)\b[\s\S]{0,60}\bfeature_sources\b/i', $ohneKommentare) !== 1,
+    'die Verknuepfungen gehoeren ihm gar nicht -- feature_sources bleibt unberuehrt');
+$zaehl();
+// Und der EINE erlaubte Schreibvorgang auf `sources` setzt ausschliesslich die Felder, die dem
+// Korpus gehoeren -- er wird aus AVESMAPS_SOURCE_CORPUS_OWNED_FIELDS gebaut, nicht aufgezaehlt.
+assert(preg_match_all('/\bUPDATE\s+sources\b/i', $ohneKommentare) === 1,
+    'genau EIN Schreibvorgang auf sources, kein zweiter daneben');
+$zaehl();
+assert(strpos($ohneKommentare, "array_flip(AVESMAPS_SOURCE_CORPUS_OWNED_FIELDS)") !== false,
+    'und er nimmt seine Felder aus der Liste, statt sie noch einmal hinzuschreiben');
 $zaehl();
 // 🔴 Der SCHREIBWEG ist genau EINER, und er heisst so. Hier stand bis zum 02.09.2026 „der Leser
 // schreibt gar nicht" -- das galt, solange das Modul nur las, und wurde mit `avesmapsSourceCorpusSave`

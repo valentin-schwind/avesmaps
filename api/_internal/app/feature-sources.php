@@ -1196,6 +1196,42 @@ function avesmapsUpdateFeatureSource(PDO $pdo, string $entityType, string $publi
         avesmapsNextMapRevision($pdo);
     }
 
+    // 🔴 WAS DEM KORPUS GEHOERT, WIRD AUCH HIER AM KORPUS GEAENDERT. Owner-Entscheid 02.09.2026:
+    // „aender ich ART, LIZENZ, Namensnennung oder Name, aendert sich alles mit" -- und zwar
+    // gleichgueltig, ob die Aenderung aus der Eingabezeile kommt oder aus dem ✎ dieser Liste.
+    // Owner, direkt danach: „beachte, dass man auch quellen editieren will".
+    //
+    // 💣 OHNE DAS LIEFEN DIE ZWEI WEGE AUSEINANDER: die Eingabezeile schriebe die Art auf alle
+    // 39 Zeilen von westlande.de durch, das ✎ auf genau eine -- und der Korpus behielte still
+    // den alten Wert, den er beim naechsten Eintrag wieder vorgibt. Eine Regel, die einen von
+    // zwei Erzeugern bindet, ist keine Regel.
+    // ⚠️ Nur wenn der Korpus BEKANNT ist. Sonst waere jedes ✎ an einer beliebigen Adresse ein
+    // stilles Anlegen -- Korpora entstehen beim Eintragen, nicht beim Korrigieren.
+    // ⚠️ Und `label` ist ausgenommen (AVESMAPS_SOURCE_CORPUS_OWNED_FIELDS): das ist der Titel
+    // DIESER Seite, nicht der Name des Wirts.
+    // 💣 DIE KORPUS-KONSTANTE STEHT INNERHALB DES RIEGELS, nicht davor. `source-corpus.php` haengt
+    // AN dieser Datei, nicht umgekehrt (der Zirkel waere sonst da) -- viele Oberflaechen laden also
+    // nur die Quellen und kennen `AVESMAPS_SOURCE_CORPUS_OWNED_FIELDS` gar nicht. Ein Zugriff
+    // davor waere ein Fatal Error mit LEEREM Rumpf, und der sieht fuer den Client aus wie ein
+    // Netzfehler. Beim ersten Bau stand er genau eine Zeile zu hoch.
+    $korpusDurchschrieb = null;
+    if ($katalogAenderungen !== [] && function_exists('avesmapsSourceCorpusSave')) {
+        $korpusFelder = array_intersect_key($katalogAenderungen, array_flip(AVESMAPS_SOURCE_CORPUS_OWNED_FIELDS));
+        $korpusKey = $korpusFelder === [] ? '' : avesmapsSourceCorpusKey((string) ($catalog['url'] ?? ''));
+        $bekannte = avesmapsSourceCorpusReadAll($pdo);
+        if ($korpusKey !== '' && isset($bekannte[$korpusKey])) {
+            $ergebnis = avesmapsSourceCorpusSave($pdo, $korpusKey, $korpusFelder, $userId, true);
+            if (($ergebnis['ok'] ?? false) === true) {
+                $korpusDurchschrieb = [
+                    'corpus_key' => $korpusKey,
+                    'label' => (string) ($ergebnis['corpus']['label'] ?? $korpusKey),
+                    'objects' => (int) ($ergebnis['corpus']['objects'] ?? 0),
+                    'fields' => array_keys($korpusFelder),
+                ];
+            }
+        }
+    }
+
     $antwort = avesmapsListFeatureSourcesForEdit($pdo, $entityType, $publicId, $userId);
     $antwort['updated'] = [
         'source_id' => $sourceId,
@@ -1203,6 +1239,11 @@ function avesmapsUpdateFeatureSource(PDO $pdo, string $entityType, string $publi
         'catalog_fields' => array_keys($katalogAenderungen),
         'usage_count' => $usage,
     ];
+    // ⚠️ BENANNT, nicht verschwiegen: wer eine Zeile aendert und dabei 50 Objekte trifft, muss das
+    // erfahren -- dieselbe Regel wie bei `retyped` und `linked`.
+    if ($korpusDurchschrieb !== null) {
+        $antwort['corpus_applied'] = $korpusDurchschrieb;
+    }
 
     return $antwort;
 }

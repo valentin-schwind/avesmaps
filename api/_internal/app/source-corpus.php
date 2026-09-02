@@ -282,6 +282,43 @@ function avesmapsSourceCorpusReadAll(PDO $pdo): array
 const AVESMAPS_SOURCE_CORPUS_FIELDS = ['label', 'form', 'source_type', 'license', 'attribution', 'is_official'];
 
 /**
+ * 🔴 DIE FELDER, DIE DER KORPUS SEINEN QUELLEN AUFPRAEGT. Owner-Entscheid 02.09.2026: eine
+ * Aenderung daran gilt fuer JEDEN Beleg dieses Wirts.
+ *
+ * 💣 `label` steht hier NICHT drin, und das ist der wichtigste Satz dieser Datei.
+ * `sources.label` ist der Titel DIESER SEITE („Apfeldorn"), `source_corpus.label` der Name des
+ * ANGEBOTS („AlberniaWiki"). Die zwei teilen sich zufaellig den Spaltennamen und bedeuten
+ * Gegenteiliges -- wer `label` hier ergaenzt, ueberschreibt in einem Zug die Titel aller Seiten
+ * eines Wirts mit dem Wirtsnamen. Bei westlande.de waeren das 39 Titel.
+ * ⚠️ `form` ebenfalls nicht: sie sagt, WELCHER der beiden Namen vorn steht, und ist keine
+ * Eigenschaft einer einzelnen Quelle.
+ */
+const AVESMAPS_SOURCE_CORPUS_OWNED_FIELDS = ['source_type', 'license', 'attribution', 'is_official'];
+
+/**
+ * Die ids aller Katalogzeilen eines Korpus. ⚠️ Ueber `avesmapsSourceCorpusKey`, nie ueber ein
+ * `LIKE` -- siehe die Begruendung bei `avesmapsSourceCorpusUsage`.
+ */
+function avesmapsSourceCorpusSourceIds(PDO $pdo, string $corpusKey): array
+{
+    if ($corpusKey === '') {
+        return [];
+    }
+    $alle = $pdo->query("SELECT id, url FROM sources WHERE url <> ''");
+    if ($alle === false) {
+        return [];
+    }
+    $ids = [];
+    foreach ($alle->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+        if (avesmapsSourceCorpusKey((string) $row['url']) === $corpusKey) {
+            $ids[] = (int) $row['id'];
+        }
+    }
+
+    return $ids;
+}
+
+/**
  * Ab wie vielen Objekten eine Aenderung am Korpus rueckgefragt wird.
  *
  * ⭐ Dieselbe Zahl wie beim Bearbeiten einer Katalogzeile (`AVESMAPS_FEATURE_SOURCE_CONFIRM_THRESHOLD`)
@@ -371,6 +408,48 @@ function avesmapsSourceCorpusSave(PDO $pdo, string $corpusKey, array $felder, in
             $setzen[] = $name . ' = :' . $name;
         }
         $pdo->prepare('UPDATE source_corpus SET ' . implode(', ', $setzen) . ' WHERE corpus_key = :k')->execute($werte);
+    }
+
+    // 🔴 UND JETZT AUF ALLE QUELLEN DES KORPUS DURCHSCHREIBEN. Owner-Entscheid 02.09.2026:
+    // „aenderungen am korpus [beziehen sich] auf alle eintraege des korpus - wie versprochen.
+    // aender ich ART, LIZENZ, Namensnennung oder Name, aendert sich alles mit."
+    //
+    // 💣 DAS IST DER UNTERSCHIED ZWISCHEN VERSPRECHEN UND HALTEN. Ohne diesen Schritt waere der
+    // Korpus eine blosse VORGABE fuer kuenftige Eintraege gewesen -- die 39 Zeilen, die es schon
+    // gibt, blieben stehen, und die Oberflaeche behauptete „gilt fuer alle 50 Objekte", waehrend
+    // sich nichts bewegt. Genau die stille Wirkungslosigkeit, die dieses Haus mehrfach bezahlt hat.
+    //
+    // ⚠️ Der TITEL wandert NICHT mit: `sources.label` ist der Name DIESER Seite („Apfeldorn"),
+    // der Korpusname etwas anderes („AlberniaWiki"). Sie teilen sich zufaellig den Spaltennamen.
+    $durchschreiben = array_intersect_key($spalten, array_flip(AVESMAPS_SOURCE_CORPUS_OWNED_FIELDS));
+    $betroffen = 0;
+    if ($durchschreiben !== []) {
+        $ids = avesmapsSourceCorpusSourceIds($pdo, $corpusKey);
+        if ($ids !== []) {
+            // 💣 DURCHWEG POSITIONELL. Benannte und positionelle Platzhalter im SELBEN Statement
+            // erlaubt PDO nicht -- gemischt verrutschen die Werte lautlos: am 02.09.2026 landeten
+            // beim ersten Versuch „1" und „2" (die Bindungsindizes) in `source_type` und `license`,
+            // und von drei Zeilen wurde genau eine getroffen. Kein Fehler, keine Ausnahme.
+            $setzen = [];
+            $werteQ = [];
+            foreach ($durchschreiben as $name => $wert) {
+                $setzen[] = $name . ' = ?';
+                $werteQ[] = $wert;
+            }
+            $platz = implode(',', array_fill(0, count($ids), '?'));
+            $stmt = $pdo->prepare(
+                'UPDATE sources SET ' . implode(', ', $setzen) . ' WHERE id IN (' . $platz . ')'
+            );
+            $stmt->execute(array_merge($werteQ, $ids));
+            $betroffen = count($ids);
+            // 💣 DER KARTENSTEMPEL. Art, Lizenz und Namensnennung reisen in der ETag-zwischen-
+            // gespeicherten map-features-Nutzlast (`source_catalog`). Ohne den Stempel bekaeme
+            // jeder warme Browser sein 304 und zeigte die alten Werte unbegrenzt weiter -- dieselbe
+            // Falle, die die Klimaebene und der Wappen-Notaus schon bezahlt haben.
+            if (function_exists('avesmapsNextMapRevision')) {
+                avesmapsNextMapRevision($pdo);
+            }
+        }
     }
 
     // 💣 ZURUECKLESEN, nicht glauben.
