@@ -476,6 +476,21 @@ function renderFeatureSourceAddRow(escape, tr) {
     '<span class="fs-af__meta" data-fs-corpus-meta></span></span>' +
     '<input type="text" class="fs-add-corpus" data-fs-corpus placeholder="' +
     escape(tr("sources.add.corpusPlaceholder", "aus der Adresse")) + '"></label>' +
+    // 🔴 DIE FORM -- die EINE Eigenschaft, die ein Korpus tragen MUSS: sie entscheidet, welcher
+    // der beiden Namen dem Besucher vorn steht. Bei einem WERK der Titel („Geographia
+    // Aventurica"), bei einer BELEGSTELLE der Korpusname („Briefspiel (Weiden)").
+    // 💣 DREI Werte, nicht zwei. „— noch offen —" ist ein eigener Zustand und verhält sich wie
+    // „Werk", also wie heute: bei einem frischen Korpus mit einer Zeile sagt das Verhältnis
+    // Titel/Zeilen nichts, und wer die Form dort rät, trifft in gut der Hälfte der Fälle daneben
+    // und behauptet dabei, es gemessen zu haben.
+    '<label class="fs-af fs-af--form"><span class="fs-af__l">' +
+    escape(tr("sources.add.formLabel", "Form")) +
+    '<span class="fs-af__meta" data-fs-form-meta></span></span>' +
+    '<select class="fs-add-form" data-fs-form>' +
+    '<option value="">' + escape(tr("sources.add.formOpen", "— noch offen —")) + "</option>" +
+    '<option value="werk">' + escape(tr("sources.add.formWork", "Werke (Titel vorn)")) + "</option>" +
+    '<option value="belegstelle">' + escape(tr("sources.add.formCite", "Belegstellen (Korpus vorn)")) + "</option>" +
+    "</select></label>" +
     // Instruction 5a requires the form to SAY which case occurred -- without this an editor cannot
     // tell whether they just referenced the existing source or minted a duplicate.
     '<span class="fs-add-picked" data-fs-picked hidden>' +
@@ -1183,6 +1198,23 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
       haken.checked = true;
     }
     marker("official", bekannt && korpus.is_official === true);
+
+    // Die Form und ihr Vorschlag. ⚠️ Vorgeschlagen wird NUR gerechnet, nie gesetzt: der Server
+    // schlägt ab drei Zeilen vor (`avesmapsSourceCorpusFormSuggestion`), darunter schweigt er.
+    const formFeld = containerEl.querySelector("[data-fs-form]");
+    if (formFeld) {
+      formFeld.value = String(korpus.form || "");
+    }
+    const formMeta = containerEl.querySelector("[data-fs-form-meta]");
+    if (formMeta) {
+      const vorschlag = String(korpus.form_suggestion || "");
+      formMeta.textContent = (!korpus.form && vorschlag)
+        ? " · " + tr("sources.add.formHint", "sieht nach {was} aus")
+          .replace("{was}", vorschlag === "belegstelle"
+            ? tr("sources.add.formCiteShort", "Belegstellen")
+            : tr("sources.add.formWorkShort", "Werken"))
+        : "";
+    }
   }
 
   // Die zuletzt gemeldete bekannte Katalogzeile -- gebraucht beim Korrigieren (was stand vorher da?).
@@ -1297,6 +1329,16 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
     if (values.is_official) {
       felder.is_official = true;
     }
+    // 🔴 Die FORM nur, wenn ein Mensch sie ausdrücklich gewählt hat. Sie wird nie gerechnet:
+    // bei einem frischen Korpus mit einer Zeile sagt das Verhältnis Titel/Zeilen nichts, und ein
+    // geratener Wert entscheidet, welcher Name dem Besucher vorn steht.
+    // ⚠️ Ohne diese Zeile fiele die Wahl still weg: `speichereKorpusFeld` greift nur bei einem
+    // BEKANNTEN Korpus, und beim ersten Eintrag ist er das per Definition nicht.
+    const formFeld = containerEl.querySelector("[data-fs-form]");
+    const gewaehlteForm = String((formFeld && formFeld.value) || "");
+    if (gewaehlteForm !== "") {
+      felder.form = gewaehlteForm;
+    }
     return Object.keys(felder).length > 0 ? { key: korpus.corpus_key, felder: felder } : null;
   }
 
@@ -1337,6 +1379,10 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
     { selektor: ".fs-add-license", feld: "license" },
     { selektor: ".fs-add-attribution", feld: "attribution" },
     { selektor: ".fs-add-official", feld: "is_official", haken: true },
+    // ⚠️ Die Form steht mit in der Liste, WIRD aber nicht auf die Quellen durchgeschrieben --
+    // sie sagt, welcher Name vorn steht, und ist keine Eigenschaft einer einzelnen Quelle.
+    // Der Server entscheidet das (AVESMAPS_SOURCE_CORPUS_OWNED_FIELDS), nicht diese Liste.
+    { selektor: ".fs-add-form", feld: "form" },
   ];
 
   /**

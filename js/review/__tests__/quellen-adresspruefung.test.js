@@ -327,9 +327,16 @@ assert.ok(/korpus\.known === true \|\| !korpus\.corpus_key/.test(quelltextKorr),
   "ein bekannter Korpus wird beim Eintragen nicht überschrieben");
 zaehl();
 
-// ⚠️ Und die FORM bleibt offen: bei einer Zeile sagt das Verhältnis Titel/Zeilen nichts.
-assert.ok(!/felder\.form =/.test(quelltextKorr),
-  "Werk oder Belegstelle wird beim ersten Eintrag NICHT geraten");
+// ⚠️ Die FORM wird beim ersten Eintrag NICHT GERATEN -- aber eine ausdrückliche Wahl reist mit.
+// 💣 Ohne das fiele sie still weg: `speichereKorpusFeld` greift nur bei einem BEKANNTEN Korpus,
+// und beim ersten Eintrag ist er das per Definition nicht.
+assert.ok(/const gewaehlteForm = String\(\(formFeld && formFeld\.value\) \|\| ""\)/.test(quelltextKorr)
+  && /if \(gewaehlteForm !== ""\) \{\s*felder\.form = gewaehlteForm;/.test(quelltextKorr),
+  "die Form reist nur mit, wenn sie im Feld steht -- gerechnet wird sie nie");
+zaehl();
+// Und der Vorschlag kommt vom SERVER, weil nur er die Zahl der verschiedenen Titel hat.
+assert.ok(/korpus\.form_suggestion/.test(quelltextKorr),
+  "der Formvorschlag wird gelesen, nicht im Browser gerechnet");
 zaehl();
 
 // 💣 Die Farbe der Meldung wird bei JEDER Meldung neu gesetzt. Ohne das Zurücksetzen erbte sie

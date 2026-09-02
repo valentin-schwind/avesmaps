@@ -281,6 +281,11 @@
 .fs-af--korpus {
 	flex: 1 1 260px;
 }
+/* Die Form: „Werke (Titel vorn)" / „Belegstellen (Korpus vorn)" -- die Beschriftungen nennen die
+   WIRKUNG, nicht nur den Fachbegriff, denn genau die entscheidet der Editor hier. */
+.fs-af--form {
+	flex: 0 1 190px;
+}
 .fs-af--pages {
 	flex: 0 1 90px;
 }

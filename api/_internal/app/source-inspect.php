@@ -65,6 +65,18 @@ function avesmapsSourceInspectUrl(PDO $pdo, string $url, bool $fetch = true): ar
     // („gültig für 118 Objekte"), damit sichtbar ist, was eine Umbenennung dort trifft.
     if (is_array($auskunft['corpus'])) {
         $auskunft['corpus'] += avesmapsSourceCorpusUsage($pdo, (string) $auskunft['corpus']['corpus_key']);
+        // 🔴 DER FORM-VORSCHLAG WIRD HIER GERECHNET, nicht im Browser: er braucht die Zahl der
+        // verschiedenen TITEL des Wirts, und die hat nur der Server. Gemessen 01.09.2026 trennt
+        // das Verhaeltnis die beiden Faelle messerscharf -- f-shop 0,98 und ulisses 1,00 gegen
+        // westlande 0,10, weiden 0,12, punin 0,15; dazwischen liegt nichts.
+        // ⚠️ Er ist ein VORSCHLAG und wird nie gesetzt: unter drei Zeilen schweigt er (dort ist
+        // das Verhaeltnis Arithmetik, kein Signal), und die Entscheidung trifft ein Mensch.
+        if (($auskunft['corpus']['form'] ?? '') === '') {
+            $auskunft['corpus']['form_suggestion'] = avesmapsSourceCorpusFormSuggestion(
+                (int) ($auskunft['corpus']['sources'] ?? 0),
+                avesmapsSourceCorpusDistinctTitles($pdo, (string) $auskunft['corpus']['corpus_key'])
+            );
+        }
     }
 
     // ── 2 · Steht die SEITE schon im Katalog? ───────────────────────────────────────────────────

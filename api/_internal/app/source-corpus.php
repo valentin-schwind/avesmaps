@@ -522,6 +522,32 @@ function avesmapsSourceCorpusUsage(PDO $pdo, string $corpusKey): array
 }
 
 /**
+ * Wie viele VERSCHIEDENE Titel die Quellen eines Korpus tragen — der Zaehler des Form-Vorschlags.
+ *
+ * 🔴 Das ist die eine Zahl, die der Browser nicht hat, und sie ist die ganze Messung: bei Werken
+ * traegt fast jede Zeile ihren eigenen Titel (f-shop 623 von 637), bei Belegstellen teilen sich
+ * viele denselben (westlande 4 von 39). Dazwischen liegt am Livebestand nichts.
+ * ⚠️ Leere Titel zaehlen NICHT mit -- 15 Zeilen haben gar keinen, und sie waeren sonst ein
+ * gemeinsamer „Titel" und zoegen das Verhaeltnis in Richtung Belegstelle.
+ */
+function avesmapsSourceCorpusDistinctTitles(PDO $pdo, string $corpusKey): int
+{
+    $ids = avesmapsSourceCorpusSourceIds($pdo, $corpusKey);
+    if ($ids === []) {
+        return 0;
+    }
+    $platz = implode(',', array_fill(0, count($ids), '?'));
+    $stmt = $pdo->prepare("SELECT label FROM sources WHERE id IN (" . $platz . ") AND label <> ''");
+    $stmt->execute($ids);
+    $titel = [];
+    foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) ?: [] as $t) {
+        $titel[(string) $t] = true;
+    }
+
+    return count($titel);
+}
+
+/**
  * Der Korpus zu einer Adresse — rein, ohne PDO, damit die Regel ohne Datenbank pruefbar ist.
  *
  * 🔴 Ein UNBEKANNTER Korpus ist kein Fehler: er bekommt seinen Schluessel als Beschriftung und die
