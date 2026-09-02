@@ -333,4 +333,72 @@ pruefe(
     '💣 Angehakte Felder kommen auch an einer SCHON VORHANDENEN Zielzeile an.'
 );
 
+// ---- Teil 4: die Kollisionen -------------------------------------------------------------------
+
+// 💣 Beide Gebiete zitieren dieselbe Quelle. Ein glattes UPDATE braeche hier am UNIQUE.
+$db = bindungDb();
+$db->exec("INSERT INTO political_territory (public_id, wiki_key, slug, name, is_active)
+           VALUES ('P-A', 'eigener-knoten:knoten001', 'a', 'Doppel', 1)");
+$db->exec("INSERT INTO political_territory (public_id, wiki_key, slug, name, is_active)
+           VALUES ('P-B', 'wiki:doppel', 'doppel', 'Doppel', 1)");
+$db->exec("INSERT INTO feature_sources (entity_type, entity_public_id, source_id) VALUES ('territory', 'P-A', 5)");
+$db->exec("INSERT INTO feature_sources (entity_type, entity_public_id, source_id) VALUES ('territory', 'P-B', 5)");
+$db->exec("INSERT INTO feature_sources (entity_type, entity_public_id, source_id) VALUES ('territory', 'P-A', 6)");
+
+$r = avesmapsEigenerKnotenBindungAnwenden($db, 'eigener-knoten:knoten001', 'wiki:doppel', [], ['name' => 'Doppel']);
+pruefe($r['ok'] === true, 'Die Uebernahme laeuft trotz doppelter Quelle durch.');
+pruefe(
+    (int) $db->query("SELECT COUNT(*) FROM feature_sources WHERE entity_public_id = 'P-B' AND source_id = 5")->fetchColumn() === 1,
+    '💣 Die doppelte Quelle bleibt EINMAL stehen -- kein Bruch am UNIQUE, keine Dublette.'
+);
+pruefe(
+    (int) $db->query("SELECT COUNT(*) FROM feature_sources WHERE entity_public_id = 'P-B' AND source_id = 6")->fetchColumn() === 1,
+    'Und die nur bei uns vorhandene Quelle ist mitgewandert.'
+);
+pruefe(
+    (int) $db->query("SELECT COUNT(*) FROM feature_sources WHERE entity_public_id = 'P-A'")->fetchColumn() === 0,
+    'Bei der alten public_id haengt nichts mehr.'
+);
+
+// 💣 Ein Anspruch zwischen genau diesen beiden waere nach dem Umhaengen ein Selbstanspruch.
+$db2 = bindungDb();
+$db2->exec("INSERT INTO political_territory (public_id, wiki_key, slug, name, is_active)
+            VALUES ('Q-A', 'eigener-knoten:knoten002', 'qa', 'Selbst', 1)");
+$qaId = (int) $db2->lastInsertId();
+$db2->exec("INSERT INTO political_territory (public_id, wiki_key, slug, name, is_active)
+            VALUES ('Q-B', 'wiki:selbst', 'selbst', 'Selbst', 1)");
+$qbId = (int) $db2->lastInsertId();
+$db2->prepare('INSERT INTO political_territory_claim (territory_id, claimant_territory_id, source, is_active)
+               VALUES (:t, :c, "manual", 1)')->execute(['t' => $qbId, 'c' => $qaId]);
+
+$r2 = avesmapsEigenerKnotenBindungAnwenden($db2, 'eigener-knoten:knoten002', 'wiki:selbst', [], ['name' => 'Selbst']);
+pruefe($r2['ok'] === true, 'Auch der Selbstanspruch-Fall laeuft durch.');
+pruefe(
+    (int) $db2->query('SELECT COUNT(*) FROM political_territory_claim WHERE territory_id = claimant_territory_id')->fetchColumn() === 0,
+    '💣 Kein Gebiet erhebt Anspruch auf sich selbst.'
+);
+
+// Der Riegel gegen die zweite Bindung auf denselben Artikel.
+$db3 = bindungDb();
+$db3->exec("INSERT INTO political_territory (public_id, wiki_key, slug, name, is_active)
+            VALUES ('R-1', 'eigener-knoten:knoten003', 'r1', 'Erst', 1)");
+$db3->exec("INSERT INTO political_territory (public_id, wiki_key, slug, name, is_active)
+            VALUES ('R-2', 'eigener-knoten:knoten004', 'r2', 'Zweit', 1)");
+avesmapsEigenerKnotenBindungAnwenden($db3, 'eigener-knoten:knoten003', 'wiki:ziel', [], ['name' => 'Erst']);
+$zweiter = avesmapsEigenerKnotenBindungAnwenden($db3, 'eigener-knoten:knoten004', 'wiki:ziel', [], ['name' => 'Zweit']);
+pruefe($zweiter['ok'] === false, '🔴 Ein zweiter eigener Knoten auf denselben Artikel wird ABGELEHNT.');
+pruefe(
+    (int) $db3->query("SELECT is_active FROM political_territory WHERE public_id = 'R-2'")->fetchColumn() === 1,
+    'Und die abgelehnte Zeile liegt NICHT im Papierkorb.'
+);
+
+// Ein Nicht-eigener Knoten hat hier nichts zu suchen.
+$geworfen = false;
+try {
+    avesmapsEigenerKnotenBindungAnwenden($db3, 'wiki:irgendwas', 'wiki:anderes', [], ['name' => 'X']);
+} catch (RuntimeException $e) {
+    $geworfen = true;
+}
+pruefe($geworfen, 'Nur eigene Knoten lassen sich binden.');
+
 echo "eigener-knoten-wiki-bindung: {$checks} Zusicherungen gruen.\n";
