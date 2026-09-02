@@ -262,14 +262,28 @@ function avesmapsGaretienListeObjektUrteil(array $items, string $stagingUrteil):
     if ($items === []) {
         return $stagingUrteil;
     }
-    foreach ($items as $item) {
-        if (in_array($item['anlass'], ['ergaenzung', 'umbenennung', 'geometrie'], true)) {
-            return 'ergaenzung';
-        }
-    }
+    // ⚠️ DER ZUFLUSS ZUERST. Er ist im Staging derselbe 'widerspricht' wie der
+    // Artikel-Widerspruch, gehoert aber in „zweifel" -- stuende der Riegel darunter davor, waeren
+    // 490 Zeilen auf einen Schlag umkategorisiert. Seine Stelle in der Prioritaet aendert sich
+    // dadurch nicht: er stand schon immer vor 'neu', und 'ergaenzung' erzeugt ein Zufluss nie.
     foreach ($items as $item) {
         if ($item['anlass'] === 'zufluss') {
             return 'zweifel';
+        }
+    }
+    // 🔴 DER WIDERSPRUCH UEBERLEBT SEINE HANDLUNGSANGEBOTE (02.09.2026). Seit der
+    // Artikel-Widerspruch durch den vierten Ausgang geht, traegt er ein Luecken-Item
+    // ('ergaenzung') und ein Zusatz-Item ('new') -- beide wuerden weiter unten zuerst greifen,
+    // und die Zeile verschwaende aus dem Reiter „widersprüchlich" in die Ergänzungen bzw. die
+    // Neufunde. Der Reiter, in dem der Owner genau diese Fälle SUCHT, liefe leer.
+    // 🔴 Der Abgleich hat einen Widerspruch FESTGESTELLT; dass wir dem Editor daraufhin zwei
+    // Ausgänge anbieten, ändert an der Feststellung nichts.
+    if ($stagingUrteil === 'widerspruch') {
+        return 'widerspruch';
+    }
+    foreach ($items as $item) {
+        if (in_array($item['anlass'], ['ergaenzung', 'umbenennung', 'geometrie'], true)) {
+            return 'ergaenzung';
         }
     }
     foreach ($items as $item) {

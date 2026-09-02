@@ -977,7 +977,14 @@ function avesmapsGaretienErgaenzungsEintraege(array $zeile, array $ziel, array $
     $zusatz['entity_public_id'] = null;
     $zusatz['before'] = [];
     $trefferName = trim((string) ($urteil['treffer_name'] ?? ''));
-    $zusatz['label'] = $ihrName . ' (' . $zeile['typ'] . ') · trotz Nähe zu '
+    // 🔴 „trotz Nähe" GILT NUR DEM DECKENDEN FALL. Beim Artikel-Widerspruch liegt ihr Objekt
+    // 25 Meilen daneben -- nah ist daran nichts, und ein Label, das das Gegenteil behauptet, laesst
+    // den Editor den Grund bei sich suchen. Was die zwei Faelle verbindet, ist der TREFFER, nicht
+    // der Abstand; die Zahl selbst steht ohnehin im `grund` der Zeile.
+    $trotz = ($urteil['anlass'] ?? null) === 'artikel_widerspruch'
+        ? ' · trotz Artikel-Treffer bei '
+        : ' · trotz Nähe zu ';
+    $zusatz['label'] = $ihrName . ' (' . $zeile['typ'] . ')' . $trotz
         . ($trefferName !== '' ? '"' . $trefferName . '"' : 'einem unbenannten Objekt')
         . ' zusätzlich anlegen';
     $zusatz['after']['anlass'] = 'zusatz';
@@ -986,6 +993,63 @@ function avesmapsGaretienErgaenzungsEintraege(array $zeile, array $ziel, array $
     $zusatz['after']['nachbar'] = $trefferName !== '' ? $trefferName : null;
     $zusatz['vorwahl_aus'] = true;
     $eintraege[] = $zusatz;
+
+    return $eintraege;
+}
+
+/**
+ * Geht dieses Urteil durch den VIERTEN AUSGANG (avesmapsGaretienErgaenzungsEintraege)?
+ *
+ * 🔴 SEIT 02.09.2026 AUCH DER ARTIKEL-WIDERSPRUCH (Owner, Fall „Drommsel": „trotzdem sehen wir
+ * immer wieder fälle, die eigentlich korrekt sind ... eine sinnvolle erweiterung des flusses. ich
+ * kanns aber nicht importieren"). Er war die einzige Lage des Importers OHNE jede Handlung: sein
+ * Einzeleintrag ist ein 'changed' ohne ein einziges geschriebenes Feld, also fand „Neu einfügen"
+ * kein 'new'-Item, „Quelle + Artikel einfügen" kein Feld `quelle`, und die Übernahme verwarf ihn
+ * als „braucht eine Entscheidung von Hand". Übrig blieb „Ablehnen" -- eine Frage an einen
+ * Menschen, dessen Antwort nirgends hinpasste.
+ *
+ * 💣 DER ZUFLUSS GEHT WEITER NICHT DURCH. Er ist im Staging derselbe 'widerspricht', hat aber
+ * laengst seinen eigenen Weg (avesmapsGaretienPlanEintrag macht ihn zu einem 'new' mit
+ * `entity_public_id` NULL). Hier hindurch bekaeme er ein Luecken-Item auf SEINEN HAUPTFLUSS --
+ * also genau den Schreibzugriff, den sein Zweig seit dem 27.08.2026 ausdruecklich verhindert.
+ * Gefragt wird deshalb der `anlass`, nie der `status`.
+ *
+ * REIN -- kein I/O.
+ */
+function avesmapsGaretienUeberVierterAusgang(array $urteil): bool
+{
+    return ($urteil['status'] ?? '') === 'deckt_sich'
+        || ($urteil['anlass'] ?? null) === 'artikel_widerspruch';
+}
+
+/**
+ * Die Plan-Eintraege zu EINEM Urteil -- die Weiche samt ihrem Rueckfall, an einer Stelle.
+ *
+ * 💣 DER RUECKFALL IST TRAGEND. avesmapsGaretienErgaenzungsEintraege gibt bei LEERER
+ * Trefferliste `[]` zurueck. Ein Widerspruch, der so hindurchliefe, haette danach GAR KEIN Item
+ * mehr -- und ohne Item gibt es nichts, worauf „Ablehnen" zeigen könnte
+ * (garetienHandlungGrund, review-garetien-importer.js: „dieses Objekt hat gar keinen
+ * Vorschlag"). Der Fall verlore seine einzige heutige Handlung, weil er zwei neue bekommen soll.
+ *
+ * ⚠️ Und NUR fuer den Widerspruch. `deckt_sich` gibt bei leerer Trefferliste seit jeher nichts
+ * zurueck, und das bleibt so: ein Einzeleintrag daraus waere ein 'changed' mit Anlass 'artikel',
+ * den avesmapsGaretienUebernehmen als `stale` verwirft -- ein Vorschlag, der nie ausgefuehrt
+ * werden kann.
+ *
+ * REIN -- kein I/O. `$quellen` kommt aus avesmapsGaretienQuellenBestand.
+ *
+ * @param array<string,true> $quellen
+ * @return list<array>
+ */
+function avesmapsGaretienEintraegeFuerUrteil(array $zeile, array $ziel, array $urteil, array $quellen): array
+{
+    if (!avesmapsGaretienUeberVierterAusgang($urteil)) {
+        return [avesmapsGaretienPlanEintrag($zeile, $ziel, $urteil)];
+    }
+    $eintraege = avesmapsGaretienErgaenzungsEintraege($zeile, $ziel, $urteil, $quellen);
+    if ($eintraege === [] && ($urteil['anlass'] ?? null) === 'artikel_widerspruch') {
+        return [avesmapsGaretienPlanEintrag($zeile, $ziel, $urteil)];
+    }
 
     return $eintraege;
 }
@@ -1444,9 +1508,10 @@ function avesmapsGaretienBaueSyncPlan(PDO $pdo, int $importRunId, int $userId = 
         // 🔴 DER VIERTE AUSGANG. `deckt_sich` erzeugte bis zum 27.08.2026 gar nichts -- und genau
         // dabei gingen ihr Name, ihr Wiki-Artikel und ihre Quelle verloren. 25 von 76
         // Geometrietreffern trugen bei uns keinen Namen.
-        $eintraege = $urteil['status'] === 'deckt_sich'
-            ? avesmapsGaretienErgaenzungsEintraege($zeile, $ziel, $urteil, $quellenBestand)
-            : [avesmapsGaretienPlanEintrag($zeile, $ziel, $urteil)];
+        // 🔴 SEIT 02.09.2026 NIMMT IHN AUCH DER ARTIKEL-WIDERSPRUCH -- die Weiche samt ihrem
+        // Rueckfall steht rein in avesmapsGaretienEintraegeFuerUrteil, damit sie pruefbar ist,
+        // ohne eine ganze Datenbank aufzubauen.
+        $eintraege = avesmapsGaretienEintraegeFuerUrteil($zeile, $ziel, $urteil, $quellenBestand);
         foreach ($eintraege as $eintrag) {
             // 🔴 Die Vorwahl kommt aus der HAUSREGEL, sie wird nicht nachgebaut: 'deleted' nie,
             // 'changed' faellt beim zweiten Ueberspringen heraus. Ein zweiter Vorwahl-Rechner waere
