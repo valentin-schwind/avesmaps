@@ -142,4 +142,36 @@ pruefe(
     'Die Uebernahme steht unter dem dry_run/confirm-Riegel wie jeder andere Schreiber daneben.'
 );
 
+// ---- Die Oberflaeche ---------------------------------------------------------------------------
+
+$monitorRoh = (string) file_get_contents(__DIR__ . '/../../../../html/wiki-sync-monitor.html');
+// ⚠️ Zeilenendenneutral: hier CRLF, im Deploy-Tor LF (AGENTS.md §9).
+$monitorText = str_replace("\r\n", "\n", $monitorRoh);
+
+pruefe(str_contains($monitorText, 'wiki_binding_candidates'), 'Die Suche ist verdrahtet.');
+pruefe(str_contains($monitorText, 'wiki_binding_preview'), 'Die Vorschau ist verdrahtet.');
+pruefe(str_contains($monitorText, 'wiki_binding_apply'), 'Die Uebernahme ist verdrahtet.');
+
+// 🔴 Keine neue Huelle: das Detailpanel hat .dt-*, und der Entwurf nennt zwei Huellen als
+// Obergrenze fuer die Wiki-Zuweisung. Der Kasten benutzt die vorhandene.
+pruefe(preg_match('/class="dt-bindung[^"]*"/', $monitorText) === 1,
+    'Der Kasten haengt an der vorhandenen .dt-Familie, nicht an einer neuen Huelle.');
+
+// 💣 Der Kasten erscheint NUR an einem eigenen Knoten -- an einem Wiki-Knoten boete er an, eine
+// Identitaet zu ersetzen, die schon die richtige ist.
+pruefe(
+    preg_match('/eigener-knoten:.{0,400}dt-bindung/s', $monitorText) === 1,
+    'Der Kasten ist an den eigener-knoten-Schluessel gebunden.'
+);
+
+// ⚠️ Die Folge wird BENANNT, nicht nur gezaehlt: der Schritt ist nicht per Knopf umkehrbar.
+pruefe(substr_count($monitorText, 'Papierkorb') >= 2,
+    'Kasten UND Bestaetigung nennen den Papierkorb beim Namen.');
+pruefe(str_contains($monitorText, 'nicht per Knopf zurücknehmen'),
+    'Und die Bestaetigung sagt, dass es sich nicht per Knopf zuruecknehmen laesst.');
+
+// 🔴 Keine hartkodierte Farbe (AGENTS.md §12): der Kasten nimmt Tokens.
+pruefe(preg_match('/\.dt-bindung[^{]*\{[^}]*#[0-9a-fA-F]{3,8}/', $monitorText) !== 1,
+    'Der Bindungs-Kasten kodiert keine Farbe hart -- er nimmt Tokens.');
+
 echo "eigener-knoten-wiki-bindung-ziele: {$checks} Zusicherungen gruen.\n";

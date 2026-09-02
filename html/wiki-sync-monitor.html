@@ -280,6 +280,16 @@
      Sache (AGENTS.md §12). */
   .dt-coat-actions { font-size:12px; margin:6px 0 2px; color:var(--mut); }
   .dt-lic-wrap { margin-top:6px; }
+  /* Wiki-Artikel zuweisen (Entwurf docs/superpowers/specs/2026-09-02-eigene-knoten-wiki-zuweisung-design.md).
+     ⭐ Keine neue Huelle: der Kasten sitzt in der vorhandenen .dt-Familie und nimmt ihre Tokens.
+     Der Entwurf nennt zwei Huellen als Obergrenze fuer die Wiki-Zuweisung. */
+  .dt-bindung { margin-top:var(--space-8); padding-top:var(--space-4); border-top:1px solid var(--color-divider); }
+  .dt-bindung h4 { margin:0 0 var(--space-4); font-size:var(--font-size-small); }
+  .dt-bindung__treffer { max-height:180px; overflow-y:auto; margin-top:var(--space-2); }
+  .dt-bindung__treffer > div { padding:3px 5px; cursor:pointer; border-radius:var(--radius-md); }
+  .dt-bindung__treffer > div:hover { background:var(--color-hover-wash); }
+  .dt-bindung__kanon { font-size:var(--font-size-caption); color:var(--mut); }
+  .dt-bindung__folgen { margin:var(--space-4) 0; font-size:var(--font-size-small); color:var(--mut); }
   /* Upload-Dialog */
   .modal { position:fixed; inset:0; background:var(--color-scrim-dialog); display:flex; align-items:center; justify-content:center; z-index:100; }
   .modal[hidden] { display:none; }
@@ -989,7 +999,19 @@ function renderDetail(){
     coatLinks.push(`<span class="dt-link" data-remove-coat="${esc(n.wiki_key)}" style="cursor:pointer" title="Dieses Gebiet zeigt danach KEIN Wappen — auch nicht das aus dem Wiki. Anders als „Zurücksetzen“, das den Wiki-Stand zurückholt.">Entfernen</span>`);
   }
   const coatRow = `<div class="dt-coat-actions">${coatLinks.join(' · ')}</div>`;
-  box.innerHTML = head + lic + coatRow + `<div class="dt-actions">${lockBtn}${editBtn}</div>` + `<div class="dt-grid">${rows.join('')}</div>`;
+  // Der Bindungs-Kasten. 🔴 NUR an einem eigenen Knoten: an einem Wiki-Knoten boete er an, eine
+  // Identitaet zu ersetzen, die schon die richtige ist. Entwurf:
+  // docs/superpowers/specs/2026-09-02-eigene-knoten-wiki-zuweisung-design.md
+  const bindung = n.wiki_key.indexOf('eigener-knoten:') === 0
+    ? `<div class="dt-bindung">
+         <h4>Wiki-Artikel zuweisen</h4>
+         <div class="muted" style="font-size:var(--font-size-caption)">Der Knoten bekommt den Schlüssel des Artikels; die bisherige Zeile wandert in den Papierkorb.</div>
+         <input type="text" class="dt-in" id="bindung-suche" placeholder="Artikelnamen suchen …" autocomplete="off">
+         <div class="dt-bindung__treffer" id="bindung-treffer"></div>
+         <div id="bindung-vorschau"></div>
+       </div>`
+    : '';
+  box.innerHTML = head + lic + coatRow + `<div class="dt-actions">${lockBtn}${editBtn}</div>` + `<div class="dt-grid">${rows.join('')}</div>` + bindung;
 }
 function renderCapResults(){
   if(!capResults.length) return '';
@@ -1891,6 +1913,110 @@ loadEditorState();
 refreshPlanStatus();
 loadUnassignedGeoms();
 refreshLocalizeCount();
+
+// ── Wiki-Artikel an einen eigenen Knoten binden ────────────────────────────────────────────────
+// Entwurf: docs/superpowers/specs/2026-09-02-eigene-knoten-wiki-zuweisung-design.md
+// 🔴 Der wiki_key IST die Identitaet eines Monitor-Knotens -- deshalb war der Monitor bis heute
+// aus der Wiki-Zuweisung ausgenommen. Diese Aktion kehrt das um: sie setzt keine Referenz,
+// sie ERSETZT die Identitaet.
+let bindungZiel = null;
+let bindungSuchTakt = null;
+
+document.addEventListener('input', (e) => {
+  if (e.target.id !== 'bindung-suche') return;
+  const q = e.target.value.trim();
+  const kasten = $('bindung-treffer');
+  if (!kasten) return;
+  // ⚠️ Entprellt: jeder Tastendruck ist sonst eine Anfrage, und dieser Endpunkt haengt am
+  // Dump-Staging. Die STRATO-Warnung aus CLAUDE.md gilt auch fuer eine Suche.
+  clearTimeout(bindungSuchTakt);
+  if (q.length < 2) { kasten.innerHTML = ''; $('bindung-vorschau').innerHTML = ''; return; }
+  bindungSuchTakt = setTimeout(async () => {
+    try {
+      const r = await api('wiki_binding_candidates', { method:'POST', body:{ query: q } });
+      // 🔴 Das Kanon-Etikett steht MIT im Treffer: die Liste mischt Kanon und Fanmaterial, und ein
+      // Editor muss vor dem Klick sehen, was er sich einhandelt. `official === null` heisst
+      // "keine Aussage" (Hauptraum) -- dann steht dort bewusst nichts.
+      const zeilen = r.rows || [];
+      kasten.innerHTML = zeilen.length
+        ? zeilen.map(row => {
+            const kanon = row.official === false ? '<b>Inoffiziell</b>' : (row.official === true ? 'Kanon' : '');
+            const teile = [kanon, esc(row.type || ''), esc(row.period || '')].filter(Boolean);
+            return `<div data-bind-key="${esc(row.wiki_key)}">${esc(row.name)}` +
+                   (teile.length ? ` <span class="dt-bindung__kanon">${teile.join(' · ')}</span>` : '') +
+                   `</div>`;
+          }).join('')
+        : '<div class="muted">Kein Artikel gefunden. Liegt schon ein Dump-Sync hinter dem letzten Wiki-Stand?</div>';
+    } catch (err) {
+      kasten.innerHTML = `<div class="muted">Suche fehlgeschlagen: ${esc(err.message)}</div>`;
+    }
+  }, 250);
+});
+
+document.addEventListener('click', async (e) => {
+  const treffer = e.target.closest('[data-bind-key]');
+  if (treffer) {
+    bindungZiel = treffer.getAttribute('data-bind-key');
+    const n = BYKEY.get(selectedKey);
+    if (!n) return;
+    const vorschauEl = $('bindung-vorschau');
+    vorschauEl.innerHTML = '<div class="muted">Vorschau wird gerechnet …</div>';
+    try {
+      const plan = await api('wiki_binding_preview', { method:'POST', body:{ wiki_key: n.wiki_key, target_key: bindungZiel } });
+      const f = plan.consequences || {};
+      // ⚠️ Die Folge wird BENANNT, nicht nur gezaehlt -- der Schritt ist nicht per Knopf umkehrbar.
+      const folgen = [
+        f.geometries ? `${f.geometries} Geometrie(n)` : '',
+        f.derived ? `${f.derived} abgeleitete Außengrenze(n)` : '',
+        f.children ? `${f.children} Untergebiet(e)` : '',
+        f.sources ? `${f.sources} Quelle(n)` : '',
+        f.claims ? `${f.claims} Anspruch/Ansprüche` : '',
+        f.reports ? `${f.reports} Meldung(en)` : '',
+        f.settlements ? `${f.settlements} Siedlungszuordnung(en)` : '',
+      ].filter(Boolean);
+      vorschauEl.innerHTML =
+        `<div class="dt-grid">${(plan.fields || []).map(z => `
+           <div class="k">${esc(z.label)}</div>
+           <div><label><input type="checkbox" data-bind-field="${esc(z.field)}"${z.default_checked ? ' checked' : ''}> ` +
+           (z.own ? `<span class="dt-old">${esc(z.own)}</span><span class="dt-arrow">→</span>` : '') +
+           `<span class="dt-new">${esc(z.wiki) || '(leer)'}</span></label></div>`).join('')}</div>
+         <div class="dt-bindung__folgen">Wandert mit: ${folgen.length ? folgen.join(' · ') : 'nichts'}.
+           Der bisherige Knoten geht in den <b>Papierkorb</b>.</div>
+         <button type="button" id="bindung-anwenden">Übernehmen</button>`;
+    } catch (err) {
+      vorschauEl.innerHTML = `<div class="muted">Vorschau fehlgeschlagen: ${esc(err.message)}</div>`;
+    }
+    return;
+  }
+
+  if (e.target.id === 'bindung-anwenden') {
+    const n = BYKEY.get(selectedKey);
+    if (!n || !bindungZiel) return;
+    const felder = [...document.querySelectorAll('[data-bind-field]:checked')]
+      .map(el => el.getAttribute('data-bind-field'));
+    // 🔴 Die Bestaetigung NENNT die Unumkehrbarkeit -- wer eine solche Handlung anbietet, muss sie
+    // auch so beschriften (die Lehre der verwaisten Aussenhuellen).
+    if (!confirm(`„${n.name}" wird an ${bindungZiel} gebunden.\n\n`
+      + 'Der bisherige Knoten wandert in den Papierkorb; Geometrie, Quellen und Untergebiete hängen '
+      + 'danach am Wiki-Knoten. Das lässt sich nicht per Knopf zurücknehmen.\n\nFortfahren?')) {
+      return;
+    }
+    try {
+      const r = await api('wiki_binding_apply', { method:'POST', body:{
+        wiki_key: n.wiki_key, target_key: bindungZiel, fields: felder,
+        dry_run: false, confirm: 'apply',
+      } });
+      if (r.ok === false) { setStatus('Abgelehnt: ' + (r.error || 'unbekannter Grund')); return; }
+      const neuerKey = r.target_key || bindungZiel;
+      bindungZiel = null;
+      setStatus(`„${n.name}" ist jetzt ${neuerKey} — der alte Knoten liegt im Papierkorb.`);
+      await loadModel();
+      if (BYKEY.has(neuerKey)) selectKey(neuerKey);
+    } catch (err) {
+      setStatus('Übernahme fehlgeschlagen: ' + err.message);
+    }
+  }
+});
 </script>
 </body>
 </html>

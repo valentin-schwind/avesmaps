@@ -316,7 +316,10 @@ function avesmapsEigenerKnotenBindungAnwenden(
         throw $e;
     }
 
-    return ['ok' => true, 'target_id' => $zielId, 'moved' => $bewegt];
+    // ⚠️ `target_key` reist MIT: die Oberflaeche waehlt danach den neuen Knoten aus, und der alte
+    // Schluessel existiert dann nicht mehr. Ohne ihn muesste der Client ihn sich merken -- und
+    // genau das ging beim ersten Bau daneben (er las seine Variable, nachdem er sie genullt hatte).
+    return ['ok' => true, 'target_id' => $zielId, 'target_key' => $zielKey, 'moved' => $bewegt];
 }
 
 /**
