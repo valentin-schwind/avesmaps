@@ -224,6 +224,84 @@ assert(avesmapsSourceCorpusUsage($pdo, '') === ['sources' => 0, 'objects' => 0],
     'ein leerer Schluessel fragt die Datenbank gar nicht');
 $zaehl();
 
+// ══ 6 · Den Korpus schreiben ════════════════════════════════════════════════════════════════════
+
+$pdo2 = new PDO('sqlite::memory:');
+$pdo2->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+avesmapsEnsureFeatureSourceTables($pdo2);
+avesmapsEnsureSourceCorpusTable($pdo2);
+
+$neu = avesmapsSourceCorpusSave($pdo2, 'kahet-ni-kemi.de', [
+    'label' => 'Briefspiel Káhet Ni Kemi', 'form' => 'belegstelle', 'source_type' => 'briefspiel',
+]);
+assert(($neu['ok'] ?? false) === true, 'ein neuer Korpus wird angelegt');
+$zaehl();
+assert($neu['corpus']['label'] === 'Briefspiel Káhet Ni Kemi' && $neu['corpus']['form'] === 'belegstelle',
+    'und kommt so zurueck, wie er geschickt wurde');
+$zaehl();
+
+// 🔴 GESCHRIEBEN WIRD NUR, WAS GENANNT IST. Ein vollstaendig mitgeschicktes Formular machte jede
+// gewollte Ausnahme platt -- `avesmapsUpsertGameLiterature` ist genau daran schon gescheitert.
+$teil = avesmapsSourceCorpusSave($pdo2, 'kahet-ni-kemi.de', ['attribution' => 'Der Rabe']);
+assert($teil['corpus']['attribution'] === 'Der Rabe', 'das genannte Feld wird gesetzt');
+$zaehl();
+assert($teil['corpus']['label'] === 'Briefspiel Káhet Ni Kemi' && $teil['corpus']['form'] === 'belegstelle',
+    'und die NICHT genannten bleiben unberuehrt');
+$zaehl();
+
+// 💣 Der Schluessel wird gegen die EIGENE Regel geprueft. Ein `www.`-Tippfehler legte sonst einen
+// zweiten Korpus an, den nie wieder eine Adresse trifft -- sie loest ja auf den ohne `www.` auf.
+$falsch = avesmapsSourceCorpusSave($pdo2, 'www.kahet-ni-kemi.de', ['label' => 'X']);
+assert(($falsch['ok'] ?? true) === false && $falsch['error']['code'] === 'invalid_corpus_key',
+    'ein Schluessel, den die eigene Regel nicht erzeugen wuerde, wird abgelehnt');
+$zaehl();
+assert(avesmapsSourceCorpusSave($pdo2, '', ['label' => 'X'])['error']['code'] === 'invalid_corpus_key',
+    'und ein leerer erst recht');
+$zaehl();
+
+// Ein unbekanntes Feld wird abgelehnt, statt still zu verschwinden.
+assert(avesmapsSourceCorpusSave($pdo2, 'kahet-ni-kemi.de', ['quatsch' => 'X'])['error']['code'] === 'invalid_request',
+    'ein unbekanntes Feld ist ein Fehler, keine stille Auslassung');
+$zaehl();
+assert(avesmapsSourceCorpusSave($pdo2, 'kahet-ni-kemi.de', [])['error']['code'] === 'invalid_request',
+    'und gar kein Feld ebenso');
+$zaehl();
+
+// 🔴 DIE RUECKFRAGE. Eine Umbenennung trifft JEDEN Beleg des Wirts -- ab der Schwelle wird gefragt,
+// und `confirm_corpus` ist ein EIGENER Schluessel, kein Rueckschluss aus dem Wert.
+$anlegen2 = $pdo2->prepare('INSERT INTO sources (url, url_hash, label, source_type, is_official) VALUES (:u, :h, "x", "sonstiges", 0)');
+$link2 = $pdo2->prepare("INSERT INTO feature_sources (entity_type, entity_public_id, source_id, status) VALUES ('settlement', :id, :sid, 'approved')");
+for ($i = 0; $i < AVESMAPS_SOURCE_CORPUS_CONFIRM_THRESHOLD; $i++) {
+    $u = 'https://kahet-ni-kemi.de/seite-' . $i;
+    $anlegen2->execute(['u' => $u, 'h' => hash('sha256', $u)]);
+    $link2->execute(['id' => 'ort-' . $i, 'sid' => (int) $pdo2->lastInsertId()]);
+}
+$ohneJa = avesmapsSourceCorpusSave($pdo2, 'kahet-ni-kemi.de', ['label' => 'Briefspiel Kâhet Ni Kemi']);
+assert(($ohneJa['ok'] ?? true) === false && $ohneJa['error']['code'] === 'corpus_confirm_required',
+    'ab der Schwelle wird zurueckgefragt');
+$zaehl();
+assert(($ohneJa['error']['objects'] ?? 0) === AVESMAPS_SOURCE_CORPUS_CONFIRM_THRESHOLD,
+    'und die Rueckfrage nennt die Reichweite');
+$zaehl();
+// ⚠️ Und sie hat NICHTS geschrieben -- eine abgelehnte Aenderung darf nichts hinterlassen.
+assert(avesmapsSourceCorpusReadAll($pdo2)['kahet-ni-kemi.de']['label'] === 'Briefspiel Káhet Ni Kemi',
+    'die abgelehnte Umbenennung hat den alten Namen stehen gelassen');
+$zaehl();
+
+$mitJa = avesmapsSourceCorpusSave($pdo2, 'kahet-ni-kemi.de', ['label' => 'Briefspiel Kâhet Ni Kemi'], 0, true);
+assert(($mitJa['ok'] ?? false) === true && $mitJa['corpus']['label'] === 'Briefspiel Kâhet Ni Kemi',
+    'mit ausdruecklicher Bestaetigung geht sie durch');
+$zaehl();
+assert(($mitJa['corpus']['objects'] ?? 0) === AVESMAPS_SOURCE_CORPUS_CONFIRM_THRESHOLD,
+    'und die Antwort bringt die Reichweite mit');
+$zaehl();
+
+// Unbekannte Werte fallen auf die Nicht-Aussage, nie auf einen geratenen.
+$geputzt = avesmapsSourceCorpusSave($pdo2, 'kahet-ni-kemi.de', ['form' => 'quatsch', 'source_type' => 'gibtsnicht'], 0, true);
+assert($geputzt['corpus']['form'] === '' && $geputzt['corpus']['source_type'] === '',
+    'unbekannte Werte werden zur Nicht-Aussage, nicht zu einer geratenen Aussage');
+$zaehl();
+
 // 💣 KEIN ZWEITES QUELLENSYSTEM (AGENTS.md §5). Dieses Modul darf `sources`/`feature_sources`
 // nirgends schreiben -- wer hier Quellen ablegt, baut den Lore-Fehler von 2026-07-21 nach.
 $quelltext = (string) file_get_contents(__DIR__ . '/../source-corpus.php');
@@ -231,9 +309,23 @@ $ohneKommentare = preg_replace('#/\*[\s\S]*?\*/|^[ \t]*//.*$#m', '', $quelltext)
 assert(preg_match('/\b(INSERT|UPDATE|DELETE)\b[\s\S]{0,80}\b(sources|feature_sources)\b/i', $ohneKommentare) !== 1,
     'das Korpus-Modul schreibt NIE in sources oder feature_sources');
 $zaehl();
-// Und es legt auch keinen Korpus selbst an -- das tut die Oberflaeche, nicht der Leser.
-assert(strpos($ohneKommentare, 'INSERT INTO source_corpus') === false,
-    'der Leser schreibt gar nicht; ein stiller Schreibvorgang im Lesepfad waere die Falle');
+// 🔴 Der SCHREIBWEG ist genau EINER, und er heisst so. Hier stand bis zum 02.09.2026 „der Leser
+// schreibt gar nicht" -- das galt, solange das Modul nur las, und wurde mit `avesmapsSourceCorpusSave`
+// falsch. Die ABSICHT bleibt: ein stiller Schreibvorgang im LESEpfad waere die Falle, denn dann
+// legte schon das Tippen im Adressfeld Zeilen an.
+$schreibstellen = preg_match_all('/\b(INSERT INTO|UPDATE)\s+source_corpus\b/i', $ohneKommentare, $treffer, PREG_OFFSET_CAPTURE);
+assert($schreibstellen === 2, 'genau ein INSERT und ein UPDATE auf source_corpus');
+$zaehl();
+$saveAb = strpos($ohneKommentare, 'function avesmapsSourceCorpusSave');
+assert($saveAb !== false, 'der Schreibweg heisst avesmapsSourceCorpusSave');
+$zaehl();
+// Die naechste Funktionsdeklaration NACH dem Schreibweg begrenzt ihn.
+preg_match('/\nfunction \w+/', substr($ohneKommentare, $saveAb + 10), $naechste, PREG_OFFSET_CAPTURE);
+$saveBis = $saveAb + 10 + (int) ($naechste[0][1] ?? strlen($ohneKommentare));
+foreach ($treffer[0] as $stelle) {
+    assert($stelle[1] > $saveAb && $stelle[1] < $saveBis,
+        'jeder Schreibvorgang liegt INNERHALB von avesmapsSourceCorpusSave, nicht in einem Leser');
+}
 $zaehl();
 
 echo "OK — {$anzahl} Zusicherungen (Korpus: Schluessel, Form, Art, Ablage)\n";

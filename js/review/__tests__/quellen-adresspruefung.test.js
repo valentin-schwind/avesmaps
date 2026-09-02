@@ -230,4 +230,54 @@ assert.ok(/setzeAdressZustand\(null,[\s\S]{0,120}checkFailed/.test(ohneKommentar
   "eine gescheiterte Prüfung färbt nichts und sagt, dass Eintragen weiter geht");
 zaehl();
 
+// ══ 7 · Die beschriftete Zeile aus dem Mockup ══════════════════════════════════════════════════
+
+// 🔴 Owner am Mockup (02.09.2026): „das war das mockup". Ein Platzhalter verschwindet, sobald
+// jemand tippt -- danach weiss niemand mehr, welches der acht Felder er gerade füllt.
+const beschriftungen = (html.match(/class="fs-af__l"/g) || []).length;
+assert.ok(beschriftungen >= 8, "jedes Feld trägt eine sichtbare Beschriftung (gefunden: " + beschriftungen + ")");
+zaehl();
+
+// 🔴 DAS KORPUS-FELD -- das Herzstück des Entwurfs, und es fehlte bis zum 02.09.2026 ganz.
+assert.ok(/class="fs-add-corpus"/.test(html), "die Zeile hat ein Feld für den Korpusnamen");
+zaehl();
+assert.ok(/data-fs-corpus-meta/.test(html), "und daneben Platz für Schlüssel und Reichweite");
+zaehl();
+
+// ⚠️ VIER Marker „· vom Korpus", und alle starten VERBORGEN: ein dauerhaft sichtbarer Marker
+// behauptete, der Korpus gebe den Wert vor, auch wenn er gar keinen trägt.
+const marker = html.match(/data-fs-from="(\w+)" hidden/g) || [];
+assert.strictEqual(marker.length, 4, "vier Marker, alle verborgen");
+zaehl();
+["type", "license", "attribution", "official"].forEach((feld) => {
+  assert.ok(new RegExp('data-fs-from="' + feld + '" hidden').test(html), "Marker für " + feld);
+});
+zaehl();
+
+// 💣 Der Prüfknopf steht NEBEN dem Adress-Label, nicht darin: ein `<button>` in einem `<label>`
+// erbt dessen Aktivierungsverhalten, und der Klick gälte dann auch dem Eingabefeld.
+assert.ok(/<\/label><button type="button" class="fs-add-check"/.test(html),
+  "der Prüfknopf steht außerhalb des Labels");
+zaehl();
+
+// 🔴 Der Schreibweg für den Korpus muss verdrahtet sein -- ohne ihn wäre das Feld eine Attrappe,
+// und ein Feld, das man beschriften kann und das nichts speichert, ist schlimmer als keines.
+assert.ok(/action: "save_corpus"/.test(quelltextFelder), "die Umbenennung ruft save_corpus");
+zaehl();
+assert.ok(/addEventListener\("blur", speichereKorpus\)/.test(quelltextFelder),
+  "gespeichert wird beim Verlassen des Feldes, nicht bei jedem Tastendruck");
+zaehl();
+
+// ⚠️ Und sie fragt zurück, sobald der Korpus weit reicht -- dieselbe Schwelle wie beim Bearbeiten
+// einer Katalogzeile.
+assert.ok(/FEATURE_SOURCE_CONFIRM_THRESHOLD[\s\S]{0,400}confirm/.test(quelltextFelder),
+  "ab der Schwelle wird vor der Umbenennung gefragt");
+zaehl();
+
+// 💣 Vorbelegt wird NUR bei einem BEKANNTEN Korpus. Ein frisch aus der Adresse abgeleiteter trägt
+// nichts, was er vorgeben könnte -- dort wäre jeder Marker eine Behauptung.
+assert.ok(/const bekannt = korpus\.known === true;/.test(quelltextFelder),
+  "die Vorbelegung hängt an `known`, nicht am blossen Vorhandensein eines Korpus");
+zaehl();
+
 console.log("OK — " + anzahl + " Zusicherungen (Adressprüfung der Eingabezeile)");

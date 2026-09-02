@@ -29,6 +29,12 @@ declare(strict_types=1);
  * mit LEEREM Rumpf und im Testfeld gruen; das hat dieses Haus schon zweimal bezahlt.
  */
 require_once __DIR__ . '/feature-sources.php';
+// 💣 Und der Bootstrap dazu: `avesmapsNormalizeSingleLine` wohnt DORT, nicht bei den Quellen.
+// Ohne diese Zeile faellt der Schreibweg mit „undefined function" um, sobald ihn jemand ohne
+// Endpunkt einbindet -- live ein Fatal Error mit LEEREM Rumpf, im Testfeld gruen, weil der Test
+// den Bootstrap selbst schon geladen hatte. Genau diese Klasse Fehler hat dieses Haus zweimal
+// bezahlt; eine eigene Kopie der Funktion waere die zweite Wahrheit daneben.
+require_once __DIR__ . '/../bootstrap.php';
 
 // ══ 1 · Der Schluessel ══════════════════════════════════════════════════════════════════════════
 
@@ -267,6 +273,123 @@ function avesmapsSourceCorpusReadAll(PDO $pdo): array
     }
 
     return $korpora;
+}
+
+/**
+ * 🔴 DIE FELDER, DIE EIN KORPUS TRAEGT. Was nicht darinsteht, kann kein Aufrufer setzen -- die
+ * Weisse Liste steht hier und nicht im Endpunkt, damit sie EINE ist.
+ */
+const AVESMAPS_SOURCE_CORPUS_FIELDS = ['label', 'form', 'source_type', 'license', 'attribution', 'is_official'];
+
+/**
+ * Ab wie vielen Objekten eine Aenderung am Korpus rueckgefragt wird.
+ *
+ * ⭐ Dieselbe Zahl wie beim Bearbeiten einer Katalogzeile (`AVESMAPS_FEATURE_SOURCE_CONFIRM_THRESHOLD`)
+ * und aus demselben Grund: eine Umbenennung trifft JEDEN Beleg dieses Wirts auf einmal.
+ * ⚠️ Bewusst eine eigene Konstante -- die zwei Schwellen beschreiben verschiedene Dinge und
+ * duerfen unabhaengig wandern; gleich sind sie heute, nicht per Gesetz.
+ */
+const AVESMAPS_SOURCE_CORPUS_CONFIRM_THRESHOLD = 10;
+
+/**
+ * Einen Korpus anlegen oder aendern. Gibt den gespeicherten Stand zurueck.
+ *
+ * 🔴 GESCHRIEBEN WIRD NUR, WAS DER AUFRUFER NENNT. Ein vollstaendig mitgeschicktes Formular
+ * machte jede gewollte Ausnahme platt -- dieselbe Regel wie beim Bearbeiten einer Quelle und
+ * bei der Weg-Ebene, und `avesmapsUpsertGameLiterature` ist genau daran schon einmal gescheitert.
+ *
+ * 💣 UND ES WIRD ZURUECKGELESEN. Eine stille MySQL-Kuerzung ist von „nichts wurde gespeichert"
+ * nicht zu unterscheiden -- der Speichern-Knopf der Tempowerte tat deshalb wochenlang nichts
+ * (AGENTS.md §10). Ein Schreiber, dessen Wert zaehlt, liest ihn zurueck.
+ *
+ * @param array<string,mixed> $felder nur die angefassten Felder
+ * @return array{ok:bool, corpus?:array, error?:array}
+ */
+function avesmapsSourceCorpusSave(PDO $pdo, string $corpusKey, array $felder, int $userId = 0, bool $confirm = false): array
+{
+    $fehler = static fn(int $status, string $code, string $message, array $extra = []): array =>
+        ['ok' => false, 'error' => ['status' => $status, 'code' => $code, 'message' => $message] + $extra];
+
+    $corpusKey = trim($corpusKey);
+    if ($corpusKey === '' || $corpusKey !== avesmapsSourceCorpusKey('https://' . $corpusKey . '/')) {
+        // 💣 Der Schluessel wird gegen die EIGENE Regel geprueft, nicht bloss auf „nicht leer".
+        // Sonst legte ein Tippfehler (`www.herzogtum-weiden.net`) einen zweiten Korpus an, den
+        // nie wieder jemand trifft -- die Adresse loest ihn ja auf `herzogtum-weiden.net` auf.
+        return $fehler(400, 'invalid_corpus_key', 'Das ist kein gueltiger Korpusschluessel: ' . $corpusKey);
+    }
+
+    $unbekannt = array_diff(array_keys($felder), AVESMAPS_SOURCE_CORPUS_FIELDS);
+    if ($unbekannt !== []) {
+        return $fehler(400, 'invalid_request', 'Unbekanntes Feld: ' . implode(', ', $unbekannt));
+    }
+    if ($felder === []) {
+        return $fehler(400, 'invalid_request', 'Es wurde kein Feld angefasst.');
+    }
+
+    avesmapsEnsureSourceCorpusTable($pdo);
+    $reichweite = avesmapsSourceCorpusUsage($pdo, $corpusKey);
+    // 🔴 Die Rueckfrage ist ein EIGENER Schluessel, kein Rueckschluss aus dem Wert -- dieselbe Form
+    // wie `source_type_chosen` und `confirm_catalog`. Ein alter Client, der ihn nicht kennt, darf
+    // einen weit zitierten Korpus nicht unbemerkt umbenennen.
+    if (!$confirm && $reichweite['objects'] >= AVESMAPS_SOURCE_CORPUS_CONFIRM_THRESHOLD) {
+        return $fehler(409, 'corpus_confirm_required',
+            'Diese Aenderung gilt fuer alle ' . $reichweite['objects'] . ' Objekte dieses Korpus.',
+            ['objects' => $reichweite['objects'], 'sources' => $reichweite['sources']]);
+    }
+
+    $spalten = [];
+    $werte = ['k' => $corpusKey];
+    foreach ($felder as $name => $wert) {
+        if ($name === 'form') {
+            $wert = avesmapsSourceCorpusNormalizeForm((string) $wert);
+        } elseif ($name === 'is_official') {
+            $wert = $wert === true || $wert === 1 || $wert === '1' ? 1 : 0;
+        } elseif ($name === 'source_type') {
+            // ⚠️ Dieselbe Weisse Liste wie an der Quelle -- sonst traegt der Korpus eine Art, die
+            // es an keiner Quelle geben kann.
+            $wert = avesmapsNormalizeSourceType((string) $wert);
+        } elseif ($name === 'license') {
+            $wert = avesmapsNormalizeSourceLicense((string) $wert);
+        } else {
+            $wert = avesmapsNormalizeSingleLine((string) $wert, 200);
+        }
+        $spalten[$name] = $wert;
+        $werte[$name] = $wert;
+    }
+
+    $vorhanden = $pdo->prepare('SELECT corpus_key FROM source_corpus WHERE corpus_key = :k LIMIT 1');
+    $vorhanden->execute(['k' => $corpusKey]);
+    if ($vorhanden->fetchColumn() === false) {
+        $namen = array_keys($spalten);
+        $pdo->prepare(
+            'INSERT INTO source_corpus (corpus_key, ' . implode(', ', $namen) . ')
+             VALUES (:k, :' . implode(', :', $namen) . ')'
+        )->execute($werte);
+    } else {
+        $setzen = [];
+        foreach (array_keys($spalten) as $name) {
+            $setzen[] = $name . ' = :' . $name;
+        }
+        $pdo->prepare('UPDATE source_corpus SET ' . implode(', ', $setzen) . ' WHERE corpus_key = :k')->execute($werte);
+    }
+
+    // 💣 ZURUECKLESEN, nicht glauben.
+    $alle = avesmapsSourceCorpusReadAll($pdo);
+    if (!isset($alle[$corpusKey])) {
+        return $fehler(500, 'corpus_not_stored', 'Der Korpus liess sich nicht speichern.');
+    }
+    foreach ($spalten as $name => $erwartet) {
+        $ist = $alle[$corpusKey][$name] ?? null;
+        if ($name === 'is_official') {
+            $ist = $ist === true ? 1 : 0;
+        }
+        if ((string) $ist !== (string) $erwartet) {
+            return $fehler(500, 'corpus_not_stored',
+                'Das Feld „' . $name . '" kam nicht so an, wie es geschickt wurde.');
+        }
+    }
+
+    return ['ok' => true, 'corpus' => $alle[$corpusKey] + $reichweite];
 }
 
 /**

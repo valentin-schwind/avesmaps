@@ -187,7 +187,11 @@
    gewinnt, nicht nur, dass die Deklaration dasteht. */
 .fs-row.fs-row--add {
 	display: flex;
-	align-items: center;
+	/* 💣 `flex-end`, nicht `center`: seit dem 02.09.2026 tragen die Felder BESCHRIFTUNGEN und sind
+	   damit hoeher als der Knopf und das Haekchen daneben. Zentriert saessen die Bedienelemente auf
+	   verschiedenen Hoehen -- die beschrifteten tiefer, die nackten in der Mitte. Am unteren Rand
+	   ausgerichtet stehen alle auf einer Linie, und die Beschriftungen wachsen nach oben weg. */
+	align-items: flex-end;
 	flex-wrap: wrap;
 	gap: 6px;
 	margin-top: 8px;
@@ -196,11 +200,72 @@
 	border-radius: 8px;
 	background: var(--color-panel-soft);
 }
+/* ── Das beschriftete Feld (02.09.2026) ──────────────────────────────────────────────────────
+   Owner am Mockup: „das war das mockup". Ein Platzhalter verschwindet, sobald jemand tippt --
+   danach weiss niemand mehr, welches der acht Felder er gerade fuellt. Vorlage:
+   docs/bekannte-quellen-mockup.html, Schritt 2. */
+.fs-af {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+}
+.fs-af__l {
+	/* ⚠️ 11px ist die Untergrenze des Hauses (AGENTS.md §12) -- nicht darunter, so verlockend
+	   eine Beschriftung ueber einem Feld auch klein wirkt. */
+	font-size: 11px;
+	line-height: 1.3;
+	color: var(--color-text-muted);
+	/* 💣 UMBRECHEN, NICHT KUERZEN. Mit `nowrap` + Ellipse stand am 02.09.2026 „(Korpusschlüssel:
+	   her…" da -- und damit fehlte ausgerechnet die REICHWEITE („gültig für 118 Objekte"), also
+	   die Warnung davor, dass eine Umbenennung jeden Beleg dieses Wirts trifft. Eine Beschriftung
+	   darf zwei Zeilen hoch sein; eine abgeschnittene Warnung ist keine. */
+	white-space: normal;
+}
+/* Der Marker „· vom Korpus": er sagt, WOHER ein vorbelegter Wert kommt. 🔴 Er haengt an einem
+   `hidden`-Attribut und erscheint nur, wenn der Korpus den Wert wirklich vorgibt -- ein dauerhaft
+   sichtbarer Marker waere eine Behauptung. */
+.fs-af__from {
+	color: var(--color-accent-brown);
+}
+/* Schluessel und Reichweite des Korpus. Sie stehen NEBEN der Beschriftung, nicht im Feld: der
+   Schluessel ist gerechnet und nicht editierbar, die Reichweite ist die Warnung vor einer
+   Umbenennung. */
+.fs-af__meta {
+	color: var(--color-text-muted);
+	font-weight: normal;
+}
 /* 💣 Der Prüfknopf sitzt NEBEN der Adresse, also darf sie nicht mehr 100 % nehmen -- sonst
    umbricht er auf eine eigene Zeile und steht sinnlos allein da. 36px = 30px Knopf + 6px `gap`
    der Zeile; wer den Knopf breiter macht, zieht diese Zahl mit. */
-.fs-add-url {
+.fs-af--url {
 	flex: 1 1 calc(100% - 36px);
+}
+.fs-af--grow {
+	flex: 1 1 150px;
+}
+/* Das Korpus-Feld traegt die laengste Beschriftung des Formulars (Name + Schluessel +
+   Reichweite) und bekommt deshalb mehr Grundbreite -- sonst bricht sie auf drei Zeilen. */
+.fs-af--korpus {
+	flex: 1 1 260px;
+}
+.fs-af--pages {
+	flex: 0 1 90px;
+}
+.fs-af--art,
+.fs-af--kind {
+	flex: 0 1 130px;
+}
+.fs-af--license {
+	flex: 0 1 150px;
+}
+/* 💣 Der Knopf steht neben einem Feld MIT Beschriftung -- ohne diese Zeile klebt er an dessen
+   Oberkante, auf Höhe der Beschriftung statt auf Höhe des Eingabefeldes. */
+.fs-add-check {
+	align-self: flex-end;
+}
+.fs-add-url {
+	width: 100%;
 }
 /* Der Prüfknopf (Owner 02.09.2026): einfügen/Enter/Klick prüfen die Adresse und holen den Titel.
    🔴 DREI Zustände, nicht zwei -- „erreichbar, aber nichts zu lesen" ist weder Erfolg noch
@@ -267,21 +332,9 @@
 	opacity: 0.5;
 	cursor: not-allowed;
 }
-.fs-add-label {
-	flex: 1 1 120px;
-}
-.fs-add-pages {
-	flex: 0 1 80px;
-}
 /* Die zwei Felder vom 27.08.2026 nehmen am Umbruchsatz teil wie ihre Nachbarn. Ohne Angabe stand
    die Namensnennung auf der Vorgabebreite eines Textfeldes (194 px, gemessen) und schob den
    Hinzufuegen-Knopf allein auf eine dritte Zeile. */
-.fs-add-license {
-	flex: 0 1 150px;
-}
-.fs-add-attribution {
-	flex: 1 1 140px;
-}
 /* 💣 `select`, nicht die Klassen einzeln: `.fs-add-license` kam am 27.08.2026 dazu und stand
    in der Liste nicht -- sie zeichnete daneben in Browser-Vorgabe (19 px hoch gegen 27, 13,3 px
    Schrift gegen 12; live gemessen 29.08.2026). Eine Regel, die zwei von drei Auswahlfeldern

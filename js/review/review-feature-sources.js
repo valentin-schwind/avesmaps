@@ -436,18 +436,40 @@ function renderFeatureSourceAddRow(escape, tr) {
       (key) => '<option value="' + escape(key) + '">' + escape(lizenzTafel[key].label) + "</option>"
     ).join("");
   return (
+    // 🔴 BESCHRIFTETE FELDER, nicht nur Platzhalter (Owner 02.09.2026 am Mockup: „das war das
+    // mockup"). Ein Platzhalter verschwindet, sobald jemand tippt -- und danach weiss niemand mehr,
+    // welches der acht Felder er gerade fuellt. Die Vorlage ist
+    // docs/bekannte-quellen-mockup.html, Schritt 2.
+    // ⚠️ Die Klassen der Bedienelemente bleiben unveraendert (`.fs-add-url`, `.fs-add-label`, …):
+    // an ihnen haengen fuenf Tests und die ganze Verdrahtung. Neu ist nur die Huelle darum.
     '<div class="fs-row fs-row--add" data-fs-add>' +
-    '<input type="text" class="fs-add-url" placeholder="' + escape(tr("sources.add.url", "URL")) + '">' +
+    // Adresse — das einzige Feld, das der Editor im Normalfall wirklich tippt.
+    '<label class="fs-af fs-af--url"><span class="fs-af__l">' +
+    escape(tr("sources.add.urlLabel", "Adresse — die genaue Seite")) + "</span>" +
+    '<input type="text" class="fs-add-url" placeholder="https://…"></label>' +
     // Der Prüfknopf (Owner 02.09.2026). 🔴 Er ist der Grund, warum das Formular NIE auf einen
     // fremden Server wartet: der Abruf ist ein Handgriff, kein Nebeneffekt des Tippens. Einfügen
     // und Enter lösen ihn ebenfalls aus -- das Feld steht in keinem <form>, Enter war bis hierher
     // wirkungslos, es wird also keine Gewohnheit gebrochen.
     // 💣 DREI Zustände, nicht zwei: „erreichbar, aber nichts zu lesen" ist weder Erfolg noch
     // Fehlschlag. Wäre es rot, suchte der Editor einen Fehler am Link, den es nicht gibt.
+    // ⚠️ Er steht NEBEN dem Label, nicht darin: ein `<button>` in einem `<label>` erbt dessen
+    // Aktivierungsverhalten, und der Klick gälte dann auch dem Eingabefeld.
     '<button type="button" class="fs-add-check" data-fs-check title="' +
     escape(tr("sources.add.checkHint", "Adresse prüfen und Titel übernehmen")) + '" aria-label="' +
     escape(tr("sources.add.checkHint", "Adresse prüfen und Titel übernehmen")) + '">⟳</button>' +
-    '<input type="text" class="fs-add-label" placeholder="' + escape(tr("sources.add.label", "Quellenname")) + '">' +
+    '<label class="fs-af fs-af--grow"><span class="fs-af__l">' +
+    escape(tr("sources.add.labelLabel", "Titel — wie diese Seite heißt")) + "</span>" +
+    '<input type="text" class="fs-add-label" placeholder="' + escape(tr("sources.add.label", "Quellenname")) + '"></label>' +
+    // 🔴 DER KORPUS -- die Sammlung, aus der die Seite stammt. Sein SCHLÜSSEL ist die registrierbare
+    // Domain und wird gerechnet, nie getippt; hier steht nur seine BESCHRIFTUNG. Die Meta-Zeile
+    // daneben nennt den Schlüssel und die Reichweite, damit sichtbar ist, was eine Umbenennung
+    // trifft (Entwurf §3, Mockup Schritt 2).
+    '<label class="fs-af fs-af--korpus"><span class="fs-af__l">' +
+    escape(tr("sources.add.corpusLabel", "Name des Korpus")) +
+    '<span class="fs-af__meta" data-fs-corpus-meta></span></span>' +
+    '<input type="text" class="fs-add-corpus" data-fs-corpus placeholder="' +
+    escape(tr("sources.add.corpusPlaceholder", "aus der Adresse")) + '"></label>' +
     // Instruction 5a requires the form to SAY which case occurred -- without this an editor cannot
     // tell whether they just referenced the existing source or minted a duplicate.
     '<span class="fs-add-picked" data-fs-picked hidden>' +
@@ -455,13 +477,26 @@ function renderFeatureSourceAddRow(escape, tr) {
     '<button type="button" class="fs-add-picked__x" data-fs-unpick aria-label="' +
     escape(tr("sources.add.unpick", "Auswahl aufheben")) + '">✕</button>' +
     "</span>" +
-    '<input type="text" class="fs-add-pages" placeholder="' + escape(tr("sources.add.pages", "Seite(n)")) + '">' +
-    '<select class="fs-add-type">' + options + "</select>" +
-    '<select class="fs-add-kind" title="' + escape(tr("sources.add.kind", "Abdeckung: Ausführlich/Ergänzend → Offiziell-Tab, Erwähnung → Erwähnt-Tab, sonst normale Quellenzeile")) + '">' + kindOptions + "</select>" +
-    '<select class="fs-add-license" title="' + escape(tr("sources.add.licenseHint", "Unter welcher Lizenz steht die Quelle? Leer heißt „nicht erfasst“, nicht „keine Lizenz“.")) + '">' + licenseOptions + "</select>" +
-    '<input type="text" class="fs-add-attribution" placeholder="' + escape(tr("sources.add.attribution", "Namensnennung")) + '" title="' + escape(tr("sources.add.attributionHint", "Wen die Lizenz zu nennen verlangt, z. B. „VolkoV / garetien.de“.")) + '">' +
+    '<label class="fs-af fs-af--pages"><span class="fs-af__l">' +
+    escape(tr("sources.add.pages", "Seite(n)")) + "</span>" +
+    '<input type="text" class="fs-add-pages" placeholder="' + escape(tr("sources.add.pagesHint", "optional")) + '"></label>' +
+    // ⚠️ Die vier Marker „· vom Korpus" hängen an einem `hidden`-Attribut und werden gesetzt, wenn
+    // der Korpus den Wert wirklich vorgibt. Ein dauerhaft sichtbarer Marker wäre eine Behauptung.
+    '<label class="fs-af fs-af--art"><span class="fs-af__l">' + escape(tr("sources.add.typeLabel", "Art")) +
+    '<span class="fs-af__from" data-fs-from="type" hidden> · ' + escape(tr("sources.add.fromCorpus", "vom Korpus")) + "</span></span>" +
+    '<select class="fs-add-type">' + options + "</select></label>" +
+    '<label class="fs-af fs-af--kind"><span class="fs-af__l">' + escape(tr("sources.add.kindLabel", "Abdeckung")) + "</span>" +
+    '<select class="fs-add-kind" title="' + escape(tr("sources.add.kind", "Abdeckung: Ausführlich/Ergänzend → Offiziell-Tab, Erwähnung → Erwähnt-Tab, sonst normale Quellenzeile")) + '">' + kindOptions + "</select></label>" +
+    '<label class="fs-af fs-af--license"><span class="fs-af__l">' + escape(tr("sources.add.licenseLabel", "Lizenz")) +
+    '<span class="fs-af__from" data-fs-from="license" hidden> · ' + escape(tr("sources.add.fromCorpus", "vom Korpus")) + "</span></span>" +
+    '<select class="fs-add-license" title="' + escape(tr("sources.add.licenseHint", "Unter welcher Lizenz steht die Quelle? Leer heißt „nicht erfasst“, nicht „keine Lizenz“.")) + '">' + licenseOptions + "</select></label>" +
+    '<label class="fs-af fs-af--grow"><span class="fs-af__l">' +
+    escape(tr("sources.add.attributionLabel", "Namensnennung bzw. mit freundlicher Genehmigung von")) +
+    '<span class="fs-af__from" data-fs-from="attribution" hidden> · ' + escape(tr("sources.add.fromCorpus", "vom Korpus")) + "</span></span>" +
+    '<input type="text" class="fs-add-attribution" placeholder="' + escape(tr("sources.add.attribution", "Namensnennung")) + '" title="' + escape(tr("sources.add.attributionHint", "Wen die Lizenz zu nennen verlangt, z. B. „VolkoV / garetien.de“.")) + '"></label>' +
     '<label class="fs-add-official-label">' +
     '<input type="checkbox" class="fs-add-official"> ' + escape(tr("sources.add.official", "offiziell")) +
+    '<span class="fs-af__from" data-fs-from="official" hidden> · ' + escape(tr("sources.add.fromCorpus", "vom Korpus")) + "</span>" +
     "</label>" +
     '<button type="button" class="fs-row__add" data-fs-add-submit>' + escape(tr("sources.add.submit", "Hinzufügen")) + "</button>" +
     "</div>" +
@@ -1064,7 +1099,119 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
         haken.checked = sicht.felder.is_official;
       }
     }
+    uebernehmeKorpus(auskunft.corpus);
     setzeAdressZustand(sicht.zustand, sicht.meldung);
+  }
+
+  // Der zuletzt gemeldete Korpus -- gebraucht beim Umbenennen (welcher Schlüssel ist gemeint?)
+  // und für die Rückfrage ab AVESMAPS_SOURCE_CORPUS_CONFIRM_THRESHOLD Objekten.
+  let letzterKorpus = null;
+
+  /**
+   * Der Korpus in die Zeile: Name, Schlüssel, Reichweite -- und die vier Marker.
+   *
+   * 🔴 Vorbelegt wird nur, wo der Editor NICHTS eingetippt hat. Ein Korpus gibt eine Vorgabe,
+   * keine Anweisung; wer schon etwas hingeschrieben hat, meinte das.
+   * ⚠️ Und der Marker erscheint nur, wo der Korpus den Wert WIRKLICH trägt -- ein Marker über
+   * einem leeren Feld behauptete, der Korpus habe dazu etwas zu sagen.
+   */
+  function uebernehmeKorpus(korpus) {
+    letzterKorpus = korpus || null;
+    const feld = containerEl.querySelector("[data-fs-corpus]");
+    const meta = containerEl.querySelector("[data-fs-corpus-meta]");
+    const marker = (name, an) => {
+      const el = containerEl.querySelector('[data-fs-from="' + name + '"]');
+      if (el) {
+        el.hidden = !an;
+      }
+    };
+    if (!korpus) {
+      if (feld) {
+        feld.value = "";
+      }
+      if (meta) {
+        meta.textContent = "";
+      }
+      ["type", "license", "attribution", "official"].forEach((n) => marker(n, false));
+      return;
+    }
+    if (feld && String(feld.value || "").trim() === "") {
+      feld.value = String(korpus.label || korpus.corpus_key || "");
+    }
+    if (meta) {
+      // Der Schlüssel bleibt sichtbar NEBEN dem Namen (Owner 01.09.2026: „lass den schlüssel
+      // dranstehen"), und die Reichweite daneben ist die Warnung vor einer Umbenennung.
+      const objekte = Number(korpus.objects) || 0;
+      meta.textContent = " · " + tr("sources.add.corpusKey", "(Korpusschlüssel: {key})")
+        .replace("{key}", String(korpus.corpus_key || "")) + " · "
+        + (objekte === 0
+          ? tr("sources.add.corpusEmpty", "noch keine Einträge")
+          : objekte === 1
+            ? tr("sources.add.corpusOne", "gültig für 1 Objekt")
+            : tr("sources.add.corpusMany", "gültig für {n} Objekte").replace("{n}", String(objekte)));
+    }
+    // 🔴 Vorbelegen NUR bei einem bekannten Korpus. Ein frisch aus der Adresse abgeleiteter trägt
+    // nichts, was er vorgeben könnte -- dort wäre jeder Marker eine Behauptung.
+    const bekannt = korpus.known === true;
+    const setzeLeer = (selektor, wert) => {
+      const el = containerEl.querySelector(selektor);
+      if (el && wert !== "" && String(el.value || "").trim() === "") {
+        el.value = wert;
+        return true;
+      }
+      return Boolean(el && wert !== "" && String(el.value || "") === wert);
+    };
+    marker("type", bekannt && setzeLeer(".fs-add-type", String(korpus.source_type || "")));
+    marker("license", bekannt && setzeLeer(".fs-add-license", String(korpus.license || "")));
+    marker("attribution", bekannt && setzeLeer(".fs-add-attribution", String(korpus.attribution || "")));
+    const haken = containerEl.querySelector(".fs-add-official");
+    if (bekannt && haken && korpus.is_official === true && !haken.checked) {
+      haken.checked = true;
+    }
+    marker("official", bekannt && korpus.is_official === true);
+  }
+
+  /**
+   * Den Korpus umbenennen. 🔴 Das trifft JEDEN Beleg dieses Wirts -- deshalb die Rückfrage, und
+   * deshalb steht die Reichweite schon vorher neben dem Feld.
+   */
+  async function speichereKorpus() {
+    const feld = containerEl.querySelector("[data-fs-corpus]");
+    if (!feld || !letzterKorpus) {
+      return;
+    }
+    const neu = String(feld.value || "").trim();
+    const alt = String(letzterKorpus.label || letzterKorpus.corpus_key || "");
+    if (neu === "" || neu === alt) {
+      return; // nichts angefasst -- und ein leerer Name ist keine Umbenennung, sondern ein Versehen
+    }
+    const objekte = Number(letzterKorpus.objects) || 0;
+    if (objekte >= FEATURE_SOURCE_CONFIRM_THRESHOLD) {
+      const frage = tr("sources.add.corpusConfirm",
+        "„{alt}“ in „{neu}“ umbenennen? Das gilt für alle {n} Objekte dieses Korpus.")
+        .replace("{alt}", alt).replace("{neu}", neu).replace("{n}", String(objekte));
+      if (typeof window !== "undefined" && typeof window.confirm === "function" && !window.confirm(frage)) {
+        feld.value = alt;
+        return;
+      }
+    }
+    const daten = await featureSourceFetch({
+      action: "save_corpus",
+      entity_type: entityType,
+      corpus_key: letzterKorpus.corpus_key,
+      fields: { label: neu },
+      confirm_corpus: true,
+    });
+    if (!daten || daten.ok !== true) {
+      feld.value = alt;
+      setzeAdressZustand(null, (daten && daten.error && daten.error.message)
+        || tr("sources.add.corpusFailed", "Der Korpus ließ sich nicht speichern."));
+      return;
+    }
+    letzterKorpus = Object.assign({}, letzterKorpus, daten.corpus || {}, { known: true });
+    uebernehmeKorpus(letzterKorpus);
+    setzeAdressZustand("bekannt", tr("sources.add.corpusSaved",
+      "Der Korpus heißt jetzt „{neu}“ — das gilt für alle seine Belege.").replace("{neu}", neu));
   }
 
   // Nach jedem Neuzeichnen: das Adressfeld ist ein neues Element, direkte Listener sind weg.
@@ -1094,6 +1241,18 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
       setzeAdressZustand(null, "");
       setzeKatalogfelderGesperrt(false);
     });
+    // Der Korpusname wird beim Verlassen des Feldes gespeichert, nicht bei jedem Tastendruck --
+    // eine Umbenennung, die alle Belege trifft, gehört nicht an ein `input`-Ereignis.
+    const korpusFeld = containerEl.querySelector("[data-fs-corpus]");
+    if (korpusFeld) {
+      korpusFeld.addEventListener("blur", speichereKorpus);
+      korpusFeld.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          speichereKorpus();
+        }
+      });
+    }
   }
 
   function readAddRowValues() {

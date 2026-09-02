@@ -61,12 +61,16 @@ try {
     if (!in_array($entityType, $allowedTypes, true)) {
         avesmapsErrorResponse(400, 'invalid_request', 'entity_type muss settlement, region, path, territory, citymap, lore, powerline oder ecosystem sein.');
     }
-    // 🔴 `inspect_url` fragt nach einer ADRESSE, nicht nach einem Objekt -- deshalb steht sie als
-    // einzige ohne `entity_public_id` da. Das ist kein Schlupfloch, sondern der Fall „Quelle beim
-    // Anlegen": dort gibt es das Objekt serverseitig noch gar nicht (der Puffer beantwortet alles
-    // andere lokal), und ein Editor, der dort einen Link einfuegt, soll trotzdem erfahren, ob er
-    // erreichbar ist. ⚠️ Die Faehigkeit `edit` ist oben laengst geprueft; lesend bleibt es ohnehin.
-    if ($entityPublicId === '' && $action !== 'inspect_url') {
+    // 🔴 ZWEI AKTIONEN FRAGEN NACH EINEM WIRT, NICHT NACH EINEM OBJEKT, und stehen deshalb ohne
+    // `entity_public_id` da: `inspect_url` (was ist das fuer eine Adresse?) und `save_corpus` (wie
+    // heisst dieser Wirt?). Das ist kein Schlupfloch, sondern der Fall „Quelle beim Anlegen": dort
+    // gibt es das Objekt serverseitig noch gar nicht (der Puffer beantwortet alles andere lokal),
+    // und ein Editor, der dort einen Link einfuegt, soll trotzdem erfahren, ob er erreichbar ist.
+    // ⚠️ HIER STAND „als einzige", solange es eine war -- und eine Zahl liest sich wie eine
+    // vollstaendige Liste, die niemand nachzaehlt (AGENTS.md §11). Wer eine dritte ergaenzt,
+    // ergaenzt sie in DIESER Aufzaehlung.
+    // ⚠️ Die Faehigkeit `edit` ist oben laengst geprueft; `inspect_url` bleibt ohnehin lesend.
+    if ($entityPublicId === '' && !in_array($action, ['inspect_url', 'save_corpus'], true)) {
         avesmapsErrorResponse(400, 'invalid_request', 'entity_public_id ist erforderlich.');
     }
 
@@ -174,6 +178,33 @@ try {
             $fetch = ($payload['fetch'] ?? false) === true;
 
             return ['ok' => true, 'inspect' => avesmapsSourceInspectUrl($pdo, $url, $fetch)];
+        })(),
+        // Den KORPUS aendern -- seinen Namen, seine Form, seine Vorgaben. Auch diese Aktion fragt
+        // nach einem Wirt, nicht nach einem Objekt, und steht deshalb ohne `entity_public_id` da.
+        //
+        // 🔴 Eine Umbenennung trifft JEDEN Beleg dieses Wirts. Deshalb dieselbe Rueckfrage wie beim
+        // Bearbeiten einer Katalogzeile, mit eigenem Schluessel `confirm_corpus` -- ein alter
+        // Client, der ihn nicht kennt, darf nichts unbemerkt umschreiben.
+        'save_corpus' => (static function () use ($payload, $userId, $pdo): array {
+            $key = trim((string) ($payload['corpus_key'] ?? ''));
+            $felder = $payload['fields'] ?? null;
+            if (!is_array($felder)) {
+                avesmapsErrorResponse(400, 'invalid_request', 'fields muss ein Objekt der geaenderten Felder sein.');
+            }
+            $ergebnis = avesmapsSourceCorpusSave(
+                $pdo, $key, $felder, $userId, ($payload['confirm_corpus'] ?? false) === true
+            );
+            if (($ergebnis['ok'] ?? false) !== true) {
+                $f = is_array($ergebnis['error'] ?? null) ? $ergebnis['error'] : [];
+                avesmapsErrorResponse(
+                    (int) ($f['status'] ?? 400),
+                    (string) ($f['code'] ?? 'invalid_request'),
+                    (string) ($f['message'] ?? 'Der Korpus liess sich nicht speichern.'),
+                    array_diff_key($f, ['status' => 1, 'code' => 1, 'message' => 1])
+                );
+            }
+
+            return $ergebnis;
         })(),
         'remove' => (static function () use ($pdo, $entityType, $entityPublicId, $payload, $userId): array {
             $sourceId = (int) ($payload['source_id'] ?? 0);
