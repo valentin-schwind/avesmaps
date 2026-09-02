@@ -2027,7 +2027,13 @@ function bindungTrefferZeichnen() {
         meta: bindungMeta(row),
         warnung: '',
       })).join('')
-    : `<div class="${skin.trefferLeer}">Kein Artikel gefunden. Liegt schon ein Dump-Sync hinter dem letzten Wiki-Stand?</div>`;
+    // 🪤 DIE MELDUNG NENNT „DUMP HOLEN", NICHT „SYNCEN" — und der Unterschied ist der ganze Punkt.
+    // „1 · Syncen" rescannt den Dump NICHT: es liest den Sandkasten `wiki_dump_hybrid_state`,
+    // gefiltert nach run_id und entity_kind, den ein frueherer „Dump holen"-Lauf gefuellt hat
+    // (dump-sync-kind.php). Wer hier auf „Syncen" verwiesen wird, drueckt den Knopf, der das
+    // Problem nicht loesen KANN. Gemessen am 02.09.2026: Sync um 02:18, Sandkasten vom 01.09. 19:42
+    // — der Artikel konnte gar nicht darin sein.
+    : `<div class="${skin.trefferLeer}">Kein Artikel gefunden. Fehlt ein inoffizieller Artikel, muss <b>„Dump holen"</b> im WikiSync-Panel neu laufen — „Syncen" liest nur den vorhandenen Dump-Scan.</div>`;
   if (hinweis) {
     // 🪤 NICHT der geteilte Hinweistext. Der verspricht „Enter zuweisen"; hier zeigt Enter die
     // VORSCHAU, weil die Übernahme nicht per Knopf umkehrbar ist und je Feld entschieden wird.
@@ -2197,7 +2203,8 @@ $('bindung-sammellauf').addEventListener('click', async () => {
     const r = await api('wiki_binding_suggest', { method:'POST', body:{} });
     const zeilen = r.rows || [];
     if (!zeilen.length) {
-      setStatus('Kein eigener Knoten hat einen namensgleichen Wiki-Artikel. Liegt schon ein Dump-Sync hinter dem letzten Wiki-Stand?');
+      // Dieselbe Praezisierung wie in der Trefferliste: „Syncen" rescannt den Dump nicht.
+      setStatus('Kein eigener Knoten hat einen namensgleichen Wiki-Artikel. Fehlen inoffizielle Artikel, muss „Dump holen" im WikiSync-Panel neu laufen — „Syncen" liest nur den vorhandenen Dump-Scan.');
       return;
     }
     // 🔴 Vorangehakt ist NUR ein eindeutiger Treffer. Zwei Artikel auf einen Namen oder zwei eigene

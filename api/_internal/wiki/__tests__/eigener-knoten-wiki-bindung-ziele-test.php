@@ -209,6 +209,15 @@ pruefe(str_contains($monitorText, 'Enter zeigt die Vorschau'),
 pruefe(!str_contains($monitorText, '· Enter zuweisen ·'),
     'Und verspricht nicht das, was das geteilte Bauteil zusagt, hier aber nicht gilt.');
 
+// 🪤 DIE LEERMELDUNG NENNT DEN RICHTIGEN KNOPF. „1 · Syncen" rescannt den Dump NICHT — es liest den
+// Sandkasten wiki_dump_hybrid_state, den ein frueherer „Dump holen"-Lauf gefuellt hat. Am 02.09.2026
+// stand hier „Liegt schon ein Dump-Sync hinter dem letzten Wiki-Stand?", der Owner drueckte
+// daraufhin „Syncen" (02:18) — der Sandkasten war vom 01.09. 19:42, der Artikel konnte gar nicht
+// darin sein. Eine Meldung, die auf den falschen Knopf zeigt, kostet genau so eine Runde.
+pruefe(substr_count($monitorText, 'muss <b>„Dump holen"</b> im WikiSync-Panel neu laufen') === 1
+    && substr_count($monitorText, 'muss „Dump holen" im WikiSync-Panel neu laufen') === 1,
+    'Beide Leermeldungen (Trefferliste und Sammellauf) nennen „Dump holen", nicht „Syncen".');
+
 // 🔴 Keine hartkodierte Farbe (AGENTS.md §12): der Kasten nimmt Tokens.
 pruefe(preg_match('/\.dt-bindung[^{]*\{[^}]*#[0-9a-fA-F]{3,8}/', $monitorText) !== 1,
     'Der Bindungs-Kasten kodiert keine Farbe hart -- er nimmt Tokens.');
