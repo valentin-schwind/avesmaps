@@ -21,6 +21,8 @@ declare(strict_types=1);
  */
 
 require_once __DIR__ . '/../political/territory.php';
+// avesmapsPoliticalWriteGeometryAuditLog -- die EINE Protokollzeile am Ende der Uebernahme.
+require_once __DIR__ . '/../political/territories-audit.php';
 
 /**
  * REIN: die Uebernahme-Vorschau je Feld.
@@ -147,4 +149,361 @@ function avesmapsEigenerKnotenBindungZielzeile(PDO $pdo, string $zielKey, array 
     ]);
 
     return (int) $pdo->lastInsertId();
+}
+
+/**
+ * DIE EINE SCHREIBENDE FUNKTION. Bindet $eigenKey an $zielKey und laesst alles mitwandern.
+ *
+ * 💣 JEDES Ziel steht HIER und nirgends sonst. Wer ein Ziel hinzufuegt, fuegt es in dieser
+ * Funktion hinzu -- und __tests__/eigener-knoten-wiki-bindung-ziele-test.php haelt die Liste
+ * gegen den Entwurf. Eine Regel, die einen von mehreren Erzeugern bindet, ist keine Regel.
+ *
+ * @param array $felder        die ANGEHAKTEN Feldschluessel aus der Vorschau
+ * @param array $zielWerte     die Wiki-Werte; nur die in $felder genannten werden geschrieben
+ * @param int   $actorUserId   fuer die EINE Protokollzeile
+ */
+function avesmapsEigenerKnotenBindungAnwenden(
+    PDO $pdo,
+    string $eigenKey,
+    string $zielKey,
+    array $felder,
+    array $zielWerte,
+    int $actorUserId = 0
+): array {
+    if (!avesmapsWikiSyncMonitorIsCustomNodeKey($eigenKey)) {
+        throw new RuntimeException('Nur eigene Knoten (eigener-knoten:...) lassen sich binden.');
+    }
+    if (strncmp($zielKey, 'wiki:', 5) !== 0) {
+        throw new RuntimeException('Der Zielschluessel muss ein Wiki-Schluessel sein.');
+    }
+
+    $alt = $pdo->prepare('SELECT id, public_id, slug FROM political_territory WHERE wiki_key = :k AND is_active = 1 LIMIT 1');
+    $alt->execute(['k' => $eigenKey]);
+    $alteZeile = $alt->fetch(PDO::FETCH_ASSOC);
+    if (!$alteZeile) {
+        throw new RuntimeException('Der eigene Knoten ist nicht live: ' . $eigenKey);
+    }
+    $alteId = (int) $alteZeile['id'];
+    $altePid = (string) $alteZeile['public_id'];
+
+    // 🔴 Der Riegel gegen zwei Ansprueche auf denselben Schluessel (Entwurf §5.4). Ein zweiter
+    // eigener Knoten auf denselben Artikel waere eine STILLE Verschmelzung zweier Gebiete.
+    $belegt = $pdo->prepare(
+        "SELECT wiki_key FROM political_territory
+          WHERE wiki_key = :z AND is_active = 1 AND editor_notes LIKE 'Aus einem eigenen Knoten gebunden:%' LIMIT 1"
+    );
+    $belegt->execute(['z' => $zielKey]);
+    if ($belegt->fetchColumn() !== false) {
+        return ['ok' => false, 'error' => 'Dieser Wiki-Artikel ist schon an einen eigenen Knoten gebunden.',
+                'target_id' => 0, 'moved' => []];
+    }
+
+    // Nur die angehakten Felder ueberleben.
+    $erlaubt = array_flip($felder);
+    $werte = array_intersect_key($zielWerte, $erlaubt);
+    $werte['name'] = trim((string) ($zielWerte['name'] ?? ''));   // der Name ist die Identitaet
+    $werte['type'] = $zielWerte['type'] ?? '';
+    $werte['wiki_url'] = $zielWerte['wiki_url'] ?? '';
+
+    $bewegt = [];
+    $pdo->beginTransaction();
+    try {
+        // Erst den Slug freigeben, DANN die Zielzeile -- in dieser Reihenfolge (Entwurf §5.2).
+        avesmapsEigenerKnotenBindungSlugFreigeben($pdo, $alteId, (string) $alteZeile['slug']);
+        $zielId = avesmapsEigenerKnotenBindungZielzeile($pdo, $zielKey, $werte);
+        $zielPid = (string) $pdo->query("SELECT public_id FROM political_territory WHERE id = {$zielId}")->fetchColumn();
+
+        // 💣 Die angehakten Felder werden HIER geschrieben, nicht beim Anlegen der Zielzeile.
+        // Sonst kaemen sie nur im Neuanlage-Fall an und bei einer SCHON VORHANDENEN Zielzeile
+        // stillschweigend gar nicht -- und genau dieser Fall entsteht, sobald jemand zwischendurch
+        // "Hierarchie rechnen" + "Uebernehmen" gefahren hat. Zwei Faelle, ein Code (Entwurf §4).
+        avesmapsEigenerKnotenBindungFelderSchreiben($pdo, $zielId, $felder, $zielWerte);
+
+        // --- Die Ziele der territory_id -------------------------------------------------------
+        foreach (['political_territory_geometry', 'political_territory_derived_geometry'] as $tabelle) {
+            $s = $pdo->prepare("UPDATE {$tabelle} SET territory_id = :neu WHERE territory_id = :alt");
+            $s->execute(['neu' => $zielId, 'alt' => $alteId]);
+            $bewegt[$tabelle] = $s->rowCount();
+        }
+
+        // 💣 Der Anspruch hat ZWEI Spalten, und `uq_political_territory_claim
+        // (territory_id, claimant_territory_id)` kann kollidieren. Kein UPDATE IGNORE: die Syntax
+        // ist in MySQL und SQLite verschieden (`UPDATE IGNORE` gegen `UPDATE OR IGNORE`), und ein
+        // Test auf der einen wuerde die andere nicht decken. Also: kollidierende Zeilen ZUERST
+        // loeschen, dann glatt umhaengen.
+        // ⚠️ Und ein Selbstanspruch (territory_id = claimant_territory_id) entsteht, wenn Ziel und
+        // Quelle im selben Anspruch stehen -- der wird geloescht, nicht geschrieben.
+        $bewegt['political_territory_claim'] = avesmapsEigenerKnotenBindungAnspruchUmhaengen($pdo, $alteId, $zielId);
+
+        // Die Kinder.
+        $kinder = $pdo->prepare('UPDATE political_territory SET parent_id = :neu WHERE parent_id = :alt');
+        $kinder->execute(['neu' => $zielId, 'alt' => $alteId]);
+        $bewegt['political_territory.parent_id'] = $kinder->rowCount();
+
+        // --- Die Ziele der public_id ----------------------------------------------------------
+        // 💣 `uq_feature_source (entity_type, entity_public_id, source_id)` bricht, sobald BEIDE
+        // Gebiete dieselbe Quelle zitieren -- bei einem eigenen Knoten und seinem Wiki-Artikel der
+        // wahrscheinliche Fall. Der Kraftlinien-Praezedenzfall (features.php:3927) macht hier ein
+        // glattes UPDATE, und das ist DORT richtig: bauartbedingt traegt nur das Ankersegment
+        // Quellen. Abschreiben darf man es nicht.
+        $pdo->prepare(
+            "DELETE FROM feature_sources
+              WHERE entity_type = 'territory' AND entity_public_id = :alt
+                AND source_id IN (SELECT source_id FROM (
+                        SELECT source_id FROM feature_sources
+                         WHERE entity_type = 'territory' AND entity_public_id = :neu
+                    ) x)"
+        )->execute(['alt' => $altePid, 'neu' => $zielPid]);
+        $quellen = $pdo->prepare(
+            "UPDATE feature_sources SET entity_public_id = :neu
+              WHERE entity_type = 'territory' AND entity_public_id = :alt"
+        );
+        $quellen->execute(['neu' => $zielPid, 'alt' => $altePid]);
+        $bewegt['feature_sources'] = $quellen->rowCount();
+
+        $meldungen = $pdo->prepare(
+            "UPDATE map_reports SET entity_public_id = :neu
+              WHERE entity_type = 'territory' AND entity_public_id = :alt"
+        );
+        $meldungen->execute(['neu' => $zielPid, 'alt' => $altePid]);
+        $bewegt['map_reports'] = $meldungen->rowCount();
+
+        // --- Die Schluesselwanderung ----------------------------------------------------------
+        $bewegt['wiki_territory_model'] = avesmapsEigenerKnotenBindungModellUmhaengen($pdo, $eigenKey, $zielKey);
+
+        foreach ([
+            ['political_territory_claim', 'claimant_wiki_key'],
+            ['sync_decision', 'entity_key'],
+            ['sync_plan_item', 'entity_key'],
+        ] as [$tabelle, $spalte]) {
+            $s = $pdo->prepare("UPDATE {$tabelle} SET {$spalte} = :neu WHERE {$spalte} = :alt");
+            $s->execute(['neu' => $zielKey, 'alt' => $eigenKey]);
+            $bewegt[$tabelle . '.' . $spalte] = $s->rowCount();
+        }
+
+        $bewegt['map_features.territory_wiki_key'] =
+            avesmapsEigenerKnotenBindungSiedlungenUmschluesseln($pdo, $eigenKey, $zielKey);
+
+        // 💣 SELECT, dann UPDATE oder INSERT -- KEIN Upsert. `ON DUPLICATE KEY UPDATE` (MySQL) und
+        // `ON CONFLICT ... DO UPDATE` (SQLite) sind verschiedene Syntax; ein SQLite-Test wuerde die
+        // MySQL-Regression nicht sehen. Dieselbe Lehre wie beim UPDATE IGNORE weiter oben.
+        avesmapsEigenerKnotenBindungSetzen(
+            $pdo, 'wiki_redirect_alias', 'alias_slug', $eigenKey, ['canonical_wiki_key' => $zielKey]
+        );
+
+        // Die alte Zeile in den weichen Papierkorb (umkehrbar, wie bei den verwaisten Aussenhuellen).
+        $pdo->prepare('UPDATE political_territory SET is_active = 0, parent_id = NULL WHERE id = :id')
+            ->execute(['id' => $alteId]);
+
+        // 🔴 EINE Protokollzeile je LAUF, nicht eine je Ziel (Entwurf §4.3). Eine Zeile je Ziel
+        // machte aus einer Handlung sieben Eintraege, und der Aenderungs-Log waere danach nicht
+        // mehr lesbar.
+        avesmapsPoliticalWriteGeometryAuditLog(
+            $pdo,
+            'territory_wiki_binding',
+            $actorUserId,
+            ['wiki_key' => $eigenKey, 'territory_id' => $alteId, 'public_id' => $altePid],
+            ['wiki_key' => $zielKey, 'territory_id' => $zielId, 'public_id' => $zielPid, 'moved' => $bewegt]
+        );
+
+        $pdo->commit();
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        throw $e;
+    }
+
+    return ['ok' => true, 'target_id' => $zielId, 'moved' => $bewegt];
+}
+
+/**
+ * Ansprueche umhaengen, ohne den UNIQUE zu brechen. Siehe die Begruendung am Aufrufer.
+ *
+ * 💣 Die doppelte Ableitungstabelle ist kein Zierrat: MySQL lehnt
+ * `DELETE ... WHERE ... IN (SELECT ... FROM derselben Tabelle)` mit Error 1093 ab. Das Haus-Idiom
+ * dagegen steht in avesmapsPoliticalPruneGeometryAuditLog (territories-audit.php) -- SQLite kennt
+ * die Einschraenkung nicht, ein Test dort wuerde die Regression also NICHT sehen (AGENTS.md §9).
+ */
+function avesmapsEigenerKnotenBindungAnspruchUmhaengen(PDO $pdo, int $alteId, int $zielId): int
+{
+    // Erst die Zeilen, die nach dem Umhaengen doppelt oder ein Selbstanspruch waeren.
+    $pdo->prepare(
+        'DELETE FROM political_territory_claim
+          WHERE id IN (SELECT id FROM (
+                SELECT a.id FROM political_territory_claim a
+                 WHERE (a.territory_id = :alt1 AND a.claimant_territory_id = :ziel1)
+                    OR (a.territory_id = :ziel2 AND a.claimant_territory_id = :alt2)
+            ) x)'
+    )->execute(['alt1' => $alteId, 'ziel1' => $zielId, 'ziel2' => $zielId, 'alt2' => $alteId]);
+
+    $bewegt = 0;
+    foreach (['territory_id', 'claimant_territory_id'] as $spalte) {
+        $gegen = $spalte === 'territory_id' ? 'claimant_territory_id' : 'territory_id';
+        // Zeilen, deren Umhaengen eine vorhandene Kombination doppeln wuerde: erst weg.
+        $pdo->prepare(
+            "DELETE FROM political_territory_claim
+              WHERE id IN (SELECT id FROM (
+                    SELECT a.id FROM political_territory_claim a
+                     WHERE a.{$spalte} = :alt
+                       AND EXISTS (SELECT 1 FROM political_territory_claim b
+                                    WHERE b.{$spalte} = :ziel AND b.{$gegen} = a.{$gegen})
+                ) x)"
+        )->execute(['alt' => $alteId, 'ziel' => $zielId]);
+
+        $s = $pdo->prepare("UPDATE political_territory_claim SET {$spalte} = :ziel WHERE {$spalte} = :alt");
+        $s->execute(['ziel' => $zielId, 'alt' => $alteId]);
+        $bewegt += $s->rowCount();
+    }
+
+    return $bewegt;
+}
+
+/**
+ * Den Modellknoten umhaengen: Kinder auf den neuen Schluessel, parent_locked und der von Hand
+ * gesetzte Elternteil erben, der eigene Knoten faellt weg.
+ *
+ * 🔴 parent_locked ist eine HAND-ENTSCHEIDUNG und ueberlebt nach Hausregel jede Synchronisierung.
+ * Ohne die Vererbung zoege der naechste sync_parent_cache die Hierarchie um -- das Wiki sagt
+ * `Staat=Inoffiziell:Káhet Ni Kemi`, der Editor hat etwas anderes entschieden.
+ */
+function avesmapsEigenerKnotenBindungModellUmhaengen(PDO $pdo, string $eigenKey, string $zielKey): int
+{
+    $eigen = $pdo->prepare(
+        'SELECT parent_wiki_key, parent_locked FROM wiki_territory_model WHERE wiki_key = :k LIMIT 1'
+    );
+    $eigen->execute(['k' => $eigenKey]);
+    $zeile = $eigen->fetch(PDO::FETCH_ASSOC);
+
+    $kinder = $pdo->prepare('UPDATE wiki_territory_model SET parent_wiki_key = :neu WHERE parent_wiki_key = :alt');
+    $kinder->execute(['neu' => $zielKey, 'alt' => $eigenKey]);
+    $bewegt = $kinder->rowCount();
+
+    if ($zeile) {
+        // 💣 Kein Upsert -- siehe avesmapsEigenerKnotenBindungSetzen.
+        avesmapsEigenerKnotenBindungSetzen($pdo, 'wiki_territory_model', 'wiki_key', $zielKey, [
+            'parent_wiki_key' => $zeile['parent_wiki_key'],
+            'parent_locked' => (int) ($zeile['parent_locked'] ?? 0),
+            'excluded' => 0,
+            'source_origin' => 'wiki',
+        ]);
+        $pdo->prepare('DELETE FROM wiki_territory_model WHERE wiki_key = :k')->execute(['k' => $eigenKey]);
+        $bewegt++;
+    }
+
+    return $bewegt;
+}
+
+/**
+ * Portables "setze diese Spalten auf der Zeile mit diesem Schluessel, lege sie an, wenn sie fehlt".
+ *
+ * 💣 KEIN UPSERT. `ON DUPLICATE KEY UPDATE` (MySQL) und `ON CONFLICT ... DO UPDATE` (SQLite) sind
+ * verschiedene Syntax -- ein Test auf SQLite deckte die MySQL-Form nicht, und die Regression waere
+ * erst live sichtbar. Dieselbe Klasse Fehler wie beim UPDATE IGNORE (AGENTS.md §9: ein SQLite-Test
+ * kann eine MySQL-Regression ERZWINGEN).
+ *
+ * ⚠️ Spaltennamen kommen ausschliesslich aus dem Code dieser Datei, nie aus einer Anfrage --
+ * sie werden in den SQL-Text interpoliert, die WERTE dagegen immer als Platzhalter.
+ */
+function avesmapsEigenerKnotenBindungSetzen(
+    PDO $pdo,
+    string $tabelle,
+    string $schluesselSpalte,
+    string $schluessel,
+    array $spalten
+): void {
+    if ($spalten === []) {
+        return;
+    }
+    $vorhanden = $pdo->prepare("SELECT 1 FROM {$tabelle} WHERE {$schluesselSpalte} = :k LIMIT 1");
+    $vorhanden->execute(['k' => $schluessel]);
+
+    $params = ['k' => $schluessel];
+    foreach ($spalten as $name => $wert) {
+        $params['v_' . $name] = $wert;
+    }
+
+    if ($vorhanden->fetchColumn() !== false) {
+        $setzen = implode(', ', array_map(static fn(string $n): string => "{$n} = :v_{$n}", array_keys($spalten)));
+        $pdo->prepare("UPDATE {$tabelle} SET {$setzen} WHERE {$schluesselSpalte} = :k")->execute($params);
+        return;
+    }
+
+    $namen = array_keys($spalten);
+    $pdo->prepare(
+        "INSERT INTO {$tabelle} ({$schluesselSpalte}, " . implode(', ', $namen) . ')'
+        . ' VALUES (:k, ' . implode(', ', array_map(static fn(string $n): string => ':v_' . $n, $namen)) . ')'
+    )->execute($params);
+}
+
+/**
+ * Die ANGEHAKTEN Felder auf die Zielzeile schreiben.
+ *
+ * 🔴 Getrennt vom Anlegen der Zielzeile, weil beide Faelle -- Ziel existiert / Ziel existiert nicht
+ * -- durch denselben Code laufen muessen (Entwurf §4). Beim Anlegen mitgeschrieben kaemen die
+ * Felder bei einer schon vorhandenen Zielzeile stillschweigend gar nicht an.
+ *
+ * ⚠️ Nur Spalten, die political_territory wirklich hat. Die Allowlist der bearbeitbaren Felder
+ * (avesmapsWikiSyncMonitorEditableFields) kennt auch Wiki-Felder ohne Kartenspalte.
+ */
+function avesmapsEigenerKnotenBindungFelderSchreiben(PDO $pdo, int $zielId, array $felder, array $werte): int
+{
+    $spalten = ['name', 'type', 'status', 'continent', 'coat_of_arms_url', 'wiki_url'];
+    $setzen = [];
+    $params = ['id' => $zielId];
+    foreach ($felder as $feld) {
+        if (!in_array($feld, $spalten, true)) {
+            continue;
+        }
+        $wert = trim((string) ($werte[$feld] ?? ''));
+        if ($wert === '') {
+            continue; // 🔴 Ein leerer Wiki-Wert loescht nichts -- er ist keine Aussage.
+        }
+        $setzen[] = "{$feld} = :v_{$feld}";
+        $params['v_' . $feld] = $wert;
+    }
+    if ($setzen === []) {
+        return 0;
+    }
+    $pdo->prepare('UPDATE political_territory SET ' . implode(', ', $setzen) . ' WHERE id = :id')->execute($params);
+
+    return count($setzen);
+}
+
+/**
+ * `properties.territory_wiki_key` der Siedlungen umschluesseln.
+ *
+ * 💣 DER STILLE. Der Wert entsteht per Ray-Cast im Siedlungseditor und wird von der
+ * Literatur-Aggregation (game-literature-resolve.php:322) und der Kartennutzlast
+ * (map-features.php:1097) gelesen. Ein veralteter Schluessel wirft KEINEN Fehler -- die Zuordnung
+ * faellt einfach weg.
+ *
+ * ⚠️ Gelesen und geschrieben wird ueber json_decode/json_encode, nicht per Textersatz: ein
+ * REPLACE() auf der Spalte traefe auch einen Schluessel, der zufaellig als Teilzeichenkette in
+ * einem Namen steht.
+ */
+function avesmapsEigenerKnotenBindungSiedlungenUmschluesseln(PDO $pdo, string $eigenKey, string $zielKey): int
+{
+    $lesen = $pdo->prepare(
+        "SELECT id, properties_json FROM map_features
+          WHERE is_active = 1 AND properties_json LIKE :muster"
+    );
+    $lesen->execute(['muster' => '%' . $eigenKey . '%']);
+    $schreiben = $pdo->prepare('UPDATE map_features SET properties_json = :p WHERE id = :id');
+
+    $bewegt = 0;
+    foreach ($lesen->fetchAll(PDO::FETCH_ASSOC) as $zeile) {
+        $props = json_decode((string) $zeile['properties_json'], true);
+        if (!is_array($props) || ($props['territory_wiki_key'] ?? null) !== $eigenKey) {
+            continue;
+        }
+        $props['territory_wiki_key'] = $zielKey;
+        $schreiben->execute([
+            'p' => json_encode($props, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            'id' => (int) $zeile['id'],
+        ]);
+        $bewegt++;
+    }
+
+    return $bewegt;
 }

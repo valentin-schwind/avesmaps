@@ -159,10 +159,14 @@ function bindungDb(): PDO {
             alias_slug TEXT PRIMARY KEY, canonical_wiki_key TEXT
         )'
     );
+    // ⚠️ created_at gehoert dazu: avesmapsPoliticalWriteGeometryAuditLog raeumt hinter sich auf
+    // (avesmapsPoliticalPruneGeometryAuditLog sortiert danach). Ohne die Spalte scheitert der echte
+    // Schreiber -- und genau er soll hier laufen, nicht ein Nachbau.
     $db->exec(
         'CREATE TABLE political_territory_geometry_audit_log (
             id INTEGER PRIMARY KEY AUTOINCREMENT, action TEXT, actor_user_id INTEGER,
-            before_json TEXT, after_json TEXT
+            before_json TEXT, after_json TEXT, undone_at TEXT, undone_by INTEGER,
+            undo_audit_id INTEGER, created_at TEXT DEFAULT CURRENT_TIMESTAMP
         )'
     );
     return $db;
@@ -196,5 +200,137 @@ pruefe((int) $ziel['is_active'] === 1, 'Und sie ist aktiv.');
 // Ein zweiter Aufruf legt NICHTS an -- sonst entstuenden zwei Zeilen auf einem Schluessel.
 pruefe(avesmapsEigenerKnotenBindungZielzeile($db, 'wiki:inoffiziell-t-y-rret', ['name' => 'Táyârret']) === $zielId,
     'Eine vorhandene Zielzeile wird gefunden, nicht ein zweites Mal angelegt.');
+
+// ---- Teil 3: die Wanderung ---------------------------------------------------------------------
+
+$db = bindungDb();
+$db->exec("INSERT INTO political_territory (public_id, wiki_key, slug, name, type, is_active)
+           VALUES ('PID-ALT', 'eigener-knoten:knoten068', 't-y-rret', 'Táyârret', 'Baronie', 1)");
+$altId = (int) $db->lastInsertId();
+// Ein Nachbar, der einen Anspruch auf unseren Knoten erhebt, und ein Kind darunter.
+$db->exec("INSERT INTO political_territory (public_id, wiki_key, slug, name, is_active)
+           VALUES ('PID-NACHBAR', 'wiki:nachbar', 'nachbar', 'Nachbar', 1)");
+$nachbarId = (int) $db->lastInsertId();
+$db->prepare("INSERT INTO political_territory (public_id, wiki_key, slug, name, parent_id, is_active)
+              VALUES ('PID-KIND', 'eigener-knoten:knoten069', 'kind', 'Kind', :p, 1)")
+   ->execute(['p' => $altId]);
+
+$db->prepare('INSERT INTO political_territory_geometry (public_id, territory_id, geometry_geojson, min_x, min_y, max_x, max_y, is_active)
+              VALUES ("G-1", :t, "{}", 0, 0, 1, 1, 1)')->execute(['t' => $altId]);
+$db->prepare('INSERT INTO political_territory_derived_geometry (public_id, territory_id, geometry_geojson, min_x, min_y, max_x, max_y, is_active)
+              VALUES ("D-1", :t, "{}", 0, 0, 1, 1, 1)')->execute(['t' => $altId]);
+$db->prepare('INSERT INTO political_territory_claim (territory_id, claimant_territory_id, claimant_wiki_key, source, is_active)
+              VALUES (:t, :c, "eigener-knoten:knoten068", "manual", 1)')
+   ->execute(['t' => $nachbarId, 'c' => $altId]);
+$db->exec("INSERT INTO feature_sources (entity_type, entity_public_id, source_id) VALUES ('territory', 'PID-ALT', 7)");
+$db->exec("INSERT INTO map_reports (entity_type, entity_public_id) VALUES ('territory', 'PID-ALT')");
+$db->exec("INSERT INTO map_features (public_id, feature_type, properties_json, is_active)
+           VALUES ('S-1', 'settlement', '{\"name\":\"Djáset\",\"territory_wiki_key\":\"eigener-knoten:knoten068\"}', 1)");
+$db->exec("INSERT INTO wiki_territory_model (wiki_key, parent_wiki_key, parent_locked, source_origin, metadata_overrides_json)
+           VALUES ('eigener-knoten:knoten068', 'eigener-knoten:knoten050', 1, 'custom', '{\"name\":\"Táyârret\"}')");
+$db->exec("INSERT INTO wiki_territory_model (wiki_key, parent_wiki_key, source_origin)
+           VALUES ('eigener-knoten:knoten069', 'eigener-knoten:knoten068', 'custom')");
+$db->exec("INSERT INTO sync_decision (kind, entity_key, change_type) VALUES ('territory', 'eigener-knoten:knoten068', 'changed')");
+$db->exec("INSERT INTO sync_plan_item (run_id, entity_key, change_type) VALUES (1, 'eigener-knoten:knoten068', 'changed')");
+
+$ergebnis = avesmapsEigenerKnotenBindungAnwenden(
+    $db, 'eigener-knoten:knoten068', 'wiki:inoffiziell-t-y-rret',
+    ['ruler', 'population'],
+    ['name' => 'Táyârret', 'type' => "Tá'akîb", 'ruler' => 'Hékatet ni Chentasû', 'population' => '400',
+     'status' => 'SOLL NICHT ANKOMMEN']
+);
+$neuId = $ergebnis['target_id'];
+$neuPid = (string) $db->query("SELECT public_id FROM political_territory WHERE id = {$neuId}")->fetchColumn();
+
+pruefe($ergebnis['ok'] === true, 'Die Uebernahme meldet Erfolg.');
+pruefe($neuId !== $altId, 'Die Zielzeile ist eine andere Zeile -- der Wiki-Knoten gewinnt.');
+
+// Die sechs Ziele der id/public_id, einzeln.
+pruefe((int) $db->query("SELECT territory_id FROM political_territory_geometry WHERE public_id = 'G-1'")->fetchColumn() === $neuId,
+    '1. Die Geometrie haengt am neuen Knoten.');
+pruefe((int) $db->query("SELECT territory_id FROM political_territory_derived_geometry WHERE public_id = 'D-1'")->fetchColumn() === $neuId,
+    '2. Die abgeleitete Aussengrenze ebenso.');
+pruefe((int) $db->query("SELECT claimant_territory_id FROM political_territory_claim")->fetchColumn() === $neuId,
+    '3. Der Anspruch zeigt auf den neuen Knoten -- und zwar in der claimant-Spalte.');
+pruefe((int) $db->query("SELECT parent_id FROM political_territory WHERE public_id = 'PID-KIND'")->fetchColumn() === $neuId,
+    '4. Das Kind haengt am neuen Elternteil.');
+pruefe((string) $db->query("SELECT entity_public_id FROM feature_sources WHERE source_id = 7")->fetchColumn() === $neuPid,
+    '5. Die Quelle zeigt auf die neue public_id.');
+pruefe((string) $db->query("SELECT entity_public_id FROM map_reports")->fetchColumn() === $neuPid,
+    '6. Die Meldung ebenso.');
+
+// Die Schluesselwanderung.
+pruefe(
+    (string) $db->query("SELECT parent_wiki_key FROM wiki_territory_model WHERE wiki_key = 'eigener-knoten:knoten069'")->fetchColumn()
+        === 'wiki:inoffiziell-t-y-rret',
+    'Das Kind im Modell zeigt auf den neuen Schluessel.'
+);
+pruefe(
+    (int) $db->query("SELECT COUNT(*) FROM wiki_territory_model WHERE wiki_key = 'eigener-knoten:knoten068'")->fetchColumn() === 0,
+    'Der eigene Modellknoten ist weg.'
+);
+pruefe(
+    (int) $db->query("SELECT parent_locked FROM wiki_territory_model WHERE wiki_key = 'wiki:inoffiziell-t-y-rret'")->fetchColumn() === 1,
+    '💣 parent_locked ERBT -- sonst zoege der naechste sync_parent_cache die Hierarchie um.'
+);
+pruefe(
+    (string) $db->query("SELECT parent_wiki_key FROM wiki_territory_model WHERE wiki_key = 'wiki:inoffiziell-t-y-rret'")->fetchColumn()
+        === 'eigener-knoten:knoten050',
+    'Und der von Hand gesetzte Elternteil wandert mit.'
+);
+pruefe((string) $db->query("SELECT entity_key FROM sync_decision")->fetchColumn() === 'wiki:inoffiziell-t-y-rret',
+    'Die dauerhafte Entscheidung wandert mit -- sonst waere ein "Abgelehnt" stillschweigend zurueckgenommen.');
+pruefe((string) $db->query("SELECT entity_key FROM sync_plan_item")->fetchColumn() === 'wiki:inoffiziell-t-y-rret',
+    'Die Planzeile ebenso.');
+pruefe((string) $db->query("SELECT claimant_wiki_key FROM political_territory_claim")->fetchColumn() === 'wiki:inoffiziell-t-y-rret',
+    'Und der Schluessel am Anspruch.');
+
+// 💣 Der stille: properties.territory_wiki_key. Ein veralteter Schluessel wirft keinen Fehler --
+// die Literatur-Aggregation und die Kartennutzlast verlieren die Zuordnung einfach.
+$props = json_decode((string) $db->query("SELECT properties_json FROM map_features WHERE public_id = 'S-1'")->fetchColumn(), true);
+pruefe($props['territory_wiki_key'] === 'wiki:inoffiziell-t-y-rret', 'Die Siedlung zeigt auf den neuen Schluessel.');
+pruefe($props['name'] === 'Djáset', 'Und der Rest ihrer properties ist unangetastet.');
+
+// Die alte Zeile.
+pruefe((int) $db->query("SELECT is_active FROM political_territory WHERE id = {$altId}")->fetchColumn() === 0,
+    'Die eigene Zeile liegt im Papierkorb -- weich, umkehrbar.');
+pruefe((string) $db->query("SELECT slug FROM political_territory WHERE id = {$neuId}")->fetchColumn() === 't-y-rret',
+    'Der Ueberlebende traegt den sauberen Slug.');
+
+// Nur die ANGEHAKTEN Felder kommen an.
+$zielZeile = $db->query("SELECT * FROM political_territory WHERE id = {$neuId}")->fetch(PDO::FETCH_ASSOC);
+pruefe((string) $zielZeile['status'] !== 'SOLL NICHT ANKOMMEN',
+    '💣 Ein nicht angehaktes Feld wird NICHT geschrieben -- sonst waere die Vorschau eine Zierde.');
+
+// Der Alias: der alte Schluessel loest auf den neuen auf.
+pruefe(
+    (string) $db->query("SELECT canonical_wiki_key FROM wiki_redirect_alias WHERE alias_slug = 'eigener-knoten:knoten068'")->fetchColumn()
+        === 'wiki:inoffiziell-t-y-rret',
+    'Der alte Schluessel loest kuenftig auf den neuen auf.'
+);
+
+// 🔴 EINE Protokollzeile je LAUF, nicht eine je Ziel.
+pruefe((int) $db->query('SELECT COUNT(*) FROM political_territory_geometry_audit_log')->fetchColumn() === 1,
+    'Genau EINE Protokollzeile -- eine je Ziel machte den Aenderungs-Log unlesbar.');
+$protokoll = $db->query('SELECT * FROM political_territory_geometry_audit_log')->fetch(PDO::FETCH_ASSOC);
+pruefe((string) $protokoll['action'] === 'territory_wiki_binding', 'Und sie traegt ihre eigene Handlung.');
+pruefe(
+    (json_decode((string) $protokoll['before_json'], true)['wiki_key'] ?? '') === 'eigener-knoten:knoten068',
+    'Der Vorher-Stand nennt den eigenen Knoten.'
+);
+
+// 💣 Der zweite Fall des Entwurfs §4: die Zielzeile EXISTIERT schon. Die angehakten Felder muessen
+// trotzdem ankommen -- beim Anlegen mitgeschrieben kaemen sie hier stillschweigend gar nicht an.
+$db4 = bindungDb();
+$db4->exec("INSERT INTO political_territory (public_id, wiki_key, slug, name, is_active)
+            VALUES ('V-ALT', 'eigener-knoten:knoten080', 'valt', 'Vorhanden', 1)");
+$db4->exec("INSERT INTO political_territory (public_id, wiki_key, slug, name, status, is_active)
+            VALUES ('V-ZIEL', 'wiki:vorhanden', 'vorhanden', 'Vorhanden', NULL, 1)");
+avesmapsEigenerKnotenBindungAnwenden($db4, 'eigener-knoten:knoten080', 'wiki:vorhanden',
+    ['status'], ['name' => 'Vorhanden', 'status' => 'Baronie']);
+pruefe(
+    (string) $db4->query("SELECT status FROM political_territory WHERE public_id = 'V-ZIEL'")->fetchColumn() === 'Baronie',
+    '💣 Angehakte Felder kommen auch an einer SCHON VORHANDENEN Zielzeile an.'
+);
 
 echo "eigener-knoten-wiki-bindung: {$checks} Zusicherungen gruen.\n";
