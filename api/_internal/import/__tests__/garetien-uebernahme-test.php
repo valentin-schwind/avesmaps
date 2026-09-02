@@ -358,7 +358,38 @@ $pruefungen++;
 $e = avesmapsGaretienUebernehmen($pdo, $lauf, [$gardel], ['id' => 7]);
 assert($e['angelegt'] === 1, 'genau ein Objekt, ' . $e['angelegt'] . ' geschrieben');
 assert($e['fehler'] === [], 'ohne Fehler: ' . json_encode($e['fehler'], JSON_UNESCAPED_UNICODE));
-assert((int) $pdo->query('SELECT COUNT(*) FROM map_features')->fetchColumn() === $vorherFeatures + 1);
+// 🔴 SEIT 02.09.2026 SIND ES DREI ZEILEN, NICHT EINE: der Weg und je eine Kreuzung an seinen
+// beiden Enden (Owner: „ein häkchen (standard: an) … dass an dessen anfang und ende je eine neue
+// kreuzung platziert"). `angelegt` zaehlt weiterhin das ITEM, nicht die Zeilen.
+assert((int) $pdo->query('SELECT COUNT(*) FROM map_features')->fetchColumn() === $vorherFeatures + 3,
+    'Weg plus zwei Endkreuzungen');
+$pruefungen += 3;
+
+// 💣 DIE KREUZUNGEN LIEGEN EXAKT AUF DEN ENDPUNKTEN, nicht daneben.
+// `avesmapsAddClientCompatiblePathConnection` rundet auf 5 Stellen und vergleicht EXAKT -- eine
+// Kreuzung einen Hauch neben dem Ende verbindet nichts und sieht trotzdem richtig aus. Genau das
+// ist der Grund, warum es diese Kreuzungen ueberhaupt gibt: ohne Endknoten faellt der Weg aus dem
+// Routennetz.
+$wegGeo = json_decode((string) $pdo->query(
+    "SELECT geometry_json FROM map_features WHERE name = 'Gardel'")->fetchColumn(), true);
+$wegPunkte = (array) ($wegGeo['coordinates'] ?? []);
+$kreuzungen = [];
+foreach ($pdo->query("SELECT geometry_json FROM map_features WHERE feature_subtype = 'crossing'")
+    ->fetchAll(PDO::FETCH_ASSOC) as $zeileK) {
+    $g = json_decode((string) $zeileK['geometry_json'], true);
+    $kreuzungen[] = array_map('floatval', (array) ($g['coordinates'] ?? []));
+}
+assert(count($kreuzungen) === 2, 'genau zwei Kreuzungen: ' . count($kreuzungen));
+$rundK = static fn(array $p): string => round((float) $p[0], 5) . '|' . round((float) $p[1], 5);
+$erwartetK = [$rundK($wegPunkte[0]), $rundK($wegPunkte[count($wegPunkte) - 1])];
+$habenK = array_map($rundK, $kreuzungen);
+sort($erwartetK);
+sort($habenK);
+assert($habenK === $erwartetK,
+    '💣 sie liegen zeichengleich auf Anfang und Ende: ' . json_encode([$habenK, $erwartetK]));
+// ⚠️ Und NICHT auf einem Zwischenpunkt -- ohne diese Zeile waere oben auch „zwei Kreuzungen
+// irgendwo auf der Linie" erfuellt.
+assert($erwartetK[0] !== $erwartetK[1], 'die Vorbedingung: der Weg ist kein Ring');
 $pruefungen += 3;
 
 $neu = $pdo->query("SELECT * FROM map_features WHERE name = 'Gardel'")->fetch(PDO::FETCH_ASSOC);
@@ -488,7 +519,11 @@ $pruefungen++;
 // --- 🔴 Zweimal uebernehmen legt NICHT zweimal an.
 $e2 = avesmapsGaretienUebernehmen($pdo, $lauf, [$gardel], ['id' => 7]);
 assert($e2['angelegt'] === 0, 'ein bereits uebernommenes Item wird uebersprungen');
-assert((int) $pdo->query('SELECT COUNT(*) FROM map_features')->fetchColumn() === $vorherFeatures + 1);
+// ⚠️ Und es entstehen auch KEINE zweiten Kreuzungen -- weiterhin die drei Zeilen von oben. Ohne
+// diese Zeile waere „legt nicht zweimal an" nur fuer den Weg belegt, und zwei zusaetzliche
+// Kreuzungen auf denselben Punkten faenden weder Test noch Editor je wieder auseinander.
+assert((int) $pdo->query('SELECT COUNT(*) FROM map_features')->fetchColumn() === $vorherFeatures + 3,
+    'weiterhin Weg plus zwei Kreuzungen, kein zweiter Satz');
 $pruefungen += 2;
 
 // --- 💣 EINE FLAECHE SIND ZWEI OBJEKTE, UND DAS LABEL IST DAS TRAGENDE. Ein Label ist bei uns
@@ -3256,6 +3291,87 @@ $eOW = avesmapsGaretienUebernehmen($pdoOW, $laufOW, [$itemIdVon($pdoOW, 'Ohnewah
 assert($eOW['fehler'] === [], 'ohne Wahl gelingt sie ebenso: ' . json_encode($eOW['fehler'], JSON_UNESCAPED_UNICODE));
 assert((int) $pdoOW->query('SELECT COUNT(*) FROM ecosystem_region')->fetchColumn() === 1,
     '⚠️ ohne Wahl entsteht die FLAECHE wie bisher');
+$pruefungen += 2;
+
+// =================================================================================================
+// 🔴 ENDKREUZUNGEN UND STROEMUNGSRICHTUNG
+// =================================================================================================
+// Owner 02.09.2026: „bau bei wegen / fluessen ein haekchen (standard: an) ein, dass an dessen
+// anfang und ende je eine neue kreuzung platziert. gleichzeitig solltest du die stroemungsrichtung
+// bei fluessen festlegen … wobei der editor die richtung korrigieren koennen sollte."
+
+// --- Die zwei reinen Regeln zuerst.
+assert(avesmapsGaretienSetztEndkreuzungen(null) === true,
+    '🔴 ohne Einstellungen: JA. „Alle angezeigten einfuegen" schickt keine, und dort ist der '
+    . 'Anschluss ans Netz genau das, was man will');
+assert(avesmapsGaretienSetztEndkreuzungen(['size' => 17]) === true,
+    'und eine Handeingabe ohne das Feld aendert daran nichts');
+assert(avesmapsGaretienSetztEndkreuzungen(['endpoint_crossings' => false]) === false,
+    'nur ein ausdrueckliches Nein schaltet sie ab');
+assert(avesmapsGaretienSetztEndkreuzungen(['endpoint_crossings' => true]) === true, 'und Ja bleibt Ja');
+$pruefungen += 4;
+
+// 🔴 NUR EIN FLUSSWEG BEKOMMT EINE RICHTUNG. Eine gerichtete Reichsstrasse waere kein
+// harmloser Zusatz: der Stroemungsfaktor (Vorgabe 2,0) machte sie in einer Richtung doppelt so
+// teuer.
+assert(avesmapsGaretienFlussrichtungAus(['subtyp' => 'Flussweg'], null)['dir'] === 'forward',
+    'ohne Handeingabe: die Richtung der Quelle');
+assert(avesmapsGaretienFlussrichtungAus(['subtyp' => 'Flussweg'], ['flow_dir' => 'reverse'])['dir']
+    === 'reverse', 'der Editor dreht sie');
+assert(avesmapsGaretienFlussrichtungAus(['subtyp' => 'Strasse'], ['flow_dir' => 'reverse']) === null,
+    '🔴 eine Strasse bekommt KEINE Stroemungsrichtung');
+assert(avesmapsGaretienFlussrichtungAus(['subtyp' => 'Pfad'], null) === null, 'ein Pfad ebenso wenig');
+// ⚠️ Ein Unsinnswert faellt auf die Quelle zurueck, statt roh durchzugehen.
+assert(avesmapsGaretienFlussrichtungAus(['subtyp' => 'Flussweg'], ['flow_dir' => 'seitwaerts'])['dir']
+    === 'forward', 'ein unbekannter Wert faellt auf forward zurueck');
+$pruefungen += 5;
+
+// --- 💣 UND DER TRICHTER BENUTZT BEIDES WIRKLICH. Ein Bauteil, das niemand ruft, ist kein
+// Bauteil -- diese Luecke ist in diesem Modul an einem Tag dreimal aufgetreten.
+$pdoK = avesmapsGaretienUebernahmeTestPdo();
+$laufK = (int) avesmapsSyncPlanOpenRun($pdoK, AVESMAPS_GARETIEN_PLAN_KIND)['id'];
+$linieK = [[10.0, 10.0], [12.0, 11.0], [14.0, 12.0]];
+$flussItem = static function (PDO $p, int $lauf, string $name) use ($linieK): void {
+    avesmapsSyncPlanAddItem($p, $lauf, [
+        'entity_key' => 'ggp:Gewaesser:Fluss:Garetien:' . $name . '!' . $name,
+        'entity_public_id' => null, 'change_type' => 'new', 'label' => $name . ' \u00b7 neu',
+        'before' => [],
+        'after' => [
+            'herkunft' => 'garetien', 'wiki' => 'ggp', 'ebene' => 'Gewaesser',
+            'ziel' => 'path', 'subtyp' => 'Flussweg', 'kind' => null, 'name' => $name,
+            'geometry' => ['type' => 'LineString', 'coordinates' => $linieK],
+            'quelle' => ['url' => 'https://www.garetien.de', 'label' => 'Briefspiel (Garetien)'],
+            'seite_url' => AVESMAPS_GARETIEN_BASIS_GGP . 'Gewaesser',
+        ],
+        'override' => [], 'selected' => 1,
+    ]);
+};
+
+$flussItem($pdoK, $laufK, 'Drehfluss');
+$eK = avesmapsGaretienUebernehmen($pdoK, $laufK, [$itemIdVon($pdoK, 'Drehfluss \u00b7 neu')],
+    ['id' => 7], ['flow_dir' => 'reverse']);
+assert($eK['fehler'] === [], 'die Uebernahme gelingt: ' . json_encode($eK['fehler'], JSON_UNESCAPED_UNICODE));
+$propsK = json_decode((string) $pdoK->query(
+    "SELECT properties_json FROM map_features WHERE name = 'Drehfluss'")->fetchColumn(), true);
+assert(($propsK['flow']['dir'] ?? '') === 'reverse',
+    '💣 die gewaehlte Richtung steht am angelegten Fluss: ' . json_encode($propsK['flow'] ?? null));
+// ⚠️ Und sie geht durch den HAUSNORMALISIERER -- er ergaenzt Faktor und Herkunft. Ein hier von
+// Hand gebautes Array waere die zweite Fassung derselben Frage.
+assert(isset($propsK['flow']['factor']) && isset($propsK['flow']['source']),
+    'avesmapsPathFlowNormalize hat sie vervollstaendigt: ' . json_encode($propsK['flow'] ?? null));
+assert((int) $pdoK->query("SELECT COUNT(*) FROM map_features WHERE feature_subtype = 'crossing'")
+    ->fetchColumn() === 2, 'und die zwei Endkreuzungen stehen');
+$pruefungen += 4;
+
+// --- ⚠️ DAS HAEKCHEN AUS: kein Kartenobjekt weniger, aber auch keine Kreuzung.
+$pdoO = avesmapsGaretienUebernahmeTestPdo();
+$laufO = (int) avesmapsSyncPlanOpenRun($pdoO, AVESMAPS_GARETIEN_PLAN_KIND)['id'];
+$flussItem($pdoO, $laufO, 'Ohnekreuzung');
+$eO = avesmapsGaretienUebernehmen($pdoO, $laufO, [$itemIdVon($pdoO, 'Ohnekreuzung \u00b7 neu')],
+    ['id' => 7], ['endpoint_crossings' => false]);
+assert($eO['fehler'] === [] && $eO['angelegt'] === 1, 'der Weg entsteht trotzdem: ' . json_encode($eO));
+assert((int) $pdoO->query("SELECT COUNT(*) FROM map_features WHERE feature_subtype = 'crossing'")
+    ->fetchColumn() === 0, '⚠️ mit abgeschaltetem Haekchen entsteht KEINE Kreuzung');
 $pruefungen += 2;
 
 echo "OK: {$pruefungen} Pruefungen\n";

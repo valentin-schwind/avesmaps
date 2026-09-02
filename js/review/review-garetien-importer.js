@@ -191,6 +191,10 @@
 	// selektierten Fläche einen durchgehende kontur geben"). 💣 Ebenfalls ein gekoppelter Wert in
 	// ZWEI Dateien, aus derselben Begründung wie oben -- und von demselben Test zusammengehalten.
 	const AVESMAPS_GARETIEN_FELD_GEWAEHLT = "gewaehlt";
+	// 🔴 GEKOPPELTER WERT IN ZWEI DATEIEN, genau wie das Feld darüber und aus demselben Grund:
+	// dieses Fenster läuft auch ohne Zeichner, und der Zeichner wird im Test allein geladen.
+	// Zusammengehalten von js/review/__tests__/garetien-karte.test.js.
+	const AVESMAPS_GARETIEN_FELD_FLOW = "flowDir";
 
 	/*
 	 * Der Name des globalen Hakens, ueber den der ZEICHNER einen Klick auf eine Form hierher meldet
@@ -1313,6 +1317,16 @@
 			if (!o || String(o.key) !== gewaehlt) { return o; }
 			const kopie = Object.assign({}, o);
 			kopie[AVESMAPS_GARETIEN_FELD_GEWAEHLT] = true;
+			// 🔴 DIE GEWÄHLTE STRÖMUNGSRICHTUNG REIST MIT (02.09.2026) -- der Zeichner malt daraus
+			// die Dreiecke in der Farbe des Import-Flusses. Sie steht NICHT im Objekt der Liste,
+			// sondern im Eingabenzustand dieses Fensters; der Zeichner kommt dort nicht heran und
+			// soll es auch nicht (er zeichnet, er entscheidet nichts).
+			// ⚠️ Nur bei einem Flussweg -- an einer Straße gibt es keine Strömung, und ein
+			// Dreieck darauf wäre eine Behauptung.
+			if (String(garetienZielWahlZu(o).subtyp || "") === "Flussweg") {
+				kopie[AVESMAPS_GARETIEN_FELD_FLOW] = String(garetienEingabenZustandZu(o).flowDir
+					|| "forward");
+			}
 			return kopie;
 		});
 	}
@@ -2680,6 +2694,15 @@
 			// wählt dieselbe Vorauswahl der Wegart wie bisher. Eine leere LISTE ist dagegen eine
 			// Aussage („kein Verkehrsmittel darf hier fahren") und reist mit.
 			showLabel: false, transports: null,
+			// 🔴 KREUZUNGEN AN BEIDE ENDEN, VORGABE AN (Owner 02.09.2026). Ein importierter Weg ohne
+			// Endknoten hängt im Routennetz an nichts -- die Begründung steht serverseitig an
+			// avesmapsGaretienSetztEndkreuzungen.
+			endpointCrossings: true,
+			// 🔴 Die Strömungsrichtung eines FLUSSES. `forward` ist die Richtung, in der die Quelle
+			// ihre Punkte aufzählt -- eine ANNAHME, und deshalb zeigt die Karte sie als Dreiecke
+			// und dieser Kasten lässt sie drehen. ⚠️ Steht auch an einer Straße im Zustand, wird
+			// aber nur bei `Flussweg` angezeigt und mitgeschickt.
+			flowDir: "forward",
 		};
 	}
 
@@ -2925,6 +2948,20 @@
 		// 💣 EIN FORMWECHSEL SETZT DIE ART MIT, und zwar auf die erste der neuen Form: die alte Art
 		// gibt es in der neuen Form nicht (ein „Sumpf" ist kein Ortstyp), und ein stehengebliebener
 		// Wert ginge als gültige Wahl an den Server.
+		// 🔴 DIE STRÖMUNGSRICHTUNG IST EIN KNOPF, KEIN HÄKCHEN -- sie hat zwei gleichwertige
+		// Zustände, keinen an/aus. Der nächste Wert steht am Knopf selbst (`data-gi-wert`), damit
+		// die Beschriftung und der Zustand nicht auseinanderlaufen können.
+		// ⚠️ Neu gerendert wird die ganze Spalte: die Beschriftung des Knopfes IST der Zustand, und
+		// die Dreiecke auf der Karte müssen mitdrehen.
+		if (feld === "flowDir") {
+			eingaben.flowDir = String(ziel.getAttribute("data-gi-wert") || "forward");
+			garetienDetailRendern(objekte || zustand.objekte || []);
+			if (typeof window !== "undefined"
+				&& typeof window.avesmapsGaretienKarteZeigen === "function") {
+				window.avesmapsGaretienKarteZeigen(avesmapsGaretienAufDerKarte());
+			}
+			return;
+		}
 		if (feld === "zielForm" || feld === "zielArt") {
 			const wahl = garetienZielWahlZu(objekt);
 			if (feld === "zielForm") {
@@ -3043,7 +3080,19 @@
 		// dem von vorher. Eine LEERE Liste ist dagegen eine Aussage und reist mit.
 		if (ziel === "path") {
 			const wegEingaben = garetienEingabenZustandZu(objekt);
-			const rausWeg = Object.assign({}, zielRumpf, { show_label: wegEingaben.showLabel });
+			// 🔴 `endpoint_crossings` reist IMMER mit, auch als `true`. Der Server fällt ohne das
+			// Feld auf JA zurück (für „Alle angezeigten einfügen", das nie Einstellungen schickt) --
+			// ein abgeschaltetes Häkchen muss deshalb ausdrücklich `false` senden, sonst wäre es
+			// wirkungslos und der Editor sähe trotzdem zwei Kreuzungen entstehen.
+			const rausWeg = Object.assign({}, zielRumpf, {
+				show_label: wegEingaben.showLabel,
+				endpoint_crossings: wegEingaben.endpointCrossings !== false,
+			});
+			// ⚠️ Die Strömungsrichtung nur bei einem Flussweg -- derselbe Riegel wie in der Anzeige
+			// und serverseitig. Eine gerichtete Straße wäre in einer Richtung doppelt so teuer.
+			if (String(wahl.subtyp || "") === "Flussweg") {
+				rausWeg.flow_dir = String(wegEingaben.flowDir || "forward");
+			}
 			if (wegEingaben.transports !== null) {
 				rausWeg.allowed_transports = wegEingaben.transports;
 			}
@@ -3191,6 +3240,33 @@
 	// `transport_seasons` steht überhaupt nicht im $properties-Rumpf des Anlegers, und die
 	// Flussrichtung hat ihren eigenen Schreibweg im Wege-Editor. Ein Bedienelement darauf wäre
 	// eines, das nichts tut -- und sähe wie eine getroffene Entscheidung aus.
+	/*
+	 * Die STRÖMUNGSRICHTUNG eines Flusses -- eine Zeile mit einem Umkehrknopf.
+	 *
+	 * 🔴 NUR BEI EINEM FLUSSWEG. Eine gerichtete Straße wäre kein harmloser Zusatz: die Reisezeit
+	 * liest den Strömungsfaktor (Vorgabe 2,0), und der Landweg wäre in einer Richtung doppelt so
+	 * teuer. Derselbe Riegel steht serverseitig in `avesmapsGaretienFlussrichtungAus` -- eine
+	 * Sperre nur im Browser ist keine.
+	 *
+	 * ⚠️ „Wie die Quelle" / „umgekehrt" statt „forward" / „reverse": der Editor sieht die Richtung
+	 * als Dreiecke auf der Karte, hier entscheidet er nur, ob sie stimmt. Die englischen Werte
+	 * sind der Vertrag des Servers (`properties.flow.dir`), nicht die Sprache des Fensters.
+	 */
+	function garetienFlussrichtungMarkup(objekt, subtyp, richtung, deaktiviert) {
+		if (String(subtyp || "") !== "Flussweg") { return ""; }
+		const id = garetienEingabeId(objekt, "flowDir");
+		const umgekehrt = String(richtung || "") === "reverse";
+		return '<p class="gi-insert__row gi-insert__row--edit">'
+			+ '<span>Strömung <span class="gi-insert__hint">— Dreiecke auf der Karte</span></span>'
+			+ '<span class="gi-insert__val">'
+			+ '<button type="button" class="btn btn--soft gi-flow" id="' + id + '"'
+			+ ' data-gi-feld="flowDir"'
+			+ ' data-gi-wert="' + (umgekehrt ? "forward" : "reverse") + '"'
+			+ (deaktiviert ? " disabled" : "")
+			+ '>' + (umgekehrt ? "umgekehrt ⇄" : "wie die Quelle ⇄") + "</button>"
+			+ "</span></p>";
+	}
+
 	function garetienEingefuegtWirdWegMarkup(objekt, subtyp, deaktiviert) {
 		const eingaben = garetienEingabenZustandZu(objekt);
 		const angeboten = (typeof getTransportOptionsForPathSubtype === "function")
@@ -3199,6 +3275,12 @@
 		let markup = garetienEingefuegtWirdUeberschrift("Weg")
 			+ garetienEingefuegtWirdHakenZeile(objekt, "Weg anzeigen (Name auf der Karte)",
 				"showLabel", eingaben.showLabel, deaktiviert)
+			// 🔴 VORGABE AN (Owner 02.09.2026). Ohne Endknoten hängt der Weg im Routennetz an
+			// nichts: der Graphbau verwirft jeden Weg, dessen Endpunkt auf keinem bekannten Ort
+			// und keiner Kreuzung liegt -- gezeichnet und trotzdem unbefahrbar.
+			+ garetienEingefuegtWirdHakenZeile(objekt, "Kreuzung an Anfang und Ende",
+				"endpointCrossings", eingaben.endpointCrossings, deaktiviert)
+			+ garetienFlussrichtungMarkup(objekt, subtyp, eingaben.flowDir, deaktiviert)
 			+ garetienEingefuegtWirdZeileMitHinweis("Jahreszeiten (Gangbarkeit)", "ganzjährig",
 				"keine saisonale Einschränkung — der Anleger liest transport_seasons gar nicht, "
 				+ "das setzt der Wege-Editor");

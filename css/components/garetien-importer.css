@@ -1027,6 +1027,38 @@ html.avesmaps-planner-collapsed .gi-win {
 	padding-bottom: var(--space-4);
 }
 
+/* ---- Die Stroemungsdreiecke des Imports ---------------------------------------------------- *
+ *
+ * 🔴 SIE GEHOEREN DER IMPORT-LINIE, nicht unserer: die Farbe kommt am Element aus dem Token des
+ *    Import-Flusses (review-garetien-karte.js liest es bei jedem Zeichnen neu und setzt sie als
+ *    `border-bottom-color`). Hier steht nur die FORM -- eine Farbe an dieser Stelle waere die
+ *    zweite Wahrheit ueber die Parteifarbe.
+ * 💣 EIN CSS-DREIECK AUS RANDERN, kein Zeichen und kein Bild: dieselbe Bauform wie die Pfeilspitze
+ *    eines Berggipfel-Labels (css/features/map-labels.css), und sie dreht sich mit `rotate()`,
+ *    ohne dass eine Schriftart mitspielen muss.
+ * ⚠️ FESTE BILDSCHIRMGROESSE. Das Dreieck haengt an einem `divIcon`, nicht an Kartenpunkten -- ein
+ *    Polygon aus Koordinaten wuechse beim Zoomen mit und waere bei Zoom 6 so gross wie eine
+ *    Baronie.
+ * ⚠️ `pointer-events: none` an BEIDEN: das Dreieck liegt ueber der Linie, und ein Klick darauf soll
+ *    weiterhin das Objekt treffen, nicht die Marke.
+ */
+.gi-map-flow {
+	pointer-events: none;
+}
+
+.gi-map-flow span {
+	display: block;
+	width: 0;
+	height: 0;
+	margin: 1px 0 0 1px;
+	border-left: 5px solid transparent;
+	border-right: 5px solid transparent;
+	border-bottom: 9px solid currentColor;
+	filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.55));
+	pointer-events: none;
+	transform-origin: 50% 50%;
+}
+
 /* ---- Aufgabe 15: die Handlungsleiste ------------------------------------------------------ *
  *
  * 🔴 SIE IST ANGEHEFTET, NICHT IM FLUSS. Die Entscheidung darf nie hinter einer Bildlaufleiste

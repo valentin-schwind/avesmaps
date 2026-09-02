@@ -251,6 +251,9 @@
 	 * 🔴 ENTSCHIEDEN WIRD IM FENSTER: der Zeichner weiss nicht, WELCHE Zeile offen ist.
 	 */
 	var AVESMAPS_GARETIEN_FELD_GEWAEHLT = "gewaehlt";
+	// 🔴 GEKOPPELTER WERT IN ZWEI DATEIEN (siehe die Zeile darüber). Der Importer stempelt die
+	// GEWÄHLTE Strömungsrichtung an das Objekt; hier wird sie zu Dreiecken.
+	var AVESMAPS_GARETIEN_FELD_FLOW = "flowDir";
 
 	// 💣 DIE EBENENGRUPPE IST DER ZUSTAND — kein Schalter, keine Liste, kein „ist offen" daneben,
 	// das auseinanderlaufen koennte. Gezeichnet wird immer: erst alles abraeumen, dann alles neu.
@@ -1040,6 +1043,9 @@
 				kollidiert: avesmapsGaretienKollidiert(objekt),
 				// Owner 30.08.2026: die GEWAEHLTE Zeile zeichnet durchgehend statt gestrichelt.
 				gewaehlt: objekt && objekt[AVESMAPS_GARETIEN_FELD_GEWAEHLT] === true,
+				// Die vom Editor gewaehlte Stroemungsrichtung -- nur ein Flussweg traegt sie
+				// (der Importer stempelt sie nur dort an).
+				flowDir: objekt ? objekt[AVESMAPS_GARETIEN_FELD_FLOW] : null,
 				// 30.08.2026: dasselbe Ziel wie bei „unsere" -- die Werte haengen NICHT von `sicht`
 				// ab (die kennt nur Form/Farbe/Breite), sondern direkt vom Objekt.
 				deckkraft: garetienFlaechenDeckkraft(objekt),
@@ -1098,7 +1104,84 @@
 			if (form) { gruppe.addLayer(form); }
 		});
 
+		// 🔴 DIE STRÖMUNGSDREIECKE -- zuletzt, damit sie über der Linie liegen, der sie gehören
+		// (Owner 02.09.2026: „die richtung anzeigen (dreieckchen in der farbe des import-flusses)").
+		ihre.forEach(function (eintrag) {
+			garetienStroemungsdreiecke(l, eintrag, farbeIhre).forEach(function (marke) {
+				gruppe.addLayer(marke);
+			});
+		});
+
 		return gruppe;
+	}
+
+	/*
+	 * Die Strömungsdreiecke EINES importierten Flusses.
+	 *
+	 * 🔴 SIE ZEIGEN DIE WAHL, NICHT DIE QUELLE. Der Editor entscheidet die Richtung im Kasten
+	 * „Eingefügt wird"; hier wird sie sichtbar, bevor irgendetwas angelegt ist. Deshalb hängen sie
+	 * an `eintrag.flowDir` (vom Importer gereicht) und nicht an einer Eigenschaft des Objekts.
+	 *
+	 * 🔴 IN DER FARBE DES IMPORT-FLUSSES, nicht in der unseren -- sie gehören zu IHRER Linie. Das
+	 * ist derselbe Grund, aus dem dieses Modul überhaupt zwei Farben führt.
+	 *
+	 * 💣 DOM-MARKEN, KEIN CANVAS. Die Karte hat schon einen Pfeil-Canvas
+	 * (map-features-river-flow-arrows.js), aber der zeichnet ANGELEGTE Flüsse aus `pathData` -- ein
+	 * Import ist dort nicht drin. Ihn dafür zu erweitern hieße, ihm eine zweite Datenquelle und
+	 * einen zweiten Lebenszyklus zu geben; eine Handvoll `divIcon`-Marken in der ohnehin
+	 * vorhandenen Gruppe verschwindet dagegen mit `clearLayers()` wie alles andere hier.
+	 *
+	 * ⚠️ FESTE BILDSCHIRMGRÖSSE, deshalb Marken und keine Polygone: ein Dreieck aus Kartenpunkten
+	 * wüchse beim Zoomen mit und wäre bei Zoom 6 so groß wie eine Baronie.
+	 */
+	var AVESMAPS_GARETIEN_DREIECK_ANZAHL = 3;
+	var AVESMAPS_GARETIEN_KLASSE_DREIECK = "gi-map-flow";
+
+	function garetienStroemungsdreiecke(l, eintrag, farbe) {
+		if (!eintrag || eintrag.flowDir !== "forward" && eintrag.flowDir !== "reverse") { return []; }
+		if (typeof l.marker !== "function" || typeof l.divIcon !== "function") { return []; }
+		var punkte = eintrag.punkte || [];
+		if (!garetienIstPunktliste(punkte) || punkte.length < 2) { return []; }
+
+		// ⚠️ Bei „reverse" wird die LISTE gedreht, nicht der Winkel um 180° geschoben: so ist die
+		// Rechnung darunter für beide Richtungen dieselbe, und es gibt keinen zweiten Zweig, der
+		// beim nächsten Umbau vergessen wird.
+		var lauf = eintrag.flowDir === "reverse" ? punkte.slice().reverse() : punkte;
+		var marken = [];
+		for (var i = 1; i <= AVESMAPS_GARETIEN_DREIECK_ANZAHL; i++) {
+			// Gleichmäßig über die Stützpunkte, nie auf dem ersten oder letzten: dort liegt die
+			// Endkreuzung, und ein Dreieck darauf sähe aus wie ein Teil von ihr.
+			var stelle = Math.round(lauf.length * i / (AVESMAPS_GARETIEN_DREIECK_ANZAHL + 1));
+			if (stelle < 1 || stelle >= lauf.length) { continue; }
+			var a = lauf[stelle - 1];
+			var b = lauf[stelle];
+			if (!a || !b) { continue; }
+			// 💣 `atan2(dx, dy)` MIT VERTAUSCHTEN ARGUMENTEN, damit 0° nach Norden zeigt und im
+			// Uhrzeigersinn gezählt wird wie bei CSS `rotate()`. Mit der Schulform zeigt jeder
+			// Pfeil an der Diagonale gespiegelt -- und bei genau N/O/S/W fällt das NICHT auf.
+			// Dieselbe Falle wie beim Peil-Pfeilchen in „Was ist hier?" (AGENTS.md §11).
+			var dx = b[1] - a[1];
+			var dy = b[0] - a[0];
+			if (dx === 0 && dy === 0) { continue; }
+			var winkel = Math.atan2(dx, dy) * 180 / Math.PI;
+			marken.push(l.marker([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], {
+				pane: AVESMAPS_GARETIEN_IHRE_PANE,
+				interactive: false,
+				keyboard: false,
+				icon: l.divIcon({
+					className: AVESMAPS_GARETIEN_KLASSE_DREIECK,
+					iconSize: [12, 12],
+					iconAnchor: [6, 6],
+					// ⚠️ Die Farbe steht am ELEMENT, nicht in der CSS-Regel: sie kommt aus dem Token
+					// des Import-Flusses und wechselt mit dem Thema (garetienTokenFarbe liest sie
+					// bei jedem Zeichnen neu).
+					html: '<span style="transform:rotate(' + winkel.toFixed(1) + 'deg);'
+						+ "border-bottom-color:" + farbe + '"></span>',
+				}),
+			}));
+		}
+
+		return marken;
 	}
 
 	/*
@@ -1270,6 +1353,8 @@
 			garetienRingSchliesst,
 			garetienTitelIhre,
 			garetienTitelUnsere,
+			garetienStroemungsdreiecke,
+			AVESMAPS_GARETIEN_FELD_FLOW,
 			avesmapsGaretienKarteZeigen,
 			AVESMAPS_GARETIEN_HAKEN_KLICK,
 			avesmapsGaretienKarteFliegen,

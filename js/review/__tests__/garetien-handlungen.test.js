@@ -665,6 +665,12 @@ wahr(/["']apply["']/.test(quelle),
 // =================================================================================================
 
 const css = fs.readFileSync(path.join(WURZEL, "css/components/garetien-importer.css"), "utf8");
+// 🪤 DIESER SCHNITT IST OFFEN -- er reicht bis ans DATEIENDE, nicht bis zum nächsten Abschnitt.
+// Alles, was jemand hinten anhängt, fällt damit unter die Regeln der Handlungsleiste. Am
+// 02.09.2026 hat das die Strömungsdreiecke erwischt: ein CSS-Dreieck IST Randbreiten in px, und
+// `--space-*` wäre dort semantisch falsch (das sind Abstände). Der Block steht deshalb jetzt VOR
+// diesem Abschnitt. ⚠️ Der Schnitt bleibt offen, und zwar mit Absicht: er deckt lieber zu viel als
+// zu wenig. Wer hinten anhängt, hängt ins Regelwerk der Leiste -- oder setzt seinen Block davor.
 const acts = css.slice(css.indexOf("Aufgabe 15: die Handlungsleiste"));
 wahr(acts.length > 400, "die Gegenprobe: der Abschnitt der Handlungsleiste wurde wirklich gefunden");
 wahr(!/#[0-9a-fA-F]{3,8}\b/.test(acts.replace(/\/\*[\s\S]*?\*\//g, "")),

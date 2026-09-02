@@ -1538,9 +1538,13 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
                 // bearbeiten"). Ohne sie ist das dritte Array LEER, und dann ist dieser Aufruf
                 // zeichengleich mit dem von vorher -- „Alle angezeigten einfuegen" schickt nie
                 // Einstellungen und legt Wege deshalb weiter genau wie bisher an.
+                $flussrichtung = avesmapsGaretienFlussrichtungAus($nach, $einstellungen);
                 $feature = avesmapsCreatePathFeature($pdo, array_merge([
                     'name' => (string) $nach['name'],
                     'feature_subtype' => (string) $nach['subtyp'],
+                    // 🔴 Die Stroemungsrichtung reist MIT dem Anlegen (02.09.2026) -- nur bei einem
+                    // Flussweg; `null` faellt hier heraus, statt als `flow: null` mitzureisen.
+                    ...($flussrichtung !== null ? ['flow' => $flussrichtung] : []),
                     // 🔴 Das Bach-Haekchen der Zuordnung (AVESMAPS_GARETIEN_TYP_MAP['Bach']).
                     // avesmapsCreatePathFeature gibt es an avesmapsPathTransportRegel weiter, und
                     // die nimmt einem Bach jede Befahrbarkeit -- baulich, nicht per Bedingung.
@@ -1551,6 +1555,16 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
                 $publicId = avesmapsGaretienPublicIdAus($feature, 'Der Weg');
                 $entityType = 'path';
                 $quellePublicId = $publicId;
+                // 🔴 KREUZUNGEN AN BEIDE ENDEN, Vorgabe JA (Owner 02.09.2026). Ohne sie haengt der
+                // Weg im Routennetz an nichts -- die Begruendung steht an
+                // avesmapsGaretienSetztEndkreuzungen.
+                if (avesmapsGaretienSetztEndkreuzungen($einstellungen)) {
+                    avesmapsGaretienEndkreuzungenAnlegen(
+                        $pdo,
+                        (array) $nach['geometry']['coordinates'],
+                        $user
+                    );
+                }
             } elseif ($ziel === 'location') {
                 // Ortschaften (Entwurf §3.1) -- ein Ort ist ein PUNKT, avesmapsCreatePointFeature
                 // setzt feature_type='location' und liest settlement_class aus 'feature_subtype'.
@@ -1713,6 +1727,100 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
  * Bauform und derselbe Grund wie bei `avesmapsGaretienItemAbschliessen`, das den Vermerk SETZT.
  * Eine Regel, die einen von zwei Erzeugern bindet, ist keine Regel.
  */
+/**
+ * Die STROEMUNGSRICHTUNG, die dieser Vorschlag mitbringt -- oder `null`. REIN, kein I/O.
+ *
+ * 🔴 NUR EIN FLUSSWEG HAT EINE. Eine Reichsstrasse mit `flow.dir` waere kein harmloser Zusatz: die
+ * Reisezeit liest den Stroemungsfaktor (avesmapsPathFlowNormalize setzt 2,0 als Vorgabe), und ein
+ * gerichteter Landweg waere in einer Richtung doppelt so teuer.
+ *
+ * ⚠️ DER EDITOR ENTSCHEIDET, NICHT DER IMPORT. Ohne Handeingabe steht `forward` -- die Richtung, in
+ * der die Quelle ihre Punkte aufzaehlt. Das ist eine ANNAHME, und genau deshalb zeigt das Fenster
+ * sie als Dreiecke an und laesst sie drehen (Owner 02.09.2026: „wobei der editor die richtung
+ * korrigieren können sollte").
+ */
+function avesmapsGaretienFlussrichtungAus(array $nach, ?array $einstellungen): ?array
+{
+    if ((string) ($nach['subtyp'] ?? '') !== 'Flussweg') {
+        return null;
+    }
+    $dir = trim((string) ($einstellungen['flow_dir'] ?? ''));
+    if ($dir !== 'forward' && $dir !== 'reverse') {
+        $dir = 'forward';
+    }
+
+    return ['dir' => $dir, 'source' => 'editor'];
+}
+
+/**
+ * Setzt dieser Vorschlag Kreuzungen an seine beiden Enden?
+ *
+ * 🔴 VORGABE JA (Owner 02.09.2026: „ein haekchen (standard: an) … dass an dessen anfang und ende je
+ * eine neue kreuzung platziert"). Ein importierter Weg ohne Endknoten haengt im Routennetz an
+ * nichts: `avesmapsAddClientCompatiblePathConnection` (api/_internal/routing/client-graph.php)
+ * verwirft jeden Weg, dessen Endpunkt auf keinem bekannten Ort und keiner Kreuzung liegt -- der Weg
+ * waere gezeichnet und fuer die Routenfindung nicht vorhanden.
+ *
+ * ⚠️ Der Riegel faellt im Zweifel auf JA, nicht auf nein: „Alle angezeigten einfuegen" schickt keine
+ * Einstellungen, und dort ist der Anschluss ans Netz genau das, was man will.
+ */
+function avesmapsGaretienSetztEndkreuzungen(?array $einstellungen): bool
+{
+    if (!is_array($einstellungen) || !array_key_exists('endpoint_crossings', $einstellungen)) {
+        return true;
+    }
+
+    return $einstellungen['endpoint_crossings'] !== false;
+}
+
+/**
+ * Legt an den ZWEI Enden einer frisch importierten Linie je eine Kreuzung an.
+ *
+ * 💣 SIE LIEGEN AUF DEM ENDPUNKT, NICHT DANEBEN. `avesmapsAddClientCompatiblePathConnection` rundet
+ * Endpunkt und Knoten auf 5 Stellen und vergleicht sie EXAKT -- eine Kreuzung einen Hauch neben dem
+ * Ende verbindet nichts und sieht trotzdem richtig aus. Deshalb bekommt sie zeichengleich dieselbe
+ * Koordinate.
+ *
+ * ⚠️ Der Anleger oeffnet je Kreuzung seine EIGENE Transaktion und hebt die Kartenrevision -- ein
+ * importierter Weg kostet damit drei Revisionen statt einer. Das ist der Preis dafuer, den
+ * Hausanleger zu benutzen statt hier ein zweites INSERT zu schreiben; die Alternative waere eine
+ * zweite Wahrheit ueber die Form einer Kreuzung.
+ *
+ * ⚠️ Eine Linie, deren Enden ZUSAMMENFALLEN (ein Ring), bekommt nur EINE -- zwei Kreuzungen auf
+ * demselben Punkt waeren eine Dublette, die niemand mehr auseinanderhaelt.
+ *
+ * @param list<array{0:float,1:float}> $punkte GeoJSON [x, y]
+ * @return list<string> die angelegten public_ids
+ */
+function avesmapsGaretienEndkreuzungenAnlegen(PDO $pdo, array $punkte, array $user): array
+{
+    $n = count($punkte);
+    if ($n < 2) {
+        return [];
+    }
+    $enden = [$punkte[0], $punkte[$n - 1]];
+    if (round((float) $enden[0][0], 5) === round((float) $enden[1][0], 5)
+        && round((float) $enden[0][1], 5) === round((float) $enden[1][1], 5)) {
+        $enden = [$enden[0]];
+    }
+
+    $ids = [];
+    foreach ($enden as $ende) {
+        // 💣 GETRENNTE lat/lng, UND SIE SIND VERTAUSCHT GEGENUEBER GeoJSON -- dieselbe Falle wie an
+        // jedem anderen Punktschreiber dieses Moduls (AGENTS.md §5).
+        $feature = avesmapsCreateCrossingFeature($pdo, [
+            'lng' => (float) $ende[0],
+            'lat' => (float) $ende[1],
+        ], $user);
+        $id = trim((string) ($feature['public_id'] ?? ($feature['feature']['public_id'] ?? '')));
+        if ($id !== '') {
+            $ids[] = $id;
+        }
+    }
+
+    return $ids;
+}
+
 function avesmapsGaretienItemZurueckAufOffen(PDO $pdo, int $itemId): void
 {
     $pdo->prepare(

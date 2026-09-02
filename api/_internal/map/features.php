@@ -10,6 +10,9 @@ declare(strict_types=1);
 // and the const/class are resolved at call time.
 
 require_once __DIR__ . '/../wiki/path-naming.php';
+// avesmapsPathFlowNormalize -- die eine Stelle, die entscheidet, was ein gueltiges `flow`
+// ist. Die Datei ist rein und ohne eigene Einbindungen (ihr Kopf sagt es ausdruecklich).
+require_once __DIR__ . '/../wiki/path-flow.php';
 // Ortsarten-Katalog (properties.place_kind). Bewusst die kleine Konstantendatei, NICHT
 // wiki/settlements.php -- die ist gross, zieht place-scope + coat-display nach und macht DDL.
 require_once __DIR__ . '/../wiki/place-kinds.php';
@@ -2527,6 +2530,27 @@ function avesmapsCreatePathFeature(PDO $pdo, array $payload, array $user): array
     // Kartennutzlast mit.
     if ($istBach) {
         $properties['is_bach'] = true;
+    }
+
+    // 🔴 DIE STROEMUNGSRICHTUNG, WENN DER ANLEGER EINE MITBRINGT (02.09.2026, Garetien-Import).
+    // Bis dahin entstand jeder Weg richtungslos, und die Richtung kam erst durch einen zweiten
+    // Aufruf (`set_flow` im Wege-Editor) oder den Wiki-Kurs-Sync. Der Importer weiss sie aber schon
+    // beim Anlegen -- der Editor hat sie im Kasten „Eingefuegt wird" bestaetigt oder gedreht.
+    //
+    // ⚠️ DURCH DEN HAUSNORMALISIERER, nicht roh uebernommen: avesmapsPathFlowNormalize
+    // (api/_internal/wiki/path-flow.php) ist die eine Stelle, die entscheidet, was ein gueltiges
+    // `flow` ist. Ein hier von Hand gebautes Array waere die zweite Fassung derselben Frage.
+    // ⚠️ Und NUR wenn wirklich etwas dasteht -- ein `flow: null` an jedem Weg waere dieselbe
+    // Behauptung in jeder Zeile, die `is_bach` eine Zeile darueber ausdruecklich vermeidet.
+    // 🪤 HIER STAND EIN `function_exists`-RIEGEL, UND ER WAR EIN STILLER AUSFALL. Ohne den
+    // `require_once` am Dateikopf lieferte er kein `flow` und keine Meldung -- eine fehlende Datei
+    // sah damit zeichengleich aus wie „es wurde keine Richtung gewuenscht". Gefunden hat das die
+    // erste Zusicherung, die die Richtung am angelegten Objekt gemessen hat.
+    if (isset($payload['flow'])) {
+        $flowNormalisiert = avesmapsPathFlowNormalize($payload['flow']);
+        if ($flowNormalisiert !== null) {
+            $properties['flow'] = $flowNormalisiert;
+        }
     }
 
     // Die Feldherkunft eines FRISCH GEZEICHNETEN Weges.

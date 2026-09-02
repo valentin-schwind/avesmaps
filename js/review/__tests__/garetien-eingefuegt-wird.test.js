@@ -605,8 +605,12 @@ const wegUebernommen = Object.assign({}, weg, {
 });
 // 🔴 SEIT 01.09.2026 FUENF: Anzeige-Haken, beide Verkehrsmittel UND die zwei Auswahlfelder der
 // Zielwahl -- an einem angelegten Objekt ist auch die Form nicht mehr zu entscheiden.
-gleich((garetienEingefuegtWirdMarkup(wegUebernommen).match(/disabled/g) || []).length, 5,
-	"beim uebernommenen Flussweg sind Anzeige-Haken, beide Verkehrsmittel und die Zielwahl gesperrt");
+// 🔴 SEIT 02.09.2026 SIEBEN: dazu das Häkchen „Kreuzung an Anfang und Ende" und der
+// Strömungsknopf. An einem angelegten Weg ist auch die Strömungsrichtung nicht mehr hier zu
+// entscheiden -- dafür gibt es „Weg bearbeiten" auf der Karte (Owner 30.08.2026, Punkt 6a).
+gleich((garetienEingefuegtWirdMarkup(wegUebernommen).match(/disabled/g) || []).length, 7,
+	"beim uebernommenen Flussweg sind Anzeige-Haken, Kreuzungen, Stroemung, beide Verkehrsmittel "
+	+ "und die Zielwahl gesperrt");
 
 // =================================================================================================
 // F2. Ein BACH (ziel='path', is_bach) -- Owner 30.08.2026: „der jetzt bäche importieren soll".
@@ -887,13 +891,29 @@ checks++;
 // 🔴 UNANGETASTET ohne `allowed_transports` -- dann waehlt der Server dieselbe Vorauswahl der
 // Wegart wie bisher, und der Anlegeaufruf bleibt zeichengleich zu dem von vorher.
 const kWeg = { key: "k2", ziel: "path", subtyp: "Pfad" };
+// 🔴 SEIT 02.09.2026 KOMMT `endpoint_crossings` DAZU, und es reist IMMER mit -- auch als `true`.
+// Der Server fällt ohne das Feld auf JA zurück (für „Alle angezeigten einfügen", das nie
+// Einstellungen schickt); ein abgeschaltetes Häkchen muss deshalb ausdrücklich `false` senden.
+// ⚠️ `flow_dir` steht NICHT dabei: der Pfad ist kein Flussweg.
 assert.deepStrictEqual(garetienEingabenFuerServer(kWeg),
-	{ ziel: "path", subtyp: "Pfad", kind: "", show_label: false },
-	"ein unangetasteter Weg schickt show_label und die Zielwahl mit, KEINE Verkehrsmittel");
+	{ ziel: "path", subtyp: "Pfad", kind: "", show_label: false, endpoint_crossings: true },
+	"ein unangetasteter Weg schickt show_label, die Zielwahl und die Kreuzungen mit, KEINE Verkehrsmittel");
 garetienEingabenZustandZu(kWeg).transports = ["groupFoot"];
 assert.deepStrictEqual(garetienEingabenFuerServer(kWeg),
-	{ ziel: "path", subtyp: "Pfad", kind: "", show_label: false, allowed_transports: ["groupFoot"] },
+	{ ziel: "path", subtyp: "Pfad", kind: "", show_label: false, endpoint_crossings: true,
+		allowed_transports: ["groupFoot"] },
 	"erst eine angefasste Auswahl reist als Liste mit");
+
+// 🔴 UND EIN FLUSSWEG SCHICKT SEINE STRÖMUNGSRICHTUNG -- ein Pfad nicht. Eine gerichtete Straße
+// wäre kein harmloser Zusatz: der Strömungsfaktor (Vorgabe 2,0) machte sie in einer Richtung
+// doppelt so teuer.
+const kFluss = { key: "k2b", ziel: "path", subtyp: "Flussweg" };
+gleich(garetienEingabenFuerServer(kFluss).flow_dir, "forward",
+	"ein Flussweg schickt die Richtung der Quelle mit");
+garetienEingabenZustandZu(kFluss).flowDir = "reverse";
+gleich(garetienEingabenFuerServer(kFluss).flow_dir, "reverse", "und eine gedrehte ebenso");
+wahr(!Object.prototype.hasOwnProperty.call(garetienEingabenFuerServer(kWeg), "flow_dir"),
+	"🔴 ein Pfad schickt KEINE Strömungsrichtung");
 checks += 2;
 
 // Berggipfel (ziel='label'): die SECHS Label-Felder (inkl. Nodix seit dieser Aufgabe), aber KEIN
