@@ -178,4 +178,48 @@ pruefe(/haken\.hidden = !\(zustand === "gelesen" \|\| zustand === "bekannt"\);/.
   "und erscheint nur, wenn wirklich etwas gelesen wurde -- `erreichbar` allein genügt nicht");
 pruefe(/zeigeAdressForm\(\);/.test(quelltext), "die Formprüfung ist beim Tippen verdrahtet");
 
-console.log("OK — " + pruefungen + " Zusicherungen gesamt (Abweichung, Adresse, Haken)");
+
+
+// ── 7 · Die Eingabezeile: Häkchen, dritter Rahmen, Form raus (Owner 02.09.2026) ──────────────
+const zeile2 = renderFeatureSourceEditorHtml({ wiki_url: "", sources: [] }, {});
+gleich((zeile2.match(/data-fs-own="/g) || []).length, 4,
+  "auch die Eingabezeile trägt die vier Häkchen");
+["source_type", "license", "attribution", "is_official"].forEach((n) => {
+  pruefe(zeile2.indexOf('data-fs-own="' + n + '"') !== -1, "Zeile: Häkchen für " + n);
+});
+pruefungen++;
+// 🔴 Sie starten UNGEHAKT: eine neue Quelle weicht per Vorgabe nicht ab. Das Anhaken IST die
+// ausdrückliche Handlung -- dieselbe Regel wie bei `source_type_chosen`.
+pruefe(!/data-fs-own-orig="1"/.test(zeile2), "und alle vier starten ungehakt");
+// 💣 DIESELBEN Klassen wie im ✎ -- damit liest `featureSourceOwnFieldsFromPanel` beide
+// Oberflächen. Zwei Fassungen liefen beim nächsten Feld auseinander.
+pruefe(/class="fs-eigen"/.test(zeile2) && /class="fs-eigen"/.test(mit),
+  "beide Oberflächen benutzen dasselbe Bauteil");
+
+// Der dritte Rahmen: „Gilt nur für diesen Eintrag".
+pruefe(/class="fs-eintrag"/.test(zeile2) && /Gilt nur für diesen Eintrag/.test(zeile2),
+  "Seiten und Abdeckung stehen in ihrem eigenen Rahmen");
+const eintragInhalt = zeile2.slice(zeile2.indexOf('class="fs-eintrag"'), zeile2.indexOf('class="fs-korpus"'));
+pruefe(/fs-add-pages/.test(eintragInhalt) && /fs-add-kind/.test(eintragInhalt),
+  "und zwar genau diese zwei");
+pruefe(!/fs-add-url|fs-add-corpus|fs-add-type/.test(eintragInhalt),
+  "sonst nichts -- der Rahmen sagt „nur dieser Eintrag“, und das muss stimmen");
+
+// 🔴 DIE FORM IST RAUS -- restlos, nicht nur unsichtbar.
+pruefe(!/fs-add-form|data-fs-form/.test(zeile2), "die Form steht nicht mehr in der Eingabezeile");
+// ... und im ✎ angekommen, samt eigener Reichweite auf dem Server.
+pruefe(/data-fs-field="form"/.test(mit), "sie steht jetzt im Bearbeiten-Kasten");
+const php = fs.readFileSync(path.join(wurzel, "api/_internal/app/feature-sources.php"), "utf8");
+pruefe(/AVESMAPS_FEATURE_SOURCE_CORPUS_ONLY_FIELDS = \['form'\]/.test(php),
+  "und der Server führt sie als eigene Reichweite -- sie hat in `sources` keine Spalte");
+// 💣 Sie darf NICHT in die Katalogliste geraten: dort landete sie in einem UPDATE auf eine Spalte,
+// die es nicht gibt.
+const katalog = php.match(/AVESMAPS_FEATURE_SOURCE_CATALOG_FIELDS = \[([^\]]+)\]/)[1];
+pruefe(!/'form'/.test(katalog), "und nicht in der Katalogliste");
+// ⚠️ Wer nur die Form ändert, muss trotzdem im Korpus-Block ankommen -- sonst bewegt „Speichern“
+// den Knopf und tut nichts.
+pruefe(/\$formGeschickt = array_key_exists\('form', \$fields\);/.test(php)
+  && /\(\$katalogAenderungen !== \[\] \|\| \$formGeschickt\)/.test(php),
+  "eine reine Formänderung öffnet den Korpus-Block mit");
+
+console.log("OK — " + pruefungen + " Zusicherungen gesamt (Abweichung, Adresse, Eintragsrahmen, Form)");

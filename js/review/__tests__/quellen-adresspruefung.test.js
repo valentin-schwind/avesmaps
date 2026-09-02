@@ -358,16 +358,25 @@ assert.ok(/korpus\.known === true \|\| !korpus\.corpus_key/.test(quelltextKorr),
   "ein bekannter Korpus wird beim Eintragen nicht überschrieben");
 zaehl();
 
-// ⚠️ Die FORM wird beim ersten Eintrag NICHT GERATEN -- aber eine ausdrückliche Wahl reist mit.
-// 💣 Ohne das fiele sie still weg: `speichereKorpusFeld` greift nur bei einem BEKANNTEN Korpus,
-// und beim ersten Eintrag ist er das per Definition nicht.
-assert.ok(/const gewaehlteForm = String\(\(formFeld && formFeld\.value\) \|\| ""\)/.test(quelltextKorr)
-  && /if \(gewaehlteForm !== ""\) \{\s*felder\.form = gewaehlteForm;/.test(quelltextKorr),
-  "die Form reist nur mit, wenn sie im Feld steht -- gerechnet wird sie nie");
+// 🔴 DIE FORM STEHT SEIT DEM 02.09.2026 NICHT MEHR IN DIESER ZEILE (Owner: „zieh die form ins ✎").
+// Sie wird EINMAL je Korpus entschieden, nicht bei jedem Eintrag -- und beim ERSTEN Eintrag eines
+// Wirts kann man sie ohnehin nicht wissen: bei einer einzigen Zeile sagt das Verhältnis
+// Titel/Zeilen nichts. Ein frischer Korpus startet deshalb auf „noch offen", und das verhält sich
+// wie „Werk", also wie bisher.
+// ⚠️ Geprüft wird die ABWESENHEIT der ganzen Verdrahtung, nicht nur die des Feldes: ein Rest, der
+// ins Leere greift, sieht im Diff wie eine Absicht aus.
+assert.ok(!/data-fs-form|fs-add-form|gewaehlteForm/.test(quelltextKorr),
+  "die Form ist restlos aus der Eingabezeile verschwunden, nicht nur unsichtbar");
 zaehl();
-// Und der Vorschlag kommt vom SERVER, weil nur er die Zahl der verschiedenen Titel hat.
-assert.ok(/korpus\.form_suggestion/.test(quelltextKorr),
-  "der Formvorschlag wird gelesen, nicht im Browser gerechnet");
+// 🔧 Mit der Form ist ihr gerechneter Vorschlag (`form_suggestion`) aus DIESER Zeile gefallen. Der
+// Server liefert ihn weiterhin -- er gehört an die Stelle, an der die Form entschieden wird, und
+// das ist jetzt der ✎. Dass er dort noch nicht angezeigt wird, ist ein offener Punkt und keine
+// stille Streichung: deshalb steht er hier benannt.
+// 🪤 Geprüft wird der ZUGRIFF (`korpus.form_suggestion`), nicht das Wort: das blosse Wort steht
+// noch im Kommentar, der die Streichung erklärt — und genau daran ist diese Zusicherung beim
+// Schreiben schon einmal angeschlagen. Ein Quelltext-Test darf nie am Text hängen, der ihn erklärt.
+assert.ok(!/korpus\.form_suggestion/.test(quelltextKorr),
+  "der Formvorschlag wird in der Eingabezeile nicht mehr gelesen -- die Form steht dort nicht mehr");
 zaehl();
 
 // 💣 Die Farbe der Meldung wird bei JEDER Meldung neu gesetzt. Ohne das Zurücksetzen erbte sie

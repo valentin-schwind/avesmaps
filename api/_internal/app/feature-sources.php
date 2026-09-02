@@ -1114,11 +1114,26 @@ const AVESMAPS_FEATURE_SOURCE_WIKI_OWNED_FIELDS = ['url', 'label', 'is_official'
  */
 const AVESMAPS_FEATURE_SOURCE_CONFIRM_THRESHOLD = 10;
 
-/** Welcher Haelfte gehoert ein Feld? 'link' | 'catalog' | '' fuer unbekannt. */
+/**
+ * Felder, die WEDER der Verknuepfung NOCH der Katalogzeile gehoeren, sondern dem KORPUS.
+ *
+ * 🔴 Sie haben in `sources` keine Spalte. Sie duerfen deshalb nie in `$katalogAenderungen` und
+ * nie in den Bestandsvergleich -- sie nehmen im Schreibweg eine eigene Spur direkt zum Korpus.
+ * 💣 Die Liste ist NICHT dieselbe wie AVESMAPS_SOURCE_CORPUS_OWNED_FIELDS, und das ist der Punkt:
+ * jene sagt „gehoert dem Korpus und wird auf seine Quellen DURCHGESCHRIEBEN", diese sagt „gehoert
+ * dem Korpus und existiert nur dort". Wer sie zusammenlegt, schriebe `form` in eine Spalte, die
+ * es nicht gibt.
+ */
+const AVESMAPS_FEATURE_SOURCE_CORPUS_ONLY_FIELDS = ['form'];
+
+/** Welcher Haelfte gehoert ein Feld? 'link' | 'catalog' | 'corpus' | '' fuer unbekannt. */
 function avesmapsFeatureSourceFieldScope(string $field): string
 {
     if (in_array($field, AVESMAPS_FEATURE_SOURCE_LINK_FIELDS, true)) {
         return 'link';
+    }
+    if (in_array($field, AVESMAPS_FEATURE_SOURCE_CORPUS_ONLY_FIELDS, true)) {
+        return 'corpus';
     }
 
     return in_array($field, AVESMAPS_FEATURE_SOURCE_CATALOG_FIELDS, true) ? 'catalog' : '';
@@ -1414,8 +1429,22 @@ function avesmapsUpdateFeatureSource(PDO $pdo, string $entityType, string $publi
     // davor waere ein Fatal Error mit LEEREM Rumpf, und der sieht fuer den Client aus wie ein
     // Netzfehler. Beim ersten Bau stand er genau eine Zeile zu hoch.
     $korpusDurchschrieb = null;
-    if ($katalogAenderungen !== [] && function_exists('avesmapsSourceCorpusSave')) {
+    // ⚠️ Die FORM oeffnet diesen Block MIT: sie hat in `sources` keine Spalte, steht also nie in
+    // `$katalogAenderungen` -- und wer nur sie aendert, kaeme sonst nie hier an. Genau so waere
+    // ein „Speichern", das den Knopf bewegt und nichts tut.
+    $formGeschickt = array_key_exists('form', $fields);
+    if (($katalogAenderungen !== [] || $formGeschickt) && function_exists('avesmapsSourceCorpusSave')) {
         $korpusFelder = array_intersect_key($katalogAenderungen, array_flip(AVESMAPS_SOURCE_CORPUS_OWNED_FIELDS));
+        // 🔴 DIE FORM IST EINE REINE KORPUS-SPALTE. Sie steht seit dem 02.09.2026 im ✎ (Owner:
+        // „zieh die form ins ✎") und hat in `sources` KEINE Spalte -- sie darf deshalb weder in
+        // `$katalogAenderungen` noch in den Bestandsvergleich, sondern nimmt eine eigene Spur.
+        // 💣 Und sie wird NICHT durchgeschrieben: sie sagt, welcher der beiden Namen dem Besucher
+        // vorn steht, und ist keine Eigenschaft einer einzelnen Quelle. `avesmapsSourceCorpusSave`
+        // trennt das bereits (AVESMAPS_SOURCE_CORPUS_OWNED_FIELDS enthaelt sie nicht) -- hier wird
+        // sie nur DORTHIN gereicht.
+        if (array_key_exists('form', $fields)) {
+            $korpusFelder['form'] = avesmapsSourceCorpusNormalizeForm((string) $fields['form']);
+        }
         // 🔴 WAS DIESE ZEILE SELBST BESITZT, GEHT NICHT AN DEN KORPUS (Owner 02.09.2026). Sonst
         // hiesse „weicht ab" nur, dass die Abweichung im selben Zug zur neuen Regel des ganzen
         // Wirts wird -- das genaue Gegenteil.

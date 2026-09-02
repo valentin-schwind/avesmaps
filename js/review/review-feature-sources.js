@@ -425,6 +425,23 @@ function renderFeatureSourceEditPanel(source, escape, tr) {
     + '<div class="fs-edit__group">'
     + kopf(korpusTitel, korpusReichweite)
     + '<div class="fs-edit__fields">'
+    // 🔴 DIE FORM -- am 02.09.2026 aus der Eingabezeile hierher gewandert (Owner: „zieh die form
+    // ins ✎"). Sie ist die EINE Eigenschaft, die ein Korpus tragen muss: sie entscheidet, welcher
+    // der beiden Namen dem Besucher vorn steht -- bei einem WERK der Titel („Geographia
+    // Aventurica"), bei einer BELEGSTELLE der Korpusname („Briefspiel (Weiden)").
+    // 💣 DREI Werte, nicht zwei. „— noch offen —" ist ein eigener Zustand und verhält sich wie
+    // „Werk", also wie heute: bei einem frischen Korpus mit einer Zeile sagt das Verhältnis
+    // Titel/Zeilen nichts, und wer die Form dort rät, trifft in gut der Hälfte der Fälle daneben
+    // und behauptet dabei, es gemessen zu haben.
+    // ⚠️ KEIN „nur diese Quelle" daran: die Form ist keine Eigenschaft einer einzelnen Zeile,
+    // sondern die Frage, wie der ganze Wirt gelesen wird. Sie steht deshalb im Korpuskasten und
+    // wandert serverseitig in den Korpus, nicht in `sources`.
+    + feld("form", tr("sources.edit.formLabel", "Form"),
+      auswahl("form", String((korpus && korpus.form) || ""), [
+        { wert: "", text: tr("sources.add.formOpen", "— noch offen —") },
+        { wert: "werk", text: tr("sources.add.formWork", "Werke (Titel vorn)") },
+        { wert: "belegstelle", text: tr("sources.add.formCite", "Belegstellen (Korpus vorn)") },
+      ], !(korpus && korpus.known === true)))
     + korpusFeld("source_type", tr("sources.colType", "Quellenart"),
       auswahl("source_type", korpusWert("source_type", source.type || "sonstiges"), typEintraege, false),
       source.type || "", String((korpus && korpus.source_type) || ""),
@@ -598,6 +615,19 @@ function renderFeatureSourceAddRow(escape, tr) {
   // 💣 Die Liste kommt aus feature-source-markup.js, nicht aus einer Kopie hier: dieselbe Regel
   // wie bei der Seitenkuerzung -- eine Liste, die einen von zwei Erzeugern bindet, ist keine.
   const lizenzTafel = featureSourceLicenseTable();
+  /**
+   * Das Häkchen „nur diese Quelle" an einem Korpusfeld der EINGABEZEILE.
+   *
+   * 🔴 Dieselben Klassen und dasselbe `data-fs-own` wie im ✎ -- damit liest
+   * `featureSourceOwnFieldsFromPanel` beide Oberflächen, ohne eine zweite Fassung.
+   * ⚠️ Hier startet es IMMER ungehakt (`data-fs-own-orig="0"`): eine neue Quelle weicht per
+   * Vorgabe nicht ab. Das Anhaken IST die ausdrückliche Handlung -- dieselbe Regel wie beim
+   * Aufklappen im Entwurf und wie bei `source_type_chosen`.
+   */
+  const eigenHaken = (feld) =>
+    '<span class="fs-eigen"><input type="checkbox" data-fs-own="' + escape(feld) + '"'
+    + ' data-fs-own-orig="0"> ' + escape(tr("sources.edit.ownField", "nur diese Quelle")) + "</span>";
+
   const licenseOptions = '<option value="">' + escape(tr("sources.add.licenseNone", "Lizenz …")) + "</option>" +
     Object.keys(lizenzTafel).map(
       (key) => '<option value="' + escape(key) + '">' + escape(lizenzTafel[key].label) + "</option>"
@@ -663,11 +693,18 @@ function renderFeatureSourceAddRow(escape, tr) {
     // bekannten Seite sind sie das Einzige, was der Editor noch zu füllen hat — dann werden sie
     // hervorgehoben. Der Marker steht im Markup, damit die Hervorhebung keine Selektorliste
     // pflegen muss, die beim nächsten Feld auseinanderläuft.
+    // 🔴 UND SIE BEKOMMEN IHREN EIGENEN RAHMEN (Owner 02.09.2026). Damit trägt die Zeile drei
+    // Reichweiten, jede sichtbar begrenzt: „hier fängst du an" (Adresse, durchgezogen), „gilt nur
+    // für diesen Eintrag" und „gilt für den ganzen Korpus" (beide gestrichelt -- sie sagen beide,
+    // WIE WEIT etwas reicht, und unterscheiden sich nur in der Weite).
+    '<span class="fs-eintrag">' +
+    '<span class="fs-eintrag__l">' + escape(tr("sources.add.entryGroup", "Gilt nur für diesen Eintrag")) + "</span>" +
     '<label class="fs-af fs-af--pages" data-fs-meins><span class="fs-af__l">' +
     escape(tr("sources.add.pages", "Seite(n)")) + "</span>" +
     '<input type="text" class="fs-add-pages" placeholder="' + escape(tr("sources.add.pagesHint", "optional")) + '"></label>' +
     '<label class="fs-af fs-af--kind" data-fs-meins><span class="fs-af__l">' + escape(tr("sources.add.kindLabel", "Abdeckung")) + "</span>" +
     '<select class="fs-add-kind" title="' + escape(tr("sources.add.kind", "Abdeckung: Ausführlich/Ergänzend → Offiziell-Tab, Erwähnung → Erwähnt-Tab, sonst normale Quellenzeile")) + '">' + kindOptions + "</select></label>" +
+    "</span>" +
     // 🔴 DER RAHMEN STEHT IMMER. Er war einen Tag lang `hidden`, bis eine Adresse einen Korpus
     // ergab -- und hat dabei Art, Lizenz und Namensnennung mitversteckt, die mit dem Korpus nichts
     // zu tun haben: die leere Maske konnte danach WENIGER als vor dem ganzen Umbau (vier Felder),
@@ -692,21 +729,13 @@ function renderFeatureSourceAddRow(escape, tr) {
     '<span class="fs-af__meta" data-fs-corpus-meta></span></span>' +
     '<input type="text" class="fs-add-corpus" data-fs-corpus placeholder="' +
     escape(tr("sources.add.corpusPlaceholder", "aus der Adresse")) + '"></label>' +
-    // 🔴 DIE FORM -- die EINE Eigenschaft, die ein Korpus tragen MUSS: sie entscheidet, welcher
-    // der beiden Namen dem Besucher vorn steht. Bei einem WERK der Titel („Geographia
-    // Aventurica"), bei einer BELEGSTELLE der Korpusname („Briefspiel (Weiden)").
-    // 💣 DREI Werte, nicht zwei. „— noch offen —" ist ein eigener Zustand und verhält sich wie
-    // „Werk", also wie heute: bei einem frischen Korpus mit einer Zeile sagt das Verhältnis
-    // Titel/Zeilen nichts, und wer die Form dort rät, trifft in gut der Hälfte der Fälle daneben
-    // und behauptet dabei, es gemessen zu haben.
-    '<label class="fs-af fs-af--form"><span class="fs-af__l">' +
-    escape(tr("sources.add.formLabel", "Form")) +
-    '<span class="fs-af__meta" data-fs-form-meta></span></span>' +
-    '<select class="fs-add-form" data-fs-form>' +
-    '<option value="">' + escape(tr("sources.add.formOpen", "— noch offen —")) + "</option>" +
-    '<option value="werk">' + escape(tr("sources.add.formWork", "Werke (Titel vorn)")) + "</option>" +
-    '<option value="belegstelle">' + escape(tr("sources.add.formCite", "Belegstellen (Korpus vorn)")) + "</option>" +
-    "</select></label>" +
+    // 🔴 DIE FORM IST AM 02.09.2026 INS ✎ GEWANDERT (Owner: „zieh die form ins ✎"). Sie wird EINMAL
+    // je Korpus entschieden, nicht bei jedem Eintrag -- und beim ERSTEN Eintrag eines Wirts kann
+    // man sie ohnehin nicht wissen: bei einer einzigen Zeile sagt das Verhältnis Titel/Zeilen
+    // nichts. Ein Feld, das bei jeder Quelle nach etwas fragt, das der Editor an dieser Stelle
+    // nicht beantworten kann, ist Ballast vor der einen Sache, die er tun will.
+    // ⚠️ Sie ist NICHT ersatzlos weg: der Bearbeiten-Kasten trägt sie in seiner Korpusgruppe, und
+    // der Server routet sie dort in den Korpus (AVESMAPS_FEATURE_SOURCE_CORPUS_ONLY_FIELDS).
     // Instruction 5a requires the form to SAY which case occurred -- without this an editor cannot
     // tell whether they just referenced the existing source or minted a duplicate.
     '<span class="fs-add-picked" data-fs-picked hidden>' +
@@ -716,19 +745,25 @@ function renderFeatureSourceAddRow(escape, tr) {
     "</span>" +
     // ⚠️ Die vier Marker „· vom Korpus" hängen an einem `hidden`-Attribut und werden gesetzt, wenn
     // der Korpus den Wert wirklich vorgibt. Ein dauerhaft sichtbarer Marker wäre eine Behauptung.
+    // 🔴 UND JEDES DER VIER FELDER TRÄGT SEIN „nur diese Quelle" (Owner 02.09.2026: „mach das
+    // häkchen in der eingabezeile"). Dieselben Klassen und dasselbe `data-fs-own` wie im ✎ --
+    // damit liest `featureSourceOwnFieldsFromPanel` beide Oberflächen, ohne eine zweite Fassung.
+    // 💣 Der Name ist der SERVERNAME (`source_type`), nicht der des Markers daneben (`type`):
+    // was hier steht, wandert unverändert in `own_fields`.
     '<label class="fs-af fs-af--art"><span class="fs-af__l">' + escape(tr("sources.add.typeLabel", "Art")) +
     '<span class="fs-af__from" data-fs-from="type" hidden> · ' + escape(tr("sources.add.fromCorpus", "vom Korpus")) + "</span></span>" +
-    '<select class="fs-add-type">' + options + "</select></label>" +
+    '<select class="fs-add-type">' + options + "</select>" + eigenHaken("source_type") + "</label>" +
     '<label class="fs-af fs-af--license"><span class="fs-af__l">' + escape(tr("sources.add.licenseLabel", "Lizenz")) +
     '<span class="fs-af__from" data-fs-from="license" hidden> · ' + escape(tr("sources.add.fromCorpus", "vom Korpus")) + "</span></span>" +
-    '<select class="fs-add-license" title="' + escape(tr("sources.add.licenseHint", "Unter welcher Lizenz steht die Quelle? Leer heißt „nicht erfasst“, nicht „keine Lizenz“.")) + '">' + licenseOptions + "</select></label>" +
+    '<select class="fs-add-license" title="' + escape(tr("sources.add.licenseHint", "Unter welcher Lizenz steht die Quelle? Leer heißt „nicht erfasst“, nicht „keine Lizenz“.")) + '">' + licenseOptions + "</select>" + eigenHaken("license") + "</label>" +
     '<label class="fs-af fs-af--grow"><span class="fs-af__l">' +
     escape(tr("sources.add.attributionLabel", "Namensnennung bzw. mit freundlicher Genehmigung von")) +
     '<span class="fs-af__from" data-fs-from="attribution" hidden> · ' + escape(tr("sources.add.fromCorpus", "vom Korpus")) + "</span></span>" +
-    '<input type="text" class="fs-add-attribution" placeholder="' + escape(tr("sources.add.attribution", "Namensnennung")) + '" title="' + escape(tr("sources.add.attributionHint", "Wen die Lizenz zu nennen verlangt, z. B. „VolkoV / garetien.de“.")) + '"></label>' +
+    '<input type="text" class="fs-add-attribution" placeholder="' + escape(tr("sources.add.attribution", "Namensnennung")) + '" title="' + escape(tr("sources.add.attributionHint", "Wen die Lizenz zu nennen verlangt, z. B. „VolkoV / garetien.de“.")) + '">' + eigenHaken("attribution") + "</label>" +
     '<label class="fs-add-official-label">' +
     '<input type="checkbox" class="fs-add-official"> ' + escape(tr("sources.add.official", "offiziell")) +
     '<span class="fs-af__from" data-fs-from="official" hidden> · ' + escape(tr("sources.add.fromCorpus", "vom Korpus")) + "</span>" +
+    eigenHaken("is_official") +
     "</label>" +
     "</span>" +
     '<button type="button" class="fs-row__add" data-fs-add-submit>' + escape(tr("sources.add.submit", "Hinzufügen")) + "</button>" +
@@ -1543,22 +1578,9 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
     }
     marker("official", bekannt && korpus.is_official === true);
 
-    // Die Form und ihr Vorschlag. ⚠️ Vorgeschlagen wird NUR gerechnet, nie gesetzt: der Server
-    // schlägt ab drei Zeilen vor (`avesmapsSourceCorpusFormSuggestion`), darunter schweigt er.
-    const formFeld = containerEl.querySelector("[data-fs-form]");
-    if (formFeld) {
-      formFeld.value = String(korpus.form || "");
-    }
-    const formMeta = containerEl.querySelector("[data-fs-form-meta]");
-    if (formMeta) {
-      const vorschlag = String(korpus.form_suggestion || "");
-      formMeta.textContent = (!korpus.form && vorschlag)
-        ? " · " + tr("sources.add.formHint", "sieht nach {was} aus")
-          .replace("{was}", vorschlag === "belegstelle"
-            ? tr("sources.add.formCiteShort", "Belegstellen")
-            : tr("sources.add.formWorkShort", "Werken"))
-        : "";
-    }
+    // 🔴 DIE FORM STEHT NICHT MEHR IN DIESER ZEILE (Owner 02.09.2026: „zieh die form ins ✎").
+    // Mit ihr ist auch ihr gerechneter Vorschlag (`form_suggestion`) hier weggefallen -- er
+    // gehoert an die Stelle, an der die Form entschieden wird, und das ist der ✎.
   }
 
   // Die zuletzt gemeldete bekannte Katalogzeile -- gebraucht beim Korrigieren (was stand vorher da?).
@@ -1673,16 +1695,10 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
     if (values.is_official) {
       felder.is_official = true;
     }
-    // 🔴 Die FORM nur, wenn ein Mensch sie ausdrücklich gewählt hat. Sie wird nie gerechnet:
-    // bei einem frischen Korpus mit einer Zeile sagt das Verhältnis Titel/Zeilen nichts, und ein
-    // geratener Wert entscheidet, welcher Name dem Besucher vorn steht.
-    // ⚠️ Ohne diese Zeile fiele die Wahl still weg: `speichereKorpusFeld` greift nur bei einem
-    // BEKANNTEN Korpus, und beim ersten Eintrag ist er das per Definition nicht.
-    const formFeld = containerEl.querySelector("[data-fs-form]");
-    const gewaehlteForm = String((formFeld && formFeld.value) || "");
-    if (gewaehlteForm !== "") {
-      felder.form = gewaehlteForm;
-    }
+    // ⚠️ Die FORM reist hier NICHT mehr mit: sie steht seit dem 02.09.2026 im ✎. Ein frischer
+    // Korpus startet damit auf „noch offen" -- und das ist richtig, denn beim ERSTEN Eintrag
+    // eines Wirts sagt das Verhaeltnis Titel/Zeilen nichts. Entschieden wird sie dort, wo
+    // man sie entscheiden kann.
     return Object.keys(felder).length > 0 ? { key: korpus.corpus_key, felder: felder } : null;
   }
 
@@ -1693,6 +1709,42 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
    * 🔴 Ein Fehlschlag wird dagegen gesagt: sonst wundert sich beim nächsten Mal jemand, warum
    * nichts vorbelegt ist.
    */
+  /**
+   * Die Abweichung der Eingabezeile festhalten — NACH dem Eintragen.
+   *
+   * ⭐ Über den vorhandenen `update`-Weg, denselben, den das ✎ nimmt. Ein 15. Parameter an `add`
+   * wäre eine zweite Fassung derselben Regel gewesen; hier gibt es keine.
+   * 💣 DIE ZEILE WIRD ÜBER IHRE ADRESSE WIEDERGEFUNDEN, nicht über eine Position in der Liste:
+   * `add` sortiert nach `is_official`, und eine frisch angelegte Quelle steht deshalb nicht
+   * zwangsläufig am Ende. Die Adresse IST die Identität (`url_hash` ist UNIQUE) — sie trifft in
+   * beiden Fällen, ob gerade angelegt oder mit einer bekannten Zeile verknüpft wurde.
+   * 🔴 Ein Fehlschlag wird GESAGT: die Quelle steht dann, aber ohne ihre Abweichung — und beim
+   * nächsten Korpus-Speichern wäre sie still überschrieben. Genau das soll das Häkchen verhindern.
+   */
+  async function haltAbweichungFest(daten, url, liste) {
+    const quellen = Array.isArray(daten && daten.sources) ? daten.sources : [];
+    const treffer = quellen.find((s) => String(s.url || "") === String(url || ""));
+    if (!treffer) {
+      showAddRowNote(tr("sources.add.ownNotStored",
+        "Die Quelle steht — die Abweichung ließ sich aber nicht festhalten. Sie ist über das ✎ nachzutragen."));
+      return;
+    }
+    const antwort = await featureSourceFetch({
+      action: "update",
+      entity_type: entityType,
+      entity_public_id: typeof publicIdGetter === "function" ? publicIdGetter() : publicIdGetter,
+      source_id: treffer.source_id,
+      fields: { own_fields: liste },
+      // ⚠️ Bestätigt: der Editor hat die Häkchen gerade selbst gesetzt, und eine Rückfrage direkt
+      // nach seinem eigenen Klick wäre eine Frage nach dem, was er eben getan hat.
+      confirm_catalog: true,
+    });
+    if (!antwort || antwort.ok !== true) {
+      showAddRowNote(tr("sources.add.ownNotStored",
+        "Die Quelle steht — die Abweichung ließ sich aber nicht festhalten. Sie ist über das ✎ nachzutragen."));
+    }
+  }
+
   async function legeKorpusAn(anlage) {
     const daten = await featureSourceFetch({
       action: "save_corpus",
@@ -1723,10 +1775,6 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
     { selektor: ".fs-add-license", feld: "license" },
     { selektor: ".fs-add-attribution", feld: "attribution" },
     { selektor: ".fs-add-official", feld: "is_official", haken: true },
-    // ⚠️ Die Form steht mit in der Liste, WIRD aber nicht auf die Quellen durchgeschrieben --
-    // sie sagt, welcher Name vorn steht, und ist keine Eigenschaft einer einzelnen Quelle.
-    // Der Server entscheidet das (AVESMAPS_SOURCE_CORPUS_OWNED_FIELDS), nicht diese Liste.
-    { selektor: ".fs-add-form", feld: "form" },
   ];
 
   /**
@@ -2199,16 +2247,26 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
       // ⚠️ VOR dem Anlegen gelesen, denn `renderFromServer` zeichnet die Zeile neu und leert sie.
       const korpusAusZeile = korpusAnlageAusZeile(values);
       const korrektur = korrekturAusZeile(values);
+      // 🔴 DIE ABWEICHUNG WIRD VOR DEM ANLEGEN GELESEN und DANACH geschrieben. Vorher, weil
+      // `renderFromServer` die Zeile neu zeichnet und leert; danach, weil es die Quelle vorher
+      // nicht gibt.
+      // ⭐ Über den vorhandenen `update`-Weg, nicht über einen 15. Parameter an `add`: derselbe
+      // geprüfte Pfad, den auch das ✎ nimmt, samt seiner Rückfrage ab der Schwelle. Ein neuer
+      // Parameter wäre eine zweite Fassung derselben Regel.
+      const besitzAusZeile = featureSourceOwnFieldsFromPanel(containerEl);
       const daten = await renderFromServer("add", values);
       zeigeUmtypung(daten);
       zeigeVerknuepfung(daten);
-      // ⚠️ BEIDES NACH dem Verknüpfen: `update` verlangt die Verknüpfung, und ein Korpus für eine
-      // Quelle, die gar nicht angelegt wurde, wäre eine Leiche.
+      // ⚠️ ALLES DREI NACH dem Verknüpfen: `update` verlangt die Verknüpfung, und ein Korpus für
+      // eine Quelle, die gar nicht angelegt wurde, wäre eine Leiche.
       if (daten && korrektur) {
         await wendeKorrekturAn(korrektur);
       }
       if (daten && korpusAusZeile) {
         await legeKorpusAn(korpusAusZeile);
+      }
+      if (daten && besitzAusZeile.geaendert) {
+        await haltAbweichungFest(daten, values.url, besitzAusZeile.liste);
       }
     }
   });

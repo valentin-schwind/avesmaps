@@ -1522,3 +1522,35 @@
 	display: flex;
 	padding-top: 8px;
 }
+
+/* ── „Gilt nur für diesen Eintrag" (Owner 02.09.2026) ────────────────────────────────────────
+   Der dritte Rahmen der Eingabezeile. Damit trägt sie drei Reichweiten, jede sichtbar begrenzt:
+   „hier fängst du an" (Adresse, DURCHGEZOGEN), „gilt nur für diesen Eintrag" und „gilt für den
+   ganzen Korpus" (beide GESTRICHELT -- sie sagen beide, wie weit etwas reicht, und unterscheiden
+   sich nur in der Weite).
+   ⚠️ Dieselben Werte wie `.fs-korpus`; eine zweite Rezeptur für dieselbe Form wäre die Divergenz,
+   die dieser Umbau gerade beseitigt. */
+.fs-eintrag {
+	position: relative;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-end;
+	gap: 6px;
+	flex: 1 1 100%;
+	border: 1px dashed var(--color-accent-brown);
+	border-radius: var(--radius-md);
+	padding: 16px 8px 8px;
+	margin-top: 4px;
+}
+.fs-eintrag__l {
+	position: absolute;
+	top: -7px;
+	left: 8px;
+	padding: 0 5px;
+	font-size: 10px;
+	line-height: 1.2;
+	letter-spacing: 0.02em;
+	text-transform: uppercase;
+	color: var(--color-accent-brown);
+	background: var(--color-panel-soft);
+}

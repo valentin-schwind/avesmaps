@@ -224,7 +224,12 @@ function felderAusHtml(html) {
 
 {
 	const panel = felderAusHtml(renderFeatureSourceEditPanel(QUELLE, (v) => String(v), (k, f) => f));
-	pruefe(panel._elemente.length === 8, "acht Formularfelder im Kasten (6 Katalog + 2 Verknuepfung)");
+	// ⚠️ NEUN seit dem 02.09.2026: die FORM ist aus der Eingabezeile hierher gewandert (Owner:
+	// „zieh die form ins ✎"). Sie ist weder Katalog- noch Verknuepfungsfeld -- sie gehoert dem
+	// KORPUS und hat in `sources` keine Spalte; der Server fuehrt sie deshalb als eigene Reichweite
+	// (AVESMAPS_FEATURE_SOURCE_CORPUS_ONLY_FIELDS).
+	pruefe(panel._elemente.length === 9,
+		"neun Formularfelder im Kasten (6 Katalog + 2 Verknuepfung + die Form des Korpus)");
 	// Unberuehrt = NICHTS reist mit. Das ist die ganze Regel.
 	gleich(featureSourceChangedFields(panel), {},
 		"ein unberuehrter Kasten schickt KEIN einziges Feld -- sonst schriebe jedes Speichern alles");
@@ -299,7 +304,15 @@ function felderAusHtml(html) {
 	// Menge der vier Abweichungs-Haekchen (`data-fs-own`). Ein `data-fs-field="own_fields"` gaebe
 	// es doppelt -- einmal als Wert, einmal als Haekchen -- und `featureSourceChangedFields`
 	// nimmt dann, was zufaellig zuletzt im DOM steht.
-	const erwartet = linkFelder.concat(katalogFelder).filter((f) => f !== "own_fields");
+	// ⚠️ Und die FORM: sie ist seit dem 02.09.2026 im Kasten, gehoert aber weder der Verknuepfung
+	// noch dem Katalog -- sie ist die dritte Reichweite (`…CORPUS_ONLY_FIELDS`) und hat in
+	// `sources` keine Spalte. Der Server kennt sie trotzdem; sie darf also nicht als „unbekannt"
+	// durchfallen.
+	const korpusNurFelder = php.match(/AVESMAPS_FEATURE_SOURCE_CORPUS_ONLY_FIELDS = \[([^\]]+)\]/)[1]
+		.match(/'([a-z_]+)'/g).map((s) => s.replace(/'/g, ""));
+	gleich(korpusNurFelder, ["form"], "die Form ist das einzige reine Korpusfeld");
+	const erwartet = linkFelder.concat(katalogFelder).concat(korpusNurFelder)
+		.filter((f) => f !== "own_fields");
 	gleich(imKasten.slice().sort(), erwartet.sort(),
 		"der Kasten baut genau die Felder, die der Server kennt -- ausser dem Besitzstand");
 	// Und der wird als HAEKCHEN gebaut, eines je korpuseigenem Feld.
