@@ -3498,6 +3498,17 @@
 		     Abhängigkeiten und ohne Verdrahtung je Fenster; auch die erst beim Öffnen gebauten
 		     Dialoge sind dadurch dabei. Die Editor-iframes laden dieselbe Datei selbst. -->
 		<script src="js/ui/dialog-drag.js"></script>
+		<!-- Klick auf den Hintergrund schliesst das Fenster. Anders als das Ziehen daneben wird das
+		     NICHT am document delegiert und nicht nach der Form gesucht: der Zuhoerer haengt je
+		     Fenster an dessen Overlay, die sieben Paare stehen unten im Bootstrap-Skript. Am
+		     document delegiert braeche der Ablauf "Neue Position vorschlagen" -- der blendet sein
+		     Overlay aus und laesst den Nutzer EINEN Punkt auf der Karte waehlen; dieser Kartenklick
+		     waere dort ein Hintergrundklick, und Schliessen heisst hier Formular zuruecksetzen.
+		     💣 UND DESHALB STEHT HIER KEIN DATEIPFAD: zwei Tests messen die Ladereihenfolge mit
+		     html.indexOf("js/app/…") und lesen Kommentare mit. Ein Pfad an dieser Stelle ist fuer
+		     sie ein frueheres script-Tag und dreht ihr Ergebnis um -- genau daran ist
+		     js/ui/__tests__/zoomstufe-anzeige.test.js beim Bau dieser Zeile umgefallen. -->
+		<script src="js/ui/dialog-hintergrund-schliessen.js"></script>
 		<script src="js/ui/filter-bar.js"></script>
 		<script src="js/ui/feature-source-markup.js"></script>
 		<!-- Lizenz · Urheber · Kommentar: der EINE Markup-Bauer der Medien-Dialoge, seit 01.09.2026

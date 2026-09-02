@@ -746,6 +746,25 @@ $("#legal-overlay").on("click", function (event) {
         setLegalDialogOpen(false);
     }
 });
+// Klick auf den Hintergrund schliesst -- dieselbe Bedeutung wie × und Escape (Owner 02.09.2026:
+// "ansonsten ist das das normale verhalten von fenstern"). Die Regel selbst steht in
+// js/ui/dialog-hintergrund-schliessen.js; hier stehen nur die Paare, weil die Schliessfunktionen
+// hier leben.
+//
+// 🔴 NUR Fenster mit vollem Schleier. Wer an der KARTE arbeitet, reicht Zeiger durch
+// (`pointer-events: none` an der Huelle: "Flaeche vereinfachen", "Grenze aus Territorien", "Flaeche
+// bearbeiten", der Eigenschaften-Dialog -- Owner 28.07.2026 -- und der VERKLEINERTE
+// Konflikte-Dialog). Dort ist der Hintergrund die Arbeitsflaeche, nicht der Ausgang; sie bekommen
+// den Klick ohnehin nie, solange niemand am document lauscht.
+[
+    ["location-report-overlay", () => setLocationReportDialogOpen(false, { resetForm: true })],
+    ["location-edit-overlay", () => setLocationEditDialogOpen(false, { resetForm: true })],
+    ["path-edit-overlay", () => setPathEditDialogOpen(false, { resetForm: true })],
+    ["powerline-edit-overlay", () => setPowerlineEditDialogOpen(false, { resetForm: true })],
+    ["region-edit-overlay", () => setRegionEditDialogOpen(false, { resetForm: true })],
+    ["wiki-sync-resolve-overlay", () => setWikiSyncResolveDialogOpen(false, { resetForm: true })],
+    ["wiki-sync-dump-credentials-overlay", () => closeWikiSyncDumpCredentialsPrompt(false)],
+].forEach(([overlayId, schliessen]) => avesmapsDialogHintergrundSchliessenById(overlayId, schliessen));
 $("#location-report-close, #location-report-cancel").on("click", () => setLocationReportDialogOpen(false, { resetForm: true }));
 $("#location-edit-close, #location-edit-cancel").on("click", () => setLocationEditDialogOpen(false, { resetForm: true }));
 // Ortsgroesse geaendert -> das Feld „Art" auf-/zusperren. Deckt den NUTZERweg ab; die drei
