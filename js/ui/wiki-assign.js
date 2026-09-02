@@ -160,6 +160,18 @@ const AVESMAPS_WIKI_ASSIGN_TIPP_PAUSE_MS = 180;
 
 // Alle sichtbaren Woerter an EINER Stelle. Was objektart-abhaengig ist, steht nicht hier, sondern
 // in der Erklaerung (`label`, `art`, `extra.keinArtikelHinweis`).
+/**
+ * Ab wann eine misslungene Zuweisung ihre DAUER mitnennt (Millisekunden).
+ *
+ * 🔴 SIE UNTERSCHEIDET ZWEI FEHLER, DIE GLEICH AUSSEHEN. Vor jedem Wiki-Abruf des Servers sitzt
+ * eine Drossel von 20 Sekunden (AVESMAPS_WIKI_REQUEST_DELAY_MICROSECONDS, drossel.php), und das
+ * Zuweisen holt die Seite LIVE -- eine Absage nach 21 s ist eine ganz andere Geschichte als eine
+ * nach 0,2 s, und ohne die Zahl liest man beide als „geht nicht".
+ * ⚠️ 5 Sekunden, weil darunter nichts von der Drossel stammen KANN: sie spannt 20 s auf. Was
+ * schneller absagt, ist eine echte Absage des Endpunkts, und dort waere ein „nach 0 s" nur Rauschen.
+ */
+const AVESMAPS_WIKI_ASSIGN_LANGSAM_MS = 5000;
+
 const AVESMAPS_WIKI_ASSIGN_TEXTE = {
 	titel: "Wiki-Artikel",
 	zuordnung: "Zuordnung",
@@ -188,6 +200,11 @@ const AVESMAPS_WIKI_ASSIGN_TEXTE = {
 	// abgelaufene Sitzung, ein 500er und „diesen Artikel gibt es nicht" waren dann dasselbe
 	// Bild, und der Editor haette den Artikel im Wiki gesucht statt sich neu anzumelden.
 	suchFehler: "Suche fehlgeschlagen",
+	// 🔴 EIN EIGENER VORSATZ, WEIL DIE HINWEISZEILE GETEILT IST. Sie traegt beide Fehlschlaege --
+	// den der Suche und den der Zuweisung --, und „Suche fehlgeschlagen“ ueber einer abgelehnten
+	// Zuweisung schickt den Editor an die falsche Stelle: er sucht den Fehler im Suchfeld, waehrend
+	// der Server das SCHREIBEN abgelehnt hat.
+	zuweisenFehler: "Zuweisen fehlgeschlagen",
 	haengtAn: "hängt schon an",
 	syncTitel: "Aus dem Wiki übernehmen",
 	syncNichts: "Alles stimmt bereits mit dem Wiki überein — nichts zu übernehmen.",
@@ -523,8 +540,13 @@ function avesmapsWikiAssignModell(erklaerung, daten, ui) {
 		// 💣 Der Rat steht AUCH hier, und zwar ANSTELLE der Tastaturhilfe: der Leerkasten ist fuer
 		// Hilfsmittel ausgeblendet (role=presentation), also erreicht ihn dort nur diese Zeile -- und
 		// „↑ ↓ wählen · Enter zuweisen" ist ohne einen einzigen Treffer ohnehin gegenstandslos.
+		// ⚠️ Welcher Vorsatz gilt, sagt `fehlerArt` -- die Zeile ist geteilt (Suche UND Zuweisung).
+		// Fehlt die Angabe, bleibt es bei der Suche: das ist der aeltere und der haeufigere Fall.
+		const fehlerVorsatz = z.fehlerArt === "zuweisen"
+			? AVESMAPS_WIKI_ASSIGN_TEXTE.zuweisenFehler
+			: AVESMAPS_WIKI_ASSIGN_TEXTE.suchFehler;
 		modell.hinweis = suchFehler !== ""
-			? AVESMAPS_WIKI_ASSIGN_TEXTE.suchFehler + " — " + suchFehler
+			? fehlerVorsatz + " — " + suchFehler
 			: (modell.treffer.length === 0
 				? AVESMAPS_WIKI_ASSIGN_TEXTE.keineTreffer + " · " + (leerRat === "" ? AVESMAPS_WIKI_ASSIGN_TEXTE.suchHinweis : leerRat)
 				: modell.treffer.length + " Treffer · " + AVESMAPS_WIKI_ASSIGN_TEXTE.suchHinweis);
@@ -1312,6 +1334,7 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 			}
 			ui.treffer = [];
 			ui.aktiv = 0;
+			ui.fehlerArt = "suche";
 			ui.suchFehler = avesmapsWikiAssignText(fehler && fehler.message) || "Unbekannter Fehler.";
 			zeichneTreffer();
 		});
@@ -1331,6 +1354,8 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 		if (!treffer) {
 			return;
 		}
+		// ⏱️ Der Anfang der Messung -- siehe den Ablehnungszweig unten.
+		const begonnen = Date.now();
 		avesmapsWikiAssignRufen(opt.zuweisen, treffer).then(() => {
 			// 🔴 Das Bauteil uebernimmt den Treffer SELBST in seinen Zustand, statt neu zu laden:
 			// eine Oberflaeche, die erst beim „Speichern“ schreibt (Kraftlinien), haette sonst
@@ -1346,16 +1371,47 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 			ungespeichert = true;
 			ui = neuerZustand("zugewiesen");
 			zeichne();
-		}, () => {
+		}, (fehler) => {
 			// 🔴 DER SERVER HAT NEIN GESAGT -- also wird NICHTS gemalt. Bis zum 16.08.2026 gab es
 			// hier gar keinen zweiten Zweig: eine abgelehnte Zusage aus `zuweisen` blieb eine
 			// unbehandelte Ablehnung, und die Suche blieb offen stehen. Schlimmer waere nur das
 			// Gegenteil gewesen -- den Treffer trotzdem zu uebernehmen und eine Zuweisung zu
 			// zeigen, die es auf dem Server nicht gibt (der Typriegel Fluss <-> Strasse antwortet
 			// genau so: HTTP 200, `type_ok:false`, nichts geschrieben).
-			// ⚠️ Die Begruendung gehoert der Oberflaeche -- sie kennt den Endpunkt und meldet den
-			// Grund dort, wo sie ihre uebrigen Meldungen zeigt.
-			ui.suchFehler = "";
+			// 🔴 UND SIE SAGT ES SEIT DEM 02.09.2026 AUCH IN DER SUCHE. Hier stand `ui.suchFehler = ""`
+			// -- also das GEGENTEIL: die Meldung wurde geloescht, und neu gezeichnet wurde auch nicht.
+			// Die Oberflaeche meldet den Grund zwar (`showFeedbackToast`), aber ein Toast ist fluechtig
+			// und erscheint am anderen Ende des Bildes; der Editor klickt eine Zeile an und sieht
+			// DORT nichts. Gemeldet als „es wird angezeigt, aber ich kann es nicht anklicken" -- der
+			// Klick kam an, `zuweisen` lief, und nichts an der Liste hat sich geruehrt.
+			// ⚠️ Beides bleibt: der Toast der Oberflaeche (sie kennt den Endpunkt) UND diese Zeile am
+			// Ort des Klicks. Sie widersprechen einander nicht -- die eine ist die Nachricht, die
+			// andere der Zustand.
+			// ⏱️ MIT DER DAUER, UND DAS IST HIER DER EIGENTLICHE BEFUND. Vor jedem Wiki-Abruf des
+			// Servers sitzt eine Drossel von 20 s (AVESMAPS_WIKI_REQUEST_DELAY_MICROSECONDS,
+			// api/_internal/wiki/drossel.php), und `assign_to` holt die Seite LIVE. „Nach 21 s"
+			// unterscheidet damit eine ueberschrittene Zeitgrenze von einer echten Absage -- ohne die
+			// Zahl sehen beide Faelle gleich aus.
+			// ⚠️ Erst ab AVESMAPS_WIKI_ASSIGN_LANGSAM_MS, sonst stuende an jeder gewoehnlichen Absage
+			// („Ziel-Ort nicht gefunden") ein „nach 0 s", das nichts sagt.
+			// 💣 EINE NOCH LAUFENDE SUCHE WUERDE DIESE MELDUNG SOFORT WIEDER WEGWISCHEN -- im Browser
+			// gemessen: `zeichneTreffer` lief zweimal in derselben Millisekunde, zuerst mit dem Grund,
+			// dann mit leerem `suchFehler` aus `trefferHolen.then`. Beide teilen sich EINE Hinweiszeile,
+			// und der Erfolgszweig der Suche leert sie bedingungslos.
+			// ⭐ Der Riegel dafuer steht laengst da und wird hier nur benutzt: `laufendeSuche` laesst
+			// jede ueberholte Antwort aussteigen (`meine !== laufendeSuche`). Ein Klick auf einen Treffer
+			// beendet die Suche ohnehin -- was noch unterwegs ist, geht niemanden mehr etwas an.
+			laufendeSuche++;
+			const gedauert = Date.now() - begonnen;
+			const grund = avesmapsWikiAssignText(fehler && fehler.message) || "Unbekannter Fehler.";
+			ui.fehlerArt = "zuweisen";
+			ui.suchFehler = gedauert >= AVESMAPS_WIKI_ASSIGN_LANGSAM_MS
+				? ("nach " + Math.round(gedauert / 1000) + " s: " + grund)
+				: grund;
+			// ⚠️ Die Trefferliste bleibt STEHEN. Ein misslungenes Zuweisen sagt nichts ueber die
+			// Treffer aus; sie zu leeren naehme dem Editor den zweiten Versuch -- und die Suche ist
+			// serverseitig gedrosselt, ein neuer Anlauf kostet also echte Sekunden.
+			zeichneTreffer();
 		});
 	}
 
