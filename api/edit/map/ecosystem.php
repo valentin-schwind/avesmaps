@@ -85,7 +85,10 @@ try {
         // 🔴 TROCKENLAUF IST DIE VORGABE, scharf braucht dieselben ZWEI Signale wie
         // assign_wiki_region (dry_run=false UND confirm='apply'): ein scharfer Lauf schreibt
         // Label-Zeilen und macht damit die ~21 MB Kartennutzlast fuer jeden Besucher ungueltig.
-        'push_wiki_regions_to_labels' => avesmapsEcosystemPushWikiRegionsToLabelsAll(
+        // 🔴 Der NAME der Aktion bleibt, obwohl sie seit dem 02.09.2026 auch die ART nachzieht: eine
+        // Editorseite aus dem Browsercache ruft genau diese Zeichenkette, und der Deploy loescht nie
+        // (§10). Dieselbe Trennung wie bei „Neuigkeiten"/`changelog`.
+        'push_wiki_regions_to_labels' => avesmapsEcosystemPushRegionDataToLabelsAll(
             $pdo,
             $userId,
             avesmapsEcosystemAssignIsDryRun($payload)

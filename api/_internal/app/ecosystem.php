@@ -3184,6 +3184,17 @@ function avesmapsUpdateEcosystemRegion(PDO $pdo, array $payload, int $userId): a
             (string) ($after['wiki_url'] ?? ''),
             $userId
         );
+        // 🔴 UND DIE ART, aus demselben Grund und mit derselben Quelle (`$after`): der
+        // Landschaften-Editor ändert sie über genau diese Aktion und zieht das Label nicht nach --
+        // er ist der Erzeuger, der die 31 falsch typisierten Beschriftungen angesammelt hat.
+        // ⚠️ Nur `feature_subtype`; Grösse und Ab-Zoom bleiben (siehe die Funktion).
+        avesmapsEcosystemPushRegionTypeToLabels(
+            $pdo,
+            $publicId,
+            ($after['label_public_id'] ?? null) === null ? null : (string) $after['label_public_id'],
+            (string) ($after['region_type'] ?? ''),
+            $userId
+        );
         avesmapsEcosystemWriteAuditLog(
             $pdo,
             'update_region',
@@ -3711,6 +3722,204 @@ function avesmapsEcosystemPushWikiRegionsToLabelsAll(PDO $pdo, int $userId, bool
         'labels' => $labels,
         'names' => $namen,
         'names_truncated' => count($offen) > count($namen),
+    ];
+}
+
+// DIE ART DER FLÄCHE WANDERT AN IHRE BESCHRIFTUNGEN (Owner 02.09.2026: „zieh die art der fläche an
+// die beschriftung nach").
+//
+// 🔴 DER BEFUND: live standen **31** Beschriftungen auf `region`, während ihre Fläche eine andere Art
+// trug — 27 davon Wälder. Zwei sichtbare Folgen: der Name wird weiss gezeichnet statt im Grünton der
+// Waldlabels, und die Dubletten-Regel des Konfliktzentrums (gleicher Schlüssel + Name + ART) sieht
+// ein doppeltes Waldlabel deshalb gar nicht.
+//
+// 🔴 DER ERZEUGER WAR DER LANDSCHAFTEN-EDITOR: er ändert die Art über `update_region` und zieht das
+// Label NICHT nach — anders als der Flächendialog auf der Karte (`renameLinkedEcosystemLabel`), der
+// es seit jeher tut. Dieselbe Ein-von-zwei-Erzeugern-Lücke wie bei der Wiki-Zuweisung darüber, und
+// deshalb steht die Regel hier, am gemeinsamen Schreibweg.
+//
+// 💣 GESCHRIEBEN WIRD NUR `feature_subtype`, NIE Grösse und Ab-Zoom — gemessen, nicht bequem: von
+// den 31 tragen **30 den Stil ihrer Art bereits korrekt** (er wird beim ANLEGEN gesetzt,
+// `createEcosystemRegionLabel`). Der einzige Ausreisser (Corarkuri, 18/3 statt 18/2) sieht nach
+// Handarbeit aus, und die zurückzusetzen ist genau das, was der Client-Durchtrag ausdrücklich
+// vermeidet („ein blosses Umbenennen darf keine Handarbeit zurücksetzen"). Dazu kommt: die
+// Stiltabelle `ECOSYSTEM_LABEL_STYLE_BY_TYPE` lebt im BROWSER, eine Serverkopie wäre die zweite
+// Wahrheit aus §5.
+// ⚠️ Der Preis ist benannt: wer die Art im LANDSCHAFTEN-EDITOR wechselt, bekommt die neue Farbe,
+// aber Grösse und Ab-Zoom der alten. Im Flächendialog kommt beides mit.
+//
+// 🔴 KEINE Art an der Fläche heisst „unbekannt", nicht „region": die Beschriftung bleibt dann
+// unangetastet — dieselbe Richtung und dieselbe Begründung wie beim Wiki-Durchtrag.
+function avesmapsEcosystemPushRegionTypeToLabels(
+    PDO $pdo,
+    string $regionPublicId,
+    ?string $primaryLabelPublicId,
+    string $regionType,
+    int $userId
+): array {
+    $regionType = trim($regionType);
+    $regionPublicId = trim($regionPublicId);
+    $leer = ['labels' => 0, 'applied' => 0, 'revision' => null];
+    if ($regionType === '' || $regionPublicId === '') {
+        return $leer;
+    }
+
+    $labelPublicIds = avesmapsEcosystemRegionLabelPublicIds($pdo, $regionPublicId, $primaryLabelPublicId);
+    if ($labelPublicIds === []) {
+        return $leer;
+    }
+
+    $placeholders = implode(', ', array_fill(0, count($labelPublicIds), '?'));
+    $read = $pdo->prepare(
+        "SELECT * FROM map_features
+          WHERE public_id IN ({$placeholders}) AND feature_type = 'label' AND is_active = 1"
+    );
+    $read->execute(array_values($labelPublicIds));
+    $rows = $read->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+    // 💣 NUR die eine Spalte. Ein `SET feature_subtype = …, size = …` wäre die Stelle, an der eine
+    // gepflegte Grösse verschwindet, ohne dass es jemand merkt.
+    $update = $pdo->prepare(
+        'UPDATE map_features SET feature_subtype = :feature_subtype, revision = :revision, updated_by = :updated_by
+          WHERE id = :id'
+    );
+    $revision = null;
+    $applied = 0;
+    foreach ($rows as $row) {
+        if (trim((string) ($row['feature_subtype'] ?? '')) === $regionType) {
+            continue;
+        }
+        $revision ??= avesmapsNextMapRevision($pdo);
+        $update->execute([
+            'feature_subtype' => $regionType,
+            'revision' => $revision,
+            'updated_by' => $userId > 0 ? $userId : null,
+            'id' => (int) $row['id'],
+        ]);
+        avesmapsWriteMapAuditLog(
+            $pdo,
+            (int) $row['id'],
+            'update_label',
+            $userId,
+            avesmapsEncodeAuditJson($row),
+            avesmapsEncodeAuditJson([
+                'public_id' => (string) $row['public_id'],
+                'feature_subtype' => $regionType,
+                'revision' => $revision,
+                'reason' => 'ecosystem_region_type_push',
+            ])
+        );
+        $applied++;
+    }
+
+    return ['labels' => count($rows), 'applied' => $applied, 'revision' => $revision];
+}
+
+// DER BESTANDSLAUF dazu — Zwilling von avesmapsEcosystemPushWikiRegionsToLabelsAll, Zeile für Zeile
+// dieselbe Bauform: EIN Durchgang über die Beschriftungen für die Auswahl, danach der geteilte
+// Durchtrag je betroffener Region, Trockenlauf als Vorgabe.
+//
+// 🔴 ZWEI Läufe statt einem gemeinsamen, obwohl derselbe Knopf beide anstösst: es sind zwei Fragen
+// („welcher Artikel gehört dazu" gegen „was ist das für eine Fläche"), sie haben verschiedene
+// Bedingungen, und ein Lauf, der beide in einer Schleife entscheidet, macht aus zwei prüfbaren
+// Regeln eine unprüfbare.
+function avesmapsEcosystemPushRegionTypesToLabelsAll(PDO $pdo, int $userId, bool $dryRun = true): array
+{
+    $regionen = $pdo->query(
+        "SELECT public_id, name, region_type, label_public_id
+           FROM ecosystem_region
+          WHERE is_active = 1 AND region_type IS NOT NULL AND region_type <> ''"
+    )->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    if ($regionen === []) {
+        return ['dry_run' => $dryRun, 'regions' => 0, 'labels' => 0, 'names' => [], 'names_truncated' => false];
+    }
+
+    $artJeLabel = [];
+    $labelsJeRegion = [];
+    $labelZeilen = $pdo->query(
+        "SELECT public_id, feature_subtype, properties_json FROM map_features
+          WHERE feature_type = 'label' AND is_active = 1"
+    )->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    foreach ($labelZeilen as $zeile) {
+        $labelPublicId = (string) ($zeile['public_id'] ?? '');
+        $artJeLabel[$labelPublicId] = trim((string) ($zeile['feature_subtype'] ?? ''));
+        $properties = json_decode((string) ($zeile['properties_json'] ?? ''), true);
+        $zeiger = is_array($properties) ? trim((string) ($properties['ecosystem_region_public_id'] ?? '')) : '';
+        if ($zeiger !== '') {
+            $labelsJeRegion[$zeiger][] = $labelPublicId;
+        }
+    }
+
+    $offen = [];
+    foreach ($regionen as $region) {
+        $art = trim((string) ($region['region_type'] ?? ''));
+        $eigene = $labelsJeRegion[(string) $region['public_id']] ?? [];
+        $primaer = trim((string) ($region['label_public_id'] ?? ''));
+        if ($primaer !== '' && array_key_exists($primaer, $artJeLabel)) {
+            $eigene[] = $primaer;
+        }
+        foreach (array_unique($eigene) as $labelPublicId) {
+            if (($artJeLabel[$labelPublicId] ?? '') !== $art) {
+                $offen[] = $region;
+                break;
+            }
+        }
+    }
+
+    $namen = [];
+    foreach ($offen as $region) {
+        if (count($namen) >= AVESMAPS_ECOSYSTEM_PUSH_NAMES_LIMIT) {
+            break;
+        }
+        $namen[] = (string) ($region['name'] ?? '');
+    }
+
+    $labels = 0;
+    if (!$dryRun) {
+        foreach ($offen as $region) {
+            $labels += avesmapsEcosystemPushRegionTypeToLabels(
+                $pdo,
+                (string) $region['public_id'],
+                ($region['label_public_id'] ?? null) === null ? null : (string) $region['label_public_id'],
+                (string) ($region['region_type'] ?? ''),
+                $userId
+            )['applied'];
+        }
+    }
+
+    return [
+        'dry_run' => $dryRun,
+        'regions' => count($offen),
+        'labels' => $labels,
+        'names' => $namen,
+        'names_truncated' => count($offen) > count($namen),
+    ];
+}
+
+// Was eine Fläche weiss, bekommt ihre Beschriftung — beides auf einen Knopf.
+//
+// 🔴 ZWEI Läufe, EINE Aktion: für den Editor ist es ein Handgriff („was an der Fläche steht, soll
+// auch an ihrer Beschriftung stehen"), für den Code sind es zwei getrennt prüfbare Regeln. Sie in
+// EINE Schleife zu ziehen machte aus zwei Zusicherungen eine unklare.
+//
+// 💣 `regions` und `labels` bleiben als SUMMEN in der Antwort, obwohl die Aufschlüsselung darunter
+// steht: eine Editorseite, die noch aus dem Browsercache läuft, liest genau diese zwei Schlüssel —
+// fielen sie weg, meldete sie „nichts offen", während beides offen ist. Eine stille Falschmeldung
+// ist schlimmer als eine grobe Zahl. ⚠️ Eine Fläche, die BEIDES braucht, zählt in `regions` deshalb
+// zweimal; die genauen Zahlen stehen in `wiki` und `art`.
+function avesmapsEcosystemPushRegionDataToLabelsAll(PDO $pdo, int $userId, bool $dryRun = true): array
+{
+    $wiki = avesmapsEcosystemPushWikiRegionsToLabelsAll($pdo, $userId, $dryRun);
+    $art = avesmapsEcosystemPushRegionTypesToLabelsAll($pdo, $userId, $dryRun);
+
+    return [
+        'dry_run' => $dryRun,
+        'regions' => $wiki['regions'] + $art['regions'],
+        'labels' => $wiki['labels'] + $art['labels'],
+        'names' => array_values(array_unique(array_merge($wiki['names'], $art['names']))),
+        'names_truncated' => $wiki['names_truncated'] || $art['names_truncated'],
+        'wiki' => $wiki,
+        'art' => $art,
     ];
 }
 
