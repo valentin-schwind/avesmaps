@@ -369,7 +369,9 @@ function avesmapsEigenerKnotenBindungAnwenden(
         $bewegt['map_reports'] = $meldungen->rowCount();
 
         // --- Die Schluesselwanderung ----------------------------------------------------------
-        $bewegt['wiki_territory_model'] = avesmapsEigenerKnotenBindungModellUmhaengen($pdo, $eigenKey, $zielKey);
+        // ⚠️ Die angehakten Felder reisen MIT: nur ein UNGEHAKTES bekommt einen Override, damit der
+        // naechste „Uebernehmen" den Hand-Wert nicht platt macht (siehe dort).
+        $bewegt['wiki_territory_model'] = avesmapsEigenerKnotenBindungModellUmhaengen($pdo, $eigenKey, $zielKey, $felder);
 
         // 💣 `sync_decision` hat den PRIMAERSCHLUESSEL (kind, entity_key, change_type). Tragen BEIDE
         // Schluessel eine Entscheidung -- der Normalfall, sobald der Wiki-Artikel schon einmal in
@@ -526,10 +528,11 @@ function avesmapsEigenerKnotenBindungAnspruchUmhaengen(PDO $pdo, int $alteId, in
  * Ohne die Vererbung zoege der naechste sync_parent_cache die Hierarchie um -- das Wiki sagt
  * `Staat=Inoffiziell:Káhet Ni Kemi`, der Editor hat etwas anderes entschieden.
  */
-function avesmapsEigenerKnotenBindungModellUmhaengen(PDO $pdo, string $eigenKey, string $zielKey): int
+function avesmapsEigenerKnotenBindungModellUmhaengen(PDO $pdo, string $eigenKey, string $zielKey, array $felder = []): int
 {
     $eigen = $pdo->prepare(
-        'SELECT parent_wiki_key, parent_locked FROM wiki_territory_model WHERE wiki_key = :k LIMIT 1'
+        'SELECT parent_wiki_key, parent_locked, metadata_overrides_json
+           FROM wiki_territory_model WHERE wiki_key = :k LIMIT 1'
     );
     $eigen->execute(['k' => $eigenKey]);
     $zeile = $eigen->fetch(PDO::FETCH_ASSOC);
@@ -539,13 +542,44 @@ function avesmapsEigenerKnotenBindungModellUmhaengen(PDO $pdo, string $eigenKey,
     $bewegt = $kinder->rowCount();
 
     if ($zeile) {
-        // 💣 Kein Upsert -- siehe avesmapsEigenerKnotenBindungSetzen.
-        avesmapsEigenerKnotenBindungSetzen($pdo, 'wiki_territory_model', 'wiki_key', $zielKey, [
+        // 🔴 DIE OVERRIDES DER UNGEHAKTEN FELDER WANDERN MIT, und ohne sie haelt die Bindung nur bis
+        // zum naechsten „3 · Uebernehmen".
+        // 💣 avesmapsWikiSyncMonitorApplyIdentityPreview rechnet den geltenden Wert als
+        // `override ?? staging`. Wird die Modellzeile des eigenen Knotens SAMT ihrer Overrides
+        // geloescht und die Zielzeile hat keine, ist der geltende Wert der (oft leere) Wiki-Wert --
+        // „Tá'akîb (Baronie)" stuende dann in „Geaendert", VORANGEHAKT, und der naechste Uebernehmen
+        // machte den Hand-Wert still platt. Der Owner haette die Bindung wiederholen muessen.
+        // Gefunden am 02.09.2026 auf die Frage „muss ich das nochmal machen".
+        // 🔴 Ein ANGEHAKTES Feld bekommt KEINEN Override: angehakt heisst „das Wiki pflegt es ab
+        // jetzt" -- ein Override daneben hielte genau das auf.
+        // ⚠️ Ein Override, den die ZIELZEILE schon hat, bleibt: sie ist die ueberlebende Identitaet
+        // („der Wiki-Knoten gewinnt"), und ihre Entscheidung ist die juengere ueber diesen Artikel.
+        $eigeneOv = json_decode((string) ($zeile['metadata_overrides_json'] ?? ''), true);
+        $eigeneOv = is_array($eigeneOv) ? $eigeneOv : [];
+        foreach ($felder as $feld) {
+            unset($eigeneOv[(string) $feld]);
+        }
+
+        $zielAlt = $pdo->prepare('SELECT metadata_overrides_json FROM wiki_territory_model WHERE wiki_key = :k LIMIT 1');
+        $zielAlt->execute(['k' => $zielKey]);
+        $zielOv = json_decode((string) ($zielAlt->fetchColumn() ?: ''), true);
+        $zielOv = is_array($zielOv) ? $zielOv : [];
+
+        $spalten = [
             'parent_wiki_key' => $zeile['parent_wiki_key'],
             'parent_locked' => (int) ($zeile['parent_locked'] ?? 0),
             'excluded' => 0,
             'source_origin' => 'wiki',
-        ]);
+        ];
+        // ⚠️ `+` behaelt bei gleichem Schluessel den LINKEN Wert -- die Zielzeile gehoert also nach
+        // links, damit ihr Override gewinnt.
+        $vereint = $zielOv + $eigeneOv;
+        if ($vereint !== []) {
+            $spalten['metadata_overrides_json'] = json_encode($vereint, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        }
+
+        // 💣 Kein Upsert -- siehe avesmapsEigenerKnotenBindungSetzen.
+        avesmapsEigenerKnotenBindungSetzen($pdo, 'wiki_territory_model', 'wiki_key', $zielKey, $spalten);
         $pdo->prepare('DELETE FROM wiki_territory_model WHERE wiki_key = :k')->execute(['k' => $eigenKey]);
         $bewegt++;
     }

@@ -578,4 +578,51 @@ pruefe((string) $vz['coat_of_arms_url'] === '/uploads/wappen/wiki.png',
 pruefe((int) $vz['capital_place_id'] === 42,
     '⚠️ Aber ihre LUECKE wird gefuellt -- sonst ginge die Hauptstadt-Verknuepfung still verloren.');
 
+// ---- Teil 7: die Bindung HAELT auch den naechsten „3 · Uebernehmen" aus ------------------------
+//
+// 🪤 Der Owner vor dem Livegang: „bist du dir absolut sicher, dass ich dump und sync nicht nochmal
+// machen muss?" -- die Antwort lag eine Ebene tiefer. avesmapsWikiSyncMonitorApplyIdentityPreview
+// rechnet den geltenden Wert als `override ?? staging`. Wird die Modellzeile des eigenen Knotens
+// SAMT Overrides geloescht, ist der geltende Status der (leere) Wiki-Wert -- „Tá'akîb (Baronie)"
+// stuende in „Geaendert", VORANGEHAKT, und der naechste Uebernehmen machte ihn still platt.
+// 🔴 Gefahren wird hier der ECHTE Rechner, nicht eine Behauptung ueber ihn.
+$db3 = bindungDb();
+$db3->exec("INSERT INTO political_territory (public_id, wiki_key, slug, name, type, status, continent, is_active)
+            VALUES ('H-ALT', 'eigener-knoten:knoten090', 'halt', 'Táyârret', 'Baronie', 'Tá''akîb (Baronie)', 'Myranor', 1)");
+$db3->exec("INSERT INTO wiki_territory_model (wiki_key, parent_wiki_key, parent_locked, source_origin, metadata_overrides_json)
+            VALUES ('eigener-knoten:knoten090', NULL, 1, 'custom',
+              '{\"name\":\"Táyârret\",\"status\":\"Tá''akîb (Baronie)\",\"type\":\"Baronie\"}')");
+// Das Staging kennt den Artikel -- mit LEEREM Status, wie die echte Seite.
+$db3->exec("INSERT INTO political_territory_wiki_test (wiki_key, name, type, status, continent)
+            VALUES ('wiki:inoffiziell-t-y-rret', 'Táyârret', 'Tá''akîb', '', 'Myranor')");
+
+// „type" angehakt (das Wiki pflegt es ab jetzt), „status" NICHT (bleibt von uns).
+avesmapsEigenerKnotenBindungAnwenden($db3, 'eigener-knoten:knoten090', 'wiki:inoffiziell-t-y-rret',
+    ['name', 'type'], avesmapsEigenerKnotenBindungZielWerte($db3, 'wiki:inoffiziell-t-y-rret'));
+
+$ovRoh = json_decode((string) $db3->query(
+    "SELECT metadata_overrides_json FROM wiki_territory_model WHERE wiki_key = 'wiki:inoffiziell-t-y-rret'"
+)->fetchColumn(), true);
+$ov = is_array($ovRoh) ? $ovRoh : [];
+pruefe(($ov['status'] ?? null) === "Tá'akîb (Baronie)",
+    '💣 Der Override des UNGEHAKTEN Feldes wandert mit -- sonst haelt die Bindung nur bis zum '
+    . 'naechsten „Uebernehmen".');
+pruefe(!array_key_exists('type', $ov),
+    '🔴 Ein ANGEHAKTES Feld bekommt KEINEN Override -- angehakt heisst „das Wiki pflegt es ab jetzt".');
+
+// ⚠️ DER ECHTE RECHNER LAESST SICH HIER NICHT FAHREN, und das steht hier statt einer stillen Luecke:
+// avesmapsWikiSyncMonitorApplyIdentityPreview ruft avesmapsWikiSyncMonitorEnsureTables ->
+// avesmapsPoliticalEnsureTables, und das ist MySQL-DDL (gemessen 02.09.2026: wirft auf SQLite).
+// 🔴 Stattdessen wird seine REGEL festgenagelt, an der Quelle: er nimmt den Override VOR dem
+// Staging-Wert. Genau darauf beruht der mitgewanderte Override oben -- aendert sich die Regel,
+// bricht dieser Test, und nicht erst der Bestand.
+$identitaet = (string) file_get_contents(__DIR__ . '/../sync-monitor-identity.php');
+pruefe(
+    str_contains($identitaet, "\$effStatus = array_key_exists('status', \$ov) ? (string) \$ov['status'] : (string) (\$s['status'] ?? '');"),
+    '💣 apply_identity nimmt den Override VOR dem Staging-Wert -- darauf beruht die ganze Sicherung. '
+    . 'Aendert sich diese Zeile, haelt der mitgewanderte Override den naechsten Uebernehmen nicht mehr auf.'
+);
+// 🔧 OFFEN und bewusst nicht behauptet: dass die Vorschau mit diesem Override wirklich keine
+// Statusaenderung mehr meldet, ist gegen die ECHTE Datenbank nie gemessen worden.
+
 echo "eigener-knoten-wiki-bindung: {$checks} Zusicherungen gruen.\n";
