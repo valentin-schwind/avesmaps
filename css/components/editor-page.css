@@ -491,6 +491,24 @@ body.avm-editor-body {
 	color: var(--color-text);
 }
 
+/* Die Uebernahme-Vorschau der Wiki-Bindung (Sync-Monitor, Entwurf
+   docs/superpowers/specs/2026-09-02-eigene-knoten-wiki-zuweisung-design.md) fuehrt LAENGERE
+   Feldbeschriftungen als jedes andere Panel -- "Hauptstadt-Verknuepfung" und "Wappen-Lizenz"
+   kommen aus avesmapsWikiSyncMonitorEditableFields, wo das Detailpanel nur eine Auswahl zeigt.
+   Mit `white-space: nowrap` (oben) und fester Spaltenbreite lief der Text in die Wertespalte,
+   und das Haekchen lag darauf; live gesehen 02.09.2026.
+
+   🔴 SIE STEHT HIER UND NICHT INLINE IN html/wiki-sync-monitor.html. Ein <style>-Block dort
+   steht HINTER dem <link> und ueberstimmt die geteilten Feldregeln lautlos -- genau so drifteten
+   Feldtext und Zeilenpolster schon einmal auseinander. js/pages/__tests__/editor-row-single-source.test.js
+   verbietet es, und der Deploy faellt darauf (einmal passiert beim Bau dieser Regel).
+   ⚠️ Sie ERWEITERT nur, sie ersetzt nichts: gebunden an .dt-bindung, also auf den einen Kasten
+   beschraenkt; der volle Name steht dort im title. */
+.dt-bindung .dt-grid .k {
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
 /* External links always carry a trailing ↗ (AGENTS.md §12); the arrow is written in the markup. */
 .dt-link { color: var(--accent); text-decoration: none; }
 .dt-link:hover { text-decoration: underline; }

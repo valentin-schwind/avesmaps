@@ -290,12 +290,11 @@
   .dt-bindung__treffer > div:hover { background:var(--color-hover-wash); }
   .dt-bindung__kanon { font-size:var(--font-size-caption); color:var(--mut); }
   .dt-bindung__folgen { margin:var(--space-4) 0; font-size:var(--font-size-small); color:var(--mut); }
-  /* ⚠️ Die Vorschau fuehrt LAENGERE Beschriftungen als das Panel darueber ("Hauptstadt-Verknuepfung",
-     "Wappen-Lizenz"), und die geteilte Regel .dt-grid .k steht auf `white-space: nowrap` bei fester
-     Spaltenbreite -- der Text lief in die Wertespalte und das Haekchen lag darauf (live gesehen
-     02.09.2026). Gekuerzt wird HIER und nur hier; die geteilte Regel traegt alle Editoren und bleibt
-     unberuehrt. Der volle Name steht im title. */
-  .dt-bindung .dt-grid .k { overflow:hidden; text-overflow:ellipsis; }
+  /* ⚠️ Die Kuerzung der langen Feldbeschriftung steht NICHT hier, sondern in
+     css/components/editor-page.css neben der geteilten Regel, die sie erweitert. Ein inliner
+     <style>-Block steht hinter dem <link> und ueberstimmt die geteilten Feldregeln lautlos --
+     js/pages/__tests__/editor-row-single-source.test.js verbietet das, und der Deploy faellt
+     darauf. Gemessen 02.09.2026: genau dieser Versuch hat das Tor geschlossen. */
   /* Upload-Dialog */
   .modal { position:fixed; inset:0; background:var(--color-scrim-dialog); display:flex; align-items:center; justify-content:center; z-index:100; }
   .modal[hidden] { display:none; }
