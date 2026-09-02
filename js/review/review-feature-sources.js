@@ -469,7 +469,12 @@ function renderFeatureSourceAddRow(escape, tr) {
     // korpus gehört (seiten z.b. nicht)"). Was hier drinsteht, gilt fuer ALLE Belege dieses Wirts;
     // was draussen steht, gehoert dieser einen Fundstelle. Ohne die sichtbare Grenze sieht ein
     // Editor der Zeile nicht an, dass ein Griff zur Lizenz 50 Objekte trifft.
-    '<span class="fs-korpus" data-fs-korpus-gruppe>' +
+    // 🔴 VERBORGEN, bis eine Adresse einen Korpus ergibt (Owner 02.09.2026: „dieses feld kommt
+    // wenn ich eine NEUE quelle erstellen will"). Vorher fragt der Kasten nach Form, Art, Lizenz
+    // und Nennung eines Korpus, den es noch gar nicht gibt -- fuenf Reihen Ballast vor der einen
+    // Sache, die man wirklich tun will: einen Link einfuegen. Der Rahmen war richtig, sein
+    // ZEITPUNKT war falsch.
+    '<span class="fs-korpus" data-fs-korpus-gruppe hidden>' +
     '<span class="fs-korpus__l">' + escape(tr("sources.add.corpusGroup", "Gilt für den ganzen Korpus")) + "</span>" +
     '<label class="fs-af fs-af--korpus"><span class="fs-af__l">' +
     escape(tr("sources.add.corpusLabel", "Name des Korpus")) +
@@ -1140,6 +1145,12 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
    */
   function uebernehmeKorpus(korpus) {
     letzterKorpus = korpus || null;
+    // Der Kasten erscheint mit dem Korpus und verschwindet mit ihm -- er ist die Antwort auf eine
+    // Adresse, keine Frage vor ihr.
+    const gruppe = containerEl.querySelector("[data-fs-korpus-gruppe]");
+    if (gruppe) {
+      gruppe.hidden = !korpus;
+    }
     const feld = containerEl.querySelector("[data-fs-corpus]");
     const meta = containerEl.querySelector("[data-fs-corpus-meta]");
     const marker = (name, an) => {
@@ -1547,6 +1558,9 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
       // ⚠️ Und die bekannte Zeile gilt nicht mehr: eine geänderte Adresse meint eine ANDERE Quelle,
       // und eine Korrektur dürfte auf keinen Fall an der alten landen.
       letzteBekannteQuelle = null;
+      // ⚠️ Und der Korpuskasten mit -- er gehoert zur ALTEN Adresse. Bliebe er stehen, zeigte er
+      // Werte eines Wirts, den der Editor gerade verlassen hat.
+      uebernehmeKorpus(null);
     });
     // Der Korpusname wird beim Verlassen des Feldes gespeichert, nicht bei jedem Tastendruck --
     // eine Umbenennung, die alle Belege trifft, gehört nicht an ein `input`-Ereignis.

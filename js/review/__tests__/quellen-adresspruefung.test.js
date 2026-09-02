@@ -266,6 +266,22 @@ zaehl();
 assert.ok(/data-fs-corpus-meta/.test(html), "und daneben Platz für Schlüssel und Reichweite");
 zaehl();
 
+// 🔴 DER KASTEN STARTET VERBORGEN. Owner 02.09.2026 am Bild: „dieses feld kommt wenn ich eine NEUE
+// quelle erstellen will" — dort fragte er nach Form, Art, Lizenz und Nennung eines Korpus, den es
+// noch gar nicht gab: fünf Reihen Ballast vor der einen Sache, die man tun will, nämlich einen
+// Link einfügen. Der Rahmen war richtig, sein ZEITPUNKT war falsch.
+assert.ok(/data-fs-korpus-gruppe hidden/.test(html),
+  "der Korpuskasten ist verborgen, bis eine Adresse einen Korpus ergibt");
+zaehl();
+assert.ok(/gruppe\.hidden = !korpus;/.test(quelltextKorr),
+  "er erscheint mit dem Korpus und verschwindet mit ihm");
+zaehl();
+// ⚠️ Und beim Ändern der Adresse fällt er weg: er gehört zur ALTEN. Bliebe er stehen, zeigte er
+// die Werte eines Wirts, den der Editor gerade verlassen hat.
+assert.ok(/letzteBekannteQuelle = null;[\s\S]{0,260}uebernehmeKorpus\(null\);/.test(quelltextKorr),
+  "eine geänderte Adresse nimmt den Korpuskasten mit");
+zaehl();
+
 // ⚠️ VIER Marker „· vom Korpus", und alle starten VERBORGEN: ein dauerhaft sichtbarer Marker
 // behauptete, der Korpus gebe den Wert vor, auch wenn er gar keinen trägt.
 const marker = html.match(/data-fs-from="(\w+)" hidden/g) || [];
