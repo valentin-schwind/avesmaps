@@ -1211,10 +1211,17 @@ function isLabelOfActiveEcosystemLayer(label) {
 // 💣 Wer das mit der GROESSE gleich behandelt, nimmt den Editoren entweder ihre Baender weg (Tafel
 // gilt) oder laesst die Groesse wirkungslos (Tafel raet). Beides ist genau falsch herum.
 //
-// 🔴 UND GENAU EINE AUSNAHME: BEI GIPFELN GILT DIE TAFEL (Owner 27.08.2026, „berggipfel und vulkane
-// sollen ab Z4 erscheinen“). Als blosse Vorgabe waere die Anweisung wirkungslos gewesen -- live
-// traegt jeder der 73 Gipfel ein eigenes min_zoom, verteilt ueber z2 bis z6. Die Ausnahme MUSS eine
-// bleiben: gaelte sie fuer alle Arten, waere sie der Fehler, vor dem der Absatz darueber warnt.
+// 🔴 UND ES GIBT KEINE AUSNAHME -- AUCH NICHT FUER GIPFEL (Owner 02.09.2026: „die einstellung bei
+// darstellung zu den freien labels sind nur die default werte - die kleinen dreieckchen“, und
+// „ich wollte nur dass berggipfel durch die einstellung eine vorgabe bekommen, aber nie dass die
+// eigenen nicht ueberschrieben werden koennen“).
+//
+// 🪤 VOM 27.08. BIS ZUM 02.09.2026 STAND HIER DAS GEGENTEIL: fuer `berggipfel` und `vulkan`
+// schlug die Tafel das eigene Band. Das war eine Fehllesung der Anweisung „berggipfel und vulkane
+// sollen ab Z4 erscheinen“ -- gemeint war die VORGABE (die Marke unter dem Regler), nicht ein
+// Riegel. Der Preis: „Sichtbar ab Zoom“ war im Beschriftungsdialog fuer ALLE 76 Gipfel wirkungslos,
+// und zwar STILL -- der Wert wurde weiter gespeichert und nur beim Zeichnen ignoriert. Gemeldet an
+// „Der Dreizack“, der mit eigenem min_zoom 6 live schon ab z4 dastand.
 //
 // ⭐ Eigene, REINE Funktion, damit ein Test sie AUSFUEHREN kann. Als Ausdruck mitten in
 // shouldShowLabelMarker liess sie sich nur ueber ihren Quelltext pruefen -- und eine Mutation, die
@@ -1229,20 +1236,14 @@ function avesmapsLabelImBand(label, bandZoom) {
 	const max = Number(rohMax);
 	const hatEigenes = rohMin !== null && rohMin !== undefined && Number.isFinite(min)
 		&& rohMax !== null && rohMax !== undefined && Number.isFinite(max);
-	// 🔴 Ein Gipfel folgt der Tafel, nicht seinem eigenen Band -- die eine Ausnahme, oben begruendet.
-	// ⚠️ `typeof` wie beim Nachbarn darunter: diese Datei laedt vor dem Hoehenmodul, und der Test
-	// schneidet die Funktion allein heraus. Fehlt die Liste, gilt „kein Gipfel“ -- das Verhalten von
-	// vorher, kein Wurf.
-	const istGipfel = typeof isEcosystemPeakSubtype === "function"
-		&& isEcosystemPeakSubtype(label?.labelType);
-	if (hatEigenes && !istGipfel) {
+	if (hatEigenes) {
 		return bandZoom >= min && bandZoom <= max;
 	}
 	if (typeof avesmapsEcosystemDisplaySichtbar === "function") {
 		return avesmapsEcosystemDisplaySichtbar(label?.labelType, bandZoom);
 	}
-	// 🪤 Der Notausgang: fehlt auch die Tafel, faellt ein Gipfel auf sein eigenes Band zurueck. Das ist
-	// die sichere Richtung -- lieber ein Name zur falschen Zoomstufe als gar keiner.
+	// 🪤 Der Notausgang: fehlt auch die Tafel, gilt das ganze Band. Das ist die sichere Richtung --
+	// lieber ein Name zur falschen Zoomstufe als gar keiner.
 	return bandZoom >= (Number.isFinite(min) ? min : 0) && bandZoom <= (Number.isFinite(max) ? max : 7);
 }
 

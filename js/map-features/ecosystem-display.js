@@ -78,13 +78,17 @@ const AVESMAPS_ECOSYSTEM_DISPLAY_VORGABE = { ab: 0, bis: 7, curveMax: 1, prio: 3
  */
 const AVESMAPS_ECOSYSTEM_DISPLAY_VORGABE_JE_ART = {
 	auenlandschaft: { ab: 4 },   // 10 Namen, 40 % einig
-	// 🔴 DIESE ZEILE UND `vulkan` SIND KEIN GEMESSENER MEDIAN MEHR, SONDERN EIN OWNER-ENTSCHEID --
-	// UND SIE GELTEN (27.08.2026: „berggipfel und vulkane sollen ab Z4 erscheinen“). Fuer jede andere
-	// Art raet diese Tafel nur; fuer die zwei Gipfelarten schlaegt sie das eigene Band des Labels
-	// (avesmapsLabelImBand). Ohne das waere die Anweisung wirkungslos geblieben: live traegt JEDER
-	// der 73 Gipfel ein eigenes min_zoom (z2: 2, z3: 30, z4: 19, z5: 17, z6: 5).
-	// 💣 Wer hier „Alle uebernehmen“ im Darstellungs-Fenster drueberschreibt, verschiebt damit eine
-	// Entscheidung und nicht bloss eine Marke.
+	// 🔴 DIESE ZEILE UND `vulkan` SIND KEIN GEMESSENER MEDIAN, SONDERN EIN OWNER-ENTSCHEID
+	// (27.08.2026: „berggipfel und vulkane sollen ab Z4 erscheinen“) -- ABER SIE RATEN WIE JEDE
+	// ANDERE ZEILE AUCH.
+	// 🪤 Bis zum 02.09.2026 schlug diese Zahl fuer die zwei Gipfelarten das eigene Band des Labels
+	// (avesmapsLabelImBand). Das war eine Fehllesung; Owner 02.09.2026: „ich wollte nur dass
+	// berggipfel durch die einstellung eine vorgabe bekommen, aber nie dass die eigenen nicht
+	// ueberschrieben werden koennen“. Sie wirkt also nur auf einen Gipfel OHNE eigenes Band -- und
+	// heute traegt es jeder der 76 (min_zoom live 02.09.2026: z2: 2, z3: 31, z4: 24, z5: 8, z6: 10,
+	// z7: 1). Die Zahl ist damit vorerst die Marke im Dialog und sonst nichts.
+	// 💣 Wer hier „Alle uebernehmen“ im Darstellungs-Fenster drueberschreibt, schreibt sie in die
+	// Beschriftungen -- und macht sie damit erst wirksam.
 	berggipfel: { ab: 4 },   // Owner-Entscheid 27.08.2026 (gemessener Median war ebenfalls 4)
 	ebene: { ab: 3 },   // 2 Namen, 50 % einig
 	fluss: { ab: 4 },   // 21 Namen, 67 % einig
