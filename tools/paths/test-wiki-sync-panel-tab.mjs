@@ -112,6 +112,7 @@ assert.ok(namedLoaders.length >= 7, `expected the table to guard every loader, f
 // ⚠️ Wer hier eine Liste von Hand fuehrt, muss sie erweitern, sobald ein Lader in eine neue Datei
 // zieht -- sonst meldet dieser Test einen Fehler, den es nicht gibt, und verdeckt den, den es gibt.
 const searched = ["js/review/review-wiki-sync.js", "js/review/review-wiki-sync-cases.js",
+	"js/review/review-wiki-sync-lore-list.js",
 	"js/review/review-settlement-list.js", "js/review/review-region-sync.js", "js/review/review-path-sync.js",
 	"js/review/review-powerline-list.js"]
 	.map((file) => readFileSync(path.join(repoRoot, file), "utf8")).join("\n");
