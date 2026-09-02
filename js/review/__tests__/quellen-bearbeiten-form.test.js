@@ -275,8 +275,11 @@ function felderAusHtml(html) {
 		"die Verknuepfungs-Haelfte sind genau Seiten und Abdeckung");
 	const katalogFelder = php.match(/AVESMAPS_FEATURE_SOURCE_CATALOG_FIELDS = \[([^\]]+)\]/)[1]
 		.match(/'([a-z_]+)'/g).map((s) => s.replace(/'/g, ""));
-	gleich(katalogFelder, ["url", "label", "source_type", "license", "attribution", "is_official"],
-		"und die Katalog-Haelfte die uebrigen sechs -- die Adresse seit dem 01.09.2026 dabei");
+	// ⚠️ `own_fields` ist seit dem 02.09.2026 dabei und gehoert hierher: welche Korpusfelder diese
+	// ZEILE selbst besitzt, gilt ueberall, wo sie zitiert wird -- also katalogweit, nicht an der
+	// einzelnen Verknuepfung. Es zaehlt damit auch in die Rueckfrage ab der Schwelle.
+	gleich(katalogFelder, ["url", "label", "source_type", "license", "attribution", "is_official", "own_fields"],
+		"und die Katalog-Haelfte die uebrigen sieben -- die Adresse seit dem 01.09., der Besitzstand seit dem 02.09.2026");
 
 	// 🔴 Und die drei, die einer Wiki-Publikation gehoeren. Zwei davon (Titel, offiziell) schreibt
 	// der Abgleich zurueck; bei der Adresse gehoert ihm die IDENTITAET -- gleiche Sperre, ANDERER
@@ -289,10 +292,20 @@ function felderAusHtml(html) {
 	// 🪤 Der Kasten muss GENAU diese Felder bauen -- keins mehr, keins weniger. Ohne diese
 	// Gegenprobe koennte ein neues Serverfeld im Formular fehlen (unerreichbar) oder ein
 	// Formularfeld ohne Serverpendant „unknown_field" ernten.
-	const imKasten = (renderFeatureSourceEditPanel(QUELLE, (v) => String(v), (k, f) => f)
-		.match(/data-fs-field="([a-z_]+)"/g) || []).map((s) => s.replace(/.*="|"/g, ""));
-	gleich(imKasten.slice().sort(), linkFelder.concat(katalogFelder).sort(),
-		"der Kasten baut genau die Felder, die der Server kennt");
+	const kastenHtml = renderFeatureSourceEditPanel(QUELLE, (v) => String(v), (k, f) => f);
+	const imKasten = (kastenHtml.match(/data-fs-field="([a-z_]+)"/g) || [])
+		.map((s) => s.replace(/.*="|"/g, ""));
+	// ⚠️ `own_fields` ist die AUSNAHME und muss es sein: es ist kein Eingabefeld, sondern die
+	// Menge der vier Abweichungs-Haekchen (`data-fs-own`). Ein `data-fs-field="own_fields"` gaebe
+	// es doppelt -- einmal als Wert, einmal als Haekchen -- und `featureSourceChangedFields`
+	// nimmt dann, was zufaellig zuletzt im DOM steht.
+	const erwartet = linkFelder.concat(katalogFelder).filter((f) => f !== "own_fields");
+	gleich(imKasten.slice().sort(), erwartet.sort(),
+		"der Kasten baut genau die Felder, die der Server kennt -- ausser dem Besitzstand");
+	// Und der wird als HAEKCHEN gebaut, eines je korpuseigenem Feld.
+	const haken = (kastenHtml.match(/data-fs-own="([a-z_]+)"/g) || []).map((s) => s.replace(/.*="|"/g, ""));
+	gleich(haken.slice().sort(), ["attribution", "is_official", "license", "source_type"],
+		"der Besitzstand steht als vier Haekchen da, nicht als Eingabefeld");
 }
 
 // ══ G. „Verknüpft statt angelegt" — der Satz, den das Adressfeld schuldig blieb ═════════════════

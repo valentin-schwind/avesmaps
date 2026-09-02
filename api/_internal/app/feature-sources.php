@@ -32,6 +32,7 @@ function avesmapsEnsureFeatureSourceTablesSqlite(PDO $pdo): void
             is_official INTEGER NOT NULL DEFAULT 0,
             license TEXT NOT NULL DEFAULT "",
             attribution TEXT NOT NULL DEFAULT "",
+            own_fields TEXT NOT NULL DEFAULT "",
             created_by INTEGER NULL,
             created_at TEXT NOT NULL DEFAULT "2026-01-01 00:00:00"
         )'
@@ -166,6 +167,24 @@ function avesmapsEnsureFeatureSourceTables(PDO $pdo): void
     }
     if (!$columnExists($pdo, 'sources', 'attribution')) {
         $pdo->exec("ALTER TABLE sources ADD COLUMN attribution VARCHAR(200) NOT NULL DEFAULT ''");
+    }
+
+    // 🔴 WELCHE FELDER DIESE ZEILE SELBST BESITZT — gegen den Korpus (Owner-Entscheid 02.09.2026:
+    // „Quelle soll optional noch haben: Abweichende Lizenz, Abweichende Namensnennung", auf
+    // Nachfrage auf alle vier korpuseigenen Felder erweitert).
+    //
+    // 💣 DER FALL IST NICHT HYPOTHETISCH. Live gemessen am 02.09.2026 stehen in den acht Korpora
+    // drei Widersprueche, und keiner davon ist Lizenz oder Nennung: „Der Preis der Macht"
+    // (horaswiki.de) ist ein Abenteuer und offiziell, waehrend sein Korpus „Briefspiel" und
+    // „nicht offiziell" sagt. Ein Griff an die Art des Korpus buegelte ihn platt, ohne Meldung.
+    //
+    // ⚠️ EINE Spalte mit einer LISTE, nicht vier Flags: die Menge waechst mit
+    // AVESMAPS_SOURCE_CORPUS_OWNED_FIELDS mit, und vier Spalten waeren vier Migrationen.
+    // 💣 Und sie ist BEIDSEITIG BEGRENZT gespeichert (",license,is_official," statt
+    // "license,is_official"): nur so trifft ein `LIKE '%,license,%'` genau dieses Feld und nicht
+    // zufaellig ein laengeres, das es enthaelt.
+    if (!$columnExists($pdo, 'sources', 'own_fields')) {
+        $pdo->exec("ALTER TABLE sources ADD COLUMN own_fields VARCHAR(190) NOT NULL DEFAULT ''");
     }
 
     if (!$columnExists($pdo, 'sources', 'wiki_key')) {
@@ -471,11 +490,61 @@ function avesmapsFeatureSourceHash(string $url, string $wikiKey = ''): string
  * Art einer bekannten Quelle NIE. Nur die Eingabezeile des Editors setzt $retype, und auch sie
  * nur mit einer ausdruecklichen Wahl.
  */
+/**
+ * Die Felder, die eine einzelne Quelle GEGEN ihren Korpus behaupten kann.
+ *
+ * 🔴 Es ist dieselbe Menge wie AVESMAPS_SOURCE_CORPUS_OWNED_FIELDS, und das ist die Regel:
+ * „jedes Feld, das der Korpus vorgibt, darf die einzelne Quelle ueberschreiben." Eine Liste mit
+ * Ausnahmen merkt sich niemand -- und ausgerechnet die zwei, die der Owner NICHT genannt hat
+ * (Art und „offiziell"), sind die einzigen, die den Fall im Bestand heute schon haben.
+ * ⚠️ Hier aufgeschrieben und nicht aus der Korpus-Konstante abgeleitet: `source-corpus.php` haengt
+ * AN dieser Datei, nicht umgekehrt -- viele Oberflaechen laden nur die Quellen.
+ * 💣 Seiten und Abdeckung stehen NICHT darin: die gehoeren der Verknuepfung, nie dem Katalog.
+ */
+const AVESMAPS_SOURCE_OWNABLE_FIELDS = ['source_type', 'license', 'attribution', 'is_official'];
+
+/** Aus der gespeicherten Form eine Liste. Unbekannte Namen fallen weg. */
+function avesmapsSourceOwnFieldsParse(?string $gespeichert): array
+{
+    $teile = array_filter(array_map('trim', explode(',', (string) $gespeichert)));
+    return array_values(array_intersect(AVESMAPS_SOURCE_OWNABLE_FIELDS, $teile));
+}
+
+/**
+ * Aus einer Liste die gespeicherte Form — beidseitig begrenzt.
+ *
+ * 💣 DIE FUEHRENDEN UND SCHLIESSENDEN KOMMATA SIND TRAGEND. Ohne sie traefe ein
+ * `LIKE '%,license,%'` die erste und die letzte Angabe nicht, und eine Quelle, die als einziges
+ * Feld ihre Lizenz besitzt, verloere sie beim naechsten Korpus-Speichern still.
+ * ⚠️ Leere Liste heisst LEERE Zeichenkette, nicht "," -- sonst besitzt jede Zeile scheinbar etwas.
+ */
+function avesmapsSourceOwnFieldsFormat(array $felder): string
+{
+    $rein = array_values(array_intersect(AVESMAPS_SOURCE_OWNABLE_FIELDS, $felder));
+    return $rein === [] ? '' : ',' . implode(',', $rein) . ',';
+}
+
+/**
+ * Die SQL-Bedingung „diese Zeile besitzt das Feld NICHT" — der Riegel des Korpus-Durchschriebs.
+ *
+ * 🔴 Er gehoert in JEDEN Erzeuger, der ein korpuseigenes Feld schreibt, nicht nur in den Korpus:
+ * der Upsert setzt `is_official` bedingungslos, und eine Regel, die einen von zwei Erzeugern
+ * bindet, ist keine Regel (AGENTS.md §11, dreimal bezahlt).
+ * ⚠️ Der Feldname wird gegen die Whitelist geprueft und NIE aus einer Anfrage in SQL gereicht.
+ */
+function avesmapsSourceOwnFieldsSqlGuard(string $feld): string
+{
+    if (!in_array($feld, AVESMAPS_SOURCE_OWNABLE_FIELDS, true)) {
+        throw new InvalidArgumentException('Kein korpuseigenes Feld: ' . $feld);
+    }
+    return "own_fields NOT LIKE '%," . $feld . ",%'";
+}
+
 function avesmapsSourceUpsertOnDuplicateSql(bool $refreshLabel, bool $retype): string
 {
     return "label = " . ($refreshLabel ? "IF(VALUES(label) = '', label, VALUES(label))" : "IF(label = '', VALUES(label), label)") . ",
-             is_official = VALUES(is_official),
-             source_type = " . ($retype ? 'VALUES(source_type)' : 'source_type') . ",
+             is_official = IF(" . avesmapsSourceOwnFieldsSqlGuard('is_official') . ", VALUES(is_official), is_official),
+             source_type = " . ($retype ? 'IF(' . avesmapsSourceOwnFieldsSqlGuard('source_type') . ', VALUES(source_type), source_type)' : 'source_type') . ",
              wiki_key = IF(VALUES(wiki_key) IS NULL, wiki_key, VALUES(wiki_key)),
              license = IF(VALUES(license) = '', license, VALUES(license)),
              attribution = IF(VALUES(attribution) = '', attribution, VALUES(attribution))";
@@ -708,7 +777,7 @@ function avesmapsListFeatureSourcesForEdit(PDO $pdo, string $entityType, string 
     avesmapsFeatureSourcesTakeoverOtherSource($pdo, $entityType, $publicId, $userId);
     $stmt = $pdo->prepare(
         "SELECT s.id AS source_id, s.url, s.label, s.source_type, s.is_official, s.license, s.attribution,
-                s.wiki_key, s.created_by AS quelle_von, s.created_at AS quelle_am,
+                s.wiki_key, s.own_fields, s.created_by AS quelle_von, s.created_at AS quelle_am,
                 fs.origin, fs.reference_kind, fs.pages,
                 fs.created_by AS beleg_von, fs.created_at AS beleg_am
            FROM feature_sources fs JOIN sources s ON s.id = fs.source_id
@@ -805,6 +874,10 @@ function avesmapsListFeatureSourcesForEdit(PDO $pdo, string $entityType, string 
             // kann an einem Objekt von Hand und an einem anderen vom Abgleich haengen — besitzen
             // tut sie der Abgleich in beiden Faellen.
             'wiki_owned' => trim((string) ($r['wiki_key'] ?? '')) !== '',
+            // 🔴 WELCHE KORPUSFELDER DIESE ZEILE SELBST BESITZT. Als LISTE, nicht als gespeicherte
+            // Zeichenkette: die begrenzenden Kommata sind eine SQL-Angelegenheit
+            // (`avesmapsSourceOwnFieldsSqlGuard`) und haben in der Oberfläche nichts verloren.
+            'own_fields' => avesmapsSourceOwnFieldsParse((string) ($r['own_fields'] ?? '')),
             // 🔴 ZWEI HERKÜNFTE, NICHT EINE — und sie fallen auf die zwei Reichweiten des ✎-Kastens:
             // `beleg` sagt, wer diese Quelle HIER angehängt hat, `quelle` sagt, wer sie überhaupt in
             // den Katalog gelegt hat. Bei einer Zeile mit 1.549 Objekten sind das fast nie dieselben.
@@ -1006,7 +1079,7 @@ const AVESMAPS_FEATURE_SOURCE_LINK_FIELDS = ['pages', 'reference_kind'];
  * das waere ein ZUSAMMENLEGEN, und dafuer gibt es `avesmapsMergeSourceInto` samt Protokoll. Der
  * Upsert wuerde am UNIQUE scheitern; wir sagen es vorher und nennen die andere Zeile.
  */
-const AVESMAPS_FEATURE_SOURCE_CATALOG_FIELDS = ['url', 'label', 'source_type', 'license', 'attribution', 'is_official'];
+const AVESMAPS_FEATURE_SOURCE_CATALOG_FIELDS = ['url', 'label', 'source_type', 'license', 'attribution', 'is_official', 'own_fields'];
 
 /**
  * 💣 DIE ZWEI FELDER, DIE DER WIKI-ABGLEICH SELBST PFLEGT — eine Handkorrektur daran waere eine
@@ -1106,7 +1179,7 @@ function avesmapsUpdateFeatureSource(PDO $pdo, string $entityType, string $publi
     }
 
     $catalogStatement = $pdo->prepare(
-        'SELECT url, label, source_type, is_official, license, attribution, wiki_key FROM sources WHERE id = :sid LIMIT 1'
+        'SELECT url, label, source_type, is_official, license, attribution, wiki_key, own_fields FROM sources WHERE id = :sid LIMIT 1'
     );
     $catalogStatement->execute(['sid' => $sourceId]);
     $catalog = $catalogStatement->fetch(PDO::FETCH_ASSOC);
@@ -1183,6 +1256,17 @@ function avesmapsUpdateFeatureSource(PDO $pdo, string $entityType, string $publi
             case 'is_official':
                 $neu[$name] = $wert === true || $wert === 1 || $wert === '1' ? 1 : 0;
                 break;
+            case 'own_fields':
+                // 🔴 DIE ABWEICHUNG: welche korpuseigenen Felder gehoeren AB JETZT dieser Zeile?
+                // Der Client schickt die VOLLE Menge, nicht ein Delta -- ein Delta liesse offen,
+                // ob ein fehlender Name „unveraendert" oder „zurueckgegeben" heisst.
+                // ⚠️ Unbekannte Namen fallen weg (`…Format` schneidet gegen die Whitelist), ein
+                // leeres Feld heisst „alles gehoert wieder dem Korpus" -- und das ist eine
+                // gueltige Aussage, kein fehlender Wert.
+                $neu[$name] = avesmapsSourceOwnFieldsFormat(is_array($wert)
+                    ? $wert
+                    : avesmapsSourceOwnFieldsParse((string) $wert));
+                break;
         }
     }
 
@@ -1196,6 +1280,7 @@ function avesmapsUpdateFeatureSource(PDO $pdo, string $entityType, string $publi
         'license' => (string) ($catalog['license'] ?? ''),
         'attribution' => (string) ($catalog['attribution'] ?? ''),
         'is_official' => (int) ($catalog['is_official'] ?? 0),
+        'own_fields' => (string) ($catalog['own_fields'] ?? ''),
     ];
     $aenderungen = [];
     foreach ($neu as $name => $wert) {
@@ -1322,6 +1407,15 @@ function avesmapsUpdateFeatureSource(PDO $pdo, string $entityType, string $publi
     $korpusDurchschrieb = null;
     if ($katalogAenderungen !== [] && function_exists('avesmapsSourceCorpusSave')) {
         $korpusFelder = array_intersect_key($katalogAenderungen, array_flip(AVESMAPS_SOURCE_CORPUS_OWNED_FIELDS));
+        // 🔴 WAS DIESE ZEILE SELBST BESITZT, GEHT NICHT AN DEN KORPUS (Owner 02.09.2026). Sonst
+        // hiesse „weicht ab" nur, dass die Abweichung im selben Zug zur neuen Regel des ganzen
+        // Wirts wird -- das genaue Gegenteil.
+        // ⚠️ Gemessen am NEUEN Stand ($neu), nicht am gespeicherten: wer in einem Zug die Lizenz
+        // aendert UND sie als eigen erklaert, meint beides zusammen.
+        $besitz = avesmapsSourceOwnFieldsParse(
+            array_key_exists('own_fields', $neu) ? (string) $neu['own_fields'] : (string) $bestand['own_fields']
+        );
+        $korpusFelder = array_diff_key($korpusFelder, array_flip($besitz));
         $korpusKey = $korpusFelder === [] ? '' : avesmapsSourceCorpusKey((string) ($catalog['url'] ?? ''));
         $bekannte = avesmapsSourceCorpusReadAll($pdo);
         if ($korpusKey !== '' && isset($bekannte[$korpusKey])) {

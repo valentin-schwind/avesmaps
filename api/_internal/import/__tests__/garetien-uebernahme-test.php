@@ -262,7 +262,8 @@ function avesmapsGaretienUebernahmeTestPdo(): PDO
     // "no such column". Dieselbe Loesung wie in feature-source-live-entity-test.php.
     $pdo->exec('CREATE TABLE sources (id INTEGER PRIMARY KEY AUTOINCREMENT, url TEXT, url_hash TEXT UNIQUE,
         wiki_key TEXT NULL, label TEXT, source_type TEXT, is_official INTEGER DEFAULT 0, created_by INTEGER NULL,
-        license TEXT NOT NULL DEFAULT \'\', attribution TEXT NOT NULL DEFAULT \'\', created_at TEXT DEFAULT "2026-01-01")');
+        license TEXT NOT NULL DEFAULT \'\', attribution TEXT NOT NULL DEFAULT \'\',
+        own_fields TEXT NOT NULL DEFAULT \'\', created_at TEXT DEFAULT "2026-01-01")');
     // ⚠️ `created_at` gehoert dazu, auch wenn dieser Test es nie liest: die Fixture legt die Tabelle
     // SELBST an, und `avesmapsEnsureFeatureSourceTables` ist danach ein `IF NOT EXISTS`-Nulllauf --
     // eine fehlende Spalte faellt hier also nicht auf, sondern erst dort, wo die Produktion sie

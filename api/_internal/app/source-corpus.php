@@ -430,17 +430,24 @@ function avesmapsSourceCorpusSave(PDO $pdo, string $corpusKey, array $felder, in
             // erlaubt PDO nicht -- gemischt verrutschen die Werte lautlos: am 02.09.2026 landeten
             // beim ersten Versuch „1" und „2" (die Bindungsindizes) in `source_type` und `license`,
             // und von drei Zeilen wurde genau eine getroffen. Kein Fehler, keine Ausnahme.
-            $setzen = [];
-            $werteQ = [];
-            foreach ($durchschreiben as $name => $wert) {
-                $setzen[] = $name . ' = ?';
-                $werteQ[] = $wert;
-            }
+            //
+            // 🔴 EIN UPDATE JE FELD, NICHT EINES FUER ALLE -- und das ist keine Umstaendlichkeit:
+            // seit dem 02.09.2026 kann eine einzelne Quelle ein korpuseigenes Feld SELBST besitzen
+            // (`sources.own_fields`), und der Durchschrieb muss genau dieses Feld ueberspringen,
+            // die uebrigen aber schreiben. In EINEM Statement ginge das nur mit einem CASE je
+            // Spalte -- laenger, schwerer zu lesen und in SQLite anders zu schreiben.
+            // ⚠️ Die Bedingung kommt aus `avesmapsSourceOwnFieldsSqlGuard`: sie prueft den
+            // Feldnamen gegen die Whitelist, es wandert also nie ein Anfragewert in dieses SQL.
             $platz = implode(',', array_fill(0, count($ids), '?'));
-            $stmt = $pdo->prepare(
-                'UPDATE sources SET ' . implode(', ', $setzen) . ' WHERE id IN (' . $platz . ')'
-            );
-            $stmt->execute(array_merge($werteQ, $ids));
+            foreach ($durchschreiben as $name => $wert) {
+                $riegel = function_exists('avesmapsSourceOwnFieldsSqlGuard')
+                    ? ' AND ' . avesmapsSourceOwnFieldsSqlGuard($name)
+                    : '';
+                $stmt = $pdo->prepare(
+                    'UPDATE sources SET ' . $name . ' = ? WHERE id IN (' . $platz . ')' . $riegel
+                );
+                $stmt->execute(array_merge([$wert], $ids));
+            }
             $betroffen = count($ids);
             // 💣 DER KARTENSTEMPEL. Art, Lizenz und Namensnennung reisen in der ETag-zwischen-
             // gespeicherten map-features-Nutzlast (`source_catalog`). Ohne den Stempel bekaeme

@@ -360,6 +360,64 @@ $pdo->exec("UPDATE feature_sources SET status = 'suppressed' WHERE entity_public
 assert(avesmapsFeatureSourceUsageCount($pdo, 7) === 3, 'unterdrueckte Verknuepfungen zaehlen nicht mit');
 $zaehl();
 
+// ══ 8a. EIN FELD, DAS DIE ZEILE SELBST BESITZT, GEHT NICHT AN DEN KORPUS ════════════════════════
+// 🔴 Sonst hiesse „weicht ab" nur, dass die Abweichung im selben Zug zur neuen Regel des ganzen
+// Wirts wird -- das genaue Gegenteil. Owner-Entscheid 02.09.2026.
+// ⚠️ Gefahren wird der ECHTE Schreibweg (`avesmapsUpdateFeatureSource`), nicht der Quelltext: die
+// Weiche sitzt zwischen zwei Zweigen, und ein `str_contains` saehe nie, welcher genommen wird.
+// 🪤 UND DER `require` GEHOERT DAZU. Ohne ihn ist `function_exists` falsch, der ganze Block laeuft
+// NIE, und der Test bleibt gruen -- beim ersten Bau genau so passiert und nur daran aufgefallen,
+// dass die Zahl der Zusicherungen sich nicht bewegte. Ein Riegel, der die eigene Pruefung
+// ueberspringt, ist die teuerste Sorte Vakuum.
+require_once __DIR__ . '/../source-corpus.php';
+assert(function_exists('avesmapsSourceCorpusSave'), 'das Korpus-Modul ist geladen');
+$zaehl();
+if (function_exists('avesmapsSourceCorpusSave')) {
+    $pdo = avesmapsQuellenTestPdo(1);
+    $pdo->exec("UPDATE sources SET url = 'https://horaswiki.de/wiki/Der_Preis_der_Macht',
+        url_hash = '" . hash('sha256', 'https://horaswiki.de/wiki/Der_Preis_der_Macht') . "',
+        wiki_key = NULL, source_type = 'briefspiel', is_official = 0 WHERE id = 7");
+    avesmapsSourceCorpusSave($pdo, 'horaswiki.de',
+        ['label' => 'LieblichesFeld-Wiki', 'source_type' => 'briefspiel'], 9, true);
+
+    // (a) OHNE Besitz wandert die Art in den Korpus -- die Gegenprobe, ohne die (b) auch dann
+    //     gruen waere, wenn die Weiche gar nichts mehr durchliesse.
+    $antwort = avesmapsUpdateFeatureSource($pdo, 'settlement', 'ort-1', 7, ['source_type' => 'abenteuer'], 9, true);
+    assert(isset($antwort['corpus_applied']), 'ohne Besitz trifft eine Artaenderung den ganzen Korpus');
+    $zaehl();
+    assert($pdo->query("SELECT source_type FROM source_corpus WHERE corpus_key = 'horaswiki.de'")->fetchColumn() === 'abenteuer',
+        'und der Korpus traegt sie danach');
+    $zaehl();
+
+    // (b) MIT Besitz bleibt der Korpus, wie er ist.
+    $pdo->exec("UPDATE source_corpus SET source_type = 'briefspiel' WHERE corpus_key = 'horaswiki.de'");
+    $pdo->exec("UPDATE sources SET source_type = 'briefspiel',
+        own_fields = '" . avesmapsSourceOwnFieldsFormat(['source_type']) . "' WHERE id = 7");
+    $antwort = avesmapsUpdateFeatureSource($pdo, 'settlement', 'ort-1', 7, ['source_type' => 'abenteuer'], 9, true);
+    assert(($antwort['ok'] ?? false) === true, 'die Aenderung selbst geht durch');
+    $zaehl();
+    assert(!isset($antwort['corpus_applied']),
+        'aber sie wird NICHT als Korpusaenderung gemeldet -- die Zeile besitzt das Feld');
+    $zaehl();
+    assert($pdo->query("SELECT source_type FROM source_corpus WHERE corpus_key = 'horaswiki.de'")->fetchColumn() === 'briefspiel',
+        'und der Korpus steht unveraendert da');
+    $zaehl();
+    assert($pdo->query('SELECT source_type FROM sources WHERE id = 7')->fetchColumn() === 'abenteuer',
+        'die Zeile selbst hat ihre Art trotzdem bekommen');
+    $zaehl();
+
+    // (c) Besitz und Wert in EINEM Zug: gemessen wird der NEUE Besitzstand, nicht der gespeicherte.
+    $pdo->exec("UPDATE sources SET source_type = 'briefspiel', own_fields = '' WHERE id = 7");
+    $antwort = avesmapsUpdateFeatureSource($pdo, 'settlement', 'ort-1', 7,
+        ['source_type' => 'abenteuer', 'own_fields' => ['source_type']], 9, true);
+    assert(!isset($antwort['corpus_applied']),
+        'wer in einem Zug aendert UND als eigen erklaert, meint beides zusammen');
+    $zaehl();
+    assert($pdo->query("SELECT own_fields FROM sources WHERE id = 7")->fetchColumn() === ',source_type,',
+        'und der Besitzstand steht danach in der Zeile');
+    $zaehl();
+}
+
 // ══ 8b. WER HAT DAS EINGETRAGEN -- und zwar ZWEIMAL ═════════════════════════════════════════════
 // 🔴 Owner 02.09.2026: „der editor, der die quelle eingefuegt hat und das datum ... die felder
 // koennen nur eingesehen, nicht veraendert werden."

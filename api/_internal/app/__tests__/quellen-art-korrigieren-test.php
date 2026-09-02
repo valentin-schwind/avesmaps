@@ -99,8 +99,20 @@ $zaehl();
 assert(!str_contains($ohne, 'source_type = VALUES(source_type)'),
     'und wird auf keinen Fall mitgeschrieben');
 $zaehl();
-assert(str_contains($mit, 'source_type = VALUES(source_type)'),
+assert(str_contains($mit, 'VALUES(source_type)'),
     'mit Erlaubnis wird sie richtiggestellt');
+$zaehl();
+// 🔴 SEIT DEM 02.09.2026 MIT EINEM ZWEITEN RIEGEL: eine Quelle kann ein korpuseigenes Feld SELBST
+// besitzen (`sources.own_fields`). Dann gewinnt sie -- auch gegen eine ausdrueckliche Umtypung.
+// Die zwei Riegel sind UND-verknuepft und meinen Verschiedenes: `$retype` fragt „darf dieser
+// Aufrufer ueberhaupt umtypen?", `own_fields` fragt „gehoert das Feld noch dem Korpus?".
+assert(str_contains($mit, "IF(own_fields NOT LIKE '%,source_type,%', VALUES(source_type), source_type)"),
+    'und eine Zeile, die ihre Art selbst besitzt, behaelt sie trotzdem');
+$zaehl();
+// 💣 `is_official` war das EINZIGE Feld, das der Upsert bedingungslos ueberschrieb -- und es wirkt
+// katalogweit. Genau dort ist der Riegel am noetigsten.
+assert(str_contains($ohne, "is_official = IF(own_fields NOT LIKE '%,is_official,%', VALUES(is_official), is_official)"),
+    'der Kanon-Haken wird nicht mehr bedingungslos ueberschrieben');
 $zaehl();
 // Die Nachbarfelder duerfen dabei nicht verrutschen -- sie tragen ihre eigenen Einbahnregeln.
 foreach ([$ohne, $mit] as $sql) {

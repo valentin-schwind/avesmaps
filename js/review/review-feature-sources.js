@@ -253,6 +253,11 @@ function featureSourceHerkunftZeile(herkunft, wortlaut, escape, tr) {
 function renderFeatureSourceEditPanel(source, escape, tr) {
   const usage = Number(source.usage_count) || 1;
   const wikiOwned = source.wiki_owned === true;
+  // 🔴 WELCHE KORPUSFELDER DIESE ZEILE SELBST BESITZT. Owner 02.09.2026: „Quelle soll optional
+  // noch haben: Abweichende Lizenz, Abweichende Namensnennung" -- auf Nachfrage auf alle vier
+  // korpuseigenen Felder erweitert, weil die einzigen Abweichungen im Bestand ausgerechnet die
+  // zwei anderen sind (Art und „offiziell" an „Der Preis der Macht").
+  const eigen = Array.isArray(source.own_fields) ? source.own_fields.slice() : [];
   const feld = (name, wert, markup) =>
     '<label class="fs-field' + (name === "url" ? " fs-field--full" : (name === "label" || name === "attribution" ? " fs-field--grow" : "")) + '">'
     + "<span>" + escape(wert) + "</span>" + markup + "</label>";
@@ -279,6 +284,41 @@ function renderFeatureSourceEditPanel(source, escape, tr) {
   const lizenzEintraege = [{ wert: "", text: tr("sources.add.licenseNone", "Lizenz …") }].concat(
     Object.keys(lizenzTafel).map((k) => ({ wert: k, text: lizenzTafel[k].label }))
   );
+
+  /**
+   * Ein korpuseigenes Feld — mit dem Häkchen, das es der Quelle zuschlägt.
+   *
+   * 🔴 EIN Eingabefeld, nicht zwei. Der naheliegende Entwurf (ein zweiter Kasten „Nur für diese
+   * Quelle" mit denselben vier Feldern) legte zwei Elemente mit demselben `data-fs-field` an --
+   * und `featureSourceChangedFields` liest sie beide. Welcher Wert gewinnt, entschiede dann die
+   * DOM-Reihenfolge. Das Feld bleibt also, wo es ist; das Häkchen sagt, für wen es gilt.
+   * 💣 Und es sagt es AM FELD, nicht in der Überschrift: die Gruppe heißt weiter „Gilt für den
+   * ganzen Korpus", und ohne den Marker am Feld wäre ein angehaktes Feld eine stille Ausnahme
+   * unter einer Überschrift, die das Gegenteil verspricht.
+   * ⚠️ Der durchgestrichene Korpuswert erscheint nur, wenn er sich WIRKLICH unterscheidet und
+   * nicht leer ist -- ein durchgestrichenes Nichts ist keine Auskunft. Bauteil und Optik sind
+   * `wiki-override.css` (`.wiki-alt`, `.dt-old`): der Korpus verhält sich zur Quelle wie das Wiki
+   * zum Kartenobjekt, und dafür gibt es die Form längst.
+   */
+  // 💣 VERGLICHEN WIRD DER SCHLÜSSEL, ANGEZEIGT DER TEXT. Die erste Fassung hielt `source.license`
+  // („cc-by-sa-4.0") gegen die Beschriftung des Korpuswertes („CC BY-SA 4.0") -- die sind NIE
+  // gleich, also stand über jedem angehakten Feld eine Abweichung, auch wo es keine gab. Gefangen
+  // hat das der Test, nicht der Blick: im Bild sieht ein zu viel durchgestrichener Wert plausibel aus.
+  const korpusFeld = (name, beschriftung, markup, eigenerWert, korpusRoh, korpusText) => {
+    const istEigen = eigen.indexOf(name) !== -1;
+    const abweichend = istEigen && String(korpusText || "") !== "" && String(eigenerWert || "") !== String(korpusRoh || "");
+    return '<label class="fs-field' + (name === "attribution" ? " fs-field--grow" : "")
+      + (istEigen ? " fs-field--eigen" : "") + '">'
+      + "<span>" + escape(beschriftung)
+      + (abweichend
+        ? '<span class="wiki-alt"><span class="dt-old">' + escape(korpusText) + "</span></span>"
+        : "")
+      + "</span>" + markup
+      + '<span class="fs-eigen"><input type="checkbox" data-fs-own="' + escape(name) + '"'
+      + ' data-fs-own-orig="' + (istEigen ? "1" : "0") + '"' + (istEigen ? " checked" : "")
+      + "> " + escape(tr("sources.edit.ownField", "nur diese Quelle")) + "</span>"
+      + "</label>";
+  };
 
   const kopf = (titel, reichweite) =>
     '<div class="fs-edit__head"><span class="fs-edit__title">' + escape(titel) + "</span>"
@@ -307,15 +347,24 @@ function renderFeatureSourceEditPanel(source, escape, tr) {
   // behauptet die Ueberschrift Korpus-Reichweite und zeigt darunter etwas anderes -- und wer den
   // gezeigten Wert stehen laesst, glaubt, er habe den Korpus bestaetigt.
   // ⚠️ Nur bei einem BEKANNTEN Korpus. Gibt es keinen, bleibt die Zeile ihre eigene Wahrheit.
+  // 🔴 EIN BESESSENES FELD ZEIGT SEINEN EIGENEN WERT, nicht den des Korpus. Ohne diese Zeile stand
+  // im Bild „Quellenart: Briefspiel" mit einem durchgestrichenen „Briefspiel" daneben -- derselbe
+  // Wert zweimal, einmal als Bestand und einmal als das, wovon er angeblich abweicht. Der Kasten
+  // widersprach sich selbst; gefunden hat es der Blick, nicht der Test.
   const korpusWert = (feldName, rueckfall) => {
+    if (eigen.indexOf(feldName) !== -1) {
+      return String(rueckfall);
+    }
     if (korpus && korpus.known === true && korpus[feldName] !== undefined && korpus[feldName] !== "") {
       return String(korpus[feldName]);
     }
     return String(rueckfall);
   };
-  const korpusHaken = (korpus && korpus.known === true && korpus.is_official !== undefined)
-    ? korpus.is_official === true
-    : source.official === true;
+  const korpusHaken = eigen.indexOf("is_official") !== -1
+    ? source.official === true
+    : ((korpus && korpus.known === true && korpus.is_official !== undefined)
+      ? korpus.is_official === true
+      : source.official === true);
 
   const hinweis = wikiOwned
     ? '<div class="fs-edit__note fs-edit__note--locked">'
@@ -376,12 +425,37 @@ function renderFeatureSourceEditPanel(source, escape, tr) {
     + '<div class="fs-edit__group">'
     + kopf(korpusTitel, korpusReichweite)
     + '<div class="fs-edit__fields">'
-    + feld("source_type", tr("sources.colType", "Quellenart"), auswahl("source_type", korpusWert("source_type", source.type || "sonstiges"), typEintraege, false))
-    + feld("license", tr("sources.colLicense", "Lizenz"), auswahl("license", korpusWert("license", source.license || ""), lizenzEintraege, false))
-    + feld("attribution", tr("sources.add.attribution", "Namensnennung"), text("attribution", korpusWert("attribution", source.attribution || ""), tr("sources.edit.attributionHint", "z. B. VolkoV / garetien.de"), false))
-    + '<label class="fs-check"><input type="checkbox" data-fs-field="is_official" data-fs-orig="'
+    + korpusFeld("source_type", tr("sources.colType", "Quellenart"),
+      auswahl("source_type", korpusWert("source_type", source.type || "sonstiges"), typEintraege, false),
+      source.type || "", String((korpus && korpus.source_type) || ""),
+      featureSourceTypeLabel(korpus && korpus.source_type))
+    + korpusFeld("license", tr("sources.colLicense", "Lizenz"),
+      auswahl("license", korpusWert("license", source.license || ""), lizenzEintraege, false),
+      source.license || "", String((korpus && korpus.license) || ""),
+      (lizenzTafel[String((korpus && korpus.license) || "")] || {}).label || "")
+    + korpusFeld("attribution", tr("sources.add.attribution", "Namensnennung"),
+      text("attribution", korpusWert("attribution", source.attribution || ""), tr("sources.edit.attributionHint", "z. B. VolkoV / garetien.de"), false),
+      source.attribution || "", String((korpus && korpus.attribution) || ""),
+      String((korpus && korpus.attribution) || ""))
+    // ⚠️ Der Kanon-Haken traegt sein „nur diese Quelle" ebenso -- er ist das Feld, das der Upsert
+    // bis zum 02.09.2026 als EINZIGES bedingungslos ueberschrieb, und damit das gefaehrlichste.
+    + '<label class="fs-check' + (eigen.indexOf("is_official") !== -1 ? " fs-field--eigen" : "") + '">'
+    + '<input type="checkbox" data-fs-field="is_official" data-fs-orig="'
     + (korpusHaken ? "1" : "0") + '"' + (korpusHaken ? " checked" : "") + (wikiOwned ? " disabled" : "")
-    + "> " + escape(tr("sources.add.official", "offiziell")) + "</label>"
+    + "> " + escape(tr("sources.add.official", "offiziell"))
+    // ⚠️ Auch hier der Korpuswert durchgestrichen, wenn er wirklich abweicht -- sonst ist „nur
+    // diese Quelle" angehakt und niemand sieht, WOVON abgewichen wird.
+    + ((eigen.indexOf("is_official") !== -1 && korpus && korpus.known === true
+        && (korpus.is_official === true) !== (source.official === true))
+      ? '<span class="wiki-alt"><span class="dt-old">'
+        + escape(korpus.is_official === true ? tr("sources.edit.yes", "offiziell") : tr("sources.edit.no", "nicht offiziell"))
+        + "</span></span>"
+      : "")
+    + '<span class="fs-eigen"><input type="checkbox" data-fs-own="is_official"'
+    + ' data-fs-own-orig="' + (eigen.indexOf("is_official") !== -1 ? "1" : "0") + '"'
+    + (eigen.indexOf("is_official") !== -1 ? " checked" : "")
+    + "> " + escape(tr("sources.edit.ownField", "nur diese Quelle")) + "</span>"
+    + "</label>"
     + "</div></div>"
     + '<div class="fs-edit__foot">'
     + '<button type="button" class="fs-edit__save" data-fs-edit-save="' + escape(source.source_id) + '">'
@@ -850,6 +924,39 @@ function featureSourceChangedFields(panel) {
     }
   });
   return felder;
+}
+
+/**
+ * Welche korpuseigenen Felder hat der Editor dieser Zeile zugeschlagen — und hat er das GEÄNDERT?
+ *
+ * 🔴 DIE VOLLE MENGE, kein Delta. Ein Delta liesse offen, ob ein fehlender Name „unverändert" oder
+ * „zurückgegeben" heisst; der Server schreibt `own_fields` als Ganzes.
+ * 💣 Und `geaendert` ist eine EIGENE Frage: ohne sie schickte jedes Speichern `own_fields` mit, und
+ * ein alter, zwischengespeicherter Client ohne diese Häkchen schriebe die Abweichungen still weg.
+ * Dieselbe Regel wie bei `source_type_chosen` (29.08.2026): „da steht ein Wert" heisst nie
+ * „ein Mensch hat ihn gewählt".
+ * ⚠️ Gesperrte Häkchen zählen nicht mit -- sie tragen den Bestand, nicht eine Wahl.
+ */
+function featureSourceOwnFieldsFromPanel(panel) {
+  const liste = [];
+  let geaendert = false;
+  if (!panel || typeof panel.querySelectorAll !== "function") {
+    return { liste, geaendert };
+  }
+  Array.prototype.forEach.call(panel.querySelectorAll("[data-fs-own]"), (el) => {
+    if (el.disabled) {
+      return;
+    }
+    const name = el.getAttribute("data-fs-own");
+    const jetzt = el.checked === true;
+    if (jetzt) {
+      liste.push(name);
+    }
+    if (jetzt !== (el.getAttribute("data-fs-own-orig") === "1")) {
+      geaendert = true;
+    }
+  });
+  return { liste, geaendert };
 }
 
 // POST helper: returns the parsed JSON body, or null on any transport/parse failure so the
@@ -1838,6 +1945,13 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
       return;
     }
     const felder = featureSourceChangedFields(panel);
+    // 🔴 DIE ABWEICHUNG REIST NUR MIT, WENN SIE GEÄNDERT WURDE. Sonst schriebe jedes Speichern
+    // `own_fields` mit -- und ein alter, zwischengespeicherter Client ohne diese Häkchen schickte
+    // eine leere Liste und löschte damit still jede Abweichung des Wirts.
+    const besitz = featureSourceOwnFieldsFromPanel(panel);
+    if (besitz.geaendert) {
+      felder.own_fields = besitz.liste;
+    }
     if (Object.keys(felder).length === 0) {
       // ⚠️ Gesagt, nicht verschluckt: ein Knopf, der wortlos nichts tut, ist von einem kaputten
       // nicht zu unterscheiden -- die Lehre aus #105.
@@ -2203,6 +2317,8 @@ if (typeof module !== "undefined" && module.exports) {
     // Die zwei reinen Helfer der Herkunftszeile -- ohne DOM fahrbar, damit die Datumszerlegung
     // und die „ohne Namen nur das Datum"-Regel einzeln geprueft werden koennen.
     featureSourceDatum, featureSourceHerkunftZeile,
+    // Die Abweichung: welche Korpusfelder gehören dieser Zeile selbst -- rein, ohne DOM-Zustand.
+    featureSourceOwnFieldsFromPanel,
     featureSourceLinkedMessage,
     // Die Adressauskunft der Eingabezeile: rein, damit „Zustand → was der Editor sieht" prüfbar
     // ist, statt nur im Browser zu gelten.
