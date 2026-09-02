@@ -292,6 +292,22 @@ try {
             avesmapsPoliticalInvalidateLayerCache();
         }
 
+        // 🔴 DIE BINDUNG EINES EIGENEN KNOTENS AENDERT BEIDE OEFFENTLICHEN NUTZLASTEN und muss
+        // deshalb BEIDE Caches anstossen -- dieselben zwei Zeilen wie beim Wappen-Schalter darueber.
+        // 💣 Sie legt eine neue political_territory-Zeile an, deaktiviert die alte, haengt Geometrie
+        // und abgeleitete Aussengrenze um UND schreibt properties.territory_wiki_key der Siedlungen.
+        // Ohne map_revision behaelt ein WARMER Browser seine abgelegte Kartennutzlast unbegrenzt:
+        // er revalidiert nur ueber das ETag, und das haengt an map_revision (AGENTS.md §10, dieselbe
+        // Falle, die die Tempowerte und der Wappen-Notaus schon bezahlt haben). Ohne die
+        // Ebenen-Invalidierung zeigt die politische Ebene bis zu 300 s das alte Gebiet.
+        // ⚠️ Nur wenn wirklich geschrieben wurde: der Dry-Run-Zweig liefert die Vorschau
+        // (`dry_run => true`) und aendert nichts.
+        if ($action === 'wiki_binding_apply' && is_array($response)
+            && ($response['ok'] ?? false) === true && ($response['dry_run'] ?? false) !== true) {
+            avesmapsWikiSyncNextMapRevision($pdo);
+            avesmapsPoliticalInvalidateLayerCache();
+        }
+
         // Editor-Status mitschreiben (Buttons zeigen frisch/veraltet relativ zur letzten Sync).
         if ($action === 'rebuild_model') {
             avesmapsWikiSyncMonitorRecordEditorAction($pdo, 'rebuild');

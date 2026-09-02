@@ -136,6 +136,17 @@ foreach (['wiki_binding_candidates', 'wiki_binding_preview', 'wiki_binding_apply
     pruefe(str_contains($endpunktCode, "'{$aktion}'"), "Die Aktion {$aktion} fehlt im Dispatch.");
 }
 
+// 🔴 BEIDE CACHES. Die Bindung legt eine political_territory-Zeile an, deaktiviert eine, haengt
+// Geometrie um UND schreibt properties.territory_wiki_key der Siedlungen -- beides sind oeffentliche
+// Nutzlasten. Ohne map_revision behaelt ein WARMER Browser seine abgelegte Kartennutzlast
+// unbegrenzt (er revalidiert nur ueber das ETag, das daran haengt); ohne die Ebenen-Invalidierung
+// zeigt die politische Ebene bis zu 300 s das alte Gebiet. Dieselbe Falle, die die Tempowerte und
+// der Wappen-Notaus schon bezahlt haben (AGENTS.md §10).
+pruefe(
+    preg_match('/wiki_binding_apply.{0,400}avesmapsWikiSyncNextMapRevision.{0,200}avesmapsPoliticalInvalidateLayerCache/s', $endpunktCode) === 1,
+    'Die Uebernahme stoesst BEIDE Caches an -- Kartenrevision und Ebenen-Cache.'
+);
+
 // 🔴 Der Schreib-Riegel des Hauses: schreiben NUR bei dry_run:false UND confirm:"apply".
 pruefe(
     preg_match('/wiki_binding_apply.{0,600}confirm.{0,40}apply/s', $endpunktCode) === 1,

@@ -512,4 +512,70 @@ pruefe(count($v) === 1 && $v[0]['unique'] === true,
     '💣 Ein in beiden Tabellen stehender Artikel ist EIN Treffer, nicht zwei -- sonst waere jeder '
     . 'uebernommene Artikel faelschlich mehrdeutig und nie vorangehakt.');
 
+// ---- Teil 6: DER ECHTE FALL, vollstaendig -------------------------------------------------------
+//
+// 🪤 Diese fuenf Fehler standen ALLE im gruenen Testfeld und fielen erst auf, als der Owner vor dem
+// Livegang fragte: „wird das zu 100% klappen? wird die hierarchie bestand haben?" (02.09.2026). Die
+// Teile davor pruefen jeder EINE Wanderung; keiner prueft, was aus dem KNOTEN wird.
+$db = bindungDb();
+$db->exec("INSERT INTO political_territory (public_id, wiki_key, slug, name, type, status,
+    coat_of_arms_url, capital_place_id, min_zoom, max_zoom, color, opacity, continent, is_active)
+  VALUES ('E-ORD', 'eigener-knoten:knoten078', 'ordoreum', 'Ordoreum', 'Provinz', NULL, NULL, NULL,
+          2, 4, '#806040', 0.5, 'Myranor', 1)");
+$ordId = (int) $db->lastInsertId();
+$db->prepare("INSERT INTO political_territory (public_id, wiki_key, slug, name, type, status,
+    coat_of_arms_url, capital_place_id, parent_id, min_zoom, max_zoom, color, opacity, continent, is_active)
+  VALUES ('E-TAY', 'eigener-knoten:knoten068', 't-y-rret', 'Táyârret', 'Baronie', 'Tá''akîb (Baronie)',
+    '/uploads/wappen/eigen.png', 666, :p, 4, 6, '#123456', 0.42, 'Myranor', 1)")->execute(['p' => $ordId]);
+$tayId = (int) $db->lastInsertId();
+$db->exec("INSERT INTO political_territory_wiki_test (wiki_key, name, type, status, capital_name, ruler, wiki_url, continent)
+  VALUES ('wiki:inoffiziell-t-y-rret', 'Táyârret', 'Tá''akîb', '', 'Djáset', 'Hékatet ni Chentasû',
+          'https://de.wiki-aventurica.de/wiki/Inoffiziell:X', 'Myranor')");
+// 💣 Der Kollisionsfall: eine dauerhafte Entscheidung auf BEIDEN Schluesseln.
+$db->exec("INSERT INTO sync_decision (kind, entity_key, change_type) VALUES ('territory', 'eigener-knoten:knoten068', 'changed')");
+$db->exec("INSERT INTO sync_decision (kind, entity_key, change_type) VALUES ('territory', 'wiki:inoffiziell-t-y-rret', 'changed')");
+
+$werte = avesmapsEigenerKnotenBindungZielWerte($db, 'wiki:inoffiziell-t-y-rret');
+$echt = avesmapsEigenerKnotenBindungAnwenden($db, 'eigener-knoten:knoten068', 'wiki:inoffiziell-t-y-rret',
+    ['name', 'type', 'continent', 'capital_name', 'ruler'], $werte, 7);
+pruefe($echt['ok'] === true,
+    '💣 sync_decision hat den PK (kind, entity_key, change_type) -- ein glattes UPDATE brach die '
+    . 'ganze Uebernahme ab, sobald BEIDE Schluessel eine Entscheidung trugen.');
+pruefe((int) $db->query("SELECT COUNT(*) FROM sync_decision")->fetchColumn() === 1,
+    'Bei Kollision bleibt die Entscheidung am ZIELSCHLUESSEL -- die des verschwindenden Knotens faellt weg.');
+
+$neu = $db->query("SELECT * FROM political_territory WHERE wiki_key = 'wiki:inoffiziell-t-y-rret' AND is_active = 1")
+    ->fetch(PDO::FETCH_ASSOC);
+
+// 🔴 DIE HIERARCHIE HAELT. Ohne den mitwandernden Elternteil wurde der Knoten zur WURZEL, und die
+// abgeleiteten Aussengrenzen aller Vorfahren verloren ihn stillschweigend.
+pruefe((int) $neu['parent_id'] === $ordId, '💣 Der Elternteil wandert mit -- der Knoten bleibt unter Ordoreum.');
+
+// 🔴 „UNGEHAKT" HEISST „BLEIBT VON UNS", NICHT „VERSCHWINDET". Die neue Zeile ist eine KOPIE der
+// alten; die angehakten Wiki-Werte kommen darueber. Ohne das war die Vorschau eine Falschaussage.
+pruefe((string) $neu['status'] === "Tá'akîb (Baronie)", '💣 Der ungehakte Hand-Wert ueberlebt.');
+pruefe((string) $neu['coat_of_arms_url'] === '/uploads/wappen/eigen.png', '💣 Das hochgeladene Wappen ueberlebt.');
+pruefe((int) $neu['capital_place_id'] === 666, '💣 Die Hauptstadt-Verknuepfung ueberlebt (das Wiki kennt nur Namen).');
+pruefe((string) $neu['color'] === '#123456' && (float) $neu['opacity'] === 0.42,
+    '💣 Farbe und Deckkraft ueberleben -- sonst wechselt das Gebiet auf der Karte sichtbar die Farbe.');
+pruefe((int) $neu['min_zoom'] === 4 && (int) $neu['max_zoom'] === 6,
+    '💣 Das von Hand gesetzte Zoomband ueberlebt -- das Wiki sagt dazu nichts.');
+
+// Und die angehakten Wiki-Werte kommen trotzdem an.
+pruefe((string) $neu['type'] === "Tá'akîb", 'Der angehakte Wiki-Wert gewinnt gegen den Hand-Wert.');
+pruefe((string) $neu['wiki_url'] !== '', 'Der Artikel-Link steht an der neuen Zeile.');
+
+// ⚠️ Der Fall „Zielzeile existierte schon": sie behaelt ihre Werte, bekommt aber, was ihr FEHLT.
+$db2 = bindungDb();
+$db2->exec("INSERT INTO political_territory (public_id, wiki_key, slug, name, coat_of_arms_url, capital_place_id, is_active)
+            VALUES ('V-ALT', 'eigener-knoten:knoten081', 'valt', 'Vorhanden', '/uploads/wappen/eigen.png', 42, 1)");
+$db2->exec("INSERT INTO political_territory (public_id, wiki_key, slug, name, status, coat_of_arms_url, is_active)
+            VALUES ('V-ZIEL', 'wiki:vorhanden', 'vorhanden', 'Vorhanden', 'Gepflegt', '/uploads/wappen/wiki.png', 1)");
+avesmapsEigenerKnotenBindungAnwenden($db2, 'eigener-knoten:knoten081', 'wiki:vorhanden', [], ['name' => 'Vorhanden']);
+$vz = $db2->query("SELECT * FROM political_territory WHERE public_id = 'V-ZIEL'")->fetch(PDO::FETCH_ASSOC);
+pruefe((string) $vz['coat_of_arms_url'] === '/uploads/wappen/wiki.png',
+    '🔴 Eine vorhandene Angabe der Zielzeile wird NIE ueberschrieben -- der Wiki-Knoten gewinnt.');
+pruefe((int) $vz['capital_place_id'] === 42,
+    '⚠️ Aber ihre LUECKE wird gefuellt -- sonst ginge die Hauptstadt-Verknuepfung still verloren.');
+
 echo "eigener-knoten-wiki-bindung: {$checks} Zusicherungen gruen.\n";

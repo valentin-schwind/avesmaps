@@ -99,7 +99,7 @@ function avesmapsEigenerKnotenBindungSlugFreigeben(PDO $pdo, int $alteId, string
  * ⚠️ Nur aktive Zeilen zaehlen als vorhanden: eine im Papierkorb liegende Zeile mit demselben
  * Schluessel soll die Bindung nicht blockieren.
  */
-function avesmapsEigenerKnotenBindungZielzeile(PDO $pdo, string $zielKey, array $werte): int
+function avesmapsEigenerKnotenBindungZielzeile(PDO $pdo, string $zielKey, array $werte, ?array $alteZeile = null): int
 {
     $vorhanden = $pdo->prepare(
         'SELECT id FROM political_territory WHERE wiki_key = :k AND is_active = 1 LIMIT 1'
@@ -110,47 +110,139 @@ function avesmapsEigenerKnotenBindungZielzeile(PDO $pdo, string $zielKey, array 
         return (int) $id;
     }
 
+    // 🔴 DIE NEUE ZEILE IST EINE KOPIE DER ALTEN, nicht ein frischer Knoten aus Wiki-Werten.
+    // 💣 Ohne das ist „ungehakt" nicht „bleibt von uns", sondern „verschwindet" -- das GEGENTEIL
+    // dessen, was die Uebernahme-Vorschau zusagt. Gemessen an der Szenarienprobe vom 02.09.2026:
+    // parent_id, status, coat_of_arms_url, capital_place_id, color, opacity und die Zoomstufen
+    // gingen samt und sonders verloren, der Knoten wurde zur Wurzel und wechselte auf der Karte
+    // die Farbe. Die Wiki-Werte kommen DARUEBER (nur die angehakten), nicht darunter.
+    // ⚠️ Farbe, Deckkraft, Zoomstufen, Verknuepfungen und der Elternteil haben im Wiki gar kein
+    // Gegenstueck -- fuer sie gibt es nichts zu entscheiden, sie wandern immer mit.
+    $alt = is_array($alteZeile) ? $alteZeile : [];
+    $ausAlt = static function (string $spalte, $ersatz = null) use ($alt) {
+        $wert = $alt[$spalte] ?? null;
+        return ($wert === null || $wert === '') ? $ersatz : $wert;
+    };
+
     $name = trim((string) ($werte['name'] ?? ''));
     if ($name === '') {
         throw new RuntimeException('Die Zielzeile braucht einen Namen.');
     }
-    $type = trim((string) ($werte['type'] ?? '')) !== '' ? trim((string) $werte['type']) : 'Herrschaftsgebiet';
+    $type = trim((string) ($werte['type'] ?? '')) !== ''
+        ? trim((string) $werte['type'])
+        : (string) $ausAlt('type', 'Herrschaftsgebiet');
     $continent = trim((string) ($werte['continent'] ?? ''));
     if ($continent === '') {
-        $continent = AVESMAPS_POLITICAL_DEFAULT_CONTINENT;
+        $continent = (string) $ausAlt('continent', AVESMAPS_POLITICAL_DEFAULT_CONTINENT);
     }
     $zoom = avesmapsPoliticalDefaultZoomRange($type);
+    // Ein von Hand gesetztes Zoomband ueberlebt: es beschreibt, wo das Gebiet auf der KARTE
+    // erscheint, und das Wiki sagt dazu nichts.
+    $minZoom = $ausAlt('min_zoom', $zoom['min_zoom']);
+    $maxZoom = $ausAlt('max_zoom', $zoom['max_zoom']);
+    $notiz = trim((string) $ausAlt('editor_notes', ''));
+    $notiz = ($notiz === '' ? '' : $notiz . ' · ') . 'Aus einem eigenen Knoten gebunden: ' . $zielKey;
 
     $pdo->prepare(
         'INSERT INTO political_territory (
-            public_id, wiki_id, wiki_key, slug, name, type, continent, status, color, opacity,
-            coat_of_arms_url, wiki_url, valid_from_bf, valid_to_bf, min_zoom, max_zoom,
+            public_id, wiki_id, wiki_key, slug, name, short_name, type, continent, status, color, opacity,
+            coat_of_arms_url, wiki_url, capital_place_id, seat_place_id,
+            valid_from_bf, valid_to_bf, valid_label, min_zoom, max_zoom,
             parent_id, is_active, editor_notes, sort_order
         ) VALUES (
-            :public_id, NULL, :wiki_key, :slug, :name, :type, :continent, :status, :color, 0.5,
-            :coat, :wiki_url, :valid_from, :valid_to, :min_zoom, :max_zoom,
-            NULL, 1, :notes, :sort_order
+            :public_id, NULL, :wiki_key, :slug, :name, :short_name, :type, :continent, :status, :color, :opacity,
+            :coat, :wiki_url, :capital, :seat,
+            :valid_from, :valid_to, :valid_label, :min_zoom, :max_zoom,
+            :parent_id, 1, :notes, :sort_order
         )'
     )->execute([
         'public_id' => avesmapsPoliticalUuidV4(),
         'wiki_key' => $zielKey,
         'slug' => avesmapsPoliticalUniqueSlug($pdo, avesmapsPoliticalSlug($name)),
         'name' => $name,
+        'short_name' => $ausAlt('short_name'),
         'type' => $type,
         'continent' => $continent,
-        'status' => avesmapsPoliticalNullableString(trim((string) ($werte['status'] ?? ''))),
-        'color' => avesmapsPoliticalColorFromText($name),
-        'coat' => avesmapsPoliticalNullableString(trim((string) ($werte['coat_of_arms_url'] ?? ''))),
+        // 🔴 Ein LEERER Wiki-Wert loescht den Hand-Wert nicht -- er ist keine Aussage.
+        'status' => avesmapsPoliticalNullableString(trim((string) ($werte['status'] ?? '')))
+            ?? $ausAlt('status'),
+        'color' => $ausAlt('color', avesmapsPoliticalColorFromText($name)),
+        'opacity' => $ausAlt('opacity', 0.5),
+        'coat' => avesmapsPoliticalNullableString(trim((string) ($werte['coat_of_arms_url'] ?? '')))
+            ?? $ausAlt('coat_of_arms_url'),
         'wiki_url' => avesmapsPoliticalNullableString(trim((string) ($werte['wiki_url'] ?? ''))),
-        'valid_from' => $werte['valid_from_bf'] ?? null,
-        'valid_to' => $werte['valid_to_bf'] ?? null,
-        'min_zoom' => $zoom['min_zoom'],
-        'max_zoom' => $zoom['max_zoom'],
-        'notes' => 'Aus einem eigenen Knoten gebunden: ' . $zielKey,
-        'sort_order' => avesmapsPoliticalNextSortOrder($pdo),
+        // ⚠️ Die zwei Verknuepfungen sind IDs auf map_features -- das Wiki kennt nur Namen. Sie
+        // wandern immer mit; ginge die Hauptstadt-Verknuepfung verloren, zeigte die Infobox
+        // stillschweigend keine Hauptstadt mehr.
+        'capital' => $ausAlt('capital_place_id'),
+        'seat' => $ausAlt('seat_place_id'),
+        'valid_from' => $werte['valid_from_bf'] ?? $ausAlt('valid_from_bf'),
+        'valid_to' => $werte['valid_to_bf'] ?? $ausAlt('valid_to_bf'),
+        'valid_label' => $ausAlt('valid_label'),
+        'min_zoom' => $minZoom,
+        'max_zoom' => $maxZoom,
+        // 🔴 DER ELTERNTEIL WANDERT MIT. Ohne ihn wird der gebundene Knoten zur WURZEL, und die
+        // abgeleiteten Aussengrenzen aller Vorfahren verlieren ihn stillschweigend.
+        'parent_id' => $ausAlt('parent_id'),
+        'notes' => mb_substr($notiz, 0, 2000, 'UTF-8'),
+        'sort_order' => $ausAlt('sort_order', avesmapsPoliticalNextSortOrder($pdo)),
     ]);
 
     return (int) $pdo->lastInsertId();
+}
+
+/**
+ * Die LUECKEN der Zielzeile aus der alten fuellen -- nie ueberschreiben.
+ *
+ * 🔴 Fuer den Fall, dass die Zielzeile SCHON EXISTIERTE (der Wiki-Knoten war bereits uebernommen).
+ * Dann gewinnt sie mit ihren eigenen Werten -- „der Wiki-Knoten gewinnt" (Owner) --, aber was sie
+ * gar nicht hat, darf nicht verloren gehen: das hochgeladene Wappen, die Hauptstadt-Verknuepfung,
+ * ein von Hand gesetztes Zoomband, der Elternteil.
+ * ⚠️ NUR echte Luecken (NULL oder ''), damit dieser Schritt nie eine gepflegte Angabe ueberschreibt.
+ *
+ * 🪤 ER UEBERLAPPT MIT DER KOPIE IM INSERT, UND DAS IST GEWOLLT -- aber es macht die Mutationsprobe
+ * stumpf. Gemessen 02.09.2026: nimmt man `parent_id`, `coat_of_arms_url`, `capital_place_id` oder
+ * `status` aus dem INSERT heraus, bleibt das Testfeld GRUEN, weil dieser Fueller sie danach
+ * nachtraegt (4 von 16 Mutationen ungefangen). Farbe, Deckkraft und Zoomband stehen NICHT in der
+ * Liste unten und werden deshalb sehr wohl gefangen.
+ * 🔴 Wer einen der beiden Wege „aufraeumt", weil er redundant aussieht, verlaesst sich auf den
+ * anderen -- und fuer den Fall, den der andere NICHT deckt, sagt kein Test etwas:
+ *   - der INSERT deckt Werte, die keine Luecke waeren (Farbe, Deckkraft, Zoomband, sort_order);
+ *   - dieser Fueller deckt den Fall, dass die Zielzeile SCHON EXISTIERTE.
+ * Beide bleiben.
+ */
+function avesmapsEigenerKnotenBindungLueckenFuellen(PDO $pdo, int $zielId, array $alteZeile): int
+{
+    $spalten = ['short_name', 'status', 'coat_of_arms_url', 'capital_place_id', 'seat_place_id',
+                'valid_label', 'parent_id', 'min_zoom', 'max_zoom'];
+
+    $ziel = $pdo->prepare('SELECT * FROM political_territory WHERE id = :id LIMIT 1');
+    $ziel->execute(['id' => $zielId]);
+    $jetzt = $ziel->fetch(PDO::FETCH_ASSOC);
+    if (!is_array($jetzt)) {
+        return 0;
+    }
+
+    $setzen = [];
+    $params = ['id' => $zielId];
+    foreach ($spalten as $spalte) {
+        $vorhanden = $jetzt[$spalte] ?? null;
+        if ($vorhanden !== null && $vorhanden !== '') {
+            continue;
+        }
+        $wert = $alteZeile[$spalte] ?? null;
+        if ($wert === null || $wert === '') {
+            continue;
+        }
+        $setzen[] = "{$spalte} = :v_{$spalte}";
+        $params['v_' . $spalte] = $wert;
+    }
+    if ($setzen === []) {
+        return 0;
+    }
+    $pdo->prepare('UPDATE political_territory SET ' . implode(', ', $setzen) . ' WHERE id = :id')->execute($params);
+
+    return count($setzen);
 }
 
 /**
@@ -179,7 +271,8 @@ function avesmapsEigenerKnotenBindungAnwenden(
         throw new RuntimeException('Der Zielschluessel muss ein Wiki-Schluessel sein.');
     }
 
-    $alt = $pdo->prepare('SELECT id, public_id, slug FROM political_territory WHERE wiki_key = :k AND is_active = 1 LIMIT 1');
+    // ⚠️ Die GANZE Zeile, nicht drei Spalten: die neue ist ihre Kopie (siehe Zielzeile).
+    $alt = $pdo->prepare('SELECT * FROM political_territory WHERE wiki_key = :k AND is_active = 1 LIMIT 1');
     $alt->execute(['k' => $eigenKey]);
     $alteZeile = $alt->fetch(PDO::FETCH_ASSOC);
     if (!$alteZeile) {
@@ -212,8 +305,13 @@ function avesmapsEigenerKnotenBindungAnwenden(
     try {
         // Erst den Slug freigeben, DANN die Zielzeile -- in dieser Reihenfolge (Entwurf §5.2).
         avesmapsEigenerKnotenBindungSlugFreigeben($pdo, $alteId, (string) $alteZeile['slug']);
-        $zielId = avesmapsEigenerKnotenBindungZielzeile($pdo, $zielKey, $werte);
+        $zielId = avesmapsEigenerKnotenBindungZielzeile($pdo, $zielKey, $werte, $alteZeile);
         $zielPid = (string) $pdo->query("SELECT public_id FROM political_territory WHERE id = {$zielId}")->fetchColumn();
+
+        // 🔴 Der Fall „Zielzeile existierte schon": sie behaelt ihre Werte, bekommt aber, was ihr
+        // fehlt (Wappen, Hauptstadt-Verknuepfung, Elternteil, Zoomband). Beim Neuanlegen oben ist
+        // das schon geschehen und dieser Aufruf findet keine Luecke mehr -- ein Weg, zwei Faelle.
+        $bewegt['gefuellte_luecken'] = avesmapsEigenerKnotenBindungLueckenFuellen($pdo, $zielId, $alteZeile);
 
         // 💣 Die angehakten Felder werden HIER geschrieben, nicht beim Anlegen der Zielzeile.
         // Sonst kaemen sie nur im Neuanlage-Fall an und bei einer SCHON VORHANDENEN Zielzeile
@@ -273,9 +371,23 @@ function avesmapsEigenerKnotenBindungAnwenden(
         // --- Die Schluesselwanderung ----------------------------------------------------------
         $bewegt['wiki_territory_model'] = avesmapsEigenerKnotenBindungModellUmhaengen($pdo, $eigenKey, $zielKey);
 
+        // 💣 `sync_decision` hat den PRIMAERSCHLUESSEL (kind, entity_key, change_type). Tragen BEIDE
+        // Schluessel eine Entscheidung -- der Normalfall, sobald der Wiki-Artikel schon einmal in
+        // einer Vorschau stand --, bricht ein glattes UPDATE die ganze Uebernahme ab. Gemessen am
+        // 02.09.2026 an der Szenarienprobe: SQLSTATE 23000, Transaktion zurueckgerollt, nichts
+        // passiert. Dieselbe Klasse wie bei feature_sources und dem Anspruch; hier war sie
+        // vergessen.
+        // 🔴 Bei Kollision gewinnt die Entscheidung am ZIELSCHLUESSEL: sie wurde ueber den Artikel
+        // getroffen, der ueberlebt. Die des eigenen Knotens gilt einem Objekt, das verschwindet.
+        // Eine Entscheidung darf nie STILL zurueckgenommen werden (AGENTS.md, Uebernahme-Vorschau) --
+        // deshalb wird nur die kollidierende geloescht, nie die verbleibende ueberschrieben.
+        $bewegt['sync_decision.entity_key'] = avesmapsEigenerKnotenBindungKollisionsfreiUmschluesseln(
+            $pdo, 'sync_decision', 'entity_key', ['kind', 'change_type'], $eigenKey, $zielKey
+        );
+        // ⚠️ `sync_plan_item` traegt KEINEN UNIQUE ueber entity_key (nur `id` als PK, gemessen an
+        // sync-plan.php) -- hier genuegt das glatte UPDATE.
         foreach ([
             ['political_territory_claim', 'claimant_wiki_key'],
-            ['sync_decision', 'entity_key'],
             ['sync_plan_item', 'entity_key'],
         ] as [$tabelle, $spalte]) {
             $s = $pdo->prepare("UPDATE {$tabelle} SET {$spalte} = :neu WHERE {$spalte} = :alt");
@@ -320,6 +432,48 @@ function avesmapsEigenerKnotenBindungAnwenden(
     // Schluessel existiert dann nicht mehr. Ohne ihn muesste der Client ihn sich merken -- und
     // genau das ging beim ersten Bau daneben (er las seine Variable, nachdem er sie genullt hatte).
     return ['ok' => true, 'target_id' => $zielId, 'target_key' => $zielKey, 'moved' => $bewegt];
+}
+
+/**
+ * Eine Schluesselspalte umschluesseln, ohne einen UNIQUE/PK zu brechen: erst die Zeilen loeschen,
+ * die nach dem Umhaengen eine vorhandene Zielzeile doppeln wuerden, dann glatt umhaengen.
+ *
+ * 💣 KEIN `UPDATE IGNORE` -- die Syntax ist in MySQL und SQLite verschieden, ein SQLite-Test saehe
+ * die MySQL-Regression nicht (AGENTS.md §9).
+ * 💣 Die doppelte Ableitungstabelle ist tragend: MySQL lehnt
+ * `DELETE ... WHERE ... IN (SELECT ... FROM derselben Tabelle)` mit Error 1093 ab. Das Haus-Idiom
+ * steht in avesmapsPoliticalPruneGeometryAuditLog.
+ * ⚠️ Spalten- und Tabellennamen kommen ausschliesslich aus dem Code dieser Datei, nie aus einer
+ * Anfrage -- sie werden interpoliert, die WERTE immer als Platzhalter.
+ *
+ * @param list<string> $rest die uebrigen Spalten des UNIQUE/PK (die Identitaet neben $spalte)
+ */
+function avesmapsEigenerKnotenBindungKollisionsfreiUmschluesseln(
+    PDO $pdo,
+    string $tabelle,
+    string $spalte,
+    array $rest,
+    string $alt,
+    string $neu
+): int {
+    // ⚠️ Die aeusseren Spalten werden mit dem TABELLENNAMEN qualifiziert, nicht ueber ein Alias:
+    // ein `DELETE FROM t AS a` kennt SQLite nicht (gemessen: "no such column: a.kind"), und
+    // unqualifiziert waere der Name zwischen aussen und `b` mehrdeutig.
+    $gleich = '';
+    foreach ($rest as $r) {
+        $gleich .= " AND b.{$r} = {$tabelle}.{$r}";
+    }
+    $pdo->prepare(
+        "DELETE FROM {$tabelle}
+          WHERE {$spalte} = :alt
+            AND EXISTS (SELECT 1 FROM (SELECT * FROM {$tabelle}) b
+                         WHERE b.{$spalte} = :neu{$gleich})"
+    )->execute(['alt' => $alt, 'neu' => $neu]);
+
+    $s = $pdo->prepare("UPDATE {$tabelle} SET {$spalte} = :neu WHERE {$spalte} = :alt");
+    $s->execute(['neu' => $neu, 'alt' => $alt]);
+
+    return $s->rowCount();
 }
 
 /**
