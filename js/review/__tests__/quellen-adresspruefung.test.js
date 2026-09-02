@@ -369,4 +369,140 @@ assert.ok(/if \(note\.classList\) \{/.test(quelltextKorr),
   "eine fehlende classList reisst den Meldungstext nicht mit");
 zaehl();
 
+// ══ 9 · Der Bearbeiten-Kasten hat DREI Reichweiten ═════════════════════════════════════════════
+
+// 🪤 Er hatte zwei, und die obere log. Owner-Bild 02.09.2026: über Quellenart und Lizenz stand
+// „Gilt für alle Objekte, die diese Quelle zitieren · zurzeit nur dieses Objekt" — während ein
+// Griff zur Lizenz seit demselben Tag JEDE Quelle des Wirts trifft (39 Quellen, 50 Objekte).
+// Eine Überschrift, die eine kleinere Reichweite verspricht als die Änderung hat, ist schlimmer
+// als gar keine: sie lädt zum Danebengreifen ein.
+const { renderFeatureSourceEditPanel } = modul;
+const kasten = renderFeatureSourceEditPanel({
+  source_id: 7, url: "https://westlande.de/albernia/index.php?title=Apfeldorn",
+  label: "Apfeldorn", type: "briefspiel", license: "cc-by-sa-4.0", usage_count: 1,
+  corpus: { corpus_key: "westlande.de", label: "Albernia-Wiki", known: true, sources: 39, objects: 50 },
+}, (x) => String(x), (k, d) => d);
+
+const ueberschriften = [...kasten.matchAll(/<span class="fs-edit__title">([^<]*)<\/span>/g)].map((m) => m[1]);
+assert.strictEqual(ueberschriften.length, 3, "drei Gruppen: Objekt · Quelle · Korpus");
+zaehl();
+assert.ok(/Korpus/.test(ueberschriften[2]) && /Albernia-Wiki/.test(ueberschriften[2]),
+  "die dritte nennt den Korpus beim Namen");
+zaehl();
+assert.ok(/39[\s\S]{0,40}50/.test(kasten), "und seine Reichweite: 39 Quellen, 50 Objekte");
+zaehl();
+
+// 💣 Die korpuseigenen Felder stehen in der DRITTEN Gruppe, Adresse und Titel in der zweiten.
+// Genau diese Zuordnung ist die Aussage -- sie muss der des Servers entsprechen
+// (AVESMAPS_SOURCE_CORPUS_OWNED_FIELDS), sonst sagt die Oberfläche etwas anderes als der Schreiber.
+const abKorpus = kasten.lastIndexOf('class="fs-edit__title"');
+["source_type", "license", "attribution", "is_official"].forEach((f) => {
+  assert.ok(kasten.indexOf('data-fs-field="' + f + '"') > abKorpus, f + " steht in der Korpusgruppe");
+});
+zaehl();
+["url", "label", "pages", "reference_kind"].forEach((f) => {
+  assert.ok(kasten.indexOf('data-fs-field="' + f + '"') < abKorpus, f + " steht NICHT in der Korpusgruppe");
+});
+zaehl();
+
+// ⚠️ Ohne Korpus (eine Quelle OHNE Adresse -- 357 Wiki-Publikationen sind das) nennt die Gruppe
+// keinen Wirt und erfindet keine Zahl.
+const ohneKorpus = renderFeatureSourceEditPanel({
+  source_id: 8, url: "", label: "Aventurischer Bote Nr. 70", type: "aventurischer_bote", usage_count: 52,
+}, (x) => String(x), (k, d) => d);
+const letzte = [...ohneKorpus.matchAll(/<span class="fs-edit__title">([^<]*)<\/span>/g)].map((m) => m[1])[2];
+assert.ok(/Korpus/.test(letzte) && !/„/.test(letzte), "ohne Korpus bleibt die Überschrift schlicht");
+zaehl();
+
+// ---------------------------------------------------------------------------------------------
+// Die ORDNUNG der Eingabezeile (Owner-Pfeil im Bild vom 02.09.2026, „für edit/neu")
+// ---------------------------------------------------------------------------------------------
+// 🔴 Erst das, was DIESE Fundstelle beschreibt (Adresse · Titel · Seite(n) · Abdeckung), dann der
+// Rahmen mit dem, was dem ganzen Korpus gehört. Owner wörtlich: „du kann gerne alles einrahmen,
+// was zum korpus gehört (seiten z.b. nicht)". Stünden Seiten und Abdeckung IM Rahmen oder unter
+// ihm, sagte die Zeile das Gegenteil: dass eine Seitenzahl für 39 Quellen gilt.
+{
+  const zeile = modul.renderFeatureSourceEditorHtml({ ok: true, sources: [] }, {});
+  const pos = (c) => zeile.indexOf(c);
+  const reihe = ["fs-add-url", "fs-add-label", "fs-add-pages", "fs-add-kind", "fs-korpus"];
+  reihe.forEach((c, i) => {
+    assert.ok(pos(c) >= 0, c + " steht in der Eingabezeile");
+    if (i > 0) {
+      assert.ok(pos(reihe[i - 1]) < pos(c), reihe[i - 1] + " steht vor " + c);
+    }
+  });
+  zaehl();
+
+  // Und dieselbe Ordnung im Bearbeiten-Kasten: „Nur an diesem Objekt" oben, Korpus unten.
+  const kasten2 = modul.renderFeatureSourceEditPanel(
+    { source_id: 9, url: "https://westlande.de/x", label: "X", usage_count: 1,
+      corpus: { corpus_key: "westlande.de", label: "Albernia-Wiki", known: true } },
+    (x) => String(x), (k, d) => d);
+  assert.ok(kasten2.indexOf('data-fs-field="pages"') < kasten2.lastIndexOf('class="fs-edit__title"'),
+    "auch im Bearbeiten-Kasten stehen die Seiten VOR der Korpusgruppe");
+  zaehl();
+
+  // ⚠️ Abbrechen neben Hinzufügen -- und WEICH, nicht gefüllt: eine Zeilenhandlung ist nie die
+  // Haupthandlung der Seite (AGENTS.md §12). Der gefüllte Knopf daneben heißt „Hinzufügen".
+  assert.ok(/data-fs-add-cancel/.test(zeile), "die Eingabezeile trägt ein Abbrechen");
+  assert.ok(pos("data-fs-add-submit") < pos("data-fs-add-cancel"), "es steht NEBEN dem Hinzufügen");
+  assert.ok(/class="fs-row__cancel"/.test(zeile), "und trägt die weiche Klasse, nicht fs-row__add");
+  zaehl();
+}
+
+// ---------------------------------------------------------------------------------------------
+// Abbrechen räumt den KORPUS mit weg
+// ---------------------------------------------------------------------------------------------
+// 💣 Der Kasten gehört der Adresse, die gerade verworfen wurde. Bliebe er stehen, stünde der Wirt
+// der alten Adresse über einem leeren Feld -- und die nächste Eingabe übernähme lautlos dessen Art
+// und Lizenz. Deshalb `uebernehmeKorpus(null)` (setzt zugleich `letzterKorpus` zurück) und nicht
+// ein `hidden = true` auf dem Kasten.
+{
+  // 🪤 OHNE KOMMENTARE. Der Kommentar über der Zeile nennt `uebernehmeKorpus(null)` beim Namen --
+  // ein Test, der den Rohtext liest, schlägt also an der ERKLÄRUNG an und bleibt grün, wenn genau
+  // die erklärte Zeile fehlt. In der Mutationsprobe vom 02.09.2026 war das der einzige Durch-
+  // schlüpfer von fünf.
+  const quelle = fs.readFileSync(path.join(__dirname, "..", "review-feature-sources.js"), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/^[ \t]*\/\/.*$/gm, "");
+  const rumpf = quelle.slice(quelle.indexOf("function leereAddZeile()"));
+  const ende = rumpf.search(/\n  \}/);
+  const koerper = rumpf.slice(0, ende);
+  assert.ok(/uebernehmeKorpus\(null\)/.test(koerper), "Abbrechen schließt den Korpuskasten über uebernehmeKorpus(null)");
+  assert.ok(/setzeAdressZustand\(null/.test(koerper), "und setzt den Prüfknopf zurück");
+  ["fs-add-url", "fs-add-label", "fs-add-pages", "fs-add-kind"].forEach((c) => {
+    assert.ok(koerper.indexOf(c) > -1, "Abbrechen leert " + c);
+  });
+  zaehl();
+
+  // 🔴 DIE ZWEI MÜSSEN DIESELBEN FELDER KENNEN. `stelleAddZeileWiederHer` stellt nach einer
+  // Korpusänderung wieder her, `leereAddZeile` räumt ab -- kommt ein Feld dazu, das nur einer von
+  // beiden kennt, bleibt es entweder beim Abbrechen stehen oder geht bei einer Korpusänderung
+  // verloren. Beides still.
+  const wieder = quelle.slice(quelle.indexOf("function stelleAddZeileWiederHer("));
+  const wKoerper = wieder.slice(0, wieder.search(/\n  \}/));
+  const felder = (t) => [...t.matchAll(/\.fs-add-([a-z]+)/g)].map((m) => m[1]).sort().join(",");
+  assert.strictEqual(felder(koerper), felder(wKoerper),
+    "Abbrechen und Wiederherstellen kennen dieselben Felder");
+  zaehl();
+}
+
+// ---------------------------------------------------------------------------------------------
+// Die LEERE Kachel zeichnet keinen Rahmen
+// ---------------------------------------------------------------------------------------------
+// 💣 `.fs-row__kind` und `.fs-row__badge` stehen als LEERE Zelle da, wenn der Wert fehlt -- das
+// Raster gibt jeder Zeile dieselbe Spaltenvorlage. Ihr Rand blieb dabei sichtbar, und ein leeres
+// Pill mit Rand liest sich als waagerechter STRICH mitten in der Zeile: der Owner hat am
+// 02.09.2026 ein Fragezeichen danebengemalt und gefragt, was das für eine Angabe sei.
+{
+  const css = fs.readFileSync(
+    path.join(__dirname, "..", "..", "..", "css", "features", "feature-sources.css"), "utf8");
+  const regel = css.match(/\.fs-row__kind:empty[^{]*\{[^}]*\}/);
+  assert.ok(regel, "es gibt eine Regel für die leere Kachel");
+  assert.ok(/border-color:\s*transparent/.test(regel[0]), "sie nimmt dem Rand die Farbe");
+  assert.ok(/\.fs-row__badge:empty/.test(regel[0]),
+    "und sie gilt BEIDEN leeren Kacheln -- die Abdeckung ist nicht die einzige, die leer bleibt");
+  zaehl();
+}
+
 console.log("OK — " + anzahl + " Zusicherungen (Adressprüfung der Eingabezeile)");

@@ -254,6 +254,34 @@ function renderFeatureSourceEditPanel(source, escape, tr) {
     : escape(tr("sources.edit.scopeMany", "zurzeit ")) + "<b>"
       + escape(String(usage) + " " + tr("sources.edit.objects", "Objekte")) + "</b>";
 
+  // ⚠️ OHNE Korpus (eine Quelle ohne Adresse -- 357 Wiki-Publikationen sind das) heisst die
+  // Gruppe schlicht „Gilt für den ganzen Korpus"; es gibt dann keinen Wirt, den sie nennen
+  // könnte, und eine erfundene Zahl wäre schlimmer als keine.
+  const korpus = source.corpus || null;
+  const korpusTitel = korpus && korpus.label
+    ? tr("sources.edit.corpusScope", "Gilt für den ganzen Korpus „{name}“").replace("{name}", String(korpus.label))
+    : tr("sources.edit.corpusScopePlain", "Gilt für den ganzen Korpus");
+  const korpusObjekte = korpus ? Number(korpus.objects) || 0 : 0;
+  const korpusReichweite = korpusObjekte > 0
+    ? escape(tr("sources.edit.corpusReach", "{q} Quellen · {n} Objekte")
+      .replace("{q}", String(Number(korpus.sources) || 0)).replace("{n}", String(korpusObjekte)))
+    : "";
+
+  // 🔴 IM KORPUSKASTEN STEHEN DIE WERTE DES KORPUS, nicht die dieser einen Zeile (Owner
+  // 02.09.2026: „ich will, dass die einstellungen dran stehen, die ich eingegeben habe"). Sonst
+  // behauptet die Ueberschrift Korpus-Reichweite und zeigt darunter etwas anderes -- und wer den
+  // gezeigten Wert stehen laesst, glaubt, er habe den Korpus bestaetigt.
+  // ⚠️ Nur bei einem BEKANNTEN Korpus. Gibt es keinen, bleibt die Zeile ihre eigene Wahrheit.
+  const korpusWert = (feldName, rueckfall) => {
+    if (korpus && korpus.known === true && korpus[feldName] !== undefined && korpus[feldName] !== "") {
+      return String(korpus[feldName]);
+    }
+    return String(rueckfall);
+  };
+  const korpusHaken = (korpus && korpus.known === true && korpus.is_official !== undefined)
+    ? korpus.is_official === true
+    : source.official === true;
+
   const hinweis = wikiOwned
     ? '<div class="fs-edit__note fs-edit__note--locked">'
       + escape(tr("sources.edit.wikiOwned",
@@ -290,13 +318,22 @@ function renderFeatureSourceEditPanel(source, escape, tr) {
     + '<div class="fs-edit__fields">'
     + (wikiOwned ? "" : feld("url", tr("sources.edit.url", "Adresse"), text("url", String(source.url || ""), "https://…", false)))
     + feld("label", tr("sources.colTitle", "Titel"), text("label", String(source.label || ""), "", wikiOwned))
-    + feld("source_type", tr("sources.colType", "Quellenart"), auswahl("source_type", String(source.type || "sonstiges"), typEintraege, false))
-    + feld("license", tr("sources.colLicense", "Lizenz"), auswahl("license", String(source.license || ""), lizenzEintraege, false))
-    + feld("attribution", tr("sources.add.attribution", "Namensnennung"), text("attribution", String(source.attribution || ""), tr("sources.edit.attributionHint", "z. B. VolkoV / garetien.de"), false))
-    + '<label class="fs-check"><input type="checkbox" data-fs-field="is_official" data-fs-orig="'
-    + (source.official ? "1" : "0") + '"' + (source.official ? " checked" : "") + (wikiOwned ? " disabled" : "")
-    + "> " + escape(tr("sources.add.official", "offiziell")) + "</label>"
     + "</div>" + hinweis + "</div>"
+    // 🔴 DIE DRITTE GRUPPE -- und sie ist eine BERICHTIGUNG, keine Zierde. Art, Lizenz, Nennung
+    // und Kanon gehören seit dem 02.09.2026 dem KORPUS: eine Änderung daran trifft jede Quelle
+    // dieses Wirts. In der Gruppe darüber gestanden, versprach die Überschrift „gilt für alle
+    // Objekte, die diese Quelle zitieren · zurzeit nur dieses Objekt" — während ein Griff zur
+    // Lizenz 39 Quellen und 50 Objekte umgeschrieben hätte. Owner-Bild 02.09.2026.
+    + '<div class="fs-edit__group">'
+    + kopf(korpusTitel, korpusReichweite)
+    + '<div class="fs-edit__fields">'
+    + feld("source_type", tr("sources.colType", "Quellenart"), auswahl("source_type", korpusWert("source_type", source.type || "sonstiges"), typEintraege, false))
+    + feld("license", tr("sources.colLicense", "Lizenz"), auswahl("license", korpusWert("license", source.license || ""), lizenzEintraege, false))
+    + feld("attribution", tr("sources.add.attribution", "Namensnennung"), text("attribution", korpusWert("attribution", source.attribution || ""), tr("sources.edit.attributionHint", "z. B. VolkoV / garetien.de"), false))
+    + '<label class="fs-check"><input type="checkbox" data-fs-field="is_official" data-fs-orig="'
+    + (korpusHaken ? "1" : "0") + '"' + (korpusHaken ? " checked" : "") + (wikiOwned ? " disabled" : "")
+    + "> " + escape(tr("sources.add.official", "offiziell")) + "</label>"
+    + "</div></div>"
     + '<div class="fs-edit__foot">'
     + '<button type="button" class="fs-edit__save" data-fs-edit-save="' + escape(source.source_id) + '">'
     + escape(tr("sources.edit.save", "Speichern")) + "</button>"
@@ -469,6 +506,14 @@ function renderFeatureSourceAddRow(escape, tr) {
     // korpus gehört (seiten z.b. nicht)"). Was hier drinsteht, gilt fuer ALLE Belege dieses Wirts;
     // was draussen steht, gehoert dieser einen Fundstelle. Ohne die sichtbare Grenze sieht ein
     // Editor der Zeile nicht an, dass ein Griff zur Lizenz 50 Objekte trifft.
+    // ⚠️ VOR dem Korpuskasten, nicht dahinter (Owner-Pfeil im Bild vom 02.09.2026): erst das, was
+    // DIESE Fundstelle beschreibt, dann der Wirt. Dieselbe Ordnung wie im Bearbeiten-Kasten, wo
+    // „Nur an diesem Objekt" ebenfalls oben steht -- „für edit/neu", sagte der Owner.
+    '<label class="fs-af fs-af--pages"><span class="fs-af__l">' +
+    escape(tr("sources.add.pages", "Seite(n)")) + "</span>" +
+    '<input type="text" class="fs-add-pages" placeholder="' + escape(tr("sources.add.pagesHint", "optional")) + '"></label>' +
+    '<label class="fs-af fs-af--kind"><span class="fs-af__l">' + escape(tr("sources.add.kindLabel", "Abdeckung")) + "</span>" +
+    '<select class="fs-add-kind" title="' + escape(tr("sources.add.kind", "Abdeckung: Ausführlich/Ergänzend → Offiziell-Tab, Erwähnung → Erwähnt-Tab, sonst normale Quellenzeile")) + '">' + kindOptions + "</select></label>" +
     // 🔴 VERBORGEN, bis eine Adresse einen Korpus ergibt (Owner 02.09.2026: „dieses feld kommt
     // wenn ich eine NEUE quelle erstellen will"). Vorher fragt der Kasten nach Form, Art, Lizenz
     // und Nennung eines Korpus, den es noch gar nicht gibt -- fuenf Reihen Ballast vor der einen
@@ -520,14 +565,11 @@ function renderFeatureSourceAddRow(escape, tr) {
     '<span class="fs-af__from" data-fs-from="official" hidden> · ' + escape(tr("sources.add.fromCorpus", "vom Korpus")) + "</span>" +
     "</label>" +
     "</span>" +
-    // ⚠️ AUSSERHALB des Rahmens, und das ist der Sinn der Ordnung: Seiten und Abdeckung
-    // beschreiben DIESE Fundstelle, nicht den Wirt. Owner: „(seiten z.b. nicht)".
-    '<label class="fs-af fs-af--pages"><span class="fs-af__l">' +
-    escape(tr("sources.add.pages", "Seite(n)")) + "</span>" +
-    '<input type="text" class="fs-add-pages" placeholder="' + escape(tr("sources.add.pagesHint", "optional")) + '"></label>' +
-    '<label class="fs-af fs-af--kind"><span class="fs-af__l">' + escape(tr("sources.add.kindLabel", "Abdeckung")) + "</span>" +
-    '<select class="fs-add-kind" title="' + escape(tr("sources.add.kind", "Abdeckung: Ausführlich/Ergänzend → Offiziell-Tab, Erwähnung → Erwähnt-Tab, sonst normale Quellenzeile")) + '">' + kindOptions + "</select></label>" +
     '<button type="button" class="fs-row__add" data-fs-add-submit>' + escape(tr("sources.add.submit", "Hinzufügen")) + "</button>" +
+    // ⚠️ Ein Abbrechen daneben (Owner 02.09.2026). Es LEERT die Zeile -- es schliesst nichts, denn
+    // die Eingabezeile ist kein Fenster, sondern der Fuss der Liste. Weich statt gefuellt: eine
+    // Zeilenhandlung ist nie die Haupthandlung der Seite (AGENTS.md §12).
+    '<button type="button" class="fs-row__cancel" data-fs-add-cancel>' + escape(tr("sources.add.cancel", "Abbrechen")) + "</button>" +
     "</div>" +
     // Platz für die Absage. Ohne ihn verschluckte der Knopf den Klick wortlos, sobald die URL fehlte
     // -- der häufigste Fall beim Anlegen, wo man einen Buchtitel im Kopf hat und keinen Link.
@@ -1453,6 +1495,32 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
     setze(".fs-add-kind", werte.reference_kind);
   }
 
+  /**
+   * „Abbrechen" — die Eingabezeile auf den leeren Anfang zuruecksetzen (Owner 02.09.2026).
+   *
+   * ⚠️ Sie ist das Gegenstueck zu `stelleAddZeileWiederHer`, und die beiden muessen DIESELBEN
+   * Felder kennen: kommt eines dazu, das nur einer von beiden kennt, bleibt es entweder beim
+   * Abbrechen stehen oder geht bei einer Korpusaenderung verloren -- beides still.
+   */
+  function leereAddZeile() {
+    [".fs-add-url", ".fs-add-label", ".fs-add-pages"].forEach((selektor) => {
+      const el = containerEl.querySelector(selektor);
+      if (el) {
+        el.value = "";
+      }
+    });
+    const kind = containerEl.querySelector(".fs-add-kind");
+    if (kind) {
+      kind.value = "";
+    }
+    // ⭐ `uebernehmeKorpus(null)` ist der vorhandene Weg, den Kasten zu schliessen -- er setzt
+    // zugleich `letzterKorpus` zurueck. Ein eigenes `hidden = true` daneben liesse den gemerkten
+    // Korpus stehen, und das naechste Speichern schriebe ihn auf eine Adresse, die niemand mehr
+    // geprueft hat.
+    uebernehmeKorpus(null);
+    setzeAdressZustand(null, "");
+  }
+
   /** Die Rückfrage — sie nennt die ZAHL, denn „gilt überall" ohne Grösse ist keine Warnung. */
   async function bestaetigeKorpusAenderung(korpus) {
     const objekte = Number(korpus.objects) || 0;
@@ -1759,6 +1827,14 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
     }
     if (event.target.closest("[data-fs-check]")) {
       await pruefeAdresse();
+      return;
+    }
+    if (event.target.closest("[data-fs-add-cancel]")) {
+      // ⚠️ Es LEERT, es schliesst nicht: die Eingabezeile ist der Fuss der Liste und bleibt stehen.
+      // 💣 Der Korpuskasten muss MIT weg -- er gehoert der Adresse, die gerade verworfen wurde;
+      // bliebe er stehen, stuende der Wirt der alten Adresse ueber einem leeren Feld und die
+      // naechste Eingabe uebernaehme lautlos dessen Art und Lizenz.
+      leereAddZeile();
       return;
     }
     const addTarget = event.target.closest("[data-fs-add-submit]");

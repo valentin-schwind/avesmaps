@@ -92,6 +92,17 @@
 	padding: 1px 7px;
 	white-space: nowrap;
 }
+/* 💣 EINE LEERE KACHEL DARF KEINEN RAHMEN ZEICHNEN. `.fs-row__kind` und `.fs-row__badge` stehen
+   als LEERE Zelle da, wenn der Wert fehlt -- das ist Absicht, das Raster gibt jeder Zeile dieselbe
+   Spaltenvorlage. Ihr Rand blieb dabei sichtbar, und ein leeres Pill mit Rand liest sich als
+   waagerechter STRICH mitten in der Zeile. Owner-Bild 02.09.2026, mit einem Fragezeichen daneben:
+   er hielt ihn fuer eine Angabe. Die Zelle bleibt, ihr Rahmen geht. */
+.fs-row__kind:empty,
+.fs-row__badge:empty {
+	border-color: transparent;
+	background: none;
+	padding: 0;
+}
 .fs-row__pages {
 	flex-shrink: 0;
 	font-size: 11px;
@@ -432,6 +443,29 @@
 .fs-row__add:hover,
 .fs-row__add:focus-visible {
 	background: var(--color-button-soft-hover);
+	outline: none;
+}
+
+/* „Abbrechen" neben dem Hinzufügen (Owner 02.09.2026). Es LEERT die Eingabezeile -- sie ist der
+   Fuss der Liste und wird nicht geschlossen.
+   ⚠️ Noch eine Stufe leiser als „Hinzufügen": beide sind weich (eine Zeilenhandlung ist nie die
+   Haupthandlung der Seite, AGENTS.md §12), aber von den zweien ist das Hinzufügen das gemeinte.
+   Ohne Fuellung und ohne Fettschrift bleibt der Rangunterschied sichtbar, ohne dass ein zweiter
+   gefuellter Knopf entsteht. */
+.fs-row__cancel {
+	border: 1px solid transparent;
+	background: none;
+	color: var(--color-text-muted);
+	border-radius: 999px;
+	padding: 4px 10px;
+	cursor: pointer;
+	font: inherit;
+	font-size: 12px;
+}
+.fs-row__cancel:hover,
+.fs-row__cancel:focus-visible {
+	border-color: var(--color-button-soft-border);
+	color: var(--color-text-strong);
 	outline: none;
 }
 
@@ -1184,6 +1218,8 @@
 	align-items: center;
 	flex-shrink: 0;
 	font-size: var(--font-size-caption);
+	font-weight: 700;
+	font-synthesis-weight: auto;
 	letter-spacing: .09em;
 	text-transform: uppercase;
 	line-height: 1;

@@ -522,6 +522,55 @@ function avesmapsSourceCorpusUsage(PDO $pdo, string $corpusKey): array
 }
 
 /**
+ * Die Reichweite ALLER Korpora auf einmal: { schluessel => {sources, objects} }.
+ *
+ * ⭐ ZWEI Abfragen fuer alles, nicht zwei je Korpus. `avesmapsSourceCorpusUsage` liest `sources`
+ * einmal VOLLSTAENDIG je Schluessel -- fuer eine Liste mit drei Wirten waeren das drei Durchgaenge
+ * ueber 1.376 Zeilen. Diese Fassung liest sie EINMAL und zaehlt die Verknuepfungen in einer
+ * gruppierten Abfrage. Sie ist damit billiger als der Einzelaufruf, nicht teurer -- und nur
+ * deshalb darf sie im Lesepfad der Editorliste stehen.
+ * ⚠️ Gelesen werden nur `id` und `url`; das Feld `properties_json` der Karte ist NICHT dabei.
+ *
+ * @return array<string, array{sources:int, objects:int}>
+ */
+function avesmapsSourceCorpusUsageAll(PDO $pdo): array
+{
+    try {
+        $alle = $pdo->query("SELECT id, url FROM sources WHERE url <> ''");
+        if ($alle === false) {
+            return [];
+        }
+        $keyVonId = [];
+        $zaehler = [];
+        foreach ($alle->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+            $key = avesmapsSourceCorpusKey((string) $row['url']);
+            if ($key === '') {
+                continue;
+            }
+            $keyVonId[(int) $row['id']] = $key;
+            $zaehler[$key] = $zaehler[$key] ?? ['sources' => 0, 'objects' => 0];
+            $zaehler[$key]['sources']++;
+        }
+        $links = $pdo->query("SELECT source_id, COUNT(*) AS n FROM feature_sources
+                               WHERE status = 'approved' GROUP BY source_id");
+        if ($links !== false) {
+            foreach ($links->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+                $key = $keyVonId[(int) $row['source_id']] ?? '';
+                if ($key !== '') {
+                    $zaehler[$key]['objects'] += (int) $row['n'];
+                }
+            }
+        }
+
+        return $zaehler;
+    } catch (Throwable $fehler) {
+        error_log('avesmapsSourceCorpusUsageAll: ' . $fehler->getMessage());
+
+        return [];
+    }
+}
+
+/**
  * Wie viele VERSCHIEDENE Titel die Quellen eines Korpus tragen — der Zaehler des Form-Vorschlags.
  *
  * 🔴 Das ist die eine Zahl, die der Browser nicht hat, und sie ist die ganze Messung: bei Werken

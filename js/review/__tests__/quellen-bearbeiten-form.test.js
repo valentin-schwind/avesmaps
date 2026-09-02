@@ -97,14 +97,32 @@ const QUELLE = {
 		"und auch die schmale Vorlage hat beide Knopfspalten");
 }
 
-// ══ C. Der Kasten: zwei Bereiche, und der zweite nennt die ZAHL ═════════════════════════════════
+// ══ C. Der Kasten: DREI Bereiche, und jeder nennt seine Reichweite ══════════════════════════════
 {
 	const panel = renderFeatureSourceEditPanel(QUELLE, (v) => String(v), (k, f) => f);
 	pruefe(panel.includes("Nur an diesem Objekt"), "der erste Bereich sagt, dass er nur hier gilt");
 	pruefe(panel.includes("Gilt für alle Objekte"), "der zweite, dass er ueberall gilt");
 	// 🔴 Ohne die Zahl ist „gilt ueberall" ein Wort ohne Groesse.
 	pruefe(panel.includes("1042"), "und er nennt die Zahl der zitierenden Objekte");
-	pruefe((panel.match(/class="fs-edit__group"/g) || []).length === 2, "genau zwei Bereiche");
+	// 🪤 HIER STAND „genau zwei Bereiche", und das war bis zum 02.09.2026 richtig. Seither gehoeren
+	// Art, Lizenz, Nennung und Kanon dem KORPUS: eine Aenderung daran trifft jede Quelle des Wirts.
+	// In der zweiten Gruppe gelassen, versprach deren Ueberschrift „gilt fuer alle Objekte, die
+	// diese Quelle zitieren -- zurzeit nur dieses Objekt", waehrend ein Griff zur Lizenz 39 Quellen
+	// umgeschrieben haette (Owner-Bild 02.09.2026). Die dritte Gruppe ist die Berichtigung.
+	pruefe((panel.match(/class="fs-edit__group"/g) || []).length === 3,
+		"drei Bereiche: dieses Objekt · diese Quelle · der ganze Korpus");
+	// 🔴 Und die Zuordnung ist die eigentliche Aussage -- sie muss der des Servers entsprechen
+	// (AVESMAPS_SOURCE_CORPUS_OWNED_FIELDS), sonst sagt die Oberflaeche etwas anderes als der
+	// Schreiber tut.
+	{
+		const abKorpus = panel.lastIndexOf('class="fs-edit__group"');
+		["source_type", "license", "attribution", "is_official"].forEach((f) => {
+			pruefe(panel.indexOf('data-fs-field="' + f + '"') > abKorpus, f + " steht in der Korpusgruppe");
+		});
+		["url", "label", "pages", "reference_kind"].forEach((f) => {
+			pruefe(panel.indexOf('data-fs-field="' + f + '"') < abKorpus, f + " steht NICHT darin");
+		});
+	}
 	// 🔴 Die Adresse IST seit dem 01.09.2026 ein Eingabefeld (Owner). Sie steht in der
 	// Katalog-Haelfte -- sie gilt ueberall -- und ueber die volle Zeilenbreite, weil sie der
 	// laengste Wert der Zeile ist.

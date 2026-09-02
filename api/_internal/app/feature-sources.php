@@ -691,10 +691,48 @@ function avesmapsListFeatureSourcesForEdit(PDO $pdo, string $entityType, string 
         }
     }
 
-    $sources = array_map(static function (array $r) use ($usage): array {
+    // 🔴 DER KORPUS REIST MIT. Seit dem 02.09.2026 gehoeren Art, Lizenz und Nennung dem Wirt, nicht
+    // der einzelnen Zeile -- der Bearbeiten-Kasten muss das SAGEN koennen, sonst verspricht seine
+    // Ueberschrift „gilt fuer alle Objekte, die diese Quelle zitieren" eine kleinere Reichweite als
+    // die Aenderung hat. Owner-Bild 02.09.2026: dort stand „zurzeit nur dieses Objekt", waehrend
+    // ein Griff zur Lizenz 39 Quellen und 50 Objekte getroffen haette.
+    // ⚠️ ZWEI Abfragen fuer ALLE Korpora (`…UsageAll`), nicht zwei je Wirt -- sonst zahlte jede
+    // Liste mehrere Volldurchgaenge ueber `sources`. Und alles hinter `function_exists`: das
+    // Korpus-Modul haengt AN dieser Datei, nicht umgekehrt.
+    $korpora = [];
+    $korpusReichweite = [];
+    if (function_exists('avesmapsSourceCorpusReadAll')) {
+        $korpora = avesmapsSourceCorpusReadAll($pdo);
+        $korpusReichweite = avesmapsSourceCorpusUsageAll($pdo);
+    }
+    $sources = array_map(static function (array $r) use ($usage, $korpora, $korpusReichweite): array {
         $id = (int) $r['source_id'];
+        $korpus = null;
+        if ($korpora !== [] || $korpusReichweite !== []) {
+            $key = avesmapsSourceCorpusKey((string) $r['url']);
+            if ($key !== '') {
+                $korpus = [
+                    'corpus_key' => $key,
+                    // ⚠️ Ohne Korpuszeile traegt der Schluessel sich selbst als Namen -- dieselbe
+                    // Regel wie in `avesmapsSourceCorpusForUrl`, damit die Oberflaeche nie leer steht.
+                    'label' => (string) ($korpora[$key]['label'] ?? $key),
+                    'known' => isset($korpora[$key]),
+                    'form' => (string) ($korpora[$key]['form'] ?? ''),
+                    // ⚠️ Die korpuseigenen Werte reisen MIT: der Bearbeiten-Kasten zeigt sie in
+                    // seiner Korpusgruppe, statt die Werte dieser einen Zeile zu zeigen und dabei
+                    // Korpus-Reichweite zu behaupten (Owner 02.09.2026).
+                    'source_type' => (string) ($korpora[$key]['source_type'] ?? ''),
+                    'license' => (string) ($korpora[$key]['license'] ?? ''),
+                    'attribution' => (string) ($korpora[$key]['attribution'] ?? ''),
+                    'is_official' => ($korpora[$key]['is_official'] ?? false) === true,
+                    'sources' => (int) ($korpusReichweite[$key]['sources'] ?? 0),
+                    'objects' => (int) ($korpusReichweite[$key]['objects'] ?? 0),
+                ];
+            }
+        }
 
         return [
+            'corpus' => $korpus,
             'source_id' => $id, 'url' => (string) $r['url'], 'label' => (string) $r['label'],
             'type' => (string) $r['source_type'], 'official' => (int) $r['is_official'] === 1,
             'origin' => (string) $r['origin'], 'pages' => (string) ($r['pages'] ?? ''),
