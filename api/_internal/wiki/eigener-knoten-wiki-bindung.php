@@ -611,3 +611,65 @@ function avesmapsEigenerKnotenBindungVorschlaege(PDO $pdo): array
 
     return $roh;
 }
+
+/** LESEND: die Wiki-Werte eines Zielschluessels, in der Form, die Vorschau und Uebernahme lesen. */
+function avesmapsEigenerKnotenBindungZielWerte(PDO $pdo, string $zielKey): array
+{
+    $s = $pdo->prepare('SELECT * FROM political_territory_wiki WHERE wiki_key = :k LIMIT 1');
+    $s->execute(['k' => $zielKey]);
+    $r = $s->fetch(PDO::FETCH_ASSOC);
+
+    return is_array($r) ? $r : [];
+}
+
+/**
+ * LESEND: die vollstaendige Vorschau -- Felder plus Folgenliste.
+ *
+ * 💣 SIE SCHREIBT IN KEINE NUTZTABELLE. Dieselbe Zweiteilung wie bei jedem Sync im Haus; eine
+ * Vorschau, die nebenbei schreibt, ist keine Vorschau.
+ *
+ * ⚠️ Die Folgenliste wird BENANNT, nicht nur gezaehlt: "3 Quellen, 1 Kind, 1 Geometrie" ist die
+ * Auskunft, die vor einem nicht per Knopf umkehrbaren Schritt gebraucht wird.
+ */
+function avesmapsEigenerKnotenBindungPlan(PDO $pdo, string $eigenKey, string $zielKey): array
+{
+    $modell = $pdo->prepare('SELECT metadata_overrides_json FROM wiki_territory_model WHERE wiki_key = :k LIMIT 1');
+    $modell->execute(['k' => $eigenKey]);
+    $ovRaw = json_decode((string) ($modell->fetchColumn() ?: ''), true);
+    $overrides = is_array($ovRaw) ? $ovRaw : [];
+
+    $wikiRow = avesmapsEigenerKnotenBindungZielWerte($pdo, $zielKey);
+
+    $alt = $pdo->prepare('SELECT id, public_id FROM political_territory WHERE wiki_key = :k AND is_active = 1 LIMIT 1');
+    $alt->execute(['k' => $eigenKey]);
+    $alteZeile = $alt->fetch(PDO::FETCH_ASSOC);
+
+    $folgen = ['geometries' => 0, 'derived' => 0, 'claims' => 0, 'children' => 0, 'sources' => 0,
+               'reports' => 0, 'settlements' => 0];
+    if ($alteZeile) {
+        $id = (int) $alteZeile['id'];
+        $pid = (string) $alteZeile['public_id'];
+        $zaehle = static function (PDO $pdo, string $sql, array $p): int {
+            $s = $pdo->prepare($sql);
+            $s->execute($p);
+            return (int) $s->fetchColumn();
+        };
+        $folgen['geometries'] = $zaehle($pdo, 'SELECT COUNT(*) FROM political_territory_geometry WHERE territory_id = :i', ['i' => $id]);
+        $folgen['derived'] = $zaehle($pdo, 'SELECT COUNT(*) FROM political_territory_derived_geometry WHERE territory_id = :i', ['i' => $id]);
+        $folgen['claims'] = $zaehle($pdo, 'SELECT COUNT(*) FROM political_territory_claim WHERE territory_id = :i OR claimant_territory_id = :i2', ['i' => $id, 'i2' => $id]);
+        $folgen['children'] = $zaehle($pdo, 'SELECT COUNT(*) FROM political_territory WHERE parent_id = :i AND is_active = 1', ['i' => $id]);
+        $folgen['sources'] = $zaehle($pdo, "SELECT COUNT(*) FROM feature_sources WHERE entity_type = 'territory' AND entity_public_id = :p", ['p' => $pid]);
+        $folgen['reports'] = $zaehle($pdo, "SELECT COUNT(*) FROM map_reports WHERE entity_type = 'territory' AND entity_public_id = :p", ['p' => $pid]);
+        $folgen['settlements'] = $zaehle($pdo, 'SELECT COUNT(*) FROM map_features WHERE is_active = 1 AND properties_json LIKE :m', ['m' => '%' . $eigenKey . '%']);
+    }
+
+    return [
+        'ok' => true,
+        'dry_run' => true,
+        'wiki_key' => $eigenKey,
+        'target_key' => $zielKey,
+        'target_exists' => $wikiRow !== [],
+        'fields' => avesmapsEigenerKnotenBindungVorschau($overrides, $wikiRow),
+        'consequences' => $folgen,
+    ];
+}

@@ -17,10 +17,37 @@ declare(strict_types=1);
  * vor dem Muster warnt, und ist damit vakuum.
  */
 
+/**
+ * Kommentare heraus, damit nur echter Code gezaehlt wird -- mit PHPs eigenem Tokenizer.
+ *
+ * 💣 NICHT MIT ZWEI preg_replace. Der naheliegende Weg ist
+ *     preg_replace('!/\*.*?\*&#47;!s', ...) und danach preg_replace('!//[^\n]*!', ...)
+ * und er ZERSTOERT die Datei: sync-monitor.php:39 traegt in einem ZEILENkommentar die Zeichenfolge
+ * `_internal/wiki/*-Libs`. Der Blockentferner laeuft zuerst, sieht dort ein `/*` und frisst alles
+ * bis zum naechsten `*&#47;` -- gemessen am 02.09.2026: 380 Zeilen echter Code, darunter genau das
+ * require, das dieser Test festhalten soll.
+ * ⚠️ Und die Richtung ist die gefaehrliche: hier fiel es als roter Test auf, aber dieselbe
+ * Verstuemmelung kann eine Zusicherung LEER laufen lassen (die Falle "Textersatz bis Dateiende
+ * macht Tests gruener"). Ein Test, der Quelltext liest, braucht einen echten Parser.
+ */
+function nurCode(string $quelle): string {
+    $aus = '';
+    foreach (token_get_all($quelle) as $t) {
+        if (is_array($t)) {
+            if ($t[0] === T_COMMENT || $t[0] === T_DOC_COMMENT) {
+                continue;
+            }
+            $aus .= $t[1];
+            continue;
+        }
+        $aus .= $t;
+    }
+
+    return $aus;
+}
+
 $quelle = (string) file_get_contents(__DIR__ . '/../eigener-knoten-wiki-bindung.php');
-// Block- und Zeilenkommentare heraus, damit nur echter Code gezaehlt wird.
-$code = preg_replace('!/\*.*?\*/!s', '', $quelle) ?? '';
-$code = preg_replace('!//[^\n]*!', '', $code) ?? '';
+$code = nurCode($quelle);
 
 $checks = 0;
 function pruefe(bool $b, string $warum): void {
@@ -87,5 +114,32 @@ foreach (['feature_sources', 'political_territory_claim'] as $tabelle) {
         }
     }
 }
+
+// ---- Die Verdrahtung: der Endpunkt kennt die vier Aktionen und laedt die Bibliothek ------------
+
+$endpunktCode = nurCode((string) file_get_contents(__DIR__ . '/../../../edit/wiki/sync-monitor.php'));
+
+// 🪤 Die Gegenprobe zum Tokenizer: sie kostet nichts und haette den Fehler oben sofort gezeigt.
+// Ein Kommentarentferner, der mehr als die Kommentare entfernt, laesst die Datei schrumpfen --
+// hier blieben von 470 Zeilen 90 uebrig, und die Zusicherungen darunter massen nichts mehr.
+pruefe(
+    substr_count($endpunktCode, "\n") > substr_count((string) file_get_contents(__DIR__ . '/../../../edit/wiki/sync-monitor.php'), "\n") / 2,
+    'Der Kommentarentferner hat mehr als die Kommentare entfernt -- die Zusicherungen darunter waeren wertlos.'
+);
+
+pruefe(
+    str_contains($endpunktCode, "require_once __DIR__ . '/../../_internal/wiki/eigener-knoten-wiki-bindung.php'"),
+    '💣 Ohne das require ist jede der vier Aktionen ein Fatal -- und ein Fatal antwortet mit LEEREM '
+    . 'Rumpf ("Unexpected end of JSON input"), was im Browser wie ein Netzfehler aussieht.'
+);
+foreach (['wiki_binding_candidates', 'wiki_binding_preview', 'wiki_binding_apply', 'wiki_binding_suggest'] as $aktion) {
+    pruefe(str_contains($endpunktCode, "'{$aktion}'"), "Die Aktion {$aktion} fehlt im Dispatch.");
+}
+
+// 🔴 Der Schreib-Riegel des Hauses: schreiben NUR bei dry_run:false UND confirm:"apply".
+pruefe(
+    preg_match('/wiki_binding_apply.{0,600}confirm.{0,40}apply/s', $endpunktCode) === 1,
+    'Die Uebernahme steht unter dem dry_run/confirm-Riegel wie jeder andere Schreiber daneben.'
+);
 
 echo "eigener-knoten-wiki-bindung-ziele: {$checks} Zusicherungen gruen.\n";

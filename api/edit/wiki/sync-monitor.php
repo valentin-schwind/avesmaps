@@ -41,6 +41,11 @@ require_once __DIR__ . '/../../_internal/media-license.php';
 // Only for avesmapsPoliticalInvalidateLayerCache(): the "Wappen: An/Aus" toggle changes what the layer
 // payload contains, and the layer's file cache would otherwise serve the old URLs for up to 300 s.
 require_once __DIR__ . '/../../_internal/political/territories-derived-layer.php';
+// Die Bindung eigener Knoten an einen Wiki-Artikel (Entwurf 02.09.2026). Ausdruecklich hier, nicht
+// auf "jemand anderes zieht sie schon herein" gebaut -- genau diese Annahme soll der
+// Verdrahtungstest stoppen, und ohne das require ist jede der vier Aktionen ein Fatal mit LEEREM
+// Rumpf ("Unexpected end of JSON input" im Browser, sieht aus wie ein Netzfehler).
+require_once __DIR__ . '/../../_internal/wiki/eigener-knoten-wiki-bindung.php';
 
 try {
     $config = avesmapsLoadApiConfig(__DIR__);
@@ -235,6 +240,43 @@ try {
                 '',
                 (int) ($user['id'] ?? 0)
             ),
+            // --- Einen eigenen Knoten an einen Wiki-Artikel binden (Entwurf 02.09.2026) ---------
+            // Die drei lesenden Aktionen tragen KEINEN dry_run/confirm-Riegel: sie schreiben nicht.
+            'wiki_binding_candidates' => [
+                'ok' => true,
+                'rows' => avesmapsEigenerKnotenBindungKandidaten(
+                    $pdo,
+                    (string) ($payload['query'] ?? ''),
+                    (int) ($payload['limit'] ?? 25)
+                ),
+            ],
+            'wiki_binding_suggest' => [
+                'ok' => true,
+                'rows' => avesmapsEigenerKnotenBindungVorschlaege($pdo),
+            ],
+            'wiki_binding_preview' => avesmapsEigenerKnotenBindungPlan(
+                $pdo,
+                (string) ($payload['wiki_key'] ?? ''),
+                (string) ($payload['target_key'] ?? '')
+            ),
+            // 🔴 Der Schreiber. Schreiben NUR bei dry_run:false UND confirm:"apply" -- derselbe
+            // Riegel wie bei apply_identity, apply_coats und apply_custom_nodes daneben.
+            'wiki_binding_apply' => (
+                ($payload['dry_run'] ?? true) === false && (string) ($payload['confirm'] ?? '') === 'apply'
+            )
+                ? avesmapsEigenerKnotenBindungAnwenden(
+                    $pdo,
+                    (string) ($payload['wiki_key'] ?? ''),
+                    (string) ($payload['target_key'] ?? ''),
+                    is_array($payload['fields'] ?? null) ? $payload['fields'] : [],
+                    avesmapsEigenerKnotenBindungZielWerte($pdo, (string) ($payload['target_key'] ?? '')),
+                    (int) ($user['id'] ?? 0)
+                )
+                : avesmapsEigenerKnotenBindungPlan(
+                    $pdo,
+                    (string) ($payload['wiki_key'] ?? ''),
+                    (string) ($payload['target_key'] ?? '')
+                ),
             default => null,
         };
 
