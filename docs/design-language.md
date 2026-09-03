@@ -135,6 +135,43 @@ pills, list rows), `--radius-lg` 10px (menus, cards, autocomplete). The old
   speed-info dialog had Fluss-/Meerreise as cards but Landreise bare). And one role
   uses **one class**, not two (a card title styled by both `.tsi-section` and
   `.tsi-wtitle` was a duplicate).
+- **Reichweiten-Rahmen (`.fs-scope`) — die EINE Ausnahme vom Kasten-Verbot, und sie
+  hat GENAU EINE Rezeptur.** Wo ein Formular Felder trägt, die **verschieden weit
+  wirken**, wird jede Reichweite umrahmt und die Aufschrift sitzt AUF dem Rahmen.
+  Der Rahmen sagt hier nicht „das gehört zusammen“ (dafür gibt es die Trennlinie
+  eine Zeile weiter oben), sondern **„bis hierher reicht, was du änderst“** — und
+  genau dafür ist eine Linie zu schwach. Owner 02.09.2026.
+  - **Ein Bauteil, nie abgeschrieben.** `avesmapsSourceScopeFrame()` +
+    `.fs-scope` / `__head` / `__title` / `__reach` / `__fields`. Wer einen zweiten
+    Rahmen braucht, ruft es; wer die Werte kopiert, baut die Divergenz.
+    💣 Genau das ist am 02.09.2026 passiert: **vier** Rezepturen für eine Form
+    (`.fs-adresse`, `.fs-eintrag`, `.fs-korpus`, `.fs-edit__group`), im Browser
+    gemessen 10px/normal gegen 11px/fett, 8px gegen 10px Polster, solid gegen
+    dashed — und in **zwei** von ihnen stand mein eigener Kommentar „dieselben
+    Werte wie `.fs-korpus`, eine zweite Rezeptur wäre die Divergenz“. Die Warnung
+    hinschreiben ersetzt das Bauteil nicht. Dieselbe Lehre wie bei der Listenzeile
+    (sieben Rezepturen) und der Wiki-Zuweisung (sechs Fassungen), AGENTS.md §11.
+  - **Anlegen und Bearbeiten sind DASSELBE Formular.** Gleiche Reichweiten,
+    gleiche Namen, gleiche Reihenfolge, gleiche Form — der einzige Unterschied ist,
+    was schon ausgefüllt ist. ⚠️ Zwei Formulare, in die man dasselbe eintippt und
+    die verschieden aussehen, sind der Fehler, nicht der Sonderfall.
+  - **Eine Kontur, kein Vokabular aus Konturen.** Durchgezogen überall.
+    🚩 Der Versuch, `solid` „hier fängst du an“ und `dashed` „so weit reicht es“
+    bedeuten zu lassen, war eine erfundene Bedeutung, die niemand liest — sie hat
+    nur die zwei Formulare verschieden aussehen lassen.
+  - **Die Aufschrift ist 11px/700/Versalien** in `--color-accent-brown` (11px ist
+    die Untergrenze aus §Typography; die Eingabezeile stand auf 10). Eine
+    **Reichweitenangabe** daneben („40 Quellen · 51 Objekte“) ist 11px/400,
+    `--color-text-muted`, **ohne** Versalien — ein Eigenname in Versalien
+    („ALBERNIAWIKI“) liest sich wie eine Kennung.
+  - **Nichts im Rahmen darf seiner Aufschrift widersprechen.** Ein Bedienelement
+    „nur diese Quelle“ im Rahmen „Gilt für den ganzen Korpus“ hebt die Aufschrift
+    auf. Eine Ausnahme gehört an den **Fuß** des Rahmens, einmal und benannt, nie
+    je Feld wiederholt.
+  - **Die Knopfleiste ist in beiden gleich:** Haupthandlung *gefüllt*, Rest
+    *weich*, `--radius-md`, und sie heißt **„Speichern“** — nicht „Hinzufügen“,
+    „Verknüpfen“ oder was der Zustand gerade tut. Der Zustand steht in der
+    Rückmeldung, nicht auf dem Knopf.
 - **`border` vs `divider` are not interchangeable.** `--color-border` is for
   *control and panel edges* (solid hairline); `--color-divider` is for *section
   separators inside a panel* (soft). A section line is **always** the divider —

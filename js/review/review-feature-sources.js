@@ -234,7 +234,9 @@ function featureSourceHerkunftZeile(herkunft, wortlaut, escape, tr) {
   const text = wer
     ? tr(wortlaut.mitName, wortlaut.mitNameText).replace("{wer}", wer).replace("{wann}", datum)
     : tr(wortlaut.ohneName, wortlaut.ohneNameText).replace("{wann}", datum);
-  return '<p class="fs-edit__by">' + escape(text) + "</p>";
+  // 🔴 `.fs-scope__by` -- der Name aus dem Vertrag. Sie hiess `.fs-edit__by` und war damit
+  // an den ✎ gebunden, obwohl die Eingabezeile dieselbe Zeile bekommen soll.
+  return '<p class="fs-scope__by">' + escape(text) + "</p>";
 }
 
 // ══ DER BEARBEITEN-KASTEN ═══════════════════════════════════════════════════════════════════════
@@ -258,8 +260,12 @@ function renderFeatureSourceEditPanel(source, escape, tr) {
   // korpuseigenen Felder erweitert, weil die einzigen Abweichungen im Bestand ausgerechnet die
   // zwei anderen sind (Art und „offiziell" an „Der Preis der Macht").
   const eigen = Array.isArray(source.own_fields) ? source.own_fields.slice() : [];
+  // 🔴 DIE ADRESSE TRAEGT AUCH HIER `.fs-url` -- der auffaellige Rahmen gehoert dem FELD, nicht
+  // dem Formular (Owner 02.09.2026: „auffaelligen rahmen"). Ohne diese Zeile sah dasselbe Feld in
+  // der Eingabezeile braun umrandet aus und im ✎ wie jedes andere: gemessen rgb(122,90,58) gegen
+  // rgb(221,211,195). Der letzte Unterschied zwischen den zwei Formularen.
   const feld = (name, wert, markup) =>
-    '<label class="fs-field' + (name === "url" ? " fs-field--full" : (name === "label" || name === "attribution" ? " fs-field--grow" : "")) + '">'
+    '<label class="fs-field' + (name === "url" ? " fs-field--full fs-url" : (name === "label" || name === "attribution" ? " fs-field--grow" : "")) + '">'
     + "<span>" + escape(wert) + "</span>" + markup + "</label>";
   const text = (name, wert, platzhalter, gesperrt) =>
     '<input type="text" data-fs-field="' + name + '" data-fs-orig="' + escape(wert) + '"'
@@ -285,44 +291,7 @@ function renderFeatureSourceEditPanel(source, escape, tr) {
     Object.keys(lizenzTafel).map((k) => ({ wert: k, text: lizenzTafel[k].label }))
   );
 
-  /**
-   * Ein korpuseigenes Feld — mit dem Häkchen, das es der Quelle zuschlägt.
-   *
-   * 🔴 EIN Eingabefeld, nicht zwei. Der naheliegende Entwurf (ein zweiter Kasten „Nur für diese
-   * Quelle" mit denselben vier Feldern) legte zwei Elemente mit demselben `data-fs-field` an --
-   * und `featureSourceChangedFields` liest sie beide. Welcher Wert gewinnt, entschiede dann die
-   * DOM-Reihenfolge. Das Feld bleibt also, wo es ist; das Häkchen sagt, für wen es gilt.
-   * 💣 Und es sagt es AM FELD, nicht in der Überschrift: die Gruppe heißt weiter „Gilt für den
-   * ganzen Korpus", und ohne den Marker am Feld wäre ein angehaktes Feld eine stille Ausnahme
-   * unter einer Überschrift, die das Gegenteil verspricht.
-   * ⚠️ Der durchgestrichene Korpuswert erscheint nur, wenn er sich WIRKLICH unterscheidet und
-   * nicht leer ist -- ein durchgestrichenes Nichts ist keine Auskunft. Bauteil und Optik sind
-   * `wiki-override.css` (`.wiki-alt`, `.dt-old`): der Korpus verhält sich zur Quelle wie das Wiki
-   * zum Kartenobjekt, und dafür gibt es die Form längst.
-   */
-  // 💣 VERGLICHEN WIRD DER SCHLÜSSEL, ANGEZEIGT DER TEXT. Die erste Fassung hielt `source.license`
-  // („cc-by-sa-4.0") gegen die Beschriftung des Korpuswertes („CC BY-SA 4.0") -- die sind NIE
-  // gleich, also stand über jedem angehakten Feld eine Abweichung, auch wo es keine gab. Gefangen
-  // hat das der Test, nicht der Blick: im Bild sieht ein zu viel durchgestrichener Wert plausibel aus.
-  const korpusFeld = (name, beschriftung, markup, eigenerWert, korpusRoh, korpusText) => {
-    const istEigen = eigen.indexOf(name) !== -1;
-    const abweichend = istEigen && String(korpusText || "") !== "" && String(eigenerWert || "") !== String(korpusRoh || "");
-    return '<label class="fs-field' + (name === "attribution" ? " fs-field--grow" : "")
-      + (istEigen ? " fs-field--eigen" : "") + '">'
-      + "<span>" + escape(beschriftung)
-      + (abweichend
-        ? '<span class="wiki-alt"><span class="dt-old">' + escape(korpusText) + "</span></span>"
-        : "")
-      + "</span>" + markup
-      + '<span class="fs-eigen"><input type="checkbox" data-fs-own="' + escape(name) + '"'
-      + ' data-fs-own-orig="' + (istEigen ? "1" : "0") + '"' + (istEigen ? " checked" : "")
-      + "> " + escape(tr("sources.edit.ownField", "nur diese Quelle")) + "</span>"
-      + "</label>";
-  };
 
-  const kopf = (titel, reichweite) =>
-    '<div class="fs-edit__head"><span class="fs-edit__title">' + escape(titel) + "</span>"
-    + (reichweite ? '<span class="fs-edit__scope">' + reichweite + "</span>" : "") + "</div>";
 
   const objekte = usage === 1
     ? escape(tr("sources.edit.scopeOne", "zurzeit nur dieses Objekt"))
@@ -351,20 +320,15 @@ function renderFeatureSourceEditPanel(source, escape, tr) {
   // im Bild „Quellenart: Briefspiel" mit einem durchgestrichenen „Briefspiel" daneben -- derselbe
   // Wert zweimal, einmal als Bestand und einmal als das, wovon er angeblich abweicht. Der Kasten
   // widersprach sich selbst; gefunden hat es der Blick, nicht der Test.
-  const korpusWert = (feldName, rueckfall) => {
-    if (eigen.indexOf(feldName) !== -1) {
-      return String(rueckfall);
-    }
-    if (korpus && korpus.known === true && korpus[feldName] !== undefined && korpus[feldName] !== "") {
-      return String(korpus[feldName]);
-    }
-    return String(rueckfall);
-  };
-  const korpusHaken = eigen.indexOf("is_official") !== -1
-    ? source.official === true
-    : ((korpus && korpus.known === true && korpus.is_official !== undefined)
-      ? korpus.is_official === true
-      : source.official === true);
+  // 🔴 Steht diese Quelle bewusst OHNE Korpus? (Owner 02.09.2026)
+  const ohneKorpus = source.no_corpus === true || source.no_corpus === 1;
+  // Der Kanon des KORPUS -- der Rahmen zeigt seinen Wert, nicht den der Zeile.
+  // ⚠️ `offiziell` ist seit dem 03.09.2026 nicht mehr ueberschreibbar (Owner: „offiziell
+  // braucht nicht ueberschrieben werden“) -- es gibt hier also nur EINEN Wert, keinen zweiten
+  // daneben, von dem er abweichen koennte.
+  const korpusKanon = (korpus && korpus.known === true && korpus.is_official !== undefined)
+    ? korpus.is_official === true
+    : source.official === true;
 
   const hinweis = wikiOwned
     ? '<div class="fs-edit__note fs-edit__note--locked">'
@@ -388,103 +352,119 @@ function renderFeatureSourceEditPanel(source, escape, tr) {
       + escape(source.url || tr("sources.edit.noUrl", "(ohne Adresse — Wiki-Publikation)"))
       + "</p>"
     : "";
-  return (
-    '<div class="fs-edit" data-fs-edit-panel="' + escape(source.source_id) + '">'
-    + '<div class="fs-edit__group">'
-    + kopf(tr("sources.edit.linkScope", "Nur an diesem Objekt"), "")
-    + '<div class="fs-edit__fields">'
-    + feld("pages", tr("sources.colPages", "Seite(n)"), text("pages", String(source.pages || ""), "", false))
-    + feld("reference_kind", tr("sources.colKind", "Abdeckung"), auswahl("reference_kind", String(source.reference_kind || ""), kindEintraege, false))
-    + "</div>"
+  // ── Die drei Reichweiten, gebaut mit dem GETEILTEN Rahmen ─────────────────────────────────
+  // 🔴 GLEICHE Namen, GLEICHE Reihenfolge, GLEICHE Form wie in der Eingabezeile (Owner
+  // 02.09.2026: „du kriegst es jedesmal hin, dass es anders ist, obwohl man denselben scheiss
+  // eingibt"). Der einzige Unterschied ist, was schon ausgefüllt ist.
+  const rahmenQuelle = avesmapsSourceScopeFrame({
+    escape,
+    titel: tr("sources.scope.source", "Gilt für alle Objekte, die diese Quelle zitieren"),
+    reichweite: objekte,
+    felder:
+      (wikiOwned ? "" : feld("url", tr("sources.edit.url", "Adresse"),
+        text("url", String(source.url || ""), "https://…", false)))
+      + feld("label", tr("sources.colTitle", "Titel"), text("label", String(source.label || ""), "", wikiOwned))
+      // 🔴 „Kein Korpus verwenden" (Owner 02.09.2026), Vorgabe AUS. Angehakt gehört die Quelle zu
+      // keinem Korpus: der Rahmen darunter verschwindet, und der Server schreibt keinen Wirt mehr
+      // — was sonst alle ANDEREN Quellen dieses Wirts träfe.
+      + '<label class="fs-af fs-af--w fs-check"><input type="checkbox" data-fs-field="no_corpus"'
+      + ' data-fs-orig="' + (ohneKorpus ? "1" : "0") + '"' + (ohneKorpus ? " checked" : "")
+      + (wikiOwned ? " disabled" : "") + "> "
+      + escape(tr("sources.add.noCorpus", "Kein Korpus verwenden"))
+      + '<span class="fs-af__meta"> — '
+      + escape(tr("sources.add.noCorpusHint", "diese Quelle steht für sich")) + "</span></label>",
     // 🔴 DIE HERKUNFT STEHT AN IHRER REICHWEITE, nicht gesammelt am Fuss. „Wer hat das hier
     // angehängt" und „wer hat die Quelle angelegt" sind zwei verschiedene Menschen und zwei
     // verschiedene Zeitpunkte; unter einer gemeinsamen Überschrift wäre nicht zu sehen, welche
     // Angabe zu welcher Hälfte gehört.
-    + featureSourceHerkunftZeile(source.created && source.created.link, {
-      mitName: "sources.edit.byLink", mitNameText: "Hier angehängt von {wer} am {wann}",
-      ohneName: "sources.edit.byLinkAnon", ohneNameText: "Hier angehängt am {wann}",
-    }, escape, tr)
-    + "</div>"
-    + '<div class="fs-edit__group">'
-    + kopf(tr("sources.edit.catalogScope", "Gilt für alle Objekte, die diese Quelle zitieren"), objekte)
-    + adresse
-    + '<div class="fs-edit__fields">'
-    + (wikiOwned ? "" : feld("url", tr("sources.edit.url", "Adresse"), text("url", String(source.url || ""), "https://…", false)))
-    + feld("label", tr("sources.colTitle", "Titel"), text("label", String(source.label || ""), "", wikiOwned))
-    + "</div>"
-    + featureSourceHerkunftZeile(source.created && source.created.source, {
+    fuss: adresse + featureSourceHerkunftZeile(source.created && source.created.source, {
       mitName: "sources.edit.bySource", mitNameText: "In den Katalog gelegt von {wer} am {wann}",
       ohneName: "sources.edit.bySourceAnon", ohneNameText: "In den Katalog gelegt am {wann}",
-    }, escape, tr)
-    + hinweis + "</div>"
-    // 🔴 DIE DRITTE GRUPPE -- und sie ist eine BERICHTIGUNG, keine Zierde. Art, Lizenz, Nennung
-    // und Kanon gehören seit dem 02.09.2026 dem KORPUS: eine Änderung daran trifft jede Quelle
-    // dieses Wirts. In der Gruppe darüber gestanden, versprach die Überschrift „gilt für alle
-    // Objekte, die diese Quelle zitieren · zurzeit nur dieses Objekt" — während ein Griff zur
-    // Lizenz 39 Quellen und 50 Objekte umgeschrieben hätte. Owner-Bild 02.09.2026.
-    + '<div class="fs-edit__group">'
-    + kopf(korpusTitel, korpusReichweite)
-    + '<div class="fs-edit__fields">'
-    // 🔴 DIE FORM -- am 02.09.2026 aus der Eingabezeile hierher gewandert (Owner: „zieh die form
-    // ins ✎"). Sie ist die EINE Eigenschaft, die ein Korpus tragen muss: sie entscheidet, welcher
-    // der beiden Namen dem Besucher vorn steht -- bei einem WERK der Titel („Geographia
-    // Aventurica"), bei einer BELEGSTELLE der Korpusname („Briefspiel (Weiden)").
-    // 💣 DREI Werte, nicht zwei. „— noch offen —" ist ein eigener Zustand und verhält sich wie
-    // „Werk", also wie heute: bei einem frischen Korpus mit einer Zeile sagt das Verhältnis
-    // Titel/Zeilen nichts, und wer die Form dort rät, trifft in gut der Hälfte der Fälle daneben
-    // und behauptet dabei, es gemessen zu haben.
-    // ⚠️ KEIN „nur diese Quelle" daran: die Form ist keine Eigenschaft einer einzelnen Zeile,
-    // sondern die Frage, wie der ganze Wirt gelesen wird. Sie steht deshalb im Korpuskasten und
-    // wandert serverseitig in den Korpus, nicht in `sources`.
-    + feld("form", tr("sources.edit.formLabel", "Form"),
-      auswahl("form", String((korpus && korpus.form) || ""), [
-        { wert: "", text: tr("sources.add.formOpen", "— noch offen —") },
-        { wert: "werk", text: tr("sources.add.formWork", "Werke (Titel vorn)") },
-        { wert: "belegstelle", text: tr("sources.add.formCite", "Belegstellen (Korpus vorn)") },
-      ], !(korpus && korpus.known === true)))
-    + korpusFeld("source_type", tr("sources.colType", "Quellenart"),
-      auswahl("source_type", korpusWert("source_type", source.type || "sonstiges"), typEintraege, false),
-      source.type || "", String((korpus && korpus.source_type) || ""),
-      featureSourceTypeLabel(korpus && korpus.source_type))
-    + korpusFeld("license", tr("sources.colLicense", "Lizenz"),
-      auswahl("license", korpusWert("license", source.license || ""), lizenzEintraege, false),
-      source.license || "", String((korpus && korpus.license) || ""),
-      (lizenzTafel[String((korpus && korpus.license) || "")] || {}).label || "")
-    + korpusFeld("attribution", tr("sources.add.attribution", "Namensnennung"),
-      text("attribution", korpusWert("attribution", source.attribution || ""), tr("sources.edit.attributionHint", "z. B. VolkoV / garetien.de"), false),
-      source.attribution || "", String((korpus && korpus.attribution) || ""),
-      String((korpus && korpus.attribution) || ""))
-    // ⚠️ Der Kanon-Haken traegt sein „nur diese Quelle" ebenso -- er ist das Feld, das der Upsert
-    // bis zum 02.09.2026 als EINZIGES bedingungslos ueberschrieb, und damit das gefaehrlichste.
-    + '<label class="fs-check' + (eigen.indexOf("is_official") !== -1 ? " fs-field--eigen" : "") + '">'
-    + '<input type="checkbox" data-fs-field="is_official" data-fs-orig="'
-    + (korpusHaken ? "1" : "0") + '"' + (korpusHaken ? " checked" : "") + (wikiOwned ? " disabled" : "")
-    + "> " + escape(tr("sources.add.official", "offiziell"))
-    // ⚠️ Auch hier der Korpuswert durchgestrichen, wenn er wirklich abweicht -- sonst ist „nur
-    // diese Quelle" angehakt und niemand sieht, WOVON abgewichen wird.
-    + ((eigen.indexOf("is_official") !== -1 && korpus && korpus.known === true
-        && (korpus.is_official === true) !== (source.official === true))
-      ? '<span class="wiki-alt"><span class="dt-old">'
-        + escape(korpus.is_official === true ? tr("sources.edit.yes", "offiziell") : tr("sources.edit.no", "nicht offiziell"))
-        + "</span></span>"
-      : "")
-    + '<span class="fs-eigen"><input type="checkbox" data-fs-own="is_official"'
-    + ' data-fs-own-orig="' + (eigen.indexOf("is_official") !== -1 ? "1" : "0") + '"'
-    + (eigen.indexOf("is_official") !== -1 ? " checked" : "")
-    + "> " + escape(tr("sources.edit.ownField", "nur diese Quelle")) + "</span>"
-    + "</label>"
-    + "</div>"
-    // Die DRITTE Herkunft -- wer den Korpus zuletzt angefasst hat. Ohne sie schwiege der Kasten
+    }, escape, tr) + hinweis,
+  });
+
+  // 🔴 DER KORPUSRAHMEN — und er ist eine BERICHTIGUNG, keine Zierde. Art, Lizenz, Nennung und
+  // Kanon gehören dem KORPUS: eine Änderung daran trifft jede Quelle dieses Wirts. In der Gruppe
+  // darüber gestanden, versprach die Überschrift „gilt für alle Objekte, die diese Quelle
+  // zitieren · zurzeit nur dieses Objekt" — während ein Griff zur Lizenz 39 Quellen und 50
+  // Objekte umgeschrieben hätte. Owner-Bild 02.09.2026.
+  // 💣 SEINE FELDER HEISSEN `corpus_*` UND MEINEN DAMIT IMMER DEN KORPUS. Der blanke Name
+  // (`license`) gehört seit dem 03.09.2026 der ABWEICHUNG im Rahmen darunter; trügen beide
+  // denselben Namen, liessen sie sich nicht in EINEM Speichern ändern.
+  const korpusFeldEdit = (name, beschriftung, markup) =>
+    '<label class="fs-field' + (name === "attribution" ? " fs-field--grow" : "") + '">'
+    + "<span>" + escape(beschriftung) + "</span>" + markup + "</label>";
+  const korpusAnzeige = (name, rueckfall) =>
+    (korpus && korpus.known === true && korpus[name] !== undefined && korpus[name] !== "")
+      ? String(korpus[name]) : String(rueckfall);
+  const rahmenKorpus = avesmapsSourceScopeFrame({
+    escape,
+    attr: "data-fs-korpus-gruppe",
+    hidden: ohneKorpus,
+    titel: korpusTitel,
+    reichweite: korpusReichweite,
+    felder:
+      // 🔴 DIE FORM — sie ist die EINE Eigenschaft, die ein Korpus tragen muss: sie entscheidet,
+      // welcher der beiden Namen dem Besucher vorn steht — bei einem WERK der Titel („Geographia
+      // Aventurica"), bei einer BELEGSTELLE der Korpusname („Herzogtum Weiden").
+      // 💣 DREI Werte, nicht zwei. „— noch offen —" ist ein eigener Zustand und verhält sich wie
+      // „Werk": bei einem frischen Korpus mit einer Zeile sagt das Verhältnis Titel/Zeilen nichts,
+      // und wer die Form dort rät, trifft in gut der Hälfte der Fälle daneben.
+      korpusFeldEdit("form", tr("sources.edit.formLabel", "Form"),
+        auswahl("corpus_form", String((korpus && korpus.form) || ""), [
+          { wert: "", text: tr("sources.add.formOpen", "— noch offen —") },
+          { wert: "werk", text: tr("sources.add.formWork", "Werke (Titel vorn)") },
+          { wert: "belegstelle", text: tr("sources.add.formCite", "Belegstellen (Korpus vorn)") },
+        ], !(korpus && korpus.known === true)))
+      + korpusFeldEdit("source_type", tr("sources.colType", "Quellenart"),
+        auswahl("corpus_source_type", korpusAnzeige("source_type", source.type || "sonstiges"),
+          typEintraege, false))
+      + korpusFeldEdit("license", tr("sources.colLicense", "Lizenz"),
+        auswahl("corpus_license", korpusAnzeige("license", source.license || ""), lizenzEintraege, false))
+      + korpusFeldEdit("attribution", tr("sources.add.attribution", "Namensnennung"),
+        text("corpus_attribution", korpusAnzeige("attribution", source.attribution || ""),
+          tr("sources.edit.attributionHint", "z. B. VolkoV / garetien.de"), false))
+      + '<label class="fs-af fs-af--w fs-check">'
+      + '<input type="checkbox" data-fs-field="corpus_is_official" data-fs-orig="'
+      + (korpusKanon ? "1" : "0") + '"' + (korpusKanon ? " checked" : "") + (wikiOwned ? " disabled" : "")
+      + "> " + escape(tr("sources.add.official", "offiziell")) + "</label>",
+    // Die DRITTE Herkunft — wer den Korpus zuletzt angefasst hat. Ohne sie schwiege der Kasten
     // ausgerechnet bei der Gruppe, deren Änderung am weitesten reicht.
-    + featureSourceHerkunftZeile(korpus && korpus.updated, {
+    fuss: featureSourceHerkunftZeile(korpus && korpus.updated, {
       mitName: "sources.edit.byCorpus", mitNameText: "Korpus zuletzt geändert von {wer} am {wann}",
       ohneName: "sources.edit.byCorpusAnon", ohneNameText: "Korpus zuletzt geändert am {wann}",
-    }, escape, tr)
-    + "</div>"
-    + '<div class="fs-edit__foot">'
-    + '<button type="button" class="fs-edit__save" data-fs-edit-save="' + escape(source.source_id) + '">'
+    }, escape, tr),
+  });
+
+  const rahmenObjekt = avesmapsSourceScopeFrame({
+    escape,
+    titel: tr("sources.edit.linkScope", "Nur an diesem Objekt"),
+    felder:
+      feld("pages", tr("sources.colPages", "Seite(n)"), text("pages", String(source.pages || ""), "", false))
+      + feld("reference_kind", tr("sources.colKind", "Abdeckung"),
+        auswahl("reference_kind", String(source.reference_kind || ""), kindEintraege, false))
+      // 🔴 DIE ABWEICHUNG — dasselbe Bauteil wie in der Eingabezeile, nur mit Werten.
+      // ⚠️ Vorbelegt wird NUR, was diese Quelle wirklich besitzt (`own_fields`). Ein Feld, das
+      // erbt, startet leer — leer heisst „wie der Korpus".
+      + featureSourceAbweichungsBlock(escape, tr, {
+        source_type: eigen.indexOf("source_type") !== -1 ? String(source.type || "") : "",
+        license: eigen.indexOf("license") !== -1 ? String(source.license || "") : "",
+        attribution: eigen.indexOf("attribution") !== -1 ? String(source.attribution || "") : "",
+      }),
+    fuss: featureSourceHerkunftZeile(source.created && source.created.link, {
+      mitName: "sources.edit.byLink", mitNameText: "Hier angehängt von {wer} am {wann}",
+      ohneName: "sources.edit.byLinkAnon", ohneNameText: "Hier angehängt am {wann}",
+    }, escape, tr),
+  });
+
+  return (
+    '<div class="fs-edit" data-fs-edit-panel="' + escape(source.source_id) + '">'
+    + rahmenQuelle + rahmenKorpus + rahmenObjekt
+    // 🔴 SPEICHERN / ABBRECHEN — dieselbe Knopfleiste wie in der Eingabezeile, `--radius-md`.
+    + '<div class="fs-actions">'
+    + '<button type="button" class="fs-actions__prim" data-fs-edit-save="' + escape(source.source_id) + '">'
     + escape(tr("sources.edit.save", "Speichern")) + "</button>"
-    + '<button type="button" class="fs-edit__cancel" data-fs-edit-cancel>'
+    + '<button type="button" class="fs-actions__sek" data-fs-edit-cancel>'
     + escape(tr("sources.edit.cancel", "Abbrechen")) + "</button>"
     + '<span class="fs-edit__msg" data-fs-edit-msg></span>'
     + "</div></div>"
@@ -593,6 +573,125 @@ function renderFeatureSourcePendingGroup(pendingSources, escape, tr) {
   return '<div class="fs-group fs-group--pending" data-fs-group="pending">' + heading + rows + "</div>";
 }
 
+/**
+ * DER REICHWEITEN-RAHMEN — EIN Bauteil, sechs Verwender.
+ *
+ * 💣 WARUM ES DAS GIBT. Bis zum 02.09.2026 baute jedes Formular seinen Rahmen selbst: vier
+ * Rezepturen fuer eine Form (`.fs-adresse`, `.fs-eintrag`, `.fs-korpus`, `.fs-edit__group`), im
+ * Browser gemessen 10px/normal gegen 11px/fett, 8px gegen 10px Polster, solid gegen dashed. Der
+ * Owner sah es sofort: „du kriegst es jedesmal hin, dass es anders ist, obwohl man denselben
+ * scheiss eingibt." — Und in ZWEI der vier stand die Warnung schon da („eine zweite Rezeptur
+ * waere die Divergenz"). Eine Warnung hinzuschreiben ersetzt das Bauteil nicht.
+ *
+ * 🔴 ANLEGEN UND BEARBEITEN SIND DASSELBE FORMULAR: gleiche Reichweiten, gleiche Namen,
+ * gleiche Reihenfolge (von weit nach eng: die Quelle — der Korpus — dieses Objekt). Der einzige
+ * Unterschied ist, was schon ausgefuellt ist. Wer einen zweiten Rahmen braucht, ruft DIESE
+ * Funktion; wer ihre Werte abschreibt, baut die fuenfte Rezeptur.
+ *
+ * ⚠️ `reichweite` und `felder` sind fertiges MARKUP und werden NICHT maskiert — der
+ * ✎-Kasten setzt dort ein `<b>` um die Objektzahl. Alles, was aus Benutzereingabe stammt,
+ * maskiert der Aufrufer, bevor er es hereinreicht. `titel` und `hinweis` sind Text und werden
+ * hier maskiert.
+ *
+ * @param {{titel: string, reichweite?: string, reichweiteAttr?: string, hinweis?: string,
+ *          felder: string, fuss?: string, hidden?: boolean, attr?: string,
+ *          escape?: (s: string) => string}} opts
+ * @returns {string}
+ */
+/**
+ * DIE ABWEICHUNG VOM KORPUS — drei Felder, kein Häkchen.
+ *
+ * 🔴 Owner 02.09.2026: „eigentlich braucht es die häkchen nicht NUR felder. wenn ich die
+ * quellenart änder gilt eine andere … ich will nur änderungen vornehmen können für diese eine
+ * quelle." Der erste Eintrag (bzw. der Platzhalter) IST der Korpuswert; wer etwas anderes
+ * einstellt, weicht ab, wer zurückstellt, erbt wieder.
+ *
+ * 💣 DAMIT GIBT ES KEINEN ZWEITEN ZUSTAND NEBEN DEM WERT. Die Fassung davor trug ein Häkchen
+ * UND einen Wert; die beiden konnten auseinanderlaufen (angehakt, aber leer), und die Anzeige
+ * musste raten, welcher von beiden gilt. Dieselbe Regel wie beim Hintergrundklick, wo `hidden`
+ * der ganze Zustand ist.
+ *
+ * 💣 UND DAS FELD MARKIERT SICH, WENN ES ABWEICHT — aber NICHT nur durch Farbe. Gemessen sind
+ * `--color-accent-brown` (#7a5a3a) und `--color-text-muted` (#706557) im hellen Thema fast
+ * dasselbe Braun: die Markierung war da und trotzdem unsichtbar. Sie wird deshalb BENANNT
+ * („Lizenz · abweichend", `.fs-field--abw > span::after` im CSS).
+ *
+ * ⚠️ `offiziell` fehlt hier absichtlich (Owner: „offiziell braucht nicht überschrieben
+ * werden") — es gehört allein dem Korpus.
+ * ⚠️ Die Beschriftung des ERSTEN Eintrags entsteht erst zur Laufzeit („wie Korpus (Briefspiel)"
+ * bzw. „— keine Angabe —" ohne Korpus): sie hängt am Korpus, den erst die Adresse verrät.
+ * Der leere `value` ist der Zustand „erbt" — er wird NICHT aus der Beschriftung gelesen.
+ *
+ * @param {(s: string) => string} escape
+ * @param {(k: string, f: string) => string} tr
+ * @param {string} typOptionen fertige `<option>`-Liste der Quellenarten
+ * @param {string} lizenzOptionen fertige `<option>`-Liste der Lizenzen
+ * @returns {string}
+ */
+function featureSourceAbweichungsBlock(escape, tr, werte) {
+  const w = werte || {};
+  const lizenzTafel = featureSourceLicenseTable();
+  // 🔴 Der erste Eintrag traegt IMMER `value=""` -- das ist „erbt". Sein Text wird zur
+  // Laufzeit gesetzt (`zeigeAbweichung`), weil er am Korpus haengt, den erst die Adresse verraet.
+  const liste = (eintraege, gewaehlt) =>
+    ['<option value="">' + escape(tr("sources.abw.inherit", "wie Korpus")) + "</option>"]
+      .concat(eintraege.map((e) => '<option value="' + escape(e.wert) + '"'
+        + (e.wert === gewaehlt && gewaehlt !== "" ? " selected" : "") + ">" + escape(e.text) + "</option>"))
+      .join("");
+  // 💣 DIE LISTEN ENTSTEHEN HIER, nicht beim Aufrufer. Die erste Fassung liess sich die
+  // fertigen `<option>`-Ketten hereinreichen -- und der Bearbeiten-Kasten haette dafuer seine
+  // eigenen gebaut, mit seiner eigenen Vorauswahl. Zwei Erzeuger fuer dieselbe Liste sind genau
+  // die Divergenz, die dieser Umbau beseitigt.
+  const arten = FEATURE_SOURCE_TYPES.map((t) => ({ wert: t, text: featureSourceTypeLabel(t) }));
+  const lizenzen = Object.keys(lizenzTafel).map((k) => ({ wert: k, text: lizenzTafel[k].label }));
+  // 🔴 ZWEI Marker je Feld, und beide werden gebraucht: `data-fs-field` bringt den Wert zum
+  // Server (und `own_fields` schickt ihn dort in `sources` statt in den Korpus), `data-fs-abw-wert`
+  // sagt dem Sammler, dass ein gefuellter Wert eine ABWEICHUNG ist.
+  const wert = (name) => String(w[name] || "");
+  // 💣 DIE MARKE STEHT SCHON IM MARKUP, nicht erst zur Laufzeit. `zeigeAbweichung` setzt sie beim
+  // Tippen -- aber der ✎ zeichnet eine BESTEHENDE Abweichung, und ohne diese Zeile stand die
+  // fremde Lizenz unmarkiert da, so als erbte sie. Im Bild gesehen, von keinem Test.
+  const feld = (name, klasse, beschriftung, markup) =>
+    '<label class="fs-af ' + klasse + (wert(name) !== "" ? " fs-field--abw" : "")
+    + '" data-fs-abw-feld="' + escape(name) + '"><span class="fs-af__l">'
+    + escape(beschriftung) + "</span>" + markup + "</label>";
+  const auswahl = (name, eintraege) =>
+    '<select data-fs-field="' + name + '" data-fs-abw-wert="' + name + '"'
+    + ' data-fs-orig="' + escape(wert(name)) + '" data-fs-abw-orig="' + escape(wert(name)) + '">'
+    + liste(eintraege, wert(name)) + "</select>";
+  return '<div class="abw" data-fs-abw>'
+    + '<div class="abw__t" data-fs-abw-text></div>'
+    + '<div class="abw__f">'
+    + feld("source_type", "fs-af--art", tr("sources.add.typeLabel", "Quellenart"),
+      auswahl("source_type", arten))
+    + feld("license", "fs-af--license", tr("sources.add.licenseLabel", "Lizenz"),
+      auswahl("license", lizenzen))
+    + feld("attribution", "fs-af--grow",
+      tr("sources.add.attributionLabel", "Namensnennung bzw. mit freundlicher Genehmigung von"),
+      '<input type="text" data-fs-field="attribution" data-fs-abw-wert="attribution"'
+      + ' data-fs-orig="' + escape(wert("attribution")) + '"'
+      + ' data-fs-abw-orig="' + escape(wert("attribution")) + '"'
+      + ' value="' + escape(wert("attribution")) + '">')
+    + "</div></div>";
+}
+
+function avesmapsSourceScopeFrame(opts) {
+  const o = opts || {};
+  const esc = o.escape || featureSourceDefaultEscape;
+  return '<div class="fs-scope"' + (o.hidden ? " hidden" : "") + (o.attr ? " " + o.attr : "") + ">"
+    + '<div class="fs-scope__head"><span class="fs-scope__title"'
+    + (o.titelAttr ? " " + o.titelAttr : "") + ">" + esc(o.titel || "") + "</span>"
+    + (o.reichweite
+      ? '<span class="fs-scope__reach"' + (o.reichweiteAttr ? " " + o.reichweiteAttr : "") + ">"
+        + o.reichweite + "</span>"
+      : "")
+    + "</div>"
+    + (o.hinweis ? '<p class="fs-scope__hint">' + esc(o.hinweis) + "</p>" : "")
+    + '<div class="fs-scope__fields">' + (o.felder || "") + "</div>"
+    + (o.fuss || "")
+    + "</div>";
+}
+
 function renderFeatureSourceAddRow(escape, tr) {
   // 🔴 Der erste Eintrag ist LEER und damit vorausgewaehlt: „Art …" heisst „keine Aussage".
   // 💣 Ohne ihn stand 'regionalspielhilfe' vorausgewaehlt da -- die erste Art der Liste --, und
@@ -615,166 +714,174 @@ function renderFeatureSourceAddRow(escape, tr) {
   // 💣 Die Liste kommt aus feature-source-markup.js, nicht aus einer Kopie hier: dieselbe Regel
   // wie bei der Seitenkuerzung -- eine Liste, die einen von zwei Erzeugern bindet, ist keine.
   const lizenzTafel = featureSourceLicenseTable();
-  /**
-   * Das Häkchen „nur diese Quelle" an einem Korpusfeld der EINGABEZEILE.
-   *
-   * 🔴 Dieselben Klassen und dasselbe `data-fs-own` wie im ✎ -- damit liest
-   * `featureSourceOwnFieldsFromPanel` beide Oberflächen, ohne eine zweite Fassung.
-   * ⚠️ Hier startet es IMMER ungehakt (`data-fs-own-orig="0"`): eine neue Quelle weicht per
-   * Vorgabe nicht ab. Das Anhaken IST die ausdrückliche Handlung -- dieselbe Regel wie beim
-   * Aufklappen im Entwurf und wie bei `source_type_chosen`.
-   */
-  const eigenHaken = (feld) =>
-    '<span class="fs-eigen"><input type="checkbox" data-fs-own="' + escape(feld) + '"'
-    + ' data-fs-own-orig="0"> ' + escape(tr("sources.edit.ownField", "nur diese Quelle")) + "</span>";
-
   const licenseOptions = '<option value="">' + escape(tr("sources.add.licenseNone", "Lizenz …")) + "</option>" +
     Object.keys(lizenzTafel).map(
       (key) => '<option value="' + escape(key) + '">' + escape(lizenzTafel[key].label) + "</option>"
     ).join("");
-  return (
-    // 🔴 BESCHRIFTETE FELDER, nicht nur Platzhalter (Owner 02.09.2026 am Mockup: „das war das
-    // mockup"). Ein Platzhalter verschwindet, sobald jemand tippt -- und danach weiss niemand mehr,
-    // welches der acht Felder er gerade fuellt. Die Vorlage ist
-    // docs/bekannte-quellen-mockup.html, Schritt 2.
-    // ⚠️ Die Klassen der Bedienelemente bleiben unveraendert (`.fs-add-url`, `.fs-add-label`, …):
-    // an ihnen haengen fuenf Tests und die ganze Verdrahtung. Neu ist nur die Huelle darum.
-    '<div class="fs-row fs-row--add" data-fs-add>' +
-    // 🔴 DIE ADRESSE BEKOMMT IHREN EIGENEN RAHMEN, und seine Aufschrift ist die ANLEITUNG (Owner
-    // 02.09.2026, Wortlaut): sie steht dort, wo sie gilt, statt in einem Hinweistext daneben. Der
-    // Rahmen sagt zugleich, wie weit das Einfügen reicht -- Adresse UND Titel entstehen daraus.
-    '<span class="fs-adresse">' +
-    '<span class="fs-adresse__l">' +
-    escape(tr("sources.add.pasteGroup", "Nur Adresse (URL) der Quelle einfügen — automatische Erkennung des Korpus")) +
-    "</span>" +
-    // Adresse — das einzige Feld, das der Editor im Normalfall wirklich tippt.
-    // 💣 Der Platzhalter nennt die GENAUE SEITE und warnt vor der Startseite: live zeigen vier
-    // Katalogzeilen auf `wiki.punin.de/`, und eine (`liebliches-feld.net`) auf eine beliebige
-    // Bilddatei -- für 31 der 32 Objekte, an denen sie hängt, ist das die falsche Adresse.
-    '<label class="fs-af fs-af--url"><span class="fs-af__l">' +
-    escape(tr("sources.add.urlLabel", "Adresse — die genaue Seite")) + "</span>" +
-    '<input type="text" class="fs-add-url" inputmode="url" spellcheck="false" placeholder="' +
-    escape(tr("sources.add.urlPlaceholder", "https://… — die Seite über DIESES Objekt, nicht die Startseite")) +
-    '">' +
-    // ⭐ DER GRÜNE HAKEN (Owner 02.09.2026), und er sitzt IM Feld, nicht daneben. Als Geschwister
-    // der Beschriftung landete er im Umbruch der Flex-Zeile und schob den Titel eine Zeile tiefer
-    // — im Bild gesehen, von keinem Test.
-    // 🔴 Er ist NICHT dasselbe wie der grüne Prüfknopf: der sagt „ich habe nachgesehen", der Haken
-    // sagt „es wurde etwas gelesen". ⚠️ `aria-hidden`, weil der Satz darunter (`data-fs-note`,
-    // `role=status`) es bereits in Worten sagt — ein Vorleser bekäme es sonst zweimal.
-    '<span class="fs-add-ok" data-fs-ok hidden aria-hidden="true">✓</span></label>' +
-    // Der Prüfknopf (Owner 02.09.2026). 🔴 Er ist der Grund, warum das Formular NIE auf einen
-    // fremden Server wartet: der Abruf ist ein Handgriff, kein Nebeneffekt des Tippens. Einfügen
-    // und Enter lösen ihn ebenfalls aus -- das Feld steht in keinem <form>, Enter war bis hierher
-    // wirkungslos, es wird also keine Gewohnheit gebrochen.
-    // 💣 DREI Zustände, nicht zwei: „erreichbar, aber nichts zu lesen" ist weder Erfolg noch
-    // Fehlschlag. Wäre es rot, suchte der Editor einen Fehler am Link, den es nicht gibt.
-    // ⚠️ Er steht NEBEN dem Label, nicht darin: ein `<button>` in einem `<label>` erbt dessen
-    // Aktivierungsverhalten, und der Klick gälte dann auch dem Eingabefeld.
-    '<button type="button" class="fs-add-check" data-fs-check title="' +
-    escape(tr("sources.add.checkHint", "Adresse prüfen und Titel übernehmen")) + '" aria-label="' +
-    escape(tr("sources.add.checkHint", "Adresse prüfen und Titel übernehmen")) + '">⟳</button>' +
-    '<label class="fs-af fs-af--grow"><span class="fs-af__l">' +
-    escape(tr("sources.add.labelLabel", "Titel — wie diese Seite heißt")) + "</span>" +
-    '<input type="text" class="fs-add-label" placeholder="' + escape(tr("sources.add.label", "Quellenname")) + '"></label>' +
-    "</span>" +
-    // 🔴 DER KORPUS -- die Sammlung, aus der die Seite stammt. Sein SCHLÜSSEL ist die registrierbare
-    // Domain und wird gerechnet, nie getippt; hier steht nur seine BESCHRIFTUNG. Die Meta-Zeile
-    // daneben nennt den Schlüssel und die Reichweite, damit sichtbar ist, was eine Umbenennung
-    // trifft (Entwurf §3, Mockup Schritt 2).
-    // 🔴 DER RAHMEN ZIEHT DIE GRENZE (Owner 02.09.2026: „du kannst gerne alles einrahmen, was zum
-    // korpus gehört (seiten z.b. nicht)"). Was hier drinsteht, gilt fuer ALLE Belege dieses Wirts;
-    // was draussen steht, gehoert dieser einen Fundstelle. Ohne die sichtbare Grenze sieht ein
-    // Editor der Zeile nicht an, dass ein Griff zur Lizenz 50 Objekte trifft.
-    // ⚠️ VOR dem Korpuskasten, nicht dahinter (Owner-Pfeil im Bild vom 02.09.2026): erst das, was
-    // DIESE Fundstelle beschreibt, dann der Wirt. Dieselbe Ordnung wie im Bearbeiten-Kasten, wo
-    // „Nur an diesem Objekt" ebenfalls oben steht -- „für edit/neu", sagte der Owner.
-    // ⚠️ `data-fs-meins` markiert die zwei Felder, die NUR an dieser Fundstelle gelten. Bei einer
-    // bekannten Seite sind sie das Einzige, was der Editor noch zu füllen hat — dann werden sie
-    // hervorgehoben. Der Marker steht im Markup, damit die Hervorhebung keine Selektorliste
-    // pflegen muss, die beim nächsten Feld auseinanderläuft.
-    // 🔴 UND SIE BEKOMMEN IHREN EIGENEN RAHMEN (Owner 02.09.2026). Damit trägt die Zeile drei
-    // Reichweiten, jede sichtbar begrenzt: „hier fängst du an" (Adresse, durchgezogen), „gilt nur
-    // für diesen Eintrag" und „gilt für den ganzen Korpus" (beide gestrichelt -- sie sagen beide,
-    // WIE WEIT etwas reicht, und unterscheiden sich nur in der Weite).
-    '<span class="fs-eintrag">' +
-    '<span class="fs-eintrag__l">' + escape(tr("sources.add.entryGroup", "Gilt nur für diesen Eintrag")) + "</span>" +
-    '<label class="fs-af fs-af--pages" data-fs-meins><span class="fs-af__l">' +
-    escape(tr("sources.add.pages", "Seite(n)")) + "</span>" +
-    '<input type="text" class="fs-add-pages" placeholder="' + escape(tr("sources.add.pagesHint", "optional")) + '"></label>' +
-    '<label class="fs-af fs-af--kind" data-fs-meins><span class="fs-af__l">' + escape(tr("sources.add.kindLabel", "Abdeckung")) + "</span>" +
-    '<select class="fs-add-kind" title="' + escape(tr("sources.add.kind", "Abdeckung: Ausführlich/Ergänzend → Offiziell-Tab, Erwähnung → Erwähnt-Tab, sonst normale Quellenzeile")) + '">' + kindOptions + "</select></label>" +
-    "</span>" +
-    // 🔴 DER RAHMEN STEHT IMMER. Er war einen Tag lang `hidden`, bis eine Adresse einen Korpus
-    // ergab -- und hat dabei Art, Lizenz und Namensnennung mitversteckt, die mit dem Korpus nichts
-    // zu tun haben: die leere Maske konnte danach WENIGER als vor dem ganzen Umbau (vier Felder),
-    // und der Owner meldete „wieso habe ich jetzt wieder das alte Eingabeformular". Der Riegel
-    // gehörte an EIN Feld (den Korpusnamen), nicht an den Kasten.
-    // 🔴 GEBLIEBEN IST DER RAHMEN SELBST (Owner 02.09.2026: „Gilt für den ganzen Korpus finde ich
-    // gut, weil man dann weiß: wenn ich da was änder, änderts das für alle quellen aus dem
-    // korpus"). Was hier drinsteht, gilt ALLEN Belegen dieses Wirts; was draussen steht, gehört
-    // dieser einen Fundstelle.
-    // 💣 UND DIE AUFSCHRIFT TRÄGT DIE REICHWEITE. „Gilt für den ganzen Korpus" ohne Grösse ist
-    // keine Warnung -- dieselbe Regel wie bei `.fs-edit__scope` im ✎, wo die Zahl seit dem
-    // 01.09.2026 danebensteht. Drei Zustände, siehe `uebernehmeKorpus`.
-    '<span class="fs-korpus" data-fs-korpus-gruppe>' +
+
+  // Ein Korpusfeld der Eingabezeile: Beschriftung, Marker „· vom Korpus", Bedienelement.
+  // ⚠️ Der Marker hängt an `hidden` und wird gesetzt, wenn der Korpus den Wert wirklich vorgibt.
+  // Ein dauerhaft sichtbarer Marker wäre eine Behauptung.
+  const korpusFeldAdd = (name, klasse, beschriftung, markup) =>
+    '<label class="fs-af ' + klasse + '"><span class="fs-af__l">' + escape(beschriftung)
+    + '<span class="fs-af__from" data-fs-from="' + escape(name) + '" hidden> · '
+    + escape(tr("sources.add.fromCorpus", "vom Korpus")) + "</span></span>" + markup + "</label>";
+
+  // ── Die drei Reichweiten, gebaut mit dem GETEILTEN Rahmen ─────────────────────────
+  // 🔴 Von weit nach eng, und in DERSELBEN Reihenfolge wie im ✎ (Owner 02.09.2026): die
+  // QUELLE (Adresse, Titel) — der KORPUS — DIESES OBJEKT. „Nur an diesem Objekt" steht unten,
+  // damit man den Korpuswert sieht, bevor man davon abweicht.
+  const rahmenQuelle = avesmapsSourceScopeFrame({
+    escape,
+    titel: tr("sources.scope.source", "Gilt für alle Objekte, die diese Quelle zitieren"),
+    reichweite: escape(tr("sources.add.scopeNew", "— noch kein Objekt")),
+    // 🔴 DIE ANLEITUNG STEHT DRIN, NICHT IN DER AUFSCHRIFT (Owner 02.09.2026, Wortlaut). Als
+    // Rahmenname belegte sie den Platz der Reichweite, und die beiden Formulare hießen dann an
+    // derselben Stelle verschieden — genau das, was dieser Umbau beseitigt.
+    // 🔴 KURZ, weil sie in einem 400px-Panel steht (Owner 03.09.2026: „ist zu lang und bricht
+    // leider um"). Der Vorgänger nannte zusätzlich die automatische Korpuserkennung — die sagt
+    // der Rahmen darunter mit seinem eigenen Namen und seiner Reichweite ohnehin.
+    hinweis: tr("sources.add.pasteHint", "Hier Adresse (URL) zur Quelle einfügen"),
+    felder:
+      // Adresse — das einzige Feld, das ein Editor im Normalfall wirklich tippt.
+      // 💣 Der Platzhalter nennt die GENAUE SEITE und warnt vor der Startseite: live zeigen
+      // vier Katalogzeilen auf `wiki.punin.de/`, und eine (`liebliches-feld.net`) auf eine
+      // beliebige Bilddatei — für 31 der 32 Objekte, an denen sie hängt, ist das die falsche.
+      '<label class="fs-af fs-url"><span class="fs-af__l">'
+      + escape(tr("sources.add.urlLabel", "Adresse — die genaue Seite")) + "</span>"
+      + '<span class="fs-url__zeile"><span class="fs-url__feld">'
+      + '<input type="text" class="fs-add-url" inputmode="url" spellcheck="false" placeholder="'
+      + escape(tr("sources.add.urlPlaceholder",
+        "https://… — die Seite über DIESES Objekt, nicht die Startseite")) + '">'
+      // ⭐ DER GRÜNE HAKEN, und er sitzt IM Feld. Als Geschwister der Beschriftung landete er im
+      // Umbruch der Flex-Zeile und schob den Titel eine Zeile tiefer — im Bild gesehen, von
+      // keinem Test. 🔴 Er ist NICHT dasselbe wie der Prüfknopf: der sagt „ich habe
+      // nachgesehen", der Haken sagt „es wurde etwas gelesen". ⚠️ `aria-hidden`, weil der Satz
+      // darunter (`data-fs-note`, `role=status`) es bereits in Worten sagt.
+      + '<span class="fs-url__ok" data-fs-ok hidden aria-hidden="true">✓</span></span>'
+      // Der Prüfknopf. 🔴 Er ist der Grund, warum das Formular NIE auf einen fremden Server
+      // wartet: der Abruf ist ein Handgriff, kein Nebeneffekt des Tippens. Einfügen und Enter
+      // lösen ihn ebenfalls aus.
+      // 💣 DREI Zustände, nicht zwei: „erreichbar, aber nichts zu lesen" ist weder Erfolg
+      // noch Fehlschlag. Wäre es rot, suchte der Editor einen Fehler am Link, den es nicht gibt.
+      + '<button type="button" class="fs-add-check fs-url__neu" data-fs-check title="'
+      + escape(tr("sources.add.checkHint", "Adresse prüfen und Titel übernehmen")) + '" aria-label="'
+      + escape(tr("sources.add.checkHint", "Adresse prüfen und Titel übernehmen")) + '">⟳</button>'
+      + "</span></label>"
+      + '<label class="fs-af fs-af--grow"><span class="fs-af__l">'
+      + escape(tr("sources.add.labelLabel", "Titel — wie diese Seite heißt")) + "</span>"
+      + '<input type="text" class="fs-add-label" placeholder="'
+      + escape(tr("sources.add.label", "Quellenname")) + '"></label>'
+      // 🔴 „KEIN KORPUS VERWENDEN" (Owner 02.09.2026), Vorgabe AUS. Angehakt entsteht für
+      // diese Quelle kein Korpus, und der Korpusrahmen verschwindet — Art, Lizenz und Nennung
+      // bleiben aber stehen (im Rahmen darunter): verschwänden sie mit, hätte eine korpuslose
+      // Quelle GAR KEINE Lizenz, und die ist das rechtlich Tragende.
+      + '<label class="fs-af fs-af--w fs-check"><input type="checkbox" data-fs-no-corpus> '
+      + escape(tr("sources.add.noCorpus", "Kein Korpus verwenden"))
+      + '<span class="fs-af__meta"> — '
+      + escape(tr("sources.add.noCorpusHint", "diese Quelle steht für sich")) + "</span></label>",
+  });
+
+  // 🔴 DER KORPUSRAHMEN STEHT IMMER (außer bei „Kein Korpus verwenden"). Er war einen Tag
+  // lang `hidden`, bis eine Adresse einen Korpus ergab — und hat dabei Art, Lizenz und
+  // Namensnennung mitversteckt, die mit dem Korpus nichts zu tun haben: die leere Maske konnte
+  // danach WENIGER als vor dem Umbau, und der Owner meldete „wieso habe ich jetzt wieder das alte
+  // Eingabeformular".
+  // 💣 DIE AUFSCHRIFT TRÄGT DIE REICHWEITE. „Gilt für den ganzen Korpus" ohne Größe ist
+  // keine Warnung — dieselbe Regel wie im ✎. Drei Zustände, siehe `uebernehmeKorpus`.
+  // ⚠️ DIE FORM STEHT HIER NICHT (Owner 02.09.2026: „zieh die form ins ✎"). Sie wird EINMAL je
+  // Korpus entschieden, und beim ERSTEN Eintrag eines Wirts kann man sie ohnehin nicht wissen:
+  // bei einer einzigen Zeile sagt das Verhältnis Titel/Zeilen nichts.
+  const rahmenKorpus = avesmapsSourceScopeFrame({
+    escape,
+    attr: "data-fs-korpus-gruppe",
+    // 🔴 DER WIRTSNAME GEHÖRT IN DEN TITEL, in BEIDEN Formularen. Bis zum 03.09.2026 stand er
+    // hier in der REICHWEITE („AlberniaWiki“ — 39 Quellen · 50 Objekte) und im ✎ im Titel — also
+    // einmal als fett-braune Versalzeile und einmal als gedämpftes Beiwort, für dasselbe Ding.
+    // Gefunden hat das der Prüfagent, nicht der Blick: im Einzelbild sieht jede Seite für sich
+    // richtig aus.
+    // ⚠️ Der Anfangstext nennt noch keinen Wirt — den verrät erst die Adresse; `uebernehmeKorpus`
+    // schreibt ihn nach.
+    titelAttr: "data-fs-korpus-titel",
+    titel: tr("sources.add.corpusGroup", "Gilt für den ganzen Korpus"),
     // ⚠️ Der Anfangstext steht IM MARKUP, nicht in einem Aufruf danach: `uebernehmeKorpus(null)`
-    // läuft beim Zurücksetzen, aber nicht zwangsläufig nach dem ersten Zeichnen -- und ein leerer
+    // läuft beim Zurücksetzen, aber nicht zwangsläufig nach dem ersten Zeichnen — und ein leerer
     // Zusatz läse sich als „gilt für alle" ohne jede Einschränkung.
-    '<span class="fs-korpus__l">' + escape(tr("sources.add.corpusGroup", "Gilt für den ganzen Korpus")) +
-    '<span class="fs-korpus__scope" data-fs-korpus-scope> — ' +
-    escape(tr("sources.add.corpusScopeNone", "welcher, sagt die Adresse")) + "</span></span>" +
-    '<label class="fs-af fs-af--korpus"><span class="fs-af__l">' +
-    escape(tr("sources.add.corpusLabel", "Name des Korpus")) +
-    '<span class="fs-af__meta" data-fs-corpus-meta></span></span>' +
-    '<input type="text" class="fs-add-corpus" data-fs-corpus placeholder="' +
-    escape(tr("sources.add.corpusPlaceholder", "aus der Adresse")) + '"></label>' +
-    // 🔴 DIE FORM IST AM 02.09.2026 INS ✎ GEWANDERT (Owner: „zieh die form ins ✎"). Sie wird EINMAL
-    // je Korpus entschieden, nicht bei jedem Eintrag -- und beim ERSTEN Eintrag eines Wirts kann
-    // man sie ohnehin nicht wissen: bei einer einzigen Zeile sagt das Verhältnis Titel/Zeilen
-    // nichts. Ein Feld, das bei jeder Quelle nach etwas fragt, das der Editor an dieser Stelle
-    // nicht beantworten kann, ist Ballast vor der einen Sache, die er tun will.
-    // ⚠️ Sie ist NICHT ersatzlos weg: der Bearbeiten-Kasten trägt sie in seiner Korpusgruppe, und
-    // der Server routet sie dort in den Korpus (AVESMAPS_FEATURE_SOURCE_CORPUS_ONLY_FIELDS).
-    // Instruction 5a requires the form to SAY which case occurred -- without this an editor cannot
-    // tell whether they just referenced the existing source or minted a duplicate.
-    '<span class="fs-add-picked" data-fs-picked hidden>' +
-    escape(tr("sources.add.picked", "bestehende Quelle")) +
-    '<button type="button" class="fs-add-picked__x" data-fs-unpick aria-label="' +
-    escape(tr("sources.add.unpick", "Auswahl aufheben")) + '">✕</button>' +
-    "</span>" +
-    // ⚠️ Die vier Marker „· vom Korpus" hängen an einem `hidden`-Attribut und werden gesetzt, wenn
-    // der Korpus den Wert wirklich vorgibt. Ein dauerhaft sichtbarer Marker wäre eine Behauptung.
-    // 🔴 UND JEDES DER VIER FELDER TRÄGT SEIN „nur diese Quelle" (Owner 02.09.2026: „mach das
-    // häkchen in der eingabezeile"). Dieselben Klassen und dasselbe `data-fs-own` wie im ✎ --
-    // damit liest `featureSourceOwnFieldsFromPanel` beide Oberflächen, ohne eine zweite Fassung.
-    // 💣 Der Name ist der SERVERNAME (`source_type`), nicht der des Markers daneben (`type`):
-    // was hier steht, wandert unverändert in `own_fields`.
-    '<label class="fs-af fs-af--art"><span class="fs-af__l">' + escape(tr("sources.add.typeLabel", "Art")) +
-    '<span class="fs-af__from" data-fs-from="type" hidden> · ' + escape(tr("sources.add.fromCorpus", "vom Korpus")) + "</span></span>" +
-    '<select class="fs-add-type">' + options + "</select>" + eigenHaken("source_type") + "</label>" +
-    '<label class="fs-af fs-af--license"><span class="fs-af__l">' + escape(tr("sources.add.licenseLabel", "Lizenz")) +
-    '<span class="fs-af__from" data-fs-from="license" hidden> · ' + escape(tr("sources.add.fromCorpus", "vom Korpus")) + "</span></span>" +
-    '<select class="fs-add-license" title="' + escape(tr("sources.add.licenseHint", "Unter welcher Lizenz steht die Quelle? Leer heißt „nicht erfasst“, nicht „keine Lizenz“.")) + '">' + licenseOptions + "</select>" + eigenHaken("license") + "</label>" +
-    '<label class="fs-af fs-af--grow"><span class="fs-af__l">' +
-    escape(tr("sources.add.attributionLabel", "Namensnennung bzw. mit freundlicher Genehmigung von")) +
-    '<span class="fs-af__from" data-fs-from="attribution" hidden> · ' + escape(tr("sources.add.fromCorpus", "vom Korpus")) + "</span></span>" +
-    '<input type="text" class="fs-add-attribution" placeholder="' + escape(tr("sources.add.attribution", "Namensnennung")) + '" title="' + escape(tr("sources.add.attributionHint", "Wen die Lizenz zu nennen verlangt, z. B. „VolkoV / garetien.de“.")) + '">' + eigenHaken("attribution") + "</label>" +
-    '<label class="fs-add-official-label">' +
-    '<input type="checkbox" class="fs-add-official"> ' + escape(tr("sources.add.official", "offiziell")) +
-    '<span class="fs-af__from" data-fs-from="official" hidden> · ' + escape(tr("sources.add.fromCorpus", "vom Korpus")) + "</span>" +
-    eigenHaken("is_official") +
-    "</label>" +
-    "</span>" +
-    '<button type="button" class="fs-row__add" data-fs-add-submit>' + escape(tr("sources.add.submit", "Hinzufügen")) + "</button>" +
-    // ⚠️ Ein Abbrechen daneben (Owner 02.09.2026). Es LEERT die Zeile -- es schliesst nichts, denn
-    // die Eingabezeile ist kein Fenster, sondern der Fuss der Liste. Weich statt gefuellt: eine
-    // Zeilenhandlung ist nie die Haupthandlung der Seite (AGENTS.md §12).
-    '<button type="button" class="fs-row__cancel" data-fs-add-cancel>' + escape(tr("sources.add.cancel", "Abbrechen")) + "</button>" +
-    "</div>" +
-    // Platz für die Absage. Ohne ihn verschluckte der Knopf den Klick wortlos, sobald die URL fehlte
-    // -- der häufigste Fall beim Anlegen, wo man einen Buchtitel im Kopf hat und keinen Link.
-    '<p class="fs-add-note" data-fs-note hidden></p>'
+    reichweiteAttr: "data-fs-korpus-scope",
+    reichweite: "— " + escape(tr("sources.add.corpusScopeNone", "welcher, sagt die Adresse")),
+    felder:
+      '<label class="fs-af fs-af--korpus"><span class="fs-af__l">'
+      + escape(tr("sources.add.corpusLabel", "Name des Korpus"))
+      + '<span class="fs-af__meta" data-fs-corpus-meta></span></span>'
+      + '<input type="text" class="fs-add-corpus" data-fs-corpus placeholder="'
+      + escape(tr("sources.add.corpusPlaceholder", "aus der Adresse")) + '"></label>'
+      // Instruction 5a: das Formular muss SAGEN, welcher Fall eingetreten ist — sonst weiß ein
+      // Editor nicht, ob er die bestehende Quelle zitiert oder eine Dublette angelegt hat.
+      + '<span class="fs-add-picked" data-fs-picked hidden>'
+      + escape(tr("sources.add.picked", "bestehende Quelle"))
+      + '<button type="button" class="fs-add-picked__x" data-fs-unpick aria-label="'
+      + escape(tr("sources.add.unpick", "Auswahl aufheben")) + '">✕</button></span>'
+      + korpusFeldAdd("type", "fs-af--art", tr("sources.add.typeLabel", "Quellenart"),
+        '<select class="fs-add-type">' + options + "</select>")
+      + korpusFeldAdd("license", "fs-af--license", tr("sources.add.licenseLabel", "Lizenz"),
+        '<select class="fs-add-license" title="'
+        + escape(tr("sources.add.licenseHint",
+          "Unter welcher Lizenz steht die Quelle? Leer heißt „nicht erfasst“, nicht „keine Lizenz“."))
+        + '">' + licenseOptions + "</select>")
+      + korpusFeldAdd("attribution", "fs-af--grow",
+        tr("sources.add.attributionLabel", "Namensnennung bzw. mit freundlicher Genehmigung von"),
+        '<input type="text" class="fs-add-attribution" placeholder="'
+        + escape(tr("sources.add.attribution", "Namensnennung")) + '" title="'
+        + escape(tr("sources.add.attributionHint",
+          "Wen die Lizenz zu nennen verlangt, z. B. „VolkoV / garetien.de“.")) + '">')
+      // 🔴 `offiziell` ist NICHT mehr überschreibbar (Owner 02.09.2026: „offiziell braucht
+      // nicht überschrieben werden") — es hat deshalb kein Abweichungsfeld im Rahmen darunter.
+      + '<label class="fs-af fs-af--w fs-check fs-add-official-label">'
+      + '<input type="checkbox" class="fs-add-official"> '
+      + escape(tr("sources.add.official", "offiziell"))
+      + '<span class="fs-af__from" data-fs-from="official" hidden> · '
+      + escape(tr("sources.add.fromCorpus", "vom Korpus")) + "</span></label>",
+  });
+
+  // 🔴 „NUR AN DIESEM OBJEKT" — Seiten und Abdeckung, dazu die Abweichungen (Owner
+  // 02.09.2026: „eigentlich braucht es die häkchen nicht NUR felder").
+  // ⚠️ `data-fs-meins` markiert die zwei Felder, die NUR an dieser Fundstelle gelten. Bei einer
+  // bekannten Seite sind sie das Einzige, was noch zu füllen ist — dann werden sie hervorgehoben.
+  const rahmenObjekt = avesmapsSourceScopeFrame({
+    escape,
+    titel: tr("sources.scope.link", "Nur an diesem Objekt"),
+    felder:
+      '<label class="fs-af fs-af--pages" data-fs-meins><span class="fs-af__l">'
+      + escape(tr("sources.add.pages", "Seite(n)")) + "</span>"
+      + '<input type="text" class="fs-add-pages" placeholder="'
+      + escape(tr("sources.add.pagesHint", "optional")) + '"></label>'
+      + '<label class="fs-af fs-af--kind" data-fs-meins><span class="fs-af__l">'
+      + escape(tr("sources.add.kindLabel", "Abdeckung")) + "</span>"
+      + '<select class="fs-add-kind" title="'
+      + escape(tr("sources.add.kind",
+        "Abdeckung: Ausführlich/Ergänzend → Offiziell-Tab, Erwähnung → Erwähnt-Tab, sonst normale Quellenzeile"))
+      + '">' + kindOptions + "</select></label>"
+      + featureSourceAbweichungsBlock(escape, tr, {}),
+  });
+
+  return (
+    '<div class="fs-row fs-row--add" data-fs-add>'
+    + rahmenQuelle + rahmenKorpus + rahmenObjekt
+    // 🔴 SPEICHERN / ABBRECHEN, in BEIDEN Formularen gleich (Owner 02.09.2026: „Der button
+    // soll auch nicht verknüpfen sondern Speichern heißen"). Was gerade passiert ist — angelegt
+    // oder verknüpft —, steht in der Rückmeldung darunter, nicht auf dem Knopf.
+    // ⚠️ `--radius-md`, keine Pille: die Designsprache verbietet sie in zwei Zeilen, und live
+    // standen acht `999px` in dieser einen Datei.
+    + '<div class="fs-actions">'
+    + '<button type="button" class="fs-actions__prim" data-fs-add-submit>'
+    + escape(tr("sources.add.submit", "Speichern")) + "</button>"
+    + '<button type="button" class="fs-actions__sek" data-fs-add-cancel>'
+    + escape(tr("sources.add.cancel", "Abbrechen")) + "</button>"
+    + "</div>"
+    + "</div>"
+    // Platz für die Absage. Ohne ihn verschluckte der Knopf den Klick wortlos, sobald die URL
+    // fehlte — der häufigste Fall beim Anlegen.
+    + '<p class="fs-add-note" data-fs-note hidden></p>'
   );
 }
 
@@ -809,11 +916,29 @@ function renderFeatureSourceEditorHtml(state, opts) {
     otherSources.map((source) => renderFeatureSourceRow(source, escape, tr)), escape, tr);
   const addRow = renderFeatureSourceAddRow(escape, tr);
 
-  // Reviewer/editor guidance shown above the source list (all mount surfaces). The copy carries an
-  // intentional <strong> emphasis and is trusted developer/i18n text (never user input), so it is
-  // inserted as HTML rather than escaped.
+  // Die Anleitung ueber der Quellenliste, auf allen acht Montageflaechen. Sie ist als HTML
+  // eingesetzt statt maskiert: der Text darf Hervorhebungen tragen und ist Entwickler-/i18n-Text,
+  // nie Benutzereingabe.
+  //
+  // 🪤 NEU GESCHRIEBEN AM 03.09.2026 (Owner-Wortlaut), weil der alte Text den Umbau nicht
+  // ueberlebt hat. Er sagte drei Dinge, von denen zwei falsch geworden waren:
+  //   „Tragt … den Veröffentlichungstitel ein"  -- den holt jetzt ⟳ aus der Seite, und bei einer
+  //     BELEGSTELLE sieht der Besucher ohnehin den Korpusnamen, nicht den Titel.
+  //   „Achtet darauf, ob es eine offizielle Quelle ist" -- `offiziell` gehoert seit dem 02.09.2026
+  //     dem KORPUS. Wer dort „aufpasst", aendert es fuer JEDE Quelle des Wirts.
+  // 💣 Eine Anleitung, die dem Formular widerspricht, ist schlimmer als keine: sie verlangt
+  // Handgriffe, die es nicht mehr gibt, und laesst die weite Wirkung eines Korpusfeldes wie eine
+  // Kleinigkeit aussehen. Genau davor sollte sie warnen.
+  //
+  // ⚠️ „sofern wir ihn listen" ist bewusst so knapp: bei der ART trifft es alle acht Korpora, bei
+  // der LIZENZ vier von acht, bei der NAMENSNENNUNG keines (live gemessen 03.09.2026). Den genauen
+  // Stand sagt das Formular selbst -- der Marker „· vom Korpus" erscheint nur, wo der Korpus den
+  // Wert wirklich vorgibt.
   const hint = '<div class="fs-hint">' + tr("sources.hint",
-    "Tragt bei Quellen immer den eigentlichen <strong>Veröffentlichungstitel der Quelle</strong> und den Link ein. Achtet darauf, ob es sich um eine offizielle Quelle handelt.") + "</div>";
+    "Tragt immer den direkten Link (z. B. zu einem Wiki-Artikel) ein — Titel und Korpus werden "
+    + "daraus automatisch erkannt. Art, Lizenz und Namensnennung kommen vom Korpus, sofern wir ihn "
+    + "listen. Änderungen am Korpus wirken sich auf alle Quellen aus, die auf ihn verweisen "
+    + "(z. B. wenn der Wiki-Name geändert wird).") + "</div>";
   return '<div class="fs-editor">' + hint + wikiRow + pendingGroup + wikiAutoGroup + sourceRows + addRow + "</div>";
 }
 
@@ -980,9 +1105,15 @@ function featureSourceChangedFields(panel) {
     }
     const name = el.getAttribute("data-fs-field");
     const orig = el.getAttribute("data-fs-orig") || "";
-    const wert = el.type === "checkbox" ? (el.checked ? "1" : "0") : String(el.value || "");
+    const istHaken = el.type === "checkbox";
+    const wert = istHaken ? (el.checked ? "1" : "0") : String(el.value || "");
     if (wert !== orig) {
-      felder[name] = name === "is_official" ? wert === "1" : wert;
+      // 🔴 EIN HAEKCHEN REIST ALS BOOLEAN, und die Regel haengt an der ART des Bedienelements,
+      // nicht an seinem NAMEN. Bis zum 03.09.2026 stand hier `name === "is_official"` -- eine
+      // Liste mit genau einem Eintrag. Mit `corpus_is_official` und `no_corpus` waeren es drei
+      // gewesen, und die naechste Kachel die vierte: genau die Bauform, an der in diesem Haus
+      // schon die Verkehrsmittel-Sperre und der Korpus-Erzeuger gescheitert sind.
+      felder[name] = istHaken ? wert === "1" : wert;
     }
   });
   return felder;
@@ -1025,7 +1156,10 @@ function featureSourceUrlLooksValid(wert) {
  * ein alter, zwischengespeicherter Client ohne diese Häkchen schriebe die Abweichungen still weg.
  * Dieselbe Regel wie bei `source_type_chosen` (29.08.2026): „da steht ein Wert" heisst nie
  * „ein Mensch hat ihn gewählt".
- * ⚠️ Gesperrte Häkchen zählen nicht mit -- sie tragen den Bestand, nicht eine Wahl.
+ * 🔴 GELESEN WIRD DER WERT, NICHT EIN HÄKCHEN (Owner 02.09.2026: „eigentlich braucht es
+ * die häkchen nicht NUR felder"). Ein gefülltes Abweichungsfeld IST die Abweichung; damit gibt
+ * es keinen zweiten Zustand daneben, der auseinanderlaufen könnte (angehakt, aber leer).
+ * ⚠️ Gesperrte Felder zählen nicht mit -- sie tragen den Bestand, nicht eine Wahl.
  */
 function featureSourceOwnFieldsFromPanel(panel) {
   const liste = [];
@@ -1033,16 +1167,19 @@ function featureSourceOwnFieldsFromPanel(panel) {
   if (!panel || typeof panel.querySelectorAll !== "function") {
     return { liste, geaendert };
   }
-  Array.prototype.forEach.call(panel.querySelectorAll("[data-fs-own]"), (el) => {
+  Array.prototype.forEach.call(panel.querySelectorAll("[data-fs-abw-wert]"), (el) => {
     if (el.disabled) {
       return;
     }
-    const name = el.getAttribute("data-fs-own");
-    const jetzt = el.checked === true;
-    if (jetzt) {
+    const name = el.getAttribute("data-fs-abw-wert");
+    const jetzt = String(el.value || "").trim();
+    if (jetzt !== "") {
       liste.push(name);
     }
-    if (jetzt !== (el.getAttribute("data-fs-own-orig") === "1")) {
+    // ⚠️ Verglichen wird gegen den Stand, mit dem das Feld GEZEICHNET wurde — nicht gegen
+    // „leer". Im ✎ kommt eine bestehende Abweichung gefuellt heraus, und ohne diesen Vergleich
+    // meldete jedes Oeffnen des Kastens eine Änderung.
+    if (jetzt !== String(el.getAttribute("data-fs-abw-orig") || "")) {
       geaendert = true;
     }
   });
@@ -1384,8 +1521,14 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
       return;
     }
     const wert = String(feld.value || "").trim();
-    feld.classList.toggle("fs-add-url--gut", wert !== "" && featureSourceUrlLooksValid(wert));
-    feld.classList.toggle("fs-add-url--schlecht", wert !== "" && !featureSourceUrlLooksValid(wert));
+    // 💣 DIE KLASSE GEHOERT AN DIE HUELLE, nicht ans Eingabefeld. Der Vertrag stylt
+    // `.fs-url--gut input` — am Feld selbst gesetzt trifft dieser Selektor nie, und die
+    // Faerbung bliebe lautlos aus. Dieselbe Falle wie bei `.fs-af--meins`, wo eine Kurzform
+    // `border` die `border-color` zurueckgesetzt hat.
+    const huelle = feld.closest ? feld.closest(".fs-url") : null;
+    const ziel = huelle || feld;
+    ziel.classList.toggle("fs-url--gut", wert !== "" && featureSourceUrlLooksValid(wert));
+    ziel.classList.toggle("fs-url--schlecht", wert !== "" && !featureSourceUrlLooksValid(wert));
   }
 
   /**
@@ -1402,12 +1545,11 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
    * auseinander, der Marker im Markup nicht.
    */
   function zeigeBekannteSeite(an) {
-    const knopf = containerEl.querySelector("[data-fs-add-submit]");
-    if (knopf) {
-      knopf.textContent = an
-        ? tr("sources.add.link", "Verknüpfen")
-        : tr("sources.add.submit", "Hinzufügen");
-    }
+    // 🔴 DER KNOPF HEISST IMMER „Speichern" (Owner 02.09.2026: „Der button soll auch
+    // nicht verknuepfen sondern Speichern heissen"). Was gerade passiert — anlegen oder
+    // verknuepfen —, steht in der gruenen Meldung darunter (`featureSourceLinkedMessage`), und
+    // die sagt es in einem ganzen Satz statt in einem Wort auf einem Knopf.
+    // ⚠️ Hervorgehoben wird stattdessen, was hier NEU einzutragen ist.
     Array.prototype.forEach.call(containerEl.querySelectorAll("[data-fs-meins]"), (el) => {
       el.classList.toggle("fs-af--meins", an === true);
     });
@@ -1498,11 +1640,102 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
    * ⚠️ Und der Marker erscheint nur, wo der Korpus den Wert WIRKLICH trägt -- ein Marker über
    * einem leeren Feld behauptete, der Korpus habe dazu etwas zu sagen.
    */
+  // Steht das Haekchen „Kein Korpus verwenden"? EIN Leser, drei Aufrufer -- nachgebaut waere er
+  // die naechste Stelle, an der ein Zustand auseinanderlaeuft.
+  const ohneKorpusGewaehlt = () => {
+    const el = containerEl.querySelector("[data-fs-no-corpus]");
+    return Boolean(el && el.checked);
+  };
+
+  /**
+   * Die Abweichungsfelder erben ihre Beschriftung vom Korpus.
+   *
+   * 🔴 Der erste Eintrag IST der Korpuswert — er trägt `value=""` und heißt „wie Korpus
+   * (CC BY-SA 4.0)". Wer etwas anderes einstellt, weicht ab; wer zurückstellt, erbt wieder. Der
+   * ZUSTAND ist damit der Wert selbst, und es gibt nichts daneben, das auseinanderlaufen könnte.
+   * 💣 GESETZT WIRD DER TEXT, NIE DER `value`. Ein Eintrag, dessen Wert sich mit dem Korpus
+   * ändert, wäre beim nächsten Korpuswechsel stillschweigend eine Abweichung — der leere Wert
+   * ist die einzige Stelle, an der „erbt" steht.
+   * ⚠️ Ohne Korpus („Kein Korpus verwenden", oder Adresse noch unbekannt) gibt es nichts, wovon
+   * man abweichen könnte: der Eintrag heißt dann „— keine Angabe —", und `.abw--frei` nimmt die
+   * Marke „· abweichend" weg.
+   */
+  function zeigeAbweichung(korpus, ohneKorpus) {
+    const kasten = containerEl.querySelector("[data-fs-abw]");
+    if (!kasten) {
+      return;
+    }
+    const frei = ohneKorpus === true || !korpus;
+    kasten.classList.toggle("abw--frei", frei);
+    const text = kasten.querySelector("[data-fs-abw-text]");
+    const objekte = korpus ? Number(korpus.objects) || 0 : 0;
+    if (text) {
+      // 🔴 DIE REICHWEITE STEHT DABEI, und sie ist der Grund für diesen Satz: eine
+      // abweichende Lizenz liegt an der QUELLE und wirkt an jedem Objekt, das sie zitiert —
+      // nicht nur an diesem. Ohne den Zusatz läse sich der Kasten unter der Aufschrift
+      // „Nur an diesem Objekt" als objektbezogen, und das wäre das einzige Versprechen in
+      // diesem Formular, das die Ablage nicht einlöst.
+      text.textContent = frei
+        ? tr("sources.abw.free",
+          "Diese Quelle gehört zu keinem Korpus — diese Angaben gelten nur für sie.")
+        : (objekte > 0
+          ? tr("sources.abw.reach",
+            "Abweichend vom Korpus — leer heißt: wie der Korpus. Eine Abweichung gehört der Quelle und gilt an allen {n} Objekten, die sie zitieren.")
+            .replace("{n}", String(objekte))
+          : tr("sources.abw.hint", "Abweichend vom Korpus — leer heißt: wie der Korpus."));
+    }
+    const lizenzTafel = featureSourceLicenseTable();
+    const beschriften = (name, wert, klartext) => {
+      const el = kasten.querySelector('[data-fs-abw-wert="' + name + '"]');
+      if (!el) {
+        return;
+      }
+      const satz = frei
+        ? tr("sources.abw.none", "— keine Angabe —")
+        : (wert !== ""
+          ? tr("sources.abw.inheritValue", "wie Korpus ({wert})").replace("{wert}", klartext)
+          : tr("sources.abw.inherit", "wie Korpus"));
+      if (el.tagName === "SELECT") {
+        const erster = el.querySelector('option[value=""]');
+        if (erster) {
+          erster.textContent = satz;
+        }
+        return;
+      }
+      // ⚠️ Beim Textfeld ist der PLATZHALTER die Erbschaft — ein vorbelegter Wert wäre eine
+      // Abweichung, sobald jemand das Formular nur ansieht.
+      el.placeholder = satz;
+    };
+    const art = korpus ? String(korpus.source_type || "") : "";
+    const lizenz = korpus ? String(korpus.license || "") : "";
+    const nennung = korpus ? String(korpus.attribution || "") : "";
+    beschriften("source_type", art, art !== "" ? featureSourceTypeLabel(art) : "");
+    beschriften("license", lizenz,
+      lizenz !== "" && lizenzTafel[lizenz] ? lizenzTafel[lizenz].label : lizenz);
+    beschriften("attribution", nennung, nennung);
+  }
+
+  /**
+   * „Kein Korpus verwenden" — der Korpusrahmen verschwindet, die Angaben bleiben.
+   *
+   * 🔴 Art, Lizenz und Nennung rutschen NICHT mit weg: verschwänden sie, hätte eine korpuslose
+   * Quelle GAR KEINE Lizenz, und die ist das rechtlich Tragende. Sie verlieren nur ihren Eintrag
+   * „wie Korpus (…)" — es gibt dann nichts, wovon man abweichen könnte.
+   */
+  function zeigeOhneKorpus(an) {
+    const gruppe = containerEl.querySelector("[data-fs-korpus-gruppe]");
+    if (gruppe) {
+      gruppe.hidden = an === true;
+    }
+    zeigeAbweichung(letzterKorpus, an === true);
+  }
+
   function uebernehmeKorpus(korpus) {
     letzterKorpus = korpus || null;
     const feld = containerEl.querySelector("[data-fs-corpus]");
     const meta = containerEl.querySelector("[data-fs-corpus-meta]");
     const scope = containerEl.querySelector("[data-fs-korpus-scope]");
+    const titelEl = containerEl.querySelector("[data-fs-korpus-titel]");
     const marker = (name, an) => {
       const el = containerEl.querySelector('[data-fs-from="' + name + '"]');
       if (el) {
@@ -1521,7 +1754,11 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
       if (scope) {
         scope.textContent = " — " + tr("sources.add.corpusScopeNone", "welcher, sagt die Adresse");
       }
+      if (titelEl) {
+        titelEl.textContent = tr("sources.add.corpusGroup", "Gilt für den ganzen Korpus");
+      }
       ["type", "license", "attribution", "official"].forEach((n) => marker(n, false));
+      zeigeAbweichung(null, ohneKorpusGewaehlt());
       return;
     }
     if (feld && String(feld.value || "").trim() === "") {
@@ -1551,12 +1788,21 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
       const objekte = Number(korpus.objects) || 0;
       const quellen = Number(korpus.sources) || 0;
       const name = String(korpus.label || korpus.corpus_key || "");
+      // 🔴 DER NAME IN DEN TITEL, DIE ZAHLEN IN DIE REICHWEITE — zeichengleich zum ✎
+      // (`sources.edit.corpusScope`). Bis zum 03.09.2026 stand der Wirtsname hier in der
+      // REICHWEITE und im ✎ im TITEL: einmal fett-braune Versalzeile, einmal gedämpftes
+      // Beiwort, für dasselbe Ding. Gefunden hat das der Prüfagent — im Einzelbild sieht jede
+      // Seite für sich richtig aus.
+      if (titelEl) {
+        titelEl.textContent = name !== ""
+          ? tr("sources.edit.corpusScope", "Gilt für den ganzen Korpus „{name}“").replace("{name}", name)
+          : tr("sources.add.corpusGroup", "Gilt für den ganzen Korpus");
+      }
       scope.textContent = objekte === 0
-        ? " — " + tr("sources.add.corpusScopeNew", "{key} ist neu, du legst ihn hiermit an")
+        ? tr("sources.add.corpusScopeNew", "{key} ist neu, du legst ihn hiermit an")
           .replace("{key}", String(korpus.corpus_key || ""))
-        : " „" + name + "“ — "
-          + tr("sources.add.corpusScopeReach", "{q} Quellen · {n} Objekte")
-            .replace("{q}", String(quellen)).replace("{n}", String(objekte));
+        : tr("sources.add.corpusScopeReach", "{q} Quellen · {n} Objekte")
+          .replace("{q}", String(quellen)).replace("{n}", String(objekte));
     }
     // 🔴 Vorbelegen NUR bei einem bekannten Korpus. Ein frisch aus der Adresse abgeleiteter trägt
     // nichts, was er vorgeben könnte -- dort wäre jeder Marker eine Behauptung.
@@ -1577,6 +1823,8 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
       haken.checked = true;
     }
     marker("official", bekannt && korpus.is_official === true);
+
+    zeigeAbweichung(korpus, ohneKorpusGewaehlt());
 
     // 🔴 DIE FORM STEHT NICHT MEHR IN DIESER ZEILE (Owner 02.09.2026: „zieh die form ins ✎").
     // Mit ihr ist auch ihr gerechneter Vorschlag (`form_suggestion`) hier weggefallen -- er
@@ -2173,6 +2421,11 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
     }
     if (event.target.closest("[data-fs-unpick]")) {
       clearPick();
+      return;
+    }
+    // „Kein Korpus verwenden" — ein Klick, zwei sichtbare Folgen (Rahmen weg, Erbschaft weg).
+    if (event.target.closest("[data-fs-no-corpus]")) {
+      zeigeOhneKorpus(ohneKorpusGewaehlt());
       return;
     }
     if (event.target.closest("[data-fs-check]")) {

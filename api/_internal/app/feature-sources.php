@@ -33,6 +33,7 @@ function avesmapsEnsureFeatureSourceTablesSqlite(PDO $pdo): void
             license TEXT NOT NULL DEFAULT "",
             attribution TEXT NOT NULL DEFAULT "",
             own_fields TEXT NOT NULL DEFAULT "",
+            no_corpus INTEGER NOT NULL DEFAULT 0,
             created_by INTEGER NULL,
             created_at TEXT NOT NULL DEFAULT "2026-01-01 00:00:00"
         )'
@@ -185,6 +186,14 @@ function avesmapsEnsureFeatureSourceTables(PDO $pdo): void
     // zufaellig ein laengeres, das es enthaelt.
     if (!$columnExists($pdo, 'sources', 'own_fields')) {
         $pdo->exec("ALTER TABLE sources ADD COLUMN own_fields VARCHAR(190) NOT NULL DEFAULT ''");
+    }
+
+    // 🔴 „Kein Korpus verwenden" (Owner 02.09.2026). Eine Aussage ÜBER die Quelle, und sie
+    // laesst sich NICHT ableiten: der Korpusschluessel entsteht aus der Domain und ist immer da.
+    // Es gibt also keinen anderen Weg, „gehoert bewusst zu keinem Korpus" zu sagen.
+    // ⚠️ Vorgabe 0 — der Bestand aendert sich durch die Spalte nicht.
+    if (!$columnExists($pdo, 'sources', 'no_corpus')) {
+        $pdo->exec("ALTER TABLE sources ADD COLUMN no_corpus TINYINT(1) NOT NULL DEFAULT 0");
     }
 
     if (!$columnExists($pdo, 'sources', 'wiki_key')) {
@@ -1088,7 +1097,8 @@ const AVESMAPS_FEATURE_SOURCE_LINK_FIELDS = ['pages', 'reference_kind'];
  * das waere ein ZUSAMMENLEGEN, und dafuer gibt es `avesmapsMergeSourceInto` samt Protokoll. Der
  * Upsert wuerde am UNIQUE scheitern; wir sagen es vorher und nennen die andere Zeile.
  */
-const AVESMAPS_FEATURE_SOURCE_CATALOG_FIELDS = ['url', 'label', 'source_type', 'license', 'attribution', 'is_official', 'own_fields'];
+const AVESMAPS_FEATURE_SOURCE_CATALOG_FIELDS = ['url', 'label', 'source_type', 'license',
+    'attribution', 'is_official', 'own_fields', 'no_corpus'];
 
 /**
  * 💣 DIE ZWEI FELDER, DIE DER WIKI-ABGLEICH SELBST PFLEGT — eine Handkorrektur daran waere eine
@@ -1126,6 +1136,39 @@ const AVESMAPS_FEATURE_SOURCE_CONFIRM_THRESHOLD = 10;
  */
 const AVESMAPS_FEATURE_SOURCE_CORPUS_ONLY_FIELDS = ['form'];
 
+/**
+ * Das Praefix, mit dem ein Feld AUSDRUECKLICH den Korpus meint.
+ *
+ * 💣 WARUM ES DAS BRAUCHT. Bis zum 03.09.2026 trugen der Korpuswert und die Abweichung
+ * DENSELBEN Namen (`license`), und welche Tabelle getroffen wurde, entschied `own_fields`:
+ * besitzt die Quelle das Feld, ging der Wert nach `sources`, sonst in den Korpus. Das reichte,
+ * solange ein Formular immer nur eines von beiden zeigte. Seit dem Umbau zeigt der ✎ BEIDES
+ * nebeneinander (Korpuswert im Korpusrahmen, Abweichung darunter) — mit einem Namen liessen sich
+ * die zwei nicht in EINEM Speichern aendern.
+ *
+ * 🔴 `corpus_license` meint IMMER den Korpus, unabhaengig von `own_fields`. Der blanke Name
+ * behaelt seine alte Bedeutung — das ist kein Schoenheitsfehler, sondern der Riegel gegen einen
+ * alten, zwischengespeicherten Client: der schickt weiter `license` und trifft damit genau das,
+ * was er immer getroffen hat. Wer die alte Spur entfernt, dreht fuer solche Clients die Bedeutung
+ * einer Eingabe um, ohne dass jemand es merkt.
+ */
+const AVESMAPS_FEATURE_SOURCE_CORPUS_PREFIX = 'corpus_';
+
+/** Der Feldname hinter dem Praefix -- oder '' , wenn es keins traegt oder der Rest unbekannt ist. */
+function avesmapsFeatureSourceCorpusPrefixed(string $field): string
+{
+    if (strncmp($field, AVESMAPS_FEATURE_SOURCE_CORPUS_PREFIX, strlen(AVESMAPS_FEATURE_SOURCE_CORPUS_PREFIX)) !== 0) {
+        return '';
+    }
+    $rest = substr($field, strlen(AVESMAPS_FEATURE_SOURCE_CORPUS_PREFIX));
+    // ⚠️ NUR bekannte Korpusfelder. Ein `corpus_irgendwas` waere sonst eine Spalte, die es nicht
+    // gibt -- und der Korpus-Schreiber bekaeme sie ungeprueft gereicht.
+    $erlaubt = array_merge(AVESMAPS_FEATURE_SOURCE_CORPUS_ONLY_FIELDS,
+        defined('AVESMAPS_SOURCE_CORPUS_OWNED_FIELDS') ? AVESMAPS_SOURCE_CORPUS_OWNED_FIELDS : []);
+
+    return in_array($rest, $erlaubt, true) ? $rest : '';
+}
+
 /** Welcher Haelfte gehoert ein Feld? 'link' | 'catalog' | 'corpus' | '' fuer unbekannt. */
 function avesmapsFeatureSourceFieldScope(string $field): string
 {
@@ -1133,6 +1176,10 @@ function avesmapsFeatureSourceFieldScope(string $field): string
         return 'link';
     }
     if (in_array($field, AVESMAPS_FEATURE_SOURCE_CORPUS_ONLY_FIELDS, true)) {
+        return 'corpus';
+    }
+    // Ein ausdruecklich benanntes Korpusfeld (`corpus_license`) gehoert dem Korpus, immer.
+    if (avesmapsFeatureSourceCorpusPrefixed($field) !== '') {
         return 'corpus';
     }
 
@@ -1291,6 +1338,13 @@ function avesmapsUpdateFeatureSource(PDO $pdo, string $entityType, string $publi
                     ? $wert
                     : avesmapsSourceOwnFieldsParse((string) $wert));
                 break;
+            case 'no_corpus':
+                // „Kein Korpus verwenden" — eine Aussage über die Quelle, nie ueber diese eine
+                // Verknuepfung. ⚠️ Wie `is_official` gelesen: alles, was nicht ausdruecklich wahr
+                // ist, heisst nein — ein unbekannter Wert darf eine Quelle nicht stillschweigend
+                // aus ihrem Korpus nehmen.
+                $neu[$name] = ($wert === true || $wert === 1 || $wert === '1') ? 1 : 0;
+                break;
         }
     }
 
@@ -1299,6 +1353,7 @@ function avesmapsUpdateFeatureSource(PDO $pdo, string $entityType, string $publi
         'pages' => (string) ($link['pages'] ?? ''),
         'reference_kind' => (string) ($link['reference_kind'] ?? ''),
         'url' => (string) ($catalog['url'] ?? ''),
+        'no_corpus' => (int) ($catalog['no_corpus'] ?? 0),
         'label' => (string) ($catalog['label'] ?? ''),
         'source_type' => (string) ($catalog['source_type'] ?? ''),
         'license' => (string) ($catalog['license'] ?? ''),
@@ -1433,7 +1488,19 @@ function avesmapsUpdateFeatureSource(PDO $pdo, string $entityType, string $publi
     // `$katalogAenderungen` -- und wer nur sie aendert, kaeme sonst nie hier an. Genau so waere
     // ein „Speichern", das den Knopf bewegt und nichts tut.
     $formGeschickt = array_key_exists('form', $fields);
-    if (($katalogAenderungen !== [] || $formGeschickt) && function_exists('avesmapsSourceCorpusSave')) {
+    // 💣 UND DIE AUSDRUECKLICH BENANNTEN EBENSO. Wer im ✎ nur die Korpuslizenz aendert,
+    // schickt `corpus_license` und sonst nichts -- ohne diese Zeile waere `$katalogAenderungen`
+    // leer, `$formGeschickt` falsch, und der Block liefe nie. Ein „Speichern", das den Knopf
+    // bewegt und nichts tut, ist genau die Falle, wegen der `$formGeschickt` schon dasteht.
+    $ausdruecklich = [];
+    foreach ($fields as $name => $wert) {
+        $rest = avesmapsFeatureSourceCorpusPrefixed((string) $name);
+        if ($rest !== '') {
+            $ausdruecklich[$rest] = $wert;
+        }
+    }
+    if (($katalogAenderungen !== [] || $formGeschickt || $ausdruecklich !== [])
+        && function_exists('avesmapsSourceCorpusSave')) {
         $korpusFelder = array_intersect_key($katalogAenderungen, array_flip(AVESMAPS_SOURCE_CORPUS_OWNED_FIELDS));
         // 🔴 DIE FORM IST EINE REINE KORPUS-SPALTE. Sie steht seit dem 02.09.2026 im ✎ (Owner:
         // „zieh die form ins ✎") und hat in `sources` KEINE Spalte -- sie darf deshalb weder in
@@ -1454,7 +1521,27 @@ function avesmapsUpdateFeatureSource(PDO $pdo, string $entityType, string $publi
             array_key_exists('own_fields', $neu) ? (string) $neu['own_fields'] : (string) $bestand['own_fields']
         );
         $korpusFelder = array_diff_key($korpusFelder, array_flip($besitz));
-        $korpusKey = $korpusFelder === [] ? '' : avesmapsSourceCorpusKey((string) ($catalog['url'] ?? ''));
+        // 🔴 DIE AUSDRUECKLICHEN KOMMEN NACH DEM ABZUG DAZU, nicht davor. Sie sagen
+        // „Korpus" unabhaengig davon, ob die Quelle das Feld besitzt -- genau dafuer gibt es sie.
+        // Davor eingesetzt naehme `array_diff_key` sie gleich wieder heraus, und der ✎ koennte
+        // die Korpuslizenz einer abweichenden Quelle nie aendern: der Rahmen „Gilt fuer den
+        // ganzen Korpus" bewegte sich, und nichts geschaehe.
+        // ⚠️ Sie ueberschreiben einen gleichnamigen Wert aus der alten Spur — wer beides
+        // schickt, hat sich ausdruecklich entschieden.
+        foreach ($ausdruecklich as $name => $wert) {
+            $korpusFelder[$name] = $name === 'form'
+                ? avesmapsSourceCorpusNormalizeForm((string) $wert)
+                : $wert;
+        }
+        // 💣 EINE QUELLE OHNE KORPUS SCHREIBT KEINEN. `no_corpus` heisst, dass sie fuer sich
+        // steht; ein Schreibvorgang auf den Wirt waere dann eine Aenderung an einem Korpus, zu dem
+        // sie gar nicht gehoert -- und er traefe alle ANDEREN Quellen dieses Wirts.
+        $ohneKorpus = array_key_exists('no_corpus', $neu)
+            ? ((int) $neu['no_corpus'] === 1)
+            : ((int) ($bestand['no_corpus'] ?? 0) === 1);
+        $korpusKey = ($korpusFelder === [] || $ohneKorpus)
+            ? ''
+            : avesmapsSourceCorpusKey((string) ($catalog['url'] ?? ''));
         $bekannte = avesmapsSourceCorpusReadAll($pdo);
         if ($korpusKey !== '' && isset($bekannte[$korpusKey])) {
             $ergebnis = avesmapsSourceCorpusSave($pdo, $korpusKey, $korpusFelder, $userId, true);

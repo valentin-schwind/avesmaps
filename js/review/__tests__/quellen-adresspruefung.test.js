@@ -307,10 +307,20 @@ zaehl();
 });
 zaehl();
 
-// 💣 Der Prüfknopf steht NEBEN dem Adress-Label, nicht darin: ein `<button>` in einem `<label>`
-// erbt dessen Aktivierungsverhalten, und der Klick gälte dann auch dem Eingabefeld.
-assert.ok(/<\/label><button type="button" class="fs-add-check"/.test(html),
-  "der Prüfknopf steht außerhalb des Labels");
+// 🪤 UMGEDREHT am 03.09.2026, und zwar GEMESSEN, nicht behauptet. Hier stand: „der
+// Prüfknopf steht NEBEN dem Adress-Label, nicht darin: ein `<button>` in einem `<label>` erbt
+// dessen Aktivierungsverhalten, und der Klick gälte dann auch dem Eingabefeld."
+// Im Browser nachgestellt (echter Zeigerklick auf ⟳, Zähler am Eingabefeld): NULL Klicks auf
+// dem Feld, kein Fokuswechsel — HTML nimmt interaktive Inhalte von der Label-Aktivierung
+// ausdrücklich aus. Die Regel trug also nicht mehr, und sie stand dem Vertrag im Weg:
+// `.fs-url__zeile` legt Feld und Knopf in EINE Zeile, damit ⟳ neben der Adresse sitzt statt
+// darunter umzubrechen.
+// ⚠️ Wer ihn wieder herausnimmt, misst es vorher NACH — das oben ist eine Messung an EINEM
+// Browser, keine Garantie für jeden.
+assert.ok(/class="fs-url__zeile"/.test(html),
+  "Adressfeld und Prüfknopf liegen in einer Zeile");
+assert.ok(/data-fs-check[^>]*>⟳<\/button>/.test(html),
+  "und der Prüfknopf ist da");
 zaehl();
 
 // 🔴 Der Schreibweg für den Korpus muss verdrahtet sein -- ohne ihn wäre das Feld eine Attrappe,
@@ -407,25 +417,67 @@ const kasten = renderFeatureSourceEditPanel({
   corpus: { corpus_key: "westlande.de", label: "Albernia-Wiki", known: true, sources: 39, objects: 50 },
 }, (x) => String(x), (k, d) => d);
 
-const ueberschriften = [...kasten.matchAll(/<span class="fs-edit__title">([^<]*)<\/span>/g)].map((m) => m[1]);
-assert.strictEqual(ueberschriften.length, 3, "drei Gruppen: Objekt · Quelle · Korpus");
+// 🪤 `.fs-edit__title` war Teil der VIERTEN Rahmen-Rezeptur und ist im geteilten Bauteil
+// `.fs-scope` aufgegangen (03.09.2026). Die Zahl bleibt drei -- der Kasten trägt weiter genau
+// drei Reichweiten, nur in der Reihenfolge, die der Owner vorgegeben hat.
+const ueberschriften = [...kasten.matchAll(/<span class="fs-scope__title">([^<]*)<\/span>/g)].map((m) => m[1]);
+assert.strictEqual(ueberschriften.length, 3, "drei Rahmen: Quelle · Korpus · Objekt");
 zaehl();
-assert.ok(/Korpus/.test(ueberschriften[2]) && /Albernia-Wiki/.test(ueberschriften[2]),
-  "die dritte nennt den Korpus beim Namen");
+// 🪤 Der Korpus steht seit dem 03.09.2026 in der MITTE (Owner: „Damit man den Korpus sieht
+// würde ich ‚Nur an diesem Objekt‘ unter ‚Gilt für den ganzen Korpus‘ setzen").
+// 🔴 DER WIRTSNAME STEHT IN BEIDEN FORMULAREN IM TITEL. Bis zum 03.09.2026 stand er in der
+// Eingabezeile in der REICHWEITE und im ✎ im TITEL — einmal als fett-braune Versalzeile, einmal
+// als gedämpftes Beiwort, für dasselbe Ding. Gefunden hat das der Prüfagent, nicht der Blick:
+// im Einzelbild sieht jede Seite für sich richtig aus.
+// ⚠️ Gemessen wird der SCHLÜSSEL, nicht der Wortlaut: beide rufen `sources.edit.corpusScope`,
+// und wer den einen Text ändert, ändert damit den anderen mit.
+{
+  const zeile = modul.renderFeatureSourceEditorHtml({ ok: true, sources: [] }, {});
+  assert.ok(/data-fs-korpus-titel/.test(zeile),
+    "die Eingabezeile kann ihren Korpustitel füllen");
+  const quelltext = fs.readFileSync(
+    path.join(__dirname, "..", "review-feature-sources.js"), "utf8")
+    // Zeilenendenneutral: hier CRLF, im Deploy-Tor LF.
+    .split("\r\n").join("\n");
+  const rumpf = quelltext.slice(quelltext.indexOf("function uebernehmeKorpus(korpus) {"));
+  const bis = rumpf.indexOf("\n  }");
+  assert.ok(/titelEl\.textContent[\s\S]{0,200}sources\.edit\.corpusScope/.test(rumpf.slice(0, bis)),
+    "und sie füllt ihn mit DEMSELBEN Schlüssel wie der ✎");
+  zaehl();
+}
+
+assert.ok(/Quelle zitieren/.test(ueberschriften[0]), "die erste nennt die Quelle");
+assert.ok(/Korpus/.test(ueberschriften[1]) && /Albernia-Wiki/.test(ueberschriften[1]),
+  "die zweite nennt den Korpus beim Namen");
+assert.ok(/Nur an diesem Objekt/.test(ueberschriften[2]), "die dritte dieses eine Objekt");
 zaehl();
 assert.ok(/39[\s\S]{0,40}50/.test(kasten), "und seine Reichweite: 39 Quellen, 50 Objekte");
 zaehl();
 
-// 💣 Die korpuseigenen Felder stehen in der DRITTEN Gruppe, Adresse und Titel in der zweiten.
-// Genau diese Zuordnung ist die Aussage -- sie muss der des Servers entsprechen
-// (AVESMAPS_SOURCE_CORPUS_OWNED_FIELDS), sonst sagt die Oberfläche etwas anderes als der Schreiber.
-const abKorpus = kasten.lastIndexOf('class="fs-edit__title"');
-["source_type", "license", "attribution", "is_official"].forEach((f) => {
-  assert.ok(kasten.indexOf('data-fs-field="' + f + '"') > abKorpus, f + " steht in der Korpusgruppe");
+// 💣 DIE ZUORDNUNG HÄNGT SEIT DEM 03.09.2026 AM NAMEN, NICHT AN DER POSITION. Ein Korpusfeld
+// heißt `corpus_license` und sagt damit selbst, wohin es gehört; vorher entschied das seine
+// Stelle im Markup -- und die ist beim nächsten Umbau eine andere.
+// 🔴 Der BLANKE Name gehört seither der Abweichung: `own_fields` schickt ihn nach `sources`.
+// Genau diese Trennung ist die Aussage, und sie muss der des Servers entsprechen
+// (AVESMAPS_FEATURE_SOURCE_CORPUS_PREFIX), sonst sagt die Oberfläche etwas anderes als der
+// Schreiber tut.
+["source_type", "license", "attribution", "is_official", "form"].forEach((f) => {
+  assert.ok(kasten.indexOf('data-fs-field="corpus_' + f + '"') !== -1,
+    f + " steht als corpus_" + f + " im Korpusrahmen");
 });
 zaehl();
+["source_type", "license", "attribution"].forEach((f) => {
+  assert.ok(kasten.indexOf('data-fs-abw-wert="' + f + '"') !== -1, f + " lässt sich abweichen");
+});
+zaehl();
+// ⚠️ `is_official` NICHT (Owner 02.09.2026: „offiziell braucht nicht überschrieben werden").
+assert.ok(kasten.indexOf('data-fs-abw-wert="is_official"') === -1,
+  "offiziell lässt sich nicht abweichen -- es gehört allein dem Korpus");
+zaehl();
 ["url", "label", "pages", "reference_kind"].forEach((f) => {
-  assert.ok(kasten.indexOf('data-fs-field="' + f + '"') < abKorpus, f + " steht NICHT in der Korpusgruppe");
+  assert.ok(kasten.indexOf('data-fs-field="' + f + '"') !== -1, f + " trägt seinen blanken Namen");
+  assert.ok(kasten.indexOf('data-fs-field="corpus_' + f + '"') === -1,
+    f + " gehört NICHT dem Korpus");
 });
 zaehl();
 
@@ -434,21 +486,28 @@ zaehl();
 const ohneKorpus = renderFeatureSourceEditPanel({
   source_id: 8, url: "", label: "Aventurischer Bote Nr. 70", type: "aventurischer_bote", usage_count: 52,
 }, (x) => String(x), (k, d) => d);
-const letzte = [...ohneKorpus.matchAll(/<span class="fs-edit__title">([^<]*)<\/span>/g)].map((m) => m[1])[2];
-assert.ok(/Korpus/.test(letzte) && !/„/.test(letzte), "ohne Korpus bleibt die Überschrift schlicht");
+const korpusUeberschrift = [...ohneKorpus.matchAll(/<span class="fs-scope__title">([^<]*)<\/span>/g)]
+  .map((m) => m[1])[1];
+assert.ok(/Korpus/.test(korpusUeberschrift) && !/„/.test(korpusUeberschrift),
+  "ohne Korpus bleibt die Überschrift schlicht");
 zaehl();
 
 // ---------------------------------------------------------------------------------------------
 // Die ORDNUNG der Eingabezeile (Owner-Pfeil im Bild vom 02.09.2026, „für edit/neu")
 // ---------------------------------------------------------------------------------------------
-// 🔴 Erst das, was DIESE Fundstelle beschreibt (Adresse · Titel · Seite(n) · Abdeckung), dann der
-// Rahmen mit dem, was dem ganzen Korpus gehört. Owner wörtlich: „du kann gerne alles einrahmen,
-// was zum korpus gehört (seiten z.b. nicht)". Stünden Seiten und Abdeckung IM Rahmen oder unter
-// ihm, sagte die Zeile das Gegenteil: dass eine Seitenzahl für 39 Quellen gilt.
+// 🪤 UMGEDREHT am 02./03.09.2026 auf Owner-Ansage: „Damit man den Korpus sieht würde ich
+// ‚Nur an diesem Objekt‘ unter ‚Gilt für den ganzen Korpus‘ setzen." Hier stand die umgekehrte
+// Ordnung, samt der Begründung „Stünden Seiten und Abdeckung IM Rahmen oder unter ihm, sagte die
+// Zeile das Gegenteil".
+// 🔴 Die neue Ordnung geht von WEIT nach ENG: die Quelle (Adresse, Titel) — der Korpus —
+// dieses Objekt (Seiten, Abdeckung, Abweichungen). Sie ist in BEIDEN Formularen dieselbe; das war
+// der Anlass des ganzen Umbaus.
+// ⚠️ Was unverändert gilt: Seiten und Abdeckung stehen NICHT im Korpusrahmen. Sie stehen jetzt
+// in einem eigenen darunter, und der sagt in seiner Aufschrift, dass er nur dieses Objekt meint.
 {
   const zeile = modul.renderFeatureSourceEditorHtml({ ok: true, sources: [] }, {});
   const pos = (c) => zeile.indexOf(c);
-  const reihe = ["fs-add-url", "fs-add-label", "fs-add-pages", "fs-add-kind", "fs-korpus"];
+  const reihe = ["fs-add-url", "fs-add-label", "data-fs-korpus-gruppe", "fs-add-pages", "fs-add-kind"];
   reihe.forEach((c, i) => {
     assert.ok(pos(c) >= 0, c + " steht in der Eingabezeile");
     if (i > 0) {
@@ -462,15 +521,26 @@ zaehl();
     { source_id: 9, url: "https://westlande.de/x", label: "X", usage_count: 1,
       corpus: { corpus_key: "westlande.de", label: "Albernia-Wiki", known: true } },
     (x) => String(x), (k, d) => d);
-  assert.ok(kasten2.indexOf('data-fs-field="pages"') < kasten2.lastIndexOf('class="fs-edit__title"'),
-    "auch im Bearbeiten-Kasten stehen die Seiten VOR der Korpusgruppe");
+  // 🪤 UMGEDREHT am 02./03.09.2026: die Seiten stehen jetzt NACH dem Korpus (Owner: „Damit
+  // man den Korpus sieht würde ich ‚Nur an diesem Objekt‘ unter ‚Gilt für den ganzen Korpus‘
+  // setzen"). Gemessen wird die Ordnung, die BEIDE Formulare teilen -- das war der Anlass.
+  assert.ok(kasten2.indexOf("data-fs-korpus-gruppe") < kasten2.indexOf('data-fs-field="pages"'),
+    "auch im Bearbeiten-Kasten stehen die Seiten NACH dem Korpus");
   zaehl();
 
-  // ⚠️ Abbrechen neben Hinzufügen -- und WEICH, nicht gefüllt: eine Zeilenhandlung ist nie die
-  // Haupthandlung der Seite (AGENTS.md §12). Der gefüllte Knopf daneben heißt „Hinzufügen".
+  // ⚠️ Abbrechen neben Speichern -- und WEICH, nicht gefüllt.
+  // 🪤 UMGEBAUT am 03.09.2026: `.fs-row__add`/`.fs-row__cancel` trugen `border-radius: 999px`
+  // — eine Pillenform, die die Designsprache in zwei Zeilen verbietet, und es standen ACHT davon
+  // in dieser einen Datei. Die Knopfleiste heisst jetzt in BEIDEN Formularen gleich
+  // (`.fs-actions__prim` / `.fs-actions__sek`, `--radius-md`) und ist Teil des Mockup-Vertrags.
   assert.ok(/data-fs-add-cancel/.test(zeile), "die Eingabezeile trägt ein Abbrechen");
-  assert.ok(pos("data-fs-add-submit") < pos("data-fs-add-cancel"), "es steht NEBEN dem Hinzufügen");
-  assert.ok(/class="fs-row__cancel"/.test(zeile), "und trägt die weiche Klasse, nicht fs-row__add");
+  assert.ok(pos("data-fs-add-submit") < pos("data-fs-add-cancel"), "es steht NEBEN dem Speichern");
+  assert.ok(/class="fs-actions__sek"/.test(zeile), "und trägt die weiche Klasse");
+  assert.ok(/class="fs-actions__prim"/.test(zeile), "die Haupthandlung ist gefüllt");
+  // 💣 KEINE PILLE, und zwar gemessen statt geglaubt: die Klasse allein sagt nichts, wenn die
+  // Regel dahinter wieder auf 999px steht. Der Mockup-Vertrag haelt den Wert fest
+  // (tools/mockup-vertrag), diese Zeile haelt fest, dass die alten Klassen WEG sind.
+  assert.ok(!/fs-row__add|fs-row__cancel/.test(zeile), "die Pillenknoepfe sind gefallen");
   zaehl();
 }
 

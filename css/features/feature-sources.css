@@ -221,6 +221,17 @@
 	gap: 2px;
 	min-width: 0;
 }
+/* Ein Feld, das eine ganze Zeile fuer sich nimmt — die zwei Haekchenzeilen des
+   Formulars stehen sonst als schmale Spalte neben ihrem Nachbarn. */
+.fs-af--w {
+	flex: 1 1 100%;
+}
+/* ⚠️ Der Kasten waechst nicht mit: ohne das zieht ihn die Zeile auf ihre volle Breite. */
+.fs-check input[type="checkbox"] {
+	flex: 0 0 auto;
+	margin: 0;
+}
+
 .fs-af__l {
 	/* ⚠️ 11px ist die Untergrenze des Hauses (AGENTS.md §12) -- nicht darunter, so verlockend
 	   eine Beschriftung ueber einem Feld auch klein wirkt. */
@@ -246,110 +257,201 @@
 	color: var(--color-text-muted);
 	font-weight: normal;
 }
-/* ── Der Korpus-Rahmen (02.09.2026) ──────────────────────────────────────────────────────────
-   Owner: „du kannst gerne alles einrahmen, was zum korpus gehört (seiten z.b. nicht)."
-   🔴 Was hier drinsteht, gilt für ALLE Belege dieses Wirts -- eine Änderung an der Lizenz trifft
-   bei westlande.de 50 Objekte. Ohne die sichtbare Grenze sieht ein Editor der Zeile nicht an,
-   welcher Griff weit reicht und welcher nur diese eine Fundstelle betrifft.
-   ⚠️ Er ist ein Rahmen, kein Kasten: gestrichelt und ohne eigene Fläche, damit er die Zeile
-   gliedert statt sie in zwei Formulare zu zerschneiden. */
-.fs-korpus {
-	display: flex;
-	align-items: flex-end;
-	flex-wrap: wrap;
-	gap: 6px;
-	flex: 1 1 100%;
+
+/* ══ DER REICHWEITEN-RAHMEN — EIN Bauteil, sechs Verwender ════════════════════════════
+   💣 ER ERSETZT VIER REZEPTUREN: `.fs-adresse`, `.fs-eintrag`, `.fs-korpus` (Eingabezeile) und
+   `.fs-edit__group` (✎-Kasten). Im Browser gemessen liefen sie auseinander — 10px/normal gegen
+   11px/fett, 8px gegen 10px Polster, solid gegen dashed — und in ZWEI von ihnen stand die Warnung
+   „dieselben Werte wie `.fs-korpus`, eine zweite Rezeptur waere die Divergenz" bereits da. Die
+   Warnung hinzuschreiben ersetzt das Bauteil nicht (Owner 02.09.2026: „warum machen wir das
+   mockup?").
+   🔴 DIESER BLOCK IST VERTRAGLICH GEBUNDEN an
+   `docs/quellen-formular-einheitlich-mockup.html`. Wer hier einen Wert aendert, aendert ihn dort
+   mit — sonst wird `tools/mockup-vertrag/__tests__/mockup-vertrag.test.js` rot, und ein roter
+   Test laedt nichts hoch (AGENTS.md §9).
+   ⚠️ Der Vertrag ist eine UNTERGRENZE: Zustaende, Hover und Telefon-Umbrueche duerfen hier
+   dazukommen, sie stehen dann unter diesem Block. */
+/* ══ DAS BAUTEIL: EIN Rahmen, sechs Verwender ═══════════════════════════════════════════════════
+   Ersetzt .fs-adresse / .fs-eintrag / .fs-korpus / .fs-edit__group -- vier Rezepturen fuer eine
+   Form. Im Browser gemessen liefen sie auseinander: 10px/normal gegen 11px/fett, 8px gegen 10px
+   Polster, solid gegen dashed. */
+.fs-scope {
 	position: relative;
-	border: 1px dashed var(--color-accent-brown);
-	border-radius: var(--radius-md);
-	padding: 16px 8px 8px;
-	margin-top: 4px;
-}
-/* Die Aufschrift sitzt AUF dem Rahmen -- sie erklärt ihn, statt eine weitere Zeile zu kosten. */
-.fs-korpus__l {
-	position: absolute;
-	top: -7px;
-	left: 8px;
-	padding: 0 5px;
-	font-size: 10px;
-	line-height: 1.2;
-	letter-spacing: 0.02em;
-	text-transform: uppercase;
-	color: var(--color-accent-brown);
-	background: var(--color-panel-soft);
-}
-/* ── DER ADRESS-RAHMEN: die Anleitung steht dort, wo sie gilt ────────────────────────────────
-   Owner 02.09.2026, Wortlaut der Aufschrift. Sie ersetzt einen Hinweistext daneben, den beim
-   Einfügen niemand liest.
-   ⚠️ DURCHGEZOGEN, nicht gestrichelt -- der Unterschied trägt: gestrichelt heißt in dieser Zeile
-   „so weit reicht die Wirkung" (der Korpus), durchgezogen heißt „hier fängst du an". Zwei Rahmen
-   mit derselben Kontur wären zwei Aussagen in einer Form. */
-.fs-adresse {
-	position: relative;
-	display: flex;
-	flex-wrap: wrap;
-	align-items: flex-end;
-	gap: 6px;
+	/* 💣 VOLLE BREITE, UNABHAENGIG VOM ELTERN-ELEMENT. Die Eingabezeile ist ein Flex-Container
+	   (`.fs-row--add`), der Bearbeiten-Kasten ein Block (`.fs-edit`) -- ohne diese Zeile messen
+	   sich die Rahmen im einen an ihrem INHALT und im anderen am Kasten. Bei echter Panelbreite
+	   (400px) gemessen: 439/379/379 gegen 373/373/373, eine Treppe statt einer Kante.
+	   ⚠️ In einem Block-Elternteil ist die Zeile wirkungslos -- sie kostet dort nichts und
+	   verhindert, dass das Bauteil vom Ort abhaengt, an dem es haengt. */
 	flex: 1 1 100%;
+	/* 💣 UND `min-width: 0` DAZU, sonst ist die Zeile darüber wirkungslos: ein Flex-Kind hat
+	   `min-width: auto` und weigert sich, unter seine INHALTSbreite zu schrumpfen. Das lange
+	   Adressfeld drückte den ersten Rahmen damit auf 439px -- über die 400px des Panels
+	   hinaus, während die zwei darunter bei 379 blieben. Gemessen, nicht vermutet: `flex`
+	   stand längst richtig da und tat nichts. */
+	min-width: 0;
 	border: 1px solid var(--color-accent-brown);
 	border-radius: var(--radius-md);
-	padding: 16px 8px 8px;
+	padding: 10px 10px 10px;
 }
-.fs-adresse__l {
-	position: absolute;
-	top: -7px;
-	left: 8px;
+.fs-scope + .fs-scope { margin-top: 14px; }
+.fs-scope[hidden] { display: none; }
+/* 💣 NICHT ABSOLUT, und das ist im Browser gemessen: die Aufschrift des ✎ wird zweizeilig
+   („Gilt für alle Objekte, die diese Quelle zitieren — zurzeit nur dieses Objekt" = 34px), und
+   absolut positioniert schob sie nichts weg — sie lag 9px über dem ersten Feld. In der
+   Eingabezeile fiel das nie auf, weil deren Reichweite kurz ist („— noch kein Objekt").
+   ⭐ Statisch mit negativem Rand: die erste Zeile sitzt weiter AUF dem Rahmen, aber eine zweite
+   schiebt den Inhalt nach unten, statt ihn zu überdecken. Genau das leistet ein `<legend>`, und
+   genau das ahmt dieser Kasten nach. */
+.fs-scope__head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 6px;
+	width: max-content;
+	max-width: calc(100% - 6px);
+	margin: -17px 0 6px -2px;
 	padding: 0 5px;
-	font-size: 10px;
-	line-height: 1.2;
-	letter-spacing: 0.02em;
-	text-transform: uppercase;
-	color: var(--color-accent-brown);
 	background: var(--color-panel-soft);
 }
-/* 🔴 DAS ADRESSFELD IST DAS EINZIGE, DAS EIN EDITOR WIRKLICH TIPPT -- es trägt deshalb einen
-   kräftigeren Rand als seine Nachbarn. ⚠️ Die drei Zustände sind Rand UND Text, nie Farbe allein:
-   „ungültig" nur rot wäre für rund 8 % der Männer nicht von „gültig" zu unterscheiden. */
-.fs-row--add input[type="text"].fs-add-url {
-	border-color: var(--color-accent-brown);
-}
-.fs-row--add input[type="text"].fs-add-url--gut {
-	border-color: var(--color-success-soft-border);
-}
-.fs-row--add input[type="text"].fs-add-url--schlecht {
-	border-color: var(--color-warning-soft-border);
-	background: var(--color-warning-soft);
-}
-/* Der grüne Haken -- „es wurde etwas gelesen". Er sitzt neben dem Prüfknopf und ist die Hälfte
-   der Antwort, die man aus dem Augenwinkel sieht; die andere steht als Satz darunter. */
-/* 💣 IM Feld, nicht daneben: als Geschwister der Beschriftung landete der Haken im Umbruch
-   der Flex-Zeile und schob den Titel eine Zeile tiefer. Das Feld traegt dafuer rechts Platz,
-   damit eine lange Adresse nicht unter ihm durchlaeuft. */
-.fs-af--url {
-	position: relative;
-}
-.fs-row--add input[type="text"].fs-add-url {
-	padding-right: 26px;
-}
-.fs-add-ok {
-	position: absolute;
-	right: 8px;
-	bottom: 6px;
-	font-size: 14px;
-	line-height: 1;
+/* 11px ist die Untergrenze des Hauses (§12). Die Eingabezeile stand auf 10. */
+.fs-scope__title {
+	font-size: 11px;
 	font-weight: 700;
-	pointer-events: none;
-	color: var(--color-success-soft-text);
+	letter-spacing: .02em;
+	text-transform: uppercase;
+	color: var(--color-accent-brown);
 }
-/* Die REICHWEITE in der Aufschrift: WELCHER Wirt, und wie weit reicht er. „Gilt für den ganzen
-   Korpus" ohne Grösse ist keine Warnung -- dieselbe Regel und dieselbe Bauform wie `.fs-edit__scope`
-   im Bearbeiten-Kasten.
-   ⚠️ Die Versalien der Aufschrift enden hier: ein Eigenname in Versalien („ALBERNIAWIKI") liest
-   sich wie eine Kennung, nicht wie ein Name. */
-.fs-korpus__scope {
+/* Die Reichweite ist eine ZAHL, keine Aufschrift: klein, gedaempft, ohne Versalien -- ein
+   Eigenname in Versalien („ALBERNIAWIKI") liest sich wie eine Kennung. */
+.fs-scope__reach {
+	font-size: 11px;
+	font-weight: 400;
 	text-transform: none;
 	letter-spacing: 0;
 	color: var(--color-text-muted);
+}
+.fs-scope__fields { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; }
+.fs-scope__hint { margin: 0 0 8px; font-size: 11px; color: var(--color-text-muted); }
+.fs-scope__by { margin: 8px 0 0; font-size: 11px; color: var(--color-text-muted); }
+
+/* ══ DIE ADRESSPRÜFUNG — Pflicht, nicht Zierde ═════════════════════════════════════════════════
+   Owner 02.09.2026: „ich will dass die editoren immer gezwungen sind den link zu pasten und
+   gleichzeitig zu validieren". Der Rahmen faerbt sich, der Haken kommt erst beim erfolgreichen
+   Auslesen, und ⟳ liest neu. */
+.fs-url { flex: 1 1 100%; }
+.fs-url__zeile { display: flex; align-items: stretch; gap: 6px; }
+.fs-url__feld { position: relative; flex: 1 1 auto; min-width: 0; }
+.fs-url__feld input { width: 100%; padding-right: 30px; box-sizing: border-box; }
+.fs-url--gut input { border-color: var(--color-success); }
+.fs-url--schlecht input { border-color: var(--color-danger); }
+.fs-url__ok {
+	position: absolute;
+	right: 9px; top: 50%;
+	transform: translateY(-50%);
+	color: var(--color-success);
+	font-size: 13px;
+	pointer-events: none;
+}
+.fs-url__ok[hidden] { display: none; }
+.fs-url__neu {
+	display: inline-flex; align-items: center; justify-content: center;
+	width: 30px;
+	font-size: 14px;
+	border: 1px solid var(--color-button-soft-border);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+	border-radius: var(--radius-md);
+	cursor: pointer;
+}
+.fs-url__sagt { margin: 4px 0 0; font-size: 11px; color: var(--color-text-muted); }
+
+/* ── Die Abweichung ist ein FELD, kein Häkchen ───────────────────────────────────────────────
+   Owner 02.09.2026: „eigentlich braucht es die häkchen nicht NUR felder". Der erste Eintrag (bzw.
+   der Platzhalter) IST der Korpuswert; wer etwas anderes einstellt, weicht ab, wer zurückstellt,
+   erbt wieder. Damit gibt es keinen zweiten Zustand neben dem Wert, der auseinanderlaufen kann. */
+.abw { flex: 1 1 100%; margin-top: 8px; padding-top: 8px;
+       border-top: 1px solid var(--color-divider); }
+.abw__t { font-size: 11px; color: var(--color-text-muted); line-height: 1.45; }
+.abw__f { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; margin-top: 8px; }
+.fs-field--abw > span { color: var(--color-accent-brown); font-weight: 600; }
+.fs-field--abw input, .fs-field--abw select { border-color: var(--color-accent-brown); }
+/* 💣 FARBE ALLEIN TRAEGT ES NICHT: gemessen sind --color-accent-brown (#7a5a3a) und
+   --color-text-muted (#706557) im hellen Thema fast dasselbe Braun -- die Markierung war da und
+   trotzdem unsichtbar. Die Abweichung wird deshalb BENANNT, nicht nur gefaerbt. */
+.fs-field--abw > span::after { content: " · abweichend"; font-weight: 400; }
+/* Ohne Korpus gibt es nichts, wovon man abweichen koennte. */
+.abw--frei .fs-field--abw > span::after { content: ""; }
+.abw--frei .fs-field--abw > span { color: var(--color-text-muted); font-weight: 400; }
+.abw--frei .fs-field--abw input, .abw--frei .fs-field--abw select { border-color: var(--color-border); }
+
+/* ══ DAS BEDIENELEMENT — EINE Rezeptur für beide Formulare ═══════════════════════
+   💣 DER RAHMEN WAR GETEILT, DIE FELDER DARIN NICHT — und die Felder sind das, was der Editor
+   wirklich anfasst. Im Browser gemessen (03.09.2026):
+
+     Eingabezeile  Radius 5px (hartkodiert!)  Rand rgb(201,169,126)  Polster 4/6
+     ✎-Kasten     Radius 8px (Token)         Rand rgb(97,90,73)     Polster 5/8
+
+   Zwei Rezepturen, eine Ebene unter der, die heute Vormittag zusammengelegt wurde. Gefunden hat
+   das der Prüfagent, nicht der Blick — im Einzelbild sieht jede Seite für sich richtig aus.
+   🔴 Gebunden an `.fs-scope`, nicht an `.fs-row--add` / `.fs-edit`: die Reichweite des
+   Selektors IST die Aussage. Was in einem Reichweiten-Rahmen steht, sieht überall gleich aus.
+   ⚠️ Die 5px waren zugleich ein Verstoß gegen §12 (nie einen Radius hartkodieren) — und genau
+   so entsteht Divergenz: ein Literal lässt sich nicht mitziehen. */
+.fs-scope input[type="text"],
+.fs-scope input[type="url"],
+.fs-scope select {
+	font: inherit;
+	font-size: 12px;
+	padding: 5px 8px;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-panel-muted);
+	color: var(--color-text);
+	min-width: 0;
+}
+/* ⚠️ Ein gesperrtes Feld sieht gesperrt aus UND sagt daneben warum. Nur ausgegraut wäre es von
+   einem Fehler nicht zu unterscheiden. */
+.fs-scope input[disabled],
+.fs-scope select[disabled] {
+	background: var(--color-panel-soft);
+	color: var(--color-text-muted);
+	cursor: not-allowed;
+}
+/* 🔴 DIE ADRESSE TRÄGT EINEN KRÄFTIGEREN RAND (Owner 02.09.2026: „auffälligen rahmen") — sie
+   ist das einzige Feld, das ein Editor im Normalfall wirklich tippt. */
+.fs-url input[type="text"] {
+	border-color: var(--color-accent-brown);
+}
+
+/* ══ Die Knopfleiste — dieselbe in beiden Formularen ═══════════════════════════════════════════ */
+.fs-actions { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+.fs-actions button {
+	font: inherit;
+	font-size: 13px;
+	padding: 5px 12px;
+	border-radius: var(--radius-md);   /* KEINE Pille. live: 999px */
+	cursor: pointer;
+}
+.fs-actions__prim {
+	border: 1px solid var(--color-button-border);
+	background: var(--color-button);
+	color: var(--color-button-text);
+	font-weight: 600;
+}
+.fs-actions__prim[disabled] { opacity: .5; cursor: not-allowed; }
+.fs-actions__sek {
+	border: 1px solid var(--color-button-soft-border);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+}
+
+/* ══ VERTRAG ENDE ══ Alles darunter ist frei — Zustaende, Hover, Telefon-Umbrueche. ══ */
+
+/* Der grüne Haken -- „es wurde etwas gelesen". Er sitzt neben dem Prüfknopf und ist die Hälfte
+   der Antwort, die man aus dem Augenwinkel sieht; die andere steht als Satz darunter. */
+.fs-row--add input[type="text"].fs-add-url {
+	padding-right: 26px;
 }
 /* 🔴 DIE ZWEI FELDER, DIE NUR HIER GELTEN -- hervorgehoben, sobald die Seite schon im Katalog
    steht (`zeigeBekannteSeite`). Dann sind sie das Einzige, was noch einzutragen ist.
@@ -364,12 +466,6 @@
 .fs-row--add .fs-af--meins input[type="text"],
 .fs-row--add .fs-af--meins select {
 	border-color: var(--color-accent-brown);
-}
-/* 💣 Der Prüfknopf sitzt NEBEN der Adresse, also darf sie nicht mehr 100 % nehmen -- sonst
-   umbricht er auf eine eigene Zeile und steht sinnlos allein da. 36px = 30px Knopf + 6px `gap`
-   der Zeile; wer den Knopf breiter macht, zieht diese Zahl mit. */
-.fs-af--url {
-	flex: 1 1 calc(100% - 36px);
 }
 .fs-af--grow {
 	flex: 1 1 150px;
@@ -466,17 +562,6 @@
    in der Liste nicht -- sie zeichnete daneben in Browser-Vorgabe (19 px hoch gegen 27, 13,3 px
    Schrift gegen 12; live gemessen 29.08.2026). Eine Regel, die zwei von drei Auswahlfeldern
    bindet, ist keine Regel, und das naechste Feld faellt genauso durch. */
-.fs-row--add input[type="text"],
-.fs-row--add input[type="url"],
-.fs-row--add select {
-	background: var(--color-panel-soft);
-	border: 1px solid var(--color-border);
-	border-radius: 5px;
-	padding: 4px 6px;
-	font: inherit;
-	font-size: 12px;
-	color: var(--color-text-strong);
-}
 .fs-add-official-label {
 	display: inline-flex;
 	align-items: center;
@@ -516,46 +601,8 @@
 .fs-add-picked__x:hover {
 	color: var(--color-text-strong);
 }
-.fs-row__add {
-	border: 1px solid var(--color-button-soft-border);
-	background: var(--color-button-soft);
-	color: var(--color-button-soft-text);
-	border-radius: 999px;
-	padding: 4px 12px;
-	cursor: pointer;
-	font: inherit;
-	font-size: 12px;
-	font-weight: bold;
-}
 .fs-row__add:hover,
-.fs-row__add:focus-visible {
-	background: var(--color-button-soft-hover);
-	outline: none;
-}
-
-/* „Abbrechen" neben dem Hinzufügen (Owner 02.09.2026). Es LEERT die Eingabezeile -- sie ist der
-   Fuss der Liste und wird nicht geschlossen.
-   ⚠️ Noch eine Stufe leiser als „Hinzufügen": beide sind weich (eine Zeilenhandlung ist nie die
-   Haupthandlung der Seite, AGENTS.md §12), aber von den zweien ist das Hinzufügen das gemeinte.
-   Ohne Fuellung und ohne Fettschrift bleibt der Rangunterschied sichtbar, ohne dass ein zweiter
-   gefuellter Knopf entsteht. */
-.fs-row__cancel {
-	border: 1px solid transparent;
-	background: none;
-	color: var(--color-text-muted);
-	border-radius: 999px;
-	padding: 4px 10px;
-	cursor: pointer;
-	font: inherit;
-	font-size: 12px;
-}
 .fs-row__cancel:hover,
-.fs-row__cancel:focus-visible {
-	border-color: var(--color-button-soft-border);
-	color: var(--color-text-strong);
-	outline: none;
-}
-
 /* Popup/infobox source block (buildSourceListMarkup, js/ui/feature-source-markup.js). Line 1 is the
    Wiki page link + hand-added sources; line 2 the wiki publications as collapsible Offizielle/
    Erwähnungen tabs over a Titel/Typ/Seiten table. Explicit colors to match the beige map popups. */
@@ -973,94 +1020,9 @@
 .fs-edit__url b {
 	color: var(--color-text-strong);
 }
-/* ── DER BEARBEITEN-KASTEN ARBEITET MIT RAHMEN, wie die Eingabezeile ─────────────────────────
-   Owner 02.09.2026: „kannst du im Bearbeiten-Kasten genauso mit rahmen arbeiten wie bei der
-   Eingabeform für neue Quellen".
-   🔴 Bis dahin trennten hier LINIEN (§12: „group by divider, not by framed boxes"), waehrend die
-   Eingabezeile daneben rahmte -- zwei Formensprachen fuer dieselbe Aussage („so weit reicht das
-   hier"), und der Editor sieht beide im selben Fenster. Die Ausnahme von §12 ist begruendet: der
-   Rahmen sagt nicht „das gehoert zusammen", sondern „bis hierher reicht die Wirkung", und genau
-   dafuer gibt es ihn in der Eingabezeile schon.
-   ⚠️ Dieselben Werte wie `.fs-korpus` -- gestrichelt, ohne eigene Flaeche, Aufschrift AUF dem
-   Rahmen. Zwei Rezepturen fuer dieselbe Form waeren die Divergenz, die dieser Umbau beseitigt. */
-.fs-edit__group {
-	position: relative;
-	border: 1px dashed var(--color-accent-brown);
-	border-radius: var(--radius-md);
-	padding: 16px 10px 10px;
-}
-.fs-edit__group + .fs-edit__group {
-	margin-top: 14px;
-}
-.fs-edit__head {
-	position: absolute;
-	top: -7px;
-	left: 8px;
-	display: flex;
-	flex-wrap: wrap;
-	align-items: baseline;
-	gap: 6px;
-	padding: 0 5px;
-	background: var(--color-panel-soft);
-}
-/* ⚠️ 11px ist die Untergrenze des Hauses (§12) -- hier bewusst genau darauf, nicht darunter. */
-.fs-edit__title {
-	font-size: 11px;
-	font-weight: 700;
-	text-transform: uppercase;
-	letter-spacing: 0.04em;
-	color: var(--color-text-strong);
-}
-/* 🔴 Die REICHWEITE, und sie traegt die Zahl. Ohne sie ist „gilt ueberall" ein Wort ohne Groesse. */
-.fs-edit__scope {
-	font-size: 11px;
-	color: var(--color-text-muted);
-}
-.fs-edit__scope b {
-	color: var(--color-accent-brown);
-	font-weight: 700;
-}
-.fs-edit__fields {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 10px 12px;
-}
-/* „Hier angehängt von X am TT.MM.JJJJ" — die Herkunft ihrer Reichweite. 🔴 Nur lesbar (Owner
-   02.09.2026), deshalb ein Absatz und kein Feld: ein Eingabefeld, das nichts annimmt, verspricht
-   einen Schreibweg, den es nicht gibt.
-   ⚠️ 11px ist die Untergrenze des Hauses (AGENTS.md §12) -- nicht darunter, so beiläufig die
-   Angabe auch ist. */
-.fs-edit__by {
-	margin: 8px 0 0;
-	font-size: 11px;
-	line-height: 1.4;
-	color: var(--color-text-muted);
-}
-/* ── Die Abweichung: dieses Feld gehört der QUELLE, nicht dem Korpus ─────────────────────────
-   🔴 Das Häkchen sitzt AM FELD, nicht in der Überschrift. Die Gruppe heißt weiter „Gilt für den
-   ganzen Korpus"; ein angehaktes Feld wäre ohne diesen Marker eine stille Ausnahme unter einer
-   Überschrift, die das Gegenteil verspricht.
-   ⚠️ 11px ist die Untergrenze des Hauses (AGENTS.md §12). */
-.fs-eigen {
-	display: inline-flex;
-	align-items: center;
-	gap: var(--space-4);
-	margin-top: 3px;
-	font-size: 11px;
-	line-height: 1.3;
-	color: var(--color-text-muted);
-	cursor: pointer;
-}
 /* Angehakt: die Beschriftung wechselt in die Akzentfarbe -- dieselbe Sprache wie beim
    Wiki-Override, wo „von uns gesetzt" ebenfalls braun steht. */
 .fs-field--eigen > span,
-.fs-check.fs-field--eigen {
-	color: var(--color-accent-brown);
-	font-weight: 700;
-}
-.fs-field--eigen .fs-eigen {
-	color: var(--color-accent-brown);
-}
 .fs-edit .fs-field {
 	display: flex;
 	flex-direction: column;
@@ -1080,27 +1042,18 @@
 .fs-edit .fs-field--full {
 	flex: 1 1 100%;
 }
-.fs-edit input[type="text"],
-.fs-edit select {
-	padding: 5px 8px;
-	border: 1px solid var(--color-border-strong);
-	border-radius: var(--radius-md);
-	background: var(--color-panel);
-	color: var(--color-text);
-	font: inherit;
-	font-size: 12px;
-	min-width: 0;
-}
 /* ⚠️ Ein gesperrtes Feld sieht gesperrt aus UND sagt daneben warum (.fs-edit__note--locked).
    Nur ausgegraut waere es von einem Fehler nicht zu unterscheiden. */
-.fs-edit input[disabled],
-.fs-edit select[disabled] {
-	background: var(--color-panel-muted);
-	color: var(--color-text-muted);
-	cursor: not-allowed;
-}
-.fs-edit .fs-check {
+/* 💣 UNGEBUNDEN, und das ist der Punkt: sie stand als `.fs-edit .fs-check` da und galt
+   damit NUR dem ✎. In der Eingabezeile erbte die Haekchenzeile die Spaltenrichtung von
+   `.fs-af` — der Kasten stand ueber seinem eigenen Text und las sich wie ein Feld ohne
+   Beschriftung (im Bild gesehen, von keinem Test). Eine Regel, die eine von zwei
+   Oberflaechen bindet, ist keine Regel. */
+.fs-check {
 	display: flex;
+	/* Die Richtung MUSS hier stehen: `.fs-af` weiter oben setzt `column`, und eine Regel,
+	   die sie nicht ueberschreibt, laesst den Kasten ueber seinem eigenen Text stehen. */
+	flex-direction: row;
 	align-items: center;
 	gap: 6px;
 	align-self: end;
@@ -1115,35 +1068,6 @@
 	background: var(--color-warning-soft);
 	color: var(--color-warning-soft-text);
 	font-size: 12px;
-}
-.fs-edit__foot {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	gap: 8px;
-	margin-top: 16px;
-}
-/* Die Haupthandlung DIESES Kastens -- gefuellt. Es ist immer nur einer offen, das multipliziert
-   sich also nicht ueber die Zeilen (§12). */
-.fs-edit__save {
-	padding: 6px 14px;
-	border: 1px solid var(--color-button-border);
-	border-radius: var(--radius-md);
-	background: var(--color-button);
-	color: var(--color-button-text);
-	font: inherit;
-	font-size: 12px;
-	cursor: pointer;
-}
-.fs-edit__cancel {
-	padding: 6px 14px;
-	border: 1px solid var(--color-button-soft-border);
-	border-radius: var(--radius-md);
-	background: var(--color-button-soft);
-	color: var(--color-button-soft-text);
-	font: inherit;
-	font-size: 12px;
-	cursor: pointer;
 }
 .fs-edit__msg {
 	font-size: 12px;
@@ -1523,34 +1447,3 @@
 	padding-top: 8px;
 }
 
-/* ── „Gilt nur für diesen Eintrag" (Owner 02.09.2026) ────────────────────────────────────────
-   Der dritte Rahmen der Eingabezeile. Damit trägt sie drei Reichweiten, jede sichtbar begrenzt:
-   „hier fängst du an" (Adresse, DURCHGEZOGEN), „gilt nur für diesen Eintrag" und „gilt für den
-   ganzen Korpus" (beide GESTRICHELT -- sie sagen beide, wie weit etwas reicht, und unterscheiden
-   sich nur in der Weite).
-   ⚠️ Dieselben Werte wie `.fs-korpus`; eine zweite Rezeptur für dieselbe Form wäre die Divergenz,
-   die dieser Umbau gerade beseitigt. */
-.fs-eintrag {
-	position: relative;
-	display: flex;
-	flex-wrap: wrap;
-	align-items: flex-end;
-	gap: 6px;
-	flex: 1 1 100%;
-	border: 1px dashed var(--color-accent-brown);
-	border-radius: var(--radius-md);
-	padding: 16px 8px 8px;
-	margin-top: 4px;
-}
-.fs-eintrag__l {
-	position: absolute;
-	top: -7px;
-	left: 8px;
-	padding: 0 5px;
-	font-size: 10px;
-	line-height: 1.2;
-	letter-spacing: 0.02em;
-	text-transform: uppercase;
-	color: var(--color-accent-brown);
-	background: var(--color-panel-soft);
-}

@@ -1,0 +1,476 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Quellen-Formular — eine Formensprache</title>
+<!-- Die echten Tokens und das echte Quellen-CSS, damit hier nichts schöner aussieht als live. -->
+<link rel="stylesheet" href="../css/base/tokens.css">
+<link rel="stylesheet" href="../css/features/feature-sources.css">
+<style>
+/* ══ VERTRAG: css/features/feature-sources.css ══
+   🔴 ALLES ZWISCHEN DIESEN MARKEN MUSS IN DER GENANNTEN DATEI ZEICHENGLEICH STEHEN.
+   Gewacht von tools/mockup-vertrag/__tests__/mockup-vertrag.test.js -- ein Unterschied macht den
+   Test rot, und ein roter Test laedt nichts hoch (AGENTS.md §9).
+   ⚠️ Es ist eine UNTERGRENZE: die Produktionsdatei darf mehr tragen (Zustaende, Hover,
+   Telefon-Umbrueche). Geprueft wird nur, was hier zugesagt ist.
+   ⚠️ Das Seitengeruest unten (.karte, .f, .lead …) steht bewusst DRAUSSEN -- es ist die
+   Schaufensterpuppe, nicht das Kleid. */
+/* ══ DAS BAUTEIL: EIN Rahmen, sechs Verwender ═══════════════════════════════════════════════════
+   Ersetzt .fs-adresse / .fs-eintrag / .fs-korpus / .fs-edit__group -- vier Rezepturen fuer eine
+   Form. Im Browser gemessen liefen sie auseinander: 10px/normal gegen 11px/fett, 8px gegen 10px
+   Polster, solid gegen dashed. */
+.fs-scope {
+	position: relative;
+	/* 💣 VOLLE BREITE, UNABHAENGIG VOM ELTERN-ELEMENT. Die Eingabezeile ist ein Flex-Container
+	   (`.fs-row--add`), der Bearbeiten-Kasten ein Block (`.fs-edit`) -- ohne diese Zeile messen
+	   sich die Rahmen im einen an ihrem INHALT und im anderen am Kasten. Bei echter Panelbreite
+	   (400px) gemessen: 439/379/379 gegen 373/373/373, eine Treppe statt einer Kante.
+	   ⚠️ In einem Block-Elternteil ist die Zeile wirkungslos -- sie kostet dort nichts und
+	   verhindert, dass das Bauteil vom Ort abhaengt, an dem es haengt. */
+	flex: 1 1 100%;
+	/* 💣 UND `min-width: 0` DAZU, sonst ist die Zeile darüber wirkungslos: ein Flex-Kind hat
+	   `min-width: auto` und weigert sich, unter seine INHALTSbreite zu schrumpfen. Das lange
+	   Adressfeld drückte den ersten Rahmen damit auf 439px -- über die 400px des Panels
+	   hinaus, während die zwei darunter bei 379 blieben. Gemessen, nicht vermutet: `flex`
+	   stand längst richtig da und tat nichts. */
+	min-width: 0;
+	border: 1px solid var(--color-accent-brown);
+	border-radius: var(--radius-md);
+	padding: 10px 10px 10px;
+}
+.fs-scope + .fs-scope { margin-top: 14px; }
+.fs-scope[hidden] { display: none; }
+/* 💣 NICHT ABSOLUT, und das ist im Browser gemessen: die Aufschrift des ✎ wird zweizeilig
+   („Gilt für alle Objekte, die diese Quelle zitieren — zurzeit nur dieses Objekt" = 34px), und
+   absolut positioniert schob sie nichts weg — sie lag 9px über dem ersten Feld. In der
+   Eingabezeile fiel das nie auf, weil deren Reichweite kurz ist („— noch kein Objekt").
+   ⭐ Statisch mit negativem Rand: die erste Zeile sitzt weiter AUF dem Rahmen, aber eine zweite
+   schiebt den Inhalt nach unten, statt ihn zu überdecken. Genau das leistet ein `<legend>`, und
+   genau das ahmt dieser Kasten nach. */
+.fs-scope__head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 6px;
+	width: max-content;
+	max-width: calc(100% - 6px);
+	margin: -17px 0 6px -2px;
+	padding: 0 5px;
+	background: var(--color-panel-soft);
+}
+/* 11px ist die Untergrenze des Hauses (§12). Die Eingabezeile stand auf 10. */
+.fs-scope__title {
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: .02em;
+	text-transform: uppercase;
+	color: var(--color-accent-brown);
+}
+/* Die Reichweite ist eine ZAHL, keine Aufschrift: klein, gedaempft, ohne Versalien -- ein
+   Eigenname in Versalien („ALBERNIAWIKI") liest sich wie eine Kennung. */
+.fs-scope__reach {
+	font-size: 11px;
+	font-weight: 400;
+	text-transform: none;
+	letter-spacing: 0;
+	color: var(--color-text-muted);
+}
+.fs-scope__fields { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; }
+.fs-scope__hint { margin: 0 0 8px; font-size: 11px; color: var(--color-text-muted); }
+.fs-scope__by { margin: 8px 0 0; font-size: 11px; color: var(--color-text-muted); }
+
+/* ══ DIE ADRESSPRÜFUNG — Pflicht, nicht Zierde ═════════════════════════════════════════════════
+   Owner 02.09.2026: „ich will dass die editoren immer gezwungen sind den link zu pasten und
+   gleichzeitig zu validieren". Der Rahmen faerbt sich, der Haken kommt erst beim erfolgreichen
+   Auslesen, und ⟳ liest neu. */
+.fs-url { flex: 1 1 100%; }
+.fs-url__zeile { display: flex; align-items: stretch; gap: 6px; }
+.fs-url__feld { position: relative; flex: 1 1 auto; min-width: 0; }
+.fs-url__feld input { width: 100%; padding-right: 30px; box-sizing: border-box; }
+.fs-url--gut input { border-color: var(--color-success); }
+.fs-url--schlecht input { border-color: var(--color-danger); }
+.fs-url__ok {
+	position: absolute;
+	right: 9px; top: 50%;
+	transform: translateY(-50%);
+	color: var(--color-success);
+	font-size: 13px;
+	pointer-events: none;
+}
+.fs-url__ok[hidden] { display: none; }
+.fs-url__neu {
+	display: inline-flex; align-items: center; justify-content: center;
+	width: 30px;
+	font-size: 14px;
+	border: 1px solid var(--color-button-soft-border);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+	border-radius: var(--radius-md);
+	cursor: pointer;
+}
+.fs-url__sagt { margin: 4px 0 0; font-size: 11px; color: var(--color-text-muted); }
+
+/* ── Die Abweichung ist ein FELD, kein Häkchen ───────────────────────────────────────────────
+   Owner 02.09.2026: „eigentlich braucht es die häkchen nicht NUR felder". Der erste Eintrag (bzw.
+   der Platzhalter) IST der Korpuswert; wer etwas anderes einstellt, weicht ab, wer zurückstellt,
+   erbt wieder. Damit gibt es keinen zweiten Zustand neben dem Wert, der auseinanderlaufen kann. */
+.abw { flex: 1 1 100%; margin-top: 8px; padding-top: 8px;
+       border-top: 1px solid var(--color-divider); }
+.abw__t { font-size: 11px; color: var(--color-text-muted); line-height: 1.45; }
+.abw__f { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; margin-top: 8px; }
+.fs-field--abw > span { color: var(--color-accent-brown); font-weight: 600; }
+.fs-field--abw input, .fs-field--abw select { border-color: var(--color-accent-brown); }
+/* 💣 FARBE ALLEIN TRAEGT ES NICHT: gemessen sind --color-accent-brown (#7a5a3a) und
+   --color-text-muted (#706557) im hellen Thema fast dasselbe Braun -- die Markierung war da und
+   trotzdem unsichtbar. Die Abweichung wird deshalb BENANNT, nicht nur gefaerbt. */
+.fs-field--abw > span::after { content: " · abweichend"; font-weight: 400; }
+/* Ohne Korpus gibt es nichts, wovon man abweichen koennte. */
+.abw--frei .fs-field--abw > span::after { content: ""; }
+.abw--frei .fs-field--abw > span { color: var(--color-text-muted); font-weight: 400; }
+.abw--frei .fs-field--abw input, .abw--frei .fs-field--abw select { border-color: var(--color-border); }
+
+/* ══ DAS BEDIENELEMENT — EINE Rezeptur für beide Formulare ═══════════════════════
+   💣 DER RAHMEN WAR GETEILT, DIE FELDER DARIN NICHT — und die Felder sind das, was der Editor
+   wirklich anfasst. Im Browser gemessen (03.09.2026):
+
+     Eingabezeile  Radius 5px (hartkodiert!)  Rand rgb(201,169,126)  Polster 4/6
+     ✎-Kasten     Radius 8px (Token)         Rand rgb(97,90,73)     Polster 5/8
+
+   Zwei Rezepturen, eine Ebene unter der, die heute Vormittag zusammengelegt wurde. Gefunden hat
+   das der Prüfagent, nicht der Blick — im Einzelbild sieht jede Seite für sich richtig aus.
+   🔴 Gebunden an `.fs-scope`, nicht an `.fs-row--add` / `.fs-edit`: die Reichweite des
+   Selektors IST die Aussage. Was in einem Reichweiten-Rahmen steht, sieht überall gleich aus.
+   ⚠️ Die 5px waren zugleich ein Verstoß gegen §12 (nie einen Radius hartkodieren) — und genau
+   so entsteht Divergenz: ein Literal lässt sich nicht mitziehen. */
+.fs-scope input[type="text"],
+.fs-scope input[type="url"],
+.fs-scope select {
+	font: inherit;
+	font-size: 12px;
+	padding: 5px 8px;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-panel-muted);
+	color: var(--color-text);
+	min-width: 0;
+}
+/* ⚠️ Ein gesperrtes Feld sieht gesperrt aus UND sagt daneben warum. Nur ausgegraut wäre es von
+   einem Fehler nicht zu unterscheiden. */
+.fs-scope input[disabled],
+.fs-scope select[disabled] {
+	background: var(--color-panel-soft);
+	color: var(--color-text-muted);
+	cursor: not-allowed;
+}
+/* 🔴 DIE ADRESSE TRÄGT EINEN KRÄFTIGEREN RAND (Owner 02.09.2026: „auffälligen rahmen") — sie
+   ist das einzige Feld, das ein Editor im Normalfall wirklich tippt. */
+.fs-url input[type="text"] {
+	border-color: var(--color-accent-brown);
+}
+
+/* ══ Die Knopfleiste — dieselbe in beiden Formularen ═══════════════════════════════════════════ */
+.fs-actions { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+.fs-actions button {
+	font: inherit;
+	font-size: 13px;
+	padding: 5px 12px;
+	border-radius: var(--radius-md);   /* KEINE Pille. live: 999px */
+	cursor: pointer;
+}
+.fs-actions__prim {
+	border: 1px solid var(--color-button-border);
+	background: var(--color-button);
+	color: var(--color-button-text);
+	font-weight: 600;
+}
+.fs-actions__prim[disabled] { opacity: .5; cursor: not-allowed; }
+.fs-actions__sek {
+	border: 1px solid var(--color-button-soft-border);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+}
+
+/* ══ VERTRAG ENDE ══ */
+
+/* ── Felder (nur fuer das Mockup, entspricht .fs-field) ─────────────────────────────────────── */
+.f { display: flex; flex-direction: column; gap: 3px; font-size: 11px; color: var(--color-text-muted); }
+.f--w { flex: 1 1 100%; }
+.f--h { flex: 1 1 180px; }
+/* ⚠️ Das Gerüst erbt die echte Regel aus dem Vertrag oben — hier steht nur, was die
+   Schaufensterpuppe zusätzlich braucht. */
+.f input, .f select { width: auto; }
+.amt { flex: 1 1 100%; display: inline-flex; align-items: center; gap: 5px;
+       font-size: 12px; color: var(--color-text); }
+.amt input { min-width: auto; }
+.amt small { color: var(--color-text-muted); font-size: 11px; }
+
+/* ── Seitengeruest ─────────────────────────────────────────────────────────────────────────── */
+body { background: var(--color-page-bg); color: var(--color-text); font-family: var(--font-ui);
+       margin: 0; padding: 22px; }
+h1 { font-size: 19px; margin: 0 0 4px; }
+h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--color-accent-brown);
+     margin: 0 0 10px; }
+.lead { margin: 0 0 20px; font-size: 12.5px; color: var(--color-text); max-width: 78ch; line-height: 1.55; }
+.paar { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; }
+.karte { flex: 1 1 430px; max-width: 470px; background: var(--color-panel-soft);
+         border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: 14px; }
+.kopfzeile { display: flex; align-items: center; gap: 8px; font-size: 12.5px; margin-bottom: 10px;
+             padding-bottom: 8px; border-bottom: 1px solid var(--color-divider); }
+.kopfzeile b { font-weight: 600; }
+.tag { font-size: 10.5px; padding: 1px 7px; border-radius: var(--radius-md);
+       border: 1px solid var(--color-pill-border); background: var(--color-pill); color: var(--color-pill-text); }
+.sw { position: fixed; top: 12px; right: 12px; z-index: 9; font: inherit; font-size: 12px;
+      padding: 5px 11px; border-radius: var(--radius-md); border: 1px solid var(--color-button-soft-border);
+      background: var(--color-button-soft); color: var(--color-button-soft-text); cursor: pointer; }
+.note { margin: 26px 0 0; font-size: 12.5px; color: var(--color-text); max-width: 90ch; line-height: 1.6; }
+.frage { margin-top: 22px; padding: 12px 14px; border-left: 3px solid var(--color-accent-brown);
+         background: var(--color-panel-muted); border-radius: 0 var(--radius-md) var(--radius-md) 0;
+         font-size: 12.5px; line-height: 1.6; max-width: 90ch; }
+</style>
+
+<button class="sw" onclick="document.documentElement.setAttribute('data-theme',
+  document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark')">Hell / Dunkel</button>
+
+<h1>Quellen-Formular — eine Formensprache</h1>
+<p class="lead">
+  Links das Anlegen, rechts das Bearbeiten. <b>Dieselben drei Reichweiten, dieselben Namen, dieselbe
+  Reihenfolge, dieselbe Form</b> — von weit nach eng. <b>Alles ist echt bedienbar:</b> tipp eine
+  kaputte Adresse (der Rahmen wird rot, „Speichern“ sperrt), hak <i>Kein Korpus verwenden</i> an
+  (der Korpusrahmen verschwindet), stell die Lizenz um (das Feld heißt dann „· abweichend“).
+</p>
+
+<div class="paar">
+
+  <!-- ══════════════ ANLEGEN ══════════════ -->
+  <div class="karte" data-form>
+    <h2>Neue Quelle anlegen</h2>
+
+    <div class="fs-scope">
+      <div class="fs-scope__head"><span class="fs-scope__title">Gilt für alle Objekte, die diese Quelle zitieren</span>
+        <span class="fs-scope__reach">— noch kein Objekt</span></div>
+      <p class="fs-scope__hint">Nur die Adresse (URL) der Quelle einfügen — der Korpus wird automatisch erkannt.</p>
+      <div class="fs-scope__fields">
+        <label class="f fs-url" data-url-wrap>
+          <span>Adresse — die genaue Seite</span>
+          <span class="fs-url__zeile">
+            <span class="fs-url__feld">
+              <input data-url placeholder="https://… — die Seite über DIESES Objekt, nicht die Startseite"
+                     value="https://www.westlande.de/albernia/index.php?title=Apfeldorn">
+              <span class="fs-url__ok" data-url-ok hidden aria-hidden="true">✓</span>
+            </span>
+            <button type="button" class="fs-url__neu" data-url-neu title="Adresse neu auslesen">⟳</button>
+          </span>
+        </label>
+        <p class="fs-url__sagt" data-url-sagt></p>
+        <label class="f f--w"><span>Titel — wie diese Seite heißt</span><input value="Apfeldorn"></label>
+        <label class="amt"><input type="checkbox" data-kein-korpus> Kein Korpus verwenden
+          <small>— diese Quelle steht für sich</small></label>
+      </div>
+    </div>
+
+    <div class="fs-scope" data-korpus>
+      <div class="fs-scope__head"><span class="fs-scope__title">Gilt für den ganzen Korpus „AlberniaWiki“</span>
+        <span class="fs-scope__reach">40 Quellen · 51 Objekte</span></div>
+      <div class="fs-scope__fields">
+        <label class="f f--w"><span>Name des Korpus <span class="fs-scope__reach">· Korpusschlüssel: westlande.de</span></span>
+          <input value="AlberniaWiki"></label>
+        <label class="f f--h"><span>Form</span><select><option>Belegstellen (Korpus vorn)</option></select></label>
+        <label class="f f--h"><span>Quellenart</span><select><option>Briefspiel</option></select></label>
+        <label class="f f--h"><span>Lizenz</span><select><option>CC BY-SA 4.0</option></select></label>
+        <label class="f f--h"><span>Namensnennung</span><input placeholder="z. B. VolkoV / garetien.de"></label>
+        <label class="amt"><input type="checkbox"> offiziell</label>
+      </div>
+    </div>
+
+    <div class="fs-scope">
+      <div class="fs-scope__head"><span class="fs-scope__title">Nur an diesem Objekt</span></div>
+      <div class="fs-scope__fields">
+        <label class="f f--h"><span>Seite(n)</span><input placeholder="optional"></label>
+        <label class="f f--h"><span>Abdeckung</span><select><option>Standardquelle</option></select></label>
+        <div class="abw" data-abw>
+          <div class="abw__t" data-abw-text></div>
+          <div class="abw__f">
+            <label class="f f--h"><span>Quellenart</span>
+              <select data-erbt data-korpuswert="wie Korpus (Briefspiel)"></select></label>
+            <label class="f f--h"><span>Lizenz</span>
+              <select data-erbt data-korpuswert="wie Korpus (CC BY-SA 4.0)"></select></label>
+            <label class="f f--w"><span>Namensnennung</span>
+              <input data-erbt data-korpuswert=""></label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="fs-actions"><button class="fs-actions__prim" data-save>Speichern</button><button class="fs-actions__sek">Abbrechen</button></div>
+  </div>
+
+  <!-- ══════════════ BEARBEITEN ══════════════ -->
+  <div class="karte" data-form>
+    <h2>Quelle bearbeiten ✎</h2>
+    <div class="kopfzeile"><b>Apfeldorn ↗</b><span class="tag">Briefspiel</span>
+      <span style="margin-left:auto;font-size:11px;color:var(--color-text-muted)">CC BY-SA 4.0</span></div>
+
+    <div class="fs-scope">
+      <div class="fs-scope__head"><span class="fs-scope__title">Gilt für alle Objekte, die diese Quelle zitieren</span>
+        <span class="fs-scope__reach">zurzeit nur dieses Objekt</span></div>
+      <div class="fs-scope__fields">
+        <label class="f fs-url" data-url-wrap>
+          <span>Adresse — die genaue Seite</span>
+          <span class="fs-url__zeile">
+            <span class="fs-url__feld">
+              <input data-url value="https://www.westlande.de/albernia/index.php?title=Apfeldorn">
+              <span class="fs-url__ok" data-url-ok hidden aria-hidden="true">✓</span>
+            </span>
+            <button type="button" class="fs-url__neu" data-url-neu title="Adresse neu auslesen">⟳</button>
+          </span>
+        </label>
+        <p class="fs-url__sagt" data-url-sagt></p>
+        <label class="f f--w"><span>Titel — wie diese Seite heißt</span><input value="Apfeldorn"></label>
+        <label class="amt"><input type="checkbox" data-kein-korpus> Kein Korpus verwenden
+          <small>— diese Quelle steht für sich</small></label>
+      </div>
+      <p class="fs-scope__by">In den Katalog gelegt von valentin am 02.09.2026</p>
+    </div>
+
+    <div class="fs-scope" data-korpus>
+      <div class="fs-scope__head"><span class="fs-scope__title">Gilt für den ganzen Korpus „AlberniaWiki“</span>
+        <span class="fs-scope__reach">40 Quellen · 51 Objekte</span></div>
+      <div class="fs-scope__fields">
+        <label class="f f--w"><span>Name des Korpus <span class="fs-scope__reach">· Korpusschlüssel: westlande.de</span></span>
+          <input value="AlberniaWiki"></label>
+        <label class="f f--h"><span>Form</span><select><option>Belegstellen (Korpus vorn)</option></select></label>
+        <label class="f f--h"><span>Quellenart</span><select><option>Briefspiel</option></select></label>
+        <label class="f f--h"><span>Lizenz</span><select><option>CC BY-SA 4.0</option></select></label>
+        <label class="f f--h"><span>Namensnennung</span><input placeholder="z. B. VolkoV / garetien.de"></label>
+        <label class="amt"><input type="checkbox"> offiziell</label>
+      </div>
+      <p class="fs-scope__by">Korpus zuletzt geändert am 02.09.2026</p>
+    </div>
+
+    <div class="fs-scope">
+      <div class="fs-scope__head"><span class="fs-scope__title">Nur an diesem Objekt</span></div>
+      <div class="fs-scope__fields">
+        <label class="f f--h"><span>Seite(n)</span><input placeholder="optional"></label>
+        <label class="f f--h"><span>Abdeckung</span><select><option>Standardquelle</option></select></label>
+        <div class="abw" data-abw>
+          <div class="abw__t" data-abw-text></div>
+          <div class="abw__f">
+            <label class="f f--h"><span>Quellenart</span>
+              <select data-erbt data-korpuswert="wie Korpus (Briefspiel)"></select></label>
+            <label class="f f--h"><span>Lizenz</span>
+              <select data-erbt data-korpuswert="wie Korpus (CC BY-SA 4.0)" data-start="CC BY-SA 3.0"></select></label>
+            <label class="f f--w"><span>Namensnennung</span>
+              <input data-erbt data-korpuswert=""></label>
+          </div>
+        </div>
+      </div>
+      <p class="fs-scope__by">Hier angehängt von valentin am 02.09.2026</p>
+    </div>
+
+    <div class="fs-actions"><button class="fs-actions__prim" data-save>Speichern</button><button class="fs-actions__sek">Abbrechen</button></div>
+  </div>
+</div>
+
+<p class="note">
+  <b>Was sich ändert.</b> Ein Bauteil <code>avesmapsSourceScopeFrame()</code> baut alle sechs Rahmen;
+  <code>.fs-adresse</code>, <code>.fs-eintrag</code>, <code>.fs-korpus</code> und
+  <code>.fs-edit__group</code> fallen weg. Reihenfolge in beiden gleich, von weit nach eng: die
+  <b>Quelle</b> (Adresse, Titel, „Kein Korpus verwenden“) — der <b>Korpus</b> — <b>dieses Objekt</b>
+  (Seiten, Abdeckung, Abweichungen). Knopfleiste in beiden <b>Speichern / Abbrechen</b>,
+  <code>--radius-md</code> statt der Pillenform. <code>offiziell</code> ist nicht mehr
+  überschreibbar.
+</p>
+
+<div class="frage">
+  <b>Zwei Folgen, die ich mitgebaut habe — sag Bescheid, wenn du eine anders willst.</b><br>
+  <b>1 · Ohne gültige Adresse ist „Speichern“ gesperrt.</b> Du wolltest, dass Editoren „immer
+  gezwungen sind den link zu pasten und gleichzeitig zu validieren“ — ein Haken, der nur schmückt,
+  zwingt niemanden. Der Rahmen färbt sich rot, darunter steht warum, und der Knopf bleibt zu, bis
+  die Adresse ausgelesen ist.<br>
+  <b>2 · „Kein Korpus verwenden“ blendet den Korpusrahmen weg — aber Art, Lizenz und Nennung
+  bleiben.</b> Sie rutschen nicht weg, sondern verlieren ihren Eintrag „wie Korpus (…)“ und die
+  Marke „· abweichend“: es gibt dann nichts, wovon man abweichen könnte, und die Angaben gehören
+  der Quelle allein. Verschwänden sie mit dem Rahmen, hätte eine korpuslose Quelle <i>gar keine</i>
+  Lizenz — und die Lizenzangabe ist das, was rechtlich zählt.
+</div>
+
+<script>
+/* Alles hier ist Mockup-Mechanik, damit man die Regeln ausprobiert statt sie sich vorzustellen. */
+var ARTEN = ["Regionalspielhilfe", "Abenteuer", "Aventurischer Bote", "Quellenband", "Roman",
+             "Briefspiel", "Regelbuch", "Sonstiges"];
+var LIZENZEN = ["CC BY-SA 3.0", "CC BY-NC-SA 3.0", "CC BY 4.0", "CC BY-SA 4.0", "CC0 1.0",
+                "Gemeinfrei", "Keine freie Lizenz"];
+
+document.querySelectorAll("[data-form]").forEach(function (form) {
+  var url      = form.querySelector("[data-url]");
+  var wrap     = form.querySelector("[data-url-wrap]");
+  var ok       = form.querySelector("[data-url-ok]");
+  var sagt     = form.querySelector("[data-url-sagt]");
+  var neu      = form.querySelector("[data-url-neu]");
+  var save     = form.querySelector("[data-save]");
+  var korpus   = form.querySelector("[data-korpus]");
+  var keiner   = form.querySelector("[data-kein-korpus]");
+  var abw      = form.querySelector("[data-abw]");
+  var abwText  = form.querySelector("[data-abw-text]");
+
+  /* Die Auswahllisten entstehen aus den Daten -- der erste Eintrag IST der Korpuswert. */
+  function fuelleFelder() {
+    abw.querySelectorAll("[data-erbt]").forEach(function (feld) {
+      var erbt = keiner.checked ? "— keine Angabe —" : feld.getAttribute("data-korpuswert");
+      if (feld.tagName === "SELECT") {
+        var liste = feld.parentNode.textContent.indexOf("Lizenz") === 0 ? LIZENZEN : ARTEN;
+        var vorher = feld.value;
+        feld.innerHTML = "";
+        [erbt].concat(liste).forEach(function (t) {
+          var o = document.createElement("option");
+          o.textContent = t;
+          feld.appendChild(o);
+        });
+        var start = feld.getAttribute("data-start");
+        feld.value = (vorher && vorher !== "" ) ? vorher : (start || erbt);
+        if (!feld.value) { feld.value = erbt; }
+      } else {
+        feld.placeholder = keiner.checked ? "z. B. VolkoV / westlande.de" : "wie Korpus (keine)";
+      }
+      feld.setAttribute("data-erbt-wert", feld.tagName === "SELECT" ? erbt : "");
+      markiere(feld);
+    });
+  }
+  function markiere(feld) {
+    var erbt = feld.value === feld.getAttribute("data-erbt-wert");
+    feld.closest("label").classList.toggle("f--abw", !erbt);
+  }
+
+  /* Die Adresse: gruener Haken erst beim erfolgreichen Auslesen, ⟳ liest neu, Speichern haengt daran. */
+  var gelesen = true;
+  function pruefe() {
+    var wert = (url.value || "").trim();
+    var gut = /^https?:\/\/[^\s.]+\.[^\s]+$/.test(wert);
+    wrap.classList.toggle("fs-url--gut", gut && gelesen);
+    wrap.classList.toggle("fs-url--schlecht", wert !== "" && !gut);
+    ok.hidden = !(gut && gelesen);
+    save.disabled = !(gut && gelesen);
+    sagt.textContent = wert === ""
+      ? "Ohne Adresse lässt sich keine Quelle anlegen."
+      : (!gut ? "Das ist keine vollständige Adresse — sie muss mit http:// oder https:// beginnen."
+              : (gelesen ? "Gelesen: westlande.de · Titel „Apfeldorn“ übernommen."
+                         : "Noch nicht ausgelesen — auf ⟳ tippen."));
+  }
+  url.addEventListener("input", function () { gelesen = false; pruefe(); });
+  neu.addEventListener("click", function () { gelesen = true; pruefe(); });
+
+  keiner.addEventListener("change", function () {
+    korpus.hidden = keiner.checked;
+    abw.classList.toggle("abw--frei", keiner.checked);
+    abwText.innerHTML = keiner.checked
+      ? "Diese Quelle gehört zu keinem Korpus — <b>diese Angaben gelten nur für sie</b>."
+      : "Abweichend vom Korpus — <b>leer heißt: wie der Korpus</b>. Eine Abweichung gehört der"
+        + " Quelle und gilt an allen 51 Objekten, die sie zitieren.";
+    fuelleFelder();
+  });
+
+  abw.addEventListener("change", function (e) { if (e.target.hasAttribute("data-erbt")) { markiere(e.target); } });
+  abw.addEventListener("input", function (e) { if (e.target.hasAttribute("data-erbt")) { markiere(e.target); } });
+
+  keiner.dispatchEvent(new Event("change"));
+  pruefe();
+});
+</script>

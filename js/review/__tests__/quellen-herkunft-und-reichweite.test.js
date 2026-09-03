@@ -46,16 +46,18 @@ const WORTLAUT = {
   mitName: "x.mit", mitNameText: "Eingetragen von {wer} am {wann}",
   ohneName: "x.ohne", ohneNameText: "Eingetragen am {wann}",
 };
+// 🪤 03.09.2026: die Zeile heisst `.fs-scope__by`. `.fs-edit__by` band sie an den ✎, obwohl
+// die Eingabezeile dieselbe Zeile bekommen soll -- der Vertrag im Mockup nennt sie so.
 gleich(
   featureSourceHerkunftZeile({ at: "2026-09-02 17:04:00", by: "Vali" }, WORTLAUT, esc, tr),
-  '<p class="fs-edit__by">Eingetragen von Vali am 02.09.2026</p>',
+  '<p class="fs-scope__by">Eingetragen von Vali am 02.09.2026</p>',
   "mit Namen: wer und wann"
 );
 // ⚠️ OHNE NAMEN NUR DAS DATUM. Der Bestand von vor der Anmeldepflicht trägt `created_by = NULL`,
 // und „von unbekannt" ist keine Auskunft, sondern ein Platzhalter, der wie ein Fehler aussieht.
 gleich(
   featureSourceHerkunftZeile({ at: "2026-09-02 17:04:00", by: "" }, WORTLAUT, esc, tr),
-  '<p class="fs-edit__by">Eingetragen am 02.09.2026</p>',
+  '<p class="fs-scope__by">Eingetragen am 02.09.2026</p>',
   "ohne Namen: nur das Datum, kein „unbekannt“"
 );
 gleich(featureSourceHerkunftZeile({ at: "", by: "Vali" }, WORTLAUT, esc, tr), "",
@@ -96,23 +98,33 @@ const iBeleg = panel.indexOf("Hier angehängt von");
 const iKatalog = panel.indexOf("Gilt für alle Objekte");
 const iQuelle = panel.indexOf("In den Katalog gelegt von");
 const iKorpus = panel.indexOf("Gilt für den ganzen Korpus");
-pruefe(iObjekt < iBeleg && iBeleg < iKatalog,
+// 🪤 UMGEDREHT am 02./03.09.2026 (Owner: „Damit man den Korpus sieht würde ich ‚Nur an
+// diesem Objekt‘ unter ‚Gilt für den ganzen Korpus‘ setzen"). Die Ordnung geht von WEIT nach
+// ENG: Quelle — Korpus — dieses Objekt, in BEIDEN Formularen gleich.
+pruefe(iKatalog < iKorpus && iKorpus < iObjekt,
+  "von weit nach eng: Quelle, Korpus, dieses Objekt");
+// 🔴 UNVERÄNDERT TRAGEND: jede Herkunft steht AN IHRER Reichweite, nicht gesammelt am Fuss.
+// „Wer hat das hier angehängt" und „wer hat die Quelle angelegt" sind zwei verschiedene Menschen
+// und zwei verschiedene Zeitpunkte.
+pruefe(iKatalog < iQuelle && iQuelle < iKorpus,
+  "die Katalog-Herkunft steht IN der Quellen-Gruppe");
+pruefe(iObjekt < iBeleg,
   "die Verknüpfungs-Herkunft steht IN der Objekt-Gruppe, nicht dahinter");
 pruefe(iKatalog < iQuelle && iQuelle < iKorpus,
   "und die Katalog-Herkunft in der Katalog-Gruppe");
 
 // 🔴 NUR LESBAR (Owner 02.09.2026: „die felder können nur eingesehen, nicht verändert werden").
 // Ein `data-fs-field` daran machte sie zu einem Wert, den `featureSourceChangedFields` mitschickt.
-const beiZeilen = panel.match(/<p class="fs-edit__by">/g) || [];
+const beiZeilen = panel.match(/<p class="fs-scope__by">/g) || [];
 gleich(beiZeilen.length, 2, "zwei Herkunftszeilen");
-pruefe(!/fs-edit__by[^>]*data-fs-field/.test(panel), "und keine davon ist ein Eingabefeld");
+pruefe(!/fs-scope__by[^>]*data-fs-field/.test(panel), "und keine davon ist ein Eingabefeld");
 
 // Eine Quelle ohne Herkunft (Altbestand) zeigt gar keine Zeile -- nicht „unbekannt".
 const ohne = renderFeatureSourceEditPanel(
   Object.assign({}, QUELLE, { created: { link: null, source: null } }), esc, tr);
-gleich((ohne.match(/fs-edit__by/g) || []).length, 0, "ohne Herkunft: keine Zeile");
+gleich((ohne.match(/fs-scope__by/g) || []).length, 0, "ohne Herkunft: keine Zeile");
 
-// ── 4 · Der dritte Zustand: „Verknüpfen" statt „Hinzufügen" ──────────────────────────────────
+// ── 4 · Der dritte Zustand: die Felder werden hervorgehoben, der Knopf nicht ──────────────────────────────────
 // 🔴 AUSGEFÜHRT, nicht im Quelltext gelesen. Ein `includes("Verknüpfen")` wäre auch dann grün,
 // wenn der Umschalter nie gerufen wird -- genau die Vakuum-Zusicherung, die dieses Haus schon
 // bezahlt hat.
@@ -135,7 +147,9 @@ const macheElement = (klassen) => ({
 const bindeClassList = (el) => { el.classList._e = el; return el; };
 
 const knopf = bindeClassList(macheElement());
-knopf.textContent = "Hinzufügen";
+// ⚠️ Startwert wie im Markup: der Umschalter darf ihn nicht mehr anfassen, und ein anderer
+// Startwert liesse die Zusicherung darunter zufaellig gruen werden.
+knopf.textContent = "Speichern";
 const meins = [bindeClassList(macheElement()), bindeClassList(macheElement())];
 const containerEl = {
   querySelector: (sel) => (sel === "[data-fs-add-submit]" ? knopf : null),
@@ -145,11 +159,18 @@ const zeigeBekannteSeite = new Function(
   "containerEl", "tr", rumpf + "\nreturn zeigeBekannteSeite;")(containerEl, tr);
 
 zeigeBekannteSeite(true);
-gleich(knopf.textContent, "Verknüpfen", "bei bekannter Seite heißt der Knopf „Verknüpfen“");
+// 🪤 UMGEDREHT am 03.09.2026 (Owner: „Der button soll auch nicht verknüpfen sondern
+// Speichern heißen"). Hier stand: bei bekannter Seite heißt der Knopf „Verknüpfen".
+// 🔴 Der Knopf trägt jetzt in BEIDEN Formularen dasselbe Wort; was gerade passiert —
+// anlegen oder verknüpfen — steht in der grünen Meldung darunter, und die sagt es in einem
+// ganzen Satz statt in einem Wort auf einem Knopf.
+// ⚠️ Der Umschalter selbst BLEIBT — er hebt weiter hervor, was an einer bekannten Seite noch
+// einzutragen ist. Genau das wird hier gemessen: dass er den Knopf NICHT mehr anfasst.
+gleich(knopf.textContent, "Speichern", "der Knopf heißt auch bei bekannter Seite „Speichern“");
 pruefe(meins.every((el) => el.klassen.has("fs-af--meins")),
   "und die zwei Felder, die nur hier gelten, sind hervorgehoben");
 zeigeBekannteSeite(false);
-gleich(knopf.textContent, "Hinzufügen", "und zurück -- eine geänderte Adresse meint eine andere Quelle");
+gleich(knopf.textContent, "Speichern", "und zurück — die Aufschrift bewegt sich überhaupt nicht");
 pruefe(meins.every((el) => !el.klassen.has("fs-af--meins")),
   "die Hervorhebung geht mit; sonst bliebe die Zeile für eine ANDERE Adresse markiert");
 
@@ -190,7 +211,11 @@ const meinsRegel = /\.fs-row--add \.fs-af--meins input\[type="text"\],\s*\n\.fs-
 pruefe(meinsRegel.test(css),
   "die Randfarbe der zwei Felder steht mit `.fs-row--add` davor -- sonst schlägt sie die Kurzform `border` nicht");
 // Und die Gegenprobe: der Gegner existiert wirklich und setzt wirklich die Kurzform.
-pruefe(/\.fs-row--add input\[type="text"\][\s\S]{0,200}\n\tborder: 1px solid/.test(css),
+// 🪤 03.09.2026: er heisst jetzt `.fs-scope input[type="text"]` -- die Rezeptur der
+// Eingabezeile (`.fs-row--add input…`) ist in der geteilten aufgegangen. Die SPEZIFITÄT bleibt
+// dieselbe Frage: der Gegner ist (0,2,1) und setzt die Kurzform `border`, die Hervorhebung
+// braucht also weiter ihren Vorfahren, um (0,3,1) zu erreichen.
+pruefe(/\.fs-scope input\[type="text"\][\s\S]{0,300}\n\tborder: 1px solid/.test(css),
   "der Gegner ist noch da -- fällt er weg, darf diese Regel wieder schlanker werden");
 
 console.log("OK — " + pruefungen + " Zusicherungen (Herkunft, Reichweite, dritter Zustand)");

@@ -109,18 +109,40 @@ const QUELLE = {
 	// In der zweiten Gruppe gelassen, versprach deren Ueberschrift „gilt fuer alle Objekte, die
 	// diese Quelle zitieren -- zurzeit nur dieses Objekt", waehrend ein Griff zur Lizenz 39 Quellen
 	// umgeschrieben haette (Owner-Bild 02.09.2026). Die dritte Gruppe ist die Berichtigung.
-	pruefe((panel.match(/class="fs-edit__group"/g) || []).length === 3,
-		"drei Bereiche: dieses Objekt · diese Quelle · der ganze Korpus");
+	// 🪤 03.09.2026: dieselben drei Bereiche, aber aus DEMSELBEN Bauteil wie die Eingabezeile
+	// (`.fs-scope`). `.fs-edit__group` war eine von vier Rezepturen fuer eine Form.
+	pruefe((panel.match(/class="fs-scope"/g) || []).length === 3,
+		"drei Bereiche: diese Quelle · der ganze Korpus · dieses Objekt");
+	pruefe(!/fs-edit__group|fs-edit__head|fs-edit__title/.test(panel),
+		"und keine der alten Rezepturen ist uebrig");
 	// 🔴 Und die Zuordnung ist die eigentliche Aussage -- sie muss der des Servers entsprechen
 	// (AVESMAPS_SOURCE_CORPUS_OWNED_FIELDS), sonst sagt die Oberflaeche etwas anderes als der
 	// Schreiber tut.
+	// 🪤 03.09.2026: die Korpusfelder heissen `corpus_*` und sagen damit SELBST, wohin sie
+	// gehoeren -- vorher entschied das ihre POSITION im Markup, und die ist beim naechsten Umbau
+	// eine andere. Der blanke Name gehoert seither der Abweichung im dritten Rahmen.
 	{
-		const abKorpus = panel.lastIndexOf('class="fs-edit__group"');
-		["source_type", "license", "attribution", "is_official"].forEach((f) => {
-			pruefe(panel.indexOf('data-fs-field="' + f + '"') > abKorpus, f + " steht in der Korpusgruppe");
+		const korpusRahmen = panel.indexOf("data-fs-korpus-gruppe");
+		const objektRahmen = panel.indexOf("Nur an diesem Objekt");
+		pruefe(korpusRahmen > 0 && objektRahmen > korpusRahmen,
+			"der Korpusrahmen steht vor dem Objektrahmen");
+		["source_type", "license", "attribution", "is_official", "form"].forEach((f) => {
+			const i = panel.indexOf('data-fs-field="corpus_' + f + '"');
+			pruefe(i > korpusRahmen && i < objektRahmen, f + " steht als corpus_" + f + " im Korpusrahmen");
 		});
-		["url", "label", "pages", "reference_kind"].forEach((f) => {
-			pruefe(panel.indexOf('data-fs-field="' + f + '"') < abKorpus, f + " steht NICHT darin");
+		// 🔴 Und die Abweichung traegt den BLANKEN Namen -- so landet ihr Wert in `sources`,
+		// sobald `own_fields` ihn nennt. Sie steht im dritten Rahmen.
+		["source_type", "license", "attribution"].forEach((f) => {
+			pruefe(panel.indexOf('data-fs-abw-wert="' + f + '"') > objektRahmen,
+				f + " weicht im Objektrahmen ab");
+		});
+		["url", "label"].forEach((f) => {
+			pruefe(panel.indexOf('data-fs-field="' + f + '"') < korpusRahmen,
+				f + " steht in der Quellen-Gruppe davor");
+		});
+		["pages", "reference_kind"].forEach((f) => {
+			pruefe(panel.indexOf('data-fs-field="' + f + '"') > objektRahmen,
+				f + " steht im Objektrahmen");
 		});
 	}
 	// 🔴 Die Adresse IST seit dem 01.09.2026 ein Eingabefeld (Owner). Sie steht in der
@@ -134,20 +156,36 @@ const QUELLE = {
 
 	// Jedes Feld traegt seinen Ausgangswert -- daraus liest der Speichern-Knopf, was sich WIRKLICH
 	// geaendert hat.
-	["pages", "reference_kind", "url", "label", "source_type", "license", "attribution", "is_official"]
+	// 🪤 03.09.2026: die Korpusfelder heissen `corpus_*`, die Abweichung traegt den blanken
+	// Namen. Beide muessen ihren Ausgangswert tragen -- daraus liest der Speichern-Knopf, was sich
+	// WIRKLICH geaendert hat.
+	["pages", "reference_kind", "url", "label", "no_corpus",
+		"corpus_source_type", "corpus_license", "corpus_attribution", "corpus_is_official", "corpus_form"]
 		.forEach((feld) => {
 			pruefe(new RegExp('data-fs-field="' + feld + '"').test(panel), feld + " ist im Kasten");
 			const stelle = panel.indexOf('data-fs-field="' + feld + '"');
 			pruefe(panel.slice(stelle, stelle + 200).includes("data-fs-orig="),
 				feld + " traegt seinen Ausgangswert");
 		});
+	// Und die drei Abweichungsfelder tragen ihren eigenen Ausgangswert.
+	["source_type", "license", "attribution"].forEach((feld) => {
+		const stelle = panel.indexOf('data-fs-abw-wert="' + feld + '"');
+		pruefe(stelle > 0, feld + " hat ein Abweichungsfeld");
+		pruefe(panel.slice(stelle, stelle + 200).includes("data-fs-abw-orig="),
+			feld + " traegt seinen Abweichungs-Ausgangswert");
+	});
 
-	// 🔴 KEIN leerer Eintrag bei der Quellenart -- anders als in der Eingabezeile. Eine
-	// Katalogzeile TRAEGT immer eine Art; „keine Aussage" hiesse hier loeschen, nicht korrigieren.
-	const artBlock = panel.slice(panel.indexOf('data-fs-field="source_type"'));
+	// 🔴 KEIN leerer Eintrag bei der KORPUS-Quellenart -- anders als in der Eingabezeile. Ein
+	// Korpus TRAEGT immer eine Art; „keine Aussage" hiesse hier loeschen, nicht korrigieren.
+	const artBlock = panel.slice(panel.indexOf('data-fs-field="corpus_source_type"'));
 	const artEnde = artBlock.indexOf("</select>");
 	pruefe(!/<option value=""/.test(artBlock.slice(0, artEnde)),
-		"die Quellenart hat KEINEN leeren Eintrag");
+		"die Korpus-Quellenart hat KEINEN leeren Eintrag");
+	// 🪤 Das ABWEICHUNGSFELD hat dagegen einen, und der ist tragend: er bedeutet „wie der
+	// Korpus". Ohne ihn koennte eine Quelle eine einmal gesetzte Abweichung nie zurueckgeben.
+	const abwBlock = panel.slice(panel.indexOf('data-fs-abw-wert="source_type"'));
+	pruefe(/<option value=""/.test(abwBlock.slice(0, abwBlock.indexOf("</select>"))),
+		"das Abweichungsfeld hat einen leeren Eintrag -- er heisst „wie Korpus“");
 	// ⚠️ Die Lizenz dagegen SCHON: leer heisst dort „nicht erfasst", und das muss zuruecknehmbar sein.
 	const lizBlock = panel.slice(panel.indexOf('data-fs-field="license"'));
 	pruefe(/<option value=""/.test(lizBlock.slice(0, lizBlock.indexOf("</select>"))),
@@ -170,7 +208,8 @@ const QUELLE = {
 	pruefe(!/data-fs-field="url"/.test(panel), "die Adresse einer Wiki-Publikation ist kein Feld");
 	pruefe(/fs-edit__url/.test(panel), "sie steht dort als Text da");
 	pruefe(feldIstGesperrt("label"), "der Titel ist an einer Wiki-Publikation fest");
-	pruefe(feldIstGesperrt("is_official"), "„offiziell“ ebenso");
+	// 03.09.2026: `is_official` heisst im Korpusrahmen `corpus_is_official`.
+	pruefe(feldIstGesperrt("corpus_is_official"), "„offiziell“ ebenso");
 	// 🔴 Die drei anderen Katalogfelder fasst der Abgleich NICHT an.
 	["source_type", "license", "attribution"].forEach((feld) => {
 		pruefe(!feldIstGesperrt(feld), feld + " bleibt auch dort aenderbar");
@@ -228,8 +267,20 @@ function felderAusHtml(html) {
 	// „zieh die form ins ✎"). Sie ist weder Katalog- noch Verknuepfungsfeld -- sie gehoert dem
 	// KORPUS und hat in `sources` keine Spalte; der Server fuehrt sie deshalb als eigene Reichweite
 	// (AVESMAPS_FEATURE_SOURCE_CORPUS_ONLY_FIELDS).
-	pruefe(panel._elemente.length === 9,
-		"neun Formularfelder im Kasten (6 Katalog + 2 Verknuepfung + die Form des Korpus)");
+	// 03.09.2026: ZWOELF. Dazugekommen sind „Kein Korpus verwenden" und die drei
+	// Abweichungsfelder; die vier Korpusfelder heissen jetzt `corpus_*`.
+	// 03.09.2026: DREIZEHN, und die Aufteilung ist die Aussage.
+	//   Quelle (2):  url, label          -- gilt allen Objekten, die diese Quelle zitieren
+	//   Quelle (1):  no_corpus           -- „Kein Korpus verwenden"
+	//   Korpus (5):  corpus_form, corpus_source_type, corpus_license, corpus_attribution,
+	//                corpus_is_official  -- ausdruecklich benannt, trifft ALLE Quellen des Wirts
+	//   Objekt (2):  pages, reference_kind
+	//   Abweichung (3): source_type, license, attribution -- der BLANKE Name, er landet ueber
+	//                `own_fields` in `sources` statt im Korpus
+	// 💣 Die Zahl steht hier, damit ein neues Feld auffaellt -- aber sie ist nur die Summe; was
+	// zaehlt, ist die Zuordnung darueber, und die wird weiter oben einzeln geprueft.
+	pruefe(panel._elemente.length === 13,
+		"dreizehn Formularfelder (3 Quelle + 5 Korpus + 2 Verknuepfung + 3 Abweichung)");
 	// Unberuehrt = NICHTS reist mit. Das ist die ganze Regel.
 	gleich(featureSourceChangedFields(panel), {},
 		"ein unberuehrter Kasten schickt KEIN einziges Feld -- sonst schriebe jedes Speichern alles");
@@ -240,9 +291,11 @@ function felderAusHtml(html) {
 	gleich(featureSourceChangedFields(panel), { pages: "113-115" }, "nur die geaenderte Seitenangabe reist mit");
 
 	// Das Haekchen kommt als echter Boolean, nicht als "0"/"1".
-	const offiziell = panel._elemente.find((e) => e._name === "is_official");
+	// 03.09.2026: das Haekchen heisst `corpus_is_official` -- es gehoert dem Korpus, und der Name
+	// sagt das jetzt selbst, statt es aus seiner Stellung im Markup ableiten zu lassen.
+	const offiziell = panel._elemente.find((e) => e._name === "corpus_is_official");
 	offiziell.checked = false;
-	gleich(featureSourceChangedFields(panel), { pages: "113-115", is_official: false },
+	gleich(featureSourceChangedFields(panel), { pages: "113-115", corpus_is_official: false },
 		"„offiziell“ reist als Boolean, nicht als Zeichenkette");
 
 	// Zurueckgestellt = wieder draussen. 💣 Sonst schriebe ein Hin-und-Zurueck denselben Wert an
@@ -283,8 +336,12 @@ function felderAusHtml(html) {
 	// ⚠️ `own_fields` ist seit dem 02.09.2026 dabei und gehoert hierher: welche Korpusfelder diese
 	// ZEILE selbst besitzt, gilt ueberall, wo sie zitiert wird -- also katalogweit, nicht an der
 	// einzelnen Verknuepfung. Es zaehlt damit auch in die Rueckfrage ab der Schwelle.
-	gleich(katalogFelder, ["url", "label", "source_type", "license", "attribution", "is_official", "own_fields"],
-		"und die Katalog-Haelfte die uebrigen sieben -- die Adresse seit dem 01.09., der Besitzstand seit dem 02.09.2026");
+	// ⚠️ `no_corpus` ist seit dem 03.09.2026 dabei und gehoert hierher: „Kein Korpus verwenden" ist
+	// eine Aussage ueber die QUELLE, nicht ueber eine einzelne Verknuepfung -- sie gilt ueberall,
+	// wo die Quelle zitiert wird, und zaehlt damit auch in die Rueckfrage ab der Schwelle.
+	gleich(katalogFelder,
+		["url", "label", "source_type", "license", "attribution", "is_official", "own_fields", "no_corpus"],
+		"und die Katalog-Haelfte die uebrigen acht");
 
 	// 🔴 Und die drei, die einer Wiki-Publikation gehoeren. Zwei davon (Titel, offiziell) schreibt
 	// der Abgleich zurueck; bei der Adresse gehoert ihm die IDENTITAET -- gleiche Sperre, ANDERER
@@ -311,14 +368,40 @@ function felderAusHtml(html) {
 	const korpusNurFelder = php.match(/AVESMAPS_FEATURE_SOURCE_CORPUS_ONLY_FIELDS = \[([^\]]+)\]/)[1]
 		.match(/'([a-z_]+)'/g).map((s) => s.replace(/'/g, ""));
 	gleich(korpusNurFelder, ["form"], "die Form ist das einzige reine Korpusfeld");
-	const erwartet = linkFelder.concat(katalogFelder).concat(korpusNurFelder)
-		.filter((f) => f !== "own_fields");
-	gleich(imKasten.slice().sort(), erwartet.sort(),
-		"der Kasten baut genau die Felder, die der Server kennt -- ausser dem Besitzstand");
-	// Und der wird als HAEKCHEN gebaut, eines je korpuseigenem Feld.
-	const haken = (kastenHtml.match(/data-fs-own="([a-z_]+)"/g) || []).map((s) => s.replace(/.*="|"/g, ""));
-	gleich(haken.slice().sort(), ["attribution", "is_official", "license", "source_type"],
-		"der Besitzstand steht als vier Haekchen da, nicht als Eingabefeld");
+	// 🪤 UMGEBAUT am 03.09.2026. Hier stand eine GLEICHHEIT (Kasten == Serverfelder); seit der
+	// Kasten zwei Namensraeume traegt -- `corpus_license` fuer den Wirt, `license` fuer die
+	// Abweichung -- kann sie nicht mehr stimmen, und eine Gleichheit haette bei jeder legitimen
+	// Ergaenzung neu gepflegt werden muessen.
+	// 🔴 Geprueft wird die eigentliche Aussage: KENNT DER SERVER JEDEN NAMEN, den der Kasten baut?
+	// Ein Feld, das er nicht kennt, faellt beim Speichern lautlos weg -- der Knopf bewegt sich,
+	// und der Wert ist weg.
+	const praefix = (php.match(/AVESMAPS_FEATURE_SOURCE_CORPUS_PREFIX = '([a-z_]+)'/) || [])[1];
+	pruefe(praefix === "corpus_", "der Server nennt das Praefix `corpus_`");
+	const korpusfaehig = katalogFelder.concat(korpusNurFelder);
+	imKasten.forEach((name) => {
+		const ohnePraefix = name.indexOf(praefix) === 0 ? name.slice(praefix.length) : "";
+		const bekannt = ohnePraefix !== ""
+			? korpusfaehig.indexOf(ohnePraefix) !== -1
+			: linkFelder.concat(katalogFelder).indexOf(name) !== -1;
+		pruefe(bekannt, "der Server kennt das Feld " + name);
+	});
+	// ⚠️ `own_fields` ist die AUSNAHME und muss es sein: es ist kein Eingabefeld, sondern die Menge
+	// der Abweichungen -- sie wird aus den Abweichungsfeldern GELESEN, nicht getippt.
+	pruefe(imKasten.indexOf("own_fields") === -1,
+		"und der Besitzstand ist kein Eingabefeld");
+	// 🔴 Und die Gegenrichtung: die fuenf Korpusfelder muessen WIRKLICH als `corpus_*` dastehen.
+	// Ohne diese Haelfte waere die Pruefung darueber erfuellt, wenn der Kasten sie gar nicht baut.
+	["form", "source_type", "license", "attribution", "is_official"].forEach((f) => {
+		pruefe(imKasten.indexOf(praefix + f) !== -1, "der Kasten baut " + praefix + f);
+	});
+	// 🪤 UMGEBAUT am 03.09.2026 (Owner: „eigentlich braucht es die haekchen nicht NUR felder").
+	// Der Besitzstand wird aus den ABWEICHUNGSFELDERN gelesen: ein gefuellter Wert IST die
+	// Abweichung. Es sind DREI -- `offiziell` ist nicht mehr ueberschreibbar.
+	const abwFelder = (kastenHtml.match(/data-fs-abw-wert="([a-z_]+)"/g) || [])
+		.map((s) => s.replace(/.*="|"/g, ""));
+	gleich(abwFelder.slice().sort(), ["attribution", "license", "source_type"],
+		"der Besitzstand steht als drei Abweichungsfelder da, nicht als Eingabefeld");
+	pruefe(!/data-fs-own=/.test(kastenHtml), "und die alten Haekchen sind gefallen");
 }
 
 // ══ G. „Verknüpft statt angelegt" — der Satz, den das Adressfeld schuldig blieb ═════════════════

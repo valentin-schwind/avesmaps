@@ -182,7 +182,10 @@ assert.ok(
 const addZeile = kontext.renderFeatureSourceEditorHtml({ sources: [], wiki_url: "" }, { escape: esc });
 const auswahlfelder = (addZeile.match(/<select class="/g) || []).length;
 assert.ok(auswahlfelder >= 3, "die Eingabezeile traegt mehrere Auswahlfelder, gefunden: " + auswahlfelder);
-assert.ok(/\.fs-row--add select[,\s]/.test(stil),
+// 🪤 03.09.2026: gebunden wird jetzt an `.fs-scope`, nicht an `.fs-row--add` -- dieselbe
+// Regel gilt seither BEIDEN Formularen. Die Lehre darunter ist unverändert und war der Grund
+// für die Zusammenlegung: eine Regel, die zwei von drei Auswahlfeldern bindet, ist keine.
+assert.ok(/\.fs-scope select[,\s{]/.test(stil),
 	"die Optik der Eingabefelder bindet ALLE Auswahlfelder ueber `select` -- sonst faellt das naechste"
 	+ " neue Feld genauso durch wie `.fs-add-license`");
 
