@@ -30,6 +30,16 @@ const AVESMAPS_API_METRICS_KEINE_STUNDE = 24;
 /** Aufbewahrung. Aelteres wird faul beim Schreiben entfernt (es gibt keinen Zeitplan-Laeufer). */
 const AVESMAPS_API_METRICS_AUFBEWAHRUNG_TAGE = 400;
 
+// ⚠️ NUR JEDER HUNDERTSTE REQUEST fragt nach dem Aufraeumen. Die Marke ist ein Upsert auf EINE Zeile,
+// die alle Anfragen aller Besucher teilen -- gemessen 03.09.2026 zwei Schreibvorgaenge je Request,
+// serialisiert an einer Zeilensperre. Das taegliche DELETE bleibt: die erste faellige Anfrage des
+// Tages gewinnt die Marke wie bisher.
+const AVESMAPS_API_METRICS_AUFRAEUMEN_TAKT = 100;
+
+function avesmapsApiMetricsAufraeumenFaellig(int $wurf): bool {
+    return $wurf === 1;
+}
+
 /**
  * 💣 Zur LAUFZEIT aus der Konfiguration, nicht als Konstante beim Einbinden.
  *
@@ -239,6 +249,9 @@ function avesmapsApiMetricsSchreiben(PDO $pdo, array $zeilen): void {
  * und `2` fuer „hochgezaehlt". Nur beim ersten Mal am Tag wird also geraeumt.
  */
 function avesmapsApiMetricsAufraeumen(PDO $pdo): void {
+    if (!avesmapsApiMetricsAufraeumenFaellig(random_int(1, AVESMAPS_API_METRICS_AUFRAEUMEN_TAKT))) {
+        return;
+    }
     try {
         $marke = $pdo->prepare(
             "INSERT INTO api_metric (day, hour, metric, dimension, count)
