@@ -57,11 +57,6 @@ function setWikiSyncConflictsDialogOpen(isOpen) {
 	$("#wiki-sync-conflicts-overlay").prop("hidden", !isOpen);
 	syncModalDialogBodyState();
 	if (isOpen) {
-		// Die Fallliste wurde beim Start nur gemerkt, nicht gebaut (review-wiki-sync-cases.js) --
-		// jetzt ist das Overlay sichtbar, jetzt wird gebaut. VOR dem Fokus, damit er etwas trifft.
-		if (typeof renderWikiSyncCasesWennAusstehend === "function") {
-			renderWikiSyncCasesWennAusstehend();
-		}
 		document.getElementById("wiki-sync-conflicts-dialog")?.focus();
 		if (typeof setConflictDialogMinimized === "function") {
 			setConflictDialogMinimized(false);
