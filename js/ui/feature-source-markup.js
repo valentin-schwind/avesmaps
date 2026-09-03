@@ -192,6 +192,28 @@ function featureKanonBadgeMarkup(kanon, esc, labels, typeLabels) {
     + "</span>";
 }
 
+// 🔴 WELCHER NAME STEHT VORN? Bei einer BELEGSTELLE der Korpusname („Herzogtum Weiden"), bei einem
+// WERK der Titel („Geographia Aventurica"). Owner-Entscheid 01.09.2026 (Entwurf bekannte-quellen §3.1).
+// 🔴 EINE Regel, ZWEI Oberflaechen: die Infobox (buildSourceListMarkup) und die Zeile des
+// Quellen-Editors (renderFeatureSourceRow in js/review/review-feature-sources.js) fragen BEIDE hier.
+// Bis zum 03.09.2026 kannte die Regel nur die Infobox: der Editor zeigte „Apfeldorn", der Besucher
+// „AlberniaWiki" -- dieselbe Quelle, zwei Namen, und die Editoren hielten es fuer zwei Quellen (Owner:
+// „die editoren sagen, dass sie verwirrt sind, dass das was anderes steht").
+// ⚠️ NUR bei `form === "belegstelle"`. Ein WERK-Korpus (f-shop, ulisses: 879 der 1384 Zeilen) behaelt
+// seinen Titel -- dort waere „f-shop.de" die schlechtere Auskunft. Und ein Korpus ohne entschiedene
+// Form verhaelt sich wie ein Werk.
+// `titel` ist der Seitentitel NUR, wenn er vorn nicht steht -- die Infobox legt ihn ins ⓘ, der
+// Editor in den Tooltip des Links („Baronie Hirschfurten — Garetien-Wiki"); sonst stuende er doppelt.
+// @param source  { label, url }   @param korpus  { label, form } | null
+function featureSourceVornName(source, korpus) {
+  var s = source || {};
+  var korpusName = (korpus && korpus.form === "belegstelle") ? String(korpus.label || "").trim() : "";
+  var eigenerTitel = String(s.label || "").trim();
+  var vorn = korpusName !== "" ? korpusName : (eigenerTitel || s.url || "");
+  var titel = (korpusName !== "" && eigenerTitel !== "" && eigenerTitel !== korpusName) ? eigenerTitel : "";
+  return { vorn: vorn, titel: titel, korpusName: korpusName, eigenerTitel: eigenerTitel };
+}
+
 function buildSourceListMarkup(wikiUrl, sources, opts) {
   opts = opts || {};
   var wikiLabel = opts.wikiLabel || "Wiki";
@@ -479,12 +501,11 @@ function buildSourceListMarkup(wikiUrl, sources, opts) {
     // ⚠️ Der Link zeigt weiter auf die GENAUE Seite, nicht auf die Startseite des Wirts: wer auf
     // „Herzogtum Weiden" klickt, will die Seite ueber DIESES Objekt.
     var korpus = (s && s.corpus && corpora[s.corpus]) ? corpora[s.corpus] : null;
-    var korpusName = (korpus && korpus.form === "belegstelle") ? String(korpus.label || "").trim() : "";
-    var eigenerTitel = String(s.label || "").trim();
-    var vorn = korpusName !== "" ? korpusName : (eigenerTitel || s.url || "");
+    // 🔴 Die Regel steht in featureSourceVornName -- dieselbe, die der Quellen-Editor fuer seine Zeile ruft.
+    var name = featureSourceVornName(s, korpus);
+    var vorn = name.vorn;
     // Der Titel wandert nur dann ins ⓘ, wenn er vorn NICHT mehr steht -- und nur, wenn es ihn gibt.
-    var titelInsInfo = (korpusName !== "" && eigenerTitel !== "" && eigenerTitel !== korpusName)
-      ? eigenerTitel : "";
+    var titelInsInfo = name.titel;
     var label = esc(vorn);
     // 🔴 DIE LIZENZ IST AUS DER ZEILE IN DAS ⓘ GEWANDERT (Owner 02.09.2026). CC BY-SA 4.0 §3(a)(2)
     // erlaubt das ausdruecklich: die Pflichtangaben duerfen „in any reasonable manner based on the
@@ -642,11 +663,12 @@ function avesmapsSourceTabKeydown(event, tabEl) {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { buildSourceListMarkup: buildSourceListMarkup, FEATURE_SOURCE_MARKUP_TYPE_LABELS: FEATURE_SOURCE_MARKUP_TYPE_LABELS, featureSourceShortenPages: featureSourceShortenPages, featureSourceLicenseText: featureSourceLicenseText, FEATURE_SOURCE_LICENSES: FEATURE_SOURCE_LICENSES, featureKanonBadgeMarkup: featureKanonBadgeMarkup, featureKanonBezeichnerText: featureKanonBezeichnerText, avesmapsToggleSourceRights,};
+  module.exports = { buildSourceListMarkup: buildSourceListMarkup, FEATURE_SOURCE_MARKUP_TYPE_LABELS: FEATURE_SOURCE_MARKUP_TYPE_LABELS, featureSourceShortenPages: featureSourceShortenPages, featureSourceVornName: featureSourceVornName, featureSourceLicenseText: featureSourceLicenseText, FEATURE_SOURCE_LICENSES: FEATURE_SOURCE_LICENSES, featureKanonBadgeMarkup: featureKanonBadgeMarkup, featureKanonBezeichnerText: featureKanonBezeichnerText, avesmapsToggleSourceRights,};
 }
 if (typeof window !== "undefined") {
   window.buildSourceListMarkup = buildSourceListMarkup;
   window.featureSourceShortenPages = featureSourceShortenPages;
+  window.featureSourceVornName = featureSourceVornName;
   window.featureKanonBadgeMarkup = featureKanonBadgeMarkup;
   window.avesmapsToggleSourceTab = avesmapsToggleSourceTab;
   // 🔴 MUSS global stehen: das Markup ruft ihn per Inline-`onclick`, und der wird im

@@ -123,6 +123,21 @@ function featureSourcePagesShorten(pages) {
   return geteilt(pages);
 }
 
+// 🔴 Der NAME VORN kommt aus feature-source-markup.js (featureSourceVornName) -- dieselbe Regel, die
+// die Infobox fuer den Besucher anwendet: Korpusname bei einer Belegstelle, sonst der Titel.
+// Owner 03.09.2026: „kannst du bei der auflistung von quellen im backend den titel grundsätzlich an
+// dem anpassen, was im frontend zu sehen ist? die editoren sagen, dass sie verwirrt sind, dass das
+// was anderes steht." Derselbe Weiterreicher wie bei der Seitenkuerzung, aus denselben Gruenden.
+function featureSourceNameVorn(source, korpus) {
+  var geteilt = (typeof module !== "undefined" && module.exports)
+    ? require("../ui/feature-source-markup.js").featureSourceVornName
+    : (typeof featureSourceVornName === "function" ? featureSourceVornName : null);
+  if (typeof geteilt !== "function") {
+    throw new Error("feature-source-markup.js fehlt -- sie traegt die Regel, welcher Name vorn steht");
+  }
+  return geteilt(source, korpus);
+}
+
 // 🔴 Die Lizenztafel und der Lizenztext kommen aus feature-source-markup.js, wie die
 // Seitenkuerzung darueber und aus demselben Grund: eine Regel, die einen von zwei Erzeugern
 // bindet, ist keine. Die Infobox und dieser Editor zeigen dieselbe Angabe derselben Quelle.
@@ -211,6 +226,12 @@ function renderFeatureSourceRow(source, escape, tr, bearbeitbar) {
       + ' title="' + escape(tr("sources.edit", "Bearbeiten")) + '"'
       + ' aria-label="' + escape(tr("sources.edit", "Bearbeiten")) + '">✎</button>';
   const marke = renderFeatureSourceSegmentsMark(source, escape, tr);
+  // 🔴 VORN STEHT, WAS DER BESUCHER SIEHT (Owner 03.09.2026): bei einer Belegstelle der Korpusname, sonst
+  // der Titel -- ueber die EINE Regel der Infobox. Der Seitentitel geht in den Tooltip des Links
+  // („Baronie Hirschfurten — Garetien-Wiki"), und nur, wenn er vorn nicht steht (Owner: „du kannst den
+  // Titel in den Tooltip des links verlagern"). Vollstaendig steht er ohnehin im ✎.
+  const name = featureSourceNameVorn(source, source.corpus || null);
+  const tooltip = name.titel ? ' title="' + escape(name.titel + " — " + name.vorn) + '"' : "";
   return (
     '<div class="fs-row" data-source-id="' + escape(source.source_id) + '">' +
     // 💣 MIT Marke darf der Link UMBRECHEN (`.fs-row__link--marke`): der Link ellipsiert sonst am TEXT
@@ -220,10 +241,10 @@ function renderFeatureSourceRow(source, escape, tr, bearbeitbar) {
     // („Geogr…“); der Umbruch haelt den Namen lesbar, und der Fall ist selten (12 Wege live, nur auf der
     // Weg-Ebene). Ohne Marke bleibt das Markup zeichengleich zu vorher.
     (marke
-      ? '<a class="fs-row__link fs-row__link--marke" href="' + escape(source.url) + '" target="_blank" rel="noopener">'
-        + escape(source.label || source.url) + " ↗" + marke + "</a>"
-      : '<a class="fs-row__link" href="' + escape(source.url) + '" target="_blank" rel="noopener">'
-        + escape(source.label || source.url) + " ↗</a>") +
+      ? '<a class="fs-row__link fs-row__link--marke" href="' + escape(source.url) + '"' + tooltip + ' target="_blank" rel="noopener">'
+        + escape(name.vorn || source.url) + " ↗" + marke + "</a>"
+      : '<a class="fs-row__link" href="' + escape(source.url) + '"' + tooltip + ' target="_blank" rel="noopener">'
+        + escape(name.vorn || source.url) + " ↗</a>") +
     '<span class="fs-row__badge">' + escape(featureSourceTypeLabel(source.type)) + officialMark + "</span>" +
     kind +
     pages +
@@ -569,7 +590,9 @@ function renderFeatureSourceColumnHeads(anzahl, escape, tr) {
   }
   const kopf = (schluessel, vorgabe) => "<span>" + escape(tr(schluessel, vorgabe)) + "</span>";
   return '<div class="fs-col-heads" aria-hidden="true">'
-    + kopf("sources.colTitle", "Titel")
+    // ⚠️ „Quelle", nicht „Titel": vorn steht seit dem 03.09.2026 der Name, den der Besucher sieht --
+    // bei einer Belegstelle der Korpusname, und der ist kein Titel.
+    + kopf("sources.colTitle", "Quelle")
     + kopf("sources.colType", "Typ")
     + kopf("sources.colKind", "Art")
     + kopf("sources.colPages", "Seiten")
@@ -2919,6 +2942,8 @@ if (typeof window !== "undefined") {
 }
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
+    // Der Zeilenbauer -- fuer quellenzeile-name-vorn.test.js, das beide Erzeuger des Namens gegeneinander haelt.
+    renderFeatureSourceRow,
     renderFeatureSourceEditorHtml, createPendingFeatureSourceStore, syncFeatureSourcesToClientCache,
     // Der Bearbeiten-Kasten und seine Schwelle -- der Kasten ist rein (kein DOM, kein fetch) und
     // damit unter Node fahrbar; die Schwelle wird gegen die PHP-Konstante gehalten.
