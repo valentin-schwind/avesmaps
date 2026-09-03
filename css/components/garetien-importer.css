@@ -32,10 +32,12 @@
 	/* ⚠️ Die Breite muss mit dem vollen Versatz (Planer + Lasche + Lücke) mitrechnen, sonst ragt
 	   das Fenster auf schmalen Schirmen rechts über den Viewport hinaus (bei 1400px bleiben 984px
 	   übrig -> 800px zieht; bei 1000px nur noch 584px -- schmaler, aber heil). */
-	/* 🔴 835px (Owner 31.08.2026). Die Zahl ist an diesem Tag zweimal gewandert -- 800 -> 745 -> 835
-	   -- weil der Owner sie am gebauten Fenster abliest, nicht am Entwurf. Sie steht deshalb an
-	   ZWEI Stellen hier (offener und eingeklappter Planer) und nirgends sonst. */
-	width: min(835px, calc(100vw - var(--avesmaps-planner-width) - var(--avesmaps-tab-w) - 2 * var(--space-16)));
+	/* 🔴 855px (Owner 04.09.2026: „kannst du die fensterbreite 20px erhoehen"). Die Zahl wandert,
+	   weil der Owner sie am GEBAUTEN Fenster abliest und nicht am Entwurf: 800 -> 745 -> 835 (alle
+	   drei am 31.08.2026) -> 855. Sie steht an ZWEI Stellen hier (offener und eingeklappter
+	   Planer) und nirgends sonst; garetien-freischalten.test.js zaehlt beide Vorkommen UND haelt
+	   fest, dass keine der abgeloesten Zahlen irgendwo stehengeblieben ist. */
+	width: min(855px, calc(100vw - var(--avesmaps-planner-width) - var(--avesmaps-tab-w) - 2 * var(--space-16)));
 	/* 💣 FESTE Höhe, nicht bloß max-height: der Kasten verteilt seinen Platz auf seine Spalten,
 	   und eine Verteilung braucht eine Bezugsgröße. Mit nur max-height fiel die Liste beim ersten
 	   Wurf auf NULL zusammen — gemessen beim Zeichnen des Mockups, nicht vermutet.
@@ -100,7 +102,7 @@
    gewollt: er weicht dem Planer, nicht umgekehrt. */
 html.avesmaps-planner-collapsed .gi-win {
 	left: calc(var(--avesmaps-tab-w) + var(--space-16));
-	width: min(835px, calc(100vw - var(--avesmaps-tab-w) - 2 * var(--space-16)));
+	width: min(855px, calc(100vw - var(--avesmaps-tab-w) - 2 * var(--space-16)));
 }
 
 /* Die dritte Kachel des Menuebands: wie viele Zeilen die Liste hoechstens zeigt (Owner 31.08.2026,
