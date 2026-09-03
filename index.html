@@ -4027,6 +4027,17 @@
 			<div class="gi-win__head">
 				<span class="gi-win__grip" aria-hidden="true">⣿⣿</span>
 				<h2 class="gi-win__title">Garetien Importer</h2>
+				<!-- 🔴 EINKLAPPEN wie im Konflikte-Fenster (Owner 04.09.2026, „wie konflikte"): das Fenster
+				     rollt auf diese Titelleiste zusammen und gibt den Platz darunter frei. Es BLEIBT dabei,
+				     wo es steht -- das Konflikte-Fenster springt eingeklappt nach oben mittig, weil es per
+				     Flex in seinem Overlay zentriert sitzt und unten rechts hinter dem Infopanel verschwand;
+				     dieses hier ist verschiebbar (js/ui/dialog-drag.js) und stuende nach einem Sprung
+				     woanders, als der Editor es hingezogen hat.
+				     ⚠️ Kein eigenes Aussehen: der Knopf traegt NUR .gi-win__x, wie das ✕ daneben. Eine
+				     zweite Klasse ohne eine einzige Regel waere totes Markup. Die Glyphe wechselt zu □
+				     (review-garetien-importer.js), nicht hier. -->
+				<button class="gi-win__x" type="button" id="garetien-importer-min" aria-label="Fenster einklappen"
+					title="Rollt das Fenster auf seine Titelleiste zusammen. Die Liste und die Auswahl bleiben stehen.">−</button>
 				<button class="gi-win__x" type="button" id="garetien-importer-close" aria-label="Schließen">✕</button>
 			</div>
 			<!-- 💣 Das Menueband ist ZWEISTUFIG, und die Stufen teilen sich die Arbeit:

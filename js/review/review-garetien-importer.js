@@ -708,9 +708,48 @@
 		garetienImportHakenSetzen(GARETIEN_IMPORT_HAKEN);
 	}
 
+	// „Einklappen": das Fenster rollt auf seine Titelleiste zusammen und gibt den Platz darunter
+	// frei (Owner 04.09.2026, „wie konflikte"). Die Liste bleibt dabei stehen -- nichts wird
+	// abgeraeumt, nichts neu geholt, die Karte behaelt ihre Anzeige; nur die Huelle wird niedrig.
+	//
+	// 🔴 DER ZUSTAND IST DIE KLASSE UND SONST NICHTS. Kein Modulmerker daneben, der mit ihr
+	//    auseinanderlaufen kann -- genau daran sind in diesem Haus schon das Anzeige-Menue und die
+	//    Ansichts-Kacheln gescheitert (AGENTS.md §11). Gelesen wird er dort, wo er steht.
+	// 💣 DIE GEOMETRIE BLEIBT IM CSS. Die Zieh-Ecke (`resize: both`) schreibt Hoehe und Breite als
+	//    INLINE-Stil, und der schlaegt jede Klassenregel -- deshalb traegt `.gi-win.is-minimized`
+	//    ihr `height: auto` mit `!important`. Die gezogene Hoehe hier zwischenzulagern und beim
+	//    Ausklappen zurueckzuschreiben waere die zweite Wahrheit ueber die Fenstergroesse; so steht
+	//    sie weiter genau dort, wo der Browser sie hingeschrieben hat, und kommt von selbst wieder.
+	// ⚠️ Die Huelle rueckt sich beim Groessenwechsel selbst wieder ins Bild: dialog-drag.js hoert
+	//    mit einem ResizeObserver auf jedes verschobene Fenster. Hier ist also nichts zu rechnen.
+	function garetienFensterEingeklappt() {
+		const win = fensterElement();
+		return !!(win && win.classList && win.classList.contains("is-minimized"));
+	}
+
+	function garetienFensterEinklappen(einklappen) {
+		const win = fensterElement();
+		if (!win) { return; }
+		win.classList.toggle("is-minimized", einklappen === true);
+		const knopf = hasDocument ? document.getElementById("garetien-importer-min") : null;
+		if (!knopf) { return; }
+		// − (U+2212) und □ (U+25A1) wie im Konflikte-Fenster, aus demselben Grund: beide sind
+		// mathematische Zeichen und haben in derselben Schrift die Strichstaerke des ✕ daneben. Ein
+		// Gedankenstrich (–) wirkt daneben duenn, ein ▢ merklich fetter.
+		knopf.textContent = einklappen === true ? "□" : "−";
+		knopf.setAttribute("aria-label", einklappen === true ? "Fenster ausklappen" : "Fenster einklappen");
+		knopf.title = einklappen === true
+			? "Klappt das Fenster wieder auf."
+			: "Rollt das Fenster auf seine Titelleiste zusammen. Die Liste und die Auswahl bleiben stehen.";
+	}
+
 	function avesmapsGaretienFensterOeffnen() {
 		const win = fensterElement();
 		if (win) { win.hidden = false; }
+		// AUSGEKLAPPT oeffnen -- wie das Konflikte-Fenster (setWikiSyncConflictsDialogOpen ruft sein
+		// setConflictDialogMinimized(false) an derselben Stelle). Wer den Importer aufmacht und eine
+		// blosse Titelleiste bekaeme, hielte das fuer einen Fehlklick.
+		garetienFensterEinklappen(false);
 		zustand.offen = true;
 		garetienPanelsBeiseite();
 		garetienKarteFuerImportRichten();
@@ -6167,6 +6206,14 @@
 		if (schliessenBtn) {
 			schliessenBtn.addEventListener("click", avesmapsGaretienFensterSchliessen);
 		}
+		// Der Einklapp-Knopf liest seinen Zustand aus der Klasse, die er selbst setzt -- ein Merker
+		// hier daneben waere die zweite Wahrheit darueber, ob das Fenster eingeklappt ist.
+		const einklappenBtn = hasDocument ? document.getElementById("garetien-importer-min") : null;
+		if (einklappenBtn) {
+			einklappenBtn.addEventListener("click", function () {
+				garetienFensterEinklappen(!garetienFensterEingeklappt());
+			});
+		}
 		// EIN Zuhörer auf der Detailspalte, einmal beim Start. Die Spalte selbst steht statisch in
 		// index.html und wird nie ersetzt (nur ihr innerHTML), die Delegation überlebt also jeden
 		// Lauf von garetienDetailRendern -- dieselbe Begründung wie beim Listenkasten.
@@ -6402,6 +6449,9 @@
 		module.exports = {
 			avesmapsGaretienDarfOeffnen,
 			garetienPanelsBeiseite,
+			// Owner 04.09.2026: der Minimieren-Knopf -- das Fenster rollt auf seine Titelleiste zusammen.
+			garetienFensterEinklappen,
+			garetienFensterEingeklappt,
 			// Owner-Meldung 31.08.2026: die mitgereiste Quelle ohne Neuladen sichtbar machen.
 			garetienQuellenNachtragen,
 			// Owner 31.08.2026: „Ablehnen" neben „Zuruecknehmen" am uebernommenen Objekt.

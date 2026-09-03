@@ -183,6 +183,48 @@ html.avesmaps-planner-collapsed .gi-win {
 
 .gi-win__x:hover { background: var(--color-button-soft-hover); }
 
+/* ---- Eingeklappt: das Fenster rollt auf seine Titelleiste zusammen ---------------------------
+ * Owner 04.09.2026: „einen minimieren button […] dass das fenster auf die titelleiste
+ * zusammenrollt (wie konflikte)".
+ *
+ * 🔴 DIE KLASSE HEISST WIE DORT (`is-minimized`, review-panel.css), die Beschriftung heisst
+ *    „einklappen" -- dieselbe Trennung von Kennung und Wort wie bei „Neuigkeiten"/`changelog`.
+ *    Wer eines der beiden Fenster kennt, findet das andere per grep.
+ * 🔴 KEIN pointer-events-Riegel wie dort. Das Konflikte-Fenster braucht ihn, weil unter ihm ein
+ *    bildschirmfuellendes Overlay liegt, das eingeklappt jeden Kartenklick schlucken wuerde.
+ *    Dieses Fenster hat GAR KEIN Overlay (siehe ganz oben) -- die Karte daneben ist ohnehin
+ *    bedienbar; eingeklappt wird hier nur der PLATZ frei.
+ * 🔴 UND ES BLEIBT, WO ES STEHT. Dort springt es eingeklappt nach oben mittig; hier waere das
+ *    ein Verlust: das Fenster ist verschiebbar (js/ui/dialog-drag.js) und steht da, wo der
+ *    Editor es hingezogen hat.
+ *
+ * 💣 EIN Selektor statt einer Liste der vier Bloecke (Menueband, Laufzeile, Spalten, Fuss): eine
+ *    Liste veraltet lautlos, und der naechste Block stuende eingeklappt sichtbar da, ohne dass
+ *    es jemandem auffiele. Dieselbe Klasse wie die Zahl im Kommentar (AGENTS.md §11).
+ * ⚠️ Der Wirt der Uebernahme-Vorschau (#garetien-sheet) steht AUSSERHALB der Huelle und ist
+ *    davon nicht betroffen -- ein eingeklapptes Fenster verdeckt sein Blatt also nicht. */
+.gi-win.is-minimized > :not(.gi-win__head) { display: none; }
+
+/* 💣 `!important` IST HIER TRAGEND, nicht bequem: die Zieh-Ecke (`resize: both`) schreibt Hoehe
+ *    und Breite als INLINE-Stil, und der schlaegt jede Klassenregel. Ohne das bliebe ein einmal
+ *    aufgezogenes Fenster in voller Hoehe stehen und waere eingeklappt nur noch ein leerer
+ *    Kasten mit Titelleiste. Die Alternative -- die gezogene Hoehe im JavaScript zwischenlagern
+ *    und beim Ausklappen zurueckschreiben -- waere eine zweite Wahrheit ueber die Fenstergroesse.
+ *    So bleibt sie stehen, wo der Browser sie hingeschrieben hat, und kommt beim Ausklappen von
+ *    selbst wieder.
+ * 💣 `min-height` MUSS mitfallen: die 360px sind der Boden fuer die Zieh-Ecke, und gegen sie
+ *    koennte die Huelle gar nicht auf ihre Kopfzeile schrumpfen.
+ * 💣 UND `resize` MUSS AUS. Eine Zieh-Ecke an einer blossen Titelleiste schriebe eine neue
+ *    Inline-Hoehe -- die das `!important` daneben sofort ueberstimmt. Ein Zug, der nichts tut,
+ *    liest sich als Fehler.
+ * ⚠️ Die BREITE bleibt, wie der Editor sie gezogen hat: eingeklappt wird die Hoehe, nicht das
+ *    Fenster. */
+.gi-win.is-minimized {
+	height: auto !important;
+	min-height: 0;
+	resize: none;
+}
+
 /* ---- Aufgabe 12b: das Menüband -------------------------------------------------------------
  * 💣 `.avm-tile` bringt aus editor-body.css NUR die zweizeilige FORM mit (Flexspalte, .t1/.t2).
  *    Ihr Aussehen -- Rand, Grund, Radius, Schrift -- kommt dort aus `:where(.avm-editor-body)
