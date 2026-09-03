@@ -960,15 +960,20 @@ function featureSourceLinkedMessage(linked, tr) {
   if (!linked) {
     return "";
   }
+  // 🪤 UMFORMULIERT am 03.09.2026 (Owner am Livelauf): der Satz stand ALLEIN da, nachdem die
+  // Zeile bereits angelegt und das Formular geleert war — und las sich dadurch wie ein Einwand
+  // gegen eine leere Maske, nicht wie das Ergebnis. „schön wärs gewesen ‚Erfolgreich
+  // hinzugefügt‘ zu lesen."
+  // 🔴 Er ist deshalb ein ZUSATZ, kein eigener Satz: `zeigeErgebnis` stellt IMMER die Erfolgs-
+  // meldung voran und hängt diesen Halbsatz nur an, wenn wirklich verknüpft wurde.
   let text = linked.typed_label
     // Der eingetippte Titel wurde verworfen -- der Fall, der ohne Erklaerung wie ein Fehler
     // aussieht: man tippt „X" und in der Liste steht „Y".
     ? uebersetze("sources.add.linkedRenamed",
-      "Diese Adresse gibt es schon — verknüpft mit „{label}“. Dein Titel „{typed}“ wurde nicht übernommen, denn der Katalog führt sie unter ihrem gespeicherten Namen.")
+      "Die Adresse stand schon im Katalog — verknüpft statt neu angelegt. Dein Titel „{typed}“ wurde nicht übernommen, denn der Katalog führt sie unter „{label}“.")
       .replace("{label}", String(linked.label || "")).replace("{typed}", String(linked.typed_label))
     : uebersetze("sources.add.linked",
-      "Diese Adresse gibt es schon — verknüpft mit „{label}“ statt eine neue Quelle anzulegen.")
-      .replace("{label}", String(linked.label || ""));
+      "Die Adresse stand schon im Katalog — verknüpft statt neu angelegt.");
   if (linked.official_changed) {
     // 💣 Der Haken hat den Katalogwert umgelegt, und das gilt ueberall, wo die Quelle steht.
     text += " " + uebersetze("sources.add.linkedOfficial",
@@ -1432,17 +1437,29 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
   // Sagt, was der Klick am GETEILTEN Katalog geaendert hat. Eine richtiggestellte Art gilt
   // ueberall, wo die Quelle zitiert wird; das gehoert gesagt, nicht bemerkt -- und es ist die
   // Gegenprobe zur stillen Nicht-Aenderung, aus der #105 entstand.
-  function zeigeUmtypung(daten) {
+  // 💣 SIE GIBT DEN SATZ ZURUECK, statt ihn zu zeigen. Am 03.09.2026 stand hier ein
+  // `showAddRowNote`, und `zeigeErgebnis` daneben schrieb unmittelbar danach in DIESELBE Zeile --
+  // die Umtypung war damit auf dem `add`-Weg nie mehr zu sehen, obwohl beide Funktionen einzeln
+  // richtig waren und beide Tests ihrer eigenen Haelfte gruen blieben. Es gibt EINE Notizzeile,
+  // also braucht es EINEN, der sie schreibt.
+  function umtypungsText(daten) {
     const umtyp = daten && daten.retyped;
     if (!umtyp) {
-      return;
+      return "";
     }
-    showAddRowNote(
-      tr("sources.add.retyped", "Art von „{label}“ auf „{to}“ geändert (war „{from}“) — das gilt überall, wo diese Quelle steht.")
-        .replace("{label}", String(umtyp.label || ""))
-        .replace("{to}", featureSourceTypeLabel(umtyp.to))
-        .replace("{from}", featureSourceTypeLabel(umtyp.from))
-    );
+    return tr("sources.add.retyped", "Art von „{label}“ auf „{to}“ geändert (war „{from}“) — das gilt überall, wo diese Quelle steht.")
+      .replace("{label}", String(umtyp.label || ""))
+      .replace("{to}", featureSourceTypeLabel(umtyp.to))
+      .replace("{from}", featureSourceTypeLabel(umtyp.from));
+  }
+
+  // Der Weg ueber die Vorschlagsliste (`add_existing`) meldet nur die Umtypung: dort hat der
+  // Editor die bestehende Quelle ausdruecklich gewaehlt, die Kachel daneben sagt das bereits.
+  function zeigeUmtypung(daten) {
+    const text = umtypungsText(daten);
+    if (text) {
+      showAddRowNote(text);
+    }
   }
 
   /**
@@ -1457,11 +1474,26 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
    * 🪤 Und NICHT beim Treffer aus der Vorschlagsliste: der laeuft ueber `add_existing`, und dort
    * hat der Editor die bestehende Quelle ausdruecklich gewaehlt -- die Kachel sagt es bereits.
    */
-  function zeigeVerknuepfung(daten) {
-    const text = featureSourceLinkedMessage(daten && daten.linked, tr);
-    if (text) {
-      showAddRowNote(text);
+  function zeigeErgebnis(daten, values) {
+    // ⚠️ Ohne Antwort hat der Fehlerweg schon gesprochen -- eine Erfolgsmeldung daneben waere
+    // die zweite, widersprechende Auskunft.
+    if (!daten) {
+      return;
     }
+    const linked = daten.linked || null;
+    // Der Name, unter dem die Zeile jetzt in der Liste steht: beim Verknuepfen der gespeicherte,
+    // sonst der eingetippte. 🔴 Genau der, den der Editor gleich sucht.
+    const name = String((linked && linked.label) || (values && values.label) || "").trim();
+    const kern = name !== ""
+      ? tr("sources.add.added", "Hinzugefügt: „{label}“.").replace("{label}", name)
+      : tr("sources.add.addedPlain", "Hinzugefügt.");
+    // 🔴 ALLE Zusaetze in DIESER Reihenfolge: was geschah (Erfolg), was am geteilten Katalog
+    // dabei anders wurde (Umtypung), womit verknuepft wurde. Jeder darf fehlen.
+    const zusaetze = [umtypungsText(daten), featureSourceLinkedMessage(linked, tr)];
+    // 🔴 GRUEN, auch beim Verknuepfen: es ist ein Erfolg, kein Einwand. Bis zum 03.09.2026 stand
+    // dort nur der Verknuepfungssatz, neutral gefaerbt, nachdem das Formular schon geleert war --
+    // und las sich wie eine Beschwerde ueber eine leere Maske.
+    showAddRowNote([kern].concat(zusaetze.filter(Boolean)).join(" "), "ok");
   }
 
   // ── Die Adressauskunft ─────────────────────────────────────────────────────────────────────
@@ -2489,9 +2521,10 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
         }
         return;
       }
-      // 🔴 BEIDE Rueckmeldungen, und in dieser Reihenfolge: die Verknuepfung ueberschreibt die
-      // Umtypung in derselben Zeile, weil sie die umfassendere Auskunft ist -- wer erfaehrt,
-      // dass er eine FREMDE Katalogzeile getroffen hat, muss das zuerst wissen.
+      // 🔴 EINE Rueckmeldung, die alles traegt (`zeigeErgebnis`): Erfolg, Umtypung, Verknuepfung.
+      // Bis zum 03.09.2026 standen hier ZWEI Rufe hintereinander, und der zweite ueberschrieb den
+      // ersten -- solange der zweite schwieg, wenn es nichts zu verknuepfen gab, ging das gut.
+      // Seit die Eingabezeile den Erfolg IMMER bestaetigt, ginge die Umtypung dabei verloren.
       // 🔴 DER ERSTE EINTRAG AUF EINER DOMAIN LEGT IHREN KORPUS AN -- sonst gäbe es ihn NIE.
       // Bis hierher entstand eine Korpuszeile nur beim Umbenennen; wer den vorgeschlagenen Namen
       // stehen liess (der Normalfall, er stimmt ja), speicherte nichts. Die nächste Seite desselben
@@ -2508,8 +2541,7 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
       // Parameter wäre eine zweite Fassung derselben Regel.
       const besitzAusZeile = featureSourceOwnFieldsFromPanel(containerEl);
       const daten = await renderFromServer("add", values);
-      zeigeUmtypung(daten);
-      zeigeVerknuepfung(daten);
+      zeigeErgebnis(daten, values);
       // ⚠️ ALLES DREI NACH dem Verknüpfen: `update` verlangt die Verknüpfung, und ein Korpus für
       // eine Quelle, die gar nicht angelegt wurde, wäre eine Leiche.
       if (daten && korrektur) {

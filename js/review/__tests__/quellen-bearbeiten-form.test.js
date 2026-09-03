@@ -411,21 +411,32 @@ function felderAusHtml(html) {
 {
 	const tr = (k, f) => f;
 
-	// ⚠️ Nichts sagen heißt „neu angelegt". Die frische Zeile zeigt genau das Eingetippte; eine
-	// Meldung dafür wäre Lärm auf dem häufigen Weg. Dieselbe Regel wie bei `retyped`.
-	gleich(featureSourceLinkedMessage(null, tr), "", "beim Anlegen wird geschwiegen");
+	// 🪤 UMGEDREHT am 03.09.2026 am Livelauf. Hier stand: „Nichts sagen heißt ‚neu angelegt‘ …
+	// eine Meldung dafür wäre Lärm auf dem häufigen Weg." Der Owner hat genau das beanstandet:
+	// die Zeile war angelegt, das Formular geleert — und das Einzige, was dastand, war der
+	// Verknüpfungssatz. Er las sich wie ein Einwand gegen eine leere Maske. „schön wärs gewesen
+	// ‚Erfolgreich hinzugefügt‘ zu lesen."
+	// 🔴 Der Erfolg steht jetzt IMMER voran (`zeigeErgebnis`), und diese Funktion liefert nur
+	// noch den ZUSATZ. Sie schweigt deshalb weiter beim Anlegen — dort gibt es nichts zu
+	// erklären, nur zu bestätigen, und das tut der Aufrufer.
+	gleich(featureSourceLinkedMessage(null, tr), "", "beim Anlegen gibt es keinen Zusatz");
 	gleich(featureSourceLinkedMessage(undefined, tr), "", "und ohne Angabe erst recht");
 
 	const schlicht = featureSourceLinkedMessage(
 		{ source_id: 7, label: "Briefspiel (Weiden)", typed_label: "", official_changed: false }, tr);
-	pruefe(schlicht.includes("gibt es schon"), "beim Verknüpfen wird es gesagt");
-	pruefe(schlicht.includes("Briefspiel (Weiden)"), "und die getroffene Quelle beim Namen genannt");
+	pruefe(schlicht.includes("stand schon im Katalog"), "beim Verknüpfen wird es gesagt");
+	pruefe(schlicht.includes("verknüpft statt neu angelegt"), "und was daraus folgte");
+	// ⚠️ Der NAME steht nicht mehr hier: ihn nennt die Erfolgsmeldung davor („Hinzugefügt: „X“."),
+	// und zweimal derselbe Name in einem Satzpaar liest sich wie ein Fehler.
+	pruefe(!schlicht.includes("Briefspiel (Weiden)"), "der Name steht in der Erfolgsmeldung, nicht hier");
 	pruefe(!schlicht.includes("offiziell"), "ohne umgelegten Haken kein Wort darüber");
 
 	// 🔴 Der Fall, der ohne Erklärung wie ein Fehler aussieht: man tippt „X", in der Liste steht „Y".
 	const umbenannt = featureSourceLinkedMessage(
 		{ source_id: 7, label: "Briefspiel (Weiden)", typed_label: "Baronie Altentrallop", official_changed: false }, tr);
 	pruefe(umbenannt.includes("Baronie Altentrallop"), "der verworfene Titel wird genannt");
+	// 🔴 Hier steht der gespeicherte Name sehr wohl -- der Satz stellt die beiden gegenüber, und
+	// ohne ihn wäre nicht zu sehen, WOGEGEN der eingetippte verloren hat.
 	pruefe(umbenannt.includes("Briefspiel (Weiden)"), "und der, unter dem die Zeile steht");
 
 	// 💣 Der Haken „offiziell" überschreibt den Katalogwert unbedingt — hat er ihn umgelegt, gilt
@@ -441,7 +452,7 @@ function felderAusHtml(html) {
 
 	// ⚠️ Ohne tr() muss er trotzdem einen Satz liefern — der Vorgabe-Übersetzer gibt den Rückfall
 	// zurück. Ein Bauteil, das ohne i18n-Schicht leer bleibt, wäre unter Node nicht prüfbar.
-	pruefe(featureSourceLinkedMessage({ label: "X", typed_label: "" }).includes("gibt es schon"),
+	pruefe(featureSourceLinkedMessage({ label: "X", typed_label: "" }).includes("stand schon im Katalog"),
 		"er kommt ohne injizierten Übersetzer aus");
 
 	// 🪤 Und der Aufrufer muss ihn wirklich rufen — sonst ist der Bauer ein Vakuum. Kommentare
@@ -449,13 +460,23 @@ function felderAusHtml(html) {
 	// mehrfach grün geblieben, ohne etwas zu prüfen.
 	const quelle = lies("js/review/review-feature-sources.js")
 		.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
-	pruefe(/zeigeVerknuepfung\(daten\);/.test(quelle), "der Add-Knopf ruft die Meldung");
-	pruefe(/featureSourceLinkedMessage\(daten && daten\.linked, tr\)/.test(quelle),
+	pruefe(/zeigeErgebnis\(daten, values\);/.test(quelle), "der Add-Knopf ruft die Meldung");
+	pruefe(/featureSourceLinkedMessage\(linked, tr\)/.test(quelle),
 		"und sie geht durch den geteilten Bauer");
-	// 🔴 BEIDE Rückmeldungen, und die Verknüpfung ZULETZT: sie überschreibt die Umtypung in
-	// derselben Zeile, weil sie die umfassendere Auskunft ist.
-	pruefe(quelle.indexOf("zeigeVerknuepfung(daten);") > quelle.indexOf("zeigeUmtypung(daten);"),
-		"die Verknüpfung wird nach der Umtypung gesetzt und gewinnt damit die Zeile");
+
+	// 💣 ES GIBT EINE NOTIZZEILE, ALSO EINEN SCHREIBER. Hier stand bis zum 03.09.2026 die
+	// umgekehrte Regel: zwei Rufe hintereinander, "die Verknüpfung überschreibt die Umtypung, weil
+	// sie die umfassendere Auskunft ist". Das ging gut, solange der zweite SCHWIEG, wenn nichts zu
+	// verknüpfen war. Seit die Zeile den Erfolg IMMER bestätigt, verschluckte der zweite Ruf jede
+	// Umtypung -- beide Funktionen einzeln richtig, beide Hälften mit grünem Test.
+	// 🔴 `zeigeErgebnis` sammelt seither alles; die Umtypung liefert ihren Satz, statt ihn zu
+	// zeigen. Ob wirklich alles drei nebeneinander steht, prüft zur LAUFZEIT Abschnitt 7 in
+	// `quellen-art-korrigieren.test.js` -- hier steht nur, dass der Weg dorthin verdrahtet ist.
+	const addZweig = quelle.slice(quelle.indexOf('renderFromServer("add", values)'));
+	pruefe(!/^[\s\S]{0,400}zeigeUmtypung/.test(addZweig),
+		"der Add-Weg schreibt die Notiz genau einmal");
+	pruefe(/umtypungsText\(daten\)/.test(quelle.slice(quelle.indexOf("function zeigeErgebnis"))),
+		"und der eine Schreiber liest die Umtypung mit");
 }
 
 console.log("OK -- " + pruefungen + " Zusicherungen erfuellt (Quellen bearbeiten, Formular).");

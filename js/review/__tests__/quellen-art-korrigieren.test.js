@@ -179,15 +179,57 @@ const frisch = (objekt) => JSON.parse(JSON.stringify(objekt));
 		"und sagt, dass die Aenderung ueberall gilt, wo die Quelle zitiert wird");
 	zaehl();
 
-	// ---- 6. Ohne Korrektur bleibt die Zeile stumm ----------------------------------------------
-	// ⚠️ Eine Meldung, die immer kommt, sagt nichts.
+	// ---- 6. Ohne Korrektur sagt die Zeile nichts UEBER DIE ART ---------------------------------
+	// 🪟 UMGEDREHT am 03.09.2026 am Livelauf. Hier stand "bleibt die Zeile stumm" mit der
+	// Begruendung "eine Meldung, die immer kommt, sagt nichts" -- und die galt der ART. Der Owner
+	// hat das Schweigen des ERFOLGS beanstandet: Zeile angelegt, Formular geleert, und darueber
+	// stand entweder nichts oder der blosse Verknuepfungssatz, der sich wie ein Einwand las.
+	// 🔴 Die Regel bleibt also, nur enger: die Zeile bestaetigt IMMER, dass es geklappt hat,
+	// und sagt NUR dann etwas ueber die Art, wenn der Katalog wirklich umgetypt wurde.
 	const ctx5 = macheKontext([frisch(LEER), frisch(LEER)]);
 	const behaelter5 = macheBehaelter();
 	await ctx5.mountFeatureSourceEditor(behaelter5, "settlement", () => ID, {});
 	behaelter5.felder[".fs-add-type"].value = "briefspiel";
 	await behaelter5._klick(KLICK_AUF_HINZUFUEGEN);
-	assert.strictEqual(behaelter5.notiz.hidden, true,
-		"ohne 'retyped' in der Antwort darf keine Meldung stehen");
+	assert.strictEqual(behaelter5.notiz.hidden, false, "der Erfolg wird trotzdem bestaetigt");
+	zaehl();
+	assert.ok(/Hinzugef/.test(behaelter5.notiz.textContent),
+		"und zwar als Erfolg: " + behaelter5.notiz.textContent);
+	zaehl();
+	assert.ok(!/ändert|berall/.test(behaelter5.notiz.textContent),
+		"ohne 'retyped' in der Antwort darf kein Wort ueber die Art darin stehen: "
+		+ behaelter5.notiz.textContent);
+	zaehl();
+
+	// ---- 7. Und BEIDE zusammen stehen in EINER Zeile -------------------------------------------
+	// 💣 Der Fall, der den Umbau vom 03.09.2026 fast still gekostet haette: Erfolg und
+	// Umtypung waren zwei Rufe hintereinander auf DIESELBE Notizzeile, der zweite gewann. Beide
+	// Funktionen waren einzeln richtig, und jede Haelfte hatte ihren gruenen Test.
+	const ctx6 = macheKontext([frisch(LEER), Object.assign(frisch(LEER), {
+		retyped: { source_id: 1322115, from: "regionalspielhilfe", to: "briefspiel", label: "Briefspiel Rommilyser Mark" },
+		linked: { source_id: 1322115, label: "Briefspiel Rommilyser Mark", typed_label: "" },
+	})]);
+	const behaelter6 = macheBehaelter();
+	// ⚠️ DIESE Attrappe bekommt eine `classList`, die anderen bewusst nicht: an ihnen haengt der
+	// Nachweis, dass ein Knoten OHNE sie den Meldungstext nicht mitreisst (der Riegel in
+	// `showAddRowNote`, gefunden am 02.09.2026 durch einen fremden Test).
+	const klassen = new Set();
+	behaelter6.notiz.classList = {
+		add: (...n) => n.forEach((x) => klassen.add(x)),
+		remove: (...n) => n.forEach((x) => klassen.delete(x)),
+	};
+	await ctx6.mountFeatureSourceEditor(behaelter6, "settlement", () => ID, {});
+	behaelter6.felder[".fs-add-type"].value = "briefspiel";
+	await behaelter6._klick(KLICK_AUF_HINZUFUEGEN);
+	const dreierlei = behaelter6.notiz.textContent;
+	assert.ok(/Hinzugef/.test(dreierlei) && /berall/.test(dreierlei) && /Katalog/.test(dreierlei),
+		"Erfolg, Umtypung und Verknuepfung stehen nebeneinander: " + dreierlei);
+	zaehl();
+	// 🔴 GRUEN, auch beim Verknuepfen -- das ist die zweite Haelfte der Owner-Beanstandung vom
+	// 03.09.2026: der Satz stand neutral gefaerbt und allein da, nachdem das Formular geleert war,
+	// und las sich wie ein Einwand. Die Farbe traegt die Aussage genauso wie das Wort.
+	assert.ok(klassen.has("fs-add-note--ok"),
+		"und die Zeile ist gruen: " + Array.from(klassen).join(", "));
 	zaehl();
 
 	console.log("quellen-art-korrigieren.test.js: " + pruefungen + " Zusicherungen erfuellt");
