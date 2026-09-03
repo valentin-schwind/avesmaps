@@ -424,11 +424,9 @@ zu erwarten; der Test hält es fest (§7).
 
 ## 8 · Offene Fragen an den Owner
 
-1. **Die Karten-Annahme** (§5.5): (a) bleibt serverseitig, die Quelle entsteht beim Klick auf
-   „Anlegen" mit Korpuswerten, korrigierbar danach im Stadtkarten-Editor — oder (b) „Anlegen"
-   öffnet den Stadtkarten-Editor mit der wartenden Quelle im Formular, wie beim Ort. Vorschlag: (a)
-   jetzt, weil es die Regel §6.3 ohnehin braucht und keinen neuen Weg; (b) als eigener Schritt,
-   wenn Kartenvorschläge mit Quellen wirklich kommen (heute: eine offene Kartenmeldung).
+1. ✅ **Die Karten-Annahme** (§5.5): Owner 03.09.2026 — „a erstmal lassen, wir schauen, was die
+   editoren sagen". Also (a): serverseitig, die Quelle entsteht beim Klick auf „Anlegen" mit
+   Korpuswerten, korrigierbar danach im Stadtkarten-Editor; (b) bleibt als späterer Schritt notiert.
 2. **Die Falte „Mehr zur Quelle"** bietet Titel, Abdeckung, Lizenz, Namensnennung. Der Satz brach
    nach „seite, lizenz und" ab — sind **Titel** und **Namensnennung** gemeint, oder nur die
    Abdeckung und die Lizenz?
