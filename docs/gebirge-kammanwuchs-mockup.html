@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Kamm, Taeler, Erosion – Konzept (2026-09-03)</title>
+<script>
+  /* Wie jede Editorseite: gespeicherte Wahl schlaegt OS-Schema, vor dem ersten Anstrich. */
+  (function () {
+    function isDark() {
+      var s = null; try { s = localStorage.getItem("avesmaps-theme"); } catch (e) {}
+      if (s === "dark") { return true; }
+      if (s === "light") { return false; }
+      return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    }
+    function apply() {
+      if (isDark()) { document.documentElement.setAttribute("data-theme", "dark"); }
+      else { document.documentElement.setAttribute("data-theme", "light"); }
+    }
+    apply();
+    window.avesmapsMockupToggleTheme = function () {
+      var dark = document.documentElement.getAttribute("data-theme") === "dark";
+      try { localStorage.setItem("avesmaps-theme", dark ? "light" : "dark"); } catch (e) {}
+      apply();
+      if (typeof window.avesmapsMockupRepaint === "function") { window.avesmapsMockupRepaint(); }
+    };
+  })();
+</script>
+<!-- 🔴 RELATIVE Pfade, Absicht: eine docs/-Datei, die per file:// geoeffnet wird. Geladen wird die
+     ECHTE CSS-Kette der Editorseiten -- kein Farbwert steht in dieser Datei. -->
+<link rel="stylesheet" href="../css/base/fonts.css">
+<link rel="stylesheet" href="../css/base/tokens.css">
+<link rel="stylesheet" href="../css/components/editor-page.css">
+<!-- 🔴 DIE ECHTE RECHENSTRECKE DER KARTE, unveraendert geladen wie in index.html. Stufe "Heute"
+     entsteht damit aus demselben Feldbau wie die Karte -- sie wird nicht nachgebaut. Auch die
+     Potenzsuche ist die echte (solveEcosystemNoiseExponent).
+     💣 Und die KURVEN sind echt: `live_curve` in den Daten, geholt aus
+     GET /api/app/map-features.php am 03.09.2026, ebenso die Flusslaeufe. -->
+<script src="../js/map-features/map-features-point-in-polygon.js"></script>
+<script src="../js/map-features/map-features-ecosystem-geometry.js"></script>
+<script src="../js/map-features/map-features-ecosystem-height-field.js"></script>
+<script src="../js/map-features/map-features-ecosystem-height-combine.js"></script>
+<!-- 🔴 DREI PROTOTYP-MODULE, keines davon in Avesmaps gebaut. Eigene Dateien, weil sie unter Node
+     pruefbar sein muessen und weil ein zweiter Leser sie sonst abschreibt -- der Schritt, den
+     docs/kurvenlabel-pipeline.js am 24.08.2026 vorgemacht hat.
+     ⚠️ flusstaeler-talmodul.js ist am 03.09.2026 aus docs/flusstaeler-hoehenfeld-mockup.html
+     herausgeloest worden und dort zeichengleich weiterverwendet -- Fall #109, entworfen, nicht gebaut. -->
+<script src="kammanwuchs-modul.js"></script>
+<script src="flusstaeler-talmodul.js"></script>
+<script src="erosion-droplet.js"></script>
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════════════════════
+   Kein hartkodierter Farbwert, kein hartkodierter Radius, keine Schrift unter 11px
+   (AGENTS.md §12). Alles unten sind Tokens aus css/base/tokens.css. Die Graustufen in den
+   Leinwaenden sind DATEN (die gemalten Hoehen), keine Bedienoberflaeche -- dieselbe Ausnahme
+   wie bei der Hoehenskala und beim Flusstaeler-Prototyp.
+   ═══════════════════════════════════════════════════════════════════════════════════════════ */
+.proto-page { max-width: 1440px; margin: 0 auto; padding: var(--space-24) var(--space-16); }
+.proto-h1 { margin: 0 0 var(--space-4); font-size: var(--font-size-title); }
+.proto-sub { margin: 0 0 var(--space-16); color: var(--color-text-muted); font-size: var(--font-size-small); }
+.proto-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-12); }
+.proto-head .avm-tile { flex: none; }
+.proto-note {
+	margin: 0 0 var(--space-16);
+	padding: var(--space-10) var(--space-12);
+	border: 1px solid var(--color-border);
+	border-left: 3px solid var(--color-accent-brown);
+	border-radius: var(--radius-md);
+	background: var(--color-panel-soft);
+	color: var(--color-text-muted);
+	font-size: var(--font-size-small);
+	line-height: 1.55;
+}
+.proto-note strong, .proto-note b { color: var(--color-text); }
+.proto-note code { font-size: var(--font-size-caption); }
+
+/* ---- Reglerleiste ---------------------------------------------------------------------- */
+.kam-controls {
+	display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: var(--space-16);
+	padding: var(--space-12);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-panel);
+	margin-bottom: var(--space-12);
+}
+.kam-group { display: flex; flex-direction: column; gap: var(--space-8); }
+.kam-group > h3 {
+	margin: 0; font-size: var(--font-size-small); color: var(--color-text); font-weight: 600;
+	padding-bottom: var(--space-4); border-bottom: 1px solid var(--color-divider);
+}
+.kam-group > h3 span { color: var(--color-text-muted); font-weight: 400; }
+.kam-ctl { display: flex; flex-direction: column; gap: var(--space-2); }
+.kam-ctl__label { font-size: var(--font-size-caption); color: var(--color-text); }
+.kam-ctl__row { display: flex; align-items: center; gap: var(--space-8); }
+.kam-ctl input[type="range"] { flex: 1 1 auto; accent-color: var(--color-accent-brown); min-width: 0; }
+.kam-ctl__val { min-width: 86px; text-align: right; font-variant-numeric: tabular-nums; font-size: var(--font-size-caption); color: var(--color-text); }
+.kam-hint { font-size: var(--font-size-caption); color: var(--color-text-muted); line-height: 1.45; }
+.kam-check { display: flex; align-items: center; gap: var(--space-8); font-size: var(--font-size-caption); color: var(--color-text); }
+.kam-check input { accent-color: var(--color-accent-brown); }
+.kam-status {
+	font-size: var(--font-size-caption); color: var(--color-text-muted); line-height: 1.5;
+	padding: var(--space-6) var(--space-12); margin-bottom: var(--space-16);
+	border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-panel-soft);
+}
+.kam-status b { color: var(--color-text); }
+.kam-status--busy { border-color: var(--color-accent-brown); }
+
+/* ---- Ein Gebirge ----------------------------------------------------------------------- */
+.kam-mount { border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-panel); margin-bottom: var(--space-16); overflow: hidden; }
+.kam-mount__head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-8); flex-wrap: wrap; padding: var(--space-10) var(--space-12); border-bottom: 1px solid var(--color-divider); }
+.kam-mount__name { font-weight: 600; font-size: var(--font-size-control); color: var(--color-text); }
+.kam-mount__meta { font-size: var(--font-size-caption); color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
+.kam-mount__meta b { color: var(--color-text); font-weight: 600; }
+.kam-stages { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--color-divider); }
+@media (max-width: 1240px) { .kam-stages { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 680px) { .kam-stages { grid-template-columns: 1fr; } }
+.kam-stage { background: var(--color-panel); display: flex; flex-direction: column; }
+.kam-stage__head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-8); padding: var(--space-6) var(--space-10); }
+.kam-stage__title { font-size: var(--font-size-caption); font-weight: 600; color: var(--color-text); }
+.kam-stage__title i { font-style: normal; color: var(--color-text-muted); font-weight: 400; }
+.kam-stage__tally { font-size: var(--font-size-caption); color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
+/* Die Leinwand: Karteneinheiten -> Bildpunkte, Norden oben wie auf der Karte. Der Grund ist die
+   Seitenfarbe -- ausserhalb der Flaeche liegt kein Feld, dort bleibt sie durchsichtig, genau wie
+   auf der Karte (`continue` in der Malschleife).
+   ⚠️ Die Leinwand traegt ihr Seitenverhaeltnis selbst; der Kasten begrenzt nur die HOEHE, damit
+   ein langgezogenes Gebirge (Schwarze Sichel: 573 px bei 300 Breite) nicht die Seite fuellt. */
+.kam-canvas-wrap { position: relative; background: var(--color-page-bg-deep); flex: 1 1 auto; display: flex; align-items: center; justify-content: center; }
+.kam-canvas-wrap canvas { display: block; max-width: 100%; max-height: 380px; height: auto; width: auto; }
+.kam-stage__foot { padding: var(--space-4) var(--space-10) var(--space-6); font-size: var(--font-size-caption); color: var(--color-text-muted); font-variant-numeric: tabular-nums; min-height: 1.5em; }
+.kam-stage__foot b { color: var(--color-text); }
+.kam-profile { border-top: 1px solid var(--color-divider); padding: var(--space-8) var(--space-12) var(--space-10); }
+.kam-profile canvas { display: block; width: 100%; height: auto; }
+.kam-legend { display: flex; flex-wrap: wrap; gap: var(--space-12); padding-top: var(--space-4); font-size: var(--font-size-caption); color: var(--color-text-muted); }
+.kam-legend i { display: inline-block; width: 18px; height: 0; border-top: 2px solid; vertical-align: middle; margin-right: var(--space-4); }
+.kam-legend .kam-leg-heute i { border-color: var(--color-text-muted); }
+.kam-legend .kam-leg-kamm i { border-color: var(--color-accent-brown); }
+.kam-legend .kam-leg-tal i { border-color: var(--color-path-flussweg); }
+.kam-legend .kam-leg-ero i { border-color: var(--color-link); }
+.kam-legend .kam-leg-achse i { border-color: var(--color-text-muted); border-top-style: dotted; }
+
+/* ---- Zahlen + Regeln -------------------------------------------------------------------- */
+.kam-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--space-8); margin: var(--space-12); }
+.kam-fact { padding: var(--space-6) var(--space-10); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-panel-soft); }
+.kam-fact__k { font-size: var(--font-size-caption); color: var(--color-text-muted); }
+.kam-fact__v { font-size: var(--font-size-small); color: var(--color-text); font-weight: 600; font-variant-numeric: tabular-nums; }
+.kam-fact--gut { border-color: var(--color-accent-brown); }
+.kam-fact--gut .kam-fact__v { color: var(--color-accent-brown); }
+.kam-rules { margin: var(--space-16) 0 0; padding: var(--space-12) var(--space-16); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-panel); }
+.kam-rules h2 { margin: 0 0 var(--space-8); font-size: var(--font-size-control); color: var(--color-text); }
+.kam-rules h2:not(:first-child) { margin-top: var(--space-16); padding-top: var(--space-12); border-top: 1px solid var(--color-divider); }
+.kam-rules ol, .kam-rules ul { margin: 0; padding-left: var(--space-20); }
+.kam-rules li { font-size: var(--font-size-small); color: var(--color-text-muted); line-height: 1.6; margin-bottom: var(--space-6); }
+.kam-rules li b, .kam-rules li strong { color: var(--color-text); }
+.kam-rules code { font-size: var(--font-size-caption); }
+.kam-formula {
+	margin: var(--space-8) 0 var(--space-12); padding: var(--space-10) var(--space-12);
+	border: 1px solid var(--color-border); border-radius: var(--radius-md);
+	background: var(--color-panel-soft); color: var(--color-text);
+	font-size: var(--font-size-small); line-height: 1.95; font-variant-numeric: tabular-nums;
+}
+.kam-formula em { color: var(--color-text-muted); font-style: normal; font-size: var(--font-size-caption); }
+.kam-formula .kam-neu { color: var(--color-accent-brown); font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="proto-page">
+
+<div class="proto-head">
+	<div>
+		<h1 class="proto-h1">Kamm-Anwuchs, Flusstaeler, Erosion &mdash; als EINE Kette</h1>
+		<p class="proto-sub">Konzept, 03.09.2026 &middot; drei echte Gebirge, echter Feldbau, echte Beschriftungskurven, echte Flusslaeufe &middot; <b>nichts davon ist gebaut</b></p>
+	</div>
+	<button type="button" class="avm-tile" onclick="window.avesmapsMockupToggleTheme()"><span class="t1">Hell / Dunkel</span><span class="t2">Beide Themen pruefen</span></button>
+</div>
+
+<p class="proto-note">
+	<b>Vier Stufen, kumulativ.</b> <i>Heute</i> ist der <b>echte</b> Feldbau der Karte
+	(<code>map-features-ecosystem-height-*.js</code>, unveraendert geladen). Darueber legen sich
+	<i>Kamm-Anwuchs</i> (neu, dieses Konzept), <i>Flusstaeler</i> (Fall #109 &mdash; entworfen, nicht
+	gebaut; das Talmodul ist aus jenem Prototyp herausgeloest und dort zeichengleich weiterverwendet)
+	und <i>Erosion</i> (Tropfenverfahren). Kammlinien und Flusslaeufe kommen aus
+	<code>GET /api/app/map-features.php</code>, geholt am 03.09.2026 &mdash; nichts davon ist
+	nachgerechnet. <b>Neu an eigenen Werten:</b> ein Blur fuer die Kammhuelle; die Taelerwerte gehoeren
+	Fall #109; die Erosion bringt eigene mit &mdash; siehe ihren Kasten unten.
+</p>
+
+<div class="kam-controls">
+	<div class="kam-group">
+		<h3>1 &middot; Kamm-Anwuchs <span>&mdash; neu</span></h3>
+		<div class="kam-ctl">
+			<span class="kam-ctl__label">Blur der Kammhuelle</span>
+			<div class="kam-ctl__row">
+				<input type="range" id="kam-blur" min="0" max="15" step="0.5" value="4">
+				<span class="kam-ctl__val" id="kam-blur-val">4,0 E</span>
+			</div>
+		</div>
+		<label class="kam-check"><input type="checkbox" id="kam-an" checked> Anwuchs an</label>
+		<label class="kam-check"><input type="checkbox" id="kam-solve" checked> Potenz neu suchen (Huelle <b>im</b> Feldbau)</label>
+		<span class="kam-hint"><b>Der einzige neue Wert.</b> Bei <b>0</b> steht auf der Kurve ein scharfer Grat &mdash; der Abstand zu einer Linie hat dort einen Knick. In Karteneinheiten (1 E = 3 Meilen).</span>
+	</div>
+
+	<div class="kam-group">
+		<h3>2 &middot; Flusstaeler <span>&mdash; Fall #109</span></h3>
+		<div class="kam-ctl">
+			<span class="kam-ctl__label">Talbreite (halb, Fluss bis Talrand)</span>
+			<div class="kam-ctl__row">
+				<input type="range" id="tal-breite" min="1.5" max="15" step="0.5" value="4.5">
+				<span class="kam-ctl__val" id="tal-breite-val">4,5 mi</span>
+			</div>
+		</div>
+		<div class="kam-ctl">
+			<span class="kam-ctl__label">Taltiefe</span>
+			<div class="kam-ctl__row">
+				<input type="range" id="tal-tiefe" min="25" max="100" step="5" value="100">
+				<span class="kam-ctl__val" id="tal-tiefe-val">100 %</span>
+			</div>
+		</div>
+		<label class="kam-check"><input type="checkbox" id="tal-an" checked> Taeler an</label>
+		<span class="kam-hint">Vorgaben aus dem Entwurf von Fall #109 (&#9733; 4,5 Meilen, Tiefe 100 %). Ein Bach zaehlt mit halber Breite.</span>
+	</div>
+
+	<div class="kam-group">
+		<h3>3 &middot; Erosion <span>&mdash; Tropfenverfahren</span></h3>
+		<div class="kam-ctl">
+			<span class="kam-ctl__label">Tropfen je Gebirge</span>
+			<div class="kam-ctl__row">
+				<input type="range" id="ero-tropfen" min="0" max="40000" step="2000" value="8000">
+				<span class="kam-ctl__val" id="ero-tropfen-val">8.000</span>
+			</div>
+		</div>
+		<div class="kam-ctl">
+			<span class="kam-ctl__label">Abtragkraft</span>
+			<div class="kam-ctl__row">
+				<input type="range" id="ero-kraft" min="5" max="60" step="5" value="30">
+				<span class="kam-ctl__val" id="ero-kraft-val">0,30</span>
+			</div>
+		</div>
+		<label class="kam-check"><input type="checkbox" id="ero-an" checked> Erosion an</label>
+		<label class="kam-check"><input type="checkbox" id="ero-pull" checked> Hoehen danach nachziehen</label>
+		<span class="kam-hint"><b>0 Tropfen = aus.</b> Sie rechnet auf einem Raster und ist der teure Schritt &mdash; die Regler wirken beim Loslassen, nicht beim Ziehen.</span>
+	</div>
+
+	<div class="kam-group">
+		<h3>Anzeige</h3>
+		<label class="kam-check"><input type="checkbox" id="kam-terrain" checked> Graustufe auf das Gelaende, nicht auf den Gipfel</label>
+		<label class="kam-check"><input type="checkbox" id="kam-peaks" checked> Gipfel zeigen</label>
+		<label class="kam-check"><input type="checkbox" id="kam-curve" checked> Kammlinie zeigen</label>
+		<label class="kam-check"><input type="checkbox" id="kam-rivers" checked> Flusslaeufe zeigen</label>
+		<label class="kam-check"><input type="checkbox" id="kam-huelle"> Kammhuelle statt "Heute" zeigen</label>
+		<span class="kam-hint">Alle vier Stufen bekommen <b>dieselbe</b> Graustufen-Referenz &mdash; zwei Skalen nebeneinander waeren kein Vergleich.</span>
+	</div>
+</div>
+
+<div class="kam-status" id="kam-status">&nbsp;</div>
+
+<div id="kam-mounts"></div>
+
+<div class="kam-rules">
+	<h2>Die Kette &mdash; und warum sie in dieser Reihenfolge steht</h2>
+	<div class="kam-formula">
+		<b>1</b>&nbsp; Rauschfeld&nbsp;&nbsp;&nbsp;<b>n = S&prime; &middot; (<span class="kam-neu">Kammhuelle</span> &middot; Rauschsumme)<sup>P&prime;</sup></b><br>
+		<b>2</b>&nbsp; Feld&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>h = Gipfelbuckel + Gipfelfenster &middot; n</b><br>
+		<b>3</b>&nbsp; Taeler&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>h&prime; = carveEcosystemValley(h)</b> &mdash; Talboden monoton fallend<br>
+		<b>4</b>&nbsp; Erosion&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>h&Prime; = Gipfelbuckel + Tropfenlauf(h&prime; &minus; Gipfelbuckel)</b><br>
+		<em>Kammhuelle = d<sub>Rand</sub> / (d<sub>Rand</sub> + d<sub>Kamm</sub>), weichgezeichnet &middot;
+		S&prime;/P&prime; sucht die echte Routine (<code>solveEcosystemNoiseExponent</code>) auf dem Feld MIT Huelle</em>
+	</div>
+	<ol>
+		<li><b>Der Kamm ist die Kurve, die es schon gibt.</b> <code>avesmapsCurveBaseline</code> legt sie als
+			Mittelachse der Flaeche aus &mdash; genau die Linie, auf der der Name sitzt. Ein Gebirge bekommt
+			damit keinen zweiten, konkurrierenden Kammbegriff.</li>
+		<li><b>Die Huelle traegt kein eigenes Mass.</b> <code>d<sub>Rand</sub> / (d<sub>Rand</sub> + d<sub>Kamm</sub>)</code>
+			ist am Rand exakt&nbsp;0, auf der Kurve exakt&nbsp;1 und dazwischen monoton &mdash; ohne
+			Reichweite, ohne Staerke, ohne Abfallkurve. Beide Abstaende sind schon da: der Randabstand als
+			<code>edgeGrid</code> (das Gratverfahren rechnet ihn ohnehin), der Kammabstand als Abstand zur
+			Polylinie.</li>
+		<li><b>Sie steht VOR der Potenz</b> &mdash; nicht Geschmack, sondern die Bauform, die daneben schon
+			steht: <code>ecosystemEdgeEnvelope</code> des Gratverfahrens sitzt an genau derselben Stelle, mit
+			genau derselben Begruendung im Kommentar. Die Messschleife misst mit Potenz&nbsp;1, also muss sie
+			das fertige Feld sehen.</li>
+		<li><b>Erosion kommt ZULETZT, und sie ist die einzige Stufe mit Zustand.</b> Die drei anderen sind
+			Funktionen: man fragt (x,&nbsp;y) und bekommt eine Zahl. Ein Tropfen traegt Sediment von A nach B,
+			also muss B sich merken, dass dort etwas liegt &mdash; sie braucht ein Raster.</li>
+		<li><b>Der Gipfel bleibt in allen vier Stufen auf seiner Zahl.</b> Bei 1&ndash;2 vom Gipfelfenster,
+			bei 3 von der Talbreiten-Klemme (Fall #109, Regel&nbsp;8), bei 4 davon, dass der Buckel
+			<b>nach</b> dem Tropfenlauf addiert wird. Die Zahlenkaesten nennen ihn vor und nach der Kette.</li>
+	</ol>
+
+	<h2>💣 Was die Erosion in diesem Modell kostet &mdash; der eigentliche Befund</h2>
+	<ul>
+		<li><b>Sie passt nicht in die Zeichenfunktion, sondern in den Rasterlauf.</b> Alles am Hoehenmodell
+			ist heute zustandsfrei; daran haengt, dass es billig, seedfest und in jeder Reihenfolge abfragbar
+			ist. Erosion braucht ein veraenderbares Raster &mdash; wer sie in
+			<code>sampleEcosystemHeightField</code> einbaut, bekommt bei jedem Bild ein anderes Gebirge.
+			Ihr Platz ist <code>terrain-store.php</code>, der Knopf "Hoehenraster rechnen".</li>
+		<li>💣 <b>Und eine Daempfung reicht nicht gegen eine iterative Rechnung.</b> Der erste Entwurf
+			multiplizierte jede Aenderung mit dem Gipfelfenster &mdash; genau die Groesse, mit der sich das
+			Warping-Verfahren gegen denselben Fehler absichert (es las sonst 2.970 statt 3.000). Unter Node
+			gemessen, 3.000er Kegel, 20.000 Tropfen: der Gipfel las <b>2.944</b>, die Randzellen wanderten um
+			<b>21</b> Schritt. Beim Warping ist es EIN Versatz; hier sind es 20.000 kleine Aenderungen, und
+			ein Restfaktor von 0,04 summiert sich zu 236 Schritt. <b>Ein Faktor daempft eine einmalige
+			Rechnung; gegen eine iterative braucht es einen Riegel.</b></li>
+		<li>⭐ <b>Die Loesung ist die Hausform, nicht ein schaerferer Faktor.</b> Erodiert wird das Feld
+			<b>ohne</b> die Gipfelbuckel, und die kommen danach obendrauf. Am Gipfel ist das Gipfelfenster 0,
+			der Buckel traegt dort also exakt seine Zahl &mdash; egal was die Erosion tut. Nachgemessen:
+			Randinvariante <b>0,000000</b>, Gipfel <b>3.000,0000 &rarr; 3.000,0000</b>. Das ist keine
+			Naeherung mehr, sondern algebraisch dicht &mdash; und Zeichen fuer Zeichen dieselbe Bauform wie
+			der Kamm-Anwuchs. An den drei echten Gebirgen steht die Randinvariante ebenfalls auf
+			<b>0,000</b> (die Fusszeile der Erosionsstufe nennt sie), und der hoechste Gipfel liest nach
+			der ganzen Kette wieder seine eigene Zahl.</li>
+		<li>💣 <b>Der erste Riegel allein hat trotzdem geleckt &mdash; um 62 Schritt.</b> Der Gipfelbuckel
+			kommt nach dem Tropfenlauf obendrauf, aber ein Tropfen darf in der Zelle NEBEN dem Gipfel
+			ablagern, und der bilineare Lesekern zieht das in den Gipfel hinein. <b>Und das ist kein
+			Auflösungsproblem:</b> ueber fuenf Rasterweiten gemessen (64/96/128/192/256) betraegt das Leck
+			11,2 / 98,4 / 12,4 / 8,1 / 9,8 Schritt &mdash; es faellt nicht monoton, es schwankt damit,
+			welcher Tropfen zufaellig in die Gipfelzelle laeuft. Wer das nicht nachmisst, "loest" es mit
+			mehr Zellen und bezahlt Rechenzeit fuer nichts. Der zweite Riegel ist das Gipfelfenster beim
+			Lesen &mdash; dieselbe Groesse, die in Stufe 1 und 2 schon steht.</li>
+		<li>⚠️ <b>Sie traegt netto Masse ab, und die verschwindet am Rand.</b> An den drei Gebirgen
+			gemessen (8.000 Tropfen, Abtragkraft 0,30): Abtrag 7,6 / 12,7 / 5,4 Millionen Schritt gegen
+			Auftrag 5,7 / 9,0 / 4,5 Millionen. Der Grund ist die Fusshoehe-0-Regel selbst &mdash; ein
+			Tropfen, der die Flaeche verlaesst, nimmt sein Sediment mit, denn ablagern darf er am Rand
+			nicht.</li>
+		<li>🔴 <b>Und das kostet die eingestellte Durchschnittshoehe, nicht nur ein paar Prozent.</b>
+			Mit der Skalierung ("Hoehen danach nachziehen") wird die <b>Maximalhoehe</b> wieder exakt
+			getroffen &mdash; <b>+0,0 %</b> bei allen drei. Der <b>Durchschnitt</b> bleibt bei
+			<b>&minus;67,9 % / &minus;82,6 % / &minus;74,7 %</b>. Eine reine Skalierung kann das nicht
+			heilen: sie hebt Spitzen und Rinnen gleichmaessig. Heilen wuerde es die Potenzsuche &mdash;
+			und die verzerrt genau die Rinnen, um deren willen man erodiert. <b>Erosion heisst in diesem
+			Modell: entweder verliert <code>terrain_mean_height</code> seine Bedeutung, oder die Rinnen
+			werden wieder glattgezogen.</b> Das ist die Frage, die vor dem Bau zu entscheiden ist, und sie
+			ist eine Owner-Frage, keine technische.</li>
+		<li>🔧 <b>Und sie bringt eigene Werte mit &mdash; anders als der Kamm-Anwuchs.</b> Traegheit,
+			Kapazitaet, Verdunstung, Schwerkraft, Wirkradius, Schrittdeckel: sechs Zahlen, die im Gelaende
+			nichts entsprechen, das schon in den Daten steht. Sie stehen als Modulkonstanten mit Begruendung
+			da; nur Tropfenzahl und Abtragkraft sind hier Regler. <b>Das ist der Preis dieses Verfahrens</b>
+			und der Punkt, an dem es sich vom Kamm-Anwuchs unterscheidet.</li>
+	</ul>
+
+	<h2>Was ich zur Erosion sage</h2>
+	<ul>
+		<li><b>Als Kartenbild ist sie das Ueberzeugendste der drei</b> &mdash; sie erzeugt genau die
+			verzweigten Rinnen, die ein Gebirge glaubwuerdig machen, und sie tut es von selbst, ohne dass
+			jemand einen Kamm oder einen Fluss zeichnen muss.</li>
+		<li><b>Als Eingriff ins Modell ist sie die teuerste.</b> Sie ist die einzige der drei Stufen, die
+			(a) Zustand braucht, (b) sechs neue Zahlen mitbringt, (c) die zwei eingestellten Hoehen
+			verschiebt und (d) nur im Rasterlauf laufen kann &mdash; also nicht im Browser, wo die Karte
+			zeichnet. Damit ist sie kein Nachmittagsprojekt wie der Kamm-Anwuchs, sondern ein eigener
+			Umbau in derselben Groessenordnung wie Fall #109.</li>
+		<li><b>Empfehlung als Reihenfolge, nicht als Auswahl:</b> Kamm-Anwuchs zuerst (eine Zeile im Kern,
+			kein neuer Parameter ausser dem Blur, beide Invarianten unberuehrt), dann Fall #109 (entworfen
+			und geplant, wartet nur auf GO), <b>Erosion als eigener dritter Schritt</b> &mdash; und dann
+			zuerst im Rasterlauf gegen Reisezeiten gemessen, nicht am Bild beurteilt. Der Querfeldein-A*
+			liest dasselbe Feld (<code>terrain-store.php</code>), und ein Gebirge mit Rinnen ist ein anderes
+			Reisehindernis als eines mit Buckeln.</li>
+	</ul>
+
+	<h2>🔧 Offen &mdash; gehoert in den Entwurf, nicht in dieses Bild</h2>
+	<ul>
+		<li><b>26 der 69 Gebirge haben heute keinen Kamm.</b> Die Kurve entsteht nur, wo die
+			Kurvenbeschriftung eingeschaltet ist (live gemessen 03.09.2026: 43 von 69 Gebirgs-Regionen tragen
+			eine gerechnete Kurve, bei 76 Gipfel-Labels insgesamt). Bleibt es dabei, veraendert ein Editor mit
+			dem Beschriftungshaken die <b>Gelaendeform</b> &mdash; und damit Reisezeiten. Die Alternative ist,
+			die Achse von der Beschriftung zu entkoppeln: sie ist dann Gelaendeform, nicht Schriftfuehrung.</li>
+		<li><b>Welche Flaechenarten?</b> Hier nur <code>gebirge</code>. Huegelland, Hochebene, Tal und Wadi
+			haetten dieselbe Achse zur Verfuegung &mdash; ob sie sie wollen, ist eine eigene Entscheidung.</li>
+		<li><b>Die Kurve darf leicht ausserhalb der Flaeche liegen.</b> Gemessen am Finsterkamm: der
+			Polynom-Fit haengt 0,7&nbsp;Einheiten ueber den Rand hinaus. Fuer die Huelle harmlos (der
+			Kammabstand ist dort schlicht groesser als 0), aber der Grund, warum sie <b>nicht</b> "auf der
+			Kurve ist die Huelle 1" zusichern darf, sondern nur "zur Kurve hin waechst sie".</li>
+		<li>🪤 <b>Eine Messfalle, die dieses Bild selbst gestellt hat.</b> Ø und Max muessen am
+			<b>Rauschfeld ohne Gipfel und mit Rauschfenster 1</b> gemessen werden &mdash; genau das tut der
+			Feldbau (<code>const measuring = { ...field, peakBumps: [] }</code>). Ueber das Gesamtfeld
+			gemessen ueberdeckt ein einzelner Gipfel alles: an der Roten Sichel stand so ein Ø von 1.594
+			gegen eingestellte 500, und das sah wie ein Fehler des Anwuchses aus, obwohl es die Messung war.</li>
+		<li>🪤 <b>Und eine zweite, die zwei Runden gekostet hat: ein Messgitter, das groeber ist als das
+			gemessene Raster.</b> Die Kennzahlen tasten mit 81&times;81 Punkten ab, das Erosionsraster hat
+			96&times;96 Zellen. Nach der Erosion ist das Maximum ein <b>Einzelzellen-Spike</b> (bei der
+			Schwarzen Sichel hat die Spitzenzelle die Nachbarn 0/0/0), und ein zu grobes Gitter trifft ihn
+			nicht: in den Kaesten standen 40,7 % und 48,5 % Abweichung, wo bei 4-facher Abtastung nur
+			8,9 % und 3,2 % sind. Die Zahl sah wie ein Befund ueber die Erosion aus und war einer ueber
+			die Messung. Die Erosionsstufe wird deshalb <b>am Raster</b> gemessen &mdash; exakt und
+			billiger.</li>
+		<li><b>Reisezeiten sind nirgends gemessen.</b> Alle drei Stufen veraendern das Feld, auf dem der
+			Querfeldein-A* rechnet. Wie viel eine Reise dadurch anders ausfaellt, sagt dieses Bild nicht.</li>
+	</ul>
+</div>
+
+</div>
+
+<script id="kam-data" type="application/json">[{"name":"Finsterkamm","region_public_id":"8ef5836c-9fbe-4242-9efa-c480293feb87","areas":[{"public_id":"565f9753-8421-4772-98e0-29e6c834fe09","geometry_revision":16,"region_type":"gebirge","terrain_grain":23.4,"terrain_levels":5,"terrain_avg_height":1500,"terrain_mean_height":1350,"bounds":{"min_x":439.043,"min_y":585.198,"max_x":547.75,"max_y":669.202},"geometry":{"type":"Polygon","coordinates":[[[439.043,590.853],[439.374,589.996],[439.993,589.317],[443.566,587.658],[445.191,587.283],[449.368,587.068],[450.191,586.658],[453.137,586.341],[456.191,585.22],[460.106,585.198],[462.364,585.887],[464.543,586.073],[465.842,586.638],[467.427,586.825],[469.473,588.253],[470.65,589.666],[471.676,590.281],[475.614,591.512],[478.821,593.544],[480.541,593.795],[482.503,593.345],[484.856,593.386],[486.473,594.191],[488.259,595.998],[491.856,596.323],[494.239,596.95],[496.41,598.441],[497.427,600.021],[499.918,600.323],[502.177,601.075],[503.394,602.409],[503.481,603.751],[506.723,606.128],[507.69,606.617],[512.793,607.136],[515.114,607.95],[515.848,608.503],[516.331,609.284],[516.356,611.46],[516.91,611.878],[518.198,614.327],[520.348,617.253],[521.519,619.347],[523.677,625.273],[523.677,625.273],[523.677,625.273],[523.677,625.273],[523.677,625.273],[523.677,625.273],[523.677,625.273],[523.677,625.273],[523.677,625.273],[523.677,625.273],[523.677,625.273],[524.816,624.533],[525.731,624.448],[527.348,625.253],[528,626.938],[527.831,627.841],[526.803,629.033],[527.269,629.784],[529.01,631.554],[531.098,633.128],[535.614,635.137],[536.348,635.691],[537,637.375],[536.348,639.059],[536.502,639.444],[538.844,640.407],[539.844,642.438],[543.563,646.065],[545.438,648.876],[545.25,650.625],[545.797,652.774],[545.43,654.281],[546.453,654.97],[547.75,656.891],[547.75,659.734],[546.561,660.409],[546.287,662.556],[545.883,663.21],[546.328,663.906],[544.891,667.108],[542.219,668.061],[540.578,667.655],[538.281,669.202],[536.656,669.171],[533.766,667.187],[533.094,666.171],[526.625,664.001],[525.578,662.374],[524.975,662],[523.878,661.967],[523.056,661.558],[522.105,660.022],[522.437,658.246],[522.063,657.938],[521.498,657.374],[521.313,657.188],[520.75,656.813],[520.125,656.563],[519.606,656.177],[517.868,655.683],[517.066,654.531],[514.999,652.629],[511.868,650.683],[510.743,649.683],[510.124,649.004],[509.32,647.067],[507.661,645.874],[506.493,645.433],[505.874,644.754],[505.543,643.897],[504.191,643.78],[503.368,643.37],[501.411,641.931],[500.306,641.495],[497.806,639.433],[496.437,637.504],[495.757,635.502],[494.062,633.254],[493.599,631.267],[490.999,628.254],[490.346,626.296],[482.368,621.058],[480.562,619.441],[479.614,617.742],[476.87,615.672],[476.003,615.592],[474.929,614.906],[472.566,615.092],[471.743,614.683],[469.661,612.891],[464.066,611.342],[461.618,610.183],[459.812,608.316],[459.48,607.087],[458.73,605.772],[455.993,604.683],[454.743,603.808],[453.637,602.241],[449.681,600.558],[448.431,599.87],[446.899,598.481],[441.493,595.995],[439.687,594.254],[439.043,591.772],[439.043,590.853]]]}}],"peaks":[{"id":"3c1a6069-a9e4-43e7-bb1e-f5e2ba080db2","n":"Hoher Stumpen","x":527.969,"y":647.609,"h":2300,"st":"berggipfel"},{"id":"cc223529-c1f0-4696-b1e3-b3beaef6e7a4","n":"Drei Schwestern","x":525.914,"y":647.766,"h":2100,"st":"berggipfel"},{"id":"7beeb413-15f8-42d2-8702-835eeb17f548","n":"Finsterkopp","x":523.828,"y":646.297,"h":2500,"st":"berggipfel"},{"id":"1c15a324-eb03-4b97-b5ba-dc6170830f03","n":"Horndrachenfels","x":543.656,"y":666.328,"h":2000,"st":"berggipfel"},{"id":"eda80156-842b-48c5-b6f1-8d0b25e79d2c","n":"Horndrachenfels","x":534.531,"y":664.406,"h":1500,"st":"berggipfel"},{"id":"a93bbc48-f672-4140-be66-397e9a62830b","n":"Düstersichel","x":522.063,"y":634.047,"h":1400,"st":"berggipfel"},{"id":"35a17150-98c1-411d-a92b-4b3fb4107769","n":"Nimmerkuppe","x":515.758,"y":633.297,"h":1400,"st":"berggipfel"},{"id":"392f91a9-336c-4086-a1ce-dc56c6a5fad1","n":"Nebelstein","x":462.188,"y":591.938,"h":5000,"st":"berggipfel"},{"id":"f2ec1f83-40f7-4ef8-831e-408b193ee346","n":"Hoher Stumpen","x":527.719,"y":646.203,"h":5000,"st":"berggipfel"}],"live_curve":[[544.864,667.143],[541.958,663.863],[539.237,660.747],[536.371,657.431],[533.515,654.108],[530.66,650.782],[527.798,647.463],[524.923,644.155],[522.026,640.867],[519.099,637.604],[516.134,634.377],[513.125,631.191],[510.174,628.167],[507.054,625.089],[503.869,622.079],[500.611,619.148],[497.273,616.308],[493.854,613.566],[490.347,610.938],[486.752,608.432],[483.064,606.065],[479.287,603.843],[475.422,601.778],[471.472,599.88],[467.443,598.156],[463.34,596.618],[459.187,595.264],[454.963,594.096],[451.344,593.252],[447.04,592.428],[442.705,591.785],[438.347,591.32]],"rivers":[{"id":"8654336c-34f4-434d-a783-426fceaefae1","name":"Flüsterbach","bach":false,"dir":"forward","c":[[534.688,651.938],[534.813,651.375],[534.625,650.844],[534.766,650.469],[535.125,650.328],[535.344,650.047],[535.5,649.594],[536.086,649.234],[536.82,649.477],[537.508,649.516],[538.234,649.313],[539.016,649.32],[539.43,649.234],[539.773,649.18],[540.211,649.008],[540.797,648.852],[541.531,648.563],[542.156,648.367],[542.734,648.211],[543.461,648.109],[544.094,648.133],[544.594,648.133],[544.969,647.961],[545.18,647.68],[545.109,647.422],[544.914,647.336],[544.734,647.172],[544.836,646.938],[545.094,646.859],[545.57,646.68],[546.258,646.367],[546.594,646.086],[546.719,645.742],[546.563,645.047],[546.125,644.656],[545.781,644.398],[545.336,644.023],[544.789,643.57],[544.547,643.195],[544.68,642.695],[544.992,642.359],[545.289,642.164],[545.508,641.953],[545.703,641.578],[545.695,641.031],[545.492,640.477],[545.148,640.195],[544.766,640.063],[544.406,639.984],[544.078,639.82],[543.828,639.609],[543.344,639.391],[543,638.891],[543.219,638.344],[543.797,638.086],[544.055,637.516],[544.156,636.891],[544.234,636.156],[544.336,635.641],[544.492,635.211],[544.664,634.766],[544.633,634.602]]},{"id":"2b9a8b2c-8acf-4a32-9352-eacd057e295b","name":"Wilden","bach":false,"dir":"forward","c":[[546.219,657.523],[546.484,657.273],[546.797,657.125],[547.023,657.156],[547.242,657.383],[547.445,657.492],[547.789,657.531],[548.07,657.398],[548.406,657.336],[548.688,657.117],[548.766,656.781],[549.016,656.563],[549.281,656.523],[549.516,656.422],[549.719,656.234],[550.156,656.141],[550.547,656.297],[550.844,656.656],[551.266,656.969],[551.844,657.047],[552.453,656.906],[553.469,656.766],[554.219,657.016],[554.672,657.672],[555.313,658.047],[556.117,658.125],[556.609,657.945],[556.969,657.648],[557.383,657.508],[557.719,657.555],[557.953,657.672],[558.109,657.922],[558.188,658.313]]},{"id":"a60ae576-89f2-4e2e-886c-655cb6f083e2","name":"Gernbach","bach":false,"dir":"forward","c":[[540.469,659.906],[540.758,659.898],[541.141,659.797],[541.539,659.359],[542.031,659.227],[542.391,659.422],[542.672,659.844],[543.047,660.141],[543.219,660.563],[543.141,660.938],[542.938,661.422],[543.016,661.875],[543.438,662.219],[543.656,662.672],[543.828,663.484],[543.75,663.984],[543.391,664.5],[543.016,665.203],[542.953,666],[543.109,666.508],[543.422,666.695],[543.828,666.828],[544.078,667.086],[544.133,667.516],[543.984,667.969],[544.18,668.273],[544.539,668.414],[544.938,668.398],[545.281,668.203],[545.695,668.094],[546.219,668.25],[546.875,668.406],[547.625,668.188],[548.219,667.578],[549.031,667.531],[549.25,667.953],[548.891,668.547],[548.906,668.898],[549.094,669.078],[549.359,669.195],[549.5,669.438],[549.648,669.625],[550,669.703],[550.25,669.867],[550.539,670.234],[550.992,670.391],[551.469,670.391]]},{"id":"df6c7028-2076-44df-8de9-fa9d3c2ff0ec","name":"Finsterer Svellt","bach":false,"dir":"reverse","c":[[530.195,669.52],[530.5,668],[531.344,666.219],[531.344,664.719],[531.438,664],[531.406,662.25],[531.22,660.22]]},{"id":"7441f671-f85c-4b7d-b3a6-110166d88619","name":"Breite","bach":false,"dir":"forward","c":[[495.688,603.844],[495.5,602.781],[494.938,601.25],[495.406,600.031],[495.906,599.804],[496.125,599.719],[497.094,599.438],[498.031,600.031],[499,599.625],[499.486,599.843]]},{"id":"96c0251b-470a-4d24-9616-11efd556b81d","name":"Düsterbach","bach":true,"dir":"forward","c":[[527.102,639.336],[526.75,639.094],[526.617,638.789],[526.445,638.531],[526.516,638.219],[526.281,637.953],[525.805,637.961],[525.445,638.133],[525.031,638.219],[524.641,638.203],[524.336,638.102],[524.031,638.141],[523.805,638.336],[523.563,638.578],[523.188,638.625],[522.859,638.453],[522.539,638.195],[522.563,637.922],[523.125,637.531],[523.453,637.266],[523.633,636.836],[524.086,636.539],[524.453,636.609],[524.797,636.742],[525.422,636.633],[525.898,636.258],[526.516,636.188],[526.836,636.313],[527.211,636.414],[528.492,636.32],[529.352,636.445],[530.227,636.68],[530.906,636.945],[531.539,636.945],[532.148,636.742],[532.82,636.117],[533.25,635.438],[533.398,634.852],[533.57,634.547],[533.734,634.305],[533.844,634.063],[533.891,633.742],[533.953,633.164],[534.219,632.781],[534.633,632.555],[535.016,632.672],[535.242,632.922],[535.609,633.063],[535.898,633.352],[536.117,633.57],[536.391,633.688],[536.469,633.906],[536.367,634.156],[536.406,634.484],[536.594,634.727],[537.125,634.984],[537.602,635.008]]},{"id":"1ce3e2e3-2e92-4d86-8816-51d2cd04de79","name":"Winterbach","bach":false,"dir":"reverse","c":[[557.773,649.234],[557.281,648.969],[557.063,648.68],[556.555,648.633],[556.125,648.844],[555.68,648.875],[555.383,648.797],[555,648.828],[554.32,649.164],[553.789,649.453],[553.109,649.602],[552.516,649.641],[551.891,649.727],[551.383,649.945],[550.531,649.813],[549.641,649.508],[548.828,649.469],[548.297,649.703],[548.188,649.977],[548.031,650.164],[547.75,650.141],[547.547,650.25],[547.484,650.508],[547.57,650.727],[547.633,651.008],[547.813,651.203],[548.031,651.25],[548.445,651.344],[548.492,651.641],[547.906,651.883],[547.5,651.766],[547.063,651.859],[546.836,652.203],[546.625,652.406],[546.539,652.742],[546.43,653.047],[546.234,653.227],[546.109,653.484],[545.922,653.625],[545.492,653.766],[545.188,653.813],[544.773,653.82],[544.453,653.688],[544.219,653.406],[544.102,653.07],[544.125,652.898],[544.117,652.703],[543.914,652.469],[543.633,652.359],[543.391,652.352],[543.078,652.414],[542.891,652.586],[542.836,652.789],[542.719,652.969],[542.523,653.125],[542.367,653.313],[542.117,653.438],[541.898,653.625],[541.531,653.844],[541.164,654],[540.984,654.266],[541.047,654.477],[541.008,654.68],[540.813,654.781]]},{"id":"78c72177-44d1-4915-bf21-1c5de5908024","name":"Kaltwasser","bach":false,"dir":"forward","c":[[523.977,645.961],[524.227,645.719],[524.273,645.445],[524.219,645.102],[524.266,644.75],[524.516,644.453],[524.969,644.344],[525.328,644.5],[525.609,644.547],[526.039,644.406],[526.328,644.008],[526.367,643.422],[526.742,643.008],[527.148,642.766],[527.641,642.578],[527.992,642.25],[528.352,642.086],[528.914,642.047],[529.781,642.531],[530.094,642.836],[530.375,642.969],[530.703,642.953],[530.938,642.836],[531.203,642.648],[531.688,642.453],[532.227,642.133],[532.633,641.82],[532.828,641.32],[533.039,641.023],[533.094,640.523],[533.188,640.227],[533.25,639.859],[533.211,639.477],[533.328,639.141],[533.617,638.938],[533.93,638.938],[534.18,639.094],[534.438,639.07],[534.68,638.93],[534.969,638.82],[535.242,638.758],[535.383,638.625],[535.344,638.5],[535.211,638.43],[534.992,638.43],[534.82,638.359],[534.844,638.203],[535,638.117],[535.195,638.086],[535.516,638.07],[535.742,637.992],[535.75,637.859],[535.633,637.789],[535.453,637.773],[535.227,637.711],[535.125,637.547],[535.219,637.313],[535.727,637.125],[536.172,636.836],[536.523,636.578],[536.93,636.305],[537.188,636.008],[537.313,635.75],[537.344,635.398],[537.406,635.227],[537.602,635.008]]},{"id":"18065aa0-32d9-4de3-9346-c99e691f762b","name":"Flussweg-5126","bach":false,"dir":"forward","c":[[526.914,649.078],[527.328,648.922],[527.719,649.039],[528.352,649.141],[528.93,648.977],[529.594,648.5],[529.992,648.125],[530,648.117],[530.25,647.672],[530.313,646.953],[530.289,646.359],[530.461,645.93],[530.383,645.453],[530.453,645.039],[530.375,644.602],[530.305,644.18],[530.344,643.805],[530.578,643.359],[530.914,643.18],[531.172,642.992],[531.203,642.648]]},{"id":"c04670c0-ec0f-46fb-95fe-ff0d0a753263","name":"Bockenbach","bach":false,"dir":"forward","c":[[545.797,662.938],[546.094,663.156],[546.469,663.203],[546.75,663.469],[547.156,663.547],[547.656,663.406],[548.328,663.625],[548.688,663.969],[549.359,664.094],[550.031,663.938],[550.508,663.641],[551.297,663.328],[551.773,663.297],[552.359,663.391],[553.492,663.258],[554.063,663.328],[554.531,663.531],[555.023,663.461],[555.523,663.5],[556.133,663.734],[556.813,663.68],[557.492,663.641],[557.953,663.875],[558.273,664.188]]},{"id":"e1e7ec81-f5e9-4c22-9e16-0740efa0f013","name":"Pergelbach","bach":false,"dir":"reverse","c":[[536.875,620.93],[536.672,621.039],[536.43,621.07],[536.211,620.961],[535.953,620.977],[535.758,621.125],[535.063,621.273],[534.469,621.141],[534.07,621.07],[533.703,621.133],[533.367,621.148],[533.109,621.063],[532.805,620.906],[532.367,620.852],[531.938,621.094],[531.688,621.461],[531.633,621.984],[531.938,622.438],[531.93,622.891],[531.68,623.195],[531.406,623.344],[531.133,623.477],[530.922,623.742],[530.977,624.055],[531.211,624.281],[531.289,624.563],[531.102,624.813],[530.789,624.867],[530.484,624.953],[530.273,625.164],[530.242,625.406],[530.336,625.625],[530.391,625.883],[530.211,626.141],[529.797,626.219],[529.438,626.078],[529.086,626.055],[528.641,626.367],[528.148,626.555],[527.758,626.898],[527.453,627.156],[527.047,627.188],[526.75,627.016],[526.57,627.023],[526.438,627.172],[526.352,627.508],[526.078,627.891],[525.648,628.125],[525.125,628.102],[524.602,627.883],[524.313,627.648],[524.023,627.297],[523.891,626.93],[523.859,626.492],[523.563,626.164],[523.133,626.094],[522.75,626.242],[522.422,626.469],[522.078,626.609],[521.781,626.813],[521.492,627.086],[521.328,627.398],[521.414,627.703],[521.641,628.023],[521.734,628.719],[521.297,629.391],[520.094,629.797],[519.594,630.328],[519.047,630.313],[518.594,630.625],[517.844,630.75],[517.391,631.109]]},{"id":"12209436-02d7-4498-80d2-edb3b1eec742","name":"Dergel","bach":false,"dir":"forward","c":[[517.414,628.367],[517.758,628.109],[517.984,627.688],[518.148,627.125],[518.859,626.203],[519.625,625.594],[520.227,625.102],[521.141,624.391],[521.961,623.586],[522.594,623.078],[523.289,622.828],[523.922,622.383],[524.484,621.906],[524.734,621.711],[525.109,621.563],[525.594,621.516],[526.086,621.617],[526.539,621.563],[526.891,621.375],[527.156,621.195],[527.531,621.023],[528.594,620.477],[529.57,619.641],[529.945,619.508],[530.375,619.305],[530.805,619.094],[531.344,618.984],[532.063,618.914],[533.219,618.406],[534.875,617.938],[536.281,617.805],[537.469,617.852],[538.195,618.047],[538.914,618.094],[539.531,618.031],[540.031,617.867],[540.617,617.359],[541.07,617.188],[541.539,616.93],[542.148,616.656],[542.656,616.531],[543.016,616.133],[543.266,615.875],[543.602,615.648],[543.93,615.477],[544.313,615.313],[544.633,615.039],[544.898,614.711],[545.141,614.297],[545.406,614.094],[545.594,613.953],[545.797,613.758]]}]},{"name":"Schwarze Sichel","region_public_id":"f5a43b88-66e6-48b7-bac6-5586ea7dfe75","areas":[{"public_id":"20146213-ed31-4731-959f-d854d4d8326a","geometry_revision":317,"region_type":"gebirge","terrain_grain":3.2,"terrain_levels":3,"terrain_avg_height":2650,"terrain_mean_height":1400,"bounds":{"min_x":600.781,"min_y":559.172,"max_x":648.359,"max_y":649.969},"geometry":{"type":"Polygon","coordinates":[[[601.188,586.453],[600.781,585.453],[602.047,583.688],[604.031,582.594],[604.5,579.672],[606.922,578.828],[610.797,579.016],[611.688,577.203],[613.391,573.531],[615.563,571.891],[616.875,568.266],[617.141,566.078],[624.078,562.359],[630.078,561.422],[635.813,559.172],[639.266,560.969],[641.859,562.828],[642.813,565.047],[642.531,566.656],[640.891,568.797],[642.844,570.344],[640.563,571.609],[639.641,571.641],[638.797,570.547],[637.031,572.328],[636.359,574.688],[635.828,576.484],[637.234,578.141],[635.203,579.563],[633.688,581.344],[630.391,582.625],[627.781,585.188],[626.281,586.75],[624.531,594.156],[625.359,599.156],[624.797,600.438],[623.484,600.094],[623.563,598.594],[622.328,597.703],[621.641,598.891],[620.438,599],[619.313,600.719],[618.938,602.656],[618.781,604.734],[619.641,605.609],[618.828,607.422],[619.594,607.75],[620.438,607.234],[621.766,607.984],[622.422,606.688],[621.766,605.672],[621.563,604.531],[622.781,603.547],[624.125,602.734],[626.156,602.453],[628.297,604.125],[625.313,606.484],[624.266,607.516],[625.172,608.578],[623.953,611.141],[622.438,613.328],[623.375,614.875],[626.469,623.375],[628.703,627.125],[627.813,623.016],[628.156,620.25],[628.219,618.188],[629.094,615.844],[629.828,614.438],[631.703,614.703],[632.254,613.464],[633.844,614.391],[633.391,613.016],[634.109,610.344],[636.406,607.875],[637.375,608.391],[636.828,611.641],[638.422,609.828],[638.859,607.609],[639.547,606.656],[642.922,605.234],[647.406,607.547],[648.359,612.469],[644.266,617.188],[642.672,620.578],[644,625.234],[643.266,628.516],[644.953,629.375],[645.328,632.484],[645.484,635.813],[643.859,637.5],[643.609,639.797],[644.578,642.281],[642.438,645.297],[633.859,649.969],[632.094,648.359],[625.141,644.781],[621.953,644.125],[619.641,642.563],[618.5,638.438],[615.078,634.844],[613,634.531],[609.688,634.828],[604.922,632.609],[602.922,629.875],[604.375,626.906],[605.766,625.313],[609.063,624.219],[607.391,623],[607.484,620.656],[608.203,620.344],[609.906,622.469],[610.766,620.266],[610.406,617.781],[610.094,617.297],[611.188,616.344],[609.922,615.25],[611.484,613.328],[613.047,611.734],[613.109,608.984],[611.813,607.828],[610.313,606.484],[610.109,605.656],[610.891,605.203],[612.219,605.594],[614.047,604.656],[613.469,603.594],[612.938,602.688],[612.172,603.234],[610.656,602.328],[611.75,601.234],[611.688,600.078],[611.125,598.734],[610.594,597.641],[608.297,594.328],[606.859,591.453],[604.141,587.484],[601.188,586.453]]]}}],"peaks":[{"id":"20dffd6a-77f4-491d-aa38-6ca953376d13","n":"Aarenfels","x":616.344,"y":621.172,"h":2600,"st":"berggipfel"},{"id":"f4a6b92a-ad9b-4cfa-a61e-190dc1266129","n":"Runkelklippe","x":614.594,"y":610.437,"h":null,"st":"berggipfel"},{"id":"cc5c6fa8-95ea-4a49-95bf-4d0a07637ce2","n":"Eiskogel","x":611.328,"y":592.281,"h":2500,"st":"berggipfel"},{"id":"6cecb6dd-dda7-4775-a55f-94fc3cf0d056","n":"Klirrfrostspitze","x":610.25,"y":594.531,"h":null,"st":"berggipfel"},{"id":"157cdded-a58c-49b1-9c81-764bc834faf5","n":"Kurimskrone","x":612.763,"y":594.686,"h":null,"st":"berggipfel"},{"id":"af72a11a-97a9-4805-b2b2-9fc81d1c2d97","n":"Hirschsprung","x":607.469,"y":588.438,"h":null,"st":"berggipfel"},{"id":"d48c6c80-1b0f-458d-b498-6ca116e225e3","n":"Blakkop","x":624.281,"y":565.766,"h":1500,"st":"berggipfel"},{"id":"0ab37097-a70f-4d77-9e70-62d01280d84a","n":"Gluthaupt","x":624.266,"y":568.969,"h":1990,"st":"berggipfel"}],"live_curve":[[623.492,605.422],[625.574,609.594],[627.597,613.795],[629.125,617.431],[630.509,621.879],[631.135,626.491],[630.686,631.117],[629.122,635.282],[627.981,637.221],[629.36,634.82],[630.83,630.411],[631.109,625.771],[630.334,621.181],[628.862,616.761],[626.989,612.492],[624.932,608.308],[622.865,604.129],[620.96,599.874],[619.429,595.473],[618.564,590.898],[618.71,586.25],[620.064,581.804],[622.461,577.818],[625.591,574.369],[626.393,573.622],[629.206,571.348],[633.057,568.722],[637.087,566.38],[641.245,564.271],[638.407,565.684],[634.335,567.953],[630.408,570.464]],"rivers":[{"id":"8ec97dd4-fdf5-560e-aae6-4591aa3d0c4e","name":"Bendrom","bach":false,"dir":"forward","c":[[622.48,590.5799999999999],[623.13,591.51],[624.15,591.98],[625.08,591.98],[625.83,591.4200000000001],[626.01,590.5799999999999],[626.85,589.9300000000001],[628.25,589.8399999999999]]},{"id":"3b65489e-e7cc-40e7-bf3d-7baeb696b7a0","name":"Flussweg-3994","bach":false,"dir":"forward","c":[[631.125,571.094],[634.75,571.531],[636.75,572.438],[637.625,575],[638.688,575.656],[642.375,576.125],[644.219,578.344],[645.031,579.813],[645.219,580.531],[647.094,581.438],[648.469,582.281],[650.063,582.281],[650.5,581.75],[650.938,581.281],[651.344,580.813],[653.906,580.781],[655.219,579.344],[655.25,578.625],[656.844,576.469],[659.244,575.397]]},{"id":"0046718f-3a60-4d84-abd1-88127c318bac","name":"Tobimora","bach":false,"dir":"forward","c":[[639.906,622.469],[640.719,623.031],[641.719,623.25]]},{"id":"7411050a-7399-4f97-8917-8c51ea49f753","name":"Tobimora","bach":false,"dir":"forward","c":[[641.719,623.25],[642.577,622.676]]},{"id":"a5c193ce-b809-4e47-a6b6-97b8f066a7f0","name":"Tobimora","bach":false,"dir":"forward","c":[[642.577,622.676],[643.438,622.781],[644,622.75],[644.656,622.344],[644.906,622.063],[645,621.094],[645.219,620.594],[644.996,619.98]]},{"id":"a18c57bb-91a4-4674-a886-eda2d38fb4ac","name":"Flussweg-4918","bach":false,"dir":null,"c":[[632.125,611.624],[631.921,611.859],[631.921,612.39],[632.14,612.921],[632.297,613.671]]},{"id":"f60dc58c-60a1-420b-af64-4ec9a6c6f940","name":"Flussweg-5129","bach":true,"dir":"forward","c":[[628.063,634.938],[627.828,634.711],[627.523,634.633],[627.133,634.5],[626.852,634.258],[626.539,633.953],[625.969,633.906],[625.625,633.672],[625.43,633.242],[625.195,632.852],[624.859,632.766],[624.617,632.914],[624.555,633.18],[624.633,633.641],[624.438,633.828],[624.141,633.82],[623.891,634.031],[623.75,634.367],[623.578,634.563],[623.469,634.867],[623.242,635.063],[622.938,635.031],[622.633,634.891],[622.305,634.922],[622.031,635.258],[621.75,635.461],[621.313,635.563],[620.977,635.805],[620.836,636.242],[620.57,636.516],[620.25,636.711],[619.953,637.055],[619.859,637.477],[620.039,637.828],[620.328,637.984],[620.406,638.289],[620.258,638.516],[620.172,638.797],[620.109,639.125],[619.891,639.438],[619.57,639.633],[619.352,639.852],[619.141,640.109],[619.078,640.383],[618.875,640.625]]},{"id":"bb3714f4-c4c1-4d84-930a-f737c65674a9","name":"Flussweg-5130","bach":false,"dir":"forward","c":[[636.344,638.625],[635.906,638.391],[635.672,638.094],[635.406,637.836],[634.992,637.773],[634.641,637.859],[634.344,638.055],[633.922,638.242],[633.563,638.242],[633.305,638.125],[633.094,637.922],[633.047,637.602],[633.211,637.398],[633.141,637.141],[632.875,637.055],[632.555,637.125],[632.328,637.422],[632.039,637.672],[631.852,638.047],[631.906,638.617],[631.938,639.023],[631.867,639.391],[631.656,639.656],[631.305,639.781],[630.938,639.836],[630.727,640.047],[630.609,640.453],[630.188,640.805],[629.57,640.914],[629.18,640.867],[628.922,640.664],[628.547,639.93],[627.852,639.75],[627.32,639.977],[627.031,640.258],[626.766,640.461],[626.586,640.688],[626.383,640.805],[626.219,640.977],[626.078,641.141],[625.914,641.219],[625.797,641.383],[625.742,641.609],[625.625,641.813],[625.453,641.891],[625.141,641.953],[624.641,641.961],[624.273,641.813],[623.953,641.609],[623.672,641.25],[623.258,641.258],[623,641.602],[622.664,641.867],[622.141,641.945],[621.75,641.703],[621.484,641.359],[621.039,640.828],[620.609,640.75],[620.148,640.844],[619.828,640.742],[619.508,640.727],[619.406,640.563],[619.234,640.484],[618.875,640.625]]},{"id":"b6b2f557-b0fd-452f-ad76-21a34c317ffc","name":"Flussweg-5131","bach":false,"dir":"forward","c":[[622.008,627.078],[621.641,626.805],[621.297,626.57],[620.992,626.703],[620.938,626.969],[621.039,627.188],[621.016,627.43],[620.789,627.813],[620.563,628.141],[620.516,628.469],[620.555,628.75],[620.5,629.016],[620.18,629.242],[619.852,629.297],[619.656,629.484],[619.531,629.758],[619.234,629.953],[618.945,629.906],[618.734,629.672],[618.422,629.695],[618.242,629.906],[618.031,630.023],[617.758,630],[617.484,629.852],[617.195,629.836],[616.906,629.953],[616.602,630.375],[616.211,630.75],[615.922,631.258],[615.891,631.875],[616.094,632.43],[616.195,632.945],[616.133,633.516],[615.875,633.992],[615.406,634.422],[615.344,634.984],[615.641,635.539],[615.68,636.016],[615.555,636.359],[615.57,636.672],[615.438,636.883],[615.289,637.023],[615.07,637.125],[615.016,637.281],[615.023,637.453],[614.859,637.672],[614.563,637.703],[614.391,637.578],[614.344,637.359],[614.18,637.234],[613.977,637.289],[613.914,637.414],[613.93,637.563],[613.992,637.789],[613.906,638.008],[613.68,638.102],[613.406,638.086],[613.133,638.313],[613.008,638.641],[613.055,639.008],[613.258,639.266],[613.344,639.641],[613.211,640.023],[612.938,640.242],[612.609,640.344],[612.234,640.516],[611.984,640.781],[611.805,641.172],[611.5,641.344],[611.172,641.352],[610.836,641.219],[610.336,641.328],[610.023,641.578],[609.883,641.867],[609.609,642.086],[609.328,642.156]]},{"id":"2c04fadd-99a6-432e-adc5-bec0e0eaa7c4","name":"Flussweg-5179","bach":true,"dir":"forward","c":[[636.984,648.438],[636.734,647.945],[636.406,647.773],[636.063,647.844],[635.766,648.102],[635.281,648.195],[634.797,648.109],[634.359,647.781],[634.094,647.32],[633.836,647.133],[633.547,647.188],[633.422,647.398],[633.398,647.875],[633.125,648.227],[632.773,648.359],[632.453,648.539],[632.172,648.758],[631.781,648.789],[631.563,648.57],[631.617,648.234],[631.695,647.914],[631.523,647.672],[631.18,647.672],[630.953,647.914],[630.945,648.289],[630.664,648.641],[630.094,648.758],[629.484,648.617],[628.719,648.531],[628.07,648.609],[627.414,648.781],[626.953,648.969],[626.344,649.039],[625.75,648.969],[625.109,649.031],[624.75,649.172],[624.43,649.508],[623.961,649.641],[623.547,649.563],[623.273,649.297],[622.867,649.188],[622.344,649.203],[621.938,649.094],[621.719,648.805],[621.711,648.508],[621.609,648.273],[621.258,648.148],[620.781,648.188],[620.328,648.398],[619.953,648.703],[619.711,649.039],[619.57,649.43],[619.328,649.75],[618.906,649.898],[618.469,649.891],[618.031,649.742],[617.586,649.953],[617.453,650.305],[617.141,650.453],[616.719,650.398],[616.32,650.516]]},{"id":"ab12b610-9bbf-4ce0-bce7-3d61c9ca1fbc","name":"Sattelbach","bach":true,"dir":"forward","c":[[632.266,644.844],[632.031,644.703],[631.836,644.688],[631.656,644.742],[631.414,644.906],[631.102,644.945],[630.727,644.852],[630.398,644.625],[630.148,644.383],[629.844,644.164],[629.477,644.07],[628.961,644.047],[628.492,643.797],[627.953,643.766],[627.352,643.953],[627.031,644.078],[626.594,644.078],[626.305,644.313],[625.992,644.359],[625.641,644.586],[625.289,644.531],[624.945,644.289],[624.422,644.008],[623.984,644.195],[623.594,644.094],[623.117,644.289],[622.609,644.492],[622.258,644.805],[622.031,645.055],[621.859,645.406],[621.602,645.633],[621.016,645.813],[620.625,645.797],[620.172,645.609],[619.766,645.703],[619.375,645.695],[619.047,645.875],[618.602,646.086],[618.07,645.922],[617.547,645.617],[616.844,645.766],[616.18,646.219],[615.773,646.438],[615.609,646.602],[615.555,646.82],[615.453,647.023],[615.234,647.141],[614.992,647.133],[614.734,647.07],[614.414,647.125],[614.023,647.266],[613.625,647.336],[613.125,647.281],[612.742,647.219],[612.352,647.023],[612.063,646.867],[611.813,646.75],[611.43,646.758],[611.055,646.977],[610.703,647.367],[610.141,647.656],[609.891,648.227],[610.047,648.734],[610.383,649.047],[610.594,649.367],[610.672,649.773],[610.563,650.055],[610.25,650.273],[610.031,650.539],[609.992,650.859],[610.125,651.164],[610.195,651.5],[610.188,651.867]]}]},{"name":"Rote Sichel","region_public_id":"f66cd4b7-4479-4f06-a0e6-0887b1f10bc1","areas":[{"public_id":"a70d365c-7631-4f29-9c4c-b7b2d24adeb7","geometry_revision":399,"region_type":"gebirge","terrain_grain":23.6,"terrain_levels":5,"terrain_avg_height":2000,"terrain_mean_height":500,"bounds":{"min_x":612.625,"min_y":661.094,"max_x":677.219,"max_y":724.344},"geometry":{"type":"Polygon","coordinates":[[[612.625,663.563],[613.188,662.563],[614.188,661.516],[615.047,661.266],[617.234,661.094],[619.453,661.547],[620.109,662.188],[620.281,663.281],[621.188,663.906],[621.906,662.313],[622.703,662.453],[622.719,661.422],[623.219,661.266],[623.609,662.031],[624.172,662.266],[625.047,662.453],[625.688,663.125],[625.766,664.141],[625.766,664.141],[627.563,664.813],[627.578,664.078],[626.969,663.047],[627.813,662.906],[628.688,663.156],[629.078,664.391],[630.734,664.781],[631.516,666.516],[632.281,665.703],[633.969,664.969],[634.422,665.563],[634.047,667.125],[634.141,668.297],[634.641,668.969],[635.328,668.125],[636.453,667.531],[638.047,667.313],[639.5,667.438],[640.891,669.641],[641.063,671.375],[640.75,673.445],[640.578,674.969],[641.547,675.563],[642.188,676.375],[643.672,676.609],[647,675.969],[648.531,675.938],[650.438,676.391],[651.016,677.453],[651.438,679.125],[651.313,680.906],[652.266,681.016],[653.313,680],[655.5,680.625],[655.741,682.467],[654.984,683.719],[653.375,683.625],[653,684.344],[654.016,684.453],[654.781,685.469],[654.656,685.875],[653.891,685.969],[654.375,686.563],[653.844,687.891],[654.5,688.531],[655.359,687.953],[656.391,687.516],[657.211,686.406],[657.945,686.679],[659.313,686.047],[659.25,687.266],[658.359,689.555],[659.156,690],[660.406,688.063],[662.439,687.57],[663.625,687.313],[665.329,687.491],[667.203,689.203],[668.672,687.984],[670.953,690.797],[673.086,691.016],[675.141,693.172],[674.719,695.031],[675,698.688],[677.219,700.125],[675.844,703.344],[676.344,706.344],[676.031,709.438],[674.922,711.031],[674.266,710.906],[673.344,710.188],[672.719,712.438],[673.531,714.063],[673.453,714.609],[672.875,714.844],[671.969,714.078],[670.938,714.406],[670.281,715.438],[670.406,716.781],[669,718.375],[669.188,720.781],[669.031,723.094],[668.813,723.578],[668.281,723.703],[667.344,724.313],[666.234,724.141],[665.406,724.344],[664.672,723.906],[663.938,724.328],[663,724],[661.688,723],[660.188,722.234],[660.016,721.641],[660.359,721.094],[661.063,720.453],[660.813,719.344],[662.234,718.516],[662.234,717.563],[661.438,717.156],[660.984,718],[659.969,718.688],[658.281,719.047],[658.313,719.813],[657.859,719.984],[657.016,719.5],[655.922,719.203],[652.688,719.391],[651.797,719.844],[650.188,720.438],[648.891,720.25],[646.172,720.797],[644.563,720.688],[643.438,719.5],[642.359,716.172],[638.578,714.547],[636.75,712.641],[637.563,710.484],[636.875,709.063],[638.953,705.875],[640.469,704.563],[642.797,703.875],[643.047,702.563],[642.766,701.844],[641.234,700.844],[641.5,700.078],[641.266,699.078],[641.109,698.406],[639.688,697.734],[638.406,696.703],[637.875,695.813],[637.516,694.891],[636.359,694.516],[636.004,693.764],[635.969,693.078],[635.984,692.578],[636.297,692.234],[636.688,691.766],[635.984,691.531],[634.234,690.578],[633.219,690.227],[632.258,690.563],[631.547,690.57],[631.039,690.141],[630.719,689.57],[629.945,688.805],[629.297,689.039],[628.68,688.523],[628.422,687.922],[628.5,687.367],[628.234,686.75],[628.172,686.266],[628.68,685.891],[629.055,685.281],[628.961,684.398],[628.056,683.714],[628.023,683.026],[627.617,682.438],[627.344,682.133],[627.758,681.484],[626.781,681.453],[626.539,681.25],[626.633,680.75],[626.289,680.5],[625.711,681],[625.258,680.977],[624.969,680.461],[624.984,679.859],[625.078,679.305],[624.797,678.953],[624.344,678.883],[623.961,678.469],[623.881,678.194],[624.328,677.813],[624.492,677.414],[624.125,677.164],[623.516,677.461],[622.82,677.383],[622.641,676.945],[621.93,676.922],[620.969,676.172],[621.258,675.523],[620.938,675],[620.445,673.711],[619.141,672.211],[617.992,671.008],[617.203,670.531],[617.172,669.469],[617,668.25],[615.438,668.531],[614.5,667.938],[614.25,666.078],[614.125,665.297],[613.313,665.063],[612.625,663.563]]]}}],"peaks":[{"id":"eedf17b1-cc53-4389-8860-9d45c5f156a6","n":"Naira Theluzi","x":654.219,"y":696.063,"h":5300,"st":"berggipfel"},{"id":"25dba6ed-c237-4d45-937e-bfe0cd9a7388","n":"Naira Kubuch","x":651.047,"y":696.844,"h":5300,"st":"berggipfel"},{"id":"8cbde979-2133-4cf6-9601-637ac08fd137","n":"Adlerspitze","x":651.844,"y":705.375,"h":6650,"st":"berggipfel"},{"id":"d695fdba-a27a-41b7-a588-4b2bf71cd6ab","n":"Eulenberg","x":633.008,"y":671.273,"h":3000,"st":"berggipfel"},{"id":"152a8f50-b311-4f4f-a949-1e2dfa62fd5a","n":"Wetterhorn","x":630.211,"y":671.008,"h":3000,"st":"berggipfel"},{"id":"0c971ae1-c8a4-4cb2-8537-1ad0045c3fb2","n":"Rohalsmütze","x":652.398,"y":687.383,"h":5000,"st":"berggipfel"},{"id":"aab86b49-8092-4888-952b-0a64089e9d7e","n":"Wyrmenhorn","x":650.391,"y":687.977,"h":3500,"st":"berggipfel"},{"id":"a6e59562-d3e6-4cfb-9136-1d27eaf3d6f8","n":"Der Dreizack","x":648.32,"y":686.813,"h":5000,"st":"berggipfel"},{"id":"7b6bdb70-ceb9-419b-b036-d4b89f638091","n":"Donnerschneekopf","x":646.203,"y":687.477,"h":5000,"st":"berggipfel"},{"id":"b42fd1ad-a0ae-421b-ab6b-75151d25c862","n":"Wallspitzhorn","x":627,"y":680.68,"h":5000,"st":"berggipfel"},{"id":"629487ad-47ea-4e7b-a085-329df2cd0911","n":"Plateau des Feuers","x":654.406,"y":709.563,"h":5000,"st":"vulkan"},{"id":"82aa29d9-54c8-4ce1-8501-5036844ddc00","n":"Pfaffenjoch","x":657.867,"y":697.047,"h":5000,"st":"berggipfel"},{"id":"3a06420f-5377-4ebb-a267-5fb754fe78fd","n":"Greifenhorn","x":627.352,"y":676.242,"h":4000,"st":"berggipfel"}],"live_curve":[[657.108,696.184],[659.575,697.37],[662.103,698.419],[664.124,699.14],[666.746,699.923],[667.178,700.038],[668.367,700.327],[665.881,699.683],[663.274,698.849],[660.72,697.866],[658.225,696.74],[655.794,695.484],[653.427,694.11],[651.123,692.632],[648.882,691.061],[646.695,689.414],[645.038,688.097],[643.136,686.517],[641.065,684.727],[639.021,682.906],[636.996,681.065],[634.979,679.214],[632.962,677.364],[630.934,675.525],[628.887,673.708],[626.81,671.925],[624.697,670.185],[622.537,668.504],[620.325,666.891],[618.054,665.363],[615.721,663.932],[613.324,662.612]],"rivers":[{"id":"e2f71811-dd71-44f6-98f4-789873b8fd68","name":"Haritz","bach":false,"dir":"reverse","c":[[693.797,721.5],[693.281,721.281],[691.984,721.234],[691.109,720.5],[690.125,720.469],[689.438,720.281],[688.984,720.266],[688.469,720.828],[687.5,721.156],[686.234,721.625],[684.063,722.188],[682.578,721.875],[681.625,721.25],[681.234,720.422],[680.703,719.453],[680.406,718.891],[679.672,718.484],[678.219,718.125],[677.859,717.406],[677.406,716.703],[676.281,716.625],[674.984,717.25],[675,718.031],[674.531,718.734],[673.906,719.469],[673.172,719.609],[672.516,720.078],[671.906,720.25],[671,720.344],[668.5,719.5]]},{"id":"a40968a3-13e9-4eb4-ae4e-a1c69db9794e","name":"Rathil","bach":false,"dir":"forward","c":[[645.367,697.273],[644.758,696.891],[644.445,696.539],[644,696.188],[643.602,695.891],[643.164,695.742],[642.781,695.375],[642.352,695.289],[641.852,695.297],[641.336,695.367],[640.922,695.289],[640.453,694.938],[640.031,694.961],[639.656,695.125],[639.273,695.164]]},{"id":"11b54522-d9b2-4dea-91ef-af1d221def34","name":"Flussweg-4689","bach":true,"dir":"reverse","c":[[593.781,662.281],[594.398,661.594],[594.719,661.289],[595.07,661.008],[595.539,660.75],[596.094,660.555],[597.547,660.648],[598.148,660.75],[599.109,661.281],[600.258,661.422],[601.617,661.398],[602.18,661.211],[602.75,661.148],[603.242,661.18],[603.813,660.906],[604.258,660.516],[604.773,660.586],[605.188,660.914],[605.531,661.352],[606.063,661.672],[606.305,662.039],[606.797,662.203],[607.094,662.484],[607.469,662.648],[607.898,662.672],[608.156,662.813],[608.305,663.055],[608.516,663.758],[609.016,664.172],[609.633,664.258],[610.008,664.156],[610.352,663.953],[610.797,663.859],[611.281,664.039],[611.773,664.266],[612.352,664.367],[612.781,664.203],[613.086,663.945],[613.367,663.859],[613.664,663.875],[613.938,664.086],[614.039,664.438],[614,664.82],[614.117,665.141],[614.461,665.352],[614.773,665.398],[615.008,665.578],[615.07,665.906]]},{"id":"ff99bdd9-aacc-4bbe-888b-372948281ac6","name":"Flussweg-4705","bach":true,"dir":"reverse","c":[[637.602,674.133],[637.578,674.555],[637.414,674.867],[637.266,675.242],[636.992,675.422],[636.547,675.453],[636.125,675.734],[635.766,675.813],[635.547,676.156],[635.625,676.5],[635.922,676.813],[636.281,677.109],[636.383,677.555],[636.242,677.969],[635.914,678.297]]},{"id":"78b9f59d-73b8-463a-a122-1e3fcda2d1e2","name":"Flussweg-4706","bach":true,"dir":"reverse","c":[[635.008,682.57],[634.836,682.406],[634.586,682.25],[634.336,681.945],[634.086,681.766],[633.898,681.508],[633.875,681.133],[634.063,680.891],[634.219,680.555],[634.18,680.195],[634,679.898],[633.953,679.578],[634.031,679.258],[634.25,679],[634.367,678.797],[634.32,678.555],[634.18,678.406],[633.938,678.406],[633.633,678.609]]},{"id":"49846978-48ea-48f7-ba79-464266c48b95","name":"Flussweg-4712","bach":false,"dir":"forward","c":[[635.008,682.57],[635.094,682.766],[635.086,682.969],[634.992,683.172],[634.922,683.461],[635.047,683.797],[635.43,684.07],[636.117,684.063],[636.672,684.266],[636.953,684.539],[637.078,684.961],[636.922,685.281],[636.648,685.438],[636.391,685.43],[636.148,685.43],[635.922,685.523],[635.688,685.711],[635.383,685.992],[635.07,686.227],[634.891,686.453],[634.656,686.602],[634.391,686.648],[634.219,686.828],[634.234,687.055],[634.375,687.211],[634.406,687.469],[634.273,687.648],[634.094,687.719],[633.977,687.859],[634.016,688.055],[634.219,688.242],[634.25,688.5],[634.156,688.711],[633.945,688.813],[633.758,688.82],[633.586,688.891],[633.43,689.023],[633.25,689.063],[633.07,689.023],[632.82,688.906],[632.508,689],[632.172,689.383],[631.664,689.461],[631.305,689.266],[631.047,688.977],[630.563,688.898],[630.195,689.016],[629.938,689.211],[629.695,689.484],[629.406,689.555],[629.141,689.5],[628.898,689.383]]},{"id":"34df7438-8a74-435e-a89d-ac797976a28d","name":"Flussweg-4713","bach":true,"dir":"forward","c":[[643.547,687.578],[643.18,687.383],[643.008,687.094],[642.633,686.883],[642.18,686.797],[641.82,686.492],[641.375,686.461],[640.984,686.695],[640.875,687],[640.922,687.313],[640.789,687.531],[640.336,687.695],[640.148,687.977],[640.203,688.18],[640.359,688.367],[640.32,688.656],[640.023,688.82],[639.695,688.836],[639.344,688.859],[638.977,689.07],[638.711,689.391],[638.305,689.828],[638.008,690.047],[637.672,690.281],[637.406,690.547],[636.922,690.781],[636.422,690.969],[635.961,691.07],[635.5,691.102],[635.133,691.102],[634.734,691.172],[634.438,691.367],[634.188,691.516],[633.906,691.586],[633.555,691.547]]},{"id":"51a1798a-390b-4a56-bef1-3b6b71a5e50f","name":"Tiefenbach","bach":false,"dir":"reverse","c":[[658.766,677.406],[658.609,677.609],[658.492,677.844],[658.352,678.352],[658.008,678.719],[657.492,679.039],[657.359,679.469],[657.516,679.828],[657.813,679.984],[657.867,680.25],[657.523,680.469],[657.43,680.75],[657.594,681.047],[657.555,681.375],[657.406,681.656],[657.18,681.961],[656.844,682.203],[656.469,682.266],[656.102,682.453],[655.688,682.508],[655.375,682.852],[655.297,683.273],[655.359,683.602],[655.414,683.93],[655.555,684.203],[655.727,684.43],[655.992,684.555],[656.227,684.555],[656.383,684.672],[656.461,684.898],[656.609,685.102],[656.82,685.242],[656.891,685.477],[656.813,685.664],[656.898,685.961],[657.133,686.133]]},{"id":"6ae13aee-097f-468f-a219-72667881825b","name":"Flussweg-4733","bach":true,"dir":"reverse","c":[[655.445,675.297],[655.773,675.289],[656.109,675.438],[656.313,675.672],[656.422,675.914],[656.414,676.219],[656.281,676.5],[655.836,676.828],[655.305,677.063],[654.438,677.164],[653.805,677.516],[653.625,678.07],[653.773,678.781],[653.766,679.188],[653.852,679.695],[653.758,680.016],[653.414,680.445],[652.992,680.813],[652.508,681.172],[652.078,681.727],[652.133,682.398],[652.422,682.656],[652.734,682.781],[652.922,682.891],[653.023,683.117],[652.906,683.305],[652.641,683.508],[652.289,683.922],[652.133,684.32],[652.141,684.68],[652,685.07],[652.203,685.578]]},{"id":"28c425d9-0a16-4eb2-8294-7aa85e59d8b3","name":"Flussweg-4721","bach":true,"dir":"forward","c":[[650.578,689.719],[650.266,689.828],[649.859,689.578],[649.453,689.688],[649.453,690.063],[649.797,690.203],[650,690.5],[649.813,690.891],[649.93,691.289],[649.781,691.531],[649.461,691.734],[649.32,692.125],[649.039,692.328],[648.734,692.234],[648.352,691.891],[647.805,691.641],[647.297,691.602],[646.766,691.953],[646.367,692.281],[645.859,692.336],[645.445,692.148],[645.086,692.195],[644.867,692.398],[644.727,692.656],[644.453,692.836],[644.305,693.133],[644.023,693.273],[643.656,693.359],[643.367,693.68],[642.75,693.797],[642.438,694.016],[642.039,694.109],[641.617,694.148],[641.273,694.094],[640.922,694.133],[640.594,694.016],[640.258,694.039],[639.938,694.141],[639.695,694.438]]},{"id":"2fd9638a-f4d4-4aca-822c-0456ffcbbaf6","name":"Weißwasser","bach":false,"dir":"forward","c":[[646.133,681.953],[645.805,681.641],[645.219,681.578],[644.609,681.273],[644.07,680.633],[643.508,680.133],[642.828,679.938],[642.078,679.695],[641.438,679.234],[640.977,678.57],[640.484,677.945],[640.102,677.602],[639.695,677.453],[639.25,677.32],[638.93,677.086]]},{"id":"876150ae-88b1-443a-9402-1e07c893b8ad","name":"Flussweg-5098","bach":true,"dir":"forward","c":[[627.781,665.641],[627.875,665.25],[628.078,664.875],[628.422,664.547],[628.469,664.078],[628.234,663.648],[627.922,663.438],[627.602,663.305],[627.203,663.047],[626.883,662.625],[626.93,662.094],[627.344,661.656],[627.859,661.281],[628.266,660.828],[628.516,660.375],[628.609,659.922],[628.578,659.453],[628.281,659.297],[628.016,659.445],[627.773,659.477],[627.531,659.359],[627.469,659.063],[627.625,658.914],[627.859,658.883],[627.914,658.695],[627.773,658.523],[627.359,658.43],[627.234,658.055],[627.492,657.836],[627.945,657.969],[628.313,658.063],[628.664,658.164],[629.07,658.055],[629.32,657.781],[629.383,657.57],[629.563,657.43],[629.828,657.422],[630.078,657.344],[630.266,657.156],[630.398,656.914],[630.391,656.68]]},{"id":"a2feb0e6-a674-4d85-b3c8-75e6477a6af1","name":"Flussweg-5099","bach":false,"dir":"forward","c":[[632.039,673.43],[632.039,673.063],[632,672.656],[632.164,672.414],[632.469,672.359],[632.625,672.148],[632.539,671.859],[632.305,671.695],[632.117,671.469],[632.008,671.133],[631.883,670.891],[631.93,670.586],[631.867,670.281],[631.672,670.031],[631.586,669.719],[631.367,669.523],[631.289,669.188],[631.078,668.781],[630.75,668.492],[630.477,668.242],[630.336,667.867],[630.383,667.43],[630.758,667.039],[631,666.813],[631.211,666.398],[631.258,665.922],[631.203,665.469],[631.07,664.844],[631.125,664.344],[631.102,663.969],[631.008,663.641],[631.031,663.352],[631.164,663.172]]},{"id":"177a0c2b-0c55-41b5-9428-bcf612dc0bd6","name":"Flussweg-5105","bach":false,"dir":"forward","c":[[650,681.453],[650.359,681.039],[650.664,680.57],[650.813,680.078],[650.781,679.609],[650.828,679.102],[650.781,678.484],[650.555,678.094],[650.188,677.992],[649.914,677.961],[649.641,677.813],[649.344,677.602],[648.891,677.266],[648.469,677.281],[648.109,677.266],[647.82,677.391],[647.617,677.555],[647.43,677.766],[647.305,678.023],[647.148,678.273],[647.125,678.57],[647.328,678.852],[647.391,679.195],[647.188,679.586],[646.789,679.758],[646.422,679.609],[646.117,679.523],[645.852,679.344],[645.5,679.406],[645.133,679.289],[644.891,679.07],[644.742,678.844],[644.617,678.531],[644.563,678.117],[644.516,677.742],[644.5,677.453],[644.492,677.336],[644.477,676.938],[644.531,676.563],[644.781,676.266],[644.945,676.055],[644.984,675.797],[644.906,675.602],[644.742,675.43],[644.695,675.164],[644.789,674.914],[644.773,674.633]]},{"id":"8098a704-3ebb-4ee5-a07a-b6c88e9d11d8","name":"Gotjasach","bach":false,"dir":"forward","c":[[644.773,674.633],[644.352,673.914],[643.828,673.633],[643.281,673.719],[642.906,673.875],[642.484,673.828],[642.148,673.523],[642.086,673.25],[642.078,672.859],[641.859,672.734],[641.641,672.875],[641.391,672.961],[641.172,672.922],[640.992,672.766],[640.789,672.695],[640.617,672.828],[640.578,673.156],[640.258,673.453],[639.875,673.539],[639.578,673.398],[639.352,673.102],[639.031,672.789],[638.758,672.555],[638.68,672.266],[638.797,671.922]]},{"id":"df7a8808-48d7-46a2-b59d-1fb8e126aa06","name":"Flussweg-5107","bach":true,"dir":"reverse","c":[[671.711,684.789],[671.898,685.055],[672,685.352],[671.992,685.672],[671.922,685.875],[671.797,686.094],[671.75,686.375],[671.602,686.656],[671.258,687.102],[670.984,687.563],[670.32,687.984],[670.102,688.25],[669.813,688.539],[669.633,688.813],[669.383,688.969],[669.289,689.219],[669.289,689.5],[669.094,689.727]]},{"id":"00d89aa0-dbd4-464a-b3b5-108e825dd7c7","name":"Flussweg-5108","bach":true,"dir":"forward","c":[[664.656,692.016],[664.844,691.422],[664.789,690.797],[664.555,690.211],[664.484,689.43],[664.672,688.734],[665.055,688.289],[665.484,687.672],[666.016,687.188],[666.414,687.055],[666.813,686.531],[667.086,686.266],[667.43,686.164],[667.664,685.984],[667.75,685.727],[668.008,685.5],[668.305,685.555],[668.406,685.742],[668.563,685.891],[668.836,685.844],[669.156,685.656],[669.633,685.594],[670.219,685.523],[670.75,685.305],[671.125,685.211],[671.445,685.219],[671.664,685.063],[671.711,684.789]]},{"id":"48c6eb0f-b85f-42f5-8d81-8d94e9b551ea","name":"Sinop","bach":false,"dir":"forward","c":[[628.016,681.156],[627.758,680.82],[627.547,680.664],[627.352,680.695],[627.273,680.914],[627.109,681.039],[626.82,681.023],[626.594,681.227],[626.555,681.477],[626.656,681.641],[626.773,681.758],[626.953,681.797],[627.242,681.797],[627.422,681.914],[627.438,682.133],[627.563,682.297],[627.781,682.375],[627.984,682.547],[628.109,682.93],[628.008,683.32],[627.813,683.602],[627.742,683.867],[627.852,684.109],[628.117,684.313],[628.148,684.516],[628.094,684.688]]},{"id":"e637fa05-d56a-4aec-9486-85f97b9ae3f6","name":"Flussweg-5110","bach":true,"dir":"forward","c":[[629.063,683.055],[629.031,683.383],[628.922,683.688],[628.766,683.984],[628.664,684.289],[628.422,684.586],[628.094,684.688]]},{"id":"9fe1675a-1af3-4ef2-9e97-39530da86c62","name":"Flussweg-5128","bach":true,"dir":"forward","c":[[614.273,668.625],[614.328,668.336],[614.633,668.195],[614.695,667.867],[614.453,667.695],[614.133,667.844],[613.961,668.164],[613.602,668.227],[613.18,667.953],[612.688,667.805],[612.422,667.633],[612.32,667.289],[611.922,667.125],[611.656,666.93],[611.336,666.867],[611.055,666.805],[610.805,666.969],[610.688,667.18],[610.375,667.305],[610.055,667.32],[609.883,667.438],[609.648,667.594],[609.344,667.609],[609.18,667.781],[608.977,667.898],[608.898,667.906],[608.797,667.906]]},{"id":"4e3c18ff-ee61-44e7-b1c8-ade2281f42a5","name":"Weißwasser","bach":false,"dir":"forward","c":[[638.797,671.922],[638.898,671.734],[638.977,671.406],[638.852,671.039],[638.563,670.883],[638.32,670.766],[638.188,670.563],[638.125,670.203],[637.813,669.977],[637.234,669.938],[636.672,670.109],[636.375,670.242],[636.07,670.383],[635.836,670.563],[635.523,670.609],[635.273,670.516],[635.016,670.5],[634.789,670.617],[634.648,670.945],[634.391,671.047],[634.133,670.984],[633.977,670.797],[633.961,670.555],[634.109,670.242],[634.078,669.938],[633.82,669.672],[633.75,669.414],[633.867,669.156],[634.109,669],[634.398,668.922],[634.5,668.734],[634.406,668.547],[634.141,668.297],[634.188,668.008],[634.367,667.68],[634.438,667.398],[634.422,667.07],[634.469,666.828],[634.555,666.539],[634.742,666.273],[634.758,665.992],[634.625,665.641],[634.617,665.633],[634.57,665.359],[634.711,665.102],[634.938,664.781],[634.984,664.32],[634.766,663.883],[634.5,663.695],[634.188,663.563],[633.844,663.414],[633.438,663.328],[633.18,663.164],[632.898,663.055],[632.555,663.125],[632.313,663.344],[632.133,663.633],[631.828,663.82],[631.43,663.766],[631.18,663.5],[631.164,663.172]]},{"id":"cbfe8ce2-0287-45de-b9be-eff613c1aee8","name":"Weißwasser","bach":false,"dir":"forward","c":[[638.93,677.086],[638.523,676.688],[638.32,676.219],[638.18,675.633],[638.039,675.102],[637.891,674.867],[637.742,674.5],[637.602,674.133]]},{"id":"443e1c69-5bd7-4ce4-b68e-3813925cc0fd","name":"Etter","bach":true,"dir":"reverse","c":[[612.688,683.133],[612.867,683.023],[612.984,682.813],[613.102,682.523],[613.414,682.359],[613.773,682.266],[614.102,682.188],[614.414,682.031],[614.617,681.758],[614.648,681.359],[614.742,680.922],[614.977,680.695],[615.18,680.578],[615.422,680.586],[615.625,680.727],[615.914,680.703],[616.125,680.531],[616.117,680.164],[615.898,679.969],[615.719,679.672],[615.641,679.398],[615.672,679.086],[615.766,678.711],[616.055,678.313],[616.406,678.086],[616.695,677.945],[617.031,677.844],[617.352,677.859],[617.617,677.805],[617.781,677.648],[617.906,677.398],[617.914,677.078],[618.117,676.734],[618.523,676.602],[618.992,676.281],[619.359,676.031],[619.602,675.852],[619.836,675.547],[619.844,675.172],[619.898,674.859],[620.188,674.578],[620.539,674.438],[620.75,674.258],[620.984,674.148],[621.336,674.086],[621.602,674.18],[621.773,674.477],[621.836,674.852],[621.992,675.102],[622.258,675.203],[622.586,675.125],[622.891,674.906],[623.266,674.852],[623.555,674.922],[623.688,675.094],[623.977,675.234],[624.055,675.508],[624.023,675.727],[624.18,675.922]]},{"id":"3d9e3369-2a76-4b3a-af7a-b1e3dee7958e","name":"Ammer","bach":true,"dir":"forward","c":[[629.578,678.977],[629.305,678.727],[629.039,678.602],[628.836,678.359],[628.594,678.18],[628.289,678.094],[628.031,677.875],[627.75,677.828],[627.547,677.75],[627.242,677.469],[626.914,677.305],[626.531,677.094],[626.023,677.055],[625.523,677.172],[625.289,677.445],[625.055,677.508],[624.766,677.297],[624.508,677.25],[624.297,677.43],[624.156,677.789],[623.969,678.07],[623.813,678.289],[623.68,678.602],[623.07,678.906],[622.688,679.148],[622.461,679.117],[622.18,679.102],[621.914,679.383],[621.594,679.539],[621.172,679.695],[621.055,679.977],[621.148,680.297],[621.156,680.578],[620.938,680.828],[620.523,680.93],[620.195,680.93],[619.945,681.102],[619.82,681.352],[619.891,681.813],[619.719,682.164],[619.313,682.516],[619.273,682.969],[619.031,683.289],[618.797,683.414],[618.383,683.469]]},{"id":"69115dbb-c161-435a-8fc7-f479c15f6935","name":"Tiefenbach","bach":true,"dir":"forward","c":[[656.484,690.852],[656.695,690.313],[656.742,690.031],[656.656,689.766],[656.391,689.523],[656.367,689.109],[656.57,688.789],[656.813,688.586],[657.078,688.18],[657.211,687.922],[657.266,687.578],[657.234,687.242],[657.18,686.93],[657.156,686.656],[657.203,686.391],[657.133,686.133]]},{"id":"8a70f8ab-6c68-48e5-9ff6-5bf01dc51d5a","name":"Hahnen","bach":true,"dir":"reverse","c":[[657.133,686.133],[657.32,686.258],[657.477,686.523],[657.742,686.742],[658.117,686.625],[658.344,686.266],[658.703,686.031],[659.063,686.141],[659.125,686.547],[658.898,686.859],[658.617,687.07],[658.258,687.344],[658.203,687.844],[658.516,688.367],[658.445,688.82],[658.188,689.313],[658.195,689.563],[658.328,689.758],[658.586,689.828],[658.766,690.055],[658.914,690.484],[659.188,690.93],[659.484,691.383],[659.68,691.844],[659.859,692.414],[660.023,693.203],[659.867,694.648],[659.93,695.125],[660.148,695.641],[660.484,695.945],[661.016,696.195],[661.508,696.32],[661.727,696.547],[661.766,696.867],[661.625,697.117],[661.5,697.477],[661.578,697.797],[661.461,698.055],[661.133,698.305],[660.859,698.758],[660.875,699.172],[661.008,699.539],[661.008,699.883],[660.805,700.203],[660.555,700.313],[660.273,700.297],[660,700.07],[659.727,700.055],[659.531,700.266],[659.234,700.438],[659.039,700.813],[659.141,701.242],[659.422,701.57],[659.617,702]]},{"id":"cb4f2e9d-905c-467c-80d1-29156aa43ccb","name":"Weißwasser","bach":false,"dir":"forward","c":[[657.359,698.828],[657.18,698.43],[656.93,698.18],[656.664,697.953],[656.703,697.641],[656.961,697.484],[657.18,697.305],[657.258,696.984],[657.156,696.57],[656.992,696.313],[656.828,696.055],[656.68,695.82],[656.359,695.641],[656.273,695.297],[656.359,695.047],[656.648,694.914],[657.008,694.898],[657.375,694.703],[657.586,694.391],[657.633,693.953],[657.859,693.484],[657.797,692.938],[657.445,692.5],[657.102,692.219],[656.633,692.141],[656.094,692.328]]},{"id":"809af3c5-7d55-4120-9b5c-36e503110f9d","name":"Flussweg-5170","bach":true,"dir":"forward","c":[[652.688,696.406],[653.078,696.016],[653.281,695.438],[653.172,695.125],[652.938,694.906],[652.766,694.344],[652.844,693.75],[653.156,693.375],[653.703,693.391],[654.078,693.688],[654.375,693.953],[654.844,694.234],[655.313,694.391],[655.742,694.344],[655.992,694.133],[656.203,693.641],[656.484,693.516],[656.664,693.313],[656.68,693],[656.516,692.789],[656.508,692.547],[656.367,692.391],[656.094,692.328]]},{"id":"4e7e7378-8ffe-4b3c-bd00-0191be67d169","name":"Flussweg-5171","bach":true,"dir":"forward","c":[[644.938,691.055],[644.766,690.828],[644.617,690.578],[644.266,690.297],[643.773,690.25],[643.406,690.266],[642.969,690.219],[642.453,690.344],[642.023,690.609],[641.781,690.961],[641.734,691.328],[641.891,691.609],[642.156,691.703],[642.305,691.914],[642.258,692.203],[642.047,692.305],[641.828,692.305],[641.711,692.203],[641.625,692.078],[641.313,692.141],[640.891,692.492],[640.703,692.734],[640.383,693.031],[640.023,693.016],[639.688,692.789],[639.344,692.617],[638.891,692.664],[638.461,692.969],[638.398,693.273],[638.547,693.625],[638.875,693.789],[639.195,693.844],[639.477,693.953],[639.656,694.117],[639.695,694.438]]},{"id":"5c569a74-76fd-4d18-9df4-4b3fadc34e2d","name":"Flussweg-5172","bach":true,"dir":"forward","c":[[638.766,679.141],[638.805,678.75],[638.82,678.383],[638.93,678.094],[639,677.875],[639.031,677.633],[639.023,677.383],[638.93,677.086]]},{"id":"a0bf7162-e89b-4b2a-949b-0de7569af4f6","name":"Flussweg-5173","bach":false,"dir":"forward","c":[[640.156,681.656],[639.742,681.266],[639.555,680.984],[639.258,680.766],[638.844,680.719],[638.578,680.664],[638.359,680.555],[638.102,680.344],[637.664,680.164],[637.328,680.242],[636.969,680.438],[636.328,680.406],[635.977,680.477],[635.742,680.68],[635.68,680.984],[635.93,681.32],[636.063,681.625],[635.977,681.945],[635.68,682.109],[635.367,682.172],[635.18,682.227],[635.016,682.359],[635.008,682.57]]},{"id":"e0114d8d-d6a4-4deb-bb41-a21d1d9dbde0","name":"Flussweg-5174","bach":true,"dir":"forward","c":[[645.203,685.141],[645.344,684.891],[645.391,684.719],[645.539,684.563],[645.766,684.492],[645.906,684.359],[645.984,684.094]]},{"id":"13129e19-24c6-40b1-b1a1-830c45595d02","name":"Flussweg-5190","bach":true,"dir":"forward","c":[[646.211,686.484],[646.328,686.094],[646.484,685.805],[646.75,685.57],[646.766,685.289],[646.625,685.023],[646.367,684.789],[646.195,684.57],[646.117,684.328],[645.984,684.094]]},{"id":"437224ed-3d61-4ed7-bd16-851d7218f2c5","name":"Flussweg-5176","bach":true,"dir":"forward","c":[[645.984,684.094],[645.914,683.891],[645.773,683.719],[645.648,683.406],[645.813,683.063],[646.023,682.695],[646.164,682.336],[646.133,681.953]]},{"id":"0efc4f01-8cbd-4d25-9964-ad3ef7fd077d","name":"Flussweg-5178","bach":true,"dir":"forward","c":[[666.391,705.422],[666.742,705.039],[667.109,704.82],[667.352,704.672],[667.695,704.539],[667.867,704.328],[667.813,704.039],[667.859,703.75],[668.023,703.594],[668.305,703.484],[668.391,703.289],[668.313,703.133],[668.133,703.031],[667.875,702.813],[667.695,702.398],[667.766,702.039],[668.039,701.758],[668.227,701.484],[668.703,701.281],[668.977,700.938],[669.328,700.688],[669.555,700.469],[669.602,700.188],[669.438,699.992],[669.227,699.742],[669.328,699.258],[669.117,698.93],[668.758,698.813],[668.359,698.867],[668.102,699.016],[667.875,698.961],[667.781,698.797]]},{"id":"1c0ec2d3-2ab7-42f8-9904-def1bfaedaa6","name":"Flussweg-5184","bach":true,"dir":"forward","c":[[617.461,667.172],[617.492,666.852],[617.523,666.602],[617.336,666.328],[617,666.047],[616.578,665.508],[616.32,664.961],[616.344,664.258],[616.617,663.5],[616.695,662.953],[616.57,662.508],[616.273,662.297],[615.836,662.336],[615.422,662.242],[615.281,661.914],[615.398,661.516],[615.266,661.117],[615.391,660.805],[615.602,660.523],[615.664,660.188],[615.82,659.938],[615.883,659.672],[615.852,659.453],[615.742,659.344],[615.734,659.109],[615.602,658.859],[615.422,658.727],[615.219,658.625],[614.938,658.461],[614.727,658.266],[614.781,657.992],[615.023,657.875],[615.148,657.672],[615.063,657.398],[615.117,657.133],[614.977,656.938],[614.703,656.805],[614.578,656.609],[614.578,656.383],[614.359,656.078],[614.188,655.742],[614.102,655.469],[614.008,655.219],[613.797,655.086]]},{"id":"924f1bb3-2aaa-4c66-aa71-3f4d75aecc5e","name":"Flussweg-5186","bach":false,"dir":"forward","c":[[627.063,669.656],[626.672,669.078],[626.203,668.922],[625.797,669.016],[625.531,669.008],[625.359,669.031],[625.07,669.234],[624.664,669.305],[624.391,669.109],[624.133,668.836],[623.797,668.625],[623.695,668.258],[623.836,667.852],[624.102,667.586],[624.461,667.508],[624.883,667.609],[625.227,667.57],[625.375,667.328],[625.281,667.133],[625.125,667],[625.055,666.828],[625.07,666.625],[624.953,666.492],[624.813,666.477],[624.656,666.523],[624.539,666.664],[624.328,666.578],[624.148,666.359],[623.969,666.195],[623.609,666.055],[623.313,665.922],[623.133,665.672],[623.039,665.492],[622.992,665.188],[622.883,664.758],[622.398,664.445],[622,664.031],[621.93,663.531],[622.156,663.172],[622.477,663.055],[622.844,663.031],[623.18,663.117],[623.586,663.172],[623.891,662.984],[623.938,662.719],[623.797,662.516],[623.57,662.469],[623.328,662.5],[623.172,662.492],[623.102,662.445],[623.063,662.336],[623.086,662.203],[623.117,662.141],[623.094,662.031],[623,661.914],[622.898,661.766],[622.859,661.57],[622.93,661.367],[622.883,661.125],[622.711,660.969],[622.477,660.93],[622.234,661.039],[622.109,661.227],[621.875,661.375],[621.75,661.563],[621.508,661.672],[621.367,661.844],[621.055,662.008],[620.891,662.047],[620.797,662.031],[620.602,661.938],[620.305,661.813],[620.039,661.852],[619.766,661.734],[619.688,661.43],[619.867,661.156],[620.18,661.102],[620.414,661.164],[620.547,661.102],[620.57,660.953],[620.398,660.789],[620.438,660.547],[620.68,660.43],[620.844,660.273],[620.977,660.031],[621.016,659.813],[621.094,659.609],[621.227,659.375],[621.391,659.164],[621.484,658.922],[621.445,658.617],[621.477,658.289],[621.664,658.078],[621.938,658.086],[622.125,658.234],[622.383,658.211],[622.555,657.977],[622.5,657.711],[622.305,657.625],[622.109,657.664],[621.883,657.633],[621.578,657.484],[621.32,657.148],[621.211,656.703],[620.875,656.383],[620.672,655.922],[620.383,655.719],[620.148,655.469],[619.945,655.195],[619.523,655.039],[619.078,655.102],[618.672,655.203],[618.156,655.328],[617.438,655.406],[616.563,655.32],[615.891,655.25],[615.203,655.094],[614.742,655.016],[614.266,655.008],[613.797,655.086]]},{"id":"80b0bcc9-3d37-4e5a-8f06-2aa8b9e548ad","name":"Flussweg-5657","bach":false,"dir":"forward","c":[[627.25,675.094],[627.164,674.883],[626.992,674.711],[626.766,674.508],[626.563,674.383],[626.383,674.352],[626.25,674.211],[626.242,673.984],[626.414,673.797],[626.641,673.781],[626.82,673.82],[627.008,673.742],[627.039,673.523],[626.891,673.367],[626.75,673.352],[626.641,673.391],[626.578,673.258],[626.656,673.094],[626.68,672.875],[626.586,672.688],[626.398,672.484],[626.227,672.352],[626.117,672.156],[626.055,671.875],[625.953,671.625],[625.734,671.406],[625.57,671.305],[625.297,671.234],[624.813,671.266],[624.422,671.469],[624.07,671.805],[623.859,672.102],[623.688,672.383],[623.484,672.859],[623.242,673.031],[622.875,673.078],[622.531,672.875],[622.375,672.547],[622.289,672.234],[622.188,671.977],[621.945,671.617],[621.563,671.367],[621.102,671.281],[620.781,671.109],[620.516,670.883],[620.211,670.508],[619.703,670.281],[619.141,670.406],[618.922,670.945],[619.109,671.273],[619.344,671.422],[619.844,671.438],[620.188,671.484],[620.391,671.75],[620.313,672.188],[619.992,672.469],[619.547,672.57],[619.023,672.531],[618.508,672.297],[617.992,672.344],[617.648,672.672],[617.352,672.984],[617.133,673.164],[616.883,673.195],[616.648,673.172],[616.492,673.219],[616.305,673.227],[616.094,673.172],[615.977,673.063],[615.898,672.883],[615.766,672.711],[615.5,672.57],[615.031,672.539],[614.422,672.672],[613.883,672.977],[613.32,673.305],[612.57,673.344],[611.938,673.125],[611.398,672.805],[610.867,672.773],[610.5,672.922],[610.023,673.055],[609.578,673.289],[609.32,673.703],[609.266,674.227],[608.938,674.641],[608.398,675.18],[608.242,675.836],[607.75,676.344],[607.453,676.766],[607.391,677.219]]},{"id":"4558c5b4-5068-4521-a9f3-d4277b0a5f18","name":"Weißwasser","bach":false,"dir":"reverse","c":[[646.133,681.953],[646.414,682.203],[646.641,682.477],[647.125,682.586],[647.602,682.734],[647.953,683.125],[648.219,683.57],[648.602,683.992],[649.117,684.266],[649.383,684.656],[649.438,685.234],[649.313,685.773],[649.445,686.102],[649.68,686.305],[650.047,686.578],[650.648,687.047],[650.914,687.383],[651.109,687.703],[651.617,688.094],[651.914,688.555],[652.039,689.008],[652.289,689.406],[652.758,689.758],[653.375,689.875],[653.633,690.094]]},{"id":"5b1da7a5-bd84-40c4-8266-dd9ba7d99bd3","name":"Weißwasser","bach":false,"dir":"reverse","c":[[653.633,690.094],[653.82,690.313],[653.945,690.68],[654.195,691.016],[654.578,691.25],[655.289,691.703],[655.516,692.086],[655.781,692.305],[656.094,692.328]]},{"id":"ae0159b6-ab66-49aa-a3f9-419b56254de7","name":"Flussweg-5705","bach":true,"dir":"forward","c":[[653.641,692.109],[653.609,691.875],[653.5,691.641],[653.5,691.336],[653.5,691.281],[653.633,691.047],[653.633,690.75],[653.539,690.477],[653.633,690.094]]},{"id":"d23ae826-2eb9-47e5-a77d-9671253bdf4f","name":"Flussweg-5771","bach":true,"dir":"forward","c":[[638.391,674.391],[638.211,674.102],[638.07,673.789],[637.875,673.586],[637.703,673.422],[637.531,673.188],[637.523,672.938],[637.477,672.727],[637.516,672.422]]},{"id":"d575ad02-7efd-4c65-b37a-63d5d64c5818","name":"Weißwasser","bach":false,"dir":"forward","c":[[637.602,674.133],[637.531,673.828],[637.289,673.375],[637.266,673.008],[637.336,672.75],[637.516,672.422]]},{"id":"3e2f47bc-a220-4389-9e35-fb3a71ad9d46","name":"Weißwasser","bach":false,"dir":"forward","c":[[637.516,672.422],[637.742,672.266],[638.063,672.156],[638.43,672.164],[638.758,671.984],[638.797,671.922]]},{"id":"5658ba2a-2c8f-4d65-b6dd-e426494c9e1b","name":"Uhdenfluss","bach":false,"dir":"forward","c":[[651.344,703.469],[651,702.922],[650.484,702.844],[650.094,703.016],[649.734,703.359],[649.203,703.938],[648.719,704.531],[648.469,705],[648.203,705.391],[647.813,705.5],[647.5,705.281],[647.156,705.234],[646.938,705.563],[646.547,705.672],[646.172,705.445],[645.969,705.25],[645.773,704.969],[645.633,704.727],[645.281,704.625],[644.859,704.797],[644.586,704.656],[644.266,704.391],[643.938,704.125],[643.719,703.703],[643.422,703.391],[643.234,703],[642.906,702.688],[642.625,702.328],[642.344,701.922],[641.906,701.609],[641.313,701.297],[640.672,700.953],[640.281,700.406],[639.938,699.719],[639.688,698.891],[639.422,698],[638.922,697.625],[638.156,697],[637.753,696.347],[637.305,695.461],[636.523,694.984],[635.766,694.375],[635.523,693.641],[635.352,692.625],[634.828,692.016],[634.156,691.766],[633.82,691.656],[632.175,690.922],[630.422,690.594],[629.289,689.742],[628.898,689.383]]},{"id":"d14e2809-cdb1-4c33-a2a5-56d70bf72954","name":"Rathil","bach":false,"dir":"forward","c":[[639.273,695.164],[638.883,695.219],[638.547,695.195],[638.164,695.242],[637.813,695.375],[637.555,695.438],[637.344,695.422],[637.109,695.362]]},{"id":"daeda2f7-caf8-45aa-b01e-5327bd05da96","name":"Flussweg-6043","bach":false,"dir":null,"c":[[639.695,694.438],[639.633,694.688],[639.516,694.938],[639.273,695.164]]},{"id":"e7c61006-9037-497b-ba4f-fed7f5ac2495","name":"Runezzari","bach":true,"dir":"forward","c":[[663.359,701.672],[663.047,701.289],[662.93,700.977],[663.109,700.609],[663.508,700.539],[664.023,700.727],[664.313,700.57],[664.523,700.211],[664.93,700.063],[665.305,699.555],[665.805,699.195],[666.266,698.984],[666.898,698.852],[667.344,698.906],[667.633,698.891],[667.789,698.789]]},{"id":"3fc7accd-c0aa-416c-96bd-8a7438a54833","name":"Runezzari","bach":true,"dir":"forward","c":[[667.789,698.789],[667.891,698.523],[667.758,698.32],[667.461,698.305],[667.188,698.461],[666.781,698.492],[666.313,698.391],[666.086,698.086],[665.773,697.914],[665.563,697.578],[665.773,697.063],[666.125,696.828],[666.492,696.898],[666.773,696.727],[667.016,696.258],[667.531,695.891],[667.617,695.492],[667.977,695.383],[668.219,695.281],[668.32,695.07],[668.195,694.852],[667.727,694.773],[667.547,694.391],[667.375,694.063],[666.953,693.781],[666.813,693.281],[667.227,693.156],[667.609,692.984],[667.875,692.695],[668.32,692.523],[668.664,692.477],[669.148,692.531],[669.859,693],[670.414,693.109],[670.781,693.031],[671.039,692.797],[671.242,692.484],[671.461,692.219],[671.719,692],[671.906,691.609],[672.148,691.266],[672.672,690.961],[673.117,691.008],[673.438,691.219],[673.781,691.234],[674.078,690.953],[674.555,690.797],[675.039,690.836],[675.383,690.914],[675.797,690.93],[676.227,690.813],[676.5,690.68],[676.813,690.469],[676.914,690.211],[676.891,690.016],[676.703,689.891],[676.297,689.977],[676.047,690.016],[675.82,689.898],[675.898,689.664],[676.117,689.5],[676.453,689.102],[676.758,688.938],[676.984,688.641],[677.008,688.336],[676.977,688.102],[677.086,687.922],[677.141,687.648],[677.344,687.477],[677.711,687.438],[677.961,687.594],[678.039,687.906],[678.305,688.117],[678.688,688.242],[679.109,688.461],[679.477,688.477],[679.82,688.352],[680.195,688.453],[680.414,688.719],[680.766,688.898],[681.297,688.859],[681.43,688.82]]},{"id":"48a53277-2d45-4885-9e80-89ad00634c29","name":"Lonat","bach":false,"dir":"forward","c":[[663.977,694.852],[664.016,694.477],[663.984,694.18],[663.828,693.961],[663.805,693.672],[663.898,693.367],[663.68,693.086],[663.516,692.852],[663.281,692.727],[663.195,692.5],[663.164,692.406],[663.016,692.242],[662.734,692.164],[662.641,691.906],[662.797,691.539],[662.813,691.195],[662.938,690.906],[663.078,690.633],[663.102,690.297],[663.211,689.969],[663.133,689.633],[662.891,689.492],[662.742,689.203],[662.43,688.953],[662.266,688.609],[662.383,688.141],[662.602,687.875],[662.695,687.578],[662.703,687.18],[662.648,686.633],[662.664,686.219],[662.711,685.719],[662.719,685.273],[662.688,684.844],[662.648,684.305],[662.82,683.727],[663.063,683.211],[663.133,682.75],[663.063,682.266],[662.859,681.758],[662.469,681.297],[662.313,680.766],[662.43,680.195],[662.359,679.719],[662.047,679.344],[661.891,679.047],[661.625,678.82],[661.523,678.57],[661.609,678.328],[661.852,678.219],[662.102,678.266],[662.305,678.281],[662.508,678.188],[662.594,677.992]]}]}]</script>
+
+<script>
+/* ══ Die Buehne — nur Anzeige und Messung, keine Regel ═════════════════════════════════════ */
+(function () {
+	"use strict";
+
+	const DATA = JSON.parse(document.getElementById("kam-data").textContent);
+	const $ = (id) => document.getElementById(id);
+	const fmt = (n, d) => Number(n).toLocaleString("de-DE", { minimumFractionDigits: d || 0, maximumFractionDigits: d || 0 });
+	const token = (name) => String(getComputedStyle(document.documentElement).getPropertyValue(name) || "").trim() || "#888";
+
+	const CANVAS_W = 300;
+	const STEP = 2;
+	const UNIT_MEILEN = 3;            // 1 Karteneinheit = 3 Meilen = 3.000 Schritt
+	const EROSION_RASTER = 96;        // grober als die Modulvorgabe (128) -- drei Gebirge, interaktiv
+
+	const mounts = DATA.map(function (g) {
+		const areas = g.areas.map((a) => Object.assign({}, a, { geometry_geojson: a.geometry }));
+		const peaks = g.peaks.map((p) => ({ publicId: p.id, x: p.x, y: p.y, height: p.h }));
+		const stack = buildEcosystemHeightStack(areas, peaks);
+		const b = areas[0].bounds;
+		const field = stack.fields.length ? stack.fields[0] : null;
+		// Die Flusslaeufe in der Form, die das Talmodul erwartet (wie im Flusstaeler-Prototyp).
+		const rivers = (g.rivers || []).map((r) => ({
+			properties: { public_id: r.id, display_name: r.name, feature_subtype: "Flussweg", is_bach: r.bach, flow: r.dir ? { dir: r.dir } : undefined },
+			geometry: { type: "LineString", coordinates: r.c },
+		}));
+		return {
+			name: g.name, areas: areas, peaks: peaks, stack: stack, field: field, bounds: b,
+			line: g.live_curve, rivers: rivers,
+			// 💣 DAS MESSFELD: Rauschfeld OHNE Gipfelbuckel. Woertlich, was der Feldbau selbst benutzt
+			// (`const measuring = { ...field, peakBumps: [] }`) -- nur so ist eine gemessene Zahl mit
+			// terrain_avg_height / terrain_mean_height vergleichbar.
+			messfeld: field ? Object.assign({}, field, { peakBumps: [] }) : null,
+			terrain: {
+				grain: areas[0].terrain_grain, levels: areas[0].terrain_levels,
+				max: areas[0].terrain_avg_height, mean: areas[0].terrain_mean_height,
+			},
+			w: b.max_x - b.min_x, h: b.max_y - b.min_y,
+			kamm: null, neu: null, courses: null, valley: null, erosion: null,
+			heute: null, voll: null, gipfelMax: 0, dom: null,
+		};
+	});
+
+	// Der ROHE Rauschwert (Potenz 1, ohne Skalierung), rekonstruiert aus dem fertigen Feld:
+	//   n = S · r^P   =>   r = (n / S)^(1/P)
+	// ⚠️ Bei P = 1 faltet der Feldbau die Skalierung in die Amplituden (S bleibt 1) -- dann ist r bis
+	// auf einen konstanten Faktor gleich n. Das ist harmlos: der Faktor geht in S' der Neusuche auf.
+	function rohNoise(m, x, y) {
+		const n = sampleEcosystemHeightField(m.messfeld, x, y, 1);
+		if (!(n > 0)) { return 0; }
+		const S = m.messfeld.noiseScale || 1;
+		const P = m.messfeld.noiseExponent || 1;
+		return P === 1 ? n / S : Math.pow(n / S, 1 / P);
+	}
+
+	// Die Neusuche: genau die Kette aus buildEcosystemHeightField, nur auf dem Feld MIT Huelle.
+	// Sie ruft die ECHTE Routine (solveEcosystemNoiseExponent) -- keine eigene Suche.
+	function neusuche(m) {
+		const b = m.bounds;
+		const step = Math.max(0.5, Math.min(m.w, m.h) / 60);   // dieselbe Schrittweite wie der Feldbau
+		const samples = [];
+		let loudest = 0;
+		for (let y = b.min_y; y <= b.max_y; y += step) {
+			for (let x = b.min_x; x <= b.max_x; x += step) {
+				const r = rohNoise(m, x, y);
+				const v = r > 0 ? r * ecosystemKammEnvelope(m.kamm, x, y) : 0;
+				if (v > loudest) { loudest = v; }
+				// 💣 Derselbe Trick wie im Feldbau: ein Wert > 0 BEWEIST, dass der Punkt in der Flaeche
+				// liegt (kompakter Traeger der Buckel). Der teure Polygontest trifft nur die Nullen.
+				if (v > 0) { samples.push(v); }
+				else if (pointInGeometry([x, y], m.areas[0].geometry)) { samples.push(0); }
+			}
+		}
+		const target = Number(m.terrain.max) > 0 ? Number(m.terrain.max) : 0;
+		const wantsMean = Number.isFinite(Number(m.terrain.mean)) && m.terrain.mean !== null;
+		let P = 1;
+		if (wantsMean && loudest > 0 && target > 0) {
+			const ratio = Math.min(0.999, Math.max(0.001, Number(m.terrain.mean) / target));
+			P = solveEcosystemNoiseExponent(samples, loudest, ratio);
+		}
+		const S = (loudest > 0 && target > 0) ? target / Math.pow(loudest, P) : 0;
+		return { scale: S, exponent: P, loudest: loudest };
+	}
+
+	// ---- Die vier Stufen als Abfragen -----------------------------------------------------
+	function abfragen(m) {
+		const win = m.stack.peakWindow;
+		const fields = m.stack.fields;
+		const q = {
+			// Nur die Gipfelbuckel: Rauschfenster 0 laesst `peaksHeight + 0 * noise` uebrig.
+			// ⚠️ Gilt fuer `perlin`, und Gebirge rechnet perlin (ECOSYSTEM_TERRAIN_METHOD_BY_TYPE).
+			gipfel: function (x, y) {
+				let sum = 0;
+				for (let i = 0; i < fields.length; i++) { sum += sampleEcosystemHeightFieldRaw(fields[i], x, y, 0); }
+				return sum;
+			},
+			fenster: function (x, y) { return win ? win.sample(x, y) : 1; },
+			// STUFE 0 -- das volle Feld von heute, die echte Kartenrechnung.
+			heute: function (x, y) {
+				const nw = win ? win.sample(x, y) : 1;
+				let sum = 0;
+				for (let i = 0; i < fields.length; i++) { sum += sampleEcosystemHeightField(fields[i], x, y, nw); }
+				return sum;
+			},
+			// Das Rauschfeld von heute, wie der Feldbau es misst.
+			rauschHeute: function (x, y) { return sampleEcosystemHeightField(m.messfeld, x, y, 1); },
+			// Das Rauschfeld MIT Kammhuelle, nach der Neusuche. Das ist die eine neue Regel.
+			rauschKamm: function (x, y) {
+				if (!m.kamm) { return q.rauschHeute(x, y); }
+				const r = rohNoise(m, x, y);
+				if (!(r > 0)) { return 0; }
+				const v = r * ecosystemKammEnvelope(m.kamm, x, y);
+				if (!(v > 0)) { return 0; }
+				return m.neu.scale * (m.neu.exponent === 1 ? v : Math.pow(v, m.neu.exponent));
+			},
+		};
+		// STUFE 1 -- Gipfel unberuehrt, Rauschen durch die Kammhuelle.
+		q.kamm = function (x, y) {
+			if (!m.kamm) { return q.heute(x, y); }
+			return q.gipfel(x, y) + q.fenster(x, y) * q.rauschKamm(x, y);
+		};
+		// STUFE 2 -- die Taeler schneiden das FERTIGE Feld ein (Fall #109, Talmodul).
+		q.tal = function (x, y) {
+			const h = q.kamm(x, y);
+			return m.valley ? carveEcosystemValley(m.valley, x, y, h) : h;
+		};
+		// STUFE 3 -- der Tropfenlauf, gelesen aus dem Raster.
+		//
+		// 🔴 ZWEI RIEGEL, und der zweite ist erst nach einer Messung dazugekommen. Der Gipfelbuckel
+		// kommt DANACH obendrauf -- damit kann die Erosion ihn nicht abtragen. Das genuegte aber nicht:
+		// gemessen am Finsterkamm wuchs der hoechste Punkt um 62 Schritt, weil ein Tropfen in der Zelle
+		// NEBEN dem Gipfel ablagern darf und der bilineare Lesekern das in den Gipfel hineinzieht.
+		//
+		// 💣 UND DAS IST KEIN AUFLOESUNGSPROBLEM. Ueber fuenf Rasterweiten gemessen (64/96/128/192/256
+		// Zellen) betraegt das Leck 11,2 / 98,4 / 12,4 / 8,1 / 9,8 Schritt -- es faellt NICHT monoton,
+		// es schwankt damit, welcher Tropfen zufaellig in die Gipfelzelle laeuft. Ein feineres Raster
+		// heilt es also nicht, es verschiebt nur den Zufall. Wer das nicht nachmisst, "loest" es durch
+		// mehr Zellen und bezahlt Rechenzeit fuer nichts.
+		//
+		// ⭐ Der Riegel ist das GIPFELFENSTER beim Lesen -- dieselbe Groesse, die schon in Stufe 1 und 2
+		// steht: am Gipfel ist es 0, dort traegt also ausschliesslich der Buckel, algebraisch dicht.
+		// ⚠️ Der Preis ist benannt: in der Uebergangszone (0 < Fenster < 1, rund 1 bis 1,5 E Radius um
+		// jeden Gipfel) wird das Rauschen ein zweites Mal gefenstert, also etwas zu stark gedaempft.
+		// Dort dominiert der Buckel ohnehin. Der saubere Weg waere, das Erosionsraster aus dem
+		// UNGEFENSTERTEN Rauschfeld zu bauen -- das geht erst, wenn auch der Taleinschnitt auf dem
+		// Rauschfeld statt auf dem Gesamtfeld rechnet, und das ist eine Entscheidung von Fall #109.
+		q.erosion = function (x, y) {
+			if (!m.erosion) { return q.tal(x, y); }
+			return q.gipfel(x, y) + q.fenster(x, y) * sampleErosionField(m.erosion, x, y);
+		};
+		return q;
+	}
+
+	// 🪤 KENNZAHLEN DER EROSIONSSTUFE WERDEN AM RASTER GEMESSEN, nicht ueber `messen()`.
+	//
+	// Das ist keine Bequemlichkeit, sondern eine Messfalle, die dieses Bild gestellt hat: `messen()`
+	// tastet mit 81x81 Punkten ab, das Erosionsraster hat 96x96 Zellen -- ein feineres Gitter als das
+	// Messgitter. Nach der Erosion ist das Maximum ein EINZELZELLEN-Spike (bei der Schwarzen Sichel
+	// hat die Spitzenzelle die Nachbarn 0/0/0), und ein zu grobes Messgitter trifft ihn nicht: gemessen
+	// standen 40,7 % und 48,5 % Abweichung in den Kaesten, wo mit 4-facher Abtastung nur 8,9 % und
+	// 3,2 % sind. Die Zahl sah wie ein Befund ueber die Erosion aus und war einer ueber die Messung.
+	//
+	// ⭐ Am Raster ist es exakt UND billiger: O(Zellen) statt O(Messpunkte x Feldabfragen).
+	// ⚠️ Gemessen wird `Zelle x Gipfelfenster` -- also was der Leseweg herausgibt, nicht das Raster
+	// allein (derselbe Grund wie bei der Skalierung eine Ebene darueber).
+	function messenAmRaster(er) {
+		let max = 0, sum = 0, n = 0;
+		for (let k = 0; k < er.hoehe.length; k++) {
+			if (!er.drin[k]) { continue; }
+			const v = er.hoehe[k] * er.gipfel[k];
+			if (v > max) { max = v; }
+			sum += v; n++;
+		}
+		return { max: max, mean: n > 0 ? sum / n : 0, n: n };
+	}
+
+	// Kennzahlen ueber die FLAECHE (nicht die bbox) -- fuer den Vergleich mit den eingestellten Zahlen.
+	function messen(m, sampler) {
+		const N = 80;
+		let max = 0, sum = 0, n = 0;
+		for (let j = 0; j <= N; j++) {
+			const y = m.bounds.min_y + (m.h * j) / N;
+			for (let i = 0; i <= N; i++) {
+				const x = m.bounds.min_x + (m.w * i) / N;
+				const v = sampler(x, y);
+				if (v > 0) { if (v > max) { max = v; } sum += v; n++; }
+				else if (pointInGeometry([x, y], m.areas[0].geometry)) { n++; }
+			}
+		}
+		return { max: max, mean: n > 0 ? sum / n : 0, n: n };
+	}
+
+	// ---- Markup je Gebirge ----------------------------------------------------------------
+	const STUFEN = [
+		["heute", "Heute", "echter Feldbau"],
+		["kamm", "+ Kamm-Anwuchs", "neu"],
+		["tal", "+ Flusstaeler", "Fall #109"],
+		["erosion", "+ Erosion", "Tropfen"],
+	];
+
+	function bauen() {
+		const host = $("kam-mounts");
+		host.innerHTML = "";
+		mounts.forEach(function (m, idx) {
+			const H = Math.max(140, Math.round(CANVAS_W * (m.h / m.w)));
+			const stufen = STUFEN.map(function (s) {
+				return [
+					'<div class="kam-stage"><div class="kam-stage__head"><span class="kam-stage__title">', s[1],
+					' <i>', s[2], '</i></span><span class="kam-stage__tally" id="t-', s[0], '-', idx, '"></span></div>',
+					'<div class="kam-canvas-wrap"><canvas id="c-', s[0], '-', idx, '" width="', CANVAS_W, '" height="', H, '"></canvas></div>',
+					'<div class="kam-stage__foot" id="f-', s[0], '-', idx, '">&nbsp;</div></div>',
+				].join("");
+			}).join("");
+			const el = document.createElement("div");
+			el.className = "kam-mount";
+			el.innerHTML = [
+				'<div class="kam-mount__head">',
+				'<span class="kam-mount__name">', m.name, '</span>',
+				'<span class="kam-mount__meta">bbox <b>', fmt(m.w, 1), ' &times; ', fmt(m.h, 1), '</b> E',
+				' &middot; <b>', m.peaks.length, '</b> Gipfel (', m.peaks.filter((p) => p.height != null).length, ' mit Hoehe)',
+				' &middot; Kurve <b>', m.line ? m.line.length : 0, '</b> Punkte',
+				' &middot; <b>', m.rivers.length, '</b> Flusswege (', m.rivers.filter((r) => r.properties.is_bach).length, ' Baeche)',
+				' &middot; eingestellt: max <b>', fmt(m.terrain.max), '</b> / &Oslash; <b>', fmt(m.terrain.mean), '</b> Schritt',
+				' &middot; Koernung ', fmt(m.terrain.grain, 1), ', ', m.terrain.levels, ' Stufen</span>',
+				'</div>',
+				'<div class="kam-stages">', stufen, '</div>',
+				'<div class="kam-profile"><canvas id="p-', idx, '" width="1200" height="160"></canvas>',
+				'<div class="kam-legend">',
+				'<span class="kam-leg-heute"><i></i>Heute</span>',
+				'<span class="kam-leg-kamm"><i></i>+ Kamm</span>',
+				'<span class="kam-leg-tal"><i></i>+ Taeler</span>',
+				'<span class="kam-leg-ero"><i></i>+ Erosion</span>',
+				'<span class="kam-leg-achse"><i></i>Kreuzung mit dem Kamm</span>',
+				'<span id="p-note-', idx, '"></span>',
+				'</div></div>',
+				'<div class="kam-facts" id="facts-', idx, '"></div>',
+			].join("");
+			host.appendChild(el);
+			m.dom = { idx: idx, H: H };
+		});
+	}
+
+	// ---- Malen ----------------------------------------------------------------------------
+	function ringe(m) {
+		const out = [];
+		m.areas.forEach(function (a) {
+			const g = a.geometry;
+			if (!g) { return; }
+			if (g.type === "Polygon") { g.coordinates.forEach((r) => out.push(r)); }
+			else if (g.type === "MultiPolygon") { g.coordinates.forEach((poly) => poly.forEach((r) => out.push(r))); }
+		});
+		return out;
+	}
+
+	function malen(m, canvas, sampler, reference) {
+		const ctx = canvas.getContext("2d");
+		const W = canvas.width, H = canvas.height;
+		const scale = Math.min(W / m.w, H / m.h);
+		const started = performance.now();
+		const image = ctx.createImageData(W, H);
+		const data = image.data;
+		for (let py = 0; py < H; py += STEP) {
+			const y = m.bounds.max_y - py / scale;           // Norden oben, wie auf der Karte
+			for (let px = 0; px < W; px += STEP) {
+				const x = m.bounds.min_x + px / scale;
+				const h = sampler(x, y);
+				if (h <= 0) { continue; }
+				const g = Math.round(255 * Math.min(1, h / reference));
+				for (let yy = py; yy < Math.min(H, py + STEP); yy++) {
+					let o = (yy * W + px) * 4;
+					for (let xx = px; xx < Math.min(W, px + STEP); xx++) { data[o] = g; data[o + 1] = g; data[o + 2] = g; data[o + 3] = 255; o += 4; }
+				}
+			}
+		}
+		ctx.clearRect(0, 0, W, H);
+		ctx.putImageData(image, 0, 0);
+		const ms = performance.now() - started;
+
+		ctx.save();
+		ctx.strokeStyle = token("--color-border");
+		ctx.lineWidth = 1;
+		ctx.beginPath();
+		ringe(m).forEach(function (ring) {
+			ring.forEach(function (c, i) {
+				const X = (c[0] - m.bounds.min_x) * scale, Y = (m.bounds.max_y - c[1]) * scale;
+				if (i === 0) { ctx.moveTo(X, Y); } else { ctx.lineTo(X, Y); }
+			});
+		});
+		ctx.stroke();
+		ctx.restore();
+
+		if ($("kam-rivers").checked && m.rivers.length) {
+			ctx.save();
+			ctx.lineCap = "round"; ctx.lineJoin = "round";
+			m.rivers.forEach(function (r) {
+				ctx.strokeStyle = token(r.properties.is_bach ? "--color-path-bach" : "--color-path-flussweg");
+				ctx.lineWidth = r.properties.is_bach ? 0.8 : 1.3;
+				ctx.beginPath();
+				r.geometry.coordinates.forEach(function (c, i) {
+					const X = (c[0] - m.bounds.min_x) * scale, Y = (m.bounds.max_y - c[1]) * scale;
+					if (i === 0) { ctx.moveTo(X, Y); } else { ctx.lineTo(X, Y); }
+				});
+				ctx.stroke();
+			});
+			ctx.restore();
+		}
+		if ($("kam-curve").checked && m.line) {
+			ctx.save();
+			ctx.strokeStyle = token("--color-link");
+			ctx.lineWidth = 1.5;
+			ctx.setLineDash([5, 4]);
+			ctx.beginPath();
+			m.line.forEach(function (p, i) {
+				const X = (p[0] - m.bounds.min_x) * scale, Y = (m.bounds.max_y - p[1]) * scale;
+				if (i === 0) { ctx.moveTo(X, Y); } else { ctx.lineTo(X, Y); }
+			});
+			ctx.stroke();
+			ctx.restore();
+		}
+		if ($("kam-peaks").checked) {
+			ctx.save();
+			ctx.fillStyle = token("--color-accent-brown");
+			ctx.strokeStyle = token("--color-panel");
+			ctx.lineWidth = 1;
+			m.peaks.forEach(function (p) {
+				const X = (p.x - m.bounds.min_x) * scale, Y = (m.bounds.max_y - p.y) * scale;
+				ctx.beginPath();
+				ctx.moveTo(X, Y - 4); ctx.lineTo(X + 3.5, Y + 2.5); ctx.lineTo(X - 3.5, Y + 2.5); ctx.closePath();
+				ctx.fill(); ctx.stroke();
+			});
+			ctx.restore();
+		}
+		return { ms: ms, scale: scale };
+	}
+
+	// Das Querprofil: die Sehne QUER zum Kamm, durch dessen Mitte, mit allen vier Stufen.
+	// 💣 Quer, nicht laengs -- laengs des Kamms zeigt der Anwuchs per Konstruktion fast nichts.
+	function profil(m, canvas, q) {
+		const ctx = canvas.getContext("2d");
+		const W = canvas.width, H = canvas.height;
+		ctx.clearRect(0, 0, W, H);
+		if (!m.line || m.line.length < 2) { return null; }
+		const mid = Math.floor(m.line.length / 2);
+		const a = m.line[Math.max(0, mid - 1)], b = m.line[Math.min(m.line.length - 1, mid + 1)];
+		const tx = b[0] - a[0], ty = b[1] - a[1];
+		const len = Math.hypot(tx, ty) || 1;
+		const nx = -ty / len, ny = tx / len;                 // Normale des Kamms
+		const c = m.line[mid];
+		const reach = Math.max(m.w, m.h);
+		const N = 500;
+		const pts = [];
+		for (let i = 0; i <= N; i++) {
+			const s = -reach / 2 + (reach * i) / N;
+			const x = c[0] + nx * s, y = c[1] + ny * s;
+			const drin = pointInGeometry([x, y], m.areas[0].geometry);
+			pts.push({
+				s: s, drin: drin,
+				heute: drin ? q.heute(x, y) : 0,
+				kamm: drin ? q.kamm(x, y) : 0,
+				tal: drin ? q.tal(x, y) : 0,
+				erosion: drin ? q.erosion(x, y) : 0,
+			});
+		}
+		let maxH = 1;
+		pts.forEach((p) => { maxH = Math.max(maxH, p.heute, p.kamm, p.tal, p.erosion); });
+		const px = (i) => (W * i) / N;
+		const py = (v) => H - 10 - ((H - 22) * v) / maxH;
+
+		ctx.save();
+		ctx.strokeStyle = token("--color-divider");
+		ctx.lineWidth = 1;
+		ctx.beginPath(); ctx.moveTo(0, H - 10); ctx.lineTo(W, H - 10); ctx.stroke();
+		ctx.setLineDash([4, 3]);
+		ctx.beginPath(); ctx.moveTo(px(N / 2), 4); ctx.lineTo(px(N / 2), H - 10); ctx.stroke();
+		ctx.setLineDash([]);
+		[["heute", "--color-text-muted", 1.2], ["kamm", "--color-accent-brown", 1.5],
+		 ["tal", "--color-path-flussweg", 1.5], ["erosion", "--color-link", 1.8]].forEach(function (spur) {
+			ctx.strokeStyle = token(spur[1]); ctx.lineWidth = spur[2];
+			ctx.beginPath();
+			pts.forEach(function (p, i) { const X = px(i), Y = py(p[spur[0]]); if (i === 0) { ctx.moveTo(X, Y); } else { ctx.lineTo(X, Y); } });
+			ctx.stroke();
+		});
+		ctx.restore();
+		const drin = pts.filter((p) => p.drin);
+		return { maxH: maxH, laenge: drin.length ? (drin[drin.length - 1].s - drin[0].s) : 0 };
+	}
+
+	// ---- Ein Durchgang --------------------------------------------------------------------
+	function werte() {
+		return {
+			blur: Number($("kam-blur").value),
+			kammAn: $("kam-an").checked,
+			solve: $("kam-solve").checked,
+			talBreite: Number($("tal-breite").value) / UNIT_MEILEN,
+			talTiefe: Number($("tal-tiefe").value) / 100,
+			talAn: $("tal-an").checked,
+			tropfen: Number($("ero-tropfen").value),
+			kraft: Number($("ero-kraft").value) / 100,
+			eroAn: $("ero-an").checked,
+			eroPull: $("ero-pull").checked,
+		};
+	}
+
+	function marken() {
+		const v = werte();
+		$("kam-blur-val").textContent = fmt(v.blur, 1) + " E";
+		$("tal-breite-val").textContent = fmt(Number($("tal-breite").value), 1) + " mi";
+		$("tal-tiefe-val").textContent = fmt(Number($("tal-tiefe").value)) + " %";
+		$("ero-tropfen-val").textContent = v.tropfen === 0 ? "aus" : fmt(v.tropfen);
+		$("ero-kraft-val").textContent = fmt(v.kraft, 2);
+	}
+
+	function zeichnen() {
+		marken();
+		const v = werte();
+		const zeiten = { kamm: 0, suche: 0, tal: 0, erosion: 0, malen: 0 };
+
+		mounts.forEach(function (m) {
+			const idx = m.dom.idx;
+
+			// STUFE 1 -- Kammhuelle + Neusuche
+			let t = performance.now();
+			m.kamm = (v.kammAn && m.field && m.line) ? buildEcosystemKammIndex(m.field, m.line, { blur: v.blur }) : null;
+			zeiten.kamm += performance.now() - t;
+			t = performance.now();
+			m.neu = m.kamm
+				? (v.solve ? neusuche(m) : { scale: m.messfeld.noiseScale || 1, exponent: m.messfeld.noiseExponent || 1, loudest: 0 })
+				: null;
+			zeiten.suche += performance.now() - t;
+
+			const q = abfragen(m);
+
+			// STUFE 2 -- Flusstaeler. 🔴 Der Talboden wird aus dem UNGESCHNITTENEN Feld bestimmt, und
+			// das ist hier Stufe 1 (mit Kamm-Anwuchs) -- nicht das Feld von heute.
+			t = performance.now();
+			if (v.talAn && m.rivers.length && m.field) {
+				m.courses = buildEcosystemRiverCourses(m.field, m.rivers, q.kamm, m.stack.peakWindow.points,
+					{ width: v.talBreite, bachShare: 0.5 });
+				m.valley = buildEcosystemValleyIndex(m.courses.segments, { depthShare: v.talTiefe });
+			} else {
+				m.courses = null; m.valley = null;
+			}
+			zeiten.tal += performance.now() - t;
+
+			// STUFE 3 -- Erosion. 🔴 Auf dem Feld OHNE Gipfelbuckel; die kommen beim Lesen wieder drauf.
+			t = performance.now();
+			if (v.eroAn && v.tropfen > 0) {
+				const ohneGipfel = function (x, y) {
+					const h = q.tal(x, y) - q.gipfel(x, y);
+					return h > 0 ? h : 0;
+				};
+				m.erosion = buildErosionField(m.bounds, ohneGipfel, {
+					inside: (x, y) => pointInGeometry([x, y], m.areas[0].geometry),
+					peakWindow: m.stack.peakWindow,
+					grid: EROSION_RASTER,
+				});
+				runErosionDroplets(m.erosion, { tropfen: v.tropfen, seed: 42, erode: v.kraft, deposit: 0.3 });
+				// 🔴 DIE HOEHEN NACHZIEHEN -- nur eine SKALIERUNG, keine Potenz.
+				// Die Erosion traegt netto ab (der Tropfen nimmt sein Sediment ueber den Rand mit, denn
+				// ablagern darf er dort nicht), und Maximal- wie Durchschnittshoehe sind EINGESTELLTE
+				// Werte. Eine reine Skalierung holt das Maximum zurueck und laesst die Form in Ruhe.
+				// ⚠️ KEINE Potenzsuche wie beim Kamm-Anwuchs: die wirkt nichtlinear und wuerde genau die
+				// Rinnen verzerren, um deren willen man erodiert. Der Preis steht in den Zahlenkaesten --
+				// das Maximum wird getroffen, der Durchschnitt bleibt daneben.
+				if (v.eroPull) {
+					// 💣 GEMESSEN WIRD, WAS DER LESEWEG HERAUSGIBT -- also `Raster × Gipfelfenster`, nicht
+					// das Raster allein. Erst am Raster skaliert lag das Maximum bis zu 48,5 % daneben:
+					// das Rastermaximum liegt an einer Stelle, an der das Fenster kleiner als 1 ist, und
+					// die zweite Daempfung frisst genau diese Differenz. Es ist derselbe Fehler wie eine
+					// Zahl, die vor der Rundung stimmt -- gemessen werden muss die Groesse, die der
+					// Aufrufer sieht. `er.gipfel[k]` ist dieses Fenster, je Zelle, schon vorberechnet.
+					let hoch = 0;
+					for (let k = 0; k < m.erosion.hoehe.length; k++) {
+						if (!m.erosion.drin[k]) { continue; }
+						const gelesen = m.erosion.hoehe[k] * m.erosion.gipfel[k];
+						if (gelesen > hoch) { hoch = gelesen; }
+					}
+					const ziel = Number(m.terrain.max) > 0 ? Number(m.terrain.max) : 0;
+					if (hoch > 1e-6 && ziel > 0) {
+						const s = ziel / hoch;
+						for (let k = 0; k < m.erosion.hoehe.length; k++) { m.erosion.hoehe[k] *= s; }
+						m.erosion.skala = s;
+					}
+				}
+			} else {
+				m.erosion = null;
+			}
+			zeiten.erosion += performance.now() - t;
+
+			// Messungen -- EINMAL fuer "heute", danach je Durchgang fuer die drei Stufen
+			if (!m.heute) {
+				m.heute = messen(m, q.rauschHeute);           // Rauschfeld: vergleichbar mit den Reglern
+				m.voll = messen(m, q.heute);                  // volles Feld: nur fuer die Graustufe
+				m.gipfelMax = messen(m, q.gipfel).max;
+			}
+			const mKamm = messen(m, q.kamm);
+			const mTal = messen(m, q.tal);
+			const mEro = messen(m, q.erosion);
+
+			// 🔴 DIESELBE Referenz fuer ALLE Stufen, sonst vergleicht man vier Skalen.
+			// Das Haekchen entscheidet, WELCHE: das Gelaende (dann klippen die Gipfel weiss und man
+			// sieht die Formaenderung) oder das Gesamtmaximum (dann ueberstrahlt ein 10.918er Gipfel
+			// alles -- genau das Bild, in dem der Anwuchs unsichtbar bleibt).
+			const reference = $("kam-terrain").checked ? Math.max(1, m.heute.max) : Math.max(1, m.voll.max);
+
+			t = performance.now();
+			const zeigeHuelle = $("kam-huelle").checked && m.kamm;
+			const r0 = malen(m, $("c-heute-" + idx),
+				zeigeHuelle
+					? function (x, y) {
+						if (!pointInGeometry([x, y], m.areas[0].geometry)) { return 0; }
+						return Math.max(0.02, ecosystemKammEnvelope(m.kamm, x, y));
+					}
+					: q.heute,
+				zeigeHuelle ? 1 : reference);
+			const r1 = malen(m, $("c-kamm-" + idx), q.kamm, reference);
+			const r2 = malen(m, $("c-tal-" + idx), q.tal, reference);
+			const r3 = malen(m, $("c-erosion-" + idx), q.erosion, reference);
+			zeiten.malen += r0.ms + r1.ms + r2.ms + r3.ms;
+
+			const p = profil(m, $("p-" + idx), q);
+
+			// Fusszeilen und Marken
+			$("t-heute-" + idx).innerHTML = zeigeHuelle ? "0 am Rand &rarr; 1 auf dem Kamm"
+				: "Gelaende max " + fmt(m.heute.max) + " &middot; &Oslash; " + fmt(m.heute.mean);
+			$("f-heute-" + idx).innerHTML = zeigeHuelle
+				? "Raster " + ECOSYSTEM_KAMM_GRID + "&times;" + ECOSYSTEM_KAMM_GRID + " &middot; Blur <b>" + fmt(v.blur, 1) + " E</b>"
+				: "Potenz <b>" + fmt(m.messfeld.noiseExponent, 2) + "</b> &middot; " + fmt(r0.ms, 0) + " ms";
+			$("t-kamm-" + idx).innerHTML = m.kamm ? "voll max " + fmt(mKamm.max) + " &middot; &Oslash; " + fmt(mKamm.mean) : "&mdash; aus &mdash;";
+			$("f-kamm-" + idx).innerHTML = m.kamm
+				? "Potenz <b>" + fmt(m.neu.exponent, 2) + "</b>" + (v.solve ? "" : " (<b>ohne</b> Neusuche)") + " &middot; " + fmt(r1.ms, 0) + " ms"
+				: "&nbsp;";
+			$("t-tal-" + idx).innerHTML = m.valley ? "voll max " + fmt(mTal.max) + " &middot; &Oslash; " + fmt(mTal.mean) : "&mdash; aus &mdash;";
+			$("f-tal-" + idx).innerHTML = m.courses
+				? "<b>" + m.courses.pieces.length + "</b> Laeufe &middot; <b>" + m.courses.segments.length + "</b> Segmente &middot; " + fmt(r2.ms, 0) + " ms"
+				: "&nbsp;";
+			$("t-erosion-" + idx).innerHTML = m.erosion ? "voll max " + fmt(mEro.max) + " &middot; &Oslash; " + fmt(mEro.mean) : "&mdash; aus &mdash;";
+			if (m.erosion) {
+				const bil = erosionBilanz(m.erosion);
+				$("f-erosion-" + idx).innerHTML = "Abtrag <b>" + fmt(m.erosion.abtrag / 1000) + "k</b> &middot; Auftrag <b>"
+					+ fmt(m.erosion.auftrag / 1000) + "k</b> &middot; Rand <b>" + fmt(bil.randMax, 3) + "</b>"
+					+ (m.erosion.skala ? " &middot; &times;<b>" + fmt(m.erosion.skala, 2) + "</b>" : "")
+					+ " &middot; " + fmt(r3.ms, 0) + " ms";
+			} else {
+				$("f-erosion-" + idx).innerHTML = "&nbsp;";
+			}
+			$("p-note-" + idx).textContent = p ? "Sehne quer zum Kamm, " + fmt(p.laenge, 1) + " E in der Flaeche" : "";
+
+			// Die Zahlenkaesten: was die Kette mit den zwei EINGESTELLTEN Werten macht.
+			// 💣 Verglichen wird das GELAENDE (Rauschfeld), nicht das volle Feld -- sonst ueberdeckt
+			// ein Gipfel alles. Fuer die Stufen 2 und 3 ist der Gelaendeanteil das Feld minus Gipfel.
+			const gelKamm = m.kamm ? messen(m, q.rauschKamm) : m.heute;
+			const gelTal = messen(m, function (x, y) { const d = q.tal(x, y) - q.gipfel(x, y); return d > 0 ? d : 0; });
+			// 🪤 Am RASTER, nicht ueber messen() -- siehe messenAmRaster(). Ohne Erosion faellt es auf die
+			// Talstufe zurueck, damit die Zeile nicht leer bleibt.
+			const gelEro = m.erosion ? messenAmRaster(m.erosion) : gelTal;
+			const vz = (val) => (val >= 0 ? "+" : "−") + fmt(Math.abs(val), 1) + " %";
+			const gut = (val) => (Math.abs(val) <= 5 ? " kam-fact--gut" : "");
+			const dMax = (x) => (x / Math.max(1, m.terrain.max) - 1) * 100;
+			const dMean = (x) => (x / Math.max(1, m.terrain.mean) - 1) * 100;
+			const gipfelNachher = messen(m, q.erosion).max;
+			$("facts-" + idx).innerHTML = [
+				["eingestellt", "max " + fmt(m.terrain.max) + " / &Oslash; " + fmt(m.terrain.mean), ""],
+				["Gelaende heute", "max " + vz(dMax(m.heute.max)) + " / &Oslash; " + vz(dMean(m.heute.mean)), gut(dMean(m.heute.mean))],
+				["nach Kamm-Anwuchs", "max " + vz(dMax(gelKamm.max)) + " / &Oslash; " + vz(dMean(gelKamm.mean)), gut(dMean(gelKamm.mean))],
+				["nach Taelern", "max " + vz(dMax(gelTal.max)) + " / &Oslash; " + vz(dMean(gelTal.mean)), gut(dMean(gelTal.mean))],
+				["nach Erosion", "max " + vz(dMax(gelEro.max)) + " / &Oslash; " + vz(dMean(gelEro.mean)), gut(dMean(gelEro.mean))],
+				["hoechster Punkt heute / Ende", fmt(m.voll.max) + " / " + fmt(gipfelNachher), ""],
+				["hoechster Gipfel (unberuehrt)", fmt(m.gipfelMax) + " Schritt", ""],
+			].map(function (kv) {
+				return '<div class="kam-fact' + kv[2] + '"><div class="kam-fact__k">' + kv[0] + '</div><div class="kam-fact__v">' + kv[1] + "</div></div>";
+			}).join("");
+		});
+
+		$("kam-status").classList.remove("kam-status--busy");
+		$("kam-status").innerHTML = "3 Gebirge &middot; Kammhuelle <b>" + fmt(zeiten.kamm, 0)
+			+ " ms</b> &middot; Potenzsuche <b>" + fmt(zeiten.suche, 0) + " ms</b> &middot; Taeler <b>"
+			+ fmt(zeiten.tal, 0) + " ms</b> &middot; Erosion <b>" + fmt(zeiten.erosion, 0) + " ms</b> &middot; 12 Bilder <b>"
+			+ fmt(zeiten.malen, 0) + " ms</b> &nbsp;|&nbsp; braun umrandet = &Oslash; liegt innerhalb 5 % des eingestellten Werts";
+	}
+
+	function spaeter() {
+		marken();
+		$("kam-status").classList.add("kam-status--busy");
+		$("kam-status").innerHTML = "rechnet &hellip;";
+		// Zwei Bilder Luft, damit der Hinweis wirklich steht, bevor der Hauptthread blockiert.
+		requestAnimationFrame(() => requestAnimationFrame(zeichnen));
+	}
+
+	window.avesmapsMockupRepaint = zeichnen;
+
+	bauen();
+	// ⚠️ Die REGLER rechnen beim Loslassen (`change`), nicht beim Ziehen: die Erosion blockiert den
+	// Hauptthread, und ein `input`-Handler waere bei jedem Pixel ein neuer Lauf.
+	["kam-blur", "tal-breite", "tal-tiefe", "ero-tropfen", "ero-kraft"].forEach(function (id) {
+		$(id).addEventListener("input", marken);
+		$(id).addEventListener("change", spaeter);
+	});
+	["kam-an", "kam-solve", "tal-an", "ero-an", "ero-pull", "kam-terrain", "kam-peaks", "kam-curve", "kam-rivers", "kam-huelle"].forEach(function (id) {
+		$(id).addEventListener("change", spaeter);
+	});
+	spaeter();
+})();
+</script>
+</body>
+</html>
