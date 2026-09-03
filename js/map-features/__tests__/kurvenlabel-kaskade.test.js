@@ -321,6 +321,11 @@ function schneide(quelle, kopf) {
 const rumpfRiegel = schneide(labelsQuelle, "function shouldShowLabelMarker(");
 const rumpfLeser = schneide(labelsQuelle, "function avesmapsKurvenlabelKandidaten(");
 const rumpfBand = schneide(labelsQuelle, "function avesmapsLabelImBand(");
+// ⚠️ Seit dem 03.09.2026 fragt der Riegel die WEICHE der Ansicht (avesmapsLabelImBandDerAnsicht), und
+// die fragt die Umgebung (avesmapsGipfelAnsichtAktiv) -- beide muessen mit, aus demselben Grund wie
+// das Band selbst (siehe baueRiegel).
+const rumpfAnsicht = schneide(labelsQuelle, "function avesmapsGipfelAnsichtAktiv(");
+const rumpfBandAnsicht = schneide(labelsQuelle, "function avesmapsLabelImBandDerAnsicht(");
 
 // --- 2a) Quelltext-Zusicherung: der Riegel steht ZULETZT --------------------------------------------
 // ⚠️ Das ist bewusst eine Aussage ueber den QUELLTEXT und keine getarnte Verhaltensprobe: alle fuenf
@@ -354,7 +359,7 @@ function baueRiegel({ gemalt, ebeneGilt = true }) {
 		// Geschwisterfunktion (Groesse gilt, Band raet); ohne sie im Ausschnitt wirft er einen
 		// ReferenceError -- die Falle, die am 22.08.2026 beinahe saemtliche Wegnamen gekostet
 		// haette. Beim Herausloesen zaehlt nicht nur ZUSTAND, sondern auch der Aufruf eines Nachbarn.
-		[rumpfBand.rumpf, rumpfRiegel.rumpf, rumpfLeser.rumpf].join("\n")
+		[rumpfBand.rumpf, rumpfAnsicht.rumpf, rumpfBandAnsicht.rumpf, rumpfRiegel.rumpf, rumpfLeser.rumpf].join("\n")
 		+ "; return { shouldShowLabelMarker, avesmapsKurvenlabelKandidaten };"
 	);
 }
