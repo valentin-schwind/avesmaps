@@ -108,22 +108,24 @@ assert.ok(!buildSourceListMarkup("https://wiki/Havena", PUB,
   { wikiLabel: "Wiki Aventurica", omitPublications: true }).includes("fs-src-trenner"),
   "ohne Publikationsblock kein Trenner");
 
-// 💣 Die Linie laeuft VOLLBREIT, und die −11px sind das Seitenpolster von `.fs-src--box`.
+// 💣 Die Linie laeuft VOLLBREIT, und die −8px sind das Seitenpolster von `.fs-src--box`
+// (Owner 03.09.2026: 6px 8px 6px; vorher 9px 11px 10px und −11px).
 // Wer das Polster aendert und die Linie vergisst, bekommt eine Trennung, die vor dem Rand endet --
 // im Bild sofort sichtbar, im Quelltext nie.
 {
   const css = require("fs").readFileSync(require("path").join(__dirname, "..", "..", "..", "css", "features", "feature-sources.css"), "utf8");
   const regel = css.slice(css.indexOf(".fs-src-trenner"), css.indexOf(".fs-src-trenner") + 200);
-  assert.ok(/margin:\s*0 -11px;/.test(regel), "der Trenner laeuft vollbreit (-11px = Seitenpolster)");
+  assert.ok(/margin:\s*0 -8px;/.test(regel), "der Trenner laeuft vollbreit (-8px = Seitenpolster)");
   assert.ok(/var\(--color-divider\)/.test(regel), "und nimmt den Trennlinien-Token, keine Hexzahl");
   // ⚠️ MIT der Klammer gesucht, nicht nach dem blossen Namen: der steht seit heute auch im
-  // KOMMENTAR ueber dem Trenner (er erklaert ja, woher die 11px kommen), und ein Ausschnitt ab
+  // KOMMENTAR ueber dem Trenner (er erklaert ja, woher die 8px kommen), und ein Ausschnitt ab
   // dem Kommentar enthaelt die Regel gar nicht. Genau daran ist dieser Test beim Schreiben
   // einmal umgefallen -- die Hausfalle „Quelltexttest liest seinen eigenen Kommentar mit".
   const kastenAb = css.indexOf(".fs-src--box {");
   const kasten = css.slice(kastenAb, kastenAb + 240);
-  assert.ok(/padding:\s*9px 11px 10px;/.test(kasten),
-    "das Seitenpolster des Kastens ist wirklich 11px -- sonst luegt die Zahl oben");
+  assert.ok(/padding:\s*6px 8px 6px;/.test(kasten),
+    "das Seitenpolster des Kastens ist wirklich 8px -- sonst luegt die Zahl oben");
+  assert.ok(/margin-top:\s*10px;/.test(kasten), "und der Kasten haelt 10px Abstand zur Tabelle darueber (Owner 03.09.2026)");
 }
 
 console.log("feature-source-markup tests passed");

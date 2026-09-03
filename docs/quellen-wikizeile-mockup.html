@@ -114,14 +114,15 @@ ul { max-width:84ch; padding-left:20px; } li { margin:7px 0; color:var(--text-mu
 
 /* ══ VERTRAG: css/features/feature-sources.css ══ die EINE neue Regel dieses Umbaus.
    🔴 DER TRENNER zwischen „Quelle(n)" und „Publikationen" (Owner 03.09.2026, mit Bild).
-   💣 VOLLBREIT, und die −11px sind KEINE freie Zahl: sie sind das Seitenpolster von
-   `.fs-src--box` (9px 11px 10px). Wer das Polster ändert, ändert beide Zahlen zugleich —
+   💣 VOLLBREIT, und die −8px sind KEINE freie Zahl: sie sind das Seitenpolster von
+   `.fs-src--box` (6px 8px 6px, seit 03.09.2026 -- vorher 9px 11px 10px und −11px). Wer das
+   Polster ändert, ändert beide Zahlen zugleich —
    sonst endet die Linie sichtbar vor dem Rand. AGENTS.md §12: „popup/infobox dividers run
    full-bleed (negative side-margin = padding)".
    ⚠️ Oben 0: die Liste darüber bringt ihre eigenen 7px mit, `.fs-src-pub` darunter seine 9px.
    Eine dritte Zahl hier machte den Abstand asymmetrisch. */
 .fs-src-trenner {
-	margin: 0 -11px;
+	margin: 0 -8px;
 	border-top: 1px solid var(--color-divider);
 }
 /* ══ VERTRAG ENDE ══ */
