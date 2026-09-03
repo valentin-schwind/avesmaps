@@ -271,7 +271,18 @@ function renderFeatureSourceLine(entityType, entityPublicId, wikiUrl, linkClass,
 		},
 		officialTooltip: tr("popup.officialSource", "offizielle Quelle"),
 		wikiLabel: tr("popup.wiki", "Wiki Aventurica"),
-		// Haengt am Wiki-Eintrag der Zeile, nicht an der Zeile (siehe buildSourceListMarkup).
+		// 🔴 DIE ART DER WIKI-ZEILE -- rechts in der Halbpille, wenn der Artikel INOFFIZIELL ist.
+		// Bei einem offiziellen bleibt es die ganze Pille ohne Bezeichner (Owner 03.09.2026:
+		// „offiziell ist immer eine runde pille").
+		wikiKindLabel: tr("popup.wikiKind", "Wiki-Artikel"),
+		// Der Satz in ihrer Tafel: er sagt, dass die Angaben oben von dort stammen. `{wiki}` wird
+		// durch `wikiLabel` ersetzt, damit der Name nur EINMAL entschieden wird.
+		rightsLinkLabel: tr("popup.rightsLink", "Verknüpfung"),
+		wikiLinkText: tr("popup.wikiLinkText",
+			"Wir haben dieses Objekt mit dem Artikel im {wiki} verbunden — die inhaltlichen Angaben oben stammen von dort."),
+		// 🪟 Haengt am Wiki-Eintrag, nicht an der Zeile (siehe buildSourceListMarkup) -- und steht
+		// seit dem 03.09.2026 in seiner TAFEL statt sichtbar daneben, wie bei jeder Katalogzeile
+		// seit dem 02.09. Das ⓘ der Wiki-Zeile traegt sie damit; es darf nie wieder bedingt werden.
 		wikiLicenseLabel: tr("popup.wikiTextLicense", "CC BY-SA 3.0"),
 		wikiLicenseUrl: WIKI_TEXT_LICENSE_URL,
 		mentionTooltip: tr("popup.sourceMention", "nur Erwähnung"),

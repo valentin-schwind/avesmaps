@@ -51,20 +51,60 @@ const OHNE_RECHTE = { label: "Goldene Flügel", url: "https://f-shop.de/x", type
 	pruefe(!/<dt>Nennung<\/dt>/.test(ohne), "aber keine leere Nennungszeile");
 	pruefe(ohne.includes("fs-src-rights"), "und eine Tafel, die nicht leer ist");
 
-	// ⚠️ Die WIKI-Zeile bekommt weiterhin KEINES: der Artikel-Link IST ihre Namensnennung, ihre
-	// Lizenz steht sichtbar daneben, und sie ist gar keine Katalogquelle -- sie hat auch keinen
-	// Kanon aus dem Katalog. Es gäbe dort wirklich nichts aufzuklappen.
-	// 💣 Geprüft wird deshalb die ZAHL: die Quelle darunter bringt ihr eigenes ⓘ mit, ein blosses
-	// „enthält kein fs-src-info" wäre seit dem 02.09.2026 immer falsch.
+	// 🪟 UMGEDREHT am 03.09.2026 (Owner: „Wir wollen das an das format mit dem (i) anpassen").
+	// Hier stand: „Die WIKI-Zeile bekommt weiterhin KEINES … ihre Lizenz steht sichtbar daneben …
+	// Es gäbe dort wirklich nichts aufzuklappen." Die Begründung ist mit dem Umbau entfallen: die
+	// Lizenz steht seither IN der Tafel, wie bei jeder Katalogzeile seit dem 02.09., und dazu die
+	// Verknüpfung („die inhaltlichen Angaben stammen von dort") und die Adresse.
+	// 🔴 UND GENAU DESHALB IST DAS ⓘ HIER NICHT MEHR VERHANDELBAR: es trägt den
+	// Lizenzhinweis der Wiki-Texte. Wer den Knopf je wieder an eine Bedingung hängt, nimmt die
+	// Lizenzangabe mit -- dieselbe Falle, vor der `rechteMarkup` warnt.
 	const mitWiki = markup.buildSourceListMarkup("https://wiki.example/Perricum", [OHNE_RECHTE], {
 		wikiLabel: "Wiki Aventurica", wikiLicenseLabel: "CC BY-SA 3.0",
 		wikiLicenseUrl: "https://creativecommons.org/licenses/by-sa/3.0/",
 	});
-	const wikiZeile = mitWiki.slice(mitWiki.indexOf("<li>"), mitWiki.indexOf("</li>"));
-	pruefe(!wikiZeile.includes("fs-src-info"), "die Wiki-Zeile bekommt kein ⓘ");
-	pruefe((mitWiki.match(/fs-src-info/g) || []).length === 1,
-		"genau eines -- das der Quelle darunter");
-	pruefe(mitWiki.includes("CC BY-SA 3.0"), "ihre Lizenz steht aber weiterhin sichtbar in der Zeile");
+	// ⚠️ DIE ZEILE ENDET AN DER TAFEL, NICHT AM </li> -- die Tafel steht INNERHALB des <li>
+	// (Abschnitt C). Ein Ausschnitt bis zum </li> nimmt sie mit und misst damit das Gegenteil
+	// dessen, was hier gefragt ist. Dieselbe Falle wie in Abschnitt B, eine Zeile weiter unten.
+	const wikiZeile = mitWiki.slice(mitWiki.indexOf('<span class="fs-src-row">'),
+		mitWiki.indexOf('<div class="fs-src-rights"'));
+	pruefe(wikiZeile.includes("fs-src-info"), "die Wiki-Zeile bekommt ihr ⓘ");
+	pruefe((mitWiki.match(/fs-src-info/g) || []).length === 2,
+		"zwei -- ihres und das der Quelle darunter");
+	// 💣 Die Lizenz steht in der TAFEL, nicht mehr in der Zeile. Geprüft wird beides: dass sie
+	// überhaupt noch da ist (CC verlangt den Verweis an der Kopie) UND dass sie die Zeile nicht mehr
+	// aufbricht. Nur „enthält CC BY-SA" wäre seit diesem Umbau blind.
+	const wikiTafel = mitWiki.slice(mitWiki.indexOf('<div class="fs-src-rights"'), mitWiki.indexOf("</li>"));
+	pruefe(!wikiZeile.includes("CC BY-SA 3.0"), "ihre Lizenz steht nicht mehr in der Zeile");
+	pruefe(wikiTafel.includes("CC BY-SA 3.0")
+		&& wikiTafel.includes('href="https://creativecommons.org/licenses/by-sa/3.0/"'),
+		"sondern als echter Link in ihrer Tafel");
+	// 🔴 Und der Satz, der sagt, woher die Angaben stammen (Owner-Wortlaut 03.09.2026).
+	pruefe(/<dt>Verknüpfung<\/dt>/.test(wikiTafel), "die Tafel nennt die Verknüpfung");
+	pruefe(wikiTafel.includes("stammen von dort"), "und sagt, dass die Angaben von dort kommen");
+}
+
+// ══ A2. DIE NAHT — was der Bauer liest, schickt der Aufrufer auch ═══════════════════════
+// 💣 Die drei neuen Sätze der Wiki-Zeile haben Rückfallwerte im Bauer — fällt die Verdrahtung in
+// `popups.js` weg, sieht das Ergebnis deshalb VOLLKOMMEN richtig aus und ist trotzdem kaputt: die
+// i18n-Schicht (M8) erreicht sie dann nie, während jede Nachbarzeile übersetzbar bleibt. Genau
+// diese Klasse Fehler („beide Hälften grün, die Naht ungeprüft") hat dieses Haus schon zweimal
+// bezahlt. ⚠️ Gemessen wird der Quelltext des Aufrufers — der Aufruf selbst hängt an einem halben
+// Dutzend Browser-Globals und ist unter Node nicht auszuführen.
+{
+	const popups = lies("js/ui/popups.js");
+	for (const [name, satz] of [
+		["wikiKindLabel", "Wiki-Artikel"],
+		["rightsLinkLabel", "Verknüpfung"],
+		["wikiLinkText", "stammen von dort"],
+	]) {
+		pruefe(new RegExp(name + ':\\s*tr\\(').test(popups),
+			"popups.js schickt " + name + " durch tr()");
+		pruefe(popups.includes(satz), "und zwar mit dem Wortlaut von heute (" + satz + ")");
+	}
+	// 🔴 `{wiki}` ist der Platzhalter für den Namen — er wird EINMAL entschieden (wikiLabel) und
+	// steht deshalb nicht ein zweites Mal im Satz.
+	pruefe(popups.includes("{wiki}"), "der Satz trägt den Platzhalter, nicht den Namen");
 }
 
 // ══ B. Die Namensnennung steht NICHT mehr in der Zeile ══════════════════════════════════════════

@@ -85,11 +85,44 @@ const ohneArt = markup.buildSourceListMarkup("", [
 ], { escape: esc, typeLabels: TYPEN, kanonLabels: L });
 pruefe(ohneArt.includes("fs-kanon--off") && !ohneArt.includes("fs-kanon--split"),
   "eine Quelle ohne Art bekommt die ganze Pille");
-// ⚠️ Der WIKI-Artikel ist keine Katalogquelle und hat nie eine Art -- ganze Pille, wie bisher.
+// 🪟 UMGEDREHT am 03.09.2026 (Owner am Bild: „Wir wollen das an das format mit dem (i)
+// anpassen", Variante B). Hier stand: „Der WIKI-Artikel ist keine Katalogquelle und hat nie eine
+// Art -- ganze Pille, wie bisher." Das erste stimmt weiter, das zweite war der Befund: die
+// Wiki-Zeile war die EINZIGE mit eigener Bauform -- ganze Pille, kein ⓘ, Lizenz als zweite
+// Zeile darunter. Drei Unterschiede zur Zeile direkt darunter, und keiner sagte etwas aus.
+// 🔴 Ihr Bezeichner ist die ART („Wiki-Artikel"), NICHT noch einmal der Name: „Wiki Aventurica |
+// Wiki Aventurica" waere derselbe Name zweimal in einer Zeile. Links wer, rechts was.
 const mitWiki = markup.buildSourceListMarkup("https://de.wiki-aventurica.de/wiki/Trallop", [],
+  { escape: esc, typeLabels: TYPEN, kanonLabels: L, wikiOfficial: false, wikiLabel: "Wiki Aventurica" });
+pruefe(mitWiki.includes("fs-kanon--inoff") && mitWiki.includes("fs-kanon--split"),
+  "die INOFFIZIELLE Wiki-Zeile traegt die Halbpille wie jede andere");
+pruefe(mitWiki.includes(">Wiki-Artikel<"), "und rechts steht ihre Art");
+// 🔴 EIN OFFIZIELLER ARTIKEL BEKOMMT DIE GANZE PILLE (Owner 03.09.2026: „bei Offiziell will ich
+// die volle pille"). Das ist dieselbe Regel, die zwei Zusicherungen weiter oben fuer die
+// Katalogquelle ohne Art steht: die Halbpille sagt, dass hier noch etwas OFFEN ist -- wer
+// geschrieben hat, was nicht im Kanon steht. „Offiziell" trennt nichts auf.
+const wikiOffiziell = markup.buildSourceListMarkup("https://de.wiki-aventurica.de/wiki/Trallop", [],
   { escape: esc, typeLabels: TYPEN, kanonLabels: L, wikiOfficial: true, wikiLabel: "Wiki Aventurica" });
-pruefe(mitWiki.includes("fs-kanon--off") && !mitWiki.includes("fs-kanon--split"),
-  "die Wiki-Zeile bleibt eine ganze Pille");
+pruefe(wikiOffiziell.includes("fs-kanon--off") && !wikiOffiziell.includes("fs-kanon--split"),
+  "die OFFIZIELLE Wiki-Zeile bekommt die ganze Pille");
+pruefe(!wikiOffiziell.includes("Wiki-Artikel"),
+  "und traegt dann gar keinen Bezeichner -- ein leeres zweites Feld waere eine Naht ohne Inhalt");
+// ⚠️ Das ⓘ bleibt in BEIDEN Kanonlagen -- es traegt die Lizenz, nicht den Kanon.
+pruefe(wikiOffiziell.includes("fs-src-info") && mitWiki.includes("fs-src-info"),
+  "beide Lagen behalten ihr Info-Zeichen");
+// ⚠️ Gemessen wird die ZEILE, nicht das ganze Markup: in der Tafel darunter steht der Name
+// nochmal, und dort GEHOERT er hin („… mit dem Artikel im Wiki Aventurica verbunden").
+const wikiZeileNurRow = mitWiki.slice(mitWiki.indexOf('<span class="fs-src-row">'),
+  mitWiki.indexOf('<div class="fs-src-rights"'));
+pruefe((wikiZeileNurRow.match(/Wiki Aventurica/g) || []).length === 1,
+  "der Name steht GENAU EINMAL in der Zeile -- er ist der Link, nicht auch noch der Bezeichner");
+// ⚠️ Ohne bekannten Namensraum gibt es weiterhin GAR KEINE Pille: der Kanon der Wiki-Zeile kommt
+// aus dem Namensraum ihres Artikels, und den kennt nicht jeder Aufrufer. Eine Pille ohne Grundlage
+// waere eine Behauptung, die niemand aufgestellt hat.
+const ohneNamensraum = markup.buildSourceListMarkup("https://de.wiki-aventurica.de/wiki/Trallop", [],
+  { escape: esc, typeLabels: TYPEN, kanonLabels: L, wikiLabel: "Wiki Aventurica" });
+pruefe(!ohneNamensraum.includes("fs-kanon"), "ohne Namensraum keine Pille an der Wiki-Zeile");
+pruefe(!/<dt>Kanon<\/dt>/.test(ohneNamensraum), "und auch keine Kanon-Zeile in ihrer Tafel");
 
 // ---- D. Typ + Anzahl werden hier zum Text -----------------------------------------------------
 pruefe(bezeichner({ bezeichner_type: "briefspiel", bezeichner_count: 2 }, TYPEN) === "Briefspiel (2)",

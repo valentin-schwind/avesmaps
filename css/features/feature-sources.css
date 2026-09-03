@@ -678,6 +678,19 @@
 .fs-src-item {
 	display: inline-block;
 }
+/* ══ VERTRAG: css/features/feature-sources.css ══ gebunden von docs/quellen-wikizeile-mockup.html
+   🔴 DER TRENNER zwischen „Quelle(n)" und „Publikationen" (Owner 03.09.2026, mit Bild).
+   💣 VOLLBREIT, und die −11px sind KEINE freie Zahl: sie sind das Seitenpolster von
+   `.fs-src--box` (9px 11px 10px). Wer das Polster ändert, ändert beide Zahlen zugleich --
+   sonst endet die Linie sichtbar vor dem Rand. AGENTS.md §12: „popup/infobox dividers run
+   full-bleed (negative side-margin = padding)".
+   ⚠️ Oben 0: die Liste darüber bringt ihre eigenen 7px mit, `.fs-src-pub` darunter seine 9px.
+   Eine dritte Zahl hier machte den Abstand asymmetrisch. */
+.fs-src-trenner {
+	margin: 0 -11px;
+	border-top: 1px solid var(--color-divider);
+}
+/* ══ VERTRAG ENDE ══ */
 /* "Publikationen:" + die Tabs "Offiziell (n)"/"Erwähnt (n)" bleiben in EINER Zeile (Owner-Vorgabe);
    passt es nicht, wird horizontal gescrollt statt umzubrechen. */
 .fs-src-pub {

@@ -62,7 +62,12 @@ const LIC = { wikiLabel: "Wiki Aventurica", wikiLicenseLabel: "CC BY-SA 3.0", wi
 
 let lic = buildSourceListMarkup("https://wiki/x", [], LIC);
 assert.ok(lic.includes("CC BY-SA 3.0") && lic.includes('href="https://cc/by-sa/3.0/"'), "Wiki-Eintrag traegt den Lizenzhinweis");
+// 🪟 SEIT 03.09.2026 IN DER TAFEL HINTER DEM ⓘ, nicht mehr sichtbar in der Zeile. Hier stand
+// nur „und zwar HINTER dem Wiki-Link" -- das traf danach zufaellig weiter zu (die Tafel steht
+// hinter der Zeile) und haette den Umzug NICHT bemerkt. Gemessen wird deshalb der Ort.
 assert.ok(/Wiki Aventurica[\s\S]*?CC BY-SA 3.0/.test(lic), "und zwar HINTER dem Wiki-Link");
+assert.ok(lic.indexOf("CC BY-SA 3.0") > lic.indexOf('<div class="fs-src-rights"'),
+  "naemlich in der Rechtetafel, nicht in der Zeile");
 
 assert.ok(!buildSourceListMarkup("https://wiki/x", [], { wikiLabel: "Wiki Aventurica" }).includes("CC BY-SA"),
 	"ohne uebergebene Lizenz kein Hinweis");
@@ -75,5 +80,50 @@ lic = buildSourceListMarkup("https://wiki/x", [
   { url: "https://f-shop/1", label: "Efferds Wogen", reference_kind: "ausfuehrlich" },
 ], LIC);
 assert.strictEqual(lic.split("CC BY-SA 3.0").length - 1, 1, "der Hinweis steht genau einmal in der Zeile");
+
+// ---- Der Trenner zwischen „Quelle(n)" und „Publikationen" ---------------------------------------
+//
+// 🔴 Owner 03.09.2026, mit Bild: die rote Linie lag genau dort. Zwei Abschnitte im selben
+// Kasten, und der Wechsel war nur an der Beschriftung zu erkennen (AGENTS.md §12: „Group by
+// divider … not by framed boxes").
+// 💣 ER KOMMT NUR, WENN OBEN WIRKLICH ETWAS STEHT. Ein Trenner ueber der ersten Zeile trennt
+// nichts und sagt „hier fehlt etwas" -- deshalb werden alle DREI Lagen gemessen, nicht nur die
+// eine, die den Trenner traegt.
+const PUB = [{ label: "Havena", url: "https://x/1", type: "regionalspielhilfe",
+  reference_kind: "ausfuehrlich", pages: "9,10,11,12" }];
+
+const beides = buildSourceListMarkup("https://wiki/Havena", PUB, { wikiLabel: "Wiki Aventurica", wikiOfficial: true });
+assert.ok(beides.includes("fs-src-trenner"), "Quellen UND Publikationen: der Trenner steht dazwischen");
+assert.ok(beides.indexOf("fs-src-trenner") > beides.indexOf("fs-src-list")
+  && beides.indexOf("fs-src-trenner") < beides.indexOf("fs-src-pub"),
+  "und zwar HINTER der Liste und VOR den Publikationen");
+
+assert.ok(!buildSourceListMarkup("", PUB, {}).includes("fs-src-trenner"),
+  "nur Publikationen: kein Trenner ueber der ersten Zeile");
+assert.ok(!buildSourceListMarkup("https://wiki/Havena", [], { wikiLabel: "Wiki Aventurica" }).includes("fs-src-trenner"),
+  "nur Quellen: kein Trenner unter der letzten Zeile");
+// ⚠️ Und die Karten-Variante blendet die Publikationen ganz aus (`omitPublications`) -- dann
+// gibt es auch nichts zu trennen.
+assert.ok(!buildSourceListMarkup("https://wiki/Havena", PUB,
+  { wikiLabel: "Wiki Aventurica", omitPublications: true }).includes("fs-src-trenner"),
+  "ohne Publikationsblock kein Trenner");
+
+// 💣 Die Linie laeuft VOLLBREIT, und die −11px sind das Seitenpolster von `.fs-src--box`.
+// Wer das Polster aendert und die Linie vergisst, bekommt eine Trennung, die vor dem Rand endet --
+// im Bild sofort sichtbar, im Quelltext nie.
+{
+  const css = require("fs").readFileSync(require("path").join(__dirname, "..", "..", "..", "css", "features", "feature-sources.css"), "utf8");
+  const regel = css.slice(css.indexOf(".fs-src-trenner"), css.indexOf(".fs-src-trenner") + 200);
+  assert.ok(/margin:\s*0 -11px;/.test(regel), "der Trenner laeuft vollbreit (-11px = Seitenpolster)");
+  assert.ok(/var\(--color-divider\)/.test(regel), "und nimmt den Trennlinien-Token, keine Hexzahl");
+  // ⚠️ MIT der Klammer gesucht, nicht nach dem blossen Namen: der steht seit heute auch im
+  // KOMMENTAR ueber dem Trenner (er erklaert ja, woher die 11px kommen), und ein Ausschnitt ab
+  // dem Kommentar enthaelt die Regel gar nicht. Genau daran ist dieser Test beim Schreiben
+  // einmal umgefallen -- die Hausfalle „Quelltexttest liest seinen eigenen Kommentar mit".
+  const kastenAb = css.indexOf(".fs-src--box {");
+  const kasten = css.slice(kastenAb, kastenAb + 240);
+  assert.ok(/padding:\s*9px 11px 10px;/.test(kasten),
+    "das Seitenpolster des Kastens ist wirklich 11px -- sonst luegt die Zahl oben");
+}
 
 console.log("feature-source-markup tests passed");

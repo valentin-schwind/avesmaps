@@ -216,6 +216,18 @@ function buildSourceListMarkup(wikiUrl, sources, opts) {
   // ein leerer Name.
   var corpora = (opts.corpora && typeof opts.corpora === "object") ? opts.corpora : {};
   var rightsKanonLabel = opts.rightsKanonLabel || "Kanon";
+  // 🔴 DIE WIKI-ZEILE (Owner 03.09.2026, Variante B): rechts in der Halbpille steht die ART, nicht
+  // noch einmal der Name. „Wiki Aventurica | Wiki Aventurica" waere derselbe Name zweimal in einer
+  // Zeile -- dieselbe Lesart wie nebenan gilt hier auch: links WER, rechts WAS.
+  var wikiKindLabel = opts.wikiKindLabel || "Wiki-Artikel";
+  // Der Satz, den der Owner bestellt hat: „sagt kurz, dass der artikel von uns mit dem wiki
+  // verbunden ist. also dass die inhaltlichen infos von dort kommen."
+  // 💣 Er ist KEIN Kanon-Satz und steht deshalb in einer eigenen Zeile. Der Kanon sagt, ob es das
+  // im gedruckten Aventurien gibt; die Verknuepfung sagt, woher die Angaben oben stammen. In einen
+  // Satz gezogen behauptet der eine den anderen mit.
+  var rightsLinkLabel = opts.rightsLinkLabel || "Verknüpfung";
+  var wikiLinkText = opts.wikiLinkText
+    || "Wir haben dieses Objekt mit dem Artikel im {wiki} verbunden — die inhaltlichen Angaben oben stammen von dort.";
   var rightsTitleLabel = opts.rightsTitleLabel || "Titel";
   var kanonOfficialText = opts.kanonOfficialText
     || "Offiziell — bei Ulisses erschienen. In offiziellen Nachschlagwerken nachzulesen.";
@@ -251,15 +263,23 @@ function buildSourceListMarkup(wikiUrl, sources, opts) {
   var link = function (url, inner) {
     return '<a class="fs-src-a" href="' + esc(url) + '" target="_blank" rel="noopener">' + inner + ' <span class="fs-src-ext" aria-hidden="true">↗</span></a>';
   };
-  // Gedaempfte Variante fuer den Lizenzhinweis: er steht NEBEN der Quelle, ist aber selbst keine.
-  // Ohne Beschriftung oder Adresse rendert er nichts -- der reine Renderer behauptet keine Lizenz,
-  // die ihm niemand mitgegeben hat.
-  var wikiLicenseMarkup = function () {
-    if (!wikiLicenseLabel || !wikiLicenseUrl) {
+  // 🪤 HIER STAND `wikiLicenseMarkup` -- der Lizenzhinweis NEBEN dem Wiki-Link, in der Zeile.
+  // Seit dem 03.09.2026 steht er in der Tafel hinter dem ⓘ, wie bei jeder anderen Quelle seit dem
+  // 02.09. Ohne Beschriftung oder Adresse rendert er weiterhin gar nichts -- der reine Renderer
+  // behauptet keine Lizenz, die ihm niemand mitgegeben hat.
+  //
+  // 🔴 EIN Bauer fuer die Lizenzzeile der Tafel, zwei Aufrufer: die Katalogquelle (Schluessel aus
+  // FEATURE_SOURCE_LICENSES) und die Wiki-Zeile (Beschriftung und Adresse kommen als Optionen
+  // herein, sie ist ja gar keine Katalogzeile). Zwei Fassungen liefen beim ersten anders
+  // formatierten Link auseinander.
+  var lizenzZeileMarkup = function (label, url) {
+    if (!label) {
       return "";
     }
-    return '<a class="fs-src-lic" href="' + esc(wikiLicenseUrl) + '" target="_blank" rel="noopener">' +
-      esc(wikiLicenseLabel) + ' <span class="fs-src-ext" aria-hidden="true">↗</span></a>';
+    return "<dt>" + esc(rightsLicenseLabel) + "</dt><dd>" + (url
+      ? '<a href="' + esc(url) + '" target="_blank" rel="noopener">' + esc(label) +
+        ' <span class="fs-src-ext" aria-hidden="true">↗</span></a>'
+      : esc(label)) + "</dd>";
   };
 
   var kanonLabels = opts.kanonLabels || {};
@@ -295,7 +315,7 @@ function buildSourceListMarkup(wikiUrl, sources, opts) {
    * waere danach weg. Dieselbe Begruendung wie bei `avesmapsToggleSourceTab` daneben — die Falle
    * hat dieses Haus 2026-07-08 schon einmal bezahlt („FALLE Popup-Revert").
    */
-  var rechteMarkup = function (s, index, titelZusatz) {
+  var rechteMarkup = function (s, index, titelZusatz, zusatz) {
     var wer = String((s && s.attribution) == null ? "" : s.attribution).trim();
     var id = "fsr-" + index;
     var lizEintrag = FEATURE_SOURCE_LICENSES[String((s && s.license) || "").trim()] || null;
@@ -310,17 +330,22 @@ function buildSourceListMarkup(wikiUrl, sources, opts) {
     var artSchluessel = String((s && s.type) || "").trim();
     var artZusatz = (artSchluessel === "" || artSchluessel === "sonstiges")
       ? "" : " (" + typeLabel(artSchluessel) + ")";
-    var zeilen = "<dt>" + esc(rightsKanonLabel) + "</dt><dd>" + esc(
+    // ⚠️ OHNE BEKANNTEN KANON KEINE KANON-ZEILE. Die Wiki-Zeile bekommt ihren Kanon aus dem
+    // NAMENSRAUM ihres Artikels, und den kennt nicht jeder Aufrufer (`wikiOfficial` darf fehlen).
+    // „Inoffiziell — Fanmaterial" waere dort eine Behauptung, die niemand aufgestellt hat.
+    var zeilen = (zusatz && zusatz.ohneKanon === true) ? "" : ("<dt>" + esc(rightsKanonLabel) + "</dt><dd>" + esc(
       (s && s.official === true)
         ? kanonOfficialText
         : kanonUnofficialText.replace("{art}", artZusatz)
-    ) + "</dd>";
-    if (lizEintrag) {
-      zeilen += "<dt>" + esc(rightsLicenseLabel) + "</dt><dd>" + (lizEintrag.url
-        ? '<a href="' + esc(lizEintrag.url) + '" target="_blank" rel="noopener">' + esc(lizEintrag.label) +
-          ' <span class="fs-src-ext" aria-hidden="true">↗</span></a>'
-        : esc(lizEintrag.label)) + "</dd>";
+    ) + "</dd>");
+    // Der Hinweis steht direkt UNTER dem Kanon: er sagt, woher die Angaben stammen, und das ist
+    // die naechste Frage nach „steht das so im gedruckten Aventurien?".
+    if (zusatz && zusatz.hinweis) {
+      zeilen += "<dt>" + esc(zusatz.hinweisLabel || "") + "</dt><dd>" + esc(zusatz.hinweis) + "</dd>";
     }
+    zeilen += lizEintrag
+      ? lizenzZeileMarkup(lizEintrag.label, lizEintrag.url)
+      : lizenzZeileMarkup((zusatz && zusatz.lizenzLabel) || "", (zusatz && zusatz.lizenzUrl) || "");
     // 🔴 DER TITEL -- nur, wenn vorn der KORPUSNAME steht. Sonst stuende er zweimal da.
     // Ohne diese Zeile ginge er bei einer Belegstelle ganz verloren, und das waere der teuerste
     // Fehler dieses Umbaus: die Seite haette dann keinen Namen mehr.
@@ -363,13 +388,49 @@ function buildSourceListMarkup(wikiUrl, sources, opts) {
     // ⚠️ DIE WIKI-ZEILE TRAEGT KEINE TYPMARKE -- sie ist gar keine Katalogquelle, sondern
     // `properties.wiki_url` am Objekt und hat deshalb keinen `source_type`. Ihr Kanon kommt vom
     // NAMENSRAUM ihres Artikels (opts.wikiOfficial), nicht aus dem Katalog.
-    // ⚠️ KEIN ⓘ an der Wiki-Zeile: sie traegt keine Namensnennung (der Artikel-Link IST sie) und
-    // ihre Lizenz steht schon sichtbar daneben. Es gaebe nichts aufzuklappen.
+    //
+    // 🔴 SEIT DEM 03.09.2026 IST SIE EINE ZEILE WIE JEDE ANDERE (Owner am Bild: „Wir wollen das an
+    // das format mit dem (i) anpassen"). Sie hatte als einzige eine eigene Bauform -- ganze Pille
+    // statt Halbpille, kein ⓘ, und die Lizenz brach als zweite Zeile darunter um. Drei
+    // Unterschiede zur Zeile unmittelbar darunter, ohne dass einer davon etwas aussagte.
+    // ⭐ Gekostet hat das KEINE einzige neue CSS-Regel: Halbpille und ⓘ stehen seit dem
+    // 01./02.09. in css/features/feature-sources.css, die Wiki-Zeile benutzte sie nur nicht.
+    //
+    // 💣 DAS ⓘ IST HIER IMMER DA, UND DAS IST TRAGEND: es haelt seit diesem Umbau den
+    // LIZENZHINWEIS der Wiki-Texte (CC BY-SA 3.0). Wer den Knopf je wieder an eine Bedingung
+    // haengt („nur wenn eine Namensnennung da ist" -- so war es bis zum 02.09.), nimmt die
+    // Lizenzangabe mit. Sie bleibt ein echter Link auf DERSELBEN Seite, einen Klick entfernt --
+    // dieselbe Begruendung wie bei den Katalogzeilen (Entwurf §4.4).
+    var wikiRechte = rechteMarkup(
+      { official: opts.wikiOfficial === true, url: wikiUrl },
+      "wiki",
+      "",
+      {
+        ohneKanon: opts.wikiOfficial === undefined,
+        hinweisLabel: rightsLinkLabel,
+        hinweis: wikiLinkText.replace("{wiki}", wikiLabel),
+        lizenzLabel: wikiLicenseLabel,
+        lizenzUrl: wikiLicenseUrl
+      }
+    );
     items.push(zeile(
       link(wikiUrl, esc(wikiLabel)),
-      wikiLicenseMarkup(),
-      opts.wikiOfficial === undefined ? "" : featureSourceKanonMarkup(opts.wikiOfficial, esc, kanonLabels),
-      ""
+      "",
+      wikiRechte.knopf + featureKanonBadgeMarkup(
+        {
+          kanon: opts.wikiOfficial === undefined
+            ? "" : (opts.wikiOfficial ? "offiziell" : "inoffiziell"),
+          // 🔴 NUR DIE INOFFIZIELLE ZEILE WIRD GETEILT (Owner 03.09.2026: „bei Offiziell will
+          // ich die volle pille"). Das ist keine Ausnahme, sondern die Hausregel von der
+          // Halbpille selbst: sie unterstreicht, dass hier noch etwas OFFEN ist -- wer
+          // geschrieben hat, was nicht im Kanon steht. „Offiziell" trennt nichts auf, und
+          // genau deshalb steht bei den Katalogzeilen dieselbe Regel („OHNE BEZEICHNER BLEIBT
+          // ES EINE GANZE PILLE", featureKanonBadgeMarkup).
+          bezeichner_label: opts.wikiOfficial === true ? "" : wikiKindLabel
+        },
+        esc, kanonLabels, typeLabels
+      ),
+      wikiRechte.tafel
     ));
   }
   // Lizenz und Namensnennung einer Quelle -- ZWEI unabhaengige Verweise, keiner zeigt auf den
@@ -509,6 +570,15 @@ function buildSourceListMarkup(wikiUrl, sources, opts) {
     if (off.length) tables += table(off, "off");
     if (erw.length) tables += table(erw, "erw");
 
+    // 🔴 DER TRENNER (Owner 03.09.2026, mit Bild: die rote Linie lag genau hier). Zwei
+    // Abschnitte im selben Kasten, und der Wechsel war nur an der Beschriftung zu erkennen --
+    // AGENTS.md §12: „Group by divider … not by framed boxes".
+    // ⚠️ NUR, WENN OBEN WIRKLICH ETWAS STEHT. Ein Objekt ohne Wiki-Artikel und ohne eigene
+    // Quelle bekommt sonst eine Linie über der ersten Zeile des Kastens -- ein Trenner, der
+    // nichts trennt, sagt „hier fehlt etwas".
+    if (blocks.length) {
+      blocks.push('<div class="fs-src-trenner" role="presentation"></div>');
+    }
     blocks.push('<div class="fs-src-pub"><span class="fs-src-publabel">' + esc(publicationsLabel) + '</span>' +
       tabs.join("") + "</div>");
     blocks.push('<div class="fs-src-tablewrap" hidden>' + tables + "</div>");

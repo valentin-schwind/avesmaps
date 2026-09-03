@@ -1,0 +1,320 @@
+<title>Die Wiki-Zeile im Quellenkasten (Mockup)</title>
+<style>
+/* Farbwerte 1:1 aus css/base/tokens.css (hell = :root, dunkel = der Dunkel-Block).
+   Gezeigt wird zuerst das DUNKLE Thema, weil die Meldung von dort kam. */
+:root {
+	--panel: #312e26; --panel-soft: #37342b; --panel-muted: #39352b;
+	--text: #eee7da; --text-strong: #f5f0e4; --text-muted: #b4a895;
+	--border: #514a3c; --border-strong: #615a49; --divider: rgba(207,197,171,0.24);
+	--link: #d7c38b; --accent-brown: #c9a97e;
+	--button-soft: #3a362c; --button-soft-text: #eae1cf; --button-soft-border: #585142;
+	--kanon-ja: #dcc77e; --kanon-ja-text: #2b2311;
+	--kanon-nein: #6fc7bd; --kanon-nein-text: #0f2f2b;
+	--page: #26241e;
+	/* ⚠️ Unter dem ECHTEN Tokennamen — der Vertragsblock unten steht zeichengleich in der
+	   Produktionsdatei und darf deshalb keinen erfundenen Namen benutzen. */
+	--color-divider: rgba(207,197,171,0.24);
+	--radius-sm: 5px; --radius-md: 8px; --font-size-kanon: 9px;
+}
+:root[data-theme="light"] {
+	--panel: #fffdf9; --panel-soft: #faf6ee; --panel-muted: #f1ece1;
+	--text: #2e271e; --text-strong: #3c3327; --text-muted: #706557;
+	--border: #ddd3c3; --border-strong: #cdbfa8; --divider: rgba(125,115,96,0.30);
+	--link: #8f7326; --accent-brown: #7a5a3a;
+	--button-soft: #efe9db; --button-soft-text: #564b3b; --button-soft-border: #cdbda0;
+	--kanon-ja: #8a6b16; --kanon-ja-text: #fffaea;
+	--kanon-nein: #1f6b64; --kanon-nein-text: #eafaf7;
+	--page: #efe7d8;
+	--color-divider: rgba(125,115,96,0.30);
+}
+* { box-sizing: border-box; }
+body { margin:0; padding:26px 24px 90px; background:var(--page); color:var(--text);
+	font-family:"Faculty Glyphic",Arial,sans-serif; font-size:14px; line-height:1.5; }
+h1 { margin:0 0 4px; font-size:25px; color:var(--text-strong); }
+h2 { margin:36px 0 4px; padding-bottom:8px; border-bottom:1px solid var(--divider);
+	font-size:19px; color:var(--text-strong); }
+h3 { margin:22px 0 2px; font-size:14px; color:var(--text-strong); }
+p { margin:8px 0; color:var(--text-muted); max-width:84ch; }
+p strong, li strong { color:var(--text-strong); }
+code { padding:1px 5px; border-radius:var(--radius-sm); background:var(--panel-muted);
+	color:var(--text-strong); font-family:Consolas,monospace; font-size:12px; }
+ul { max-width:84ch; padding-left:20px; } li { margin:7px 0; color:var(--text-muted); }
+.sw { position:fixed; top:14px; right:16px; padding:6px 12px; border:1px solid var(--button-soft-border);
+	border-radius:var(--radius-md); background:var(--button-soft); color:var(--button-soft-text);
+	font:inherit; font-size:12px; cursor:pointer; z-index:5; }
+.reihe { display:flex; gap:20px; flex-wrap:wrap; align-items:flex-start; margin-top:10px; }
+.wirt { width:400px; border:1px solid var(--border); border-radius:var(--radius-md);
+	background:var(--panel); padding:12px 14px; }
+.wlabel { margin:0 0 6px; font-size:11px; text-transform:uppercase; letter-spacing:.04em;
+	color:var(--text-muted); }
+.wlabel--ist { color:#d98b7a; } .wlabel--soll { color:var(--kanon-nein); }
+:root[data-theme="light"] .wlabel--soll { color:#1f6b64; }
+.meta { font-size:12px; color:var(--text-muted); margin:4px 0 0; }
+.merk { display:inline-block; margin:2px 6px 2px 0; padding:2px 8px; border:1px solid var(--border-strong);
+	border-radius:999px; font-size:11px; color:var(--text-muted); }
+
+/* ══ DER QUELLENKASTEN — die Rezeptur steht ZEICHENGLEICH in css/features/feature-sources.css.
+   🔴 DIESER UMBAU BRAUCHT KEINE EINZIGE NEUE CSS-REGEL: die Halbpille (.fs-kanon--split) und das
+   ⓘ (.fs-src-info) gibt es seit dem 01./02.09.2026, die Wiki-Zeile benutzt sie nur bisher nicht.
+   Deshalb steht hier auch KEIN VERTRAG-Block: es gibt nichts zu binden, was nicht schon gebunden
+   waere. Geaendert wird allein der Bauer in js/ui/feature-source-markup.js. ══════════════════ */
+.fs-src { border:1px solid var(--border); background:var(--panel-soft); border-radius:7px;
+	padding:9px 11px 10px; container-type:inline-size; container-name:fsbox; }
+.fs-src-label { font-size:12px; color:var(--text); margin:0 0 5px; }
+/* Der 7px-Fuss ist der aus der Produktion -- ohne ihn saesse der Trenner im Bild 7px zu hoch. */
+.fs-src-list { list-style:none; margin:0 0 7px; padding:0; display:grid; gap:4px; }
+.fs-src-list li { min-width:0; }
+.fs-src-row { display:flex; align-items:baseline; gap:8px; flex-wrap:nowrap; }
+.fs-src-main { flex:1 1 auto; min-width:0; display:flex; align-items:baseline; }
+.fs-src-title { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.fs-src-main > .fs-src-lic { flex:0 0 auto; }
+.fs-src-marks { flex:0 0 auto; display:inline-flex; align-items:center; gap:6px; }
+.fs-src-a { color:var(--link); text-decoration:none; font-weight:700; font-size:12px; }
+.fs-src-lic { margin-left:6px; font-size:11px; color:var(--link); white-space:nowrap; text-decoration:none; }
+@container fsbox (max-width: 420px) {
+	.fs-src-main { flex-wrap:wrap; }
+	.fs-src-title { flex:1 1 100%; }
+	.fs-src-main > .fs-src-lic { margin-left:0; }
+}
+/* Die Pille: Polster 4.25/8/2.75 und der Zeilenversatz −0.542px sind GEMESSENE Werte aus der
+   Produktion (Pillenmitte gegen Zeilenmitte auf gemeinsamer Grundlinie) — nicht runden. */
+.fs-src-row .fs-kanon { position:relative; top:-0.542px; }
+.fs-kanon { display:inline-flex; align-items:center; flex-shrink:0; font-size:var(--font-size-kanon);
+	font-weight:700; letter-spacing:.09em; text-transform:uppercase; line-height:1;
+	padding:4.25px 8px 2.75px; border-radius:999px; white-space:nowrap; border:1px solid transparent; }
+.fs-kanon--inoff { background:var(--kanon-nein); color:var(--kanon-nein-text); }
+.fs-kanon--off { background:var(--kanon-ja); color:var(--kanon-ja-text); }
+.fs-kanon--split { padding:0; overflow:hidden; background:transparent; border-color:var(--border);
+	max-width:100%; }
+.fs-kanon--split .fs-kanon__state { flex-shrink:0; padding:4.25px 8px 2.75px; }
+.fs-kanon--inoff.fs-kanon--split .fs-kanon__state { background:var(--kanon-nein); color:var(--kanon-nein-text); }
+.fs-kanon--off.fs-kanon--split .fs-kanon__state { background:var(--kanon-ja); color:var(--kanon-ja-text); }
+.fs-kanon__by { min-width:0; overflow:hidden; text-overflow:ellipsis; padding:4.25px 8px 2.75px;
+	font-size:11px; text-transform:none; letter-spacing:0; color:var(--text-muted); }
+/* Das ⓘ und seine Tafel */
+.fs-src-info { flex:0 0 auto; width:17px; height:17px; padding:0; display:inline-flex;
+	align-items:center; justify-content:center; border:1px solid var(--button-soft-border);
+	border-radius:999px; background:var(--button-soft); color:var(--button-soft-text);
+	font:inherit; font-size:11px; line-height:1; cursor:pointer; }
+.fs-src-info[aria-expanded="true"] { background:var(--accent-brown); border-color:var(--accent-brown);
+	color:var(--panel); }
+.fs-src-rights { margin:6px 0 8px; padding:8px 10px; border-left:2px solid var(--accent-brown);
+	border-radius:0 var(--radius-sm) var(--radius-sm) 0; background:var(--panel-soft); font-size:11px; }
+.fs-src-rights dl { display:grid; grid-template-columns:auto 1fr; gap:3px 10px; margin:0; }
+.fs-src-rights dt { color:var(--text-muted); }
+.fs-src-rights dd { margin:0; color:var(--text); overflow-wrap:anywhere; }
+.fs-src-rights a { color:var(--link); }
+.zeileninfo { font-size:11px; }
+/* Die Publikationszeile, verkürzt — nur so viel, dass der Trenner etwas zu trennen hat. */
+.fs-src-pub { display:flex; align-items:center; flex-wrap:wrap; gap:7px 6px; margin-top:9px;
+	color:var(--text-muted); font-size:12px; }
+.fs-src-tab { display:inline-flex; align-items:center; gap:5px; padding:3px 10px;
+	border:1px solid var(--border-strong); border-radius:999px; font-size:11px; }
+.fs-src-tab.is-active { background:var(--kanon-ja); color:var(--kanon-ja-text); border-color:var(--kanon-ja); }
+
+/* ══ VERTRAG: css/features/feature-sources.css ══ die EINE neue Regel dieses Umbaus.
+   🔴 DER TRENNER zwischen „Quelle(n)" und „Publikationen" (Owner 03.09.2026, mit Bild).
+   💣 VOLLBREIT, und die −11px sind KEINE freie Zahl: sie sind das Seitenpolster von
+   `.fs-src--box` (9px 11px 10px). Wer das Polster ändert, ändert beide Zahlen zugleich —
+   sonst endet die Linie sichtbar vor dem Rand. AGENTS.md §12: „popup/infobox dividers run
+   full-bleed (negative side-margin = padding)".
+   ⚠️ Oben 0: die Liste darüber bringt ihre eigenen 7px mit, `.fs-src-pub` darunter seine 9px.
+   Eine dritte Zahl hier machte den Abstand asymmetrisch. */
+.fs-src-trenner {
+	margin: 0 -11px;
+	border-top: 1px solid var(--color-divider);
+}
+/* ══ VERTRAG ENDE ══ */
+</style>
+
+<button class="sw" onclick="document.documentElement.setAttribute('data-theme',
+  document.documentElement.getAttribute('data-theme')==='light'?'dark':'light')">Hell / Dunkel</button>
+
+<h1>Die Wiki-Zeile im Quellenkasten</h1>
+<p>Zwei Punkte vom 03.09.2026. Der erste ist <strong>schon gebaut und live</strong> — dein Bild zeigt
+eine ältere Seite; der zweite ist der eigentliche Vorschlag.</p>
+
+<h2>1 · „Der Name des Links soll der Korpusname sein"</h2>
+<p>Das ist seit dem Umbau von gestern so und steht live. Nachgemessen an der <strong>echten
+Kartennutzlast</strong> (heute geholt) und dem echten Bauer unter Node, für genau die Quelle aus
+deinem Bild (<code>1325299</code>, <code>westlande.de/…?title=Apfeldorn</code>):</p>
+<div class="reihe">
+	<div>
+		<p class="wlabel wlabel--ist">Dein Bild (ältere Seite im Browser)</p>
+		<div class="wirt"><div class="fs-src">
+			<p class="fs-src-label">Quellen:</p>
+			<ul class="fs-src-list">
+				<li><span class="fs-src-row"><span class="fs-src-main"><span class="fs-src-title"><a class="fs-src-a" href="#">Apfeldorn <span aria-hidden="true">↗</span></a></span></span><span class="fs-src-marks"><button type="button" class="fs-src-info" aria-expanded="false" onclick="tafel(this)">i</button><span class="fs-kanon fs-kanon--inoff fs-kanon--split"><span class="fs-kanon__state">Inoffiziell</span><span class="fs-kanon__by">Briefspiel</span></span></span></span></li>
+			</ul>
+		</div></div>
+	</div>
+	<div>
+		<p class="wlabel wlabel--soll">Was der Code heute wirklich baut</p>
+		<div class="wirt"><div class="fs-src">
+			<p class="fs-src-label">Quellen:</p>
+			<ul class="fs-src-list">
+				<li><span class="fs-src-row"><span class="fs-src-main"><span class="fs-src-title"><a class="fs-src-a" href="#">Albernia-Wiki <span aria-hidden="true">↗</span></a></span></span><span class="fs-src-marks"><button type="button" class="fs-src-info" aria-expanded="false" onclick="tafel(this)">i</button><span class="fs-kanon fs-kanon--inoff fs-kanon--split"><span class="fs-kanon__state">Inoffiziell</span><span class="fs-kanon__by">Briefspiel</span></span></span></span></li>
+			</ul>
+		</div></div>
+		<p class="meta">Der Titel „Apfeldorn" ist nicht weg — er steht hinter dem ⓘ unter <em>Titel</em>.</p>
+	</div>
+</div>
+<p><strong>Ein Neuladen mit leerem Zwischenspeicher genügt.</strong> Die Kartennutzlast liegt im
+Browser (IndexedDB) und wird über ihren Stempel erneuert; die Korpora reisen erst seit gestern
+Abend mit.</p>
+
+<h3>🔧 Die eine Frage, die dahinter noch offen ist</h3>
+<p>Im Code steht die Regel heute enger als dein Satz: der Korpusname gewinnt nur, wenn der Korpus
+als <strong>Belegstelle</strong> geführt ist (ein Wiki, ein Briefspiel) — bei einem <strong>Werk</strong>
+(ein Verlag, ein Shop) bliebe der Titel vorn, weil „Ulisses Spiele" statt „Geographia Aventurica"
+die schlechtere Auskunft wäre.</p>
+<p><strong>Heute ist das kein Unterschied:</strong> live gemessen sind <strong>alle 8 Korpora</strong>
+Belegstellen (Garetien-Wiki, Herzogtum Weiden, LieblichesFeld-Wiki ×2, Káhet Ni Kemi!, Almada-Wiki,
+Rommilyser Mark, Albernia-Wiki), und <strong>423 von 1698</strong> Katalogzeilen hängen an einem.
+Es gibt kein Werk-Korpus. Sag nur Bescheid, wenn die Einschränkung ganz fallen soll — dann trägt
+später auch ein Verlagskorpus seinen Namen vorn.</p>
+
+<h2>2 · Die Wiki-Zeile bekommt dieselbe Form wie alle anderen</h2>
+<div class="reihe">
+	<div>
+		<p class="wlabel wlabel--ist">Heute — zwei Zeilen, eigene Bauform</p>
+		<div class="wirt"><div class="fs-src">
+			<p class="fs-src-label">Quellen:</p>
+			<ul class="fs-src-list">
+				<li><span class="fs-src-row"><span class="fs-src-main"><span class="fs-src-title"><a class="fs-src-a" href="#">Wiki Aventurica <span aria-hidden="true">↗</span></a></span><a class="fs-src-lic" href="#">CC BY-SA 3.0 <span aria-hidden="true">↗</span></a></span><span class="fs-src-marks"><span class="fs-kanon fs-kanon--inoff">Inoffiziell</span></span></span></li>
+				<li><span class="fs-src-row"><span class="fs-src-main"><span class="fs-src-title"><a class="fs-src-a" href="#">Albernia-Wiki <span aria-hidden="true">↗</span></a></span></span><span class="fs-src-marks"><button type="button" class="fs-src-info" aria-expanded="false" onclick="tafel(this)">i</button><span class="fs-kanon fs-kanon--inoff fs-kanon--split"><span class="fs-kanon__state">Inoffiziell</span><span class="fs-kanon__by">Briefspiel</span></span></span></span></li>
+			</ul>
+		</div></div>
+		<p class="meta">Kein ⓘ, ganze Pille statt Halbpille, und die Lizenz bricht als zweite Zeile
+		um — drei Unterschiede zur Zeile direkt darunter.</p>
+	</div>
+	<div>
+		<p class="wlabel wlabel--soll">Vorschlag — dieselbe Zeile, dieselben Bauteile</p>
+		<div class="wirt"><div class="fs-src">
+			<p class="fs-src-label">Quellen:</p>
+			<ul class="fs-src-list">
+				<li>
+					<span class="fs-src-row"><span class="fs-src-main"><span class="fs-src-title"><a class="fs-src-a" href="#">Wiki Aventurica <span aria-hidden="true">↗</span></a></span></span><span class="fs-src-marks"><button type="button" class="fs-src-info" aria-expanded="true" onclick="tafel(this)">i</button><span class="fs-kanon fs-kanon--inoff fs-kanon--split"><span class="fs-kanon__state">Inoffiziell</span><span class="fs-kanon__by">Wiki-Artikel</span></span></span></span>
+					<div class="fs-src-rights"><dl>
+						<dt>Kanon</dt><dd>Inoffiziell — Fanmaterial. In offiziellen Nachschlagwerken steht es so nicht.</dd>
+						<dt>Verknüpfung</dt><dd>Wir haben dieses Objekt mit dem Artikel im Wiki Aventurica verbunden — die inhaltlichen Angaben oben stammen von dort.</dd>
+						<dt>Lizenz</dt><dd><a href="#">CC BY-SA 3.0 <span aria-hidden="true">↗</span></a></dd>
+						<dt>Adresse</dt><dd><a href="#">https://de.wiki-aventurica.de/wiki/Apfeldorn <span aria-hidden="true">↗</span></a></dd>
+					</dl></div>
+				</li>
+				<li><span class="fs-src-row"><span class="fs-src-main"><span class="fs-src-title"><a class="fs-src-a" href="#">Albernia-Wiki <span aria-hidden="true">↗</span></a></span></span><span class="fs-src-marks"><button type="button" class="fs-src-info" aria-expanded="false" onclick="tafel(this)">i</button><span class="fs-kanon fs-kanon--inoff fs-kanon--split"><span class="fs-kanon__state">Inoffiziell</span><span class="fs-kanon__by">Briefspiel</span></span></span></span>
+					<div class="fs-src-rights" hidden><dl>
+						<dt>Kanon</dt><dd>Inoffiziell — Fanmaterial (Briefspiel). In offiziellen Nachschlagwerken steht es so nicht.</dd>
+						<dt>Lizenz</dt><dd><a href="#">CC BY-SA 4.0 <span aria-hidden="true">↗</span></a></dd>
+						<dt>Titel</dt><dd>Apfeldorn</dd>
+						<dt>Adresse</dt><dd><a href="#">https://www.westlande.de/albernia/index.php?title=Apfeldorn <span aria-hidden="true">↗</span></a></dd>
+					</dl></div>
+				</li>
+			</ul>
+		</div></div>
+		<p class="meta">Beide ⓘ sind anklickbar. Die Tafel klappt <em>innerhalb</em> ihrer Zeile auf —
+		bei zwei Quellen wäre sonst nicht zu sehen, wessen Rechte dort stehen.</p>
+	</div>
+</div>
+
+<h3>Die rechte Hälfte der Pille — hier bitte zeigen, welche</h3>
+<p>Bei jeder anderen Zeile steht dort die <strong>Art</strong> der Quelle (Briefspiel,
+Regionalspielhilfe …), links davor der Name. Dein Satz nennt für die Wiki-Zeile
+„Wiki Aventurica" — dann stünde derselbe Name zweimal in einer Zeile.</p>
+<div class="reihe">
+	<div>
+		<p class="wlabel">A — wörtlich wie geschrieben</p>
+		<div class="wirt"><div class="fs-src"><ul class="fs-src-list">
+			<li><span class="fs-src-row"><span class="fs-src-main"><span class="fs-src-title"><a class="fs-src-a" href="#">Wiki Aventurica <span aria-hidden="true">↗</span></a></span></span><span class="fs-src-marks"><button type="button" class="fs-src-info" aria-expanded="false" onclick="tafel(this)">i</button><span class="fs-kanon fs-kanon--inoff fs-kanon--split"><span class="fs-kanon__state">Inoffiziell</span><span class="fs-kanon__by">Wiki Aventurica</span></span></span></span></li>
+		</ul></div></div>
+	</div>
+	<div>
+		<p class="wlabel wlabel--soll">B — die Art statt des Namens (Empfehlung)</p>
+		<div class="wirt"><div class="fs-src"><ul class="fs-src-list">
+			<li><span class="fs-src-row"><span class="fs-src-main"><span class="fs-src-title"><a class="fs-src-a" href="#">Wiki Aventurica <span aria-hidden="true">↗</span></a></span></span><span class="fs-src-marks"><button type="button" class="fs-src-info" aria-expanded="false" onclick="tafel(this)">i</button><span class="fs-kanon fs-kanon--inoff fs-kanon--split"><span class="fs-kanon__state">Inoffiziell</span><span class="fs-kanon__by">Wiki-Artikel</span></span></span></span></li>
+		</ul></div></div>
+		<p class="meta">Gleiche Lesart wie die Nachbarzeile: <em>links wer, rechts was</em>.</p>
+	</div>
+</div>
+
+<h3>Und wenn der Artikel im Hauptnamensraum steht — dann die GANZE Pille</h3>
+<p>Owner 03.09.2026: „offiziell ist immer eine runde pille", ohne „Wiki-Artikel". Das ist keine
+Ausnahme, sondern dieselbe Regel, die im Quellenkasten schon gilt: die Halbpille sagt, dass hier
+noch etwas <strong>offen</strong> ist — wer geschrieben hat, was nicht im Kanon steht.
+„Offiziell" trennt nichts auf, und ein leeres zweites Feld wäre eine Naht ohne Inhalt.</p>
+<div class="reihe">
+	<div class="wirt"><div class="fs-src"><ul class="fs-src-list">
+		<li><span class="fs-src-row"><span class="fs-src-main"><span class="fs-src-title"><a class="fs-src-a" href="#">Wiki Aventurica <span aria-hidden="true">↗</span></a></span></span><span class="fs-src-marks"><button type="button" class="fs-src-info" aria-expanded="false" onclick="tafel(this)">i</button><span class="fs-kanon fs-kanon--off">Offiziell</span></span></span></li>
+	</ul></div></div>
+</div>
+<p class="meta">Das ⓘ bleibt in beiden Lagen — es trägt die Lizenz, nicht den Kanon.</p>
+
+<h2>3 · Der Trenner vor „Publikationen"</h2>
+<p>Owner 03.09.2026 mit Bild (die rote Linie lag genau dort): zwei Abschnitte im selben Kasten,
+und der Wechsel war nur an der Beschriftung zu erkennen. Links das ⓘ der offiziellen Wiki-Zeile,
+aufgeklappt — der Text, nach dem du gefragt hast:</p>
+<div class="reihe">
+	<div>
+		<p class="wlabel wlabel--soll">Mit Publikationen — und aufgeklapptem ⓘ</p>
+		<div class="wirt"><div class="fs-src">
+			<p class="fs-src-label">Quelle:</p>
+			<ul class="fs-src-list">
+				<li>
+					<span class="fs-src-row"><span class="fs-src-main"><span class="fs-src-title"><a class="fs-src-a" href="#">Wiki Aventurica <span aria-hidden="true">↗</span></a></span></span><span class="fs-src-marks"><button type="button" class="fs-src-info" aria-expanded="true" onclick="tafel(this)">i</button><span class="fs-kanon fs-kanon--off">Offiziell</span></span></span>
+					<div class="fs-src-rights"><dl>
+						<dt>Kanon</dt><dd>Offiziell — bei Ulisses erschienen. In offiziellen Nachschlagwerken nachzulesen.</dd>
+						<dt>Verknüpfung</dt><dd>Wir haben dieses Objekt mit dem Artikel im Wiki Aventurica verbunden — die inhaltlichen Angaben oben stammen von dort.</dd>
+						<dt>Lizenz</dt><dd><a href="#">CC BY-SA 3.0 <span aria-hidden="true">↗</span></a></dd>
+						<dt>Adresse</dt><dd><a href="#">https://de.wiki-aventurica.de/wiki/Havena <span aria-hidden="true">↗</span></a></dd>
+					</dl></div>
+				</li>
+			</ul>
+			<div class="fs-src-trenner" role="presentation"></div>
+			<div class="fs-src-pub"><span>Publikationen:</span><span class="fs-src-tab">Beschrieben (17)</span><span class="fs-src-tab is-active">Erwähnt (20)</span></div>
+		</div></div>
+	</div>
+</div>
+<p class="meta">⚠️ Der Trenner kommt <strong>nur, wenn oben wirklich etwas steht</strong>. Ein Objekt
+ohne Wiki-Artikel und ohne eigene Quelle bekäme sonst eine Linie über der ersten Zeile des Kastens
+— und ein Trenner, der nichts trennt, sagt „hier fehlt etwas".</p>
+<h3>🔧 Eine Frage zum Kanon-Satz im ⓘ</h3>
+<p>Der Satz oben ist dein Wortlaut vom 02.09. für <em>Katalogquellen</em>. An einem Wiki-Artikel
+sitzt er einen Zoll schief: <strong>der Artikel</strong> ist nicht bei Ulisses erschienen — er
+<em>beschreibt</em>, was dort erschienen ist. Mögliche Fassung nur für die Wiki-Zeile:</p>
+<div class="reihe"><div class="wirt"><div class="fs-src"><div class="fs-src-rights"><dl>
+	<dt>Kanon</dt><dd>Offiziell — der Artikel steht im Hauptnamensraum und gibt bei Ulisses
+	Veröffentlichtes wieder.</dd>
+</dl></div></div></div></div>
+<p class="meta">Sag, welche du willst — bleibt es beim gemeinsamen Satz, ist das auch in Ordnung:
+die Pille bedeutet überall dasselbe, und dann erklärt sie auch überall dasselbe.</p>
+
+<h2>4 · Was das festlegt</h2>
+<ul>
+	<li>🔴 <strong>Die Wiki-Zeile bekommt ein ⓘ, und es ist immer da</strong> — wie bei jeder anderen
+	Quelle seit dem 02.09. Es trägt Kanon, Verknüpfung, Lizenz und Adresse; leer kann es nie sein.</li>
+	<li>🔴 <strong>Die Lizenz wandert in die Tafel</strong>, genau wie gestern bei den Katalogzeilen.
+	Sie bleibt ein <em>echter Link auf denselben Seiten</em>, einen Klick entfernt — das ist die
+	Bedingung, unter der CC das erlaubt. Wer das ⓘ je wieder auf „nur wenn etwas drinsteht"
+	verengt, nimmt den Lizenzverweis mit.</li>
+	<li>💣 <strong>Der Satz zur Verknüpfung ist kein Kanon-Satz.</strong> Der Kanon sagt, ob es das
+	im gedruckten Aventurien gibt; die Verknüpfung sagt, dass die Angaben oben von dort kommen.
+	Zwei Aussagen, zwei Zeilen — zusammengezogen behauptet der eine Satz den anderen mit.</li>
+	<li>⚠️ <strong>Die Wiki-Zeile ist keine Katalogquelle</strong> (sie steht als
+	<code>properties.wiki_url</code> am Objekt, nicht in <code>sources</code>). Sie hat deshalb
+	keine Art, keine Seitenangabe und keine Namensnennung — ihr Kanon kommt aus dem
+	<em>Namensraum</em> des Artikels, nicht aus dem Katalog.</li>
+	<li>⭐ <strong>Keine neue CSS-Regel.</strong> Halbpille und ⓘ stehen seit dem 01./02.09. in
+	<code>css/features/feature-sources.css</code>; die Wiki-Zeile benutzt sie nur bisher nicht.
+	Geändert wird allein der Bauer in <code>js/ui/feature-source-markup.js</code> — ein Ort, alle
+	acht Oberflächen.</li>
+</ul>
+
+<script>
+function tafel(btn) {
+	var auf = btn.getAttribute("aria-expanded") === "true";
+	btn.setAttribute("aria-expanded", auf ? "false" : "true");
+	var li = btn.closest("li");
+	var t = li && li.querySelector(".fs-src-rights");
+	if (t) { t.hidden = auf; }
+}
+</script>
