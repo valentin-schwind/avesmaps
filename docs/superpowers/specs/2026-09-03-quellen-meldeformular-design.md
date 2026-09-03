@@ -1,17 +1,19 @@
 # Quellen im Meldeformular der Community — der Link ist die Quelle, der Korpus bleibt bei uns
 
-**Stand:** Entwurf 03.09.2026 abends, nach dem Abschluss der Schritte 1–5 des Quellen-Umbaus.
+**Stand:** Entwurf 03.09.2026 abends, zweite Fassung nach dem Owner-Blick („da wollen wir natürlich
+alle felder und das ganz normale formular sehen"), nach dem Abschluss der Schritte 1–5 des
+Quellen-Umbaus.
 **Owner-Auftrag (03.09.2026):** „das meldeformular der community! … das müssen wir als erstes
 nachziehen und an das neue system anpassen. sowohl änderungen als auch neue vorschläge müssen das mit
 dem link machen. ich will allerdings nicht, dass externe nutzer was am korpus machen — die sollen
 einfach den link pasten. erst wir im backend sollen sehen, ob der korpus passt oder ein neuer erkannt
-wurde."
+wurde." — und zur Backend-Sicht: „da wollen wir natürlich alle felder und das ganz normale formular
+sehen."
 **Mockup:** `docs/quellen-meldeformular-mockup.html` — bis zum GO als
 `docs/quellen-meldeformular-mockup.entwurf.html` abgelegt, weil sein VERTRAG (drei Blöcke:
 `css/components/location-report-dialog.css`, `css/features/feature-sources.css`,
 `css/features/review-panel.css`) bis zum Bau rot wäre und der Vertragstest jedes `*-mockup.html`
-liest. Abschnitt 1 ist die Sicht des Melders, 2–4 die Backend-Sicht (Review-Karte, Annahme-Dialog,
-„neuer Wirt").
+liest. Abschnitt 1 ist die Sicht des Melders, 2 und 3 die Backend-Sicht (Review-Karte, Annahme-Dialog).
 
 ---
 
@@ -53,10 +55,13 @@ Katalogzeile durchgeschrieben (`avesmapsSourceOfficialWriteAllowed`: neue Zeile 
 ### 1.3 Der Annahmeweg heute
 
 - **Ort / Beschriftung** (Client, `review-editor-submit.js` → `linkCommunityReportSource`,
-  `review-feature-sources.js`): jede gemeldete Quelle **mit Link** geht als `add` an
+  `review-feature-sources.js`): jede gemeldete Quelle **mit Link** geht beim Speichern als `add` an
   `POST api/edit/map/feature-sources.php` — mit `source_type` und `is_official` **aus dem
-  Meldeformular**; ein gepickter Katalogtreffer (`source_id`) als `add_existing`. Link-lose Zeilen
-  fallen in die Beschreibung („Quelle: X, S. Y") und sind damit keine Quelle mehr.
+  Meldeformular**, ohne dass der Editor etwas davon sieht oder ändern kann; ein gepickter
+  Katalogtreffer (`source_id`) als `add_existing`. Link-lose Zeilen fallen in die Beschreibung
+  („Quelle: X, S. Y") und sind damit keine Quelle mehr. Im Annahme-Dialog stehen die Zeilen als
+  schreibgeschützte Gruppe „Aus der Meldung" (`renderProposedFeatureSourceRow`): Link, Pille
+  „Vorschlag (Meldung)", Stern vom Haken des Melders, Seiten. Mehr nicht.
 - **Stadtkarte** (Server, `avesmapsCreateCitymapFromReport` in `api/edit/reports/locations.php`):
   dasselbe über `avesmapsAddFeatureSource(…, $type, $official, …)`, Art und offiziell aus der
   Meldung.
@@ -116,14 +121,19 @@ aus — die neuen Schlüssel kommen in die Tabelle (AGENTS.md §8).
 2. 🔴 **Externe fassen den Korpus nicht an — und sehen ihn nicht.** Das Formular kennt keinen
    Korpus: keine Vorbelegung, kein Name, keine Anlage. Der Melder sieht höchstens, dass wir eine
    Adresse **schon kennen** (Katalogtreffer) — das steht ohnehin öffentlich in der Kartennutzlast.
-3. 🔴 **Die Erkennung passiert bei uns, beim Sichten.** Der Review-Endpunkt hängt an jede gemeldete
-   Quelle eine `pruefung`: Katalogstand (bekannt/neu), Korpus (bekannt: Name · neu: Wirt) — lokal
-   gerechnet, ohne Abruf nach draußen.
-4. 🔴 **Die Annahme legt neue Katalogzeilen mit den Korpuswerten an.** Ist der Wirt ein bekannter
-   Korpus, bekommt eine NEUE Zeile Art, Lizenz, Nennung und Kanon vom Korpus — serverseitig, für
-   JEDEN Aufrufer des Eintrage-Wegs. Ist er unbekannt, entsteht eine Zeile ohne Korpuswerte, und die
-   Review-Karte sagt es („neuer Wirt"): das Anlegen eines Korpus bleibt eine bewusste Handlung des
-   Editors über die vorhandene Eingabezeile.
+3. 🔴 **Im Backend steht die gemeldete Quelle im GANZ NORMALEN Formular, mit allen Feldern** — der
+   dreiteiligen Eingabezeile des Quellenkastens (Quelle → Korpus → dieses Objekt), vorausgefüllt vom
+   Server aus der Adresse, genau so, als hätte ein Editor sie eingefügt: Katalog geprüft (bekannt /
+   neu), Korpus erkannt (Name, Art, Lizenz, Nennung, offiziell „· vom Korpus") oder als neuer Wirt
+   benannt, Seite(n) vom Melder. Beim **Sichten** schreibgeschützt (Review-Karte), bei der
+   **Annahme** zum Schreiben (Annahme-Dialog). Kein Sonderformat, keine Kurzmarken, kein zweiter
+   Zeilenbauer — die Eingabezeile gibt es einmal.
+4. 🔴 **Die Annahme ist ein Speichern im normalen Formular.** Der Editor sieht jede gemeldete
+   Quelle, ergänzt Titel oder Abdeckung, korrigiert, und drückt „Speichern" — damit gelten
+   ausnahmslos die Regeln der Eingabezeile: Korpuswerte für eine neue Zeile, „offiziell" und Art
+   nur bei ausdrücklicher Wahl, Korpus anlegen bei neuer Domain, Rückfrage ab zehn Objekten,
+   Abweichungen nur an dieser Quelle. „Überspringen" nimmt eine Quelle nicht. Nichts wird mehr
+   **still** aus dem Meldeformular in den Katalog geschrieben.
 5. **Ein Werk ohne Adresse bleibt erreichbar** — über die Vorschlagsliste des Katalogs (5a): wer
    „Die Flusslande" tippt und den Treffer nimmt, meldet die Katalogzeile (`source_id`). Das ist der
    einzige Weg, auf dem ein Name ohne Link noch eine Quelle sein kann; alles andere ohne Link wird
@@ -197,90 +207,117 @@ Die Spalte `sources_json` und ihr Format bleiben; kein DDL.
 
 ---
 
-## 5 · Die Erkennung beim Sichten
+## 5 · Das Backend: das normale Formular, vorausgefüllt
 
-### 5.1 Der Endpunkt (`GET api/edit/reports/locations.php`)
+### 5.1 Die Vorbelegung (`GET api/edit/reports/locations.php`)
 
-`avesmapsListLocationReportsForReview` hängt an jede Quelle eines Reports ein Feld `pruefung`:
+`avesmapsListLocationReportsForReview` hängt an jede Quelle eines Reports ein Feld `vorbelegung` —
+genau die Werte, die die Eingabezeile des Quellenkastens nach dem Einfügen einer Adresse zeigt:
 
 ```
 { "stand": "bekannt" | "neu" | "katalog" | "ohne_link",
-  "label": "Geographia Aventurica",            // Katalogtitel bei bekannt/katalog
-  "source_id": 812,                            // bei bekannt/katalog
-  "korpus": { "known": true, "label": "Garetien-Wiki", "corpus_key": "garetien.de" }
-          | { "known": false, "label": "example.org", "corpus_key": "example.org" }
-          | null }                              // ohne Adresse
+  "existing": { "source_id": 812, "label": "…", "type": "…", "official": true, "license": "…", "attribution": "…" } | null,
+  "korpus":   { "known": true,  "corpus_key": "garetien.de", "label": "Garetien-Wiki", "form": "belegstelle",
+                "source_type": "briefspiel", "license": "cc-by-nc-sa-3.0", "attribution": "VolkoV / garetien.de",
+                "is_official": false, "sources": 45, "objects": 161 }
+            | { "known": false, "corpus_key": "example.org", "label": "example.org", … leer … }
+            | null }                                                     // ohne Adresse
 ```
 
 - `bekannt`: die Adresse steht im Katalog (`url_hash`). `katalog`: der Melder hat eine Zeile gepickt
   (`source_id`). `neu`: Adresse, die wir nicht kennen. `ohne_link`: Altform, nicht verknüpfbar.
-- Der Korpus kommt aus `avesmapsSourceCorpusForUrl(avesmapsSourceCorpusReadAll($pdo), $url)` —
-  dieselbe Rechnung wie in der Eingabezeile, **einmal** je Liste gelesen.
-- 💣 **Kein `avesmapsSourceInspectUrl` hier.** Die Auskunft rechnet je Aufruf die Reichweite des
-  Korpus (`avesmapsSourceCorpusUsage`, ein Volltabellenlauf über `sources`) und greift bei `fetch`
-  nach draußen. Die Review-Liste lädt im Bearbeiten-Modus alle **45 s** (`review-api-metrics.js`);
-  ein Volltabellenlauf je Quelle je 45 s ist genau die Last, vor der CLAUDE.md warnt. Eine eigene,
-  kleine Funktion `avesmapsReportSourceRecognition(PDO, array $source, array $korpora): array` —
-  eine Katalogabfrage per `url_hash` (indiziert) und eine In-Memory-Rechnung.
+- Das ist **dieselbe Auskunft wie `inspect_url` ohne Abruf** (`avesmapsSourceInspectUrl(…, fetch:
+  false)` liefert `existing` und `corpus`) — aber nicht dieselbe Funktion: die rechnet je Aufruf die
+  Reichweite des Korpus über einen Volltabellenlauf (`avesmapsSourceCorpusUsage`), und die
+  Review-Liste lädt im Bearbeiten-Modus alle **45 s** (`review-api-metrics.js`). Deshalb eine kleine
+  Funktion `avesmapsReportSourceVorbelegung(PDO, array $source, array $korpora, array $usage): array`
+  — Katalogabfrage per `url_hash` (indiziert), Korpus aus `avesmapsSourceCorpusReadAll` (einmal je
+  Liste), Reichweite aus `avesmapsSourceCorpusUsageAll` (einmal je Liste, existiert bereits).
+- 💣 **Kein Abruf nach draußen in der Liste.** Der Seitentitel für eine neue Adresse kommt erst im
+  Annahme-Dialog — über den vorhandenen ⟳-Knopf der Eingabezeile oder beim Speichern (§6).
 
-### 5.2 Die Review-Karte
+### 5.2 Die Review-Karte beim Sichten — schreibgeschützt, alle Felder
 
-Statt der einen Textzeile eine Zeile **je Quelle** (`.review-report__quelle`):
+Die Karte bekommt statt der Textzeile eine Falte **„n Quellen aus der Meldung"**
+(`details.review-report__quellen`, nativ wie „n weitere Quellen"; zu, bis man sie öffnet). Darin
+je gemeldete Quelle **die normale Eingabezeile** (`renderFeatureSourceAddRow`), vorausgefüllt aus
+`vorbelegung` und **schreibgeschützt** (`disabled` an allen Feldern — die Rezeptur
+`.fs-scope input[disabled]` gibt es seit dem 02.09.): alle drei Rahmen, alle Felder, die Marker
+„· vom Korpus", die Reichweite des Korpus im Rahmentitel, „bestehende Quelle" bei Katalogtreffer,
+Seite(n) vom Melder. Über jedem Formular eine Zeile `.fs-add-queue`: „Quelle 1 von 2 · vom Server
+geprüft: bekannter Korpus, neue Seite" / „… unbekannter Wirt — ein neuer Korpus, wenn du ihn
+anlegst" / „… steht schon im Katalog". Der Editor sieht damit beim Sichten **exakt, was die Annahme
+anlegen würde** — nichts, was er im Annahme-Dialog nicht auch sähe.
 
-```
-↗ wiki.punin.de/Baronie_Bitterbusch · kennen wir: „Baronie Bitterbusch" · Almada Wiki
-↗ example.org/seite.html               · neu · neuer Wirt example.org
-  „Die Flusslande" (aus dem Katalog) · S. 12
-```
+⚠️ Das Formular ist groß (drei Rahmen, bis zu zwölf Felder). Deshalb die Falte, und deshalb kein
+zweites, kompaktes Format: eine kompakte Zusammenfassung wäre der zweite Zeilenbauer, den der
+Owner ausdrücklich nicht will. Mockup §2.
 
-Reihenfolge der Marken: Katalog zuerst (bekannt / neu / aus dem Katalog), dann der Korpus (Name,
-oder „neuer Wirt <host>"). Farben: Text in `--color-text-muted`, „neuer Wirt" in
-`--color-warning-strong-text` — das ist der eine Fall, in dem der Editor nach der Annahme etwas
-tun muss. Kein Rot: es ist kein Fehler, es ist Arbeit. ⚠️ `--color-warning-text` und
-`--color-success-text` gibt es NICHT (`tokens.css` kennt `-soft-text` und `-strong-text`); der erste
-Entwurf des Mockups hatte beide erfunden — Memory `mockup-tokens-sind-eine-fiktion`.
+### 5.3 Der Annahme-Dialog — dasselbe Formular, zum Schreiben, eine Quelle nach der anderen
 
-### 5.3 Die Vorschlagszeilen im Annahme-Dialog
+Im Quellenkasten des Annahme-Dialogs (Ort anlegen / Ort bearbeiten aus der Meldung) steht die
+gemeldete Quelle **in der Eingabezeile selbst**, vorausgefüllt wie in §5.2, aber schreibbar. Die
+Falte „Neue Quelle einfügen" ist dabei **offen** — die einzige Ausnahme von „immer zu" (Owner
+03.09.2026), solange Quellen aus der Meldung warten. Über dem Formular die Warteschlangen-Zeile:
+„Aus der Meldung: Quelle 1 von 2 · bekannter Korpus, neue Seite — prüfen, ergänzen, Speichern."
+Die Knöpfe heißen **Speichern** (der normale Weg der Eingabezeile) und **Überspringen** (statt
+„Abbrechen": die Quelle wird nicht genommen, die nächste rückt nach). Nach dem Speichern meldet die
+Zeile unter dem Kasten wie immer „Hinzugefügt: „X"." und die nächste gemeldete Quelle steht im
+Formular; nach der letzten klappt die Falte zu.
 
-`renderProposedFeatureSourceRow` (`review-feature-sources.js`) zeigt heute Link + „Vorschlag
-(Meldung)" + Seiten — drei Zellen in einem siebenspaltigen Raster, der Stern kommt vom Haken des
-Melders. Künftig trägt die Zeile **alle sieben Zellen** (Link · Vorschlags-Pille · leere Abdeckung ·
-Seiten · **Prüfung** in der Lizenzspalte · zwei leere Knopfzellen), damit nichts verrutscht; die
-Prüfung ist derselbe Text wie auf der Karte (`.fs-row__pruefung`, gedämpft wie die Lizenz; „neuer
-Wirt" in `--color-warning-strong-text`), aus `pruefung`, die mit dem Report reist. Kein Stern, keine
-Art. Die Gruppe heißt weiter „Aus der Meldung (wird beim Speichern übernommen)". Mockup §3.
+🔴 **Ein Formular, nacheinander — nicht n Formulare untereinander.** Das Bauteil hat EINE
+Eingabezeile (`[data-fs-add]`, `.fs-add-*`), an der Vorschlagsliste, Adressprüfung, Korpusanlage,
+Abweichungen und die Rückfragen hängen. Ein zweiter Bauer für „mehrere Formulare" wäre die zweite
+Fassung genau dieser Regeln. Live sind es ohnehin höchstens zehn Quellen je Meldung, im Bestand
+zwei.
 
-### 5.4 Nach der Annahme bei „neuer Wirt"
+🔴 **Die Vorschlagsgruppe „Aus der Meldung (wird beim Speichern übernommen)" fällt**, samt
+`renderProposedFeatureSourceRow`, `appendProposedFeatureSources` und dem stillen Verknüpfen in
+`review-editor-submit.js` (`linkCommunityReportSource`-Schleife). Was der Editor nicht gespeichert
+hat, wird nicht angelegt. ⚠️ `linkCommunityReportSource` bleibt für den **Katalogtreffer**
+(`add_existing` per `source_id`) — auch der läuft künftig über das Formular („bestehende Quelle",
+Katalogfelder gesperrt, nur Seite und Abdeckung offen, Knopf „Speichern"), also über denselben
+Weg wie ein von Hand gepickter Treffer.
 
-Die Zeile steht im Quellenkasten des Objekts ohne Art, ohne Lizenz, inoffiziell — wie eine Zeile,
-die ein Editor selbst von einem unbekannten Wirt eintippt. Den Korpus legt der Editor über die
-bestehende Eingabezeile an (Zustand „neue Domain" → „Korpus anlegen", Durchschreiben mit Rückfrage
-ab zehn Objekten). 🔴 **Kein zweiter Weg** und keine Korpusanlage aus der Meldung heraus: die
-Meldung sagt „hier ist etwas Neues", die Entscheidung trifft der Editor. Mockup §4.
+💣 **Bei einem NEUEN Ort gibt es beim Speichern der Quelle noch keine Kennung.** Das Bauteil kennt
+den Fall: beim Anlegen von Hand puffert `locationEditPendingSourceStore` (Bug #41) die Quellen
+und spielt sie nach dem Anlegen über denselben Add-Weg ein. Die gemeldeten Quellen gehen durch
+genau diesen Puffer — kein zweiter.
+
+💣 **Der Seitentitel.** Ist die Adresse neu, steht der Titel leer, mit Platzhalter „wird beim
+Speichern von der Seite gelesen"; der ⟳-Knopf holt ihn auf Wunsch sofort (`inspect_url`,
+`fetch: true`, ein Handgriff, wie heute). Beim Speichern ohne Titel holt die Eingabezeile ihn
+**einmal** selbst (derselbe Aufruf); bleibt er leer (`erreichbar` ohne Überschrift), steht der Wirt
+als Notname und die Meldung sagt es — ✎ gibt es.
+
+### 5.4 Stadtkarte (Server)
+
+Der Kartenvorschlag wird serverseitig angenommen (`avesmapsCreateCitymapFromReport`), ohne Dialog
+mit Quellenkasten. Dort bleibt der programmatische Weg über `avesmapsAddFeatureSource` — mit
+`$type = ''`, `$official = false`, und die Korpuswerte über §6.3. Damit ist die Stadtkarte die
+eine Stelle, an der der Editor die Quelle nicht im Formular sieht, bevor sie entsteht.
+🔧 Owner-Frage in §8: reicht das für eine Quelle je Karte, oder soll auch die Karten-Annahme
+durch einen Dialog mit Quellenkasten?
 
 ---
 
-## 6 · Die Annahme
+## 6 · Die Annahme, technisch
 
 ### 6.1 Ort und Beschriftung (Client)
 
-`linkCommunityReportSource` schickt:
-
-- `add_existing` mit `source_id`, wenn `pruefung.stand` `bekannt` oder `katalog` ist — die Zeile
-  gibt es, es wird nur verknüpft (Seiten mit).
-- sonst `add` mit `url`, `pages`, `label` — **ohne** `source_type`, **ohne** `is_official`, ohne
-  `_chosen`-Schlüssel. Der Titel: `pruefung.label` (leer bei neu) → dann **einmal** `inspect_url`
-  mit `fetch: true` für den Seitentitel (`gelesen`) → sonst der Wirt als Notname und die Meldung
-  „Titel fehlt — bitte im Quellenkasten nachtragen" (✎ gibt es).
-- ⚠️ `reference_kind` bleibt leer. Die Einstufung (ausführlich / ergänzend / Erwähnung) ist
-  redaktionell; wer sie setzen will, tut es nach dem Speichern im Kasten — wie bei jeder Quelle, die
-  ein Editor selbst einträgt.
+Die Eingabezeile des Kastens wird aus `report.sources[i]` + `vorbelegung` befüllt
+(`setzeAddZeile(vorbelegung)`: Adresse, Titel aus `existing`, `uebernehmeKorpus(korpus)` für die
+Korpusfelder samt Marker, Seite(n), „bestehende Quelle" bei Katalogtreffer, Katalogfelder gesperrt
+wie im Zustand 3 der Adresse). Der Rest ist die Eingabezeile, wie sie ist: `add` / `add_existing`
+mit `source_type_chosen`/`is_official_chosen` nur bei ausdrücklicher Wahl, Korpusanlage, Abweichungen,
+Rückfragen. Nach `Speichern` oder `Überspringen` die nächste Quelle; die Warteschlange lebt im
+Bauteil (`state.meldung = { quellen, index }`), nicht im Aufrufer.
 
 ### 6.2 Stadtkarte (Server)
 
 `avesmapsCreateCitymapFromReport` ruft `avesmapsAddFeatureSource` weiter — mit `$type = ''`,
 `$official = false`, und bekommt die Korpuswerte über §6.3. Titel: aus der Meldung nur bei
-Katalogtreffer, sonst wie in 6.1 über den Seitentitel (`avesmapsSourceInspectUrl` mit `fetch`, hier
+Katalogtreffer, sonst über den Seitentitel (`avesmapsSourceInspectUrl` mit `fetch`, hier
 serverseitig, einmal je Annahme, nicht je Liste).
 
 ### 6.3 Die Korpuswerte für eine NEUE Katalogzeile (Server, für alle)
@@ -297,8 +334,8 @@ Zeile und ist der Wirt ein bekannter Korpus, dann
 
 Eine BESTEHENDE Zeile bleibt unberührt — das ist die Regel vom 29.08./03.09. (`retype`,
 `avesmapsSourceOfficialWriteAllowed`), und sie ändert sich nicht. `own_fields` bleibt leer, weil
-nichts abweicht. ⭐ Damit verhält sich die Annahme wie die Eingabezeile des Editors, in der der
-Client heute dieselben Werte vorbelegt: **eine** Rechnung, zwei Aufrufer, gleiches Ergebnis.
+nichts abweicht. ⭐ Damit verhält sich der serverseitige Weg (Stadtkarte) wie die Eingabezeile, in
+der der Client dieselben Werte vorbelegt: **eine** Rechnung, zwei Aufrufer, gleiches Ergebnis.
 💣 Das gilt auch für den Wiki-Publikationsabgleich und die Importe, die `avesmapsFeatureSourceUpsert`
 rufen — die bringen aber alle einen eigenen `source_type` und `is_official` mit, und `license`
 kommt bei ihnen aus derselben Quelle wie die Korpuszeile. Eine Änderung des Bilds ist dort nicht
@@ -317,22 +354,33 @@ zu erwarten; der Test hält es fest (§7).
 3. 💣 **`window.__sourceCatalog` ist nicht immer da** (die Karte lädt es beim Start; im Fehlerfall
    ist es `{}`) und trägt nur Zeilen **mit** Adresse. Der Client-Treffer ist Komfort; die Wahrheit
    rechnet der Server beim Sichten. Ohne Katalog: kein Satz, kein Fehler.
-4. 💣 **Die Erkennung ist lokal.** Kein Abruf nach draußen in der Review-Liste (§5.1). Der Seitentitel
-   wird erst bei der Annahme geholt, einmal je Zeile.
+4. 💣 **Die Vorbelegung ist lokal.** Kein Abruf nach draußen in der Review-Liste (§5.1). Der
+   Seitentitel wird erst im Annahme-Dialog geholt, einmal je Zeile.
 5. 💣 **Die Korpuswerte gelten nur der NEUEN Zeile.** `avesmapsSourceOfficialWriteAllowed` und
    `retype` bleiben, wie sie sind; §6.3 setzt nur Vorgaben, wo heute Leere stünde.
 6. 💣 **Der Kartenvorschlag ist ein zweites Formular mit eigener Absende-Funktion**
    (`map-features-citymaps-suggest.js:441/700`) — beide Absender werden umgestellt, nicht einer.
-7. 💣 **Die Abdeckung fällt aus dem Formular, nicht aus dem Datenmodell.** `reference_kind` bleibt
-   Spalte, Endpunktfeld und ✎-Feld; nur der Melder setzt sie nicht mehr.
-8. ⚠️ **`type` ist im Formular des Kartenvorschlags heute Pflichtfeld „Quelle" (Name).** Nach dem
-   Umbau ist der Link Pflicht — ein Melder, der den Namen kennt und den Link nicht, muss den Titel
-   aus dem Katalog picken. Steht das Werk nicht im Katalog, kann er es nicht melden. Das ist der
-   Preis der Regel und gewollt (Owner: „einfach den link pasten").
+7. 💣 **Die Abdeckung fällt aus dem Meldeformular, nicht aus dem Datenmodell.** Sie bleibt Spalte,
+   Endpunktfeld und Feld der Eingabezeile — der Editor setzt sie im Annahme-Dialog, der Melder nicht.
+8. ⚠️ **„Quelle" ist im Kartenvorschlag heute Pflichtfeld „Name".** Nach dem Umbau ist der Link
+   Pflicht — ein Melder, der den Namen kennt und den Link nicht, muss den Titel aus dem Katalog
+   picken. Steht das Werk nicht im Katalog, kann er es nicht melden. Das ist der Preis der Regel und
+   gewollt (Owner: „einfach den link pasten").
 9. 🪤 **Enter im Feld:** an `#report-source-label` hängt in `js/app/bootstrap.js` ein Enter-Handler
    („Enter legt die Quelle an"), und die Vorschlagsliste muss VOR ihm registriert sein
    (`stopImmediatePropagation`, Memory `quellen-autocomplete-5a`). Das neue Feld erbt beides — die
    Kennung wechselt, die Verdrahtung zieht mit.
+10. 💣 **Die offene Falte ist eine Ausnahme mit Ende.** „Immer zu" (Owner 03.09.2026) gilt weiter;
+    offen ist sie nur, solange `state.meldung` Quellen hält, und der Bauer setzt `open` genau aus
+    diesem Zustand — kein zweiter Merker. Nach der letzten Quelle zeichnet das Bauteil wie immer
+    aus der Serverantwort neu, und die Falte ist zu.
+11. 💣 **Schreibgeschützt heißt `disabled`, nicht „weggelassen".** Die Karte zeigt ALLE Felder
+    (Owner). Ein Feld, das nur im Annahme-Dialog erscheint, wäre eine Abweichung zwischen Sichten
+    und Annehmen — der Editor sähe beim Sichten weniger, als die Annahme anlegt.
+12. 💣 **Ein Formular je Meldung in der Liste, nicht je Karte gleichzeitig offen.** Die Falte ist
+    zu; wer sie öffnet, sieht bis zu zehn Formulare. Die Karte wird beim Live-Poll (45 s) neu
+    gezeichnet — eine offene Falte muss den Poll überleben (Merker am `details`-Element vor dem
+    Neuzeichnen lesen, wie die Auswahl der Zoombänder-Tafel).
 
 ---
 
@@ -343,8 +391,10 @@ zu erwarten; der Test hält es fest (§7).
    geändert werden.
 2. **Der Satz „Kennen wir schon: „Titel"" beim Melder** — zeigen oder weglassen? Er verrät nichts
    über Korpus oder Lizenz, nur dass die Seite im Katalog ist. Vorschlag: zeigen.
-3. **Die Abdeckung** (ausführlich / ergänzend / Erwähnung) fällt für den Melder weg und wird vom
-   Editor nach der Annahme gesetzt. Einverstanden?
+3. **Die Abdeckung** (ausführlich / ergänzend / Erwähnung) setzt der Editor im Annahme-Dialog, der
+   Melder nicht mehr. Einverstanden?
+4. **Der Kartenvorschlag** wird serverseitig ohne Dialog angenommen (§5.4). Reicht dort der
+   programmatische Weg mit Korpuswerten, oder soll auch die Karten-Annahme durch das Formular?
 
 ---
 
@@ -355,11 +405,15 @@ zu erwarten; der Test hält es fest (§7).
       → „Kennen wir schon".
 - [ ] „Änderung vorschlagen": dieselbe Zeile, Quelle optional.
 - [ ] „Karte vorschlagen": Link Pflicht, Seite optional, kein Art-Feld, kein Haken.
-- [ ] Review-Liste: je Quelle Link + Katalogstand + Korpus / „neuer Wirt".
-- [ ] Annahme Ort: bekannte Adresse → `add_existing`; neue Adresse eines bekannten Korpus → Zeile mit
-      Korpuswerten (Art, Lizenz, Nennung, Kanon), Titel von der Seite; unbekannter Wirt → Zeile ohne
-      Korpuswerte + Hinweis in der Karte.
-- [ ] Annahme Stadtkarte: dasselbe serverseitig.
+- [ ] Review-Liste: Falte „n Quellen aus der Meldung", darin je Quelle das normale Formular,
+      schreibgeschützt, alle Felder, mit „· vom Korpus" bei bekanntem Wirt und der Korpusreichweite
+      im Rahmentitel; die Falte überlebt den 45-s-Poll.
+- [ ] Annahme Ort (neu und Änderung): die Eingabezeile zeigt „Quelle 1 von n", vorausgefüllt;
+      Speichern legt an (bekannte Adresse → verknüpft; neue Adresse eines bekannten Korpus → Zeile
+      mit Korpuswerten, Titel von der Seite; neue Domain → Korpus anlegen im selben Formular);
+      Überspringen nimmt nicht; nach der letzten Quelle ist die Falte zu. Beim neuen Ort wird
+      gepuffert, bis die Kennung da ist.
+- [ ] Annahme Stadtkarte: serverseitig mit Korpuswerten.
 - [ ] Alter Client (Rumpf mit `official: true`, `type: abenteuer`): gespeichert wird beides nicht.
 - [ ] `?lang=en`: alle Beschriftungen des Blocks englisch.
 - [ ] Testfeld über beide Workflow-Muster grün; neue Zusicherungen gegen Mutationen.
