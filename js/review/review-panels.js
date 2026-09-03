@@ -236,6 +236,14 @@ async function pollReviewReportsForNew() {
 	if (typeof IS_EDIT_MODE === "undefined" || !IS_EDIT_MODE) {
 		return;
 	}
+	// Versteckter Tab: niemand sieht die Liste -- derselbe Riegel wie beim Live-Abgleich
+	// (pollLiveMapUpdates, js/routing/routing.js). Gemessen 03.09.2026: 11 Abrufe in 10 min aus
+	// einem Tab, den niemand ansah. Beim Zurueckkehren holt der naechste Tick nach.
+	// ⚠️ Der Anwesenheits-Takt (sendEditorPresenceHeartbeat) bekommt diesen Riegel NICHT: an ihm
+	// haengt der Territorien-Anspruch, und ein Editor im Nachbartab hat ihn nicht aufgegeben.
+	if (typeof document !== "undefined" && document.hidden) {
+		return;
+	}
 	try {
 		const response = await fetch(reviewReportListUrl(), { credentials: "same-origin", headers: { Accept: "application/json" } });
 		const data = await response.json().catch(() => null);
