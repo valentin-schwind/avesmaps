@@ -593,13 +593,16 @@ function avesmapsGaretienKandidaten(PDO $pdo, array $ziel): array
             $werte[':k' . $i] = (string) $kind;
             $werte[':t' . $i] = (string) $typKey;
         }
-        // 🔴 `r.label_public_id` reist mit, obwohl hier niemand danach sucht: die Quelle einer
-        // Flaeche haengt an ihrer BESCHRIFTUNG, nicht an der Region (map-features.php:1228,
-        // dieselbe Bindung wie beim Schreiben in avesmapsGaretienErgaenzungAnwenden,
-        // garetien-uebernahme.php). avesmapsGaretienErgaenzungsEintraege (garetien-plan.php)
-        // braucht die Label-id fuer den Bestandscheck, ist aber REIN -- sie kann sie nicht selbst
-        // nachschlagen. Sie wird deshalb HIER mitgeladen, wo die Region ohnehin gelesen wird, und
-        // reist unten via avesmapsGaretienAbschnitte als Daten weiter.
+        // ⚠️ `r.label_public_id` reist mit, obwohl hier niemand danach sucht -- und seit dem
+        // 03.09.2026 fragt es auch die QUELLE nicht mehr. Bis dahin stand hier: die Quelle einer
+        // Flaeche haenge an ihrer BESCHRIFTUNG, und avesmapsGaretienErgaenzungsEintraege
+        // (garetien-plan.php) brauche die Label-id fuer den Bestandscheck, weil sie REIN ist und
+        // nichts nachschlagen kann. Schritt 5 des Quellen-Umbaus hat die Ablage umgedreht: die
+        // FLAECHE traegt ihre Quellen, und deren id IST `r.public_id` -- der Bestandscheck
+        // braucht also gar keine zweite id mehr (avesmapsGaretienQuellenZiel).
+        // 🔧 Damit ist dieses Feld fuer die Quellenfrage TOT. Es reist weiter, weil der Umbau
+        // sich auf die Quellen beschraenkt hat; wer als naechster hier arbeitet, prueft, ob es
+        // noch einen Leser hat, und nimmt es sonst heraus.
         $stmt = $pdo->prepare(
             'SELECT r.public_id, r.name, r.region_type, r.label_public_id, a.geometry_geojson AS geo, r.wiki_url AS props'
             . ' FROM ecosystem_region r JOIN ecosystem_area a ON a.region_id = r.id'

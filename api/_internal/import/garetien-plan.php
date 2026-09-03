@@ -803,6 +803,85 @@ function avesmapsGaretienQuellenAdressenAus(?string $wirtUrl, ?array $artikelQue
 }
 
 /**
+ * WO haengt die Quelle eines importierten Objekts? DIE EINE ANTWORT -- rein, kein I/O.
+ *
+ * 🔴 ES WAREN VIER ANTWORTGEBER, UND SIE WAREN SICH UNEINIG. Dieselbe Frage wurde einzeln
+ * gerechnet beim Anlegen (avesmapsGaretienUebernehmen), beim Ergaenzen
+ * (avesmapsGaretienErgaenzungAnwenden), hier fuer Nachzug und Ruecknahme, und im Planbau
+ * (garetien-plan.php, "hat dieses Objekt seine Quelle schon?"). Drei verschiedene Ergebnisse:
+ * die Schreiber verknuepften 'settlement'/'region', der Planbau verglich gegen das ROHE
+ * `ziel` ('location'/'label') -- sein Bestandsvergleich konnte fuer Ortschaften und freie
+ * Beschriftungen also NIE zutreffen und bot deren Quelle in jedem Lauf erneut an.
+ * "Eine Regel, die einen von zwei Erzeugern bindet, ist keine Regel" (AGENTS.md §11).
+ *
+ * 🔴 UND DIE REGEL WIRD GEFRAGT, NICHT GERECHNET. Fuer Landschaften beantwortet sie
+ * avesmapsEcosystemLabelSourceTarget (api/_internal/app/ecosystem-label-link.php) -- die
+ * Hausweiche aus Schritt 5 des Quellen-Umbaus (03.09.2026). Der Importer ist ihr erster
+ * Aufrufer im Produktivcode. Wandert die Ablage je wieder, wandert sie DORT, und diese
+ * Funktion zieht mit, ohne angefasst zu werden.
+ *
+ * 💣 SCHRITT 5 HAT DIE ABLAGE UMGEDREHT, und der Importer schrieb weiter nach der alten Regel:
+ * die FLAECHE traegt ihre Quellen (ecosystem:<region_public_id>), die gebundene Beschriftung
+ * LIEST sie nur. Bis dahin stand hier "die Quellen einer Landschaft liegen an ihrer
+ * BESCHRIFTUNG" -- ab dem 03.09.2026 las das niemand mehr: weder der Flaechenkasten noch die
+ * Infobox der Beschriftung schauen unter region:<label_public_id> nach. Lizenz
+ * (cc-by-nc-sa-3.0) und Namensnennung ("VolkoV / garetien.de") waeren damit unsichtbar
+ * geworden -- und das ist die Angabe mit RECHTSFOLGE (NOTICE.md), nicht Beiwerk.
+ *
+ * 🔴 EIN UNBEKANNTES ZIEL WIRFT. Vorher fiel alles, was nicht path/location/label war, in den
+ * Flaechen-Zweig -- auch ein leeres Ziel aus einem alten Item. Das ist die falsche Richtung:
+ * die Quelle landete dann in einem ID-Raum, der zu diesem Objekt nicht gehoert, und niemand
+ * erfuhr es. Beide Aufrufer fangen Throwable und melden den Fehlschlag je Item.
+ *
+ * ⚠️ Das Ziel 'label' ist im ganzen Importer NUR der Berggipfel (AVESMAPS_GARETIEN_TYP_MAP,
+ * 'Berg'), und von dessen Beschriftungen haengt keine an einer Flaeche -- berggipfel, vulkan,
+ * fluss und ebene sind die vier Namensarten ohne gleichnamige Flaechenart (AGENTS.md §11).
+ * Deshalb braucht diese Funktion KEINEN Nachschlag und bleibt rein. Zielt je eine Zuordnung
+ * auf ein GEBUNDENES Label, bekommt die Weiche dessen Region hereingereicht; ein Zaehler in
+ * garetien-quellen-ziel-test.php faellt in genau diesem Moment um.
+ *
+ * @param string $ziel           'path' | 'location' | 'label' | 'region'
+ * @param string $objektPublicId die public_id des Zielobjekts -- bei 'region' die der REGION,
+ *                               nicht die ihrer Beschriftung
+ * @return array{0:string,1:string} [entity_type, entity_public_id]
+ */
+function avesmapsGaretienQuellenZiel(string $ziel, string $objektPublicId): array
+{
+    // ⭐ Die Weiche kommt transitiv ueber ../app/ecosystem.php herein (Dateikopf); der
+    // require_once hier macht die Abhaengigkeit unabhaengig von jener Ladereihenfolge --
+    // dasselbe Muster wie in avesmapsFeatureSourcesMoveLabelToRegionAll.
+    require_once __DIR__ . '/../app/ecosystem-label-link.php';
+
+    if ($ziel === 'path') {
+        return ['path', $objektPublicId];
+    }
+    if ($ziel === 'location') {
+        // map-features.php (entityTypeByFeatureType) bindet feature_type 'location' an
+        // entity_type 'settlement' -- dieselbe Auskunft, an der der Quellenkasten der Infobox
+        // seine Zeilen sucht.
+        return ['settlement', $objektPublicId];
+    }
+    if ($ziel === 'label') {
+        // Ein FREIES Label traegt seine Quellen selbst -- die Weiche sagt 'region' + eigene id.
+        $frei = avesmapsEcosystemLabelSourceTarget(null, $objektPublicId);
+
+        return [$frei['entity_type'], $frei['entity_public_id']];
+    }
+    if ($ziel === 'region') {
+        // Die FLAECHE traegt sie. Dieselbe Weiche, mit der Region als Bindung -- sie antwortet
+        // 'ecosystem' + Region-id, und genau dort liest die Karte sie (der entity_type
+        // 'ecosystem' steht in AVESMAPS_MAP_FEATURES_SOURCE_ENTITY_TYPES).
+        $gebunden = avesmapsEcosystemLabelSourceTarget($objektPublicId, '');
+
+        return [$gebunden['entity_type'], $gebunden['entity_public_id']];
+    }
+
+    throw new RuntimeException(
+        'Unbekanntes Ziel "' . $ziel . '" -- es ist nicht entscheidbar, wo die Quelle haengen soll.'
+    );
+}
+
+/**
  * DER VIERTE AUSGANG: "haben wir -- aber sie wissen mehr" (Auftrag §4).
  *
  * 🔴 KEIN vierter change_type. Es ist ein `changed`; `after.anlass` sagt, welcher Art. Ein
@@ -853,27 +932,27 @@ function avesmapsGaretienErgaenzungsEintraege(array $zeile, array $ziel, array $
         // seit Meldung A (30.08.2026, Owner) auch ueber das Geometrie-Item -- der Gardel unter
         // ihrer Natter bleibt aussen vor, auch wenn er getroffen ist.
         $legitim = $nameLeer || $nameGleich || $einObjekt;
-        // 🔴 Review C1: der Schluessel traegt den Zieltyp -- derselbe public_id-Raum wird von
-        // path UND region benutzt.
+        // 🔴 DIESELBE ANTWORT WIE DIE SCHREIBER, aus DERSELBEN Funktion -- nicht das rohe `ziel`.
         //
-        // 🔴 KORRIGIERT (Aufgabe 14, nach 367895a38): bei einer FLAECHE ist $publicId die
-        // Regions-id (avesmapsGaretienKandidaten waehlt `r.public_id`) -- die Quelle haengt aber
-        // an der BESCHRIFTUNG, nicht an der Region (map-features.php:1228, dieselbe Bindung wie
-        // beim Schreiben in avesmapsGaretienErgaenzungAnwenden, garetien-uebernahme.php). Ohne
-        // diese Umschaltung war $hatQuelle fuer jede Flaeche dauerhaft false, und der Abgleich
-        // bot ihre Quelle bei jedem Lauf erneut an, auch wenn sie laengst haengt.
-        // Die Label-id reist als DATEN mit ($abschnitt['label_public_id'], gesetzt in
-        // garetien-abgleich.php) -- diese Funktion bleibt REIN und schlaegt nichts selbst nach.
-        $quellenSchluesselId = $ziel['ziel'] === 'region'
-            ? (string) ($abschnitt['label_public_id'] ?? '')
-            : $publicId;
-        // ⚠️ Fehlt die Label-id (sollte bei einer von uns angelegten Flaeche nicht vorkommen),
-        // gilt OFFEN "keine Quelle liegt" -- das erzeugt hoechstens ein Item zu viel
-        // (Bedienungs-Rauschen), nie eines zu wenig (eine stillschweigend verlorene
-        // Quellenangabe), dieselbe Richtung wie an avesmapsGaretienQuellenBestand begruendet.
+        // 💣 HIER STAND DIE DIVERGENZ. Diese Stelle setzte `$ziel['ziel']` unveraendert als
+        // entity_type ein, also 'location' und 'label' -- die Schreiber verknuepfen aber
+        // 'settlement' und 'region' (avesmapsGaretienQuellenZiel, garetien-uebernahme.php).
+        // Der Vergleich gegen avesmapsGaretienQuellenBestand, der die ECHTEN Zeilen liest, konnte
+        // fuer Ortschaften und freie Beschriftungen damit NIE zutreffen: ihre Quelle wurde in
+        // jedem Lauf erneut angeboten, obwohl sie laengst haengt. Bei der Flaeche kam ab dem
+        // 03.09.2026 (Schritt 5 des Quellen-Umbaus) dasselbe hinzu -- sie liegt seither unter
+        // 'ecosystem' + REGIONS-id, nicht unter 'region' + Label-id.
+        //
+        // ⭐ Die Funktion ist REIN und braucht keinen Nachschlag: bei einer Flaeche IST $publicId
+        // die Regions-id (avesmapsGaretienKandidaten waehlt `r.public_id`) -- genau die id, unter
+        // der die Quelle haengt. Diese Funktion bleibt damit rein, wie zugesagt.
+        // ⚠️ `$abschnitt['label_public_id']` wird hier deshalb NICHT mehr gelesen. Es reist aus
+        // garetien-abgleich.php weiter mit; die Quellenfrage stellt es nicht mehr.
+        //
         // \U0001f534 JE ADRESSE GEFRAGT, nicht pauschal (31.08.2026). „Haengt IRGENDEINE garetien-Quelle
         // dran?" liess ein Objekt, das nur die Sammelquelle trug, seine Artikelquelle nie
         // bekommen. Gefragt wird jetzt: haengen ALLE, die dieser Import haengen wuerde?
+        [$quellenArt, $quellenSchluesselId] = avesmapsGaretienQuellenZiel((string) $ziel['ziel'], $publicId);
         $hatQuelle = $quellenSchluesselId !== '';
         if ($hatQuelle) {
             $erwartet = avesmapsGaretienQuellenAdressenAus(
@@ -882,7 +961,7 @@ function avesmapsGaretienErgaenzungsEintraege(array $zeile, array $ziel, array $
             );
             foreach ($erwartet as $adresse) {
                 if (!isset($quellen[avesmapsGaretienQuellenSchluessel(
-                    (string) $ziel['ziel'], $quellenSchluesselId, $adresse
+                    $quellenArt, $quellenSchluesselId, $adresse
                 )])) {
                     $hatQuelle = false;
                     break;

@@ -580,19 +580,37 @@ assert($label['name'] === 'Mühlsee', 'der NAME bleibt der des Imports, nicht de
 assert($region['region_type'] === 'see', 'und die ART bleibt ebenfalls die des Imports: ' . $region['region_type']);
 $pruefungen += 3;
 
-// --- 🔴 AUFGABE 13 (Rechtsfolgenfehler): die Quelle der Flaeche haengt an der BESCHRIFTUNG,
-// NICHT an der Region -- dieselbe Bindung, mit der map-features.php:1228 Quellen fuer die Karte
-// nachschlaegt (entity_type 'region' ist an feature_type 'label' gebunden, gekeyt an dessen
-// public_id). Region und Label sind in dieser Fixture zwei verschiedene Zeilen mit verschiedenen
-// public_ids -- ohne diese Zusicherung wuerde die naechste Zeile nichts pruefen, wenn beide ids
-// je zufaellig gleich waeren.
+// --- 🔴 AUFGABE 13 (Rechtsfolgenfehler), UMGEDREHT AM 03.09.2026: DIE FLAECHE TRAEGT IHRE
+// QUELLEN SELBST -- `ecosystem` + REGIONS-id. Die gebundene Beschriftung LIEST sie nur.
+//
+// 💣 BIS ZUM 03.09.2026 STAND HIER DAS GEGENTEIL, und dieser Test war der Grund, warum es
+// richtig AUSSAH: er nagelte `region` + Label-id fest, mit der Begruendung "die Quellen einer
+// Landschaft liegen an ihrer BESCHRIFTUNG" (AGENTS.md §11, damalige Fassung). Schritt 5 des
+// Quellen-Umbaus hat die Ablage an jenem Abend umgedreht -- seither liest WEDER der
+// Flaechenkasten NOCH die Infobox der Beschriftung unter `region:<label_public_id>` nach.
+// Lizenz (cc-by-nc-sa-3.0) und Namensnennung ("VolkoV / garetien.de") waeren damit unsichtbar
+// geworden, und das ist die Angabe mit RECHTSFOLGE (NOTICE.md).
+//
+// ⚠️ WER DIESE ZUSICHERUNG ZURUECKDREHT, MACHT DIE NAMENSNENNUNG WIEDER UNSICHTBAR. Die Weiche
+// heisst avesmapsEcosystemLabelSourceTarget (api/_internal/app/ecosystem-label-link.php); sie
+// entscheidet das fuer das ganze Haus, und der Importer fragt sie ueber
+// avesmapsGaretienQuellenZiel (garetien-plan.php). Aendert sich die Ablage je wieder, aendert
+// sie sich DORT -- nicht hier.
+//
+// Region und Label sind in dieser Fixture zwei verschiedene Zeilen mit verschiedenen public_ids
+// -- ohne diese Zusicherung wuerde die naechste Zeile nichts pruefen, wenn beide ids je
+// zufaellig gleich waeren.
 assert($region['public_id'] !== $label['public_id'], 'Region und Label muessen verschiedene ids tragen, sonst prueft dies nichts');
-$qr = $pdo->query("SELECT * FROM feature_sources WHERE entity_type = 'region'")->fetch(PDO::FETCH_ASSOC);
-assert($qr !== false && $qr['entity_public_id'] === $label['public_id'],
-    'die Quelle muss an der Beschriftung haengen -- gefunden: ' . var_export($qr['entity_public_id'] ?? null, true));
-assert($qr['entity_public_id'] !== $region['public_id'],
-    'und NICHT im ID-Raum der Region -- genau das war der Fehler (AGENTS.md §11: "die Quellen einer Landschaft liegen an ihrer BESCHRIFTUNG")');
-$pruefungen += 3;
+$qr = $pdo->query("SELECT * FROM feature_sources WHERE entity_type = 'ecosystem'")->fetch(PDO::FETCH_ASSOC);
+assert($qr !== false && $qr['entity_public_id'] === $region['public_id'],
+    'die Quelle muss an der FLAECHE haengen -- gefunden: ' . var_export($qr['entity_public_id'] ?? null, true));
+assert($qr['entity_public_id'] !== $label['public_id'],
+    'und NICHT im ID-Raum der Beschriftung -- dort liest sie seit dem 03.09.2026 niemand mehr');
+// 🔴 Und es gibt KEINE Zeile im alten ID-Raum daneben. Eine Quelle an beiden Stellen waere
+// zwei Ablagen fuer dieselbe Angabe -- genau das, was Schritt 5 beseitigt hat.
+$altGeblieben = $pdo->query("SELECT COUNT(*) FROM feature_sources WHERE entity_type = 'region'")->fetchColumn();
+assert((int) $altGeblieben === 0, 'keine zweite Ablage unter region: ' . var_export($altGeblieben, true));
+$pruefungen += 4;
 
 // --- 🔴 DIE NOTIZ GEHOERT DER EBENE, NICHT DEM OBJEKT (Korrektur 31.08.2026). Gardel und
 // Muehlsee liegen beide in `Gewaesser`, tragen also DIESELBE Arbeitsseite -- und das ist richtig:
@@ -615,7 +633,7 @@ assert(avesmapsGaretienSeitenUrlAusZeile(['wiki' => 'ggp', 'ebene' => 'Berge'])
 // unterscheidet die beiden.
 $qrArtikel = $pdo->query(
     "SELECT s.url, s.label FROM feature_sources fs JOIN sources s ON s.id = fs.source_id
-      WHERE fs.entity_type = 'region' AND s.url LIKE '%index.php%'"
+      WHERE fs.entity_type = 'ecosystem' AND s.url LIKE '%index.php%'"
 )->fetch(PDO::FETCH_ASSOC);
 assert($qrArtikel !== false && $qrArtikel['url'] === 'https://www.garetien.de/index.php/Garetien:Muehlsee',
     'der See traegt SEINEN eigenen Artikel: ' . var_export($qrArtikel['url'] ?? null, true));
@@ -1236,30 +1254,39 @@ $schrittMoor = avesmapsGaretienApplyStep($pdo3, $runId9, 1, ['id' => 1, 'usernam
 assert($schrittMoor['applied'] === 1, 'die Moor-Quelle wurde nicht uebernommen: ' . json_encode($schrittMoor));
 $pruefungen++;
 
-$moorQuelleRichtig = $pdo3->query("SELECT * FROM feature_sources WHERE entity_type = 'region' AND entity_public_id = "
-    . $pdo3->quote($idMoorLabel))->fetch(PDO::FETCH_ASSOC);
-assert($moorQuelleRichtig !== false, 'die Quelle muss unter der Label-id des Moors stehen, nicht der Regions-id');
-$moorQuelleFalsch = (int) $pdo3->query("SELECT COUNT(*) FROM feature_sources WHERE entity_type = 'region' AND entity_public_id = "
-    . $pdo3->quote($idMoorRegion))->fetchColumn();
-assert($moorQuelleFalsch === 0, 'keine Quelle darf im ID-Raum der Region liegen -- genau das war der Fehler');
+// 🔴 UMGEDREHT AM 03.09.2026, aus demselben Grund wie oben beim Muehlsee: die Quelle einer
+// ERGAENZUNG an einer Flaeche haengt an der FLAECHE (`ecosystem` + Regions-id), nicht an ihrer
+// Beschriftung. Hier stand bis dahin die Gegenprobe "keine Quelle darf im ID-Raum der Region
+// liegen -- genau das war der Fehler"; seit Schritt 5 des Quellen-Umbaus ist genau dieser
+// ID-Raum der richtige, und der alte ist der, den niemand mehr liest.
+$moorQuelleRichtig = $pdo3->query("SELECT * FROM feature_sources WHERE entity_type = 'ecosystem' AND entity_public_id = "
+    . $pdo3->quote($idMoorRegion))->fetch(PDO::FETCH_ASSOC);
+assert($moorQuelleRichtig !== false, 'die Quelle muss unter der Regions-id des Moors stehen');
+$moorQuelleFalsch = (int) $pdo3->query("SELECT COUNT(*) FROM feature_sources WHERE entity_public_id = "
+    . $pdo3->quote($idMoorLabel))->fetchColumn();
+assert($moorQuelleFalsch === 0, 'und keine im ID-Raum der Beschriftung -- dort liest sie niemand mehr');
 $pruefungen += 2;
 
-// 💣 UND EIN LABELLOSES OBJEKT WIRD LAUT ABGELEHNT, NICHT MIT EINER FALSCHEN ID VERKNUEPFT --
-// dieselbe "lieber laut als falsch"-Regel wie bei der Mehrfach-Flaechen-Ablehnung oben.
+// ⭐ UND EINE FLAECHE OHNE BESCHRIFTUNG KANN JETZT EINE QUELLE TRAGEN. Bis zum 03.09.2026 wurde
+// sie hier LAUT ABGELEHNT ("Region … hat kein Label -- keine Quelle anhaengbar"), und das war
+// richtig, solange die Beschriftung die Ablage WAR: ohne sie gab es keinen Ort fuer die Angabe.
+// Seit die Flaeche sie selbst traegt, ist die Beschriftung fuer diese Frage bedeutungslos --
+// und damit faellt eine Klasse von Objekten weg, die ihre Namensnennung ueberhaupt nicht
+// bekommen konnte. Live gemessen am 03.09.2026 (AGENTS.md §11, Schritt 5): 646 Flaechen ohne
+// Beschriftung konnten GAR KEINE Quelle tragen.
+// ⚠️ Die "lieber laut als falsch"-Regel ist damit nicht aufgegeben, sondern gegenstandslos
+// geworden: es gibt keine zweite id mehr, die falsch sein koennte.
 $idWaisenRegion = '00000000-0000-4000-8000-000000007103';
 $pdo3->exec("INSERT INTO ecosystem_region (public_id, name, kind, region_type, is_active)
              VALUES ('{$idWaisenRegion}', 'Waisenmoor', 'vegetation', 'suempfe_moore', 1)");
-$fehlerLabellos = null;
-try {
-    avesmapsGaretienErgaenzungAnwenden($pdo3, [
-        'ziel' => 'region', 'felder' => ['quelle'],
-        'quelle' => ['url' => 'https://www.garetien.de/index.php?title=Garetien:Waisenmoor', 'label' => 'x'],
-    ], $idWaisenRegion, ['id' => 1]);
-} catch (Throwable $fehler) {
-    $fehlerLabellos = $fehler;
-}
-assert($fehlerLabellos !== null, 'eine Region ohne Label darf keine Quelle bekommen -- lieber laut als falsch verknuepft');
-assert(str_contains($fehlerLabellos->getMessage(), 'kein Label'), 'der Grund nennt das fehlende Label: ' . $fehlerLabellos->getMessage());
+$waise = avesmapsGaretienErgaenzungAnwenden($pdo3, [
+    'ziel' => 'region', 'felder' => ['quelle'],
+    'quelle' => ['url' => 'https://www.garetien.de/index.php?title=Garetien:Waisenmoor', 'label' => 'x'],
+], $idWaisenRegion, ['id' => 1]);
+assert($waise['quellen'] === 1, 'eine Flaeche ohne Beschriftung bekommt ihre Quelle: ' . json_encode($waise));
+$waisenQuelle = $pdo3->query("SELECT entity_type FROM feature_sources WHERE entity_public_id = "
+    . $pdo3->quote($idWaisenRegion))->fetchColumn();
+assert($waisenQuelle === 'ecosystem', 'und zwar an der Flaeche: ' . var_export($waisenQuelle, true));
 $pruefungen += 2;
 
 // =================================================================================================
@@ -2331,7 +2358,11 @@ $itemGemischtQNachher = $pdoQ->query('SELECT apply_state FROM sync_plan_item WHE
 assert($itemGemischtQNachher === 'done', 'das Item bleibt auf "done" stehen');
 $pruefungen += 2;
 
-// --- 3. Eine LANDSCHAFTSFLAECHE: die Verknuepfung haengt an der BESCHRIFTUNG, nicht der Region --
+// --- 3. Eine LANDSCHAFTSFLAECHE: die Verknuepfung haengt an der FLAECHE, nicht an ihrer
+// Beschriftung (umgedreht am 03.09.2026, Schritt 5 des Quellen-Umbaus -- siehe die ausfuehrliche
+// Begruendung oben am Muehlsee). Geprueft wird hier BEIDES: das Anhaengen UND die Ruecknahme,
+// denn sie muessen denselben ID-Raum treffen. Genau daran haette der alte Stand still
+// auseinandergelaufen: geschrieben unter der Label-id, gesucht unter der Regions-id.
 $idSeeQLabel = '00000000-0000-4000-8000-000000009101';
 $idSeeQRegion = '00000000-0000-4000-8000-000000009102';
 $pdoQ->prepare('INSERT INTO map_features (public_id, name, feature_type, feature_subtype, geometry_json, properties_json, geometry_type) VALUES (?,?,?,?,?,?,?)')
@@ -2356,10 +2387,10 @@ $eSeeQ = avesmapsGaretienUebernehmen($pdoQ, $laufQ, [$itemSeeQ], ['id' => 7]);
 assert($eSeeQ['fehler'] === [], 'die Quellen-Ergaenzung der Flaeche gelingt: ' . json_encode($eSeeQ, JSON_UNESCAPED_UNICODE));
 $pruefungen++;
 
-assert($zaehleGaretienLinks($pdoQ, 'region', $idSeeQLabel) === 1,
-    'die Verknuepfung haengt an der BESCHRIFTUNG (Label-public_id)');
-assert($zaehleGaretienLinks($pdoQ, 'region', $idSeeQRegion) === 0,
-    'und NICHT an der Regions-public_id');
+assert($zaehleGaretienLinks($pdoQ, 'ecosystem', $idSeeQRegion) === 1,
+    'die Verknuepfung haengt an der FLAECHE (Regions-public_id)');
+assert($zaehleGaretienLinks($pdoQ, 'region', $idSeeQLabel) === 0,
+    'und NICHT an der Beschriftung -- dort liest sie seit dem 03.09.2026 niemand mehr');
 $pruefungen += 2;
 
 $rSeeQ = avesmapsGaretienRuecknahmeAusfuehren($pdoQ, $laufQ, [$itemSeeQ], ['id' => 7]);
@@ -2367,8 +2398,8 @@ assert($rSeeQ['zurueckgenommen'] === 1, 'die Ruecknahme der Flaechen-Quelle geli
 assert($rSeeQ['fehler'] === [], 'ohne Fehler: ' . json_encode($rSeeQ['fehler'], JSON_UNESCAPED_UNICODE));
 $pruefungen += 2;
 
-assert($zaehleGaretienLinks($pdoQ, 'region', $idSeeQLabel) === 0,
-    '🔴 DIE ZUSICHERUNG AUS DEM AUFTRAG: die Ruecknahme findet die Verknuepfung an der BESCHRIFTUNG, '
+assert($zaehleGaretienLinks($pdoQ, 'ecosystem', $idSeeQRegion) === 0,
+    '🔴 DIE ZUSICHERUNG AUS DEM AUFTRAG: die Ruecknahme findet die Verknuepfung an der FLAECHE, '
     . 'nicht an einem geratenen ID-Raum, und entfernt genau sie');
 $pruefungen++;
 
