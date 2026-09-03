@@ -82,4 +82,54 @@ assert.deepStrictEqual(avesmapsLabelQuellenSchluessel(null), { type: "region", i
 	assert.ok(html.includes('id="label-edit-feature-sources-wohin"'), "der Beschriftungsdialog hat die Zeile, die zur Flaeche zeigt");
 }
 
+// ---- 6. Das Ansichts-Popup der Beschriftung wird AUSGEFUEHRT, nicht nur gelesen ----------------------------
+// 💣 Am 03.09.2026 stand `quellenSchluessel` nur in der Datenbox-Funktion, das Ansichts-Popup griff auf den Namen
+// zu: ReferenceError beim Vorbauen der Popups, die oeffentliche Karte lud zwei Stunden lang keine Beschriftungen
+// -- waehrend Abschnitt 2 oben gruen war, weil er nur Zeichenketten sucht. Ein Quelltext-Test sieht keinen
+// Geltungsbereich. Deshalb hier: beide Bauer ausschneiden, mit AUSDRUECKLICHEN Attrappen ausfuehren (kein Proxy,
+// der jeden Bezeichner beantwortet -- der wuerde genau diesen Fehler verschlucken) und den Schluessel messen.
+{
+	const quelle = ohneKommentare(lies("js/map-features/map-features-labels.js"));
+	function funktion(kopf) {
+		const start = quelle.indexOf(kopf);
+		assert.ok(start >= 0, kopf + " gibt es");
+		let tiefe = 0;
+		for (let i = quelle.indexOf("{", start + kopf.length - 1); i < quelle.length; i += 1) {
+			if (quelle[i] === "{") tiefe += 1;
+			else if (quelle[i] === "}") { tiefe -= 1; if (tiefe === 0) return quelle.slice(start, i + 1); }
+		}
+		throw new Error("Klammern gehen nicht auf: " + kopf);
+	}
+	const code = funktion("function regionLabelQuellenSchluessel(label) {") + "\n"
+		+ funktion("function buildRegionLabelViewPopupHtml(label) {") + "\n";
+	const kanonAufrufe = [];
+	const sandbox = {
+		avesmapsLabelQuellenSchluessel,
+		labelWikiArtPrimary: () => "",
+		avesmapsLabelArtName: () => "Wald",
+		tr: (_k, f) => f,
+		renderFeatureKanonBadge: (type, id) => { kanonAufrufe.push([type, id]); return "<kanon>"; },
+		infoHeaderImageMarkup: () => "<img>",
+		regionHeaderImageBasename: () => "wald",
+		locationPopupMarkup: (o) => "<popup>" + String(o.kanonMarkup || "") + "</popup>",
+		locationPopupActionsMarkup: (list) => list.join(""),
+		sharePlaceActionButtonMarkup: () => "<share>",
+		popupActionButtonMarkup: () => "<btn>",
+		labelWikiInfoboxMarkup: () => "<box>",
+	};
+	// ⚠️ Bewusst NICHT im Sandkasten: buildSuggestChangeButtonSpec, buildRegionCityMapsMarkup,
+	// buildRegionGameLiteratureMarkup -- der Bauer fragt sie per typeof, und so wird auch der Zweig „nicht
+	// geladen“ gefahren. Alles andere, was fehlt, MUSS als ReferenceError durchschlagen.
+	vm.createContext(sandbox);
+	vm.runInContext(code, sandbox);
+	const gebunden = { publicId: "l-1", ecosystemRegionPublicId: "f-1", text: "Ochsenwasser", labelType: "wald", coordinates: [1, 2] };
+	const frei = { publicId: "l-2", ecosystemRegionPublicId: "", text: "Rakulahoehen", labelType: "gebirge", coordinates: [3, 4] };
+	const htmlGebunden = vm.runInContext("buildRegionLabelViewPopupHtml(label)", Object.assign(sandbox, { label: gebunden }));
+	const htmlFrei = vm.runInContext("buildRegionLabelViewPopupHtml(label)", Object.assign(sandbox, { label: frei }));
+	assert.ok(typeof htmlGebunden === "string" && htmlGebunden.includes("<kanon>"), "das Ansichts-Popup laeuft durch und traegt das Etikett");
+	assert.ok(typeof htmlFrei === "string" && htmlFrei.includes("<kanon>"), "… auch fuer eine freie Beschriftung");
+	assert.deepStrictEqual([...kanonAufrufe.map((a) => [...a])], [["ecosystem", "f-1"], ["region", "l-2"]],
+		"das Etikett der Ansicht liest gebunden die Flaeche, frei die Beschriftung -- ueber die EINE Weiche");
+}
+
 console.log("label-quellen-schluessel: alle Zusicherungen erfuellt");

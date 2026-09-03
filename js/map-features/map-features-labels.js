@@ -567,8 +567,7 @@ function labelWikiInfoboxMarkup(label, options = {}) {
 	// 🔴 Schritt 5 des Quellen-Umbaus (03.09.2026): die Flaeche traegt die Quellen, die Beschriftung zeigt sie -- eine
 	// gebundene Beschriftung liest `ecosystem:<region>`, eine freie `region:<label>`. EINE Weiche
 	// (js/map-features/label-quellen-schluessel.js), dieselbe fuer das Kanon-Etikett darunter.
-	const quellenSchluessel = typeof avesmapsLabelQuellenSchluessel === "function"
-		? avesmapsLabelQuellenSchluessel(label) : { type: "region", id: label.publicId };
+	const quellenSchluessel = regionLabelQuellenSchluessel(label);
 	const sourceMarkup = typeof renderFeatureSourceLine === "function"
 		? renderFeatureSourceLine(quellenSchluessel.type, quellenSchluessel.id, wiki.wiki_url || "", "region-info-box__link")
 		: "";
@@ -606,6 +605,18 @@ function labelWikiInfoboxMarkup(label, options = {}) {
 // Shared by the map-click label handler AND the spotlight/deep-link focus (focusSpotlightLabel), so a
 // landscape/region label shows identical content whether opened by click or by a ?region= deep-link.
 // wikiParam "region" matches the landscape/region deep-link parameter (js/app/wiki-deeplink.js).
+// Unter welchem Schluessel liegen die Quellen dieser Beschriftung -- die EINE Weiche
+// (js/map-features/label-quellen-schluessel.js), hier fuer BEIDE Popup-Bauer, Datenbox und Ansicht.
+// 💣 Am 03.09.2026 stand die Rechnung nur in der Datenbox, und die Ansicht griff auf den Namen zu:
+// ReferenceError beim Vorbauen der Popups, und damit brach das Laden der oeffentlichen Karte ab --
+// zwei Stunden lang, waehrend der Bearbeiten-Modus (eigener Popup-Bauer) und alle Quelltext-Tests
+// gruen waren. Seither wird die Ansicht im Test AUSGEFUEHRT (label-quellen-schluessel.test.js).
+function regionLabelQuellenSchluessel(label) {
+	return typeof avesmapsLabelQuellenSchluessel === "function"
+		? avesmapsLabelQuellenSchluessel(label)
+		: { type: "region", id: label.publicId };
+}
+
 function buildRegionLabelViewPopupHtml(label) {
 	// Die ART dieser Beschriftung, in DIESER Reihenfolge:
 	//
@@ -664,6 +675,7 @@ function buildRegionLabelViewPopupHtml(label) {
 	const labelName = label.text || (label.wikiRegion && label.wikiRegion.name) || "Region";
 	// Owner: 16:9 header image (by landscape art) + title overlay instead of the headless title.
 	// Einmal gebaut, an zwei Stellen gereicht -- siehe map-features-location-marker-entry.js.
+	const quellenSchluessel = regionLabelQuellenSchluessel(label);
 	const labelKanon = typeof renderFeatureKanonBadge === "function"
 		? renderFeatureKanonBadge(quellenSchluessel.type, quellenSchluessel.id) : "";
 	const headerImg = typeof infoHeaderImageMarkup === "function"
