@@ -132,7 +132,7 @@ assert(str_contains($arm, "(\$payload['apply'] ?? false) === true"), 'scharf nur
 $zaehl();
 assert(str_contains($arm, 'avesmapsFeatureSourcesTakeoverAll($pdo, $userId, !$scharf,'), 'und die Vorgabe ist der Trockenlauf');
 $zaehl();
-assert(str_contains($endpunkt, "'corpus_titles_apply', 'takeover_other_sources'], true)"), 'die Aktion fragt nach ALLEN Objekten und steht deshalb ohne entity_public_id da');
+assert(str_contains($endpunkt, "'corpus_titles_apply', 'takeover_other_sources'"), 'die Aktion fragt nach ALLEN Objekten und steht deshalb ohne entity_public_id da');
 $zaehl();
 
 echo "quellen-altquellen-takeover: {$pruefungen} Pruefungen bestanden\n";

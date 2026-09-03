@@ -854,14 +854,33 @@ function openLabelEditDialog(options = {}) {
 		}
 		const frisch = quellenHost.cloneNode(false);
 		quellenHost.replaceWith(frisch);
+		// 🔴 Schritt 5 des Quellen-Umbaus (03.09.2026): die Flaeche traegt die Quellen. Ist die Beschriftung an eine
+		// Flaeche gebunden, gibt es HIER keinen Kasten -- der Kasten der Flaeche (Abschnitt „Fläche“ desselben
+		// Fensters, mountEcosystemAreaSources) traegt sie, und ein zweiter Kasten mit derselben Liste laese sich
+		// wie zwei Ablagen. Eine freie Beschriftung montiert wie bisher auf `region` + public_id.
 		// ⚠️ Die public_id wird bei JEDER Anfrage frisch gelesen, nie beim Mounten eingefroren --
 		// sonst schriebe ein Dialogwechsel die Quelle auf die zuletzt geoeffnete Beschriftung.
-		void mountFeatureSourceEditor(
-			frisch,
-			"region",
-			() => document.getElementById("label-edit-public-id")?.value || "",
-			{ escape: escapeHtml }
-		);
+		const quellenZiel = typeof avesmapsLabelQuellenSchluessel === "function"
+			? avesmapsLabelQuellenSchluessel(labelEditEntry?.label || {}) : { type: "region", id: "" };
+		const quellenWohin = document.getElementById("label-edit-feature-sources-wohin");
+		if (quellenZiel.type === "ecosystem") {
+			frisch.hidden = true;
+			if (quellenWohin) {
+				quellenWohin.hidden = false;
+				quellenWohin.textContent = "Die Quellen dieser Beschriftung hängen an der Fläche — sie stehen im Abschnitt „Fläche“ und gelten für alle ihre Beschriftungen.";
+			}
+		} else {
+			frisch.hidden = false;
+			if (quellenWohin) {
+				quellenWohin.hidden = true;
+			}
+			void mountFeatureSourceEditor(
+				frisch,
+				"region",
+				() => document.getElementById("label-edit-public-id")?.value || "",
+				{ escape: escapeHtml }
+			);
+		}
 	}
 	setLabelEditDialogOpen(true);
 

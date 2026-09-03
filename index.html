@@ -2121,6 +2121,14 @@
 						<div id="ecosystem-properties-peaks-list" class="ecosystem-properties-dialog__peaks-list"></div>
 					</div>
 					<p id="ecosystem-properties-error" class="ecosystem-properties-dialog__error" role="alert" hidden></p>
+					<!-- 🔴 QUELLEN DER FLAECHE (Schritt 5 des Quellen-Umbaus, 03.09.2026): die Flaeche traegt die Quellen, ihre
+					     gebundenen Beschriftungen zeigen sie. Das EINE Bauteil auf `ecosystem` + public_id, montiert von
+					     mountEcosystemAreaSources (map-features-ecosystem-properties.js) -- als Letztes vor den Knoepfen
+					     (Owner: Quellen immer unten). -->
+					<div class="label-edit-section" id="ecosystem-properties-sources-section"><div class="label-edit-section-title">Quellen</div>
+						<p class="location-report-form__status">Quellen der Landschaft — sie gelten für die Fläche und alle ihre Beschriftungen. Sie wirken <b>sofort</b>, ohne „Speichern“.</p>
+						<div id="ecosystem-properties-sources"></div>
+					</div>
 					<div class="ecosystem-properties-dialog__actions" hidden>
 						<button id="ecosystem-properties-delete" class="ecosystem-properties-dialog__button ecosystem-properties-dialog__button--danger" type="button" data-i18n="ecosystem.properties.delete">Löschen</button>
 						<span class="ecosystem-properties-dialog__spacer"></span>
@@ -2238,6 +2246,7 @@
 						     os:-Erzeuger der Nutzlast ist weg -- es gibt nur noch DIESES Quellensystem. -->
 						<div class="label-edit-section"><div class="label-edit-section-title">Quellen</div>
 							<p class="location-report-form__status">Quellen wirken <b>sofort</b> — sie brauchen kein „Speichern“.</p>
+							<p id="label-edit-feature-sources-wohin" class="location-report-form__status" hidden></p>
 							<div id="label-edit-feature-sources"></div>
 						</div>
 						<p id="label-edit-carriers" class="location-report-form__status" hidden></p>
@@ -3551,6 +3560,9 @@
 		<script src="js/ui/dialog-hintergrund-schliessen.js"></script>
 		<script src="js/ui/filter-bar.js"></script>
 		<script src="js/ui/feature-source-markup.js"></script>
+		<!-- Die EINE Weiche „wo liegen die Quellen einer Beschriftung“ (Schritt 5 des Quellen-Umbaus): gebunden ->
+		     ecosystem:<Flaeche>, frei -> region:<Label>. VOR map-features-labels.js und review-labels.js, die sie rufen. -->
+		<script src="js/map-features/label-quellen-schluessel.js"></script>
 		<!-- Lizenz · Urheber · Kommentar: der EINE Markup-Bauer der Medien-Dialoge, seit 01.09.2026
 		     auch im Hauptfenster. Sein sechster Dialog ist die Wappen-Box des
 		     Karten-Bearbeiten-Dialogs (js/review/review-locations.js) -- vorher schickte die fest

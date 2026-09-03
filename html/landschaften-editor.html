@@ -2137,20 +2137,12 @@ function wireEditBlocks(host) {
 		// gegeben, `wireEditBlocks` läuft direkt hinter `host.innerHTML = parts.join("")`.
 		const sourceHost = field("sources");
 		if (sourceHost && typeof mountFeatureSourceEditor === "function") {
-			// 🔴 DIE QUELLEN LIEGEN AN DER BESCHRIFTUNG (26.08.2026), nicht an der Flaeche. Hier stand
-			// `"ecosystem"` mit `region.public_id` -- ein zweiter Kasten, der live LEER war: null von 30
-			// Flaechen trugen eine Quelle, und in der Kartenpayload kommt der Typ unter 6336 Objekten
-			// mit Quellen kein einziges Mal vor. Die Beschriftung traegt 637 Objekte und 8142 Zeilen --
-			// und nur ihre Liste liest die Karte.
-			// 💣 `label_public_id` ist ein ZEIGER, kein Label: er kann auf eine von Hand geloeschte
-			// Beschriftung zeigen (AGENTS.md §11). Ohne Zeiger gibt es deshalb keinen Kasten, sondern
-			// einen Satz -- ein Quellenfeld, das ins Leere schreibt, waere schlimmer als keins.
-			const labelId = String(region.label_public_id || "");
-			if (labelId === "") {
-				sourceHost.innerHTML = '<div class="pl-hint">Quellen hängen an der Beschriftung. Diese Fläche trägt keine — lege im Kartendialog eine an.</div>';
-			} else {
-				mountFeatureSourceEditor(sourceHost, "region", () => labelId, { escape: esc });
-			}
+			// 🔴 DIE FLAECHE TRAEGT DIE QUELLEN (Schritt 5 des Quellen-Umbaus, 03.09.2026) -- `ecosystem` +
+			// `region.public_id`, auch fuer die 646 Flaechen ohne Beschriftung. Vom 26.08. bis zum 03.09. stand hier der
+			// Umweg ueber die primaere Beschriftung (`label_public_id`), weil die Karte nur deren Liste las; seit die
+			// gebundene Beschriftung die Liste der Flaeche liest (js/map-features/label-quellen-schluessel.js), ist
+			// die Flaeche selbst die Ablage -- und ein Kasten, der an ein unsichtbares Schild schreibt, ist Geschichte.
+			mountFeatureSourceEditor(sourceHost, "ecosystem", () => String(region.public_id || ""), { escape: esc });
 		} else if (sourceHost) {
 			sourceHost.innerHTML = '<div class="pl-hint">Quellen-Editor nicht geladen.</div>';
 		}

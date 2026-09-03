@@ -57,6 +57,8 @@ function avesmapsPublicationApplyStep(PDO $pdo, int $runId, int $userId, ?array 
     // never "the wiki dropped every source of this type".
     $stagingKnows = [];
 
+    // Schritt 5 des Quellen-Umbaus (03.09.2026): die Bindung Beschriftung -> Flaeche, einmal je Lauf gelesen.
+    $byLabel = null;
     foreach (avesmapsSyncPlanPendingItems($pdo, $runId, $budget) as $row) {
         $totals['processed']++;
         $itemId = (int) $row['id'];
@@ -86,15 +88,23 @@ function avesmapsPublicationApplyStep(PDO $pdo, int $runId, int $userId, ?array 
             // "unchanged" really means unchanged. `name` is not part of the plan's after_json, so a
             // renamed entity does not make its row stale -- only its links do.
             $stored = json_decode((string) ($row['after_json'] ?? ''), true);
-            $fresh = avesmapsPublicationPlanForEntity($pdo, $type, [
-                'public_id' => $publicId,
-                'wiki_key' => $wikiKey,
-            ]);
+            // 🔴 Schritt 5: eine gebundene Beschriftung zielt auf ihre Flaeche -- DIESELBE Abbildung wie im Plan
+            // (avesmapsPublicationMapLabelTargets). Das Item traegt weiter die Kennung der Beschriftung; das Ziel
+            // wird hier aufgeloest, sonst schriebe die Uebernahme `(region, <Flaeche>)` -- eine Zeile, die nichts liest.
+            $ziel = ['public_id' => $publicId, 'wiki_key' => $wikiKey, 'id' => 0];
+            if ($type === 'region') {
+                if ($byLabel === null) {
+                    require_once __DIR__ . '/../app/ecosystem-label-link.php';
+                    $byLabel = avesmapsEcosystemReadLabelRegionMap($pdo)['by_label'] ?? [];
+                }
+                $ziel = avesmapsPublicationMapLabelTargets([$ziel], $byLabel)[0];
+            }
+            $fresh = avesmapsPublicationPlanForEntity($pdo, $type, $ziel);
             if (avesmapsSyncPlanIsStale(is_array($stored) ? $stored : null, $fresh['item']['after'] ?? null)) {
                 avesmapsSyncPlanMarkItem($pdo, $itemId, 'stale', 'Der Stand hat sich seit der Vorschau geaendert.');
                 $totals['stale']++;
             } else {
-                avesmapsPublicationReconcileEntity($pdo, $type, $publicId, $wikiKey, $userId);
+                avesmapsPublicationReconcileEntity($pdo, $type, (string) ($ziel['target_public_id'] ?? $publicId), $wikiKey, $userId, (string) ($ziel['target_type'] ?? $type));
                 avesmapsSyncPlanMarkItem($pdo, $itemId, 'applied');
                 $totals['applied']++;
             }

@@ -2919,6 +2919,11 @@ function avesmapsEcosystemAdoptLabelPointer(
             'id' => (int) $row['id'],
         ]);
 
+    // 🔴 Schritt 5 des Quellen-Umbaus (03.09.2026): mit dem Zeiger wandern die Quellen des Labels zur Flaeche --
+    // dieselbe Funktion wie in avesmapsUpdateLabelFeature (features.php); ein Test zaehlt beide Zeiger-Schreiber.
+    require_once __DIR__ . '/feature-sources.php';
+    avesmapsFeatureSourcesMoveLabelToRegion($pdo, $labelPublicId, $regionPublicId);
+
     return true;
 }
 

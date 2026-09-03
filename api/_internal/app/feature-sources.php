@@ -858,6 +858,135 @@ function avesmapsFeatureSourcesTakeoverAll(PDO $pdo, int $userId, bool $dryRun =
 }
 
 /**
+ * Die Quellen einer Beschriftung zu ihrer Flaeche umziehen -- Schritt 5 des Quellen-Umbaus (03.09.2026).
+ *
+ * 🔴 Die Flaeche traegt die Quellen, die Beschriftung zeigt sie (Entwurf docs/superpowers/specs/
+ * 2026-09-03-quellen-landschaften-design.md). Jede Zeile `(region, <label>)` wird zu `(ecosystem, <region>)`;
+ * traegt die Flaeche eine Quelle schon, faellt die Zeile des Labels (Seiten und Abdeckung der Flaeche gewinnen).
+ * 💣 DUBLETTEN PER DELETE, DANN GLATTES UPDATE -- kein `UPDATE IGNORE`, kein Upsert: die Syntax ist in MySQL und
+ * SQLite verschieden, und ein SQLite-Test saehe die MySQL-Regression nicht (die Regel aus dem Eigene-Knoten-Umbau).
+ * Der UNIQUE `uq_feature_source (entity_type, entity_public_id, source_id)` braeche sonst beim ersten Umzug einer
+ * Quelle, die die Flaeche schon hat. Das `SELECT … FROM (SELECT …) x` erzwingt die Materialisierung, sonst
+ * MySQL-Fehler 1093 (AGENTS.md §9).
+ * ⚠️ Alle Zustaende wandern mit (auch `suppressed`-Grabsteine des Wiki-Abgleichs): sie gehoeren zur Landschaft.
+ * ⚠️ Bumpt KEINE Kartenrevision -- das entscheiden die Aufrufer (der Bindungs-Schreiber bumpt ohnehin, der
+ * Sammel-Umzug einmal am Ende).
+ */
+function avesmapsFeatureSourcesMoveLabelToRegion(PDO $pdo, string $labelPublicId, string $regionPublicId): array
+{
+    $labelPublicId = trim($labelPublicId);
+    $regionPublicId = trim($regionPublicId);
+    if ($labelPublicId === '' || $regionPublicId === '') {
+        return ['moved' => 0, 'dropped' => 0];
+    }
+    avesmapsEnsureFeatureSourceTables($pdo);
+    $dropped = $pdo->prepare(
+        "DELETE FROM feature_sources
+          WHERE entity_type = 'region' AND entity_public_id = :l
+            AND source_id IN (SELECT source_id FROM (SELECT source_id FROM feature_sources
+                                                     WHERE entity_type = 'ecosystem' AND entity_public_id = :r) x)"
+    );
+    $dropped->execute(['l' => $labelPublicId, 'r' => $regionPublicId]);
+    $moved = $pdo->prepare(
+        "UPDATE feature_sources SET entity_type = 'ecosystem', entity_public_id = :r
+          WHERE entity_type = 'region' AND entity_public_id = :l"
+    );
+    $moved->execute(['r' => $regionPublicId, 'l' => $labelPublicId]);
+
+    return ['moved' => $moved->rowCount(), 'dropped' => $dropped->rowCount()];
+}
+
+/**
+ * DER SAMMEL-UMZUG: alle Quellen gebundener Beschriftungen zu ihren Flaechen (Schritt 5, 03.09.2026).
+ *
+ * Gemessen davor (Nutzlast 03.09.2026): 487 gebundene Beschriftungen mit Quellen -> 477 Flaechen, 6.976 Verweise,
+ * 6.811 nach Zusammenfuehrung (165 Dubletten); 189 freie Beschriftungen mit Quellen bleiben, wo sie sind.
+ * 🔴 TROCKENLAUF IST DIE VORGABE -- zaehlt und zeigt, schreibt in keine Tabelle. Scharf ruft er je Beschriftung
+ * avesmapsFeatureSourcesMoveLabelToRegion in einer eigenen Transaktion, gedeckelt, Fehler gemeldet; die
+ * Kartenrevision bumpt EINMAL am Ende (die Nutzlast aendert sich fuer jeden Besucher).
+ * ⚠️ Die Bindung kommt aus dem EINEN Leser beider Richtungen (avesmapsEcosystemReadLabelRegionMap) -- derselbe,
+ * der die Nutzlast fuellt; eine eigene Rechnung hier zoege andere Beschriftungen um, als die Karte fuer gebunden
+ * haelt. Das require steht im Rumpf: diese Datei haengt am oeffentlichen Lesepfad.
+ */
+function avesmapsFeatureSourcesTakeoverLabelSources(PDO $pdo, int $userId, bool $dryRun = true, int $limit = 200): array
+{
+    avesmapsEnsureFeatureSourceTables($pdo);
+    require_once __DIR__ . '/ecosystem-label-link.php';
+    $limit = max(1, min(2000, $limit));
+    $byLabel = avesmapsEcosystemReadLabelRegionMap($pdo)['by_label'] ?? [];
+    $jeLabel = [];
+    foreach ($pdo->query("SELECT entity_public_id, source_id FROM feature_sources WHERE entity_type = 'region'")->fetchAll(PDO::FETCH_ASSOC) ?: [] as $r) {
+        $jeLabel[(string) $r['entity_public_id']][] = (int) $r['source_id'];
+    }
+    $jeFlaeche = [];
+    foreach ($pdo->query("SELECT entity_public_id, source_id FROM feature_sources WHERE entity_type = 'ecosystem'")->fetchAll(PDO::FETCH_ASSOC) ?: [] as $r) {
+        $jeFlaeche[(string) $r['entity_public_id']][(int) $r['source_id']] = true;
+    }
+    $kandidaten = [];
+    $zeilen = 0;
+    foreach ($jeLabel as $labelId => $sourceIds) {
+        $regionId = (string) ($byLabel[(string) $labelId] ?? '');
+        if ($regionId === '') {
+            continue; // frei: bleibt bei der Beschriftung
+        }
+        $kandidaten[] = ['label_public_id' => (string) $labelId, 'region_public_id' => $regionId, 'rows' => count($sourceIds), 'source_ids' => $sourceIds];
+        $zeilen += count($sourceIds);
+    }
+    $vereinigung = $jeFlaeche;
+    $regionen = [];
+    foreach ($kandidaten as $k) {
+        $regionen[$k['region_public_id']] = true;
+        foreach ($k['source_ids'] as $sid) {
+            $vereinigung[$k['region_public_id']][$sid] = true;
+        }
+    }
+    $neuAnFlaechen = 0;
+    foreach (array_keys($regionen) as $rid) {
+        $neuAnFlaechen += count($vereinigung[$rid] ?? []) - count($jeFlaeche[$rid] ?? []);
+    }
+    $ergebnis = [
+        'ok' => true,
+        'dry_run' => $dryRun,
+        'labels' => count($kandidaten),
+        'regions' => count($regionen),
+        'rows' => $zeilen,
+        'rows_after' => $neuAnFlaechen,
+        'duplicates' => $zeilen - $neuAnFlaechen,
+        'sample' => array_map(static fn (array $k): array => ['label_public_id' => $k['label_public_id'], 'region_public_id' => $k['region_public_id'], 'rows' => $k['rows']], array_slice($kandidaten, 0, 10)),
+        'done' => 0,
+        'moved' => 0,
+        'dropped' => 0,
+        'failed' => [],
+        'remaining' => count($kandidaten),
+    ];
+    if ($dryRun) {
+        return $ergebnis;
+    }
+    foreach (array_slice($kandidaten, 0, $limit) as $k) {
+        try {
+            $pdo->beginTransaction();
+            $r = avesmapsFeatureSourcesMoveLabelToRegion($pdo, $k['label_public_id'], $k['region_public_id']);
+            $pdo->commit();
+            $ergebnis['done']++;
+            $ergebnis['moved'] += $r['moved'];
+            $ergebnis['dropped'] += $r['dropped'];
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            // Gemeldet, nicht geschluckt: ein SQL-Fehler saehe sonst aus wie „nichts umzuziehen".
+            $ergebnis['failed'][] = ['label_public_id' => $k['label_public_id'], 'region_public_id' => $k['region_public_id'], 'error' => $e->getMessage()];
+        }
+    }
+    $ergebnis['remaining'] = count($kandidaten) - $ergebnis['done'];
+    if ($ergebnis['done'] > 0) {
+        avesmapsNextMapRevision($pdo);
+    }
+
+    return $ergebnis;
+}
+
+/**
  * Die Namen zu einer Handvoll Nutzerkennungen — für „wer hat das eingetragen".
  *
  * 🔴 EINE EIGENE ABFRAGE, KEIN `LEFT JOIN users`. `sources` und `users` teilen sich `id` UND
@@ -2527,7 +2656,10 @@ function avesmapsSearchSourceCatalog(PDO $pdo, string $query, int $limit): array
 //
 // 'citymap' bleibt bewusst drin: 631 Referenzen / 0,04 MB, und der Karteneditor schreibt in
 // denselben Cache (review-feature-sources.js) -- der Gewinn waere Rauschen, das Risiko nicht.
-const AVESMAPS_MAP_FEATURES_SOURCE_ENTITY_TYPES = ['settlement', 'region', 'path', 'territory', 'powerline', 'citymap'];
+// ⚠️ `ecosystem` seit dem 03.09.2026 (Schritt 5 des Quellen-Umbaus): die Flaeche traegt die Quellen einer Landschaft,
+// die gebundene Beschriftung liest sie unter `ecosystem:<region_public_id>`. Ohne den Typ hier reisten die 6.811
+// umgezogenen Verweise nie in die Nutzlast -- die Falle der leeren Flaechenkaesten vom 26.08.2026, andersherum.
+const AVESMAPS_MAP_FEATURES_SOURCE_ENTITY_TYPES = ['settlement', 'region', 'path', 'territory', 'powerline', 'citymap', 'ecosystem'];
 
 // Shared catalog of every source that is actually linked to at least one element with an approved
 // link: { <source_id> => {url,label,type,official[,license][,attribution]} }. One collect-query

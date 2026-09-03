@@ -3563,6 +3563,7 @@ function avesmapsUpdateLabelFeature(PDO $pdo, array $payload, array $user): arra
             }
         }
         // Die Flaeche, zu der dieses Label gehoert. Leer mitgeschickt = ausdruecklich geloest.
+        $regionVorher = trim((string) ($properties['ecosystem_region_public_id'] ?? ''));
         if (array_key_exists('ecosystem_region_public_id', $payload)) {
             $ecosystemRegion = avesmapsReadLabelEcosystemRegion($payload);
             if ($ecosystemRegion === '') {
@@ -3570,6 +3571,17 @@ function avesmapsUpdateLabelFeature(PDO $pdo, array $payload, array $user): arra
             } else {
                 $properties['ecosystem_region_public_id'] = $ecosystemRegion;
             }
+        }
+        // 🔴 SCHRITT 5 DES QUELLEN-UMBAUS (03.09.2026): wird eine Beschriftung an eine Flaeche gebunden, wandern
+        // ihre Quellen zur Flaeche (Dubletten fallen) -- die Flaeche traegt die Quellen, die Beschriftung zeigt
+        // sie. Beim Loesen bleiben sie dort (Owner 03.09.2026). Dieselbe Funktion ruft der zweite Zeiger-
+        // Schreiber, avesmapsEcosystemAdoptLabelPointer (ecosystem.php); ein Test zaehlt beide. Innerhalb der
+        // Transaktion, damit ein gescheiterter Umzug die Bindung mitnimmt. Das require steht im Rumpf: der
+        // Karten-Endpunkt laedt die Quellen-Bibliothek sonst nicht.
+        $regionNachher = trim((string) ($properties['ecosystem_region_public_id'] ?? ''));
+        if ($regionNachher !== '' && $regionNachher !== $regionVorher) {
+            require_once __DIR__ . '/../app/feature-sources.php';
+            avesmapsFeatureSourcesMoveLabelToRegion($pdo, $publicId, $regionNachher);
         }
         $geometry = avesmapsDecodeJsonColumnForEdit($feature['geometry_json'] ?? null);
         $coordinates = is_array($geometry['coordinates'] ?? null) ? $geometry['coordinates'] : [0, 0];

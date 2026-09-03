@@ -307,7 +307,9 @@ const flaechen = [
   ["js/map-features/map-features-location-marker-entry.js", /renderFeatureKanonBadge\("settlement", markerEntry\.publicId\)/g, 2],
   ["js/map-features/map-features-path-rendering.js", /renderFeatureKanonBadge\("path", getPathPublicId\(path\)\)/g, 1],
   ["js/map-features/map-features-powerlines.js", /renderFeatureKanonBadge\("powerline", getPowerlineSourceAnchorId\(powerline\)\)/g, 1],
-  ["js/map-features/map-features-labels.js", /renderFeatureKanonBadge\("region", label\.publicId\)/g, 1],
+  // Die Beschriftung fragt seit dem 03.09.2026 (Schritt 5 des Quellen-Umbaus) die Weiche: gebunden ecosystem:<Flaeche>,
+  // frei region:<Label> -- derselbe Schluessel wie ihre Quellenzeile (label-quellen-schluessel.test.js haelt beide).
+  ["js/map-features/map-features-labels.js", /renderFeatureKanonBadge\(quellenSchluessel\.type, quellenSchluessel\.id\)/g, 1],
   ["js/map-features/map-features-region-info-markup.js", /renderFeatureKanonBadge\("territory", regionEntry\.territoryPublicId \|\| ""\)/g, 1],
 ];
 for (const [datei, muster, anzahl] of flaechen) {

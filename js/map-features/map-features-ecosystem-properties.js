@@ -763,17 +763,29 @@
 	 * weil ihre Attrappe Ersatzknoten ohne `cloneNode` liefert. Ein Nebenfeature darf den Dialog
 	 * nicht mitreissen.
 	 */
-	function mountEcosystemAreaSources() {
-		// 🔴 KEIN Quellen-Mount mehr (26.08.2026). Die Quellen einer Landschaft liegen an ihrer
-		// BESCHRIFTUNG (`entity_type` = „region", `map_features.public_id`) -- dort sind alle 8142
-		// Zeilen, und nur die liest die Karte (renderFeatureSourceLine, map-features-labels.js).
-		// 💣 Der zweite Kasten fuer die Flaeche war live LEER: null von 30 gleichmaessig verteilten
-		// Flaechen trugen eine Quelle, und in der Kartenpayload kommt `ecosystem` unter 6336 Objekten
-		// mit Quellen kein einziges Mal vor. Ein zweiter Kasten, den nie jemand gefuellt hat -- und
-		// dessen Inhalt kein Besucher gesehen haette.
-		// ⚠️ Die Funktion BLEIBT als leere Huelle stehen, statt ihre Aufrufer zu jagen: sie wird an
-		// zwei Stellen gerufen, und ein fehlender Bezeichner waere ein ReferenceError mitten im
-		// Oeffnen. Der `entity_type` bleibt serverseitig freigegeben (der Deploy loescht nie).
+	function mountEcosystemAreaSources(regionPublicId) {
+		// 🔴 Schritt 5 des Quellen-Umbaus (03.09.2026): DIE FLAECHE TRAEGT DIE QUELLEN. Bis dahin war das eine
+		// leere Huelle -- die Quellen lagen an der Beschriftung, und der Kasten der Flaeche war live leer (0 von 30).
+		// Jetzt montiert er auf `ecosystem` + public_id der Flaeche; die gebundene Beschriftung liest dieselbe
+		// Liste (js/map-features/label-quellen-schluessel.js) und hat keinen eigenen Kasten mehr.
+		// ⚠️ ZUERST das Bauteil, DANN der Knoten (siehe oben): ohne Quellenmodul wird nichts angefasst.
+		if (typeof mountFeatureSourceEditor !== "function") {
+			return;
+		}
+		const host = document.getElementById("ecosystem-properties-sources");
+		if (!host || typeof host.cloneNode !== "function") {
+			return;
+		}
+		const kennung = String(regionPublicId || "").trim();
+		if (typeof host.__fsDetachAutocomplete === "function") {
+			host.__fsDetachAutocomplete();
+		}
+		const frisch = host.cloneNode(false);
+		host.replaceWith(frisch);
+		if (kennung === "") {
+			return;
+		}
+		void mountFeatureSourceEditor(frisch, "ecosystem", () => kennung, { escape: typeof escapeHtml === "function" ? escapeHtml : undefined });
 	}
 
 	async function openEcosystemPropertiesDialog(publicId, optionen) {

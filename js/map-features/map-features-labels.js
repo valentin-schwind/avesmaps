@@ -564,8 +564,13 @@ function labelWikiInfoboxMarkup(label, options = {}) {
 	// Multi-source system: ONE source line covers the wiki credit line that used to render
 	// unconditionally here -- rendered synchronously from the map-features payload
 	// (renderFeatureSourceLine in js/ui/popups.js resolves this element's approved sources).
+	// 🔴 Schritt 5 des Quellen-Umbaus (03.09.2026): die Flaeche traegt die Quellen, die Beschriftung zeigt sie -- eine
+	// gebundene Beschriftung liest `ecosystem:<region>`, eine freie `region:<label>`. EINE Weiche
+	// (js/map-features/label-quellen-schluessel.js), dieselbe fuer das Kanon-Etikett darunter.
+	const quellenSchluessel = typeof avesmapsLabelQuellenSchluessel === "function"
+		? avesmapsLabelQuellenSchluessel(label) : { type: "region", id: label.publicId };
 	const sourceMarkup = typeof renderFeatureSourceLine === "function"
-		? renderFeatureSourceLine("region", label.publicId, wiki.wiki_url || "", "region-info-box__link")
+		? renderFeatureSourceLine(quellenSchluessel.type, quellenSchluessel.id, wiki.wiki_url || "", "region-info-box__link")
 		: "";
 
 	// Ohne einen einzigen Wert entfaellt die Box GANZ (Spec §5.2). Seit alle Labels anklickbar sind, laeuft
@@ -660,7 +665,7 @@ function buildRegionLabelViewPopupHtml(label) {
 	// Owner: 16:9 header image (by landscape art) + title overlay instead of the headless title.
 	// Einmal gebaut, an zwei Stellen gereicht -- siehe map-features-location-marker-entry.js.
 	const labelKanon = typeof renderFeatureKanonBadge === "function"
-		? renderFeatureKanonBadge("region", label.publicId) : "";
+		? renderFeatureKanonBadge(quellenSchluessel.type, quellenSchluessel.id) : "";
 	const headerImg = typeof infoHeaderImageMarkup === "function"
 		? infoHeaderImageMarkup(regionHeaderImageBasename(art), labelName, artText, "", [], "", labelKanon)
 		: "";
@@ -671,7 +676,7 @@ function buildRegionLabelViewPopupHtml(label) {
 		// popups.js. Zwei verschiedene Woerter fuer dieselbe Aussage waeren hier lautlos.
 		locationTypeLabel: artText,
 		headerImageMarkup: headerImg,
-		// Derselbe Schluessel wie die Quellenzeile der Datenbox ("region", label.publicId).
+		// Derselbe Schluessel wie die Quellenzeile der Datenbox (avesmapsLabelQuellenSchluessel).
 		kanonMarkup: labelKanon,
 		showHeaderIcon: false,
 		compact: true,

@@ -764,14 +764,14 @@ function avesmapsPublicationDesiredLinksForEntity(PDO $pdo, string $entityType, 
 //
 // ⚠️ $ownsTransaction, not a bare beginTransaction: PDO has no nested transactions, and a caller
 // that already opened one would get an exception. Same idiom as avesmapsCitymapRemoveVanished.
-function avesmapsPublicationReconcileEntity(PDO $pdo, string $entityType, string $entityPublicId, string $entityWikiKey, int $userId): array
+function avesmapsPublicationReconcileEntity(PDO $pdo, string $entityType, string $entityPublicId, string $entityWikiKey, int $userId, string $targetType = ''): array
 {
     $ownsTransaction = !$pdo->inTransaction();
     if ($ownsTransaction) {
         $pdo->beginTransaction();
     }
     try {
-        $counters = avesmapsPublicationReconcileEntityWrites($pdo, $entityType, $entityPublicId, $entityWikiKey, $userId);
+        $counters = avesmapsPublicationReconcileEntityWrites($pdo, $entityType, $entityPublicId, $entityWikiKey, $userId, $targetType);
     } catch (Throwable $exception) {
         // 💣 The rollBack is itself wrapped. It throws when the connection is gone -- which is
         // exactly the abort this whole change is about -- and an unguarded one replaces the real
@@ -796,8 +796,11 @@ function avesmapsPublicationReconcileEntity(PDO $pdo, string $entityType, string
 // The writes themselves, unchanged. Split out so the transaction above needs no re-indentation
 // of the body -- and so the test can assert that nothing between begin and commit is anything
 // but this one call.
-function avesmapsPublicationReconcileEntityWrites(PDO $pdo, string $entityType, string $entityPublicId, string $entityWikiKey, int $userId): array
+// @param string $targetType wohin geschrieben wird (feature_sources.entity_type) -- Schritt 5: `ecosystem` fuer eine
+//   gebundene Beschriftung, waehrend `$entityType` (`region`) weiter die Staging-Seite adressiert. Leer = derselbe.
+function avesmapsPublicationReconcileEntityWrites(PDO $pdo, string $entityType, string $entityPublicId, string $entityWikiKey, int $userId, string $targetType = ''): array
 {
+    $targetType = $targetType !== '' ? $targetType : $entityType;
     $counters = ['links_added' => 0, 'links_removed' => 0, 'links_updated' => 0];
     if ($entityType === '' || $entityPublicId === '' || $entityWikiKey === '') {
         return $counters;
@@ -808,7 +811,7 @@ function avesmapsPublicationReconcileEntityWrites(PDO $pdo, string $entityType, 
            FROM feature_sources
           WHERE entity_type = :t AND entity_public_id = :id'
     );
-    $currentStatement->execute(['t' => $entityType, 'id' => $entityPublicId]);
+    $currentStatement->execute(['t' => $targetType, 'id' => $entityPublicId]);
     $current = $currentStatement->fetchAll(PDO::FETCH_ASSOC) ?: [];
 
     $desired = avesmapsPublicationDesiredLinksForEntity($pdo, $entityType, $entityWikiKey, $userId);
@@ -816,14 +819,14 @@ function avesmapsPublicationReconcileEntityWrites(PDO $pdo, string $entityType, 
 
     foreach ($diff['add'] as $row) {
         avesmapsFeatureSourceLink(
-            $pdo, $entityType, $entityPublicId, (int) $row['source_id'], $userId,
+            $pdo, $targetType, $entityPublicId, (int) $row['source_id'], $userId,
             'wiki_publication', $row['reference_kind'] ?? null, $row['pages'] ?? null, $row['note'] ?? null
         );
         $counters['links_added']++;
     }
     foreach ($diff['update'] as $row) {
         avesmapsFeatureSourceLink(
-            $pdo, $entityType, $entityPublicId, (int) $row['source_id'], $userId,
+            $pdo, $targetType, $entityPublicId, (int) $row['source_id'], $userId,
             'wiki_publication', $row['reference_kind'] ?? null, $row['pages'] ?? null, $row['note'] ?? null
         );
         $counters['links_updated']++;
@@ -839,7 +842,7 @@ function avesmapsPublicationReconcileEntityWrites(PDO $pdo, string $entityType, 
                 AND origin = 'wiki_publication' AND status = 'approved'
                 AND source_id IN ({$placeholders})"
         );
-        $delete->execute(array_merge([$entityType, $entityPublicId], $ids));
+        $delete->execute(array_merge([$targetType, $entityPublicId], $ids));
         $counters['links_removed'] += $delete->rowCount();
     }
 
@@ -927,8 +930,9 @@ function avesmapsPublicationSourceIdForPlan(PDO $pdo, string $url, string $wikiK
  *
  * @return array{add:int, update:int, remove:int, add_titles:list<string>, remove_titles:list<string>}
  */
-function avesmapsPublicationLinkDiffForPlan(PDO $pdo, string $entityType, string $entityPublicId, string $entityWikiKey): array
+function avesmapsPublicationLinkDiffForPlan(PDO $pdo, string $entityType, string $entityPublicId, string $entityWikiKey, string $targetType = ''): array
 {
+    $targetType = $targetType !== '' ? $targetType : $entityType; // Schritt 5: Ziel getrennt vom Staging-Typ
     $empty = ['add' => 0, 'update' => 0, 'remove' => 0, 'add_titles' => [], 'remove_titles' => []];
     if ($entityType === '' || $entityPublicId === '' || $entityWikiKey === '') {
         return $empty;
@@ -940,7 +944,7 @@ function avesmapsPublicationLinkDiffForPlan(PDO $pdo, string $entityType, string
                FROM feature_sources
               WHERE entity_type = :t AND entity_public_id = :id'
         );
-        $currentStmt->execute(['t' => $entityType, 'id' => $entityPublicId]);
+        $currentStmt->execute(['t' => $targetType, 'id' => $entityPublicId]);
         $current = $currentStmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
 
         // The desired list, exactly as avesmapsPublicationDesiredLinksForEntity reads it.
@@ -1114,6 +1118,36 @@ function avesmapsPublicationReconcileSegmentOrder(): array
  *
  * @return list<array{id:int, public_id:string, wiki_key:string, name:string}>
  */
+/**
+ * Schritt 5 des Quellen-Umbaus (03.09.2026): eine gebundene Beschriftung liefert ihre Publikationsquellen an die
+ * FLAECHE. Die Staging-Seite (`wiki_entity_publication`, entity_type `region`, Schluessel = Wiki-Artikel) bleibt,
+ * wie sie ist -- nur das ZIEL in feature_sources wechselt: `target_type`/`target_public_id` je Zeile.
+ * 🔴 Mehrere gebundene Beschriftungen derselben Flaeche mit demselben Artikel fallen auf EIN Ziel zusammen; die
+ * Zeile behaelt die GROESSTE `id` der Gruppe, damit der Cursor (`lastId`) nicht hinter die weggefallenen faellt.
+ * ⚠️ Rein -- die Bindung kommt vom Aufrufer (avesmapsEcosystemReadLabelRegionMap), damit der Test ohne Datenbank
+ * faehrt.
+ */
+function avesmapsPublicationMapLabelTargets(array $rows, array $byLabel): array
+{
+    $out = [];
+    $index = [];
+    foreach ($rows as $row) {
+        $labelId = (string) ($row['public_id'] ?? '');
+        $regionId = (string) ($byLabel[$labelId] ?? '');
+        $row['target_type'] = $regionId !== '' ? 'ecosystem' : 'region';
+        $row['target_public_id'] = $regionId !== '' ? $regionId : $labelId;
+        $key = $row['target_type'] . '|' . $row['target_public_id'] . '|' . (string) ($row['wiki_key'] ?? '');
+        if (isset($index[$key])) {
+            $out[$index[$key]]['id'] = max((int) $out[$index[$key]]['id'], (int) ($row['id'] ?? 0));
+            continue;
+        }
+        $index[$key] = count($out);
+        $out[] = $row;
+    }
+
+    return $out;
+}
+
 function avesmapsPublicationFetchLiveEntityBatch(PDO $pdo, string $type, int $lastId, int $budget): array
 {
     $budget = max(1, $budget);
@@ -1200,6 +1234,12 @@ function avesmapsPublicationFetchLiveEntityBatch(PDO $pdo, string $type, int $la
         ];
     }
 
+    // Schritt 5 des Quellen-Umbaus: gebundene Beschriftungen zielen auf ihre Flaeche (avesmapsPublicationMapLabelTargets).
+    if ($type === 'region' && $out !== []) {
+        require_once __DIR__ . '/../app/ecosystem-label-link.php';
+        $out = avesmapsPublicationMapLabelTargets($out, avesmapsEcosystemReadLabelRegionMap($pdo)['by_label'] ?? []);
+    }
+
     return $out;
 }
 
@@ -1247,7 +1287,8 @@ function avesmapsPublicationReconcileStep(PDO $pdo, int $segment, int $lastId, i
             if ($wikiKey === '' || $publicId === '') {
                 continue; // LIKE-matched but unassigned/empty key -> cursor advanced, skip
             }
-            $entityCounters = avesmapsPublicationReconcileEntity($pdo, $type, $publicId, $wikiKey, $userId);
+            // Schritt 5: eine gebundene Beschriftung schreibt an ihre Flaeche (target_*), der Staging-Typ bleibt.
+            $entityCounters = avesmapsPublicationReconcileEntity($pdo, $type, (string) ($row['target_public_id'] ?? $publicId), $wikiKey, $userId, (string) ($row['target_type'] ?? $type));
             $linksAdded += $entityCounters['links_added'];
             $linksRemoved += $entityCounters['links_removed'];
             $linksUpdated += $entityCounters['links_updated'];
@@ -1336,7 +1377,7 @@ function avesmapsPublicationPlanForEntity(PDO $pdo, string $entityType, array $e
 
     return [
         'item' => avesmapsPublicationPlanItem(
-            avesmapsPublicationLinkDiffForPlan($pdo, $entityType, $publicId, $wikiKey)
+            avesmapsPublicationLinkDiffForPlan($pdo, $entityType, (string) ($entity['target_public_id'] ?? $publicId), $wikiKey, (string) ($entity['target_type'] ?? $entityType))
         ),
         'label' => $label,
     ];

@@ -91,6 +91,23 @@ function avesmapsEcosystemLabelRegionMap(array $regionRows, array $pointerRows, 
 //
 // Returns the empty relation when the ecosystem tables are absent, so an installation without the feature
 // behaves exactly as before instead of erroring.
+/**
+ * Die EINE Weiche des Servers: unter welchem Schluessel liegen die Quellen einer Beschriftung?
+ *
+ * Schritt 5 des Quellen-Umbaus (03.09.2026): gebunden -> `(ecosystem, <region_public_id>)`, frei -> `(region, <label>)`.
+ * Nie beides. Dasselbe sagt js/map-features/label-quellen-schluessel.js im Browser; der Wiki-Publikationsabgleich
+ * und der Sammel-Umzug fragen hier.
+ */
+function avesmapsEcosystemLabelSourceTarget(?string $regionPublicId, string $labelPublicId): array
+{
+    $region = trim((string) $regionPublicId);
+    if ($region !== '') {
+        return ['entity_type' => 'ecosystem', 'entity_public_id' => $region];
+    }
+
+    return ['entity_type' => 'region', 'entity_public_id' => trim($labelPublicId)];
+}
+
 function avesmapsEcosystemReadLabelRegionMap(PDO $pdo): array
 {
     try {

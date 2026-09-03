@@ -80,7 +80,7 @@ try {
     // niemand zaehlt nach (AGENTS.md §11). Die Liste steht deshalb in der Bedingung selbst; wer
     // eine Aktion ergaenzt, ergaenzt sie DORT.
     // ⚠️ Die Faehigkeit `edit` ist oben laengst geprueft; `inspect_url` bleibt ohnehin lesend.
-    if ($entityPublicId === '' && !in_array($action, ['inspect_url', 'save_corpus', 'corpus_titles_probe', 'corpus_titles_apply', 'takeover_other_sources'], true)) {
+    if ($entityPublicId === '' && !in_array($action, ['inspect_url', 'save_corpus', 'corpus_titles_probe', 'corpus_titles_apply', 'takeover_other_sources', 'takeover_label_sources'], true)) {
         avesmapsErrorResponse(400, 'invalid_request', 'entity_public_id ist erforderlich.');
     }
 
@@ -292,6 +292,17 @@ try {
             $limit = (int) ($payload['limit'] ?? 400);
 
             return avesmapsFeatureSourcesTakeoverAll($pdo, $userId, !$scharf, $limit > 0 ? $limit : 400);
+        })(),
+        // DER SAMMEL-UMZUG der Beschriftungsquellen zu ihren Flaechen (Schritt 5 des Quellen-Umbaus, 03.09.2026).
+        // Dieselbe Bauform wie takeover_other_sources: nur Admin, ohne entity_public_id, Trockenlauf als Vorgabe.
+        'takeover_label_sources' => (static function () use ($pdo, $payload, $user, $userId): array {
+            if (!avesmapsUserCan($user, 'admin')) {
+                avesmapsErrorResponse(403, 'forbidden', 'Der Sammel-Umzug ist Admins vorbehalten.');
+            }
+            $scharf = ($payload['apply'] ?? false) === true;
+            $limit = (int) ($payload['limit'] ?? 200);
+
+            return avesmapsFeatureSourcesTakeoverLabelSources($pdo, $userId, !$scharf, $limit > 0 ? $limit : 200);
         })(),
         'remove' => (static function () use ($pdo, $entityType, $entityPublicId, $entityPublicIds, $payload, $userId): array {
             $sourceId = (int) ($payload['source_id'] ?? 0);

@@ -77,7 +77,8 @@ const MONTAGEN = [
 	// Objekte und 8142 Zeilen traegt. Und nur die erste liest die Karte.
 	// ⚠️ Der Getter reicht bis in die Kennung, wie die Zeilen darueber es verlangen: `labelId`
 	// stammt aus `region.label_public_id` und wird beim Regionswechsel neu gesetzt.
-	["html/landschaften-editor.html", "region", 'mountFeatureSourceEditor(sourceHost, "region", () => labelId'],
+	// Seit dem 03.09.2026 (Schritt 5 des Quellen-Umbaus) traegt die FLAECHE die Quellen: ecosystem + region.public_id.
+	["html/landschaften-editor.html", "ecosystem", 'mountFeatureSourceEditor(sourceHost, "ecosystem", () => String(region.public_id || "")'],
 	["html/citymap-editor.html", "citymap", 'mountFeatureSourceEditor(ceSourceHost, "citymap", () => state.selectedId'],
 ];
 
