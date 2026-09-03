@@ -548,7 +548,7 @@ function clearChangeSuggestionMode() {
 	}
 }
 
-function populateLocationEditForm({ markerEntry = null, latlng = null, presetName = "", presetLocationType = "", presetWikiUrl = "", presetDescription = "", presetIsNodix = null } = {}) {
+function populateLocationEditForm({ markerEntry = null, latlng = null, presetName = "", presetLocationType = "", presetWikiUrl = "", presetDescription = "", presetIsNodix = null, meldungQuellen = null } = {}) {
 	const formElement = getLocationEditFormElement();
 	if (!formElement) {
 		return;
@@ -585,6 +585,14 @@ function populateLocationEditForm({ markerEntry = null, latlng = null, presetNam
 	// Shared multi-source editor (multi-source #2): replaces the old "Andere Quelle" single
 	// url/label pair. The server-side takeover now owns other_source, so this dialog no longer
 	// reads or writes it here or in buildLocationEditPayload (see mountLocationEditFeatureSources).
+	// 🔴 Die Warteschlange der gemeldeten Quellen kommt MIT dem Oeffnen-Aufruf (`meldungQuellen`, aus
+	// review-report-flow.js) und steht HIER, VOR dem Mount -- der Mount liest sie synchron in `opts.meldung`.
+	// 🪤 Bis zum 03.09.2026 abends setzten die Oeffner den Zustand erst NACH openLocationEditDialog(): der
+	// Kasten war schon montiert, die gemeldete Quelle kam nie an, der Dialog zeigte ihn leer und die Falte zu
+	// (Owner: „irgendwie sieht das anders aus"). Vorher hatte dieselbe Reihenfolge nur funktioniert, weil die
+	// alte Vorschlagsgruppe im `.then` NACH der Serverliste gelesen wurde -- eine Zusage aus dem Timing.
+	// resetLocationEditForm() hat die Warteschlange gerade geleert; ein normaler Dialog bleibt also ohne.
+	activeReviewReportSourceQueue = Array.isArray(meldungQuellen) ? meldungQuellen.slice() : [];
 	mountLocationEditFeatureSources();
 	mountLocationEditNameAutocomplete();
 	document.getElementById("location-edit-is-nodix").checked = presetIsNodix === null

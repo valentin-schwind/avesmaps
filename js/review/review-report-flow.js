@@ -1,15 +1,19 @@
 function openLocationEditDialogFromReport(report, latlng) {
-	openLocationEditDialog({ latlng });
+	// report.sources is the full reported list (server-decoded). Sources WITH a link go into the QUEUE of the
+	// Quellen section (multi-source #3, like the manual add flow); link-less sources fall back to
+	// "Quelle: X, S. Y" description lines so nothing the reporter typed is lost.
+	const reportSources = Array.isArray(report.sources) ? report.sources : [];
+	const linkedSources = reportSources.filter((source) => source && (source.url || Number(source.source_id) > 0));
+	const linklessSources = reportSources.filter((source) => source && source.label && !source.url && !(Number(source.source_id) > 0));
+	// 🔴 Die Warteschlange reist MIT dem Oeffnen-Aufruf: populateLocationEditForm setzt sie VOR dem Mount des
+	// Quellenkastens. Sie hier NACH dem Oeffnen in den Zustand zu schreiben kommt zu spaet -- der Kasten ist
+	// dann schon montiert und hat sie synchron gelesen (der Fehler vom 03.09.2026, Test
+	// meldung-warteschlange-erreicht-den-mount.test.js).
+	openLocationEditDialog({ latlng, meldungQuellen: linkedSources });
 	activeReviewReportId = Number(report.id) || null;
 	activeReviewReportSource = report.report_source || "location_reports";
 	document.getElementById("location-edit-name").value = report.name || "";
 	setLocationEditSize(normalizeLocationType(report.report_subtype || report.size || "dorf"));
-	// report.sources is the full reported list (server-decoded). Sources WITH a link become real
-	// feature_sources on "Anlegen" (multi-source #3, QUELLEN section, like the manual add flow); link-less
-	// sources fall back to "Quelle: X, S. Y" description lines so nothing the reporter typed is lost.
-	const reportSources = Array.isArray(report.sources) ? report.sources : [];
-	const linkedSources = reportSources.filter((source) => source && (source.url || Number(source.source_id) > 0));
-	const linklessSources = reportSources.filter((source) => source && source.label && !source.url && !(Number(source.source_id) > 0));
 	// ⚠️ Auf 1200 gekappt, die Grenze des Feldes und des Servers (avesmapsReadLocationDescription).
 	// Ein programmatisch gesetzter Wert setzt das dirty-value-Flag, und dann macht `maxlength` das
 	// Feld ungueltig: reportValidity() im Speichern-Handler bricht ohne Meldung ab, und der Ort liesse
@@ -21,11 +25,10 @@ function openLocationEditDialogFromReport(report, latlng) {
 		...linklessSources.map((source) => `Quelle: ${source.label}${source.pages ? `, S. ${source.pages}` : ""}`),
 	].filter(Boolean).join("\n\n").slice(0, 1200);
 	document.getElementById("location-edit-wiki-url").value = report.wiki_url || "";
-	// 🔴 Die gemeldeten Quellen (mit Link oder Katalogkennung) gehen in die WARTESCHLANGE des Quellenkastens
-	// (opts.meldung, mountLocationEditFeatureSources): dort stehen sie nacheinander im normalen Formular,
-	// vorausgefuellt aus der Vorbelegung des Servers, und der Editor speichert jede selbst -- nichts wird
-	// mehr still beim Anlegen verknuepft (Entwurf 2026-09-03-quellen-meldeformular §5.4, §6.1).
-	activeReviewReportSourceQueue = linkedSources.slice();
+	// Die gemeldeten Quellen (mit Link oder Katalogkennung) stehen in der WARTESCHLANGE des Quellenkastens
+	// (opts.meldung, mountLocationEditFeatureSources): nacheinander im normalen Formular, vorausgefuellt aus
+	// der Vorbelegung des Servers, und der Editor speichert jede selbst -- nichts wird mehr still beim
+	// Anlegen verknuepft (Entwurf 2026-09-03-quellen-meldeformular §5.4, §6.1).
 }
 
 function openLabelEditDialogFromReport(report, latlng) {
@@ -53,17 +56,19 @@ function openLocationEditDialogFromChangeReport(report) {
 		showFeedbackToast("Der gemeldete Ort wurde nicht gefunden.", "warning");
 		return false;
 	}
-	void editLocationDetails(markerEntry);
+	// Die gemeldeten Quellen in die Warteschlange des Quellenkastens -- der Editor speichert jede selbst im
+	// normalen Formular (Entwurf 2026-09-03-quellen-meldeformular §5.4). 🔴 Sie reisen MIT dem Oeffnen-Aufruf
+	// (siehe openLocationEditDialogFromReport): editLocationDetails(markerEntry) ist nur der Kontextmenue-
+	// Weg ohne Meldung, deshalb hier der Dialog direkt.
+	const changeReportSources = Array.isArray(report.sources) ? report.sources : [];
+	const meldungQuellen = changeReportSources.filter((source) => source && (source.url || Number(source.source_id) > 0));
+	openLocationEditDialog({ markerEntry, meldungQuellen });
 	activeReviewReportId = Number(report.id) || null;
 	activeReviewReportSource = report.report_source || "map_reports";
 	pendingChangeReportMove = null;
-	// Die gemeldeten Quellen in die Warteschlange des Quellenkastens -- der Editor speichert jede selbst im
-	// normalen Formular (Entwurf 2026-09-03-quellen-meldeformular §5.4).
-	const changeReportSources = Array.isArray(report.sources) ? report.sources : [];
-	activeReviewReportSourceQueue = changeReportSources.filter((source) => source && (source.url || Number(source.source_id) > 0));
 	const changed = [];
 	// Red-outline the Quellen section too when the report proposes a source -- the queue shows it there.
-	if (activeReviewReportSourceQueue.length > 0) {
+	if (meldungQuellen.length > 0) {
 		changed.push("location-edit-feature-sources");
 	}
 

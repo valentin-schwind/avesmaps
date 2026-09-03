@@ -422,6 +422,16 @@ zu erwarten; der Test hält es fest (§7).
 13. 💣 **Die Lizenztafel gibt es EINMAL** (`featureSourceLicenseTable`, `feature-source-markup.js`).
     Das Meldeformular baut seine Auswahl daraus, nicht aus einer Kopie — die Falle der doppelten
     Liste, die dieses Haus bei der Seitenkürzung schon bezahlt hat.
+14. 🪤 **Die Warteschlange reist MIT dem Öffnen-Aufruf, nicht über den Zustand danach** (nach dem Bau
+    gefunden, 03.09.2026 abends). `mountLocationEditFeatureSources` läuft beim Öffnen und liest
+    `opts.meldung` SYNCHRON; ein Öffner, der die Warteschlange erst nach `openLocationEditDialog()`
+    in den Modulzustand schreibt, kommt zu spät — der Kasten steht dann leer, die Falte zu, und nichts
+    meldet es. Die alte Vorschlagsgruppe hatte das nur überlebt, weil sie im `.then` NACH der
+    Serverliste gelesen wurde: eine Zusage aus dem Timing. Deshalb `openLocationEditDialog({ …,
+    meldungQuellen })` und die Zuweisung in `populateLocationEditForm` VOR dem Mount; ein Dialog
+    ohne Option bekommt `[]`, damit die Meldung des vorigen Dialogs nicht klebt. Der Ablauf wird
+    AUSGEFÜHRT (`meldung-warteschlange-erreicht-den-mount.test.js`) — der Regex „beide Öffner füllen
+    die Warteschlange“ war grün, während der Kasten leer blieb.
 
 ---
 
