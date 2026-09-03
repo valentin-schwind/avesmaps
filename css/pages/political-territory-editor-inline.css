@@ -2099,6 +2099,10 @@
 	color: var(--color-text-muted);
 	white-space: nowrap;
 }
+/* 💣 `padding: 0` SELBST setzen: in einem Wirt mit Elementregel fuer `button` (der gescopte
+   Territoriumseditor: 8px 11px) wurde aus dem 20-px-Kreis sonst ein 24-px-Kasten, und das ✕ ragte
+   ueber den Rand (Owner-Bild 03.09.2026). Eine Eigenschaft, die die Modulregel nicht nennt, kann sie
+   auch mit Host-ID nicht ueberstimmen. */
 #political-territory-editor-host .fs-row__remove {
 	flex-shrink: 0;
 	display: inline-flex;
@@ -2110,6 +2114,7 @@
 	border-radius: 999px;
 	width: 20px;
 	height: 20px;
+	padding: 0;
 	cursor: pointer;
 	font-size: 12px;
 }
@@ -2134,6 +2139,7 @@
 	border-radius: var(--radius-sm);
 	width: 20px;
 	height: 20px;
+	padding: 0;
 	cursor: pointer;
 	font-size: 12px;
 }
@@ -2988,6 +2994,56 @@
 		grid-column: 1 / -1;
 	}
 	#political-territory-editor-host .fs-col-heads {
+		display: none;
+	}
+}
+
+/* ══ DIE DRITTE STUFE: unter 420px bricht die Zeile um (Owner-Bild 03.09.2026) ══════════════════
+   Die rechte Spalte des Territoriumseditors ist bei 820px Dialogbreite rund 380px breit, der
+   Messkasten darin 324. Die schmale Rastervariante darueber braucht fuer ihre festen Spalten aber
+   104+104+74+22+22 plus 5x8 Abstand = 366px -- das ✕ stand 42px ausserhalb der Zeile.
+   Hier wird die Zeile eine umbrechende Flex-Zeile: der Titel oben, die Marken teilen sich die zweite
+   Zeile (Basis 0, wachsen bis zur eigenen Breite; passt es nicht, wird zuerst die Typ-Pille
+   gekuerzt, nie die Seitenangabe -- Gewichte 1/2/3), ✎ und ✕ fest 20px, rechts und BEISAMMEN.
+   Gemessen im Mockup (docs/quellen-neue-quelle-mockup.html, 324px): fuenf Zeilen zu je 49-50px,
+   Ueberlauf 0, „S. 125, 126, 131" bleibt vollstaendig, die Pille daneben ellipsiert.
+   ⚠️ Die Spaltenausrichtung der Rasterform ist hier nicht mehr zu halten -- und bei dieser Breite
+   auch nicht sichtbar verloren. 💣 Die Eingabezeile (.fs-row--add) bleibt draussen: sie hat ihr
+   eigenes Layout. Test: js/review/__tests__/quellenzeile-schmaler-kasten.test.js. */
+@container fs-liste (max-width: 420px) {
+	#political-territory-editor-host .fs-row:not(.fs-row--add) {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 3px 8px;
+	}
+	#political-territory-editor-host .fs-row__link {
+		flex: 1 1 100%;
+	}
+	#political-territory-editor-host .fs-row--wiki .fs-row__link {
+		flex: 0 1 auto;
+	}
+	#political-territory-editor-host .fs-row__badge, #political-territory-editor-host .fs-row__kind, #political-territory-editor-host .fs-row__pages, #political-territory-editor-host .fs-row__license {
+		flex: 1 1 0;
+		min-width: 0;
+		max-width: max-content;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	#political-territory-editor-host .fs-row__kind {
+		flex-grow: 2;
+	}
+	#political-territory-editor-host .fs-row__pages, #political-territory-editor-host .fs-row__license {
+		flex-grow: 3;
+	}
+	#political-territory-editor-host .fs-row__edit, #political-territory-editor-host .fs-row__remove {
+		flex: 0 0 20px;
+	}
+	#political-territory-editor-host .fs-row__edit, #political-territory-editor-host .fs-row__edit-cell:empty + .fs-row__remove {
+		margin-left: auto;
+	}
+	#political-territory-editor-host .fs-row__badge:empty, #political-territory-editor-host .fs-row__kind:empty, #political-territory-editor-host .fs-row__pages:empty, #political-territory-editor-host .fs-row__license:empty, #political-territory-editor-host .fs-row__edit-cell:empty {
 		display: none;
 	}
 }
