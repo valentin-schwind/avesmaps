@@ -326,7 +326,10 @@ $stelle = static function (string $muster) use ($endpunkt): int {
     return (int) $t[0][1];
 };
 $reihenfolge = $stelle('$features = array_map(');
-$ableitung = $stelle('$featureKanon = avesmapsFeatureSourcesDeriveKanon(');
+// ⚠️ Die Ableitung haengt seit dem 03.09.2026 an der Delta-Weiche (ein since_revision-Abruf traegt
+// keinen Kanon, siehe avesmapsMapFeaturesIstDeltaAbruf). Der Vertrag dieser Zusicherung ist
+// unveraendert -- die Ableitung steht NACH dem Objektbau --, nur die Zeile lautet jetzt anders.
+$ableitung = $stelle('$featureKanon = $mapFeaturesIstDelta ? [] : avesmapsFeatureSourcesDeriveKanon(');
 assert($reihenfolge < $ableitung,
     'die Ableitung muss NACH dem Objektbau stehen -- davor gibt es die angereicherte wiki_url nicht');
 // 💣 UND DIESE ZEILE STAND ZUERST ALS `assert(strpos(…) < $ableitung, …)` DA. Sie konnte damit

@@ -59,6 +59,17 @@ function avesmapsMapFeaturesCacheDir(): string {
     return $dir;
 }
 
+// 🔴 EIN DELTA TRAEGT KEINE GLOBALEN BLOECKE. Der Live-Abgleich des Editors (pollLiveMapUpdates,
+// js/routing/routing.js) liest aus einer since_revision-Antwort NUR `features` und `revision`;
+// Quellenkatalog, Verweise, Korpora, Kanon und Innerorts-Objekte kommen ausschliesslich im Vollabruf
+// an (routing.js, das `.then` der routeDataRequest). Gemessen 03.09.2026: 6,47 MB und 1,13 s fuer
+// null geaenderte Features, alle 15 s nach jeder fremden Speicherung.
+// ⚠️ Nur `since_revision` entscheidet -- eine bbox-Anfrage ist ein gekuerzter VOLLabruf und behaelt
+// alles, was ihre Popups brauchen.
+function avesmapsMapFeaturesIstDeltaAbruf(array $queryParams): bool {
+    return trim((string) ($queryParams['since_revision'] ?? '')) !== '';
+}
+
 /**
  * Darf dieser Abruf ueberhaupt aus dem Vorrat bedient werden?
  *

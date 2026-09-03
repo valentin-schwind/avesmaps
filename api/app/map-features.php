@@ -312,9 +312,12 @@ try {
     // 💣 Dass der zweite Erzeuger sie überhaupt nicht kannte, war am 02.09.2026 live der
     // Fehler: 133 Katalogzeilen trugen ihren Korpus, 290 nicht -- die Anzeige war zu knapp einem
     // Drittel wirksam.
-    $sourceCorpora = avesmapsLoadSourceCorporaForPayload($pdo);
-    $sourceCatalog = avesmapsLoadFeatureSourceCatalog($pdo);
-    $featureSourceRefs = avesmapsLoadFeatureSourceRefs($pdo);
+    // 🔴 Delta-Abrufe (since_revision) tragen keine globalen Bloecke -- siehe
+    // avesmapsMapFeaturesIstDeltaAbruf in api/_internal/app/map-features-cache.php.
+    $mapFeaturesIstDelta = avesmapsMapFeaturesIstDeltaAbruf($_GET);
+    $sourceCorpora = $mapFeaturesIstDelta ? [] : avesmapsLoadSourceCorporaForPayload($pdo);
+    $sourceCatalog = $mapFeaturesIstDelta ? [] : avesmapsLoadFeatureSourceCatalog($pdo);
+    $featureSourceRefs = $mapFeaturesIstDelta ? [] : avesmapsLoadFeatureSourceRefs($pdo);
     $query = avesmapsBuildMapFeaturesQuery($_GET);
     $statement = $pdo->prepare($query['sql']);
     $statement->execute($query['params']);
@@ -348,7 +351,7 @@ try {
     // gemessen am Dump vom 01.09.2026. Owner 02.09.2026.
     // ⚠️ `+` behaelt bei gleichem Schluessel den LINKEN Wert; die beiden Schluesselraeume sind
     // disjunkt (`territory:` gegen settlement/region/path/powerline), es kann also nichts kollidieren.
-    $featureKanon = avesmapsFeatureSourcesDeriveKanon(
+    $featureKanon = $mapFeaturesIstDelta ? [] : avesmapsFeatureSourcesDeriveKanon(
         $sourceCatalog,
         $featureSourceRefs,
         avesmapsMapFeaturesWikiNamespaces($features)
@@ -456,7 +459,7 @@ try {
         // der Routenplaner-Autocomplete schlaegt sie trotzdem vor und setzt die STADT als Ziel.
         // Reist EINMAL mit den Kartendaten statt je Tastendruck abgefragt zu werden -- genau das
         // haelt das Tippen so schnell wie bisher.
-        'in_settlement_places' => avesmapsMapFeaturesInSettlementPlaces($pdo),
+        'in_settlement_places' => $mapFeaturesIstDelta ? [] : avesmapsMapFeaturesInSettlementPlaces($pdo),
         // The seven zone names, north to south, ONCE. A feature carries only the key -- shipping
         // "Winterfeuchte Subtropen" on each of 4.650 places would repeat seven strings 4.650 times.
         // Empty while the layer is unseeded, and then no feature carries a key either.
