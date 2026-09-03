@@ -1134,8 +1134,12 @@
 	// 'Grenzen berechnen' + Layer-Reload erhalten die Derived neue public_ids). Deckt auch
 	// den asynchronen Erst-Load ab und ist robust gegen den cache-fragilen Loader-Hook.
 	// redraw() ist billig (wenige Polygone); gezeichnet wird nur bei tatsächlicher Änderung.
+	// ⚠️ 1 s, nicht 200 ms (bis 03.09.2026): fuenfmal je Sekunde ueber alle regionData, fuer jeden
+	// Besucher in jeder Ansicht, auch in versteckten Tabs. Der Loader ruft redraw() nach jedem Laden
+	// ohnehin selbst; der Poll ist nur das Sicherheitsnetz fuer Wege, die daran vorbeigehen.
 	let lastDerivedSignature = null;
 	window.setInterval(function () {
+		if (document.hidden) { return; }
 		const rd = Array.isArray(window.regionData) ? window.regionData : (typeof regionData !== "undefined" ? regionData : []);
 		let sig = rd.length + "|";
 		for (let i = 0; i < rd.length; i += 1) {
@@ -1143,7 +1147,7 @@
 			if (f && f.properties && f.properties.is_derived_geometry === true) sig += (f.properties.public_id || "") + ",";
 		}
 		if (sig !== lastDerivedSignature) { lastDerivedSignature = sig; redraw(); }
-	}, 200);
+	}, 1000);
 	// Webfont (Faculty Glyphic) kann beim ersten Paint noch nicht geladen sein -> nach dem Laden neu zeichnen,
 	// sonst zeigt das Canvas kurz den Georgia-Fallback.
 	try { if (document.fonts && document.fonts.ready) document.fonts.ready.then(redraw); } catch (e) { /* noop */ }
