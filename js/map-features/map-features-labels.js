@@ -1026,6 +1026,35 @@ function findLabelEntryByPublicId(publicId) {
 	return labelMarkers.find((entry) => entry.label.publicId === publicId) || null;
 }
 
+// MEHRERE Beschriftungen aus einer Serverantwort sofort auf die Karte bringen. `update_region` und
+// `assign_wiki_region` geben seit dem 03.09.2026 die Beschriftungen zurueck, die sie nachgezogen
+// haben (`labels`, in der Form von `update_label`): die Zuweisung der Flaeche geerbt oder -- beim
+// ausdruecklichen Entfernen -- die Kopie genommen. Der Kartenpayload wird nach einem Speichern nicht
+// neu geholt; ohne das staende die Karte bis zum naechsten Live-Abgleich auf dem alten Stand: die
+// Infobox mit dem Artikel, den die Flaeche gerade verloren hat, ein roter Halo, der nicht mehr stimmt.
+//
+// 🔴 UEBER applyLabelFeatureResponse, nicht applyLabelFeatureLocally: die Antwort des Schreibwegs
+// kennt keine Kurve, und nur jener Weg behaelt eine vorhandene (die Falle vom 23.08.2026, „kommt
+// wieder das waagrechte, alte label"). ⚠️ Unbekannte Kennungen werden uebersprungen, nicht angelegt:
+// was hier ankommt, ist eine Aenderung an etwas, das der Client schon kennt. Gibt zurueck, wie viele
+// angewandt wurden.
+function applyLabelFeaturesLocally(features) {
+	if (!Array.isArray(features)) {
+		return 0;
+	}
+	let angewandt = 0;
+	features.forEach((feature) => {
+		const publicId = String(feature?.properties?.public_id || feature?.id || feature?.public_id || "");
+		const entry = publicId ? findLabelEntryByPublicId(publicId) : null;
+		if (!entry) {
+			return;
+		}
+		applyLabelFeatureResponse(entry, feature);
+		angewandt++;
+	});
+	return angewandt;
+}
+
 // Die Beschriftung einer LANDSCHAFTSFLÄCHE, gesucht über den Regionsschlüssel statt über die eigene
 // Kennung. Das ist der Weg, den ein Landschaftsname im Routenplaner braucht: er kennt die Region
 // (`ecosystem_region.public_id` aus path-landscapes.php), und was auf der Karte steht und anklickbar

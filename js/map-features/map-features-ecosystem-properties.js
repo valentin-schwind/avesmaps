@@ -1932,17 +1932,25 @@
 		const nextNodix = nodixBox && !nodixBox.disabled ? Boolean(nodixBox.checked) : Boolean(label.isNodix);
 		const nextSubtype = String(propertiesElement("type")?.value || "") || label.labelType || "region";
 
-		// 🔴 Die Wiki-Landschaft wandert NUR abwärts. Hat die Region eine, bekommt das Label sie -- es
+		// 🔴 Die Wiki-Landschaft wandert abwärts. Hat die Region eine, bekommt das Label sie -- es
 		// beschreibt dieselbe Landschaft, und zwei Zuweisungen für dasselbe Ding driften auseinander.
-		// 💣 Hat die Region KEINE, bleibt das Label unangetastet. Andersherum löschte jedes Speichern
-		// einer wiki-losen Region genau die Zuweisung, die V6c „Label zuweisen" von Hand gesetzt hat.
+		// 💣 Hat die Region KEINE, bleibt das Label unangetastet -- AUSSER die Zuweisung wurde in
+		// DIESEM Speichern ausdrücklich entfernt (`pendingWikiRegion === null`, Owner 03.09.2026): dann
+		// verliert das Label seine Kopie. Der Server hat sie im selben `update_region` schon genommen
+		// und die Antwort ist oben angewandt; der Rumpf hier steht trotzdem ausdrücklich, damit der
+		// Zustand nicht davon abhängt, ob die Antwort das Label erreicht hat. Andersherum -- „die
+		// Region hat keine" als Löschbefehl -- nähme jedes Speichern einer wiki-losen Region die
+		// Zuweisung zurück, die V6c „Label zuweisen" von Hand gesetzt hat.
 		const regionWikiKey = String(effectiveWikiRegion()?.wiki_key || "").trim();
-		const wikiNeedsPush = regionWikiKey !== "" && regionWikiKey !== String(label.wikiRegion?.wiki_key || "");
+		const labelWikiKey = String(label.wikiRegion?.wiki_key || "");
+		const wikiNeedsPush = regionWikiKey !== "" && regionWikiKey !== labelWikiKey;
+		const wikiEntfernt = pendingWikiRegion === null && labelWikiKey !== "";
 
 		if (String(label.text || "") === String(name)
 			&& showName === (label.showName !== false)
 			&& nextNodix === Boolean(label.isNodix)
 			&& !wikiNeedsPush
+			&& !wikiEntfernt
 			&& nextSubtype === String(label.labelType || "")) {
 			return;                                  // Name, Anzeige, Nodix, Wiki und Art unverändert
 		}
@@ -1970,8 +1978,9 @@
 				priority: Number(label.priority) || 3,
 				is_nodix: nextNodix,
 				// Nur wenn die Region wirklich eine trägt (siehe wikiNeedsPush) -- ein leeres wiki_region
-				// würde die Zuweisung des Labels löschen statt sie zu erben.
-				...(wikiSnapshot ? { wiki_region: wikiSnapshot } : {}),
+				// würde die Zuweisung des Labels löschen statt sie zu erben. Ausdrücklich `null` NUR beim
+				// ausdrücklichen Entfernen (wikiEntfernt); ein fehlender Schlüssel heisst „nicht geändert".
+				...(wikiSnapshot ? { wiki_region: wikiSnapshot } : (wikiEntfernt ? { wiki_region: null } : {})),
 				lat: entry.marker?.getLatLng?.().lat,
 				lng: entry.marker?.getLatLng?.().lng,
 			});
@@ -2082,6 +2091,15 @@
 
 		try {
 			const antwort = await postEcosystemEdit("update_region", payload);
+			// 🔴 DIE BESCHRIFTUNGEN, DIE DER SERVER NACHGEZOGEN HAT, SOFORT AUF DIE KARTE (Owner
+			// 03.09.2026, „Lawaralîr"/„Cronwald"): die Zuweisung geerbt oder -- beim ausdruecklichen
+			// Entfernen -- die Kopie genommen, fuer ALLE Beschriftungen der Flaeche. In der Form von
+			// `update_label`, mit demselben Leser; der Kartenpayload wird nach einem Speichern nicht neu
+			// geholt, und ohne das zeigte die Infobox weiter den Artikel, den die Flaeche gerade verloren
+			// hat. VOR renameLinkedEcosystemLabel, damit das den frischen Stand liest.
+			if (typeof applyLabelFeaturesLocally === "function") {
+				applyLabelFeaturesLocally(antwort?.labels);
+			}
 			// Dieselbe Sofort-Anwendung wie im Beschriftungsdialog (map-features-ecosystem-label-writeback.js):
 			// der Kartenpayload wird nach einem Speichern nicht neu geholt, ohne das aendert sich am Bild
 			// nichts.

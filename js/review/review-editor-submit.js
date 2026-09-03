@@ -256,7 +256,13 @@ async function handleLabelEditFormSubmit(event) {
 		// keine Fläche, an die es etwas zurückzugeben hätte.
 		if (payload.action === "update_label" && savedLabelEntry?.label
 			&& typeof ecosystemPushLabelChangesToRegion === "function") {
-			void ecosystemPushLabelChangesToRegion(savedLabelEntry.label);
+			void ecosystemPushLabelChangesToRegion(savedLabelEntry.label, {
+				// 🔴 Ob die Zuweisung in DIESEM Speichern angefasst wurde, weiss nur der Rumpf: der
+				// Schlüssel steht genau dann drin (buildLabelEditPayload). Aus dem gespeicherten Stand
+				// lässt sich das nicht mehr ablesen -- „kein Nest" sieht nach dem Entfernen genauso aus
+				// wie „nie eines gehabt".
+				wikiGeaendert: Object.prototype.hasOwnProperty.call(payload, "wiki_region"),
+			});
 		}
 		void loadChangeLog();
 		if (payload.action === "create_label" && activeReviewReportId) {

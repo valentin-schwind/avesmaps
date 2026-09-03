@@ -297,6 +297,12 @@ async function submitEcosystemAssignDialog(event) {
 			confirm: "apply",
 		});
 		closeEcosystemAssignDialog();
+		// Die Beschriftungen, die der Server nachgezogen hat (geerbt oder -- bei leerer Adresse -- die
+		// Kopie genommen), sofort auf die Karte: der Kartenpayload wird nach einem Schreibvorgang nicht
+		// neu geholt (03.09.2026). Gewacht, damit diese Datei ohne den Karteneditor lauffaehig bleibt.
+		if (typeof applyLabelFeaturesLocally === "function") {
+			applyLabelFeaturesLocally(result?.labels);
+		}
 		await loadEcosystemRegionsByWikiKey();
 		if (typeof renderRegionSyncList === "function") {
 			renderRegionSyncList();

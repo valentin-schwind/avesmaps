@@ -2539,6 +2539,7 @@ function avesmapsAssignEcosystemWikiRegion(PDO $pdo, array $payload, int $userId
 
     $assigned = 0;
     $labelDurchtrag = 0;
+    $labelFeatures = [];
     $pdo->beginTransaction();
     try {
         $update = $pdo->prepare(
@@ -2567,14 +2568,16 @@ function avesmapsAssignEcosystemWikiRegion(PDO $pdo, array $payload, int $userId
             // Transaktion, sonst stuende die Flaeche zugewiesen da und ihr Name weiter rot.
             // ⚠️ Nur wenn wirklich etwas fehlt: der Durchtrag schreibt nur abweichende Zeilen und
             // bumpt map_revision nur dann (siehe avesmapsEcosystemPushWikiRegionToLabels).
-            $labelDurchtrag += avesmapsEcosystemPushWikiRegionToLabels(
-                $pdo,
-                (string) $publicId,
-                ($before['label_public_id'] ?? null) === null ? null : (string) $before['label_public_id'],
-                $wikiKey,
-                $wikiUrl,
-                $userId
-            )['applied'];
+            // 🔴 Und die LEERE Adresse (die Ruecknahme, siehe Kopf) nimmt ihnen die Kopie (Owner
+            // 03.09.2026). 🪤 Bis dahin lief dieser Zweig mit `$wikiKey = null` in den Durchtrag und
+            // brach dort unter strict_types mit einem TypeError ab -- der Panel-Weg „Zuweisung
+            // entfernen" antwortete also mit einem 500, nachdem die Flaeche schon geschrieben war.
+            $primaerLabel = ($before['label_public_id'] ?? null) === null ? null : (string) $before['label_public_id'];
+            $durchtrag = $wikiKey === null
+                ? avesmapsEcosystemClearWikiRegionFromLabels($pdo, (string) $publicId, $primaerLabel, $userId)
+                : avesmapsEcosystemPushWikiRegionToLabels($pdo, (string) $publicId, $primaerLabel, $wikiKey, $wikiUrl, $userId);
+            $labelDurchtrag += $durchtrag['applied'];
+            $labelFeatures = array_merge($labelFeatures, $durchtrag['features']);
             $assigned++;
         }
         $revision = avesmapsNextEcosystemRevision($pdo);
@@ -2588,6 +2591,8 @@ function avesmapsAssignEcosystemWikiRegion(PDO $pdo, array $payload, int $userId
         'dry_run' => false,
         'assigned' => $assigned,
         'labels_assigned' => $labelDurchtrag,
+        // Die nachgezogenen Beschriftungen selbst, in der Form von `update_label` -- siehe update_region.
+        'labels' => $labelFeatures,
         'wiki_region_key' => $wikiKey,
         'regions' => $preview,
         'revision' => $revision,
@@ -3168,6 +3173,7 @@ function avesmapsUpdateEcosystemRegion(PDO $pdo, array $payload, int $userId): a
         );
 
         $after = avesmapsEcosystemRegionRow($pdo, $publicId);
+        $primaerLabel = ($after['label_public_id'] ?? null) === null ? null : (string) $after['label_public_id'];
         // 🔴 DIE BESCHRIFTUNGEN ERBEN DIE WIKI-LANDSCHAFT DER FLAECHE (Owner 01.09.2026).
         //
         // ⭐ GELESEN WIRD DER GESPEICHERTE STAND, nicht der Rumpf: `$after` sagt, was wirklich in der
@@ -3176,14 +3182,21 @@ function avesmapsUpdateEcosystemRegion(PDO $pdo, array $payload, int $userId): a
         // ein Rumpf ohne `wiki_url` (der Normalfall beim blossen Umbenennen) nimmt nichts zurueck.
         // ⚠️ Der Durchtrag steigt sofort aus, wenn die Region keinen Schluessel hat -- der LIKE-Scan
         // ueber die Label-Zeilen faellt also nur an, wo es wirklich etwas zu erben gibt.
-        avesmapsEcosystemPushWikiRegionToLabels(
-            $pdo,
-            $publicId,
-            ($after['label_public_id'] ?? null) === null ? null : (string) $after['label_public_id'],
-            (string) ($after['wiki_region_key'] ?? ''),
-            (string) ($after['wiki_url'] ?? ''),
-            $userId
-        );
+        //
+        // 🔴 UND EIN AUSDRUECKLICHES ENTFERNEN WANDERT MIT (Owner 03.09.2026, „Lawaralîr"/„Cronwald"):
+        // nennt der Rumpf `wiki_url` und meint es leer, verlieren die Beschriftungen ihre Kopie --
+        // sonst zeigt die Infobox weiter den Artikel, den die Flaeche gerade verloren hat. Die Weiche
+        // ist die geteilte (avesmapsEcosystemWikiAusdruecklichEntfernt), keine eigene Lesart des Rumpfs.
+        $labelDurchtrag = avesmapsEcosystemWikiAusdruecklichEntfernt($fields)
+            ? avesmapsEcosystemClearWikiRegionFromLabels($pdo, $publicId, $primaerLabel, $userId)
+            : avesmapsEcosystemPushWikiRegionToLabels(
+                $pdo,
+                $publicId,
+                $primaerLabel,
+                (string) ($after['wiki_region_key'] ?? ''),
+                (string) ($after['wiki_url'] ?? ''),
+                $userId
+            );
         // 🔴 UND DIE ART, aus demselben Grund und mit derselben Quelle (`$after`): der
         // Landschaften-Editor ändert sie über genau diese Aktion und zieht das Label nicht nach --
         // er ist der Erzeuger, der die 31 falsch typisierten Beschriftungen angesammelt hat.
@@ -3245,7 +3258,10 @@ function avesmapsUpdateEcosystemRegion(PDO $pdo, array $payload, int $userId): a
         }
     }
 
-    return ['region' => avesmapsEcosystemRegionSnapshot($after), 'revision' => $revision]
+    // 🔴 `labels`: die Beschriftungen, die dieses Speichern nachgezogen hat (Durchtrag ODER Ruecknahme),
+    // in der Form von `update_label` -- der Browser wendet sie sofort an (applyLabelFeaturesLocally).
+    // Leer, wenn nichts geschrieben wurde; dann zeichnet er auch nichts neu.
+    return ['region' => avesmapsEcosystemRegionSnapshot($after), 'revision' => $revision, 'labels' => $labelDurchtrag['features']]
         + avesmapsCurveAntwortAnteil($kurve);
 }
 
@@ -3518,7 +3534,8 @@ function avesmapsEcosystemWikiRegionAssignObject(PDO $pdo, string $wikiKey, stri
 // Fläche und leerer Beschriftung; bei 7 davon lag die Zuweisung auf einem zweiten, gleichnamigen
 // Label ohne Fläche. Owner-Entscheid: die Beschriftung erbt.
 //
-// 💣 NUR ABWÄRTS, UND NIE LÖSCHEND. Hat die Region keinen Schlüssel, bleibt die Beschriftung
+// 💣 NUR ABWÄRTS, UND NIE LÖSCHEND -- ⚠️ das AUSDRÜCKLICHE Entfernen geht seit dem 03.09.2026 seinen
+// eigenen Weg (avesmapsEcosystemClearWikiRegionFromLabels, darunter). Hat die Region keinen Schlüssel, bleibt die Beschriftung
 // unangetastet -- andersherum nähme jedes Speichern einer wiki-losen Region still die Zuweisung
 // zurück, die „Label zuweisen" (V6c) von Hand gesetzt hat. Wörtlich dieselbe Regel wie im
 // clientseitigen Durchtrag (`renameLinkedEcosystemLabel`, map-features-ecosystem-properties.js);
@@ -3551,7 +3568,7 @@ function avesmapsEcosystemPushWikiRegionToLabels(
 ): array {
     $wikiKey = trim($wikiKey);
     $regionPublicId = trim($regionPublicId);
-    $leer = ['labels' => 0, 'applied' => 0, 'revision' => null];
+    $leer = ['labels' => 0, 'applied' => 0, 'revision' => null, 'features' => []];
     if ($wikiKey === '' || $regionPublicId === '') {
         return $leer;
     }
@@ -3576,6 +3593,7 @@ function avesmapsEcosystemPushWikiRegionToLabels(
     $assignObject = null;
     $revision = null;
     $applied = 0;
+    $features = [];
     foreach ($rows as $row) {
         $properties = json_decode((string) ($row['properties_json'] ?? ''), true);
         $properties = is_array($properties) ? $properties : [];
@@ -3592,8 +3610,9 @@ function avesmapsEcosystemPushWikiRegionToLabels(
         $properties['wiki_region'] = $assignObject;
         unset($properties['wiki_no_article']);
         $encoded = json_encode($properties, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        $propertiesJson = $encoded === false ? (string) $row['properties_json'] : $encoded;
         $update->execute([
-            'properties_json' => $encoded === false ? (string) $row['properties_json'] : $encoded,
+            'properties_json' => $propertiesJson,
             'revision' => $revision,
             'updated_by' => $userId > 0 ? $userId : null,
             'id' => (int) $row['id'],
@@ -3606,15 +3625,143 @@ function avesmapsEcosystemPushWikiRegionToLabels(
             avesmapsEncodeAuditJson($row),
             avesmapsEncodeAuditJson([
                 'public_id' => (string) $row['public_id'],
-                'properties_json' => $encoded === false ? (string) $row['properties_json'] : $encoded,
+                'properties_json' => $propertiesJson,
                 'revision' => $revision,
                 'reason' => 'ecosystem_wiki_region_push',
             ])
         );
+        $features[] = avesmapsEcosystemLabelFeatureNachSchreiben($row, $propertiesJson, $revision);
         $applied++;
     }
 
-    return ['labels' => count($rows), 'applied' => $applied, 'revision' => $revision];
+    return ['labels' => count($rows), 'applied' => $applied, 'revision' => $revision, 'features' => $features];
+}
+
+// DIE GEGENRICHTUNG DES DURCHTRAGS: ein AUSDRUECKLICHES Entfernen an der Flaeche nimmt die Kopie an
+// ihren Beschriftungen mit (Owner 03.09.2026).
+//
+// 🔴 DER BEFUND, am Bild: „Lawaralîr" sollte vom Wiki geloest und in „Cronwald" umbenannt werden. Die
+// Flaeche verlor ihre Zuweisung, die Beschriftung behielt ihr Nest -- und weil die Infobox aus GENAU
+// diesem Nest liest (labelWikiInfoboxMarkup, map-features-labels.js), standen dort weiter Lage,
+// Staat und Beschreibung des alten Artikels; der Beschriftungsdialog bot an, den Namen auf
+// „Lawaralîr" zurueckzuholen. Je nachdem, ob man Flaeche oder Beschriftung anklickte, war die
+// Landschaft geloest oder nicht. Drei Durchtrag-Wege gab es, und alle drei waren als „nie loeschend"
+// gebaut -- ein Entfernen erreichte die andere Seite deshalb auf keinem davon.
+//
+// 💣 „NIE LOESCHEND" BLEIBT FUER DEN RUMPF OHNE `wiki_url` -- und nur dafuer. Der Durchtrag darueber
+// steigt bei leerem Schluessel weiter aus, damit ein blosses Umbenennen die von Hand gesetzte
+// Zuweisung einer Beschriftung nicht loescht. Was HIER wandert, ist die AUSDRUECKLICHE Ruecknahme:
+// der Rumpf NENNT `wiki_url` und meint es leer (avesmapsEcosystemWikiAusdruecklichEntfernt). Die zwei
+// Faelle auseinanderzuhalten ist der ganze Inhalt dieser Funktion; wer sie zusammenzieht, baut
+// entweder die Luecke von oben oder die Loeschung bei jedem Speichern.
+//
+// 💣 GELOESCHT WIRD NUR, WO ETWAS STEHT, und der Merker `wiki_no_article` bleibt unangetastet:
+// „entfernt" heisst „nicht zugewiesen", nicht „es gibt keinen Artikel" -- das ist der dritte
+// Zustand, eine eigene Aussage, die nur ein Mensch trifft.
+//
+// Revision, Protokoll und Feature-Rueckgabe wie beim Durchtrag: EINE map_revision je Lauf, eine
+// `update_label`-Protokollzeile je Beschriftung (Grund `ecosystem_wiki_region_clear`, damit der
+// Aenderungslog sie wie jedes andere update_label zuruecknehmen kann), und die geschriebene
+// Beschriftung reist als Feature zurueck, damit der Browser sie sofort zeigt.
+function avesmapsEcosystemClearWikiRegionFromLabels(
+    PDO $pdo,
+    string $regionPublicId,
+    ?string $primaryLabelPublicId,
+    int $userId
+): array {
+    $regionPublicId = trim($regionPublicId);
+    $leer = ['labels' => 0, 'applied' => 0, 'revision' => null, 'features' => []];
+    if ($regionPublicId === '') {
+        return $leer;
+    }
+
+    $labelPublicIds = avesmapsEcosystemRegionLabelPublicIds($pdo, $regionPublicId, $primaryLabelPublicId);
+    if ($labelPublicIds === []) {
+        return $leer;
+    }
+
+    $placeholders = implode(', ', array_fill(0, count($labelPublicIds), '?'));
+    $read = $pdo->prepare(
+        "SELECT * FROM map_features
+          WHERE public_id IN ({$placeholders}) AND feature_type = 'label' AND is_active = 1"
+    );
+    $read->execute(array_values($labelPublicIds));
+    $rows = $read->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+    $update = $pdo->prepare(
+        'UPDATE map_features SET properties_json = :properties_json, revision = :revision, updated_by = :updated_by
+          WHERE id = :id'
+    );
+    $revision = null;
+    $applied = 0;
+    $features = [];
+    foreach ($rows as $row) {
+        $properties = json_decode((string) ($row['properties_json'] ?? ''), true);
+        $properties = is_array($properties) ? $properties : [];
+        if (!array_key_exists('wiki_region', $properties)) {
+            continue;
+        }
+
+        $revision ??= avesmapsNextMapRevision($pdo);
+        unset($properties['wiki_region']);
+        $encoded = json_encode($properties, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        $propertiesJson = $encoded === false ? (string) $row['properties_json'] : $encoded;
+        $update->execute([
+            'properties_json' => $propertiesJson,
+            'revision' => $revision,
+            'updated_by' => $userId > 0 ? $userId : null,
+            'id' => (int) $row['id'],
+        ]);
+        avesmapsWriteMapAuditLog(
+            $pdo,
+            (int) $row['id'],
+            'update_label',
+            $userId,
+            avesmapsEncodeAuditJson($row),
+            avesmapsEncodeAuditJson([
+                'public_id' => (string) $row['public_id'],
+                'properties_json' => $propertiesJson,
+                'revision' => $revision,
+                'reason' => 'ecosystem_wiki_region_clear',
+            ])
+        );
+        $features[] = avesmapsEcosystemLabelFeatureNachSchreiben($row, $propertiesJson, $revision);
+        $applied++;
+    }
+
+    return ['labels' => count($rows), 'applied' => $applied, 'revision' => $revision, 'features' => $features];
+}
+
+// REIN: hat dieser Rumpf die Zuweisung AUSDRUECKLICH entfernt? Nur dann wandert das Entfernen an die
+// Beschriftungen. `$fields` ist das Ergebnis von avesmapsEcosystemReadRegionFields -- dort steht
+// `wiki_url` genau dann, wenn der Rumpf es genannt hat, und `wiki_region_key` ist daraus abgeleitet.
+// ⚠️ Ein Rumpf OHNE `wiki_url` (blosses Umbenennen) sagt ueber die Zuweisung nichts und nimmt nichts
+// zurueck; ein Rumpf MIT Adresse ist eine Zuweisung, kein Entfernen. Beide Lesarten stehen HIER, in
+// einer Funktion, damit kein Schreibweg sich eine eigene baut.
+function avesmapsEcosystemWikiAusdruecklichEntfernt(array $fields): bool
+{
+    return array_key_exists('wiki_url', $fields)
+        && trim((string) ($fields['wiki_region_key'] ?? '')) === '';
+}
+
+// Das FEATURE einer soeben geschriebenen Beschriftung, in der Form, die `update_label` selbst
+// zurueckgibt -- damit der Browser sie mit demselben Leser (applyLabelFeaturesLocally,
+// map-features-labels.js) sofort auf die Karte bringt, statt bis zum naechsten Live-Abgleich den
+// alten Stand zu zeigen: den Artikel, den die Flaeche gerade verloren hat, samt rotem Halo.
+//
+// 🔴 DERSELBE BAUER WIE BEIM SCHREIBWEG DER LABELS (avesmapsBuildFeatureResponseFromStoredFeature,
+// api/_internal/map/features.php). Eine eigene Form hier waere die zweite Wahrheit ueber ein
+// Label-Feature (AGENTS.md §5) -- und der Browser hat genau EINEN Leser dafuer.
+// ⚠️ Die Funktion wird vom Aufrufer geladen, genau wie avesmapsNextMapRevision und
+// avesmapsWriteMapAuditLog daneben: jeder Schreib-Endpunkt dieser Bibliothek laedt features.php
+// zuerst (api/edit/map/ecosystem.php, garetien-uebernahme.php); die Tests tragen ein Doppel.
+function avesmapsEcosystemLabelFeatureNachSchreiben(array $row, string $propertiesJson, int $revision): array
+{
+    $nachher = $row;
+    $nachher['properties_json'] = $propertiesJson;
+    $nachher['revision'] = $revision;
+
+    return avesmapsBuildFeatureResponseFromStoredFeature($nachher);
 }
 
 // DER BESTANDSLAUF zum Durchtrag darüber: was schon offen liegt, nachziehen.

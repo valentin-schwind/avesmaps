@@ -78,31 +78,72 @@ assert.deepStrictEqual(
 );
 
 // ------------------------------------------------------------------------ WIKI-LANDSCHAFT ---
+// 🔴 SEIT 03.09.2026 NUR, WENN DIE ZUWEISUNG IN DIESEM SPEICHERN ANGEFASST WURDE (`wikiGeaendert`) --
+// und dann in BEIDE Richtungen. Bis dahin wanderte die Adresse bei JEDEM Speichern hoch, sobald das
+// Label eine trug, und nie herunter: im vereinigten Fenster schickt „Speichern" beide Formulare ab,
+// die Fläche nahm die Zuweisung zurück, der Beschriftungs-Rumpf brachte sein geladenes Nest mit und
+// dieser Weg trug es wieder an die Fläche. Das war „Lawaralîr"/„Cronwald".
+const geaendert = { wikiGeaendert: true };
 assert.deepStrictEqual(
+	ecosystemRegionWriteBackPayload(
+		{ text: "Farindel", labelType: "wald", wikiRegion: { wiki_url: "https://de.wiki-aventurica.de/wiki/Farindelwald" } },
+		region,
+		vokabular,
+		geaendert
+	),
+	{ public_id: "r1", wiki_url: "https://de.wiki-aventurica.de/wiki/Farindelwald" }
+);
+
+// 💣 OHNE das Signal sagt eine Zuweisung am Label NICHTS über die Fläche -- weder eine vorhandene noch
+// eine fehlende. Die Lücke „Label hat, Fläche nicht" heilt der Server abwärts bei jedem Speichern der
+// Fläche; hier hochzuheilen war der Weg, auf dem eine gerade entfernte Zuweisung zurückkam.
+assert.strictEqual(
 	ecosystemRegionWriteBackPayload(
 		{ text: "Farindel", labelType: "wald", wikiRegion: { wiki_url: "https://de.wiki-aventurica.de/wiki/Farindelwald" } },
 		region,
 		vokabular
 	),
-	{ public_id: "r1", wiki_url: "https://de.wiki-aventurica.de/wiki/Farindelwald" }
+	null,
+	"unangefasst wandert nichts hoch"
 );
-
-// 💣 EIN LEERES WIKI LÖSCHT DIE ZUWEISUNG DER REGION NICHT. Die Abwärtsregel hat dieselbe Klausel und
-// aus demselben Grund: sonst löschte jedes Speichern eines wiki-losen Labels genau die Zuweisung, die
-// jemand von Hand an der Fläche gesetzt hat.
 assert.strictEqual(
 	ecosystemRegionWriteBackPayload({ text: "Farindel", labelType: "wald", wikiRegion: null }, region, vokabular),
+	null,
+	"und unangefasst nimmt ein leeres Label der Fläche nichts weg"
+);
+
+// 🔴 DAS ENTFERNEN WANDERT MIT: angefasst und leer heisst „Fläche, gib deine auch her" -- die leere
+// Adresse ist beim Server die Rücknahme (avesmapsEcosystemReadRegionFields), und er nimmt daraufhin
+// auch den Geschwister-Beschriftungen ihre Kopie (avesmapsEcosystemClearWikiRegionFromLabels).
+assert.deepStrictEqual(
+	ecosystemRegionWriteBackPayload({ text: "Farindel", labelType: "wald", wikiRegion: null }, region, vokabular, geaendert),
+	{ public_id: "r1", wiki_url: "" }
+);
+assert.deepStrictEqual(
+	ecosystemRegionWriteBackPayload({ text: "Farindel", labelType: "wald", wikiRegion: { wiki_url: "  " } }, region, vokabular, geaendert),
+	{ public_id: "r1", wiki_url: "" }
+);
+// Hat die Fläche ohnehin keine, gibt es nichts zurückzunehmen -- kein Rumpf, kein Revisionssprung.
+assert.strictEqual(
+	ecosystemRegionWriteBackPayload({ text: "Farindel", labelType: "wald", wikiRegion: null }, { ...region, wiki_url: null }, vokabular, geaendert),
 	null
 );
+// Und dieselbe Adresse noch einmal ist keine Änderung.
 assert.strictEqual(
-	ecosystemRegionWriteBackPayload({ text: "Farindel", labelType: "wald", wikiRegion: { wiki_url: "  " } }, region, vokabular),
+	ecosystemRegionWriteBackPayload({ text: "Farindel", labelType: "wald", wikiRegion: { wiki_url: region.wiki_url } }, region, vokabular, geaendert),
 	null
 );
 
 // 🔴 Es reist die URL, NICHT der Schlüssel -- wiki_region_key leitet der Server aus wiki_url ab
-// (AGENTS.md §5). Ein Label, das nur einen Schlüssel trägt, schickt nichts.
+// (AGENTS.md §5). Ein Label, das nur einen Schlüssel trägt, hat keine Adresse -- und angefasst heisst
+// das: es ist leer, die Fläche verliert ihre.
+assert.deepStrictEqual(
+	ecosystemRegionWriteBackPayload({ text: "Farindel", labelType: "wald", wikiRegion: { wiki_key: "farindel" } }, region, vokabular, geaendert),
+	{ public_id: "r1", wiki_url: "" }
+);
+// ⚠️ Nur `true` zählt -- ein durchgereichter Wahrheitswert-Ersatz ("1", {}) ist kein Signal.
 assert.strictEqual(
-	ecosystemRegionWriteBackPayload({ text: "Farindel", labelType: "wald", wikiRegion: { wiki_key: "farindel" } }, region, vokabular),
+	ecosystemRegionWriteBackPayload({ text: "Farindel", labelType: "wald", wikiRegion: null }, region, vokabular, { wikiGeaendert: "1" }),
 	null
 );
 
@@ -123,7 +164,8 @@ assert.deepStrictEqual(
 	ecosystemRegionWriteBackPayload(
 		{ text: "Steppe des Todes", labelType: "steppe", wikiRegion: { wiki_url: "https://x/y" } },
 		region,
-		vokabular
+		vokabular,
+		{ wikiGeaendert: true }
 	),
 	{ public_id: "r1", name: "Steppe des Todes", region_type: "steppe", wiki_url: "https://x/y" }
 );

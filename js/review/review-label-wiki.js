@@ -135,6 +135,27 @@ function getLabelWikiRegionPayload() {
 }
 
 /**
+ * Wurde die Zuweisung seit dem Laden ANGEFASST -- zugewiesen, gewechselt, gelöst, per Sync
+ * aufgefrischt? Nur dann reist `wiki_region` im Speicher-Rumpf mit (buildLabelEditPayload); ein
+ * fehlender Schlüssel heisst bei `update_label` „nicht geändert".
+ *
+ * 🔴 WARUM ES DAS GIBT (Owner 03.09.2026, „Lawaralîr"/„Cronwald"): das vereinigte Fenster schickt
+ * BEIDE Formulare ab, und der Kasten der Beschriftung ist verborgen, sobald eine Fläche da ist („es
+ * gewinnt die Fläche", avesmapsLandschaftDialogWikiKasten). Ihr Formular schickte trotzdem das
+ * GELADENE Nest mit -- und schrieb damit zurück, was die Fläche im selben Speichern gerade entfernt
+ * hatte. Die Infobox zeigte danach weiter Lage, Staat und Beschreibung des alten Artikels.
+ *
+ * 💣 VERGLICHEN WIRD DER INHALT, nicht der Schlüssel: „Sync übernehmen" baut das Nest aus dem
+ * frischen Schnappschuss neu (labelWikiAssignSyncUebernehmen) -- derselbe Schlüssel, andere Werte,
+ * und genau die soll die Infobox bekommen. ⚠️ Der geladene Stand wird an denselben Stellen gesetzt
+ * wie `currentLabelWikiRegion` selbst (setLabelWikiRegion); „Abbrechen" im Kasten stellt ihn wieder
+ * her, und dann ist hier auch nichts mehr geändert.
+ */
+function getLabelWikiRegionGeaendert() {
+	return JSON.stringify(currentLabelWikiRegion || null) !== JSON.stringify(labelWikiRegionGeladen || null);
+}
+
+/**
  * 🔴 DER DRITTE ZUSTAND, und er reist NUR MIT, WENN DAS HÄKCHEN SEIT DEM LADEN UMGELEGT WURDE
  * (Owner-Entscheid 16.08.2026, anstelle eines `expected_revision`). `null` heisst „nicht schicken";
  * `update_label` liest einen FEHLENDEN Schlüssel als „nicht geändert"
@@ -450,6 +471,7 @@ window.setLabelWikiRegion = setLabelWikiRegion;
 window.getLabelWikiUebernommenPayload = getLabelWikiUebernommenPayload;
 window.resetLabelWikiState = resetLabelWikiState;
 window.getLabelWikiRegionPayload = getLabelWikiRegionPayload;
+window.getLabelWikiRegionGeaendert = getLabelWikiRegionGeaendert;
 window.getLabelWikiNoArticlePayload = getLabelWikiNoArticlePayload;
 window.labelWikiRegionFromRow = labelWikiRegionFromRow;
 window.assignLabelWikiRegionToForm = assignLabelWikiRegionToForm;

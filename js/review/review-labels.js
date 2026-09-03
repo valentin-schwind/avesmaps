@@ -1047,7 +1047,6 @@ function buildLabelEditPayload(formElement) {
 		max_zoom: Number.parseInt(String(formData.get("max_zoom") || "5"), 10),
 		priority: Number.parseInt(String(formData.get("priority") || "3"), 10),
 		is_nodix: formData.get("is_nodix") === "on",
-		wiki_region: typeof getLabelWikiRegionPayload === "function" ? getLabelWikiRegionPayload() : null,
 		// 🔴 Die Merkliste reist IMMER mit, auch leer: eine leere Liste ist dasselbe wie ein fehlender
 		// Schlüssel („nichts kam aus dem Wiki, also alles von uns"), und das ist die sichere Richtung.
 		// ⚠️ Kein Rückfall auf `[]`, wenn die Funktion fehlt -- dann sagt dieses Speichern gar nichts,
@@ -1059,6 +1058,20 @@ function buildLabelEditPayload(formElement) {
 		// wenn der Schlüssel mitkommt -- deshalb ist Mitschicken hier sicher und Weglassen wäre es auch.
 		other_source: typeof readOtherSourceFromForm === "function" ? readOtherSourceFromForm("label-edit") : { url: "", label: "" },
 	};
+
+	// 🔴 DIE WIKI-ZUWEISUNG REIST NUR MIT, WENN SIE SEIT DEM LADEN ANGEFASST WURDE -- oder beim Anlegen,
+	// wo es keinen geladenen Stand gibt. `update_label` liest einen FEHLENDEN Schlüssel als „nicht
+	// geändert" (dieselbe Regel wie bei `wiki_no_article` darunter).
+	// 💣 Bis zum 03.09.2026 stand sie in JEDEM Rumpf. Im vereinigten Fenster ist der Kasten der
+	// Beschriftung verborgen, sobald eine Fläche da ist („es gewinnt die Fläche") -- ihr Formular
+	// schickte trotzdem das GELADENE Nest mit und schrieb damit zurück, was die Fläche im selben
+	// Speichern gerade entfernt hatte. Das war „Lawaralîr"/„Cronwald" (Owner 03.09.2026).
+	// ⚠️ Fehlt der Leser (review-label-wiki.js nicht geladen), reist beim Ändern NICHTS -- ein `null`
+	// an seiner Stelle löschte die Zuweisung bei jedem Speichern.
+	const wikiGeaendert = typeof getLabelWikiRegionGeaendert === "function" && getLabelWikiRegionGeaendert();
+	if (action === "create_label" || wikiGeaendert) {
+		payload.wiki_region = typeof getLabelWikiRegionPayload === "function" ? getLabelWikiRegionPayload() : null;
+	}
 
 	// 🔴 Die Zuweisung zur Landschaftsfläche reist NUR mit, wenn das Feld überhaupt gefüllt wurde.
 	// `update_label` schreibt genau die Schlüssel, die im Payload stehen (array_key_exists), und ein

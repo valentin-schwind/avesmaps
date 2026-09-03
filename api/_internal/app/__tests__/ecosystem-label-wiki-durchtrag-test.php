@@ -14,7 +14,8 @@ declare(strict_types=1);
  * bei 7 davon lag die Zuweisung auf einem zweiten, gleichnamigen Label ohne Fläche.
  * Owner-Entscheid: die Beschriftung ERBT die Fläche.
  *
- * 💣 DIE REGEL WANDERT NUR ABWÄRTS, UND SIE LÖSCHT NIE. Hat die Region keinen Schlüssel, bleibt die
+ * 💣 DIE REGEL WANDERT NUR ABWÄRTS, UND SIE LÖSCHT NIE -- ⚠️ mit der einen Ausnahme seit dem
+ * 03.09.2026, dem AUSDRÜCKLICHEN Entfernen (Abschnitte 14–16). Hat die Region keinen Schlüssel, bleibt die
  * Beschriftung unangetastet — andersherum löschte jedes Speichern einer wiki-losen Region genau die
  * Zuweisung, die „Label zuweisen" (V6c) von Hand gesetzt hat. Dieselbe Regel wie im clientseitigen
  * Durchtrag, den `renameLinkedEcosystemLabel` seit jeher fährt; hier ist sie serverseitig, damit
@@ -76,6 +77,20 @@ function avesmapsWriteMapAuditLog(PDO $pdo, ?int $featureId, string $action, int
 function avesmapsEncodeAuditJson(array $value): string
 {
     return json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '{}';
+}
+
+// Der Feature-Bauer aus features.php (avesmapsBuildFeatureResponseFromStoredFeature). Das Original
+// laesst sich nicht laden -- features.php LAEUFT beim Include (siehe ecosystem.php, Kopf) -- und es
+// zieht Geometrie-Leser nach, die die Fixture nicht traegt. Das Doppel baut die Form, die der Browser
+// liest: `id` und `properties` samt `public_id` und `revision`.
+function avesmapsBuildFeatureResponseFromStoredFeature(array $feature): array
+{
+    $properties = json_decode((string) ($feature['properties_json'] ?? ''), true);
+    $properties = is_array($properties) ? $properties : [];
+    $properties['public_id'] = (string) $feature['public_id'];
+    $properties['revision'] = (int) $feature['revision'];
+
+    return ['type' => 'Feature', 'id' => (string) $feature['public_id'], 'properties' => $properties];
 }
 
 require __DIR__ . '/../ecosystem.php';
@@ -558,5 +573,109 @@ assert(!str_contains($artSammel, 'UPDATE map_features'), 'und schreibt nicht sel
 // Aktion und zieht das Label NICHT nach -- er war der Erzeuger, der die 31 Fälle laufend erzeugt hat.
 assert(str_contains(durchtragRumpf('avesmapsUpdateEcosystemRegion'), 'avesmapsEcosystemPushRegionTypeToLabels('),
     'update_region muss die Art durchreichen');
+
+// ---- 14. DIE GEGENRICHTUNG: ein AUSDRÜCKLICHES Entfernen an der Fläche nimmt die Kopie mit --------
+// 🔴 Owner 03.09.2026, am Bild: „Lawaralîr" sollte vom Wiki gelöst und in „Cronwald" umbenannt werden.
+// Die Fläche verlor ihre Zuweisung, die Beschriftung behielt ihr Nest -- und weil die Infobox aus
+// GENAU diesem Nest liest, standen dort weiter Lage, Staat und Beschreibung des alten Artikels; der
+// Beschriftungsdialog bot an, den Namen auf „Lawaralîr" zurückzuholen. Je nachdem, ob man Fläche
+// oder Beschriftung anklickte, war die Landschaft gelöst oder nicht.
+//
+// 💣 „NIE LÖSCHEND" BLEIBT FÜR DEN RUMPF OHNE `wiki_url` (Abschnitt 2 oben ist unverändert). Was
+// hier wandert, ist die AUSDRÜCKLICHE Rücknahme -- ein eigener Weg, damit das blosse Umbenennen
+// weiterhin nichts löscht und das Entfernen trotzdem ankommt.
+$nest = ['wiki_key' => 'nordwalser-h-hen', 'name' => 'Nordwalser Höhen', 'art' => 'Gebirge'];
+$pdo = durchtragFixture([['l-kurve', 'r-nordwalser', $nest]], 'l-kurve');
+$ergebnis = avesmapsEcosystemClearWikiRegionFromLabels($pdo, 'r-nordwalser', 'l-kurve', 7);
+assert($ergebnis['applied'] === 1, 'genau eine Beschriftung gelöst, gemeldet: ' . var_export($ergebnis['applied'], true));
+assert($ergebnis['revision'] !== null, 'ein Label-Save bumpt map_revision -- sonst behält jeder warme Client das Nest');
+$props = labelProperties($pdo, 'l-kurve');
+assert(!array_key_exists('wiki_region', $props), 'das Nest ist weg');
+// 🔴 „entfernt" heisst „nicht zugewiesen", NICHT „es gibt keinen Artikel": der dritte Zustand ist
+// eine eigene Aussage, die nur ein Mensch trifft.
+assert(!array_key_exists('wiki_no_article', $props), 'das Entfernen setzt keinen Merker');
+assert($props === ['text' => 'Nordwalser Höhen', 'ecosystem_region_public_id' => 'r-nordwalser'],
+    'Text und Regionszeiger bleiben stehen: ' . json_encode($props, JSON_UNESCAPED_UNICODE));
+$log = $pdo->query('SELECT action, after_json FROM map_audit_log')->fetchAll(PDO::FETCH_ASSOC);
+assert(count($log) === 1 && $log[0]['action'] === 'update_label', 'eine update_label-Protokollzeile, wie beim Durchtrag');
+assert(str_contains((string) $log[0]['after_json'], 'ecosystem_wiki_region_clear'), 'mit eigenem Grund');
+// 🔴 DIE ANTWORT TRÄGT DAS FEATURE -- der Browser holt den Kartenpayload nach einem Speichern nicht
+// neu; ohne diese Liste stünde die Infobox bis zum nächsten Live-Abgleich auf dem alten Artikel.
+assert(count($ergebnis['features']) === 1, 'die gelöste Beschriftung reist als Feature zurück');
+assert(($ergebnis['features'][0]['id'] ?? '') === 'l-kurve');
+assert(!array_key_exists('wiki_region', $ergebnis['features'][0]['properties']), 'und zwar OHNE Nest');
+assert(($ergebnis['features'][0]['properties']['revision'] ?? null) === $ergebnis['revision'], 'mit der neuen Revision');
+
+// Ohne Nest: nichts zu tun, keine Revision, keine Protokollzeile, keine Features.
+$pdo = durchtragFixture([['l-kurve', 'r-nordwalser', null]], 'l-kurve');
+$ergebnis = avesmapsEcosystemClearWikiRegionFromLabels($pdo, 'r-nordwalser', 'l-kurve', 7);
+assert($ergebnis['applied'] === 0 && $ergebnis['revision'] === null && $ergebnis['features'] === [],
+    'eine Beschriftung ohne Nest wird nicht angefasst');
+assert((int) $pdo->query('SELECT COUNT(*) FROM map_audit_log')->fetchColumn() === 0);
+
+// Geschwister: ALLE eigenen Beschriftungen der Fläche, die fremde nicht -- EINE Revision.
+$pdo = durchtragFixture([
+    ['l-kurve', 'r-nordwalser', $nest],
+    ['l-zweit', 'r-nordwalser', $nest],
+    ['l-fremd', 'r-andere', $nest],
+], 'l-kurve');
+$ergebnis = avesmapsEcosystemClearWikiRegionFromLabels($pdo, 'r-nordwalser', 'l-kurve', 7);
+assert($ergebnis['applied'] === 2, 'beide Beschriftungen der Fläche, gemeldet: ' . var_export($ergebnis['applied'], true));
+assert(!array_key_exists('wiki_region', labelProperties($pdo, 'l-zweit')));
+assert((labelProperties($pdo, 'l-fremd')['wiki_region']['wiki_key'] ?? '') === 'nordwalser-h-hen',
+    'die Beschriftung einer ANDEREN Fläche behält ihr Nest');
+$revisionen = array_unique(array_map(
+    static fn(array $zeile): int => (int) $zeile['revision'],
+    $pdo->query("SELECT revision FROM map_features WHERE public_id IN ('l-kurve', 'l-zweit')")->fetchAll(PDO::FETCH_ASSOC)
+));
+assert(count($revisionen) === 1, 'ein Lauf, eine Revision');
+assert(count($ergebnis['features']) === 2, 'und beide reisen zurück');
+
+// Ohne Region oder ohne Beschriftung: kein Fehlerfall.
+assert(avesmapsEcosystemClearWikiRegionFromLabels($pdo, '   ', 'l-kurve', 7)['applied'] === 0, 'eine leere Regionskennung tut nichts');
+$pdo = durchtragFixture([], null);
+$ergebnis = avesmapsEcosystemClearWikiRegionFromLabels($pdo, 'r-nordwalser', null, 7);
+assert($ergebnis['applied'] === 0 && $ergebnis['revision'] === null && $ergebnis['features'] === []);
+
+// Und der DURCHTRAG gibt seine Features ebenso heraus -- derselbe Bauer, dieselbe Form.
+$pdo = durchtragFixture([['l-kurve', 'r-nordwalser', null]], 'l-kurve');
+$ergebnis = avesmapsEcosystemPushWikiRegionToLabels($pdo, 'r-nordwalser', 'l-kurve', 'nordwalser-h-hen', $url, 7);
+assert(count($ergebnis['features']) === 1 && ($ergebnis['features'][0]['id'] ?? '') === 'l-kurve',
+    'der Durchtrag gibt die geschriebene Beschriftung zurück');
+assert(($ergebnis['features'][0]['properties']['wiki_region']['wiki_key'] ?? '') === 'nordwalser-h-hen', 'MIT Nest');
+$ergebnis = avesmapsEcosystemPushWikiRegionToLabels($pdo, 'r-nordwalser', 'l-kurve', 'nordwalser-h-hen', $url, 7);
+assert($ergebnis['features'] === [], 'ohne Schreibvorgang kein Feature -- der Browser soll nichts neu zeichnen');
+
+// ---- 15. REIN: was „ausdrücklich entfernt" heisst -------------------------------------------------
+// 🔴 Die Weiche zwischen „Rumpf nennt wiki_url nicht" (nimmt nichts zurück) und „Rumpf nennt es leer"
+// (Rücknahme). Beide Lesarten in EINER Funktion, damit update_region nicht eine eigene bekommt.
+assert(avesmapsEcosystemWikiAusdruecklichEntfernt([]) === false, 'ein leerer Rumpf entfernt nichts');
+assert(avesmapsEcosystemWikiAusdruecklichEntfernt(['name' => 'Cronwald']) === false,
+    'ein blosses Umbenennen nimmt nichts zurück -- die Klausel aus Abschnitt 2');
+assert(avesmapsEcosystemWikiAusdruecklichEntfernt(['wiki_url' => null, 'wiki_region_key' => null]) === true,
+    'wiki_url genannt und leer: ausdrücklich entfernt');
+assert(avesmapsEcosystemWikiAusdruecklichEntfernt(['wiki_url' => $url, 'wiki_region_key' => 'nordwalser-h-hen']) === false,
+    'eine Adresse ist eine Zuweisung, kein Entfernen');
+assert(avesmapsEcosystemWikiAusdruecklichEntfernt(['wiki_url' => $url, 'wiki_region_key' => '  ']) === true,
+    'ein Schlüssel aus Leerzeichen ist keiner');
+
+// ---- 16. DIE NAHT DER GEGENRICHTUNG: beide Schreibwege kennen sie --------------------------------
+// 💣 Beide Hälften grün, die Naht ungeprüft -- dieselbe Falle wie in Abschnitt 9, und dieselbe Probe.
+foreach (['avesmapsAssignEcosystemWikiRegion', 'avesmapsUpdateEcosystemRegion'] as $schreiber) {
+    $rumpf = durchtragRumpf($schreiber);
+    assert(str_contains($rumpf, 'avesmapsEcosystemClearWikiRegionFromLabels('),
+        $schreiber . ' muss die Rücknahme durchreichen -- sonst bleibt das Nest auf einem der Wege stehen');
+    assert(str_contains($rumpf, "'labels' =>"),
+        $schreiber . ' muss die nachgezogenen Beschriftungen herausgeben -- sonst sieht der Editor keine Wirkung');
+}
+assert(str_contains(durchtragRumpf('avesmapsUpdateEcosystemRegion'), 'avesmapsEcosystemWikiAusdruecklichEntfernt('),
+    'update_region entscheidet über die geteilte Weiche, nicht über eine eigene Lesart des Rumpfs');
+// Der Entferner rührt die FLÄCHE nicht an, und beide Wege bauen ihr Feature mit demselben Bauer.
+assert(!str_contains(durchtragRumpf('avesmapsEcosystemClearWikiRegionFromLabels'), 'UPDATE ecosystem_region'),
+    'die Rücknahme schreibt nur Beschriftungen');
+foreach (['avesmapsEcosystemPushWikiRegionToLabels', 'avesmapsEcosystemClearWikiRegionFromLabels'] as $weg) {
+    assert(str_contains(durchtragRumpf($weg), 'avesmapsEcosystemLabelFeatureNachSchreiben('),
+        $weg . ' baut sein Feature über den geteilten Bauer -- eine zweite Form wäre die zweite Wahrheit');
+}
 
 echo "OK - Durchtrag der Wiki-Landschaft an die Beschriftungen: alle Zusicherungen erfüllt.\n";

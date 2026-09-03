@@ -11,9 +11,13 @@
 //
 // 🔴 DIESELBEN WÄCHTER WIE ABWÄRTS, nur spiegelverkehrt:
 //   * nur bei echter Änderung -- ein blosses Öffnen und Speichern schreibt nichts;
-//   * die Wiki-Zuweisung wandert nur, wenn das Label eine TRÄGT. Ein leeres Feld löscht die der Region
-//     nicht (die Abwärtsregel hat genau dieselbe Klausel, und aus demselben Grund: sonst löschte jedes
-//     Speichern die Zuweisung, die die Gegenseite von Hand gesetzt hat);
+//   * die Wiki-Zuweisung wandert NUR, wenn sie in DIESEM Speichern angefasst wurde (`wikiGeaendert`,
+//     seit 03.09.2026) -- dann aber in beide Richtungen: zugewiesen/gewechselt an die Fläche,
+//     entfernt auch von ihr (leere Adresse = Rücknahme; der Server nimmt daraufhin den
+//     Geschwister-Beschriftungen ihre Kopie). Unangefasst sagt das Label über die Fläche NICHTS --
+//     die Lücke „Label hat, Fläche nicht" heilt der Server abwärts bei jedem Speichern der Fläche;
+//     hier hochzuheilen war der Weg, auf dem eine gerade entfernte Zuweisung zurückkam
+//     („Lawaralîr"/„Cronwald", Owner 03.09.2026: das vereinigte Fenster schickt beide Formulare ab);
 //   * Grösse, Drehung, Zoom-Band und Priorität reisen NIE mit. Sie gehören dem einzelnen Label -- ein
 //     zweites Label existiert gerade deshalb, weil es anders stehen soll.
 //
@@ -28,7 +32,8 @@
 // @param label        das gespeicherte Label ({ text, labelType, wikiRegion })
 // @param region       die Regionszeile aus list_regions ({ public_id, name, region_type, wiki_url })
 // @param allowedTypes das Art-Vokabular DIESER Ebene ([{ type_key }]), oder null wenn unbekannt
-function ecosystemRegionWriteBackPayload(label, region, allowedTypes) {
+// @param optionen     { wikiGeaendert: true }, wenn die Zuweisung in diesem Speichern angefasst wurde
+function ecosystemRegionWriteBackPayload(label, region, allowedTypes, optionen) {
 	const publicId = String(region?.public_id || "");
 	if (publicId === "") {
 		return null;                             // Label ohne Fläche -- es gibt keine Gegenseite
@@ -65,10 +70,17 @@ function ecosystemRegionWriteBackPayload(label, region, allowedTypes) {
 	// --- Wiki-Landschaft ----------------------------------------------------------------------------
 	// 🔴 Es reist die URL, NICHT der Schlüssel: wiki_region_key leitet der Server aus wiki_url ab
 	// (AGENTS.md §5). Ein hier gebauter Schlüssel wäre eine zweite Ableitung und bräche jeden Join.
-	const wikiUrl = String(label?.wikiRegion?.wiki_url || "").trim();
-	if (wikiUrl !== "" && wikiUrl !== String(region?.wiki_url || "").trim()) {
-		payload.wiki_url = wikiUrl;
-		changed = true;
+	// 🔴 UND NUR, WENN DIE ZUWEISUNG IN DIESEM SPEICHERN ANGEFASST WURDE (Kopf dieser Datei): dann in
+	// beide Richtungen -- eine leere Adresse ist beim Server die Rücknahme, und die nimmt er auch den
+	// übrigen Beschriftungen der Fläche (avesmapsEcosystemClearWikiRegionFromLabels). Ob angefasst
+	// wurde, weiss nur der Speicher-Rumpf des Labels; aus dem gespeicherten Stand ist „entfernt" von
+	// „nie eines gehabt" nicht zu unterscheiden.
+	if (optionen?.wikiGeaendert === true) {
+		const wikiUrl = String(label?.wikiRegion?.wiki_url || "").trim();
+		if (wikiUrl !== String(region?.wiki_url || "").trim()) {
+			payload.wiki_url = wikiUrl;
+			changed = true;
+		}
 	}
 
 	// --- Kurvenbeschriftung -------------------------------------------------------------------------
@@ -91,7 +103,8 @@ function ecosystemRegionWriteBackPayload(label, region, allowedTypes) {
 // Den Auftrag ausführen und die Geschwister nachziehen. Kein Rücklauf bei einem Fehlschlag: das Label
 // IST gespeichert, und ein zurückgerollter Name wäre die schlechtere Antwort als eine Fläche, die
 // hinterherhinkt -- dieselbe Haltung wie in der Gegenrichtung (renameLinkedEcosystemLabel).
-async function ecosystemPushLabelChangesToRegion(label) {
+// @param optionen { wikiGeaendert } -- siehe ecosystemRegionWriteBackPayload
+async function ecosystemPushLabelChangesToRegion(label, optionen) {
 	if (typeof ecosystemRegionOfLabel !== "function" || typeof postEcosystemEdit !== "function") {
 		return;
 	}
@@ -113,13 +126,20 @@ async function ecosystemPushLabelChangesToRegion(label) {
 	const vokabular = typeof ecosystemRegionTypesByKind !== "undefined" && ecosystemRegionTypesByKind
 		? ecosystemRegionTypesByKind[String(region.kind || "")]
 		: null;
-	const payload = ecosystemRegionWriteBackPayload(label, region, vokabular || null);
+	const payload = ecosystemRegionWriteBackPayload(label, region, vokabular || null, optionen);
 	if (!payload) {
 		return;
 	}
 
 	try {
-		await postEcosystemEdit("update_region", payload);
+		const antwort = await postEcosystemEdit("update_region", payload);
+		// 🔴 Die Beschriftungen, die der Server dabei nachgezogen hat (die Geschwister dieses Labels:
+		// Zuweisung geerbt oder Kopie genommen), SOFORT auf die Karte -- in der Form von `update_label`,
+		// mit demselben Leser. Der Kartenpayload wird nach einem Speichern nicht neu geholt; ohne das
+		// zeigte die Infobox des Geschwisters bis zum nächsten Live-Abgleich den alten Artikel.
+		if (typeof applyLabelFeaturesLocally === "function") {
+			applyLabelFeaturesLocally(antwort?.labels);
+		}
 		// Die frisch gespeicherte Kurveneinstellung SOFORT auf die Karte bringen. Der Kartenpayload
 		// wird nach einem Speichern nicht neu geholt -- ohne das aendert sich am Bild nichts, und der
 		// Editor haelt sein Speichern fuer wirkungslos (gemeldet 23.08.2026).
