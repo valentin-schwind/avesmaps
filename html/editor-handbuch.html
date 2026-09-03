@@ -775,6 +775,10 @@
 					<li><em>„Form ändern ▸"</em> (Verschieben, Zerschneiden, Malen, Radieren, Vereinfachen, Labelkurve aktualisieren), <em>„Mit anderer Fläche ▸"</em> (die fünf Verrechnungen), <em>„Unterflächen ▸"</em> und <em>„Reihenfolge und Sperren ▸"</em>.</li>
 					<li><em>„Eigenschaften …"</em> — öffnet das <a href="#landschaften">Bearbeiten-Fenster</a>, <em>nicht</em> die Ecken. Dazu <em>„Kopieren …"</em> und rot <em>„Fläche löschen"</em>.</li>
 				</ul>
+				<figure class="hb-shot">
+					<img src="screenshots/20-flaechenmenue.png" width="260" alt="Das Flaechenmenue einer Landschaftsflaeche mit Neue Flaeche, Flaeche bearbeiten, Beschriftung bearbeiten, den vier Untermenues Form aendern, Mit anderer Flaeche, Unterflaechen und Reihenfolge und Sperren, dazu Eigenschaften, Kopieren und Flaeche loeschen" />
+					<figcaption>Das Flächenmenü. Ganz unten steht, wie du an das normale Kartenmenü kommst.</figcaption>
+				</figure>
 				<p>Was die Einträge tun:</p>
 				<table class="hb-table">
 					<tr><th>Eintrag</th><th>Was er tut</th></tr>
@@ -813,7 +817,11 @@
 					<tr><td><strong>Beschriftung</strong></td><td><em>Höhe (Schritt)</em>, <em>Nodix</em>, <em>Größe</em>, <em>Priorität</em>, „Sichtbar ab/bis Zoom" sowie <em>Kurvenbeschriftung</em> und <em>Anzahl Kurvenlabel</em> (siehe <a href="#regionen">Regionen</a>).</td></tr>
 					<tr><td><strong>Wiki &amp; Quellen</strong></td><td>Der <a href="#v-wiki">Zuweisungskasten</a> und die <strong>Quellen</strong>. Quellen wirken <strong>sofort</strong> — sie brauchen kein „Speichern".</td></tr>
 				</table>
-				<div class="hb-note hb-tip"><strong>Die Quellen gehören der Fläche.</strong> Liegt unter einer Beschriftung eine Fläche, zeigt der Reiter deren Quellen — eintragen und löschen gilt dann für beide. Eine eigene Liste hat nur eine <em>freie</em> Beschriftung ohne Fläche.</div>
+								<figure class="hb-shot">
+					<img src="screenshots/18-landschaft-wiki-quellen.png" width="420" alt="Das Fenster Vegetation bearbeiten fuer das Lilienmoor mit den drei Reitern Flaeche, Beschriftung und Wiki und Quellen; im offenen dritten Reiter der Kasten Wiki-Landschaft ohne Zuordnung und darunter der Kasten Quellen mit einer Quelle des Garetien-Wikis" />
+					<figcaption>Der Reiter <strong>„Wiki &amp; Quellen"</strong>. Oben die Zuweisung, darunter die Quellen — und der Hinweis, dass sie <em>sofort</em> wirken.</figcaption>
+				</figure>
+<div class="hb-note hb-tip"><strong>Die Quellen gehören der Fläche.</strong> Liegt unter einer Beschriftung eine Fläche, zeigt der Reiter deren Quellen — eintragen und löschen gilt dann für beide. Eine eigene Liste hat nur eine <em>freie</em> Beschriftung ohne Fläche.</div>
 				<p>Womit du das Fenster öffnest, bestimmt den offenen Reiter: über die Fläche (<em>„Eigenschaften …"</em>) der Reiter <em>Fläche</em>, über die Beschriftung der Reiter <em>Beschriftung</em>. <strong>„Speichern" schreibt beide Hälften.</strong> Der Löschknopf trifft nur die, deren Reiter offen ist — er heißt darum <strong>„Fläche löschen"</strong> oder <strong>„Beschriftung löschen"</strong> und verschwindet, wo es nichts zu löschen gibt.</p>
 				<p>Fehlt eine Hälfte, sagt ihr Reiter das: <em>„Diese Fläche trägt keine Beschriftung."</em> samt Knopf <strong>„Beschriftung anlegen"</strong>, oder <em>„Diese Beschriftung liegt auf keiner Fläche."</em>. Trägt eine Fläche mehrere Beschriftungen, wählst du oben im Reiter aus, welche.</p>
 				<div class="hb-note hb-warn"><strong>„Auto-Name" anhaken entfernt die Beschriftungen dieser Fläche.</strong> Ein Auto-Name ist interne Buchführung und gehört nicht auf die Karte. Das Fenster sagt es am Haken an, bevor du speicherst. Solange der Haken sitzt, ist „Beschriftung anlegen" gesperrt und nennt den Grund. Eine frisch gezeichnete Fläche bekommt aus demselben Grund keine Beschriftung — leg sie an, wenn der Name steht.</div>
@@ -845,6 +853,10 @@
 					<li><strong>Kurvenfeinheiten</strong> — wie ein Name auf die gerechnete Kurve seiner Fläche eingepasst wird, mit Vorschau.</li>
 				</ul>
 				<p><strong>Ansehen darf jeder Editor, speichern nur ein Administrator</strong>, und die Karte zeigt eine Änderung erst nach dem nächsten Laden.</p>
+				<figure class="hb-shot">
+					<img src="screenshots/19-namen-kollision.png" alt="Der Abschnitt Namen und Kollision mit zwei Haekchen je Namensart; Berggipfel und Vulkan tragen das rechte Haekchen und die Zeile Steht fest, andere Namen weichen ihm aus" />
+					<figcaption><strong>„Namen — Kollision"</strong>: zwei Häkchen je Art. Rechts gesetzt heißt <em>„Steht fest"</em> — so stehen Berggipfel und Vulkane auf ihrem Punkt.</figcaption>
+				</figure>
 				<div class="hb-note hb-tip"><strong>Was hier steht, ist eine <em>Vorgabe</em> — keine Festlegung.</strong> Zoomband und Schriftgröße erscheinen den Editoren als Marke an ihrem Regler im <a href="#regionen">Beschriftungsdialog</a>; wer dort abweicht, behält seinen Wert. Der Knopf am Zoomband <strong>misst nur</strong>, worauf der Bestand tatsächlich steht („z2–z6 · 100 %" heißt: so stehen alle) — geschrieben wird erst mit <strong>„Alle übernehmen"</strong>. <strong>„Auf Vorgabe zurücksetzen"</strong> löscht die eigene Tafel wieder ganz. <strong>Klimazonen</strong> tragen weder Zoomband noch Größenkurve — ihre Bänder sind abgeleitet.</div>
 
 				<h3 id="kraftlinien" class="hb-sub">Kraftlinien</h3>
@@ -1577,8 +1589,8 @@
 				<div class="hb-note hb-tip"><strong>Entfernen heißt unterdrücken, nicht löschen.</strong> Nimmst du eine Wiki-Quelle weg, setzt der nächste Sync sie nicht wieder ein. Fügst du sie von Hand wieder hinzu, lebt sie wieder auf.</div>
 				<h4>Die Eingabezeile</h4>
 				<figure class="hb-shot">
-					<img src="screenshots/14-quellen-editor.png" width="520" alt="Der Bereich Quellen mit bestehenden Quellenzeilen samt Typ- und Abdeckungsschild und darunter der Eingabezeile aus URL, Quellenname, Seiten, Typ, Abdeckung und offiziell" />
-					<figcaption>Der Bereich <strong>„Quellen"</strong>: oben bestehende Quellen, jede mit <em>Typ</em> (<code>*</code> = offiziell) und <em>Abdeckung</em>; darunter die Eingabezeile mit <em>URL</em>, <em>Quellenname</em>, <em>Seite(n)</em>, <em>Typ</em>, <em>Abdeckung</em> und <em>„offiziell"</em>.</figcaption>
+					<img src="screenshots/21-quellen-editor.png" width="460" alt="Der Bereich Quellen: oben die bestehende Quelle mit Typ-Schild und Namensnennung, darunter die aufgeklappte Eingabezeile mit den drei Bloecken Gilt fuer alle Objekte, Gilt fuer den ganzen Korpus und Nur an diesem Objekt" />
+					<figcaption>Der Bereich <strong>„Quellen"</strong>: oben die bestehende Quelle mit <em>Typ</em> und Namensnennung, darunter die aufgeklappte Eingabezeile — sie ist nach den <strong>drei Reichweiten</strong> geordnet.</figcaption>
 				</figure>
 				<p>Die Eingabezeile ist nach denselben drei Stufen geordnet. Oben die <strong>Adresse</strong> — die Seite über <em>dieses</em> Objekt, nicht die Startseite; der Knopf <strong>⟳</strong> prüft sie und holt den <strong>Titel</strong>. Darunter <em>„Gilt nur für diesen Eintrag"</em> mit <strong>Seite(n)</strong> und <strong>Abdeckung</strong>, dann <em>„Gilt für den ganzen Korpus"</em> mit <strong>Name des Korpus</strong>, <strong>Art</strong>, <strong>Lizenz</strong>, <strong>Namensnennung</strong> und <strong>offiziell</strong>. Dann <strong>„Hinzufügen"</strong>. In den Titel gehört der <em>Veröffentlichungstitel</em>, nicht eine Umschreibung.</p>
 				<p><strong>Lizenz</strong> und <strong>Namensnennung</strong> sind zwei getrennte Angaben: was gilt, und wen man nennen muss. Zur Auswahl stehen CC BY-SA 3.0, CC BY-NC-SA 3.0, CC BY 4.0, CC BY-SA 4.0, CC0 1.0, <em>Gemeinfrei</em> und <em>Keine freie Lizenz</em>. In die Namensnennung kommt, wen die Lizenz zu nennen verlangt — etwa <em>VolkoV / garetien.de</em>. Beide stehen beim Leser an der Quelle in der Infobox.</p>
