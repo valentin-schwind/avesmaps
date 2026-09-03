@@ -95,6 +95,9 @@
 		let selectedNode = null;
 		let droppedNode = null;
 		let editedNode = null;
+		// Der Knoten, dessen Quellen der Kasten „Quellen" gerade zeigt -- der Getter des Bauteils liest
+		// ihn bei JEDER Anfrage (territory-quellen-anschluss.js, Regel 3), nie den beim Mounten gezeigten.
+		let quellenKnoten = null;
 		let displayStateByNodeId = new Map();
 		let nodeRegistry = new Map();
 		const inheritColorVarianceButtonElement = document.getElementById("inheritColorVarianceButton");
@@ -122,9 +125,6 @@
 			zoomToInput: document.getElementById("zoomToInput"),
 			zoomBandWarning: document.getElementById("zoomBandWarning"),
 			displayNameInput: document.getElementById("displayNameInput"),
-			otherSourceUrlInput: document.getElementById("otherSourceUrlInput"),
-			otherSourceLabelInput: document.getElementById("otherSourceLabelInput"),
-			otherSourceFields: document.getElementById("otherSourceFields"),
 			alternateCoatInput: document.getElementById("alternateCoatInput"),
 			manualCoatPreview: document.getElementById("manualCoatPreview"),
 			updateCoatButton: document.getElementById("updateCoatButton"),
@@ -1506,7 +1506,6 @@
 				slug: "",
 				name: "",
 				displayName: "",
-				otherSource: { url: "", label: "" },
 				coatOfArmsUrl: "",
 				zoomMin: null,
 				zoomMax: null,
@@ -1538,7 +1537,6 @@
 				slug: node.row?.slug || "",
 				name: node.label,
 				displayName,
-				otherSource: { url: "", label: "" },
 				coatOfArmsUrl,
 				zoomMin: zoomPreset?.from ?? null,
 				zoomMax: zoomPreset?.to ?? null,
@@ -1569,10 +1567,6 @@
 			displayStateByNodeId.set(editedNode.id, {
 				...existing,
 				displayName: normalizeText(els.displayNameInput?.value || ""),
-				otherSource: {
-					url: normalizeText(els.otherSourceUrlInput?.value || ""),
-					label: normalizeText(els.otherSourceLabelInput?.value || ""),
-				},
 				coatOfArmsUrl: normalizeText(els.alternateCoatInput?.value || ""),
 				zoomMin: parseOptionalNumber(els.zoomFromInput?.value),
 				zoomMax: parseOptionalNumber(els.zoomToInput?.value),
@@ -1587,13 +1581,6 @@
 		function applyDisplayStateToForm(state) {
 			if (els.displayNameInput) {
 				els.displayNameInput.value = state.displayName || state.name || "";
-			}
-
-			if (els.otherSourceUrlInput) {
-				els.otherSourceUrlInput.value = state.otherSource?.url || "";
-			}
-			if (els.otherSourceLabelInput) {
-				els.otherSourceLabelInput.value = state.otherSource?.label || "";
 			}
 
 			if (els.alternateCoatInput) {
@@ -1642,10 +1629,6 @@
 			// Phase D: Herkunfts-Badge + Deep-Link „Im Wiki-Sync bearbeiten". Identität (Name, Wappen,
 			// Gegründet/Aufgelöst, Status …) ist hier read-only und wird im Wiki-Sync gepflegt.
 			const wikiKeyForLink = normalizeText(node.row?.wiki_key || "");
-			if (els.otherSourceFields) {
-				// Andere Quelle nur zeigen, wenn kein Wiki-Eintrag verknuepft ist (eigene Knoten haben keine wiki_key).
-				els.otherSourceFields.hidden = wikiKeyForLink !== "";
-			}
 			const originBar = document.createElement("div");
 			originBar.className = "info-origin-bar";
 			originBar.style.cssText = "display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px";
@@ -1747,6 +1730,22 @@
 
 			// R1: Konfliktparteien-Block (umstrittene Gebiete) für den ausgewählten Knoten aktualisieren.
 			renderContestedBlock(node);
+
+			// Die Quellen des Knotens: das EINE Bauteil (mountFeatureSourceEditor), montiert auf
+			// political_territory.public_id -- Entscheidung und Klon-Ersatz in territory-quellen-anschluss.js.
+			// Hier, weil renderInfoBox der Trichter ist, durch den JEDER Knotenwechsel geht (selectNode,
+			// Breadcrumb, Baum, showNodeDetails). `escapeHtml` ist der Maskierer dieser Datei (unten).
+			quellenKnoten = node;
+			if (typeof avesmapsTerritoriumQuellenAnschliessen === "function") {
+				avesmapsTerritoriumQuellenAnschliessen({
+					sektion: document.getElementById("territoryFeatureSourcesSection"),
+					host: document.getElementById("territoryFeatureSources"),
+					node,
+					aktuellerKnoten: () => quellenKnoten,
+					mount: typeof mountFeatureSourceEditor === "function" ? mountFeatureSourceEditor : null,
+					escape: escapeHtml,
+				});
+			}
 		}
 
 		// --- R1: Konfliktparteien (umstrittene Gebiete) im Editor verwalten ---
@@ -2408,7 +2407,6 @@
 				editedPath: editedPath.map(createNodeReference),
 				display: {
 					name: effectiveDisplay.displayName || effectiveDisplay.name || "",
-					otherSource: effectiveDisplay.otherSource || { url: "", label: "" },
 					coatOfArmsUrl: effectiveDisplay.coatOfArmsUrl || "",
 					zoomMin: effectiveDisplay.zoomMin,
 					zoomMax: effectiveDisplay.zoomMax,
@@ -2441,10 +2439,6 @@
 			return {
 				...fallbackState,
 				displayName: normalizeText(els.displayNameInput?.value || fallbackState.displayName || fallbackState.name || ""),
-				otherSource: {
-					url: normalizeText(els.otherSourceUrlInput?.value || fallbackState.otherSource?.url || ""),
-					label: normalizeText(els.otherSourceLabelInput?.value || fallbackState.otherSource?.label || ""),
-				},
 				coatOfArmsUrl: normalizeText(els.alternateCoatInput?.value || fallbackState.coatOfArmsUrl || ""),
 				zoomMin: parseOptionalNumber(els.zoomFromInput?.value, fallbackState.zoomMin),
 				zoomMax: parseOptionalNumber(els.zoomToInput?.value, fallbackState.zoomMax),
@@ -2611,10 +2605,6 @@
 				slug: node.row?.slug || displayState.slug || "",
 				name: node.label,
 				displayName: normalizeText(displayState.displayName || displayState.name || node.label),
-				otherSource: {
-					url: normalizeText((displayState.otherSource && displayState.otherSource.url) || ""),
-					label: normalizeText((displayState.otherSource && displayState.otherSource.label) || ""),
-				},
 				coatOfArmsUrl: normalizeText(displayState.coatOfArmsUrl || displayState.alternateCoatOfArmsUrl || ""),
 				zoomMin: parseOptionalNumber(displayState.zoomMin),
 				zoomMax: parseOptionalNumber(displayState.zoomMax),
@@ -2891,10 +2881,6 @@
 				...(value.display || {}),
 				name: normalizeText(displayNameInput?.value || value.display?.name || value.display?.displayName || params.get("name") || ""),
 				displayName: normalizeText(displayNameInput?.value || value.display?.displayName || value.display?.name || params.get("name") || ""),
-				otherSource: {
-					url: normalizeText(els.otherSourceUrlInput?.value || value.display?.otherSource?.url || ""),
-					label: normalizeText(els.otherSourceLabelInput?.value || value.display?.otherSource?.label || ""),
-				},
 				zoomMin: parseOptionalNumber(els.zoomFromInput?.value, value.display?.zoomMin ?? parseOptionalNumber(params.get("min_zoom"))),
 				zoomMax: parseOptionalNumber(els.zoomToInput?.value, value.display?.zoomMax ?? parseOptionalNumber(params.get("max_zoom"))),
 				color: normalizeHexColor(colorInput?.value || value.display?.color || params.get("color"))
@@ -2930,7 +2916,6 @@
 						zoomMax: display.zoomMax,
 						color: normalizeHexColor(display.color) || "#888888",
 						opacity: display.opacity,
-						otherSource: display.otherSource || { url: "", label: "" },
 					},
 					wiki_public_ids: wikiPublicIds,
 					territory_public_ids: territoryPublicIds,

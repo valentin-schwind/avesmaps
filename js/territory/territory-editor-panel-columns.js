@@ -79,9 +79,11 @@
 		// Während des Umsortierens den Observer pausieren (kein Re-Trigger).
 		if (observer) observer.disconnect();
 		for (const section of sections) {
-			// Wiki-Daten (#infoBox) und der Konfliktparteien-Block (#contestedBlock) gehören in die
-			// rechte (2.) Spalte; alle anderen Panels links.
-			const target = (section.querySelector("#infoBox") || section.querySelector("#contestedBlock")) ? right : left;
+			// Wiki-Daten (#infoBox), der Konfliktparteien-Block (#contestedBlock) und die Quellen
+			// (#territoryFeatureSources) gehören in die rechte (2.) Spalte; alle anderen Panels links.
+			// Die Quellen sind dort durch die Dokumentreihenfolge die LETZTE Sektion (stabile Sortierung,
+			// unbekannte Ueberschriften am Ende) -- Owner 03.09.2026: „quellen immer unten/als letztes".
+			const target = (section.querySelector("#infoBox") || section.querySelector("#contestedBlock") || section.querySelector("#territoryFeatureSources")) ? right : left;
 			target.appendChild(section); // verschiebt das Panel, Listener bleiben
 		}
 		if (observer) observer.observe(form, { childList: true, subtree: true });

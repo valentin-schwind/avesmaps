@@ -20,7 +20,7 @@
 	const HOST_ID = "political-territory-editor-host";
 	// Cache-Buster für die dynamisch geladenen Editor-Assets: bei jeder Änderung
 	// an Editor-JS/CSS hochzählen, damit Deploys sofort greifen (kein Hard-Reload).
-	const ASSET_VERSION = "20260823a";
+	const ASSET_VERSION = "20260903a";
 	function withVersion(url) {
 		return url + (url.indexOf("?") >= 0 ? "&" : "?") + "v=" + ASSET_VERSION;
 	}
@@ -33,6 +33,12 @@
 		"/js/territory/territory-editor-context.js",
 		"/js/territory/territory-editor-active-node.js",
 		"/js/territory/territory-wiki-tree.js",
+		// Das Quellen-Bauteil (in index.html laengst geladen -> loadScriptOnce ueberspringt sie; hier stehen
+		// sie, weil DIESE Liste der Vertrag des Hosts ist) und der reine Anschluss, VOR dem Editor, der ihn ruft.
+		"/js/ui/source-autocomplete.js",
+		"/js/ui/feature-source-markup.js",
+		"/js/review/review-feature-sources.js",
+		"/js/territory/territory-quellen-anschluss.js",
 		"/js/territory/territory-editor-embedded.js",
 		"/js/territory/territory-editor-drop-compat.js",
 		"/js/territory/territory-editor-save.js",

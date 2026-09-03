@@ -37,7 +37,9 @@ function avesmapsPoliticalBuildStoredAssignmentDisplay(array $territory, array $
         )),
         'originalName' => $originalName,
         'displayName' => $displayName,
-        'otherSource' => is_array($display['otherSource'] ?? null) ? $display['otherSource'] : null,
+        // 🔴 KEIN `otherSource` mehr: die Quellen eines Gebiets liegen in sources + feature_sources (AGENTS.md §5),
+        // montiert ueber das geteilte Bauteil. Ein alter Client, der den Schluessel noch schickt, laeuft hier
+        // ohne Fehler durch -- der Schluessel wird schlicht nicht mehr getragen (display-style-ohne-andere-quelle-test.php).
         'coatOfArmsUrl' => trim((string) ($display['coatOfArmsUrl'] ?? $territory['coat_of_arms_url'] ?? '')),
         'zoomMin' => avesmapsPoliticalReadOptionalZoom($display['zoomMin'] ?? $territory['min_zoom'] ?? null),
         'zoomMax' => avesmapsPoliticalReadOptionalZoom($display['zoomMax'] ?? $territory['max_zoom'] ?? null),

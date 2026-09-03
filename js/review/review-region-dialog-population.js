@@ -22,9 +22,6 @@ function populateRegionEditForm(entry, { preserveTabs = false } = {}) {
 	document.getElementById("region-edit-color").value = region.color || "#888888";
 	document.getElementById("region-edit-opacity").value = Math.round((region.opacity ?? 0.33) * 100);
 	document.getElementById("region-edit-wiki-url").value = region.wikiUrl || "";
-	if (typeof writeOtherSourceToForm === "function") {
-		writeOtherSourceToForm("region-edit", region.otherSource || region.other_source);
-	}
 	document.getElementById("region-edit-coat-url").value = region.coatOfArmsUrl || "";
 	document.getElementById("region-edit-min-zoom").value = region.minZoom ?? "";
 	document.getElementById("region-edit-max-zoom").value = region.maxZoom ?? "";
@@ -46,6 +43,34 @@ function populateRegionEditForm(entry, { preserveTabs = false } = {}) {
 	document.getElementById("region-edit-delete").hidden = !entry;
 	syncRegionOpacityOutput();
 	syncRegionValidToControls();
+	mountRegionEditFeatureSources(source);
+}
+
+// Die Quellen des Gebiets: das EINE Bauteil (mountFeatureSourceEditor, js/review/review-feature-sources.js),
+// montiert bei JEDEM Befuellen -- Oeffnen, Reiterwechsel, nach dem Speichern gehen alle durch
+// populateRegionEditForm. Ein Herrschaftsgebiet haengt an `territory` + political_territory.public_id,
+// eine Kartenregion aus map_features am alten oeffentlichen Vertrag `region` + public_id.
+// 💣 DER CONTAINER WIRD ERSETZT, BEVOR NEU GEMOUNTET WIRD -- und `__fsDetachAutocomplete` zuerst: die
+// Vorschlagsliste haengt am DOKUMENT und ueberlebte den Austausch sonst als Waise (review-labels.js:855).
+// ⚠️ Der Schluessel wird bei JEDER Anfrage aus dem versteckten Feld gelesen, nie beim Mounten eingefroren:
+// der Dialog hat Reiter, und ein Reiterwechsel schriebe die Quelle sonst auf das zuvor geoeffnete Gebiet.
+function mountRegionEditFeatureSources(source) {
+	const host = document.getElementById("region-edit-feature-sources");
+	if (!host || typeof mountFeatureSourceEditor !== "function") {
+		return;
+	}
+	if (typeof host.__fsDetachAutocomplete === "function") {
+		host.__fsDetachAutocomplete();
+	}
+	const frisch = host.cloneNode(false);
+	host.replaceWith(frisch);
+	const istGebiet = source === "political_territory";
+	void mountFeatureSourceEditor(
+		frisch,
+		istGebiet ? "territory" : "region",
+		() => document.getElementById(istGebiet ? "region-edit-territory-public-id" : "region-edit-public-id")?.value || "",
+		{ escape: escapeHtml }
+	);
 }
 
 function openRegionEditDialog(entry, { title = "Territoriumseditor" } = {}) {

@@ -1506,27 +1506,35 @@ a:focus-visible {
 }
 
 /* Nur die Typen, die wirklich Textfelder sind. Ein pauschales `input` traefe
-   auch Ankreuzfelder und den Transparenz-Schieber und wuerde sie verunstalten. */
-button:not(.tree-footer-button):not(.breadcrumb-cycle),
-select,
-input[type="text"],
-input[type="url"],
-input[type="search"],
-input[type="number"],
-input[type="color"] {
+   auch Ankreuzfelder und den Transparenz-Schieber und wuerde sie verunstalten.
+   🔴 `:not(.fs-editor *)`: die Bedienhoehe gilt den EIGENEN Knoepfen und Feldern des
+   Editors, nicht denen des eingebauten Quellen-Bauteils (js/review/review-feature-sources.js).
+   Im gescopten Bauprodukt steht jede dieser Regeln unter #political-territory-editor-host
+   und kommt damit auf (1,2,1) -- das schlaegt jede Modulklasse (1,1,0), und der Quellenkasten
+   saehe hier anders aus als an den acht anderen Montagestellen (im Browser gemessen: ✕ und ✎
+   als 32-px-Vollknoepfe). Kein `:where()` um den Block: das liesse die eigenen Klassenregeln
+   des Editors (.breadcrumb button, .drop-zone-unassign-button) gegen die Bedienhoehe gewinnen.
+   ══ VERTRAG von docs/quellen-herrschaftsgebiete-mockup.html -- zeichengleich halten. ══ */
+button:not(.tree-footer-button):not(.breadcrumb-cycle):not(.fs-editor *),
+select:not(.fs-editor *),
+input[type="text"]:not(.fs-editor *),
+input[type="url"]:not(.fs-editor *),
+input[type="search"]:not(.fs-editor *),
+input[type="number"]:not(.fs-editor *),
+input[type="color"]:not(.fs-editor *) {
 	min-height: var(--pte-control-h);
 	border-radius: var(--radius-md);
 }
 
-button:not(.tree-footer-button):not(.breadcrumb-cycle) {
+button:not(.tree-footer-button):not(.breadcrumb-cycle):not(.fs-editor *) {
 	padding: 0 var(--space-8);
 }
 
-select,
-input[type="text"],
-input[type="url"],
-input[type="search"],
-input[type="number"] {
+select:not(.fs-editor *),
+input[type="text"]:not(.fs-editor *),
+input[type="url"]:not(.fs-editor *),
+input[type="search"]:not(.fs-editor *),
+input[type="number"]:not(.fs-editor *) {
 	padding: 0 var(--space-6);
 }
 

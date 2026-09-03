@@ -28,7 +28,6 @@ function avesmapsPoliticalGetGeometryAssignment(PDO $pdo, array $query): array {
                     'name' => $geometryDisplayName,
                     'displayName' => $geometryDisplayName,
                     'coatOfArmsUrl' => (string) ($geometryStyle['coatOfArmsUrl'] ?? $geometryStyle['coat_of_arms_url'] ?? ''),
-                    'otherSource' => is_array($geometryStyle['otherSource'] ?? null) ? $geometryStyle['otherSource'] : null,
                     'zoomMin' => avesmapsPoliticalNullableInt($geometry['min_zoom'] ?? null),
                     'zoomMax' => avesmapsPoliticalNullableInt($geometry['max_zoom'] ?? null),
                     'color' => (string) ($geometryStyle['fill'] ?? $geometryStyle['stroke'] ?? '#888888'),
@@ -65,7 +64,6 @@ function avesmapsPoliticalGetGeometryAssignment(PDO $pdo, array $query): array {
                     'name' => $geometryDisplayName,
                     'displayName' => $geometryDisplayName,
                     'coatOfArmsUrl' => (string) ($geometryStyle['coatOfArmsUrl'] ?? $geometryStyle['coat_of_arms_url'] ?? ''),
-                    'otherSource' => is_array($geometryStyle['otherSource'] ?? null) ? $geometryStyle['otherSource'] : null,
                     'zoomMin' => avesmapsPoliticalNullableInt($geometry['min_zoom'] ?? null),
                     'zoomMax' => avesmapsPoliticalNullableInt($geometry['max_zoom'] ?? null),
                     'color' => (string) ($geometryStyle['fill'] ?? $geometryStyle['stroke'] ?? '#888888'),
@@ -183,7 +181,6 @@ function avesmapsPoliticalGetGeometryAssignment(PDO $pdo, array $query): array {
             'slug' => (string) ($territory['slug'] ?? ''),
             'name' => $label,
             'displayName' => $displayName,
-            'otherSource' => (is_array($storedDisplay) && is_array($storedDisplay['otherSource'] ?? null)) ? $storedDisplay['otherSource'] : null,
             'coatOfArmsUrl' => $storedCoatOfArmsUrl ?: (string) ($territory['coat_of_arms_url'] ?? ''),
             'zoomMin' => avesmapsPoliticalNullableInt($storedDisplay['zoomMin'] ?? $territory['min_zoom'] ?? null),
             'zoomMax' => avesmapsPoliticalNullableInt($storedDisplay['zoomMax'] ?? $territory['max_zoom'] ?? null),
@@ -214,7 +211,6 @@ function avesmapsPoliticalGetGeometryAssignment(PDO $pdo, array $query): array {
             'display' => $activeDisplay === null ? null : [
                 'name' => $activeDisplay['displayName'],
                 'displayName' => $activeDisplay['displayName'],
-                'otherSource' => $activeDisplay['otherSource'] ?? null,
                 'coatOfArmsUrl' => $activeDisplay['coatOfArmsUrl'],
                 'zoomMin' => $activeDisplay['zoomMin'],
                 'zoomMax' => $activeDisplay['zoomMax'],
@@ -263,19 +259,10 @@ function avesmapsPoliticalSaveGeometryDisplayOnly(PDO $pdo, array $payload, arra
         }
     }
 
-    if (array_key_exists('otherSource', $display)) {
-        $otherSource = is_array($display['otherSource']) ? $display['otherSource'] : [];
-        $otherSourceUrl = avesmapsPoliticalReadOptionalUrl((string) ($otherSource['url'] ?? ''), 'Der Quellen-Link');
-
-        if ($otherSourceUrl !== '') {
-            $style['otherSource'] = [
-                'url' => $otherSourceUrl,
-                'label' => trim((string) ($otherSource['label'] ?? '')),
-            ];
-        } else {
-            unset($style['otherSource']);
-        }
-    }
+    // 🔴 Hier stand bis zum 03.09.2026 der Schreibpfad fuer „Andere Quelle“ (`display.otherSource` ->
+    // style_json). Die Quellen eines Gebiets liegen in sources + feature_sources (AGENTS.md §5) und werden
+    // ueber das geteilte Bauteil montiert; ein alter Client, der den Schluessel noch schickt, wird hier
+    // schlicht nicht mehr gehoert (display-style-ohne-andere-quelle-test.php).
 
     if (array_key_exists('coatOfArmsUrl', $display)) {
         $coatOfArmsUrl = avesmapsPoliticalReadOptionalCoatUrl(

@@ -71,8 +71,13 @@ und den Prüfer `mockup-treue` gibt.
 
 ### 2.1 Territoriumseditor — eine Sektion „Quellen", ein reines Anschluss-Modul
 
-Markup in `html/political-territory-editor.html`, **direkt nach** „Synchronisierte Wiki-Daten" und vor
-`.manual-data-columns` (dort steht, was den KNOTEN beschreibt; darunter gehört alles der Geometrie):
+🔴 **Owner-Entscheid nach dem Entwurf (03.09.2026): „generell können quellen immer unten/als letztes in
+den listen auftauchen".** Der Editor ist zweispaltig (`territory-editor-panel-columns.js` sortiert alle
+Sektionen in zwei Spalten; Wiki-Daten und Konfliktparteien rechts, alles andere links). Die Sektion
+„Quellen" kommt in die **rechte Spalte als LETZTE** — die Spaltenweiche nennt `#territoryFeatureSources`
+neben `#infoBox` und `#contestedBlock`, und die stabile Sortierung (unbekannte Überschriften ans Ende,
+Dokumentreihenfolge) macht sie zur letzten, weil sie im Markup die letzte Sektion des Formulars ist.
+Markup in `html/political-territory-editor.html`, **nach** dem Konfliktparteien-Block, vor `</form>`:
 
 ```html
 <section class="manual-data-section" aria-label="Quellen" id="territoryFeatureSourcesSection" hidden>
@@ -137,7 +142,10 @@ Bedienhöhe — eine sichtbare Änderung an Stellen, um die es hier nicht geht. 
 
 ### 2.3 Kartendialog — derselbe Kasten wie im Orts- und Beschriftungsdialog
 
-An der Stelle von `#region-edit-other-source-section` in `index.html`:
+🔴 **Owner-Entscheid (03.09.2026): „können die quellen ganz nach unten (nicht zwischen die felder
+reinpfrimeln)".** Der Kasten steht deshalb NICHT an der Stelle des alten Feldes, sondern nach dem
+letzten Feld („Redaktioneller Kommentar"), vor Statuszeile und Knopfleiste; `#region-edit-other-source-section`
+fällt ersatzlos. In `index.html`:
 
 ```html
 <div class="label-edit-section political-territory-field"><div class="label-edit-section-title">Quellen</div>
@@ -161,7 +169,7 @@ Getter liest das versteckte Feld bei jeder Anfrage.
 | `territory-editor-embedded.js` | `els.otherSource*` (:125-127), `otherSource` in `createEmptyDisplayState`, `createDefaultDisplayState`, `saveCurrentDisplayState`, `applyDisplayStateToForm`, `readDisplayStateFromForm`, `normalizeIncomingDisplayState`, im Rumpf von `save_geometry_assignment` und im Kontext-Export (:1509–2933, acht Stellen); der Riegel `otherSourceFields.hidden` (:1645-1648) |
 | `index.html` | `#region-edit-other-source-section` mit Adresse, Linktext, Vorschau |
 | `review-region-dialog-population.js:25-27`, `review-region-submit-flow.js:37` | `writeOtherSourceToForm("region-edit")` / `readOtherSourceFromForm("region-edit")` |
-| `api/_internal/political/assignment.php` (4×), `territories-read.php:1056`, `territories-write.php:40` | `otherSource` im `display_style` — Lesen, Normalisieren, Schreiben |
+| `api/_internal/political/assignment.php` (Lesen der Anzeige UND der Schreibpfad von `save_geometry_assignment`, der den Link prüfte und in `style_json` legte), `territories-read.php`, `territories-write.php` | `otherSource` im `display_style` — Lesen, Normalisieren, Schreiben. 🪤 Der Entwurf zählte hier zuerst „4×" für `assignment.php`; das war ein `head -20` auf dem Grep, keine Zählung — gefunden hat den fünften Block der Test, nicht der Autor |
 
 Gespeicherte `otherSource`-Reste bleiben als inerte JSON-Schlüssel liegen, bis die Geometrie das
 nächste Mal gespeichert wird — dann verwirft die Normalisierung sie. Ein alter, zwischengespeicherter

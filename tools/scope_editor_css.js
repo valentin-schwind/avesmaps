@@ -21,6 +21,13 @@ const SOURCES = [
 	"css/pages/political-territory-editor.css",
 	"css/pages/political-territory-editor-layout.css",
 	"css/pages/political-territory-wiki-tree.css",
+	// Das Quellen-Bauteil (mountFeatureSourceEditor) wird im Editor montiert. Seine Regeln muessen
+	// MIT der Host-ID im Bauprodukt stehen -- sonst schlagen die gescopten Elementregeln des Editors
+	// (button, select, a, p: (1,0,1) und mehr) jede Modulklasse (0,1,0), und der Kasten saehe hier
+	// anders aus als an den acht anderen Montagestellen. Als LETZTE Quelle, damit die Modulregeln
+	// bei gleicher Spezifitaet die spaeteren sind. Keine zweite Rezeptur: dieselbe Datei, eingefaltet.
+	// (docs/superpowers/specs/2026-09-03-quellen-herrschaftsgebiete-design.md §2.2)
+	"css/features/feature-sources.css",
 ];
 const OUT = "css/pages/political-territory-editor-inline.css";
 

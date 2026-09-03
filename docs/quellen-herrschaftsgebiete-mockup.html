@@ -1,0 +1,3403 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Quellen am Herrschaftsgebiet — Mockup</title>
+<!-- Die echten Tokens und das echte Quellen-CSS, damit hier nichts schöner aussieht als live. -->
+<link rel="stylesheet" href="../css/base/tokens.css">
+<link rel="stylesheet" href="../css/features/feature-sources.css">
+<link rel="stylesheet" href="../css/components/location-report-dialog.css">
+<link rel="stylesheet" href="../css/components/region-sync.css">
+<!-- IST: das echte Bauprodukt des Territoriumseditors von heute, samt der Spaltenergänzung, die
+     der Inline-Host danach lädt. Es gilt nur innerhalb von #political-territory-editor-host. -->
+<link rel="stylesheet" href="../css/pages/political-territory-editor-inline.css">
+<link rel="stylesheet" href="../css/components/political-territory-editor-columns.css">
+<script src="../js/ui/feature-source-markup.js"></script>
+<style>
+/* ══ VERTRAG: css/pages/political-territory-editor.css ══
+   🔴 ALLES ZWISCHEN DIESEN MARKEN MUSS IN DER GENANNTEN DATEI ZEICHENGLEICH STEHEN
+   (tools/mockup-vertrag/__tests__/mockup-vertrag.test.js, läuft im Deploy-Tor).
+   Es ist die EINE Änderung an einer bestehenden Regel, die dieser Schritt braucht: die
+   Bedienhöhe des Territoriumseditors (32px, Radius, Polster) gilt seinen EIGENEN Knöpfen und
+   Feldern -- nicht denen des eingebauten Quellen-Bauteils. Ohne die Ausnahme schlägt sie mit
+   (1,2,1) jede Modulregel (1,1,0), und der Quellenkasten sähe hier anders aus als an den acht
+   anderen Montagestellen: Karte „Naiv montiert" weiter unten zeigt genau das, gemessen. */
+button:not(.tree-footer-button):not(.breadcrumb-cycle):not(.fs-editor *),
+select:not(.fs-editor *),
+input[type="text"]:not(.fs-editor *),
+input[type="url"]:not(.fs-editor *),
+input[type="search"]:not(.fs-editor *),
+input[type="number"]:not(.fs-editor *),
+input[type="color"]:not(.fs-editor *) {
+	min-height: var(--pte-control-h);
+	border-radius: var(--radius-md);
+}
+
+button:not(.tree-footer-button):not(.breadcrumb-cycle):not(.fs-editor *) {
+	padding: 0 var(--space-8);
+}
+
+select:not(.fs-editor *),
+input[type="text"]:not(.fs-editor *),
+input[type="url"]:not(.fs-editor *),
+input[type="search"]:not(.fs-editor *),
+input[type="number"]:not(.fs-editor *) {
+	padding: 0 var(--space-6);
+}
+/* ══ VERTRAG ENDE ══ */
+
+/* ── Seitengerüst (nur fürs Mockup) ─────────────────────────────────────────────────────────── */
+body { background: var(--color-page-bg); color: var(--color-text); font-family: var(--font-ui, "Faculty Glyphic", Arial, sans-serif);
+       margin: 0; padding: 22px 24px 80px; font-size: 14px; line-height: 1.5; }
+h1 { font-size: 22px; margin: 0 0 4px; color: var(--color-text-strong); }
+h2 { font-size: 17px; margin: 34px 0 6px; padding-bottom: 6px; border-bottom: 1px solid var(--color-divider); color: var(--color-text-strong); }
+p { margin: 8px 0; max-width: 88ch; }
+code { padding: 1px 5px; border-radius: var(--radius-sm); background: var(--color-panel-muted); color: var(--color-text-strong); font-family: Consolas, monospace; font-size: 12px; }
+ul.mk { max-width: 88ch; padding-left: 20px; } ul.mk li { margin: 6px 0; }
+.sw { position: fixed; top: 12px; right: 12px; z-index: 9; font: inherit; font-size: 12px; padding: 5px 11px; border-radius: var(--radius-md);
+      border: 1px solid var(--color-button-soft-border); background: var(--color-button-soft); color: var(--color-button-soft-text); cursor: pointer; }
+.reihe { display: flex; gap: 22px; flex-wrap: wrap; align-items: flex-start; margin-top: 10px; }
+.karte { flex: 0 1 660px; max-width: 100%; }
+.karte--dialog { flex: 0 1 600px; }
+.wlabel { margin: 0 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--color-text-muted); }
+.wlabel--ist { color: var(--color-danger, #b54a3a); } .wlabel--soll { color: var(--color-accent-brown); }
+.meta { font-size: 12px; color: var(--color-text-muted); margin: 6px 0 0; }
+.mk-host { border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden; }
+.mk-host .panel { box-shadow: none; }
+.mk-tot { outline: 2px dashed var(--color-danger, #b54a3a); outline-offset: -2px; }
+.mk-marke { font-size: 11px; font-weight: 400; color: var(--color-danger, #b54a3a); margin-left: 6px; }
+.mk-dialog { width: 100%; box-shadow: none; }
+.mk-wirt { width: 460px; max-width: 100%; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-panel); padding: 12px 14px; }
+.frage { margin-top: 22px; padding: 12px 14px; border-left: 3px solid var(--color-accent-brown); background: var(--color-panel-muted);
+         border-radius: 0 var(--radius-md) var(--radius-md) 0; max-width: 90ch; line-height: 1.6; }
+
+/* ── SOLL: das GEPLANTE Bauprodukt, mechanisch erzeugt von tools/scope_editor_css.js über VIER
+   Quellen statt drei (die vierte ist css/features/feature-sources.css) und mit den Bedienhöhen-
+   Regeln aus dem Vertrag oben; die Wurzel heißt hier #soll-host, damit die Ist-Karte daneben
+   das heutige Bauprodukt behalten kann. Kommentare entfernt. NICHTS davon ist von Hand geschrieben
+   -- wer hier etwas ändern will, ändert die Quelle und erzeugt neu. ─────────────────────────── */
+
+
+#soll-host h2,
+#soll-host h3 {
+	margin: 0;
+	color: var(--text-strong);
+}
+
+#soll-host h2 {
+	font-size: var(--font-size-subhead);
+}
+
+#soll-host h3 {
+	font-size: var(--font-size-small);
+	letter-spacing: 0.02em;
+}
+
+#soll-host .note {
+	font-weight: var(--font-weight-regular);
+	line-height: 1.25;
+}
+
+#soll-host .tree-header-controls {
+	grid-template-columns: minmax(0, 1fr) auto auto auto;
+	min-width: min(280px, 45%);
+}
+
+#soll-host .tree-time-filter {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin: 8px 12px 10px;
+	font-size: var(--font-size-small);
+	color: var(--muted);
+}
+
+#soll-host .tree-time-filter .tree-search-input {
+	flex: 1 1 150px;
+	min-width: 120px;
+	padding: 6px 9px;
+	border: 1px solid var(--border-strong);
+	border-radius: 6px;
+	background: var(--panel);
+	font: inherit;
+}
+
+#soll-host .tree-time-filter .tree-time-label {
+	color: var(--muted);
+}
+
+#soll-host .tree-time-filter input[type="number"] {
+	width: 56px;
+	padding: 4px 6px;
+	border: 1px solid var(--border-strong);
+	border-radius: 6px;
+	background: var(--panel);
+	font: inherit;
+}
+
+#soll-host .tree-time-filter label {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+}
+
+#soll-host .tree-wrap {
+	max-height: 30vh;
+	overflow: auto;
+	padding: 8px;
+	background: var(--panel);
+}
+
+#soll-host .tree-root,
+#soll-host .tree-root ul {
+	list-style: none;
+	margin: 0;
+	padding-left: 0;
+}
+
+#soll-host .tree-root ul {
+	margin-left: 12px;
+	padding-left: 12px;
+	border-left: 1px solid var(--border);
+}
+
+#soll-host .tree-node {
+	margin: 3px 0;
+}
+
+#soll-host .tree-node details > summary {
+	display: flex;
+	align-items: center;
+	gap: 3px;
+	cursor: pointer;
+	list-style: none;
+}
+
+#soll-host .tree-node details > summary::-webkit-details-marker {
+	display: none;
+}
+
+#soll-host .tree-toggle {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 16px;
+	height: 16px;
+	flex: 0 0 16px;
+	color: var(--muted);
+}
+
+#soll-host .tree-toggle::before {
+	content: "";
+	display: block;
+	width: 0;
+	height: 0;
+	border-top: 5px solid transparent;
+	border-bottom: 5px solid transparent;
+	border-left: 6px solid currentColor;
+	transition: transform 0.12s ease;
+}
+
+#soll-host .tree-node details[open] > summary .tree-toggle::before {
+	transform: rotate(90deg);
+}
+
+#soll-host .tree-item {
+	display: inline-flex;
+	align-items: center;
+	gap: 7px;
+	max-width: 100%;
+	padding: 7px 8px;
+	border-radius: 6px;
+	background: transparent;
+	color: var(--text-strong);
+	font-weight: 700;
+	cursor: grab;
+	user-select: none;
+}
+
+#soll-host .tree-item:hover,
+#soll-host .tree-item.selected {
+	background: var(--panel-hover);
+}
+
+#soll-host .tree-item:active {
+	cursor: grabbing;
+}
+
+#soll-host .tree-item.synthetic {
+	color: var(--synthetic, #8b5d2a);
+}
+
+#soll-host .tree-item-label {
+	display: inline-flex;
+	flex-direction: column;
+	gap: 0.1rem;
+	min-width: 0;
+}
+
+#soll-host .tree-item-name {
+	line-height: 1.2;
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
+#soll-host .tree-item-meta {
+	line-height: 1.15;
+	white-space: nowrap;
+}
+
+#soll-host .tree-map-status {
+	position: relative;
+	width: 13px;
+	height: 13px;
+	flex: 0 0 13px;
+	border: 2px solid var(--color-map-presence);
+	border-radius: 50%;
+	background: var(--panel);
+	box-sizing: border-box;
+	color: var(--color-map-presence);
+	overflow: hidden;
+}
+
+#soll-host .tree-map-status--own-only::before,
+#soll-host .tree-map-status--children-only::before {
+	content: "";
+	position: absolute;
+	top: 1px;
+	bottom: 1px;
+	background: currentColor;
+}
+
+#soll-host .tree-map-status--children-only::before {
+	left: 1px;
+	right: 50%;
+	border-radius: 999px 0 0 999px;
+}
+
+#soll-host .tree-map-status--own-only::before {
+	left: 50%;
+	right: 1px;
+	border-radius: 0 999px 999px 0;
+}
+
+#soll-host .tree-map-status--all {
+	background: currentColor;
+}
+
+#soll-host .tree-separator {
+	margin: 9px 0 6px 0;
+	padding: 0 8px;
+	color: var(--muted-2);
+	font-size: var(--font-size-small);
+	font-weight: 700;
+	letter-spacing: 0.04em;
+}
+
+#soll-host .tree-root ul .tree-separator {
+	display: none;
+}
+
+#soll-host .tree-separator::before,
+#soll-host .tree-separator::after {
+	content: "---";
+	color: var(--muted-2);
+}
+
+#soll-host .tree-separator::before {
+	margin-right: 6px;
+}
+
+#soll-host .tree-separator::after {
+	margin-left: 6px;
+}
+
+#soll-host .drag-handle {
+	font-size: var(--font-size-small);
+	color: var(--muted-2);
+	letter-spacing: -1px;
+}
+
+#soll-host .legend-map-status {
+	position: relative;
+	width: 13px;
+	height: 13px;
+	flex: 0 0 13px;
+	border: 2px solid var(--color-map-presence);
+	border-radius: 50%;
+	background: var(--panel);
+	box-sizing: border-box;
+	color: var(--color-map-presence);
+	overflow: hidden;
+}
+
+#soll-host .legend-map-status--children-only::before,
+#soll-host .legend-map-status--own-only::before {
+	content: "";
+	position: absolute;
+	top: 1px;
+	bottom: 1px;
+	background: currentColor;
+}
+
+#soll-host .legend-map-status--children-only::before {
+	left: 1px;
+	right: 50%;
+	border-radius: 999px 0 0 999px;
+}
+
+#soll-host .legend-map-status--own-only::before {
+	left: 50%;
+	right: 1px;
+	border-radius: 0 999px 999px 0;
+}
+
+#soll-host .legend-map-status--all {
+	background: currentColor;
+}
+
+#soll-host .detail-stack {
+	min-width: 0;
+}
+
+#soll-host .tree-panel-footer {
+	justify-content: space-between;
+}
+
+#soll-host .legend {
+	color: var(--muted);
+	font-size: var(--font-size-caption);
+	line-height: 1.25;
+}
+
+#soll-host .legend-item {
+	white-space: nowrap;
+}
+
+#soll-host .legend-separator {
+	font-weight: 700;
+}
+
+#soll-host .legend-swatch {
+	box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.15);
+}
+
+#soll-host .tree-footer-actions {
+	align-items: center;
+	flex: 0 0 auto;
+}
+
+#soll-host .drop-zone {
+	min-height: 46px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+#soll-host .drop-zone.has-selection {
+	border-style: solid;
+	background: var(--panel-muted);
+	color: var(--text-strong);
+}
+
+#soll-host .breadcrumb {
+	color: var(--muted);
+	font-size: var(--font-size-small);
+	line-height: 1.35;
+}
+
+#soll-host .manual-edit-path {
+	border-bottom: 1px solid var(--border);
+}
+
+#soll-host .manual-data-columns {
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+#soll-host .manual-data-field label,
+#soll-host .manual-data-checkbox {
+	font-size: var(--font-size-caption);
+}
+
+#soll-host .manual-data-checkbox {
+	padding: 7px 0;
+}
+
+#soll-host .manual-data-checkbox input {
+	padding: 0;
+}
+
+#soll-host .manual-coat-preview {
+	align-items: center;
+	justify-content: center;
+}
+
+#soll-host .manual-coat-preview img {
+	max-width: 100%;
+	max-height: 100%;
+}
+
+#soll-host .info-title {
+	font-size: var(--font-size-subhead);
+	font-weight: 700;
+	color: var(--text-strong);
+}
+
+#soll-host .info-subtitle,
+#soll-host .info-empty,
+#soll-host .info-error,
+#soll-host .error {
+	color: var(--muted);
+	line-height: 1.45;
+}
+
+#soll-host .info-error,
+#soll-host .error {
+	color: var(--danger);
+}
+
+#soll-host .info-grid {
+	margin-top: 10px;
+}
+
+#soll-host .info-value {
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
+#soll-host .info-value a {
+	color: var(--accent);
+}
+
+#soll-host .info-details {
+	margin-top: 10px;
+}
+
+#soll-host .info-details > summary {
+	display: inline-flex;
+	padding: 4px 0;
+	color: var(--accent);
+	font-weight: 700;
+}
+
+#soll-host .form-status-field {
+	font-size: var(--font-size-caption);
+}
+
+#soll-host #formStatusInput[data-status="error"] {
+	border-color: var(--danger);
+	color: var(--danger);
+}
+
+#soll-host #formStatusInput[data-status="success"] {
+	border-color: var(--color-success);
+	color: var(--color-success);
+}
+
+#soll-host .form-actions {
+	align-items: center;
+}
+
+@media (max-width: 980px) {
+	#soll-host .app-container {
+		width: 100%;
+	}
+
+	#soll-host .layout {
+		grid-template-columns: 1fr;
+	}
+
+	#soll-host .tree-wrap {
+		max-height: 42vh;
+	}
+}
+
+@media (max-width: 680px) {
+	#soll-host main {
+		padding: 10px;
+	}
+
+	#soll-host .panel-header,
+	#soll-host .tree-panel-footer,
+	#soll-host .drop-zone-row,
+	#soll-host .form-status-row {
+		grid-template-columns: 1fr;
+		align-items: stretch;
+	}
+
+	#soll-host .panel-header,
+	#soll-host .tree-panel-footer {
+		display: grid;
+	}
+
+	#soll-host .tree-header-controls,
+	#soll-host .manual-data-columns,
+	#soll-host .manual-data-grid,
+	#soll-host .manual-data-inline-action,
+	#soll-host .manual-data-inline-action--with-preview,
+	#soll-host .info-grid {
+		grid-template-columns: 1fr;
+	}
+
+	#soll-host .legend-item {
+		white-space: normal;
+	}
+
+	#soll-host .form-actions,
+	#soll-host .tree-footer-actions {
+		justify-content: flex-end;
+	}
+}
+
+#soll-host {
+	--page-bg: var(--color-page-bg);
+	--page-bg-deep: var(--color-page-bg-deep);
+	--panel: var(--color-panel);
+	--panel-soft: var(--color-panel-soft);
+	--panel-muted: var(--color-panel-muted);
+	--panel-hover: var(--color-panel-muted);
+	--text: var(--color-text);
+	--text-strong: var(--color-text-strong);
+	--muted: var(--color-text-muted);
+	--muted-2: var(--color-text-muted);
+	--border: var(--color-border);
+	--border-strong: var(--color-border-strong);
+	--accent: var(--color-link);
+	--accent-soft: var(--color-hover-wash);
+	--button: var(--color-button);
+	--button-border: var(--color-button-border);
+	--danger: var(--color-danger);
+	--synthetic: #8b5d2a;
+	--shadow: rgba(0, 0, 0, 0.18);
+}
+
+#soll-host, #soll-host * {
+	box-sizing: border-box;
+}
+
+#soll-host {
+	margin: 0;
+	font-family: "Faculty Glyphic", Arial, sans-serif;
+	font-size: var(--font-size-body);
+	background: var(--page-bg-deep);
+	color: var(--text);
+}
+
+#soll-host .is-embedded {
+	background: var(--page-bg);
+}
+
+#soll-host .app-container {
+	width: min(760px, 100%);
+	min-height: 100vh;
+	margin: 0 auto;
+	background: var(--page-bg);
+	box-shadow: 0 0 30px rgba(0, 0, 0, 0.28);
+}
+
+#soll-host .is-embedded .app-container {
+	width: 100%;
+	box-shadow: none;
+}
+
+#soll-host header {
+	padding: 18px 24px;
+	border-bottom: 1px solid var(--border);
+	background: var(--color-panel-translucent);
+	position: sticky;
+	top: 0;
+	z-index: 10;
+	box-shadow: 0 3px 12px rgba(0, 0, 0, 0.18);
+	backdrop-filter: blur(6px);
+}
+
+#soll-host .is-embedded header {
+	display: none;
+}
+
+#soll-host h1 {
+	margin: 0 0 6px 0;
+	font-size: var(--font-size-display);
+	font-weight: 700;
+	color: var(--text-strong);
+}
+
+#soll-host p {
+	margin: 0;
+	color: var(--muted);
+	line-height: 1.45;
+}
+
+#soll-host code {
+	color: var(--accent);
+	font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+#soll-host main {
+	padding: 14px 16px 20px;
+	display: grid;
+	gap: 14px;
+}
+
+#soll-host .is-embedded main {
+	padding: 12px;
+}
+
+#soll-host .controls,
+#soll-host .stat,
+#soll-host .panel {
+	border: 1px solid var(--border);
+	background: var(--panel);
+	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.13);
+}
+
+#soll-host .controls {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	align-items: center;
+}
+
+#soll-host .is-hidden-control {
+	display: none !important;
+}
+
+#soll-host button {
+	border: 1px solid var(--button-border);
+	border-radius: 6px;
+	background: var(--button);
+	color: var(--color-button-text);
+	cursor: pointer;
+	font: inherit;
+	font-weight: 700;
+	padding: 8px 11px;
+}
+
+#soll-host button:hover,
+#soll-host button:focus-visible {
+	background: var(--color-button-hover);
+	outline: none;
+}
+
+#soll-host button.secondary {
+	background: var(--color-button-soft);
+	border-color: var(--color-button-soft-border);
+	color: var(--color-button-soft-text);
+}
+
+#soll-host button.secondary:hover,
+#soll-host button.secondary:focus-visible {
+	background: var(--color-button-soft-hover);
+	border-color: var(--border-strong);
+}
+
+#soll-host button:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+}
+
+#soll-host input,
+#soll-host select {
+	min-width: 0;
+	border: 1px solid var(--border-strong);
+	border-radius: 8px;
+	background: var(--panel);
+	color: var(--text);
+	font: inherit;
+	padding: 9px 10px;
+}
+
+#soll-host input:focus,
+#soll-host select:focus {
+	border-color: var(--border-strong);
+	outline: 2px solid var(--color-hover-wash);
+	outline-offset: 0;
+}
+
+#soll-host .status-grid {
+	display: none !important;
+	grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+	gap: 10px;
+}
+
+#soll-host .stat {
+	border-radius: 8px;
+	padding: 12px;
+}
+
+#soll-host .stat .label {
+	color: var(--muted);
+	font-size: var(--font-size-small);
+	font-weight: 700;
+	margin-bottom: 4px;
+}
+
+#soll-host .stat .value {
+	color: var(--text-strong);
+	font-size: var(--font-size-title);
+	font-weight: 700;
+}
+
+#soll-host .panel {
+	border-radius: 8px;
+	overflow: hidden;
+}
+
+#soll-host .panel-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 12px;
+	padding: 10px 12px;
+	border-bottom: 1px solid var(--border);
+	background: var(--panel);
+}
+
+#soll-host .tree-panel-header {
+	align-items: flex-start;
+}
+
+#soll-host .tree-header-title {
+	display: grid;
+	gap: 3px;
+	min-width: 150px;
+}
+
+#soll-host .tree-header-controls {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	align-items: center;
+	gap: 6px;
+}
+
+#soll-host .tree-header-controls input[type="search"] {
+	width: min(240px, 100%);
+	padding: 7px 9px;
+}
+
+#soll-host .tree-footer-button {
+	display: inline-grid;
+	place-items: center;
+	width: 30px;
+	height: 30px;
+	padding: 0;
+	border-radius: 6px;
+	font-size: var(--font-size-subhead);
+	line-height: 1;
+}
+
+#soll-host .panel-header h2 {
+	margin: 0;
+	color: var(--text-strong);
+	font-size: var(--font-size-subhead);
+}
+
+#soll-host .note {
+	font-size: var(--font-size-small);
+	color: var(--muted);
+}
+
+#soll-host .error {
+	color: var(--danger);
+}
+
+#soll-host .layout {
+	display: grid;
+	grid-template-columns: 1fr;
+	gap: 14px;
+	align-items: start;
+}
+
+#soll-host .drop-zone-row {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	gap: 8px;
+	align-items: stretch;
+}
+
+#soll-host .drop-zone-unassign-button {
+	align-self: stretch;
+	white-space: nowrap;
+}
+
+#soll-host .drop-zone-unassign-button[hidden] {
+	display: none !important;
+}
+#soll-host .drop-zone {
+	margin: 0;
+	padding: 22px 18px;
+	border: 1px dashed var(--border-strong);
+	border-radius: 8px;
+	background: var(--panel-soft);
+	text-align: center;
+	color: var(--muted);
+	font-weight: 700;
+	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+#soll-host .drop-zone.drag-over {
+	border-color: var(--accent);
+	background: var(--accent-soft);
+	color: var(--accent);
+}
+
+#soll-host .drop-zone.has-node {
+	padding: 12px;
+	text-align: left;
+}
+
+#soll-host .drop-zone-title {
+	margin-bottom: 8px;
+	text-align: center;
+}
+
+#soll-host .dropped-node {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 10px;
+	border: 1px solid var(--border-strong);
+	border-radius: 8px;
+	background: var(--panel);
+	color: var(--text-strong);
+}
+
+#soll-host .dropped-node-name {
+	font-weight: var(--font-weight-bold);
+}
+
+#soll-host .dropped-node-kind {
+	font-size: var(--font-size-small);
+	color: var(--muted);
+}
+
+#soll-host .legend {
+	display: grid;
+	gap: 5px;
+	min-width: 0;
+}
+
+#soll-host .legend-line {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px;
+	min-width: 0;
+	font-size: var(--font-size-small);
+	color: var(--muted);
+}
+
+#soll-host .legend-item {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	min-width: 0;
+}
+
+#soll-host .legend-separator {
+	color: var(--muted-2);
+}
+
+#soll-host .legend-swatch {
+	width: 12px;
+	height: 12px;
+	border-radius: 999px;
+	border: 1px solid var(--muted-2);
+	background: var(--text-strong);
+	flex: 0 0 12px;
+	box-sizing: border-box;
+}
+
+#soll-host .legend-swatch.synthetic {
+	background: var(--synthetic);
+}
+
+#soll-host .tree-panel-footer {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	gap: 10px;
+	align-items: end;
+	padding: 8px 10px;
+	border-top: 1px solid var(--border);
+	background: var(--panel-soft);
+}
+
+#soll-host .tree-footer-actions {
+	display: inline-flex;
+	gap: 6px;
+	justify-self: end;
+}
+
+#soll-host .detail-stack {
+	display: grid;
+	gap: 14px;
+}
+
+#soll-host .breadcrumb {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	align-items: center;
+	padding: 10px 12px;
+	background: var(--panel-soft);
+	border-bottom: 1px solid var(--border);
+}
+
+#soll-host .breadcrumb button {
+	padding: 6px 10px;
+	border: 1px solid var(--border-strong);
+	border-radius: 8px;
+	background: var(--panel);
+	color: var(--text-strong);
+	font-size: var(--font-size-small);
+	font-weight: 700;
+}
+
+#soll-host .breadcrumb button:hover,
+#soll-host .breadcrumb button:focus-visible {
+	background: var(--panel-hover);
+}
+
+#soll-host .breadcrumb button.is-active {
+	background: var(--button);
+	border-color: var(--button);
+	color: var(--color-button-text);
+}
+
+#soll-host .breadcrumb .separator {
+	color: var(--muted);
+}
+
+#soll-host .tree-item-meta {
+	display: inline-flex;
+	flex-wrap: wrap;
+	gap: 2px;
+	font-size: var(--font-size-caption);
+	color: var(--muted);
+}
+
+#soll-host .tree-item-meta a {
+	color: var(--accent);
+	font-weight: 700;
+}
+
+#soll-host .info-box {
+	min-height: 0;
+	background: transparent;
+}
+
+#soll-host .info-title {
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
+	margin-bottom: 14px;
+}
+
+#soll-host .info-title h3 {
+	margin: 0 0 4px 0;
+	color: var(--text-strong);
+	font-size: var(--font-size-title);
+}
+
+#soll-host .info-title .kind {
+	color: var(--muted);
+	font-size: var(--font-size-small);
+}
+
+#soll-host .wappen {
+	width: 58px;
+	height: 58px;
+	object-fit: contain;
+	background: transparent;
+	border: 0;
+	border-radius: 0;
+	padding: 0;
+	flex: 0 0 auto;
+}
+
+#soll-host .info-grid {
+	display: grid;
+
+	grid-template-columns: minmax(110px, 0.35fr) minmax(0, 1fr);
+	gap: 0;
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	overflow: hidden;
+	font-size: var(--font-size-small);
+}
+
+#soll-host .info-details {
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	background: var(--panel);
+	overflow: hidden;
+}
+
+#soll-host .info-details summary {
+	cursor: pointer;
+	font-weight: 700;
+	color: var(--text-strong);
+	padding: 9px 10px;
+	width: 100%;
+}
+
+#soll-host .info-details summary:hover,
+#soll-host .info-details summary:focus-visible {
+
+	outline: none;
+}
+
+#soll-host .info-details .info-grid {
+	border: 0;
+	border-top: 1px solid var(--border);
+	border-radius: 0;
+}
+
+#soll-host .info-origin-link {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	min-height: var(--pte-control-h);
+	font-size: var(--font-size-small);
+	font-weight: 400;
+	line-height: var(--leading-snug);
+	cursor: pointer;
+	background: var(--button);
+	color: var(--color-button-text) !important;
+	border: 1px solid var(--button-border);
+	border-radius: var(--radius-md);
+	padding: 5px 8px;
+	text-decoration: none;
+	white-space: nowrap;
+}
+
+#soll-host .info-origin-link:hover,
+#soll-host .info-origin-link:focus-visible {
+	background: var(--color-button-hover);
+	border-color: var(--color-button-hover);
+	color: var(--color-button-text) !important;
+}
+
+#soll-host .info-key,
+#soll-host .info-value {
+	padding: 8px 8px;
+	border-bottom: 1px solid var(--border);
+}
+
+#soll-host .info-key {
+	color: var(--muted-2);
+	background: var(--panel-soft);
+	font-weight: 700;
+}
+
+#soll-host .info-value {
+	color: var(--text-strong);
+	background: var(--panel);
+	white-space: pre-wrap;
+	word-break: break-word;
+}
+
+#soll-host .info-key:last-of-type,
+#soll-host .info-value:last-of-type {
+	border-bottom: 0;
+}
+
+#soll-host .manual-edit-path {
+	min-height: 42px;
+}
+
+#soll-host .manual-data-box {
+	display: grid;
+	gap: 14px;
+	padding: 14px;
+	background: var(--panel);
+}
+
+#soll-host .manual-data-columns {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 14px;
+	align-items: stretch;
+}
+
+#soll-host .manual-data-columns > .manual-data-section {
+	flex: 1 1 320px;
+}
+
+#soll-host .manual-data-section {
+	display: grid;
+	gap: 10px;
+	padding: 12px;
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	background: var(--panel);
+}
+
+#soll-host .manual-data-section h3 {
+	margin: 0;
+	color: var(--text-strong);
+	font-size: var(--font-size-subhead);
+}
+
+#soll-host .manual-data-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 10px;
+}
+
+#soll-host .manual-data-field {
+	display: grid;
+	gap: 5px;
+	min-width: 0;
+}
+
+#soll-host .manual-data-inline-action {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	gap: 8px;
+	align-items: center;
+}
+
+#soll-host .manual-data-inline-action--with-preview {
+	grid-template-columns: minmax(0, 1fr) auto 58px;
+}
+
+#soll-host .manual-data-inline-action button {
+	white-space: nowrap;
+}
+
+#soll-host .manual-coat-preview {
+	display: grid;
+	place-items: center;
+	width: 58px;
+	height: 58px;
+	border: 1px dashed var(--border-strong);
+	border-radius: 8px;
+	background: transparent;
+	color: var(--muted-2);
+	font-size: var(--font-size-caption);
+	line-height: 1.15;
+	text-align: center;
+	overflow: hidden;
+}
+
+#soll-host .manual-coat-preview img {
+	display: block;
+	width: 100%;
+	height: 100%;
+	object-fit: contain;
+}
+
+#soll-host .manual-data-field--wide {
+	grid-column: 1 / -1;
+}
+
+#soll-host .manual-data-field label,
+#soll-host .manual-data-checkbox {
+	color: var(--muted-2);
+	font-weight: 700;
+}
+
+#soll-host .manual-data-field small {
+	color: var(--muted-2);
+	font-size: var(--font-size-caption);
+}
+
+#soll-host .manual-data-field input[type="color"] {
+	width: 100%;
+
+	height: var(--pte-control-h);
+	padding: var(--space-2);
+}
+
+#soll-host .manual-data-field input[type="range"] {
+	width: 100%;
+	accent-color: var(--accent);
+}
+
+#soll-host .transparency-control-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+#soll-host .transparency-control-row input[type="range"] {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+#soll-host #transparencyNumberInput {
+	flex: 0 0 56px;
+	width: 56px;
+	min-width: 0;
+	text-align: right;
+}
+
+#soll-host .transparency-unit {
+	flex: 0 0 auto;
+	color: var(--muted-2);
+	font-size: var(--font-size-small);
+	font-weight: 700;
+}
+
+#soll-host .manual-data-field output {
+	color: var(--muted);
+	font-weight: 700;
+}
+
+#soll-host .inherit-color-variance-button {
+	justify-self: start;
+	width: fit-content;
+}
+
+#soll-host .manual-color-controls {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+}
+
+#soll-host .manual-color-controls .manual-data-field {
+	flex: 1 1 190px;
+}
+
+#soll-host .manual-data-variance-row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px 10px;
+	align-items: end;
+	justify-content: space-between;
+}
+
+#soll-host .manual-data-variance-levels {
+	flex: 1 1 100%;
+	display: grid;
+	gap: 4px;
+	min-width: 0;
+}
+
+#soll-host .variance-levels-title {
+	font-size: var(--font-size-caption);
+	font-weight: 700;
+	color: var(--muted);
+}
+
+#soll-host .manual-data-section .variance-levels-table {
+	width: 100%;
+	table-layout: fixed;
+	border-collapse: collapse;
+}
+
+#soll-host .variance-levels-table th {
+	font-size: var(--font-size-caption);
+	font-weight: 700;
+	color: var(--muted);
+	text-align: center;
+	padding: 2px 2px 5px;
+
+	border-bottom: 1px solid var(--color-divider);
+}
+
+#soll-host .variance-levels-table td {
+	padding: 5px 3px 0;
+	text-align: center;
+}
+
+#soll-host .variance-levels-table input {
+	width: 100%;
+	min-width: 0;
+	text-align: center;
+	box-sizing: border-box;
+}
+
+#soll-host .variance-levels-table input:disabled {
+	opacity: 0.4;
+	background: var(--panel-muted);
+	cursor: not-allowed;
+}
+
+#soll-host .manual-data-variance-range {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	align-items: end;
+}
+
+#soll-host .manual-data-variance-input {
+	display: grid;
+	gap: 4px;
+	min-width: 128px;
+}
+
+#soll-host .manual-data-variance-input label {
+	font-size: var(--font-size-caption);
+	font-weight: 700;
+	color: var(--muted);
+}
+
+#soll-host .manual-data-variance-input input {
+	padding: 7px 9px;
+}
+
+#soll-host .zoom-rules-table {
+	margin-top: var(--space-8);
+	padding: var(--space-8) var(--space-10);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	background: var(--panel-muted);
+	color: var(--muted);
+	font-size: var(--font-size-caption);
+	line-height: 1.4;
+}
+
+#soll-host .zoom-rules-title {
+	margin-bottom: var(--space-4);
+	font-size: var(--font-size-caption);
+	font-weight: 700;
+	color: var(--text-strong);
+	letter-spacing: 0.02em;
+}
+
+#soll-host .zoom-rules-table table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: var(--font-size-caption);
+	line-height: 1.4;
+}
+
+#soll-host .zoom-rules-table thead th {
+	padding: 4px 6px 5px 0;
+	border-bottom: 1px solid var(--color-divider);
+	text-align: left;
+	font-size: var(--font-size-caption);
+	font-weight: 700;
+	color: var(--muted);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+#soll-host .zoom-rules-table tbody td {
+	padding: 4px 6px 4px 0;
+	border-bottom: 1px solid var(--color-divider);
+	vertical-align: top;
+}
+
+#soll-host .zoom-rules-table tbody tr:last-child td {
+	border-bottom: none;
+}
+
+#soll-host .zoom-rules-table tbody td:first-child {
+	width: 92px;
+	white-space: nowrap;
+	font-weight: 700;
+	color: var(--text-strong);
+}
+
+#soll-host .zoom-rules-table tbody td:last-child {
+	color: var(--text);
+}
+
+#soll-host .zoom-rules-note {
+	margin-top: var(--space-4);
+	font-size: var(--font-size-caption);
+	color: var(--muted);
+}
+
+#soll-host .manual-data-inline-hint {
+	display: block;
+	color: var(--muted);
+	font-size: var(--font-size-caption);
+	line-height: 1.35;
+}
+
+#soll-host .manual-data-section-header {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	align-items: baseline;
+	gap: 6px 12px;
+}
+
+#soll-host .manual-data-checkbox {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	min-height: 38px;
+}
+
+#soll-host .manual-data-checkbox input {
+	width: auto;
+}
+
+#soll-host .form-status-panel {
+	background: var(--panel);
+}
+
+#soll-host .form-status-row {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	gap: 12px;
+	align-items: end;
+	padding: 12px;
+}
+
+#soll-host .form-status-field {
+	display: grid;
+	gap: 5px;
+	min-width: 0;
+	color: var(--muted-2);
+	font-weight: 700;
+}
+
+#soll-host .form-status-field input[readonly] {
+	background: var(--panel-muted);
+	color: var(--muted-2);
+}
+
+#soll-host .form-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+}
+
+@media (max-width: 620px) {
+	#soll-host .manual-data-grid,
+	#soll-host .form-status-row {
+		grid-template-columns: 1fr;
+	}
+
+	#soll-host .manual-data-columns {
+		flex-direction: column;
+	}
+
+	#soll-host .manual-data-inline-action--with-preview {
+		grid-template-columns: minmax(0, 1fr) auto;
+	}
+
+	#soll-host .manual-data-variance-row,
+	#soll-host .manual-data-variance-range {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	#soll-host .manual-data-variance-input {
+		min-width: 0;
+	}
+
+	#soll-host .manual-color-controls .manual-data-field {
+		flex-basis: 100%;
+	}
+
+	#soll-host .manual-coat-preview {
+		grid-column: 1 / -1;
+	}
+
+	#soll-host .form-actions {
+		justify-content: stretch;
+	}
+
+	#soll-host .form-actions button {
+		flex: 1;
+	}
+
+	#soll-host .tree-panel-footer {
+		grid-template-columns: 1fr auto;
+	}
+}
+
+#soll-host a {
+	color: var(--accent);
+	text-decoration: none;
+}
+
+#soll-host a:hover,
+#soll-host a:focus-visible {
+	color: var(--color-link-hover);
+	text-decoration: underline;
+}
+
+#soll-host {
+
+	--pte-control-h: 32px;
+}
+
+#soll-host button:not(.tree-footer-button):not(.breadcrumb-cycle):not(.fs-editor *),
+#soll-host select:not(.fs-editor *),
+#soll-host input[type="text"]:not(.fs-editor *),
+#soll-host input[type="url"]:not(.fs-editor *),
+#soll-host input[type="search"]:not(.fs-editor *),
+#soll-host input[type="number"]:not(.fs-editor *),
+#soll-host input[type="color"]:not(.fs-editor *) {
+	min-height: var(--pte-control-h);
+	border-radius: var(--radius-md);
+}
+
+#soll-host button:not(.tree-footer-button):not(.breadcrumb-cycle):not(.fs-editor *) {
+	padding: 0 var(--space-8);
+}
+
+#soll-host select:not(.fs-editor *),
+#soll-host input[type="text"]:not(.fs-editor *),
+#soll-host input[type="url"]:not(.fs-editor *),
+#soll-host input[type="search"]:not(.fs-editor *),
+#soll-host input[type="number"]:not(.fs-editor *) {
+	padding: 0 var(--space-6);
+}
+
+#soll-host input[type="color"] {
+	height: var(--pte-control-h);
+	padding: var(--space-2);
+}
+
+#soll-host .tree-footer-button {
+	width: var(--pte-control-h);
+	height: var(--pte-control-h);
+	border-radius: var(--radius-md);
+}
+
+#soll-host .tree-time-filter .tree-search-input,
+#soll-host .tree-time-filter input[type="number"] {
+	height: var(--pte-control-h);
+	padding: 0 var(--space-6);
+	border-radius: var(--radius-md);
+}
+
+#soll-host, #soll-host * {
+	scrollbar-width: thin;
+	scrollbar-color: var(--color-scrollbar-thumb) var(--color-scrollbar-track);
+}
+
+#soll-host *::-webkit-scrollbar {
+	width: 10px;
+	height: 10px;
+}
+
+#soll-host *::-webkit-scrollbar-track {
+	background: var(--color-scrollbar-track);
+}
+
+#soll-host *::-webkit-scrollbar-thumb {
+	background: var(--color-scrollbar-thumb);
+	border-radius: 999px;
+	border: 2px solid var(--color-scrollbar-track);
+}
+
+#soll-host *::-webkit-scrollbar-thumb:hover {
+	background: var(--color-scrollbar-thumb-hover);
+}
+
+#soll-host .manual-data-section h3 {
+	color: var(--color-accent-strong);
+	line-height: var(--leading-snug);
+}
+
+#soll-host .territory-claim-banner {
+	display: flex;
+	align-items: center;
+	gap: var(--space-6);
+	padding: var(--space-6) var(--space-10);
+	border-bottom: 1px solid var(--color-warning-soft-border);
+	background: var(--color-warning-soft);
+	color: var(--color-warning-soft-text);
+	font-size: var(--font-size-small);
+}
+
+#soll-host .territory-claim-banner[hidden] {
+	display: none;
+}
+
+#soll-host .territory-claim-banner__icon {
+	flex: 0 0 auto;
+}
+
+#soll-host .manual-data-columns {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 14px;
+	align-items: flex-start;
+}
+
+#soll-host .manual-data-columns > .manual-data-section {
+	flex: 1 1 calc(50% - 7px);
+	min-width: min(320px, 100%);
+	align-self: flex-start;
+	height: auto;
+}
+
+#soll-host .manual-data-section {
+	align-self: flex-start;
+	height: auto;
+}
+
+#soll-host .manual-data-inline-action--with-preview {
+	grid-template-columns: minmax(220px, 1fr) max-content max-content 42px;
+}
+
+#soll-host .manual-data-inline-action--with-preview > input {
+	min-width: 0;
+}
+
+#soll-host .manual-data-inline-action--with-preview > button {
+	white-space: nowrap;
+	min-width: max-content;
+}
+
+#soll-host #restoreCoatButton {
+	min-width: 118px;
+}
+
+#soll-host .deferred-subtree-checkbox {
+	font-size: var(--font-size-caption);
+	display: inline-flex;
+	align-items: center;
+	gap: 7px;
+	margin-top: 2px;
+	color: var(--muted-2);
+	font-weight: 700;
+}
+
+#soll-host .deferred-subtree-checkbox[hidden],
+#soll-host .deferred-subtree-preview[hidden] {
+	display: none !important;
+}
+
+#soll-host .deferred-subtree-checkbox input {
+	width: auto;
+	padding: 0;
+}
+
+#soll-host .deferred-subtree-checkbox--bottom {
+	order: 99;
+}
+
+#soll-host .deferred-subtree-preview {
+	display: grid;
+	gap: 7px;
+	margin-top: 4px;
+}
+
+#soll-host .deferred-subtree-preview-title {
+	color: var(--muted-2);
+	font-size: var(--font-size-caption);
+	font-weight: 700;
+}
+
+#soll-host .deferred-subtree-table {
+	width: 100%;
+	border-collapse: collapse;
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	overflow: hidden;
+	background: var(--panel);
+}
+
+#soll-host .deferred-subtree-table th,
+#soll-host .deferred-subtree-table td {
+	padding: 7px 8px;
+	border-bottom: 1px solid var(--border);
+	vertical-align: top;
+	text-align: left;
+}
+
+#soll-host .deferred-subtree-table th {
+	background: var(--panel-soft);
+	color: var(--muted-2);
+	font-size: var(--font-size-caption);
+}
+
+#soll-host .deferred-subtree-table tr:last-child th,
+#soll-host .deferred-subtree-table tr:last-child td {
+	border-bottom: 0;
+}
+
+#soll-host .deferred-subtree-swatches {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+}
+
+#soll-host .deferred-subtree-swatch {
+	width: 9px;
+	height: 9px;
+	border: 1px solid rgba(0, 0, 0, 0.25);
+	border-radius: 2px;
+}
+
+#soll-host .deferred-subtree-empty {
+	color: var(--muted);
+	font-size: var(--font-size-caption);
+	line-height: 1.35;
+}
+
+@media (max-width: 760px) {
+	#soll-host .manual-data-inline-action--with-preview {
+		grid-template-columns: minmax(0, 1fr) 42px;
+	}
+
+	#soll-host .manual-data-inline-action--with-preview > input {
+		grid-column: 1 / -1;
+	}
+}
+
+@media (max-width: 620px) {
+	#soll-host .manual-data-columns {
+		flex-direction: column;
+	}
+
+	#soll-host .manual-data-columns > .manual-data-section {
+		flex-basis: auto;
+		width: 100%;
+	}
+}
+
+#soll-host .tree-wrap {
+	max-height: 30vh;
+	overflow: auto;
+	padding: 8px;
+	background: var(--color-panel);
+}
+
+#soll-host .tree-root,
+#soll-host .tree-root ul {
+	list-style: none;
+	margin: 0;
+	padding-left: 0;
+}
+
+#soll-host .tree-root ul {
+	margin-left: 12px;
+	padding-left: 12px;
+	border-left: 1px solid var(--border);
+}
+
+#soll-host .tree-node {
+	margin: 3px 0;
+}
+
+#soll-host .tree-node details > summary {
+	display: flex;
+	align-items: center;
+	gap: 3px;
+	cursor: pointer;
+	list-style: none;
+}
+
+#soll-host .tree-node details > summary::-webkit-details-marker {
+	display: none;
+}
+
+#soll-host .tree-toggle {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 16px;
+	height: 16px;
+	flex: 0 0 16px;
+	color: var(--muted);
+}
+
+#soll-host .tree-toggle::before {
+	content: "";
+	display: block;
+	width: 0;
+	height: 0;
+	border-top: 5px solid transparent;
+	border-bottom: 5px solid transparent;
+	border-left: 6px solid currentColor;
+	transition: transform 0.12s ease;
+}
+
+#soll-host .tree-node details[open] > summary .tree-toggle::before {
+	transform: rotate(90deg);
+}
+
+#soll-host .tree-item {
+	display: inline-flex;
+	align-items: center;
+	gap: 7px;
+	max-width: 100%;
+	min-width: 0;
+	padding: 7px 8px;
+	border-radius: 6px;
+	background: transparent;
+	color: var(--text-strong);
+	font-weight: 700;
+	cursor: grab;
+	user-select: none;
+}
+
+#soll-host .tree-item:hover,
+#soll-host .tree-item.selected {
+	background: var(--panel-hover);
+}
+
+#soll-host .tree-item:active {
+	cursor: grabbing;
+}
+
+#soll-host .tree-item.synthetic {
+	color: var(--synthetic, #8b5d2a);
+}
+
+#soll-host .tree-item-label {
+	display: inline-flex;
+	align-items: baseline;
+	gap: 0.35em;
+	flex: 1 1 auto;
+	min-width: 0;
+	max-width: 100%;
+	white-space: normal;
+}
+
+#soll-host .tree-item-name {
+	min-width: 0;
+	overflow-wrap: normal;
+	word-break: normal;
+}
+
+#soll-host .tree-item-meta {
+	flex: 0 0 auto;
+	font-size: var(--font-size-caption);
+	color: var(--muted);
+	white-space: nowrap;
+}
+
+#soll-host .tree-map-status,
+#soll-host .legend-map-status {
+	position: relative;
+	width: 13px;
+	height: 13px;
+	flex: 0 0 13px;
+	border: 2px solid var(--color-map-presence);
+	border-radius: 50%;
+	background: var(--color-panel);
+	box-sizing: border-box;
+	color: var(--color-map-presence);
+	overflow: hidden;
+}
+
+#soll-host .tree-map-status--own-only::before,
+#soll-host .tree-map-status--children-only::before,
+#soll-host .legend-map-status--children-only::before,
+#soll-host .legend-map-status--own-only::before {
+	content: "";
+	position: absolute;
+	top: 1px;
+	bottom: 1px;
+	background: currentColor;
+}
+
+#soll-host .tree-map-status--children-only::before,
+#soll-host .legend-map-status--children-only::before {
+	left: 1px;
+	right: 50%;
+	border-radius: 999px 0 0 999px;
+}
+
+#soll-host .tree-map-status--own-only::before,
+#soll-host .legend-map-status--own-only::before {
+	left: 50%;
+	right: 1px;
+	border-radius: 0 999px 999px 0;
+}
+
+#soll-host .tree-map-status--all,
+#soll-host .legend-map-status--all {
+	background: currentColor;
+}
+
+#soll-host .tree-separator {
+	margin: 9px 0 6px 0;
+	padding: 0 8px;
+	color: var(--muted-2);
+	font-size: var(--font-size-small);
+	font-weight: 700;
+	letter-spacing: 0.04em;
+}
+
+#soll-host .tree-root ul .tree-separator {
+	display: none;
+}
+
+#soll-host .tree-separator::before,
+#soll-host .tree-separator::after {
+	content: "---";
+	color: var(--muted-2);
+}
+
+#soll-host .tree-separator::before {
+	margin-right: 6px;
+}
+
+#soll-host .tree-separator::after {
+	margin-left: 6px;
+}
+
+#soll-host .drag-handle {
+	flex: 0 0 auto;
+	font-size: var(--font-size-small);
+	color: var(--muted-2);
+	letter-spacing: -1px;
+}
+
+#soll-host .fs-editor {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+
+	container-type: inline-size;
+	container-name: fs-liste;
+}
+#soll-host .fs-hint {
+	font-size: 11px;
+	line-height: 1.45;
+	color: var(--color-text-muted);
+	background: var(--color-panel-soft);
+	border: 1px solid var(--color-border);
+	border-left: 3px solid var(--color-accent);
+	border-radius: 6px;
+	padding: 7px 10px;
+	margin-bottom: 6px;
+}
+
+#soll-host .fs-row + .fs-row {
+	border-top: 1px solid var(--color-divider);
+}
+
+#soll-host .fs-add-note {
+	margin: 6px 0 0;
+	font-size: 12px;
+	color: var(--color-warning-soft-text);
+	background: var(--color-warning-soft);
+	border: 1px solid var(--color-warning-soft-border);
+	border-radius: var(--radius-sm);
+	padding: 5px 8px;
+}
+
+#soll-host .fs-group-heading {
+
+	font-size: 11px;
+	font-weight: bold;
+	text-transform: uppercase;
+	letter-spacing: 0.02em;
+	color: var(--color-text-muted);
+	padding: 6px 0 2px;
+}
+#soll-host .fs-row__link {
+	flex: 1 1 auto;
+	min-width: 0;
+	color: var(--color-link);
+	text-decoration: none;
+	font-weight: bold;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+#soll-host .fs-row__link:hover,
+#soll-host .fs-row__link:focus-visible {
+	text-decoration: underline;
+}
+#soll-host .fs-row__badge {
+	flex-shrink: 0;
+	font-size: 10px;
+	color: var(--color-text-muted);
+	background: var(--color-panel-muted);
+	border: 1px solid var(--color-border);
+	border-radius: 999px;
+	padding: 1px 7px;
+	white-space: nowrap;
+}
+#soll-host .fs-row__badge--readonly {
+	background: transparent;
+	border-style: dashed;
+}
+
+#soll-host .fs-row__kind {
+	flex-shrink: 0;
+	font-size: 10px;
+	color: var(--color-pill-text);
+	background: var(--color-pill);
+	border: 1px solid var(--color-pill-border);
+	border-radius: 999px;
+	padding: 1px 7px;
+	white-space: nowrap;
+}
+
+#soll-host .fs-row__kind:empty,
+#soll-host .fs-row__badge:empty {
+	border-color: transparent;
+	background: none;
+	padding: 0;
+}
+#soll-host .fs-row__pages {
+	flex-shrink: 0;
+	font-size: 11px;
+	color: var(--color-text-muted);
+	white-space: nowrap;
+}
+#soll-host .fs-row__remove {
+	flex-shrink: 0;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border: 1px solid var(--color-danger-soft-border);
+	background: var(--color-danger-soft);
+	color: var(--color-danger-soft-text);
+	border-radius: 999px;
+	width: 20px;
+	height: 20px;
+	cursor: pointer;
+	font-size: 12px;
+}
+#soll-host .fs-row__remove:hover,
+#soll-host .fs-row__remove:focus-visible {
+	background: var(--color-danger-soft);
+	border-color: var(--color-danger-soft-text);
+	outline: none;
+}
+
+#soll-host .fs-row__edit {
+	flex-shrink: 0;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border: 1px solid transparent;
+	background: none;
+	color: var(--color-text-muted);
+	border-radius: var(--radius-sm);
+	width: 20px;
+	height: 20px;
+	cursor: pointer;
+	font-size: 12px;
+}
+#soll-host .fs-row__edit:hover,
+#soll-host .fs-row__edit:focus-visible,
+#soll-host .fs-row--open .fs-row__edit {
+	border-color: var(--color-button-soft-border);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+	outline: none;
+}
+
+#soll-host .fs-row__edit-cell {
+	display: block;
+}
+
+#soll-host .fs-group--proposed {
+	border: 1px dashed var(--color-danger-soft-border);
+	background: var(--color-danger-soft);
+	border-radius: 6px;
+	padding: 2px 8px;
+	margin-bottom: 6px;
+}
+#soll-host .fs-group-heading--proposed {
+	color: var(--color-danger-soft-text);
+}
+#soll-host .fs-row--proposed .fs-row__badge--proposed {
+	color: var(--color-danger-soft-text);
+	background: transparent;
+	border-color: var(--color-danger-soft-border);
+}
+
+#soll-host .fs-row.fs-row--add {
+	display: flex;
+
+	align-items: flex-end;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-top: 8px;
+	padding: 10px;
+	border: 1px solid var(--color-border);
+	border-radius: 8px;
+	background: var(--color-panel-soft);
+}
+
+#soll-host .fs-af {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+}
+
+#soll-host .fs-af--w {
+	flex: 1 1 100%;
+}
+
+#soll-host .fs-check input[type="checkbox"] {
+	flex: 0 0 auto;
+	margin: 0;
+}
+
+#soll-host .fs-af__l {
+
+	font-size: 11px;
+	line-height: 1.3;
+	color: var(--color-text-muted);
+
+	white-space: normal;
+}
+
+#soll-host .fs-af__from {
+	color: var(--color-accent-brown);
+}
+
+#soll-host .fs-af__meta {
+	color: var(--color-text-muted);
+	font-weight: normal;
+}
+
+#soll-host .fs-scope {
+	position: relative;
+
+	flex: 1 1 100%;
+
+	min-width: 0;
+	border: 1px solid var(--color-accent-brown);
+	border-radius: var(--radius-md);
+	padding: 10px 10px 10px;
+}
+#soll-host .fs-scope + .fs-scope { margin-top: 14px; }
+#soll-host .fs-scope[hidden] { display: none; }
+
+#soll-host .fs-scope__head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 6px;
+	width: max-content;
+	max-width: calc(100% - 6px);
+	margin: -17px 0 6px -2px;
+	padding: 0 5px;
+	background: var(--color-panel-soft);
+}
+
+#soll-host .fs-scope__title {
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: .02em;
+	text-transform: uppercase;
+	color: var(--color-accent-brown);
+}
+
+#soll-host .fs-scope__reach {
+	font-size: 11px;
+	font-weight: 400;
+	text-transform: none;
+	letter-spacing: 0;
+	color: var(--color-text-muted);
+}
+#soll-host .fs-scope__fields { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; }
+#soll-host .fs-scope__hint { margin: 0 0 8px; font-size: 11px; color: var(--color-text-muted); }
+#soll-host .fs-scope__by { margin: 8px 0 0; font-size: 11px; color: var(--color-text-muted); }
+
+#soll-host .fs-url { flex: 1 1 100%; }
+#soll-host .fs-url__zeile { display: flex; align-items: stretch; gap: 6px; }
+#soll-host .fs-url__feld { position: relative; flex: 1 1 auto; min-width: 0; }
+#soll-host .fs-url__feld input { width: 100%; padding-right: 30px; box-sizing: border-box; }
+#soll-host .fs-url--gut input { border-color: var(--color-success); }
+#soll-host .fs-url--schlecht input { border-color: var(--color-danger); }
+#soll-host .fs-url__ok {
+	position: absolute;
+	right: 9px; top: 50%;
+	transform: translateY(-50%);
+	color: var(--color-success);
+	font-size: 13px;
+	pointer-events: none;
+}
+#soll-host .fs-url__ok[hidden] { display: none; }
+#soll-host .fs-url__neu {
+	display: inline-flex; align-items: center; justify-content: center;
+	width: 30px;
+	font-size: 14px;
+	border: 1px solid var(--color-button-soft-border);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+	border-radius: var(--radius-md);
+	cursor: pointer;
+}
+#soll-host .fs-url__sagt { margin: 4px 0 0; font-size: 11px; color: var(--color-text-muted); }
+
+#soll-host .abw { flex: 1 1 100%; margin-top: 8px; padding-top: 8px;
+       border-top: 1px solid var(--color-divider); }
+#soll-host .abw__t { font-size: 11px; color: var(--color-text-muted); line-height: 1.45; }
+#soll-host .abw__f { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; margin-top: 8px; }
+#soll-host .fs-field--abw > span { color: var(--color-accent-brown); font-weight: 600; }
+#soll-host .fs-field--abw input, #soll-host .fs-field--abw select { border-color: var(--color-accent-brown); }
+
+#soll-host .fs-field--abw > span::after { content: " · abweichend"; font-weight: 400; }
+
+#soll-host .abw--frei .fs-field--abw > span::after { content: ""; }
+#soll-host .abw--frei .fs-field--abw > span { color: var(--color-text-muted); font-weight: 400; }
+#soll-host .abw--frei .fs-field--abw input, #soll-host .abw--frei .fs-field--abw select { border-color: var(--color-border); }
+
+#soll-host .fs-scope input[type="text"],
+#soll-host .fs-scope input[type="url"],
+#soll-host .fs-scope select {
+	font: inherit;
+	font-size: 12px;
+	padding: 5px 8px;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-panel-muted);
+	color: var(--color-text);
+	min-width: 0;
+}
+
+#soll-host .fs-scope input[disabled],
+#soll-host .fs-scope select[disabled] {
+	background: var(--color-panel-soft);
+	color: var(--color-text-muted);
+	cursor: not-allowed;
+}
+
+#soll-host .fs-url input[type="text"] {
+	border-color: var(--color-accent-brown);
+}
+
+#soll-host .fs-actions { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+#soll-host .fs-actions button {
+	font: inherit;
+	font-size: 13px;
+	padding: 5px 12px;
+	border-radius: var(--radius-md);
+	cursor: pointer;
+}
+#soll-host .fs-actions__prim {
+	border: 1px solid var(--color-button-border);
+	background: var(--color-button);
+	color: var(--color-button-text);
+	font-weight: 600;
+}
+#soll-host .fs-actions__prim[disabled] { opacity: .5; cursor: not-allowed; }
+#soll-host .fs-actions__sek {
+	border: 1px solid var(--color-button-soft-border);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+}
+
+#soll-host .fs-row--add input[type="text"].fs-add-url {
+	padding-right: 26px;
+}
+
+#soll-host .fs-af--meins .fs-af__l {
+	color: var(--color-accent-brown);
+	font-weight: 700;
+}
+#soll-host .fs-row--add .fs-af--meins input[type="text"],
+#soll-host .fs-row--add .fs-af--meins select {
+	border-color: var(--color-accent-brown);
+}
+#soll-host .fs-af--grow {
+	flex: 1 1 150px;
+}
+
+#soll-host .fs-af--korpus {
+	flex: 1 1 260px;
+}
+
+#soll-host .fs-af--form {
+	flex: 0 1 190px;
+}
+#soll-host .fs-af--pages {
+	flex: 0 1 90px;
+}
+#soll-host .fs-af--art,
+#soll-host .fs-af--kind {
+	flex: 0 1 130px;
+}
+#soll-host .fs-af--license {
+	flex: 0 1 150px;
+}
+
+#soll-host .fs-add-check {
+	align-self: flex-end;
+}
+#soll-host .fs-add-url {
+	width: 100%;
+}
+
+#soll-host .fs-add-check {
+	flex: 0 0 30px;
+	width: 30px;
+	height: 27px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0;
+	font: inherit;
+	font-size: 13px;
+	line-height: 1;
+	cursor: pointer;
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+}
+#soll-host .fs-add-check:hover {
+	background: var(--color-button-soft-hover);
+}
+#soll-host .fs-add-check--laeuft {
+	opacity: 0.55;
+	cursor: progress;
+}
+
+#soll-host .fs-add-check--bekannt,
+#soll-host .fs-add-check--gelesen {
+	background: var(--color-success-soft);
+	border-color: var(--color-success-soft-border);
+	color: var(--color-success-soft-text);
+}
+#soll-host .fs-add-check--erreichbar {
+	background: var(--color-warning-soft);
+	border-color: var(--color-warning-soft-border);
+	color: var(--color-warning-soft-text);
+}
+#soll-host .fs-add-check--unerreichbar {
+	background: var(--color-danger-soft);
+	border-color: var(--color-danger-soft-border);
+	color: var(--color-danger-soft-text);
+}
+
+#soll-host .fs-add-note--ok {
+	color: var(--color-success-soft-text);
+	background: var(--color-success-soft);
+	border-color: var(--color-success-soft-border);
+}
+#soll-host .fs-add-note--bad {
+	color: var(--color-danger-soft-text);
+	background: var(--color-danger-soft);
+	border-color: var(--color-danger-soft-border);
+}
+
+#soll-host .fs-add-official-label {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	font-size: 12px;
+	color: var(--color-text-muted);
+	white-space: nowrap;
+}
+
+#soll-host .fs-add-picked {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	flex-shrink: 0;
+	padding: 2px 4px 2px 8px;
+	font-size: 11px;
+	color: var(--color-accent-strong);
+	background: var(--color-panel-muted);
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-sm);
+	white-space: nowrap;
+}
+
+#soll-host .fs-add-picked[hidden] {
+	display: none;
+}
+#soll-host .fs-add-picked__x {
+	padding: 0 2px;
+	border: 0;
+	background: transparent;
+	color: var(--color-text-muted);
+	font-size: 12px;
+	line-height: 1;
+	cursor: pointer;
+}
+#soll-host .fs-add-picked__x:hover {
+	color: var(--color-text-strong);
+}
+#soll-host .fs-row__add:hover,
+#soll-host .fs-row__cancel:hover,
+#soll-host
+.fs-src {
+	font-size: 12px;
+	color: var(--color-text-strong);
+	line-height: 1.5;
+}
+#soll-host .fs-src-a {
+	color: var(--color-link);
+	text-decoration: none;
+	font-weight: 700;
+}
+#soll-host .fs-src-a:hover,
+#soll-host .fs-src-a:focus-visible {
+	text-decoration: underline;
+}
+#soll-host .fs-src-ext {
+	font-weight: 400;
+}
+#soll-host .fs-src-plain {
+	color: var(--color-text-strong);
+}
+#soll-host .fs-src-direct {
+	line-height: 1.7;
+}
+#soll-host .fs-src-sep {
+	color: var(--color-text-muted);
+	margin: 0 6px;
+}
+
+#soll-host .fs-src-pages {
+	margin-left: 6px;
+	font-size: 11px;
+	color: var(--color-text-muted);
+	white-space: nowrap;
+}
+
+#soll-host .fs-src-pages[title] {
+	text-decoration: underline dotted;
+	text-underline-offset: 2px;
+	cursor: help;
+}
+
+#soll-host .fs-src-lic {
+	margin-left: 6px;
+	font-size: 11px;
+	white-space: nowrap;
+}
+
+#soll-host .fs-src-item {
+	display: inline-block;
+}
+
+#soll-host .fs-src-trenner {
+	margin: 0 -11px;
+	border-top: 1px solid var(--color-divider);
+}
+
+#soll-host .fs-src-pub {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 7px 6px;
+	margin-top: 9px;
+	color: var(--color-text-muted);
+}
+#soll-host .fs-src-pub > * {
+	flex: 0 0 auto;
+}
+#soll-host .fs-src-total {
+	color: var(--color-text-muted);
+}
+#soll-host .fs-src-tab {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	padding: 2px 10px;
+	font-size: 11.5px;
+	color: var(--color-text-muted);
+	background: var(--color-panel-soft);
+	border: 1px solid var(--color-border);
+
+	border-radius: var(--radius-md);
+	cursor: pointer;
+	user-select: none;
+}
+#soll-host .fs-src-tab:hover,
+#soll-host .fs-src-tab:focus-visible {
+	background: var(--color-panel-muted);
+	outline: none;
+}
+#soll-host .fs-src-tab .fs-src-n {
+	color: var(--color-text-muted);
+}
+#soll-host .fs-src-tab.is-active {
+	background: var(--color-active-wash);
+	border-color: var(--color-accent-strong);
+	color: var(--color-accent-strong);
+	font-weight: 700;
+}
+#soll-host .fs-src-tab.is-active .fs-src-n {
+	color: var(--color-accent-strong);
+}
+#soll-host .fs-src-tablewrap {
+	margin-top: 9px;
+	max-height: 230px;
+	overflow-y: auto;
+
+	background: var(--color-panel-soft);
+}
+
+#soll-host .avesmaps-infopanel .fs-src-tablewrap {
+	margin-left: calc(-1 * var(--infopanel-pad-x));
+	margin-right: calc(-1 * var(--infopanel-pad-x));
+}
+
+#soll-host .avesmaps-infopanel .fs-src-table th,
+#soll-host .avesmaps-infopanel .fs-src-table td {
+	padding-left: var(--infopanel-pad-x);
+	padding-right: var(--infopanel-pad-x);
+}
+#soll-host .fs-src-table {
+	width: 100%;
+	border-collapse: collapse;
+	table-layout: fixed;
+}
+#soll-host .fs-src-col-title {
+	width: 44%;
+}
+#soll-host .fs-src-col-type {
+	width: 27%;
+}
+#soll-host .fs-src-col-pages {
+	width: 29%;
+}
+#soll-host .fs-src-table th {
+	font-size: 10px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.02em;
+	color: var(--color-text-muted);
+	text-align: left;
+	padding: 5px 9px;
+	border-bottom: 1px solid var(--color-divider);
+	position: sticky;
+	top: 0;
+	background: var(--color-panel-soft);
+}
+#soll-host .fs-src-table th.fs-src-th-r {
+	text-align: right;
+}
+#soll-host .fs-src-table td {
+	padding: 6px 9px;
+	vertical-align: top;
+	line-height: 1.4;
+	word-wrap: break-word;
+	overflow-wrap: break-word;
+}
+#soll-host .fs-src-table tbody tr + tr td {
+	border-top: 1px solid var(--color-divider);
+}
+#soll-host .fs-src-c-type {
+	color: var(--color-text-muted);
+	font-size: 11px;
+}
+#soll-host .fs-src-c-pages {
+	text-align: right;
+	color: var(--color-text-muted);
+}
+
+#soll-host .fs-src-c-pages[title] {
+	text-decoration: underline dotted;
+	text-underline-offset: 2px;
+	cursor: help;
+}
+
+#soll-host .fs-more {
+	border-top: 1px solid var(--color-divider);
+}
+#soll-host .fs-more__toggle {
+	padding: 5px 0;
+	color: var(--color-link);
+	cursor: pointer;
+
+	font-size: 11px;
+	list-style: none;
+	user-select: none;
+}
+
+#soll-host .fs-more__toggle::-webkit-details-marker {
+	display: none;
+}
+
+#soll-host .fs-more__toggle::before {
+	content: "▸";
+	display: inline-block;
+	width: 1em;
+	transition: transform 0.12s ease;
+}
+#soll-host .fs-more[open] > .fs-more__toggle::before {
+	transform: rotate(90deg);
+}
+#soll-host .fs-more__toggle:hover {
+	color: var(--color-link-hover);
+}
+#soll-host .fs-more__toggle:focus-visible {
+	outline: 2px solid var(--color-link);
+	outline-offset: 2px;
+	border-radius: var(--radius-sm);
+}
+
+#soll-host .fs-more__rest > .fs-row:first-child {
+	border-top: none;
+}
+@media (prefers-reduced-motion: reduce) {
+	#soll-host .fs-more__toggle::before {
+		transition: none;
+	}
+}
+
+#soll-host .fs-row {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 104px 104px 74px 150px 22px 22px;
+	align-items: center;
+	gap: 8px;
+	padding: 4px 0;
+	font-size: 12px;
+}
+
+#soll-host .fs-row__link {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	min-width: 0;
+}
+#soll-host .fs-row__badge,
+#soll-host .fs-row__kind {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+#soll-host .fs-row__license {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	color: var(--color-text-muted);
+	font-size: 11px;
+}
+
+#soll-host .fs-row__pages {
+	text-align: right;
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+#soll-host .fs-row__pages[title] {
+	text-decoration: underline dotted;
+	text-underline-offset: 2px;
+	cursor: help;
+}
+#soll-host .fs-row__remove {
+	justify-self: end;
+}
+
+#soll-host .fs-col-heads {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 104px 104px 74px 150px 22px 22px;
+	gap: 8px;
+	padding: 2px 0 4px;
+	border-bottom: 1px solid var(--color-divider);
+
+	font-size: 11px;
+	color: var(--color-text-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+#soll-host .fs-col-heads span:nth-child(4) {
+	text-align: right;
+}
+
+@container fs-liste (max-width: 670px) {
+	#soll-host .fs-row {
+		grid-template-columns: 104px 104px 74px minmax(0, 1fr) 22px 22px;
+		row-gap: 2px;
+	}
+	#soll-host .fs-row__link {
+		grid-column: 1 / -1;
+	}
+	#soll-host .fs-col-heads {
+		display: none;
+	}
+}
+
+#soll-host .fs-edit {
+	margin: 0 0 4px;
+	padding: 12px 12px 14px;
+	border-left: 3px solid var(--color-accent-brown);
+	border-radius: 0 var(--radius-md) var(--radius-md) 0;
+	background: var(--color-panel-soft);
+}
+#soll-host .fs-edit__url {
+	margin: 0 0 12px;
+	font-size: 11px;
+	color: var(--color-text-muted);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+#soll-host .fs-edit__url b {
+	color: var(--color-text-strong);
+}
+
+#soll-host .fs-field--eigen > span,
+#soll-host .fs-edit .fs-field {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	min-width: 0;
+}
+#soll-host .fs-edit .fs-field > span {
+	font-size: 11px;
+	color: var(--color-text-muted);
+}
+
+#soll-host .fs-edit .fs-field--grow {
+	flex: 1 1 240px;
+}
+
+#soll-host .fs-edit .fs-field--full {
+	flex: 1 1 100%;
+}
+
+#soll-host .fs-check {
+	display: flex;
+
+	flex-direction: row;
+	align-items: center;
+	gap: 6px;
+	align-self: end;
+	padding-bottom: 5px;
+	font-size: 12px;
+}
+#soll-host .fs-edit__note {
+	margin-top: 10px;
+	padding: 8px 10px;
+	border: 1px solid var(--color-warning-soft-border);
+	border-radius: var(--radius-md);
+	background: var(--color-warning-soft);
+	color: var(--color-warning-soft-text);
+	font-size: 12px;
+}
+#soll-host .fs-edit__msg {
+	font-size: 12px;
+	color: var(--color-text-muted);
+}
+
+#soll-host .fs-src--box {
+	border: 1px solid var(--color-border);
+	background: var(--color-panel-soft);
+	border-radius: 7px;
+	padding: 9px 11px 10px;
+}
+#soll-host .fs-src-label {
+	font-size: 12px;
+	color: var(--color-text);
+	margin: 0 0 5px;
+}
+#soll-host .fs-src-list {
+	list-style: none;
+	margin: 0 0 7px;
+	padding: 0;
+	display: grid;
+	gap: 4px;
+}
+
+#soll-host .fs-src-row {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	flex-wrap: nowrap;
+}
+
+#soll-host .fs-src-row .fs-kanon {
+	position: relative;
+	top: -0.542px;
+}
+
+#soll-host .fs-src-main {
+	flex: 1 1 auto;
+	min-width: 0;
+	display: flex;
+	align-items: baseline;
+}
+#soll-host .fs-src-title {
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+#soll-host .fs-src-main > .fs-src-lic {
+	flex: 0 0 auto;
+}
+#soll-host .fs-src-list li { min-width: 0; }
+
+#soll-host .fs-src-marks {
+	flex: 0 0 auto;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+
+#soll-host .fs-src-info {
+	flex: 0 0 auto;
+	width: 17px;
+	height: 17px;
+	padding: 0;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: 999px;
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+	font: inherit;
+	font-size: 11px;
+	line-height: 1;
+	cursor: pointer;
+}
+#soll-host .fs-src-info:hover,
+#soll-host .fs-src-info:focus-visible {
+	border-color: var(--color-accent-brown);
+	outline: none;
+}
+
+#soll-host .fs-src-info[aria-expanded="true"] {
+	background: var(--color-accent-brown);
+	border-color: var(--color-accent-brown);
+	color: var(--color-panel);
+}
+
+#soll-host .fs-src-rights {
+	margin: 6px 0 8px;
+	padding: 8px 10px;
+	border-left: 2px solid var(--color-accent-brown);
+	border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+	background: var(--color-panel-soft);
+	font-size: 11px;
+}
+#soll-host .fs-src-rights dl {
+	display: grid;
+	grid-template-columns: auto 1fr;
+	gap: 3px 10px;
+	margin: 0;
+}
+#soll-host .fs-src-rights dt { color: var(--color-text-muted); }
+
+#soll-host .fs-src-rights dd {
+	margin: 0;
+	color: var(--color-text);
+	overflow-wrap: anywhere;
+}
+
+#soll-host .fs-src {
+	container-type: inline-size;
+	container-name: fsbox;
+}
+@container fsbox (max-width: 420px) {
+	#soll-host .fs-src-main { flex-wrap: wrap; }
+	#soll-host .fs-src-title { flex: 1 1 100%; }
+	#soll-host .fs-src-main > .fs-src-lic { margin-left: 0; }
+}
+
+#soll-host .fs-kanon {
+	display: inline-flex;
+	align-items: center;
+	flex-shrink: 0;
+	font-size: var(--font-size-kanon);
+	font-weight: 700;
+	font-synthesis-weight: auto;
+	letter-spacing: .09em;
+	text-transform: uppercase;
+	line-height: 1;
+	padding: 4.25px 8px 2.75px;
+	border-radius: 999px;
+	white-space: nowrap;
+	border: 1px solid transparent;
+}
+#soll-host .fs-kanon--off {
+	background: var(--color-kanon-official);
+	color: var(--color-kanon-official-text);
+}
+#soll-host .fs-kanon--inoff {
+	background: var(--color-kanon-unofficial);
+	color: var(--color-kanon-unofficial-text);
+}
+
+#soll-host .fs-kanon__state,
+#soll-host .fs-kanon__by {
+	font-synthesis-weight: auto;
+}
+#soll-host .fs-kanon--split {
+	padding: 0;
+	overflow: hidden;
+	background: transparent;
+	border-color: var(--color-border);
+	max-width: 100%;
+}
+
+#soll-host .fs-kanon--split .fs-kanon__state {
+	flex-shrink: 0;
+	padding: 4.25px 8px 2.75px;
+}
+#soll-host .fs-kanon--off.fs-kanon--split .fs-kanon__state {
+	background: var(--color-kanon-official);
+	color: var(--color-kanon-official-text);
+}
+#soll-host .fs-kanon--inoff.fs-kanon--split .fs-kanon__state {
+	background: var(--color-kanon-unofficial);
+	color: var(--color-kanon-unofficial-text);
+}
+
+#soll-host .fs-kanon--split .fs-kanon__by {
+	min-width: 0;
+	padding: 3px 8px 2px;
+	font-size: var(--font-size-caption);
+	color: var(--color-text-muted);
+	text-transform: none;
+	letter-spacing: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+#soll-host .feature-kanon-head {
+	display: flex;
+	padding-top: 8px;
+}
+
+
+
+
+#soll-host .app-container {
+	width: 100%;
+	max-width: none;
+	min-height: 0;
+	box-shadow: none;
+}
+
+#soll-host .manual-data-column-wrap {
+	display: flex;
+	gap: 14px;
+	align-items: flex-start;
+	width: 100%;
+}
+
+#soll-host .manual-data-column {
+	flex: 1 1 0;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+}
+
+#soll-host .manual-data-column > .manual-data-section {
+	width: 100%;
+	margin: 0;
+	box-sizing: border-box;
+}
+
+#soll-host .manual-data-columns:empty {
+	display: none;
+}
+
+@media (max-width: 680px) {
+	#soll-host .manual-data-column-wrap {
+		flex-direction: column;
+	}
+	#soll-host .manual-data-column {
+		width: 100%;
+	}
+}
+
+#soll-host .manual-data-section {
+	max-width: 100%;
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
+#soll-host .detail-table-wrap {
+	max-width: 100%;
+	overflow-x: auto;
+}
+#soll-host .detail-table-wrap table,
+#soll-host .manual-data-section table {
+	width: 100%;
+	min-width: 0;
+	table-layout: auto;
+}
+#soll-host .manual-data-section td,
+#soll-host .manual-data-section th {
+	min-width: 0;
+	overflow-wrap: anywhere;
+	white-space: normal;
+}
+
+#soll-host #manualCoatPreview,
+#soll-host .manual-coat-preview {
+	max-width: 100%;
+	overflow: hidden;
+}
+#soll-host #manualCoatPreview img,
+#soll-host .manual-coat-preview img,
+#soll-host .manual-data-section img {
+	max-width: 100%;
+	height: auto;
+}
+
+#soll-host .manual-data-section input,
+#soll-host .manual-data-section select,
+#soll-host .manual-data-section textarea {
+	max-width: 100%;
+	box-sizing: border-box;
+}
+
+#soll-host .manual-data-inline-action--with-preview {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	align-items: center;
+}
+#soll-host .manual-data-inline-action--with-preview > * {
+	min-width: 0;
+}
+#soll-host .manual-data-inline-action--with-preview > input {
+	flex: 1 1 100%;
+}
+
+#soll-host .breadcrumb.manual-edit-path {
+	display: grid;
+	grid-template-columns: repeat(6, minmax(0, 1fr));
+	gap: 6px;
+	align-items: start;
+}
+#soll-host .manual-edit-path .separator {
+	display: none;
+}
+#soll-host .breadcrumb-empty {
+	grid-column: 1 / -1;
+	color: var(--muted);
+}
+#soll-host .breadcrumb-segment {
+	display: grid;
+	grid-template-rows: 20px auto 20px;
+	align-items: stretch;
+	min-width: 0;
+	gap: 3px;
+}
+#soll-host .breadcrumb-cycle--prev {
+	grid-row: 1;
+}
+#soll-host .breadcrumb-label {
+	grid-row: 2;
+	width: 100%;
+	min-width: 0;
+	padding: 4px 6px;
+	font-size: var(--font-size-small);
+	line-height: 1.2;
+	text-align: center;
+	white-space: normal;
+	overflow-wrap: anywhere;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	overflow: hidden;
+	box-sizing: border-box;
+	height: 70px;
+}
+#soll-host .breadcrumb-cycle--next {
+	grid-row: 3;
+}
+#soll-host .breadcrumb-cycle {
+	width: 100%;
+	padding: 0 4px;
+	line-height: 1.05;
+	font-size: var(--font-size-small);
+	opacity: 0.55;
+}
+#soll-host .breadcrumb-cycle:hover,
+#soll-host .breadcrumb-cycle:focus-visible {
+	opacity: 1;
+}
+
+#soll-host .tree-time-filter {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin: 8px 12px 10px;
+}
+#soll-host .tree-time-filter .tree-search-input {
+	flex: 1 1 200px;
+	min-width: 160px;
+	width: auto;
+}
+#soll-host .tree-time-filter input[type="number"] {
+	flex: 0 0 58px;
+	width: 58px;
+	min-width: 0;
+	box-sizing: border-box;
+}
+#soll-host .tree-time-filter label {
+	flex: 0 0 auto;
+	white-space: nowrap;
+}
+
+#soll-host .breadcrumb-cycle {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: 100%;
+	padding: 0;
+	line-height: 1;
+}
+
+</style>
+
+<button class="sw" onclick="document.documentElement.setAttribute('data-theme',
+  document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark')">Hell / Dunkel</button>
+
+<h1>Quellen am Herrschaftsgebiet</h1>
+<p>Schritt 2 des Quellen-Umbaus: Herrschaftsgebiete bedienen sich desselben Bauteils wie Orte,
+Beschriftungen, Kraftlinien, Karten und Vorkommen (<code>mountFeatureSourceEditor</code>) — auf
+<strong>normalen und eigenen Knoten</strong>. Gemessen an der Live-Nutzlast vom 03.09.2026: <strong>879</strong>
+Herrschaftsgebiete tragen schon <strong>6.633</strong> Quellenverweise (alle aus dem Wiki-Publikationsabgleich),
+und die Infobox zeigt sie längst — nur <em>eintragen</em> konnte man bisher nichts. Das Beispiel ist der
+<strong>Sternenbund</strong> (4 Wiki-Publikationen, dazu eine von Hand ergänzte Belegstelle aus dem Albernia-Wiki).</p>
+
+<!-- ERSETZT (für den Prüfer mockup-treue): #otherSourceFields, #otherSourceUrlInput,
+     #otherSourceLabelInput im Territoriumseditor · #region-edit-other-source-section,
+     #region-edit-other-source-url, #region-edit-other-source-label, #region-edit-other-source-preview
+     im Kartendialog · display_style.otherSource auf dem Server. Nichts davon wird migriert. -->
+
+<h2>1 · Der Territoriumseditor (eingebettet in die Karte)</h2>
+<p>Der Editor ist zweispaltig: links die Geometrie (Zoom, Farbe, Transparenz), rechts der Knoten (synchronisierte
+Wiki-Daten, Konfliktparteien). Die Sektion <strong>„Quellen“</strong> kommt in die rechte Spalte als <strong>letzte</strong>
+Sektion — unter den Wiki-Daten und den Konfliktparteien (dein Wort: „generell können quellen immer unten/als letztes in
+den listen auftauchen“). Hier steht die Spalte der Übersicht halber einspaltig untereinander. Montiert wird auf
+<code>political_territory.public_id</code> des angezeigten Knotens, beim Wechsel im Pfad wird neu montiert.
+Ein abgeleiteter Gruppenknoten (ohne eigenen Datensatz) zeigt die Sektion nicht.</p>
+<div class="reihe">
+	<div class="karte">
+		<p class="wlabel wlabel--ist">Heute — „Andere Quelle“, für jeden Knoten unerreichbar</p>
+		<div id="political-territory-editor-host" class="is-embedded mk-host">
+	<section class="panel manual-data-panel">
+		<div class="panel-header"><h2>Gebietsdarstellung</h2><span class="note">Geometrie in der Datenbank</span></div>
+		<div class="breadcrumb manual-edit-path">Svellttal › Sternenbund</div>
+		<form class="manual-data-box" autocomplete="off" onsubmit="return false"><section class="manual-data-section" aria-label="Synchronisierte Wiki-Daten">
+	<div class="manual-data-section-header"><h3>Synchronisierte Wiki-Daten</h3><span class="note">Wiki-/SQL-Datensatz</span></div>
+	<div class="info-box">
+		<div class="info-origin-bar" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px"><a class="info-origin-link" href="#" onclick="return false">Im Wiki-Sync bearbeiten</a></div>
+		<div class="info-grid">
+			<div class="info-key">Hierarchie</div><div class="info-value">Svellttal &gt; Sternenbund</div>
+			<div class="info-key">Name</div><div class="info-value">Sternenbund</div>
+			<div class="info-key">Staatsform</div><div class="info-value">Städtebund</div>
+			<div class="info-key">Status</div><div class="info-value">eigenständiger Bund</div>
+			<div class="info-key">Gegründet</div><div class="info-value">1039 BF</div>
+		</div>
+	</div>
+</section><section class="manual-data-section mk-tot" aria-label="Anzeige">
+	<h3>Anzeige <span class="mk-marke">in Wirklichkeit versteckt</span></h3>
+	<div class="manual-data-grid">
+		<div class="manual-data-field manual-data-field--wide"><label>Anzeigename</label><input type="text" value="Sternenbund"></div>
+		<div class="manual-data-field manual-data-field--wide"><label>Andere Quelle</label><input type="url" placeholder="https://..."><label>Linktext (optional)</label><input type="text" placeholder="Quelle"></div>
+	</div>
+	<small class="manual-data-inline-hint">Die ganze Sektion trägt <code>hidden</code>, und das Feld darin blendet sich zusätzlich aus, sobald der Knoten einen <code>wiki_key</code> hat — den hat seit dem 05.06.2026 jeder, auch ein eigener (<code>eigener-knoten:…</code>). Gespeichert würde in <code>display_style.otherSource</code>, das kein öffentlicher Endpunkt liest.</small>
+</section><div class="manual-data-columns">
+	<section class="manual-data-section" aria-label="Kartensichtbarkeit"><h3>Kartensichtbarkeit</h3>
+		<div class="manual-data-grid"><div class="manual-data-field"><label>Zoom von</label><input type="number" value="3"></div><div class="manual-data-field"><label>Zoom bis</label><input type="number" value="6"></div></div>
+	</section>
+	<section class="manual-data-section" aria-label="Transparenz"><h3>Transparenz</h3>
+		<div class="manual-color-controls"><div class="manual-data-field"><div class="transparency-control-row"><input type="range" min="0" max="100" value="33"><input type="number" min="0" max="100" value="33" aria-label="Transparenz in Prozent"><span class="transparency-unit">%</span></div></div></div>
+	</section>
+</div></form>
+	</section>
+	<section class="panel form-status-panel" aria-label="Speicherstatus und Aktionen"><div class="form-status-row">
+	<label class="form-status-field"><span>Statusfeld</span><input type="text" value="Noch nicht gespeichert" readonly></label>
+	<div class="form-actions"><button class="secondary" type="button">Abbrechen</button><button type="button">Speichern</button></div>
+</div></section>
+</div>
+		<p class="meta">Die rot gestrichelte Sektion ist im Editor <em>nicht</em> sichtbar; hier eingeblendet, damit man sieht, was wegfällt.</p>
+	</div>
+</div>
+<div class="reihe">
+	<div class="karte">
+		<p class="wlabel wlabel--ist">Naiv montiert — gemessen im heutigen Bauprodukt</p>
+		<div id="political-territory-editor-host" class="is-embedded mk-host">
+	<section class="panel manual-data-panel">
+		<div class="panel-header"><h2>Gebietsdarstellung</h2><span class="note">Geometrie in der Datenbank</span></div>
+		<div class="breadcrumb manual-edit-path">Svellttal › Sternenbund</div>
+		<form class="manual-data-box" autocomplete="off" onsubmit="return false"><section class="manual-data-section" aria-label="Synchronisierte Wiki-Daten">
+	<div class="manual-data-section-header"><h3>Synchronisierte Wiki-Daten</h3><span class="note">Wiki-/SQL-Datensatz</span></div>
+	<div class="info-box">
+		<div class="info-origin-bar" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px"><a class="info-origin-link" href="#" onclick="return false">Im Wiki-Sync bearbeiten</a></div>
+		<div class="info-grid">
+			<div class="info-key">Hierarchie</div><div class="info-value">Svellttal &gt; Sternenbund</div>
+			<div class="info-key">Name</div><div class="info-value">Sternenbund</div>
+			<div class="info-key">Staatsform</div><div class="info-value">Städtebund</div>
+			<div class="info-key">Status</div><div class="info-value">eigenständiger Bund</div>
+			<div class="info-key">Gegründet</div><div class="info-value">1039 BF</div>
+		</div>
+	</div>
+</section><section class="manual-data-section" aria-label="Konfliktparteien"><h3>Weiteren Anspruch erheben</h3>
+	<div><div class="contested-list"></div><button type="button" class="secondary" style="margin-top:6px">Aus Wiki vorschlagen</button>
+	<small class="manual-data-inline-hint">Zusätzliche Reiche, die dieses Gebiet beanspruchen.</small></div>
+</section><section class="manual-data-section" aria-label="Quellen">
+	<div class="manual-data-section-header"><h3>Quellen</h3><span class="note">Quellen wirken <b>sofort</b> — sie brauchen kein „Speichern“.</span></div>
+	<div id="territoryFeatureSources"><div class="fs-editor"><div class="fs-hint">Tragt immer den direkten Link (z. B. zu einem Wiki-Artikel) ein — Titel und Korpus werden daraus automatisch erkannt. Art, Lizenz und Namensnennung kommen vom Korpus, sofern wir ihn listen. Änderungen am Korpus wirken sich auf alle Quellen aus, die auf ihn verweisen (z. B. wenn der Wiki-Name geändert wird).</div><div class="fs-row fs-row--wiki" data-fs-readonly="wiki"><a class="fs-row__link" href="https://de.wiki-aventurica.de/wiki/Sternenbund" target="_blank" rel="noopener">Wiki Aventurica ↗</a><span class="fs-row__badge fs-row__badge--readonly">fest</span></div><div class="fs-group fs-group--wiki-auto" data-fs-group="wiki-auto"><div class="fs-group-heading">Aus dem Wiki (automatisch)</div><div class="fs-col-heads" aria-hidden="true"><span>Titel</span><span>Typ</span><span>Art</span><span>Seiten</span><span>Lizenz</span><span></span><span></span></div><div class="fs-row" data-source-id="917"><a class="fs-row__link" href="https://www.ulisses-ebooks.de/de/product/223225/" target="_blank" rel="noopener">Aventurischer Bote Nr. 185 ↗</a><span class="fs-row__badge">Aventurischer Bote *</span><span class="fs-row__kind">Ausführlich</span><span class="fs-row__pages">S. 4, 2</span><span class="fs-row__license"></span><button type="button" class="fs-row__edit" data-fs-edit-id="917" title="Bearbeiten" aria-label="Bearbeiten">✎</button><button type="button" class="fs-row__remove" data-remove-source-id="917">✕</button></div><div class="fs-row" data-source-id="1893"><a class="fs-row__link" href="https://www.f-shop.de/search?sSearch=12090" target="_blank" rel="noopener">Aventurisches Jahrbuch für das Jahr 1036 BF ↗</a><span class="fs-row__badge">Regionalspielhilfe *</span><span class="fs-row__kind">Ausführlich</span><span class="fs-row__pages">S. 125, 126, 131</span><span class="fs-row__license"></span><button type="button" class="fs-row__edit" data-fs-edit-id="1893" title="Bearbeiten" aria-label="Bearbeiten">✎</button><button type="button" class="fs-row__remove" data-remove-source-id="1893">✕</button></div><div class="fs-row" data-source-id="6229"><a class="fs-row__link" href="https://www.f-shop.de/search?sSearch=US25369" target="_blank" rel="noopener">Donnerwacht ↗</a><span class="fs-row__badge">Sonstiges *</span><span class="fs-row__kind">Ergänzend</span><span class="fs-row__pages">S. 132</span><span class="fs-row__license"></span><button type="button" class="fs-row__edit" data-fs-edit-id="6229" title="Bearbeiten" aria-label="Bearbeiten">✎</button><button type="button" class="fs-row__remove" data-remove-source-id="6229">✕</button></div><div class="fs-row" data-source-id="6528"><a class="fs-row__link" href="https://www.f-shop.de/search?sSearch=USHW059" target="_blank" rel="noopener">Die Schilfscharade ↗</a><span class="fs-row__badge">Abenteuer *</span><span class="fs-row__kind">Nur Erwähnung</span><span class="fs-row__pages">S. 3, 5</span><span class="fs-row__license"></span><button type="button" class="fs-row__edit" data-fs-edit-id="6528" title="Bearbeiten" aria-label="Bearbeiten">✎</button><button type="button" class="fs-row__remove" data-remove-source-id="6528">✕</button></div></div><div class="fs-row" data-source-id="1325611"><a class="fs-row__link" href="https://www.westlande.de/index.php?title=Sternenbund" target="_blank" rel="noopener">Sternenbund ↗</a><span class="fs-row__badge">Briefspiel</span><span class="fs-row__kind"></span><span class="fs-row__pages"></span><span class="fs-row__license">CC BY-SA 4.0</span><button type="button" class="fs-row__edit" data-fs-edit-id="1325611" title="Bearbeiten" aria-label="Bearbeiten">✎</button><button type="button" class="fs-row__remove" data-remove-source-id="1325611">✕</button></div><div class="fs-row fs-row--add" data-fs-add><div class="fs-scope"><div class="fs-scope__head"><span class="fs-scope__title">Gilt für alle Objekte, die diese Quelle zitieren</span><span class="fs-scope__reach">— noch kein Objekt</span></div><p class="fs-scope__hint">Hier Adresse (URL) zur Quelle einfügen</p><div class="fs-scope__fields"><label class="fs-af fs-url"><span class="fs-af__l">Adresse — die genaue Seite</span><span class="fs-url__zeile"><span class="fs-url__feld"><input type="text" class="fs-add-url" inputmode="url" spellcheck="false" placeholder="https://… — die Seite über DIESES Objekt, nicht die Startseite"><span class="fs-url__ok" data-fs-ok hidden aria-hidden="true">✓</span></span><button type="button" class="fs-add-check fs-url__neu" data-fs-check title="Adresse prüfen und Titel übernehmen" aria-label="Adresse prüfen und Titel übernehmen">⟳</button></span></label><label class="fs-af fs-af--grow"><span class="fs-af__l">Titel — wie diese Seite heißt</span><input type="text" class="fs-add-label" placeholder="Quellenname"></label><label class="fs-af fs-af--w fs-check"><input type="checkbox" data-fs-no-corpus> Kein Korpus verwenden<span class="fs-af__meta"> — diese Quelle steht für sich</span></label></div></div><div class="fs-scope" data-fs-korpus-gruppe><div class="fs-scope__head"><span class="fs-scope__title" data-fs-korpus-titel>Gilt für den ganzen Korpus</span><span class="fs-scope__reach" data-fs-korpus-scope>— welcher, sagt die Adresse</span></div><div class="fs-scope__fields"><label class="fs-af fs-af--korpus"><span class="fs-af__l">Name des Korpus<span class="fs-af__meta" data-fs-corpus-meta></span></span><input type="text" class="fs-add-corpus" data-fs-corpus placeholder="aus der Adresse"></label><span class="fs-add-picked" data-fs-picked hidden>bestehende Quelle<button type="button" class="fs-add-picked__x" data-fs-unpick aria-label="Auswahl aufheben">✕</button></span><label class="fs-af fs-af--art"><span class="fs-af__l">Quellenart<span class="fs-af__from" data-fs-from="type" hidden> · vom Korpus</span></span><select class="fs-add-type"><option value="">Art …</option><option value="regionalspielhilfe">Regionalspielhilfe</option><option value="abenteuer">Abenteuer</option><option value="aventurischer_bote">Aventurischer Bote</option><option value="quellenband">Quellenband</option><option value="roman">Roman</option><option value="briefspiel">Briefspiel</option><option value="regelbuch">Regelbuch</option><option value="sonstiges">Sonstiges</option></select></label><label class="fs-af fs-af--license"><span class="fs-af__l">Lizenz<span class="fs-af__from" data-fs-from="license" hidden> · vom Korpus</span></span><select class="fs-add-license" title="Unter welcher Lizenz steht die Quelle? Leer heißt „nicht erfasst“, nicht „keine Lizenz“."><option value="">Lizenz …</option><option value="cc-by-sa-3.0">CC BY-SA 3.0</option><option value="cc-by-nc-sa-3.0">CC BY-NC-SA 3.0</option><option value="cc-by-4.0">CC BY 4.0</option><option value="cc-by-sa-4.0">CC BY-SA 4.0</option><option value="cc0-1.0">CC0 1.0</option><option value="public-domain">Gemeinfrei</option><option value="unfree">Keine freie Lizenz</option></select></label><label class="fs-af fs-af--grow"><span class="fs-af__l">Namensnennung bzw. mit freundlicher Genehmigung von<span class="fs-af__from" data-fs-from="attribution" hidden> · vom Korpus</span></span><input type="text" class="fs-add-attribution" placeholder="Namensnennung" title="Wen die Lizenz zu nennen verlangt, z. B. „VolkoV / garetien.de“."></label><label class="fs-af fs-af--w fs-check fs-add-official-label"><input type="checkbox" class="fs-add-official"> offiziell<span class="fs-af__from" data-fs-from="official" hidden> · vom Korpus</span></label></div></div><div class="fs-scope"><div class="fs-scope__head"><span class="fs-scope__title">Nur an diesem Objekt</span></div><div class="fs-scope__fields"><label class="fs-af fs-af--pages" data-fs-meins><span class="fs-af__l">Seite(n)</span><input type="text" class="fs-add-pages" placeholder="optional"></label><label class="fs-af fs-af--kind" data-fs-meins><span class="fs-af__l">Abdeckung</span><select class="fs-add-kind" title="Abdeckung: Ausführlich/Ergänzend → Offiziell-Tab, Erwähnung → Erwähnt-Tab, sonst normale Quellenzeile"><option value="">Standardquelle</option><option value="ausfuehrlich">Ausführlich</option><option value="ergaenzend">Ergänzend</option><option value="erwaehnung">Nur Erwähnung</option></select></label><div class="abw" data-fs-abw><div class="abw__t" data-fs-abw-text></div><div class="abw__f"><label class="fs-af fs-af--art" data-fs-abw-feld="source_type"><span class="fs-af__l">Quellenart</span><select data-fs-field="source_type" data-fs-abw-wert="source_type" data-fs-orig="" data-fs-abw-orig=""><option value="">wie Korpus</option><option value="regionalspielhilfe">Regionalspielhilfe</option><option value="abenteuer">Abenteuer</option><option value="aventurischer_bote">Aventurischer Bote</option><option value="quellenband">Quellenband</option><option value="roman">Roman</option><option value="briefspiel">Briefspiel</option><option value="regelbuch">Regelbuch</option><option value="sonstiges">Sonstiges</option></select></label><label class="fs-af fs-af--license" data-fs-abw-feld="license"><span class="fs-af__l">Lizenz</span><select data-fs-field="license" data-fs-abw-wert="license" data-fs-orig="" data-fs-abw-orig=""><option value="">wie Korpus</option><option value="cc-by-sa-3.0">CC BY-SA 3.0</option><option value="cc-by-nc-sa-3.0">CC BY-NC-SA 3.0</option><option value="cc-by-4.0">CC BY 4.0</option><option value="cc-by-sa-4.0">CC BY-SA 4.0</option><option value="cc0-1.0">CC0 1.0</option><option value="public-domain">Gemeinfrei</option><option value="unfree">Keine freie Lizenz</option></select></label><label class="fs-af fs-af--grow" data-fs-abw-feld="attribution"><span class="fs-af__l">Namensnennung bzw. mit freundlicher Genehmigung von</span><input type="text" data-fs-field="attribution" data-fs-abw-wert="attribution" data-fs-orig="" data-fs-abw-orig="" value=""></label></div></div></div></div><div class="fs-actions"><button type="button" class="fs-actions__prim" data-fs-add-submit>Speichern</button><button type="button" class="fs-actions__sek" data-fs-add-cancel>Abbrechen</button></div></div><p class="fs-add-note" data-fs-note hidden></p></div></div>
+</section><div class="manual-data-columns">
+	<section class="manual-data-section" aria-label="Kartensichtbarkeit"><h3>Kartensichtbarkeit</h3>
+		<div class="manual-data-grid"><div class="manual-data-field"><label>Zoom von</label><input type="number" value="3"></div><div class="manual-data-field"><label>Zoom bis</label><input type="number" value="6"></div></div>
+	</section>
+	<section class="manual-data-section" aria-label="Transparenz"><h3>Transparenz</h3>
+		<div class="manual-color-controls"><div class="manual-data-field"><div class="transparency-control-row"><input type="range" min="0" max="100" value="33"><input type="number" min="0" max="100" value="33" aria-label="Transparenz in Prozent"><span class="transparency-unit">%</span></div></div></div>
+	</section>
+</div></form>
+	</section>
+	<section class="panel form-status-panel" aria-label="Speicherstatus und Aktionen"><div class="form-status-row">
+	<label class="form-status-field"><span>Statusfeld</span><input type="text" value="Noch nicht gespeichert" readonly></label>
+	<div class="form-actions"><button class="secondary" type="button">Abbrechen</button><button type="button">Speichern</button></div>
+</div></section>
+</div>
+		<p class="meta">Dasselbe Bauteil wie überall, aber die ID-gescopten Elementregeln des Editors gewinnen: das ✕ wird ein
+		32 px hoher, gefüllter Knopf, „✎“ ebenso, Felder und Auswahllisten bekommen die Editorhöhe. Genau die Divergenz,
+		die der Vertrag oben ausschließt.</p>
+	</div>
+	<div class="karte">
+		<p class="wlabel wlabel--soll">Vorschlag — das Bauteil sieht aus wie an den acht anderen Stellen</p>
+		<div id="soll-host" class="is-embedded mk-host">
+	<section class="panel manual-data-panel">
+		<div class="panel-header"><h2>Gebietsdarstellung</h2><span class="note">Geometrie in der Datenbank</span></div>
+		<div class="breadcrumb manual-edit-path">Svellttal › Sternenbund</div>
+		<form class="manual-data-box" autocomplete="off" onsubmit="return false"><section class="manual-data-section" aria-label="Synchronisierte Wiki-Daten">
+	<div class="manual-data-section-header"><h3>Synchronisierte Wiki-Daten</h3><span class="note">Wiki-/SQL-Datensatz</span></div>
+	<div class="info-box">
+		<div class="info-origin-bar" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px"><a class="info-origin-link" href="#" onclick="return false">Im Wiki-Sync bearbeiten</a></div>
+		<div class="info-grid">
+			<div class="info-key">Hierarchie</div><div class="info-value">Svellttal &gt; Sternenbund</div>
+			<div class="info-key">Name</div><div class="info-value">Sternenbund</div>
+			<div class="info-key">Staatsform</div><div class="info-value">Städtebund</div>
+			<div class="info-key">Status</div><div class="info-value">eigenständiger Bund</div>
+			<div class="info-key">Gegründet</div><div class="info-value">1039 BF</div>
+		</div>
+	</div>
+</section><section class="manual-data-section" aria-label="Konfliktparteien"><h3>Weiteren Anspruch erheben</h3>
+	<div><div class="contested-list"></div><button type="button" class="secondary" style="margin-top:6px">Aus Wiki vorschlagen</button>
+	<small class="manual-data-inline-hint">Zusätzliche Reiche, die dieses Gebiet beanspruchen.</small></div>
+</section><section class="manual-data-section" aria-label="Quellen">
+	<div class="manual-data-section-header"><h3>Quellen</h3><span class="note">Quellen wirken <b>sofort</b> — sie brauchen kein „Speichern“.</span></div>
+	<div id="territoryFeatureSources"><div class="fs-editor"><div class="fs-hint">Tragt immer den direkten Link (z. B. zu einem Wiki-Artikel) ein — Titel und Korpus werden daraus automatisch erkannt. Art, Lizenz und Namensnennung kommen vom Korpus, sofern wir ihn listen. Änderungen am Korpus wirken sich auf alle Quellen aus, die auf ihn verweisen (z. B. wenn der Wiki-Name geändert wird).</div><div class="fs-row fs-row--wiki" data-fs-readonly="wiki"><a class="fs-row__link" href="https://de.wiki-aventurica.de/wiki/Sternenbund" target="_blank" rel="noopener">Wiki Aventurica ↗</a><span class="fs-row__badge fs-row__badge--readonly">fest</span></div><div class="fs-group fs-group--wiki-auto" data-fs-group="wiki-auto"><div class="fs-group-heading">Aus dem Wiki (automatisch)</div><div class="fs-col-heads" aria-hidden="true"><span>Titel</span><span>Typ</span><span>Art</span><span>Seiten</span><span>Lizenz</span><span></span><span></span></div><div class="fs-row" data-source-id="917"><a class="fs-row__link" href="https://www.ulisses-ebooks.de/de/product/223225/" target="_blank" rel="noopener">Aventurischer Bote Nr. 185 ↗</a><span class="fs-row__badge">Aventurischer Bote *</span><span class="fs-row__kind">Ausführlich</span><span class="fs-row__pages">S. 4, 2</span><span class="fs-row__license"></span><button type="button" class="fs-row__edit" data-fs-edit-id="917" title="Bearbeiten" aria-label="Bearbeiten">✎</button><button type="button" class="fs-row__remove" data-remove-source-id="917">✕</button></div><div class="fs-row" data-source-id="1893"><a class="fs-row__link" href="https://www.f-shop.de/search?sSearch=12090" target="_blank" rel="noopener">Aventurisches Jahrbuch für das Jahr 1036 BF ↗</a><span class="fs-row__badge">Regionalspielhilfe *</span><span class="fs-row__kind">Ausführlich</span><span class="fs-row__pages">S. 125, 126, 131</span><span class="fs-row__license"></span><button type="button" class="fs-row__edit" data-fs-edit-id="1893" title="Bearbeiten" aria-label="Bearbeiten">✎</button><button type="button" class="fs-row__remove" data-remove-source-id="1893">✕</button></div><div class="fs-row" data-source-id="6229"><a class="fs-row__link" href="https://www.f-shop.de/search?sSearch=US25369" target="_blank" rel="noopener">Donnerwacht ↗</a><span class="fs-row__badge">Sonstiges *</span><span class="fs-row__kind">Ergänzend</span><span class="fs-row__pages">S. 132</span><span class="fs-row__license"></span><button type="button" class="fs-row__edit" data-fs-edit-id="6229" title="Bearbeiten" aria-label="Bearbeiten">✎</button><button type="button" class="fs-row__remove" data-remove-source-id="6229">✕</button></div><div class="fs-row" data-source-id="6528"><a class="fs-row__link" href="https://www.f-shop.de/search?sSearch=USHW059" target="_blank" rel="noopener">Die Schilfscharade ↗</a><span class="fs-row__badge">Abenteuer *</span><span class="fs-row__kind">Nur Erwähnung</span><span class="fs-row__pages">S. 3, 5</span><span class="fs-row__license"></span><button type="button" class="fs-row__edit" data-fs-edit-id="6528" title="Bearbeiten" aria-label="Bearbeiten">✎</button><button type="button" class="fs-row__remove" data-remove-source-id="6528">✕</button></div></div><div class="fs-row" data-source-id="1325611"><a class="fs-row__link" href="https://www.westlande.de/index.php?title=Sternenbund" target="_blank" rel="noopener">Sternenbund ↗</a><span class="fs-row__badge">Briefspiel</span><span class="fs-row__kind"></span><span class="fs-row__pages"></span><span class="fs-row__license">CC BY-SA 4.0</span><button type="button" class="fs-row__edit" data-fs-edit-id="1325611" title="Bearbeiten" aria-label="Bearbeiten">✎</button><button type="button" class="fs-row__remove" data-remove-source-id="1325611">✕</button></div><div class="fs-row fs-row--add" data-fs-add><div class="fs-scope"><div class="fs-scope__head"><span class="fs-scope__title">Gilt für alle Objekte, die diese Quelle zitieren</span><span class="fs-scope__reach">— noch kein Objekt</span></div><p class="fs-scope__hint">Hier Adresse (URL) zur Quelle einfügen</p><div class="fs-scope__fields"><label class="fs-af fs-url"><span class="fs-af__l">Adresse — die genaue Seite</span><span class="fs-url__zeile"><span class="fs-url__feld"><input type="text" class="fs-add-url" inputmode="url" spellcheck="false" placeholder="https://… — die Seite über DIESES Objekt, nicht die Startseite"><span class="fs-url__ok" data-fs-ok hidden aria-hidden="true">✓</span></span><button type="button" class="fs-add-check fs-url__neu" data-fs-check title="Adresse prüfen und Titel übernehmen" aria-label="Adresse prüfen und Titel übernehmen">⟳</button></span></label><label class="fs-af fs-af--grow"><span class="fs-af__l">Titel — wie diese Seite heißt</span><input type="text" class="fs-add-label" placeholder="Quellenname"></label><label class="fs-af fs-af--w fs-check"><input type="checkbox" data-fs-no-corpus> Kein Korpus verwenden<span class="fs-af__meta"> — diese Quelle steht für sich</span></label></div></div><div class="fs-scope" data-fs-korpus-gruppe><div class="fs-scope__head"><span class="fs-scope__title" data-fs-korpus-titel>Gilt für den ganzen Korpus</span><span class="fs-scope__reach" data-fs-korpus-scope>— welcher, sagt die Adresse</span></div><div class="fs-scope__fields"><label class="fs-af fs-af--korpus"><span class="fs-af__l">Name des Korpus<span class="fs-af__meta" data-fs-corpus-meta></span></span><input type="text" class="fs-add-corpus" data-fs-corpus placeholder="aus der Adresse"></label><span class="fs-add-picked" data-fs-picked hidden>bestehende Quelle<button type="button" class="fs-add-picked__x" data-fs-unpick aria-label="Auswahl aufheben">✕</button></span><label class="fs-af fs-af--art"><span class="fs-af__l">Quellenart<span class="fs-af__from" data-fs-from="type" hidden> · vom Korpus</span></span><select class="fs-add-type"><option value="">Art …</option><option value="regionalspielhilfe">Regionalspielhilfe</option><option value="abenteuer">Abenteuer</option><option value="aventurischer_bote">Aventurischer Bote</option><option value="quellenband">Quellenband</option><option value="roman">Roman</option><option value="briefspiel">Briefspiel</option><option value="regelbuch">Regelbuch</option><option value="sonstiges">Sonstiges</option></select></label><label class="fs-af fs-af--license"><span class="fs-af__l">Lizenz<span class="fs-af__from" data-fs-from="license" hidden> · vom Korpus</span></span><select class="fs-add-license" title="Unter welcher Lizenz steht die Quelle? Leer heißt „nicht erfasst“, nicht „keine Lizenz“."><option value="">Lizenz …</option><option value="cc-by-sa-3.0">CC BY-SA 3.0</option><option value="cc-by-nc-sa-3.0">CC BY-NC-SA 3.0</option><option value="cc-by-4.0">CC BY 4.0</option><option value="cc-by-sa-4.0">CC BY-SA 4.0</option><option value="cc0-1.0">CC0 1.0</option><option value="public-domain">Gemeinfrei</option><option value="unfree">Keine freie Lizenz</option></select></label><label class="fs-af fs-af--grow"><span class="fs-af__l">Namensnennung bzw. mit freundlicher Genehmigung von<span class="fs-af__from" data-fs-from="attribution" hidden> · vom Korpus</span></span><input type="text" class="fs-add-attribution" placeholder="Namensnennung" title="Wen die Lizenz zu nennen verlangt, z. B. „VolkoV / garetien.de“."></label><label class="fs-af fs-af--w fs-check fs-add-official-label"><input type="checkbox" class="fs-add-official"> offiziell<span class="fs-af__from" data-fs-from="official" hidden> · vom Korpus</span></label></div></div><div class="fs-scope"><div class="fs-scope__head"><span class="fs-scope__title">Nur an diesem Objekt</span></div><div class="fs-scope__fields"><label class="fs-af fs-af--pages" data-fs-meins><span class="fs-af__l">Seite(n)</span><input type="text" class="fs-add-pages" placeholder="optional"></label><label class="fs-af fs-af--kind" data-fs-meins><span class="fs-af__l">Abdeckung</span><select class="fs-add-kind" title="Abdeckung: Ausführlich/Ergänzend → Offiziell-Tab, Erwähnung → Erwähnt-Tab, sonst normale Quellenzeile"><option value="">Standardquelle</option><option value="ausfuehrlich">Ausführlich</option><option value="ergaenzend">Ergänzend</option><option value="erwaehnung">Nur Erwähnung</option></select></label><div class="abw" data-fs-abw><div class="abw__t" data-fs-abw-text></div><div class="abw__f"><label class="fs-af fs-af--art" data-fs-abw-feld="source_type"><span class="fs-af__l">Quellenart</span><select data-fs-field="source_type" data-fs-abw-wert="source_type" data-fs-orig="" data-fs-abw-orig=""><option value="">wie Korpus</option><option value="regionalspielhilfe">Regionalspielhilfe</option><option value="abenteuer">Abenteuer</option><option value="aventurischer_bote">Aventurischer Bote</option><option value="quellenband">Quellenband</option><option value="roman">Roman</option><option value="briefspiel">Briefspiel</option><option value="regelbuch">Regelbuch</option><option value="sonstiges">Sonstiges</option></select></label><label class="fs-af fs-af--license" data-fs-abw-feld="license"><span class="fs-af__l">Lizenz</span><select data-fs-field="license" data-fs-abw-wert="license" data-fs-orig="" data-fs-abw-orig=""><option value="">wie Korpus</option><option value="cc-by-sa-3.0">CC BY-SA 3.0</option><option value="cc-by-nc-sa-3.0">CC BY-NC-SA 3.0</option><option value="cc-by-4.0">CC BY 4.0</option><option value="cc-by-sa-4.0">CC BY-SA 4.0</option><option value="cc0-1.0">CC0 1.0</option><option value="public-domain">Gemeinfrei</option><option value="unfree">Keine freie Lizenz</option></select></label><label class="fs-af fs-af--grow" data-fs-abw-feld="attribution"><span class="fs-af__l">Namensnennung bzw. mit freundlicher Genehmigung von</span><input type="text" data-fs-field="attribution" data-fs-abw-wert="attribution" data-fs-orig="" data-fs-abw-orig="" value=""></label></div></div></div></div><div class="fs-actions"><button type="button" class="fs-actions__prim" data-fs-add-submit>Speichern</button><button type="button" class="fs-actions__sek" data-fs-add-cancel>Abbrechen</button></div></div><p class="fs-add-note" data-fs-note hidden></p></div></div>
+</section><div class="manual-data-columns">
+	<section class="manual-data-section" aria-label="Kartensichtbarkeit"><h3>Kartensichtbarkeit</h3>
+		<div class="manual-data-grid"><div class="manual-data-field"><label>Zoom von</label><input type="number" value="3"></div><div class="manual-data-field"><label>Zoom bis</label><input type="number" value="6"></div></div>
+	</section>
+	<section class="manual-data-section" aria-label="Transparenz"><h3>Transparenz</h3>
+		<div class="manual-color-controls"><div class="manual-data-field"><div class="transparency-control-row"><input type="range" min="0" max="100" value="33"><input type="number" min="0" max="100" value="33" aria-label="Transparenz in Prozent"><span class="transparency-unit">%</span></div></div></div>
+	</section>
+</div></form>
+	</section>
+	<section class="panel form-status-panel" aria-label="Speicherstatus und Aktionen"><div class="form-status-row">
+	<label class="form-status-field"><span>Statusfeld</span><input type="text" value="Noch nicht gespeichert" readonly></label>
+	<div class="form-actions"><button class="secondary" type="button">Abbrechen</button><button type="button">Speichern</button></div>
+</div></section>
+</div>
+		<p class="meta">Der Erzeuger des gescopten Blatts nimmt <code>css/features/feature-sources.css</code> als vierte Quelle mit
+		(Modulregeln unter <code>#political-territory-editor-host</code>, also mit derselben Spezifität wie die
+		Editorregeln), und die Bedienhöhen-Regeln nehmen <code>.fs-editor *</code> aus. Keine zweite Rezeptur — dieselbe
+		Datei, mechanisch eingefaltet.</p>
+	</div>
+</div>
+
+<h2>2 · Ein eigener Knoten</h2>
+<p>Ein eigener Knoten (<code>eigener-knoten:…</code>) ist eine Zeile in <code>political_territory</code> wie jede andere und
+hat deshalb eine <code>public_id</code>. Er hat nur keinen Wiki-Artikel — also keine „Wiki Aventurica“-Zeile und keine
+Publikationen aus dem Abgleich. Alles, was er trägt, hat jemand von Hand eingetragen.</p>
+<div class="reihe">
+	<div class="karte">
+		<p class="wlabel wlabel--soll">Vorschlag — eigener Knoten mit einer Belegstelle</p>
+		<div id="soll-host" class="is-embedded mk-host">
+	<section class="panel manual-data-panel">
+		<div class="panel-header"><h2>Gebietsdarstellung</h2><span class="note">Geometrie in der Datenbank</span></div>
+		<div class="breadcrumb manual-edit-path">Svellttal › Freie Höfe am Svellt</div>
+		<form class="manual-data-box" autocomplete="off" onsubmit="return false"><section class="manual-data-section" aria-label="Synchronisierte Wiki-Daten">
+	<div class="manual-data-section-header"><h3>Synchronisierte Wiki-Daten</h3><span class="note">Wiki-/SQL-Datensatz</span></div>
+	<div class="info-box"><div class="info-grid">
+		<div class="info-key">Hierarchie</div><div class="info-value">Svellttal &gt; Freie Höfe am Svellt</div>
+		<div class="info-key">Name</div><div class="info-value">Freie Höfe am Svellt</div>
+		<div class="info-key">Schlüssel</div><div class="info-value">eigener-knoten:knoten041</div>
+	</div></div>
+</section><section class="manual-data-section" aria-label="Konfliktparteien"><h3>Weiteren Anspruch erheben</h3>
+	<div><div class="contested-list"></div><button type="button" class="secondary" style="margin-top:6px">Aus Wiki vorschlagen</button>
+	<small class="manual-data-inline-hint">Zusätzliche Reiche, die dieses Gebiet beanspruchen.</small></div>
+</section><section class="manual-data-section" aria-label="Quellen">
+	<div class="manual-data-section-header"><h3>Quellen</h3><span class="note">Quellen wirken <b>sofort</b> — sie brauchen kein „Speichern“.</span></div>
+	<div id="territoryFeatureSources"><div class="fs-editor"><div class="fs-hint">Tragt immer den direkten Link (z. B. zu einem Wiki-Artikel) ein — Titel und Korpus werden daraus automatisch erkannt. Art, Lizenz und Namensnennung kommen vom Korpus, sofern wir ihn listen. Änderungen am Korpus wirken sich auf alle Quellen aus, die auf ihn verweisen (z. B. wenn der Wiki-Name geändert wird).</div><div class="fs-row" data-source-id="1325611"><a class="fs-row__link" href="https://www.westlande.de/index.php?title=Sternenbund" target="_blank" rel="noopener">Sternenbund ↗</a><span class="fs-row__badge">Briefspiel</span><span class="fs-row__kind"></span><span class="fs-row__pages"></span><span class="fs-row__license">CC BY-SA 4.0</span><button type="button" class="fs-row__edit" data-fs-edit-id="1325611" title="Bearbeiten" aria-label="Bearbeiten">✎</button><button type="button" class="fs-row__remove" data-remove-source-id="1325611">✕</button></div><div class="fs-row fs-row--add" data-fs-add><div class="fs-scope"><div class="fs-scope__head"><span class="fs-scope__title">Gilt für alle Objekte, die diese Quelle zitieren</span><span class="fs-scope__reach">— noch kein Objekt</span></div><p class="fs-scope__hint">Hier Adresse (URL) zur Quelle einfügen</p><div class="fs-scope__fields"><label class="fs-af fs-url"><span class="fs-af__l">Adresse — die genaue Seite</span><span class="fs-url__zeile"><span class="fs-url__feld"><input type="text" class="fs-add-url" inputmode="url" spellcheck="false" placeholder="https://… — die Seite über DIESES Objekt, nicht die Startseite"><span class="fs-url__ok" data-fs-ok hidden aria-hidden="true">✓</span></span><button type="button" class="fs-add-check fs-url__neu" data-fs-check title="Adresse prüfen und Titel übernehmen" aria-label="Adresse prüfen und Titel übernehmen">⟳</button></span></label><label class="fs-af fs-af--grow"><span class="fs-af__l">Titel — wie diese Seite heißt</span><input type="text" class="fs-add-label" placeholder="Quellenname"></label><label class="fs-af fs-af--w fs-check"><input type="checkbox" data-fs-no-corpus> Kein Korpus verwenden<span class="fs-af__meta"> — diese Quelle steht für sich</span></label></div></div><div class="fs-scope" data-fs-korpus-gruppe><div class="fs-scope__head"><span class="fs-scope__title" data-fs-korpus-titel>Gilt für den ganzen Korpus</span><span class="fs-scope__reach" data-fs-korpus-scope>— welcher, sagt die Adresse</span></div><div class="fs-scope__fields"><label class="fs-af fs-af--korpus"><span class="fs-af__l">Name des Korpus<span class="fs-af__meta" data-fs-corpus-meta></span></span><input type="text" class="fs-add-corpus" data-fs-corpus placeholder="aus der Adresse"></label><span class="fs-add-picked" data-fs-picked hidden>bestehende Quelle<button type="button" class="fs-add-picked__x" data-fs-unpick aria-label="Auswahl aufheben">✕</button></span><label class="fs-af fs-af--art"><span class="fs-af__l">Quellenart<span class="fs-af__from" data-fs-from="type" hidden> · vom Korpus</span></span><select class="fs-add-type"><option value="">Art …</option><option value="regionalspielhilfe">Regionalspielhilfe</option><option value="abenteuer">Abenteuer</option><option value="aventurischer_bote">Aventurischer Bote</option><option value="quellenband">Quellenband</option><option value="roman">Roman</option><option value="briefspiel">Briefspiel</option><option value="regelbuch">Regelbuch</option><option value="sonstiges">Sonstiges</option></select></label><label class="fs-af fs-af--license"><span class="fs-af__l">Lizenz<span class="fs-af__from" data-fs-from="license" hidden> · vom Korpus</span></span><select class="fs-add-license" title="Unter welcher Lizenz steht die Quelle? Leer heißt „nicht erfasst“, nicht „keine Lizenz“."><option value="">Lizenz …</option><option value="cc-by-sa-3.0">CC BY-SA 3.0</option><option value="cc-by-nc-sa-3.0">CC BY-NC-SA 3.0</option><option value="cc-by-4.0">CC BY 4.0</option><option value="cc-by-sa-4.0">CC BY-SA 4.0</option><option value="cc0-1.0">CC0 1.0</option><option value="public-domain">Gemeinfrei</option><option value="unfree">Keine freie Lizenz</option></select></label><label class="fs-af fs-af--grow"><span class="fs-af__l">Namensnennung bzw. mit freundlicher Genehmigung von<span class="fs-af__from" data-fs-from="attribution" hidden> · vom Korpus</span></span><input type="text" class="fs-add-attribution" placeholder="Namensnennung" title="Wen die Lizenz zu nennen verlangt, z. B. „VolkoV / garetien.de“."></label><label class="fs-af fs-af--w fs-check fs-add-official-label"><input type="checkbox" class="fs-add-official"> offiziell<span class="fs-af__from" data-fs-from="official" hidden> · vom Korpus</span></label></div></div><div class="fs-scope"><div class="fs-scope__head"><span class="fs-scope__title">Nur an diesem Objekt</span></div><div class="fs-scope__fields"><label class="fs-af fs-af--pages" data-fs-meins><span class="fs-af__l">Seite(n)</span><input type="text" class="fs-add-pages" placeholder="optional"></label><label class="fs-af fs-af--kind" data-fs-meins><span class="fs-af__l">Abdeckung</span><select class="fs-add-kind" title="Abdeckung: Ausführlich/Ergänzend → Offiziell-Tab, Erwähnung → Erwähnt-Tab, sonst normale Quellenzeile"><option value="">Standardquelle</option><option value="ausfuehrlich">Ausführlich</option><option value="ergaenzend">Ergänzend</option><option value="erwaehnung">Nur Erwähnung</option></select></label><div class="abw" data-fs-abw><div class="abw__t" data-fs-abw-text></div><div class="abw__f"><label class="fs-af fs-af--art" data-fs-abw-feld="source_type"><span class="fs-af__l">Quellenart</span><select data-fs-field="source_type" data-fs-abw-wert="source_type" data-fs-orig="" data-fs-abw-orig=""><option value="">wie Korpus</option><option value="regionalspielhilfe">Regionalspielhilfe</option><option value="abenteuer">Abenteuer</option><option value="aventurischer_bote">Aventurischer Bote</option><option value="quellenband">Quellenband</option><option value="roman">Roman</option><option value="briefspiel">Briefspiel</option><option value="regelbuch">Regelbuch</option><option value="sonstiges">Sonstiges</option></select></label><label class="fs-af fs-af--license" data-fs-abw-feld="license"><span class="fs-af__l">Lizenz</span><select data-fs-field="license" data-fs-abw-wert="license" data-fs-orig="" data-fs-abw-orig=""><option value="">wie Korpus</option><option value="cc-by-sa-3.0">CC BY-SA 3.0</option><option value="cc-by-nc-sa-3.0">CC BY-NC-SA 3.0</option><option value="cc-by-4.0">CC BY 4.0</option><option value="cc-by-sa-4.0">CC BY-SA 4.0</option><option value="cc0-1.0">CC0 1.0</option><option value="public-domain">Gemeinfrei</option><option value="unfree">Keine freie Lizenz</option></select></label><label class="fs-af fs-af--grow" data-fs-abw-feld="attribution"><span class="fs-af__l">Namensnennung bzw. mit freundlicher Genehmigung von</span><input type="text" data-fs-field="attribution" data-fs-abw-wert="attribution" data-fs-orig="" data-fs-abw-orig="" value=""></label></div></div></div></div><div class="fs-actions"><button type="button" class="fs-actions__prim" data-fs-add-submit>Speichern</button><button type="button" class="fs-actions__sek" data-fs-add-cancel>Abbrechen</button></div></div><p class="fs-add-note" data-fs-note hidden></p></div></div>
+</section><div class="manual-data-columns">
+	<section class="manual-data-section" aria-label="Kartensichtbarkeit"><h3>Kartensichtbarkeit</h3>
+		<div class="manual-data-grid"><div class="manual-data-field"><label>Zoom von</label><input type="number" value="3"></div><div class="manual-data-field"><label>Zoom bis</label><input type="number" value="6"></div></div>
+	</section>
+	<section class="manual-data-section" aria-label="Transparenz"><h3>Transparenz</h3>
+		<div class="manual-color-controls"><div class="manual-data-field"><div class="transparency-control-row"><input type="range" min="0" max="100" value="33"><input type="number" min="0" max="100" value="33" aria-label="Transparenz in Prozent"><span class="transparency-unit">%</span></div></div></div>
+	</section>
+</div></form>
+	</section>
+	<section class="panel form-status-panel" aria-label="Speicherstatus und Aktionen"><div class="form-status-row">
+	<label class="form-status-field"><span>Statusfeld</span><input type="text" value="Noch nicht gespeichert" readonly></label>
+	<div class="form-actions"><button class="secondary" type="button">Abbrechen</button><button type="button">Speichern</button></div>
+</div></section>
+</div>
+	</div>
+</div>
+
+<h2>3 · Der Kartendialog „Herrschaftsgebiet bearbeiten“</h2>
+<p>Er ist der <strong>Rückfall</strong>: das Kontextmenü öffnet zuerst den eingebetteten Editor und nur, wenn dessen
+Inline-Host fehlt, diesen Dialog. Er bekommt denselben Kasten wie der Ortsdialog daneben (<code>.label-edit-section</code>,
+Überschrift „Quellen“, Hinweiszeile, Bauteil) — <strong>ganz unten</strong>, nach dem letzten Feld und vor der Knopfleiste,
+nicht zwischen den Feldern („nicht zwischen die felder reinpfrimeln“). „Andere Quelle“ fällt ersatzlos. Montiert wird
+beim Befüllen des Formulars — auch beim Wechsel der Reiter oben und nach dem Speichern.</p>
+<div class="reihe">
+	<div class="karte karte--dialog">
+		<p class="wlabel wlabel--ist">Heute</p>
+		<div class="location-report-dialog mk-dialog"><div class="location-report-dialog__header"><h2 style="margin:0;font-size:16px">Herrschaftsgebiet bearbeiten</h2></div><form class="location-report-form" onsubmit="return false">
+	<label class="location-report-form__field"><span>Wiki-Aventurica-Link</span><input type="url" value="https://de.wiki-aventurica.de/wiki/Sternenbund"></label>
+	<div class="political-territory-field mk-tot">
+		<label class="location-report-form__field"><span>Andere Quelle: <span class="mk-marke">fällt weg</span></span><input type="url" placeholder="https://..."></label>
+		<label class="location-report-form__field"><span>Linktext (optional)</span><input type="text" placeholder="Quelle"></label>
+	</div>
+	<label class="location-report-form__field"><span>Wappen-Link</span><input type="url" placeholder="https://..."></label>
+	<label class="location-report-form__field"><span>Textanzeige Zeitraum</span><input type="text" value="seit 1039 BF"></label>
+	<label class="location-report-form__field"><span>Redaktioneller Kommentar</span><textarea rows="2"></textarea></label>
+	<p class="location-report-form__status" role="status"></p>
+	<div class="location-report-form__actions"><button class="location-report-form__button location-report-form__button--secondary" type="button">Löschen</button><button class="location-report-form__button location-report-form__button--secondary" type="button">Abbrechen</button><button class="location-report-form__button location-report-form__button--primary" type="button">Speichern</button></div>
+</form></div>
+	</div>
+	<div class="karte karte--dialog">
+		<p class="wlabel wlabel--soll">Vorschlag</p>
+		<div class="location-report-dialog mk-dialog"><div class="location-report-dialog__header"><h2 style="margin:0;font-size:16px">Herrschaftsgebiet bearbeiten</h2></div><form class="location-report-form" onsubmit="return false">
+	<label class="location-report-form__field"><span>Wiki-Aventurica-Link</span><input type="url" value="https://de.wiki-aventurica.de/wiki/Sternenbund"></label>
+	<label class="location-report-form__field"><span>Wappen-Link</span><input type="url" placeholder="https://..."></label>
+	<label class="location-report-form__field"><span>Textanzeige Zeitraum</span><input type="text" value="seit 1039 BF"></label>
+	<label class="location-report-form__field"><span>Redaktioneller Kommentar</span><textarea rows="2"></textarea></label>
+	<div class="label-edit-section political-territory-field"><div class="label-edit-section-title">Quellen</div>
+		<p class="location-report-form__status">Quellen wirken <b>sofort</b> — sie brauchen kein „Speichern“.</p>
+		<div id="region-edit-feature-sources"><div class="fs-editor"><div class="fs-hint">Tragt immer den direkten Link (z. B. zu einem Wiki-Artikel) ein — Titel und Korpus werden daraus automatisch erkannt. Art, Lizenz und Namensnennung kommen vom Korpus, sofern wir ihn listen. Änderungen am Korpus wirken sich auf alle Quellen aus, die auf ihn verweisen (z. B. wenn der Wiki-Name geändert wird).</div><div class="fs-row fs-row--wiki" data-fs-readonly="wiki"><a class="fs-row__link" href="https://de.wiki-aventurica.de/wiki/Sternenbund" target="_blank" rel="noopener">Wiki Aventurica ↗</a><span class="fs-row__badge fs-row__badge--readonly">fest</span></div><div class="fs-group fs-group--wiki-auto" data-fs-group="wiki-auto"><div class="fs-group-heading">Aus dem Wiki (automatisch)</div><div class="fs-col-heads" aria-hidden="true"><span>Titel</span><span>Typ</span><span>Art</span><span>Seiten</span><span>Lizenz</span><span></span><span></span></div><div class="fs-row" data-source-id="917"><a class="fs-row__link" href="https://www.ulisses-ebooks.de/de/product/223225/" target="_blank" rel="noopener">Aventurischer Bote Nr. 185 ↗</a><span class="fs-row__badge">Aventurischer Bote *</span><span class="fs-row__kind">Ausführlich</span><span class="fs-row__pages">S. 4, 2</span><span class="fs-row__license"></span><button type="button" class="fs-row__edit" data-fs-edit-id="917" title="Bearbeiten" aria-label="Bearbeiten">✎</button><button type="button" class="fs-row__remove" data-remove-source-id="917">✕</button></div><div class="fs-row" data-source-id="1893"><a class="fs-row__link" href="https://www.f-shop.de/search?sSearch=12090" target="_blank" rel="noopener">Aventurisches Jahrbuch für das Jahr 1036 BF ↗</a><span class="fs-row__badge">Regionalspielhilfe *</span><span class="fs-row__kind">Ausführlich</span><span class="fs-row__pages">S. 125, 126, 131</span><span class="fs-row__license"></span><button type="button" class="fs-row__edit" data-fs-edit-id="1893" title="Bearbeiten" aria-label="Bearbeiten">✎</button><button type="button" class="fs-row__remove" data-remove-source-id="1893">✕</button></div><div class="fs-row" data-source-id="6229"><a class="fs-row__link" href="https://www.f-shop.de/search?sSearch=US25369" target="_blank" rel="noopener">Donnerwacht ↗</a><span class="fs-row__badge">Sonstiges *</span><span class="fs-row__kind">Ergänzend</span><span class="fs-row__pages">S. 132</span><span class="fs-row__license"></span><button type="button" class="fs-row__edit" data-fs-edit-id="6229" title="Bearbeiten" aria-label="Bearbeiten">✎</button><button type="button" class="fs-row__remove" data-remove-source-id="6229">✕</button></div><div class="fs-row" data-source-id="6528"><a class="fs-row__link" href="https://www.f-shop.de/search?sSearch=USHW059" target="_blank" rel="noopener">Die Schilfscharade ↗</a><span class="fs-row__badge">Abenteuer *</span><span class="fs-row__kind">Nur Erwähnung</span><span class="fs-row__pages">S. 3, 5</span><span class="fs-row__license"></span><button type="button" class="fs-row__edit" data-fs-edit-id="6528" title="Bearbeiten" aria-label="Bearbeiten">✎</button><button type="button" class="fs-row__remove" data-remove-source-id="6528">✕</button></div></div><div class="fs-row" data-source-id="1325611"><a class="fs-row__link" href="https://www.westlande.de/index.php?title=Sternenbund" target="_blank" rel="noopener">Sternenbund ↗</a><span class="fs-row__badge">Briefspiel</span><span class="fs-row__kind"></span><span class="fs-row__pages"></span><span class="fs-row__license">CC BY-SA 4.0</span><button type="button" class="fs-row__edit" data-fs-edit-id="1325611" title="Bearbeiten" aria-label="Bearbeiten">✎</button><button type="button" class="fs-row__remove" data-remove-source-id="1325611">✕</button></div><div class="fs-row fs-row--add" data-fs-add><div class="fs-scope"><div class="fs-scope__head"><span class="fs-scope__title">Gilt für alle Objekte, die diese Quelle zitieren</span><span class="fs-scope__reach">— noch kein Objekt</span></div><p class="fs-scope__hint">Hier Adresse (URL) zur Quelle einfügen</p><div class="fs-scope__fields"><label class="fs-af fs-url"><span class="fs-af__l">Adresse — die genaue Seite</span><span class="fs-url__zeile"><span class="fs-url__feld"><input type="text" class="fs-add-url" inputmode="url" spellcheck="false" placeholder="https://… — die Seite über DIESES Objekt, nicht die Startseite"><span class="fs-url__ok" data-fs-ok hidden aria-hidden="true">✓</span></span><button type="button" class="fs-add-check fs-url__neu" data-fs-check title="Adresse prüfen und Titel übernehmen" aria-label="Adresse prüfen und Titel übernehmen">⟳</button></span></label><label class="fs-af fs-af--grow"><span class="fs-af__l">Titel — wie diese Seite heißt</span><input type="text" class="fs-add-label" placeholder="Quellenname"></label><label class="fs-af fs-af--w fs-check"><input type="checkbox" data-fs-no-corpus> Kein Korpus verwenden<span class="fs-af__meta"> — diese Quelle steht für sich</span></label></div></div><div class="fs-scope" data-fs-korpus-gruppe><div class="fs-scope__head"><span class="fs-scope__title" data-fs-korpus-titel>Gilt für den ganzen Korpus</span><span class="fs-scope__reach" data-fs-korpus-scope>— welcher, sagt die Adresse</span></div><div class="fs-scope__fields"><label class="fs-af fs-af--korpus"><span class="fs-af__l">Name des Korpus<span class="fs-af__meta" data-fs-corpus-meta></span></span><input type="text" class="fs-add-corpus" data-fs-corpus placeholder="aus der Adresse"></label><span class="fs-add-picked" data-fs-picked hidden>bestehende Quelle<button type="button" class="fs-add-picked__x" data-fs-unpick aria-label="Auswahl aufheben">✕</button></span><label class="fs-af fs-af--art"><span class="fs-af__l">Quellenart<span class="fs-af__from" data-fs-from="type" hidden> · vom Korpus</span></span><select class="fs-add-type"><option value="">Art …</option><option value="regionalspielhilfe">Regionalspielhilfe</option><option value="abenteuer">Abenteuer</option><option value="aventurischer_bote">Aventurischer Bote</option><option value="quellenband">Quellenband</option><option value="roman">Roman</option><option value="briefspiel">Briefspiel</option><option value="regelbuch">Regelbuch</option><option value="sonstiges">Sonstiges</option></select></label><label class="fs-af fs-af--license"><span class="fs-af__l">Lizenz<span class="fs-af__from" data-fs-from="license" hidden> · vom Korpus</span></span><select class="fs-add-license" title="Unter welcher Lizenz steht die Quelle? Leer heißt „nicht erfasst“, nicht „keine Lizenz“."><option value="">Lizenz …</option><option value="cc-by-sa-3.0">CC BY-SA 3.0</option><option value="cc-by-nc-sa-3.0">CC BY-NC-SA 3.0</option><option value="cc-by-4.0">CC BY 4.0</option><option value="cc-by-sa-4.0">CC BY-SA 4.0</option><option value="cc0-1.0">CC0 1.0</option><option value="public-domain">Gemeinfrei</option><option value="unfree">Keine freie Lizenz</option></select></label><label class="fs-af fs-af--grow"><span class="fs-af__l">Namensnennung bzw. mit freundlicher Genehmigung von<span class="fs-af__from" data-fs-from="attribution" hidden> · vom Korpus</span></span><input type="text" class="fs-add-attribution" placeholder="Namensnennung" title="Wen die Lizenz zu nennen verlangt, z. B. „VolkoV / garetien.de“."></label><label class="fs-af fs-af--w fs-check fs-add-official-label"><input type="checkbox" class="fs-add-official"> offiziell<span class="fs-af__from" data-fs-from="official" hidden> · vom Korpus</span></label></div></div><div class="fs-scope"><div class="fs-scope__head"><span class="fs-scope__title">Nur an diesem Objekt</span></div><div class="fs-scope__fields"><label class="fs-af fs-af--pages" data-fs-meins><span class="fs-af__l">Seite(n)</span><input type="text" class="fs-add-pages" placeholder="optional"></label><label class="fs-af fs-af--kind" data-fs-meins><span class="fs-af__l">Abdeckung</span><select class="fs-add-kind" title="Abdeckung: Ausführlich/Ergänzend → Offiziell-Tab, Erwähnung → Erwähnt-Tab, sonst normale Quellenzeile"><option value="">Standardquelle</option><option value="ausfuehrlich">Ausführlich</option><option value="ergaenzend">Ergänzend</option><option value="erwaehnung">Nur Erwähnung</option></select></label><div class="abw" data-fs-abw><div class="abw__t" data-fs-abw-text></div><div class="abw__f"><label class="fs-af fs-af--art" data-fs-abw-feld="source_type"><span class="fs-af__l">Quellenart</span><select data-fs-field="source_type" data-fs-abw-wert="source_type" data-fs-orig="" data-fs-abw-orig=""><option value="">wie Korpus</option><option value="regionalspielhilfe">Regionalspielhilfe</option><option value="abenteuer">Abenteuer</option><option value="aventurischer_bote">Aventurischer Bote</option><option value="quellenband">Quellenband</option><option value="roman">Roman</option><option value="briefspiel">Briefspiel</option><option value="regelbuch">Regelbuch</option><option value="sonstiges">Sonstiges</option></select></label><label class="fs-af fs-af--license" data-fs-abw-feld="license"><span class="fs-af__l">Lizenz</span><select data-fs-field="license" data-fs-abw-wert="license" data-fs-orig="" data-fs-abw-orig=""><option value="">wie Korpus</option><option value="cc-by-sa-3.0">CC BY-SA 3.0</option><option value="cc-by-nc-sa-3.0">CC BY-NC-SA 3.0</option><option value="cc-by-4.0">CC BY 4.0</option><option value="cc-by-sa-4.0">CC BY-SA 4.0</option><option value="cc0-1.0">CC0 1.0</option><option value="public-domain">Gemeinfrei</option><option value="unfree">Keine freie Lizenz</option></select></label><label class="fs-af fs-af--grow" data-fs-abw-feld="attribution"><span class="fs-af__l">Namensnennung bzw. mit freundlicher Genehmigung von</span><input type="text" data-fs-field="attribution" data-fs-abw-wert="attribution" data-fs-orig="" data-fs-abw-orig="" value=""></label></div></div></div></div><div class="fs-actions"><button type="button" class="fs-actions__prim" data-fs-add-submit>Speichern</button><button type="button" class="fs-actions__sek" data-fs-add-cancel>Abbrechen</button></div></div><p class="fs-add-note" data-fs-note hidden></p></div></div>
+	</div>
+	<p class="location-report-form__status" role="status"></p>
+	<div class="location-report-form__actions"><button class="location-report-form__button location-report-form__button--secondary" type="button">Löschen</button><button class="location-report-form__button location-report-form__button--secondary" type="button">Abbrechen</button><button class="location-report-form__button location-report-form__button--primary" type="button">Speichern</button></div>
+</form></div>
+	</div>
+</div>
+
+<h2>4 · Was der Besucher sieht — unverändert</h2>
+<p>Die Infobox liest die Quellen eines Herrschaftsgebiets seit dem Publikationsabgleich aus der Kartennutzlast
+(<code>renderFeatureSourceLine("territory", …)</code>). Eine im Editor eingetragene Quelle steht sofort dort, weil
+das Bauteil nach jedem Schreiben den Zwischenspeicher der Karte nachzieht — im selben Fenster, denn der Editor
+ist inline. Dieser Schritt ändert an der Infobox nichts.</p>
+<div class="reihe"><div class="mk-wirt"><div class="fs-src fs-src--box"><p class="fs-src-label">Quellen:</p><ul class="fs-src-list"><li><span class="fs-src-row"><span class="fs-src-main"><span class="fs-src-title"><a class="fs-src-a" href="https://de.wiki-aventurica.de/wiki/Sternenbund" target="_blank" rel="noopener">Wiki Aventurica <span class="fs-src-ext" aria-hidden="true">↗</span></a></span></span><span class="fs-src-marks"><button type="button" class="fs-src-info" aria-expanded="false" aria-controls="fsr-wiki" title="Rechte und Namensnennung" aria-label="Rechte und Namensnennung" onclick="avesmapsToggleSourceRights(this)">i</button><span class="fs-kanon fs-kanon--off">Offiziell</span></span></span><div class="fs-src-rights" id="fsr-wiki" hidden><dl><dt>Kanon</dt><dd>Offiziell — bei Ulisses erschienen. In offiziellen Nachschlagwerken nachzulesen.</dd><dt>Verknüpfung</dt><dd>Wir haben dieses Objekt mit dem Artikel im Wiki Aventurica verbunden — die inhaltlichen Angaben oben stammen von dort.</dd><dt>Adresse</dt><dd><a class="fs-src-rights-url" href="https://de.wiki-aventurica.de/wiki/Sternenbund" target="_blank" rel="noopener">https://de.wiki-aventurica.de/wiki/Sternenbund <span class="fs-src-ext" aria-hidden="true">↗</span></a></dd></dl></div></li><li><span class="fs-src-row"><span class="fs-src-main"><span class="fs-src-title"><a class="fs-src-a" href="https://www.westlande.de/index.php?title=Sternenbund" target="_blank" rel="noopener">Albernia-Wiki <span class="fs-src-ext" aria-hidden="true">↗</span></a></span></span><span class="fs-src-marks"><button type="button" class="fs-src-info" aria-expanded="false" aria-controls="fsr-0" title="Rechte und Namensnennung" aria-label="Rechte und Namensnennung" onclick="avesmapsToggleSourceRights(this)">i</button><span class="fs-kanon fs-kanon--inoff fs-kanon--split" aria-label="Inoffiziell · Briefspiel"><span class="fs-kanon__state">Inoffiziell</span><span class="fs-kanon__by">Briefspiel</span></span></span></span><div class="fs-src-rights" id="fsr-0" hidden><dl><dt>Kanon</dt><dd>Inoffiziell — Fanmaterial (Briefspiel). In offiziellen Nachschlagwerken steht es so nicht.</dd><dt>Lizenz</dt><dd><a href="https://creativecommons.org/licenses/by-sa/4.0/deed.de" target="_blank" rel="noopener">CC BY-SA 4.0 <span class="fs-src-ext" aria-hidden="true">↗</span></a></dd><dt>Titel</dt><dd>Sternenbund</dd><dt>Adresse</dt><dd><a class="fs-src-rights-url" href="https://www.westlande.de/index.php?title=Sternenbund" target="_blank" rel="noopener">https://www.westlande.de/index.php?title=Sternenbund <span class="fs-src-ext" aria-hidden="true">↗</span></a></dd></dl></div></li></ul><div class="fs-src-trenner" role="presentation"></div><div class="fs-src-pub"><span class="fs-src-publabel">Publikationen:</span><span class="fs-src-tab" data-fs-tab="off" role="button" tabindex="0" onclick="avesmapsToggleSourceTab(this)" onkeydown="avesmapsSourceTabKeydown(event,this)">Offiziell <span class="fs-src-n">(3)</span></span><span class="fs-src-tab" data-fs-tab="erw" role="button" tabindex="0" onclick="avesmapsToggleSourceTab(this)" onkeydown="avesmapsSourceTabKeydown(event,this)">Erwähnt <span class="fs-src-n">(1)</span></span></div><div class="fs-src-tablewrap" hidden><table class="fs-src-table" data-fs-panel="off" hidden><colgroup><col class="fs-src-col-title"><col class="fs-src-col-type"><col class="fs-src-col-pages"></colgroup><thead><tr><th>Titel</th><th>Typ</th><th class="fs-src-th-r">Seiten</th></tr></thead><tbody><tr><td><a class="fs-src-a" href="https://www.ulisses-ebooks.de/de/product/223225/" target="_blank" rel="noopener">Aventurischer Bote Nr. 185 <span class="fs-src-ext" aria-hidden="true">↗</span></a></td><td class="fs-src-c-type">Aventurischer Bote</td><td class="fs-src-c-pages">4, 2</td></tr><tr><td><a class="fs-src-a" href="https://www.f-shop.de/search?sSearch=12090" target="_blank" rel="noopener">Aventurisches Jahrbuch für das Jahr 1036 BF <span class="fs-src-ext" aria-hidden="true">↗</span></a></td><td class="fs-src-c-type">Regionalspielhilfe</td><td class="fs-src-c-pages">125, 126, 131</td></tr><tr><td><a class="fs-src-a" href="https://www.f-shop.de/search?sSearch=US25369" target="_blank" rel="noopener">Donnerwacht <span class="fs-src-ext" aria-hidden="true">↗</span></a></td><td class="fs-src-c-type">Sonstiges</td><td class="fs-src-c-pages">132</td></tr></tbody></table><table class="fs-src-table" data-fs-panel="erw" hidden><colgroup><col class="fs-src-col-title"><col class="fs-src-col-type"><col class="fs-src-col-pages"></colgroup><thead><tr><th>Titel</th><th>Typ</th><th class="fs-src-th-r">Seiten</th></tr></thead><tbody><tr><td><a class="fs-src-a" href="https://www.f-shop.de/search?sSearch=USHW059" target="_blank" rel="noopener">Die Schilfscharade <span class="fs-src-ext" aria-hidden="true">↗</span></a></td><td class="fs-src-c-type">Abenteuer</td><td class="fs-src-c-pages">3, 5</td></tr></tbody></table></div></div></div></div>
+
+<h2>5 · Was wegfällt, was bleibt, was bindet</h2>
+<ul class="mk">
+	<li><strong>Weg:</strong> das Feld „Andere Quelle“ im Territoriumseditor (Markup, Element-Register, Anzeigezustand,
+	Speicherrumpf) und im Kartendialog (Sektion, Befüllen, Lesen beim Absenden); auf dem Server der Schlüssel
+	<code>otherSource</code> im <code>display_style</code> (Lesen, Normalisieren, Schreiben). Gespeicherte Reste bleiben als
+	inerte Schlüssel in der Datenbank liegen und werden beim nächsten Speichern der Geometrie verworfen — nichts wird migriert
+	(Owner-Entscheid; das Feld war seit dem 07.07.2026 für keinen Knoten erreichbar).</li>
+	<li><strong>Bleibt:</strong> <code>js/review/review-other-source.js</code> — Wege und Beschriftungen tragen „Andere Quelle“
+	noch bis zu ihren eigenen Schritten (2 und 4). Der Server-Endpunkt braucht keine Zeile: <code>territory</code> ist in beiden
+	Endpunkten freigegeben, der feste Wiki-Link kommt aus <code>political_territory.wiki_url</code>, und jeder Schreibvorgang
+	bumpt bereits den Kartenstempel.</li>
+	<li><strong>Bindet:</strong> der Vertrag oben (die Ausnahme der Bedienhöhe) im Deploy-Tor; die vierte Quelle des
+	Erzeugers und die Anwesenheit der Modulregeln im Bauprodukt durch einen Test; Montage, Schlüssel, Neu-Montage beim
+	Knotenwechsel und das Verschwinden bei Gruppenknoten durch einen ausgeführten Test gegen ein reines Anschluss-Modul.</li>
+	<li><strong>Standalone-Seite:</strong> <code>html/political-territory-editor.html</code> lädt die drei Modulskripte und das
+	Quellen-CSS selbst, wie die vier anderen Editorseiten; der Inline-Host führt sie in seiner Skriptliste (übersprungen,
+	wenn die Karte sie schon geladen hat). <code>ASSET_VERSION</code> wird gebumpt.</li>
+</ul>
+
+<div class="frage"><strong>Entschieden (03.09.2026):</strong> Quellen stehen überall <strong>unten / als Letztes</strong> — im
+Territoriumseditor als letzte Sektion der Wiki-Daten-Spalte, im Kartendialog nach dem letzten Feld. Ein abgeleiteter
+Gruppenknoten (kein Datensatz) blendet die Sektion aus.<br>
+<strong>Offen:</strong> wie viele <code>display_style.otherSource</code>-Reste es gibt, kann ich von außen nicht zählen; wenn dich
+die Zahl interessiert: <code>SELECT COUNT(*) FROM political_territory_geometry WHERE style_json LIKE '%"otherSource":{"url":"http%'</code>.</div>

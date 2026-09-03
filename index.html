@@ -2367,17 +2367,6 @@
 						<span>Wiki-Aventurica-Link</span>
 						<input id="region-edit-wiki-url" name="wiki_url" type="url" inputmode="url" maxlength="500" placeholder="https://..." />
 					</label>
-					<div id="region-edit-other-source-section" class="political-territory-field">
-						<label class="location-report-form__field">
-							<span>Andere Quelle:</span>
-							<input id="region-edit-other-source-url" type="url" inputmode="url" maxlength="500" placeholder="https://..." autocomplete="off" />
-						</label>
-						<label class="location-report-form__field">
-							<span>Linktext (optional)</span>
-							<input id="region-edit-other-source-label" type="text" maxlength="255" placeholder="Quelle" autocomplete="off" />
-						</label>
-						<div id="region-edit-other-source-preview" class="label-wiki-reference__list"></div>
-					</div>
 					<label class="location-report-form__field political-territory-field">
 						<span>Wappen-Link</span>
 						<div class="political-territory-coat-field">
@@ -2417,6 +2406,18 @@
 						<span>Redaktioneller Kommentar</span>
 						<textarea id="region-edit-notes" name="editor_notes" rows="3" maxlength="3000"></textarea>
 					</label>
+					<!-- Die Quellen des Herrschaftsgebiets: das EINE Bauteil (mountFeatureSourceEditor), montiert in
+					     populateRegionEditForm (review-region-dialog-population.js) auf political_territory.public_id --
+					     derselbe Kasten wie im Orts- und Beschriftungsdialog. GANZ UNTEN, nach dem letzten Feld
+					     (Owner 03.09.2026: „nicht zwischen die felder reinpfrimeln"). ⚠️ Dieser Dialog ist fuer Gebiete
+					     der RUECKFALL -- das Kontextmenue oeffnet zuerst den eingebetteten Territoriumseditor.
+					     ⚠️ BEWUSST KEIN `political-territory-field`: der Mount bedient auch eine Kartenregion aus
+					     map_features (`region` + public_id), und ein Kasten, der montiert und versteckt ist, waere
+					     ein toter Zweig. Die Sichtbarkeitsweiche gilt den Gebietsfeldern, nicht den Quellen. -->
+					<div class="label-edit-section"><div class="label-edit-section-title">Quellen</div>
+						<p class="location-report-form__status">Quellen wirken <b>sofort</b> — sie brauchen kein „Speichern“.</p>
+						<div id="region-edit-feature-sources"></div>
+					</div>
 					<p id="region-edit-status" class="location-report-form__status" role="status" aria-live="polite"></p>
 					<div class="location-report-form__actions">
 						<button id="region-edit-delete" class="location-report-form__button location-report-form__button--secondary" type="button">Löschen</button>

@@ -15,6 +15,8 @@
 	<link rel="stylesheet" href="/css/pages/political-territory-editor.css">
 	<link rel="stylesheet" href="/css/pages/political-territory-editor-layout.css">
 	<link rel="stylesheet" href="/css/pages/political-territory-wiki-tree.css">
+	<!-- Das Quellen-Bauteil (Standalone-Seite; im Inline-Host hat die Karte es laengst) -- wie in den vier anderen Editorseiten. -->
+	<link rel="stylesheet" href="/css/features/feature-sources.css">
 </head>
 <body>
 	<div class="app-container">
@@ -81,7 +83,6 @@
 								<h3>Anzeige</h3>
 								<div class="manual-data-grid">
 									<div class="manual-data-field manual-data-field--wide"><label for="displayNameInput">Anzeigename</label><input id="displayNameInput" name="display_name" type="text"></div>
-									<div class="manual-data-field manual-data-field--wide" id="otherSourceFields" hidden><label for="otherSourceUrlInput">Andere Quelle</label><input id="otherSourceUrlInput" name="other_source_url" type="url" maxlength="500" placeholder="https://..."><label for="otherSourceLabelInput">Linktext (optional)</label><input id="otherSourceLabelInput" name="other_source_label" type="text" maxlength="255" placeholder="Quelle"></div>
 								</div>
 								<small class="manual-data-inline-hint">Wappen &amp; zeitliche Gültigkeit kommen aus dem Wiki-Sync (siehe „Synchronisierte Wiki-Daten" oben) und werden dort bearbeitet.</small>
 							</section>
@@ -138,6 +139,16 @@
 								</div>
 								<p id="contestedHint" class="note" hidden></p>
 							</section><!-- /Konfliktparteien -->
+							<!-- Die Quellen des Knotens: das EINE Bauteil (mountFeatureSourceEditor, js/review/review-feature-sources.js),
+							     montiert von js/territory/territory-quellen-anschluss.js auf political_territory.public_id -- auch fuer
+							     eigene Knoten. Versteckt, bis ein Knoten MIT Datensatz gezeigt wird; ein abgeleiteter Gruppenknoten
+							     traegt keine Quellen. Als LETZTE Sektion (Owner 03.09.2026: „generell koennen quellen immer unten/als
+							     letztes in den listen auftauchen"); die Spaltenweiche in territory-editor-panel-columns.js legt sie in
+							     die Spalte der Wiki-Daten, wo sie durch die Dokumentreihenfolge die letzte ist. -->
+							<section class="manual-data-section" aria-label="Quellen" id="territoryFeatureSourcesSection" hidden>
+								<div class="manual-data-section-header"><h3>Quellen</h3><span class="note">Quellen wirken <b>sofort</b> — sie brauchen kein „Speichern“.</span></div>
+								<div id="territoryFeatureSources"></div>
+							</section>
 						</form>
 					</section>
 					<section class="panel form-status-panel" aria-label="Speicherstatus und Aktionen">
@@ -154,6 +165,13 @@
 	<script src="/js/territory/territory-editor-context.js"></script>
 	<script src="/js/territory/territory-editor-active-node.js"></script>
 	<script src="/js/territory/territory-wiki-tree.js"></script>
+	<!-- Der geteilte Quellen-Editor. ⚠️ source-autocomplete.js und feature-source-markup.js ZUERST: review-feature-sources.js
+	     haengt an beiden (dieselbe Reihenfolgezusage wie in html/wiki-sync-settlement-editor.html). Dann der reine
+	     Anschluss, dann der Editor, der ihn ruft. -->
+	<script src="/js/ui/source-autocomplete.js"></script>
+	<script src="/js/ui/feature-source-markup.js"></script>
+	<script src="/js/review/review-feature-sources.js"></script>
+	<script src="/js/territory/territory-quellen-anschluss.js"></script>
 	<script src="/js/territory/territory-editor-embedded.js"></script>
 	<script src="/js/territory/territory-editor-drop-compat.js"></script>
 	<script src="/js/territory/territory-editor-save.js"></script>

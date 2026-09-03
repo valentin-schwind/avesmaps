@@ -1510,27 +1510,35 @@
 }
 
 /* Nur die Typen, die wirklich Textfelder sind. Ein pauschales `input` traefe
-   auch Ankreuzfelder und den Transparenz-Schieber und wuerde sie verunstalten. */
-#political-territory-editor-host button:not(.tree-footer-button):not(.breadcrumb-cycle),
-#political-territory-editor-host select,
-#political-territory-editor-host input[type="text"],
-#political-territory-editor-host input[type="url"],
-#political-territory-editor-host input[type="search"],
-#political-territory-editor-host input[type="number"],
-#political-territory-editor-host input[type="color"] {
+   auch Ankreuzfelder und den Transparenz-Schieber und wuerde sie verunstalten.
+   🔴 `:not(.fs-editor *)`: die Bedienhoehe gilt den EIGENEN Knoepfen und Feldern des
+   Editors, nicht denen des eingebauten Quellen-Bauteils (js/review/review-feature-sources.js).
+   Im gescopten Bauprodukt steht jede dieser Regeln unter #political-territory-editor-host
+   und kommt damit auf (1,2,1) -- das schlaegt jede Modulklasse (1,1,0), und der Quellenkasten
+   saehe hier anders aus als an den acht anderen Montagestellen (im Browser gemessen: ✕ und ✎
+   als 32-px-Vollknoepfe). Kein `:where()` um den Block: das liesse die eigenen Klassenregeln
+   des Editors (.breadcrumb button, .drop-zone-unassign-button) gegen die Bedienhoehe gewinnen.
+   ══ VERTRAG von docs/quellen-herrschaftsgebiete-mockup.html -- zeichengleich halten. ══ */
+#political-territory-editor-host button:not(.tree-footer-button):not(.breadcrumb-cycle):not(.fs-editor *),
+#political-territory-editor-host select:not(.fs-editor *),
+#political-territory-editor-host input[type="text"]:not(.fs-editor *),
+#political-territory-editor-host input[type="url"]:not(.fs-editor *),
+#political-territory-editor-host input[type="search"]:not(.fs-editor *),
+#political-territory-editor-host input[type="number"]:not(.fs-editor *),
+#political-territory-editor-host input[type="color"]:not(.fs-editor *) {
 	min-height: var(--pte-control-h);
 	border-radius: var(--radius-md);
 }
 
-#political-territory-editor-host button:not(.tree-footer-button):not(.breadcrumb-cycle) {
+#political-territory-editor-host button:not(.tree-footer-button):not(.breadcrumb-cycle):not(.fs-editor *) {
 	padding: 0 var(--space-8);
 }
 
-#political-territory-editor-host select,
-#political-territory-editor-host input[type="text"],
-#political-territory-editor-host input[type="url"],
-#political-territory-editor-host input[type="search"],
-#political-territory-editor-host input[type="number"] {
+#political-territory-editor-host select:not(.fs-editor *),
+#political-territory-editor-host input[type="text"]:not(.fs-editor *),
+#political-territory-editor-host input[type="url"]:not(.fs-editor *),
+#political-territory-editor-host input[type="search"]:not(.fs-editor *),
+#political-territory-editor-host input[type="number"]:not(.fs-editor *) {
 	padding: 0 var(--space-6);
 }
 
@@ -1977,4 +1985,1469 @@
 	color: var(--muted-2);
 	letter-spacing: -1px;
 }
+
+
+/* ===== scoped from css/features/feature-sources.css ===== */
+/* Shared multi-source editor widget (mountFeatureSourceEditor / renderFeatureSourceEditorHtml,
+   js/review/review-feature-sources.js). Used in the Siedlungseditor detail panel and (phase 2)
+   the on-map "…-edit" dialogs. Fully tokenised: since the stage-4 theme migration the settlement/
+   sync editor iframes link css/base/tokens.css themselves, so the same vars resolve in the parent
+   document and inside the iframes -- and the widget follows light/dark everywhere. */
+#political-territory-editor-host .fs-editor {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	/* 🔴 Der Messkasten der Liste: der schmale Fall haengt am KASTEN, nicht am Fenster
+	   (@container fs-liste, ganz unten -- die Begruendung steht dort). */
+	container-type: inline-size;
+	container-name: fs-liste;
+}
+#political-territory-editor-host .fs-hint {
+	font-size: 11px;
+	line-height: 1.45;
+	color: var(--color-text-muted);
+	background: var(--color-panel-soft);
+	border: 1px solid var(--color-border);
+	border-left: 3px solid var(--color-accent);
+	border-radius: 6px;
+	padding: 7px 10px;
+	margin-bottom: 6px;
+}
+/* (Die Flex-Fassung dieser Zeile ist am 24.08.2026 einem Spaltenraster gewichen -- unten.) */
+#political-territory-editor-host .fs-row + .fs-row {
+	border-top: 1px solid var(--color-divider);
+}
+/* Absage der Eingabezeile (fehlende URL). Verborgen, bis sie gebraucht wird -- ein dauerhafter
+   Hinweis wäre Rauschen, ein verschluckter Klick war der Fehler. */
+#political-territory-editor-host .fs-add-note {
+	margin: 6px 0 0;
+	font-size: 12px;
+	color: var(--color-warning-soft-text);
+	background: var(--color-warning-soft);
+	border: 1px solid var(--color-warning-soft-border);
+	border-radius: var(--radius-sm);
+	padding: 5px 8px;
+}
+/* Sub-group for sources auto-populated by the WikiSync publication reconcile
+   (origin === "wiki_publication", js/review/review-feature-sources.js). */
+#political-territory-editor-host .fs-group-heading {
+	/* ⚠️ 11px ist die Untergrenze des Hauses (AGENTS.md §12). Hier standen 10px --
+	   derselbe Fehler wie bei `.se-row-type`, der beim Abschreiben von einer Liste in die
+	   naechste wanderte. */
+	font-size: 11px;
+	font-weight: bold;
+	text-transform: uppercase;
+	letter-spacing: 0.02em;
+	color: var(--color-text-muted);
+	padding: 6px 0 2px;
+}
+#political-territory-editor-host .fs-row__link {
+	flex: 1 1 auto;
+	min-width: 0;
+	color: var(--color-link);
+	text-decoration: none;
+	font-weight: bold;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+#political-territory-editor-host .fs-row__link:hover,
+#political-territory-editor-host .fs-row__link:focus-visible {
+	text-decoration: underline;
+}
+#political-territory-editor-host .fs-row__badge {
+	flex-shrink: 0;
+	font-size: 10px;
+	color: var(--color-text-muted);
+	background: var(--color-panel-muted);
+	border: 1px solid var(--color-border);
+	border-radius: 999px;
+	padding: 1px 7px;
+	white-space: nowrap;
+}
+#political-territory-editor-host .fs-row__badge--readonly {
+	background: transparent;
+	border-style: dashed;
+}
+/* Coverage-classification badge on an editor row (only when reference_kind is set). Wears the shared
+   publication-pill tokens -- same warm gold family as the active publication tab (.fs-src-tab.is-active),
+   so it still reads as "this feeds that tab", but with the contrast a 10px label needs in both themes. */
+#political-territory-editor-host .fs-row__kind {
+	flex-shrink: 0;
+	font-size: 10px;
+	color: var(--color-pill-text);
+	background: var(--color-pill);
+	border: 1px solid var(--color-pill-border);
+	border-radius: 999px;
+	padding: 1px 7px;
+	white-space: nowrap;
+}
+/* 💣 EINE LEERE KACHEL DARF KEINEN RAHMEN ZEICHNEN. `.fs-row__kind` und `.fs-row__badge` stehen
+   als LEERE Zelle da, wenn der Wert fehlt -- das ist Absicht, das Raster gibt jeder Zeile dieselbe
+   Spaltenvorlage. Ihr Rand blieb dabei sichtbar, und ein leeres Pill mit Rand liest sich als
+   waagerechter STRICH mitten in der Zeile. Owner-Bild 02.09.2026, mit einem Fragezeichen daneben:
+   er hielt ihn fuer eine Angabe. Die Zelle bleibt, ihr Rahmen geht. */
+#political-territory-editor-host .fs-row__kind:empty,
+#political-territory-editor-host .fs-row__badge:empty {
+	border-color: transparent;
+	background: none;
+	padding: 0;
+}
+#political-territory-editor-host .fs-row__pages {
+	flex-shrink: 0;
+	font-size: 11px;
+	color: var(--color-text-muted);
+	white-space: nowrap;
+}
+#political-territory-editor-host .fs-row__remove {
+	flex-shrink: 0;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border: 1px solid var(--color-danger-soft-border);
+	background: var(--color-danger-soft);
+	color: var(--color-danger-soft-text);
+	border-radius: 999px;
+	width: 20px;
+	height: 20px;
+	cursor: pointer;
+	font-size: 12px;
+}
+#political-territory-editor-host .fs-row__remove:hover,
+#political-territory-editor-host .fs-row__remove:focus-visible {
+	background: var(--color-danger-soft);
+	border-color: var(--color-danger-soft-text);
+	outline: none;
+}
+/* ── Der Bearbeiten-Knopf (01.09.2026) ───────────────────────────────────────────────────────
+   ⚠️ WEICH, nicht gefuellt und nicht in der Warnfarbe: er steht in JEDER Zeile, und eine
+   Zeilenhandlung ist nie die Haupthandlung der Seite (§12). Das `✕` daneben traegt seine
+   Warnfarbe zu Recht -- es ist unumkehrbar, das `✎` oeffnet nur ein Formular. */
+#political-territory-editor-host .fs-row__edit {
+	flex-shrink: 0;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border: 1px solid transparent;
+	background: none;
+	color: var(--color-text-muted);
+	border-radius: var(--radius-sm);
+	width: 20px;
+	height: 20px;
+	cursor: pointer;
+	font-size: 12px;
+}
+#political-territory-editor-host .fs-row__edit:hover,
+#political-territory-editor-host .fs-row__edit:focus-visible,
+#political-territory-editor-host .fs-row--open .fs-row__edit {
+	border-color: var(--color-button-soft-border);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+	outline: none;
+}
+/* 💣 Die LEERE Zelle der nicht bearbeitbaren Zeilen (Anlege-Puffer). Ohne sie rutscht deren `✕`
+   eine Spalte nach links, unter die Lizenz. */
+#political-territory-editor-host .fs-row__edit-cell {
+	display: block;
+}
+/* "Vorschlag" group: a change report's proposed source(s), shown before they exist as real
+   feature_sources (js/review/review-feature-sources.js:appendProposedFeatureSources). Reuses the
+   same danger-soft tokens as .field--change-proposed's outline so it reads as part of the same
+   "reviewer, look here" diff language as the red-outlined name/type/wiki-url fields. */
+#political-territory-editor-host .fs-group--proposed {
+	border: 1px dashed var(--color-danger-soft-border);
+	background: var(--color-danger-soft);
+	border-radius: 6px;
+	padding: 2px 8px;
+	margin-bottom: 6px;
+}
+#political-territory-editor-host .fs-group-heading--proposed {
+	color: var(--color-danger-soft-text);
+}
+#political-territory-editor-host .fs-row--proposed .fs-row__badge--proposed {
+	color: var(--color-danger-soft-text);
+	background: transparent;
+	border-color: var(--color-danger-soft-border);
+}
+/* 🔴 DIE EINGABEZEILE GEHOERT NICHT INS SPALTENRASTER. Sie traegt neun Bedienelemente (Adresse,
+   Titel, Seiten, Typ, Art, Lizenz, Namensnennung, „offiziell", Hinzufuegen) und keine sechs
+   Datenspalten -- in die Spaltenvorlage gezwungen rutschten sie in fremde Spalten und die
+   Datenzeilen darueber standen nicht mehr untereinander. Am 24.08.2026 genau so gemessen: die
+   Seitenspalte lag an zwei verschiedenen Stellen (771 und 658 px).
+   ⚠️ Sie behaelt deshalb ihren Umbruchsatz -- das ist kein vergessener Rest, sondern die Ausnahme.
+   💣 `display: flex` steht hier AUSDRUECKLICH: sie hat es frueher von `.fs-row` geerbt, und das ist
+   seit dem Spaltenraster ein `grid`. Ohne diese Zeile faellt sie auf das Raster zurueck.
+   💣 UND SIE MUSS `.fs-row.fs-row--add` HEISSEN, sonst ist genau diese Zeile WIRKUNGSLOS.
+   `.fs-row { display: grid }` steht WEITER UNTEN in derselben Datei und ist gleich spezifisch
+   (0,1,0) -- bei Gleichstand gewinnt die spaetere. Die Absicht stand also seit dem 24.08.2026
+   richtig da und galt trotzdem nicht: die Eingabezeile lief als RASTER, ihre neun Bedienelemente
+   flossen in sechs Spalten, und die Lizenzauswahl landete in der 22px-Spalte des Entfernen-Knopfs.
+   Live gemessen 29.08.2026 (Meldung #104): `display` der Eingabezeile war `grid`, die Auswahl
+   22 px breit, der URL-Kasten im Dialog "Ort bearbeiten" 6 px. Gewacht von
+   js/review/__tests__/quellenliste-klappen.test.js -- der prueft jetzt, WER den Gleichstand
+   gewinnt, nicht nur, dass die Deklaration dasteht. */
+#political-territory-editor-host .fs-row.fs-row--add {
+	display: flex;
+	/* 💣 `flex-end`, nicht `center`: seit dem 02.09.2026 tragen die Felder BESCHRIFTUNGEN und sind
+	   damit hoeher als der Knopf und das Haekchen daneben. Zentriert saessen die Bedienelemente auf
+	   verschiedenen Hoehen -- die beschrifteten tiefer, die nackten in der Mitte. Am unteren Rand
+	   ausgerichtet stehen alle auf einer Linie, und die Beschriftungen wachsen nach oben weg. */
+	align-items: flex-end;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-top: 8px;
+	padding: 10px;
+	border: 1px solid var(--color-border);
+	border-radius: 8px;
+	background: var(--color-panel-soft);
+}
+/* ── Das beschriftete Feld (02.09.2026) ──────────────────────────────────────────────────────
+   Owner am Mockup: „das war das mockup". Ein Platzhalter verschwindet, sobald jemand tippt --
+   danach weiss niemand mehr, welches der acht Felder er gerade fuellt. Vorlage:
+   docs/bekannte-quellen-mockup.html, Schritt 2. */
+#political-territory-editor-host .fs-af {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+}
+/* Ein Feld, das eine ganze Zeile fuer sich nimmt — die zwei Haekchenzeilen des
+   Formulars stehen sonst als schmale Spalte neben ihrem Nachbarn. */
+#political-territory-editor-host .fs-af--w {
+	flex: 1 1 100%;
+}
+/* ⚠️ Der Kasten waechst nicht mit: ohne das zieht ihn die Zeile auf ihre volle Breite. */
+#political-territory-editor-host .fs-check input[type="checkbox"] {
+	flex: 0 0 auto;
+	margin: 0;
+}
+
+#political-territory-editor-host .fs-af__l {
+	/* ⚠️ 11px ist die Untergrenze des Hauses (AGENTS.md §12) -- nicht darunter, so verlockend
+	   eine Beschriftung ueber einem Feld auch klein wirkt. */
+	font-size: 11px;
+	line-height: 1.3;
+	color: var(--color-text-muted);
+	/* 💣 UMBRECHEN, NICHT KUERZEN. Mit `nowrap` + Ellipse stand am 02.09.2026 „(Korpusschlüssel:
+	   her…" da -- und damit fehlte ausgerechnet die REICHWEITE („gültig für 118 Objekte"), also
+	   die Warnung davor, dass eine Umbenennung jeden Beleg dieses Wirts trifft. Eine Beschriftung
+	   darf zwei Zeilen hoch sein; eine abgeschnittene Warnung ist keine. */
+	white-space: normal;
+}
+/* Der Marker „· vom Korpus": er sagt, WOHER ein vorbelegter Wert kommt. 🔴 Er haengt an einem
+   `hidden`-Attribut und erscheint nur, wenn der Korpus den Wert wirklich vorgibt -- ein dauerhaft
+   sichtbarer Marker waere eine Behauptung. */
+#political-territory-editor-host .fs-af__from {
+	color: var(--color-accent-brown);
+}
+/* Schluessel und Reichweite des Korpus. Sie stehen NEBEN der Beschriftung, nicht im Feld: der
+   Schluessel ist gerechnet und nicht editierbar, die Reichweite ist die Warnung vor einer
+   Umbenennung. */
+#political-territory-editor-host .fs-af__meta {
+	color: var(--color-text-muted);
+	font-weight: normal;
+}
+
+/* ══ DER REICHWEITEN-RAHMEN — EIN Bauteil, sechs Verwender ════════════════════════════
+   💣 ER ERSETZT VIER REZEPTUREN: `.fs-adresse`, `.fs-eintrag`, `.fs-korpus` (Eingabezeile) und
+   `.fs-edit__group` (✎-Kasten). Im Browser gemessen liefen sie auseinander — 10px/normal gegen
+   11px/fett, 8px gegen 10px Polster, solid gegen dashed — und in ZWEI von ihnen stand die Warnung
+   „dieselben Werte wie `.fs-korpus`, eine zweite Rezeptur waere die Divergenz" bereits da. Die
+   Warnung hinzuschreiben ersetzt das Bauteil nicht (Owner 02.09.2026: „warum machen wir das
+   mockup?").
+   🔴 DIESER BLOCK IST VERTRAGLICH GEBUNDEN an
+   `docs/quellen-formular-einheitlich-mockup.html`. Wer hier einen Wert aendert, aendert ihn dort
+   mit — sonst wird `tools/mockup-vertrag/__tests__/mockup-vertrag.test.js` rot, und ein roter
+   Test laedt nichts hoch (AGENTS.md §9).
+   ⚠️ Der Vertrag ist eine UNTERGRENZE: Zustaende, Hover und Telefon-Umbrueche duerfen hier
+   dazukommen, sie stehen dann unter diesem Block. */
+/* ══ DAS BAUTEIL: EIN Rahmen, sechs Verwender ═══════════════════════════════════════════════════
+   Ersetzt .fs-adresse / .fs-eintrag / .fs-korpus / .fs-edit__group -- vier Rezepturen fuer eine
+   Form. Im Browser gemessen liefen sie auseinander: 10px/normal gegen 11px/fett, 8px gegen 10px
+   Polster, solid gegen dashed. */
+#political-territory-editor-host .fs-scope {
+	position: relative;
+	/* 💣 VOLLE BREITE, UNABHAENGIG VOM ELTERN-ELEMENT. Die Eingabezeile ist ein Flex-Container
+	   (`.fs-row--add`), der Bearbeiten-Kasten ein Block (`.fs-edit`) -- ohne diese Zeile messen
+	   sich die Rahmen im einen an ihrem INHALT und im anderen am Kasten. Bei echter Panelbreite
+	   (400px) gemessen: 439/379/379 gegen 373/373/373, eine Treppe statt einer Kante.
+	   ⚠️ In einem Block-Elternteil ist die Zeile wirkungslos -- sie kostet dort nichts und
+	   verhindert, dass das Bauteil vom Ort abhaengt, an dem es haengt. */
+	flex: 1 1 100%;
+	/* 💣 UND `min-width: 0` DAZU, sonst ist die Zeile darüber wirkungslos: ein Flex-Kind hat
+	   `min-width: auto` und weigert sich, unter seine INHALTSbreite zu schrumpfen. Das lange
+	   Adressfeld drückte den ersten Rahmen damit auf 439px -- über die 400px des Panels
+	   hinaus, während die zwei darunter bei 379 blieben. Gemessen, nicht vermutet: `flex`
+	   stand längst richtig da und tat nichts. */
+	min-width: 0;
+	border: 1px solid var(--color-accent-brown);
+	border-radius: var(--radius-md);
+	padding: 10px 10px 10px;
+}
+#political-territory-editor-host .fs-scope + .fs-scope { margin-top: 14px; }
+#political-territory-editor-host .fs-scope[hidden] { display: none; }
+/* 💣 NICHT ABSOLUT, und das ist im Browser gemessen: die Aufschrift des ✎ wird zweizeilig
+   („Gilt für alle Objekte, die diese Quelle zitieren — zurzeit nur dieses Objekt" = 34px), und
+   absolut positioniert schob sie nichts weg — sie lag 9px über dem ersten Feld. In der
+   Eingabezeile fiel das nie auf, weil deren Reichweite kurz ist („— noch kein Objekt").
+   ⭐ Statisch mit negativem Rand: die erste Zeile sitzt weiter AUF dem Rahmen, aber eine zweite
+   schiebt den Inhalt nach unten, statt ihn zu überdecken. Genau das leistet ein `<legend>`, und
+   genau das ahmt dieser Kasten nach. */
+#political-territory-editor-host .fs-scope__head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 6px;
+	width: max-content;
+	max-width: calc(100% - 6px);
+	margin: -17px 0 6px -2px;
+	padding: 0 5px;
+	background: var(--color-panel-soft);
+}
+/* 11px ist die Untergrenze des Hauses (§12). Die Eingabezeile stand auf 10. */
+#political-territory-editor-host .fs-scope__title {
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: .02em;
+	text-transform: uppercase;
+	color: var(--color-accent-brown);
+}
+/* Die Reichweite ist eine ZAHL, keine Aufschrift: klein, gedaempft, ohne Versalien -- ein
+   Eigenname in Versalien („ALBERNIAWIKI") liest sich wie eine Kennung. */
+#political-territory-editor-host .fs-scope__reach {
+	font-size: 11px;
+	font-weight: 400;
+	text-transform: none;
+	letter-spacing: 0;
+	color: var(--color-text-muted);
+}
+#political-territory-editor-host .fs-scope__fields { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; }
+#political-territory-editor-host .fs-scope__hint { margin: 0 0 8px; font-size: 11px; color: var(--color-text-muted); }
+#political-territory-editor-host .fs-scope__by { margin: 8px 0 0; font-size: 11px; color: var(--color-text-muted); }
+
+/* ══ DIE ADRESSPRÜFUNG — Pflicht, nicht Zierde ═════════════════════════════════════════════════
+   Owner 02.09.2026: „ich will dass die editoren immer gezwungen sind den link zu pasten und
+   gleichzeitig zu validieren". Der Rahmen faerbt sich, der Haken kommt erst beim erfolgreichen
+   Auslesen, und ⟳ liest neu. */
+#political-territory-editor-host .fs-url { flex: 1 1 100%; }
+#political-territory-editor-host .fs-url__zeile { display: flex; align-items: stretch; gap: 6px; }
+#political-territory-editor-host .fs-url__feld { position: relative; flex: 1 1 auto; min-width: 0; }
+#political-territory-editor-host .fs-url__feld input { width: 100%; padding-right: 30px; box-sizing: border-box; }
+#political-territory-editor-host .fs-url--gut input { border-color: var(--color-success); }
+#political-territory-editor-host .fs-url--schlecht input { border-color: var(--color-danger); }
+#political-territory-editor-host .fs-url__ok {
+	position: absolute;
+	right: 9px; top: 50%;
+	transform: translateY(-50%);
+	color: var(--color-success);
+	font-size: 13px;
+	pointer-events: none;
+}
+#political-territory-editor-host .fs-url__ok[hidden] { display: none; }
+#political-territory-editor-host .fs-url__neu {
+	display: inline-flex; align-items: center; justify-content: center;
+	width: 30px;
+	font-size: 14px;
+	border: 1px solid var(--color-button-soft-border);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+	border-radius: var(--radius-md);
+	cursor: pointer;
+}
+#political-territory-editor-host .fs-url__sagt { margin: 4px 0 0; font-size: 11px; color: var(--color-text-muted); }
+
+/* ── Die Abweichung ist ein FELD, kein Häkchen ───────────────────────────────────────────────
+   Owner 02.09.2026: „eigentlich braucht es die häkchen nicht NUR felder". Der erste Eintrag (bzw.
+   der Platzhalter) IST der Korpuswert; wer etwas anderes einstellt, weicht ab, wer zurückstellt,
+   erbt wieder. Damit gibt es keinen zweiten Zustand neben dem Wert, der auseinanderlaufen kann. */
+#political-territory-editor-host .abw { flex: 1 1 100%; margin-top: 8px; padding-top: 8px;
+       border-top: 1px solid var(--color-divider); }
+#political-territory-editor-host .abw__t { font-size: 11px; color: var(--color-text-muted); line-height: 1.45; }
+#political-territory-editor-host .abw__f { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; margin-top: 8px; }
+#political-territory-editor-host .fs-field--abw > span { color: var(--color-accent-brown); font-weight: 600; }
+#political-territory-editor-host .fs-field--abw input, #political-territory-editor-host .fs-field--abw select { border-color: var(--color-accent-brown); }
+/* 💣 FARBE ALLEIN TRAEGT ES NICHT: gemessen sind --color-accent-brown (#7a5a3a) und
+   --color-text-muted (#706557) im hellen Thema fast dasselbe Braun -- die Markierung war da und
+   trotzdem unsichtbar. Die Abweichung wird deshalb BENANNT, nicht nur gefaerbt. */
+#political-territory-editor-host .fs-field--abw > span::after { content: " · abweichend"; font-weight: 400; }
+/* Ohne Korpus gibt es nichts, wovon man abweichen koennte. */
+#political-territory-editor-host .abw--frei .fs-field--abw > span::after { content: ""; }
+#political-territory-editor-host .abw--frei .fs-field--abw > span { color: var(--color-text-muted); font-weight: 400; }
+#political-territory-editor-host .abw--frei .fs-field--abw input, #political-territory-editor-host .abw--frei .fs-field--abw select { border-color: var(--color-border); }
+
+/* ══ DAS BEDIENELEMENT — EINE Rezeptur für beide Formulare ═══════════════════════
+   💣 DER RAHMEN WAR GETEILT, DIE FELDER DARIN NICHT — und die Felder sind das, was der Editor
+   wirklich anfasst. Im Browser gemessen (03.09.2026):
+
+     Eingabezeile  Radius 5px (hartkodiert!)  Rand rgb(201,169,126)  Polster 4/6
+     ✎-Kasten     Radius 8px (Token)         Rand rgb(97,90,73)     Polster 5/8
+
+   Zwei Rezepturen, eine Ebene unter der, die heute Vormittag zusammengelegt wurde. Gefunden hat
+   das der Prüfagent, nicht der Blick — im Einzelbild sieht jede Seite für sich richtig aus.
+   🔴 Gebunden an `.fs-scope`, nicht an `.fs-row--add` / `.fs-edit`: die Reichweite des
+   Selektors IST die Aussage. Was in einem Reichweiten-Rahmen steht, sieht überall gleich aus.
+   ⚠️ Die 5px waren zugleich ein Verstoß gegen §12 (nie einen Radius hartkodieren) — und genau
+   so entsteht Divergenz: ein Literal lässt sich nicht mitziehen. */
+#political-territory-editor-host .fs-scope input[type="text"],
+#political-territory-editor-host .fs-scope input[type="url"],
+#political-territory-editor-host .fs-scope select {
+	font: inherit;
+	font-size: 12px;
+	padding: 5px 8px;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-panel-muted);
+	color: var(--color-text);
+	min-width: 0;
+}
+/* ⚠️ Ein gesperrtes Feld sieht gesperrt aus UND sagt daneben warum. Nur ausgegraut wäre es von
+   einem Fehler nicht zu unterscheiden. */
+#political-territory-editor-host .fs-scope input[disabled],
+#political-territory-editor-host .fs-scope select[disabled] {
+	background: var(--color-panel-soft);
+	color: var(--color-text-muted);
+	cursor: not-allowed;
+}
+/* 🔴 DIE ADRESSE TRÄGT EINEN KRÄFTIGEREN RAND (Owner 02.09.2026: „auffälligen rahmen") — sie
+   ist das einzige Feld, das ein Editor im Normalfall wirklich tippt. */
+#political-territory-editor-host .fs-url input[type="text"] {
+	border-color: var(--color-accent-brown);
+}
+
+/* ══ Die Knopfleiste — dieselbe in beiden Formularen ═══════════════════════════════════════════ */
+#political-territory-editor-host .fs-actions { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+#political-territory-editor-host .fs-actions button {
+	font: inherit;
+	font-size: 13px;
+	padding: 5px 12px;
+	border-radius: var(--radius-md);   /* KEINE Pille. live: 999px */
+	cursor: pointer;
+}
+#political-territory-editor-host .fs-actions__prim {
+	border: 1px solid var(--color-button-border);
+	background: var(--color-button);
+	color: var(--color-button-text);
+	font-weight: 600;
+}
+#political-territory-editor-host .fs-actions__prim[disabled] { opacity: .5; cursor: not-allowed; }
+#political-territory-editor-host .fs-actions__sek {
+	border: 1px solid var(--color-button-soft-border);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+}
+
+/* ══ VERTRAG ENDE ══ Alles darunter ist frei — Zustaende, Hover, Telefon-Umbrueche. ══ */
+
+/* Der grüne Haken -- „es wurde etwas gelesen". Er sitzt neben dem Prüfknopf und ist die Hälfte
+   der Antwort, die man aus dem Augenwinkel sieht; die andere steht als Satz darunter. */
+#political-territory-editor-host .fs-row--add input[type="text"].fs-add-url {
+	padding-right: 26px;
+}
+/* 🔴 DIE ZWEI FELDER, DIE NUR HIER GELTEN -- hervorgehoben, sobald die Seite schon im Katalog
+   steht (`zeigeBekannteSeite`). Dann sind sie das Einzige, was noch einzutragen ist.
+   💣 SPEZIFITÄT: `.fs-row--add input[type="text"]` weiter unten ist (0,2,1) und setzt die KURZFORM
+   `border`, die `border-color` mit zurücksetzt. Ein blankes `.fs-af--meins input` (0,1,1) verliert
+   dagegen -- die Seitenangabe bliebe ungefärbt, während das <select> daneben brav braun wird, und
+   eine halbe Hervorhebung liest sich als Fehler. Deshalb der Vorfahre im Selektor. */
+#political-territory-editor-host .fs-af--meins .fs-af__l {
+	color: var(--color-accent-brown);
+	font-weight: 700;
+}
+#political-territory-editor-host .fs-row--add .fs-af--meins input[type="text"],
+#political-territory-editor-host .fs-row--add .fs-af--meins select {
+	border-color: var(--color-accent-brown);
+}
+#political-territory-editor-host .fs-af--grow {
+	flex: 1 1 150px;
+}
+/* Das Korpus-Feld traegt die laengste Beschriftung des Formulars (Name + Schluessel +
+   Reichweite) und bekommt deshalb mehr Grundbreite -- sonst bricht sie auf drei Zeilen. */
+#political-territory-editor-host .fs-af--korpus {
+	flex: 1 1 260px;
+}
+/* Die Form: „Werke (Titel vorn)" / „Belegstellen (Korpus vorn)" -- die Beschriftungen nennen die
+   WIRKUNG, nicht nur den Fachbegriff, denn genau die entscheidet der Editor hier. */
+#political-territory-editor-host .fs-af--form {
+	flex: 0 1 190px;
+}
+#political-territory-editor-host .fs-af--pages {
+	flex: 0 1 90px;
+}
+#political-territory-editor-host .fs-af--art,
+#political-territory-editor-host .fs-af--kind {
+	flex: 0 1 130px;
+}
+#political-territory-editor-host .fs-af--license {
+	flex: 0 1 150px;
+}
+/* 💣 Der Knopf steht neben einem Feld MIT Beschriftung -- ohne diese Zeile klebt er an dessen
+   Oberkante, auf Höhe der Beschriftung statt auf Höhe des Eingabefeldes. */
+#political-territory-editor-host .fs-add-check {
+	align-self: flex-end;
+}
+#political-territory-editor-host .fs-add-url {
+	width: 100%;
+}
+/* Der Prüfknopf (Owner 02.09.2026): einfügen/Enter/Klick prüfen die Adresse und holen den Titel.
+   🔴 DREI Zustände, nicht zwei -- „erreichbar, aber nichts zu lesen" ist weder Erfolg noch
+   Fehlschlag, und ein zweifarbiger Knopf erzählt genau diesen Fall falsch. */
+#political-territory-editor-host .fs-add-check {
+	flex: 0 0 30px;
+	width: 30px;
+	height: 27px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0;
+	font: inherit;
+	font-size: 13px;
+	line-height: 1;
+	cursor: pointer;
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+}
+#political-territory-editor-host .fs-add-check:hover {
+	background: var(--color-button-soft-hover);
+}
+#political-territory-editor-host .fs-add-check--laeuft {
+	opacity: 0.55;
+	cursor: progress;
+}
+/* ⚠️ „bekannt" und „gelesen" tragen dasselbe Grün: für den Editor ist beides derselbe Befund --
+   die Zeile ist fertig. Der UNTERSCHIED steht in der Meldung, nicht in der Farbe. */
+#political-territory-editor-host .fs-add-check--bekannt,
+#political-territory-editor-host .fs-add-check--gelesen {
+	background: var(--color-success-soft);
+	border-color: var(--color-success-soft-border);
+	color: var(--color-success-soft-text);
+}
+#political-territory-editor-host .fs-add-check--erreichbar {
+	background: var(--color-warning-soft);
+	border-color: var(--color-warning-soft-border);
+	color: var(--color-warning-soft-text);
+}
+#political-territory-editor-host .fs-add-check--unerreichbar {
+	background: var(--color-danger-soft);
+	border-color: var(--color-danger-soft-border);
+	color: var(--color-danger-soft-text);
+}
+/* Der Meldungskasten folgt demselben Zustand -- ohne Modifier bleibt er die bernsteinfarbene
+   Absage, die er vorher war. */
+#political-territory-editor-host .fs-add-note--ok {
+	color: var(--color-success-soft-text);
+	background: var(--color-success-soft);
+	border-color: var(--color-success-soft-border);
+}
+#political-territory-editor-host .fs-add-note--bad {
+	color: var(--color-danger-soft-text);
+	background: var(--color-danger-soft);
+	border-color: var(--color-danger-soft-border);
+}
+/* Die zwei Felder vom 27.08.2026 nehmen am Umbruchsatz teil wie ihre Nachbarn. Ohne Angabe stand
+   die Namensnennung auf der Vorgabebreite eines Textfeldes (194 px, gemessen) und schob den
+   Hinzufuegen-Knopf allein auf eine dritte Zeile. */
+/* 💣 `select`, nicht die Klassen einzeln: `.fs-add-license` kam am 27.08.2026 dazu und stand
+   in der Liste nicht -- sie zeichnete daneben in Browser-Vorgabe (19 px hoch gegen 27, 13,3 px
+   Schrift gegen 12; live gemessen 29.08.2026). Eine Regel, die zwei von drei Auswahlfeldern
+   bindet, ist keine Regel, und das naechste Feld faellt genauso durch. */
+#political-territory-editor-host .fs-add-official-label {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	font-size: 12px;
+	color: var(--color-text-muted);
+	white-space: nowrap;
+}
+/* Instruction 5a: shown while the add-row holds a catalog row picked from the typeahead, so
+   "referenced the existing source" and "about to create a duplicate" stop looking identical. */
+#political-territory-editor-host .fs-add-picked {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	flex-shrink: 0;
+	padding: 2px 4px 2px 8px;
+	font-size: 11px;
+	color: var(--color-accent-strong);
+	background: var(--color-panel-muted);
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-sm);
+	white-space: nowrap;
+}
+/* Required: the display above would otherwise defeat the hidden attribute the script toggles. */
+#political-territory-editor-host .fs-add-picked[hidden] {
+	display: none;
+}
+#political-territory-editor-host .fs-add-picked__x {
+	padding: 0 2px;
+	border: 0;
+	background: transparent;
+	color: var(--color-text-muted);
+	font-size: 12px;
+	line-height: 1;
+	cursor: pointer;
+}
+#political-territory-editor-host .fs-add-picked__x:hover {
+	color: var(--color-text-strong);
+}
+#political-territory-editor-host .fs-row__add:hover,
+#political-territory-editor-host .fs-row__cancel:hover,
+#political-territory-editor-host /* Popup/infobox source block (buildSourceListMarkup, js/ui/feature-source-markup.js). Line 1 is the
+   Wiki page link + hand-added sources; line 2 the wiki publications as collapsible Offizielle/
+   Erwähnungen tabs over a Titel/Typ/Seiten table. Explicit colors to match the beige map popups. */
+.fs-src {
+	font-size: 12px;
+	color: var(--color-text-strong);
+	line-height: 1.5;
+}
+#political-territory-editor-host .fs-src-a {
+	color: var(--color-link);
+	text-decoration: none;
+	font-weight: 700;
+}
+#political-territory-editor-host .fs-src-a:hover,
+#political-territory-editor-host .fs-src-a:focus-visible {
+	text-decoration: underline;
+}
+#political-territory-editor-host .fs-src-ext {
+	font-weight: 400;
+}
+#political-territory-editor-host .fs-src-plain {
+	color: var(--color-text-strong);
+}
+#political-territory-editor-host .fs-src-direct {
+	line-height: 1.7;
+}
+#political-territory-editor-host .fs-src-sep {
+	color: var(--color-text-muted);
+	margin: 0 6px;
+}
+/* 🔴 `.fs-src-type` GIBT ES NICHT MEHR. Die Art der Quelle steht seit dem 01.09.2026 als zweites
+   Feld IN der Halbpille (`.fs-kanon--split .fs-kanon__by`), nicht als eigener Chip daneben --
+   Owner an Trallop: „hier sind ‚Inoffiziell' und ‚Briefspiel' zwei separate kapseln, das soll so
+   aussehn wie die anderen". Der Entwurf §3 sagte das von Anfang an („Halbpille … Objektkopf UND
+   Quellenzeile"); gebaut waren es zwei Elemente.
+   ⚠️ Die Publikationstabelle hat weiterhin eine Spalte „Typ" -- die traegt reinen Text
+   (`.fs-src-c-type`) und war nie dieser Chip. */
+#political-territory-editor-host .fs-src-pages {
+	margin-left: 6px;
+	font-size: 11px;
+	color: var(--color-text-muted);
+	white-space: nowrap;
+}
+/* Gilt genauso fuer die Zeile „Quelle(n):" darueber -- dieselbe Angabe, dieselbe Kuerzung. */
+#political-territory-editor-host .fs-src-pages[title] {
+	text-decoration: underline dotted;
+	text-underline-offset: 2px;
+	cursor: help;
+}
+/* Der Lizenzhinweis der Wiki-Texte (CC BY-SA 3.0), direkt hinter dem Wiki-Eintrag. Er steht NEBEN
+   einer Quelle, ist aber selbst keine -- deshalb kleiner und ungefettet, waehrend .fs-src-a fett ist.
+   💣 KEINE Farbe hier: `a[target="_blank"]` in css/features/links.css faerbt jeden externen Link
+   golden, mit !important. Eine Farbregel an dieser Klasse waere wirkungslos und saehe im Quelltext
+   trotzdem so aus, als griffe sie (gemessen: 11px und text-decoration kommen an, die Farbe nicht).
+   Wer ihn wirklich gedaempft will, traegt die Ausnahme DORT ein, wie die drei vorhandenen. */
+#political-territory-editor-host .fs-src-lic {
+	margin-left: 6px;
+	font-size: 11px;
+	white-space: nowrap;
+}
+/* 🪤 HIER STAND `.fs-src-lic--attrib { white-space: normal }` -- UND SIE WAR DER GEMELDETE FEHLER.
+   Sie kam am 27.08.2026, als die Quellenzeile noch umbrechen DURFTE: die Namensnennung ist dreimal
+   so lang wie der Wiki-Hinweis (198 statt 74 px) und lief am schmalen Telefon aus dem Kasten.
+   Am 01.09.2026 wurde die Zeile einzeilig (`nowrap` + Ellipse, eine Quelle je Zeile) -- und die
+   alte Ausnahme brach sie seither VON INNEN auf: die erste Haelfte der Namensnennung schnitt die
+   Ellipse ab, die zweite rutschte darunter ("herz…" / "weiden.net", Owner-Meldung 01.09.2026:
+   „die URL bringt um"). Zwei Regeln aus zwei Entwurfsstufen, die einander nie gesehen haben.
+   ⭐ Die Namensnennung steht seither hinter dem ⓘ, wo sie ohne Laengenzwang ganz dastehen darf --
+   so, wie 2026-08-27-kanon-etikett-design.md §4.4 es von Anfang an vorsah. */
+/* Haelt einen Eintrag samt seiner Namensnennung zusammen: der Browser bricht ZWISCHEN den
+   Quellen um und erst dann innerhalb einer. Begruendung an der Stelle, die die Klasse setzt
+   (js/ui/feature-source-markup.js). */
+#political-territory-editor-host .fs-src-item {
+	display: inline-block;
+}
+/* ══ VERTRAG: css/features/feature-sources.css ══ gebunden von docs/quellen-wikizeile-mockup.html
+   🔴 DER TRENNER zwischen „Quelle(n)" und „Publikationen" (Owner 03.09.2026, mit Bild).
+   💣 VOLLBREIT, und die −11px sind KEINE freie Zahl: sie sind das Seitenpolster von
+   `.fs-src--box` (9px 11px 10px). Wer das Polster ändert, ändert beide Zahlen zugleich --
+   sonst endet die Linie sichtbar vor dem Rand. AGENTS.md §12: „popup/infobox dividers run
+   full-bleed (negative side-margin = padding)".
+   ⚠️ Oben 0: die Liste darüber bringt ihre eigenen 7px mit, `.fs-src-pub` darunter seine 9px.
+   Eine dritte Zahl hier machte den Abstand asymmetrisch. */
+#political-territory-editor-host .fs-src-trenner {
+	margin: 0 -11px;
+	border-top: 1px solid var(--color-divider);
+}
+/* ══ VERTRAG ENDE ══ */
+/* "Publikationen:" + die Tabs "Offiziell (n)"/"Erwähnt (n)" bleiben in EINER Zeile (Owner-Vorgabe);
+   passt es nicht, wird horizontal gescrollt statt umzubrechen. */
+#political-territory-editor-host .fs-src-pub {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 7px 6px;
+	margin-top: 9px;
+	color: var(--color-text-muted);
+}
+#political-territory-editor-host .fs-src-pub > * {
+	flex: 0 0 auto;
+}
+#political-territory-editor-host .fs-src-total {
+	color: var(--color-text-muted);
+}
+#political-territory-editor-host .fs-src-tab {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	padding: 2px 10px;
+	font-size: 11.5px;
+	color: var(--color-text-muted);
+	background: var(--color-panel-soft);
+	border: 1px solid var(--color-border);
+	/* 💣 KEINE Pille. Die Designsprache sagt „radius --radius-md; no pill shapes" (AGENTS.md §12);
+	   hier stand 999px. Owner 2026-08-12: „haben round borders". */
+	border-radius: var(--radius-md);
+	cursor: pointer;
+	user-select: none;
+}
+#political-territory-editor-host .fs-src-tab:hover,
+#political-territory-editor-host .fs-src-tab:focus-visible {
+	background: var(--color-panel-muted);
+	outline: none;
+}
+#political-territory-editor-host .fs-src-tab .fs-src-n {
+	color: var(--color-text-muted);
+}
+#political-territory-editor-host .fs-src-tab.is-active {
+	background: var(--color-active-wash);
+	border-color: var(--color-accent-strong);
+	color: var(--color-accent-strong);
+	font-weight: 700;
+}
+#political-territory-editor-host .fs-src-tab.is-active .fs-src-n {
+	color: var(--color-accent-strong);
+}
+#political-territory-editor-host .fs-src-tablewrap {
+	margin-top: 9px;
+	max-height: 230px;
+	overflow-y: auto;
+	/* 🔴 KEIN Kasten mehr um die Tabelle. Die Designsprache gruppiert „per Trenner, nicht per
+	   gerahmten Boxen" (AGENTS.md §12) -- der Rahmen samt 7px-Ecken (ein Literal, kein Token)
+	   sass um eine Tabelle, deren Zellen ohnehin schon auf die Textkante gepolstert sind. Owner
+	   2026-08-12: „entweder wir machen die tabelle abstandsgleich mit dem text oder entfernen die
+	   corners" -- hier beides: der Rahmen faellt, die Zellen sitzen buendig (siehe die
+	   Panel-Regel weiter oben, deren -1px-Ausgleich fuer genau diesen Rahmen da war).
+	   Der weiche Untergrund bleibt: er markiert den scrollbaren Bereich. */
+	background: var(--color-panel-soft);
+}
+/* Publikationen-Tabelle im rechten Panel nutzt die volle Infobox-Breite (Owner: nur die Breite der
+   Tabelle anpassen): der Wrapper laeuft randlos ueber das --infopanel-pad-x-Padding der Quellen-Sektion
+   -> die Seiten-Spalte bricht deutlich weniger um. NUR im Panel -- das schmale Karten-Popup und die
+   Offiziell/Erwaehnt-Umschalter bleiben unveraendert. */
+#political-territory-editor-host .avesmaps-infopanel .fs-src-tablewrap {
+	margin-left: calc(-1 * var(--infopanel-pad-x));
+	margin-right: calc(-1 * var(--infopanel-pad-x));
+}
+/* ... und die ZELLINHALTE auf denselben linken/rechten Texteinzug wie der uebrige Satz (Quelle/
+   Publikationen/Daten, alle bei --infopanel-pad-x). Der randlose Wrapper sitzt an der Sektionskante,
+   die Standard-9px-Zellpolster liessen den Tabellentext sonst 8px zu weit links stehen (Owner). Minus 1px
+   fuer den Wrapper-Rahmen -> 18px effektiver Einzug, exakt wie der Rest. Nur im Panel. */
+#political-territory-editor-host .avesmaps-infopanel .fs-src-table th,
+#political-territory-editor-host .avesmaps-infopanel .fs-src-table td {
+	padding-left: var(--infopanel-pad-x);
+	padding-right: var(--infopanel-pad-x);
+}
+#political-territory-editor-host .fs-src-table {
+	width: 100%;
+	border-collapse: collapse;
+	table-layout: fixed;
+}
+#political-territory-editor-host .fs-src-col-title {
+	width: 44%;
+}
+#political-territory-editor-host .fs-src-col-type {
+	width: 27%;
+}
+#political-territory-editor-host .fs-src-col-pages {
+	width: 29%;
+}
+#political-territory-editor-host .fs-src-table th {
+	font-size: 10px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.02em;
+	color: var(--color-text-muted);
+	text-align: left;
+	padding: 5px 9px;
+	border-bottom: 1px solid var(--color-divider);
+	position: sticky;
+	top: 0;
+	background: var(--color-panel-soft);
+}
+#political-territory-editor-host .fs-src-table th.fs-src-th-r {
+	text-align: right;
+}
+#political-territory-editor-host .fs-src-table td {
+	padding: 6px 9px;
+	vertical-align: top;
+	line-height: 1.4;
+	word-wrap: break-word;
+	overflow-wrap: break-word;
+}
+#political-territory-editor-host .fs-src-table tbody tr + tr td {
+	border-top: 1px solid var(--color-divider);
+}
+#political-territory-editor-host .fs-src-c-type {
+	color: var(--color-text-muted);
+	font-size: 11px;
+}
+#political-territory-editor-host .fs-src-c-pages {
+	text-align: right;
+	color: var(--color-text-muted);
+}
+/* ⚠️ Dasselbe Zeichen wie im Quellen-Editor: eine gekuerzte Angabe muss zeigen, dass mehr
+   dahintersteckt -- ohne es liest sich „9 ff." wie die vollstaendige Angabe. Gemessen am
+   Livebestand: eine Zeile mit 21 Einzelseiten macht diese Tabelle 152 statt 85 px hoch. */
+#political-territory-editor-host .fs-src-c-pages[title] {
+	text-decoration: underline dotted;
+	text-underline-offset: 2px;
+	cursor: help;
+}
+
+/* ── „N weitere Quellen" (Owner 24.08.2026) ───────────────────────────────────────────────────
+   Ab der sechsten Quelle klappt der Rest zusammen. Die Listen werden im Wiki-Zweig zwanzig Zeilen
+   lang und schoben alles darunter aus dem Blick.
+
+   🔴 NATIV `<details>/<summary>` -- nur damit findet Strg+F den Text einer ZUgeklappten Quelle und
+   klappt sie selbst auf. Deshalb steht hier auch nichts, was das Element ersetzt: das Dreieck wird
+   nur getauscht, das Auf- und Zuklappen gehört dem Browser. */
+#political-territory-editor-host .fs-more {
+	border-top: 1px solid var(--color-divider);
+}
+#political-territory-editor-host .fs-more__toggle {
+	padding: 5px 0;
+	color: var(--color-link);
+	cursor: pointer;
+	/* ⚠️ 11px ist die Untergrenze des Hauses (AGENTS.md §12) -- 10px sind hier schon zweimal
+	   durchgerutscht. */
+	font-size: 11px;
+	list-style: none;
+	user-select: none;
+}
+/* Das voreingestellte Dreieck von WebKit lässt sich nur so abschalten. */
+#political-territory-editor-host .fs-more__toggle::-webkit-details-marker {
+	display: none;
+}
+/* Ein eigenes, das die Richtung mitdreht -- der Zustand steht damit IM Knopf, nicht daneben. */
+#political-territory-editor-host .fs-more__toggle::before {
+	content: "▸";
+	display: inline-block;
+	width: 1em;
+	transition: transform 0.12s ease;
+}
+#political-territory-editor-host .fs-more[open] > .fs-more__toggle::before {
+	transform: rotate(90deg);
+}
+#political-territory-editor-host .fs-more__toggle:hover {
+	color: var(--color-link-hover);
+}
+#political-territory-editor-host .fs-more__toggle:focus-visible {
+	outline: 2px solid var(--color-link);
+	outline-offset: 2px;
+	border-radius: var(--radius-sm);
+}
+/* 💣 Die erste versteckte Zeile bekommt KEINE eigene Trennlinie: `.fs-row + .fs-row` greift über
+   die Grenze des <details> hinweg nicht, und der Kasten bringt seine eigene mit. Ohne diese Regel
+   stünden dort beim Aufklappen zwei Linien übereinander. */
+#political-territory-editor-host .fs-more__rest > .fs-row:first-child {
+	border-top: none;
+}
+@media (prefers-reduced-motion: reduce) {
+	#political-territory-editor-host .fs-more__toggle::before {
+		transition: none;
+	}
+}
+
+
+/* ── Die Quellenzeile als SPALTEN (Owner 24.08.2026: „ein tabellarisches layout") ─────────────
+   Vorher eine Flex-Zeile: Titel, Typ, Art und Seiten standen dicht aneinander und begannen in
+   jeder Zeile woanders — bei zwanzig Zeilen ein Flattersatz.
+
+   💣 KEIN echtes <table>. Der Klappkasten ist ein `<details>`, und das darf zwischen `<tr>` nicht
+   stehen; ein `<tbody>` mit einem `<details>` darin wirft der Parser aus der Tabelle heraus. Das
+   Raster liegt deshalb JE ZEILE mit derselben Vorlage — dadurch stehen die Spalten auch über die
+   Grenze des Klappkastens hinweg untereinander, was ein `display: contents` nicht leisten würde.
+   ⚠️ Deshalb sind die Breiten FEST (nur der Titel dehnt sich): aus dem Inhalt abgeleitete Spalten
+   rechnete jede Zeile für sich, und genau das soll hier aufhören. */
+#political-territory-editor-host .fs-row {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 104px 104px 74px 150px 22px 22px;
+	align-items: center;
+	gap: 8px;
+	padding: 4px 0;
+	font-size: 12px;
+}
+/* 💣 Der Titel ellipsiert am TEXT, nicht an der Zelle -- `text-overflow` wirkt nur auf das Element,
+   dessen eigener Text überläuft; an der Zelle wird hart abgeschnitten (dieselbe Falle wie beim
+   Wiki-Override). */
+#political-territory-editor-host .fs-row__link {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	min-width: 0;
+}
+#political-territory-editor-host .fs-row__badge,
+#political-territory-editor-host .fs-row__kind {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+/* Die Lizenz der Quelle samt Namensnennung ("VolkoV / garetien.de, CC BY-NC-SA 3.0").
+   ⚠️ Sie steht hier nur zum ANSEHEN -- gedaempft wie die uebrigen Beipackangaben, damit sie den
+   Titel nicht ueberstimmt. Geaendert wird sie ueber die Eingabezeile darunter.
+   💣 Der Text ellipsiert am ELEMENT, nicht an der Zelle -- dieselbe Falle wie beim Titel. */
+#political-territory-editor-host .fs-row__license {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	color: var(--color-text-muted);
+	font-size: 11px;
+}
+/* Seitenzahlen rechtsbündig und auf gleicher Ziffernbreite -- so liest man eine Spalte davon. */
+#political-territory-editor-host .fs-row__pages {
+	text-align: right;
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+/* ⚠️ Eine gekürzte Angabe zeigt, dass mehr dahintersteckt: gestrichelte Unterlinie plus Hilfezeiger.
+   Ohne dieses Zeichen liest sich „S. 16 ff." wie die vollständige Angabe. */
+#political-territory-editor-host .fs-row__pages[title] {
+	text-decoration: underline dotted;
+	text-underline-offset: 2px;
+	cursor: help;
+}
+#political-territory-editor-host .fs-row__remove {
+	justify-self: end;
+}
+
+/* Die Spaltenüberschrift der Gruppe — sie steht auf demselben Raster wie ihre Zeilen. */
+#political-territory-editor-host .fs-col-heads {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 104px 104px 74px 150px 22px 22px;
+	gap: 8px;
+	padding: 2px 0 4px;
+	border-bottom: 1px solid var(--color-divider);
+	/* ⚠️ 11px ist die Untergrenze des Hauses (AGENTS.md §12). */
+	font-size: 11px;
+	color: var(--color-text-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+#political-territory-editor-host .fs-col-heads span:nth-child(4) {
+	text-align: right;
+}
+
+/* ── Der schmale Kasten: Titel auf eigener Zeile ───────────────────────────────────
+
+   🔴 DER RIEGEL MISST DEN KASTEN, NICHT DAS FENSTER. Hier stand eine Media Query bei 560 px,
+   und die feuerte auf keinem Arbeitsplatz: das Widget haengt in Behaeltern, die mit der
+   Fensterbreite nichts zu tun haben -- der Dialog "Ort bearbeiten" gibt ihm 500 px, waehrend der
+   Bildschirm 1600 traegt. Die feste Spaltenliste (104+104+74+150+22 plus 5x8 Abstand = 494 px)
+   liess dem Titel dort genau 6 px: der Link war nicht gekuerzt, sondern UNSICHTBAR, und daneben
+   standen die Beipackangaben als Striche. Genau so gemeldet (Meldung #104, "manche Felder sieht
+   man nur als Striche und den Link ueberhaupt nicht") und am 29.08.2026 live nachgemessen:
+   Raster `6px 104px 104px 74px 150px 22px` im Dialog gegen `196px ...` in der Editorspalte -- bei
+   1600 px Fensterbreite in BEIDEN Faellen.
+
+   🔴 DIE SPALTEN BLEIBEN AUSGERICHTET, nur der Titel zieht nach oben. Die Versuchung ist,
+   im schmalen Fall auf inhaltsbreite Spalten (`auto`) auszuweichen -- gemessen ergibt das je Zeile
+   andere Spaltenraender (59 / 111 / 102 px fuer denselben Typ-Marker), also genau den Flattersatz,
+   den das Spaltenraster am 24.08.2026 abgeschafft hat. Die Masse bleiben deshalb fest; beweglich
+   ist allein die Lizenzspalte.
+   ⚠️ Damit ist die Zeile zweizeilig (47 statt 28 px). Das ist der Preis und er ist gewollt:
+   der Titel IST die Zeile, alles andere ist Beipack.
+
+   ⚠️ `@container` ersetzt die Media Query, statt neben ihr zu stehen -- zwei Riegel mit
+   verschiedenen Massen auf derselben Vorlage waeren zwei Wahrheiten. Bei schmalem FENSTER ist der
+   Kasten ohnehin schmal, der Fall ist also mit abgedeckt.
+
+   💣 DIE SCHWELLE WANDERT MIT JEDER SPALTE. Am 01.09.2026 kam mit dem `✎` eine siebte dazu, und
+   aus 494 px festem Anteil wurden 524 (104+104+74+150+22+22 plus 6x8 Abstand). Bei den alten
+   640 px blieben dem Titel damit 116 statt 146 px. Beim Bau des Mockups zuerst vergessen -- und
+   der Titel war im 500-px-Dialog prompt wieder UNSICHTBAR, also genau das Bild aus Meldung #104,
+   eine Spalte weiter. Wer eine Spalte ergaenzt, rechnet diese Zahl neu. */
+@container fs-liste (max-width: 670px) {
+	#political-territory-editor-host .fs-row {
+		grid-template-columns: 104px 104px 74px minmax(0, 1fr) 22px 22px;
+		row-gap: 2px;
+	}
+	#political-territory-editor-host .fs-row__link {
+		grid-column: 1 / -1;
+	}
+	#political-territory-editor-host .fs-col-heads {
+		display: none;
+	}
+}
+
+/* ══ DER BEARBEITEN-KASTEN (01.09.2026) ══════════════════════════════════════════════════════
+   Entwurf: docs/quellen-bearbeiten-mockup.html
+
+   🔴 ER STEHT IM FLUSS, NICHT SCHWEBEND. Das Widget haengt selbst schon in Dialogen („Ort
+   bearbeiten", „Weg bearbeiten"); ein Fenster ueber dem Fenster ist eine Bauform, die dieses Haus
+   nirgends hat. Er schiebt die Zeilen darunter nach unten -- sichtbar, und ohne etwas zu verdecken.
+
+   🔴 ZWEI BEREICHE, getrennt durch Linie und Ueberschrift, nicht durch gerahmte Kaesten (§12).
+   Oben, was nur an diesem Objekt gilt; unten, was an allen Objekten gilt, die die Quelle zitieren.
+
+   ⚠️ KEIN eigener Hintergrund an der offenen ZEILE -- nur der Knopf zeigt sich gedrueckt. Der
+   Titel-Link steht im hellen Thema schon auf dem normalen Panel bei 4,45 (--color-link auf
+   --color-panel), also knapp unter AA 4,5; ein --color-panel-soft darunter druecke ihn auf 4,19.
+   Dass die Zeile offen ist, sagen der gedrueckte Knopf und der braune Balken hier -- das reicht. */
+#political-territory-editor-host .fs-edit {
+	margin: 0 0 4px;
+	padding: 12px 12px 14px;
+	border-left: 3px solid var(--color-accent-brown);
+	border-radius: 0 var(--radius-md) var(--radius-md) 0;
+	background: var(--color-panel-soft);
+}
+#political-territory-editor-host .fs-edit__url {
+	margin: 0 0 12px;
+	font-size: 11px;
+	color: var(--color-text-muted);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+#political-territory-editor-host .fs-edit__url b {
+	color: var(--color-text-strong);
+}
+/* Angehakt: die Beschriftung wechselt in die Akzentfarbe -- dieselbe Sprache wie beim
+   Wiki-Override, wo „von uns gesetzt" ebenfalls braun steht. */
+#political-territory-editor-host .fs-field--eigen > span,
+#political-territory-editor-host .fs-edit .fs-field {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	min-width: 0;
+}
+#political-territory-editor-host .fs-edit .fs-field > span {
+	font-size: 11px;
+	color: var(--color-text-muted);
+}
+/* Titel und Namensnennung sind die langen Werte -- sie bekommen den Rest der Zeile. */
+#political-territory-editor-host .fs-edit .fs-field--grow {
+	flex: 1 1 240px;
+}
+/* Die ADRESSE bekommt eine eigene Zeile. Live gemessen wird sie bis 120 Zeichen lang, und in
+   einer halben Spalte sieht man beim Korrigieren nicht, was man korrigiert. */
+#political-territory-editor-host .fs-edit .fs-field--full {
+	flex: 1 1 100%;
+}
+/* ⚠️ Ein gesperrtes Feld sieht gesperrt aus UND sagt daneben warum (.fs-edit__note--locked).
+   Nur ausgegraut waere es von einem Fehler nicht zu unterscheiden. */
+/* 💣 UNGEBUNDEN, und das ist der Punkt: sie stand als `.fs-edit .fs-check` da und galt
+   damit NUR dem ✎. In der Eingabezeile erbte die Haekchenzeile die Spaltenrichtung von
+   `.fs-af` — der Kasten stand ueber seinem eigenen Text und las sich wie ein Feld ohne
+   Beschriftung (im Bild gesehen, von keinem Test). Eine Regel, die eine von zwei
+   Oberflaechen bindet, ist keine Regel. */
+#political-territory-editor-host .fs-check {
+	display: flex;
+	/* Die Richtung MUSS hier stehen: `.fs-af` weiter oben setzt `column`, und eine Regel,
+	   die sie nicht ueberschreibt, laesst den Kasten ueber seinem eigenen Text stehen. */
+	flex-direction: row;
+	align-items: center;
+	gap: 6px;
+	align-self: end;
+	padding-bottom: 5px;
+	font-size: 12px;
+}
+#political-territory-editor-host .fs-edit__note {
+	margin-top: 10px;
+	padding: 8px 10px;
+	border: 1px solid var(--color-warning-soft-border);
+	border-radius: var(--radius-md);
+	background: var(--color-warning-soft);
+	color: var(--color-warning-soft-text);
+	font-size: 12px;
+}
+#political-territory-editor-host .fs-edit__msg {
+	font-size: 12px;
+	color: var(--color-text-muted);
+}
+
+/* ══ DER QUELLENKASTEN UND DAS KANON-ETIKETT (01.09.2026) ═════════════════════════════════════
+   Entwurf: docs/superpowers/specs/2026-08-27-kanon-etikett-design.md
+   🔴 Der Block bekommt einen Rahmen. Vorher klemmte er zwischen der letzten Datenzeile und der
+   naechsten Ueberschrift und las sich wie eine weitere Datenzeile -- obwohl er etwas anderes
+   tut: er sagt, WOHER alles darueber stammt. */
+#political-territory-editor-host .fs-src--box {
+	border: 1px solid var(--color-border);
+	background: var(--color-panel-soft);
+	border-radius: 7px;
+	padding: 9px 11px 10px;
+}
+#political-territory-editor-host .fs-src-label {
+	font-size: 12px;
+	color: var(--color-text);
+	margin: 0 0 5px;
+}
+#political-territory-editor-host .fs-src-list {
+	list-style: none;
+	margin: 0 0 7px;
+	padding: 0;
+	display: grid;
+	gap: 4px;
+}
+/* 🔴 EINE QUELLE, EINE ZEILE -- und sie bricht nicht um (Owner 01.09.2026). Links schrumpft
+   Titel plus Lizenz, rechts steht die Markengruppe fest. */
+#political-territory-editor-host .fs-src-row {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	flex-wrap: nowrap;
+}
+/* 🔴 DIE PILLE WIRD UM 0,542px ANGEHOBEN, UND DAS IST GEMESSEN, NICHT GESCHMACK.
+   Die Zeile richtet an der GRUNDLINIE aus (oben). Chip und Nachbartext teilen sich damit die
+   Grundlinie -- aber NICHT die optische Mitte: der Chip setzt 11px VERSAL (Versalhoehe 8,63),
+   der Nachbar 12px fett gemischtschriftlich (Versalhoehe 9,5). Auf gemeinsamer Grundlinie liegt
+   die Pillenmitte dadurch UNTER der Mitte der Textzeile.
+   🔴 SEIT 02.09.2026 SETZT DAS FARBIGE FELD 9px, ALSO IST AUCH DIESER WERT NEU GERECHNET
+   (0,75 -> 0,542). Er haengt an denselben Groessen wie das Polster darueber; wer eine aendert,
+   misst beide neu. Gemessen: 0,04px Restabweichung -- fuer BEIDE Chipformen dieselbe, weil sie
+   dieselbe Kastenhoehe haben.
+
+   ⭐ Warum ein Versatz und nicht das Polster: das Polster verschiebt die PILLE um die
+   feststehende Schrift herum -- jede Verbesserung der Zeilenlage verschlechtert die Lage der
+   Schrift IN der Pille, und umgekehrt. Genau daran ist der Versuch vom 01.09.2026 gescheitert
+   (2px/3px: innen besser, in der Zeile 2px schlechter -- Owner: „wird immer schlimmer").
+   Ein Versatz verschiebt BEIDES gemeinsam: Zeilenlage 0,00, Innenlage unveraendert 0,31.
+
+   ⭐ Am Livesystem gemessen, beide Quellenzeilen identisch (Pillenmitte minus Zeilenmitte):
+     11px: ohne Versatz +0,75 | −0,75px → 0,00 | −1px → −0,25
+     9px:  ohne Versatz +0,542 (beide Chipformen) | −0,542px → 0,04
+   💣 Die Mitte der Textzeile wird ueber die VERSALHOEHE der Schrift bestimmt, nie ueber die
+   Tinte des konkreten Wortes: „Briefspiel (Weiden)" hat Klammern, die hoeher reichen als
+   Oberlaengen, „Wiki Aventurica" nicht -- eine glyphenabhaengige Messung gab je Zeile ein
+   anderes Ergebnis und schickte den ersten Anlauf in die falsche Richtung.
+
+   ⚠️ NUR HIER. Im Objektkopf steht die Pille allein in ihrer Zeile, im Suchtreffer und an der
+   Konfliktpartei wird mittig statt an der Grundlinie ausgerichtet -- dort waere der Versatz
+   ein Fehler.
+   ⚠️ Der Wert haengt an BEIDEN Schriftgroessen. Wer eine davon aendert, misst neu. */
+#political-territory-editor-host .fs-src-row .fs-kanon {
+	position: relative;
+	top: -0.542px;
+}
+/* 💣 `min-width: 0` ist die tragende Zeile, und sie muss an JEDEM Flex-/Grid-Kind auf dem Weg
+   stehen -- alle stehen per Vorgabe auf `min-width: auto` und weigern sich zu schrumpfen. Fehlt
+   sie irgendwo, laufen die Marken aus dem Kasten, statt dass der Titel kuerzt. `overflow` und
+   `text-overflow` allein reichen NICHT. */
+/* 💣 DER TITEL KUERZT, NICHT DIE LIZENZ. Bis zum 01.09.2026 lagen beide in EINEM ellipsierenden
+   Kasten -- geschnitten wird dort, was hinten steht, und hinten steht die Lizenz. Ein
+   abgeschnittenes „CC B…" ist kein Lizenzverweis, und CC verlangt ihn AN DER KOPIE. Also ist
+   `.fs-src-main` selbst eine Flex-Zeile: der Titel schrumpft, die Lizenz nie. Entwurf §4.2:
+   „kuerzt der Titel mit Ellipse". */
+#political-territory-editor-host .fs-src-main {
+	flex: 1 1 auto;
+	min-width: 0;
+	display: flex;
+	align-items: baseline;
+}
+#political-territory-editor-host .fs-src-title {
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+#political-territory-editor-host .fs-src-main > .fs-src-lic {
+	flex: 0 0 auto;
+}
+#political-territory-editor-host .fs-src-list li { min-width: 0; }
+/* ⚠️ Die Markengruppe schrumpft nicht -- sie ist die Aussage. Gekuerzt wird links. */
+#political-territory-editor-host .fs-src-marks {
+	flex: 0 0 auto;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+
+/* ══ DAS ⓘ UND SEINE RECHTETAFEL (01.09.2026) ════════════════════════════════════════════════
+   Entwurf: 2026-08-27-kanon-etikett-design.md §4.4, Mockup docs/quellenzeile-info-mockup.html
+
+   🔴 Das ⓘ steht rechts, unmittelbar VOR dem Etikett -- Bedienelemente gehoeren an einen festen
+   Platz, und das Etikett schliesst die Zeile ab. Mitten in der Zeile waere es das dritte
+   anklickbare Ding in einer Reihe, ohne sich als das eine zu erkennen zu geben, das NICHT wegfuehrt.
+   🔴 Es erscheint nur, wo es etwas zu zeigen gibt (Namensnennung vorhanden) -- live gemessen
+   01.09.2026: 3 von 1374 Katalogzeilen. Ein Knopf ueber einer leeren Tafel ist ein Klick fuer nichts. */
+#political-territory-editor-host .fs-src-info {
+	flex: 0 0 auto;
+	width: 17px;
+	height: 17px;
+	padding: 0;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: 999px;
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+	font: inherit;
+	font-size: 11px;
+	line-height: 1;
+	cursor: pointer;
+}
+#political-territory-editor-host .fs-src-info:hover,
+#political-territory-editor-host .fs-src-info:focus-visible {
+	border-color: var(--color-accent-brown);
+	outline: none;
+}
+/* Aufgeklappt zeigt der Knopf sich gedrueckt -- dieselbe Sprache wie das ✎ im Quellen-Editor. */
+#political-territory-editor-host .fs-src-info[aria-expanded="true"] {
+	background: var(--color-accent-brown);
+	border-color: var(--color-accent-brown);
+	color: var(--color-panel);
+}
+/* 💣 DIE TAFEL KLAPPT INNERHALB IHRER ZEILE AUF, NIE UNTER DER LISTE. Bei zwei Quellen waere sonst
+   nicht zu sehen, WESSEN Rechte dort stehen -- und das sind zuordnungspflichtige Angaben. */
+#political-territory-editor-host .fs-src-rights {
+	margin: 6px 0 8px;
+	padding: 8px 10px;
+	border-left: 2px solid var(--color-accent-brown);
+	border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+	background: var(--color-panel-soft);
+	font-size: 11px;
+}
+#political-territory-editor-host .fs-src-rights dl {
+	display: grid;
+	grid-template-columns: auto 1fr;
+	gap: 3px 10px;
+	margin: 0;
+}
+#political-territory-editor-host .fs-src-rights dt { color: var(--color-text-muted); }
+/* ⚠️ Die Adresse ist der laengste Wert und der EINZIGE, der hier umbrechen darf -- sonst schiebt
+   sie die Tafel aus dem Kasten. `anywhere`, weil eine URL keine Wortgrenzen hat. */
+#political-territory-editor-host .fs-src-rights dd {
+	margin: 0;
+	color: var(--color-text);
+	overflow-wrap: anywhere;
+}
+
+/* ══ UNTERHALB EINER SCHWELLE BRICHT DIE ZEILE DOCH UM -- bewusst und gemessen ════════════════
+   Der Entwurf §4.2 sieht genau das vor („notfalls faellt die Zeile unterhalb einer Schwelle doch
+   in den Umbruch zurueck -- dann bewusst und gemessen, nicht als Vorgabe").
+   💣 Ohne diese Regel faellt die Titelbreite im 400px-Infopanel auf 53px und bei 280px auf NULL:
+   man sieht Lizenz, ⓘ und Etikett, aber nicht mehr, WELCHE Quelle das ist. Ein Titel, der ganz
+   verschwindet, ist schlimmer als eine zweite Zeile -- am Mockup gemessen, nicht geschaetzt.
+   🔴 Die Schwelle liegt bei 420px und damit UEBER der Infopanel-Breite (400px): dort bekommt der
+   Titel die volle Zeile (~340px statt 53px). Owner-Entscheid 01.09.2026 („Variante B").
+   ⚠️ Umgebrochen wird INNERHALB von `.fs-src-main` -- die Markengruppe bleibt rechts in ihrer
+   Zeile, sonst wandert das Etikett unter den Text und die Zuordnung geht verloren.
+   🔴 Der Kasten misst SICH SELBST (`container-type`), nie das Fenster: das Infopanel ist
+   `min(400px, 100vw - 2*Rand)` und damit schmal, wo das Fenster breit ist -- dieselbe Falle, die
+   die Quellenliste am 29.08.2026 schon einmal bezahlt hat (Meldung #104). */
+#political-territory-editor-host .fs-src {
+	container-type: inline-size;
+	container-name: fsbox;
+}
+@container fsbox (max-width: 420px) {
+	#political-territory-editor-host .fs-src-main { flex-wrap: wrap; }
+	#political-territory-editor-host .fs-src-title { flex: 1 1 100%; }
+	#political-territory-editor-host .fs-src-main > .fs-src-lic { margin-left: 0; }
+}
+
+/* 🔴 DAS ETIKETT. Pillenform wie alles hier (`fs-src-tab`, `fs-row__badge`, `fs-row__kind`);
+   gefuellt und VERSAL sagt „Kanon". Gold = im Kanon, Blaugruen = nicht -- und diese Farbe traegt
+   auf der ganzen Flaeche genau EINE Bedeutung, seit die Typmarke davon befreit ist.
+   🔴 KEIN ROT fuer „inoffiziell": die Briefspiele sind der Grund, warum es die Inhalte gibt. Ein
+   Warnrot machte aus einer Herkunftsangabe eine Qualitaetsaussage. */
+/* 💣 DAS POLSTER IST 3px OBEN / 2px UNTEN, UND DAS IST DER KOMPROMISS AUS ZWEI KRITERIEN, DIE
+   GEGENEINANDER ZIEHEN. Ich habe am 01.09.2026 auf 2/3 gedreht, weil die Schrift IN der Pille
+   damit besser mittig sitzt -- und der Owner meldete sofort „wird immer schlimmer mit der
+   vertikalen ausrichtung". Zu Recht: das war das falsche Kriterium.
+
+   🔴 DIE ZEILE RICHTET AN DER GRUNDLINIE AUS (`.fs-src-row { align-items: baseline }`). Die
+   Schrift der Pille steht damit FEST auf der Zeilengrundlinie -- das Polster verschiebt nicht
+   sie, sondern die PILLE um sie herum. Gemessen: der Grundlinienversatz Chip-zu-Nachbartext ist
+   bei JEDEM Polsterwert exakt 0.
+
+   ⭐ Zwei Optima, im Browser gemessen (Pixelabtast der Tinte gegen die Layout-Grundlinie):
+     · Text mittig IN der Pille   -> Pillenmitte bei Grundlinie − 3,905 (Versalhoehe 7,81)
+     · Pille mittig AUF DER ZEILE -> Pillenmitte bei Grundlinie − 4,875 (Nachbarschrift 12px,
+       gemischtschriftlich, Oberlaenge 9,75 -- ein anderer Tintenumfang auf derselben Grundlinie)
+   Sie liegen 0,97px auseinander; beide zugleich gibt es nicht. Der Mittelweg ist − 4,39, und
+   3px/2px trifft − 4,335. Naeher geht es nicht.
+     3/2 -> Zeilenunwucht 1,08px | 2/2 -> 2,08 | 3/3 -> 2,08 | 2/3 -> 3,08
+
+   ⚠️ Wer nur die INNERE Zentrierung misst, landet bei 2/3 und macht es sichtbar schlechter --
+   genau dieser Fehler ist hier schon einmal passiert. Gemessen wird die Pille GEGEN DIE ZEILE,
+   in der sie steht.
+   ⚠️ Der Wert haengt an beiden Schriftgroessen. Wer eine davon aendert, rechnet den Mittelweg neu.
+
+   🔴 UND GENAU DAS IST AM 02.09.2026 PASSIERT: der Chip ging von 11px auf 9px, also wurde die
+   ganze Rechnung neu gefahren -- dieselbe Methode (Pixelabtast der Tinte gegen die
+   Layout-Grundlinie), dieselben zwei Kriterien, neue Zahlen. Die alten 3px/2px waeren
+   stehengeblieben und HAETTEN AUSGESEHEN, als seien sie gemessen; die Pille saesse 1,46px zu
+   tief in der Zeile (im 3,6x-Vergleich sofort sichtbar). Gegenprobe der Methode: sie
+   reproduziert die alten 11px-Werte (Versalhoehe 8,92 gegen notierte 8,63, Nachbar-Oberlaenge
+   9,58 gegen 9,5).
+   Die zwei Optima bei 9px versal / 12px fettem Nachbarn:
+     · Text mittig IN der Pille   -> Pillenmitte bei Grundlinie − 3,625 (Versalhoehe 7,25)
+     · Pille mittig AUF DER ZEILE -> Pillenmitte bei Grundlinie − 4,792 (Oberlaenge 9,58)
+   Mittelweg − 4,208; 4,25px/2,75px trifft − 4,25. Gemessene Tabelle (Abstand zum Mittelweg |
+   Grundlinienversatz der zwei Woerter in der Halbpille):
+     4/3 -> +0,208 | 0,00   4,25/2,75 -> −0,042 | 0,25   4,5/2,5 -> −0,292 | 0,50
+     4,75/2,25 -> −0,542 | 0,75   5/2 -> −0,792 | 1,00
+
+   💣 DIE SUMME DER BEIDEN WERTE IST NICHT FREI: SIE MUSS 7 SEIN. Das Bezeichnerfeld der
+   Halbpille setzt 11px und polstert 3/2, sein Kasten misst also 16px. Die zwei Felder sind
+   Flex-Kinder mit `align-items: center`, das HOEHERE bestimmt die Pille -- das Farbfeld muss
+   denselben Kasten erreichen, und bei 9px Schrift heisst das 9 + 7. Daran haengt zweierlei
+   zugleich: das Farbfeld fuellt bis in die runde linke Kappe (sonst schwebt es als Rechteck in
+   der Kontur, Owner 02.09.2026 im Bild), UND die ganze Pille wird genauso hoch wie die
+   Halbpille (beide 18px). Frei ist nur die VERTEILUNG auf oben und unten -- sie waehlt die
+   Zeilenlage.
+   ⚠️ Der Wert haengt damit am NACHBARFELD, nicht mehr allein an der eigenen Schrift: wer die
+   Groesse oder das Polster von .fs-kanon__by aendert, rechnet diese Summe neu. */
+/* 💣 DIE FETTUNG BRAUCHT DIE SYNTHESE, SONST IST SIE EIN LEERLAUF. Die Hausschrift Faculty
+   Glyphic liefert NUR Regular, und css/base/base.css schaltet die Kunstfettung deshalb appweit
+   ab (`* { font-synthesis-weight: none }`). Ein `font-weight: 700` allein rechnet dort sauber
+   durch -- computed steht 700 da --, und gezeichnet wird Zeichen fuer Zeichen dasselbe Bild.
+   Live gemessen 02.09.2026: Pillenbreite 82,47px vor wie nach dem Gewicht, und im 4x-Vergleich
+   sind „400" und „700 ohne Synthese" nicht zu unterscheiden. Wer die zweite Zeile wegnimmt,
+   nimmt die Fettung mit -- ohne dass irgendetwas rot wird.
+   🔴 DIE APPWEITE ABSCHALTUNG BLEIBT. Sie gilt der Fliesschrift, wo Kunstfettung ausblutet; hier
+   steht ein 11px-Versalwort auf gefuellter Flaeche, im Browser gegengesehen -- und die
+   Auszeichnung IST die Aufgabe des Etiketts.
+   ⭐ Owner 02.09.2026, ausdruecklich als Ausnahme: die 11px-Untergrenze aus AGENTS.md §12 bleibt,
+   das Etikett steht auf ihr und wird stattdessen gefettet -- nicht groesser gesetzt.
+   ⚠️ Die Breite aendert sich dadurch NICHT (gemessen, s.o.), die Polsterrechnung darueber bleibt
+   also gueltig: sie haengt an den Schriftgroessen, nicht am Gewicht. */
+#political-territory-editor-host .fs-kanon {
+	display: inline-flex;
+	align-items: center;
+	flex-shrink: 0;
+	font-size: var(--font-size-kanon);
+	font-weight: 700;
+	font-synthesis-weight: auto;
+	letter-spacing: .09em;
+	text-transform: uppercase;
+	line-height: 1;
+	padding: 4.25px 8px 2.75px;
+	border-radius: 999px;
+	white-space: nowrap;
+	border: 1px solid transparent;
+}
+#political-territory-editor-host .fs-kanon--off {
+	background: var(--color-kanon-official);
+	color: var(--color-kanon-official-text);
+}
+#political-territory-editor-host .fs-kanon--inoff {
+	background: var(--color-kanon-unofficial);
+	color: var(--color-kanon-unofficial-text);
+}
+
+/* ══ DIE HALBPILLE ═══════════════════════════════════════════════════════════════════════════
+   Ein Chip mit zwei Feldern und EINER Kontur: links der Kanon, rechts wer es geschrieben hat.
+   ⭐ Sie ist gewaehlt, weil sie die UNVOLLSTAENDIGKEIT des Eintrags unterstreicht (Owner
+   27.08.2026) -- das zweite Feld sagt, dass hier noch etwas offen ist.
+
+   🔴 DAS RECHTE FELD IST NEUTRAL, NIE BLAUGRUEN. Neben einem blaugruenen INOFFIZIELL stiessen
+   sonst zwei Blaugruen aneinander und der Chip waere ein Farbfeld mit einer Naht darin. Es traegt
+   deshalb gar keine Flaeche: transparent, --color-border als Kontur, --color-text-muted als
+   Schrift (Entwurf §3.1) -- und keinen der vier Kanon-Token, in KEINER Kanonlage.
+
+   💣 DAS POLSTER WANDERT AN DIE FELDER. Der Chip selbst wird auf 0 gesetzt: bliebe es aussen,
+   saesse die Naht nicht an der Feldgrenze, sondern mit Luft daneben -- und aus dem einen Chip
+   wuerden optisch zwei Pillen, die sich beruehren. Genau das war der Einwand des Owners gegen
+   „Stempel + Pille" ("sieht uneinheitlich aus").
+   ⚠️ `overflow: hidden` ist tragend: ohne es steht das eckige linke Farbfeld ueber die runde
+   Aussenkontur hinaus und der Chip bekommt zwei Ecken. */
+/* 💣 DIE KINDER ERBEN DIE KUNSTFETTUNG NICHT -- UND DAS HAT DIE HALBPILLE EINEN TAG LANG
+   UNGEFETTET GELASSEN, WAEHREND DIE GANZE PILLE FETT WAR. `font-synthesis-weight` ist zwar eine
+   vererbte Eigenschaft, aber css/base/base.css setzt sie per `* { font-synthesis-weight: none }`
+   an JEDEM Element -- und eine direkt passende Deklaration schlaegt jeden geerbten Wert, egal wie
+   schwach ihr Selektor ist. Das `auto` am Chip erreicht also seinen eigenen Text (ganze Pille),
+   aber nicht den Text in `.fs-kanon__state` / `.fs-kanon__by` (Halbpille).
+   🪤 UND ES IST NICHT ZU SEHEN, WENN MAN DEN COMPUTED VALUE PRUEFT: dort steht in beiden Faellen
+   `font-weight: 700`. Gemessen 02.09.2026 -- Chip `auto`, Kinder `none`, Gewicht ueberall 700.
+   Owner: „achte darauf dass alles einheitlich ist, du hast hier schon wieder unterschiede
+   gemacht". Wer die Fettung prueft, prueft `font-synthesis-weight`, nicht `font-weight`. */
+#political-territory-editor-host .fs-kanon__state,
+#political-territory-editor-host .fs-kanon__by {
+	font-synthesis-weight: auto;
+}
+#political-territory-editor-host .fs-kanon--split {
+	padding: 0;
+	overflow: hidden;
+	background: transparent;
+	border-color: var(--color-border);
+	max-width: 100%;
+}
+/* 💣 SEIN POLSTER IST DAS DES CHIPS, ZEICHENGLEICH -- und das ist keine Redundanz, sondern die
+   Bedingung dafuer, dass die Halbpille genauso hoch ist wie die ganze Pille. Die zwei Felder
+   sind Flex-Kinder mit `align-items: center`, das HOEHERE bestimmt die Pille; laeuft eines aus
+   der Reihe, steht das Farbfeld als schwebendes Rechteck in der Kontur, ohne die runde linke
+   Kappe, und die zwei Chipformen stehen verschieden hoch nebeneinander.
+   🔴 Genau das ist am 02.09.2026 einmal gebaut worden (Farbfeld 9px, Bezeichner 11px, Polster
+   4,5/2,5 zum Ausgleich) und vom Owner sofort beanstandet: „achte darauf dass alles einheitlich
+   ist, du hast hier schon wieder unterschiede gemacht". Im Browser waren es 48,6 gegen 57,6
+   (3,6fach) -- die Luft war sichtbar, bevor irgendeine Zahl sie benannt hat. */
+#political-territory-editor-host .fs-kanon--split .fs-kanon__state {
+	flex-shrink: 0;
+	padding: 4.25px 8px 2.75px;
+}
+#political-territory-editor-host .fs-kanon--off.fs-kanon--split .fs-kanon__state {
+	background: var(--color-kanon-official);
+	color: var(--color-kanon-official-text);
+}
+#political-territory-editor-host .fs-kanon--inoff.fs-kanon--split .fs-kanon__state {
+	background: var(--color-kanon-unofficial);
+	color: var(--color-kanon-unofficial-text);
+}
+/* Das Bezeichnerfeld: gemischtschriftlich, nicht gesperrt -- es ist ein NAME
+   („Briefspiel (Garetien)"), und VERSAL gesperrt las er sich wie eine zweite Auszeichnung.
+   ⚠️ min-width: 0 + ellipsis: ein langer Bezeichner darf den Kopf nicht aufziehen. */
+/* 🔴 ES BLEIBT AUF DER UNTERGRENZE (11px) -- DIE AUSNAHME GILT DEM FARBIGEN FELD, NICHT DEM
+   GANZEN CHIP. Owner 02.09.2026, nachdem ich beide Felder verkleinert hatte: „jetzt hast du
+   die schriftart bei der halben pille rechts auch verkleinert, das war nicht gewollt … ich
+   will dass du die groesse der schriftart im farbigen teil der pille auf 9px setzt. der rest
+   lassen."
+   💣 Der `font-size` hier ist deshalb kein Wiederholen des Geerbten, sondern die Gegenkraft
+   dazu: ohne ihn zoege --font-size-kanon vom Chip herunter und der NAME stuende ebenfalls
+   unter der Untergrenze, fuer die es fuer ihn keinen Entscheid gibt.
+   🔴 DAS GEWICHT ERBT ES DAGEGEN -- kein `font-weight` hier. Genau daran ist der Chip am
+   selben Tag einmal auseinandergefallen (Wort fett, Name nicht), und der Owner hat es im Bild
+   gesehen. Was die zwei Felder unterscheiden DARF, ist Farbe, Versalsatz, Sperrung und seit
+   heute die Groesse -- nicht das Gewicht.
+   ⚠️ Sein Polster (3/2) ist die Bezugsgroesse fuer das Chip-Polster darueber: es bestimmt die
+   Kastenhoehe der Pille. Wer es anfasst, rechnet dort die Summe neu. */
+#political-territory-editor-host .fs-kanon--split .fs-kanon__by {
+	min-width: 0;
+	padding: 3px 8px 2px;
+	font-size: var(--font-size-caption);
+	color: var(--color-text-muted);
+	text-transform: none;
+	letter-spacing: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+/* Die Halbpille im OBJEKTKOPF -- unter Art und Herrschaft, ueber der Knopfreihe.
+   🔴 NICHT NEBEN DEM NAMEN: dort saehe sie aus wie ein Zusatz zum WORT „Gareth". Der Kopf ist
+   der Ort, an dem das Objekt sagt, WAS ES IST -- Metropole, Hauptstadt, im Kanon.
+   🔴 EINE Klasse fuer ALLE fuenf Koepfe (Ort, Weg, Kraftlinie, Landschaftslabel, Territorium) --
+   die zwei letzten liegen in einer .region-info-box statt in einem .location-popup. Eine zweite,
+   abgeschriebene Regel je Wirt ist in diesem Repo teuer bezahlt worden (AGENTS.md, Listenzeile:
+   aus einer Abschrift wurden sieben Rezepturen, und beim Abschreiben fiel die Skala).
+   ⚠️ NUR OBEN POLSTERN. Die seitliche Einrueckung kommt vom Behaelter (.location-popup hat
+   padding: 10px, .region-info-box und das Panel ihre eigene) -- eine zweite hier haette das
+   Etikett als einziges Element im Kopf nach innen versetzt. */
+#political-territory-editor-host .feature-kanon-head {
+	display: flex;
+	padding-top: 8px;
+}
+
 
