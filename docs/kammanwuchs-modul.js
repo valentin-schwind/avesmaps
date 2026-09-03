@@ -14,6 +14,11 @@
 // Gipfelbuckel bleiben unberuehrt, sonst las ein 3.000er nicht mehr seine 3.000 (dieselbe Falle,
 // die im Feldmodul schon Warping und Slope Weighting je einmal gekostet hat).
 //
+// 🔴 DER KAMM IST KURVE **UND** GIPFEL. `dKamm` ist der Abstand zum naechsten von beidem -- die
+// Beschriftungskurve ist die Mittelachse der FLAECHE und laeuft nicht zwangslaeufig ueber die Gipfel.
+// Ohne die Gipfel steht ein 10.879er Berg als aufgesetzter Buckel neben einem Gelaende, das ihn nicht
+// kennt. Sie kosten nichts: Ort und Hoehe stehen schon in den Daten.
+//
 // 🔴 KEIN EIGENES MASS. `dRand / (dRand + dKamm)` ist selbstnormierend: kein Reichweitenwert,
 // keine Staerke, keine Abfallkurve. Der einzige neue Wert ist der Blur, und der glaettet nur den
 // Knick, den der Abstand zu einer Linie auf dieser Linie hat.
@@ -57,6 +62,8 @@ function ecosystemKammDistance(line, x, y) {
 function buildEcosystemKammIndex(field, line, options) {
 	const opts = options || {};
 	const blur = Number(opts.blur) > 0 ? Number(opts.blur) : 0;
+	// Die Gipfel dieser Flaeche als Teil des Kamms. Leer = die alte Rechnung, unveraendert.
+	const gipfel = Array.isArray(opts.peaks) ? opts.peaks.filter((p) => Number.isFinite(Number(p?.x)) && Number.isFinite(Number(p?.y))) : [];
 	const bounds = field && field.bounds ? field.bounds : null;
 	if (!bounds || !field.geometry || !Array.isArray(line) || line.length < 2) {
 		return null;
@@ -73,7 +80,17 @@ function buildEcosystemKammIndex(field, line, options) {
 				continue;                                   // ausserhalb: 0, wie das Feld selbst
 			}
 			const dRand = distanceToEcosystemEdge([x, y], field.geometry);
-			const dKamm = ecosystemKammDistance(line, x, y);
+			// 🔴 DIE GIPFEL GEHOEREN ZUM KAMM (Owner 03.09.2026: "die gipfel werden derzeit ignoriert").
+			// Der Kamm eines Gebirges laeuft durch seine Gipfel; die Beschriftungskurve ist die
+			// Mittelachse der FLAECHE und trifft sie nur zufaellig. Gemessen wird deshalb der Abstand
+			// zum naechsten von beidem -- und das kostet keinen neuen Wert: die Gipfel stehen schon in
+			// den Daten, mit Ort und Hoehe.
+			// ⚠️ Ohne Gipfel in der Liste ist das Ergebnis Zeichen fuer Zeichen das von vorher.
+			let dKamm = ecosystemKammDistance(line, x, y);
+			for (let k = 0; k < gipfel.length; k++) {
+				const d = Math.hypot(x - gipfel[k].x, y - gipfel[k].y);
+				if (d < dKamm) { dKamm = d; }
+			}
 			const summe = dRand + dKamm;
 			grid[j * size + i] = summe > 0 ? dRand / summe : 1;
 		}

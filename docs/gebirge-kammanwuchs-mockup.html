@@ -4,9 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title>Kamm, Taeler, Erosion – Konzept (2026-09-03)</title>
+<title>Kamm, Gipfel, Fluesse, Erosion – Konzept (2026-09-03)</title>
 <script>
-  /* Wie jede Editorseite: gespeicherte Wahl schlaegt OS-Schema, vor dem ersten Anstrich. */
+  /* Wie jede Editorseite: gespeicherte Wahl schlaegt OS-Schema, vor dem ersten Anstrich.
+     ⚠️ Anders als die Editorseiten wird "hell" hier AUSDRUECKLICH gesetzt statt das Attribut zu
+     entfernen -- sonst kann man auf einem dunkel eingestellten System nie nach hell schalten, und
+     die Pflichtpruefung in beiden Themen (AGENTS.md §12) waere nicht durchfuehrbar. */
   (function () {
     function isDark() {
       var s = null; try { s = localStorage.getItem("avesmaps-theme"); } catch (e) {}
@@ -15,8 +18,7 @@
       return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
     }
     function apply() {
-      if (isDark()) { document.documentElement.setAttribute("data-theme", "dark"); }
-      else { document.documentElement.setAttribute("data-theme", "light"); }
+      document.documentElement.setAttribute("data-theme", isDark() ? "dark" : "light");
     }
     apply();
     window.avesmapsMockupToggleTheme = function () {
@@ -27,16 +29,14 @@
     };
   })();
 </script>
-<!-- 🔴 RELATIVE Pfade, Absicht: eine docs/-Datei, die per file:// geoeffnet wird. Geladen wird die
-     ECHTE CSS-Kette der Editorseiten -- kein Farbwert steht in dieser Datei. -->
+<!-- 🔴 RELATIVE Pfade, Absicht: eine docs/-Datei. Geladen wird die ECHTE CSS-Kette der Editorseiten
+     -- kein Farbwert steht in dieser Datei. -->
 <link rel="stylesheet" href="../css/base/fonts.css">
 <link rel="stylesheet" href="../css/base/tokens.css">
 <link rel="stylesheet" href="../css/components/editor-page.css">
-<!-- 🔴 DIE ECHTE RECHENSTRECKE DER KARTE, unveraendert geladen wie in index.html. Stufe "Heute"
-     entsteht damit aus demselben Feldbau wie die Karte -- sie wird nicht nachgebaut. Auch die
-     Potenzsuche ist die echte (solveEcosystemNoiseExponent).
-     💣 Und die KURVEN sind echt: `live_curve` in den Daten, geholt aus
-     GET /api/app/map-features.php am 03.09.2026, ebenso die Flusslaeufe. -->
+<!-- 🔴 DIE ECHTE RECHENSTRECKE DER KARTE, unveraendert geladen wie in index.html -- das Feld wird
+     nicht nachgebaut, und die Potenzsuche ist die echte (solveEcosystemNoiseExponent).
+     💣 Kurven und Flusslaeufe sind ebenfalls echt: aus GET /api/app/map-features.php, 03.09.2026. -->
 <script src="../js/map-features/map-features-point-in-polygon.js"></script>
 <script src="../js/map-features/map-features-ecosystem-geometry.js"></script>
 <script src="../js/map-features/map-features-ecosystem-height-field.js"></script>
@@ -44,16 +44,16 @@
 <!-- 🔴 DREI PROTOTYP-MODULE, keines davon in Avesmaps gebaut. Eigene Dateien, weil sie unter Node
      pruefbar sein muessen und weil ein zweiter Leser sie sonst abschreibt -- der Schritt, den
      docs/kurvenlabel-pipeline.js am 24.08.2026 vorgemacht hat.
-     ⚠️ flusstaeler-talmodul.js ist am 03.09.2026 aus docs/flusstaeler-hoehenfeld-mockup.html
-     herausgeloest worden und dort zeichengleich weiterverwendet -- Fall #109, entworfen, nicht gebaut. -->
+     ⚠️ flusstaeler-talmodul.js ist aus docs/flusstaeler-hoehenfeld-mockup.html herausgeloest und
+     dort zeichengleich weiterverwendet -- Fall #109, entworfen, nicht gebaut. -->
 <script src="kammanwuchs-modul.js"></script>
 <script src="flusstaeler-talmodul.js"></script>
 <script src="erosion-droplet.js"></script>
 <style>
 /* ═══════════════════════════════════════════════════════════════════════════════════════════
    Kein hartkodierter Farbwert, kein hartkodierter Radius, keine Schrift unter 11px
-   (AGENTS.md §12). Alles unten sind Tokens aus css/base/tokens.css. Die Graustufen in den
-   Leinwaenden sind DATEN (die gemalten Hoehen), keine Bedienoberflaeche -- dieselbe Ausnahme
+   (AGENTS.md §12). Alles unten sind Tokens aus css/base/tokens.css. Die Graustufen der
+   Leinwand sind DATEN (die gemalten Hoehen), keine Bedienoberflaeche -- dieselbe Ausnahme
    wie bei der Hoehenskala und beim Flusstaeler-Prototyp.
    ═══════════════════════════════════════════════════════════════════════════════════════════ */
 .proto-page { max-width: 1440px; margin: 0 auto; padding: var(--space-24) var(--space-16); }
@@ -62,15 +62,10 @@
 .proto-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-12); }
 .proto-head .avm-tile { flex: none; }
 .proto-note {
-	margin: 0 0 var(--space-16);
-	padding: var(--space-10) var(--space-12);
-	border: 1px solid var(--color-border);
-	border-left: 3px solid var(--color-accent-brown);
-	border-radius: var(--radius-md);
-	background: var(--color-panel-soft);
-	color: var(--color-text-muted);
-	font-size: var(--font-size-small);
-	line-height: 1.55;
+	margin: 0 0 var(--space-16); padding: var(--space-10) var(--space-12);
+	border: 1px solid var(--color-border); border-left: 3px solid var(--color-accent-brown);
+	border-radius: var(--radius-md); background: var(--color-panel-soft);
+	color: var(--color-text-muted); font-size: var(--font-size-small); line-height: 1.55;
 }
 .proto-note strong, .proto-note b { color: var(--color-text); }
 .proto-note code { font-size: var(--font-size-caption); }
@@ -78,11 +73,8 @@
 /* ---- Reglerleiste ---------------------------------------------------------------------- */
 .kam-controls {
 	display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: var(--space-16);
-	padding: var(--space-12);
-	border: 1px solid var(--color-border);
-	border-radius: var(--radius-md);
-	background: var(--color-panel);
-	margin-bottom: var(--space-12);
+	padding: var(--space-12); border: 1px solid var(--color-border); border-radius: var(--radius-md);
+	background: var(--color-panel); margin-bottom: var(--space-12);
 }
 .kam-group { display: flex; flex-direction: column; gap: var(--space-8); }
 .kam-group > h3 {
@@ -106,46 +98,29 @@
 .kam-status b { color: var(--color-text); }
 .kam-status--busy { border-color: var(--color-accent-brown); }
 
-/* ---- Ein Gebirge ----------------------------------------------------------------------- */
+/* ---- Ein Gebirge = EIN grosses Bild ------------------------------------------------------ */
 .kam-mount { border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-panel); margin-bottom: var(--space-16); overflow: hidden; }
 .kam-mount__head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-8); flex-wrap: wrap; padding: var(--space-10) var(--space-12); border-bottom: 1px solid var(--color-divider); }
 .kam-mount__name { font-weight: 600; font-size: var(--font-size-control); color: var(--color-text); }
 .kam-mount__meta { font-size: var(--font-size-caption); color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
 .kam-mount__meta b { color: var(--color-text); font-weight: 600; }
-.kam-stages { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--color-divider); }
-@media (max-width: 1240px) { .kam-stages { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 680px) { .kam-stages { grid-template-columns: 1fr; } }
-.kam-stage { background: var(--color-panel); display: flex; flex-direction: column; }
-.kam-stage__head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-8); padding: var(--space-6) var(--space-10); }
-.kam-stage__title { font-size: var(--font-size-caption); font-weight: 600; color: var(--color-text); }
-.kam-stage__title i { font-style: normal; color: var(--color-text-muted); font-weight: 400; }
-.kam-stage__tally { font-size: var(--font-size-caption); color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
 /* Die Leinwand: Karteneinheiten -> Bildpunkte, Norden oben wie auf der Karte. Der Grund ist die
    Seitenfarbe -- ausserhalb der Flaeche liegt kein Feld, dort bleibt sie durchsichtig, genau wie
    auf der Karte (`continue` in der Malschleife).
-   ⚠️ Die Leinwand traegt ihr Seitenverhaeltnis selbst; der Kasten begrenzt nur die HOEHE, damit
-   ein langgezogenes Gebirge (Schwarze Sichel: 573 px bei 300 Breite) nicht die Seite fuellt. */
-.kam-canvas-wrap { position: relative; background: var(--color-page-bg-deep); flex: 1 1 auto; display: flex; align-items: center; justify-content: center; }
-.kam-canvas-wrap canvas { display: block; max-width: 100%; max-height: 380px; height: auto; width: auto; }
-.kam-stage__foot { padding: var(--space-4) var(--space-10) var(--space-6); font-size: var(--font-size-caption); color: var(--color-text-muted); font-variant-numeric: tabular-nums; min-height: 1.5em; }
-.kam-stage__foot b { color: var(--color-text); }
-.kam-profile { border-top: 1px solid var(--color-divider); padding: var(--space-8) var(--space-12) var(--space-10); }
-.kam-profile canvas { display: block; width: 100%; height: auto; }
-.kam-legend { display: flex; flex-wrap: wrap; gap: var(--space-12); padding-top: var(--space-4); font-size: var(--font-size-caption); color: var(--color-text-muted); }
-.kam-legend i { display: inline-block; width: 18px; height: 0; border-top: 2px solid; vertical-align: middle; margin-right: var(--space-4); }
-.kam-legend .kam-leg-heute i { border-color: var(--color-text-muted); }
-.kam-legend .kam-leg-kamm i { border-color: var(--color-accent-brown); }
-.kam-legend .kam-leg-tal i { border-color: var(--color-path-flussweg); }
-.kam-legend .kam-leg-ero i { border-color: var(--color-link); }
-.kam-legend .kam-leg-achse i { border-color: var(--color-text-muted); border-top-style: dotted; }
-
-/* ---- Zahlen + Regeln -------------------------------------------------------------------- */
+   🔴 EIN Bild je Gebirge, in GROSS (Owner 03.09.2026). Die Hoehe ist gedeckelt, die Breite folgt
+   dem Seitenverhaeltnis der Flaeche -- ein langgezogenes Gebirge wird schmal, nicht endlos hoch. */
+.kam-canvas-wrap { background: var(--color-page-bg-deep); display: flex; align-items: center; justify-content: center; padding: var(--space-8); }
+.kam-canvas-wrap canvas { display: block; max-width: 100%; height: auto; }
+.kam-foot { padding: var(--space-6) var(--space-12); font-size: var(--font-size-caption); color: var(--color-text-muted); font-variant-numeric: tabular-nums; border-top: 1px solid var(--color-divider); }
+.kam-foot b { color: var(--color-text); }
 .kam-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--space-8); margin: var(--space-12); }
 .kam-fact { padding: var(--space-6) var(--space-10); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-panel-soft); }
 .kam-fact__k { font-size: var(--font-size-caption); color: var(--color-text-muted); }
 .kam-fact__v { font-size: var(--font-size-small); color: var(--color-text); font-weight: 600; font-variant-numeric: tabular-nums; }
 .kam-fact--gut { border-color: var(--color-accent-brown); }
 .kam-fact--gut .kam-fact__v { color: var(--color-accent-brown); }
+
+/* ---- Regeln ------------------------------------------------------------------------------ */
 .kam-rules { margin: var(--space-16) 0 0; padding: var(--space-12) var(--space-16); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-panel); }
 .kam-rules h2 { margin: 0 0 var(--space-8); font-size: var(--font-size-control); color: var(--color-text); }
 .kam-rules h2:not(:first-child) { margin-top: var(--space-16); padding-top: var(--space-12); border-top: 1px solid var(--color-divider); }
@@ -168,21 +143,20 @@
 
 <div class="proto-head">
 	<div>
-		<h1 class="proto-h1">Kamm-Anwuchs, Flusstaeler, Erosion &mdash; als EINE Kette</h1>
-		<p class="proto-sub">Konzept, 03.09.2026 &middot; drei echte Gebirge, echter Feldbau, echte Beschriftungskurven, echte Flusslaeufe &middot; <b>nichts davon ist gebaut</b></p>
+		<h1 class="proto-h1">Kammhuelle + Rauschen + Gipfel + Fluesse + Erosion</h1>
+		<p class="proto-sub">Konzept, 03.09.2026 &middot; drei echte Gebirge, echter Feldbau, echte Kurven, echte Gipfel, echte Flusslaeufe &middot; <b>nichts davon ist gebaut</b></p>
 	</div>
 	<button type="button" class="avm-tile" onclick="window.avesmapsMockupToggleTheme()"><span class="t1">Hell / Dunkel</span><span class="t2">Beide Themen pruefen</span></button>
 </div>
 
 <p class="proto-note">
-	<b>Vier Stufen, kumulativ.</b> <i>Heute</i> ist der <b>echte</b> Feldbau der Karte
-	(<code>map-features-ecosystem-height-*.js</code>, unveraendert geladen). Darueber legen sich
-	<i>Kamm-Anwuchs</i> (neu, dieses Konzept), <i>Flusstaeler</i> (Fall #109 &mdash; entworfen, nicht
-	gebaut; das Talmodul ist aus jenem Prototyp herausgeloest und dort zeichengleich weiterverwendet)
-	und <i>Erosion</i> (Tropfenverfahren). Kammlinien und Flusslaeufe kommen aus
-	<code>GET /api/app/map-features.php</code>, geholt am 03.09.2026 &mdash; nichts davon ist
-	nachgerechnet. <b>Neu an eigenen Werten:</b> ein Blur fuer die Kammhuelle; die Taelerwerte gehoeren
-	Fall #109; die Erosion bringt eigene mit &mdash; siehe ihren Kasten unten.
+	<b>Ein Bild je Gebirge &mdash; die ganze Kette auf einmal.</b> Was einzeln wirkt, schaltest du mit den
+	Haekchen ab; sind alle drei aus, siehst du das Gelaende von <b>heute</b>. Gerechnet wird mit der
+	<b>echten</b> Rechenstrecke der Karte (<code>map-features-ecosystem-height-*.js</code>, unveraendert
+	geladen) samt echter Potenzsuche; Kammlinien, Gipfel und Flusslaeufe kommen aus
+	<code>GET /api/app/map-features.php</code>.
+	<b>🔴 Die Gipfel sind jetzt Teil der Kette</b>, nicht mehr Zuschauer: der Kamm laeuft durch sie,
+	und die Tropfen fliessen von ihnen herab.
 </p>
 
 <div class="kam-controls">
@@ -196,12 +170,34 @@
 			</div>
 		</div>
 		<label class="kam-check"><input type="checkbox" id="kam-an" checked> Anwuchs an</label>
-		<label class="kam-check"><input type="checkbox" id="kam-solve" checked> Potenz neu suchen (Huelle <b>im</b> Feldbau)</label>
-		<span class="kam-hint"><b>Der einzige neue Wert.</b> Bei <b>0</b> steht auf der Kurve ein scharfer Grat &mdash; der Abstand zu einer Linie hat dort einen Knick. In Karteneinheiten (1 E = 3 Meilen).</span>
+		<label class="kam-check"><input type="checkbox" id="kam-gipfel" checked> Gipfel gehoeren zum Kamm</label>
+		<label class="kam-check"><input type="checkbox" id="kam-solve" checked> Potenz neu suchen</label>
+		<span class="kam-hint"><b>Der einzige neue Wert.</b> Bei <b>0</b> steht auf dem Kamm ein scharfer Grat &mdash; der Abstand zu einer Linie hat dort einen Knick. In Karteneinheiten (1 E = 3 Meilen).</span>
 	</div>
 
 	<div class="kam-group">
-		<h3>2 &middot; Flusstaeler <span>&mdash; Fall #109</span></h3>
+		<h3>2 &middot; Erosion <span>&mdash; Tropfenverfahren</span></h3>
+		<div class="kam-ctl">
+			<span class="kam-ctl__label">Tropfen je Gebirge</span>
+			<div class="kam-ctl__row">
+				<input type="range" id="ero-tropfen" min="0" max="40000" step="2000" value="4000">
+				<span class="kam-ctl__val" id="ero-tropfen-val">4.000</span>
+			</div>
+		</div>
+		<div class="kam-ctl">
+			<span class="kam-ctl__label">Abtragkraft</span>
+			<div class="kam-ctl__row">
+				<input type="range" id="ero-kraft" min="5" max="60" step="5" value="15">
+				<span class="kam-ctl__val" id="ero-kraft-val">0,15</span>
+			</div>
+		</div>
+		<label class="kam-check"><input type="checkbox" id="ero-an" checked> Erosion an</label>
+		<label class="kam-check"><input type="checkbox" id="ero-pull" checked> Hoehen danach nachziehen</label>
+		<span class="kam-hint"><b>0 Tropfen = aus.</b> Sie laeuft auf dem <b>vollen</b> Feld, damit das Wasser die Gipfel sieht und von ihnen herabfliesst. Der teure Schritt &mdash; die Regler wirken beim Loslassen.</span>
+	</div>
+
+	<div class="kam-group">
+		<h3>3 &middot; Flusstaeler <span>&mdash; Fall #109</span></h3>
 		<div class="kam-ctl">
 			<span class="kam-ctl__label">Talbreite (halb, Fluss bis Talrand)</span>
 			<div class="kam-ctl__row">
@@ -217,38 +213,17 @@
 			</div>
 		</div>
 		<label class="kam-check"><input type="checkbox" id="tal-an" checked> Taeler an</label>
-		<span class="kam-hint">Vorgaben aus dem Entwurf von Fall #109 (&#9733; 4,5 Meilen, Tiefe 100 %). Ein Bach zaehlt mit halber Breite.</span>
-	</div>
-
-	<div class="kam-group">
-		<h3>3 &middot; Erosion <span>&mdash; Tropfenverfahren</span></h3>
-		<div class="kam-ctl">
-			<span class="kam-ctl__label">Tropfen je Gebirge</span>
-			<div class="kam-ctl__row">
-				<input type="range" id="ero-tropfen" min="0" max="40000" step="2000" value="8000">
-				<span class="kam-ctl__val" id="ero-tropfen-val">8.000</span>
-			</div>
-		</div>
-		<div class="kam-ctl">
-			<span class="kam-ctl__label">Abtragkraft</span>
-			<div class="kam-ctl__row">
-				<input type="range" id="ero-kraft" min="5" max="60" step="5" value="30">
-				<span class="kam-ctl__val" id="ero-kraft-val">0,30</span>
-			</div>
-		</div>
-		<label class="kam-check"><input type="checkbox" id="ero-an" checked> Erosion an</label>
-		<label class="kam-check"><input type="checkbox" id="ero-pull" checked> Hoehen danach nachziehen</label>
-		<span class="kam-hint"><b>0 Tropfen = aus.</b> Sie rechnet auf einem Raster und ist der teure Schritt &mdash; die Regler wirken beim Loslassen, nicht beim Ziehen.</span>
+		<span class="kam-hint">🔴 Sie kommen <b>zuletzt</b> &mdash; gemessen: davor schuettet die Erosion sie wieder zu.</span>
 	</div>
 
 	<div class="kam-group">
 		<h3>Anzeige</h3>
 		<label class="kam-check"><input type="checkbox" id="kam-terrain" checked> Graustufe auf das Gelaende, nicht auf den Gipfel</label>
-		<label class="kam-check"><input type="checkbox" id="kam-peaks" checked> Gipfel zeigen</label>
+		<label class="kam-check"><input type="checkbox" id="kam-peaks" checked> Gipfel markieren</label>
 		<label class="kam-check"><input type="checkbox" id="kam-curve" checked> Kammlinie zeigen</label>
 		<label class="kam-check"><input type="checkbox" id="kam-rivers" checked> Flusslaeufe zeigen</label>
-		<label class="kam-check"><input type="checkbox" id="kam-huelle"> Kammhuelle statt "Heute" zeigen</label>
-		<span class="kam-hint">Alle vier Stufen bekommen <b>dieselbe</b> Graustufen-Referenz &mdash; zwei Skalen nebeneinander waeren kein Vergleich.</span>
+		<label class="kam-check"><input type="checkbox" id="kam-huelle"> nur die Kammhuelle zeigen</label>
+		<span class="kam-hint">Die Graustufe hat immer <b>dieselbe</b> Referenz wie das Gelaende von heute &mdash; sonst waere kein Vergleich moeglich.</span>
 	</div>
 </div>
 
@@ -259,131 +234,93 @@
 <div class="kam-rules">
 	<h2>Die Kette &mdash; und warum sie in dieser Reihenfolge steht</h2>
 	<div class="kam-formula">
-		<b>1</b>&nbsp; Rauschfeld&nbsp;&nbsp;&nbsp;<b>n = S&prime; &middot; (<span class="kam-neu">Kammhuelle</span> &middot; Rauschsumme)<sup>P&prime;</sup></b><br>
-		<b>2</b>&nbsp; Feld&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>h = Gipfelbuckel + Gipfelfenster &middot; n</b><br>
-		<b>3</b>&nbsp; Taeler&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>h&prime; = carveEcosystemValley(h)</b> &mdash; Talboden monoton fallend<br>
-		<b>4</b>&nbsp; Erosion&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>h&Prime; = Gipfelbuckel + Tropfenlauf(h&prime; &minus; Gipfelbuckel)</b><br>
-		<em>Kammhuelle = d<sub>Rand</sub> / (d<sub>Rand</sub> + d<sub>Kamm</sub>), weichgezeichnet &middot;
-		S&prime;/P&prime; sucht die echte Routine (<code>solveEcosystemNoiseExponent</code>) auf dem Feld MIT Huelle</em>
+		<b>1</b>&nbsp; Kamm&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>h = Gipfelbuckel + Gipfelfenster &middot; S&prime; &middot; (<span class="kam-neu">Kammhuelle</span> &middot; Rauschsumme)<sup>P&prime;</sup></b><br>
+		<b>2</b>&nbsp; Erosion&nbsp;&nbsp;<b>h&prime; = Tropfenlauf(h)</b> &mdash; auf dem <b>vollen</b> Feld, Gipfel gesperrt<br>
+		<b>3</b>&nbsp; Taeler&nbsp;&nbsp;&nbsp;<b>h&Prime; = carveEcosystemValley(h&prime;)</b> &mdash; Talboden monoton fallend<br>
+		<em><span class="kam-neu">Kammhuelle</span> = d<sub>Rand</sub> / (d<sub>Rand</sub> + d<sub>Kamm</sub>), weichgezeichnet &middot;
+		d<sub>Kamm</sub> = Abstand zur Beschriftungskurve <b>oder zum naechsten Gipfel</b>, je nachdem, was naeher liegt</em>
 	</div>
 	<ol>
-		<li><b>Der Kamm ist die Kurve, die es schon gibt.</b> <code>avesmapsCurveBaseline</code> legt sie als
-			Mittelachse der Flaeche aus &mdash; genau die Linie, auf der der Name sitzt. Ein Gebirge bekommt
-			damit keinen zweiten, konkurrierenden Kammbegriff.</li>
+		<li>🔴 <b>Die Gipfel gehoeren zum Kamm.</b> Die Beschriftungskurve ist die Mittelachse der
+			<i>Flaeche</i> und trifft die Gipfel nur zufaellig. Ohne sie steht ein 10.879er Berg als
+			aufgesetzter Buckel neben einem Gelaende, das ihn nicht kennt. Sie kosten keinen neuen Wert:
+			Ort und Hoehe stehen schon in den Daten.</li>
+		<li>🔴 <b>Die Erosion laeuft auf dem vollen Feld</b>, Gipfel eingeschlossen &mdash; nur so sieht das
+			Wasser die Berge und fliesst von ihnen herab. Vorher lief sie auf dem Feld <i>ohne</i> Gipfel,
+			und dann entsteht keine einzige Rinne an einem Berghang.</li>
+		<li>💣 <b>Aber die Gipfel duerfen nicht IM Raster liegen &mdash; sie reisen als SOCKEL mit.</b>
+			Das ist der Punkt, an dem sich die zwei Anforderungen vertragen: Hoehe und Gefaelle liest der
+			Tropfen <i>mit</i> Gipfelbuckel (er sieht den Berg und graebt an seiner Flanke), veraendert
+			aber nur das Gelaende darunter. Lag der Gipfel im Raster, war er dessen Aufloesung
+			ausgeliefert: die Schwarze Sichel verlor <b>968 Schritt</b> an ihrem hoechsten Punkt, und
+			kein Riegel heilt das &mdash; schon der bilineare Lesekern mischt die Nachbarzellen hinein.
+			Mit Sockel liest sie wieder exakt ihre <b>5.868</b>.</li>
+		<li>💣 <b>Ein Riegel, kein Faktor</b> &mdash; keinen Faktor. Eine Daempfung
+			mit dem Gipfelfenster liess einen 3.000er Gipfel 2.944 lesen: 20.000 Tropfen summieren jeden
+			Restfaktor auf. Und der Riegel braucht <b>Luft</b>: er sperrt eine Zone, die breiter ist als
+			eine Rasterzelle, sonst aendert sich die Nachbarzelle und der bilineare Lesekern zieht das in
+			den Gipfel (das 62-Schritt-Leck).</li>
+		<li>🔴 <b>Die Taeler kommen ZULETZT</b> &mdash; gemessen, nicht gewaehlt. Standen sie vor der
+			Erosion, schuettete diese sie wieder zu: die Talsohle lag beim Finsterkamm <b>74 Schritt
+			HOEHER</b> als ihr Umland statt 156 tiefer, bei der Schwarzen Sichel 75 statt 398. Die Tropfen
+			fliessen ins Tal &mdash; das ist ihr Sinn &mdash; und laden dort ab. Zuletzt eingeschnitten
+			bleiben sie: 144 / 150 / 533 Schritt tief.</li>
 		<li><b>Die Huelle traegt kein eigenes Mass.</b> <code>d<sub>Rand</sub> / (d<sub>Rand</sub> + d<sub>Kamm</sub>)</code>
-			ist am Rand exakt&nbsp;0, auf der Kurve exakt&nbsp;1 und dazwischen monoton &mdash; ohne
-			Reichweite, ohne Staerke, ohne Abfallkurve. Beide Abstaende sind schon da: der Randabstand als
-			<code>edgeGrid</code> (das Gratverfahren rechnet ihn ohnehin), der Kammabstand als Abstand zur
-			Polylinie.</li>
-		<li><b>Sie steht VOR der Potenz</b> &mdash; nicht Geschmack, sondern die Bauform, die daneben schon
-			steht: <code>ecosystemEdgeEnvelope</code> des Gratverfahrens sitzt an genau derselben Stelle, mit
-			genau derselben Begruendung im Kommentar. Die Messschleife misst mit Potenz&nbsp;1, also muss sie
-			das fertige Feld sehen.</li>
-		<li><b>Erosion kommt ZULETZT, und sie ist die einzige Stufe mit Zustand.</b> Die drei anderen sind
-			Funktionen: man fragt (x,&nbsp;y) und bekommt eine Zahl. Ein Tropfen traegt Sediment von A nach B,
-			also muss B sich merken, dass dort etwas liegt &mdash; sie braucht ein Raster.</li>
-		<li><b>Der Gipfel bleibt in allen vier Stufen auf seiner Zahl.</b> Bei 1&ndash;2 vom Gipfelfenster,
-			bei 3 von der Talbreiten-Klemme (Fall #109, Regel&nbsp;8), bei 4 davon, dass der Buckel
-			<b>nach</b> dem Tropfenlauf addiert wird. Die Zahlenkaesten nennen ihn vor und nach der Kette.</li>
+			ist am Rand exakt&nbsp;0, auf dem Kamm exakt&nbsp;1 und dazwischen monoton &mdash; ohne
+			Reichweite, ohne Staerke, ohne Abfallkurve. Beide Abstaende sind schon da.</li>
+		<li><b>Sie steht VOR der Potenz</b> &mdash; die Bauform von <code>ecosystemEdgeEnvelope</code>, mit
+			derselben Begruendung im Kommentar: die Messschleife misst mit Potenz&nbsp;1, also muss sie das
+			fertige Feld sehen.</li>
 	</ol>
 
-	<h2>💣 Was die Erosion in diesem Modell kostet &mdash; der eigentliche Befund</h2>
+	<h2>💣 Was die Erosion kostet &mdash; der eigentliche Befund</h2>
 	<ul>
 		<li><b>Sie passt nicht in die Zeichenfunktion, sondern in den Rasterlauf.</b> Alles am Hoehenmodell
-			ist heute zustandsfrei; daran haengt, dass es billig, seedfest und in jeder Reihenfolge abfragbar
-			ist. Erosion braucht ein veraenderbares Raster &mdash; wer sie in
-			<code>sampleEcosystemHeightField</code> einbaut, bekommt bei jedem Bild ein anderes Gebirge.
-			Ihr Platz ist <code>terrain-store.php</code>, der Knopf "Hoehenraster rechnen".</li>
-		<li>💣 <b>Und eine Daempfung reicht nicht gegen eine iterative Rechnung.</b> Der erste Entwurf
-			multiplizierte jede Aenderung mit dem Gipfelfenster &mdash; genau die Groesse, mit der sich das
-			Warping-Verfahren gegen denselben Fehler absichert (es las sonst 2.970 statt 3.000). Unter Node
-			gemessen, 3.000er Kegel, 20.000 Tropfen: der Gipfel las <b>2.944</b>, die Randzellen wanderten um
-			<b>21</b> Schritt. Beim Warping ist es EIN Versatz; hier sind es 20.000 kleine Aenderungen, und
-			ein Restfaktor von 0,04 summiert sich zu 236 Schritt. <b>Ein Faktor daempft eine einmalige
-			Rechnung; gegen eine iterative braucht es einen Riegel.</b></li>
-		<li>⭐ <b>Die Loesung ist die Hausform, nicht ein schaerferer Faktor.</b> Erodiert wird das Feld
-			<b>ohne</b> die Gipfelbuckel, und die kommen danach obendrauf. Am Gipfel ist das Gipfelfenster 0,
-			der Buckel traegt dort also exakt seine Zahl &mdash; egal was die Erosion tut. Nachgemessen:
-			Randinvariante <b>0,000000</b>, Gipfel <b>3.000,0000 &rarr; 3.000,0000</b>. Das ist keine
-			Naeherung mehr, sondern algebraisch dicht &mdash; und Zeichen fuer Zeichen dieselbe Bauform wie
-			der Kamm-Anwuchs. An den drei echten Gebirgen steht die Randinvariante ebenfalls auf
-			<b>0,000</b> (die Fusszeile der Erosionsstufe nennt sie), und der hoechste Gipfel liest nach
-			der ganzen Kette wieder seine eigene Zahl.</li>
-		<li>💣 <b>Der erste Riegel allein hat trotzdem geleckt &mdash; um 62 Schritt.</b> Der Gipfelbuckel
-			kommt nach dem Tropfenlauf obendrauf, aber ein Tropfen darf in der Zelle NEBEN dem Gipfel
-			ablagern, und der bilineare Lesekern zieht das in den Gipfel hinein. <b>Und das ist kein
-			Auflösungsproblem:</b> ueber fuenf Rasterweiten gemessen (64/96/128/192/256) betraegt das Leck
-			11,2 / 98,4 / 12,4 / 8,1 / 9,8 Schritt &mdash; es faellt nicht monoton, es schwankt damit,
-			welcher Tropfen zufaellig in die Gipfelzelle laeuft. Wer das nicht nachmisst, "loest" es mit
-			mehr Zellen und bezahlt Rechenzeit fuer nichts. Der zweite Riegel ist das Gipfelfenster beim
-			Lesen &mdash; dieselbe Groesse, die in Stufe 1 und 2 schon steht.</li>
-		<li>⚠️ <b>Sie traegt netto Masse ab, und die verschwindet am Rand.</b> An den drei Gebirgen
-			gemessen (8.000 Tropfen, Abtragkraft 0,30): Abtrag 7,6 / 12,7 / 5,4 Millionen Schritt gegen
-			Auftrag 5,7 / 9,0 / 4,5 Millionen. Der Grund ist die Fusshoehe-0-Regel selbst &mdash; ein
-			Tropfen, der die Flaeche verlaesst, nimmt sein Sediment mit, denn ablagern darf er am Rand
-			nicht.</li>
-		<li>🔴 <b>Und das kostet die eingestellte Durchschnittshoehe, nicht nur ein paar Prozent.</b>
-			Mit der Skalierung ("Hoehen danach nachziehen") wird die <b>Maximalhoehe</b> wieder exakt
-			getroffen &mdash; <b>+0,0 %</b> bei allen drei. Der <b>Durchschnitt</b> bleibt bei
-			<b>&minus;67,9 % / &minus;82,6 % / &minus;74,7 %</b>. Eine reine Skalierung kann das nicht
-			heilen: sie hebt Spitzen und Rinnen gleichmaessig. Heilen wuerde es die Potenzsuche &mdash;
-			und die verzerrt genau die Rinnen, um deren willen man erodiert. <b>Erosion heisst in diesem
-			Modell: entweder verliert <code>terrain_mean_height</code> seine Bedeutung, oder die Rinnen
-			werden wieder glattgezogen.</b> Das ist die Frage, die vor dem Bau zu entscheiden ist, und sie
-			ist eine Owner-Frage, keine technische.</li>
+			ist heute zustandsfrei; daran haengt, dass es billig, seedfest und in jeder Reihenfolge
+			abfragbar ist. Ein Tropfen traegt Sediment von A nach B, also muss B sich merken, dass dort
+			etwas liegt. Wer das in <code>sampleEcosystemHeightField</code> einbaut, bekommt bei jedem Bild
+			ein anderes Gebirge. Ihr Platz ist <code>terrain-store.php</code>, "Hoehenraster rechnen".</li>
+		<li>🔴 <b>ES GIBT KEINE MILDE EINSTELLUNG &mdash; das ist der klarste Befund.</b> Ein Tropfen,
+			der die Flaeche verlaesst, nimmt sein Sediment mit; ablagern darf er am Rand nicht
+			(Fusshoehe&nbsp;0). Ueber sechs Einstellungen gemessen, Durchschnittshoehe gegen den
+			eingestellten Wert:
+			<br>2.000 Tropfen / Kraft 0,10 &rarr; <b>&minus;64 / &minus;36 / &minus;58 %</b>
+			&middot; 4.000 / 0,10 &rarr; &minus;67 / &minus;45 / &minus;65 %
+			&middot; 8.000 / 0,10 &rarr; &minus;71 / &minus;57 / &minus;74 %
+			&middot; 8.000 / 0,30 &rarr; &minus;76 / &minus;81 / &minus;79 %
+			&middot; 16.000 / 0,15 &rarr; &minus;87 / &minus;93 / &minus;87 %.
+			<br>Selbst die schwaechste Einstellung, die ueberhaupt noch etwas formt, kostet <b>ein
+			Drittel bis zwei Drittel</b> der Durchschnittshoehe. Die <b>Maximalhoehe</b> holt die
+			Skalierung zurueck (+0,0 % bei allen dreien), den Durchschnitt kann sie nicht &mdash; das
+			koennte nur die Potenzsuche, und die zieht genau die Rinnen wieder glatt, um deren willen
+			man erodiert.</li>
 		<li>🔧 <b>Und sie bringt eigene Werte mit &mdash; anders als der Kamm-Anwuchs.</b> Traegheit,
-			Kapazitaet, Verdunstung, Schwerkraft, Wirkradius, Schrittdeckel: sechs Zahlen, die im Gelaende
-			nichts entsprechen, das schon in den Daten steht. Sie stehen als Modulkonstanten mit Begruendung
-			da; nur Tropfenzahl und Abtragkraft sind hier Regler. <b>Das ist der Preis dieses Verfahrens</b>
-			und der Punkt, an dem es sich vom Kamm-Anwuchs unterscheidet.</li>
-	</ul>
-
-	<h2>Was ich zur Erosion sage</h2>
-	<ul>
-		<li><b>Als Kartenbild ist sie das Ueberzeugendste der drei</b> &mdash; sie erzeugt genau die
-			verzweigten Rinnen, die ein Gebirge glaubwuerdig machen, und sie tut es von selbst, ohne dass
-			jemand einen Kamm oder einen Fluss zeichnen muss.</li>
-		<li><b>Als Eingriff ins Modell ist sie die teuerste.</b> Sie ist die einzige der drei Stufen, die
-			(a) Zustand braucht, (b) sechs neue Zahlen mitbringt, (c) die zwei eingestellten Hoehen
-			verschiebt und (d) nur im Rasterlauf laufen kann &mdash; also nicht im Browser, wo die Karte
-			zeichnet. Damit ist sie kein Nachmittagsprojekt wie der Kamm-Anwuchs, sondern ein eigener
-			Umbau in derselben Groessenordnung wie Fall #109.</li>
-		<li><b>Empfehlung als Reihenfolge, nicht als Auswahl:</b> Kamm-Anwuchs zuerst (eine Zeile im Kern,
-			kein neuer Parameter ausser dem Blur, beide Invarianten unberuehrt), dann Fall #109 (entworfen
-			und geplant, wartet nur auf GO), <b>Erosion als eigener dritter Schritt</b> &mdash; und dann
-			zuerst im Rasterlauf gegen Reisezeiten gemessen, nicht am Bild beurteilt. Der Querfeldein-A*
-			liest dasselbe Feld (<code>terrain-store.php</code>), und ein Gebirge mit Rinnen ist ein anderes
-			Reisehindernis als eines mit Buckeln.</li>
+			Kapazitaet, Verdunstung, Schwerkraft, Wirkradius, Schrittdeckel: sechs Zahlen, denen im
+			Gelaende nichts entspricht, das schon in den Daten steht. Sie stehen als Modulkonstanten mit
+			Begruendung da; nur Tropfenzahl und Abtragkraft sind Regler. Das ist der Punkt, an dem sich
+			die Erosion vom Kamm-Anwuchs unterscheidet.</li>
 	</ul>
 
 	<h2>🔧 Offen &mdash; gehoert in den Entwurf, nicht in dieses Bild</h2>
 	<ul>
-		<li><b>26 der 69 Gebirge haben heute keinen Kamm.</b> Die Kurve entsteht nur, wo die
-			Kurvenbeschriftung eingeschaltet ist (live gemessen 03.09.2026: 43 von 69 Gebirgs-Regionen tragen
-			eine gerechnete Kurve, bei 76 Gipfel-Labels insgesamt). Bleibt es dabei, veraendert ein Editor mit
-			dem Beschriftungshaken die <b>Gelaendeform</b> &mdash; und damit Reisezeiten. Die Alternative ist,
-			die Achse von der Beschriftung zu entkoppeln: sie ist dann Gelaendeform, nicht Schriftfuehrung.</li>
+		<li><b>26 der 69 Gebirge haben heute keinen Kamm.</b> Die Beschriftungskurve entsteht nur, wo die
+			Kurvenbeschriftung eingeschaltet ist (43 von 69, live gemessen). ⭐ Mit den Gipfeln im Kamm ist
+			das entschaerft: ein Gebirge mit Gipfeln, aber ohne Kurve, bekommt trotzdem einen Kamm. Ganz
+			ohne beides bleibt es, wie es heute ist.</li>
 		<li><b>Welche Flaechenarten?</b> Hier nur <code>gebirge</code>. Huegelland, Hochebene, Tal und Wadi
-			haetten dieselbe Achse zur Verfuegung &mdash; ob sie sie wollen, ist eine eigene Entscheidung.</li>
-		<li><b>Die Kurve darf leicht ausserhalb der Flaeche liegen.</b> Gemessen am Finsterkamm: der
-			Polynom-Fit haengt 0,7&nbsp;Einheiten ueber den Rand hinaus. Fuer die Huelle harmlos (der
-			Kammabstand ist dort schlicht groesser als 0), aber der Grund, warum sie <b>nicht</b> "auf der
-			Kurve ist die Huelle 1" zusichern darf, sondern nur "zur Kurve hin waechst sie".</li>
-		<li>🪤 <b>Eine Messfalle, die dieses Bild selbst gestellt hat.</b> Ø und Max muessen am
-			<b>Rauschfeld ohne Gipfel und mit Rauschfenster 1</b> gemessen werden &mdash; genau das tut der
-			Feldbau (<code>const measuring = { ...field, peakBumps: [] }</code>). Ueber das Gesamtfeld
-			gemessen ueberdeckt ein einzelner Gipfel alles: an der Roten Sichel stand so ein Ø von 1.594
-			gegen eingestellte 500, und das sah wie ein Fehler des Anwuchses aus, obwohl es die Messung war.</li>
-		<li>🪤 <b>Und eine zweite, die zwei Runden gekostet hat: ein Messgitter, das groeber ist als das
-			gemessene Raster.</b> Die Kennzahlen tasten mit 81&times;81 Punkten ab, das Erosionsraster hat
-			96&times;96 Zellen. Nach der Erosion ist das Maximum ein <b>Einzelzellen-Spike</b> (bei der
-			Schwarzen Sichel hat die Spitzenzelle die Nachbarn 0/0/0), und ein zu grobes Gitter trifft ihn
-			nicht: in den Kaesten standen 40,7 % und 48,5 % Abweichung, wo bei 4-facher Abtastung nur
-			8,9 % und 3,2 % sind. Die Zahl sah wie ein Befund ueber die Erosion aus und war einer ueber
-			die Messung. Die Erosionsstufe wird deshalb <b>am Raster</b> gemessen &mdash; exakt und
-			billiger.</li>
+			haetten dieselbe Achse zur Verfuegung &mdash; eine eigene Entscheidung.</li>
+		<li><b>Erosion und Durchschnittshoehe schliessen sich aus.</b> Eine Skalierung holt das Maximum
+			zurueck, den Durchschnitt nicht; das koennte nur die Potenzsuche, und die zieht genau die
+			Rinnen wieder glatt, um deren willen man erodiert. <b>Entweder verliert
+			<code>terrain_mean_height</code> seine Bedeutung, oder die Rinnen verschwinden.</b> Das ist
+			eine Owner-Frage, keine technische.</li>
+		<li>🪤 <b>Zwei Messfallen, die dieses Bild selbst gestellt hat.</b> Ø und Max muessen am
+			<b>Rauschfeld ohne Gipfel</b> gemessen werden (sonst stand an der Roten Sichel Ø 1.594 gegen
+			eingestellte 500). Und ein Messgitter, das <b>groeber</b> ist als das gemessene Raster,
+			verfehlt den Einzelzellen-Spike der Erosion: 40,7 % Abweichung, wo bei 4-facher Abtastung
+			8,9 % sind. Die Erosionsstufe wird deshalb am Raster gemessen.</li>
 		<li><b>Reisezeiten sind nirgends gemessen.</b> Alle drei Stufen veraendern das Feld, auf dem der
-			Querfeldein-A* rechnet. Wie viel eine Reise dadurch anders ausfaellt, sagt dieses Bild nicht.</li>
+			Querfeldein-A* rechnet (<code>terrain-store.php</code> liest dasselbe Feld).</li>
 	</ul>
 </div>
 
@@ -401,10 +338,13 @@
 	const fmt = (n, d) => Number(n).toLocaleString("de-DE", { minimumFractionDigits: d || 0, maximumFractionDigits: d || 0 });
 	const token = (name) => String(getComputedStyle(document.documentElement).getPropertyValue(name) || "").trim() || "#888";
 
-	const CANVAS_W = 300;
+	// 🔴 EIN Bild je Gebirge, in GROSS. Gedeckelt wird die HOEHE; die Breite folgt dem
+	// Seitenverhaeltnis -- ein langgezogenes Gebirge wird schmal statt endlos hoch.
+	const CANVAS_H = 620;
+	const CANVAS_W_MAX = 1180;
 	const STEP = 2;
 	const UNIT_MEILEN = 3;            // 1 Karteneinheit = 3 Meilen = 3.000 Schritt
-	const EROSION_RASTER = 96;        // grober als die Modulvorgabe (128) -- drei Gebirge, interaktiv
+	const EROSION_RASTER = 96;
 
 	const mounts = DATA.map(function (g) {
 		const areas = g.areas.map((a) => Object.assign({}, a, { geometry_geojson: a.geometry }));
@@ -412,7 +352,6 @@
 		const stack = buildEcosystemHeightStack(areas, peaks);
 		const b = areas[0].bounds;
 		const field = stack.fields.length ? stack.fields[0] : null;
-		// Die Flusslaeufe in der Form, die das Talmodul erwartet (wie im Flusstaeler-Prototyp).
 		const rivers = (g.rivers || []).map((r) => ({
 			properties: { public_id: r.id, display_name: r.name, feature_subtype: "Flussweg", is_bach: r.bach, flow: r.dir ? { dir: r.dir } : undefined },
 			geometry: { type: "LineString", coordinates: r.c },
@@ -420,8 +359,8 @@
 		return {
 			name: g.name, areas: areas, peaks: peaks, stack: stack, field: field, bounds: b,
 			line: g.live_curve, rivers: rivers,
-			// 💣 DAS MESSFELD: Rauschfeld OHNE Gipfelbuckel. Woertlich, was der Feldbau selbst benutzt
-			// (`const measuring = { ...field, peakBumps: [] }`) -- nur so ist eine gemessene Zahl mit
+			// 💣 DAS MESSFELD: Rauschfeld OHNE Gipfelbuckel -- woertlich, was der Feldbau selbst benutzt
+			// (`const measuring = { ...field, peakBumps: [] }`). Nur so ist eine gemessene Zahl mit
 			// terrain_avg_height / terrain_mean_height vergleichbar.
 			messfeld: field ? Object.assign({}, field, { peakBumps: [] }) : null,
 			terrain: {
@@ -437,7 +376,7 @@
 	// Der ROHE Rauschwert (Potenz 1, ohne Skalierung), rekonstruiert aus dem fertigen Feld:
 	//   n = S · r^P   =>   r = (n / S)^(1/P)
 	// ⚠️ Bei P = 1 faltet der Feldbau die Skalierung in die Amplituden (S bleibt 1) -- dann ist r bis
-	// auf einen konstanten Faktor gleich n. Das ist harmlos: der Faktor geht in S' der Neusuche auf.
+	// auf einen konstanten Faktor gleich n. Harmlos: der Faktor geht in S' der Neusuche auf.
 	function rohNoise(m, x, y) {
 		const n = sampleEcosystemHeightField(m.messfeld, x, y, 1);
 		if (!(n > 0)) { return 0; }
@@ -446,7 +385,7 @@
 		return P === 1 ? n / S : Math.pow(n / S, 1 / P);
 	}
 
-	// Die Neusuche: genau die Kette aus buildEcosystemHeightField, nur auf dem Feld MIT Huelle.
+	// Die Neusuche: die Kette aus buildEcosystemHeightField, nur auf dem Feld MIT Huelle.
 	// Sie ruft die ECHTE Routine (solveEcosystemNoiseExponent) -- keine eigene Suche.
 	function neusuche(m) {
 		const b = m.bounds;
@@ -475,7 +414,7 @@
 		return { scale: S, exponent: P, loudest: loudest };
 	}
 
-	// ---- Die vier Stufen als Abfragen -----------------------------------------------------
+	// ---- Die Stufen als Abfragen ----------------------------------------------------------
 	function abfragen(m) {
 		const win = m.stack.peakWindow;
 		const fields = m.stack.fields;
@@ -488,7 +427,7 @@
 				return sum;
 			},
 			fenster: function (x, y) { return win ? win.sample(x, y) : 1; },
-			// STUFE 0 -- das volle Feld von heute, die echte Kartenrechnung.
+			// Das volle Feld von heute -- die echte Kartenrechnung.
 			heute: function (x, y) {
 				const nw = win ? win.sample(x, y) : 1;
 				let sum = 0;
@@ -497,7 +436,7 @@
 			},
 			// Das Rauschfeld von heute, wie der Feldbau es misst.
 			rauschHeute: function (x, y) { return sampleEcosystemHeightField(m.messfeld, x, y, 1); },
-			// Das Rauschfeld MIT Kammhuelle, nach der Neusuche. Das ist die eine neue Regel.
+			// Das Rauschfeld MIT Kammhuelle, nach der Neusuche.
 			rauschKamm: function (x, y) {
 				if (!m.kamm) { return q.rauschHeute(x, y); }
 				const r = rohNoise(m, x, y);
@@ -512,55 +451,33 @@
 			if (!m.kamm) { return q.heute(x, y); }
 			return q.gipfel(x, y) + q.fenster(x, y) * q.rauschKamm(x, y);
 		};
-		// STUFE 2 -- die Taeler schneiden das FERTIGE Feld ein (Fall #109, Talmodul).
-		q.tal = function (x, y) {
-			const h = q.kamm(x, y);
-			return m.valley ? carveEcosystemValley(m.valley, x, y, h) : h;
-		};
-		// STUFE 3 -- der Tropfenlauf, gelesen aus dem Raster.
-		//
-		// 🔴 ZWEI RIEGEL, und der zweite ist erst nach einer Messung dazugekommen. Der Gipfelbuckel
-		// kommt DANACH obendrauf -- damit kann die Erosion ihn nicht abtragen. Das genuegte aber nicht:
-		// gemessen am Finsterkamm wuchs der hoechste Punkt um 62 Schritt, weil ein Tropfen in der Zelle
-		// NEBEN dem Gipfel ablagern darf und der bilineare Lesekern das in den Gipfel hineinzieht.
-		//
-		// 💣 UND DAS IST KEIN AUFLOESUNGSPROBLEM. Ueber fuenf Rasterweiten gemessen (64/96/128/192/256
-		// Zellen) betraegt das Leck 11,2 / 98,4 / 12,4 / 8,1 / 9,8 Schritt -- es faellt NICHT monoton,
-		// es schwankt damit, welcher Tropfen zufaellig in die Gipfelzelle laeuft. Ein feineres Raster
-		// heilt es also nicht, es verschiebt nur den Zufall. Wer das nicht nachmisst, "loest" es durch
-		// mehr Zellen und bezahlt Rechenzeit fuer nichts.
-		//
-		// ⭐ Der Riegel ist das GIPFELFENSTER beim Lesen -- dieselbe Groesse, die schon in Stufe 1 und 2
-		// steht: am Gipfel ist es 0, dort traegt also ausschliesslich der Buckel, algebraisch dicht.
-		// ⚠️ Der Preis ist benannt: in der Uebergangszone (0 < Fenster < 1, rund 1 bis 1,5 E Radius um
-		// jeden Gipfel) wird das Rauschen ein zweites Mal gefenstert, also etwas zu stark gedaempft.
-		// Dort dominiert der Buckel ohnehin. Der saubere Weg waere, das Erosionsraster aus dem
-		// UNGEFENSTERTEN Rauschfeld zu bauen -- das geht erst, wenn auch der Taleinschnitt auf dem
-		// Rauschfeld statt auf dem Gesamtfeld rechnet, und das ist eine Entscheidung von Fall #109.
+		// STUFE 2 -- der Tropfenlauf, gelesen aus dem Raster.
+		// 🔴 Das Wasser SIEHT die Gipfel (sie reisen als Sockel mit und gehen in Hoehe und Gefaelle
+		// ein), aber sie LIEGEN nicht im Raster -- so graebt der Tropfen seine Rinne an der Flanke
+		// eines Berges, ohne den Berg selbst antasten zu koennen.
 		q.erosion = function (x, y) {
-			if (!m.erosion) { return q.tal(x, y); }
-			return q.gipfel(x, y) + q.fenster(x, y) * sampleErosionField(m.erosion, x, y);
+			if (!m.erosion) { return q.kamm(x, y); }
+			// 🔴 Das Raster traegt nur das Gelaende; der Gipfelbuckel kommt ANALYTISCH dazu -- damit
+			// liest er wieder exakt seine eingetragene Zahl, unabhaengig von der Rasterweite.
+			return q.gipfel(x, y) + sampleErosionField(m.erosion, x, y);
+		};
+		// STUFE 3 -- die Taeler schneiden ZULETZT ein (Fall #109, Talmodul).
+		// 🔴 Gemessen: standen sie vor der Erosion, schuettete diese sie wieder zu.
+		q.ende = function (x, y) {
+			const h = q.erosion(x, y);
+			return m.valley ? carveEcosystemValley(m.valley, x, y, h) : h;
 		};
 		return q;
 	}
 
-	// 🪤 KENNZAHLEN DER EROSIONSSTUFE WERDEN AM RASTER GEMESSEN, nicht ueber `messen()`.
-	//
-	// Das ist keine Bequemlichkeit, sondern eine Messfalle, die dieses Bild gestellt hat: `messen()`
-	// tastet mit 81x81 Punkten ab, das Erosionsraster hat 96x96 Zellen -- ein feineres Gitter als das
-	// Messgitter. Nach der Erosion ist das Maximum ein EINZELZELLEN-Spike (bei der Schwarzen Sichel
-	// hat die Spitzenzelle die Nachbarn 0/0/0), und ein zu grobes Messgitter trifft ihn nicht: gemessen
-	// standen 40,7 % und 48,5 % Abweichung in den Kaesten, wo mit 4-facher Abtastung nur 8,9 % und
-	// 3,2 % sind. Die Zahl sah wie ein Befund ueber die Erosion aus und war einer ueber die Messung.
-	//
-	// ⭐ Am Raster ist es exakt UND billiger: O(Zellen) statt O(Messpunkte x Feldabfragen).
-	// ⚠️ Gemessen wird `Zelle x Gipfelfenster` -- also was der Leseweg herausgibt, nicht das Raster
-	// allein (derselbe Grund wie bei der Skalierung eine Ebene darueber).
+	// 🪤 Kennzahlen der Erosionsstufe AM RASTER, nicht ueber ein groeberes Messgitter (siehe Regeln).
+	// ⭐ Und das Raster traegt seit dem Sockel-Umbau GENAU das Gelaende ohne Gipfel -- also exakt die
+	// Groesse, gegen die terrain_avg_height und terrain_mean_height gestellt werden duerfen.
 	function messenAmRaster(er) {
 		let max = 0, sum = 0, n = 0;
 		for (let k = 0; k < er.hoehe.length; k++) {
 			if (!er.drin[k]) { continue; }
-			const v = er.hoehe[k] * er.gipfel[k];
+			const v = er.hoehe[k];
 			if (v > max) { max = v; }
 			sum += v; n++;
 		}
@@ -584,26 +501,13 @@
 	}
 
 	// ---- Markup je Gebirge ----------------------------------------------------------------
-	const STUFEN = [
-		["heute", "Heute", "echter Feldbau"],
-		["kamm", "+ Kamm-Anwuchs", "neu"],
-		["tal", "+ Flusstaeler", "Fall #109"],
-		["erosion", "+ Erosion", "Tropfen"],
-	];
-
 	function bauen() {
 		const host = $("kam-mounts");
 		host.innerHTML = "";
 		mounts.forEach(function (m, idx) {
-			const H = Math.max(140, Math.round(CANVAS_W * (m.h / m.w)));
-			const stufen = STUFEN.map(function (s) {
-				return [
-					'<div class="kam-stage"><div class="kam-stage__head"><span class="kam-stage__title">', s[1],
-					' <i>', s[2], '</i></span><span class="kam-stage__tally" id="t-', s[0], '-', idx, '"></span></div>',
-					'<div class="kam-canvas-wrap"><canvas id="c-', s[0], '-', idx, '" width="', CANVAS_W, '" height="', H, '"></canvas></div>',
-					'<div class="kam-stage__foot" id="f-', s[0], '-', idx, '">&nbsp;</div></div>',
-				].join("");
-			}).join("");
+			let H = CANVAS_H;
+			let W = Math.round(H * (m.w / m.h));
+			if (W > CANVAS_W_MAX) { W = CANVAS_W_MAX; H = Math.round(W * (m.h / m.w)); }
 			const el = document.createElement("div");
 			el.className = "kam-mount";
 			el.innerHTML = [
@@ -613,23 +517,14 @@
 				' &middot; <b>', m.peaks.length, '</b> Gipfel (', m.peaks.filter((p) => p.height != null).length, ' mit Hoehe)',
 				' &middot; Kurve <b>', m.line ? m.line.length : 0, '</b> Punkte',
 				' &middot; <b>', m.rivers.length, '</b> Flusswege (', m.rivers.filter((r) => r.properties.is_bach).length, ' Baeche)',
-				' &middot; eingestellt: max <b>', fmt(m.terrain.max), '</b> / &Oslash; <b>', fmt(m.terrain.mean), '</b> Schritt',
-				' &middot; Koernung ', fmt(m.terrain.grain, 1), ', ', m.terrain.levels, ' Stufen</span>',
+				' &middot; eingestellt: max <b>', fmt(m.terrain.max), '</b> / &Oslash; <b>', fmt(m.terrain.mean), '</b> Schritt</span>',
 				'</div>',
-				'<div class="kam-stages">', stufen, '</div>',
-				'<div class="kam-profile"><canvas id="p-', idx, '" width="1200" height="160"></canvas>',
-				'<div class="kam-legend">',
-				'<span class="kam-leg-heute"><i></i>Heute</span>',
-				'<span class="kam-leg-kamm"><i></i>+ Kamm</span>',
-				'<span class="kam-leg-tal"><i></i>+ Taeler</span>',
-				'<span class="kam-leg-ero"><i></i>+ Erosion</span>',
-				'<span class="kam-leg-achse"><i></i>Kreuzung mit dem Kamm</span>',
-				'<span id="p-note-', idx, '"></span>',
-				'</div></div>',
+				'<div class="kam-canvas-wrap"><canvas id="c-', idx, '" width="', W, '" height="', H, '"></canvas></div>',
+				'<div class="kam-foot" id="f-', idx, '">&nbsp;</div>',
 				'<div class="kam-facts" id="facts-', idx, '"></div>',
 			].join("");
 			host.appendChild(el);
-			m.dom = { idx: idx, H: H };
+			m.dom = { idx: idx, W: W, H: H };
 		});
 	}
 
@@ -687,7 +582,7 @@
 			ctx.lineCap = "round"; ctx.lineJoin = "round";
 			m.rivers.forEach(function (r) {
 				ctx.strokeStyle = token(r.properties.is_bach ? "--color-path-bach" : "--color-path-flussweg");
-				ctx.lineWidth = r.properties.is_bach ? 0.8 : 1.3;
+				ctx.lineWidth = r.properties.is_bach ? 1.1 : 1.8;
 				ctx.beginPath();
 				r.geometry.coordinates.forEach(function (c, i) {
 					const X = (c[0] - m.bounds.min_x) * scale, Y = (m.bounds.max_y - c[1]) * scale;
@@ -700,8 +595,8 @@
 		if ($("kam-curve").checked && m.line) {
 			ctx.save();
 			ctx.strokeStyle = token("--color-link");
-			ctx.lineWidth = 1.5;
-			ctx.setLineDash([5, 4]);
+			ctx.lineWidth = 2;
+			ctx.setLineDash([6, 5]);
 			ctx.beginPath();
 			m.line.forEach(function (p, i) {
 				const X = (p[0] - m.bounds.min_x) * scale, Y = (m.bounds.max_y - p[1]) * scale;
@@ -714,11 +609,11 @@
 			ctx.save();
 			ctx.fillStyle = token("--color-accent-brown");
 			ctx.strokeStyle = token("--color-panel");
-			ctx.lineWidth = 1;
+			ctx.lineWidth = 1.2;
 			m.peaks.forEach(function (p) {
 				const X = (p.x - m.bounds.min_x) * scale, Y = (m.bounds.max_y - p.y) * scale;
 				ctx.beginPath();
-				ctx.moveTo(X, Y - 4); ctx.lineTo(X + 3.5, Y + 2.5); ctx.lineTo(X - 3.5, Y + 2.5); ctx.closePath();
+				ctx.moveTo(X, Y - 6); ctx.lineTo(X + 5, Y + 3.5); ctx.lineTo(X - 5, Y + 3.5); ctx.closePath();
 				ctx.fill(); ctx.stroke();
 			});
 			ctx.restore();
@@ -726,63 +621,12 @@
 		return { ms: ms, scale: scale };
 	}
 
-	// Das Querprofil: die Sehne QUER zum Kamm, durch dessen Mitte, mit allen vier Stufen.
-	// 💣 Quer, nicht laengs -- laengs des Kamms zeigt der Anwuchs per Konstruktion fast nichts.
-	function profil(m, canvas, q) {
-		const ctx = canvas.getContext("2d");
-		const W = canvas.width, H = canvas.height;
-		ctx.clearRect(0, 0, W, H);
-		if (!m.line || m.line.length < 2) { return null; }
-		const mid = Math.floor(m.line.length / 2);
-		const a = m.line[Math.max(0, mid - 1)], b = m.line[Math.min(m.line.length - 1, mid + 1)];
-		const tx = b[0] - a[0], ty = b[1] - a[1];
-		const len = Math.hypot(tx, ty) || 1;
-		const nx = -ty / len, ny = tx / len;                 // Normale des Kamms
-		const c = m.line[mid];
-		const reach = Math.max(m.w, m.h);
-		const N = 500;
-		const pts = [];
-		for (let i = 0; i <= N; i++) {
-			const s = -reach / 2 + (reach * i) / N;
-			const x = c[0] + nx * s, y = c[1] + ny * s;
-			const drin = pointInGeometry([x, y], m.areas[0].geometry);
-			pts.push({
-				s: s, drin: drin,
-				heute: drin ? q.heute(x, y) : 0,
-				kamm: drin ? q.kamm(x, y) : 0,
-				tal: drin ? q.tal(x, y) : 0,
-				erosion: drin ? q.erosion(x, y) : 0,
-			});
-		}
-		let maxH = 1;
-		pts.forEach((p) => { maxH = Math.max(maxH, p.heute, p.kamm, p.tal, p.erosion); });
-		const px = (i) => (W * i) / N;
-		const py = (v) => H - 10 - ((H - 22) * v) / maxH;
-
-		ctx.save();
-		ctx.strokeStyle = token("--color-divider");
-		ctx.lineWidth = 1;
-		ctx.beginPath(); ctx.moveTo(0, H - 10); ctx.lineTo(W, H - 10); ctx.stroke();
-		ctx.setLineDash([4, 3]);
-		ctx.beginPath(); ctx.moveTo(px(N / 2), 4); ctx.lineTo(px(N / 2), H - 10); ctx.stroke();
-		ctx.setLineDash([]);
-		[["heute", "--color-text-muted", 1.2], ["kamm", "--color-accent-brown", 1.5],
-		 ["tal", "--color-path-flussweg", 1.5], ["erosion", "--color-link", 1.8]].forEach(function (spur) {
-			ctx.strokeStyle = token(spur[1]); ctx.lineWidth = spur[2];
-			ctx.beginPath();
-			pts.forEach(function (p, i) { const X = px(i), Y = py(p[spur[0]]); if (i === 0) { ctx.moveTo(X, Y); } else { ctx.lineTo(X, Y); } });
-			ctx.stroke();
-		});
-		ctx.restore();
-		const drin = pts.filter((p) => p.drin);
-		return { maxH: maxH, laenge: drin.length ? (drin[drin.length - 1].s - drin[0].s) : 0 };
-	}
-
 	// ---- Ein Durchgang --------------------------------------------------------------------
 	function werte() {
 		return {
 			blur: Number($("kam-blur").value),
 			kammAn: $("kam-an").checked,
+			kammGipfel: $("kam-gipfel").checked,
 			solve: $("kam-solve").checked,
 			talBreite: Number($("tal-breite").value) / UNIT_MEILEN,
 			talTiefe: Number($("tal-tiefe").value) / 100,
@@ -806,14 +650,19 @@
 	function zeichnen() {
 		marken();
 		const v = werte();
-		const zeiten = { kamm: 0, suche: 0, tal: 0, erosion: 0, malen: 0 };
+		const zeiten = { kamm: 0, suche: 0, erosion: 0, tal: 0, malen: 0 };
 
 		mounts.forEach(function (m) {
 			const idx = m.dom.idx;
 
-			// STUFE 1 -- Kammhuelle + Neusuche
+			// STUFE 1 -- Kammhuelle (Kurve UND Gipfel) + Neusuche
 			let t = performance.now();
-			m.kamm = (v.kammAn && m.field && m.line) ? buildEcosystemKammIndex(m.field, m.line, { blur: v.blur }) : null;
+			m.kamm = (v.kammAn && m.field && (m.line || v.kammGipfel))
+				? buildEcosystemKammIndex(m.field, m.line || [], {
+					blur: v.blur,
+					peaks: v.kammGipfel ? m.peaks : [],
+				})
+				: null;
 			zeiten.kamm += performance.now() - t;
 			t = performance.now();
 			m.neu = m.kamm
@@ -823,56 +672,40 @@
 
 			const q = abfragen(m);
 
-			// STUFE 2 -- Flusstaeler. 🔴 Der Talboden wird aus dem UNGESCHNITTENEN Feld bestimmt, und
-			// das ist hier Stufe 1 (mit Kamm-Anwuchs) -- nicht das Feld von heute.
-			t = performance.now();
-			if (v.talAn && m.rivers.length && m.field) {
-				m.courses = buildEcosystemRiverCourses(m.field, m.rivers, q.kamm, m.stack.peakWindow.points,
-					{ width: v.talBreite, bachShare: 0.5 });
-				m.valley = buildEcosystemValleyIndex(m.courses.segments, { depthShare: v.talTiefe });
-			} else {
-				m.courses = null; m.valley = null;
-			}
-			zeiten.tal += performance.now() - t;
-
-			// STUFE 3 -- Erosion. 🔴 Auf dem Feld OHNE Gipfelbuckel; die kommen beim Lesen wieder drauf.
+			// STUFE 2 -- Erosion auf dem VOLLEN Feld, Gipfel gesperrt.
 			t = performance.now();
 			if (v.eroAn && v.tropfen > 0) {
-				const ohneGipfel = function (x, y) {
-					const h = q.tal(x, y) - q.gipfel(x, y);
-					return h > 0 ? h : 0;
-				};
-				m.erosion = buildErosionField(m.bounds, ohneGipfel, {
+				// 🔴 DAS RASTER TRAEGT NUR DAS GELAENDE, die Gipfelbuckel reisen als SOCKEL mit.
+				// So sieht der Tropfen den Berg (Hoehe und Gefaelle werden mit Sockel gelesen) und
+				// graebt seine Rinne an dessen Flanke -- aber der Berg liegt nicht im Raster und
+				// bleibt deshalb exakt auf seiner eingetragenen Zahl. Beides zusammen ging nicht,
+				// solange er IM Raster lag: gemessen 968 Schritt Verlust an der Schwarzen Sichel.
+				m.erosion = buildErosionField(m.bounds,
+					(x, y) => { const d = q.kamm(x, y) - q.gipfel(x, y); return d > 0 ? d : 0; }, {
 					inside: (x, y) => pointInGeometry([x, y], m.areas[0].geometry),
 					peakWindow: m.stack.peakWindow,
+					sockel: q.gipfel,
 					grid: EROSION_RASTER,
 				});
 				runErosionDroplets(m.erosion, { tropfen: v.tropfen, seed: 42, erode: v.kraft, deposit: 0.3 });
-				// 🔴 DIE HOEHEN NACHZIEHEN -- nur eine SKALIERUNG, keine Potenz.
-				// Die Erosion traegt netto ab (der Tropfen nimmt sein Sediment ueber den Rand mit, denn
-				// ablagern darf er dort nicht), und Maximal- wie Durchschnittshoehe sind EINGESTELLTE
-				// Werte. Eine reine Skalierung holt das Maximum zurueck und laesst die Form in Ruhe.
-				// ⚠️ KEINE Potenzsuche wie beim Kamm-Anwuchs: die wirkt nichtlinear und wuerde genau die
-				// Rinnen verzerren, um deren willen man erodiert. Der Preis steht in den Zahlenkaesten --
-				// das Maximum wird getroffen, der Durchschnitt bleibt daneben.
+				// 🔴 NACHZIEHEN -- nur der Anteil UEBER dem Gipfelbuckel wird skaliert, sonst waechst oder
+				// schrumpft der Gipfel mit und liest nicht mehr seine eingetragene Zahl. Der Sockel ist
+				// der Gipfelbuckel je Zelle; er wird beim Bau nicht mitgefuehrt und hier nachgetragen.
+				// ⚠️ Nur eine SKALIERUNG, keine Potenz: die wirkt nichtlinear und wuerde genau die Rinnen
+				// verzerren, um deren willen man erodiert. Der Preis steht in den Zahlenkaesten.
 				if (v.eroPull) {
-					// 💣 GEMESSEN WIRD, WAS DER LESEWEG HERAUSGIBT -- also `Raster × Gipfelfenster`, nicht
-					// das Raster allein. Erst am Raster skaliert lag das Maximum bis zu 48,5 % daneben:
-					// das Rastermaximum liegt an einer Stelle, an der das Fenster kleiner als 1 ist, und
-					// die zweite Daempfung frisst genau diese Differenz. Es ist derselbe Fehler wie eine
-					// Zahl, die vor der Rundung stimmt -- gemessen werden muss die Groesse, die der
-					// Aufrufer sieht. `er.gipfel[k]` ist dieses Fenster, je Zelle, schon vorberechnet.
+					// Reine SKALIERUNG des Gelaendes, keine Potenz: die wirkt nichtlinear und wuerde
+					// genau die Rinnen verzerren, um deren willen man erodiert. Der Sockel ist nicht
+					// betroffen -- er liegt gar nicht im Raster.
 					let hoch = 0;
 					for (let k = 0; k < m.erosion.hoehe.length; k++) {
-						if (!m.erosion.drin[k]) { continue; }
-						const gelesen = m.erosion.hoehe[k] * m.erosion.gipfel[k];
-						if (gelesen > hoch) { hoch = gelesen; }
+						if (m.erosion.drin[k] && m.erosion.hoehe[k] > hoch) { hoch = m.erosion.hoehe[k]; }
 					}
 					const ziel = Number(m.terrain.max) > 0 ? Number(m.terrain.max) : 0;
 					if (hoch > 1e-6 && ziel > 0) {
-						const s = ziel / hoch;
-						for (let k = 0; k < m.erosion.hoehe.length; k++) { m.erosion.hoehe[k] *= s; }
-						m.erosion.skala = s;
+						const sk = ziel / hoch;
+						for (let k = 0; k < m.erosion.hoehe.length; k++) { m.erosion.hoehe[k] *= sk; }
+						m.erosion.skala = sk;
 					}
 				}
 			} else {
@@ -880,85 +713,67 @@
 			}
 			zeiten.erosion += performance.now() - t;
 
-			// Messungen -- EINMAL fuer "heute", danach je Durchgang fuer die drei Stufen
+			// STUFE 3 -- Flusstaeler ZULETZT. Der Talboden wird aus dem EROSDIERTEN Feld bestimmt.
+			t = performance.now();
+			if (v.talAn && m.rivers.length && m.field) {
+				m.courses = buildEcosystemRiverCourses(m.field, m.rivers, q.erosion, m.stack.peakWindow.points,
+					{ width: v.talBreite, bachShare: 0.5 });
+				m.valley = buildEcosystemValleyIndex(m.courses.segments, { depthShare: v.talTiefe });
+			} else {
+				m.courses = null; m.valley = null;
+			}
+			zeiten.tal += performance.now() - t;
+
 			if (!m.heute) {
 				m.heute = messen(m, q.rauschHeute);           // Rauschfeld: vergleichbar mit den Reglern
-				m.voll = messen(m, q.heute);                  // volles Feld: nur fuer die Graustufe
+				m.voll = messen(m, q.heute);                  // volles Feld: fuer die Graustufe
 				m.gipfelMax = messen(m, q.gipfel).max;
 			}
-			const mKamm = messen(m, q.kamm);
-			const mTal = messen(m, q.tal);
-			const mEro = messen(m, q.erosion);
 
-			// 🔴 DIESELBE Referenz fuer ALLE Stufen, sonst vergleicht man vier Skalen.
-			// Das Haekchen entscheidet, WELCHE: das Gelaende (dann klippen die Gipfel weiss und man
-			// sieht die Formaenderung) oder das Gesamtmaximum (dann ueberstrahlt ein 10.918er Gipfel
-			// alles -- genau das Bild, in dem der Anwuchs unsichtbar bleibt).
+			// 🔴 DIESELBE Referenz wie das Gelaende von heute -- sonst ist kein Vergleich moeglich.
 			const reference = $("kam-terrain").checked ? Math.max(1, m.heute.max) : Math.max(1, m.voll.max);
 
 			t = performance.now();
 			const zeigeHuelle = $("kam-huelle").checked && m.kamm;
-			const r0 = malen(m, $("c-heute-" + idx),
+			const r = malen(m, $("c-" + idx),
 				zeigeHuelle
 					? function (x, y) {
 						if (!pointInGeometry([x, y], m.areas[0].geometry)) { return 0; }
 						return Math.max(0.02, ecosystemKammEnvelope(m.kamm, x, y));
 					}
-					: q.heute,
+					: q.ende,
 				zeigeHuelle ? 1 : reference);
-			const r1 = malen(m, $("c-kamm-" + idx), q.kamm, reference);
-			const r2 = malen(m, $("c-tal-" + idx), q.tal, reference);
-			const r3 = malen(m, $("c-erosion-" + idx), q.erosion, reference);
-			zeiten.malen += r0.ms + r1.ms + r2.ms + r3.ms;
+			zeiten.malen += r.ms;
 
-			const p = profil(m, $("p-" + idx), q);
-
-			// Fusszeilen und Marken
-			$("t-heute-" + idx).innerHTML = zeigeHuelle ? "0 am Rand &rarr; 1 auf dem Kamm"
-				: "Gelaende max " + fmt(m.heute.max) + " &middot; &Oslash; " + fmt(m.heute.mean);
-			$("f-heute-" + idx).innerHTML = zeigeHuelle
-				? "Raster " + ECOSYSTEM_KAMM_GRID + "&times;" + ECOSYSTEM_KAMM_GRID + " &middot; Blur <b>" + fmt(v.blur, 1) + " E</b>"
-				: "Potenz <b>" + fmt(m.messfeld.noiseExponent, 2) + "</b> &middot; " + fmt(r0.ms, 0) + " ms";
-			$("t-kamm-" + idx).innerHTML = m.kamm ? "voll max " + fmt(mKamm.max) + " &middot; &Oslash; " + fmt(mKamm.mean) : "&mdash; aus &mdash;";
-			$("f-kamm-" + idx).innerHTML = m.kamm
-				? "Potenz <b>" + fmt(m.neu.exponent, 2) + "</b>" + (v.solve ? "" : " (<b>ohne</b> Neusuche)") + " &middot; " + fmt(r1.ms, 0) + " ms"
-				: "&nbsp;";
-			$("t-tal-" + idx).innerHTML = m.valley ? "voll max " + fmt(mTal.max) + " &middot; &Oslash; " + fmt(mTal.mean) : "&mdash; aus &mdash;";
-			$("f-tal-" + idx).innerHTML = m.courses
-				? "<b>" + m.courses.pieces.length + "</b> Laeufe &middot; <b>" + m.courses.segments.length + "</b> Segmente &middot; " + fmt(r2.ms, 0) + " ms"
-				: "&nbsp;";
-			$("t-erosion-" + idx).innerHTML = m.erosion ? "voll max " + fmt(mEro.max) + " &middot; &Oslash; " + fmt(mEro.mean) : "&mdash; aus &mdash;";
+			// Fusszeile
+			const teile = [];
+			teile.push(m.kamm ? "Kamm <b>an</b> (Blur " + fmt(v.blur, 1) + " E" + (v.kammGipfel ? ", mit Gipfeln" : ", nur Kurve") + ", Potenz " + fmt(m.neu.exponent, 2) + ")" : "Kamm <b>aus</b>");
 			if (m.erosion) {
 				const bil = erosionBilanz(m.erosion);
-				$("f-erosion-" + idx).innerHTML = "Abtrag <b>" + fmt(m.erosion.abtrag / 1000) + "k</b> &middot; Auftrag <b>"
-					+ fmt(m.erosion.auftrag / 1000) + "k</b> &middot; Rand <b>" + fmt(bil.randMax, 3) + "</b>"
-					+ (m.erosion.skala ? " &middot; &times;<b>" + fmt(m.erosion.skala, 2) + "</b>" : "")
-					+ " &middot; " + fmt(r3.ms, 0) + " ms";
-			} else {
-				$("f-erosion-" + idx).innerHTML = "&nbsp;";
-			}
-			$("p-note-" + idx).textContent = p ? "Sehne quer zum Kamm, " + fmt(p.laenge, 1) + " E in der Flaeche" : "";
+				teile.push("Erosion <b>" + fmt(v.tropfen) + "</b> Tropfen (Abtrag " + fmt(m.erosion.abtrag / 1000) + "k, Rand " + fmt(bil.randMax, 3)
+					+ (m.erosion.skala ? ", &times;" + fmt(m.erosion.skala, 2) : "") + ")");
+			} else { teile.push("Erosion <b>aus</b>"); }
+			teile.push(m.courses ? "Taeler <b>" + m.courses.pieces.length + "</b> Laeufe / " + m.courses.segments.length + " Segmente" : "Taeler <b>aus</b>");
+			teile.push("gemalt in <b>" + fmt(r.ms, 0) + " ms</b>");
+			$("f-" + idx).innerHTML = teile.join(" &nbsp;·&nbsp; ");
 
-			// Die Zahlenkaesten: was die Kette mit den zwei EINGESTELLTEN Werten macht.
-			// 💣 Verglichen wird das GELAENDE (Rauschfeld), nicht das volle Feld -- sonst ueberdeckt
-			// ein Gipfel alles. Fuer die Stufen 2 und 3 ist der Gelaendeanteil das Feld minus Gipfel.
+			// Zahlen: was die Kette mit den zwei EINGESTELLTEN Werten macht.
+			// 💣 Verglichen wird das GELAENDE (ohne Gipfelbuckel), nicht das volle Feld.
 			const gelKamm = m.kamm ? messen(m, q.rauschKamm) : m.heute;
-			const gelTal = messen(m, function (x, y) { const d = q.tal(x, y) - q.gipfel(x, y); return d > 0 ? d : 0; });
-			// 🪤 Am RASTER, nicht ueber messen() -- siehe messenAmRaster(). Ohne Erosion faellt es auf die
-			// Talstufe zurueck, damit die Zeile nicht leer bleibt.
-			const gelEro = m.erosion ? messenAmRaster(m.erosion) : gelTal;
+			const gelEnde = m.erosion
+				? messenAmRaster(m.erosion)
+				: messen(m, function (x, y) { const d = q.ende(x, y) - q.gipfel(x, y); return d > 0 ? d : 0; });
 			const vz = (val) => (val >= 0 ? "+" : "−") + fmt(Math.abs(val), 1) + " %";
 			const gut = (val) => (Math.abs(val) <= 5 ? " kam-fact--gut" : "");
 			const dMax = (x) => (x / Math.max(1, m.terrain.max) - 1) * 100;
 			const dMean = (x) => (x / Math.max(1, m.terrain.mean) - 1) * 100;
-			const gipfelNachher = messen(m, q.erosion).max;
+			const endeMax = messen(m, q.ende).max;
 			$("facts-" + idx).innerHTML = [
 				["eingestellt", "max " + fmt(m.terrain.max) + " / &Oslash; " + fmt(m.terrain.mean), ""],
 				["Gelaende heute", "max " + vz(dMax(m.heute.max)) + " / &Oslash; " + vz(dMean(m.heute.mean)), gut(dMean(m.heute.mean))],
 				["nach Kamm-Anwuchs", "max " + vz(dMax(gelKamm.max)) + " / &Oslash; " + vz(dMean(gelKamm.mean)), gut(dMean(gelKamm.mean))],
-				["nach Taelern", "max " + vz(dMax(gelTal.max)) + " / &Oslash; " + vz(dMean(gelTal.mean)), gut(dMean(gelTal.mean))],
-				["nach Erosion", "max " + vz(dMax(gelEro.max)) + " / &Oslash; " + vz(dMean(gelEro.mean)), gut(dMean(gelEro.mean))],
-				["hoechster Punkt heute / Ende", fmt(m.voll.max) + " / " + fmt(gipfelNachher), ""],
+				["am Ende der Kette", "max " + vz(dMax(gelEnde.max)) + " / &Oslash; " + vz(dMean(gelEnde.mean)), gut(dMean(gelEnde.mean))],
+				["hoechster Punkt heute / Ende", fmt(m.voll.max) + " / " + fmt(endeMax), ""],
 				["hoechster Gipfel (unberuehrt)", fmt(m.gipfelMax) + " Schritt", ""],
 			].map(function (kv) {
 				return '<div class="kam-fact' + kv[2] + '"><div class="kam-fact__k">' + kv[0] + '</div><div class="kam-fact__v">' + kv[1] + "</div></div>";
@@ -967,8 +782,8 @@
 
 		$("kam-status").classList.remove("kam-status--busy");
 		$("kam-status").innerHTML = "3 Gebirge &middot; Kammhuelle <b>" + fmt(zeiten.kamm, 0)
-			+ " ms</b> &middot; Potenzsuche <b>" + fmt(zeiten.suche, 0) + " ms</b> &middot; Taeler <b>"
-			+ fmt(zeiten.tal, 0) + " ms</b> &middot; Erosion <b>" + fmt(zeiten.erosion, 0) + " ms</b> &middot; 12 Bilder <b>"
+			+ " ms</b> &middot; Potenzsuche <b>" + fmt(zeiten.suche, 0) + " ms</b> &middot; Erosion <b>"
+			+ fmt(zeiten.erosion, 0) + " ms</b> &middot; Taeler <b>" + fmt(zeiten.tal, 0) + " ms</b> &middot; 3 Bilder <b>"
 			+ fmt(zeiten.malen, 0) + " ms</b> &nbsp;|&nbsp; braun umrandet = &Oslash; liegt innerhalb 5 % des eingestellten Werts";
 	}
 
@@ -977,7 +792,16 @@
 		$("kam-status").classList.add("kam-status--busy");
 		$("kam-status").innerHTML = "rechnet &hellip;";
 		// Zwei Bilder Luft, damit der Hinweis wirklich steht, bevor der Hauptthread blockiert.
-		requestAnimationFrame(() => requestAnimationFrame(zeichnen));
+		// 🪤 MIT RUECKFALL AUF setTimeout: `requestAnimationFrame` feuert in einem VERSTECKTEN Tab
+		// gar nicht. Ohne den Rueckfall bleibt die Seite auf "rechnet ..." stehen, sobald jemand den
+		// Tab wechselt, waehrend sie rechnet -- und das sieht wie ein Absturz aus, obwohl nichts
+		// kaputt ist. Beim Pruefen im Browser-Pane (dort ist der Tab per Bauart versteckt) hat genau
+		// das 30 Sekunden lang wie ein Haenger ausgesehen.
+		// 💣 Genau EINER von beiden darf laufen -- sonst rechnet die Kette doppelt.
+		let gestartet = false;
+		const einmal = () => { if (!gestartet) { gestartet = true; zeichnen(); } };
+		requestAnimationFrame(() => requestAnimationFrame(einmal));
+		setTimeout(einmal, 120);
 	}
 
 	window.avesmapsMockupRepaint = zeichnen;
@@ -989,7 +813,8 @@
 		$(id).addEventListener("input", marken);
 		$(id).addEventListener("change", spaeter);
 	});
-	["kam-an", "kam-solve", "tal-an", "ero-an", "ero-pull", "kam-terrain", "kam-peaks", "kam-curve", "kam-rivers", "kam-huelle"].forEach(function (id) {
+	["kam-an", "kam-gipfel", "kam-solve", "tal-an", "ero-an", "ero-pull",
+	 "kam-terrain", "kam-peaks", "kam-curve", "kam-rivers", "kam-huelle"].forEach(function (id) {
 		$(id).addEventListener("change", spaeter);
 	});
 	spaeter();

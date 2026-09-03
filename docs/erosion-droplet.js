@@ -30,6 +30,13 @@
 // ist Zeichen fuer Zeichen dieselbe Bauform wie der Kamm-Anwuchs daneben.
 // Fuer den RAND bleibt ein harter Riegel: eine Zelle, deren Ausgangshoehe 0 ist, wird nicht angefasst.
 //
+// 🔴 UND DER SOCKEL LOEST DEN LETZTEN WIDERSPRUCH. Ohne die Gipfel im Feld sieht das Wasser die Berge
+// nicht und graebt keine einzige Rinne an einem Hang -- mit ihnen IM Raster ist der Gipfel der
+// Rasteraufloesung ausgeliefert (gemessen: 968 Schritt Verlust an der Schwarzen Sichel; kein Riegel
+// heilt das, weil schon der bilineare Lesekern die Nachbarzellen hineinmischt). Also beides: die
+// Gipfelbuckel reisen als `sockel` mit, werden bei jeder Hoehen- und Gefaelleabfrage ADDIERT und nie
+// veraendert. Der Tropfen sieht den Berg, der Berg bleibt.
+//
 // Alles in KARTENkoordinaten [x, y], 1 Einheit = 3 Meilen = 3.000 Schritt (AGENTS.md §5).
 // Kein DOM, kein Leaflet, kein Modulzustand. Laeuft unter Node und im Browser.
 
@@ -63,6 +70,9 @@ const EROSION_START_SPEED = 1;
 // Ab welchem Anteil der Maximalhoehe eine Aenderung voll wirkt. Darunter wird sie linear
 // heruntergezogen, damit der Auslauf zum Rand hin unberuehrt bleibt (siehe Kopf).
 const EROSION_EDGE_SHARE = 0.08;
+// Unterhalb dieses Gipfelfensters wird gar nichts mehr geaendert (nur wenn `peakGuard` an ist, also
+// wenn die Erosion auf dem VOLLEN Feld laeuft). Quadratisch im Abstand: 0,25 = halber Fensterradius.
+const EROSION_PEAK_GUARD = 0.25;
 
 // Seedfester Zufall. 🔴 KEIN Math.random(): dieselbe Begruendung wie im Feldmodul -- echter Zufall
 // liefert bei jedem Lauf ein anderes Gebirge und damit andere Reisezeiten.
@@ -94,8 +104,12 @@ function buildErosionField(bounds, sampler, options) {
 	const start = new Float64Array(size * size);
 	const drin = new Uint8Array(size * size);
 	const gipfel = new Float64Array(size * size);
+	// 🔴 DER SOCKEL -- das, was das Wasser SIEHT, aber nicht anfassen darf: die Gipfelbuckel.
+	// Er wird zur Hoehe addiert, wenn ein Tropfen Hoehe und Gefaelle liest, und NIE veraendert.
+	const sockel = new Float64Array(size * size);
 	const inside = typeof opts.inside === "function" ? opts.inside : () => true;
 	const win = opts.peakWindow && typeof opts.peakWindow.sample === "function" ? opts.peakWindow : null;
+	const sockelFn = typeof opts.sockel === "function" ? opts.sockel : null;
 	let hmax = 0;
 	for (let j = 0; j < size; j++) {
 		const y = bounds.min_y + j * stepY;
@@ -110,18 +124,21 @@ function buildErosionField(bounds, sampler, options) {
 			hoehe[k] = h > 0 ? h : 0;
 			start[k] = hoehe[k];
 			gipfel[k] = win ? win.sample(x, y) : 1;
+			if (sockelFn) { sockel[k] = sockelFn(x, y); }
 			if (hoehe[k] > hmax) { hmax = hoehe[k]; }
 		}
 	}
 
 	return {
-		hoehe, start, drin, gipfel,
+		hoehe, start, drin, gipfel, sockel,
 		size,
 		minX: bounds.min_x,
 		minY: bounds.min_y,
 		stepX: stepX > 0 ? stepX : 1,
 		stepY: stepY > 0 ? stepY : 1,
 		hmax,
+		// Laeuft die Erosion auf dem vollen Feld (Gipfel drin)? Dann braucht sie den Gipfel-Riegel.
+		peakGuard: !!opts.peakGuard,
 		// Wie stark eine Aenderung an dieser Zelle ueberhaupt wirken darf.
 		//
 		// 🔴 ZWEI STUFEN, und die erste ist ein RIEGEL, keine Daempfung (siehe Kopf): eine Zelle mit
@@ -133,7 +150,21 @@ function buildErosionField(bounds, sampler, options) {
 		// keine Stufe bekommt.
 		erlaubt(k) {
 			if (!(this.start[k] > 0)) {
-				return 0;                                    // Riegel: hier war nichts, hier bleibt nichts
+				return 0;                                    // Riegel 1: hier war nichts, hier bleibt nichts
+			}
+			// 🔴 RIEGEL 2 -- DER GIPFEL, und er ist der Grund, warum die Erosion auf dem VOLLEN Feld
+			// laufen darf. Ohne ihn muss man die Gipfelbuckel herausrechnen, und dann fliesst kein
+			// Tropfen von einem Gipfel herab: das Wasser sieht den Berg gar nicht. Mit ihm sieht es ihn,
+			// laeuft an ihm hinunter und gräbt seine Rinnen -- nur AENDERN darf es ihn nicht.
+			//
+			// 💣 HART, nicht als Faktor. Genau daran ist der erste Entwurf gescheitert (siehe Kopf):
+			// 20.000 Tropfen summieren jeden Restfaktor auf, ein 3.000er las 2.944.
+			// 💣 UND MIT LUFT: die Schwelle riegelt eine Zone, die BREITER ist als eine Rasterzelle --
+			// sonst aendert sich die Nachbarzelle und der bilineare Lesekern zieht das in den Gipfel
+			// (das 62-Schritt-Leck). Das Gipfelfenster waechst quadratisch im Abstand, EROSION_PEAK_GUARD
+			// = 0,25 entspricht also dem halben Fensterradius.
+			if (this.peakGuard && this.gipfel[k] < EROSION_PEAK_GUARD) {
+				return 0;
 			}
 
 			return this.hmax > 0 ? Math.min(1, this.start[k] / (EROSION_EDGE_SHARE * this.hmax)) : 0;
@@ -181,11 +212,17 @@ function erosionHeightAndGradient(er, fx, fy) {
 	if (j < 0) { j = 0; } else if (j > size - 2) { j = size - 2; }
 	const tx = fx - i;
 	const ty = fy - j;
-	const g = er.hoehe;
-	const nw = g[j * size + i];
-	const ne = g[j * size + i + 1];
-	const sw = g[(j + 1) * size + i];
-	const se = g[(j + 1) * size + i + 1];
+	// 🔴 HOEHE + SOCKEL. Das ist der ganze Trick, mit dem sich die zwei Anforderungen vertragen:
+	// der Tropfen SIEHT den Berg (er laeuft an seiner Flanke hinunter und graebt dort seine Rinne),
+	// aber der Berg LIEGT NICHT im Raster und kann deshalb weder abgetragen noch von einer Skalierung
+	// verzogen werden. Ein Gipfel IM Raster ist der Rasteraufloesung ausgeliefert -- gemessen: die
+	// Schwarze Sichel verlor so 968 Schritt an ihrem hoechsten Punkt, und kein Riegel heilt das, weil
+	// schon der bilineare Lesekern die Nachbarzellen hineinmischt.
+	const g = er.hoehe, so = er.sockel;
+	const nw = g[j * size + i] + so[j * size + i];
+	const ne = g[j * size + i + 1] + so[j * size + i + 1];
+	const sw = g[(j + 1) * size + i] + so[(j + 1) * size + i];
+	const se = g[(j + 1) * size + i + 1] + so[(j + 1) * size + i + 1];
 
 	return {
 		height: nw * (1 - tx) * (1 - ty) + ne * tx * (1 - ty) + sw * (1 - tx) * ty + se * tx * ty,
@@ -362,7 +399,7 @@ if (typeof module !== "undefined" && module.exports) {
 	module.exports = {
 		EROSION_GRID, EROSION_RADIUS, EROSION_INERTIA, EROSION_CAPACITY, EROSION_MIN_SLOPE,
 		EROSION_DEPOSIT, EROSION_ERODE, EROSION_EVAPORATE, EROSION_GRAVITY, EROSION_MAX_STEPS,
-		EROSION_EDGE_SHARE,
+		EROSION_EDGE_SHARE, EROSION_PEAK_GUARD,
 		erosionRandom, buildErosionField, sampleErosionField, erosionHeightAndGradient,
 		erosionApply, runErosionDroplets, erosionBilanz,
 	};
