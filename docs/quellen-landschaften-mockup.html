@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Quellen an der Landschaft — Mockup</title>
+<!-- Schritt 5 des Quellen-Umbaus (Entwurf docs/superpowers/specs/2026-09-03-quellen-landschaften-design.md).
+     Kein neues CSS -- die Kaesten sind die bestehenden (feature-sources.css, location-report-dialog.css,
+     editor-page.css); deshalb traegt dieses Mockup KEINEN VERTRAG-Block. Es zeigt, WO der Kasten steht,
+     WOHIN er schreibt und was er dabei sagt. Gebaut aus dem echten Bauteil (renderFeatureSourceEditorHtml). -->
+<link rel="stylesheet" href="/css/base/fonts.css">
+<link rel="stylesheet" href="/css/base/tokens.css">
+<link rel="stylesheet" href="/css/components/editor-page.css">
+<link rel="stylesheet" href="/css/components/location-report-dialog.css">
+<link rel="stylesheet" href="/css/features/feature-sources.css">
+<style>
+	body { background: var(--color-panel, #f6f1e7); color: var(--color-text); padding: 18px 22px; font: 13px/1.45 system-ui, sans-serif; max-width: 1180px; margin: 0 auto; }
+	h1 { font-size: 20px; margin: 0 0 4px; } h2 { font-size: 14px; margin: 26px 0 8px; border-bottom: 1px solid var(--color-divider, #cbbfae); padding-bottom: 4px; }
+	.zwei { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; align-items: start; }
+	.dialog { border: 1px solid var(--color-border, #cbbfae); border-radius: var(--radius-md, 6px); background: var(--color-panel, #fff); padding: 12px 14px; max-width: 560px; }
+	.dialog h3 { margin: 0 0 8px; font-size: 14px; }
+	.feld { margin: 0 0 8px; } .feld span { display: block; font-size: 11px; color: var(--color-text-muted); } .feld input { width: 100%; box-sizing: border-box; }
+	.hinweis { font-size: 11px; color: var(--color-text-muted); margin: 0 0 6px; }
+	.wohin { font-size: 12px; margin: 2px 0 8px; } .wohin b { color: var(--color-accent-brown, #7a5a2e); }
+	table.mess { border-collapse: collapse; font-size: 12px; } table.mess td, table.mess th { border-bottom: 1px solid var(--color-divider, #cbbfae); padding: 3px 12px 3px 0; text-align: left; }
+	.frage { background: var(--color-panel-muted, #efe8dc); border-radius: var(--radius-md, 6px); padding: 8px 12px; margin-top: 8px; }
+	.label-edit-section { margin-top: 10px; }
+</style>
+</head>
+<body>
+<h1>Quellen an der Landschaft</h1>
+<p>Schritt 5 des Quellen-Umbaus: <b>die Fläche trägt die Quellen, die Beschriftung zeigt sie.</b> Eine an eine Landschaft gebundene Beschriftung hat keine eigenen Quellen mehr — ihre Quellen sind die der Fläche (<code>ecosystem</code> + <code>region_public_id</code>). Eine freie Beschriftung behält ihre (<code>region</code> + <code>public_id</code>). Nie beides.</p>
+
+<h2>Gemessen (Live-Nutzlast 03.09.2026)</h2>
+<table class="mess">
+	<tr><th>Beschriftungen · gebunden · frei</th><td>1.011 · <b>782</b> · 229</td></tr>
+	<tr><th>Gebundene Beschriftungen mit Quellen → Ziel-Landschaften</th><td><b>487 → 477</b> (8 Flächen mit 2–3 quellentragenden Beschriftungen)</td></tr>
+	<tr><th>Verweise vor · nach Zusammenführung · Dubletten</th><td>6.976 · 6.811 · 165</td></tr>
+	<tr><th>Freie Beschriftungen mit Quellen (bleiben)</th><td><b>189</b> · 1.316 Verweise (Berggipfel 43, Wald 22, Vulkan 19, Fluss 12 …)</td></tr>
+	<tr><th>Landschaften · ohne Beschriftung</th><td>1.415 · <b>646</b> — die können heute gar keine Quelle tragen</td></tr>
+</table>
+
+<h2>1 · Beschriftungsdialog — gebundene Beschriftung „Ochsenwasser“ (See)</h2>
+<div class="zwei">
+	<div class="dialog">
+		<h3>Beschriftung bearbeiten</h3>
+		<div class="feld"><span>Text</span><input value="Ochsenwasser" readonly></div>
+		<div class="feld"><span>Art</span><input value="See" readonly></div>
+		<p class="hinweis">… Darstellung, Wiki-Zuweisung, Fläche (wie bisher) …</p>
+		<div class="label-edit-section"><div class="label-edit-section-title">Quellen</div>
+			<p class="wohin">Quellen der Landschaft <b>„Ochsenwasser“</b> — sie gelten für die Fläche und alle ihre Beschriftungen.</p>
+			<p class="location-report-form__status">Quellen wirken <b>sofort</b> — sie brauchen kein „Speichern“.</p>
+			<div id="k1"></div>
+		</div>
+	</div>
+	<div>
+		<p><b>Wohin schreibt er?</b> Auf <code>ecosystem</code> + <code>region_public_id</code> der Fläche. Der Getter liest die Bindung der Beschriftung bei jeder Anfrage; die Zeile darüber sagt es dem Editor, damit er nicht glaubt, nur dieses Schild zu belegen.</p>
+		<p><b>Was zeigt die Datenbox der Beschriftung auf der Karte?</b> Dieselbe Liste — die der Landschaft. Nach dem Umzug also genau das, was sie heute zeigt.</p>
+		<div class="frage"><b>Frage 1:</b> Wird eine freie Beschriftung an eine Fläche gebunden, wandern ihre Quellen zur Fläche und bleiben beim Lösen dort (sie beschrieben die Landschaft, nicht das Schild). Einverstanden — oder beim Lösen zurück ans Schild?</div>
+	</div>
+</div>
+
+<h2>2 · Landschaften-Editor und Flächendialog — die Fläche selbst, auch ohne Beschriftung</h2>
+<div class="zwei">
+	<div class="dialog">
+		<h3>Landschaft „Grüne Ebene“ (Topographie) — ohne Beschriftung</h3>
+		<p class="hinweis">… Name, Art, Wiki-Zuweisung, Darstellung (wie bisher) …</p>
+		<div class="dt-grp">Quellen</div>
+		<p class="location-report-form__status">Quellen wirken <b>sofort</b> — sie brauchen kein „Speichern“.</p>
+		<div id="k2"></div>
+	</div>
+	<div>
+		<p><b>Heute</b> steht hier der Satz „Quellen hängen an der Beschriftung. Diese Fläche trägt keine — lege im Kartendialog eine an.“ — 646 Flächen können keine Quelle tragen, und wer im Landschaften-Editor eine einträgt, schreibt sie an ein Schild, das er nicht sieht.</p>
+		<p><b>Neu:</b> der Kasten montiert auf die Fläche (<code>ecosystem</code> + <code>public_id</code>), im Landschaften-Editor wie im Flächendialog der Karte (dort war er seit dem 26.08. eine leere Hülle). Er steht als letzter Block, unter der Wiki-Zuweisung.</p>
+		<div class="frage"><b>Frage 2:</b> Der Wiki-Publikationsabgleich schreibt Quellen für Landschafts-Artikel heute an die Beschriftung. Er zielt künftig auf die Fläche, wenn die Beschriftung gebunden ist — sonst holte der nächste „Syncen“ alles zurück. Das ist Teil dieses Schritts, kein eigener.</div>
+	</div>
+</div>
+
+<h2>3 · Freie Beschriftung „Rakulahöhen“ (Berggipfel) — unverändert</h2>
+<div class="zwei">
+	<div class="dialog">
+		<h3>Beschriftung bearbeiten</h3>
+		<div class="feld"><span>Text</span><input value="Rakulahöhen" readonly></div>
+		<div class="feld"><span>Art</span><input value="Berggipfel" readonly></div>
+		<div class="label-edit-section"><div class="label-edit-section-title">Quellen</div>
+			<p class="location-report-form__status">Quellen wirken <b>sofort</b> — sie brauchen kein „Speichern“.</p>
+			<div id="k3"></div>
+		</div>
+	</div>
+	<div>
+		<p>Keine Fläche, keine Umleitung: <code>region</code> + <code>public_id</code> wie bisher — 189 solche Beschriftungen mit 1.316 Verweisen bleiben, wo sie sind.</p>
+		<p><b>Ausrollen:</b> erst Leser, Schreiber und Abgleich in einem Commit (sichtbar ändert sich nichts, es liegt noch alles an den Schildern), dann der Umzug als Übernahme-Vorschau in deiner Sitzung: Trockenlauf mit den Zahlen von oben, scharf nur ausdrücklich.</p>
+	</div>
+</div>
+
+<script src="/js/ui/feature-source-markup.js"></script>
+<script src="/js/review/review-feature-sources.js"></script>
+<script>
+	const q = (id, label, type, official, pages, kind) => ({ source_id: id, url: "https://x/" + id, label: label, type: type, official: official, origin: "manual", pages: pages || "", reference_kind: kind || "", license: "", attribution: "", usage_count: 3, own_fields: [], created: {} });
+	const ochsenwasser = { wiki_url: "https://de.wiki-aventurica.de/wiki/Ochsenwasser", sources: [q(1, "Die Grafschaft Heldentrutz", "regionalspielhilfe", true, "16, 18", "ergaenzend"), q(2, "Aventurischer Bote Nr. 133", "aventurischer_bote", true, "17", "ausfuehrlich")] };
+	document.getElementById("k1").innerHTML = renderFeatureSourceEditorHtml(ochsenwasser, {});
+	document.getElementById("k2").innerHTML = renderFeatureSourceEditorHtml({ wiki_url: "https://de.wiki-aventurica.de/wiki/Gr%C3%BCne_Ebene", sources: [] }, {});
+	document.getElementById("k3").innerHTML = renderFeatureSourceEditorHtml({ wiki_url: "", sources: [q(3, "Geographia Aventurica", "regionalspielhilfe", true, "42")] }, {});
+</script>
+</body>
+</html>
