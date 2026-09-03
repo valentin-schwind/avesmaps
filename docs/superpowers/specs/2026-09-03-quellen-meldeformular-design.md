@@ -416,7 +416,10 @@ zu erwarten; der Test hält es fest (§7).
 11. 💣 **Die Falte in der Liste überlebt den Poll.** Die Karte wird beim Live-Poll (45 s) neu
     gezeichnet — eine offene Falte muss ihren Zustand vor dem Neuzeichnen retten (Merker am
     `details`-Element lesen, wie die Auswahl der Zoombänder-Tafel).
-12. 💣 **Die Lizenztafel gibt es EINMAL** (`featureSourceLicenseTable`, `feature-source-markup.js`).
+12. 💣 **Der Warnton auf dem Panel ist der WEICHE** (`--color-warning-soft-text`). `-strong-text` ist Text AUF einer
+    Warnfläche (dunkel `#241d14`) und misst auf dem Panel 1,34:1 — im Browser gemessen am 03.09.2026, bevor es
+    jemand las. Gilt der Absage beim Melder wie jedem Warnsatz im Backend.
+13. 💣 **Die Lizenztafel gibt es EINMAL** (`featureSourceLicenseTable`, `feature-source-markup.js`).
     Das Meldeformular baut seine Auswahl daraus, nicht aus einer Kopie — die Falle der doppelten
     Liste, die dieses Haus bei der Seitenkürzung schon bezahlt hat.
 

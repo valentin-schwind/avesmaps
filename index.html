@@ -1292,28 +1292,27 @@
 					<div class="report-section">
 					<div class="report-section__title" data-i18n="report.sectionSources">Ich habe folgende Quellen</div>
 					<div class="location-report-form__field report-sources">
-						<span id="location-report-sources-label" data-i18n="report.sourcesLabel">Quellen * (mind. eine — Regionalband, Abenteuer, …)</span>
+						<span id="location-report-sources-label" data-i18n="report.sourcesLabel">Quellen * — Link zur Seite, in der es steht (Wiki-Artikel, F-Shop, Fanwiki)</span>
 						<div id="location-report-sources-list" class="report-sources__list"></div>
+						<!-- Der Link ist die Quelle (Entwurf 2026-09-03-quellen-meldeformular): EIN Feld nimmt Link oder Titel,
+						     ein Titel zaehlt nur mit Treffer aus dem Katalog. Art und „offiziell" gehoeren dem Korpus und werden
+						     im Backend erkannt; was der Melder sonst weiss, steht als Angebot in der Falte darunter. -->
 						<div class="report-sources__add">
 							<div class="report-sources__add-row1">
-								<input id="report-source-label" type="text" maxlength="200" placeholder="Quellenname (z. B. Die Flusslande)" data-i18n-placeholder="report.sourceNamePlaceholder" />
+								<input id="report-source-ref" type="text" maxlength="500" autocomplete="off" spellcheck="false" placeholder="Link einfügen — oder Titel tippen und aus dem Katalog wählen" data-i18n-placeholder="report.sourceRefPlaceholder" />
 								<input id="report-source-pages" type="text" maxlength="120" placeholder="Seite(n)" data-i18n-placeholder="report.pagesPlaceholder" />
-								<select id="report-source-type">
-									<option value="regionalspielhilfe">Regionalspielhilfe</option>
-									<option value="abenteuer">Abenteuer</option>
-									<option value="aventurischer_bote">Aventurischer Bote</option>
-									<option value="quellenband">Quellenband</option>
-									<option value="roman">Roman</option>
-									<option value="briefspiel">Briefspiel</option>
-									<option value="regelbuch">Regelbuch</option>
-									<option value="sonstiges" selected>Sonstiges</option>
-								</select>
-							</div>
-							<input id="report-source-url" type="url" inputmode="url" maxlength="500" placeholder="Link (F-Shop / Wiki-Seite) – optional" data-i18n-placeholder="report.sourceUrlPlaceholder" />
-							<div class="report-sources__add-row2">
-								<select id="report-source-kind" title="Wie wird der Ort in dieser Quelle behandelt? Ausführlich/Ergänzend erscheint im Offiziell-Reiter, Erwähnung im Erwähnt-Reiter."><option value="" selected>Abdeckung: Standardquelle</option><option value="ausfuehrlich">Ausführliche Quellen</option><option value="ergaenzend">Ergänzende Quellen</option><option value="erwaehnung">Erwähnungen</option></select> <label class="report-sources__official"><input id="report-source-official" type="checkbox" /> <span data-i18n="report.sourceOfficialLabel">offiziell</span></label>
 								<button type="button" id="report-source-add-btn" class="location-report-form__button location-report-form__button--secondary" data-i18n="report.sourceAdd">+ Quelle hinzufügen</button>
 							</div>
+							<details id="report-source-mehr" class="report-sources__mehr">
+								<summary data-i18n="report.sourceMore">Mehr zur Quelle (optional)</summary>
+								<div class="report-sources__mehr-felder">
+									<input id="report-source-title" type="text" maxlength="200" placeholder="Titel — wie die Seite heißt" data-i18n-placeholder="report.sourceTitlePlaceholder" />
+									<select id="report-source-kind" title="Wie wird der Eintrag in dieser Quelle behandelt? Ausführlich/Ergänzend erscheint im Offiziell-Reiter, Erwähnung im Erwähnt-Reiter." data-i18n-title="report.sourceKindHint"><option value="" selected data-i18n="report.sourceKindNone">Abdeckung …</option><option value="ausfuehrlich" data-i18n="report.sourceKind.ausfuehrlich">Ausführlich</option><option value="ergaenzend" data-i18n="report.sourceKind.ergaenzend">Ergänzend</option><option value="erwaehnung" data-i18n="report.sourceKind.erwaehnung">Erwähnung</option></select>
+									<select id="report-source-license" title="Unter welcher Lizenz steht die Quelle? Leer heißt „weiß ich nicht"." data-i18n-title="report.sourceLicenseHint"><option value="" selected data-i18n="report.sourceLicenseNone">Lizenz …</option></select>
+									<input id="report-source-attribution" type="text" maxlength="200" placeholder="Namensnennung, z. B. VolkoV / garetien.de" data-i18n-placeholder="report.sourceAttributionPlaceholder" />
+								</div>
+							</details>
+							<p id="report-source-note" class="report-sources__note" role="status" aria-live="polite" hidden></p>
 						</div>
 					</div>
 					</div>
@@ -3624,6 +3623,7 @@
 		<script src="js/review/review-path-seasons.js"></script>
 		<script src="js/review/review-paths.js"></script>
 		<script src="js/review/review-labels.js"></script>
+		<script src="js/review/meldung-quellen.js"></script>
 		<script src="js/review/review-locations.js"></script>
 		<script src="js/review/review-panels.js"></script>
 		<script src="js/review/review-panels-change-log.js"></script>

@@ -43,13 +43,13 @@ const css = ohneKommentare(read("css", "features", "place-extras.css"));
 // ---------------------------------------------------------------------------------------------
 const ersteFaltung = js.indexOf("detailsGroup(t(");
 assert.ok(ersteFaltung > 0, "es gibt eingeklappte Gruppen");
-["citymap-suggest-title-input", "citymap-suggest-map-url", "citymap-suggest-source-label"].forEach((id) => {
+["citymap-suggest-title-input", "citymap-suggest-map-url", "citymap-suggest-source-ref"].forEach((id) => {
 	const stelle = js.indexOf('fieldMarkup("' + id + '"');
 	assert.ok(stelle > 0, "Pflichtfeld " + id + " wird gebaut");
 	assert.ok(stelle < ersteFaltung, "Pflichtfeld " + id + " steht offen, nicht in einer zugeklappten Gruppe");
 });
 // Und jedes dieser drei traegt wirklich `required` -- sonst prueft nur noch die eigene Liste.
-["citymap-suggest-title-input", "citymap-suggest-map-url", "citymap-suggest-source-label"].forEach((id) => {
+["citymap-suggest-title-input", "citymap-suggest-map-url", "citymap-suggest-source-ref"].forEach((id) => {
 	const block = js.slice(js.indexOf('fieldMarkup("' + id + '"'), js.indexOf('fieldMarkup("' + id + '"') + 400);
 	assert.ok(/\brequired\b/.test(block), id + " ist als required ausgezeichnet");
 });

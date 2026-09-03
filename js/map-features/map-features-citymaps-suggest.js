@@ -65,11 +65,13 @@
 		["katakomben", "Katakomben"], ["schatzkarte", "Schatzkarte"], ["region", "Region"], ["sonstige", "Sonstige"],
 	];
 	var ARTS = [["politisch", "Politisch"], ["derographisch", "Derographisch"], ["topologisch", "Topologisch"], ["skizze", "Skizze"]];
-	var SOURCE_TYPES = [
-		["regionalspielhilfe", "Regionalspielhilfe"], ["abenteuer", "Abenteuer"], ["aventurischer_bote", "Aventurischer Bote"],
-		["quellenband", "Quellenband"], ["roman", "Roman"], ["briefspiel", "Briefspiel"], ["regelbuch", "Regelbuch"],
-		["sonstiges", "Sonstiges"],
-	];
+	// Abdeckung und Lizenz fuer die Falte „Mehr zur Quelle" -- die Lizenzen aus der einen Tafel
+	// (FEATURE_SOURCE_LICENSES, feature-source-markup.js), nie abgeschrieben. Der leere erste Eintrag
+	// heisst „keine Aussage" und ist die Vorgabe, wie im Quellenkasten des Editors.
+	var SOURCE_KINDS = [["", "Abdeckung …"], ["ausfuehrlich", "Ausführlich"], ["ergaenzend", "Ergänzend"], ["erwaehnung", "Erwähnung"]];
+	var SOURCE_LICENSES = [["", "Lizenz …"]].concat(typeof FEATURE_SOURCE_LICENSES === "object"
+		? Object.keys(FEATURE_SOURCE_LICENSES).map(function (key) { return [key, String(FEATURE_SOURCE_LICENSES[key].label || key)]; })
+		: []);
 	// Die drei Eigenschafts-Antworten. "" = unbekannt und ist die VORAUSWAHL: §3.1 sagt, unbekannt ist eine
 	// gültige Antwort, keine Lücke — und ein Melder, der "mehrstöckig" nicht beurteilen kann, soll nichts
 	// behaupten müssen. Ein Default "nein" würde genau die erfundenen Fakten erzeugen, die §3.1 verbietet.
@@ -183,6 +185,7 @@
 	// Travels with the suggestion so the review links THAT row instead of guessing which work a
 	// typed title meant.
 	var suggestPickedSourceId = 0;
+	var suggestPickedLabel = "";
 
 	function ensureDialog() {
 		var overlay = document.getElementById("avesmaps-citymap-suggest");
@@ -210,8 +213,11 @@
 				t("cityMaps.suggestTitlePh", "Gareth — Gesamtplan"), ' required')
 			+ fieldMarkup("citymap-suggest-map-url", t("cityMaps.suggestMapUrl", "Karten-Link (extern)"), "url", 500,
 				t("cityMaps.suggestMapUrlPh", "https://www.ulisses-ebooks.de/de/product/120516/…"), ' inputmode="url" required')
-			+ fieldMarkup("citymap-suggest-source-label", t("cityMaps.suggestSourceName", "Quelle"), "text", 200,
-				t("cityMaps.suggestSourcePh", "Herz des Reiches"), ' required')
+			// 🔴 Der Link ist die Quelle (Entwurf 2026-09-03-quellen-meldeformular §3.2): EIN Feld nimmt die Adresse
+			// oder einen Titel aus der Vorschlagsliste; Art und „offiziell" sind gefallen -- die entscheidet der
+			// Korpus, beim Sichten. Die Regel dahinter ist avesmapsMeldungQuelleAusEingabe (meldung-quellen.js).
+			+ fieldMarkup("citymap-suggest-source-ref", t("cityMaps.suggestSourceRef", "Quelle — Link zur Seite, in der die Karte erschienen ist"), "text", 500,
+				t("cityMaps.suggestSourceRefPh", "https://… — oder Titel tippen und aus dem Katalog wählen"), ' required autocomplete="off" spellcheck="false"')
 			// Quelle vs. Urheber (Owner-Verdacht 2026-07-17, berechtigt): die beiden beissen sich, solange
 			// nichts den Unterschied sagt. Er steht deshalb AM Pflichtfeld und nicht in einer Fussnote --
 			// und der Urheber liegt eingeklappt weit darunter, stoesst also gar nicht mehr damit zusammen.
@@ -221,14 +227,17 @@
 
 			+ detailsGroup(t("cityMaps.suggestGroupSourceMore", "Mehr zur Quelle"),
 				t("cityMaps.suggestWhySource", "Seite und Link ersparen uns das Blättern."),
-				fieldMarkup("citymap-suggest-source-url", t("cityMaps.suggestSourceUrl", "Link zur Quelle (F-Shop / Wiki)"), "url", 500,
-					t("cityMaps.suggestSourceUrlPh", "https://www.ulisses-ebooks.de/de/product/…"), ' inputmode="url"')
-				+ pairMarkup(
+				// Angebote an die Redaktion (§2 Regel 1): sie fuellen im Backend Leeres vor und ueberschreiben nichts.
+				pairMarkup(
 					fieldMarkup("citymap-suggest-source-pages", t("cityMaps.suggestSourcePages", "Seite(n)"), "text", 120,
 						t("cityMaps.suggestPagesPh", "S. 42–43")),
-					selectMarkup("citymap-suggest-source-type", t("cityMaps.suggestSourceType", "Art der Quelle"), SOURCE_TYPES, "sonstiges"))
-				+ '<label class="citymap-suggest__check"><input id="citymap-suggest-source-official" type="checkbox" /> <span>'
-				+ esc(t("cityMaps.suggestSourceOfficial", "offizielle Quelle")) + '</span></label>')
+					selectMarkup("citymap-suggest-source-kind", t("cityMaps.suggestSourceKind", "Abdeckung"), SOURCE_KINDS, ""))
+				+ pairMarkup(
+					fieldMarkup("citymap-suggest-source-title", t("cityMaps.suggestSourceTitle", "Titel — wie die Seite heißt"), "text", 200,
+						t("cityMaps.suggestSourceTitlePh", "Herz des Reiches")),
+					selectMarkup("citymap-suggest-source-license", t("cityMaps.suggestSourceLicense", "Lizenz"), SOURCE_LICENSES, ""))
+				+ fieldMarkup("citymap-suggest-source-attribution", t("cityMaps.suggestSourceAttribution", "Namensnennung"), "text", 200,
+					t("cityMaps.suggestSourceAttributionPh", "z. B. VolkoV / garetien.de")))
 
 			+ detailsGroup(t("cityMaps.suggestGroupMapMore", "Mehr zur Karte"),
 				t("cityMaps.suggestWhyMap", "Je mehr hier steht, desto weniger müssen wir nachschlagen."),
@@ -308,34 +317,24 @@
 		// because ensureDialog builds the overlay exactly once and returns the cached node on every
 		// later open -- so this can never stack a second listener set per open.
 		if (typeof attachSourceAutocomplete === "function") {
-			var sourceLabel = overlay.querySelector("#citymap-suggest-source-label");
+			var sourceLabel = overlay.querySelector("#citymap-suggest-source-ref");
 			if (sourceLabel) {
 				// Typing again means the reporter no longer means the row they picked.
 				sourceLabel.addEventListener("input", function () {
 					suggestPickedSourceId = 0;
+					suggestPickedLabel = "";
 				});
 				attachSourceAutocomplete(sourceLabel, {
+					// dem Melder keine Art und kein „offiziell" in der Vorschlagsliste (Regel 2 des Entwurfs)
+					ohneMarken: true,
 					onPick: function (item) {
 						suggestPickedSourceId = Number(item.source_id) || 0;
-						sourceLabel.value = item.label || "";
-						var sourceUrl = overlay.querySelector("#citymap-suggest-source-url");
-						if (sourceUrl) {
-							sourceUrl.value = item.url || "";
-							// The link and type live in a collapsed "Mehr zur Quelle" group. Filling
-							// them invisibly would leave the reporter unable to see that an existing
-							// source was used -- so open the group when a pick fills it.
-							var group = sourceUrl.closest("details");
-							if (group) {
-								group.open = true;
-							}
-						}
-						var sourceType = overlay.querySelector("#citymap-suggest-source-type");
-						if (sourceType && item.type) {
-							sourceType.value = item.type;
-						}
-						var sourceOfficial = overlay.querySelector("#citymap-suggest-source-official");
-						if (sourceOfficial) {
-							sourceOfficial.checked = Boolean(item.official);
+						suggestPickedLabel = String(item.label || "");
+						sourceLabel.value = suggestPickedLabel;
+						// Die Seitenzahl ist das Einzige, was zu DIESER Fundstelle gehoert und noch zu tippen ist.
+						var pages = overlay.querySelector("#citymap-suggest-source-pages");
+						if (pages) {
+							pages.focus();
 						}
 					},
 				});
@@ -354,6 +353,23 @@
 			el.textContent = message || "";
 			el.setAttribute("data-state", state || "");
 		}
+	}
+
+	// Die Quelle des Kartenvorschlags aus den Feldern -- ueber DIESELBE Regel wie das Meldeformular.
+	function suggestSourceFromForm(overlay) {
+		if (typeof avesmapsMeldungQuelleAusEingabe !== "function") {
+			throw new Error("meldung-quellen.js fehlt -- sie traegt die Regel, was eine Quelle der Meldung ist");
+		}
+		return avesmapsMeldungQuelleAusEingabe({
+			ref: val(overlay, "citymap-suggest-source-ref"),
+			source_id: suggestPickedSourceId,
+			pick_label: suggestPickedLabel,
+			title: val(overlay, "citymap-suggest-source-title"),
+			pages: val(overlay, "citymap-suggest-source-pages"),
+			reference_kind: val(overlay, "citymap-suggest-source-kind"),
+			license: val(overlay, "citymap-suggest-source-license"),
+			attribution: val(overlay, "citymap-suggest-source-attribution"),
+		});
 	}
 
 	function val(overlay, id) {
@@ -443,15 +459,9 @@
 			// VOLLE Titel (bis 300) reist in citymap.title — daraus wird die Karte gebaut, nicht aus `name`.
 			name: citymap.title.slice(0, 80),
 			reporter_name: val(overlay, "citymap-suggest-reporter"),
-			sources: [{
-				// 0 unless the reporter picked an existing catalog row (instruction 5a).
-				source_id: suggestPickedSourceId,
-				label: val(overlay, "citymap-suggest-source-label"),
-				url: val(overlay, "citymap-suggest-source-url"),
-				pages: val(overlay, "citymap-suggest-source-pages"),
-				type: val(overlay, "citymap-suggest-source-type") || "sonstiges",
-				official: Boolean(overlay.querySelector("#citymap-suggest-source-official")?.checked),
-			}],
+			// 🔴 Die eine Regel (meldung-quellen.js): Link oder Katalogtreffer, sonst keine Quelle -- geprueft in
+			// submitSuggestion, hier nur gebaut. Art und „offiziell" reisen nicht mehr mit.
+			sources: [suggestSourceFromForm(overlay).quelle].filter(Boolean),
 			comment: "",
 			wiki_url: "",
 			lat: clamp(centre.lat),
@@ -476,7 +486,7 @@
 		var required = [
 			["citymap-suggest-title-input", t("cityMaps.suggestNeedTitle", "Bitte einen Titel angeben.")],
 			["citymap-suggest-map-url", t("cityMaps.suggestNeedMapUrl", "Bitte einen Karten-Link angeben.")],
-			["citymap-suggest-source-label", t("cityMaps.suggestNeedSource", "Bitte eine Quelle angeben (Name genügt).")],
+			["citymap-suggest-source-ref", t("cityMaps.suggestNeedSource", "Bitte den Link zur Quelle einfügen — oder einen Titel aus der Liste wählen.")],
 		];
 		for (var i = 0; i < required.length; i++) {
 			if (!val(overlay, required[i][0])) {
@@ -486,6 +496,12 @@
 			}
 		}
 
+		// Ein Titel ohne Treffer ist keine Quelle (Regel 2 des Entwurfs) -- hoerbar, mit Fokus.
+		if (!suggestSourceFromForm(overlay).ok) {
+			setStatus(overlay, t("cityMaps.suggestNeedLink", "Das ist kein Link. Bitte die Adresse der Seite einfügen (https://…) — oder einen Titel aus der Vorschlagsliste wählen."), "error");
+			overlay.querySelector("#citymap-suggest-source-ref")?.focus();
+			return;
+		}
 		setStatus(overlay, t("cityMaps.suggestSending", "Vorschlag wird gesendet..."), "pending");
 		var submit = overlay.querySelector(".citymap-suggest__submit");
 		if (submit) {

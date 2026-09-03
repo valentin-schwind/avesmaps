@@ -14,6 +14,8 @@ require __DIR__ . '/../_internal/app/report-outcome.php';
 // map against THE SAME definitions the editor writes through -- rather than growing a second, drifting
 // copy of them here. Pure function definitions + consts; nothing runs on require.
 require __DIR__ . '/../_internal/app/citymaps.php';
+// Die Quellen einer Meldung -- Eingang und Ausgabe an EINER Stelle (Entwurf 2026-09-03-quellen-meldeformular §4).
+require_once __DIR__ . '/../_internal/app/report-sources.php';
 
 const AVESMAPS_REPORT_TYPES = [
     'location' => ['type' => 'location', 'subtype' => 'dorf'],
@@ -315,7 +317,9 @@ function avesmapsValidateMapReport(array $payload): array {
     if ($sources === []) {
         $legacySource = avesmapsNormalizeSingleLine((string) ($payload['source'] ?? ''), 200);
         if ($legacySource !== '') {
-            $sources = [['url' => '', 'label' => $legacySource, 'pages' => '', 'type' => 'sonstiges', 'official' => false]];
+            // ⚠️ Altform: link-los, damit nicht verknuepfbar -- die Redaktion sieht sie, die Annahme nimmt sie nicht.
+            $sources = [['source_id' => 0, 'url' => '', 'label' => $legacySource, 'pages' => '', 'type' => '', 'official' => false,
+                'reference_kind' => '', 'license' => '', 'attribution' => '']];
         }
     }
     $changeContext = avesmapsNormalizeChangeContext($payload);
@@ -327,7 +331,9 @@ function avesmapsValidateMapReport(array $payload): array {
         throw new InvalidArgumentException('Bitte mindestens eine Quelle angeben.');
     }
     // `source` stays the (required, indexed) primary label used for dedup + the review list = first source.
-    $source = $sources !== [] ? (string) $sources[0]['label'] : '';
+    // 🔴 Seit dem 03.09.2026 hat eine Quelle nicht zwingend einen Titel -- der Link IST die Quelle. Fuer die
+    // Anzeige und die Dublettensuche zaehlt dann die Adresse.
+    $source = $sources !== [] ? (string) ($sources[0]['label'] !== '' ? $sources[0]['label'] : $sources[0]['url']) : '';
     $comment = avesmapsNormalizeMultiline((string) ($payload['comment'] ?? ''), 800);
     $wikiUrl = avesmapsNormalizeOptionalUrl((string) ($payload['wiki_url'] ?? ''), 300, 'Der Wiki-Link');
     $lat = avesmapsParseMapCoordinate($payload['lat'] ?? null, 'lat');
@@ -399,52 +405,8 @@ function avesmapsValidateMapReport(array $payload): array {
 }
 
 
-// Multi-source #3: normalize + validate the community source list -- an array of
-// {source_id,url,label,pages,type,official}. Drops entries without a label; url is optional (a link-based
-// catalog entry) but validated when present; type is whitelisted; capped at 10. Mirrors exactly what an
-// editor's feature-source add-row produces, so an accepted report links cleanly into feature_sources.
-// source_id (instruction 5a) is 0 unless the reporter picked an existing catalog row.
-function avesmapsNormalizeReportSources(mixed $raw): array {
-    if (!is_array($raw)) {
-        return [];
-    }
-    $allowedTypes = ['regionalspielhilfe', 'abenteuer', 'aventurischer_bote', 'quellenband', 'roman', 'briefspiel', 'regelbuch', 'sonstiges'];
-    $normalized = [];
-    foreach (array_slice(array_values($raw), 0, 10) as $entry) {
-        if (!is_array($entry)) {
-            continue;
-        }
-        $label = avesmapsNormalizeSingleLine((string) ($entry['label'] ?? ''), 200);
-        if ($label === '') {
-            continue; // a source needs at least a name
-        }
-        $type = strtolower(avesmapsNormalizeSingleLine((string) ($entry['type'] ?? 'sonstiges'), 32));
-        if (!in_array($type, $allowedTypes, true)) {
-            $type = 'sonstiges';
-        }
-        // Optional coverage classification -> the popup's publication tab (feature-source-markup.js). The
-        // whitelist mirrors avesmapsAddFeatureSource; unknown/absent stays '' (the source then renders on
-        // the flat "Quelle(n):" line rather than in a tab).
-        $kind = strtolower(avesmapsNormalizeSingleLine((string) ($entry['reference_kind'] ?? ''), 16));
-        if (!in_array($kind, ['ausfuehrlich', 'ergaenzend', 'erwaehnung'], true)) {
-            $kind = '';
-        }
-        $normalized[] = [
-            // Instruction 5a: when the reporter PICKED an existing catalog row from the typeahead,
-            // its id travels along. That is what lets the review link the exact source instead of
-            // guessing which work a typed title meant -- and it is the only way a source with no
-            // URL can be linked at all (url_hash cannot identify it).
-            'source_id' => max(0, (int) ($entry['source_id'] ?? 0)),
-            'url' => avesmapsNormalizeOptionalUrl((string) ($entry['url'] ?? ''), 500, 'Der Link zur Quelle'),
-            'label' => $label,
-            'pages' => avesmapsNormalizeSingleLine((string) ($entry['pages'] ?? ''), 120),
-            'type' => $type,
-            'reference_kind' => $kind,
-            'official' => filter_var($entry['official'] ?? false, FILTER_VALIDATE_BOOLEAN),
-        ];
-    }
-    return $normalized;
-}
+// Der Eingang der Quellen (avesmapsNormalizeReportSources) steht seit dem 03.09.2026 in
+// api/_internal/app/report-sources.php -- EINMAL fuer den Melder und die Redaktion.
 
 function avesmapsContainsSpamText(string $value): bool {
     $normalizedValue = mb_strtolower($value);

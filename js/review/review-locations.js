@@ -38,21 +38,41 @@ function buildLocationReportRequestPayload(formElement) {
 	};
 }
 
-// ---- Multi-source #3: dynamische Quellen-Liste im Community-Melde-Formular ----
-// Der Melder kann mehrere Quellen hinterlegen (Name/Link/Seite/Typ/offiziell je Quelle), clientseitig in
-// locationReportSources gesammelt; beim Absenden gehen sie als `sources`-Array mit und werden beim
-// "Anlegen" einzeln als feature_sources verknuepft (wie im Editor). Kein Server-Write vor dem Absenden.
+// ---- Die Quellen der Meldung: der Link ist die Quelle ----
+// Entwurf docs/superpowers/specs/2026-09-03-quellen-meldeformular-design.md §3. Owner 03.09.2026: „die
+// sollen einfach den link pasten. erst wir im backend sollen sehen, ob der korpus passt oder ein neuer
+// erkannt wurde." Die Regel (Link oder Katalogtreffer; Titel, Seite, Abdeckung, Lizenz, Namensnennung als
+// Angebote; nie Art, nie „offiziell") steht in js/review/meldung-quellen.js -- dieselbe, die der
+// Kartenvorschlag ruft. Hier nur das Lesen der Felder und die Liste.
+// 💣 Bis zum 03.09.2026 war der NAME Pflicht und der Link optional -- und der Knopf tat still nichts,
+// wenn nur der Link ausgefuellt war (Owner: „beachte, dass der button derzeit nicht funktioniert").
 let locationReportSources = [];
 
-// Instruction 5a: the catalog row the reporter picked from the typeahead, if any. Travels with the
-// source so the review can link THAT row instead of guessing which work a typed title meant. This
-// is the most valuable of the four forms to cover: here only the NAME is required, so a source
-// reported without a link cannot be deduped by url_hash at all and always becomes a fresh row.
+// 🔴 Die Regel wohnt in js/review/meldung-quellen.js. Im Browser steht sie global, unter Node (Tests, die diese
+// Datei `require`n) wird sie geholt -- und fehlt sie, gibt es einen lauten Fehler statt einer Ersatzfassung:
+// dasselbe Muster wie featureSourcePagesShorten im Quellen-Bauteil, aus denselben Gruenden.
+function meldungQuellenRegel(name) {
+	const geteilt = (typeof module !== "undefined" && module.exports)
+		? require("./meldung-quellen.js")[name]
+		: (typeof window !== "undefined" ? window[name] : null);
+	if (typeof geteilt !== "function") {
+		throw new Error("meldung-quellen.js fehlt -- sie traegt die Regel, was eine Quelle der Meldung ist");
+	}
+	return geteilt;
+}
+// Der Treffer aus der Vorschlagsliste des Katalogs (Instruction 5a): Kennung und der Titel, den das
+// Feld dann zeigt. Wer danach weitertippt, meint die Zeile nicht mehr (input-Listener setzt zurueck).
 let locationReportPickedSourceId = 0;
+let locationReportPickedLabel = "";
 let detachLocationReportAutocomplete = null;
 
-function reportSourceTypeLabel(type) {
-	return typeof featureSourceTypeLabel === "function" ? featureSourceTypeLabel(type) : String(type || "Sonstiges");
+function showLocationReportSourceNote(text) {
+	const note = document.getElementById("report-source-note");
+	if (!note) {
+		return;
+	}
+	note.textContent = text || "";
+	note.hidden = !text;
 }
 
 function renderLocationReportSourcesList() {
@@ -61,23 +81,21 @@ function renderLocationReportSourcesList() {
 		return;
 	}
 	if (!locationReportSources.length) {
-		list.innerHTML = '<div class="report-sources__empty">Noch keine Quelle hinzugefügt.</div>';
+		list.innerHTML = '<div class="report-sources__empty">' + escapeHtml(tr("report.sourcesEmpty", "Noch keine Quelle hinzugefügt.")) + "</div>";
 		return;
 	}
 	list.innerHTML = locationReportSources
 		.map((source, index) => {
-			const officialMark = source.official ? " *" : "";
-			const nameText = escapeHtml(source.label) + officialMark;
-			const linked = source.url
-				? `<a href="${escapeHtml(source.url)}" target="_blank" rel="noopener">${nameText} ↗</a>`
-				: `<span>${nameText}</span>`;
+			const anzeige = meldungQuellenRegel("avesmapsMeldungQuelleAnzeige")(source);
+			const name = anzeige.url
+				? `<a href="${escapeHtml(anzeige.url)}" target="_blank" rel="noopener" title="${escapeHtml(anzeige.url)}">${escapeHtml(anzeige.text)} ↗</a>`
+				: `<span>${escapeHtml(anzeige.text)}</span>`;
 			return (
 				'<div class="report-sources__row">' +
-				linked +
-				(source.pages ? `<span class="report-sources__pages">S. ${escapeHtml(source.pages)}</span>` : "") +
-				`<span class="report-sources__type">${escapeHtml(reportSourceTypeLabel(source.type))}</span>` +
-				(source.reference_kind ? `<span class="report-sources__kind">${escapeHtml(typeof featureSourceReferenceKindLabel === "function" ? featureSourceReferenceKindLabel(source.reference_kind) : source.reference_kind)}</span>` : "") +
-				`<button type="button" class="report-sources__remove" data-remove-report-source="${index}" aria-label="Quelle entfernen">✕</button>` +
+				name +
+				(anzeige.ausKatalog ? `<span class="report-sources__katalog">${escapeHtml(tr("report.sourceFromCatalog", "aus dem Katalog"))}</span>` : "") +
+				(anzeige.pages ? `<span class="report-sources__pages">S. ${escapeHtml(anzeige.pages)}</span>` : "") +
+				`<button type="button" class="report-sources__remove" data-remove-report-source="${index}" aria-label="${escapeHtml(tr("report.sourceRemove", "Quelle entfernen"))}">✕</button>` +
 				"</div>"
 			);
 		})
@@ -85,88 +103,103 @@ function renderLocationReportSourcesList() {
 }
 
 function readLocationReportSourceInputs() {
+	const wert = (id) => String(document.getElementById(id)?.value || "");
 	return {
+		ref: wert("report-source-ref"),
 		source_id: locationReportPickedSourceId,
-		label: String(document.getElementById("report-source-label")?.value || "").trim(),
-		url: String(document.getElementById("report-source-url")?.value || "").trim(),
-		pages: String(document.getElementById("report-source-pages")?.value || "").trim(),
-		type: String(document.getElementById("report-source-type")?.value || "sonstiges"),
-		reference_kind: String(document.getElementById("report-source-kind")?.value || ""),
-		official: Boolean(document.getElementById("report-source-official")?.checked),
+		pick_label: locationReportPickedLabel,
+		title: wert("report-source-title"),
+		pages: wert("report-source-pages"),
+		reference_kind: wert("report-source-kind"),
+		license: wert("report-source-license"),
+		attribution: wert("report-source-attribution"),
 	};
 }
 
 function clearLocationReportSourceInputs() {
 	locationReportPickedSourceId = 0;
-	["report-source-label", "report-source-url", "report-source-pages", "report-source-kind"].forEach((id) => {
+	locationReportPickedLabel = "";
+	["report-source-ref", "report-source-pages", "report-source-title", "report-source-kind", "report-source-license", "report-source-attribution"].forEach((id) => {
 		const element = document.getElementById(id);
 		if (element) {
 			element.value = "";
 		}
 	});
-	const typeSelect = document.getElementById("report-source-type");
-	if (typeSelect) {
-		typeSelect.value = "sonstiges";
+	// Die Falte „Mehr zur Quelle" ist nach jedem Eintrag wieder zu -- dieselbe Regel wie beim
+	// Quellenkasten des Editors („immer mit klappe zu", Owner 03.09.2026).
+	const mehr = document.getElementById("report-source-mehr");
+	if (mehr) {
+		mehr.open = false;
 	}
-	const officialInput = document.getElementById("report-source-official");
-	if (officialInput) {
-		officialInput.checked = false;
-	}
+}
+
+// Der Satz zur Absage. 🔴 Hoerbar, nicht still: bis zum 03.09.2026 kehrte der Knopf ohne Namen wortlos
+// zurueck, und das sah aus wie ein kaputter Knopf.
+function locationReportSourceRejectionText(grund) {
+	return grund === "leer"
+		? tr("report.sourceNeedRef", "Bitte den Link zur Quelle einfügen — oder einen Titel aus der Liste wählen.")
+		: tr("report.sourceNeedLink", "Das ist kein Link. Bitte die Adresse der Seite einfügen (https://…) — oder einen Titel aus der Vorschlagsliste wählen.");
 }
 
 function addLocationReportSourceFromInputs() {
-	const source = readLocationReportSourceInputs();
-	if (!source.label) {
-		return false; // a source needs at least a name
+	const ergebnis = meldungQuellenRegel("avesmapsMeldungQuelleAusEingabe")(readLocationReportSourceInputs());
+	if (!ergebnis.ok) {
+		showLocationReportSourceNote(locationReportSourceRejectionText(ergebnis.grund));
+		document.getElementById("report-source-ref")?.focus();
+		return false;
 	}
-	locationReportSources.push(source);
+	locationReportSources.push(ergebnis.quelle);
 	renderLocationReportSourcesList();
 	clearLocationReportSourceInputs();
-	document.getElementById("report-source-label")?.focus();
+	showLocationReportSourceNote("");
+	document.getElementById("report-source-ref")?.focus();
 	return true;
 }
 
-// Instruction 5a: offer the existing catalog on the source-name field.
-//
-// Wired ONCE: #report-source-label is static markup in index.html and is never re-rendered, so a
-// re-attach on every dialog open would stack another listener set plus another orphaned dropdown
-// node -- the failure mode that has bitten this codebase before (a handler stacked per open until
-// the control stopped responding).
+// Instruction 5a: die Vorschlagsliste des Katalogs am Hauptfeld -- ein Titel wird nur mit Treffer zur
+// Quelle. Wired ONCE: #report-source-ref ist statisches Markup und wird nie neu gezeichnet; ein Anhaengen
+// bei jedem Oeffnen wuerde Listener und verwaiste Vorschlagskaesten stapeln.
 function initLocationReportSourceAutocomplete() {
 	if (detachLocationReportAutocomplete || typeof attachSourceAutocomplete !== "function") {
-		return; // already wired, or component absent -- typing a new source still works, unchanged
-	}
-	const labelInput = document.getElementById("report-source-label");
-	if (!labelInput) {
 		return;
 	}
-	// Typing again means the reporter no longer means the row they picked.
-	labelInput.addEventListener("input", () => {
+	const refInput = document.getElementById("report-source-ref");
+	if (!refInput) {
+		return;
+	}
+	refInput.addEventListener("input", () => {
 		locationReportPickedSourceId = 0;
+		locationReportPickedLabel = "";
+		showLocationReportSourceNote("");
 	});
-	detachLocationReportAutocomplete = attachSourceAutocomplete(labelInput, {
+	// `ohneMarken`: dem Melder keine Art und kein „offiziell" in der Vorschlagsliste (Regel 2 des Entwurfs).
+	detachLocationReportAutocomplete = attachSourceAutocomplete(refInput, {
+		ohneMarken: true,
 		onPick(item) {
 			locationReportPickedSourceId = Number(item.source_id) || 0;
-			labelInput.value = item.label || "";
-			const urlInput = document.getElementById("report-source-url");
-			if (urlInput) {
-				urlInput.value = item.url || "";
-			}
-			const typeSelect = document.getElementById("report-source-type");
-			if (typeSelect && item.type) {
-				typeSelect.value = item.type;
-			}
-			const officialInput = document.getElementById("report-source-official");
-			if (officialInput) {
-				officialInput.checked = Boolean(item.official);
-			}
-			// The page number is the one value that belongs to THIS mention rather than to the work.
-			const pagesInput = document.getElementById("report-source-pages");
-			if (pagesInput) {
-				pagesInput.focus();
-			}
+			locationReportPickedLabel = String(item.label || "");
+			refInput.value = locationReportPickedLabel;
+			// Die Seitenzahl ist das Einzige, was zu DIESER Fundstelle gehoert und noch zu tippen ist.
+			document.getElementById("report-source-pages")?.focus();
 		},
 	});
+}
+
+// Die Lizenzauswahl kommt aus der EINEN Tafel (FEATURE_SOURCE_LICENSES, feature-source-markup.js) --
+// dieselbe wie im Quellenkasten des Editors. Kein Abschreiben: eine Liste, die einen von zwei
+// Erzeugern bindet, ist keine Liste.
+function initLocationReportSourceLicenseOptions() {
+	const select = document.getElementById("report-source-license");
+	if (!select || typeof FEATURE_SOURCE_LICENSES !== "object" || select.dataset.gefuellt === "1") {
+		return;
+	}
+	Object.keys(FEATURE_SOURCE_LICENSES).forEach((key) => {
+		const option = document.createElement("option");
+		option.value = key;
+		option.textContent = String(FEATURE_SOURCE_LICENSES[key].label || key);
+		select.appendChild(option);
+	});
+	select.dataset.gefuellt = "1";
 }
 
 function removeLocationReportSource(index) {
@@ -176,16 +209,17 @@ function removeLocationReportSource(index) {
 	}
 }
 
-// The added rows PLUS a filled-but-not-yet-added row (reporter typed a source and forgot the button), so
-// nothing entered is lost on submit.
+// Die hinzugefuegten Zeilen PLUS eine ausgefuellte, noch nicht hinzugefuegte (der Melder hat den Knopf
+// vergessen) -- aber nur, wenn sie eine gueltige Quelle ergibt; ein halber Titel reist nicht mit.
 function collectLocationReportSources() {
-	const pending = readLocationReportSourceInputs();
-	return pending.label ? [...locationReportSources, pending] : [...locationReportSources];
+	const pending = meldungQuellenRegel("avesmapsMeldungQuelleAusEingabe")(readLocationReportSourceInputs());
+	return pending.ok ? [...locationReportSources, pending.quelle] : [...locationReportSources];
 }
 
 function resetLocationReportSources() {
 	locationReportSources = [];
 	clearLocationReportSourceInputs();
+	showLocationReportSourceNote("");
 	renderLocationReportSourcesList();
 }
 
@@ -418,7 +452,7 @@ function applyChangeSuggestionContext(ctx) {
 	}
 	const sourcesLabel = document.getElementById("location-report-sources-label");
 	if (sourcesLabel) {
-		sourcesLabel.textContent = tr("report.changeSourcesLabel", "Quellen (optional — Regionalband, Abenteuer, …)");
+		sourcesLabel.textContent = tr("report.changeSourcesLabel", "Quellen (optional) — Link zur Seite, in der es steht");
 	}
 
 	// Title + intro reflect the change context.
@@ -495,7 +529,7 @@ function clearChangeSuggestionMode() {
 	}
 	const sourcesLabel = document.getElementById("location-report-sources-label");
 	if (sourcesLabel) {
-		sourcesLabel.textContent = tr("report.sourcesLabel", "Quellen * (mind. eine — Regionalband, Abenteuer, …)");
+		sourcesLabel.textContent = tr("report.sourcesLabel", "Quellen * — Link zur Seite, in der es steht (Wiki-Artikel, F-Shop, Fanwiki)");
 	}
 	const titleEl = document.getElementById("location-report-title");
 	if (titleEl) {

@@ -300,8 +300,8 @@ async function handleLocationReportFormSubmit(event) {
 	// Multi-source #3: at least one source is required (except pure comments). The single required
 	// `source` input is gone -- the list is JS-managed -- so validate it here instead of via reportValidity.
 	if (!isChangeMode && payload.report_type !== "comment" && (!Array.isArray(payload.sources) || payload.sources.length === 0)) {
-		setLocationReportStatus(tr("report.statusNoSource", "Bitte mindestens eine Quelle angeben (Name genügt)."), "error");
-		document.getElementById("report-source-label")?.focus();
+		setLocationReportStatus(tr("report.statusNoSource", "Bitte mindestens eine Quelle angeben — den Link zur Seite, in der es steht."), "error");
+		document.getElementById("report-source-ref")?.focus();
 		return;
 	}
 	if (!isChangeMode && payload.report_type === "location") {

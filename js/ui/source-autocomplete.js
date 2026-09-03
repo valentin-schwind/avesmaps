@@ -75,7 +75,11 @@ function renderSourceAutocompleteHtml(state, opts) {
       const uses = Number(item.uses) > 0
         ? '<span class="sac-uses">' + escape(tr("sources.ac.uses", "an {n} Orten").replace("{n}", String(item.uses))) + "</span>"
         : "";
-      const official = item.official
+      // 🔴 `ohneMarken`: die Community-Formulare (Meldeformular, Kartenvorschlag) zeigen dem Melder weder Art
+      // noch „offiziell" -- beides gehoert dem Korpus bzw. dem Kanon und ist nicht seine Sache (Entwurf
+      // 2026-09-03-quellen-meldeformular §2 Regel 2). Der Editor sieht die Marken weiter.
+      const ohneMarken = options.ohneMarken === true;
+      const official = item.official && !ohneMarken
         ? '<span class="sac-badge sac-badge--official">' + escape(tr("sources.ac.official", "offiziell")) + "</span>"
         : "";
       return (
@@ -84,7 +88,7 @@ function renderSourceAutocompleteHtml(state, opts) {
         ' aria-selected="' + (active ? "true" : "false") + '"' +
         ' data-sac-index="' + index + '">' +
         '<span class="sac-name">' + renderSourceAutocompleteLabel(item.label, query, escape) + "</span>" +
-        '<span class="sac-badge">' + escape(sourceAutocompleteTypeLabel(item.type)) + "</span>" +
+        (ohneMarken ? "" : '<span class="sac-badge">' + escape(sourceAutocompleteTypeLabel(item.type)) + "</span>") +
         official + uses +
         "</li>"
       );
@@ -348,7 +352,8 @@ function attachSourceAutocomplete(inputEl, opts) {
   const options = opts || {};
   const limit = Number(options.limit) > 0 ? Number(options.limit) : SOURCE_AUTOCOMPLETE_LIMIT;
   return attachTypeahead(inputEl, Object.assign({}, options, {
-    renderHtml: renderSourceAutocompleteHtml,
+    // `ohneMarken` reist als Option bis in den Bauer -- der Typeahead reicht sonst nur tr/escape durch.
+    renderHtml: (state, o) => renderSourceAutocompleteHtml(state, Object.assign({}, o || {}, { ohneMarken: options.ohneMarken === true })),
     itemId: (item) => "sac-opt-" + item.source_id,
     async search(term, signal) {
       const url = SOURCE_AUTOCOMPLETE_API_URL + "?q=" + encodeURIComponent(term) + "&limit=" + limit;

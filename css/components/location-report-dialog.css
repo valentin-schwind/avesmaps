@@ -149,15 +149,48 @@
 	background-repeat: no-repeat;
 	background-position: right 9px center;
 }
-/* Owner: Seitenzahl + Quellen-Typ rechts neben dem Quellennamen (eine Zeile); URL darunter; Rest zuletzt. */
+/* Die Zeile des Melders: EIN Feld (Link oder Titel), Seite(n), Knopf -- Entwurf 2026-09-03-quellen-meldeformular §3.
+   Die Regeln darunter sind der VERTRAG von docs/quellen-meldeformular-mockup.html (mockup-vertrag, Deploy-Tor). */
 .report-sources__add-row1 {
 	display: flex;
 	gap: var(--space-4);
 	align-items: center;
 }
-.report-sources__add-row1 #report-source-label { flex: 1 1 auto; min-width: 0; }
+.report-sources__add-row1 #report-source-ref { flex: 1 1 auto; min-width: 0; }
 .report-sources__add-row1 #report-source-pages { flex: 0 0 78px; min-width: 0; }
-.report-sources__add-row1 #report-source-type { flex: 0 0 156px; min-width: 0; }
+/* „Mehr zur Quelle (optional)" -- Titel, Abdeckung, Lizenz, Namensnennung als Angebote, in einer nativen
+   Falte wie im Kartenvorschlag; zu, bis man sie oeffnet, und nach jedem Eintrag wieder zu. */
+.report-sources__mehr {
+	margin-top: 4px;
+	font-size: var(--font-size-caption);
+}
+.report-sources__mehr > summary {
+	cursor: pointer;
+	color: var(--color-link);
+}
+.report-sources__mehr .report-sources__mehr-felder {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-top: 6px;
+}
+.report-sources__mehr-felder > input { flex: 1 1 180px; min-width: 0; }
+.report-sources__mehr-felder > select { flex: 0 1 160px; min-width: 0; }
+/* In der Liste: „aus dem Katalog" neben dem gepickten Titel. */
+.report-sources__row .report-sources__katalog {
+	flex: 0 0 auto;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-caption);
+	white-space: nowrap;
+}
+/* Die Absage unter der Zeile -- hoerbar statt still (der Knopf tat bis zum 03.09.2026 ohne Namen nichts).
+   💣 Der WEICHE Warnton: --color-warning-strong-text ist Text AUF einer Warnflaeche (dunkel #241d14 im dunklen
+   Thema) und misst auf dem Panel 1,34:1 -- im Browser gemessen, bevor es jemand las. */
+.report-sources__note {
+	margin: 4px 0 0;
+	font-size: var(--font-size-caption);
+	color: var(--color-warning-soft-text);
+}
 /* In der Liste die Seitenzahl mit anzeigen (rechts neben dem Namen, vor dem Typ). */
 .report-sources__row .report-sources__pages {
 	flex: 0 0 auto;
@@ -606,25 +639,6 @@
 	color: var(--color-link);
 }
 
-.report-sources__type {
-	flex: 0 0 auto;
-	color: var(--color-text-muted);
-	font-size: 11px;
-}
-
-/* Status chip (Erwähnt/Quelle kind) — deliberately kept green: it encodes state, not chrome
-   (design-language: green/orange status stays). */
-.report-sources__kind {
-	flex: 0 0 auto;
-	font-size: 10px;
-	color: #1c5a4d;
-	background: #e4efe9;
-	border: 1px solid #b6d2c6;
-	border-radius: var(--radius-md);
-	padding: 1px 7px;
-	white-space: nowrap;
-}
-
 .report-sources__remove {
 	flex: 0 0 auto;
 	border: none;
@@ -661,48 +675,6 @@
 	   ⚠️ Diese Felder haben KEINE feste Hoehe -- sie wachsen am Finger mit der Schrift. Anders als
 	      beim Routenplaner ist das hier unschaedlich: der Dialog scrollt (overflow-y: auto). */
 	font-size: var(--font-size-control);
-}
-
-.report-sources__add > input {
-	width: 100%;
-}
-
-.report-sources__add-row2 {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	gap: 6px;
-}
-
-.report-sources__add-row2 #report-source-pages {
-	flex: 1 1 90px;
-	min-width: 70px;
-}
-
-.report-sources__add-row2 #report-source-type {
-	flex: 1 1 150px;
-}
-
-.report-sources__add-row2 #report-source-kind {
-	flex: 1 1 160px;
-}
-
-.report-sources__official {
-	display: flex;
-	align-items: center;
-	gap: 5px;
-	color: var(--color-text);
-	font-size: 13px;
-	white-space: nowrap;
-}
-
-.report-sources__official input {
-	width: auto;
-}
-
-.report-sources__add-row2 #report-source-add-btn {
-	flex: 0 0 auto;
-	margin-left: auto;
 }
 
 #location-report-comment-field,

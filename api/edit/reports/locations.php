@@ -9,6 +9,8 @@ require __DIR__ . '/../../_internal/auth.php';
 // citymap library (which also brings feature-sources, used below to link the reported sources).
 require_once __DIR__ . '/../../_internal/map/features.php';
 require_once __DIR__ . '/../../_internal/app/citymaps.php';
+// Die Quellen einer Meldung -- Eingang und Ausgabe an EINER Stelle (api/_internal/app/report-sources.php).
+require_once __DIR__ . '/../../_internal/app/report-sources.php';
 require_once __DIR__ . '/../../_internal/app/game-literature-resolve.php';
 // A4: every moderation decision leaves a row in map_audit_log. The action names and the two
 // snapshots are pure and live next door so they can be asserted without a database -- in
@@ -562,33 +564,4 @@ function avesmapsNormalizeReviewNote(mixed $value): ?string {
     return $normalizedValue !== '' ? $normalizedValue : null;
 }
 
-// Multi-source #3: decode the stored source list into a clean array for the client. Falls back to a
-// single label-only source from the legacy `source` column when there is no JSON (old reports), so the
-// review UI + "Anlegen" behave uniformly across schema versions.
-function avesmapsDecodeReportSources(mixed $rawJson, string $legacyLabel = ''): array {
-    $decoded = is_string($rawJson) && $rawJson !== '' ? json_decode($rawJson, true) : null;
-    $list = [];
-    if (is_array($decoded)) {
-        foreach ($decoded as $entry) {
-            if (!is_array($entry)) {
-                continue;
-            }
-            $label = trim((string) ($entry['label'] ?? ''));
-            if ($label === '') {
-                continue;
-            }
-            $list[] = [
-                'url' => (string) ($entry['url'] ?? ''),
-                'label' => $label,
-                'pages' => (string) ($entry['pages'] ?? ''),
-                'type' => (string) ($entry['type'] ?? 'sonstiges'),
-                'reference_kind' => (string) ($entry['reference_kind'] ?? ''),
-                'official' => (bool) ($entry['official'] ?? false),
-            ];
-        }
-    }
-    if ($list === [] && trim($legacyLabel) !== '') {
-        $list[] = ['url' => '', 'label' => trim($legacyLabel), 'pages' => '', 'type' => 'sonstiges', 'official' => false];
-    }
-    return $list;
-}
+// avesmapsDecodeReportSources steht seit dem 03.09.2026 in api/_internal/app/report-sources.php.
