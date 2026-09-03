@@ -29,7 +29,10 @@ const politicalTerritoryPendingStyleOverrides = new Map();
 const politicalTerritoryStyleCache = new Map();
 let politicalTerritoryStyleCachePromise = null;
 let politicalTerritoryStyleCacheLoadedAt = 0;
-const POLITICAL_TERRITORY_STYLE_CACHE_TTL_MS = 1000;
+// 30 s seit 03.09.2026: die Stilliste ist ein Fuenf-Tabellen-Join ueber alle Gebiete (action=list,
+// 297 KB) und lief mit 1 s bei JEDEM Pan mit. Eigene Aenderungen kommen sofort ueber den
+// Pending-Style-Override, fremde nach hoechstens 30 s.
+const POLITICAL_TERRITORY_STYLE_CACHE_TTL_MS = 30000;
 // Modi, in denen die abgeleiteten Grenzen (Canvas-Overlay) sichtbar sind. Fuellung/Labels bleiben
 // political-only; deregraphic zeigt nur die Grenzen. "none" ("Nur Karte") und "powerlines" (Kraftlinien-
 // Magiersicht) zeigen GAR KEINE Grenzen -> dort werden die Territoriums-Daten auch nicht geladen.
@@ -40,6 +43,18 @@ const TERRITORY_BOUNDARY_MODES = ["political", "deregraphic", "ecosystem"];
 // Zoomstufe, fuer die der Layer zuletzt geladen wurde -> pan-sicheres Nachladen (Daten sind zoom-, nicht
 // bbox-abhaengig: reines Pannen bei gleichem Zoom braucht keinen erneuten 1.22MB-Fetch).
 let politicalTerritoryLayerLoadedZoom = null;
+// Derselbe Schluessel wie beim geparsten Zwischenspeicher (Zoom, Jahr, Bearbeiten-Modus), fuer
+// den Pan-Guard in schedulePoliticalTerritoryLayerReload: die Ebene haengt an genau diesen dreien
+// und an keiner bbox. Gesetzt NEBEN politicalTerritoryLayerLoadedZoom, geleert wo jener geleert wird.
+let politicalTerritoryLayerLoadedKey = null;
+
+function avesmapsPoliticalLayerAktuellerSchluessel() {
+	return buildPoliticalTerritoryLayerParsedCacheKey(
+		Math.round(Number(map.getZoom())),
+		politicalTimelineYear,
+		IS_EDIT_MODE ? 1 : 0
+	);
+}
 let politicalTerritoryLayerReloadPending = null;
 
 function hasLoadedDerivedRegionData() {
@@ -649,12 +664,18 @@ function schedulePoliticalTerritoryLayerReload({ immediate = false } = {}) {
 	if (mapLayerMode !== "political" && Math.round(Number(map.getZoom())) < 1) {
 		return;
 	}
-	// Pan-sicher in den reinen Grenzen-Modi (deregraphic/powerlines): bei unveraendertem Zoom (= reines
-	// Pannen) und bereits geladenen Derived-Daten NICHT neu laden -> kein 1.22MB-Fetch pro Pan im Default-
-	// Modus. Im political-Modus (Fuellung/Edit/Timeline) bleibt das bisherige Lade-auf-jedes-moveend.
-	if (!immediate && mapLayerMode !== "political"
-		&& politicalTerritoryLayerLoadedZoom === Math.round(map.getZoom())
-		&& hasLoadedDerivedRegionData()) {
+	// Pan-sicher in ALLEN Ansichten: derselbe Schluessel (Zoom, Jahr, Bearbeiten-Modus) wie beim
+	// letzten Laden und Daten vorhanden -> nichts holen. Die Ebene haengt an keiner bbox.
+	// 🔴 Bis 03.09.2026 galt das nur ausserhalb von "political" -- dort holte JEDER moveend die Ebene
+	// neu, im Editor ohne jeden Client-Cache: gemessen 8 Anfragen und ~6,5 MB je Pan. Jahr und
+	// Bearbeiten-Modus stecken im Schluessel, die Zeitleiste kommt also weiterhin durch; jeder
+	// Speichervorgang ruft mit `immediate` und geht an diesem Guard vorbei.
+	if (!immediate
+		&& politicalTerritoryLayerLoadedKey !== null
+		&& politicalTerritoryLayerLoadedKey === avesmapsPoliticalLayerAktuellerSchluessel()
+		&& (mapLayerMode === "political"
+			? (Array.isArray(regionData) && regionData.length > 0)
+			: hasLoadedDerivedRegionData())) {
 		return;
 	}
 	if (!immediate && (activeRegionGeometryEdit || pendingRegionOperation || pendingRegionMoveState)) {
@@ -746,6 +767,7 @@ async function loadPoliticalTerritoryLayer() {
 			addRegionFeatureToMap(region, normalizeRegionFeature(region));
 		});
 		politicalTerritoryLayerLoadedZoom = requestedZoom; // zoom captured before the await (no TOCTOU)
+		politicalTerritoryLayerLoadedKey = parsedCacheKey;
 		syncRegionVisibility();
 		window.AvesmapsBoundaryCanvasOverlay?.redraw?.();
 		// Konflikt-Schraffur mit den FRISCHEN regionData neu zeichnen (statt nur ueber die zeitbasierten

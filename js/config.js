@@ -803,7 +803,9 @@ const POWERLINE_RENDER_CONFIG = {
 };
 
 const POLITICAL_TERRITORY_LAYER_ZOOM_LEVELS = [0, 1, 2, 3, 4, 5, 6];
-const POLITICAL_TERRITORY_LAYER_FETCH_CACHE_TTL_MS = 60000;
+// 300 s seit 03.09.2026: 60 s hiess in der politischen Ansicht sechs Volltransfers je Minute; jeder
+// Speichervorgang leert den Speicher ohnehin (schedulePoliticalTerritoryLayerReload mit immediate).
+const POLITICAL_TERRITORY_LAYER_FETCH_CACHE_TTL_MS = 300000;
 // Frist des GEPARSTEN Ebenen-Zwischenspeichers im Loader (nur Ansichtsmodus). 🔴 Absichtlich
 // dieselben 300 s wie der Server-Dateicache (avesmapsPoliticalLayerCacheTtlSeconds): damit ist die
 // Gesamtveraltung genau die, die der Server ohnehin zusichert, und der Umbau macht sie nicht
