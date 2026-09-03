@@ -129,6 +129,13 @@ require_once __DIR__ . '/../_internal/app/map-features-cache.php';
 //    💣 Ein Codefix an dieser Antwort ist erst live, wenn diese Zahl steigt.
 // 22 (03.09.2026): der Bezeichner des Kanon-Etiketts ist die ART der Quelle, nicht ihr Titel
 //    (`feature_kanon.abweichungen`) -- am Kopf stand „INOFFIZIELL │ Herzoglich Mauterndorf".
+//    🪤 UND DIE MESSFALLE DIREKT DANACH, die 15 Minuten gekostet hat: ein NEUER ETag garantiert
+//    frischen INHALT NICHT. Der Vorrat haengt am ETag, aber wer in der Deploy-Sekunde anfragt,
+//    baut den mf-22-Eintrag mit der noch alten BIBLIOTHEK -- und der gilt dann seine volle Frist
+//    (AVESMAPS_MAP_FEATURES_CACHE_TTL_SECONDS, 300 s). Live gemessen 03.09.2026: `mf-22` im Kopf,
+//    607 alte Titel-Bezeichner im Rumpf; fuenf Minuten spaeter 0 alte, 607 Arten. Wer die erste
+//    Messung glaubt, sucht den Fehler in seinem Code, wo keiner ist. ⭐ Nach dem Deploy erst
+//    NACH der Frist messen -- oder am ETag ablesen, dass der Aufbau ueberhaupt neu WAR.
 const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 22;
 
 // 🔴 avesmapsMapFeaturesWikiNamespaces() UND die zugehoerige Typ-Zuordnung stehen NICHT hier,
