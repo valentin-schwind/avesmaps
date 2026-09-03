@@ -44,6 +44,8 @@
      stempelt beide Verweise mit einem Inhaltshash, weil sie von einer html/*.html-Seite aus
      erreichbar sind -- hier steht deshalb KEIN ?v= von Hand (AGENTS.md §7). -->
 <link rel="stylesheet" href="/css/components/sync-plan-sheet.css">
+<!-- Das Quellen-Bauteil (mountFeatureSourceEditor) -- wie in den vier anderen Editorseiten. -->
+<link rel="stylesheet" href="/css/features/feature-sources.css">
 <style>
   /* Local short names are now ALIASES of the real design tokens (css/base/tokens.css) instead of a
      pinned light palette, so every rule below follows the light/dark theme without being rewritten. */
@@ -483,6 +485,11 @@
      Katalog vor Bauer -- media-license-fields.js liest ihn beim Laden nach (js/ui/media-license-fields.js). -->
 <script src="/js/app/media-licenses.js"></script>
 <script src="/js/ui/media-license-fields.js"></script>
+<!-- Der geteilte Quellen-Editor. ⚠️ source-autocomplete.js und feature-source-markup.js ZUERST: review-feature-sources.js
+     haengt an beiden (dieselbe Reihenfolgezusage wie in html/wiki-sync-settlement-editor.html). -->
+<script src="/js/ui/source-autocomplete.js"></script>
+<script src="/js/ui/feature-source-markup.js"></script>
+<script src="/js/review/review-feature-sources.js"></script>
 <script>
 const API = '/api/edit/wiki/sync-monitor.php';
 // Offline-Dump endpoint (api/edit/wiki/dump.php). "Syncen" drives its sync_kind
@@ -1067,7 +1074,28 @@ function renderDetail(){
          <div id="bindung-vorschau"></div>
        </div>`
     : '';
-  box.innerHTML = head + lic + coatRow + `<div class="dt-actions">${lockBtn}${editBtn}</div>` + `<div class="dt-grid">${rows.join('')}</div>` + bindung;
+  // Die Quellen des Gebiets: das EINE Bauteil (mountFeatureSourceEditor, js/review/review-feature-sources.js),
+  // als LETZTE Gruppe des Panels (Owner 03.09.2026: „quellen immer unten/als letztes“; „im syncmonitor, wie im
+  // territoriumseditor mit klapptext“ -- die Falte „Neue Quelle einfügen“ bringt der Bauer selbst mit).
+  // 🔴 Montiert auf `n.public_id` = political_territory.public_id (model_tree, sync-monitor-tree.php:310):
+  // ein Knoten OHNE Zeile (noch nicht uebernommen) bekommt keinen Kasten -- der Schluessel des Bauteils
+  // ist die public_id, nie der wiki_key. Nur im Ansichtsmodus: der Bearbeiten-Modus oben kehrt vorher zurueck.
+  // 💣 Der VORIGE Host wird geloest, bevor innerHTML ihn wegwirft: das Bauteil haengt seine Vorschlagsliste
+  // ans DOKUMENT, und ohne __fsDetachAutocomplete ueberlebte sie jeden Klick im Baum als Waise
+  // (review-labels.js:855). ⚠️ Der Getter liest den Knoten bei JEDER Anfrage aus selectedKey/BYKEY --
+  // renderDetail laeuft bei jedem Klick, und ein eingefrorener Wert schriebe auf den vorigen Knoten.
+  const alterQuellenHost = $('dtFeatureSources');
+  if (alterQuellenHost && typeof alterQuellenHost.__fsDetachAutocomplete === 'function') { alterQuellenHost.__fsDetachAutocomplete(); }
+  const quellenBlock = (n.public_id && typeof mountFeatureSourceEditor === 'function')
+    ? '<div class="dt-grp">Quellen</div><div id="dtFeatureSources"></div>'
+    : '';
+  box.innerHTML = head + lic + coatRow + `<div class="dt-actions">${lockBtn}${editBtn}</div>` + `<div class="dt-grid">${rows.join('')}</div>` + bindung + quellenBlock;
+  if (quellenBlock) {
+    void mountFeatureSourceEditor($('dtFeatureSources'), 'territory', () => {
+      const aktuell = selectedKey ? BYKEY.get(selectedKey) : null;
+      return (aktuell && aktuell.public_id) || '';
+    }, { escape: esc });
+  }
 
   // 🔴 DIE VORAUSWAHL: der Kasten oeffnet mit dem NAMEN DES KNOTENS im Suchfeld und den Treffern
   // dazu (Owner 02.09.2026: „wo man die vorauswahl sehen konnte"). Der wahrscheinliche Fall ist
