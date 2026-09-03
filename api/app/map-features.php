@@ -127,7 +127,9 @@ require_once __DIR__ . '/../_internal/app/map-features-cache.php';
 //    haengt am ETag, also lieferte die Seite nach einem gruenen Deploy Zeichen fuer Zeichen
 //    dieselbe alte Nutzlast. Gemessen: 133 Zeilen mit Korpus, 290 ohne, unveraendert.
 //    💣 Ein Codefix an dieser Antwort ist erst live, wenn diese Zahl steigt.
-const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 21;
+// 22 (03.09.2026): der Bezeichner des Kanon-Etiketts ist die ART der Quelle, nicht ihr Titel
+//    (`feature_kanon.abweichungen`) -- am Kopf stand „INOFFIZIELL │ Herzoglich Mauterndorf".
+const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 22;
 
 // 🔴 avesmapsMapFeaturesWikiNamespaces() UND die zugehoerige Typ-Zuordnung stehen NICHT hier,
 // sondern in api/_internal/app/feature-sources.php, direkt neben avesmapsFeatureSourcesDeriveKanon,

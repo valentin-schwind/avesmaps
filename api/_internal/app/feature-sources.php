@@ -3039,12 +3039,14 @@ function avesmapsPoliticalTerritoryWikiNamespaces(PDO $pdo): array
  * die inoffizielle Quelle aendert nichts daran, dass es ihn im gedruckten Aventurien gibt. Sie
  * bleibt an ihrer Zeile im Quellenkasten sichtbar, nur nicht am Kopf.
  *
- * 💣 HIER STEHT KEIN ANZEIGETEXT. Der Bezeichner faehrt als DATEN mit -- entweder als
- * `bezeichner_label` (alle inoffiziellen Quellen tragen denselben Namen; der haeufige Fall,
- * „Briefspiel (Garetien)") oder als `bezeichner_type` + `bezeichner_count`, aus denen die
- * Anzeige „Briefspiel (2)" baut. Dieselbe Trennung wie beim `source_type`, dessen Whitelist in
- * PHP steht und dessen Beschriftung in js/ui/feature-source-markup.js: wer den Text speichert,
- * kann ihn nie uebersetzen und nie umformulieren, ohne den Bestand anzufassen.
+ * 💣 HIER STEHT KEIN ANZEIGETEXT. Der Bezeichner faehrt als DATEN mit -- als `bezeichner_type`
+ * (+ `bezeichner_count` ab zwei Quellen), aus denen die Anzeige „Briefspiel" bzw. „Briefspiel (2)"
+ * baut. Dieselbe Trennung wie beim `source_type`, dessen Whitelist in PHP steht und dessen
+ * Beschriftung in js/ui/feature-source-markup.js: wer den Text speichert, kann ihn nie
+ * uebersetzen und nie umformulieren, ohne den Bestand anzufassen.
+ * 🔴 UND ER IST DIE ART, NIE EIN NAME (Owner 03.09.2026) -- die Begruendung steht an der Stelle
+ * selbst. `bezeichner_label` bleibt als Feld bestehen, es setzt aber nur noch RANG 2 („Wiki
+ * Aventurica"); aus dem Katalog kommt ausschliesslich die Art.
  *
  * 💣 (Bis zum 03.09.2026: NACH dem os:-Erzeuger avesmapsMapFeaturesMergeLegacyOtherSources aufrufen, nie
  * davor -- die Altquellen wurden dort erst in Katalog und Verweise gefaltet. Der Erzeuger ist mit Schritt 4
@@ -3142,7 +3144,6 @@ function avesmapsFeatureSourcesDeriveKanon(array $catalog, array $refs, array $w
             $liste = [];
         }
         $hatOffizielle = false;
-        $labels = [];
         $typen = [];
         $inoffizielle = 0;
         foreach ($liste as $ref) {
@@ -3167,10 +3168,6 @@ function avesmapsFeatureSourcesDeriveKanon(array $catalog, array $refs, array $w
                 continue;
             }
             $inoffizielle++;
-            $label = trim((string) ($eintrag['label'] ?? ''));
-            if ($label !== '') {
-                $labels[$label] = true;
-            }
             $typ = trim((string) ($eintrag['type'] ?? ''));
             if ($typ !== '') {
                 $typen[$typ] = true;
@@ -3212,6 +3209,14 @@ function avesmapsFeatureSourcesDeriveKanon(array $catalog, array $refs, array $w
         // den Anschein, einer zu sein.
         // ⚠️ Wer sie erneut tauschen will, braucht zuerst einen KORPUSNAMEN an der ns-222-Quelle --
         // solange dort der Seitentitel steht, ist der genauere Bezeichner der ungenauere.
+        // 🚩 UND DIE GRUNDLAGE DIESES SATZES HAT SICH AM 03.09.2026 VERSCHOBEN: Rang 3 gibt seither
+        // gar keinen Titel mehr her, sondern die ART („Briefspiel") -- genau das, was der Owner am
+        // 27.08.2026 „nett" fand. Der Rang bleibt trotzdem, wie er ist: dieser Zweig ist der EINZIGE,
+        // der ein Objekt OHNE jede Quellzeile ueberhaupt als inoffiziell erkennt, und „Wiki
+        // Aventurica" ist ausdruecklich bestellt (Owner 02.09.2026: „soll nur dranstehen, wenn es ein
+        // ns222 fall ist"). Es ist damit der einzige Bezeichner, der KEINE Art ist -- wer die zwei
+        // Regeln vereinheitlichen will, fragt vorher, ob dort „Wiki-Artikel" stehen soll (das ist
+        // die Art, die die Wiki-ZEILE im Quellenkasten seit dem 03.09.2026 rechts traegt).
         if ($raumIstInoffiziell) {
             $out[$key] = ['kanon' => 'inoffiziell', 'bezeichner_label' => 'Wiki Aventurica'];
             continue;
@@ -3221,13 +3226,27 @@ function avesmapsFeatureSourcesDeriveKanon(array $catalog, array $refs, array $w
             continue; // keine verwertbare Quelle, kein inoffizieller Raum -- kein Etikett
         }
 
+        // 🔴 DER BEZEICHNER IST DIE ART, NIE DER NAME EINER QUELLE. Owner 03.09.2026: „da oben soll
+        // immer Inoffiziell + Art stehen, also z.B. Inoffiziell | Briefspiel -- nicht der artikelname".
+        //
+        // 💣 BIS DAHIN GAB EINE EINZIGE INOFFIZIELLE QUELLE IHREN `label` HER, und das war als
+        // KORPUSNAME gemeint („Briefspiel (Garetien)"). Mit dem Korpus-Modell ist `label` der
+        // SEITENTITEL der Belegstelle: am Kopf stand „INOFFIZIELL │ Herzoglich Mauterndorf" -- der
+        // Name EINES Artikels an der Stelle, an der die Herkunftsart hingehoert (Owner-Meldung mit
+        // Bild, 03.09.2026). Es ist derselbe Befund wie bei ns 222 („INOFFIZIELL │ Apfeldorn",
+        // 02.09.2026), damals ueber die Rangfolge geheilt -- hier an der Wurzel: ein Titel ist an
+        // dieser Stelle nie die Auskunft, die gefragt ist, egal wie genau er ist.
+        //
+        // ⚠️ MEHRERE ARTEN BLEIBEN DIE GANZE PILLE. „Gemischt" ist keine Art, und eine
+        // herausgegriffene waere eine Behauptung ueber die anderen. Vorher fiel dieser Fall auf den
+        // gemeinsamen NAMEN zurueck, wenn es einen gab -- den gibt es hier nicht mehr.
         $eintragOut = ['kanon' => 'inoffiziell'];
-        if (count($labels) === 1) {
-            $eintragOut['bezeichner_label'] = (string) array_key_first($labels);
-        } else {
-            if (count($typen) === 1) {
-                $eintragOut['bezeichner_type'] = (string) array_key_first($typen);
-            }
+        if (count($typen) === 1) {
+            $eintragOut['bezeichner_type'] = (string) array_key_first($typen);
+        }
+        // Die Anzahl macht aus der Art „Briefspiel (2)". 💣 Gezaehlt werden QUELLEN, nicht Arten --
+        // und erst ab zwei: eine „(1)" saegte nur Rauschen an die Art.
+        if ($inoffizielle > 1) {
             $eintragOut['bezeichner_count'] = $inoffizielle;
         }
         $out[$key] = $eintragOut;

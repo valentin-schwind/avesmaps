@@ -183,8 +183,20 @@ $kanon = avesmapsFeatureSourcesDeriveKanon($katalog, [
 ], []);
 assert($kanon['settlement:p-off'] === ['kanon' => 'offiziell'],
     'eine offizielle Quelle schlaegt zehn inoffizielle -- Owner 27.08.2026');
-assert($kanon['settlement:p-brief'] === ['kanon' => 'inoffiziell', 'bezeichner_label' => 'Briefspiel (Garetien)'],
-    'eine einzige inoffizielle Quelle gibt ihren Namen her');
+// 🔴 DIE ART, NIE DER TITEL (Owner 03.09.2026: „da oben soll immer Inoffiziell + Art stehen … nicht
+// der artikelname"). Hier stand bis dahin `bezeichner_label => 'Briefspiel (Garetien)'` mit dem Satz
+// „eine einzige inoffizielle Quelle gibt ihren Namen her" -- und die FIXTURE war der Grund, warum es
+// gruen aussah: sie traegt als `label` einen KORPUSNAMEN. Im Livebestand ist `label` der SEITENTITEL
+// der Belegstelle, und am Kopf stand deshalb „INOFFIZIELL │ Herzoglich Mauterndorf".
+// ⚠️ Die naechste Zusicherung ist die, die den alten Zustand ueberhaupt haette fangen koennen: eine
+// Fixture, deren Titel und Korpusname sich UNTERSCHEIDEN.
+assert($kanon['settlement:p-brief'] === ['kanon' => 'inoffiziell', 'bezeichner_type' => 'briefspiel'],
+    'eine einzige inoffizielle Quelle gibt ihre ART her, nicht ihren Titel');
+$kanonTitel = avesmapsFeatureSourcesDeriveKanon(
+    [7 => ['label' => 'Herzoglich Mauterndorf', 'type' => 'briefspiel', 'official' => 0]],
+    ['settlement:p-meisenschlag' => [['source_id' => 7]]], []);
+assert($kanonTitel['settlement:p-meisenschlag'] === ['kanon' => 'inoffiziell', 'bezeichner_type' => 'briefspiel'],
+    'der Seitentitel einer Belegstelle erreicht den Kopf NIE -- der gemeldete Fall vom 03.09.2026');
 assert($kanon['settlement:p-zwei'] === ['kanon' => 'inoffiziell', 'bezeichner_type' => 'briefspiel', 'bezeichner_count' => 2],
     'zwei verschiedene Namen -> Typ + Anzahl, damit die Anzeige „Briefspiel (2)" bauen kann');
 // 💣 GEZAEHLT WERDEN DIE QUELLEN, NICHT DIE NAMEN. Bei „2 Quellen / 2 Namen" sind beide Zahlen
@@ -199,7 +211,7 @@ $kanonDrei = avesmapsFeatureSourcesDeriveKanon($katalog,
 assert(($kanonDrei['settlement:p-drei']['bezeichner_count'] ?? 0) === 3,
     'drei Quellen unter zwei Namen zaehlen als 3, sonst sagt die Anzeige „Briefspiel (2)" bei dreien');
 // 💣 NICHT nach int wandeln: `(int) 'os:p-alt'` ist 0, und die Altquelle waere verloren.
-assert($kanon['settlement:p-alt'] === ['kanon' => 'inoffiziell', 'bezeichner_label' => 'Alte Quelle'],
+assert($kanon['settlement:p-alt'] === ['kanon' => 'inoffiziell', 'bezeichner_type' => 'sonstige'],
     'die synthetischen `os:`-Schluessel der Altquellen muessen heil bleiben');
 assert(!isset($kanon['settlement:p-leer']), 'gar keine Quelle -> gar kein Eintrag');
 assert(!isset($kanon['settlement:p-geist']),
@@ -259,8 +271,8 @@ assert($kanon['settlement:p-beides'] === ['kanon' => 'inoffiziell', 'bezeichner_
 // „Briefspiel"-, 113 „AlmadaWiki"- und 54 „Albernisches Briefspiel"-Objekte verloeren ihn.
 $kanon = avesmapsFeatureSourcesDeriveKanon($katalog,
     ['settlement:p-nurquelle' => [['source_id' => 2]]], []);
-assert($kanon['settlement:p-nurquelle'] === ['kanon' => 'inoffiziell', 'bezeichner_label' => 'Briefspiel (Garetien)'],
-    'ohne inoffiziellen Namensraum bleibt der Korpusname der Quelle stehen');
+assert($kanon['settlement:p-nurquelle'] === ['kanon' => 'inoffiziell', 'bezeichner_type' => 'briefspiel'],
+    'ohne inoffiziellen Namensraum spricht die Quellzeile -- seit 03.09.2026 mit ihrer ART');
 
 // 🔴 Und „Wiki Aventurica" gilt NUR dem Wiki (Owner 02.09.2026: „soll nur dranstehen, wenn es ein
 // ns222 fall ist"). Ein Raum, der KEIN Inhalt ist, loest nichts aus -- das prueft Abschnitt 8
@@ -268,7 +280,7 @@ assert($kanon['settlement:p-nurquelle'] === ['kanon' => 'inoffiziell', 'bezeichn
 foreach ([0 => 'Hauptraum', 218 => 'DSK', 220 => 'Elf'] as $raum => $name) {
     $kanon = avesmapsFeatureSourcesDeriveKanon($katalog,
         ['settlement:p-raum' => [['source_id' => 2]]], ['settlement:p-raum' => $raum]);
-    assert($kanon['settlement:p-raum'] === ['kanon' => 'inoffiziell', 'bezeichner_label' => 'Briefspiel (Garetien)'],
+    assert($kanon['settlement:p-raum'] === ['kanon' => 'inoffiziell', 'bezeichner_type' => 'briefspiel'],
         "ns {$raum} ({$name}) ist offiziell und darf die Quellzeile nicht ueberschreiben");
 }
 
@@ -372,5 +384,41 @@ assert(preg_match('/^[ \t]*\+ avesmapsPoliticalTerritoryWikiNamespaces\(\$pdo\)/
 $lib = (string) file_get_contents(__DIR__ . '/../feature-sources.php');
 assert(preg_match("/AVESMAPS_MAP_FEATURES_KANON_ENTITY_TYPE_BY_FEATURE_TYPE = \[[^\]]*'territory'/s", $lib) !== 1,
     'territory gehoert NICHT in die feature_type-Zuordnung -- dort haette es keine Wirkung.');
+
+// ── Gruppe 7: DER BEZEICHNER IST DIE ART (03.09.2026) ─────────────────────────────────────────
+//
+// 🔴 Owner am Bild („Meisenschlag"): der Kopf sagte „INOFFIZIELL │ Herzoglich Mauterndorf", also
+// den Titel EINER Belegstelle, wo die Quellenzeile darunter korrekt „INOFFIZIELL │ Briefspiel"
+// trug. Zwei Aussagen zur selben Sache, und die obere war die falsche.
+
+// 💣 DER FALL, DER DIE ALTE REGEL UEBERLEBT HAETTE, ist ein Katalog mit EINEM Namen und ZWEI
+// Arten: `count($labels) === 1` griff dann und gab den Namen her, obwohl die Art uneindeutig war.
+// Heute ist es die ganze Pille -- „gemischt" ist keine Art.
+$einNameZweiArten = avesmapsFeatureSourcesDeriveKanon([
+    11 => ['label' => 'Garetien-Wiki', 'type' => 'briefspiel', 'official' => 0],
+    12 => ['label' => 'Garetien-Wiki', 'type' => 'sonstige', 'official' => 0],
+], ['settlement:p-mix' => [['source_id' => 11], ['source_id' => 12]]], []);
+assert($einNameZweiArten['settlement:p-mix'] === ['kanon' => 'inoffiziell', 'bezeichner_count' => 2],
+    'ein gemeinsamer NAME reicht nicht mehr aus -- bei zwei Arten bleibt es die ganze Pille');
+
+// ⚠️ ZWEI QUELLEN DERSELBEN ART tragen ihre Anzahl, damit die Anzeige „Briefspiel (2)" baut --
+// und eine EINZELNE traegt keine, sonst stuende „Briefspiel (1)" am Kopf.
+$zweiGleich = avesmapsFeatureSourcesDeriveKanon($katalog,
+    ['settlement:p-zwo' => [['source_id' => 2], ['source_id' => 3]]], []);
+assert(($zweiGleich['settlement:p-zwo']['bezeichner_count'] ?? 0) === 2, 'zwei Quellen tragen die Anzahl');
+assert(!array_key_exists('bezeichner_count', $kanonTitel['settlement:p-meisenschlag']),
+    'eine einzelne Quelle traegt keine -- „Briefspiel (1)" ist Rauschen');
+
+// 💣 UND DER RIEGEL, DER IN DIESEM PROJEKT SCHON MEHRFACH VERGESSEN WURDE: `feature_kanon` reist in
+// der Kartennutzlast, deren ETag an `map_revision` + Nutzlastversion haengt -- eine CODEaenderung
+// bewegt die Revision nicht. Ohne den Versionssprung bekaeme jeder warme Browser sein 304 und
+// saehe den Titel weiter am Kopf, auf unbestimmte Zeit (AGENTS.md §10, Klimastempel/Wappen-Notaus).
+// ⚠️ Gemessen wird „hat diese Aenderung ueberholt", nicht der genaue Wert: die Zahl steigt auch
+// aus fremden Gruenden, und ein fester Wert waere beim naechsten Bump einer anderen Sitzung rot.
+preg_match('/AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = (\\d+);/', $endpunkt, $fassung);
+assert(isset($fassung[1]) && (int) $fassung[1] >= 22,
+    'die Nutzlastversion muss mit der Art-Regel gestiegen sein (>= 22) -- sonst sieht sie niemand');
+assert(str_contains($endpunkt, '// 22 (03.09.2026)'),
+    'und traegt ihren Grund in der Liste ueber der Konstante');
 
 echo "kanon-etikett-test.php: alle Zusicherungen erfuellt\n";
