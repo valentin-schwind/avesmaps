@@ -1083,6 +1083,11 @@ function featureSourceLinkedMessage(linked, tr) {
         ? uebersetze("sources.add.officialYes", "ja")
         : uebersetze("sources.add.officialNo", "nein"));
   }
+  if (linked.official_refused) {
+    // Der Haken war gesetzt, die Zeile pflegt aber der Wiki-Abgleich -- nicht uebernommen, gesagt.
+    text += " " + uebersetze("sources.add.linkedOfficialRefused",
+      "„offiziell“ pflegt bei dieser Quelle der Wiki-Abgleich — dein Häkchen wurde nicht übernommen.");
+  }
   return text;
 }
 
@@ -2446,6 +2451,11 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
       source_type_chosen: gewaehlteArt !== "",
       reference_kind: String((kindSelect && kindSelect.value) || ""),
       is_official: Boolean(officialInput && officialInput.checked),
+      // 🔴 EIGENER Schluessel, wie `source_type_chosen`: der Server schreibt „offiziell" einer BEKANNTEN
+      // Zeile nur, wenn jemand den Haken angefasst hat. Gemerkt am Element (`data-fs-chosen`, gesetzt
+      // vom change-Ereignis), nie im Modulzustand: die Zeile wird nach jedem Schreibvorgang neu gebaut.
+      // Die Vorbelegung aus dem Korpus (haken.checked = true, ohne Ereignis) zaehlt damit NICHT als Wahl.
+      is_official_chosen: Boolean(officialInput && officialInput.dataset && officialInput.dataset.fsChosen === "1"),
       pages: String((pagesInput && pagesInput.value) || "").trim(),
       // ⚠️ Lizenz und Namensnennung beschreiben die QUELLE, nicht diese Verknuepfung -- anders
       // als `pages` und `reference_kind` daneben. Deshalb reisen sie beim Anlegen mit und beim
@@ -2579,6 +2589,15 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
     return tafel[name] || name;
   }
 
+  // 🔴 „Jemand hat den Kanon-Haken AUSDRUECKLICH gesetzt" -- am Element vermerkt, damit `readAddRowValues`
+  // es als `is_official_chosen` mitschickt. Bis zum 03.09.2026 schrieb jedes Eintragen einer bekannten
+  // Adresse den Haken katalogweit in die Zeile (Geographia Aventurica, 1.319 Objekte, von ja auf nein).
+  containerEl.addEventListener("change", (event) => {
+    const ziel = event && event.target;
+    if (ziel && typeof ziel.matches === "function" && ziel.matches(".fs-add-official") && ziel.dataset) {
+      ziel.dataset.fsChosen = "1";
+    }
+  });
   containerEl.addEventListener("click", async (event) => {
     const editTarget = event.target.closest("[data-fs-edit-id]");
     if (editTarget) {
@@ -2648,7 +2667,7 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
             source_type_chosen: values.source_type_chosen,
           },
           pendingStore
-            ? { url: values.url, label: values.label, is_official: values.is_official }
+            ? { url: values.url, label: values.label, is_official: values.is_official, is_official_chosen: values.is_official_chosen }
             : {}
         ));
         zeigeUmtypung(daten);

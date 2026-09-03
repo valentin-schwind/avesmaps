@@ -549,10 +549,15 @@ function avesmapsSourceOwnFieldsSqlGuard(string $feld): string
     return "own_fields NOT LIKE '%," . $feld . ",%'";
 }
 
-function avesmapsSourceUpsertOnDuplicateSql(bool $refreshLabel, bool $retype): string
+/**
+ * @param bool $setOfficial darf dieser Aufruf `is_official` einer BESTEHENDEN Zeile schreiben? Vorgabe ja,
+ *   weil der Wiki-Abgleich und die Importe das seit jeher tun und ihr Verhalten nicht still aendern
+ *   duerfen; der EDITOR reicht die Antwort von avesmapsSourceOfficialWriteAllowed herein.
+ */
+function avesmapsSourceUpsertOnDuplicateSql(bool $refreshLabel, bool $retype, bool $setOfficial = true): string
 {
     return "label = " . ($refreshLabel ? "IF(VALUES(label) = '', label, VALUES(label))" : "IF(label = '', VALUES(label), label)") . ",
-             is_official = IF(" . avesmapsSourceOwnFieldsSqlGuard('is_official') . ", VALUES(is_official), is_official),
+             is_official = " . ($setOfficial ? 'IF(' . avesmapsSourceOwnFieldsSqlGuard('is_official') . ', VALUES(is_official), is_official)' : 'is_official') . ",
              source_type = " . ($retype ? 'IF(' . avesmapsSourceOwnFieldsSqlGuard('source_type') . ', VALUES(source_type), source_type)' : 'source_type') . ",
              wiki_key = IF(VALUES(wiki_key) IS NULL, wiki_key, VALUES(wiki_key)),
              license = IF(VALUES(license) = '', license, VALUES(license)),
@@ -576,7 +581,7 @@ function avesmapsSourceUpsertOnDuplicateSql(bool $refreshLabel, bool $retype): s
  *
  * @param array|null $bestehend die Katalogzeile VOR dem Upsert (id/label/is_official), oder null
  */
-function avesmapsFeatureSourceLinkedReport(?array $bestehend, string $label, bool $official): ?array
+function avesmapsFeatureSourceLinkedReport(?array $bestehend, string $label, bool $official, bool $officialRefused = false): ?array
 {
     if ($bestehend === null) {
         return null;
@@ -600,10 +605,37 @@ function avesmapsFeatureSourceLinkedReport(?array $bestehend, string $label, boo
         // hat es bewusst getan.
         'official_changed' => ((int) ($bestehend['is_official'] ?? 0) === 1) !== $official,
         'official_now' => $official,
+        // 🔴 Der Haken war AUSDRUECKLICH gesetzt, die Zeile pflegt aber der Wiki-Abgleich -- nicht
+        // uebernommen, und das gehoert gesagt (dieselbe Verweigerung wie im ✎: wiki_owned_field).
+        'official_refused' => $officialRefused,
     ];
 }
 
-function avesmapsFeatureSourceUpsert(PDO $pdo, string $url, string $label, string $type, bool $official, int $userId, string $wikiKey = '', bool $refreshLabel = false, string $license = '', string $attribution = '', bool $retype = false): int
+/**
+ * Darf dieses Eintragen „offiziell" einer BESTEHENDEN Katalogzeile umschreiben?
+ *
+ * 🔴 DIESELBE REGEL WIE avesmapsSourceRetypeAllowed (Meldung #105): nur eine AUSDRUECKLICHE Wahl, Vorgabe
+ * nein. Bis zum 03.09.2026 schrieb der Upsert den Haken des Formulars bedingungslos in den Katalog --
+ * ein Editor, der eine bekannte Adresse eintrug und den Haken nie anfasste, legte damit „offiziell = nein"
+ * fest, katalogweit. Live an „Geographia Aventurica" (1.319 Objekte) ausgeloest, beim Abnahmelauf von
+ * Schritt 3 des Quellen-Umbaus.
+ * ⚠️ Und NIE bei einer wiki-gepflegten Zeile (wiki_key gesetzt): das ✎ verweigert genau das mit
+ * `wiki_owned_field`, und der Abgleich stellte beim naechsten Lauf ohnehin den Wikiwert zurueck.
+ * ⚠️ Eine NEUE Zeile (kein Bestand) braucht den Wert -- dort gilt der Haken, wie er steht.
+ */
+function avesmapsSourceOfficialWriteAllowed(bool $chosen, ?array $bestehend): bool
+{
+    if ($bestehend === null) {
+        return true;
+    }
+    if (!$chosen) {
+        return false;
+    }
+
+    return trim((string) ($bestehend['wiki_key'] ?? '')) === '';
+}
+
+function avesmapsFeatureSourceUpsert(PDO $pdo, string $url, string $label, string $type, bool $official, int $userId, string $wikiKey = '', bool $refreshLabel = false, string $license = '', string $attribution = '', bool $retype = false, bool $setOfficial = true): int
 {
     // 💣 DIESE LISTE KUERZTE LAUTLOS. Was nicht darinsteht, wird zu 'sonstiges' -- kein Fehler,
     // keine Meldung, und der Aufrufer bekommt eine gueltige id zurueck. Wer hier einen neuen Typ
@@ -643,7 +675,7 @@ function avesmapsFeatureSourceUpsert(PDO $pdo, string $url, string $label, strin
         "INSERT INTO sources (url, url_hash, wiki_key, label, source_type, is_official, created_by, license, attribution)
          VALUES (:u, :h, :wk, :l, :t, :o, :cb, :lic, :attr)
          ON DUPLICATE KEY UPDATE
-             " . avesmapsSourceUpsertOnDuplicateSql($refreshLabel, $retype)
+             " . avesmapsSourceUpsertOnDuplicateSql($refreshLabel, $retype, $setOfficial)
     )->execute([
         'u' => $url, 'h' => $hash, 'wk' => $wikiKey !== '' ? $wikiKey : null,
         'l' => $label, 't' => $type, 'o' => $official ? 1 : 0, 'cb' => $userId > 0 ? $userId : null,
@@ -1125,7 +1157,7 @@ function avesmapsFeatureSourcesReadWikiUrl(PDO $pdo, string $entityType, string 
  * setzt sie NICHT -- deren Art kommt aus einem fremden Formular und darf keine katalogweit
  * geteilte Zeile umschreiben.
  */
-function avesmapsAddFeatureSource(PDO $pdo, string $entityType, string $publicId, string $url, string $label, string $type, bool $official, int $userId, string $pages = '', string $referenceKind = '', string $license = '', string $attribution = '', bool $retype = false): array
+function avesmapsAddFeatureSource(PDO $pdo, string $entityType, string $publicId, string $url, string $label, string $type, bool $official, int $userId, string $pages = '', string $referenceKind = '', string $license = '', string $attribution = '', bool $retype = false, bool $officialChosen = false): array
 {
     avesmapsEnsureFeatureSourceTables($pdo);
     // Publication-link normalization (dedup): if the URL is a Wiki-Aventurica article for a KNOWN
@@ -1158,14 +1190,17 @@ function avesmapsAddFeatureSource(PDO $pdo, string $entityType, string $publicId
     // der eingetippte Titel wird also verworfen und die Zeile erscheint unter fremdem Namen.
     // `is_official` wird dagegen UNBEDINGT ueberschrieben -- ein Haken, den niemand bewusst gesetzt
     // hat, gilt danach katalogweit.
-    $vorher = $pdo->prepare('SELECT id, label, source_type, is_official FROM sources WHERE url_hash = :h LIMIT 1');
+    $vorher = $pdo->prepare('SELECT id, label, source_type, is_official, wiki_key FROM sources WHERE url_hash = :h LIMIT 1');
     $vorher->execute(['h' => avesmapsFeatureSourceHash($upsertUrl, $upsertWikiKey)]);
     $bestehendeZeile = $vorher->fetch(PDO::FETCH_ASSOC);
     $bestehendeZeile = is_array($bestehendeZeile) ? $bestehendeZeile : null;
     $vorherigeArt = $retype ? (string) ($bestehendeZeile['source_type'] ?? '') : '';
     // ⚠️ Lizenz und Namensnennung reisen mit -- ohne sie kann ausser dem Import niemand etwas
     // eintragen, und das Feld waere Zierde (Owner 27.08.2026).
-    $sourceId = avesmapsFeatureSourceUpsert($pdo, $upsertUrl, $label, $type, $official, $userId, $upsertWikiKey, false, $license, $attribution, $retype);
+    // 🔴 Der Kanon-Haken schreibt eine BESTEHENDE Zeile nur bei ausdruecklicher Wahl, und nie eine
+    // wiki-gepflegte -- siehe avesmapsSourceOfficialWriteAllowed.
+    $setOfficial = avesmapsSourceOfficialWriteAllowed($officialChosen, $bestehendeZeile);
+    $sourceId = avesmapsFeatureSourceUpsert($pdo, $upsertUrl, $label, $type, $official, $userId, $upsertWikiKey, false, $license, $attribution, $retype, $setOfficial);
     // Manual/community add: origin stays 'manual'. reference_kind is OPTIONAL classification of how the
     // place is covered in this source -- ausfuehrlich/ergaenzend -> the "Offiziell" publication tab,
     // erwaehnung -> the "Erwähnt" tab, empty -> the flat "Quelle(n):" line (buildSourceListMarkup splits
@@ -1210,7 +1245,10 @@ function avesmapsAddFeatureSource(PDO $pdo, string $entityType, string $publicId
     // erscheint sie unter dem gespeicherten Titel -- und wer den nicht erwartet, haelt das fuer
     // einen Fehler. Dieselbe Logik wie bei `retyped` darueber: Schweigen auf dem erwarteten Weg,
     // Sprache auf dem ueberraschenden.
-    $verknuepft = avesmapsFeatureSourceLinkedReport($bestehendeZeile, $label, $official);
+    // Gemeldet wird, was WIRKLICH gespeichert ist: ohne Schreiberlaubnis der alte Katalogwert.
+    $offiziellGespeichert = $setOfficial ? $official : ((int) ($bestehendeZeile['is_official'] ?? 0) === 1);
+    $verknuepft = avesmapsFeatureSourceLinkedReport($bestehendeZeile, $label, $offiziellGespeichert,
+        $bestehendeZeile !== null && $officialChosen && !$setOfficial);
     if ($verknuepft !== null) {
         $antwort['linked'] = $verknuepft;
     }

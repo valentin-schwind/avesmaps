@@ -107,6 +107,10 @@ try {
             // fremde Katalogzeilen umschreiben. Er kennt den Schluessel nicht und aendert nichts.
             $artGewaehlt = ($payload['source_type_chosen'] ?? false) === true;
             $official = (bool) ($payload['is_official'] ?? false);
+            // 🔴 Wie `source_type_chosen`: ein EIGENER Schluessel sagt, dass jemand den Kanon-Haken angefasst
+            // hat. Ohne ihn bleibt „offiziell" einer bekannten Zeile unberuehrt -- ein alter Client, der
+            // ihn nicht kennt, kann damit keine katalogweit zitierte Zeile umschreiben.
+            $offiziellGewaehlt = ($payload['is_official_chosen'] ?? false) === true;
             $pages = trim((string) ($payload['pages'] ?? ''));
             $referenceKind = trim((string) ($payload['reference_kind'] ?? ''));
             // Lizenz und Namensnennung der QUELLE (nicht dieser Verknuepfung) -- der Schluessel
@@ -115,13 +119,13 @@ try {
             $license = trim((string) ($payload['license'] ?? ''));
             $attribution = trim((string) ($payload['attribution'] ?? ''));
             if ($entityPublicIds === []) {
-                return avesmapsAddFeatureSource($pdo, $entityType, $entityPublicId, $url, $label, $type, $official, $userId, $pages, $referenceKind, $license, $attribution, $artGewaehlt);
+                return avesmapsAddFeatureSource($pdo, $entityType, $entityPublicId, $url, $label, $type, $official, $userId, $pages, $referenceKind, $license, $attribution, $artGewaehlt, $offiziellGewaehlt);
             }
             // Verteilt: dieselbe Katalogzeile an jeden Abschnitt. Die ERSTE Antwort traegt die Zusatzangaben
             // (`retyped`, Zusammenlegung) -- ab der zweiten ist die Zeile bekannt und nichts davon faellt mehr an.
             $erste = null;
             foreach ($entityPublicIds as $id) {
-                $antwort = avesmapsAddFeatureSource($pdo, $entityType, $id, $url, $label, $type, $official, $userId, $pages, $referenceKind, $license, $attribution, $artGewaehlt);
+                $antwort = avesmapsAddFeatureSource($pdo, $entityType, $id, $url, $label, $type, $official, $userId, $pages, $referenceKind, $license, $attribution, $artGewaehlt, $offiziellGewaehlt);
                 $erste ??= $antwort;
             }
 

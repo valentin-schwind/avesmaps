@@ -517,9 +517,10 @@ assert($bericht['label'] === 'Neuer Titel' && $bericht['typed_label'] === '',
     'ohne gespeicherten Titel gewinnt der eingetippte, und nichts wurde verworfen');
 $zaehl();
 
-// 💣 DER HAKEN „offiziell" UEBERSCHREIBT DEN KATALOGWERT UNBEDINGT
-// (`is_official = VALUES(is_official)`). Wer eine bekannte Adresse ohne Haken eintraegt, stellt die
-// Quelle damit UEBERALL auf nicht-offiziell. Das ist hier NICHT geheilt -- aber es wird gesagt.
+// 💣 DER HAKEN „offiziell" UEBERSCHRIEB DEN KATALOGWERT UNBEDINGT -- bis zum 03.09.2026: wer eine bekannte
+// Adresse ohne Haken eintrug, stellte die Quelle damit UEBERALL auf nicht-offiziell (live an Geographia
+// Aventurica passiert). Seither schreibt nur eine ausdrueckliche Wahl (avesmapsSourceOfficialWriteAllowed,
+// quellen-offiziell-riegel-test.php); der Bericht meldet weiterhin, was WIRKLICH gespeichert wurde.
 $bericht = avesmapsFeatureSourceLinkedReport(
     ['id' => 7, 'label' => 'Geographia Aventurica', 'is_official' => 1], 'Geographia Aventurica', false);
 assert($bericht['official_changed'] === true && $bericht['official_now'] === false,
@@ -533,15 +534,16 @@ $zaehl();
 // 🪤 Der Aufrufer muss den Bericht wirklich anhaengen -- sonst ist die Regel darueber ein Vakuum.
 $quelltext = (string) file_get_contents(__DIR__ . '/../feature-sources.php');
 $ohneKommentare = preg_replace('#/\*[\s\S]*?\*/|^\s*//.*$#m', '', $quelltext) ?? '';
-assert(str_contains($ohneKommentare, 'avesmapsFeatureSourceLinkedReport($bestehendeZeile, $label, $official)'),
-    'avesmapsAddFeatureSource ruft den Bericht wirklich');
+assert(str_contains($ohneKommentare, 'avesmapsFeatureSourceLinkedReport($bestehendeZeile, $label, $offiziellGespeichert,'),
+    'avesmapsAddFeatureSource ruft den Bericht wirklich -- mit dem Wert, der WIRKLICH gespeichert wurde');
 $zaehl();
 assert(preg_match('/\$antwort\[.linked.\] = \$verknuepft;/', $ohneKommentare) === 1,
     'und haengt ihn an die Antwort');
 $zaehl();
 // 💣 Die Vorab-Lesung muss UNBEDINGT laufen, nicht nur bei $retype -- sonst weiss niemand, ob
 // verknuepft wurde. Genau so stand sie bis zum 01.09.2026 da.
-assert(preg_match('/\$vorher = \$pdo->prepare\(.SELECT id, label, source_type, is_official FROM sources/', $ohneKommentare) === 1,
+// (seit 03.09.2026 samt wiki_key -- der „offiziell"-Riegel muss die Wiki-Pflege sehen)
+assert(preg_match('/\$vorher = \$pdo->prepare\(.SELECT id, label, source_type, is_official, wiki_key FROM sources/', $ohneKommentare) === 1,
     'die Katalogzeile VOR dem Upsert wird unbedingt gelesen, nicht nur beim Umtypen');
 $zaehl();
 
