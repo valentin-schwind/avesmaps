@@ -840,10 +840,17 @@
    🔴 NATIV `<details>/<summary>` -- nur damit findet Strg+F den Text einer ZUgeklappten Quelle und
    klappt sie selbst auf. Deshalb steht hier auch nichts, was das Element ersetzt: das Dreieck wird
    nur getauscht, das Auf- und Zuklappen gehört dem Browser. */
-.fs-more {
+/* ══ VERTRAG: css/features/feature-sources.css ══ gebunden von docs/quellen-neue-quelle-mockup.html
+   Die Falte „Neue Quelle einfuegen“ (.fs-add-fold) nimmt die Rezeptur des Klappkastens „n weitere
+   Quellen“ -- EINE Regel, zwei Namen, keine zweite Rezeptur (Owner 03.09.2026: „alle boxen unter
+   einem klapptext verschwinden“). Der zweite Name ist noetig, weil quellenliste-klappen.test.js
+   `.fs-more` als DEN Klappkasten der Liste zaehlt. */
+.fs-more,
+.fs-add-fold {
 	border-top: 1px solid var(--color-divider);
 }
-.fs-more__toggle {
+.fs-more__toggle,
+.fs-add-fold__toggle {
 	padding: 5px 0;
 	color: var(--color-link);
 	cursor: pointer;
@@ -854,26 +861,35 @@
 	user-select: none;
 }
 /* Das voreingestellte Dreieck von WebKit lässt sich nur so abschalten. */
-.fs-more__toggle::-webkit-details-marker {
+.fs-more__toggle::-webkit-details-marker,
+.fs-add-fold__toggle::-webkit-details-marker {
 	display: none;
 }
 /* Ein eigenes, das die Richtung mitdreht -- der Zustand steht damit IM Knopf, nicht daneben. */
-.fs-more__toggle::before {
+.fs-more__toggle::before,
+.fs-add-fold__toggle::before {
 	content: "▸";
 	display: inline-block;
 	width: 1em;
 	transition: transform 0.12s ease;
 }
-.fs-more[open] > .fs-more__toggle::before {
+.fs-more[open] > .fs-more__toggle::before,
+.fs-add-fold[open] > .fs-add-fold__toggle::before {
 	transform: rotate(90deg);
 }
-.fs-more__toggle:hover {
+.fs-more__toggle:hover,
+.fs-add-fold__toggle:hover {
 	color: var(--color-link-hover);
 }
-.fs-more__toggle:focus-visible {
+.fs-more__toggle:focus-visible,
+.fs-add-fold__toggle:focus-visible {
 	outline: 2px solid var(--color-link);
 	outline-offset: 2px;
 	border-radius: var(--radius-sm);
+}
+/* ══ VERTRAG ENDE ══ */
+.fs-add-fold__body {
+	padding-top: 4px;
 }
 /* 💣 Die erste versteckte Zeile bekommt KEINE eigene Trennlinie: `.fs-row + .fs-row` greift über
    die Grenze des <details> hinweg nicht, und der Kasten bringt seine eigene mit. Ohne diese Regel
@@ -882,7 +898,8 @@
 	border-top: none;
 }
 @media (prefers-reduced-motion: reduce) {
-	.fs-more__toggle::before {
+	.fs-more__toggle::before,
+	.fs-add-fold__toggle::before {
 		transition: none;
 	}
 }

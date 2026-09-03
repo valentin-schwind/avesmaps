@@ -879,10 +879,42 @@ function renderFeatureSourceAddRow(escape, tr) {
     + escape(tr("sources.add.cancel", "Abbrechen")) + "</button>"
     + "</div>"
     + "</div>"
-    // Platz für die Absage. Ohne ihn verschluckte der Knopf den Klick wortlos, sobald die URL
-    // fehlte — der häufigste Fall beim Anlegen.
-    + '<p class="fs-add-note" data-fs-note hidden></p>'
   );
+}
+
+/**
+ * Die Meldezeile der Eingabezeile -- Platz fuer Absage UND Bestaetigung („Hinzugefuegt: „X“.“). Ohne
+ * sie verschluckte der Knopf den Klick wortlos, sobald die URL fehlte -- der haeufigste Fall beim
+ * Anlegen.
+ *
+ * 🔴 SIE STEHT AUSSERHALB DER FALTE. Die Falte „Neue Quelle einfuegen“ ist nach jedem Eintrag wieder
+ * ZU (Owner 03.09.2026: „klapptext zu beim öffnen und nach dem eintrag“); stuende die Meldung darin,
+ * verschwaende die Bestaetigung genau in dem Moment, in dem sie gebraucht wird -- und der Owner
+ * saehe wieder nur eine geleerte Maske (dieselbe Meldung wie am 03.09.2026 frueh, 625c20f84).
+ */
+function renderFeatureSourceAddNote() {
+  return '<p class="fs-add-note" data-fs-note hidden></p>';
+}
+
+/**
+ * Die Falte um Hinweis und Eingabeformular: „Neue Quelle einfuegen“.
+ *
+ * 🔴 NATIV `<details>/<summary>`, dieselbe Bauform und dieselbe Rezeptur wie „n weitere Quellen“
+ * (.fs-more): Strg+F findet den Text auch zugeklappt, Fokus und Tastatur kommen vom Element.
+ * 🔴 IMMER ZU -- beim Oeffnen des Kastens wie nach jedem Eintrag (Owner 03.09.2026: „immer mit
+ * klappe zu“). Das Bauteil zeichnet nach jedem Schreibvorgang aus der Serverantwort neu, und dieser
+ * Bauer setzt nie `open`: damit ist „zu nach dem Eintrag“ keine zweite Regel, sondern dieselbe.
+ * Wer je einen Zustand dafuer einfuehrt, baut den Modulzustand, an dem Anzeige-Menue und
+ * Ansichts-Kacheln schon gescheitert sind (AGENTS.md §11).
+ * ⚠️ Der Hinweistext liegt MIT in der Falte: er erklaert das Eintragen, nicht die Liste.
+ * 💣 EIN Bauteil, neun Montagestellen: die Falte liegt HIER, im geteilten Bauer -- Territoriumseditor,
+ * Ortseditor, Sync-Monitor und die Kartendialoge haben sie damit ohne eine Zeile bei sich.
+ */
+function renderFeatureSourceAddFold(hint, addRow, escape, tr) {
+  return '<details class="fs-add-fold">'
+    + '<summary class="fs-add-fold__toggle">' + escape(tr("sources.add.fold", "Neue Quelle einfügen")) + '</summary>'
+    + '<div class="fs-add-fold__body">' + hint + addRow + '</div>'
+    + '</details>';
 }
 
 // Pure render: state = { wiki_url, sources:[{source_id,url,label,type,official,origin}] }.
@@ -939,7 +971,11 @@ function renderFeatureSourceEditorHtml(state, opts) {
     + "daraus automatisch erkannt. Art, Lizenz und Namensnennung kommen vom Korpus, sofern wir ihn "
     + "listen. Änderungen am Korpus wirken sich auf alle Quellen aus, die auf ihn verweisen "
     + "(z. B. wenn der Wiki-Name geändert wird).") + "</div>";
-  return '<div class="fs-editor">' + hint + wikiRow + pendingGroup + wikiAutoGroup + sourceRows + addRow + "</div>";
+  // Reihenfolge: Wiki-Zeile, Listen, dann die Falte mit Hinweis und Formular, dann die Meldezeile
+  // (ausserhalb der Falte, siehe renderFeatureSourceAddNote). Quellen stehen ueberall UNTEN, und das
+  // Eintragen steht unter den Quellen.
+  return '<div class="fs-editor">' + wikiRow + pendingGroup + wikiAutoGroup + sourceRows
+    + renderFeatureSourceAddFold(hint, addRow, escape, tr) + renderFeatureSourceAddNote() + "</div>";
 }
 
 /**

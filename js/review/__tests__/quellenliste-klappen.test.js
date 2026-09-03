@@ -104,9 +104,12 @@ assert.strictEqual((gemischt.match(/<details class="fs-more">/g) || []).length, 
 
 // ---- E. Der Stil traegt die Untergrenze des Hauses -------------------------------------------------
 const stil = fs.readFileSync(path.join(wurzel, "css/features/feature-sources.css"), "utf8");
-assert.ok(/\.fs-more__toggle\s*\{/.test(stil), "der Knopf hat eine Regel");
-const vonS = stil.indexOf(".fs-more__toggle {");
-const regel = stil.slice(vonS, stil.indexOf("}", vonS));
+// ⚠️ Seit 03.09.2026 teilt sich der Knopf seine Regel mit der Falte „Neue Quelle einfügen"
+// (`.fs-more__toggle,\n.fs-add-fold__toggle {`) -- EINE Rezeptur, zwei Namen (Owner: „alle boxen
+// unter einem klapptext verschwinden"). Der Rumpf beginnt deshalb hinter der Selektorliste.
+const vonS = stil.search(/\.fs-more__toggle(,[^{]*)?\s*\{/);
+assert.ok(vonS >= 0, "der Knopf hat eine Regel");
+const regel = stil.slice(stil.indexOf("{", vonS), stil.indexOf("}", vonS));
 const groesse = (regel.match(/font-size:\s*(\d+)px/) || [])[1];
 // ⚠️ 11px ist die Untergrenze (AGENTS.md §12) -- 10px sind im Haus schon zweimal durchgerutscht.
 assert.ok(Number(groesse) >= 11, "der Knopf steht auf mindestens 11px, gefunden: " + groesse);
