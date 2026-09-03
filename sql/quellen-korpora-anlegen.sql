@@ -1,4 +1,7 @@
 -- Die Korpora — Namen vom Owner (02.09.2026), Lizenzen aus den Wikis selbst gelesen.
+-- 03.09.2026: drei Namen an die Eigennamen der Wikis angeglichen (Owner: „mach die Korpora-Umbenennung“) —
+-- Almada Wiki, AlberniaWiki, Káhet Ni Kemi; live per `save_corpus` gesetzt, hier nachgezogen, weil das
+-- Upsert unten sonst beim nächsten Lauf die alten Namen zurückschriebe.
 --
 -- 🔴 Der SCHLÜSSEL ist die registrierbare Domain und wird NIE getippt — er entsteht aus
 -- `sources.url` (avesmapsSourceCorpusKey). Diese Datei setzt nur, was sich NICHT ableiten lässt:
@@ -37,10 +40,10 @@ CREATE TABLE IF NOT EXISTS source_corpus (
 
 -- corpus_key, label, form, source_type, license
 INSERT INTO source_corpus (corpus_key, label, form, source_type, license) VALUES
-  ('punin.de',             'Almada-Wiki',        'belegstelle', 'briefspiel', ''),
-  ('westlande.de',         'Albernia-Wiki',      'belegstelle', 'briefspiel', 'cc-by-sa-4.0'),
+  ('punin.de',             'Almada Wiki',        'belegstelle', 'briefspiel', ''),
+  ('westlande.de',         'AlberniaWiki',       'belegstelle', 'briefspiel', 'cc-by-sa-4.0'),
   ('herzogtum-weiden.net', 'Herzogtum Weiden',   'belegstelle', 'briefspiel', ''),
-  ('kahet-ni-kemi.de',     'Káhet Ni Kemi!',     'belegstelle', 'briefspiel', ''),
+  ('kahet-ni-kemi.de',     'Káhet Ni Kemi',      'belegstelle', 'briefspiel', ''),
   ('horaswiki.de',         'LieblichesFeld-Wiki','belegstelle', 'briefspiel', 'cc-by-sa-4.0'),
   ('liebliches-feld.net',  'LieblichesFeld-Wiki','belegstelle', 'briefspiel', 'cc-by-sa-4.0'),
   ('garetien.de',          'Garetien-Wiki',      'belegstelle', 'briefspiel', 'cc-by-nc-sa-3.0'),
@@ -60,8 +63,9 @@ SELECT corpus_key, label, form, source_type, license FROM source_corpus ORDER BY
 --      Kosch-Wiki      — ebenso. ⭐ koschwiki.de ist im Garetien-Import vorgesehen (AGENTS.md);
 --                        der Name wird dort fällig, nicht hier.
 --
--- ⚠️ „Káhet-Ni-Kemi-Projekt" und „Káhet Ni Kemi!" sind DASSELBE (Owner 02.09.2026) — es gibt nur
---    den einen Wirt kahet-ni-kemi.de, und seine Seiten nennen sich „… - Káhet Ni Kemi".
+-- ⚠️ „Káhet-Ni-Kemi-Projekt" und „Káhet Ni Kemi" sind DASSELBE (Owner 02.09.2026) — es gibt nur
+--    den einen Wirt kahet-ni-kemi.de, und seine Seiten nennen sich „… - Káhet Ni Kemi" (ohne
+--    Ausrufezeichen; so heisst der Korpus seit dem 03.09.2026).
 --
 -- ⚠️ rommilyser-mark.de ist Joomla und hat eine LEERE `<h1>` — deshalb bringt der Titel-Lauf für
 --    seine eine Zeile nichts, und deshalb steht sie dort unter „keine Überschrift". Der
