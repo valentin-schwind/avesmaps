@@ -250,6 +250,8 @@ function avesmapsLandschaftDialogLagen() {
 	// derselben Stelle: die Haelften melden sich hier an und ab, also entscheidet sich hier, wessen
 	// Kasten gilt.
 	avesmapsLandschaftDialogWikiKasten(stand);
+	// 🔴 Und der Quellenkasten aus demselben Grund an derselben Stelle -- siehe dort.
+	avesmapsLandschaftDialogQuellenKasten(stand);
 	// ⚠️ Den Titel setzt hier NIEMAND mehr: er braucht die EBENE, und die kennt nur die Haelfte, der
 	// sie gehoert. Geschrieben wird er von `setLabelEditDialogTitle` (die traegt ihren `kind` ohnehin)
 	// und vom Flaechen-Oeffner. Eine geratene Ebene ueber einem Fenster, in dem man Geometrie
@@ -403,6 +405,55 @@ function avesmapsLandschaftDialogWikiKasten(stand) {
 		const kasten = document.getElementById("label-wiki-assign-host");
 		if (kasten) {
 			kasten.hidden = !zeigeLabelKasten;
+		}
+	}
+	return zeigeLabelKasten;
+}
+
+/**
+ * Welcher Quellenkasten im dritten Reiter steht -- und ob der Abschnitt ueberhaupt dasteht.
+ * REIN in seiner Entscheidung, schreibt nur `hidden`.
+ *
+ * 🔴 DER REITER HEISST „Wiki & Quellen", ALSO STEHEN DIE QUELLEN DARIN (Owner 03.09.2026). Bis
+ * dahin lag der Kasten der Flaeche im Reiter „Fläche", und hier stand nur ein Verweis darauf. Der
+ * Owner hat einen Import fuer leer gehalten, weil er dort nachsah, wo „Quellen" draufsteht -- und
+ * die Quelle hing die ganze Zeit korrekt an der Flaeche. Die Beschriftung IST das Versprechen.
+ *
+ * 💣 DER REITER TRAEGT ZWEI BEHAELTER, GENAU WIE BEIM WIKI-KASTEN DARUEBER:
+ * `#ecosystem-properties-sources` (Quellen der Flaeche) und `#label-edit-feature-sources` (die der
+ * freien Beschriftung). Zwei gleich aussehende Kaesten uebereinander, und niemand koennte sagen,
+ * welcher zaehlt -- deshalb entscheidet es sich HIER, wo die Haelften sich an- und abmelden, und
+ * nicht bei den zwei Montierern.
+ *
+ * 🔴 ES GEWINNT DIE FLAECHE -- dieselbe Regel und derselbe Grund wie beim Wiki-Kasten: seit
+ * Schritt 5 des Quellen-Umbaus (03.09.2026) traegt die Flaeche die Quellen, und die gebundene
+ * Beschriftung LIEST sie nur (avesmapsEcosystemLabelSourceTarget). Ohne Flaeche ist der eigene
+ * Kasten der Beschriftung der einzige und bleibt.
+ *
+ * 🔴 UND DER ABSCHNITT BLENDET SICH WEG, WENN KEINE HAELFTE GELADEN IST. Eine Ueberschrift
+ * „Quellen" ueber dem Nichts liest sich wie ein Fehler -- dieselbe Regel wie beim Trenner der
+ * Quellenzeile, der nur kommt, wenn oben wirklich etwas steht.
+ * ⚠️ „Eine Haelfte geladen" genuegt als Bedingung: eine GEBUNDENE Beschriftung bringt ihre Flaeche
+ * immer mit (der Beschriftungs-Oeffner ruft den Flaechen-Oeffner als Gegenpart), es kann also nie
+ * der Fall eintreten, dass beide Behaelter leer bleiben, obwohl eine Haelfte geladen ist.
+ *
+ * @returns {boolean} true, wenn der Kasten der Beschriftung gezeigt wird
+ */
+function avesmapsLandschaftDialogQuellenKasten(stand) {
+	const s = stand || {};
+	const zeigeLabelKasten = !s.hatFlaeche;
+	if (typeof document !== "undefined") {
+		const flaeche = document.getElementById("ecosystem-properties-sources");
+		if (flaeche) {
+			flaeche.hidden = !s.hatFlaeche;
+		}
+		const label = document.getElementById("label-edit-feature-sources");
+		if (label) {
+			label.hidden = !zeigeLabelKasten;
+		}
+		const abschnitt = document.getElementById("landschaft-quellen-abschnitt");
+		if (abschnitt) {
+			abschnitt.hidden = !(s.hatFlaeche || s.hatLabel);
 		}
 	}
 	return zeigeLabelKasten;
@@ -605,6 +656,7 @@ if (typeof module !== "undefined" && module.exports) {
 		avesmapsLandschaftDialogStand: avesmapsLandschaftDialogStand,
 		avesmapsLandschaftDialogLadeAuftraege: avesmapsLandschaftDialogLadeAuftraege,
 		avesmapsLandschaftDialogWikiKasten: avesmapsLandschaftDialogWikiKasten,
+		avesmapsLandschaftDialogQuellenKasten: avesmapsLandschaftDialogQuellenKasten,
 		avesmapsLandschaftDialogTitel: avesmapsLandschaftDialogTitel,
 		avesmapsLandschaftDialogAnlegenSperre: avesmapsLandschaftDialogAnlegenSperre,
 		avesmapsLandschaftDialogAutoNameEntfernt: avesmapsLandschaftDialogAutoNameEntfernt,

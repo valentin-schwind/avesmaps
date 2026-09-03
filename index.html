@@ -2120,14 +2120,11 @@
 						<div id="ecosystem-properties-peaks-list" class="ecosystem-properties-dialog__peaks-list"></div>
 					</div>
 					<p id="ecosystem-properties-error" class="ecosystem-properties-dialog__error" role="alert" hidden></p>
-					<!-- 🔴 QUELLEN DER FLAECHE (Schritt 5 des Quellen-Umbaus, 03.09.2026): die Flaeche traegt die Quellen, ihre
-					     gebundenen Beschriftungen zeigen sie. Das EINE Bauteil auf `ecosystem` + public_id, montiert von
-					     mountEcosystemAreaSources (map-features-ecosystem-properties.js) -- als Letztes vor den Knoepfen
-					     (Owner: Quellen immer unten). -->
-					<div class="label-edit-section" id="ecosystem-properties-sources-section"><div class="label-edit-section-title">Quellen</div>
-						<p class="location-report-form__status">Quellen der Landschaft — sie gelten für die Fläche und alle ihre Beschriftungen. Sie wirken <b>sofort</b>, ohne „Speichern“.</p>
-						<div id="ecosystem-properties-sources"></div>
-					</div>
+					<!-- 🔴 DER QUELLENKASTEN STEHT IM REITER „Wiki & Quellen", NICHT HIER (Owner 03.09.2026).
+					     Er stand bis dahin an dieser Stelle, und der Reiter nebenan hiess trotzdem
+					     „Wiki & Quellen" und zeigte nur einen Verweis -- ein Reiter, der Quellen im Namen
+					     traegt und keine zeigt. Der Owner hat genau dort nachgesehen und den Import fuer
+					     leer gehalten, obwohl die Quelle hing. Die Beschriftung IST das Versprechen. -->
 					<div class="ecosystem-properties-dialog__actions" hidden>
 						<button id="ecosystem-properties-delete" class="ecosystem-properties-dialog__button ecosystem-properties-dialog__button--danger" type="button" data-i18n="ecosystem.properties.delete">Löschen</button>
 						<span class="ecosystem-properties-dialog__spacer"></span>
@@ -2250,11 +2247,6 @@
 						     💣 „Andere Quelle" (das alte Einzelfeld) stand bis zum 03.09.2026 darüber. Mit Schritt 4 des
 						     Quellen-Umbaus ist es gefallen: die 314 Altquellen sind in den Katalog gewandert, der
 						     os:-Erzeuger der Nutzlast ist weg -- es gibt nur noch DIESES Quellensystem. -->
-						<div class="label-edit-section"><div class="label-edit-section-title">Quellen</div>
-							<p class="location-report-form__status">Quellen wirken <b>sofort</b> — sie brauchen kein „Speichern“.</p>
-							<p id="label-edit-feature-sources-wohin" class="location-report-form__status" hidden></p>
-							<div id="label-edit-feature-sources"></div>
-						</div>
 						<p id="label-edit-carriers" class="location-report-form__status" hidden></p>
 					<!-- Die Wiki-Zuweisung: seit 16.08.2026 das geteilte Bauteil (js/ui/wiki-assign.js),
 					     Objektart „landschaft", Hülle „label-wiki". Hier stand bis dahin ein eigener
@@ -2265,17 +2257,30 @@
 					     doppelt geschachtelt da -- Rahmen im Rahmen, Polsterung doppelt (der Hinweis
 					     steht wörtlich im Kopf von js/ui/wiki-assign.js). -->
 					<div id="ecosystem-properties-wiki-host"></div>
-						<!-- 🔴 DIE QUELLEN EINER LANDSCHAFT LIEGEN AN IHRER BESCHRIFTUNG, und nur dort.
-						     Hier stand bis zum 26.08.2026 ein ZWEITER Kasten fuer die Flaeche (`entity_type` =
-						     „ecosystem", `ecosystem_region.public_id`), am 28.07.2026 dazugekommen.
-						     💣 Live gemessen am 26.08.2026: er war LEER. Null von 30 gleichmaessig verteilten
-						     Flaechen trugen eine Quelle, und in der Kartenpayload kommt `ecosystem` unter 6336
-						     Objekten mit Quellen kein einziges Mal vor -- waehrend `region` (die Beschriftung) 637
-						     Objekte und 8142 Zeilen traegt. Ein zweiter Kasten, den nie jemand gefuellt hat.
-						     ⚠️ Und nur die Beschriftungs-Liste LIEST die Karte (renderFeatureSourceLine,
-						     map-features-labels.js). Was im zweiten Kasten gestanden haette, saehe kein Besucher.
-						     🔴 Der `entity_type` bleibt serverseitig freigegeben -- der Deploy loescht nie, und ein
-						     alter Client darf nicht auf einen 400 laufen. Er hat nur keinen Erzeuger mehr. -->
+						<!-- 🔴 DIE QUELLEN STEHEN HIER, ALS LETZTES IM REITER -- ein Kasten, zwei moegliche
+						     Wirte (Owner 03.09.2026, „Quellen immer unten/als Letztes").
+						     🔴 SEIT SCHRITT 5 DES QUELLEN-UMBAUS TRAEGT DIE FLAECHE IHRE QUELLEN
+						     (`ecosystem` + ecosystem_region.public_id); die gebundene Beschriftung ZEIGT sie nur.
+						     Eine FREIE Beschriftung traegt sie weiter selbst (`region` + map_features.public_id).
+						     💣 Bis zum 26.08.2026 stand hier das GEGENTEIL -- „die Quellen einer Landschaft liegen
+						     an ihrer Beschriftung, und nur dort" --, samt der Messung, die den damaligen zweiten
+						     Kasten als dauerhaft leer auswies (0 von 30 Flaechen). Beides war zu seiner Zeit
+						     richtig und ist es seit Schritt 5 nicht mehr; wer die alte Fassung liest, baut den
+						     Kasten wieder an die Beschriftung.
+						     💣 ZWEI BEHAELTER, ABER NIE ZWEI KAESTEN: `#ecosystem-properties-sources` fuellt
+						     mountEcosystemAreaSources (map-features-ecosystem-properties.js), wenn eine Flaeche da
+						     ist; `#label-edit-feature-sources` fuellt der Beschriftungs-Pfad NUR bei einer freien
+						     Beschriftung (review-labels.js). Genau einer ist je gefuellt -- die beiden Faelle
+						     schliessen einander aus. Der Abschnitt selbst blendet sich weg, wenn keiner etwas hat
+						     (avesmapsLandschaftQuellenAbschnittAktualisieren): eine Ueberschrift „Quellen" ueber
+						     dem Nichts liest sich wie ein Fehler.
+						     ⚠️ Ein Fenster kann eine Flaeche OHNE Beschriftung zeigen (live 646 Stueck) und eine
+						     Beschriftung OHNE Flaeche -- deshalb braucht es beide Behaelter, nicht einen. -->
+						<div class="label-edit-section" id="landschaft-quellen-abschnitt" hidden><div class="label-edit-section-title">Quellen</div>
+							<p class="location-report-form__status">Quellen wirken <b>sofort</b> — sie brauchen kein „Speichern“.</p>
+							<div id="ecosystem-properties-sources"></div>
+							<div id="label-edit-feature-sources"></div>
+						</div>
 				</div>
 				<p id="landschaft-dialog-status" class="location-report-form__status" role="status" aria-live="polite"></p>
 				<div class="location-report-form__actions">

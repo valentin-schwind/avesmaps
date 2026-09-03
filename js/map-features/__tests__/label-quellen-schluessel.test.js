@@ -49,10 +49,17 @@ assert.deepStrictEqual(avesmapsLabelQuellenSchluessel(null), { type: "region", i
 	const js = ohneKommentare(quelle);
 	const rumpf = rumpfVon(js, "function openLabelEditDialog(options = {}) {");
 	assert.ok(/avesmapsLabelQuellenSchluessel\(labelEditEntry\?\.label \|\| \{\}\)/.test(rumpf), "der Dialog fragt die Weiche mit der geladenen Beschriftung");
-	assert.ok(/quellenZiel\.type === "ecosystem"/.test(rumpf) && /frisch\.hidden = true;/.test(rumpf), "gebunden: der Kasten der Beschriftung bleibt verborgen");
+	assert.ok(/quellenZiel\.type !== "ecosystem"/.test(rumpf), "gebunden: der Beschriftungspfad montiert gar nicht erst");
 	assert.ok(/mountFeatureSourceEditor\(\s*frisch,\s*"region",/.test(rumpf), "frei: Mount auf region wie bisher");
 	assert.ok(!/mountFeatureSourceEditor\(\s*frisch,\s*"ecosystem"/.test(rumpf), "der Beschriftungsdialog montiert NIE auf ecosystem -- das tut der Kasten der Flaeche");
-	assert.ok(rumpf.includes("label-edit-feature-sources-wohin"), "… und sagt, wo die Quellen stehen");
+	// 🔴 UMGEDREHT AM 03.09.2026 (Owner). Hier stand: der Dialog „sagt, wo die Quellen stehen" --
+	// ein Verweis „… sie stehen im Abschnitt Fläche", weil der Kasten der Flaeche im Reiter
+	// „Fläche" lag. Der Owner hat einen Import fuer leer gehalten, weil er im Reiter nachsah, der
+	// „Wiki & Quellen" heisst, und dort nur den Verweis fand. Jetzt stehen BEIDE Behaelter dort,
+	// und die Sichtbarkeit entscheidet EINE Stelle: avesmapsLandschaftDialogQuellenKasten.
+	// ⚠️ Wer den Verweis zurueckholt, baut den zweiten Sichtbarkeitsgeber wieder ein.
+	assert.ok(!rumpf.includes("label-edit-feature-sources-wohin"), "kein Verweis mehr -- der Kasten steht jetzt selbst dort");
+	assert.ok(!/frisch\.hidden/.test(rumpf), "und dieser Pfad setzt keine Sichtbarkeit mehr");
 }
 
 // ---- 4. Der Flaechendialog montiert auf die Flaeche, der Landschaften-Editor auch --------------------------
@@ -73,13 +80,25 @@ assert.deepStrictEqual(avesmapsLabelQuellenSchluessel(null), { type: "region", i
 	const weiche = html.indexOf('src="js/map-features/label-quellen-schluessel.js"');
 	assert.ok(weiche > 0, "die Weiche wird geladen");
 	assert.ok(weiche < html.indexOf('src="js/map-features/map-features-labels.js"') && weiche < html.indexOf('src="js/review/review-labels.js"'), "… vor beiden Lesern");
+	// 🔴 BEIDE BEHAELTER STEHEN IM REITER „Wiki & Quellen", ALS LETZTES (Owner 03.09.2026).
+	// Bis dahin lag der Kasten der Flaeche im Reiter „Fläche" und der dritte Reiter trug nur einen
+	// Verweis darauf -- ein Reiter, der „Quellen" im Namen fuehrt und keine zeigt. Genau dort hat
+	// der Owner nachgesehen und einen Import fuer leer gehalten, obwohl die Quelle hing.
 	const host = html.indexOf('id="ecosystem-properties-sources"');
-	// ⚠️ Dieselbe Klasse traegt ein frueherer Dialog -- gesucht wird die Knopfleiste NACH dem Host, im Flaechenformular.
-	const formular = html.indexOf('id="ecosystem-properties-form"');
-	const knoepfe = html.indexOf('class="ecosystem-properties-dialog__actions"', host);
-	assert.ok(formular > 0 && host > formular && knoepfe > host && html.indexOf("</form>", host) > knoepfe, "der Host der Flaeche steht im Flaechenformular vor dessen Knoepfen");
-	assert.ok(html.lastIndexOf('id="ecosystem-properties-peaks"', host) > 0, "… nach den Gipfeln -- als Letztes");
-	assert.ok(html.includes('id="label-edit-feature-sources-wohin"'), "der Beschriftungsdialog hat die Zeile, die zur Flaeche zeigt");
+	const labelHost = html.indexOf('id="label-edit-feature-sources"');
+	const abschnitt = html.indexOf('id="landschaft-quellen-abschnitt"');
+	const reiter = html.indexOf('data-landschaft-bereich="wiki"');
+	assert.ok(reiter > 0 && abschnitt > reiter, "der Quellenabschnitt liegt im dritten Reiter");
+	assert.ok(host > abschnitt && labelHost > abschnitt, "… und beide Behaelter darin");
+	// ⚠️ Der Abschnitt ist der LETZTE Block des Reiters: nach ihm kommt nur noch dessen </div>.
+	// Owner-Dauerregel „Quellen stehen immer unten/als Letztes".
+	const wikiHost = html.indexOf('id="ecosystem-properties-wiki-host"');
+	assert.ok(wikiHost > 0 && abschnitt > wikiHost, "… nach der Wiki-Zuweisung, also zuletzt");
+	// 🔴 Und der Kasten der Flaeche steht NICHT mehr im Reiter „Fläche".
+	const flaecheReiter = html.indexOf('data-landschaft-bereich="flaeche"');
+	const beschriftungReiter = html.indexOf('data-landschaft-bereich="beschriftung"');
+	assert.ok(!(host > flaecheReiter && host < beschriftungReiter), "der Host der Flaeche liegt nicht mehr im Reiter „Fläche“");
+	assert.ok(!html.includes('id="label-edit-feature-sources-wohin"'), "und der Verweis ist fort -- der Kasten steht selbst dort");
 }
 
 // ---- 6. Das Ansichts-Popup der Beschriftung wird AUSGEFUEHRT, nicht nur gelesen ----------------------------
