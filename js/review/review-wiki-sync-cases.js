@@ -3,12 +3,43 @@
 // Plain classic script (no module): all functions are global and called at
 // runtime, so load order relative to review-wiki-sync.js does not matter.
 
+// Der zuletzt gemeldete Lauf -- gemerkt, damit ein NACHGEHOLTES Rendern dieselbe Kopfzeile
+// („Noch kein WikiSync-Lauf …") trifft wie ein sofortiges.
+let wikiSyncLatestRun = null;
+// 🔴 DIE LISTE WIRD ERST GEBAUT, WENN JEMAND SIE SIEHT. Live gemessen 03.09.2026 im Editor:
+// 4.220 Faelle mit 13.642 Knoepfen = 62.607 DOM-Knoten in einem `hidden`-Overlay, beim Start --
+// 82 % des gesamten Editor-DOMs, und jeder Selektorlauf der Karte ging seither ueber sie hinweg.
+// Die DATEN (`wikiSyncCases`) braucht das Konfliktzentrum weiterhin sofort; nur das Bauen wartet.
+let wikiSyncCasesRenderAusstehend = false;
+
+function wikiSyncCaseListVerborgen() {
+	const overlay = document.getElementById("wiki-sync-conflicts-overlay");
+	return Boolean(overlay && overlay.hidden);
+}
+
+// Der Nachzug -- gerufen von setWikiSyncConflictsDialogOpen(true), NACH dem Einblenden.
+function renderWikiSyncCasesWennAusstehend() {
+	if (!wikiSyncCasesRenderAusstehend) {
+		return;
+	}
+	renderWikiSyncCases(wikiSyncLatestRun);
+}
+
 function renderWikiSyncCases(latestRun = null) {
+	if (latestRun !== null) {
+		wikiSyncLatestRun = latestRun;
+	}
 	const listElement = document.getElementById("wiki-sync-case-list");
 	if (!listElement) {
 		return;
 	}
 	syncWikiSyncPanelHeaderState();
+	// Verstecktes Fenster: nur merken, dass etwas zu bauen ist (siehe wikiSyncCasesRenderAusstehend).
+	if (wikiSyncCaseListVerborgen()) {
+		wikiSyncCasesRenderAusstehend = true;
+		return;
+	}
+	wikiSyncCasesRenderAusstehend = false;
 
 	const previousOpenGroupKeys = getWikiSyncOpenGroupKeys();
 	const filterQuery = getWikiSyncFilterQuery();
