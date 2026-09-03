@@ -94,4 +94,73 @@ assert.ok(/wikiEntfernt \? \{ wiki_region: null \} : \{\}/.test(nachzieh),
 assert.ok(/&& !wikiEntfernt/.test(nachzieh),
 	"ein Speichern, das NUR die Zuweisung entfernt, gilt als Aenderung und steigt nicht frueh aus"); checks++;
 
+// ---- D. Die Ebene der Flaeche ueberlebt die Antwort des Schreibwegs ------------------------------------
+// 🔴 Im Browser gefunden, von keinem Test (03.09.2026): `ecosystem_region_kind` entsteht nur im
+// LESEPFAD, die Antworten der Schreibwege tragen die rohe Ablage. Nach dem Speichern stand der
+// „Cronwald" als einziges Label mit Flaeche und ohne Ebene da -- und die Vegetations-Ebene zeigt nur
+// ihre eigenen Beschriftungen: das eben gespeicherte Label war von der Karte verschwunden.
+const ebeneStart = labels.indexOf("function avesmapsLabelEbeneErgaenzen(frisch, bisher) {");
+assert.ok(ebeneStart > -1, "avesmapsLabelEbeneErgaenzen fehlt"); checks++;
+const ebeneQuelle = labels.slice(ebeneStart, labels.indexOf("\n}\n", ebeneStart) + 2);
+const ergaenze = (store) => new Function("ecosystemRegionOfLabel", ebeneQuelle + "\nreturn avesmapsLabelEbeneErgaenzen;")(store);
+
+// Mit Regionsbestand: die Ebene kommt von dort -- auch wenn das Label die Flaeche gewechselt hat.
+const bestand = (label) => (label.ecosystemRegionPublicId === "r-veg" ? { public_id: "r-veg", kind: "vegetation" } : { public_id: label.ecosystemRegionPublicId });
+let frisch = ergaenze(bestand)({ ecosystemRegionKind: "", ecosystemRegionPublicId: "r-veg" }, { ecosystemRegionKind: "topographie", ecosystemRegionPublicId: "r-topo" });
+assert.strictEqual(frisch.ecosystemRegionKind, "vegetation", "der Bestand schlaegt die alte Ebene"); checks++;
+
+// Ohne Bestand (Kind unbekannt), dieselbe Flaeche: die bisherige bleibt.
+frisch = ergaenze(bestand)({ ecosystemRegionKind: "", ecosystemRegionPublicId: "r-topo" }, { ecosystemRegionKind: "topographie", ecosystemRegionPublicId: "r-topo" });
+assert.strictEqual(frisch.ecosystemRegionKind, "topographie", "dieselbe Flaeche: die Ebene bleibt stehen"); checks++;
+
+// Ohne Bestand und ANDERE Flaeche: nicht raten.
+frisch = ergaenze(bestand)({ ecosystemRegionKind: "", ecosystemRegionPublicId: "r-neu" }, { ecosystemRegionKind: "topographie", ecosystemRegionPublicId: "r-topo" });
+assert.strictEqual(frisch.ecosystemRegionKind, "", "eine fremde Ebene an einer neuen Flaeche waere geraten"); checks++;
+
+// Ohne Flaeche gibt es keine Ebene -- "" bleibt "", auch wenn vorher eine da war (Label geloest).
+frisch = ergaenze(bestand)({ ecosystemRegionKind: "", ecosystemRegionPublicId: "" }, { ecosystemRegionKind: "vegetation", ecosystemRegionPublicId: "r-veg" });
+assert.strictEqual(frisch.ecosystemRegionKind, "", "ohne Flaeche keine Ebene"); checks++;
+
+// Eine mitgelieferte Ebene wird nie ueberschrieben (der Lesepfad liefert sie).
+frisch = ergaenze(bestand)({ ecosystemRegionKind: "klima", ecosystemRegionPublicId: "r-veg" }, { ecosystemRegionKind: "vegetation", ecosystemRegionPublicId: "r-veg" });
+assert.strictEqual(frisch.ecosystemRegionKind, "klima", "eine gelieferte Ebene bleibt"); checks++;
+
+// 🔴 Der Bestand schlaegt auch eine BISHERIGE Ebene an derselben Flaeche (sie kann veraltet sein --
+// die Flaeche selbst hat die Ebene gewechselt). Gefangen von einer Mutationsprobe: mit vertauschter
+// Reihenfolge blieb hier „topographie" stehen.
+frisch = ergaenze(bestand)({ ecosystemRegionKind: "", ecosystemRegionPublicId: "r-veg" }, { ecosystemRegionKind: "topographie", ecosystemRegionPublicId: "r-veg" });
+assert.strictEqual(frisch.ecosystemRegionKind, "vegetation", "der Bestand gewinnt auch gegen die bisherige Ebene"); checks++;
+
+// 💣 Das PRIMAERE Label haengt oft nur ueber den Zeiger der Region und traegt selbst keinen -- der
+// Aufloeser findet es trotzdem (beide Richtungen), und die Ebene muss ueberleben. Ein frueher
+// Ausstieg bei leerem Zeiger liesse genau dieses Label nach dem Speichern verschwinden.
+const bestandPrimaer = (label) => (label.publicId === "l-primaer" ? { public_id: "r-veg", kind: "vegetation" } : null);
+frisch = ergaenze(bestandPrimaer)({ publicId: "l-primaer", ecosystemRegionKind: "", ecosystemRegionPublicId: "" }, { ecosystemRegionKind: "vegetation", ecosystemRegionPublicId: "" });
+assert.strictEqual(frisch.ecosystemRegionKind, "vegetation", "ohne eigenen Zeiger entscheidet der Aufloeser"); checks++;
+
+// Ohne Aufloeser (Editorseite) faellt es auf die bisherige zurueck, statt zu werfen.
+frisch = ergaenze(undefined)({ ecosystemRegionKind: "", ecosystemRegionPublicId: "r-veg" }, { ecosystemRegionKind: "vegetation", ecosystemRegionPublicId: "r-veg" });
+assert.strictEqual(frisch.ecosystemRegionKind, "vegetation"); checks++;
+
+// 💣 BEIDE Anwender der Antwort gehen hindurch -- der in-place-Weg und der ersetzende.
+const antwortStart = labels.indexOf("function applyLabelFeatureResponse(entry, feature) {");
+const antwort = ohneKommentare(labels.slice(antwortStart, labels.indexOf("\n}\n", antwortStart) + 2));
+assert.ok(/avesmapsLabelEbeneErgaenzen\(label, entry\.label\)/.test(antwort), "applyLabelFeatureResponse ergaenzt die Ebene"); checks++;
+const lokalStart = labels.indexOf("function applyLabelFeatureLocally(feature) {");
+const lokal = ohneKommentare(labels.slice(lokalStart, labels.indexOf("\n}\n", lokalStart) + 2));
+assert.ok(/avesmapsLabelEbeneErgaenzen\(normalizeLabelFeature\(feature\), entry\.label\)/.test(lokal), "applyLabelFeatureLocally ebenso"); checks++;
+
+// ---- E. Das offene Infopanel zieht mit --------------------------------------------------------------
+// Der Label-Klick gibt dem Panel einen BAUER (createLabelMarker) -- der Refresh war moeglich und wurde
+// nach einem Save nie gerufen. Gemessen 03.09.2026: Panel vor dem Refresh mit Lage, Staat, Beschreibung
+// und Wiki-Quelle des entfernten Artikels, danach ohne.
+assert.ok(/avesmapsLabelInfopanelNachziehen\(\)/.test(antwort), "applyLabelFeatureResponse frischt das offene Panel auf"); checks++;
+const nachziehStartPanel = labels.indexOf("function avesmapsLabelInfopanelNachziehen() {");
+const nachziehPanel = new Function("window", labels.slice(nachziehStartPanel, labels.indexOf("\n}\n", nachziehStartPanel) + 2) + "\nreturn avesmapsLabelInfopanelNachziehen;");
+let gerufen = 0;
+nachziehPanel({ avesmapsRefreshInfopanel: () => { gerufen++; } })();
+assert.strictEqual(gerufen, 1, "ruft avesmapsRefreshInfopanel"); checks++;
+nachziehPanel({})();
+assert.strictEqual(gerufen, 1, "ohne Panel (Editorseite) passiert nichts und nichts wirft"); checks++;
+
 console.log("wiki-entfernen-sichtbar-verdrahtung: " + checks + " Zusicherungen gruen");

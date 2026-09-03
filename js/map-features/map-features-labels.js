@@ -1006,7 +1006,8 @@ function applyLabelFeatureLocally(feature) {
 		return false;
 	}
 
-	const frisch = normalizeLabelFeature(feature);
+	// 🔴 Die Ebene der Flaeche kommt nicht mit der Antwort -- siehe avesmapsLabelEbeneErgaenzen.
+	const frisch = avesmapsLabelEbeneErgaenzen(normalizeLabelFeature(feature), entry.label);
 	const index = labelData.indexOf(entry.label);
 	if (index >= 0) {
 		labelData[index] = frisch;
@@ -1634,6 +1635,8 @@ function applyLabelFeatureResponse(entry, feature) {
 		label.curveLine = entry.label.curveLine;
 		label.curveMax = entry.label.curveMax;
 	}
+	// 🔴 UND KEINE EBENE -- dieselbe Falle wie die Kurve, siehe avesmapsLabelEbeneErgaenzen.
+	avesmapsLabelEbeneErgaenzen(label, entry.label);
 	Object.assign(entry.label, label);
 	entry.marker.setLatLng(label.coordinates);
 	// Ueber den gemeinsamen Rasterer, damit der Zoom-Merker der Bedarfs-Rasterung mitwandert -- sonst
@@ -1641,6 +1644,50 @@ function applyLabelFeatureResponse(entry, feature) {
 	avesmapsLabelIconRastern(entry, map.getZoom());
 	refreshLabelMarkerPopup(entry);
 	syncLabelMarkerVisibility(entry);
+	avesmapsLabelInfopanelNachziehen();
+}
+
+// DIE EBENE DER FLAECHE UEBERLEBT DIE ANTWORT DES SCHREIBWEGS.
+//
+// 🔴 `ecosystem_region_kind` entsteht NUR im LESEPFAD (api/_internal/app/ecosystem-label-link.php,
+// Kartennutzlast Fassung 11); `update_label` und die `labels` von `update_region` geben die rohe
+// Ablage zurueck. Ohne diese Funktion setzte der Nachzug die Ebene auf "" -- und in der
+// Landschaften-Ansicht zeigt die gewaehlte Ebene NUR ihre eigenen Beschriftungen
+// (isLabelOfActiveEcosystemLayer): das eben gespeicherte Label verschwand von der Karte, bis die
+// Nutzlast neu kam. Gemessen 03.09.2026 am „Cronwald" im Browser: nach dem Speichern das einzige
+// Label mit Flaeche und ohne Ebene, `hasLayer` false, und nirgends ein Fehler.
+//
+// ⭐ Die Ebene kommt aus dem Regionsbestand, wenn der sie kennt -- das Label kann seine Flaeche im
+// selben Speichern gewechselt haben, und ecosystemRegionOfLabel liest BEIDE Richtungen der
+// Zugehoerigkeit (eigener Zeiger ODER `label_public_id` der Region), genau wie der Lesepfad. Sonst
+// bleibt die bisherige stehen, aber NUR, solange sich der eigene Zeiger nicht geaendert hat: eine
+// fremde Ebene an einer neuen Flaeche waere geraten. Gibt das Objekt zurueck, das es bekam.
+// 💣 KEIN frueher Ausstieg bei leerem Zeiger: das primaere Label haengt oft NUR ueber den Zeiger
+// der Region (`label_public_id`) und traegt selbst keinen -- der Lesepfad gibt ihm die Ebene
+// trotzdem, und hier muss sie ebenso ueberleben.
+function avesmapsLabelEbeneErgaenzen(frisch, bisher) {
+	if (!frisch || String(frisch.ecosystemRegionKind || "") !== "") {
+		return frisch;
+	}
+	const region = typeof ecosystemRegionOfLabel === "function" ? ecosystemRegionOfLabel(frisch) : null;
+	const gleicheFlaeche = Boolean(bisher) && String(bisher.ecosystemRegionPublicId || "") === String(frisch.ecosystemRegionPublicId || "");
+	frisch.ecosystemRegionKind = String((region && region.kind) || (gleicheFlaeche && bisher.ecosystemRegionKind) || "");
+	return frisch;
+}
+
+// DAS OFFENE INFOPANEL ZIEHT MIT (Owner 03.09.2026: „die aenderungen sichtbar werden").
+//
+// 🔴 Der Klick auf ein Label gibt dem Panel einen BAUER, keinen fertigen Text -- genau damit es sich
+// auffrischen laesst (avesmapsRefreshInfopanel, siehe createLabelMarker). Bis heute rief das nach
+// einem Label-Save niemand: die Zuweisung war aus Flaeche und Beschriftung heraus, die Infobox
+// daneben zeigte weiter Lage, Staat, Beschreibung und die Wiki-Quelle des alten Artikels, bis man
+// das Label ein zweites Mal anklickte. Der Refresh ist entprellt (panelRefreshQueued) -- mehrere
+// nachgezogene Beschriftungen kosten EINEN Neubau.
+// ⚠️ `typeof`: die Editorseiten laden dieses Skript ohne das Panel.
+function avesmapsLabelInfopanelNachziehen() {
+	if (typeof window !== "undefined" && typeof window.avesmapsRefreshInfopanel === "function") {
+		window.avesmapsRefreshInfopanel();
+	}
 }
 
 function applyLiveLabelFeature(feature) {
