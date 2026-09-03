@@ -68,8 +68,8 @@ try {
     }
 
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
-    avesmapsPoliticalEnsureTables($pdo);
-    avesmapsPoliticalEnsureDerivedGeometryTables($pdo);
+    avesmapsPoliticalEnsureTablesEinmal($pdo);
+    avesmapsPoliticalEnsureDerivedGeometryTablesEinmal($pdo);
 
     if ($requestMethod === 'GET') {
         $action = avesmapsNormalizeSingleLine((string) ($_GET['action'] ?? 'layer'), 60);

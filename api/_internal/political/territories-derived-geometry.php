@@ -5,6 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/derived-orphans.php';
 require_once __DIR__ . '/territories-audit.php';
 require_once __DIR__ . '/territories-derived-geometry-plan.php';
+require_once __DIR__ . '/../schema-ensure-once.php';
 
 function avesmapsPoliticalEnsureDerivedGeometryTables(PDO $pdo): void {
     $pdo->exec(
@@ -62,6 +63,12 @@ function avesmapsPoliticalEnsureDerivedGeometryTables(PDO $pdo): void {
     if (!is_array($contestedPiecesColumn)) {
         $pdo->exec('ALTER TABLE political_territory_derived_geometry ADD contested_pieces_geojson JSON NULL AFTER fill_remainder_geojson');
     }
+}
+
+function avesmapsPoliticalEnsureDerivedGeometryTablesEinmal(PDO $pdo): void {
+    avesmapsSchemaEnsureOnce('political_derived_geometry_tables', __FILE__, static function () use ($pdo): void {
+        avesmapsPoliticalEnsureDerivedGeometryTables($pdo);
+    });
 }
 
 function avesmapsPoliticalReadDerivedGeometry(PDO $pdo, array $query): array {

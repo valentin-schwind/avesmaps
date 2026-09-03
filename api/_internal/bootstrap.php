@@ -644,6 +644,7 @@ function avesmapsFormatBfYear(int $year): string {
 // =================================================================================================
 
 require_once __DIR__ . '/analytics/api-metrics.php';
+require_once __DIR__ . '/schema-ensure-once.php';
 
 /**
  * Hinterlegt, was geantwortet wurde. Aufgerufen von avesmapsJsonResponse; geschrieben wird erst

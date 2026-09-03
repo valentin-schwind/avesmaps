@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../text/ascii-fold.php';
+require_once __DIR__ . '/../schema-ensure-once.php';
 
 const AVESMAPS_POLITICAL_DEFAULT_CONTINENT = 'Aventurien';
 const AVESMAPS_POLITICAL_DEFAULT_YEAR_BF = 1049;
@@ -162,6 +163,12 @@ function avesmapsPoliticalEnsureTables(PDO $pdo): void {
     if (is_array($column) && strtoupper((string) ($column['Null'] ?? 'NO')) !== 'YES') {
         $pdo->exec('ALTER TABLE political_territory_geometry MODIFY territory_id BIGINT UNSIGNED NULL');
     }
+}
+
+function avesmapsPoliticalEnsureTablesEinmal(PDO $pdo): void {
+    avesmapsSchemaEnsureOnce('political_tables', __FILE__, static function () use ($pdo): void {
+        avesmapsPoliticalEnsureTables($pdo);
+    });
 }
 
 function avesmapsPoliticalNormalizeWikiRecord(array $record): array {

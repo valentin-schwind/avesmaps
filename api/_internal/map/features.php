@@ -23,6 +23,7 @@ require_once __DIR__ . '/../routing/transport-season.php';
 require_once __DIR__ . '/wiki-claim.php';
 require_once __DIR__ . '/field-origins.php';
 require_once __DIR__ . '/../audit-prune.php';
+require_once __DIR__ . '/../schema-ensure-once.php';
 
 // 🔴 DIESE BIBLIOTHEK WIRFT SIE, ALSO DEKLARIERT SIE SIE AUCH. Bis zum 20.08.2026 stand die
 // Klasse nur in api/edit/map/features.php -- fuenf `throw new AvesmapsConflictException` hier drin
@@ -378,6 +379,12 @@ function avesmapsEnsureMapAuditUndoColumns(PDO $pdo): void {
     if ($missingDefinitions !== []) {
         $pdo->exec('ALTER TABLE map_audit_log ' . implode(', ', $missingDefinitions));
     }
+}
+
+function avesmapsEnsureMapAuditUndoColumnsEinmal(PDO $pdo): void {
+    avesmapsSchemaEnsureOnce('map_audit_log_undo', __FILE__, static function () use ($pdo): void {
+        avesmapsEnsureMapAuditUndoColumns($pdo);
+    });
 }
 
 function avesmapsFetchTableColumnNames(PDO $pdo, string $tableName): array {
@@ -1265,6 +1272,14 @@ function avesmapsEnsureMapFeatureLocksTable(PDO $pdo): void {
     );
 }
 
+// Der Riegel fuer den heissen Pfad (jeder Sperr-Wecker, jede Bearbeitung): siehe
+// api/_internal/schema-ensure-once.php. Der Roh-Ensure darueber bleibt fuer Importe und Tests.
+function avesmapsEnsureMapFeatureLocksTableEinmal(PDO $pdo): void {
+    avesmapsSchemaEnsureOnce('map_feature_locks', __FILE__, static function () use ($pdo): void {
+        avesmapsEnsureMapFeatureLocksTable($pdo);
+    });
+}
+
 function avesmapsAssertFeatureCanBeEdited(PDO $pdo, array $payload, array $feature, array $user): void {
     $expectedRevision = avesmapsReadOptionalRevision($payload['expected_revision'] ?? null);
     if ($expectedRevision !== null && $expectedRevision !== (int) $feature['revision']) {
@@ -1287,7 +1302,7 @@ function avesmapsAssertFeatureCanBeEdited(PDO $pdo, array $payload, array $featu
 
 function avesmapsAcquireMapFeatureLock(PDO $pdo, array $payload, array $user): array {
     $publicId = avesmapsReadMapFeaturePublicId($payload['public_id'] ?? '');
-    avesmapsEnsureMapFeatureLocksTable($pdo);
+    avesmapsEnsureMapFeatureLocksTableEinmal($pdo);
 
     $pdo->beginTransaction();
     try {
@@ -1322,7 +1337,7 @@ function avesmapsAcquireMapFeatureLock(PDO $pdo, array $payload, array $user): a
 
 function avesmapsReleaseMapFeatureLock(PDO $pdo, array $payload, array $user): array {
     $publicId = avesmapsReadMapFeaturePublicId($payload['public_id'] ?? '');
-    avesmapsEnsureMapFeatureLocksTable($pdo);
+    avesmapsEnsureMapFeatureLocksTableEinmal($pdo);
     $statement = $pdo->prepare('DELETE FROM map_feature_locks WHERE public_id = :public_id AND user_id = :user_id');
     $statement->execute([
         'public_id' => $publicId,

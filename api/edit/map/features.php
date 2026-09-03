@@ -39,7 +39,7 @@ try {
     $payload = avesmapsReadJsonRequest();
     $action = avesmapsNormalizeSingleLine((string) ($payload['action'] ?? 'move_point'), 40);
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
-    avesmapsEnsureMapFeatureLocksTable($pdo);
+    avesmapsEnsureMapFeatureLocksTableEinmal($pdo);
 
     $result = match ($action) {
         'move_point' => avesmapsMovePointFeature($pdo, $payload, $user),

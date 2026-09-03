@@ -20,6 +20,7 @@ require_once __DIR__ . '/../../_internal/map/report-audit.php';
 // asserted without a database -- in particular that nothing but a whitelisted value ever reaches
 // the WHERE clause.
 require_once __DIR__ . '/../../_internal/map/report-review-list.php';
+require_once __DIR__ . '/../../_internal/schema-ensure-once.php';
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
@@ -90,7 +91,7 @@ function avesmapsListLocationReportsForReview(PDO $pdo, string $filter = 'neu'):
         ];
     }
 
-    avesmapsEnsureMapReportsTableForReview($pdo);
+    avesmapsEnsureMapReportsTableForReviewEinmal($pdo);
 
     $statusCondition = avesmapsReportListStatusCondition($filter);
     $orderBy = avesmapsReportListOrderBy($filter);
@@ -568,6 +569,14 @@ function avesmapsEnsureMapReportsTableForReview(PDO $pdo): void {
         }
         $pdo->exec("ALTER TABLE map_reports ADD COLUMN {$column} {$definition}");
     }
+}
+
+// Der Riegel fuer den 45-s-Takt der Liste. Die Schreibwege weiter oben rufen den Roh-Ensure
+// weiter direkt -- sie laufen je Handlung, nicht je Takt.
+function avesmapsEnsureMapReportsTableForReviewEinmal(PDO $pdo): void {
+    avesmapsSchemaEnsureOnce('map_reports_review', __FILE__, static function () use ($pdo): void {
+        avesmapsEnsureMapReportsTableForReview($pdo);
+    });
 }
 
 function avesmapsReviewTableExists(PDO $pdo, string $tableName): bool {

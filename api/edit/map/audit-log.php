@@ -35,7 +35,7 @@ try {
 
     $user = avesmapsRequireUserWithCapability('review');
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
-    avesmapsEnsureMapAuditUndoColumns($pdo);
+    avesmapsEnsureMapAuditUndoColumnsEinmal($pdo);
     avesmapsJsonResponse(200, avesmapsListMapAuditLog(
         $pdo,
         avesmapsUserCan($user, 'edit'),
