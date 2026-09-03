@@ -1,0 +1,84 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Quellenzeile im Backend: vorne steht, was der Besucher sieht — Mockup</title>
+<link rel="stylesheet" href="../css/base/tokens.css">
+<link rel="stylesheet" href="../css/features/feature-sources.css">
+<style>
+/* Dieses Mockup bindet keine CSS-Regel (kein Vertragsblock): der Umbau aendert nichts am Stil. Die Zeile
+   behaelt ihr Raster und ihre drei Stufen; es aendert sich nur, WAS vorn steht und was der Tooltip des
+   Links sagt. ⚠️ Das grossgeschriebene Wort „Vertrag" mit einem Doppelpunkt dahinter ist in diesem
+   Kommentar tabu -- der Vertragstest liest es als Marke und verlangt dann ein Ende.
+
+   Owner 03.09.2026 (Bild: Editorzeile „Apfeldorn“ gegen Infobox „AlberniaWiki“): „kannst du bei der
+   auflistung von quellen im backend den titel grundsätzlich an dem anpassen, was im frontend zu
+   sehen ist? die editoren sagen, dass sie verwirrt sind, dass das was anderes steht.“ Und danach:
+   „du kannst den ‚Titel‘ in den Tooltip des links verlagern z.B. ‚Baronie Hirschfurten - Garetien-Wiki‘“.
+
+   🔴 Die Regel: VORN steht der Name, den der Besucher sieht -- bei einer Belegstelle der Korpusname,
+      sonst der Titel. Dieselbe Funktion wie in der Infobox (featureSourceVornName,
+      js/ui/feature-source-markup.js), kein zweiter Erzeuger.
+   🔴 Der Seitentitel geht in den Tooltip des Links: „Baronie Hirschfurten — Garetien-Wiki“. Nur,
+      wenn er vorn nicht steht (bei einem Werk bliebe er doppelt). Die vollstaendige Angabe steht
+      ausserdem im ✎.
+   ⚠️ Der Tooltip ist ein Zusatz, keine Pflichtangabe -- deshalb bekommt der Link keine gepunktete
+      Unterlinie wie eine gekuerzte Seitenzahl: er ist ein Link und soll wie einer aussehen. */
+
+body { margin: 0; padding: 24px; background: var(--color-bg); color: var(--color-text); font: 14px/1.45 system-ui, sans-serif; }
+h1 { font-size: 20px; margin: 0 0 6px; color: var(--color-text-strong); }
+h2 { font-size: 15px; margin: 22px 0 8px; color: var(--color-text-strong); }
+p.lead { max-width: 900px; color: var(--color-text-muted); margin: 0 0 18px; }
+.zwei { display: grid; grid-template-columns: minmax(760px, 2fr) minmax(0, 1fr); gap: 24px; align-items: start; max-width: 1400px; }
+.zwei > * { min-width: 0; }
+.karte { border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-panel); padding: 14px 16px; }
+.karte h3 { margin: 0 0 10px; font-size: 13px; letter-spacing: .04em; text-transform: uppercase; color: var(--color-text-muted); }
+.hinweis { font-size: 12px; color: var(--color-text-muted); margin: 8px 0 0; }
+.hinweis b { color: var(--color-text); }
+.sektion { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--color-accent-brown); margin: 0 0 8px; }
+.schmal { width: 500px; max-width: 100%; }
+.tooltip { display: inline-block; margin-top: 8px; padding: 4px 8px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-panel-soft); font-size: 12px; color: var(--color-text); }
+.frontend .fs-src--box { margin-top: 0; }
+</style>
+
+<h1>Quellenzeile im Backend — vorne steht, was der Besucher sieht</h1>
+<p class="lead">Heute steht im Quellenkasten des Editors der <b>Seitentitel</b> vorn („Apfeldorn“), in der Infobox der
+<b>Korpusname</b> („AlberniaWiki“) — dieselbe Quelle, zwei Namen. Die Zeile im Backend nimmt jetzt die Regel des
+Frontends; der Seitentitel wandert in den Tooltip des Links. Raster, Spalten und Höhe der Zeile bleiben, wie sie sind.</p>
+
+<div class="zwei">
+	<div class="karte">
+		<h3>Backend · Quellenkasten des Orts (breit, wie im Ortseditor)</h3>
+		<p class="sektion">Quellen</p>
+		<div class="fs-editor">
+			<div class="fs-col-heads" aria-hidden="true"><span>Titel</span><span>Typ</span><span>Art</span><span>Seiten</span><span>Lizenz</span><span></span><span></span></div>
+			<div class="fs-row fs-row--wiki"><a class="fs-row__link" href="#" onclick="return false">Wiki Aventurica ↗</a><span class="fs-row__badge fs-row__badge--readonly">fest</span><span class="fs-row__kind"></span><span class="fs-row__pages"></span><span class="fs-row__license"></span><span class="fs-row__edit-cell"></span><span class="fs-row__edit-cell"></span></div>
+			<div class="fs-row" data-source-id="1"><a class="fs-row__link" href="#" onclick="return false" title="Apfeldorn — AlberniaWiki">AlberniaWiki ↗</a><span class="fs-row__badge">Briefspiel</span><span class="fs-row__kind"></span><span class="fs-row__pages"></span><span class="fs-row__license">CC BY-SA 4.0</span><button type="button" class="fs-row__edit" title="Bearbeiten">✎</button><button type="button" class="fs-row__remove">✕</button></div>
+			<div class="fs-row" data-source-id="2"><a class="fs-row__link" href="#" onclick="return false">Geographia Aventurica ↗</a><span class="fs-row__badge">Regionalspielhilfe *</span><span class="fs-row__kind">Erwähnung</span><span class="fs-row__pages">S. 88</span><span class="fs-row__license"></span><button type="button" class="fs-row__edit" title="Bearbeiten">✎</button><button type="button" class="fs-row__remove">✕</button></div>
+			<div class="fs-row" data-source-id="3"><a class="fs-row__link" href="#" onclick="return false" title="Baronie Hirschfurten — Garetien-Wiki">Garetien-Wiki ↗</a><span class="fs-row__badge">Briefspiel</span><span class="fs-row__kind">Ausführlich</span><span class="fs-row__pages"></span><span class="fs-row__license">VolkoV / garetien.de, CC BY-NC-SA 3.0</span><button type="button" class="fs-row__edit" title="Bearbeiten">✎</button><button type="button" class="fs-row__remove">✕</button></div>
+		</div>
+		<span class="tooltip">Tooltip auf „Garetien-Wiki ↗“: Baronie Hirschfurten — Garetien-Wiki</span>
+		<p class="hinweis">Vorn der Name, den auch der Besucher liest. Bei einem <b>Werk</b> (Geographia Aventurica) ist das weiter der
+		Titel, dann gibt es keinen Tooltip. Die Spaltenköpfe, das Raster und die Höhe bleiben wie heute; nur die Spalte
+		„Titel“ heißt künftig „Quelle“, weil dort nicht mehr immer der Seitentitel steht.</p>
+	</div>
+	<div class="karte frontend">
+		<h3>Frontend · Infobox desselben Orts (zum Vergleich)</h3>
+		<div class="fs-src fs-src--box"><p class="fs-src-label">Quellen:</p><ul class="fs-src-list">
+			<li><span class="fs-src-row"><span class="fs-src-main"><span class="fs-src-title"><a class="fs-src-a" href="#" onclick="return false">Wiki Aventurica <span class="fs-src-ext" aria-hidden="true">↗</span></a></span></span><span class="fs-src-marks"><button type="button" class="fs-src-info" aria-expanded="false">i</button><span class="fs-kanon fs-kanon--inoff fs-kanon--split"><span class="fs-kanon__state">Inoffiziell</span><span class="fs-kanon__by">Wiki-Artikel</span></span></span></span></li>
+			<li><span class="fs-src-row"><span class="fs-src-main"><span class="fs-src-title"><a class="fs-src-a" href="#" onclick="return false">AlberniaWiki <span class="fs-src-ext" aria-hidden="true">↗</span></a></span></span><span class="fs-src-marks"><button type="button" class="fs-src-info" aria-expanded="false">i</button><span class="fs-kanon fs-kanon--inoff fs-kanon--split"><span class="fs-kanon__state">Inoffiziell</span><span class="fs-kanon__by">Briefspiel</span></span></span></span></li>
+			<li><span class="fs-src-row"><span class="fs-src-main"><span class="fs-src-title"><a class="fs-src-a" href="#" onclick="return false">Geographia Aventurica <span class="fs-src-ext" aria-hidden="true">↗</span></a></span></span><span class="fs-src-marks"><button type="button" class="fs-src-info" aria-expanded="false">i</button><span class="fs-kanon fs-kanon--off">Offiziell</span></span></span></li>
+			<li><span class="fs-src-row"><span class="fs-src-main"><span class="fs-src-title"><a class="fs-src-a" href="#" onclick="return false">Garetien-Wiki <span class="fs-src-ext" aria-hidden="true">↗</span></a></span></span><span class="fs-src-marks"><button type="button" class="fs-src-info" aria-expanded="false">i</button><span class="fs-kanon fs-kanon--inoff fs-kanon--split"><span class="fs-kanon__state">Inoffiziell</span><span class="fs-kanon__by">Briefspiel</span></span></span></span></li>
+		</ul></div>
+		<p class="hinweis">Der Besucher sieht den Korpusnamen vorn (Belegstelle) und den Titel im ⓘ. Genau diese Regel
+		(<b>featureSourceVornName</b>) liest jetzt auch die Editorzeile — ein Erzeuger, zwei Oberflächen.</p>
+	</div>
+</div>
+
+<h2>Der schmale Kasten (500 px, wie im Dialog „Ort bearbeiten“)</h2>
+<div class="karte schmal">
+	<p class="sektion">Quellen</p>
+	<div class="fs-editor">
+		<div class="fs-row" data-source-id="1"><a class="fs-row__link" href="#" onclick="return false" title="Apfeldorn — AlberniaWiki">AlberniaWiki ↗</a><span class="fs-row__badge">Briefspiel</span><span class="fs-row__kind"></span><span class="fs-row__pages"></span><span class="fs-row__license">CC BY-SA 4.0</span><button type="button" class="fs-row__edit" title="Bearbeiten">✎</button><button type="button" class="fs-row__remove">✕</button></div>
+		<div class="fs-row" data-source-id="2"><a class="fs-row__link" href="#" onclick="return false">Geographia Aventurica ↗</a><span class="fs-row__badge">Regionalspielhilfe *</span><span class="fs-row__kind">Erwähnung</span><span class="fs-row__pages">S. 88</span><span class="fs-row__license"></span><button type="button" class="fs-row__edit" title="Bearbeiten">✎</button><button type="button" class="fs-row__remove">✕</button></div>
+	</div>
+	<p class="hinweis">Unverändert zweizeilig wie heute — nur der Name vorn ist ein anderer.</p>
+</div>

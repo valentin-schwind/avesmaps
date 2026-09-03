@@ -1,0 +1,345 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Quellen im Meldeformular: der Link ist die Quelle — Mockup</title>
+<link rel="stylesheet" href="../css/base/tokens.css">
+<link rel="stylesheet" href="../css/components/location-report-dialog.css">
+<link rel="stylesheet" href="../css/features/feature-sources.css">
+<link rel="stylesheet" href="../css/features/review-panel.css">
+<style>
+/* ══ VERTRAG: css/components/location-report-dialog.css ══
+   🔴 ALLES ZWISCHEN DIESEN MARKEN MUSS IN DER GENANNTEN DATEI ZEICHENGLEICH STEHEN
+   (tools/mockup-vertrag/__tests__/mockup-vertrag.test.js, Deploy-Tor). Es ist eine UNTERGRENZE.
+   Entwurf docs/superpowers/specs/2026-09-03-quellen-meldeformular-design.md §3.
+   1. Die Eingabezeile des MELDERS ist EIN Feld (Link oder Titel) plus Seite(n) plus Knopf -- eine
+      Flex-Zeile, das Feld nimmt den Platz, die Seite bleibt schmal wie heute (78px).
+   2. Was der Melder sonst noch weiss (Titel, Abdeckung, Lizenz, Namensnennung), steht in einer
+      nativen Falte „Mehr zur Quelle (optional)“ UNTER der Zeile -- zu, bis man sie oeffnet; dieselbe
+      Bauform wie im Kartenvorschlag. KEIN Satz zur Erkennung (Owner 03.09.2026: „verwirrt nur“).
+   3. Die Liste zeigt je Quelle Link ODER Katalogtitel, Seiten, ✕ -- keine Art, kein Stern. */
+.report-sources__add-row1 #report-source-ref { flex: 1 1 auto; min-width: 0; }
+.report-sources__mehr {
+	margin-top: 4px;
+	font-size: var(--font-size-caption);
+}
+.report-sources__mehr > summary {
+	cursor: pointer;
+	color: var(--color-link);
+}
+.report-sources__mehr .report-sources__mehr-felder {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-top: 6px;
+}
+.report-sources__row .report-sources__katalog {
+	flex: 0 0 auto;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-caption);
+	white-space: nowrap;
+}
+/* ══ VERTRAG ENDE ══ */
+
+/* ══ VERTRAG: css/features/feature-sources.css ══
+   Die Warteschlange der Meldung ueber dem normalen Formular (§5.3): EINE gedaempfte Zeile, die sagt,
+   die wievielte gemeldete Quelle gerade im Formular steht. Das Formular selbst ist das bestehende --
+   keine zweite Rezeptur, keine neue Zeilenform. */
+.fs-add-queue {
+	margin: 0 0 6px;
+	font-size: 11px;
+	color: var(--color-text-muted);
+}
+.fs-add-queue b {
+	color: var(--color-text);
+	font-weight: 600;
+}
+/* ══ VERTRAG ENDE ══ */
+
+/* ══ VERTRAG: css/features/review-panel.css ══
+   Die Review-Karte traegt die gemeldeten Quellen als Falte (§5.2), darin das normale Formular
+   schreibgeschuetzt. Dieselbe Bauform wie „n weitere Quellen“ und „Neue Quelle einfuegen“ (natives
+   details/summary), damit Strg+F auch zugeklappt findet. */
+.review-report__quellen {
+	margin-top: 6px;
+	font-size: 12px;
+}
+.review-report__quellen > summary {
+	cursor: pointer;
+	color: var(--color-link);
+}
+.review-report__quellen .fs-editor {
+	margin-top: 6px;
+}
+/* ══ VERTRAG ENDE ══ */
+
+/* ── Nur fuers Mockup: Seite, Spalten, IST/SOLL-Rahmen ───────────────────────────────────────── */
+body { margin: 0; padding: 24px; background: var(--color-bg); color: var(--color-text); font: 14px/1.45 system-ui, sans-serif; }
+h1 { font-size: 20px; margin: 0 0 6px; color: var(--color-text-strong); }
+h2 { font-size: 15px; margin: 22px 0 8px; color: var(--color-text-strong); }
+p.lead { max-width: 900px; color: var(--color-text-muted); margin: 0 0 18px; }
+.zwei { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; align-items: start; max-width: 1240px; }
+.zwei > * { min-width: 0; }
+.eins { max-width: 760px; }
+.karte { border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-panel); padding: 14px 16px; }
+.karte h3 { margin: 0 0 10px; font-size: 13px; letter-spacing: .04em; text-transform: uppercase; color: var(--color-text-muted); }
+.karte.ist h3::before { content: "IST · "; }
+.karte.soll h3::before { content: "SOLL · "; }
+.hinweis { font-size: 12px; color: var(--color-text-muted); margin: 8px 0 0; }
+.hinweis b { color: var(--color-text); }
+.report-section__title { font-weight: 600; margin: 0 0 6px; }
+.location-report-form__field > span { display: block; font-size: 12px; color: var(--color-text-muted); margin-bottom: 4px; }
+.report-sources__add-row1 input { min-width: 0; }
+button.location-report-form__button { padding: 6px 10px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-button-soft); color: var(--color-text); font: inherit; cursor: pointer; white-space: nowrap; }
+.fehler { font-size: var(--font-size-caption); color: var(--color-danger-soft-text); margin-top: 4px; }
+.review-report { border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-panel-soft); padding: 10px 12px; margin-bottom: 8px; }
+.review-report__name { font-weight: 700; }
+.review-report__meta, .review-report__source { font-size: 12px; color: var(--color-text-muted); }
+.review-report__source { margin-top: 4px; }
+.dialog { border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-panel); padding: 12px 14px; }
+.dialog__titel { font-weight: 600; margin-bottom: 8px; }
+.dialog__feld { display: grid; grid-template-columns: 110px 1fr; gap: 6px 10px; font-size: 12px; margin-bottom: 8px; }
+.dialog__feld span:first-child { color: var(--color-text-muted); }
+.dialog__feld .geaendert { outline: 1px solid var(--color-danger-soft-border); outline-offset: 2px; border-radius: 3px; padding: 0 4px; }
+.leiste { display: flex; gap: 8px; margin-top: 10px; }
+.leiste .haupt { background: var(--color-button); color: var(--color-button-text, #fff); border: 1px solid var(--color-button); }
+.fs-editor { margin-top: 6px; }
+</style>
+
+<h1>Quellen im Meldeformular — der Link ist die Quelle</h1>
+<p class="lead">Owner 03.09.2026: „sowohl änderungen als auch neue vorschläge müssen das mit dem link machen … ich will
+allerdings nicht, dass externe nutzer was am korpus machen — die sollen einfach den link pasten. erst wir im backend
+sollen sehen, ob der korpus passt oder ein neuer erkannt wurde." Und zur Backend-Sicht: „da wollen wir natürlich alle
+felder und das ganz normale formular sehen." Abschnitt 1 ist die Sicht des Melders, 2 und 3 sind unsere Sicht.</p>
+
+<h2>1 · Der Melder: Block „Ich habe folgende Quellen"</h2>
+<div class="zwei">
+	<div class="karte ist">
+		<h3>sechs Eingaben je Quelle</h3>
+		<div class="report-section">
+			<div class="report-section__title">Ich habe folgende Quellen</div>
+			<div class="location-report-form__field report-sources">
+				<span>Quellen * (mind. eine — Regionalband, Abenteuer, …)</span>
+				<div class="report-sources__list">
+					<div class="report-sources__row"><span>Von Eigenen Gnaden *</span><span class="report-sources__type">Sonstiges</span><button type="button" class="report-sources__remove" aria-label="Quelle entfernen">✕</button></div>
+					<div class="report-sources__row"><span>Der Grüne Zug (2016) *</span><span class="report-sources__pages">S. 12</span><span class="report-sources__type">Abenteuer</span><button type="button" class="report-sources__remove" aria-label="Quelle entfernen">✕</button></div>
+				</div>
+				<div class="report-sources__add">
+					<div class="report-sources__add-row1">
+						<input id="report-source-label" type="text" placeholder="Quellenname (z. B. Die Flusslande)">
+						<input id="report-source-pages" type="text" placeholder="Seite(n)">
+						<select id="report-source-type"><option>Regionalspielhilfe</option><option>Abenteuer</option><option selected>Sonstiges</option></select>
+					</div>
+					<input type="url" placeholder="Link (F-Shop / Wiki-Seite) – optional" value="https://wiki.punin.de/Baronie_Bitterbusch">
+					<div class="report-sources__add-row2">
+						<select><option>Abdeckung (optional)</option><option>Ausführlich</option><option>Ergänzend</option><option>Erwähnung</option></select>
+						<label><input type="checkbox"> offizielle Quelle</label>
+						<button type="button" class="location-report-form__button">+ Quelle hinzufügen</button>
+					</div>
+				</div>
+			</div>
+		</div>
+		<p class="hinweis">Beide Livezeilen (03.09.2026) sind <b>ohne Link</b> gemeldet und vom Melder als <b>offiziell</b> markiert.
+		Art, Abdeckung und „offiziell" gehören dem Korpus bzw. der Redaktion, nicht dem Melder. <b>Und der Knopf tut nichts,
+		wenn nur der Link ausgefüllt ist</b> (Owner 03.09.2026; live nachgemessen: null Zeilen, keine Meldung) — der Name ist
+		heute das Pflichtfeld, der Link ist optional. Genau verkehrt herum.</p>
+	</div>
+
+	<div class="karte soll">
+		<h3>Link und Seite, sonst nichts</h3>
+		<div class="report-section">
+			<div class="report-section__title">Ich habe folgende Quellen</div>
+			<div class="location-report-form__field report-sources">
+				<span>Quellen * — Link zur Seite, in der es steht (Wiki-Artikel, F-Shop, Fanwiki)</span>
+				<div class="report-sources__list">
+					<div class="report-sources__row"><a href="#" onclick="return false">wiki.punin.de/Baronie_Bitterbusch ↗</a><span class="report-sources__pages">S. 12</span><button type="button" class="report-sources__remove" aria-label="Quelle entfernen">✕</button></div>
+					<div class="report-sources__row"><span>Die Flusslande</span><span class="report-sources__katalog">aus dem Katalog</span><span class="report-sources__pages">S. 40–41</span><button type="button" class="report-sources__remove" aria-label="Quelle entfernen">✕</button></div>
+				</div>
+				<div class="report-sources__add">
+					<div class="report-sources__add-row1">
+						<input id="report-source-ref" type="text" placeholder="Link einfügen — oder Titel tippen und aus dem Katalog wählen" value="https://www.garetien.de/index.php/Baronie_Hirschfurten">
+						<input id="report-source-pages-soll" type="text" placeholder="Seite(n)">
+						<button type="button" class="location-report-form__button">+ Quelle hinzufügen</button>
+					</div>
+					<details class="report-sources__mehr" open>
+						<summary>Mehr zur Quelle (optional)</summary>
+						<div class="report-sources__mehr-felder">
+							<input type="text" placeholder="Titel — wie die Seite heißt" style="flex:1 1 220px">
+							<select style="flex:0 0 150px"><option value="">Abdeckung …</option><option>Ausführlich</option><option>Ergänzend</option><option>Erwähnung</option></select>
+							<select style="flex:0 0 150px"><option value="">Lizenz …</option><option>CC BY-SA 4.0</option><option>CC BY-NC-SA 3.0</option><option>Keine freie Lizenz</option></select>
+							<input type="text" placeholder="Namensnennung" style="flex:1 1 160px">
+						</div>
+					</details>
+				</div>
+			</div>
+		</div>
+		<p class="hinweis"><b>Ein</b> Feld nimmt Link oder Titel. Ein Titel wird nur mit einem Treffer aus der Vorschlagsliste zur Quelle
+		(zweite Zeile: „aus dem Katalog"). Kein Satz zur Erkennung — weder Katalog noch Korpus (Owner: „verwirrt nur"). Die Falte
+		„Mehr zur Quelle" ist zu, bis man sie öffnet (hier offen gezeigt); ihre vier Felder sind <b>Angebote</b> an den Editor und
+		füllen im Backend Leeres vor. Ein Titel ohne Treffer im Hauptfeld wird abgelehnt, und zwar hörbar:</p>
+		<p class="fehler">Bitte den Link zur Quelle einfügen — oder einen Titel aus der Liste wählen.</p>
+	</div>
+</div>
+
+<h2>2 · Backend: die Review-Karte beim Sichten — das normale Formular, alle Felder, schreibgeschützt</h2>
+<div class="zwei">
+	<div class="karte ist">
+		<h3>eine Textzeile</h3>
+		<div class="review-report">
+			<div class="review-report__name">Hirschfurten</div>
+			<div class="review-report__meta">Ort · 512,4 / 498,1</div>
+			<div class="review-report__source">Von Eigenen Gnaden; Der Grüne Zug (2016) (S. 12) · gemeldet von Nottel</div>
+		</div>
+		<p class="hinweis">Kein Link, kein Katalogstand, kein Korpus — der Editor sieht nicht, was die Annahme anlegen wird.</p>
+	</div>
+	<div class="karte soll">
+		<h3>je Quelle das dreiteilige Formular, vorausgefüllt aus der Adresse</h3>
+		<div class="review-report">
+			<div class="review-report__name">Hirschfurten</div>
+			<div class="review-report__meta">Ort · 512,4 / 498,1 · gemeldet von Nottel</div>
+			<details class="review-report__quellen" open>
+				<summary>2 Quellen aus der Meldung</summary>
+				<div class="fs-editor">
+					<p class="fs-add-queue"><b>Quelle 1 von 2</b> · vom Server geprüft: bekannter Korpus, neue Seite</p>
+					<div class="fs-row fs-row--add">
+						<div class="fs-scope">
+							<div class="fs-scope__head"><span class="fs-scope__title">Gilt für alle Objekte, die diese Quelle zitieren</span><span class="fs-scope__reach">— noch kein Objekt</span></div>
+							<div class="fs-scope__fields">
+								<label class="fs-af fs-url"><span class="fs-af__l">Adresse — die genaue Seite</span><span class="fs-url__zeile"><span class="fs-url__feld"><input type="text" class="fs-add-url" disabled value="https://www.garetien.de/index.php/Baronie_Hirschfurten"><span class="fs-url__ok" hidden aria-hidden="true">✓</span></span><button type="button" class="fs-add-check fs-url__neu" disabled title="Adresse prüfen und Titel übernehmen">⟳</button></span></label>
+								<label class="fs-af fs-af--grow"><span class="fs-af__l">Titel — wie diese Seite heißt</span><input type="text" class="fs-add-label" disabled placeholder="wird beim Übernehmen von der Seite gelesen"></label>
+								<label class="fs-af fs-af--w fs-check"><input type="checkbox" disabled> Kein Korpus verwenden<span class="fs-af__meta"> — diese Quelle steht für sich</span></label>
+							</div>
+						</div>
+						<div class="fs-scope">
+							<div class="fs-scope__head"><span class="fs-scope__title">Gilt für den ganzen Korpus „Garetien-Wiki"</span><span class="fs-scope__reach">45 Quellen · 161 Objekte</span></div>
+							<div class="fs-scope__fields">
+								<label class="fs-af fs-af--korpus"><span class="fs-af__l">Name des Korpus<span class="fs-af__meta"> · Korpusschlüssel: garetien.de</span></span><input type="text" class="fs-add-corpus" disabled value="Garetien-Wiki"></label>
+								<label class="fs-af fs-af--art"><span class="fs-af__l">Quellenart<span class="fs-af__from"> · vom Korpus</span></span><select class="fs-add-type" disabled><option>Briefspiel</option></select></label>
+								<label class="fs-af fs-af--license"><span class="fs-af__l">Lizenz<span class="fs-af__from"> · vom Korpus</span></span><select class="fs-add-license" disabled><option>CC BY-NC-SA 3.0</option></select></label>
+								<label class="fs-af fs-af--grow"><span class="fs-af__l">Namensnennung bzw. mit freundlicher Genehmigung von<span class="fs-af__from"> · vom Korpus</span></span><input type="text" class="fs-add-attribution" disabled value="VolkoV / garetien.de"></label>
+								<label class="fs-af fs-af--w fs-check fs-add-official-label"><input type="checkbox" class="fs-add-official" disabled> offiziell<span class="fs-af__from"> · vom Korpus</span></label>
+							</div>
+						</div>
+						<div class="fs-scope">
+							<div class="fs-scope__head"><span class="fs-scope__title">Nur an diesem Objekt</span></div>
+							<div class="fs-scope__fields">
+								<label class="fs-af fs-af--pages"><span class="fs-af__l">Seite(n)</span><input type="text" class="fs-add-pages" disabled value="12"></label>
+								<label class="fs-af fs-af--kind"><span class="fs-af__l">Abdeckung</span><select class="fs-add-kind" disabled><option>Standardquelle</option></select></label>
+							</div>
+						</div>
+					</div>
+					<p class="fs-add-queue"><b>Quelle 2 von 2</b> · vom Server geprüft: unbekannter Wirt — ein neuer Korpus, wenn du ihn anlegst · Titel und Lizenz vom Melder</p>
+					<div class="fs-row fs-row--add">
+						<div class="fs-scope">
+							<div class="fs-scope__head"><span class="fs-scope__title">Gilt für alle Objekte, die diese Quelle zitieren</span><span class="fs-scope__reach">— noch kein Objekt</span></div>
+							<div class="fs-scope__fields">
+								<label class="fs-af fs-url"><span class="fs-af__l">Adresse — die genaue Seite</span><span class="fs-url__zeile"><span class="fs-url__feld"><input type="text" class="fs-add-url" disabled value="https://example.org/aventurien/seite.html"></span><button type="button" class="fs-add-check fs-url__neu" disabled>⟳</button></span></label>
+								<label class="fs-af fs-af--grow"><span class="fs-af__l">Titel — wie diese Seite heißt<span class="fs-af__from"> · vom Melder</span></span><input type="text" class="fs-add-label" disabled value="Die Baronie im Norden"></label>
+								<label class="fs-af fs-af--w fs-check"><input type="checkbox" disabled> Kein Korpus verwenden<span class="fs-af__meta"> — diese Quelle steht für sich</span></label>
+							</div>
+						</div>
+						<div class="fs-scope">
+							<div class="fs-scope__head"><span class="fs-scope__title">Gilt für den ganzen Korpus</span><span class="fs-scope__reach">— neu: example.org, noch keine Quelle</span></div>
+							<div class="fs-scope__fields">
+								<label class="fs-af fs-af--korpus"><span class="fs-af__l">Name des Korpus<span class="fs-af__meta"> · Korpusschlüssel: example.org</span></span><input type="text" class="fs-add-corpus" disabled placeholder="aus der Adresse"></label>
+								<label class="fs-af fs-af--art"><span class="fs-af__l">Quellenart</span><select class="fs-add-type" disabled><option>Art …</option></select></label>
+								<label class="fs-af fs-af--license"><span class="fs-af__l">Lizenz<span class="fs-af__from"> · vom Melder</span></span><select class="fs-add-license" disabled><option>CC BY-SA 4.0</option></select></label>
+								<label class="fs-af fs-af--grow"><span class="fs-af__l">Namensnennung bzw. mit freundlicher Genehmigung von</span><input type="text" class="fs-add-attribution" disabled placeholder="Namensnennung"></label>
+								<label class="fs-af fs-af--w fs-check fs-add-official-label"><input type="checkbox" class="fs-add-official" disabled> offiziell</label>
+							</div>
+						</div>
+						<div class="fs-scope">
+							<div class="fs-scope__head"><span class="fs-scope__title">Nur an diesem Objekt</span></div>
+							<div class="fs-scope__fields">
+								<label class="fs-af fs-af--pages"><span class="fs-af__l">Seite(n)</span><input type="text" class="fs-add-pages" disabled placeholder="optional"></label>
+								<label class="fs-af fs-af--kind"><span class="fs-af__l">Abdeckung</span><select class="fs-add-kind" disabled><option>Standardquelle</option></select></label>
+							</div>
+						</div>
+					</div>
+				</div>
+			</details>
+		</div>
+		<p class="hinweis">Dasselbe Formular wie im Quellenkasten, mit <b>allen Feldern</b> — nur schreibgeschützt: die Karte zeigt, was die
+		Annahme anlegen würde. Vorausgefüllt hat es der Server aus der Adresse (Katalog: bekannt oder neu; Korpus: Name,
+		Art, Lizenz, Nennung, offiziell), die Seite(n) kommen vom Melder. Die Falte ist zu, bis man sie aufklappt; hier offen
+		gezeigt. Bearbeitet wird in Abschnitt 3.</p>
+	</div>
+</div>
+
+<h2>3 · Backend: der Annahme-Dialog „Ort bearbeiten" — dasselbe Formular, jetzt zum Schreiben</h2>
+<div class="zwei">
+	<div class="karte ist">
+		<h3>Vorschlagsgruppe, wird beim Speichern still übernommen</h3>
+		<div class="dialog">
+			<div class="dialog__titel">Ort bearbeiten — Hirschfurten</div>
+			<div class="dialog__feld"><span>Name</span><span class="geaendert">Hirschfurten</span><span>Art</span><span>Dorf</span></div>
+			<div class="fs-editor">
+				<div class="fs-hint">Quellen dieses Objekts. Was aus dem Wiki kommt, steht unter „automatisch".</div>
+				<div class="fs-group fs-group--proposed" data-fs-group="proposed">
+					<div class="fs-group-heading fs-group-heading--proposed">Aus der Meldung (wird beim Speichern übernommen)</div>
+					<div class="fs-row fs-row--proposed"><a class="fs-row__link" href="#" onclick="return false">Der Grüne Zug (2016) ↗</a><span class="fs-row__badge fs-row__badge--proposed">Vorschlag (Meldung) *</span><span class="fs-row__pages">S. 12</span></div>
+				</div>
+				<div class="fs-row" data-source-id="1"><a class="fs-row__link" href="#" onclick="return false">Geographia Aventurica ↗</a><span class="fs-row__badge">Regionalspielhilfe *</span><span class="fs-row__kind">Erwähnung</span><span class="fs-row__pages">S. 88</span><span class="fs-row__license"></span><button type="button" class="fs-row__edit">✎</button><button type="button" class="fs-row__remove">✕</button></div>
+			</div>
+			<div class="leiste"><button type="button" class="location-report-form__button haupt">Speichern</button><button type="button" class="location-report-form__button">Abbrechen</button></div>
+		</div>
+		<p class="hinweis">Der Stern kommt vom Haken des Melders. Beim Speichern wird die Zeile mit <b>Art und „offiziell" aus dem
+		Formular</b> angelegt — der Editor kann vorher nichts daran ändern, und bei einem bekannten Wirt fehlen Lizenz und Kanon.</p>
+	</div>
+	<div class="karte soll">
+		<h3>die Eingabezeile, vorausgefüllt, eine Quelle nach der anderen</h3>
+		<div class="dialog">
+			<div class="dialog__titel">Ort bearbeiten — Hirschfurten</div>
+			<div class="dialog__feld"><span>Name</span><span class="geaendert">Hirschfurten</span><span>Art</span><span>Dorf</span></div>
+			<div class="fs-editor">
+				<div class="fs-row" data-source-id="1"><a class="fs-row__link" href="#" onclick="return false">Geographia Aventurica ↗</a><span class="fs-row__badge">Regionalspielhilfe *</span><span class="fs-row__kind">Erwähnung</span><span class="fs-row__pages">S. 88</span><span class="fs-row__license"></span><button type="button" class="fs-row__edit">✎</button><button type="button" class="fs-row__remove">✕</button></div>
+				<details class="fs-add-fold" open>
+					<summary class="fs-add-fold__toggle">Neue Quelle einfügen</summary>
+					<div class="fs-add-fold__body">
+						<p class="fs-add-queue"><b>Aus der Meldung: Quelle 1 von 2</b> · bekannter Korpus, neue Seite — prüfen, ergänzen, Speichern. Die zweite folgt danach.</p>
+						<div class="fs-row fs-row--add" data-fs-add>
+							<div class="fs-scope">
+								<div class="fs-scope__head"><span class="fs-scope__title">Gilt für alle Objekte, die diese Quelle zitieren</span><span class="fs-scope__reach">— noch kein Objekt</span></div>
+								<p class="fs-scope__hint">Hier Adresse (URL) zur Quelle einfügen</p>
+								<div class="fs-scope__fields">
+									<label class="fs-af fs-url"><span class="fs-af__l">Adresse — die genaue Seite</span><span class="fs-url__zeile"><span class="fs-url__feld"><input type="text" class="fs-add-url" value="https://www.garetien.de/index.php/Baronie_Hirschfurten"><span class="fs-url__ok" aria-hidden="true">✓</span></span><button type="button" class="fs-add-check fs-url__neu" title="Adresse prüfen und Titel übernehmen">⟳</button></span></label>
+									<label class="fs-af fs-af--grow"><span class="fs-af__l">Titel — wie diese Seite heißt</span><input type="text" class="fs-add-label" value="Baronie Hirschfurten"></label>
+									<label class="fs-af fs-af--w fs-check"><input type="checkbox"> Kein Korpus verwenden<span class="fs-af__meta"> — diese Quelle steht für sich</span></label>
+								</div>
+							</div>
+							<div class="fs-scope">
+								<div class="fs-scope__head"><span class="fs-scope__title">Gilt für den ganzen Korpus „Garetien-Wiki"</span><span class="fs-scope__reach">45 Quellen · 161 Objekte</span></div>
+								<div class="fs-scope__fields">
+									<label class="fs-af fs-af--korpus"><span class="fs-af__l">Name des Korpus<span class="fs-af__meta"> · Korpusschlüssel: garetien.de</span></span><input type="text" class="fs-add-corpus" value="Garetien-Wiki"></label>
+									<label class="fs-af fs-af--art"><span class="fs-af__l">Quellenart<span class="fs-af__from"> · vom Korpus</span></span><select class="fs-add-type"><option>Briefspiel</option></select></label>
+									<label class="fs-af fs-af--license"><span class="fs-af__l">Lizenz<span class="fs-af__from"> · vom Korpus</span></span><select class="fs-add-license"><option>CC BY-NC-SA 3.0</option></select></label>
+									<label class="fs-af fs-af--grow"><span class="fs-af__l">Namensnennung bzw. mit freundlicher Genehmigung von<span class="fs-af__from"> · vom Korpus</span></span><input type="text" class="fs-add-attribution" value="VolkoV / garetien.de"></label>
+									<label class="fs-af fs-af--w fs-check fs-add-official-label"><input type="checkbox" class="fs-add-official"> offiziell<span class="fs-af__from"> · vom Korpus</span></label>
+								</div>
+							</div>
+							<div class="fs-scope">
+								<div class="fs-scope__head"><span class="fs-scope__title">Nur an diesem Objekt</span></div>
+								<div class="fs-scope__fields">
+									<label class="fs-af fs-af--pages" data-fs-meins><span class="fs-af__l">Seite(n)</span><input type="text" class="fs-add-pages" value="12"></label>
+									<label class="fs-af fs-af--kind" data-fs-meins><span class="fs-af__l">Abdeckung</span><select class="fs-add-kind"><option>Standardquelle</option><option>Ausführlich</option><option>Ergänzend</option><option>Erwähnung</option></select></label>
+									<div class="abw"><div class="abw__t">Abweichend nur an dieser Quelle:</div><div class="abw__f">
+										<label class="fs-af fs-af--art"><span class="fs-af__l">Quellenart</span><select><option>wie Korpus (Briefspiel)</option></select></label>
+										<label class="fs-af fs-af--license"><span class="fs-af__l">Lizenz</span><select><option>wie Korpus (CC BY-NC-SA 3.0)</option></select></label>
+										<label class="fs-af fs-af--grow"><span class="fs-af__l">Namensnennung bzw. mit freundlicher Genehmigung von</span><input type="text" placeholder="wie Korpus"></label>
+									</div></div>
+								</div>
+							</div>
+							<div class="fs-actions"><button type="button" class="fs-actions__prim">Speichern</button><button type="button" class="fs-actions__sek">Überspringen</button></div>
+						</div>
+					</div>
+				</details>
+				<p class="fs-add-note">Hinzugefügt: „Baronie Hirschfurten". Aus der Meldung: Quelle 2 von 2 steht jetzt im Formular.</p>
+			</div>
+			<div class="leiste"><button type="button" class="location-report-form__button haupt">Speichern</button><button type="button" class="location-report-form__button">Abbrechen</button></div>
+		</div>
+		<p class="hinweis">Kein Sonderweg mehr: die gemeldete Quelle steht in der <b>normalen Eingabezeile</b> des Kastens, vorausgefüllt wie
+		nach dem Einfügen der Adresse — Katalog geprüft, Korpus erkannt, Seite vom Melder. Der Editor ergänzt Titel oder
+		Abdeckung und drückt <b>Speichern</b>; damit gelten alle Regeln des Formulars (Korpuswerte, „offiziell" nur bei
+		ausdrücklicher Wahl, Korpus anlegen bei neuer Domain, Rückfrage ab zehn Objekten). <b>Überspringen</b> nimmt die
+		Quelle nicht. Die Falte ist hier offen, solange Quellen aus der Meldung warten — die einzige Ausnahme von „immer zu".
+		Bei einem neuen Ort puffert der Kasten wie beim Anlegen von Hand (Bug #41), bis der Ort seine Kennung hat.</p>
+	</div>
+</div>

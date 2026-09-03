@@ -102,6 +102,9 @@ function avesmapsListLocationReportsForReview(PDO $pdo, string $filter = 'neu'):
     $limitSql = ' LIMIT ' . $fetchLimit;
 
     $reports = [];
+    // Die Vorbelegung der gemeldeten Quellen (Entwurf 2026-09-03-quellen-meldeformular §5.1): Korpora und
+    // Reichweite EINMAL je Liste -- der Vorrat wird beim ersten Aufruf gefuellt und dann weitergereicht.
+    $quellenVorrat = null;
     $mapStatement = $pdo->prepare(
         'SELECT
             id,
@@ -140,7 +143,8 @@ function avesmapsListLocationReportsForReview(PDO $pdo, string $filter = 'neu'):
         $report['report_source'] = 'map_reports';
         $report['size'] = $report['report_type'] === 'location' ? $report['report_subtype'] : '';
         // Multi-source #3: expose the source list (array) to the client; drop the raw JSON column.
-        $report['sources'] = avesmapsDecodeReportSources($report['sources_json'] ?? null, (string) ($report['source'] ?? ''));
+        $report['sources'] = avesmapsReportSourcesMitVorbelegung($pdo,
+            avesmapsDecodeReportSources($report['sources_json'] ?? null, (string) ($report['source'] ?? '')), $quellenVorrat);
         unset($report['sources_json']);
         // Kartensammlung suggestion (§3.8): hand the review UI the decoded map so it can show WHAT is being
         // proposed. Decoded, not re-normalized -- the whitelist ran on the way in; re-running it here would
@@ -184,7 +188,7 @@ function avesmapsListLocationReportsForReview(PDO $pdo, string $filter = 'neu'):
             $report['report_source'] = 'location_reports';
             $report['report_type'] = 'location';
             $report['report_subtype'] = (string) ($report['size'] ?? 'dorf');
-            $report['sources'] = avesmapsDecodeReportSources(null, (string) ($report['source'] ?? ''));
+            $report['sources'] = avesmapsReportSourcesMitVorbelegung($pdo, avesmapsDecodeReportSources(null, (string) ($report['source'] ?? '')), $quellenVorrat);
             $reports[] = $report;
         }
     }
@@ -392,22 +396,40 @@ function avesmapsCreateCitymapFromReport(PDO $pdo, array $payload, array $user):
     // reported source WITH a link becomes a real feature_source on the new map, deduped against the shared
     // catalogue by url_hash. A link-less source cannot be one -- it survives as the report's own `source`
     // label, which the review list shows, and an editor can type it in.
+    // 🔴 Seit dem 03.09.2026 OHNE Art und OHNE „offiziell" aus der Meldung (Entwurf 2026-09-03-quellen-meldeformular
+    // §5.5, Variante a -- Owner: „a erstmal lassen"): der Melder liefert den Link, der Korpus liefert Art, Lizenz,
+    // Nennung und Kanon (avesmapsAddFeatureSource, §6.3); Lizenz und Nennung des Melders fuellen nur, wo der Korpus
+    // nichts vorgibt. Ein Katalogtreffer (source_id) wird per Kennung verknuepft. Link-lose Altzeilen bleiben, was
+    // sie sind: nicht verknuepfbar.
     $linkedSources = 0;
+    $korporaFuerKarte = function_exists('avesmapsSourceCorpusReadAll') ? avesmapsSourceCorpusReadAll($pdo) : [];
     foreach (avesmapsDecodeReportSources($report['sources_json'] ?? null, (string) ($report['source'] ?? '')) as $source) {
-        if (($source['url'] ?? '') === '' || ($source['label'] ?? '') === '') {
+        $quellenId = max(0, (int) ($source['source_id'] ?? 0));
+        $quellenUrl = trim((string) ($source['url'] ?? ''));
+        if ($quellenId > 0) {
+            avesmapsLinkExistingFeatureSource($pdo, 'citymap', $citymapPublicId, $quellenId, $userId,
+                (string) ($source['pages'] ?? ''), (string) ($source['reference_kind'] ?? ''));
+            $linkedSources++;
             continue;
         }
+        if ($quellenUrl === '') {
+            continue;
+        }
+        $korpusBekannt = function_exists('avesmapsSourceCorpusForUrl')
+            && (($k = avesmapsSourceCorpusForUrl($korporaFuerKarte, $quellenUrl)) !== null) && ($k['known'] ?? false) === true;
         avesmapsAddFeatureSource(
             $pdo,
             'citymap',
             $citymapPublicId,
-            (string) $source['url'],
-            (string) $source['label'],
-            (string) ($source['type'] ?? 'sonstiges'),
-            (bool) ($source['official'] ?? false),
+            $quellenUrl,
+            (string) ($source['label'] ?? ''),
+            '',
+            false,
             $userId,
             (string) ($source['pages'] ?? ''),
-            (string) ($source['reference_kind'] ?? '')
+            (string) ($source['reference_kind'] ?? ''),
+            $korpusBekannt ? '' : (string) ($source['license'] ?? ''),
+            $korpusBekannt ? '' : (string) ($source['attribution'] ?? '')
         );
         $linkedSources++;
     }

@@ -2169,3 +2169,18 @@ body.modal-dialog-open #wiki-sync-conflicts-overlay.is-minimized ~ * {
    ~16px zwischen Reitertext und Statistikzeile. Der Trenner trennt hier bereits -- Abstand
    darf knapp sein. Nur auf .wiki-sync-views, damit andere Reiterzeilen unberuehrt bleiben. */
 .wiki-sync-views { margin-bottom: 2px; }
+
+/* ── Die gemeldeten Quellen in der Review-Karte (Entwurf 2026-09-03-quellen-meldeformular §5.3) ──────
+   VERTRAG von docs/quellen-meldeformular-mockup.html: eine native Falte, darin je Quelle das normale
+   Formular des Quellenkastens, schreibgeschuetzt. */
+.review-report__quellen {
+	margin-top: 6px;
+	font-size: 12px;
+}
+.review-report__quellen > summary {
+	cursor: pointer;
+	color: var(--color-link);
+}
+.review-report__quellen .fs-editor {
+	margin-top: 6px;
+}

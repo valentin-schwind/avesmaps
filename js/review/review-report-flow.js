@@ -8,8 +8,8 @@ function openLocationEditDialogFromReport(report, latlng) {
 	// feature_sources on "Anlegen" (multi-source #3, QUELLEN section, like the manual add flow); link-less
 	// sources fall back to "Quelle: X, S. Y" description lines so nothing the reporter typed is lost.
 	const reportSources = Array.isArray(report.sources) ? report.sources : [];
-	const linkedSources = reportSources.filter((source) => source && source.url && source.label);
-	const linklessSources = reportSources.filter((source) => source && source.label && !source.url);
+	const linkedSources = reportSources.filter((source) => source && (source.url || Number(source.source_id) > 0));
+	const linklessSources = reportSources.filter((source) => source && source.label && !source.url && !(Number(source.source_id) > 0));
 	// ⚠️ Auf 1200 gekappt, die Grenze des Feldes und des Servers (avesmapsReadLocationDescription).
 	// Ein programmatisch gesetzter Wert setzt das dirty-value-Flag, und dann macht `maxlength` das
 	// Feld ungueltig: reportValidity() im Speichern-Handler bricht ohne Meldung ab, und der Ort liesse
@@ -21,16 +21,11 @@ function openLocationEditDialogFromReport(report, latlng) {
 		...linklessSources.map((source) => `Quelle: ${source.label}${source.pages ? `, S. ${source.pages}` : ""}`),
 	].filter(Boolean).join("\n\n").slice(0, 1200);
 	document.getElementById("location-edit-wiki-url").value = report.wiki_url || "";
-	// Remember the linked sources so create_point can attach each as a feature_source once the new place
-	// has a public_id (handleLocationEditFormSubmit).
-	activeReviewReportSourceSuggestions = linkedSources.map((source) => ({
-		url: String(source.url || ""),
-		label: String(source.label || ""),
-		pages: String(source.pages || ""),
-		source_type: String(source.type || "sonstiges"),
-		reference_kind: String(source.reference_kind || ""),
-		is_official: Boolean(source.official),
-	}));
+	// 🔴 Die gemeldeten Quellen (mit Link oder Katalogkennung) gehen in die WARTESCHLANGE des Quellenkastens
+	// (opts.meldung, mountLocationEditFeatureSources): dort stehen sie nacheinander im normalen Formular,
+	// vorausgefuellt aus der Vorbelegung des Servers, und der Editor speichert jede selbst -- nichts wird
+	// mehr still beim Anlegen verknuepft (Entwurf 2026-09-03-quellen-meldeformular §5.4, §6.1).
+	activeReviewReportSourceQueue = linkedSources.slice();
 }
 
 function openLabelEditDialogFromReport(report, latlng) {
@@ -62,24 +57,13 @@ function openLocationEditDialogFromChangeReport(report) {
 	activeReviewReportId = Number(report.id) || null;
 	activeReviewReportSource = report.report_source || "map_reports";
 	pendingChangeReportMove = null;
-	// Reporter-Quellen MIT Link -> beim Speichern (update_point) als feature_sources an die bestehende
-	// Siedlung anhaengen (wie im Anlege-Flow), damit keine vom Nutzer gemeldete Quelle verloren geht.
+	// Die gemeldeten Quellen in die Warteschlange des Quellenkastens -- der Editor speichert jede selbst im
+	// normalen Formular (Entwurf 2026-09-03-quellen-meldeformular §5.4).
 	const changeReportSources = Array.isArray(report.sources) ? report.sources : [];
-	activeReviewReportSourceSuggestions = changeReportSources
-		.filter((source) => source && source.url && source.label)
-		.map((source) => ({
-			url: String(source.url || ""),
-			label: String(source.label || ""),
-			pages: String(source.pages || ""),
-			source_type: String(source.type || "sonstiges"),
-			reference_kind: String(source.reference_kind || ""),
-			is_official: Boolean(source.official),
-		}));
+	activeReviewReportSourceQueue = changeReportSources.filter((source) => source && (source.url || Number(source.source_id) > 0));
 	const changed = [];
-	// Red-outline the Quellen section too when the report proposes a linked source, same as the other
-	// proposed-change fields below (mountLocationEditFeatureSources appends the actual suggestion once
-	// the async "list" fetch resolves; the container's id is stable across that clone-replace).
-	if (activeReviewReportSourceSuggestions.length > 0) {
+	// Red-outline the Quellen section too when the report proposes a source -- the queue shows it there.
+	if (activeReviewReportSourceQueue.length > 0) {
 		changed.push("location-edit-feature-sources");
 	}
 

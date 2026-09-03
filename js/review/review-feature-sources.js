@@ -998,11 +998,53 @@ function renderFeatureSourceAddNote() {
  * 💣 EIN Bauteil, neun Montagestellen: die Falte liegt HIER, im geteilten Bauer -- Territoriumseditor,
  * Ortseditor, Sync-Monitor und die Kartendialoge haben sie damit ohne eine Zeile bei sich.
  */
-function renderFeatureSourceAddFold(hint, addRow, escape, tr) {
-  return '<details class="fs-add-fold">'
+// 🔴 Die EINE Ausnahme von „immer zu": solange Quellen aus einer MELDUNG warten (`meldung.offen`, Entwurf
+// 2026-09-03-quellen-meldeformular §5.4), steht die Falte offen, und ueber dem Formular sagt eine Zeile,
+// die wievielte gemeldete Quelle gerade darin steht. `open` kommt aus genau diesem Zustand, nie aus einem
+// zweiten Merker; nach der letzten Quelle zeichnet das Bauteil wie immer aus der Antwort neu -- zu.
+function renderFeatureSourceAddFold(hint, addRow, escape, tr, meldung) {
+  const offen = Boolean(meldung && meldung.offen === true);
+  const zeile = meldung && meldung.zeile ? String(meldung.zeile) : "";
+  return '<details class="fs-add-fold"' + (offen ? " open" : "") + '>'
     + '<summary class="fs-add-fold__toggle">' + escape(tr("sources.add.fold", "Neue Quelle einfügen")) + '</summary>'
-    + '<div class="fs-add-fold__body">' + hint + addRow + '</div>'
+    + '<div class="fs-add-fold__body">' + hint + zeile + addRow + '</div>'
     + '</details>';
+}
+
+/**
+ * Die Warteschlangen-Zeile ueber dem Formular: welche gemeldete Quelle steht darin, und was der Server
+ * ueber sie weiss (Vorbelegung, api/_internal/app/report-sources.php). Rein, ohne DOM.
+ *
+ * @param {object} quelle    { url, source_id, label, license, attribution, vorbelegung: { state, corpus, existing } }
+ * @param {boolean} vorschau  in der Review-Karte (schreibgeschuetzt) statt im Annahme-Dialog
+ */
+function featureSourceMeldungZeile(quelle, nummer, gesamt, tr, escape, vorschau) {
+  const q = quelle || {};
+  const v = q.vorbelegung || {};
+  const korpus = v.corpus || null;
+  const korpusName = korpus ? String(korpus.label || korpus.corpus_key || "") : "";
+  let stand;
+  if (v.state === "bekannt") {
+    stand = tr("sources.meldung.bekannt", "steht schon im Katalog — wird verknüpft");
+  } else if (v.state === "katalog") {
+    stand = tr("sources.meldung.katalog", "aus dem Katalog gewählt — wird verknüpft");
+  } else if (v.state === "neu" && korpus && korpus.known === true) {
+    stand = tr("sources.meldung.neuBekannterKorpus", "neue Seite, bekannter Korpus „{korpus}“").replace("{korpus}", korpusName);
+  } else if (v.state === "neu") {
+    stand = tr("sources.meldung.neuerWirt", "unbekannter Wirt {wirt} — ein neuer Korpus, wenn du ihn anlegst").replace("{wirt}", korpusName);
+  } else {
+    stand = tr("sources.meldung.ohneLink", "ohne Adresse (Altform) — nicht verknüpfbar");
+  }
+  const angebote = [];
+  if (String(q.label || "").trim() !== "" && v.state !== "bekannt" && v.state !== "katalog") angebote.push(tr("sources.meldung.angebotTitel", "Titel"));
+  if (String(q.license || "").trim() !== "") angebote.push(tr("sources.meldung.angebotLizenz", "Lizenz"));
+  if (String(q.attribution || "").trim() !== "") angebote.push(tr("sources.meldung.angebotNennung", "Namensnennung"));
+  const zusatz = angebote.length ? " · " + tr("sources.meldung.vomMelder", "{was} vom Melder").replace("{was}", angebote.join(", ")) : "";
+  const kopf = vorschau
+    ? tr("sources.meldung.vorschauKopf", "Quelle {n} von {gesamt}").replace("{n}", String(nummer)).replace("{gesamt}", String(gesamt))
+    : tr("sources.meldung.kopf", "Aus der Meldung: Quelle {n} von {gesamt}").replace("{n}", String(nummer)).replace("{gesamt}", String(gesamt));
+  const schluss = vorschau ? "" : " — " + tr("sources.meldung.tun", "prüfen, ergänzen, Speichern");
+  return '<p class="fs-add-queue"><b>' + escape(kopf) + '</b> · ' + escape(stand + zusatz + schluss) + '</p>';
 }
 
 // Pure render: state = { wiki_url, sources:[{source_id,url,label,type,official,origin}] }.
@@ -1063,7 +1105,7 @@ function renderFeatureSourceEditorHtml(state, opts) {
   // (ausserhalb der Falte, siehe renderFeatureSourceAddNote). Quellen stehen ueberall UNTEN, und das
   // Eintragen steht unter den Quellen.
   return '<div class="fs-editor">' + wikiRow + pendingGroup + wikiAutoGroup + sourceRows
-    + renderFeatureSourceAddFold(hint, addRow, escape, tr) + renderFeatureSourceAddNote() + "</div>";
+    + renderFeatureSourceAddFold(hint, addRow, escape, tr, options.meldung || null) + renderFeatureSourceAddNote() + "</div>";
 }
 
 /**
@@ -1419,6 +1461,29 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
   // zugeklappten Falte, und ein Loeschen an einer unsichtbaren Auswahl ist eine Falle. Auf der
   // Weg-Ebene (fest) traegt jede Anfrage die Liste -- dort IST der Weg das Objekt.
   const gruppe = opts && opts.gruppe && typeof opts.gruppe.publicIds === "function" ? opts.gruppe : null;
+  const escapeFn = (opts && opts.escape) || featureSourceDefaultEscape;
+
+  // 🔴 DIE WARTESCHLANGE DER MELDUNG (Entwurf 2026-09-03-quellen-meldeformular §5.3, §5.4, §6.1): `opts.meldung =
+  // { quellen: [...], vorschau?: bool, nummer?, gesamt? }`. Jede gemeldete Quelle steht -- eine nach der anderen --
+  // in DIESER Eingabezeile, vorausgefuellt aus der Vorbelegung des Servers, und wird mit dem normalen
+  // „Speichern" angelegt oder verknuepft; „Ueberspringen" nimmt sie nicht. Nichts wird mehr still aus dem
+  // Meldeformular in den Katalog geschrieben (Owner 03.09.2026: „da wollen wir natuerlich alle felder und das
+  // ganz normale formular sehen"). Ein Formular nacheinander, kein zweiter Bauer fuer n Formulare.
+  // `vorschau`: dieselbe Zeile schreibgeschuetzt (Review-Karte, mountFeatureSourceMeldungVorschau).
+  const meldung = opts && opts.meldung && Array.isArray(opts.meldung.quellen) && opts.meldung.quellen.length
+    ? { quellen: opts.meldung.quellen.slice(), index: 0, vorschau: opts.meldung.vorschau === true,
+        nummer: Number(opts.meldung.nummer) || 0, gesamt: Number(opts.meldung.gesamt) || 0 }
+    : null;
+  function meldungAktuell() {
+    return meldung && meldung.index < meldung.quellen.length ? meldung.quellen[meldung.index] : null;
+  }
+  function meldungRenderOptionen() {
+    const q = meldungAktuell();
+    if (!q) {
+      return null;
+    }
+    return { offen: true, zeile: featureSourceMeldungZeile(q, meldung.nummer || (meldung.index + 1), meldung.gesamt || meldung.quellen.length, tr, escapeFn, meldung.vorschau) };
+  }
   function gruppenKennungen() {
     if (!gruppe) {
       return [];
@@ -1562,6 +1627,119 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
     containerEl.__fsDetachAutocomplete = detachAutocomplete;
   }
 
+  // Render + Verdrahtung + Vorbelegung aus der Meldung -- EIN Zeichner fuer die Serverantwort, das Ueberspringen
+  // und das Weiterruecken nach dem Speichern. ⚠️ In der Vorschau wird NICHT verdrahtet: die Review-Karte wird
+  // beim 45-s-Poll neu gebaut, und jede angehaengte Vorschlagsliste bliebe als Waise am Dokument.
+  function zeichneNeu(data) {
+    containerEl.innerHTML = renderFeatureSourceEditorHtml(data, Object.assign({}, opts || {}, { wegGruppe: wegGruppeFuerRender(), meldung: meldungRenderOptionen() }));
+    if (!(meldung && meldung.vorschau)) {
+      wireAutocomplete();
+      wireAdressPruefung();
+    }
+    fuelleAusMeldung();
+  }
+
+  /**
+   * Die gemeldete Quelle in die Eingabezeile -- ueber DIESELBEN Wege wie nach dem Einfuegen einer Adresse
+   * (uebernehmeAuskunft / uebernehmeKorpus), plus die Angebote des Melders in leere Felder (Rangfolge
+   * Katalog > Korpus > Melder, Entwurf §5.2). In der Vorschau danach alles gesperrt.
+   */
+  function fuelleAusMeldung() {
+    const q = meldungAktuell();
+    if (!q) {
+      return;
+    }
+    const v = q.vorbelegung || {};
+    const setze = (selektor, wert) => {
+      const el = containerEl.querySelector(selektor);
+      if (el && wert !== undefined && wert !== null) {
+        el.value = String(wert);
+      }
+    };
+    setze(".fs-add-url", String(v.url || q.url || ""));
+    if (v.state === "katalog" && v.existing) {
+      // Der Katalogtreffer des Melders ist ein Pick aus der Vorschlagsliste: verknuepft per Kennung.
+      pickedSourceId = Number(v.existing.source_id) || 0;
+      setze(".fs-add-label", String(v.existing.label || q.label || ""));
+      const badge = containerEl.querySelector("[data-fs-picked]");
+      if (badge) {
+        badge.hidden = false;
+      }
+      uebernehmeKorpus(v.corpus || null);
+    } else if (v.state === "bekannt") {
+      uebernehmeAuskunft(v);
+    } else {
+      // Neue Adresse (oder Altform): der Korpus sagt, was er weiss; der Titel kommt vom Melder oder spaeter von der Seite.
+      uebernehmeKorpus(v.corpus || null);
+      setzeAdressZustand(null, "");
+    }
+    fuelleMelderAngebote(q, v);
+    zeigeAdressForm();
+    const abbrechen = containerEl.querySelector("[data-fs-add-cancel]");
+    if (abbrechen) {
+      abbrechen.textContent = tr("sources.meldung.skip", "Überspringen");
+    }
+    if (meldung.vorschau) {
+      containerEl.querySelectorAll("[data-fs-add] input, [data-fs-add] select, [data-fs-add] button").forEach((el) => { el.disabled = true; });
+      const knoepfe = containerEl.querySelector("[data-fs-add] .fs-actions");
+      if (knoepfe) {
+        knoepfe.hidden = true;
+      }
+    }
+  }
+
+  // Die Angebote des Melders: nur LEERES fuellen, mit dem Marker „vom Melder" -- ein Katalog- oder Korpuswert
+  // wird nie ueberschrieben (Owner: externe Nutzer machen nichts am Korpus). 🔴 WIDERSPRICHT das Angebot einem
+  // schon gefuellten Wert, steht es als Hinweis DANEBEN („Melder: CC BY-SA 4.0", Entwurf §5.2, Falle 3): der
+  // Editor sieht den Wert, den der Melder meinte, und kann den Korpus korrigieren, wenn der Melder recht hat --
+  // still verworfen (so stand es bis zum Befund des Pruefagenten am 03.09.2026) liest sich das Formular, als
+  // haette der Melder nichts gesagt.
+  function fuelleMelderAngebote(q, v) {
+    const marker = (name, text) => {
+      const el = containerEl.querySelector('[data-fs-from="' + name + '"]');
+      if (el) {
+        el.textContent = " · " + text;
+        el.hidden = false;
+      }
+    };
+    const lizenzName = (schluessel) => {
+      const tabelle = featureSourceLicenseTable();
+      const eintrag = tabelle && tabelle[String(schluessel || "").trim()];
+      return eintrag && eintrag.label ? String(eintrag.label) : String(schluessel || "");
+    };
+    const fuelle = (selektor, wert, name, anzeige) => {
+      const el = containerEl.querySelector(selektor);
+      const w = String(wert || "").trim();
+      if (!el || w === "") {
+        return;
+      }
+      if (String(el.value || "").trim() === "") {
+        el.value = w;
+        if (name) {
+          marker(name, tr("sources.add.fromReporter", "vom Melder"));
+        }
+      } else if (name && String(el.value).trim() !== w) {
+        marker(name, tr("sources.meldung.melderAngebot", "Melder: {wert}").replace("{wert}", anzeige || w));
+      }
+    };
+    if (v.state !== "bekannt" && v.state !== "katalog") {
+      fuelle(".fs-add-label", q.label, null);
+    }
+    fuelle(".fs-add-pages", q.pages, null);
+    fuelle(".fs-add-kind", q.reference_kind, null);
+    fuelle(".fs-add-license", q.license, "license", lizenzName(q.license));
+    fuelle(".fs-add-attribution", q.attribution, "attribution");
+  }
+
+  // Naechste gemeldete Quelle (nach Speichern oder Ueberspringen): dieselbe Antwort neu zeichnen.
+  function meldungWeiter(data) {
+    if (!meldung) {
+      return;
+    }
+    meldung.index += 1;
+    zeichneNeu(data && data.ok === true ? data : { ok: true, wiki_url: "", sources: letzteQuellen });
+  }
+
   async function renderFromServer(action, extra) {
     const publicId = typeof publicIdGetter === "function" ? publicIdGetter() : publicIdGetter;
     // ⚠️ Die Wahl wird VOR der Anfrage gelesen -- danach steht die Eingabezeile neu gebaut da.
@@ -1581,9 +1759,7 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
       return; // keep the prior render on any failure -- never blank the widget
     }
     letzteQuellen = Array.isArray(data.sources) ? data.sources : [];
-    containerEl.innerHTML = renderFeatureSourceEditorHtml(data, Object.assign({}, opts || {}, { wegGruppe: wegGruppeFuerRender() }));
-    wireAutocomplete();
-    wireAdressPruefung();
+    zeichneNeu(data);
     // 💣 DER EINE TRICHTER -- hier muendet JEDE Aktion des Editors (list, add, add_existing, remove).
     // Vorher zeichnete er nur sein eigenes Fenster neu, und die Infobox der Karte liest ihre Quellen
     // aus zwei Fenster-Globals, die AUSSCHLIESSLICH beim Laden der Kartennutzlast geschrieben werden.
@@ -2656,6 +2832,11 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
       return;
     }
     if (event.target.closest("[data-fs-add-cancel]")) {
+      if (meldungAktuell()) {
+        // „Ueberspringen": diese gemeldete Quelle wird nicht genommen, die naechste rueckt nach.
+        meldungWeiter(letzteAntwort);
+        return;
+      }
       // ⚠️ Es LEERT, es schliesst nicht: die Eingabezeile ist der Fuss der Liste und bleibt stehen.
       // 💣 Der Korpuskasten muss MIT weg -- er gehoert der Adresse, die gerade verworfen wurde;
       // bliebe er stehen, stuende der Wirt der alten Adresse ueber einem leeren Feld und die
@@ -2665,7 +2846,14 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
     }
     const addTarget = event.target.closest("[data-fs-add-submit]");
     if (addTarget) {
-      const values = readAddRowValues();
+      let values = readAddRowValues();
+      const warMeldung = Boolean(meldungAktuell());
+      // Der Seitentitel einer NEUEN gemeldeten Adresse: einmal von der Seite gelesen, wenn niemand ihn angeboten
+      // hat (Entwurf §5.4) -- derselbe Handgriff wie der ⟳-Knopf.
+      if (warMeldung && !pickedSourceId && values.url && !values.label) {
+        await pruefeAdresse();
+        values = readAddRowValues();
+      }
       // 🔴 EINE BEKANNTE SEITE WIRD KORRIGIERT, NICHT VERWORFEN (Owner 02.09.2026: „ich kann noch
       // Titel etc. editieren - nur Name des Korpus"). Die Katalogfelder waren gesperrt, weil der
       // Upsert sie ohnehin ignoriert -- und damit kam der Editor ausgerechnet an die kaputte
@@ -2693,6 +2881,9 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
             ? { url: values.url, label: values.label, is_official: values.is_official, is_official_chosen: values.is_official_chosen }
             : {}
         ));
+        if (daten && warMeldung) {
+          meldungWeiter(daten);
+        }
         zeigeUmtypung(daten);
         return;
       }
@@ -2732,6 +2923,10 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
       // Parameter wäre eine zweite Fassung derselben Regel.
       const besitzAusZeile = featureSourceOwnFieldsFromPanel(containerEl);
       const daten = await renderFromServer("add", values);
+      // ⚠️ VOR der Rueckmeldung weiterruecken: das Neuzeichnen leert die Meldezeile, die Bestaetigung kommt danach.
+      if (daten && warMeldung) {
+        meldungWeiter(daten);
+      }
       zeigeErgebnis(daten, values);
       // ⚠️ ALLES DREI NACH dem Verknüpfen: `update` verlangt die Verknüpfung, und ein Korpus für
       // eine Quelle, die gar nicht angelegt wurde, wäre eine Leiche.
@@ -2750,57 +2945,36 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
   return renderFromServer("list");
 }
 
-// Multi-source #3 change-report gap fix: a change report's proposed source(s) are only linked
-// server-side on save (linkCommunityReportSource below) -- until then they live in
-// activeReviewReportSourceSuggestions and were never shown anywhere, so the reviewer had no way to
-// see what a report proposed before saving. This renders them as a distinct "Vorschlag" group inside
-// the mounted Quellen editor (appended after the server-rendered list resolves, since mounting
-// already overwrites containerEl.innerHTML) so the reviewer sees the diff at a glance, same as the
-// red-outlined name/type/wiki-url fields (js/review/review-report-flow.js markChangeReportFields).
-function renderProposedFeatureSourceRow(source, escape, tr) {
-  const officialMark = source.is_official ? " *" : "";
-  const pages = source.pages ? '<span class="fs-row__pages">S. ' + escape(source.pages) + "</span>" : "";
-  return (
-    '<div class="fs-row fs-row--proposed">' +
-    '<a class="fs-row__link" href="' + escape(source.url) + '" target="_blank" rel="noopener">' +
-    escape(source.label || source.url) + " ↗</a>" +
-    '<span class="fs-row__badge fs-row__badge--proposed">' +
-    escape(tr("sources.proposed", "Vorschlag (Meldung)")) + officialMark + "</span>" +
-    pages +
-    "</div>"
-  );
-}
+// 🔴 Die Vorschlagsgruppe „Aus der Meldung (wird beim Speichern uebernommen)" ist am 03.09.2026 gefallen: die
+// gemeldete Quelle steht seither in der Eingabezeile selbst (opts.meldung), und was der Editor nicht
+// gespeichert hat, wird nicht angelegt. linkCommunityReportSource darunter bleibt: es spielt den
+// Anlege-Puffer (Bug #41) nach dem Anlegen eines Ortes ein.
 
-function renderProposedFeatureSourceGroup(suggestions, escape, tr) {
-  if (!suggestions.length) {
-    return "";
+/**
+ * Die schreibgeschuetzte Vorschau der gemeldeten Quellen in der Review-Karte (Entwurf §5.3): je Quelle das
+ * normale Formular, vorausgefuellt aus der Vorbelegung, alle Felder gesperrt -- ueber DENSELBEN Mount wie
+ * der Annahme-Dialog, mit einem Puffer, der die Liste leer beantwortet. Kein zweiter Bauer.
+ * @returns {number} wie viele Quellen gezeigt werden -- auch die Altform ohne Adresse und Kennung
+ */
+function mountFeatureSourceMeldungVorschau(containerEl, quellen, opts) {
+  if (!containerEl || !Array.isArray(quellen)) {
+    return 0;
   }
-  const heading = '<div class="fs-group-heading fs-group-heading--proposed">' +
-    escape(tr("sources.proposedHeading", "Aus der Meldung (wird beim Speichern übernommen)")) + "</div>";
-  const rows = suggestions.map((source) => renderProposedFeatureSourceRow(source, escape, tr)).join("");
-  return '<div class="fs-group fs-group--proposed" data-fs-group="proposed">' + heading + rows + "</div>";
-}
-
-// Appends the proposed group right after the hint line so it reads before the entity's existing
-// sources. No-op when there is nothing proposed (the common case -- a normal, non-report edit).
-function appendProposedFeatureSources(containerEl, suggestions, opts) {
-  if (!containerEl || !Array.isArray(suggestions) || !suggestions.length) {
-    return;
-  }
-  const options = opts || {};
-  const escape = options.escape || featureSourceDefaultEscape;
-  const tr = options.tr || featureSourceDefaultTr;
-  const markup = renderProposedFeatureSourceGroup(suggestions, escape, tr);
-  if (!markup) {
-    return;
-  }
-  const editorEl = containerEl.querySelector(".fs-editor") || containerEl;
-  const hintEl = editorEl.querySelector(".fs-hint");
-  if (hintEl) {
-    hintEl.insertAdjacentHTML("afterend", markup);
-  } else {
-    editorEl.insertAdjacentHTML("afterbegin", markup);
-  }
+  // ⚠️ AUCH die Altform ohne Link: die Zeile darueber sagt „nicht verknuepfbar", Titel und Seite sind trotzdem
+  // Information fuer den, der die Meldung sichtet -- gefiltert wird erst die Warteschlange des Annahme-Dialogs
+  // (review-report-flow.js), denn dort wuerde ein Speichern ins Leere laufen.
+  const liste = quellen.filter((q) => q && typeof q === "object");
+  containerEl.innerHTML = "";
+  liste.forEach((q, i) => {
+    const wirt = document.createElement("div");
+    wirt.className = "fs-meldung-vorschau";
+    containerEl.appendChild(wirt);
+    void mountFeatureSourceEditor(wirt, "settlement", () => "", Object.assign({}, opts || {}, {
+      store: { request: async () => ({ ok: true, wiki_url: "", sources: [] }), toSuggestions: () => [], count: () => 0 },
+      meldung: { quellen: [q], nummer: i + 1, gesamt: liste.length, vorschau: true },
+    }));
+  });
+  return liste.length;
 }
 
 // Multi-source #3: link a community-reported source to a freshly created feature as a catalog source
@@ -2933,7 +3107,8 @@ if (typeof window !== "undefined") {
   window.renderFeatureSourceEditorHtml = renderFeatureSourceEditorHtml;
   window.mountFeatureSourceEditor = mountFeatureSourceEditor;
   window.linkCommunityReportSource = linkCommunityReportSource;
-  window.appendProposedFeatureSources = appendProposedFeatureSources;
+  window.mountFeatureSourceMeldungVorschau = mountFeatureSourceMeldungVorschau;
+  window.featureSourceMeldungZeile = featureSourceMeldungZeile;
   window.createPendingFeatureSourceStore = createPendingFeatureSourceStore;
   // 🔴 Damit der Garetien-Importer DIESE Fassung ruft statt einer eigenen. Er legt Quellen an
   // Objekten an, die die geladene Karte noch nicht mit Quelle kennt; ohne den Abgleich stuende
@@ -2944,6 +3119,8 @@ if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     // Der Zeilenbauer -- fuer quellenzeile-name-vorn.test.js, das beide Erzeuger des Namens gegeneinander haelt.
     renderFeatureSourceRow,
+    // Die Warteschlangen-Zeile der Meldung und der Mount (fuer meldung-im-quellenkasten.test.js).
+    featureSourceMeldungZeile, mountFeatureSourceEditor, mountFeatureSourceMeldungVorschau,
     renderFeatureSourceEditorHtml, createPendingFeatureSourceStore, syncFeatureSourcesToClientCache,
     // Der Bearbeiten-Kasten und seine Schwelle -- der Kasten ist rein (kein DOM, kein fetch) und
     // damit unter Node fahrbar; die Schwelle wird gegen die PHP-Konstante gehalten.

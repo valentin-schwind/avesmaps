@@ -73,24 +73,9 @@ async function handleLocationEditFormSubmit(event) {
 			&& typeof autoConnectSettlementWikiByTitle === "function") {
 			await autoConnectSettlementWikiByTitle(connectPublicId, payload.name, savedMarkerEntry);
 		}
-		// Multi-source #3: each community-reported source WITH a link becomes a real feature_source on the
-		// freshly created place (same catalog the manual "Quelle hinzufügen" writes to) so they show in the
-		// QUELLEN section instead of being lost in the description. Best-effort per source; needs id + url.
-		if ((payload.action === "create_point" || payload.action === "update_point") && connectPublicId && Array.isArray(activeReviewReportSourceSuggestions)
-			&& typeof linkCommunityReportSource === "function") {
-			let linkedAnySource = false;
-			for (const suggestion of activeReviewReportSourceSuggestions) {
-				if (suggestion && suggestion.url) {
-					const linked = await linkCommunityReportSource(connectPublicId, suggestion);
-					linkedAnySource = linkedAnySource || linked;
-				}
-			}
-			// Re-render the new place's bound popup so it shows the freshly linked sources without a reload
-			// (linkCommunityReportSource already synced the popup source globals).
-			if (linkedAnySource && savedMarkerEntry && typeof refreshLocationMarkerPopup === "function") {
-				refreshLocationMarkerPopup(savedMarkerEntry);
-			}
-		}
+		// 🔴 Die gemeldeten Quellen werden NICHT mehr still beim Speichern verknuepft (03.09.2026): sie stehen
+		// in der Eingabezeile des Quellenkastens (Warteschlange), und der Editor speichert jede selbst. Bei einem
+		// neuen Ort landen sie damit im Anlege-Puffer darunter -- demselben Weg wie von Hand eingetragene.
 		// Bug #41: sources the editor named while CREATING this place were buffered locally, because
 		// there was no public_id yet to attach them to. Now there is one -- replay them through the
 		// same add path the community-report sources above use. The place is already saved at this
@@ -119,7 +104,7 @@ async function handleLocationEditFormSubmit(event) {
 			}
 		}
 		locationEditPendingSourceStore = null;
-		activeReviewReportSourceSuggestions = [];
+		activeReviewReportSourceQueue = [];
 		// Change report proposed a new position -> apply it via move_point (update_point does not carry position).
 		if (pendingChangeReportMove && payload.action === "update_point" && typeof saveMovedLocationMarker === "function") {
 			const changeMove = pendingChangeReportMove;

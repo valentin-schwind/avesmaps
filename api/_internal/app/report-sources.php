@@ -25,6 +25,8 @@ declare(strict_types=1);
  */
 
 require_once __DIR__ . '/feature-sources.php';
+// Der Korpus einer Adresse -- reine Definitionen, beim Einbinden nebenwirkungsfrei (wie im Quellen-Endpunkt).
+require_once __DIR__ . '/source-corpus.php';
 
 const AVESMAPS_REPORT_SOURCES_MAX = 10;
 const AVESMAPS_REPORT_SOURCE_KINDS = ['ausfuehrlich', 'ergaenzend', 'erwaehnung'];
@@ -115,4 +117,109 @@ function avesmapsDecodeReportSources(mixed $rawJson, string $legacyLabel = ''): 
     }
 
     return $list;
+}
+
+/**
+ * Die VORBELEGUNG einer gemeldeten Quelle fuer die Redaktion -- in DERSELBEN Form wie die Adressauskunft
+ * der Eingabezeile (avesmapsSourceInspectUrl ohne Abruf): { url, state, title, site, http_status, corpus,
+ * existing }. Damit kann der Quellen-Editor sie mit seinem vorhandenen Weg uebernehmen
+ * (uebernehmeAuskunft in js/review/review-feature-sources.js) -- kein zweiter Vorbeleger.
+ *
+ * Entwurf §5.1. 🔴 KEIN Abruf nach draussen und KEIN Volltabellenlauf je Quelle: die Review-Liste laedt im
+ * Bearbeiten-Modus alle 45 s. Korpora und Reichweite kommen vorgerechnet herein (einmal je Liste,
+ * avesmapsSourceCorpusReadAll / avesmapsSourceCorpusUsageAll); der Katalog wird per url_hash (indiziert)
+ * bzw. per id gefragt.
+ *
+ *   state „bekannt“   die Adresse steht im Katalog (existing gefuellt)
+ *   state „katalog“   der Melder hat eine Katalogzeile gepickt (source_id; existing gefuellt)
+ *   state „neu“       eine Adresse, die wir nicht kennen (corpus sagt, ob wenigstens der Wirt bekannt ist)
+ *   state „ohne_link“ Altform ohne Adresse und ohne Kennung -- nicht verknuepfbar
+ *
+ * @param array<string,array> $korpora     avesmapsSourceCorpusReadAll($pdo)
+ * @param array<string,array> $reichweite  avesmapsSourceCorpusUsageAll($pdo)
+ */
+function avesmapsReportSourceVorbelegung(PDO $pdo, array $quelle, array $korpora, array $reichweite): array
+{
+    $url = trim((string) ($quelle['url'] ?? ''));
+    $sourceId = max(0, (int) ($quelle['source_id'] ?? 0));
+    $aus = ['url' => $url, 'state' => 'ohne_link', 'http_status' => 0, 'title' => '', 'site' => '', 'corpus' => null, 'existing' => null];
+
+    // ⚠️ MIT usage_count, wie die Adressauskunft (avesmapsSourceInspectUrl): uebernehmeAuskunft liest daraus
+    //   „Zitiert an N Objekten" -- ohne die Zahl warnte der Annahme-Dialog bei einer gemeldeten bekannten Adresse
+    //   leiser als bei derselben, von Hand eingetippten (Befund des Konsistenz-Agenten, 03.09.2026).
+    $zeileZu = static function (array $zeile) use ($pdo): array {
+        return [
+            'source_id' => (int) $zeile['id'],
+            'label' => (string) $zeile['label'],
+            'source_type' => (string) $zeile['source_type'],
+            'is_official' => (int) $zeile['is_official'] === 1,
+            'license' => (string) ($zeile['license'] ?? ''),
+            'attribution' => (string) ($zeile['attribution'] ?? ''),
+            'usage_count' => avesmapsFeatureSourceUsageCount($pdo, (int) $zeile['id']),
+        ];
+    };
+    $spalten = 'id, url, label, source_type, is_official, license, attribution';
+
+    if ($sourceId > 0) {
+        $s = $pdo->prepare("SELECT {$spalten} FROM sources WHERE id = :id LIMIT 1");
+        $s->execute(['id' => $sourceId]);
+        $zeile = $s->fetch(PDO::FETCH_ASSOC);
+        if (is_array($zeile)) {
+            $aus['existing'] = $zeileZu($zeile);
+            $aus['state'] = 'katalog';
+            $aus['title'] = (string) $zeile['label'];
+            // Die Adresse der Katalogzeile, damit der Korpus benannt werden kann -- der Melder hat keine geschickt.
+            $url = $url !== '' ? $url : trim((string) ($zeile['url'] ?? ''));
+            $aus['url'] = $url;
+        }
+    } elseif ($url !== '') {
+        $s = $pdo->prepare("SELECT {$spalten} FROM sources WHERE url_hash = :h LIMIT 1");
+        $s->execute(['h' => avesmapsFeatureSourceHash($url)]);
+        $zeile = $s->fetch(PDO::FETCH_ASSOC);
+        if (is_array($zeile)) {
+            $aus['existing'] = $zeileZu($zeile);
+            $aus['state'] = 'bekannt';
+            $aus['title'] = (string) $zeile['label'];
+        } else {
+            $aus['state'] = 'neu';
+        }
+    }
+
+    if ($url !== '') {
+        $korpus = avesmapsSourceCorpusForUrl($korpora, $url);
+        if (is_array($korpus)) {
+            $key = (string) ($korpus['corpus_key'] ?? '');
+            $korpus['sources'] = (int) ($reichweite[$key]['sources'] ?? 0);
+            $korpus['objects'] = (int) ($reichweite[$key]['objects'] ?? 0);
+            $aus['corpus'] = $korpus;
+        }
+    }
+
+    return $aus;
+}
+
+/**
+ * Jede gemeldete Quelle bekommt ihre Vorbelegung -- Korpora und Reichweite EINMAL je Liste gelesen.
+ * ⚠️ Faellt offen aus: ohne Korpus-Modul (function_exists) gibt es die Vorbelegung ohne Korpus, nie einen 500
+ * in der Meldungsliste.
+ *
+ * @param list<array<string,mixed>> $sources
+ * @return list<array<string,mixed>>
+ */
+function avesmapsReportSourcesMitVorbelegung(PDO $pdo, array $sources, ?array &$vorrat = null): array
+{
+    if ($sources === []) {
+        return $sources;
+    }
+    if (!is_array($vorrat)) {
+        $vorrat = [
+            'korpora' => function_exists('avesmapsSourceCorpusReadAll') ? avesmapsSourceCorpusReadAll($pdo) : [],
+            'reichweite' => function_exists('avesmapsSourceCorpusUsageAll') ? avesmapsSourceCorpusUsageAll($pdo) : [],
+        ];
+    }
+    foreach ($sources as $i => $quelle) {
+        $sources[$i]['vorbelegung'] = avesmapsReportSourceVorbelegung($pdo, $quelle, $vorrat['korpora'], $vorrat['reichweite']);
+    }
+
+    return $sources;
 }

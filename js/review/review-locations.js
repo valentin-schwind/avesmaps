@@ -280,7 +280,7 @@ function resetLocationEditForm() {
 	locationEditMarkerEntry = null;
 	activeReviewReportId = null;
 	activeReviewReportSource = null;
-	activeReviewReportSourceSuggestions = [];
+	activeReviewReportSourceQueue = [];
 	if (typeof clearChangeReportFieldMarks === "function") { clearChangeReportFieldMarks(); }
 	// Der Wunsch-Kasten gehoert dem Dialog, nicht dem Zeichendurchlauf -- deshalb hier und nicht in
 	// clearChangeReportFieldMarks(), das waehrend des Aufbaus laeuft (review-report-flow.js).
@@ -766,9 +766,11 @@ function mountLocationEditFeatureSources() {
 			return;
 		}
 		locationEditPendingSourceStore = createPendingFeatureSourceStore();
+		// Die gemeldeten Quellen (Warteschlange) puffern hier wie von Hand eingetragene, bis der Ort seine Kennung hat.
 		void mountFeatureSourceEditor(fresh, "settlement", () => "", {
 			escape: escapeHtml,
 			store: locationEditPendingSourceStore,
+			meldung: activeReviewReportSourceQueue.length ? { quellen: activeReviewReportSourceQueue } : null,
 		});
 		return;
 	}
@@ -778,7 +780,8 @@ function mountLocationEditFeatureSources() {
 			fresh,
 			"settlement",
 			() => document.getElementById("location-edit-public-id")?.value || "",
-			{ escape: escapeHtml }
+			// Die gemeldeten Quellen eines Aenderungswunsches stehen nacheinander in der Eingabezeile (Entwurf §5.4).
+			{ escape: escapeHtml, meldung: activeReviewReportSourceQueue.length ? { quellen: activeReviewReportSourceQueue } : null }
 		)
 	).then((data) => {
 		// The initial "list" runs the server-side other_source takeover, which bumps the feature's
@@ -787,13 +790,6 @@ function mountLocationEditFeatureSources() {
 		// place that still carries a legacy other_source would 409 just from opening this dialog.
 		if (data && typeof data.revision === "number" && markerEntry && markerEntry.location) {
 			markerEntry.location.revision = data.revision;
-		}
-		// A change report's proposed source(s) (openLocationEditDialogFromChangeReport) are stashed in
-		// activeReviewReportSourceSuggestions and only linked server-side on save -- append them here as
-		// a visible "Vorschlag" group so the reviewer sees the diff instead of it silently applying.
-		// No-op for a normal (non-report) edit, where the array is empty (resetLocationEditForm).
-		if (typeof appendProposedFeatureSources === "function") {
-			appendProposedFeatureSources(fresh, activeReviewReportSourceSuggestions, { escape: escapeHtml });
 		}
 	});
 }

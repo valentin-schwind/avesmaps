@@ -293,6 +293,10 @@ function renderReviewReports() {
 		return;
 	}
 
+	// 💣 Die Falte „n Quellen aus der Meldung" muss den 45-s-Poll ueberleben: vor dem Neuzeichnen merken, welche
+	// offen stehen (Entwurf 2026-09-03-quellen-meldeformular §7 Falle 11).
+	const offeneQuellenFalten = new Set(Array.from(listElement.querySelectorAll("details.review-report__quellen[open]"))
+		.map((falte) => String((falte.closest(".review-report") || {}).dataset?.reportId || "")));
 	listElement.innerHTML = "";
 	const scopeWord = { neu: "offene", erledigt: "bearbeitete" }[reviewReportStatusFilter.value] || "";
 	if (reviewReports.length < 1) {
@@ -357,17 +361,63 @@ function renderReviewReports() {
 				? `${getReportTypeLabel(report)} · ${citymapProposal.place?.raw_name || "ohne Ort"}`
 				: `${getReportTypeLabel(report)} · ${formatLocationReportCoordinates(L.latLng(Number(report.lat), Number(report.lng)))}`;
 		const reportSources = Array.isArray(report.sources) ? report.sources : [];
-		const sourceSummary = reportSources.length
-			? reportSources.map((source) => source.label + (source.pages ? ` (S. ${source.pages})` : "")).filter(Boolean).join("; ")
-			: (report.source || "Keine Quelle");
-		const reportSourceParts = [sourceSummary];
+		// Die Quellen stehen seit dem 03.09.2026 in der Falte darunter, im normalen Formular (Entwurf
+		// 2026-09-03-quellen-meldeformular §5.3). 🔴 Die ZAHL steht dann nur an der Falte und „gemeldet von" in der
+		// Meta-Zeile (Mockup §2) -- die Textzeile darunter traegt nur noch den Wiki-Link oder faellt weg; dieselbe
+		// Zahl zweimal auf einer Karte las sich wie zwei verschiedene Angaben (Befund des Pruefagenten, 03.09.2026).
+		const mitFalte = reportSources.length > 0 && typeof mountFeatureSourceMeldungVorschau === "function";
+		const reportSourceParts = [];
+		if (!mitFalte) {
+			reportSourceParts.push(reportSources.length
+				? (reportSources.length === 1 ? "1 Quelle" : `${reportSources.length} Quellen`)
+				: (report.source || "Keine Quelle"));
+		}
 		if (report.reporter_name) {
-			reportSourceParts.push(`gemeldet von ${report.reporter_name}`);
+			if (mitFalte) {
+				const metaElement = itemElement.querySelector(".review-report__meta");
+				metaElement.textContent = `${metaElement.textContent} · gemeldet von ${report.reporter_name}`;
+			} else {
+				reportSourceParts.push(`gemeldet von ${report.reporter_name}`);
+			}
 		}
 		if (report.wiki_url) {
 			reportSourceParts.push("Wiki-Link");
 		}
-		itemElement.querySelector(".review-report__source").textContent = reportSourceParts.join(" · ");
+		const sourceLine = itemElement.querySelector(".review-report__source");
+		if (reportSourceParts.length) {
+			sourceLine.textContent = reportSourceParts.join(" · ");
+		} else {
+			// Die Liste wird bei jedem Poll aus der Vorlage neu gebaut -- ein entfernter Knoten kommt wieder.
+			sourceLine.remove();
+		}
+		// Die Falte „n Quellen aus der Meldung": je Quelle das normale Formular, schreibgeschuetzt, vorausgefuellt aus
+		// der Vorbelegung des Servers -- AUCH die Altform ohne Link (die Zeile darueber sagt „nicht verknuepfbar",
+		// Titel und Seite sind trotzdem Information; ohne Falte saehe „1 Quelle" wie ein kaputtes Bauteil aus) --
+		// montiert erst beim Oeffnen (ein Formular je Quelle je Karte bei jedem Poll
+		// waere Arbeit ohne Blick), und offen bleibt, was vor dem Poll offen war.
+		if (mitFalte) {
+			const falte = document.createElement("details");
+			falte.className = "review-report__quellen";
+			const zusammenfassung = document.createElement("summary");
+			zusammenfassung.textContent = reportSources.length === 1
+				? tr("review.reportSourcesOne", "1 Quelle aus der Meldung")
+				: tr("review.reportSources", "{n} Quellen aus der Meldung").replace("{n}", String(reportSources.length));
+			falte.appendChild(zusammenfassung);
+			const wirt = document.createElement("div");
+			falte.appendChild(wirt);
+			const montiere = () => {
+				if (wirt.dataset.montiert !== "1") {
+					wirt.dataset.montiert = "1";
+					mountFeatureSourceMeldungVorschau(wirt, reportSources, { escape: typeof escapeHtml === "function" ? escapeHtml : undefined });
+				}
+			};
+			falte.addEventListener("toggle", () => { if (falte.open) { montiere(); } });
+			itemElement.querySelector(".review-report__focus").after(falte);
+			if (offeneQuellenFalten.has(String(report.id))) {
+				falte.open = true;
+				montiere();
+			}
+		}
 		// Surface the reporter's free-text comment for EVERY report type -- it otherwise only reached the
 		// location editor's description; label/comment/change reports lost it in the list entirely.
 		const reportComment = String(report.comment || "").trim();

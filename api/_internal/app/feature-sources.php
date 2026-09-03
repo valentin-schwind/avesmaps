@@ -1391,6 +1391,39 @@ function avesmapsFeatureSourcesReadWikiUrl(PDO $pdo, string $entityType, string 
  * setzt sie NICHT -- deren Art kommt aus einem fremden Formular und darf keine katalogweit
  * geteilte Zeile umschreiben.
  */
+/**
+ * Was ein bekannter Korpus einer NEUEN Katalogzeile vorgibt -- rein, damit die Regel ohne MySQL pruefbar ist.
+ *
+ * 🔴 GEFUELLT WIRD NUR LEERES: Art, Lizenz und Nennung, wo der Aufrufer nichts gesagt hat. „offiziell" kommt vom
+ *   Korpus, wenn niemand den Haken ausdruecklich gesetzt hat ($officialChosen) -- dieselbe Lesart wie
+ *   avesmapsSourceOfficialWriteAllowed, eine Stufe frueher.
+ * ⚠️ Ein unbekannter Wirt (known=false) oder keine Adresse gibt nichts vor: die Zeile entsteht, wie sie
+ *   gemeldet wurde, und die Redaktion sieht in der Vorbelegung „neuer Wirt".
+ *
+ * @return array{type:string,license:string,attribution:string,official:bool}
+ */
+function avesmapsFeatureSourceKorpusVorgaben(?array $korpus, string $type, string $license, string $attribution, bool $official, bool $officialChosen): array
+{
+    $aus = ['type' => $type, 'license' => $license, 'attribution' => $attribution, 'official' => $official];
+    if (!is_array($korpus) || ($korpus['known'] ?? false) !== true) {
+        return $aus;
+    }
+    if (avesmapsNormalizeSourceType($type) === '') {
+        $aus['type'] = (string) ($korpus['source_type'] ?? '');
+    }
+    if (trim($license) === '') {
+        $aus['license'] = (string) ($korpus['license'] ?? '');
+    }
+    if (trim($attribution) === '') {
+        $aus['attribution'] = (string) ($korpus['attribution'] ?? '');
+    }
+    if (!$officialChosen) {
+        $aus['official'] = ($korpus['is_official'] ?? false) === true;
+    }
+
+    return $aus;
+}
+
 function avesmapsAddFeatureSource(PDO $pdo, string $entityType, string $publicId, string $url, string $label, string $type, bool $official, int $userId, string $pages = '', string $referenceKind = '', string $license = '', string $attribution = '', bool $retype = false, bool $officialChosen = false): array
 {
     avesmapsEnsureFeatureSourceTables($pdo);
@@ -1434,6 +1467,22 @@ function avesmapsAddFeatureSource(PDO $pdo, string $entityType, string $publicId
     // 🔴 Der Kanon-Haken schreibt eine BESTEHENDE Zeile nur bei ausdruecklicher Wahl, und nie eine
     // wiki-gepflegte -- siehe avesmapsSourceOfficialWriteAllowed.
     $setOfficial = avesmapsSourceOfficialWriteAllowed($officialChosen, $bestehendeZeile);
+    // 🔴 DIE KORPUSWERTE FUER EINE NEUE ZEILE (Entwurf 2026-09-03-quellen-meldeformular §6.3): ist der Wirt ein
+    // bekannter Korpus, bekommt eine NEUE Katalogzeile Art, Lizenz, Nennung und Kanon vom Korpus -- wo der
+    // Aufrufer nichts gesagt hat. Bis dahin kannte die Regel nur die Eingabezeile des Editors (der Client
+    // belegte die Felder vor); die angenommene Gemeinschaftsmeldung legte eine garetien.de-Zeile als
+    // „Sonstiges, inoffiziell, ohne Lizenz" an. Eine BESTEHENDE Zeile bleibt unberuehrt (retype /
+    // avesmapsSourceOfficialWriteAllowed gelten unveraendert).
+    if ($bestehendeZeile === null && function_exists('avesmapsSourceCorpusForUrl')) {
+        $vorgabe = avesmapsFeatureSourceKorpusVorgaben(
+            avesmapsSourceCorpusForUrl(avesmapsSourceCorpusReadAll($pdo), $upsertUrl),
+            $type, $license, $attribution, $official, $officialChosen
+        );
+        $type = $vorgabe['type'];
+        $license = $vorgabe['license'];
+        $attribution = $vorgabe['attribution'];
+        $official = $vorgabe['official'];
+    }
     $sourceId = avesmapsFeatureSourceUpsert($pdo, $upsertUrl, $label, $type, $official, $userId, $upsertWikiKey, false, $license, $attribution, $retype, $setOfficial);
     // Manual/community add: origin stays 'manual'. reference_kind is OPTIONAL classification of how the
     // place is covered in this source -- ausfuehrlich/ergaenzend -> the "Offiziell" publication tab,

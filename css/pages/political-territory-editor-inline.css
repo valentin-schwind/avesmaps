@@ -2156,25 +2156,6 @@
 #political-territory-editor-host .fs-row__edit-cell {
 	display: block;
 }
-/* "Vorschlag" group: a change report's proposed source(s), shown before they exist as real
-   feature_sources (js/review/review-feature-sources.js:appendProposedFeatureSources). Reuses the
-   same danger-soft tokens as .field--change-proposed's outline so it reads as part of the same
-   "reviewer, look here" diff language as the red-outlined name/type/wiki-url fields. */
-#political-territory-editor-host .fs-group--proposed {
-	border: 1px dashed var(--color-danger-soft-border);
-	background: var(--color-danger-soft);
-	border-radius: 6px;
-	padding: 2px 8px;
-	margin-bottom: 6px;
-}
-#political-territory-editor-host .fs-group-heading--proposed {
-	color: var(--color-danger-soft-text);
-}
-#political-territory-editor-host .fs-row--proposed .fs-row__badge--proposed {
-	color: var(--color-danger-soft-text);
-	background: transparent;
-	border-color: var(--color-danger-soft-border);
-}
 /* 🔴 DIE EINGABEZEILE GEHOERT NICHT INS SPALTENRASTER. Sie traegt neun Bedienelemente (Adresse,
    Titel, Seiten, Typ, Art, Lizenz, Namensnennung, „offiziell", Hinzufuegen) und keine sechs
    Datenspalten -- in die Spaltenvorlage gezwungen rutschten sie in fremde Spalten und die
@@ -3578,4 +3559,24 @@
 	padding-top: 8px;
 }
 
+/* ── Die Warteschlange der Meldung ueber dem Formular (Entwurf 2026-09-03-quellen-meldeformular §5.4) ──
+   VERTRAG von docs/quellen-meldeformular-mockup.html: EINE gedaempfte Zeile, die sagt, die wievielte
+   gemeldete Quelle gerade im Formular steht. Das Formular selbst ist das bestehende -- keine zweite Rezeptur. */
+#political-territory-editor-host .fs-add-queue {
+	margin: 0 0 6px;
+	font-size: 11px;
+	color: var(--color-text-muted);
+}
+#political-territory-editor-host .fs-add-queue b {
+	color: var(--color-text);
+	font-weight: 600;
+}
+/* Die schreibgeschuetzte Vorschau in der Review-Karte: nur das Formular, ohne Anleitung, ohne Meldezeile. */
+#political-territory-editor-host .fs-meldung-vorschau .fs-hint,
+#political-territory-editor-host .fs-meldung-vorschau .fs-add-note {
+	display: none;
+}
+#political-territory-editor-host .fs-meldung-vorschau + .fs-meldung-vorschau {
+	margin-top: 10px;
+}
 

@@ -80,11 +80,27 @@ const html = render(ZUSTAND, { escape: esc, tr });
 	assert.ok(viele.indexOf("<details class=\"fs-more\">") < viele.indexOf('<details class="fs-add-fold">'), "der Listen-Klappkasten steht vor der Falte");
 }
 
-// ---- 5. Kein Zustand: der Bauer setzt nie `open`, der Mount merkt sich nichts ----------------------------
+// ---- 5. Kein Zustand: `open` kommt aus GENAU EINER Stelle, und die ist die Meldung ---------------------
+// 🔴 Die EINE Ausnahme von „immer zu" (seit dem Meldeformular-Umbau, Entwurf 2026-09-03-quellen-meldeformular
+// §5.4): solange Quellen aus einer MELDUNG warten, steht die Falte offen, damit der Editor das vorbelegte
+// Formular sieht. Das `open` haengt an `meldung.offen` -- einem Wert, den der Mount aus seiner Warteschlange
+// ableitet -- und an keinem zweiten Merker; ohne Meldung gibt es weiterhin keine offene Falte (Abschnitt 1),
+// und nach der letzten gemeldeten Quelle zeichnet das Bauteil aus der Antwort neu, also zu.
 {
 	const quelle = lies("js/review/review-feature-sources.js").replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:\\"'`])\/\/[^\n]*/g, "$1");
-	assert.ok(!/fs-add-fold[^\n]*\bopen\b/.test(quelle.replace(/\.fs-add-fold\[open\]/g, "")), "nirgends ein `open` an der Falte -- zu ist die einzige Form");
+	const stellen = quelle.replace(/\.fs-add-fold\[open\]/g, "").match(/fs-add-fold[^\n]*\bopen\b[^\n]*/g) || [];
+	assert.strictEqual(stellen.length, 1, "GENAU EINE Stelle haengt `open` an die Falte: " + JSON.stringify(stellen));
+	assert.ok(/\(offen \? " open" : ""\)/.test(stellen[0]), "… und sie ist an `offen` gebunden, nicht fest: " + stellen[0]);
+	assert.ok(/const offen = Boolean\(meldung && meldung\.offen === true\);/.test(quelle), "`offen` ist NUR die Meldung -- kein zweiter Merker");
 	assert.ok(!/\.open\s*=/.test(quelle), "kein Skript, das `.open` setzt -- die Falte hat keinen Modulzustand");
+	// Ausgefuehrt: mit wartender Meldung offen, samt Zeile IN der Falte; ohne Meldung zu.
+	const mit = render(ZUSTAND, { escape: esc, tr, meldung: { offen: true, zeile: '<p class="fs-add-queue">Quelle 1 von 2</p>' } });
+	assert.ok(/<details class="fs-add-fold" open>/.test(mit), "mit wartender Meldung steht die Falte offen");
+	const f = mit.indexOf('<details class="fs-add-fold"');
+	const z = mit.indexOf('<p class="fs-add-queue">');
+	assert.ok(z > f && z < mit.indexOf("</details>", f), "… und die Warteschlangen-Zeile steht IN der Falte");
+	assert.ok(z < mit.indexOf('class="fs-row fs-row--add"'), "… ueber der Eingabezeile");
+	assert.ok(!/<details class="fs-add-fold"[^>]*\sopen/.test(render(ZUSTAND, { escape: esc, tr, meldung: { offen: false, zeile: "" } })), "meldung.offen === false: zu");
 }
 
 // ---- 6. Die Rezeptur ist die des Listen-Klappkastens -- ein zweiter Name, keine zweite Regel -------------
