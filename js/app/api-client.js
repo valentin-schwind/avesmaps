@@ -248,7 +248,17 @@ async function fetchPoliticalTerritories(params = {}) {
 	})();
 
 	if (cacheable) {
-		POLITICAL_LAYER_CACHE.set(cacheKey, { ts: Date.now(), promise: requestPromise });
+		// 🔴 ABGELAUFENE ZUSAGEN FLIEGEN BEIM SETZEN HINAUS. Bis 03.09.2026 wurde hier nie etwas
+		// geloescht, nur nach einer Speicherung alles geleert -- jede Zusage haelt aber die geparste
+		// Ebene (im Editor 4-5 MB JSON je Zoom x Jahr), und die Zeitleiste kennt 1050 Jahre. Der
+		// geparste Speicher des Loaders (300 s) bleibt der einzige Halter der Ansichts-Ebene.
+		const jetzt = Date.now();
+		for (const [key, eintrag] of POLITICAL_LAYER_CACHE) {
+			if (jetzt - eintrag.ts >= POLITICAL_LAYER_CACHE_TTL_MS) {
+				POLITICAL_LAYER_CACHE.delete(key);
+			}
+		}
+		POLITICAL_LAYER_CACHE.set(cacheKey, { ts: jetzt, promise: requestPromise });
 		// Fehlschlag nicht cachen -> beim naechsten Mal neu versuchen.
 		requestPromise.catch(() => {
 			const current = POLITICAL_LAYER_CACHE.get(cacheKey);
