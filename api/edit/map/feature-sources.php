@@ -80,7 +80,7 @@ try {
     // niemand zaehlt nach (AGENTS.md §11). Die Liste steht deshalb in der Bedingung selbst; wer
     // eine Aktion ergaenzt, ergaenzt sie DORT.
     // ⚠️ Die Faehigkeit `edit` ist oben laengst geprueft; `inspect_url` bleibt ohnehin lesend.
-    if ($entityPublicId === '' && !in_array($action, ['inspect_url', 'save_corpus', 'corpus_titles_probe', 'corpus_titles_apply'], true)) {
+    if ($entityPublicId === '' && !in_array($action, ['inspect_url', 'save_corpus', 'corpus_titles_probe', 'corpus_titles_apply', 'takeover_other_sources'], true)) {
         avesmapsErrorResponse(400, 'invalid_request', 'entity_public_id ist erforderlich.');
     }
 
@@ -279,6 +279,19 @@ try {
             }
 
             return ['ok' => true] + avesmapsSourceCorpusTitleApply($pdo, $writes);
+        })(),
+        // DER SAMMEL-TAKEOVER der Altquellen (Schritt 4 des Quellen-Umbaus, 03.09.2026): alle noch gespeicherten
+        // `properties.other_source` in den Katalog. Fragt nach keinem Objekt, sondern nach ALLEN -- deshalb ohne
+        // `entity_public_id` und NUR fuer Admins.
+        // 🔴 Trockenlauf ist die Vorgabe; scharf wird er erst mit `apply: true`. Die Vorschau zeigt, was er taete.
+        'takeover_other_sources' => (static function () use ($pdo, $payload, $user, $userId): array {
+            if (!avesmapsUserCan($user, 'admin')) {
+                avesmapsErrorResponse(403, 'forbidden', 'Der Sammel-Takeover ist Admins vorbehalten.');
+            }
+            $scharf = ($payload['apply'] ?? false) === true;
+            $limit = (int) ($payload['limit'] ?? 400);
+
+            return avesmapsFeatureSourcesTakeoverAll($pdo, $userId, !$scharf, $limit > 0 ? $limit : 400);
         })(),
         'remove' => (static function () use ($pdo, $entityType, $entityPublicId, $entityPublicIds, $payload, $userId): array {
             $sourceId = (int) ($payload['source_id'] ?? 0);

@@ -744,9 +744,16 @@ function avesmapsFeatureSourcesTakeoverOtherSource(PDO $pdo, string $entityType,
         return; // nichts zu übernehmen
     }
     $label = is_array($other) ? trim((string) ($other['label'] ?? '')) : '';
+    // 🔴 Eine Altquelle sagt NICHTS ueber „offiziell“: steht ihre Adresse schon im Katalog, bleibt die Zeile
+    // unberuehrt (avesmapsSourceOfficialWriteAllowed, 03.09.2026) -- 50 der 102 Altadressen sind bekannt,
+    // und der Upsert haette ihnen sonst „nein“ aufgedrueckt.
+    $bestand = $pdo->prepare('SELECT id, wiki_key FROM sources WHERE url_hash = :h LIMIT 1');
+    $bestand->execute(['h' => avesmapsFeatureSourceHash($url)]);
+    $bestehend = $bestand->fetch(PDO::FETCH_ASSOC);
+    $setOfficial = avesmapsSourceOfficialWriteAllowed(false, is_array($bestehend) ? $bestehend : null);
     $pdo->beginTransaction();
     try {
-        $sourceId = avesmapsFeatureSourceUpsert($pdo, $url, $label, 'sonstiges', false, $userId); // Quelle ist jetzt sicher im Katalog
+        $sourceId = avesmapsFeatureSourceUpsert($pdo, $url, $label, 'sonstiges', false, $userId, '', false, '', '', false, $setOfficial); // Quelle ist jetzt sicher im Katalog
         avesmapsFeatureSourceLink($pdo, $entityType, $publicId, $sourceId, $userId);
         unset($props['other_source']); // ERST JETZT das alte Feld leeren
         $pdo->prepare("UPDATE map_features SET properties_json = :p, revision = :r WHERE id = :id")
@@ -756,6 +763,98 @@ function avesmapsFeatureSourcesTakeoverOtherSource(PDO $pdo, string $entityType,
         $pdo->rollBack();
         throw $e;
     }
+}
+
+/** Welche `map_features.feature_type` eine Altquelle tragen koennen -- und als welche Objektart sie im Katalog haengt. */
+const AVESMAPS_LEGACY_OTHER_SOURCE_ENTITY_TYPES = ['location' => 'settlement', 'label' => 'region', 'path' => 'path'];
+
+/**
+ * DER SAMMEL-TAKEOVER: alle noch gespeicherten `properties.other_source` in den Katalog -- Schritt 4 des
+ * Quellen-Umbaus (03.09.2026). Gemessen davor: 314 Altquellen (168 Orte, 30 Beschriftungen, 116 Wege),
+ * 102 verschiedene Adressen, 50 davon schon im Katalog.
+ *
+ * 🔴 TROCKENLAUF IST DIE VORGABE. Er zaehlt und zeigt, was der scharfe Lauf taete (je Objektart, Adressen,
+ * davon bekannt, eine Stichprobe) und schreibt in KEINE Tabelle -- dieselbe Zweiteilung wie bei jeder
+ * Uebernahme-Vorschau des Hauses (AGENTS.md §11).
+ * 🔴 Der scharfe Lauf ruft je Zeile DEN Einzel-Takeover (`avesmapsFeatureSourcesTakeoverOtherSource`) -- keine
+ * zweite Fassung der Regeln (Katalog-Upsert, Verknuepfung, Feld leeren, Revision), und je Zeile eine eigene
+ * Transaktion: eine kaputte Zeile kostet nicht den ganzen Lauf, sie wird gemeldet.
+ * ⚠️ Gedeckelt (`$limit`), weil STRATO keinen langen Lauf in einem Request vertraegt; der Aufrufer wiederholt,
+ * bis `remaining` null ist -- was uebernommen ist, hat kein `other_source` mehr und faellt aus der Auswahl.
+ * ⚠️ Nur die drei Objektarten mit Quellenflaeche (`AVESMAPS_LEGACY_OTHER_SOURCE_ENTITY_TYPES`), nur aktive
+ * Zeilen, nur eine nichtleere Adresse -- exakt die Auswahl des `os:`-Erzeugers in api/app/map-features.php,
+ * der nach diesem Lauf faellt.
+ */
+function avesmapsFeatureSourcesTakeoverAll(PDO $pdo, int $userId, bool $dryRun = true, int $limit = 400): array
+{
+    avesmapsEnsureFeatureSourceTables($pdo);
+    $limit = max(1, min(2000, $limit));
+    $typen = array_keys(AVESMAPS_LEGACY_OTHER_SOURCE_ENTITY_TYPES);
+    $platzhalter = implode(', ', array_fill(0, count($typen), '?'));
+    $stmt = $pdo->prepare(
+        "SELECT id, public_id, feature_type, properties_json FROM map_features
+          WHERE is_active = 1 AND feature_type IN ({$platzhalter}) AND properties_json LIKE '%\"other_source\"%'
+          ORDER BY id ASC"
+    );
+    $stmt->execute($typen);
+    $kandidaten = [];
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+        $props = json_decode((string) $row['properties_json'], true);
+        $other = is_array($props) ? ($props['other_source'] ?? null) : null;
+        $url = is_array($other) ? trim((string) ($other['url'] ?? '')) : '';
+        if ($url === '') {
+            continue; // vorhanden, aber leer -- der os:-Erzeuger zeigt das auch nicht
+        }
+        $kandidaten[] = [
+            'entity_type' => AVESMAPS_LEGACY_OTHER_SOURCE_ENTITY_TYPES[(string) $row['feature_type']],
+            'public_id' => (string) $row['public_id'],
+            'url' => $url,
+            'label' => is_array($other) ? trim((string) ($other['label'] ?? '')) : '',
+        ];
+    }
+
+    $jeTyp = [];
+    $adressen = [];
+    foreach ($kandidaten as $k) {
+        $jeTyp[$k['entity_type']] = ($jeTyp[$k['entity_type']] ?? 0) + 1;
+        $adressen[$k['url']] = true;
+    }
+    $bekannt = 0;
+    if ($adressen !== []) {
+        $hashes = array_map(static fn (string $u): string => avesmapsFeatureSourceHash($u), array_keys($adressen));
+        $ph = implode(', ', array_fill(0, count($hashes), '?'));
+        $s = $pdo->prepare("SELECT COUNT(*) FROM sources WHERE url_hash IN ({$ph})");
+        $s->execute($hashes);
+        $bekannt = (int) $s->fetchColumn();
+    }
+
+    $ergebnis = [
+        'ok' => true,
+        'dry_run' => $dryRun,
+        'total' => count($kandidaten),
+        'per_type' => $jeTyp,
+        'distinct_urls' => count($adressen),
+        'known_urls' => $bekannt,
+        'sample' => array_slice($kandidaten, 0, 10),
+        'done' => 0,
+        'failed' => [],
+        'remaining' => count($kandidaten),
+    ];
+    if ($dryRun) {
+        return $ergebnis;
+    }
+    foreach (array_slice($kandidaten, 0, $limit) as $k) {
+        try {
+            avesmapsFeatureSourcesTakeoverOtherSource($pdo, $k['entity_type'], $k['public_id'], $userId);
+            $ergebnis['done']++;
+        } catch (Throwable $e) {
+            // Gemeldet, nicht geschluckt: ein SQL-Fehler saehe sonst aus wie „nichts zu uebernehmen“.
+            $ergebnis['failed'][] = ['entity_type' => $k['entity_type'], 'public_id' => $k['public_id'], 'error' => $e->getMessage()];
+        }
+    }
+    $ergebnis['remaining'] = count($kandidaten) - $ergebnis['done'];
+
+    return $ergebnis;
 }
 
 /**
