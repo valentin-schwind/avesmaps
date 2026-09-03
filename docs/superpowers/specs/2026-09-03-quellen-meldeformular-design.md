@@ -6,8 +6,12 @@ nachziehen und an das neue system anpassen. sowohl änderungen als auch neue vor
 dem link machen. ich will allerdings nicht, dass externe nutzer was am korpus machen — die sollen
 einfach den link pasten. erst wir im backend sollen sehen, ob der korpus passt oder ein neuer erkannt
 wurde."
-**Mockup:** `docs/quellen-meldeformular-mockup.html` (VERTRAG bindet die neuen Regeln in
-`css/components/location-report-dialog.css`).
+**Mockup:** `docs/quellen-meldeformular-mockup.html` — bis zum GO als
+`docs/quellen-meldeformular-mockup.entwurf.html` abgelegt, weil sein VERTRAG (drei Blöcke:
+`css/components/location-report-dialog.css`, `css/features/feature-sources.css`,
+`css/features/review-panel.css`) bis zum Bau rot wäre und der Vertragstest jedes `*-mockup.html`
+liest. Abschnitt 1 ist die Sicht des Melders, 2–4 die Backend-Sicht (Review-Karte, Annahme-Dialog,
+„neuer Wirt").
 
 ---
 
@@ -74,7 +78,26 @@ Beide gehen durch `api/app/report-location.php` (`avesmapsNormalizeReportSources
 `map_reports.sources_json` (bzw. `location_reports`). „Fundort melden" trägt Karten-Links, keine
 Quellen, und bleibt draußen.
 
-### 1.5 Nebenbefund: acht Beschriftungen des Formulars haben keinen englischen Text
+### 1.5 Der Knopf „+ Quelle hinzufügen" tut nichts, wenn nur der Link ausgefüllt ist
+
+Owner 03.09.2026: „beachte, dass der button ‚Quelle hinzufügen' derzeit nicht funktioniert." Live
+nachgemessen (avesmaps.de, Besucheransicht): mit ausgefülltem **Namen** legt der Knopf eine Zeile an;
+mit ausgefülltem **Link und leerem Namen** passiert nichts — keine Zeile, keine Meldung
+(`addLocationReportSourceFromInputs` verlangt `label` und kehrt still mit `false` zurück). Der Name
+ist heute das Pflichtfeld, der Link optional. Das ist genau verkehrt herum, und §3 dreht es um: der
+Link wird Pflicht, der Name fällt. 🔴 Und eine Ablehnung ist künftig **hörbar** (§3.1) — ein Knopf,
+der still nichts tut, sieht aus wie ein kaputter Knopf.
+
+### 1.6 Nebenbefund beim Messen: die Besucherkarte lud seit Schritt 5 keine Beschriftungen
+
+Beim Nachmessen des Knopfs stand in der Konsole der Live-Seite ein `ReferenceError` aus Schritt 5
+(`quellenSchluessel` in `buildRegionLabelViewPopupHtml`, nur in der Datenbox-Funktion definiert):
+das Laden der Kartendaten brach für Besucher ab, zwei Stunden lang, während Bearbeiten-Modus,
+Quelltext-Tests und 14 Mutationen grün waren. Behoben als Hotfix `34aeeba23` (Helfer für beide
+Popup-Bauer, Test führt das Ansichts-Popup aus). Lehre in AGENTS.md §11 und Memory
+`quelltexttest-sieht-keinen-geltungsbereich`.
+
+### 1.7 Nebenbefund: acht Beschriftungen des Formulars haben keinen englischen Text
 
 `report.sectionSources`, `report.sourcesLabel`, `report.sourceNamePlaceholder`,
 `report.pagesPlaceholder`, `report.sourceUrlPlaceholder`, `report.sourceOfficialLabel`,
@@ -212,14 +235,28 @@ Statt der einen Textzeile eine Zeile **je Quelle** (`.review-report__quelle`):
 
 Reihenfolge der Marken: Katalog zuerst (bekannt / neu / aus dem Katalog), dann der Korpus (Name,
 oder „neuer Wirt <host>"). Farben: Text in `--color-text-muted`, „neuer Wirt" in
-`--color-warning-text` — das ist der eine Fall, in dem der Editor nach der Annahme etwas tun muss.
-Kein Rot: es ist kein Fehler, es ist Arbeit.
+`--color-warning-strong-text` — das ist der eine Fall, in dem der Editor nach der Annahme etwas
+tun muss. Kein Rot: es ist kein Fehler, es ist Arbeit. ⚠️ `--color-warning-text` und
+`--color-success-text` gibt es NICHT (`tokens.css` kennt `-soft-text` und `-strong-text`); der erste
+Entwurf des Mockups hatte beide erfunden — Memory `mockup-tokens-sind-eine-fiktion`.
 
 ### 5.3 Die Vorschlagszeilen im Annahme-Dialog
 
 `renderProposedFeatureSourceRow` (`review-feature-sources.js`) zeigt heute Link + „Vorschlag
-(Meldung)" + Seiten. Sie bekommt dieselben zwei Marken wie die Karte (aus `pruefung`, die mit dem
-Report reist). Die Gruppe heißt weiter „Aus der Meldung (wird beim Speichern übernommen)".
+(Meldung)" + Seiten — drei Zellen in einem siebenspaltigen Raster, der Stern kommt vom Haken des
+Melders. Künftig trägt die Zeile **alle sieben Zellen** (Link · Vorschlags-Pille · leere Abdeckung ·
+Seiten · **Prüfung** in der Lizenzspalte · zwei leere Knopfzellen), damit nichts verrutscht; die
+Prüfung ist derselbe Text wie auf der Karte (`.fs-row__pruefung`, gedämpft wie die Lizenz; „neuer
+Wirt" in `--color-warning-strong-text`), aus `pruefung`, die mit dem Report reist. Kein Stern, keine
+Art. Die Gruppe heißt weiter „Aus der Meldung (wird beim Speichern übernommen)". Mockup §3.
+
+### 5.4 Nach der Annahme bei „neuer Wirt"
+
+Die Zeile steht im Quellenkasten des Objekts ohne Art, ohne Lizenz, inoffiziell — wie eine Zeile,
+die ein Editor selbst von einem unbekannten Wirt eintippt. Den Korpus legt der Editor über die
+bestehende Eingabezeile an (Zustand „neue Domain" → „Korpus anlegen", Durchschreiben mit Rückfrage
+ab zehn Objekten). 🔴 **Kein zweiter Weg** und keine Korpusanlage aus der Meldung heraus: die
+Meldung sagt „hier ist etwas Neues", die Entscheidung trifft der Editor. Mockup §4.
 
 ---
 
