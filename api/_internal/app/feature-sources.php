@@ -801,6 +801,30 @@ function avesmapsListFeatureSourcesForEdit(PDO $pdo, string $entityType, string 
     // or '') so the editor row can show + round-trip it, and syncFeatureSourcesToClientCache can fold it
     // into the popup globals -> a freshly classified source lands in the right tab without a reload.
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    $sources = avesmapsFeatureSourceEditorRows($pdo, $rows);
+    return [
+        'ok' => true,
+        'sources' => $sources,
+        'wiki_url' => avesmapsFeatureSourcesReadWikiUrl($pdo, $entityType, $publicId),
+        // Post-takeover map_features.revision so an editor that guards its save with
+        // expected_revision can refresh its cached token -- the takeover above bumps the
+        // revision when it consolidates a legacy other_source (null for territory: no map row).
+        'revision' => avesmapsFeatureSourcesReadRevision($pdo, $entityType, $publicId),
+    ];
+}
+
+/**
+ * Die Editor-Zeilen aus den rohen Verknuepfungszeilen -- Katalogfelder, Korpus, Reichweite, Herkunft.
+ *
+ * 🔴 EIN Bauer fuer die Liste eines Objekts UND fuer die Sammelliste ueber einen ganzen Weg
+ * (avesmapsListFeatureSourcesForEditMany). Bis zum 03.09.2026 stand er als Rumpf in der Einzelliste;
+ * die Sammelliste haette ihn abgeschrieben, und die naechste Spalte waere in einer der beiden
+ * Abschriften vergessen worden -- dieselbe Falle wie bei den Listenzeilen (AGENTS.md §11).
+ * ⚠️ `$rows` sind die Zeilen der Editor-Abfrage (Katalog JOIN Verknuepfung); die Sammelliste
+ * reicht je Katalogzeile GENAU EINE davon herein.
+ */
+function avesmapsFeatureSourceEditorRows(PDO $pdo, array $rows): array
+{
     // Wie viele Objekte zitieren jede dieser Katalogzeilen? Das Bearbeiten-Formular sagt es an der
     // Ueberschrift seiner Katalog-Haelfte und entscheidet daran, ob es nachfragt.
     // ⚠️ EINE gruppierte Abfrage, nicht eine je Zeile: `source_id` ist die DRITTE Spalte des UNIQUE
@@ -843,7 +867,7 @@ function avesmapsListFeatureSourcesForEdit(PDO $pdo, string $entityType, string 
         array_column($rows, 'beleg_von'),
         array_column($korpora, 'updated_by')
     ));
-    $sources = array_map(static function (array $r) use ($usage, $korpora, $korpusReichweite, $namen): array {
+    return array_map(static function (array $r) use ($usage, $korpora, $korpusReichweite, $namen): array {
         $id = (int) $r['source_id'];
         $korpus = null;
         if ($korpora !== [] || $korpusReichweite !== []) {
@@ -906,14 +930,135 @@ function avesmapsListFeatureSourcesForEdit(PDO $pdo, string $entityType, string 
             ],
         ];
     }, $rows);
+}
+
+/**
+ * Die Kennungen, ueber die eine Aktion des Quellen-Editors VERTEILT wird -- oder [] fuer „nur das eine".
+ *
+ * 🔴 DER VERTEILER (Entwurf docs/superpowers/specs/2026-09-03-quellen-wege-design.md §2): ein Weg liegt
+ * auf der Karte in Abschnitten, und die Quelle haengt am ABSCHNITT (map_features.public_id). Die Gruppe
+ * ist ein Verteiler, keine Ablage: nennt der Rumpf `entity_public_ids`, wird die Aktion je Kennung
+ * ausgefuehrt und die Antwort ist die Vereinigung ueber alle. Der Anker `entity_public_id` gehoert immer
+ * dazu und steht vorn.
+ * 🔴 NUR `path` verteilt. Bei jeder anderen Objektart waere eine Liste fremder Kennungen ein Schlupfloch,
+ * um an Objekten zu schreiben, die der Dialog gar nicht zeigt -- deshalb ein Fehler, kein stilles Weglassen.
+ * ⚠️ Gedeckelt wie das Sammel-Speichern der Weg-Ebene (AVESMAPS_PATH_GROUP_MAX_SEGMENTS, 250); die laengste
+ * Namensgruppe im Bestand hat 57 Abschnitte („Reichsstraße 2").
+ * ⚠️ Eine Liste, die nur den Anker nennt, verteilt nichts -- ein einteiliger Weg ist ein Objekt wie jedes.
+ */
+function avesmapsFeatureSourceDistributionIds(mixed $liste, string $anchor, string $entityType): array
+{
+    if (!is_array($liste)) {
+        return [];
+    }
+    if ($entityType !== 'path') {
+        throw new InvalidArgumentException('entity_public_ids gibt es nur fuer Wege (path).');
+    }
+    $deckel = defined('AVESMAPS_PATH_GROUP_MAX_SEGMENTS') ? (int) AVESMAPS_PATH_GROUP_MAX_SEGMENTS : 250;
+    $ids = [];
+    if ($anchor !== '') {
+        $ids[] = $anchor;
+    }
+    foreach ($liste as $wert) {
+        if (!is_string($wert) && !is_int($wert)) {
+            throw new InvalidArgumentException('entity_public_ids muss eine Liste von Kennungen sein.');
+        }
+        $id = trim((string) $wert);
+        if ($id !== '' && !in_array($id, $ids, true)) {
+            $ids[] = $id;
+        }
+    }
+    if (count($ids) > $deckel) {
+        throw new InvalidArgumentException('entity_public_ids darf hoechstens ' . $deckel . ' Kennungen nennen.');
+    }
+
+    return count($ids) < 2 ? [] : $ids;
+}
+
+/**
+ * Die Quellen ueber MEHRERE Kennungen derselben Objektart -- die Liste, die der Verteiler zurueckgibt.
+ *
+ * Je Katalogzeile EINE Editorzeile (die des Ankers gewinnt, sonst die erste gefundene), dazu der Zaehler
+ * `segments` / `segments_of`: an wie vielen der Abschnitte sie haengt. Der Editor zeichnet daraus die Marke
+ * „12 von 56 Abschnitten" -- NUR bei einer Teilmenge, denn „an allen" ist der Normalfall (2.347 von 2.511
+ * Wegquellen, live gemessen 03.09.2026).
+ * 🔴 `by_entity` traegt die Verweise JE KENNUNG (source_id, Seiten, Abdeckung): der Kartenspeicher im
+ * Browser wird daraus je Abschnitt nachgezogen und bekommt nie die Vereinigung an alle gehaengt.
+ * ⚠️ Der Takeover der Altquelle (`other_source`) laeuft je Kennung -- dieselbe Regel wie in der Einzelliste,
+ * sonst zeigte die Weg-Ebene eine Altquelle nicht, die der Abschnittsdialog laengst konsolidiert haette.
+ * ⚠️ `revision` ist null: ein Sperrtoken gehoert EINEM Kartenobjekt, und die Sammelliste hat viele.
+ */
+function avesmapsListFeatureSourcesForEditMany(PDO $pdo, string $entityType, array $publicIds, string $anchor, int $userId): array
+{
+    avesmapsEnsureFeatureSourceTables($pdo);
+    $ids = [];
+    if ($anchor !== '') {
+        $ids[] = $anchor;
+    }
+    foreach ($publicIds as $wert) {
+        $id = trim((string) $wert);
+        if ($id !== '' && !in_array($id, $ids, true)) {
+            $ids[] = $id;
+        }
+    }
+    foreach ($ids as $id) {
+        avesmapsFeatureSourcesTakeoverOtherSource($pdo, $entityType, $id, $userId);
+    }
+
+    $rows = [];
+    if ($ids !== []) {
+        $platzhalter = implode(', ', array_fill(0, count($ids), '?'));
+        $stmt = $pdo->prepare(
+            "SELECT fs.entity_public_id, s.id AS source_id, s.url, s.label, s.source_type, s.is_official, s.license, s.attribution,
+                    s.wiki_key, s.own_fields, s.created_by AS quelle_von, s.created_at AS quelle_am,
+                    fs.origin, fs.reference_kind, fs.pages,
+                    fs.created_by AS beleg_von, fs.created_at AS beleg_am
+               FROM feature_sources fs JOIN sources s ON s.id = fs.source_id
+              WHERE fs.entity_type = ? AND fs.entity_public_id IN ({$platzhalter}) AND fs.status = 'approved'
+              ORDER BY s.is_official DESC, s.created_at ASC, s.id ASC"
+        );
+        $stmt->execute(array_merge([$entityType], $ids));
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    }
+
+    $jeQuelle = [];
+    $zaehler = [];
+    $byEntity = [];
+    foreach ($ids as $id) {
+        $byEntity[$id] = [];
+    }
+    foreach ($rows as $r) {
+        $sid = (int) $r['source_id'];
+        $eid = (string) $r['entity_public_id'];
+        $zaehler[$sid] = ($zaehler[$sid] ?? 0) + 1;
+        // Die Zeile des Ankers gewinnt -- Seiten und Abdeckung sind Sache des Abschnitts, und der
+        // Editor steht am Anker. Die Reihenfolge der Liste bleibt die der ersten Fundstelle.
+        if (!isset($jeQuelle[$sid]) || $eid === $anchor) {
+            $jeQuelle[$sid] = $r;
+        }
+        $byEntity[$eid][] = [
+            'source_id' => $sid,
+            'pages' => (string) ($r['pages'] ?? ''),
+            'reference_kind' => (string) ($r['reference_kind'] ?? ''),
+        ];
+    }
+
+    $sources = avesmapsFeatureSourceEditorRows($pdo, array_values($jeQuelle));
+    foreach ($sources as &$source) {
+        $source['segments'] = $zaehler[(int) $source['source_id']] ?? 0;
+        $source['segments_of'] = count($ids);
+    }
+    unset($source);
+
     return [
         'ok' => true,
         'sources' => $sources,
-        'wiki_url' => avesmapsFeatureSourcesReadWikiUrl($pdo, $entityType, $publicId),
-        // Post-takeover map_features.revision so an editor that guards its save with
-        // expected_revision can refresh its cached token -- the takeover above bumps the
-        // revision when it consolidates a legacy other_source (null for territory: no map row).
-        'revision' => avesmapsFeatureSourcesReadRevision($pdo, $entityType, $publicId),
+        'segments_of' => count($ids),
+        // ⚠️ Als Objekt, auch leer: der Browser liest `by_entity[id]`, und eine leere PHP-Liste
+        // wuerde zu `[]` -- daran scheitert kein Leser, aber ein Test, der die Form prueft, schon.
+        'by_entity' => (object) $byEntity,
+        'wiki_url' => $anchor !== '' ? avesmapsFeatureSourcesReadWikiUrl($pdo, $entityType, $anchor) : '',
+        'revision' => null,
     ];
 }
 

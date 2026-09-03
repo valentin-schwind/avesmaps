@@ -80,10 +80,11 @@ assert.ok(/\.report-section__cols[^}]*\{[^}]*grid-template-columns:\s*1fr/.test(
 // ---- 5. STRÖMUNG steht ÜBER dem Wiki-Kasten ---------------------------------------------------
 // Owner 31.08.2026: „strömung eigentlich über dem wiki-rahmen stehen sollte".
 // 🔴 Die Strömung beschreibt den WEG selbst (wohin er fliesst, wie stark) -- der Wiki-Kasten und
-// „Andere Quelle" sagen, WOHER wir das wissen. Erst die Sache, dann ihre Herkunft.
+// der Kasten „Quellen" (seit 03.09.2026 das EINE Quellen-Bauteil statt „Andere Quelle") sagen, WOHER
+// wir das wissen. Erst die Sache, dann ihre Herkunft.
 const flowPos = html.indexOf('id="path-flow-section"');
 const wikiPos = html.indexOf('id="path-wiki-assign-host"');
-const quellePos = html.indexOf('id="path-edit-other-source-section"');
+const quellePos = html.indexOf('id="path-edit-feature-sources"');
 assert.ok(flowPos > 0 && wikiPos > 0 && quellePos > 0, "alle drei Abschnitte stehen im Weg-Dialog");
 assert.ok(flowPos < wikiPos, "STRÖMUNG steht vor dem Wiki-Kasten");
 assert.ok(wikiPos < quellePos, "und die zwei Quellen-Abschnitte bleiben in ihrer Reihenfolge beieinander");

@@ -37,6 +37,8 @@
 <link rel="stylesheet" href="/css/pages/wege-editor.css">
 <!-- Die Diagramm-Regeln teilt diese Seite mit dem oeffentlichen ⓘ-Dialog „Transportmittel". -->
 <link rel="stylesheet" href="/css/features/travel-model-curves.css">
+<!-- Das Quellen-Bauteil (Abschnitt UND Weg-Ebene, Schritt 3 des Quellen-Umbaus, docs/superpowers/specs/2026-09-03-quellen-wege-design.md). -->
+<link rel="stylesheet" href="/css/features/feature-sources.css">
 </head>
 <!-- ⚠️ `avm-editor-body` is not decoration: the shared body/button/input rules live in
      css/components/editor-page.css and are scoped to this class, because that file is loaded by
@@ -187,6 +189,13 @@
      ⚠️ Serverseitig bleibt `assign_all` unangetastet. 🔧 Die Datei lädt seit dem 24.08.2026
      allerdings NIEMAND mehr — an dem Tag sind die Kacheln im Landschaften- und im Karteneditor
      aus demselben Grund gefallen; hier stand bis dahin, die zwei laden sie weiter. -->
+<!-- Das EINE Quellen-Bauteil, in der Reihenfolge, die auch index.html einhaelt: Vorschlagsliste, geteilter
+     Zeilenbauer (feature-source-markup.js, DAVOR -- der Editor kuerzt Seitenangaben ueber dessen eine
+     Fassung), dann der Editor. VOR wege-editor.js: das montiert es beim Zeichnen des Abschnitts und
+     der Weg-Ebene (Schritt 3 des Quellen-Umbaus, docs/superpowers/specs/2026-09-03-quellen-wege-design.md). -->
+<script src="/js/ui/source-autocomplete.js"></script>
+<script src="/js/ui/feature-source-markup.js"></script>
+<script src="/js/review/review-feature-sources.js"></script>
 <script src="/js/pages/wege-editor.js"></script>
 
 </body>

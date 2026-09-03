@@ -46,6 +46,12 @@ try {
 
     $entityType = trim((string) ($payload['entity_type'] ?? ''));
     $entityPublicId = trim((string) ($payload['entity_public_id'] ?? ''));
+    // 🔴 DER VERTEILER: ein Weg liegt in Abschnitten, die Quelle haengt am Abschnitt. Nennt der Rumpf
+    // `entity_public_ids`, gilt die Aktion JEDER Kennung der Liste, und die Antwort ist die Vereinigung
+    // ueber alle (avesmapsListFeatureSourcesForEditMany). Leer heisst „nur das eine Objekt", wie bisher.
+    // Nur `path` darf das, gedeckelt wie das Sammel-Speichern der Weg-Ebene -- die Regeln stehen im Leser.
+    // Entwurf: docs/superpowers/specs/2026-09-03-quellen-wege-design.md §2 + §3.2.
+    $entityPublicIds = avesmapsFeatureSourceDistributionIds($payload['entity_public_ids'] ?? null, $entityPublicId, $entityType);
     // citymap joined in with the Kartensammlung (Spec §3.2): maps hang on the SAME shared source
     // catalogue as every other element, so "Ulisses F-Shop" exists once rather than once per map.
     // lore joined the same way (2026-07-22), undoing the one time this rule was ignored: "Natur &
@@ -82,8 +88,10 @@ try {
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
 
     $result = match ($action) {
-        'list' => avesmapsListFeatureSourcesForEdit($pdo, $entityType, $entityPublicId, $userId),
-        'add' => (static function () use ($pdo, $entityType, $entityPublicId, $payload, $userId): array {
+        'list' => $entityPublicIds !== []
+            ? avesmapsListFeatureSourcesForEditMany($pdo, $entityType, $entityPublicIds, $entityPublicId, $userId)
+            : avesmapsListFeatureSourcesForEdit($pdo, $entityType, $entityPublicId, $userId),
+        'add' => (static function () use ($pdo, $entityType, $entityPublicId, $entityPublicIds, $payload, $userId): array {
             $url = trim((string) ($payload['url'] ?? ''));
             if ($url === '') {
                 avesmapsErrorResponse(400, 'invalid_request', 'url ist erforderlich.');
@@ -106,12 +114,23 @@ try {
             // unbekannter faellt dort auf '' und nicht auf einen geratenen.
             $license = trim((string) ($payload['license'] ?? ''));
             $attribution = trim((string) ($payload['attribution'] ?? ''));
-            return avesmapsAddFeatureSource($pdo, $entityType, $entityPublicId, $url, $label, $type, $official, $userId, $pages, $referenceKind, $license, $attribution, $artGewaehlt);
+            if ($entityPublicIds === []) {
+                return avesmapsAddFeatureSource($pdo, $entityType, $entityPublicId, $url, $label, $type, $official, $userId, $pages, $referenceKind, $license, $attribution, $artGewaehlt);
+            }
+            // Verteilt: dieselbe Katalogzeile an jeden Abschnitt. Die ERSTE Antwort traegt die Zusatzangaben
+            // (`retyped`, Zusammenlegung) -- ab der zweiten ist die Zeile bekannt und nichts davon faellt mehr an.
+            $erste = null;
+            foreach ($entityPublicIds as $id) {
+                $antwort = avesmapsAddFeatureSource($pdo, $entityType, $id, $url, $label, $type, $official, $userId, $pages, $referenceKind, $license, $attribution, $artGewaehlt);
+                $erste ??= $antwort;
+            }
+
+            return array_merge($erste, avesmapsListFeatureSourcesForEditMany($pdo, $entityType, $entityPublicIds, $entityPublicId, $userId));
         })(),
         // Instruction 5a: the editor picked an existing catalog row from the typeahead. Separate
         // from 'add' because that action requires a url -- and the rows most worth reusing (wiki
         // publications) may not have one.
-        'add_existing' => (static function () use ($pdo, $entityType, $entityPublicId, $payload, $userId): array {
+        'add_existing' => (static function () use ($pdo, $entityType, $entityPublicId, $entityPublicIds, $payload, $userId): array {
             $sourceId = (int) ($payload['source_id'] ?? 0);
             if ($sourceId <= 0) {
                 avesmapsErrorResponse(400, 'invalid_request', 'source_id ist erforderlich.');
@@ -123,7 +142,16 @@ try {
             $type = ($payload['source_type_chosen'] ?? false) === true
                 ? (string) ($payload['source_type'] ?? '')
                 : '';
-            return avesmapsLinkExistingFeatureSource($pdo, $entityType, $entityPublicId, $sourceId, $userId, $pages, $referenceKind, $type);
+            if ($entityPublicIds === []) {
+                return avesmapsLinkExistingFeatureSource($pdo, $entityType, $entityPublicId, $sourceId, $userId, $pages, $referenceKind, $type);
+            }
+            $erste = null;
+            foreach ($entityPublicIds as $id) {
+                $antwort = avesmapsLinkExistingFeatureSource($pdo, $entityType, $id, $sourceId, $userId, $pages, $referenceKind, $type);
+                $erste ??= $antwort;
+            }
+
+            return array_merge($erste, avesmapsListFeatureSourcesForEditMany($pdo, $entityType, $entityPublicIds, $entityPublicId, $userId));
         })(),
         // Eine bestehende Zeile aendern. Bis zum 01.09.2026 gab es diesen Weg NICHT -- eine Quelle
         // liess sich nur anlegen und entfernen, und ein falscher Titel war damit unkorrigierbar
@@ -132,7 +160,7 @@ try {
         // 🔴 `fields` traegt NUR, was jemand angefasst hat -- dieselbe Regel wie beim Sammel-
         // Speichern der Weg-Ebene. Ein vollstaendig mitgeschicktes Formular wuerde jede gewollte
         // Ausnahme platt machen, und bei einer Katalogzeile gleich an bis zu 1.549 Objekten.
-        'update' => (static function () use ($pdo, $entityType, $entityPublicId, $payload, $userId): array {
+        'update' => (static function () use ($pdo, $entityType, $entityPublicId, $entityPublicIds, $payload, $userId): array {
             $sourceId = (int) ($payload['source_id'] ?? 0);
             if ($sourceId <= 0) {
                 avesmapsErrorResponse(400, 'invalid_request', 'source_id ist erforderlich.');
@@ -145,7 +173,18 @@ try {
             // `source_type_chosen` daneben und aus demselben Grund: ein alter Client, der ihn nicht
             // kennt, darf eine katalogweit zitierte Zeile nicht unbemerkt umschreiben.
             $confirm = ($payload['confirm_catalog'] ?? false) === true;
-            $ergebnis = avesmapsUpdateFeatureSource($pdo, $entityType, $entityPublicId, $sourceId, $fields, $userId, $confirm);
+            // Verteilt (Weg-Ebene): je Abschnitt, und der ERSTE Fehlschlag bricht ab -- die Katalogfelder
+            // aendern sich ohnehin beim ersten Aufruf, die Fundstellenfelder (Seiten, Abdeckung) je Abschnitt.
+            $ergebnis = null;
+            foreach ($entityPublicIds === [] ? [$entityPublicId] : $entityPublicIds as $id) {
+                $ergebnis = avesmapsUpdateFeatureSource($pdo, $entityType, $id, $sourceId, $fields, $userId, $confirm);
+                if (($ergebnis['ok'] ?? true) !== true) {
+                    break;
+                }
+            }
+            if ($entityPublicIds !== [] && ($ergebnis['ok'] ?? true) === true) {
+                $ergebnis = array_merge($ergebnis, avesmapsListFeatureSourcesForEditMany($pdo, $entityType, $entityPublicIds, $entityPublicId, $userId));
+            }
             // Die Bibliothek gibt ihren Fehler ZURUECK, statt ihn zu senden -- nur so ist sie ohne
             // HTTP pruefbar. Der Endpunkt macht daraus die Antwort und behaelt dabei den genauen
             // Code (`catalog_confirm_required`, `wiki_owned_field`), an dem der Client die
@@ -237,12 +276,19 @@ try {
 
             return ['ok' => true] + avesmapsSourceCorpusTitleApply($pdo, $writes);
         })(),
-        'remove' => (static function () use ($pdo, $entityType, $entityPublicId, $payload, $userId): array {
+        'remove' => (static function () use ($pdo, $entityType, $entityPublicId, $entityPublicIds, $payload, $userId): array {
             $sourceId = (int) ($payload['source_id'] ?? 0);
             if ($sourceId <= 0) {
                 avesmapsErrorResponse(400, 'invalid_request', 'source_id ist erforderlich.');
             }
-            return avesmapsRemoveFeatureSource($pdo, $entityType, $entityPublicId, $sourceId, $userId);
+            if ($entityPublicIds === []) {
+                return avesmapsRemoveFeatureSource($pdo, $entityType, $entityPublicId, $sourceId, $userId);
+            }
+            foreach ($entityPublicIds as $id) {
+                avesmapsRemoveFeatureSource($pdo, $entityType, $id, $sourceId, $userId);
+            }
+
+            return avesmapsListFeatureSourcesForEditMany($pdo, $entityType, $entityPublicIds, $entityPublicId, $userId);
         })(),
         default => throw new InvalidArgumentException('Die Aktion ist unbekannt.'),
     };

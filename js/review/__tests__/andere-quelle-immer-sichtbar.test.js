@@ -28,9 +28,10 @@ const lies = (rel) => fs.readFileSync(path.join(repoRoot, rel), "utf8").replace(
 const html = lies("index.html");
 // ⚠️ „region-edit" stand hier bis zum 03.09.2026: der Kartendialog „Herrschaftsgebiet bearbeiten" traegt
 // „Andere Quelle" seither gar nicht mehr -- er montiert das geteilte Quellen-Bauteil (Schritt 2 des
-// Quellen-Umbaus, docs/superpowers/specs/2026-09-03-quellen-herrschaftsgebiete-design.md). Wege und
-// Beschriftungen folgen in ihren eigenen Schritten; bis dahin gilt die Regel hier fuer die zwei.
-["path-edit", "label-edit"].forEach((prefix) => {
+// Quellen-Umbaus, docs/superpowers/specs/2026-09-03-quellen-herrschaftsgebiete-design.md). Der Wegedialog
+// folgte am selben Tag (Schritt 3, docs/superpowers/specs/2026-09-03-quellen-wege-design.md); bis die
+// Beschriftung nachzieht, gilt die Regel hier fuer sie allein.
+["label-edit"].forEach((prefix) => {
 	const id = `id="${prefix}-other-source-section"`;
 	const pos = html.indexOf(id);
 	assert.ok(pos > 0, `der Abschnitt ${prefix} steht in index.html`);
@@ -76,7 +77,7 @@ assert.ok(!/ONLY when NO wiki/i.test(modul),
 });
 // Und die drei Editoren füllen den Abschnitt beim Öffnen weiterhin -- daher kommt die Vorschau,
 // die vorher als Nebenwirkung am Ausblende-Schalter hing.
-["label-edit", "path-edit"].forEach((prefix) => {
+["label-edit"].forEach((prefix) => {
 	const treffer = dateien.filter((datei) =>
 		fs.readFileSync(datei, "utf8").includes(`writeOtherSourceToForm("${prefix}"`));
 	assert.ok(treffer.length >= 1, `${prefix} wird beim Öffnen weiterhin gefüllt`);

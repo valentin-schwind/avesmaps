@@ -197,10 +197,12 @@
 
 	// ── Liste ─────────────────────────────────────────────────────────────────────────────────
 
-	// Der Quelle-Filter, dieselbe Lesart wie im Panel: Wiki / Andere / Keine.
+	// Der Quelle-Filter, dieselbe Lesart wie im Panel: Wiki / Andere / Keine. „Andere" heisst seit dem
+	// 03.09.2026: mindestens eine Katalogquelle an diesem Abschnitt (`source_count` aus der Liste) --
+	// das alte Feld „Andere Quelle“ ist mit dem Quellen-Umbau aus dem Wege-Editor gefallen.
 	function sourceCategory(way) {
 		if (way.wiki_path && way.wiki_path.wiki_key) { return "wiki"; }
-		if (way.other_source && way.other_source.url) { return "andere"; }
+		if ((way.source_count || 0) > 0) { return "andere"; }
 		return "keine";
 	}
 
@@ -473,13 +475,13 @@
 		// ⚠️ Ein blankes div -- die Huelle erzeugt das Bauteil selbst.
 		html += '<div id="wpWikiAssign"></div>';
 
-		html += '<div class="dt-grp">Andere Quelle</div>';
-		html += '<div class="dt-grid dt-grid--wiki"><div class="k">Adresse</div><div>'
-			+ '<input type="url" id="wpSourceUrl" maxlength="500" placeholder="https://…" value="'
-			+ escapeHtml(way.other_source ? way.other_source.url : "") + '"></div>'
-			+ '<div class="k">Linktext</div><div>'
-			+ '<input type="text" id="wpSourceLabel" maxlength="255" placeholder="Quelle" value="'
-			+ escapeHtml(way.other_source ? way.other_source.label : "") + '"></div></div>';
+		// 🔴 QUELLEN ALS LETZTER BLOCK (Owner 03.09.2026: „generell koennen quellen immer unten/als
+		// letztes in den listen auftauchen"). Das EINE Quellen-Bauteil haengt sich in wireDetail() an
+		// diesen Host -- am ABSCHNITT, mit dem Weg als Verteiler. „Andere Quelle" ist damit gefallen
+		// (Entwurf docs/superpowers/specs/2026-09-03-quellen-wege-design.md §3.4).
+		html += '<div class="dt-grp">Quellen</div>';
+		html += '<div class="pl-hint">Quellen wirken <b>sofort</b> — sie brauchen kein „Speichern“.</div>';
+		html += '<div id="wpFeatureSources"></div>';
 
 		html += '<div class="avm-savebar"><span class="avm-savebar__msg" id="wpSaveMsg">'
 			+ (way.dirty ? "Ungespeicherte Änderungen." : "Keine ungespeicherten Änderungen.")
@@ -612,17 +614,27 @@
 				markDirty();
 			});
 		});
-		var url = $("wpSourceUrl");
-		var label = $("wpSourceLabel");
-		function readSource() {
-			var value = String(url ? url.value : "").trim();
-			state.draft.other_source = value === ""
-				? null
-				: { url: value, label: String(label ? label.value : "").trim() };
-			markDirty();
+		// 🔴 DAS EINE QUELLEN-BAUTEIL, am ABSCHNITT (map_features.public_id). Die Gruppe reist als
+		// Verteiler mit: „alle N Abschnitte dieses Weges" ist die Vorgabe der Eingabezeile, ✕ und ✎
+		// gelten dem Abschnitt. Getter statt Wert, weil das Bauteil ihn bei JEDER Anfrage liest.
+		// ⚠️ Die Gruppe kommt aus ALLEN Wegen (state.ways) ueber den Modellschluessel, nicht aus der
+		// gefilterten Liste -- ein Filter „Quelle: keine" darf „alle N Abschnitte" nicht verkleinern.
+		if (typeof mountFeatureSourceEditor === "function" && $("wpFeatureSources")) {
+			mountFeatureSourceEditor($("wpFeatureSources"), "path", function () { return state.selected; }, {
+				gruppe: {
+					publicIds: function () {
+						var eigener = null;
+						state.ways.forEach(function (w) { if (w.public_id === state.selected) { eigener = w; } });
+						if (!eigener) { return state.selected ? [state.selected] : []; }
+						var key = wpGroupKeyOf(eigener);
+						return state.ways
+							.filter(function (w) { return wpGroupKeyOf(w) === key; })
+							.map(function (s) { return s.public_id; });
+					},
+					fest: false
+				}
+			});
 		}
-		if (url) { url.addEventListener("input", readSource); }
-		if (label) { label.addEventListener("input", readSource); }
 
 		var discard = $("wpDiscard");
 		if (discard) { discard.addEventListener("click", function () { selectWay(state.selected, true); }); }
@@ -903,7 +915,6 @@
 			show_label: state.draft.show_label === true,
 			allowed_transports: state.draft.allowed_transports,
 			transport_seasons: state.draft.transport_seasons || {},
-			other_source: state.draft.other_source,
 			// 🔴 Die Merkliste reist IMMER mit, auch leer: eine leere Liste ist dasselbe wie ein
 			// fehlender Schluessel („nichts kam aus dem Wiki, also alles von uns"), und das ist die
 			// sichere Richtung -- eine falsche „Wiki"-Angabe liesse einen spaeteren Abgleich eine
@@ -1116,9 +1127,6 @@
 			// `null` heisst „— gemischt lassen —" und ist der Startwert einer uneinigen Gruppe.
 			feature_subtype: state.groupStand.feature_subtype.wert,
 			transports: transporte,
-			other_source: gruppe.segments[0].other_source && state.groupStand.other_source.gleich
-				? { url: gruppe.segments[0].other_source.url, label: gruppe.segments[0].other_source.label }
-				: null,
 			dirty: false
 		};
 
@@ -1248,15 +1256,13 @@
 				+ "Abschnitt — sie gilt dort ohnehin schon für den ganzen Wiki-Weg.</div>";
 		}
 
-		html += '<div class="dt-grp">Andere Quelle</div>';
-		var quelle = entwurf.other_source || { url: "", label: "" };
-		html += '<div class="dt-grid"><div class="k">Adresse</div><div>'
-			+ '<input type="url" id="wpGroupSourceUrl" maxlength="500" placeholder="'
-			+ (stand.other_source.gleich ? "https://…" : "gemischt") + '" value='
-			+ '"' + escapeHtml(quelle.url || "") + '"></div>'
-			+ '<div class="k">Linktext</div><div>'
-			+ '<input type="text" id="wpGroupSourceLabel" maxlength="255" placeholder="Quelle" value="'
-			+ escapeHtml(quelle.label || "") + '"></div></div>';
+		// 🔴 QUELLEN ALS LETZTER BLOCK, auch auf der Weg-Ebene. Das Bauteil haengt sich in
+		// wireGroupDetail() an diesen Host -- FEST: alles gilt allen Abschnitten, und ✕ nimmt eine
+		// Quelle von allen. Die Marke „12 von 56 Abschnitten" sagt, wo eine nur teilweise haengt.
+		html += '<div class="dt-grp">Quellen</div>';
+		html += '<div class="pl-hint">Quellen wirken <b>sofort</b> — für alle ' + anzahl
+			+ ' Abschnitte, ohne „Speichern“.</div>';
+		html += '<div id="wpGroupFeatureSources"></div>';
 
 		html += '<div class="avm-savebar"><span class="avm-savebar__msg" id="wpSaveMsg">'
 			+ (entwurf.dirty ? "Ungespeicherte Änderungen." : "Keine ungespeicherten Änderungen.")
@@ -1314,17 +1320,18 @@
 				renderDetail();
 			});
 		});
-		var url = $("wpGroupSourceUrl");
-		var label = $("wpGroupSourceLabel");
-		var quelleGeaendert = function () {
-			var adresse = url ? url.value.trim() : "";
-			state.groupDraft.other_source = adresse === ""
-				? null
-				: { url: adresse, label: label ? label.value.trim() : "" };
-			markGroupDirty();
-		};
-		if (url) { url.addEventListener("input", quelleGeaendert); }
-		if (label) { label.addEventListener("input", quelleGeaendert); }
+		// 🔴 DIE WEG-EBENE: dasselbe Bauteil, FEST -- jede Anfrage gilt allen Segmenten der Gruppe,
+		// Anker ist das erste. Die Gruppe ist die ANGEZEIGTE (findGroup), dieselbe, fuer die
+		// „Speichern fuer N Abschnitte" gilt.
+		var gruppeQuellen = findGroup(state.selectedGroup);
+		if (gruppeQuellen && typeof mountFeatureSourceEditor === "function" && $("wpGroupFeatureSources")) {
+			mountFeatureSourceEditor($("wpGroupFeatureSources"), "path", function () { return gruppeQuellen.segments[0].public_id; }, {
+				gruppe: {
+					publicIds: function () { return gruppeQuellen.segments.map(function (s) { return s.public_id; }); },
+					fest: true
+				}
+			});
+		}
 
 		var discard = $("wpGroupDiscard");
 		if (discard) {
@@ -1368,7 +1375,6 @@
 		if (felder.indexOf("allowed_transports") !== -1) {
 			rumpf.transport_decisions = wpGroupTransportDecisions(state.groupStand, state.groupDraft);
 		}
-		if (felder.indexOf("other_source") !== -1) { rumpf.other_source = state.groupDraft.other_source; }
 
 		var key = state.selectedGroup;
 		postJson(FEATURES_URL, rumpf).then(function (response) {
@@ -1680,7 +1686,6 @@
 			// bleibt die Beschriftung fuer immer grau, obwohl der Server sie pflegt: `undefined` liest
 			// sich ueberall wie „nicht bekannt", und genau so verhaelt sich die Oberflaeche dann auch.
 			field_origins: source.field_origins || null,
-			other_source: source.other_source ? { url: source.other_source.url, label: source.other_source.label } : null,
 			flow_direction: source.flow_direction,
 			dirty: false
 		};

@@ -200,14 +200,25 @@ function wpProfileCurve(profile, pieceLengths) {
  * ⭐ Segments are ordered GEOGRAPHICALLY (min_x, then min_y), not by whatever order the database
  * returned -- so „Abschnitt 3" lies between 2 and 4 and the number means something.
  */
+/**
+ * REIN: der Gruppenschluessel eines Weges -- `wiki:<key>`, sonst `name:<Wegart>:<Name>`.
+ *
+ * 🔴 EINE Rechnung fuer die Gruppierung der Liste (wpGroupWays) UND fuer den Quellen-Verteiler am
+ * Abschnitt („alle N Abschnitte dieses Weges"). Der Kartendialog rechnet denselben Schluessel aus den
+ * Karteneigenschaften (avesmapsWegGruppenSchluessel, js/map-features/path-einschraenkung.js).
+ */
+function wpGroupKeyOf(way) {
+	return way && way.wiki_path && way.wiki_path.wiki_key
+		? "wiki:" + way.wiki_path.wiki_key
+		: "name:" + (way ? way.feature_subtype : "") + ":" + (way ? way.name : "");
+}
+
 function wpGroupWays(ways) {
 	var groups = [];
 	var byKey = {};
 	(ways || []).forEach(function (way) {
 		if (!way) { return; }
-		var key = way.wiki_path && way.wiki_path.wiki_key
-			? "wiki:" + way.wiki_path.wiki_key
-			: "name:" + way.feature_subtype + ":" + way.name;
+		var key = wpGroupKeyOf(way);
 		if (!byKey[key]) {
 			byKey[key] = {
 				key: key,
@@ -410,13 +421,8 @@ function wpGroupFieldStates(segmente, transportSchluessel) {
 			wert: verteilung.length === 1 ? verteilung[0].wert : null,
 			verteilung: verteilung
 		},
-		// Die andere Quelle ist ein Paar; verglichen wird die Adresse SAMT Linktext -- zwei Zeilen
-		// mit derselben Adresse und verschiedenem Text sind nicht dasselbe.
-		other_source: einfach(function (s) {
-			var quelle = s && s.other_source;
-			if (!quelle || !quelle.url) { return ""; }
-			return String(quelle.url) + "\u0000" + String(quelle.label || "");
-		}),
+		// ⚠️ KEIN `other_source` mehr (03.09.2026): Wegquellen haengen im Katalog, und die Weg-Ebene
+		// verteilt sie ueber das Quellen-Bauteil, nicht ueber dieses Sammel-Speichern.
 		transports: transports
 	};
 }
@@ -432,7 +438,7 @@ function wpGroupFieldStates(segmente, transportSchluessel) {
  *
  * @param {Object} vorher  das Ergebnis von wpGroupFieldStates beim Oeffnen
  * @param {Object} entwurf  was in der Maske steht: {name, show_label, feature_subtype,
- *                          transports: {key: "an"|"aus"|"teils"}, other_source}
+ *                          transports: {key: "an"|"aus"|"teils"}}
  * @return {Array<string>} die Feldnamen fuer `fields`
  */
 function wpGroupChangedFields(vorher, entwurf) {
@@ -467,15 +473,6 @@ function wpGroupChangedFields(vorher, entwurf) {
 		return transporte[key] !== alt.zustand;
 	});
 	if (geaendert) { felder.push("allowed_transports"); }
-
-	if (entwurf.other_source !== null && entwurf.other_source !== undefined) {
-		var neu = entwurf.other_source && entwurf.other_source.url
-			? String(entwurf.other_source.url) + "\u0000" + String(entwurf.other_source.label || "")
-			: "";
-		if (!(vorher.other_source.gleich && vorher.other_source.wert === neu)) {
-			felder.push("other_source");
-		}
-	}
 
 	return felder;
 }
@@ -755,6 +752,7 @@ if (typeof module !== "undefined" && module.exports) {
 		wpProfileCurve: wpProfileCurve,
 		wpPieceLengths: wpPieceLengths,
 		wpGroupWays: wpGroupWays,
+		wpGroupKeyOf: wpGroupKeyOf,
 		wpGroupFieldStates: wpGroupFieldStates,
 		wpGroupChangedFields: wpGroupChangedFields,
 		wpGroupTransportDecisions: wpGroupTransportDecisions,

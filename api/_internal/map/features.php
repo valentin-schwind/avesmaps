@@ -2951,12 +2951,13 @@ function avesmapsUpdatePathFeatureDetails(PDO $pdo, array $payload, array $user)
         } else {
             $properties['field_origins'] = $herkunft;
         }
-        $otherSource = avesmapsReadOptionalOtherSource($payload['other_source'] ?? null);
-        if ($otherSource === null) {
-            unset($properties['other_source']);
-        } else {
-            $properties['other_source'] = $otherSource;
-        }
+        // 🔴 KEIN `other_source` MEHR (03.09.2026): Wegquellen haengen im Katalog (sources +
+        // feature_sources, am Abschnitt), der Wegedialog und der Wege-Editor montieren das EINE
+        // Quellen-Bauteil. Eine noch gespeicherte Altquelle bleibt hier UNANGETASTET -- sie wandert in
+        // Schritt 4 des Quellen-Umbaus in den Katalog und wird bis dahin weiter angezeigt
+        // (avesmapsMapFeaturesMergeLegacyOtherSources). Ein alter, zwischengespeicherter Client, der
+        // das Feld noch schickt, aendert damit nichts. Entwurf:
+        // docs/superpowers/specs/2026-09-03-quellen-wege-design.md.
         $geometry = avesmapsDecodeJsonColumnForEdit($feature['geometry_json'] ?? null);
         $revision = avesmapsNextMapRevision($pdo);
 
@@ -3021,7 +3022,9 @@ function avesmapsUpdatePathFeatureDetails(PDO $pdo, array $payload, array $user)
 const AVESMAPS_PATH_GROUP_MAX_SEGMENTS = 250;
 
 /** Die Felder, die ein Sammel-Speichern setzen darf. Alles andere im Rumpf wird ignoriert. */
-const AVESMAPS_PATH_GROUP_FIELDS = ['name', 'show_label', 'feature_subtype', 'allowed_transports', 'other_source'];
+// ⚠️ `other_source` ist am 03.09.2026 herausgefallen: Quellen haengen im Katalog, und die Weg-Ebene
+// verteilt sie ueber das Quellen-Bauteil (entity_public_ids), nicht ueber dieses Sammel-Speichern.
+const AVESMAPS_PATH_GROUP_FIELDS = ['name', 'show_label', 'feature_subtype', 'allowed_transports'];
 
 /**
  * DIE WEG-EBENE: ein Speichern fuer alle Abschnitte eines Weges.
@@ -3085,12 +3088,10 @@ function avesmapsUpdatePathGroupDetails(PDO $pdo, array $payload, array $user): 
     $wantsShowLabel = in_array('show_label', $fields, true);
     $wantsSubtype = in_array('feature_subtype', $fields, true);
     $wantsTransports = in_array('allowed_transports', $fields, true);
-    $wantsSource = in_array('other_source', $fields, true);
 
     $newName = $wantsName ? avesmapsReadFeatureName($payload['name'] ?? '', 'Der Wegname') : null;
     $newShowLabel = $wantsShowLabel ? avesmapsReadBoolean($payload['show_label'] ?? false) : null;
     $newSubtype = $wantsSubtype ? avesmapsReadPathSubtype($payload['feature_subtype'] ?? 'Weg') : null;
-    $newSource = $wantsSource ? avesmapsReadOptionalOtherSource($payload['other_source'] ?? null) : null;
 
     $decisions = [];
     if ($wantsTransports) {
@@ -3233,14 +3234,6 @@ function avesmapsUpdatePathGroupDetails(PDO $pdo, array $payload, array $user): 
                     unset($properties['transport_seasons']);
                 } else {
                     $properties['transport_seasons'] = $seasons;
-                }
-            }
-
-            if ($wantsSource) {
-                if ($newSource === null) {
-                    unset($properties['other_source']);
-                } else {
-                    $properties['other_source'] = $newSource;
                 }
             }
 

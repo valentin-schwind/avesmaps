@@ -130,7 +130,7 @@ $karte = static function (PDO $pdo): array {
             'subtype' => (string) $row['feature_subtype'],
             'transports' => $transporte,
             'revision' => (int) $row['revision'],
-            'quelle' => $props['other_source']['url'] ?? null,
+            'show_label' => ($props['show_label'] ?? false) === true,
         ];
     }
 
@@ -140,23 +140,24 @@ $karte = static function (PDO $pdo): array {
 $alleDrei = [AVESMAPS_GRUPPE_IDS[1], AVESMAPS_GRUPPE_IDS[2], AVESMAPS_GRUPPE_IDS[3]];
 
 // ── 1) 🔴 NUR WAS IN `fields` STEHT ───────────────────────────────────────────────────────────
-// Der Rumpf nennt Name, Wegtyp UND Transportmittel -- `fields` nennt nur die Quelle. Also darf
-// sich an den ersten dreien NICHTS aendern.
+// Der Rumpf nennt Name, Wegtyp UND Transportmittel -- `fields` nennt nur das Beschriften. Also darf
+// sich an den ersten dreien NICHTS aendern. (⚠️ Bis zum 03.09.2026 fuhr dieser Fall auf `other_source`;
+// das Feld ist mit dem Quellen-Umbau aus der Weg-Ebene gefallen, die Regel ist dieselbe.)
 $seed($pdo);
 $antwort = avesmapsUpdatePathGroupDetails($pdo, [
     'public_ids' => $alleDrei,
-    'fields' => ['other_source'],
+    'fields' => ['show_label'],
     'name' => 'Ganz anderer Name',
     'feature_subtype' => 'Reichsstrasse',
     'transport_decisions' => ['horseCarriage' => false],
-    'other_source' => ['url' => 'https://beispiel.invalid/a', 'label' => 'Quelle'],
+    'show_label' => true,
 ], $user);
 
 $stand = $karte($pdo);
-assert($antwort['written'] === 3, 'drei Abschnitte bekommen die Quelle');
+assert($antwort['written'] === 3, 'drei Abschnitte bekommen das Beschriften');
 foreach ($alleDrei as $id) {
     assert($stand[$id]['name'] === 'Schattenbachpass', 'der Name stand nicht in `fields` und darf sich nicht aendern');
-    assert($stand[$id]['quelle'] === 'https://beispiel.invalid/a', 'die Quelle stand in `fields`');
+    assert($stand[$id]['show_label'] === true, 'das Beschriften stand in `fields`');
 }
 assert($stand[AVESMAPS_GRUPPE_IDS[1]]['subtype'] === 'Gebirgspass', 'der Wegtyp stand nicht in `fields`');
 assert($stand[AVESMAPS_GRUPPE_IDS[3]]['subtype'] === 'Pfad', 'auch der abweichende Wegtyp bleibt stehen');
@@ -198,8 +199,8 @@ assert((int) $pdo->query('SELECT COUNT(*) FROM map_audit_log')->fetchColumn() ==
 $seed($pdo);
 avesmapsUpdatePathGroupDetails($pdo, [
     'public_ids' => $alleDrei,
-    'fields' => ['other_source'],
-    'other_source' => ['url' => 'https://beispiel.invalid/b', 'label' => 'Quelle'],
+    'fields' => ['show_label'],
+    'show_label' => true,
 ], $user);
 $eintraege = $pdo->query('SELECT feature_id, action, after_json FROM map_audit_log ORDER BY id')->fetchAll(PDO::FETCH_ASSOC);
 assert(count($eintraege) === 3, 'drei Segmente, drei Eintraege -- ein Sammelvermerk liesse zwei ausserhalb der Historie');
@@ -216,13 +217,13 @@ assert(count(array_unique(array_column($eintraege, 'feature_id'))) === 3, 'je Se
 $seed($pdo);
 $antwort = avesmapsUpdatePathGroupDetails($pdo, [
     'public_ids' => array_merge($alleDrei, [AVESMAPS_GRUPPE_IDS[4], AVESMAPS_GRUPPE_IDS[9]]),
-    'fields' => ['other_source'],
-    'other_source' => ['url' => 'https://beispiel.invalid/c', 'label' => 'Quelle'],
+    'fields' => ['show_label'],
+    'show_label' => true,
 ], $user);
 $stand = $karte($pdo);
 assert($antwort['written'] === 3, 'die drei aktiven werden geschrieben');
 assert($antwort['skipped'] === 2, 'das gestrichene Segment und die unbekannte Kennung fallen heraus');
-assert($stand[AVESMAPS_GRUPPE_IDS[4]]['quelle'] === null, 'ein gestrichenes Segment wird nicht angefasst');
+assert($stand[AVESMAPS_GRUPPE_IDS[4]]['show_label'] === false, 'ein gestrichenes Segment wird nicht angefasst');
 
 // ── 6) Ein entschiedener Fahrtyp gilt fuer alle, ein nicht genannter bleibt je Abschnitt ──────
 $seed($pdo);
@@ -269,8 +270,8 @@ $geworfen = false;
 try {
     avesmapsUpdatePathGroupDetails($pdo, [
         'public_ids' => $alleDrei,
-        'fields' => ['other_source'],
-        'other_source' => ['url' => 'https://beispiel.invalid/d', 'label' => 'Quelle'],
+        'fields' => ['show_label'],
+        'show_label' => true,
     ], $user);
 } catch (Throwable) {
     $geworfen = true;

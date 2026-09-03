@@ -338,6 +338,56 @@
 	color: var(--color-text-muted);
 }
 .fs-scope__fields { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; }
+
+/* Die Wahl „alle N Abschnitte dieses Weges“ / „nur dieser Abschnitt“ im dritten Rahmen -- NUR am Abschnitt
+   eines mehrteiligen Weges (Entwurf docs/superpowers/specs/2026-09-03-quellen-wege-design.md §3.2, Werte
+   als VERTRAG in docs/quellen-wege-mockup.html). Sie liegt ueber die volle Breite VOR Seite(n) und
+   Abdeckung, weil sie sagt, WOHIN die beiden gelten. */
+.fs-scope__choice {
+  flex: 1 1 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 0 0 6px;
+  font-size: 11px;
+  color: var(--color-text);
+}
+.fs-scope__choice label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+}
+/* 💣 Ohne accent-color ist der Punkt des Radios unter Windows BLAU -- und Blau ist in der Bedienoberflaeche
+   verboten (AGENTS.md §12). Dieselbe Falle wie bei .avm-wiki-assign .dt-check (editor-page.css). */
+.fs-scope__choice input[type="radio"] {
+  accent-color: var(--color-accent-brown);
+}
+/* Die Marke „12 von 56 Abschnitten“ hinter dem Quellentitel -- nur bei einer Teilmenge. Sie steht IM
+   Titel-Feld, keine achte Rasterspalte; deshalb white-space: nowrap, damit sie nicht in der Mitte
+   bricht, und die gedaempfte Farbe, damit sie den Titel nicht ueberstimmt. */
+.fs-row__segments {
+  margin-left: 6px;
+  padding: 0 6px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-panel-muted);
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 400;
+  white-space: nowrap;
+  display: inline-block;
+}
+/* Mit Marke darf der Link UMBRECHEN: der Titel bleibt ganz lesbar und die Marke steht ganz da, notfalls in
+   der zweiten Zeile -- hinter dem Text eines ellipsierten Links laege sie hinter den drei Punkten, und ein
+   Flex-Kasten liess vom Titel 51px uebrig (beides im Browser gemessen). Selten: nur auf der Weg-Ebene.
+   💣 DOPPELTE KLASSE (0,2,0), nicht Reihenfolge: `.fs-row__link` setzt `nowrap`/`hidden` an DREI Stellen
+   dieser Datei (Grundregel, Rasterstufe, Container-Stufen), und die spaeteren gewinnen sonst wieder --
+   im Browser gemessen: mit (0,1,0) blieb die Marke hinter der Ellipse. */
+.fs-row__link.fs-row__link--marke {
+  white-space: normal;
+  overflow: visible;
+}
 .fs-scope__hint { margin: 0 0 8px; font-size: 11px; color: var(--color-text-muted); }
 .fs-scope__by { margin: 8px 0 0; font-size: 11px; color: var(--color-text-muted); }
 

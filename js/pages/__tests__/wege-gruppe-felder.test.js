@@ -31,7 +31,6 @@ function schattenbachpass() {
 		feature_subtype: subtype,
 		show_label: false,
 		allowed_transports: transporte,
-		other_source: null
 	});
 	const grund = ["groupFoot", "lightWalker"];
 	return [
@@ -77,7 +76,6 @@ function schattenbachpass() {
 		name: "Schattenbachpass",
 		show_label: false,
 		feature_subtype: null,           // „— gemischt lassen —"
-		other_source: null,
 		transports: {
 			caravan: "aus", groupFoot: "an", lightWalker: "an",
 			horseCarriage: "teils", groupHorse: "aus", lightRider: "aus"
@@ -94,7 +92,7 @@ function schattenbachpass() {
 {
 	const vorher = wpGroupFieldStates(schattenbachpass(), TRANSPORTE);
 	const entwurf = {
-		name: "Schattenbachpass", show_label: false, feature_subtype: null, other_source: null,
+		name: "Schattenbachpass", show_label: false, feature_subtype: null,
 		transports: {
 			caravan: "aus", groupFoot: "an", lightWalker: "an",
 			horseCarriage: "an", groupHorse: "aus", lightRider: "aus"
@@ -110,7 +108,7 @@ function schattenbachpass() {
 {
 	const vorher = wpGroupFieldStates(schattenbachpass(), TRANSPORTE);
 	const entwurf = {
-		name: "Schattenbachpass", show_label: false, feature_subtype: null, other_source: null,
+		name: "Schattenbachpass", show_label: false, feature_subtype: null,
 		transports: {
 			caravan: "aus", groupFoot: "an", lightWalker: "an",
 			horseCarriage: "aus", groupHorse: "aus", lightRider: "aus"
@@ -124,7 +122,7 @@ function schattenbachpass() {
 {
 	const vorher = wpGroupFieldStates(schattenbachpass(), TRANSPORTE);
 	const rumpf = {
-		name: "Schattenbachpass", show_label: false, other_source: null,
+		name: "Schattenbachpass", show_label: false,
 		transports: {
 			caravan: "aus", groupFoot: "an", lightWalker: "an",
 			horseCarriage: "teils", groupHorse: "aus", lightRider: "aus"
@@ -147,7 +145,7 @@ function schattenbachpass() {
 	assert.equal(vorher.feature_subtype.wert, "Gebirgspass");
 
 	const entwurf = {
-		name: "Schattenbachpass", show_label: false, feature_subtype: "Gebirgspass", other_source: null,
+		name: "Schattenbachpass", show_label: false, feature_subtype: "Gebirgspass",
 		transports: {
 			caravan: "aus", groupFoot: "an", lightWalker: "an",
 			horseCarriage: "teils", groupHorse: "aus", lightRider: "aus"
@@ -158,30 +156,11 @@ function schattenbachpass() {
 		+ "Revision jedes Segments und schickt jedem warmen Client die halbe Karte neu");
 }
 
-// ── 7) Die andere Quelle vergleicht Adresse UND Linktext ──────────────────────────────────────
-{
-	const mitQuelle = schattenbachpass().map((s) => Object.assign({}, s, {
-		other_source: { url: "https://beispiel.invalid/a", label: "Quelle" }
-	}));
-	const vorher = wpGroupFieldStates(mitQuelle, TRANSPORTE);
-	assert.equal(vorher.other_source.gleich, true);
+// ⚠️ Fall 7 („die andere Quelle vergleicht Adresse UND Linktext“) ist am 03.09.2026 gefallen:
+// Wegquellen haengen im Katalog, und die Weg-Ebene verteilt sie ueber das Quellen-Bauteil
+// (docs/superpowers/specs/2026-09-03-quellen-wege-design.md); das Modell kennt kein other_source mehr.
 
-	const rumpf = {
-		name: "Schattenbachpass", show_label: false, feature_subtype: null,
-		transports: {
-			caravan: "aus", groupFoot: "an", lightWalker: "an",
-			horseCarriage: "teils", groupHorse: "aus", lightRider: "aus"
-		}
-	};
-	assert.deepEqual(wpGroupChangedFields(vorher, Object.assign({}, rumpf, {
-		other_source: { url: "https://beispiel.invalid/a", label: "Quelle" }
-	})), [], "derselbe Eintrag ist keine Aenderung");
-	assert.deepEqual(wpGroupChangedFields(vorher, Object.assign({}, rumpf, {
-		other_source: { url: "https://beispiel.invalid/a", label: "Geographia" }
-	})), ["other_source"], "derselbe Link mit anderem Text IST eine Aenderung");
-}
-
-// ── 8) Randfaelle: leere Gruppe, unbekannter Fahrtyp ──────────────────────────────────────────
+// ── 7) Randfaelle: leere Gruppe, unbekannter Fahrtyp ──────────────────────────────────────────
 {
 	const leer = wpGroupFieldStates([], TRANSPORTE);
 	assert.equal(leer.gesamt, 0);
@@ -192,7 +171,7 @@ function schattenbachpass() {
 	// halber als Aenderung lesen, nie stillschweigend verschlucken.
 	const vorher = wpGroupFieldStates(schattenbachpass(), TRANSPORTE);
 	assert.deepEqual(wpGroupChangedFields(vorher, {
-		name: null, show_label: null, feature_subtype: null, other_source: null,
+		name: null, show_label: null, feature_subtype: null,
 		transports: { riverSailer: "an" }
 	}), ["allowed_transports"]);
 }

@@ -114,7 +114,7 @@ function wegeAntwort() {
 		public_id: id, name: "Schattenbachpass", feature_subtype: subtype,
 		show_label: false, allowed_transports: transporte, transport_seasons: {},
 		wiki_path: { wiki_key: "wiki:schattenbachpass", wiki_url: "https://example.invalid", name: "Schattenbachpass", art: "Pass" },
-		other_source: null, flow_direction: "", has_profile: true,
+		flow_direction: "", has_profile: true,
 		bbox: [10, 10, 12, 12]
 	});
 

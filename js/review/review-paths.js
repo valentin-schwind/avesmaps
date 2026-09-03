@@ -32,12 +32,57 @@ function populatePathEditForm(path) {
 	if (typeof renderPathWikiReference === "function") {
 		renderPathWikiReference();
 	}
-	if (typeof writeOtherSourceToForm === "function") {
-		writeOtherSourceToForm("path-edit", path.properties?.other_source);
-	}
 	if (typeof renderPathFlowSection === "function") {
 		renderPathFlowSection();
 	}
+	mountPathEditFeatureSources(path);
+}
+
+/**
+ * Der Quellenkasten des Wegedialogs -- das EINE Quellen-Bauteil auf `path` + map_features.public_id.
+ *
+ * 🔴 Der Getter liest `#path-edit-public-id` bei JEDER Anfrage, und die Gruppe wird bei jeder Anfrage aus
+ * dem AKTUELLEN Bestand gebildet: alle Abschnitte mit demselben Gruppenschluessel wie dieser Weg
+ * (`avesmapsWegGruppenSchluessel` -- `wiki:<key>`, sonst `name:<Wegart>:<Name>`; derselbe Schluessel wie
+ * `wpGroupWays` im Wege-Editor, kein zweiter). Am Abschnitt ist nichts fest: die Eingabezeile bietet
+ * „alle N Abschnitte dieses Weges" (Vorgabe) oder „nur dieser Abschnitt", ✕ und ✎ gelten dem Abschnitt.
+ * Entwurf: docs/superpowers/specs/2026-09-03-quellen-wege-design.md §3.3.
+ * 💣 Kein Stapeln: der Host wird durch einen Klon ersetzt und die Vorschlagsliste des vorigen Mounts
+ * geloest -- sonst haetten zwei Mounts je einen Klick-Handler, und jeder Klick liefe doppelt (dieselbe
+ * Bauform wie `mountRegionEditFeatureSources`).
+ */
+function mountPathEditFeatureSources(path) {
+	const host = document.getElementById("path-edit-feature-sources");
+	if (!host || typeof mountFeatureSourceEditor !== "function") {
+		return;
+	}
+	if (typeof host.__fsDetachAutocomplete === "function") {
+		host.__fsDetachAutocomplete();
+	}
+	const frisch = host.cloneNode(false);
+	host.replaceWith(frisch);
+	const kennung = () => String(document.getElementById("path-edit-public-id")?.value || "").trim();
+	const schluesselVon = (p) => (typeof avesmapsWegGruppenSchluessel === "function" ? avesmapsWegGruppenSchluessel(p) : "");
+	const eigenerSchluessel = schluesselVon(path);
+	mountFeatureSourceEditor(frisch, "path", kennung, {
+		gruppe: {
+			publicIds: () => {
+				const eigene = kennung();
+				const ids = eigene ? [eigene] : [];
+				if (!eigenerSchluessel || !Array.isArray(typeof pathData !== "undefined" ? pathData : null)) {
+					return ids;
+				}
+				for (const anderer of pathData) {
+					const id = String(anderer?.properties?.public_id || "").trim();
+					if (id && !ids.includes(id) && schluesselVon(anderer) === eigenerSchluessel) {
+						ids.push(id);
+					}
+				}
+				return ids;
+			},
+			fest: false,
+		},
+	});
 }
 
 function populatePathEditFormFromLastSettings(path) {
@@ -75,9 +120,6 @@ function populatePathEditFormFromLastSettings(path) {
 		resetToDefault: !allowedTransports,
 	});
 	syncPathAutoNameControls({ forceName: true });
-	if (typeof writeOtherSourceToForm === "function") {
-		writeOtherSourceToForm("path-edit", path?.properties?.other_source);
-	}
 	// 🔴 Auch der FRISCH GEZEICHNETE Weg baut den Zuweisungskasten neu auf. Bis zum 16.08.2026
 	// stand hier kein Aufruf, und das war schon vorher unschoen (der Kasten zeigte die Zuweisung
 	// des zuletzt bearbeiteten Wegs); mit dem Bauteil waere es gefaehrlich: es haelt seinen Stand
@@ -88,6 +130,7 @@ function populatePathEditFormFromLastSettings(path) {
 	if (typeof renderPathFlowSection === "function") {
 		renderPathFlowSection();
 	}
+	mountPathEditFeatureSources(path);
 }
 
 function openPathEditDialog(path, { inheritLastSettings = false } = {}) {
@@ -181,7 +224,6 @@ function buildPathEditPayload(formElement) {
 		// Wann darf, was darf. Leer heisst ganzjaehrig; der Server entfernt das Feld dann ganz und
 		// traegt das Ergebnis auf alle Segmente desselben Wiki-Weges.
 		transport_seasons: typeof readPathSeasonsFromForm === "function" ? readPathSeasonsFromForm(allowedTransports) : {},
-		other_source: typeof readOtherSourceFromForm === "function" ? readOtherSourceFromForm("path-edit") : { url: "", label: "" },
 		// 🔴 Die Merkliste reist IMMER mit, auch leer: eine leere Liste ist dasselbe wie ein fehlender
 		// Schlüssel („nichts kam aus dem Wiki, also alles von uns"), und das ist die sichere Richtung --
 		// eine falsche „Wiki"-Angabe liesse einen späteren Abgleich eine Handarbeit überschreiben, eine

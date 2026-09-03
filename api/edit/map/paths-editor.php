@@ -121,6 +121,24 @@ function avesmapsPathEditorList(PDO $pdo): array
         $withProfile = [];
     }
 
+    // Wie viele Katalogquellen haengen an jedem Abschnitt? EINE gruppierte Abfrage ueber
+    // feature_sources -- der Filter „Quelle" der Liste liest daraus (Wiki / Andere / Keine). Bis zum
+    // 03.09.2026 las er das alte Feld `other_source`; seit dem Umbau haengen Wegquellen im Katalog
+    // (Entwurf docs/superpowers/specs/2026-09-03-quellen-wege-design.md). Toleriert wie das Profil:
+    // die Tabelle kann in einer frischen Datenbank fehlen.
+    $sourceCounts = [];
+    try {
+        $zaehlung = $pdo->query(
+            "SELECT entity_public_id, COUNT(*) AS n FROM feature_sources
+              WHERE entity_type = 'path' AND status = 'approved' GROUP BY entity_public_id"
+        )->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($zaehlung as $zeile) {
+            $sourceCounts[(string) $zeile['entity_public_id']] = (int) $zeile['n'];
+        }
+    } catch (PDOException) {
+        $sourceCounts = [];
+    }
+
     // 💣 DIE UMGEBUNGSRECHTECK-SPALTEN REITEN MIT, und sie sind der Grund, dass die Liste ohne
     // Geometrie auskommt. Ein Weg-NAME steht fuer viele Segmente ("Reichsstrasse 1" hat 26,
     // docs/konfliktmanagement-design.md §6a), und ohne etwas, das sie unterscheidet, waeren das 26
@@ -139,7 +157,6 @@ function avesmapsPathEditorList(PDO $pdo): array
     foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
         $properties = avesmapsDecodeJsonColumnForEdit($row['properties_json'] ?? null);
         $wikiPath = is_array($properties['wiki_path'] ?? null) ? $properties['wiki_path'] : null;
-        $otherSource = is_array($properties['other_source'] ?? null) ? $properties['other_source'] : null;
         $subtype = (string) $row['feature_subtype'];
         $bySubtype[$subtype] = ($bySubtype[$subtype] ?? 0) + 1;
 
@@ -167,10 +184,8 @@ function avesmapsPathEditorList(PDO $pdo): array
                 // taugt dafuer nicht (Raschtulsweg ist Strasse + Weg, Arvepass Strasse).
                 'art' => (string) ($wikiPath['art'] ?? ''),
             ],
-            'other_source' => $otherSource === null ? null : [
-                'url' => (string) ($otherSource['url'] ?? ''),
-                'label' => (string) ($otherSource['label'] ?? ''),
-            ],
+            // Katalogquellen an diesem Abschnitt -- der Filter „Quelle" der Liste zaehlt sie.
+            'source_count' => $sourceCounts[(string) $row['public_id']] ?? 0,
             // Der dritte Zustand („dieser Weg hat KEINEN Wiki-Artikel"). Der Wege-Editor zeichnet
             // damit sein Haekchen und weiss, ob ein Speichern den Merker aendert.
             // 💣 DIESE LISTE IST EINE WEISSE LISTE -- was hier nicht steht, erreicht den Editor nie.

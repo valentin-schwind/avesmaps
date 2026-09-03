@@ -69,7 +69,8 @@ const FENSTER = [
 			["Eigenschaften (Transportmittel)", '"dt-grp">Erlaubte Transportmittel'],
 			["Eigenschaften (Strömung)", '"dt-grp">Strömung<'],
 			["Wiki-Zuweisung", 'id="wpWikiAssign"'],
-			["Quellen", '"dt-grp">Andere Quelle<'],
+			// Seit 03.09.2026 das EINE Quellen-Bauteil (Schritt 3 des Quellen-Umbaus) statt „Andere Quelle".
+			["Quellen", '"dt-grp">Quellen<'],
 			["Speicherleiste", '"avm-savebar"'],
 			["Lage & Zugehörigkeit", '"dt-grp">Zugehörigkeit'],
 		],

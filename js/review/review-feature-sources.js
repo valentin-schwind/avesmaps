@@ -153,6 +153,28 @@ function featureSourceLicenseLine(source) {
 // `bearbeitbar` ist false fuer die noch nicht gespeicherten Zeilen des Anlege-Puffers -- die haengen
 // an keiner Katalogzeile, haben also weder eine Reichweite noch etwas, das ein Server aendern
 // koennte; dort bleibt „entfernen und neu eintragen" der Weg.
+/**
+ * Die Marke „12 von 56 Abschnitten“ -- NUR bei einer Teilmenge.
+ *
+ * 🔴 Ein Weg liegt auf der Karte in Abschnitten, und die Quelle haengt am Abschnitt; die Sammelliste
+ * der Weg-Ebene sagt je Katalogzeile, an wie vielen der Abschnitte sie haengt (`segments` /
+ * `segments_of`). An ALLEN ist der Normalfall (2.347 von 2.511 Wegquellen, live gemessen 03.09.2026)
+ * und bekommt keine Marke; eine Zeile ohne Zaehler (die Liste eines einzelnen Abschnitts) auch nicht.
+ * ⚠️ Sie steht IM Titel-Feld, hinter dem Link -- keine achte Rasterspalte, die alle uebrigen Listen
+ * mittragen muessten (Entwurf docs/superpowers/specs/2026-09-03-quellen-wege-design.md §3.2).
+ */
+function renderFeatureSourceSegmentsMark(source, escape, tr) {
+  const n = Number(source && source.segments);
+  const von = Number(source && source.segments_of);
+  if (!Number.isFinite(n) || !Number.isFinite(von) || von <= 0 || n >= von) {
+    return "";
+  }
+  const kurz = tr("sources.segments.short", "{n} von {m} Abschnitten").replace("{n}", String(n)).replace("{m}", String(von));
+  const lang = tr("sources.segments.title", "Diese Quelle hängt an {n} von {m} Abschnitten dieses Weges")
+    .replace("{n}", String(n)).replace("{m}", String(von));
+  return ' <span class="fs-row__segments" title="' + escape(lang) + '">' + escape(kurz) + "</span>";
+}
+
 function renderFeatureSourceRow(source, escape, tr, bearbeitbar) {
   const officialMark = source.official ? " *" : "";
   // 🔴 Gekuerzt ANGEZEIGT, vollstaendig im Titel. Eine Wiki-Publikation nennt schnell zwoelf
@@ -188,10 +210,20 @@ function renderFeatureSourceRow(source, escape, tr, bearbeitbar) {
     : '<button type="button" class="fs-row__edit" data-fs-edit-id="' + escape(source.source_id) + '"'
       + ' title="' + escape(tr("sources.edit", "Bearbeiten")) + '"'
       + ' aria-label="' + escape(tr("sources.edit", "Bearbeiten")) + '">✎</button>';
+  const marke = renderFeatureSourceSegmentsMark(source, escape, tr);
   return (
     '<div class="fs-row" data-source-id="' + escape(source.source_id) + '">' +
-    '<a class="fs-row__link" href="' + escape(source.url) + '" target="_blank" rel="noopener">' +
-    escape(source.label || source.url) + " ↗</a>" +
+    // 💣 MIT Marke darf der Link UMBRECHEN (`.fs-row__link--marke`): der Link ellipsiert sonst am TEXT
+    // (`white-space: nowrap; text-overflow: ellipsis`), und eine Marke hinter dem Text laege bei einem
+    // langen Titel HINTER den drei Punkten -- im Browser gemessen (Rasterstufe ab 670px: Marke bei 305px,
+    // Zelle endet bei 211px). Ein Flex-Kasten mit ellipsiertem Titel-Span liess vom Titel 51px uebrig
+    // („Geogr…“); der Umbruch haelt den Namen lesbar, und der Fall ist selten (12 Wege live, nur auf der
+    // Weg-Ebene). Ohne Marke bleibt das Markup zeichengleich zu vorher.
+    (marke
+      ? '<a class="fs-row__link fs-row__link--marke" href="' + escape(source.url) + '" target="_blank" rel="noopener">'
+        + escape(source.label || source.url) + " ↗" + marke + "</a>"
+      : '<a class="fs-row__link" href="' + escape(source.url) + '" target="_blank" rel="noopener">'
+        + escape(source.label || source.url) + " ↗</a>") +
     '<span class="fs-row__badge">' + escape(featureSourceTypeLabel(source.type)) + officialMark + "</span>" +
     kind +
     pages +
@@ -252,7 +284,10 @@ function featureSourceHerkunftZeile(herkunft, wortlaut, escape, tr) {
 // `avesmapsUpsertGameLiterature` schon einmal gescheitert ist (dort stempelte jedes mitgeschickte
 // Feld, und das Formular schickt alle mit). Am Wert haengt sie, nicht an einem Modulzustand
 // daneben, der beim naechsten Neuzeichnen auseinanderlaufen koennte.
-function renderFeatureSourceEditPanel(source, escape, tr) {
+// ⚠️ `wegGruppe` ({anzahl, fest}) wie beim Eingabeformular: auf der WEG-EBENE (fest) schreibt „Speichern“ Seite(n)
+// und Abdeckung an ALLE Abschnitte -- der dritte Rahmen muss das sagen, sonst verspricht er „Nur an diesem
+// Objekt“ und ueberschreibt wortlos 56 Seitenangaben (Befund des Pruefagenten, 03.09.2026).
+function renderFeatureSourceEditPanel(source, escape, tr, wegGruppe) {
   const usage = Number(source.usage_count) || 1;
   const wikiOwned = source.wiki_owned === true;
   // 🔴 WELCHE KORPUSFELDER DIESE ZEILE SELBST BESITZT. Owner 02.09.2026: „Quelle soll optional
@@ -436,9 +471,12 @@ function renderFeatureSourceEditPanel(source, escape, tr) {
     }, escape, tr),
   });
 
+  const gruppeFest = wegGruppe && wegGruppe.fest === true && Number(wegGruppe.anzahl) > 1 ? wegGruppe : null;
   const rahmenObjekt = avesmapsSourceScopeFrame({
     escape,
-    titel: tr("sources.edit.linkScope", "Nur an diesem Objekt"),
+    titel: gruppeFest
+      ? tr("sources.scope.wayAll", "An allen {n} Abschnitten dieses Weges").replace("{n}", String(Number(gruppeFest.anzahl)))
+      : tr("sources.edit.linkScope", "Nur an diesem Objekt"),
     felder:
       feld("pages", tr("sources.colPages", "Seite(n)"), text("pages", String(source.pages || ""), "", false))
       + feld("reference_kind", tr("sources.colKind", "Abdeckung"),
@@ -692,7 +730,11 @@ function avesmapsSourceScopeFrame(opts) {
     + "</div>";
 }
 
-function renderFeatureSourceAddRow(escape, tr) {
+// Jeder Aufbau bekommt einen eigenen Radionamen: zwei Quellen-Editoren auf einer Seite (Karte mit
+// zwei offenen Dialogen, Editorfenster mit Abschnitt UND Weg-Ebene) duerfen sich die Wahl nicht teilen.
+let featureSourceScopeRadioZaehler = 0;
+
+function renderFeatureSourceAddRow(escape, tr, wegGruppe) {
   // 🔴 Der erste Eintrag ist LEER und damit vorausgewaehlt: „Art …" heisst „keine Aussage".
   // 💣 Ohne ihn stand 'regionalspielhilfe' vorausgewaehlt da -- die erste Art der Liste --, und
   // wer die Auswahl nie anfasste, legte eine Behauptung an, die er nie getroffen hat. Genau so kam
@@ -847,11 +889,34 @@ function renderFeatureSourceAddRow(escape, tr) {
   // 02.09.2026: „eigentlich braucht es die häkchen nicht NUR felder").
   // ⚠️ `data-fs-meins` markiert die zwei Felder, die NUR an dieser Fundstelle gelten. Bei einer
   // bekannten Seite sind sie das Einzige, was noch zu füllen ist — dann werden sie hervorgehoben.
+  // 🔴 DER VERTEILER (Entwurf docs/superpowers/specs/2026-09-03-quellen-wege-design.md §3.2): ein Weg
+  // liegt in Abschnitten, und die Quelle haengt am Abschnitt. Am ABSCHNITT (nicht fest) fragt der
+  // Rahmen „An diesem Weg" mit der Wahl „alle N Abschnitte dieses Weges" (Vorgabe) / „nur dieser
+  // Abschnitt"; auf der WEG-EBENE (fest) sagt der Titel „An allen N Abschnitten dieses Weges" und es
+  // gibt nichts zu waehlen. Ein einteiliger Weg (N = 1) und jede andere Objektart sehen den Rahmen
+  // wie bisher: „Nur an diesem Objekt".
+  // ⚠️ Die Wahl steht VOR Seite(n) und Abdeckung: sie sagt, WOHIN die zwei gelten.
+  const gruppe = wegGruppe && Number(wegGruppe.anzahl) > 1 ? wegGruppe : null;
+  const anzahl = gruppe ? String(Number(gruppe.anzahl)) : "";
+  const radioName = gruppe && !gruppe.fest ? "fs-scope-" + (++featureSourceScopeRadioZaehler) : "";
+  const wahlAbschnitte = gruppe && !gruppe.fest
+    ? '<div class="fs-scope__choice" data-fs-scope-choice>'
+      + '<label><input type="radio" name="' + radioName + '" value="alle" checked> '
+      + escape(tr("sources.scope.allSegments", "alle {n} Abschnitte dieses Weges").replace("{n}", anzahl)) + "</label>"
+      + '<label><input type="radio" name="' + radioName + '" value="einer"> '
+      + escape(tr("sources.scope.oneSegment", "nur dieser Abschnitt")) + "</label>"
+      + "</div>"
+    : "";
   const rahmenObjekt = avesmapsSourceScopeFrame({
     escape,
-    titel: tr("sources.scope.link", "Nur an diesem Objekt"),
+    titel: !gruppe
+      ? tr("sources.scope.link", "Nur an diesem Objekt")
+      : (gruppe.fest
+        ? tr("sources.scope.wayAll", "An allen {n} Abschnitten dieses Weges").replace("{n}", anzahl)
+        : tr("sources.scope.way", "An diesem Weg")),
     felder:
-      '<label class="fs-af fs-af--pages" data-fs-meins><span class="fs-af__l">'
+      wahlAbschnitte
+      + '<label class="fs-af fs-af--pages" data-fs-meins><span class="fs-af__l">'
       + escape(tr("sources.add.pages", "Seite(n)")) + "</span>"
       + '<input type="text" class="fs-add-pages" placeholder="'
       + escape(tr("sources.add.pagesHint", "optional")) + '"></label>'
@@ -946,7 +1011,7 @@ function renderFeatureSourceEditorHtml(state, opts) {
   // Verkehrsmittel-Sperre, AGENTS.md).
   const sourceRows = renderFeatureSourceCollapsedRows(
     otherSources.map((source) => renderFeatureSourceRow(source, escape, tr)), escape, tr);
-  const addRow = renderFeatureSourceAddRow(escape, tr);
+  const addRow = renderFeatureSourceAddRow(escape, tr, options.wegGruppe);
 
   // Die Anleitung ueber der Quellenliste, auf allen acht Montageflaechen. Sie ist als HTML
   // eingesetzt statt maskiert: der Text darf Hervorhebungen tragen und ist Entwickler-/i18n-Text,
@@ -1319,6 +1384,47 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
   const pendingStore = (opts && opts.store) || null;
   const tr = (opts && opts.tr) || featureSourceDefaultTr;
 
+  // 🔴 DER VERTEILER: `opts.gruppe = { publicIds: () => string[], fest: boolean }`. Die Kennungen
+  // werden bei JEDER Anfrage gelesen (der Editor wechselt den Abschnitt, ohne neu zu montieren).
+  // Am Abschnitt (nicht fest) verteilt NUR das Eintragen -- `add`/`add_existing` --, und nur bei
+  // der Wahl „alle" in der Eingabezeile; ✕ und ✎ gelten dem Abschnitt, denn die Wahl steht in einer
+  // zugeklappten Falte, und ein Loeschen an einer unsichtbaren Auswahl ist eine Falle. Auf der
+  // Weg-Ebene (fest) traegt jede Anfrage die Liste -- dort IST der Weg das Objekt.
+  const gruppe = opts && opts.gruppe && typeof opts.gruppe.publicIds === "function" ? opts.gruppe : null;
+  function gruppenKennungen() {
+    if (!gruppe) {
+      return [];
+    }
+    const ids = [];
+    for (const id of gruppe.publicIds() || []) {
+      const s = String(id || "").trim();
+      if (s && !ids.includes(s)) {
+        ids.push(s);
+      }
+    }
+    return ids;
+  }
+  function verteilteKennungen(action) {
+    const ids = gruppenKennungen();
+    if (ids.length < 2) {
+      return null;
+    }
+    if (gruppe.fest === true) {
+      return ids;
+    }
+    if (action !== "add" && action !== "add_existing") {
+      return null;
+    }
+    const wahl = containerEl.querySelector("[data-fs-scope-choice] input:checked");
+    return wahl && wahl.value === "einer" ? null : ids;
+  }
+  function wegGruppeFuerRender() {
+    if (!gruppe) {
+      return null;
+    }
+    return { anzahl: gruppenKennungen().length, fest: gruppe.fest === true };
+  }
+
   // Sagt, warum ein Klick nicht zum Ziel führte. textContent, nicht innerHTML: die Meldung zitiert
   // den eingetippten Quellennamen, also Nutzereingabe.
   /**
@@ -1430,7 +1536,13 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
 
   async function renderFromServer(action, extra) {
     const publicId = typeof publicIdGetter === "function" ? publicIdGetter() : publicIdGetter;
-    const body = Object.assign({ action, entity_type: entityType, entity_public_id: publicId }, extra || {});
+    // ⚠️ Die Wahl wird VOR der Anfrage gelesen -- danach steht die Eingabezeile neu gebaut da.
+    const kennungen = verteilteKennungen(action);
+    const body = Object.assign(
+      { action, entity_type: entityType, entity_public_id: publicId },
+      kennungen ? { entity_public_ids: kennungen } : {},
+      extra || {}
+    );
     const data = pendingStore ? await pendingStore.request(action, body) : await featureSourceFetch(body);
     // ⚠️ Auch der FEHLSCHLAG wird festgehalten -- der Bearbeiten-Kasten braucht den Grund
     // („diese Änderung gilt für 1.042 Objekte", „das pflegt der Wiki-Abgleich"), und der steht nur
@@ -1441,7 +1553,7 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
       return; // keep the prior render on any failure -- never blank the widget
     }
     letzteQuellen = Array.isArray(data.sources) ? data.sources : [];
-    containerEl.innerHTML = renderFeatureSourceEditorHtml(data, opts);
+    containerEl.innerHTML = renderFeatureSourceEditorHtml(data, Object.assign({}, opts || {}, { wegGruppe: wegGruppeFuerRender() }));
     wireAutocomplete();
     wireAdressPruefung();
     // 💣 DER EINE TRICHTER -- hier muendet JEDE Aktion des Editors (list, add, add_existing, remove).
@@ -1456,7 +1568,7 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
     // ⚠️ NICHT im Anlege-Modus: der Puffer vergibt negative Platzhalter-Ids fuer ein Objekt, das es
     // serverseitig noch gar nicht gibt -- die im Kartenspeicher zeigten auf nichts.
     if (!pendingStore) {
-      syncFeatureSourcesToClientCache(entityType, publicId, data.sources);
+      syncFeatureSourcesToClientCache(entityType, publicId, data.sources, data.by_entity);
       // Das offene Infopanel neu zeichnen -- dasselbe, was Kartensammlung, Literatur und Kraftlinien
       // nach einer Aenderung tun. ⚠️ Nur nach einem SCHREIBvorgang: beim blossen Auflisten hat sich
       // nichts geaendert, und ein Neuzeichnen waere Arbeit ohne Aussage.
@@ -2049,6 +2161,7 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
       action: "update",
       entity_type: entityType,
       entity_public_id: typeof publicIdGetter === "function" ? publicIdGetter() : publicIdGetter,
+      ...(verteilteKennungen("update") ? { entity_public_ids: verteilteKennungen("update") } : {}),
       source_id: treffer.source_id,
       fields: { own_fields: liste },
       // ⚠️ Bestätigt: der Editor hat die Häkchen gerade selbst gesetzt, und eine Rückfrage direkt
@@ -2377,7 +2490,7 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
       return; // derselbe Knopf noch einmal = zuklappen
     }
     zeile.classList.add("fs-row--open");
-    zeile.insertAdjacentHTML("afterend", renderFeatureSourceEditPanel(quelle, opts && opts.escape ? opts.escape : featureSourceDefaultEscape, tr));
+    zeile.insertAdjacentHTML("afterend", renderFeatureSourceEditPanel(quelle, opts && opts.escape ? opts.escape : featureSourceDefaultEscape, tr, wegGruppeFuerRender()));
   }
 
   function zeigeKastenMeldung(panel, text) {
@@ -2728,7 +2841,13 @@ function featureSourceKartenfenster() {
 // synchronous source globals so a freshly created/edited feature renders its sources on the next popup
 // open with no map-features reload. Overwrites the entity's ref list with the full server list (the add
 // endpoint returns ALL of the feature's sources), and upserts each into the shared catalog by source_id.
-function syncFeatureSourcesToClientCache(entityType, entityPublicId, editorSources) {
+/**
+ * @param {object} [byEntity]  Die Verweise JE KENNUNG aus der Sammelliste (`by_entity`): dann wird jede
+ *   genannte Kennung nachgezogen, mit IHREN Seiten und IHRER Abdeckung -- und nie die Vereinigung an
+ *   alle gehaengt (eine Quelle an 12 von 56 Abschnitten stuende sonst ploetzlich an allen 56). Ohne sie
+ *   bekommt der Anker die Liste, wie bisher.
+ */
+function syncFeatureSourcesToClientCache(entityType, entityPublicId, editorSources, byEntity) {
   const ziel = featureSourceKartenfenster();
   if (!ziel || !Array.isArray(editorSources) || !entityPublicId) {
     return;
@@ -2756,6 +2875,14 @@ function syncFeatureSourcesToClientCache(entityType, entityPublicId, editorSourc
       attribution: source.attribution || "",
     };
     refs.push({ source_id: source.source_id, pages: source.pages || "", reference_kind: source.reference_kind || "" });
+  }
+  if (byEntity && typeof byEntity === "object" && !Array.isArray(byEntity)) {
+    for (const [kennung, verweise] of Object.entries(byEntity)) {
+      ziel.__featureSourceRefs[`${entityType}:${kennung}`] = (Array.isArray(verweise) ? verweise : [])
+        .filter((v) => v && v.source_id !== undefined && v.source_id !== null)
+        .map((v) => ({ source_id: v.source_id, pages: v.pages || "", reference_kind: v.reference_kind || "" }));
+    }
+    return;
   }
   ziel.__featureSourceRefs[`${entityType}:${entityPublicId}`] = refs;
 }
