@@ -879,7 +879,13 @@ function avesmapsFeatureSourcesMoveLabelToRegion(PDO $pdo, string $labelPublicId
     if ($labelPublicId === '' || $regionPublicId === '') {
         return ['moved' => 0, 'dropped' => 0];
     }
-    avesmapsEnsureFeatureSourceTables($pdo);
+    // 💣 KEIN avesmapsEnsureFeatureSourceTables HIER. Die Aufrufer halten eine Transaktion (update_label, der
+    // Sammel-Umzug je Beschriftung), und in MySQL ist `CREATE TABLE IF NOT EXISTS` DDL -- DDL beendet die
+    // laufende Transaktion mit einem IMPLIZITEN COMMIT, auch wenn die Tabelle laengst existiert. Beim ersten
+    // scharfen Lauf am 03.09.2026 liefen so DELETE und UPDATE im Autocommit, und `commit()` warf danach
+    // „There is no active transaction": 489 Beschriftungen als „gescheitert" gemeldet, alle umgezogen, keine
+    // Revision gebumpt -- die Nutzlast blieb fuer jeden Besucher alt. Die Tabellen stellt der Aufrufer sicher,
+    // VOR seiner Transaktion.
     $dropped = $pdo->prepare(
         "DELETE FROM feature_sources
           WHERE entity_type = 'region' AND entity_public_id = :l

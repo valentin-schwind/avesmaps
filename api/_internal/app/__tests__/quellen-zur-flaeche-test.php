@@ -132,4 +132,17 @@ $zaehl();
 assert(substr_count($features . $eco, 'avesmapsFeatureSourcesMoveLabelToRegion(') === 2, 'genau die zwei Zeiger-Schreiber -- wer einen dritten baut, traegt ihn hier ein');
 $zaehl();
 
+// ── 6) KEIN DDL IN DER TRANSAKTION ────────────────────────────────────────────────────────────
+// 💣 MySQL beendet eine laufende Transaktion bei DDL mit einem impliziten COMMIT -- auch bei `CREATE TABLE IF NOT
+// EXISTS` auf eine bestehende Tabelle. Beim ersten scharfen Lauf am 03.09.2026 stand avesmapsEnsureFeatureSourceTables
+// im Umzug: 489 Beschriftungen als gescheitert gemeldet („There is no active transaction"), alle umgezogen, keine
+// Revision gebumpt. SQLite kennt die Falle nicht -- deshalb hier am Quelltext.
+$lib = $ohneKommentare(__DIR__ . '/../feature-sources.php');
+$umzug = $schnitt($lib, 'function avesmapsFeatureSourcesMoveLabelToRegion(');
+assert(!str_contains($umzug, 'avesmapsEnsureFeatureSourceTables('), 'der Umzug ruft KEIN DDL -- er laeuft in der Transaktion seiner Aufrufer');
+$zaehl();
+$sammel = $schnitt($lib, 'function avesmapsFeatureSourcesTakeoverLabelSources(');
+assert(strpos($sammel, 'avesmapsEnsureFeatureSourceTables($pdo);') < strpos($sammel, '$pdo->beginTransaction();'), 'der Sammel-Umzug stellt die Tabellen VOR seiner ersten Transaktion sicher');
+$zaehl();
+
 echo "quellen-zur-flaeche: {$pruefungen} Pruefungen bestanden\n";
