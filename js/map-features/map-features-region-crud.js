@@ -214,7 +214,10 @@ async function createRegionAt(latlng) {
 			);
 
 			void loadPoliticalTerritoryOptions();
-			schedulePoliticalTerritoryLayerReload();
+			// 🔴 `immediate`, weil der Toast darueber „Die Karte wird neu geladen" verspricht: seit dem
+			// Pan-Guard vom 03.09.2026 wuerde ein blanker Aufruf bei unveraendertem Schluessel NICHTS tun,
+			// und nach einer nicht bestaetigten Anlage ist genau das frische Holen der Zweck.
+			schedulePoliticalTerritoryLayerReload({ immediate: true });
 
 			return;
 		}
