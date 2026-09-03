@@ -49,6 +49,7 @@
 <script src="kammanwuchs-modul.js"></script>
 <script src="flusstaeler-talmodul.js"></script>
 <script src="erosion-droplet.js"></script>
+<script src="gipfel-profil.js"></script>
 <style>
 /* ═══════════════════════════════════════════════════════════════════════════════════════════
    Kein hartkodierter Farbwert, kein hartkodierter Radius, keine Schrift unter 11px
@@ -155,8 +156,9 @@
 	<b>echten</b> Rechenstrecke der Karte (<code>map-features-ecosystem-height-*.js</code>, unveraendert
 	geladen) samt echter Potenzsuche; Kammlinien, Gipfel und Flusslaeufe kommen aus
 	<code>GET /api/app/map-features.php</code>.
-	<b>🔴 Die Gipfel sind jetzt Teil der Kette</b>, nicht mehr Zuschauer: der Kamm laeuft durch sie,
-	und die Tropfen fliessen von ihnen herab.
+	<b>🔴 Die Gipfel sind Teil der Kette</b>, nicht mehr Zuschauer: der Kamm laeuft durch sie, die
+	Tropfen fliessen von ihnen herab, und ihre Flanke ist einstellbar &mdash; von der heutigen flachen
+	Kuppe bis zur echten Spitze.
 </p>
 
 <div class="kam-controls">
@@ -167,6 +169,13 @@
 			<div class="kam-ctl__row">
 				<input type="range" id="kam-blur" min="0" max="15" step="0.5" value="4">
 				<span class="kam-ctl__val" id="kam-blur-val">4,0 E</span>
+			</div>
+		</div>
+		<div class="kam-ctl">
+			<span class="kam-ctl__label">Gipfelschaerfe</span>
+			<div class="kam-ctl__row">
+				<input type="range" id="kam-schaerfe" min="0" max="100" step="5" value="70">
+				<span class="kam-ctl__val" id="kam-schaerfe-val">0,70</span>
 			</div>
 		</div>
 		<label class="kam-check"><input type="checkbox" id="kam-an" checked> Anwuchs an</label>
@@ -191,9 +200,16 @@
 				<span class="kam-ctl__val" id="ero-kraft-val">0,15</span>
 			</div>
 		</div>
+		<div class="kam-ctl">
+			<span class="kam-ctl__label">Ablagerung</span>
+			<div class="kam-ctl__row">
+				<input type="range" id="ero-ablage" min="2" max="60" step="2" value="10">
+				<span class="kam-ctl__val" id="ero-ablage-val">0,10</span>
+			</div>
+		</div>
 		<label class="kam-check"><input type="checkbox" id="ero-an" checked> Erosion an</label>
 		<label class="kam-check"><input type="checkbox" id="ero-pull" checked> Hoehen danach nachziehen</label>
-		<span class="kam-hint"><b>0 Tropfen = aus.</b> Sie laeuft auf dem <b>vollen</b> Feld, damit das Wasser die Gipfel sieht und von ihnen herabfliesst. Der teure Schritt &mdash; die Regler wirken beim Loslassen.</span>
+		<span class="kam-hint"><b>0 Tropfen = aus.</b> Der Wirkradius steht auf <b>1 Zelle</b> &mdash; bei 3 buegelt sie das Gebirge glatt, statt es zu furchen (Rinnentiefe +189 gegen +1.284 Schritt, gemessen). Sie laeuft auf dem <b>vollen</b> Feld, damit das Wasser die Gipfel sieht und von ihnen herabfliesst. Der teure Schritt &mdash; die Regler wirken beim Loslassen.</span>
 	</div>
 
 	<div class="kam-group">
@@ -219,7 +235,8 @@
 	<div class="kam-group">
 		<h3>Anzeige</h3>
 		<label class="kam-check"><input type="checkbox" id="kam-terrain" checked> Graustufe auf das Gelaende, nicht auf den Gipfel</label>
-		<label class="kam-check"><input type="checkbox" id="kam-peaks" checked> Gipfel markieren</label>
+		<label class="kam-check"><input type="checkbox" id="kam-spitzen" checked> Gipfelspitzen voll weiss</label>
+		<label class="kam-check"><input type="checkbox" id="kam-peaks"> Gipfel mit Dreieck markieren</label>
 		<label class="kam-check"><input type="checkbox" id="kam-curve" checked> Kammlinie zeigen</label>
 		<label class="kam-check"><input type="checkbox" id="kam-rivers" checked> Flusslaeufe zeigen</label>
 		<label class="kam-check"><input type="checkbox" id="kam-huelle"> nur die Kammhuelle zeigen</label>
@@ -272,6 +289,54 @@
 			derselben Begruendung im Kommentar: die Messschleife misst mit Potenz&nbsp;1, also muss sie das
 			fertige Feld sehen.</li>
 	</ol>
+
+	<h2>Die Gipfelform &mdash; und warum die Spitze extra gezeichnet wird</h2>
+	<div class="kam-formula">
+		heute:&nbsp; <b>h = a &middot; (1 &minus; d&sup2;/r&sup2;)&sup3;</b> &nbsp;<em>&mdash; eine Kuppe: Ableitung im Zentrum exakt null</em><br>
+		neu:&nbsp;&nbsp;&nbsp;&nbsp; <b>h = a &middot; (1 &minus; (d/r)<sup>e</sup>)<sup>k</sup></b> &nbsp;<em>&mdash; Schaerfe&nbsp;0: e=2, k=3 (identisch) &middot; Schaerfe&nbsp;1: e=1, k=2</em>
+	</div>
+	<ul>
+		<li>🔴 <b>Bei Schaerfe 0 kommt Zeichen fuer Zeichen das heutige Feld heraus</b> &mdash; gegen
+			14.641 Punkte geprueft, groesste Abweichung 2,7&middot;10<sup>&minus;12</sup>. Das ist die
+			Bedingung dafuer, dass man die Aenderung ueberhaupt beurteilen kann.</li>
+		<li>💣 <b>Und die erste Fassung war falsch herum.</b> <code>e = 0,75, k = 1</code> machte die
+			Flanke an der Spitze zwar steiler, liess den Berg aber am <b>Fuss</b> weiter hinausreichen
+			(bei d/r = 0,9 stand er auf 7,6 % statt 0,7 % der Hoehe). Ein Berg, der unten breiter wird,
+			sieht nicht spitzer aus, sondern groesser. Mit <code>e = 1, k = 2</code> faellt er an beiden
+			Enden schaerfer: 90,3 / 64,0 / 25,0 / 1,0 % gegen heute 99,3 / 88,5 / 42,2 / 0,7 % bei
+			d/r = 0,05 / 0,20 / 0,50 / 0,90.</li>
+		<li>🔴 <b>Die Gipfelspitze wird EXTRA gezeichnet, sonst ist sie nicht weiss.</b> Ein spitzer
+			Gipfel hat seine volle Hoehe auf 0,09&nbsp;Karteneinheiten &mdash; bei 7,4 Bildpunkten je
+			Einheit sind das 0,7&nbsp;px, und die Malschleife tastet nur jeden zweiten Punkt ab. Sie
+			trifft die Spitze also fast nie, und der hoechste Berg erschiene grau. ⚠️ Das ist eine
+			<b>Anzeige</b>, keine Aenderung am Feld: dort steht die Hoehe exakt, unabhaengig vom Raster.</li>
+		<li>⚠️ <b>Im Bild wirkt die Schaerfe weniger als im Feld.</b> Gemessen an den Bildpunkten des
+			Finsterkamms sinkt der weisse Anteil von <b>8,0 % auf 5,7 %</b> &mdash; die Hoefe schrumpfen
+			um gut ein Viertel, mehr nicht. Der Grund liegt nicht am Profil, sondern an der Skala: ein
+			10.879er Gipfel gegen eine Gelaende-Referenz von 1.500 ist ueber weite Strecken ohnehin
+			gesaettigt. Wer die Hoefe kleiner will, braucht eine andere Graustufen-Abbildung, kein
+			anderes Profil.</li>
+	</ul>
+
+	<h2>Damit die Rinnen sichtbar bleiben</h2>
+	<ul>
+		<li>🔴 <b>Der Wirkradius war der ganze Unterschied.</b> Er stand auf 3 Zellen &mdash; damit wird
+			jede Rinne ueber sieben Zellen Breite verschmiert, also genau so breit gebuegelt, wie sie tief
+			werden sollte. Gemessen an der Roten Sichel, Rinnentiefe (wie tief liegt eine Zelle unter dem
+			hoechsten Punkt ihrer Umgebung), 4.000 Tropfen:
+			<b>Radius 3 &rarr; 574 auf 763</b> Schritt, <b>Radius 1 &rarr; 574 auf 1.858</b>.
+			Mit 3 <b>glaettet</b> die Erosion das Gebirge messbar mehr, als sie es furcht.</li>
+		<li>🔴 <b>Und die Masse bleibt jetzt in der Flaeche.</b> Vorher nahm jeder Tropfen, der den Rand
+			erreichte, seine Ladung mit hinaus; das Gebirge sank gleichmaessig ab, statt sich zu
+			strukturieren &mdash; und genau das kostete den Kontrast zwischen Rinne und Ruecken. Jetzt
+			legt ein Tropfen an jedem seiner fuenf Ausgaenge ab, was er noch traegt.</li>
+		<li>⚠️ <b>Die Skalierung zahlt den Preis.</b> Mit Radius 1 hoeht ein Tropfen einzelne Zellen
+			stark auf, das Rastermaximum steigt, und die Skalierung auf die eingestellte Maximalhoehe
+			zieht das ganze Gelaende entsprechend herunter (Faktor 0,24 bis 0,35 an den drei Gebirgen).
+			Die Rinnen bleiben relativ zueinander, das Bild wird aber dunkler. 🔧 Eine Skalierung gegen
+			ein Perzentil statt gegen das Maximum waere die naechste Stellschraube &mdash; sie steht
+			bewusst noch nicht da, weil der Feldbau ebenfalls gegen das Maximum skaliert.</li>
+	</ul>
 
 	<h2>💣 Was die Erosion kostet &mdash; der eigentliche Befund</h2>
 	<ul>
@@ -368,7 +433,7 @@
 				max: areas[0].terrain_avg_height, mean: areas[0].terrain_mean_height,
 			},
 			w: b.max_x - b.min_x, h: b.max_y - b.min_y,
-			kamm: null, neu: null, courses: null, valley: null, erosion: null,
+			kamm: null, neu: null, courses: null, valley: null, erosion: null, profil: null,
 			heute: null, voll: null, gipfelMax: 0, dom: null,
 		};
 	});
@@ -421,9 +486,15 @@
 		const q = {
 			// Nur die Gipfelbuckel: Rauschfenster 0 laesst `peaksHeight + 0 * noise` uebrig.
 			// ⚠️ Gilt fuer `perlin`, und Gebirge rechnet perlin (ECOSYSTEM_TERRAIN_METHOD_BY_TYPE).
+			// 🔴 EINE Stelle -- Sockel, Messung und alle drei Stufen lesen dieselbe Gipfelhoehe.
+			// Bei Schaerfe 0 ist sie ZEICHEN FUER ZEICHEN die des echten Feldbaus (gegen 14.641 Punkte
+			// geprueft, groesste Abweichung 2,7e-12); darueber faellt die Flanke steiler, mit einer
+			// echten Spitze statt der flachen Kuppe von `(1 − d²/r²)³`.
 			gipfel: function (x, y) {
 				let sum = 0;
-				for (let i = 0; i < fields.length; i++) { sum += sampleEcosystemHeightFieldRaw(fields[i], x, y, 0); }
+				for (let i = 0; i < fields.length; i++) {
+					sum += gipfelProfilHoehe(fields[i].peakBumps, x, y, m.profil);
+				}
 				return sum;
 			},
 			fenster: function (x, y) { return win ? win.sample(x, y) : 1; },
@@ -605,6 +676,22 @@
 			ctx.stroke();
 			ctx.restore();
 		}
+		// 🔴 DIE GIPFELSPITZE VOLL WEISS (Owner 03.09.2026). Sie MUSS gezeichnet werden und kann nicht
+		// aus der Malschleife fallen: ein spitzer Gipfel hat seine volle Hoehe auf 0,09 Karteneinheiten
+		// -- bei 7,4 Bildpunkten je Einheit sind das 0,7 px, und die Malschleife tastet nur jeden
+		// zweiten Punkt ab. Sie trifft die Spitze also fast nie, und der hoechste Berg erscheint grau.
+		// ⚠️ Das ist eine ANZEIGE, keine Aenderung am Feld -- dort steht die Hoehe exakt, gemessen.
+		if ($("kam-spitzen").checked) {
+			ctx.save();
+			ctx.fillStyle = "#fff";                          // Hoehendaten, kein Bedienelement (§12)
+			m.peaks.forEach(function (p) {
+				const X = (p.x - m.bounds.min_x) * scale, Y = (m.bounds.max_y - p.y) * scale;
+				ctx.beginPath();
+				ctx.arc(X, Y, 2.2, 0, Math.PI * 2);
+				ctx.fill();
+			});
+			ctx.restore();
+		}
 		if ($("kam-peaks").checked) {
 			ctx.save();
 			ctx.fillStyle = token("--color-accent-brown");
@@ -625,6 +712,7 @@
 	function werte() {
 		return {
 			blur: Number($("kam-blur").value),
+			schaerfe: Number($("kam-schaerfe").value) / 100,
 			kammAn: $("kam-an").checked,
 			kammGipfel: $("kam-gipfel").checked,
 			solve: $("kam-solve").checked,
@@ -633,6 +721,7 @@
 			talAn: $("tal-an").checked,
 			tropfen: Number($("ero-tropfen").value),
 			kraft: Number($("ero-kraft").value) / 100,
+			ablage: Number($("ero-ablage").value) / 100,
 			eroAn: $("ero-an").checked,
 			eroPull: $("ero-pull").checked,
 		};
@@ -641,10 +730,12 @@
 	function marken() {
 		const v = werte();
 		$("kam-blur-val").textContent = fmt(v.blur, 1) + " E";
+		$("kam-schaerfe-val").textContent = fmt(v.schaerfe, 2) + (v.schaerfe === 0 ? " (heute)" : "");
 		$("tal-breite-val").textContent = fmt(Number($("tal-breite").value), 1) + " mi";
 		$("tal-tiefe-val").textContent = fmt(Number($("tal-tiefe").value)) + " %";
 		$("ero-tropfen-val").textContent = v.tropfen === 0 ? "aus" : fmt(v.tropfen);
 		$("ero-kraft-val").textContent = fmt(v.kraft, 2);
+		$("ero-ablage-val").textContent = fmt(v.ablage, 2);
 	}
 
 	function zeichnen() {
@@ -670,6 +761,7 @@
 				: null;
 			zeiten.suche += performance.now() - t;
 
+			m.profil = gipfelProfilExponenten(v.schaerfe);
 			const q = abfragen(m);
 
 			// STUFE 2 -- Erosion auf dem VOLLEN Feld, Gipfel gesperrt.
@@ -687,7 +779,7 @@
 					sockel: q.gipfel,
 					grid: EROSION_RASTER,
 				});
-				runErosionDroplets(m.erosion, { tropfen: v.tropfen, seed: 42, erode: v.kraft, deposit: 0.3 });
+				runErosionDroplets(m.erosion, { tropfen: v.tropfen, seed: 42, erode: v.kraft, deposit: v.ablage });
 				// 🔴 NACHZIEHEN -- nur der Anteil UEBER dem Gipfelbuckel wird skaliert, sonst waechst oder
 				// schrumpft der Gipfel mit und liest nicht mehr seine eingetragene Zahl. Der Sockel ist
 				// der Gipfelbuckel je Zelle; er wird beim Bau nicht mitgefuehrt und hier nachgetragen.
@@ -750,7 +842,12 @@
 			teile.push(m.kamm ? "Kamm <b>an</b> (Blur " + fmt(v.blur, 1) + " E" + (v.kammGipfel ? ", mit Gipfeln" : ", nur Kurve") + ", Potenz " + fmt(m.neu.exponent, 2) + ")" : "Kamm <b>aus</b>");
 			if (m.erosion) {
 				const bil = erosionBilanz(m.erosion);
-				teile.push("Erosion <b>" + fmt(v.tropfen) + "</b> Tropfen (Abtrag " + fmt(m.erosion.abtrag / 1000) + "k, Rand " + fmt(bil.randMax, 3)
+				// 🔴 RINNENTIEFE -- das Mass fuer "sind Rinnen zu sehen": wie tief liegt eine Zelle unter
+				// dem hoechsten Punkt ihrer Umgebung, vorher gegen nachher. Ein gleichmaessig
+				// abgesenktes Gebirge hat denselben Mittelwert wie ein zerfurchtes, aber viel weniger
+				// davon.
+				teile.push("Erosion <b>" + fmt(v.tropfen) + "</b> Tropfen (Rinnentiefe <b>"
+					+ fmt(bil.rinneVor) + " &rarr; " + fmt(bil.rinneNach) + "</b> Schritt, Rand " + fmt(bil.randMax, 3)
 					+ (m.erosion.skala ? ", &times;" + fmt(m.erosion.skala, 2) : "") + ")");
 			} else { teile.push("Erosion <b>aus</b>"); }
 			teile.push(m.courses ? "Taeler <b>" + m.courses.pieces.length + "</b> Laeufe / " + m.courses.segments.length + " Segmente" : "Taeler <b>aus</b>");
@@ -809,12 +906,12 @@
 	bauen();
 	// ⚠️ Die REGLER rechnen beim Loslassen (`change`), nicht beim Ziehen: die Erosion blockiert den
 	// Hauptthread, und ein `input`-Handler waere bei jedem Pixel ein neuer Lauf.
-	["kam-blur", "tal-breite", "tal-tiefe", "ero-tropfen", "ero-kraft"].forEach(function (id) {
+	["kam-blur", "kam-schaerfe", "tal-breite", "tal-tiefe", "ero-tropfen", "ero-kraft", "ero-ablage"].forEach(function (id) {
 		$(id).addEventListener("input", marken);
 		$(id).addEventListener("change", spaeter);
 	});
 	["kam-an", "kam-gipfel", "kam-solve", "tal-an", "ero-an", "ero-pull",
-	 "kam-terrain", "kam-peaks", "kam-curve", "kam-rivers", "kam-huelle"].forEach(function (id) {
+	 "kam-terrain", "kam-spitzen", "kam-peaks", "kam-curve", "kam-rivers", "kam-huelle"].forEach(function (id) {
 		$(id).addEventListener("change", spaeter);
 	});
 	spaeter();

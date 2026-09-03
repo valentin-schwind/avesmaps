@@ -43,9 +43,22 @@
 // Rasterweite. Feiner als das Randabstandsraster des Gratverfahrens (48), weil eine Rinne, die
 // ueber zwei Zellen breit ist, keine Rinne mehr ist.
 const EROSION_GRID = 128;
-// Wirkradius eines Tropfens in ZELLEN. 💣 Ein Tropfen, der nur EINE Zelle anfasst, gaebe
-// Einzelpixel-Loecher statt Rinnen -- und die liest der bilineare Rueckweg als Rauschen.
-const EROSION_RADIUS = 3;
+// Wirkradius eines Tropfens in ZELLEN.
+//
+// 🔴 EINS, UND DAS IST DER GANZE UNTERSCHIED ZWISCHEN RINNEN UND GLATTGEBUEGELT. Hier stand 3, mit
+// der Begruendung, ein Tropfen duerfe nicht nur eine einzelne Zelle anfassen. Das stimmt -- aber
+// Radius 1 fasst bereits FUENF Zellen an (die eigene und ihre vier direkten Nachbarn), und Radius 3
+// deren neunundvierzig: jede Rinne wird ueber sieben Zellen Breite verschmiert, also genau so breit
+// gebuegelt, wie sie tief werden sollte.
+//
+// Gemessen an der Roten Sichel, Rinnentiefe (wie tief liegt eine Zelle unter dem hoechsten Punkt
+// ihrer Umgebung) vorher -> nachher, 4.000 Tropfen:
+//   Radius 3:  574 ->   763 Schritt   (+189)
+//   Radius 1:  574 -> 1.858 Schritt (+1.284)
+// Mit 3 GLAETTET die Erosion das Gebirge messbar mehr, als sie es furcht -- man sieht danach weniger
+// Struktur als vorher. Mit 1 entstehen die Rinnen, um deren willen man das Verfahren ueberhaupt
+// einsetzt.
+const EROSION_RADIUS = 1;
 // Traegheit der Richtung: 0 = folgt strikt dem Gefaelle, 1 = fliegt geradeaus weiter.
 // ⚠️ Klein halten. Bei hoher Traegheit laufen Tropfen ueber Kaemme hinweg und schneiden Kerben
 // dort, wo gar kein Wasser hinkommt.
@@ -298,7 +311,7 @@ function runErosionDroplets(er, options) {
 		return er;
 	}
 
-	let abtrag = 0, auftrag = 0;
+	let abtrag = 0, auftrag = 0, abgesetzt = 0;
 	for (let n = 0; n < anzahl; n++) {
 		const k = start[Math.floor(rnd() * start.length) % start.length];
 		let px = (k % size) + rnd();
@@ -316,17 +329,25 @@ function runErosionDroplets(er, options) {
 			dy = dy * inertia - hier.gy * (1 - inertia);
 			const len = Math.hypot(dx, dy);
 			if (!(len > 0)) {
+				abgesetzt += erosionApply(er, px, py, sediment); sediment = 0;
 				break;                                       // exakt flach: der Tropfen bleibt liegen
 			}
 			dx /= len; dy /= len;
 			const nx = px + dx;
 			const ny = py + dy;
 			if (nx < 0 || ny < 0 || nx >= size - 1 || ny >= size - 1) {
+				abgesetzt += erosionApply(er, px, py, sediment); sediment = 0;
 				break;                                       // aus dem Raster gelaufen
 			}
 			const nk = Math.floor(ny) * size + Math.floor(nx);
 			if (!er.drin[nk]) {
-				break;                                       // 🔴 aus der FLAECHE gelaufen: Schluss.
+				// 🔴 MASSENERHALTUNG: die Ladung bleibt DA, sie verlaesst die Flaeche nicht.
+				// Ohne das traegt jeder Tropfen sein Sediment ueber den Rand hinaus, und das Gebirge
+				// sinkt gleichmaessig ab, statt sich zu strukturieren -- gemessen kostete das ein
+				// Drittel bis zwei Drittel der Durchschnittshoehe, und mit ihr den Kontrast zwischen
+				// Rinne und Ruecken. Genau deshalb waren die Rinnen im Bild nicht zu sehen.
+				abgesetzt += erosionApply(er, px, py, sediment); sediment = 0;
+				break;                                       // aus der FLAECHE gelaufen: Schluss.
 			}
 			const neu = erosionHeightAndGradient(er, nx, ny).height;
 			const dh = neu - hier.height;
@@ -356,18 +377,24 @@ function runErosionDroplets(er, options) {
 			tempo = Math.sqrt(Math.max(0, tempo * tempo + -dh * EROSION_GRAVITY));
 			wasser *= (1 - evaporate);
 			if (wasser < 0.01) {
+				abgesetzt += erosionApply(er, px, py, sediment); sediment = 0;
 				break;
 			}
 			px = nx; py = ny;
 			if (zelle === nk && schritt > 4) {
 				// dieselbe Zelle wie zuvor und schon eine Weile unterwegs -- der Tropfen kreist
+				abgesetzt += erosionApply(er, px, py, sediment); sediment = 0;
 				break;
 			}
 		}
+		// Der Schrittdeckel ist der letzte Ausgang -- auch er darf keine Masse verschlucken.
+		if (sediment > 0) { abgesetzt += erosionApply(er, px, py, sediment); }
 	}
 	er.tropfen = anzahl;
 	er.abtrag = abtrag;
 	er.auftrag = auftrag;
+	// Was die Tropfen beim Anhalten noch abgelegt haben (Massenerhaltung, siehe oben).
+	er.abgesetzt = abgesetzt;
 
 	return er;
 }
@@ -392,7 +419,37 @@ function erosionBilanz(er) {
 		n++;
 	}
 
-	return { maxAbtrag, maxAuftrag, randMax, gipfelMax, zellen: n };
+	// 🔴 RINNENTIEFE -- wie tief liegt eine Zelle unter dem hoechsten Punkt ihrer Umgebung?
+	// Das ist das Mass fuer "sind Rinnen zu sehen": ein gleichmaessig abgesenktes Gebirge hat
+	// denselben Mittelwert wie ein zerfurchtes, aber viel weniger davon. Gemessen wird gegen das
+	// Feld VOR dem Lauf, damit man den Zuwachs an Struktur ablesen kann, nicht die Struktur selbst.
+	const R = 2;
+	let rinneVor = 0, rinneNach = 0, m = 0;
+	for (let j = R; j < er.size - R; j++) {
+		for (let i = R; i < er.size - R; i++) {
+			const k = j * er.size + i;
+			if (!er.drin[k] || !(er.start[k] > 0)) { continue; }
+			let hochVor = 0, hochNach = 0, alleDrin = true;
+			for (let dj = -R; dj <= R && alleDrin; dj++) {
+				for (let di = -R; di <= R; di++) {
+					const kk = (j + dj) * er.size + (i + di);
+					if (!er.drin[kk]) { alleDrin = false; break; }
+					if (er.start[kk] > hochVor) { hochVor = er.start[kk]; }
+					if (er.hoehe[kk] > hochNach) { hochNach = er.hoehe[kk]; }
+				}
+			}
+			if (!alleDrin) { continue; }
+			rinneVor += hochVor - er.start[k];
+			rinneNach += hochNach - er.hoehe[k];
+			m++;
+		}
+	}
+
+	return {
+		maxAbtrag, maxAuftrag, randMax, gipfelMax, zellen: n,
+		rinneVor: m > 0 ? rinneVor / m : 0,
+		rinneNach: m > 0 ? rinneNach / m : 0,
+	};
 }
 
 if (typeof module !== "undefined" && module.exports) {
