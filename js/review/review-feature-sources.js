@@ -3070,12 +3070,34 @@ function syncFeatureSourcesToClientCache(entityType, entityPublicId, editorSourc
   }
   ziel.__sourceCatalog = ziel.__sourceCatalog || {};
   ziel.__featureSourceRefs = ziel.__featureSourceRefs || {};
+  ziel.__sourceCorpora = ziel.__sourceCorpora || {};
   const refs = [];
   for (const source of editorSources) {
     if (!source || source.source_id === undefined || source.source_id === null) {
       continue;
     }
+    // 🔴 DER KORPUSSCHLUESSEL GEHOERT DAZU -- die dritte Zeile dieser Art (nach Lizenz und Namensnennung).
+    // Die Infobox stellt bei einer Belegstelle den KORPUSNAMEN vorn (featureSourceVornName, ueber
+    // `corpora[s.corpus]` in js/ui/feature-source-markup.js); die Kartennutzlast traegt `corpus` als
+    // Schluessel, die Editor-Liste als Objekt (`corpus.corpus_key`). Ohne diese Zeile zeigte die Infobox
+    // nach JEDEM Oeffnen des Quellen-Editors -- nicht erst nach einem Speichern -- den Titel („Apfeldorn")
+    // statt des Korpus („AlberniaWiki"), bis die Seite neu lud (Owner 03.09.2026: „wenn ich die seite
+    // aktualisiere stimmts"). Ein Korpus, den die Nutzlast noch nicht kannte (in dieser Sitzung angelegt),
+    // wird hier gleich mit eingetragen; ein bekannter ueberschreibt einen unbekannten Platzhalter.
+    const korpusZeile = source.corpus && typeof source.corpus === "object" ? source.corpus : null;
+    const korpusKey = korpusZeile && korpusZeile.corpus_key ? String(korpusZeile.corpus_key) : "";
+    if (korpusKey !== "" && (korpusZeile.known === true || !ziel.__sourceCorpora[korpusKey])) {
+      ziel.__sourceCorpora[korpusKey] = {
+        label: String(korpusZeile.label || korpusKey),
+        form: String(korpusZeile.form || ""),
+        source_type: String(korpusZeile.source_type || ""),
+        license: String(korpusZeile.license || ""),
+        attribution: String(korpusZeile.attribution || ""),
+        is_official: korpusZeile.is_official === true,
+      };
+    }
     ziel.__sourceCatalog[source.source_id] = {
+      corpus: korpusKey,
       url: source.url || "",
       label: source.label || "",
       official: Boolean(source.official),
