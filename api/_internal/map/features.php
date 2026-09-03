@@ -1207,22 +1207,10 @@ function avesmapsReadOptionalPeakHeight(mixed $value): ?float {
     return min($height, 20000.0);
 }
 
-// Optional non-wiki source: a { url, label } object stored in properties.other_source. Returns
-// null when no usable URL was supplied (empty url -> the field is treated as unset). The url must
-// be an absolute http(s) link (same rule as the wiki link); label is a free-form single line.
-function avesmapsReadOptionalOtherSource(mixed $value): ?array {
-    if (!is_array($value)) {
-        return null;
-    }
-    $url = avesmapsNormalizeOptionalUrl((string) ($value['url'] ?? ''), 500, 'Der Quellen-Link');
-    if ($url === '') {
-        return null;
-    }
-    return [
-        'url' => $url,
-        'label' => avesmapsNormalizeSingleLine((string) ($value['label'] ?? ''), 255),
-    ];
-}
+// 🔴 `properties.other_source` („Andere Quelle") hat seit dem 03.09.2026 KEINEN Schreiber mehr (Schritt 4 des
+// Quellen-Umbaus): die 314 Altquellen sind in den Katalog gewandert (sources + feature_sources), der Leser
+// `avesmapsReadOptionalOtherSource` und die drei Schreibstellen (Ort, Beschriftung, Region) sind gefallen.
+// Quellen haengen NUR noch am Quellen-Bauteil (AGENTS.md §5).
 
 function avesmapsFetchEditableFeature(PDO $pdo, string $publicId): array {
     $statement = $pdo->prepare(
@@ -1597,13 +1585,6 @@ function avesmapsUpdatePointFeatureDetails(PDO $pdo, array $payload, array $user
         } else {
             $properties['field_origins'] = $herkunft;
         }
-        $otherSource = avesmapsReadOptionalOtherSource($payload['other_source'] ?? null);
-        if ($otherSource === null) {
-            unset($properties['other_source']);
-        } else {
-            $properties['other_source'] = $otherSource;
-        }
-
         $geometry = avesmapsDecodeJsonColumnForEdit($feature['geometry_json'] ?? null);
         [$lng, $lat] = avesmapsReadPointCoordinatesFromGeometry($geometry);
         $revision = avesmapsNextMapRevision($pdo);
@@ -2953,9 +2934,8 @@ function avesmapsUpdatePathFeatureDetails(PDO $pdo, array $payload, array $user)
         }
         // 🔴 KEIN `other_source` MEHR (03.09.2026): Wegquellen haengen im Katalog (sources +
         // feature_sources, am Abschnitt), der Wegedialog und der Wege-Editor montieren das EINE
-        // Quellen-Bauteil. Eine noch gespeicherte Altquelle bleibt hier UNANGETASTET -- sie wandert in
-        // Schritt 4 des Quellen-Umbaus in den Katalog und wird bis dahin weiter angezeigt
-        // (avesmapsMapFeaturesMergeLegacyOtherSources). Ein alter, zwischengespeicherter Client, der
+        // Quellen-Bauteil. Die Altquellen sind mit Schritt 4 (03.09.2026 abends) in den Katalog gewandert;
+        // der os:-Erzeuger der Nutzlast ist seither weg. Ein alter, zwischengespeicherter Client, der
         // das Feld noch schickt, aendert damit nichts. Entwurf:
         // docs/superpowers/specs/2026-09-03-quellen-wege-design.md.
         $geometry = avesmapsDecodeJsonColumnForEdit($feature['geometry_json'] ?? null);
@@ -3570,19 +3550,7 @@ function avesmapsUpdateLabelFeature(PDO $pdo, array $payload, array $user): arra
             'Ein Label',
             'Bitte die Zuweisung entfernen oder das Häkchen abwählen.'
         );
-        // 💣 NUR anfassen, wenn der Schluessel mitkommt. Bis 2026-07-28 lief das unbedingt: fehlte
-        // `other_source` im Payload, wurde daraus null und die Eigenschaft flog raus. Als der
-        // Label-Dialog das Feld verlor und den Schluessel folgerichtig nicht mehr sendete, loeschte
-        // jedes Speichern die gespeicherte Quelle -- gemeint war das genaue Gegenteil.
-        if (array_key_exists('other_source', $payload)) {
-            $otherSource = avesmapsReadOptionalOtherSource($payload['other_source']);
-            if ($otherSource === null) {
-                unset($properties['other_source']);
-            } else {
-                $properties['other_source'] = $otherSource;
-            }
-        }
-        // 💣 Only when the caller sends the key -- same rule as other_source directly above, for the
+        // 💣 Only when the caller sends the key -- the rule `other_source` carried here until 03.09.2026, for the
         // same reason. A save that does not mention the height must not erase it, and the height is
         // edited from TWO surfaces (the label dialog and the landscape panel); each of them omits
         // the key whenever the other one is the sensible owner of the moment.
@@ -3783,12 +3751,6 @@ function avesmapsUpdateRegionFeature(PDO $pdo, array $payload, array $user): arr
             unset($properties['wiki_url']);
         } else {
             $properties['wiki_url'] = $wikiUrl;
-        }
-        $otherSource = avesmapsReadOptionalOtherSource($payload['other_source'] ?? null);
-        if ($otherSource === null) {
-            unset($properties['other_source']);
-        } else {
-            $properties['other_source'] = $otherSource;
         }
         $style = avesmapsDecodeJsonColumnForEdit($feature['style_json'] ?? null);
         $style['fill'] = $color;
@@ -4137,7 +4099,6 @@ function avesmapsBuildPointFeatureResponse(string $publicId, string $name, strin
         'location_type_label' => avesmapsLocationSubtypeLabel($subtype),
         'description' => (string) ($properties['description'] ?? ''),
         'wiki_url' => (string) ($properties['wiki_url'] ?? ''),
-        'other_source' => $properties['other_source'] ?? null,
         'is_nodix' => !empty($properties['is_nodix']),
         'is_ruined' => !empty($properties['is_ruined']),
         'is_hidden' => !empty($properties['is_hidden']),

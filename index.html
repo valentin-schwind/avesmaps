@@ -2228,36 +2228,14 @@
 					     💣 Ein BLANKER Behaelter, KEIN <div class="label-wiki-reference">: die Huelle
 					     erzeugt das Bauteil selbst. -->
 						<div id="label-wiki-assign-host"></div>
-						<!-- „Andere Quelle" ist hier weg (Owner 2026-07-28). Es war das Einzelquellen-Feld von
-						     vor dem Mehrquellen-System; Orte haben es im selben Umbau schon verloren. Das
-						     Markup ist entfernt, aber die GESPEICHERTEN Werte bleiben: review-labels.js
-						     schickt den Schlüssel nicht mehr mit, und der Server schreibt nur, was im
-						     Payload steht -- ein leer mitgesendetes Feld hätte sie stillschweigend gelöscht. -->
-						<!-- „Andere Quelle" ist WIEDER DA (Owner 2026-07-28). Am 28.07. hatte ich sie auf Zuruf
-						     entfernt; die Ansage war zurückgenommen -- manuelle Quellen an einem Label sollen
-						     bleiben. Sichtbar nur, solange KEINE Wiki-Landschaft zugewiesen ist; das steuert
-						     review-other-source.js, dieselbe Regel wie in jedem anderen Editor des Hauses. -->
-						<div class="label-edit-section" id="label-edit-other-source-section"><div class="label-edit-section-title">Andere Quelle</div>
-							<div class="label-wiki-reference">
-								<label class="location-report-form__field">
-									<span>Andere Quelle:</span>
-									<input id="label-edit-other-source-url" type="url" inputmode="url" maxlength="500" placeholder="https://..." autocomplete="off" />
-								</label>
-								<label class="location-report-form__field">
-									<span>Linktext (optional)</span>
-									<input id="label-edit-other-source-label" type="text" maxlength="255" placeholder="Quelle" autocomplete="off" />
-								</label>
-								<div id="label-edit-other-source-preview" class="label-wiki-reference__list"></div>
-							</div>
-						</div>
 						<!-- 🔴 QUELLEN. Eine Beschriftung ist im Quellensystem seit jeher `entity_type = "region"`
 						     mit ihrer `map_features.public_id` (api/app/map-features.php: $entityTypeByFeatureType).
 						     Die KARTE zeigt ihre Quellen schon lange (renderFeatureSourceLine in
 						     map-features-labels.js) -- nur der Editor konnte keine setzen. Deshalb kostet das hier
 						     KEINE Erweiterung der Freigabeliste, sondern nur diesen Behälter und einen Mount.
-						     💣 Nicht mit „Andere Quelle" darüber verwechseln: das ist das ALTE Einzelfeld und bleibt
-						     (Owner 2026-07-28). Es zeigt sich nur ohne zugewiesene Wiki-Landschaft; die Quellen hier
-						     sind das geteilte Mehrquellen-System und stehen immer. -->
+						     💣 „Andere Quelle" (das alte Einzelfeld) stand bis zum 03.09.2026 darüber. Mit Schritt 4 des
+						     Quellen-Umbaus ist es gefallen: die 314 Altquellen sind in den Katalog gewandert, der
+						     os:-Erzeuger der Nutzlast ist weg -- es gibt nur noch DIESES Quellensystem. -->
 						<div class="label-edit-section"><div class="label-edit-section-title">Quellen</div>
 							<p class="location-report-form__status">Quellen wirken <b>sofort</b> — sie brauchen kein „Speichern“.</p>
 							<div id="label-edit-feature-sources"></div>
@@ -3627,7 +3605,6 @@
 		<script src="js/review/review-path-seasons.js"></script>
 		<script src="js/review/review-paths.js"></script>
 		<script src="js/review/review-labels.js"></script>
-		<script src="js/review/review-other-source.js"></script>
 		<script src="js/review/review-locations.js"></script>
 		<script src="js/review/review-panels.js"></script>
 		<script src="js/review/review-panels-change-log.js"></script>

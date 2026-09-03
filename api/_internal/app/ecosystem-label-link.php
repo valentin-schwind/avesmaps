@@ -85,7 +85,7 @@ function avesmapsEcosystemLabelRegionMap(array $regionRows, array $pointerRows, 
 // that way.
 //
 // 🪤 The pointer query uses a LIKE pre-filter before touching properties_json, the same gate
-// avesmapsMapFeaturesMergeLegacyOtherSources uses (api/app/map-features.php:879): ~10 rows are decoded
+// the former os:-producer used (avesmapsMapFeaturesMergeLegacyOtherSources, gone since 03.09.2026): ~10 rows are decoded
 // instead of 590, and the JSON is decoded in PHP rather than by JSON_EXTRACT -- one malformed row would
 // otherwise take the whole query down.
 //

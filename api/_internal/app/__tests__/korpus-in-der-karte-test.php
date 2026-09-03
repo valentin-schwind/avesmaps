@@ -134,14 +134,14 @@ assert(substr_count($funktion, 'avesmapsSourceCorpusReadAll($pdo)') === 1,
 $zaehl();
 
 // ---- 4. DER ZWEITE ERZEUGER -- er ist der GROSSE Teil, nicht der Rest -------------------------
-// 💣 WARUM ES DIESEN ABSCHNITT GIBT. Nach der Naht oben war die Anzeige immer noch zu zwei
-// Dritteln wirkungslos: Katalogzeilen entstehen an ZWEI Stellen. Neben dem Bauer in
-// `feature-sources.php` baut `avesmapsMapFeaturesMergeLegacyOtherSources` welche unter
+// 💣 WARUM ES DIESEN ABSCHNITT GAB. Nach der Naht oben war die Anzeige immer noch zu zwei
+// Dritteln wirkungslos: Katalogzeilen entstanden an ZWEI Stellen. Neben dem Bauer in
+// `feature-sources.php` baute `avesmapsMapFeaturesMergeLegacyOtherSources` welche unter
 // synthetischen `os:`-Kennungen -- die Altquellen aus `properties.other_source`, die nie in den
 // Katalog uebernommen wurden. Live gemessen: 133 Zeilen mit Korpus, 290 ohne, obwohl ihr Wirt
 // einen hat; und von 186 Zeilen mit dem Titel „Briefspiel" kamen 182 von dort.
-// ⭐ Deshalb steht die Regel jetzt in EINER Funktion, die beide rufen -- und die wird hier
-// wirklich GEFAHREN, nicht nur im Quelltext gesucht.
+// ✅ Seit dem 03.09.2026 (Schritt 4 des Quellen-Umbaus) ist der zweite Erzeuger WEG: alle 314 Altquellen
+// liegen im Katalog. Die Regel steht in EINER Funktion mit EINEM Aufrufer -- und die wird hier gefahren.
 $korpora = avesmapsLoadSourceCorporaForPayload($pdo);
 $mit = avesmapsFeatureSourceApplyCorpusKey(
     ['url' => 'x', 'label' => 'Briefspiel'],
@@ -166,76 +166,9 @@ assert(!array_key_exists('corpus',
     'ohne Korpora bleibt die Zeile unberuehrt');
 $zaehl();
 
-// 💣 UND JETZT WIRD DER ZWEITE ERZEUGER WIRKLICH GEFAHREN, nicht im Quelltext gesucht.
-// 🪤 Eine Mutationsprobe hat es erzwungen: die Fassung davor pruefte nur, DASS der Helfer
-// gerufen wird -- und liess `avesmapsFeatureSourceApplyCorpusKey($eintrag, $url, [])` durch, also
-// GENAU den Livezustand vom 02.09.2026 (Korpora da, aber nicht bis hierhin gereicht). Ein Test,
-// der den Fehler nicht faengt, den es gerade gab, prueft die falsche Frage.
-// ⚠️ Der Endpunkt laesst sich nicht einbinden (er antwortet beim Laden), also wird die Funktion
-// aus seinem Quelltext GESCHNITTEN und unter eigenem Namen ausgefuehrt -- dieselbe Bauform wie
-// beim Verdrahtungstest des Hintergrundklicks.
-// Das `eval` fuehrt REPO-EIGENEN Quelltext in einem Testskript aus, nie fremde Eingabe und
-// nie in Produktion -- es ist die Hausform fuer Endpunkte, die sich nicht einbinden lassen.
+// Der zweite Erzeuger ist weg -- und bleibt weg (altquellen-erzeuger-weg-test.php prueft es mit).
 $roh = (string) file_get_contents(__DIR__ . '/../../../app/map-features.php');
-$start = strpos($roh, 'function avesmapsMapFeaturesMergeLegacyOtherSources(');
-assert($start !== false, 'die Funktion steht im Endpunkt');
-$zaehl();
-// Bis zur schliessenden Klammer am Zeilenanfang -- zeilenendenneutral, weil hier CRLF liegt und im
-// Deploy-Tor LF (AGENTS.md §9).
-$rumpf = str_replace("\r\n", "\n", substr($roh, $start));
-$ende = strpos($rumpf, "\n}\n");
-assert($ende !== false, 'und laesst sich sauber ausschneiden');
-$zaehl();
-$rumpf = substr($rumpf, 0, $ende + 2);
-$rumpf = str_replace('function avesmapsMapFeaturesMergeLegacyOtherSources(',
-    'function pruefeAltquellenErzeuger(', $rumpf);
-if (!function_exists('avesmapsDecodeJsonColumn')) {
-    eval('function avesmapsDecodeJsonColumn(mixed $v): array {'
-        . ' $d = is_string($v) ? json_decode($v, true) : null; return is_array($d) ? $d : []; }');
-}
-eval($rumpf);
-
-$zeilen = [[
-    'is_active' => 1,
-    'feature_type' => 'location',
-    'public_id' => 'ort-99',
-    'properties_json' => json_encode(['other_source' => [
-        'url' => 'https://www.herzogtum-weiden.net/politik/liste-bn/baronien/hzgl-weiden',
-        'label' => 'Briefspiel',
-    ]]),
-]];
-$katalog = [];
-$verweise = [];
-pruefeAltquellenErzeuger($zeilen, $katalog, $verweise,
-    ['herzogtum-weiden.net' => ['label' => 'Herzogtum Weiden', 'form' => 'belegstelle']]);
-assert(isset($katalog['os:ort-99']), 'die Altquelle wird zu einer Katalogzeile');
-$zaehl();
-// 🔴 DIE ZUSICHERUNG, UM DIE ES GEHT: sie traegt ihren Korpus. Ohne sie war die Anzeige
-// live zu zwei Dritteln wirkungslos, und alle Tests waren gruen.
-assert(($katalog['os:ort-99']['corpus'] ?? '') === 'herzogtum-weiden.net',
-    'und traegt ihren Korpusschluessel -- die Korpora kommen wirklich bis hierhin');
-$zaehl();
-assert(($katalog['os:ort-99']['label'] ?? '') === 'Briefspiel',
-    'ihr Titel bleibt, was er war -- vorn setzt ihn erst der Browser');
-$zaehl();
-// ⚠️ Und ohne Korpora bleibt es beim alten Verhalten.
-$katalog2 = [];
-$verweise2 = [];
-pruefeAltquellenErzeuger($zeilen, $katalog2, $verweise2, []);
-assert(isset($katalog2['os:ort-99']) && !array_key_exists('corpus', $katalog2['os:ort-99']),
-    'ohne Korpora entsteht die Zeile weiter, nur ohne Schluessel');
-$zaehl();
-
-// Und der zweite Erzeuger ruft ihn wirklich -- am Quelltext, weil der Endpunkt sich nicht
-// einbinden laesst (er antwortet beim Laden).
-assert(str_contains($endpunkt, 'avesmapsFeatureSourceApplyCorpusKey(['),
-    'der os:-Erzeuger setzt den Schluessel durch DIESELBE Funktion');
-$zaehl();
-// 🔴 Und er bekommt sie HEREINGEREICHT. Eine eigene Ableitung im Endpunkt waere die zweite
-// Wahrheit ueber `avesmapsSourceCorpusKey`, die AGENTS.md §5 verbietet -- und sie liefe beim
-// ersten Sonderfall auseinander (`wiki.punin.de` gegen `punin.de`).
-assert(preg_match('/function avesmapsMapFeaturesMergeLegacyOtherSources\([^)]*array \$korpora/', $endpunkt) === 1,
-    'und bekommt die Korpora hereingereicht, statt sie selbst abzuleiten');
+assert(!str_contains($roh, 'function avesmapsMapFeaturesMergeLegacyOtherSources'), 'der os:-Erzeuger ist seit Schritt 4 weg');
 $zaehl();
 assert(!str_contains($endpunkt, 'function avesmapsSourceCorpusKey'),
     'der Endpunkt rechnet die registrierbare Domain NICHT selbst nach');

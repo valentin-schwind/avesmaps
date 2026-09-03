@@ -205,12 +205,6 @@ function populateLabelEditForm({ labelEntry = null, latlng = null } = {}) {
 		// Vorhäkeln der Sync-Vorschau verhielte sich, als hätte niemand je etwas von Hand gesetzt.
 		setLabelWikiRegion(label.wikiRegion || null, label.keinArtikel === true, label.fieldOrigins || null);
 	}
-	// „Andere Quelle" ist aus diesem Dialog raus (Owner 2026-07-28) -- weder gelesen noch geschrieben.
-	// Ein bereits gespeicherter Wert bleibt am Feature liegen, weil der Save den Schluessel nicht mehr
-	// mitschickt und der Server nur schreibt, was im Payload steht.
-	if (typeof writeOtherSourceToForm === "function") {
-		writeOtherSourceToForm("label-edit", label.otherSource);
-	}
 	// 🪤 ZWEISTUFIG. Der Titel nennt die Ebene des Labels („Vegetations-Label bearbeiten"), aber die
 	// Ebene steht erst fest, wenn die Region aufgelöst ist -- und das ist ein asynchroner Schritt
 	// (renderLabelCarrierNote lädt dafür die Regionslisten). Hier also erst der allgemeine Titel; die
@@ -1054,9 +1048,8 @@ function buildLabelEditPayload(formElement) {
 		...(typeof getLabelWikiUebernommenPayload === "function"
 			? { wiki_uebernommen: getLabelWikiUebernommenPayload() }
 			: {}),
-		// Manuelle Quellen bleiben am Label (Owner 2026-07-28). Der Server fasst other_source nur an,
-		// wenn der Schlüssel mitkommt -- deshalb ist Mitschicken hier sicher und Weglassen wäre es auch.
-		other_source: typeof readOtherSourceFromForm === "function" ? readOtherSourceFromForm("label-edit") : { url: "", label: "" },
+		// ⚠️ KEIN `other_source` mehr (03.09.2026, Schritt 4 des Quellen-Umbaus): die Quellen einer Beschriftung
+		// haengen im Katalog (`region` + public_id, Kasten „Quellen“ unten), die Altquellen sind gewandert.
 	};
 
 	// 🔴 DIE WIKI-ZUWEISUNG REIST NUR MIT, WENN SIE SEIT DEM LADEN ANGEFASST WURDE -- oder beim Anlegen,

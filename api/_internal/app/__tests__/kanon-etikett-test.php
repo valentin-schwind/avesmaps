@@ -325,8 +325,8 @@ assert($reihenfolge < $ableitung,
 // „leere Datei" nannte statt der Regel: KEIN `strpos`-Rueckgabewert wird verglichen, bevor er auf
 // `!== false` geprueft ist. Deshalb sucht $stelle() oben jetzt fuer alle drei -- und wirft selbst,
 // statt ein `false` weiterzureichen.
-assert($stelle('avesmapsMapFeaturesMergeLegacyOtherSources($rows') < $ableitung,
-    'und NACH dem Altquellen-Sammler, sonst fehlt Objekten mit reiner Altquelle das Etikett');
+// (Die dritte Stelle -- „NACH dem Altquellen-Sammler" -- ist mit Schritt 4 des Quellen-Umbaus am 03.09.2026
+// gefallen: es gibt keinen Sammler mehr, alle Altquellen liegen im Katalog. altquellen-erzeuger-weg-test.php.)
 
 // ── Gruppe 6: DER VIERTE EINGANG -- Territorien ────────────────────────────────────────────────
 //

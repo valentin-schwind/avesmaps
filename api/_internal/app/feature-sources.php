@@ -2559,8 +2559,8 @@ const AVESMAPS_MAP_FEATURES_SOURCE_ENTITY_TYPES = ['settlement', 'region', 'path
 /**
  * Hängt einer Katalogzeile ihren Korpusschlüssel an -- die EINE Stelle, die das tut.
  *
- * 💣 ES GIBT ZWEI ERZEUGER VON KATALOGZEILEN, und dass nur einer den Schlüssel setzte, war am
- * 02.09.2026 live ein Fehler. Neben dieser Datei baut `avesmapsMapFeaturesMergeLegacyOtherSources`
+ * 💣 ES GAB ZWEI ERZEUGER VON KATALOGZEILEN (bis zum 03.09.2026), und dass nur einer den Schlüssel setzte, war am
+ * 02.09.2026 live ein Fehler. Neben dieser Datei baute `avesmapsMapFeaturesMergeLegacyOtherSources`
  * (api/app/map-features.php) Zeilen unter synthetischen `os:`-Kennungen -- die Altquellen aus
  * `properties.other_source`, die nie in den Katalog übernommen wurden. Genau die tragen die
  * nichtssagenden Titel, um derentwillen es Variante A gibt: von 186 Zeilen mit dem Titel
@@ -2717,7 +2717,7 @@ function avesmapsLoadFeatureSourceRefs(PDO $pdo): array {
 
 // feature_type -> der entity_type, unter dem die Quellen dieses Objekts stehen. VIER Eintraege,
 // nicht drei: `powerline` fehlte in der ersten Fassung, weil sie aus
-// avesmapsMapFeaturesMergeLegacyOtherSources abgeschrieben wurde -- deren Kommentar „only these
+// dem frueheren os:-Erzeuger (avesmapsMapFeaturesMergeLegacyOtherSources, bis 03.09.2026) abgeschrieben wurde -- dessen Kommentar „only these
 // three feature types are in scope" galt fuer die ALTQUELLEN, nicht fuer den Kanon. Kraftlinien
 // tragen `properties.wiki_url` (api/edit/map/powerlines.php:67), stehen in
 // AVESMAPS_MAP_FEATURES_SOURCE_ENTITY_TYPES oben und rendern eine Kanonzeile
@@ -2908,9 +2908,9 @@ function avesmapsPoliticalTerritoryWikiNamespaces(PDO $pdo): array
  * PHP steht und dessen Beschriftung in js/ui/feature-source-markup.js: wer den Text speichert,
  * kann ihn nie uebersetzen und nie umformulieren, ohne den Bestand anzufassen.
  *
- * 💣 NACH avesmapsMapFeaturesMergeLegacyOtherSources AUFRUFEN, nie davor. Die Altquellen aus
- * `properties.other_source` werden dort erst in Katalog und Verweise gefaltet; davor gerechnet
- * bekaeme jedes Objekt, dessen einzige Quelle eine Altquelle ist, gar kein Etikett.
+ * 💣 (Bis zum 03.09.2026: NACH dem os:-Erzeuger avesmapsMapFeaturesMergeLegacyOtherSources aufrufen, nie
+ * davor -- die Altquellen wurden dort erst in Katalog und Verweise gefaltet. Der Erzeuger ist mit Schritt 4
+ * des Quellen-Umbaus gefallen; die Reihenfolgefalle bleibt fuer die uebrigen Anreicherungen lehrreich.)
  *
  * 🔴 DREI EINGAENGE, EINE ANTWORT. Der dritte ist der Wiki-Namensraum des Objekts: ein aus
  * ns 222 uebernommenes Objekt traegt keine eigene Katalogquelle -- sein Artikel steckt in
@@ -3008,9 +3008,9 @@ function avesmapsFeatureSourcesDeriveKanon(array $catalog, array $refs, array $w
         $typen = [];
         $inoffizielle = 0;
         foreach ($liste as $ref) {
-            // 💣 NICHT NACH int WANDELN. Der Katalog traegt neben den echten `sources.id` auch
+            // 💣 NICHT NACH int WANDELN. Der Katalog trug neben den echten `sources.id` bis zum 03.09.2026
             // SYNTHETISCHE Schluessel fuer die Altquellen aus `properties.other_source`:
-            // `'os:' . $publicId` (map-features.php, avesmapsMapFeaturesMergeLegacyOtherSources).
+            // `'os:' . $publicId` (der os:-Erzeuger, seit Schritt 4 des Quellen-Umbaus weg). Die Regel bleibt:
             // `(int) 'os:abc'` ist 0, der Verweis fand nie eine Katalogzeile und wurde als
             // „ohne Aussage" verworfen -- ausgerechnet der Fall, den der Docblock oben als
             // abgewendet beschreibt. Ein Objekt, dessen EINZIGE Quelle eine Altquelle ist, bekam
