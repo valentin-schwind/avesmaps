@@ -568,11 +568,16 @@ Wiki-Zuweisung (sechs Fassungen) und dem Reichweiten-Rahmen (vier) schon dreimal
     🚩 Der Versuch, `solid` „hier fängst du an“ und `dashed` „so weit reicht es“
     bedeuten zu lassen, war eine erfundene Bedeutung, die niemand liest — sie hat
     nur die zwei Formulare verschieden aussehen lassen.
-  - **Die Aufschrift ist 11px/700/Versalien** in `--color-accent-brown` (11px ist
-    die Untergrenze aus §Typography; die Eingabezeile stand auf 10). Eine
-    **Reichweitenangabe** daneben („40 Quellen · 51 Objekte“) ist 11px/400,
-    `--color-text-muted`, **ohne** Versalien — ein Eigenname in Versalien
-    („ALBERNIAWIKI“) liest sich wie eine Kennung.
+  - **Die Aufschrift ist 11px/700/Versalien** (11px ist die Untergrenze aus
+    §Typography; die Eingabezeile stand auf 10). Eine **Reichweitenangabe**
+    daneben („40 Quellen · 51 Objekte“) ist 11px/400, `--color-text-muted`,
+    **ohne** Versalien — ein Eigenname in Versalien („ALBERNIAWIKI“) liest sich
+    wie eine Kennung.
+    🔴 **Die FARBE steht seit dem 04.09.2026 nicht mehr hier**, sondern in
+    §Rahmenkasten: `--color-accent-strong`. Hier stand `--color-accent-brown`,
+    und das war ab dem Umbau auf das geteilte Bauteil eine zweite, falsche
+    Angabe zur selben Sache — wer den Guide von unten nach oben liest, hätte
+    zwei Farben für eine Aufschrift gefunden.
   - **Nichts im Rahmen darf seiner Aufschrift widersprechen.** Ein Bedienelement
     „nur diese Quelle“ im Rahmen „Gilt für den ganzen Korpus“ hebt die Aufschrift
     auf. Eine Ausnahme gehört an den **Fuß** des Rahmens, einmal und benannt, nie

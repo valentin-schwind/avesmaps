@@ -370,10 +370,17 @@
 	color: var(--color-text-strong);
 }
 
+/* 💣 `box-shadow: var(--focus-ring)`, NIE ein eigener `outline`. Hier stand einen Commit lang
+   `outline: 2px solid var(--color-focus-ring)` -- diesen Token gibt es im Haus NICHT (es heisst
+   `--color-focus`, und der fertige Ring `--focus-ring`). Ein `var()` auf eine nicht deklarierte
+   Custom Property ohne Rueckfall macht die GANZE Kurzform ungueltig: `outline-style` faellt auf
+   `none`, und wer mit der Tabulatortaste hierherkommt, sieht GAR KEINEN Fokusring. Es wird
+   nichts rot dabei, und im Bild sieht man es nur, wenn man wirklich tabbt.
+   ⭐ Jede andere Fokus-Stelle dieser Datei macht es so; AGENTS.md §12: ein warmer Goldschein,
+   nie der blaue Ring des Browsers. */
 .planner-group__toggle:focus-visible {
-	outline: 2px solid var(--color-focus-ring);
-	outline-offset: 2px;
-	border-radius: var(--radius-sm);
+	box-shadow: var(--focus-ring);
+	outline: none;
 }
 
 /* 🔴 Groesse, Gewicht, Versalien und Farbe des Titels kommen vom Bauteil (.avm-rahmen__titel).
@@ -386,6 +393,12 @@
    war der Kopf ein Flex-Container, und dort greift `text-overflow` nicht.
    💣 Und `display: none` statt `max-width: 0`: an einem inline-Element wirkt `max-width` nicht.
    Sie blendet sich stattdessen ein, sobald sie erscheint. */
+/* ⚠️ KRAEFTIG, nicht gedaempft -- und das weicht bewusst vom Mockup ab (dort ist die
+   Zusammenfassung `--color-text-muted` / `--font-size-caption`, wie der Zusatz neben der
+   Aufschrift). Der Unterschied ist die ROLLE: der Zusatz erklaert die Aufschrift („— welcher,
+   sagt die Adresse“), die Zusammenfassung IST der eingestellte Wert und der einzige Grund,
+   warum das Zuklappen etwas taugt. Sie zu daempfen naehme der zugeklappten Leiste ihren Inhalt.
+   Die Werte sind die von vor dem Umbau -- hier wurde nichts veraendert, nur nicht angeglichen. */
 .planner-group__summary {
 	margin-left: 5px;
 	color: var(--color-text-strong);
