@@ -111,13 +111,38 @@ DIALOG_FELDER.forEach(([rel, selector, name]) => {
 });
 
 // Und die Fenster muessen scrollen, sonst waere das Wachsen der Felder ein Ueberlauf.
-[["css/components/location-report-dialog.css", "Meldedialog"],
- ["css/features/location-reviews.css", "Bewertungen"],
+[["css/features/location-reviews.css", "Bewertungen"],
  ["css/components/legal-dialog.css", "Hinweise"]].forEach(([rel, name]) => {
 	const css = withoutComments(read(...rel.split("/")));
 	assert.ok(/overflow-y:\s*auto/.test(css),
 		`${name} scrollt -- daran haengt, dass die groesseren Felder nicht ueberlaufen`);
 });
+
+// 🔴 DER MELDEDIALOG SCROLLT SEIT 04.09.2026 WOANDERS -- und das ist der Sinn der Aenderung.
+//    Vorher trug die HUELLE `overflow-y: auto`: das ganze Fenster lief, Titel und "Speichern"
+//    wanderten aus dem Bild (Owner: "…um zum speichern zu kommen und den titel aus den augen
+//    verliere"). Jetzt laeuft der RUMPF, und der ist `.avm-fenster__rumpf` aus dem Bauteil.
+// 💣 Die Sorge dieses Tests bleibt dieselbe -- die groesseren Felder duerfen nicht ueberlaufen --,
+//    also wird sie weiter geprueft, nur an der Stelle, die sie jetzt einloest. Und BEIDE Haelften:
+//    die Regel im Bauteil UND dass die neun Fenster sie wirklich tragen. Eine Haelfte allein
+//    waere nichts wert.
+const bauteilCss = withoutComments(read("css", "components", "fenster.css"));
+const rumpfRegel = /\.avm-fenster__rumpf\s*\{([^}]*)\}/.exec(bauteilCss);
+assert.ok(rumpfRegel && /overflow:\s*auto/.test(rumpfRegel[1]),
+	"Meldedialog scrollt -- der Rumpf des Fenster-Bauteils muss `overflow: auto` tragen");
+assert.ok(rumpfRegel && /min-height:\s*0/.test(rumpfRegel[1]),
+	"`min-height: 0` fehlt am Rumpf -- ein Flex-Kind schrumpft sonst nicht unter seinen Inhalt, "
+	+ "`overflow: auto` greift nie, und es scrollt wieder die Huelle");
+// ⚠️ Eigener Name: `indexHtml` ist in dieser Datei schon vergeben (weiter oben). Ein zweites
+//    `const` desselben Namens ist ein SyntaxError -- und der macht den Test rot, BEVOR eine
+//    einzige Zusicherung laeuft. Beim Bau am 04.09.2026 haben dadurch drei Mutationsproben
+//    "gefangen" gemeldet, die in Wahrheit nur diesen Syntaxfehler sahen.
+const rumpfMarkup = read("index.html");
+const traeger = (rumpfMarkup.match(/class="location-report-form[^"]*avm-fenster__rumpf/g) || []).length
+	+ (rumpfMarkup.match(/class="avm-fenster__rumpf"/g) || []).length;
+assert.ok(traeger >= 9,
+	`nur ${traeger} Fenster tragen den Rumpf -- es sind neun Blaetter, die diese Huelle teilen; `
+	+ "fehlt einem der Rumpf, scrollt dort wieder das ganze Fenster");
 
 // ---- Die Suchkachel: EINE Regel mit ihren Nachbarn ------------------------------------------------
 //

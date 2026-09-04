@@ -1,58 +1,24 @@
+/* 🔴 KOPFZEILE, TITEL, SCHLIESSKNOPF, HUELLE UND RUMPF-SCROLL GEHOEREN DEM BAUTEIL
+      (css/components/fenster.css). Diese eine Regel trug NEUN Fenster -- Ort melden, Ort
+      bearbeiten, Weg, Kraftlinie, Beschriftung, Herrschaftsgebiet, Rezension, WikiSync-Fall
+      und Dump-Zugangsdaten -- und damit war jede Abweichung hier neunfach sichtbar.
+   💣 `overflow-y: auto` stand an der HUELLE: das ganze Fenster scrollte, Titel und
+      "Speichern" wanderten aus dem Bild. Owner 04.09.2026, ueber genau dieses Fenster:
+      "…um zum speichern zu kommen und den titel aus den augen verliere". Jetzt scrollt der
+      Rumpf (.avm-fenster__rumpf), und Kopf und Knopfleiste stehen.
+   ⚠️ Was BLEIBT: Breite und Hoehe. Das ist die Eigenart dieser Fenster, alles andere ist die
+      Form des Hauses. Hier nichts davon wieder hinschreiben. */
 .location-report-dialog {
 	width: min(520px, 100%);
 	max-height: min(86vh, 760px);
-	overflow-y: auto;
-	overflow-x: hidden;
-	padding: 18px;
-	border: 1px solid var(--color-border);
-	border-radius: var(--radius-lg);
-	background: var(--color-panel);
-	box-shadow: var(--shadow-dialog);
-	color: var(--color-text);
+	/* 🔴 DIE KANTE, LOKAL -- wie bei den anderen umgestellten Fenstern. --avm-col-pad steht
+	   global noch auf 12 (tokens.css sagt warum: neun Fenster lesen ihn gleichzeitig).
+	   Sie faellt, sobald der globale Wert nachzieht. */
+	--avm-col-pad: var(--space-6) var(--space-12);
 }
 
 .location-report-dialog:focus {
 	outline: none;
-}
-
-.location-report-dialog__header {
-	display: flex;
-	align-items: flex-start;
-	justify-content: space-between;
-	gap: 12px;
-	margin-bottom: 10px;
-}
-
-.location-report-dialog__header h2 {
-	margin: 0;
-	font-size: var(--font-size-title);
-	color: var(--color-text-strong);
-}
-
-.location-report-dialog__close {
-	border: none;
-	background: transparent;
-	color: var(--color-text-muted);
-	cursor: pointer;
-	font-size: 20px;
-	line-height: 1;
-	width: 30px;
-	height: 30px;
-	border-radius: var(--radius-md);
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	transition: background 0.15s ease, color 0.15s ease;
-}
-
-.location-report-dialog__close:hover {
-	background: var(--color-hover-wash);
-	color: var(--color-text-strong);
-}
-
-.location-report-dialog__close:disabled {
-	cursor: wait;
-	opacity: 0.5;
 }
 
 .location-report-dialog__intro {
@@ -72,18 +38,11 @@
 	line-height: 1.45;
 }
 
+/* „Karteneintrag melden" ist breiter und darf hoeher werden -- der Rest kommt aus dem Bauteil.
+   Das eigene Polster (14/16) ist gefallen: es war die zehnte Zahl fuer denselben Zweck. */
 #location-report-dialog {
 	width: min(620px, 100%);
 	max-height: calc(100vh - 24px);
-	padding: 14px 16px;
-}
-
-#location-report-dialog .location-report-dialog__header {
-	margin-bottom: 6px;
-}
-
-#location-report-dialog .location-report-dialog__header h2 {
-	font-size: var(--font-size-subhead);
 }
 
 #location-report-dialog .location-report-dialog__intro {
@@ -98,10 +57,12 @@
 	line-height: 1.3;
 }
 
+/* Das Formular ist zugleich der Rumpf (.avm-fenster__rumpf im Markup): Polster, Hoehe und
+   Scrollen kommen von dort, hier steht nur der Fluss seiner Felder. */
 .location-report-form {
 	display: flex;
 	flex-direction: column;
-	gap: 12px;
+	gap: var(--space-10);
 }
 
 #location-report-dialog .location-report-form {
@@ -498,10 +459,34 @@
 	text-decoration: none;
 }
 
+/* 🔴 DIE KNOPFLEISTE KLEBT AM FUSS DES RUMPFES -- das ist die zweite Haelfte der Owner-Meldung.
+      Der Kopf steht schon, weil er ausserhalb des Rumpfes liegt; die Knoepfe liegen INNERHALB
+      (sie gehoeren zum <form> und muessen es), also halten sie sich per `sticky`.
+   💣 KEIN Umbau des Markups: die Knoepfe aus dem Formular herauszuziehen hiesse, sie ueber das
+      `form`-Attribut wieder anzubinden -- an NEUN Fenstern, mit neun Gelegenheiten, das
+      Absenden zu brechen. `sticky` erreicht dasselbe und fasst kein einziges <button> an.
+   💣 Der Grund ist NICHT durchsichtig, sonst scrollen die Felder sichtbar dahinter durch; und
+      das negative Seitenpolster laesst die Linie von Kante zu Kante laufen -- der Rumpf traegt
+      `--avm-col-pad`, also ist es genau dieser Wert und keine freie Zahl. */
 .location-report-form__actions {
+	position: sticky;
+	/* 💣 `bottom: 0`, NICHT ein negativer Wert. Mein erster Versuch stand auf
+	   `bottom: calc(-1 * var(--space-6))`, um das untere Rumpfpolster auszugleichen -- gemessen
+	   wanderte die Leiste beim Scrollen ans Ende dadurch 8px nach oben. Sie soll gar nicht
+	   wandern. Das Polster wird stattdessen per negativem AUSSENrand aufgehoben; damit liegt
+	   die Leiste buendig am Rumpfende und steht. Nachgemessen: 0px Bewegung. */
+	bottom: 0;
+	z-index: 1;
 	display: flex;
 	justify-content: flex-end;
-	gap: 10px;
+	gap: var(--space-8);
+	/* Seitlich und unten aus dem Rumpfpolster heraus, damit die Linie von Kante zu Kante laeuft.
+	   🔴 Die Werte sind die des Rumpfes (--avm-col-pad = --space-6 --space-12), keine freien
+	   Zahlen -- wer das Polster aendert, aendert sie hier mit. */
+	margin: 0 calc(-1 * var(--space-12)) calc(-1 * var(--space-6));
+	padding: var(--space-6) var(--space-12);
+	border-top: 1px solid var(--color-divider);
+	background: var(--color-panel);
 }
 
 .location-report-form__button {
