@@ -141,6 +141,43 @@ assert(in_array('#PnPde', AVESMAPS_SOCIAL_HASHTAG_VOCABULARY, true)
     'the German-language pen-and-paper tag, not the worldwide one');
 
 
+// ---- Links zaehlen, wie das NETZ zaehlt (05.09.2026) ----------------------------------------------------
+
+// 💣 Mastodon reserviert je Adresse 23 Zeichen (`characters_reserved_per_url`, api/v2/instance) -- egal wie
+// lang sie ist. Unser Zaehler mass die Adresse echt: ein 12-Zeichen-Link zaehlte 12, drueben 23. In der
+// Richtung „zu wenig gezaehlt" faellt der Beitrag erst im Relais, eine halbe Stunde nach dem Klick.
+$probe = avesmapsSocialChannel('probe');
+$lang = 'https://avesmaps.de/?pin=504.53,501.076&mapLayerMode=political';
+assert(mb_strlen($lang) === 62, 'Fixture: der lange Link hat 62 Zeichen');
+assert(avesmapsSocialZeichenzahl('Schau: ' . $lang, 23) === 7 + 23, 'ein 62-Zeichen-Link zaehlt bei 23 genau 23');
+assert(avesmapsSocialZeichenzahl('Schau: https://a.de', 23) === 7 + 23,
+    'und ein 12-Zeichen-Link EBENFALLS 23 -- das ist die gefaehrliche Richtung');
+assert(avesmapsSocialZeichenzahl('Schau: ' . $lang, null) === 7 + 62, 'null heisst: so lang, wie er ist');
+assert(avesmapsSocialZeichenzahl('avesmaps.de ohne Schema', 23) === 23,
+    'eine nackte Domain ist fuer Mastodon KEIN Link und zaehlt echt');
+assert(avesmapsSocialZeichenzahl('https://a.de https://b.de', 23) === 23 + 1 + 23, 'zwei Links zaehlen zweimal');
+assert(avesmapsSocialZeichenzahl('', 23) === 0, 'leer bleibt leer');
+
+$mitLink = avesmapsSocialCompose('Schau: ' . $lang, ['#DSA'], $mastodon);
+assert($mitLink['text_chars'] === 30, 'mastodon: der Text mit Link zaehlt gewichtet');
+assert($mitLink['total_chars'] === 30 + mb_strlen("\n\n#DSA"), 'und die Summe auch -- DERSELBE Zaehler fuer beide Haelften');
+assert($mitLink['hashtag_chars'] === $mitLink['total_chars'] - $mitLink['text_chars'], 'die Haelften addieren sich weiterhin');
+$echt = avesmapsSocialCompose('Schau: ' . $lang, ['#DSA'], $probe);
+assert($echt['text_chars'] === 69, 'die Probe zaehlt den Link echt (url_chars null)');
+
+// Der Fall, der frueher durchging: 478 x, Leerzeichen, 12-Zeichen-Link = 491 echt, drueben 478 + 1 + 23 = 502.
+$knapp = str_repeat('x', 478) . ' https://a.de';
+assert(mb_strlen($knapp) === 491, 'Fixture: 491 echte Zeichen');
+$treffer = avesmapsSocialWorstOverLimit($knapp, [], ['mastodon', 'probe']);
+assert($treffer !== null && $treffer['key'] === 'mastodon' && $treffer['total_chars'] === 502 && $treffer['over_by'] === 2,
+    'bei Mastodon ist das ueber der Decke -- der Zaehler sagt es JETZT, nicht das Relais eine halbe Stunde spaeter');
+assert(avesmapsSocialWorstOverLimit($knapp, [], ['probe']) === null, 'bei der Probe (echt gezaehlt, 491) passt es');
+// Und die Anzeige-Decke: bei Gleichstand 500/500 gewinnt der Kanal mit Gewichtung, nicht die Reihenfolge.
+$decke = avesmapsSocialStrictestLimit(['probe', 'mastodon']);
+assert($decke['key'] === 'mastodon' && $decke['url_chars'] === 23,
+    'Probe vor Mastodon im Aufruf -- trotzdem ist Mastodon die Decke, denn es zaehlt Adressen schwerer');
+assert(avesmapsSocialStrictestLimit(['instagram'])['url_chars'] === null, 'ohne Mastodon zaehlt die Decke echt');
+
 // ---- the ceiling a routine proposal must clear ---------------------------------------------------------
 
 // 💣 THE FAILURE THIS EXISTS FOR (16.08.2026): the feature routine filed a proposal whose text was

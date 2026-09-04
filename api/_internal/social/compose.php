@@ -80,6 +80,31 @@ function avesmapsSocialNormalizeHashtags(array|string $raw): array
 }
 
 /**
+ * Adressen im Text, wie das Netz sie sieht: alles ab http(s):// bis zum naechsten Leerraum.
+ * ⚠️ Bewusst nur MIT Schema -- Mastodon rechnet nackte Domains („avesmaps.de") nicht als Link.
+ */
+const AVESMAPS_SOCIAL_URL_PATTERN = '~https?://\S+~iu';
+
+/**
+ * Zeichenzahl eines Textes, wie ein Kanal sie zaehlt.
+ *
+ * `$urlChars` null: mb_strlen, so lang wie der Text ist. Sonst zaehlt jede Adresse genau `$urlChars`
+ * Zeichen -- Mastodon reserviert 23 je Link (`characters_reserved_per_url`, api/v2/instance): ein
+ * 62-Zeichen-Link kostet dort 23, und ein 12-Zeichen-Link EBENFALLS 23. Die zweite Richtung ist die
+ * gefaehrliche: echt gezaehlt 491, drueben 502 -- und der Beitrag faellt erst im Relais, eine halbe
+ * Stunde nach dem Klick, mit einer Meldung, die niemand mehr sieht.
+ */
+function avesmapsSocialZeichenzahl(string $text, ?int $urlChars): int
+{
+    if ($urlChars === null) {
+        return mb_strlen($text);
+    }
+    $gewichtet = preg_replace(AVESMAPS_SOCIAL_URL_PATTERN, str_repeat('x', max(0, $urlChars)), $text);
+
+    return mb_strlen($gewichtet ?? $text);
+}
+
+/**
  * Assemble the caption for ONE channel and report the numbers behind the counter.
  *
  * @param list<string>|string  $hashtags Raw or already normalised -- this normalises either way, so
@@ -104,8 +129,11 @@ function avesmapsSocialCompose(string $text, array|string $hashtags, array $chan
         $caption = ($text === '' ? '' : $text . AVESMAPS_SOCIAL_HASHTAG_SEPARATOR) . implode(' ', $tags);
     }
 
-    $textChars = mb_strlen($text);
-    $totalChars = mb_strlen($caption);
+    // 💣 Gezaehlt wird, wie das NETZ zaehlt (Register `url_chars`: Mastodon 23 je Adresse, sonst null).
+    // Beide Haelften durch DENSELBEN Zaehler, sonst addieren sich Text und Hashtags nicht zur Summe.
+    $urlChars = isset($channel['url_chars']) ? (int) $channel['url_chars'] : null;
+    $textChars = avesmapsSocialZeichenzahl($text, $urlChars);
+    $totalChars = avesmapsSocialZeichenzahl($caption, $urlChars);
     $maxChars = $channel['max_chars'] ?? null;
 
     return [
@@ -127,24 +155,29 @@ function avesmapsSocialCompose(string $text, array|string $hashtags, array $chan
  * read like a bug in the counter rather than like "no channel checked".
  *
  * @param list<string> $channelKeys
- * @return array{key: string|null, label: string, max_chars: int|null}
+ * @return array{key: string|null, label: string, max_chars: int|null, url_chars: int|null}
  */
 function avesmapsSocialStrictestLimit(array $channelKeys): array
 {
-    $best = ['key' => null, 'label' => '', 'max_chars' => null];
+    $best = ['key' => null, 'label' => '', 'max_chars' => null, 'url_chars' => null];
     foreach ($channelKeys as $key) {
         $channel = avesmapsSocialChannel((string) $key);
         if ($channel === null || $channel['max_chars'] === null) {
             continue;
         }
         $limit = (int) $channel['max_chars'];
-        if ($best['max_chars'] === null || $limit < $best['max_chars']) {
+        $urlChars = isset($channel['url_chars']) ? (int) $channel['url_chars'] : null;
+        // 💣 Bei GLEICHER Decke gewinnt der Kanal, der Adressen schwerer zaehlt (Probe und Mastodon stehen
+        // beide auf 500) -- sonst entschiede die Reihenfolge im Register. Spiegel von strictestLimit im Hub.
+        $gleichAberSchwerer = $limit === $best['max_chars'] && $best['url_chars'] === null && $urlChars !== null;
+        if ($best['max_chars'] === null || $limit < $best['max_chars'] || $gleichAberSchwerer) {
             $best = [
                 'key' => (string) $key,
                 // The counter names the channel in human words ("Mastodon 500"), not by key -- a bare
                 // number leaves the editor guessing which network is holding them back.
                 'label' => (string) $channel['label'],
                 'max_chars' => $limit,
+                'url_chars' => $urlChars,
             ];
         }
     }

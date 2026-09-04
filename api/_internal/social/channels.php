@@ -64,6 +64,10 @@ const AVESMAPS_SOCIAL_CHANNELS = [
         'requires_media' => false,
         'shows_media' => false,
         'clickable_links' => true,
+        // Wie viele Zeichen eine Adresse im Netz drueben ZAEHLT -- null heisst „so lang, wie sie ist".
+        // Mastodon rechnet jede als 23 (`characters_reserved_per_url`); unser Zaehler tat es bis zum
+        // 05.09.2026 nicht, und ein kurzer Link zaehlte damit zu WENIG -- der Beitrag fiel erst im Relais.
+        'url_chars' => null,
         // Die Probe sendet an kein Netz, kann also auch nichts erklären. Sie schreibt die Erklärung
         // aber IN ihren Merkzettel (adapters/probe.php) -- das ist der Sinn der Generalprobe.
         'ai_label' => false,
@@ -97,6 +101,7 @@ const AVESMAPS_SOCIAL_CHANNELS = [
         'requires_media' => false,
         'shows_media' => false,
         'clickable_links' => true,
+        'url_chars' => null,
         // „Neuigkeiten" schreibt in unsere EIGENE Tabelle, nicht an ein fremdes Netz -- es gibt
         // niemanden, dem etwas zu erklären wäre.
         'ai_label' => false,
@@ -135,6 +140,7 @@ const AVESMAPS_SOCIAL_CHANNELS = [
         'requires_media' => true,
         'shows_media' => true,
         'clickable_links' => false,
+        'url_chars' => null,
         // `is_ai_generated` am Behälter. ⭐ Der einzige Kanal, bei dem die Erklärung IMMER ankommt --
         // er verlangt ohnehin ein Bild, und genau daran hängt sie. Seit dem 18.08.2026 auch der
         // EINZIGE überhaupt: gemessen an Beitrag 30, der auf Instagram gekennzeichnet durchging und
@@ -176,6 +182,7 @@ const AVESMAPS_SOCIAL_CHANNELS = [
         'requires_media' => false,
         'shows_media' => true,
         'clickable_links' => true,
+        'url_chars' => null,
         // 🔴 `false` SEIT DEM 18.08.2026, UND ZWAR GEMESSEN: Meta lehnt `provenance_info` für unsere
         // App mit `(#100) Missing Permission` ab. Nicht „Invalid parameter" -- das Feld ist echt und
         // wird erkannt, wir dürfen es nur nicht setzen. Metas `/photos`-Doku nennt dafür KEINE eigene
@@ -246,6 +253,9 @@ const AVESMAPS_SOCIAL_CHANNELS = [
         'requires_media' => false,
         'shows_media' => true,
         'clickable_links' => true,
+        // 🔴 Gemessen an `api/v2/instance` (`characters_reserved_per_url`), nicht geglaubt -- dieselbe
+        // Antwort, aus der die 500 stammen. Jede Adresse zaehlt drueben genau so viel, egal wie lang.
+        'url_chars' => 23,
         // 🔴 Mastodon kennt KEIN solches Feld: `POST /api/v1/statuses` nimmt status, media_ids, poll,
         // sensitive, spoiler_text, visibility, language, scheduled_at … und nichts zur Herkunft
         // (Doku gemessen 16.08.2026). Bewusste Lücke, keine Baustelle -- es gibt drüben nichts zu
@@ -445,6 +455,8 @@ function avesmapsSocialChannelList(array $socialConfig, array $tokenKeys, array 
             // Und ob der Editor sie dort von Hand nachtragen muss (Facebook: ja).
             'ai_label_manual' => $channel['ai_label_manual'],
             'clickable_links' => $channel['clickable_links'],
+            // Wie das Netz Adressen zaehlt (Mastodon 23): der Browser-Zaehler misst damit wie der Server.
+            'url_chars' => $channel['url_chars'],
             'configured' => avesmapsSocialChannelIsConfigured($key, $socialConfig, $tokenKeys),
             // Kann der Server den Zugang selbst herstellen? Nur DASS es geht reist mit, nie WIE --
             // der Weg samt App-Geheimnis bleibt serverseitig.

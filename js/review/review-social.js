@@ -82,12 +82,22 @@
 	// Spiegelt avesmapsSocialStrictestLimit. ⚠️ Der Server prueft dasselbe noch einmal in
 	// avesmapsSocialCheckTarget -- diese Haelfte ist die Bequemlichkeit, nicht der Riegel.
 	function strictestLimit(channels, selectedKeys) {
-		let best = { key: null, label: "", max_chars: null };
+		let best = { key: null, label: "", max_chars: null, url_chars: null };
 		(channels || []).forEach(function (channel) {
 			if (selectedKeys.indexOf(channel.key) === -1) { return; }
 			if (channel.max_chars === null || channel.max_chars === undefined) { return; }
-			if (best.max_chars === null || channel.max_chars < best.max_chars) {
-				best = { key: channel.key, label: channel.label, max_chars: channel.max_chars };
+			// 💣 Bei GLEICHER Decke gewinnt der Kanal, der Adressen schwerer zaehlt (Probe und Mastodon
+			// stehen beide auf 500): sonst entschiede die Reihenfolge im Register, und der Zaehler
+			// zaehlte einen Mastodon-Link echt -- genau die Richtung, in der der Beitrag erst im Relais faellt.
+			const kanalUrl = channel.url_chars === undefined ? null : channel.url_chars;
+			const gleichAberSchwerer = channel.max_chars === best.max_chars && best.url_chars === null && kanalUrl !== null;
+			if (best.max_chars === null || channel.max_chars < best.max_chars || gleichAberSchwerer) {
+				best = {
+					key: channel.key, label: channel.label, max_chars: channel.max_chars,
+					// Wie der engste Kanal Adressen zaehlt (Register `url_chars`, Mastodon 23): der Zaehler
+					// misst gegen SEINE Decke, also auch mit SEINER Gewichtung.
+					url_chars: kanalUrl
+				};
 			}
 		});
 		return best;
@@ -107,6 +117,18 @@
 		// „267 / 500 (Probe)" war eine Formel, die man erst entziffern muss: woher die 500 kommt und
 		// was der Kanal in der Klammer damit zu tun hat, stand nirgends. Jetzt sagt die Zeile es.
 		return left + " von " + limit.max_chars + " Zeichen (engster Kanal: " + limit.label + ")";
+	}
+
+	// Spiegelt avesmapsSocialZeichenzahl (compose.php): eine Adresse zaehlt `urlChars` Zeichen, wenn der
+	// Kanal das so will (Mastodon 23 -- ein 12-Zeichen-Link EBENFALLS 23), sonst so lang, wie sie ist.
+	// 💣 Nur MIT Schema: SOCIAL_LINK_PATTERN weiter unten faengt auch nackte Domains, weil es vor einer
+	// Adresse WARNT -- Mastodon rechnet die aber nicht als Link. Zwei Fragen, zwei Muster.
+	// Rein und exportiert. Der Riegel ist der Server (avesmapsSocialCheckTarget); das hier ist der Zaehler.
+	const SOCIAL_URL_ZAEHL_PATTERN = /https?:\/\/\S+/gi;
+	function zeichenzahl(text, urlChars) {
+		const s = text || "";
+		if (urlChars === null || urlChars === undefined) { return s.length; }
+		return s.replace(SOCIAL_URL_ZAEHL_PATTERN, "x".repeat(Math.max(0, urlChars))).length;
 	}
 
 	// Wann laeuft der Zugang eines Kanals ab? DREI Zustaende, und der Unterschied zwischen zweien davon
@@ -660,8 +682,11 @@
 
 		const counter = el("social-count");
 		if (counter) {
-			counter.textContent = formatCount(text.length, caption.length - text.length, limit);
-			const over = limit.max_chars !== null && caption.length > limit.max_chars;
+			// Gezaehlt, wie der engste Kanal zaehlt -- beide Haelften mit demselben Zaehler (siehe zeichenzahl).
+			const textZeichen = zeichenzahl(text, limit.url_chars);
+			const captionZeichen = zeichenzahl(caption, limit.url_chars);
+			counter.textContent = formatCount(textZeichen, captionZeichen - textZeichen, limit);
+			const over = limit.max_chars !== null && captionZeichen > limit.max_chars;
 			counter.classList.toggle("social-hub__count--over", over);
 			const publish = el("social-publish");
 			if (publish) { publish.disabled = over || text === "" || keys.length === 0; }
@@ -1525,7 +1550,7 @@
 	}
 
 	if (typeof module !== "undefined" && module.exports) {
-		module.exports = { chipClass, chipLabel, canRetry, strictestLimit, formatCount, postAuthorLabel,
+		module.exports = { chipClass, chipLabel, canRetry, strictestLimit, formatCount, zeichenzahl, postAuthorLabel,
 			formatExpiry, proposalNote, isDraft, linkNoteText, applyCapabilityTo, postSummaryText,
 			joinNames, aiChannelsText, aiWarningText, wartezeitText, RELAIS_WARNUNG_MINUTEN };
 	}

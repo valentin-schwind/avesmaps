@@ -39,6 +39,11 @@ assert($facebook['clickable_links'] === true, 'facebook takes a link');
 
 $mastodon = avesmapsSocialChannel('mastodon');
 assert($mastodon['max_chars'] === 500, 'mastodon: 500 characters');
+// 🔴 Aus derselben Instanz-Antwort wie die 500: `characters_reserved_per_url`. Gemessen, nicht geglaubt.
+assert($mastodon['url_chars'] === 23, 'mastodon: jede Adresse zaehlt 23 Zeichen, egal wie lang');
+assert(avesmapsSocialChannel('probe')['url_chars'] === null, 'die Probe zaehlt Adressen echt');
+assert(avesmapsSocialChannel('facebook')['url_chars'] === null && avesmapsSocialChannel('instagram')['url_chars'] === null,
+    'Meta zaehlt Adressen echt -- null heisst: so lang, wie sie ist, nie 0');
 assert($mastodon['max_hashtags'] === 4, 'mastodon: four');
 
 // ---- die KI-Kennzeichnung (Entwurf 2026-08-16-ki-kennzeichnung-design.md) ------------------------
@@ -78,13 +83,16 @@ assert(avesmapsSocialChannel('probe')['ai_label'] === false,
 foreach (avesmapsSocialChannelKeys() as $key) {
     $channel = avesmapsSocialChannel($key);
     foreach (['label', 'account', 'note', 'max_chars', 'max_hashtags',
-              'requires_media', 'shows_media', 'clickable_links',
+              'requires_media', 'shows_media', 'clickable_links', 'url_chars',
               'ai_label', 'ai_label_needs_media', 'ai_label_manual'] as $field) {
         assert(array_key_exists($field, $channel), $key . ' carries the field ' . $field);
     }
     assert(is_bool($channel['requires_media']), $key . ': requires_media is a real bool');
     assert(is_bool($channel['shows_media']), $key . ': shows_media is a real bool');
     assert(is_bool($channel['clickable_links']), $key . ': clickable_links is a real bool');
+    // null = echt zaehlen; eine Zahl = so viel zaehlt jede Adresse. 0 hiesse: Adressen kosten nichts -- das sagt kein Netz.
+    assert($channel['url_chars'] === null || (is_int($channel['url_chars']) && $channel['url_chars'] > 0),
+        $key . ': url_chars ist null oder eine positive Zahl');
     assert(is_bool($channel['ai_label']), $key . ': ai_label is a real bool');
     assert(is_bool($channel['ai_label_needs_media']), $key . ': ai_label_needs_media is a real bool');
     assert(is_bool($channel['ai_label_manual']), $key . ': ai_label_manual is a real bool');
@@ -177,9 +185,9 @@ foreach ($list as $row) {
     assert(!isset($row['app_secret']), 'no app secret either');
     assert(array_keys($row) === ['key', 'label', 'icon', 'account', 'note', 'max_chars',
         'max_hashtags', 'requires_media', 'shows_media', 'ai_label', 'ai_label_needs_media',
-        'ai_label_manual', 'clickable_links', 'configured', 'connectable', 'links', 'facts',
+        'ai_label_manual', 'clickable_links', 'url_chars', 'configured', 'connectable', 'links', 'facts',
         'access_expires'],
-        'the row carries exactly these eighteen keys -- a field added here reaches the browser');
+        'the row carries exactly these nineteen keys -- a field added here reaches the browser');
     // 🔴 `connect_scopes` steht im Register, darf aber NICHT mitreisen: was ein Token vorweisen muss,
     // ist eine Serverentscheidung. Im Browser waere es eine Liste, die jemand fuer eine Einstellung
     // haelt.

@@ -15,6 +15,7 @@ const {
 	canRetry,
 	strictestLimit,
 	formatCount,
+	zeichenzahl,
 	postAuthorLabel,
 	formatExpiry,
 	proposalNote,
@@ -100,17 +101,17 @@ assert.strictEqual(canRetry(null), false, "und nichts ist auch kein Ziel");
 // ⚠️ The server enforces this again in avesmapsSocialCheckTarget. This half exists for comfort, so the
 // editor sees the ceiling while typing -- it is not the lock.
 const CHANNELS = [
-	{ key: "probe", label: "Probe", max_chars: 500 },
-	{ key: "instagram", label: "Instagram", max_chars: 2200 },
-	{ key: "facebook", label: "Facebook", max_chars: 63206 },
-	{ key: "mastodon", label: "Mastodon", max_chars: 500 },
+	{ key: "probe", label: "Probe", max_chars: 500, url_chars: null },
+	{ key: "instagram", label: "Instagram", max_chars: 2200, url_chars: null },
+	{ key: "facebook", label: "Facebook", max_chars: 63206, url_chars: null },
+	{ key: "mastodon", label: "Mastodon", max_chars: 500, url_chars: 23 },
 ];
 
 assert.deepStrictEqual(strictestLimit(CHANNELS, ["instagram", "mastodon"]),
-	{ key: "mastodon", label: "Mastodon", max_chars: 500 },
+	{ key: "mastodon", label: "Mastodon", max_chars: 500, url_chars: 23 },
 	"mit Mastodon angehakt ist die Decke 500, und der Zaehler muss sie BENENNEN");
 assert.deepStrictEqual(strictestLimit(CHANNELS, ["instagram", "facebook"]),
-	{ key: "instagram", label: "Instagram", max_chars: 2200 },
+	{ key: "instagram", label: "Instagram", max_chars: 2200, url_chars: null },
 	"Mastodon abwaehlen gibt sofort 2200 zurueck");
 assert.strictEqual(strictestLimit(CHANNELS, []).max_chars, null,
 	"nichts angehakt, keine Decke -- NICHT null als 0, das wuerde jeden Beitrag verbieten");
@@ -130,6 +131,23 @@ assert.strictEqual(formatCount(168, 0, { label: "Mastodon", max_chars: 500 }),
 assert.strictEqual(formatCount(168, 61, { label: "", max_chars: null }),
 	"168 + 61 Hashtags = 229 Zeichen",
 	"ohne angehakten Kanal gibt es eine Zahl, aber keine Decke");
+
+// ---- Links zaehlen, wie der engste Kanal zaehlt (05.09.2026) -------------------------------------------
+
+// Spiegel von avesmapsSocialZeichenzahl (compose.php): Mastodon reserviert 23 je Adresse, egal wie lang.
+// 💣 Die gefaehrliche Richtung ist der KURZE Link: echt 491, drueben 502 -- der Beitrag fiel erst im Relais.
+assert.strictEqual(zeichenzahl("Schau: https://avesmaps.de/?pin=504.53,501.076&mapLayerMode=political", 23), 30,
+	"ein 62-Zeichen-Link zaehlt bei 23 genau 23");
+assert.strictEqual(zeichenzahl("Schau: https://a.de", 23), 30, "und ein 12-Zeichen-Link EBENFALLS 23");
+assert.strictEqual(zeichenzahl("Schau: https://a.de", null), 19, "null heisst: so lang, wie er ist");
+assert.strictEqual(zeichenzahl("Schau: https://a.de", undefined), 19, "ein Kanal ohne das Feld zaehlt echt -- nie 0");
+assert.strictEqual(zeichenzahl("avesmaps.de ohne Schema", 23), 23, "eine nackte Domain ist fuer Mastodon KEIN Link");
+assert.strictEqual(zeichenzahl("https://a.de https://b.de", 23), 47, "zwei Links zaehlen zweimal -- das Muster ist global");
+assert.strictEqual(zeichenzahl("", 23), 0, "leer bleibt leer");
+assert.strictEqual(zeichenzahl(undefined, 23), 0, "und kein Text auch");
+assert.strictEqual(strictestLimit(CHANNELS, ["mastodon", "probe"]).url_chars, 23,
+	"die Decke bringt ihre Gewichtung mit -- der Zaehler misst gegen Mastodon, also wie Mastodon");
+assert.strictEqual(strictestLimit(CHANNELS, ["instagram"]).url_chars, null, "und ohne Mastodon zaehlt er echt");
 
 // ---- who wrote it ------------------------------------------------------------------------------------
 
