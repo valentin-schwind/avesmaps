@@ -826,8 +826,8 @@ html.avesmaps-phone.avesmaps-any-panel-open #map-corner-actions {
    ist, und schliesst den jeweils anderen. Der Editor-Rand-Tab (#review-panel-toggle, existiert nur im
    Edit-Mode) rueckt UNTER den Info-Tab (top:30), damit beide lesbar gestapelt sind. */
 .avesmaps-infopanel-mode #review-panel-toggle {
-	top: 180px;
-	height: 140px; /* exakt gleiche Hoehe wie der Info-Tab */
+	top: calc(var(--avesmaps-tab-top) + var(--avesmaps-tab-h) + var(--space-8));
+	height: var(--avesmaps-tab-h); /* exakt gleiche Hoehe wie der Info-Tab */
 	/* Gleiche Optik wie der Info-Tab: gleicher Schatten, nur nach links. Der Editor-Tab ist per
 	   transform: rotate(180deg) gedreht -> ein pre-rotate "4px 0" wird post-rotate zu "-4px 0" (faellt
 	   also ebenfalls nach links). Kein vertikaler Versatz -> kein Doppelschatten zum Info-Tab. */

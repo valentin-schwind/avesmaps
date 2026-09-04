@@ -67,11 +67,11 @@
 
 .review-panel-toggle {
 	position: fixed;
-	top: 30px;
+	top: var(--avesmaps-tab-top);
 	right: min(400px, calc(100vw - 64px));
 	z-index: 1020;
-	width: 30px;
-	height: 140px;
+	width: var(--avesmaps-tab-w);
+	height: var(--avesmaps-tab-h);
 	padding: 0;
 	border: 0;
 	border-radius: 0 5px 5px 0;
