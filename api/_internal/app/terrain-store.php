@@ -130,6 +130,7 @@ function avesmapsTerrainAreaFingerprint(array $areaRow): string
             ? 'null'
             : (string) (int) $areaRow['terrain_erosion']),
         'plateau=' . $number($areaRow['terrain_plateau'] ?? null),
+        'hypso=' . $number($areaRow['terrain_hypsometrie'] ?? null),
         'bergform=' . $number($areaRow['terrain_bergform'] ?? null),
         'rauschen=' . $number($areaRow['terrain_rauschen'] ?? null),
         'talbreite=' . $number($areaRow['terrain_talbreite'] ?? null),
@@ -281,7 +282,7 @@ function avesmapsTerrainHeightmapPut(PDO $pdo, array $payload, int $userId): arr
     }
     $knobs = $pdo->prepare(
         'SELECT terrain_grain, terrain_levels, terrain_avg_height, terrain_mean_height,
-                terrain_erosion, terrain_plateau,
+                terrain_erosion, terrain_plateau, terrain_hypsometrie,
                 terrain_bergform, terrain_rauschen, terrain_talbreite, terrain_einschnitt, terrain_sattel
            FROM ecosystem_area WHERE id = :id'
     );
@@ -357,7 +358,7 @@ function avesmapsTerrainHeightmapStatus(PDO $pdo): array
                 -- `null`, waehrend der Schreibweg sie mit ihrem echten Wert stempelt -- und JEDES
                 -- Raster einer Flaeche mit gesetztem Regler gilt fuer immer als veraltet.
                 -- Zwei Leser derselben Regel, und nur einer nachgezogen, ist keine Regel.
-                a.terrain_erosion, a.terrain_plateau,
+                a.terrain_erosion, a.terrain_plateau, a.terrain_hypsometrie,
                 a.terrain_bergform, a.terrain_rauschen, a.terrain_talbreite,
                 a.terrain_einschnitt, a.terrain_sattel,
                 h.geometry_revision AS stamped_revision, h.terrain_fingerprint, h.peaks_fingerprint,

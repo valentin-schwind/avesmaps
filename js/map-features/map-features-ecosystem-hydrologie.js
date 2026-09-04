@@ -86,6 +86,22 @@ const ECOSYSTEM_HYDRO_EROSION_VORGABE = 3;
 // (Owner 04.09.2026, am Bild: „es sollte mit uebereinstimmung zum rand beginnen und immer mehr zum
 // kamm wandern").
 const ECOSYSTEM_HYDRO_PLATEAU_VORGABE = 1;
+// 🔴 DIE HYPSOMETRIE -- das hypsometrische Integral (Strahler 1952), also
+//   HI = (mittlere Hoehe - min) / (max - min).
+// Bei uns ist das Minimum 0 (Fusshoehen-Invariante), das HI ist also schlicht Mittelhoehe geteilt
+// durch Gipfelhoehe. Es beschreibt, wie die FLAECHE sich ueber die Hoehe verteilt: ueber 0,6
+// jugendlich (massig, Hochflaechen erhalten), 0,35 bis 0,6 reif, darunter Altersstadium
+// (Restberge ueber weitem Vorland). Die Alpen liegen um 0,4 bis 0,5.
+// ⭐ 0 heisst „nicht gesetzt" -- dann bleibt die Verteilung, die sich aus Kamm, Rauschen und Erosion
+// ergibt. Live gemessen (04.09.2026): Rote Sichel 0,276, Finsterkamm 0,233, beide im Altersstadium.
+const ECOSYSTEM_HYDRO_HYPSOMETRIE_VORGABE = 0;
+// 💣 DIE KLEMME IST KEINE GESCHMACKSFRAGE, SIE SCHUETZT DIE NAHTSTELLEN. Die Felder zweier
+// ueberlappender Flaechen werden ADDIERT; dass das keine Stufe gibt, haengt allein daran, dass jedes
+// zum Rand hin auf 0 auslaeuft. Wie BREIT dieser Auslauf ist, bestimmt die Potenz: unter 0,2 wird
+// aus dem Auslauf eine Wand, und die Naht ist als Kante sichtbar. Die Zahl stammt aus der frueheren
+// Hoehenfunktion, wo sie mit derselben Begruendung steht.
+const ECOSYSTEM_HYDRO_HYPSO_POTENZ_MIN = 0.2;
+const ECOSYSTEM_HYDRO_HYPSO_POTENZ_MAX = 8;
 
 /* ══════════════════════════════════════════════════════════════════════════════════════════════
    1. RASTER UND MASKEN
@@ -439,6 +455,62 @@ function randAbstand(r) {
 	}
 
 	return d;
+}
+
+// Das hypsometrische Integral eines Feldes: (Mittel - Min) / (Max - Min), gemessen INNERHALB.
+function hypsometrischesIntegral(h, drin) {
+	let summe = 0;
+	let n = 0;
+	let max = -Infinity;
+	let min = Infinity;
+	for (let k = 0; k < h.length; k++) {
+		if (!drin[k]) { continue; }
+		summe += h[k];
+		n++;
+		if (h[k] > max) { max = h[k]; }
+		if (h[k] < min) { min = h[k]; }
+	}
+	if (!n || !(max > min)) { return 0; }
+
+	return ((summe / n) - min) / (max - min);
+}
+
+// Das Feld auf ein Ziel-HI ziehen: `h' = max * (h/max)^p`, die Potenz per Bisektion gesucht.
+//
+// 🔴 MULTIPLIKATIV, KEIN SOCKEL. Bei h = 0 ist der Ausdruck exakt 0 -- die Fusshoehen-Invariante
+// bleibt woertlich stehen, und mit ihr die Verschmelzung zweier ueberlappender Flaechen. Ein
+// additiver Sockel („ueberall mindestens X") braeche beides, und zwar unsichtbar bis auf die Naht.
+// 🔴 MONOTON: die Potenz erhaelt die Ordnung, also bleiben Taeler Taeler und Ruecken Ruecken. Sie
+// verzieht nur die Verteilung, nicht die Struktur -- deshalb darf sie NACH der Erosion laufen, ohne
+// deren Rinnennetz zu zerstoeren.
+// ⚠️ Die GIPFEL werden ausgespart und danach zurueckgeschrieben: sie sind Messungen. Damit ist das
+// erreichte HI leicht ungenau, sobald viel Flaeche festgehalten ist -- die Bisektion misst aber ueber
+// ALLE Zellen und konvergiert trotzdem auf das, was mit den freien erreichbar ist.
+function zieheAufHypsometrie(h, drin, fest, ziel) {
+	let max = 0;
+	for (let k = 0; k < h.length; k++) { if (drin[k] && h[k] > max) { max = h[k]; } }
+	if (!(max > 0)) { return { potenz: 1, erreicht: 0 }; }
+	const roh = Float64Array.from(h);
+	const versuch = (potenz) => {
+		for (let k = 0; k < h.length; k++) {
+			if (!drin[k] || roh[k] <= 0) { continue; }
+			h[k] = fest[k] ? roh[k] : max * Math.pow(roh[k] / max, potenz);
+		}
+
+		return hypsometrischesIntegral(h, drin);
+	};
+	// Ein groesseres HI braucht eine KLEINERE Potenz -- die Suche laeuft also absteigend.
+	let lo = ECOSYSTEM_HYDRO_HYPSO_POTENZ_MIN;
+	let hi = ECOSYSTEM_HYDRO_HYPSO_POTENZ_MAX;
+	let potenz = 1;
+	let erreicht = versuch(1);
+	for (let it = 0; it < 24; it++) {
+		potenz = (lo + hi) / 2;
+		erreicht = versuch(potenz);
+		if (erreicht > ziel) { lo = potenz; } else { hi = potenz; }
+	}
+
+	return { potenz, erreicht };
 }
 
 function stempleKamm(r, h, fest, gipfel, sattel, vorgabe, kurve, marke, grundhoehe, plateau) {
@@ -1439,6 +1511,32 @@ function avesmapsGebirgsRasterBauen(eingabe) {
 	//  - der Talboden misst sich am FERTIGEN Grundrelief, sonst schneidet er in etwas, das es
 	//    noch nicht gibt;
 	//  - und das Rauschen liegt DAVOR, sonst schuettet es die Taeler teilweise wieder zu.
+	// 🔴 DIE HYPSOMETRIE STEHT HIER -- nach dem Grundrelief, VOR dem Talabzug und der Erosion.
+	//
+	// 🪤 SIE STAND ZUERST GANZ AM ENDE, mit der plausiblen Begruendung, dass die eingestellte Zahl
+	// dann auch die ist, die am Schluss dasteht. Das ist gemessen falsch: die Potenz spart die
+	// FESTGEHALTENEN Zellen aus (Gipfel und Kamm sind Messungen), und wenn das Gelaende ringsum
+	// steigt, entsteht an jedem Uebergang fest/frei ein Sprung. Entlang der Fluesse, die solche
+	// Uebergaenge queren, brach damit die Monotonie: der gemessene Anstieg sprang von 3.069 auf
+	// **18.238 Schritt** an der Roten Sichel. Monoton ist die Potenz nur, solange sie auf ALLES wirkt.
+	// ⭐ Hier vorne gibt es das Problem nicht: die Taeler werden erst DANACH eingeschnitten, also auf
+	// dem bereits gezogenen Gelaende, und ihre Monotonie entsteht ohnehin aus dem kumulativen
+	// Talboden.
+	// ⚠️ Der Preis ist benannt: Erosion und Talabzug verschieben das HI danach noch, die eingestellte
+	// Zahl ist also ein Ziel fuer das GRUNDRELIEF, nicht fuer das fertige Feld. Der erreichte Wert
+	// reist als `hypso.erreicht` mit heraus, damit man beides vergleichen kann.
+	const hypsoZiel = Number.isFinite(Number(reg.hypsometrie))
+		? Math.max(0, Math.min(1, Number(reg.hypsometrie)))
+		: ECOSYSTEM_HYDRO_HYPSOMETRIE_VORGABE;
+	// 💣 AUSGESPART WERDEN NUR DIE GIPFELKERNE, nicht alles Festgehaltene. Eine Potenz ist nur dann
+	// monoton, wenn sie auf ALLES wirkt; jede ausgesparte Zelle ist ein Sprung gegen ihre Nachbarn.
+	// Mit `fest` (Gipfel UND Kamm) gemessen: der Flussanstieg der Roten Sichel stieg von 3.069 auf
+	// 5.166 Schritt bei HI 0,35 und auf 13.480 bei 0,65 -- die Laeufe queren den Kamm, und dort brach
+	// die Ordnung. Der Kamm wird deshalb MITgezogen; er ist eine gerechnete Form, kein Messwert.
+	// 🔴 Die Gipfelkerne bleiben: sie tragen eine eingetragene Zahl. Dass das gutgeht, ist gemessen --
+	// von 22 Gipfeln liegt keiner naeher als eine halbe Zellweite an einem Lauf.
+	const hypso = hypsoZiel > 0 ? zieheAufHypsometrie(h, r.drin, kern, hypsoZiel) : null;
+
 	const initial = Float64Array.from(h);
 	if (melde) { melde(0.4); }
 
@@ -1602,6 +1700,7 @@ function avesmapsGebirgsRasterBauen(eingabe) {
 	if (melde) { melde(1); }
 
 	return {
+		hypso,
 		r, h: zustand.h, relief, initial, fest, festEro, senke, kern, mantel, kammMaske,
 		fd: zustand.fd, acc: zustand.acc,
 		kamm, kegel, see, fluss, tal, talIndex, schritte, leer: false,
@@ -1620,6 +1719,8 @@ if (typeof module !== "undefined" && module.exports) {
 		fuelleSenken, flussrichtung, akkumuliere, streamPower, diffundiere, erosionsSchritt,
 		avesmapsGebirgsRasterBauen, avesmapsHydroErosionsSchritte, ECOSYSTEM_HYDRO_ZELLWEITE,
 		ECOSYSTEM_HYDRO_EROSIONSSTUFEN, ECOSYSTEM_HYDRO_EROSION_VORGABE,
-		ECOSYSTEM_HYDRO_PLATEAU_VORGABE, randAbstand, ECOSYSTEM_HYDRO_STANDARDHOEHE,
+		ECOSYSTEM_HYDRO_PLATEAU_VORGABE, randAbstand,
+		ECOSYSTEM_HYDRO_HYPSOMETRIE_VORGABE, ECOSYSTEM_HYDRO_HYPSO_POTENZ_MIN,
+		ECOSYSTEM_HYDRO_HYPSO_POTENZ_MAX, hypsometrischesIntegral, zieheAufHypsometrie, ECOSYSTEM_HYDRO_STANDARDHOEHE,
 	};
 }

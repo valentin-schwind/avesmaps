@@ -421,6 +421,17 @@ function avesmapsEcosystemEnsureTables(PDO $pdo): void
         // ⭐ Die Isolinien der Abstandskarte sind geschrumpfte Kopien des Randes, die Wand ist
         // deshalb rundherum gleich breit. Ein Kreisradius um die Kammlinie kann das nicht.
         'terrain_plateau' => 'DECIMAL(4,3)',
+        // 🔴 terrain_hypsometrie -- das hypsometrische Integral (Strahler 1952):
+        //   HI = (mittlere Hoehe - min) / (max - min), bei uns wegen der Fusshoehe 0 einfach
+        //   Mittelhoehe / Gipfelhoehe. Ueber 0,6 jugendlich (massig), 0,35 bis 0,6 reif, darunter
+        //   Altersstadium (Restberge ueber weitem Vorland). Die Alpen liegen um 0,4 bis 0,5.
+        // ⚠️ 0 = nicht gesetzt; dann bleibt die Verteilung, die sich aus Kamm, Rauschen und Erosion
+        //   ergibt. Live gemessen: Rote Sichel 0,276, Finsterkamm 0,233.
+        // 🪤 Sie ERSETZT `terrain_mean_height`, die dasselbe wollte, aber unnormiert (HI mal
+        //   Kammhoehe) und deshalb ohne erkennbare Bedeutung -- und die seit dem V12-Umbau ohnehin
+        //   nirgends mehr gelesen wurde. Jene Spalte bleibt liegen (der Deploy loescht nie), aus dem
+        //   Fenster ist sie raus.
+        'terrain_hypsometrie' => 'DECIMAL(4,3)',
     ] as $column => $type) {
         if (!$areaColumnExists($pdo, $column)) {
             $pdo->exec('ALTER TABLE ecosystem_area ADD COLUMN ' . $column . ' ' . $type . ' NULL');
@@ -1664,6 +1675,7 @@ function avesmapsEcosystemReadAreas(
                 a.terrain_levels,
                 a.terrain_erosion,
                 a.terrain_plateau,
+                a.terrain_hypsometrie,
                 a.terrain_bergform,
                 a.terrain_rauschen,
                 a.terrain_talbreite,
@@ -1737,6 +1749,7 @@ function avesmapsEcosystemReadAreas(
             // null" sind zwei verschiedene Aussagen, und das Modul liest sie verschieden.
             'terrain_erosion' => $row['terrain_erosion'] === null ? null : (int) $row['terrain_erosion'],
             'terrain_plateau' => $row['terrain_plateau'] === null ? null : (float) $row['terrain_plateau'],
+            'terrain_hypsometrie' => $row['terrain_hypsometrie'] === null ? null : (float) $row['terrain_hypsometrie'],
             'terrain_bergform' => $row['terrain_bergform'] === null ? null : (float) $row['terrain_bergform'],
             'terrain_rauschen' => $row['terrain_rauschen'] === null ? null : (float) $row['terrain_rauschen'],
             'terrain_talbreite' => $row['terrain_talbreite'] === null ? null : (float) $row['terrain_talbreite'],
@@ -4641,6 +4654,7 @@ function avesmapsUpdateEcosystemAreaTerrain(PDO $pdo, array $payload, int $userI
     foreach ([
         'terrain_erosion' => [0.0, 5.0],
         'terrain_plateau' => [0.0, 1.0],
+        'terrain_hypsometrie' => [0.0, 0.7],
         'terrain_bergform' => [0.0, 12.0],
         'terrain_rauschen' => [0.0, 1.0],
         'terrain_talbreite' => [0.0, 6.0],
@@ -4678,7 +4692,7 @@ function avesmapsUpdateEcosystemAreaTerrain(PDO $pdo, array $payload, int $userI
 
     $lesenZurueck = $pdo->prepare(
         'SELECT terrain_grain, terrain_levels, terrain_avg_height, terrain_mean_height,
-                terrain_erosion, terrain_plateau,
+                terrain_erosion, terrain_plateau, terrain_hypsometrie,
                 terrain_bergform, terrain_rauschen, terrain_talbreite, terrain_einschnitt,
                 terrain_sattel
            FROM ecosystem_area WHERE public_id = :p LIMIT 1'
@@ -4698,6 +4712,9 @@ function avesmapsUpdateEcosystemAreaTerrain(PDO $pdo, array $payload, int $userI
         // schon einen Regler monatelang wirkungslos gemacht hat.
         'terrain_erosion' => ($row['terrain_erosion'] ?? null) === null ? null : (int) $row['terrain_erosion'],
         'terrain_plateau' => ($row['terrain_plateau'] ?? null) === null ? null : (float) $row['terrain_plateau'],
+        'terrain_hypsometrie' => ($row['terrain_hypsometrie'] ?? null) === null
+            ? null
+            : (float) $row['terrain_hypsometrie'],
         'terrain_bergform' => ($row['terrain_bergform'] ?? null) === null ? null : (float) $row['terrain_bergform'],
         'terrain_rauschen' => ($row['terrain_rauschen'] ?? null) === null ? null : (float) $row['terrain_rauschen'],
         'terrain_talbreite' => ($row['terrain_talbreite'] ?? null) === null ? null : (float) $row['terrain_talbreite'],

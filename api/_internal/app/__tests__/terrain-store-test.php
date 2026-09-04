@@ -67,7 +67,7 @@ assert(avesmapsTerrainAreaFingerprint(['region_type' => 'huegelland'] + $area) !
 // 💣 Ein Regler, der die Rechnung veraendert und nicht im Abdruck steht, laesst das gespeicherte
 // Raster als aktuell gelten, waehrend die Wegfindung mit dem alten Gelaende rechnet und der Editor
 // das neue sieht. Einzeln geprueft, weil ein Bund gruen bliebe, sobald EINER von fuenf durchreicht.
-foreach (['terrain_plateau' => 0.4, 'terrain_bergform' => 3.5, 'terrain_rauschen' => 0.6, 'terrain_talbreite' => 2.5,
+foreach (['terrain_plateau' => 0.4, 'terrain_hypsometrie' => 0.45, 'terrain_bergform' => 3.5, 'terrain_rauschen' => 0.6, 'terrain_talbreite' => 2.5,
           'terrain_einschnitt' => 800.0, 'terrain_sattel' => 0.4] as $spalte => $wert) {
     assert(avesmapsTerrainAreaFingerprint([$spalte => $wert] + $area) !== $base,
         $spalte . ' changes the fingerprint');

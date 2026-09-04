@@ -2152,6 +2152,11 @@
 								<input id="ecosystem-properties-erosion" type="range" min="0" max="5" step="1" />
 								<input id="ecosystem-properties-erosion-num" class="ecosystem-properties-dialog__terrainnum" type="number" min="0" max="5" step="1" inputmode="decimal" aria-label="Wert eingeben" />
 							</label>
+							<label class="ecosystem-properties-dialog__terrainrow" title="Das hypsometrische Integral (Strahler 1952): wie sich die Fl&auml;che &uuml;ber die H&ouml;he verteilt, gemessen als mittlere H&ouml;he geteilt durch Gipfelh&ouml;he. &Uuml;ber 0,6 ein massiges Gebirge mit erhaltenen Hochfl&auml;chen; 0,35 bis 0,6 reif mit kr&auml;ftigem Talnetz; darunter Restberge &uuml;ber weitem Vorland. Die Alpen liegen um 0,4 bis 0,5. 0 = nicht gesetzt, dann bleibt die Verteilung, die sich aus Kamm, Rauschen und Erosion ergibt. &#9888; Zwei Einschr&auml;nkungen: der Wert gilt dem GRUNDRELIEF &mdash; T&auml;ler und Erosion verschieben ihn danach noch nach oben &mdash; und &uuml;ber rund 0,6 s&auml;ttigt der Regler, weil die Flankenpotenz an ihrer Grenze steht (darunter w&uuml;rde aus dem Auslauf am Fl&auml;chenrand eine Wand, und die Naht zweier &uuml;berlappender Gebirge w&auml;re als Kante sichtbar). Wo genau, h&auml;ngt vom Gebirge ab.">
+								<span>Hypsometrie</span>
+								<input id="ecosystem-properties-hypsometrie" type="range" min="0" max="0.7" step="0.01" />
+								<input id="ecosystem-properties-hypsometrie-num" class="ecosystem-properties-dialog__terrainnum" type="number" min="0" max="0.7" step="0.01" inputmode="decimal" aria-label="Wert eingeben" />
+							</label>
 							<label class="ecosystem-properties-dialog__terrainrow" title="Wo die Abbruchkante des Kamms steht, gemessen vom Fl&auml;chenrand. 1 = der Kamm selbst (eine Linie); kleinere Werte schieben die Kante nach au&szlig;en und machen aus dem Kamm eine Plateaufl&auml;che &mdash; bei kleinen Werten ein Tafelberg mit steiler Wand. Die Kante folgt dabei der FORM der Fl&auml;che, die Wand ist also rundherum gleich breit. Gipfel bleiben auf ihrer H&ouml;he und ragen heraus.">
 								<span>Plateau</span>
 								<input id="ecosystem-properties-plateau" type="range" min="0" max="1" step="0.05" />

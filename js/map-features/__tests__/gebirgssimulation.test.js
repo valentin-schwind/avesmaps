@@ -314,6 +314,101 @@ pruefe("ein Gipfel behaelt seine Zahl, auch wenn das Plateau ueber ihn hinwegzie
 	}
 });
 
+pruefe("die Hypsometrie trifft ihr Ziel -- und laesst Gipfel, Rand und Gipfelhoehe stehen", () => {
+	// 🔴 Das hypsometrische Integral (Strahler 1952): HI = (Mittel - Min) / (Max - Min). Bei uns ist
+	// das Minimum 0 (Fusshoehen-Invariante), das HI ist also Mittelhoehe / Gipfelhoehe. Ueber 0,6
+	// jugendlich, 0,35-0,6 reif, darunter Altersstadium. Live gemessen (04.09.2026): Rote Sichel
+	// 0,276, Finsterkamm 0,233 -- beide im Altersstadium.
+	// ⚠️ GEMESSEN WIRD AM GRUNDRELIEF (`o.hypso.erreicht`), nicht am fertigen Feld: Talabzug und
+	// Erosion verschieben das HI danach noch, und der Regler zielt auf das, was er beeinflusst.
+	// ⚠️ NUR ERREICHBARE ZIELE. Ueber einem gewissen HI saettigt der Regler: die Potenz steht dann an
+	// ihrer unteren Klemme (0,2), und die schuetzt die Nahtstellen zweier ueberlappender Flaechen --
+	// darunter wird aus dem Auslauf am Rand eine Wand. Gemessen an dieser Fixture liegt die Grenze bei
+	// rund 0,61; die fruehere Hoehenfunktion nannte fuer ihre Variante 0,67. Wo genau, haengt am
+	// Gebirge, deshalb steht die Saettigung im Hinweistext des Reglers statt als feste Zahl im Code.
+	for (const ziel of [0.25, 0.45, 0.6]) {
+		const o = baue({ regler: { koernung: 4, stufen: 3, bergform: 2, rauschen: 0.3,
+			sattel: 0.75, erosion: 3, hypsometrie: ziel } });
+		assert.ok(o.hypso, "es wurde gar nicht gezogen");
+		assert.ok(Math.abs(o.hypso.erreicht - ziel) < 0.02,
+			"Ziel " + ziel + " verfehlt: erreicht " + o.hypso.erreicht.toFixed(3)
+			+ " (Potenz " + o.hypso.potenz.toFixed(3) + ")");
+		// Die drei Invarianten muessen stehen bleiben.
+		for (const p of GIPFEL) {
+			const gelesen = o.h[(o.r.j(p.y) * o.r.w) + o.r.i(p.x)];
+			assert.ok(Math.abs(gelesen - p.h) < 1,
+				"bei HI " + ziel + " liest der Gipfel " + p.h + " den Wert " + gelesen.toFixed(0));
+		}
+		let randVerletzt = 0;
+		let max = 0;
+		for (let k = 0; k < o.r.drin.length; k++) {
+			if (!o.r.drin[k]) { continue; }
+			if (o.h[k] > max) { max = o.h[k]; }
+			if (!(o.relief[k] > 0) && o.h[k] > 0.5) { randVerletzt++; }
+		}
+		assert.strictEqual(randVerletzt, 0, "bei HI " + ziel + " traegt der Rand Hoehe");
+		assert.ok(max <= Math.max(...GIPFEL.map((p) => p.h)) + 1,
+			"bei HI " + ziel + " liegt der hoechste Punkt bei " + max.toFixed(0));
+	}
+
+	// 🔴 UND JENSEITS DER GRENZE WIRD SAUBER GESAETTIGT, nicht ueberschossen: die Potenz bleibt an der
+	// Klemme stehen, das erreichte HI unter dem Ziel. Ein Regler, der still weiterliefe und dabei die
+	// Klemme verletzte, braeche die Nahtstellen.
+	const zuHoch = baue({ regler: { koernung: 4, stufen: 3, bergform: 2, rauschen: 0.3,
+		sattel: 0.75, erosion: 3, hypsometrie: 0.8 } });
+	assert.ok(zuHoch.hypso.potenz >= hydro.ECOSYSTEM_HYDRO_HYPSO_POTENZ_MIN - 1e-9,
+		"die Potenz ist unter ihre Klemme gerutscht (" + zuHoch.hypso.potenz.toFixed(3) + ")");
+	assert.ok(zuHoch.hypso.erreicht < 0.8,
+		"ein unerreichbares Ziel wurde angeblich getroffen -- die Saettigung fehlt");
+});
+
+pruefe("die Hypsometrie ist multiplikativ und spart NUR die Gipfelkerne aus", () => {
+	// 💣 EINE POTENZ IST NUR MONOTON, WENN SIE AUF ALLES WIRKT. Jede ausgesparte Zelle ist ein Sprung
+	// gegen ihre Nachbarn -- und die Fluesse queren solche Stellen. Mit `fest` ausgespart (Gipfel UND
+	// Kamm) stieg der gemessene Flussanstieg der Roten Sichel von 3.069 auf 5.166 Schritt bei HI 0,35
+	// und auf 13.480 bei 0,65; nur die Gipfelkerne auszusparen haelt ihn bei 4.150 bzw. 3.160.
+	// Der Kamm wird also MITgezogen: er ist gerechnete Form, kein Messwert.
+	//
+	// ⭐ Und sie ist MULTIPLIKATIV: `max * (h/max)^p` ist bei h = 0 exakt 0. Die Fusshoehen-Invariante
+	// bleibt woertlich stehen, und mit ihr die Verschmelzung zweier ueberlappender Flaechen. Ein
+	// additiver Sockel braeche beides, und zwar unsichtbar bis auf die Nahtstellen.
+	// 🪤 UND HIER STEHT AUSNAHMSWEISE EIN QUELLTEXT-CHECK, mit Grund. Ein Verhaltenstest
+	// braeuchte eine Flaeche, auf der Laeufe den KAMM mehrfach queren; an dieser Fixture ist der
+	// gemessene Flussanstieg in BEIDEN Faellen exakt 0 -- gemessen, nicht vermutet (0 gegen 0 bei
+	// HI 0, 0,35 und 0,55). Ein Test darauf waere Vakuum: er kann nicht rot werden. Der Effekt zeigt
+	// sich erst am Livebestand, und eine Fixture, die ihn nachbaut, waere eine Kopie der Roten Sichel
+	// im Testverzeichnis.
+	// ⚠️ OHNE Kommentar-Stripping, und das ist hier sicher: gesucht wird ein AUFRUF mit seiner
+	// vollen Argumentliste, und die schreibt kein Kommentar aus (nachgezaehlt: genau ein Vorkommen in
+	// der Datei). Ein Test, der seine eigene Warnung mitliest, schlaegt sonst auf sich selbst an.
+	const quelle = fs.readFileSync(
+		path.join(WURZEL, "js/map-features/map-features-ecosystem-hydrologie.js"), "utf8");
+	assert.ok(quelle.includes("zieheAufHypsometrie(h, r.drin, kern, hypsoZiel)"),
+		"die Hypsometrie spart nicht die GIPFELKERNE aus. Mit `fest` (Gipfel UND Kamm) bricht die "
+		+ "Flussmonotonie: der Anstieg der Roten Sichel stieg von 3.069 auf 5.166 Schritt bei HI 0,35 "
+		+ "und auf 13.480 bei 0,65, weil jede ausgesparte Zelle ein Sprung gegen ihre Nachbarn ist");
+
+	// Die Klemme schuetzt die Nahtstellen: unter 0,2 wird aus dem Auslauf am Rand eine Wand.
+	assert.strictEqual(hydro.ECOSYSTEM_HYDRO_HYPSO_POTENZ_MIN, 0.2, "die untere Klemme steht nicht auf 0,2");
+	// Und bei h = 0 muss die Transformation 0 liefern -- ausgefuehrt, nicht behauptet.
+	const feld = Float64Array.from([0, 500, 1000]);
+	const drin = Uint8Array.from([1, 1, 1]);
+	hydro.zieheAufHypsometrie(feld, drin, new Uint8Array(3), 0.5);
+	assert.strictEqual(feld[0], 0, "eine Zelle auf 0 wurde angehoben -- die Fusshoehen-Invariante bricht");
+});
+
+pruefe("ohne Hypsometrie-Wert bleibt das Feld unberuehrt", () => {
+	// 0 heisst „nicht gesetzt". Eine Flaeche, die den Regler nie gesehen hat, muss dasselbe Feld
+	// bekommen wie vor dem Umbau.
+	const ohne = baue({ regler: { koernung: 4, stufen: 3, bergform: 2, rauschen: 0.3, sattel: 0.75, erosion: 2 } });
+	const null0 = baue({ regler: { koernung: 4, stufen: 3, bergform: 2, rauschen: 0.3, sattel: 0.75, erosion: 2, hypsometrie: 0 } });
+	let groesste = 0;
+	for (let k = 0; k < ohne.h.length; k++) { groesste = Math.max(groesste, Math.abs(ohne.h[k] - null0.h[k])); }
+	assert.ok(groesste < 1e-9, "`hypsometrie: 0` veraendert das Feld (" + groesste.toFixed(3) + ")");
+	assert.strictEqual(ohne.hypso, null, "ohne Wert wurde trotzdem gezogen");
+	assert.strictEqual(hydro.ECOSYSTEM_HYDRO_HYPSOMETRIE_VORGABE, 0, "die Vorgabe ist nicht 0");
+});
+
 pruefe("die Seeflaeche ist ein EBENER Wasserspiegel", () => {
 	let min = Infinity;
 	let max = -Infinity;

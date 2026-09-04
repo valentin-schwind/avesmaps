@@ -1302,6 +1302,7 @@
 		{ key: "terrain_levels", element: "levels", decimals: 0 },
 		{ key: "terrain_erosion", element: "erosion", decimals: 0 },
 		{ key: "terrain_plateau", element: "plateau", decimals: 2 },
+		{ key: "terrain_hypsometrie", element: "hypsometrie", decimals: 2 },
 		{ key: "terrain_avg_height", element: "avgheight", decimals: 0 },
 		{ key: "terrain_mean_height", element: "meanheight", decimals: 0 },
 		// V12 (2026-09-04): die Regler der lokalen Gebirgssimulation.
@@ -1404,6 +1405,10 @@
 			terrain_plateau: typeof ECOSYSTEM_HYDRO_PLATEAU_VORGABE === "number"
 				? ECOSYSTEM_HYDRO_PLATEAU_VORGABE
 				: 1,
+			// 0 = nicht gesetzt, die Verteilung bleibt wie sie sich ergibt.
+			terrain_hypsometrie: typeof ECOSYSTEM_HYDRO_HYPSOMETRIE_VORGABE === "number"
+				? ECOSYSTEM_HYDRO_HYPSOMETRIE_VORGABE
+				: 0,
 		};
 	}
 
