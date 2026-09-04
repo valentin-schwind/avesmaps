@@ -683,11 +683,11 @@ function avesmapsLoreRuleEnsureEditorOverlay() {
 	var overlay = document.createElement("div");
 	overlay.className = "lore-rule-overlay";
 	overlay.hidden = true;
-	overlay.innerHTML = '<div class="lore-rule-dialog" role="dialog" aria-modal="true" '
+	overlay.innerHTML = '<div class="lore-rule-dialog avm-fenster avm-fenster--werkzeug" role="dialog" aria-modal="true" '
 		+ 'aria-labelledby="lore-rule-editor-title" tabindex="-1">'
-		+ '<div class="lore-rule-dialog__header">'
-		+ '<h2 id="lore-rule-editor-title">Regel</h2>'
-		+ '<button type="button" class="lore-rule-dialog__close" data-lore-rule-close aria-label="Schließen">✕</button>'
+		+ '<div class="lore-rule-dialog__header avm-fenster__kopf"><span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>'
+		+ '<h2 class="avm-fenster__titel" id="lore-rule-editor-title">Regel</h2>'
+		+ '<button type="button" class="avm-fenster__knopf avm-fenster__knopf--gefasst" data-lore-rule-close aria-label="Schließen">✕</button>'
 		+ "</div>"
 		+ '<div class="lore-rule-dialog__body" data-lore-rule-body></div>'
 		+ "</div>";

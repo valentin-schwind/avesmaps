@@ -811,58 +811,24 @@ details.avesmaps-lore__gruppe[open] > .avesmaps-lore__gruppe-kopf::after {
 	background: var(--color-scrim-editor);
 }
 
+/* 🔴 Flex, overflow, Rand, Radius, Grund und Schatten gehoeren dem Bauteil -- sie standen hier
+   zeichengleich noch einmal. Was bleibt, ist das Mass dieses Fensters. */
 .lore-rule-dialog {
-	display: flex;
-	flex-direction: column;
 	width: min(720px, calc(100vw - 32px));
 	height: min(760px, calc(100vh - 32px));
-	overflow: hidden;
-	border: 1px solid var(--color-border-strong);
-	border-radius: var(--radius-sm);
-	background: var(--color-panel);
-	box-shadow: var(--shadow-dialog);
 }
 
 .lore-rule-dialog:focus {
 	outline: none;
 }
 
-.lore-rule-dialog__header {
-	display: flex;
-	flex: 0 0 auto;
-	align-items: center;
-	justify-content: space-between;
-	gap: var(--space-10);
-	padding: var(--space-8) var(--space-12);
-	border-bottom: 1px solid var(--color-border);
-	background: var(--color-panel);
-}
+/* 🔴 Polster, Ausrichtung, Trennlinie, Titelgroesse und der Schliessknopf gehoeren dem Bauteil
+   (css/components/fenster.css). Hier stand ein 10/14-Polster (das Bauteil sagt 6/14) und ein
+   Titel in --font-size-title (20px) statt --font-size-subhead (16) -- die zwei Werte, an denen
+   dieser Kopf von jedem anderen abwich. Der Schliessknopf war schon richtig (32x32, weich). */
 
-.lore-rule-dialog__header h2 {
-	margin: 0;
-	color: var(--color-text-strong);
-	font-size: var(--font-size-title);
-	line-height: var(--leading-tight);
-}
 
-.lore-rule-dialog__close {
-	flex: 0 0 auto;
-	width: 32px;
-	height: 32px;
-	border: 1px solid var(--color-button-soft-border);
-	border-radius: var(--radius-md);
-	background: var(--color-button-soft);
-	color: var(--color-button-soft-text);
-	cursor: pointer;
-	font: inherit;
-	font-weight: var(--font-weight-bold);
-}
 
-.lore-rule-dialog__close:hover,
-.lore-rule-dialog__close:focus-visible {
-	background: var(--color-button-soft-hover);
-	outline: none;
-}
 
 .lore-rule-dialog__body {
 	flex: 1 1 auto;
