@@ -804,7 +804,7 @@ pruefe("beim Schliessen des Dialogs zeichnet die Leinwand NICHTS mehr", () => {
 		"shouldDraw() haengt nicht an der aktiven Flaeche");
 });
 
-pruefe("die Hoehen-Pane liegt UNTER Fluessen und Seen", () => {
+pruefe("die Hoehen-Pane liegt UNTER den Fluessen und UEBER den Flaechenfuellungen", () => {
 	const render = fs.readFileSync(
 		path.join(WURZEL, "js/map-features/map-features-ecosystem-height-render.js"), "utf8");
 	const bootstrap = fs.readFileSync(path.join(WURZEL, "js/app/bootstrap.js"), "utf8");
@@ -815,8 +815,19 @@ pruefe("die Hoehen-Pane liegt UNTER Fluessen und Seen", () => {
 	const seen = Number((/getPane\("ecosystemPaneTopographie"\)\.style\.zIndex = (\d+)/.exec(bootstrap) || [])[1]);
 	const politisch = Number((/getPane\("regionsPane"\)\.style\.zIndex = (\d+)/.exec(bootstrap) || [])[1]);
 	assert.ok(eigener < wege, "liegt ueber den Fluessen (" + eigener + " >= " + wege + ")");
-	assert.ok(eigener < seen, "liegt ueber den Seen (" + eigener + " >= " + seen + ")");
 	assert.ok(eigener > politisch, "liegt unter den politischen Fuellungen");
+	// 💣 HIER STAND `eigener < seen`, UND DAS WAR LIVE EINE UNSICHTBARE KARTE. Seen und
+	// Gebirgsflaechen liegen in DERSELBEN Pane (`ecosystemPaneTopographie`): unter den Seen zu liegen
+	// heisst zwangslaeufig, unter der gefuellten Gebirgsflaeche zu liegen -- und die verdeckt das
+	// Hoehenfeld vollstaendig. Am 04.09.2026 live gemeldet („ich sehe das gebirge gar nicht wenn ich
+	// es editiere"), gemessen als 249 gegen 250.
+	// 🔴 Die Zusicherung ist deshalb umgedreht: das Hoehenfeld liegt UEBER den Flaechenfuellungen.
+	// Der halbe Owner-Wunsch, der bleibt, ist der wichtigere -- die FLUESSE liegen darueber.
+	// ⭐ Wer beide Haelften will, schaltet die Fuellung der gezeigten Flaeche durchsichtig, statt an
+	// der Stapelung zu drehen.
+	assert.ok(eigener > seen,
+		"liegt unter den Flaechenfuellungen (" + eigener + " <= " + seen + ") -- die gefuellte "
+		+ "Gebirgsflaeche verdeckt dann das Hoehenfeld, und der Editor sieht gar nichts");
 });
 
 console.log("\n" + gehalten + " Zusicherungen gehalten.");

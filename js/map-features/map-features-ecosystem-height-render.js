@@ -88,14 +88,24 @@
 	if (!map.getPane(PANE)) {
 		map.createPane(PANE);
 		const created = map.getPane(PANE);
-		// Über den Flächenfüllungen der Ökosystem-Panes, unter den Labels (475) -- die Gipfel müssen
-		// oben bleiben, sie werden ja gezogen.
-		// 🔴 UNTER DEN FLUESSEN UND SEEN (Owner 04.09.2026). Sie stand auf 420 -- ueber `roadsPane`
-		// (400, die Fluesse) und ueber `ecosystemPaneTopographie` (250, wo die Seen liegen), und
-		// verdeckte damit genau die Gewaesser, die das Gelaende erklaeren.
-		// ⚠️ 249 ist der letzte freie Platz darunter: `ecosystemPaneTopographie` ist 250, `regionsPane`
-		// 200. Wer sie tiefer legt, schiebt sie unter die politischen Fuellungen.
-		created.style.zIndex = 249;
+		// 🔴 UNTER DEN FLUESSEN (Owner 04.09.2026: „die gebirge sollen unter flüssen und seen
+		// dargestellt werden"), aber UEBER den Flaechenfuellungen der Landschaftsebenen.
+		//
+		// 💣 UND DAS IST EIN KOMPROMISS, KEIN VOLLTREFFER -- die beiden Haelften des Wunsches schliessen
+		// einander aus. Seen UND Gebirgsflaechen liegen in DERSELBEN Pane
+		// (`ecosystemPaneTopographie`, 250): ein Canvas kann nicht gleichzeitig ueber der einen und
+		// unter der anderen liegen. Mit 249 lag es unter beiden -- und die gefuellte Gebirgsflaeche
+		// verdeckte es vollstaendig. Live gemeldet: „ich [sehe] das gebirge gar nicht wenn ich es
+		// editiere", gemessen am 04.09.2026 als 249 gegen 250.
+		// 🔴 Erfuellt ist damit die Haelfte, die wirklich stoerte: die FLUESSE (`roadsPane`, 400)
+		// liegen darueber, und sie sind es, die das Gelaende erklaeren. Ein See INNERHALB der
+		// gezeigten Flaeche wird verdeckt -- das Hoehenfeld zeichnet ihn ohnehin als ebene
+		// Wasserflaeche, seine Umrisse gehen aber verloren.
+		// ⭐ Wer beide Haelften will, muss die Flaechenfuellung der GEZEIGTEN Flaeche durchsichtig
+		// schalten, statt an der Stapelung zu drehen; dann kann das Canvas wieder unter 250.
+		// ⚠️ 254 ist der letzte Platz ueber allen vier Landschaftsebenen (250-253) und weit unter
+		// `avesmapsContestedHatchPane` (300) und `roadsPane` (400).
+		created.style.zIndex = 254;
 		created.style.pointerEvents = "none";
 	}
 
