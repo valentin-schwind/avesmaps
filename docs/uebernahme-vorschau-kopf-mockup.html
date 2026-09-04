@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Übernahme-Vorschau — drei Kopfformen</title>
+<style>
+/* ══════════════════════════════════════════════════════════════════════════════════════════
+   DIE ÜBERNAHME-VORSCHAU IST DAS EINE FENSTER, DAS SICH NICHT MECHANISCH UMSTELLEN LIESS.
+
+   Ihr Kopf ist DREIZEILIG — Titel, Befund, Meta —, während jeder andere Fensterkopf im Haus
+   eine Zeile ist: Griff · Titel · ✕. Das Bauteil darüberzulegen zerlegt die drei Zeilen, und
+   was mit Befund und Meta geschehen soll, ist eine Gestaltungsfrage, keine mechanische.
+
+   🔴 Die Werte hier sind AUS css/base/tokens.css ausgelesen, nicht abgeschrieben — inklusive
+      der +2-Skala (--space-12 = 14px). Ein Mockup mit erfundenen Zahlen liegt auf jeder
+      Kante 2px daneben und man merkt es erst im Produktivcode.
+   ══════════════════════════════════════════════════════════════════════════════════════════ */
+:root {
+	--font-ui: "Faculty Glyphic", "Arial", sans-serif;
+	--font-size-caption: 11px;
+	--font-size-small: 12px;
+	--font-size-body: 13px;
+	--font-size-subhead: 16px;
+	--leading-tight: 1.15;
+	--leading-snug: 1.25;
+	--font-weight-bold: 700;
+	--color-panel: #fffdf9;
+	--color-panel-soft: #faf6ee;
+	--color-text: #2e271e;
+	--color-text-strong: #3c3327;
+	--color-text-muted: #706557;
+	--color-border: #ddd3c3;
+	--color-border-strong: #cdbfa8;
+	--color-divider: rgba(125, 115, 96, 0.30);
+	--color-button: #5b5548;
+	--color-button-text: #f6efe1;
+	--color-button-soft: #efe9db;
+	--color-button-soft-text: #564b3b;
+	--color-button-soft-border: #cdbda0;
+	--color-success-soft-text: #3c5a1c;
+	--space-4: 6px;
+	--space-6: 8px;
+	--space-8: 10px;
+	--space-10: 12px;
+	--space-12: 14px;
+	--space-16: 18px;
+	--space-20: 22px;
+	--radius-sm: 5px;
+	--radius-md: 8px;
+	--avm-control-h: 32px;
+	--avm-kopf-pad: var(--space-4) var(--space-12);
+	--avm-col-pad: var(--space-6) var(--space-10);
+	--shadow-dialog: 0 20px 45px rgba(0, 0, 0, 0.38);
+	--seite: #ece5d7;
+}
+[data-theme="dunkel"] {
+	--color-panel: #312e26;
+	--color-panel-soft: #37342b;
+	--color-text: #eee7da;
+	--color-text-strong: #f5f0e4;
+	--color-text-muted: #b4a895;
+	--color-border: #514a3c;
+	--color-border-strong: #615a49;
+	--color-divider: rgba(207, 197, 171, 0.24);
+	--color-button: #6b6456;
+	--color-button-text: #f5ebd7;
+	--color-button-soft: #3a362c;
+	--color-button-soft-text: #eae1cf;
+	--color-button-soft-border: #585142;
+	--color-success-soft-text: #9cd39a;
+	--shadow-dialog: 0 20px 45px rgba(0, 0, 0, 0.6);
+	--seite: #24211b;
+}
+
+body {
+	margin: 0;
+	padding: 28px 20px 60px;
+	background: var(--seite);
+	color: var(--color-text);
+	font-family: var(--font-ui);
+	font-size: var(--font-size-body);
+	line-height: var(--leading-snug);
+}
+.seite { max-width: 1180px; margin: 0 auto; }
+body > h1 {
+	margin: 0 0 4px;
+	color: var(--color-text-strong);
+	font-size: 22px;
+}
+.lead { margin: 0 0 22px; max-width: 78ch; color: var(--color-text-muted); }
+.lead b { color: var(--color-text-strong); }
+
+.schalter {
+	margin: 0 0 26px;
+	display: flex;
+	gap: var(--space-6);
+	align-items: center;
+}
+.schalter button {
+	min-height: var(--avm-control-h);
+	padding: 0 var(--space-8);
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+	font: inherit;
+	cursor: pointer;
+}
+.schalter button:hover { background: var(--color-border); }
+
+.reihe { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 26px; }
+.karte > h2 {
+	margin: 0 0 2px;
+	color: var(--color-text-strong);
+	font-size: var(--font-size-subhead);
+}
+.karte > .warum { margin: 0 0 12px; color: var(--color-text-muted); font-size: var(--font-size-small); }
+.karte > .preis { margin: 12px 0 0; font-size: var(--font-size-small); }
+.preis b { color: var(--color-text-strong); }
+
+/* ── Das Fenster-Bauteil, wie es in css/components/fenster.css steht ───────────────────── */
+.fen {
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+	padding: 0;
+	border: 1px solid var(--color-border-strong);
+	border-radius: var(--radius-sm);
+	background: var(--color-panel);
+	color: var(--color-text);
+	box-shadow: var(--shadow-dialog);
+	font-size: var(--font-size-body);
+	line-height: var(--leading-snug);
+}
+.fen__kopf {
+	display: flex;
+	align-items: center;
+	gap: var(--space-4);
+	padding: var(--avm-kopf-pad);
+	border-bottom: 1px solid var(--color-divider);
+	cursor: grab;
+}
+.fen__griff {
+	flex: none;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-subhead);
+	line-height: 1;
+	letter-spacing: 0;
+	user-select: none;
+}
+.fen__titel {
+	flex: 1 1 auto;
+	min-width: 0;
+	margin: 0;
+	padding: 0;
+	border: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: var(--font-size-subhead);
+	line-height: var(--leading-tight);
+	font-weight: var(--font-weight-bold);
+	color: var(--color-text-strong);
+}
+.fen__knopf {
+	flex: none;
+	width: var(--avm-control-h);
+	height: var(--avm-control-h);
+	display: grid;
+	place-items: center;
+	padding: 0;
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+	font: inherit;
+	line-height: 1;
+	cursor: pointer;
+}
+.fen__rumpf { flex: 1 1 auto; min-height: 0; overflow: auto; padding: var(--avm-col-pad); }
+.fen__fuss {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-4);
+	padding: var(--avm-kopf-pad);
+	border-top: 1px solid var(--color-divider);
+}
+.fen__fuss-haupt { display: inline-flex; align-items: center; gap: var(--space-4); margin-left: auto; }
+.fknopf {
+	min-height: var(--avm-control-h);
+	padding: 0 var(--space-8);
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+	font: inherit;
+	cursor: pointer;
+}
+.fknopf--voll {
+	border-color: var(--color-button);
+	background: var(--color-button);
+	color: var(--color-button-text);
+	font-weight: var(--font-weight-bold);
+}
+
+/* ── Inhalt der Vorschau, in allen drei Varianten gleich ───────────────────────────────── */
+.grp { margin: 0 0 10px; }
+.grp__t { margin: 0 0 4px; color: var(--color-text-strong); font-weight: var(--font-weight-bold); }
+.zeile {
+	display: flex;
+	align-items: center;
+	gap: var(--space-4);
+	padding: var(--space-4) var(--space-6);
+	border-bottom: 1px solid var(--color-divider);
+}
+.zeile:last-child { border-bottom: 0; }
+.zeile__n { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.zeile__m { flex: none; color: var(--color-text-muted); font-size: var(--font-size-caption); }
+
+.befund { color: var(--color-text-strong); }
+.befund--keine { color: var(--color-success-soft-text); }
+.meta { color: var(--color-text-muted); font-size: var(--font-size-small); }
+
+/* ── A: Befund und Meta wandern in den RUMPF ───────────────────────────────────────────── */
+.a-band {
+	padding: var(--space-6) var(--space-10);
+	margin: calc(-1 * var(--space-6)) calc(-1 * var(--space-10)) var(--space-8);
+	border-bottom: 1px solid var(--color-divider);
+	background: var(--color-panel-soft);
+}
+.a-band p { margin: 0 0 2px; }
+.a-band p:last-child { margin: 0; }
+
+/* ── B: Befund als Unterzeile IM Kopf ──────────────────────────────────────────────────── */
+.b-kopf { align-items: flex-start; }
+.b-stapel { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.b-stapel .fen__titel { flex: none; }
+.b-meta { color: var(--color-text-muted); font-size: var(--font-size-caption); }
+
+/* ── C: der Befund wird der TITEL ──────────────────────────────────────────────────────── */
+.c-art { flex: none; color: var(--color-text-muted); font-size: var(--font-size-caption); }
+</style>
+</head>
+<body>
+<div class="seite">
+
+<h1>Übernahme-Vorschau — drei Kopfformen</h1>
+<p class="lead">
+	Das Fenster hat als einziges einen <b>dreizeiligen</b> Kopf: Titel, Befund, Meta. Jeder andere
+	Fensterkopf im Haus ist eine Zeile — Griff · Titel · ✕. Die Frage ist nicht, wie der Kopf
+	aussieht, sondern <b>wohin Befund und Meta gehören</b>. Alle drei Varianten zeigen denselben
+	Inhalt; die Knopfleiste unten ist überall gleich.
+</p>
+
+<p class="schalter">
+	<button type="button" id="thema">Dunkel ansehen</button>
+	<button type="button" id="leer">Fall „nichts geändert" zeigen</button>
+</p>
+
+<div class="reihe">
+
+	<!-- ══ A ══════════════════════════════════════════════════════════════════════════════ -->
+	<div class="karte">
+		<h2>A · Befund und Meta rutschen in den Rumpf</h2>
+		<p class="warum">Der Kopf wird die normale eine Zeile. Befund und Datum stehen als
+			abgesetztes Band ganz oben im Inhalt — dort, wo man ohnehin zu lesen beginnt.</p>
+		<div class="fen" style="height:290px">
+			<div class="fen__kopf">
+				<span class="fen__griff" aria-hidden="true">⁝⁝</span>
+				<h2 class="fen__titel">Übernahme-Vorschau · Orte</h2>
+				<button class="fen__knopf" type="button" aria-label="Schließen">✕</button>
+			</div>
+			<div class="fen__rumpf">
+				<div class="a-band">
+					<p class="befund" data-befund>3 neu · 2 geändert · 1 gelöscht</p>
+					<p class="meta">Lauf vom 04.09.2026, 21:14 · 1.204 Seiten gelesen</p>
+				</div>
+				<div class="grp">
+					<p class="grp__t">Neu</p>
+					<div class="zeile"><span class="zeile__n">Angbar</span><span class="zeile__m">Stadt</span></div>
+					<div class="zeile"><span class="zeile__n">Ferdok</span><span class="zeile__m">Stadt</span></div>
+					<div class="zeile"><span class="zeile__n">Zwingard</span><span class="zeile__m">Burg</span></div>
+				</div>
+				<div class="grp">
+					<p class="grp__t">Geändert</p>
+					<div class="zeile"><span class="zeile__n">Gareth</span><span class="zeile__m">Einwohner</span></div>
+					<div class="zeile"><span class="zeile__n">Perricum</span><span class="zeile__m">Wappen</span></div>
+				</div>
+			</div>
+			<div class="fen__fuss">
+				<span class="meta">6 angehakt</span>
+				<span class="fen__fuss-haupt">
+					<button class="fknopf" type="button">Später</button>
+					<button class="fknopf fknopf--voll" type="button">Übernehmen</button>
+				</span>
+			</div>
+		</div>
+		<p class="preis"><b>Dafür:</b> ein Kopf wie überall, und der Befund steht da, wo gelesen
+			wird. <b>Dagegen:</b> er scrollt mit weg.</p>
+	</div>
+
+	<!-- ══ B ══════════════════════════════════════════════════════════════════════════════ -->
+	<div class="karte">
+		<h2>B · Befund als Unterzeile im Kopf</h2>
+		<p class="warum">Der Kopf bleibt zweizeilig, aber in der Form des Bauteils: Griff und ✕
+			außen, Titel und Befund gestapelt in der Mitte. Das Datum wandert in den Rumpf.</p>
+		<div class="fen" style="height:290px">
+			<div class="fen__kopf b-kopf">
+				<span class="fen__griff" aria-hidden="true">⁝⁝</span>
+				<span class="b-stapel">
+					<h2 class="fen__titel">Übernahme-Vorschau · Orte</h2>
+					<span class="b-meta" data-befund>3 neu · 2 geändert · 1 gelöscht</span>
+				</span>
+				<button class="fen__knopf" type="button" aria-label="Schließen">✕</button>
+			</div>
+			<div class="fen__rumpf">
+				<p class="meta" style="margin:0 0 8px">Lauf vom 04.09.2026, 21:14 · 1.204 Seiten gelesen</p>
+				<div class="grp">
+					<p class="grp__t">Neu</p>
+					<div class="zeile"><span class="zeile__n">Angbar</span><span class="zeile__m">Stadt</span></div>
+					<div class="zeile"><span class="zeile__n">Ferdok</span><span class="zeile__m">Stadt</span></div>
+					<div class="zeile"><span class="zeile__n">Zwingard</span><span class="zeile__m">Burg</span></div>
+				</div>
+				<div class="grp">
+					<p class="grp__t">Geändert</p>
+					<div class="zeile"><span class="zeile__n">Gareth</span><span class="zeile__m">Einwohner</span></div>
+					<div class="zeile"><span class="zeile__n">Perricum</span><span class="zeile__m">Wappen</span></div>
+				</div>
+			</div>
+			<div class="fen__fuss">
+				<span class="meta">6 angehakt</span>
+				<span class="fen__fuss-haupt">
+					<button class="fknopf" type="button">Später</button>
+					<button class="fknopf fknopf--voll" type="button">Übernehmen</button>
+				</span>
+			</div>
+		</div>
+		<p class="preis"><b>Dafür:</b> der Befund steht fest und scrollt nie weg.
+			<b>Dagegen:</b> der Kopf ist das einzige zweizeilige im Haus. ⭐ Im Browser gemessen kostet
+			das nur <b>1px</b> (46 statt 45) — die zwei Textzeilen passen in die Hoehe, die der 32px-Knopf
+			ohnehin setzt. Ich hatte hier 62px geschaetzt und lag daneben.</p>
+	</div>
+
+	<!-- ══ C ══════════════════════════════════════════════════════════════════════════════ -->
+	<div class="karte">
+		<h2>C · Der Befund <i>ist</i> der Titel</h2>
+		<p class="warum">Die Objektart rückt nach vorn als kleine Vorzeile, der Befund wird die
+			Aufschrift. Wer das Fenster öffnet, will genau diese Zahl wissen.</p>
+		<div class="fen" style="height:290px">
+			<div class="fen__kopf">
+				<span class="fen__griff" aria-hidden="true">⁝⁝</span>
+				<span class="c-art">Orte ·</span>
+				<h2 class="fen__titel" data-befund>3 neu · 2 geändert · 1 gelöscht</h2>
+				<button class="fen__knopf" type="button" aria-label="Schließen">✕</button>
+			</div>
+			<div class="fen__rumpf">
+				<p class="meta" style="margin:0 0 8px">Lauf vom 04.09.2026, 21:14 · 1.204 Seiten gelesen</p>
+				<div class="grp">
+					<p class="grp__t">Neu</p>
+					<div class="zeile"><span class="zeile__n">Angbar</span><span class="zeile__m">Stadt</span></div>
+					<div class="zeile"><span class="zeile__n">Ferdok</span><span class="zeile__m">Stadt</span></div>
+					<div class="zeile"><span class="zeile__n">Zwingard</span><span class="zeile__m">Burg</span></div>
+				</div>
+				<div class="grp">
+					<p class="grp__t">Geändert</p>
+					<div class="zeile"><span class="zeile__n">Gareth</span><span class="zeile__m">Einwohner</span></div>
+					<div class="zeile"><span class="zeile__n">Perricum</span><span class="zeile__m">Wappen</span></div>
+				</div>
+			</div>
+			<div class="fen__fuss">
+				<span class="meta">6 angehakt</span>
+				<span class="fen__fuss-haupt">
+					<button class="fknopf" type="button">Später</button>
+					<button class="fknopf fknopf--voll" type="button">Übernehmen</button>
+				</span>
+			</div>
+		</div>
+		<p class="preis"><b>Dafür:</b> ein Kopf wie überall, und die wichtigste Zahl ist die
+			Aufschrift. <b>Dagegen:</b> das Fenster heißt bei jedem Lauf anders — in einer
+			Fensterliste oder im Verlauf ist es nicht wiederzuerkennen.</p>
+	</div>
+
+</div>
+
+<p class="lead" style="margin-top:30px">
+	⚠️ Der Knopf oben schaltet auf den Fall <b>„nichts geändert"</b> um — der kommt oft, weil die
+	Vorschau <b>immer</b> aufgeht, auch bei null Unterschieden (Owner 2026-08-07). In A und B ist
+	er eine ruhige Zeile; in C wird er zur Aufschrift des ganzen Fensters.
+</p>
+
+</div>
+
+<script>
+(function () {
+	var dunkel = false;
+	document.getElementById("thema").addEventListener("click", function () {
+		dunkel = !dunkel;
+		document.documentElement.setAttribute("data-theme", dunkel ? "dunkel" : "hell");
+		this.textContent = dunkel ? "Hell ansehen" : "Dunkel ansehen";
+	});
+	var leer = false;
+	document.getElementById("leer").addEventListener("click", function () {
+		leer = !leer;
+		var text = leer ? "Nichts geändert" : "3 neu · 2 geändert · 1 gelöscht";
+		[].forEach.call(document.querySelectorAll("[data-befund]"), function (el) {
+			el.textContent = text;
+			el.classList.toggle("befund--keine", leer && el.classList.contains("befund"));
+		});
+		this.textContent = leer ? "Fall mit Änderungen zeigen" : "Fall „nichts geändert“ zeigen";
+	});
+})();
+</script>
+</body>
+</html>
