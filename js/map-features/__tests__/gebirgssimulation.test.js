@@ -196,6 +196,124 @@ pruefe("der Fluss liegt in einem TAL -- das Gelaende steigt quer zu ihm an", () 
 		+ "der Achse gegen " + rand.toFixed(0) + " bei 1,5 -- der Talabzug formt keine Flanke");
 });
 
+pruefe("aus dem Kamm wird eine FLAECHE -- und ihre Kante folgt der Form des Randes", () => {
+	// 🔴 Owner 04.09.2026: „oder du baust was womit aus dem kamm ne flaeche wird". Der erste Versuch
+	// war ein KREISRADIUS um die Kammlinie, und der Owner hat ihn am Bild verworfen: „rechts sind die
+	// waende ungleichmaessig, es sollte mit uebereinstimmung zum rand beginnen und immer mehr zum
+	// kamm wandern". Ein Kreis kennt die Form der Flaeche nicht -- bei einem herzfoermigen Berg blieb
+	// links eine schmale und rechts eine breite Wand.
+	//
+	// ⭐ Die Familie, die es leistet, ist die ABSTANDSKARTE zum Rand: ihre Isolinien sind
+	// geschrumpfte Kopien des Randes, und ihr Maximum IST die Mittelachse, also der Kamm.
+	const anteilOben = (plateau) => {
+		const o = baue({ regler: { koernung: 4, stufen: 3, bergform: 2, rauschen: 0.3,
+			sattel: 0.75, erosion: 2, maximalhoehe: 3000, plateau } });
+		let max = 0;
+		let hoch = 0;
+		let drin = 0;
+		for (let k = 0; k < o.r.drin.length; k++) { if (o.r.drin[k] && o.h[k] > max) { max = o.h[k]; } }
+		for (let k = 0; k < o.r.drin.length; k++) {
+			if (!o.r.drin[k]) { continue; }
+			drin++;
+			if (o.h[k] > 0.6 * max) { hoch++; }
+		}
+
+		return drin ? hoch / drin : 0;
+	};
+	const kamm = anteilOben(1);
+	const plateau = anteilOben(0.2);
+	assert.ok(plateau > kamm * 1.5,
+		"ein Plateau-Anteil von 0,2 hebt nicht mehr Flaeche als der blosse Kamm ("
+		+ (100 * kamm).toFixed(1) + " % gegen " + (100 * plateau).toFixed(1) + " %)");
+
+	// 💣 UND DIE FORM, nicht nur die MENGE. Eine Mutationsprobe hat gezeigt, dass die Abstandskarte
+	// UMGEDREHT werden kann (`drin ? 0 : GROSS` statt `drin ? GROSS : 0`), ohne dass eine Zusicherung
+	// bricht: dann ist `dmax` gleich 0, die Schwelle also auch, und JEDE Zelle wird gestempelt -- ein
+	// Plateau ueber die ganze Flaeche, ohne Abbruchkante. Die Menge stimmt dabei sogar besser, und
+	// genau deshalb faengt sie den Fehler nicht.
+	// 🔴 Gemessen wird deshalb der RANDSTREIFEN: die Zellen mit einem Nachbarn ausserhalb duerfen
+	// NIE Plateau werden -- dort steht die Wand, und daran haengt die Fusshoehen-Invariante.
+	for (const stufe of [0.6, 0.35, 0.15]) {
+		const o = baue({ regler: { koernung: 4, stufen: 3, bergform: 2, rauschen: 0.3,
+			sattel: 0.75, erosion: 2, maximalhoehe: 3000, plateau: stufe } });
+		let gestempelt = 0;
+		let rand = 0;
+		for (let j = 1; j < o.r.hh - 1; j++) {
+			for (let i = 1; i < o.r.w - 1; i++) {
+				const k = (j * o.r.w) + i;
+				if (!o.r.drin[k]) { continue; }
+				const amRand = !o.r.drin[k - 1] || !o.r.drin[k + 1]
+					|| !o.r.drin[k - o.r.w] || !o.r.drin[k + o.r.w];
+				if (!amRand) { continue; }
+				rand++;
+				if (o.kammMaske[k]) { gestempelt++; }
+			}
+		}
+		assert.ok(rand > 10, "zu wenige Randzellen zum Messen (" + rand + ")");
+		assert.strictEqual(gestempelt, 0,
+			"bei plateau=" + stufe + " reicht das Plateau bis an den Flaechenrand (" + gestempelt
+			+ " von " + rand + " Randzellen) -- die Abstandskarte misst nicht zum Rand");
+	}
+});
+
+pruefe("die Plateau-Vorgabe ist der KAMM -- sie aendert kein bestehendes Gebirge", () => {
+	// 🔴 1 heisst „die Mittelachse", also genau das Verhalten vor dem 04.09.2026. Eine Flaeche, die
+	// den Regler nie gesehen hat, muss Zeichen fuer Zeichen dasselbe Feld bekommen -- sonst haette
+	// der Umbau jedes gespeicherte Gebirge veraendert.
+	const ohne = baue({ regler: { koernung: 4, stufen: 3, bergform: 2, rauschen: 0.3, sattel: 0.75, erosion: 2 } });
+	const mitEins = baue({ regler: { koernung: 4, stufen: 3, bergform: 2, rauschen: 0.3, sattel: 0.75, erosion: 2, plateau: 1 } });
+	let groesste = 0;
+	for (let k = 0; k < ohne.h.length; k++) { groesste = Math.max(groesste, Math.abs(ohne.h[k] - mitEins.h[k])); }
+	assert.ok(groesste < 1e-9,
+		"`plateau: 1` liefert ein anderes Feld als gar kein Wert (groesste Abweichung "
+		+ groesste.toFixed(3) + ") -- die Vorgabe ist nicht mehr der Kamm");
+	assert.strictEqual(hydro.ECOSYSTEM_HYDRO_PLATEAU_VORGABE, 1, "die Vorgabe ist nicht 1");
+});
+
+pruefe("auch mit Plateau waechst kein Punkt ueber den hoechsten Gipfel", () => {
+	// 💣 GENAU HIER BRACH ES BEIM BAU. Die Plateauflaeche traegt die Kammmaske, und das RAUSCHEN
+	// greift auf ihr -- multiplikativ, also am staerksten dort, wo es schon hoch ist. Gemessen an der
+	// Roten Sichel: 7.924 Schritt gegen 6.650 eingetragen, waehrend derselbe Lauf mit `rauschen: 0`
+	// exakt 6.650 ergab. So wurde die Ursache gefunden; der Deckel steht seither im Rauschzweig.
+	// ⚠️ Ueber ALLE Stufen geprueft, nicht nur einer: bei `plateau: 1` liegt die schmale Kammlinie
+	// ohnehin unter den Gipfeln, dort faellt der Fehler gar nicht auf.
+	// 🪤 UND MIT HOHEM SOCKEL, sonst faellt der Fehler nicht auf. Die erste Fassung dieses Tests
+	// pruefte nur `maximalhoehe: 0` -- dort liegt der Kamm zwischen zwei weit auseinanderstehenden
+	// Gipfeln so tief, dass weder Rauschen noch Hebung ihn ueber den hoechsten Gipfel bringen, und
+	// das Entfernen des Deckels ueberlebte die Probe. Erst ein Sockel dicht unter der Gipfelhoehe
+	// (4.800 gegen 5.000) zeigt ihn: dann genuegen wenige Prozent, um darueber zu kommen.
+	const hoechster = Math.max(...GIPFEL.map((p) => p.h));
+	for (const sockel of [0, 4800]) {
+		for (const plateau of [1, 0.6, 0.35, 0.15]) {
+			const o = baue({ regler: { koernung: 4, stufen: 3, bergform: 2, rauschen: 0.35,
+				sattel: 0.75, erosion: 5, maximalhoehe: sockel, plateau } });
+			let max = 0;
+			for (let k = 0; k < o.r.drin.length; k++) {
+				if (o.r.drin[k] && o.h[k] > max) { max = o.h[k]; }
+			}
+			assert.ok(max <= hoechster + 1,
+				"bei plateau=" + plateau + " und Kammhoehe " + sockel + " liegt der hoechste Punkt bei "
+				+ max.toFixed(0) + " statt hoechstens " + hoechster);
+		}
+	}
+});
+
+pruefe("ein Gipfel behaelt seine Zahl, auch wenn das Plateau ueber ihn hinwegzieht", () => {
+	// Die Regel des Hauses: eine Messung schlaegt die gerechnete Form. Ein Gipfel ist `fest` und wird
+	// vom Plateaustempel uebersprungen -- er ragt heraus, oder er steht in einer Mulde; beides ist
+	// die Aussage der Daten.
+	for (const plateau of [0.6, 0.15]) {
+		const o = baue({ regler: { koernung: 4, stufen: 3, bergform: 2, rauschen: 0.3,
+			sattel: 0.75, erosion: 3, plateau } });
+		for (const p of GIPFEL) {
+			const gelesen = o.h[(o.r.j(p.y) * o.r.w) + o.r.i(p.x)];
+			assert.ok(Math.abs(gelesen - p.h) < 1,
+				"bei plateau=" + plateau + " liest der Gipfel " + p.h + " den Wert "
+				+ gelesen.toFixed(0));
+		}
+	}
+});
+
 pruefe("die Seeflaeche ist ein EBENER Wasserspiegel", () => {
 	let min = Infinity;
 	let max = -Infinity;

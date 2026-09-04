@@ -414,6 +414,13 @@ function avesmapsEcosystemEnsureTables(PDO $pdo): void
         // Wertebereich haben, sind deshalb noch lange nicht dieselbe Groesse.
         // Owner 04.09.2026: „terrain_levels trenn die beiden!"
         'terrain_erosion' => 'TINYINT UNSIGNED',
+        // 🔴 terrain_plateau -- wie weit vom FLAECHENRAND die Abbruchkante des Kamms steht, als
+        // Anteil 0..1 des groessten Randabstands. 1 = die Mittelachse, also der Kamm (Vorgabe,
+        // aendert nichts); kleinere Werte schieben die Kante nach aussen, bis bei 0 die ganze
+        // Flaeche Plateau waere -- ein Tafelberg.
+        // ⭐ Die Isolinien der Abstandskarte sind geschrumpfte Kopien des Randes, die Wand ist
+        // deshalb rundherum gleich breit. Ein Kreisradius um die Kammlinie kann das nicht.
+        'terrain_plateau' => 'DECIMAL(4,3)',
     ] as $column => $type) {
         if (!$areaColumnExists($pdo, $column)) {
             $pdo->exec('ALTER TABLE ecosystem_area ADD COLUMN ' . $column . ' ' . $type . ' NULL');
@@ -1656,6 +1663,7 @@ function avesmapsEcosystemReadAreas(
                 a.terrain_grain,
                 a.terrain_levels,
                 a.terrain_erosion,
+                a.terrain_plateau,
                 a.terrain_bergform,
                 a.terrain_rauschen,
                 a.terrain_talbreite,
@@ -1728,6 +1736,7 @@ function avesmapsEcosystemReadAreas(
             // V12. 🔴 `null` reist als `null`, NIE als 0 -- „nicht eingestellt" und „ausdruecklich
             // null" sind zwei verschiedene Aussagen, und das Modul liest sie verschieden.
             'terrain_erosion' => $row['terrain_erosion'] === null ? null : (int) $row['terrain_erosion'],
+            'terrain_plateau' => $row['terrain_plateau'] === null ? null : (float) $row['terrain_plateau'],
             'terrain_bergform' => $row['terrain_bergform'] === null ? null : (float) $row['terrain_bergform'],
             'terrain_rauschen' => $row['terrain_rauschen'] === null ? null : (float) $row['terrain_rauschen'],
             'terrain_talbreite' => $row['terrain_talbreite'] === null ? null : (float) $row['terrain_talbreite'],
@@ -4631,6 +4640,7 @@ function avesmapsUpdateEcosystemAreaTerrain(PDO $pdo, array $payload, int $userI
     // Sorte Divergenz, die `terrain_mean_height` daneben ausdruecklich vermeidet.
     foreach ([
         'terrain_erosion' => [0.0, 5.0],
+        'terrain_plateau' => [0.0, 1.0],
         'terrain_bergform' => [0.0, 12.0],
         'terrain_rauschen' => [0.0, 1.0],
         'terrain_talbreite' => [0.0, 6.0],
@@ -4668,7 +4678,7 @@ function avesmapsUpdateEcosystemAreaTerrain(PDO $pdo, array $payload, int $userI
 
     $lesenZurueck = $pdo->prepare(
         'SELECT terrain_grain, terrain_levels, terrain_avg_height, terrain_mean_height,
-                terrain_erosion,
+                terrain_erosion, terrain_plateau,
                 terrain_bergform, terrain_rauschen, terrain_talbreite, terrain_einschnitt,
                 terrain_sattel
            FROM ecosystem_area WHERE public_id = :p LIMIT 1'
@@ -4687,6 +4697,7 @@ function avesmapsUpdateEcosystemAreaTerrain(PDO $pdo, array $payload, int $userI
         // nicht bestaetigt und zeigte wieder „(auto)". Dieselbe Naht-Falle, die im Garetien-Importer
         // schon einen Regler monatelang wirkungslos gemacht hat.
         'terrain_erosion' => ($row['terrain_erosion'] ?? null) === null ? null : (int) $row['terrain_erosion'],
+        'terrain_plateau' => ($row['terrain_plateau'] ?? null) === null ? null : (float) $row['terrain_plateau'],
         'terrain_bergform' => ($row['terrain_bergform'] ?? null) === null ? null : (float) $row['terrain_bergform'],
         'terrain_rauschen' => ($row['terrain_rauschen'] ?? null) === null ? null : (float) $row['terrain_rauschen'],
         'terrain_talbreite' => ($row['terrain_talbreite'] ?? null) === null ? null : (float) $row['terrain_talbreite'],

@@ -32,7 +32,7 @@ function pruefe(name, fn) {
 	}
 }
 
-// 🔴 DIE ZEHN. Wer einen elften Regler baut, trägt ihn HIER ein — und der Test sagt ihm dann, welche
+// 🔴 DIE ELF. Wer einen zwoelften Regler baut, trägt ihn HIER ein — und der Test sagt ihm dann, welche
 // der sechs Stellen er vergessen hat.
 // 💣 `terrain_levels` und `terrain_erosion` waren bis zum 04.09.2026 EINE Spalte, und `reglerFuer`
 // gab denselben Wert als `stufen` UND als `erosion` weiter: wer die Erosion hochzog, verstellte
@@ -41,6 +41,7 @@ const REGLER = [
 	{ key: "terrain_grain", element: "grain" },
 	{ key: "terrain_levels", element: "levels" },
 	{ key: "terrain_erosion", element: "erosion" },
+	{ key: "terrain_plateau", element: "plateau" },
 	{ key: "terrain_avg_height", element: "avgheight" },
 	{ key: "terrain_mean_height", element: "meanheight" },
 	{ key: "terrain_bergform", element: "bergform" },

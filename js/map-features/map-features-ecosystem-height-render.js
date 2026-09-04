@@ -498,6 +498,7 @@
 			// beiden!"
 			stufen: area?.terrain_levels ?? undefined,
 			erosion: area?.terrain_erosion ?? undefined,
+			plateau: area?.terrain_plateau ?? undefined,
 			maximalhoehe: area?.terrain_avg_height ?? undefined,
 			bergform: area?.terrain_bergform ?? undefined,
 			rauschen: area?.terrain_rauschen ?? undefined,
@@ -528,7 +529,7 @@
 		return [
 			String(area?.public_id || ""), String(area?.geometry_revision ?? 0),
 			reg.koernung, reg.stufen, reg.erosion, reg.maximalhoehe,
-			reg.bergform, reg.rauschen, reg.sattel, reg.talbreite, reg.einschnitt,
+			reg.bergform, reg.rauschen, reg.sattel, reg.talbreite, reg.einschnitt, reg.plateau,
 			gipfel, hydroGrob ? "grob" : "fein",
 		].join("|");
 	}

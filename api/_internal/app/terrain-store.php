@@ -124,7 +124,12 @@ function avesmapsTerrainAreaFingerprint(array $areaRow): string
         // beiden!"). Sie muss hier stehen, obwohl `levels=` schon oben steht: die beiden bedeuten seit
         // der Trennung verschiedene Dinge -- Oktaven des Rauschens gegen Erosionsstufe -- und ein
         // Raster, dessen Erosion sich geaendert hat, ist ein anderes Raster.
-        'erosion=' . ($areaRow['terrain_erosion'] === null ? 'null' : (string) (int) $areaRow['terrain_erosion']),
+        // ⚠️ `?? null` wie bei allen anderen: eine Zeile OHNE die Spalte (ein Aufrufer, der sie nicht
+        // mitselektiert) darf keine Warnung ausloesen, sondern muss als „nicht gesetzt" gelten.
+        'erosion=' . (($areaRow['terrain_erosion'] ?? null) === null
+            ? 'null'
+            : (string) (int) $areaRow['terrain_erosion']),
+        'plateau=' . $number($areaRow['terrain_plateau'] ?? null),
         'bergform=' . $number($areaRow['terrain_bergform'] ?? null),
         'rauschen=' . $number($areaRow['terrain_rauschen'] ?? null),
         'talbreite=' . $number($areaRow['terrain_talbreite'] ?? null),
@@ -276,7 +281,7 @@ function avesmapsTerrainHeightmapPut(PDO $pdo, array $payload, int $userId): arr
     }
     $knobs = $pdo->prepare(
         'SELECT terrain_grain, terrain_levels, terrain_avg_height, terrain_mean_height,
-                terrain_erosion,
+                terrain_erosion, terrain_plateau,
                 terrain_bergform, terrain_rauschen, terrain_talbreite, terrain_einschnitt, terrain_sattel
            FROM ecosystem_area WHERE id = :id'
     );
@@ -352,7 +357,7 @@ function avesmapsTerrainHeightmapStatus(PDO $pdo): array
                 -- `null`, waehrend der Schreibweg sie mit ihrem echten Wert stempelt -- und JEDES
                 -- Raster einer Flaeche mit gesetztem Regler gilt fuer immer als veraltet.
                 -- Zwei Leser derselben Regel, und nur einer nachgezogen, ist keine Regel.
-                a.terrain_erosion,
+                a.terrain_erosion, a.terrain_plateau,
                 a.terrain_bergform, a.terrain_rauschen, a.terrain_talbreite,
                 a.terrain_einschnitt, a.terrain_sattel,
                 h.geometry_revision AS stamped_revision, h.terrain_fingerprint, h.peaks_fingerprint,

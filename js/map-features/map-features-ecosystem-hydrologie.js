@@ -76,6 +76,16 @@ const ECOSYSTEM_HYDRO_EROSIONSSTUFEN = [0, 40, 90, 150, 240, 360];
 // Oberflaeche, sobald die Erosion einen eigenen Regler bekam (04.09.2026). Eine abgeschriebene
 // Vorgabe laesst „(auto)" eine andere Zahl anzeigen als die, mit der gerechnet wird.
 const ECOSYSTEM_HYDRO_EROSION_VORGABE = 3;
+// 🔴 DAS PLATEAU: wie weit vom FLAECHENRAND die Abbruchkante steht, als Anteil 0..1 des groessten
+// Randabstands. 1 = die Mittelachse selbst, also der Kamm von heute (Vorgabe, nichts aendert sich);
+// kleinere Werte schieben die Kante nach aussen, bis bei 0 die ganze Flaeche Plateau waere.
+// ⭐ Die Familie ist die ABSTANDSKARTE zum Rand, und sie ist genau die richtige: ihre Isolinien sind
+// geschrumpfte Kopien des Randes -- die Wand ist deshalb rundherum gleich breit --, und ihr Maximum
+// IST die Mittelachse. Ein Kreisradius um die Kammlinie kann das nicht: er kennt die Form der
+// Flaeche nicht und liess bei einem herzfoermigen Berg links schmale und rechts breite Waende stehen
+// (Owner 04.09.2026, am Bild: „es sollte mit uebereinstimmung zum rand beginnen und immer mehr zum
+// kamm wandern").
+const ECOSYSTEM_HYDRO_PLATEAU_VORGABE = 1;
 
 /* ══════════════════════════════════════════════════════════════════════════════════════════════
    1. RASTER UND MASKEN
@@ -391,7 +401,47 @@ function kammHoeheAn(x, y, pts, sattel) {
 // ⚠️ Der Sockel HEBT nur, er senkt nie: `Math.max`. Ein Gipfel, der niedriger ist als der Sockel,
 // bleibt trotzdem auf seiner eingetragenen Zahl -- er ist `fest` und wird oben uebersprungen. Der
 // Kamm um ihn herum steht dann hoeher als er; das ist die Aussage der Daten, nicht ein Fehler.
-function stempleKamm(r, h, fest, gipfel, sattel, vorgabe, kurve, marke, grundhoehe) {
+// Der Abstand jeder Zelle zum Flaechenrand, in Zellen (Chamfer 3-4, zwei Durchgaenge).
+//
+// ⚠️ Die 3-4-Metrik statt der echten euklidischen Distanz: sie kostet zwei lineare Durchgaenge statt
+// einer Warteschlange und weicht um hoechstens 8 % ab -- fuer eine Isolinie, die eine Gelaendekante
+// beschreibt, ist das unter der Zellweite und damit unsichtbar.
+// 💣 AUSSERHALB IST 0, nicht „unendlich weit weg": die Karte misst den Abstand ZUM RAND, und der
+// Rand ist die Grenze zwischen drin und draussen. Andersherum initialisiert misst sie den Abstand
+// zum naechsten Innenpunkt und liefert ueberall 0.
+function randAbstand(r) {
+	const d = new Float64Array(r.w * r.hh);
+	const GROSS = 1e9;
+	for (let k = 0; k < d.length; k++) { d[k] = r.drin[k] ? GROSS : 0; }
+	for (let j = 0; j < r.hh; j++) {
+		for (let i = 0; i < r.w; i++) {
+			const k = (j * r.w) + i;
+			if (!r.drin[k]) { continue; }
+			let v = d[k];
+			if (i > 0) { v = Math.min(v, d[k - 1] + 3); }
+			if (j > 0) { v = Math.min(v, d[k - r.w] + 3); }
+			if (i > 0 && j > 0) { v = Math.min(v, d[k - r.w - 1] + 4); }
+			if (i < r.w - 1 && j > 0) { v = Math.min(v, d[k - r.w + 1] + 4); }
+			d[k] = v;
+		}
+	}
+	for (let j = r.hh - 1; j >= 0; j--) {
+		for (let i = r.w - 1; i >= 0; i--) {
+			const k = (j * r.w) + i;
+			if (!r.drin[k]) { continue; }
+			let v = d[k];
+			if (i < r.w - 1) { v = Math.min(v, d[k + 1] + 3); }
+			if (j < r.hh - 1) { v = Math.min(v, d[k + r.w] + 3); }
+			if (i < r.w - 1 && j < r.hh - 1) { v = Math.min(v, d[k + r.w + 1] + 4); }
+			if (i > 0 && j < r.hh - 1) { v = Math.min(v, d[k + r.w - 1] + 4); }
+			d[k] = v;
+		}
+	}
+
+	return d;
+}
+
+function stempleKamm(r, h, fest, gipfel, sattel, vorgabe, kurve, marke, grundhoehe, plateau) {
 	const standard = Number(vorgabe) > 0 ? Number(vorgabe) : 5000;
 	const pts = gipfel.map((p) => ({
 		x: p.x, y: p.y, h: Number(p.h) > 0 ? Number(p.h) : standard,
@@ -437,6 +487,31 @@ function stempleKamm(r, h, fest, gipfel, sattel, vorgabe, kurve, marke, grundhoe
 					continue;                      // fest = Gipfel, siehe oben
 				}
 				const H = Math.max(kammHoeheAn(x, y, pts, sattel), sockel);
+				if (H > h[k]) { h[k] = H; fest[k] = 1; zellen++; if (marke) { marke[k] = 1; } }
+			}
+		}
+	}
+
+	// 🔴 AUS DER LINIE WIRD EINE FLAECHE -- die Abbruchkante als Isolinie des Randabstands.
+	// Sie laeuft NACH der Linie, damit die Kammhoehen schon stehen; gestempelt wird mit derselben
+	// Funktion (`kammHoeheAn`), also folgt das Plateau dem Kamm statt eben zu sein. Bei einer Flaeche
+	// ohne Gipfel ist der Kamm konstant und das Plateau damit von selbst waagerecht -- ein Tafelberg;
+	// mit Gipfeln neigt es sich mit ihnen.
+	// 💣 `fest[k]` wird uebersprungen: ein GIPFEL behaelt seine eingetragene Zahl, auch wenn das
+	// Plateau ueber ihn hinwegzoege. Er ragt dann heraus, oder er steht in einer Mulde -- beides ist
+	// die Aussage der Daten, und die Messung gewinnt gegen die gerechnete Form (dieselbe Regel wie
+	// beim Sockel darueber).
+	const anteil = Number.isFinite(Number(plateau)) ? Number(plateau) : ECOSYSTEM_HYDRO_PLATEAU_VORGABE;
+	if (anteil < 1 && anteil >= 0 && pts.length) {
+		const dist = randAbstand(r);
+		let dmax = 0;
+		for (let k = 0; k < dist.length; k++) { if (r.drin[k] && dist[k] > dmax) { dmax = dist[k]; } }
+		const schwelle = anteil * dmax;
+		for (let j = 0; j < r.hh; j++) {
+			for (let i = 0; i < r.w; i++) {
+				const k = (j * r.w) + i;
+				if (!r.drin[k] || fest[k] || dist[k] < schwelle) { continue; }
+				const H = Math.max(kammHoeheAn(r.x(i), r.y(j), pts, sattel), sockel);
 				if (H > h[k]) { h[k] = H; fest[k] = 1; zellen++; if (marke) { marke[k] = 1; } }
 			}
 		}
@@ -1318,9 +1393,12 @@ function avesmapsGebirgsRasterBauen(eingabe) {
 	if (melde) { melde(0.15); }
 
 	const sattel = Number.isFinite(Number(reg.sattel)) ? Number(reg.sattel) : ECOSYSTEM_HYDRO_SATTEL;
+	const plateau = Number.isFinite(Number(reg.plateau))
+		? Math.max(0, Math.min(1, Number(reg.plateau)))
+		: ECOSYSTEM_HYDRO_PLATEAU_VORGABE;
 	const kamm = kammPunkte.length >= 2
 		? stempleKamm(r, h, fest, kammPunkte, sattel, ECOSYSTEM_HYDRO_STANDARDHOEHE, e.kurve, kammMaske,
-			maximalhoehe)
+			maximalhoehe, plateau)
 		: { quelle: "keine", kanten: 0, zellen: 0 };
 	if (kamm.zellen) { loeseRelief(h, r.w, r.hh, r.drin, fest, 4, 40, 100, 1.85); }
 	if (melde) { melde(0.3); }
@@ -1334,6 +1412,14 @@ function avesmapsGebirgsRasterBauen(eingabe) {
 	const stufen = Number(reg.stufen) > 0 ? Math.min(8, Math.round(Number(reg.stufen))) : 3;
 	const rauschen = Number.isFinite(Number(reg.rauschen)) ? Number(reg.rauschen) : ECOSYSTEM_HYDRO_RAUSCHEN;
 	const saat = Number.isFinite(Number(e.saat)) ? Number(e.saat) : 12345;
+	// 🔴 DER HOECHSTE FESTGEHALTENE WERT -- Gipfel oder Kammhoehe. Hier gerechnet, weil danach nichts
+	// mehr `fest` setzt, und EINMAL statt je Zelle.
+	// ⚠️ Gemessen wird `h`, nicht die Eingabeliste der Gipfel: ein Gipfel ohne eingetragene Hoehe
+	// steht mit der Standardhoehe da, und die Kammhoehe (der Sockel) ist ueberhaupt kein Gipfel.
+	let hoechsterFest = 0;
+	for (let k = 0; k < zellen; k++) {
+		if (r.drin[k] && fest[k] && h[k] > hoechsterFest) { hoechsterFest = h[k]; }
+	}
 	if (rauschen > 0) {
 		const grobeZelle = spanMax / koernung;
 		for (let j = 0; j < r.hh; j++) {
@@ -1425,6 +1511,19 @@ function avesmapsGebirgsRasterBauen(eingabe) {
 		spiegel: tal ? tal.spiegel : [] };
 	const fluss = { zellen: tal ? tal.spuren.reduce((n, sp) => n + sp.p.length, 0) : 0,
 		geraten: tal ? tal.geraten : 0, spuren: tal ? tal.spuren : [] };
+	// 💣 DER DECKEL STEHT AM AUSGANG, NICHT AN DEN ERZEUGERN -- weil es MEHRERE sind und beim Bau
+	// genau das zweimal danebenging. Erst hob das RAUSCHEN ueber die Gipfel (multiplikativ, also am
+	// staerksten dort, wo es schon hoch ist: an der Roten Sichel 7.924 gegen 6.650 eingetragen); ein
+	// Riegel dort schien zu genuegen. Dann hob die HEBUNG der Erosion darueber -- sie gibt jeder
+	// freien Zelle denselben Betrag, und eine Zelle knapp unter einem Gipfel wandert damit darueber
+	// (an einer Testfixture mit hohem Kamm gemessen: 5.217 gegen 5.000). Der naechste Erzeuger haette
+	// den dritten Riegel gebraucht.
+	// 🔴 EIN Deckel am Ausgang faengt alle: kein Punkt des Feldes liegt ueber dem hoechsten
+	// festgehaltenen Wert -- das ist die Owner-Regel „die vorhandene Geographie formt das Gelaende"
+	// als eine Zeile.
+	// ⚠️ Er SENKT nur, kann also die Fusshoehe-0 am Rand nicht brechen, und er laesst die Gipfel
+	// selbst unberuehrt (sie SIND der hoechste feste Wert). Ohne festen Wert (kein Gipfel, keine
+	// Kammhoehe) greift er gar nicht -- dann ist das Feld ohnehin flach.
 	const relief = Float64Array.from(h);
 	if (melde) { melde(0.45); }
 
@@ -1432,7 +1531,15 @@ function avesmapsGebirgsRasterBauen(eingabe) {
 	// Die Erosionsmaske: alles Feste AUSSER Kamm und Kegelmantel (gemessene Groesse gegen Form).
 	festEro.set(fest);
 	for (let k = 0; k < zellen; k++) {
-		if (kammMaske[k] || mantel[k]) { festEro[k] = 0; }
+		// 💣 EIN PLATEAU BRAUCHT EINE HARTE DECKSCHICHT, sonst zerfrisst es sich selbst. Auf einer
+		// FLACHEN Flaeche hat die Erosion keine Vorzugsrichtung: die Senkenfuellung gibt jeder Zelle
+		// ein winziges Kunstgefaelle, und der Abtrag folgt ihm -- die Simulation erfindet dann ihre
+		// eigene Entwaesserung. Im Versuch am 04.09.2026 kam ein Kraterfeld heraus, kein Tafelberg.
+		// ⭐ Das ist auch der geologische Grund, warum es Tafelberge gibt: eine erosionsresistente
+		// Deckschicht.
+		// 🔴 Nur bei einem WIRKLICHEN Plateau (`plateau < 1`). Ohne es bleibt die Kammlinie weich wie
+		// bisher -- ein Grat, der nicht erodiert, waere eine sichtbare Aenderung an jedem Gebirge.
+		if (mantel[k] || (kammMaske[k] && plateau >= 1)) { festEro[k] = 0; }
 		// 🔴 DIE FLUSSACHSE UND DIE SEEFLAECHE SIND MESSUNGEN, keine Form -- sie sind GEZEICHNET.
 		// Also erodieren sie nicht, genau wie ein eingetragener Gipfel. Nur ihre FLANKE ist frei und
 		// bekommt die Rippen der Nebenentwaesserung.
@@ -1472,6 +1579,26 @@ function avesmapsGebirgsRasterBauen(eingabe) {
 	// erodieren und bog die Achse danach auf ihren Talboden zurueck -- das Ergebnis waren scharfe
 	// Rillen in einem fertig geformten Gelaende, im Bild ein Wurmnetz statt eines Massivs.
 	// Seit die Achse in `festEro` steht, gibt es nichts zurechtzubiegen: sie wird nie angetastet.
+
+	// 💣 DER DECKEL STEHT GANZ AM ENDE, NICHT AN DEN ERZEUGERN -- weil es MEHRERE sind und beim Bau
+	// genau das dreimal danebenging. (1) Erst hob das RAUSCHEN ueber die Gipfel: multiplikativ, also
+	// am staerksten dort, wo es schon hoch ist -- an der Roten Sichel 7.924 gegen 6.650 eingetragen.
+	// (2) Ein Riegel im Rauschzweig schien zu genuegen; dann hob die HEBUNG der Erosion darueber, die
+	// jeder freien Zelle denselben Betrag gibt: eine Zelle knapp unter einem Gipfel wandert damit
+	// darueber (gemessen 5.217 gegen 5.000). (3) Ein Deckel VOR der Erosion half auch nicht -- sie
+	// laeuft ja danach. Der naechste Erzeuger haette den vierten Riegel gebraucht.
+	// 🔴 EIN Deckel am Ende faengt alle: kein Punkt des Feldes liegt ueber dem hoechsten
+	// festgehaltenen Wert. Das ist die Owner-Regel „die vorhandene Geographie soll das Gelaende
+	// formen" als eine Zeile, und sie gilt unabhaengig davon, wer kuenftig noch etwas anhebt.
+	// ⚠️ Er SENKT nur -- er kann die Fusshoehe-0 am Rand also nicht brechen -- und laesst die Gipfel
+	// unberuehrt, denn sie SIND der hoechste feste Wert. Ohne festen Wert (kein Gipfel, keine
+	// Kammhoehe) greift er gar nicht; dann ist das Feld ohnehin flach.
+	if (hoechsterFest > 0) {
+		const fertig = zustand.h;
+		for (let k = 0; k < zellen; k++) {
+			if (r.drin[k] && fertig[k] > hoechsterFest) { fertig[k] = hoechsterFest; }
+		}
+	}
 	if (melde) { melde(1); }
 
 	return {
@@ -1492,6 +1619,7 @@ if (typeof module !== "undefined" && module.exports) {
 		loeseRelief, fbm,
 		fuelleSenken, flussrichtung, akkumuliere, streamPower, diffundiere, erosionsSchritt,
 		avesmapsGebirgsRasterBauen, avesmapsHydroErosionsSchritte, ECOSYSTEM_HYDRO_ZELLWEITE,
-		ECOSYSTEM_HYDRO_EROSIONSSTUFEN, ECOSYSTEM_HYDRO_EROSION_VORGABE, ECOSYSTEM_HYDRO_STANDARDHOEHE,
+		ECOSYSTEM_HYDRO_EROSIONSSTUFEN, ECOSYSTEM_HYDRO_EROSION_VORGABE,
+		ECOSYSTEM_HYDRO_PLATEAU_VORGABE, randAbstand, ECOSYSTEM_HYDRO_STANDARDHOEHE,
 	};
 }

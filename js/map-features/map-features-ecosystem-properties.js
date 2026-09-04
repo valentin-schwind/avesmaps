@@ -1301,6 +1301,7 @@
 		// beiden!"
 		{ key: "terrain_levels", element: "levels", decimals: 0 },
 		{ key: "terrain_erosion", element: "erosion", decimals: 0 },
+		{ key: "terrain_plateau", element: "plateau", decimals: 2 },
 		{ key: "terrain_avg_height", element: "avgheight", decimals: 0 },
 		{ key: "terrain_mean_height", element: "meanheight", decimals: 0 },
 		// V12 (2026-09-04): die Regler der lokalen Gebirgssimulation.
@@ -1399,6 +1400,10 @@
 			terrain_erosion: typeof ECOSYSTEM_HYDRO_EROSION_VORGABE === "number"
 				? ECOSYSTEM_HYDRO_EROSION_VORGABE
 				: 3,
+			// 1 = der Kamm als Linie, also das Verhalten vor dem 04.09.2026.
+			terrain_plateau: typeof ECOSYSTEM_HYDRO_PLATEAU_VORGABE === "number"
+				? ECOSYSTEM_HYDRO_PLATEAU_VORGABE
+				: 1,
 		};
 	}
 
