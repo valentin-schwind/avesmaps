@@ -44,12 +44,30 @@ assert(count($verfolgt) > 100, 'die Dateiliste ist unglaubwuerdig kurz: ' . coun
 // Waechter zufaellig -- eingecheckt (und es WIRD eingecheckt) waere er sonst grundlos rot, und
 // ein Waechter, der grundlos rot wird, wird abgeschaltet und fehlt dann, wenn er gebraucht wird.
 // Das richtige Kriterium ist das VERZEICHNIS, nicht die Endung.
-$dokuVerzeichnis = 'docs/';
+//
+// 🔴 NACHTRAG 04.09.2026: `sql/` gehoert zu DERSELBEN Klasse und kam am selben Tag dazu.
+// `b60b4422a` checkte `sql/garetien-import-staging-bestand.sql` ein -- eine Bestandsabfrage zum
+// Hineinkopieren in phpMyAdmin -- und legte damit das Deploy-Tor fuer ALLE lahm (Lauf
+// 33898645595, Schritt "Run the unit tests"). Die Begruendung ist woertlich dieselbe wie bei
+// `docs/`: nichts im Produkt liest `sql/` zur Laufzeit -- AGENTS.md §5 nennt es "a partial,
+// partly-stale snapshot", und die einzigen Fundstellen im Code sind Kommentare. Eine Datei, die
+// nur ein Mensch nach phpMyAdmin kopiert, kann den Importer nicht festwachsen lassen: sie hat
+// keinen Fremdschluessel, keinen JOIN und keinen Aufrufer.
+// ⚠️ Scharf bleibt der Waechter damit fuer alles, was WIRKLICH koppelt -- Code, Markup und
+// Konfiguration ausserhalb von api/_internal/import/.
+$dokuVerzeichnisse = ['docs/', 'sql/'];
 $endungen = ['php', 'js', 'mjs', 'css', 'html', 'sql', 'yml', 'yaml'];
 $treffer = [];
 foreach ($verfolgt as $pfad) {
     $normal = str_replace('\\', '/', $pfad);
-    if (str_starts_with($normal, $erlaubt) || str_starts_with($normal, $dokuVerzeichnis)) {
+    $istDoku = false;
+    foreach ($dokuVerzeichnisse as $dokuVerzeichnis) {
+        if (str_starts_with($normal, $dokuVerzeichnis)) {
+            $istDoku = true;
+            break;
+        }
+    }
+    if (str_starts_with($normal, $erlaubt) || $istDoku) {
         continue;
     }
     if (!in_array(strtolower(pathinfo($normal, PATHINFO_EXTENSION)), $endungen, true)) {
