@@ -157,25 +157,58 @@ h2 { margin: 0 0 3px; color: var(--color-text-strong); font-size: var(--font-siz
 .v-box + .v-box { margin-top: var(--space-12); }
 /* 💣 STATISCH mit negativem Rand, NICHT absolut: eine zweite Titelzeile schiebt den Inhalt
    nach unten, statt ihn zu überdecken. Genau das leistet ein <legend>. */
-.v-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-4);
-	width: max-content; max-width: calc(100% - 6px);
-	margin: -17px 0 var(--space-4) -2px; padding: 0 5px;
-	background: var(--color-panel-soft); }
+.v-head { margin: -17px 0 var(--space-4) 3px; }
+/* 💣 DER GRUND GEHOERT DEM TEXT, NICHT DEM KASTEN. Als inline-Lauf mit box-decoration-break
+   folgt er jeder Zeile einzeln, und die Oberkante steht rechts daneben weiter. Als Flex-Kasten
+   (width:max-content + max-width:100%) zog ihn eine ZWEITE Zeile auf volle Breite und loeschte
+   die Kante bis zur rechten Ecke -- bei einer Zeile faellt das nie auf. */
+.v-schrift { display: inline; box-decoration-break: clone; -webkit-box-decoration-break: clone;
+	padding: 1px 5px; background: var(--color-panel-soft); line-height: 1.5; }
 .v-title { font-size: var(--font-size-caption); font-weight: var(--font-weight-bold);
 	letter-spacing: 0.03em; text-transform: uppercase; color: var(--color-accent-strong); }
 .v-note { font-size: var(--font-size-caption); font-weight: 400; text-transform: none;
 	letter-spacing: 0; color: var(--color-text-muted); }
 /* Der klappbare Fall: derselbe Rahmen, der Titel wird ein Knopf. */
-.v-toggle { display: flex; align-items: baseline; gap: var(--space-4); min-width: 0;
-	margin: 0; padding: 0; border: 0; background: none; font: inherit; cursor: pointer; text-align: left; }
+.v-toggle { display: inline; margin: 0; padding: 0; border: 0; background: none;
+	font: inherit; color: inherit; cursor: pointer; text-align: left; }
 .v-toggle:hover .v-title { color: var(--color-text-strong); }
-.v-caret { color: var(--color-text-muted); font-size: var(--font-size-small); }
+.v-caret { margin-right: 3px; color: var(--color-text-muted); font-size: var(--font-size-small); }
 .v-caret::before { content: "\203a"; display: inline-block; transition: transform .2s ease; }
 .v-box--offen .v-caret::before { transform: rotate(90deg); }
-.v-info { margin-left: var(--space-4); width: 18px; height: 18px; display: inline-grid;
-	place-items: center; border: 1px solid var(--color-button-soft-border);
-	border-radius: 999px; background: var(--color-button-soft);
-	color: var(--color-button-soft-text); font-size: var(--font-size-caption); cursor: help; }
+.v-info { margin-left: 5px; padding: 0; border: 0; background: none; vertical-align: baseline;
+	color: var(--color-text-muted); font-size: var(--font-size-small); line-height: 1; cursor: help; }
+.v-info:hover { color: var(--color-text-strong); }
+
+/* ══ DAS KLAPPEN — drei Formen ═══════════════════════════════════════════════════════════ */
+/* Heute: zugeklappt EINE Leiste (28px), mit einer Zusammenfassung des eingestellten Werts;
+   aufgeklappt 145px. Die Zusammenfassung ist der Grund, warum das Zuklappen etwas taugt --
+   sie darf keine der drei Formen verlieren. Live gemessen 04.09.2026 am Routenplaner. */
+.k-zus { color: var(--color-text-muted); font-size: var(--font-size-caption);
+	font-weight: 400; letter-spacing: 0; text-transform: none; }
+.k-box .feld { transition: none; }
+.k-box:not(.v-box--offen) > .feld { display: none; }
+
+/* K1 -- der Rahmen bleibt stehen, die Zusammenfassung ist sein Inhalt. */
+.k1:not(.v-box--offen) { padding-bottom: var(--space-6); }
+.k1 .k-inhalt { margin: 0; color: var(--color-text-muted); font-size: var(--font-size-small); }
+.k1.v-box--offen .k-inhalt { display: none; }
+.k1:not(.v-box--offen) .k-zus { display: none; }
+
+/* K2 -- der Rahmen wird zur Leiste (das heutige Verhalten). */
+.k2:not(.v-box--offen) { padding: 0; border-radius: var(--radius-md); }
+.k2:not(.v-box--offen) .v-head { margin: 0; }
+.k2:not(.v-box--offen) .v-schrift { display: flex; align-items: baseline; gap: 5px;
+	padding: 5px var(--space-8); background: none; }
+.k2 .k-inhalt { display: none; }
+
+/* K3 -- nur die Oberkante bleibt: die Aufschrift sitzt weiter auf ihrer Linie.
+   💣 Der negative Rand ist hier die HALBE Zeilenhoehe, nicht die -17px des offenen Kastens:
+   dort schiebt er die Aufschrift auf die Kante eines Kastens, der darunter noch Polster hat --
+   hier ist der Kasten NUR die Kante, und mit -17px stuende die Aufschrift ganz darueber
+   (gemessen: ragte 16px hinaus, Kasten 3,2px hoch) statt darauf. */
+.k3:not(.v-box--offen) { padding: 0; border-width: 1px 0 0; border-radius: 0; }
+.k3:not(.v-box--offen) .v-head { margin: -9px 0 0 3px; }
+.k3 .k-inhalt { display: none; }
 </style>
 </head>
 <body>
@@ -284,7 +317,7 @@ h2 { margin: 0 0 3px; color: var(--color-text-strong); font-size: var(--font-siz
 		<p class="warum">Der Normalfall: Aufschrift, Inhalt.</p>
 		<div class="wirt">
 			<div class="v-box">
-				<div class="v-head"><span class="v-title">Gelände</span></div>
+				<div class="v-head"><span class="v-schrift"><span class="v-title">Gelände</span></span></div>
 				<div class="feld"><label>Morphologie</label><select><option>—</option></select>
 					<label>Höhenstufe</label><select><option>—</option></select></div>
 			</div>
@@ -295,8 +328,8 @@ h2 { margin: 0 0 3px; color: var(--color-text-strong); font-size: var(--font-siz
 		<p class="warum">Eine Reichweite oder Anzahl steht gedämpft daneben — nie in Versalien.</p>
 		<div class="wirt">
 			<div class="v-box">
-				<div class="v-head"><span class="v-title">Gilt für den ganzen Korpus</span>
-					<span class="v-note">— welcher, sagt die Adresse</span></div>
+				<div class="v-head"><span class="v-schrift"><span class="v-title">Gilt für den ganzen Korpus</span>
+					<span class="v-note">— welcher, sagt die Adresse</span></span></div>
 				<div class="feld"><label>Name</label><input value="AlberniaWiki"></div>
 			</div>
 		</div>
@@ -306,11 +339,9 @@ h2 { margin: 0 0 3px; color: var(--color-text-strong); font-size: var(--font-siz
 		<p class="warum">Derselbe Rahmen; der Titel wird ein Knopf, der Pfeil steht davor.</p>
 		<div class="wirt">
 			<div class="v-box v-box--offen">
-				<div class="v-head">
-					<button class="v-toggle" type="button"><span class="v-caret"></span>
-						<span class="v-title">Transportmittel</span></button>
-					<span class="v-info" title="Was die Auswahl bewirkt">ⓘ</span>
-				</div>
+				<div class="v-head"><span class="v-schrift"><button class="v-toggle" type="button"><span
+					class="v-caret"></span><span class="v-title">Transportmittel</span></button><button
+					class="v-info" type="button" title="Was die Auswahl bewirkt">ⓘ</button></span></div>
 				<div class="feld"><label>Land</label><select><option>Reisegruppe zu Fuß</option></select>
 					<label>Fluss</label><select><option>Flusssegler</option></select></div>
 			</div>
@@ -322,8 +353,8 @@ h2 { margin: 0 0 3px; color: var(--color-text-strong); font-size: var(--font-siz
 			statt ihn zu überdecken.</p>
 		<div class="wirt">
 			<div class="v-box">
-				<div class="v-head"><span class="v-title">Gilt für alle Objekte, die diese Quelle zitieren</span>
-					<span class="v-note">— noch kein Objekt</span></div>
+				<div class="v-head"><span class="v-schrift"><span class="v-title">Gilt für alle Objekte, die diese Quelle zitieren</span>
+					<span class="v-note">— noch kein Objekt</span></span></div>
 				<div class="feld"><label>Adresse</label><input placeholder="https://…"></div>
 			</div>
 		</div>
@@ -339,6 +370,71 @@ h2 { margin: 0 0 3px; color: var(--color-text-strong); font-size: var(--font-siz
 	Inhalt nach unten. Absolut positioniert lag sie im Quellen-Editor gemessen <b>9px über</b> dem
 	ersten Feld.
 </p>
+
+<h2>Und wie klappt der Kasten zu?</h2>
+<p class="lead">
+	Der Routenplaner ist der einzige klappbare — und beim Zuklappen zeigt er heute eine
+	<b>Zusammenfassung</b> des eingestellten Werts („Reisegruppe zu Fuß · Flusssegler …"),
+	die beim Aufklappen wieder verschwindet. Live gemessen: offen <b>145px</b>, zu <b>28px</b>.
+	Die Zusammenfassung ist der Grund, warum das Zuklappen etwas taugt; keine Form darf sie
+	verlieren. Die Frage ist nur, <b>was aus dem Rahmen wird</b>, wenn nichts mehr darin steht —
+	meine Aufschrift sitzt ja AUF ihm. <b>Alle drei sind anklickbar.</b>
+</p>
+<div class="reihe">
+
+	<div>
+		<h2 style="font-size:var(--font-size-body)">K1 · der Rahmen bleibt</h2>
+		<p class="warum">Die Zusammenfassung wird sein <b>Inhalt</b>. Eine Form, immer.
+			Kostet Höhe: der Kasten bleibt ein Kasten.</p>
+		<div class="wirt">
+			<div class="v-box k-box k1 v-box--offen" id="k1">
+				<div class="v-head"><span class="v-schrift"><button class="v-toggle" type="button"><span
+					class="v-caret"></span><span class="v-title">Transportmittel</span></button><button
+					class="v-info" type="button" title="Was die Auswahl bewirkt">ⓘ</button></span></div>
+				<p class="k-inhalt">Reisegruppe zu Fuß · Flusssegler · Lastensegler</p>
+				<div class="feld"><label>Land</label><select><option>Reisegruppe zu Fuß</option></select>
+					<label>Fluss</label><select><option>Flusssegler</option></select></div>
+			</div>
+		</div>
+	</div>
+
+	<div>
+		<h2 style="font-size:var(--font-size-body)">K2 · der Rahmen wird zur Leiste</h2>
+		<p class="warum">Das <b>heutige</b> Verhalten. Am kompaktesten — aber der Kasten hat
+			<b>zwei</b> Formen, und die Aufschrift verlässt ihre Linie.</p>
+		<div class="wirt">
+			<div class="v-box k-box k2 v-box--offen" id="k2">
+				<div class="v-head"><span class="v-schrift"><button class="v-toggle" type="button"><span
+					class="v-caret"></span><span class="v-title">Transportmittel</span></button><span
+					class="k-zus">Reisegruppe zu Fuß · Flusssegler</span><button
+					class="v-info" type="button" title="Was die Auswahl bewirkt">ⓘ</button></span></div>
+				<div class="feld"><label>Land</label><select><option>Reisegruppe zu Fuß</option></select>
+					<label>Fluss</label><select><option>Flusssegler</option></select></div>
+			</div>
+		</div>
+	</div>
+
+	<div>
+		<h2 style="font-size:var(--font-size-body)">K3 · nur die Oberkante bleibt</h2>
+		<p class="warum">Der Kasten schrumpft auf <b>seine eigene Oberkante</b> — die Aufschrift
+			sitzt weiter auf derselben Linie. Kompakt wie heute, und die Form ist
+			<b>abgeleitet</b>, nicht zweit.</p>
+		<div class="wirt">
+			<div class="v-box k-box k3 v-box--offen" id="k3">
+				<div class="v-head"><span class="v-schrift"><button class="v-toggle" type="button"><span
+					class="v-caret"></span><span class="v-title">Transportmittel</span></button><span
+					class="k-zus">Reisegruppe zu Fuß · Flusssegler</span><button
+					class="v-info" type="button" title="Was die Auswahl bewirkt">ⓘ</button></span></div>
+				<div class="feld"><label>Land</label><select><option>Reisegruppe zu Fuß</option></select>
+					<label>Fluss</label><select><option>Flusssegler</option></select></div>
+			</div>
+		</div>
+	</div>
+</div>
+<p class="lead" id="k-mass">
+	Höhen werden beim Klicken hier gemessen.
+</p>
+
 <p class="lead">
 	⚠️ <b>Was der Vorschlag NICHT ändert:</b> welche Kästen es gibt, ihre Reihenfolge, ihr Inhalt.
 	Nur die vier Rezepturen werden eine.
@@ -357,6 +453,20 @@ h2 { margin: 0 0 3px; color: var(--color-text-strong); font-size: var(--font-siz
 	[].forEach.call(document.querySelectorAll(".v-toggle"), function (b) {
 		b.addEventListener("click", function () { b.closest(".v-box").classList.toggle("v-box--offen"); });
 	});
+	function messen() {
+		var t = ["k1", "k2", "k3"].map(function (id) {
+			var e = document.getElementById(id);
+			return id.toUpperCase() + " " + Math.round(e.getBoundingClientRect().height) + "px ("
+				+ (e.classList.contains("v-box--offen") ? "offen" : "zu") + ")";
+		});
+		document.getElementById("k-mass").textContent = "Gemessen: " + t.join(" · ")
+			+ " — heute: offen 145px, zu 28px.";
+	}
+	[].forEach.call(document.querySelectorAll(".v-toggle"), function (b) {
+		b.addEventListener("click", messen);
+	});
+	messen();
+
 })();
 </script>
 </body>
