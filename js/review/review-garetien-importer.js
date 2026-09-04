@@ -195,6 +195,11 @@
 	// dieses Fenster läuft auch ohne Zeichner, und der Zeichner wird im Test allein geladen.
 	// Zusammengehalten von js/review/__tests__/garetien-karte.test.js.
 	const AVESMAPS_GARETIEN_FELD_FLOW = "flowDir";
+	// 🔴 GEKOPPELTER WERT IN ZWEI DATEIEN, genau wie die drei Felder darüber und aus demselben
+	// Grund. Owner 04.09.2026: „es wäre praktisch wenn man in der voransicht … sehen könnte (mit
+	// gelben rahmen), wenn die option aktiviert ist." Zusammengehalten von
+	// js/review/__tests__/garetien-endkreuzung-stroemung.test.js.
+	const AVESMAPS_GARETIEN_FELD_ENDKREUZUNGEN = "endkreuzungen";
 
 	/*
 	 * Der Name des globalen Hakens, ueber den der ZEICHNER einen Klick auf eine Form hierher meldet
@@ -1315,24 +1320,33 @@
 	 */
 	function avesmapsGaretienAufDerKarte(objekte) {
 		const raus = avesmapsGaretienNurIhreStempeln(avesmapsGaretienAnzeigeListe());
-		if (zustand.detailKey === null) { return raus; }
-		const schonDrin = raus.some(function (o) {
-			return o && String(o.key) === String(zustand.detailKey);
-		});
-		// 🔴 EIN Ausgang für den Gewählt-Stempel, nicht zwei. Der erste Bau setzte ihn an beide
-		// `return`-Zeilen -- und eine Mutationsprobe zeigte sofort, dass ein Test, der nur den
-		// einen Weg fährt, den anderen ungeprüft lässt. Dieselbe Lehre, die dieses Projekt schon
-		// bei den Querfeldein-Kanten und der Verkehrsmittel-Sperre bezahlt hat: eine Regel, die
-		// einen von zwei Erzeugern bindet, ist keine Regel. Also gibt es hier nur noch einen.
+		// 🔴 EIN Ausgang, und das ist keine Ordnungsliebe. Der erste Bau setzte den
+		// Gewählt-Stempel an beide `return`-Zeilen -- und eine Mutationsprobe zeigte sofort, dass
+		// ein Test, der nur den einen Weg fährt, den anderen ungeprüft lässt. Dieselbe Lehre, die
+		// dieses Projekt schon bei den Querfeldein-Kanten und der Verkehrsmittel-Sperre bezahlt
+		// hat: eine Regel, die einen von zwei Erzeugern bindet, ist keine Regel.
+		// 💣 UND AM 04.09.2026 HAT GENAU DIESE STELLE ES WIEDER GEKOSTET: hier stand ein früher
+		// Ausgang `if (zustand.detailKey === null) { return raus; }`, und der Endkreuzungs-Stempel
+		// darunter war damit für den Normalfall des Fensters TOT -- „Anzeigen" ohne offene Zeile
+		// ist genau der Fall, den der Owner benannt hat („beim anklicken UND in 'anzeigen'").
+		// Ein früher Ausgang IST ein zweiter Erzeuger; er sieht nur nicht so aus. Der Ausgang ist
+		// jetzt einer, und die Bedingung eine Weiche darin.
 		let liegt = raus;
-		if (!schonDrin) {
-			const liste = objekte || zustand.objekte || [];
-			const angeklickt = liste.filter(function (o) {
+		if (zustand.detailKey !== null) {
+			const schonDrin = raus.some(function (o) {
 				return o && String(o.key) === String(zustand.detailKey);
-			})[0];
-			if (angeklickt) { liegt = raus.concat([angeklickt]); }
+			});
+			if (!schonDrin) {
+				const liste = objekte || zustand.objekte || [];
+				const angeklickt = liste.filter(function (o) {
+					return o && String(o.key) === String(zustand.detailKey);
+				})[0];
+				if (angeklickt) { liegt = raus.concat([angeklickt]); }
+			}
 		}
-		return garetienGewaehltStempeln(liegt);
+		// ⚠️ `garetienGewaehltStempeln` gibt ohne offene Zeile unverändert zurück -- deshalb darf
+		// er hier bedingungslos stehen, und deshalb braucht es die alte Abkürzung nicht.
+		return garetienEndkreuzungStempeln(garetienGewaehltStempeln(liegt));
 	}
 
 	/*
@@ -1366,6 +1380,43 @@
 				kopie[AVESMAPS_GARETIEN_FELD_FLOW] = String(garetienEingabenZustandZu(o).flowDir
 					|| "forward");
 			}
+			return kopie;
+		});
+	}
+
+	/*
+	 * Die Marke „an diesem Weg entstehen Endkreuzungen" -- REIN. Owner 04.09.2026: „es wäre
+	 * praktisch wenn man in der voransicht (beim anklicken und in 'anzeigen') sehen könnte (mit
+	 * gelben rahmen), wenn die option aktiviert ist."
+	 *
+	 * 🔴 ÜBER DIE GANZE MENGE, NICHT NUR ÜBER DIE OFFENE ZEILE -- und das ist der einzige
+	 * Unterschied zum Strömungs-Stempel, der eine Zeile höher steht. Der gehört bewusst in
+	 * `garetienGewaehltStempeln` (Dreiecke gibt es nur am angeklickten Fluss); der Auftrag hier
+	 * nennt ausdrücklich BEIDES, „beim anklicken UND in 'anzeigen'". Wer den Nachbarn abschreibt,
+	 * bekommt eine Marke, die in „Anzeigen" nie erscheint -- und das sähe nicht nach einem Fehler
+	 * aus, sondern nach einer Karte ohne Rahmen.
+	 *
+	 * 🔴 NUR EIN WEG. Der Server legt Endkreuzungen ausschließlich im `ziel === 'path'`-Zweig an
+	 * (avesmapsGaretienUebernahmeAnwenden), und das Häkchen steht nur im Weg-Kasten. Ein Ort oder
+	 * eine Fläche bekommt deshalb nie eine Marke.
+	 * ⚠️ Gefragt wird die GEWÄHLTE Form (`garetienZielWahlZu`), nicht der Vorschlag: ein zum Weg
+	 * umgestellter Vorschlag trägt den Kasten und bekommt die Kreuzungen ebenso.
+	 * ⚠️ Und `garetienEingabenZustandZu` legt beim ersten Zugriff an -- deshalb steht die
+	 * Ziel-Weiche DAVOR: sonst bekäme jedes angezeigte Objekt einen Eingabenzustand, den niemand
+	 * angefasst hat.
+	 *
+	 * 🔴 GESTEMPELT WIRD EINE KOPIE. Die Anzeige-Menge hält die Objekte, wie der Server sie
+	 * geliefert hat; sie zu verändern schriebe sich über `zustand.objekte` bis in die Listenzeile
+	 * durch, denn beide halten dieselbe Referenz. (Der Satz steht hier zum dritten Mal, weil der
+	 * Nur-ihre-Stempel genau daran beinahe gescheitert ist.)
+	 */
+	function garetienEndkreuzungStempeln(objekte) {
+		return (objekte || []).map(function (o) {
+			if (!o) { return o; }
+			if (String(garetienZielWahlZu(o).ziel || "") !== "path") { return o; }
+			if (garetienEingabenZustandZu(o).endpointCrossings === false) { return o; }
+			const kopie = Object.assign({}, o);
+			kopie[AVESMAPS_GARETIEN_FELD_ENDKREUZUNGEN] = true;
 			return kopie;
 		});
 	}
@@ -6474,6 +6525,9 @@
 			avesmapsGaretienNurIhreMerken,
 			AVESMAPS_GARETIEN_FELD_NUR_IHRE,
 			AVESMAPS_GARETIEN_FELD_GEWAEHLT,
+			// 04.09.2026: die Endkreuzungs-Marke der Voransicht
+			AVESMAPS_GARETIEN_FELD_ENDKREUZUNGEN,
+			garetienEndkreuzungStempeln,
 			AVESMAPS_GARETIEN_HAKEN_KLICK,
 			// Owner 30.08.2026: Klick auf der Karte -> Einzelansicht. Waehlt AUS, haekelt NICHT an.
 			avesmapsGaretienKarteKlickBehandeln,

@@ -1103,6 +1103,42 @@ html.avesmaps-planner-collapsed .gi-win {
 	transform-origin: 50% 50%;
 }
 
+/* ---- 04.09.2026: die ENDKREUZUNGS-RAHMEN der Voransicht ---------------------------------- *
+ *
+ * Owner: „es waere praktisch wenn man in der voransicht (beim anklicken und in 'anzeigen')
+ * sehen koennte (mit gelben rahmen), wenn die option aktiviert ist."
+ *
+ * 🔴 EIN HOHLER RING, kein gefuellter Punkt. Die echte Kreuzung ist gefuellt
+ *    (getLocationMarkerBorderWidth gibt fuer sie 0 zurueck) -- hier liegt sie aber AUF ihrer
+ *    gestrichelten Linie, und ein gefuellter Punkt verdeckte genau das Ende, das er markiert.
+ * 🔴 GROESSE UND FARBE STEHEN AM ELEMENT, nicht hier: die Groesse kommt aus der Kreuzungsregel
+ *    (getLocationMarkerSize, wechselt mit dem Zoom), die Farbe aus dem Token (wechselt mit dem
+ *    Thema). Eine Zahl in dieser Regel waere die zweite Wahrheit ueber beides.
+ * ⭐ EIN Wert treibt Rahmen UND Schein: der Zeichner setzt `color`, hier steht zweimal
+ *    `currentColor`. Zwei Deklarationen mit derselben Farbe waeren zwei Stellen, an denen ein
+ *    Themenwechsel haengenbleiben kann -- `.gi-map-flow` daneben macht es aus demselben Grund so.
+ * 💣 `box-sizing: border-box` IST TRAGEND. Der Zeichner setzt `width`/`height` auf denselben
+ *    Wert wie `iconSize` und ankert auf der MITTE; ohne diese Zeile addiert der Rahmen seine
+ *    2 px auf beiden Seiten dazu, der Ring ist 4 px zu gross und sitzt 2 px versetzt.
+ * ⚠️ Der Weichzeichner ist die halbe Sichtbarkeit: bei Zoom 3 misst ein Kreuzungsmarker 5 px,
+ *    und ein 5-px-Ring ohne Schein geht auf der Karte unter. Er ist derselbe wie an
+ *    `.gi-map-schein-ihre` -- die Herkunft bleibt damit auch am Rahmen lesbar.
+ * ⚠️ `pointer-events: none` an BEIDEN, wie beim Dreieck daneben: der Klick gehoert dem Objekt
+ *    darunter, nicht seiner Marke.
+ */
+.gi-map-endkreuzung {
+	pointer-events: none;
+}
+
+.gi-map-endkreuzung span {
+	display: block;
+	box-sizing: border-box;
+	border: 2px solid currentColor;
+	border-radius: 50%;
+	filter: drop-shadow(0 0 5px currentColor);
+	pointer-events: none;
+}
+
 /* ---- Aufgabe 15: die Handlungsleiste ------------------------------------------------------ *
  *
  * 🔴 SIE IST ANGEHEFTET, NICHT IM FLUSS. Die Entscheidung darf nie hinter einer Bildlaufleiste
