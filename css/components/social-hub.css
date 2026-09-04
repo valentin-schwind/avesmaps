@@ -18,12 +18,12 @@
    Hauptknopf klebte auf 1 px an der Panelkante, waehrend die Reiterleiste darueber auf 10 px sitzt.
    Das faellt in keinem Test auf und in keiner Konsole -- nur im Ansehen, und dort sofort.
 
-   ⚠️ 10 px ist die HAUSNUMMER DIESES PANELS (`.wiki-sync-panel__tabs { margin: 10px 10px 8px }`),
+   ⚠️ 10 px ist die HAUSNUMMER DIESES PANELS (`.wiki-sync-panel__tabs { margin: var(--space-8) var(--space-8) var(--space-6) }`),
    keine neue Zahl: der Knopf steht damit bündig unter „Meldungen · Bewertungen · Mails · Social
    Media". Und die Regel haengt am Social-Abschnitt, NICHT am gemeinsamen `.tab-panel` -- dort haette
    sie jeden anderen Reiter mitverschoben, der sein Mass schon selbst mitbringt. */
 [data-review-subtab-section="social"] {
-	padding: 0 10px 10px;
+	padding: 0 var(--space-8) var(--space-8);
 }
 
 /* Der Kopf ueber der Liste -- eine Ueberschrift plus Trenner, kein gerahmter Kasten
@@ -32,9 +32,9 @@
 	display: flex;
 	align-items: baseline;
 	justify-content: space-between;
-	margin: 14px 0 2px;
+	margin: var(--space-12) 0 2px;
 	font-size: 12px;
-	font-weight: 600;
+	font-weight: var(--font-weight-bold);
 	letter-spacing: 0.02em;
 	color: var(--color-text-muted);
 	text-transform: uppercase;
@@ -42,7 +42,7 @@
 
 .social-post {
 	border-top: 1px solid var(--color-divider);
-	padding: 10px 0;
+	padding: var(--space-8) 0;
 }
 
 .social-post:first-child {
@@ -53,24 +53,24 @@
 	/* Ein Vorschlag ist noch nicht draussen. Der warme Streifen links sagt das, ohne einen Rahmen zu
 	   ziehen -- gruppiert wird in diesem Projekt durch Trenner, nicht durch Kaesten. */
 	border-left: 3px solid var(--color-warning);
-	padding-left: 10px;
+	padding-left: var(--space-8);
 }
 
 .social-post__top {
 	display: flex;
 	align-items: baseline;
-	gap: 8px;
-	margin-bottom: 4px;
+	gap: var(--space-6);
+	margin-bottom: var(--space-2);
 }
 
 .social-post__who {
-	font-weight: 600;
+	font-weight: var(--font-weight-bold);
 	color: var(--color-text-strong);
 }
 
 .social-post__who--auto {
 	color: var(--color-text-muted);
-	font-weight: 500;
+	font-weight: var(--font-weight-bold);
 }
 
 .social-post__date {
@@ -81,7 +81,7 @@
 /* Der Beitrag klappt auf Klick auf (14.08.2026). `<details>` ist nativ und bleibt es -- nur so findet
    Strg+F den Text auch im ZUgeklappten Beitrag. */
 .social-post__body {
-	margin-bottom: 6px;
+	margin-bottom: var(--space-4);
 }
 
 /* Die Klappzeile: die Titelzeile, wenn es eine gibt, sonst der Anfang des Textes (postSummaryText).
@@ -91,7 +91,7 @@
    wo genau das gewollt ist). */
 .social-post__summary {
 	cursor: pointer;
-	font-weight: 600;
+	font-weight: var(--font-weight-bold);
 	color: var(--color-text-strong);
 	overflow-wrap: anywhere;
 }
@@ -105,26 +105,26 @@
 /* Steht seit 14.08.2026 IM aufgeklappten `<details>`, deshalb der Abstand nach oben statt nach unten
    -- den unteren traegt jetzt `.social-post__body`, sonst stuenden beide uebereinander. */
 .social-post__text {
-	margin: 4px 0 0;
+	margin: var(--space-2) 0 0;
 	color: var(--color-text);
 	white-space: pre-wrap;
 	overflow-wrap: anywhere;
 }
 
 .social-post__note {
-	margin: 0 0 6px;
+	margin: 0 0 var(--space-4);
 	font-size: 12px;
 	color: var(--color-warning-soft-text);
 }
 
 .social-post__actions {
-	margin-bottom: 8px;
+	margin-bottom: var(--space-6);
 }
 
 /* Was der Probe-Kanal gesendet haette. <details> ist nativ und bleibt es: nur so findet Strg+F den
    Text auch im ZUgeklappten Kasten und klappt ihn selbst auf. */
 .social-post__payload {
-	margin-top: 6px;
+	margin-top: var(--space-4);
 	font-size: 12px;
 }
 
@@ -142,8 +142,8 @@
 }
 
 .social-post__payload > pre {
-	margin: 6px 0 0;
-	padding: 8px;
+	margin: var(--space-4) 0 0;
+	padding: var(--space-6);
 	background: var(--color-panel-soft);
 	border: 1px solid var(--color-divider);
 	border-radius: var(--radius-md);
@@ -159,7 +159,7 @@
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
-	gap: 6px;
+	gap: var(--space-4);
 }
 
 .social-chip {
@@ -167,7 +167,7 @@
 	align-items: center;
 	border: 1px solid var(--color-button-soft-border);
 	border-radius: var(--radius-md);
-	padding: 2px 8px;
+	padding: 2px var(--space-6);
 	font-size: 12px;
 	background: var(--color-panel-soft);
 	color: var(--color-text);
@@ -209,7 +209,7 @@
 	border-radius: var(--radius-md);
 	background: var(--color-button-soft);
 	color: var(--color-button-soft-text);
-	padding: 4px 10px;
+	padding: var(--space-2) var(--space-8);
 	font: inherit;
 	cursor: pointer;
 }
@@ -225,7 +225,7 @@
 
 .social-hub__soft--mini {
 	font-size: 12px;
-	padding: 2px 8px;
+	padding: 2px var(--space-6);
 }
 
 /* Die beiden Hauptknoepfe des Hubs: Klasse und Farben kommen aus `.wiki-sync-panel__start` (derselbe
@@ -235,7 +235,7 @@
 #social-open-hub,
 #social-publish {
 	min-height: 40px;
-	padding: 11px 18px;
+	padding: 11px var(--space-16);
 }
 
 /* 🔴 Die beiden Wege aus dem Fenster sind GLEICH GROSS (Owner 11.08.2026): Parken und Senden sind
@@ -245,7 +245,7 @@
 #social-draft {
 	min-height: 40px;
 	min-width: 16rem;
-	padding: 11px 18px;
+	padding: 11px var(--space-16);
 }
 
 /* ⚠️ `.wiki-sync-panel__start` ist `width: 100%` -- richtig fuer den Hauptknopf oben im Reiter, falsch
@@ -265,7 +265,7 @@
 	min-width: 0;
 	font-size: 12px;
 	min-height: 26px;
-	padding: 3px 10px;
+	padding: 3px var(--space-8);
 }
 
 /* ---- das Hub-Fenster ---------------------------------------------------------------------------
@@ -357,15 +357,15 @@
 		border-left: 0;
 		border-top: 1px solid var(--color-divider);
 		padding-left: 0;
-		padding-top: 14px;
+		padding-top: var(--space-12);
 	}
 }
 
 .social-hub__label {
 	display: block;
-	margin: 14px 0 6px;
+	margin: var(--space-12) 0 var(--space-4);
 	font-size: 12px;
-	font-weight: 600;
+	font-weight: var(--font-weight-bold);
 	letter-spacing: 0.02em;
 	color: var(--color-text-muted);
 	text-transform: uppercase;
@@ -379,7 +379,7 @@
 .social-hub__body textarea,
 .social-hub__body input[type="text"] {
 	width: 100%;
-	padding: 8px 10px;
+	padding: var(--space-6) var(--space-8);
 	border: 1px solid var(--color-button-soft-border);
 	border-radius: var(--radius-md);
 	background: var(--color-panel-soft);
@@ -398,33 +398,33 @@
 }
 
 .social-hub__hint {
-	margin: 6px 0 0;
+	margin: var(--space-4) 0 0;
 	font-size: 12px;
 	color: var(--color-text-muted);
 }
 
 .social-hub__count {
-	margin-top: 6px;
+	margin-top: var(--space-4);
 	font-size: 12px;
 	color: var(--color-text-muted);
 }
 
 .social-hub__count--over {
 	color: var(--color-danger-soft-text);
-	font-weight: 600;
+	font-weight: var(--font-weight-bold);
 }
 
 /* Ein HINWEIS, keine Absage: bernstein, nicht rot. Rot gehoert dem, was das Senden verhindert
    (--count--over daneben tut genau das); hier geht der Beitrag durch, er trifft drueben nur nicht die
    Erwartung. Die beiden Toene nebeneinander sind der ganze Unterschied. */
 .social-hub__link-note {
-	margin: 6px 0 0;
+	margin: var(--space-4) 0 0;
 	font-size: 12px;
 	color: var(--color-warning-soft-text);
 }
 
 .social-hub__vocabulary {
-	margin-top: 8px;
+	margin-top: var(--space-6);
 }
 
 .social-hub__vocab-chip {
@@ -456,7 +456,7 @@
 }
 
 .social-hub__media {
-	margin-top: 8px;
+	margin-top: var(--space-6);
 	font-size: 12px;
 	color: var(--color-text-muted);
 }
@@ -467,7 +467,7 @@
 	display: block;
 	max-width: 100%;
 	max-height: 140px;
-	margin: 8px 0 6px;
+	margin: var(--space-6) 0 var(--space-4);
 	border: 1px solid var(--color-button-soft-border);
 	border-radius: var(--radius-md);
 }
@@ -476,7 +476,7 @@
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
-	gap: 10px;
+	gap: var(--space-8);
 }
 
 .social-hub__ok {
@@ -484,7 +484,7 @@
 }
 
 .social-hub__draft {
-	padding: 8px 0;
+	padding: var(--space-6) 0;
 	border-top: 1px solid var(--color-divider);
 }
 
@@ -496,7 +496,7 @@
    „das kommt von der Routine", ohne einen Rahmen zu ziehen. */
 .social-hub__draft--auto {
 	border-left: 3px solid var(--color-warning);
-	padding-left: 10px;
+	padding-left: var(--space-8);
 }
 
 .social-hub__draft-when {
@@ -512,7 +512,7 @@
 	-webkit-line-clamp: 2;
 	-webkit-box-orient: vertical;
 	overflow: hidden;
-	margin: 2px 0 6px;
+	margin: 2px 0 var(--space-4);
 	color: var(--color-text);
 	overflow-wrap: anywhere;
 }
@@ -522,29 +522,29 @@
 .social-hub__draft-marks {
 	display: flex;
 	flex-wrap: wrap;
-	gap: 4px;
-	margin-bottom: 6px;
+	gap: var(--space-2);
+	margin-bottom: var(--space-4);
 }
 
 .social-hub__draft-actions {
 	display: flex;
 	flex-wrap: wrap;
-	gap: 6px;
+	gap: var(--space-4);
 }
 
 /* Die Einrichtung eines Zugangs. Sie steht UNTER der Kanalliste und ist normalerweise zu: sie ist
    Wartung, nicht die Handlung, fuer die der Hub geoeffnet wurde. Abgetrennt durch eine Linie, nicht
    durch einen Kasten -- dieselbe Gruppierung wie ueberall (docs/design-language.md). */
 .social-hub__connect {
-	margin-top: 12px;
-	padding-top: 10px;
+	margin-top: var(--space-10);
+	padding-top: var(--space-8);
 	border-top: 1px solid var(--color-divider);
 }
 
 .social-hub__connect-actions {
 	display: flex;
-	gap: 6px;
-	margin-top: 8px;
+	gap: var(--space-4);
+	margin-top: var(--space-6);
 }
 
 /* Der Aufmacher UNTER der Liste, nicht in der Kanalzeile. 💣 Ein <button> darf nicht in das <label>
@@ -555,7 +555,7 @@
 	display: block;
 	/* Eingerueckt auf die Textspalte der Zeile: Kontrollkaestchen (13px) plus dessen Abstand (8px).
 	   So steht der Knopf unter „Zugang laeuft nie ab" und nicht unter dem Haekchen. */
-	margin: 4px 0 0 21px;
+	margin: var(--space-2) 0 0 21px;
 	border: 0;
 	background: none;
 	padding: 0 2px;
@@ -575,8 +575,8 @@
 .social-hub__channel {
 	display: flex;
 	align-items: flex-start;
-	gap: 8px;
-	padding: 6px 0;
+	gap: var(--space-6);
+	padding: var(--space-4) 0;
 	border-top: 1px solid var(--color-divider);
 	cursor: pointer;
 }
@@ -610,7 +610,7 @@
 .social-hub__channel-row {
 	position: relative;
 	border-top: 1px solid var(--color-divider);
-	padding: 6px 0;
+	padding: var(--space-4) 0;
 }
 
 .social-hub__channel-row:first-child {
@@ -648,7 +648,7 @@
 
 .social-hub__channel-name {
 	color: var(--color-text-strong);
-	font-weight: 600;
+	font-weight: var(--font-weight-bold);
 }
 
 .social-hub__channel--off {
@@ -657,7 +657,7 @@
 }
 
 .social-hub__warn {
-	margin: 10px 0 0;
+	margin: var(--space-8) 0 0;
 	font-size: 12px;
 	color: var(--color-warning-soft-text);
 }
@@ -685,8 +685,8 @@
    Handlung, fuer die das Fenster geoeffnet wurde -- aber nativ, damit Strg+F den Text auch im
    zugeklappten Zustand findet (AGENTS.md §11). */
 .social-hub__where {
-	margin-top: 14px;
-	padding-top: 10px;
+	margin-top: var(--space-12);
+	padding-top: var(--space-8);
 	border-top: 1px solid var(--color-divider);
 }
 
@@ -703,7 +703,7 @@
 }
 
 .social-hub__where-channel {
-	margin-top: 10px;
+	margin-top: var(--space-8);
 	font-size: 12px;
 }
 
@@ -726,7 +726,7 @@
 .social-hub__where-links {
 	display: flex;
 	flex-wrap: wrap;
-	gap: 4px 10px;
+	gap: var(--space-2) var(--space-8);
 	margin-top: 3px;
 }
 
