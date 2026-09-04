@@ -69,6 +69,71 @@ pruefe("jeder Gipfel liest exakt seine eingetragene Zahl", () => {
 	}
 });
 
+pruefe("zwei benachbarte Gebirge teilen ein Rechengebiet -- an der Naht steht kein Tal", () => {
+	// 🔴 Owner 04.09.2026: „wenn zwei gebirge aneinander angrenzen bzw. sich ueberlappen teilen sie
+	// sich keine gemeinsame ausgangslage fuer die hoehe … kriegst du das wieder hin, dass das
+	// resultierende hoehenmodell zweier gebirge ineinander uebergehen kann (max der beiden bei
+	// ueberlappung)".
+	//
+	// 💣 DIE URSACHE STECKT IN EINER ZEILE: `sorDurchgang` liest eine Zelle ausserhalb des
+	// Rechengebiets als 0 (`drin[k+1] ? h[k+1] : 0`) -- eine Dirichlet-Null am Flaechenrand. Jede
+	// Flaeche fiel damit an IHRER Kante auf null, auch wenn dahinter das naechste Gebirge weitergeht.
+	// Gemessen an zwei 2.600er Kaemmen: an der Naht ein Einschnitt auf 1.114 Schritt.
+	const BREIT = { min_x: 0, min_y: 0, max_x: 60, max_y: 30 };
+	const LINKS = (x, y) => Math.hypot(x - 20, y - 15) <= 13;
+	const RECHTS = (x, y) => Math.hypot(x - 38, y - 15) <= 13;
+	const GIPFEL_LINKS = [{ x: 14, y: 15, h: 3000 }, { x: 26, y: 15, h: 2600 }];
+	const GIPFEL_RECHTS = [{ x: 32, y: 15, h: 2800 }, { x: 44, y: 15, h: 3200 }];
+	const regler = { koernung: 8, maximalhoehe: 0, bergform: 2.5, rauschen: 0.2, sattel: 0.8,
+		erosion: 2, stufen: 4 };
+	const bau = (istDrin, verbund, peaks, kurve) => hydro.avesmapsGebirgsRasterBauen({
+		bounds: BREIT, istDrin, istImVerbund: verbund, peaks, kurve, regler, saat: 3,
+	});
+
+	// Ohne Verbund: das Tal an der Naht.
+	const allein = bau(LINKS, null, GIPFEL_LINKS, [[14, 15], [26, 15]]);
+	// Mit Verbund: das Rechengebiet reicht hinueber, die Gipfel beider zaehlen.
+	const gemeinsam = bau(LINKS, RECHTS, GIPFEL_LINKS.concat(GIPFEL_RECHTS), [[14, 15], [26, 15]]);
+	const bei = (o, x) => o.h[(o.r.j(15) * o.r.w) + o.r.i(x)];
+	// ⚠️ x = 28, nicht 26: bei 26 steht der GIPFEL der linken Flaeche, und der ist festgehalten --
+	// dort misst man in beiden Faellen 2.600 und der Test waere blind. Die Naht liegt dahinter.
+	assert.ok(bei(gemeinsam, 28) > bei(allein, 28) * 1.5,
+		"an der Naht liegt das Gelaende mit Verbund nicht hoeher (" + bei(allein, 28).toFixed(0)
+		+ " -> " + bei(gemeinsam, 28).toFixed(0) + ") -- das Rechengebiet reicht nicht hinueber");
+
+	// 🔴 UND DIE ZWEI MASKEN SIND VERSCHIEDEN: gerechnet wird der Verbund, gespeichert die eigene
+	// Flaeche. Wer beim Speichern `drin` nimmt, legt das Gelaende des Nachbarn ein zweites Mal ab.
+	assert.ok(gemeinsam.r.drinN > gemeinsam.r.eigenN,
+		"das Rechengebiet ist nicht groesser als das Speichergebiet (" + gemeinsam.r.drinN
+		+ " gegen " + gemeinsam.r.eigenN + ")");
+	// 🪤 UND ES MUESSEN ZWEI ARRAYS SEIN, nicht zwei Namen fuer eines. `eigen = drin` bestand die
+	// Zaehlung darueber (die Zaehler laufen unabhaengig), haette beim Speichern aber das
+	// Verbund-Gebiet abgelegt -- also das Gelaende des Nachbarn ein zweites Mal. Von einer
+	// Mutationsprobe gefunden.
+	assert.notStrictEqual(gemeinsam.r.eigen, gemeinsam.r.drin,
+		"mit Verbund sind Rechen- und Speichergebiet DASSELBE Array -- beim Speichern landet dann "
+		+ "das Gelaende des Nachbarn mit");
+	let nurRechen = 0;
+	for (let k = 0; k < gemeinsam.r.drin.length; k++) {
+		if (gemeinsam.r.drin[k] && !gemeinsam.r.eigen[k]) { nurRechen++; }
+	}
+	assert.ok(nurRechen > 100,
+		"nur " + nurRechen + " Zellen liegen im Rechen- und nicht im Speichergebiet -- der Verbund "
+		+ "reicht kaum ueber die eigene Flaeche hinaus");
+	assert.strictEqual(allein.r.eigen, allein.r.drin,
+		"ohne Verbund muessen beide Masken DASSELBE Array sein -- ein Aufrufer ohne Nachbarn rechnet "
+		+ "sonst anders als vorher");
+
+	// ⭐ Beide Flaechen liefern im Ueberlappungsbereich fast denselben Wert -- deshalb ist MAX beim
+	// Lesen richtig und die Summe waere rund das Doppelte.
+	const andere = bau(RECHTS, LINKS, GIPFEL_LINKS.concat(GIPFEL_RECHTS), [[32, 15], [44, 15]]);
+	const linksBei28 = bei(gemeinsam, 28);
+	const rechtsBei28 = bei(andere, 28);
+	assert.ok(Math.abs(linksBei28 - rechtsBei28) < Math.max(linksBei28, rechtsBei28) * 0.15,
+		"die beiden Felder weichen an der Naht um mehr als 15 % ab (" + linksBei28.toFixed(0)
+		+ " gegen " + rechtsBei28.toFixed(0) + ") -- dann gibt MAX eine sichtbare Kante");
+});
+
 pruefe("am Flaechenrand bleibt die Hoehe 0 -- daran haengt die Verschmelzung zweier Flaechen", () => {
 	for (let k = 0; k < ergebnis.r.drin.length; k++) {
 		if (!ergebnis.r.drin[k]) {

@@ -253,7 +253,23 @@ function avesmapsHydroVorlage(liste, key) {
 // `ecosystemHeightmapGrid(bounds, 0.25)` aufspannt.
 // ⚠️ `deckel` begrenzt die Zellzahl fuer die ANZEIGE (dort zaehlt Tempo, nicht Vergleichbarkeit);
 // der Speicherlauf laesst ihn weg und bekommt die volle Aufloesung.
-function baueRaster(bounds, cellSize, istDrin, deckel) {
+// 🔴 ZWEI MASKEN, UND DAS IST DER GANZE UNTERSCHIED (Owner 04.09.2026: „wenn zwei gebirge
+// aneinander angrenzen bzw. sich ueberlappen teilen sie sich keine gemeinsame ausgangslage fuer die
+// hoehe"):
+//   `drin`  = das RECHENgebiet -- die eigene Flaeche PLUS die angrenzenden Gebirge.
+//   `eigen` = das SPEICHERgebiet -- nur die eigene Flaeche.
+//
+// 💣 WARUM DAS NOETIG IST: `sorDurchgang` liest eine Zelle ausserhalb von `drin` als 0
+// (`drin[k+1] ? h[k+1] : 0`) -- eine Dirichlet-Null am Flaechenrand. Jede Flaeche fiel damit an
+// IHRER Kante auf null, auch wenn dahinter das naechste Gebirge weitergeht. Gemessen an zwei
+// benachbarten Zuegen mit 2.600er Kaemmen: an der Naht ein Einschnitt auf 1.114 Schritt, also ein
+// Tal, das es auf der Karte nicht gibt.
+// ⭐ Mit dem Verbund laeuft die Loesung ueber die Naht hinweg und faellt erst am AUSSENrand des
+// Verbunds auf null. Die Fusshoehen-Invariante bleibt damit wortwoertlich stehen -- sie gilt jetzt
+// dem Verbund statt der einzelnen Flaeche, und genau das war immer ihr Sinn.
+// ⚠️ Ohne `istImVerbund` ist `eigen` dasselbe Array wie `drin` -- ein Aufrufer, der den Verbund
+// nicht kennt, rechnet exakt wie vorher.
+function baueRaster(bounds, cellSize, istDrin, deckel, istImVerbund) {
 	const spanX = bounds.max_x - bounds.min_x;
 	const spanY = bounds.max_y - bounds.min_y;
 	let cell = Number(cellSize) > 0 ? Number(cellSize) : ECOSYSTEM_HYDRO_ZELLWEITE;
@@ -269,18 +285,30 @@ function baueRaster(bounds, cellSize, istDrin, deckel) {
 	const w = Math.round(spanX / cell) + 1;
 	const hh = Math.round(spanY / cell) + 1;
 	const drin = new Uint8Array(w * hh);
+	const verbund = typeof istImVerbund === "function";
+	const eigen = verbund ? new Uint8Array(w * hh) : drin;
 	let drinN = 0;
+	let eigenN = 0;
 	for (let j = 0; j < hh; j++) {
 		for (let i = 0; i < w; i++) {
-			if (istDrin(bounds.min_x + i * cell, bounds.min_y + j * cell)) {
-				drin[j * w + i] = 1;
+			const x = bounds.min_x + (i * cell);
+			const y = bounds.min_y + (j * cell);
+			const k = (j * w) + i;
+			const selbst = istDrin(x, y);
+			if (selbst) {
+				eigen[k] = 1;
+				eigenN++;
+			}
+			// Das Rechengebiet ist die eigene Flaeche PLUS die Nachbarn.
+			if (selbst || (verbund && istImVerbund(x, y))) {
+				drin[k] = 1;
 				drinN++;
 			}
 		}
 	}
 
 	return {
-		w, hh, cell, drin, drinN, bounds,
+		w, hh, cell, drin, drinN, eigen, eigenN, bounds,
 		cellS: cell * SCHRITT_JE_EINHEIT,
 		x: (i) => bounds.min_x + i * cell,
 		y: (j) => bounds.min_y + j * cell,
@@ -1561,7 +1589,9 @@ function avesmapsGebirgsRasterBauen(eingabe) {
 		e.istDrin || (() => true),
 		// ⚠️ `n` bleibt als Deckel gueltig: ein Aufrufer aus der Zeit vor der Zellweite meinte damit
 		// „hoechstens so viele Zellen", und genau das tut `deckel`. Er kann nur GROEBER machen.
-		Number(e.deckel) > 8 ? e.deckel : e.n
+		Number(e.deckel) > 8 ? e.deckel : e.n,
+		// ⚠️ Optional: ohne diese Funktion ist `eigen === drin`, und alles rechnet wie vorher.
+		typeof e.istImVerbund === "function" ? e.istImVerbund : null
 	);
 	const zellen = r.w * r.hh;
 	let h = new Float64Array(zellen);

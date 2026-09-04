@@ -536,6 +536,39 @@
 
 	// Woran sich das Raster als „noch gültig" erkennt. 💣 Jeder Wert, der in die Rechnung eingeht,
 	// gehört hier hinein -- fehlt einer, bleibt beim Drehen am Regler das alte Bild stehen.
+	// Die Gebirgsflaechen, die diese hier BERUEHREN -- ihr Rechengebiet gehoert zum selben Verbund.
+	//
+	// 🔴 Owner 04.09.2026: „wenn zwei gebirge aneinander angrenzen bzw. sich ueberlappen teilen sie
+	// sich keine gemeinsame ausgangslage fuer die hoehe". Ohne den Verbund faellt jede Flaeche an
+	// IHRER Kante auf null (`sorDurchgang` liest ausserhalb als 0), und an der Naht steht ein Tal,
+	// das es auf der Karte nicht gibt -- gemessen an zwei 2.600er Kaemmen: Einschnitt auf 1.114
+	// Schritt. Mit Verbund: 2.314, und beide Flaechen liefern dort fast denselben Wert.
+	//
+	// ⚠️ VORGEFILTERT UEBER DIE BBOX, sonst kostet jede Zelle einen Polygontest gegen alle 69
+	// Gebirge. Die bbox reist ohnehin mit; ein grosszuegiger Rand (eine Zellweite) faengt Flaechen,
+	// die sich nur beruehren.
+	function nachbarnVon(area) {
+		const eigen = area?.bounds;
+		if (!eigen) {
+			return [];
+		}
+		const luft = ECOSYSTEM_HYDRO_ZELLWEITE;
+		const meine = String(area?.public_id || "");
+
+		return topographyAreas()
+			.filter((kandidat) => {
+				if (String(kandidat?.public_id || "") === meine) { return false; }
+				const b = kandidat?.bounds;
+				if (!b || !geometrieVon(kandidat)) { return false; }
+
+				return Number(b.min_x) - luft <= Number(eigen.max_x)
+					&& Number(b.max_x) + luft >= Number(eigen.min_x)
+					&& Number(b.min_y) - luft <= Number(eigen.max_y)
+					&& Number(b.max_y) + luft >= Number(eigen.min_y);
+			})
+			.map((kandidat) => ({ area: kandidat, geometry: geometrieVon(kandidat) }));
+	}
+
 	function hydroSchluesselFuer(area) {
 		const reg = reglerFuer(area);
 		const geometry = geometrieVon(area);
@@ -561,6 +594,10 @@
 			// da, und der Knopf saehe wirkungslos aus. Nur die LAENGE, nicht die Punkte -- der
 			// Schluessel wird bei jedem Bild gebaut, und die Linie hat 32 davon.
 			Array.isArray(area?.terrain_ridge_line) ? area.terrain_ridge_line.length : 0,
+			// 💣 Der VERBUND gehoert in den Schluessel: kommt ein Nachbargebirge dazu oder faellt eins
+			// weg, ist das Feld ein anderes. Die Zahl genuegt -- die Gipfel der Nachbarn stehen
+			// ohnehin in `gipfel` darunter.
+			nachbarnVon(area).length,
 			gipfel, hydroGrob ? "grob" : "fein",
 		].join("|");
 	}
@@ -593,10 +630,21 @@
 		hydroLaeuft = true;
 		try {
 			const seen = seenFuer(area);
+			const nachbarn = nachbarnVon(area);
 			hydroRaster = avesmapsGebirgsRasterBauen({
 				bounds: area.bounds,
 				istDrin: (x, y) => pointInGeometry([x, y], geometry),
-				peaks: gipfelDieserFlaeche(area),
+				// 🔴 DAS RECHENGEBIET REICHT IN DIE NACHBARN HINEIN, das SPEICHERgebiet nicht.
+				// Ohne das faellt die Loesung an der eigenen Kante auf null, und an der Naht steht ein
+				// Tal (gemessen: 1.114 statt 2.314 Schritt zwischen zwei 2.600er Kaemmen).
+				istImVerbund: nachbarn.length
+					? (x, y) => nachbarn.some((n) => pointInGeometry([x, y], n.geometry))
+					: null,
+				// ⚠️ Und die Gipfel der Nachbarn MUESSEN mit: sonst hat das erweiterte Gebiet keine
+				// Zwaenge und zieht das Feld an der Naht wieder herunter -- die Loesung liefe dann
+				// gegen den Aussenrand des Nachbarn statt gegen dessen Kamm.
+				peaks: gipfelDieserFlaeche(area)
+					.concat(nachbarn.flatMap((n) => gipfelDieserFlaeche(n.area))),
 				kurve: kurveFuer(area),
 				fluesse: fluesseFuer(area),
 				seen,
@@ -891,10 +939,17 @@
 			return { hochgeladen: false, grund: "kein Schreibweg" };
 		}
 		const seen = seenFuer(area);
+		const nachbarn = nachbarnVon(area);
 		const o = avesmapsGebirgsRasterBauen({
 			bounds: area.bounds,
 			istDrin: (x, y) => pointInGeometry([x, y], geometry),
-			peaks: gipfelDieserFlaeche(area),
+			// Derselbe Verbund wie in der Anzeige -- sonst speicherte der Lauf ein anderes Gebirge,
+			// als der Editor gesehen hat.
+			istImVerbund: nachbarn.length
+				? (x, y) => nachbarn.some((n) => pointInGeometry([x, y], n.geometry))
+				: null,
+			peaks: gipfelDieserFlaeche(area)
+				.concat(nachbarn.flatMap((n) => gipfelDieserFlaeche(n.area))),
 			kurve: kurveFuer(area),
 			fluesse: fluesseFuer(area),
 			seen,
@@ -912,7 +967,10 @@
 		// also als der hoechste Berg Aventuriens statt als Talsohle.
 		const samples = new Uint16Array(o.r.w * o.r.hh);
 		for (let k = 0; k < samples.length; k++) {
-			if (!o.r.drin[k]) { continue; }        // ausserhalb bleibt 0 -- die Fusshoehen-Invariante
+			// 🔴 `eigen`, NICHT `drin`: das Rechengebiet reicht in die Nachbarn hinein, das
+			// Speichergebiet ist die eigene Flaeche. Wer hier `drin` nimmt, legt das Gelaende des
+			// Nachbarn ein zweites Mal ab -- und beim Lesen entschiede dann die Reihenfolge.
+			if (!o.r.eigen[k]) { continue; }       // ausserhalb bleibt 0 -- die Fusshoehen-Invariante
 			const wert = Math.round(o.h[k]);
 			samples[k] = wert > ECOSYSTEM_HEIGHTMAP_MAX_SCHRITT
 				? ECOSYSTEM_HEIGHTMAP_MAX_SCHRITT

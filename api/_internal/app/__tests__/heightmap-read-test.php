@@ -57,15 +57,23 @@ assert(avesmapsHeightmapSampleOne($raster, 9.99, 20.0) === null, 'left of the bb
 assert(avesmapsHeightmapSampleOne($raster, 10.0, 21.0) === null, 'below the bbox is unknown, not level');
 assert(avesmapsHeightmapSampleSum([], 10.0, 20.0) === null, 'no raster at all is unknown, not level');
 
-// --- 💣 TWO OVERLAPPING RASTERS SUM. Reading only „the area that contains the point" gives a height
-// that is too low in every overlap strip -- and looks perfectly ordinary while doing it (§5.0).
+// --- 🔴 ZWEI UEBERLAPPENDE RASTER: DAS MAXIMUM (Owner 04.09.2026: „max der beiden bei
+// ueberlappung"). Hier stand bis dahin die SUMME, mit der damals richtigen Begruendung: jede Flaeche
+// fiel an IHRER Kante auf null, trug im Ueberlappungsstreifen also nur ihren Anteil, und wer nur
+// eine las, bekam eine zu niedrige Hoehe.
+// 💣 SEIT DEM VERBUND STIMMT DAS NICHT MEHR. Die Flaechen rechnen ihr Gelaende ueber die gemeinsame
+// Naht hinweg (`istImVerbund`, map-features-ecosystem-hydrologie.js) und liefern dort beide fast
+// denselben, VOLLEN Wert -- die Summe waere also rund das Doppelte des richtigen.
+// ⚠️ Und damit muessen alte Raster neu gerechnet werden: eines aus der Zeit vor dem Verbund traegt
+// weiterhin nur seinen Anteil, und MAX liest davon zu wenig. Das ist der Preis des Wechsels, und er
+// ist benannt statt versteckt.
 $second = avesmapsHeightmapDecode([
     'origin_x' => '10.0000', 'origin_y' => '20.0000',
     'cell_size_mapunits' => '0.2500', 'width_px' => 3, 'height_px' => 2,
     'samples' => gzdeflate(pack('v*', 7, 7, 7, 7, 7, 7)), 'sample_bytes' => 12,
 ]);
-assert($near(avesmapsHeightmapSampleSum([$raster, $second], 10.00, 20.00), 107.0),
-    'overlapping rasters must ADD, not shadow one another');
+assert($near(avesmapsHeightmapSampleSum([$raster, $second], 10.00, 20.00), 100.0),
+    'overlapping rasters must take the MAXIMUM, not the sum');
 // A point only ONE of them covers still answers, with that one's value.
 $far = avesmapsHeightmapDecode([
     'origin_x' => '500.0000', 'origin_y' => '500.0000',

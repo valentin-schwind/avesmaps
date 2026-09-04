@@ -106,18 +106,34 @@ function avesmapsHeightmapSampleOne(array $raster, float $x, float $y): ?float
  *
  * `null` when no raster covers the point at all: that is „no height data", not „level".
  */
+/**
+ * Die Hoehe an einem Punkt, ueber alle Raster, die ihn abdecken.
+ *
+ * 🔴 DAS MAXIMUM, NICHT DIE SUMME (Owner 04.09.2026: „max der beiden bei ueberlappung"). Der Name
+ * bleibt `...SampleSum`, weil ihn mehrere Leser rufen und der Deploy nie loescht -- die Kennung ist
+ * nicht die Bedeutung.
+ *
+ * 💣 SUMMIERT WAR ES FALSCH, sobald zwei Gebirge sich ueberlappen: an der Naht addierten sich zwei
+ * halbe Haenge zu einem Wert, den keins von beiden hat. Mit dem Verbund (die Flaechen rechnen ihr
+ * Gelaende jetzt ueber die gemeinsame Naht hinweg) liefern beide dort fast denselben Wert -- die
+ * Summe waere also rund das DOPPELTE des richtigen.
+ * ⚠️ `null` heisst „kein Raster deckt diesen Punkt", nicht „Hoehe 0" -- der Aufrufer unterscheidet
+ * das, und ein 0 statt null machte aus fehlenden Daten eine Ebene.
+ */
 function avesmapsHeightmapSampleSum(array $rasters, float $x, float $y): ?float
 {
-    $sum = null;
+    $max = null;
     foreach ($rasters as $raster) {
         $value = avesmapsHeightmapSampleOne($raster, $x, $y);
         if ($value === null) {
             continue;
         }
-        $sum = ($sum ?? 0.0) + $value;
+        if ($max === null || $value > $max) {
+            $max = $value;
+        }
     }
 
-    return $sum;
+    return $max;
 }
 
 /** Every stored raster, decoded. Used ONLY by the profile run -- never on the routing path. */
