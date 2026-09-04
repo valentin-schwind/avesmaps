@@ -1208,10 +1208,28 @@ function erosionsSchritt(zustand, opt) {
 	let nachher = 0;
 	for (let k = 0; k < r.drin.length; k++) { if (r.drin[k]) { nachher += h[k]; } }
 	const verlust = vorher - nachher;
-	if (verlust > 0 && zustand.hebungSumme > 0) {
-		const rate = verlust / zustand.hebungSumme;
+	// 🔴 GLEICHMAESSIG, NICHT HOEHENPROPORTIONAL (Owner 04.09.2026, am Bild entschieden). Hier stand
+	// `h[k] += rate * relief[k]` -- die Hebung verteilte den Abtrag nach dem STARTRELIEF, hob also
+	// dort am meisten, wo es schon hoch war. Das ist eine Rueckkopplung: hohe Stellen werden hoeher,
+	// und da die Gipfel `festEro` sind und NICHT teilnehmen, waechst der Kamm um sie herum ueber sie
+	// hinweg.
+	//
+	// 💣 GEMESSEN, nicht vermutet: der hoechste Punkt der Roten Sichel lag bei **10.995 Schritt**,
+	// 65 % ueber dem hoechsten eingetragenen Gipfel (6.650) und fuenf Zellen neben der Adlerspitze;
+	// beim Finsterkamm +62 %. Aufgeschluesselt kam der groesste Teil von hier: ohne Rauschen und ohne
+	// Gipfelkegel, aber MIT dieser Hebung, standen immer noch +45 %. Das ist erfundene Geographie
+	// neben eingetragener -- genau das, was dieses Modell nicht tun soll.
+	//
+	// ⭐ Vier Varianten gemessen (Rote Sichel): proportional 10.995 (+65 %, Mittel 1837) · Deckel je
+	// Zelle 7.448 (+12 %, Mittel 1170 -- ein Drittel der Masse weg) · Deckel auf den hoechsten Gipfel
+	// 6.650 (Mittel 1643) · **gleichmaessig 6.650 (0 %, Mittel 1837)**. Nur diese eine haelt den
+	// Massenausgleich exakt UND den Gipfel als hoechsten Punkt.
+	// ⚠️ Und sie ist auch die physikalisch richtige: tektonische Hebung ist ueber ein Gebirge
+	// naeherungsweise gleichmaessig, nicht proportional zur aktuellen Hoehe.
+	if (verlust > 0 && zustand.hebungZellen > 0) {
+		const je = verlust / zustand.hebungZellen;
 		for (let k = 0; k < r.drin.length; k++) {
-			if (r.drin[k] && !fest[k]) { h[k] += rate * relief[k]; }
+			if (r.drin[k] && !fest[k]) { h[k] += je; }
 		}
 	}
 
@@ -1432,13 +1450,17 @@ function avesmapsGebirgsRasterBauen(eingabe) {
 		// bleibt nichts") und ist mir beim Umbau verlorengegangen.
 		if (r.drin[k] && !(relief[k] > 0)) { festEro[k] = 1; }
 	}
-	let hebungSumme = 0;
+	// ⭐ EINMAL gezaehlt, nicht je Erosionsschritt: `festEro` steht waehrend der ganzen Erosion fest,
+	// und der Zaehler laeuft sonst 360-mal ueber das Raster. Hier stand die SUMME der Startreliefs
+	// (`hebungSumme`) -- der Nenner der hoehenproportionalen Verteilung; seit die Hebung gleichmaessig
+	// ist, ist der Nenner die ZAHL der freien Zellen.
+	let hebungZellen = 0;
 	for (let k = 0; k < zellen; k++) {
-		if (r.drin[k] && !festEro[k]) { hebungSumme += relief[k]; }
+		if (r.drin[k] && !festEro[k]) { hebungZellen++; }
 	}
 
 	const schritte = avesmapsHydroErosionsSchritte(reg.erosion);
-	const zustand = { r, h, fest, festEro, senke, relief, hebungSumme, accVorgabe: null };
+	const zustand = { r, h, fest, festEro, senke, relief, hebungZellen, accVorgabe: null };
 	for (let it = 0; it < schritte; it++) {
 		erosionsSchritt(zustand, { K: ECOSYSTEM_HYDRO_ABTRAG, D: ECOSYSTEM_HYDRO_KRIECHEN });
 		if (melde && (it % 20) === 0) {

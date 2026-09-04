@@ -341,6 +341,35 @@ pruefe("derselbe Aufruf liefert dasselbe Feld -- kein Math.random", () => {
 // wird zur Platte -- und **alle elf Zusicherungen bleiben gruen**. Von vierzehn Mutationen fingen
 // die Tests damals vier.
 
+pruefe("kein Punkt waechst ueber den hoechsten eingetragenen Gipfel", () => {
+	// 🔴 DIE OWNER-REGEL, woertlich: „Die vorhandene Geographie soll das Gelaende formen. Nicht die
+	// Simulation soll anschliessend zufaellig eine andere Geographie erzeugen." Ein Gipfel, den
+	// niemand eingetragen hat und der hoeher ist als alle echten, ist genau das.
+	//
+	// 💣 GENAU DAS TAT DIE HEBUNG. Sie verteilte den Abtrag nach dem STARTRELIEF -- hob also dort am
+	// meisten, wo es schon hoch war -- und weil die Gipfel `festEro` sind und nicht teilnehmen, wuchs
+	// der Kamm um sie herum ueber sie hinweg. Gemessen an der Roten Sichel: hoechster Punkt 10.995
+	// Schritt gegen 6.650 eingetragen (+65 %), fuenf Zellen neben der Adlerspitze; Finsterkamm +62 %.
+	// Seit dem 04.09.2026 hebt sie gleichmaessig, und der hoechste Punkt ist wieder der hoechste
+	// Gipfel -- an beiden Livegebirgen auf den Schritt genau.
+	//
+	// ⚠️ Gemessen wird mit VOLLER Erosion (Stufe 5 = 360 Schritte): der Effekt waechst mit der Zahl
+	// der Schritte, eine milde Einstellung sagt darueber nichts.
+	const o = baue({
+		regler: { koernung: 4, stufen: 3, bergform: 2, rauschen: 0.3, sattel: 0.75, erosion: 5 },
+	});
+	const hoechsterGipfel = Math.max(...GIPFEL.map((p) => p.h));
+	let max = 0;
+	let wo = -1;
+	for (let k = 0; k < o.r.drin.length; k++) {
+		if (o.r.drin[k] && o.h[k] > max) { max = o.h[k]; wo = k; }
+	}
+	assert.ok(max <= hoechsterGipfel + 1,
+		"der hoechste Punkt liegt bei " + max.toFixed(0) + " Schritt, der hoechste eingetragene Gipfel "
+		+ "bei " + hoechsterGipfel + " (+" + (100 * ((max / hoechsterGipfel) - 1)).toFixed(0) + " %) "
+		+ "bei Zelle " + wo + " -- die Simulation hat einen Berg erfunden, den niemand eingetragen hat");
+});
+
 pruefe("die Hebung haelt die Durchschnittshoehe -- ohne sie wird das Gebirge zur Platte", () => {
 	const mit = baue({ regler: Object.assign({}, {
 		koernung: 4, stufen: 3, bergform: 2, rauschen: 0.3, sattel: 0.75, erosion: 3,
@@ -370,8 +399,13 @@ pruefe("die Erosion FURCHT das freie Gelaende -- sie glaettet es nicht und zerle
 	// Rauheit = mittlere Hoehendifferenz einer Zelle zu ihren vier Nachbarn.
 	// 💣 Und sie wird als VERHAELTNIS gemessen, nicht als absolute Zahl: eine Spanne wie „zwischen 1
 	// und 2000" ist von jeder Fixture erfuellt und laesst genau die Mutationen durch, um die es geht.
-	// Gemessen an dieser Fixture: ohne Erosion 83,9 -- mit Erosion 173,4. Die Erosion VERDOPPELT die
-	// Rauheit, weil sie Rinnen einschneidet und Ruecken stehenlaesst.
+	// Gemessen an dieser Fixture: ohne Erosion 96,7 -- mit Erosion 133,0, Faktor 1,37.
+	// 🪤 Die Schwelle stand bei 1,5 und ist am 04.09.2026 auf 1,25 gefallen -- NICHT weil der Test zu
+	// streng war, sondern weil die Hebung an diesem Tag von hoehenproportional auf gleichmaessig
+	// umgestellt wurde (Owner am Bild). Die alte hob die hohen Stellen zusaetzlich an und uebertrieb
+	// damit die Rauheit; an den echten Gebirgen kostet der Wechsel fast nichts (Rote Sichel 174 ->
+	// 167), an der kleinen Fixture faellt er staerker aus. Wer die Schwelle wieder anhebt, ohne die
+	// Hebung anzufassen, macht den Test rot ohne einen Fehler.
 	const rauheit = (erosion) => {
 		const o = baue({ regler: { koernung: 4, stufen: 3, bergform: 2, rauschen: 0.3, sattel: 0.75, erosion } });
 		let summe = 0;
@@ -398,7 +432,7 @@ pruefe("die Erosion FURCHT das freie Gelaende -- sie glaettet es nicht und zerle
 	// glaettet. Faellt der Abtrag aus, bleibt das Verhaeltnis bei 1; faellt das Kriechen aus, laeuft
 	// es davon. Eine Zusicherung nur nach oben oder nur nach unten liesse je eine Haelfte durch.
 	const faktor = mit / ohne;
-	assert.ok(faktor > 1.5,
+	assert.ok(faktor > 1.25,
 		"die Erosion hat nichts gefurcht -- Rauheit " + ohne.toFixed(1) + " -> " + mit.toFixed(1)
 		+ " (Faktor " + faktor.toFixed(2) + "); der Abtrag fehlt oder wirkt nicht");
 	assert.ok(faktor < 4,
