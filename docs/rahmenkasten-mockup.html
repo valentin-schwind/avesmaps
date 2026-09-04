@@ -197,21 +197,39 @@ h2 { margin: 0 0 3px; color: var(--color-text-strong); font-size: var(--font-siz
    aufgeklappt 145px. Die Zusammenfassung ist der Grund, warum das Zuklappen etwas taugt --
    sie darf keine der drei Formen verlieren. Live gemessen 04.09.2026 am Routenplaner. */
 .k-zus { color: var(--color-text-muted); font-size: var(--font-size-caption);
-	font-weight: 400; letter-spacing: 0; text-transform: none; }
-.k-box .feld { transition: none; }
-.k-box:not(.v-box--offen) > .feld { display: none; }
+	font-weight: 400; letter-spacing: 0; text-transform: none; line-height: 1; }
+.v-box--offen .k-zus { display: none; }
+.k-box:not(.v-box--offen) .k-zus { animation: zusEin .18s ease .08s both; }
+@keyframes zusEin { from { opacity: 0 } to { opacity: 1 } }
+
+/* 💣 DIE HOEHE WIRD UEBER `grid-template-rows: 1fr -> 0fr` ANIMIERT, nicht ueber `max-height`.
+   `max-height` braucht eine geratene Obergrenze: zu klein schneidet sie den Inhalt ab, zu gross
+   laeuft die halbe Laufzeit durch Leere -- und beides faellt erst bei fremdem Inhalt auf.
+   ⚠️ `min-height: 0` am Kind ist tragend, sonst schrumpft es nicht unter seinen Inhalt. */
+.k-huelle { display: grid; grid-template-rows: 1fr; transition: grid-template-rows .22s ease; }
+.k-huelle > * { min-height: 0; overflow: hidden; }
+.k-box:not(.v-box--offen) .k-huelle { grid-template-rows: 0fr; }
+.k-box:not(.v-box--offen) .k-huelle--zu { grid-template-rows: 1fr; }
+.k-box.v-box--offen .k-huelle--zu { grid-template-rows: 0fr; }
+/* Gleiche Zeiten fuer alle drei -- sonst vergleicht man Formen gegen Geschwindigkeiten. */
+.k-box, .k-box .v-head { transition: padding .22s ease, margin .22s ease; }
+@media (prefers-reduced-motion: reduce) {
+	.k-huelle, .k-box, .k-box .v-head { transition: none; }
+	.k-box:not(.v-box--offen) .k-zus { animation: none; }
+}
 
 /* K1 -- der Rahmen bleibt stehen, die Zusammenfassung ist sein Inhalt. */
 .k1:not(.v-box--offen) { padding-bottom: var(--space-6); }
 .k1 .k-inhalt { margin: 0; color: var(--color-text-muted); font-size: var(--font-size-small); }
-.k1.v-box--offen .k-inhalt { display: none; }
-.k1:not(.v-box--offen) .k-zus { display: none; }
 
-/* K2 -- der Rahmen wird zur Leiste (das heutige Verhalten). */
-.k2:not(.v-box--offen) { padding: 0; border-radius: var(--radius-md); }
-.k2:not(.v-box--offen) .v-head { margin: 0; }  /* Leiste: die Aufschrift steht IM Kasten. */
-.k2:not(.v-box--offen) .v-schrift { display: flex; align-items: baseline; gap: 5px;
-	padding: 5px var(--space-8); background: none; }
+/* K2 -- der Rahmen wird zur Leiste (das heutige Verhalten).
+   🔴 DAS SEITLICHE POLSTER BLEIBT. Die x-Position des Titels ist die Summe aus Kastenpolster
+   (10) + Kopfrand (3) + Polster des Laufs (5) = 18px, und alle drei stehen in BEIDEN Zustaenden
+   gleich -- die Aufschrift wandert damit nur senkrecht, nie seitlich. Mit `padding: 0` sprang
+   sie beim Zuklappen 8px nach links, waehrend sie zugleich nach unten fuhr: eine Diagonale,
+   die wie ein Verrutschen aussieht und nicht wie ein Uebergang. */
+.k2:not(.v-box--offen) { padding: 0 var(--space-8); border-radius: var(--radius-md); }
+.k2:not(.v-box--offen) .v-head { margin: var(--space-4) 0 var(--space-4) 3px; }
 .k2 .k-inhalt { display: none; }
 
 /* K3 -- nur die Oberkante bleibt: die Aufschrift sitzt weiter auf ihrer Linie.
@@ -219,7 +237,11 @@ h2 { margin: 0 0 3px; color: var(--color-text-strong); font-size: var(--font-siz
    dort schiebt er die Aufschrift auf die Kante eines Kastens, der darunter noch Polster hat --
    hier ist der Kasten NUR die Kante, und mit -17px stuende die Aufschrift ganz darueber
    (gemessen: ragte 16px hinaus, Kasten 3,2px hoch) statt darauf. */
-.k3:not(.v-box--offen) { padding: 0; border-width: 1px 0 0; border-radius: 0; }
+/* 💣 Die Seitenraender werden DURCHSICHTIG, nicht auf 0 gesetzt: mit `border-width: 1px 0 0`
+   beginnt der Kasten 1px weiter links, und die Aufschrift wandert seitlich mit -- gemessen
+   0,67px. Eine Zahl, die niemand sieht, aber die Zusage "nur senkrecht" ist dann keine. */
+.k3:not(.v-box--offen) { padding: 0 var(--space-8); border-radius: 0;
+	border-color: var(--color-border) transparent transparent; }
 .k3:not(.v-box--offen) .v-head { margin: calc(-0.5lh) 0 0 3px; }
 .k3 .k-inhalt { display: none; }
 </style>
@@ -404,9 +426,9 @@ h2 { margin: 0 0 3px; color: var(--color-text-strong); font-size: var(--font-siz
 				<div class="v-head"><span class="v-schrift"><button class="v-toggle" type="button"><span
 					class="v-caret"></span><span class="v-title">Transportmittel</span></button><button
 					class="v-info" type="button" title="Was die Auswahl bewirkt">ⓘ</button></span></div>
-				<p class="k-inhalt">Reisegruppe zu Fuß · Flusssegler · Lastensegler</p>
-				<div class="feld"><label>Land</label><select><option>Reisegruppe zu Fuß</option></select>
-					<label>Fluss</label><select><option>Flusssegler</option></select></div>
+				<div class="k-huelle k-huelle--zu"><p class="k-inhalt">Reisegruppe zu Fuß · Flusssegler · Lastensegler</p></div>
+				<div class="k-huelle"><div class="feld"><label>Land</label><select><option>Reisegruppe zu Fuß</option></select>
+					<label>Fluss</label><select><option>Flusssegler</option></select></div></div>
 			</div>
 		</div>
 	</div>
@@ -421,8 +443,8 @@ h2 { margin: 0 0 3px; color: var(--color-text-strong); font-size: var(--font-siz
 					class="v-caret"></span><span class="v-title">Transportmittel</span></button><span
 					class="k-zus">Reisegruppe zu Fuß · Flusssegler</span><button
 					class="v-info" type="button" title="Was die Auswahl bewirkt">ⓘ</button></span></div>
-				<div class="feld"><label>Land</label><select><option>Reisegruppe zu Fuß</option></select>
-					<label>Fluss</label><select><option>Flusssegler</option></select></div>
+				<div class="k-huelle"><div class="feld"><label>Land</label><select><option>Reisegruppe zu Fuß</option></select>
+					<label>Fluss</label><select><option>Flusssegler</option></select></div></div>
 			</div>
 		</div>
 	</div>
@@ -438,8 +460,8 @@ h2 { margin: 0 0 3px; color: var(--color-text-strong); font-size: var(--font-siz
 					class="v-caret"></span><span class="v-title">Transportmittel</span></button><span
 					class="k-zus">Reisegruppe zu Fuß · Flusssegler</span><button
 					class="v-info" type="button" title="Was die Auswahl bewirkt">ⓘ</button></span></div>
-				<div class="feld"><label>Land</label><select><option>Reisegruppe zu Fuß</option></select>
-					<label>Fluss</label><select><option>Flusssegler</option></select></div>
+				<div class="k-huelle"><div class="feld"><label>Land</label><select><option>Reisegruppe zu Fuß</option></select>
+					<label>Fluss</label><select><option>Flusssegler</option></select></div></div>
 			</div>
 		</div>
 	</div>
