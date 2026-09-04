@@ -11,7 +11,7 @@
 	z-index: 1100;
 	display: flex;
 	flex-direction: column;
-	/* =� DIESELBE Breite wie das Infopanel, nie eine eigene Rechnung. Beide Panels teilen sich
+	/* =� DIESELBE Breite wie das Infopanel, nie eine eigene Rechnung. Beide Panels teilen sich
 	   DIESELBEN Randlaschen ("Info" / "Editor"), und die sitzen an `--avesmaps-ip-w` -- eine zweite
 	   Breite laesst die Lasche neben ihrem Panel stehen, statt an dessen Kante. Am Zeiger fiel das nie
 	   auf, weil beide `min()` dort auf 400 deckeln; am Telefon war dieses Panel `100vw - 64px` und
@@ -111,21 +111,30 @@
 	gap: 8px;
 }
 
+/* 🔴 Dieselbe Hausform wie der Filterknopf daneben -- sie stehen in EINER Zeile. Bis zum
+   04.09.2026 waren sie 10px verschieden hoch, hatten zwei Schriftgroessen (15 gegen 12),
+   zwei Radien und zwei Farben; der ⟳ stand in --color-link, als waere er ein Verweis.
+   ⚠️ Quadratisch, weil er ein SYMBOL traegt und keinen Text: Breite = Hoehe, wie das ✕ der
+      Fenster-Kopfleiste (css/components/fenster.css). */
 .review-panel__refresh-btn {
 	flex: none;
-	margin-right: 14px;
-	padding: 1px 9px;
-	border: 1px solid var(--color-divider);
-	border-radius: var(--radius-sm);
-	background: transparent;
-	color: var(--color-link);
-	font-size: 15px;
-	line-height: 1.4;
+	width: var(--avm-control-h);
+	height: var(--avm-control-h);
+	display: grid;
+	place-items: center;
+	padding: 0;
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+	font: inherit;
+	font-size: var(--font-size-body);
+	line-height: 1;
 	cursor: pointer;
 }
 
 .review-panel__refresh-btn:hover {
-	border-color: var(--color-link);
+	background: var(--color-button-soft-hover);
 }
 
 .review-panel__status[data-state="error"] {
@@ -996,18 +1005,27 @@
 	flex: 0 0 auto;
 	display: flex;
 }
+/* 🔴 ZEICHENGLEICH mit .type-filter__toggle in css/components/editor-page.css. Es gibt die Regel
+   zweimal, weil index.html styles.css laedt und die Editor-iframes editor-page.css -- keine der
+   beiden Dateien sieht die andere. Sie MUESSEN dasselbe sagen; listenkopf.test.js haelt sie
+   gegeneinander.
+   💣 Und die Gleichheit loest nebenbei den Spezifitaetskonflikt, den garetien-importer.css
+      beschreibt: diese Regel (0,1,0) schlug `.avm-tile` auf der Ebenen-Kachel, die BEIDE Klassen
+      traegt. Wenn beide dasselbe sagen, ist es gleichgueltig, wer gewinnt. */
 .type-filter__toggle {
-	padding: 8px 10px;
-	font-size: 12px;
-	border: 1px solid var(--color-border);
-	border-radius: 8px;
-	background: var(--color-panel);
-	color: var(--color-text-strong);
-	cursor: pointer;
+	min-height: var(--avm-control-h);
+	padding: 0 var(--space-8);
+	font: inherit;
+	font-size: var(--font-size-body);
 	white-space: nowrap;
+	cursor: pointer;
+	color: var(--color-button-soft-text);
+	background: var(--color-button-soft);
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md);
 }
 .type-filter__toggle:hover {
-	background: var(--color-panel-muted);
+	background: var(--color-button-soft-hover);
 }
 .type-filter__menu {
 	position: absolute;
