@@ -20,45 +20,17 @@
 	border-radius: var(--radius-lg);
 	background: var(--color-panel);
 	box-shadow: var(--shadow-dialog);
+	/* 🔴 DIE KANTE, LOKAL -- wie bei den anderen umgestellten Fenstern. --avm-col-pad steht
+	   global noch auf 12 (tokens.css sagt warum: neun Fenster lesen ihn). Faellt, sobald der
+	   globale Wert nachzieht. */
+	--avm-col-pad: var(--space-6) var(--space-12);
 }
 
 .political-territory-editor-dialog:focus {
 	outline: none;
 }
 
-.political-territory-editor-dialog__header {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: 12px;
-	padding: 10px 14px;
-	border-bottom: 1px solid var(--color-border);
-	background: var(--color-panel);
-}
-
-.political-territory-editor-dialog__header h2 {
-	margin: 0;
-	color: var(--color-text-strong);
-	font-size: 16px;
-}
-
-.political-territory-editor-dialog__close {
-	width: 32px;
-	height: 32px;
-	border: 1px solid var(--color-button-soft-border);
-	border-radius: var(--radius-sm);
-	background: var(--color-button-soft);
-	color: var(--color-button-soft-text);
-	cursor: pointer;
-	font: inherit;
-	font-weight: bold;
-}
-
 .political-territory-editor-dialog__close:hover,
-.political-territory-editor-dialog__close:focus-visible {
-	background: var(--color-button-soft-hover);
-	outline: none;
-}
 
 .political-territory-editor-dialog__frame {
 	width: 100%;

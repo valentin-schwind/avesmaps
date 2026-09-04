@@ -3926,20 +3926,15 @@ window.openAvesmapsSyncEditorOverlay = window.openAvesmapsSyncEditorOverlay || f
 	overlay.id = overlayId;
 	overlay.className = "political-territory-editor-overlay";
 	const dialog = document.createElement("div");
-	dialog.className = "political-territory-editor-dialog";
+	dialog.className = "political-territory-editor-dialog avm-fenster avm-fenster--werkzeug";
 	dialog.style.width = "min(1400px, calc(100vw - 24px))";
 	dialog.style.height = "min(880px, calc(100vh - 24px))";
-	const header = document.createElement("div");
-	header.className = "political-territory-editor-dialog__header";
-	const headingEl = document.createElement("h2");
-	// Titel = Knopfbeschriftung, wortgleich. "Territorien" statt "Herrschaftsgebiete":
-	// Owner-Entscheid, kuerzer. Erklaerender Fliesstext darf weiter Herrschaftsgebiete sagen.
-	headingEl.textContent = "Territorien bearbeiten";
-	const closeButton = document.createElement("button");
-	closeButton.type = "button";
-	closeButton.className = "political-territory-editor-dialog__close";
-	closeButton.setAttribute("aria-label", "Schließen");
-	closeButton.textContent = "✕";
+	// 🔴 EIN Bauteil fuer alle sieben Fenster-Koepfe (js/ui/fenster-kopf.js). Hier stand bis zum
+	// 04.09.2026 eine von sieben Abschriften desselben Blocks.
+	// ⚠️ OHNE Handler: `closeOverlay` entsteht erst darunter, der Listener bleibt deshalb, wo er ist.
+	const kopfteile = avesmapsFensterKopf("Territorien bearbeiten", { wirtsklasse: "political-territory-editor-dialog__header" });
+	const header = kopfteile.kopf;
+	const closeButton = kopfteile.schliessen;
 	// Nach dem Schließen des Sync-Editors die abhängigen Oberflaechen sofort auffrischen, damit
 	// WikiSync-Änderungen gleich im Territoriumseditor + Review-Tree erscheinen (kein manuelles Reload).
 	const closeOverlay = () => {
@@ -3955,9 +3950,7 @@ window.openAvesmapsSyncEditorOverlay = window.openAvesmapsSyncEditorOverlay || f
 			if (editorReload) editorReload.click();
 		} catch (editorError) { /* Editor evtl. nicht offen. */ }
 	};
-	closeButton.addEventListener("click", closeOverlay);
-	header.appendChild(headingEl);
-	header.appendChild(closeButton);
+	closeButton.addEventListener("click", closeOverlay);
 	const frame = document.createElement("iframe");
 	frame.className = "political-territory-editor-dialog__frame";
 	frame.src = buildSyncEditorSrc();

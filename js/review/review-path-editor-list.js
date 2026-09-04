@@ -46,29 +46,26 @@ window.openAvesmapsPathEditorOverlay = window.openAvesmapsPathEditorOverlay || f
 	overlay.className = "avm-editor-overlay";
 
 	const dialog = document.createElement("div");
-	dialog.className = "avm-editor-dialog";
+	dialog.className = "avm-editor-dialog avm-fenster avm-fenster--werkzeug";
 	// role + a `__head` child is the SHAPE js/ui/dialog-drag.js looks for (it matches by form, not
 	// by a list of class names) -- so this window is draggable by its title bar like the others.
 	dialog.setAttribute("role", "dialog");
 	dialog.setAttribute("aria-modal", "true");
 	dialog.setAttribute("aria-labelledby", "avesmaps-path-editor-title");
 
-	const header = document.createElement("div");
-	header.className = "avm-editor-dialog__header";
 	// tr() only in the HOST document: js/app/i18n.js is loaded here, not in the editor iframe.
 	const t = (key, german) => (typeof tr === "function" ? tr(key, german) : german);
-	const headingEl = document.createElement("h2");
-	headingEl.id = "avesmaps-path-editor-title";
-	headingEl.textContent = t("paths.editor.title", "Wege bearbeiten");
-	const closeButton = document.createElement("button");
-	closeButton.type = "button";
-	closeButton.className = "avm-editor-dialog__close";
-	closeButton.setAttribute("aria-label", t("paths.editor.closeAria", "Schließen"));
-	closeButton.textContent = "✕";
 	const closeOverlay = () => { overlay.hidden = true; document.body.style.overflow = ""; };
-	closeButton.addEventListener("click", closeOverlay);
-	header.appendChild(headingEl);
-	header.appendChild(closeButton);
+	// 🔴 EIN Bauteil fuer alle sieben Fenster-Koepfe (js/ui/fenster-kopf.js).
+	// ⚠️ Die titelId bleibt: die Huelle zeigt per aria-labelledby darauf.
+	const kopfteile = avesmapsFensterKopf(t("paths.editor.title", "Wege bearbeiten"), {
+		wirtsklasse: "avm-editor-dialog__header",
+		titelId: "avesmaps-path-editor-title",
+		schliessenAria: t("paths.editor.closeAria", "Schließen"),
+		aufSchliessen: closeOverlay,
+	});
+	const header = kopfteile.kopf;
+	const closeButton = kopfteile.schliessen;
 
 	const frame = document.createElement("iframe");
 	frame.className = "avm-editor-dialog__frame";

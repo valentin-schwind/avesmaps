@@ -794,23 +794,18 @@ window.openAvesmapsSettlementEditorOverlay = window.openAvesmapsSettlementEditor
 	// Klassen und ihre Inline-Maße, bis sie einzeln nachziehen (Spec §14 Schritt 4).
 	overlay.className = "avm-editor-overlay";
 	const dialog = document.createElement("div");
-	dialog.className = "avm-editor-dialog";
-	const header = document.createElement("div");
-	header.className = "avm-editor-dialog__header";
-	const headingEl = document.createElement("h2");
-	headingEl.textContent = "Orte bearbeiten";
-	const closeButton = document.createElement("button");
-	closeButton.type = "button";
-	closeButton.className = "avm-editor-dialog__close";
-	closeButton.setAttribute("aria-label", "Schließen");
-	closeButton.textContent = "✕";
+	dialog.className = "avm-editor-dialog avm-fenster avm-fenster--werkzeug";
+	// 🔴 EIN Bauteil fuer alle sieben Fenster-Koepfe (js/ui/fenster-kopf.js). Hier stand bis zum
+	// 04.09.2026 eine von sieben Abschriften desselben Blocks.
+	// ⚠️ OHNE Handler: `closeOverlay` entsteht erst darunter, der Listener bleibt deshalb, wo er ist.
+	const kopfteile = avesmapsFensterKopf("Orte bearbeiten", { wirtsklasse: "avm-editor-dialog__header" });
+	const header = kopfteile.kopf;
+	const closeButton = kopfteile.schliessen;
 	const closeOverlay = () => {
 		overlay.hidden = true;
 		document.body.style.overflow = "";
 	};
-	closeButton.addEventListener("click", closeOverlay);
-	header.appendChild(headingEl);
-	header.appendChild(closeButton);
+	closeButton.addEventListener("click", closeOverlay);
 	const frame = document.createElement("iframe");
 	frame.className = "avm-editor-dialog__frame";
 	frame.src = buildSettlementEditorSrc();
@@ -846,18 +841,15 @@ window.openAvesmapsGameLiteratureEditorOverlay = window.openAvesmapsGameLiteratu
 	overlay.id = overlayId;
 	overlay.className = "political-territory-editor-overlay";
 	const dialog = document.createElement("div");
-	dialog.className = "political-territory-editor-dialog";
+	dialog.className = "political-territory-editor-dialog avm-fenster avm-fenster--werkzeug";
 	dialog.style.width = "min(1400px, calc(100vw - 24px))";
 	dialog.style.height = "min(880px, calc(100vh - 24px))";
-	const header = document.createElement("div");
-	header.className = "political-territory-editor-dialog__header";
-	const headingEl = document.createElement("h2");
-	headingEl.textContent = "Literatur bearbeiten";
-	const closeButton = document.createElement("button");
-	closeButton.type = "button";
-	closeButton.className = "political-territory-editor-dialog__close";
-	closeButton.setAttribute("aria-label", "Schließen");
-	closeButton.textContent = "✕";
+	// 🔴 EIN Bauteil fuer alle sieben Fenster-Koepfe (js/ui/fenster-kopf.js). Hier stand bis zum
+	// 04.09.2026 eine von sieben Abschriften desselben Blocks.
+	// ⚠️ OHNE Handler: `closeOverlay` entsteht erst darunter, der Listener bleibt deshalb, wo er ist.
+	const kopfteile = avesmapsFensterKopf("Literatur bearbeiten", { wirtsklasse: "political-territory-editor-dialog__header" });
+	const header = kopfteile.kopf;
+	const closeButton = kopfteile.schliessen;
 	const closeOverlay = () => {
 		overlay.hidden = true;
 		document.body.style.overflow = "";
@@ -872,9 +864,7 @@ window.openAvesmapsGameLiteratureEditorOverlay = window.openAvesmapsGameLiteratu
 	closeButton.addEventListener("click", closeOverlay);
 	// Exposed so the editor iframe can close itself after a save (owner 2026-07-17: "beim speichern
 	// zugehen"). Re-assigned on every open, which is correct: closeOverlay closes over THIS overlay.
-	window.closeAvesmapsGameLiteratureEditorOverlay = closeOverlay;
-	header.appendChild(headingEl);
-	header.appendChild(closeButton);
+	window.closeAvesmapsGameLiteratureEditorOverlay = closeOverlay;
 	const frame = document.createElement("iframe");
 	frame.className = "political-territory-editor-dialog__frame";
 	frame.addEventListener("load", () => postSelect(frame));
@@ -915,18 +905,15 @@ window.openAvesmapsCitymapEditorOverlay = window.openAvesmapsCitymapEditorOverla
 	overlay.id = overlayId;
 	overlay.className = "political-territory-editor-overlay";
 	const dialog = document.createElement("div");
-	dialog.className = "political-territory-editor-dialog";
+	dialog.className = "political-territory-editor-dialog avm-fenster avm-fenster--werkzeug";
 	dialog.style.width = "min(1400px, calc(100vw - 24px))";
 	dialog.style.height = "min(880px, calc(100vh - 24px))";
-	const header = document.createElement("div");
-	header.className = "political-territory-editor-dialog__header";
-	const headingEl = document.createElement("h2");
-	headingEl.textContent = "Karten bearbeiten";
-	const closeButton = document.createElement("button");
-	closeButton.type = "button";
-	closeButton.className = "political-territory-editor-dialog__close";
-	closeButton.setAttribute("aria-label", "Schließen");
-	closeButton.textContent = "✕";
+	// 🔴 EIN Bauteil fuer alle sieben Fenster-Koepfe (js/ui/fenster-kopf.js). Hier stand bis zum
+	// 04.09.2026 eine von sieben Abschriften desselben Blocks.
+	// ⚠️ OHNE Handler: `closeOverlay` entsteht erst darunter, der Listener bleibt deshalb, wo er ist.
+	const kopfteile = avesmapsFensterKopf("Karten bearbeiten", { wirtsklasse: "political-territory-editor-dialog__header" });
+	const header = kopfteile.kopf;
+	const closeButton = kopfteile.schliessen;
 	const closeOverlay = () => {
 		overlay.hidden = true;
 		document.body.style.overflow = "";
@@ -938,9 +925,7 @@ window.openAvesmapsCitymapEditorOverlay = window.openAvesmapsCitymapEditorOverla
 	closeButton.addEventListener("click", closeOverlay);
 	// Exposed so the editor iframe can close itself after a save (owner 2026-07-17: "beim speichern
 	// zugehen"). Re-assigned on every open, which is correct: closeOverlay closes over THIS overlay.
-	window.closeAvesmapsCitymapEditorOverlay = closeOverlay;
-	header.appendChild(headingEl);
-	header.appendChild(closeButton);
+	window.closeAvesmapsCitymapEditorOverlay = closeOverlay;
 	const frame = document.createElement("iframe");
 	frame.className = "political-territory-editor-dialog__frame";
 	frame.addEventListener("load", () => postRefresh(frame));

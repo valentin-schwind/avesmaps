@@ -34,20 +34,15 @@ window.openAvesmapsPowerlineEditorOverlay = window.openAvesmapsPowerlineEditorOv
 	// Karte, und ein abgedunkelter Hintergrund haelt den Blick beim Formular.
 	overlay.className = "avm-editor-overlay avm-editor-overlay--durchsichtig";
 	const dialog = document.createElement("div");
-	dialog.className = "avm-editor-dialog";
-	const header = document.createElement("div");
-	header.className = "avm-editor-dialog__header";
-	const headingEl = document.createElement("h2");
-	headingEl.textContent = "Kraftlinien bearbeiten";
-	const closeButton = document.createElement("button");
-	closeButton.type = "button";
-	closeButton.className = "avm-editor-dialog__close";
-	closeButton.setAttribute("aria-label", "Schließen");
-	closeButton.textContent = "✕";
+	dialog.className = "avm-editor-dialog avm-fenster avm-fenster--werkzeug";
 	const closeOverlay = () => { overlay.hidden = true; document.body.style.overflow = ""; };
-	closeButton.addEventListener("click", closeOverlay);
-	header.appendChild(headingEl);
-	header.appendChild(closeButton);
+	// 🔴 EIN Bauteil fuer alle sieben Fenster-Koepfe (js/ui/fenster-kopf.js).
+	const kopfteile = avesmapsFensterKopf("Kraftlinien bearbeiten", {
+		wirtsklasse: "avm-editor-dialog__header",
+		aufSchliessen: closeOverlay,
+	});
+	const header = kopfteile.kopf;
+	const closeButton = kopfteile.schliessen;
 	avesmapsEditorDialogZiehbar(header, dialog);
 	const frame = document.createElement("iframe");
 	frame.className = "avm-editor-dialog__frame";

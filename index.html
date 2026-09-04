@@ -435,7 +435,7 @@
 				<div class="map-context-menu__hint" data-i18n="ctxmenu.mapMenuHint">Strg + Rechtsklick: Kartenmenü</div>
 		</div>
 		<div id="political-territory-editor-overlay" class="political-territory-editor-overlay" hidden>
-			<div id="political-territory-editor-dialog" class="political-territory-editor-dialog" role="dialog" aria-modal="true" aria-labelledby="political-territory-editor-title" tabindex="-1">
+			<div id="political-territory-editor-dialog" class="political-territory-editor-dialog avm-fenster avm-fenster--werkzeug" role="dialog" aria-modal="true" aria-labelledby="political-territory-editor-title" tabindex="-1">
 				<div class="political-territory-editor-dialog__header">
 					<h2 id="political-territory-editor-title">Territoriumseditor</h2>
 					<button id="political-territory-editor-close" class="political-territory-editor-dialog__close" type="button" aria-label="Eigenschaften schließen">×</button>
@@ -3634,6 +3634,12 @@
 		<script src="js/ui/source-autocomplete.js"></script>
 		<script src="js/ui/settlement-autocomplete.js"></script>
 		<script src="js/ui/place-kind-autocomplete.js"></script>
+		<!-- 🔴 DER EINE BAUER DER FENSTER-KOPFLEISTE. Er muss VOR den sieben Erzeugern stehen, die
+		     ihn rufen (review-{ecosystem,path-editor,powerline,settlement}-list.js, review-wiki-sync.js) --
+		     sie bauen ihr Fenster beim Oeffnen, also reicht "vorher geladen", nicht "vorher ausgefuehrt".
+		     💣 Ohne ihn ist es kein stiller Fehler: `avesmapsFensterKopf is not defined` wirft beim
+		     ersten Klick auf einen Editor, und das Fenster geht gar nicht auf. -->
+		<script src="js/ui/fenster-kopf.js"></script>
 		<script src="js/review/review-feature-sources.js"></script>
 		<script src="js/review/review-core.js"></script>
 		<script src="js/review/review-status.js"></script>
