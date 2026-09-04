@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rahmenkasten — vier Rezepturen, eine Form</title>
+<style>
+/* ══════════════════════════════════════════════════════════════════════════════════════════
+   DER RAHMENKASTEN: ein umrandeter Block mit einer Aufschrift, der eine GRUPPE fasst.
+   Es gibt ihn viermal, und die vier sehen verschieden aus.
+
+   🔴 Alle Werte sind aus dem Produktivcode AUSGELESEN (css/features/feature-sources.css,
+      css/components/region-sync.css, css/features/route-planner.css,
+      css/components/location-report-dialog.css) — samt der +2-Skala (--space-12 = 14px).
+   💣 DER PRUEFFALL IST DER ZWEIZEILIGE TITEL (Owner 04.09.2026). Jede Spalte zeigt ihn unten
+      ein zweites Mal mit einer langen Aufschrift — dort trennt sich, welche Form traegt.
+   ══════════════════════════════════════════════════════════════════════════════════════════ */
+:root {
+	--font-ui: "Faculty Glyphic", "Arial", sans-serif;
+	--font-size-caption: 11px;
+	--font-size-small: 12px;
+	--font-size-body: 13px;
+	--font-size-subhead: 16px;
+	--leading-snug: 1.25;
+	--leading-tight: 1.15;
+	--font-weight-bold: 700;
+	--color-panel: #fffdf9;
+	--color-panel-soft: #faf6ee;
+	--color-text: #2e271e;
+	--color-text-strong: #3c3327;
+	--color-text-muted: #706557;
+	--color-border: #ddd3c3;
+	--color-border-strong: #cdbfa8;
+	--color-divider: rgba(125, 115, 96, 0.30);
+	--color-accent-brown: #7a6448;
+	--color-accent-strong: #8a6d2f;
+	--color-button-soft: #efe9db;
+	--color-button-soft-text: #564b3b;
+	--color-button-soft-border: #cdbda0;
+	--color-hover-wash: rgba(191, 160, 58, 0.14);
+	--space-2: 4px;
+	--space-4: 6px;
+	--space-6: 8px;
+	--space-8: 10px;
+	--space-10: 12px;
+	--space-12: 14px;
+	--space-16: 18px;
+	--radius-sm: 5px;
+	--radius-md: 8px;
+	--radius-lg: 10px;
+	--avm-control-h: 32px;
+	--seite: #ece5d7;
+}
+[data-theme="dunkel"] {
+	--color-panel: #312e26;
+	--color-panel-soft: #37342b;
+	--color-text: #eee7da;
+	--color-text-strong: #f5f0e4;
+	--color-text-muted: #b4a895;
+	--color-border: #514a3c;
+	--color-border-strong: #615a49;
+	--color-divider: rgba(207, 197, 171, 0.24);
+	--color-accent-brown: #cbb694;
+	--color-accent-strong: #d7c38b;
+	--color-button-soft: #3a362c;
+	--color-button-soft-text: #eae1cf;
+	--color-button-soft-border: #585142;
+	--color-hover-wash: rgba(207, 183, 103, 0.18);
+	--seite: #24211b;
+}
+
+body {
+	margin: 0; padding: 26px 20px 60px;
+	background: var(--seite); color: var(--color-text);
+	font-family: var(--font-ui); font-size: var(--font-size-body); line-height: var(--leading-snug);
+}
+.seite { max-width: 1240px; margin: 0 auto; }
+h1 { margin: 0 0 4px; color: var(--color-text-strong); font-size: 22px; }
+h2 { margin: 0 0 3px; color: var(--color-text-strong); font-size: var(--font-size-subhead); }
+.lead { margin: 0 0 20px; max-width: 82ch; color: var(--color-text-muted); }
+.lead b, .warum b, .preis b { color: var(--color-text-strong); }
+.warum { margin: 0 0 12px; color: var(--color-text-muted); font-size: var(--font-size-small); min-height: 3.2em; }
+.preis { margin: 10px 0 0; font-size: var(--font-size-small); color: var(--color-text-muted); }
+.trenner { margin: 32px 0 20px; border: 0; border-top: 1px solid var(--color-divider); }
+.schalter { margin: 0 0 24px; }
+.schalter button {
+	min-height: var(--avm-control-h); padding: 0 var(--space-8);
+	border: 1px solid var(--color-button-soft-border); border-radius: var(--radius-md);
+	background: var(--color-button-soft); color: var(--color-button-soft-text);
+	font: inherit; cursor: pointer;
+}
+.wirt {
+	padding: var(--space-10);
+	border: 1px solid var(--color-border-strong); border-radius: var(--radius-sm);
+	background: var(--color-panel-soft);
+}
+.reihe { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 22px; }
+.feld { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--space-4) var(--space-8);
+	align-items: center; font-size: var(--font-size-small); }
+.feld input, .feld select {
+	min-height: 26px; padding: 0 var(--space-4);
+	border: 1px solid var(--color-border); border-radius: var(--radius-md);
+	background: var(--color-panel); color: var(--color-text); font: inherit;
+	font-size: var(--font-size-small); min-width: 0;
+}
+.marke { display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: var(--radius-sm);
+	background: var(--color-accent-strong); color: #2e271e; font-size: var(--font-size-caption);
+	font-weight: var(--font-weight-bold); }
+.rot { color: #c0392b; font-weight: var(--font-weight-bold); }
+[data-theme="dunkel"] .rot { color: #e8907f; }
+
+/* ══ HEUTE 1 — .fs-scope (Quellen): Aufschrift AUF der Linie ══════════════════════════════ */
+.a-box { position: relative; min-width: 0; border: 1px solid var(--color-accent-brown);
+	border-radius: var(--radius-md); padding: 10px 10px 10px; }
+.a-box + .a-box { margin-top: 14px; }
+.a-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px;
+	width: max-content; max-width: calc(100% - 6px);
+	margin: -17px 0 6px -2px; padding: 0 5px; background: var(--color-panel-soft); }
+.a-title { font-size: 11px; font-weight: 700; letter-spacing: .02em; text-transform: uppercase;
+	color: var(--color-accent-brown); }
+.a-reach { font-size: 11px; font-weight: 400; text-transform: none; color: var(--color-text-muted); }
+
+/* ══ HEUTE 2 — .label-wiki-reference (Landschaften): Aufschrift IM Kasten ═════════════════ */
+.b-box { border: 1px solid var(--color-border); border-radius: 6px;
+	background: var(--color-panel); padding: 8px 10px; }
+.b-box + .b-box { margin-top: 14px; }
+.b-head { display: flex; align-items: center; justify-content: space-between; gap: 8px;
+	margin-bottom: 6px; flex-wrap: wrap; }
+.b-title { font-weight: 600; color: var(--color-button-soft-text); }
+
+/* ══ HEUTE 3 — .planner-group (Routenplaner): Aufschrift als LEISTE ═══════════════════════ */
+.c-box { border: 1px solid var(--color-border); border-radius: var(--radius-md);
+	background: var(--color-panel); }
+.c-box + .c-box { margin-top: 14px; }
+.c-head { display: flex; align-items: center; gap: 6px; min-width: 0;
+	padding: 3px 8px 0; border-radius: calc(var(--radius-md) - 1px); }
+.c-toggle { display: flex; flex: 1 1 auto; align-items: center; gap: 6px; min-width: 0;
+	min-height: 24px; margin: 0; padding: 0; border: 0; background: none; cursor: pointer;
+	font: inherit; text-align: left; }
+.c-title { flex: 0 0 auto; margin: 0; color: var(--color-text); font-size: 12.5px; font-weight: 600; }
+.c-caret { flex: 0 0 auto; margin-left: auto; margin-right: 4px; color: var(--color-text-muted); font-size: 13px; }
+.c-body { padding: 5px 8px 8px; }
+
+/* ══ HEUTE 4 — .report-section (Meldung): Aufschrift IM Kasten, Versalien ═════════════════ */
+.d-box { display: flex; flex-direction: column; gap: var(--space-6);
+	padding: var(--space-6) var(--space-10) var(--space-10);
+	border: 1px solid var(--color-border); border-radius: var(--radius-lg);
+	background: var(--color-panel-soft); }
+.d-box + .d-box { margin-top: 14px; }
+.d-title { font-size: var(--font-size-caption); font-weight: var(--font-weight-bold);
+	letter-spacing: 0.03em; text-transform: uppercase; color: var(--color-accent-strong); }
+
+/* ══ VORSCHLAG — EIN Rahmen, der alle vier Fälle trägt ════════════════════════════════════ */
+.v-box { position: relative; min-width: 0;
+	border: 1px solid var(--color-border); border-radius: var(--radius-md);
+	padding: var(--space-8) var(--space-8) var(--space-8); }
+.v-box + .v-box { margin-top: var(--space-12); }
+/* 💣 STATISCH mit negativem Rand, NICHT absolut: eine zweite Titelzeile schiebt den Inhalt
+   nach unten, statt ihn zu überdecken. Genau das leistet ein <legend>. */
+.v-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-4);
+	width: max-content; max-width: calc(100% - 6px);
+	margin: -17px 0 var(--space-4) -2px; padding: 0 5px;
+	background: var(--color-panel-soft); }
+.v-title { font-size: var(--font-size-caption); font-weight: var(--font-weight-bold);
+	letter-spacing: 0.03em; text-transform: uppercase; color: var(--color-accent-strong); }
+.v-note { font-size: var(--font-size-caption); font-weight: 400; text-transform: none;
+	letter-spacing: 0; color: var(--color-text-muted); }
+/* Der klappbare Fall: derselbe Rahmen, der Titel wird ein Knopf. */
+.v-toggle { display: flex; align-items: baseline; gap: var(--space-4); min-width: 0;
+	margin: 0; padding: 0; border: 0; background: none; font: inherit; cursor: pointer; text-align: left; }
+.v-toggle:hover .v-title { color: var(--color-text-strong); }
+.v-caret { color: var(--color-text-muted); font-size: var(--font-size-small); }
+.v-caret::before { content: "\203a"; display: inline-block; transition: transform .2s ease; }
+.v-box--offen .v-caret::before { transform: rotate(90deg); }
+.v-info { margin-left: var(--space-4); width: 18px; height: 18px; display: inline-grid;
+	place-items: center; border: 1px solid var(--color-button-soft-border);
+	border-radius: 999px; background: var(--color-button-soft);
+	color: var(--color-button-soft-text); font-size: var(--font-size-caption); cursor: help; }
+</style>
+</head>
+<body>
+<div class="seite">
+
+<h1>Rahmenkasten — vier Rezepturen, eine Form</h1>
+<p class="lead">
+	Ein umrandeter Block mit einer Aufschrift, der eine Gruppe fasst. Es gibt ihn <b>viermal</b> im
+	Haus, und die vier sehen verschieden aus. Unten in jeder Spalte steht derselbe Kasten mit einem
+	<b>zweizeiligen</b> Titel — dort trennt sich, welche Form trägt.
+</p>
+<p class="schalter"><button type="button" id="thema">Dunkel ansehen</button></p>
+
+<h2>Was heute ist</h2>
+<div class="reihe">
+
+	<div>
+		<h2 style="font-size:var(--font-size-body)">1 · Quellen <code>.fs-scope</code></h2>
+		<p class="warum">Aufschrift <b>auf der Linie</b>, wie ein <code>&lt;legend&gt;</code>.
+			Versalien, 11px, akzentbraun.</p>
+		<div class="wirt">
+			<div class="a-box">
+				<div class="a-head"><span class="a-title">Gilt für den ganzen Korpus</span>
+					<span class="a-reach">— welcher, sagt die Adresse</span></div>
+				<div class="feld"><label>Name</label><input value="AlberniaWiki"></div>
+			</div>
+			<div class="a-box">
+				<div class="a-head"><span class="a-title">Gilt für alle Objekte, die diese Quelle zitieren</span>
+					<span class="a-reach">— noch kein Objekt</span></div>
+				<div class="feld"><label>Adresse</label><input placeholder="https://…"></div>
+			</div>
+		</div>
+		<p class="preis"><b>Zweizeilig:</b> trägt — die zweite Zeile schiebt den Inhalt nach unten.</p>
+	</div>
+
+	<div>
+		<h2 style="font-size:var(--font-size-body)">2 · Landschaften <code>.label-wiki-reference</code></h2>
+		<p class="warum">Aufschrift <b>im Kasten</b>, gemischte Schreibung, Gewicht 600.</p>
+		<div class="wirt">
+			<div class="b-box">
+				<div class="b-head"><span class="b-title">Gelände</span></div>
+				<div class="feld"><label>Morphologie</label><select><option>—</option></select></div>
+			</div>
+			<div class="b-box">
+				<div class="b-head"><span class="b-title">Gilt für alle Objekte, die diese Quelle zitieren</span></div>
+				<div class="feld"><label>Adresse</label><input placeholder="https://…"></div>
+			</div>
+		</div>
+		<p class="preis"><b>Zweizeilig:</b> trägt. <span class="rot">Aber:</span> Radius <b>6px</b>
+			und Gewicht <b>600</b> gibt es auf keiner Skala des Hauses.</p>
+	</div>
+
+	<div>
+		<h2 style="font-size:var(--font-size-body)">3 · Routenplaner <code>.planner-group</code></h2>
+		<p class="warum">Aufschrift als <b>Leiste</b> mit Pfeil und ⓘ — der einzige klappbare.</p>
+		<div class="wirt">
+			<div class="c-box">
+				<div class="c-head"><button class="c-toggle" type="button"><span class="c-title">Transportmittel</span></button>
+					<span class="c-caret">›</span></div>
+				<div class="c-body"><div class="feld"><label>Land</label><select><option>Reisegruppe zu Fuß</option></select></div></div>
+			</div>
+			<div class="c-box">
+				<div class="c-head"><button class="c-toggle" type="button"><span class="c-title">Gilt für alle Objekte, die diese Quelle zitieren</span></button>
+					<span class="c-caret">›</span></div>
+				<div class="c-body"><div class="feld"><label>Adresse</label><input placeholder="https://…"></div></div>
+			</div>
+		</div>
+		<p class="preis"><b>Zweizeilig:</b> trägt. <span class="rot">Aber:</span> Schriftgröße
+			<b>12,5px</b> und Gewicht <b>600</b> stehen auf keiner Skala.</p>
+	</div>
+
+	<div>
+		<h2 style="font-size:var(--font-size-body)">4 · Meldung <code>.report-section</code></h2>
+		<p class="warum">Aufschrift <b>im Kasten</b>, Versalien, 11px — aber Radius <code>lg</code>
+			und eigener Grund.</p>
+		<div class="wirt">
+			<div class="d-box">
+				<span class="d-title">Wo liegt der Ort?</span>
+				<div class="feld"><label>Region</label><input value="Kosch"></div>
+			</div>
+			<div class="d-box">
+				<span class="d-title">Gilt für alle Objekte, die diese Quelle zitieren</span>
+				<div class="feld"><label>Adresse</label><input placeholder="https://…"></div>
+			</div>
+		</div>
+		<p class="preis"><b>Zweizeilig:</b> trägt. <span class="rot">Aber:</span> dritter Radius
+			(<code>lg</code>) und ein eigener Kastengrund.</p>
+	</div>
+
+</div>
+
+<hr class="trenner">
+
+<h2>Vorschlag — ein Rahmen, der alle vier Fälle trägt <span class="marke">zur Entscheidung</span></h2>
+<p class="lead">
+	Die Form von <b>1</b> (Aufschrift auf der Linie) mit den Werten von <b>4</b> (Versalien, 11px,
+	<code>--font-size-caption</code>/<code>--font-weight-bold</code>). Beide stehen schon auf der
+	Skala; die zwei anderen bringen fünf Werte mit, die es dort nicht gibt.
+	Das <b>Klappen</b> und das <b>ⓘ</b> des Routenplaners kommen als Zusatz dazu — nicht als
+	eigene Rezeptur.
+</p>
+
+<div class="reihe">
+	<div>
+		<h2 style="font-size:var(--font-size-body)">einfach</h2>
+		<p class="warum">Der Normalfall: Aufschrift, Inhalt.</p>
+		<div class="wirt">
+			<div class="v-box">
+				<div class="v-head"><span class="v-title">Gelände</span></div>
+				<div class="feld"><label>Morphologie</label><select><option>—</option></select>
+					<label>Höhenstufe</label><select><option>—</option></select></div>
+			</div>
+		</div>
+	</div>
+	<div>
+		<h2 style="font-size:var(--font-size-body)">mit Zusatz</h2>
+		<p class="warum">Eine Reichweite oder Anzahl steht gedämpft daneben — nie in Versalien.</p>
+		<div class="wirt">
+			<div class="v-box">
+				<div class="v-head"><span class="v-title">Gilt für den ganzen Korpus</span>
+					<span class="v-note">— welcher, sagt die Adresse</span></div>
+				<div class="feld"><label>Name</label><input value="AlberniaWiki"></div>
+			</div>
+		</div>
+	</div>
+	<div>
+		<h2 style="font-size:var(--font-size-body)">klappbar + ⓘ</h2>
+		<p class="warum">Derselbe Rahmen; der Titel wird ein Knopf, der Pfeil steht davor.</p>
+		<div class="wirt">
+			<div class="v-box v-box--offen">
+				<div class="v-head">
+					<button class="v-toggle" type="button"><span class="v-caret"></span>
+						<span class="v-title">Transportmittel</span></button>
+					<span class="v-info" title="Was die Auswahl bewirkt">ⓘ</span>
+				</div>
+				<div class="feld"><label>Land</label><select><option>Reisegruppe zu Fuß</option></select>
+					<label>Fluss</label><select><option>Flusssegler</option></select></div>
+			</div>
+		</div>
+	</div>
+	<div>
+		<h2 style="font-size:var(--font-size-body)">zweizeiliger Titel</h2>
+		<p class="warum">Der Prüffall: die zweite Zeile <b>schiebt</b> den Inhalt nach unten,
+			statt ihn zu überdecken.</p>
+		<div class="wirt">
+			<div class="v-box">
+				<div class="v-head"><span class="v-title">Gilt für alle Objekte, die diese Quelle zitieren</span>
+					<span class="v-note">— noch kein Objekt</span></div>
+				<div class="feld"><label>Adresse</label><input placeholder="https://…"></div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<hr class="trenner">
+
+<p class="lead">
+	💣 <b>Warum die Aufschrift auf der Linie und nicht darin:</b> sie steht dann <i>am</i> Rahmen,
+	nicht <i>im</i> Inhalt — der Kasten beginnt sichtbar dort, wo sein Name steht. Und sie ist
+	statisch mit negativem Außenrand gesetzt, nicht absolut: nur so schiebt eine zweite Zeile den
+	Inhalt nach unten. Absolut positioniert lag sie im Quellen-Editor gemessen <b>9px über</b> dem
+	ersten Feld.
+</p>
+<p class="lead">
+	⚠️ <b>Was der Vorschlag NICHT ändert:</b> welche Kästen es gibt, ihre Reihenfolge, ihr Inhalt.
+	Nur die vier Rezepturen werden eine.
+</p>
+
+</div>
+
+<script>
+(function () {
+	var dunkel = false;
+	document.getElementById("thema").addEventListener("click", function () {
+		dunkel = !dunkel;
+		document.documentElement.setAttribute("data-theme", dunkel ? "dunkel" : "hell");
+		this.textContent = dunkel ? "Hell ansehen" : "Dunkel ansehen";
+	});
+	[].forEach.call(document.querySelectorAll(".v-toggle"), function (b) {
+		b.addEventListener("click", function () { b.closest(".v-box").classList.toggle("v-box--offen"); });
+	});
+})();
+</script>
+</body>
+</html>
