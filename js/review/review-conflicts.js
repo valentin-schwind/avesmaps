@@ -53,7 +53,17 @@ let conflictMinimized = false;
 function setConflictDialogMinimized(isMinimized) {
 	conflictMinimized = isMinimized;
 	const overlay = document.getElementById("wiki-sync-conflicts-overlay");
+	// 🔴 DIE KLASSE GEHT AN BEIDE, und beide brauchen sie aus verschiedenen Gruenden:
+	//    Die HUELLE traegt die Lage (oben mittig) und `pointer-events: none` -- der Owner-Entscheid
+	//    vom 21.07.2026, weil das Fenster unten rechts hinter dem Editor-/Infopanel verschwand.
+	//    Der KASTEN traegt `avm-fenster`, und nur an ihm greift die geteilte Einklapp-Regel
+	//    (`.avm-fenster.is-minimized > :not(.avm-fenster__kopf)`). Ohne ihn liefe dieses Fenster
+	//    weiter ueber eine eigene LISTE seiner Zonen -- und eine Liste veraltet lautlos: die
+	//    naechste Zone stuende eingeklappt sichtbar da.
+	// ⚠️ Zwei Elemente, aber EINE Anweisung -- sie koennen nicht auseinanderlaufen.
 	overlay?.classList.toggle("is-minimized", isMinimized);
+	document.getElementById("wiki-sync-conflicts-dialog")
+		?.classList.toggle("is-minimized", isMinimized);
 	// Verkleinert sitzt das Fenster oben mittig -- unten rechts verschwand es hinter dem
 	// Editor-/Infopanel (Owner 2026-07-21). Der Abstand nach oben richtet sich nach dem Zeitstrahl,
 	// der dort ebenfalls sitzt, aber meistens versteckt ist: gemessen statt geraten, sonst klebt das

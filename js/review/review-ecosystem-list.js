@@ -36,6 +36,12 @@ window.openAvesmapsEcosystemEditorOverlay = window.openAvesmapsEcosystemEditorOv
 	overlay.className = "avm-editor-overlay";
 	const dialog = document.createElement("div");
 	dialog.className = "avm-editor-dialog avm-fenster avm-fenster--werkzeug";
+	// 🔴 role="dialog" IST die Zieh-Verdrahtung: js/ui/dialog-drag.js delegiert am Dokument und
+	//    erkennt ein Fenster genau daran. Ohne das Attribut zeigt der Kopf seinen Griff und den
+	//    Greif-Zeiger, und nichts bewegt sich -- ein Versprechen ohne Mechanik.
+	// 💣 NICHT zusaetzlich avesmapsEditorDialogZiehbar rufen: das Fenster zoege dann doppelt so
+	//    weit wie der Zeiger (dieselbe Doppelanmeldung wie beim Sammelmenue im Menueband).
+	dialog.setAttribute("role", "dialog");
 	// tr() only in the HOST document: js/app/i18n.js is loaded here, not in the editor iframe.
 	// German is the default and stays it; ?lang=en swaps in js/app/i18n-en.js (AGENTS.md §8).
 	const t = (key, german) => (typeof tr === "function" ? tr(key, german) : german);

@@ -2009,10 +2009,9 @@
 	padding: 6px 10px;
 	box-shadow: var(--shadow-dialog);
 }
-#wiki-sync-conflicts-overlay.is-minimized .wiki-sync-conflicts-dialog__body,
-#wiki-sync-conflicts-overlay.is-minimized .conflict-foot {
-	display: none;
-}
+/* 🔴 Die Zonen-Liste ist am 04.09.2026 gefallen: welche Zonen eingeklappt verschwinden, entscheidet
+   die geteilte Regel am Kasten (css/components/fenster.css). Die LAGE bleibt hier -- sie ist der
+   Owner-Entscheid vom 21.07.2026 und gilt nur diesem Fenster. */
 #wiki-sync-conflicts-overlay.is-minimized .avm-fenster__kopf {
 	margin-bottom: 0;
 }

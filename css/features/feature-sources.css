@@ -638,8 +638,6 @@
 .fs-add-picked__x:hover {
 	color: var(--color-text-strong);
 }
-.fs-row__add:hover,
-.fs-row__cancel:hover,
 /* Popup/infobox source block (buildSourceListMarkup, js/ui/feature-source-markup.js). Line 1 is the
    Wiki page link + hand-added sources; line 2 the wiki publications as collapsible Offizielle/
    Erwähnungen tabs over a Titel/Typ/Seiten table. Explicit colors to match the beige map popups. */

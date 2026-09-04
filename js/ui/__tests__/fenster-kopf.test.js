@@ -104,6 +104,28 @@ for (const [datei, erwartet] of ERZEUGER) {
 }
 wahr(summe === 7, `sieben Fenster-Koepfe erwartet, gezaehlt ${summe}`);
 
+// ---- 2b) Jeder Griff hat auch eine MECHANIK ---------------------------------------------------
+// 💣 DER GRIFF IST EIN VERSPRECHEN. Das Bauteil setzt ihn bedingungslos -- Owner 04.09.2026:
+//    „Du kannst alle Fenster dragbar machen … damit fuer jeden klar [ist], dass man das
+//    verschieben kann". Am Tag des Umbaus zeigten FUENF der sieben Fenster Griff und Greif-Zeiger
+//    und liessen sich nicht bewegen: js/ui/dialog-drag.js delegiert am Dokument und erkennt ein
+//    Fenster an `[role="dialog"]`, und das Attribut fehlte. Gefunden von einem Pruefagenten, nicht
+//    vom Testfeld -- beide Haelften waren fuer sich richtig, die NAHT nicht.
+// 🔴 Zwei Wege sind erlaubt und schliessen einander AUS: `role="dialog"` (die Delegation greift)
+//    ODER ein eigener avesmapsEditorDialogZiehbar-Aufruf. Beides zusammen meldet doppelt an, und
+//    das Fenster zoege doppelt so weit wie der Zeiger.
+for (const [datei] of ERZEUGER) {
+	const quelle = lies(...datei.split("/"));
+	const rufe = (quelle.match(/avesmapsFensterKopf\(/g) || []).length;
+	const rollen = (quelle.match(/setAttribute\("role",\s*"dialog"\)/g) || []).length;
+	const zieher = (quelle.match(/avesmapsEditorDialogZiehbar\(/g) || []).length;
+	wahr(rollen + zieher >= rufe,
+		`${datei}: ${rufe} Fenster-Koepfe, aber nur ${rollen + zieher} verschiebbar `
+		+ "-- ein Griff ohne Mechanik");
+	wahr(!(rollen > 0 && zieher > 0),
+		`${datei} verdrahtet BEIDE Zieh-Wege -- das Fenster zoege doppelt so weit wie der Zeiger`);
+}
+
 // ---- 3) Der Bauer ist eingebunden, und VOR seinen Nutzern -------------------------------------
 // 💣 Nur script-TAGS vergleichen: ein Dateiname in einem Kommentar steht frueher und macht aus
 //    einer richtigen Reihenfolge einen Fehlalarm -- beim Bau am 04.09.2026 genau so passiert.

@@ -795,6 +795,12 @@ window.openAvesmapsSettlementEditorOverlay = window.openAvesmapsSettlementEditor
 	overlay.className = "avm-editor-overlay";
 	const dialog = document.createElement("div");
 	dialog.className = "avm-editor-dialog avm-fenster avm-fenster--werkzeug";
+	// 🔴 role="dialog" IST die Zieh-Verdrahtung: js/ui/dialog-drag.js delegiert am Dokument und
+	//    erkennt ein Fenster genau daran. Ohne das Attribut zeigt der Kopf seinen Griff und den
+	//    Greif-Zeiger, und nichts bewegt sich -- ein Versprechen ohne Mechanik.
+	// 💣 NICHT zusaetzlich avesmapsEditorDialogZiehbar rufen: das Fenster zoege dann doppelt so
+	//    weit wie der Zeiger (dieselbe Doppelanmeldung wie beim Sammelmenue im Menueband).
+	dialog.setAttribute("role", "dialog");
 	// 🔴 EIN Bauteil fuer alle sieben Fenster-Koepfe (js/ui/fenster-kopf.js). Hier stand bis zum
 	// 04.09.2026 eine von sieben Abschriften desselben Blocks.
 	// ⚠️ OHNE Handler: `closeOverlay` entsteht erst darunter, der Listener bleibt deshalb, wo er ist.
@@ -842,6 +848,12 @@ window.openAvesmapsGameLiteratureEditorOverlay = window.openAvesmapsGameLiteratu
 	overlay.className = "political-territory-editor-overlay";
 	const dialog = document.createElement("div");
 	dialog.className = "political-territory-editor-dialog avm-fenster avm-fenster--werkzeug";
+	// 🔴 role="dialog" IST die Zieh-Verdrahtung: js/ui/dialog-drag.js delegiert am Dokument und
+	//    erkennt ein Fenster genau daran. Ohne das Attribut zeigt der Kopf seinen Griff und den
+	//    Greif-Zeiger, und nichts bewegt sich -- ein Versprechen ohne Mechanik.
+	// 💣 NICHT zusaetzlich avesmapsEditorDialogZiehbar rufen: das Fenster zoege dann doppelt so
+	//    weit wie der Zeiger (dieselbe Doppelanmeldung wie beim Sammelmenue im Menueband).
+	dialog.setAttribute("role", "dialog");
 	dialog.style.width = "min(1400px, calc(100vw - 24px))";
 	dialog.style.height = "min(880px, calc(100vh - 24px))";
 	// 🔴 EIN Bauteil fuer alle sieben Fenster-Koepfe (js/ui/fenster-kopf.js). Hier stand bis zum
@@ -906,6 +918,12 @@ window.openAvesmapsCitymapEditorOverlay = window.openAvesmapsCitymapEditorOverla
 	overlay.className = "political-territory-editor-overlay";
 	const dialog = document.createElement("div");
 	dialog.className = "political-territory-editor-dialog avm-fenster avm-fenster--werkzeug";
+	// 🔴 role="dialog" IST die Zieh-Verdrahtung: js/ui/dialog-drag.js delegiert am Dokument und
+	//    erkennt ein Fenster genau daran. Ohne das Attribut zeigt der Kopf seinen Griff und den
+	//    Greif-Zeiger, und nichts bewegt sich -- ein Versprechen ohne Mechanik.
+	// 💣 NICHT zusaetzlich avesmapsEditorDialogZiehbar rufen: das Fenster zoege dann doppelt so
+	//    weit wie der Zeiger (dieselbe Doppelanmeldung wie beim Sammelmenue im Menueband).
+	dialog.setAttribute("role", "dialog");
 	dialog.style.width = "min(1400px, calc(100vw - 24px))";
 	dialog.style.height = "min(880px, calc(100vh - 24px))";
 	// 🔴 EIN Bauteil fuer alle sieben Fenster-Koepfe (js/ui/fenster-kopf.js). Hier stand bis zum

@@ -418,23 +418,51 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 
 .ecosystem-region-dialog__header,
 .ecosystem-properties-dialog__header,
-.ecosystem-import-dialog__header,
-
+.ecosystem-import-dialog__header {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: var(--space-8);
+	padding-bottom: var(--divider-gap-tight);
+	margin-bottom: var(--divider-gap-tight);
+	border-bottom: 1px solid var(--color-divider);
+}
 .ecosystem-region-dialog__header h2,
 .ecosystem-properties-dialog__header h2,
-.ecosystem-import-dialog__header h2,
-
+.ecosystem-import-dialog__header h2 {
+	margin: 0;
+	color: var(--color-text-strong);
+	font-size: var(--font-size-title);
+	line-height: var(--leading-tight);
+}
 .ecosystem-region-dialog__close,
 .ecosystem-properties-dialog__close,
-.ecosystem-import-dialog__close,
+.ecosystem-import-dialog__close {
+	appearance: none;
+	-webkit-appearance: none;
+	padding: 0 var(--space-4);
+	border: 0;
+	border-radius: var(--radius-md);
+	background: none;
+	color: var(--color-text-muted);
+	cursor: pointer;
+	font: inherit;
+	font-size: var(--font-size-subhead);
+	line-height: 1;
+}
 
 .ecosystem-region-dialog__close:hover,
 .ecosystem-properties-dialog__close:hover,
-.ecosystem-import-dialog__close:hover,
+.ecosystem-import-dialog__close:hover {
+	color: var(--color-text-strong);
+}
 
 .ecosystem-region-dialog__close:focus-visible,
 .ecosystem-properties-dialog__close:focus-visible,
-.ecosystem-import-dialog__close:focus-visible,
+.ecosystem-import-dialog__close:focus-visible {
+	outline: none;
+	box-shadow: var(--focus-ring);
+}
 
 .ecosystem-region-dialog__form,
 .ecosystem-properties-dialog__form,
