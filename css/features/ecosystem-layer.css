@@ -683,11 +683,31 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 	line-height: var(--leading-snug);
 }
 
+/* 💣 ZWEI REGELN, WEIL ES ZWEI BAUFORMEN SIND -- und weil Abschnitt C des Bauplans sagt, dass
+   die drei KARTEN-WERKZEUGE unberuehrt bleiben. Eine gemeinsame Regel haette ihnen `sticky`,
+   einen eigenen Grund und ein anderes Polster gegeben; im Browser gemessen sah das gut aus --
+   und waere trotzdem eine Aenderung an Fenstern gewesen, um die es nicht ging.
+   ⚠️ Bei den DREI scrollt die HUELLE als Ganzes (`overflow: auto` an ihr, Polster an ihr).
+      Bei den VIER umgestellten scrollt der RUMPF, und die Knopfleiste liegt bei dreien von
+      ihnen INNERHALB dieser Zone -- sie muss deshalb festkleben, sonst wandert sie mit. */
 .ecosystem-region-dialog__actions,
 .ecosystem-properties-dialog__actions,
+.ecosystem-import-dialog__actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: var(--space-6);
+	padding-top: var(--divider-gap-tight);
+	border-top: 1px solid var(--color-divider);
+}
+
+/* 🔴 Die vier umgestellten Blaetter: die Knopfleiste STEHT (Owner 04.09.2026, „alles unter
+   header und ueber footer scrollen"). `sticky` statt einer eigenen Zone, weil sie bei dreien
+   von ihnen im Formular liegt und dort nicht herausgeloest werden kann, ohne das Markup
+   umzubauen -- dieselbe Antwort wie beim Meldeformular („Ort bearbeiten").
+   ⚠️ Die negativen Aussenraender heben GENAU das Polster des Rumpfes auf (--space-16), damit
+      die Trennlinie randlos laeuft. Wer eines von beiden aendert, aendert beide. */
 .ecosystem-assign-dialog__actions,
 .label-assign-dialog__actions,
-.ecosystem-import-dialog__actions,
 .ecosystem-intro-dialog__actions,
 .ecosystem-transfer-dialog__actions {
 	position: sticky;
