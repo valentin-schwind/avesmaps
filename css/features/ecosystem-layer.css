@@ -6,6 +6,9 @@
    z-index: 1000 -- five §12 violations that "same place, same look" would have carried over. Every
    value below is a token from css/base/tokens.css. */
 
+/* 🔴 KOPFZEILE, TITEL UND SCHLIESSKNOPF GEHOEREN DEM BAUTEIL (css/components/fenster.css).
+      Hier standen dafuer eigene Regeln -- eine von dreizehn Schliessknopf-Rezepturen, die
+      der Umbau vom 04.09.2026 beendet. Nicht wieder hinschreiben. */
 .ecosystem-controls[hidden] {
 	display: none !important;
 }
@@ -401,11 +404,7 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
    css/components/dialog-overlays.css, so they inherit the shared scrim and stacking. */
 .ecosystem-region-dialog,
 .ecosystem-properties-dialog,
-.ecosystem-assign-dialog,
-.label-assign-dialog,
-.ecosystem-import-dialog,
-.ecosystem-intro-dialog,
-.ecosystem-transfer-dialog {
+.ecosystem-import-dialog {
 	width: min(420px, 100%);
 	max-height: 100%;
 	overflow: auto;
@@ -419,73 +418,23 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 
 .ecosystem-region-dialog__header,
 .ecosystem-properties-dialog__header,
-.ecosystem-assign-dialog__header,
-.label-assign-dialog__header,
 .ecosystem-import-dialog__header,
-.ecosystem-intro-dialog__header,
-.ecosystem-transfer-dialog__header {
-	display: flex;
-	align-items: baseline;
-	justify-content: space-between;
-	gap: var(--space-8);
-	padding-bottom: var(--divider-gap-tight);
-	margin-bottom: var(--divider-gap-tight);
-	border-bottom: 1px solid var(--color-divider);
-}
 
 .ecosystem-region-dialog__header h2,
 .ecosystem-properties-dialog__header h2,
-.ecosystem-assign-dialog__header h2,
-.label-assign-dialog__header h2,
 .ecosystem-import-dialog__header h2,
-.ecosystem-intro-dialog__header h2,
-.ecosystem-transfer-dialog__header h2 {
-	margin: 0;
-	color: var(--color-text-strong);
-	font-size: var(--font-size-title);
-	line-height: var(--leading-tight);
-}
 
 .ecosystem-region-dialog__close,
 .ecosystem-properties-dialog__close,
-.ecosystem-assign-dialog__close,
-.label-assign-dialog__close,
 .ecosystem-import-dialog__close,
-.ecosystem-intro-dialog__close,
-.ecosystem-transfer-dialog__close {
-	appearance: none;
-	-webkit-appearance: none;
-	padding: 0 var(--space-4);
-	border: 0;
-	border-radius: var(--radius-md);
-	background: none;
-	color: var(--color-text-muted);
-	cursor: pointer;
-	font: inherit;
-	font-size: var(--font-size-subhead);
-	line-height: 1;
-}
 
 .ecosystem-region-dialog__close:hover,
 .ecosystem-properties-dialog__close:hover,
-.ecosystem-assign-dialog__close:hover,
-.label-assign-dialog__close:hover,
 .ecosystem-import-dialog__close:hover,
-.ecosystem-intro-dialog__close:hover,
-.ecosystem-transfer-dialog__close:hover {
-	color: var(--color-text-strong);
-}
 
 .ecosystem-region-dialog__close:focus-visible,
 .ecosystem-properties-dialog__close:focus-visible,
-.ecosystem-assign-dialog__close:focus-visible,
-.label-assign-dialog__close:focus-visible,
 .ecosystem-import-dialog__close:focus-visible,
-.ecosystem-intro-dialog__close:focus-visible,
-.ecosystem-transfer-dialog__close:focus-visible {
-	outline: none;
-	box-shadow: var(--focus-ring);
-}
 
 .ecosystem-region-dialog__form,
 .ecosystem-properties-dialog__form,

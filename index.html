@@ -949,10 +949,11 @@
 		     Scrim, z-index) kommt aus css/components/dialog-overlays.css, wo die ID in allen DREI
 		     Selektorlisten steht -- ein neues Overlay-<div> erbt sonst NICHTS. -->
 		<div id="ecosystem-intro-overlay" hidden>
-			<div id="ecosystem-intro-dialog" class="ecosystem-intro-dialog" role="dialog" aria-modal="true" aria-labelledby="ecosystem-intro-title" aria-describedby="ecosystem-intro-body" tabindex="-1">
-				<div class="ecosystem-intro-dialog__header">
-					<h2 id="ecosystem-intro-title" data-i18n="ecosystem.intro.title">Landschaften</h2>
-					<button id="ecosystem-intro-close" class="ecosystem-intro-dialog__close" type="button" aria-label="Hinweis schließen" data-i18n-aria-label="ecosystem.intro.closeAria">×</button>
+			<div id="ecosystem-intro-dialog" class="ecosystem-intro-dialog avm-fenster avm-fenster--blatt" role="dialog" aria-modal="true" aria-labelledby="ecosystem-intro-title" aria-describedby="ecosystem-intro-body" tabindex="-1">
+				<div class="ecosystem-intro-dialog__header avm-fenster__kopf">
+					<span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>
+					<h2 class="avm-fenster__titel" id="ecosystem-intro-title" data-i18n="ecosystem.intro.title">Landschaften</h2>
+					<button id="ecosystem-intro-close" class="avm-fenster__knopf avm-fenster__knopf--nackt" type="button" aria-label="Hinweis schließen" data-i18n-aria-label="ecosystem.intro.closeAria">×</button>
 				</div>
 				<div id="ecosystem-intro-body" class="ecosystem-intro-dialog__body">
 					<p class="ecosystem-intro-dialog__lead" data-i18n="ecosystem.intro.lead">Fang mit einem einzigen Durchgang an:</p>
@@ -976,10 +977,11 @@
 		     css/components/dialog-overlays.css, wo die ID in allen DREI Selektorlisten steht -- ein
 		     neues Overlay-<div> erbt sonst NICHTS. -->
 		<div id="ecosystem-transfer-overlay" hidden>
-			<div id="ecosystem-transfer-dialog" class="ecosystem-transfer-dialog" role="dialog" aria-modal="true" aria-labelledby="ecosystem-transfer-title" tabindex="-1">
-				<div class="ecosystem-transfer-dialog__header">
-					<h2 id="ecosystem-transfer-title" data-i18n="ecosystem.transfer.dialogTitle">Fläche kopieren</h2>
-					<button id="ecosystem-transfer-close" class="ecosystem-transfer-dialog__close" type="button" aria-label="Dialog schließen" data-i18n-aria-label="ecosystem.transfer.closeAria">×</button>
+			<div id="ecosystem-transfer-dialog" class="ecosystem-transfer-dialog avm-fenster avm-fenster--blatt" role="dialog" aria-modal="true" aria-labelledby="ecosystem-transfer-title" tabindex="-1">
+				<div class="ecosystem-transfer-dialog__header avm-fenster__kopf">
+					<span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>
+					<h2 class="avm-fenster__titel" id="ecosystem-transfer-title" data-i18n="ecosystem.transfer.dialogTitle">Fläche kopieren</h2>
+					<button id="ecosystem-transfer-close" class="avm-fenster__knopf avm-fenster__knopf--nackt" type="button" aria-label="Dialog schließen" data-i18n-aria-label="ecosystem.transfer.closeAria">×</button>
 				</div>
 				<form id="ecosystem-transfer-form" class="ecosystem-transfer-dialog__form">
 					<p id="ecosystem-transfer-source" class="ecosystem-transfer-dialog__source"></p>
@@ -1036,10 +1038,11 @@
 		     wo #ecosystem-assign-overlay in allen DREI Selektorlisten steht -- sonst erbt das <div>
 		     NICHTS und oeffnet hinter der Karte. -->
 		<div id="ecosystem-assign-overlay" hidden>
-			<div id="ecosystem-assign-dialog" class="ecosystem-assign-dialog" role="dialog" aria-modal="true" aria-labelledby="ecosystem-assign-title" tabindex="-1">
-				<div class="ecosystem-assign-dialog__header">
-					<h2 id="ecosystem-assign-title" data-i18n="ecosystem.assign.dialogTitle">Fläche zuweisen</h2>
-					<button id="ecosystem-assign-close" class="ecosystem-assign-dialog__close" type="button" aria-label="Dialog schließen" data-i18n-aria-label="ecosystem.assign.closeAria">×</button>
+			<div id="ecosystem-assign-dialog" class="ecosystem-assign-dialog avm-fenster avm-fenster--blatt" role="dialog" aria-modal="true" aria-labelledby="ecosystem-assign-title" tabindex="-1">
+				<div class="ecosystem-assign-dialog__header avm-fenster__kopf">
+					<span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>
+					<h2 class="avm-fenster__titel" id="ecosystem-assign-title" data-i18n="ecosystem.assign.dialogTitle">Fläche zuweisen</h2>
+					<button id="ecosystem-assign-close" class="avm-fenster__knopf avm-fenster__knopf--nackt" type="button" aria-label="Dialog schließen" data-i18n-aria-label="ecosystem.assign.closeAria">×</button>
 				</div>
 				<form id="ecosystem-assign-form" class="ecosystem-assign-dialog__form">
 					<p id="ecosystem-assign-target" class="ecosystem-assign-dialog__target"></p>
@@ -1071,10 +1074,11 @@
 		     #label-assign-overlay in allen DREI Listen steht -- sonst erbt das <div> NICHTS und
 		     oeffnet hinter der Karte. -->
 		<div id="label-assign-overlay" hidden>
-			<div id="label-assign-dialog" class="label-assign-dialog" role="dialog" aria-modal="true" aria-labelledby="label-assign-title" tabindex="-1">
-				<div class="label-assign-dialog__header">
-					<h2 id="label-assign-title" data-i18n="label.assign.dialogTitle">Label zuweisen</h2>
-					<button id="label-assign-close" class="label-assign-dialog__close" type="button" aria-label="Dialog schließen" data-i18n-aria-label="label.assign.closeAria">×</button>
+			<div id="label-assign-dialog" class="label-assign-dialog avm-fenster avm-fenster--blatt" role="dialog" aria-modal="true" aria-labelledby="label-assign-title" tabindex="-1">
+				<div class="label-assign-dialog__header avm-fenster__kopf">
+					<span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>
+					<h2 class="avm-fenster__titel" id="label-assign-title" data-i18n="label.assign.dialogTitle">Label zuweisen</h2>
+					<button id="label-assign-close" class="avm-fenster__knopf avm-fenster__knopf--nackt" type="button" aria-label="Dialog schließen" data-i18n-aria-label="label.assign.closeAria">×</button>
 				</div>
 				<form id="label-assign-form" class="label-assign-dialog__form">
 					<p id="label-assign-target" class="label-assign-dialog__target"></p>
@@ -3176,10 +3180,11 @@
 			</div>
 		</div>
 		<div id="legal-overlay" hidden>
-			<div id="legal-dialog" class="legal-dialog" role="dialog" aria-modal="true" aria-labelledby="legal-title" tabindex="-1">
-				<div class="legal-dialog__header">
-					<h2 id="legal-title" data-i18n="legal.title">Hinweise</h2>
-					<button id="legal-close" class="legal-dialog__close" type="button" aria-label="Rechtliches schließen" data-i18n-aria-label="legal.closeAria">×</button>
+			<div id="legal-dialog" class="legal-dialog avm-fenster avm-fenster--blatt" role="dialog" aria-modal="true" aria-labelledby="legal-title" tabindex="-1">
+				<div class="legal-dialog__header avm-fenster__kopf">
+					<span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>
+					<h2 class="avm-fenster__titel" id="legal-title" data-i18n="legal.title">Hinweise</h2>
+					<button id="legal-close" class="avm-fenster__knopf avm-fenster__knopf--nackt" type="button" aria-label="Rechtliches schließen" data-i18n-aria-label="legal.closeAria">×</button>
 				</div>
 				<div class="legal-dialog__scroll">
 					<div class="legal-dialog__badge">
@@ -3471,10 +3476,11 @@
 		     DREI Selektorlisten steht; ohne die wäre es ein Block im Dokumentfluss, kein Fenster.
 		     Die Liste baut js/app/changelog-dialog.js beim ersten Öffnen aus /api/app/changelog.php. -->
 		<div id="changelog-overlay" hidden>
-			<div id="changelog-dialog" class="changelog-dialog" role="dialog" aria-modal="true" aria-labelledby="changelog-title" tabindex="-1">
-				<div class="changelog-dialog__header">
-					<h2 id="changelog-title" data-i18n="changelog.title">Neuigkeiten</h2>
-					<button id="changelog-close" class="changelog-dialog__close" type="button" aria-label="Neuigkeiten schließen" data-i18n-aria-label="changelog.closeAria">×</button>
+			<div id="changelog-dialog" class="changelog-dialog avm-fenster avm-fenster--blatt" role="dialog" aria-modal="true" aria-labelledby="changelog-title" tabindex="-1">
+				<div class="changelog-dialog__header avm-fenster__kopf">
+					<span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>
+					<h2 class="avm-fenster__titel" id="changelog-title" data-i18n="changelog.title">Neuigkeiten</h2>
+					<button id="changelog-close" class="avm-fenster__knopf avm-fenster__knopf--nackt" type="button" aria-label="Neuigkeiten schließen" data-i18n-aria-label="changelog.closeAria">×</button>
 				</div>
 				<p class="changelog-dialog__intro" data-i18n="changelog.intro">Was sich auf Avesmaps getan hat, seit die Karte im April 2026 online ging — die größeren Schritte, das Kleingedruckte lassen wir weg.</p>
 				<div id="changelog-list" class="changelog-dialog__scroll"></div>
@@ -3804,6 +3810,9 @@
 			     Reihenfolge unter den <script>-Tags ist dafür also gleichgültig. -->
 			<script src="js/map-features/map-features-ecosystem-height-field.js"></script>
 			<script src="js/map-features/map-features-ecosystem-height-combine.js"></script>
+			<!-- V12: die lokale Gebirgssimulation (Randwertaufgabe + hydraulische Erosion). VOR dem
+			     Renderer, der sie ruft, und vor -heightmap-raster.js, das ihr Ergebnis speichert. -->
+			<script src="js/map-features/map-features-ecosystem-hydrologie.js"></script>
 			<script src="js/map-features/map-features-ecosystem-height-render.js"></script>
 			<!-- Fall #79: die Höhenskala im Topographie-Dialog. Reiner Rechner (Marken, Gruppierung,
 			     Achse) ohne DOM und ohne Karte; er MUSS vor map-features-ecosystem-properties.js

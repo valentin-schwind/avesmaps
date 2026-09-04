@@ -10,6 +10,9 @@
    Dokumentfluss. Verschiebbar wird es ohne eigenes Zutun: role="dialog" + eine Kopfzeile auf
    "__header" genügen js/ui/dialog-drag.js. */
 
+/* 🔴 KOPFZEILE, TITEL UND SCHLIESSKNOPF GEHOEREN DEM BAUTEIL (css/components/fenster.css).
+      Hier standen dafuer eigene Regeln -- eine von dreizehn Schliessknopf-Rezepturen, die
+      der Umbau vom 04.09.2026 beendet. Nicht wieder hinschreiben. */
 .changelog-dialog {
 	width: min(680px, 100%);
 	max-height: min(80vh, 760px);
@@ -26,30 +29,6 @@
 
 .changelog-dialog:focus {
 	outline: none;
-}
-
-.changelog-dialog__header {
-	flex: 0 0 auto;
-	display: flex;
-	align-items: flex-start;
-	justify-content: space-between;
-	gap: 12px;
-	margin-bottom: 4px;
-}
-
-.changelog-dialog__header h2 {
-	margin: 0;
-	font-size: var(--font-size-title);
-}
-
-.changelog-dialog__close {
-	border: none;
-	background: transparent;
-	color: var(--color-button-border);
-	cursor: pointer;
-	font-size: 28px;
-	line-height: 1;
-	padding: 0;
 }
 
 .changelog-dialog__intro {
