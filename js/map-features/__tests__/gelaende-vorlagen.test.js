@@ -3,9 +3,13 @@
 /**
  * Die Vorlagen: „Morphologie" und „Höhenstufe".
  *
- * 🔴 Owner 04.09.2026: acht Geländeformen und fünf Höhenstufen als Auswahlfeld, statt zwölf einzelner
- * Zahlen von Hand. Eine Vorlage ist eine AKTION, kein Zustand: sie schreibt Werte in die Regler und
- * ist danach vergessen. Gespeichert werden die Zahlen, nie der Name.
+ * 🔴 Owner 04.09.2026: zehn Geländeformen und fünf Höhenstufen als Auswahlfeld, statt zwölf
+ * einzelner Zahlen von Hand. Eine Vorlage ist eine AKTION, kein Zustand: sie schreibt Werte in die
+ * Regler und ist danach vergessen. Gespeichert werden die Zahlen, nie der Name.
+ *
+ * 🔴 Die zehn sind die GEOMORPHOLOGISCHE SYSTEMATIK, und die Zahlen darin sind die des Owners
+ * (04.09.2026, gegen Copernicus-DEM-Graustufen und das amtliche BKG-DGM1 abgeglichen). Wer einen
+ * Wert ändert, ändert eine Messung -- nicht einen Geschmack.
  */
 
 const assert = require("assert");
@@ -40,13 +44,53 @@ pruefe("beide Tabellen sind vollständig und tragen die bestellten Namen", () =>
 	// die ein Editor im Fenster wiedererkennen soll.
 	assert.deepStrictEqual(
 		hydro.ECOSYSTEM_HYDRO_MORPHOLOGIEN.map((v) => v.name),
-		["Plateau", "Rumpfgebirge", "Härtling", "Kuppengebirge", "Kegelberge", "Gratgebirge",
-			"Massiv", "Karst", "Karstrelief"],
+		["Kammgebirge", "Gratgebirge", "Kettengebirge", "Kuppengebirge", "Massengebirge",
+			"Plateaugebirge", "Rumpfgebirge", "Schild", "Inselberg", "Karst"],
 		"die Morphologien stimmen nicht mit der Bestellung überein");
 	assert.deepStrictEqual(
 		hydro.ECOSYSTEM_HYDRO_HOEHENSTUFEN.map((v) => v.name),
 		["Tiefland", "Hügelland", "Vorgebirge", "Mittelgebirge", "Hochgebirge"],
 		"die Höhenstufen stimmen nicht mit der Bestellung überein");
+});
+
+pruefe("die zehn Vorlagen tragen die gemessenen Werte des Owners", () => {
+	// 🔴 DAS SIND MESSUNGEN, KEIN GESCHMACK. Der Owner hat sie am 04.09.2026 gegen die
+	// Graustufen-Höhenmodelle des Copernicus DEM und die Beschreibung des amtlichen BKG-DGM1
+	// abgeglichen (Taunus, Riesengebirge, Harz, Frankenwald, Schwäbische Alb) und ausdrücklich
+	// mitgegeben: „die Zahlen darin sind eine Herleitung und werden durch die ersetzt, die ich dir
+	// hier mitgebe". Wer eine ändert, ändert eine Messung -- das ist eine Entscheidung, kein
+	// Aufräumen, und sie gehört in denselben Commit wie diese Zeile.
+	// 💣 Ohne diese Zusicherung fällt eine Rücknahme durch JEDEN anderen Test: eine
+	// Mutationsprobe hat `hypsometrie` des Kettengebirges von 0,40 auf die verworfene Herleitung
+	// 0,50 zurückgedreht, und das ganze Testfeld blieb grün.
+	// ⚠️ „Kammhöhe" steht bewusst NICHT hier -- sie ist die Frage der Höhenstufe, nicht der Form
+	// (Owner: „Sie ist ein separates Höhenstufen-Preset und beschreibt nicht die Gebirgsform").
+	const soll = {
+		//                koernung bergform rauschen sattel talbreite einschnitt erosion hypso plateau stufen
+		kammgebirge:    [14,   2,   0.25, 0.95, 1.6,  550, 3, 0.45, 0.9,  3],
+		gratgebirge:    [5,    2,   0.45, 0.88, 0.9,  800, 5, 0.4,  1,    6],
+		kettengebirge:  [9,    2.5, 0.5,  0.92, 1.1, 1100, 5, 0.4,  1,    4],
+		kuppengebirge:  [9,    3.5, 0.3,  0.55, 1.6,  450, 4, 0.33, 1,    4],
+		massengebirge:  [10,   4,   0.35, 0.8,  1.5,  500, 3, 0.47, 0.75, 4],
+		plateaugebirge: [12,   0.5, 0.15, 0.95, 1.5,  500, 1, 0.6,  0.25, 3],
+		rumpfgebirge:   [16,   2,   0.3,  0.8,  2,    400, 5, 0.3,  0.85, 5],
+		schild:         [20,   0.3, 0.12, 0.95, 3,    200, 5, 0.7,  0.15, 2],
+		inselberg:      [14,   8,   0.2,  0.3,  2.5,  550, 5, 0.15, 1,    3],
+		karst:          [23.6, 2.5, 0.35, 0.75, 1.5,  400, 5, 0,    1,    5],
+	};
+	const spalten = ["koernung", "bergform", "rauschen", "sattel", "talbreite", "einschnitt",
+		"erosion", "hypsometrie", "plateau", "stufen"];
+	assert.deepStrictEqual(hydro.ECOSYSTEM_HYDRO_MORPHOLOGIEN.map((v) => v.key), Object.keys(soll),
+		"Schlüssel oder Reihenfolge der Morphologien weichen von der Bestellung ab");
+	for (const v of hydro.ECOSYSTEM_HYDRO_MORPHOLOGIEN) {
+		assert.deepStrictEqual(Object.keys(v.werte).sort(), spalten.slice().sort(),
+			"„" + v.name + "\" setzt nicht genau die zehn Formregler");
+		spalten.forEach((sp, n) => {
+			assert.strictEqual(v.werte[sp], soll[v.key][n],
+				"„" + v.name + "\": " + sp + " ist " + v.werte[sp] + ", der Owner hat " + soll[v.key][n]
+				+ " gemessen");
+		});
+	}
 });
 
 pruefe("die zwei Tabellen fassen einander NICHT an", () => {
@@ -68,11 +112,27 @@ pruefe("jeder Vorlagenwert liegt in den Schranken seines Reglers", () => {
 	// 💣 Die Schranken stehen an DREI Stellen (Regler im Markup, Klemme im Server, Klemme im
 	// Trichter). Eine Vorlage, die darüber hinausgeht, wird beim Speichern still gekappt -- und das
 	// gespeicherte Gebirge ist dann ein anderes als das gezeigte.
-	const grenzen = {
-		koernung: [1, 24], stufen: [1, 8], erosion: [0, 5], plateau: [0, 1],
-		hypsometrie: [0, 0.7], bergform: [0, 12], rauschen: [0, 1], sattel: [0.3, 1],
-		talbreite: [0, 6], einschnitt: [0, 3000], maximalhoehe: [0, 20000],
+	// 🔴 GELESEN, NICHT ABGESCHRIEBEN. Hier stand die Tabelle als Zahlen im Test -- eine zweite
+	// Wahrheit neben `index.html`, die beim nächsten Umbau der Regler stumm veraltet: der Test hätte
+	// dann gegen Schranken geprüft, die es nicht mehr gibt.
+	// 🚩 Und genau diese Frage war am 04.09.2026 zweimal falsch beantwortet: „Schild" trug
+	// `hypsometrie` 0,72 bei `max="0.7"`, „Inselberg" `sattel` 0,2 bei `min="0.3"`. Eine Vorlage
+	// schreibt ihre Werte mit `regler.value = ...` in den Schieber, und der KLEMMT beim Zuweisen --
+	// der Editor sähe 0,7 bzw. 0,3, während die Vorgabemarke auf 0,72 bzw. 0,2 zeigt und das ↺
+	// nicht mehr weggeht, ohne dass jemand etwas verstellt hat.
+	// ⚠️ `stufen` und `maximalhoehe` heißen im Markup anders als im Trichter.
+	const reglerId = {
+		koernung: "grain", stufen: "levels", erosion: "erosion", plateau: "plateau",
+		hypsometrie: "hypsometrie", bergform: "bergform", rauschen: "rauschen", sattel: "sattel",
+		talbreite: "talbreite", einschnitt: "einschnitt", maximalhoehe: "avgheight",
 	};
+	const grenzen = {};
+	for (const [schluessel, id] of Object.entries(reglerId)) {
+		const treffer = markup.match(new RegExp("id=\"ecosystem-properties-" + id
+			+ "\" type=\"range\" min=\"([\\d.]+)\" max=\"([\\d.]+)\""));
+		assert.ok(treffer, "der Regler `" + id + "` steht nicht mehr im Markup");
+		grenzen[schluessel] = [Number(treffer[1]), Number(treffer[2])];
+	}
 	const alle = hydro.ECOSYSTEM_HYDRO_MORPHOLOGIEN.concat(hydro.ECOSYSTEM_HYDRO_HOEHENSTUFEN);
 	for (const v of alle) {
 		for (const [schluessel, wert] of Object.entries(v.werte)) {
@@ -88,12 +148,107 @@ pruefe("jeder Vorlagenwert liegt in den Schranken seines Reglers", () => {
 pruefe("die Vorlagen liefern eine KOPIE, keine Referenz", () => {
 	// 💣 Gäbe sie die Tabellenzeile selbst heraus, veränderte der erste Aufrufer, der einen Wert
 	// anfasst, die Vorlage für alle folgenden -- und zwar für die Laufzeit des ganzen Tabs.
-	const a = hydro.avesmapsHydroVorlage(hydro.ECOSYSTEM_HYDRO_MORPHOLOGIEN, "massiv");
+	const a = hydro.avesmapsHydroVorlage(hydro.ECOSYSTEM_HYDRO_MORPHOLOGIEN, "massengebirge");
 	a.plateau = 0.999;
-	const b = hydro.avesmapsHydroVorlage(hydro.ECOSYSTEM_HYDRO_MORPHOLOGIEN, "massiv");
+	const b = hydro.avesmapsHydroVorlage(hydro.ECOSYSTEM_HYDRO_MORPHOLOGIEN, "massengebirge");
 	assert.notStrictEqual(b.plateau, 0.999, "die Vorlage wurde vom Aufrufer verändert");
 	assert.strictEqual(hydro.avesmapsHydroVorlage(hydro.ECOSYSTEM_HYDRO_MORPHOLOGIEN, "gibtsnicht"), null,
 		"ein unbekannter Schlüssel liefert nicht null");
+});
+
+pruefe("jeder ALTE Vorlagen-Schlüssel findet einen heutigen", () => {
+	// 💣 EINE FLAECHE SPEICHERT NUR IHRE ZEHN ZAHLEN, der Vorlagenname ist Herkunftsangabe. Traegt
+	// sie `massiv`, aendert die Umbenennung an ihrem GELAENDE nichts -- ohne diese Uebersetzung
+	// staende im Editor aber ploetzlich kein Name mehr in der Falte, es gaebe keine Vorgabemarken
+	// und keine ↺, obwohl niemand etwas angefasst hat.
+	const heute = new Set(hydro.ECOSYSTEM_HYDRO_MORPHOLOGIEN.map((v) => v.key));
+	for (const [alt, neu] of Object.entries(hydro.ECOSYSTEM_HYDRO_MORPH_ALTNAMEN)) {
+		assert.ok(heute.has(neu),
+			"der alte Schlüssel `" + alt + "` zeigt auf `" + neu + "`, das es nicht gibt");
+		assert.ok(!heute.has(alt),
+			"`" + alt + "` steht in der Übersetzung UND in der Tabelle -- dann übersetzt sie ihn weg");
+		assert.ok(hydro.avesmapsHydroVorlage(hydro.ECOSYSTEM_HYDRO_MORPHOLOGIEN,
+			hydro.avesmapsHydroMorphSchluessel(alt)),
+			"`" + alt + "` findet nach der Übersetzung keine Werte");
+	}
+	// Unbekanntes kommt unverändert zurück -- der Aufrufer entscheidet, was das heißt.
+	assert.strictEqual(hydro.avesmapsHydroMorphSchluessel("gibtsnicht"), "gibtsnicht");
+	assert.strictEqual(hydro.avesmapsHydroMorphSchluessel("karst"), "karst",
+		"ein heutiger Schlüssel darf nicht übersetzt werden");
+	// ⚠️ Leeres bleibt leer: `undefined` heißt „keine Vorlage gemerkt", nicht „unbekannte Vorlage".
+	assert.strictEqual(hydro.avesmapsHydroMorphSchluessel(undefined), "");
+	assert.strictEqual(hydro.avesmapsHydroMorphSchluessel(null), "");
+	// 🚩 Die fünf, die es wirklich gab -- eine gekürzte Liste würde eine Fläche stillschweigend
+	// verwaisen lassen, und niemand zählt nach.
+	assert.deepStrictEqual(Object.keys(hydro.ECOSYSTEM_HYDRO_MORPH_ALTNAMEN).sort(),
+		["haertling", "karstrelief", "kegelberge", "massiv", "plateau"],
+		"die Übersetzung deckt nicht mehr genau die fünf abgelösten Schlüssel ab");
+});
+
+pruefe("die Oberfläche liest den gespeicherten Schlüssel DURCH die Übersetzung", () => {
+	// 💣 AUSGEFÜHRT, NICHT GELESEN. Ein Regex kennt keinen Geltungsbereich: er findet
+	// `morphSchluessel(area)` auch dann, wenn die Funktion daneben gar nicht mehr existiert oder
+	// etwas anderes zurückgibt. Der Block wird deshalb ausgeschnitten und wirklich gefahren.
+	const vm = require("vm");
+	const von = properties.indexOf("\tfunction morphSchluessel(area) {");
+	const marke = "\tfunction vorlagenName(liste, key) {";
+	const bis = properties.indexOf("\n\t}", properties.indexOf(marke));
+	assert.ok(von > 0 && bis > von, "der Leseblock steht nicht mehr da, wo er stand");
+	const block = properties.slice(von, bis + 3);
+
+	const kontext = {
+		avesmapsHydroMorphSchluessel: hydro.avesmapsHydroMorphSchluessel,
+		avesmapsHydroVorlage: hydro.avesmapsHydroVorlage,
+		ECOSYSTEM_HYDRO_MORPHOLOGIEN: hydro.ECOSYSTEM_HYDRO_MORPHOLOGIEN,
+		ECOSYSTEM_HYDRO_HOEHENSTUFEN: hydro.ECOSYSTEM_HYDRO_HOEHENSTUFEN,
+		// Nur die zwei Schlüssel, die der Test wirklich abfragt -- die volle Tabelle steht im Code.
+		VORLAGEN_FELDER: { plateau: "terrain_plateau", sattel: "terrain_sattel" },
+	};
+	vm.createContext(kontext);
+	vm.runInContext(block
+		+ "\n;this.__w = vorlagenWerte; this.__n = vorlagenName; this.__m = morphSchluessel;", kontext);
+
+	// Eine Fläche, die `massiv` gespeichert hat, bekommt die Werte des Massengebirges.
+	const alt = kontext.__w({ terrain_preset_morph: "massiv" });
+	const neu = kontext.__w({ terrain_preset_morph: "massengebirge" });
+	assert.deepStrictEqual(alt, neu,
+		"`massiv` liefert nicht dieselben Vorgaben wie `massengebirge` -- die Übersetzung fehlt im Lesepfad");
+	assert.ok(Object.keys(alt).length > 0, "der Lesepfad liefert überhaupt keine Vorgaben");
+	// 💣 UND DER TITEL DER FALTE AN SEINER EIGENEN AUFRUFSTELLE. Hier stand zuerst
+	// `__n(..., avesmapsHydroMorphSchluessel("haertling"))` -- der Test wandte die Übersetzung
+	// SELBST an und prüfte damit nur `vorlagenName`. Eine Mutationsprobe hat es gezeigt: nimmt man
+	// dem Titel-Block seine Übersetzung, blieb der Test grün. Ein VAKUUM, dieselbe Klasse wie
+	// `includes("fn(data)")`, das die Definitionszeile mittrifft.
+	const tvon = properties.indexOf("\t\tconst titel = propertiesElement(\"foldtitle\");");
+	const tbis = properties.indexOf("\n\t\t}", tvon);
+	assert.ok(tvon > 0 && tbis > tvon, "der Titel-Block steht nicht mehr da, wo er stand");
+	const tblock = properties.slice(tvon, tbis + 4);
+	let geschrieben = null;
+	const tkontext = Object.assign({}, kontext, {
+		propertiesElement: () => ({ set textContent(v) { geschrieben = v; } }),
+		vorlagenName: kontext.__n,
+		morphSchluessel: kontext.__m,
+		area: { terrain_preset_morph: "haertling", terrain_preset_hoehe: "hochgebirge" },
+	});
+	vm.createContext(tkontext);
+	vm.runInContext(tblock, tkontext);
+	assert.ok(geschrieben && geschrieben.includes("Inselberg"),
+		"der Titel der Falte nennt für `haertling` nicht „Inselberg“ (gelesen: " + geschrieben + ")");
+	assert.ok(geschrieben.includes("Hochgebirge"),
+		"der Titel nennt die Höhenstufe nicht mehr -- die zweite Hälfte ist verlorengegangen");
+	// ⚠️ Und eine Fläche ohne gemerkte Vorlage bleibt ohne Vorgaben -- sonst hätte plötzlich jede
+	// Fläche Marken und ↺, die auf eine Vorlage zeigen, die niemand gewählt hat.
+	// 🪟 Ein Objekt aus dem vm-Kontext trägt einen FREMDEN `Object.prototype` --
+	// `deepStrictEqual` gegen ein Host-`{}` fällt bei gleichem Inhalt („same structure but not
+	// reference-equal"). Vor dem Vergleich in den eigenen Realm heben, wie bei den Arrays im
+	// Quellen-Umbau. Der Vergleich `alt`/`neu` darüber ist davon frei: beide kommen von dort.
+	assert.deepStrictEqual({ ...kontext.__w({}) }, {});
+
+	// 🔴 DER SCHREIBWEG DARF NICHT ÜBERSETZEN. Er speichert, was der Editor gewählt hat, und das
+	// ist immer schon ein heutiger Schlüssel; übersähe er das, schriebe ein bloßes Öffnen und
+	// Speichern die Herkunftsangabe einer fremden Fläche um.
+	assert.ok(properties.includes("payload.terrain_preset_morph = reset ? \"\" : String(area.terrain_preset_morph || \"\")"),
+		"der Schreibweg sieht anders aus als erwartet -- übersetzt er jetzt?");
 });
 
 /* ══════════════════════════════════════════════════════════════════════════════════════════════
@@ -127,12 +282,40 @@ pruefe("jede Morphologie ergibt ein eigenes Gelände", () => {
 		{ x: MX - 3, y: MY + 7, h: 2400 },
 		{ x: MX + 4, y: MY - 6, h: 2700 },
 	];
+	// 💣 UND SIE BRAUCHT EIN TALNETZ, SONST SIND ZWEI DER ZEHN REGLER TOT. `talbreite` und
+	// `einschnitt` wirken NUR an Fluessen -- ohne `fluesse` rechnet der Trichter sie gar nicht erst.
+	// Gemessen am 04.09.2026: nimmt man dieser Fixture die Fluesse und aendert NUR `einschnitt`
+	// 550 -> 1100 und `talbreite` 1,6 -> 1,1, betraegt die Summe aller Hoehenunterschiede exakt
+	// 0,0 -- mit Fluessen 3.895.151. Die Fixture war damit blind fuer ein Fuenftel dessen, was eine
+	// Vorlage ueberhaupt einstellt.
+	// 🚩 Genau daran ist der Test beim Wechsel auf die zehn Formen gescheitert: „Kammgebirge"
+	// und „Kettengebirge" unterscheiden sich am staerksten im `einschnitt` (550 gegen 1100 -- die
+	// tiefen alpinen Laengstaeler), und das war die eine Zahl, die die Fixture nicht sehen konnte.
+	// Ohne Fluesse lagen sie auf ALLEN VIER Achsen zusammen, mit Fluessen trennt sie die Rauheit.
+	// ⭐ Die Lehre steht schon zweimal in dieser Datei: wer eine Zusicherung nicht erfuellen kann,
+	// prueft zuerst, ob die Fixture den Unterschied ueberhaupt ZEIGEN kann -- und aendert nicht die
+	// Werte, bis die Namen nicht mehr zu ihren Formen passen.
+	// ⚠️ Ein Laengstal am Kamm und drei Quertaeler, wie eine echte Gebirgsflaeche sie traegt.
+	// `tiefe` und `bachAnteil` werden NICHT gesetzt: beide haben im Trichter eine Vorgabe, und die
+	// Fixture soll nur das setzen, was eine Morphologie wirklich sagt.
+	const fluesse = [
+		{ n: "Längstal", dir: "forward", bach: false,
+			p: [[MX - 13, MY - 7], [MX - 6, MY - 3], [MX + 1, MY + 1], [MX + 8, MY + 4], [MX + 13, MY + 7]] },
+		{ n: "Quertal 1", dir: "forward", bach: false,
+			p: [[MX - 7, MY - 2], [MX - 9, MY + 5], [MX - 11, MY + 12]] },
+		{ n: "Quertal 2", dir: "forward", bach: false,
+			p: [[MX + 2, MY + 2], [MX + 4, MY - 5], [MX + 6, MY - 12]] },
+		{ n: "Quertal 3", dir: "forward", bach: true,
+			p: [[MX + 9, MY + 5], [MX + 11, MY + 11]] },
+	];
 	const werte = hydro.ECOSYSTEM_HYDRO_MORPHOLOGIEN.map((v) => {
 		const o = hydro.avesmapsGebirgsRasterBauen({
 			bounds: { min_x: 0, min_y: 0, max_x: 50, max_y: 50 },
 			istDrin,
 			peaks: gipfel,
 			kurve: [[MX - 11, MY - 4], [MX, MY], [MX + 10, MY + 4]],
+			fluesse,
+			seen: [],
 			regler: Object.assign({ maximalhoehe: 0 },
 				hydro.avesmapsHydroVorlage(hydro.ECOSYSTEM_HYDRO_MORPHOLOGIEN, v.key)),
 			saat: 4242,
@@ -197,6 +380,16 @@ pruefe("jede Morphologie ergibt ein eigenes Gelände", () => {
 	// Wirklichkeit (HI 0,534 gegen 0,560). Die erste Fassung setzte 0,04 und zog damit die Werte
 	// künstlich auseinander, bis die Namen nicht mehr zu ihren Formen passten. Was dieser Test
 	// verhindern soll, ist echte DOPPLUNG: zwei Vorlagen, die dasselbe Feld liefern.
+	// 🚩 DREI PAARE HAENGEN AN EINER EINZIGEN ACHSE, gemessen 04.09.2026 (Abstand geteilt durch
+	// Schwelle): Gratgebirge/Kettengebirge x1,01 (HI) · Rumpfgebirge/Karst x1,12 (Koernigkeit) ·
+	// Kammgebirge/Kettengebirge x1,89 (Rauheit). Wer hier rot wird, hat nicht zwangslaeufig etwas
+	// kaputtgemacht -- die drei linienfoermigen Formen sind im Modell echte Nachbarn.
+	// 🔴 DER GRUND IST BEKANNT UND VOM OWNER BENANNT (04.09.2026): das Werkzeug hat nur EINE
+	// Kammfuehrung. Ein Kettengebirge mit mehreren echten Parallelketten laesst sich damit ueber
+	// Rauschen nur annaehern, nicht konstruieren -- es liegt zwangslaeufig zwischen Kamm und Grat.
+	// Eine zweite Kammlinie waere die Abhilfe, und das ist ein eigenes Stueck Arbeit.
+	// ⚠️ Die Messdistanz 8 der vierten Kennzahl ist dafuer NICHT der Hebel: ueber 4, 6, 8, 10, 12,
+	// 16, 20 und 24 Zellen durchgemessen, trennt 8 dieses Paar am zweitbesten (10 waere x1,02).
 	for (let a = 0; a < werte.length; a++) {
 		for (let b = a + 1; b < werte.length; b++) {
 			const x = werte[a];

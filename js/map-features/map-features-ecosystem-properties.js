@@ -1588,6 +1588,23 @@
 		}
 	}
 
+	// 🔴 DER GESPEICHERTE MORPHOLOGIE-SCHLUESSEL, UEBERSETZT. Eine Flaeche kann `massiv`,
+	// `haertling`, `kegelberge`, `plateau` oder `karstrelief` tragen -- Namen, die es seit dem
+	// 04.09.2026 nicht mehr gibt. Ohne die Uebersetzung faende `avesmapsHydroVorlage` nichts, und
+	// der Editor saehe an einer voellig unveraenderten Flaeche ploetzlich keine Vorgabemarken, keine
+	// ↺ und keinen Namen in der Falte -- obwohl sich an ihrem Gelaende nichts geaendert hat.
+	// 💣 SIE STEHT AN EINER STELLE, NICHT AN ZWEIEN. Den Schluessel lesen ZWEI Aufrufer (die
+	// Vorgabewerte und der Titel der Falte); wer die Uebersetzung an den Aufrufstellen verteilt,
+	// vergisst sie beim dritten, und dann zeigen Marken und Titel auf verschiedene Vorlagen.
+	// ⚠️ Die HOEHENSTUFEN brauchen das nicht -- ihre fuenf Schluessel sind unveraendert.
+	function morphSchluessel(area) {
+		const roh = area?.terrain_preset_morph;
+
+		return typeof avesmapsHydroMorphSchluessel === "function"
+			? avesmapsHydroMorphSchluessel(roh)
+			: roh;
+	}
+
 	// Die Werte der zuletzt angewandten Vorlage -- die Vorgabe, auf die ein ↺ zuruecksetzt.
 	//
 	// 🔴 Aus der HERKUNFTSANGABE (`terrain_preset_morph` / `_hoehe`), nicht aus einer Bindung: die
@@ -1609,7 +1626,7 @@
 			});
 		};
 		nimm(typeof ECOSYSTEM_HYDRO_MORPHOLOGIEN !== "undefined" ? ECOSYSTEM_HYDRO_MORPHOLOGIEN : [],
-			area?.terrain_preset_morph);
+			morphSchluessel(area));
 		nimm(typeof ECOSYSTEM_HYDRO_HOEHENSTUFEN !== "undefined" ? ECOSYSTEM_HYDRO_HOEHENSTUFEN : [],
 			area?.terrain_preset_hoehe);
 
@@ -1713,7 +1730,7 @@
 		if (titel) {
 			const m = vorlagenName(typeof ECOSYSTEM_HYDRO_MORPHOLOGIEN !== "undefined"
 				? ECOSYSTEM_HYDRO_MORPHOLOGIEN
-				: [], area?.terrain_preset_morph);
+				: [], morphSchluessel(area));
 			const h = vorlagenName(typeof ECOSYSTEM_HYDRO_HOEHENSTUFEN !== "undefined"
 				? ECOSYSTEM_HYDRO_HOEHENSTUFEN
 				: [], area?.terrain_preset_hoehe);

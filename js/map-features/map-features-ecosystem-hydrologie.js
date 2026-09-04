@@ -120,74 +120,145 @@ const ECOSYSTEM_HYDRO_HYPSO_POTENZ_MAX = 8;
 // bei jeder Aenderung an dieser Tabelle entscheiden, ob bestehende Flaechen mitwandern -- und beides
 // waere falsch: mitwandern aendert Gelaende hinter dem Ruecken, nicht mitwandern macht den
 // gespeicherten Namen zur Luege.
+// 🔴 DIE ZEHN FORMEN SIND DIE GEOMORPHOLOGISCHE SYSTEMATIK, KEINE ERFUNDENE LISTE (Owner
+// 04.09.2026, mit der Typenliste aus der Wikipedia). Neun davon tragen ihren Fachnamen samt
+// Musterbeispiel; die zehnte ist „Karst" -- der gewachsene Bestand der Roten Sichel, den der Owner
+// am Tag davor als Vorlage festgehalten hat.
+// ⚠️ Die Reihenfolge ist die des Auswahlfeldes UND der Handbuchgrafik: erst die fuenf Formen MIT
+// Relief (drei linienfoermige, zwei aus gemeinsamem Fuss), dann die drei abgetragenen, dann der
+// Einzelberg und der Sonderfall. Wer sie umsortiert, sortiert beides um.
+//
+// 💣 DIE ALTEN SCHLUESSEL BLEIBEN LESBAR -- `ECOSYSTEM_HYDRO_MORPH_ALTNAMEN` weiter unten
+// uebersetzt sie. Eine Flaeche speichert NUR ihre Zahlen, der Vorlagenname ist Herkunftsangabe;
+// ohne die Uebersetzung staende an einer gespeicherten Flaeche ploetzlich „Eigene Werte", obwohl
+// sich an ihrem Gelaende nichts geaendert hat.
 const ECOSYSTEM_HYDRO_MORPHOLOGIEN = [
 	{
-		key: "plateau",
-		name: "Plateau",
-		// Tafelland: eine weite, fast ebene Hochflaeche mit Abbruchkante. Die Deckschicht haelt, also
-		// wenig Erosion; Einzelberge gibt es kaum.
+		key: "kammgebirge",
+		name: "Kammgebirge",
+		// Linienfoermig aneinandergereihte Bergzuege mit EINER Hauptkammlinie (Riesengebirge,
+		// Bachergebirge). Der Kamm traegt das Bild: `sattel` fast ohne Durchhang, dazu eine GROBE
+		// Koernung und wenige Stufen -- beides haelt die Flanken glatt, damit die eine Linie nicht in
+		// Seitenrippen zerfaellt. Genau daran unterscheidet er sich vom Gratgebirge.
+		// 🪟 `plateau` 0,9 statt 1: das Riesengebirge traegt Hochflaechen am Kamm; ein Hauch Tafel
+		// verbreitert den Ruecken, ohne ihn zur Tafel zu machen.
+		werte: { plateau: 0.9, hypsometrie: 0.45, erosion: 3, bergform: 2, rauschen: 0.25,
+			sattel: 0.95, koernung: 14, stufen: 3, talbreite: 1.6, einschnitt: 550 },
+	},
+	{
+		key: "gratgebirge",
+		name: "Gratgebirge",
+		// Linienfoermige Bergzuege mit ausgepraegten, VERAESTELTEN Kammlinien (Taunus, Salzburger
+		// Schieferalpen). Die Veraestelung ist sein Merkmal und kommt aus dem Rinnennetz: feine
+		// Koernung, viele Stufen, volle Erosion, enge Taeler.
+		// 🪟 `sattel` 0,88 statt 0,9: der Kamm bleibt durchgehend, aber leicht eingesattelt -- eine
+		// Linie ohne jede Einsattelung veraestelt nicht, sie bleibt ein Kamm.
+		werte: { plateau: 1, hypsometrie: 0.4, erosion: 5, bergform: 2, rauschen: 0.45,
+			sattel: 0.88, koernung: 5, stufen: 6, talbreite: 0.9, einschnitt: 800 },
+	},
+	{
+		key: "kettengebirge",
+		name: "Kettengebirge",
+		// Linienfoermige Bergzuege mit MEHREREN, parallel gestaffelten Kaemmen (Alpen und die uebrigen
+		// alpidischen Gebirge).
+		// 🔴 DIE STAFFELUNG KOMMT AUS DEM RAUSCHEN, nicht aus einem eigenen Regler: kraeftiges
+		// Rauschen bei MITTLERER Koernung und WENIGEN Stufen legt einige wenige grosse Ruecken neben
+		// den Hauptkamm, statt ihn wie beim Gratgebirge in viele kleine Rippen zu zerlegen. Feiner
+		// gekoernt entstuende Zerfaserung, groeber nur ein einziger Ruecken.
+		// ⚠️ Der tiefste `einschnitt` aller Formen -- alpine Laengstaeler sind glazial uebertieft.
+		// 🪟 `hypsometrie` 0,40 statt 0,50 (Owner 04.09.2026, gegen Copernicus-DEM-Graustufen
+		// gemessen). Der Regler gilt dem GRUNDRELIEF -- Taeler und Erosion heben den Wert danach noch
+		// an. 0,50 kommt im fertigen Modell bei rund 0,62 heraus und liest sich schon tafelartig; 0,40
+		// landet bei rund 0,50, und das ist der Alpenwert.
+		werte: { plateau: 1, hypsometrie: 0.4, erosion: 5, bergform: 2.5, rauschen: 0.5,
+			sattel: 0.92, koernung: 9, stufen: 4, talbreite: 1.1, einschnitt: 1100 },
+	},
+	{
+		key: "kuppengebirge",
+		name: "Kuppengebirge",
+		// Unregelmaessig aufragende Gipfel, die sich aus einem GEMEINSAMEN Gebirgsfuss erheben
+		// (Frankenwald, die Randgebirge der Alpen). Der gemeinsame Fuss ist der Unterschied zum
+		// Inselberg: `sattel` haengt deutlich durch, aber nicht so tief, dass die Kuppen den
+		// Zusammenhang verlieren.
+		werte: { plateau: 1, hypsometrie: 0.33, erosion: 4, bergform: 3.5, rauschen: 0.3,
+			sattel: 0.55, koernung: 9, stufen: 4, talbreite: 1.6, einschnitt: 450 },
+	},
+	{
+		key: "massengebirge",
+		name: "Massengebirge",
+		// Deutlich geschlossene Erhebung gegenueber dem Umland, ohne erkennbare Hauptrichtung
+		// einzelner Gebirgszuege (Harz, franzoesisches Zentralmassiv).
+		// 🪟 `plateau` von 0,55 auf 0,75: bei 0,55 war das Bild vom Plateaugebirge kaum zu
+		// unterscheiden (43,9 % gegen 42,3 % Flaeche auf Gipfelhoehe). Ein Massengebirge hat einen
+		// breiten KERN, keine Tafel -- den Unterschied muss man sehen koennen, sonst sind es zwei
+		// Namen fuer eine Form.
+		// 🪟 `hypsometrie` von 0,55 auf 0,47 in der dritten Runde: bei 0,55 saettigte sie an derselben
+		// Grenze wie das Plateau (die Potenz steht dort an ihrer Klemme), und beide Vorlagen landeten
+		// bei HI 0,66. Massig, aber keine Tafel.
+		// 🔴 Hiess bis zum 04.09.2026 „Massiv" -- der Fachname ist „Massengebirge", die Werte sind
+		// dieselben, die der Owner am Bild abgenommen hat.
+		werte: { plateau: 0.75, hypsometrie: 0.47, erosion: 3, bergform: 4, rauschen: 0.35,
+			sattel: 0.8, koernung: 10, stufen: 4, talbreite: 1.5, einschnitt: 500 },
+	},
+	{
+		key: "plateaugebirge",
+		name: "Plateaugebirge",
+		// Gebirge, bei denen nur noch der Fuss erhalten ist: keine Kammlinie, wenig Gipfelbildung
+		// (Schwaebische Alb). Die Deckschicht haelt, also wenig Erosion.
+		// 🔴 DIE WERTE SIND UNVERAENDERT (Owner 04.09.2026: „die jetzigen einstellungen von pleateau
+		// bleiben auch"). Nur der Schluessel heisst jetzt `plateaugebirge` statt `plateau`.
 		werte: { plateau: 0.25, hypsometrie: 0.6, erosion: 1, bergform: 0.5, rauschen: 0.15,
 			sattel: 0.95, koernung: 12, stufen: 3, talbreite: 1.5, einschnitt: 500 },
 	},
 	{
 		key: "rumpfgebirge",
 		name: "Rumpfgebirge",
-		// Der abgetragene Rumpf eines alten Gebirges (Peneplain): breite, flache Ruecken, tiefes HI,
-		// maximale Erosion. Das ist, was die Rote Sichel und der Finsterkamm heute SIND (HI 0,28/0,23).
-		// 🪤 `plateau` von 0,7 auf 0,85: ein Rumpf ist ABGETRAGEN, er traegt keine Tafel. Bei 0,7 stand
+		// Gebirge, von denen nur der Rumpf uebriggeblieben ist -- eine erhobene Huegellandschaft
+		// (Boehmische Masse): breite, flache Ruecken, tiefes HI, maximale Erosion. Das ist, was die
+		// Rote Sichel und der Finsterkamm heute SIND (HI 0,28 / 0,23).
+		// 🪟 `plateau` von 0,7 auf 0,85: ein Rumpf ist ABGETRAGEN, er traegt keine Tafel. Bei 0,7 stand
 		// im Bild noch ein Plateaurest in der Mitte.
 		werte: { plateau: 0.85, hypsometrie: 0.3, erosion: 5, bergform: 2, rauschen: 0.3,
 			sattel: 0.8, koernung: 16, stufen: 5, talbreite: 2, einschnitt: 400 },
 	},
 	{
-		key: "haertling",
-		name: "Härtling",
-		// Ein Restberg aus widerstaendigem Gestein ueber einer Fastebene -- das Altersstadium in
-		// Reinform: sehr tiefes HI, ein Berg ragt heraus, tiefe Einschnitte ringsum.
-		// 🪤 `bergform` musste von 4 auf 7: bei tiefem HI drueckt die Potenz das Umland flach, und ein
-		// schmaler Kegel verschwindet darin. Der Restberg MUSS herausragen, sonst ist es kein Haertling
-		// -- im ersten Rendern war das Bild eine ebene Flaeche mit zwei Punkten darauf.
-		werte: { plateau: 1, hypsometrie: 0.18, erosion: 5, bergform: 7, rauschen: 0.25,
-			sattel: 0.35, koernung: 14, stufen: 4, talbreite: 2.5, einschnitt: 600 },
+		key: "schild",
+		name: "Schild",
+		// Ein alter Gebirgsrumpf als Tafelland, der als Gebirge nicht mehr erkennbar ist (Baltischer
+		// Schild) -- die flachste Form der Liste.
+		// 🔴 ER IST NICHT DASSELBE WIE DAS PLATEAUGEBIRGE, und der Unterschied ist das ALTER: das
+		// Plateau traegt eine haltende Deckschicht (`erosion: 1`) mit einer Abbruchkante, der Schild
+		// ist durcherodiert (`erosion: 5`) und laeuft in weiten Mulden aus (`talbreite` 3,
+		// `einschnitt` 200 -- die flachsten Taeler). Sein hohes HI sagt genau das aus, was sein Name
+		// meint: fast alles liegt auf einer Hoehe.
+		// 💣 `hypsometrie` 0,70 IST DAS MAXIMUM DES REGLERS (`index.html`: `max="0.7"`), keine
+		// gewaehlte Zahl. Hier stand 0,72 -- darueber. Eine Vorlage schreibt ihre Werte mit
+		// `regler.value = ...` in den Schieber, und der KLEMMT beim Zuweisen: der Editor saehe 0,70,
+		// waehrend `avesmapsHydroVorlage` weiter 0,72 als Vorgabe meldet -- das Dreieck stuende neben
+		// dem Griff und das ↺ bliebe fuer immer sichtbar, ohne dass jemand etwas verstellt hat.
+		werte: { plateau: 0.15, hypsometrie: 0.7, erosion: 5, bergform: 0.3, rauschen: 0.12,
+			sattel: 0.95, koernung: 20, stufen: 2, talbreite: 3, einschnitt: 200 },
 	},
 	{
-		key: "kuppengebirge",
-		name: "Kuppengebirge",
-		// Runde Einzelkuppen mit Saetteln dazwischen (Rhoen, Vogelsberg): kraeftige Bergform, deutlich
-		// durchhaengender Kamm, mittleres HI.
-		werte: { plateau: 1, hypsometrie: 0.33, erosion: 4, bergform: 3.5, rauschen: 0.3,
-			sattel: 0.55, koernung: 9, stufen: 4, talbreite: 1.6, einschnitt: 450 },
-	},
-	{
-		key: "kegelberge",
-		name: "Kegelberge",
-		// Einzelne steile Kegel ueber flachem Umland (Vulkankegel, Karstkegel): der Kamm haengt so
-		// tief durch, dass die Berge isoliert stehen; junge Formen, also wenig Erosion.
-		// 🪤 Ebenso von 2.5 auf 6: die Kegel sind das ganze Motiv, und bei HI 0,22 verschwindet ein
-		// schmaler Kegel im flachgedrueckten Umland.
-		werte: { plateau: 1, hypsometrie: 0.22, erosion: 2, bergform: 6, rauschen: 0.2,
-			sattel: 0.3, koernung: 6, stufen: 3, talbreite: 1.2, einschnitt: 500 },
-	},
-	{
-		key: "gratgebirge",
-		name: "Gratgebirge",
-		// Scharfe, durchgehende Kaemme mit engen, tiefen Taelern (alpin, glazial uebertieft): Sattel
-		// fast ohne Durchhang, feine Koernung, maximale Erosion, tiefer Einschnitt.
-		werte: { plateau: 1, hypsometrie: 0.45, erosion: 5, bergform: 2, rauschen: 0.4,
-			sattel: 0.9, koernung: 5, stufen: 6, talbreite: 1, einschnitt: 900 },
-	},
-	{
-		key: "massiv",
-		name: "Massiv",
-		// Ein kompakter Gebirgsblock mit breitem Kern und hohem HI -- viel Masse, wenig Zertalung.
-		// 🪤 `plateau` von 0,55 auf 0,75: bei 0,55 war das Bild vom „Plateau" kaum zu unterscheiden
-		// (43,9 % gegen 42,3 % Flaeche auf Gipfelhoehe). Ein Massiv hat einen breiten KERN, keine
-		// Tafel -- der Unterschied muss man sehen koennen, sonst sind es zwei Namen fuer eine Form.
-		// 🪤 `hypsometrie` von 0,55 auf 0,47 in der dritten Runde: bei 0,55 saettigte sie an derselben
-		// Grenze wie das Plateau (die Potenz steht dort an ihrer Klemme), und beide Vorlagen landeten
-		// bei HI 0,66 -- zwei Namen fuer eine Form. Ein Massiv ist massig, aber keine Tafel.
-		werte: { plateau: 0.75, hypsometrie: 0.47, erosion: 3, bergform: 4, rauschen: 0.35,
-			sattel: 0.8, koernung: 10, stufen: 4, talbreite: 1.5, einschnitt: 500 },
+		key: "inselberg",
+		name: "Inselberg",
+		// Ein Berg, der sich UNVERMITTELT aus einer Ebene erhebt (Zuckerhut, Uluru, die
+		// mittelschwedischen Inselberge) -- das Altersstadium in Reinform.
+		// 🔴 Hier sind die zwei frueheren Vorlagen „Haertling" und „Kegelberge" zusammengefallen: ein
+		// Haertling IST ein Inselberg (der Uluru ist das Musterbeispiel fuer beides), und die
+		// Kegelberge unterschieden sich von ihm nur durch etwas weniger Erosion. Zwei Namen fuer eine
+		// Form; die Werte sind die des Haertlings, geschaerft auf „unvermittelt".
+		// 🪟 `bergform` 8 und `sattel` 0,3: bei tiefem HI drueckt die Potenz das Umland flach, und ein
+		// schmaler Kegel verschwindet darin. Der Restberg MUSS herausragen und ISOLIERT stehen, sonst
+		// ist es ein Kuppengebirge -- im ersten Rendern war das Bild eine ebene Flaeche mit zwei
+		// Punkten darauf.
+		// 💣 0,3 IST DAS MINIMUM DES REGLERS (`index.html`: `min="0.3"`), nicht eine gewaehlte Zahl.
+		// Hier stand 0,2 -- darunter, und damit unerreichbar: der Schieber klemmt beim Zuweisen auf
+		// 0,3, waehrend die Vorlage weiter 0,2 als Vorgabe meldet. Dieselbe Falle wie beim Schild am
+		// oberen Ende. Der Owner nennt es die minimale zulaessige Sattelverbindung: der Inselberg
+		// steht so isoliert, wie dieses Modell es ueberhaupt zulaesst.
+		werte: { plateau: 1, hypsometrie: 0.15, erosion: 5, bergform: 8, rauschen: 0.2,
+			sattel: 0.3, koernung: 14, stufen: 3, talbreite: 2.5, einschnitt: 550 },
 	},
 	{
 		key: "karst",
@@ -195,37 +266,42 @@ const ECOSYSTEM_HYDRO_MORPHOLOGIEN = [
 		// 🔴 DIE WERTE DER ROTEN SICHEL, wie sie live gespeichert sind (Owner 04.09.2026: „gib genau
 		// diesen einstellungen ein neues preset: Karst" -- am Bild der Sichel). Sie sind KEIN
 		// gerechnetes Ideal, sondern ein gewachsener Bestand: grobe Koernung (23,6), volle Erosion,
-		// kein Plateau, keine Hypsometrie-Vorgabe.
+		// kein Plateau, keine Hypsometrie-Vorgabe -- und als einzige der zehn kein Fachbegriff der
+		// Systematik, sondern ein Bestandswert.
 		// ⚠️ `hypsometrie: 0` heisst „nicht gesetzt" -- das Feld landet dort, wo es von selbst
 		// hinfaellt (an der Sichel HI 0,276). Eine Zahl daraus zu machen waere eine Behauptung, die
 		// der Owner nicht getroffen hat.
-		// 🪤 UND ES GIBT DANEBEN „Karstrelief" -- ein anderes Preset mit fast gegenteiligen Werten
-		// (Koernung 2 statt 23,6, Rauschen 0,75 statt 0,35, Erosion 1 statt 5). Die zwei Namen sind
-		// sich aehnlich, die Gelaende nicht; wer eines aendert, meint selten das andere.
 		werte: { plateau: 1, hypsometrie: 0, erosion: 5, bergform: 2.5, rauschen: 0.35,
 			sattel: 0.75, koernung: 23.6, stufen: 5, talbreite: 1.5, einschnitt: 400 },
 	},
-	{
-		key: "karstrelief",
-		name: "Karstrelief",
-		// Zerkluftet und kleinteilig, mit tiefen Schluchten: starkes Rauschen, viele Oktaven, feine
-		// Koernung, schmale und tief eingeschnittene Taeler.
-		// 🪤 In der dritten Runde geschaerft: bei rauschen 0,55 / koernung 3 war das Karstrelief vom
-		// Kuppengebirge kaum zu trennen (Rauheit 0,0396 gegen 0,0405). Karst ist KLEINTEILIG -- die
-		// Koernung ist sein Merkmal, nicht die Hoehenverteilung.
-		// 🪤 `plateau` auf 1: ein Karstrelief hat KEINE Tafel, seine Zerkluftung ist das Merkmal. Mit
-		// 0,8 lag es beim Massiv (HI 0,568 gegen 0,560, Plateauanteil 25,4 % gegen 26,1 %) -- zwei
-		// Namen fuer eine Form.
-		// 🔴 `erosion: 1` IST HIER TRAGEND, und der Grund ist ein Befund ueber das Modell: nach 150
-		// Erosionsschritten ueberschreibt das Rinnennetz das feine Grundrauschen fast vollstaendig --
-		// „Karstrelief" und „Kuppengebirge" waren mit derselben Erosion nicht zu trennen, obwohl ihre
-		// Koernung 2 gegen 9 steht (Koernigkeit 0,257 gegen 0,244, also gleich). Karst ist ein
-		// LOESUNGSrelief, kein Abtragungsrelief: seine Form kommt aus dem Gestein, nicht aus dem
-		// Flusssystem. Wenig Erosion ist hier also nicht nur noetig, sondern richtig.
-		werte: { plateau: 1, hypsometrie: 0.42, erosion: 1, bergform: 0.8, rauschen: 0.75,
-			sattel: 0.7, koernung: 2, stufen: 8, talbreite: 0.7, einschnitt: 1400 },
-	},
 ];
+
+// 🔴 DIE UEBERSETZUNG DER ALTEN SCHLUESSEL -- sie steht hier, weil die Tabelle darueber sich
+// aendern darf und gespeicherte Flaechen es nicht duerfen.
+// ⚠️ Eine Flaeche speichert NUR ihre zehn Zahlen; der Vorlagenname ist Herkunftsangabe und der
+// Bezugspunkt der Dreiecke und ↺-Knoepfe. An ihrem GELAENDE aendert eine Umbenennung also nichts --
+// ohne diese Tabelle staende dort aber „Eigene Werte", und die ↺ haetten kein Ziel mehr.
+// 💣 „kegelberge" und „karstrelief" haben KEINEN eigenen Nachfolger: die Kegelberge sind im
+// Inselberg aufgegangen (dieselbe Form, etwas weniger Erosion), das Karstrelief im Karst. Ihre
+// Werte bleiben trotzdem an jeder Flaeche stehen, die sie gespeichert hat -- nur die Dreiecke zeigen
+// dann auf die Vorgaben des Nachfolgers, und das ↺ erscheint entsprechend.
+const ECOSYSTEM_HYDRO_MORPH_ALTNAMEN = {
+	plateau: "plateaugebirge",
+	massiv: "massengebirge",
+	haertling: "inselberg",
+	kegelberge: "inselberg",
+	karstrelief: "karst",
+};
+
+// Der heutige Schluessel zu einem gespeicherten. Unbekanntes kommt unveraendert zurueck -- der
+// Aufrufer entscheidet, was „kenne ich nicht" bedeutet (in der Oberflaeche: „Eigene Werte").
+function avesmapsHydroMorphSchluessel(key) {
+	const roh = String(key || "");
+
+	return Object.prototype.hasOwnProperty.call(ECOSYSTEM_HYDRO_MORPH_ALTNAMEN, roh)
+		? ECOSYSTEM_HYDRO_MORPH_ALTNAMEN[roh]
+		: roh;
+}
 
 // 🔴 DIE HOEHENSTUFE SETZT NUR DIE KAMMHOEHE -- den Sockel, unter den der Kamm nicht faellt.
 // ⚠️ Und sie HEBT nur: ein Gebirge mit eingetragenen Gipfeln auf 5.000 Schritt wird durch
@@ -1933,6 +2009,7 @@ if (typeof module !== "undefined" && module.exports) {
 		ECOSYSTEM_HYDRO_EROSIONSSTUFEN, ECOSYSTEM_HYDRO_EROSION_VORGABE,
 		ECOSYSTEM_HYDRO_PLATEAU_VORGABE, randAbstand,
 		ECOSYSTEM_HYDRO_MORPHOLOGIEN, ECOSYSTEM_HYDRO_HOEHENSTUFEN, avesmapsHydroVorlage,
+		ECOSYSTEM_HYDRO_MORPH_ALTNAMEN, avesmapsHydroMorphSchluessel,
 		ECOSYSTEM_HYDRO_HYPSOMETRIE_VORGABE, ECOSYSTEM_HYDRO_HYPSO_POTENZ_MIN,
 		ECOSYSTEM_HYDRO_HYPSO_POTENZ_MAX, hypsometrischesIntegral, zieheAufHypsometrie, ECOSYSTEM_HYDRO_STANDARDHOEHE,
 	};

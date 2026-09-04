@@ -121,11 +121,21 @@ pruefe("Marke und Knopf hängen an DERSELBEN Frage", () => {
 pruefe("die Vorgabe kommt aus der GEMERKTEN Vorlage, nicht aus den Modulvorgaben", () => {
 	// 🔴 `terrainDefaults` liefert die Vorgaben des MODULS -- das ist etwas anderes als die Werte der
 	// Vorlage, die ein Editor zuletzt angewandt hat. Ein ↺ muss dorthin zurück, wo der Wert HERKAM.
+	// ⚠️ Die MORPHOLOGIE liest der Rumpf seit dem 04.09.2026 nicht mehr selbst, sondern durch
+	// `morphSchluessel` -- den einen Trichter, der einen alt gespeicherten Schlüssel (`massiv`,
+	// `haertling` …) in den heutigen übersetzt. Die Höhenstufe liest er weiter direkt, ihre fünf
+	// Schlüssel sind unverändert. Geprüft wird deshalb BEIDES: dass der Rumpf durch den Trichter
+	// geht, und dass der Trichter wirklich das gemerkte Feld liest -- sonst bliebe diese Zusicherung
+	// grün, während `morphSchluessel` etwas ganz anderes zurückgibt.
 	const i = properties.indexOf("function vorlagenWerte(");
 	assert.ok(i > 0, "vorlagenWerte fehlt");
 	const rumpf = properties.slice(i, i + 900);
-	assert.ok(rumpf.includes("terrain_preset_morph") && rumpf.includes("terrain_preset_hoehe"),
+	assert.ok(rumpf.includes("morphSchluessel(area)") && rumpf.includes("terrain_preset_hoehe"),
 		"die Vorgabe liest die gemerkten Vorlagen nicht");
+	const t = properties.indexOf("function morphSchluessel(");
+	assert.ok(t > 0, "morphSchluessel fehlt -- der Rumpf ruft einen Trichter, den es nicht gibt");
+	assert.ok(properties.slice(t, t + 400).includes("terrain_preset_morph"),
+		"der Trichter liest die gemerkte Morphologie nicht");
 	assert.ok(rumpf.includes("VORLAGEN_FELDER"),
 		"die Schlüssel werden nicht übersetzt -- die Vorlage spricht `plateau`, das Feld heisst "
 		+ "`terrain_plateau`");
