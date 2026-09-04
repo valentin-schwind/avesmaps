@@ -159,20 +159,15 @@
 	border-bottom: 1px solid var(--color-border);
 }
 
+/* 🔴 T3: ein Reiter IM Fenster traegt den Unterstrich. Bis zum 04.09.2026 markierte diese
+   Zeile „aktiv" mit einer Fuellung, die im dunklen Thema einen RGB-Abstand von 2,2 zum
+   Panelgrund hatte -- also unsichtbar war. Die Werte kommen jetzt aus der geteilten Regel
+   weiter unten (.wiki-sync-panel__tab & Co.), damit alle drei Reiterebenen des Panels
+   gleich aussehen. Was hier bleibt, ist nur das eigene Polster dieser Zeile. */
 .review-panel__tab {
 	padding: 9px 10px;
-	border: 0;
-	background: transparent;
-	color: var(--color-text-muted);
-	cursor: pointer;
-	font: inherit;
 }
 
-.review-panel__tab.is-active {
-	background: var(--color-panel-muted);
-	color: var(--color-text-strong);
-	font-weight: 700;
-}
 
 .review-panel__section {
 	display: none;
@@ -1552,6 +1547,7 @@
 	margin: 10px 10px 8px;
 }
 
+.review-panel__tab,
 .wiki-sync-panel__tab,
 .region-sync__viewtab,
 .status-subtab {
@@ -1571,6 +1567,7 @@
 	white-space: nowrap;
 }
 
+.review-panel__tab.is-active,
 .wiki-sync-panel__tab.is-active,
 .region-sync__viewtab.is-active,
 .status-subtab.is-active {

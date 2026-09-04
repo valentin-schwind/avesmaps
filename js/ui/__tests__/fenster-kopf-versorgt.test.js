@@ -153,11 +153,6 @@ console.log("OK -- die modal-box-Rezeptur steht in beiden Dateien zeichengleich 
 		"ecosystem-properties-dialog": "Karten-Werkzeug: pointer-events:none, arbeitet AUF der Karte",
 		"ecosystem-import-dialog": "Karten-Werkzeug (zweimal benutzt: Grenze aus Territorien, Reihenfolge)",
 		"modal-box": "die sechs Sync-Fenster: Werte angeglichen, Bauform ist ein eigener Durchgang",
-		"sheet": "Uebernahme-Vorschau: ihr Kopf ist DREIZEILIG (Titel, Befund, Meta) -- welche der"
-			+ " drei Formen aus docs/uebernahme-vorschau-kopf-mockup.html gilt, entscheidet der Owner",
-		// ⚠️ Sie ist seit dem 04.09.2026 verschiebbar und traegt den Verschiebe-Zeiger -- aber KEINEN
-		//    Griff: der gehoert in die Kopfzeile, und deren Form ist genau die offene Frage. Er kommt
-		//    mit der gewaehlten Variante, alle drei tragen ihn.
 	};
 	function alleJsDateien(verzeichnis, sammler) {
 		for (const eintrag of fs.readdirSync(verzeichnis, { withFileTypes: true })) {

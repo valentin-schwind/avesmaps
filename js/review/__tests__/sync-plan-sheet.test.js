@@ -666,5 +666,68 @@ function assertSummary(actual, expected, note) {
 	const boom = await summary({ kind: "citymap", post: () => Promise.reject(new Error("HTTP 500")) });
 	assertSummary(boom, { has: false, total: 0 }, "ein Wurf wird geschluckt, nicht durchgereicht");
 
-	console.log("sync-plan-sheet ok");
+	// ---- Variante B: die Kopfform, die der Owner gewaehlt hat ---------------------------------------
+// 🔴 Owner 04.09.2026, aus drei Entwuerfen (docs/uebernahme-vorschau-kopf-mockup.html): Griff und ✕
+//    aussen, Titel und Befund GESTAPELT in der Mitte, das Datum im Rumpf. Dieses Fenster war das
+//    einzige mit einem dreizeiligen Kopf; jetzt traegt es das Bauteil wie alle anderen.
+{
+	const quelle = fs.readFileSync(path.join(ROOT, "js", "review", "sync-plan-sheet.js"), "utf8");
+	for (const [teil, warum] of [
+		['class="sheet avm-fenster avm-fenster--werkzeug"', "die Huelle haengt am Bauteil"],
+		['class="sheet__head avm-fenster__kopf"', "der Kopf ist die Bauteil-Kopfzeile"],
+		['class="avm-fenster__griff"', "der Griff -- Owner: jedes Fenster zeigt, dass es verschiebbar ist"],
+		['class="sheet__stapel"', "Titel und Befund stehen GESTAPELT (das ist Variante B)"],
+		['class="avm-fenster__titel"', "der Titel traegt die Bauteilklasse"],
+		['avm-fenster__knopf--gefasst', "gefasster ✕ -- es ist ein Werkzeugfenster"],
+	]) {
+		// 💣 GEZAEHLT, NICHT GESUCHT. `includes` ist wahr, sobald die Marke EINMAL dasteht -- es gibt
+		//    aber ZWEI Erzeuger (die volle Vorschau und der leere Fall), und beide muessen sie tragen.
+		//    Eine Mutationsprobe hat genau das aufgedeckt: eine der zwei Stellen entfernt, Test gruen.
+		const zahl = quelle.split(teil).length - 1;
+		assert.strictEqual(zahl, 2,
+			"Variante B: " + warum + " -- " + teil + " steht " + zahl + "x, erwartet 2x "
+			+ "(volle Vorschau UND leerer Fall)");
+	}
+	// 💣 DER ✕ MUSS AUCH SCHLIESSEN. Er traegt `data-later` wie der Fussknopf -- ein
+	//    `querySelector` haette nur den ERSTEN verdrahtet, und das ✕ waere ein Knopf, der sichtbar
+	//    nichts tut. Genau diese Falle hat am 04.09.2026 schon einmal zugeschlagen (der Knopf
+	//    „+ weiterer Fundort" verlor beim Aufspalten eines Handlers seinen Zweig).
+	// ⭐ Nicht am Quelltext gemessen, sondern AUSGEFUEHRT: die Bindefunktion wird herausgeschnitten
+	//    und gegen zwei Knoepfe gefahren. Ein Regex kennt keinen Geltungsbereich.
+	const a = quelle.indexOf("function syncPlanBindClose");
+	const b = quelle.indexOf("\nfunction ", a + 10);
+	assert.ok(a > -1 && b > a, "syncPlanBindClose ist auffindbar");
+	const binder = new Function("return " + quelle.slice(a, b))();
+
+	function attrappe() {
+		const knoepfe = [];
+		const wirt = {
+			hidden: false,
+			innerHTML: "x",
+			querySelectorAll() { return knoepfe; },
+		};
+		for (const name of ["kopfX", "fussSpaeter"]) {
+			knoepfe.push({
+				name,
+				_h: null,
+				addEventListener(art, fn) { if (art === "click") this._h = fn; },
+				klick() { if (this._h) this._h(); },
+			});
+		}
+		return { wirt, knoepfe };
+	}
+	for (const welcher of [0, 1]) {
+		const { wirt, knoepfe } = attrappe();
+		let zu = 0;
+		binder(wirt, { onClose() { zu++; } });
+		knoepfe[welcher].klick();
+		assert.strictEqual(zu, 1,
+			"Der Knopf „" + knoepfe[welcher].name + "\" schliesst die Vorschau nicht -- "
+			+ "wird der Schliesser wieder ueber querySelector statt querySelectorAll verdrahtet?");
+		assert.strictEqual(wirt.hidden, true, "und blendet den Wirt aus");
+	}
+}
+
+
+console.log("sync-plan-sheet ok");
 })();

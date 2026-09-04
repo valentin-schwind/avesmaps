@@ -30,35 +30,43 @@
 	display: none;
 }
 
+/* 🔴 Grund, Rand, Radius und overflow gehoeren dem Bauteil (css/components/fenster.css).
+   Was bleibt, ist das Mass dieses Fensters. */
 .sync-plan-host .sheet {
 	max-width: 1180px;
 	margin: 0 auto;
-	background: var(--color-panel);
-	border: 1px solid var(--color-border);
-	border-radius: var(--radius-lg);
-	overflow: hidden;
 }
 
+/* 🔴 VARIANTE B (Owner 04.09.2026, docs/uebernahme-vorschau-kopf-mockup.html): Griff und ✕
+   aussen, Titel und Befund gestapelt in der Mitte, das Datum im Rumpf. Polster, Trennlinie und
+   Ausrichtung kommen vom Bauteil; hier steht nur, was DIESE Kopfform ausmacht.
+   ⚠️ `align-items: flex-start` haelt Griff und ✕ oben, wenn der Befund umbricht -- mittig
+      zentriert waeren sie bei zwei Zeilen auf halber Hoehe und der Kopf saehe schief aus. */
 .sync-plan-host .sheet__head {
-	padding: 14px 18px 12px;
-	border-bottom: 1px solid var(--color-divider);
-	background: var(--color-panel-soft);
+	align-items: flex-start;
 }
 
-.sync-plan-host .sheet__title {
-	font-size: var(--font-size-subhead);
-	font-weight: 700;
-	color: var(--color-text-strong);
-	margin: 0 0 2px;
+.sync-plan-host .sheet__stapel {
+	flex: 1 1 auto;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
 }
 
-/* Der Befund: hat sich etwas geaendert, und was. Seit die Vorschau IMMER aufgeht (Owner 2026-08-07)
-   ist das die erste Zeile, die jemand liest -- also in Lesegroesse und in der starken Textfarbe, nicht
-   im Kleingedruckten der Zeile darunter. Die traegt jetzt nur noch das Datum des Laufs. */
+/* Der Titel im Stapel darf nicht wachsen -- sonst schoebe er den Befund nach unten weg. */
+.sync-plan-host .sheet__stapel .avm-fenster__titel {
+	flex: none;
+}
+
+
+/* 🔴 DER BEFUND BEHAELT SEINE FARBE -- bewusst anders als im Mockup, wo er gedaempft steht.
+   Er ist die Aussage dieses Fensters („3 neu · 2 geaendert"); ihn zu daempfen begruebe genau
+   die Zahl, wegen der man es oeffnet. Klein ja, leise nein. */
 .sync-plan-host .sheet__verdict {
-	margin: 0 0 3px;
 	color: var(--color-text-strong);
-	font-size: var(--font-size-body);
+	font-size: var(--font-size-small);
+	line-height: var(--leading-tight);
 }
 
 /* Und wenn nichts anders ist, sagt es die Farbe mit: das ist eine gute Nachricht, kein Fehlschlag.
@@ -67,7 +75,9 @@
 	color: var(--color-success-soft-text);
 }
 
+/* Steht seit Variante B im RUMPF, nicht mehr im Kopf -- also mit Luft nach unten zur Liste. */
 .sync-plan-host .sheet__meta {
+	margin-bottom: var(--space-8);
 	font-size: var(--font-size-small);
 	color: var(--color-text-muted);
 }

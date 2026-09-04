@@ -734,13 +734,16 @@ function syncPlanSheetMarkup(plan) {
 	const meta = `Abgleich vom ${syncPlanEscape(run.created_at || "")}`;
 	const foot = syncPlanFooterState({ kind: kind, total: total });
 
-	return `<div class="sheet" role="dialog" aria-modal="true" data-sync-plan data-kind="${syncPlanEscape(kind)}" data-run="${Number(run.id || 0)}">
-	<div class="sheet__head">
-		<p class="sheet__title">${syncPlanEscape(syncPlanKindMeta(kind).title)}</p>
-		<p class="sheet__verdict${verdict.empty ? " sheet__verdict--none" : ""}">${syncPlanEscape(verdict.text)}</p>
-		<div class="sheet__meta">${meta}</div>
+	return `<div class="sheet avm-fenster avm-fenster--werkzeug" role="dialog" aria-modal="true" data-sync-plan data-kind="${syncPlanEscape(kind)}" data-run="${Number(run.id || 0)}">
+	<div class="sheet__head avm-fenster__kopf">
+		<span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>
+		<span class="sheet__stapel">
+			<h2 class="avm-fenster__titel">${syncPlanEscape(syncPlanKindMeta(kind).title)}</h2>
+			<span class="sheet__verdict${verdict.empty ? " sheet__verdict--none" : ""}">${syncPlanEscape(verdict.text)}</span>
+		</span>
+		<button type="button" class="avm-fenster__knopf avm-fenster__knopf--gefasst" data-later aria-label="Schließen">✕</button>
 	</div>
-	<div class="sheet__body">${groups}</div>
+	<div class="sheet__body"><div class="sheet__meta">${meta}</div>${groups}</div>
 	<p class="gate" data-gate hidden><label><input type="checkbox" data-gate-cb>
 		<span data-gate-text></span></label></p>
 	<div class="foot">
@@ -770,9 +773,14 @@ function syncPlanPinButtonState(ok) {
 
 /** Der leere Fall — kein Fehler, sondern die beste Nachricht des Tages. */
 function syncPlanEmptyMarkup(message) {
-	return `<div class="sheet" role="dialog" aria-modal="true"><div class="sheet__head">
-		<p class="sheet__title">Übernahme-Vorschau</p>
-		<div class="sheet__meta">${syncPlanEscape(message)}</div>
+	return `<div class="sheet avm-fenster avm-fenster--werkzeug" role="dialog" aria-modal="true">
+	<div class="sheet__head avm-fenster__kopf">
+		<span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>
+		<span class="sheet__stapel">
+			<h2 class="avm-fenster__titel">Übernahme-Vorschau</h2>
+			<span class="sheet__verdict sheet__verdict--none">${syncPlanEscape(message)}</span>
+		</span>
+		<button type="button" class="avm-fenster__knopf avm-fenster__knopf--gefasst" data-later aria-label="Schließen">✕</button>
 	</div>
 	<div class="foot"><span class="foot__count"></span>
 		<button type="button" class="btn" data-later>Schließen</button></div></div>`;
@@ -903,16 +911,19 @@ async function syncPlanOpenRunSummary(options) {
 }
 
 function syncPlanBindClose(mount, options) {
-	const later = mount.querySelector("[data-later]");
-	if (later) {
-		later.addEventListener("click", () => {
+	// 🔴 ALLE Knoepfe mit data-later, nicht nur der erste. Seit dem 04.09.2026 traegt auch das ✕
+	//    der Kopfleiste die Marke -- `querySelector` haette nur den Fussknopf verdrahtet, und das ✕
+	//    waere ein Knopf gewesen, der sichtbar nichts tut (dieselbe Falle wie beim Fundort-Formular).
+	const schliesser = mount.querySelectorAll("[data-later]");
+	schliesser.forEach((knopf) => {
+		knopf.addEventListener("click", () => {
 			mount.hidden = true;
 			mount.innerHTML = "";
 			if (options && typeof options.onClose === "function") {
 				options.onClose();
 			}
 		});
-	}
+	});
 }
 
 function syncPlanBindSheet(mount, plan, options) {

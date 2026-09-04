@@ -73,4 +73,45 @@ assert.ok(!/--color-link/.test(refresh),
 assert.ok(!/font-size:\s*\d+px/.test(refresh),
 	"Der ⟳ traegt wieder eine harte Schriftgroesse statt eines Tokens (AGENTS.md §12)");
 
+// ---- Die DREI Reiterebenen des Editor-Panels teilen EINE Rezeptur -------------------------------
+// 🪤 WARUM. Owner 04.09.2026 mit Bild: „da ist irgendwas der strich verloren gegangen." Er war nie
+//    da. Die OBERSTE Zeile (Community · Änderungen · WikiSync · Status) markierte „aktiv" mit einer
+//    FUELLUNG statt mit dem Unterstrich der zwei Ebenen darunter -- und im dunklen Thema gemessen
+//    hatte die Fuellung einen RGB-Abstand von 2,2 zum Panelgrund. Unsichtbar. Nur die Schriftfarbe
+//    unterschied noch.
+// 🔴 T3 (Owner, derselbe Tag): ein Reiter IM Fenster traegt den Unterstrich. Die drei Ebenen stehen
+//    uebereinander im selben Panel -- sie MUESSEN dieselbe Rezeptur haben, sonst sieht eine davon
+//    aus wie ein anderes Bedienelement.
+{
+	const panel = lies("css", "features", "review-panel.css");
+	for (const [selektor, wo] of [
+		[".review-panel__tab", "oberste Zeile (Community …)"],
+		[".wiki-sync-panel__tab", "zweite Zeile (Meldungen …)"],
+		[".status-subtab", "dritte Zeile (Empfangen …)"],
+	]) {
+		// ⚠️ ZEILENWEISE statt per Regex: das letzte Glied einer Selektorliste endet mit " {",
+		//    alle anderen mit ",". Ein Muster, das nur eine Form kennt, meldet das letzte Glied
+		//    faelschlich als fehlend -- genau so ist dieser Test beim Schreiben umgefallen.
+		const zeilen = panel.split(/\r?\n/).map((l) => l.trim());
+		const inListe = (name) => zeilen.includes(name + ",") || zeilen.includes(name + " {");
+
+		assert.ok(inListe(selektor),
+			wo + ": " + selektor + " steht nicht in der geteilten Reiter-Grundregel");
+		assert.ok(inListe(selektor + ".is-active"),
+			wo + ": " + selektor + ".is-active steht nicht in der geteilten Aktiv-Regel "
+			+ "-- markiert diese Ebene wieder mit einer Fuellung statt mit dem Unterstrich?");
+		// Und KEINE eigene Aktiv-Rezeptur daneben, die die geteilte ueberstimmt.
+		// 🪤 „Eigene Regel" heisst: die Zeile davor endet NICHT mit einem Komma. Das letzte Glied
+		//    einer geteilten Liste endet ebenfalls mit " {" -- ohne diesen Blick auf den Vorgaenger
+		//    meldet der Test genau die geteilte Regel als Alleingang. Beim Schreiben passiert.
+		const k = zeilen.indexOf(selektor + ".is-active {");
+		const alleingang = k > 0 && !zeilen[k - 1].endsWith(",");
+		assert.ok(!alleingang,
+			wo + ": " + selektor + " hat wieder eine EIGENE Aktiv-Regel -- zwei Rezepturen fuer "
+			+ "denselben Zustand laufen auseinander, genau das war der Befund vom 04.09.2026");
+	}
+	console.log("OK -- die drei Reiterebenen des Panels teilen eine Rezeptur");
+}
+
+
 console.log("OK -- Listenkopf: zwei Filter-Kopien gleich, ⟳ auf der Hausform");

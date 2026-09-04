@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Übernahme-Vorschau — drei Kopfformen</title>
+<title>Übernahme-Vorschau — drei Kopfformen (B gewählt)</title>
 <style>
 /* ══════════════════════════════════════════════════════════════════════════════════════════
    DIE ÜBERNAHME-VORSCHAU IST DAS EINE FENSTER, DAS SICH NICHT MECHANISCH UMSTELLEN LIESS.
@@ -11,6 +11,12 @@
    Ihr Kopf ist DREIZEILIG — Titel, Befund, Meta —, während jeder andere Fensterkopf im Haus
    eine Zeile ist: Griff · Titel · ✕. Das Bauteil darüberzulegen zerlegt die drei Zeilen, und
    was mit Befund und Meta geschehen soll, ist eine Gestaltungsfrage, keine mechanische.
+
+   ✅ ENTSCHIEDEN am 04.09.2026: VARIANTE B. Griff und ✕ aussen, Titel und Befund gestapelt,
+      das Datum im Rumpf. Gebaut in js/review/sync-plan-sheet.js + css/components/sync-plan-sheet.css.
+      ⚠️ EINE bewusste Abweichung: der Befund behaelt seine Farbe (--color-text-strong bzw.
+      --color-success-soft-text), im Mockup stand er gedaempft. Er IST die Aussage des Fensters;
+      ihn zu daempfen begruebe die Zahl, wegen der man es oeffnet. Klein ja, leise nein.
 
    🔴 Die Werte hier sind AUS css/base/tokens.css ausgelesen, nicht abgeschrieben — inklusive
       der +2-Skala (--space-12 = 14px). Ein Mockup mit erfundenen Zahlen liegt auf jeder
@@ -303,7 +309,7 @@ body > h1 {
 
 	<!-- ══ B ══════════════════════════════════════════════════════════════════════════════ -->
 	<div class="karte">
-		<h2>B · Befund als Unterzeile im Kopf</h2>
+		<h2>B · Befund als Unterzeile im Kopf <span style="color:var(--color-success-soft-text)">— GEWÄHLT</span></h2>
 		<p class="warum">Der Kopf bleibt zweizeilig, aber in der Form des Bauteils: Griff und ✕
 			außen, Titel und Befund gestapelt in der Mitte. Das Datum wandert in den Rumpf.</p>
 		<div class="fen" style="height:290px">
