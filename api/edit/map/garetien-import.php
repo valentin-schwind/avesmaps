@@ -146,11 +146,34 @@ try {
         // passiert" nicht zu unterscheiden -- dieselbe Regel wie bei der Art einer Quelle.
         $nachzug = avesmapsGaretienArtikelQuellenNachtragen($pdo);
         $lauf = avesmapsSyncPlanOpenRun($pdo, AVESMAPS_GARETIEN_PLAN_KIND);
+
+        // --- Und die alten Import-Laeufe wegraeumen (Owner 04.09.2026).
+        //
+        // 🔴 HIER und nicht am Ende von `fetch`: der fetch-Zweig laeuft je Haeppchen (die 18 Seiten
+        // kommen in mehreren Rufen an) und raeumte dann mehrfach je Ablauf. `plan` ist der EINE
+        // Abschluss von "Holen & Rechnen" -- und zu diesem Zeitpunkt steht fest, dass der Lauf
+        // brauchbar ist, denn aus ihm wurde gerade gerechnet.
+        // 🔴 NACH dem Planbau: der liest den Staging-Lauf, und `$importRun` ist genau der Lauf,
+        // den die Aufraeumung verschont.
+        // ⚠️ Ein Fehlschlag darf den Plan NICHT kippen -- er ist gebaut, und das ist die Arbeit,
+        // fuer die der Admin gewartet hat. Er wird deshalb gefangen, aber `null` gemeldet: das ist
+        // von der ehrlichen `0` ("es war nichts aufzuraeumen") unterscheidbar. Kein getMessage()
+        // nach draussen (AGENTS.md §10, M1).
+        try {
+            $aufgeraeumt = avesmapsGaretienStagingAufraeumen($pdo, $importRun);
+        } catch (Throwable $abbruch) {
+            error_log('garetien-import: Staging-Aufraeumung fehlgeschlagen: ' . $abbruch->getMessage());
+            $aufgeraeumt = null;
+        }
+
         avesmapsJsonResponse(200, [
             'ok' => true,
             'plan_run_id' => (int) ($lauf['id'] ?? 0),
             'vorschlaege' => $anzahl,
             'artikel_nachgetragen' => $nachzug['geschrieben'],
+            // 🔴 UND DAS WIRD EBENSO GEMELDET, aus demselben Grund wie die zwei Zeilen darunter:
+            // eine stille Loeschung ist von „nichts passiert" nicht zu unterscheiden.
+            'staging_aufgeraeumt' => $aufgeraeumt,
             // 🔴 UND DAS AUFRAEUMEN WIRD EBENSO GEMELDET. Eine stille Loeschung an
             // fremden Objekten ist von „nichts passiert" nicht zu unterscheiden -- dieselbe
             // Regel wie eine Zeile darueber.

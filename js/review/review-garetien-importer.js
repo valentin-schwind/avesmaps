@@ -1820,6 +1820,11 @@
 	let garetienLaufMeldung = "";      // ein harter Fehler; bleibt bis zum nächsten Versuch stehen
 	let garetienRechenDauerMs = null;  // GEMESSEN, und nur für einen Lauf DIESER Sitzung
 	let garetienEbenenFehler = [];     // `fehler[]` aus `action:'fetch'` -- Ebenen ohne Antwort
+	// `staging_aufgeraeumt` aus `action:'plan'`. 🔴 DREI Zustände, und alle drei bedeuten etwas
+	// anderes: ein Objekt = so viel ist weg · `null` = das Aufräumen ist gescheitert (der Endpunkt
+	// fängt es, damit es den fertigen Plan nicht kippt) · `undefined` = keine Aussage (ein älterer
+	// Lauf oder ein Server vor dieser Änderung nennt das Feld gar nicht).
+	let garetienLaufAufraeumung;
 
 	// Die Ebenen-Schlüssel sind stabile Kennungen (`Gewaesser`, `Waelder`, `Ortschaften_1`) und
 	// bleiben es -- sie stecken im Bezeichner `wiki:ebene`, den der Endpunkt entgegennimmt. Nur die
@@ -1958,6 +1963,19 @@
 		if (fehler > 0) {
 			teile.push(fehler + (fehler === 1 ? " Ebene ohne Antwort" : " Ebenen ohne Antwort"));
 		}
+		// Die Nebenarbeit ZULETZT -- erst steht da, was den Lauf betrifft.
+		// 🔴 `null` ist der Fehlschlag, `undefined` ist keine Aussage (ein Lauf vor dieser
+		// Änderung oder einer aus `action:'runs'` nennt das Feld gar nicht), und `laeufe: 0` ist
+		// der Normalfall, der schweigt: nach dem ersten Aufräumen ist bei jedem weiteren Lauf
+		// genau einer fällig, „0 alte Läufe weg" stünde sonst dauerhaft da und sagte nie etwas.
+		if (l.aufgeraeumt === null) {
+			teile.push("Aufräumen fehlgeschlagen");
+		} else if (l.aufgeraeumt && Number(l.aufgeraeumt.laeufe) > 0) {
+			const weg = Number(l.aufgeraeumt.laeufe);
+			const offen = Number(l.aufgeraeumt.offen) || 0;
+			teile.push(weg + (weg === 1 ? " alter Lauf weg" : " alte Läufe weg")
+				+ (offen > 0 ? ", " + offen + " offen" : ""));
+		}
 		return teile.join(" · ");
 	}
 
@@ -2050,6 +2068,7 @@
 				lauf: garetienLetzterLauf,
 				dauerMs: garetienRechenDauerMs,
 				fehler: garetienEbenenFehler,
+				aufgeraeumt: garetienLaufAufraeumung,
 			});
 		}
 		const knopf = document.getElementById("garetien-run-tile");
@@ -2194,6 +2213,10 @@
 					.then(function (plan) {
 						garetienRechenDauerMs = Date.now() - begonnen;
 						zustand.planRunId = Number(plan.plan_run_id) || null;
+						// Was der Server an alten Import-Läufen weggeräumt hat (04.09.2026). Roh
+						// übernommen, ohne `||`-Rückfall: `null` IST die Aussage „gescheitert“, und ein
+						// Rückfall auf 0 machte daraus „nichts zu tun“.
+						garetienLaufAufraeumung = plan.staging_aufgeraeumt;
 						// Zeitstempel und Zeilenzahl kommen vom SERVER, nicht aus der Browseruhr.
 						return garetienLaufUebernehmen(rufe, zustand.importRunId);
 					})
@@ -6581,6 +6604,7 @@
 			garetienEbenenAuswahl,
 			garetienLaufStempel,
 			garetienLaufKachelText,
+			garetienLaufKachelAktualisieren,
 			garetienLaufUebernehmen,
 			garetienFensterFuellen,
 			garetienLaufStarten,

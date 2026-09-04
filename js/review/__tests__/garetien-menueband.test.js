@@ -264,6 +264,40 @@ gleich(mod.garetienLaufKachelText({ lauf: LAUF, fehler: [{}, {}] }),
 // Ein unfertiger Lauf hat kein finished_at -- dann gilt sein Beginn, statt „unbekannt" zu melden.
 gleich(mod.garetienLaufStempel({ started_at: "2026-08-27 11:58:02", finished_at: null }), "27.08., 11:58");
 
+// ---- 5c. Die Aufraeumung alter Import-Laeufe (04.09.2026) ---------------------------------------
+//
+// 🔴 Anlass: das Import-Staging kannte nur INSERT/UPDATE, jedes „Holen & Rechnen" legte einen
+// vollstaendigen weiteren Lauf daneben -- gemessen 99.280 Zeilen bei 8.348 je Lauf. Seither raeumt
+// der `plan`-Zweig auf und MELDET es: eine stille Loeschung ist von „nichts passiert" nicht zu
+// unterscheiden (dieselbe Regel wie beim Artikelquellen-Nachzug im selben Endpunktzweig).
+gleich(mod.garetienLaufKachelText({ lauf: LAUF, dauerMs: 350, aufgeraeumt: { laeufe: 3, zeilen: 25044, waisen: 0, offen: 0 } }),
+	"Lauf 27.08., 12:04 · 0,35 s · 3 alte Läufe weg",
+	"was weggeraeumt wurde, steht in der Kachel");
+gleich(mod.garetienLaufKachelText({ lauf: LAUF, dauerMs: 350, aufgeraeumt: { laeufe: 1, zeilen: 8348, waisen: 0, offen: 0 } }),
+	"Lauf 27.08., 12:04 · 0,35 s · 1 alter Lauf weg");
+// 🔴 DER NORMALFALL SCHWEIGT. Nach dem ersten Aufraeumen ist bei jedem weiteren Lauf genau EINER
+// faellig -- stuende dort dauerhaft „0 alte Laeufe weg", waere die Kachel um eine Zeile laenger,
+// die nie etwas sagt.
+gleich(mod.garetienLaufKachelText({ lauf: LAUF, dauerMs: 350, aufgeraeumt: { laeufe: 0, zeilen: 0, waisen: 0, offen: 0 } }),
+	"Lauf 27.08., 12:04 · 0,35 s", "nichts aufgeraeumt heisst: nichts dazuschreiben");
+// ⚠️ Der Deckel stueckelt (der erste scharfe Lauf hat rund elf faellige) -- bliebe der Rest
+// unerwaehnt, wunderte sich der Owner, warum die Tabelle noch gross ist.
+gleich(mod.garetienLaufKachelText({ lauf: LAUF, dauerMs: 350, aufgeraeumt: { laeufe: 3, zeilen: 25044, waisen: 0, offen: 4 } }),
+	"Lauf 27.08., 12:04 · 0,35 s · 3 alte Läufe weg, 4 offen",
+	"was der Deckel liegen liess, wird genannt");
+// 💣 `null` ist der FEHLSCHLAG und muss von der ehrlichen 0 unterscheidbar bleiben: der Endpunkt
+// faengt den Abbruch, damit er den fertigen Plan nicht kippt -- verschwiege die Kachel ihn, sae he
+// ein dauerhaft scheiterndes Aufraeumen genauso aus wie „es war nichts zu tun".
+gleich(mod.garetienLaufKachelText({ lauf: LAUF, dauerMs: 350, aufgeraeumt: null }),
+	"Lauf 27.08., 12:04 · 0,35 s · Aufräumen fehlgeschlagen");
+// ⚠️ Und ein Lauf VOR dieser Aenderung (oder ein aelterer aus `action:'runs'`) nennt das Feld gar
+// nicht -- `undefined` schweigt wie die 0, es ist keine Aussage.
+gleich(mod.garetienLaufKachelText({ lauf: LAUF, dauerMs: 350 }), "Lauf 27.08., 12:04 · 0,35 s",
+	"ein fehlendes Feld ist kein Fehlschlag");
+// Die Reihenfolge: erst was den LAUF betrifft (Ebenen ohne Antwort), dann die Nebenarbeit.
+gleich(mod.garetienLaufKachelText({ lauf: LAUF, fehler: [{}], aufgeraeumt: { laeufe: 2, zeilen: 9, waisen: 0, offen: 0 } }),
+	"Lauf 27.08., 12:04 · 289 Zeilen · 1 Ebene ohne Antwort · 2 alte Läufe weg");
+
 // ---- 5b. Fuenf-Punkte-Brief 30.08.2026, Punkt 2: „Holen & Rechnen"/„Ebenen" bleiben admin-only --
 
 wahr(typeof mod.avesmapsGaretienDarfAdminHandlung === "function",

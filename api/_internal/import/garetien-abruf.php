@@ -57,6 +57,20 @@ const AVESMAPS_GARETIEN_CONNECT_TIMEOUT_SECONDS = 15;
 // und dessen Sperre; garetien.de ist ein anderer Wirt und teilt diese Warteschlange nicht.
 const AVESMAPS_GARETIEN_PAUSE_MIKROSEKUNDEN = 1000000;
 
+// Wie viele Import-Laeufe aufbewahrt werden (04.09.2026, Owner: "raeum zeug auf, das wir nicht
+// mehr brauchen"). DREI, nicht EINER: das Fenster nimmt zwar den juengsten (`laeufe[0]`), aber
+// die Laufliste laesst einen aelteren waehlen, und ein offener Vorschau-Lauf verraet nicht, aus
+// welchem Import er gebaut wurde. Drei sind rund 25.000 Zeilen statt der gemessenen 99.280.
+const AVESMAPS_GARETIEN_STAGING_BEHALTEN = 3;
+
+// Wie viele faellige Laeufe EIN Aufruf hoechstens abraeumt.
+// 💣 Beim ersten scharfen Lauf sind rund elf faellig -- ueber 90.000 Zeilen mit je zwei
+// MEDIUMTEXT-Spalten. Ein Rutsch darueber laeuft auf STRATO in `max_execution_time`, und deren
+// Fehlerbild ist ein LEERER Rumpf ohne Ausnahme: fuer den Aufrufer nicht von "nichts geschickt"
+// zu unterscheiden. Also gestueckelt wie der Datenbank-Dump -- der Rest kommt beim naechsten
+// "Holen & Rechnen", und die Antwort sagt, wie viel noch offen ist.
+const AVESMAPS_GARETIEN_STAGING_DECKEL = 3;
+
 /** Wann zuletzt bei diesem Wirt abgerufen wurde -- je Prozess, mehr braucht es hier nicht. */
 function &avesmapsGaretienLetzterAbruf(): array
 {
@@ -195,6 +209,90 @@ function avesmapsGaretienListeLaeufe(PDO $pdo, int $limit = 20): array
     $stmt->execute();
 
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+/**
+ * Alte Import-Laeufe wegraeumen. Gibt zurueck, was weg ist und was noch offen blieb.
+ *
+ * 🔴 ANLASS (Owner 04.09.2026): `garetien_import_row` kannte NUR INSERT und UPDATE -- einen
+ * Loeschweg gab es in der ganzen Codebasis nicht, und jedes "Holen & Rechnen" legte einen
+ * vollstaendigen weiteren Lauf daneben. Gemessen: 99.280 Zeilen, bei 8.348 je Lauf also rund ein
+ * Dutzend.
+ *
+ * ⭐ WARUM DAS GEFAHRLOS IST -- die drei Dinge, die vorher nachgesehen wurden:
+ *   1. JEDER Lesezugriff auf `garetien_import_row` filtert auf EINEN `run_id` (vier Stellen).
+ *      Es gibt keine Abfrage ueber mehrere Laeufe.
+ *   2. `sync_decision` und `sync_plan_item` schluesseln ueber `entity_key`, und der wird aus dem
+ *      INHALT gebaut (avesmapsGaretienObjektSchluesselAusZeile) -- keine Zeilen-ID darin. Die
+ *      dauerhaften Entscheidungen ueberleben also.
+ *   3. Die Ruecknahme liest `sync_plan_run`/`sync_plan_item`, nicht das Staging.
+ *
+ * 🔴 `sync_plan_item` wird hier NICHT angefasst, obwohl es je Lauf noch einmal so viele Zeilen
+ * traegt: `avesmapsGaretienUebernahmenNachtragen` liest es ueber ALLE Laeufe hinweg (ohne
+ * `run_id`-Filter, `apply_state='done'`) und traegt daraus nach, was vor dem 30.08.2026
+ * uebernommen wurde. Das ist ein eigener Befund und ein eigener Auftrag.
+ *
+ * 💣 DER AKTIVE LAUF BLEIBT IMMER, auch wenn er nicht unter den juengsten ist -- sonst loeschte
+ * "Holen & Rechnen" genau die Zeilen weg, aus denen es gerade gerechnet hat.
+ *
+ * 💣 KEIN `DELETE ... LIMIT` und keine Subquery auf die eigene Tabelle: das erste kennt SQLite
+ * ohne SQLITE_ENABLE_UPDATE_DELETE_LIMIT gar nicht, das zweite lehnt MySQL mit Fehler 1093 ab.
+ * Die faelligen Laeufe werden deshalb VORHER ermittelt und einzeln abgeraeumt -- dieselbe Form
+ * laeuft auf beiden. (AGENTS.md §9: wer die Produktionsform verbiegt, damit ein Test laeuft, hat
+ * den Test gegen die Produktion gedreht.)
+ *
+ * ⚠️ Faellt NICHT still aus. Ein verschluckter SQL-Fehler saehe hier aus wie "es war nichts
+ * aufzuraeumen" -- genau der inerte `catch`, der bei "Was ist hier?" einen HY093 monatelang als
+ * leeres Ergebnis getarnt hat. Der Aufrufer faengt und meldet.
+ */
+function avesmapsGaretienStagingAufraeumen(
+    PDO $pdo,
+    int $aktiverLauf,
+    int $behalten = AVESMAPS_GARETIEN_STAGING_BEHALTEN,
+    int $deckel = AVESMAPS_GARETIEN_STAGING_DECKEL
+): array {
+    // 💣 Die Klemme steht IM Rumpf, nicht beim Aufrufer -- sonst hat sie der naechste Aufrufer
+    // wieder nicht. Eine Null loeschte alles ausser dem aktiven Lauf und damit die Laufliste.
+    $behalten = max(2, $behalten);
+    $deckel = max(1, $deckel);
+
+    // Waisen ZUERST: nach dem Abraeumen der Laeufe waeren die gerade geloeschten Zeilen von
+    // echten Waisen nicht mehr zu unterscheiden, und die Zahl in der Meldung waere gelogen.
+    $waisen = $pdo->exec(
+        'DELETE FROM garetien_import_row'
+        . ' WHERE run_id NOT IN (SELECT id FROM garetien_import_run)'
+    );
+
+    $alle = $pdo->query('SELECT id FROM garetien_import_run ORDER BY id DESC')
+        ->fetchAll(PDO::FETCH_COLUMN);
+    $alle = array_map('intval', $alle);
+
+    $verschont = array_slice($alle, 0, $behalten);
+    $verschont[] = $aktiverLauf;
+    $faellig = array_values(array_diff($alle, $verschont));
+    // Vom AELTESTEN her -- wer den Deckel erreicht, hat den groessten Ballast zuerst weg.
+    sort($faellig);
+
+    $dran = array_slice($faellig, 0, $deckel);
+    $loescheZeilen = $pdo->prepare('DELETE FROM garetien_import_row WHERE run_id = :r');
+    $loescheLauf = $pdo->prepare('DELETE FROM garetien_import_run WHERE id = :r');
+
+    $zeilen = 0;
+    foreach ($dran as $lauf) {
+        $loescheZeilen->execute([':r' => $lauf]);
+        $zeilen += $loescheZeilen->rowCount();
+        // ⚠️ Die Lauf-Zeile muss mit: bliebe sie stehen, zeigte `action:'runs'` einen Lauf mit
+        // "0 Zeilen", der sich anklicken laesst -- und eine leere Arbeitsliste sieht aus wie ein
+        // fehlgeschlagener Import, nicht wie ein aufgeraeumter.
+        $loescheLauf->execute([':r' => $lauf]);
+    }
+
+    return [
+        'laeufe' => count($dran),
+        'zeilen' => $zeilen,
+        'waisen' => (int) $waisen,
+        'offen' => count($faellig) - count($dran),
+    ];
 }
 
 /**
