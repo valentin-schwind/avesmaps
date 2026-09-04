@@ -89,7 +89,10 @@ vm.createContext(kasten);
 // ⚠️ `js/ui/filter-menu.js` steht hier NICHT wegen dieser Aufgabe, sondern weil der inline-Block
 // beim Auswerten `avmRangeStateCreate` ruft (Zeitfilter des Baums). Ohne die Datei bricht der
 // Sandkasten, bevor er die erste Zeile dieses Tests erreicht.
-["js/ui/ribbon-menu.js", "js/ui/filter-menu.js",
+// ⚠️ js/ui/dialog-hintergrund-schliessen.js ebenso: seit 05.09.2026 haengen die drei Fenster der
+// Seite ueber avesmapsDialogHintergrundSchliessenById am Schleier-Bauteil, und der inline-Block
+// ruft es beim Auswerten (ReferenceError ohne die Datei -- genau die changelog-dialog-Falle).
+["js/ui/ribbon-menu.js", "js/ui/filter-menu.js", "js/ui/dialog-hintergrund-schliessen.js",
 	"js/ui/wiki-assign-registry.js", "js/ui/wiki-assign-diff.js", "js/ui/wiki-feld-herkunft.js",
 	"js/ui/wiki-assign.js", "js/ui/wiki-assign-ort.js"].forEach((datei) => {
 	vm.runInContext(fs.readFileSync(path.join(wurzel, datei), "utf8"), kasten, { filename: datei });

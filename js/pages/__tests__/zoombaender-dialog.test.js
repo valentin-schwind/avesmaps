@@ -40,7 +40,8 @@ assert.ok(/id="seZoomBands"/.test(seite), "die Kachel traegt die Kennung seZoomB
 // blieb der Test gruen und seine Aussage war falsch: trivial erfuellt.
 const kachel = seite.slice(seite.indexOf('id="seZoomBands"'), seite.indexOf('id="seZoomBands"') + 400);
 assert.ok(/<span class="t1">Darstellung<\/span>/.test(kachel), "die Kachel heisst „Darstellung“");
-assert.ok(/<div class="modal-title" id="seZoomBandsTitle">Darstellung<\/div>/.test(seite),
+// ⚠️ Seit 05.09.2026 ein <h2> des Fenster-Bauteils (css/components/fenster.css), kein .modal-title mehr.
+assert.ok(/<h2 class="avm-fenster__titel" id="seZoomBandsTitle">Darstellung<\/h2>/.test(seite),
 	"und das Fenster dahinter auch -- sonst oeffnet „Darstellung“ ein Fenster mit anderem Namen");
 // 🔴 Owner-Entscheid, Fix-Runde 2 (Clipping bei acht Kacheln): gekuerzt auf "Zoomlevel aller Orte",
 // nur die Kachel selbst -- "Nur Auswahl anzeigen" (fremde Kachel) bleibt unangetastet.

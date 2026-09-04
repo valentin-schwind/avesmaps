@@ -37,13 +37,15 @@ var AVESMAPS_DIALOG_DRAG_HANDLES = [
 	// lautlos auf, verschiebbar zu sein: die Suche geht nach der FORM des Namens, und die Form
 	// hat sich geaendert. Gefunden vom Testfeld, nicht von Hand.
 	'[role="dialog"] > [class*="__kopf"]',
-	".modal-box > .modal-title",
 	"[data-avesmaps-drag-handle]",
 ].join(", ");
 
-// Das Fenster selbst. role="dialog" traegt im Haus immer der Kasten, nie das Overlay; .modal-box ist
-// die Bauart der Editor-iframes (wiki-sync-monitor.html, wiki-sync-settlement-editor.html).
-var AVESMAPS_DIALOG_DRAG_WINDOWS = '[role="dialog"], .modal-box';
+// Das Fenster selbst. role="dialog" traegt im Haus immer der Kasten, nie das Overlay.
+// ✅ 05.09.2026: `.modal-box` (die sechs Fenster der zwei Sync-Seiten) stand hier als eigene Bauart
+//    mit dem Griff `.modal-box > .modal-title`; seit sie am Fenster-Bauteil haengen, tragen sie
+//    role="dialog" und `__kopf` wie alle anderen -- eine Sonderzeile, die niemand mehr trifft, ist
+//    die zweite Wahrheit, um die es beim Umbau ging.
+var AVESMAPS_DIALOG_DRAG_WINDOWS = '[role="dialog"]';
 
 // Bedienelemente in der Kopfzeile bleiben Bedienelemente: Schliessen/Verkleinern und das Suchfeld im
 // Konflikte-Fenster duerfen kein Ziehen ausloesen.

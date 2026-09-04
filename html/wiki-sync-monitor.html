@@ -301,23 +301,31 @@
      <style>-Block steht hinter dem <link> und ueberstimmt die geteilten Feldregeln lautlos --
      js/pages/__tests__/editor-row-single-source.test.js verbietet das, und der Deploy faellt
      darauf. Gemessen 02.09.2026: genau dieser Versuch hat das Tor geschlossen. */
-  /* Upload-Dialog */
+  /* Die drei Fenster dieser Seite (Wappen · Namensgleiche Artikel · Geometrie) haengen am
+     Fenster-Bauteil (css/components/fenster.css, ueber editor-page.css geladen): Huelle, Kopfzeile,
+     Griff, Schliessknopf, Rumpf-Scroll und Fussleiste kommen von dort. Hier steht nur noch das MASS.
+     🔴 max-height gehoert an die HUELLE, nie an einen inneren Kasten: das Bauteil setzt
+     overflow:hidden an die Huelle und laesst NUR den Rumpf scrollen (Kopf und Fuss stehen). Ein
+     innerer Kasten mit eigenem max-height -- so standen .ident-table (60vh) und #geomList (50vh)
+     bis zum 05.09.2026 ineinander -- macht zwei Bildlaufleisten uebereinander; scrollt dann doch
+     die Huelle, wandern Titel und Knoepfe aus dem Bild (Owner 04.09.2026, „Ort bearbeiten").
+     ⚠️ .modal-box und .modal-sub stehen ZEICHENGLEICH in html/wiki-sync-settlement-editor.html
+     (derselbe Bauer); js/ui/__tests__/fenster-kopf-versorgt.test.js haelt beide gegeneinander. */
   .modal { position:fixed; inset:0; background:var(--color-scrim-dialog); display:flex; align-items:center; justify-content:center; z-index:100; }
   .modal[hidden] { display:none; }
-  .modal-box { background:var(--panel); border:1px solid var(--color-border-strong); border-radius:var(--radius-sm); padding:var(--space-16); width:390px; max-width:92vw; box-shadow:var(--shadow-dialog); }
-  /* Etwas breiter fuer die Lizenz/Urheber/Kommentar-Reihe (js/ui/media-license-fields.js, Aufgabe 5)
-     -- gleicher Wert wie .modal-box.wide in html/wiki-sync-settlement-editor.html (derselbe Bauer). */
+  .modal-box { width:390px; max-width:92vw; max-height:92vh; }
+  /* Etwas breiter fuer die Lizenz/Urheber/Kommentar-Reihe (js/ui/media-license-fields.js, Aufgabe 5). */
   .modal-box.wide { width:460px; }
-  /* Der Titel ist zugleich der Griff zum Verschieben (js/ui/dialog-drag.js, unten geladen). */
-  .modal-title { font-size:var(--font-size-subhead); font-weight:var(--font-weight-bold); color:var(--color-text-strong); margin-bottom:2px; cursor:move; user-select:none; }
+  /* 💣 ZWEI Klassen, nicht eine: `.modal-box.wide` (0,2,0) schluege eine einklassige Regel --
+     dieselbe Falle wie .modal-box--zoombands im Siedlungseditor. Vorher ein Inline-style. */
+  .modal-box.modal-box--geom { width:680px; }
   .modal-sub { color:var(--mut); font-size:var(--font-size-small); margin-bottom:var(--space-8); }
   .fld { display:block; margin:8px 0; font-size:var(--font-size-small); }
   .fld input[type=text], .fld input[type=file] { display:block; width:100%; margin-top:4px; }
-  .modal-actions { display:flex; justify-content:flex-end; gap:var(--avm-ribbon-gap); margin-top:var(--space-10); }
   /* .ident-table bedient jetzt nur noch #geomModal ("🗑 Nicht zugewiesene Geometrie") -- die
      Identitäts-Vorschau, die die anderen .ident-*-Regeln brauchte, ist mit der Übernahme-Vorschau
-     (sync-plan-sheet.js) abgelöst. */
-  .ident-table { max-height:60vh; overflow:auto; border:1px solid var(--line); border-radius:6px; }
+     (sync-plan-sheet.js) abgelöst. Kein max-height mehr: der Rumpf des Fensters scrollt (oben). */
+  .ident-table { border:1px solid var(--line); border-radius:6px; }
 </style>
 </head>
 <body>
@@ -411,51 +419,82 @@
   </div>
 </div>
 <div id="planSheet" class="sync-plan-host" hidden></div>
+<!-- Die drei Fenster dieser Seite haengen am Fenster-Bauteil (css/components/fenster.css):
+     Werkzeugfenster -- Kopfzeile mit Griff, Titel und gefasstem ✕, scrollender Rumpf, Fussleiste
+     mit der Hauptgruppe rechts (.avm-fenster__fuss-haupt). Bauplan A21-A23,
+     docs/superpowers/plans/2026-09-04-fenster-vereinheitlichung.md. -->
 <div id="wappenDialog" class="modal" hidden>
-  <div class="modal-box wide">
-    <div class="modal-title" id="wappenTitel">Eigenes Wappen hochladen</div>
-    <div class="modal-sub" id="wappenFor">—</div>
-    <div class="muted" id="wappenCur" style="font-size:var(--font-size-caption)"></div>
-    <label class="fld">Bilddatei (PNG / JPG / SVG / GIF / WEBP)
-      <input type="file" id="wappenFile" accept="image/png,image/jpeg,image/svg+xml,image/gif,image/webp">
-    </label>
-    <label class="fld">…oder Bild-URL
-      <input type="url" id="wappenUrl" placeholder="https://…/wappen.png">
-    </label>
-    <div class="muted" id="wappenLimits" style="font-size:var(--font-size-caption)">Datei ODER URL angeben. Maximale Größe 5 MB.</div>
-    <!-- Lizenz/Urheber/Kommentar (js/ui/media-license-fields.js) -- von openWappenDialog() befuellt
-         (Phase 4, Aufgabe 5). -->
-    <div id="wappenFields"></div>
-    <div class="modal-actions">
-      <button id="wappenCancel">Abbrechen</button>
-      <button class="primary" id="wappenUpload">Hochladen</button>
+  <div class="modal-box wide avm-fenster avm-fenster--werkzeug" role="dialog" aria-modal="true" aria-labelledby="wappenTitel">
+    <div class="avm-fenster__kopf">
+      <span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>
+      <h2 class="avm-fenster__titel" id="wappenTitel">Eigenes Wappen hochladen</h2>
+      <button type="button" class="avm-fenster__knopf avm-fenster__knopf--gefasst" id="wappenClose" aria-label="Schließen">✕</button>
+    </div>
+    <div class="avm-fenster__rumpf">
+      <div class="modal-sub" id="wappenFor">—</div>
+      <div class="muted" id="wappenCur" style="font-size:var(--font-size-caption)"></div>
+      <label class="fld">Bilddatei (PNG / JPG / SVG / GIF / WEBP)
+        <input type="file" id="wappenFile" accept="image/png,image/jpeg,image/svg+xml,image/gif,image/webp">
+      </label>
+      <label class="fld">…oder Bild-URL
+        <input type="url" id="wappenUrl" placeholder="https://…/wappen.png">
+      </label>
+      <div class="muted" id="wappenLimits" style="font-size:var(--font-size-caption)">Datei ODER URL angeben. Maximale Größe 5 MB.</div>
+      <!-- Lizenz/Urheber/Kommentar (js/ui/media-license-fields.js) -- von openWappenDialog() befuellt
+           (Phase 4, Aufgabe 5). -->
+      <div id="wappenFields"></div>
+    </div>
+    <div class="avm-fenster__fuss">
+      <span class="avm-fenster__fuss-haupt">
+        <button id="wappenCancel">Abbrechen</button>
+        <button class="primary" id="wappenUpload">Hochladen</button>
+      </span>
     </div>
   </div>
 </div>
 <!-- Sammellauf: namensgleiche Wiki-Artikel vorschlagen. ⭐ Hausform .modal/.modal-box wie die
      zwei Dialoge daneben -- keine neue Huelle. -->
 <div id="bindung-sammel-modal" class="modal" hidden>
-  <div class="modal-box wide">
-    <div class="modal-title">🔗 Namensgleiche Wiki-Artikel</div>
-    <div class="modal-sub">Vorangehakt sind nur <b>eindeutige</b> Treffer.</div>
-    <div class="muted" style="font-size:var(--font-size-caption)">Jeder gewählte Knoten wandert in den
-      <b>Papierkorb</b>; Geometrie, Quellen und Untergebiete hängen danach am Wiki-Knoten. Das lässt
-      sich nicht per Knopf zurücknehmen.</div>
-    <div id="bindung-sammel-liste" style="max-height:340px; overflow-y:auto; margin-top:var(--space-4)"></div>
-    <div class="modal-actions">
-      <button id="bindung-sammel-abbruch">Abbrechen</button>
-      <button class="primary" id="bindung-sammel-start">Gewählte binden</button>
+  <div class="modal-box wide avm-fenster avm-fenster--werkzeug" role="dialog" aria-modal="true" aria-labelledby="bindung-sammel-titel">
+    <div class="avm-fenster__kopf">
+      <span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>
+      <h2 class="avm-fenster__titel" id="bindung-sammel-titel">🔗 Namensgleiche Wiki-Artikel</h2>
+      <button type="button" class="avm-fenster__knopf avm-fenster__knopf--gefasst" id="bindung-sammel-schliessen" aria-label="Schließen">✕</button>
+    </div>
+    <div class="avm-fenster__rumpf">
+      <div class="modal-sub">Vorangehakt sind nur <b>eindeutige</b> Treffer.</div>
+      <div class="muted" style="font-size:var(--font-size-caption)">Jeder gewählte Knoten wandert in den
+        <b>Papierkorb</b>; Geometrie, Quellen und Untergebiete hängen danach am Wiki-Knoten. Das lässt
+        sich nicht per Knopf zurücknehmen.</div>
+      <!-- Kein eigenes max-height/overflow mehr: der Rumpf scrollt (siehe .modal-box oben). -->
+      <div id="bindung-sammel-liste" style="margin-top:var(--space-4)"></div>
+    </div>
+    <div class="avm-fenster__fuss">
+      <span class="avm-fenster__fuss-haupt">
+        <button id="bindung-sammel-abbruch">Abbrechen</button>
+        <button class="primary" id="bindung-sammel-start">Gewählte binden</button>
+      </span>
     </div>
   </div>
 </div>
 <div id="geomModal" class="modal" hidden>
-  <div class="modal-box" style="width:680px">
-    <div class="modal-title">🗑 Nicht zugewiesene Geometrie</div>
-    <div class="modal-sub" id="geomSummary">—</div>
-    <div class="ident-table" id="geomList" style="max-height:50vh;overflow:auto"></div>
-    <div class="modal-actions">
+  <div class="modal-box modal-box--geom avm-fenster avm-fenster--werkzeug" role="dialog" aria-modal="true" aria-labelledby="geomTitel">
+    <div class="avm-fenster__kopf">
+      <span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>
+      <h2 class="avm-fenster__titel" id="geomTitel">🗑 Nicht zugewiesene Geometrie</h2>
+      <button type="button" class="avm-fenster__knopf avm-fenster__knopf--gefasst" id="geomCloseX" aria-label="Schließen">✕</button>
+    </div>
+    <div class="avm-fenster__rumpf">
+      <div class="modal-sub" id="geomSummary">—</div>
+      <div class="ident-table" id="geomList"></div>
+    </div>
+    <!-- 🔴 Die Massenhandlung steht LINKS in der Fussleiste, die Hauptgruppe rechts
+         (docs/design-language.md §Fenster: „gibt es links Massenhandlungen, bleiben sie links"). -->
+    <div class="avm-fenster__fuss">
       <button id="geomPurgeAll" title="Alle verwaisten Geometrien endgültig löschen">🗑 Alle endgültig löschen</button>
-      <button class="primary" id="geomClose">Schließen</button>
+      <span class="avm-fenster__fuss-haupt">
+        <button class="primary" id="geomClose">Schließen</button>
+      </span>
     </div>
   </div>
 </div>
@@ -473,9 +512,14 @@
 <script src="/js/ui/filter-menu.js"></script>
 <!-- Das Sammelmenue im Menueband (Wappen-Knopf) -- abhaengigkeitsfrei wie der Trichter daneben. -->
 <script src="/js/ui/ribbon-menu.js"></script>
-<!-- Verschiebbare Fenster: greift die .modal-title dieser Seite. Die Fenster der Hauptseite bedient
-     dieselbe Datei dort; ein iframe braucht seine eigene Kopie, sein Dokument ist ein anderes. -->
+<!-- Verschiebbare Fenster: greift die Kopfzeile (.avm-fenster__kopf) der drei Fenster dieser Seite.
+     Die Fenster der Hauptseite bedient dieselbe Datei dort; ein iframe braucht seine eigene Kopie,
+     sein Dokument ist ein anderes. -->
 <script src="/js/ui/dialog-drag.js"></script>
+<!-- Klick auf den Schleier schliesst -- durch das EINE Bauteil, nicht als 26. Abschrift von
+     `if (event.target === overlay)`: das Bauteil prueft Druck UND Loslassen, die Abschrift nicht
+     (wer im Feld markiert und ueber den Rand zieht, verloere sonst das Formular). -->
+<script src="/js/ui/dialog-hintergrund-schliessen.js"></script>
 <!-- Die Übernahme-Vorschau. Gewöhnliches Skript ohne App-Globals und ohne Griff ins Elternfenster --
      deshalb funktioniert diese Seite auch, wenn sie per window.open in einem eigenen Fenster steht. -->
 <script src="/js/review/sync-plan-sheet.js"></script>
@@ -1711,7 +1755,8 @@ function openWappenDialog(){
 }
 function closeWappenDialog(){ $('wappenDialog').hidden=true; }
 $('wappenCancel').onclick = closeWappenDialog;
-$('wappenDialog').addEventListener('click', e=>{ if(e.target.id==='wappenDialog') closeWappenDialog(); });
+$('wappenClose').onclick = closeWappenDialog;
+avesmapsDialogHintergrundSchliessenById('wappenDialog', closeWappenDialog);
 $('detailBody').addEventListener('click', e=>{
   if(e.target.closest('.dt-wappen-edit')){ openWappenDialog(); return; }
   // Derselbe Dialog wie der Hover „Bild ändern“ auf dem Wappen -- nur als Textlink daneben,
@@ -1998,8 +2043,10 @@ async function purgeAllGeoms(){
   catch(e){ setStatus('Fehler: '+e.message); }
   busy(false);
 }
-$('geomClose').onclick = ()=>{ $('geomModal').hidden=true; };
-$('geomModal').addEventListener('click', e=>{ if(e.target.id==='geomModal') $('geomModal').hidden=true; });
+function closeGeomModal(){ $('geomModal').hidden=true; }
+$('geomClose').onclick = closeGeomModal;
+$('geomCloseX').onclick = closeGeomModal;
+avesmapsDialogHintergrundSchliessenById('geomModal', closeGeomModal);
 $('geomPurgeAll').onclick = purgeAllGeoms;
 $('geomList').addEventListener('click', e=>{ const b=e.target.closest('[data-geomdel]'); if(b){ deleteGeom(b.dataset.geomdel, b.dataset.geomterr||'', b.dataset.geomkind||''); } });
 
@@ -2275,7 +2322,10 @@ $('bindung-sammellauf').addEventListener('click', async () => {
   }
 });
 
-$('bindung-sammel-abbruch').addEventListener('click', () => { $('bindung-sammel-modal').hidden = true; });
+function closeBindungSammelModal() { $('bindung-sammel-modal').hidden = true; }
+$('bindung-sammel-abbruch').addEventListener('click', closeBindungSammelModal);
+$('bindung-sammel-schliessen').addEventListener('click', closeBindungSammelModal);
+avesmapsDialogHintergrundSchliessenById('bindung-sammel-modal', closeBindungSammelModal);
 
 $('bindung-sammel-start').addEventListener('click', async () => {
   const gewaehlt = [...document.querySelectorAll('[data-sammel-own]:checked')];

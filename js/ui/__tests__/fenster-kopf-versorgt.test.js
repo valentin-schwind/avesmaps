@@ -91,16 +91,18 @@ assert.deepStrictEqual(ohne, [],
 console.log("OK -- alle " + familien.size + " Kopfzeilen-Familien haben eine Regel");
 
 // ---- 2) Dieselbe Rezeptur in zwei Dateien muss ZEICHENGLEICH sein -----------------------------
-// 💣 `.modal-box`/`.modal-title`/`.modal-sub`/`.modal-actions` stehen ZWEIMAL, je einmal im
-//    <style> von wiki-sync-monitor.html und wiki-sync-settlement-editor.html -- derselbe Bauer,
-//    dieselben sechs Fenster, zwei Kopien. Am 04.09.2026 wichen sie in FUENF Werten voneinander ab:
-//    Titel 15px gegen --font-size-subhead (und 15 steht nicht einmal auf der Schriftskala),
-//    Untertitel 12px gegen --font-size-small, Kastenbreite 360 gegen 390, dazu zwei hartkodierte
-//    Werte fuer Radius und Schatten. Genau das hat der Owner gemeldet: „titelleisten anders
-//    aussehen … unterschiedlich gross".
+// 💣 `.modal-box`/`.modal-sub` stehen ZWEIMAL, je einmal im <style> von wiki-sync-monitor.html und
+//    wiki-sync-settlement-editor.html -- derselbe Bauer, dieselben sechs Fenster, zwei Kopien. Am
+//    04.09.2026 wichen sie in FUENF Werten voneinander ab: Titel 15px gegen --font-size-subhead
+//    (und 15 steht nicht einmal auf der Schriftskala), Untertitel 12px gegen --font-size-small,
+//    Kastenbreite 360 gegen 390, dazu zwei hartkodierte Werte fuer Radius und Schatten. Genau das
+//    hat der Owner gemeldet: „titelleisten anders aussehen … unterschiedlich gross".
+// ✅ Seit 05.09.2026 haengen die sechs am Fenster-Bauteil: `.modal-title` und `.modal-actions`
+//    gibt es nicht mehr (Kopfzeile und Fussleiste kommen aus css/components/fenster.css), und
+//    `.modal-box` traegt nur noch das MASS (Breite, max-height). Was bleibt, muss weiter gleich sein.
 // 🔴 Der Test verlangt GLEICHHEIT, nicht bestimmte Werte -- wer beide zusammen aendert, darf das.
 //    Er faellt nur, wenn eine Kopie allein wandert, und das ist die Divergenz selbst.
-const REZEPTUR = /^\s*\.modal-(box|title|sub|actions) \{/;
+const REZEPTUR = /^\s*\.modal-(box|sub) \{/;
 const kopien = ["html/wiki-sync-monitor.html", "html/wiki-sync-settlement-editor.html"]
 	.map((datei) => ({
 		datei,
@@ -111,8 +113,18 @@ const kopien = ["html/wiki-sync-monitor.html", "html/wiki-sync-settlement-editor
 			.sort(),
 	}));
 
-assert.ok(kopien[0].regeln.length >= 4,
+assert.ok(kopien[0].regeln.length >= 2,
 	"Der Sucher findet die Rezeptur nicht mehr -- er misst sich selbst kaputt");
+// 💣 Und die zwei gefallenen Regeln duerfen nicht ZURUECKKOMMEN -- eine `.modal-title`-Regel neben
+//    dem Bauteil waere die 14. Kopfzeilen-Rezeptur, die dieser Umbau beendet hat.
+// 🪤 NICHT ueber `kopien` pruefen -- die tragen nur die gefilterten box|sub-Zeilen, die Zusicherung
+//    waere Vakuum. Die Datei wird dafuer noch einmal ungefiltert gelesen.
+for (const kopie of kopien) {
+	const roh = fs.readFileSync(path.join(WURZEL, kopie.datei), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+	assert.ok(!/^\s*\.modal-(title|actions) \{/m.test(roh),
+		kopie.datei + ": `.modal-title`/`.modal-actions` stehen wieder da -- Kopfzeile und "
+		+ "Fussleiste kommen aus css/components/fenster.css, nicht aus einer zweiten Rezeptur");
+}
 
 for (const regel of kopien[0].regeln) {
 	assert.ok(kopien[1].regeln.includes(regel),
@@ -148,9 +160,10 @@ console.log("OK -- die modal-box-Rezeptur steht in beiden Dateien zeichengleich 
 //    danebensteht, faellt auf.
 {
 	const WURZEL2 = path.join(__dirname, "..", "..", "..");
+	// ✅ 05.09.2026: `modal-box` stand hier als „eigener Durchgang" -- der ist gelaufen, die sechs
+	//    Sync-Fenster haengen am Bauteil (js/pages/__tests__/sync-modale-am-bauteil.test.js).
 	const AUSNAHMEN = {
 		"spotlight-search": "Bauplan Abschnitt C -- Owner 04.09.2026: die Suche bleibt unberuehrt",
-		"modal-box": "die sechs Sync-Fenster: Werte angeglichen, Bauform ist ein eigener Durchgang",
 	};
 	function alleJsDateien(verzeichnis, sammler) {
 		for (const eintrag of fs.readdirSync(verzeichnis, { withFileTypes: true })) {
