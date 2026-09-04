@@ -1596,10 +1596,47 @@ function avesmapsGebirgsRasterBauen(eingabe) {
 	const plateau = Number.isFinite(Number(reg.plateau))
 		? Math.max(0, Math.min(1, Number(reg.plateau)))
 		: ECOSYSTEM_HYDRO_PLATEAU_VORGABE;
-	const kamm = kammPunkte.length >= 2
+	let kamm = kammPunkte.length >= 2
 		? stempleKamm(r, h, fest, kammPunkte, sattel, ECOSYSTEM_HYDRO_STANDARDHOEHE, e.kurve, kammMaske,
 			maximalhoehe, plateau)
 		: { quelle: "keine", kanten: 0, zellen: 0 };
+
+	// 🔴 DIE MITTELACHSE ALS LETZTER RUECKFALL -- ohne sie bleibt das Feld exakt 0.
+	//
+	// 💣 LIVE GEMELDET AM 04.09.2026: „ich seh halt nix". Die Flaeche („Gorische Wueste") hatte KEINEN
+	// Gipfel, und ihr Label keine gerechnete Beschriftungskurve -- die entsteht erst durch „Kurven
+	// rechnen" im Landschaften-Editor. Damit war `kammPunkte` leer, `stempleKamm` lief gar nicht, und
+	// die Randwertaufgabe loeste ein Feld ohne einen einzigen Zwang: ueberall 0. Der Editor stellte
+	// zwoelf Regler ein und sah eine einfarbige Flaeche.
+	// ⚠️ Und es sah nicht nach einem Fehler aus, sondern nach einer kaputten Anzeige -- die Regler
+	// reagierten, der Dialog meldete nichts, nur das Bild blieb leer.
+	//
+	// ⭐ Die Achse ist schon da: das MAXIMUM der Abstandskarte zum Rand ist per Definition die
+	// Mittelachse der Flaeche. Dieselbe Rechnung, die das Plateau formt, traegt hier den Kamm.
+	// 🔴 Nur wenn eine Kammhoehe gesetzt ist. Ohne Gipfel UND ohne Kammhoehe bleibt die Flaeche flach
+	// -- das ist die alte Regel und bleibt sie: ein Gebirge ganz ohne Stuetzpunkt zu erfinden waere
+	// das „erfundene Gelaendedetail", vor dem oekosystem-instruction.md §4.1 warnt. Hier IST ein
+	// Stuetzpunkt da, er heisst nur Kammhoehe statt Gipfel.
+	if (!kamm.zellen && maximalhoehe > 0) {
+		const dist = randAbstand(r);
+		let dmax = 0;
+		for (let k = 0; k < dist.length; k++) { if (r.drin[k] && dist[k] > dmax) { dmax = dist[k]; } }
+		// Die Breite folgt dem Plateau-Regler -- bei 1 (Vorgabe) ein schmales Band um die Achse, bei
+		// kleineren Werten eine Flaeche. ⚠️ 0,9 statt 1,0, weil die Abstandskarte diskret ist: genau
+		// den Hoechstwert traegt oft nur eine einzige Zelle, und ein Kamm aus einem Punkt ist keiner.
+		const anteil = plateau >= 1 ? 0.9 : plateau;
+		const schwelle = anteil * dmax;
+		let gesetzt = 0;
+		for (let k = 0; k < dist.length; k++) {
+			if (!r.drin[k] || fest[k] || dist[k] < schwelle) { continue; }
+			h[k] = maximalhoehe;
+			fest[k] = 1;
+			kammMaske[k] = 1;
+			gesetzt++;
+		}
+		kamm = { quelle: "mittelachse", kanten: 0, zellen: gesetzt };
+		if (gesetzt) { loeseRelief(h, r.w, r.hh, r.drin, fest, 4, 40, 100, 1.85); }
+	}
 	if (kamm.zellen) { loeseRelief(h, r.w, r.hh, r.drin, fest, 4, 40, 100, 1.85); }
 	if (melde) { melde(0.3); }
 

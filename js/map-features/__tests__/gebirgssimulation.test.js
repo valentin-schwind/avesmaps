@@ -479,6 +479,55 @@ pruefe("die Maximalhoehe hebt den Kamm -- auch wenn Gipfel sie ueberragen", () =
 		+ niedrig.toFixed(0) + ") -- die Maximalhoehe senkt, statt nur zu heben");
 });
 
+pruefe("ohne Gipfel UND ohne Kurve traegt die MITTELACHSE den Kamm", () => {
+	// 💣 LIVE GEMELDET AM 04.09.2026: „ich seh halt nix". Die Flaeche hatte keinen Gipfel, und ihr
+	// Label keine gerechnete Beschriftungskurve -- die entsteht erst durch „Kurven rechnen" im
+	// Landschaften-Editor. Damit war `kammPunkte` leer, `stempleKamm` lief gar nicht, und die
+	// Randwertaufgabe loeste ein Feld ohne einen einzigen Zwang: ueberall exakt 0.
+	// ⚠️ Und es sah nicht nach einem Fehler aus, sondern nach einer kaputten Anzeige -- die Regler
+	// reagierten, der Dialog meldete nichts, nur das Bild blieb leer.
+	// ⭐ Die Achse ist ohnehin da: das Maximum der Abstandskarte zum Rand IST die Mittelachse.
+	const ohneAlles = hydro.avesmapsGebirgsRasterBauen({
+		bounds: BOUNDS,
+		istDrin: IM_QUADRAT,
+		peaks: [],
+		kurve: null,
+		regler: { koernung: 12, maximalhoehe: 3200, bergform: 0.5, rauschen: 0.15,
+			sattel: 0.95, erosion: 1, stufen: 3 },
+		saat: 1,
+	});
+	let max = 0;
+	for (let k = 0; k < ohneAlles.r.drin.length; k++) {
+		if (ohneAlles.r.drin[k] && ohneAlles.h[k] > max) { max = ohneAlles.h[k]; }
+	}
+	assert.ok(max > 1000,
+		"ohne Gipfel und ohne Kurve bleibt das Feld bei " + max.toFixed(0) + " Schritt -- der "
+		+ "Mittelachsen-Rueckfall fehlt, und der Editor sieht eine einfarbige Flaeche");
+	assert.strictEqual(ohneAlles.kamm.quelle, "mittelachse",
+		"der Kamm kam nicht aus der Mittelachse, sondern aus `" + ohneAlles.kamm.quelle + "`");
+
+	// 🔴 UND DIE ALTE REGEL BLEIBT: ohne Gipfel UND ohne Kammhoehe ist die Flaeche flach. Ein Gebirge
+	// ganz ohne Stuetzpunkt zu erfinden waere das „erfundene Gelaendedetail". Hier IST einer da, er
+	// heisst nur Kammhoehe statt Gipfel.
+	const garnichts = hydro.avesmapsGebirgsRasterBauen({
+		bounds: BOUNDS, istDrin: IM_QUADRAT, peaks: [], kurve: null,
+		regler: { koernung: 12, maximalhoehe: 0 }, saat: 1,
+	});
+	let hoechster = 0;
+	for (let k = 0; k < garnichts.h.length; k++) {
+		if (garnichts.r.drin[k] && garnichts.h[k] > hoechster) { hoechster = garnichts.h[k]; }
+	}
+	assert.strictEqual(hoechster, 0,
+		"ohne Gipfel UND ohne Kammhoehe ist ein Gebirge entstanden (" + hoechster.toFixed(0) + ")");
+
+	// ⚠️ Und der Rand bleibt 0 -- daran haengt die Verschmelzung zweier Flaechen.
+	let randVerletzt = 0;
+	for (let k = 0; k < ohneAlles.r.drin.length; k++) {
+		if (ohneAlles.r.drin[k] && !(ohneAlles.relief[k] > 0) && ohneAlles.h[k] > 0.5) { randVerletzt++; }
+	}
+	assert.strictEqual(randVerletzt, 0, "der Mittelachsen-Kamm hat den Flaechenrand angehoben");
+});
+
 pruefe("ohne Gipfel UND ohne Maximalhoehe bleibt die Flaeche flach", () => {
 	// Ein Gebirge ohne jeden Stuetzpunkt zu erfinden waere das „erfundene Gelaendedetail",
 	// vor dem oekosystem-instruction.md §4.1 warnt -- dieselbe Regel wie in V8.
