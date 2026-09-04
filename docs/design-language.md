@@ -112,9 +112,10 @@ Divergenz, um die es hier geht — der erste Entwurf hatte ihn und wurde zurück
 
 | Token | px | Gilt für |
 |---|---|---|
-| `--avm-ribbon-pad` | 10 / **14** | Kopfleiste · Menüband · Fußleiste |
+| `--avm-kopf-pad` | 6 / **14** | Kopfleiste · Fußleiste — *neu, der einzige neue Name* |
+| `--avm-ribbon-pad` | 10 / **14** | Menüband |
 | `--avm-col-pad` | 8 / **14** | Rumpf und Spalten — *heute 8 / 12, zieht auf 14 nach* |
-| `--avm-status-pad` | 6 / **14** | Statuszeile |
+| `--avm-status-pad` | 6 / **14** | Statuszeile · Listenkopf |
 | `--avm-row-pad` | 4 / 6 | Listenzeile |
 | `--avm-ribbon-gap` | 6 | zwischen Kacheln, Knöpfen, Feldern |
 | `--avm-control-h` | 32 | Knopf · Feld · Auswahl · Schließknopf |
@@ -331,6 +332,28 @@ Daumen optisch schmaler, ohne die Trefferfläche zu verkleinern.
 
 🔧 **Offen:** ob die **Seite selbst** (Karte, Infopanel, Routenplaner) bei 7px bleibt oder
 mitzieht. Das ist für jeden Besucher sichtbar und braucht einen eigenen Entscheid.
+
+### Der Listenkopf — die Zeile über der Liste
+
+🔴 Owner 04.09.2026: „über listen seh ich auch immer wieder so fehlerchen und inkonsistente
+header (falsch hier: Meldungen)". Gemessen: **40** Rezepturen für die Zeile über einer Liste
+(Zähler · Filter · Suche · Aktionen).
+
+Der Listenkopf trägt `--avm-status-pad` (6/14); **links** der Zähler in
+`--font-size-caption` / `--color-text-muted`, **rechts** die Aktionen — jede als Symbolknopf
+`--avm-control-h` im Quadrat mit `--radius-md` und weichem Umriss, dieselbe Form wie das ✕ im
+Fenster. Damit stehen Filter und Neu-laden gleich hoch nebeneinander.
+
+💣 Der **Neu-laden-Knopf** existiert zweimal in zwei Formen, und die aus „Meldungen"
+(`.review-panel__refresh-btn`) verstößt gegen **vier** Regeln dieses Guides: `15px` steht auf
+keiner Skalenstufe · `--radius-sm` ist die Hülle, **alle Bedienelemente** sind `--radius-md` ·
+`--color-link` gehört Links, nicht Knopfglyphen · `padding: 1px 9px` erreicht die Bedienhöhe
+nicht (~19px statt 32). Die aus „Mails" (`.mail-inbox__refresh`) ist nackt und 16px — näher
+dran, aber ohne Trefferfeld.
+
+⚠️ Allein für „n Einträge neben einer Liste" stehen **sechs** Größen im Bestand:
+`--font-size-caption` · `--font-size-small` · `12px` · `13px` · `11,5px` · `11px`.
+Es bleibt `--font-size-caption`.
 
 ### Ein Bauteil, nicht dreizehn Abschriften
 
