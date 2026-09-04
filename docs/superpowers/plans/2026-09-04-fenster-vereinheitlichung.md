@@ -1,7 +1,38 @@
 # Fenster-Vereinheitlichung — die Liste
 
-**Stand 04.09.2026 · noch nichts gebaut.** Entwurf und Mockup: `docs/fensterformen-mockup.html`,
-Regelwerk: `docs/design-language.md` §Fenster.
+**Stand 04.09.2026 abends · 31 von 41 Fenstern umgestellt, D und E erledigt.**
+Entwurf und Mockup: `docs/fensterformen-mockup.html`, Regelwerk: `docs/design-language.md`
+§Fenster. Bauteile: `css/components/fenster.css` + `js/ui/fenster-kopf.js`.
+
+| Abschnitt | Stand |
+|---|---|
+| A · Werkzeugfenster (26) | **live** — dazu Funktionen, Tempowerte, Darstellung, Territoriumseditor |
+| B · Blatt (15) | **live** |
+| C · Unberührt (8) | eingehalten; drei davon am 04.09. versehentlich beschädigt und repariert (`c2eb849ff`) |
+| D · Hintergrundklick | **live** — 16 Fenster statt 7, alle über das eine Bauteil |
+| E · Listenkopf | **live** — „Meldungen" angeglichen, zwei Filter-Kopien zeichengleich |
+| Reiter (T3) | 🔧 offen |
+| Listenzeile `.avm-row` + Bildplatz | 🔧 offen |
+| 6 × `modal-box` (Sync-Seiten) | Werte angeglichen, **Bauform bewusst nicht** — eigener Durchgang |
+| Kartensammlung, Literatur, Postfach, Regel, Übernahme-Vorschau, Reisegeschwindigkeiten | 🔧 offen |
+
+### Was die Prüfagenten gefunden haben, das ich nicht gesehen habe
+
+💣 **Ein Entferner, der seine eigene Regelgrenze nicht kennt, verschmilzt zwei Regeln.** Beim
+Herauslösen von Listengliedern wandert die öffnende Klammer auf die vorige Komma-Zeile — die
+Rückwärtssuche läuft aber über das `}` hinweg in die VORIGE Regel. Zweimal passiert, und beide
+Male traf es Fenster aus Abschnitt C, die gar nicht angefasst werden sollten. **Wache:**
+`js/ui/__tests__/fenster-kopf-versorgt.test.js` — ein Fenster trägt entweder das Bauteil ODER
+eine eigene Kopfregel; „weder noch" ist genau der kaputte Zustand.
+
+💣 **Der Griff war ein Versprechen ohne Mechanik.** Fünf der sieben Editorfenster zeigten Griff
+und Greif-Zeiger und ließen sich nicht bewegen — `dialog-drag.js` erkennt ein Fenster an
+`[role="dialog"]`, und das Attribut fehlte. Beide Hälften waren für sich richtig, die NAHT nicht.
+
+🪤 **Und eine Regression, die kein Test sah:** `changelog-dialog.js` lädt vor dem
+Hintergrundklick-Bauteil. Die neue Zeile warf dort einen ReferenceError, das Modul brach mitten
+drin ab, und sein Escape-Zuhörer — die nächste Zeile — war tot. Gefunden von
+`read_console_messages` auf der laufenden Seite.
 
 Owner-Entscheide: **A3 · B3 · C2 · D1 · T3**, dazu die Nachträge vom 04.09. (durchgehender
 Trenner, Editor-Kacheln, alle Fenster verschiebbar, Scrollen nur im Rumpf, Listen bündig bei
