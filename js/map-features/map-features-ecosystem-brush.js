@@ -47,6 +47,22 @@
 	let brushLastStampPoint = null;
 	let brushDirty = false;
 	let brushSaving = false;
+
+	// 🔴 EIN STRICH IST NICHT MEHR EIN SCHREIBVORGANG (04.09.2026). Bis dahin speicherte jeder Strich
+	// sofort UND lud danach das ganze Sichtfeld neu -- live gemessen 47 KB hoch plus ~470 KB runter und
+	// ~300 ms Serverzeit, je Strich. Am 04.09. lagen 15 Speicherungen desselben Waldes in 30 Sekunden
+	// (rund 7 MB), waehrend der PHP-Pool ohnehin am Anschlag war.
+	//
+	// Jetzt sammelt eine Strichfolge sich und geht als EIN Schreibvorgang hinaus, sobald der Editor
+	// BRUSH_SPEICHER_RUHE_MS lang nicht mehr malt.
+	//
+	// 💣 DER DECKEL IST KEINE FEINHEIT, SONDERN DER DATENSCHUTZ DIESES UMBAUS. Ohne ihn haelt jemand,
+	// der zehn Minuten ohne Pause malt, zehn Minuten Arbeit im Browser -- und verliert sie beim
+	// Schliessen des Tabs. Nach BRUSH_SPEICHER_MAX_MS wird geschrieben, egal ob noch gemalt wird.
+	const BRUSH_SPEICHER_RUHE_MS = 2500;   // Owner 04.09.2026
+	const BRUSH_SPEICHER_MAX_MS = 15000;
+	let brushSpeicherTimer = null;
+	let brushErsteAenderungMs = 0;         // Beginn des aktuellen ungespeicherten Blocks (0 = keiner)
 	let brushCursorLayer = null;
 	let brushResultLayer = null;
 	let brushBound = false;
@@ -259,6 +275,11 @@
 		if (brushSaving) {
 			return false;
 		}
+		// ⚠️ Erst den offenen Block wegschreiben. Sonst nimmt das Zuruecknehmen einen Stand zurueck, der
+		// noch gar nicht draussen ist -- und der wartende Timer schriebe ihn danach wieder hin.
+		if (brushDirty) {
+			await speichereSofort();
+		}
 		const area = areaByPublicId(brushUndoAreaPublicId);
 		if (!area || brushUndoStack.length === 0) {
 			say("Nichts mehr zum Rückgängigmachen.", "info");
@@ -298,9 +319,46 @@
 		}
 	}
 
-	async function finishStroke() {
+	// Ein Strich ist zu Ende -- gespeichert wird deshalb noch nicht.
+	function finishStroke() {
 		brushStrokeActive = false;
 		brushLastStampPoint = null;
+		planeSpeichern();
+	}
+
+	// Plant den Schreibvorgang. Jeder neue Strich schiebt ihn nach hinten -- bis der Deckel greift.
+	function planeSpeichern() {
+		if (!brushDirty) {
+			return;
+		}
+		if (!brushErsteAenderungMs) {
+			brushErsteAenderungMs = Date.now();
+		}
+		if (brushSpeicherTimer !== null) {
+			window.clearTimeout(brushSpeicherTimer);
+			brushSpeicherTimer = null;
+		}
+		// ⚠️ Die Ruhefrist darf den Deckel nicht ueberholen: wer ununterbrochen malt, wuerde sonst nie
+		// gespeichert. Es gilt, was frueher faellig ist.
+		const bisDeckel = Math.max(0, BRUSH_SPEICHER_MAX_MS - (Date.now() - brushErsteAenderungMs));
+		const frist = Math.min(BRUSH_SPEICHER_RUHE_MS, bisDeckel);
+		brushSpeicherTimer = window.setTimeout(() => {
+			brushSpeicherTimer = null;
+			void speichereJetzt();
+		}, frist);
+	}
+
+	// Schreibt sofort, ohne auf die Ruhefrist zu warten. Fuer Werkzeugwechsel, Flaechenwechsel,
+	// Rueckgaengig und das Verlassen der Seite.
+	async function speichereSofort() {
+		if (brushSpeicherTimer !== null) {
+			window.clearTimeout(brushSpeicherTimer);
+			brushSpeicherTimer = null;
+		}
+		await speichereJetzt();
+	}
+
+	async function speichereJetzt() {
 		if (!brushDirty || brushSaving) {
 			return;
 		}
@@ -314,25 +372,48 @@
 			// Ein Strich ist ohnehin EIN Schreibvorgang -- die Klammer trägt hier vor allem die
 			// Beschriftung, damit im „Änderungen"-Fenster „Fläche malen" steht und nicht das allgemeine
 			// „Fläche bearbeitet". Der Editor soll die Geste wiedererkennen, die er gemacht hat.
-			await withEcosystemOperation(brushMode === "eraser" ? "Fläche radieren" : "Fläche malen", async () => {
-				await postEcosystemEdit("update_area_geometry", {
+			const antwort = await withEcosystemOperation(brushMode === "eraser" ? "Fläche radieren" : "Fläche malen", async () => {
+				return await postEcosystemEdit("update_area_geometry", {
 					public_id: String(area.public_id),
 					expected_revision: Number(area.geometry_revision),
 					geometry_geojson: brushWorkingGeometry,
 				});
 			});
 			brushDirty = false;
-			if (typeof loadEcosystemAreas === "function") {
-				await loadEcosystemAreas();
+			brushErsteAenderungMs = 0;
+
+			// 💣 DIE NEUE REVISION KOMMT AUS DER ANTWORT, NICHT AUS EINEM NEULADEN. Das ist die tragende
+			// Zeile dieses Umbaus: der naechste Schreibvorgang schickt `expected_revision`, und laege die
+			// nur im Neuladen, muesste das Neuladen weiter synchron im Wartepfad stehen -- also genau die
+			// ~470 KB, die hier wegfallen sollen. Fehlt sie in der Antwort, wird NICHT geraten: dann
+			// bleibt der alte Wert stehen und der naechste Versuch laeuft in einen ehrlichen 409, statt
+			// mit einer erfundenen Revision fremde Arbeit zu ueberschreiben.
+			const neueRevision = Number(antwort?.area?.geometry_revision);
+			if (Number.isFinite(neueRevision)) {
+				// `area` ist das LEBENDE Objekt aus dem Layer (areaByPublicId gibt `_ecosystemArea`
+				// zurueck) -- die Zuweisung erreicht damit auch den naechsten Aufruf.
+				area.geometry_revision = neueRevision;
+				brushUndoRevision = neueRevision;
 			}
+			const geometrieAusAntwort = antwort?.area?.geometry;
+			if (geometrieAusAntwort) {
+				area.geometry_geojson = geometrieAusAntwort;
+				brushWorkingGeometry = geometrieAusAntwort;
+			}
+
 			if (typeof invalidateEcosystemRegionCache === "function") {
 				invalidateEcosystemRegionCache();
 			}
-			// Nach dem Neuladen ist die Flächenzeile eine andere -- der Strich muss auf dem FRISCHEN Stand
-			// weitergehen, sonst rechnet der nächste gegen eine Revision, die es nicht mehr gibt.
-			const frisch = areaByPublicId(brushAreaPublicId);
-			brushWorkingGeometry = areaGeometry(frisch) || brushWorkingGeometry;
-			brushUndoRevision = Number(frisch?.geometry_revision ?? NaN);
+			// ⚠️ Das Neuladen bleibt -- es holt FREMDE Aenderungen und haelt die Flaechenmenge im
+			// Ausschnitt gerade. Es steht nur nicht mehr im Wartepfad und laeuft entprellt: eine
+			// Strichfolge muendet in EINEN Durchgang statt in einen je Strich.
+			// 🔴 Ohne `immediate` -- genau dafuer hat scheduleEcosystemAreaReload seine Frist, und genau
+			// die umgingen bis heute alle zehn Aufrufer.
+			if (typeof scheduleEcosystemAreaReload === "function") {
+				scheduleEcosystemAreaReload();
+			} else if (typeof loadEcosystemAreas === "function") {
+				void loadEcosystemAreas();
+			}
 		} catch (error) {
 			say(error?.message || "Der Strich konnte nicht gespeichert werden.", "warning");
 			// Verworfen wird NICHTS: der Editor sieht seinen Stand weiter und kann es erneut versuchen.
@@ -535,7 +616,7 @@
 		// Ein noch nicht gespeicherter Strich geht NICHT verloren -- dieselbe Regel wie beim Ecken-Editor:
 		// wer die Maus losgelassen hat, hat gespeichert; wer mitten im Strich abbricht, auch.
 		if (brushDirty) {
-			void finishStroke();
+			void speichereSofort();
 		}
 		brushMode = "";
 		// After brushMode is cleared, so the hold gives the cursor back without re-disabling dragging.
