@@ -1,6 +1,6 @@
 # Fenster-Vereinheitlichung — die Liste
 
-**Stand 04.09.2026 abends · 31 von 41 Fenstern umgestellt, D und E erledigt.**
+**Stand 04.09.2026 spaet · 37 von 41 Fenstern umgestellt; D, E und T3 erledigt.**
 Entwurf und Mockup: `docs/fensterformen-mockup.html`, Regelwerk: `docs/design-language.md`
 §Fenster. Bauteile: `css/components/fenster.css` + `js/ui/fenster-kopf.js`.
 
@@ -11,10 +11,25 @@ Entwurf und Mockup: `docs/fensterformen-mockup.html`, Regelwerk: `docs/design-la
 | C · Unberührt (8) | eingehalten; drei davon am 04.09. versehentlich beschädigt und repariert (`c2eb849ff`) |
 | D · Hintergrundklick | **live** — 16 Fenster statt 7, alle über das eine Bauteil |
 | E · Listenkopf | **live** — „Meldungen" angeglichen, zwei Filter-Kopien zeichengleich |
-| Reiter (T3) | 🔧 offen |
+| Reiter (T3) | **live** — tote Pillen-Rezeptur gefallen, `.dg-tab` auf Unterstrich; der Rest (~50 Regeln, u.a. die Dokument-Reiter der Territorien) ist ein eigener Durchgang |
 | Listenzeile `.avm-row` + Bildplatz | 🔧 offen |
 | 6 × `modal-box` (Sync-Seiten) | Werte angeglichen, **Bauform bewusst nicht** — eigener Durchgang |
-| Kartensammlung, Literatur, Postfach, Regel, Übernahme-Vorschau, Reisegeschwindigkeiten | 🔧 offen |
+| Übernahme-Vorschau · Reisegeschwindigkeiten · Postfach | **begründet NICHT** — anders gebaut, siehe unten |
+| Kartensammlung · Literatur · 2× Vorschlag · Besondere Stätten · Regel bearbeiten | **live** |
+
+### Drei Fenster bleiben — weil sie anders gebaut sind, nicht weil sie vergessen wurden
+
+🔴 **Übernahme-Vorschau** (`sheet__head`): ein DREIZEILIGER Kopf — Titel, Befund, Meta. Das ist
+kein Titel-und-✕-Streifen; das Bauteil darüberzulegen zerlegte die drei Zeilen. Was mit Befund
+und Meta geschehen soll, ist eine Gestaltungsfrage und gehört dem Owner.
+
+🔴 **Reisegeschwindigkeiten** (`tsi-head`): ein Hinweisbanner mit ⓘ, kein Fensterkopf.
+
+🔴 **Postfach**: hat gar keinen `__head` — seine Reiterleiste IST der Kopf.
+
+🔴 **Die sechs `modal-box`-Fenster** der zwei Sync-Seiten haben weder Schließknopf noch
+Rumpf-Container; ihr Inhalt liegt flach im gepolsterten Kasten. Ihre WERTE sind angeglichen und
+per Test gehalten, ihre BAUFORM bleibt — sie aufzuschneiden ist ein eigener Durchgang.
 
 ### Was die Prüfagenten gefunden haben, das ich nicht gesehen habe
 
