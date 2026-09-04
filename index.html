@@ -2096,8 +2096,15 @@
 								<input id="ecosystem-properties-grain" type="range" min="1" max="24" step="0.1" />
 								<input id="ecosystem-properties-grain-num" class="ecosystem-properties-dialog__terrainnum" type="number" min="1" max="24" step="0.1" inputmode="decimal" aria-label="Wert eingeben" />
 							</label>
-							<label class="ecosystem-properties-dialog__terrainrow">
-								<span>Maximalh&ouml;he</span>
+							<!-- 🔴 &bdquo;Kammh&ouml;he (ohne Einzelgipfel)&ldquo; seit dem 04.09.2026 (Owner). Sie hie&szlig;
+							     &bdquo;Maximalh&ouml;he&ldquo;, und das war seit V12 falsch: die Gipfel &uuml;berragen sie, sie ist
+							     nicht das Maximum. Sie ist der SOCKEL des Kamms &mdash; die H&ouml;he, unter die das
+							     R&uuml;ckgrat des Gebirges zwischen zwei Gipfeln nicht f&auml;llt.
+							     💣 Die KENNUNGEN bleiben (`terrain_avg_height`, `-avgheight`) &mdash; dieselbe Trennung
+							     wie bei &bdquo;Neuigkeiten&ldquo;/`changelog`: eine umgetaufte Kennung l&auml;sst eine gecachte
+							     Seite ins Leere greifen, und der Deploy l&ouml;scht nie. -->
+							<label class="ecosystem-properties-dialog__terrainrow" title="Die H&ouml;he des Gebirgsr&uuml;ckens dort, wo kein Gipfel steht. Sie HEBT nur: liegt der Kamm zwischen den Gipfeln ohnehin h&ouml;her, &auml;ndert sie nichts &mdash; erst dar&uuml;ber tritt das R&uuml;ckgrat durchgehend hervor. Ein Gipfel unter diesem Wert beh&auml;lt seine eingetragene H&ouml;he; der Kamm um ihn herum steht dann h&ouml;her als er.">
+								<span>Kammh&ouml;he (ohne Einzelgipfel)</span>
 								<input id="ecosystem-properties-avgheight" type="range" min="0" max="20000" step="50" />
 								<input id="ecosystem-properties-avgheight-num" class="ecosystem-properties-dialog__terrainnum" type="number" min="0" max="20000" step="50" inputmode="decimal" aria-label="Wert eingeben" />
 							</label>
@@ -2150,10 +2157,18 @@
 								<input id="ecosystem-properties-levels" type="range" min="1" max="8" step="1" />
 								<input id="ecosystem-properties-levels-num" class="ecosystem-properties-dialog__terrainnum" type="number" min="1" max="8" step="1" inputmode="decimal" aria-label="Wert eingeben" />
 							</label>
-							<!-- Die zweite Zahl (V8-Fortsetzung): zusammen mit der Maximalh&ouml;he beschreibt sie die
-							     FORM statt nur der Spitze. Ihre Obergrenze folgt dem Regler dar&uuml;ber, deshalb
-							     steht hier kein festes max — das setzt clampTerrainMean() bei jeder &Auml;nderung. -->
-							<label class="ecosystem-properties-dialog__terrainrow" title="Mittlere H&ouml;he der Fl&auml;che. Zusammen mit der Maximalh&ouml;he ergibt sie die Form: dicht darunter ein Hochplateau, weit darunter zerkl&uuml;ftetes Vorland. &Uuml;ber rund zwei Dritteln der Maximalh&ouml;he nimmt das Gel&auml;nde nichts mehr an — eine Fl&auml;che, die zum Rand hin ausl&auml;uft, kann im Mittel nicht n&auml;her an ihre Spitze heran.">
+							<!-- 🔴 DIE ZWEITE ZAHL, UND SIE WIRKT IN V12 NICHT. In der fr&uuml;heren
+							     H&ouml;henfunktion beschrieb sie zusammen mit der Kammh&ouml;he die FORM: das Rauschen
+							     wurde als `Faktor &middot; Rohwert^Potenz` gelesen, und die Potenz wurde so gesucht,
+							     dass der Fl&auml;chenmittelwert hier landet (Potenz &lt; 1 hebt das Mittelfeld an =
+							     Plateau, Potenz &gt; 1 dr&uuml;ckt es weg = zerkl&uuml;ftet).
+							     💣 Der Trichter der lokalen Gebirgssimulation liest sie GAR NICHT &mdash; `reglerFuer`
+							     reicht sie nicht durch. Der Hinweistext sagt das, statt sie still dastehen zu
+							     lassen: ein Regler, dessen Wert nirgends gilt, ist von einem kaputten Formular
+							     nicht zu unterscheiden.
+							     ⚠️ `clampTerrainMean()` bindet ihre Obergrenze weiterhin an die Kammh&ouml;he &mdash; die
+							     Kopplung steht, auch wenn der Wert dahinter derzeit folgenlos ist. -->
+							<label class="ecosystem-properties-dialog__terrainrow" title="Mittlere H&ouml;he der Fl&auml;che. &#9888; Diese Zahl wirkt in der lokalen Gebirgssimulation NICHT &mdash; der Trichter liest sie gar nicht. Sie stammt aus der fr&uuml;heren H&ouml;henfunktion, wo sie zusammen mit der Kammh&ouml;he die Form beschrieb: dicht darunter ein Hochplateau, weit darunter zerkl&uuml;ftetes Vorland.">
 								<span>Durchschnittsh&ouml;he</span>
 								<input id="ecosystem-properties-meanheight" type="range" min="0" max="20000" step="50" />
 								<input id="ecosystem-properties-meanheight-num" class="ecosystem-properties-dialog__terrainnum" type="number" min="0" max="20000" step="50" inputmode="decimal" aria-label="Wert eingeben" />

@@ -149,6 +149,33 @@ pruefe("der Zeichner reicht jeden Regler an den Trichter, und der nimmt ihn an",
 
 /* ── 6. Die Vorgaben stehen an EINER Stelle ───────────────────────────────────────────────── */
 
+pruefe("die Beschriftungen sagen, was der Regler TUT", () => {
+	// 🔴 „Kammhoehe (ohne Einzelgipfel)" seit dem 04.09.2026 (Owner). Sie hiess „Maximalhoehe", und
+	// das war seit V12 falsch: die Gipfel ueberragen sie, sie ist nicht das Maximum -- sie ist der
+	// SOCKEL des Kamms.
+	// 💣 Die KENNUNGEN bleiben (`terrain_avg_height`, `-avgheight`) -- dieselbe Trennung wie bei
+	// „Neuigkeiten"/`changelog`: eine umgetaufte Kennung laesst eine gecachte Seite ins Leere greifen,
+	// und der Deploy loescht nie.
+	assert.ok(markup.includes("<span>Kammh&ouml;he (ohne Einzelgipfel)</span>"),
+		"der Regler heisst nicht „Kammhoehe (ohne Einzelgipfel)\"");
+	assert.ok(markup.includes('id="ecosystem-properties-avgheight"'),
+		"die Kennung `-avgheight` wurde mit umbenannt -- eine gecachte Seite greift dann ins Leere");
+	// ⚠️ Und der Nachbar darf nicht auf einen Namen verweisen, den es nicht mehr gibt.
+	const nachbar = markup.slice(markup.indexOf("Mittlere H&ouml;he der Fl&auml;che"),
+		markup.indexOf("Mittlere H&ouml;he der Fl&auml;che") + 600);
+	assert.ok(!nachbar.includes("Maximalh&ouml;he"),
+		"der Hinweistext der Durchschnittshoehe nennt noch die alte Beschriftung");
+	// 🔴 Und er sagt, dass diese Zahl derzeit NICHT wirkt: `reglerFuer` reicht `terrain_mean_height`
+	// nicht an den Trichter durch. Ein Regler, dessen Wert nirgends gilt, ist von einem kaputten
+	// Formular nicht zu unterscheiden.
+	assert.ok(nachbar.includes("NICHT"),
+		"der Hinweistext verschweigt, dass die Durchschnittshoehe in der Simulation nicht wirkt");
+	assert.ok(!/mean:\s*area\?\.terrain_mean_height/.test(render)
+		&& !render.includes("terrain_mean_height"),
+		"`reglerFuer` reicht `terrain_mean_height` inzwischen doch durch -- dann ist der Hinweistext "
+		+ "falsch geworden und muss mit");
+});
+
 pruefe("terrainDefaults LIEST die Modulkonstanten, statt Zahlen abzuschreiben", () => {
 	// Eine zweite Fassung liesse „(auto)" eine andere Zahl anzeigen als die, mit der gerechnet wird.
 	for (const name of ["ECOSYSTEM_HYDRO_BERGFORM", "ECOSYSTEM_HYDRO_RAUSCHEN",
