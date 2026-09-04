@@ -1241,8 +1241,8 @@
 					Hilf mit, Avesmaps zu erweitern. Alle Meldungen werden gesammelt und geprüft. Bitte melde nur Einträge mit sicherer Quellenlage und beschreibe die Stelle, wenn die Position nicht eindeutig ist.
 				</p>
 				<form id="location-report-form" class="location-report-form avm-fenster__rumpf" novalidate>
-					<div class="report-section">
-					<div class="report-section__title" data-i18n="report.sectionReport">Ich habe folgende Meldung</div>
+					<div class="report-section avm-rahmen">
+					<div class="report-section__head avm-rahmen__kopf"><span class="avm-rahmen__schrift"><span class="report-section__title avm-rahmen__titel" data-i18n="report.sectionReport">Ich habe folgende Meldung</span></span></div>
 					<div class="location-report-form__meta">
 						<div class="location-report-form__meta-item">
 							<span class="location-report-form__meta-label" data-i18n="report.positionLabel">Position</span>
@@ -1299,8 +1299,8 @@
 						<input id="location-report-name" name="name" type="text" maxlength="80" required />
 					</label>
 					</div>
-					<div class="report-section">
-					<div class="report-section__title" data-i18n="report.sectionSources">Ich habe folgende Quellen</div>
+					<div class="report-section avm-rahmen">
+					<div class="report-section__head avm-rahmen__kopf"><span class="avm-rahmen__schrift"><span class="report-section__title avm-rahmen__titel" data-i18n="report.sectionSources">Ich habe folgende Quellen</span></span></div>
 					<div class="location-report-form__field report-sources">
 						<span id="location-report-sources-label" data-i18n="report.sourcesLabel">Quellen * — Link zur Seite, in der es steht (Wiki-Artikel, F-Shop, Fanwiki)</span>
 						<div id="location-report-sources-list" class="report-sources__list"></div>
@@ -1326,8 +1326,8 @@
 						</div>
 					</div>
 					</div>
-					<div class="report-section">
-					<div class="report-section__title" data-i18n="report.sectionMore">Weiteres</div>
+					<div class="report-section avm-rahmen">
+					<div class="report-section__head avm-rahmen__kopf"><span class="avm-rahmen__schrift"><span class="report-section__title avm-rahmen__titel" data-i18n="report.sectionMore">Weiteres</span></span></div>
 					<label class="location-report-form__field">
 						<span data-i18n="report.reporterNameLabel">Dein Name/Pseudonym (optional)</span>
 						<input id="location-report-reporter-name" name="reporter_name" type="text" maxlength="80" autocomplete="nickname" />

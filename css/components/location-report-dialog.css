@@ -74,22 +74,40 @@
 
 /* Frameboxes (Owner): die Abschnitte "Ich habe folgende Meldung" / "… Quellen" / "Weiteres" als bewusste
    Kachel-Ausnahme (wie die Nested-Rahmen im Abenteuer-Dialog), warm getoent + Gold-Titel. */
+/* 🔴 Der Rahmen gehoert seit dem 04.09.2026 dem geteilten Bauteil `.avm-rahmen`
+   (css/components/rahmenkasten.css). Rahmen, Radius, Polster und die Aufschrift stehen DORT;
+   hier bleibt nur, was diesem Kasten wirklich gehoert.
+   💣 DIE EIGENE FUELLUNG IST GEFALLEN, und sie MUSSTE fallen: die Aufschrift sitzt auf der
+   Rahmenlinie, also oben ausserhalb und unten innerhalb des Kastens. Mit eigener Fuellung
+   liegen dort ZWEI Farben, und die eine Farbe, mit der sie die Linie maskiert, kann nicht
+   beide sein.
+   🔴 Darum die Stellschraube: hinter dem Kasten liegt der Rumpf des Fensters, und der ist
+   `--color-panel` -- nicht der Vorgabewert `--color-panel-soft` des Bauteils. Live gemessen
+   (dunkel): Abschnitt rgb(55,52,43) = panel-soft, Fenster rgb(49,46,38) = panel. Wer die
+   Zeile entfernt, bekommt einen hellen Streifen quer durch die Rahmenlinie. */
 .report-section {
 	display: flex;
 	flex-direction: column;
 	gap: var(--space-6);
-	padding: var(--space-6) var(--space-10) var(--space-10);
-	border: 1px solid var(--color-border);
-	border-radius: var(--radius-lg);
-	background: var(--color-panel-soft);
 }
-.report-section__title {
-	font-size: var(--font-size-caption);
-	font-weight: var(--font-weight-bold);
-	letter-spacing: 0.03em;
-	text-transform: uppercase;
-	color: var(--color-accent-strong);
+/* 💣 UND DIE STELLSCHRAUBE STEHT AUF (0,2,0), NICHT AUF (0,1,0). Das Bauteil setzt ihren
+   Vorgabewert an `.avm-rahmen`, dieser Kasten seinen an `.report-section` -- dasselbe Element,
+   dieselbe Spezifitaet, und dann entscheidet allein, welches Blatt spaeter laedt. Heute laedt
+   styles.css (Zeile 112) nach rahmenkasten.css (Zeile 109) und es geht gut; das ist kein
+   Vertrag, sondern ein Zufall, den ein Umsortieren der <link>-Zeilen lautlos kippt -- sichtbar
+   waere es als heller Streifen quer durch die Rahmenlinie. Die doppelte Klasse macht es
+   unabhaengig von der Reihenfolge. */
+.report-section.avm-rahmen {
+	--avm-rahmen-grund: var(--color-panel);
 }
+/* 💣 Der Unterrand des Kopfes KAEME ZUM `gap` DAZU (6 + 8 = 14px statt 8). Das `gap` gewinnt,
+   weil es auch zwischen allen uebrigen Feldern gilt -- zwei Abstaende uebereinander waeren
+   genau die Sorte Wert, die man einzeln nie bemerkt. */
+.report-section > .avm-rahmen__kopf {
+	margin-bottom: 0;
+}
+/* Der NAME bleibt (i18n-Haken, Tests, drei Vorkommen im Markup); seine Werte kommen aus
+   `.avm-rahmen__titel` -- sie waren hier schon zeichengleich, nur der Kasten drumherum nicht. */
 /* Zwei zusammengehoerende Felder nebeneinander (Art des Eintrags + Ortsgroesse). */
 .report-section__cols {
 	display: grid;

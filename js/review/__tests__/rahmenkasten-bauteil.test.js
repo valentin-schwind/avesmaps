@@ -117,4 +117,30 @@ const ohneKommentare = (css) => css.replace(/\/\*[\s\S]*?\*\//g, "");
 		"diese Seiten laden das Quellen-Blatt ohne den Rahmenkasten: " + fehlt.join(", "));
 }
 
-console.log("OK -- der Rahmenkasten haengt dran, die Kopplung ist benannt, keine zweite Rezeptur.");
+// ---- 5. Das Meldeformular: drei Abschnitte, EIN Bauteil -------------------------------------
+{
+	const html = lies("index.html");
+	const huellen = html.match(/class="report-section avm-rahmen"/g) || [];
+	assert.strictEqual(huellen.length, 3, "alle drei Abschnitte tragen das Bauteil");
+	const laeufe = html.match(/class="report-section__head avm-rahmen__kopf"><span class="avm-rahmen__schrift">/g) || [];
+	assert.strictEqual(laeufe.length, 3, "und jeder seinen inline-Lauf");
+	assert.ok(!/<div class="report-section__title"/.test(html),
+		"kein Titel mehr ausserhalb des Laufs -- dort traegt ihn der Grund nicht");
+}
+
+// ---- 6. Die Stellschraube des Wirts darf NICHT an der Ladereihenfolge haengen ----------------
+// 💣 Bauteil und Wirt setzen dieselbe Variable am DEMSELBEN Element. Auf gleicher Spezifitaet
+//    entscheidet allein, welches Blatt spaeter laedt -- heute geht es gut, und ein Umsortieren
+//    der <link>-Zeilen kippt es lautlos (sichtbar als heller Streifen quer durch die Linie).
+{
+	const css = ohneKommentare(lies("css/components/location-report-dialog.css"));
+	const treffer = css.match(/([^{}]*)\{[^}]*--avm-rahmen-grund[^}]*\}/);
+	assert.ok(treffer, "der Meldedialog setzt --avm-rahmen-grund");
+	const sel = treffer[1].trim();
+	assert.ok(/\.report-section\.avm-rahmen/.test(sel),
+		"und zwar auf (0,2,0) statt (0,1,0), damit die Ladereihenfolge nichts entscheidet: " + sel);
+	assert.ok(/--avm-rahmen-grund:\s*var\(--color-panel\)/.test(treffer[0]),
+		"mit dem Grund des Fensterrumpfs -- live gemessen, hell wie dunkel zeichengleich");
+}
+
+console.log("OK -- der Rahmenkasten haengt dran, die Kopplungen sind benannt, keine zweite Rezeptur.");
