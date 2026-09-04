@@ -298,8 +298,12 @@
 			+ '</div></form></div>';
 		document.body.appendChild(overlay);
 
+		// 🔴 ZWEI Dinge in einem Handler, jetzt getrennt. Der Hintergrundklick geht ans geteilte
+		//    Bauteil: es prueft DRUCK UND LOSLASSEN, und DIESES Fenster ist ein Formular -- wer
+		//    darin markiert und dabei ueber den Rand hinauszieht, verliert seinen Vorschlag.
+		avesmapsDialogHintergrundSchliessen(overlay, function () { close(overlay); });
 		overlay.addEventListener("click", function (e) {
-			if (e.target === overlay || (e.target.closest && e.target.closest("[data-citymap-suggest-close]"))) {
+			if (e.target.closest && e.target.closest("[data-citymap-suggest-close]")) {
 				close(overlay);
 			}
 		});
@@ -626,16 +630,13 @@
 			+ '</div></form></div>';
 		document.body.appendChild(overlay);
 
+		// 🔴 ZWEI Dinge in einem Handler, jetzt getrennt. Der Hintergrundklick geht ans geteilte
+		//    Bauteil: es prueft DRUCK UND LOSLASSEN, und DIESES Fenster ist ein Formular -- wer
+		//    darin markiert und dabei ueber den Rand hinauszieht, verliert seinen Vorschlag.
+		avesmapsDialogHintergrundSchliessen(overlay, function () { close(overlay); });
 		overlay.addEventListener("click", function (e) {
-			if (e.target === overlay || (e.target.closest && e.target.closest("[data-fundort-close]"))) {
+			if (e.target.closest && e.target.closest("[data-fundort-close]")) {
 				close(overlay);
-				return;
-			}
-			if (e.target.closest && e.target.closest("[data-fundort-add]")) {
-				var rows = overlay.querySelector("[data-fundort-rows]");
-				if (rows) {
-					rows.insertAdjacentHTML("beforeend", fundortRowMarkup());
-				}
 			}
 		});
 		document.addEventListener("keydown", function (e) {

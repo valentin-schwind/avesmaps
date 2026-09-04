@@ -692,13 +692,12 @@ function avesmapsLoreRuleEnsureEditorOverlay() {
 		+ '<div class="lore-rule-dialog__body" data-lore-rule-body></div>'
 		+ "</div>";
 
-	// Klick auf den Schleier (nicht auf den Kasten) schliesst -- dieselbe Geste wie bei den
-	// uebrigen Overlays im Haus (z.B. openAvesmapsSettlementEditorOverlay).
+	// 🔴 ZWEI Dinge in einem Handler, jetzt getrennt: der Hintergrundklick geht ans geteilte
+	//    Bauteil (es prueft DRUCK UND LOSLASSEN -- wer im Formular markiert und dabei ueber den
+	//    Rand zieht, verliert seine Regel sonst), die Delegation der uebrigen Klicks bleibt hier.
+	avesmapsDialogHintergrundSchliessen(overlay, avesmapsLoreRuleCloseEditor);
 	overlay.addEventListener("click", function (event) {
-		if (event.target === overlay) {
-			avesmapsLoreRuleCloseEditor();
-			return;
-		}
+		if (event.target === overlay) { return; }
 		avesmapsLoreRuleHandleEditorClick(event);
 	});
 	overlay.addEventListener("change", avesmapsLoreRuleHandleEditorChange);

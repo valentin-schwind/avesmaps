@@ -40,15 +40,18 @@
 		overlay = document.createElement("div");
 		overlay.id = "avesmaps-adv-tree-dialog";
 		overlay.className = "avesmaps-adv-dialog avesmaps-adv-tree-dialog";
-		overlay.innerHTML = '<div class="avesmaps-adv-dialog__box avm-fenster avm-fenster--blatt" role="dialog" aria-modal="true">'
+		overlay.innerHTML = '<div class="avesmaps-adv-dialog__box avm-fenster avm-fenster--werkzeug" role="dialog" aria-modal="true">'
 			+ '<div class="avesmaps-adv-dialog__head avm-fenster__kopf"><span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span><span class="avesmaps-adv-dialog__title avm-fenster__titel"></span>'
-			+ '<button type="button" class="avesmaps-adv-dialog__close avm-fenster__knopf avm-fenster__knopf--nackt" aria-label="' + esc(tr("gameLiterature.closeAria", "Schließen")) + '">✕</button></div>'
+			+ '<button type="button" class="avesmaps-adv-dialog__close avm-fenster__knopf avm-fenster__knopf--gefasst" aria-label="' + esc(tr("gameLiterature.closeAria", "Schließen")) + '">✕</button></div>'
 			+ '<div class="avesmaps-adv-tree-dialog__controls"></div>'
 			+ '<div class="avesmaps-adv-tree-dialog__body avesmaps-adv-tree-dialog__tree"></div>'
 			+ '<div class="avesmaps-adv-dialog__credit"></div></div>';
 		document.body.appendChild(overlay);
 		var close = function () { overlay.classList.remove("is-open"); };
-		overlay.addEventListener("click", function (e) { if (e.target === overlay) { close(); } });
+		// 🔴 Das geteilte Bauteil statt der Abschrift: es prueft DRUCK UND LOSLASSEN. Ein blosses
+		// `e.target === overlay` schliesst auch dann, wenn jemand IM Fenster markiert und dabei
+		// ueber den Rand hinauszieht -- `click` feuert am gemeinsamen VORFAHREN, und der IST die Huelle.
+		avesmapsDialogHintergrundSchliessen(overlay, close);
 		var closeBtn = overlay.querySelector(".avesmaps-adv-dialog__close");
 		if (closeBtn) {
 			closeBtn.addEventListener("click", close);

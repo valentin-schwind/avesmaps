@@ -38,18 +38,19 @@
 	backdrop-filter: blur(3px);
 }
 
+/* 🔴 Rand, Radius, Grund, Schatten, Flex-Richtung und overflow gehoeren dem Bauteil
+   (css/components/fenster.css). Sie standen hier DANEBEN -- `display: grid` gegen `display: flex`,
+   beide mit Spezifitaet (0,1,0) auf demselben Element, und das Bauteil gewann nur, weil sein
+   @import in styles.css spaeter steht (Zeile 39 gegen 31).
+   💣 Genau diese Falle wurde am 04.09.2026 beim Territoriumseditor als Fehler erkannt und
+      behoben -- hier stand sie unveraendert weiter, fuer VIER Fenster (Orte, Landschaften, Wege,
+      Kraftlinien bearbeiten). Gefunden von einem Pruefagenten, der gezielt nach demselben Muster
+      gesucht hat. Eine Regel, die nur ueber die Ladereihenfolge gilt, ist keine Regel.
+   ⚠️ Was BLEIBT, ist das Mass der Editoren und ihre lokale Kante. */
 .avm-editor-dialog {
-	display: grid;
-	grid-template-rows: auto minmax(0, 1fr);
-	/* Die eine Stelle, an der die Editorgröße steht. */
+	/* Die eine Stelle, an der die Editorgroesse steht. */
 	width: var(--avm-editor-w);
 	height: var(--avm-editor-h);
-	overflow: hidden;
-	border: 1px solid var(--color-border-strong);
-	/* Spec §4.2: Hülle --radius-sm, Bedienelemente --radius-md. Vorher --radius-lg. */
-	border-radius: var(--radius-sm);
-	background: var(--color-panel);
-	box-shadow: var(--shadow-dialog);
 	/* 🔴 DIE KANTE, LOKAL -- wie bei den anderen umgestellten Fenstern. --avm-col-pad steht
 	   global noch auf 12 (tokens.css sagt warum: neun Fenster lesen ihn). Faellt, sobald der
 	   globale Wert nachzieht. */

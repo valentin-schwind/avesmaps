@@ -402,6 +402,42 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
    #ecosystem-intro-overlay, #ecosystem-transfer-overlay, #ecosystem-assign-overlay,
    #ecosystem-properties-overlay and #label-assign-overlay are entered into the three selector lists in
    css/components/dialog-overlays.css, so they inherit the shared scrim and stacking. */
+/* 💣 DAS MASS DER VIER UMGESTELLTEN BLAETTER. Sie standen bis zum 04.09.2026 in der Liste
+   darunter und haben beim Herausloesen Breite, Deckelung, Scroll-Netz und Polster verloren --
+   das Bauteil liefert davon nichts, denn Polster ist Sache der ZONE (`padding: 0` an der Huelle
+   ist die tragende Regel, die jeden Trenner ohne negative Aussenraender randlos macht).
+   Gemessen war der Schaden sichtbar: 200/204/196px statt 420, Inhalt an der Kante.
+   ⚠️ Gefunden von einem Pruefagenten beim LESEN, nicht von einem Test -- kein Test kennt die
+      Breite eines Fensters, und im Editor faellt ein schmaler Dialog nicht sofort auf. */
+.ecosystem-intro-dialog,
+.ecosystem-transfer-dialog,
+.ecosystem-assign-dialog,
+.label-assign-dialog {
+	width: min(420px, 100%);
+	max-height: 100%;
+}
+
+/* Der Inhalt IST der Rumpf: er traegt das Polster und scrollt, waehrend Kopf und Fussleiste
+   stehen. Die Klassen heissen hier anders und koennen `avm-fenster__rumpf` nicht tragen, ohne
+   dass jede der vier Markup-Stellen angefasst wird -- deshalb dieselben Werte unter ihrem
+   eigenen Namen, und zwar AUS DEM TOKEN, das auch der Rumpf liest. */
+.ecosystem-intro-dialog__body,
+.ecosystem-transfer-dialog__form,
+.ecosystem-assign-dialog__form,
+.label-assign-dialog__form {
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow-y: auto;
+	padding: var(--space-16);
+}
+
+/* Die Knopfleiste des Intro-Blattes steht, sie scrollt nicht mit. */
+.ecosystem-intro-dialog__actions {
+	flex: 0 0 auto;
+	padding: var(--avm-kopf-pad);
+	border-top: 1px solid var(--color-divider);
+}
+
 .ecosystem-region-dialog,
 .ecosystem-properties-dialog,
 .ecosystem-import-dialog {

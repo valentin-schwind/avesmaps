@@ -162,6 +162,10 @@
 }
 /* 🔴 T3 (Owner 04.09.2026): ein Reiter IM Fenster traegt den Unterstrich, nicht die Fuellung.
    Zeichengleich zu .avm-tab (css/components/editor-body.css) -- diese Seite laedt es ueber
+   💣 UND ZEICHENGLEICH HEISST AUCH DER UNTERSTRICH. Hier stand zuerst --color-accent statt
+      --color-text-strong -- im Hellen faellt das nicht auf (RGB-Abstand zum ruhigen Reiter 102,8
+      gegen 86,6, also sogar mehr), im DUNKELN bricht es ein: 55,4 statt 125,1, Kontrast 1,18:1
+      statt 2,06:1. Der Kommentar behauptete „zeichengleich", und genau das war es nicht.
    editor-page.css, aber die Reiter heissen hier anders und koennen die Klasse nicht tragen.
    ⚠️ Der Umschalter der Kartenebene (.ecosystem-layer-switch__tab) bleibt GEFUELLT: der steht
       frei auf der Karte, und genau dafuer sieht T3 die zweite Form vor. */
@@ -189,7 +193,7 @@
 	background: none;
 	color: var(--color-text-strong);
 	font-weight: var(--font-weight-bold);
-	border-bottom-color: var(--color-accent);
+	border-bottom-color: var(--color-text-strong);
 }
 
 .dg__section { margin-bottom: var(--space-24); }
