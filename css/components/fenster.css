@@ -123,6 +123,23 @@
 	font-size: var(--font-size-subhead);
 }
 
+/* Ein Bedienelement IN der Kopfleiste -- heute das Suchfeld des Konflikte-Fensters.
+   🔴 Es haelt die BEDIENHOEHE und zieht die Leiste damit nicht auf: die Bandhoehe ist Polster
+      plus Inhalt, und ein Feld, das hoeher waere als --avm-control-h, machte den Kopf dieses
+      einen Fensters hoeher als den aller anderen. */
+.avm-fenster__kopffeld {
+	flex: 0 1 auto;
+	min-width: 0;
+	min-height: var(--avm-control-h);
+	padding: 0 var(--space-8);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-panel);
+	color: var(--color-text);
+	font: inherit;
+	font-size: var(--font-size-small);
+}
+
 .avm-fenster__rumpf {
 	flex: 1 1 auto;
 	min-height: 0;

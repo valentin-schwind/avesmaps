@@ -334,13 +334,26 @@
 .avm-fenster__fussknopf--voll:hover { background: var(--color-button-hover); }
 
 /* Ein Bedienelement IN der Kopfleiste haelt die Bandhoehe. */
-.avm-fenster__kopffeld, .avm-fenster__feld {
+.avm-fenster__kopffeld {
+	flex: 0 1 auto;
+	min-width: 0;
+	min-height: var(--avm-control-h);
+	padding: 0 var(--space-8);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-panel);
+	color: var(--color-text);
+	font: inherit;
+	font-size: var(--font-size-small);
+}
+/* Nur fuers Mockup -- ein Formularfeld im Rumpf, damit die Blaetter etwas zu zeigen haben. */
+.avm-fenster__feld {
+	display: block; width: 100%;
 	min-height: var(--avm-control-h); padding: 0 var(--space-8);
 	border: 1px solid var(--color-border); border-radius: var(--radius-md);
 	background: var(--color-panel); color: var(--color-text); font: inherit;
+	font-size: var(--font-size-reading);
 }
-.avm-fenster__kopffeld { flex: 0 1 auto; min-width: 0; width: 200px; font-size: var(--font-size-small); }
-.avm-fenster__feld { display: block; width: 100%; font-size: var(--font-size-reading); }
 
 /* Inhalt -- Listenzeile und Feldzeile in den Hausmassen. */
 .avm-fenster__zeile { display: flex; align-items: baseline; gap: var(--space-6);

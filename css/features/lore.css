@@ -174,6 +174,12 @@ details.avesmaps-lore__gruppe[open] > .avesmaps-lore__gruppe-kopf::after {
    ueber die Variable aus css/components/editor-shell.css -- abschreiben waere die fuenfte
    Kopie derselben zwei Zahlen. Nur ueber die ID, damit das Konfliktzentrum, das dieselbe
    Klasse traegt, seine Groesse behaelt. */
+/* 🔴 KOPFLEISTE, SCHLIESSKNOPF UND BILDLAUFLEISTE GEHOEREN DEM BAUTEIL
+      (css/components/fenster.css). Hier standen dafuer FUENF ID-gescopte Abschriften -- und die
+      Bildlaufleiste war eine davon: sie existierte NUR, weil dieses Fenster in index.html lebt
+      und base.css es sonst auf 7px zieht. Am Fenster gebunden faellt dieser Grund weg.
+   ⚠️ Was bleibt, steht unten: Groesse, Grund und der aufgehobene Radius -- das ist die
+      Eigenart dieses Fensters, alles andere die Form des Hauses. */
 #wiki-sync-lore-dialog {
 	width: var(--avm-editor-w);
 	max-width: none;
@@ -189,54 +195,6 @@ details.avesmaps-lore__gruppe[open] > .avesmaps-lore__gruppe-kopf::after {
 	padding: 0;
 	border-radius: var(--radius-sm);
 	overflow: hidden;
-}
-/* 💣 Nur ueber die ID. .location-report-dialog__header und __close gehoeren ALLEN Dialogen
-   (Ortsmeldung, Konfliktzentrum, WikiSync-Fall ...) -- global geaendert wanderte diese
-   Titelleiste durch das halbe Produkt. Vorbild ist .avm-editor-dialog__header aus
-   css/components/editor-shell.css, das der Siedlungseditor traegt. */
-#wiki-sync-lore-dialog > .location-report-dialog__header {
-	align-items: center;
-	margin: 0;
-	padding: var(--space-8) var(--space-12);
-	border-bottom: 1px solid var(--color-border);
-	background: var(--color-panel);
-}
-#wiki-sync-lore-dialog > .location-report-dialog__header .location-report-dialog__close {
-	width: 32px;
-	height: 32px;
-	border: 1px solid var(--color-button-soft-border);
-	background: var(--color-button-soft);
-	color: var(--color-button-soft-text);
-	font-size: var(--font-size-body);
-	font-weight: var(--font-weight-bold);
-}
-#wiki-sync-lore-dialog > .location-report-dialog__header .location-report-dialog__close:hover {
-	background: var(--color-button-soft-hover);
-	color: var(--color-button-soft-text);
-}
-/* Bildlaufleisten wie in den Editorseiten (10px, runder Daumen, 2px Rand in Spurfarbe) statt
-   der 7px der App. 💣 Bewusst NICHT „auf die App-Tokens angleichen": die Editoren sind
-   Arbeitsflaechen mit vielen Scrollbereichen und stehen seit 2026-07-22 gemeinsam auf 10px
-   (css/components/editor-page.css) -- ein Angleichen nach unten zoege drei Editoren mit.
-   `*` statt :root, weil die WebKit-Pseudoelemente nicht vererben. */
-#wiki-sync-lore-dialog * {
-	scrollbar-width: thin;
-	scrollbar-color: var(--color-scrollbar-thumb) var(--color-scrollbar-track);
-}
-#wiki-sync-lore-dialog *::-webkit-scrollbar {
-	width: 10px;
-	height: 10px;
-}
-#wiki-sync-lore-dialog *::-webkit-scrollbar-track {
-	background: var(--color-scrollbar-track);
-}
-#wiki-sync-lore-dialog *::-webkit-scrollbar-thumb {
-	background: var(--color-scrollbar-thumb);
-	border: 2px solid var(--color-scrollbar-track);
-	border-radius: 999px;
-}
-#wiki-sync-lore-dialog *::-webkit-scrollbar-thumb:hover {
-	background: var(--color-scrollbar-thumb-hover);
 }
 
 /* ---- Fenster „Natur & Waren" ----

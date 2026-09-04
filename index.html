@@ -1226,7 +1226,7 @@
 				<div class="location-report-dialog__header avm-fenster__kopf">
 					<span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>
 					<h2 class="avm-fenster__titel" id="location-report-title" data-i18n="report.title">Karteneintrag melden</h2>
-					<button id="location-report-close" class="location-report-dialog__close avm-fenster__knopf avm-fenster__knopf--nackt" type="button" aria-label="Meldung schließen" data-i18n-aria-label="report.closeAria">×</button>
+					<button id="location-report-close" class="avm-fenster__knopf avm-fenster__knopf--nackt" type="button" aria-label="Meldung schließen" data-i18n-aria-label="report.closeAria">×</button>
 				</div>
 				<p class="location-report-dialog__intro" data-i18n="report.intro">
 					Hilf mit, Avesmaps zu erweitern. Alle Meldungen werden gesammelt und geprüft. Bitte melde nur Einträge mit sicherer Quellenlage und beschreibe die Stelle, wenn die Position nicht eindeutig ist.
@@ -1358,7 +1358,7 @@
 				<div class="location-report-dialog__header avm-fenster__kopf">
 					<span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>
 					<h2 class="avm-fenster__titel" id="location-edit-title">Ort bearbeiten</h2>
-					<button id="location-edit-close" class="location-report-dialog__close avm-fenster__knopf avm-fenster__knopf--nackt" type="button" aria-label="Ortsbearbeitung schließen">×</button>
+					<button id="location-edit-close" class="avm-fenster__knopf avm-fenster__knopf--nackt" type="button" aria-label="Ortsbearbeitung schließen">×</button>
 				</div>
 				<form id="location-edit-form" class="location-report-form avm-fenster__rumpf" novalidate>
 					<input id="location-edit-public-id" name="public_id" type="hidden" />
@@ -1536,10 +1536,11 @@
 		     Panel-Inhalt beim ersten Oeffnen herein -- verschoben, nicht kopiert, damit jede
 		     id eindeutig bleibt und die Bindung an #wiki-sync-sync-lore weiter greift. -->
 		<div id="wiki-sync-lore-overlay" hidden>
-			<div id="wiki-sync-lore-dialog" class="location-report-dialog wiki-sync-conflicts-dialog" role="dialog" aria-modal="true" aria-labelledby="wiki-sync-lore-title" tabindex="-1">
-				<div class="location-report-dialog__header">
-					<h2 id="wiki-sync-lore-title">Vorkommen bearbeiten</h2>
-					<button id="wiki-sync-lore-close" class="location-report-dialog__close" type="button" aria-label="Vorkommen schließen">×</button>
+			<div id="wiki-sync-lore-dialog" class="location-report-dialog wiki-sync-conflicts-dialog avm-fenster avm-fenster--werkzeug" role="dialog" aria-modal="true" aria-labelledby="wiki-sync-lore-title" tabindex="-1">
+				<div class="location-report-dialog__header avm-fenster__kopf">
+					<span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>
+					<h2 class="avm-fenster__titel" id="wiki-sync-lore-title">Vorkommen bearbeiten</h2>
+					<button id="wiki-sync-lore-close" class="avm-fenster__knopf avm-fenster__knopf--gefasst" type="button" aria-label="Vorkommen schließen">×</button>
 				</div>
 				<div class="wiki-sync-conflicts-dialog__body" id="wiki-sync-lore-dialog-body">
 					<!-- Menueband wie in Abenteuer- und Karteneditor: NUR die Sync-Kachel traegt ein Icon,
@@ -1635,12 +1636,13 @@
 		</div>
 
 		<div id="wiki-sync-conflicts-overlay" hidden>
-			<div id="wiki-sync-conflicts-dialog" class="location-report-dialog wiki-sync-conflicts-dialog" role="dialog" aria-modal="true" aria-labelledby="wiki-sync-conflicts-title" tabindex="-1">
-				<div class="location-report-dialog__header">
-					<h2 id="wiki-sync-conflicts-title">Konflikte</h2>
-					<input id="conflict-search" class="conflict-search" type="search" placeholder="Fallnummer oder Name …" aria-label="Konflikte durchsuchen" />
-					<button id="conflict-minimize" class="location-report-dialog__close conflict-minimize" type="button" aria-label="Fenster verkleinern" title="Verkleinert das Fenster, damit die Karte dahinter sichtbar und bedienbar wird.">−</button>
-					<button id="wiki-sync-conflicts-close" class="location-report-dialog__close" type="button" aria-label="Konflikte schließen">×</button>
+			<div id="wiki-sync-conflicts-dialog" class="location-report-dialog wiki-sync-conflicts-dialog avm-fenster avm-fenster--werkzeug" role="dialog" aria-modal="true" aria-labelledby="wiki-sync-conflicts-title" tabindex="-1">
+				<div class="location-report-dialog__header avm-fenster__kopf">
+					<span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>
+					<h2 class="avm-fenster__titel" id="wiki-sync-conflicts-title">Konflikte</h2>
+					<input id="conflict-search" class="conflict-search avm-fenster__kopffeld" type="search" placeholder="Fallnummer oder Name …" aria-label="Konflikte durchsuchen" />
+					<button id="conflict-minimize" class="conflict-minimize avm-fenster__knopf avm-fenster__knopf--gefasst" type="button" aria-label="Fenster verkleinern" title="Verkleinert das Fenster, damit die Karte dahinter sichtbar und bedienbar wird.">−</button>
+					<button id="wiki-sync-conflicts-close" class="avm-fenster__knopf avm-fenster__knopf--gefasst" type="button" aria-label="Konflikte schließen">×</button>
 				</div>
 				<div class="wiki-sync-conflicts-dialog__body">
 					<div id="conflict-rail" class="conflict-rail"></div>
@@ -1670,7 +1672,7 @@
 					<!-- Fusszeile: der Durchlauf-Knopf sitzt hier statt in der Kopfzeile, damit oben nur noch
 					     Verkleinern und Schliessen stehen (Editor-Wunsch 2026-07-21). Rechts die Zusammenfassung,
 					     damit man beim Abarbeiten sieht, wieviel noch liegt, ohne nach links zu schauen. -->
-					<div class="conflict-foot">
+					<div class="conflict-foot avm-fenster__fuss">
 						<button id="conflict-rescan" class="wiki-sync-panel__start conflict-rescan" type="button" title="Durchsucht den aktuellen Datenbestand erneut nach Konflikten.">Neu prüfen</button>
 						<span id="conflict-foot-summary" class="conflict-foot__summary"></span>
 					</div>
@@ -1681,7 +1683,7 @@
 				<div class="location-report-dialog__header avm-fenster__kopf">
 					<span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>
 					<h2 class="avm-fenster__titel" id="wiki-sync-resolve-title">WikiSync-Fall lösen</h2>
-					<button id="wiki-sync-resolve-close" class="location-report-dialog__close avm-fenster__knopf avm-fenster__knopf--nackt" type="button" aria-label="WikiSync-Fall schließen">×</button>
+					<button id="wiki-sync-resolve-close" class="avm-fenster__knopf avm-fenster__knopf--nackt" type="button" aria-label="WikiSync-Fall schließen">×</button>
 				</div>
 				<form id="wiki-sync-resolve-form" class="location-report-form avm-fenster__rumpf" novalidate>
 					<input id="wiki-sync-resolve-case-id" name="case_id" type="hidden" />
@@ -1755,7 +1757,7 @@
 				<div class="location-report-dialog__header avm-fenster__kopf">
 					<span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>
 					<h2 class="avm-fenster__titel" id="wiki-sync-dump-credentials-title">Dump-Zugangsdaten</h2>
-					<button id="wiki-sync-dump-credentials-close" class="location-report-dialog__close avm-fenster__knopf avm-fenster__knopf--nackt" type="button" aria-label="Dialog schließen">×</button>
+					<button id="wiki-sync-dump-credentials-close" class="avm-fenster__knopf avm-fenster__knopf--nackt" type="button" aria-label="Dialog schließen">×</button>
 				</div>
 				<form id="wiki-sync-dump-credentials-form" class="location-report-form avm-fenster__rumpf" novalidate>
 					<p class="location-report-form__meta">Der Wiki-Server hat die gespeicherten Zugangsdaten abgelehnt (HTTP 401). Bitte gültige Zugangsdaten eingeben; das zuletzt funktionierende Paar wird serverseitig gespeichert.</p>
@@ -1780,7 +1782,7 @@
 				<div class="location-report-dialog__header avm-fenster__kopf">
 					<span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>
 					<h2 class="avm-fenster__titel" id="path-edit-title">Weg bearbeiten</h2>
-					<button id="path-edit-close" class="location-report-dialog__close avm-fenster__knopf avm-fenster__knopf--nackt" type="button" aria-label="Wegbearbeitung schließen">×</button>
+					<button id="path-edit-close" class="avm-fenster__knopf avm-fenster__knopf--nackt" type="button" aria-label="Wegbearbeitung schließen">×</button>
 				</div>
 				<form id="path-edit-form" class="location-report-form avm-fenster__rumpf" novalidate>
 					<input id="path-edit-public-id" name="public_id" type="hidden" /><div class="label-edit-section">
@@ -1871,7 +1873,7 @@
 				<div class="location-report-dialog__header avm-fenster__kopf">
 					<span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>
 					<h2 class="avm-fenster__titel" id="powerline-edit-title">Kraftlinie bearbeiten</h2>
-					<button id="powerline-edit-close" class="location-report-dialog__close avm-fenster__knopf avm-fenster__knopf--nackt" type="button" aria-label="Kraftlinienbearbeitung schließen">×</button>
+					<button id="powerline-edit-close" class="avm-fenster__knopf avm-fenster__knopf--nackt" type="button" aria-label="Kraftlinienbearbeitung schließen">×</button>
 				</div>
 				<form id="powerline-edit-form" class="location-report-form avm-fenster__rumpf" novalidate>
 					<input id="powerline-edit-public-id" name="public_id" type="hidden" />
@@ -1921,7 +1923,7 @@
 				<div class="location-report-dialog__header avm-fenster__kopf">
 					<span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>
 					<h2 class="avm-fenster__titel" id="label-edit-title">Region bearbeiten</h2>
-					<button id="landschaft-dialog-close" class="location-report-dialog__close avm-fenster__knopf avm-fenster__knopf--nackt" type="button" aria-label="Fenster schließen">×</button>
+					<button id="landschaft-dialog-close" class="avm-fenster__knopf avm-fenster__knopf--nackt" type="button" aria-label="Fenster schließen">×</button>
 				</div>
 				<!-- 🔴 DER RUMPF, damit Titel und Knopfleiste STEHEN und nur der Inhalt laeuft
 				     (Owner 04.09.2026: „…um zum speichern zu kommen und den titel aus den augen
@@ -2306,7 +2308,7 @@
 				<div class="location-report-dialog__header avm-fenster__kopf">
 					<span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>
 					<h2 class="avm-fenster__titel" id="region-edit-title">Herrschaftsgebiet bearbeiten</h2>
-					<button id="region-edit-close" class="location-report-dialog__close avm-fenster__knopf avm-fenster__knopf--nackt" type="button" aria-label="Herrschaftsgebiet schließen">×</button>
+					<button id="region-edit-close" class="avm-fenster__knopf avm-fenster__knopf--nackt" type="button" aria-label="Herrschaftsgebiet schließen">×</button>
 				</div>
 				<form id="region-edit-form" class="location-report-form political-territory-tree-form avm-fenster__rumpf" novalidate>
 					<input id="region-edit-public-id" name="public_id" type="hidden" />
@@ -2586,7 +2588,7 @@
 				<div class="location-report-dialog__header avm-fenster__kopf">
 					<span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>
 					<h2 class="avm-fenster__titel" id="review-dialog-title" data-i18n="review.dialogTitle">Neue Bewertung</h2>
-					<button id="review-close" class="location-report-dialog__close avm-fenster__knopf avm-fenster__knopf--nackt" type="button" aria-label="Bewertung schließen" data-i18n-aria-label="review.closeAria" data-review-dialog-close>×</button>
+					<button id="review-close" class="avm-fenster__knopf avm-fenster__knopf--nackt" type="button" aria-label="Bewertung schließen" data-i18n-aria-label="review.closeAria" data-review-dialog-close>×</button>
 				</div>
 				<p class="location-report-dialog__intro"><span data-i18n="review.introBefore">Bewerte </span><strong id="review-dialog-place" data-i18n="review.thisPlaceFallback">diesen Ort</strong><span data-i18n="review.introAfter"> mit 1–5 Sternen und einem kurzen Kommentar (max. 200 Zeichen). Bewertungen erscheinen sofort.</span></p>
 				<form id="review-form" class="location-report-form avm-fenster__rumpf" novalidate>

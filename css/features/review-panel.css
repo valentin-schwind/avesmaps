@@ -1968,15 +1968,10 @@
 
 /* Fusszeile des Konfliktfensters: links der Durchlauf, rechts der Stand. Der Durchlauf-Knopf sass
    in der Kopfzeile -- dort steht jetzt nur noch Verkleinern und Schliessen (Editor-Wunsch). */
-.conflict-foot {
-	display: flex;
-	align-items: center;
-	gap: 12px;
-	flex: 0 0 auto;
-	margin-top: 10px;
-	padding-top: 10px;
-	border-top: 1px solid var(--color-divider);
-}
+/* Polster, Linie und Abstand kommen aus `.avm-fenster__fuss`; hier bleibt nur, dass der Fuss
+   nicht schrumpft. Vorher trug er `margin-top`/`padding-top`/`border-top` selbst -- die
+   zehnte Fassung derselben Leiste. */
+.conflict-foot { flex: 0 0 auto; }
 .conflict-foot__summary {
 	margin-left: auto;
 	color: var(--color-text-muted);
@@ -1987,7 +1982,7 @@
    Gedankenstrich ueberhaupt zu sehen war, und stand dadurch neben dem 20px-× wie ein Fremdkoerper.
    Mit − statt – traegt die geerbte Groesse von .location-report-dialog__close (Owner 2026-07-21:
    "kannst du die beiden nochmal optisch angleichen"). */
-.location-report-dialog__header .conflict-minimize {
+.avm-fenster__kopf .conflict-minimize {
 	line-height: 1;
 }
 
@@ -2018,7 +2013,7 @@
 #wiki-sync-conflicts-overlay.is-minimized .conflict-foot {
 	display: none;
 }
-#wiki-sync-conflicts-overlay.is-minimized .location-report-dialog__header {
+#wiki-sync-conflicts-overlay.is-minimized .avm-fenster__kopf {
 	margin-bottom: 0;
 }
 /* Verkleinert zaehlt nicht als offener Modal-Dialog: sonst bliebe der Seitenkoerper gesperrt,
@@ -2047,7 +2042,10 @@ body.modal-dialog-open #wiki-sync-conflicts-overlay.is-minimized ~ * {
 	border-color: var(--color-border-strong);
 	color: var(--color-text);
 }
-.location-report-dialog__header .conflict-search {
+/* Das Suchfeld traegt `.avm-fenster__kopffeld` (Bauteil): Hoehe, Rand, Radius und Grund kommen
+   von dort. Hier steht nur, was DIESEM Feld gehoert -- seine Breite und dass es den Platz bis
+   zu den Knoepfen einnimmt. */
+.avm-fenster__kopf .conflict-search {
 	flex: 0 1 240px;
 	margin-left: auto;
 	min-width: 0;
