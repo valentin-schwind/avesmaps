@@ -227,6 +227,45 @@ pruefe("die Zellweite ist NIE feiner als die Schranke des Speichers", () => {
 		"kleine Flaeche: Zelle " + klein.r.cell);
 });
 
+pruefe("die Maximalhoehe hebt den Kamm -- auch wenn Gipfel sie ueberragen", () => {
+	// 🔴 SIE WAR WIRKUNGSLOS, SOBALD EIN GIPFEL IN DER FLAECHE STAND. `kammPunkte` waehlte entweder
+	// die Gipfel ODER die Kurve auf Maximalhoehe -- mit Gipfeln gewannen immer die Gipfel, und der
+	// Regler bewegte nichts. Am Livebestand gemessen: 500 oder 12.000 eingestellt ergaben an der Roten
+	// Sichel Zeichen fuer Zeichen dasselbe Feld (Mittel 1837, Max 10709 in beiden Faellen).
+	// Owner 04.09.2026: „maximalhoehe wird durch gipfelhoehe uebertroffen aber die wirkung wirkt auf
+	// die ausgangsmap des gebirges oder" -- genau so; sie ist der SOCKEL des Kamms.
+	//
+	// 💣 Ein Regler, dessen Wert nirgends gilt, ist von einem kaputten Formular nicht zu
+	// unterscheiden -- dieselbe Lehre wie beim Zoomband der Gipfel (AGENTS.md §11, 04.09.2026).
+	const mittel = (maximalhoehe) => {
+		const o = baue({ regler: { koernung: 4, stufen: 3, bergform: 2, rauschen: 0.3,
+			sattel: 0.75, erosion: 2, maximalhoehe } });
+		let summe = 0;
+		let n = 0;
+		for (let k = 0; k < o.r.drin.length; k++) {
+			if (!o.r.drin[k]) { continue; }
+			summe += o.h[k];
+			n++;
+		}
+
+		return summe / n;
+	};
+	// Die Fixture traegt Gipfel von 3.000 und 5.000 -- ein Sockel darueber muss das Feld heben.
+	const ohne = mittel(0);
+	const hoch = mittel(9000);
+	assert.ok(hoch > ohne * 1.2,
+		"die Maximalhoehe hebt nichts: " + ohne.toFixed(0) + " -> " + hoch.toFixed(0)
+		+ " Schritt im Mittel -- der Regler ist wirkungslos, sobald Gipfel da sind");
+
+	// ⚠️ UND SIE SENKT NIE. Ein Sockel UNTER der Kammhoehe, die die Gipfel ohnehin erzwingen, darf
+	// das Feld nicht veraendern -- sonst waere „Maximalhoehe" in Wahrheit eine Deckelung, und ein
+	// Editor, der sie kleiner stellt, verloere sein Gebirge.
+	const niedrig = mittel(200);
+	assert.ok(Math.abs(niedrig - ohne) < 1,
+		"ein Sockel von 200 Schritt hat das Feld veraendert (" + ohne.toFixed(0) + " -> "
+		+ niedrig.toFixed(0) + ") -- die Maximalhoehe senkt, statt nur zu heben");
+});
+
 pruefe("ohne Gipfel UND ohne Maximalhoehe bleibt die Flaeche flach", () => {
 	// Ein Gebirge ohne jeden Stuetzpunkt zu erfinden waere das „erfundene Gelaendedetail",
 	// vor dem oekosystem-instruction.md §4.1 warnt -- dieselbe Regel wie in V8.

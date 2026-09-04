@@ -381,7 +381,17 @@ function kammHoeheAn(x, y, pts, sattel) {
 // Nachbarn, und nur 26 % der Kammzellen standen erhaben. Im Bild sah das wie ein Spalt auf dem
 // Bergkamm aus -- vom Owner gesehen, von keiner Kennzahl.
 // ⭐ Deshalb ruft der Ablauf: Gipfel stempeln -> loesen -> Kamm stempeln (nur wo hoeher) -> loesen.
-function stempleKamm(r, h, fest, gipfel, sattel, vorgabe, kurve, marke) {
+// 🔴 `grundhoehe` IST DER SOCKEL DES KAMMS -- die Hoehe, unter die er zwischen zwei Gipfeln nicht
+// faellt. Sie kommt aus dem Regler „Maximalhoehe" (`terrain_avg_height`), und bis zum 04.09.2026 tat
+// dieser Regler NICHTS, sobald ein Gipfel in der Flaeche stand: `kammPunkte` waehlte entweder die
+// Gipfel ODER die Kurve auf Maximalhoehe, und mit Gipfeln gewannen immer die Gipfel. Gemessen an der
+// Roten Sichel: 500 oder 12.000 eingestellt ergaben Zeichen fuer Zeichen dasselbe Feld.
+// Owner 04.09.2026: „maximalhoehe wird durch gipfelhoehe uebertroffen aber die wirkung wirkt auf die
+// ausgangsmap des gebirges oder" -- genau so.
+// ⚠️ Der Sockel HEBT nur, er senkt nie: `Math.max`. Ein Gipfel, der niedriger ist als der Sockel,
+// bleibt trotzdem auf seiner eingetragenen Zahl -- er ist `fest` und wird oben uebersprungen. Der
+// Kamm um ihn herum steht dann hoeher als er; das ist die Aussage der Daten, nicht ein Fehler.
+function stempleKamm(r, h, fest, gipfel, sattel, vorgabe, kurve, marke, grundhoehe) {
 	const standard = Number(vorgabe) > 0 ? Number(vorgabe) : 5000;
 	const pts = gipfel.map((p) => ({
 		x: p.x, y: p.y, h: Number(p.h) > 0 ? Number(p.h) : standard,
@@ -389,6 +399,10 @@ function stempleKamm(r, h, fest, gipfel, sattel, vorgabe, kurve, marke) {
 	if (!pts.length) {
 		return { quelle: "keine", kanten: 0, zellen: 0 };
 	}
+
+	// 0 heisst „kein Sockel" -- dieselbe Lesart wie ueberall sonst: ein nicht gesetzter Regler
+	// (NULL in der Datenbank) darf nichts anheben.
+	const sockel = Number(grundhoehe) > 0 ? Number(grundhoehe) : 0;
 
 	// Die Linien, entlang derer gestempelt wird: die echte Kurve, sonst der Spannbaum.
 	let linien = [];
@@ -422,7 +436,7 @@ function stempleKamm(r, h, fest, gipfel, sattel, vorgabe, kurve, marke) {
 				if (!r.drin[k] || fest[k]) {
 					continue;                      // fest = Gipfel, siehe oben
 				}
-				const H = kammHoeheAn(x, y, pts, sattel);
+				const H = Math.max(kammHoeheAn(x, y, pts, sattel), sockel);
 				if (H > h[k]) { h[k] = H; fest[k] = 1; zellen++; if (marke) { marke[k] = 1; } }
 			}
 		}
@@ -1287,7 +1301,8 @@ function avesmapsGebirgsRasterBauen(eingabe) {
 
 	const sattel = Number.isFinite(Number(reg.sattel)) ? Number(reg.sattel) : ECOSYSTEM_HYDRO_SATTEL;
 	const kamm = kammPunkte.length >= 2
-		? stempleKamm(r, h, fest, kammPunkte, sattel, ECOSYSTEM_HYDRO_STANDARDHOEHE, e.kurve, kammMaske)
+		? stempleKamm(r, h, fest, kammPunkte, sattel, ECOSYSTEM_HYDRO_STANDARDHOEHE, e.kurve, kammMaske,
+			maximalhoehe)
 		: { quelle: "keine", kanten: 0, zellen: 0 };
 	if (kamm.zellen) { loeseRelief(h, r.w, r.hh, r.drin, fest, 4, 40, 100, 1.85); }
 	if (melde) { melde(0.3); }
