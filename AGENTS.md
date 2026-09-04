@@ -788,10 +788,14 @@ hex values across 38 CSS files).
   speichern, weg. Vermessen vor dem Entscheid: **13** Rezepturen für den Schließknopf in sechs
   Formen, **9** Polsterwerte für die Kopfzeile, **4** Titelgrößen — während das Verschieben, das
   **einen** Erzeuger hat (`js/ui/dialog-drag.js`), nirgends auseinandergelaufen ist.
-  🔴 **KEINE neuen Tokens** — die Maße existieren als `--avm-*` und tragen die vier Editoren:
-  `--avm-ribbon-pad` (10/14) für Kopfleiste·Menüband·Fußleiste, `--avm-col-pad` für den Rumpf,
+  🔴 **Fast keine neuen Tokens** — die Maße existieren als `--avm-*` und tragen die vier
+  Editoren: `--avm-ribbon-pad` (10/14) fürs Menüband, `--avm-col-pad` für den Rumpf,
   `--avm-ribbon-gap` (6), `--avm-control-h` (32). **Der Seiteneinzug ist überall 14**; genau EIN
-  Wert zieht nach (`--avm-col-pad` horizontal 12 → 14).
+  Wert zieht nach (`--avm-col-pad` horizontal 12 → 14), und EIN Name kommt dazu:
+  `--avm-kopf-pad` (**6**/14) für Kopf- und Fußleiste.
+  💣 **Das senkrechte Polster folgt der BEDIENHÖHE des Bandes, das waagerechte niemals:**
+  Kopf/Fuß tragen 32px-Elemente → 6, das Menüband 48px-Kacheln → 10; waagerecht bleibt überall
+  14, daran hängt die eine Kante.
   💣 **`--space-N` ist NICHT N Pixel** — die Skala trägt global +2 (`--space-12` = 14px); wer
   sich für ein Mockup wörtliche Werte definiert, liegt auf jeder Kante 2px daneben.
   🔴 **Die Hülle hat `padding: 0`**, jede Zone trägt ihr Polster selbst — dadurch läuft jeder
@@ -823,6 +827,21 @@ hex values across 38 CSS files).
   und es bleibt stehen · **jedes** Fenster ist verschiebbar und trägt den Griff `⁝⁝`, gesetzt
   vom Zieh-Mechanismus (`is-draggable`), nie vom Markup — am Telefon zieht er nicht.
   ⚠️ Die **Bandhöhe** steht bewusst in keiner Tafel — sie ist Polster plus Inhalt (gemessen:
-  Kopf 52, Menüband 69, Fuß 53); wer eine davon als `height` setzt, schneidet etwas ab.
+  Kopf 44,7, Menüband 68,7, Fuß 44,7); wer eine davon als `height` setzt, schneidet etwas ab.
+  🔴 **Reiter = T3** (Owner 04.09.2026): im Fenster Unterstrich (`.avm-tab`), frei auf der Karte
+  gefüllter Umschalter (`.ecosystem-layer-switch`) — der ORT entscheidet. 7 von 9 Rezepturen
+  fallen weg, Pille `999px` und 11,5px inklusive.
+  🔴 **Wappen/Thumbs in Listen: die Texte stehen bündig** (Owner) — der Bildplatz wird
+  RESERVIERT, nicht gefüllt, und die LISTE entscheidet:
+  `.avm-list:has(.avm-row__bild) .avm-row:not(:has(.avm-row__bild))::before`. 💣 Die Breite ist
+  EIN Token (`--avm-row-bild-w`), den Bild und Platzhalter beide lesen. ⚠️ Die Höhe gehört der
+  Liste (Wappen quadratisch, Cover 3:4, Kartenvorschau 4:3). ⭐ `:has`-Preis an 2000 Zeilen
+  gemessen: 41,1 ms mit gegen 47,5 ms ohne — im Rauschen.
+  🔴 **Die Bildlaufleiste gehört dem FENSTER, nicht dem Dokument** — heute 5 Rezepturen in 2
+  Formen, und der Unterschied ist ein Versehen: `base.css` (7px) gilt in `index.html`,
+  `editor-page.css` (10px/Pille/2px) in den iframes, und `lore.css` + die zwei
+  `political-territory-editor*` tragen DREI ID-gescopte Abschriften der zweiten, nur weil ihre
+  Fenster in `index.html` leben. Eine Regel an `.fen` löst alle drei auf.
+  🔧 Offen: ob die SEITE selbst (Karte, Infopanel) von 7px mitzieht — für Besucher sichtbar.
 - **New components:** reuse the nearest existing one as a template plus the
   tokens; match the warmth. Full guide: **`docs/design-language.md`**.

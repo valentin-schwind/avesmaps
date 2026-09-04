@@ -136,9 +136,20 @@ unter *Divider mechanics* (die gilt weiter für Panels wie die Infobox, die echt
 Hüllenpolster haben).
 
 ⚠️ **Die Bandhöhe steht bewusst in keiner Tafel** — sie ist das Ergebnis aus Polster und
-Inhalt. Gemessen: Kopfleiste **52** (32er Elemente + 2×10), Menüband **69** (48er Kacheln +
-2×10 + Linie), Fußleiste **53**. Wer eine davon als `height` setzt, schneidet beim nächsten
+Inhalt. Gemessen: Kopfleiste **44,7** (32er Elemente + 2×6), Menüband **68,7** (48er Kacheln +
+2×10 + Linie), Fußleiste **44,7**. Wer eine davon als `height` setzt, schneidet beim nächsten
 zweizeiligen Element etwas ab.
+
+💣 **Das senkrechte Polster folgt der Bedienhöhe des Bandes, das waagerechte niemals.**
+Kopf- und Fußleiste tragen 32px-Elemente → `--avm-kopf-pad` (**6** / 14); das Menüband trägt
+48px-Kacheln → `--avm-ribbon-pad` (**10** / 14). Das **waagerechte** bleibt in allen Bändern
+**14** — daran hängt die eine Kante, und die ist der Kern der Tafel; wer dort 12 schreibt,
+nimmt sie zurück.
+
+⚠️ `--avm-kopf-pad` ist der **einzige** neue Token dieses Umbaus (Owner 04.09.2026: „kannst du
+die titelleisten insgesamt weniger hoch machen"). Gemessen war die Leiste vorher
+10 + 32 + 10 = **52,7 px** — kein Rest einer entfernten Linie, wie es aussah, sondern schlicht
+zu viel Luft: der Titel misst 18,4 px und hatte 17 px darüber und darunter.
 
 ### Der Trenner unter der Kopfleiste ist DURCHGEHEND — und der Titel bekommt keinen
 
@@ -256,21 +267,70 @@ unterscheiden — Statuskreis, Vorschaubild, Aufklapp-Pfeil, Zieh-Griff, Zähler
 §11 sagt seit dem 14.08.2026 „Die Listenzeile — es gibt ZWEI, und das ist die Obergrenze".
 Die Regel hat gehalten, wo jemand sie kannte, und sonst nicht.
 
-### Reiter — 🔧 offen, Entscheidung steht aus
+### Reiter — Unterstrich im Fenster, gefüllter Umschalter auf der Karte
 
-Gemessen: **neun** Rezepturen in zwei Grundformen, und dieselben fünf Beschriftungen
-(Alle · Derographie · Vegetation · Topographie · Klimazonen) stehen auf der Karte als
-gefüllter Umschalter und im Landschaften-Editor als Unterstrich-Reiter.
+🔴 Owner-Entscheid 04.09.2026: **T3**. Gemessen waren es **neun** Rezepturen in zwei
+Grundformen, und dieselben fünf Beschriftungen (Alle · Derographie · Vegetation · Topographie ·
+Klimazonen) standen auf der Karte gefüllt und im Landschaften-Editor als Unterstrich.
 
-- **Unterstrich** (`--avm-tab` 6/1, `.status-subtab` 7/1, `.mail-inbox__tabs` 4/12/0)
-- **Gefüllt** (`.ecosystem-layer-switch__tab` 8/10, `.political-territory-tabs__tab` 6/10,
-  `.review-panel__tab` 9/10 mit dritter Füllart)
-- Dazu zwei mit Guide-Verstößen: `.wiki-sync-substatus__tab` (Pille `999px`, 12px, Gewicht 600)
-  und `.fs-src-tab` (11,5px).
+- **Reiter** — wechselt die *Ansicht* desselben Inhalts **in einem Fenster** →
+  `.avm-tabs` / `.avm-tab` (Unterstrich 2px in `--color-text-strong`, aktiv fett,
+  Polster `--space-4 1px`).
+- **Umschalter** — ist eine *Einstellung* und steht **frei auf der Karte** →
+  `.ecosystem-layer-switch` (gefüllt in `--color-button`).
 
-Vorschlag (im Mockup als **T3** gezeichnet): **Reiter** wechselt die *Ansicht* in einem Fenster
-→ Unterstrich; **Umschalter** ist eine *Einstellung* frei auf der Karte → gefüllt. Zwei Formen,
-und welche gilt, entscheidet der Ort. **Owner-Entscheid steht aus.**
+Welche gilt, entscheidet der **Ort**, nicht der Geschmack — dieselbe Bauweise wie Fenster und
+Blatt. Die sieben übrigen fallen weg, darunter die zwei mit Guide-Verstößen:
+`.wiki-sync-substatus__tab` (Pille `999px`, 12px, `font-weight: 600`) und
+`.fs-src-tab` (11,5px).
+
+⚠️ Der Grund, warum der Umschalter gefüllt bleiben **darf**, obwohl `--color-button` sonst die
+Haupthandlung ist: er steht nicht in einem Fenster, wo er mit „Speichern" oder „Syncen"
+konkurrieren könnte, sondern frei über Kacheln und Wald — dort ist ein 2px-Unterstrich nicht
+lesbar. Wer ihn je in ein Fenster holt, macht ihn zum Reiter.
+
+### Wappen und Vorschaubilder in Listen — die Texte stehen bündig
+
+🔴 Owner 04.09.2026: „wenn es wappen/thumbs in einer liste gibt sind die texte bündig
+untereinander, d.h. einträge ohne haben abstand nach links." Der Platz wird **reserviert**,
+nicht gefüllt.
+
+💣 **Die Breite ist EIN Token** (`--avm-row-bild-w`), den Bild und Platzhalter beide lesen.
+Zwei Zahlen wären genau die Divergenz, die die Regel verhindern soll: wer das Bild breiter
+macht und den Platzhalter vergisst, bekommt eine Liste, in der die Hälfte der Namen versetzt
+steht — sichtbar, aber nicht erklärbar.
+
+🔴 **Die LISTE entscheidet, nicht die Zeile:**
+`.avm-list:has(.avm-row__bild) .avm-row:not(:has(.avm-row__bild))::before`. Sobald irgendwo
+ein Bild steht, rücken alle Zeilen ein. Als Klasse am Markup wäre es eine Regel, die man
+vergessen kann — und man merkt es erst bei der ersten bildlosen Zeile.
+
+⚠️ Die **Höhe** gehört der Liste, nicht dem Bauteil: Wappen quadratisch, Buchcover 3:4,
+Kartenvorschau 4:3. Heute hat `.avm-row` **gar keinen** Bildplatz — die Listen mit Cover
+(62×88) und Kartenvorschau (48×34) sind vollständig eigene Rezepturen, und das ist einer der
+Gründe, warum es 26 gibt.
+
+⭐ Gemessen: ohne die Regel springt die Textkante 58,7 / 20,7 / 58,7 / 20,7 (38px in jeder
+zweiten Zeile), mit ihr steht sie viermal auf 58,7. Der `:has`-Preis an **2000 Zeilen**:
+41,1 ms mit, 47,5 ms ohne — der Unterschied liegt im Rauschen. Die größte betroffene Liste im
+Bestand ist die Literatur mit 2.003 Einträgen.
+
+### Die Bildlaufleiste gehört dem FENSTER, nicht dem Dokument
+
+⚠️ Fünf Rezepturen in zwei Formen, und der Unterschied ist **dokumentbasiert, nicht gewollt**:
+`base.css` (7px, `--radius-sm`, ohne Rand) gilt in `index.html` — also für die Karte **und
+alle ihre Fenster**; `editor-page.css` (10px, Pille, 2px Rand) gilt in den vier Editor-iframes.
+`lore.css` und die zwei `political-territory-editor*`-Dateien tragen **drei Abschriften** der
+zweiten, per ID gescoped — sie existieren **nur**, weil ihre Fenster in `index.html` leben und
+`base.css` sie sonst auf 7px zieht.
+
+⭐ **Eine Regel am Fenster** (`.fen *::-webkit-scrollbar`, 10px, Pille, 2px Rand in der
+Track-Farbe) — dann sieht ein Fenster gleich aus, egal wo es lebt, und die drei Abschriften
+fallen ersatzlos weg. Der Rand ist in der Track-Farbe, nicht transparent: er schneidet den
+Daumen optisch schmaler, ohne die Trefferfläche zu verkleinern.
+
+🔧 **Offen:** ob die **Seite selbst** (Karte, Infopanel, Routenplaner) bei 7px bleibt oder
+mitzieht. Das ist für jeden Besucher sichtbar und braucht einen eigenen Entscheid.
 
 ### Ein Bauteil, nicht dreizehn Abschriften
 

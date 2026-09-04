@@ -51,6 +51,9 @@
 	--color-on-button-muted: rgba(255,255,255,0.8);
 	--color-hover-wash: rgba(191,160,58,0.14); --color-active-wash: rgba(191,160,58,0.24);
 	--color-danger: #a33a2e;
+	--color-scrollbar-thumb: rgba(141, 121, 98, 0.4);
+	--color-scrollbar-thumb-hover: rgba(141, 121, 98, 0.6);
+	--color-scrollbar-track: transparent;
 	--shadow-dialog: 0 20px 45px rgba(0,0,0,0.38);
 	--radius-sm: 5px; --radius-md: 8px; --radius-lg: 10px;
 	--font-size-caption: 11px; --font-size-small: 12px; --font-size-body: 13px;
@@ -71,6 +74,14 @@
 	--avm-status-pad: var(--space-4) var(--space-12);   /* 6 / 14 — Statuszeile                */
 	--avm-col-pad: var(--space-6) var(--space-12);      /* 8 / 14 — HEUTE 8 / 12, zieht nach   */
 	--avm-row-pad: var(--space-2) var(--space-4);       /* 4 / 6 — Listenzeile                 */
+	/* 🔴 NEU, und der EINZIGE neue Name auf diesem Blatt (Owner 04.09.2026: „kannst du die
+	   titelleisten insgesamt weniger hoch machen"). Gemessen war die Leiste 10+32+10 = 52,7px --
+	   kein Rest, sondern zu viel Luft: der Titel misst 18,4px und hatte 17px darueber und darunter.
+	   💣 Das SENKRECHTE Polster folgt der BEDIENHOEHE des Bandes, nicht dem Geschmack:
+	      Kopf- und Fussleiste tragen 32px-Elemente -> 6; das Menueband traegt 48px-Kacheln -> 10.
+	   🔴 Das WAAGERECHTE bleibt in ALLEN Baendern 14 -- daran haengt die eine Kante, und die ist
+	      der Kern der ganzen Tafel. Wer hier 12 schreibt, nimmt sie zurueck. */
+	--avm-kopf-pad: var(--space-4) var(--space-12);     /* 6 / 14 — Kopfleiste und Fussleiste  */
 }
 :root[data-theme="dark"] {
 	--color-page-bg: #211f19;
@@ -85,6 +96,8 @@
 	--color-button-soft: #3a362c; --color-button-soft-text: #eae1cf; --color-button-soft-border: #585142;
 	--color-button-soft-hover: #454034;
 	--color-danger: #e08476;
+	--color-scrollbar-thumb: rgba(180, 168, 149, 0.35);
+	--color-scrollbar-thumb-hover: rgba(180, 168, 149, 0.55);
 }
 
 /* ═══ DIE HUELLE ══════════════════════════════════════════════════════════════════════════════
@@ -103,7 +116,7 @@
    Polster = --avm-ribbon-pad, dasselbe wie das Menueband darunter: eine Kante durch beide. */
 .fkopf {
 	display: flex; align-items: center; gap: var(--avm-ribbon-gap);
-	padding: var(--avm-ribbon-pad);
+	padding: var(--avm-kopf-pad);
 	border-bottom: 1px solid var(--color-divider);
 	cursor: grab;
 }
@@ -230,6 +243,34 @@
 /* ═══ RUMPF UND FUSSLEISTE ════════════════════════════════════════════════════════════════════ */
 .frumpf { flex: 1 1 auto; min-height: 0; overflow: auto; padding: var(--avm-col-pad); }
 
+/* ═══ DIE BILDLAUFLEISTE ══════════════════════════════════════════════════════════════════════
+   🔴 Owner 04.09.2026: „achte darauf dass du unseren scroll-bar style konsistent uebernimmst."
+   ⚠️ Es gibt heute FUENF Rezepturen in ZWEI Formen, und der Unterschied ist DOKUMENTBASIERT,
+      nicht gewollt:
+        · base.css            7px  · --radius-sm · ohne Rand   -> gilt in index.html, also fuer
+                                                                  die Karte UND alle ihre Fenster
+        · editor-page.css    10px  · Pille       · 2px Rand    -> gilt in den vier Editor-iframes
+        · lore.css, political-territory-editor{,-inline}.css   -> DREI Abschriften der zweiten,
+          per ID gescoped -- sie existieren NUR, weil ihre Fenster in index.html leben und base.css
+          sie sonst auf 7px zieht.
+   ⭐ DESHALB HAENGT SIE HIER AM FENSTER, NICHT AM DOKUMENT. Eine Regel an `.fen`, und ein
+      Fenster sieht gleich aus, egal ob es in index.html oder in einem iframe lebt; die drei
+      ID-Abschriften fallen ersatzlos weg. Genau die Frage, die sie beantworten sollten, stellt
+      sich dann nicht mehr.
+   💣 Der 2px-Rand ist in der TRACK-Farbe, nicht transparent: er schneidet den Daumen optisch
+      schmaler, ohne die Leiste schmaler zu machen -- die Trefferflaeche bleibt 10px.
+   🔧 OFFEN bleibt nur noch eine Frage, und sie betrifft nicht die Fenster: ob die SEITE selbst
+      (Karte, Infopanel) bei 7px bleibt oder auf dieselbe Leiste zieht. */
+.fen * { scrollbar-width: thin; scrollbar-color: var(--color-scrollbar-thumb) var(--color-scrollbar-track); }
+.fen *::-webkit-scrollbar { width: 10px; height: 10px; }
+.fen *::-webkit-scrollbar-track { background: var(--color-scrollbar-track); }
+.fen *::-webkit-scrollbar-thumb {
+	background: var(--color-scrollbar-thumb);
+	border-radius: 999px;
+	border: 2px solid var(--color-scrollbar-track);
+}
+.fen *::-webkit-scrollbar-thumb:hover { background: var(--color-scrollbar-thumb-hover); }
+
 /* EINE Rezeptur fuer beide Bauarten und beide Faelle.
    🔴 Rechtsbuendig kommt aus `margin-left:auto` an der Hauptgruppe, NICHT aus einem zweiten
       `justify-content`: gibt es links nichts, rutscht die Gruppe von selbst nach rechts; gibt es
@@ -238,7 +279,7 @@
       gar kein `display:flex`, und die Knoepfe klebten aneinander (Owner-Befund 04.09.2026). */
 .ffuss {
 	display: flex; flex-wrap: wrap; align-items: center; gap: var(--avm-ribbon-gap);
-	padding: var(--avm-ribbon-pad);
+	padding: var(--avm-kopf-pad);
 	border-top: 1px solid var(--color-divider);
 }
 .ffuss__haupt { display: inline-flex; align-items: center; gap: var(--avm-ribbon-gap);
@@ -372,7 +413,7 @@
 	font-weight: var(--font-weight-bold);
 }
 /* Die Reiterleiste im Fenster traegt dieselbe Kante wie jede andere Zone. */
-.freiter { padding: var(--space-6) var(--space-12) 0; }
+.freiter { padding: var(--space-4) var(--space-12) 0; }
 .freiter .avm-tabs { margin-bottom: 0; }
 
 /* Nur fuers Mockup: die uebrigen sieben Rezepturen, damit man sieht, wie weit sie auseinander
@@ -432,9 +473,38 @@
 .avm-row__kreis--voll { background: var(--color-accent-strong); }
 .avm-row__kreis--halb { background: linear-gradient(90deg,
 	var(--color-accent-strong) 0 50%, transparent 50%); }
-.avm-row__bild { flex: none; width: 30px; height: 40px; border-radius: var(--radius-sm);
-	background: var(--color-panel-muted); border: 1px solid var(--color-border); }
+/* ═══ DER BILDPLATZ IN DER ZEILE ══════════════════════════════════════════════════════════════
+   🔴 OWNER-REGEL 04.09.2026: „wenn es wappen/thumbs in einer liste gibt, sind die texte
+      buendig untereinander, d.h. eintraege ohne haben abstand nach links."
+   💣 DIE BREITE IST EIN EINZIGER TOKEN, den BEIDE lesen -- das Bild und der Platzhalter.
+      Zwei Zahlen waeren die Divergenz, die genau diese Regel verhindern soll: wer das Bild
+      breiter macht und den Platzhalter vergisst, bekommt eine Liste, in der die Haelfte der
+      Namen zwei Pixel versetzt steht -- sichtbar, aber nicht erklaerbar.
+   🔴 DIE LISTE ENTSCHEIDET, NICHT DIE ZEILE. `:has` an der Liste heisst: sobald IRGENDWO ein
+      Bild steht, ruecken ALLE Zeilen ein. Als Klasse am Markup waere es eine Regel, die man
+      vergessen kann -- und man merkt es erst, wenn die erste bildlose Zeile dazukommt.
+   ⚠️ Die HOEHE steht nicht hier: ein Wappen ist quadratisch, ein Buchcover 3:4, eine
+      Kartenvorschau 4:3. Sie gehoert der Liste, die Breite dem Bauteil. */
+.avm-row__bild {
+	flex: none;
+	width: var(--avm-row-bild-w);
+	height: var(--avm-row-bild-h, var(--avm-row-bild-w));
+	border-radius: var(--radius-sm);
+	background: var(--color-panel-muted);
+	border: 1px solid var(--color-border);
+	object-fit: contain;
+}
+.fliste:has(.avm-row__bild) .avm-row:not(:has(.avm-row__bild))::before {
+	content: "";
+	flex: none;
+	width: var(--avm-row-bild-w);
+}
+.fliste { --avm-row-bild-w: 30px; }
+.fliste--cover { --avm-row-bild-w: 30px; --avm-row-bild-h: 40px; }
+.fliste--wappen { --avm-row-bild-w: 26px; --avm-row-bild-h: 26px; }
 .fliste > * + * { border-top: 1px solid var(--color-divider); }
+/* Nur fuers Mockup: der Zustand OHNE die Regel, zum Vergleich. */
+.fliste--ohne-regel:has(.avm-row__bild) .avm-row:not(:has(.avm-row__bild))::before { display: none; }
 
 /* Nur fuers Mockup: drei der 26 heutigen Zeilen-Rezepturen, Werte 1:1. */
 .r-tree { display: flex; align-items: center; gap: 7px; padding: 7px 8px; border-radius: 6px; }
@@ -604,8 +674,8 @@ gemessenen 14,7 sind die 14 der Tafel plus die Hülle):</p>
 <tr><td>Kachel gefüllt / weich</td><td colspan="2" class="ok"><code>--color-button</code> / <code>--color-button-soft</code>, <code>t2</code> jeweils gedämpft</td></tr>
 </table>
 <p>⚠️ <b>Die Bandhöhe steht bewusst NICHT in der Tafel</b> — sie ist das Ergebnis aus Polster und
-Inhalt: Kopfleiste <b>52</b> (32er Elemente + 2×10), Menüband <b>69</b> (48er Kacheln + 2×10 +
-Linie), Fußleiste <b>53</b>. Wer eine dieser Zahlen als <code>height</code> setzt, schneidet beim
+Inhalt: Kopfleiste <b>44,7</b> (32er Elemente + 2×6), Menüband <b>68,7</b> (48er Kacheln + 2×10 +
+Linie), Fußleiste <b>44,7</b>. Wer eine dieser Zahlen als <code>height</code> setzt, schneidet beim
 nächsten zweizeiligen Element etwas ab.</p>
 
 <h2>2 · Der Trenner — und mein Fehlgriff</h2>
@@ -882,6 +952,31 @@ schon richtig gebaut; es ist also kein Umbau, sondern das Entfernen von drei
 		Genau daran erkennt man die drei Fenster, die es heute falsch machen.</p>
 	</figure>
 </div>
+<h3>Die Bildlaufleiste — fünf Rezepturen, und der Unterschied ist ein Versehen</h3>
+<p>Du: <i>„achte darauf dass du unseren scroll-bar style konsistent übernimmst“</i>. Beim
+Nachschlagen kam heraus, dass es <b>fünf</b> gibt — in zwei Formen, und der Unterschied ist
+<b>dokumentbasiert</b>, nicht gewollt:</p>
+<table>
+<tr><th>Datei</th><th>Form</th><th>gilt für</th></tr>
+<tr><td><code>base/base.css</code></td><td><b>7px</b> · <code>--radius-sm</code> · ohne Rand</td>
+	<td><code>index.html</code> — die Karte <b>und alle ihre Fenster</b></td></tr>
+<tr><td><code>components/editor-page.css</code></td><td><b>10px</b> · Pille · 2px Rand</td>
+	<td>die vier Editor-iframes</td></tr>
+<tr><td><code>features/lore.css</code></td><td class="bad">Abschrift der zweiten</td>
+	<td rowspan="3">Fenster, die <b>in <code>index.html</code></b> leben — die Abschriften
+	existieren <b>nur</b>, weil <code>base.css</code> sie sonst auf 7px zieht</td></tr>
+<tr><td><code>pages/political-territory-editor.css</code></td><td class="bad">Abschrift</td></tr>
+<tr><td><code>pages/…-editor-inline.css</code></td><td class="bad">Abschrift</td></tr>
+</table>
+<p>⭐ <b>Deshalb hängt sie hier am FENSTER, nicht am Dokument.</b> Eine Regel an
+<code>.fen</code>, und ein Fenster sieht gleich aus, egal ob es in <code>index.html</code> oder
+in einem iframe lebt — <b>die drei Abschriften fallen ersatzlos weg</b>, weil die Frage, die sie
+beantworten sollten, sich nicht mehr stellt. Übernommen ist die Editor-Form (10px, Pille,
+2px Rand in der Track-Farbe: er schneidet den Daumen optisch schmaler, ohne die Trefferfläche
+zu verkleinern).</p>
+<p>🔧 <b>Offen bleibt genau eine Frage, und sie betrifft nicht die Fenster:</b> ob die
+<b>Seite selbst</b> — Karte, Infopanel, Routenplaner — bei 7px bleibt oder auf dieselbe Leiste
+zieht. Das ist eine für jeden Besucher sichtbare Änderung; sag Bescheid, wenn sie mit soll.</p>
 
 <h2>7 · Reiter — neun Rezepturen, zwei Formen, eine Entscheidung</h2>
 <p>Dein Auftrag: <i>„es gibt toggle-nav-tabs und normale tabs. diese sollen vereinheitlicht
@@ -1077,6 +1172,82 @@ Bestand, alle auf derselben Zeile:</p>
 		als „irgendwie unruhig“ auf. Das ist der ganze Befund.</p>
 	</figure>
 </div>
+<h3>Wappen und Vorschaubilder — die Texte stehen bündig</h3>
+<p>Deine Regel: <i>„wenn es wappen/thumbs in einer liste gibt sind die texte bündig untereinander,
+d.h. einträge ohne haben abstand nach links“</i>. Heute hat die geteilte Zeile
+<b>gar keinen</b> Bildplatz — die Listen mit Cover (62×88) und Kartenvorschau (48×34) sind
+komplett eigene Rezepturen, und das ist einer der Gründe, warum es 26 gibt.</p>
+<div class="buehne">
+	<figure class="wahl">
+		<figcaption class="bad">falsch · Namen springen</figcaption>
+		<div class="fen fen--werkzeug avm-editor-body">
+			<div class="fkopf is-draggable">
+				<span class="fkopf__griff" aria-hidden="true">⁝⁝</span>
+				<h2 class="fkopf__titel">Literatur</h2>
+				<button class="fknopf fknopf--gefasst" type="button">✕</button>
+			</div>
+			<div class="frumpf fliste fliste--cover fliste--ohne-regel">
+				<button class="avm-row" type="button"><span class="avm-row__bild"></span><span class="avm-row__body"><span class="avm-row__l1"><span class="avm-row__name">Siegelbruch</span></span><span class="avm-row__l2">DSA5 · gruppenabenteuer</span></span></button>
+				<button class="avm-row" type="button"><span class="avm-row__body"><span class="avm-row__l1"><span class="avm-row__name">40 Jahre und ein Schelm</span></span><span class="avm-row__l2">DSA1, DSA2 · anthologie</span></span></button>
+				<button class="avm-row" type="button"><span class="avm-row__bild"></span><span class="avm-row__body"><span class="avm-row__l1"><span class="avm-row__name">Die Verschwörung von Gareth</span></span><span class="avm-row__l2">DSA1-Ausbau · gruppenabenteuer</span></span></button>
+				<button class="avm-row" type="button"><span class="avm-row__body"><span class="avm-row__l1"><span class="avm-row__name">Abschied aus Daranel</span></span><span class="avm-row__l2">kurzgeschichte</span></span></button>
+			</div>
+		</div>
+		<p class="note note--warn">Zwei Namen beginnen 36px weiter links als die anderen zwei.
+		Beim Überfliegen einer Liste sucht das Auge <b>eine</b> Kante — hier findet es zwei.</p>
+	</figure>
+	<figure class="wahl">
+		<figcaption class="ok">richtig · eine Textkante</figcaption>
+		<div class="fen fen--werkzeug avm-editor-body">
+			<div class="fkopf is-draggable">
+				<span class="fkopf__griff" aria-hidden="true">⁝⁝</span>
+				<h2 class="fkopf__titel">Literatur</h2>
+				<button class="fknopf fknopf--gefasst" type="button">✕</button>
+			</div>
+			<div class="frumpf fliste fliste--cover">
+				<button class="avm-row" type="button"><span class="avm-row__bild"></span><span class="avm-row__body"><span class="avm-row__l1"><span class="avm-row__name">Siegelbruch</span></span><span class="avm-row__l2">DSA5 · gruppenabenteuer</span></span></button>
+				<button class="avm-row" type="button"><span class="avm-row__body"><span class="avm-row__l1"><span class="avm-row__name">40 Jahre und ein Schelm</span></span><span class="avm-row__l2">DSA1, DSA2 · anthologie</span></span></button>
+				<button class="avm-row" type="button"><span class="avm-row__bild"></span><span class="avm-row__body"><span class="avm-row__l1"><span class="avm-row__name">Die Verschwörung von Gareth</span></span><span class="avm-row__l2">DSA1-Ausbau · gruppenabenteuer</span></span></button>
+				<button class="avm-row" type="button"><span class="avm-row__body"><span class="avm-row__l1"><span class="avm-row__name">Abschied aus Daranel</span></span><span class="avm-row__l2">kurzgeschichte</span></span></button>
+			</div>
+		</div>
+		<p class="note">Der Platz wird <b>reserviert</b>, nicht gefüllt. Und er wird von der
+		<b>Liste</b> reserviert, nicht von der Zeile: <code>.avm-list:has(.avm-row__bild)</code>
+		— sobald irgendwo ein Bild steht, rücken alle ein. Als Klasse am Markup wäre es eine
+		Regel, die man vergessen kann, und man merkt es erst bei der ersten bildlosen Zeile.</p>
+	</figure>
+	<figure class="wahl">
+		<figcaption class="ok">dieselbe Regel · Wappen (quadratisch)</figcaption>
+		<div class="fen fen--werkzeug avm-editor-body">
+			<div class="fkopf is-draggable">
+				<span class="fkopf__griff" aria-hidden="true">⁝⁝</span>
+				<h2 class="fkopf__titel">Territorien</h2>
+				<button class="fknopf fknopf--gefasst" type="button">✕</button>
+			</div>
+			<div class="frumpf fliste fliste--wappen">
+				<button class="avm-row" type="button"><span class="avm-row__vor" aria-hidden="true">▸</span><span class="avm-row__bild"></span><span class="avm-row__body"><span class="avm-row__l1"><span class="avm-row__name">Alanfanisches Imperium</span></span><span class="avm-row__l2">1009 BF – heute · Wiki ↗</span></span></button>
+				<button class="avm-row" type="button"><span class="avm-row__vor" aria-hidden="true">▸</span><span class="avm-row__body"><span class="avm-row__l1"><span class="avm-row__name">Gjalskerland</span></span><span class="avm-row__l2">ohne Wappen</span></span></button>
+				<button class="avm-row" type="button"><span class="avm-row__vor" aria-hidden="true">▸</span><span class="avm-row__bild"></span><span class="avm-row__body"><span class="avm-row__l1"><span class="avm-row__name">Herzogtum Paavi</span></span><span class="avm-row__l2">930 BF – heute · Wiki ↗</span></span></button>
+			</div>
+		</div>
+		<p class="note"><b>Die Breite ist EIN Token</b> (<code>--avm-row-bild-w</code>), den Bild
+		und Platzhalter beide lesen — zwei Zahlen wären genau die Divergenz, die die Regel
+		verhindern soll.<br>
+		⚠️ Die <b>Höhe</b> gehört der Liste, nicht dem Bauteil: Wappen quadratisch,
+		Buchcover 3:4, Kartenvorschau 4:3.</p>
+	</figure>
+</div>
+
+<p><b>Nachgemessen an den drei Listen oben</b> (Abstand der Textspalte von der Listenkante):
+ohne die Regel <b>58,7 · 20,7 · 58,7 · 20,7</b> — ein Sprung von 38 px in jeder zweiten Zeile;
+mit der Regel <b>58,7</b> viermal. Die Wappenliste (mit Aufklapp-Pfeil davor) steht bei
+<b>74</b> dreimal.</p>
+<p>⭐ <b>Und der Preis von <code>:has</code> ist gemessen, nicht geschätzt:</b> an einer
+künstlichen Liste mit <b>2000 Zeilen</b> (jede dritte ohne Bild) kostet ein doppelter Reflow
+mit der Regel <b>41,1 ms</b>, ohne sie <b>47,5 ms</b> — der Unterschied liegt im Rauschen. Die
+größte betroffene Liste im Bestand ist die Literatur mit 2.003 Einträgen; die Frage ist damit
+beantwortet, statt offen zu bleiben.</p>
+
 <p>⚠️ <b>Eine Einschränkung, die ich nicht verschweige:</b> <code>AGENTS.md</code> §11 sagt seit
 dem 14.08.2026 „<i>Die Listenzeile — es gibt ZWEI, und das ist die Obergrenze</i>“
 (<code>.wikisync-itemlist .tree-item</code> und <code>.avm-row</code>). Gemessen sind es heute
