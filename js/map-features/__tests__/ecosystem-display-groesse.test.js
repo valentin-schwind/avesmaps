@@ -176,17 +176,15 @@ avesmapsEcosystemDisplayInstall(null);
 assert.strictEqual(avesmapsLabelImBand({ labelType: "see", minZoom: 0, maxZoom: 7 }, 0), true,
 	"💣 der See folgt weiterhin seinem eigenen Band");
 
-// ⚠️ Seit dem 03.09.2026 fragt shouldShowLabelMarker die WEICHE avesmapsLabelImBandDerAnsicht, und
-// die fragt als Erstes diese Regel -- in „Alle" und „Topographie" haengt sie eine Zusage fuer Gipfel
-// daran (gipfel-band-in-der-ansicht.test.js fuehrt beide aus). Abschnitt H oben bleibt damit wahr:
-// die REINE Regel kennt keine Ausnahme; die Ansicht ist Umgebung und steht in der Weiche davor.
+// 🔴 UND ES GIBT KEINE ZWEITE INSTANZ DAZWISCHEN (Owner 04.09.2026, nachdem es am 03.09. eine gab):
+// shouldShowLabelMarker fragt die reine Regel SELBST. Eine Weiche davor, die „in dieser Ansicht gilt
+// dein Wert nicht" sagt, ist genau der Riegel vom 27.08. in neuer Verkleidung -- Owner: „gelten muss
+// immer die einstellung der editoren also der objekte".
 const vonS = ohneKommentare.indexOf("function shouldShowLabelMarker(");
 const bisS = ohneKommentare.indexOf("\n}", vonS);
-assert.ok(/avesmapsLabelImBandDerAnsicht\(entry\.label/.test(ohneKommentare.slice(vonS, bisS)),
-	"shouldShowLabelMarker fragt die Weiche der Ansicht");
-const vonW = ohneKommentare.indexOf("function avesmapsLabelImBandDerAnsicht(");
-const bisW = ohneKommentare.indexOf("\n}", vonW);
-assert.ok(vonW >= 0 && /if \(avesmapsLabelImBand\(label, bandZoom\)\)/.test(ohneKommentare.slice(vonW, bisW)),
-	"und die Weiche fragt ZUERST die reine Regel -- sie kann nur zeigen, nie verbergen");
+assert.ok(/avesmapsLabelImBand\(entry\.label/.test(ohneKommentare.slice(vonS, bisS)),
+	"shouldShowLabelMarker fragt sie");
+assert.ok(!/ImBandDerAnsicht|GipfelAnsichtAktiv/.test(ohneKommentare),
+	"💣 keine Ansichts-Weiche vor dem Band -- sie hat die Editor-Einstellung zweimal ausgehebelt");
 
 console.log("ecosystem-display-groesse: alle Zusicherungen gruen");

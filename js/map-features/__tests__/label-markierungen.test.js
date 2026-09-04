@@ -101,11 +101,8 @@ pruefe(/marke:\s*typeof avesmapsLabelMarke === "function"/.test(KURVE),
 	"die Kurvenablage merkt sich die Marke beim Rechnen");
 
 // 💣 Das Band darf nur ODER-verknuepft sein, nie ersetzt: ohne Marke gilt es weiter.
-// ⚠️ Seit dem 03.09.2026 ist es das Band DER ANSICHT (avesmapsLabelImBandDerAnsicht): in „Alle" und
-// „Topographie" steht ein Gipfel spaetestens ab der Vorgabe seiner Art. Auch das kann nur ZEIGEN --
-// die Weiche fragt avesmapsLabelImBand zuerst und haengt nur eine zweite Zusage daran.
-pruefe(/\(markiert \|\| avesmapsLabelImBandDerAnsicht\(entry\.label, bandZoom\)\)/.test(LABELS),
-	"das Zoomband der Ansicht gilt weiter, wo keine Marke ist");
+pruefe(/\(markiert \|\| avesmapsLabelImBand\(entry\.label, bandZoom\)\)/.test(LABELS),
+	"das Zoomband gilt weiter, wo keine Marke ist");
 
 // 💣 UND NUR DAS BAND. Das Culling am Bildrand bleibt unangetastet -- sonst baut ein einziger
 // gesetzter Haken Marker fuer ALLE 1017 Beschriftungen der ganzen Karte statt fuer den Ausschnitt.

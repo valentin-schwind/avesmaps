@@ -1298,76 +1298,6 @@ function avesmapsLabelImBand(label, bandZoom) {
 	return bandZoom >= (Number.isFinite(min) ? min : 0) && bandZoom <= (Number.isFinite(max) ? max : 7);
 }
 
-// Liegt die Karte in einer GIPFEL-ANSICHT -- Landschaftsmodus mit „Alle" oder „Topographie"?
-//
-// 🔴 ZWEI Ansichten, und die Liste ist der ganze Umfang (Owner 03.09.2026: „dass in den
-// Landschaftsansichten "Alle" und "Topographie" wieder alle Berge, Vulkane, etc. angezeigt werden").
-// Die Topographie ist die Ebene, deren ARBEITSPUNKT der Gipfel ist (isLabelOfActiveEcosystemLayer
-// nimmt ihn dort schon ohne Flaeche auf), und „Alle" zeigt alles. Vegetation, Derographie und Klima
-// gehoeren nicht dazu -- dort laesst der Ebenenfilter ohnehin keinen Gipfel durch.
-// ⚠️ „Alle" ZUERST: die gemerkte Ebene sagt dort weiterhin die zuletzt gewaehlte -- live gemessen
-// 03.09.2026 (showAll true, ecoKind "vegetation").
-// 🪤 `typeof` wie bei den Nachbarn: diese Datei laedt vor map-features-ecosystem-layer-switch.js.
-function avesmapsGipfelAnsichtAktiv() {
-	if (typeof isEcosystemLayerModeActive !== "function" || !isEcosystemLayerModeActive()) {
-		return false;
-	}
-	if (typeof isEcosystemShowAllLayers === "function" && isEcosystemShowAllLayers()) {
-		return true;
-	}
-	return typeof getActiveEcosystemLayerKind === "function"
-		&& getActiveEcosystemLayerKind() === "topographie";
-}
-
-// Das Band, wie es in der AKTUELLEN ANSICHT wirkt.
-//
-// 🔴 IN „ALLE" UND „TOPOGRAPHIE" STEHT EIN GIPFEL SPAETESTENS AB DER VORGABE SEINER ART (Owner
-// 03.09.2026, s. o.; die Vorgabe ist „berggipfel und vulkane sollen ab Z4 erscheinen" vom
-// 27.08.2026, Tafel AVESMAPS_ECOSYSTEM_DISPLAY_VORGABE_JE_ART). Sein eigenes Band darf ihn FRUEHER
-// zeigen, nie spaeter; sein eigenes oberes Ende bleibt. Sichtbar ist die VEREINIGUNG aus eigenem
-// Band und Tafelband, das Tafelband gedeckelt durch das eigene obere Ende.
-//
-// 💣 DAS IST DIE DRITTE FASSUNG DERSELBEN ZEILE IN EINER WOCHE, und die zwei davor sind der Grund
-// fuer ihre Form: vom 27.08. bis zum 02.09. schlug die Tafel das eigene Band eines Gipfels UEBERALL
-// (ein Riegel -- „Sichtbar ab Zoom" war fuer 76 Gipfel still wirkungslos; Owner 02.09.: „ich wollte
-// nur dass berggipfel durch die einstellung eine vorgabe bekommen"); seit dem 02.09. galt UEBERALL
-// nur das eigene Band -- und in der Topographie fehlten daraufhin bei z4 19 von 76 Gipfeln und bei
-// z5 11, weil ihr eigenes Band spaeter beginnt (Owner 03.09.: „wieder alle Berge, Vulkane"). Die
-// Loesung ist keine dritte Zahl, sondern ein ORT: die Zusage gilt nur dort, wo der Gipfel der
-// Gegenstand der Ansicht ist. In der Standardansicht gilt weiter allein das eigene Band -- der
-// gemeldete Fall „Der Dreizack" (min_zoom 6, bei z5 nicht da) bleibt dort erfuellt.
-//
-// 🔴 DER REGLER BEKOMMT SEINE ANTWORT MIT: der Beschriftungsdialog sagt unter dem Zoomband eines
-// Gipfels, dass ein spaeteres „Sichtbar ab Zoom" in diesen zwei Ansichten nicht gilt
-// (avesmapsLabelZeichneGipfelHinweis). Ein Regler, dessen Wert irgendwo nicht gilt, ohne dass es
-// dasteht, ist die Falle vom 27.08. in neuer Form.
-// 💣 NICHT IN avesmapsLabelImBand EINGEBAUT: die ist REIN (Label und Zoom, sonst nichts) und wird
-// von drei Tests als Ausschnitt ausgefuehrt; die Ansicht ist Umgebung. Hier steht die Weiche, dort
-// die Regel -- und die Weiche fragt die Regel ZUERST, sie kann also nur zeigen, nie verbergen.
-// `gipfelAnsicht` wird hereingereicht, damit ein Test beide Zweige ohne Karte faehrt.
-// ⚠️ Eine Tafel auf „aus" (bis < ab) sagt NICHTS zu -- ihr Band ist leer, und nur das eigene gilt.
-function avesmapsLabelImBandDerAnsicht(label, bandZoom, gipfelAnsicht = avesmapsGipfelAnsichtAktiv()) {
-	if (avesmapsLabelImBand(label, bandZoom)) {
-		return true;
-	}
-	if (gipfelAnsicht !== true
-		|| typeof isEcosystemPeakSubtype !== "function" || !isEcosystemPeakSubtype(label?.labelType)
-		|| typeof avesmapsEcosystemDisplayBand !== "function") {
-		return false;
-	}
-	const tafel = avesmapsEcosystemDisplayBand(label?.labelType);
-	const ab = Number(tafel?.ab);
-	const bis = Number(tafel?.bis);
-	if (!Number.isFinite(ab) || !Number.isFinite(bis)) {
-		return false;
-	}
-	// Das eigene obere Ende bleibt -- „nur bis Zoom 6" gilt auch hier. Fehlt es, gilt die Karte (7).
-	const rohMax = label?.maxZoom;
-	const eigenesMax = (rohMax === null || rohMax === undefined || !Number.isFinite(Number(rohMax)))
-		? 7 : Number(rohMax);
-	return bandZoom >= ab && bandZoom <= Math.min(bis, eigenesMax);
-}
-
 function shouldShowLabelMarker(entry, zoomLevel = map.getZoom(), renderBounds = getMapRenderBounds(), editorOverride = isMapLabelEditorOverrideActive(), mitKurvenriegel = true) {
 	const minZoom = Number(entry.label.minZoom) || 0;
 	const maxZoom = Number.isFinite(Number(entry.label.maxZoom)) ? Number(entry.label.maxZoom) : 7;
@@ -1465,14 +1395,10 @@ function shouldShowLabelMarker(entry, zoomLevel = map.getZoom(), renderBounds = 
 	// ⚠️ Der Kurvenriegel steht DARUEBER und gilt weiter: ein gebogener Name bekommt keinen Marker,
 	// er bekommt seinen Kasten gemalt. Seine Sichtbarkeit haengt an derselben Funktion (der
 	// Kandidatenleser fragt mit `mitKurvenriegel = false`), das Band faellt dort also mit.
-	// 🔴 UND IN „ALLE"/„TOPOGRAPHIE" GILT DAS BAND DER ANSICHT (Owner 03.09.2026): ein Gipfel steht
-	// dort spaetestens ab der Vorgabe seiner Art -- avesmapsLabelImBandDerAnsicht, oben begruendet.
-	// Dieselbe ODER-Stelle wie die Marke: sie kann nur ZEIGEN, nie verbergen; die vier `return false`
-	// darueber und das Culling darunter bleiben unberuehrt.
 	const markiert = typeof avesmapsLabelMarkeHebtZoomband === "function"
 		&& avesmapsLabelMarkeHebtZoomband(entry.label);
 	return (MAP_LABEL_MODES.includes(getSelectedMapLayerMode()) || editorOverride === true)
-		&& (markiert || avesmapsLabelImBandDerAnsicht(entry.label, bandZoom))
+		&& (markiert || avesmapsLabelImBand(entry.label, bandZoom))
 		&& isLatLngInRenderBounds(entry.marker.getLatLng(), renderBounds);
 }
 

@@ -763,38 +763,6 @@ function avesmapsLabelZeichneVorgabeMarken() {
 		);
 		marke.title = "Vorgabe: " + wert;
 	});
-	avesmapsLabelZeichneGipfelHinweis(art, vorgabe);
-}
-
-/**
- * Der Satz unter dem Zoomband eines GIPFELS -- REIN, damit ein Test ihn liest.
- * 🔴 DER REGLER BEKOMMT SEINE ANTWORT MIT: in den Landschaftsansichten „Alle" und „Topographie"
- * steht ein Gipfel spaetestens ab der Vorgabe seiner Art (avesmapsLabelImBandDerAnsicht in
- * map-features-labels.js, Owner 03.09.2026); ein spaeteres „Sichtbar ab Zoom" gilt dort nicht.
- * Vom 27.08. bis zum 02.09.2026 galt der Regler bei 76 Gipfeln NIRGENDS und sagte es nicht --
- * „die einstellung zur darstellung hat keinen effekt". Ein Wert, der irgendwo nicht gilt, steht
- * seither dabei.
- */
-function avesmapsLabelGipfelHinweisText(ab) {
-	return "In den Landschaftsansichten „Alle“ und „Topographie“ steht ein Gipfel spätestens ab Zoom "
-		+ ab + " (Vorgabe seiner Art) — ein früheres „Sichtbar ab Zoom“ gilt dort, ein späteres nicht.";
-}
-
-/** Den Satz zeigen oder verbergen -- nur fuer Gipfelarten, nur mit einem Band, das etwas zusagt. */
-function avesmapsLabelZeichneGipfelHinweis(art, vorgabe) {
-	const zeile = document.getElementById("label-edit-gipfel-hinweis-row");
-	const satz = document.getElementById("label-edit-gipfel-hinweis");
-	if (!zeile || !satz) {
-		return;
-	}
-	const istGipfel = typeof isEcosystemPeakSubtype === "function" && isEcosystemPeakSubtype(art);
-	const ab = vorgabe ? Number(vorgabe.ab) : NaN;
-	// ⚠️ „aus" (bis < ab) sagt nichts zu -- dann gibt es auch nichts zu sagen.
-	const zusage = Boolean(istGipfel && vorgabe && Number.isFinite(ab) && Number(vorgabe.bis) >= ab);
-	zeile.hidden = !zusage;
-	if (zusage) {
-		satz.textContent = avesmapsLabelGipfelHinweisText(ab);
-	}
 }
 
 /**
