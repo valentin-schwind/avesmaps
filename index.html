@@ -3569,6 +3569,12 @@
 		<script src="js/app/link-status.js"></script>
 		<script src="js/app/legal-contact-form.js"></script>
 		<!-- Nach i18n.js: das Modul fragt window.tr/avesmapsActiveLang für Monatsnamen und Rubriken ab. -->
+		<!-- 💣 VOR changelog-dialog.js und allen anderen Nutzern: das Bauteil setzt nur zwei
+		     Globals und haengt an nichts. Es stand bis zum 04.09.2026 WEITER UNTEN, und der Tag,
+		     an dem der Aenderungsverlauf es zu benutzen begann, war der Tag, an dem sein Modul mit
+		     einem ReferenceError abbrach -- mitten drin, also lief sein Escape-Zuhoerer danach nicht
+		     mehr. Gefunden von read_console_messages auf der laufenden Seite, von keinem Test. -->
+		<script src="js/ui/dialog-hintergrund-schliessen.js"></script>
 		<script src="js/app/changelog-dialog.js"></script>
 		<script src="js/app/utils.js"></script>
 		<!-- Der geteilte Trichter (auch von den Editor-iframes geladen). Vor review-wiki-sync.js,
@@ -3595,7 +3601,6 @@
 		     dieser Zeile umgefallen; efd669eab hat daraufhin acht Tests die Kommentare strippen
 		     lassen (29 Pfade stehen in Kommentaren, gemessen). Die Regel hier bleibt trotzdem: der
 		     naechste Test bringt sein indexOf ungeschuetzt mit. -->
-		<script src="js/ui/dialog-hintergrund-schliessen.js"></script>
 		<script src="js/ui/filter-bar.js"></script>
 		<script src="js/ui/feature-source-markup.js"></script>
 		<!-- Die EINE Weiche „wo liegen die Quellen einer Beschriftung“ (Schritt 5 des Quellen-Umbaus): gebunden ->

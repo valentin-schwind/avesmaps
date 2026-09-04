@@ -1450,10 +1450,14 @@
 		if (close) { close.addEventListener("click", closeHub); }
 		const overlay = el("social-hub-overlay");
 		if (overlay) {
-			// Klick auf die Hülle schließt, Klick INS Fenster nicht.
-			overlay.addEventListener("click", function (event) {
-				if (event.target === overlay) { closeHub(); }
-			});
+			// 🔴 DAS GETEILTE BAUTEIL, nicht die eigene Abschrift (js/ui/dialog-hintergrund-schliessen.js).
+			//    Der Unterschied ist DRUCK UND LOSLASSEN: `click` feuert am naechsten gemeinsamen VORFAHREN,
+			//    also schliesst ein blosses `event.target === overlay` auch dann, wenn jemand IM Fenster
+			//    Text markiert und dabei ueber den Rand hinauszieht -- der Vorfahre IST dann die Huelle.
+			//    UND HIER IST ES NICHT HARMLOS: closeHub() setzt `editingId` und `pendingChannels`
+			//    zurueck -- wer im Beitragstext markiert und dabei ueber den Fensterrand zieht, verliert
+			//    seinen Entwurf. Genau der Fall, fuer den das Bauteil gebaut wurde.
+			avesmapsDialogHintergrundSchliessen(overlay, closeHub);
 		}
 		document.addEventListener("keydown", function (event) {
 			const box = el("social-hub-overlay");

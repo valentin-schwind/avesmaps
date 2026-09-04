@@ -89,3 +89,40 @@ assert.deepStrictEqual(ohne, [],
 	"Kopfzeilen ohne jede Regel -- weder Bauteil noch eigene:\n   " + ohne.join("\n   "));
 
 console.log("OK -- alle " + familien.size + " Kopfzeilen-Familien haben eine Regel");
+
+// ---- 2) Dieselbe Rezeptur in zwei Dateien muss ZEICHENGLEICH sein -----------------------------
+// 💣 `.modal-box`/`.modal-title`/`.modal-sub`/`.modal-actions` stehen ZWEIMAL, je einmal im
+//    <style> von wiki-sync-monitor.html und wiki-sync-settlement-editor.html -- derselbe Bauer,
+//    dieselben sechs Fenster, zwei Kopien. Am 04.09.2026 wichen sie in FUENF Werten voneinander ab:
+//    Titel 15px gegen --font-size-subhead (und 15 steht nicht einmal auf der Schriftskala),
+//    Untertitel 12px gegen --font-size-small, Kastenbreite 360 gegen 390, dazu zwei hartkodierte
+//    Werte fuer Radius und Schatten. Genau das hat der Owner gemeldet: „titelleisten anders
+//    aussehen … unterschiedlich gross".
+// 🔴 Der Test verlangt GLEICHHEIT, nicht bestimmte Werte -- wer beide zusammen aendert, darf das.
+//    Er faellt nur, wenn eine Kopie allein wandert, und das ist die Divergenz selbst.
+const REZEPTUR = /^\s*\.modal-(box|title|sub|actions) \{/;
+const kopien = ["html/wiki-sync-monitor.html", "html/wiki-sync-settlement-editor.html"]
+	.map((datei) => ({
+		datei,
+		regeln: fs.readFileSync(path.join(WURZEL, datei), "utf8")
+			.split(/\r?\n/)
+			.filter((l) => REZEPTUR.test(l))
+			.map((l) => l.trim())
+			.sort(),
+	}));
+
+assert.ok(kopien[0].regeln.length >= 4,
+	"Der Sucher findet die Rezeptur nicht mehr -- er misst sich selbst kaputt");
+
+for (const regel of kopien[0].regeln) {
+	assert.ok(kopien[1].regeln.includes(regel),
+		"Die zwei Kopien der modal-box-Rezeptur laufen auseinander.\n"
+		+ "   nur in " + kopien[0].datei + ":\n   " + regel);
+}
+for (const regel of kopien[1].regeln) {
+	assert.ok(kopien[0].regeln.includes(regel),
+		"Die zwei Kopien der modal-box-Rezeptur laufen auseinander.\n"
+		+ "   nur in " + kopien[1].datei + ":\n   " + regel);
+}
+console.log("OK -- die modal-box-Rezeptur steht in beiden Dateien zeichengleich (" +
+	kopien[0].regeln.length + " Regeln)");

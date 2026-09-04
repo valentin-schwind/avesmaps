@@ -553,6 +553,11 @@ function initializeWikiSyncTerritoryDragAssignment() {
 function initializePoliticalTerritoryEditorPopup() {
 	const { overlay, closeButton, frame } = getPoliticalTerritoryEditorElements();
 	closeButton?.addEventListener("click", closePoliticalTerritoryEditor);
+	// Klick auf den Hintergrund schliesst -- dieselbe Bedeutung wie ✕ und Escape (Owner 02.09.2026).
+	// ⚠️ Das Fenster ist gross, sein Schleier ein schmaler Rand: der Klick ist hier schwer
+	//    VERSEHENTLICH zu treffen, und das Schliessen verliert nichts -- der Editor im iframe
+	//    speichert selbst, `setPoliticalTerritoryEditorOpen(false)` blendet nur aus.
+	avesmapsDialogHintergrundSchliessenById("political-territory-editor-overlay", closePoliticalTerritoryEditor);
 	frame?.addEventListener("load", setupPoliticalTerritoryEditorFrame);
 	overlay?.addEventListener("click", (event) => {
 		if (event.target === overlay) closePoliticalTerritoryEditor();

@@ -376,6 +376,11 @@ $(document).on("submit", "#review-form", function (event) {
 	event.preventDefault();
 	submitReviewForm();
 });
+// Klick auf den Hintergrund schliesst -- dieselbe Bedeutung wie ✕ und Escape (Owner 02.09.2026:
+// „ansonsten ist das das normale verhalten von fenstern"). Das Bauteil prueft DRUCK UND
+// LOSLASSEN; hier steht ein FORMULAR mit Sternen und Freitext, und `click` allein wuerde es
+// verwerfen, sobald jemand im Textfeld markiert und dabei ueber den Fensterrand zieht.
+avesmapsDialogHintergrundSchliessenById("review-overlay", closeReviewDialog);
 $(document).on("click", "[data-review-dialog-close]", function (event) {
 	event.preventDefault();
 	closeReviewDialog();

@@ -303,16 +303,16 @@
   /* Upload-Dialog */
   .modal { position:fixed; inset:0; background:var(--color-scrim-dialog); display:flex; align-items:center; justify-content:center; z-index:100; }
   .modal[hidden] { display:none; }
-  .modal-box { background:var(--panel); border:1px solid var(--line2); border-radius:10px; padding:16px; width:390px; max-width:92vw; box-shadow:0 14px 40px rgba(0,0,0,.28); }
+  .modal-box { background:var(--panel); border:1px solid var(--color-border-strong); border-radius:var(--radius-sm); padding:var(--space-16); width:390px; max-width:92vw; box-shadow:var(--shadow-dialog); }
   /* Etwas breiter fuer die Lizenz/Urheber/Kommentar-Reihe (js/ui/media-license-fields.js, Aufgabe 5)
      -- gleicher Wert wie .modal-box.wide in html/wiki-sync-settlement-editor.html (derselbe Bauer). */
   .modal-box.wide { width:460px; }
   /* Der Titel ist zugleich der Griff zum Verschieben (js/ui/dialog-drag.js, unten geladen). */
-  .modal-title { font-size:var(--font-size-subhead); font-weight:bold; color:var(--color-text-strong); margin-bottom:2px; cursor:move; user-select:none; }
-  .modal-sub { color:var(--mut); font-size:var(--font-size-small); margin-bottom:10px; }
+  .modal-title { font-size:var(--font-size-subhead); font-weight:var(--font-weight-bold); color:var(--color-text-strong); margin-bottom:2px; cursor:move; user-select:none; }
+  .modal-sub { color:var(--mut); font-size:var(--font-size-small); margin-bottom:var(--space-8); }
   .fld { display:block; margin:8px 0; font-size:var(--font-size-small); }
   .fld input[type=text], .fld input[type=file] { display:block; width:100%; margin-top:4px; }
-  .modal-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:12px; }
+  .modal-actions { display:flex; justify-content:flex-end; gap:var(--avm-ribbon-gap); margin-top:var(--space-10); }
   /* .ident-table bedient jetzt nur noch #geomModal ("🗑 Nicht zugewiesene Geometrie") -- die
      Identitäts-Vorschau, die die anderen .ident-*-Regeln brauchte, ist mit der Übernahme-Vorschau
      (sync-plan-sheet.js) abgelöst. */

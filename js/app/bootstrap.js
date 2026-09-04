@@ -772,6 +772,11 @@ $("#legal-overlay").on("click", function (event) {
     ["region-edit-overlay", () => setRegionEditDialogOpen(false, { resetForm: true })],
     ["wiki-sync-resolve-overlay", () => setWikiSyncResolveDialogOpen(false, { resetForm: true })],
     ["wiki-sync-dump-credentials-overlay", () => closeWikiSyncDumpCredentialsPrompt(false)],
+    // 🔴 „Konflikte" NUR im vollen Zustand: verkleinert traegt seine Huelle `pointer-events: none`
+    //    und reicht Zeiger an die Karte durch -- der Klick kommt dort ohnehin nie an. Die Zeile
+    //    braucht also keine Bedingung, die Bauart ist die Bedingung.
+    ["wiki-sync-conflicts-overlay", () => setWikiSyncConflictsDialogOpen(false)],
+    ["wiki-sync-lore-overlay", () => setWikiSyncLoreDialogOpen(false)],
 ].forEach(([overlayId, schliessen]) => avesmapsDialogHintergrundSchliessenById(overlayId, schliessen));
 $("#location-report-close, #location-report-cancel").on("click", () => setLocationReportDialogOpen(false, { resetForm: true }));
 $("#location-edit-close, #location-edit-cancel").on("click", () => setLocationEditDialogOpen(false, { resetForm: true }));

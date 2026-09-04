@@ -658,6 +658,12 @@
 		transferBound = true;
 		transferElement("close")?.addEventListener("click", closeEcosystemTransferDialog);
 		transferElement("cancel")?.addEventListener("click", closeEcosystemTransferDialog);
+		// Klick auf den Hintergrund schliesst -- dieselbe Bedeutung wie ✕ und Escape (Owner
+		// 02.09.2026: „ansonsten ist das das normale verhalten von fenstern"). Die Regel steht in
+		// js/ui/dialog-hintergrund-schliessen.js; sie prueft DRUCK UND LOSLASSEN, damit eine
+		// Markierung, die ueber den Fensterrand hinauszieht, das Fenster nicht schliesst.
+		// ⚠️ Am ELEMENT, nie am document: ein delegierter Zuhoerer saehe den Kartenklick eines anderen Fensters.
+		avesmapsDialogHintergrundSchliessenById(OVERLAY_ELEMENT_ID, closeEcosystemTransferDialog);
 		transferElement("form")?.addEventListener("submit", submitEcosystemTransfer);
 		transferElement("kind")?.addEventListener("change", (event) => {
 			// A region created by a failed attempt belongs to the layer it was created in; pointing at
@@ -671,12 +677,6 @@
 		});
 		transferElement("delete-source")?.addEventListener("change", syncTransferDeleteNote);
 		transferElement("name")?.addEventListener("input", syncTransferRegionFields);
-		// Click on the scrim closes; a click inside the dialog must not.
-		overlayElement.addEventListener("click", (event) => {
-			if (event.target === overlayElement) {
-				closeEcosystemTransferDialog();
-			}
-		});
 		document.addEventListener("keydown", (event) => {
 			if (event.key === "Escape" && isEcosystemTransferDialogOpen()) {
 				// Stopped, so the layer's own Escape does not ALSO drop the selection of the area the

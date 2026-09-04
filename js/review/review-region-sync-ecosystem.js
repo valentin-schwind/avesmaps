@@ -373,13 +373,14 @@ function bindEcosystemAssignDialog() {
 	ecosystemAssignBound = true;
 	ecosystemAssignElement("ecosystem-assign-form")?.addEventListener("submit", submitEcosystemAssignDialog);
 	ecosystemAssignElement("ecosystem-assign-close")?.addEventListener("click", closeEcosystemAssignDialog);
+	// Klick auf den Hintergrund schliesst -- dieselbe Bedeutung wie ✕ und Escape (Owner 02.09.2026:
+	// „ansonsten ist das das normale verhalten von fenstern"). Die Regel steht in
+	// js/ui/dialog-hintergrund-schliessen.js und prueft DRUCK UND LOSLASSEN, damit eine Markierung,
+	// die ueber den Fensterrand hinauszieht, das Fenster nicht schliesst.
+	// 🔴 Am ELEMENT, nie am document: Fenster, die sich fuer einen Kartenklick wegblenden und
+	//    wiederkommen, saehen delegiert genau diesen Klick als Hintergrundklick.
+	avesmapsDialogHintergrundSchliessenById("ecosystem-assign-overlay", closeEcosystemAssignDialog);
 	ecosystemAssignElement("ecosystem-assign-cancel")?.addEventListener("click", closeEcosystemAssignDialog);
-	// Klick auf den Scrim schliesst; ein Klick IM Dialog darf das nicht.
-	overlay.addEventListener("click", (event) => {
-		if (event.target === overlay) {
-			closeEcosystemAssignDialog();
-		}
-	});
 	ecosystemAssignElement("ecosystem-assign-filter")?.addEventListener("input", renderEcosystemAssignCandidates);
 	ecosystemAssignElement("ecosystem-assign-list")?.addEventListener("change", resetEcosystemAssignPreview);
 	document.addEventListener("keydown", (event) => {
@@ -661,13 +662,14 @@ function bindLabelAssignDialog() {
 	labelAssignBound = true;
 	labelAssignElement("label-assign-form")?.addEventListener("submit", submitLabelAssignDialog);
 	labelAssignElement("label-assign-close")?.addEventListener("click", closeLabelAssignDialog);
+	// Klick auf den Hintergrund schliesst -- dieselbe Bedeutung wie ✕ und Escape (Owner 02.09.2026:
+	// „ansonsten ist das das normale verhalten von fenstern"). Die Regel steht in
+	// js/ui/dialog-hintergrund-schliessen.js und prueft DRUCK UND LOSLASSEN, damit eine Markierung,
+	// die ueber den Fensterrand hinauszieht, das Fenster nicht schliesst.
+	// 🔴 Am ELEMENT, nie am document: Fenster, die sich fuer einen Kartenklick wegblenden und
+	//    wiederkommen, saehen delegiert genau diesen Klick als Hintergrundklick.
+	avesmapsDialogHintergrundSchliessenById("label-assign-overlay", closeLabelAssignDialog);
 	labelAssignElement("label-assign-cancel")?.addEventListener("click", closeLabelAssignDialog);
-	// Klick auf den Scrim schliesst; ein Klick IM Dialog darf das nicht.
-	overlay.addEventListener("click", (event) => {
-		if (event.target === overlay) {
-			closeLabelAssignDialog();
-		}
-	});
 	labelAssignElement("label-assign-filter")?.addEventListener("input", renderLabelAssignCandidates);
 	labelAssignElement("label-assign-list")?.addEventListener("change", resetLabelAssignPreview);
 	document.addEventListener("keydown", (event) => {

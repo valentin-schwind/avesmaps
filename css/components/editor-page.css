@@ -1109,48 +1109,46 @@ body.avm-editor-body {
 }
 .avm-modal[hidden] { display: none; }
 
+/* 🔴 Rand, Radius, Grund, Schatten, Flex-Richtung und overflow gehoeren dem Bauteil
+   (css/components/fenster.css). Hier bleibt nur, was DIESES Fenster ausmacht.
+   ⚠️ Sein Rumpf-Polster steht unten an .avm-modal__body, nicht als lokale Umdeutung von
+   --avm-col-pad -- siehe die Begruendung dort. */
 .avm-modal__box {
 	width: 980px;
 	max-width: 96vw;
 	max-height: 92vh;
-	border: 1px solid var(--color-border);
-	border-radius: var(--radius-lg);
-	background: var(--color-panel);
-	box-shadow: var(--shadow-panel);
-	color: var(--color-text);
-	display: flex;
-	flex-direction: column;
-	overflow: hidden;
 }
 
-/* Der Titel ist zugleich der Griff zum Verschieben (js/ui/dialog-drag.js), wie im Orte-Editor. */
+/* 🔴 Polster, Titelgroesse, Farbe und der Zeiger gehoeren dem Bauteil. Hier stand bis zum
+   04.09.2026 die eigene Rezeptur -- 16/20/4 Polster und ein 20px-Titel, beide von jedem
+   anderen Fenster abweichend. Der Griff kommt jetzt ebenfalls vom Bauteil. */
 .avm-modal__title {
-	padding: var(--space-16) var(--space-20) var(--space-4);
-	color: var(--color-text-strong);
-	cursor: move;
-	font-family: var(--font-display, var(--font-ui));
-	font-size: 20px;
 	user-select: none;
 }
+/* 💣 KEIN border-bottom mehr. Die Kopfleiste des Bauteils bringt die durchgehende Linie mit;
+   eine zweite hier ergaebe die ZWEI Linien uebereinander, die der Owner am 04.09.2026
+   ausdruecklich nicht wollte. Der Untertitel ist damit die erste Zeile des INHALTS. */
 .avm-modal__sub {
-	padding: 0 var(--space-20) var(--space-12);
-	border-bottom: 1px solid var(--color-divider);
+	padding: var(--space-10) var(--space-20) 0;
 	color: var(--color-text-muted);
-	font-size: 13px;
+	font-size: var(--font-size-small);
 }
-/* ⚠️ NUR der Rumpf scrollt, nicht das ganze Fenster: sonst wandern Titel und Knopfleiste aus dem
-   Bild, und „Speichern" ist bei einer langen Tafel nicht mehr erreichbar. */
+/* 🔴 flex, overflow und Polster kommen vom .avm-fenster__rumpf des Bauteils. Der Kommentar
+   darueber -- „NUR der Rumpf scrollt" -- ist damit keine Absprache mehr, sondern die
+   Bauart selbst. */
 .avm-modal__body {
-	flex: 1 1 auto;
+	min-height: 0;
+	/* ⚠️ EIGENES Polster, statt --avm-col-pad umzudeuten: eine 980px breite Tafel mit vielen
+	   Zeilen braucht mehr Luft als ein schmales Werkzeugfenster. Der Token behaelt seine
+	   Bedeutung -- ihn hier lokal zu ueberschreiben laedt den naechsten Leser dazu ein, es
+	   ebenso zu tun, und dann steht der Wert wieder an zwei Stellen (lore-dialog-layout.test.js
+	   wacht ausdruecklich darueber). Diese Regel steht NACH dem @import, gewinnt also. */
 	padding: var(--space-16) var(--space-20);
-	overflow-y: auto;
 }
+/* 🔴 Ausrichtung, Abstand, Polster und Trennlinie kommen vom .avm-fenster__fuss.
+   ⚠️ Der Spacer bleibt: „Auf Vorgabe zuruecksetzen" gehoert nach LINKS, weg von Speichern. */
 .avm-modal__actions {
-	display: flex;
-	justify-content: flex-end;
-	gap: var(--space-8);
-	padding: var(--space-12) var(--space-20) var(--space-16);
-	border-top: 1px solid var(--color-divider);
+	flex-wrap: nowrap;
 }
 .avm-modal__actions .avm-modal__spacer { margin-right: auto; }
 .avm-modal__msg {

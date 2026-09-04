@@ -259,12 +259,13 @@ var AVESMAPS_CHANGELOG_CATEGORY_LABELS = {
 		});
 	}
 
-	// Klick auf den Schleier schliesst -- wie bei jedem Fenster im Haus.
-	overlay.addEventListener("click", function (event) {
-		if (event.target === overlay) {
-			setOpen(false);
-		}
-	});
+	// 🔴 DAS GETEILTE BAUTEIL, nicht die eigene Abschrift (js/ui/dialog-hintergrund-schliessen.js).
+	//    Der Unterschied ist DRUCK UND LOSLASSEN: `click` feuert am naechsten gemeinsamen VORFAHREN,
+	//    also schliesst ein blosses `event.target === overlay` auch dann, wenn jemand IM Fenster
+	//    Text markiert und dabei ueber den Rand hinauszieht -- der Vorfahre IST dann die Huelle.
+	//    Bei einem Anzeigefenster faellt das nie auf; deshalb kamen die rund 25 aelteren
+	//    Abschriften im Haus damit durch. Wer eine anfasst, holt sie hierher (AGENTS.md §11).
+	avesmapsDialogHintergrundSchliessen(overlay, function () { setOpen(false); });
 
 	// 💣 capture:true ist hier tragend, nicht Geschmack: bootstrap.js hört Escape am document ab und
 	// schliesst damit die HINWEISE. Ohne diesen Vorlauf verschwände auf einen Druck das Fenster

@@ -242,13 +242,13 @@
   /* Wappen-Upload-Dialog (Muster wiki-sync-monitor.html #wappenDialog). */
   .modal { position:fixed; inset:0; background:var(--color-scrim-dialog); display:flex; align-items:center; justify-content:center; z-index:100; }
   .modal[hidden] { display:none; }
-  .modal-box { background:var(--panel); border:1px solid var(--line2); border-radius:10px; padding:16px; width:360px; max-width:92vw; box-shadow:0 14px 40px rgba(0,0,0,.28); }
+  .modal-box { background:var(--panel); border:1px solid var(--color-border-strong); border-radius:var(--radius-sm); padding:var(--space-16); width:390px; max-width:92vw; box-shadow:var(--shadow-dialog); }
   /* Der Titel ist zugleich der Griff zum Verschieben (js/ui/dialog-drag.js, unten geladen). */
-  .modal-title { font-size:15px; font-weight:bold; color:var(--color-text-strong); margin-bottom:2px; cursor:move; user-select:none; }
-  .modal-sub { color:var(--mut); font-size:12px; margin-bottom:10px; }
+  .modal-title { font-size:var(--font-size-subhead); font-weight:var(--font-weight-bold); color:var(--color-text-strong); margin-bottom:2px; cursor:move; user-select:none; }
+  .modal-sub { color:var(--mut); font-size:var(--font-size-small); margin-bottom:var(--space-8); }
   .modal .fld { display:block; font-size:12px; margin-bottom:9px; }
   .modal .fld input[type=file] { display:block; margin-top:4px; font:inherit; }
-  .modal-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:12px; }
+  .modal-actions { display:flex; justify-content:flex-end; gap:var(--avm-ribbon-gap); margin-top:var(--space-10); }
   .modal-error { color:var(--bad); font-size:12px; margin-top:4px; }
   /* Zuordnen-Dry-run-Dialog (gleiches Muster wie #seWappenDialog, aber breiter fuer die
      Zaehler-Kacheln + die Beispielliste). */

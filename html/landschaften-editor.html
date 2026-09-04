@@ -258,10 +258,14 @@
      ausgegraut, was ohnehin abgelehnt wuerde.
      ══════════════════════════════════════════════════════════════════════════════════════════ -->
 <div id="ecoDisplayDialog" class="avm-modal" hidden>
-  <div class="avm-modal__box" role="dialog" aria-modal="true" aria-labelledby="ecoDisplayTitle">
-    <div class="avm-modal__title" id="ecoDisplayTitle">Darstellung</div>
+  <div class="avm-modal__box avm-fenster avm-fenster--werkzeug" role="dialog" aria-modal="true" aria-labelledby="ecoDisplayTitle">
+    <div class="avm-modal__title avm-fenster__kopf">
+      <span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>
+      <h2 class="avm-fenster__titel" id="ecoDisplayTitle">Darstellung</h2>
+      <button type="button" class="avm-fenster__knopf avm-fenster__knopf--gefasst" id="ecoDisplayCloseX" aria-label="Schließen">✕</button>
+    </div>
     <div class="avm-modal__sub">Wie Landschaftsflächen und ihre Namen auf der Karte aussehen.</div>
-    <div class="avm-modal__body">
+    <div class="avm-modal__body avm-fenster__rumpf">
       <p class="dg__lead" id="ecoDisplayLead">
         Oben wählst du die Ebene. <strong>Fläche</strong> gibt jeder Flächenart ihren Ton und ihre
         Deckkraft, <strong>Name</strong> die Schriftfarbe. <em>Gespeichert ist erst, was der Knopf
@@ -399,7 +403,7 @@
       </div>
       <p class="avm-modal__msg" id="ecoDisplayMsg"></p>
     </div>
-    <div class="avm-modal__actions">
+    <div class="avm-modal__actions avm-fenster__fuss">
       <button type="button" class="btn2 avm-modal__spacer" id="ecoDisplayReset">Auf Vorgabe zurücksetzen</button>
       <button type="button" class="btn2" id="ecoDisplayClose">Schließen</button>
       <button type="button" class="btn2 is-primary" id="ecoDisplaySave">Speichern</button>
@@ -4575,6 +4579,10 @@ $("ecoDisplayKurvenWahl").addEventListener("change", (ev) => {
 });
 
 $("ecoDisplayClose").addEventListener("click", ecoDisplaySchliessen);
+// 🔴 Das ✕ der Kopfleiste und der Knopf „Schliessen“ im Fuss sind ZWEI Bedienelemente mit EINEM
+//    Handler: das ✕ gehoert dem Fenster, „Schliessen“ der Formularleiste neben Speichern und
+//    Zuruecksetzen. Ein Fenster ohne ✕ waere das einzige im Haus.
+$("ecoDisplayCloseX").addEventListener("click", ecoDisplaySchliessen);
 $("ecoDisplayDialog").addEventListener("click", (ereignis) => {
 	if (ereignis.target === $("ecoDisplayDialog")) { ecoDisplaySchliessen(); }
 });
