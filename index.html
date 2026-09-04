@@ -2426,13 +2426,14 @@
 		     Overlay-<div> erbt NICHTS, und ohne die drei Eintraege kaeme ein gewoehnlicher Block
 		     mitten im Dokumentfluss heraus statt eines Fensters. -->
 		<div id="social-hub-overlay" hidden>
-			<div class="social-hub" role="dialog" aria-modal="true" aria-labelledby="social-hub-title">
-				<div class="social-hub__head">
-					<h2 id="social-hub-title">Social Media Hub</h2>
-					<span class="social-hub__muted" id="social-hub-subtitle">— Beitrag verfassen</span>
-					<button id="social-hub-close" class="social-hub__close" type="button" aria-label="Schließen">✕</button>
+			<div class="social-hub avm-fenster avm-fenster--werkzeug" role="dialog" aria-modal="true" aria-labelledby="social-hub-title">
+				<div class="social-hub__head avm-fenster__kopf">
+					<span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>
+					<h2 id="social-hub-title" class="avm-fenster__titel">Social Media Hub</h2>
+					<span class="avm-fenster__zusatz" id="social-hub-subtitle">— Beitrag verfassen</span>
+					<button id="social-hub-close" class="avm-fenster__knopf avm-fenster__knopf--gefasst" type="button" aria-label="Schließen">✕</button>
 				</div>
-				<div class="social-hub__body">
+				<div class="social-hub__body avm-fenster__rumpf">
 					<div class="social-hub__main">
 						<!-- Die Titelzeile geht NUR an den Kanal „Neuigkeiten" (changelog_entry.title,
 						     VARCHAR(190) -- daher maxlength). Die Netze kennen keine Ueberschrift; dort
@@ -2545,15 +2546,20 @@
 						<p class="social-hub__hint">Ein Entwurf geht an die Kanäle, die beim Anlegen angehakt waren — nicht an die, die gerade nebenan stehen.</p>
 					</div>
 				</div>
-				<div class="social-hub__foot">
+				<div class="social-hub__foot avm-fenster__fuss">
 					<!-- Steht hier, weil es die haeufigste Rueckfrage ist: es postet das Konto des Projekts,
 					     nie das persoenliche Konto dessen, der drueckt. Wer es war, steht nur intern. -->
-					<span id="social-foot-note" class="social-hub__muted"></span>
-					<span class="social-hub__spacer"></span>
-					<!-- Die Entwurfs-Box: ein Beitrag muss nicht sofort hinaus. Weich, nicht gefuellt --
-					     die Haupthandlung dieses Fensters bleibt das Veroeffentlichen. -->
-					<button id="social-draft" class="social-hub__soft" type="button">Als Entwurf speichern</button>
-					<button id="social-publish" class="wiki-sync-panel__start" type="button">Veröffentlichen</button>
+					<span id="social-foot-note" class="avm-fenster__fuss-hinweis"></span>
+					<!-- 🔴 Rechtsbuendig ueber `.avm-fenster__fuss-haupt` (margin-left: auto), nicht ueber
+					     einen Abstandhalter: das war die DRITTE Rezeptur fuer dieselbe Sache -- neben
+					     `justify-content` und `margin-left: auto` (docs/design-language.md §Fenster).
+					     Der leere `<span class="social-hub__spacer">` ist damit ersatzlos gefallen.
+					     Die Entwurfs-Box bleibt weich: die Haupthandlung dieses Fensters ist das
+					     Veroeffentlichen. -->
+					<span class="avm-fenster__fuss-haupt">
+						<button id="social-draft" class="social-hub__soft" type="button">Als Entwurf speichern</button>
+						<button id="social-publish" class="wiki-sync-panel__start" type="button">Veröffentlichen</button>
+					</span>
 				</div>
 			</div>
 		</div>

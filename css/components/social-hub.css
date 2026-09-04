@@ -275,53 +275,51 @@
    eine eigene position/inset/z-index-Regel waere genau die Divergenz, die die geteilten Listen
    verhindern. */
 
+/* 🔴 KOPFLEISTE, TITEL, SCHLIESSKNOPF UND FUSSLEISTE GEHOEREN DEM BAUTEIL
+      (css/components/fenster.css). Dieses Fenster hatte FUENF eigene Abweichungen -- Titel 17px
+      (auf keiner Skalenstufe), Polster 16/24, ein ✕ ohne Trefferflaeche, Huelle --radius-lg wie
+      ein Blatt, Kopflinie ohne Grund -- und war damit der schlimmste Einzelfall der Messung vom
+      04.09.2026. Alle fuenf fallen mit dem Bauteil weg.
+   💣 HIER NICHTS DAVON WIEDER HINSCHREIBEN, und schon gar nicht mit eigener Zahl. Genau daraus
+      sind die 13 Schliessknopf-Rezepturen entstanden, die das Bauteil beendet.
+   ⚠️ Was BLEIBT, steht hier: die Breite. Sie ist die Eigenart dieses Fensters (drei Spalten),
+      alles andere ist die Form des Hauses. */
 .social-hub {
-	display: flex;
-	flex-direction: column;
-	/* 1180 statt 960 seit dem Umbau auf drei Spalten (Owner 11.08.2026). Bei 960 blieben dem Textfeld
-	   rund 290 px -- zu wenig fuer einen Beitrag, den man vor dem Absenden lesen koennen will. */
+	/* 1180 statt 960 seit dem Umbau auf drei Spalten (Owner 11.08.2026). Bei 960 blieben dem
+	   Textfeld rund 290 px -- zu wenig fuer einen Beitrag, den man vor dem Absenden lesen will. */
 	width: min(1180px, 100%);
 	max-height: 100%;
-	overflow: hidden;
-	border: 1px solid var(--color-button-soft-border);
-	border-radius: var(--radius-lg);
-	background: var(--color-panel);
-	box-shadow: var(--shadow-dialog);
+	/* 🔴 DIE KANTE, LOKAL -- wie beim Garetien Importer. --avm-col-pad steht global noch auf 12
+	   (tokens.css sagt warum: neun Fenster lesen ihn gleichzeitig); dieses Fenster ist das
+	   zweite auf der 14er-Kante, also zieht es den Token an seiner eigenen Huelle.
+	   💣 OHNE DIESE ZEILE saessen Kopf und Fuss auf 14 und der Rumpf auf 12 -- im Browser
+	      gemessen, bevor sie dastand. Genau der 2px-Versatz, den dieser Umbau beseitigt, nur
+	      innerhalb EINES Fensters. Wer ein weiteres Fenster anschliesst, braucht sie auch.
+	   ⚠️ Sie FAELLT, sobald der globale Wert nachzieht.
+	   🚩 UND SIE UEBERSCHREIBT EINEN OWNER-ENTSCHEID VOM 10.08.2026: hier stand `padding: 20px
+	      24px` mit dem Vermerk „24px zum Rand, nicht 18: der Owner hat das dreimal angemahnt.
+	      Ein Fenster dieser Breite mit knappem Innenmass liest sich gedraengt." Die Regel vom
+	      04.09.2026 („der Seiteneinzug ist ueberall 14") schlaegt das -- aber sie schlaegt es
+	      SICHTBAR, und der Owner sieht es beim naechsten Blick. Liest es sich gedraengt, ist
+	      diese Zeile die Stelle, an der es zurueckgeht. */
+	--avm-col-pad: var(--space-6) var(--space-12);
 }
 
-.social-hub__head {
-	display: flex;
-	align-items: baseline;
-	gap: 8px;
-	padding: 16px 24px;
-	border-bottom: 1px solid var(--color-divider);
-}
 
-.social-hub__head h2 {
-	margin: 0;
-	font-size: 17px;
-	color: var(--color-text-strong);
-}
 
-.social-hub__muted {
-	color: var(--color-text-muted);
-	font-size: 13px;
-}
 
-.social-hub__close {
-	margin-left: auto;
-	border: 0;
-	background: none;
-	color: var(--color-text-muted);
-	font-size: 18px;
-	line-height: 1;
-	cursor: pointer;
-}
 
-.social-hub__close:hover {
-	color: var(--color-text-strong);
-}
+/* 💣 `.social-hub__muted` ist gefallen: der Zusatz hinter dem Titel traegt jetzt
+   `.avm-fenster__zusatz`, die Fussnote `.avm-fenster__fuss-hinweis` -- beide aus dem Bauteil,
+   beide mit `--font-size-caption`/`--font-size-body` statt der hier stehenden nackten 13px. */
 
+
+
+
+
+/* 🔴 Polster und Scrollen kommen aus .avm-fenster__rumpf -- hier steht nur noch das
+   Raster. Das Fenster scrollte vorher ueber `overflow-y` an dieser Stelle; die Wirkung ist
+   dieselbe, die Rezeptur ist jetzt die geteilte. */
 .social-hub__body {
 	display: grid;
 	/* DREI Spalten seit 11.08.2026 (Owner, Mockup docs/social-hub-mockup-3spalten.html): links der
@@ -334,8 +332,6 @@
 	   dieser Breite mit knappem Innenmass liest sich gedraengt, und die Kanalspalte klebte an der
 	   Kante. Kopf, Rumpf und Fuss teilen denselben Wert -- ein Fenster hat EIN Innenmass, sonst
 	   springt die linke Kante beim Scrollen. */
-	padding: 20px 24px;
-	overflow-y: auto;
 }
 
 /* Die Trennung zwischen den Spalten ist eine LINIE, kein Kasten -- dieselbe Gruppierung wie sonst
@@ -666,17 +662,13 @@
 	color: var(--color-warning-soft-text);
 }
 
-.social-hub__foot {
-	display: flex;
-	align-items: center;
-	gap: 10px;
-	padding: 16px 24px;
-	border-top: 1px solid var(--color-divider);
-}
+/* Polster, Linie und Abstand kommen aus .avm-fenster__fuss. */
+.social-hub__foot { display: flex; align-items: center; }
 
-.social-hub__spacer {
-	flex: 1 1 auto;
-}
+/* 💣 `.social-hub__spacer` ist am 04.09.2026 ersatzlos gefallen -- ein leerer <span> war die
+   DRITTE Rezeptur fuer "rechtsbuendig", neben `justify-content` und `margin-left: auto`
+   (docs/design-language.md §Fenster). Die Fussleiste nimmt jetzt `.avm-fenster__fuss-haupt`
+   wie jedes andere Fenster. Nicht wieder anlegen. */
 
 /* Das Token-Feld ist maskiert, aber KEIN `type="password"` (Owner 11.08.2026: Chrome bot bei jedem
    „Als Entwurf speichern" das Speichern eines Passworts an und griff sich sogar den Text aus dem
