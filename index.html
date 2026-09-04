@@ -2116,11 +2116,6 @@
 								<span>Höhenstufe</span>
 								<select id="ecosystem-properties-hoehenstufe" class="ecosystem-properties-dialog__terrainselect"></select>
 							</label>
-							<label class="ecosystem-properties-dialog__terrainrow">
-								<span>Erhebungen</span>
-								<input id="ecosystem-properties-grain" type="range" min="1" max="24" step="0.1" />
-								<input id="ecosystem-properties-grain-num" class="ecosystem-properties-dialog__terrainnum" type="number" min="1" max="24" step="0.1" inputmode="decimal" aria-label="Wert eingeben" />
-							</label>
 							<!-- 🔴 &bdquo;Kammh&ouml;he (ohne Einzelgipfel)&ldquo; seit dem 04.09.2026 (Owner). Sie hie&szlig;
 							     &bdquo;Maximalh&ouml;he&ldquo;, und das war seit V12 falsch: die Gipfel &uuml;berragen sie, sie ist
 							     nicht das Maximum. Sie ist der SOCKEL des Kamms &mdash; die H&ouml;he, unter die das
@@ -2132,6 +2127,20 @@
 								<span>Kammh&ouml;he (ohne Einzelgipfel)</span>
 								<input id="ecosystem-properties-avgheight" type="range" min="0" max="20000" step="50" />
 								<input id="ecosystem-properties-avgheight-num" class="ecosystem-properties-dialog__terrainnum" type="number" min="0" max="20000" step="50" inputmode="decimal" aria-label="Wert eingeben" />
+							</label>
+							<!-- 🔴 OFFEN STEHEN NUR DIE ZWEI H&Ouml;HEN und die beiden Vorlagen &mdash; alles andere ist
+							     eine Feineinstellung (Owner 04.09.2026: &bdquo;alle slider au&szlig;er die h&ouml;hen in
+							     Einstellungen&ldquo;). Die H&ouml;hen sind die Zahlen, die aus einer QUELLE kommen; der
+							     Rest beschreibt die Form und wird selten angefasst.
+							     🔴 NATIV, und nichts anderes: nur `<details>/<summary>` l&auml;sst Strg+F Text in einem
+							     ZUgeklappten Abschnitt finden und klappt ihn selbst auf. Dieselbe Rezeptur wie
+							     &bdquo;n weitere Quellen&ldquo; und das Fenster &bdquo;Hinweise&ldquo;. -->
+							<details class="ecosystem-properties-dialog__terrainfold">
+								<summary>Einstellungen</summary>
+							<label class="ecosystem-properties-dialog__terrainrow">
+								<span>Erhebungen</span>
+								<input id="ecosystem-properties-grain" type="range" min="1" max="24" step="0.1" />
+								<input id="ecosystem-properties-grain-num" class="ecosystem-properties-dialog__terrainnum" type="number" min="1" max="24" step="0.1" inputmode="decimal" aria-label="Wert eingeben" />
 							</label>
 							<!-- V12 (2026-09-04): die Regler der lokalen Gebirgssimulation. 🔴 Sie stehen in ZWEI
 							     Gruppen, weil neun Regler in einer Reihe eine Wand w&auml;ren: was das GEBIRGE
@@ -2151,11 +2160,6 @@
 								<input id="ecosystem-properties-sattel" type="range" min="0.3" max="1" step="0.01" />
 								<input id="ecosystem-properties-sattel-num" class="ecosystem-properties-dialog__terrainnum" type="number" min="0.3" max="1" step="0.01" inputmode="decimal" aria-label="Wert eingeben" />
 							</label>
-							<!-- 🔴 NATIV, und nichts anderes: nur `<details>/<summary>` l&auml;sst Strg+F Text in einem
-							     ZUgeklappten Abschnitt finden und klappt ihn selbst auf. Dieselbe Rezeptur wie
-							     &bdquo;n weitere Quellen&ldquo; und das Fenster &bdquo;Hinweise&ldquo;. -->
-							<details class="ecosystem-properties-dialog__terrainfold">
-								<summary>Wasser, Erosion &amp; Feinabstimmung</summary>
 							<label class="ecosystem-properties-dialog__terrainrow" title="Halbe Talbreite: von der Flussachse bis zum Talrand. Ein Bach z&auml;hlt mit der H&auml;lfte.">
 								<span>Talbreite</span>
 								<input id="ecosystem-properties-talbreite" type="range" min="0" max="6" step="0.1" />

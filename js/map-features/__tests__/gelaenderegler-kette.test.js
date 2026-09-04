@@ -281,6 +281,33 @@ pruefe("das Fenster dunkelt den Hintergrund NICHT ab, und die Karte bleibt bedie
 
 /* ── 9. Die Falte ──────────────────────────────────────────────────────────────────────────── */
 
+pruefe("offen stehen nur die zwei Vorlagen und die Kammhoehe -- der Rest ist Feineinstellung", () => {
+	// 🔴 Owner 04.09.2026: "alle slider ausser die hoehen in Einstellungen". Die Hoehen sind die
+	// Zahlen, die aus einer QUELLE kommen (das Wiki nennt eine Kammhoehe, keine Bergform); der Rest
+	// beschreibt die Form und wird selten angefasst.
+	const ohneKommentare = markup.replace(/<!--[\s\S]*?-->/g, "");
+	const block = ohneKommentare.slice(
+		ohneKommentare.indexOf('id="ecosystem-properties-terrain"'),
+		ohneKommentare.indexOf('id="ecosystem-properties-heightscale"'));
+	const falte = block.indexOf("<summary>Einstellungen</summary>");
+	assert.ok(falte > 0, "die Falte heisst nicht mehr Einstellungen");
+
+	// Vor der Falte: die zwei Vorlagen und die Kammhoehe. Sonst nichts.
+	const offen = block.slice(0, falte);
+	for (const id of ["morphologie", "hoehenstufe", "avgheight"]) {
+		assert.ok(offen.includes('id="ecosystem-properties-' + id + '"'),
+			"`" + id + "` steht nicht mehr offen");
+	}
+	// 💣 Alles andere gehoert IN die Falte -- sonst waechst der Dialog wieder auf zwoelf Zeilen.
+	for (const id of ["grain", "bergform", "rauschen", "sattel", "talbreite", "einschnitt",
+		"erosion", "hypsometrie", "plateau", "levels", "meanheight"]) {
+		assert.ok(!offen.includes('id="ecosystem-properties-' + id + '"'),
+			"`" + id + "` steht offen statt in den Einstellungen");
+		assert.ok(block.includes('id="ecosystem-properties-' + id + '"'),
+			"`" + id + "` ist ganz verschwunden");
+	}
+});
+
 pruefe("die Falte ist nativ UND gestaltet", () => {
 	assert.ok(markup.includes("ecosystem-properties-dialog__terrainfold"), "die Falte fehlt");
 	assert.ok(/<details class="ecosystem-properties-dialog__terrainfold">/.test(markup),
