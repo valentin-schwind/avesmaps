@@ -781,5 +781,21 @@ hex values across 38 CSS files).
   kleinere Hälfte und baut die Divergenz in die größere ein.
 - **Links** use `--color-link` (gold-brown), never blue; **external links**
   (off-site) always get a trailing `↗`.
+- 💣 **Ein Fenster ist entweder ein WERKZEUGFENSTER oder ein BLATT, und die Regel entscheidet,
+  nicht der Geschmack** (Owner 04.09.2026, Mockup `docs/fensterformen-mockup.html`, Regelwerk
+  `docs/design-language.md` §Fenster). *Werkzeugfenster* = bleibt offen, während man daneben
+  arbeitet, trägt Menüband oder Fußleiste, ist einklappbar; *Blatt* = kurzes Formular, ausfüllen,
+  speichern, weg. Vermessen vor dem Entscheid: **13** Rezepturen für den Schließknopf in sechs
+  Formen, **9** Polsterwerte für die Kopfzeile, **4** Titelgrößen — während das Verschieben, das
+  **einen** Erzeuger hat (`js/ui/dialog-drag.js`), nirgends auseinandergelaufen ist.
+  🔴 **Die Hülle hat `padding: 0`**, jede Zone trägt ihr Polster selbst
+  (`--fenster-pad-x` 12 links/rechts in JEDER Zone, `--fenster-band-y` 6, `--fenster-body-y` 12,
+  `--fenster-gap` 6) — dadurch läuft der Trenner ohne negative Außenränder von Kante zu Kante.
+  🔴 Titel **`--font-size-subhead`** in BEIDEN Bauarten · Kopflinie `--color-divider` ·
+  Schließknopf 32×32, im Fenster gefasst, im Blatt nackt · Einklappen nur im Werkzeugfenster,
+  und es bleibt stehen · Griff `⁝⁝` **nur wenn wirklich verschiebbar**, gesetzt vom
+  Zieh-Mechanismus (`is-draggable`), nie vom Markup.
+  ⚠️ Die **Bandhöhe** steht bewusst in keiner Tafel — sie ist Polster plus Inhalt (Kopf/Fuß 44,
+  Menüband 52); wer 44 als `height` setzt, schneidet die zweite Kachelzeile ab.
 - **New components:** reuse the nearest existing one as a template plus the
   tokens; match the warmth. Full guide: **`docs/design-language.md`**.

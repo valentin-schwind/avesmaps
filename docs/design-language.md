@@ -79,6 +79,101 @@ pills, list rows), `--radius-lg` 10px (menus, cards, autocomplete). The old
 4/6/7/9px radii fold in — controls to `--radius-md`, floating surfaces to
 `--radius-lg`. No pill / `999px` shapes anywhere.
 
+## Fenster — es gibt ZWEI Bauarten, und eine Regel entscheidet
+
+Owner-Entscheid 04.09.2026 („wir haben unterschiedliche fenster- und UI-stile … das fängt
+damit an, dass titelleisten anders aussehen, dass buttons mal links mal rechts sind,
+unterschiedlich groß"). Mockup: **`docs/fensterformen-mockup.html`**.
+
+Vermessen wurde vorher über alle CSS-Dateien: **13** Rezepturen für den Schließknopf in
+sechs sichtbaren Formen, **9** Polsterwerte für die Kopfzeile (sechs davon als nackte Zahl),
+**4** Titelgrößen (15 · 16 · 17 · 20 — zwei auf keiner Skalenstufe), Hüllen-Radius quer
+gemischt, Kopflinie mal `--color-border` mal `--color-divider`, Einklappen in zwei Fenstern
+mit zwei Verhalten. Verschieben dagegen ist nirgends auseinandergelaufen — weil es **einen**
+Erzeuger hat (`js/ui/dialog-drag.js`). Das ist der ganze Unterschied.
+
+### Die Regel, welche Bauart gilt
+
+- **Werkzeugfenster** — bleibt offen, während man daneben arbeitet; trägt ein Menüband oder
+  eine Fußleiste; ist einklappbar. (Garetien Importer, die vier Editoren, Konflikte,
+  Social Hub, Natur & Waren, Tempowerte, Kartensammlung, Übernahme-Vorschau.)
+- **Blatt** — kurzes Formular: ausfüllen, speichern, weg. (Ort melden, Weg / Kraftlinie /
+  Beschriftung bearbeiten, Rezension, Hinweise, Neuigkeiten.)
+
+💣 Die Regel ist wichtiger als die Wahl. Vorher gab es beide Bauarten und **keine** Regel —
+deshalb hat jeder neue Dialog geraten, und „Natur & Waren" hat sich per ID-Regel nachträglich
+eine Titelleiste an ein Blatt geschraubt.
+
+### Die Maßtafel — vier Zahlen, und sie gelten in BEIDEN Bauarten
+
+| Token | Wert | Gilt für |
+|---|---|---|
+| `--fenster-pad-x` | `--space-12` | links/rechts in **jeder** Zone — Kopfleiste, Menüband, Rumpf, Fußleiste |
+| `--fenster-band-y` | `--space-6` | oben/unten in den Bändern |
+| `--fenster-body-y` | `--space-12` | oben/unten im Rumpf |
+| `--fenster-gap` | `--space-6` | zwischen Knöpfen, Kacheln, Zeilen |
+| `--fenster-kopf-h` | 32px | Bedienhöhe in den Bändern |
+| `--fenster-feld-w` | 220px | Grundbreite eines Eingabefelds *in* der Kopfleiste |
+
+🔴 **Die Hülle hat `padding: 0`** — jede Zone trägt ihr Polster selbst. Das ist die tragende
+Zeile: dadurch läuft der Trenner **von Kante zu Kante ohne negative Außenränder**, der
+Seiteneinzug ist an einer Stelle je Zone nachzuzählen, und Blatt und Fenster benutzen
+dieselben Zonen. Für Fenster ersetzt das die „full-bleed = negativer Seitenrand"-Regel
+unter *Divider mechanics* (die gilt weiter für Panels wie die Infobox, die echtes
+Hüllenpolster haben).
+
+⚠️ **Die Bandhöhe steht bewusst NICHT in der Tafel** — sie ist das Ergebnis aus Polster und
+Inhalt: Kopf- und Fußleiste 44 (einzeilige 32px-Elemente), Menüband 52 (zweizeilige Kacheln).
+Wer 44 als `height` setzt, schneidet die zweite Kachelzeile ab.
+
+### Was die Bauarten unterscheidet — und sonst nichts
+
+|  | Werkzeugfenster | Blatt |
+|---|---|---|
+| Hülle | `--radius-sm` · `--color-border-strong` | `--radius-lg` · `--color-border` |
+| Kopfleiste / Fußleiste | Grund `--color-panel-soft` | ohne Grund |
+| Schließknopf | gefasst (`--color-button-soft` + `-border`), 32×32 | nackt, **ebenfalls 32×32** |
+| Einklappen | ja | nein |
+| Titelgröße | `--font-size-subhead` | `--font-size-subhead` — **dieselbe** |
+| Griff, Polster, Trenner, Fuß | identisch | identisch |
+
+- **Die Kopflinie ist `--color-divider`**, nie `--color-border` — wie jede Abschnittslinie.
+- **Der Titel ist `--font-size-subhead` (16), in beiden Bauarten** (Owner 04.09.2026: „die
+  titelleiste im Blatt sollte dieselbe größe haben wie im fenster"). 15px, 17px und 20px
+  fallen ersatzlos weg. Ein Zusatz hinter dem Titel („— Beitrag verfassen") ist Beiwerk in
+  `--color-text-muted`, nie Titel.
+- **Die Fußleiste hat EINE Rezeptur** für beide Bauarten und für beide Fälle. Rechtsbündig
+  entsteht aus `margin-left: auto` an der Hauptgruppe, **nicht** aus einem zweiten
+  `justify-content`: gibt es links nichts, rutscht die Gruppe von selbst nach rechts; gibt es
+  links Massenhandlungen, bleiben sie links. Ein Modifier „nur rechts" wäre die nächste
+  Rezeptur. 💣 Der `gap` steht an der **Leiste**, nicht an den Knöpfen — sonst kleben sie
+  aneinander, sobald jemand die Leiste ohne `display: flex` aufbaut (Owner-Befund 04.09.2026).
+- **Einklappen kann nur ein Werkzeugfenster**, es **bleibt stehen, wo es steht**, und der
+  Knopf ist derselbe gefasste 32×32 wie das ✕ (Glyphe `−` auf, `□` zu). 💣 Ein Selektor
+  (`.is-minimized > :not(.<kopfleiste>)`), nie eine Liste der Zonen — eine Liste veraltet
+  lautlos, und die nächste Zone stünde eingeklappt sichtbar da.
+
+### Der Griff `⁝⁝`
+
+🔴 **Er wird vom Zieh-Mechanismus gesetzt, nicht vom Markup.** `js/ui/dialog-drag.js` weiß als
+einziges, welche Fenster es wirklich bewegt (nur Maus/Stift; nicht ein Editor, der den ganzen
+Schirm füllt) — es hängt `is-draggable` an die Kopfleiste, und erst dann erscheint der Griff
+samt `cursor: grab`. Ein Griff im Markup wäre eine Behauptung, die das Fenster nicht einlöst,
+und niemand fände heraus, welche der beiden Seiten lügt.
+
+💣 **Kein negatives `letter-spacing`.** Der alte Griff war `⣿⣿` (Braille) und brauchte
+`-0.12em`, damit die Blöcke zusammenrücken. Bei `⁝⁝` (U+205D, zweimal) frisst derselbe Wert
+den Zwischenraum: im Browser gemessen **4,9 px statt 8,8** — aus zwei Punktspalten wird eine,
+und der Griff liest sich als Doppelpunkt. Abgeschriebene Werte überleben den Wechsel ihres
+Gegenstands nicht.
+
+### Ein Bauteil, nicht dreizehn Abschriften
+
+⭐ Kopfleiste und Schließknopf bekommen je **eine** Rezeptur, die alle Fenster benutzen — so
+wie `dialog-drag.js` es beim Verschieben längst macht. Ohne das ist die Reihe in einem halben
+Jahr wieder krumm; genau das hat dieses Repo bei den Listenzeilen (sieben Rezepturen), der
+Wiki-Zuweisung (sechs Fassungen) und dem Reichweiten-Rahmen (vier) schon dreimal bezahlt.
+
 ## Component rules
 
 - **Text colour by role — one token per role, never per element.** Pick a text
