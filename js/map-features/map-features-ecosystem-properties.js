@@ -1539,6 +1539,71 @@
 		setTerrainStatus("Vorlage übernommen (" + gesetzt + " Werte) — noch nicht gespeichert.", false);
 	}
 
+	// Hat diese Flaeche einen Anhaltspunkt fuer ihr Gelaende -- einen Gipfel ODER eine Kammlinie?
+	//
+	// 💣 OHNE BEIDES ENTSTEHT NICHTS SICHTBARES. Der Trichter hat seit dem 04.09.2026 einen Rueckfall
+	// auf die Mittelachse, aber der ist ein Notbehelf: er kennt die Form des Gebirgszugs nicht, er
+	// kennt nur die Mitte der Flaeche. Die echte Kammlinie ist die Beschriftungskurve der Region.
+	// ⚠️ Gelesen wird dasselbe Feld wie im Zeichner (`curveLine` / `curve_label_line` am Label) --
+	// eine zweite Herleitung liefe beim naechsten Umbau auseinander.
+	function flaecheHatKammAnhalt(area) {
+		if (peaksInsideArea(area).length > 0) {
+			return true;
+		}
+		const regionId = String(area?.region_public_id || "");
+		if (regionId === "" || typeof labelData === "undefined" || !Array.isArray(labelData)) {
+			return false;
+		}
+
+		return labelData.some((label) => {
+			if (String(label?.regionPublicId || label?.region_public_id || "") !== regionId) {
+				return false;
+			}
+			const linie = label.curveLine || label.curve_label_line;
+
+			return Array.isArray(linie) && linie.length >= 2;
+		});
+	}
+
+	// „Gebirgszug ermitteln": die Beschriftungskurve der Region rechnen -- sie IST die Kammlinie.
+	// 🔴 Derselbe Weg wie „Labelkurve aktualisieren" im Kontextmenue der Flaeche (`refresh_curve`),
+	// samt derselben Sofortanwendung: der Kartenpayload wird nach einer Aktion nicht neu geholt, und
+	// ohne `avesmapsCurveSettingAufLabelsAnwenden` saehe der Knopf wirkungslos aus.
+	async function ermittleGebirgszug() {
+		const area = currentPropertiesArea();
+		const regionId = String(area?.region_public_id || "");
+		if (!area || regionId === "" || typeof postEcosystemEdit !== "function") {
+			setTerrainStatus("Diese Fläche gehört zu keiner Region.", true);
+
+			return;
+		}
+		setTerrainStatus("Gebirgszug wird ermittelt …", false);
+		try {
+			const antwort = await postEcosystemEdit("refresh_curve", { public_id: regionId });
+			if (!antwort || antwort.gerechnet !== true) {
+				// ⚠️ „Nicht gerechnet" ist kein Fehler: die Region kann ausgeschaltet sein oder keine
+				// Flaeche mehr haben. Derselbe Satz wie im Kontextmenue.
+				setTerrainStatus("Für diese Fläche entsteht keine Kurve — ist die Kurvenbeschriftung aus?",
+					true);
+
+				return;
+			}
+			if (typeof avesmapsCurveSettingAufLabelsAnwenden === "function") {
+				avesmapsCurveSettingAufLabelsAnwenden(
+					regionId, true, antwort.curve_label_max, antwort.curve_label_line
+				);
+			}
+			// Das Feld dieser Flaeche ist damit ein anderes.
+			window.AvesmapsEcosystemHeightRender?.invalidate?.();
+			window.AvesmapsEcosystemHeightRender?.redraw?.();
+			renderTerrainControls(area);
+			setTerrainStatus("Gebirgszug ermittelt — das Gelände folgt jetzt seiner Linie.", false);
+		} catch (fehler) {
+			setTerrainStatus("Der Gebirgszug konnte nicht ermittelt werden: "
+				+ (fehler?.message || "unbekannter Fehler"), true);
+		}
+	}
+
 	function renderTerrainControls(area) {
 		const block = propertiesElement("terrain");
 		if (!block) {
@@ -1560,6 +1625,14 @@
 		fuelleVorlagenFeld("hoehenstufe", typeof ECOSYSTEM_HYDRO_HOEHENSTUFEN !== "undefined"
 			? ECOSYSTEM_HYDRO_HOEHENSTUFEN
 			: []);
+		// 🔴 Der Knopf kommt NUR, wenn es nichts gibt, dem das Gelaende folgen koennte. Ein Knopf, der
+		// immer dasteht, waere eine Einladung, eine gerechnete Kurve grundlos zu ueberschreiben.
+		const ohneAnhalt = !flaecheHatKammAnhalt(area);
+		const ridge = propertiesElement("terrain-ridge");
+		const hinweis = propertiesElement("terrain-ridgehint");
+		if (ridge) { ridge.hidden = !ohneAnhalt; }
+		if (hinweis) { hinweis.hidden = !ohneAnhalt; }
+
 		const vorgabe = terrainDefaults(area);
 		TERRAIN_FIELDS.forEach((feld) => {
 			const regler = propertiesElement(feld.element);
@@ -2597,6 +2670,7 @@
 		// und das Gespeicherte waere ein anderes Gebirge als das gezeigte.
 		// ⚠️ Er rechnet NUR die offene Flaeche. Der Sammellauf ueber alle 69 bleibt die Kachel
 		// „Hoehenraster" im Landschaften-Editor; die zwei sind verschiedene Handlungen.
+		propertiesElement("terrain-ridge")?.addEventListener("click", () => void ermittleGebirgszug());
 		propertiesElement("terrain-build")?.addEventListener("click", () => void buildTerrainRaster());
 		// Haken umgelegt -> Feld sperren/freigeben, und beim Anhaken einen frischen Griff erzeugen.
 		// Artwechsel -> der Griff folgt der Art, aber nur solange der Haken steht.

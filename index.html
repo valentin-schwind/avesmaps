@@ -2209,7 +2209,15 @@
 								<input id="ecosystem-properties-meanheight-num" class="ecosystem-properties-dialog__terrainnum" type="number" min="0" max="20000" step="50" inputmode="decimal" aria-label="Wert eingeben" />
 							</label>
 							</details>
+							<p id="ecosystem-properties-terrain-ridgehint" class="ecosystem-properties-dialog__terrainhint" hidden>Diese Fl&auml;che hat weder einen Gipfel noch eine Kammlinie. Das Gel&auml;nde nutzt ersatzweise ihre Mittelachse &mdash; „Gebirgszug ermitteln" rechnet die echte.</p>
 							<div class="ecosystem-properties-dialog__terrainactions">
+								<!-- 🔴 „Gebirgszug ermitteln" (Owner 04.09.2026). Er kommt NUR, wenn die Fl&auml;che weder
+								     einen Gipfel noch eine Kammlinie hat &mdash; dann n&auml;mlich hat das Gel&auml;nde keinen
+								     einzigen Anhaltspunkt, und der Editor stellt zw&ouml;lf Regler ein, ohne dass sich
+								     etwas &auml;ndert („ich seh halt nix", live gemeldet).
+								     ⚠️ Er rechnet die BESCHRIFTUNGSKURVE der Region (`refresh_curve`), und die ist
+								     zugleich die Kammlinie: sie folgt der Mittelachse der Fl&auml;che. -->
+								<button id="ecosystem-properties-terrain-ridge" type="button" class="ecosystem-properties-dialog__button ecosystem-properties-dialog__button--main" hidden>Gebirgszug ermitteln</button>
 								<button id="ecosystem-properties-terrain-build" type="button" class="ecosystem-properties-dialog__button ecosystem-properties-dialog__button--main">H&ouml;henfeld erzeugen</button>
 								<button id="ecosystem-properties-terrain-auto" type="button" class="ecosystem-properties-dialog__button">Auf Automatik zur&uuml;ck</button>
 							</div>

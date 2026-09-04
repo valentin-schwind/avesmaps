@@ -200,6 +200,41 @@ pruefe("das Rechenmodul wird VOR dem geladen, der seine Konstanten liest", () =>
 
 /* ── 7. Die zwei Knöpfe ────────────────────────────────────────────────────────────────────── */
 
+pruefe("Gebirgszug ermitteln kommt nur ohne Anhalt -- und rechnet die Kammlinie", () => {
+	// 🔴 Owner 04.09.2026: wenn man die Kurve rechnen muss, soll zuerst der Knopf
+	// "Gebirgszug ermitteln" angeboten werden, bevor man sich wundert. Anlass war eine Flaeche ohne Gipfel
+	// und ohne Kammlinie: der Editor stellte zwoelf Regler ein und sah eine einfarbige Flaeche.
+	assert.ok(markup.includes('id="ecosystem-properties-terrain-ridge"'), "der Knopf fehlt");
+	assert.ok(markup.includes("Gebirgszug ermitteln"), "der Knopf traegt nicht die bestellte Beschriftung");
+	assert.ok(markup.includes('id="ecosystem-properties-terrain-ridgehint"'),
+		"der erklaerende Hinweis fehlt -- ein Knopf ohne Grund ist eine Ueberraschung");
+
+	// 🔴 VERSTECKT im Markup: er darf nur kommen, wenn es nichts gibt, dem das Gelaende folgen
+	// koennte. Ein Knopf, der immer dasteht, waere eine Einladung, eine gerechnete Kurve grundlos zu
+	// ueberschreiben.
+	const knopf = markup.slice(markup.indexOf('id="ecosystem-properties-terrain-ridge"'));
+	assert.ok(knopf.slice(0, knopf.indexOf(">")).includes("hidden"),
+		"der Knopf ist nicht versteckt -- er stuende auch bei einer Flaeche mit Kammlinie da");
+
+	// Und er geht denselben Weg wie die Aktion "Labelkurve aktualisieren" im Kontextmenue.
+	const start = properties.indexOf("async function ermittleGebirgszug(");
+	assert.ok(start > 0, "die Funktion fehlt");
+	// ⚠️ Ein fester Ausschnitt statt der Suche nach dem Funktionsende: ein Muster mit
+	// Zeilenumbruch und Tabulator laesst sich durch drei Werkzeugebenen (Shell, Python, JS) nicht
+	// zuverlaessig transportieren -- beim Bau hat es viermal einen echten Umbruch in den Quelltext
+	// geschrieben. 2000 Zeichen decken die Funktion sicher ab.
+	const rumpf = properties.slice(start, start + 2000);
+	assert.ok(rumpf.includes('"refresh_curve"'), "er rechnet die Kurve gar nicht");
+	// 💣 OHNE DIE SOFORTANWENDUNG SAEHE ER WIRKUNGSLOS AUS: der Kartenpayload wird nach einer Aktion
+	// nicht neu geholt, die frisch gerechnete Kurve kaeme also erst beim naechsten vollen Laden an.
+	assert.ok(rumpf.includes("avesmapsCurveSettingAufLabelsAnwenden"),
+		"die gerechnete Kurve wird nicht sofort auf die Labels angewandt");
+	assert.ok(rumpf.includes("invalidate") && rumpf.includes("redraw"),
+		"das Hoehenfeld wird nach dem Rechnen nicht neu gezeichnet");
+	assert.ok(properties.includes('propertiesElement("terrain-ridge")?.addEventListener'),
+		"der Knopf ist nicht verdrahtet");
+});
+
 pruefe("›Höhenfeld erzeugen‹ steht neben ›Auf Automatik zurück‹ und ist verdrahtet", () => {
 	assert.ok(markup.includes('id="ecosystem-properties-terrain-build"'), "der Knopf fehlt");
 	assert.ok(markup.includes("H&ouml;henfeld erzeugen") || markup.includes("Höhenfeld erzeugen"),

@@ -1185,6 +1185,15 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
    Raster drei Spalten hat (Beschriftung | Regler | Zahl) -- ein `<select>` fuellt hier Spalte 2 und 3
    zusammen, sonst stuende es auf der Breite eines Schiebers und liesse rechts eine Luecke, in der
    nichts steht. */
+/* Der Hinweis ueber „Gebirgszug ermitteln" (04.09.2026). Er steht nur da, wenn die Flaeche weder
+   Gipfel noch Kammlinie hat -- und erklaert dann, warum das Gelaende aussieht, wie es aussieht. */
+.ecosystem-properties-dialog__terrainhint {
+	margin: var(--space-8) 0 0;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-small);
+	line-height: 1.4;
+}
+
 .ecosystem-properties-dialog__terrainselect {
 	grid-column: 2 / -1;
 	min-width: 0;
