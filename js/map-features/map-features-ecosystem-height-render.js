@@ -137,12 +137,22 @@
 	const ECOSYSTEM_HYDRO_RASTER_N = 256;
 	// Waehrend am Regler gezogen wird. Ein Viertel der Zellen, rund ein Viertel der Zeit.
 	const ECOSYSTEM_HYDRO_RASTER_GROB = 128;
-	// Der Lichteinfall der Schummerung: von NORDWESTEN, die Konvention jeder Reliefkarte.
-	// 💣 In Kartenkoordinaten wächst y nach NORDEN (Riva 790, Al'Anfa 152), also ist Nordwest
-	// (−x, +y) und die Lambert-Formel `+0,6·gx − 0,6·gy`. Falsches Vorzeichen macht Berge zu
-	// Kratern, und das fällt erst beim zweiten Blick auf.
+	// 🔴 DER LICHTEINFALL: VON LINKS UNTEN (Owner 04.09.2026). Vorher Nordwest -- die Konvention
+	// jeder Reliefkarte, aber der Owner sieht dieses Bild neben einer Karte, deren Gebirge von links
+	// unten beleuchtet gezeichnet sind; zwei Lichtquellen nebeneinander lesen sich als Widerspruch.
+	//
+	// 💣 IN KARTENKOORDINATEN WAECHST y NACH NORDEN (Riva 790, Al'Anfa 152). „Links unten" auf dem
+	// Bildschirm ist damit SUEDwesten, also (−x, −y) -- und weil die Lambert-Formel das Skalarprodukt
+	// mit dem NEGATIVEN Gradienten bildet, kehren sich beide Vorzeichen um: `+0,6·gx + 0,6·gy`.
+	// ⚠️ Ein falsches Vorzeichen macht Berge zu Kratern, und das faellt erst beim zweiten Blick auf.
+	// Deshalb ist nur `_LICHT_Y` gewandert, nicht beide: Nordwest war (+gx, −gy), Suedwest ist
+	// (+gx, +gy) -- die Ost-West-Haelfte bleibt.
+	//
+	// 🔴 DAS IST REINE ANZEIGE. Was fuer die Wegfindung gespeichert wird, ist immer das WAHRE
+	// Hoehenfeld (`o.h` im Uploader) -- die Schummerung entsteht erst beim Malen und wird nie
+	// abgelegt. Owner ausdruecklich: „du speicherst für A* immer nur das wahre höhenfeld".
 	const ECOSYSTEM_HYDRO_LICHT_X = 0.6;
-	const ECOSYSTEM_HYDRO_LICHT_Y = -0.6;
+	const ECOSYSTEM_HYDRO_LICHT_Y = 0.6;
 	const ECOSYSTEM_HYDRO_LICHT_Z = 0.53;
 
 	// Solange der Flächendialog offen ist: volle Deckung statt höhenabhängigem Alpha.

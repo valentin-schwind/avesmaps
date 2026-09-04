@@ -198,6 +198,29 @@ pruefe("die Proben sind uint16, geklemmt, und ausserhalb der Flaeche null", asyn
 	assert.ok(groesster <= 65535, "ein Wert ueberschreitet die uint16-Klemme");
 });
 
+pruefe("gespeichert wird das WAHRE Hoehenfeld, nie die Schummerung", () => {
+	// 🔴 Owner 04.09.2026, als Klammer zur Lichtrichtung: „du speicherst für A* immer nur das wahre
+	// höhenfeld". Die Schummerung ist reine ANZEIGE -- sie entsteht erst beim Malen aus dem Gradienten
+	// und einer Lichtrichtung, und beides darf das gespeicherte Raster nie beruehren.
+	//
+	// 💣 Die Gefahr ist real, weil beide im SELBEN Modul stehen: der Uploader liegt neben der
+	// Malschleife, und ein Griff in die falsche Variable ergaebe ein Raster, das aussieht wie ein
+	// Gebirge und keines ist -- die Wegfindung liefe dann ueber Helligkeitswerte.
+	const quelle = fs.readFileSync(
+		path.join(WURZEL, "js/map-features/map-features-ecosystem-height-render.js"), "utf8");
+	const start = quelle.indexOf("async function gebirgsRasterHochladen(");
+	assert.ok(start > 0, "der Uploader wurde nicht gefunden");
+	const rumpf = quelle.slice(start, quelle.indexOf('"heightmap_put"', start));
+	assert.ok(rumpf.includes("Math.round(o.h[k])"),
+		"der Uploader liest nicht das rohe Hoehenfeld");
+	for (const licht of ["ECOSYSTEM_HYDRO_LICHT_X", "ECOSYSTEM_HYDRO_LICHT_Y", "ECOSYSTEM_HYDRO_LICHT_Z"]) {
+		assert.ok(!rumpf.includes(licht),
+			"der Uploader liest " + licht + " -- gespeichert wuerde dann die Schummerung");
+	}
+	assert.ok(!rumpf.includes("putImageData") && !rumpf.includes("getContext"),
+		"der Uploader fasst die Leinwand an -- er darf nur rechnen und schicken");
+});
+
 /* ══════════════════════════════════════════════════════════════════════════════════════════════
    2. DIE REIHENFOLGE -- erst die Regler, dann das Raster
    ══════════════════════════════════════════════════════════════════════════════════════════════ */
