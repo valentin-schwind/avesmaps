@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Listenform — Trennlinie oder Karte?</title>
+<style>
+/* ══════════════════════════════════════════════════════════════════════════════════════════
+   ES GIBT ZWEI LISTENZEILEN IM HAUS, UND DAS IST SEIT DEM 14.08.2026 DIE OBERGRENZE.
+   Die Frage ist, ob es EINE werden soll.
+
+   🔴 Die Werte hier sind aus css/components/editor-row.css, css/components/region-sync.css und
+      css/base/tokens.css AUSGELESEN, nicht abgeschrieben — samt der +2-Skala (--space-12 = 14px).
+   ══════════════════════════════════════════════════════════════════════════════════════════ */
+:root {
+	--font-ui: "Faculty Glyphic", "Arial", sans-serif;
+	--font-size-caption: 11px;
+	--font-size-small: 12px;
+	--font-size-body: 13px;
+	--font-size-subhead: 16px;
+	--leading-snug: 1.25;
+	--font-weight-bold: 700;
+	--color-panel: #fffdf9;
+	--color-panel-soft: #faf6ee;
+	--color-text: #2e271e;
+	--color-text-strong: #3c3327;
+	--color-text-muted: #706557;
+	--color-border: #ddd3c3;
+	--color-border-strong: #cdbfa8;
+	--color-divider: rgba(125, 115, 96, 0.30);
+	--color-accent: #bfa03a;
+	--color-hover-wash: rgba(191, 160, 58, 0.14);
+	--color-active-wash: rgba(191, 160, 58, 0.24);
+	--color-button-soft: #efe9db;
+	--color-button-soft-text: #564b3b;
+	--color-button-soft-border: #cdbda0;
+	--space-2: 4px;
+	--space-4: 6px;
+	--space-6: 8px;
+	--space-8: 10px;
+	--space-10: 12px;
+	--space-12: 14px;
+	--space-16: 18px;
+	--radius-sm: 5px;
+	--radius-md: 8px;
+	--avm-control-h: 32px;
+	--avm-row-pad: var(--space-2) var(--space-4);
+	--shadow-dialog: 0 20px 45px rgba(0, 0, 0, 0.38);
+	--seite: #ece5d7;
+}
+[data-theme="dunkel"] {
+	--color-panel: #312e26;
+	--color-panel-soft: #37342b;
+	--color-text: #eee7da;
+	--color-text-strong: #f5f0e4;
+	--color-text-muted: #b4a895;
+	--color-border: #514a3c;
+	--color-border-strong: #615a49;
+	--color-divider: rgba(207, 197, 171, 0.24);
+	--color-accent: #cfb767;
+	--color-hover-wash: rgba(207, 183, 103, 0.18);
+	--color-active-wash: rgba(207, 183, 103, 0.30);
+	--color-button-soft: #3a362c;
+	--color-button-soft-text: #eae1cf;
+	--color-button-soft-border: #585142;
+	--seite: #24211b;
+}
+
+body {
+	margin: 0;
+	padding: 28px 20px 60px;
+	background: var(--seite);
+	color: var(--color-text);
+	font-family: var(--font-ui);
+	font-size: var(--font-size-body);
+	line-height: var(--leading-snug);
+}
+.seite { max-width: 1180px; margin: 0 auto; }
+h1 { margin: 0 0 4px; color: var(--color-text-strong); font-size: 22px; }
+h2 { margin: 0 0 3px; color: var(--color-text-strong); font-size: var(--font-size-subhead); }
+.lead { margin: 0 0 20px; max-width: 80ch; color: var(--color-text-muted); }
+.lead b, .warum b, .preis b { color: var(--color-text-strong); }
+.warum { margin: 0 0 12px; color: var(--color-text-muted); font-size: var(--font-size-small); }
+.preis { margin: 12px 0 0; font-size: var(--font-size-small); color: var(--color-text-muted); }
+
+.schalter { margin: 0 0 26px; display: flex; gap: var(--space-6); }
+.schalter button {
+	min-height: var(--avm-control-h);
+	padding: 0 var(--space-8);
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+	font: inherit;
+	cursor: pointer;
+}
+
+.kasten {
+	padding: var(--space-8) var(--space-10);
+	border: 1px solid var(--color-border-strong);
+	border-radius: var(--radius-sm);
+	background: var(--color-panel);
+	box-shadow: var(--shadow-dialog);
+}
+.reihe { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; }
+.trenner { margin: 34px 0 20px; border: 0; border-top: 1px solid var(--color-divider); }
+
+/* ══ FORM 1 — die Editorzeile (.avm-row): Karte, auswählbar ═══════════════════════════════ */
+.row-karte {
+	display: flex;
+	align-items: center;
+	gap: var(--space-6);
+	padding: var(--avm-row-pad);
+	border: 1px solid transparent;
+	border-radius: var(--radius-md);
+	cursor: pointer;
+	width: 100%;
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	text-align: left;
+}
+.row-karte:hover { background: var(--color-hover-wash); }
+.row-karte.is-selected { background: var(--color-active-wash); border-color: var(--color-accent); }
+
+/* ══ FORM 2 — die Panelzeile (.tree-item): Trennlinie, zum Durchlesen ═════════════════════ */
+.row-linie {
+	display: grid;
+	grid-template-columns: 16px minmax(0, 1fr);
+	grid-template-rows: auto auto;
+	align-items: center;
+	column-gap: var(--space-6);
+	row-gap: 2px;
+	width: 100%;
+	box-sizing: border-box;
+	padding: var(--avm-row-pad);
+	border: 0 solid var(--color-divider);
+	border-bottom-width: 1px;
+	background: transparent;
+	font: inherit;
+	text-align: left;
+	cursor: pointer;
+	color: var(--color-text-strong);
+}
+.row-linie:hover { background: var(--color-hover-wash); }
+.row-linie .kreis { grid-column: 1; grid-row: 1 / span 2; }
+.row-linie .n { grid-column: 2; grid-row: 1; min-width: 0; font-weight: var(--font-weight-bold); }
+.row-linie .m { grid-column: 2; grid-row: 2; font-size: var(--font-size-caption); color: var(--color-text-muted); }
+
+/* gemeinsame Innenteile */
+.txt { flex: 1 1 auto; min-width: 0; }
+.l1 { display: flex; align-items: baseline; gap: var(--space-4); }
+.nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: var(--font-weight-bold); }
+.art { margin-left: auto; white-space: nowrap; font-size: var(--font-size-caption); color: var(--color-text-muted); }
+.l2 { margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--font-size-caption); color: var(--color-text-muted); }
+.kreis {
+	flex: none;
+	width: 10px; height: 10px;
+	border: 1px solid var(--color-text-muted);
+	border-radius: 999px;
+}
+.kreis--voll { background: var(--color-text-muted); }
+.kreis--halb { background: linear-gradient(90deg, var(--color-text-muted) 50%, transparent 50%); }
+
+/* ══ Weg A — alles wird Trennlinie ════════════════════════════════════════════════════════ */
+.a .row-karte { border-radius: 0; border: 0 solid var(--color-divider); border-bottom-width: 1px; }
+.a .row-karte.is-selected { background: var(--color-active-wash); }
+
+/* ══ Weg B — alles wird Karte ═════════════════════════════════════════════════════════════ */
+.b .row-linie { border: 1px solid transparent; border-radius: var(--radius-md); }
+.b .row-linie.is-selected { background: var(--color-active-wash); border-color: var(--color-accent); }
+
+.marke {
+	display: inline-block;
+	margin-left: 6px;
+	padding: 1px 6px;
+	border-radius: var(--radius-sm);
+	background: var(--color-accent);
+	color: #2e271e;
+	font-size: var(--font-size-caption);
+	font-weight: var(--font-weight-bold);
+}
+</style>
+</head>
+<body>
+<div class="seite">
+
+<h1>Listenform — Trennlinie oder Karte?</h1>
+<p class="lead">
+	Es gibt <b>zwei</b> Listenzeilen im Haus, und das ist seit dem 14.08.2026 die Obergrenze
+	(davor waren es sieben). Polster, Schriftskala und Hover sind seit heute angeglichen. Offen
+	ist nur noch die <b>Form</b>: Trennlinie oder abgerundete Karte.
+</p>
+
+<p class="schalter">
+	<button type="button" id="thema">Dunkel ansehen</button>
+</p>
+
+<h2>Was heute ist</h2>
+<p class="warum">
+	Der Unterschied ist <b>funktional, nicht dekorativ</b> — das habe ich erst beim Messen gesehen.
+</p>
+
+<div class="reihe">
+	<div>
+		<div class="kasten">
+			<button class="row-karte" type="button"><span class="kreis kreis--voll"></span>
+				<span class="txt"><span class="l1"><span class="nm">Angbar</span><span class="art">Stadt</span></span>
+				<span class="l2">Kosch · 12.400 Einwohner</span></span></button>
+			<button class="row-karte is-selected" type="button"><span class="kreis kreis--voll"></span>
+				<span class="txt"><span class="l1"><span class="nm">Ferdok</span><span class="art">Stadt</span></span>
+				<span class="l2">Kosch · 6.800 Einwohner</span></span></button>
+			<button class="row-karte" type="button"><span class="kreis kreis--halb"></span>
+				<span class="txt"><span class="l1"><span class="nm">Zwingard</span><span class="art">Burg</span></span>
+				<span class="l2">Kosch · ohne Wappen</span></span></button>
+		</div>
+		<p class="preis"><b>Editorliste</b> (<code>.avm-row</code>) · ein <code>&lt;button&gt;</code> ·
+			hat einen <b>Auswahl-Zustand</b>: die gewählte Zeile bleibt markiert, rechts steht ihr
+			Detail. Radius und Rand sind das Zeichen dafür.</p>
+	</div>
+	<div>
+		<div class="kasten">
+			<button class="row-linie" type="button"><span class="kreis kreis--voll"></span>
+				<span class="n">Reichsstraße 2</span><span class="m">57 Abschnitte · Wiki zugewiesen</span></button>
+			<button class="row-linie" type="button"><span class="kreis kreis--halb"></span>
+				<span class="n">Schattenbachpass</span><span class="m">7 Abschnitte · 3 ohne Zuweisung</span></button>
+			<button class="row-linie" type="button"><span class="kreis"></span>
+				<span class="n">Talloner Hügelsteig</span><span class="m">2 Abschnitte · keine Zuweisung</span></button>
+		</div>
+		<p class="preis"><b>Panelliste</b> (<code>.tree-item</code>) · ein <code>&lt;div&gt;</code> ·
+			hat <b>keinen Auswahl-Zustand</b> — nirgends im CSS, nirgends im JS. Man liest sie durch;
+			die Linie trennt die Einträge im Strom.</p>
+	</div>
+</div>
+
+<hr class="trenner">
+
+<h2>Die drei Wege</h2>
+
+<div class="reihe">
+
+	<div class="a">
+		<h2>A · alles wird Trennlinie</h2>
+		<p class="warum">Die Editorliste verliert Radius und Rand. Ausgewählt wird nur noch durch
+			die Füllung markiert.</p>
+		<div class="kasten">
+			<button class="row-karte" type="button"><span class="kreis kreis--voll"></span>
+				<span class="txt"><span class="l1"><span class="nm">Angbar</span><span class="art">Stadt</span></span>
+				<span class="l2">Kosch · 12.400 Einwohner</span></span></button>
+			<button class="row-karte is-selected" type="button"><span class="kreis kreis--voll"></span>
+				<span class="txt"><span class="l1"><span class="nm">Ferdok</span><span class="art">Stadt</span></span>
+				<span class="l2">Kosch · 6.800 Einwohner</span></span></button>
+			<button class="row-karte" type="button"><span class="kreis kreis--halb"></span>
+				<span class="txt"><span class="l1"><span class="nm">Zwingard</span><span class="art">Burg</span></span>
+				<span class="l2">Kosch · ohne Wappen</span></span></button>
+		</div>
+		<p class="preis"><b>Dafür:</b> ruhiger bei langen Listen, eine Form weniger.
+			<b>Dagegen:</b> „ausgewählt" hängt allein an der Fläche. Gemessen (Füllung über dem
+			Panelgrund zusammengerechnet, RGB-Abstand): hell <b>53</b>, dunkel <b>66</b> — der Rand
+			kommt auf <b>222</b> bzw. <b>219</b>. Er ist also <b>4,2× bzw. 3,3× stärker</b>. Ohne ihn
+			bleibt die Auswahl erkennbar, aber deutlich leiser.</p>
+	</div>
+
+	<div class="b">
+		<h2>B · alles wird Karte</h2>
+		<p class="warum">Die Panelliste bekommt Radius und Rand — obwohl es dort nichts auszuwählen
+			gibt.</p>
+		<div class="kasten">
+			<button class="row-linie" type="button"><span class="kreis kreis--voll"></span>
+				<span class="n">Reichsstraße 2</span><span class="m">57 Abschnitte · Wiki zugewiesen</span></button>
+			<button class="row-linie" type="button"><span class="kreis kreis--halb"></span>
+				<span class="n">Schattenbachpass</span><span class="m">7 Abschnitte · 3 ohne Zuweisung</span></button>
+			<button class="row-linie" type="button"><span class="kreis"></span>
+				<span class="n">Talloner Hügelsteig</span><span class="m">2 Abschnitte · keine Zuweisung</span></button>
+		</div>
+		<p class="preis"><b>Dafür:</b> eine Form für alles.
+			<b>Dagegen:</b> die Zeilen stehen ohne Trennung im Nichts — bei 4.220 Konfliktfällen
+			verliert man die Zeile. Und die Karte verspricht eine Auswahl, die es nicht gibt.</p>
+	</div>
+
+	<div>
+		<h2>C · beide behalten <span class="marke">mein Rat</span></h2>
+		<p class="warum">Radius und Rand werden das <b>Zeichen für auswählbar</b>. Polster,
+			Schriftskala und Hover sind schon gleich.</p>
+		<div class="kasten">
+			<button class="row-karte is-selected" type="button"><span class="kreis kreis--voll"></span>
+				<span class="txt"><span class="l1"><span class="nm">Ferdok</span><span class="art">Stadt</span></span>
+				<span class="l2">gewählt — Detail steht rechts</span></span></button>
+			<button class="row-karte" type="button"><span class="kreis kreis--halb"></span>
+				<span class="txt"><span class="l1"><span class="nm">Zwingard</span><span class="art">Burg</span></span>
+				<span class="l2">Kosch · ohne Wappen</span></span></button>
+			<div style="height:10px"></div>
+			<button class="row-linie" type="button"><span class="kreis kreis--voll"></span>
+				<span class="n">Reichsstraße 2</span><span class="m">zum Durchlesen — nichts zu wählen</span></button>
+			<button class="row-linie" type="button"><span class="kreis kreis--halb"></span>
+				<span class="n">Schattenbachpass</span><span class="m">7 Abschnitte · 3 ohne Zuweisung</span></button>
+		</div>
+		<p class="preis"><b>Dafür:</b> die Form sagt die Wahrheit über das, was die Liste kann.
+			<b>Dagegen:</b> es bleiben zwei Rezepturen — die müssen weiter zusammengehalten werden.</p>
+	</div>
+
+</div>
+
+<hr class="trenner">
+
+<p class="lead">
+	⚠️ <b>Was die Entscheidung NICHT betrifft:</b> Polster (beide <code>4/6</code>), Spalt
+	(<code>8px</code>), Schriftgrößen und Hover sind seit heute identisch — das war der eigentliche
+	Befund („jedes sieht anders aus"). Auch der Statuskreis links bleibt, wie er ist. Offen ist
+	allein die Form der Zeile.
+</p>
+
+</div>
+
+<script>
+(function () {
+	var dunkel = false;
+	document.getElementById("thema").addEventListener("click", function () {
+		dunkel = !dunkel;
+		document.documentElement.setAttribute("data-theme", dunkel ? "dunkel" : "hell");
+		this.textContent = dunkel ? "Hell ansehen" : "Dunkel ansehen";
+	});
+})();
+</script>
+</body>
+</html>
