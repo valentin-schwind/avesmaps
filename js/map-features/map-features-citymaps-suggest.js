@@ -630,13 +630,28 @@
 			+ '</div></form></div>';
 		document.body.appendChild(overlay);
 
-		// 🔴 ZWEI Dinge in einem Handler, jetzt getrennt. Der Hintergrundklick geht ans geteilte
-		//    Bauteil: es prueft DRUCK UND LOSLASSEN, und DIESES Fenster ist ein Formular -- wer
-		//    darin markiert und dabei ueber den Rand hinauszieht, verliert seinen Vorschlag.
+		// 🔴 DREI Dinge standen hier in EINEM Handler -- Hintergrund schliessen, ✕/Abbrechen
+		//    schliessen, und eine weitere Fundort-Zeile anhaengen. Der Hintergrundklick geht ans
+		//    geteilte Bauteil (es prueft DRUCK UND LOSLASSEN, und DIESES Fenster ist ein Formular --
+		//    wer darin markiert und ueber den Rand zieht, verliert seinen Vorschlag), die anderen
+		//    zwei bleiben hier.
+		// 🪤 Beim ersten Aufspalten am 04.09.2026 ging der DRITTE Zweig verloren: das Skript hatte
+		//    zwei angenommen und den Handler nach seiner eigenen Annahme neu gebaut. Der Knopf
+		//    „+ weiterer Fundort" stand danach im Markup und hatte KEINEN Zuhoerer mehr -- ein Klick,
+		//    bei dem sichtbar nichts passiert. Kein Test hat es gefangen: der Test prueft
+		//    `fundortRowMarkup()` isoliert, nie seine Verdrahtung ans Klickereignis.
 		avesmapsDialogHintergrundSchliessen(overlay, function () { close(overlay); });
 		overlay.addEventListener("click", function (e) {
-			if (e.target.closest && e.target.closest("[data-fundort-close]")) {
+			if (!e.target.closest) { return; }
+			if (e.target.closest("[data-fundort-close]")) {
 				close(overlay);
+				return;
+			}
+			if (e.target.closest("[data-fundort-add]")) {
+				var rows = overlay.querySelector("[data-fundort-rows]");
+				if (rows) {
+					rows.insertAdjacentHTML("beforeend", fundortRowMarkup());
+				}
 			}
 		});
 		document.addEventListener("keydown", function (e) {

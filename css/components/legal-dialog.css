@@ -7,18 +7,15 @@
 /* 🔴 KOPFZEILE, TITEL UND SCHLIESSKNOPF GEHOEREN DEM BAUTEIL (css/components/fenster.css).
       Hier standen dafuer eigene Regeln -- eine von dreizehn Schliessknopf-Rezepturen, die
       der Umbau vom 04.09.2026 beendet. Nicht wieder hinschreiben. */
+/* 🔴 Flex, overflow, Polster, Rand, Radius, Grund und Schatten gehoeren dem Bauteil
+   (css/components/fenster.css). Sie standen hier DANEBEN und waren toter Code: diese Datei
+   wird VOR fenster.css importiert, also gewann ohnehin das Bauteil. Toter Code ist trotzdem
+   irrefuehrend -- wer ihn liest, rechnet mit `padding: 16px 18px`, und wer je die
+   Importreihenfolge umstellt, bekommt es ploetzlich wirklich.
+   ⚠️ Was BLEIBT, ist das Mass dieses Fensters. */
 .legal-dialog {
 	width: min(860px, 100%);
 	max-height: min(90vh, 940px);
-	display: flex;
-	flex-direction: column;
-	overflow: hidden;
-	padding: 16px 18px;
-	border: 1px solid var(--color-border);
-	border-radius: var(--radius-lg);
-	background: var(--color-panel);
-	box-shadow: var(--shadow-dialog);
-	color: var(--color-text);
 }
 
 .legal-dialog:focus {

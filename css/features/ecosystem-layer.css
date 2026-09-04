@@ -438,12 +438,6 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 	padding: var(--space-16);
 }
 
-/* Die Knopfleiste des Intro-Blattes steht, sie scrollt nicht mit. */
-.ecosystem-intro-dialog__actions {
-	flex: 0 0 auto;
-	padding: var(--avm-kopf-pad);
-	border-top: 1px solid var(--color-divider);
-}
 
 .ecosystem-region-dialog,
 .ecosystem-properties-dialog,
@@ -696,11 +690,16 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 .ecosystem-import-dialog__actions,
 .ecosystem-intro-dialog__actions,
 .ecosystem-transfer-dialog__actions {
+	position: sticky;
+	bottom: 0;
+	z-index: 1;
 	display: flex;
 	justify-content: flex-end;
 	gap: var(--space-6);
-	padding-top: var(--divider-gap-tight);
+	margin: var(--space-10) calc(-1 * var(--space-16)) calc(-1 * var(--space-16));
+	padding: var(--avm-kopf-pad);
 	border-top: 1px solid var(--color-divider);
+	background: var(--color-panel);
 }
 
 .ecosystem-region-dialog__button,

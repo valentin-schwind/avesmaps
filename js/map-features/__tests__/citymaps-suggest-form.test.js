@@ -259,4 +259,46 @@ const hintRegel = (css.match(/^\.citymap-suggest__hint \{([^}]*)\}/m) || [])[1];
 assert.ok(hintRegel !== undefined, "die Grundregel des Hinweises steht auf einer eigenen Zeile");
 assert.ok(!/margin-top/.test(hintRegel), "der Hinweis UNTER einem Feld bleibt an seinem Feld");
 
+// ---- 7. Jeder Knopf im Markup hat einen ZUHOERER -------------------------------------------------
+// 💣 WARUM ES DIESEN ABSCHNITT GIBT. Am 04.09.2026 wurde ein Klick-Handler dieses Fensters
+//    aufgespalten -- der Hintergrundklick sollte ans geteilte Bauteil. Das Skript nahm ZWEI Zweige
+//    an; es waren DREI. Der dritte („+ weiterer Fundort" haengt eine Zeile an) verschwand ersatzlos.
+//    Der Knopf stand danach im Markup und tat beim Klicken sichtbar NICHTS.
+// 🪤 Das Testfeld war gruen: Abschnitt 1 prueft `fundortRowMarkup()` isoliert und hat nie gefragt,
+//    ob irgendjemand die Funktion RUFT. Ein Bauer ohne Aufrufer ist genau die Luecke, die ein
+//    Quelltexttest gerne uebersieht -- er sieht die Funktion, also glaubt er an sie.
+// 🔴 Die Zusicherung ist deshalb eine MENGENGLEICHHEIT, kein Einzelname: jedes `data-…`-Attribut,
+//    das im Markup an einem Knopf haengt, muss irgendwo in dieser Datei auch GELESEN werden.
+//    Ein neuer Knopf ohne Verdrahtung faellt damit von selbst auf.
+{
+	const knopfMarken = new Set();
+	// Attribute an <button>-Stellen des Markups: data-foo (ohne Wert) oder data-foo="…"
+	const buttonRe = /<button[^>]*?>/g;
+	let m;
+	while ((m = buttonRe.exec(js))) {
+		const marken = m[0].match(/data-[a-z-]+/g) || [];
+		marken.forEach((marke) => {
+			// data-…-field sind DATEN-Felder, die beim Absenden ausgelesen werden, keine Knopfmarken.
+			if (/-field$/.test(marke)) { return; }
+			knopfMarken.add(marke);
+		});
+	}
+	assert.ok(knopfMarken.size >= 2,
+		"Der Sucher findet keine Knopfmarken mehr (" + knopfMarken.size + ") -- er misst sich selbst kaputt");
+	const ohneZuhoerer = [];
+	for (const marke of knopfMarken) {
+		// Gelesen wird ueber closest("[data-…]") oder querySelector("[data-…]")
+		const gelesen = js.includes('closest("[' + marke + ']")')
+			|| js.includes("closest('[" + marke + "]')")
+			|| js.includes('querySelector("[' + marke + ']")')
+			|| js.includes('querySelectorAll("[' + marke + ']")')
+			|| js.includes('matches("[' + marke + ']")');
+		if (!gelesen) { ohneZuhoerer.push(marke); }
+	}
+	assert.deepStrictEqual(ohneZuhoerer, [],
+		"Knopfmarken im Markup, die NIRGENDS gelesen werden -- der Knopf tut beim Klicken nichts:\n   "
+		+ ohneZuhoerer.join("\n   "));
+}
+
+
 console.log("citymaps-suggest-form: alle Zusicherungen gehalten");

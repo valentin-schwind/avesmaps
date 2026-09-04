@@ -347,12 +347,17 @@
 
 .wp-modal[hidden] { display: none; }
 
-/* 🔴 Kopfzeile, Titel, Schliessknopf, Rand, Radius, Grund, Schatten und overflow gehoeren dem
-   Bauteil (css/components/fenster.css, ueber den @import in editor-page.css). Hier bleibt nur
-   das Raster und dass das Modal die Flaeche seines Wirts fuellt. */
+/* 🔴 Kopfzeile, Titel, Schliessknopf, Rand, Radius, Grund, Schatten, FLEX-RICHTUNG und overflow
+   gehoeren dem Bauteil (css/components/fenster.css, ueber den @import in editor-page.css).
+   💣 Hier stand bis zum 04.09.2026 `display: grid` DANEBEN -- und anders als bei den Nachbarn
+      gewann es: editor-page.css wird in wege-editor.html VOR dieser Datei geladen, bei gleicher
+      Spezifitaet (0,1,0) siegt also die spaetere. Die alte Aufzaehlung im Kommentar nannte
+      „Rand, Radius, Grund, Schatten und overflow" und liess die Flex-Richtung aus -- eine
+      Aufzaehlung, die eine Eigenschaft vergisst, laesst genau diese stehen.
+   ⚠️ Es faellt heute nicht auf, weil das Fenster GENAU ZWEI Kinder hat (Kopf, Rumpf) und ein
+      zweizeiliges Raster dort dasselbe tut wie eine Flexspalte. Beim dritten Kind waere es
+      auseinandergelaufen. Was BLEIBT, ist nur, dass das Modal die Flaeche seines Wirts fuellt. */
 .wp-modal__box {
-	display: grid;
-	grid-template-rows: auto minmax(0, 1fr);
 	width: 100%;
 	height: 100%;
 }
