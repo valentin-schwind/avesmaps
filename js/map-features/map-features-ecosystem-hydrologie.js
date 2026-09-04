@@ -72,6 +72,10 @@ const ECOSYSTEM_HYDRO_KRIECHEN = 0.03;
 // ⚠️ Die Kennlinie ist am unteren Ende bewusst flach -- zwischen „keine Erosion" und „ein bisschen"
 // liegt der sichtbarste Unterschied.
 const ECOSYSTEM_HYDRO_EROSIONSSTUFEN = [0, 40, 90, 150, 240, 360];
+// 🔴 Die Vorgabestufe -- sie stand als Literal `3` im Uebersetzer und ein zweites Mal in der
+// Oberflaeche, sobald die Erosion einen eigenen Regler bekam (04.09.2026). Eine abgeschriebene
+// Vorgabe laesst „(auto)" eine andere Zahl anzeigen als die, mit der gerechnet wird.
+const ECOSYSTEM_HYDRO_EROSION_VORGABE = 3;
 
 /* ══════════════════════════════════════════════════════════════════════════════════════════════
    1. RASTER UND MASKEN
@@ -1211,7 +1215,7 @@ function erosionsSchritt(zustand, opt) {
 function avesmapsHydroErosionsSchritte(stufe) {
 	const s = Number(stufe);
 	if (!Number.isFinite(s)) {
-		return ECOSYSTEM_HYDRO_EROSIONSSTUFEN[3];
+		return ECOSYSTEM_HYDRO_EROSIONSSTUFEN[ECOSYSTEM_HYDRO_EROSION_VORGABE];
 	}
 	const i = Math.max(0, Math.min(ECOSYSTEM_HYDRO_EROSIONSSTUFEN.length - 1, Math.round(s)));
 
@@ -1451,6 +1455,6 @@ if (typeof module !== "undefined" && module.exports) {
 		loeseRelief, fbm,
 		fuelleSenken, flussrichtung, akkumuliere, streamPower, diffundiere, erosionsSchritt,
 		avesmapsGebirgsRasterBauen, avesmapsHydroErosionsSchritte, ECOSYSTEM_HYDRO_ZELLWEITE,
-		ECOSYSTEM_HYDRO_EROSIONSSTUFEN, ECOSYSTEM_HYDRO_STANDARDHOEHE,
+		ECOSYSTEM_HYDRO_EROSIONSSTUFEN, ECOSYSTEM_HYDRO_EROSION_VORGABE, ECOSYSTEM_HYDRO_STANDARDHOEHE,
 	};
 }

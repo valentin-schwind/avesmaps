@@ -70,7 +70,11 @@ require_once __DIR__ . '/../_internal/app/ecosystem.php';
 // ohnehin `ecosystem_revision`. Scharf wird der Bump, sobald jemand eine Vorgabe aendert: dann
 // traegt ein zwischengespeicherter Client Zeilen OHNE die fuenf Schluessel und rechnet still mit
 // den Modulvorgaben weiter.
-const AVESMAPS_ECOSYSTEM_PAYLOAD_VERSION = 8;
+// 9 (2026-09-04): `terrain_erosion` je Zeile -- die Erosionsstufe, die bis dahin in
+// `terrain_levels` mitwohnte (Owner: „terrain_levels trenn die beiden!"). Ein Bump ist noetig, weil
+// die FORM der Zeile sich aendert: ein warmer Client wuerde sonst sein 304 bekommen und die neue
+// Spalte nie sehen -- seine Erosion staende auf `undefined` und faellt auf die Modulvorgabe.
+const AVESMAPS_ECOSYSTEM_PAYLOAD_VERSION = 9;
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());

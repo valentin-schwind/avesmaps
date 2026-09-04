@@ -259,6 +259,78 @@ pruefe("die Kodierung wird GETEILT, nicht nachgebaut", () => {
 	assert.ok(kodierer < renderTag, "die Kodier-Datei steht NACH dem Render-Modul");
 });
 
+/* ═════════════════════════════════════════════════════════════════════════════
+   4. DIE NAHT ZWISCHEN SPALTE UND RECHNUNG -- welcher Regler welches Feld liest
+   ═════════════════════════════════════════════════════════════════════════════ */
+
+// 💣 DIESE LUECKE WAR OFFEN, UND EINE MUTATIONSPROBE HAT SIE GEFUNDEN. Stellt man die alte
+// Kopplung wieder her (`erosion: area?.terrain_levels`), blieben BEIDE bestehenden Testdateien gruen:
+// `gebirgssimulation.test.js` ruft den Trichter direkt mit `{stufen, erosion}` und laeuft an
+// `reglerFuer` vorbei, und `gelaenderegler-kette.test.js` sucht die Regler nur im Quelltext. Welche
+// SPALTE ein Regler liest, hat damit niemand gemessen -- genau die Frage, um die es bei der Trennung
+// vom 04.09.2026 ging.
+// ⭐ Gemessen wird deshalb ueber den Uploader: er ruft `reglerFuer(area)` und liefert das gerechnete
+// Raster, also laesst sich die Zuordnung am Ergebnis ablesen, ohne die innere Funktion zu exportieren.
+
+// 🪤 MIT GIPFELN, und das ist keine Kleinigkeit: die Standard-Umgebung dieses Tests hat `labelData:
+// []`, und eine Flaeche ohne Gipfel bleibt FLACH (`gebirgssimulation.test.js` sichert das eigens zu).
+// Auf einem flachen Feld bewegt kein Regler etwas, und alle drei Zusicherungen unten waeren rot --
+// nicht weil die Trennung fehlt, sondern weil es nichts zu trennen gibt. Beim ersten Lauf genau so
+// passiert.
+const MIT_GIPFELN = [
+	{ publicId: "g1", labelType: "berggipfel", coordinates: [7, 7], heightSchritt: 3000 },
+	{ publicId: "g2", labelType: "berggipfel", coordinates: [14, 13], heightSchritt: 4500 },
+];
+
+async function rasterMit(felder) {
+	const flaeche = Object.assign({}, FLAECHE, felder);
+	const { sandkasten, gerufen } = ladeRenderModul(() => Promise.resolve({ written: 1 }),
+		Object.assign({}, UMGEBUNG, { topographyAreas: () => [flaeche], labelData: MIT_GIPFELN }));
+	await sandkasten.window.AvesmapsEcosystemHeightRender.hochladen(flaeche);
+	const roh = Buffer.from(gerufen[0].rumpf.samples, "base64");
+
+	return new Uint16Array(roh.buffer, roh.byteOffset, roh.length / 2);
+}
+
+const groessteAbweichung = (a, b) => {
+	let groesste = 0;
+	for (let k = 0; k < a.length; k++) { groesste = Math.max(groesste, Math.abs(a[k] - b[k])); }
+
+	return groesste;
+};
+
+pruefe("die Erosionsstufe kommt aus `terrain_erosion`, nicht aus `terrain_levels`", async () => {
+	// Gleiche Detailstufen, verschiedene Erosion -> das Feld MUSS sich aendern.
+	const schwach = await rasterMit({ terrain_levels: 4, terrain_erosion: 1 });
+	const stark = await rasterMit({ terrain_levels: 4, terrain_erosion: 5 });
+	assert.ok(groessteAbweichung(schwach, stark) > 1,
+		"`terrain_erosion` bewegt das Feld nicht -- der Zeichner liest die Erosion aus einer anderen "
+		+ "Spalte (bis zum 04.09.2026 war das `terrain_levels`)");
+});
+
+pruefe("die Detailstufen kommen aus `terrain_levels`, nicht aus `terrain_erosion`", async () => {
+	// Gleiche Erosion, verschiedene Detailstufen -> das Feld MUSS sich ebenfalls aendern.
+	const grob = await rasterMit({ terrain_levels: 2, terrain_erosion: 3 });
+	const fein = await rasterMit({ terrain_levels: 7, terrain_erosion: 3 });
+	assert.ok(groessteAbweichung(grob, fein) > 1,
+		"`terrain_levels` bewegt das Feld nicht -- der Zeichner liest die Detailstufen aus einer "
+		+ "anderen Spalte");
+});
+
+pruefe("die beiden Spalten haengen NICHT mehr aneinander", async () => {
+	// 🔴 DIE EIGENTLICHE ZUSICHERUNG. Waeren beide noch EIN Wert, muesste das Feld bei
+	// (levels 2, erosion 5) und (levels 5, erosion 5) gleich sein -- die Erosion zoege die Stufen mit,
+	// und der zweite Parameter waere wirkungslos.
+	const a = await rasterMit({ terrain_levels: 2, terrain_erosion: 5 });
+	const b = await rasterMit({ terrain_levels: 5, terrain_erosion: 5 });
+	assert.ok(groessteAbweichung(a, b) > 1,
+		"bei gleicher Erosionsstufe aendern die Detailstufen nichts -- die alte Kopplung steht wieder");
+
+	const c = await rasterMit({ terrain_levels: 5, terrain_erosion: 1 });
+	assert.ok(groessteAbweichung(b, c) > 1,
+		"bei gleichen Detailstufen aendert die Erosion nichts -- die alte Kopplung steht wieder");
+});
+
 Promise.allSettled(offen).then(() => {
 	if (!process.exitCode) {
 		console.log("\n" + bestanden + " Zusicherungen gehalten.");

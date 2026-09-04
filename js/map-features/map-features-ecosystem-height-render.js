@@ -490,8 +490,14 @@
 	function reglerFuer(area) {
 		return {
 			koernung: area?.terrain_grain ?? undefined,
+			// 🔴 ZWEI SPALTEN, NICHT MEHR EINE. Hier stand zweimal `terrain_levels`: die Oktaven des
+			// fraktalen Grundrauschens (`stufen`, 1..8) und die Erosionsstufe (`erosion`, 0..5) lasen
+			// denselben Wert. Wer die Erosion auf 5 stellte, verstellte damit lautlos die Detailtiefe
+			// des Rauschens mit -- zwei Groessen, die zufaellig denselben Wertebereich haben, sind
+			// deshalb noch lange nicht dieselbe Groesse. Owner 04.09.2026: „terrain_levels trenn die
+			// beiden!"
 			stufen: area?.terrain_levels ?? undefined,
-			erosion: area?.terrain_levels ?? undefined,
+			erosion: area?.terrain_erosion ?? undefined,
 			maximalhoehe: area?.terrain_avg_height ?? undefined,
 			bergform: area?.terrain_bergform ?? undefined,
 			rauschen: area?.terrain_rauschen ?? undefined,

@@ -1295,7 +1295,12 @@
 	// Oberflaeche nicht, egal was im Markup steht.
 	const TERRAIN_FIELDS = [
 		{ key: "terrain_grain", element: "grain", decimals: 1 },
+		// 💣 ZWEI FELDER, DIE BIS ZUM 04.09.2026 EINE SPALTE WAREN. `terrain_levels` sind die Oktaven
+		// des fraktalen Grundrauschens (V8, 1..8), `terrain_erosion` ist die Erosionsstufe (0..5) --
+		// und `reglerFuer` gab denselben Wert als BEIDES weiter. Owner: „terrain_levels trenn die
+		// beiden!"
 		{ key: "terrain_levels", element: "levels", decimals: 0 },
+		{ key: "terrain_erosion", element: "erosion", decimals: 0 },
 		{ key: "terrain_avg_height", element: "avgheight", decimals: 0 },
 		{ key: "terrain_mean_height", element: "meanheight", decimals: 0 },
 		// V12 (2026-09-04): die Regler der lokalen Gebirgssimulation.
@@ -1389,6 +1394,11 @@
 			terrain_sattel: typeof ECOSYSTEM_HYDRO_SATTEL === "number" ? ECOSYSTEM_HYDRO_SATTEL : 0.75,
 			terrain_talbreite: typeof ECOSYSTEM_HYDRO_TALBREITE === "number" ? ECOSYSTEM_HYDRO_TALBREITE : 1.5,
 			terrain_einschnitt: typeof ECOSYSTEM_HYDRO_EINSCHNITT === "number" ? ECOSYSTEM_HYDRO_EINSCHNITT : 400,
+			// ⚠️ Die STUFE (0..5), nicht die Schrittzahl dahinter -- der Regler stellt Stufen ein,
+			// `avesmapsHydroErosionsSchritte` uebersetzt sie in [0, 40, 90, 150, 240, 360].
+			terrain_erosion: typeof ECOSYSTEM_HYDRO_EROSION_VORGABE === "number"
+				? ECOSYSTEM_HYDRO_EROSION_VORGABE
+				: 3,
 		};
 	}
 

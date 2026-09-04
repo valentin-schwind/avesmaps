@@ -403,9 +403,31 @@ function avesmapsEcosystemEnsureTables(PDO $pdo): void
         'terrain_talbreite' => 'DECIMAL(6,2)',
         'terrain_einschnitt' => 'DECIMAL(8,2)',
         'terrain_sattel' => 'DECIMAL(5,3)',
+        // 🔴 terrain_erosion -- die Erosionsstufe 0..5, uebersetzt in Schritte ueber
+        //    ECOSYSTEM_HYDRO_EROSIONSSTUFEN = [0, 40, 90, 150, 240, 360].
+        //
+        // 💣 SIE STAND BIS ZUM 04.09.2026 IN `terrain_levels`, ZUSAMMEN MIT ETWAS ANDEREM. Jene
+        // Spalte ist die Zahl der OKTAVEN des fraktalen Grundrauschens (V8, geklemmt 1..8), und der
+        // V12-Trichter las denselben Wert als BEIDES: `reglerFuer` gab ihn als `stufen` UND als
+        // `erosion` weiter. Wer die Erosion auf 5 stellte, verstellte damit lautlos auch die
+        // Detailtiefe des Rauschens -- und umgekehrt. Zwei Groessen, die zufaellig denselben
+        // Wertebereich haben, sind deshalb noch lange nicht dieselbe Groesse.
+        // Owner 04.09.2026: „terrain_levels trenn die beiden!"
+        'terrain_erosion' => 'TINYINT UNSIGNED',
     ] as $column => $type) {
         if (!$areaColumnExists($pdo, $column)) {
             $pdo->exec('ALTER TABLE ecosystem_area ADD COLUMN ' . $column . ' ' . $type . ' NULL');
+            // 🔴 UND DIE TRENNUNG DARF KEIN GEBIRGE VERAENDERN. Der Regler hiess in der Oberflaeche
+            // „Erosion" -- wer dort eine 5 eingestellt hat, meinte die Erosion. Die neue Spalte erbt
+            // deshalb einmalig, was in `terrain_levels` steht; `terrain_levels` behaelt seinen Wert
+            // und bedeutet ab jetzt nur noch die Oktaven. Beide Regler stehen danach auf dem
+            // heutigen Wert, und das gerechnete Gelaende ist Zeichen fuer Zeichen dasselbe.
+            // ⚠️ Das laeuft NUR im Moment des Anlegens der Spalte, nicht bei jedem Ensure -- sonst
+            // machte der naechste Aufruf jede spaetere bewusste Trennung wieder rueckgaengig.
+            if ($column === 'terrain_erosion') {
+                $pdo->exec('UPDATE ecosystem_area SET terrain_erosion = terrain_levels'
+                    . ' WHERE terrain_levels IS NOT NULL');
+            }
         }
     }
 
@@ -1633,6 +1655,7 @@ function avesmapsEcosystemReadAreas(
                 a.is_trial,
                 a.terrain_grain,
                 a.terrain_levels,
+                a.terrain_erosion,
                 a.terrain_bergform,
                 a.terrain_rauschen,
                 a.terrain_talbreite,
@@ -1704,6 +1727,7 @@ function avesmapsEcosystemReadAreas(
             'terrain_levels' => $row['terrain_levels'] === null ? null : (int) $row['terrain_levels'],
             // V12. 🔴 `null` reist als `null`, NIE als 0 -- „nicht eingestellt" und „ausdruecklich
             // null" sind zwei verschiedene Aussagen, und das Modul liest sie verschieden.
+            'terrain_erosion' => $row['terrain_erosion'] === null ? null : (int) $row['terrain_erosion'],
             'terrain_bergform' => $row['terrain_bergform'] === null ? null : (float) $row['terrain_bergform'],
             'terrain_rauschen' => $row['terrain_rauschen'] === null ? null : (float) $row['terrain_rauschen'],
             'terrain_talbreite' => $row['terrain_talbreite'] === null ? null : (float) $row['terrain_talbreite'],
@@ -4606,6 +4630,7 @@ function avesmapsUpdateEcosystemAreaTerrain(PDO $pdo, array $payload, int $userI
     // Reglern der Oberflaeche -- eine zweite Wahrheit ueber den gueltigen Bereich waere genau die
     // Sorte Divergenz, die `terrain_mean_height` daneben ausdruecklich vermeidet.
     foreach ([
+        'terrain_erosion' => [0.0, 5.0],
         'terrain_bergform' => [0.0, 12.0],
         'terrain_rauschen' => [0.0, 1.0],
         'terrain_talbreite' => [0.0, 6.0],
@@ -4643,6 +4668,7 @@ function avesmapsUpdateEcosystemAreaTerrain(PDO $pdo, array $payload, int $userI
 
     $lesenZurueck = $pdo->prepare(
         'SELECT terrain_grain, terrain_levels, terrain_avg_height, terrain_mean_height,
+                terrain_erosion,
                 terrain_bergform, terrain_rauschen, terrain_talbreite, terrain_einschnitt,
                 terrain_sattel
            FROM ecosystem_area WHERE public_id = :p LIMIT 1'
@@ -4660,6 +4686,7 @@ function avesmapsUpdateEcosystemAreaTerrain(PDO $pdo, array $payload, int $userI
         // weg, was nicht genannt ist -- der Client bekaeme nach dem Speichern seine eigenen Werte
         // nicht bestaetigt und zeigte wieder „(auto)". Dieselbe Naht-Falle, die im Garetien-Importer
         // schon einen Regler monatelang wirkungslos gemacht hat.
+        'terrain_erosion' => ($row['terrain_erosion'] ?? null) === null ? null : (int) $row['terrain_erosion'],
         'terrain_bergform' => ($row['terrain_bergform'] ?? null) === null ? null : (float) $row['terrain_bergform'],
         'terrain_rauschen' => ($row['terrain_rauschen'] ?? null) === null ? null : (float) $row['terrain_rauschen'],
         'terrain_talbreite' => ($row['terrain_talbreite'] ?? null) === null ? null : (float) $row['terrain_talbreite'],

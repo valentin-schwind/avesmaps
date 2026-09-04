@@ -236,6 +236,41 @@ pruefe("ohne Gipfel UND ohne Maximalhoehe bleibt die Flaeche flach", () => {
 	assert.strictEqual(leer.leer, true);
 });
 
+pruefe("Erosionsstufe und Detailstufen wirken UNABHAENGIG voneinander", () => {
+	// 🔴 SIE WAREN BIS ZUM 04.09.2026 EINE SPALTE. `reglerFuer` gab `terrain_levels` als `stufen` UND
+	// als `erosion` weiter -- die Oktaven des fraktalen Grundrauschens (1..8) und die Erosionsstufe
+	// (0..5, uebersetzt in [0, 40, 90, 150, 240, 360] Schritte) lasen denselben Wert. Wer die Erosion
+	// hochzog, verstellte lautlos die Detailtiefe mit. Owner: „terrain_levels trenn die beiden!"
+	//
+	// 💣 Zwei Groessen, die zufaellig denselben Wertebereich haben, sind deshalb noch lange nicht
+	// dieselbe Groesse -- und der Fehler war STILL: beide Regler bewegten das Bild, nur eben beide.
+	const feld = (stufen, erosion) => baue({
+		regler: { koernung: 4, bergform: 2, rauschen: 0.3, sattel: 0.75, stufen, erosion },
+	}).h;
+	const gleich = (a, b) => {
+		let groesste = 0;
+		for (let k = 0; k < a.length; k++) { groesste = Math.max(groesste, Math.abs(a[k] - b[k])); }
+
+		return groesste;
+	};
+
+	// Nur die Erosion bewegt sich: das Feld MUSS sich aendern.
+	assert.ok(gleich(feld(3, 1), feld(3, 5)) > 1,
+		"die Erosionsstufe bewegt gar nichts -- sie kommt nicht am Trichter an");
+	// Nur die Detailstufen bewegen sich: das Feld MUSS sich ebenfalls aendern.
+	assert.ok(gleich(feld(2, 3), feld(6, 3)) > 1,
+		"die Detailstufen bewegen gar nichts -- sie kommen nicht am Trichter an");
+
+	// 🔴 UND DIE GEGENPROBE, die die Kopplung wirklich ausschliesst: dasselbe Paar zweimal, einmal
+	// ueber Kreuz. Waeren die beiden noch EIN Wert, muesste das Feld bei (3,5) und (5,5) gleich sein
+	// -- der zweite Parameter wuerde den ersten ja mitziehen.
+	assert.ok(gleich(feld(3, 5), feld(5, 5)) > 1,
+		"bei gleicher Erosionsstufe aendern die Detailstufen nichts -- die beiden haengen noch "
+		+ "aneinander");
+	assert.ok(gleich(feld(5, 1), feld(5, 5)) > 1,
+		"bei gleichen Detailstufen aendert die Erosion nichts -- die beiden haengen noch aneinander");
+});
+
 pruefe("die Erosionsstufe ist eine Zahl von Schritten, keine Iteration", () => {
 	assert.strictEqual(hydro.avesmapsHydroErosionsSchritte(0), 0);
 	assert.strictEqual(hydro.avesmapsHydroErosionsSchritte(3), 150);

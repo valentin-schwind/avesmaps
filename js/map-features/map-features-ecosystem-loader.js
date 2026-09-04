@@ -364,6 +364,7 @@ function ecosystemHeightRelevantChange(previous, next) {
 	// den alten weiterrechnet. Gefunden von einem Pruefagenten, nicht von einem Test.
 	return [
 		"terrain_grain", "terrain_levels", "terrain_avg_height", "terrain_mean_height",
+		"terrain_erosion",
 		"terrain_bergform", "terrain_rauschen", "terrain_sattel",
 		"terrain_talbreite", "terrain_einschnitt",
 	].some((feld) => (previous?.[feld] ?? null) !== (next?.[feld] ?? null));
