@@ -559,9 +559,6 @@ function initializePoliticalTerritoryEditorPopup() {
 	//    speichert selbst, `setPoliticalTerritoryEditorOpen(false)` blendet nur aus.
 	avesmapsDialogHintergrundSchliessenById("political-territory-editor-overlay", closePoliticalTerritoryEditor);
 	frame?.addEventListener("load", setupPoliticalTerritoryEditorFrame);
-	overlay?.addEventListener("click", (event) => {
-		if (event.target === overlay) closePoliticalTerritoryEditor();
-	});
 	initializeWikiSyncTerritoryDragAssignment();
 }
 

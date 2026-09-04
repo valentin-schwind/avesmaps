@@ -62,7 +62,10 @@ window.openAvesmapsEcosystemEditorOverlay = window.openAvesmapsEcosystemEditorOv
 	dialog.appendChild(header);
 	dialog.appendChild(frame);
 	overlay.appendChild(dialog);
-	overlay.addEventListener("click", (event) => { if (event.target === overlay) closeOverlay(); });
+	// 🔴 Das geteilte Bauteil, nicht die Abschrift: es prueft DRUCK UND LOSLASSEN. Ein blosses
+	//    `event.target === overlay` schliesst auch dann, wenn jemand IM Fenster markiert und dabei
+	//    ueber den Rand hinauszieht -- bei einem Editorfenster mit Formular ist das teuer.
+	avesmapsDialogHintergrundSchliessen(overlay, closeOverlay);
 	document.body.appendChild(overlay);
 	document.body.style.overflow = "hidden";
 };
