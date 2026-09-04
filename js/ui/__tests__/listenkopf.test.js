@@ -155,4 +155,41 @@ assert.ok(!/font-size:\s*\d+px/.test(refresh),
 }
 
 
+// ---- T3 vollstaendig: KEIN Reiter im Fenster ist gefuellt ---------------------------------------
+// 🔴 Owner-Entscheid T3 (04.09.2026): ein Reiter IM Fenster traegt den Unterstrich, ein Umschalter
+//    FREI AUF DER KARTE die Fuellung. Der ORT entscheidet, nicht der Geschmack.
+// 🪤 `.ecosystem-stapel__kind` („Reihenfolge und Sperren": Derographie · Vegetation · Topographie)
+//    war am 04.09.2026 die LETZTE Reiterzeile im Haus, die noch als Knopfbund gebaut war -- neun
+//    andere trugen laengst den Unterstrich. Ihr Kommentar sagte „Weich/outline, nie gefuellt: das
+//    sind Umschalter, nicht die Haupthandlung des Fensters" -- richtig gegen einen GEFUELLTEN
+//    Knopf, aber es beantwortet die falsche Frage. Gefunden hat es der Owner am Bild.
+// ⚠️ `.ecosystem-layer-switch__tab` bleibt GEFUELLT und steht hier bewusst NICHT: er steht frei auf
+//    der Karte und ist genau der Fall, fuer den T3 die zweite Form vorsieht.
+{
+	const imFenster = [
+		["css/features/ecosystem-layer.css", ".ecosystem-stapel__kind", "Reihenfolge und Sperren"],
+		["css/components/editor-body.css", ".avm-tab", "Editorseiten"],
+		["css/pages/landschaften-editor.css", ".dg-tab", "Darstellung"],
+	];
+	for (const [datei, selektor, wo] of imFenster) {
+		const quelle = lies(...datei.split("/"));
+		const zeilen = quelle.split(/\r?\n/).map((l) => l.trim());
+		const start = zeilen.indexOf(selektor + " {");
+		assert.ok(start > -1, wo + ": " + selektor + " ist nicht auffindbar");
+		const rumpf = [];
+		for (let i = start + 1; i < zeilen.length && zeilen[i] !== "}"; i++) rumpf.push(zeilen[i]);
+		const text = rumpf.join(" ");
+		assert.ok(/border-bottom:\s*2px solid transparent/.test(text),
+			wo + " (" + selektor + "): kein Platz fuer den Unterstrich (2px transparent). "
+			+ "Ein Reiter IM Fenster traegt den Unterstrich (T3, Owner 04.09.2026).");
+		assert.ok(/background:\s*none/.test(text),
+			wo + " (" + selektor + "): der Reiter ist wieder GEFUELLT. Gefuellt ist nur, was FREI "
+			+ "AUF DER KARTE steht -- der ORT entscheidet.");
+		assert.ok(/border-radius:\s*0/.test(text),
+			wo + " (" + selektor + "): der Reiter hat wieder einen Radius -- er ist kein Knopf.");
+	}
+	console.log("OK -- kein Reiter im Fenster ist gefuellt (T3)");
+}
+
+
 console.log("OK -- Listenkopf: zwei Filter-Kopien gleich, ⟳ auf der Hausform");

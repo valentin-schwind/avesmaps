@@ -439,73 +439,40 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 }
 
 
+/* 🔴 SEIT 04.09.2026 AM BAUTEIL. Sie standen als „Abschnitt C -- unberuehrt" in meinem eigenen
+   Bauplan; die Begruendung („sie arbeiten AUF der Karte") gilt ihrer HUELLE, nicht ihrer
+   Kopfzeile. Owner am Bild von „Reihenfolge und Sperren": es war das einzige der vier gezeigten
+   Fenster ohne Bauteil -- Kopf 32px statt 45, Titel 20px statt 16, ✕ 20x16 statt 32x32.
+   ⚠️ `pointer-events: none` liegt am OVERLAY und ist unberuehrt: die Karte bleibt bedienbar.
+   💣 Was BLEIBT, ist ihr Mass. Polster und Scrollen wandern in den Rumpf -- das Bauteil setzt
+      `padding: 0` an der Huelle, und genau daran sind heute Nachmittag schon vier Blaetter
+      auf 200px zusammengefallen. */
 .ecosystem-region-dialog,
 .ecosystem-properties-dialog,
 .ecosystem-import-dialog {
 	width: min(420px, 100%);
 	max-height: 100%;
-	overflow: auto;
+}
+
+/* Der Rumpf: er traegt das Polster und scrollt, waehrend Kopf und Knopfleiste stehen. */
+.ecosystem-region-dialog__form,
+.ecosystem-properties-dialog__form,
+.ecosystem-import-dialog__form {
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow-y: auto;
 	padding: var(--space-16);
-	border-radius: var(--radius-sm);
-	background: var(--color-panel);
-	box-shadow: var(--shadow-dialog);
-	color: var(--color-text);
-	font-family: var(--font-ui);
 }
 
-.ecosystem-region-dialog__header,
-.ecosystem-properties-dialog__header,
-.ecosystem-import-dialog__header {
-	display: flex;
-	align-items: baseline;
-	justify-content: space-between;
-	gap: var(--space-8);
-	padding-bottom: var(--divider-gap-tight);
-	margin-bottom: var(--divider-gap-tight);
-	border-bottom: 1px solid var(--color-divider);
-}
-
-.ecosystem-region-dialog__header h2,
-.ecosystem-properties-dialog__header h2,
-.ecosystem-import-dialog__header h2 {
-	margin: 0;
-	color: var(--color-text-strong);
-	font-size: var(--font-size-title);
-	line-height: var(--leading-tight);
-}
-
-.ecosystem-region-dialog__close,
-.ecosystem-properties-dialog__close,
-.ecosystem-import-dialog__close {
-	appearance: none;
-	-webkit-appearance: none;
-	padding: 0 var(--space-4);
-	border: 0;
-	border-radius: var(--radius-md);
-	background: none;
-	color: var(--color-text-muted);
-	cursor: pointer;
-	font: inherit;
-	font-size: var(--font-size-subhead);
-	line-height: 1;
-}
+/* 🔴 Kopfzeile, Titel und Schliessknopf gehoeren dem Bauteil (css/components/fenster.css). */
 
 
 
-.ecosystem-region-dialog__close:hover,
-.ecosystem-properties-dialog__close:hover,
-.ecosystem-import-dialog__close:hover {
-	color: var(--color-text-strong);
-}
 
 
 
-.ecosystem-region-dialog__close:focus-visible,
-.ecosystem-properties-dialog__close:focus-visible,
-.ecosystem-import-dialog__close:focus-visible {
-	outline: none;
-	box-shadow: var(--focus-ring);
-}
+
+
 
 
 
@@ -2183,32 +2150,48 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
    Markup traegt dessen Klassen. Hier steht nur, was eine STAPELLISTE braucht und jenes Fenster nicht
    hat. Es gibt kein zweites Fensteraussehen im Haus. */
 
+/* 🔴 T3: eine Reiterzeile IM Fenster ist eine ZEILE MIT LINIE, kein Knopfbund. */
 .ecosystem-stapel__kinds {
 	display: flex;
 	flex-wrap: wrap;
-	gap: var(--space-4);
+	gap: var(--space-12);
+	margin-bottom: var(--space-4);
+	border-bottom: 1px solid var(--color-border);
 }
 
-/* ⚠️ Weich/outline, nie gefuellt: das sind Umschalter, nicht die Haupthandlung des Fensters. */
+/* 🔴 T3 (Owner 04.09.2026): ein Reiter IM Fenster traegt den UNTERSTRICH, ein Umschalter FREI
+   AUF DER KARTE die Fuellung. Der ORT entscheidet. Diese drei wechseln die ANSICHT des
+   Fensters (Derographie · Vegetation · Topographie) -- also Reiter.
+   🪤 Hier stand „Weich/outline, nie gefuellt: das sind Umschalter, nicht die Haupthandlung des
+      Fensters" -- richtig gegen einen GEFUELLTEN Knopf, aber es beantwortet die falsche Frage.
+      Gemessen war das die EINZIGE Reiterzeile im Haus, die noch als Knopfbund gebaut war; die
+      neun anderen tragen laengst den Unterstrich. Zeichengleich zu .avm-tab. */
 .ecosystem-stapel__kind {
-	padding: var(--space-4) var(--space-8);
-	border: 1px solid var(--color-button-soft-border);
-	border-radius: var(--radius-md);
-	background: var(--color-button-soft);
-	color: var(--color-button-soft-text);
-	cursor: pointer;
+	flex: 0 0 auto;
+	min-height: 0;
+	padding: var(--space-4) 1px;
+	border: 0;
+	border-bottom: 2px solid transparent;
+	border-radius: 0;
+	background: none;
+	appearance: none;
+	-webkit-appearance: none;
+	color: var(--color-text-muted);
 	font: inherit;
-	font-size: var(--font-size-small);
+	font-size: var(--font-size-body);
+	line-height: var(--leading-tight);
+	white-space: nowrap;
+	cursor: pointer;
 }
 
-.ecosystem-stapel__kind:hover {
-	background: var(--color-button-soft-hover);
-}
+.ecosystem-stapel__kind:hover,
+.ecosystem-stapel__kind:focus-visible { background: none; color: var(--color-text-strong); }
 
 .ecosystem-stapel__kind--aktiv {
-	border-color: var(--color-pill-border);
-	background: var(--color-panel-active);
+	background: none;
 	color: var(--color-text-strong);
+	font-weight: var(--font-weight-bold);
+	border-bottom-color: var(--color-text-strong);
 }
 
 /* Die Zeile. Zwei Zeilen hoch: Name oben, Art und Flaechenzahl darunter -- dieselbe Anordnung wie in

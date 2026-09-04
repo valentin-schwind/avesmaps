@@ -150,8 +150,6 @@ console.log("OK -- die modal-box-Rezeptur steht in beiden Dateien zeichengleich 
 	const WURZEL2 = path.join(__dirname, "..", "..", "..");
 	const AUSNAHMEN = {
 		"spotlight-search": "Bauplan Abschnitt C -- Owner 04.09.2026: die Suche bleibt unberuehrt",
-		"ecosystem-properties-dialog": "Karten-Werkzeug: pointer-events:none, arbeitet AUF der Karte",
-		"ecosystem-import-dialog": "Karten-Werkzeug (zweimal benutzt: Grenze aus Territorien, Reihenfolge)",
 		"modal-box": "die sechs Sync-Fenster: Werte angeglichen, Bauform ist ein eigener Durchgang",
 	};
 	function alleJsDateien(verzeichnis, sammler) {

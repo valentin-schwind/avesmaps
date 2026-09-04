@@ -1110,12 +1110,13 @@
 		     standen in BEIDEN Fenstern auf demselben Wert; sie stehen jetzt genau einmal.
 		     Entwurf: docs/superpowers/specs/2026-08-25-landschaft-dialog-vereinigung-design.md -->
 		<div id="ecosystem-simplify-overlay" hidden>
-			<div id="ecosystem-simplify-dialog" class="ecosystem-properties-dialog" role="dialog" aria-modal="true" aria-labelledby="ecosystem-simplify-title" tabindex="-1">
-				<div class="ecosystem-properties-dialog__header">
-					<h2 id="ecosystem-simplify-title">Fläche vereinfachen</h2>
-					<button id="ecosystem-simplify-close" class="ecosystem-properties-dialog__close" type="button" aria-label="Dialog schließen">×</button>
+			<div id="ecosystem-simplify-dialog" class="ecosystem-properties-dialog avm-fenster avm-fenster--werkzeug" role="dialog" aria-modal="true" aria-labelledby="ecosystem-simplify-title" tabindex="-1">
+				<div class="ecosystem-properties-dialog__header avm-fenster__kopf">
+					<span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>
+					<h2 class="avm-fenster__titel" id="ecosystem-simplify-title">Fläche vereinfachen</h2>
+					<button id="ecosystem-simplify-close" class="avm-fenster__knopf avm-fenster__knopf--gefasst" type="button" aria-label="Dialog schließen">×</button>
 				</div>
-				<form id="ecosystem-simplify-form" class="ecosystem-properties-dialog__form">
+				<form id="ecosystem-simplify-form" class="ecosystem-properties-dialog__form avm-fenster__rumpf">
 					<label class="ecosystem-properties-dialog__field">
 						<span>Stärke</span>
 						<input id="ecosystem-simplify-strength" name="strength" type="range" min="0" max="100" step="1" value="0" />
@@ -1138,12 +1139,13 @@
 		     wo #ecosystem-import-overlay in allen DREI Selektorlisten steht -- sonst erbt das <div>
 		     NICHTS und oeffnet hinter der Karte. -->
 		<div id="ecosystem-import-overlay" hidden>
-			<div id="ecosystem-import-dialog" class="ecosystem-import-dialog" role="dialog" aria-modal="true" aria-labelledby="ecosystem-import-title" tabindex="-1">
-				<div class="ecosystem-import-dialog__header">
-					<h2 id="ecosystem-import-title" data-i18n="ecosystem.import.dialogTitle">Grenze aus Territorien</h2>
-					<button id="ecosystem-import-close" class="ecosystem-import-dialog__close" type="button" aria-label="Dialog schließen" data-i18n-aria-label="ecosystem.import.closeAria">×</button>
+			<div id="ecosystem-import-dialog" class="ecosystem-import-dialog avm-fenster avm-fenster--werkzeug" role="dialog" aria-modal="true" aria-labelledby="ecosystem-import-title" tabindex="-1">
+				<div class="ecosystem-import-dialog__header avm-fenster__kopf">
+					<span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>
+					<h2 class="avm-fenster__titel" id="ecosystem-import-title" data-i18n="ecosystem.import.dialogTitle">Grenze aus Territorien</h2>
+					<button id="ecosystem-import-close" class="avm-fenster__knopf avm-fenster__knopf--gefasst" type="button" aria-label="Dialog schließen" data-i18n-aria-label="ecosystem.import.closeAria">×</button>
 				</div>
-				<form id="ecosystem-import-form" class="ecosystem-import-dialog__form">
+				<form id="ecosystem-import-form" class="ecosystem-import-dialog__form avm-fenster__rumpf">
 					<p id="ecosystem-import-demo" class="ecosystem-import-dialog__note" hidden data-i18n="ecosystem.import.demoNote">Attrappen (?demo=1) — der Politik-Layer wird nicht gefragt.</p>
 					<label class="ecosystem-import-dialog__field">
 						<span data-i18n="ecosystem.import.kindLabel">Ebene der neuen Fläche</span>
@@ -1187,12 +1189,13 @@
 		     Stelle, an der ALLE Regionen einer Ebene stehen -- die Entsperr-Liste ist darin enthalten.
 		     ⚠️ Klimazonen fehlen mit Absicht: die Ebene wird abgeleitet, nicht gezeichnet. -->
 		<div id="ecosystem-stapel-overlay" hidden>
-			<div id="ecosystem-stapel-dialog" class="ecosystem-import-dialog" role="dialog" aria-modal="true" aria-labelledby="ecosystem-stapel-title" tabindex="-1">
-				<div class="ecosystem-import-dialog__header">
-					<h2 id="ecosystem-stapel-title" data-i18n="ecosystem.stapel.dialogTitle">Reihenfolge und Sperren</h2>
-					<button id="ecosystem-stapel-close" class="ecosystem-import-dialog__close" type="button" aria-label="Dialog schließen" data-i18n-aria-label="ecosystem.stapel.closeAria">×</button>
+			<div id="ecosystem-stapel-dialog" class="ecosystem-import-dialog avm-fenster avm-fenster--werkzeug" role="dialog" aria-modal="true" aria-labelledby="ecosystem-stapel-title" tabindex="-1">
+				<div class="ecosystem-import-dialog__header avm-fenster__kopf">
+					<span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>
+					<h2 class="avm-fenster__titel" id="ecosystem-stapel-title" data-i18n="ecosystem.stapel.dialogTitle">Reihenfolge und Sperren</h2>
+					<button id="ecosystem-stapel-close" class="avm-fenster__knopf avm-fenster__knopf--gefasst" type="button" aria-label="Dialog schließen" data-i18n-aria-label="ecosystem.stapel.closeAria">×</button>
 				</div>
-				<div class="ecosystem-import-dialog__form">
+				<div class="ecosystem-import-dialog__form avm-fenster__rumpf">
 					<div id="ecosystem-stapel-kinds" class="ecosystem-stapel__kinds" role="group" aria-label="Ebene" data-i18n-aria-label="ecosystem.stapel.kindsAria"></div>
 					<label class="ecosystem-import-dialog__field">
 						<span data-i18n="ecosystem.stapel.filterLabel">Region suchen</span>
