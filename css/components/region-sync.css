@@ -1117,6 +1117,16 @@
 	   eigenen Rahmen mit, den ein blosses border-bottom stehen liesse. */
 	border: 0 solid var(--color-divider);
 	border-bottom-width: 1px;
+	/* 🔴 ENTWEDER KARTE ODER TRENNLINIE, nie beides (Owner 04.09.2026: „entweder karte oder
+	   trennlinie"). Diese Liste ist eine TRENNLINIEN-Liste -- also ausdruecklich kein Radius.
+	   💣 Die 0 ist tragend und sieht nur ueberfluessig aus: die blanke `.tree-item`-Regel in
+	      css/pages/political-territory-wiki-tree.css (Spezifitaet 0,1,0) wird von index.html
+	      GLOBAL geladen und setzt `border-radius: 6px`. Ohne diese Zeile leckt der Radius hier
+	      herein, und die Zeile traegt abgerundete Ecken IN einer geraden Trennlinienliste --
+	      genau das Bild, das der Owner beanstandet hat.
+	   ⚠️ Im Quelltext ist die Mischung UNSICHTBAR: Linie und Radius stehen in verschiedenen
+	      Dateien. Nur der gemessene Zustand im Browser zeigt sie. */
+	border-radius: 0;
 	/* Ebenfalls für die <button>-Zeilen: sonst erben sie Systemschrift, Grauton und Zentrierung. */
 	background: transparent;
 	font: inherit;

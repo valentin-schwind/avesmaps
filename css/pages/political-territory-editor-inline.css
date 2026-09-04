@@ -1854,7 +1854,10 @@
 	max-width: 100%;
 	min-width: 0;
 	padding: 7px 8px;
-	border-radius: 6px;
+	/* 🔴 DIESELBE Karte wie .avm-row (css/components/editor-row.css). Hier stand `6px` -- ein Wert,
+	   den die Radienskala gar nicht kennt (sm 5, md 8, lg 10), und damit die zweite Kartenform im
+	   Haus. Owner 04.09.2026: „entweder karte oder trennlinie" -- und wenn Karte, dann eine. */
+	border-radius: var(--radius-md);
 	background: transparent;
 	color: var(--text-strong);
 	font-weight: 700;

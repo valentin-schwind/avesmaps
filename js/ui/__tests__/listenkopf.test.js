@@ -114,4 +114,45 @@ assert.ok(!/font-size:\s*\d+px/.test(refresh),
 }
 
 
+// ---- ENTWEDER KARTE ODER TRENNLINIE ------------------------------------------------------------
+// 🔴 Owner 04.09.2026, woertlich: „entweder karte oder trennlinie". Eine Listenzeile ist das eine
+//    ODER das andere -- nie beides. Abgerundete Ecken IN einer geraden Trennlinienliste war genau
+//    das Bild, das er beanstandet hat (die Ortsliste im WikiSync-Panel).
+//
+// 🪤 UND DIE MISCHUNG IST IM QUELLTEXT UNSICHTBAR. Sie entstand ueber DATEIGRENZEN: die Trennlinie
+//    kommt aus css/components/region-sync.css, der Radius aus der blanken `.tree-item`-Regel in
+//    css/pages/political-territory-wiki-tree.css (Spezifitaet 0,1,0), die index.html GLOBAL laedt.
+//    Keine einzelne Regel zeigt beides -- ein Sucher, der Regelkoerper liest, findet sie NIE.
+//    Gefunden hat sie erst die Messung des wirksamen Zustands im Browser.
+// ⭐ Was ein Quelltexttest dagegen leisten kann: verlangen, dass eine Trennlinien-Liste den Radius
+//    AUSDRUECKLICH abschaltet. Die `0` sieht ueberfluessig aus und ist der einzige Riegel gegen das
+//    Lecken -- wer sie „aufraeumt", holt die Mischform zurueck.
+{
+	const regionSync = lies("css", "components", "region-sync.css");
+	const block = regionSync.slice(
+		regionSync.indexOf(".wikisync-itemlist .tree-item,"),
+		regionSync.indexOf("}", regionSync.indexOf("border-bottom-width: 1px;")) + 1);
+	assert.ok(block.includes("border-bottom-width: 1px;"),
+		"Die Panel-Listenzeile ist keine Trennlinien-Liste mehr -- dann gilt dieser Abschnitt nicht");
+	assert.ok(/border-radius:\s*0;/.test(block),
+		"Die Panel-Listenzeile schaltet den Radius nicht mehr ausdruecklich ab. Er leckt dann aus "
+		+ "der blanken .tree-item-Regel in political-territory-wiki-tree.css herein, und die Zeile "
+		+ "traegt abgerundete Ecken IN einer geraden Trennlinienliste (Owner 04.09.2026).");
+
+	// Und die Kartenform hat EINEN Radius, nicht zwei.
+	const editorRow = lies("css", "components", "editor-row.css");
+	const wikiTree = lies("css", "pages", "political-territory-wiki-tree.css");
+	for (const [quelle, name] of [[editorRow, "editor-row.css (.avm-row)"],
+	                              [wikiTree, "political-territory-wiki-tree.css (.tree-item)"]]) {
+		assert.ok(/border-radius:\s*var\(--radius-md\)/.test(quelle),
+			name + ": die Kartenform traegt nicht --radius-md. Zwei Kartenradien im Haus sind "
+			+ "dieselbe Divergenz, nur kleiner -- und 6px steht auf der Radienskala gar nicht.");
+	}
+	// Und keine Karte traegt zusaetzlich eine Trennlinie.
+	assert.ok(!/\.avm-row\s*\{[^}]*border-bottom(-width)?:\s*(?!0)/.test(editorRow),
+		".avm-row hat eine Trennlinie bekommen -- sie ist eine KARTE, entweder oder.");
+	console.log("OK -- jede Listenzeile ist entweder Karte oder Trennlinie");
+}
+
+
 console.log("OK -- Listenkopf: zwei Filter-Kopien gleich, ⟳ auf der Hausform");

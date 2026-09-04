@@ -302,6 +302,32 @@ Haupthandlung ist: er steht nicht in einem Fenster, wo er mit „Speichern" oder
 konkurrieren könnte, sondern frei über Kacheln und Wald — dort ist ein 2px-Unterstrich nicht
 lesbar. Wer ihn je in ein Fenster holt, macht ihn zum Reiter.
 
+### Entweder Karte oder Trennlinie — nie beides
+
+🔴 Owner 04.09.2026, wörtlich: „entweder karte oder trennlinie". Eine Listenzeile ist das eine
+**oder** das andere. Abgerundete Ecken **in** einer geraden Trennlinienliste war das Bild, das er
+beanstandet hat (die Ortsliste im WikiSync-Panel).
+
+🔴 **Welche Form gilt, entscheidet die FUNKTION, nicht der Geschmack.** Gemessen:
+`.avm-row` ist ein `<button>` **mit** Auswahl-Zustand (die gewählte Zeile bleibt markiert, rechts
+steht ihr Detail) — Radius und Rand sind das Zeichen dafür. `.tree-item` im Panel ist ein `<div>`
+**ohne** Auswahl-Zustand, weder im CSS noch im JS; man liest sie durch, die Linie trennt im Strom.
+⭐ Fällt der Rand weg, trägt „ausgewählt" allein die halbdurchsichtige Füllung: RGB-Abstand zum
+Panelgrund **53** (hell) bzw. **66** (dunkel), während der Rand auf **222** bzw. **219** kommt —
+er ist 4,2× bzw. 3,3× stärker. Entwurf: `docs/listenform-mockup.html`.
+
+💣 **DIE MISCHUNG IST IM QUELLTEXT UNSICHTBAR**, und deshalb stand sie monatelang da: die
+Trennlinie kommt aus `css/components/region-sync.css`, der Radius aus der **blanken**
+`.tree-item`-Regel in `css/pages/political-territory-wiki-tree.css` (Spezifität 0,1,0), die
+`index.html` global lädt. Keine einzelne Regel zeigt beides — ein Sucher, der Regelkörper liest,
+findet sie nie. Nur der gemessene Zustand im Browser zeigt sie.
+⚠️ Deshalb schaltet eine Trennlinien-Liste den Radius **ausdrücklich** ab (`border-radius: 0`).
+Die Null sieht überflüssig aus und ist der einzige Riegel; wer sie „aufräumt", holt die Mischform
+zurück. Gewacht von `js/ui/__tests__/listenkopf.test.js`.
+
+⚠️ Und wenn Karte, dann **eine**: beide Kartenformen tragen `--radius-md`. Der Territorienbaum
+stand auf `6px` — ein Wert, den die Radienskala (sm 5 · md 8 · lg 10) gar nicht kennt.
+
 ### Wappen und Vorschaubilder in Listen — die Texte stehen bündig
 
 🔴 Owner 04.09.2026: „wenn es wappen/thumbs in einer liste gibt sind die texte bündig
