@@ -150,34 +150,46 @@
 .dg__lead em { color: var(--color-text); font-style: normal; }
 
 /* Reiter: dieselbe Bauform wie .avm-tabs -- ein Grid, das seine Anzahl selbst traegt. */
+/* 🔴 T3: die Leiste zu Unterstrich-Reitern ist eine ZEILE MIT LINIE, kein umrandeter Kasten.
+   Der Kasten hier war die Fassung des Segmentschalters -- mit gefuellten Reitern darin schluessig,
+   mit Unterstrichen ein Rahmen um nichts. Zeichengleich zu .avm-tabs. */
 .dg-tabs {
-	display: grid;
-	grid-auto-flow: column;
-	grid-auto-columns: minmax(0, 1fr);
-	gap: var(--space-2);
-	margin-bottom: var(--space-16);
-	padding: var(--space-2);
-	border: 1px solid var(--color-border);
-	border-radius: var(--radius-md);
-	background: var(--color-panel-soft);
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-12);
+	margin-bottom: var(--space-4);
+	border-bottom: 1px solid var(--color-border);
 }
+/* 🔴 T3 (Owner 04.09.2026): ein Reiter IM Fenster traegt den Unterstrich, nicht die Fuellung.
+   Zeichengleich zu .avm-tab (css/components/editor-body.css) -- diese Seite laedt es ueber
+   editor-page.css, aber die Reiter heissen hier anders und koennen die Klasse nicht tragen.
+   ⚠️ Der Umschalter der Kartenebene (.ecosystem-layer-switch__tab) bleibt GEFUELLT: der steht
+      frei auf der Karte, und genau dafuer sieht T3 die zweite Form vor. */
 .dg-tab {
+	flex: 0 0 auto;
 	min-width: 0;
-	padding: var(--space-6) var(--space-8);
-	border: 1px solid transparent;
-	border-radius: var(--radius-md);
+	min-height: 0;
+	padding: var(--space-4) 1px;
+	border: 0;
+	border-bottom: 2px solid transparent;
+	border-radius: 0;
 	background: none;
-	color: var(--color-button-soft-text);
-	cursor: pointer;
+	appearance: none;
+	-webkit-appearance: none;
+	color: var(--color-text-muted);
 	font: inherit;
-	font-size: 13px;
+	font-size: var(--font-size-body);
+	line-height: var(--leading-tight);
+	white-space: nowrap;
+	cursor: pointer;
 }
-.dg-tab:hover { background: var(--color-button-soft-hover); }
+.dg-tab:hover,
+.dg-tab:focus-visible { background: none; color: var(--color-text-strong); }
 .dg-tab.is-active {
-	border-color: var(--color-border);
-	background: var(--color-button-soft);
-	color: var(--color-text);
-	font-weight: 600;
+	background: none;
+	color: var(--color-text-strong);
+	font-weight: var(--font-weight-bold);
+	border-bottom-color: var(--color-accent);
 }
 
 .dg__section { margin-bottom: var(--space-24); }
