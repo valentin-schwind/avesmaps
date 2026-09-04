@@ -229,6 +229,20 @@ h2 { margin: 0 0 3px; color: var(--color-text-strong); font-size: var(--font-siz
    sie beim Zuklappen 8px nach links, waehrend sie zugleich nach unten fuhr: eine Diagonale,
    die wie ein Verrutschen aussieht und nicht wie ein Uebergang. */
 .k2:not(.v-box--offen) { padding: 0 var(--space-8); border-radius: var(--radius-md); }
+/* 🔴 DIE LEISTE IST EINE ZEILE UND BLEIBT ES: die Zusammenfassung kuerzt sich mit Auslassung,
+   statt umzubrechen. Ein umbrechender "zugeklappter" Kasten ist hoeher als noetig und liest
+   sich wie ein halb offener -- gemessen sprang die Leiste bei 330px von rund 30 auf 46,3px.
+   💣 `inline-flex`, NICHT `flex`: ein Block-Lauf zieht seinen Grund wieder auf die volle Breite
+   und loescht damit die Oberkante -- genau der Fehler, den der inline-Lauf behebt. Bei K2
+   faellt das nicht auf (die Aufschrift steht unter der Kante), bei K3 sofort, und eine Regel,
+   die nur bei einer von zwei Formen stimmt, ist keine.
+   💣 `min-width: 0` an der Zusammenfassung ist tragend: ein Flex-Kind schrumpft sonst nie unter
+   seinen Inhalt, die Auslassung greift nie, und die Leiste laeuft ueber den Rand hinaus. */
+.k2:not(.v-box--offen) .v-schrift,
+.k3:not(.v-box--offen) .v-schrift { display: inline-flex; align-items: baseline; gap: 5px;
+	max-width: 100%; white-space: nowrap; }
+.k2:not(.v-box--offen) .k-zus,
+.k3:not(.v-box--offen) .k-zus { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .k2:not(.v-box--offen) .v-head { margin: var(--space-4) 0 var(--space-4) 3px; }
 .k2 .k-inhalt { display: none; }
 
@@ -440,9 +454,9 @@ h2 { margin: 0 0 3px; color: var(--color-text-strong); font-size: var(--font-siz
 		<div class="wirt">
 			<div class="v-box k-box k2 v-box--offen" id="k2">
 				<div class="v-head"><span class="v-schrift"><button class="v-toggle" type="button"><span
-					class="v-caret"></span><span class="v-title">Transportmittel</span></button><span
-					class="k-zus">Reisegruppe zu Fuß · Flusssegler</span><button
-					class="v-info" type="button" title="Was die Auswahl bewirkt">ⓘ</button></span></div>
+					class="v-caret"></span><span class="v-title">Transportmittel</span></button><button
+					class="v-info" type="button" title="Was die Auswahl bewirkt">ⓘ</button><span
+					class="k-zus">Reisegruppe zu Fuß · Flusssegler · Lastensegler</span></span></div>
 				<div class="k-huelle"><div class="feld"><label>Land</label><select><option>Reisegruppe zu Fuß</option></select>
 					<label>Fluss</label><select><option>Flusssegler</option></select></div></div>
 			</div>
@@ -457,9 +471,9 @@ h2 { margin: 0 0 3px; color: var(--color-text-strong); font-size: var(--font-siz
 		<div class="wirt">
 			<div class="v-box k-box k3 v-box--offen" id="k3">
 				<div class="v-head"><span class="v-schrift"><button class="v-toggle" type="button"><span
-					class="v-caret"></span><span class="v-title">Transportmittel</span></button><span
-					class="k-zus">Reisegruppe zu Fuß · Flusssegler</span><button
-					class="v-info" type="button" title="Was die Auswahl bewirkt">ⓘ</button></span></div>
+					class="v-caret"></span><span class="v-title">Transportmittel</span></button><button
+					class="v-info" type="button" title="Was die Auswahl bewirkt">ⓘ</button><span
+					class="k-zus">Reisegruppe zu Fuß · Flusssegler · Lastensegler</span></span></div>
 				<div class="k-huelle"><div class="feld"><label>Land</label><select><option>Reisegruppe zu Fuß</option></select>
 					<label>Fluss</label><select><option>Flusssegler</option></select></div></div>
 			</div>
