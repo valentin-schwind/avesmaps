@@ -104,38 +104,81 @@ Erzeuger hat (`js/ui/dialog-drag.js`). Das ist der ganze Unterschied.
 deshalb hat jeder neue Dialog geraten, und „Natur & Waren" hat sich per ID-Regel nachträglich
 eine Titelleiste an ein Blatt geschraubt.
 
-### Die Maßtafel — vier Zahlen, und sie gelten in BEIDEN Bauarten
+### Die Maße — sie existieren bereits als `--avm-*`, es fehlte nur, dass alle sie benutzen
 
-| Token | Wert | Gilt für |
+🔴 **Kein eigener Token-Satz für Fenster.** Die Maße stehen längst in `css/base/tokens.css`
+und tragen die vier Editoren. Ein zweiter Satz Namen für dieselben Zahlen wäre genau die
+Divergenz, um die es hier geht — der erste Entwurf hatte ihn und wurde zurückgenommen.
+
+| Token | px | Gilt für |
 |---|---|---|
-| `--fenster-pad-x` | `--space-12` | links/rechts in **jeder** Zone — Kopfleiste, Menüband, Rumpf, Fußleiste |
-| `--fenster-band-y` | `--space-6` | oben/unten in den Bändern |
-| `--fenster-body-y` | `--space-12` | oben/unten im Rumpf |
-| `--fenster-gap` | `--space-6` | zwischen Knöpfen, Kacheln, Zeilen |
-| `--fenster-kopf-h` | 32px | Bedienhöhe in den Bändern |
-| `--fenster-feld-w` | 220px | Grundbreite eines Eingabefelds *in* der Kopfleiste |
+| `--avm-ribbon-pad` | 10 / **14** | Kopfleiste · Menüband · Fußleiste |
+| `--avm-col-pad` | 8 / **14** | Rumpf und Spalten — *heute 8 / 12, zieht auf 14 nach* |
+| `--avm-status-pad` | 6 / **14** | Statuszeile |
+| `--avm-row-pad` | 4 / 6 | Listenzeile |
+| `--avm-ribbon-gap` | 6 | zwischen Kacheln, Knöpfen, Feldern |
+| `--avm-control-h` | 32 | Knopf · Feld · Auswahl · Schließknopf |
+
+**Der Seiteneinzug ist überall 14** — schon heute die Mehrheit (Menüband und Statuszeile
+tragen 14, nur die Spalten stehen auf 12). **Genau dieser eine Wert zieht nach**, danach läuft
+eine senkrechte Linie durch jedes Fenster.
+
+💣 **`--space-N` ist NICHT N Pixel** — die Skala trägt global +2 (`--space-12` = 14px), und
+`tokens.css` sagt das direkt über den Editor-Tokens. Ein Mockup, das sich wörtliche Werte
+definiert, ist auf jeder Kante 2px neben der Produktion und lässt sich nicht nachbauen, ohne
+es zu verfehlen. Genau das ist dem zweiten Entwurf passiert.
 
 🔴 **Die Hülle hat `padding: 0`** — jede Zone trägt ihr Polster selbst. Das ist die tragende
-Zeile: dadurch läuft der Trenner **von Kante zu Kante ohne negative Außenränder**, der
+Zeile: dadurch läuft jeder Trenner **von Kante zu Kante ohne negative Außenränder**, der
 Seiteneinzug ist an einer Stelle je Zone nachzuzählen, und Blatt und Fenster benutzen
 dieselben Zonen. Für Fenster ersetzt das die „full-bleed = negativer Seitenrand"-Regel
 unter *Divider mechanics* (die gilt weiter für Panels wie die Infobox, die echtes
 Hüllenpolster haben).
 
-⚠️ **Die Bandhöhe steht bewusst NICHT in der Tafel** — sie ist das Ergebnis aus Polster und
-Inhalt: Kopf- und Fußleiste 44 (einzeilige 32px-Elemente), Menüband 52 (zweizeilige Kacheln).
-Wer 44 als `height` setzt, schneidet die zweite Kachelzeile ab.
+⚠️ **Die Bandhöhe steht bewusst in keiner Tafel** — sie ist das Ergebnis aus Polster und
+Inhalt. Gemessen: Kopfleiste **52** (32er Elemente + 2×10), Menüband **69** (48er Kacheln +
+2×10 + Linie), Fußleiste **53**. Wer eine davon als `height` setzt, schneidet beim nächsten
+zweizeiligen Element etwas ab.
+
+### Eine Linie je Bandgruppe — nie zwei
+
+💣 Kopfleiste und Menüband sind **eine** zusammenhängende Bedienfläche; zwischen ihnen gehört
+keine Linie. Die Linie sitzt, wo die Bedienfläche auf den **Inhalt** trifft. Heute tragen
+`.avm-editor-dialog__header` **und** `.avm-ribbon-bar` je einen `border-bottom` — zwei Striche
+66px auseinander, und keiner trennt etwas, was nicht ohnehin zusammengehört (Owner-Befund
+04.09.2026: „du hast den [Trenner] reingemacht, den ich wollte, aber noch eine linie
+eingebaut").
+
+⭐ Umgesetzt als `:has(+ …)` am Kopf, **nicht** als Klasse am Markup: so kann kein Fenster die
+Regel verfehlen, indem es die Klasse vergisst. `:has` ist im Haus etabliert (review-panel.css,
+infopanel.css).
+
+### Das Menüband ist `.avm-tile`, nicht etwas Neues
+
+🔴 Owner 04.09.2026: „bei den kacheln solltest du dich an das typische design der
+editor-kacheln halten. nicht wieder was neues machen". `.avm-ribbon` / `.avm-tile` / `.t1` /
+`.t2` / `.avm-tile--primary` stehen in `css/components/editor-body.css` und werden
+**unverändert** übernommen: Raster mit gleich breiten Spuren, `min-height: 48px`, Titel fett
+in `--font-size-body`, Unterzeile in `--font-size-caption`, nur die Haupthandlung gefüllt.
+
+💣 **`:where()` in `:where(.avm-editor-body) button` ist TRAGEND** — es steuert null
+Spezifität bei. Ohne die Klammer hat der Selektor (0,1,1) und schlägt `.avm-tile` (0,1,0):
+gemessen kollabiert die Kachel von 48px auf 32, verliert ihr Polster und trägt die weiche
+Knopffarbe statt `--primary`. Der Kommentar steht seit jeher über der Regel — und der Autor
+dieses Abschnitts ist beim Abschreiben trotzdem hineingelaufen. **Eine Regel abschreiben
+heißt, sie ganz abzuschreiben**; das Weglassen der scheinbar überflüssigen Klammer war schon
+die Divergenz.
 
 ### Was die Bauarten unterscheidet — und sonst nichts
 
 |  | Werkzeugfenster | Blatt |
 |---|---|---|
 | Hülle | `--radius-sm` · `--color-border-strong` | `--radius-lg` · `--color-border` |
-| Kopfleiste / Fußleiste | Grund `--color-panel-soft` | ohne Grund |
 | Schließknopf | gefasst (`--color-button-soft` + `-border`), 32×32 | nackt, **ebenfalls 32×32** |
 | Einklappen | ja | nein |
 | Titelgröße | `--font-size-subhead` | `--font-size-subhead` — **dieselbe** |
-| Griff, Polster, Trenner, Fuß | identisch | identisch |
+| Griff `⁝⁝` | ja | ja — **jedes Fenster trägt ihn** |
+| Polster, Trenner, Kacheln, Fuß | identisch | identisch |
 
 - **Die Kopflinie ist `--color-divider`**, nie `--color-border` — wie jede Abschnittslinie.
 - **Der Titel ist `--font-size-subhead` (16), in beiden Bauarten** (Owner 04.09.2026: „die
@@ -155,11 +198,16 @@ Wer 44 als `height` setzt, schneidet die zweite Kachelzeile ab.
 
 ### Der Griff `⁝⁝`
 
-🔴 **Er wird vom Zieh-Mechanismus gesetzt, nicht vom Markup.** `js/ui/dialog-drag.js` weiß als
-einziges, welche Fenster es wirklich bewegt (nur Maus/Stift; nicht ein Editor, der den ganzen
-Schirm füllt) — es hängt `is-draggable` an die Kopfleiste, und erst dann erscheint der Griff
-samt `cursor: grab`. Ein Griff im Markup wäre eine Behauptung, die das Fenster nicht einlöst,
-und niemand fände heraus, welche der beiden Seiten lügt.
+🔴 **Jedes Fenster ist verschiebbar und trägt den Griff** (Owner 04.09.2026: „Du kannst alle
+Fenster dragbar machen. Auch Landschaften bearbeiten und andere hinweise. trotzdem kann das ⁝⁝
+bleiben, damit für jeden klar, dass man das verschieben kann"). Es gibt also keine
+Unterscheidung „verschiebbar / nicht" mehr.
+
+🔴 **Gesetzt wird er trotzdem vom Zieh-Mechanismus, nicht vom Markup.**
+`js/ui/dialog-drag.js` weiß als einziges, ob es wirklich zieht — **am Telefon zieht es nicht**,
+und dort soll der Griff auch nicht behaupten, dass es ginge. Es hängt `is-draggable` an die
+Kopfleiste, und erst dann erscheint der Griff samt `cursor: grab`. Ein Griff im Markup wäre eine
+Behauptung, die das Fenster nicht einlöst, und niemand fände heraus, welche Seite lügt.
 
 💣 **Kein negatives `letter-spacing`.** Der alte Griff war `⣿⣿` (Braille) und brauchte
 `-0.12em`, damit die Blöcke zusammenrücken. Bei `⁝⁝` (U+205D, zweimal) frisst derselbe Wert

@@ -788,14 +788,25 @@ hex values across 38 CSS files).
   speichern, weg. Vermessen vor dem Entscheid: **13** Rezepturen für den Schließknopf in sechs
   Formen, **9** Polsterwerte für die Kopfzeile, **4** Titelgrößen — während das Verschieben, das
   **einen** Erzeuger hat (`js/ui/dialog-drag.js`), nirgends auseinandergelaufen ist.
-  🔴 **Die Hülle hat `padding: 0`**, jede Zone trägt ihr Polster selbst
-  (`--fenster-pad-x` 12 links/rechts in JEDER Zone, `--fenster-band-y` 6, `--fenster-body-y` 12,
-  `--fenster-gap` 6) — dadurch läuft der Trenner ohne negative Außenränder von Kante zu Kante.
+  🔴 **KEINE neuen Tokens** — die Maße existieren als `--avm-*` und tragen die vier Editoren:
+  `--avm-ribbon-pad` (10/14) für Kopfleiste·Menüband·Fußleiste, `--avm-col-pad` für den Rumpf,
+  `--avm-ribbon-gap` (6), `--avm-control-h` (32). **Der Seiteneinzug ist überall 14**; genau EIN
+  Wert zieht nach (`--avm-col-pad` horizontal 12 → 14).
+  💣 **`--space-N` ist NICHT N Pixel** — die Skala trägt global +2 (`--space-12` = 14px); wer
+  sich für ein Mockup wörtliche Werte definiert, liegt auf jeder Kante 2px daneben.
+  🔴 **Die Hülle hat `padding: 0`**, jede Zone trägt ihr Polster selbst — dadurch läuft jeder
+  Trenner ohne negative Außenränder von Kante zu Kante.
+  💣 **EINE Linie je Bandgruppe.** Kopfleiste und Menüband sind eine Bedienfläche; zwischen
+  ihnen gehört keine Linie (heute tragen `.avm-editor-dialog__header` UND `.avm-ribbon-bar` je
+  eine — zwei Striche 66px auseinander). Umgesetzt per `:has(+ …)`, nie als Klasse am Markup.
+  🔴 **Das Menüband ist `.avm-tile` / `.avm-ribbon`** aus `editor-body.css`, unverändert — nichts
+  Neues bauen. 💣 `:where()` in `:where(.avm-editor-body) button` ist TRAGEND: ohne die Klammer
+  (0,1,1 statt 0,0,1) kollabiert die Kachel gemessen von 48px auf 32.
   🔴 Titel **`--font-size-subhead`** in BEIDEN Bauarten · Kopflinie `--color-divider` ·
   Schließknopf 32×32, im Fenster gefasst, im Blatt nackt · Einklappen nur im Werkzeugfenster,
-  und es bleibt stehen · Griff `⁝⁝` **nur wenn wirklich verschiebbar**, gesetzt vom
-  Zieh-Mechanismus (`is-draggable`), nie vom Markup.
-  ⚠️ Die **Bandhöhe** steht bewusst in keiner Tafel — sie ist Polster plus Inhalt (Kopf/Fuß 44,
-  Menüband 52); wer 44 als `height` setzt, schneidet die zweite Kachelzeile ab.
+  und es bleibt stehen · **jedes** Fenster ist verschiebbar und trägt den Griff `⁝⁝`, gesetzt
+  vom Zieh-Mechanismus (`is-draggable`), nie vom Markup — am Telefon zieht er nicht.
+  ⚠️ Die **Bandhöhe** steht bewusst in keiner Tafel — sie ist Polster plus Inhalt (gemessen:
+  Kopf 52, Menüband 69, Fuß 53); wer eine davon als `height` setzt, schneidet etwas ab.
 - **New components:** reuse the nearest existing one as a template plus the
   tokens; match the warmth. Full guide: **`docs/design-language.md`**.
