@@ -1073,6 +1073,59 @@ wahr(!/#[0-9a-fA-F]{3,8}\b/.test(scheinIhreBlock) && !/\brgba?\(/.test(scheinIhr
 wahr(scheinBlock !== scheinIhreBlock,
 	".gi-map-schein und .gi-map-schein-ihre muessen verschiedene Regeln sein");
 
+// 04.09.2026: DER KLASSENNAME IST EIN GEKOPPELTER WERT -- JS-Konstante gegen CSS-Selektor, und
+// bis heute ohne Gegenprobe. Ein Tippfehler in einer der beiden Dateien faellt durch KEINEN Test:
+// gezeichnet wird dann ein <span> ohne Rahmen, ohne Schein und ohne `pointer-events`, also ein
+// unsichtbarer Ring -- und die Karte sieht aus, als waere die Option gar nicht da.
+// ⚠️ Geprueft werden BEIDE Marken-Klassen dieses Moduls. `gi-map-flow` (die Stroemungsdreiecke,
+// 02.09.2026) hatte dieselbe Luecke; wer eine anfasst, holt die andere mit.
+//
+// 💣 DIE WORTGRENZE VON HAND, ohne RegExp-Bau: `new RegExp("\\.")` ist auf dieser
+// Werkzeugkette nicht sicher zu schreiben -- ein verlorener Backslash macht daraus ein `.`, das
+// JEDES Zeichen trifft, und die Zusicherung ist still zufrieden. Genau das ist beim Bau dieser
+// Zeilen passiert (regex.source las sich als `(?![-w])s*{`). Deshalb hier nur indexOf/trimStart.
+function cssRegelDa(css, klasse) {
+	const nadel = "." + klasse;
+	let i = css.indexOf(nadel);
+	while (i !== -1) {
+		const rest = css.slice(i + nadel.length);
+		const naechstes = rest.charAt(0);
+		// Wortgrenze: ohne sie traefe ".gi-map-flow" auch eine Regel ".gi-map-flower".
+		const grenze = naechstes !== "-" && !/[0-9A-Za-z_]/.test(naechstes);
+		if (grenze && rest.trimStart().charAt(0) === "{") { return true; }
+		i = css.indexOf(nadel, i + 1);
+	}
+	return false;
+}
+[
+	[mod.AVESMAPS_GARETIEN_KLASSE_ENDKREUZUNG, "gi-map-endkreuzung", "der Endkreuzungs-Rahmen"],
+	["gi-map-flow", "gi-map-flow", "das Stroemungsdreieck"],
+].forEach(function (fall) {
+	gleich(fall[0], fall[1], fall[2] + ": die JS-Konstante nennt die erwartete Klasse");
+	wahr(cssRegelDa(kartenCss, fall[0]),
+		fall[2] + ": es gibt keine CSS-Regel fuer ." + fall[0] + " -- der Marker waere unsichtbar");
+});
+// ⭐ Zwei Gegenproben, sonst ist die Zeile darueber Vakuum: eine erfundene Klasse darf NICHT
+// treffen, und die Wortgrenze muss wirklich greifen.
+wahr(!cssRegelDa(kartenCss, "gi-map-gibtesnicht"),
+	"die Pruefung findet eine erfundene Klasse -- dann prueft sie nichts");
+wahr(!cssRegelDa(".gi-map-flower { color: red; }", "gi-map-flow"),
+	"💣 ohne Wortgrenze wuerde .gi-map-flower als .gi-map-flow durchgehen");
+wahr(cssRegelDa(".gi-map-flow{color:red}", "gi-map-flow"),
+	"und ohne Leerzeichen vor der Klammer muss sie trotzdem treffen");
+
+// Und der Ring selbst: hohl, aus dem Token, ohne hartkodierte Farbe.
+const ringBlock = (kartenCss.split(".gi-map-endkreuzung span")[1] || "").split("}")[0];
+wahr(ringBlock !== "", "die Regel fuer .gi-map-endkreuzung span fehlt");
+wahr(ringBlock.includes("box-sizing: border-box"),
+	"💣 ohne border-box addiert der Rahmen seine 2px dazu -- der Ring waere 4px zu gross und saesse"
+	+ " versetzt, weil der Anker die Mitte der ANGEGEBENEN Groesse ist: " + ringBlock);
+wahr(ringBlock.includes("border-radius: 50%"), "ein Ring ist rund: " + ringBlock);
+wahr(ringBlock.includes("currentColor"),
+	"⭐ EIN Wert treibt Rahmen UND Schein -- die Farbe kommt vom Element: " + ringBlock);
+wahr(ringBlock.indexOf("#") === -1 && ringBlock.indexOf("rgb") === -1,
+	"kein hartkodierter Farbwert im Ring-Block: " + ringBlock);
+
 // 💣 NUR DIE KONTUR FAENGT DEN ZEIGER. Bei einem See liegen ihre und unsere Flaeche fast
 // deckungsgleich uebereinander; faengt die FUELLUNG, gewinnt ueberall die obere (ihre), und unsere
 // Fassung waere im ganzen Ueberlappungsbereich nicht mehr anzeigbar -- also genau dort nicht, wo man
