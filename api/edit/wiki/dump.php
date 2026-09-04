@@ -114,7 +114,7 @@ require __DIR__ . '/../../_internal/wiki/powerlines.php';
 // on include, and its own require (path-naming.php) is already loaded above via paths.php.
 require_once __DIR__ . '/../../_internal/map/features.php';
 require __DIR__ . '/../../_internal/wiki/regions.php';
-require __DIR__ . '/../../_internal/wiki/locations.php';
+require_once __DIR__ . '/../../_internal/wiki/locations.php';
 require __DIR__ . '/../../_internal/wiki/settlements.php';
 require __DIR__ . '/../../_internal/wiki/dump-reader.php';
 require __DIR__ . '/../../_internal/wiki/dump-category-layer.php';
