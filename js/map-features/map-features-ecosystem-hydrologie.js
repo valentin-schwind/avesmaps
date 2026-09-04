@@ -1337,14 +1337,41 @@ function avesmapsGebirgsRasterBauen(eingabe) {
 			for (let j = 0; j < r.hh; j++) {
 				for (let i = 0; i < r.w; i++) {
 					const k = (j * r.w) + i;
-					if (!r.drin[k] || kern[k]) {
-						continue;              // ein Gipfelkern behaelt seine eingetragene Zahl
+					// 🔴 EIN FLUSS SCHNEIDET AUCH DURCH EINEN GIPFELKERN (Owner 04.09.2026, auf die
+					// Frage, ob er das duerfen soll: „ja"). Hier stand ein `|| kern[k]` -- der Kern war
+					// unantastbar, und ein Lauf, der ihn streifte, sprang ueber ihn hinweg und STIEG
+					// dabei an. Am Livebestand war das der groesste Einzelposten des gemessenen
+					// Flussanstiegs: beim Finsterkamm 100 % davon.
+					//
+					// ⚠️ WAS DAS KOSTET, IST GEMESSEN UND NICHT GESCHAETZT: von 22 Gipfeln in Gebirgen
+					// mit Fluessen liegt **kein einziger** naeher als eine halbe Zellweite an einem Lauf;
+					// die zwei naechsten sind 1,34 Zellen (Wallspitzhorn <- Sinop) und 1,47 Zellen
+					// (Finsterkopp <- Kaltwasser) entfernt. Die Gipfel behalten ihre eingetragene Zahl
+					// also weiterhin ALLE -- eingeschnitten wird nur der Kegelmantel um sie herum, und
+					// genau dort soll ein Tal ja liegen.
+					// 💣 Liefe ein Lauf je wirklich ueber einen Gipfelpunkt, gewaenne ab jetzt der Lauf.
+					// Das ist ein DATENwiderspruch (ein Fluss laeuft nicht ueber einen Berg), und die
+					// Entscheidung, welche der beiden Angaben dann falsch ist, gehoert nicht dem Modell.
+					if (!r.drin[k]) {
+						continue;
 					}
-					// Die Achse zuerst: dort gilt der Talboden, sonst der Abzug.
+					// 🔴 UND DIE ERLAUBNIS GILT DER ACHSE, NICHT DER FLANKE -- die Unterscheidung ist
+					// die ganze Regel. Auf der Achse LIEGT der Fluss: das ist eine gezeichnete Angabe
+					// wie die Gipfelhoehe, und bei zwei widerspruechlichen Angaben gewinnt der Lauf
+					// (Owner-Entscheid). Der Abzug daneben ist dagegen modellierte FORM -- eine
+					// gerechnete Talflanke, und gegen eine Messung verliert sie.
+					// 🪤 GEMESSEN, NACHDEM DIE ERSTE FASSUNG BEIDES FREIGAB: die Talbreite ist 1,5
+					// EINHEITEN, also **6 Zellen**, nicht 1,5 Zellen. Die Flanke griff damit weit ueber
+					// den Kern hinaus und trug das Wallspitzhorn um 1.517 Schritt ab -- ein Gipfel, an
+					// dem der naechste Lauf 1,34 Zellen vorbeifliesst. Wer diese zwei Zahlen
+					// verwechselt (Zellweite gegen Einheit), gibt eine Reichweite von 6 frei und meint 1.
 					if (tal.achse[k]) {
 						h[k] = Math.max(0, Math.min(initial[k], tal.achseBoden[k]));
 						senke[k] = 1;
 						continue;
+					}
+					if (kern[k]) {
+						continue;              // ein Gipfelkern behaelt seine Zahl gegen die FLANKE
 					}
 					const abzug = ecosystemTalAbzug(talIndex, r.x(i), r.y(j), initial[k]);
 					if (abzug > 0) {

@@ -95,6 +95,52 @@ pruefe("der Fluss fliesst bergab -- er steigt nirgends an", () => {
 	assert.ok(anstieg < 1, "Anstieg entlang der Laeufe: " + anstieg.toFixed(1) + " Schritt");
 });
 
+pruefe("ein Fluss schneidet die ACHSE durch einen Gipfelkern -- die FLANKE nicht", () => {
+	// 🔴 OWNER-ENTSCHEID 04.09.2026, auf die Frage, ob ein Fluss ueber einem Gipfel den Gipfel
+	// einschneiden darf: „ja". Davor sprang ein Lauf ueber den Kern hinweg und STIEG dabei an -- beim
+	// Finsterkamm waren das 100 % des gemessenen Anstiegs (1.479 -> 34 Schritt nach der Aenderung).
+	//
+	// 💣 UND DIE ERLAUBNIS TRENNT ACHSE VON FLANKE. Auf der Achse LIEGT der Fluss: eine gezeichnete
+	// Angabe wie die Gipfelhoehe, und bei zwei widerspruechlichen Angaben gewinnt der Lauf. Der Abzug
+	// daneben ist gerechnete FORM und verliert gegen die Messung.
+	// 🪤 Die erste Fassung gab beides frei -- und trug das Wallspitzhorn um 1.517 Schritt ab, obwohl
+	// der naechste Lauf 1,34 Zellen daran vorbeifliesst: die Talbreite ist 1,5 EINHEITEN, also SECHS
+	// Zellen. Wer die zwei Masse verwechselt, gibt eine Reichweite von 6 frei und meint 1.
+	const durchGipfel = hydro.avesmapsGebirgsRasterBauen({
+		bounds: BOUNDS,
+		istDrin: IM_QUADRAT,
+		peaks: [{ x: 10, y: 10, h: 4000 }],
+		// Der Lauf geht MITTEN durch den Gipfel.
+		fluesse: [{ n: "Querlauf", dir: "forward", bach: false, p: [[2, 10], [10, 10], [18, 10]] }],
+		regler: { koernung: 4, stufen: 3, bergform: 2, rauschen: 0.3, sattel: 0.75, erosion: 0 },
+		saat: 31,
+	});
+	const aufAchse = durchGipfel.h[(durchGipfel.r.j(10) * durchGipfel.r.w) + durchGipfel.r.i(10)];
+	assert.ok(aufAchse < 4000 * 0.5,
+		"die Achse liegt bei " + aufAchse.toFixed(0) + " Schritt und schneidet den Gipfel (4000) nicht "
+		+ "ein -- der Kern-Riegel steht noch vor der Achse");
+
+	// Und die Gegenprobe: derselbe Gipfel, der Lauf 1 Einheit DANEBEN (also innerhalb der Talbreite
+	// von 1,5, aber nicht auf der Achse) -- er muss seine Zahl behalten.
+	const daneben = hydro.avesmapsGebirgsRasterBauen({
+		bounds: BOUNDS,
+		istDrin: IM_QUADRAT,
+		peaks: [{ x: 10, y: 10, h: 4000 }],
+		fluesse: [{ n: "Nebenlauf", dir: "forward", bach: false, p: [[2, 11], [10, 11], [18, 11]] }],
+		regler: { koernung: 4, stufen: 3, bergform: 2, rauschen: 0.3, sattel: 0.75, erosion: 0 },
+		saat: 31,
+	});
+	// 🪤 HIER STAND BIS ZUM 04.09.2026 DAS GEGENTEIL: „ein Fluss QUER ueber einen Gipfel widerlegt den
+	// Gipfel nicht" -- mit der Begruendung, ein Lauf ueber einem Berg sei ein Datenwiderspruch, den das
+	// Modell tragen und nicht entscheiden solle. Der Owner hat die Frage gestellt bekommen und mit
+	// „ja" beantwortet: der Lauf gewinnt. Der alte Test war nicht falsch, er hielt die alte Regel --
+	// und ist genau deshalb rot geworden, als sie sich aenderte. So soll es sein.
+	const gipfel = daneben.h[(daneben.r.j(10) * daneben.r.w) + daneben.r.i(10)];
+	assert.ok(Math.abs(gipfel - 4000) < 1,
+		"der Gipfel liest " + gipfel.toFixed(0) + " statt 4000 -- die Talflanke eines Laufes, der 1 "
+		+ "Einheit daneben liegt, hat ihn abgetragen");
+});
+
 pruefe("der Fluss liegt in einem TAL -- das Gelaende steigt quer zu ihm an", () => {
 	// 🔴 DIE ANFORDERUNG DES OWNERS, woertlich: „Ein Fluss, der bereits durch ein Gebirge gezeichnet
 	// ist, muss dort im Hoehenfeld plausibel in einem Tal liegen." Bis hierher pruefte KEINE
@@ -284,29 +330,6 @@ pruefe("die Erosion FURCHT das freie Gelaende -- sie glaettet es nicht und zerle
 	assert.ok(faktor < 4,
 		"die Erosion zerlegt das Gelaende -- Rauheit " + ohne.toFixed(1) + " -> " + mit.toFixed(1)
 		+ " (Faktor " + faktor.toFixed(2) + "); das Kriechen fehlt oder wirkt nicht");
-});
-
-pruefe("ein Fluss QUER ueber einen Gipfel widerlegt den Gipfel nicht", () => {
-	// 🔴 DER FALL, DEN DIE ERSTE FIXTURE UMGING. Sie legte den Fluss bei y=10 und die Gipfel bei
-	// (6,6) und (14,14) -- der Lauf traf nie einen Gipfel, und der `kern[k]`-Riegel im Talabzug
-	// blieb ungeprueft. Am Livebestand laeuft der Sinop ueber das Wallspitzhorn und der Gernbach
-	// ueber den Horndrachenfels; beim Finsterkamm war das 100 % des gemessenen Anstiegs.
-	// ⚠️ Die Zusicherung ist NICHT „der Fluss faellt dort" -- ein Fluss ueber einem Gipfel ist ein
-	// DATENFEHLER, und das Modell traegt ihn, statt ihn zu widerlegen. Zugesichert ist, dass der
-	// GIPFEL seine Zahl behaelt: die eingetragene Zahl gewinnt gegen einen widerspruechlichen Lauf.
-	const o = hydro.avesmapsGebirgsRasterBauen({
-		bounds: BOUNDS,
-		istDrin: IM_QUADRAT,
-		peaks: [{ x: 10, y: 10, h: 4000 }],
-		fluesse: [{ n: "Querlauf", dir: "forward", bach: false, p: [[2, 10], [10, 10], [18, 10]] }],
-		regler: { koernung: 4, stufen: 3, bergform: 2, rauschen: 0.3, sattel: 0.75, erosion: 2 },
-		saat: 99,
-	});
-	const i = o.r.i(10);
-	const j = o.r.j(10);
-	const gelesen = o.h[(j * o.r.w) + i];
-	assert.ok(Math.abs(gelesen - 4000) < 1,
-		"der Gipfel unter dem Fluss liest " + gelesen.toFixed(0) + " statt 4000");
 });
 
 pruefe("ein Fluss DURCH einen See laesst dessen Spiegel eben", () => {
