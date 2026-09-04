@@ -114,6 +114,17 @@ function avesmapsTerrainAreaFingerprint(array $areaRow): string
         'levels=' . ($areaRow['terrain_levels'] === null ? 'null' : (string) (int) $areaRow['terrain_levels']),
         'avg=' . $number($areaRow['terrain_avg_height'] ?? null),
         'mean=' . $number($areaRow['terrain_mean_height'] ?? null),
+        // 🔴 DIE FUENF REGLER DER LOKALEN GEBIRGSSIMULATION (V12, 04.09.2026) GEHOEREN HIER HEREIN.
+        // Der Fingerabdruck beantwortet die Frage „ist das gespeicherte Raster noch das, was diese
+        // Einstellungen ergeben?" -- ein Regler, der die Rechnung veraendert und nicht darin steht,
+        // macht aus dieser Frage eine falsche Antwort in die GEFAEHRLICHE Richtung: das Raster gilt
+        // als aktuell, die Wegfindung rechnet mit dem alten Gelaende, und im Editor steht das neue.
+        // ⚠️ `null` ist ein eigener Wert („ableiten"), nicht 0 -- `$number` haelt beide auseinander.
+        'bergform=' . $number($areaRow['terrain_bergform'] ?? null),
+        'rauschen=' . $number($areaRow['terrain_rauschen'] ?? null),
+        'talbreite=' . $number($areaRow['terrain_talbreite'] ?? null),
+        'einschnitt=' . $number($areaRow['terrain_einschnitt'] ?? null),
+        'sattel=' . $number($areaRow['terrain_sattel'] ?? null),
         // The drawing method follows the KIND (ECOSYSTEM_TERRAIN_METHOD_BY_TYPE), so a changed kind
         // is a changed field even when every knob stands still.
         'type=' . (string) ($areaRow['region_type'] ?? ''),
@@ -259,7 +270,8 @@ function avesmapsTerrainHeightmapPut(PDO $pdo, array $payload, int $userId): arr
         return ['written' => 0, 'skipped' => 1];
     }
     $knobs = $pdo->prepare(
-        'SELECT terrain_grain, terrain_levels, terrain_avg_height, terrain_mean_height
+        'SELECT terrain_grain, terrain_levels, terrain_avg_height, terrain_mean_height,
+                terrain_bergform, terrain_rauschen, terrain_talbreite, terrain_einschnitt, terrain_sattel
            FROM ecosystem_area WHERE id = :id'
     );
     $knobs->execute(['id' => (int) $areaRow['id']]);
@@ -329,6 +341,13 @@ function avesmapsTerrainHeightmapStatus(PDO $pdo): array
     $statement = $pdo->query(
         "SELECT a.public_id, a.geometry_revision, r.name AS region_name, r.region_type,
                 a.terrain_grain, a.terrain_levels, a.terrain_avg_height, a.terrain_mean_height,
+                -- 💣 DIE FUENF V12-REGLER MUESSEN AUCH HIER STEHEN. `avesmapsTerrainAreaFingerprint`
+                -- liest sie aus der uebergebenen Zeile; fehlen sie, rechnet dieser Vergleich sie als
+                -- `null`, waehrend der Schreibweg sie mit ihrem echten Wert stempelt -- und JEDES
+                -- Raster einer Flaeche mit gesetztem Regler gilt fuer immer als veraltet.
+                -- Zwei Leser derselben Regel, und nur einer nachgezogen, ist keine Regel.
+                a.terrain_bergform, a.terrain_rauschen, a.terrain_talbreite,
+                a.terrain_einschnitt, a.terrain_sattel,
                 h.geometry_revision AS stamped_revision, h.terrain_fingerprint, h.peaks_fingerprint,
                 h.width_px, h.height_px, h.sample_bytes, h.computed_at
            FROM ecosystem_area a

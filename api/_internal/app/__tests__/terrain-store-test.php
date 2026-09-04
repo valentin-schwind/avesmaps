@@ -63,6 +63,21 @@ assert(avesmapsTerrainAreaFingerprint(['terrain_grain' => 4.0] + $area) !== $bas
 assert(avesmapsTerrainAreaFingerprint(['region_type' => 'huegelland'] + $area) !== $base,
     'the drawing method follows the KIND, so the kind belongs in the fingerprint');
 // geometry_revision has its own column and is compared separately -- it is deliberately NOT folded in.
+// 🔴 DIE FUENF REGLER DER LOKALEN GEBIRGSSIMULATION (V12) -- jeder einzeln, nicht als Bund.
+// 💣 Ein Regler, der die Rechnung veraendert und nicht im Abdruck steht, laesst das gespeicherte
+// Raster als aktuell gelten, waehrend die Wegfindung mit dem alten Gelaende rechnet und der Editor
+// das neue sieht. Einzeln geprueft, weil ein Bund gruen bliebe, sobald EINER von fuenf durchreicht.
+foreach (['terrain_bergform' => 3.5, 'terrain_rauschen' => 0.6, 'terrain_talbreite' => 2.5,
+          'terrain_einschnitt' => 800.0, 'terrain_sattel' => 0.4] as $spalte => $wert) {
+    assert(avesmapsTerrainAreaFingerprint([$spalte => $wert] + $area) !== $base,
+        $spalte . ' changes the fingerprint');
+}
+// ⚠️ Und `null` ist ein eigener Wert, keine 0: „ableiten" gegen „ausdruecklich null" sind zwei
+// verschiedene Gelaende, und der Abdruck muss sie unterscheiden.
+assert(avesmapsTerrainAreaFingerprint(['terrain_bergform' => 0.0] + $area)
+    !== avesmapsTerrainAreaFingerprint(['terrain_bergform' => null] + $area),
+    'null and 0 are different terrain settings');
+
 assert(avesmapsTerrainAreaFingerprint(['geometry_revision' => 9] + $area) === $base,
     'geometry_revision is its own column, not part of this fingerprint');
 

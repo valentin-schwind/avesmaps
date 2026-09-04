@@ -90,7 +90,12 @@
 		const created = map.getPane(PANE);
 		// Über den Flächenfüllungen der Ökosystem-Panes, unter den Labels (475) -- die Gipfel müssen
 		// oben bleiben, sie werden ja gezogen.
-		created.style.zIndex = 420;
+		// 🔴 UNTER DEN FLUESSEN UND SEEN (Owner 04.09.2026). Sie stand auf 420 -- ueber `roadsPane`
+		// (400, die Fluesse) und ueber `ecosystemPaneTopographie` (250, wo die Seen liegen), und
+		// verdeckte damit genau die Gewaesser, die das Gelaende erklaeren.
+		// ⚠️ 249 ist der letzte freie Platz darunter: `ecosystemPaneTopographie` ist 250, `regionsPane`
+		// 200. Wer sie tiefer legt, schiebt sie unter die politischen Fuellungen.
+		created.style.zIndex = 249;
 		created.style.pointerEvents = "none";
 	}
 
@@ -112,8 +117,42 @@
 	let stackDirty = true;
 	let rampCache = null;
 	let lastPaintMs = 0;
+	// Zellen auf der längeren bbox-Seite. 🔴 256 ist keine Wahl, sondern die vorhandene
+	// Randbedingung: `avesmapsTerrainGuardRasterShape` weist alles feiner als
+	// AVESMAPS_TERRAIN_CELL_SIZE (0,25 Karteneinheiten) ab, weil der Anstieg eine TOTALVARIATION ist
+	// und mit der Abtastdichte wächst -- zwei Flächen in verschiedener Auflösung hätten
+	// unvergleichbare `ascent_schritt`. Bei der Roten Sichel (64,6 Einheiten) trifft 256 die 0,25
+	// fast genau.
+	const ECOSYSTEM_HYDRO_RASTER_N = 256;
+	// Waehrend am Regler gezogen wird. Ein Viertel der Zellen, rund ein Viertel der Zeit.
+	const ECOSYSTEM_HYDRO_RASTER_GROB = 128;
+	// Der Lichteinfall der Schummerung: von NORDWESTEN, die Konvention jeder Reliefkarte.
+	// 💣 In Kartenkoordinaten wächst y nach NORDEN (Riva 790, Al'Anfa 152), also ist Nordwest
+	// (−x, +y) und die Lambert-Formel `+0,6·gx − 0,6·gy`. Falsches Vorzeichen macht Berge zu
+	// Kratern, und das fällt erst beim zweiten Blick auf.
+	const ECOSYSTEM_HYDRO_LICHT_X = 0.6;
+	const ECOSYSTEM_HYDRO_LICHT_Y = -0.6;
+	const ECOSYSTEM_HYDRO_LICHT_Z = 0.53;
+
 	// Solange der Flächendialog offen ist: volle Deckung statt höhenabhängigem Alpha.
 	let solidMode = false;
+	// 🔴 NUR EIN GEBIRGE GLEICHZEITIG (Owner 04.09.2026). Bis dahin malte die Leinwand den ganzen
+	// Stapel -- jede Gebirgsfläche der Karte auf einmal. Das war bei einer Buckelsumme billig (eine
+	// Abfrage je Punkt), ist es bei einem gerechneten Raster aber nicht: jede Fläche kostet einen
+	// eigenen Erosionslauf. Und es war nie die Frage, die der Editor stellt -- er stellt EINE Fläche
+	// ein und will sehen, was er einstellt.
+	let aktiveFlaeche = null;                // die public_id der Fläche, deren Dialog offen ist
+	// Das gerechnete Raster dieser einen Fläche. Teuer (Randwertaufgabe + Erosion, ~1,5 s), also
+	// einmal je Parameteränderung -- nicht je Bild. Zoom und Pan malen nur neu.
+	let hydroRaster = null;
+	let hydroSchluessel = "";
+	let hydroLaeuft = false;
+	// 💣 EIN RASTERBAU KOSTET RUND 1,5 SEKUNDEN, und die Regler bauen bei JEDEM Zieh-Bild neu.
+	// Ungedrosselt heisst das 1,5 s Blockade je Frame -- der Regler fuehlt sich an, als haenge der
+	// Tab. Deshalb zwei Aufloesungen: waehrend des Ziehens ein grobes Vorschauraster, beim Loslassen
+	// das feine. ⚠️ Der Deckel kann nur GROEBER machen -- feiner als die Speicherschranke wird es nie.
+	let hydroGrob = false;
+	let hydroFeinTimer = 0;
 	// Der Weisspunkt, mit dem ZULETZT GEMALT wurde -- die Auskunft, aus der die Höhenskala im
 	// Topographie-Dialog ihre Zahlen zieht (Fall #79).
 	//
@@ -249,7 +288,14 @@
 	}
 
 	// Von aussen: die Felder sind veraltet.
+	// 💣 SIE MUSS BEIDE WELTEN TREFFEN. Bis zum 04.09.2026 setzte sie nur `stackDirty`/`heightStack`
+	// -- die Buckelsumme. Seit der Trichter zeichnet, liest das niemand mehr, und eine Gipfelaenderung
+	// liess das ALTE Relief stehen: der Editor verschiebt einen Gipfel und sieht nichts.
+	// ⚠️ Ein stilles Falschbild ist schlimmer als ein fehlendes -- man haelt die Aenderung fuer
+	// wirkungslos und dreht weiter.
 	function invalidateEcosystemHeightField() {
+		hydroRaster = null;
+		hydroSchluessel = "";
 		stackDirty = true;
 		heightStack = null;
 	}
@@ -278,9 +324,262 @@
 	// zwei Dinge aus, nicht eins (siehe setHeightCanvasSolid).
 	function shouldDraw() {
 		return solidMode
+			&& !!aktiveFlaeche
 			&& typeof isEcosystemLayerModeActive === "function" && isEcosystemLayerModeActive()
 			&& typeof getActiveEcosystemLayerKind === "function"
 			&& getActiveEcosystemLayerKind() === "topographie";
+	}
+
+	/* ── Die Eingaben des Trichters ────────────────────────────────────────────────────────────
+	   🔴 Sie kommen alle aus dem, was die Karte OHNEHIN geladen hat -- keine eigene Anfrage, kein
+	   zweiter Endpunkt. Flüsse aus `pathData`, Seen aus den Landschaftsflächen, die Kammlinie aus
+	   dem Label der Fläche. ⚠️ Dieselben Felder liest der Rasterlauf im Editor über seine eigenen
+	   Endpunkte; die FORM muss übereinstimmen, sonst zeigt die Karte ein anderes Gelände als das
+	   gespeicherte (siehe den Kopf von map-features-ecosystem-hydrologie.js). */
+
+	// 💣 EIN GIPFEL, EIN FELD -- und die Zuteilung ist NICHT „liegt in dieser Flaeche".
+	//
+	// Gemessen am Livebestand (04.09.2026): **6 Gipfel liegen in ZWEI Gebirgsflaechen** (Finsterkamm
+	// und Schwarzkuppen teilen sich Hoher Stumpen, Drei Schwestern, Finsterkopp, Horndrachenfels
+	// zweimal). Wer sie beiden Feldern gibt, speichert zwei Raster, die BEIDE den Gipfel tragen --
+	// und `avesmapsHeightmapSampleSum` addiert sie beim Lesen. Der Hohe Stumpen stuende dann mit
+	// 5.000 statt 2.500 Schritt in der Wegfindung.
+	// ⚠️ Ohne Ueberlappung ist die Zuteilung wirkungslos; sie kostet dann nur einen Polygontest je
+	// Gipfel und Nachbarflaeche.
+	//
+	// 🔴 GEWAEHLT WIRD DIE KLEINSTE ENTHALTENDE FLAECHE, bei Gleichstand die kleinere `public_id` --
+	// wortgleich die Regel aus `assignEcosystemPeaksToAreas` (V8). Sie ist eine Eigenschaft der
+	// GEOMETRIE, nicht der Ladereihenfolge: „die erste, die ihn enthaelt" laege nach einem Neuladen
+	// anders, und dasselbe Gebirge saehe zweimal verschieden aus.
+	function gipfelDieserFlaeche(area) {
+		const geometry = geometrieVon(area);
+		if (!geometry) {
+			return [];
+		}
+		const alle = topographyAreas();
+		const flaeche = (kandidat) => {
+			const g = geometrieVon(kandidat);
+
+			return g && typeof ecosystemGeometryArea === "function"
+				? ecosystemGeometryArea(g)
+				: Infinity;
+		};
+		const meine = String(area?.public_id || "");
+		const meineFlaeche = flaeche(area);
+
+		return peakList()
+			.filter((peak) => pointInGeometry([peak.x, peak.y], geometry))
+			.filter((peak) => {
+				// Gewinnt eine ANDERE Flaeche diesen Gipfel? Dann traegt ihn nicht dieses Feld.
+				for (const kandidat of alle) {
+					const id = String(kandidat?.public_id || "");
+					if (id === meine) {
+						continue;
+					}
+					const g = geometrieVon(kandidat);
+					if (!g || !pointInGeometry([peak.x, peak.y], g)) {
+						continue;
+					}
+					const andere = flaeche(kandidat);
+					if (andere < meineFlaeche || (andere === meineFlaeche && id < meine)) {
+						return false;
+					}
+				}
+
+				return true;
+			})
+			.map((peak) => ({ x: peak.x, y: peak.y, h: peak.height }));
+	}
+
+	function flaecheMitId(publicId) {
+		const treffer = topographyAreas().filter((a) => String(a.public_id || "") === String(publicId));
+
+		return treffer.length ? treffer[0] : null;
+	}
+
+	function geometrieVon(area) {
+		return area?.geometry_geojson || area?.geometry || null;
+	}
+
+	// Die Flüsse, die diese Fläche berühren. `Flussweg` aus der geladenen Kartennutzlast.
+	function fluesseFuer(area) {
+		if (typeof pathData === "undefined" || !Array.isArray(pathData)) {
+			return [];
+		}
+		const geometry = geometrieVon(area);
+		if (!geometry) {
+			return [];
+		}
+		const raus = [];
+		for (const feature of pathData) {
+			const props = feature?.properties || {};
+			if (String(props.feature_subtype || "") !== "Flussweg") {
+				continue;
+			}
+			const g = feature.geometry;
+			if (!g) { continue; }
+			const linien = g.type === "LineString" ? [g.coordinates]
+				: (g.type === "MultiLineString" ? g.coordinates : []);
+			for (const linie of linien) {
+				if (!Array.isArray(linie) || linie.length < 2) { continue; }
+				let beruehrt = false;
+				for (const c of linie) {
+					if (pointInGeometry([c[0], c[1]], geometry)) { beruehrt = true; break; }
+				}
+				if (!beruehrt) { continue; }
+				raus.push({
+					n: String(props.name || props.public_id || ""),
+					bach: props.is_bach === true,
+					dir: props.flow?.dir || null,
+					p: linie,
+				});
+			}
+		}
+
+		return raus;
+	}
+
+	// Die Seen, die diese Fläche schneiden -- `topographie/see` aus den geladenen Landschaftsflächen.
+	function seenFuer(area) {
+		if (typeof ecosystemLayers === "undefined" || !(ecosystemLayers instanceof Map)) {
+			return [];
+		}
+		const geometry = geometrieVon(area);
+		if (!geometry) {
+			return [];
+		}
+		const raus = [];
+		ecosystemLayers.forEach((layer) => {
+			const kandidat = layer?._ecosystemArea;
+			if (!kandidat || kandidat.kind !== "topographie") { return; }
+			if (String(kandidat.region_type || "") !== "see") { return; }
+			const g = geometrieVon(kandidat);
+			if (!g || !g.coordinates) { return; }
+			// bbox-Vorfilter, dann ein Eckpunkt-Test -- derselbe Weg wie beim Rasterlauf.
+			const b = kandidat.bounds;
+			const a = area.bounds;
+			if (b && a && (b.max_x < a.min_x || a.max_x < b.min_x || b.max_y < a.min_y || a.max_y < b.min_y)) {
+				return;
+			}
+			raus.push({ n: String(kandidat.region_name || ""), g });
+		});
+
+		return raus;
+	}
+
+	// Die Kammlinie: die Beschriftungskurve der Fläche (`properties.curve_label_line`).
+	// ⚠️ Über `label_public_id` gesucht, NICHT über den Namen -- eine Fläche kann gleichnamige
+	// Labels verschiedener Art haben (der Finsterkamm hat eines als `wald` und eines als `gebirge`).
+	function kurveFuer(area) {
+		const labelId = String(area?.label_public_id || "");
+		if (!labelId || typeof labelData === "undefined" || !Array.isArray(labelData)) {
+			return null;
+		}
+		for (const label of labelData) {
+			if (String(label?.publicId || "") !== labelId) { continue; }
+			const linie = label.curveLine || label.curve_label_line;
+
+			return Array.isArray(linie) && linie.length > 1 ? linie : null;
+		}
+
+		return null;
+	}
+
+	// Die Regler der Fläche, in der Sprache des Trichters.
+	// 🔴 `null` heisst „ableiten" -- dieselbe Regel wie in V8. Nichts wird mit `|| Vorgabe` gefüllt.
+	function reglerFuer(area) {
+		return {
+			koernung: area?.terrain_grain ?? undefined,
+			stufen: area?.terrain_levels ?? undefined,
+			erosion: area?.terrain_levels ?? undefined,
+			maximalhoehe: area?.terrain_avg_height ?? undefined,
+			bergform: area?.terrain_bergform ?? undefined,
+			rauschen: area?.terrain_rauschen ?? undefined,
+			sattel: area?.terrain_sattel ?? undefined,
+			talbreite: area?.terrain_talbreite ?? undefined,
+			einschnitt: area?.terrain_einschnitt ?? undefined,
+		};
+	}
+
+	// Woran sich das Raster als „noch gültig" erkennt. 💣 Jeder Wert, der in die Rechnung eingeht,
+	// gehört hier hinein -- fehlt einer, bleibt beim Drehen am Regler das alte Bild stehen.
+	function hydroSchluesselFuer(area) {
+		const reg = reglerFuer(area);
+		const geometry = geometrieVon(area);
+		// 💣 DIE GIPFEL GEHOEREN IN DEN SCHLUESSEL. Sie gehen in die Rechnung ein, also entwertet
+		// ihre Aenderung das Raster -- ohne sie stand nach dem Verschieben eines Gipfels das alte
+		// Relief da, und der Editor haelt seine Eingabe fuer wirkungslos.
+		// ⚠️ Fluesse, Seen und die Kammlinie stehen NICHT darin: sie aendern sich nur ueber einen
+		// Speichervorgang, und der ruft ohnehin `invalidate()`. Sie hier bei jedem Bild zu
+		// serialisieren waere teuer fuer einen Fall, den die Invalidierung schon traegt.
+		const gipfel = geometry
+			? gipfelDieserFlaeche(area)
+				.map((peak) => peak.x + "," + peak.y + "," + peak.h)
+				.sort()
+				.join(";")
+			: "";
+
+		return [
+			String(area?.public_id || ""), String(area?.geometry_revision ?? 0),
+			reg.koernung, reg.stufen, reg.erosion, reg.maximalhoehe,
+			reg.bergform, reg.rauschen, reg.sattel, reg.talbreite, reg.einschnitt,
+			gipfel, hydroGrob ? "grob" : "fein",
+		].join("|");
+	}
+
+	// 🔴 Kein Math.random(): dieselbe Saat wie in V8, aus Identitaet und Geometrie-Revision.
+	// 💣 Als EINE Funktion, nicht zweimal inline: Anzeige und Speicherlauf muessen dieselbe Saat
+	// nehmen, sonst zeigt die Leinwand ein anderes Rauschen als die Wegfindung rechnet -- und der
+	// Unterschied ist genau die Sorte, die niemand sieht (beides sieht wie ein Gebirge aus).
+	function hydroSaatFuer(area) {
+		return typeof ecosystemHeightSeed === "function" ? ecosystemHeightSeed(area) : 12345;
+	}
+
+	// Das Raster dieser Fläche -- gerechnet, wenn es fehlt oder ein Regler sich bewegt hat.
+	function ensureHydroRaster() {
+		const area = flaecheMitId(aktiveFlaeche);
+		if (!area || typeof avesmapsGebirgsRasterBauen !== "function") {
+			return null;
+		}
+		const schluessel = hydroSchluesselFuer(area);
+		if (hydroRaster && hydroSchluessel === schluessel) {
+			return hydroRaster;
+		}
+		if (hydroLaeuft) {
+			return hydroRaster;              // ein Lauf genügt; das Bild kommt, wenn er fertig ist
+		}
+		const geometry = geometrieVon(area);
+		if (!geometry || !area.bounds) {
+			return null;
+		}
+		hydroLaeuft = true;
+		try {
+			const seen = seenFuer(area);
+			hydroRaster = avesmapsGebirgsRasterBauen({
+				bounds: area.bounds,
+				istDrin: (x, y) => pointInGeometry([x, y], geometry),
+				peaks: gipfelDieserFlaeche(area),
+				kurve: kurveFuer(area),
+				fluesse: fluesseFuer(area),
+				seen,
+				istImSee: (i, x, y) => pointInGeometry([x, y], seen[i].g),
+				deckel: hydroGrob ? ECOSYSTEM_HYDRO_RASTER_GROB : ECOSYSTEM_HYDRO_RASTER_N,
+				regler: reglerFuer(area),
+				saat: hydroSaatFuer(area),
+			});
+			hydroSchluessel = schluessel;
+		} catch (error) {
+			// Ein Rechenfehler darf die Ebene nicht mitnehmen -- die Karte bleibt bedienbar.
+			hydroRaster = null;
+			hydroSchluessel = "";
+			if (typeof console !== "undefined" && console.warn) {
+				console.warn("Höhenfeld konnte nicht gerechnet werden:", error);
+			}
+		} finally {
+			hydroLaeuft = false;
+		}
+
+		return hydroRaster;
 	}
 
 	function redraw() {
@@ -315,113 +614,91 @@
 			return;                          // Canvas ist oben schon geleert -> Ebenenwechsel löscht es
 		}
 
-		const stack = ensureStack();
-		if (!stack || !Array.isArray(stack.fields) || stack.fields.length === 0) {
+		// 🔴 EIN GERECHNETES RASTER, KEINE FUNKTION MEHR (V12, Owner 04.09.2026). Bis dahin fragte
+		// diese Schleife je Bildpunkt die Buckelsumme ab; jetzt liest sie aus dem Raster, mit dem
+		// auch die Wegfindung rechnet. Das ist der ganze Punkt: „das was ich seh soll das sein mit
+		// dem gerechnet wird."
+		const raster = ensureHydroRaster();
+		if (!raster || raster.leer || !raster.r) {
 			meldeAnstrich(0);
 			return;
 		}
-
-		// 💣 EINMAL, nicht je Rasterpunkt. Ein `Math.max` über die Felder in der inneren Schleife wäre
-		// bei rund 100.000 Punkten je Bild teurer als die halbe Höhenrechnung -- und die Bezugshöhe
-		// ändert sich innerhalb eines Bildes ohnehin nicht.
-		const reference = solidMode
-			? Math.max(HEIGHT_WHITE_SCHRITT * 0.02, ...stackFieldsHmax(stack))
-			: HEIGHT_WHITE_SCHRITT;
-		// Ab hier steht fest, womit gemalt wird -- vor dem ersten Pixel, damit die Skala und das Bild
-		// dieselbe Zahl tragen, auch wenn die Malschleife gleich lange läuft.
+		const gr = raster.r;
+		const gh = raster.h;
+		let hoechster = 0;
+		for (let k = 0; k < gh.length; k++) {
+			if (gr.drin[k] && gh[k] > hoechster) { hoechster = gh[k]; }
+		}
+		const reference = Math.max(HEIGHT_WHITE_SCHRITT * 0.02, hoechster);
 		meldeAnstrich(reference);
 		const started = performance.now();
 		const image = context.createImageData(pixelWidth, pixelHeight);
 		const data = image.data;
-		const fields = stack.fields;
-		const window_ = stack.peakWindow;
 
-		// EIN Durchgang über das Raster. Je Rasterpunkt einmal in Kartenkoordinaten umrechnen, dann über
-		// die Felder summieren.
-		//
-		// 🔴 Bezug ist HEIGHT_WHITE_SCHRITT, global und fest (Owner 2026-07-28). Vorher war es `hmax` der
-		// treffenden Fläche. Der alte Kommentar hielt dagegen, eine globale Skala färbe beim Verstellen
-		// EINER Fläche jede andere um -- das stimmt und ist jetzt gewollt: genau das macht zwei Gebirge
-		// überhaupt erst vergleichbar. Solange der Bezug je Fläche galt, sagte ein Grauwert nur „hoch für
-		// hier" und nie „hoch".
-		// 🔴 PERF: die Projektion EINMAL aufstellen, nicht je Rasterpunkt. `L.CRS.Simple` ist affin und
-		// dreht nicht -- Bildschirm-x hängt allein an lng, Bildschirm-y allein an lat. Zwei Stützpunkte
-		// genügen also, um daraus eine Schrittweite zu machen. Gemessen kostete
-		// `containerPointToLatLng` je Punkt 10,9 ms auf 60.000 Abfragen; so kostet es zwei Aufrufe.
+		// 💣 ZWEI Aufrufe, nicht einer je Punkt: `containerPointToLatLng` kostete je Punkt gemessen
+		// 10,9 ms auf 60.000 Abfragen. Die Karte ist linear, also genügen Ursprung und Schrittweite.
 		const originLatLng = map.containerPointToLatLng([0, 0]);
 		const stepLatLng = map.containerPointToLatLng([STEP, STEP]);
 		const deltaX = (stepLatLng.lng - originLatLng.lng) / STEP;
 		const deltaY = (stepLatLng.lat - originLatLng.lat) / STEP;
 
+		// Höhe und Gefälle an einer KARTENstelle, bilinear aus dem Raster.
+		// 💣 Der Gradient kommt aus DENSELBEN vier Ecken wie die Höhe. Zwei getrennte Abfragen laufen
+		// an Zellgrenzen auseinander, und das Streiflicht bekommt dort eine Naht.
+		// 🔴 Und er wird in RASTERzellen gerechnet, nicht in Bildschirmpunkten -- sonst änderte sich
+		// die Beleuchtung mit dem Zoom, und dieselbe Flanke wäre einmal hell und einmal dunkel.
+		const zelleS = gr.cellS;
+		function liesRaster(x, y) {
+			const fx = (x - gr.bounds.min_x) / gr.cell;
+			const fy = (y - gr.bounds.min_y) / gr.cell;
+			let i = Math.floor(fx);
+			let j = Math.floor(fy);
+			if (i < 0 || j < 0 || i > gr.w - 2 || j > gr.hh - 2) {
+				return null;
+			}
+			const k = j * gr.w + i;
+			// Außerhalb der Fläche sagt das Feld NICHTS -- nicht „null". Ein Punkt, dessen vier Ecken
+			// nicht alle innen liegen, bleibt unbemalt; sonst zöge sich der Auslauf über den Rand.
+			if (!gr.drin[k] || !gr.drin[k + 1] || !gr.drin[k + gr.w] || !gr.drin[k + gr.w + 1]) {
+				return null;
+			}
+			const tx = fx - i;
+			const ty = fy - j;
+			const nw = gh[k];
+			const ne = gh[k + 1];
+			const sw = gh[k + gr.w];
+			const se = gh[k + gr.w + 1];
+
+			return {
+				h: (nw * (1 - tx) * (1 - ty)) + (ne * tx * (1 - ty)) + (sw * (1 - tx) * ty) + (se * tx * ty),
+				gx: (((ne - nw) * (1 - ty)) + ((se - sw) * ty)) / zelleS,
+				gy: (((sw - nw) * (1 - tx)) + ((se - ne) * tx)) / zelleS,
+			};
+		}
+
 		for (let sy = 0; sy < size.y; sy += STEP) {
 			const y = originLatLng.lat + sy * deltaY;
 			for (let sx = 0; sx < size.x; sx += STEP) {
 				const x = originLatLng.lng + sx * deltaX;
-				const noiseWindow = window_ ? window_.sample(x, y) : 1;
-				let height = 0;
-				for (let i = 0; i < fields.length; i++) {
-					const value = sampleEcosystemHeightField(fields[i], x, y, noiseWindow);
-					if (value > 0) {
-						height += value;
-					}
+				const probe = liesRaster(x, y);
+				if (!probe || !(probe.h > 0)) {
+					continue;                // unbemalt = alpha 0, siehe oben
 				}
-				// 🔴 `continue` heisst: dieser Punkt bleibt UNBERÜHRT, also alpha 0. Nur so bleibt der
-				// Schleier auf die Flächen begrenzt -- ein hier gemaltes Schwarz zöge sich sonst über die
-				// ganze Karte, weil „keine Höhe" und „Höhe 0" denselben Grauwert hätten.
-				if (height <= 0) {
-					continue;
-				}
-				// 🔴 DIE HÖHE STEUERT AUCH DIE DECKKRAFT, nicht nur die Farbe (Owner 2026-07-28:
-				// „es soll der Eindruck entstehen, dass beim Klicken nur das Höhenmodell der Berge
-				// sichtbar wird").
-				//
-				// Vorher lag der Schleier mit voller Alpha über der Fläche und war unten fast schwarz --
-				// beim Aktivieren wurde ein warm brauner Gebirgszug zu einem dunklen Fleck, und die
-				// Geländekacheln darunter verschwanden mit. Das las sich als „die Fläche schaltet um",
-				// nicht als „das Höhenmodell kommt dazu".
-				//
-				// Jetzt: bei Höhe 0 ist der Schleier DURCHSICHTIG -- die Fläche sieht aus wie im Ruhezustand
-				// --, und er verdichtet sich mit der Höhe bis zum Weisspunkt. Der Fuss eines Gebirges bleibt
-				// also unangetastet, die Kuppen leuchten auf. Zusätzlich beginnt die Rampe nicht mehr bei
-				// Schwarz, sondern bei der Grundfarbe der Fläche selbst (--color-ecosystem-height-min), damit
-				// auch der halbdurchsichtige Bereich dazwischen die Fläche nicht eintrübt.
-				// 🔴 ZWEI DARSTELLUNGEN FÜR ZWEI ZWECKE (Owner-Entscheid 2026-07-29).
-				//
-				// ANSEHEN: absolute Skala bis HEIGHT_WHITE_SCHRITT, Erdton-Rampe. Ein Grauwert bedeutet
-				// überall dieselbe Höhe, zwei Gebirge sind vergleichbar.
-				//
-				// BEARBEITEN (Dialog offen): maximaler Kontrast. Bezug ist der HÖCHSTE GIPFEL DIESER
-				// FLÄCHE, die Rampe reines Schwarz-Weiss. Ein 2.600er Bergland nutzt damit dieselbe volle
-				// Spanne wie ein 5.200er Wall -- beim Einstellen zählt die FORM, nicht der Vergleich mit
-				// dem Nachbarn.
-				//
-				// 🪤 Die flächeneigene Bezugshöhe hatten wir für die Ansicht ausdrücklich abgeschafft,
-				// weil sie Gebirge unvergleichbar macht. Genau das ist beim Bearbeiten erwünscht. Derselbe
-				// Mechanismus, zwei Urteile -- und beide richtig, solange sie getrennt bleiben.
-				//
-				// 💣 Gespeichert wird NICHTS davon. Es gibt kein Bild in der Datenbank: die Karte rechnet
-				// aus `height_schritt` und den Geländewerten neu. „Speichern" schreibt die ZAHLEN, und mit
-				// dem Schliessen des Fensters kommt die absolute Darstellung von selbst zurück.
-				const t = Math.max(0, Math.min(1, height / reference));
-				const color = solidMode ? [255 * t, 255 * t, 255 * t] : rampAt(t);
-				const r = color[0], g = color[1], b = color[2];
-				// 🔴 FARBE und DECKKRAFT haben verschiedene Bezugsgrössen, und das ist Absicht.
-				//
-				// Die Farbe trägt die absolute Skala bis HEIGHT_WHITE_SCHRITT -- ein Grauwert bedeutet
-				// überall dieselbe Höhe. Die Deckkraft trägt die LESBARKEIT und ist bei
-				// HEIGHT_FULL_VEIL_SCHRITT voll. Beides an denselben Bezug zu hängen ging schief: bei
-				// einem Weisspunkt von 15.000 erreicht ein Gipfel der Vorgabehöhe 5.000 nur ein Drittel
-				// der Skala, das Alpha blieb bei 147/255 und wurde von der CSS-Deckkraft noch einmal
-				// halbiert -- effektiv 32 %. Über flachem Braun sah das noch nach etwas aus, über den
-				// texturierten Geländekacheln war das Relief WEG (vom Owner gemeldet 2026-07-28).
-				//
-				// Wer den Schleier kräftiger oder schwächer will, greift hier; wer die Bedeutung der
-				// Graustufen ändern will, bei HEIGHT_WHITE_SCHRITT. Die zwei Fragen sind getrennt.
-				const veil = Math.min(1, Math.sqrt(t) / Math.sqrt(HEIGHT_FULL_VEIL_SCHRITT / HEIGHT_WHITE_SCHRITT));
-				// Im Vollton-Modus deckt jedes Feldpixel voll. Die FARBE folgt weiter der Höhe -- man soll
-				// beim Einstellen die Form lesen, nicht durch sie hindurch auf die Kacheln schauen.
-				const alpha = solidMode ? 255 : Math.round(255 * veil);
-				// Den Rasterpunkt als STEP×STEP-Block ausfüllen, in Geräte-Pixeln.
+				// 🔴 STREIFLICHT STATT GRAUSTUFEN (Owner 04.09.2026: „die streiflicht ansicht soll die
+				// höhenfeldansicht ersetzen"). Eine Rinne ist in reinem Grau nur ein dunklerer Fleck,
+				// im Streiflicht eine Rinne -- und genau die Rinnen sind das Ergebnis der Erosion.
+				const nl = Math.hypot(probe.gx, probe.gy, 1);
+				let licht = ((probe.gx * ECOSYSTEM_HYDRO_LICHT_X)
+					+ (probe.gy * ECOSYSTEM_HYDRO_LICHT_Y) + ECOSYSTEM_HYDRO_LICHT_Z) / nl;
+				licht = Math.max(0, Math.min(1, licht * 1.15));
+				const t = Math.max(0, Math.min(1, probe.h / reference));
+				// Höhe UND Licht: die Höhe trägt die Lesbarkeit der Skala (die Höhenskala im Dialog
+				// nennt dieselben Zahlen), das Licht die Form.
+				const wert = 255 * (0.25 + 0.75 * licht) * (0.35 + 0.65 * t);
+				const r = wert;
+				const g = wert;
+				const b = Math.min(255, wert * 1.04);
+				const alpha = solidMode ? 255 : Math.round(255 * Math.min(1, Math.sqrt(t) / Math.sqrt(HEIGHT_FULL_VEIL_SCHRITT / HEIGHT_WHITE_SCHRITT)));
 				const px0 = Math.round(sx * dpr);
 				const py0 = Math.round(sy * dpr);
 				const px1 = Math.min(pixelWidth, Math.round((sx + STEP) * dpr));
@@ -440,31 +717,17 @@
 		context.setTransform(dpr, 0, 0, dpr, 0, 0);
 		lastPaintMs = performance.now() - started;
 
-		// Wo das Budget gegriffen hat, sagt es das Feld -- statt still weniger zu liefern
-		// (Prototyp :541-543). Einmal je Neuaufbau, nicht bei jedem Bild.
-		// 💣 Zwei Dinge, die beim ersten Anlauf falsch waren und beide vom Owner gemeldet wurden:
-		//
-		// 1. Die Meldung nannte die `public_id`. „Höhenfeld fad7a250-0918-…" sagt einem Menschen nichts
-		//    -- dort gehört der Name der Region hin, so wie ihn der Tooltip und der Dialog zeigen.
-		// 2. Die Wiederholungssperre hing am FELD-Objekt. Seit die Geländeregler live vorschauen, wird
-		//    der Stapel bei jedem Zieh-Bild neu gebaut: neue Objekte, Sperre weg, ein Toast je Bild.
-		//    Sie hängt jetzt an (Fläche + Stufe) und überlebt den Neubau.
-		fields.forEach((field, index) => {
-			if (!field.stoppedAtLevel) {
-				return;
-			}
-			const areaId = stack.areaIdsByField[index];
-			const schluessel = areaId + "@" + field.stoppedAtLevel;
-			if (budgetReported.has(schluessel)) {
-				return;
-			}
-			budgetReported.add(schluessel);
-			if (typeof showFeedbackToast === "function") {
-				showFeedbackToast(`Höhenfeld „${areaName(areaId)}": Detailstufe ${field.stoppedAtLevel} wurde `
-					+ "ausgelassen, das Rechenbudget war erschöpft. Weniger Detailstufen oder eine gröbere "
-					+ "Körnung bleiben im Budget.", "info");
-			}
-		});
+		// 💣 HIER STAND DER BUDGET-MELDER DER BUCKELSUMME, und er hat den ganzen Umbau blockiert.
+		// Er las `fields` und `stack` -- beides mit der alten Malschleife entfallen -- und warf unter
+		// `"use strict"` bei JEDEM gelungenen Anstrich einen ReferenceError, NACH `putImageData`.
+		// `node --check` bleibt dabei gruen: die Syntax stimmt, nur die Bezeichner gibt es nicht mehr.
+		// Die Folge war nicht ein fehlendes Bild, sondern ein Dialog, der GAR NICHT AUFGING:
+		// `setSolid(…)` steht in `map-features-ecosystem-properties.js` ohne `try` mitten in der
+		// Dialogaufbereitung, und alles danach -- bis zu `avesmapsLandschaftDialogSichtbar(true)` --
+		// lief nicht mehr. Gefunden von einem Pruefagenten, der die Funktion wirklich AUSGEFUEHRT hat.
+		// 🔴 Der Melder ist ersatzlos weg, nicht portiert: `stoppedAtLevel` ist ein Begriff der
+		// Buckelsumme (ausgelassene Verfeinerungsstufe). Der Trichter kennt kein Stufenbudget --
+		// seine Kosten haengen an Zellzahl und Erosionsschritten, und beide stehen fest.
 	}
 
 	// ---- Die Invalidierungskante ----------------------------------------------------------------------
@@ -517,10 +780,19 @@
 	// ihn danach zurückkommen -- dadurch wurde die Fläche beim Regeln immer wieder durchsichtig und
 	// flackerte unter der Hand. Der Zustand gehört an das OFFENE FENSTER, nicht an die einzelne
 	// Bewegung: wer den Dialog offen hat, stellt ein und will durchgehend sehen, was er einstellt.
-	function setHeightCanvasSolid(on) {
+	// ⚠️ `areaPublicId` ist der zweite Parameter und darf fehlen -- ein Aufrufer aus der Zeit vor
+	// dem 04.09.2026 schaltet dann nur den Modus, und die Leinwand bleibt leer, statt den ganzen
+	// Stapel zu malen. Das ist die sichere Richtung: lieber nichts zeigen als das Falsche.
+	function setHeightCanvasSolid(on, areaPublicId) {
 		const next = Boolean(on);
-		if (next === solidMode) {
+		const naechsteFlaeche = next ? String(areaPublicId || "") : null;
+		if (next === solidMode && naechsteFlaeche === aktiveFlaeche) {
 			return;
+		}
+		if (naechsteFlaeche !== aktiveFlaeche) {
+			aktiveFlaeche = naechsteFlaeche;
+			hydroRaster = null;              // andere Fläche = anderes Raster
+			hydroSchluessel = "";
 		}
 		solidMode = next;
 		canvas.classList.toggle("avesmaps-ecosystem-height-canvas--solid", solidMode);
@@ -532,8 +804,110 @@
 		redraw();
 	}
 
+	// Waehrend am Regler gezogen wird: grob rechnen. Beim Loslassen kommt das feine Bild nach.
+	// ⚠️ Der Nachlauf haengt an einem Zeitgeber, nicht am `change`-Ereignis: ein Regler feuert
+	// `change` erst beim Loslassen, aber `input` bei jedem Ruck -- und die Vorschau soll schon
+	// waehrend des Ziehens folgen.
+	function setHeightPreviewCoarse(on) {
+		const naechst = Boolean(on);
+		if (naechst === hydroGrob) {
+			return;
+		}
+		hydroGrob = naechst;
+		hydroRaster = null;
+		hydroSchluessel = "";
+		if (hydroFeinTimer) {
+			window.clearTimeout(hydroFeinTimer);
+			hydroFeinTimer = 0;
+		}
+		if (naechst) {
+			redraw();
+			return;
+		}
+		// Beim Loslassen einen Atemzug warten -- sonst rechnet der letzte Ruck noch einmal fein.
+		hydroFeinTimer = window.setTimeout(() => { hydroFeinTimer = 0; redraw(); }, 120);
+	}
+
+	/* ══════════════════════════════════════════════════════════════════════════════════════════
+	   DAS RASTER SPEICHERN -- was der Editor sieht, wird zu dem, womit die Wegfindung rechnet
+	   ══════════════════════════════════════════════════════════════════════════════════════════ */
+
+	// 🔴 GERECHNET WIRD FUER DEN SPEICHERLAUF NEU, in voller Aufloesung -- nie das Bild von der
+	// Leinwand genommen. Die Anzeige darf einen Deckel tragen (`ECOSYSTEM_HYDRO_RASTER_GROB` beim
+	// Ziehen am Regler, `_N` sonst); der Speicher bekommt die Zellweite 0,25 ohne Deckel.
+	// ⚠️ Das ist die eine Stelle, an der Anzeige und Speicherung auseinandergehen duerfen, und sie
+	// gehen NUR in der Aufloesung auseinander: derselbe Trichter, dieselben Regler, dieselbe Saat.
+	// Der Owner-Auftrag „das was ich seh soll das sein mit dem gerechnet wird" ist damit erfuellt --
+	// dasselbe Gelaende, feiner abgetastet.
+	//
+	// 💣 UND ES WIRD NACH DEM SPEICHERN DER REGLER GERUFEN, nie davor. Der Server stempelt das
+	// Raster mit einem Fingerabdruck aus den Reglern, die IN DER DATENBANK stehen
+	// (`avesmapsTerrainAreaFingerprint`) -- kaeme das Raster zuerst, traege es den Abdruck der alten
+	// Werte und gaelte im selben Moment als veraltet.
+	async function gebirgsRasterHochladen(area) {
+		const geometry = geometrieVon(area);
+		if (!area || !geometry || !area.bounds || typeof avesmapsGebirgsRasterBauen !== "function") {
+			return { hochgeladen: false, grund: "keine Flaeche" };
+		}
+		if (typeof postEcosystemEdit !== "function") {
+			return { hochgeladen: false, grund: "kein Schreibweg" };
+		}
+		const seen = seenFuer(area);
+		const o = avesmapsGebirgsRasterBauen({
+			bounds: area.bounds,
+			istDrin: (x, y) => pointInGeometry([x, y], geometry),
+			peaks: gipfelDieserFlaeche(area),
+			kurve: kurveFuer(area),
+			fluesse: fluesseFuer(area),
+			seen,
+			istImSee: (i, x, y) => pointInGeometry([x, y], seen[i].g),
+			// 🔴 KEIN Deckel -- die volle Aufloesung, wie oben begruendet.
+			regler: reglerFuer(area),
+			saat: hydroSaatFuer(area),
+		});
+		if (!o || !o.r || !o.r.drinN) {
+			return { hochgeladen: false, grund: "leeres Raster" };
+		}
+
+		// 💣 uint16 SCHRITT, geklemmt -- dieselbe Kodierung, die `avesmapsHeightmapDecode` liest.
+		// Ein negativer Wert (die Diffusion kann knapp unter null laufen) wuerde als 65.535 gelesen,
+		// also als der hoechste Berg Aventuriens statt als Talsohle.
+		const samples = new Uint16Array(o.r.w * o.r.hh);
+		for (let k = 0; k < samples.length; k++) {
+			if (!o.r.drin[k]) { continue; }        // ausserhalb bleibt 0 -- die Fusshoehen-Invariante
+			const wert = Math.round(o.h[k]);
+			samples[k] = wert > ECOSYSTEM_HEIGHTMAP_MAX_SCHRITT
+				? ECOSYSTEM_HEIGHTMAP_MAX_SCHRITT
+				: (wert > 0 ? wert : 0);
+		}
+
+		// 🔴 URSPRUNG UND WEITE KOMMEN AUS DEM GERECHNETEN RASTER, nie aus `ecosystemHeightmapGrid`.
+		// Die beiden spannen NICHT dasselbe Gitter auf: jenes schnappt den Ursprung auf ein Vielfaches
+		// der Zellweite (`Math.floor(min_x / cell) * cell`), `baueRaster` nimmt `bounds.min_x` roh.
+		// Wer hier das andere Gitter meldet, verschiebt das ganze Gebirge um bis zu eine Zelle gegen
+		// die Karte -- und zwar lautlos, weil beide Gitter dieselbe Zellzahl haben.
+		return postEcosystemEdit("heightmap_put", {
+			area: String(area.public_id || ""),
+			width: o.r.w,
+			height: o.r.hh,
+			cell_size: o.r.cell,
+			origin_x: o.r.bounds.min_x,
+			origin_y: o.r.bounds.min_y,
+			samples: typeof ecosystemHeightmapToBase64 === "function"
+				? ecosystemHeightmapToBase64(samples)
+				: null,
+		}).then((antwort) => ({
+			hochgeladen: Number(antwort?.written || 0) > 0,
+			zellen: samples.length,
+			bytes: samples.length * 2,
+			antwort,
+		}));
+	}
+
 	window.AvesmapsEcosystemHeightRender = {
+		hochladen: gebirgsRasterHochladen,
 		redraw,
+		setPreviewCoarse: setHeightPreviewCoarse,
 		invalidate: invalidateEcosystemHeightField,
 		setSolid: setHeightCanvasSolid,
 		lastPaintMs: () => lastPaintMs,

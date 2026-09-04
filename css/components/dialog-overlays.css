@@ -23,7 +23,6 @@ body.modal-dialog-open {
 #ecosystem-transfer-overlay[hidden],
 #ecosystem-assign-overlay[hidden],
 #label-assign-overlay[hidden],
-#ecosystem-properties-overlay[hidden],
 #ecosystem-simplify-overlay[hidden],
 #ecosystem-import-overlay[hidden],
 #ecosystem-stapel-overlay[hidden],
@@ -50,7 +49,6 @@ body.modal-dialog-open {
 #ecosystem-transfer-overlay,
 #ecosystem-assign-overlay,
 #label-assign-overlay,
-#ecosystem-properties-overlay,
 #ecosystem-simplify-overlay,
 #ecosystem-import-overlay,
 #ecosystem-stapel-overlay,
@@ -76,10 +74,22 @@ body.modal-dialog-open {
    vom Owner: „genau das dialogfenster darf den hintergrund nicht grau machen, weil ich die veränderungen
    im höhenmodell sehen will." Dieselbe Begründung wie bei den beiden darüber, nur an einem Regler statt
    an einer Vorschau -- ein Schleier vor dem Relief macht unkenntlich, was der Regler gerade tut. */
+/* 💣 `#ecosystem-properties-overlay` STAND HIER UND GIBT ES NICHT MEHR. Der Flaechendialog ist am
+   25.08.2026 in das vereinigte Fenster `#landschaft-dialog-overlay` umgezogen (die Element-IDs
+   `ecosystem-properties-*` sind mitgewandert, die Overlay-ID nicht). Die Regel lief seither ins
+   Leere, und der Dialog trug den Schleier aus der Liste weiter oben.
+   🪤 Wer `grep ecosystem-properties-overlay css/` faehrt, liest `background: transparent` und haelt
+   die Sache fuer erledigt -- genau so ist es am 04.09.2026 einmal gemeldet worden. Die tote Zeile
+   bleibt deshalb NICHT stehen.
+   🔴 Owner 04.09.2026: „das fenster soll den hintergrund nicht abdunkeln. die ansicht im hintergrund
+   muss interaktiv bleiben." Der Grund ist derselbe wie bei den drei Nachbarn: man stellt hier an
+   einer Vorschau ein, und ein Schleier vor dem Relief macht unkenntlich, was der Regler gerade tut.
+   ⚠️ Es gilt allen drei Reitern des vereinigten Fensters (Flaeche, Beschriftung, Wiki & Quellen) --
+   sie teilen sich EIN Overlay. */
 #ecosystem-simplify-overlay,
 #ecosystem-import-overlay,
 #ecosystem-stapel-overlay,
-#ecosystem-properties-overlay {
+#landschaft-dialog-overlay {
 	background: transparent;
 	pointer-events: none;
 }
@@ -87,7 +97,7 @@ body.modal-dialog-open {
 #ecosystem-simplify-overlay > *,
 #ecosystem-import-overlay > *,
 #ecosystem-stapel-overlay > *,
-#ecosystem-properties-overlay > * {
+#landschaft-dialog-overlay > * {
 	pointer-events: auto;
 }
 
@@ -118,7 +128,6 @@ body.modal-dialog-open {
 #ecosystem-transfer-overlay,
 #ecosystem-assign-overlay,
 #label-assign-overlay,
-#ecosystem-properties-overlay,
 #ecosystem-simplify-overlay,
 #ecosystem-import-overlay,
 #ecosystem-stapel-overlay,

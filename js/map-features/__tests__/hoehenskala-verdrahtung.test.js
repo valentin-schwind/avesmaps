@@ -65,7 +65,11 @@ pruefe("der Zeichner gibt whitePoint() und onPaint() heraus", () => {
 });
 
 pruefe("der Weisspunkt wird an der Stelle gemeldet, an der er ENTSTEHT", () => {
-	const bezug = render.indexOf("const reference = solidMode");
+	// 🔴 Der Bezugswert entsteht seit dem 04.09.2026 aus dem gerechneten Raster (`hoechster`), nicht
+	// mehr aus der Buckelsumme (`solidMode ? … : HEIGHT_WHITE_SCHRITT`). Gesucht wird deshalb die
+	// ZUWEISUNG, nicht ihre damalige rechte Seite -- die Zusicherung ist „gemeldet wird der benutzte
+	// Wert", und die gilt unveraendert.
+	const bezug = render.indexOf("const reference = ");
 	const meldung = render.indexOf("meldeAnstrich(reference)");
 	assert.ok(bezug > 0 && meldung > bezug, "gemeldet wird der benutzte Wert, kein nachgerechneter");
 });

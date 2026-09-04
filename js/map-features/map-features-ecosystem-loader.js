@@ -356,8 +356,17 @@ function ecosystemHeightRelevantChange(previous, next) {
 		return false;                         // für das Höhenfeld ohnehin bedeutungslos
 	}
 
-	return ["terrain_grain", "terrain_levels", "terrain_avg_height", "terrain_mean_height"]
-		.some((feld) => (previous?.[feld] ?? null) !== (next?.[feld] ?? null));
+	// 💣 JEDER Wert, der in die Hoehenrechnung eingeht, gehoert hierher -- die Liste ist eine
+	// ausdrueckliche Aufzaehlung, und was darin fehlt, geht beim Nachladen lautlos verloren.
+	// Die fuenf V12-Regler standen zuerst nicht darin: im eigenen Browser faellt das nicht auf
+	// (`saveTerrainSettings` verwirft den Stapel direkt), wohl aber beim Pan/Zoom-Nachladen und bei
+	// einem zweiten Editor -- der Loader uebernimmt die neuen Werte, waehrend der Hoehenstapel mit
+	// den alten weiterrechnet. Gefunden von einem Pruefagenten, nicht von einem Test.
+	return [
+		"terrain_grain", "terrain_levels", "terrain_avg_height", "terrain_mean_height",
+		"terrain_bergform", "terrain_rauschen", "terrain_sattel",
+		"terrain_talbreite", "terrain_einschnitt",
+	].some((feld) => (previous?.[feld] ?? null) !== (next?.[feld] ?? null));
 }
 
 function hookEcosystemViewportReload() {

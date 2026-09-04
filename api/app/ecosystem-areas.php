@@ -65,7 +65,12 @@ require_once __DIR__ . '/../_internal/app/ecosystem.php';
 // silently capped one -- exactly the CRITICAL finding this version fixes. Without the bump, a client
 // whose cached ETag still matches would keep reading `ok: true` with a quarter of the data and no way
 // to know.
-const AVESMAPS_ECOSYSTEM_PAYLOAD_VERSION = 7;
+// V12 (2026-09-04): fuenf neue Schluessel je Zeile (terrain_bergform/rauschen/sattel/talbreite/
+// einschnitt). ⚠️ Heute folgenlos -- die Spalten sind NULL, und die erste echte Wertaenderung bumpt
+// ohnehin `ecosystem_revision`. Scharf wird der Bump, sobald jemand eine Vorgabe aendert: dann
+// traegt ein zwischengespeicherter Client Zeilen OHNE die fuenf Schluessel und rechnet still mit
+// den Modulvorgaben weiter.
+const AVESMAPS_ECOSYSTEM_PAYLOAD_VERSION = 8;
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());

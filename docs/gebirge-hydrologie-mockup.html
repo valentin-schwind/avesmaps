@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Hydraulische Erosion je Gebirge – Machbarkeit (2026-09-04)</title>
+<script>
+  /* Wie jede Editorseite: gespeicherte Wahl schlaegt OS-Schema, vor dem ersten Anstrich. */
+  (function () {
+    function isDark() {
+      var s = null; try { s = localStorage.getItem("avesmaps-theme"); } catch (e) {}
+      if (s === "dark") { return true; }
+      if (s === "light") { return false; }
+      return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    }
+    function apply() {
+      if (isDark()) { document.documentElement.setAttribute("data-theme", "dark"); }
+      else { document.documentElement.removeAttribute("data-theme"); }
+    }
+    apply();
+    window.avesmapsMockupToggleTheme = function () {
+      var dark = document.documentElement.getAttribute("data-theme") === "dark";
+      try { localStorage.setItem("avesmaps-theme", dark ? "light" : "dark"); } catch (e) {}
+      apply();
+      if (typeof window.avesmapsMockupRepaint === "function") { window.avesmapsMockupRepaint(); }
+    };
+  })();
+</script>
+<!-- 🔴 RELATIVE Pfade. Geladen wird die ECHTE CSS-Kette der Editorseiten -- kein Farbwert steht in
+     dieser Datei. -->
+<link rel="stylesheet" href="../css/base/fonts.css">
+<link rel="stylesheet" href="../css/base/tokens.css">
+<link rel="stylesheet" href="../css/components/editor-page.css">
+<!-- 🔴 UND DIE ECHTE RECHENSTRECKE VON HEUTE. Die vier Hoehenmodule sind rein (kein DOM, kein
+     Leaflet) und werden hier GENAU SO geladen wie in index.html. Das Bild „Heute" entsteht damit
+     aus demselben Feldbau wie die Karte -- es wird nicht nachgebaut. -->
+<script src="../js/map-features/map-features-point-in-polygon.js"></script>
+<script src="../js/map-features/map-features-ecosystem-geometry.js"></script>
+<script src="../js/map-features/map-features-ecosystem-height-field.js"></script>
+<script src="../js/map-features/map-features-ecosystem-height-combine.js"></script>
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════════════════════
+   Kein hartkodierter Farbwert, kein hartkodierter Radius, keine Schrift unter 11px
+   (AGENTS.md §12). Die Farben IN den Leinwaenden sind DATEN (Hoehen, Fliessrichtungen,
+   Abflussmengen), keine Bedienoberflaeche -- dieselbe Ausnahme wie bei der Hoehenskala.
+   ═══════════════════════════════════════════════════════════════════════════════════════════ */
+.proto-page { max-width: 1400px; margin: 0 auto; padding: var(--space-24) var(--space-16); }
+.proto-h1 { margin: 0 0 var(--space-4); font-size: var(--font-size-title); }
+.proto-sub { margin: 0 0 var(--space-16); color: var(--color-text-muted); font-size: var(--font-size-small); }
+.proto-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-12); }
+.proto-head .avm-tile { flex: none; }
+.proto-note {
+	margin: 0 0 var(--space-16);
+	padding: var(--space-10) var(--space-12);
+	border: 1px solid var(--color-border);
+	border-left: 3px solid var(--color-accent-brown);
+	border-radius: var(--radius-md);
+	background: var(--color-panel-soft);
+	color: var(--color-text-muted);
+	font-size: var(--font-size-small);
+	line-height: 1.55;
+}
+.proto-note strong, .proto-note b { color: var(--color-text); }
+.proto-note code { font-size: var(--font-size-small); }
+
+/* ---- Reglerleiste ------------------------------------------------------------------------ */
+.gh-controls {
+	display: flex; flex-wrap: wrap; gap: var(--space-16);
+	align-items: flex-end;
+	padding: var(--space-12);
+	margin-bottom: var(--space-16);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-panel-soft);
+}
+.gh-ctl { display: flex; flex-direction: column; gap: var(--space-4); }
+.gh-ctl label { font-size: var(--font-size-small); color: var(--color-text-muted); }
+.gh-ctl b { color: var(--color-text); font-variant-numeric: tabular-nums; }
+.gh-ctl input[type="range"] { width: 150px; }
+.gh-ctl select { min-width: 160px; }
+.gh-checks { display: flex; flex-direction: column; gap: var(--space-4); font-size: var(--font-size-small); }
+.gh-checks label { display: flex; gap: var(--space-6); align-items: center; color: var(--color-text); }
+.gh-spacer { flex: 1 1 auto; }
+
+/* ---- Bildraster --------------------------------------------------------------------------- */
+.gh-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+	gap: var(--space-16);
+	margin-bottom: var(--space-20);
+}
+.gh-card {
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-panel);
+	overflow: hidden;
+}
+.gh-card__head {
+	display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-8);
+	padding: var(--space-8) var(--space-10);
+	border-bottom: 1px solid var(--color-divider);
+}
+.gh-card__title { font-size: var(--font-size-small); font-weight: 600; color: var(--color-text); }
+.gh-card__step {
+	font-size: var(--font-size-small); color: var(--color-text-muted);
+	font-variant-numeric: tabular-nums;
+}
+.gh-card__body { padding: var(--space-8); }
+.gh-card canvas { display: block; width: 100%; height: auto; border-radius: var(--radius-sm); }
+.gh-card__note {
+	padding: var(--space-6) var(--space-10) var(--space-10);
+	font-size: var(--font-size-small); color: var(--color-text-muted); line-height: 1.5;
+}
+
+/* ---- Kennzahlen --------------------------------------------------------------------------- */
+.gh-table { width: 100%; border-collapse: collapse; font-size: var(--font-size-small); }
+.gh-table th, .gh-table td {
+	padding: var(--space-6) var(--space-8);
+	border-bottom: 1px solid var(--color-divider);
+	text-align: left;
+}
+.gh-table th { color: var(--color-text-muted); font-weight: 600; }
+.gh-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.gh-ok { color: var(--color-success, var(--color-accent-brown)); font-weight: 600; }
+.gh-bad { color: var(--color-danger, var(--color-accent-brown)); font-weight: 600; }
+.gh-status { font-size: var(--font-size-small); color: var(--color-text-muted); }
+</style>
+</head>
+<body class="avm-editor-body">
+<div class="proto-page">
+
+<div class="proto-head">
+	<div>
+		<h1 class="proto-h1">Hydraulische Erosion je Gebirge — kriegen wir das hin?</h1>
+		<p class="proto-sub">
+			Prototyp, 04.09.2026 · echte Daten aus <b>Rote Sichel</b> und <b>Finsterkamm</b> ·
+			Modul <code>docs/gebirge-hydrologie-modul.js</code> · <b>kein Produktivcode angefasst</b>
+		</p>
+	</div>
+	<button type="button" class="avm-tile" onclick="window.avesmapsMockupToggleTheme()">Hell / Dunkel</button>
+</div>
+
+<div class="proto-note">
+	<b>Die Antwort ist ja — aber nicht mit dem bisherigen Weg.</b> Der Tropfen-Versuch vom 03.09.2026
+	scheiterte nicht an Parametern, sondern an zwei fehlenden Stücken:
+	<b>(1)</b> Ein Entwässerungsnetz lässt sich <b>rechnen</b> statt erwürfeln — Flow&nbsp;Accumulation
+	plus Stream&nbsp;Power ist selbstverstärkend und erzeugt Verzweigung per Konstruktion.
+	<b>(2)</b> Ohne <b>Hebung</b> trägt Erosion jedes Gebirge bis auf Basisniveau ab (gemessen
+	Ø&nbsp;1.361&nbsp;→&nbsp;27&nbsp;Schritt). Das ist keine Einstellungsfrage, sondern Geomorphologie.
+	Mit dem Hebungsterm ändert „mild oder stark“ die <b>Form</b>, nicht mehr die Höhe.<br>
+	Und das Startrelief ist keine Buckelsumme mehr, sondern eine <b>Randwertaufgabe</b>: Gipfel, Kamm,
+	Flüsse und Seen werden festgehalten, dazwischen wird interpoliert. Deshalb liest jeder Gipfel
+	wieder exakt seine Zahl — heute tun das nur 22 von 49.
+</div>
+
+<div class="gh-controls">
+	<div class="gh-ctl">
+		<label for="gebirge">Gebirge</label>
+		<select id="gebirge" class="avm-input">
+			<option value="Rote Sichel">Rote Sichel (13 Gipfel, 50 Flüsse, 7 Seen)</option>
+			<option value="Finsterkamm">Finsterkamm (9 Gipfel, 12 Flüsse, 1 See)</option>
+		</select>
+	</div>
+	<div class="gh-ctl">
+		<label for="aufloesung">Raster <b id="aufloesungWert">256</b></label>
+		<input type="range" id="aufloesung" min="128" max="384" step="64" value="256">
+	</div>
+	<div class="gh-ctl">
+		<label for="iter" title="Dieselbe Skala wie der Regler „Erosion“ im Flächendialog (terrain_levels)">Erosion <b id="iterWert">3</b></label>
+		<input type="range" id="iter" min="0" max="5" step="1" value="3">
+	</div>
+	<div class="gh-ctl">
+		<label for="kraft">Abtragskraft K <b id="kraftWert">0,050</b></label>
+		<input type="range" id="kraft" min="1" max="200" step="1" value="50">
+	</div>
+	<div class="gh-ctl">
+		<label for="diff">Hangkriechen D <b id="diffWert">0,030</b></label>
+		<input type="range" id="diff" min="0" max="200" step="1" value="30">
+	</div>
+	<div class="gh-ctl">
+		<label for="rausch">Rauschen <b id="rauschWert">0,35</b></label>
+		<input type="range" id="rausch" min="0" max="100" step="1" value="35">
+	</div>
+	<div class="gh-ctl">
+		<label for="sattel">Kamm-Sattel <b id="sattelWert">0,75</b></label>
+		<input type="range" id="sattel" min="30" max="100" step="1" value="75">
+	</div>
+	<div class="gh-ctl">
+		<label for="bergform" title="Wie weit ein Einzelberg ausstrahlt, bevor das Grundrelief übernimmt">Bergform <b id="bergformWert">2,5 E</b></label>
+		<input type="range" id="bergform" min="0" max="120" step="1" value="25">
+	</div>
+	<div class="gh-ctl">
+		<label for="talbreite" title="Halbe Talbreite: von der Flussachse bis zum Talrand. Ein Bach zählt mit der Hälfte.">Talbreite <b id="talbreiteWert">1,5 E</b></label>
+		<input type="range" id="talbreite" min="0" max="60" step="1" value="15">
+	</div>
+	<div class="gh-ctl">
+		<label for="einschnitt" title="Wie tief sich ein Lauf unter sein örtliches Gelände eingräbt. Ohne diese Zahl entsteht fast kein Tal — auf einem fallenden Hang ist der Fluss ohnehin der tiefste Punkt.">Einschnitt <b id="einschnittWert">400</b></label>
+		<input type="range" id="einschnitt" min="0" max="1500" step="25" value="400">
+	</div>
+	<div class="gh-ctl">
+		<label for="koernung" title="terrain_grain der Fläche — grobe Zelle = längste bbox-Seite / Körnung">Körnung <b id="koernungWert">—</b></label>
+		<input type="range" id="koernung" min="10" max="400" step="1" value="60">
+	</div>
+	<div class="gh-ctl">
+		<label for="stufen" title="terrain_levels der Fläche — Oktaven des Grundrauschens">Detailstufen <b id="stufenWert">5</b></label>
+		<input type="range" id="stufen" min="1" max="8" step="1" value="5">
+	</div>
+	<div class="gh-checks">
+		<label><input type="checkbox" id="cKamm" checked> Kamm aus Gipfeln</label>
+		<label><input type="checkbox" id="cFluss" checked> Flüsse als Tal</label>
+		<label><input type="checkbox" id="cSee" checked> Seen als Spiegel</label>
+		<label title="Ohne Deckel rechnet die Vorschau auf der Zellweite 0,25 — genau dem Gitter, auf dem die Karte speichert und die Wegfindung liest."><input type="checkbox" id="cProd"> <b>Produktionsauflösung</b></label>
+	</div>
+	<div class="gh-spacer"></div>
+	<div class="gh-ctl">
+		<button type="button" id="rechnen" class="avm-tile">Rechnen</button>
+	</div>
+</div>
+
+<p class="gh-status" id="status">Bereit.</p>
+
+<div class="gh-grid" id="grid">
+	<div class="gh-card">
+		<div class="gh-card__head"><span class="gh-card__title">Eingabedaten</span><span class="gh-card__step">Polygon · Gipfel · Flüsse · Seen</span></div>
+		<div class="gh-card__body"><canvas id="cvEingabe"></canvas></div>
+		<div class="gh-card__note" id="nEingabe">—</div>
+	</div>
+	<div class="gh-card">
+		<div class="gh-card__head"><span class="gh-card__title">Heute (Buckelsumme)</span><span class="gh-card__step">der echte Feldbau der Karte</span></div>
+		<div class="gh-card__body"><canvas id="cvHeute"></canvas></div>
+		<div class="gh-card__note" id="nHeute">—</div>
+	</div>
+	<div class="gh-card">
+		<div class="gh-card__head"><span class="gh-card__title">Initiales Höhenfeld</span><span class="gh-card__step">Randwertaufgabe, ohne Wasser</span></div>
+		<div class="gh-card__body"><canvas id="cvRelief"></canvas></div>
+		<div class="gh-card__note" id="nRelief">—</div>
+	</div>
+	<div class="gh-card">
+		<div class="gh-card__head"><span class="gh-card__title">Konditioniertes Feld</span><span class="gh-card__step">mit Flusstälern und Seen</span></div>
+		<div class="gh-card__body"><canvas id="cvKond"></canvas></div>
+		<div class="gh-card__note" id="nKond">—</div>
+	</div>
+	<div class="gh-card">
+		<div class="gh-card__head"><span class="gh-card__title">Flow Direction</span><span class="gh-card__step">D8, acht Richtungen als Farbe</span></div>
+		<div class="gh-card__body"><canvas id="cvDir"></canvas></div>
+		<div class="gh-card__note" id="nDir">—</div>
+	</div>
+	<div class="gh-card">
+		<div class="gh-card__head"><span class="gh-card__title">Flow Accumulation</span><span class="gh-card__step">logarithmisch</span></div>
+		<div class="gh-card__body"><canvas id="cvAcc"></canvas></div>
+		<div class="gh-card__note" id="nAcc">—</div>
+	</div>
+	<div class="gh-card">
+		<div class="gh-card__head"><span class="gh-card__title">Nach der Erosion</span><span class="gh-card__step">Graustufen = Höhe</span></div>
+		<div class="gh-card__body"><canvas id="cvNach"></canvas></div>
+		<div class="gh-card__note" id="nNach">—</div>
+	</div>
+	<div class="gh-card">
+		<div class="gh-card__head"><span class="gh-card__title">Finales Höhenfeld</span><span class="gh-card__step">schattiert — so sieht man die Form</span></div>
+		<div class="gh-card__body"><canvas id="cvFinal"></canvas></div>
+		<div class="gh-card__note" id="nFinal">—</div>
+	</div>
+</div>
+
+<h2 class="proto-h1" style="font-size: var(--font-size-subhead);">Die Invarianten</h2>
+<p class="proto-sub">
+	Gemessen bei jedem Lauf. Die Spalte „heute“ ist der Livebestand vom 04.09.2026, mit den echten
+	Produktionsmodulen gerechnet.
+</p>
+<table class="gh-table" id="invarianten">
+	<thead><tr><th>Invariante</th><th class="num">heute</th><th class="num">Prototyp</th><th></th></tr></thead>
+	<tbody id="invBody"><tr><td colspan="4">—</td></tr></tbody>
+</table>
+
+<div class="proto-note" style="margin-top: var(--space-20);">
+	<b>Was noch offen ist.</b>
+	Der Kamm ist die <b>echte Beschriftungskurve</b> der Fläche — <code>properties.curve_label_line</code>,
+	32&nbsp;Punkte, dieselbe Mittelachse, auf der der Name der Landschaft läuft
+	(<code>api/_internal/app/curve-labels.php</code>: Delaunay → Chordal&nbsp;Axis → längster Pfad →
+	Polynomglättung). Sie reist in der Kartennutzlast bereits mit und kostet keinen neuen Datenwert.
+	⚠️ Live haben <b>43 der 69</b> Gebirgsflächen eine; die übrigen&nbsp;26 fallen auf einen Spannbaum
+	über ihre Gipfel zurück — sichtbar an geraden Segmenten, aber besser als kein Kamm.
+	Die <b>Rechenzeit</b> ist im Browser gemessen und auf den Bestand hochgerechnet:
+	<b>4,0&nbsp;Minuten</b> für alle 69&nbsp;Gebirge bei 150&nbsp;Schritten auf der heutigen
+	Zellweite&nbsp;0,25 (bei 75&nbsp;Schritten 2&nbsp;Minuten). ⚠️ Davon entfallen
+	<b>149&nbsp;Sekunden auf das Eherne&nbsp;Schwert allein</b> — es trägt mit 772.374&nbsp;Zellen
+	43&nbsp;% des gesamten Bestands. Eine feinere Zelle (0,125) vervierfacht das <i>und</i> spränge
+	dort mit 5,11&nbsp;Mio&nbsp;Zellen über den Deckel von 4&nbsp;Mio in
+	<code>avesmapsTerrainGuardRasterShape</code>.
+	🪤 Der Browser ist hier <b>2,3× langsamer als Node</b> (2.702 gegen 1.170&nbsp;ms für dieselbe
+	Rechnung) — beim Feldbau war er 9× schneller. Wer von der einen Messung auf die andere schliesst,
+	liegt um den Faktor&nbsp;20 daneben.
+	Und die <b>Gipfelhöhen sinken sichtbar</b>: der Hohe Stumpen fällt von gelesenen 8.120 auf seine
+	eingetragenen 2.300&nbsp;Schritt. Das ist gewollt — die eingetragene Zahl ist die Wahrheit —, aber
+	es ist an 27&nbsp;Gipfeln zu sehen.
+</div>
+
+</div>
+
+<script src="gebirge-hydrologie-daten.js"></script>
+<!-- 🔴 DAS PRODUKTIVE MODUL, nicht die docs-Kopie. Das Mockup ist die ABNAHME; wenn es eine
+     eigene Rechnung faehrt, nimmt der Owner etwas ab, das die Karte nie zeigt. Gemessen am
+     04.09.2026, bevor das umgestellt war: der Finsterkamm lief im Mockup auf Zelle 0,4263 und in
+     der Produktion auf 0,2500 -- ein 2,9-mal feineres Bild als das abgenommene.
+     ⚠️ `docs/gebirge-hydrologie-modul.js` bleibt als Werkbank der Machbarkeitsfrage liegen, wird
+     hier aber NICHT mehr geladen. -->
+<script src="../js/map-features/map-features-ecosystem-hydrologie.js"></script>
+<script>
+"use strict";
+/* ═══════════════════════════════════════════════════════════════════════════════════════════
+   Die Ansicht. Gerechnet wird ausschliesslich im Modul daneben -- hier steht kein zweites
+   Verfahren, nur Bedienung und Anstrich.
+   ═══════════════════════════════════════════════════════════════════════════════════════════ */
+
+const $ = (id) => document.getElementById(id);
+let letzterLauf = null;
+
+/* Die heute gemessenen Werte des Livebestands -- Vergleichsspalte der Invariantentabelle.
+   🔴 Sie stehen als Zahlen da, weil sie MESSUNGEN sind (04.09.2026, echte Produktionsmodule
+   gegen die oeffentlichen Nutzlasten), nicht Vorgaben. Wer sie neu misst, ersetzt sie. */
+const HEUTE = {
+	"Rote Sichel":  { gipfelAb: 5350, flussAuf: 61657, seeSpanne: 2811 },
+	"Finsterkamm":  { gipfelAb: 5820, flussAuf: 20220, seeSpanne: 0 },
+};
+
+function zahl(v, n) { return Number(v).toLocaleString("de-DE", { maximumFractionDigits: n === undefined ? 0 : n }); }
+
+/* ---- Anstrich ---------------------------------------------------------------------------- */
+// 💣 BILDZEILE 0 IST NORDEN, RASTERZEILE 0 IST SUEDEN -- hier wird gespiegelt.
+// In Aventurien waechst y nach NORDEN (Riva y=790, Al'Anfa y=152; die Kachelnamen tragen deshalb ein
+// negatives y: `map_x_-y`). Ein Bild zeichnet Zeile 0 aber OBEN. Ohne die Spiegelung steht jede
+// Ansicht auf dem Kopf -- beim Bau genau so passiert und vom Owner gesehen, nicht von einem Test.
+// 🔴 Gespiegelt wird NUR BEIM MALEN. Das Raster behaelt seine Konvention (Zeile 0 = originY = min_y),
+// weil `ecosystemHeightmapGrid` und `avesmapsHeightmapSampleOne` sie teilen -- wer sie im Raster
+// dreht, dreht die gespeicherten Hoehenraster gegen ihren Leser.
+function malen(canvas, w, hh, farbe) {
+	canvas.width = w; canvas.height = hh;
+	const ctx2d = canvas.getContext("2d");
+	const bild = ctx2d.createImageData(w, hh);
+	for (let bj = 0; bj < hh; bj++) {
+		const rj = hh - 1 - bj;                // Bildzeile -> Rasterzeile
+		for (let i = 0; i < w; i++) {
+			const c = farbe(rj * w + i);
+			const o = (bj * w + i) * 4;
+			bild.data[o] = c[0]; bild.data[o + 1] = c[1];
+			bild.data[o + 2] = c[2]; bild.data[o + 3] = 255;
+		}
+	}
+	ctx2d.putImageData(bild, 0, 0);
+}
+
+/* Der Hintergrund ausserhalb der Flaeche kommt aus dem TOKEN, nicht aus einer Zahl -- sonst
+   steht im hellen Thema ein dunkler Kasten. */
+function ausserhalb() {
+	const v = getComputedStyle(document.documentElement).getPropertyValue("--color-panel-soft").trim();
+	const d = document.createElement("canvas").getContext("2d");
+	d.fillStyle = v || "#202430"; d.fillRect(0, 0, 1, 1);
+	const p = d.getImageData(0, 0, 1, 1).data;
+	return [p[0], p[1], p[2]];
+}
+
+function grau(v, mx) { const t = Math.max(0, Math.min(1, v / mx)); return [255 * t, 255 * t, 255 * t]; }
+
+/* Schummerung: zeigt die FORM ungleich besser als Graustufen -- eine Rinne ist in Grau nur ein
+   dunklerer Fleck, im Streiflicht eine Rinne. */
+function schummern(h, r, mx, k, aus) {
+	if (!r.drin[k]) { return aus; }
+	const i = k % r.w, j = (k - i) / r.w;
+	if (i < 1 || j < 1 || i >= r.w - 1 || j >= r.hh - 1) { return aus; }
+	const gx = ((r.drin[k + 1] ? h[k + 1] : 0) - (r.drin[k - 1] ? h[k - 1] : 0)) / (2 * r.cellS);
+	const gy = ((r.drin[k + r.w] ? h[k + r.w] : 0) - (r.drin[k - r.w] ? h[k - r.w] : 0)) / (2 * r.cellS);
+	// Licht aus NORDWESTEN -- die Konvention jeder Reliefkarte (von oben links). In
+	// Kartenkoordinaten ist das (-x, +y), also `+0,6·gx − 0,6·gy` in der Lambert-Formel.
+	// 🪤 Falsches Vorzeichen macht Berge zu Kratern, und das Auge merkt es erst beim zweiten Blick.
+	const nl = Math.hypot(gx, gy, 1);
+	let d = (gx * 0.6 - gy * 0.6 + 0.53) / nl;
+	d = Math.max(0, Math.min(1, d * 1.15));
+	const t = Math.max(0, Math.min(1, h[k] / mx));
+	const v = 255 * (0.25 + 0.75 * d) * (0.35 + 0.65 * t);
+	return [v, v, v * 1.04];
+}
+
+/* ---- Der Lauf ----------------------------------------------------------------------------- */
+/* 🪤 requestAnimationFrame feuert in einem VERSTECKTEN Tab gar nicht, und der Browser-Pane haelt
+   seinen Tab per Bauart versteckt -- eine Seite, die ihre Rechnung per rAF verzoegert, bleibt dort
+   auf „rechnet …" stehen und sieht wie ein Absturz aus. Deshalb setTimeout. */
+function gleich(fn) { setTimeout(fn, 0); }
+
+function rechnen() {
+	const M = window;                       // das Modul haengt am globalen Raum, wie im Browser ueblich
+	const name = $("gebirge").value;
+	const d = GEBIRGSDATEN[name];
+	const N = Number($("aufloesung").value);
+	const ERO = Number($("iter").value);   // Erosionsstufe 0..5, wie `terrain_levels`
+	// ⚠️ Abtragskraft und Hangkriechen liegen im Trichter FEST (ECOSYSTEM_HYDRO_ABTRAG /
+	// ..._KRIECHEN) -- sie beschreiben die Handschrift des Geländes, nicht die einzelne Fläche.
+	// Die zwei Regler bleiben als Werkbank stehen, wirken aber nicht mehr auf das Bild.
+	const RA = Number($("rausch").value) / 100;
+	const SA = Number($("sattel").value) / 100;
+	const BF = Number($("bergform").value) / 10;          // Bergform-Radius in Karteneinheiten
+	const TB = Number($("talbreite").value) / 10;         // halbe Talbreite in Karteneinheiten
+	const EI = Number($("einschnitt").value);             // Einschnitt in Schritt
+	const KO = Number($("koernung").value) / 10;          // Koernung (= terrain_grain)
+	const ST = Number($("stufen").value);                 // Detailstufen (= terrain_levels)
+	const wKamm = $("cKamm").checked, wFluss = $("cFluss").checked, wSee = $("cSee").checked;
+
+	$("status").textContent = "Raster wird gebaut …";
+	gleich(() => {
+		// 🔴 EIN AUFRUF, DIE PRODUKTIVE KETTE. Bis zum 04.09.2026 baute das Mockup die Schritte
+		// selbst nach -- und lief dadurch auf einer anderen Rasterweite als die Karte. Jetzt geht es
+		// durch DENSELBEN Trichter, den der Renderer und (kuenftig) der Rasterlauf benutzen.
+		// ⚠️ `deckel` ist der einzige Unterschied zur Produktion: er begrenzt die Zellzahl fuer die
+		// Vorschau, kann aber nur GROEBER machen -- nie feiner als die Schranke des Speichers.
+		const t0 = performance.now();
+		const seen = wSee ? d.seen : [];
+		const kegelRadius = BF;
+		const ergebnis = avesmapsGebirgsRasterBauen({
+			bounds: d.bounds,
+			istDrin: (x, y) => pointInGeometry([x, y], d.geometry),
+			peaks: d.peaks,
+			kurve: wKamm ? d.kurve : null,
+			fluesse: wFluss ? d.fluesse : [],
+			seen,
+			istImSee: (i, x, y) => pointInGeometry([x, y], seen[i].g),
+			// 🔴 Der Deckel ist der EINZIGE Unterschied zur Produktion -- er kann nur GRÖBER machen.
+			// Abgeschaltet rechnet die Vorschau auf derselben Zellweite wie der Speicher (0,25).
+			deckel: $("cProd").checked ? 0 : N,
+			regler: {
+				koernung: KO, stufen: ST, bergform: kegelRadius, rauschen: RA, sattel: SA,
+				erosion: ERO, maximalhoehe: d.terrain.avg,
+				talbreite: TB, bachAnteil: 0.5, tiefe: 1, einschnitt: EI,
+			},
+			saat: 12345,
+		});
+		const r = ergebnis.r;
+		const h = ergebnis.h;
+		const relief = ergebnis.relief || h;
+		const reliefRein = relief;
+		const fest = ergebnis.fest;
+		const kamm = ergebnis.kamm || { quelle: "aus", kanten: 0, zellen: 0 };
+		const kegel = ergebnis.kegel || { zellen: 0, wirksam: [] };
+		const fluss = ergebnis.fluss || { zellen: 0, geraten: 0, spuren: [] };
+		const see = ergebnis.see || { zellen: 0, spiegel: [] };
+		const tRelief = performance.now() - t0;
+		let mx = 0;
+		for (let k = 0; k < h.length; k++) { if (r.drin[k] && h[k] > mx) { mx = h[k]; } }
+
+		$("status").textContent = "Vergleichsfeld wird gebaut …";
+		gleich(() => {
+			// 🔴 Die Erosion steckt im Trichter -- sie steht hier nicht mehr als eigene Schleife.
+			// Was das Mockup zeigt, ist damit Zeile für Zeile das, was die Karte rechnet.
+			const tEro = 0;
+			const t2 = performance.now();
+			/* „Heute" -- der ECHTE Feldbau der Karte, zum Vergleich daneben. */
+			const stack = buildEcosystemHeightStack(
+				[{ public_id: name, geometry: d.geometry, geometry_revision: 1,
+				   region_type: "gebirge", terrain_grain: d.terrain.grain, terrain_levels: d.terrain.levels,
+				   terrain_avg_height: d.terrain.avg, terrain_mean_height: d.terrain.mean }],
+				d.peaks.map((p) => ({ x: p.x, y: p.y, height: p.h })));
+			const heute = new Float64Array(r.w * r.hh);
+			let mxH = 0;
+			for (let j = 0; j < r.hh; j++) {
+				for (let i = 0; i < r.w; i++) {
+					const k = j * r.w + i;
+					if (!r.drin[k]) { continue; }
+					heute[k] = Math.max(0, sampleEcosystemHeightStack(stack, r.x(i), r.y(j)));
+					if (heute[k] > mxH) { mxH = heute[k]; }
+				}
+			}
+			const tHeute = performance.now() - t2;
+			zeichnen({ d, name, r, h, relief, reliefRein, heute, mx, mxH,
+			           fd: ergebnis.fd, acc: ergebnis.acc, fest, senke: ergebnis.senke, kamm, fluss, see, kegel,
+			           initial: ergebnis.initial,
+			           tRelief, tEro, tHeute, ITER: ergebnis.schritte });
+			$("status").textContent = "Gebirge " + zahl(tRelief) + " ms ("
+				+ ergebnis.schritte + " Erosionsschritte, Raster " + r.w + "×" + r.hh
+				+ ", Zelle " + r.cell.toFixed(3).replace(".", ",") + ")"
+				+ " · Vergleichsfeld „heute“ " + zahl(tHeute) + " ms";
+		});
+	});
+}
+
+function zeichnen(L) {
+	letzterLauf = L;
+	const aus = ausserhalb();
+	const r = L.r, h = L.h;
+
+	malen($("cvRelief"), r.w, r.hh, (k) => r.drin[k] ? grau(L.reliefRein[k], L.mx) : aus);
+	malen($("cvKond"), r.w, r.hh, (k) => r.drin[k] ? grau(L.relief[k], L.mx) : aus);
+	malen($("cvHeute"), r.w, r.hh, (k) => r.drin[k] ? grau(L.heute[k], L.mxH) : aus);
+	malen($("cvNach"), r.w, r.hh, (k) => r.drin[k] ? grau(h[k], L.mx) : aus);
+	malen($("cvFinal"), r.w, r.hh, (k) => schummern(h, r, L.mx, k, aus));
+
+	/* Flow Direction: acht Richtungen, acht Farbtoene. Es geht um die STRUKTUR (laufen die Pfeile
+	   zusammen?), nicht um den einzelnen Ton. */
+	const dirTon = [[230,80,80],[240,150,60],[240,230,90],[130,220,90],[90,210,200],[90,150,240],[160,110,230],[230,100,190]];
+	malen($("cvDir"), r.w, r.hh, (k) => {
+		if (!r.drin[k]) { return aus; }
+		const rec = L.fd.rec[k];
+		if (rec < 0) { return [120, 120, 120]; }
+		const i = k % r.w, j = (k - i) / r.w;
+		const ri = rec % r.w, rj = (rec - ri) / r.w;
+		const m = [0, 1, 2, 7, -1, 3, 6, 5, 4][(rj - j + 1) * 3 + (ri - i + 1)];
+		return m >= 0 ? dirTon[m] : [120, 120, 120];
+	});
+	const zellFlaeche = r.cellS * r.cellS;
+	malen($("cvAcc"), r.w, r.hh, (k) => {
+		if (!r.drin[k]) { return aus; }
+		const t = Math.min(1, Math.log10(1 + L.acc[k] / zellFlaeche) / 3.5);
+		return [30 + 40 * t, 60 + 120 * t, 90 + 165 * t];
+	});
+
+	/* Eingabedaten: Polygon, Gipfel, Fluesse, Seen -- als reine Uebersicht, was hineingeht. */
+	const cv = $("cvEingabe");
+	cv.width = r.w; cv.height = r.hh;
+	const c = cv.getContext("2d");
+	const css = getComputedStyle(document.documentElement);
+	c.fillStyle = "rgb(" + aus.join(",") + ")"; c.fillRect(0, 0, r.w, r.hh);
+	const bild = c.createImageData(r.w, r.hh);
+	for (let bj = 0; bj < r.hh; bj++) {
+		const rj = r.hh - 1 - bj;
+		for (let i = 0; i < r.w; i++) {
+			const col = r.drin[rj * r.w + i] ? [70, 66, 60] : aus;
+			const o = (bj * r.w + i) * 4;
+			bild.data[o] = col[0]; bild.data[o+1] = col[1]; bild.data[o+2] = col[2]; bild.data[o+3] = 255;
+		}
+	}
+	c.putImageData(bild, 0, 0);
+	// Dieselbe Spiegelung wie in malen() -- Norden oben.
+	const P = (x, y) => [r.i(x), r.hh - 1 - r.j(y)];
+	c.lineWidth = 1;
+	c.strokeStyle = css.getPropertyValue("--color-path-flussweg").trim() || "#4a90d9";
+	for (const f of L.d.fluesse) {
+		c.beginPath();
+		f.p.forEach((p, n) => { const [x, y] = P(p[0], p[1]); if (n) { c.lineTo(x, y); } else { c.moveTo(x, y); } });
+		c.stroke();
+	}
+	c.fillStyle = css.getPropertyValue("--color-path-seeweg").trim() || "#2d6ea8";
+	for (const s of L.d.seen) {
+		const ringe = s.g.type === "Polygon" ? s.g.coordinates : s.g.coordinates.flat();
+		for (const ring of ringe) {
+			c.beginPath();
+			ring.forEach((p, n) => { const [x, y] = P(p[0], p[1]); if (n) { c.lineTo(x, y); } else { c.moveTo(x, y); } });
+			c.closePath(); c.fill();
+		}
+	}
+	if (L.d.kurve && L.d.kurve.length > 1) {
+		c.strokeStyle = css.getPropertyValue("--color-accent-brown").trim() || "#8a6a3a";
+		c.lineWidth = 2;
+		c.beginPath();
+		L.d.kurve.forEach((p, n) => { const [x, y] = P(p[0], p[1]); if (n) { c.lineTo(x, y); } else { c.moveTo(x, y); } });
+		c.stroke();
+		c.lineWidth = 1;
+	}
+	c.fillStyle = css.getPropertyValue("--color-accent-gold").trim() || "#d9b24a";
+	for (const p of L.d.peaks) {
+		const [x, y] = P(p.x, p.y);
+		c.beginPath(); c.arc(x, y, 2.5, 0, 6.2832); c.fill();
+	}
+
+	$("nEingabe").textContent = L.d.peaks.length + " Gipfel (" + L.d.peaks.filter((p) => p.h).length
+		+ " mit Höhe) · " + L.d.fluesse.length + " Flussstücke · " + L.d.seen.length + (L.d.seen.length === 1 ? " See · " : " Seen · ")
+		+ (L.d.kurve ? "Kammlinie " + L.d.kurve.length + " Punkte · " : "keine Kammlinie · ")
+		+ zahl(r.drinN) + " Zellen in der Fläche · Norden oben";
+	$("nHeute").textContent = "Buckelsumme, " + zahl(L.mxH) + " Schritt Maximum. Die Gipfel addieren "
+		+ "sich — das ist der weiße Blob.";
+	$("nRelief").textContent = "Randwertaufgabe ∇²h = 0, Gipfel"
+		+ (L.kamm.zellen
+			? " und Kamm (" + (L.kamm.quelle === "kurve"
+				? "echte Beschriftungskurve, " + (L.d.kurve ? L.d.kurve.length : 0) + " Punkte"
+				: "Spannbaum — diese Fläche hat keine Kurve") + ")"
+			: "") + " festgehalten · " + zahl(L.tRelief) + " ms"
+		+ (L.kegel && L.kegel.wirksam.length
+			? " · Bergform: " + L.kegel.wirksam.filter((x) => x.geklemmt).length + " von "
+				+ L.kegel.wirksam.length + " Gipfeln durch den Nachbarabstand geklemmt (Radien "
+				+ Math.min(...L.kegel.wirksam.map((x) => x.rad)).toFixed(1).replace(".", ",") + "–"
+				+ Math.max(...L.kegel.wirksam.map((x) => x.rad)).toFixed(1).replace(".", ",") + " E)"
+			: "");
+	// Wie viel wurde wirklich abgezogen? Ohne diese Zahl sieht man einem Bild nicht an, ob die
+	// Taeler wirken -- genau daran ist die erste Fassung gescheitert („da is nix zu sehen").
+	let geschnitten = 0;
+	let summe = 0;
+	if (L.initial) {
+		for (let k = 0; k < L.r.drin.length; k++) {
+			if (!L.r.drin[k]) { continue; }
+			const diff = L.initial[k] - L.relief[k];
+			if (diff > 1) { geschnitten++; summe += diff; }
+		}
+	}
+	$("nKond").textContent = "Täler ABGEZOGEN vom initialen Feld: " + zahl(geschnitten) + " Zellen ("
+		+ (100 * geschnitten / Math.max(1, L.r.drinN)).toFixed(0) + " %), Ø "
+		+ zahl(summe / Math.max(1, geschnitten)) + " Schritt tief · "
+		+ L.fluss.zellen + " Flusszellen"
+		+ (L.fluss.geraten ? " (" + L.fluss.geraten + " ohne Fließrichtung, geraten)" : "")
+		+ " · " + L.see.zellen + (L.see.zellen === 1 ? " Seezelle" : " Seezellen") + ".";
+	$("nDir").textContent = "Jede Zelle hat genau einen Empfänger. Gleiche Farbe = gleiche Richtung; "
+		+ "wo Farbflächen zusammenlaufen, liegt ein Tal.";
+	$("nAcc").textContent = "Hier entsteht das Netz — deterministisch aus dem Relief, nicht aus "
+		+ "Zufallstreffern wie beim Tropfen-Verfahren.";
+	$("nNach").textContent = zahl(L.tEro) + " ms für " + L.ITER + " Schritte";
+	$("nFinal").textContent = "Streiflicht von Nordwesten. Die Rippen sind die simulierte "
+		+ "Nebenentwässerung, die Rinnen die vorgegebenen Flüsse.";
+
+	/* ---- Invarianten messen -------------------------------------------------------------- */
+	let gipfelAb = 0;
+	for (const p of L.d.peaks) {
+		const i = r.i(p.x), j = r.j(p.y);
+		if (i < 0 || j < 0 || i >= r.w || j >= r.hh) { continue; }
+		gipfelAb = Math.max(gipfelAb, Math.abs(h[j * r.w + i] - (Number(p.h) > 0 ? Number(p.h) : 5000)));
+	}
+	let randMax = 0;
+	for (let k = 0; k < r.drin.length; k++) {
+		if (r.drin[k] && !(L.relief[k] > 0)) { randMax = Math.max(randMax, h[k]); }
+	}
+	let flussAuf = 0, flussPunkte = 0;
+	for (const s of L.fluss.spuren) {
+		let prev = null;
+		for (const [x, y] of s.p) {
+			const i = r.i(x), j = r.j(y);
+			if (i < 0 || j < 0 || i >= r.w || j >= r.hh) { continue; }
+			const v = h[j * r.w + i];
+			if (prev !== null && v > prev) { flussAuf += v - prev; }
+			prev = v; flussPunkte++;
+		}
+	}
+	let seeSpanne = 0;
+	for (const sp of L.see.spiegel) {
+		let mn = Infinity, mxx = -Infinity;
+		for (let j = 0; j < r.hh; j++) {
+			for (let i = 0; i < r.w; i++) {
+				const k = j * r.w + i;
+				if (!r.drin[k] || !pointInGeometry([r.x(i), r.y(j)], L.d.seen[sp.i].g)) { continue; }
+				mn = Math.min(mn, h[k]); mxx = Math.max(mxx, h[k]);
+			}
+		}
+		if (isFinite(mn)) { seeSpanne = Math.max(seeSpanne, mxx - mn); }
+	}
+
+	const he = HEUTE[L.name] || { gipfelAb: "—", flussAuf: "—", seeSpanne: "—" };
+	const zeile = (was, heute, jetzt, gut, einheit) =>
+		"<tr><td>" + was + "</td><td class='num'>" + (typeof heute === "number" ? zahl(heute) : heute)
+		+ "</td><td class='num'>" + zahl(jetzt, 4) + "</td><td>"
+		+ (gut ? "<span class='gh-ok'>✓ " + einheit + "</span>" : "<span class='gh-bad'>" + einheit + "</span>")
+		+ "</td></tr>";
+	$("invBody").innerHTML =
+		zeile("Jeder Gipfel liest seine eingetragene Zahl", he.gipfelAb, gipfelAb, gipfelAb < 1,
+			gipfelAb < 1 ? "exakt" : "Schritt Abweichung")
+		+ zeile("Fußhöhe 0 am Flächenrand", 0, randMax, randMax < 1, randMax < 1 ? "exakt" : "Schritt")
+		+ zeile("Flüsse fließen bergab (Summe Anstieg, " + flussPunkte + " Punkte)", he.flussAuf, flussAuf,
+			flussAuf < he.flussAuf * 0.05, "Schritt")
+		+ zeile("Seen sind ebene Wasserspiegel (größte Spanne)", he.seeSpanne, seeSpanne, seeSpanne < 1,
+			seeSpanne < 1 ? "exakt eben" : "Schritt");
+}
+
+/* ---- Bedienung ----------------------------------------------------------------------------- */
+/* 🔴 DIE VORGABEN KOMMEN AUS DER FLAECHE, nicht aus einer Zahl in dieser Datei. `terrain_grain`
+   und `terrain_levels` stehen in `ecosystem_area` und sind gepflegt; sie hier zu erfinden waere die
+   zweite Wahrheit, vor der AGENTS.md §5 warnt. Beim Wechsel des Gebirges werden sie neu gesetzt. */
+function reglerAusFlaeche(name) {
+	const t = (GEBIRGSDATEN[name] || {}).terrain || {};
+	if (Number(t.grain) > 0) { $("koernung").value = String(Math.round(Number(t.grain) * 10)); }
+	if (Number(t.levels) > 0) { $("stufen").value = String(Math.min(8, Number(t.levels))); }
+	reglerText();
+}
+
+function reglerText() {
+	$("aufloesungWert").textContent = $("aufloesung").value;
+	$("iterWert").textContent = $("iter").value;
+	$("kraftWert").textContent = (Number($("kraft").value) / 1000).toFixed(3).replace(".", ",");
+	$("diffWert").textContent = (Number($("diff").value) / 1000).toFixed(3).replace(".", ",");
+	$("rauschWert").textContent = (Number($("rausch").value) / 100).toFixed(2).replace(".", ",");
+	$("sattelWert").textContent = (Number($("sattel").value) / 100).toFixed(2).replace(".", ",");
+	const bf = Number($("bergform").value) / 10;
+	$("bergformWert").textContent = bf > 0
+		? bf.toFixed(1).replace(".", ",") + " E (" + (bf * 3).toFixed(1).replace(".", ",") + " Meilen)"
+		: "aus";
+	$("koernungWert").textContent = (Number($("koernung").value) / 10).toFixed(1).replace(".", ",");
+	const tb = Number($("talbreite").value) / 10;
+	$("talbreiteWert").textContent = tb > 0
+		? tb.toFixed(1).replace(".", ",") + " E (" + (tb * 3).toFixed(1).replace(".", ",") + " Meilen)"
+		: "aus";
+	$("einschnittWert").textContent = $("einschnitt").value + " Schritt";
+	$("stufenWert").textContent = $("stufen").value;
+}
+["aufloesung", "iter", "kraft", "diff", "rausch", "sattel", "bergform", "koernung", "stufen",
+	"talbreite", "einschnitt"]
+	.forEach((id) => $(id).addEventListener("input", reglerText));
+$("rechnen").addEventListener("click", rechnen);
+$("gebirge").addEventListener("change", () => { reglerAusFlaeche($("gebirge").value); rechnen(); });
+["cKamm", "cFluss", "cSee", "cProd"].forEach((id) => $(id).addEventListener("change", rechnen));
+
+/* Ein Themenwechsel faerbt nur den Hintergrund ausserhalb der Flaeche neu -- gerechnet wird nichts. */
+window.avesmapsMockupRepaint = function () { if (letzterLauf) { zeichnen(letzterLauf); } };
+
+reglerAusFlaeche($("gebirge").value);
+gleich(rechnen);
+</script>
+</body>
+</html>

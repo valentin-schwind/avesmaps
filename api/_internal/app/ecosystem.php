@@ -384,6 +384,25 @@ function avesmapsEcosystemEnsureTables(PDO $pdo): void
         'terrain_levels' => 'TINYINT UNSIGNED',
         'terrain_avg_height' => 'DECIMAL(8,2)',
         'terrain_mean_height' => 'DECIMAL(8,2)',
+        // V12 (2026-09-04): die fuenf Regler der lokalen Gebirgssimulation. Wie die vier darueber
+        // sind sie NULLABLE, und NULL heisst „ableiten" -- eine Flaeche, die nie angefasst wurde,
+        // rechnet mit den Vorgaben des Moduls und verhaelt sich exakt wie vorher.
+        //
+        // terrain_bergform   -- Kegelradius je Gipfel in KARTENeinheiten. Wie weit ein Einzelberg
+        //                       ausstrahlt, bevor das Grundrelief uebernimmt.
+        //                       ⚠️ 0 heisst „kein Kegel", nicht „ableiten" -- der Berg ist dann ein
+        //                       Punkt im Kamm. Das ist eine Entscheidung, kein Versehen.
+        // terrain_rauschen   -- Staerke des Grundrauschens als Anteil (0..1), multiplikativ.
+        // terrain_talbreite  -- halbe Talbreite in KARTENeinheiten (Achse bis Talrand).
+        // terrain_einschnitt -- wie tief sich ein Lauf unter sein oertliches Gelaende eingraebt,
+        //                       in SCHRITT. 🔴 Ohne diese Zahl entsteht fast kein Tal: auf einem
+        //                       fallenden Hang ist der Fluss schon der tiefste Punkt seiner Strecke.
+        // terrain_sattel     -- Durchhang der Kammlinie zwischen zwei Gipfeln (0..1).
+        'terrain_bergform' => 'DECIMAL(6,2)',
+        'terrain_rauschen' => 'DECIMAL(5,3)',
+        'terrain_talbreite' => 'DECIMAL(6,2)',
+        'terrain_einschnitt' => 'DECIMAL(8,2)',
+        'terrain_sattel' => 'DECIMAL(5,3)',
     ] as $column => $type) {
         if (!$areaColumnExists($pdo, $column)) {
             $pdo->exec('ALTER TABLE ecosystem_area ADD COLUMN ' . $column . ' ' . $type . ' NULL');
@@ -551,6 +570,11 @@ function avesmapsEcosystemEnsureTables(PDO $pdo): void
         'terrain_levels' => 'TINYINT UNSIGNED',
         'terrain_avg_height' => 'DECIMAL(8,2)',
         'terrain_mean_height' => 'DECIMAL(8,2)',
+        // ⚠️ Die fuenf V12-Regler stehen hier BEWUSST NICHT. Sie haengen an der FLAECHE
+        // (`ecosystem_area`), nicht an der Art -- niemand hat eine Vorgabe je Landschaftsart
+        // bestellt, und `avesmapsEcosystemReadRegionTypes` liest sie hier auch nicht. Eine Spalte,
+        // die niemand liest, ist die Frage, die der naechste Leser stellt und nicht beantwortet
+        // bekommt.
     ] as $column => $type) {
         if (!$typeColumnExists($pdo, $column)) {
             $pdo->exec('ALTER TABLE ecosystem_region_type ADD COLUMN ' . $column . ' ' . $type . ' NULL');
@@ -1609,6 +1633,11 @@ function avesmapsEcosystemReadAreas(
                 a.is_trial,
                 a.terrain_grain,
                 a.terrain_levels,
+                a.terrain_bergform,
+                a.terrain_rauschen,
+                a.terrain_talbreite,
+                a.terrain_einschnitt,
+                a.terrain_sattel,
                 a.terrain_avg_height,
                 a.terrain_mean_height,
                 a.updated_at,
@@ -1673,6 +1702,13 @@ function avesmapsEcosystemReadAreas(
             // verschiedene Aussagen: das erste heisst „leite ab wie bisher", das zweite waere flach.
             'terrain_grain' => $row['terrain_grain'] === null ? null : (float) $row['terrain_grain'],
             'terrain_levels' => $row['terrain_levels'] === null ? null : (int) $row['terrain_levels'],
+            // V12. 🔴 `null` reist als `null`, NIE als 0 -- „nicht eingestellt" und „ausdruecklich
+            // null" sind zwei verschiedene Aussagen, und das Modul liest sie verschieden.
+            'terrain_bergform' => $row['terrain_bergform'] === null ? null : (float) $row['terrain_bergform'],
+            'terrain_rauschen' => $row['terrain_rauschen'] === null ? null : (float) $row['terrain_rauschen'],
+            'terrain_talbreite' => $row['terrain_talbreite'] === null ? null : (float) $row['terrain_talbreite'],
+            'terrain_einschnitt' => $row['terrain_einschnitt'] === null ? null : (float) $row['terrain_einschnitt'],
+            'terrain_sattel' => $row['terrain_sattel'] === null ? null : (float) $row['terrain_sattel'],
             'terrain_avg_height' => $row['terrain_avg_height'] === null ? null : (float) $row['terrain_avg_height'],
             'terrain_mean_height' => $row['terrain_mean_height'] === null ? null : (float) $row['terrain_mean_height'],
             'updated_at' => (string) $row['updated_at'],
@@ -4566,6 +4602,21 @@ function avesmapsUpdateEcosystemAreaTerrain(PDO $pdo, array $payload, int $userI
         $felder[] = 'terrain_mean_height = :terrain_mean_height';
         $werte['terrain_mean_height'] = $lesen($payload['terrain_mean_height'], 0.0, 20000.0);
     }
+    // V12: die fuenf Regler der Gebirgssimulation. Die Schranken sind dieselben wie an den
+    // Reglern der Oberflaeche -- eine zweite Wahrheit ueber den gueltigen Bereich waere genau die
+    // Sorte Divergenz, die `terrain_mean_height` daneben ausdruecklich vermeidet.
+    foreach ([
+        'terrain_bergform' => [0.0, 12.0],
+        'terrain_rauschen' => [0.0, 1.0],
+        'terrain_talbreite' => [0.0, 6.0],
+        'terrain_einschnitt' => [0.0, 3000.0],
+        'terrain_sattel' => [0.3, 1.0],
+    ] as $feld => [$min, $max]) {
+        if (array_key_exists($feld, $payload)) {
+            $felder[] = $feld . ' = :' . $feld;
+            $werte[$feld] = $lesen($payload[$feld], $min, $max);
+        }
+    }
     if ($felder === []) {
         throw new InvalidArgumentException('Es wurde kein Geländewert mitgeschickt.');
     }
@@ -4591,7 +4642,9 @@ function avesmapsUpdateEcosystemAreaTerrain(PDO $pdo, array $payload, int $userI
     $revision = avesmapsNextEcosystemRevision($pdo);
 
     $lesenZurueck = $pdo->prepare(
-        'SELECT terrain_grain, terrain_levels, terrain_avg_height, terrain_mean_height
+        'SELECT terrain_grain, terrain_levels, terrain_avg_height, terrain_mean_height,
+                terrain_bergform, terrain_rauschen, terrain_talbreite, terrain_einschnitt,
+                terrain_sattel
            FROM ecosystem_area WHERE public_id = :p LIMIT 1'
     );
     $lesenZurueck->execute(['p' => $publicId]);
@@ -4603,6 +4656,15 @@ function avesmapsUpdateEcosystemAreaTerrain(PDO $pdo, array $payload, int $userI
         'terrain_levels' => ($row['terrain_levels'] ?? null) === null ? null : (int) $row['terrain_levels'],
         'terrain_avg_height' => ($row['terrain_avg_height'] ?? null) === null ? null : (float) $row['terrain_avg_height'],
         'terrain_mean_height' => ($row['terrain_mean_height'] ?? null) === null ? null : (float) $row['terrain_mean_height'],
+        // 💣 DIE FUENF MUESSEN MIT ZURUECK. Ein Endpunkt mit ausdruecklicher Feldliste wirft alles
+        // weg, was nicht genannt ist -- der Client bekaeme nach dem Speichern seine eigenen Werte
+        // nicht bestaetigt und zeigte wieder „(auto)". Dieselbe Naht-Falle, die im Garetien-Importer
+        // schon einen Regler monatelang wirkungslos gemacht hat.
+        'terrain_bergform' => ($row['terrain_bergform'] ?? null) === null ? null : (float) $row['terrain_bergform'],
+        'terrain_rauschen' => ($row['terrain_rauschen'] ?? null) === null ? null : (float) $row['terrain_rauschen'],
+        'terrain_talbreite' => ($row['terrain_talbreite'] ?? null) === null ? null : (float) $row['terrain_talbreite'],
+        'terrain_einschnitt' => ($row['terrain_einschnitt'] ?? null) === null ? null : (float) $row['terrain_einschnitt'],
+        'terrain_sattel' => ($row['terrain_sattel'] ?? null) === null ? null : (float) $row['terrain_sattel'],
         'revision' => $revision,
     ];
 }

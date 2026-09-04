@@ -892,7 +892,10 @@
 		renderTerrainControls(area);
 		// Solange dieses Fenster offen ist, liegt das Höhenmodell ohne Schleier da -- man stellt hier
 		// ein und muss durchgehend sehen, was man einstellt (Owner 2026-07-28).
-		window.AvesmapsEcosystemHeightRender?.setSolid?.(true);
+		// 🔴 MIT der Flaeche: seit V12 zeichnet die Leinwand NUR das Gebirge, dessen Dialog offen
+		// ist (Owner 04.09.2026). Ohne die public_id bleibt sie leer -- das ist die sichere
+		// Richtung, lieber nichts zeigen als den ganzen Stapel.
+		window.AvesmapsEcosystemHeightRender?.setSolid?.(true, area?.public_id);
 		renderEcosystemPeakRows(area);
 		// 🪤 Der Zuweisungskasten kommt ERST nach `list_regions` -- siehe mountWikiAssign. Bis dahin
 		// bleibt sein Platz leer, genauso wie die Artauswahl darüber bis dahin `disabled` ist.
@@ -1287,14 +1290,74 @@
 	//
 	// 🔴 MAXIMUM UND DURCHSCHNITT SIND ZWEI ZAHLEN (Owner 2026-07-29). Erst beide beschreiben die FORM:
 	// ein Hochplateau (Ø 3.000 / max 3.500) ist etwas anderes als zerklüftetes Vorland (Ø 800 / max 4.000).
+	// 🔴 DIESE LISTE IST DIE EINZIGE QUELLE. Rendern, Zuruecksetzen, Speichern und die
+	// Auto-Erkennung laufen ausnahmslos darueber -- ein Regler, der hier fehlt, existiert fuer die
+	// Oberflaeche nicht, egal was im Markup steht.
 	const TERRAIN_FIELDS = [
 		{ key: "terrain_grain", element: "grain", decimals: 1 },
 		{ key: "terrain_levels", element: "levels", decimals: 0 },
 		{ key: "terrain_avg_height", element: "avgheight", decimals: 0 },
 		{ key: "terrain_mean_height", element: "meanheight", decimals: 0 },
+		// V12 (2026-09-04): die Regler der lokalen Gebirgssimulation.
+		// ⚠️ `terrain_bergform` ist der einzige, dessen Fehlen die RECHNUNG abschaltet statt sie nur
+		// auf eine Vorgabe zu setzen: `undefined` ergibt Radius 0, und `addiereGipfelkegel` kehrt
+		// dann sofort zurueck. Die uebrigen fallen weich auf die Modulvorgaben.
+		{ key: "terrain_bergform", element: "bergform", decimals: 1 },
+		{ key: "terrain_rauschen", element: "rauschen", decimals: 2 },
+		{ key: "terrain_sattel", element: "sattel", decimals: 2 },
+		{ key: "terrain_talbreite", element: "talbreite", decimals: 1 },
+		{ key: "terrain_einschnitt", element: "einschnitt", decimals: 0 },
 	];
 	// Wird gesetzt, sobald der Editor einen Regler anfasst: ab dann gilt der Regler, nicht die Ableitung.
 	let terrainTouched = {};
+
+	// Das Raster DIESER Flaeche rechnen und hochladen.
+	//
+	// 🔴 Es geht durch denselben Trichter, den auch die Karte zeichnet
+	// (`avesmapsGebirgsRasterBauen`) -- wer hier eine eigene Kette baute, speicherte ein anderes
+	// Gelaende als das gezeigte. Genau das ist der Owner-Auftrag: „das was ich seh soll das sein mit
+	// dem gerechnet wird."
+	// 🔧 OFFEN: der Upload selbst haengt an `avesmapsTerrainHeightmapPut`, und dessen Vertrag sagt
+	// „ein Raster traegt nur das EIGENE Feld, der Leser summiert". Der Trichter liefert eine
+	// absolute Hoehe. Solange das nicht entschieden ist, rechnet der Knopf und ZEIGT das Ergebnis,
+	// laedt es aber nicht hoch -- lieber kein Raster als ein falsch addiertes.
+	async function buildTerrainRaster() {
+		const knopf = propertiesElement("terrain-build");
+		const area = currentPropertiesArea();
+		if (!area || !knopf) {
+			return;
+		}
+		const vorher = knopf.textContent;
+		knopf.disabled = true;
+		knopf.textContent = "Rechnet …";
+		try {
+			// Erst die Regler festschreiben -- sonst rechnet der Lauf mit Werten, die nur im
+			// Browser stehen.
+			await saveTerrainSettings(false);
+			// Dann das feine Bild. `setPreviewCoarse(false)` erzwingt die volle Aufloesung.
+			window.AvesmapsEcosystemHeightRender?.setPreviewCoarse?.(false);
+			window.AvesmapsEcosystemHeightRender?.invalidate?.();
+			window.AvesmapsEcosystemHeightRender?.redraw?.();
+			// 💣 DIE MELDUNG SAGT, WAS WIRKLICH PASSIERT IST. Der Knopf heisst „Höhenfeld erzeugen",
+			// und ein Editor liest daraus „gespeichert" -- er laedt das Raster aber NICHT hoch (siehe
+			// den Kopf dieser Funktion). Eine Meldung, die nur „neu gerechnet" sagt, laesst genau
+			// diese Luecke offen; ein Editor haelt das Feld fuer abgelegt und wundert sich, warum
+			// die Reisezeiten unveraendert sind.
+			if (typeof showFeedbackToast === "function") {
+				showFeedbackToast("Höhenfeld für „" + (area.region_name || "diese Fläche")
+					+ "“ neu gerechnet und als Vorschau gezeigt. Für die Wegfindung gespeichert wird es"
+					+ " erst mit „Höhenraster“ im Landschaften-Editor.", "ok");
+			}
+		} catch (error) {
+			if (typeof showFeedbackToast === "function") {
+				showFeedbackToast("Das Höhenfeld konnte nicht gerechnet werden: "
+					+ (error && error.message ? error.message : error), "error");
+			}
+		} finally {
+			knopf.disabled = false;
+			knopf.textContent = vorher;
+		}
+	}
 
 	function terrainDefaults(area) {
 		// Dieselben Vorgaben, mit denen das Höhenfeld rechnet -- gelesen, nicht abgeschrieben.
@@ -1318,6 +1381,14 @@
 			terrain_mean_height: Math.round(
 				(typeof ECOSYSTEM_HEIGHT_NOISE_MEAN_RATIO === "number" ? ECOSYSTEM_HEIGHT_NOISE_MEAN_RATIO : 0.23)
 				* maximum),
+			// V12: GELESEN, nicht abgeschrieben -- die Konstanten stehen in
+			// map-features-ecosystem-hydrologie.js, weil dort gerechnet wird. Eine zweite Fassung
+			// hier liesse „(auto)" eine andere Zahl anzeigen als die, mit der gerechnet wird.
+			terrain_bergform: typeof ECOSYSTEM_HYDRO_BERGFORM === "number" ? ECOSYSTEM_HYDRO_BERGFORM : 2.5,
+			terrain_rauschen: typeof ECOSYSTEM_HYDRO_RAUSCHEN === "number" ? ECOSYSTEM_HYDRO_RAUSCHEN : 0.35,
+			terrain_sattel: typeof ECOSYSTEM_HYDRO_SATTEL === "number" ? ECOSYSTEM_HYDRO_SATTEL : 0.75,
+			terrain_talbreite: typeof ECOSYSTEM_HYDRO_TALBREITE === "number" ? ECOSYSTEM_HYDRO_TALBREITE : 1.5,
+			terrain_einschnitt: typeof ECOSYSTEM_HYDRO_EINSCHNITT === "number" ? ECOSYSTEM_HYDRO_EINSCHNITT : 400,
 		};
 	}
 
@@ -1518,11 +1589,38 @@
 				area[feld.key] = ergebnis?.[feld.key] ?? null;
 			});
 			renderTerrainControls(area);
-			setTerrainStatus(reset ? "Zurück auf Automatik." : "Gelände gespeichert.", false);
 			// Das Feld dieser Fläche ist veraltet -- dieselbe Kante wie bei einer Gipfeländerung.
 			if (window.AvesmapsEcosystemHeightRender?.invalidate) {
 				window.AvesmapsEcosystemHeightRender.invalidate();
 				window.AvesmapsEcosystemHeightRender.redraw();
+			}
+			// 🔴 UND DAS RASTER GEHT MIT -- „du kannst beim ‚speichern' des gebirges hochladen"
+			// (Owner 04.09.2026). Was der Editor eben gesehen hat, wird damit zu dem, womit die
+			// Wegfindung rechnet; ohne diesen Schritt bliebe das gespeicherte Feld die alte
+			// Bergsumme, und die Regler waeren eine Anzeige ohne Wirkung.
+			//
+			// 💣 NACH `update_area_terrain`, nie davor: der Server stempelt das Raster mit einem
+			// Fingerabdruck aus den Reglern, die IN DER DATENBANK stehen. Ginge es zuerst hinaus,
+			// traege es den Abdruck der alten Werte und gaelte im selben Moment als veraltet.
+			// ⚠️ Und es faellt OFFEN aus: die Regler sind gespeichert, auch wenn der Upload scheitert
+			// (ein grosses Gebirge kann an `post_max_size` scheitern). Die Meldung sagt dann, was
+			// wirklich passiert ist -- „Gelaende gespeichert" allein waere eine halbe Wahrheit.
+			setTerrainStatus(reset ? "Zurück auf Automatik." : "Gelände gespeichert — Höhenfeld wird hochgeladen …", false);
+			if (reset) {
+				setTerrainStatus("Zurück auf Automatik.", false);
+
+				return;
+			}
+			try {
+				const ergebnisRaster = await window.AvesmapsEcosystemHeightRender?.hochladen?.(area);
+				setTerrainStatus(ergebnisRaster?.hochgeladen
+					? "Gelände gespeichert, Höhenfeld hochgeladen ("
+						+ Math.round((ergebnisRaster.bytes || 0) / 1024) + " KB)."
+					: "Gelände gespeichert — das Höhenfeld wurde NICHT hochgeladen.",
+				!ergebnisRaster?.hochgeladen);
+			} catch (fehler) {
+				setTerrainStatus("Gelände gespeichert, aber das Höhenfeld konnte nicht hochgeladen "
+					+ "werden: " + (fehler?.message || "unbekannter Fehler"), true);
 			}
 		} catch (error) {
 			setTerrainStatus(error?.message || "Das Gelände konnte nicht gespeichert werden.", true);
@@ -2361,11 +2459,28 @@
 				// dass man beim Ziehen sieht, was man tut.
 				if (area) {
 					area[feld.key] = Number(propertiesElement(feld.element)?.value);
+					// 💣 GROB, SOLANGE GEZOGEN WIRD. Seit V12 kostet ein Rasterbau rund 1,5 s statt
+					// der 25-35 ms der Buckelsumme -- ungedrosselt waere das je Zieh-Bild eine
+					// anderthalb Sekunden lange Blockade, und der Regler fuehlte sich an wie ein
+					// haengender Tab. Das feine Bild kommt beim Loslassen nach.
+					window.AvesmapsEcosystemHeightRender?.setPreviewCoarse?.(true);
 					schedulePreviewRedraw();
 				}
 			});
+			// ⚠️ `change` feuert erst beim LOSLASSEN -- genau der Moment, in dem das feine Bild
+			// faellig wird. `input` waehrend des Ziehens hat die grobe Stufe schon gesetzt.
+			propertiesElement(feld.element)?.addEventListener("change", () => {
+				window.AvesmapsEcosystemHeightRender?.setPreviewCoarse?.(false);
+			});
 		});
 		propertiesElement("terrain-auto")?.addEventListener("click", () => void saveTerrainSettings(true));
+		// 🔴 „Hoehenfeld erzeugen" (Owner 04.09.2026). Er tut ZWEI Dinge, und zwar in dieser
+		// Reihenfolge: die Regler speichern, dann das Raster dieser einen Flaeche rechnen und
+		// hochladen. Ohne das Speichern zuerst rechnete er mit Werten, die nur im Browser stehen --
+		// und das Gespeicherte waere ein anderes Gebirge als das gezeigte.
+		// ⚠️ Er rechnet NUR die offene Flaeche. Der Sammellauf ueber alle 69 bleibt die Kachel
+		// „Hoehenraster" im Landschaften-Editor; die zwei sind verschiedene Handlungen.
+		propertiesElement("terrain-build")?.addEventListener("click", () => void buildTerrainRaster());
 		// Haken umgelegt -> Feld sperren/freigeben, und beim Anhaken einen frischen Griff erzeugen.
 		// Artwechsel -> der Griff folgt der Art, aber nur solange der Haken steht.
 		propertiesElement("autoname")?.addEventListener("change", () => syncPropertiesAutoName({ regenerate: true }));

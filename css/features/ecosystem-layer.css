@@ -427,6 +427,7 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 	margin-bottom: var(--divider-gap-tight);
 	border-bottom: 1px solid var(--color-divider);
 }
+
 .ecosystem-region-dialog__header h2,
 .ecosystem-properties-dialog__header h2,
 .ecosystem-import-dialog__header h2 {
@@ -435,6 +436,7 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 	font-size: var(--font-size-title);
 	line-height: var(--leading-tight);
 }
+
 .ecosystem-region-dialog__close,
 .ecosystem-properties-dialog__close,
 .ecosystem-import-dialog__close {
@@ -451,11 +453,15 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 	line-height: 1;
 }
 
+
+
 .ecosystem-region-dialog__close:hover,
 .ecosystem-properties-dialog__close:hover,
 .ecosystem-import-dialog__close:hover {
 	color: var(--color-text-strong);
 }
+
+
 
 .ecosystem-region-dialog__close:focus-visible,
 .ecosystem-properties-dialog__close:focus-visible,
@@ -463,6 +469,8 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 	outline: none;
 	box-shadow: var(--focus-ring);
 }
+
+
 
 .ecosystem-region-dialog__form,
 .ecosystem-properties-dialog__form,
@@ -1147,6 +1155,46 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 	color: var(--color-text-muted);
 	font-size: var(--font-size-small);
 	text-align: right;
+}
+
+/* Die Falte im Gelände-Abschnitt (V12, 2026-09-04).
+   🔴 NATIV, und nichts anderes: nur `<details>/<summary>` lässt Strg+F Text in einem ZUgeklappten
+   Abschnitt finden und klappt ihn selbst auf. Dieselbe Rezeptur wie „n weitere Quellen“ und das
+   Fenster „Hinweise“ — dort steht auch die Begründung, warum hier kein JS hingehört.
+   ⚠️ Ohne diese Regel steht das `summary` auf `cursor: auto` und ohne jeden Abstand — im Haus ist
+   alles Anklickbare `pointer`. Ein `<details>` ohne Stil ist sichtbar, aber ungestaltet. */
+.ecosystem-properties-dialog__terrainfold {
+	margin-top: var(--space-6);
+	border-top: 1px solid var(--color-divider);
+	padding-top: var(--space-6);
+}
+
+.ecosystem-properties-dialog__terrainfold > summary {
+	cursor: pointer;
+	list-style: none;
+	padding: var(--space-4) 0;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-small);
+}
+
+.ecosystem-properties-dialog__terrainfold > summary::-webkit-details-marker {
+	display: none;
+}
+
+/* Der Pfeil selbst gebaut, damit er in beiden Themen dem Text folgt. */
+.ecosystem-properties-dialog__terrainfold > summary::before {
+	content: "\25b8";
+	display: inline-block;
+	width: 1em;
+	transition: transform var(--duration-fast, 120ms) ease;
+}
+
+.ecosystem-properties-dialog__terrainfold[open] > summary::before {
+	transform: rotate(90deg);
+}
+
+.ecosystem-properties-dialog__terrainfold > summary:hover {
+	color: var(--color-text);
 }
 
 .ecosystem-properties-dialog__terrainactions {

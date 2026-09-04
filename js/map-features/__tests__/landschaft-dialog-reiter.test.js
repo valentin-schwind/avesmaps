@@ -57,7 +57,13 @@ assert.ok(coreTreffer >= 2,
 
 const overlaysCss = lies("css/components/dialog-overlays.css");
 const cssTreffer = overlaysCss.split("#landschaft-dialog-overlay").length - 1;
-assert.strictEqual(cssTreffer, 3,
+// 🔴 MINDESTENS drei, nicht genau drei. Die Zusicherung ist „das Fenster fehlt in keiner der drei
+// Listen" -- eine Obergrenze sagt darueber nichts und bricht bei jeder berechtigten Ergaenzung.
+// Am 04.09.2026 genau so passiert: die Transparenzregel (Owner „das fenster soll den hintergrund
+// nicht abdunkeln") brachte zwei weitere Selektoren mit, und der Test wurde rot, obwohl nichts
+// fehlte. ⚠️ Ein roter Test haelt das ganze Deploy-Tor an -- eine zu enge Zahl kostet damit mehr,
+// als sie schuetzt.
+assert.ok(cssTreffer >= 3,
 	"dialog-overlays.css: alle DREI Selektorlisten, gefunden: " + cssTreffer); checks++;
 
 // ── D. Das Markup traegt die Reiter und ihre Bereiche ────────────────────────────────────────
