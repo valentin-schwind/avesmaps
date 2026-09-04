@@ -222,9 +222,13 @@
    (design language: group by divider, not by box). The negative side-margin
    equals the #search padding (10px) so the top line runs edge to edge; the
    padding restores the content inset. Layout / order / controls unchanged. */
-.display-options,
-#transport-options,
-.route-planner-options-panel {
+/* 🔴 Die zwei KLAPPBAREN Gruppen sind hier raus (04.09.2026) und stehen unten fuer sich.
+   💣 Diese Regel spricht `#transport-options` an -- Spezifitaet (1,0,0) -- und schlug damit den
+   Rahmen des geteilten Bauteils (0,1,0) restlos: `border: 0` nahm links, rechts und unten weg,
+   `border-top: 1px solid var(--color-divider)` liess oben eine Trennlinie stehen. Im Browser
+   gemessen sah das aus wie ein Rahmen und war keiner -- drei Seiten 0px, oben Divider-Farbe.
+   ⚠️ `.display-options` klappt nicht, hat keinen Rahmen und behaelt diese Form unveraendert. */
+.display-options {
 	display: grid;
 	gap: 5px;
 	margin: 0 calc(-1 * var(--space-10));
@@ -282,30 +286,39 @@
    Weil der Rahmen die Gruppe schon zusammenhaelt, tragen diese beiden Gruppen KEINEN Trenner
    mehr -- eine Linie darum waere eine zweite Klammer um dieselbe Sache. `.display-options`
    daneben klappt nicht und behaelt ihre Linien. */
+/* 💣 DER KOPF IST IN BEIDEN ZUSTAENDEN DASSELBE: ein Block mit einem inline-Lauf darin. Ein
+   Wechsel des Layoutmodus beim Klappen (Flex zugeklappt, inline offen) verschiebt Dinge, die
+   stillstehen sollen -- am Mockup gemessen sprang das ⓘ dabei 5px seitlich und fuhr 1px weiter
+   senkrecht als der Titel. Was den Modus wechselt, verrutscht.
+   🔴 Das SEITLICHE Polster bleibt deshalb in beiden Zustaenden 8px: die x-Lage der Aufschrift
+   ist Polster (8) + Polster des Laufs (5) = 13px, in beiden Zustaenden aus denselben Summanden.
+   Senkrecht darf sie wandern -- das ist der ganze Sinn von K2. */
 .planner-group__head {
-	display: flex;
-	align-items: center;
-	gap: 6px;
 	min-width: 0;
-	/* Rundum dasselbe Mass wie am Fuss der Gruppe (Owner 2026-08-03): gemessen 7,8 oben,
-	   8 links, 8 rechts, 8 unten. */
-	padding: 3px 8px 0;
-	/* Einen Tick kleiner als der Rahmen (minus dessen 1 px), damit die Hover-Flaeche innen
-	   sauber an der Rundung anliegt statt sie zu ueberstehen. */
-	border-radius: calc(var(--radius-md) - 1px) calc(var(--radius-md) - 1px) 0 0;
+	padding: 0 8px;
 	transition: background 0.12s ease;
 }
 
+/* Zugeklappt IST der Kopf die Gruppe: er bekommt die Hoehe der alten Leiste zurueck (gemessen
+   28px) und die Rundung des Rahmens, und die Zusammenfassung kuerzt sich mit Auslassung, statt
+   umzubrechen -- ein umbrechender zugeklappter Kasten liest sich wie ein halb offener. */
 .planner-group--collapsed .planner-group__head {
+	padding: 6px 8px;
 	border-radius: calc(var(--radius-md) - 1px);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
 }
 
 /* Die HELLUNG liegt auf der ganzen Kopfzeile, nicht nur auf dem Schalter: der teilt sich die
    Zeile mit dem ⓘ-Knopf und hoerte deshalb vor dem rechten Rand auf -- ein Streifen, der nicht
    durchlaeuft (Owner 2026-08-02). Der Schalter behaelt seine eigene Hellung als Rueckfall fuer
    Browser ohne `:has()`; wo es das gibt, uebernimmt der Kopf und der Schalter tritt zurueck. */
-.planner-group__head:has(.planner-group__toggle:hover),
-.planner-group__head:has(.planner-group__toggle:focus-visible) {
+/* ⚠️ NUR ZUGEKLAPPT. Aufgeklappt ist der Kopf eine Aufschrift auf der Rahmenlinie, kein Knopf --
+   ein durchlaufender Hellungsstreifen quer durch die Linie sieht dort aus wie ein Fehler. Die
+   Rueckmeldung uebernimmt dann der Titel selbst (er wird heller). */
+.planner-group--collapsed .planner-group__head:has(.planner-group__toggle:hover),
+.planner-group--collapsed .planner-group__head:has(.planner-group__toggle:focus-visible) {
 	background: var(--color-hover-wash);
 }
 
@@ -320,7 +333,13 @@
    hinaus. In der Kopfzeile ist er ein gewoehnliches Flex-Kind neben dem Schalter. */
 .planner-group__head .tsi-info-btn {
 	position: static;
-	flex: 0 0 auto;
+	/* Im Lauf ist es ein inline-Element neben dem Titel, kein Flex-Kind am rechten Rand.
+	   💣 `line-height: 1` aus demselben Grund wie beim Pfeil: 16px hoch zoege es die
+	   Zeilenbox auf, aus der der Kopf seinen negativen Rand rechnet. */
+	display: inline-flex;
+	margin-left: 5px;
+	vertical-align: -3px;
+	line-height: 1;
 }
 
 /* Der Schalter selbst ist randlos -- den Rahmen traegt die Gruppe um ihn herum. Er bleibt
@@ -331,97 +350,60 @@
    der Koerper darunter lief ueber die volle Breite -- der Inhalt stand also breiter als seine
    Titelzeile. An der Gruppe erfuellt derselbe Rahmen beides. */
 .planner-group__toggle {
-	display: flex;
-	flex: 1 1 auto;
-	align-items: center;
-	gap: 6px;
-	min-width: 0;
-	/* 24, nicht 32. 💣 Aufgeklappt muessen beide Gruppen zusammen unter die 754 px bleiben,
-	   die die Oberflaeche vor dem Umbau hatte: der Reiseplan darunter kann zwar schrumpfen, aber
-	   nicht unter sein eigenes Polster (26 px) plus Abstand. Sobald Oberflaeche + 26 ueber die
-	   Panelhoehe geht, bekommt das GANZE Panel einen Scrollbalken -- und der liegt dann ueber
-	   allem.
-
-	   💣 NACHGEMESSEN am 2026-08-03, als der Reisebeginn als dritte Optionszeile dazukam
-	   (1280x800, beide Gruppen offen, leerer Reiseplan). Eine Zeile kostet 36 px: 25 px Feldhoehe
-	   plus die 11 px Zeilenluecke der Gruppe -- nicht 25, wie man beim Blick auf das Feld schaetzt.
-	   Der Balken faellt damit einen Wegpunkt frueher als vorher:
-
-	     Wegpunkte   3        4                  5
-	     vorher      686 px   723 px  frei       760 px  Balken
-	     heute       722 px   759 px  BALKEN     796 px  Balken
-
-	   Zugeklappt -- also sobald eine Route steht und die Automatik greift -- sind es auch bei fuenf
-	   Wegpunkten nur 559 px. Der Engpass ist deshalb der Zwischenzustand „mehrere Ziele getippt,
-	   noch keine Route". Wer hier eine VIERTE Optionszeile plant, misst vorher nach. */
-	min-height: 24px;
+	/* 🔴 `inline`, damit der Schalter im Lauf fliesst und dessen Grund ihn traegt. Als Flex- oder
+	   Block-Element waere er ein eigener Kasten, und der Grund der Aufschrift risse an ihm ab. */
+	display: inline;
 	margin: 0;
 	padding: 0;
 	border: 0;
-	border-radius: var(--radius-sm);
-	background: transparent;
+	background: none;
 	color: inherit;
 	font: inherit;
-	line-height: 1.15;
 	text-align: left;
 	cursor: pointer;
 }
 
-.planner-group__toggle:hover {
-	background: var(--color-hover-wash);
-}
-
+/* Aufgeklappt ist der Kopf kein Knopf mehr, sondern eine Aufschrift auf der Rahmenlinie -- die
+   Rueckmeldung uebernimmt deshalb der Titel selbst. Zugeklappt hellt zusaetzlich die Leiste. */
 .planner-group__toggle:hover .planner-group__title,
 .planner-group__toggle:focus-visible .planner-group__title {
 	color: var(--color-text-strong);
 }
 
 .planner-group__toggle:focus-visible {
-	box-shadow: var(--focus-ring);
-	outline: none;
+	outline: 2px solid var(--color-focus-ring);
+	outline-offset: 2px;
+	border-radius: var(--radius-sm);
 }
 
-/* Der Titel steht ausgeschrieben, nicht in Versalien (Owner 2026-08-02). Die Versal-Regel
-   oben gilt Abschnitts-UEBERSCHRIFTEN; hier ist der Titel die Beschriftung eines Schalters,
-   und die liest sich normal gesetzt besser. `.route-plan-legs__title` im Reiseplan bleibt
-   davon unberuehrt -- das ist weiterhin eine Ueberschrift.
-   Der Selektor ist zweiklassig (0,2,0), damit er die Ueberschriften-Regel (0,1,0) schlaegt. */
-.planner-group__toggle .planner-group__title {
-	flex: 0 0 auto;
-	margin: 0;
-	color: var(--color-text);
-	font-size: 12.5px;
-	font-weight: 600;
-	letter-spacing: normal;
-	text-transform: none;
-}
+/* 🔴 Groesse, Gewicht, Versalien und Farbe des Titels kommen vom Bauteil (.avm-rahmen__titel).
+   Hier stand `12.5px / 600` -- zwei Werte, die auf keiner Skala des Hauses stehen. */
 
-/* Nur eingeklappt sichtbar: was gerade eingestellt ist. Laeuft es zu lang, schneidet die
-   Ellipse ab -- der volle Wortlaut steht im `title` des Schalters.
-   💣 Ein BLOCK, kein Flex-Container: in einem Flex-Container wird jeder Textabschnitt ein
-   eigenes Element, `text-overflow` greift dort nicht, und mit `white-space: nowrap` schrumpft
-   nichts mehr. Ergebnis war ein harter Schnitt mitten im Wort („· Flus") und ein aus der Zeile
-   gedraengter Pfeil. Als Block fliesst alles in EINER Zeile und die Ellipse funktioniert. */
+/* Nur eingeklappt sichtbar: was gerade eingestellt ist.
+   💣 INLINE, kein Block. Gekuerzt wird am KOPF (dort steht `text-overflow`), damit der Lauf in
+   beiden Zustaenden derselbe bleibt -- ein Block hier waere ein eigener Kasten im Lauf und risse
+   dessen Grund auf. Hier stand aus genau dem umgekehrten Grund einmal `display: block`: damals
+   war der Kopf ein Flex-Container, und dort greift `text-overflow` nicht.
+   💣 Und `display: none` statt `max-width: 0`: an einem inline-Element wirkt `max-width` nicht.
+   Sie blendet sich stattdessen ein, sobald sie erscheint. */
 .planner-group__summary {
-	display: block;
-	flex: 1 1 auto;
-	min-width: 0;
-	max-width: 100%;
-	overflow: hidden;
+	margin-left: 5px;
 	color: var(--color-text-strong);
-	font-size: 12px;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-	transition: max-width 0.24s ease, opacity 0.18s ease;
+	font-size: var(--font-size-small);
+	line-height: 1;
 }
 
-/* Aufgeklappt blendet die Zusammenfassung aus -- sie stuende sonst doppelt da, einmal
-   in der Zeile und einmal in den Bedienelementen darunter. Ueber max-width statt
-   `display`, damit sie sich weg- und wieder heranblenden kann; auf 0 belegt sie keine
-   Breite mehr und der Pfeil rueckt an den Titel heran. */
 .planner-group--open .planner-group__summary {
-	max-width: 0;
-	opacity: 0;
+	display: none;
+}
+
+.planner-group--collapsed .planner-group__summary {
+	animation: plannerSummaryEin 0.18s ease 0.08s both;
+}
+
+@keyframes plannerSummaryEin {
+	from { opacity: 0; }
+	to { opacity: 1; }
 }
 
 .planner-group__summary-icon {
@@ -433,14 +415,15 @@
 	vertical-align: -3px;
 }
 
-/* 💣 Der Pfeil landet 4 px rechts der Schalterkante -- gemessen in beiden Zustaenden, mit
-   `margin-left: auto` genauso wie mit `justify-content: space-between`. Ohne Ausgleich stuende er
-   3,7 px vom Rahmen entfernt, waehrend rundherum 8 px gelten; genau das faellt an der Kopfzeile
-   auf. Die 4 px holen ihn auf dieselbe Linie wie Titel, Fuss und den ⓘ-Knopf der Transportgruppe. */
+/* 💣 Der Pfeil steht VOR dem Titel, nicht mehr rechts aussen. Rechts aussen ginge in einem
+   inline-Lauf nur mit `float`, und dann wanderte er beim Klappen seitlich mit der Breite der
+   Zusammenfassung -- genau die Verschiebung, die K2 vermeiden soll.
+   💣 `line-height: 1` ist tragend: er ist 13px und zoege die Zeilenbox des Kopfes auf. Der Kopf
+   rechnet seinen negativen Rand aus `0.5lh`, und eine aufgezogene Zeilenbox macht `lh` zur
+   Luege -- die Aufschrift rutscht dann von der Linie. Dasselbe gilt fuer das ⓘ. */
 .planner-group__caret {
-	flex: 0 0 auto;
-	margin-left: auto;
-	margin-right: 4px;
+	display: inline-block;
+	margin-right: 3px;
 	color: var(--color-text-muted);
 	font-size: 13px;
 	line-height: 1;
@@ -472,11 +455,42 @@
    der Transport-Combobox haengt `position: absolute` darin und wuerde abgeschnitten. */
 #transport-options,
 .route-planner-options-panel {
+	/* 🔴 Rahmen und Radius kommen seit dem 04.09.2026 vom geteilten Bauteil `.avm-rahmen`
+	   (css/components/rahmenkasten.css); hier steht nur noch, was DIESER Gruppe gehoert.
+	   💣 `--avm-rahmen-pad: 0` ist tragend und keine Formalie: die Gruppe polstert NICHT selbst
+	   (Kopf und Koerper tragen ihr Polster), und aus genau diesem Wert rechnet der Kopf seinen
+	   negativen Rand. Mit dem Vorgabewert 10px saesse die Aufschrift 10px zu hoch. */
+	/* 💣 `0px`, NICHT `0`. Ein einheitenloses Null ist eine ZAHL, und `calc(-1 * 0 - 0.5lh)`
+	   mischt Zahl mit Laenge -- ungueltig, also faellt die GANZE margin-Deklaration weg und der
+	   Rand ist 0. Die Aufschrift stand damit 9,17px unter der Linie statt darauf, ohne dass
+	   irgendwo etwas rot wurde. Im Browser gemessen. */
+	--avm-rahmen-pad: 0px;
+	/* Was diese Gruppen aus der alten gemeinsamen Regel behalten -- ohne deren Rahmen. */
+	display: grid;
 	gap: 0;
 	margin: 0;
 	padding: 0;
-	border: 1px solid var(--color-button-border);
-	border-radius: var(--radius-md);
+	background: transparent;
+	box-sizing: border-box;
+}
+/* 💣 DIE FUELLUNG GILT NUR ZUGEKLAPPT. Aufgeklappt sitzt die Aufschrift AUF der Rahmenlinie,
+   also oben ausserhalb und unten innerhalb -- mit Fuellung liegen dort zwei Farben, und die eine
+   Farbe, mit der sie die Linie maskiert, kann nicht beide sein. Zugeklappt IST die Gruppe der
+   Knopf, und dann ist `--color-button-soft` genau richtig.
+   🔴 Deshalb auch der Grund der Aufschrift: hinter der Linie liegt der Panelgrund. */
+/* 💣 DIE KENNUNG MUSS MIT IN DEN SELEKTOR -- dieselbe Falle, vor der diese Datei schon beim
+   Polster warnt: die Grundregel oben spricht `#transport-options` an (1,0,0) und schlaegt jede
+   reine Klasse. Ohne sie blieb die zugeklappte Leiste UNGEFUELLT, und zwar nur bei den
+   Transportmitteln -- bei den Reiseoptionen (0,1,0) ging es gut, weil dort die Reihenfolge
+   entschied. Im Browser gemessen: ein Kasten gefuellt, der andere nicht.
+   ⚠️ Und die Stellschraube ebenso auf (0,2,0): das Bauteil setzt ihren Vorgabewert an
+   `.avm-rahmen`, also demselben Element -- auf gleicher Spezifitaet entschiede die
+   Ladereihenfolge der Blaetter. */
+.avm-rahmen.planner-group--open {
+	--avm-rahmen-grund: var(--color-panel);
+}
+#transport-options.planner-group--collapsed,
+.route-planner-options-panel.planner-group--collapsed {
 	background: var(--color-button-soft);
 }
 
@@ -547,8 +561,13 @@
 	display: none;
 }
 
-.route-planner-options-panel__title,
-.transport-options__title,
+/* 🔴 Die zwei GRUPPEN-Titel sind hier raus (04.09.2026): sie tragen `.avm-rahmen__titel` und
+   holen Groesse, Gewicht, Versalien und Farbe vom Bauteil. Diese Regel stand SPAETER in der
+   Datei und faerbte sie sonst gedaempft zurueck -- gleiche Spezifitaet, und dann gewinnt die
+   letzte. Was bleibt, ist die Mini-Ueberschrift ueber der Etappenliste: die ist kein
+   Rahmenkasten, sondern ein Trenner mit Titel (AGENTS.md §12), und behaelt ihre Werte.
+   ⚠️ Die Klassen `transport-options__title` / `route-planner-options-panel__title` bleiben im
+   Markup stehen -- sie sind Haken, keine Rezeptur. */
 .route-plan-legs__title {
 	margin: 0 0 1px;
 	color: var(--color-text-muted);

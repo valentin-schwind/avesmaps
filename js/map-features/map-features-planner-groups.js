@@ -141,10 +141,11 @@
 
 	// --- Verdrahtung ----------------------------------------------------------------------
 	function setupGroup(group, buildSummary) {
+		var head = group.querySelector(".planner-group__head");
 		var toggle = group.querySelector(".planner-group__toggle");
 		var body = group.querySelector(".planner-group__body");
 		var summary = group.querySelector(".planner-group__summary");
-		if (!toggle || !body || !summary) {
+		if (!head || !toggle || !body || !summary) {
 			return;
 		}
 
@@ -231,7 +232,21 @@
 			setBodyState(animate);
 		}
 
-		toggle.addEventListener("click", function () {
+		// 💣 GEBUNDEN WIRD DER KOPF, NICHT DER SCHALTER -- und zwar genau EINMAL. Seit dem
+		// 04.09.2026 liegt die Zusammenfassung neben dem Schalter statt darin (sie musste aus ihm
+		// heraus, damit das ⓘ zwischen Titel und Zusammenfassung stehen kann und beim Klappen
+		// nicht seitlich wandert). Am Schalter gebunden waere die zugeklappte Leiste nur noch auf
+		// „› Transportmittel" anklickbar, obwohl sie sich beim Ueberfahren ganz hellt.
+		// 🔴 Nur EIN Zuhoerer: der Klick auf den Schalter blubbert zum Kopf, ein zweiter Zuhoerer
+		// dort wuerde im selben Klick auf- UND zuklappen -- fuer den Benutzer passiert dann
+		// nichts, und jede einzelne Zeile sieht richtig aus (die Doppelanmeldung aus AGENTS.md).
+		// ⭐ Tastatur kommt gratis mit: Enter/Leertaste auf dem <button> erzeugen einen Klick, der
+		// ebenso blubbert -- `aria-expanded` bleibt am Schalter.
+		head.addEventListener("click", function (event) {
+			// Das ⓘ oeffnet sein eigenes Fenster und darf die Gruppe nicht mitklappen.
+			if (event.target && event.target.closest && event.target.closest(".tsi-info-btn")) {
+				return;
+			}
 			collapsed = !collapsed;
 			apply(true);
 		});

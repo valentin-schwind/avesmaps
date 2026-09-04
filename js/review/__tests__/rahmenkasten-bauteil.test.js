@@ -143,4 +143,77 @@ const ohneKommentare = (css) => css.replace(/\/\*[\s\S]*?\*\//g, "");
 		"mit dem Grund des Fensterrumpfs -- live gemessen, hell wie dunkel zeichengleich");
 }
 
+// ---- 7. Der Routenplaner: zwei klappbare Gruppen am Bauteil ----------------------------------
+{
+	const html = lies("index.html");
+	assert.strictEqual((html.match(/class="planner-group avm-rahmen/g) || []).length, 1,
+		"die Transportmittel-Gruppe traegt das Bauteil an der HUELLE");
+	assert.strictEqual((html.match(/planner-group avm-rahmen planner-group--open/g) || []).length, 2,
+		"beide Gruppen tragen es -- die Kopfklasse allein reicht nicht, dann fehlt der Rahmen ganz");
+	assert.strictEqual((html.match(/class="planner-group__head avm-rahmen__kopf"><span class="avm-rahmen__schrift">/g) || []).length, 2,
+		"und beide Koepfe ihren inline-Lauf");
+	// 💣 Pfeil, Titel UND das ⓘ liegen IM Lauf -- nur dann traegt sein Grund sie mit, und nur dann
+	//    wandern sie beim Klappen gemeinsam und ausschliesslich senkrecht.
+	// 🪤 NICHT der erste Lauf im Dokument -- der gehoert dem Meldeformular. Angesetzt wird am
+	//    Kopf DIESER Gruppe.
+	["transport-options-body", "route-planner-options-body"].forEach((controls) => {
+		const ab = html.indexOf('aria-controls="' + controls + '"');
+		assert.ok(ab > 0, controls + " steht im Markup");
+		const kopfAnfang = html.lastIndexOf('class="planner-group__head', ab);
+		const lauf = html.slice(kopfAnfang, html.indexOf("</span></div>", ab));
+		["avm-rahmen__schrift", "planner-group__caret", "avm-rahmen__titel", "tsi-info-btn",
+			"planner-group__summary"]
+			.forEach((k) => assert.ok(lauf.indexOf(k) >= 0, controls + ": " + k + " liegt im Lauf"));
+		// Und die Reihenfolge: das ⓘ steht VOR der Zusammenfassung, sonst schoebe deren Breite
+		// es beim Klappen seitlich.
+		assert.ok(lauf.indexOf("tsi-info-btn") < lauf.indexOf("planner-group__summary"),
+			controls + ": das ⓘ steht vor der Zusammenfassung");
+	});
+}
+
+// ---- 8. `--avm-rahmen-pad` traegt IMMER eine Einheit -----------------------------------------
+// 💣 Ein einheitenloses `0` ist eine ZAHL. `calc(-1 * 0 - 0.5lh)` mischt Zahl mit Laenge, ist
+//    damit ungueltig, und die GANZE margin-Deklaration des Kopfes faellt weg -- die Aufschrift
+//    rutscht von der Linie (gemessen 9,17px daneben), und nichts wird rot. Der einzige Hinweis
+//    ist der Blick im Browser, und den hat man beim naechsten Mal nicht.
+{
+	const blaetter = ["css/components/rahmenkasten.css", "css/features/route-planner.css",
+		"css/features/feature-sources.css", "css/components/location-report-dialog.css"];
+	blaetter.forEach((f) => {
+		const css = ohneKommentare(lies(f));
+		const werte = Array.from(css.matchAll(/--avm-rahmen-pad:\s*([^;]+);/g)).map((m) => m[1].trim());
+		werte.forEach((w) => assert.ok(/^var\(|[a-z%]$/.test(w),
+			f + ": --avm-rahmen-pad ohne Einheit (`" + w + "`) -- `0` ist eine Zahl, nicht `0px`"));
+	});
+}
+
+// ---- 9. Keine zweite Aufschriften-Rezeptur ueberstimmt die Planer-Titel ----------------------
+// 💣 Sie standen in einer Regel mit `.route-plan-legs__title`, gedaempft und SPAETER in der Datei
+//    -- gleiche Spezifitaet, und dann gewinnt die letzte. Der Titel war 11px/700 und trotzdem
+//    grau statt goldbraun.
+// 💣 Und die Fuellung der zugeklappten Leiste braucht die KENNUNG im Selektor: die Grundregel
+//    spricht `#transport-options` an (1,0,0) und schlaegt jede reine Klasse.
+{
+	const css = ohneKommentare(lies("css/features/route-planner.css"));
+	["transport-options__title", "route-planner-options-panel__title"].forEach((k) => {
+		assert.ok(!new RegExp("\." + k + "\s*[,{]").test(css),
+			"." + k + " hat keine eigene Aufschriften-Regel mehr -- die kommt vom Bauteil");
+	});
+	// 🪤 Die Hellung beim Ueberfahren traegt denselben Zustandsnamen und setzt ebenfalls
+	//    `background` -- gesucht ist die Regel OHNE `:has(`.
+	const fuellungen = Array.from(css.matchAll(/([^{}]+)\{([^}]*)\}/g))
+		.filter((m) => /planner-group--collapsed/.test(m[1]) && /background:/.test(m[2])
+			&& !/:has\(/.test(m[1]));
+	assert.strictEqual(fuellungen.length, 1, "genau eine Regel fuellt die zugeklappte Leiste");
+	assert.ok(/#transport-options\.planner-group--collapsed/.test(fuellungen[0][1]),
+		"und zwar mit der Kennung im Selektor, sonst greift es nur bei einer der zwei Gruppen: "
+		+ fuellungen[0][1].trim());
+	// Die Grundregel der Anzeigeoptionen darf die zwei Gruppen NICHT mehr mitnehmen -- ihr
+	// `border: 0` schlug den Rahmen des Bauteils restlos (drei Seiten 0px, oben Divider).
+	const grund = css.match(/\.display-options\s*([,{])/);
+	assert.ok(grund && grund[1] === "{",
+		"`.display-options` steht allein -- mit `#transport-options` daneben nimmt ihr `border: 0` "
+		+ "dem Rahmenkasten drei Seiten weg");
+}
+
 console.log("OK -- der Rahmenkasten haengt dran, die Kopplungen sind benannt, keine zweite Rezeptur.");

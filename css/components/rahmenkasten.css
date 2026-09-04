@@ -21,6 +21,10 @@
 	   von Hand überschreibt, muss sie hier überschreiben — nicht am `padding` bzw. am
 	   `background` des Kastens, sonst rutscht die Aufschrift von der Linie oder maskiert
 	   die falsche Farbe. */
+	/* 💣 Wer sie ueberschreibt, gibt eine LAENGE mit Einheit -- `0px`, nie `0`. Ein einheitenloses
+	   Null ist eine Zahl, `calc(-1 * 0 - 0.5lh)` mischt Zahl mit Laenge, und die ganze
+	   margin-Deklaration des Kopfes faellt damit weg: die Aufschrift rutscht von der Linie, und
+	   nichts wird rot. Genau so passiert am 04.09.2026 im Routenplaner, 9,17px daneben. */
 	--avm-rahmen-pad: var(--space-8);
 	/* Der Grund HINTER der Oberkante: mit genau ihm maskiert die Aufschrift die Linie.
 	   💣 Ein Kasten mit EIGENER Füllung kann die Aufschrift nicht auf die Linie legen — sie
