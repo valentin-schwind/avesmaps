@@ -232,17 +232,19 @@ h2 { margin: 0 0 3px; color: var(--color-text-strong); font-size: var(--font-siz
 /* 🔴 DIE LEISTE IST EINE ZEILE UND BLEIBT ES: die Zusammenfassung kuerzt sich mit Auslassung,
    statt umzubrechen. Ein umbrechender "zugeklappter" Kasten ist hoeher als noetig und liest
    sich wie ein halb offener -- gemessen sprang die Leiste bei 330px von rund 30 auf 46,3px.
-   💣 `inline-flex`, NICHT `flex`: ein Block-Lauf zieht seinen Grund wieder auf die volle Breite
-   und loescht damit die Oberkante -- genau der Fehler, den der inline-Lauf behebt. Bei K2
-   faellt das nicht auf (die Aufschrift steht unter der Kante), bei K3 sofort, und eine Regel,
-   die nur bei einer von zwei Formen stimmt, ist keine.
-   💣 `min-width: 0` an der Zusammenfassung ist tragend: ein Flex-Kind schrumpft sonst nie unter
-   seinen Inhalt, die Auslassung greift nie, und die Leiste laeuft ueber den Rand hinaus. */
-.k2:not(.v-box--offen) .v-schrift,
-.k3:not(.v-box--offen) .v-schrift { display: inline-flex; align-items: baseline; gap: 5px;
-	max-width: 100%; white-space: nowrap; }
-.k2:not(.v-box--offen) .k-zus,
-.k3:not(.v-box--offen) .k-zus { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+   💣 GEKUERZT WIRD AM KOPF, NICHT AM LAUF -- der Lauf bleibt in BEIDEN Zustaenden `inline`.
+   Ein Wechsel auf `inline-flex` beim Zuklappen war der naheliegende Weg und hat zwei Dinge
+   verschoben, die stillstehen sollten: das ⓘ sprang 5px seitlich (der `gap` des Flex-Kastens
+   kam zu seinem eigenen `margin-left` hinzu -- offen gibt es nur das Margin), und es fuhr
+   15,25px senkrecht, waehrend der Titel 14,25 fuhr, weil ein Flex-Kasten seine Grundlinie
+   anders setzt als ein inline-Lauf. Beides gemessen.
+   ⭐ Die Regel dahinter: EIN Layoutmodus fuer beide Zustaende, und EIN Mittel fuer den Abstand
+   (die Raender der Kinder, nie zusaetzlich ein `gap`). Was den Modus wechselt, verrutscht.
+   `text-overflow` am Kopf leistet dasselbe, weil der Kopf ein Block ist und der Lauf sein
+   inline-Inhalt -- der klassische Fall fuer die Auslassung. */
+.k2:not(.v-box--offen) .v-head,
+.k3:not(.v-box--offen) .v-head { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.k-zus { margin-left: 5px; }
 .k2:not(.v-box--offen) .v-head { margin: var(--space-4) 0 var(--space-4) 3px; }
 .k2 .k-inhalt { display: none; }
 
