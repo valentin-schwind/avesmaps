@@ -824,6 +824,19 @@
 	--avesmaps-tab-w: 30px;
 	--avesmaps-tab-top: 30px;
 	--avesmaps-tab-h: 140px;
+	/* 🔴 Die PANEL-REITER "Info" und "Editor" behalten diese Maße AUCH am Telefon (Owner
+	   04.09.2026: "editor und infotab sollten nicht abmessung und groesse der lasche vom
+	   routenplaner auf dem handy haben. sondern vom desktop"). Sie sind ein anderes Bauteil als der
+	   Griff des Planers: der ist am Telefon ein PFEIL ohne Wort und darf deshalb auf 26x56 schrumpfen
+	   (unten im Telefon-Block) -- diese beiden tragen ihre BESCHRIFTUNG und sind zu zweit ein
+	   Reiterpaar, zwischen dem man waehlt. Bei 56px stapelten sie sich als zwei Briefmarken an der
+	   Kante.
+	   💣 Darum ein EIGENER Satz und keine abgeschriebenen Zahlen an den zwei Laschen: sonst wandert
+	   beim naechsten Anfassen die eine und die andere bleibt stehen -- genau die Divergenz, wegen der
+	   --avesmaps-tab-* ueberhaupt entstanden ist. */
+	--avesmaps-paneltab-w: 30px;
+	--avesmaps-paneltab-top: 30px;
+	--avesmaps-paneltab-h: 140px;
 	/* Der Kantenschatten der Telefon-Lasche: ein schmales dunkles Band an genau der Kante, unter der
 	   sie hervorkommt -- ausdruecklich KEIN Verlauf ueber die volle Breite (Owner 12.08.2026, am
 	   Entwurf entschieden: „nicht ueber die volle breite, sondern dass es so aussieht wenn die lasche

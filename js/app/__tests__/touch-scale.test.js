@@ -758,27 +758,56 @@ assert.strictEqual(rufeGesamt, rufeInSync,
 // 💣 Sie sind seit jeher gleich gebaut, standen aber mit denselben drei Zahlen in ZWEI Dateien. Am
 // Telefon haette die Hoehe an beiden Enden zugleich wandern muessen -- genau die Divergenz, vor der
 // AGENTS.md §12 warnt. Jetzt lesen beide dieselben Token, und der Telefonfall steht an EINER Stelle.
-const TAB_TOKEN = ["--avesmaps-tab-top", "--avesmaps-tab-h", "--avesmaps-tab-w"];
+// 🔴 Seit dem 04.09.2026 sind es ZWEI Gruppen mit ZWEI Satz Maßen, und das ist ein Owner-Entscheid:
+// der Griff des PLANERS (--avesmaps-tab-*) schrumpft am Telefon auf 26x56, weil er dort ein PFEIL
+// ohne Wort ist; die beiden PANEL-REITER "Info" und "Editor" (--avesmaps-paneltab-*) behalten ihre
+// 30x140 auch am Telefon, weil sie ihre BESCHRIFTUNG tragen und zu zweit ein Reiterpaar sind
+// ("editor und infotab sollten nicht abmessung und groesse der lasche vom routenplaner auf dem
+// handy haben. sondern vom desktop"). Die Kopplung gilt weiterhin -- aber INNERHALB jeder Gruppe.
+const TAB_TOKEN = ["--avesmaps-tab-top", "--avesmaps-tab-h", "--avesmaps-tab-w",
+	"--avesmaps-paneltab-top", "--avesmaps-paneltab-h", "--avesmaps-paneltab-w"];
 TAB_TOKEN.forEach((name) => {
 	assert.ok(new RegExp(escapeRe(name) + ":\\s*[^;]+;").test(tokens),
 		`${name} steht in tokens.css`);
 });
 
 const infopanelCss = withoutComments(read("css", "features", "infopanel.css"));
-[["#toggle-button", layoutCss, "Routenplaner-Lasche"],
- [".avesmaps-infopanel__handle", infopanelCss, "Info-Lasche"]].forEach(([selector, css, name]) => {
+const reviewPanelCss = withoutComments(read("css", "features", "review-panel.css"));
+// 💣 `.review-panel-toggle` steht mehrfach am Zeilenanfang (u.a. als Sammelregel mit
+// `.review-panel__icon-button`). Gemeint ist die EIGENSTAENDIGE Regel -- die mit `position: fixed`.
+[["#toggle-button", layoutCss, "Routenplaner-Griff", "tab"],
+ [".avesmaps-infopanel__handle", infopanelCss, "Info-Reiter", "paneltab"],
+ [".review-panel-toggle", reviewPanelCss, "Editor-Reiter", "paneltab"]]
+	.forEach(([selector, css, name, gruppe]) => {
+	const treffer = [...css.matchAll(new RegExp("^" + escapeRe(selector) + "\\s*\\{([^}]*)\\}", "gm"))]
+		.map((t) => t[1]).filter((rumpf) => /position:\s*fixed/.test(rumpf));
+	assert.strictEqual(treffer.length, 1,
+		`die eigenstaendige Regel fuer den ${name} ist genau einmal auffindbar (gefunden: ${treffer.length})`);
+	const regel = treffer[0];
+	[["top", `--avesmaps-${gruppe}-top`], ["height", `--avesmaps-${gruppe}-h`],
+	 ["width", `--avesmaps-${gruppe}-w`]].forEach(([eigenschaft, token]) => {
+		assert.ok(new RegExp(eigenschaft + ":\\s*var\\(" + escapeRe(token) + "\\)").test(regel),
+			`${name}: \`${eigenschaft}\` liest ${token} statt einer eigenen Zahl -- sonst wandert der eine`
+			+ " Reiter am Telefon und der andere bleibt stehen");
+	});
+});
+// 💣 Ohne das sitzt die Beschriftung auf voller Hoehe am oberen Rand: bei `writing-mode:
+// vertical-rl` ist die Zeilenachse senkrecht, `text-align` richtet also nach oben/unten aus.
+[["#toggle-button", layoutCss, "Routenplaner-Griff"],
+ [".avesmaps-infopanel__handle", infopanelCss, "Info-Reiter"]].forEach(([selector, css, name]) => {
 	const regel = css.match(new RegExp(escapeRe(selector) + "\\s*\\{([^}]*)\\}"));
-	assert.ok(regel, `die Regel fuer die ${name} ist auffindbar`);
-	[["top", "--avesmaps-tab-top"], ["height", "--avesmaps-tab-h"], ["width", "--avesmaps-tab-w"]]
-		.forEach(([eigenschaft, token]) => {
-			assert.ok(new RegExp(eigenschaft + ":\\s*var\\(" + escapeRe(token) + "\\)").test(regel[1]),
-				`${name}: \`${eigenschaft}\` liest ${token} statt einer eigenen Zahl -- sonst wandert die`
-				+ " eine Lasche am Telefon und die andere bleibt stehen");
-		});
-	// 💣 Ohne das sitzt die Beschriftung auf voller Hoehe am oberen Rand: bei `writing-mode:
-	// vertical-rl` ist die Zeilenachse senkrecht, `text-align` richtet also nach oben/unten aus.
 	assert.ok(/text-align:\s*center/.test(regel[1]),
 		`${name}: die Beschriftung steht mittig -- auf 100dvh klebte sie sonst oben`);
+});
+
+// 🔴 Und DAS ist die Zusicherung, die den Entscheid vom 04.09.2026 haelt: der Telefon-Block darf die
+// Maße der PANEL-REITER nicht anfassen. Vorher lasen sie --avesmaps-tab-*, schrumpften am Telefon
+// auf 26x56 mit -- und der Owner sah zwei Briefmarken an der Kante statt zweier Reiter.
+["--avesmaps-paneltab-w", "--avesmaps-paneltab-h", "--avesmaps-paneltab-top"].forEach((name) => {
+	const block = tokens.match(/html\.avesmaps-phone\s*\{([^}]*)\}/);
+	assert.ok(block && !new RegExp(escapeRe(name) + "\\s*:").test(block[1]),
+		`${name} wird am Telefon NICHT ueberschrieben -- die zwei beschrifteten Reiter behalten dort`
+		+ " ihre Desktop-Maße (Owner 04.09.2026); nur der Pfeilgriff des Planers schrumpft");
 });
 
 // 💣 Der Telefonfall haengt an der KLASSE, nicht an einer Media-Query. „Telefon" ist in diesem Haus

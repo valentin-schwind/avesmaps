@@ -352,13 +352,14 @@
    sitzt buendig an der linken Panel-Kante. Wird per JS ausgeblendet, wenn das Panel leer ist. */
 .avesmaps-infopanel__handle {
 	position: fixed;
-	/* Maße aus den Token (css/base/tokens.css) -- dieselben, die #toggle-button liest. Am Telefon
-	   laufen beide von Kante zu Kante, und das steht dort an EINER Stelle. */
-	top: var(--avesmaps-tab-top);
+	/* Maße aus den Token (css/base/tokens.css) -- dieselben, die der Editor-Reiter liest.
+	   🔴 NICHT die des Planer-Griffs: der schrumpft am Telefon auf 26x56, diese beiden behalten ihre
+	   Groesse (Owner 04.09.2026; Begruendung an --avesmaps-paneltab-* in tokens.css). */
+	top: var(--avesmaps-paneltab-top);
 	right: var(--avesmaps-ip-w);
 	z-index: 1081;
-	width: var(--avesmaps-tab-w);
-	height: var(--avesmaps-tab-h);
+	width: var(--avesmaps-paneltab-w);
+	height: var(--avesmaps-paneltab-h);
 	/* Auf voller Hoehe saesse die Beschriftung sonst oben: bei `writing-mode: vertical-rl` ist die
 	   Zeilenachse senkrecht, `text-align` richtet also nach oben/unten aus. */
 	text-align: center;
@@ -413,8 +414,9 @@ html.avesmaps-phone body:not(.edit-mode) .avesmaps-infopanel__handle {
    Planer-Griff (Begruendung in css/layout/map-layout.css).
    ⚠️ Absolut im Panel, NICHT im __body: der ist der Scroller, dort rollte der Knopf mit dem Inhalt
    aus dem Bild. Das Panel selbst ist `position: fixed`, taugt also als Anker.
-   💣 Alle Werte aus Token (AGENTS.md §12) -- die Masse des Griffs teilt er sich mit den Randlaschen,
-   damit die drei Bedienelemente am Telefon gleich gross sind.
+   💣 Alle Werte aus Token (AGENTS.md §12). Er liest --avesmaps-tab-w und ist damit am Telefon 26x26 --
+   ein Fingerziel im Panelkopf, KEIN Randreiter: die zwei Reiter tragen seit dem 04.09.2026
+   --avesmaps-paneltab-* und bleiben auch am Telefon 30x140.
    Gewacht von js/app/__tests__/mobil-infobox-schliessen.test.js. */
 .avesmaps-infopanel__close {
 	position: absolute;
@@ -826,8 +828,8 @@ html.avesmaps-phone.avesmaps-any-panel-open #map-corner-actions {
    ist, und schliesst den jeweils anderen. Der Editor-Rand-Tab (#review-panel-toggle, existiert nur im
    Edit-Mode) rueckt UNTER den Info-Tab (top:30), damit beide lesbar gestapelt sind. */
 .avesmaps-infopanel-mode #review-panel-toggle {
-	top: calc(var(--avesmaps-tab-top) + var(--avesmaps-tab-h) + var(--space-8));
-	height: var(--avesmaps-tab-h); /* exakt gleiche Hoehe wie der Info-Tab */
+	top: calc(var(--avesmaps-paneltab-top) + var(--avesmaps-paneltab-h) + var(--space-8));
+	height: var(--avesmaps-paneltab-h); /* exakt gleiche Hoehe wie der Info-Tab */
 	/* Gleiche Optik wie der Info-Tab: gleicher Schatten, nur nach links. Der Editor-Tab ist per
 	   transform: rotate(180deg) gedreht -> ein pre-rotate "4px 0" wird post-rotate zu "-4px 0" (faellt
 	   also ebenfalls nach links). Kein vertikaler Versatz -> kein Doppelschatten zum Info-Tab. */
