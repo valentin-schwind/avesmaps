@@ -35,6 +35,11 @@ const AVESMAPS_API_METRICS_AUFBEWAHRUNG_TAGE = 400;
 // serialisiert an einer Zeilensperre. Das taegliche DELETE bleibt: die erste faellige Anfrage des
 // Tages gewinnt die Marke wie bisher.
 const AVESMAPS_API_METRICS_AUFRAEUMEN_TAKT = 100;
+// Der Puffer fuer Anfragen OHNE Datenbankverbindung. 256 KB fassen rund 3.000 Zeilen; darueber faellt
+// der Puffer OFFEN aus (siehe avesmapsApiMetricsSpoolAnhaengen) und die Verbindung wird gezahlt wie
+// frueher, statt den Puffer unbegrenzt wachsen zu lassen.
+const AVESMAPS_API_METRICS_SPOOL_MAX_BYTES = 262144;
+const AVESMAPS_API_METRICS_SPOOL_MAX_GRUPPEN = 400;
 
 function avesmapsApiMetricsAufraeumenFaellig(int $wurf): bool {
     return $wurf === 1;
@@ -236,6 +241,170 @@ function avesmapsApiMetricsSchreiben(PDO $pdo, array $zeilen): void {
         // Absicht: siehe oben. Dass der Zaehler stumm ist, wird im Panel an `letzte_zaehlung`
         // sichtbar -- nicht daran, dass hier etwas nach aussen dringt.
     }
+}
+
+/**
+ * DER PUFFER: eine Anfrage ohne Datenbankverbindung zahlt keine.
+ *
+ * 💣 DER SCHNELLPFAD DER POLITISCHEN EBENE OEFFNETE TROTZDEM EINE -- und damit war die teuerste
+ * Optimierung des Hauses zur Haelfte aufgehoben. `territories-endpoint.php` serviert einen frischen
+ * Cache-Treffer ausdruecklich VOR dem PDO ("a FRESH political-layer cache hit needs no DB
+ * connection") und `exit`et; die Abschlussroutine laeuft danach, fand
+ * `avesmapsLetzteDatenbankverbindung() === null` und baute eine neue Verbindung auf -- nur um zu
+ * zaehlen, dass keine gebraucht wurde. Gemessen 04.09.2026: 1.765 solcher Verbindungen an einem Tag,
+ * 2.266 am Vortag -- rund die Haelfte aller Aufrufe des heissesten Endpunkts.
+ *
+ * ⚠️ Auf Shared Hosting sind Verbindungen ein Kontingent, kein Nulltarif: ist es ausgereizt, wartet
+ * der Verbindungsaufbau, und der Worker haengt daran fest. Ausgerechnet die billigen Anfragen, die
+ * einen Engpass ueberleben sollten, haengen so an der knappsten Ressource.
+ *
+ * 🔴 GEZAEHLT WIRD TROTZDEM ALLES -- nicht abgetastet, nicht geschaetzt. Der Grundsatz aus dem
+ * Kommentar in bootstrap.php ("misst sich selbst, statt geschaetzt zu werden") bleibt gueltig; die
+ * Zeilen wandern nur in eine Datei und werden von der naechsten Anfrage mitgeschrieben, die ohnehin
+ * eine Verbindung hat.
+ */
+function avesmapsApiMetricsSpoolDatei(): string {
+    return sys_get_temp_dir() . '/avesmaps-api-metrik.spool';
+}
+
+/**
+ * @param list<array{metric: string, dimension: string, hour: int}> $zeilen
+ * @return bool true = die Zeilen liegen im Puffer, der Aufrufer darf OHNE Verbindung enden.
+ */
+function avesmapsApiMetricsSpoolAnhaengen(array $zeilen, string $tag): bool {
+    if ($zeilen === []) {
+        return true;
+    }
+    $datei = avesmapsApiMetricsSpoolDatei();
+    clearstatcache(true, $datei);
+    // 💣 DECKEL. Kaeme nie wieder eine Anfrage mit Verbindung, wuechse der Puffer sonst unbegrenzt.
+    // Darueber meldet er `false`, der Aufrufer zahlt die Verbindung -- und leert dabei den Puffer.
+    if (is_file($datei) && (int) @filesize($datei) > AVESMAPS_API_METRICS_SPOOL_MAX_BYTES) {
+        return false;
+    }
+    $text = '';
+    foreach ($zeilen as $zeile) {
+        $satz = json_encode([
+            't' => $tag,
+            'h' => (int) $zeile['hour'],
+            'm' => substr((string) $zeile['metric'], 0, 40),
+            'd' => substr((string) $zeile['dimension'], 0, 190),
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        if (!is_string($satz)) {
+            return false;
+        }
+        $text .= $satz . "\n";
+    }
+    // LOCK_EX, damit zwei gleichzeitige Anfragen sich keine Zeile zerschneiden.
+    return @file_put_contents($datei, $text, FILE_APPEND | LOCK_EX) !== false;
+}
+
+/**
+ * Fasst Pufferzeilen zu (Tag, Stunde, Metrik, Dimension) mit Anzahl zusammen. Rein -- kein
+ * Dateisystem, keine Datenbank, damit die Regel ohne beides pruefbar ist.
+ *
+ * @return list<array{tag: string, hour: int, metric: string, dimension: string, anzahl: int}>
+ */
+function avesmapsApiMetricsSpoolGruppieren(string $inhalt): array {
+    $gruppen = [];
+    foreach (explode("\n", $inhalt) as $zeile) {
+        if (trim($zeile) === '') {
+            continue;
+        }
+        $satz = json_decode($zeile, true);
+        // ⚠️ Eine halbe Zeile (abgebrochener Schreibvorgang, volle Platte) wird uebersprungen, nie
+        // geraten -- ein kaputter Satz darf den ganzen Puffer nicht verwerfen.
+        if (!is_array($satz) || !isset($satz['t'], $satz['h'], $satz['m'], $satz['d'])) {
+            continue;
+        }
+        $tag = (string) $satz['t'];
+        $stunde = (int) $satz['h'];
+        $metrik = (string) $satz['m'];
+        $dimension = (string) $satz['d'];
+        $schluessel = $tag . "\0" . $stunde . "\0" . $metrik . "\0" . $dimension;
+        if (!isset($gruppen[$schluessel])) {
+            $gruppen[$schluessel] = [
+                'tag' => $tag,
+                'hour' => $stunde,
+                'metric' => $metrik,
+                'dimension' => $dimension,
+                'anzahl' => 0,
+            ];
+        }
+        $gruppen[$schluessel]['anzahl']++;
+    }
+    return array_values($gruppen);
+}
+
+/**
+ * Schreibt gepufferte Gruppen.
+ *
+ * 🔴 DER TAG KOMMT AUS DEM PUFFER, nicht aus `UTC_DATE()`: eine um 23:59 gepufferte Zeile, die um
+ * 00:01 geleert wird, gehoert in den Vortag. Genau dafuer traegt jeder Satz sein Datum mit.
+ *
+ * @param list<array{tag: string, hour: int, metric: string, dimension: string, anzahl: int}> $gruppen
+ */
+function avesmapsApiMetricsSpoolSchreiben(PDO $pdo, array $gruppen): void {
+    if ($gruppen === []) {
+        return;
+    }
+    try {
+        $platzhalter = implode(', ', array_fill(0, count($gruppen), '(?, ?, ?, ?, ?)'));
+        // `VALUES(count)` statt `count + 1`: eine Gruppe traegt ihre Anzahl mit.
+        $sql = 'INSERT INTO api_metric (day, hour, metric, dimension, count) VALUES '
+            . $platzhalter
+            . ' ON DUPLICATE KEY UPDATE count = count + VALUES(count)';
+        $werte = [];
+        foreach ($gruppen as $gruppe) {
+            $werte[] = (string) $gruppe['tag'];
+            $werte[] = (int) $gruppe['hour'];
+            $werte[] = substr((string) $gruppe['metric'], 0, 40);
+            $werte[] = substr((string) $gruppe['dimension'], 0, 190);
+            $werte[] = max(1, (int) $gruppe['anzahl']);
+        }
+        try {
+            $pdo->prepare($sql)->execute($werte);
+        } catch (Throwable $vielleichtFehltDieTabelle) {
+            // Dieselbe Regel wie beim gewoehnlichen Schreiben: einmal scheitern lassen, anlegen,
+            // einmal wiederholen -- statt bei jeder Anfrage ein DDL zu zahlen.
+            avesmapsApiMetricsEnsureTable($pdo);
+            $pdo->prepare($sql)->execute($werte);
+        }
+    } catch (Throwable $fehler) {
+        // Absicht: der Zaehler traegt nichts nach aussen.
+    }
+}
+
+/**
+ * Leert den Puffer. Gerufen von jeder Anfrage, die ohnehin eine Verbindung hat.
+ *
+ * 💣 GEHOLT WIRD PER `rename`, nicht per Lesen-und-Loeschen: nur EIN Prozess gewinnt die Datei, alle
+ * anderen bekommen `false` und tun nichts. Ohne das schrieben zwei gleichzeitige Anfragen denselben
+ * Puffer zweimal in die Tabelle.
+ *
+ * @return int Zahl der geschriebenen Gruppen (0 = nichts zu tun)
+ */
+function avesmapsApiMetricsSpoolLeeren(PDO $pdo): int {
+    $datei = avesmapsApiMetricsSpoolDatei();
+    clearstatcache(true, $datei);
+    if (!is_file($datei)) {
+        return 0;
+    }
+    $uebergabe = $datei . '.' . getmypid() . '.' . bin2hex(random_bytes(4));
+    if (!@rename($datei, $uebergabe)) {
+        return 0;
+    }
+    $inhalt = @file_get_contents($uebergabe);
+    @unlink($uebergabe);
+    if (!is_string($inhalt) || $inhalt === '') {
+        return 0;
+    }
+    $gruppen = avesmapsApiMetricsSpoolGruppieren($inhalt);
+    if (count($gruppen) > AVESMAPS_API_METRICS_SPOOL_MAX_GRUPPEN) {
+        $gruppen = array_slice($gruppen, 0, AVESMAPS_API_METRICS_SPOOL_MAX_GRUPPEN);
+    }
+    avesmapsApiMetricsSpoolSchreiben($pdo, $gruppen);
+    return count($gruppen);
 }
 
 /**

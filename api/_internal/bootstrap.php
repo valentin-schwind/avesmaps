@@ -683,13 +683,6 @@ function avesmapsApiMetricsRegistrieren(): void {
 
             $pdo = avesmapsLetzteDatenbankverbindung();
             $ohneVerbindung = $pdo === null;
-            if ($ohneVerbindung) {
-                // Diese Anfrage hat gar keine Datenbank gebraucht. Selbst eine zu oeffnen ist der
-                // einzige Punkt, an dem der Zaehler etwas kostet, was die Anfrage sonst nicht
-                // gebraucht haette -- deshalb bekommt der Fall eine eigene Dimension und misst
-                // sich selbst, statt geschaetzt zu werden.
-                $pdo = avesmapsCreatePdo($config['database'] ?? []);
-            }
 
             $zeilen = avesmapsApiMetricsZeilenFuerAnfrage(
                 (string) ($_SERVER['SCRIPT_NAME'] ?? ''),
@@ -699,11 +692,26 @@ function avesmapsApiMetricsRegistrieren(): void {
                 (int) gmdate('G')
             );
             if ($ohneVerbindung) {
+                // Diese Anfrage hat gar keine Datenbank gebraucht -- der Fall bekommt eine eigene
+                // Dimension und misst sich selbst, statt geschaetzt zu werden.
                 $zeilen[] = [
                     'metric' => 'antwort',
                     'dimension' => 'ohne_verbindung|' . ($abgeschlossen ? 'ja' : 'leer'),
                     'hour' => AVESMAPS_API_METRICS_KEINE_STUNDE,
                 ];
+                // 🔴 UND SIE OEFFNET AUCH KEINE. Bis zum 04.09.2026 stand hier ein
+                // avesmapsCreatePdo() -- allein fuer den Zaehler. Das hob den Schnellpfad der
+                // politischen Ebene zur Haelfte auf, der ausdruecklich VOR dem PDO antwortet
+                // (territories-endpoint.php: "needs no DB connection") und danach `exit`et.
+                // Gemessen an jenem Tag: 1.765 solcher Verbindungen, 2.266 am Vortag.
+                // Die Zeilen wandern in den Puffer; die naechste Anfrage MIT Verbindung nimmt sie mit.
+                if (avesmapsApiMetricsSpoolAnhaengen($zeilen, gmdate('Y-m-d'))) {
+                    return;
+                }
+                // ⚠️ FAELLT OFFEN AUS: laesst sich der Puffer nicht schreiben (Temp voll oder nicht
+                // beschreibbar, Deckel erreicht), wird die Verbindung wie frueher gezahlt. Langsamer,
+                // nie kaputt -- und keine Zeile geht verloren.
+                $pdo = avesmapsCreatePdo($config['database'] ?? []);
             }
 
             // ⚠️ KEIN avesmapsApiMetricsEnsureTable() hier. Das waere ein CREATE TABLE IF NOT
@@ -711,6 +719,8 @@ function avesmapsApiMetricsRegistrieren(): void {
             // §10 an territories-endpoint.php anprangert. Der Schreiber ruestet die Tabelle nach,
             // wenn die erste Anweisung an ihr scheitert, und danach nie wieder.
             avesmapsApiMetricsSchreiben($pdo, $zeilen);
+            // Diese Anfrage hat ohnehin eine Verbindung -- also nimmt sie mit, was gepuffert wurde.
+            avesmapsApiMetricsSpoolLeeren($pdo);
             avesmapsApiMetricsAufraeumen($pdo);
         } catch (Throwable $fehler) {
             // Die Abschlussroutine darf unter keinen Umstaenden etwas nach aussen tragen.
