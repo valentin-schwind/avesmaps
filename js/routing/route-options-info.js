@@ -389,10 +389,10 @@ function avesmapsRouteOptionsZoneFallbackLabel(zoneKey) {
 	}
 
 	function dialogHtml() {
-		return '<div class="tsi-dialog roi-dialog" role="dialog" aria-modal="true" aria-labelledby="roi-title">'
-			+ '<div class="tsi-head"><span class="tsi-i" aria-hidden="true">ⓘ</span>'
-			+ '<h2 id="roi-title">' + tx("planner.optionsInfo.title", "Reiseoptionen") + "</h2>"
-			+ '<button type="button" class="tsi-close" aria-label="' + esc(tx("planner.optionsInfo.closeAria", "Schließen")) + '">✕</button></div>'
+		return '<div class="avm-fenster avm-fenster--blatt tsi-dialog roi-dialog" role="dialog" aria-modal="true" aria-labelledby="roi-title">'
+			+ '<div class="tsi-head avm-fenster__kopf"><span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span><span class="tsi-i" aria-hidden="true">ⓘ</span>'
+			+ '<h2 class="avm-fenster__titel" id="roi-title">' + tx("planner.optionsInfo.title", "Reiseoptionen") + "</h2>"
+			+ '<button type="button" class="tsi-close avm-fenster__knopf avm-fenster__knopf--nackt" aria-label="' + esc(tx("planner.optionsInfo.closeAria", "Schließen")) + '">✕</button></div>'
 			+ '<div class="tsi-body">'
 			+ '<p class="tsi-intro">' + tx("planner.optionsInfo.intro",
 				"Was <b>sucht neu</b> trägt, ändert den Weg selbst — alles Übrige nur die Zahlen zur gefundenen Route.") + "</p>"

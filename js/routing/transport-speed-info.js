@@ -151,13 +151,13 @@
 
 	function dialogHtml() {
 		return (
-			'<div class="tsi-dialog" role="dialog" aria-modal="true" aria-labelledby="tsi-title">' +
-			'<div class="tsi-head"><span class="tsi-i" aria-hidden="true">ⓘ</span>' +
+			'<div class="avm-fenster avm-fenster--blatt tsi-dialog" role="dialog" aria-modal="true" aria-labelledby="tsi-title">' +
+			'<div class="tsi-head avm-fenster__kopf"><span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span><span class="tsi-i" aria-hidden="true">ⓘ</span>' +
 			// Heisst seit 2026-08-03 wie die Gruppe, an der der ⓘ haengt (Owner). „Reisegeschwindigkeiten
 			// und Wegtypen" beschrieb den Inhalt, nannte aber nicht den Ort -- und daneben steht jetzt ein
 			// zweiter Dialog, der „Reiseoptionen" heisst wie SEINE Gruppe.
-			'<h2 id="tsi-title">' + esc(tr("transport.speedInfo.title", "Transportmittel")) + "</h2>" +
-			'<button type="button" class="tsi-close" aria-label="' + esc(tr("transport.speedInfo.closeAria", "Schließen")) + '">✕</button></div>' +
+			'<h2 class="avm-fenster__titel" id="tsi-title">' + esc(tr("transport.speedInfo.title", "Transportmittel")) + "</h2>" +
+			'<button type="button" class="tsi-close avm-fenster__knopf avm-fenster__knopf--nackt" aria-label="' + esc(tr("transport.speedInfo.closeAria", "Schließen")) + '">✕</button></div>' +
 			'<div class="tsi-body">' +
 			'<p class="tsi-intro">' + tr("transport.speedInfo.intro", "Wie schnell du vorankommst, hängt vom gewählten Transportmittel <em>und</em> vom Wegtyp ab. Eine gute Reichsstraße trägt dich doppelt so schnell wie ein Gebirgspfad. Alle Werte in Meilen pro Stunde (1 Meile = 1&nbsp;km).") + "</p>" +
 			'<div class="tsi-wcard"><div class="tsi-wtitle">' + iconImg("icons/landweg.webp") + esc(tr("transport.speedInfo.landTravel", "Landreise")) + '</div>' +
@@ -252,10 +252,10 @@
 	 * Hebel daran.
 	 */
 	function curvesHtml() {
-		return '<div class="tsi-dialog tsi-curves-dialog" role="dialog" aria-modal="true" aria-labelledby="tsi-curves-title">'
-			+ '<div class="tsi-head"><span class="tsi-i" aria-hidden="true">ⓘ</span>'
-			+ '<h2 id="tsi-curves-title">' + esc(tr("transport.speedInfo.curvesTitle", "Das Reisemodell, wie es gerade rechnet")) + "</h2>"
-			+ '<button type="button" class="tsi-close" aria-label="' + esc(tr("transport.speedInfo.closeAria", "Schließen")) + '">✕</button></div>'
+		return '<div class="avm-fenster avm-fenster--blatt tsi-dialog tsi-curves-dialog" role="dialog" aria-modal="true" aria-labelledby="tsi-curves-title">'
+			+ '<div class="tsi-head avm-fenster__kopf"><span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span><span class="tsi-i" aria-hidden="true">ⓘ</span>'
+			+ '<h2 class="avm-fenster__titel" id="tsi-curves-title">' + esc(tr("transport.speedInfo.curvesTitle", "Das Reisemodell, wie es gerade rechnet")) + "</h2>"
+			+ '<button type="button" class="tsi-close avm-fenster__knopf avm-fenster__knopf--nackt" aria-label="' + esc(tr("transport.speedInfo.closeAria", "Schließen")) + '">✕</button></div>'
 			+ '<div class="tsi-body"><div id="tsi-curves-host"></div></div></div>';
 	}
 

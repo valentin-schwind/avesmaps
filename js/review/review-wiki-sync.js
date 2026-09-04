@@ -1277,9 +1277,10 @@ function avesmapsDumpReportInjectStyles() {
 	avesmapsDumpReportStylesInjected = true;
 	const css = `
 .avm-dr-overlay{position:fixed;inset:0;z-index:var(--z-modal,5000);display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;overflow:auto;background:rgba(40,28,14,.45);}
-.avm-dr-card{position:relative;width:100%;max-width:720px;background:var(--color-panel);color:var(--color-text);border:1px solid var(--color-border);border-radius:var(--radius-lg,10px);box-shadow:var(--shadow-dialog,0 10px 30px rgba(0,0,0,.3));padding:20px 22px 16px;font-family:var(--font-ui,"Faculty Glyphic",sans-serif);}
-.avm-dr-x{position:absolute;top:10px;right:12px;border:0;background:transparent;color:var(--color-text-muted);font-size:22px;line-height:1;cursor:pointer;padding:2px 8px;border-radius:var(--radius-md,8px);}
-.avm-dr-x:hover{background:var(--color-hover-wash,rgba(0,0,0,.06));}
+.avm-dr-card{width:100%;max-width:720px;}
+/* Nur die Groesse bleibt hier: Aussehen, Radius und Grund kommen vom Bauteil. */
+.avm-dr-body{flex:1 1 auto;min-height:0;overflow-y:auto;padding:var(--space-16) var(--space-20);}
+
 .avm-dr-h1{font-size:var(--font-size-title,20px);font-weight:700;margin:0 0 3px;color:var(--color-text-strong);}
 .avm-dr-meta{font-size:var(--font-size-small,12px);color:var(--color-text-muted);margin:0;}
 .avm-dr-h2{font-size:var(--font-size-caption,11px);font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--color-accent-strong);margin:18px 0 0;}
@@ -1567,12 +1568,12 @@ async function avesmapsOpenDumpReport(report, delta) {
 		});
 
 		const card = document.createElement("div");
-		card.className = "avm-dr-card";
+		card.className = "avm-dr-card avm-fenster avm-fenster--werkzeug";
 		card.setAttribute("role", "dialog");
 		card.setAttribute("aria-modal", "true");
 		card.innerHTML = `
-			<button class="avm-dr-x" type="button" aria-label="Schließen">×</button>
-			<div class="avm-dr-h1">📜 Dump-Report</div>
+			<div class="avm-fenster__kopf"><span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span><h2 class="avm-fenster__titel">📜 Dump-Report</h2><button class="avm-dr-x avm-fenster__knopf avm-fenster__knopf--gefasst" type="button" aria-label="Schließen">✕</button></div>
+			<div class="avm-dr-body">
 			<p class="avm-dr-meta">Ergebnis des Dump-Laufs</p>
 			${avesmapsDumpReportRunSectionHtml(report, delta)}
 			<div class="avm-dr-h2">Selbsttests</div>
@@ -1580,6 +1581,7 @@ async function avesmapsOpenDumpReport(report, delta) {
 			<p class="avm-dr-summary" id="avm-dr-summary">Tests werden geprüft …</p>
 			<ul class="avm-dr-tests" id="avm-dr-tests"></ul>
 			<p class="avm-dr-note">🛈 Reines Ansehen — nichts hier schreibt an der Karte.</p>
+			</div>
 			<div class="avm-dr-foot">
 				<button class="avm-dr-btn primary" id="avm-dr-ok" type="button">OK · schließen</button>
 				<button class="avm-dr-btn" id="avm-dr-rerun" type="button">Tests erneut prüfen</button>

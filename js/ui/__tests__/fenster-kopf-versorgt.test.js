@@ -126,3 +126,68 @@ for (const regel of kopien[1].regeln) {
 }
 console.log("OK -- die modal-box-Rezeptur steht in beiden Dateien zeichengleich (" +
 	kopien[0].regeln.length + " Regeln)");
+
+// ---- 3) DAS INVENTAR -- jedes Fenster im Haus, und wer nicht am Bauteil haengt -----------------
+// 💣 WARUM DIESER ABSCHNITT DER WICHTIGSTE IST. Auf die Frage „hast du alles?" habe ich am
+//    04.09.2026 aus dem Gedaechtnis geantwortet und mich zweimal geirrt: der Dump-Bericht stand in
+//    KEINER Zeile des Bauplans, und die drei Fenster der Reisegeschwindigkeiten hatte ich als
+//    „Hinweisbanner, kein Fensterkopf" abgetan -- weil ihr Kopf ein ⓘ traegt. Beides fand erst das
+//    systematische Nachzaehlen ALLER role="dialog"-Huellen.
+// 🔴 Eine Huelle ist genau das: sie traegt `role="dialog"`. Innenteile (__frame, __row, __chip)
+//    tun das nie -- der erste Sucher zaehlte sie mit und meldete 32 Luecken statt 9.
+// ⚠️ Die Liste unten ist die AUSNAHME, nicht die Erlaubnis: wer ein Fenster hinzufuegt, das nicht
+//    am Bauteil haengt, muss es HIER eintragen und begruenden. Ein Fenster, das einfach so
+//    danebensteht, faellt auf.
+{
+	const WURZEL2 = path.join(__dirname, "..", "..", "..");
+	const AUSNAHMEN = {
+		"spotlight-search": "Bauplan Abschnitt C -- Owner 04.09.2026: die Suche bleibt unberuehrt",
+		"ecosystem-properties-dialog": "Karten-Werkzeug: pointer-events:none, arbeitet AUF der Karte",
+		"ecosystem-import-dialog": "Karten-Werkzeug (zweimal benutzt: Grenze aus Territorien, Reihenfolge)",
+		"modal-box": "die sechs Sync-Fenster: Werte angeglichen, Bauform ist ein eigener Durchgang",
+	};
+	function alleJsDateien(verzeichnis, sammler) {
+		for (const eintrag of fs.readdirSync(verzeichnis, { withFileTypes: true })) {
+			const pfad = path.join(verzeichnis, eintrag.name);
+			if (eintrag.isDirectory()) {
+				if (eintrag.name !== "__tests__" && eintrag.name !== "third-party") alleJsDateien(pfad, sammler);
+			} else if (eintrag.name.endsWith(".js")) { sammler.push(pfad); }
+		}
+		return sammler;
+	}
+	const quellen = [path.join(WURZEL2, "index.html")]
+		.concat(fs.readdirSync(path.join(WURZEL2, "html")).filter((f) => f.endsWith(".html"))
+			.map((f) => path.join(WURZEL2, "html", f)))
+		.concat(alleJsDateien(path.join(WURZEL2, "js"), []));
+
+	const huellen = [];
+	for (const datei of quellen) {
+		const txt = fs.readFileSync(datei, "utf8");
+		let m;
+		const reMarkup = /<(?:div|section)[^>]*role=["']dialog["'][^>]*>/g;
+		while ((m = reMarkup.exec(txt))) {
+			huellen.push({ klassen: (m[0].match(/class=["']([^"']+)["']/) || [])[1] || "", datei });
+		}
+		const reJs = /(\w+)\.className\s*=\s*["']([^"']+)["'];?[\s\S]{0,400}?\1\.setAttribute\(["']role["'],\s*["']dialog["']\)/g;
+		while ((m = reJs.exec(txt))) { huellen.push({ klassen: m[2], datei }); }
+		const reInner = /innerHTML\s*=\s*'<div class="([^"]+)" role="dialog"/g;
+		while ((m = reInner.exec(txt))) { huellen.push({ klassen: m[1], datei }); }
+	}
+
+	assert.ok(huellen.length >= 40,
+		"Der Sucher findet nur noch " + huellen.length + " Fensterhuellen -- er misst sich selbst kaputt");
+
+	const unerklaert = [];
+	for (const h of huellen) {
+		if (/\bavm-fenster\b/.test(h.klassen)) continue;
+		const klassen = h.klassen.split(/\s+/);
+		if (klassen.some((k) => Object.prototype.hasOwnProperty.call(AUSNAHMEN, k))) continue;
+		unerklaert.push(h.klassen.split(/\s+/).slice(0, 2).join(" ") + "   (" + h.datei.split(/[\/]/).pop() + ")");
+	}
+	assert.deepStrictEqual(unerklaert, [],
+		"Fenster, die weder am Bauteil haengen noch als Ausnahme begruendet sind:\n   "
+		+ unerklaert.join("\n   "));
+	console.log("OK -- " + huellen.length + " Fensterhuellen, "
+		+ (huellen.length - huellen.filter((h) => !/\bavm-fenster\b/.test(h.klassen)).length)
+		+ " am Bauteil, " + huellen.filter((h) => !/\bavm-fenster\b/.test(h.klassen)).length + " begruendete Ausnahmen");
+}

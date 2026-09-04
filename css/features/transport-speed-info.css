@@ -59,53 +59,19 @@
 	display: none;
 }
 
-/* 940 since 2026-08-03 (owner: „kann genauso breit werden wie Reiseoptionen") — the two dialogs
-   are siblings and sat at different widths, which reads as an accident. Before that 720 instead of
-   600 since V11 („du kannst in die breite gehen"): the speed matrix has seven path rows across six
-   transport columns and was already cramped. Every widening buys back height, and this one lets
-   the seven-column matrix breathe. */
+/* 🔴 Rand, Radius, Grund, Schatten und Textfarbe gehoeren dem Bauteil
+   (css/components/fenster.css). Was bleibt, ist das Mass dieser drei Fenster. */
 .tsi-dialog {
 	width: 100%;
 	max-width: 940px;
-	border: 1px solid var(--color-border);
-	border-radius: var(--radius-lg);
-	background: var(--color-panel);
-	color: var(--color-text);
-	box-shadow: var(--shadow-dialog);
 }
 
-.tsi-head {
-	display: flex;
-	align-items: center;
-	gap: var(--space-8);
-	padding: var(--space-16) var(--space-20);
-	border-bottom: 1px solid var(--color-divider);
-}
+/* 🔴 Polster, Ausrichtung, Abstand und Trennlinie gehoeren dem Bauteil. Hier stand 18/22 --
+   das Bauteil sagt 6/14. Was bleibt, ist NICHTS: das ⓘ und der Titel haben eigene Regeln. */
 .tsi-head .tsi-i {
 	color: var(--color-accent-strong);
 	font-size: var(--font-size-title);
 	line-height: 1;
-}
-.tsi-head h2 {
-	margin: 0;
-	color: var(--color-text-strong);
-	font-size: var(--font-size-title);
-	font-weight: var(--font-weight-bold);
-}
-.tsi-close {
-	margin-left: auto;
-	padding: var(--space-2) var(--space-6);
-	border: 0;
-	border-radius: var(--radius-md);
-	background: transparent;
-	color: var(--color-text-muted);
-	font-size: var(--font-size-title);
-	line-height: 1;
-	cursor: pointer;
-}
-.tsi-close:hover {
-	background: var(--color-hover-wash);
-	color: var(--color-text-strong);
 }
 
 .tsi-body {
