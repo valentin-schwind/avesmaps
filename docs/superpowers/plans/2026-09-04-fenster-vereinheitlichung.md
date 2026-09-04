@@ -1,6 +1,6 @@
 # Fenster-Vereinheitlichung — die Liste
 
-**Stand 04.09.2026 spaet · 37 von 41 Fenstern umgestellt; D, E und T3 erledigt.**
+**Stand 05.09.2026 · 37 von 41 Fenstern umgestellt; D, E, T3 und der Rahmenkasten erledigt.**
 Entwurf und Mockup: `docs/fensterformen-mockup.html`, Regelwerk: `docs/design-language.md`
 §Fenster. Bauteile: `css/components/fenster.css` + `js/ui/fenster-kopf.js`.
 
@@ -13,7 +13,7 @@ Entwurf und Mockup: `docs/fensterformen-mockup.html`, Regelwerk: `docs/design-la
 | E · Listenkopf | **live** — „Meldungen" angeglichen, zwei Filter-Kopien zeichengleich |
 | Reiter (T3) | **live** — tote Pillen-Rezeptur gefallen, `.dg-tab` auf Unterstrich; der Rest (~50 Regeln, u.a. die Dokument-Reiter der Territorien) ist ein eigener Durchgang |
 | Listenzeile `.avm-row` + Bildplatz | 🔧 offen |
-| Rahmenkasten (4 Rezepturen) | **entschieden 04.09.2026**, noch nicht gebaut — Form von `.fs-scope`, Werte von `.report-section`, klappbar = K2 |
+| Rahmenkasten (4 Rezepturen) | **live 04.09.2026** in drei Schritten (`97dd3ccb0` Quellen · `266cde7ae` Meldeformular · `12fd8b2a9` Routenplaner) — `css/components/rahmenkasten.css`, Form von `.fs-scope`, Werte von `.report-section`, klappbar = K2 |
 | 6 × `modal-box` (Sync-Seiten) | Werte angeglichen, **Bauform bewusst nicht** — eigener Durchgang |
 | Übernahme-Vorschau · Reisegeschwindigkeiten · Postfach | **begründet NICHT** — anders gebaut, siehe unten |
 | A13 Kartensammlung · A14 Literatur · Besondere Stätten | **live als WERKZEUGfenster** — zuerst als Blatt gebaut, gegen die eigene Regel; korrigiert |

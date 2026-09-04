@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wappen im Editor — eine Ordnung für Orte und Territorien (Mockup)</title>
+<style>
+/* Werte 1:1 aus css/base/tokens.css (dunkles Thema -- die Editorfenster sind dunkel).
+   Nichts hier ist geraten. */
+:root {
+	--panel:            #312e26;
+	--panel-soft:       #37342b;
+	--panel-muted:      #39352b;
+	--panel-active:     #4c4636;
+	--text-strong:      #f5f0e4;
+	--text-muted:       #b4a895;
+	--border:           #514a3c;
+	--border-strong:    #615a49;
+	--divider:          rgba(207, 197, 171, 0.24);
+	--button-soft:      #3a362c;
+	--button-soft-text: #eae1cf;
+	--button-soft-border: #585142;
+	--link:             #d7c38b;
+	--hover-wash:       rgba(207, 183, 103, 0.18);
+	--warn:             #c9836b;
+	--radius-sm: 5px;
+	--radius-md: 8px;
+	--font-size-caption: 11px;
+	--font-size-small:   12px;
+	--font-size-body:    13px;
+	--font-size-subhead: 16px;
+	--font-size-title:   20px;
+}
+* { box-sizing: border-box; }
+body {
+	margin: 0; padding: 28px 22px 60px;
+	background: #241f18; color: var(--text-strong);
+	font-family: "Segoe UI", system-ui, sans-serif; font-size: var(--font-size-body); line-height: 1.5;
+}
+h1 { font-size: var(--font-size-title); margin: 0 0 4px; color: var(--link); }
+h2 { font-size: var(--font-size-subhead); margin: 34px 0 10px; color: var(--link); }
+h3 { font-size: var(--font-size-body); margin: 20px 0 8px; color: var(--text-strong); }
+.lead { color: var(--text-muted); max-width: 78ch; margin: 0 0 6px; }
+.wrap { max-width: 1180px; margin: 0 auto; }
+
+/* ---- Menüband ------------------------------------------------------------------- */
+.ribbon { display: flex; gap: 8px; flex-wrap: wrap; background: var(--panel); border: 1px solid var(--border);
+	border-radius: var(--radius-md); padding: 10px; margin-bottom: 10px; }
+.rbtn { background: var(--button-soft); border: 1px solid var(--button-soft-border); color: var(--button-soft-text);
+	border-radius: var(--radius-md); padding: 8px 12px; min-width: 132px; cursor: default; }
+.rbtn b { display: block; font-size: var(--font-size-body); font-weight: 600; }
+.rbtn span { display: block; font-size: var(--font-size-caption); color: var(--text-muted); margin-top: 1px; }
+.rbtn--menu { border-color: var(--link); }
+.rbtn--gone { opacity: .38; text-decoration: line-through; }
+
+/* ---- Untermenü ------------------------------------------------------------------ */
+/* 🔴 Das Menü haengt UNTER seinem Knopf, nicht am linken Rand (Owner 23.08.2026). Deshalb sitzt
+   der Knopf in einem relativ positionierten Wrapper und das Menü absolut darunter -- so bleibt der
+   Bezug sichtbar, auch wenn das Band umbricht. */
+.rbtn-wrap { position: relative; }
+.menu { position: absolute; top: calc(100% + 6px); left: 0; z-index: 5;
+	width: 320px; background: var(--panel-soft); border: 1px solid var(--border-strong);
+	border-radius: var(--radius-md); padding: 6px; box-shadow: 0 8px 20px rgba(0,0,0,.35); }
+.ribbon--open { margin-bottom: 210px; }
+.mrow { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: var(--radius-sm); }
+.mrow + .mrow { border-top: 1px solid var(--divider); }
+.mrow:hover { background: var(--hover-wash); }
+.mrow__txt { flex: 1; min-width: 0; }
+.mrow__txt b { display: block; font-weight: 600; }
+.mrow__txt span { display: block; font-size: var(--font-size-caption); color: var(--text-muted); }
+.sw { flex: 0 0 auto; font-size: var(--font-size-caption); border-radius: 999px; padding: 2px 9px;
+	border: 1px solid var(--button-soft-border); background: var(--button-soft); color: var(--text-muted); }
+.sw--on { border-color: #7d8f4a; color: #cfe08e; }
+.sw--off { border-color: var(--warn); color: var(--warn); }
+
+/* ---- Listen --------------------------------------------------------------------- */
+.panel { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px; }
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+.row { display: flex; align-items: center; gap: 9px; padding: 7px 8px; border-radius: var(--radius-sm); }
+.row + .row { border-top: 1px solid var(--divider); }
+.thumb { flex: 0 0 26px; width: 26px; height: 26px; border-radius: 4px; background: var(--panel-active);
+	display: flex; align-items: center; justify-content: center; font-size: 13px; }
+.thumb--empty { background: transparent; border: 1px dashed var(--border); }
+.thumb--broken { background: #4a2f28; color: var(--warn); font-size: 11px; }
+.row__name { flex: 1; min-width: 0; }
+.row__name b { display: block; }
+.row__name span { display: block; font-size: var(--font-size-caption); color: var(--text-muted); }
+.row__type { font-size: var(--font-size-caption); color: var(--text-muted); }
+
+/* ---- Wappenkasten im Detailbereich ---------------------------------------------- */
+.coatbox { display: flex; gap: 11px; align-items: flex-start; padding: 11px; background: var(--panel-soft);
+	border: 1px solid var(--border); border-radius: var(--radius-md); }
+.coatbox__img { flex: 0 0 56px; width: 56px; height: 56px; border-radius: 6px; background: var(--panel-active);
+	display: flex; align-items: center; justify-content: center; font-size: 24px; }
+.coatbox__img--none { background: transparent; border: 1px dashed var(--border); color: var(--text-muted); font-size: 20px; }
+.coatbox__info { flex: 1; min-width: 0; }
+.coatbox__title { font-weight: 600; }
+.coatbox__sub { font-size: var(--font-size-caption); color: var(--text-muted); margin: 2px 0 6px; }
+.coatbox__links { font-size: var(--font-size-small); }
+.lnk { color: var(--link); cursor: pointer; }
+.lnk:hover { text-decoration: underline; }
+.sep { color: var(--text-muted); }
+
+.note { border-left: 3px solid var(--link); background: var(--panel-soft); padding: 9px 12px;
+	border-radius: var(--radius-sm); margin: 10px 0; font-size: var(--font-size-small); }
+.note--warn { border-left-color: var(--warn); }
+.note b { color: var(--text-strong); }
+.q { border-left-color: #7f96b5; }
+table { border-collapse: collapse; width: 100%; font-size: var(--font-size-small); margin: 8px 0; }
+th, td { text-align: left; padding: 7px 9px; border-bottom: 1px solid var(--divider); vertical-align: top; }
+th { color: var(--text-muted); font-weight: 600; }
+code { background: var(--panel-soft); padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+.cap { font-size: var(--font-size-caption); color: var(--text-muted); margin: 4px 0 14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Wappen im Editor — eine Ordnung für Orte und Territorien</h1>
+<p class="lead">Mockup, 23.08.2026. <b>Das ist keine Umsetzung, sondern meine Verständnisprobe.</b>
+Wenn hier etwas falsch steht, habe ich dich falsch verstanden — und dann korrigieren wir das Bild,
+nicht den Code.</p>
+
+<!-- ============================================================ -->
+<h2>1 · Das Menüband</h2>
+<p class="lead">Aus drei verstreuten Knöpfen wird <b>einer</b>: „Wappen". „Wappen lokalisieren"
+verschwindet aus dem Band und zieht als „Hole Wiki-Wappen" ins Untermenü.</p>
+
+<h3>Vorher</h3>
+<div class="ribbon">
+	<div class="rbtn"><b>🎌 Syncen</b><span>Letzte Sync: 20.08.2026</span></div>
+	<div class="rbtn"><b>Orte zuordnen</b><span>Ray-Cast über alles</span></div>
+	<div class="rbtn rbtn--gone"><b>Wappen lokalisieren</b><span>gemeinfrei laden</span></div>
+	<div class="rbtn"><b>Bilder: An</b><span>im Frontend</span></div>
+	<div class="rbtn rbtn--gone"><b>Wappen: Aus</b><span>im Frontend</span></div>
+	<div class="rbtn"><b>🔗 Links prüfen</b><span>Quellen der Orte</span></div>
+</div>
+
+<h3>Nachher</h3>
+<div class="ribbon ribbon--open">
+	<div class="rbtn"><b>🎌 Syncen</b><span>Letzte Sync: 20.08.2026</span></div>
+	<div class="rbtn"><b>Orte zuordnen</b><span>Ray-Cast über alles</span></div>
+	<div class="rbtn"><b>Bilder: An</b><span>im Frontend</span></div>
+	<div class="rbtn-wrap">
+		<div class="rbtn rbtn--menu"><b>🛡️ Wappen ▾</b><span>lokal an · Wiki aus</span></div>
+		<div class="menu">
+	<div class="mrow">
+		<div class="mrow__txt"><b>Lokale Wappen</b><span>eigene Uploads</span></div>
+		<div class="sw sw--on">AN</div>
+	</div>
+	<div class="mrow">
+		<div class="mrow__txt"><b>Wiki-Wappen</b><span>aus dem Wiki, nur gemeinfrei</span></div>
+		<div class="sw sw--off">AUS</div>
+	</div>
+	<div class="mrow">
+		<div class="mrow__txt"><b>Hole Wiki-Wappen</b><span>✓ alle 812 lokal · 61 nicht im Wiki</span></div>
+		<div class="sw">starten</div>
+	</div>
+		</div>
+	</div>
+	<div class="rbtn"><b>🔗 Links prüfen</b><span>Quellen der Orte</span></div>
+</div>
+<p class="cap">Das Menü hängt unter seinem Knopf. Die Zeile im Knopf selbst zeigt beide
+Schalterstellungen, damit man den Notaus sieht, ohne das Menü zu öffnen.</p>
+
+<div class="note"><b>Die zwei Schalter sind der Notaus.</b> Sie entscheiden, ob ein Wappen
+<b>im Frontend</b> erscheint — für den Fall, dass rechtlich etwas geklärt werden muss. Steht einer
+auf AUS, zeigt das Frontend an dieser Stelle das <b>Platzhalter-Symbol</b>, nicht nichts: das Layout
+bleibt, wie es ist. Im Editor bleibt alles sichtbar — dort arbeitet ihr, dort ändert der Schalter nichts.</div>
+
+<div class="note"><b>„Hole Wiki-Wappen"</b> lädt die Wappen auf unseren Server. Vorher prüft es die
+Lizenz: <b>nur gemeinfrei</b>. Und nur <b>Wappen</b> — keine Urlaubsfotos, keine Infobox-Bilder.
+Danach braucht die Karte das Wiki für diese Bilder nie wieder.</div>
+
+<!-- ============================================================ -->
+<h2>2 · Was ein Schalter tut — und was nicht</h2>
+<table>
+	<tr><th>Schalter</th><th>Frontend (Besucher)</th><th>Editor</th></tr>
+	<tr><td><b>Lokale Wappen: AN</b></td><td>zeigt eure Uploads</td><td>unverändert sichtbar</td></tr>
+	<tr><td><b>Lokale Wappen: AUS</b></td><td>Platzhalter-Symbol</td><td>unverändert sichtbar</td></tr>
+	<tr><td><b>Wiki-Wappen: AN</b></td><td>zeigt die gemeinfreien Wiki-Wappen</td><td>unverändert sichtbar</td></tr>
+	<tr><td><b>Wiki-Wappen: AUS</b></td><td>Platzhalter-Symbol</td><td>unverändert sichtbar</td></tr>
+</table>
+<div class="note note--warn"><b>Was heute falsch ist:</b> der jetzige Schalter „Wappen: Aus" nimmt
+dem Frontend das <b>lokale</b> Wappen weg und lässt die Wiki-Adresse stehen — der Leser fällt dann
+darauf zurück und fragt beim Wiki an. Der Notaus hat also genau das ausgelöst, was er verhindern
+sollte.</div>
+
+<!-- ============================================================ -->
+<h2>3 · Thumbs in Listen: nur, was wir haben</h2>
+<p class="lead">Ein Thumb erscheint, wenn das Bild <b>bei uns liegt</b> — nicht, wenn irgendwo eine
+Adresse steht.</p>
+
+<div class="cols">
+	<div>
+		<h3>Richtig</h3>
+		<div class="panel">
+			<div class="row"><div class="thumb">🛡️</div><div class="row__name"><b>Gareth</b><span>✓ Alt-Gareth</span></div><div class="row__type">Metropole</div></div>
+			<div class="row"><div class="thumb">🛡️</div><div class="row__name"><b>Bethana</b><span>✓ Baronie Piastinza</span></div><div class="row__type">Großstadt</div></div>
+			<div class="row"><div class="thumb thumb--empty"></div><div class="row__name"><b>Halle des Nebels</b><span>nur Wiki (nicht platziert)</span></div><div class="row__type">Besondere Bauwerke</div></div>
+			<div class="row"><div class="thumb thumb--empty"></div><div class="row__name"><b>Burg Gryffenstein</b><span>nur Wiki (nicht platziert)</span></div><div class="row__type">Besondere Bauwerke</div></div>
+		</div>
+		<p class="cap">Kein Wappen → leeres Feld. Die Namen bleiben bündig.</p>
+	</div>
+	<div>
+		<h3>Heute (falsch)</h3>
+		<div class="panel">
+			<div class="row"><div class="thumb">🛡️</div><div class="row__name"><b>Gareth</b><span>✓ Alt-Gareth</span></div><div class="row__type">Metropole</div></div>
+			<div class="row"><div class="thumb">🛡️</div><div class="row__name"><b>Bethana</b><span>✓ Baronie Piastinza</span></div><div class="row__type">Großstadt</div></div>
+			<div class="row"><div class="thumb thumb--broken">✖</div><div class="row__name"><b>Halle des Nebels</b><span>nur Wiki (nicht platziert)</span></div><div class="row__type">Besondere Bauwerke</div></div>
+			<div class="row"><div class="thumb thumb--broken">✖</div><div class="row__name"><b>Burg Gryffenstein</b><span>nur Wiki (nicht platziert)</span></div><div class="row__type">Besondere Bauwerke</div></div>
+		</div>
+		<p class="cap">Ein kaputtes Bild, weil im Wappenfeld eine Adresse steht, die wir nicht haben.</p>
+	</div>
+</div>
+
+<div class="note"><b>Warum das passiert:</b> der Wiki-Abgleich hat in das <i>Wappenfeld</i> auch
+das geschrieben, was im Wiki unter <code>bild</code> stand — bei „Halle des Nebels" also ein Foto.
+Das Feld liest seit heute nur noch <code>wappen</code> und <code>wappenbild</code>. Die Altlast
+bleibt aber stehen, bis ein Abgleich darüberläuft.</div>
+
+<!-- ============================================================ -->
+<h2>4 · Der Wappenkasten — bei Orten und Territorien gleich</h2>
+<p class="lead">Gleiche Anordnung, gleiche Wörter, gleiche Reihenfolge. Nur die Überschrift nennt
+das Objekt.</p>
+
+<div class="cols">
+	<div>
+		<h3>Ort · „Abbadom"</h3>
+		<div class="coatbox">
+			<div class="coatbox__img">🛡️</div>
+			<div class="coatbox__info">
+				<div class="coatbox__title">Wappen</div>
+				<div class="coatbox__sub">Eigener Upload · Public Domain · Fil</div>
+				<div class="coatbox__links">
+					<span class="lnk">Ersetzen / hochladen</span> <span class="sep">·</span>
+					<span class="lnk">Zurücksetzen</span> <span class="sep">·</span>
+					<span class="lnk">Entfernen</span>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div>
+		<h3>Territorium · „Bergkönigreich Xorlosch"</h3>
+		<div class="coatbox">
+			<div class="coatbox__img">🛡️</div>
+			<div class="coatbox__info">
+				<div class="coatbox__title">Wappen</div>
+				<div class="coatbox__sub">Wiki · Public Domain · Xeledons Spottdrossel</div>
+				<div class="coatbox__links">
+					<span class="lnk">Ersetzen / hochladen</span> <span class="sep">·</span>
+					<span class="lnk">Zurücksetzen</span> <span class="sep">·</span>
+					<span class="lnk">Entfernen</span>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<h3>Und wenn keines da ist — ebenfalls in beiden gleich</h3>
+<div class="cols">
+	<div>
+		<div class="coatbox">
+			<div class="coatbox__img coatbox__img--none">∅</div>
+			<div class="coatbox__info">
+				<div class="coatbox__title">Wappen</div>
+				<div class="coatbox__sub">keines hinterlegt</div>
+				<div class="coatbox__links"><span class="lnk">Ersetzen / hochladen</span></div>
+			</div>
+		</div>
+		<p class="cap">Kein Wappen: nur „hochladen". Kein „Zurücksetzen", kein „Entfernen" —
+		beide böten an, etwas zu tun, das es nicht gibt.</p>
+	</div>
+	<div>
+		<div class="coatbox">
+			<div class="coatbox__img coatbox__img--none">🚫</div>
+			<div class="coatbox__info">
+				<div class="coatbox__title">Wappen</div>
+				<div class="coatbox__sub">ausdrücklich keines — bleibt auch nach dem Abgleich leer</div>
+				<div class="coatbox__links">
+					<span class="lnk">Ersetzen / hochladen</span> <span class="sep">·</span>
+					<span class="lnk">Doch wieder zulassen</span>
+				</div>
+			</div>
+		</div>
+		<p class="cap">Nach „Entfernen": der dritte Zustand. Der nächste Wiki-Abgleich trägt
+		hier nichts mehr ein.</p>
+	</div>
+</div>
+
+<h3>Die drei Wörter</h3>
+<table>
+	<tr><th>Wort</th><th>Was es tut</th><th>Fragt es das Wiki?</th></tr>
+	<tr><td><b>Ersetzen / hochladen</b></td><td>eigene Datei oder Bild-URL</td><td>nur bei einer Wiki-URL, die ihr selbst eintippt</td></tr>
+	<tr><td><b>Zurücksetzen</b></td><td>eigenes weg, wieder der Wiki-Stand</td><td><b>ja</b> — genau dann darf es das</td></tr>
+	<tr><td><b>Entfernen</b></td><td>gar kein Wappen, dauerhaft</td><td>nein</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2>5 · Was ich noch nicht weiß</h2>
+<div class="note"><b>✓ Geklärt — ein gemeinsames Paar.</b> Heute gibt es <b>zwei getrennte</b>
+Schalter: einer im Ortseditor (Ortswappen), einer im Territorien-Editor (Territoriumswappen). Genau
+daran ist der Notaus gescheitert: im Ortseditor ausgeschaltet, und die Territoriumswappen blieben
+stehen — gemessen 23.08.2026: 0 Ortswappen in der Kartennutzlast, aber 382 Territoriumswappen im
+Politik-Layer. Künftig <b>ein Paar für beides</b>, in beiden Fenstern mit derselben Stellung.</div>
+
+<div class="note q"><b>Das Platzhalter-Symbol.</b> Ich nehme an, das ist der leere Schild
+(<code>/img/wappen.png</code>), den es schon gibt. Bei Siedlungen ersetzt das Wappen heute das
+Ortssymbol — dort würde ein leerer Schild also das Ortssymbol verdrängen. Soll bei Orten stattdessen
+das normale Ortssymbol zurückkommen?</div>
+
+<div class="note"><b>✓ Geklärt — weg damit.</b> Ein einmaliger Aufräum-Lauf leert jedes
+Wappenfeld, das nicht auf ein Wappen zeigt. ⚠️ Er fasst nur Felder an, die der Abgleich selbst
+gefüllt hat — eigene Uploads bleiben unangetastet.</div>
+
+<div class="note"><b>✓ Geklärt — „Zurücksetzen" ist das Gegenwort.</b> Owner: „entfernen ist
+entfernen und zurücksetzen ist zurücksetzen für den Fall, dass wir was verändert/überschrieben
+haben, was eigentlich da war." Zurücksetzen stellt den ursprünglichen Zustand her — auch nach einem
+Entfernen. Es braucht kein drittes Wort.</div>
+
+</div>
+</body>
+</html>
