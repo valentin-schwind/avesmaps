@@ -82,8 +82,8 @@
           <button type="button" class="rb-menu__sw" id="ecoRaycast" data-i18n-title="ecosystem.editor.raycast.title" title="Rechnet, welche Flächen ineinander liegen, in welchem Territorium sie liegen und welche Wege durch sie führen — und speichert das Ergebnis. Gezählt ab 10 % der kleineren der beiden Flächen; gespeichert wird je Richtung der eigene Anteil.">starten</button>
         </div>
         <div class="rb-menu__row">
-          <div class="rb-menu__txt"><b>Höhenraster</b><span id="ecoHeightmapInfo">noch nicht gerechnet</span></div>
-          <button type="button" class="rb-menu__sw" id="ecoHeightmap" title="Rechnet je Gebirgsfläche ihr Höhenraster im Browser und speichert es — eine Anfrage je Fläche. Der Pixelwert ist die Höhe in Schritt.">starten</button>
+          <div class="rb-menu__txt"><b>Höhenraster</b><span id="ecoHeightmapInfo">im Flächendialog speichern</span></div>
+          <button type="button" class="rb-menu__sw" id="ecoHeightmap" disabled title="Stillgelegt seit dem 04.09.2026: dieser Sammellauf rechnet noch die alte Bergsumme und würde jedes Höhenfeld der lokalen Gebirgssimulation damit überschreiben. Ein Gebirge bekommt sein Raster, wenn man es im Flächendialog speichert.">stillgelegt</button>
         </div>
         <div class="rb-menu__row">
           <div class="rb-menu__txt"><b>Wegprofile</b><span id="ecoProfilesInfo">noch nicht gerechnet</span></div>
@@ -1357,9 +1357,42 @@ function renderAssignmentTile() {
 // 🔴 EINE ANFRAGE JE FLÄCHE (Spec §3.3). 78 Flächen wären 5,25 MB roh und 7,0 MB base64 -- über
 // dem üblichen `post_max_size` von 8 MB. Je Fläche sind es höchstens 286 KB roh. Und ein Abbruch
 // entwertet dann nicht den ganzen Bestand, sondern lässt die schon geschriebenen Flächen stehen.
+// 🔴 STILLGELEGT AM 04.09.2026 -- ER IST DER ZWEITE ERZEUGER, UND ER RECHNET DIE ALTE RECHNUNG.
+//
+// Seit V12 entsteht das Hoehenfeld eines Gebirges in `avesmapsGebirgsRasterBauen`
+// (`js/map-features/map-features-ecosystem-hydrologie.js`): Randwertaufgabe aus Gipfeln, Kamm,
+// Fluessen und Seen, danach hydraulische Erosion. Dieser Lauf hier taste noch
+// `sampleEcosystemHeightField` ab -- die ueberlagerten Buckel der Bergsumme. Beide schreiben in
+// dieselbe Tabelle, und dieser hier wuerde beim naechsten Klick jedes V12-Raster ueberschreiben:
+// still, ohne Fehlermeldung, und der Unterschied faellt erst in der Wegfindung auf.
+// ⚠️ Das ist genau die Falle, die dieses Projekt bei der Verkehrsmittel-Sperre und beim
+// Querfeldein-Ausstieg schon zweimal bezahlt hat -- eine Regel, die einen von zwei Erzeugern
+// bindet, ist keine Regel.
+//
+// 🔧 WAS ER ZUM WEITERLEBEN BRAUCHT, und warum es nicht nebenbei ging: dem Editor fehlen drei
+// Eingaben des Trichters. `paths-geometry.php` liefert bewusst KEINE `properties` (1,5 MB statt
+// 17,79 MB, so steht es in seinem Kopf) -- also weder `feature_subtype`, noch die Fliessrichtung
+// `flow.dir`, noch `is_bach`; und die Kammlinie (`curve_label_line`) haengt am LABEL, das diese
+// Seite gar nicht laedt. Das ist ein eigenes Stueck Arbeit an drei Stellen, kein Nebeneffekt.
+//
+// Bis dahin: ein Gebirge bekommt sein Raster, wenn man es im Flaechendialog der Karte speichert
+// (`gebirgsRasterHochladen`, height-render.js). Der Weg ist derselbe Endpunkt, dieselbe Kodierung.
+const HOEHENRASTER_SAMMELLAUF_STILLGELEGT = true;
+
 async function runHeightmaps() {
 	const tile = $("ecoHeightmap");
 	const info = $("ecoHeightmapInfo");
+	if (HOEHENRASTER_SAMMELLAUF_STILLGELEGT) {
+		// 💣 Der Riegel steht IM LAUF, nicht nur am `disabled` des Knopfes: ein `disabled` faellt bei
+		// jedem Neuaufbau des Menuebands, und die Funktion ist ueber die Konsole erreichbar.
+		info.textContent = "im Flächendialog speichern";
+		flashStatus("Der Sammellauf rechnet noch die alte Bergsumme und ist deshalb stillgelegt. "
+			// 🪤 "bad", nicht "warn": `setStatus` kennt genau zwei Toene (ok/bad) und laesst jeden
+			// dritten wirkungslos durchgehen -- die Meldung staende dann unauffaellig grau da.
+			+ "Ein Gebirge bekommt sein Höhenfeld, wenn du es im Flächendialog speicherst.", "bad");
+
+		return;
+	}
 	tile.disabled = true;
 	const started = Date.now();
 	try {
