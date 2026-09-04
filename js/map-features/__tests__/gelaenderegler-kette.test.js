@@ -224,11 +224,19 @@ pruefe("Gebirgszug ermitteln kommt nur ohne Anhalt -- und rechnet die Kammlinie"
 	// zuverlaessig transportieren -- beim Bau hat es viermal einen echten Umbruch in den Quelltext
 	// geschrieben. 2000 Zeichen decken die Funktion sicher ab.
 	const rumpf = properties.slice(start, start + 2000);
-	assert.ok(rumpf.includes('"refresh_curve"'), "er rechnet die Kurve gar nicht");
+	// 🔴 `compute_ridge`, NICHT `refresh_curve`. Jene Aktion rechnet die BESCHRIFTUNGSKURVE, und die
+	// entsteht nur bei eingeschalteter Kurvenbeschriftung -- der erste Bau rief sie, und der Knopf
+	// antwortete auf einer Flaeche ohne Kurvenbeschriftung mit „Für diese Fläche entsteht keine
+	// Kurve". Er verlangte damit, die Namensanzeige umzustellen, um das Gelaende zu formen.
+	// Owner 04.09.2026: „ohne die kurvenbeschriftung anzuwenden".
+	assert.ok(rumpf.includes('"compute_ridge"'),
+		"der Knopf rechnet die Beschriftungskurve statt der Kammlinie");
+	assert.ok(!rumpf.includes('"refresh_curve"'),
+		"der Knopf haengt noch an der Kurvenbeschriftung");
 	// 💣 OHNE DIE SOFORTANWENDUNG SAEHE ER WIRKUNGSLOS AUS: der Kartenpayload wird nach einer Aktion
-	// nicht neu geholt, die frisch gerechnete Kurve kaeme also erst beim naechsten vollen Laden an.
-	assert.ok(rumpf.includes("avesmapsCurveSettingAufLabelsAnwenden"),
-		"die gerechnete Kurve wird nicht sofort auf die Labels angewandt");
+	// nicht neu geholt, die frisch gerechnete Linie kaeme also erst beim naechsten vollen Laden an.
+	assert.ok(rumpf.includes("area.terrain_ridge_line = antwort.terrain_ridge_line"),
+		"die gerechnete Kammlinie wird nicht sofort auf die Flaeche geschrieben");
 	assert.ok(rumpf.includes("invalidate") && rumpf.includes("redraw"),
 		"das Hoehenfeld wird nach dem Rechnen nicht neu gezeichnet");
 	assert.ok(properties.includes('propertiesElement("terrain-ridge")?.addEventListener'),

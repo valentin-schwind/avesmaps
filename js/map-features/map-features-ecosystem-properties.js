@@ -1551,6 +1551,11 @@
 		if (peaksInsideArea(area).length > 0) {
 			return true;
 		}
+		// Die EIGENE Kammlinie der Flaeche -- sie haengt an keiner Beschriftungseinstellung.
+		const eigene = area?.terrain_ridge_line;
+		if (Array.isArray(eigene) && eigene.length > 1) {
+			return true;
+		}
 		const regionId = String(area?.region_public_id || "");
 		if (regionId === "" || typeof labelData === "undefined" || !Array.isArray(labelData)) {
 			return false;
@@ -1566,35 +1571,37 @@
 		});
 	}
 
-	// „Gebirgszug ermitteln": die Beschriftungskurve der Region rechnen -- sie IST die Kammlinie.
-	// 🔴 Derselbe Weg wie „Labelkurve aktualisieren" im Kontextmenue der Flaeche (`refresh_curve`),
-	// samt derselben Sofortanwendung: der Kartenpayload wird nach einer Aktion nicht neu geholt, und
-	// ohne `avesmapsCurveSettingAufLabelsAnwenden` saehe der Knopf wirkungslos aus.
+	// „Gebirgszug ermitteln": die KAMMLINIE der Flaeche rechnen -- eine Gelaende-Eigenschaft.
+	//
+	// 🔴 NICHT `refresh_curve`. Jene Aktion rechnet die BESCHRIFTUNGSKURVE, und die entsteht nur bei
+	// eingeschalteter Kurvenbeschriftung: der erste Bau rief sie, und der Knopf antwortete auf einer
+	// Flaeche ohne Kurvenbeschriftung mit „Für diese Fläche entsteht keine Kurve" -- er verlangte
+	// also, die Namensanzeige umzustellen, um das Gelaende zu formen. Owner 04.09.2026: „ich will
+	// dass der button genau das mit tut - ohne die kurvenbeschriftung anzuwenden".
+	// ⚠️ Serverseitig rechnet `compute_ridge` mit DEMSELBEN Rechner (`avesmapsCurveBaseline`), nur
+	// ohne die Weiche davor -- zwei Rechner fuer dieselbe Mittelachse waeren die zweite Wahrheit.
+	// 🔴 Die Antwort wird SOFORT auf die Flaeche geschrieben: der Kartenpayload wird nach einer
+	// Aktion nicht neu geholt, und ohne das saehe der Knopf wirkungslos aus.
 	async function ermittleGebirgszug() {
 		const area = currentPropertiesArea();
-		const regionId = String(area?.region_public_id || "");
-		if (!area || regionId === "" || typeof postEcosystemEdit !== "function") {
-			setTerrainStatus("Diese Fläche gehört zu keiner Region.", true);
+		const publicId = String(area?.public_id || "");
+		if (!area || publicId === "" || typeof postEcosystemEdit !== "function") {
+			setTerrainStatus("Diese Fläche kann gerade nicht gerechnet werden.", true);
 
 			return;
 		}
 		setTerrainStatus("Gebirgszug wird ermittelt …", false);
 		try {
-			const antwort = await postEcosystemEdit("refresh_curve", { public_id: regionId });
+			const antwort = await postEcosystemEdit("compute_ridge", { public_id: publicId });
 			if (!antwort || antwort.gerechnet !== true) {
-				// ⚠️ „Nicht gerechnet" ist kein Fehler: die Region kann ausgeschaltet sein oder keine
-				// Flaeche mehr haben. Derselbe Satz wie im Kontextmenue.
-				setTerrainStatus("Für diese Fläche entsteht keine Kurve — ist die Kurvenbeschriftung aus?",
-					true);
+				// ⚠️ Kein Fehler: eine sehr kleine oder sehr runde Flaeche hat keine sinnvolle Achse.
+				// Das Hoehenfeld faellt dann auf seinen eigenen Mittelachsen-Rueckfall zurueck.
+				setTerrainStatus("Diese Fläche hat keine eindeutige Achse — das Gelände nutzt weiter "
+					+ "ihre Mitte.", true);
 
 				return;
 			}
-			if (typeof avesmapsCurveSettingAufLabelsAnwenden === "function") {
-				avesmapsCurveSettingAufLabelsAnwenden(
-					regionId, true, antwort.curve_label_max, antwort.curve_label_line
-				);
-			}
-			// Das Feld dieser Flaeche ist damit ein anderes.
+			area.terrain_ridge_line = antwort.terrain_ridge_line;
 			window.AvesmapsEcosystemHeightRender?.invalidate?.();
 			window.AvesmapsEcosystemHeightRender?.redraw?.();
 			renderTerrainControls(area);

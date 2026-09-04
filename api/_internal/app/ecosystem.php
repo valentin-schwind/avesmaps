@@ -432,6 +432,20 @@ function avesmapsEcosystemEnsureTables(PDO $pdo): void
         //   nirgends mehr gelesen wurde. Jene Spalte bleibt liegen (der Deploy loescht nie), aus dem
         //   Fenster ist sie raus.
         'terrain_hypsometrie' => 'DECIMAL(4,3)',
+        // 🔴 terrain_ridge_line -- die KAMMLINIE der Flaeche als JSON-Punktliste in
+        // Kartenkoordinaten, dieselbe Form wie `curve_label_line`.
+        //
+        // 💣 SIE IST EINE GELAENDE-EIGENSCHAFT, KEINE BESCHRIFTUNGS-EINSTELLUNG. Bis zum 04.09.2026
+        // las das Hoehenfeld die Beschriftungskurve (`curve_label_line`) als Kamm -- und die entsteht
+        // NUR, wenn die Kurvenbeschriftung eingeschaltet ist (`avesmapsCurveRefreshCacheForRegion`
+        // ueberspringt jede Region mit `enabled = false`). Damit haette ein Editor die Namensanzeige
+        // umstellen muessen, um sein Gelaende zu formen. Owner: „ich will dass der button genau das
+        // mit tut - ohne die kurvenbeschriftung anzuwenden".
+        // ⚠️ Gerechnet wird mit DEMSELBEN Rechner (`avesmapsCurveBaseline`) -- zwei Rechner fuer
+        // dieselbe Mittelachse waeren die zweite Wahrheit. Nur die Weiche davor faellt.
+        // 🔴 An der FLAECHE, nicht an der Region: das Hoehenfeld entsteht je Flaeche, und eine Region
+        // mit zwei Flaechen haette sonst eine Kammlinie fuer beide.
+        'terrain_ridge_line' => 'MEDIUMTEXT',
     ] as $column => $type) {
         if (!$areaColumnExists($pdo, $column)) {
             $pdo->exec('ALTER TABLE ecosystem_area ADD COLUMN ' . $column . ' ' . $type . ' NULL');
@@ -1676,6 +1690,7 @@ function avesmapsEcosystemReadAreas(
                 a.terrain_erosion,
                 a.terrain_plateau,
                 a.terrain_hypsometrie,
+                a.terrain_ridge_line,
                 a.terrain_bergform,
                 a.terrain_rauschen,
                 a.terrain_talbreite,
@@ -1750,6 +1765,9 @@ function avesmapsEcosystemReadAreas(
             'terrain_erosion' => $row['terrain_erosion'] === null ? null : (int) $row['terrain_erosion'],
             'terrain_plateau' => $row['terrain_plateau'] === null ? null : (float) $row['terrain_plateau'],
             'terrain_hypsometrie' => $row['terrain_hypsometrie'] === null ? null : (float) $row['terrain_hypsometrie'],
+            // ⚠️ Als geparste Liste, nicht als JSON-Text: der Browser reicht sie direkt an den
+            // Trichter, und ein zweiter Parse-Weg waere die Stelle, an der die Form auseinanderlaeuft.
+            'terrain_ridge_line' => avesmapsEcosystemDecodeRidgeLine($row['terrain_ridge_line'] ?? null),
             'terrain_bergform' => $row['terrain_bergform'] === null ? null : (float) $row['terrain_bergform'],
             'terrain_rauschen' => $row['terrain_rauschen'] === null ? null : (float) $row['terrain_rauschen'],
             'terrain_talbreite' => $row['terrain_talbreite'] === null ? null : (float) $row['terrain_talbreite'],
@@ -3367,6 +3385,80 @@ function avesmapsUpdateEcosystemRegion(PDO $pdo, array $payload, int $userId): a
  *
  * @return array{public_id:string, gerechnet:bool, ok:bool, revision:int}
  */
+/**
+ * Die gespeicherte Kammlinie einer Flaeche, als Punktliste oder null.
+ *
+ * ⚠️ Still gegen Muell: eine kaputte Zeile heisst „keine Kammlinie", nicht „Fehler". Das Hoehenfeld
+ * faellt dann auf die Mittelachse zurueck, und das ist besser als eine Ausnahme im Lesepfad der
+ * Kartennutzlast.
+ */
+function avesmapsEcosystemDecodeRidgeLine(mixed $roh): ?array
+{
+    if (!is_string($roh) || $roh === '') {
+        return null;
+    }
+    $linie = json_decode($roh, true);
+    if (!is_array($linie) || count($linie) < 2) {
+        return null;
+    }
+
+    return $linie;
+}
+
+/**
+ * Die KAMMLINIE einer Flaeche rechnen und speichern -- ohne die Kurvenbeschriftung anzufassen.
+ *
+ * 🔴 Owner 04.09.2026: „ich will dass der button genau das mit tut - ohne die kurvenbeschriftung
+ * anzuwenden". Die Beschriftungskurve entsteht nur bei eingeschalteter Kurvenbeschriftung; die
+ * Kammlinie ist aber eine Gelaende-Eigenschaft und darf davon nicht abhaengen.
+ * ⚠️ DERSELBE Rechner wie dort (`avesmapsCurveBaseline` + `avesmapsCurveResample`) -- nur ohne die
+ * Weiche `settings['enabled']`. Zwei Rechner fuer dieselbe Mittelachse waeren die zweite Wahrheit.
+ * 🔴 Je FLAECHE, aus IHRER Geometrie: das Hoehenfeld entsteht je Flaeche, und eine Region mit zwei
+ * Flaechen haette sonst eine Kammlinie fuer beide.
+ */
+function avesmapsEcosystemComputeRidgeLine(PDO $pdo, array $payload): array
+{
+    avesmapsEcosystemEnsureTables($pdo);
+    $publicId = avesmapsEcosystemReadPublicId($payload['public_id'] ?? '', 'public_id');
+
+    $stmt = $pdo->prepare(
+        'SELECT id, geometry_geojson FROM ecosystem_area WHERE public_id = :p AND is_active = 1 LIMIT 1'
+    );
+    $stmt->execute([':p' => $publicId]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    if ($row === false) {
+        throw new InvalidArgumentException('Diese Fläche gibt es nicht mehr.');
+    }
+    $geometrie = json_decode((string) $row['geometry_geojson'], true);
+    if (!is_array($geometrie)) {
+        throw new InvalidArgumentException('Diese Fläche hat keine lesbare Geometrie.');
+    }
+
+    $kurve = avesmapsCurveBaseline([$geometrie], []);
+    $linie = avesmapsCurveResample($kurve['line'] ?? [], AVESMAPS_CURVE_LABEL_PAYLOAD_POINTS);
+    if (!is_array($linie) || count($linie) < 2) {
+        // ⚠️ Kein Fehler: eine sehr kleine oder sehr runde Flaeche hat keine sinnvolle Achse. Das
+        // Hoehenfeld faellt dann auf seinen eigenen Mittelachsen-Rueckfall zurueck.
+        return ['public_id' => $publicId, 'gerechnet' => false, 'terrain_ridge_line' => null];
+    }
+
+    $schreib = $pdo->prepare(
+        'UPDATE ecosystem_area SET terrain_ridge_line = :linie WHERE id = :id'
+    );
+    $schreib->execute([':linie' => json_encode($linie, JSON_PRESERVE_ZERO_FRACTION), ':id' => (int) $row['id']]);
+
+    // 💣 Der ETag der Kartennutzlast haengt an dieser Revision -- ohne den Bump bliebe ein warmer
+    // Client per 304 auf dem alten Stand, und der Knopf saehe wirkungslos aus.
+    $revision = avesmapsNextEcosystemRevision($pdo);
+
+    return [
+        'public_id' => $publicId,
+        'gerechnet' => true,
+        'terrain_ridge_line' => $linie,
+        'revision' => $revision,
+    ];
+}
+
 function avesmapsRefreshEcosystemRegionCurve(PDO $pdo, array $payload): array
 {
     avesmapsEcosystemEnsureTables($pdo);
@@ -4692,7 +4784,7 @@ function avesmapsUpdateEcosystemAreaTerrain(PDO $pdo, array $payload, int $userI
 
     $lesenZurueck = $pdo->prepare(
         'SELECT terrain_grain, terrain_levels, terrain_avg_height, terrain_mean_height,
-                terrain_erosion, terrain_plateau, terrain_hypsometrie,
+                terrain_erosion, terrain_plateau, terrain_hypsometrie, terrain_ridge_line,
                 terrain_bergform, terrain_rauschen, terrain_talbreite, terrain_einschnitt,
                 terrain_sattel
            FROM ecosystem_area WHERE public_id = :p LIMIT 1'
@@ -4715,6 +4807,7 @@ function avesmapsUpdateEcosystemAreaTerrain(PDO $pdo, array $payload, int $userI
         'terrain_hypsometrie' => ($row['terrain_hypsometrie'] ?? null) === null
             ? null
             : (float) $row['terrain_hypsometrie'],
+        'terrain_ridge_line' => avesmapsEcosystemDecodeRidgeLine($row['terrain_ridge_line'] ?? null),
         'terrain_bergform' => ($row['terrain_bergform'] ?? null) === null ? null : (float) $row['terrain_bergform'],
         'terrain_rauschen' => ($row['terrain_rauschen'] ?? null) === null ? null : (float) $row['terrain_rauschen'],
         'terrain_talbreite' => ($row['terrain_talbreite'] ?? null) === null ? null : (float) $row['terrain_talbreite'],

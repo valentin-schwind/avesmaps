@@ -99,6 +99,10 @@ try {
         // Feld zu erfinden, das gar nicht geschrieben wird.
         // 🔴 Faehigkeit `edit` wie der ganze Endpunkt -- kein Admin (Owner-Entscheid).
         'refresh_curve' => avesmapsRefreshEcosystemRegionCurve($pdo, $payload),
+        // 🔴 Die KAMMLINIE des Gelaendes -- nicht die Beschriftungskurve. Sie haengt bewusst NICHT
+        // an der Kurvenbeschriftung: ein Editor soll sein Gelaende formen koennen, ohne die
+        // Namensanzeige umzustellen (Owner 04.09.2026).
+        'compute_ridge' => avesmapsEcosystemComputeRidgeLine($pdo, $payload),
         // „Ganz nach vorn" / „ganz nach hinten" (19.08.2026). Eigene Aktion NEBEN update_region und
         // nicht darin: die Bewegung braucht den hoechsten bzw. niedrigsten Rang der EBENE, und den
         // kennt nur der Server -- der Browser sieht bloss den Bildausschnitt. Dieselbe Ueberlegung

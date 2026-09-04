@@ -478,10 +478,24 @@
 		return raus;
 	}
 
-	// Die Kammlinie: die Beschriftungskurve der Fläche (`properties.curve_label_line`).
+	// Die Kammlinie -- die EIGENE der Flaeche zuerst, die Beschriftungskurve als Rueckfall.
+	//
+	// 🔴 `terrain_ridge_line` ist eine GELAENDE-Eigenschaft und haengt an nichts anderem. Bis zum
+	// 04.09.2026 gab es nur `curve_label_line`, und die entsteht NUR bei eingeschalteter
+	// Kurvenbeschriftung (`avesmapsCurveRefreshCacheForRegion` ueberspringt jede Region mit
+	// `enabled = false`) -- ein Editor haette also die Namensanzeige umstellen muessen, um sein
+	// Gelaende zu formen. Owner: „ich will dass der button genau das mit tut - ohne die
+	// kurvenbeschriftung anzuwenden".
+	// ⚠️ Die Beschriftungskurve BLEIBT als Rueckfall: viele Flaechen tragen sie bereits, und sie ist
+	// dieselbe Mittelachse aus demselben Rechner (`avesmapsCurveBaseline`). Wer sie wegnimmt, macht
+	// fuer diese Flaechen aus einem gerechneten Kamm wieder einen Mittelachsen-Notbehelf.
 	// ⚠️ Über `label_public_id` gesucht, NICHT über den Namen -- eine Fläche kann gleichnamige
 	// Labels verschiedener Art haben (der Finsterkamm hat eines als `wald` und eines als `gebirge`).
 	function kurveFuer(area) {
+		const eigene = area?.terrain_ridge_line;
+		if (Array.isArray(eigene) && eigene.length > 1) {
+			return eigene;
+		}
 		const labelId = String(area?.label_public_id || "");
 		if (!labelId || typeof labelData === "undefined" || !Array.isArray(labelData)) {
 			return null;
@@ -542,6 +556,11 @@
 			String(area?.public_id || ""), String(area?.geometry_revision ?? 0),
 			reg.koernung, reg.stufen, reg.erosion, reg.maximalhoehe,
 			reg.bergform, reg.rauschen, reg.sattel, reg.talbreite, reg.einschnitt, reg.plateau, reg.hypsometrie,
+			// 💣 Die Kammlinie GEHOERT IN DEN SCHLUESSEL: sie geht in die Rechnung ein, also entwertet
+			// ihre Aenderung das Raster. Ohne sie stuende nach „Gebirgszug ermitteln" das alte Relief
+			// da, und der Knopf saehe wirkungslos aus. Nur die LAENGE, nicht die Punkte -- der
+			// Schluessel wird bei jedem Bild gebaut, und die Linie hat 32 davon.
+			Array.isArray(area?.terrain_ridge_line) ? area.terrain_ridge_line.length : 0,
 			gipfel, hydroGrob ? "grob" : "fein",
 		].join("|");
 	}

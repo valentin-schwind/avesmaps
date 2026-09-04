@@ -366,6 +366,9 @@ function ecosystemHeightRelevantChange(previous, next) {
 	return [
 		"terrain_grain", "terrain_levels", "terrain_avg_height", "terrain_mean_height",
 		"terrain_erosion", "terrain_plateau", "terrain_hypsometrie",
+		// ⚠️ Die Kammlinie ist eine LISTE -- der Vergleich unten ist `!==`, also Referenzgleichheit.
+		// Das genuegt: der Loader ersetzt die Flaeche als Ganzes, eine neue Antwort ist ein neues Array.
+		"terrain_ridge_line",
 		"terrain_bergform", "terrain_rauschen", "terrain_sattel",
 		"terrain_talbreite", "terrain_einschnitt",
 	].some((feld) => (previous?.[feld] ?? null) !== (next?.[feld] ?? null));
