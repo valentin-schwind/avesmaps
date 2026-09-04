@@ -157,13 +157,25 @@ h2 { margin: 0 0 3px; color: var(--color-text-strong); font-size: var(--font-siz
 .v-box + .v-box { margin-top: var(--space-12); }
 /* 💣 STATISCH mit negativem Rand, NICHT absolut: eine zweite Titelzeile schiebt den Inhalt
    nach unten, statt ihn zu überdecken. Genau das leistet ein <legend>. */
-.v-head { margin: -17px 0 var(--space-4) 3px; }
+/* 💣 DIE RAHMENLINIE MUSS DURCH DIE MITTE DER AUFSCHRIFT LAUFEN, und der Wert dafuer wird
+   GERECHNET, nicht geraten. Der Kopf beginnt normal nach dem Polster des Kastens (P) und soll
+   mit der Mitte seiner ERSTEN Zeile auf der Kante liegen -- also `-P - 0.5lh`. `lh` ist die
+   Zeilenhoehe des Elements selbst, der Wert zieht damit bei jeder Schriftgroesse mit.
+   🪤 Hier stand geratene `-17px`: die Mitte der Versalien lag damit gemessen 3,83px UNTER der
+   Rahmenlinie -- die Linie schnitt die Buchstaben oben an, statt durch sie zu laufen.
+   ⚠️ Damit `lh` stimmt, muss die Zeilenhoehe wirklich die des Kopfes sein: jedes inline-Kind
+   mit groesserer eigener Zeilenhoehe (der Pfeil ist 12px) zieht die Zeilenbox auf und macht
+   `lh` zur Luege -- deshalb stehen Pfeil und ⓘ auf `line-height: 1`.
+   ⚠️ Die Mitte der VERSALIEN bleibt 0,5px unter der Mitte der Zeilenbox (Versalhoehe 9px bei
+   11px Schrift, gemessen) -- unter dem, was man sieht, und metrikfrei nicht ausdrueckbar. */
+.v-head { font-size: var(--font-size-caption); line-height: 1.5;
+	margin: calc(-1 * var(--space-8) - 0.5lh) 0 var(--space-4) 3px; }
 /* 💣 DER GRUND GEHOERT DEM TEXT, NICHT DEM KASTEN. Als inline-Lauf mit box-decoration-break
    folgt er jeder Zeile einzeln, und die Oberkante steht rechts daneben weiter. Als Flex-Kasten
    (width:max-content + max-width:100%) zog ihn eine ZWEITE Zeile auf volle Breite und loeschte
    die Kante bis zur rechten Ecke -- bei einer Zeile faellt das nie auf. */
 .v-schrift { display: inline; box-decoration-break: clone; -webkit-box-decoration-break: clone;
-	padding: 1px 5px; background: var(--color-panel-soft); line-height: 1.5; }
+	padding: 1px 5px; background: var(--color-panel-soft); }
 .v-title { font-size: var(--font-size-caption); font-weight: var(--font-weight-bold);
 	letter-spacing: 0.03em; text-transform: uppercase; color: var(--color-accent-strong); }
 .v-note { font-size: var(--font-size-caption); font-weight: 400; text-transform: none;
@@ -172,7 +184,8 @@ h2 { margin: 0 0 3px; color: var(--color-text-strong); font-size: var(--font-siz
 .v-toggle { display: inline; margin: 0; padding: 0; border: 0; background: none;
 	font: inherit; color: inherit; cursor: pointer; text-align: left; }
 .v-toggle:hover .v-title { color: var(--color-text-strong); }
-.v-caret { margin-right: 3px; color: var(--color-text-muted); font-size: var(--font-size-small); }
+.v-caret { margin-right: 3px; color: var(--color-text-muted); font-size: var(--font-size-small);
+	line-height: 1; }
 .v-caret::before { content: "\203a"; display: inline-block; transition: transform .2s ease; }
 .v-box--offen .v-caret::before { transform: rotate(90deg); }
 .v-info { margin-left: 5px; padding: 0; border: 0; background: none; vertical-align: baseline;
@@ -196,7 +209,7 @@ h2 { margin: 0 0 3px; color: var(--color-text-strong); font-size: var(--font-siz
 
 /* K2 -- der Rahmen wird zur Leiste (das heutige Verhalten). */
 .k2:not(.v-box--offen) { padding: 0; border-radius: var(--radius-md); }
-.k2:not(.v-box--offen) .v-head { margin: 0; }
+.k2:not(.v-box--offen) .v-head { margin: 0; }  /* Leiste: die Aufschrift steht IM Kasten. */
 .k2:not(.v-box--offen) .v-schrift { display: flex; align-items: baseline; gap: 5px;
 	padding: 5px var(--space-8); background: none; }
 .k2 .k-inhalt { display: none; }
@@ -207,7 +220,7 @@ h2 { margin: 0 0 3px; color: var(--color-text-strong); font-size: var(--font-siz
    hier ist der Kasten NUR die Kante, und mit -17px stuende die Aufschrift ganz darueber
    (gemessen: ragte 16px hinaus, Kasten 3,2px hoch) statt darauf. */
 .k3:not(.v-box--offen) { padding: 0; border-width: 1px 0 0; border-radius: 0; }
-.k3:not(.v-box--offen) .v-head { margin: -9px 0 0 3px; }
+.k3:not(.v-box--offen) .v-head { margin: calc(-0.5lh) 0 0 3px; }
 .k3 .k-inhalt { display: none; }
 </style>
 </head>
