@@ -190,6 +190,22 @@ const ECOSYSTEM_HYDRO_MORPHOLOGIEN = [
 			sattel: 0.8, koernung: 10, stufen: 4, talbreite: 1.5, einschnitt: 500 },
 	},
 	{
+		key: "karst",
+		name: "Karst",
+		// 🔴 DIE WERTE DER ROTEN SICHEL, wie sie live gespeichert sind (Owner 04.09.2026: „gib genau
+		// diesen einstellungen ein neues preset: Karst" -- am Bild der Sichel). Sie sind KEIN
+		// gerechnetes Ideal, sondern ein gewachsener Bestand: grobe Koernung (23,6), volle Erosion,
+		// kein Plateau, keine Hypsometrie-Vorgabe.
+		// ⚠️ `hypsometrie: 0` heisst „nicht gesetzt" -- das Feld landet dort, wo es von selbst
+		// hinfaellt (an der Sichel HI 0,276). Eine Zahl daraus zu machen waere eine Behauptung, die
+		// der Owner nicht getroffen hat.
+		// 🪤 UND ES GIBT DANEBEN „Karstrelief" -- ein anderes Preset mit fast gegenteiligen Werten
+		// (Koernung 2 statt 23,6, Rauschen 0,75 statt 0,35, Erosion 1 statt 5). Die zwei Namen sind
+		// sich aehnlich, die Gelaende nicht; wer eines aendert, meint selten das andere.
+		werte: { plateau: 1, hypsometrie: 0, erosion: 5, bergform: 2.5, rauschen: 0.35,
+			sattel: 0.75, koernung: 23.6, stufen: 5, talbreite: 1.5, einschnitt: 400 },
+	},
+	{
 		key: "karstrelief",
 		name: "Karstrelief",
 		// Zerkluftet und kleinteilig, mit tiefen Schluchten: starkes Rauschen, viele Oktaven, feine

@@ -41,7 +41,7 @@ pruefe("beide Tabellen sind vollständig und tragen die bestellten Namen", () =>
 	assert.deepStrictEqual(
 		hydro.ECOSYSTEM_HYDRO_MORPHOLOGIEN.map((v) => v.name),
 		["Plateau", "Rumpfgebirge", "Härtling", "Kuppengebirge", "Kegelberge", "Gratgebirge",
-			"Massiv", "Karstrelief"],
+			"Massiv", "Karst", "Karstrelief"],
 		"die Morphologien stimmen nicht mit der Bestellung überein");
 	assert.deepStrictEqual(
 		hydro.ECOSYSTEM_HYDRO_HOEHENSTUFEN.map((v) => v.name),
@@ -100,8 +100,8 @@ pruefe("die Vorlagen liefern eine KOPIE, keine Referenz", () => {
    2. SIE MÜSSEN UNTERSCHIEDLICHE GELÄNDE ERGEBEN
    ══════════════════════════════════════════════════════════════════════════════════════════════ */
 
-pruefe("acht Morphologien ergeben acht verschiedene Gelände", () => {
-	// 🔴 DIE EIGENTLICHE ZUSICHERUNG. Acht Namen, die dasselbe Feld liefern, sind acht Lügen -- und
+pruefe("jede Morphologie ergibt ein eigenes Gelände", () => {
+	// 🔴 DIE EIGENTLICHE ZUSICHERUNG. Neun Namen, die dasselbe Feld liefern, sind neun Lügen -- und
 	// genau das ist beim ersten Entwurf passiert: „Massiv" und „Plateau" lagen bei 42,3 % gegen
 	// 43,9 % Fläche auf Gipfelhöhe, also praktisch gleich. Erst die zweite Runde trennte sie.
 	// ⚠️ Gemessen wird das hypsometrische Integral, weil es die Form beschreibt und nicht die Höhe.
@@ -111,10 +111,21 @@ pruefe("acht Morphologien ergeben acht verschiedene Gelände", () => {
 
 		return Math.hypot(dx, dy) <= R * (1 + (0.13 * Math.sin(3 * w)) + (0.07 * Math.cos((5 * w) + 1)));
 	};
+	// 🪤 SIEBEN GIPFEL, NICHT DREI. Mit drei war „Karst" von „Härtling" nicht zu trennen (HI 0,272
+	// gegen 0,257) -- obwohl ihre Regler weit auseinanderliegen: Bergform 2,5 gegen 7, Sattel 0,75
+	// gegen 0,35. Die BERGFORM braucht Berge, um sich zu zeigen; an drei Gipfeln misst man sie kaum.
+	// Mit sieben: HI 0,308 gegen 0,221, also der fünffache Abstand.
+	// ⭐ Die Lehre ist dieselbe wie bei der vierten Kennzahl weiter unten: wer eine Zusicherung nicht
+	// erfüllen kann, prüft zuerst, ob sie das Richtige MISST -- und ob die Fixture den Unterschied
+	// überhaupt zeigen kann.
 	const gipfel = [
-		{ x: MX - 10, y: MY - 4, h: 2600 },
-		{ x: MX, y: MY + 0.5, h: 4000 },
-		{ x: MX + 9, y: MY + 4, h: 3100 },
+		{ x: MX - 11, y: MY - 5, h: 2600 },
+		{ x: MX - 5, y: MY - 1, h: 3400 },
+		{ x: MX, y: MY + 1, h: 4000 },
+		{ x: MX + 6, y: MY + 3, h: 2900 },
+		{ x: MX + 11, y: MY + 5, h: 3100 },
+		{ x: MX - 3, y: MY + 7, h: 2400 },
+		{ x: MX + 4, y: MY - 6, h: 2700 },
 	];
 	const werte = hydro.ECOSYSTEM_HYDRO_MORPHOLOGIEN.map((v) => {
 		const o = hydro.avesmapsGebirgsRasterBauen({
