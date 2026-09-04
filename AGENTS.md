@@ -848,5 +848,35 @@ hex values across 38 CSS files).
   `political-territory-editor*` tragen DREI ID-gescopte Abschriften der zweiten, nur weil ihre
   Fenster in `index.html` leben. Eine Regel an `.fen` löst alle drei auf.
   🔧 Offen: ob die SEITE selbst (Karte, Infopanel) von 7px mitzieht — für Besucher sichtbar.
+- 💣 **Der Rahmenkasten — Aufschrift AUF der Linie, und klappbar wird er zur Leiste** (Owner
+  04.09.2026: „alle varianten aus ‚Vorschlag' ok … K2 wird die lösung bei klappbaren (mit und
+  ohne ⓘ)"; Mockup `docs/rahmenkasten-mockup.html`, Regelwerk `docs/design-language.md`
+  §Rahmenkasten). Vermessen: **vier** Rezepturen (`.fs-scope` · `.label-wiki-reference` ·
+  `.planner-group` · `.report-section`), **fünf** ihrer Werte auf keiner Skala des Hauses
+  (Radius 6px, Gewicht 600 zweimal, 12,5px, ein dritter Radius). Es bleibt die **Form** von
+  `.fs-scope` mit den **Werten** von `.report-section`: `--font-size-caption` /
+  `--font-weight-bold`, Versalien, `--color-accent-brown`.
+  💣 **Der Grund der Aufschrift gehört dem TEXT, nicht dem Kasten** — inline-Lauf mit
+  `box-decoration-break: clone`, damit er jeder Zeile einzeln folgt. Als Flex-Kasten
+  (`width: max-content` + `max-width: calc(100% - 6px)`) ist er ein Rechteck über die volle
+  Breite; bei EINER Zeile fällt das nie auf, eine ZWEITE löscht die Oberkante bis zur rechten
+  Ecke. 🚩 Genau das steht heute live in `.fs-scope`: **9 von 244px** Kante blieben übrig.
+  💣 **Der negative Rand wird GERECHNET** (`calc(-1 * <Kastenpolster> - 0.5lh)`), nie geraten.
+  Die geerbte `-17px` stimmt nur, solange das Polster 10px ist UND der Kopf ein Flex-Kasten
+  bleibt — als Block bringt er seinen eigenen 13px-Strut mit und die Versalien rutschen 3,83px
+  unter die Linie. ⚠️ `lh` lügt, sobald ein inline-Kind eine größere eigene Zeilenhöhe hat;
+  Pfeil und ⓘ stehen deshalb auf `line-height: 1`.
+  🔴 **Beim Klappen wandert die Aufschrift nur SENKRECHT.** Ihre x-Position ist die Summe aus
+  Kastenpolster + Kopfrand + Polster des Laufs, und alle drei stehen in BEIDEN Zuständen gleich;
+  Seitenränder werden durchsichtig, nie auf `0` (das verschiebt den Kasten um 1px).
+  💣 **EIN Layoutmodus für beide Zustände, und EIN Mittel für den Abstand** (die Ränder der
+  Kinder, nie zusätzlich ein `gap`): gekürzt wird am KOPF per `text-overflow`, der Lauf bleibt
+  `inline`. Der Wechsel auf `inline-flex` beim Zuklappen ließ das ⓘ 5px seitlich springen (gap
+  + eigenes Margin) und 15,25px senkrecht fahren, während der Titel 14,25 fuhr. **Was den Modus
+  wechselt, verrutscht** — um Beträge, die man im Standbild nicht sieht und in der Bewegung
+  sehr wohl. ⭐ Höhe animiert über `grid-template-rows: 1fr → 0fr`, nie über `max-height`.
+  ⚠️ Verworfen: K1 (Rahmen bleibt, Zusammenfassung wird sein Inhalt) und K3 (nur die Oberkante
+  bleibt) — K3 wäre das Trennlinien-Muster dieses Abschnitts gewesen, der Owner hat die Leiste
+  gewählt, weil sie das heutige Verhalten ist.
 - **New components:** reuse the nearest existing one as a template plus the
   tokens; match the warmth. Full guide: **`docs/design-language.md`**.

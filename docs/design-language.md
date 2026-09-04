@@ -400,6 +400,81 @@ dran, aber ohne Trefferfeld.
 `--font-size-caption` · `--font-size-small` · `12px` · `13px` · `11,5px` · `11px`.
 Es bleibt `--font-size-caption`.
 
+### Der Rahmenkasten — Aufschrift auf der Linie, und beim Klappen wird er zur Leiste
+
+🔴 Owner 04.09.2026: „alle varianten aus ‚Vorschlag' ok … K2 wird die Lösung bei klappbaren
+(mit und ohne ⓘ)". Mockup `docs/rahmenkasten-mockup.html`.
+
+Ein umrandeter Block mit einer Aufschrift, der eine Gruppe fasst. Es gab ihn **viermal**:
+`.fs-scope` (Quellen) · `.label-wiki-reference` (Landschaften) · `.planner-group`
+(Routenplaner) · `.report-section` (Meldung). Fünf ihrer Werte standen auf **keiner** Skala des
+Hauses — Radius `6px`, Gewicht `600` (zweimal), `12,5px`, ein dritter Radius.
+
+**Die Form ist die von `.fs-scope`, die Werte sind die von `.report-section`:** die Aufschrift
+sitzt **auf der Linie** wie ein `<legend>`, in `--font-size-caption` / `--font-weight-bold`,
+Versalien, `--color-accent-brown`. Vier Fälle, ein Rahmen: einfach · mit gedämpftem Zusatz
+(Reichweite oder Anzahl, **nie** in Versalien — ein Eigenname in Versalien liest sich wie eine
+Kennung) · klappbar mit ⓘ · zweizeiliger Titel.
+
+💣 **Statisch mit negativem Rand, nie absolut.** Nur so *schiebt* eine zweite Titelzeile den
+Inhalt nach unten. Absolut positioniert lag sie im Quellen-Editor gemessen **9px über** dem
+ersten Feld — und die Zweizeiligkeit ist dort kein Sonderfall.
+
+💣 **Der Grund der Aufschrift gehört dem TEXT, nicht dem Kasten.** Als inline-Lauf mit
+`box-decoration-break: clone` folgt er jeder Zeile einzeln und lässt die Oberkante rechts davon
+stehen. Als Flex-Kasten (`width: max-content` + `max-width: calc(100% - 6px)`) ist er ein
+Rechteck über die volle Breite: bei **einer** Zeile fällt das nie auf, weil `max-content` genau
+dem Text entspricht — eine **zweite** zieht ihn auf und löscht die Kante bis zur rechten Ecke.
+Am Bestand gemessen blieben davon **9 von 244px** übrig. Das ist der Zustand, den `.fs-scope`
+heute live hat.
+
+💣 **Der negative Rand wird GERECHNET:** `calc(-1 * <Kastenpolster> - 0.5lh)`. Der Kopf beginnt
+nach dem Polster des Kastens und soll mit der Mitte seiner ersten Zeile auf der Kante liegen.
+🪤 Die geerbte `-17px` stimmt nur, solange das Polster 10px ist und der Kopf ein **Flex**-Kasten
+(dessen Höhe von der 11px-Aufschrift kommt). Als Block bringt er seinen eigenen 13px-Strut mit,
+und die Versalien rutschen — gemessen **3,83px** unter die Linie, wo sie die Buchstaben oben
+anschneidet. ⚠️ Damit `lh` nicht lügt, muss die Zeilenbox wirklich die des Kopfes sein: ein
+inline-Kind mit größerer eigener Zeilenhöhe zieht sie auf. Pfeil und ⓘ stehen deshalb auf
+`line-height: 1`. Rest nach der Korrektur: **0,25px**. ⚠️ Die Mitte der Versalien liegt
+bauartbedingt 0,5px unter der Mitte der Zeilenbox (Versalhöhe 9px bei 11px Schrift) — metrikfrei
+nicht ausdrückbar und unter dem, was man sieht.
+
+**Klappbar heißt K2: der Rahmen wird zur Leiste** — mit ⓘ wie ohne. Zugeklappt trägt sie eine
+**Zusammenfassung** des eingestellten Werts („Reisegruppe zu Fuß · Flusssegler · Lastensegler"),
+die beim Aufklappen verschwindet; sie ist der Grund, warum das Zuklappen etwas taugt.
+
+🔴 **Die Aufschrift wandert nur SENKRECHT.** Ihre x-Position ist eine Summe aus drei Werten —
+Kastenpolster + Kopfrand + Polster des Laufs — und alle drei stehen in **beiden** Zuständen
+gleich. Mit `padding: 0` sprang sie beim Zuklappen 8px nach links, während sie zugleich nach
+unten fuhr: eine Diagonale, die wie ein Verrutschen aussieht und nicht wie ein Übergang.
+Seitenränder werden dafür **durchsichtig**, nie auf `0` gesetzt — das lässt den Kasten 1px
+weiter links beginnen.
+
+💣 **EIN Layoutmodus für beide Zustände, und EIN Mittel für den Abstand.** Gekürzt wird am
+**Kopf** (`white-space: nowrap` + `overflow: hidden` + `text-overflow: ellipsis`); der Lauf
+bleibt `inline`. Der naheliegende Wechsel auf `inline-flex` beim Zuklappen verschob zweierlei,
+das stillstehen sollte: das ⓘ sprang 5px seitlich, weil der `gap` des Flex-Kastens zu seinem
+eigenen `margin-left` **hinzukam** (offen gibt es nur das Margin), und es fuhr 15,25px senkrecht,
+während der Titel 14,25 fuhr, weil ein Flex-Kasten seine Grundlinie anders setzt. **Was den
+Modus wechselt, verrutscht** — um Beträge, die man im Standbild nicht sieht und in der Bewegung
+sehr wohl.
+
+🔴 **Die Leiste ist eine Zeile und bleibt es.** Ein umbrechender „zugeklappter" Kasten ist nicht
+nur zu hoch, er liest sich wie ein halb offener (gemessen: 46,3 statt 29,8px).
+
+⭐ Die Höhe animiert über `grid-template-rows: 1fr → 0fr`, nicht über `max-height`: das braucht
+eine geratene Obergrenze, und die schneidet zu klein den Inhalt ab bzw. lässt zu groß die halbe
+Laufzeit durch Leere laufen. `min-height: 0` am Kind ist dabei tragend. `prefers-reduced-motion`
+schaltet ab.
+
+Gegengemessen bei 200/260/330/420px, Pfeil und Titel und ⓘ einzeln: **dx 0** durchweg,
+**dy 14,25** für alle drei Teile, eine Zeile bei jeder Breite, Leiste 29,8px konstant.
+
+⚠️ Verworfen wurden zwei Klapp-Formen, und der Grund gehört dazu: **K1** (der Rahmen bleibt, die
+Zusammenfassung wird sein Inhalt) ist eine Form für beide Zustände, aber höher; **K3** (nur die
+Oberkante bleibt) ist am kompaktesten und wäre zugleich das Trennlinien-Muster, das dieser Guide
+sonst bevorzugt — der Owner hat die Leiste gewählt, weil sie das heutige Verhalten ist.
+
 ### Ein Bauteil, nicht dreizehn Abschriften
 
 ⭐ Kopfleiste und Schließknopf bekommen je **eine** Rezeptur, die alle Fenster benutzen — so

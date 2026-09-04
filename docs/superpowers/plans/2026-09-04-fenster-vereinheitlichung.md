@@ -13,6 +13,7 @@ Entwurf und Mockup: `docs/fensterformen-mockup.html`, Regelwerk: `docs/design-la
 | E · Listenkopf | **live** — „Meldungen" angeglichen, zwei Filter-Kopien zeichengleich |
 | Reiter (T3) | **live** — tote Pillen-Rezeptur gefallen, `.dg-tab` auf Unterstrich; der Rest (~50 Regeln, u.a. die Dokument-Reiter der Territorien) ist ein eigener Durchgang |
 | Listenzeile `.avm-row` + Bildplatz | 🔧 offen |
+| Rahmenkasten (4 Rezepturen) | **entschieden 04.09.2026**, noch nicht gebaut — Form von `.fs-scope`, Werte von `.report-section`, klappbar = K2 |
 | 6 × `modal-box` (Sync-Seiten) | Werte angeglichen, **Bauform bewusst nicht** — eigener Durchgang |
 | Übernahme-Vorschau · Reisegeschwindigkeiten · Postfach | **begründet NICHT** — anders gebaut, siehe unten |
 | A13 Kartensammlung · A14 Literatur · Besondere Stätten | **live als WERKZEUGfenster** — zuerst als Blatt gebaut, gegen die eigene Regel; korrigiert |
@@ -242,6 +243,14 @@ mit, statt danach: wer den Kopf einer Liste anfasst, fasst ihre Zeile ohnehin an
 
 ## Offene Punkte
 
+- 🔧 **Der Rahmenkasten ist entschieden, aber nicht gebaut.** Vier Rezepturen ziehen auf eine:
+  `.fs-scope` (Quellen) · `.label-wiki-reference` (Landschaften) · `.planner-group`
+  (Routenplaner, der einzige klappbare) · `.report-section` (Meldung). Regelwerk in
+  `docs/design-language.md` §Rahmenkasten, Mockup `docs/rahmenkasten-mockup.html`.
+  🚩 **Ein Live-Fehler hängt mit dran:** `.fs-scope__head` löscht bei einem zweizeiligen Titel
+  die Oberkante bis zur rechten Ecke (gemessen 9 von 244px übrig), und die Zweizeiligkeit ist
+  dort kein Sonderfall — der Kommentar über der Regel dokumentiert sie ausdrücklich.
+  ⚠️ Der Routenplaner ist für **Besucher** sichtbar; er geht als eigener Schritt live.
 - 🔧 `--avm-col-pad` horizontal **12 → 14**: betrifft die vier Editor-iframes sichtbar.
 - 🔧 `.avm-row` hat **keinen Bildplatz** — er kommt neu dazu (A7 Cover, A8 Vorschau, A6 Wappen).
 - 🔧 Die drei ID-gescopten Scrollbar-Abschriften (`lore.css`,
