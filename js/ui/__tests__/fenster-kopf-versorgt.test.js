@@ -136,6 +136,14 @@ console.log("OK -- die modal-box-Rezeptur steht in beiden Dateien zeichengleich 
 // 🔴 Eine Huelle ist genau das: sie traegt `role="dialog"`. Innenteile (__frame, __row, __chip)
 //    tun das nie -- der erste Sucher zaehlte sie mit und meldete 32 Luecken statt 9.
 // ⚠️ Die Liste unten ist die AUSNAHME, nicht die Erlaubnis: wer ein Fenster hinzufuegt, das nicht
+// 🪤 UND DAS IST ZUGLEICH DER BLINDE FLECK DIESER WACHE: ein Fenster OHNE `role="dialog"` sieht
+//    sie NICHT. Genau so ist die Uebernahme-Vorschau durchgerutscht -- ein Kasten auf --z-modal
+//    mit vollem Schleier, der eine Antwort verlangt, und ohne die Rolle. Ein Screenreader kannte
+//    sie damit auch nicht als Fenster. Gefunden am 04.09.2026, indem ich die Wache GEGEN sich
+//    selbst laufen liess: nicht „welche Fenster kenne ich", sondern „was SIEHT aus wie ein
+//    Fenster und traegt die Rolle nicht".
+// ⭐ Die Antwort war nicht, den Sucher unscharf zu machen, sondern dem Fenster die Rolle zu geben
+//    -- sie stand ihm ohnehin zu. Wer das naechste Mal eines vermisst, faehrt dieselbe Gegenprobe.
 //    am Bauteil haengt, muss es HIER eintragen und begruenden. Ein Fenster, das einfach so
 //    danebensteht, faellt auf.
 {
@@ -145,6 +153,11 @@ console.log("OK -- die modal-box-Rezeptur steht in beiden Dateien zeichengleich 
 		"ecosystem-properties-dialog": "Karten-Werkzeug: pointer-events:none, arbeitet AUF der Karte",
 		"ecosystem-import-dialog": "Karten-Werkzeug (zweimal benutzt: Grenze aus Territorien, Reihenfolge)",
 		"modal-box": "die sechs Sync-Fenster: Werte angeglichen, Bauform ist ein eigener Durchgang",
+		"sheet": "Uebernahme-Vorschau: ihr Kopf ist DREIZEILIG (Titel, Befund, Meta) -- welche der"
+			+ " drei Formen aus docs/uebernahme-vorschau-kopf-mockup.html gilt, entscheidet der Owner",
+		// ⚠️ Sie ist seit dem 04.09.2026 verschiebbar und traegt den Verschiebe-Zeiger -- aber KEINEN
+		//    Griff: der gehoert in die Kopfzeile, und deren Form ist genau die offene Frage. Er kommt
+		//    mit der gewaehlten Variante, alle drei tragen ihn.
 	};
 	function alleJsDateien(verzeichnis, sammler) {
 		for (const eintrag of fs.readdirSync(verzeichnis, { withFileTypes: true })) {

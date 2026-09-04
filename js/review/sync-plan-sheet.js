@@ -734,7 +734,7 @@ function syncPlanSheetMarkup(plan) {
 	const meta = `Abgleich vom ${syncPlanEscape(run.created_at || "")}`;
 	const foot = syncPlanFooterState({ kind: kind, total: total });
 
-	return `<div class="sheet" data-sync-plan data-kind="${syncPlanEscape(kind)}" data-run="${Number(run.id || 0)}">
+	return `<div class="sheet" role="dialog" aria-modal="true" data-sync-plan data-kind="${syncPlanEscape(kind)}" data-run="${Number(run.id || 0)}">
 	<div class="sheet__head">
 		<p class="sheet__title">${syncPlanEscape(syncPlanKindMeta(kind).title)}</p>
 		<p class="sheet__verdict${verdict.empty ? " sheet__verdict--none" : ""}">${syncPlanEscape(verdict.text)}</p>
@@ -770,7 +770,7 @@ function syncPlanPinButtonState(ok) {
 
 /** Der leere Fall — kein Fehler, sondern die beste Nachricht des Tages. */
 function syncPlanEmptyMarkup(message) {
-	return `<div class="sheet"><div class="sheet__head">
+	return `<div class="sheet" role="dialog" aria-modal="true"><div class="sheet__head">
 		<p class="sheet__title">Übernahme-Vorschau</p>
 		<div class="sheet__meta">${syncPlanEscape(message)}</div>
 	</div>
