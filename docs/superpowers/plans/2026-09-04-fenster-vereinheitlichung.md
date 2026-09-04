@@ -7,7 +7,7 @@ Entwurf und Mockup: `docs/fensterformen-mockup.html`, Regelwerk: `docs/design-la
 | Abschnitt | Stand |
 |---|---|
 | A · Werkzeugfenster (26) | **live** — dazu Funktionen, Tempowerte, Darstellung, Territoriumseditor |
-| B · Blatt (15) | **live** |
+| B · Blatt (15) | **live** — vier davon hatten einen Tag lang keine Breite und kein Polster (200px statt 420), geheilt in `870ee2cdd` |
 | C · Unberührt (8) | eingehalten; drei davon am 04.09. versehentlich beschädigt und repariert (`c2eb849ff`) |
 | D · Hintergrundklick | **live** — 16 Fenster statt 7, alle über das eine Bauteil |
 | E · Listenkopf | **live** — „Meldungen" angeglichen, zwei Filter-Kopien zeichengleich |
@@ -15,7 +15,27 @@ Entwurf und Mockup: `docs/fensterformen-mockup.html`, Regelwerk: `docs/design-la
 | Listenzeile `.avm-row` + Bildplatz | 🔧 offen |
 | 6 × `modal-box` (Sync-Seiten) | Werte angeglichen, **Bauform bewusst nicht** — eigener Durchgang |
 | Übernahme-Vorschau · Reisegeschwindigkeiten · Postfach | **begründet NICHT** — anders gebaut, siehe unten |
-| Kartensammlung · Literatur · 2× Vorschlag · Besondere Stätten · Regel bearbeiten | **live** |
+| A13 Kartensammlung · A14 Literatur · Besondere Stätten | **live als WERKZEUGfenster** — zuerst als Blatt gebaut, gegen die eigene Regel; korrigiert |
+
+### Was der zweite Prüfagent gefunden hat — vier echte Fehler in meiner Arbeit
+
+💣 **Eine Hülle ist mehr als eine Kopfzeile.** Beim Herauslösen der vier Blätter aus der
+geteilten Liste gingen `width`, `max-height`, `overflow` und `padding` mit — und das Bauteil
+liefert davon **nichts**, weil Polster Sache der ZONE ist. Gemessen: 758/200/204/196px statt 420,
+Inhalt an der Kante. Kein Test kennt die Breite eines Fensters; gefunden hat es der Agent beim
+Lesen.
+
+💣 **Dieselbe Falle, vier Fenster weiter.** `.avm-editor-dialog` trug `display: grid` neben dem
+`display: flex` des Bauteils — ich hatte den EINEN Fall behoben, den der erste Agent nannte, und
+nicht nach dem Muster gesucht.
+
+💣 **Drei Fenster mit der falschen Bauart** — gegen das eigene Regelwerk, das „Kartensammlung"
+wörtlich als Werkzeugfenster nennt. Ein Blatt sagt „kurzes Formular, gleich weg"; diese drei
+bleiben offen, während man daneben recherchiert.
+
+💣 **Und ein Kommentar, der gelogen hat:** `.dg-tab.is-active` bekam `--color-accent` als
+Unterstrich, während darüber „zeichengleich zu `.avm-tab`" stand. Im Hellen fällt das nicht auf
+(102,8 gegen 86,6), im Dunkeln bricht es ein (55,4 gegen 125,1).
 
 ### Drei Fenster bleiben — weil sie anders gebaut sind, nicht weil sie vergessen wurden
 

@@ -398,6 +398,13 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
    end of this file are shared the same way: the two assign dialogs are the same interaction on two
    different tables (ecosystem_region vs map_features), so they must not be allowed to look different.
 
+   🔴 UEBERHOLT AM 04.09.2026: vier dieser Familien -- assign, label-assign, intro, transfer --
+      haengen seither am Fenster-Bauteil (css/components/fenster.css) und stehen NICHT mehr in
+      diesen Listen. Ihr MASS steht weiter oben unter eigenem Namen; drei von ihnen waren einen
+      Tag lang 200px breit, weil beim Herausloesen `width` und `padding` mitgingen und niemand
+      sie vermisst hat. In den Listen unten stehen nur noch die drei KARTEN-WERKZEUGE
+      (region, properties, import) -- die bleiben bewusst, wo sie sind.
+
    The overlays themselves (position/scrim/z-index) are NOT styled here: #ecosystem-region-overlay,
    #ecosystem-intro-overlay, #ecosystem-transfer-overlay, #ecosystem-assign-overlay,
    #ecosystem-properties-overlay and #label-assign-overlay are entered into the three selector lists in
