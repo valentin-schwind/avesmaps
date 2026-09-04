@@ -196,10 +196,18 @@ const ohneHtmlKommentare = (html) => html.replace(/<!--[\s\S]*?-->/g, "");
 		"css/features/feature-sources.css ist Quelle des Erzeugers -- sonst schlagen die ID-gescopten Elementregeln jede Modulklasse");
 	assert.strictEqual(liste[liste.length - 1], "css/features/feature-sources.css",
 		"… und zwar die LETZTE, damit die Modulregeln bei gleicher Spezifitaet die spaeteren sind");
+	// 💣 Seit dem 04.09.2026 traegt der Quellen-Kasten den geteilten Rahmen (`.avm-rahmen`,
+	// css/components/rahmenkasten.css). Dessen Regeln muessen aus DEMSELBEN Grund gescopt sein --
+	// steht das Blatt nicht in SOURCES, schlagen die ID-gescopten Elementregeln des Editors
+	// (padding an `button`, (1,0,1)) die Modulklasse, und der Kasten saehe hier anders aus.
+	assert.ok(liste.includes("css/components/rahmenkasten.css"),
+		"css/components/rahmenkasten.css ist Quelle des Erzeugers");
+	assert.ok(liste.indexOf("css/components/rahmenkasten.css") < liste.indexOf("css/features/feature-sources.css"),
+		"… und VOR feature-sources.css, damit dessen Spezifika die spaeteren sind");
 
 	const produkt = lies("css/pages/political-territory-editor-inline.css");
 	["#political-territory-editor-host .fs-editor {", "#political-territory-editor-host .fs-row__remove {",
-		"#political-territory-editor-host .fs-actions__prim {", "#political-territory-editor-host .fs-scope {"]
+		"#political-territory-editor-host .fs-actions__prim {", "#political-territory-editor-host .avm-rahmen {"]
 		.forEach((regel) => assert.ok(produkt.includes(regel), "das Bauprodukt traegt " + regel));
 	const ausnahmen = (produkt.match(/:not\(\.fs-editor \*\)/g) || []).length;
 	assert.ok(ausnahmen >= 13, "die drei Bedienhoehen-Regeln nehmen .fs-editor * aus (13 Selektoren), gezaehlt: " + ausnahmen);

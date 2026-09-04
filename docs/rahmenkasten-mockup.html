@@ -150,47 +150,70 @@ h2 { margin: 0 0 3px; color: var(--color-text-strong); font-size: var(--font-siz
 .d-title { font-size: var(--font-size-caption); font-weight: var(--font-weight-bold);
 	letter-spacing: 0.03em; text-transform: uppercase; color: var(--color-accent-strong); }
 
-/* ══ VORSCHLAG — EIN Rahmen, der alle vier Fälle trägt ════════════════════════════════════ */
-.v-box { position: relative; min-width: 0;
-	border: 1px solid var(--color-border); border-radius: var(--radius-md);
-	padding: var(--space-8) var(--space-8) var(--space-8); }
-.v-box + .v-box { margin-top: var(--space-12); }
-/* 💣 STATISCH mit negativem Rand, NICHT absolut: eine zweite Titelzeile schiebt den Inhalt
-   nach unten, statt ihn zu überdecken. Genau das leistet ein <legend>. */
-/* 💣 DIE RAHMENLINIE MUSS DURCH DIE MITTE DER AUFSCHRIFT LAUFEN, und der Wert dafuer wird
-   GERECHNET, nicht geraten. Der Kopf beginnt normal nach dem Polster des Kastens (P) und soll
-   mit der Mitte seiner ERSTEN Zeile auf der Kante liegen -- also `-P - 0.5lh`. `lh` ist die
-   Zeilenhoehe des Elements selbst, der Wert zieht damit bei jeder Schriftgroesse mit.
-   🪤 Hier stand geratene `-17px`: die Mitte der Versalien lag damit gemessen 3,83px UNTER der
-   Rahmenlinie -- die Linie schnitt die Buchstaben oben an, statt durch sie zu laufen.
-   ⚠️ Damit `lh` stimmt, muss die Zeilenhoehe wirklich die des Kopfes sein: jedes inline-Kind
-   mit groesserer eigener Zeilenhoehe (der Pfeil ist 12px) zieht die Zeilenbox auf und macht
-   `lh` zur Luege -- deshalb stehen Pfeil und ⓘ auf `line-height: 1`.
-   ⚠️ Die Mitte der VERSALIEN bleibt 0,5px unter der Mitte der Zeilenbox (Versalhoehe 9px bei
-   11px Schrift, gemessen) -- unter dem, was man sieht, und metrikfrei nicht ausdrueckbar. */
-.v-head { font-size: var(--font-size-caption); line-height: 1.5;
-	margin: calc(-1 * var(--space-8) - 0.5lh) 0 var(--space-4) 3px; }
-/* 💣 DER GRUND GEHOERT DEM TEXT, NICHT DEM KASTEN. Als inline-Lauf mit box-decoration-break
-   folgt er jeder Zeile einzeln, und die Oberkante steht rechts daneben weiter. Als Flex-Kasten
-   (width:max-content + max-width:100%) zog ihn eine ZWEITE Zeile auf volle Breite und loeschte
-   die Kante bis zur rechten Ecke -- bei einer Zeile faellt das nie auf. */
-.v-schrift { display: inline; box-decoration-break: clone; -webkit-box-decoration-break: clone;
-	padding: 1px 5px; background: var(--color-panel-soft); }
-.v-title { font-size: var(--font-size-caption); font-weight: var(--font-weight-bold);
-	letter-spacing: 0.03em; text-transform: uppercase; color: var(--color-accent-strong); }
-.v-note { font-size: var(--font-size-caption); font-weight: 400; text-transform: none;
-	letter-spacing: 0; color: var(--color-text-muted); }
+/* ══ VORSCHLAG — EIN Rahmen, der alle vier Fälle trägt ════════════════════════ */
+/* ══ VERTRAG: css/components/rahmenkasten.css ══
+   🔴 ALLES ZWISCHEN DIESEN MARKEN MUSS IN DER GENANNTEN DATEI ZEICHENGLEICH STEHEN.
+   Gewacht von tools/mockup-vertrag/__tests__/mockup-vertrag.test.js -- ein Unterschied macht den
+   Test rot, und ein roter Test laedt nichts hoch (AGENTS.md §9).
+   ⚠️ Es ist eine UNTERGRENZE: die Produktionsdatei darf mehr tragen (Zustaende, Hover,
+   Telefon-Umbrueche) -- und sie tut es, denn dort stehen die Begruendungen. Geprueft wird nur,
+   was hier zugesagt ist.
+   ⚠️ Der klappbare Fall (K2) steht ABSICHTLICH nicht darin: er geht mit dem Routenplaner
+   live, und eine Zusage auf Regeln, die es noch nicht gibt, waere ein roter Test ohne Befund. */
+.avm-rahmen {
+	--avm-rahmen-pad: var(--space-8);
+	--avm-rahmen-grund: var(--color-panel-soft);
+	position: relative;
+	flex: 1 1 100%;
+	min-width: 0;
+	padding: var(--avm-rahmen-pad);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+}
+.avm-rahmen + .avm-rahmen {
+	margin-top: var(--space-12);
+}
+.avm-rahmen[hidden] {
+	display: none;
+}
+.avm-rahmen__kopf {
+	margin: calc(-1 * var(--avm-rahmen-pad) - 0.5lh) 0 var(--space-4) 3px;
+	font-size: var(--font-size-caption);
+	line-height: 1.5;
+}
+.avm-rahmen__schrift {
+	display: inline;
+	box-decoration-break: clone;
+	-webkit-box-decoration-break: clone;
+	padding: 1px 5px;
+	background: var(--avm-rahmen-grund);
+}
+.avm-rahmen__titel {
+	font-size: var(--font-size-caption);
+	font-weight: var(--font-weight-bold);
+	letter-spacing: 0.03em;
+	text-transform: uppercase;
+	color: var(--color-accent-strong);
+}
+.avm-rahmen__zusatz {
+	color: var(--color-text-muted);
+	font-size: var(--font-size-caption);
+	font-weight: var(--font-weight-regular);
+	letter-spacing: 0;
+	text-transform: none;
+}
+/* ══ VERTRAG ENDE ══ */
 /* Der klappbare Fall: derselbe Rahmen, der Titel wird ein Knopf. */
-.v-toggle { display: inline; margin: 0; padding: 0; border: 0; background: none;
+.avm-rahmen__knopf { display: inline; margin: 0; padding: 0; border: 0; background: none;
 	font: inherit; color: inherit; cursor: pointer; text-align: left; }
-.v-toggle:hover .v-title { color: var(--color-text-strong); }
-.v-caret { margin-right: 3px; color: var(--color-text-muted); font-size: var(--font-size-small);
+.avm-rahmen__knopf:hover .avm-rahmen__titel { color: var(--color-text-strong); }
+.avm-rahmen__pfeil { margin-right: 3px; color: var(--color-text-muted); font-size: var(--font-size-small);
 	line-height: 1; }
-.v-caret::before { content: "\203a"; display: inline-block; transition: transform .2s ease; }
-.v-box--offen .v-caret::before { transform: rotate(90deg); }
-.v-info { margin-left: 5px; padding: 0; border: 0; background: none; vertical-align: baseline;
+.avm-rahmen__pfeil::before { content: "\203a"; display: inline-block; transition: transform .2s ease; }
+.avm-rahmen--offen .avm-rahmen__pfeil::before { transform: rotate(90deg); }
+.avm-rahmen__info { margin-left: 5px; padding: 0; border: 0; background: none; vertical-align: baseline;
 	color: var(--color-text-muted); font-size: var(--font-size-small); line-height: 1; cursor: help; }
-.v-info:hover { color: var(--color-text-strong); }
+.avm-rahmen__info:hover { color: var(--color-text-strong); }
 
 /* ══ DAS KLAPPEN — drei Formen ═══════════════════════════════════════════════════════════ */
 /* Heute: zugeklappt EINE Leiste (28px), mit einer Zusammenfassung des eingestellten Werts;
@@ -198,8 +221,8 @@ h2 { margin: 0 0 3px; color: var(--color-text-strong); font-size: var(--font-siz
    sie darf keine der drei Formen verlieren. Live gemessen 04.09.2026 am Routenplaner. */
 .k-zus { color: var(--color-text-muted); font-size: var(--font-size-caption);
 	font-weight: 400; letter-spacing: 0; text-transform: none; line-height: 1; }
-.v-box--offen .k-zus { display: none; }
-.k-box:not(.v-box--offen) .k-zus { animation: zusEin .18s ease .08s both; }
+.avm-rahmen--offen .k-zus { display: none; }
+.k-box:not(.avm-rahmen--offen) .k-zus { animation: zusEin .18s ease .08s both; }
 @keyframes zusEin { from { opacity: 0 } to { opacity: 1 } }
 
 /* 💣 DIE HOEHE WIRD UEBER `grid-template-rows: 1fr -> 0fr` ANIMIERT, nicht ueber `max-height`.
@@ -208,18 +231,18 @@ h2 { margin: 0 0 3px; color: var(--color-text-strong); font-size: var(--font-siz
    ⚠️ `min-height: 0` am Kind ist tragend, sonst schrumpft es nicht unter seinen Inhalt. */
 .k-huelle { display: grid; grid-template-rows: 1fr; transition: grid-template-rows .22s ease; }
 .k-huelle > * { min-height: 0; overflow: hidden; }
-.k-box:not(.v-box--offen) .k-huelle { grid-template-rows: 0fr; }
-.k-box:not(.v-box--offen) .k-huelle--zu { grid-template-rows: 1fr; }
-.k-box.v-box--offen .k-huelle--zu { grid-template-rows: 0fr; }
+.k-box:not(.avm-rahmen--offen) .k-huelle { grid-template-rows: 0fr; }
+.k-box:not(.avm-rahmen--offen) .k-huelle--zu { grid-template-rows: 1fr; }
+.k-box.avm-rahmen--offen .k-huelle--zu { grid-template-rows: 0fr; }
 /* Gleiche Zeiten fuer alle drei -- sonst vergleicht man Formen gegen Geschwindigkeiten. */
-.k-box, .k-box .v-head { transition: padding .22s ease, margin .22s ease; }
+.k-box, .k-box .avm-rahmen__kopf { transition: padding .22s ease, margin .22s ease; }
 @media (prefers-reduced-motion: reduce) {
-	.k-huelle, .k-box, .k-box .v-head { transition: none; }
-	.k-box:not(.v-box--offen) .k-zus { animation: none; }
+	.k-huelle, .k-box, .k-box .avm-rahmen__kopf { transition: none; }
+	.k-box:not(.avm-rahmen--offen) .k-zus { animation: none; }
 }
 
 /* K1 -- der Rahmen bleibt stehen, die Zusammenfassung ist sein Inhalt. */
-.k1:not(.v-box--offen) { padding-bottom: var(--space-6); }
+.k1:not(.avm-rahmen--offen) { padding-bottom: var(--space-6); }
 .k1 .k-inhalt { margin: 0; color: var(--color-text-muted); font-size: var(--font-size-small); }
 
 /* K2 -- der Rahmen wird zur Leiste (das heutige Verhalten).
@@ -228,7 +251,7 @@ h2 { margin: 0 0 3px; color: var(--color-text-strong); font-size: var(--font-siz
    gleich -- die Aufschrift wandert damit nur senkrecht, nie seitlich. Mit `padding: 0` sprang
    sie beim Zuklappen 8px nach links, waehrend sie zugleich nach unten fuhr: eine Diagonale,
    die wie ein Verrutschen aussieht und nicht wie ein Uebergang. */
-.k2:not(.v-box--offen) { padding: 0 var(--space-8); border-radius: var(--radius-md); }
+.k2:not(.avm-rahmen--offen) { padding: 0 var(--space-8); border-radius: var(--radius-md); }
 /* 🔴 DIE LEISTE IST EINE ZEILE UND BLEIBT ES: die Zusammenfassung kuerzt sich mit Auslassung,
    statt umzubrechen. Ein umbrechender "zugeklappter" Kasten ist hoeher als noetig und liest
    sich wie ein halb offener -- gemessen sprang die Leiste bei 330px von rund 30 auf 46,3px.
@@ -242,10 +265,10 @@ h2 { margin: 0 0 3px; color: var(--color-text-strong); font-size: var(--font-siz
    (die Raender der Kinder, nie zusaetzlich ein `gap`). Was den Modus wechselt, verrutscht.
    `text-overflow` am Kopf leistet dasselbe, weil der Kopf ein Block ist und der Lauf sein
    inline-Inhalt -- der klassische Fall fuer die Auslassung. */
-.k2:not(.v-box--offen) .v-head,
-.k3:not(.v-box--offen) .v-head { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.k2:not(.avm-rahmen--offen) .avm-rahmen__kopf,
+.k3:not(.avm-rahmen--offen) .avm-rahmen__kopf { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .k-zus { margin-left: 5px; }
-.k2:not(.v-box--offen) .v-head { margin: var(--space-4) 0 var(--space-4) 3px; }
+.k2:not(.avm-rahmen--offen) .avm-rahmen__kopf { margin: var(--space-4) 0 var(--space-4) 3px; }
 .k2 .k-inhalt { display: none; }
 
 /* K3 -- nur die Oberkante bleibt: die Aufschrift sitzt weiter auf ihrer Linie.
@@ -256,9 +279,9 @@ h2 { margin: 0 0 3px; color: var(--color-text-strong); font-size: var(--font-siz
 /* 💣 Die Seitenraender werden DURCHSICHTIG, nicht auf 0 gesetzt: mit `border-width: 1px 0 0`
    beginnt der Kasten 1px weiter links, und die Aufschrift wandert seitlich mit -- gemessen
    0,67px. Eine Zahl, die niemand sieht, aber die Zusage "nur senkrecht" ist dann keine. */
-.k3:not(.v-box--offen) { padding: 0 var(--space-8); border-radius: 0;
+.k3:not(.avm-rahmen--offen) { padding: 0 var(--space-8); border-radius: 0;
 	border-color: var(--color-border) transparent transparent; }
-.k3:not(.v-box--offen) .v-head { margin: calc(-0.5lh) 0 0 3px; }
+.k3:not(.avm-rahmen--offen) .avm-rahmen__kopf { margin: calc(-0.5lh) 0 0 3px; }
 .k3 .k-inhalt { display: none; }
 </style>
 </head>
@@ -367,8 +390,8 @@ h2 { margin: 0 0 3px; color: var(--color-text-strong); font-size: var(--font-siz
 		<h2 style="font-size:var(--font-size-body)">einfach</h2>
 		<p class="warum">Der Normalfall: Aufschrift, Inhalt.</p>
 		<div class="wirt">
-			<div class="v-box">
-				<div class="v-head"><span class="v-schrift"><span class="v-title">Gelände</span></span></div>
+			<div class="avm-rahmen">
+				<div class="avm-rahmen__kopf"><span class="avm-rahmen__schrift"><span class="avm-rahmen__titel">Gelände</span></span></div>
 				<div class="feld"><label>Morphologie</label><select><option>—</option></select>
 					<label>Höhenstufe</label><select><option>—</option></select></div>
 			</div>
@@ -378,9 +401,9 @@ h2 { margin: 0 0 3px; color: var(--color-text-strong); font-size: var(--font-siz
 		<h2 style="font-size:var(--font-size-body)">mit Zusatz</h2>
 		<p class="warum">Eine Reichweite oder Anzahl steht gedämpft daneben — nie in Versalien.</p>
 		<div class="wirt">
-			<div class="v-box">
-				<div class="v-head"><span class="v-schrift"><span class="v-title">Gilt für den ganzen Korpus</span>
-					<span class="v-note">— welcher, sagt die Adresse</span></span></div>
+			<div class="avm-rahmen">
+				<div class="avm-rahmen__kopf"><span class="avm-rahmen__schrift"><span class="avm-rahmen__titel">Gilt für den ganzen Korpus</span>
+					<span class="avm-rahmen__zusatz">— welcher, sagt die Adresse</span></span></div>
 				<div class="feld"><label>Name</label><input value="AlberniaWiki"></div>
 			</div>
 		</div>
@@ -389,10 +412,10 @@ h2 { margin: 0 0 3px; color: var(--color-text-strong); font-size: var(--font-siz
 		<h2 style="font-size:var(--font-size-body)">klappbar + ⓘ</h2>
 		<p class="warum">Derselbe Rahmen; der Titel wird ein Knopf, der Pfeil steht davor.</p>
 		<div class="wirt">
-			<div class="v-box v-box--offen">
-				<div class="v-head"><span class="v-schrift"><button class="v-toggle" type="button"><span
-					class="v-caret"></span><span class="v-title">Transportmittel</span></button><button
-					class="v-info" type="button" title="Was die Auswahl bewirkt">ⓘ</button></span></div>
+			<div class="avm-rahmen avm-rahmen--offen">
+				<div class="avm-rahmen__kopf"><span class="avm-rahmen__schrift"><button class="avm-rahmen__knopf" type="button"><span
+					class="avm-rahmen__pfeil"></span><span class="avm-rahmen__titel">Transportmittel</span></button><button
+					class="avm-rahmen__info" type="button" title="Was die Auswahl bewirkt">ⓘ</button></span></div>
 				<div class="feld"><label>Land</label><select><option>Reisegruppe zu Fuß</option></select>
 					<label>Fluss</label><select><option>Flusssegler</option></select></div>
 			</div>
@@ -403,9 +426,9 @@ h2 { margin: 0 0 3px; color: var(--color-text-strong); font-size: var(--font-siz
 		<p class="warum">Der Prüffall: die zweite Zeile <b>schiebt</b> den Inhalt nach unten,
 			statt ihn zu überdecken.</p>
 		<div class="wirt">
-			<div class="v-box">
-				<div class="v-head"><span class="v-schrift"><span class="v-title">Gilt für alle Objekte, die diese Quelle zitieren</span>
-					<span class="v-note">— noch kein Objekt</span></span></div>
+			<div class="avm-rahmen">
+				<div class="avm-rahmen__kopf"><span class="avm-rahmen__schrift"><span class="avm-rahmen__titel">Gilt für alle Objekte, die diese Quelle zitieren</span>
+					<span class="avm-rahmen__zusatz">— noch kein Objekt</span></span></div>
 				<div class="feld"><label>Adresse</label><input placeholder="https://…"></div>
 			</div>
 		</div>
@@ -438,10 +461,10 @@ h2 { margin: 0 0 3px; color: var(--color-text-strong); font-size: var(--font-siz
 		<p class="warum">Die Zusammenfassung wird sein <b>Inhalt</b>. Eine Form, immer.
 			Kostet Höhe: der Kasten bleibt ein Kasten.</p>
 		<div class="wirt">
-			<div class="v-box k-box k1 v-box--offen" id="k1">
-				<div class="v-head"><span class="v-schrift"><button class="v-toggle" type="button"><span
-					class="v-caret"></span><span class="v-title">Transportmittel</span></button><button
-					class="v-info" type="button" title="Was die Auswahl bewirkt">ⓘ</button></span></div>
+			<div class="avm-rahmen k-box k1 avm-rahmen--offen" id="k1">
+				<div class="avm-rahmen__kopf"><span class="avm-rahmen__schrift"><button class="avm-rahmen__knopf" type="button"><span
+					class="avm-rahmen__pfeil"></span><span class="avm-rahmen__titel">Transportmittel</span></button><button
+					class="avm-rahmen__info" type="button" title="Was die Auswahl bewirkt">ⓘ</button></span></div>
 				<div class="k-huelle k-huelle--zu"><p class="k-inhalt">Reisegruppe zu Fuß · Flusssegler · Lastensegler</p></div>
 				<div class="k-huelle"><div class="feld"><label>Land</label><select><option>Reisegruppe zu Fuß</option></select>
 					<label>Fluss</label><select><option>Flusssegler</option></select></div></div>
@@ -455,10 +478,10 @@ h2 { margin: 0 0 3px; color: var(--color-text-strong); font-size: var(--font-siz
 			<b>zwei</b> Formen, und die Aufschrift verlässt ihre Linie. <b>Owner-Entscheid
 			04.09.2026: das gilt für klappbare Kästen, mit ⓘ wie ohne.</b></p>
 		<div class="wirt">
-			<div class="v-box k-box k2 v-box--offen" id="k2">
-				<div class="v-head"><span class="v-schrift"><button class="v-toggle" type="button"><span
-					class="v-caret"></span><span class="v-title">Transportmittel</span></button><button
-					class="v-info" type="button" title="Was die Auswahl bewirkt">ⓘ</button><span
+			<div class="avm-rahmen k-box k2 avm-rahmen--offen" id="k2">
+				<div class="avm-rahmen__kopf"><span class="avm-rahmen__schrift"><button class="avm-rahmen__knopf" type="button"><span
+					class="avm-rahmen__pfeil"></span><span class="avm-rahmen__titel">Transportmittel</span></button><button
+					class="avm-rahmen__info" type="button" title="Was die Auswahl bewirkt">ⓘ</button><span
 					class="k-zus">Reisegruppe zu Fuß · Flusssegler · Lastensegler</span></span></div>
 				<div class="k-huelle"><div class="feld"><label>Land</label><select><option>Reisegruppe zu Fuß</option></select>
 					<label>Fluss</label><select><option>Flusssegler</option></select></div></div>
@@ -472,10 +495,10 @@ h2 { margin: 0 0 3px; color: var(--color-text-strong); font-size: var(--font-siz
 			sitzt weiter auf derselben Linie. Kompakt wie heute, und die Form ist
 			<b>abgeleitet</b>, nicht zweit.</p>
 		<div class="wirt">
-			<div class="v-box k-box k3 v-box--offen" id="k3">
-				<div class="v-head"><span class="v-schrift"><button class="v-toggle" type="button"><span
-					class="v-caret"></span><span class="v-title">Transportmittel</span></button><button
-					class="v-info" type="button" title="Was die Auswahl bewirkt">ⓘ</button><span
+			<div class="avm-rahmen k-box k3 avm-rahmen--offen" id="k3">
+				<div class="avm-rahmen__kopf"><span class="avm-rahmen__schrift"><button class="avm-rahmen__knopf" type="button"><span
+					class="avm-rahmen__pfeil"></span><span class="avm-rahmen__titel">Transportmittel</span></button><button
+					class="avm-rahmen__info" type="button" title="Was die Auswahl bewirkt">ⓘ</button><span
 					class="k-zus">Reisegruppe zu Fuß · Flusssegler · Lastensegler</span></span></div>
 				<div class="k-huelle"><div class="feld"><label>Land</label><select><option>Reisegruppe zu Fuß</option></select>
 					<label>Fluss</label><select><option>Flusssegler</option></select></div></div>
@@ -502,19 +525,19 @@ h2 { margin: 0 0 3px; color: var(--color-text-strong); font-size: var(--font-siz
 		document.documentElement.setAttribute("data-theme", dunkel ? "dunkel" : "hell");
 		this.textContent = dunkel ? "Hell ansehen" : "Dunkel ansehen";
 	});
-	[].forEach.call(document.querySelectorAll(".v-toggle"), function (b) {
-		b.addEventListener("click", function () { b.closest(".v-box").classList.toggle("v-box--offen"); });
+	[].forEach.call(document.querySelectorAll(".avm-rahmen__knopf"), function (b) {
+		b.addEventListener("click", function () { b.closest(".avm-rahmen").classList.toggle("avm-rahmen--offen"); });
 	});
 	function messen() {
 		var t = ["k1", "k2", "k3"].map(function (id) {
 			var e = document.getElementById(id);
 			return id.toUpperCase() + " " + Math.round(e.getBoundingClientRect().height) + "px ("
-				+ (e.classList.contains("v-box--offen") ? "offen" : "zu") + ")";
+				+ (e.classList.contains("avm-rahmen--offen") ? "offen" : "zu") + ")";
 		});
 		document.getElementById("k-mass").textContent = "Gemessen: " + t.join(" · ")
 			+ " — heute: offen 145px, zu 28px.";
 	}
-	[].forEach.call(document.querySelectorAll(".v-toggle"), function (b) {
+	[].forEach.call(document.querySelectorAll(".avm-rahmen__knopf"), function (b) {
 		b.addEventListener("click", messen);
 	});
 	messen();

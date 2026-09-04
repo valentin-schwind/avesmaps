@@ -27,6 +27,11 @@ const SOURCES = [
 	// anders aus als an den acht anderen Montagestellen. Als LETZTE Quelle, damit die Modulregeln
 	// bei gleicher Spezifitaet die spaeteren sind. Keine zweite Rezeptur: dieselbe Datei, eingefaltet.
 	// (docs/superpowers/specs/2026-09-03-quellen-herrschaftsgebiete-design.md §2.2)
+	// Der Rahmenkasten (css/components/rahmenkasten.css) aus demselben Grund -- der
+	// Quellen-Kasten benutzt ihn, und seine Regeln muessen MIT der Host-ID im Bauprodukt
+	// stehen. VOR feature-sources.css, damit dessen Spezifika bei gleicher Spezifitaet
+	// die spaeteren sind.
+	"css/components/rahmenkasten.css",
 	"css/features/feature-sources.css",
 ];
 const OUT = "css/pages/political-territory-editor-inline.css";

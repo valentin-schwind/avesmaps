@@ -58,10 +58,14 @@
 	opacity: 0.8;
 }
 
-/* Landschafts-Picker im Label-Editor (Wiki-Region an Label heften). */
+/* Landschafts-Picker im Label-Editor (Wiki-Region an Label heften).
+   ⚠️ KEIN `.avm-rahmen` (css/components/rahmenkasten.css), und das ist gemessen: sein Kopf
+   traegt bis zu drei Textknoepfe („Aendern", „Sync", „Entfernen"). Der Rahmenkasten legt seine
+   Aufschrift AUF die Linie -- Knoepfe saessen dort auf dem Rahmen. Das hier ist ein Kasten mit
+   KOPFLEISTE. Angeglichen sind nur die zwei Werte, die auf keiner Skala des Hauses standen. */
 .label-wiki-reference {
 	border: 1px solid var(--color-border);
-	border-radius: 6px;
+	border-radius: var(--radius-md);
 	background: var(--color-panel);
 	padding: 8px 10px;
 }
@@ -76,7 +80,7 @@
 }
 
 .label-wiki-reference__title {
-	font-weight: 600;
+	font-weight: var(--font-weight-bold);
 	color: var(--color-button-soft-text);
 }
 

@@ -739,14 +739,21 @@ function featureSourceAbweichungsBlock(escape, tr, werte) {
 function avesmapsSourceScopeFrame(opts) {
   const o = opts || {};
   const esc = o.escape || featureSourceDefaultEscape;
-  return '<div class="fs-scope"' + (o.hidden ? " hidden" : "") + (o.attr ? " " + o.attr : "") + ">"
-    + '<div class="fs-scope__head"><span class="fs-scope__title"'
+  // 🔴 Das geteilte Bauteil `.avm-rahmen` (css/components/rahmenkasten.css) traegt Rahmen,
+  // Aufschrift und deren Rechnung; die `.fs-scope*`-Namen bleiben, weil Tests, der Vertrag und
+  // acht Montagestellen sie kennen. Dieselbe Zweiteilung wie `.sheet avm-fenster`.
+  // 💣 `.avm-rahmen__schrift` ist KEIN Beiwerk: nur ein inline-Lauf laesst den Grund der
+  // Aufschrift jeder Zeile EINZELN folgen. Ohne ihn loescht eine zweite Titelzeile die
+  // Oberkante bis zur rechten Ecke (gemessen 9 von 244px uebrig).
+  return '<div class="fs-scope avm-rahmen"' + (o.hidden ? " hidden" : "") + (o.attr ? " " + o.attr : "") + ">"
+    + '<div class="fs-scope__head avm-rahmen__kopf"><span class="avm-rahmen__schrift">'
+    + '<span class="fs-scope__title avm-rahmen__titel"'
     + (o.titelAttr ? " " + o.titelAttr : "") + ">" + esc(o.titel || "") + "</span>"
     + (o.reichweite
-      ? '<span class="fs-scope__reach"' + (o.reichweiteAttr ? " " + o.reichweiteAttr : "") + ">"
+      ? '<span class="fs-scope__reach avm-rahmen__zusatz"' + (o.reichweiteAttr ? " " + o.reichweiteAttr : "") + ">"
         + o.reichweite + "</span>"
       : "")
-    + "</div>"
+    + "</span></div>"
     + (o.hinweis ? '<p class="fs-scope__hint">' + esc(o.hinweis) + "</p>" : "")
     + '<div class="fs-scope__fields">' + (o.felder || "") + "</div>"
     + (o.fuss || "")

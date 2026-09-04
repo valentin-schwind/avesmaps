@@ -1991,6 +1991,121 @@
 }
 
 
+/* ===== scoped from css/components/rahmenkasten.css ===== */
+/* DER RAHMENKASTEN — ein umrandeter Block mit einer Aufschrift, der eine Gruppe fasst.
+ *
+ * 🔴 Owner 04.09.2026: „alle varianten aus ‚Vorschlag' ok … K2 wird die Lösung bei klappbaren
+ * (mit und ohne ⓘ)". Regelwerk `docs/design-language.md` §Rahmenkasten, Mockup
+ * `docs/rahmenkasten-mockup.html` (der bindet: VERTRAG auf diese Datei).
+ *
+ * 💣 ES GAB IHN VIERMAL, und fünf ihrer Werte standen auf KEINER Skala des Hauses: `.fs-scope`
+ * (Quellen) · `.label-wiki-reference` (Landschaften, Radius 6px, Gewicht 600) · `.planner-group`
+ * (Routenplaner, 12,5px / 600) · `.report-section` (Meldung, dritter Radius, eigener Grund).
+ * Es bleibt die FORM von `.fs-scope` (Aufschrift auf der Linie wie ein `<legend>`) mit den
+ * WERTEN von `.report-section` (Versalien, caption/bold).
+ *
+ * ⚠️ `.label-wiki-reference` gehört NICHT dazu, und das ist gemessen, nicht vergessen: sein Kopf
+ * trägt bis zu DREI Textknöpfe („Ändern", „Sync", „Entfernen"). Eine Aufschrift ist Text auf
+ * einer Linie — Knöpfe säßen auf dem Rahmen. Es ist ein Kasten mit KOPFLEISTE und damit eine
+ * andere Sache; angeglichen sind dort nur die Werte.
+ */
+
+#political-territory-editor-host .avm-rahmen {
+	/* 🔴 DIE ZWEI STELLSCHRAUBEN, und beide werden von der Aufschrift MITGELESEN. Wer eine
+	   von Hand überschreibt, muss sie hier überschreiben — nicht am `padding` bzw. am
+	   `background` des Kastens, sonst rutscht die Aufschrift von der Linie oder maskiert
+	   die falsche Farbe. */
+	--avm-rahmen-pad: var(--space-8);
+	/* Der Grund HINTER der Oberkante: mit genau ihm maskiert die Aufschrift die Linie.
+	   💣 Ein Kasten mit EIGENER Füllung kann die Aufschrift nicht auf die Linie legen — sie
+	   läge oben auf dem Grund des Elternteils und unten auf dem eigenen, und eine Farbe kann
+	   nicht beide sein. Solche Kästen geben ihre Füllung auf (so `.report-section`). */
+	--avm-rahmen-grund: var(--color-panel-soft);
+
+	position: relative;
+	/* 💣 VOLLE BREITE, UNABHÄNGIG VOM ELTERN-ELEMENT. Die Eingabezeile der Quellen ist ein
+	   Flex-Container (`.fs-row--add`), der Bearbeiten-Kasten ein Block (`.fs-edit`) — ohne
+	   diese Zeile messen sich die Rahmen im einen an ihrem INHALT und im anderen am Kasten.
+	   Bei echter Panelbreite (400px) gemessen: 439/379/379 gegen 373/373/373, eine Treppe
+	   statt einer Kante.
+	   ⚠️ In einem Block-Elternteil ist die Zeile wirkungslos — sie kostet dort nichts und
+	   verhindert, dass das Bauteil vom Ort abhängt, an dem es hängt. */
+	flex: 1 1 100%;
+	/* 💣 UND `min-width: 0` DAZU, sonst ist die Zeile darüber wirkungslos: ein Flex-Kind hat
+	   `min-width: auto` und weigert sich, unter seine INHALTSbreite zu schrumpfen. Das lange
+	   Adressfeld drückte den ersten Rahmen damit auf 439px — über die 400px des Panels
+	   hinaus, während die zwei darunter bei 379 blieben. Gemessen, nicht vermutet: `flex`
+	   stand längst richtig da und tat nichts. */
+	min-width: 0;
+	padding: var(--avm-rahmen-pad);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+}
+#political-territory-editor-host .avm-rahmen + .avm-rahmen {
+	margin-top: var(--space-12);
+}
+#political-territory-editor-host .avm-rahmen[hidden] {
+	display: none;
+}
+
+/* 💣 STATISCH MIT NEGATIVEM RAND, NICHT ABSOLUT, und das ist im Browser gemessen: die
+   Aufschrift des ✎ im Quellen-Editor wird zweizeilig („Gilt für alle Objekte, die diese Quelle
+   zitieren — zurzeit nur dieses Objekt" = 34px), und absolut positioniert schob sie nichts weg
+   — sie lag 9px ÜBER dem ersten Feld. In der Eingabezeile fiel das nie auf, weil deren
+   Reichweite kurz ist („— noch kein Objekt").
+   ⭐ Statisch: die erste Zeile sitzt auf dem Rahmen, eine zweite schiebt den Inhalt nach unten.
+   Genau das leistet ein `<legend>`, und genau das ahmt dieser Kasten nach.
+
+   💣 DER WERT WIRD GERECHNET, NICHT GERATEN. Der Kopf beginnt normal nach dem Polster des
+   Kastens (P) und soll mit der Mitte seiner ERSTEN Zeile auf der Kante liegen — also
+   `-P - 0.5lh`. `lh` ist die Zeilenhöhe des Elements selbst; der Wert zieht bei jeder
+   Schriftgröße mit, statt bei der nächsten Änderung still falsch zu sein.
+   🪤 Hier stand geerbte `-17px`. Die stimmt nur, solange P = 10px ist UND der Kopf ein
+   FLEX-Kasten bleibt (dessen Höhe von der 11px-Aufschrift kommt). Als Block bringt er seinen
+   eigenen 13px-Strut mit, und die Versalien rutschen — gemessen 3,83px unter die Linie, wo
+   sie die Buchstaben oben anschneidet. Nach der Korrektur: 0,25px.
+   ⚠️ Damit `lh` nicht lügt, muss die Zeilenbox wirklich die des Kopfes sein: ein inline-Kind
+   mit größerer eigener Zeilenhöhe zieht sie auf. Deshalb `font-size` und `line-height` HIER,
+   und `line-height: 1` an allem, was größer ist. */
+#political-territory-editor-host .avm-rahmen__kopf {
+	margin: calc(-1 * var(--avm-rahmen-pad) - 0.5lh) 0 var(--space-4) 3px;
+	font-size: var(--font-size-caption);
+	line-height: 1.5;
+}
+
+/* 💣 DER GRUND GEHÖRT DEM TEXT, NICHT DEM KASTEN. Als inline-Lauf mit `box-decoration-break`
+   folgt er jeder Zeile einzeln, und die Oberkante steht rechts daneben weiter. Als Flex-Kasten
+   (`width: max-content` + `max-width: calc(100% - 6px)`) ist er ein Rechteck über die volle
+   Breite: bei EINER Zeile fällt das nie auf, weil `max-content` genau dem Text entspricht —
+   eine ZWEITE zieht ihn auf und löscht die Kante bis zur rechten Ecke. Am Bestand gemessen
+   blieben 9 von 244px übrig. */
+#political-territory-editor-host .avm-rahmen__schrift {
+	display: inline;
+	box-decoration-break: clone;
+	-webkit-box-decoration-break: clone;
+	padding: 1px 5px;
+	background: var(--avm-rahmen-grund);
+}
+
+#political-territory-editor-host .avm-rahmen__titel {
+	font-size: var(--font-size-caption);
+	font-weight: var(--font-weight-bold);
+	letter-spacing: 0.03em;
+	text-transform: uppercase;
+	color: var(--color-accent-strong);
+}
+
+/* Der Zusatz ist eine ZAHL oder eine Reichweite, keine zweite Aufschrift: gedämpft und
+   OHNE Versalien — ein Eigenname in Versalien („ALBERNIAWIKI") liest sich wie eine Kennung. */
+#political-territory-editor-host .avm-rahmen__zusatz {
+	color: var(--color-text-muted);
+	font-size: var(--font-size-caption);
+	font-weight: var(--font-weight-regular);
+	letter-spacing: 0;
+	text-transform: none;
+}
+
+
 /* ===== scoped from css/features/feature-sources.css ===== */
 /* 🪤 04.09.2026 Stempel-Heilung nach einem abgebrochenen Deploy -- die Begruendung steht in css/components/fenster.css. */
 /* Shared multi-source editor widget (mountFeatureSourceEditor / renderFeatureSourceEditorHtml,
@@ -2253,66 +2368,20 @@
    Test laedt nichts hoch (AGENTS.md §9).
    ⚠️ Der Vertrag ist eine UNTERGRENZE: Zustaende, Hover und Telefon-Umbrueche duerfen hier
    dazukommen, sie stehen dann unter diesem Block. */
-/* ══ DAS BAUTEIL: EIN Rahmen, sechs Verwender ═══════════════════════════════════════════════════
-   Ersetzt .fs-adresse / .fs-eintrag / .fs-korpus / .fs-edit__group -- vier Rezepturen fuer eine
-   Form. Im Browser gemessen liefen sie auseinander: 10px/normal gegen 11px/fett, 8px gegen 10px
-   Polster, solid gegen dashed. */
-#political-territory-editor-host .fs-scope {
-	position: relative;
-	/* 💣 VOLLE BREITE, UNABHAENGIG VOM ELTERN-ELEMENT. Die Eingabezeile ist ein Flex-Container
-	   (`.fs-row--add`), der Bearbeiten-Kasten ein Block (`.fs-edit`) -- ohne diese Zeile messen
-	   sich die Rahmen im einen an ihrem INHALT und im anderen am Kasten. Bei echter Panelbreite
-	   (400px) gemessen: 439/379/379 gegen 373/373/373, eine Treppe statt einer Kante.
-	   ⚠️ In einem Block-Elternteil ist die Zeile wirkungslos -- sie kostet dort nichts und
-	   verhindert, dass das Bauteil vom Ort abhaengt, an dem es haengt. */
-	flex: 1 1 100%;
-	/* 💣 UND `min-width: 0` DAZU, sonst ist die Zeile darüber wirkungslos: ein Flex-Kind hat
-	   `min-width: auto` und weigert sich, unter seine INHALTSbreite zu schrumpfen. Das lange
-	   Adressfeld drückte den ersten Rahmen damit auf 439px -- über die 400px des Panels
-	   hinaus, während die zwei darunter bei 379 blieben. Gemessen, nicht vermutet: `flex`
-	   stand längst richtig da und tat nichts. */
-	min-width: 0;
-	border: 1px solid var(--color-accent-brown);
-	border-radius: var(--radius-md);
-	padding: 10px 10px 10px;
-}
-#political-territory-editor-host .fs-scope + .fs-scope { margin-top: 14px; }
-#political-territory-editor-host .fs-scope[hidden] { display: none; }
-/* 💣 NICHT ABSOLUT, und das ist im Browser gemessen: die Aufschrift des ✎ wird zweizeilig
-   („Gilt für alle Objekte, die diese Quelle zitieren — zurzeit nur dieses Objekt" = 34px), und
-   absolut positioniert schob sie nichts weg — sie lag 9px über dem ersten Feld. In der
-   Eingabezeile fiel das nie auf, weil deren Reichweite kurz ist („— noch kein Objekt").
-   ⭐ Statisch mit negativem Rand: die erste Zeile sitzt weiter AUF dem Rahmen, aber eine zweite
-   schiebt den Inhalt nach unten, statt ihn zu überdecken. Genau das leistet ein `<legend>`, und
-   genau das ahmt dieser Kasten nach. */
-#political-territory-editor-host .fs-scope__head {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: baseline;
-	gap: 6px;
-	width: max-content;
-	max-width: calc(100% - 6px);
-	margin: -17px 0 6px -2px;
-	padding: 0 5px;
-	background: var(--color-panel-soft);
-}
-/* 11px ist die Untergrenze des Hauses (§12). Die Eingabezeile stand auf 10. */
-#political-territory-editor-host .fs-scope__title {
-	font-size: 11px;
-	font-weight: 700;
-	letter-spacing: .02em;
-	text-transform: uppercase;
-	color: var(--color-accent-brown);
-}
-/* Die Reichweite ist eine ZAHL, keine Aufschrift: klein, gedaempft, ohne Versalien -- ein
-   Eigenname in Versalien („ALBERNIAWIKI") liest sich wie eine Kennung. */
-#political-territory-editor-host .fs-scope__reach {
-	font-size: 11px;
-	font-weight: 400;
-	text-transform: none;
-	letter-spacing: 0;
-	color: var(--color-text-muted);
-}
+/* ══ DER RAHMEN: er gehoert seit dem 04.09.2026 dem geteilten Bauteil ═══════════════════════
+   `.fs-scope` traegt jetzt zusaetzlich `.avm-rahmen` (css/components/rahmenkasten.css), und
+   Rahmen, Radius, Polster, Aufschrift und deren Rechnung stehen DORT -- samt der Begruendungen
+   zu `flex: 1 1 100%` / `min-width: 0` und zum negativen Rand, die hier standen.
+   💣 Hier steht seither NICHTS mehr dazu, und das ist Absicht: eine zweite Fassung neben dem
+   Bauteil ist genau die Divergenz, gegen die es gebaut wurde. Wer eine Ausnahme braucht,
+   ueberschreibt `--avm-rahmen-pad` bzw. `--avm-rahmen-grund` an DIESEM Kasten -- nie das
+   `padding` oder das `background` selbst, denn die Aufschrift liest beide mit.
+   ⚠️ Zwei sichtbare Aenderungen kamen dabei mit, beide vom Owner am Mockup abgenommen: der
+   Rahmen ist neutral (`--color-border`) statt akzentbraun, und der Titel `--color-accent-strong`
+   statt `--color-accent-brown`.
+   ⚠️ `.fs-scope__title` und `.fs-scope__reach` sind als NAMEN geblieben (Tests, `data`-Haken,
+   acht Montagestellen) -- ihre Werte kommen aus `.avm-rahmen__titel` / `.avm-rahmen__zusatz`. */
+
 #political-territory-editor-host .fs-scope__fields { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; }
 
 /* Die Wahl „alle N Abschnitte dieses Weges“ / „nur dieser Abschnitt“ im dritten Rahmen -- NUR am Abschnitt

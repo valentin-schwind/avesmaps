@@ -199,7 +199,7 @@ const zeile = renderFeatureSourceEditorHtml({ wiki_url: "", sources: [] }, {});
 // 🔴 Und die ANLEITUNG ist von der Aufschrift in den Rahmen gewandert: als Rahmenname belegte
 // sie den Platz der Reichweite, und die beiden Formulare hiessen dann an derselben Stelle
 // verschieden -- genau das, was der Umbau beseitigt.
-pruefe(/class="fs-scope"/.test(zeile) && /class="fs-scope__title"/.test(zeile),
+pruefe(/class="fs-scope avm-rahmen"/.test(zeile) && /class="fs-scope__title avm-rahmen__titel"/.test(zeile),
   "die Adresse steht in einem Rahmen mit Aufschrift");
 pruefe(/Gilt für alle Objekte, die diese Quelle zitieren/.test(zeile),
   "und die Aufschrift nennt die REICHWEITE, in beiden Formularen gleich");
@@ -214,8 +214,8 @@ pruefe(/class="fs-scope__hint">Hier Adresse \(URL\) zur Quelle einfügen/.test(z
 // 💣 Geschnitten wird bis zum ZWEITEN Rahmen, nicht bis `fs-af--pages`: die Seitenangabe
 // steht seit dem 03.09.2026 im DRITTEN Rahmen, ein Schnitt dorthin umfasste also auch den
 // Korpusrahmen und die Zusicherung darunter waere ein Vakuum.
-const ersterRahmen = zeile.indexOf('class="fs-scope"');
-const zweiterRahmen = zeile.indexOf('class="fs-scope"', ersterRahmen + 1);
+const ersterRahmen = zeile.indexOf('class="fs-scope avm-rahmen"');
+const zweiterRahmen = zeile.indexOf('class="fs-scope avm-rahmen"', ersterRahmen + 1);
 pruefe(zweiterRahmen > ersterRahmen, "es gibt mehr als einen Rahmen");
 const rahmenInhalt = zeile.slice(ersterRahmen, zweiterRahmen);
 pruefe(/fs-add-url/.test(rahmenInhalt) && /fs-add-label/.test(rahmenInhalt),
@@ -264,7 +264,7 @@ pruefe(/class="abw"/.test(zeile2), "beide Oberflächen benutzen dasselbe Bauteil
 // waren es vier eigene Rezepturen (`.fs-adresse`, `.fs-eintrag`, `.fs-korpus`,
 // `.fs-edit__group`), im Browser gemessen 10px/normal gegen 11px/fett, 8px gegen 10px Polster,
 // solid gegen dashed — der Anlass des ganzen Umbaus.
-gleich((zeile2.match(/class="fs-scope"/g) || []).length, 3, "drei Rahmen, ein Bauteil");
+gleich((zeile2.match(/class="fs-scope avm-rahmen"/g) || []).length, 3, "drei Rahmen, ein Bauteil");
 pruefe(!/fs-adresse|fs-eintrag|class="fs-korpus"|fs-edit__group/.test(zeile2),
   "und keine der vier alten Rezepturen ist übrig");
 pruefe(/Nur an diesem Objekt/.test(zeile2),

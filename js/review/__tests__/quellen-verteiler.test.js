@@ -84,12 +84,12 @@ let zaehlung = 0; const zaehl = () => { zaehlung += 1; };
 	const ctx = macheKontext([]);
 	const render = (opts) => ctx.renderFeatureSourceEditorHtml({ wiki_url: "", sources: [] }, opts);
 	const ohne = render({});
-	assert.ok(ohne.includes('<span class="fs-scope__title">Nur an diesem Objekt</span>'), "ohne Gruppe: „Nur an diesem Objekt“");
+	assert.ok(ohne.includes('<span class="fs-scope__title avm-rahmen__titel">Nur an diesem Objekt</span>'), "ohne Gruppe: „Nur an diesem Objekt“");
 	assert.ok(!ohne.includes("fs-scope__choice"), "ohne Gruppe keine Wahlzeile"); zaehl();
 	const einer = render({ wegGruppe: { anzahl: 1, fest: false } });
 	assert.ok(einer.includes("Nur an diesem Objekt") && !einer.includes("fs-scope__choice"), "N = 1: nichts aendert sich"); zaehl();
 	const wahl = render({ wegGruppe: { anzahl: 56, fest: false } });
-	assert.ok(wahl.includes('<span class="fs-scope__title">An diesem Weg</span>'), "N > 1: Titel „An diesem Weg“");
+	assert.ok(wahl.includes('<span class="fs-scope__title avm-rahmen__titel">An diesem Weg</span>'), "N > 1: Titel „An diesem Weg“");
 	assert.ok(/<div class="fs-scope__choice" data-fs-scope-choice>/.test(wahl), "… mit der Wahlzeile");
 	assert.ok(/<input type="radio" name="[^"]+" value="alle" checked> alle 56 Abschnitte dieses Weges/.test(wahl), "„alle 56 Abschnitte dieses Weges“ ist vorgewaehlt");
 	assert.ok(/<input type="radio" name="[^"]+" value="einer"> nur dieser Abschnitt/.test(wahl), "„nur dieser Abschnitt“ steht daneben");
@@ -100,7 +100,7 @@ let zaehlung = 0; const zaehl = () => { zaehlung += 1; };
 	const rahmen = wahl.indexOf("An diesem Weg");
 	assert.ok(wahl.indexOf("fs-scope__choice", rahmen) < wahl.indexOf("fs-add-pages", rahmen), "die Wahl steht vor Seite(n) und Abdeckung"); zaehl();
 	const fest = render({ wegGruppe: { anzahl: 56, fest: true } });
-	assert.ok(fest.includes('<span class="fs-scope__title">An allen 56 Abschnitten dieses Weges</span>'), "fest: „An allen 56 Abschnitten dieses Weges“");
+	assert.ok(fest.includes('<span class="fs-scope__title avm-rahmen__titel">An allen 56 Abschnitten dieses Weges</span>'), "fest: „An allen 56 Abschnitten dieses Weges“");
 	assert.ok(!fest.includes("fs-scope__choice"), "fest: keine Wahl -- auf der Weg-Ebene gilt alles allen"); zaehl();
 	// Das ✎-Formular sagt auf der Weg-Ebene, dass es an alle schreibt -- sonst verspricht es „Nur an diesem
 	// Objekt“ und ueberschreibt wortlos 56 Seitenangaben.

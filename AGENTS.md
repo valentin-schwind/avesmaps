@@ -851,9 +851,11 @@ hex values across 38 CSS files).
 - 💣 **Der Rahmenkasten — Aufschrift AUF der Linie, und klappbar wird er zur Leiste** (Owner
   04.09.2026: „alle varianten aus ‚Vorschlag' ok … K2 wird die lösung bei klappbaren (mit und
   ohne ⓘ)"; Mockup `docs/rahmenkasten-mockup.html`, Regelwerk `docs/design-language.md`
-  §Rahmenkasten). Vermessen: **vier** Rezepturen (`.fs-scope` · `.label-wiki-reference` ·
-  `.planner-group` · `.report-section`), **fünf** ihrer Werte auf keiner Skala des Hauses
-  (Radius 6px, Gewicht 600 zweimal, 12,5px, ein dritter Radius). Es bleibt die **Form** von
+  §Rahmenkasten). Vermessen: **drei** Rezepturen (`.fs-scope` · `.planner-group` ·
+  `.report-section`), ihre Werte teils auf keiner Skala des Hauses (12,5px, Gewicht 600, ein
+  dritter Radius). 🪤 `.label-wiki-reference` sah wie ein vierter aus und ist keiner: sein Kopf
+  trägt bis zu DREI Textknöpfe, und Knöpfe säßen auf dem Rahmen — ein Kasten mit KOPFLEISTE,
+  angeglichen sind dort nur die Werte. Es bleibt die **Form** von
   `.fs-scope` mit den **Werten** von `.report-section`: `--font-size-caption` /
   `--font-weight-bold`, Versalien, `--color-accent-brown`.
   💣 **Der Grund der Aufschrift gehört dem TEXT, nicht dem Kasten** — inline-Lauf mit

@@ -111,7 +111,7 @@ const QUELLE = {
 	// umgeschrieben haette (Owner-Bild 02.09.2026). Die dritte Gruppe ist die Berichtigung.
 	// 🪤 03.09.2026: dieselben drei Bereiche, aber aus DEMSELBEN Bauteil wie die Eingabezeile
 	// (`.fs-scope`). `.fs-edit__group` war eine von vier Rezepturen fuer eine Form.
-	pruefe((panel.match(/class="fs-scope"/g) || []).length === 3,
+	pruefe((panel.match(/class="fs-scope avm-rahmen"/g) || []).length === 3,
 		"drei Bereiche: diese Quelle · der ganze Korpus · dieses Objekt");
 	pruefe(!/fs-edit__group|fs-edit__head|fs-edit__title/.test(panel),
 		"und keine der alten Rezepturen ist uebrig");

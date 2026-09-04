@@ -420,7 +420,7 @@ const kasten = renderFeatureSourceEditPanel({
 // 🪤 `.fs-edit__title` war Teil der VIERTEN Rahmen-Rezeptur und ist im geteilten Bauteil
 // `.fs-scope` aufgegangen (03.09.2026). Die Zahl bleibt drei -- der Kasten trägt weiter genau
 // drei Reichweiten, nur in der Reihenfolge, die der Owner vorgegeben hat.
-const ueberschriften = [...kasten.matchAll(/<span class="fs-scope__title">([^<]*)<\/span>/g)].map((m) => m[1]);
+const ueberschriften = [...kasten.matchAll(/<span class="fs-scope__title avm-rahmen__titel">([^<]*)<\/span>/g)].map((m) => m[1]);
 assert.strictEqual(ueberschriften.length, 3, "drei Rahmen: Quelle · Korpus · Objekt");
 zaehl();
 // 🪤 Der Korpus steht seit dem 03.09.2026 in der MITTE (Owner: „Damit man den Korpus sieht
@@ -486,7 +486,7 @@ zaehl();
 const ohneKorpus = renderFeatureSourceEditPanel({
   source_id: 8, url: "", label: "Aventurischer Bote Nr. 70", type: "aventurischer_bote", usage_count: 52,
 }, (x) => String(x), (k, d) => d);
-const korpusUeberschrift = [...ohneKorpus.matchAll(/<span class="fs-scope__title">([^<]*)<\/span>/g)]
+const korpusUeberschrift = [...ohneKorpus.matchAll(/<span class="fs-scope__title avm-rahmen__titel">([^<]*)<\/span>/g)]
   .map((m) => m[1])[1];
 assert.ok(/Korpus/.test(korpusUeberschrift) && !/„/.test(korpusUeberschrift),
   "ohne Korpus bleibt die Überschrift schlicht");

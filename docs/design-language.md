@@ -405,10 +405,16 @@ Es bleibt `--font-size-caption`.
 🔴 Owner 04.09.2026: „alle varianten aus ‚Vorschlag' ok … K2 wird die Lösung bei klappbaren
 (mit und ohne ⓘ)". Mockup `docs/rahmenkasten-mockup.html`.
 
-Ein umrandeter Block mit einer Aufschrift, der eine Gruppe fasst. Es gab ihn **viermal**:
-`.fs-scope` (Quellen) · `.label-wiki-reference` (Landschaften) · `.planner-group`
-(Routenplaner) · `.report-section` (Meldung). Fünf ihrer Werte standen auf **keiner** Skala des
-Hauses — Radius `6px`, Gewicht `600` (zweimal), `12,5px`, ein dritter Radius.
+Ein umrandeter Block mit einer Aufschrift, der eine Gruppe fasst. Es gab ihn **dreimal**:
+`.fs-scope` (Quellen) · `.planner-group` (Routenplaner) · `.report-section` (Meldung).
+
+🪤 **Beim Bauen wurde daraus eine Vier, und das war falsch.** `.label-wiki-reference`
+(Landschaften) sieht wie ein vierter aus, aber sein Kopf trägt bis zu **drei Textknöpfe**
+(„Ändern", „Sync", „Entfernen"). Eine Aufschrift ist Text auf einer Linie — Knöpfe säßen auf dem
+Rahmen. Es ist ein Kasten mit **Kopfleiste** und damit eine andere Sache; angeglichen sind dort
+nur die Werte, die auf keiner Skala standen (Radius `6px` → `--radius-md`, Gewicht `600` →
+`--font-weight-bold`). Wer die drei je zu viert macht, muss vorher entscheiden, wohin die Knöpfe
+gehen — das ist eine Entwurfsfrage, keine Angleichung.
 
 **Die Form ist die von `.fs-scope`, die Werte sind die von `.report-section`:** die Aufschrift
 sitzt **auf der Linie** wie ein `<legend>`, in `--font-size-caption` / `--font-weight-bold`,

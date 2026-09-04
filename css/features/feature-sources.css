@@ -259,66 +259,20 @@
    Test laedt nichts hoch (AGENTS.md §9).
    ⚠️ Der Vertrag ist eine UNTERGRENZE: Zustaende, Hover und Telefon-Umbrueche duerfen hier
    dazukommen, sie stehen dann unter diesem Block. */
-/* ══ DAS BAUTEIL: EIN Rahmen, sechs Verwender ═══════════════════════════════════════════════════
-   Ersetzt .fs-adresse / .fs-eintrag / .fs-korpus / .fs-edit__group -- vier Rezepturen fuer eine
-   Form. Im Browser gemessen liefen sie auseinander: 10px/normal gegen 11px/fett, 8px gegen 10px
-   Polster, solid gegen dashed. */
-.fs-scope {
-	position: relative;
-	/* 💣 VOLLE BREITE, UNABHAENGIG VOM ELTERN-ELEMENT. Die Eingabezeile ist ein Flex-Container
-	   (`.fs-row--add`), der Bearbeiten-Kasten ein Block (`.fs-edit`) -- ohne diese Zeile messen
-	   sich die Rahmen im einen an ihrem INHALT und im anderen am Kasten. Bei echter Panelbreite
-	   (400px) gemessen: 439/379/379 gegen 373/373/373, eine Treppe statt einer Kante.
-	   ⚠️ In einem Block-Elternteil ist die Zeile wirkungslos -- sie kostet dort nichts und
-	   verhindert, dass das Bauteil vom Ort abhaengt, an dem es haengt. */
-	flex: 1 1 100%;
-	/* 💣 UND `min-width: 0` DAZU, sonst ist die Zeile darüber wirkungslos: ein Flex-Kind hat
-	   `min-width: auto` und weigert sich, unter seine INHALTSbreite zu schrumpfen. Das lange
-	   Adressfeld drückte den ersten Rahmen damit auf 439px -- über die 400px des Panels
-	   hinaus, während die zwei darunter bei 379 blieben. Gemessen, nicht vermutet: `flex`
-	   stand längst richtig da und tat nichts. */
-	min-width: 0;
-	border: 1px solid var(--color-accent-brown);
-	border-radius: var(--radius-md);
-	padding: 10px 10px 10px;
-}
-.fs-scope + .fs-scope { margin-top: 14px; }
-.fs-scope[hidden] { display: none; }
-/* 💣 NICHT ABSOLUT, und das ist im Browser gemessen: die Aufschrift des ✎ wird zweizeilig
-   („Gilt für alle Objekte, die diese Quelle zitieren — zurzeit nur dieses Objekt" = 34px), und
-   absolut positioniert schob sie nichts weg — sie lag 9px über dem ersten Feld. In der
-   Eingabezeile fiel das nie auf, weil deren Reichweite kurz ist („— noch kein Objekt").
-   ⭐ Statisch mit negativem Rand: die erste Zeile sitzt weiter AUF dem Rahmen, aber eine zweite
-   schiebt den Inhalt nach unten, statt ihn zu überdecken. Genau das leistet ein `<legend>`, und
-   genau das ahmt dieser Kasten nach. */
-.fs-scope__head {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: baseline;
-	gap: 6px;
-	width: max-content;
-	max-width: calc(100% - 6px);
-	margin: -17px 0 6px -2px;
-	padding: 0 5px;
-	background: var(--color-panel-soft);
-}
-/* 11px ist die Untergrenze des Hauses (§12). Die Eingabezeile stand auf 10. */
-.fs-scope__title {
-	font-size: 11px;
-	font-weight: 700;
-	letter-spacing: .02em;
-	text-transform: uppercase;
-	color: var(--color-accent-brown);
-}
-/* Die Reichweite ist eine ZAHL, keine Aufschrift: klein, gedaempft, ohne Versalien -- ein
-   Eigenname in Versalien („ALBERNIAWIKI") liest sich wie eine Kennung. */
-.fs-scope__reach {
-	font-size: 11px;
-	font-weight: 400;
-	text-transform: none;
-	letter-spacing: 0;
-	color: var(--color-text-muted);
-}
+/* ══ DER RAHMEN: er gehoert seit dem 04.09.2026 dem geteilten Bauteil ═══════════════════════
+   `.fs-scope` traegt jetzt zusaetzlich `.avm-rahmen` (css/components/rahmenkasten.css), und
+   Rahmen, Radius, Polster, Aufschrift und deren Rechnung stehen DORT -- samt der Begruendungen
+   zu `flex: 1 1 100%` / `min-width: 0` und zum negativen Rand, die hier standen.
+   💣 Hier steht seither NICHTS mehr dazu, und das ist Absicht: eine zweite Fassung neben dem
+   Bauteil ist genau die Divergenz, gegen die es gebaut wurde. Wer eine Ausnahme braucht,
+   ueberschreibt `--avm-rahmen-pad` bzw. `--avm-rahmen-grund` an DIESEM Kasten -- nie das
+   `padding` oder das `background` selbst, denn die Aufschrift liest beide mit.
+   ⚠️ Zwei sichtbare Aenderungen kamen dabei mit, beide vom Owner am Mockup abgenommen: der
+   Rahmen ist neutral (`--color-border`) statt akzentbraun, und der Titel `--color-accent-strong`
+   statt `--color-accent-brown`.
+   ⚠️ `.fs-scope__title` und `.fs-scope__reach` sind als NAMEN geblieben (Tests, `data`-Haken,
+   acht Montagestellen) -- ihre Werte kommen aus `.avm-rahmen__titel` / `.avm-rahmen__zusatz`. */
+
 .fs-scope__fields { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; }
 
 /* Die Wahl „alle N Abschnitte dieses Weges“ / „nur dieser Abschnitt“ im dritten Rahmen -- NUR am Abschnitt
