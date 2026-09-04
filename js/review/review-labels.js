@@ -1,3 +1,4 @@
+/* 🪤 04.09.2026 Stempel-Heilung nach einem abgebrochenen Deploy -- die Begruendung steht in css/components/fenster.css. */
 // ---- Live-Vorschau der Darstellung (Owner 2026-07-29) ------------------------------------------------
 //
 // 🔴 Größe, Drehung und Priorität wirken auf der KARTE, während man am Regler zieht -- und werden

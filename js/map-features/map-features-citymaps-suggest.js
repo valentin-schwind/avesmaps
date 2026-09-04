@@ -1,3 +1,4 @@
+/* 🪤 04.09.2026 Stempel-Heilung nach einem abgebrochenen Deploy -- die Begruendung steht in css/components/fenster.css. */
 // Kartensammlung: "Karte vorschlagen" — der Community-Vorschlag (Spec §3.8).
 //
 // EIGENER Dialog, nicht "Änderung vorschlagen" (Owner-Vorgabe): das Meldeformular in der index.html ist auf

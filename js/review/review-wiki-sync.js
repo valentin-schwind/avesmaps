@@ -1,3 +1,4 @@
+/* 🪤 04.09.2026 Stempel-Heilung nach einem abgebrochenen Deploy -- die Begruendung steht in css/components/fenster.css. */
 // 💣 Diese Datei holt hier ihren vergifteten Asset-Stempel ab (19.08.2026).
 // Drei Deploy-Laeufe hintereinander wurden abgebrochen -- einer hing ueber 35 Minuten am
 // SFTP-Schritt und blockierte die Warteschlange (concurrency: cancel-in-progress: false).

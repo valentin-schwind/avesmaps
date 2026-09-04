@@ -1,3 +1,4 @@
+/* 🪤 04.09.2026 Stempel-Heilung nach einem abgebrochenen Deploy -- die Begruendung steht in css/components/fenster.css. */
 // Landschaften-Editor overlay -- the SEVENTH list editor, and the one the code had been holding a
 // slot open for: js/review/review-subjects.js carried `editorButtonId: null` on the `regions` row
 // with a comment naming exactly this gap. Plan: docs/superpowers/plans/2026-07-27-landschaften-editor.md

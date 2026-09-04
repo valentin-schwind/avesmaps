@@ -1,3 +1,4 @@
+/* 🪤 04.09.2026 Stempel-Heilung nach einem abgebrochenen Deploy -- die Begruendung steht in css/components/fenster.css. */
 // Literatur-Feature (Phase 2.3) -- der verschachtelte "Alle anzeigen"-Dialog fuer Territorien/Regionen.
 //
 // Umsetzung des vom Owner freigegebenen Entwurfs: echt VERSCHACHTELTE Rahmen (Box-in-Box, jede Ebene inkl.

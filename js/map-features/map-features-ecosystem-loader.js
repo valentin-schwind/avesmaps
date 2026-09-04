@@ -1,3 +1,4 @@
+/* 🪤 04.09.2026 Stempel-Heilung nach einem abgebrochenen Deploy -- die Begruendung steht in css/components/fenster.css. */
 // Landschaften (Erprobung) -- loading the areas of the current viewport and keeping the registry in
 // sync with them (plan V3.0, steps 2, 3 and 6). All three `kind` arrive in ONE request; the endpoint
 // joins them from the region and does not need three calls.

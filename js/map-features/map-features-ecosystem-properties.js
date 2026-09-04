@@ -1,3 +1,4 @@
+/* 🪤 04.09.2026 Stempel-Heilung nach einem abgebrochenen Deploy -- die Begruendung steht in css/components/fenster.css. */
 // Landschaften — „Eigenschaften …" auf einer Fläche (V6b).
 //
 // 🔴 WARUM ES DAS GIBT. `update_region` und `delete_region` waren seit V2.3 gebaut und im Dispatcher

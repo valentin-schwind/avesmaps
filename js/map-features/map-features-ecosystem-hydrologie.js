@@ -1,3 +1,4 @@
+/* 🪤 04.09.2026 Stempel-Heilung nach einem abgebrochenen Deploy -- die Begruendung steht in css/components/fenster.css. */
 // Landschaften -- die lokale Gebirgssimulation EINER Flaeche (V12, live 04.09.2026).
 //
 // Owner-Auftrag 04.09.2026: „das rasterisierte graustufenbild nach der erosion soll ab sofort fuer

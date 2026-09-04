@@ -1,3 +1,4 @@
+/* 🪤 04.09.2026 Stempel-Heilung nach einem abgebrochenen Deploy -- die Begruendung steht in css/components/fenster.css. */
 // Wege-Editor overlay -- the EIGHTH list editor, and the last slot js/review/review-subjects.js was
 // still holding open: the `paths` row carried `editorButtonId: null` with a comment naming exactly
 // this gap. Auftrag: docs/wege-editor-instruction.md.

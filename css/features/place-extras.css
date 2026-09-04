@@ -1,3 +1,4 @@
+/* 🪤 04.09.2026 Stempel-Heilung nach einem abgebrochenen Deploy -- die Begruendung steht in css/components/fenster.css. */
 /* Place-Extras (Infopanel Phase 6): die Siedlungs-Abschnitte "Stadtkarten" und
    "Abenteuer in <Ort>". Werden NUR im Infopanel-Modus gerendert (buildLocationMarkerPopupHtml
    haengt sie nur bei IS_INFOPANEL_MODE an -- im schwebenden Default-Popup erscheinen sie NICHT).

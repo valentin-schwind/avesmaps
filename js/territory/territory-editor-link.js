@@ -1,3 +1,4 @@
+/* 🪤 04.09.2026 Stempel-Heilung nach einem abgebrochenen Deploy -- die Begruendung steht in css/components/fenster.css. */
 "use strict";
 
 const POLITICAL_TERRITORY_DISPLAY_OVERRIDES_API_URL = "/api/edit/political/display-overrides.php";

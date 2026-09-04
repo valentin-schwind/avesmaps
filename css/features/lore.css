@@ -1,3 +1,4 @@
+/* 🪤 04.09.2026 Stempel-Heilung nach einem abgebrochenen Deploy -- die Begruendung steht in css/components/fenster.css. */
 /* Natur & Waren im Infopanel: Pflanzen, Tiere, Spezies, Handelswaren eines Ortes.
    Design: docs/design-language.md — Gruppierung per Trenner statt Kasten, Gold-Braun
    für Links, kein Blau. Alle Werte kommen aus css/base/tokens.css; hier steht bewusst
@@ -184,11 +185,17 @@ details.avesmaps-lore__gruppe[open] > .avesmaps-lore__gruppe-kopf::after {
 	width: var(--avm-editor-w);
 	max-width: none;
 	height: var(--avm-editor-h);
-	/* 💣 Der Grund ist --color-page-bg, NICHT --color-panel (das erbt .location-report-dialog).
-	   Die hellen gerahmten Spaltenkaesten weiter unten sind nur auf einem dunkleren Grund als
-	   eingefasste Flaechen lesbar -- auf gleicher Farbe haengt ihr Rahmen im Nichts. Genau daran
-	   ist der Abenteuer-Editor einmal gescheitert (ab3a7f97). */
-	background: var(--color-page-bg);
+	/* 🔴 DIE HUELLE TRAEGT --color-panel WIE JEDES FENSTER (Owner 04.09.2026: „vorkommen hat ganz
+	   andere hintergrundfarbe" -- gemessen 25,5 RGB-Abstand, waehrend die sechs anderen Fenster
+	   exakt auf --color-panel standen). Hier stand --color-page-bg an der HUELLE, und damit lag
+	   der dunklere Grund auch unter der Titelleiste -- das ist es, was auffaellt.
+	   ⚠️ Die Begruendung dafuer war richtig und bleibt gueltig, nur an der falschen Stelle: die
+	   hellen gerahmten Spaltenkaesten brauchen einen dunkleren Grund, sonst haengt ihr Rahmen im
+	   Nichts (daran ist der Abenteuer-Editor einmal gescheitert, ab3a7f97). Der Grund steht
+	   deshalb jetzt am INHALT -- genau so, wie es die vier iframe-Editoren halten: dort liegt
+	   --color-page-bg am <body> der Seite, waehrend die Fensterhuelle darum --color-panel bleibt
+	   (html/wiki-sync-powerline-editor.html: `body { background: var(--bg) }`). */
+	background: var(--color-panel);
 	/* Polsterung 0 und Radius herunter: Titelleiste, Menueband und Statuszeile laufen jetzt bis
 	   an die Fensterkante wie in den vier iframe-Editoren, statt 18px eingerueckt zu stehen.
 	   Spec §4.2: Huelle --radius-sm, Bedienelemente --radius-md. */
@@ -204,6 +211,11 @@ details.avesmaps-lore__gruppe[open] > .avesmaps-lore__gruppe-kopf::after {
    Richtung wird zurueckgedreht -- Polsterung, Hoehe und Scrollverhalten bleiben
    geerbt, damit das Fenster sich nicht von den uebrigen Dialogen entfernt. */
 #wiki-sync-lore-dialog-body {
+	/* 🔴 HIER liegt der dunkle Grund, nicht an der Huelle: die hellen gerahmten Spaltenkaesten
+	   (.lore-dlg__panelscroll & Co. stehen selbst auf --color-panel) brauchen ihn, sonst haengt
+	   ihr Rahmen im Nichts. Dieselbe Schichtung wie in den vier iframe-Editoren, wo
+	   --color-page-bg am <body> liegt und die Fensterhuelle darum --color-panel bleibt. */
+	background: var(--color-page-bg);
 	flex-direction: column;
 	/* gap 0: die Baender stossen jetzt aneinander und trennen sich durch ihre eigenen Kanten --
 	   dieselbe Schichtung wie header / #settlementStatus / .cols im Siedlungseditor. Ein gap

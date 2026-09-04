@@ -1,3 +1,4 @@
+/* 🪤 04.09.2026 Stempel-Heilung nach einem abgebrochenen Deploy -- die Begruendung steht in css/components/fenster.css. */
 // Kraftlinien-Editor overlay -- the sixth list editor. Same shared shell
 // (css/components/editor-shell.css, avm-editor-* classes) as the settlement editor
 // (openAvesmapsSettlementEditorOverlay in review-settlement-list.js), its own self-contained iframe

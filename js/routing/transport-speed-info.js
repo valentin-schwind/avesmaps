@@ -1,3 +1,4 @@
+/* 🪤 04.09.2026 Stempel-Heilung nach einem abgebrochenen Deploy -- die Begruendung steht in css/components/fenster.css. */
 // Info-Dialog "Transportmittel" (hiess bis 2026-08-03 "Reisegeschwindigkeiten und Wegtypen"):
 // ein i-Button neben der Transportmittel-Ueberschrift
 // im Routenplaner oeffnet eine Tabelle aller Geschwindigkeiten je Transportmittel x Wegtyp. Reines

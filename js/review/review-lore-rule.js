@@ -1,3 +1,4 @@
+/* 🪤 04.09.2026 Stempel-Heilung nach einem abgebrochenen Deploy -- die Begruendung steht in css/components/fenster.css. */
 // ---- Regelkarten in der Vorkommen-Liste (Lebensraum-Regel, Sitzung 2 Task 5) -----------------------
 //
 // Eine gespeicherte Regel als deutscher Satz und als Karte, gleichrangig neben den Ortskarten

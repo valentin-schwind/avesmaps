@@ -1,3 +1,4 @@
+/* 🪤 04.09.2026 Stempel-Heilung nach einem abgebrochenen Deploy -- die Begruendung steht in css/components/fenster.css. */
 // Place-Extras (Infopanel Phase 6): die Abschnitte "Kartensammlung" (kuratierte Karten) und
 // "Abenteuer in <Ort>" fuer Siedlung, Territorium, Region und Weg -- Popup wie Panel.
 //

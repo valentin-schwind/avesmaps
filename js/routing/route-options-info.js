@@ -1,3 +1,4 @@
+/* 🪤 04.09.2026 Stempel-Heilung nach einem abgebrochenen Deploy -- die Begruendung steht in css/components/fenster.css. */
 /*
  * Info-Dialog „Reiseoptionen": ein ⓘ-Knopf neben der Ueberschrift der Optionsgruppe im
  * Routenplaner erklaert, was die fuenf Einstellungen tun -- und zwar so, wie sie gerechnet

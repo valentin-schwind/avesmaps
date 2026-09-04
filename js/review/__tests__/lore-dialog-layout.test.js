@@ -11,7 +11,12 @@ const fs = require("node:fs");
 const vm = require("node:vm");
 
 const html = fs.readFileSync("index.html", "utf8");
-const css = fs.readFileSync("css/features/lore.css", "utf8");
+const css = fs.readFileSync("css/features/lore.css", "utf8")
+	// 🪤 KOMMENTARE RAUS, sonst zerschneidet ein `}` IN einem Kommentar jede `[^}]*`-Regelsuche.
+	//    Genau daran ist dieser Test am 04.09.2026 umgefallen: die Begruendung an
+	//    #wiki-sync-lore-dialog zitiert `body { background: var(--bg) }` aus dem
+	//    Kraftlinien-Editor -- und die Suche endete an dessen Klammer.
+	.replace(/\/\*[\s\S]*?\*\//g, "");
 const tokens = fs.readFileSync("css/base/tokens.css", "utf8");
 
 // Nur der Fensterrumpf, nicht das ganze Dokument: index.html enthaelt ein zweites, aelteres
@@ -67,12 +72,22 @@ assert.ok(/padding:\s*var\(--avm-col-pad\)/.test(spaltenRegel[0]),
 assert.ok(!/border:/.test(spaltenRegel[0]) && !/background:/.test(spaltenRegel[0]),
 	"die Spalte selbst bleibt durchsichtig -- sonst haette man zwei Rahmen ineinander");
 
-// 💣 Der Kasten ist nur auf dunklerem Grund als Flaeche lesbar. Steht das Fenster auf
-// --color-panel wie die Kaesten, haengt ihr Rahmen im Nichts (Abenteuer-Editor, ab3a7f97).
+// 💣 DER DUNKLE GRUND GEHOERT DEM INHALT, NICHT DER HUELLE. Die Begruendung ist unveraendert --
+// die hellen gerahmten Kaesten sind nur auf dunklerem Grund als Flaeche lesbar, sonst haengt ihr
+// Rahmen im Nichts (Abenteuer-Editor, ab3a7f97). Sie stand nur an der falschen Stelle: mit
+// --color-page-bg an der HUELLE lag der dunklere Grund auch unter der Titelleiste, und das
+// Fenster fiel aus der Reihe (Owner 04.09.2026: „vorkommen hat ganz andere hintergrundfarbe" --
+// gemessen 25,5 RGB-Abstand, waehrend sechs andere Fenster exakt auf --color-panel standen).
+// ⭐ Dieselbe Schichtung wie in den vier iframe-Editoren: dort liegt --color-page-bg am <body>
+//    der Seite, die Fensterhuelle darum bleibt --color-panel.
 const fensterRegel = css.match(/#wiki-sync-lore-dialog \{[^}]*\}/);
 assert.ok(fensterRegel, "#wiki-sync-lore-dialog wird gestylt");
-assert.ok(/background:\s*var\(--color-page-bg\)/.test(fensterRegel[0]),
-	"der Fenstergrund ist --color-page-bg, nicht --color-panel");
+assert.ok(/background:\s*var\(\--color-panel\)/.test(fensterRegel[0]),
+	"die HUELLE traegt --color-panel wie jedes Fenster");
+const rumpfRegel = css.match(/#wiki-sync-lore-dialog-body \{[^}]*\}/);
+assert.ok(rumpfRegel, "#wiki-sync-lore-dialog-body wird gestylt");
+assert.ok(/background:\s*var\(\--color-page-bg\)/.test(rumpfRegel[0]),
+	"der RUMPF traegt --color-page-bg -- ohne ihn haengen die Rahmen der Spaltenkaesten im Nichts");
 assert.ok(/padding:\s*0/.test(fensterRegel[0]),
 	"Polsterung 0 -- Menueband und Statuszeile laufen bis an die Fensterkante");
 

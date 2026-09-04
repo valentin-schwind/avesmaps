@@ -1,3 +1,4 @@
+/* 🪤 04.09.2026 Stempel-Heilung nach einem abgebrochenen Deploy -- die Begruendung steht in css/components/fenster.css. */
 /*
  * Landschaften (Erprobung) -- the one-time notice shown the FIRST time an editor enters the layer
  * (plan V3.5).

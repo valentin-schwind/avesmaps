@@ -1,3 +1,4 @@
+/* 🪤 04.09.2026 Stempel-Heilung nach einem abgebrochenen Deploy -- die Begruendung steht in css/components/fenster.css. */
 // Kartensammlung: der "Alle anzeigen"-Dialog (Spec §3.7) + der geteilte Spoiler-Reveal.
 //
 // Fensterstruktur wie "Abenteuer in …": Kopf, Filterleiste, Liste, Fußzeile. Teilt sich die Dialog-Huelle

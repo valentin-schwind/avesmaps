@@ -1,3 +1,4 @@
+/* 🪤 04.09.2026 Stempel-Heilung nach einem abgebrochenen Deploy -- die Begruendung steht in css/components/fenster.css. */
 /*
  * Community-Ortsbewertungen: Anzeige in der Orts-Infobox (Durchschnitt mit halben Sternen +
  * scrollbare Liste), Schreib-Dialog und Editor-Moderation (verbergen/einblenden/löschen).

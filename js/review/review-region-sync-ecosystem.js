@@ -1,3 +1,4 @@
+/* 🪤 04.09.2026 Stempel-Heilung nach einem abgebrochenen Deploy -- die Begruendung steht in css/components/fenster.css. */
 // Der Landschaftsteil der Liste „WikiSync → Regionen": welche Landschaftsflächen hängen an welcher
 // Wiki-Region, und das Zuweisen selbst — für FLÄCHEN (V6) wie für KARTEN-LABELS (V6c).
 //
