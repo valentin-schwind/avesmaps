@@ -318,10 +318,17 @@ steht — sichtbar, aber nicht erklärbar.
 ein Bild steht, rücken alle Zeilen ein. Als Klasse am Markup wäre es eine Regel, die man
 vergessen kann — und man merkt es erst bei der ersten bildlosen Zeile.
 
-⚠️ Die **Höhe** gehört der Liste, nicht dem Bauteil: Wappen quadratisch, Buchcover 3:4,
-Kartenvorschau 4:3. Heute hat `.avm-row` **gar keinen** Bildplatz — die Listen mit Cover
-(62×88) und Kartenvorschau (48×34) sind vollständig eigene Rezepturen, und das ist einer der
-Gründe, warum es 26 gibt.
+⚠️ Die **Höhe** gehört der Liste, nicht dem Bauteil. Am Bestand gemessen (04.09.2026, nicht aus
+dem Mockup abgeschrieben — dort standen 62×88 und 48×34, die es nirgends gibt): das Wappen im
+Ortseditor ist **22×22** (`.se-row-coat`), das Buchcover **32×45** (`.ae-item__thumb`, hochkant),
+die Kartenvorschau **56×40** (`.ce-item__thumb`, quer).
+
+✅ **Die Regel selbst GILT heute schon** — alle drei Listen reservieren den Platz auch ohne Bild
+(`.se-row-coat--empty` gestrichelt, sonst ein Platzhalter-SVG im immer vorhandenen `<span>`). Die
+Texte stehen also bündig.
+🔧 **Offen ist die Zusammenlegung**: `.avm-row` hat bis heute keinen `__bild`-Platz, es sind drei
+eigene Rezepturen. Sie zu einer zu machen ändert am Bild NICHTS und fasst drei Editor-Listenbauer
+an — das ist ein eigener Durchgang, kein Nebeneffekt.
 
 ⭐ Gemessen: ohne die Regel springt die Textkante 58,7 / 20,7 / 58,7 / 20,7 (38px in jeder
 zweiten Zeile), mit ihr steht sie viermal auf 58,7. Der `:has`-Preis an **2000 Zeilen**:
