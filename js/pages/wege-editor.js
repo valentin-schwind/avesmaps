@@ -57,6 +57,11 @@
 		query: "",
 		selected: null,      // public_id
 		detail: null,        // Antwort von ?action=detail
+		// 🔴 Zwischen selectWay() und der Detail-Antwort steht die Spalte schon -- sofort aus den
+		// Listendaten gezeichnet, damit nichts flackert. In diesem Fenster ist `detailLaedt` true, und
+		// der Quellenkasten wird NICHT montiert: die Antwort baut die Spalte gleich noch einmal
+		// (Landschaften), und ein Kasten je Aufbau hiess je Abschnittsklick ZWEI `list`-Anfragen.
+		detailLaedt: false,
 		draft: null,         // die bearbeitete Fassung des gewählten Weges
 		// Die WEG-EBENE (Entwurf: docs/superpowers/specs/2026-08-19-wege-editor-weg-ebene-design.md).
 		// 🔴 `selected` und `selectedGroup` schliessen einander aus, immer -- eine Maske, die zwei
@@ -619,7 +624,11 @@
 		// gelten dem Abschnitt. Getter statt Wert, weil das Bauteil ihn bei JEDER Anfrage liest.
 		// ⚠️ Die Gruppe kommt aus ALLEN Wegen (state.ways) ueber den Modellschluessel, nicht aus der
 		// gefilterten Liste -- ein Filter „Quelle: keine" darf „alle N Abschnitte" nicht verkleinern.
-		if (typeof mountFeatureSourceEditor === "function" && $("wpFeatureSources")) {
+		// 💣 NICHT, waehrend das Detail laedt: selectWay() zeichnet die Spalte zweimal (sofort aus der
+		// Liste, dann mit der Antwort), und der Kasten holt beim Montieren seine Liste vom Server --
+		// gemessen ZWEI `list`-Anfragen je Abschnittsklick. Montiert wird im zweiten Aufbau; der
+		// Fehlpfad von selectWay() zeichnet ebenfalls neu, damit der Kasten in jedem Fall kommt.
+		if (!state.detailLaedt && typeof mountFeatureSourceEditor === "function" && $("wpFeatureSources")) {
 			mountFeatureSourceEditor($("wpFeatureSources"), "path", function () { return state.selected; }, {
 				gruppe: {
 					publicIds: function () {
@@ -1698,6 +1707,8 @@
 		// js/review/review-paths.js); hier fehlte er, und gefunden hat es die Konsistenzpruefung.
 		wpWikiUebernommen = new Set();
 		state.detail = null;
+		// 🔴 VOR dem ersten renderDetail(): der Quellenkasten kommt erst mit der Antwort (siehe `state`).
+		state.detailLaedt = true;
 		renderList();
 		renderDetail();
 		$("wpProfile").innerHTML = '<div class="avm-empty">Wird geladen…</div>';
@@ -1706,11 +1717,18 @@
 			.then(function (response) {
 				if (!response || response.ok !== true) { throw new Error("Detail konnte nicht geladen werden."); }
 				state.detail = response;
+				state.detailLaedt = false;
 				renderDetail();
 				renderProfile();
 			})
 			.catch(function (error) {
 				$("wpProfile").innerHTML = '<div class="avm-error">' + escapeHtml(error.message || error) + "</div>";
+				// 💣 Auch der Fehlpfad hebt den Riegel und zeichnet neu -- sonst bliebe die Spalte fuer
+				// diesen Abschnitt OHNE Quellenkasten stehen, und das saehe aus wie „hat keine Quellen".
+				if (state.detailLaedt) {
+					state.detailLaedt = false;
+					renderDetail();
+				}
 			});
 	}
 
