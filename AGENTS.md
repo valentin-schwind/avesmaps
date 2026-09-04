@@ -796,9 +796,25 @@ hex values across 38 CSS files).
   sich für ein Mockup wörtliche Werte definiert, liegt auf jeder Kante 2px daneben.
   🔴 **Die Hülle hat `padding: 0`**, jede Zone trägt ihr Polster selbst — dadurch läuft jeder
   Trenner ohne negative Außenränder von Kante zu Kante.
-  💣 **EINE Linie je Bandgruppe.** Kopfleiste und Menüband sind eine Bedienfläche; zwischen
-  ihnen gehört keine Linie (heute tragen `.avm-editor-dialog__header` UND `.avm-ribbon-bar` je
-  eine — zwei Striche 66px auseinander). Umgesetzt per `:has(+ …)`, nie als Klasse am Markup.
+  🔴 **Der Trenner unter der Kopfleiste ist DURCHGEHEND und steht immer — der TITEL bekommt
+  keinen.** 💣 Die Falle ist eine generische Elementregel, die ins Bauteil hineinreicht: der
+  Titel ist ein `<h2>`, also legt ein `h2 { border-bottom }` aus dem Dokument eine zweite,
+  KURZE Linie unter das Wort (gemessen 350 von 469px). Element-Selektoren aus dem Inneren eines
+  Bauteils heraushalten — im Mockup per `body > h2`, im Code per Klassenregel.
+  🔴 **Scrollen: Kopf und Fuß stehen, nur der Rumpf läuft** (Owner: „…den titel aus den augen
+  verliere"). Hülle `overflow: hidden`, Rumpf `flex: 1 1 auto; min-height: 0; overflow: auto`.
+  💣 `min-height: 0` ist tragend — ein Flex-Kind schrumpft sonst nicht unter seinen Inhalt, und
+  es scrollt wieder die Hülle. ⚠️ Nur DREI Regeln machen es heute falsch:
+  `.location-report-dialog` (≈14 Fenster, „Ort bearbeiten"), `.avm-modal`,
+  `.ecosystem-transfer-dialog`.
+  🔴 **Listen: EIN Zeilenmaß, `.avm-row`** (`editor-row.css`) — gemessen 26 Rezepturen mit
+  eigenem Polster. Die Funktion darf sich unterscheiden (Statuskreis, Bild, Pfeil, Zähler), das
+  Skelett nicht. ⚠️ Kein neuer Vorschlag: §11 sagt seit 14.08.2026 „es gibt ZWEI, und das ist
+  die Obergrenze".
+  🔧 **Reiter: Entscheidung offen** — 9 Rezepturen in zwei Grundformen (Unterstrich `.avm-tab`
+  gegen gefüllt `.ecosystem-layer-switch__tab`), dieselben fünf Beschriftungen in beiden.
+  Vorschlag T3 im Mockup: Reiter (Ansicht im Fenster) = Unterstrich, Umschalter (Einstellung
+  auf der Karte) = gefüllt.
   🔴 **Das Menüband ist `.avm-tile` / `.avm-ribbon`** aus `editor-body.css`, unverändert — nichts
   Neues bauen. 💣 `:where()` in `:where(.avm-editor-body) button` ist TRAGEND: ohne die Klammer
   (0,1,1 statt 0,0,1) kollabiert die Kachel gemessen von 48px auf 32.

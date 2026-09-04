@@ -140,18 +140,20 @@ Inhalt. Gemessen: Kopfleiste **52** (32er Elemente + 2×10), Menüband **69** (4
 2×10 + Linie), Fußleiste **53**. Wer eine davon als `height` setzt, schneidet beim nächsten
 zweizeiligen Element etwas ab.
 
-### Eine Linie je Bandgruppe — nie zwei
+### Der Trenner unter der Kopfleiste ist DURCHGEHEND — und der Titel bekommt keinen
 
-💣 Kopfleiste und Menüband sind **eine** zusammenhängende Bedienfläche; zwischen ihnen gehört
-keine Linie. Die Linie sitzt, wo die Bedienfläche auf den **Inhalt** trifft. Heute tragen
-`.avm-editor-dialog__header` **und** `.avm-ribbon-bar` je einen `border-bottom` — zwei Striche
-66px auseinander, und keiner trennt etwas, was nicht ohnehin zusammengehört (Owner-Befund
-04.09.2026: „du hast den [Trenner] reingemacht, den ich wollte, aber noch eine linie
-eingebaut").
+🔴 Owner 04.09.2026: „ich will den komischen unter dem titel nicht haben — SONDERN DEN
+DURCHGEHENDEN". Die Kopfleiste trägt ihre Linie **immer** und über die **volle** Breite —
+auch wenn ein Menüband folgt, das seine eigene hat. Der **Titel selbst** bekommt nie eine.
 
-⭐ Umgesetzt als `:has(+ …)` am Kopf, **nicht** als Klasse am Markup: so kann kein Fenster die
-Regel verfehlen, indem es die Klasse vergisst. `:has` ist im Haus etabliert (review-panel.css,
-infopanel.css).
+💣 **Und die Falle heißt: eine generische Elementregel, die in ein Bauteil hineinreicht.**
+Der Titel ist ein `<h2>`; ein `h2 { border-bottom }` aus dem umgebenden Dokument legt damit
+eine zweite, **kurze** Linie unter das Wort — im Mockup gemessen 350 von 469 px, eingerückt
+und ohne Aussage. Genau daran ist die erste Fassung dieses Abschnitts gescheitert: der Bericht
+wurde für die Menüband-Linie gehalten und die **falsche** entfernt.
+⭐ Die Lehre gilt über den Trenner hinaus: **wer ein Bauteil zeigt oder baut, hält
+Element-Selektoren aus seinem Inneren heraus** — im Mockup per `body > h2`, im Produktivcode
+per Klassenregel am Bauteil. Sonst misst man etwas anderes als das, was ausgeliefert wird.
 
 ### Das Menüband ist `.avm-tile`, nicht etwas Neues
 
@@ -196,6 +198,27 @@ die Divergenz.
   (`.is-minimized > :not(.<kopfleiste>)`), nie eine Liste der Zonen — eine Liste veraltet
   lautlos, und die nächste Zone stünde eingeklappt sichtbar da.
 
+### Scrollen — Kopf und Fuß stehen, nur der Inhalt läuft
+
+🔴 Owner 04.09.2026: „fenster bei denen ich außerdem scrollen will, sollen nicht über die
+volle höhe sondern nur über den inhalt, also alles unter header und über footer scrollen.
+schlimmstes beispiel ist ‚Ort bearbeiten', wo ich über alles scrollen muss, um zum speichern
+zu kommen und den titel aus den augen verliere".
+
+Die Hülle bekommt `overflow: hidden`, der Rumpf `flex: 1 1 auto; min-height: 0; overflow: auto`.
+Damit bleiben Titel und Speichern-Knopf immer im Blick, und die Bildlaufleiste sitzt **im**
+Rumpf statt über der Titelzeile.
+
+💣 **`min-height: 0` ist tragend, nicht Kosmetik.** Ein Flex-Kind hat als Vorgabe
+`min-height: auto` und schrumpft **nicht** unter seinen Inhalt — ohne die Zeile wächst der
+Rumpf über die Fensterhöhe hinaus, `overflow: auto` greift nie, und stattdessen scrollt wieder
+die Hülle.
+
+⚠️ Gemessen sind es **drei** Regeln, die es heute falsch machen:
+`.location-report-dialog` (rund **14** Fenster, „Ort bearbeiten" darunter), `.avm-modal` und
+`.ecosystem-transfer-dialog`. Alle übrigen sind bereits richtig gebaut — es ist kein Umbau,
+sondern das Entfernen von drei `overflow-y: auto`.
+
 ### Der Griff `⁝⁝`
 
 🔴 **Jedes Fenster ist verschiebbar und trägt den Griff** (Owner 04.09.2026: „Du kannst alle
@@ -214,6 +237,40 @@ Behauptung, die das Fenster nicht einlöst, und niemand fände heraus, welche Se
 den Zwischenraum: im Browser gemessen **4,9 px statt 8,8** — aus zwei Punktspalten wird eine,
 und der Griff liest sich als Doppelpunkt. Abgeschriebene Werte überleben den Wechsel ihres
 Gegenstands nicht.
+
+### Listen — ein Zeilenmaß für alle
+
+🔴 Owner 04.09.2026: „genauso wie die margins/paddings von listen. jedes sieht anders aus. ich
+weiß dass listen unterschiedliche funktionen können/haben, **aber der style sollte einheitlich
+sein**". Gemessen: **26** Listenzeilen-Rezepturen mit eigenem Polster — `7px 8px` · `7px 11px` ·
+`12px 0` · `9px 0` · `5px 7px` · `6px 9px` · `4px 0`, dazu drei mit hartem
+`border-radius: 6px`.
+
+**Die Zeile ist `.avm-row`** (`css/components/editor-row.css`): `--avm-row-pad`, gap
+`--space-6`, `--radius-md`, 1px durchsichtiger Rand für den Auswahlzustand, zwei Zeilen
+(`__name` fett, `__l2` in `--font-size-caption` gedämpft). Die **Funktion** darf sich
+unterscheiden — Statuskreis, Vorschaubild, Aufklapp-Pfeil, Zieh-Griff, Zähler —, das
+**Skelett** nicht.
+
+⚠️ Das ist **kein neuer Vorschlag, sondern das Fertigstellen eines angefangenen**: AGENTS.md
+§11 sagt seit dem 14.08.2026 „Die Listenzeile — es gibt ZWEI, und das ist die Obergrenze".
+Die Regel hat gehalten, wo jemand sie kannte, und sonst nicht.
+
+### Reiter — 🔧 offen, Entscheidung steht aus
+
+Gemessen: **neun** Rezepturen in zwei Grundformen, und dieselben fünf Beschriftungen
+(Alle · Derographie · Vegetation · Topographie · Klimazonen) stehen auf der Karte als
+gefüllter Umschalter und im Landschaften-Editor als Unterstrich-Reiter.
+
+- **Unterstrich** (`--avm-tab` 6/1, `.status-subtab` 7/1, `.mail-inbox__tabs` 4/12/0)
+- **Gefüllt** (`.ecosystem-layer-switch__tab` 8/10, `.political-territory-tabs__tab` 6/10,
+  `.review-panel__tab` 9/10 mit dritter Füllart)
+- Dazu zwei mit Guide-Verstößen: `.wiki-sync-substatus__tab` (Pille `999px`, 12px, Gewicht 600)
+  und `.fs-src-tab` (11,5px).
+
+Vorschlag (im Mockup als **T3** gezeichnet): **Reiter** wechselt die *Ansicht* in einem Fenster
+→ Unterstrich; **Umschalter** ist eine *Einstellung* frei auf der Karte → gefüllt. Zwei Formen,
+und welche gilt, entscheidet der Ort. **Owner-Entscheid steht aus.**
 
 ### Ein Bauteil, nicht dreizehn Abschriften
 

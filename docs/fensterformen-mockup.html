@@ -2,14 +2,25 @@
 <style>
 /* ═══════════════════════════════════════════════════════════════════════════════════════════════
    Owner-Entscheid 04.09.2026: A3 · B3 · C2(revidiert) · D1, plus drei Korrekturen am zweiten Wurf:
-     1. „du hast den [Trenner] reingemacht, den ich wollte, aber noch eine linie eingebaut"
-        -> Kopfleiste UND Menueband trugen je eine Linie. Jetzt EINE je Bandgruppe.
+     1. „ich will den komischen unter dem titel nicht haben - SONDERN DEN DURCHGEHENDEN"
+        -> Die kurze Linie kam aus dem SEITENGERUEST dieses Mockups (`h2 { border-bottom }`, und
+           `.fkopf__titel` ist ein h2). Beim ersten Bericht habe ich sie fuer die Menueband-Linie
+           gehalten und die FALSCHE entfernt. Geruest jetzt unter `body > h2`; die Kopfleiste
+           behaelt ihre durchgehende Linie immer. Abschnitt 2.
      2. „bei den kacheln solltest du dich an das typische design der editor-kacheln halten.
         nicht wieder was neues machen"
         -> `.avm-ribbon` / `.avm-tile` / `.t1` / `.t2` stehen hier ZEICHENGLEICH wie in
            css/components/editor-body.css. Keine eigene Kachel mehr.
      3. „Du kannst alle Fenster dragbar machen. […] trotzdem kann das ⁝⁝ bleiben"
         -> kein „nicht verschiebbar" mehr; der Griff steht an jedem Fenster.
+     4. „fenster bei denen ich außerdem scrollen will, sollen nicht über die volle höhe sondern
+        nur über den inhalt […] schlimmstes beispiel ist ‚Ort bearbeiten', wo ich über alles
+        scrollen muss, um zum speichern zu kommen und den titel aus den augen verliere"
+        -> Abschnitt 6. Gemessen: nur DREI Regeln scrollen heute die Huelle.
+     5. „es gibt toggle-nav-tabs und normale tabs. diese sollen vereinheitlicht werden"
+        -> Abschnitt 7. Gemessen: NEUN Rezepturen in zwei Grundformen. Offene Entscheidung.
+     6. „genauso wie die margins/paddings von listen. jedes sieht anders aus"
+        -> Abschnitt 8. Gemessen: 26 Zeilen-Rezepturen mit eigenem Polster.
 
    💣 UND EIN EIGENER FEHLER, der beim Nachschlagen der Kachel aufflog:
       `--space-N` ist NICHT N Pixel. Die Skala traegt global +2 (--space-12 = 14px), und tokens.css
@@ -96,18 +107,15 @@
 	border-bottom: 1px solid var(--color-divider);
 	cursor: grab;
 }
-/* 💣 DIE EINE LINIE JE BANDGRUPPE -- Owner-Befund 04.09.2026: „du hast den [Trenner] reingemacht,
-      den ich wollte, aber noch eine linie eingebaut".
-      Kopfleiste und Menueband sind EINE zusammenhaengende Bedienflaeche; zwischen ihnen gehoert
-      keine Linie, sonst liegen zwei Striche 48px auseinander und die Kopfzeile sieht eingekastelt
-      aus. Die Linie sitzt, wo die Bedienflaeche auf den INHALT trifft -- also unter der letzten
-      Zone der Gruppe.
-   ⚠️ `:has` und nicht eine Klasse am Markup: so kann kein Fenster die Regel verfehlen, indem es
-      die Klasse vergisst. Das Haus benutzt `:has` bereits (review-panel.css, infopanel.css). */
-.fkopf:has(+ .avm-ribbon-bar) { border-bottom: 0; }
-/* Nur fuers Mockup: stellt den FALSCHEN Zustand (zwei Linien) zum Vergleich wieder her.
-   Als Klasse, nicht als Inline-Stil -- auf diesem Blatt steht kein einziger. */
-.fkopf--zweilinien:has(+ .avm-ribbon-bar) { border-bottom: 1px solid var(--color-divider); }
+/* 🔴 DIE LINIE DER KOPFLEISTE IST DURCHGEHEND UND STEHT IMMER -- Owner 04.09.2026:
+      „ich will den komischen unter dem titel nicht haben - SONDERN DEN DURCHGEHENDEN".
+   💣 DER TITEL SELBST BEKOMMT KEINE. Genau die stand hier: das Seitengeruest dieses Mockups
+      trug ein `h2 { border-bottom }`, und das griff in `.fkopf__titel` hinein -- eine zweite,
+      kurze Linie ueber nur 350 der 469px, eingerueckt und ohne Aussage. Beim ersten Bericht des
+      Owners habe ich sie fuer die Menueband-Linie gehalten und daraufhin die FALSCHE entfernt.
+      Das Geruest steht deshalb jetzt unter `body > h2` und kann in kein Fenster mehr hineinreichen.
+   ⭐ Die Lehre gilt ueber dieses Blatt hinaus: ein Mockup, dessen Seiten-CSS in das Bauteil
+      hineinreicht, das es zeigen soll, misst etwas anderes als das, was spaeter gebaut wird. */
 
 /* Der Griff. ⁝⁝ (U+205D, zweimal).
    🔴 Owner 04.09.2026: ALLE Fenster sind verschiebbar -- auch „Landschaften bearbeiten" und
@@ -118,6 +126,13 @@
    💣 KEIN negatives `letter-spacing`. Der alte Griff war `⣿⣿` (Braille) und brauchte -0.12em.
       Bei `⁝⁝` frisst derselbe Wert den Zwischenraum: gemessen 4,9px statt 8,8 -- aus zwei
       Punktspalten wird eine, und der Griff liest sich als Doppelpunkt. */
+/* Nur fuers Mockup: stellt den FALSCHEN Zustand (kurze Linie am Titel) zum Vergleich her.
+   Als Klasse, nicht als Inline-Stil -- auf diesem Blatt steht kein einziger. */
+.fkopf--titelstrich .fkopf__titel {
+	padding-bottom: var(--space-6);
+	border-bottom: 1px solid var(--color-divider);
+}
+
 .fkopf__griff {
 	flex: none; color: var(--color-text-muted);
 	font-size: var(--font-size-subhead); line-height: 1; letter-spacing: 0; user-select: none;
@@ -271,18 +286,172 @@
 .probe::before { left: var(--space-12); }
 .probe::after  { right: var(--space-12); }
 
+
+/* ═══ SCROLLEN: KOPF UND FUSS STEHEN ══════════════════════════════════════════════════════════
+   🔴 Owner 04.09.2026: „fenster bei denen ich außerdem scrollen will, sollen nicht über die volle
+      höhe sondern nur über den inhalt, also alles unter header und über footer scrollen.
+      schlimmstes beispiel ist ‚Ort bearbeiten', wo ich über alles scrollen muss, um zum speichern
+      zu kommen und den titel aus den augen verliere".
+   ⭐ Es ist schon gebaut: `.fen { overflow: hidden }` plus `.frumpf { flex: 1 1 auto; min-height: 0;
+      overflow: auto }`. Der Rest dieses Abschnitts zeigt nur, was der Unterschied ausmacht.
+   💣 `min-height: 0` ist TRAGEND und nicht Kosmetik: ein Flex-Kind hat als Vorgabe
+      `min-height: auto` und schrumpft NICHT unter seinen Inhalt -- ohne die Zeile waechst der
+      Rumpf ueber die Fensterhoehe hinaus, `overflow: auto` greift nie, und stattdessen scrollt
+      wieder die Huelle. Genau daran erkennt man die drei Fenster, die es heute falsch machen.
+   ⚠️ Gemessen: nur DREI Regeln scrollen heute die Huelle -- `.location-report-dialog` (und das
+      sind rund 14 Fenster, „Ort bearbeiten" darunter), `.avm-modal` und
+      `.ecosystem-transfer-dialog`. Alle uebrigen sind bereits richtig gebaut. */
+.fen--demo { height: 320px; }
+.fen--schlecht { overflow-y: auto; }
+.fen--schlecht .frumpf { overflow: visible; }
+.fdemo-fueller > * + * { margin-top: var(--space-8); }
+
+/* ═══ REITER ══════════════════════════════════════════════════════════════════════════════════
+   ZEICHENGLEICH aus css/components/editor-body.css bzw. css/features/ecosystem-layer.css --
+   die zwei Formen, die es heute gibt, damit man sie nebeneinander sieht. */
+.avm-tabs {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-12);
+	margin-bottom: var(--space-4);
+	border-bottom: 1px solid var(--color-border);
+}
+.avm-tab {
+	flex: 0 0 auto;
+	min-height: 0;
+	padding: var(--space-4) 1px;
+	border: 0;
+	border-bottom: 2px solid transparent;
+	border-radius: 0;
+	background: none;
+	appearance: none;
+	-webkit-appearance: none;
+	color: var(--color-text-muted);
+	font: inherit;
+	font-size: var(--font-size-body);
+	line-height: var(--leading-tight);
+	white-space: nowrap;
+}
+.avm-tab.is-active {
+	background: none;
+	color: var(--color-text-strong);
+	font-weight: var(--font-weight-bold);
+	border-bottom-color: var(--color-text-strong);
+}
+.ecosystem-layer-switch {
+	display: grid;
+	grid-auto-flow: column;
+	grid-auto-columns: minmax(0, 1fr);
+	gap: var(--space-2);
+	padding: var(--space-2);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-panel-soft);
+}
+.ecosystem-layer-switch__tab {
+	appearance: none;
+	-webkit-appearance: none;
+	min-width: 0;
+	padding: var(--space-6) var(--space-8);
+	border: 1px solid transparent;
+	border-radius: var(--radius-md);
+	background: none;
+	color: var(--color-button-soft-text);
+	cursor: pointer;
+	font: inherit;
+	font-size: var(--font-size-body);
+	line-height: var(--leading-snug);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.ecosystem-layer-switch__tab.is-active {
+	border-color: var(--color-button-border);
+	background: var(--color-button);
+	color: var(--color-button-text);
+	font-weight: var(--font-weight-bold);
+}
+/* Die Reiterleiste im Fenster traegt dieselbe Kante wie jede andere Zone. */
+.freiter { padding: var(--space-6) var(--space-12) 0; }
+.freiter .avm-tabs { margin-bottom: 0; }
+
+/* Nur fuers Mockup: die uebrigen sieben Rezepturen, damit man sieht, wie weit sie auseinander
+   liegen. Werte 1:1 aus den genannten Dateien -- hier NICHT aufgeraeumt, sie sind der Befund. */
+.ist-tab { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-6); }
+.ist-tab > * { font: inherit; cursor: default; }
+.t-substatus { padding: 4px 10px; border: 1px solid var(--color-border); border-radius: 999px;
+	background: var(--color-panel); font-size: 12px; color: var(--color-button-soft-text); }
+.t-substatus.is-active { background: var(--color-accent-brown); color: var(--color-panel);
+	font-weight: 600; }
+.t-fssrc { padding: 2px 10px; font-size: 11.5px; color: var(--color-text-muted);
+	background: var(--color-panel-soft); border: 1px solid var(--color-border);
+	border-radius: var(--radius-md); }
+.t-fssrc.is-active { background: var(--color-active-wash); color: var(--color-accent-strong);
+	font-weight: 700; }
+.t-review { padding: 9px 10px; border: 0; background: transparent; color: var(--color-text-muted); }
+.t-review.is-active { background: var(--color-panel-muted); color: var(--color-text-strong);
+	font-weight: 700; }
+.t-polterr { padding: 6px 10px; border: 0; background: var(--color-panel);
+	color: var(--color-text-muted); }
+.t-polterr.is-active { background: var(--color-button); color: var(--color-button-text); }
+
+/* ═══ LISTENZEILE ═════════════════════════════════════════════════════════════════════════════
+   ZEICHENGLEICH aus css/components/editor-row.css. */
+.avm-row {
+	display: flex;
+	align-items: center;
+	gap: var(--space-6);
+	padding: var(--avm-row-pad);
+	border: 1px solid transparent;
+	border-radius: var(--radius-md);
+	cursor: pointer;
+	width: 100%;
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	text-align: left;
+}
+.avm-row__l1 { display: flex; align-items: baseline; gap: var(--space-4); }
+.avm-row__l2 {
+	margin-top: 1px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: var(--font-size-caption);
+	color: var(--color-text-muted);
+}
+.avm-row__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+	font-weight: var(--font-weight-bold); }
+.avm-row__body { flex: 1 1 auto; min-width: 0; }
+.avm-row__vor { flex: none; color: var(--color-text-muted); }
+.avm-row__zahl { flex: none; color: var(--color-text-muted); font-size: var(--font-size-caption); }
+.avm-row:hover { background: var(--color-hover-wash); }
+.avm-row.is-active { background: var(--color-active-wash); border-color: var(--color-border-strong); }
+.avm-row__kreis { flex: none; width: 9px; height: 9px; border-radius: 50%;
+	border: 1px solid var(--color-accent-strong); }
+.avm-row__kreis--voll { background: var(--color-accent-strong); }
+.avm-row__kreis--halb { background: linear-gradient(90deg,
+	var(--color-accent-strong) 0 50%, transparent 50%); }
+.avm-row__bild { flex: none; width: 30px; height: 40px; border-radius: var(--radius-sm);
+	background: var(--color-panel-muted); border: 1px solid var(--color-border); }
+.fliste > * + * { border-top: 1px solid var(--color-divider); }
+
+/* Nur fuers Mockup: drei der 26 heutigen Zeilen-Rezepturen, Werte 1:1. */
+.r-tree { display: flex; align-items: center; gap: 7px; padding: 7px 8px; border-radius: 6px; }
+.r-adv  { display: flex; align-items: center; gap: 12px; padding: 12px 0; }
+.r-sac  { display: flex; align-items: center; gap: 8px; padding: 7px 11px; }
+
 /* ═══ Seitengeruest (nur fuers Mockup, nie Vertrag) ═══════════════════════════════════════════ */
 * { box-sizing: border-box; }
 body { margin: 0; padding: var(--space-24) var(--space-24) 120px;
 	background: var(--color-page-bg); color: var(--color-text);
 	font-family: "Faculty Glyphic", Arial, sans-serif; font-size: 14px; line-height: 1.5; }
-h1 { margin: 0 0 var(--space-4); font-size: 25px; color: var(--color-text-strong); }
-h2 { margin: 44px 0 var(--space-6); padding-bottom: var(--space-8);
+body > h1 { margin: 0 0 var(--space-4); font-size: 25px; color: var(--color-text-strong); }
+body > h2 { margin: 44px 0 var(--space-6); padding-bottom: var(--space-8);
 	border-bottom: 1px solid var(--color-divider); font-size: 19px; color: var(--color-text-strong); }
-h3 { margin: var(--space-24) 0 var(--space-4); font-size: 15px; color: var(--color-text-strong); }
-p { margin: var(--space-8) 0; color: var(--color-text-muted); max-width: 94ch; }
-p b, li b, td b { color: var(--color-text-strong); }
-ul { max-width: 94ch; color: var(--color-text-muted); }
+body > h3 { margin: var(--space-24) 0 var(--space-4); font-size: 15px; color: var(--color-text-strong); }body > p { margin: var(--space-8) 0; color: var(--color-text-muted); max-width: 94ch; }
+body > p b, li b, td b { color: var(--color-text-strong); }
+body > ul { max-width: 94ch; color: var(--color-text-muted); }
 li { margin: var(--space-4) 0; }
 code { padding: 1px 5px; border-radius: var(--radius-sm); background: var(--color-panel-muted);
 	color: var(--color-text-strong); font-family: Consolas, monospace; font-size: 12px; }
@@ -317,7 +486,7 @@ td { color: var(--color-text-muted); }
 	border-left: 3px solid var(--color-accent); background: var(--color-panel-muted);
 	border-radius: 0 var(--radius-md) var(--radius-md) 0; }
 .kasten h3 { margin: 0 0 var(--space-4); color: var(--color-accent-strong); }
-.kasten p { color: var(--color-text); }
+.kasten p { margin: var(--space-6) 0 0; color: var(--color-text); max-width: none; }
 </style>
 
 <button class="themeswitch" type="button" id="tsw">Dunkel / Hell</button>
@@ -439,57 +608,56 @@ Inhalt: Kopfleiste <b>52</b> (32er Elemente + 2×10), Menüband <b>69</b> (48er 
 Linie), Fußleiste <b>53</b>. Wer eine dieser Zahlen als <code>height</code> setzt, schneidet beim
 nächsten zweizeiligen Element etwas ab.</p>
 
-<h2>2 · Die doppelte Linie — was war und was ist</h2>
-<p>Dein Befund: <i>„du hast den [Trenner] reingemacht, den ich wollte, aber noch eine linie
-eingebaut“</i>. Stimmt — Kopfleiste <b>und</b> Menüband trugen je einen <code>border-bottom</code>.
-Das ist nicht nur mein Fehler im Mockup, sondern der <b>Ist-Zustand der vier Editoren</b>:
-<code>.avm-editor-dialog__header</code> und <code>.avm-ribbon-bar</code> tragen beide eine Linie.</p>
+<h2>2 · Der Trenner — und mein Fehlgriff</h2>
+<p>Dein zweiter Befund: <i>„nein jetzt hast du den falschen trenner entfernt!!!!! ich will den
+komischen unter dem titel nicht haben — SONDERN DEN DURCHGEHENDEN“</i>. Du hast recht, und die
+Ursache war nicht im Bauteil, sondern in meinem eigenen Seitengerüst.</p>
+<p>Das Mockup trug ein generisches <code>h2 { border-bottom }</code> für seine
+Abschnittsüberschriften — und <code>.fkopf__titel</code> <b>ist</b> ein <code>&lt;h2&gt;</code>.
+Damit lag unter jedem Fenstertitel eine zweite, <b>kurze</b> Linie: gemessen 350 von 469 px,
+eingerückt, ohne jede Aussage. Beim ersten Bericht habe ich sie für die Menüband-Linie gehalten
+und daraufhin die falsche entfernt.</p>
+<p><b>Jetzt:</b> das Seitengerüst steht unter <code>body &gt; h2</code> und kann in kein Fenster
+mehr hineinreichen; die Kopfleiste behält ihre <b>durchgehende</b> Linie in <i>jeder</i> Bauart
+und auch über einem Menüband.</p>
+<p>⭐ Die Lehre geht über dieses Blatt hinaus: <b>ein Mockup, dessen Seiten-CSS in das Bauteil
+hineinreicht, das es zeigen soll, misst etwas anderes als das, was später gebaut wird.</b>
+Genau deshalb hat der Screenshot mehr gezeigt als meine Messung — ich hatte
+<code>fkopf__titel</code> in der Linienliste stehen und nicht hingesehen.</p>
 <div class="buehne">
 	<figure class="wahl">
-		<figcaption class="bad">falsch · zwei Linien</figcaption>
-		<div class="fen fen--werkzeug avm-editor-body">
-			<div class="fkopf fkopf--zweilinien is-draggable">
+		<figcaption class="bad">falsch · die kurze Linie unter dem Titel</figcaption>
+		<div class="fen fen--blatt avm-editor-body">
+			<div class="fkopf fkopf--titelstrich is-draggable">
 				<span class="fkopf__griff" aria-hidden="true">⁝⁝</span>
-				<h2 class="fkopf__titel">Landschaften bearbeiten</h2>
-				<button class="fknopf fknopf--gefasst" type="button">✕</button>
-			</div>
-			<div class="avm-ribbon-bar">
-				<div class="avm-ribbon">
-					<button class="avm-tile avm-tile--primary" type="button"><span class="t1">🚨 Syncen</span><span class="t2">Regionen aus dem Wiki-Dump</span></button>
-					<button class="avm-tile" type="button"><span class="t1">Rechnen ▾</span><span class="t2">fünf Läufe</span></button>
-				</div>
+				<h2 class="fkopf__titel">Weg bearbeiten</h2>
+				<button class="fknopf fknopf--nackt" type="button">✕</button>
 			</div>
 			<div class="frumpf">
-				<div class="fzeile"><b>Aarenfels</b><span>Berggipfel</span></div>
+				<span class="fetikett">Name</span>
+				<input class="ffeld" value="Schattenbachpass" readonly>
 			</div>
 		</div>
-		<p class="note note--warn">Zwei Striche 66px auseinander. Die Kopfzeile sieht eingekastelt
-		aus, und keiner der beiden Striche trennt etwas, was nicht ohnehin zusammengehört.</p>
+		<p class="note note--warn">Zwei Linien übereinander: die kurze am Titel (nur so breit wie
+		sein Kasten, vor dem ✕ zu Ende) und die durchgehende darunter. Die kurze trennt nichts —
+		sie ist ein Unfall aus einer fremden Regel.</p>
 	</figure>
 	<figure class="wahl">
-		<figcaption class="ok">richtig · eine Linie je Bandgruppe</figcaption>
-		<div class="fen fen--werkzeug avm-editor-body">
+		<figcaption class="ok">richtig · nur die durchgehende</figcaption>
+		<div class="fen fen--blatt avm-editor-body">
 			<div class="fkopf is-draggable">
 				<span class="fkopf__griff" aria-hidden="true">⁝⁝</span>
-				<h2 class="fkopf__titel">Landschaften bearbeiten</h2>
-				<button class="fknopf fknopf--gefasst" type="button">−</button>
-				<button class="fknopf fknopf--gefasst" type="button">✕</button>
-			</div>
-			<div class="avm-ribbon-bar">
-				<div class="avm-ribbon">
-					<button class="avm-tile avm-tile--primary" type="button"><span class="t1">🚨 Syncen</span><span class="t2">Regionen aus dem Wiki-Dump</span></button>
-					<button class="avm-tile" type="button"><span class="t1">Rechnen ▾</span><span class="t2">fünf Läufe</span></button>
-				</div>
+				<h2 class="fkopf__titel">Weg bearbeiten</h2>
+				<button class="fknopf fknopf--nackt" type="button">✕</button>
 			</div>
 			<div class="frumpf">
-				<div class="fzeile"><b>Aarenfels</b><span>Berggipfel</span></div>
+				<span class="fetikett">Name</span>
+				<input class="ffeld" value="Schattenbachpass" readonly>
 			</div>
 		</div>
-		<p class="note">Kopfleiste und Menüband sind <b>eine</b> zusammenhängende Bedienfläche —
-		die Linie sitzt, wo sie auf den <b>Inhalt</b> trifft.<br>
-		Umgesetzt als <code>.fkopf:has(+ .avm-ribbon-bar) { border-bottom: 0 }</code> — über
-		<code>:has</code>, nicht über eine Klasse am Markup: so kann kein Fenster die Regel
-		verfehlen, indem es die Klasse vergisst.</p>
+		<p class="note">Eine Linie, von Kante zu Kante, unter der ganzen Kopfleiste — nicht unter
+		dem Wort. Sie trennt <b>Kopf</b> von <b>Inhalt</b>, und das ist das Einzige, was sie
+		sagen soll.</p>
 	</figure>
 </div>
 
@@ -651,7 +819,272 @@ es <b>bleibt, wo es steht</b>, und der Knopf ist derselbe gefasste 32×32 wie da
 	</figure>
 </div>
 
-<h2>6 · Was Fenster und Blatt unterscheidet — und sonst nichts</h2>
+<h2>6 · Scrollen — Kopf und Fuß stehen, nur der Inhalt läuft</h2>
+<p>Dein Befund: <i>„fenster bei denen ich außerdem scrollen will, sollen nicht über die volle höhe
+sondern nur über den inhalt … schlimmstes beispiel ist ‚Ort bearbeiten', wo ich über alles scrollen
+muss, um zum speichern zu kommen und den titel aus den augen verliere“</i>.</p>
+<p><b>Gemessen:</b> nur <b>drei</b> Regeln scrollen heute die ganze Hülle —
+<code>.location-report-dialog</code> (und das sind rund <b>14</b> Fenster, „Ort bearbeiten“
+darunter), <code>.avm-modal</code> und <code>.ecosystem-transfer-dialog</code>. Alle übrigen sind
+schon richtig gebaut; es ist also kein Umbau, sondern das Entfernen von drei
+<code>overflow-y: auto</code>.</p>
+<div class="buehne">
+	<figure class="wahl">
+		<figcaption class="bad">falsch · die ganze Hülle scrollt</figcaption>
+		<div class="fen fen--blatt avm-editor-body fen--demo fen--schlecht">
+			<div class="fkopf is-draggable">
+				<span class="fkopf__griff" aria-hidden="true">⁝⁝</span>
+				<h2 class="fkopf__titel">Ort bearbeiten</h2>
+				<button class="fknopf fknopf--nackt" type="button">✕</button>
+			</div>
+			<div class="frumpf fdemo-fueller">
+				<div><span class="fetikett">Ortsname</span><input class="ffeld" value="Luring" readonly></div>
+				<div><span class="fetikett">Ortsgröße</span><input class="ffeld" value="Stadt" readonly></div>
+				<div><span class="fetikett">Einwohner</span><input class="ffeld" readonly></div>
+				<div><span class="fetikett">Lage</span><input class="ffeld" readonly></div>
+				<div><span class="fetikett">Herrscher</span><input class="ffeld" readonly></div>
+				<div><span class="fetikett">Beschreibung</span><input class="ffeld" readonly></div>
+			</div>
+			<div class="ffuss"><span class="ffuss__haupt">
+				<button class="fknopf2" type="button">Abbrechen</button>
+				<button class="fknopf2 fknopf2--voll" type="button">Speichern</button>
+			</span></div>
+		</div>
+		<p class="note note--warn">Scroll im Kasten: <b>Titel und „Speichern“ wandern mit</b>.
+		Man verliert beide aus dem Blick und muss ans Ende, um zu speichern — dein Fall.
+		Die Bildlaufleiste läuft über die volle Fensterhöhe, quer über die Titelzeile.</p>
+	</figure>
+	<figure class="wahl">
+		<figcaption class="ok">richtig · nur der Rumpf läuft</figcaption>
+		<div class="fen fen--blatt avm-editor-body fen--demo">
+			<div class="fkopf is-draggable">
+				<span class="fkopf__griff" aria-hidden="true">⁝⁝</span>
+				<h2 class="fkopf__titel">Ort bearbeiten</h2>
+				<button class="fknopf fknopf--nackt" type="button">✕</button>
+			</div>
+			<div class="frumpf fdemo-fueller">
+				<div><span class="fetikett">Ortsname</span><input class="ffeld" value="Luring" readonly></div>
+				<div><span class="fetikett">Ortsgröße</span><input class="ffeld" value="Stadt" readonly></div>
+				<div><span class="fetikett">Einwohner</span><input class="ffeld" readonly></div>
+				<div><span class="fetikett">Lage</span><input class="ffeld" readonly></div>
+				<div><span class="fetikett">Herrscher</span><input class="ffeld" readonly></div>
+				<div><span class="fetikett">Beschreibung</span><input class="ffeld" readonly></div>
+			</div>
+			<div class="ffuss"><span class="ffuss__haupt">
+				<button class="fknopf2" type="button">Abbrechen</button>
+				<button class="fknopf2 fknopf2--voll" type="button">Speichern</button>
+			</span></div>
+		</div>
+		<p class="note">Titel und „Speichern“ bleiben stehen, die Bildlaufleiste sitzt <b>im</b>
+		Rumpf. 💣 <code>min-height: 0</code> am Rumpf ist dabei tragend: ein Flex-Kind schrumpft
+		von Haus aus <b>nicht</b> unter seinen Inhalt — ohne die Zeile wächst der Rumpf über das
+		Fenster hinaus, <code>overflow: auto</code> greift nie, und es scrollt wieder die Hülle.
+		Genau daran erkennt man die drei Fenster, die es heute falsch machen.</p>
+	</figure>
+</div>
+
+<h2>7 · Reiter — neun Rezepturen, zwei Formen, eine Entscheidung</h2>
+<p>Dein Auftrag: <i>„es gibt toggle-nav-tabs und normale tabs. diese sollen vereinheitlicht
+werden“</i>. Gemessen sind es <b>neun</b> Rezepturen in zwei Grundformen — und das Auffälligste:
+<b>dieselben fünf Beschriftungen</b> (Alle · Derographie · Vegetation · Topographie · Klimazonen)
+stehen auf der Karte als gefüllter Umschalter und im Landschaften-Editor als
+Unterstrich-Reiter.</p>
+<table>
+<tr><th>Rezeptur</th><th>Polster</th><th>aktiv</th><th>Abweichung</th></tr>
+<tr><td><code>.avm-tab</code> (4 Editoren)</td><td>6 / 1</td><td>Unterstrich + fett</td><td>—</td></tr>
+<tr><td><code>.status-subtab</code></td><td>7 / 1</td><td>Unterstrich + fett</td><td>Polster</td></tr>
+<tr><td><code>.mail-inbox__tabs</code></td><td>4/12/0, gap 14</td><td>Unterstrich</td><td>Polster, gap</td></tr>
+<tr><td><code>.avesmaps-infopanel__tab</code></td><td>5/7/5/12, gap 34</td><td>Karteireiter</td><td>eigene Form</td></tr>
+<tr><td><code>.ecosystem-layer-switch__tab</code></td><td>8 / 10</td><td>gefüllt</td><td>andere Form</td></tr>
+<tr><td><code>.political-territory-tabs__tab</code></td><td>6 / 10</td><td>gefüllt</td><td>nackte Zahlen</td></tr>
+<tr><td><code>.review-panel__tab</code></td><td>9 / 10</td><td>Kastenfüllung</td><td>dritte Füllart</td></tr>
+<tr><td><code>.wiki-sync-substatus__tab</code></td><td>4 / 10</td><td>gefüllt</td><td class="bad">Pille <code>999px</code> · 12px · Gewicht 600</td></tr>
+<tr><td><code>.fs-src-tab</code></td><td>2 / 10</td><td>Wasch-Füllung</td><td class="bad">11,5px</td></tr>
+</table>
+<p>Die letzten beiden verstoßen zusätzlich gegen den Design-Guide: <code>999px</code>-Pillen sind
+verboten, <code>font-weight: 600</code> ebenfalls (nur 400/700), und 11,5px steht auf keiner
+Skalenstufe.</p>
+
+<h3>So sehen die neun heute nebeneinander aus</h3>
+<div class="buehne">
+	<figure class="wahl">
+		<figcaption class="bad">Ist-Zustand · vier davon in einer Reihe</figcaption>
+		<div class="fen fen--blatt avm-editor-body">
+			<div class="frumpf">
+				<div class="ist-tab">
+					<button class="t-substatus is-active" type="button">Alle</button>
+					<button class="t-substatus" type="button">Offen</button>
+					<button class="t-fssrc is-active" type="button">Quellen</button>
+					<button class="t-fssrc" type="button">Publikationen</button>
+					<button class="t-review is-active" type="button">Community</button>
+					<button class="t-review" type="button">Status</button>
+					<button class="t-polterr is-active" type="button">Baum</button>
+					<button class="t-polterr" type="button">Karte</button>
+				</div>
+			</div>
+		</div>
+		<p class="note note--warn">Pille · Rahmen · Kastenfüllung · Vollfüllung — vier Antworten
+		auf dieselbe Frage („welcher ist aktiv?“), in einer Zeile, alle vier aus dem Bestand.</p>
+	</figure>
+</div>
+
+<h3>Die Entscheidung</h3>
+<div class="buehne">
+	<figure class="wahl">
+		<figcaption><b>T1</b> — Unterstrich überall</figcaption>
+		<div class="fen fen--werkzeug avm-editor-body">
+			<div class="fkopf is-draggable">
+				<span class="fkopf__griff" aria-hidden="true">⁝⁝</span>
+				<h2 class="fkopf__titel">Landschaften bearbeiten</h2>
+				<button class="fknopf fknopf--gefasst" type="button">✕</button>
+			</div>
+			<div class="freiter">
+				<div class="avm-tabs">
+					<button class="avm-tab is-active" type="button">Alle</button>
+					<button class="avm-tab" type="button">Derographie</button>
+					<button class="avm-tab" type="button">Vegetation</button>
+					<button class="avm-tab" type="button">Topographie</button>
+					<button class="avm-tab" type="button">Klimazonen</button>
+				</div>
+			</div>
+			<div class="frumpf fliste">
+				<button class="avm-row is-active" type="button"><span class="avm-row__kreis avm-row__kreis--voll"></span><span class="avm-row__body"><span class="avm-row__l1"><span class="avm-row__name">Aarenfels</span></span><span class="avm-row__l2">Berggipfel</span></span></button>
+				<button class="avm-row" type="button"><span class="avm-row__kreis avm-row__kreis--halb"></span><span class="avm-row__body"><span class="avm-row__l1"><span class="avm-row__name">Abagund</span></span><span class="avm-row__l2">1 Region · 1 Fläche · Heide</span></span></button>
+			</div>
+		</div>
+		<p class="note">Die Form der vier Editoren und der Status-Reiter — <b>die Mehrheit</b>.
+		Ruhig, konkurriert mit keinem Knopf, braucht keine Fläche.<br>
+		<b>Preis:</b> auf der Karte, über Kacheln und Wald, ist ein 2px-Unterstrich schwer zu
+		sehen — dort liegt der Ebenen-Umschalter frei im Bild.</p>
+	</figure>
+	<figure class="wahl">
+		<figcaption><b>T2</b> — gefüllter Umschalter überall</figcaption>
+		<div class="fen fen--werkzeug avm-editor-body">
+			<div class="fkopf is-draggable">
+				<span class="fkopf__griff" aria-hidden="true">⁝⁝</span>
+				<h2 class="fkopf__titel">Landschaften bearbeiten</h2>
+				<button class="fknopf fknopf--gefasst" type="button">✕</button>
+			</div>
+			<div class="freiter">
+				<div class="ecosystem-layer-switch">
+					<button class="ecosystem-layer-switch__tab is-active" type="button">Alle</button>
+					<button class="ecosystem-layer-switch__tab" type="button">Derographie</button>
+					<button class="ecosystem-layer-switch__tab" type="button">Vegetation</button>
+					<button class="ecosystem-layer-switch__tab" type="button">Topographie</button>
+					<button class="ecosystem-layer-switch__tab" type="button">Klimazonen</button>
+				</div>
+			</div>
+			<div class="frumpf fliste">
+				<button class="avm-row is-active" type="button"><span class="avm-row__kreis avm-row__kreis--voll"></span><span class="avm-row__body"><span class="avm-row__l1"><span class="avm-row__name">Aarenfels</span></span><span class="avm-row__l2">Berggipfel</span></span></button>
+				<button class="avm-row" type="button"><span class="avm-row__kreis avm-row__kreis--halb"></span><span class="avm-row__body"><span class="avm-row__l1"><span class="avm-row__name">Abagund</span></span><span class="avm-row__l2">1 Region · 1 Fläche · Heide</span></span></button>
+			</div>
+		</div>
+		<p class="note note--warn">Überall gleich, auch auf der Karte lesbar.<br>
+		<b>Preis:</b> ein gefüllter Reiter sieht aus wie die <b>Haupthandlung</b> —
+		<code>--color-button</code> ist die Farbe von „Speichern“ und „Syncen“. Im Fenster
+		konkurriert die Reiterleiste damit gegen das Menüband darunter, und die Rangfolge
+		„gefüllt = Haupthandlung“ aus dem Design-Guide fällt.</p>
+	</figure>
+	<figure class="wahl">
+		<figcaption><b>T3</b> ⭐ — Unterstrich im Fenster, Umschalter auf der Karte</figcaption>
+		<div class="fen fen--werkzeug avm-editor-body">
+			<div class="fkopf is-draggable">
+				<span class="fkopf__griff" aria-hidden="true">⁝⁝</span>
+				<h2 class="fkopf__titel">Landschaften bearbeiten</h2>
+				<button class="fknopf fknopf--gefasst" type="button">✕</button>
+			</div>
+			<div class="freiter">
+				<div class="avm-tabs">
+					<button class="avm-tab is-active" type="button">Alle</button>
+					<button class="avm-tab" type="button">Derographie</button>
+					<button class="avm-tab" type="button">Vegetation</button>
+					<button class="avm-tab" type="button">Topographie</button>
+					<button class="avm-tab" type="button">Klimazonen</button>
+				</div>
+			</div>
+			<div class="frumpf fliste">
+				<button class="avm-row is-active" type="button"><span class="avm-row__kreis avm-row__kreis--voll"></span><span class="avm-row__body"><span class="avm-row__l1"><span class="avm-row__name">Aarenfels</span></span><span class="avm-row__l2">Berggipfel</span></span></button>
+				<button class="avm-row" type="button"><span class="avm-row__kreis avm-row__kreis--halb"></span><span class="avm-row__body"><span class="avm-row__l1"><span class="avm-row__name">Abagund</span></span><span class="avm-row__l2">1 Region · 1 Fläche · Heide</span></span></button>
+			</div>
+		</div>
+		<div class="ecosystem-layer-switch">
+			<button class="ecosystem-layer-switch__tab is-active" type="button">Alle</button>
+			<button class="ecosystem-layer-switch__tab" type="button">Derographie</button>
+			<button class="ecosystem-layer-switch__tab" type="button">Vegetation</button>
+			<button class="ecosystem-layer-switch__tab" type="button">Topographie</button>
+			<button class="ecosystem-layer-switch__tab" type="button">Klimazonen</button>
+		</div>
+		<p class="note"><b>Zwei benannte Formen mit einer Regel</b> — dieselbe Bauweise wie bei
+		Fenster und Blatt:<br>
+		<b>Reiter</b> (in einem Fenster, wechselt die <i>Ansicht</i> desselben Inhalts) →
+		Unterstrich.<br>
+		<b>Umschalter</b> (steht frei auf der Karte, ist eine <i>Einstellung</i>) → gefüllt.<br>
+		Statt neun Rezepturen zwei, und welche gilt, entscheidet der Ort — nicht der Geschmack.
+		<b>Die sieben anderen fallen weg</b>, Pille und 11,5px inklusive.</p>
+	</figure>
+</div>
+
+<h2>8 · Listen — ein Zeilenmaß für alle</h2>
+<p>Dein Auftrag: <i>„genauso wie die margins/paddings von listen. jedes sieht anders aus. ich weiß
+dass listen unterschiedliche funktionen können/haben, aber der style sollte einheitlich sein“</i>.
+Genau so ist es gemessen: <b>26</b> Listenzeilen-Rezepturen mit eigenem Polster, darunter
+<code>7px 8px</code> · <code>7px 11px</code> · <code>12px 0</code> · <code>9px 0</code> ·
+<code>5px 7px</code> · <code>6px 9px</code> · <code>4px 0</code>, dazu drei mit hartem
+<code>border-radius: 6px</code>.</p>
+<p><b>Vorschlag: <code>.avm-row</code> für alle</b> — die Zeile, die es schon gibt
+(<code>css/components/editor-row.css</code>): <code>--avm-row-pad</code>, gap
+<code>--space-6</code>, <code>--radius-md</code>, 1px durchsichtiger Rand für den Auswahlzustand.
+Die <b>Funktion</b> darf sich unterscheiden, das <b>Skelett</b> nicht — hier vier Listen aus dem
+Bestand, alle auf derselben Zeile:</p>
+<div class="buehne">
+	<figure class="wahl">
+		<figcaption class="ok">richtig · vier Funktionen, ein Maß</figcaption>
+		<div class="fen fen--werkzeug avm-editor-body">
+			<div class="fkopf is-draggable">
+				<span class="fkopf__griff" aria-hidden="true">⁝⁝</span>
+				<h2 class="fkopf__titel">Vier Listen, dieselbe Zeile</h2>
+				<button class="fknopf fknopf--gefasst" type="button">✕</button>
+			</div>
+			<div class="frumpf fliste">
+				<button class="avm-row" type="button"><span class="avm-row__kreis avm-row__kreis--voll"></span><span class="avm-row__body"><span class="avm-row__l1"><span class="avm-row__name">Aldyra – Kuslik</span></span><span class="avm-row__l2">2 Nodices · 1 Segment · Aldyra ↔ Kuslik</span></span></button>
+				<button class="avm-row" type="button"><span class="avm-row__bild"></span><span class="avm-row__body"><span class="avm-row__l1"><span class="avm-row__name">Siegelbruch</span></span><span class="avm-row__l2">DSA5 · gruppenabenteuer</span></span><span class="avm-row__kreis avm-row__kreis--voll"></span></button>
+				<button class="avm-row" type="button"><span class="avm-row__vor" aria-hidden="true">▸</span><span class="avm-row__vor" aria-hidden="true">⁝⁝</span><span class="avm-row__body"><span class="avm-row__l1"><span class="avm-row__name">Alanfanisches Imperium</span></span><span class="avm-row__l2">1009 BF – heute · Wiki ↗</span></span><span class="avm-row__kreis avm-row__kreis--voll"></span></button>
+				<button class="avm-row is-active" type="button"><span class="avm-row__kreis avm-row__kreis--halb"></span><span class="avm-row__body"><span class="avm-row__l1"><span class="avm-row__name">Abagund</span></span><span class="avm-row__l2">1 Region · 1 Fläche · topographie · Heide</span></span><span class="avm-row__zahl">3192</span></button>
+			</div>
+		</div>
+		<p class="note">Kraftlinie (Statuskreis) · Literatur (Vorschaubild) · Territorium
+		(Aufklapp-Pfeil und Zieh-Griff) · Landschaft (Zähler, ausgewählt).
+		<b>Alle vier: Polster 4/6, gap 6, Radius <code>--radius-md</code>, zwei Zeilen</b> —
+		Name fett, Meta in <code>--font-size-caption</code> gedämpft.
+		Was die Zeile <i>trägt</i>, unterscheidet sich; wie sie <i>gebaut</i> ist, nicht.</p>
+	</figure>
+	<figure class="wahl">
+		<figcaption class="bad">Ist-Zustand · dieselben drei Zeilen, drei Maße</figcaption>
+		<div class="fen fen--werkzeug avm-editor-body">
+			<div class="fkopf is-draggable">
+				<span class="fkopf__griff" aria-hidden="true">⁝⁝</span>
+				<h2 class="fkopf__titel">Drei von 26 Rezepturen</h2>
+				<button class="fknopf fknopf--gefasst" type="button">✕</button>
+			</div>
+			<div class="frumpf fliste">
+				<div class="r-tree"><span class="avm-row__kreis avm-row__kreis--voll"></span><span class="avm-row__body"><span class="avm-row__name">Alanfanisches Imperium</span><span class="avm-row__l2">7px 8px · Radius 6px · gap 7 — <code>.tree-item</code></span></span></div>
+				<div class="r-adv"><span class="avm-row__bild"></span><span class="avm-row__body"><span class="avm-row__name">Siegelbruch</span><span class="avm-row__l2">12px 0 · kein Radius · gap 12 — <code>.avesmaps-adv-row</code></span></span></div>
+				<div class="r-sac"><span class="avm-row__kreis avm-row__kreis--halb"></span><span class="avm-row__body"><span class="avm-row__name">Abagund</span><span class="avm-row__l2">7px 11px · gap 8 — <code>.sac-item</code></span></span></div>
+			</div>
+		</div>
+		<p class="note note--warn">Drei verschiedene Zeilenhöhen, drei Einzüge, zwei Radien — in
+		einem Fenster nebeneinander sofort sichtbar, in vier verschiedenen Fenstern fällt es nur
+		als „irgendwie unruhig“ auf. Das ist der ganze Befund.</p>
+	</figure>
+</div>
+<p>⚠️ <b>Eine Einschränkung, die ich nicht verschweige:</b> <code>AGENTS.md</code> §11 sagt seit
+dem 14.08.2026 „<i>Die Listenzeile — es gibt ZWEI, und das ist die Obergrenze</i>“
+(<code>.wikisync-itemlist .tree-item</code> und <code>.avm-row</code>). Gemessen sind es heute
+wieder 26 mit eigenem Polster — die Regel hat also gehalten, wo jemand sie kannte, und sonst
+nicht. Ein Zusammenlegen auf <b>eine</b> Zeile ist deshalb kein neuer Vorschlag, sondern das
+Fertigstellen eines angefangenen.</p>
+
+<h2>9 · Was Fenster und Blatt unterscheidet — und sonst nichts</h2>
 <table>
 <tr><th></th><th>Fenster (Werkzeug)</th><th>Blatt (Formular)</th></tr>
 <tr><td><b>Wann</b></td><td>bleibt offen, während man daneben arbeitet; Menüband oder Fußleiste</td><td>ausfüllen, speichern, weg</td></tr>
@@ -664,7 +1097,7 @@ es <b>bleibt, wo es steht</b>, und der Knopf ist derselbe gefasste 32×32 wie da
 <tr><td>Alle Polster</td><td colspan="2" class="ok">identisch (<code>--avm-*</code>)</td></tr>
 </table>
 
-<h2>7 · Was das im Bestand kostet</h2>
+<h2>10 · Was das im Bestand kostet</h2>
 <table>
 <tr><th>Was</th><th>heute</th><th>danach</th></tr>
 <tr><td>Schließknopf</td><td class="bad">13 Regeln, 6 Formen</td><td class="ok">1 Regel, 2 Fassungen</td></tr>

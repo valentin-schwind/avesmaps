@@ -1046,6 +1046,11 @@
 				// Die vom Editor gewaehlte Stroemungsrichtung -- nur ein Flussweg traegt sie
 				// (der Importer stempelt sie nur dort an).
 				flowDir: objekt ? objekt[AVESMAPS_GARETIEN_FELD_FLOW] : null,
+				// Die vom Editor gewaehlte Endkreuzungs-Option -- nur ein Weg traegt sie (der Importer
+				// stempelt sie nur dort an). Die Groesse reist mit, damit garetienEndkreuzungsRinge
+				// ohne Karte pruefbar bleibt.
+				endkreuzungen: objekt ? objekt[AVESMAPS_GARETIEN_FELD_ENDKREUZUNGEN] === true : false,
+				kreuzungGroesse: garetienKreuzungDurchmesser(k),
 				// 30.08.2026: dasselbe Ziel wie bei „unsere" -- die Werte haengen NICHT von `sicht`
 				// ab (die kennt nur Form/Farbe/Breite), sondern direkt vom Objekt.
 				deckkraft: garetienFlaechenDeckkraft(objekt),
@@ -1108,6 +1113,17 @@
 		// (Owner 02.09.2026: „die richtung anzeigen (dreieckchen in der farbe des import-flusses)").
 		ihre.forEach(function (eintrag) {
 			garetienStroemungsdreiecke(l, eintrag, farbeIhre).forEach(function (marke) {
+				gruppe.addLayer(marke);
+			});
+		});
+
+		// 🔴 UND DIE ENDKREUZUNGS-RAHMEN ganz zuletzt (Owner 04.09.2026). Sie liegen auf den zwei
+		// Enden der Linie, also genau dort, wo ihr Strich am dichtesten ist -- unter der Linie waeren
+		// sie halb verdeckt, und ein halber Ring liest sich nicht als Kreuzung.
+		// ⚠️ Die Dreiecke sitzen bewusst NIE auf dem ersten oder letzten Stuetzpunkt (siehe dort);
+		// die zwei Marken kollidieren also nicht.
+		ihre.forEach(function (eintrag) {
+			garetienEndkreuzungsRinge(l, eintrag, farbeIhre).forEach(function (marke) {
 				gruppe.addLayer(marke);
 			});
 		});
@@ -1184,6 +1200,159 @@
 		return marken;
 	}
 
+	/*
+	 * DIE ENDKREUZUNGS-RAHMEN — was das Haekchen „Kreuzung an Anfang und Ende" auf der Karte
+	 * verspricht, BEVOR etwas angelegt ist.
+	 *
+	 * Owner 04.09.2026: „es waere praktisch wenn man in der voransicht (beim anklicken und in
+	 * 'anzeigen') sehen koennte (mit gelben rahmen), wenn die option aktiviert ist."
+	 *
+	 * 🔴 SIE ZEIGEN DIE WAHL, NICHT DIE DATEN — genau wie die Stroemungsdreiecke darueber. Der
+	 * Editor entscheidet im Kasten „Eingefuegt wird"; hier wird die Entscheidung sichtbar. Deshalb
+	 * haengen sie an `eintrag.endkreuzungen` (vom Importer gestempelt) und an keiner Eigenschaft
+	 * des Objekts.
+	 * 🔴 IN DER FARBE DES IMPORTS (Gold), weil sie zu IHRER Linie gehoeren -- derselbe Grund, aus
+	 * dem dieses Modul ueberhaupt zwei Farben fuehrt.
+	 * 🔴 EIN HOHLER RING, kein gefuellter Punkt: die echte Kreuzung ist gefuellt
+	 * (getLocationMarkerBorderWidth gibt fuer sie 0 zurueck), aber hier liegt sie auf IHRER
+	 * gestrichelten Linie, und ein gefuellter Punkt verdeckte genau das Ende, das er markiert.
+	 * ⚠️ FESTE BILDSCHIRMGROESSE, deshalb Marken und keine `circleMarker`: derselbe Grund wie bei
+	 * den Dreiecken -- ein Ring aus Kartenpunkten wuechse beim Zoomen mit.
+	 */
+	var AVESMAPS_GARETIEN_KLASSE_ENDKREUZUNG = "gi-map-endkreuzung";
+	// 💣 GEKOPPELTER WERT IN ZWEI DATEIEN, wie AVESMAPS_GARETIEN_FELD_FLOW und ...FELD_GEWAEHLT
+	// darueber -- gesetzt in review-garetien-importer.js, gelesen hier. Liefe der Name auseinander,
+	// stempelte das Fenster, was der Zeichner nie liest, und zwar STILL. Zusammengehalten von
+	// js/review/__tests__/garetien-endkreuzung-stroemung.test.js.
+	var AVESMAPS_GARETIEN_FELD_ENDKREUZUNGEN = "endkreuzungen";
+	// Nur der Rueckfall, wenn die Kartenregel nicht erreichbar ist (der Zeichner laeuft im Test
+	// allein, und die Editorseiten laden `map-features-location-marker-rendering.js` nicht). Er
+	// entspricht dem, was getLocationMarkerSize fuer eine Kreuzung bei Zoom 4 liefert (5 + 4*1,5).
+	var AVESMAPS_GARETIEN_KREUZUNG_RUECKFALL = 11;
+	/*
+	 * 💣 DIE UNTERGRENZE, UND SIE IST GERECHNET, NICHT GESCHMACK. Eine echte Kreuzung misst bei
+	 * Zoom 3 und darunter 5 px (getLocationMarkerSize: `visualZoomLevel <= 3 ? 5 : ...`), und der
+	 * Rahmen ist 2 px stark -- von 5 px bleiben INNEN 1 px uebrig. Das ist kein Ring mehr,
+	 * sondern ein Punkt, und damit sagt er genau das nicht mehr, wofuer er da ist.
+	 * 🔴 Und es ist kein Randfall: AVESMAPS_DEFAULT_MAP_ZOOM ist 3 (am Telefon 2) -- die
+	 * Startansicht der Karte ist genau die, in der er verschwaende.
+	 * ⚠️ Der Preis ist benannt: unterhalb von 9 px ist der Rahmen GROESSER als die Kreuzung, die
+	 * daraus wird. Das ist die bewusste Abweichung von „so gross wie eine echte Kreuzung" -- ein
+	 * Rahmen, den man nicht als Rahmen erkennt, erfuellt seinen Zweck gar nicht, und die Groesse
+	 * einer Kreuzung bei Zoom 3 ist ohnehin keine Aussage, sondern eine Untergrenze der
+	 * Kartenlesbarkeit (dieselbe `Math.max`-Bauform steht in getLocationMarkerSize selbst).
+	 * 9 px mit 2 px Rahmen lassen 5 px Loch -- die kleinste Groesse, bei der die Linie darunter
+	 * noch durchscheint.
+	 */
+	var AVESMAPS_GARETIEN_KREUZUNG_MINDEST = 9;
+
+	/*
+	 * WO Kreuzungen entstehen wuerden. REIN.
+	 *
+	 * 💣 EIN GESCHLOSSENER WEG BEKOMMT NUR EINE, und das ist keine Kosmetik: der Server legt an
+	 * einem Ring genau EINEN Knoten an (`avesmapsGaretienEndkreuzungenAnlegen`,
+	 * api/_internal/import/garetien-uebernahme.php -- „zwei Kreuzungen auf demselben Punkt waeren
+	 * eine Dublette, die niemand mehr auseinanderhaelt"). Zwei Rahmen waeren hier eine Behauptung
+	 * ueber ein Objekt, das es nachher nicht gibt.
+	 *
+	 * 💣 UND DIE REGEL IST EINE RUNDUNG, KEINE TOLERANZ. Der Server vergleicht `round($v, 5)`;
+	 * `10.000004` und `10.000006` liegen 2e-6 auseinander -- unter jeder 5e-6-Schwelle -- runden
+	 * aber auf verschiedene Werte und sind damit ZWEI Enden. Wer hier einen Abstand einsetzt, weil
+	 * das „robuster" aussieht, faellt an genau diesen Zahlen auseinander (AGENTS.md §11: eine
+	 * Rundung ist keine Toleranz).
+	 *
+	 * ⚠️ Gerundet werden BEIDE Achsen. Hier liegen die Punkte als Leaflet-[lat, lng] und beim
+	 * Server als GeoJSON-[x, y] -- die Reihenfolge ist getauscht, das Urteil „beide Achsen gleich"
+	 * ist davon unberuehrt.
+	 */
+	function garetienEndkreuzungsStellen(punkte) {
+		if (!garetienIstPunktliste(punkte)) { return []; }
+		var n = punkte.length;
+		if (n < 2) { return []; }
+		var a = punkte[0];
+		var b = punkte[n - 1];
+		if (!a || !b) { return []; }
+		if (garetienAuf5Gerundet(a[0]) === garetienAuf5Gerundet(b[0])
+			&& garetienAuf5Gerundet(a[1]) === garetienAuf5Gerundet(b[1])) {
+			return [a];
+		}
+		return [a, b];
+	}
+
+	function garetienAuf5Gerundet(wert) {
+		return Math.round(Number(wert) * 100000) / 100000;
+	}
+
+	/*
+	 * Der Durchmesser eines Rahmens -- die Groesse, die eine ECHTE Kreuzung bei dieser Zoomstufe
+	 * haette (Owner-Wahl 04.09.2026: „Ring wie eine echte Kreuzung").
+	 *
+	 * 🔴 DIE REGEL WIRD GERUFEN, NICHT ABGESCHRIEBEN. `getLocationMarkerSize` fuehrt fuer eine
+	 * Kreuzung eine eigene Kurve (kein Zoomband -- sie erscheinen ueber ihren eigenen Haken, ohne
+	 * Zoomuntergrenze); sie hier ein zweites Mal hinzuschreiben waere die Divergenz mit Anlauf,
+	 * gegen die AGENTS.md §12 und die Zoombaender geschrieben sind. Dieselbe Bauform wie
+	 * garetienPunktDurchmesser daneben, das die Zoomband-Tafel ruft.
+	 * ⚠️ Defensiv, weil dieser Zeichner im Test allein laeuft und auf den Editorseiten kein
+	 * `map-features-location-marker-rendering.js` liegt.
+	 */
+	function garetienKreuzungDurchmesser(karte) {
+		if (typeof getLocationMarkerSize !== "function"
+			|| typeof CROSSING_LOCATION_TYPE === "undefined") {
+			return AVESMAPS_GARETIEN_KREUZUNG_RUECKFALL;
+		}
+		var zoom = (karte && typeof karte.getZoom === "function") ? Number(karte.getZoom()) : NaN;
+		if (!isFinite(zoom)) { return AVESMAPS_GARETIEN_KREUZUNG_RUECKFALL; }
+		var wert = getLocationMarkerSize(CROSSING_LOCATION_TYPE, zoom);
+		return (typeof wert === "number" && isFinite(wert) && wert > 0)
+			? wert
+			: AVESMAPS_GARETIEN_KREUZUNG_RUECKFALL;
+	}
+
+	/*
+	 * Die Rahmen EINES importierten Weges.
+	 *
+	 * ⚠️ Die Groesse reist am `eintrag` mit, statt hier gerechnet zu werden: so bleibt diese
+	 * Funktion ohne Karte pruefbar -- dieselbe Trennung wie bei `durchmesser` und `deckkraft`.
+	 */
+	function garetienEndkreuzungsRinge(l, eintrag, farbe) {
+		if (!eintrag || eintrag[AVESMAPS_GARETIEN_FELD_ENDKREUZUNGEN] !== true) { return []; }
+		if (!l || typeof l.marker !== "function" || typeof l.divIcon !== "function") { return []; }
+		var stellen = garetienEndkreuzungsStellen(eintrag.punkte || []);
+		if (stellen.length === 0) { return []; }
+		var gemessen = (typeof eintrag.kreuzungGroesse === "number" && eintrag.kreuzungGroesse > 0)
+			? eintrag.kreuzungGroesse
+			: AVESMAPS_GARETIEN_KREUZUNG_RUECKFALL;
+		// 💣 Die Untergrenze steht HIER und nicht in garetienKreuzungDurchmesser: jene Funktion
+		// beantwortet „wie gross waere die Kreuzung", diese „wie gross zeichne ich den Rahmen".
+		// Zusammengelegt liesse sich nicht mehr sagen, welche der beiden Zahlen gemeint ist.
+		var groesse = Math.max(AVESMAPS_GARETIEN_KREUZUNG_MINDEST, gemessen);
+		var halb = groesse / 2;
+
+		return stellen.map(function (stelle) {
+			return l.marker(stelle, {
+				pane: AVESMAPS_GARETIEN_IHRE_PANE,
+				// ⚠️ Wie das Dreieck: der Klick gehoert dem Objekt darunter, nicht seiner Marke.
+				interactive: false,
+				keyboard: false,
+				icon: l.divIcon({
+					className: AVESMAPS_GARETIEN_KLASSE_ENDKREUZUNG,
+					iconSize: [groesse, groesse],
+					// 💣 DER ANKER IST DIE MITTE. Leaflets Vorgabe ist die linke obere Ecke; ohne
+					// diese Zeile haengt der Ring um einen halben Durchmesser versetzt am
+					// Endpunkt -- und bei 11 px faellt das genau so wenig auf, wie es falsch ist.
+					iconAnchor: [halb, halb],
+					// ⚠️ Farbe und Groesse stehen am ELEMENT, nicht in der CSS-Regel: die Farbe
+					// kommt aus dem Token (wechselt mit dem Thema), die Groesse aus der
+					// Kreuzungsregel (wechselt mit dem Zoom).
+					// ⭐ `color`, nicht `border-color`: das Blatt liest daraus BEIDES, Rahmen und
+					// Schein (`currentColor`) -- eine zweite Farbdeklaration waere eine zweite Stelle,
+					// an der ein Themenwechsel haengenbleiben kann.
+					html: '<span style="width:' + groesse + "px;height:" + groesse + "px;"
+						+ "color:" + farbe + '"></span>',
+				}),
+			});
+		});
+	}
 	/*
 	 * „✦ Zentrieren" — die Ansicht fliegt auf ihr Objekt.
 	 *
@@ -1342,6 +1511,9 @@
 		window.avesmapsGaretienSichtFuer = avesmapsGaretienSichtFuer;
 		// Aufgabe 4: kollidiert das Objekt mit unserem Bestand? (Entwurf §4.2)
 		window.avesmapsGaretienKollidiert = avesmapsGaretienKollidiert;
+		// 04.09.2026: der Feldname der Endkreuzungs-Marke -- review-garetien-importer.js stempelt
+		// damit, ohne diese Datei vorauszusetzen (das Fenster laeuft auch auf Seiten ohne Karte).
+		window.AVESMAPS_GARETIEN_FELD_ENDKREUZUNGEN = AVESMAPS_GARETIEN_FELD_ENDKREUZUNGEN;
 	}
 
 	if (typeof module !== "undefined" && module.exports) {
@@ -1389,6 +1561,12 @@
 			garetienObjektKind,
 			garetienFlaechenDeckkraft,
 			garetienPunktDurchmesser,
+			// 04.09.2026: die Endkreuzungs-Rahmen der Voransicht
+			garetienEndkreuzungsStellen,
+			garetienEndkreuzungsRinge,
+			garetienKreuzungDurchmesser,
+			AVESMAPS_GARETIEN_FELD_ENDKREUZUNGEN,
+			AVESMAPS_GARETIEN_KLASSE_ENDKREUZUNG,
 		};
 	}
 })();
