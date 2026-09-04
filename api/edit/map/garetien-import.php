@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+// ⚠️ Deploy-Vermerk 05.09.2026: der Lauf fuer b60b4422a fiel bei den Unit-Tests, diese Datei kam nie auf den Server.
+//    Ein roter Lauf laedt nichts hoch, und nur eine INHALTSAENDERUNG heilt den ?v=-Stempel (AGENTS.md 9) -- diese Zeilen sind sie.
 // POST /api/edit/map/garetien-import.php -- die Exportseiten von garetien.de und koschwiki.de
 // ins Staging bringen. Entwurf: docs/superpowers/specs/2026-08-26-garetien-kartenimport-design.md §5.1
 // Vorbild in Form und Reihenfolge: api/edit/map/zoom-bands.php

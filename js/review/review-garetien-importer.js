@@ -1,5 +1,7 @@
 (function () {
 	"use strict";
+	// ⚠️ Deploy-Vermerk 05.09.2026: der Lauf fuer b60b4422a fiel bei den Unit-Tests, diese Datei kam nie auf den Server.
+	//    Ein roter Lauf laedt nichts hoch, und nur eine INHALTSAENDERUNG heilt den ?v=-Stempel (AGENTS.md 9) -- diese Zeilen sind sie.
 
 	/*
 	 * Das Fenster „Garetien Importer" — Knopf, Hülle, Liste, Einzelansicht, Handlungen.
