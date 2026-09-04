@@ -853,6 +853,49 @@ pruefe("beim Schliessen des Dialogs zeichnet die Leinwand NICHTS mehr", () => {
 		"shouldDraw() haengt nicht an der aktiven Flaeche");
 });
 
+pruefe("der Zeichner meldet die Durchschnittshoehe -- ueber die Zellen INNERHALB", () => {
+	// 🔴 Owner 04.09.2026: „einfach die durchschnittshöhe in der höhenskala unten anzeigen". Sie
+	// beantwortet die Frage, die ein Editor mit einer Quellenangabe wirklich hat: „steht da 1500?".
+	// Der Regler nimmt ein Verhaeltnis, das Wiki nennt eine Hoehe -- und die Umrechnung haengt am
+	// Gebirge (1.500 Schritt sind an der Roten Sichel 0,226, am Finsterkamm 0,300).
+	//
+	// 💣 GEMITTELT WIRD ueber die Zellen INNERHALB der Flaeche. Ausserhalb steht 0, und die zoegen
+	// den Schnitt beliebig weit herunter -- je nachdem, wie eckig die bbox um die Flaeche sitzt.
+	// Zwei gleich hohe Gebirge haetten dann verschiedene „Durchschnittshoehen", und die Zahl waere
+	// als Vergleich mit dem Wiki wertlos.
+	const o = baue();
+	let summe = 0;
+	let drin = 0;
+	let alle = 0;
+	for (let k = 0; k < o.r.drin.length; k++) {
+		alle++;
+		if (!o.r.drin[k]) { continue; }
+		summe += o.h[k];
+		drin++;
+	}
+	assert.ok(drin > 0 && drin < alle, "die Fixture fuellt das ganze Raster -- der Fehler waere unsichtbar");
+	const innen = summe / drin;
+	const ueberAlles = summe / alle;
+	assert.ok(innen > ueberAlles * 1.1,
+		"innen und ueber alles sind fast gleich (" + innen.toFixed(0) + " gegen "
+		+ ueberAlles.toFixed(0) + ") -- diese Fixture kann den Fehler nicht zeigen");
+
+	// Und der Zeichner muss ueber `drinN` mitteln, nicht ueber die Rasterlaenge.
+	const quelle = fs.readFileSync(
+		path.join(WURZEL, "js/map-features/map-features-ecosystem-height-render.js"), "utf8");
+	const start = quelle.indexOf("mittelhoehe: () => {");
+	assert.ok(start > 0, "der Zeichner meldet keine Durchschnittshoehe");
+	const rumpf = quelle.slice(start, start + 600);
+	// 🪤 DIE DIVISION SELBST, nicht bloss der Name. Die erste Fassung suchte `hydroRaster.r.drinN`
+	// irgendwo im Rumpf -- und fand es im WAECHTER eine Zeile darueber, waehrend die Rechnung schon
+	// durch `hydroRaster.h.length` ersetzt war. Die Mutation ueberlebte.
+	assert.ok(rumpf.includes("summe / hydroRaster.r.drinN"),
+		"gemittelt wird nicht ueber die Zellen INNERHALB -- die Nullen ausserhalb ziehen den Schnitt "
+		+ "herunter, und die Zahl ist als Vergleich mit einer Quellenangabe wertlos");
+	assert.ok(rumpf.includes("hydroRaster.r.drin[k]"),
+		"summiert wird ohne den Innen-Filter");
+});
+
 pruefe("die Hoehen-Pane liegt UNTER den Fluessen und UEBER den Flaechenfuellungen", () => {
 	const render = fs.readFileSync(
 		path.join(WURZEL, "js/map-features/map-features-ecosystem-height-render.js"), "utf8");

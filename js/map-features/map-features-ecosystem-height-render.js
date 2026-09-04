@@ -952,6 +952,27 @@
 		stack: () => heightStack,
 		// Fall #79: der Weisspunkt des letzten Anstrichs, und wer davon erfahren will.
 		whitePoint: () => lastWhitePoint,
+		// 🔴 DIE DURCHSCHNITTSHOEHE DES GERECHNETEN FELDES (Owner 04.09.2026: „einfach die
+		// durchschnittshöhe in der höhenskala unten anzeigen"). Sie beantwortet die Frage, die ein
+		// Editor mit einer Wiki-Angabe wirklich hat -- „steht da 1500?" --, ohne dass er ein
+		// Verhaeltnis in eine Hoehe umrechnen muss.
+		// ⚠️ Aus dem RASTER, nicht aus einem Regler: der eingestellte Wert ist ein Ziel fuer das
+		// Grundrelief, Talabzug und Erosion verschieben ihn danach noch. Gemeldet wird, was am Ende
+		// dasteht.
+		// ⚠️ Gemittelt wird ueber die Zellen INNERHALB der Flaeche -- ausserhalb steht 0, und die
+		// zoegen den Schnitt beliebig weit herunter, je nachdem wie eckig die bbox um die Flaeche
+		// sitzt.
+		mittelhoehe: () => {
+			if (!hydroRaster || !hydroRaster.r || !hydroRaster.r.drinN) {
+				return 0;
+			}
+			let summe = 0;
+			for (let k = 0; k < hydroRaster.h.length; k++) {
+				if (hydroRaster.r.drin[k]) { summe += hydroRaster.h[k]; }
+			}
+
+			return summe / hydroRaster.r.drinN;
+		},
 		onPaint: (listener) => {
 			if (typeof listener !== "function") {
 				return () => {};

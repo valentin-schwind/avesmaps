@@ -2030,6 +2030,33 @@
 		stark.textContent = "Weiß = " + avesmapsHoehenskalaZahl(weisspunkt);
 		note.append(stark, document.createTextNode(
 			" — der höchste Gipfel im Bildausschnitt. Was höher liegt, wird nicht heller."));
+
+		// 🔴 DIE DURCHSCHNITTSHOEHE DES GERECHNETEN FELDES (Owner 04.09.2026). Sie beantwortet die
+		// Frage, die ein Editor mit einer Quellenangabe wirklich hat: „steht da 1500?".
+		//
+		// 💣 SIE ERSETZT EINE UMRECHNUNG, DIE NIEMAND IM KOPF MACHEN SOLLTE. Der Regler „Hypsometrie"
+		// nimmt ein VERHAELTNIS, das Wiki nennt eine HOEHE -- und die Umrechnung haengt am Gebirge:
+		// dieselben 1.500 Schritt sind an der Roten Sichel (hoechster Gipfel 6.650) das Verhaeltnis
+		// 0,226 und am Finsterkamm (5.000) 0,300. Der Owner hat die Frage gestellt („was sollen die
+		// editoren dann machen?"), und die Antwort ist eine Rueckmeldung, kein Umbau: der Editor
+		// dreht am Regler, bis die Zahl hier stimmt.
+		// ⚠️ Aus dem RASTER, nicht aus dem Regler: der eingestellte Wert ist ein Ziel fuer das
+		// Grundrelief, Talabzug und Erosion verschieben ihn danach noch nach oben. Gemeldet wird, was
+		// am Ende dasteht.
+		const mittel = Number(window.AvesmapsEcosystemHeightRender?.mittelhoehe?.() || 0);
+		if (mittel > 0) {
+			note.append(document.createElement("br"));
+			note.append(document.createTextNode("Durchschnittshöhe dieser Fläche: "));
+			const schnitt = document.createElement("b");
+			schnitt.textContent = avesmapsHoehenskalaZahl(mittel);
+			note.append(schnitt);
+			// ⭐ Das hypsometrische Integral daneben -- dieselbe Zahl, nur vergleichbar: ueber 0,6
+			// jugendlich, 0,35 bis 0,6 reif, darunter Altersstadium (Strahler 1952). Wer den Regler
+			// „Hypsometrie" bedient, sieht hier, was er bewirkt hat.
+			if (weisspunkt > 0) {
+				note.append(document.createTextNode(" (HI " + (mittel / weisspunkt).toFixed(2) + ")"));
+			}
+		}
 	}
 
 	// Der Zeichner meldet jeden Anstrich; die Skala hängt sich EINMAL dran. Ohne das bliebe sie beim
