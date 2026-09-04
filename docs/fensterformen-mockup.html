@@ -1,0 +1,413 @@
+<title>Fensterformen — was aus der Reihe tanzt (Mockup)</title>
+<style>
+/* Farbwerte 1:1 aus css/base/tokens.css — hell = :root, dunkel = der data-theme="dark"-Block.
+   Unter den ECHTEN Tokennamen, damit ein Vertragsblock zeichengleich in die Produktionsdatei
+   wandern kann (tools/mockup-vertrag). Erfundene Tokennamen fallen erst im Produktivcode auf. */
+:root {
+	--color-page-bg: #f3f0e8; --color-page-bg-deep: #2b2721;
+	--color-panel: #fffdf9; --color-panel-soft: #faf6ee; --color-panel-muted: #f1ece1;
+	--color-text: #2e271e; --color-text-strong: #3c3327; --color-text-muted: #706557;
+	--color-border: #ddd3c3; --color-border-strong: #cdbfa8;
+	--color-divider: rgba(125,115,96,0.30);
+	--color-accent: #bfa03a; --color-accent-strong: #9c7f22; --color-accent-brown: #7a5a3a;
+	--color-link: #8f7326;
+	--color-button: #5b5548; --color-button-text: #f6efe1; --color-button-border: #635b4d;
+	--color-button-soft: #efe9db; --color-button-soft-text: #564b3b; --color-button-soft-border: #cdbda0;
+	--color-hover-wash: rgba(191,160,58,0.14); --color-active-wash: rgba(191,160,58,0.24);
+	--color-danger: #a33a2e;
+	--shadow-dialog: 0 20px 45px rgba(0,0,0,0.38);
+	--radius-sm: 5px; --radius-md: 8px; --radius-lg: 10px;
+	--font-size-caption: 11px; --font-size-small: 12px; --font-size-body: 13px;
+	--font-size-reading: 14px; --font-size-subhead: 16px; --font-size-title: 20px;
+	--space-2:2px; --space-4:4px; --space-6:6px; --space-8:8px; --space-10:10px;
+	--space-12:12px; --space-16:16px; --space-20:20px; --space-24:24px;
+}
+:root[data-theme="dark"] {
+	--color-page-bg: #211f19;
+	--color-panel: #312e26; --color-panel-soft: #37342b; --color-panel-muted: #39352b;
+	--color-text: #eee7da; --color-text-strong: #f5f0e4; --color-text-muted: #b4a895;
+	--color-border: #514a3c; --color-border-strong: #615a49;
+	--color-divider: rgba(207,197,171,0.24);
+	--color-accent: #cfb767; --color-accent-strong: #dcc77e; --color-accent-brown: #c9a97e;
+	--color-link: #d7c38b;
+	--color-button: #6b6456; --color-button-text: #f5ebd7; --color-button-border: #7a7361;
+	--color-button-soft: #3a362c; --color-button-soft-text: #eae1cf; --color-button-soft-border: #585142;
+	--color-danger: #e08476;
+}
+* { box-sizing: border-box; }
+body { margin:0; padding:26px 24px 120px; background:var(--color-page-bg); color:var(--color-text);
+	font-family:"Faculty Glyphic",Arial,sans-serif; font-size:14px; line-height:1.5; }
+h1 { margin:0 0 4px; font-size:25px; color:var(--color-text-strong); }
+h2 { margin:44px 0 6px; padding-bottom:8px; border-bottom:1px solid var(--color-divider);
+	font-size:19px; color:var(--color-text-strong); }
+h3 { margin:24px 0 4px; font-size:15px; color:var(--color-text-strong); }
+p { margin:8px 0; color:var(--color-text-muted); max-width:92ch; }
+p strong, p b, li strong, li b { color:var(--color-text-strong); }
+ul { max-width:92ch; color:var(--color-text-muted); }
+code { padding:1px 5px; border-radius:var(--radius-sm); background:var(--color-panel-muted);
+	color:var(--color-text-strong); font-family:Consolas,monospace; font-size:12px; }
+.lead { font-size:15px; max-width:92ch; }
+.themeswitch { position:fixed; right:18px; top:14px; z-index:9;
+	padding:7px 13px; border:1px solid var(--color-button-soft-border); border-radius:var(--radius-md);
+	background:var(--color-button-soft); color:var(--color-button-soft-text); font:inherit;
+	font-size:13px; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,.18); }
+
+/* ---- die Buehne, auf der die Fenster stehen ---- */
+.buehne { display:flex; flex-wrap:wrap; gap:26px; align-items:flex-start;
+	margin:14px 0 6px; padding:24px 22px; border-radius:var(--radius-lg);
+	background:var(--color-page-bg-deep);
+	background-image:linear-gradient(135deg, rgba(255,255,255,.045) 0 50%, transparent 50%);
+	background-size:22px 22px; }
+.wahl { flex:1 1 330px; min-width:300px; margin:0; }
+.wahl > figcaption { margin:0 0 9px; font-size:var(--font-size-caption); font-weight:700;
+	letter-spacing:.08em; text-transform:uppercase; color:#cfc4ad; }
+.wahl > figcaption b { color:#f0e6cd; }
+.note { margin:9px 0 0; font-size:12px; color:#b6ab95; line-height:1.45; max-width:none; }
+.note b { color:#f0e6cd; }
+.note--warn { color:#e3b7a6; }
+.note--warn b { color:#f4d2c4; }
+
+/* ---- Fenster: gemeinsame Huelle ---- */
+.fen { display:flex; flex-direction:column; overflow:hidden;
+	background:var(--color-panel); color:var(--color-text);
+	box-shadow:var(--shadow-dialog); font-size:var(--font-size-body); }
+.fen--werkzeug { border:1px solid var(--color-border-strong); border-radius:var(--radius-sm); }
+.fen--blatt    { border:1px solid var(--color-border);        border-radius:var(--radius-lg); }
+
+/* ---- FORM 1: Titelleiste als Band (Werkzeugfenster) ---- */
+.tl { display:flex; align-items:center; gap:var(--space-6);
+	padding:var(--space-6) var(--space-6) var(--space-6) var(--space-10);
+	border-bottom:1px solid var(--color-divider); background:var(--color-panel-soft); cursor:grab; }
+.tl__grip { flex:none; letter-spacing:-3px; color:var(--color-text-muted);
+	font-size:var(--font-size-caption); }
+.tl__title { flex:1 1 auto; min-width:0; margin:0; font-size:var(--font-size-subhead);
+	line-height:1.15; font-weight:700; color:var(--color-text-strong); }
+
+/* ---- FORM 2: Titel im Polster (Blatt) ---- */
+.bl { padding:var(--space-16) var(--space-16) 0; }
+.bl__head { display:flex; align-items:flex-start; gap:var(--space-12);
+	padding-bottom:var(--space-10); border-bottom:1px solid var(--color-divider); }
+.bl__title { flex:1 1 auto; margin:0; font-size:var(--font-size-title); line-height:1.15;
+	font-weight:700; color:var(--color-text-strong); }
+
+/* ---- Schliessknopf, Variante KASTEN ---- */
+.x-kasten { flex:none; width:32px; height:32px; display:grid; place-items:center;
+	border:1px solid var(--color-button-soft-border); border-radius:var(--radius-md);
+	background:var(--color-button-soft); color:var(--color-button-soft-text);
+	font:inherit; font-size:var(--font-size-body); cursor:pointer; }
+.x-kasten:hover { background:var(--color-active-wash); }
+/* ---- Schliessknopf, Variante NACKT ---- */
+.x-nackt { flex:none; width:32px; height:32px; display:grid; place-items:center;
+	border:0; border-radius:var(--radius-md); background:transparent;
+	color:var(--color-text-muted); font:inherit; font-size:var(--font-size-subhead); cursor:pointer; }
+.x-nackt:hover { background:var(--color-hover-wash); color:var(--color-text-strong); }
+
+/* ---- Rumpf, Menueband, Fussleiste ---- */
+.band { display:flex; gap:var(--space-6); padding:var(--space-8) var(--space-10);
+	border-bottom:1px solid var(--color-divider); background:var(--color-panel-soft); }
+.kachel { flex:1 1 0; min-width:0; padding:var(--space-4) var(--space-8);
+	border:1px solid var(--color-button-soft-border); border-radius:var(--radius-md);
+	background:var(--color-button-soft); color:var(--color-button-soft-text);
+	font:inherit; font-size:var(--font-size-small); text-align:left; cursor:pointer; }
+.kachel b { display:block; font-size:var(--font-size-body); color:var(--color-text-strong); }
+.kachel small { color:var(--color-text-muted); font-size:var(--font-size-caption); }
+.kachel--voll { background:var(--color-button); border-color:var(--color-button-border);
+	color:var(--color-button-text); }
+.kachel--voll b, .kachel--voll small { color:inherit; }
+.rumpf { padding:var(--space-12) var(--space-16); }
+.zeile { display:flex; align-items:baseline; gap:var(--space-8);
+	padding:var(--space-6) var(--space-8); border-radius:var(--radius-md); }
+.zeile + .zeile { border-top:1px solid var(--color-divider); }
+.zeile b { color:var(--color-text-strong); font-weight:700; }
+.zeile span { margin-left:auto; color:var(--color-text-muted); font-size:var(--font-size-caption); }
+.feld { display:block; width:100%; margin:0 0 var(--space-10);
+	padding:var(--space-6) var(--space-8);
+	border:1px solid var(--color-border); border-radius:var(--radius-md);
+	background:var(--color-panel); color:var(--color-text); font:inherit;
+	font-size:var(--font-size-reading); }
+.etikett { display:block; margin:0 0 var(--space-2); font-size:var(--font-size-caption);
+	font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--color-accent-brown); }
+.fuss { display:flex; flex-wrap:wrap; align-items:center; gap:var(--space-6);
+	padding:var(--space-6) var(--space-10);
+	border-top:1px solid var(--color-divider); background:var(--color-panel-soft); }
+.fuss--blatt { border-top:0; background:transparent;
+	padding:0 var(--space-16) var(--space-16); justify-content:flex-end; }
+.knopf { padding:var(--space-6) var(--space-10); border:1px solid var(--color-button-soft-border);
+	border-radius:var(--radius-md); background:var(--color-button-soft);
+	color:var(--color-button-soft-text); font:inherit; font-size:var(--font-size-body); cursor:pointer; }
+.knopf--voll { margin-left:auto; background:var(--color-button); border-color:var(--color-button-border);
+	color:var(--color-button-text); font-weight:700; }
+.fuss--blatt .knopf--voll { margin-left:0; }
+
+/* ---- der IST-Zustand: absichtlich die HEUTIGEN Werte, nicht die vorgeschlagenen.
+       Wer hier aufraeumt, loescht den Beleg. ---- */
+.ist-a { padding:18px; border:1px solid var(--color-border); border-radius:var(--radius-lg); }
+.ist-a__head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px;
+	margin-bottom:10px; }
+.ist-a__head h2 { margin:0; font-size:var(--font-size-title); color:var(--color-text-strong);
+	border:0; padding:0; }
+.ist-a__x { border:none; background:transparent; color:var(--color-text-muted); cursor:pointer;
+	font-size:20px; line-height:1; width:30px; height:30px; border-radius:var(--radius-md);
+	display:flex; align-items:center; justify-content:center; }
+.ist-b__head { display:flex; align-items:baseline; gap:8px; padding:16px 24px;
+	border-bottom:1px solid var(--color-divider); }
+.ist-b__head h2 { margin:0; font-size:17px; color:var(--color-text-strong); border:0; padding:0; }
+.ist-b__x { margin-left:auto; border:0; background:none; color:var(--color-text-muted);
+	font-size:18px; line-height:1; cursor:pointer; }
+
+/* ---- Tabellen ---- */
+table { border-collapse:collapse; margin:12px 0; font-size:13px; max-width:100%; }
+th, td { padding:5px 14px 5px 0; text-align:left; vertical-align:top;
+	border-bottom:1px solid var(--color-divider); }
+th { color:var(--color-accent-brown); font-size:var(--font-size-caption); font-weight:700;
+	letter-spacing:.07em; text-transform:uppercase; }
+td { color:var(--color-text-muted); }
+td b { color:var(--color-text-strong); }
+.ok { color:var(--color-accent-strong); font-weight:700; }
+.bad { color:var(--color-danger); font-weight:700; }
+.frage { margin:30px 0 0; padding:14px 16px; border-left:3px solid var(--color-accent);
+	background:var(--color-panel-muted); border-radius:0 var(--radius-md) var(--radius-md) 0; }
+.frage h3 { margin:0 0 4px; color:var(--color-accent-strong); }
+.frage p { color:var(--color-text); }
+</style>
+
+<button class="themeswitch" type="button" id="tsw">Dunkel / Hell</button>
+
+<h1>Fensterformen — was aus der Reihe tanzt</h1>
+<p class="lead">Vermessen am 04.09.2026 über <b>alle</b> CSS-Dateien des Projekts (ohne
+<code>third-party</code>). Jede Zahl unten ist gezählt, nicht geschätzt. Die Fenster auf der
+dunklen Bühne sind <b>echt nachgebaut</b> — dieselben Tokenwerte, dieselben Polster.
+Umschalten hell/dunkel oben rechts.</p>
+
+<h2>1 · Der Befund in Zahlen</h2>
+<table>
+<tr><th>Was</th><th>Wie viele Rezepturen</th><th>Soll</th></tr>
+<tr><td><b>Schließknopf</b> ✕</td><td class="bad">13 Regeln in 6 sichtbaren Formen</td><td>1</td></tr>
+<tr><td><b>Titelleiste</b> (Kopfzeile)</td><td class="bad">2 Bauarten, 9 verschiedene Polsterwerte</td><td>1 Regel</td></tr>
+<tr><td><b>Titelgröße</b></td><td class="bad">15 · 16 · 17 · 20 px — vier Werte für eine Rolle</td><td>1</td></tr>
+<tr><td><b>Hüllen-Radius</b></td><td class="bad"><code>--radius-sm</code> (5) und <code>--radius-lg</code> (10) quer gemischt</td><td>1 je Bauart</td></tr>
+<tr><td><b>Kopfzeilen-Linie</b></td><td class="bad"><code>--color-border</code> (5×) und <code>--color-divider</code> (4×)</td><td>1</td></tr>
+<tr><td><b>Einklappen</b></td><td class="bad">2 Fenster, 2 Knopfformen, 2 Verhalten</td><td>1</td></tr>
+<tr><td>Schriftgrößen neben der Skala</td><td class="bad">93 (davon 31 unter der 11px-Grenze)</td><td>0</td></tr>
+<tr><td>Schriftgewichte neben 400/700</td><td class="bad">46</td><td>0</td></tr>
+<tr><td>Radien als Zahl statt Token</td><td class="bad">163 (davon 38 Pillen <code>999px</code>)</td><td>0</td></tr>
+<tr><td>Verschieben am Titel</td><td class="ok">EIN Mechanismus für alle</td><td>1 ✔</td></tr>
+<tr><td>Haupthandlung im Fuß</td><td class="ok">überall rechts</td><td>rechts ✔</td></tr>
+</table>
+<p>Die beiden letzten Zeilen sind der Beleg, dass es geht: Verschieben (<code>dialog-drag.js</code>)
+und die Knopf-Rangfolge haben je <b>einen</b> Erzeuger und sind deshalb nirgends
+auseinandergelaufen. Alles darüber hat keinen.</p>
+
+<h3>Die drei Handschriften, die heute nebeneinander stehen</h3>
+<div class="buehne">
+	<figure class="wahl">
+		<figcaption>Heute · <b>Blatt</b> — 19 Fenster</figcaption>
+		<div class="fen fen--blatt ist-a">
+			<div class="ist-a__head"><h2>Weg bearbeiten</h2><button class="ist-a__x">×</button></div>
+			<div><span class="etikett">Name</span><input class="feld" value="Schattenbachpass" readonly></div>
+			<div style="display:flex;gap:6px;justify-content:flex-end"><button class="knopf">Abbrechen</button><button class="knopf knopf--voll" style="margin-left:0">Speichern</button></div>
+		</div>
+		<p class="note">Titel im Polster, <b>keine</b> Kopflinie, ✕ als nackte 20px-Glyphe in einem
+		30×30-Feld. Hülle <code>--radius-lg</code>, Polster 18px.
+		Dazu gehören u.&nbsp;a. Ort melden · Weg · Kraftlinie · Beschriftung · Rezension ·
+		Hinweise · Neuigkeiten · <b>Konflikte</b>.</p>
+	</figure>
+	<figure class="wahl">
+		<figcaption>Heute · <b>Werkzeugfenster</b> — 12 Fenster</figcaption>
+		<div class="fen fen--werkzeug">
+			<div class="tl" style="border-bottom-color:var(--color-border)"><span class="tl__grip">⣿⣿</span><h2 class="tl__title" style="border:0;padding:0">Garetien Importer</h2>
+				<button class="x-kasten">−</button><button class="x-kasten">✕</button></div>
+			<div class="band"><button class="kachel kachel--voll"><b>Holen &amp; Rechnen</b><small>8349 Zeilen</small></button><button class="kachel"><b>Ebenen</b><small>18 von 18</small></button></div>
+			<div class="rumpf"><div class="zeile"><b>Briskenmoor</b><span>Sumpf</span></div><div class="zeile"><b>Eynweiher Sümpfe</b><span>Sumpf</span></div></div>
+			<div class="fuss"><button class="knopf">Alle markieren</button><button class="knopf knopf--voll">Einfügen</button></div>
+		</div>
+		<p class="note">Titelleiste als Band mit eigenem Grund, Griff links, Kastenknöpfe rechts.
+		Hülle <code>--radius-sm</code>, Rumpf polsterfrei.
+		Dazu gehören die vier Editoren · Natur &amp; Waren · Tempowerte · Darstellung ·
+		Übernahme-Vorschau · Kartensammlung.</p>
+	</figure>
+	<figure class="wahl">
+		<figcaption>Heute · <b>Dritte Handschrift</b> — Social Hub</figcaption>
+		<div class="fen fen--blatt">
+			<div class="ist-b__head"><h2>Social Media Hub</h2><span style="color:var(--color-text-muted);font-size:13px">— Beitrag verfassen</span><button class="ist-b__x">✕</button></div>
+			<div class="rumpf" style="padding:16px 24px"><span class="etikett">Text</span><input class="feld" placeholder="…"></div>
+			<div class="fuss" style="background:transparent;padding:16px 24px"><span style="color:var(--color-text-muted);font-size:12px">Geht an 1 Kanal</span><button class="knopf knopf--voll">Veröffentlichen</button></div>
+		</div>
+		<p class="note note--warn">Titelleiste ja, aber <b>ohne</b> Grund · Titel <b>17px</b>
+		(auf keiner Stufe der Skala) · Polster <b>16/24px</b> statt der Skala ·
+		✕ als 18px-Glyphe <b>ohne</b> Trefferfeld · Hülle <code>--radius-lg</code> wie ein Blatt.
+		<b>Fünf Abweichungen in einem Fenster</b> — und keine davon ist eine Entscheidung.</p>
+	</figure>
+</div>
+
+<h2>2 · Entscheidung A — Eine Grundform oder zwei?</h2>
+<p>Das ist die Frage, aus der die anderen folgen. Heute gibt es zwei Bauarten und
+<b>keine Regel, welche wann gilt</b> — deshalb hat jeder neue Dialog geraten.
+„Natur &amp; Waren“ ist der Beleg: es steht in der Blatt-Familie und hat sich per
+ID-Regel nachträglich eine Titelleiste angeschraubt.</p>
+
+<div class="buehne">
+	<figure class="wahl">
+		<figcaption><b>A1</b> — alles bekommt eine Titelleiste</figcaption>
+		<div class="fen fen--werkzeug">
+			<div class="tl"><span class="tl__grip">⣿⣿</span><h2 class="tl__title" style="border:0;padding:0">Weg bearbeiten</h2><button class="x-kasten">✕</button></div>
+			<div class="rumpf"><span class="etikett">Name</span><input class="feld" value="Schattenbachpass" readonly>
+			<span class="etikett">Wegart</span><input class="feld" value="Gebirgspass" readonly></div>
+			<div class="fuss"><button class="knopf">Abbrechen</button><button class="knopf knopf--voll">Speichern</button></div>
+		</div>
+		<p class="note">Ein Programm, eine Form — nichts mehr zu entscheiden.<br>
+		<b>Preis:</b> auch das kürzeste Formular bekommt Fensterrahmen, Griff und Fußband.
+		Das ist schwerer als das, was drinsteht, und macht aus „schnell etwas melden“
+		einen Verwaltungsvorgang.</p>
+	</figure>
+	<figure class="wahl">
+		<figcaption><b>A2</b> — nichts bekommt eine Titelleiste</figcaption>
+		<div class="fen fen--blatt bl">
+			<div class="bl__head"><h2 class="bl__title" style="border:0;padding:0">Garetien Importer</h2><button class="x-nackt">✕</button></div>
+			<div style="padding:12px 0"><div class="zeile"><b>Briskenmoor</b><span>Sumpf</span></div><div class="zeile"><b>Eynweiher Sümpfe</b><span>Sumpf</span></div></div>
+			<div class="fuss--blatt" style="padding-left:0;padding-right:0"><button class="knopf">Alle markieren</button><button class="knopf knopf--voll">Einfügen</button></div>
+		</div>
+		<p class="note note--warn">Leicht und papieren, alles aus einem Guss.<br>
+		<b>Preis:</b> ein Fenster, das offen bleibt, während man daneben auf der Karte
+		arbeitet, hat keinen sichtbaren Griff mehr — und <b>Einklappen fällt weg</b>:
+		es gibt keine Leiste, auf die es einklappen könnte.</p>
+	</figure>
+	<figure class="wahl">
+		<figcaption><b>A3</b> ⭐ — zwei Bauarten, <b>eine Regel</b></figcaption>
+		<div class="fen fen--werkzeug" style="margin-bottom:16px">
+			<div class="tl"><span class="tl__grip">⣿⣿</span><h2 class="tl__title" style="border:0;padding:0">Garetien Importer</h2><button class="x-kasten">−</button><button class="x-kasten">✕</button></div>
+			<div class="band"><button class="kachel kachel--voll"><b>Holen &amp; Rechnen</b><small>8349 Zeilen</small></button><button class="kachel"><b>Ebenen</b><small>18 von 18</small></button></div>
+			<div class="rumpf"><div class="zeile"><b>Briskenmoor</b><span>Sumpf</span></div></div>
+			<div class="fuss"><button class="knopf">Alle markieren</button><button class="knopf knopf--voll">Einfügen</button></div>
+		</div>
+		<div class="fen fen--blatt bl">
+			<div class="bl__head"><h2 class="bl__title" style="border:0;padding:0">Weg bearbeiten</h2><button class="x-nackt">✕</button></div>
+			<div style="padding:12px 0 0"><span class="etikett">Name</span><input class="feld" value="Schattenbachpass" readonly></div>
+			<div class="fuss--blatt" style="padding-left:0;padding-right:0"><button class="knopf">Abbrechen</button><button class="knopf knopf--voll">Speichern</button></div>
+		</div>
+		<p class="note"><b>Werkzeugfenster</b> — bleibt offen, während man daneben arbeitet; hat
+		Menüband oder Fußleiste; ist einklappbar → Titelleiste, <code>--radius-sm</code>,
+		Kastenknöpfe.<br>
+		<b>Blatt</b> — kurzes Formular: ausfüllen, speichern, weg → Titel im Polster,
+		<code>--radius-lg</code>, nackter ✕.<br>
+		<b>Der Unterschied wird zur Aussage statt zum Zufall</b> — und der nächste Dialog
+		muss nicht mehr raten, sondern eine Frage beantworten.</p>
+	</figure>
+</div>
+
+<h2>3 · Entscheidung B — Der Schließknopf</h2>
+<p>Heute <b>13 Regeln</b> in sechs Formen: 32×32-Kasten (4×) · 32×32-Kasten mit falschem
+Radius (1×) · nackte 28px-Glyphe ohne Trefferfeld (2×) · nackte 20px-Glyphe in 30×30
+(1× — aber das sind 14 Fenster) · nackte 18px-Glyphe ohne Feld (2×) · Textknopf (1×).
+Dazu ein hartkodierter <code>5px</code>-Radius und ein <code>3px 7px</code>-Polster,
+die auf keiner Skala des Hauses stehen.</p>
+<div class="buehne">
+	<figure class="wahl" style="flex:0 0 262px;min-width:262px">
+		<figcaption><b>B1</b> — Kasten, überall</figcaption>
+		<div class="fen fen--werkzeug"><div class="tl"><span class="tl__grip">⣿⣿</span><h2 class="tl__title" style="border:0;padding:0">Fenster</h2><button class="x-kasten">✕</button></div><div class="rumpf" style="min-height:40px"></div></div>
+		<div class="fen fen--blatt bl" style="margin-top:14px"><div class="bl__head"><h2 class="bl__title" style="border:0;padding:0">Blatt</h2><button class="x-kasten">✕</button></div><div style="height:30px"></div></div>
+		<p class="note">32×32, weicher Umriss, überall gleich. Gut treffbar, immer sichtbar.
+		Auf dem ruhigen Blatt liest er sich etwas schwer — er ist dort das lauteste Element.</p>
+	</figure>
+	<figure class="wahl" style="flex:0 0 262px;min-width:262px">
+		<figcaption><b>B2</b> — nackt, überall</figcaption>
+		<div class="fen fen--werkzeug"><div class="tl"><span class="tl__grip">⣿⣿</span><h2 class="tl__title" style="border:0;padding:0">Fenster</h2><button class="x-nackt">✕</button></div><div class="rumpf" style="min-height:40px"></div></div>
+		<div class="fen fen--blatt bl" style="margin-top:14px"><div class="bl__head"><h2 class="bl__title" style="border:0;padding:0">Blatt</h2><button class="x-nackt">✕</button></div><div style="height:30px"></div></div>
+		<p class="note">Glyphe in <code>--font-size-subhead</code> mit 32×32-Trefferfeld und
+		Hover-Wash. Ruhig und leicht — aber im Bedienband einer Titelleiste sucht man ihn,
+		weil dort alles andere gefasst ist.</p>
+	</figure>
+	<figure class="wahl" style="flex:0 0 262px;min-width:262px">
+		<figcaption><b>B3</b> ⭐ — Kasten im Fenster, nackt auf dem Blatt</figcaption>
+		<div class="fen fen--werkzeug"><div class="tl"><span class="tl__grip">⣿⣿</span><h2 class="tl__title" style="border:0;padding:0">Fenster</h2><button class="x-kasten">−</button><button class="x-kasten">✕</button></div><div class="rumpf" style="min-height:40px"></div></div>
+		<div class="fen fen--blatt bl" style="margin-top:14px"><div class="bl__head"><h2 class="bl__title" style="border:0;padding:0">Blatt</h2><button class="x-nackt">✕</button></div><div style="height:30px"></div></div>
+		<p class="note">Folgt aus A3: die Titelleiste ist ein <b>Bedienband</b> und trägt gefasste
+		Knöpfe; das Blatt trägt nur Text.<br>
+		<b>Beide 32×32</b> — die Trefferfläche ist dieselbe, nur die Fassung nicht.
+		Das ist der Unterschied zu heute, wo auch die Größen auseinandergehen.</p>
+	</figure>
+</div>
+
+<h2>4 · Entscheidung C — Die Titelgröße</h2>
+<p>Heute vier Werte für dieselbe Rolle: <code>--font-size-title</code> (20) in sechs Fenstern,
+<code>--font-size-subhead</code> (16) in vier, hartes <b>17px</b> im Social Hub und hartes
+<b>15px</b> in der Kartensammlung — die letzten beiden auf <b>keiner</b> Stufe der Skala.</p>
+<div class="buehne">
+	<figure class="wahl" style="flex:0 0 320px;min-width:300px">
+		<figcaption><b>C1</b> — 20px überall (<code>--font-size-title</code>)</figcaption>
+		<div class="fen fen--werkzeug"><div class="tl"><span class="tl__grip">⣿⣿</span><h2 class="tl__title" style="font-size:var(--font-size-title);border:0;padding:0">Garetien Importer</h2><button class="x-kasten">✕</button></div><div class="band"><button class="kachel kachel--voll"><b>Holen &amp; Rechnen</b><small>8349 Zeilen</small></button><button class="kachel"><b>Ebenen</b><small>18 von 18</small></button></div></div>
+		<div class="fen fen--blatt bl" style="margin-top:14px"><div class="bl__head"><h2 class="bl__title" style="border:0;padding:0">Weg bearbeiten</h2><button class="x-nackt">✕</button></div><div style="height:26px"></div></div>
+		<p class="note">Ein Titel ist ein Titel, egal wo er steht — die einfachste Regel.<br>
+		<b>Preis:</b> in der schmalen Leiste konkurriert er mit dem Menüband darunter und
+		zieht die Leiste auf.</p>
+	</figure>
+	<figure class="wahl" style="flex:0 0 320px;min-width:300px">
+		<figcaption><b>C2</b> ⭐ — 16 im Fenster, 20 auf dem Blatt</figcaption>
+		<div class="fen fen--werkzeug"><div class="tl"><span class="tl__grip">⣿⣿</span><h2 class="tl__title" style="border:0;padding:0">Garetien Importer</h2><button class="x-kasten">✕</button></div><div class="band"><button class="kachel kachel--voll"><b>Holen &amp; Rechnen</b><small>8349 Zeilen</small></button><button class="kachel"><b>Ebenen</b><small>18 von 18</small></button></div></div>
+		<div class="fen fen--blatt bl" style="margin-top:14px"><div class="bl__head"><h2 class="bl__title" style="border:0;padding:0">Weg bearbeiten</h2><button class="x-nackt">✕</button></div><div style="height:26px"></div></div>
+		<p class="note">Die Titelleiste ist eine <b>Leiste</b> und bleibt schmal
+		(<code>--font-size-subhead</code>, 16); auf dem Blatt ist der Titel die <b>Überschrift</b>
+		des Textes darunter (<code>--font-size-title</code>, 20).<br>
+		17px und 15px fallen ersatzlos weg.</p>
+	</figure>
+</div>
+
+<h2>5 · Entscheidung D — Einklappen</h2>
+<p>Zwei Fenster können es, und beide machen es anders. <b>Konflikte</b> klappt auf eine
+Kopfzeile <i>ohne</i> Leiste zusammen und <b>springt dabei nach oben mittig</b>;
+<b>Garetien Importer</b> klappt auf seine Titelleiste und <b>bleibt stehen</b>.
+Auch die Knöpfe sehen verschieden aus: nackte 20px-Glyphe gegen 32×32-Kasten.</p>
+<div class="buehne">
+	<figure class="wahl" style="flex:0 0 340px;min-width:320px">
+		<figcaption><b>D1</b> ⭐ — eingeklappt, so sähe es künftig aus</figcaption>
+		<div class="fen fen--werkzeug"><div class="tl"><span class="tl__grip">⣿⣿</span><h2 class="tl__title" style="border:0;padding:0">Garetien Importer</h2><button class="x-kasten">□</button><button class="x-kasten">✕</button></div></div>
+		<div class="fen fen--werkzeug" style="margin-top:14px"><div class="tl"><span class="tl__grip">⣿⣿</span><h2 class="tl__title" style="border:0;padding:0">Konflikte</h2><button class="x-kasten">□</button><button class="x-kasten">✕</button></div></div>
+		<p class="note">Einklappen kann <b>nur ein Werkzeugfenster</b> (ein Blatt hat nichts,
+		worauf es einklappen könnte), es <b>bleibt stehen, wo es steht</b>, und der Knopf ist
+		derselbe Kasten wie das ✕. Glyphe <code>−</code> auf, <code>□</code> zu.<br>
+		Setzt für „Konflikte“ voraus, dass es eine Titelleiste bekommt — also A3.</p>
+	</figure>
+	<figure class="wahl" style="flex:0 0 340px;min-width:320px">
+		<figcaption><b>D2</b> — bleibt wie heute</figcaption>
+		<div class="fen fen--blatt ist-a" style="padding-bottom:6px"><div class="ist-a__head" style="margin-bottom:0"><h2>Konflikte</h2><button class="ist-a__x">−</button><button class="ist-a__x">×</button></div></div>
+		<div class="fen fen--werkzeug" style="margin-top:14px"><div class="tl" style="border-bottom-color:var(--color-border)"><span class="tl__grip">⣿⣿</span><h2 class="tl__title" style="border:0;padding:0">Garetien Importer</h2><button class="x-kasten">□</button><button class="x-kasten">✕</button></div></div>
+		<p class="note note--warn">Zwei Verhalten nebeneinander: das obere springt beim Einklappen
+		nach oben mittig, das untere bleibt stehen. Wer beide benutzt, lernt zwei Regeln
+		für dieselbe Geste.</p>
+	</figure>
+</div>
+
+<h2>6 · Was ich ohne Rückfrage entscheide (wenn du nicht widersprichst)</h2>
+<ul>
+<li><b>Die Kopf- und Fußlinie ist <code>--color-divider</code></b>, nicht
+<code>--color-border</code>. Der Design-Guide sagt es schon: „a section line is <b>always</b>
+the divider“. Heute steht in fünf Fenstern <code>border</code>, in vier <code>divider</code>.</li>
+<li><b>Das Polster der Titelleiste ist <code>--space-6 --space-10</code></b> — die Fassung des
+Garetien Importers. Heute neun verschiedene Werte, sechs davon als nackte Zahl
+(<code>10px 14px</code>, <code>16px 24px</code>, <code>13px 16px</code>, <code>12px 14px</code>,
+<code>14px 18px 12px</code>, <code>10px 12px</code>).</li>
+<li><b>Der Hüllen-Radius folgt der Bauart:</b> Werkzeugfenster <code>--radius-sm</code>,
+Blatt <code>--radius-lg</code>. Heute quer gemischt — der Territorien-Editor und der
+Social Hub tragen <code>--radius-lg</code> mit Titelleiste, die vier Editoren
+<code>--radius-sm</code>.</li>
+<li><b>Ein Bauteil, nicht dreizehn Abschriften.</b> Titelleiste und Schließknopf bekommen je
+<b>eine</b> Rezeptur, die alle Fenster benutzen — so wie <code>dialog-drag.js</code> es beim
+Verschieben längst macht. Ohne das ist die Reihe in einem halben Jahr wieder krumm,
+und dieses Mockup wird zum zweiten Mal geschrieben.</li>
+</ul>
+
+<div class="frage">
+<h3>Was ich von dir brauche</h3>
+<p>Vier Buchstaben genügen: <b>A1 / A2 / A3</b> · <b>B1 / B2 / B3</b> ·
+<b>C1 / C2</b> · <b>D1 / D2</b>.<br>
+Meine Empfehlung ist <b>A3 · B3 · C2 · D1</b> — die vier hängen zusammen und ergeben
+<b>zwei benannte Bauarten mit je einer Rezeptur</b>. Was du wählst, trage ich als Regel in
+<code>docs/design-language.md</code> nach; erst danach fasse ich Produktivcode an.</p>
+</div>
+
+<script>
+document.getElementById("tsw").addEventListener("click", function () {
+	var r = document.documentElement;
+	r.setAttribute("data-theme", r.getAttribute("data-theme") === "dark" ? "light" : "dark");
+});
+</script>
