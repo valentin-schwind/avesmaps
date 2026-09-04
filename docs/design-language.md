@@ -238,11 +238,23 @@ Fenster dragbar machen. Auch Landschaften bearbeiten und andere hinweise. trotzd
 bleiben, damit für jeden klar, dass man das verschieben kann"). Es gibt also keine
 Unterscheidung „verschiebbar / nicht" mehr.
 
-🔴 **Gesetzt wird er trotzdem vom Zieh-Mechanismus, nicht vom Markup.**
-`js/ui/dialog-drag.js` weiß als einziges, ob es wirklich zieht — **am Telefon zieht es nicht**,
-und dort soll der Griff auch nicht behaupten, dass es ginge. Es hängt `is-draggable` an die
-Kopfleiste, und erst dann erscheint der Griff samt `cursor: grab`. Ein Griff im Markup wäre eine
-Behauptung, die das Fenster nicht einlöst, und niemand fände heraus, welche Seite lügt.
+🔴 **Und er verschwindet, wo nicht gezogen wird — ohne dass jemand etwas setzen muss.**
+`js/ui/dialog-drag.js` steigt bei `event.pointerType === "touch"` aus; genau diese Bedingung
+steht als `@media (hover: none) and (pointer: coarse)` im Bauteil. Damit kann kein neues Fenster
+sie vergessen.
+
+💣 **Keine Klasse `is-draggable`.** Der erste Entwurf verlangte eine, die `dialog-drag.js` hätte
+setzen müssen — ein Fenster, bei dem es jemand vergisst, trüge dann keinen Griff, obwohl es sich
+schieben lässt, und niemand käme darauf, warum. Und **nicht** an der Bildschirmbreite
+(`html.avesmaps-phone`): ein Tablet ist breit *und* tastbedient.
+
+💣 **Die Kopfleiste braucht `user-select: none`** — das kam bislang aus der Sammelregel in
+`css/components/dialog-overlays.css`, und die kennt nur `__head`/`-head`. Wer eine Zone nach der
+Form benennt, prüft **beide** Erzeuger: den Zieh-Mechanismus *und* seine CSS-Gegenstelle.
+
+🪤 Dieser Absatz stand hier bis zum 04.09.2026 falsch herum — er nannte die verworfene Klasse,
+während der Code längst die Media-Query trug. Ein Regelwerk, das einen Mechanismus beschreibt,
+den es nicht gibt, lässt die nächste Sitzung etwas bauen, das niemand braucht.
 
 💣 **Kein negatives `letter-spacing`.** Der alte Griff war `⣿⣿` (Braille) und brauchte
 `-0.12em`, damit die Blöcke zusammenrücken. Bei `⁝⁝` (U+205D, zweimal) frisst derselbe Wert
@@ -325,7 +337,7 @@ alle ihre Fenster**; `editor-page.css` (10px, Pille, 2px Rand) gilt in den vier 
 zweiten, per ID gescoped — sie existieren **nur**, weil ihre Fenster in `index.html` leben und
 `base.css` sie sonst auf 7px zieht.
 
-⭐ **Eine Regel am Fenster** (`.fen *::-webkit-scrollbar`, 10px, Pille, 2px Rand in der
+⭐ **Eine Regel am Fenster** (`.avm-fenster *::-webkit-scrollbar`, 10px, Pille, 2px Rand in der
 Track-Farbe) — dann sieht ein Fenster gleich aus, egal wo es lebt, und die drei Abschriften
 fallen ersatzlos weg. Der Rand ist in der Track-Farbe, nicht transparent: er schneidet den
 Daumen optisch schmaler, ohne die Trefferfläche zu verkleinern.

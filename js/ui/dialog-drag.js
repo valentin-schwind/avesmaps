@@ -31,6 +31,11 @@
 var AVESMAPS_DIALOG_DRAG_HANDLES = [
 	'[role="dialog"] > [class*="__head"]',
 	'[role="dialog"] > [class*="-head"]',
+	// 💣 `__kopf` seit 04.09.2026 -- das Fenster-Bauteil (css/components/fenster.css) heisst
+	// deutsch, wie der Code, den es ersetzt. Ohne diese Zeile hoert jedes umgestellte Fenster
+	// lautlos auf, verschiebbar zu sein: die Suche geht nach der FORM des Namens, und die Form
+	// hat sich geaendert. Gefunden vom Testfeld, nicht von Hand.
+	'[role="dialog"] > [class*="__kopf"]',
 	".modal-box > .modal-title",
 	"[data-avesmaps-drag-handle]",
 ].join(", ");

@@ -7,6 +7,17 @@
  *    darunter SICHTBAR und BEDIENBAR bleiben -- deshalb `position: fixed` statt eines Overlays,
  *    und keine Weichzeichnung/Abdunkelung wie bei .avm-editor-dialog.
  */
+/* 🔴 KOPFLEISTE, GRIFF, TITEL, SCHLIESSKNOPF UND FUSSLEISTE GEHOEREN JETZT DEM BAUTEIL
+      (css/components/fenster.css, .avm-fenster__*). Dieses Fenster war die Vorlage dafuer --
+      seine Werte sind dort eingezogen, und die Abschriften hier sind ersatzlos gefallen.
+   💣 NICHTS DAVON HIER WIEDER HINSCHREIBEN. Genau so sind die 13 Schliessknopf-Rezepturen
+      entstanden, die dieses Bauteil beendet (AGENTS.md §12). Was BLEIBT, steht unten: Lage,
+      Groesse, Zieh-Ecke, das Aufrollen und die drei Fuss-Kinder -- alles, was nur dieses
+      Fenster betrifft.
+   ⚠️ Der Griff heisst seit dem 04.09.2026 U+205D zweimal, nicht mehr das Braille-Vollzeichen, und das
+      letter-spacing -3px der alten Fassung ist mitgefallen: bei den Punktspalten frisst es
+      den Zwischenraum (gemessen 4,9px statt 8,8, aus zwei Spalten wird eine). */
+
 
 .gi-win {
 	position: fixed;
@@ -27,8 +38,6 @@
 	left: calc(var(--avesmaps-planner-width) + var(--avesmaps-tab-w) + var(--space-16));
 	top: var(--space-16);
 	z-index: var(--z-dialog);
-	display: flex;
-	flex-direction: column;
 	/* ⚠️ Die Breite muss mit dem vollen Versatz (Planer + Lasche + Lücke) mitrechnen, sonst ragt
 	   das Fenster auf schmalen Schirmen rechts über den Viewport hinaus (bei 1400px bleiben 984px
 	   übrig -> 800px zieht; bei 1000px nur noch 584px -- schmaler, aber heil). */
@@ -76,14 +85,14 @@
 	   zieht, auch. Begrenzt wird nur gegen den Viewport, damit die Zieh-Ecke erreichbar bleibt. */
 	max-width: calc(100vw - 2 * var(--space-16));
 	max-height: calc(100vh - 2 * var(--space-16));
-	border: 1px solid var(--color-border-strong);
-	border-radius: var(--radius-sm);      /* Hülle sm, Bedienelemente md — Designsprache */
-	background: var(--color-panel);
-	box-shadow: var(--shadow-dialog);
-	font-size: var(--font-size-body);
-	line-height: var(--leading-snug);
-	color: var(--color-text);
-	overflow: hidden;
+	/* 🔴 DIE KANTE, LOKAL. --avm-col-pad steht global noch auf 12 (tokens.css sagt warum: neun
+	   Fenster lesen ihn). Dieses Fenster ist das erste auf der 14er-Kante, also zieht es den
+	   Token an seiner eigenen Huelle -- Eigenschaften erben, .avm-col im Inneren liest ihn.
+	   ⚠️ Diese Zeile FAELLT, sobald der globale Wert nachzieht. */
+	--avm-col-pad: var(--space-6) var(--space-12);
+	/* 🔴 overflow: hidden kommt aus .avm-fenster -- es ist hier trotzdem tragend und darf nicht
+	   verschwinden: `resize` wirkt nur bei overflow ungleich visible. Wer je die Bauteil-Zeile
+	   entfernt, nimmt die Zieh-Ecke dieses Fensters mit. */
 }
 
 /* 🔴 DER PLATZ, DEN DAS EINKLAPPEN FREIMACHT, WIRD AUCH BENUTZT (Owner 31.08.2026: „damit der
@@ -141,49 +150,15 @@ html.avesmaps-planner-collapsed .gi-win {
 
 .gi-win[hidden] { display: none; }
 
-.gi-win__head {
-	display: flex;
-	align-items: center;
-	gap: var(--space-6);
-	padding: var(--space-6) var(--space-6) var(--space-6) var(--space-10);
-	border-bottom: 1px solid var(--color-border);
-	background: var(--color-panel-soft);
-	cursor: grab;                              /* der ganze Kopf ist der Griff (dialog-drag.js) */
-}
 
-.gi-win__grip {
-	flex: none;
-	letter-spacing: -3px;
-	color: var(--color-text-muted);
-	font-size: var(--font-size-caption);
-	user-select: none;
-}
 
-.gi-win__title {
-	flex: 1 1 auto;
-	min-width: 0;
-	margin: 0;
-	font-size: var(--font-size-subhead);
-	line-height: var(--leading-tight);
-	font-weight: var(--font-weight-bold);
-	color: var(--color-text-strong);
-}
 
-.gi-win__x {
-	flex: none;
-	width: 32px;
-	height: 32px;
-	display: grid;
-	place-items: center;
-	border: 1px solid var(--color-button-soft-border);
-	border-radius: var(--radius-md);
-	background: var(--color-button-soft);
-	color: var(--color-button-soft-text);
-	font: inherit;
-	cursor: pointer;
-}
 
-.gi-win__x:hover { background: var(--color-button-soft-hover); }
+
+
+
+
+
 
 /* ---- Eingeklappt: das Fenster rollt auf seine Titelleiste zusammen ---------------------------
  * Owner 04.09.2026: „einen minimieren button […] dass das fenster auf die titelleiste
@@ -205,7 +180,9 @@ html.avesmaps-planner-collapsed .gi-win {
  *    es jemandem auffiele. Dieselbe Klasse wie die Zahl im Kommentar (AGENTS.md §11).
  * ⚠️ Der Wirt der Uebernahme-Vorschau (#garetien-sheet) steht AUSSERHALB der Huelle und ist
  *    davon nicht betroffen -- ein eingeklapptes Fenster verdeckt sein Blatt also nicht. */
-.gi-win.is-minimized > :not(.gi-win__head) { display: none; }
+/* 🔴 Die Zonen-Regel steht im Bauteil (.avm-fenster.is-minimized > :not(.avm-fenster__kopf)).
+   Hier bleibt nur, was diesem Fenster gehoert: der Hoehen-Reset gegen die Zieh-Ecke, direkt
+   darunter. Der Kopf traegt beide Klassen, also greift die Bauteil-Regel. */
 
 /* 💣 `!important` IST HIER TRAGEND, nicht bequem: die Zieh-Ecke (`resize: both`) schreibt Hoehe
  *    und Breite als INLINE-Stil, und der schlaegt jede Klassenregel. Ohne das bliebe ein einmal
@@ -250,6 +227,25 @@ html.avesmaps-planner-collapsed .gi-win {
 }
 
 .gi-win .avm-tile:hover { background: var(--color-button-soft-hover); }
+
+/* 💣 UND DIE AUSNAHME, DIE HIER VIER MONATE GEFEHLT HAT. Die Regel darueber traegt (0,2,0) --
+ *    sie MUSS das, sonst gewinnt `.type-filter__toggle` (0,1,0, review-panel.css, laedt
+ *    spaeter) an der Ebenen-Kachel, die BEIDE Klassen traegt. Damit schlaegt sie aber auch
+ *    `.avm-tile--primary` (0,1,0, editor-body.css) -- und die Haupthandlung "Holen & Rechnen"
+ *    war NIE gefuellt: im Browser gemessen am 04.09.2026 betrug der RGB-Abstand zur weichen
+ *    Kachel daneben NULL. Damit fehlte diesem Menueband die Rangfolge, die AGENTS.md §12
+ *    verlangt ("Hauptaktion gefuellt, der Rest weich"), ohne dass irgendetwas brach.
+ * ⚠️ Gefunden hat es die MESSUNG im Browser, nicht der Quelltext: beide Regeln lesen sich
+ *    einzeln tadellos, der Fehler ist ihr Verhaeltnis. Kein Test sah ihn, und zwei Pruefagenten
+ *    hielten die Kachel fuer korrekt gescopt.
+ * 🔴 Sie steht hier und nicht im Bauteil: es ist eine Antwort auf DIESE Spezifitaetslage.
+ *    Wer sie ins Bauteil zoege, verschoebe das Problem, statt es zu loesen. */
+.gi-win .avm-tile--primary {
+	background: var(--color-button);
+	border-color: var(--color-button-border);
+	color: var(--color-button-text);
+}
+.gi-win .avm-tile--primary:hover { background: var(--color-button-hover); }
 
 /* Die ANZEIGE der zwei Riegel: der Doppelklick-Riegel und „keine Ebene gewählt". Beide sind
    Modulzustände in js/review/review-garetien-importer.js -- eine Weiche, die an einer Klasse
@@ -298,14 +294,14 @@ html.avesmaps-planner-collapsed .gi-win {
 /* Der Grund des Menübands. Die Hausform setzt hier `--color-panel` -- richtig auf dem dunklen
    Boden einer Editorseite, unsichtbar in diesem Fenster, dessen eigener Grund schon
    `--color-panel` ist. Das Mockup (§1, freigegeben) zeigt das weiche Band; `--color-panel-soft`
-   ist derselbe Ton wie der Fensterkopf darüber. */
+   ist der Ton des Menuebands; der Fensterkopf traegt seit dem 04.09.2026 GAR KEINEN eigenen Grund mehr. */
 .gi-win .avm-ribbon-bar { background: var(--color-panel-soft); }
 
 /* ---- Die stille Zeile: die Bilanz des LAUFS (Aufgabe 11+ füllt sie). ---------------------- */
 .gi-runline {
 	margin: 0;
 	max-width: none;
-	padding: var(--space-4) var(--space-10);
+	padding: var(--space-4) var(--space-12);
 	background: var(--color-panel-muted);
 	font-size: var(--font-size-caption);
 	color: var(--color-text-muted);
@@ -442,16 +438,9 @@ html.avesmaps-planner-collapsed .gi-win {
  *    Fensteruntergrenze (`min-width: 480px`, weiter oben) ab: reicht die Breite nicht fuer alle
  *    Kinder in einer Zeile, weicht der Hauptknopf samt seinem Hinweis in die naechste Zeile --
  *    KEIN Abschneiden, `.gi-win` traegt `overflow: hidden`. */
-.gi-foot {
-	flex: none;
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	gap: var(--space-6);
-	padding: var(--space-6) var(--space-10);
-	border-top: 1px solid var(--color-border);
-	background: var(--color-panel-soft);
-}
+/* Nur der Umbruch und das Nicht-Schrumpfen -- Polster, Linie und Ausrichtung kommen aus
+   .avm-fenster__fuss. */
+.gi-foot { flex: none; flex-wrap: wrap; }
 
 /* Die Haupthandlung sitzt rechts -- vorher besorgte das die jetzt entfernte Zaehlzeile links, als
    wachsender Platzhalter, der den Rest der Zeile vor sich herschob. `.gi-foot__main` (Hinweis +
@@ -538,7 +527,7 @@ html.avesmaps-planner-collapsed .gi-win {
 	min-height: 0;
 	overflow: auto;
 	scrollbar-gutter: stable both-edges;
-	padding: var(--space-8) var(--space-10);
+	padding: var(--space-8) var(--space-12);
 }
 
 .gi-detail__head { display: flex; align-items: baseline; gap: var(--space-6); }
@@ -951,6 +940,27 @@ html.avesmaps-planner-collapsed .gi-win {
 	color: var(--color-disabled-text);
 }
 
+/* „Innerorts einfügen" blendet den Kasten ab, statt ihn zu verstecken (Entwurf
+ * docs/superpowers/specs/2026-09-02-innerorts-import-design.md §4).
+ *
+ * 🔴 ABGEBLENDET, NICHT VERSTECKT. Der Kasten beschreibt, was auf der KARTE entstünde -- Form,
+ * Art, Farbe, Strömung -- und für ein innerorts eingefügtes Objekt entsteht dort nichts. Ihn
+ * wegzunehmen liesse die Spalte springen, und der Editor verlöre mitten in der Entscheidung den
+ * Bezug; abgeblendet sagt er dasselbe und bleibt an seinem Platz.
+ *
+ * 💣 ÜBER DIE SPALTE, NICHT ÜBER EIN GESCHWISTER. Die Handlungsleiste steht NACH `.gi-detail`
+ * (sie ist deren Geschwister, `.gi-win .avm-col > .gi-acts`) -- ein Kombinator kann von dort aus
+ * nicht zurückgreifen. `:has()` am gemeinsamen Vorfahren ist der einzige Weg, der ohne einen
+ * zweiten Zustand im JavaScript auskommt.
+ *
+ * ⚠️ `:focus-visible` steht daneben: wer mit der Tastatur bedient, überfährt nichts.
+ * ⚠️ `opacity: .5` ist die Hausform (editor-page.css), keine neue Zahl. */
+.gi-win .avm-col:has(.gi-acts [data-handlung="innerorts"]:hover) .gi-insert,
+.gi-win .avm-col:has(.gi-acts [data-handlung="innerorts"]:focus-visible) .gi-insert {
+	opacity: .5;
+	transition: opacity 120ms ease;
+}
+
 /* Das Freitextfeld der Ortsart (Owner 30.08.2026, „ja mach ort bearbeiten") -- dieselbe Optik wie
  * das Zahlenfeld, aber NICHT dessen Breite: `.gi-insert__input` steht auf `width: 4.5em`, und der
  * Platzhalter dieses Feldes lautet „z. B. Brücke – leer lassen, wenn unbekannt".
@@ -1162,7 +1172,7 @@ html.avesmaps-planner-collapsed .gi-win {
 
 .gi-win .avm-col > .gi-acts {
 	flex: none;
-	padding: var(--space-6) var(--space-10);
+	padding: var(--space-6) var(--space-12);
 	border-top: 1px solid var(--color-divider);
 }
 
@@ -1258,6 +1268,6 @@ html.avesmaps-planner-collapsed .gi-win {
 
 .gi-win .avm-col > .gi-naehe {
 	flex: none;
-	padding: var(--space-6) var(--space-10);
+	padding: var(--space-6) var(--space-12);
 	border-top: 1px solid var(--color-divider);
 }

@@ -1,0 +1,231 @@
+/* ═══════════════════════════════════════════════════════════════════════════════════════════════
+   DAS FENSTER — ein Bauteil, zwei Fassungen.
+
+   Entwurf und Mockup: docs/fensterformen-mockup.html · Regelwerk: docs/design-language.md §Fenster
+   Bauplan (die Liste aller 41 Fenster): docs/superpowers/plans/2026-09-04-fenster-vereinheitlichung.md
+
+   Owner-Entscheide 04.09.2026: A3 (zwei Bauarten, eine Regel) · B3 (Schliessknopf im Fenster
+   gefasst, im Blatt nackt, beide 32x32) · C2 (EINE Titelgroesse) · D1 (Einklappen nur im
+   Werkzeugfenster, es bleibt stehen) · T3 (Reiter = Unterstrich im Fenster).
+
+   💣 WARUM ES DIESE DATEI GIBT. Vermessen am 04.09.2026 ueber alle CSS-Dateien: 13 Rezepturen
+      fuer den Schliessknopf in sechs sichtbaren Formen, 9 Polsterwerte fuer die Kopfzeile (sechs
+      davon als nackte Zahl), 4 Titelgroessen (15/16/17/20, zwei auf keiner Skalenstufe),
+      Huellen-Radius quer gemischt, Kopflinie mal --color-border mal --color-divider.
+      Das VERSCHIEBEN dagegen ist nirgends auseinandergelaufen -- weil es EINEN Erzeuger hat
+      (js/ui/dialog-drag.js). Das ist der ganze Unterschied, und diese Datei ist die Antwort
+      darauf: wer ein Fenster baut, benutzt sie, statt die naechste Fassung abzuschreiben.
+
+   🔴 DIE HUELLE HAT POLSTER 0 -- die tragende Zeile. Jede Zone traegt ihr Polster selbst.
+      Dadurch laeuft jeder Trenner von Kante zu Kante OHNE negative Aussenraender (die
+      „full-bleed = negativer Seitenrand"-Regel des Design-Guides faellt fuer Fenster weg), der
+      Seiteneinzug ist an EINER Stelle je Zone nachzuzaehlen, und Blatt und Werkzeugfenster
+      benutzen dieselben Zonen -- sie unterscheiden sich nur noch in der Fassung.
+
+   🔴 KEINE NEUEN MASS-TOKENS. Die Masse stehen in css/base/tokens.css und tragen die vier
+      Editoren; ein zweiter Satz Namen fuer dieselben Zahlen waere genau die Divergenz, um die es
+      hier geht. Genau EIN Name kam dazu (--avm-kopf-pad), und genau EIN Wert zieht nach
+      (--avm-col-pad waagerecht 12 -> 14).
+   💣 --space-N ist NICHT N Pixel -- die Skala traegt global +2 (--space-12 = 14px), und
+      tokens.css sagt das direkt ueber den Editor-Tokens.
+   ═══════════════════════════════════════════════════════════════════════════════════════════ */
+
+/* ══ VERTRAG: css/components/fenster.css ══
+   🔴 ALLES ZWISCHEN DIESEN MARKEN STEHT ZEICHENGLEICH IN docs/fensterformen-mockup.html
+   (tools/mockup-vertrag/__tests__/mockup-vertrag.test.js, laeuft im Deploy-Tor).
+   Wer hier einen Wert aendert, aendert ihn im Mockup mit -- oder der Test wird rot. */
+
+.avm-fenster {
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+	padding: 0;
+	background: var(--color-panel);
+	color: var(--color-text);
+	box-shadow: var(--shadow-dialog);
+	font-size: var(--font-size-body);
+	line-height: var(--leading-snug);
+}
+.avm-fenster--werkzeug {
+	border: 1px solid var(--color-border-strong);
+	border-radius: var(--radius-sm);
+}
+.avm-fenster--blatt {
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-lg);
+}
+
+.avm-fenster__kopf {
+	display: flex;
+	align-items: center;
+	gap: var(--avm-ribbon-gap);
+	padding: var(--avm-kopf-pad);
+	border-bottom: 1px solid var(--color-divider);
+	cursor: grab;
+}
+
+.avm-fenster__griff {
+	flex: none;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-subhead);
+	line-height: 1;
+	letter-spacing: 0;
+	user-select: none;
+}
+
+.avm-fenster__titel {
+	flex: 1 1 auto;
+	min-width: 0;
+	margin: 0;
+	padding: 0;
+	border: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: var(--font-size-subhead);
+	line-height: var(--leading-tight);
+	font-weight: var(--font-weight-bold);
+	color: var(--color-text-strong);
+}
+
+.avm-fenster__zusatz {
+	flex: 0 1 auto;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-body);
+}
+
+.avm-fenster__knopf {
+	flex: none;
+	width: var(--avm-control-h);
+	height: var(--avm-control-h);
+	display: grid;
+	place-items: center;
+	padding: 0;
+	border-radius: var(--radius-md);
+	font: inherit;
+	font-size: var(--font-size-body);
+	line-height: 1;
+	cursor: pointer;
+}
+.avm-fenster__knopf--gefasst {
+	border: 1px solid var(--color-button-soft-border);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+}
+.avm-fenster__knopf--nackt {
+	border: 0;
+	background: transparent;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-subhead);
+}
+
+.avm-fenster__rumpf {
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow: auto;
+	padding: var(--avm-col-pad);
+}
+
+.avm-fenster__fuss {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--avm-ribbon-gap);
+	padding: var(--avm-kopf-pad);
+	border-top: 1px solid var(--color-divider);
+}
+.avm-fenster__fuss-haupt {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--avm-ribbon-gap);
+	margin-left: auto;
+}
+.avm-fenster__fuss-hinweis {
+	flex: none;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-caption);
+}
+
+/* ══ VERTRAG ENDE ══ */
+
+/* ---- Zustaende: nicht im Vertrag, weil das Mockup sie nicht zeigt (es ist ein Standbild) ----
+ * ⚠️ Der Vertrag ist eine UNTERGRENZE, keine Obergrenze -- die Produktionsdatei darf mehr
+ *    tragen. Genau dafuer steht dieser Abschnitt unterhalb der Marke. */
+.avm-fenster__knopf--gefasst:hover { background: var(--color-button-soft-hover); }
+.avm-fenster__knopf--nackt:hover {
+	background: var(--color-hover-wash);
+	color: var(--color-text-strong);
+}
+.avm-fenster__knopf:focus-visible {
+	outline: none;
+	box-shadow: var(--focus-ring);
+}
+.avm-fenster__knopf:disabled {
+	cursor: not-allowed;
+	opacity: 0.5;
+}
+.avm-fenster:focus { outline: none; }
+
+/* ---- Der Griff: an JEDEM Fenster, aber nur wo wirklich gezogen wird -----------------------
+ * 🔴 Owner 04.09.2026: alle Fenster sind verschiebbar und tragen den Griff, „damit fuer jeden
+ *    klar [ist], dass man das verschieben kann".
+ * 💣 KEIN negatives `letter-spacing` am Griff (oben, im Vertrag). Der alte Griff war das
+ *    Braille-Vollzeichen und brauchte -0.12em; bei den zwei Punktspalten (U+205D) frisst
+ *    derselbe Wert den Zwischenraum -- im Browser gemessen 4,9px statt 8,8, aus zwei Spalten
+ *    wird eine, und der Griff liest sich als Doppelpunkt. Abgeschriebene Werte ueberleben den
+ *    Wechsel ihres Gegenstands nicht.
+ * 💣 KEINE Klasse, die jemand setzen muss -- die Bedingung steht in CSS und kann deshalb von
+ *    keinem neuen Fenster vergessen werden. Der erste Entwurf verlangte ein `is-draggable`, das
+ *    js/ui/dialog-drag.js haette setzen muessen; ein Fenster, bei dem es jemand vergisst, traegt
+ *    dann keinen Griff, obwohl es sich schieben laesst -- und niemand kaeme darauf, warum.
+ * 🔴 Die Bedingung ist die des Zieh-Mechanismus selbst: er steigt bei
+ *    `event.pointerType === "touch"` aus (dialog-drag.js). Also genau dort keinen Griff --
+ *    nicht an der Bildschirmbreite (`html.avesmaps-phone`), denn ein Tablet ist breit UND
+ *    tastbedient; der Griff waere dort eine Behauptung, die niemand einloest.
+ * 🪤 UND DER SELEKTOR IST HIER `.avm-fenster > .avm-fenster__kopf`, NICHT `.avm-fenster__kopf`:
+ *    der Vertragsleser (tools/mockup-vertrag) ist bewusst flach und kennt kein `@media` -- er
+ *    liest die Regeln DARIN als waeren sie oben, und ein zweites `cursor` unter demselben
+ *    Selektor ueberschriebe dort das zugesagte `grab`. Der Test wurde rot, obwohl an der Sache
+ *    nichts falsch war. Ein eigener Selektor umgeht das, ohne dem Leser etwas vorzumachen. */
+@media (hover: none) and (pointer: coarse) {
+	.avm-fenster > .avm-fenster__kopf { cursor: default; }
+	.avm-fenster__griff { display: none; }
+}
+
+/* ---- Eingeklappt (D1) ----------------------------------------------------------------------
+ * 🔴 Nur ein Werkzeugfenster kann es -- ein Blatt hat keine Leiste, auf die es einklappen
+ *    koennte -- und es BLEIBT STEHEN, wo es steht.
+ * 💣 EIN Selektor statt einer Liste der Zonen: eine Liste veraltet lautlos, und die naechste
+ *    Zone stuende eingeklappt sichtbar da. Dieselbe Klasse wie die Zahl im Kommentar
+ *    (AGENTS.md §11) -- `.gi-win.is-minimized` macht es seit dem 04.09.2026 schon so. */
+.avm-fenster.is-minimized > :not(.avm-fenster__kopf) { display: none; }
+.avm-fenster.is-minimized .avm-fenster__kopf { border-bottom: 0; }
+
+/* ---- Die Bildlaufleiste gehoert dem FENSTER, nicht dem Dokument ----------------------------
+ * ⚠️ Es gab fuenf Rezepturen in zwei Formen, und der Unterschied war DOKUMENTBASIERT, nicht
+ *    gewollt: base.css (7px) gilt in index.html -- also fuer die Karte UND alle ihre Fenster --,
+ *    editor-page.css (10px, Pille, 2px Rand) in den vier Editor-iframes. lore.css und die zwei
+ *    political-territory-editor*.css tragen DREI ID-gescopte Abschriften der zweiten, die NUR
+ *    existieren, weil ihre Fenster in index.html leben und base.css sie sonst auf 7px zieht.
+ * ⭐ Am Fenster gebunden sieht ein Fenster gleich aus, egal wo es lebt -- und die drei
+ *    Abschriften koennen fallen, sobald ihre Fenster hier haengen (Bauplan A6-A9).
+ * 🔴 Die SEITE selbst (Karte, Infopanel, Routenplaner) bleibt bei den 7px aus base.css --
+ *    Owner 04.09.2026: „die karte / das infopanel / der routenplaner bleiben erstmal."
+ * 💣 Der 2px-Rand ist in der TRACK-Farbe, nicht transparent: er schneidet den Daumen optisch
+ *    schmaler, ohne die Trefferflaeche zu verkleinern -- die Leiste bleibt 10px breit. */
+.avm-fenster * {
+	scrollbar-width: thin;
+	scrollbar-color: var(--color-scrollbar-thumb) var(--color-scrollbar-track);
+}
+.avm-fenster *::-webkit-scrollbar { width: 10px; height: 10px; }
+.avm-fenster *::-webkit-scrollbar-track { background: var(--color-scrollbar-track); }
+.avm-fenster *::-webkit-scrollbar-thumb {
+	background: var(--color-scrollbar-thumb);
+	border-radius: 999px;
+	border: 2px solid var(--color-scrollbar-track);
+}
+.avm-fenster *::-webkit-scrollbar-thumb:hover { background: var(--color-scrollbar-thumb-hover); }

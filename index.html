@@ -4023,22 +4023,22 @@
 		     ([role=dialog] > [class*="__head"]), nicht nach einer Namensliste.
 		     🔴 In dieser Aufgabe (10) bleibt das Fenster LEER -- Liste, Filter und Einzelansicht sind
 		     Aufgabe 11 ff. -->
-		<div id="garetien-importer" class="gi-win" role="dialog" aria-label="Garetien Importer" hidden>
-			<div class="gi-win__head">
-				<span class="gi-win__grip" aria-hidden="true">⣿⣿</span>
-				<h2 class="gi-win__title">Garetien Importer</h2>
+		<div id="garetien-importer" class="gi-win avm-fenster avm-fenster--werkzeug" role="dialog" aria-label="Garetien Importer" hidden>
+			<div class="avm-fenster__kopf">
+				<span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>
+				<h2 class="avm-fenster__titel">Garetien Importer</h2>
 				<!-- 🔴 EINKLAPPEN wie im Konflikte-Fenster (Owner 04.09.2026, „wie konflikte"): das Fenster
 				     rollt auf diese Titelleiste zusammen und gibt den Platz darunter frei. Es BLEIBT dabei,
 				     wo es steht -- das Konflikte-Fenster springt eingeklappt nach oben mittig, weil es per
 				     Flex in seinem Overlay zentriert sitzt und unten rechts hinter dem Infopanel verschwand;
 				     dieses hier ist verschiebbar (js/ui/dialog-drag.js) und stuende nach einem Sprung
 				     woanders, als der Editor es hingezogen hat.
-				     ⚠️ Kein eigenes Aussehen: der Knopf traegt NUR .gi-win__x, wie das ✕ daneben. Eine
+				     ⚠️ Kein eigenes Aussehen: der Knopf traegt dieselben Bauteilklassen wie das ✕ daneben. Eine
 				     zweite Klasse ohne eine einzige Regel waere totes Markup. Die Glyphe wechselt zu □
 				     (review-garetien-importer.js), nicht hier. -->
-				<button class="gi-win__x" type="button" id="garetien-importer-min" aria-label="Fenster einklappen"
+				<button class="avm-fenster__knopf avm-fenster__knopf--gefasst" type="button" id="garetien-importer-min" aria-label="Fenster einklappen"
 					title="Rollt das Fenster auf seine Titelleiste zusammen. Die Liste und die Auswahl bleiben stehen.">−</button>
-				<button class="gi-win__x" type="button" id="garetien-importer-close" aria-label="Schließen">✕</button>
+				<button class="avm-fenster__knopf avm-fenster__knopf--gefasst" type="button" id="garetien-importer-close" aria-label="Schließen">✕</button>
 			</div>
 			<!-- 💣 Das Menueband ist ZWEISTUFIG, und die Stufen teilen sich die Arbeit:
 			     `.avm-ribbon-bar` traegt Hintergrund, Innenpolster und die Trennlinie nach unten,
@@ -4056,7 +4056,7 @@
 				<div class="avm-col" id="garetien-listcol"></div>
 				<div class="avm-col" id="garetien-detailcol"></div>
 			</div>
-			<div class="gi-foot">
+			<div class="gi-foot avm-fenster__fuss">
 				<!-- 🔴 Die Zählzeile („X vorgemerkt · Y abgelehnt · Z übernommen", #garetien-foot-count)
 				     ist am 30.08.2026 restlos entfernt (Owner: „inkonsistent mit allen anderen Zahlen").
 				     Sie zählte einen SERVERstand, der seit Aufgabe 1 (Markieren ist ein reiner Marker,

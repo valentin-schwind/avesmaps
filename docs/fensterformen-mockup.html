@@ -4,7 +4,7 @@
    Owner-Entscheid 04.09.2026: A3 · B3 · C2(revidiert) · D1, plus drei Korrekturen am zweiten Wurf:
      1. „ich will den komischen unter dem titel nicht haben - SONDERN DEN DURCHGEHENDEN"
         -> Die kurze Linie kam aus dem SEITENGERUEST dieses Mockups (`h2 { border-bottom }`, und
-           `.fkopf__titel` ist ein h2). Beim ersten Bericht habe ich sie fuer die Menueband-Linie
+           `.avm-fenster__titel` ist ein h2). Beim ersten Bericht habe ich sie fuer die Menueband-Linie
            gehalten und die FALSCHE entfernt. Geruest jetzt unter `body > h2`; die Kopfleiste
            behaelt ihre durchgehende Linie immer. Abschnitt 2.
      2. „bei den kacheln solltest du dich an das typische design der editor-kacheln halten.
@@ -100,21 +100,26 @@
 	--color-scrollbar-thumb-hover: rgba(180, 168, 149, 0.55);
 }
 
+/* ══ VERTRAG: css/components/fenster.css ══
+   🔴 ALLES ZWISCHEN DIESEN MARKEN MUSS IN DER GENANNTEN DATEI ZEICHENGLEICH STEHEN
+   (tools/mockup-vertrag/__tests__/mockup-vertrag.test.js, laeuft im Deploy-Tor).
+   Das Mockup ist die UNTERGRENZE: die Produktionsdatei darf mehr tragen (Zustaende, Hover,
+   Telefon-Umbrueche) -- geprueft wird nur, was hier zugesagt ist. */
 /* ═══ DIE HUELLE ══════════════════════════════════════════════════════════════════════════════
    🔴 padding: 0 -- jede Zone traegt ihr Polster selbst. Dadurch laeuft jeder Trenner von Kante
       zu Kante OHNE negative Aussenraender, und Blatt und Fenster benutzen dieselben Zonen. */
-.fen {
+.avm-fenster {
 	display: flex; flex-direction: column; overflow: hidden; padding: 0;
 	background: var(--color-panel); color: var(--color-text);
 	box-shadow: var(--shadow-dialog);
 	font-size: var(--font-size-body); line-height: var(--leading-snug);
 }
-.fen--werkzeug { border: 1px solid var(--color-border-strong); border-radius: var(--radius-sm); }
-.fen--blatt    { border: 1px solid var(--color-border);        border-radius: var(--radius-lg); }
+.avm-fenster--werkzeug { border: 1px solid var(--color-border-strong); border-radius: var(--radius-sm); }
+.avm-fenster--blatt    { border: 1px solid var(--color-border);        border-radius: var(--radius-lg); }
 
 /* ═══ DIE KOPFLEISTE ══════════════════════════════════════════════════════════════════════════
    Polster = --avm-ribbon-pad, dasselbe wie das Menueband darunter: eine Kante durch beide. */
-.fkopf {
+.avm-fenster__kopf {
 	display: flex; align-items: center; gap: var(--avm-ribbon-gap);
 	padding: var(--avm-kopf-pad);
 	border-bottom: 1px solid var(--color-divider);
@@ -123,7 +128,7 @@
 /* 🔴 DIE LINIE DER KOPFLEISTE IST DURCHGEHEND UND STEHT IMMER -- Owner 04.09.2026:
       „ich will den komischen unter dem titel nicht haben - SONDERN DEN DURCHGEHENDEN".
    💣 DER TITEL SELBST BEKOMMT KEINE. Genau die stand hier: das Seitengeruest dieses Mockups
-      trug ein `h2 { border-bottom }`, und das griff in `.fkopf__titel` hinein -- eine zweite,
+      trug ein `h2 { border-bottom }`, und das griff in `.avm-fenster__titel` hinein -- eine zweite,
       kurze Linie ueber nur 350 der 469px, eingerueckt und ohne Aussage. Beim ersten Bericht des
       Owners habe ich sie fuer die Menueband-Linie gehalten und daraufhin die FALSCHE entfernt.
       Das Geruest steht deshalb jetzt unter `body > h2` und kann in kein Fenster mehr hineinreichen.
@@ -139,25 +144,19 @@
    💣 KEIN negatives `letter-spacing`. Der alte Griff war `⣿⣿` (Braille) und brauchte -0.12em.
       Bei `⁝⁝` frisst derselbe Wert den Zwischenraum: gemessen 4,9px statt 8,8 -- aus zwei
       Punktspalten wird eine, und der Griff liest sich als Doppelpunkt. */
-/* Nur fuers Mockup: stellt den FALSCHEN Zustand (kurze Linie am Titel) zum Vergleich her.
-   Als Klasse, nicht als Inline-Stil -- auf diesem Blatt steht kein einziger. */
-.fkopf--titelstrich .fkopf__titel {
-	padding-bottom: var(--space-6);
-	border-bottom: 1px solid var(--color-divider);
-}
 
-.fkopf__griff {
+.avm-fenster__griff {
 	flex: none; color: var(--color-text-muted);
 	font-size: var(--font-size-subhead); line-height: 1; letter-spacing: 0; user-select: none;
 }
 
-.fkopf__titel {
+.avm-fenster__titel {
 	flex: 1 1 auto; min-width: 0; margin: 0;
 	overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 	font-size: var(--font-size-subhead); line-height: var(--leading-tight);
 	font-weight: var(--font-weight-bold); color: var(--color-text-strong);
 }
-.fkopf__zusatz {
+.avm-fenster__zusatz {
 	flex: 0 1 auto; min-width: 0;
 	overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 	color: var(--color-text-muted); font-size: var(--font-size-body);
@@ -165,22 +164,31 @@
 
 /* ═══ DIE KOPFKNOEPFE ═════════════════════════════════════════════════════════════════════════
    B3: im Fenster gefasst, im Blatt nackt -- beide --avm-control-h im Quadrat. */
-.fknopf {
+.avm-fenster__knopf {
 	flex: none; width: var(--avm-control-h); height: var(--avm-control-h);
 	display: grid; place-items: center; padding: 0;
 	border-radius: var(--radius-md);
 	font: inherit; font-size: var(--font-size-body); line-height: 1; cursor: pointer;
 }
-.fknopf--gefasst {
+.avm-fenster__knopf--gefasst {
 	border: 1px solid var(--color-button-soft-border);
 	background: var(--color-button-soft); color: var(--color-button-soft-text);
 }
-.fknopf--gefasst:hover { background: var(--color-button-soft-hover); }
-.fknopf--nackt {
+.avm-fenster__knopf--gefasst:hover { background: var(--color-button-soft-hover); }
+.avm-fenster__knopf--nackt {
 	border: 0; background: transparent; color: var(--color-text-muted);
 	font-size: var(--font-size-subhead);
 }
-.fknopf--nackt:hover { background: var(--color-hover-wash); color: var(--color-text-strong); }
+.avm-fenster__knopf--nackt:hover { background: var(--color-hover-wash); color: var(--color-text-strong); }
+
+/* ══ VERTRAG ENDE ══ */
+
+/* Nur fuers Mockup: stellt den FALSCHEN Zustand (kurze Linie am Titel) zum Vergleich her.
+   Als Klasse, nicht als Inline-Stil -- auf diesem Blatt steht kein einziger. */
+.avm-fenster__kopf--titelstrich .avm-fenster__titel {
+	padding-bottom: var(--space-6);
+	border-bottom: 1px solid var(--color-divider);
+}
 
 /* ═══ DAS MENUEBAND ═══════════════════════════════════════════════════════════════════════════
    🔴 ZEICHENGLEICH aus css/components/editor-body.css -- Owner 04.09.2026: „bei den kacheln
@@ -240,8 +248,12 @@
 .avm-tile--primary .t2 { color: var(--color-on-button-muted); }
 .avm-tile--primary:hover { background: var(--color-button-hover); }
 
+/* ══ VERTRAG: css/components/fenster.css ══ zweiter Teil -- Rumpf und Fussleiste. */
+
 /* ═══ RUMPF UND FUSSLEISTE ════════════════════════════════════════════════════════════════════ */
-.frumpf { flex: 1 1 auto; min-height: 0; overflow: auto; padding: var(--avm-col-pad); }
+.avm-fenster__rumpf { flex: 1 1 auto; min-height: 0; overflow: auto; padding: var(--avm-col-pad); }
+
+
 
 /* ═══ DIE BILDLAUFLEISTE ══════════════════════════════════════════════════════════════════════
    🔴 Owner 04.09.2026: „achte darauf dass du unseren scroll-bar style konsistent uebernimmst."
@@ -253,7 +265,7 @@
         · lore.css, political-territory-editor{,-inline}.css   -> DREI Abschriften der zweiten,
           per ID gescoped -- sie existieren NUR, weil ihre Fenster in index.html leben und base.css
           sie sonst auf 7px zieht.
-   ⭐ DESHALB HAENGT SIE HIER AM FENSTER, NICHT AM DOKUMENT. Eine Regel an `.fen`, und ein
+   ⭐ DESHALB HAENGT SIE HIER AM FENSTER, NICHT AM DOKUMENT. Eine Regel an `.avm-fenster`, und ein
       Fenster sieht gleich aus, egal ob es in index.html oder in einem iframe lebt; die drei
       ID-Abschriften fallen ersatzlos weg. Genau die Frage, die sie beantworten sollten, stellt
       sich dann nicht mehr.
@@ -261,15 +273,15 @@
       schmaler, ohne die Leiste schmaler zu machen -- die Trefferflaeche bleibt 10px.
    🔧 OFFEN bleibt nur noch eine Frage, und sie betrifft nicht die Fenster: ob die SEITE selbst
       (Karte, Infopanel) bei 7px bleibt oder auf dieselbe Leiste zieht. */
-.fen * { scrollbar-width: thin; scrollbar-color: var(--color-scrollbar-thumb) var(--color-scrollbar-track); }
-.fen *::-webkit-scrollbar { width: 10px; height: 10px; }
-.fen *::-webkit-scrollbar-track { background: var(--color-scrollbar-track); }
-.fen *::-webkit-scrollbar-thumb {
+.avm-fenster * { scrollbar-width: thin; scrollbar-color: var(--color-scrollbar-thumb) var(--color-scrollbar-track); }
+.avm-fenster *::-webkit-scrollbar { width: 10px; height: 10px; }
+.avm-fenster *::-webkit-scrollbar-track { background: var(--color-scrollbar-track); }
+.avm-fenster *::-webkit-scrollbar-thumb {
 	background: var(--color-scrollbar-thumb);
 	border-radius: 999px;
 	border: 2px solid var(--color-scrollbar-track);
 }
-.fen *::-webkit-scrollbar-thumb:hover { background: var(--color-scrollbar-thumb-hover); }
+.avm-fenster *::-webkit-scrollbar-thumb:hover { background: var(--color-scrollbar-thumb-hover); }
 
 /* EINE Rezeptur fuer beide Bauarten und beide Faelle.
    🔴 Rechtsbuendig kommt aus `margin-left:auto` an der Hauptgruppe, NICHT aus einem zweiten
@@ -277,46 +289,75 @@
       links Massenhandlungen, bleiben sie links stehen.
    💣 `gap` steht HIER, nicht an den Knoepfen -- im ersten Wurf trug die Fussleiste des Blattes
       gar kein `display:flex`, und die Knoepfe klebten aneinander (Owner-Befund 04.09.2026). */
-.ffuss {
+.avm-fenster__fuss {
 	display: flex; flex-wrap: wrap; align-items: center; gap: var(--avm-ribbon-gap);
 	padding: var(--avm-kopf-pad);
 	border-top: 1px solid var(--color-divider);
 }
-.ffuss__haupt { display: inline-flex; align-items: center; gap: var(--avm-ribbon-gap);
+.avm-fenster__fuss-haupt { display: inline-flex; align-items: center; gap: var(--avm-ribbon-gap);
 	margin-left: auto; }
-.ffuss__hinweis { flex: none; color: var(--color-text-muted); font-size: var(--font-size-caption); }
-.fknopf2 { min-height: var(--avm-control-h); padding: 0 var(--space-8); }
-.fknopf2--voll {
-	background: var(--color-button); border-color: var(--color-button-border);
-	color: var(--color-button-text); font-weight: var(--font-weight-bold);
+.avm-fenster__fuss-hinweis { flex: none; color: var(--color-text-muted); font-size: var(--font-size-caption); }
+
+/* ══ VERTRAG ENDE ══ */
+/* 🪤 Die Marke stand bis zum 04.09.2026 schon HINTER dem Rumpf, obwohl ihr Blocktitel
+   „Rumpf und Fussleiste" sagt -- die drei Fuss-Regeln lagen also ausserhalb und wurden vom
+   Deploy-Tor NICHT geprueft. Die Werte stimmten trotzdem; gebunden waren sie nicht.
+   Gefunden vom Mockup-Treue-Agenten. ⭐ Ein Vertrag, dessen Marke weniger umschliesst als
+   sein eigener Titel behauptet, ist schlimmer als keiner: er sieht nach Sicherung aus. */
+/* 💣 DER FUSSKNOPF TRAEGT SEIN AUSSEHEN SELBST -- Rand, Grund, Farbe, Radius.
+   Er stand hier mit NUR Hoehe und Polster, und sah trotzdem vollstaendig aus: alle 21
+   Beispielfenster dieses Blattes tragen `avm-editor-body`, und dessen
+   `:where(.avm-editor-body) button` lieferte den Rest. Genau das hat den Fehler MASKIERT.
+   🔴 Die naechsten Fenster der Reihe (B1 „Ort bearbeiten", B2 „Karteneintrag melden" ...) leben
+      in index.html und tragen diese Klasse NICHT -- wer die Regel dort abschreibt, bekommt einen
+      randlosen, grundlosen „Speichern"-Knopf. Die Kopfknoepfe haben das Problem nie gehabt, weil
+      sie ihr Aussehen von Anfang an selbst tragen; der Fussknopf zieht jetzt nach.
+   ⭐ Gefunden vom Mockup-Treue-Agenten am 04.09.2026 -- kein Test und kein Blick haetten es
+      gezeigt, weil im Mockup alles richtig aussieht. */
+.avm-fenster__fussknopf {
+	min-height: var(--avm-control-h);
+	padding: 0 var(--space-8);
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+	font: inherit;
+	font-size: var(--font-size-body);
+	cursor: pointer;
 }
-.fknopf2--voll:hover { background: var(--color-button-hover); }
+.avm-fenster__fussknopf--voll {
+	border: 1px solid var(--color-button-border);
+	background: var(--color-button);
+	color: var(--color-button-text);
+	font-weight: var(--font-weight-bold);
+}
+.avm-fenster__fussknopf--voll:hover { background: var(--color-button-hover); }
 
 /* Ein Bedienelement IN der Kopfleiste haelt die Bandhoehe. */
-.fkopf__feld, .ffeld {
+.avm-fenster__kopffeld, .avm-fenster__feld {
 	min-height: var(--avm-control-h); padding: 0 var(--space-8);
 	border: 1px solid var(--color-border); border-radius: var(--radius-md);
 	background: var(--color-panel); color: var(--color-text); font: inherit;
 }
-.fkopf__feld { flex: 0 1 auto; min-width: 0; width: 200px; font-size: var(--font-size-small); }
-.ffeld { display: block; width: 100%; font-size: var(--font-size-reading); }
+.avm-fenster__kopffeld { flex: 0 1 auto; min-width: 0; width: 200px; font-size: var(--font-size-small); }
+.avm-fenster__feld { display: block; width: 100%; font-size: var(--font-size-reading); }
 
 /* Inhalt -- Listenzeile und Feldzeile in den Hausmassen. */
-.fzeile { display: flex; align-items: baseline; gap: var(--space-6);
+.avm-fenster__zeile { display: flex; align-items: baseline; gap: var(--space-6);
 	padding: var(--avm-row-pad); border-radius: var(--radius-md); }
-.fzeile + .fzeile { border-top: 1px solid var(--color-divider); }
-.fzeile b { color: var(--color-text-strong); font-weight: var(--font-weight-bold); }
-.fzeile span { margin-left: auto; color: var(--color-text-muted); font-size: var(--font-size-caption); }
-.fetikett { display: block; margin: 0 0 var(--space-2); font-size: var(--font-size-caption);
+.avm-fenster__zeile + .avm-fenster__zeile { border-top: 1px solid var(--color-divider); }
+.avm-fenster__zeile b { color: var(--color-text-strong); font-weight: var(--font-weight-bold); }
+.avm-fenster__zeile span { margin-left: auto; color: var(--color-text-muted); font-size: var(--font-size-caption); }
+.avm-fenster__etikett { display: block; margin: 0 0 var(--space-2); font-size: var(--font-size-caption);
 	font-weight: var(--font-weight-bold); letter-spacing: .08em; text-transform: uppercase;
 	color: var(--color-accent-brown); }
-.ffeld + .fetikett { margin-top: var(--avm-ribbon-gap); }
-.flies { margin: 0; color: var(--color-text); font-size: var(--font-size-reading);
+.avm-fenster__feld + .avm-fenster__etikett { margin-top: var(--avm-ribbon-gap); }
+.avm-fenster__lies { margin: 0; color: var(--color-text); font-size: var(--font-size-reading);
 	line-height: var(--leading-normal); }
 
 /* Eingeklappt (D1). EIN Selektor statt einer Liste der Zonen. */
-.fen.is-minimized > :not(.fkopf) { display: none; }
-.fen.is-minimized .fkopf { border-bottom: 0; }
+.avm-fenster.is-minimized > :not(.avm-fenster__kopf) { display: none; }
+.avm-fenster.is-minimized .avm-fenster__kopf { border-bottom: 0; }
 
 /* Die Kantenprobe -- nur fuers Mockup. */
 .probe { position: relative; }
@@ -333,7 +374,7 @@
       höhe sondern nur über den inhalt, also alles unter header und über footer scrollen.
       schlimmstes beispiel ist ‚Ort bearbeiten', wo ich über alles scrollen muss, um zum speichern
       zu kommen und den titel aus den augen verliere".
-   ⭐ Es ist schon gebaut: `.fen { overflow: hidden }` plus `.frumpf { flex: 1 1 auto; min-height: 0;
+   ⭐ Es ist schon gebaut: `.avm-fenster { overflow: hidden }` plus `.avm-fenster__rumpf { flex: 1 1 auto; min-height: 0;
       overflow: auto }`. Der Rest dieses Abschnitts zeigt nur, was der Unterschied ausmacht.
    💣 `min-height: 0` ist TRAGEND und nicht Kosmetik: ein Flex-Kind hat als Vorgabe
       `min-height: auto` und schrumpft NICHT unter seinen Inhalt -- ohne die Zeile waechst der
@@ -342,10 +383,10 @@
    ⚠️ Gemessen: nur DREI Regeln scrollen heute die Huelle -- `.location-report-dialog` (und das
       sind rund 14 Fenster, „Ort bearbeiten" darunter), `.avm-modal` und
       `.ecosystem-transfer-dialog`. Alle uebrigen sind bereits richtig gebaut. */
-.fen--demo { height: 320px; }
-.fen--schlecht { overflow-y: auto; }
-.fen--schlecht .frumpf { overflow: visible; }
-.fdemo-fueller > * + * { margin-top: var(--space-8); }
+.avm-fenster--demo { height: 320px; }
+.avm-fenster--schlecht { overflow-y: auto; }
+.avm-fenster--schlecht .avm-fenster__rumpf { overflow: visible; }
+.avm-fenster__demofueller > * + * { margin-top: var(--space-8); }
 
 /* ═══ REITER ══════════════════════════════════════════════════════════════════════════════════
    ZEICHENGLEICH aus css/components/editor-body.css bzw. css/features/ecosystem-layer.css --
@@ -413,8 +454,8 @@
 	font-weight: var(--font-weight-bold);
 }
 /* Die Reiterleiste im Fenster traegt dieselbe Kante wie jede andere Zone. */
-.freiter { padding: var(--space-4) var(--space-12) 0; }
-.freiter .avm-tabs { margin-bottom: 0; }
+.avm-fenster__reiter { padding: var(--space-4) var(--space-12) 0; }
+.avm-fenster__reiter .avm-tabs { margin-bottom: 0; }
 
 /* Nur fuers Mockup: die uebrigen sieben Rezepturen, damit man sieht, wie weit sie auseinander
    liegen. Werte 1:1 aus den genannten Dateien -- hier NICHT aufgeraeumt, sie sind der Befund. */
@@ -494,17 +535,17 @@
 	border: 1px solid var(--color-border);
 	object-fit: contain;
 }
-.fliste:has(.avm-row__bild) .avm-row:not(:has(.avm-row__bild))::before {
+.avm-list:has(.avm-row__bild) .avm-row:not(:has(.avm-row__bild))::before {
 	content: "";
 	flex: none;
 	width: var(--avm-row-bild-w);
 }
-.fliste { --avm-row-bild-w: 30px; }
-.fliste--cover { --avm-row-bild-w: 30px; --avm-row-bild-h: 40px; }
-.fliste--wappen { --avm-row-bild-w: 26px; --avm-row-bild-h: 26px; }
-.fliste > * + * { border-top: 1px solid var(--color-divider); }
+.avm-list { --avm-row-bild-w: 30px; }
+.avm-list--cover { --avm-row-bild-w: 30px; --avm-row-bild-h: 40px; }
+.avm-list--wappen { --avm-row-bild-w: 26px; --avm-row-bild-h: 26px; }
+.avm-list > * + * { border-top: 1px solid var(--color-divider); }
 /* Nur fuers Mockup: der Zustand OHNE die Regel, zum Vergleich. */
-.fliste--ohne-regel:has(.avm-row__bild) .avm-row:not(:has(.avm-row__bild))::before { display: none; }
+.avm-list--ohne-regel:has(.avm-row__bild) .avm-row:not(:has(.avm-row__bild))::before { display: none; }
 
 /* Nur fuers Mockup: drei der 26 heutigen Zeilen-Rezepturen, Werte 1:1. */
 .r-tree { display: flex; align-items: center; gap: 7px; padding: 7px 8px; border-radius: 6px; }
@@ -605,12 +646,12 @@ quer durch Kopfleiste, Menüband, Rumpf und Fußleiste, in beiden Bauarten.</p>
 <div class="buehne">
 	<figure class="wahl">
 		<figcaption><b>Fenster</b> · Werkzeugfenster mit Menüband</figcaption>
-		<div class="fen fen--werkzeug avm-editor-body probe">
-			<div class="fkopf is-draggable">
-				<span class="fkopf__griff" aria-hidden="true">⁝⁝</span>
-				<h2 class="fkopf__titel">Garetien Importer</h2>
-				<button class="fknopf fknopf--gefasst" type="button" title="Einklappen">−</button>
-				<button class="fknopf fknopf--gefasst" type="button" title="Schließen">✕</button>
+		<div class="avm-fenster avm-fenster--werkzeug avm-editor-body probe">
+			<div class="avm-fenster__kopf">
+				<span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>
+				<h2 class="avm-fenster__titel">Garetien Importer</h2>
+				<button class="avm-fenster__knopf avm-fenster__knopf--gefasst" type="button" title="Einklappen">−</button>
+				<button class="avm-fenster__knopf avm-fenster__knopf--gefasst" type="button" title="Schließen">✕</button>
 			</div>
 			<div class="avm-ribbon-bar">
 				<div class="avm-ribbon">
@@ -618,13 +659,13 @@ quer durch Kopfleiste, Menüband, Rumpf und Fußleiste, in beiden Bauarten.</p>
 					<button class="avm-tile" type="button"><span class="t1">Ebenen</span><span class="t2">18 von 18 · alle</span></button>
 				</div>
 			</div>
-			<div class="frumpf">
-				<div class="fzeile"><b>Briskenmoor</b><span>Sumpf</span></div>
-				<div class="fzeile"><b>Eynweiher Sümpfe</b><span>Sumpf</span></div>
+			<div class="avm-fenster__rumpf">
+				<div class="avm-fenster__zeile"><b>Briskenmoor</b><span>Sumpf</span></div>
+				<div class="avm-fenster__zeile"><b>Eynweiher Sümpfe</b><span>Sumpf</span></div>
 			</div>
-			<div class="ffuss">
-				<button class="fknopf2" type="button">Alle markieren</button>
-				<span class="ffuss__haupt"><button class="fknopf2 fknopf2--voll" type="button">Einfügen</button></span>
+			<div class="avm-fenster__fuss">
+				<button class="avm-fenster__fussknopf" type="button">Alle markieren</button>
+				<span class="avm-fenster__fuss-haupt"><button class="avm-fenster__fussknopf avm-fenster__fussknopf--voll" type="button">Einfügen</button></span>
 			</div>
 		</div>
 		<p class="note">Griff, Kachel, Listenzeile und Fußknopf beginnen alle bei <b>14</b>.
@@ -633,22 +674,22 @@ quer durch Kopfleiste, Menüband, Rumpf und Fußleiste, in beiden Bauarten.</p>
 	</figure>
 	<figure class="wahl">
 		<figcaption><b>Blatt</b> · dieselben Maße, andere Fassung</figcaption>
-		<div class="fen fen--blatt avm-editor-body probe">
-			<div class="fkopf is-draggable">
-				<span class="fkopf__griff" aria-hidden="true">⁝⁝</span>
-				<h2 class="fkopf__titel">Weg bearbeiten</h2>
-				<button class="fknopf fknopf--nackt" type="button" title="Schließen">✕</button>
+		<div class="avm-fenster avm-fenster--blatt avm-editor-body probe">
+			<div class="avm-fenster__kopf">
+				<span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>
+				<h2 class="avm-fenster__titel">Weg bearbeiten</h2>
+				<button class="avm-fenster__knopf avm-fenster__knopf--nackt" type="button" title="Schließen">✕</button>
 			</div>
-			<div class="frumpf">
-				<span class="fetikett">Name</span>
-				<input class="ffeld" value="Schattenbachpass" readonly>
-				<span class="fetikett">Wegart</span>
-				<input class="ffeld" value="Gebirgspass" readonly>
+			<div class="avm-fenster__rumpf">
+				<span class="avm-fenster__etikett">Name</span>
+				<input class="avm-fenster__feld" value="Schattenbachpass" readonly>
+				<span class="avm-fenster__etikett">Wegart</span>
+				<input class="avm-fenster__feld" value="Gebirgspass" readonly>
 			</div>
-			<div class="ffuss">
-				<span class="ffuss__haupt">
-					<button class="fknopf2" type="button">Abbrechen</button>
-					<button class="fknopf2 fknopf2--voll" type="button">Speichern</button>
+			<div class="avm-fenster__fuss">
+				<span class="avm-fenster__fuss-haupt">
+					<button class="avm-fenster__fussknopf" type="button">Abbrechen</button>
+					<button class="avm-fenster__fussknopf avm-fenster__fussknopf--voll" type="button">Speichern</button>
 				</span>
 			</div>
 		</div>
@@ -683,7 +724,7 @@ nächsten zweizeiligen Element etwas ab.</p>
 komischen unter dem titel nicht haben — SONDERN DEN DURCHGEHENDEN“</i>. Du hast recht, und die
 Ursache war nicht im Bauteil, sondern in meinem eigenen Seitengerüst.</p>
 <p>Das Mockup trug ein generisches <code>h2 { border-bottom }</code> für seine
-Abschnittsüberschriften — und <code>.fkopf__titel</code> <b>ist</b> ein <code>&lt;h2&gt;</code>.
+Abschnittsüberschriften — und <code>.avm-fenster__titel</code> <b>ist</b> ein <code>&lt;h2&gt;</code>.
 Damit lag unter jedem Fenstertitel eine zweite, <b>kurze</b> Linie: gemessen 350 von 469 px,
 eingerückt, ohne jede Aussage. Beim ersten Bericht habe ich sie für die Menüband-Linie gehalten
 und daraufhin die falsche entfernt.</p>
@@ -693,19 +734,19 @@ und auch über einem Menüband.</p>
 <p>⭐ Die Lehre geht über dieses Blatt hinaus: <b>ein Mockup, dessen Seiten-CSS in das Bauteil
 hineinreicht, das es zeigen soll, misst etwas anderes als das, was später gebaut wird.</b>
 Genau deshalb hat der Screenshot mehr gezeigt als meine Messung — ich hatte
-<code>fkopf__titel</code> in der Linienliste stehen und nicht hingesehen.</p>
+<code>avm-fenster__titel</code> in der Linienliste stehen und nicht hingesehen.</p>
 <div class="buehne">
 	<figure class="wahl">
 		<figcaption class="bad">falsch · die kurze Linie unter dem Titel</figcaption>
-		<div class="fen fen--blatt avm-editor-body">
-			<div class="fkopf fkopf--titelstrich is-draggable">
-				<span class="fkopf__griff" aria-hidden="true">⁝⁝</span>
-				<h2 class="fkopf__titel">Weg bearbeiten</h2>
-				<button class="fknopf fknopf--nackt" type="button">✕</button>
+		<div class="avm-fenster avm-fenster--blatt avm-editor-body">
+			<div class="avm-fenster__kopf avm-fenster__kopf--titelstrich">
+				<span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>
+				<h2 class="avm-fenster__titel">Weg bearbeiten</h2>
+				<button class="avm-fenster__knopf avm-fenster__knopf--nackt" type="button">✕</button>
 			</div>
-			<div class="frumpf">
-				<span class="fetikett">Name</span>
-				<input class="ffeld" value="Schattenbachpass" readonly>
+			<div class="avm-fenster__rumpf">
+				<span class="avm-fenster__etikett">Name</span>
+				<input class="avm-fenster__feld" value="Schattenbachpass" readonly>
 			</div>
 		</div>
 		<p class="note note--warn">Zwei Linien übereinander: die kurze am Titel (nur so breit wie
@@ -714,15 +755,15 @@ Genau deshalb hat der Screenshot mehr gezeigt als meine Messung — ich hatte
 	</figure>
 	<figure class="wahl">
 		<figcaption class="ok">richtig · nur die durchgehende</figcaption>
-		<div class="fen fen--blatt avm-editor-body">
-			<div class="fkopf is-draggable">
-				<span class="fkopf__griff" aria-hidden="true">⁝⁝</span>
-				<h2 class="fkopf__titel">Weg bearbeiten</h2>
-				<button class="fknopf fknopf--nackt" type="button">✕</button>
+		<div class="avm-fenster avm-fenster--blatt avm-editor-body">
+			<div class="avm-fenster__kopf">
+				<span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>
+				<h2 class="avm-fenster__titel">Weg bearbeiten</h2>
+				<button class="avm-fenster__knopf avm-fenster__knopf--nackt" type="button">✕</button>
 			</div>
-			<div class="frumpf">
-				<span class="fetikett">Name</span>
-				<input class="ffeld" value="Schattenbachpass" readonly>
+			<div class="avm-fenster__rumpf">
+				<span class="avm-fenster__etikett">Name</span>
+				<input class="avm-fenster__feld" value="Schattenbachpass" readonly>
 			</div>
 		</div>
 		<p class="note">Eine Linie, von Kante zu Kante, unter der ganzen Kopfleiste — nicht unter
@@ -764,29 +805,29 @@ sagt er ab jetzt bei jedem Fenster am Zeiger „ja“.</p>
 	<figure class="wahl">
 		<figcaption>Blatt · Formular</figcaption>
 		<div class="stapel">
-			<div class="fen fen--blatt avm-editor-body">
-				<div class="fkopf is-draggable">
-					<span class="fkopf__griff" aria-hidden="true">⁝⁝</span>
-					<h2 class="fkopf__titel">Ort melden</h2>
-					<button class="fknopf fknopf--nackt" type="button">✕</button>
+			<div class="avm-fenster avm-fenster--blatt avm-editor-body">
+				<div class="avm-fenster__kopf">
+					<span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>
+					<h2 class="avm-fenster__titel">Ort melden</h2>
+					<button class="avm-fenster__knopf avm-fenster__knopf--nackt" type="button">✕</button>
 				</div>
-				<div class="frumpf">
-					<span class="fetikett">Was stimmt nicht?</span>
-					<input class="ffeld" placeholder="…">
+				<div class="avm-fenster__rumpf">
+					<span class="avm-fenster__etikett">Was stimmt nicht?</span>
+					<input class="avm-fenster__feld" placeholder="…">
 				</div>
-				<div class="ffuss"><span class="ffuss__haupt">
-					<button class="fknopf2" type="button">Abbrechen</button>
-					<button class="fknopf2 fknopf2--voll" type="button">Melden</button>
+				<div class="avm-fenster__fuss"><span class="avm-fenster__fuss-haupt">
+					<button class="avm-fenster__fussknopf" type="button">Abbrechen</button>
+					<button class="avm-fenster__fussknopf avm-fenster__fussknopf--voll" type="button">Melden</button>
 				</span></div>
 			</div>
-			<div class="fen fen--blatt avm-editor-body">
-				<div class="fkopf is-draggable">
-					<span class="fkopf__griff" aria-hidden="true">⁝⁝</span>
-					<h2 class="fkopf__titel">Hinweise</h2>
-					<button class="fknopf fknopf--nackt" type="button">✕</button>
+			<div class="avm-fenster avm-fenster--blatt avm-editor-body">
+				<div class="avm-fenster__kopf">
+					<span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>
+					<h2 class="avm-fenster__titel">Hinweise</h2>
+					<button class="avm-fenster__knopf avm-fenster__knopf--nackt" type="button">✕</button>
 				</div>
-				<div class="frumpf">
-					<p class="flies">Avesmaps ist ein nichtkommerzielles Fanprojekt zu Aventurien.</p>
+				<div class="avm-fenster__rumpf">
+					<p class="avm-fenster__lies">Avesmaps ist ein nichtkommerzielles Fanprojekt zu Aventurien.</p>
 				</div>
 			</div>
 		</div>
@@ -796,35 +837,35 @@ sagt er ab jetzt bei jedem Fenster am Zeiger „ja“.</p>
 	<figure class="wahl">
 		<figcaption>Fenster · ohne Menüband</figcaption>
 		<div class="stapel">
-			<div class="fen fen--werkzeug avm-editor-body">
-				<div class="fkopf is-draggable">
-					<span class="fkopf__griff" aria-hidden="true">⁝⁝</span>
-					<h2 class="fkopf__titel">Konflikte</h2>
-					<input class="fkopf__feld" type="search" placeholder="Fallnummer oder Name …">
-					<button class="fknopf fknopf--gefasst" type="button">−</button>
-					<button class="fknopf fknopf--gefasst" type="button">✕</button>
+			<div class="avm-fenster avm-fenster--werkzeug avm-editor-body">
+				<div class="avm-fenster__kopf">
+					<span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>
+					<h2 class="avm-fenster__titel">Konflikte</h2>
+					<input class="avm-fenster__kopffeld" type="search" placeholder="Fallnummer oder Name …">
+					<button class="avm-fenster__knopf avm-fenster__knopf--gefasst" type="button">−</button>
+					<button class="avm-fenster__knopf avm-fenster__knopf--gefasst" type="button">✕</button>
 				</div>
-				<div class="frumpf">
-					<div class="fzeile"><b>Mehrere Objekte, ein Wiki-Artikel</b><span>9</span></div>
-					<div class="fzeile"><b>Kein Wiki-Schlüssel</b><span>1424</span></div>
-					<div class="fzeile"><b>Dieselbe Beschriftung zweimal</b><span>9</span></div>
+				<div class="avm-fenster__rumpf">
+					<div class="avm-fenster__zeile"><b>Mehrere Objekte, ein Wiki-Artikel</b><span>9</span></div>
+					<div class="avm-fenster__zeile"><b>Kein Wiki-Schlüssel</b><span>1424</span></div>
+					<div class="avm-fenster__zeile"><b>Dieselbe Beschriftung zweimal</b><span>9</span></div>
 				</div>
-				<div class="ffuss">
-					<span class="ffuss__hinweis">4843 offen · 13 zurückgestellt · 54 genehmigt</span>
-					<span class="ffuss__haupt"><button class="fknopf2 fknopf2--voll" type="button">Neu prüfen</button></span>
+				<div class="avm-fenster__fuss">
+					<span class="avm-fenster__fuss-hinweis">4843 offen · 13 zurückgestellt · 54 genehmigt</span>
+					<span class="avm-fenster__fuss-haupt"><button class="avm-fenster__fussknopf avm-fenster__fussknopf--voll" type="button">Neu prüfen</button></span>
 				</div>
 			</div>
-			<div class="fen fen--werkzeug avm-editor-body">
-				<div class="fkopf is-draggable">
-					<span class="fkopf__griff" aria-hidden="true">⁝⁝</span>
-					<h2 class="fkopf__titel">Social Media Hub</h2>
-					<span class="fkopf__zusatz">— Beitrag verfassen</span>
-					<button class="fknopf fknopf--gefasst" type="button">−</button>
-					<button class="fknopf fknopf--gefasst" type="button">✕</button>
+			<div class="avm-fenster avm-fenster--werkzeug avm-editor-body">
+				<div class="avm-fenster__kopf">
+					<span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>
+					<h2 class="avm-fenster__titel">Social Media Hub</h2>
+					<span class="avm-fenster__zusatz">— Beitrag verfassen</span>
+					<button class="avm-fenster__knopf avm-fenster__knopf--gefasst" type="button">−</button>
+					<button class="avm-fenster__knopf avm-fenster__knopf--gefasst" type="button">✕</button>
 				</div>
-				<div class="frumpf">
-					<span class="fetikett">Text</span>
-					<input class="ffeld" placeholder="…">
+				<div class="avm-fenster__rumpf">
+					<span class="avm-fenster__etikett">Text</span>
+					<input class="avm-fenster__feld" placeholder="…">
 				</div>
 			</div>
 		</div>
@@ -843,47 +884,47 @@ es <b>bleibt, wo es steht</b>, und der Knopf ist derselbe gefasste 32×32 wie da
 	<figure class="wahl">
 		<figcaption>offen → eingeklappt</figcaption>
 		<div class="stapel">
-			<div class="fen fen--werkzeug avm-editor-body">
-				<div class="fkopf is-draggable">
-					<span class="fkopf__griff" aria-hidden="true">⁝⁝</span>
-					<h2 class="fkopf__titel">Garetien Importer</h2>
-					<button class="fknopf fknopf--gefasst" type="button">−</button>
-					<button class="fknopf fknopf--gefasst" type="button">✕</button>
+			<div class="avm-fenster avm-fenster--werkzeug avm-editor-body">
+				<div class="avm-fenster__kopf">
+					<span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>
+					<h2 class="avm-fenster__titel">Garetien Importer</h2>
+					<button class="avm-fenster__knopf avm-fenster__knopf--gefasst" type="button">−</button>
+					<button class="avm-fenster__knopf avm-fenster__knopf--gefasst" type="button">✕</button>
 				</div>
 				<div class="avm-ribbon-bar"><div class="avm-ribbon">
 					<button class="avm-tile avm-tile--primary" type="button"><span class="t1">Holen &amp; Rechnen</span><span class="t2">8349 Zeilen</span></button>
 					<button class="avm-tile" type="button"><span class="t1">Ebenen</span><span class="t2">18 von 18</span></button>
 				</div></div>
-				<div class="frumpf"><div class="fzeile"><b>Briskenmoor</b><span>Sumpf</span></div></div>
-				<div class="ffuss">
-					<button class="fknopf2" type="button">Alle markieren</button>
-					<span class="ffuss__haupt"><button class="fknopf2 fknopf2--voll" type="button">Einfügen</button></span>
+				<div class="avm-fenster__rumpf"><div class="avm-fenster__zeile"><b>Briskenmoor</b><span>Sumpf</span></div></div>
+				<div class="avm-fenster__fuss">
+					<button class="avm-fenster__fussknopf" type="button">Alle markieren</button>
+					<span class="avm-fenster__fuss-haupt"><button class="avm-fenster__fussknopf avm-fenster__fussknopf--voll" type="button">Einfügen</button></span>
 				</div>
 			</div>
-			<div class="fen fen--werkzeug avm-editor-body is-minimized">
-				<div class="fkopf is-draggable">
-					<span class="fkopf__griff" aria-hidden="true">⁝⁝</span>
-					<h2 class="fkopf__titel">Garetien Importer</h2>
-					<button class="fknopf fknopf--gefasst" type="button">□</button>
-					<button class="fknopf fknopf--gefasst" type="button">✕</button>
+			<div class="avm-fenster avm-fenster--werkzeug avm-editor-body is-minimized">
+				<div class="avm-fenster__kopf">
+					<span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>
+					<h2 class="avm-fenster__titel">Garetien Importer</h2>
+					<button class="avm-fenster__knopf avm-fenster__knopf--gefasst" type="button">□</button>
+					<button class="avm-fenster__knopf avm-fenster__knopf--gefasst" type="button">✕</button>
 				</div>
 				<div class="avm-ribbon-bar"><div class="avm-ribbon">
 					<button class="avm-tile avm-tile--primary" type="button"><span class="t1">Holen &amp; Rechnen</span><span class="t2">8349 Zeilen</span></button>
 				</div></div>
-				<div class="frumpf"><div class="fzeile"><b>Briskenmoor</b><span>Sumpf</span></div></div>
+				<div class="avm-fenster__rumpf"><div class="avm-fenster__zeile"><b>Briskenmoor</b><span>Sumpf</span></div></div>
 			</div>
-			<div class="fen fen--werkzeug avm-editor-body is-minimized">
-				<div class="fkopf is-draggable">
-					<span class="fkopf__griff" aria-hidden="true">⁝⁝</span>
-					<h2 class="fkopf__titel">Konflikte</h2>
-					<button class="fknopf fknopf--gefasst" type="button">□</button>
-					<button class="fknopf fknopf--gefasst" type="button">✕</button>
+			<div class="avm-fenster avm-fenster--werkzeug avm-editor-body is-minimized">
+				<div class="avm-fenster__kopf">
+					<span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>
+					<h2 class="avm-fenster__titel">Konflikte</h2>
+					<button class="avm-fenster__knopf avm-fenster__knopf--gefasst" type="button">□</button>
+					<button class="avm-fenster__knopf avm-fenster__knopf--gefasst" type="button">✕</button>
 				</div>
-				<div class="frumpf"><div class="fzeile"><b>Kein Wiki-Schlüssel</b><span>1424</span></div></div>
+				<div class="avm-fenster__rumpf"><div class="avm-fenster__zeile"><b>Kein Wiki-Schlüssel</b><span>1424</span></div></div>
 			</div>
 		</div>
 		<p class="note">Eingeklappt bleibt genau die Kopfleiste stehen — Menüband, Rumpf und Fuß
-		verschwinden über <b>einen</b> Selektor (<code>.is-minimized &gt; :not(.fkopf)</code>),
+		verschwinden über <b>einen</b> Selektor (<code>.is-minimized &gt; :not(.avm-fenster__kopf)</code>),
 		nicht über eine Liste der Zonen. Eine Liste veraltet lautlos, und die nächste Zone stünde
 		eingeklappt sichtbar da.</p>
 	</figure>
@@ -901,23 +942,23 @@ schon richtig gebaut; es ist also kein Umbau, sondern das Entfernen von drei
 <div class="buehne">
 	<figure class="wahl">
 		<figcaption class="bad">falsch · die ganze Hülle scrollt</figcaption>
-		<div class="fen fen--blatt avm-editor-body fen--demo fen--schlecht">
-			<div class="fkopf is-draggable">
-				<span class="fkopf__griff" aria-hidden="true">⁝⁝</span>
-				<h2 class="fkopf__titel">Ort bearbeiten</h2>
-				<button class="fknopf fknopf--nackt" type="button">✕</button>
+		<div class="avm-fenster avm-fenster--blatt avm-editor-body avm-fenster--demo avm-fenster--schlecht">
+			<div class="avm-fenster__kopf">
+				<span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>
+				<h2 class="avm-fenster__titel">Ort bearbeiten</h2>
+				<button class="avm-fenster__knopf avm-fenster__knopf--nackt" type="button">✕</button>
 			</div>
-			<div class="frumpf fdemo-fueller">
-				<div><span class="fetikett">Ortsname</span><input class="ffeld" value="Luring" readonly></div>
-				<div><span class="fetikett">Ortsgröße</span><input class="ffeld" value="Stadt" readonly></div>
-				<div><span class="fetikett">Einwohner</span><input class="ffeld" readonly></div>
-				<div><span class="fetikett">Lage</span><input class="ffeld" readonly></div>
-				<div><span class="fetikett">Herrscher</span><input class="ffeld" readonly></div>
-				<div><span class="fetikett">Beschreibung</span><input class="ffeld" readonly></div>
+			<div class="avm-fenster__rumpf avm-fenster__demofueller">
+				<div><span class="avm-fenster__etikett">Ortsname</span><input class="avm-fenster__feld" value="Luring" readonly></div>
+				<div><span class="avm-fenster__etikett">Ortsgröße</span><input class="avm-fenster__feld" value="Stadt" readonly></div>
+				<div><span class="avm-fenster__etikett">Einwohner</span><input class="avm-fenster__feld" readonly></div>
+				<div><span class="avm-fenster__etikett">Lage</span><input class="avm-fenster__feld" readonly></div>
+				<div><span class="avm-fenster__etikett">Herrscher</span><input class="avm-fenster__feld" readonly></div>
+				<div><span class="avm-fenster__etikett">Beschreibung</span><input class="avm-fenster__feld" readonly></div>
 			</div>
-			<div class="ffuss"><span class="ffuss__haupt">
-				<button class="fknopf2" type="button">Abbrechen</button>
-				<button class="fknopf2 fknopf2--voll" type="button">Speichern</button>
+			<div class="avm-fenster__fuss"><span class="avm-fenster__fuss-haupt">
+				<button class="avm-fenster__fussknopf" type="button">Abbrechen</button>
+				<button class="avm-fenster__fussknopf avm-fenster__fussknopf--voll" type="button">Speichern</button>
 			</span></div>
 		</div>
 		<p class="note note--warn">Scroll im Kasten: <b>Titel und „Speichern“ wandern mit</b>.
@@ -926,23 +967,23 @@ schon richtig gebaut; es ist also kein Umbau, sondern das Entfernen von drei
 	</figure>
 	<figure class="wahl">
 		<figcaption class="ok">richtig · nur der Rumpf läuft</figcaption>
-		<div class="fen fen--blatt avm-editor-body fen--demo">
-			<div class="fkopf is-draggable">
-				<span class="fkopf__griff" aria-hidden="true">⁝⁝</span>
-				<h2 class="fkopf__titel">Ort bearbeiten</h2>
-				<button class="fknopf fknopf--nackt" type="button">✕</button>
+		<div class="avm-fenster avm-fenster--blatt avm-editor-body avm-fenster--demo">
+			<div class="avm-fenster__kopf">
+				<span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>
+				<h2 class="avm-fenster__titel">Ort bearbeiten</h2>
+				<button class="avm-fenster__knopf avm-fenster__knopf--nackt" type="button">✕</button>
 			</div>
-			<div class="frumpf fdemo-fueller">
-				<div><span class="fetikett">Ortsname</span><input class="ffeld" value="Luring" readonly></div>
-				<div><span class="fetikett">Ortsgröße</span><input class="ffeld" value="Stadt" readonly></div>
-				<div><span class="fetikett">Einwohner</span><input class="ffeld" readonly></div>
-				<div><span class="fetikett">Lage</span><input class="ffeld" readonly></div>
-				<div><span class="fetikett">Herrscher</span><input class="ffeld" readonly></div>
-				<div><span class="fetikett">Beschreibung</span><input class="ffeld" readonly></div>
+			<div class="avm-fenster__rumpf avm-fenster__demofueller">
+				<div><span class="avm-fenster__etikett">Ortsname</span><input class="avm-fenster__feld" value="Luring" readonly></div>
+				<div><span class="avm-fenster__etikett">Ortsgröße</span><input class="avm-fenster__feld" value="Stadt" readonly></div>
+				<div><span class="avm-fenster__etikett">Einwohner</span><input class="avm-fenster__feld" readonly></div>
+				<div><span class="avm-fenster__etikett">Lage</span><input class="avm-fenster__feld" readonly></div>
+				<div><span class="avm-fenster__etikett">Herrscher</span><input class="avm-fenster__feld" readonly></div>
+				<div><span class="avm-fenster__etikett">Beschreibung</span><input class="avm-fenster__feld" readonly></div>
 			</div>
-			<div class="ffuss"><span class="ffuss__haupt">
-				<button class="fknopf2" type="button">Abbrechen</button>
-				<button class="fknopf2 fknopf2--voll" type="button">Speichern</button>
+			<div class="avm-fenster__fuss"><span class="avm-fenster__fuss-haupt">
+				<button class="avm-fenster__fussknopf" type="button">Abbrechen</button>
+				<button class="avm-fenster__fussknopf avm-fenster__fussknopf--voll" type="button">Speichern</button>
 			</span></div>
 		</div>
 		<p class="note">Titel und „Speichern“ bleiben stehen, die Bildlaufleiste sitzt <b>im</b>
@@ -969,7 +1010,7 @@ Nachschlagen kam heraus, dass es <b>fünf</b> gibt — in zwei Formen, und der U
 <tr><td><code>pages/…-editor-inline.css</code></td><td class="bad">Abschrift</td></tr>
 </table>
 <p>⭐ <b>Deshalb hängt sie hier am FENSTER, nicht am Dokument.</b> Eine Regel an
-<code>.fen</code>, und ein Fenster sieht gleich aus, egal ob es in <code>index.html</code> oder
+<code>.avm-fenster</code>, und ein Fenster sieht gleich aus, egal ob es in <code>index.html</code> oder
 in einem iframe lebt — <b>die drei Abschriften fallen ersatzlos weg</b>, weil die Frage, die sie
 beantworten sollten, sich nicht mehr stellt. Übernommen ist die Editor-Form (10px, Pille,
 2px Rand in der Track-Farbe: er schneidet den Daumen optisch schmaler, ohne die Trefferfläche
@@ -1004,8 +1045,8 @@ Skalenstufe.</p>
 <div class="buehne">
 	<figure class="wahl">
 		<figcaption class="bad">Ist-Zustand · vier davon in einer Reihe</figcaption>
-		<div class="fen fen--blatt avm-editor-body">
-			<div class="frumpf">
+		<div class="avm-fenster avm-fenster--blatt avm-editor-body">
+			<div class="avm-fenster__rumpf">
 				<div class="ist-tab">
 					<button class="t-substatus is-active" type="button">Alle</button>
 					<button class="t-substatus" type="button">Offen</button>
@@ -1027,13 +1068,13 @@ Skalenstufe.</p>
 <div class="buehne">
 	<figure class="wahl">
 		<figcaption><b>T1</b> — Unterstrich überall</figcaption>
-		<div class="fen fen--werkzeug avm-editor-body">
-			<div class="fkopf is-draggable">
-				<span class="fkopf__griff" aria-hidden="true">⁝⁝</span>
-				<h2 class="fkopf__titel">Landschaften bearbeiten</h2>
-				<button class="fknopf fknopf--gefasst" type="button">✕</button>
+		<div class="avm-fenster avm-fenster--werkzeug avm-editor-body">
+			<div class="avm-fenster__kopf">
+				<span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>
+				<h2 class="avm-fenster__titel">Landschaften bearbeiten</h2>
+				<button class="avm-fenster__knopf avm-fenster__knopf--gefasst" type="button">✕</button>
 			</div>
-			<div class="freiter">
+			<div class="avm-fenster__reiter">
 				<div class="avm-tabs">
 					<button class="avm-tab is-active" type="button">Alle</button>
 					<button class="avm-tab" type="button">Derographie</button>
@@ -1042,7 +1083,7 @@ Skalenstufe.</p>
 					<button class="avm-tab" type="button">Klimazonen</button>
 				</div>
 			</div>
-			<div class="frumpf fliste">
+			<div class="avm-fenster__rumpf avm-list">
 				<button class="avm-row is-active" type="button"><span class="avm-row__kreis avm-row__kreis--voll"></span><span class="avm-row__body"><span class="avm-row__l1"><span class="avm-row__name">Aarenfels</span></span><span class="avm-row__l2">Berggipfel</span></span></button>
 				<button class="avm-row" type="button"><span class="avm-row__kreis avm-row__kreis--halb"></span><span class="avm-row__body"><span class="avm-row__l1"><span class="avm-row__name">Abagund</span></span><span class="avm-row__l2">1 Region · 1 Fläche · Heide</span></span></button>
 			</div>
@@ -1054,13 +1095,13 @@ Skalenstufe.</p>
 	</figure>
 	<figure class="wahl">
 		<figcaption><b>T2</b> — gefüllter Umschalter überall</figcaption>
-		<div class="fen fen--werkzeug avm-editor-body">
-			<div class="fkopf is-draggable">
-				<span class="fkopf__griff" aria-hidden="true">⁝⁝</span>
-				<h2 class="fkopf__titel">Landschaften bearbeiten</h2>
-				<button class="fknopf fknopf--gefasst" type="button">✕</button>
+		<div class="avm-fenster avm-fenster--werkzeug avm-editor-body">
+			<div class="avm-fenster__kopf">
+				<span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>
+				<h2 class="avm-fenster__titel">Landschaften bearbeiten</h2>
+				<button class="avm-fenster__knopf avm-fenster__knopf--gefasst" type="button">✕</button>
 			</div>
-			<div class="freiter">
+			<div class="avm-fenster__reiter">
 				<div class="ecosystem-layer-switch">
 					<button class="ecosystem-layer-switch__tab is-active" type="button">Alle</button>
 					<button class="ecosystem-layer-switch__tab" type="button">Derographie</button>
@@ -1069,7 +1110,7 @@ Skalenstufe.</p>
 					<button class="ecosystem-layer-switch__tab" type="button">Klimazonen</button>
 				</div>
 			</div>
-			<div class="frumpf fliste">
+			<div class="avm-fenster__rumpf avm-list">
 				<button class="avm-row is-active" type="button"><span class="avm-row__kreis avm-row__kreis--voll"></span><span class="avm-row__body"><span class="avm-row__l1"><span class="avm-row__name">Aarenfels</span></span><span class="avm-row__l2">Berggipfel</span></span></button>
 				<button class="avm-row" type="button"><span class="avm-row__kreis avm-row__kreis--halb"></span><span class="avm-row__body"><span class="avm-row__l1"><span class="avm-row__name">Abagund</span></span><span class="avm-row__l2">1 Region · 1 Fläche · Heide</span></span></button>
 			</div>
@@ -1082,13 +1123,13 @@ Skalenstufe.</p>
 	</figure>
 	<figure class="wahl">
 		<figcaption><b>T3</b> ⭐ — Unterstrich im Fenster, Umschalter auf der Karte</figcaption>
-		<div class="fen fen--werkzeug avm-editor-body">
-			<div class="fkopf is-draggable">
-				<span class="fkopf__griff" aria-hidden="true">⁝⁝</span>
-				<h2 class="fkopf__titel">Landschaften bearbeiten</h2>
-				<button class="fknopf fknopf--gefasst" type="button">✕</button>
+		<div class="avm-fenster avm-fenster--werkzeug avm-editor-body">
+			<div class="avm-fenster__kopf">
+				<span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>
+				<h2 class="avm-fenster__titel">Landschaften bearbeiten</h2>
+				<button class="avm-fenster__knopf avm-fenster__knopf--gefasst" type="button">✕</button>
 			</div>
-			<div class="freiter">
+			<div class="avm-fenster__reiter">
 				<div class="avm-tabs">
 					<button class="avm-tab is-active" type="button">Alle</button>
 					<button class="avm-tab" type="button">Derographie</button>
@@ -1097,7 +1138,7 @@ Skalenstufe.</p>
 					<button class="avm-tab" type="button">Klimazonen</button>
 				</div>
 			</div>
-			<div class="frumpf fliste">
+			<div class="avm-fenster__rumpf avm-list">
 				<button class="avm-row is-active" type="button"><span class="avm-row__kreis avm-row__kreis--voll"></span><span class="avm-row__body"><span class="avm-row__l1"><span class="avm-row__name">Aarenfels</span></span><span class="avm-row__l2">Berggipfel</span></span></button>
 				<button class="avm-row" type="button"><span class="avm-row__kreis avm-row__kreis--halb"></span><span class="avm-row__body"><span class="avm-row__l1"><span class="avm-row__name">Abagund</span></span><span class="avm-row__l2">1 Region · 1 Fläche · Heide</span></span></button>
 			</div>
@@ -1134,13 +1175,13 @@ Bestand, alle auf derselben Zeile:</p>
 <div class="buehne">
 	<figure class="wahl">
 		<figcaption class="ok">richtig · vier Funktionen, ein Maß</figcaption>
-		<div class="fen fen--werkzeug avm-editor-body">
-			<div class="fkopf is-draggable">
-				<span class="fkopf__griff" aria-hidden="true">⁝⁝</span>
-				<h2 class="fkopf__titel">Vier Listen, dieselbe Zeile</h2>
-				<button class="fknopf fknopf--gefasst" type="button">✕</button>
+		<div class="avm-fenster avm-fenster--werkzeug avm-editor-body">
+			<div class="avm-fenster__kopf">
+				<span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>
+				<h2 class="avm-fenster__titel">Vier Listen, dieselbe Zeile</h2>
+				<button class="avm-fenster__knopf avm-fenster__knopf--gefasst" type="button">✕</button>
 			</div>
-			<div class="frumpf fliste">
+			<div class="avm-fenster__rumpf avm-list">
 				<button class="avm-row" type="button"><span class="avm-row__kreis avm-row__kreis--voll"></span><span class="avm-row__body"><span class="avm-row__l1"><span class="avm-row__name">Aldyra – Kuslik</span></span><span class="avm-row__l2">2 Nodices · 1 Segment · Aldyra ↔ Kuslik</span></span></button>
 				<button class="avm-row" type="button"><span class="avm-row__bild"></span><span class="avm-row__body"><span class="avm-row__l1"><span class="avm-row__name">Siegelbruch</span></span><span class="avm-row__l2">DSA5 · gruppenabenteuer</span></span><span class="avm-row__kreis avm-row__kreis--voll"></span></button>
 				<button class="avm-row" type="button"><span class="avm-row__vor" aria-hidden="true">▸</span><span class="avm-row__vor" aria-hidden="true">⁝⁝</span><span class="avm-row__body"><span class="avm-row__l1"><span class="avm-row__name">Alanfanisches Imperium</span></span><span class="avm-row__l2">1009 BF – heute · Wiki ↗</span></span><span class="avm-row__kreis avm-row__kreis--voll"></span></button>
@@ -1155,13 +1196,13 @@ Bestand, alle auf derselben Zeile:</p>
 	</figure>
 	<figure class="wahl">
 		<figcaption class="bad">Ist-Zustand · dieselben drei Zeilen, drei Maße</figcaption>
-		<div class="fen fen--werkzeug avm-editor-body">
-			<div class="fkopf is-draggable">
-				<span class="fkopf__griff" aria-hidden="true">⁝⁝</span>
-				<h2 class="fkopf__titel">Drei von 26 Rezepturen</h2>
-				<button class="fknopf fknopf--gefasst" type="button">✕</button>
+		<div class="avm-fenster avm-fenster--werkzeug avm-editor-body">
+			<div class="avm-fenster__kopf">
+				<span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>
+				<h2 class="avm-fenster__titel">Drei von 26 Rezepturen</h2>
+				<button class="avm-fenster__knopf avm-fenster__knopf--gefasst" type="button">✕</button>
 			</div>
-			<div class="frumpf fliste">
+			<div class="avm-fenster__rumpf avm-list">
 				<div class="r-tree"><span class="avm-row__kreis avm-row__kreis--voll"></span><span class="avm-row__body"><span class="avm-row__name">Alanfanisches Imperium</span><span class="avm-row__l2">7px 8px · Radius 6px · gap 7 — <code>.tree-item</code></span></span></div>
 				<div class="r-adv"><span class="avm-row__bild"></span><span class="avm-row__body"><span class="avm-row__name">Siegelbruch</span><span class="avm-row__l2">12px 0 · kein Radius · gap 12 — <code>.avesmaps-adv-row</code></span></span></div>
 				<div class="r-sac"><span class="avm-row__kreis avm-row__kreis--halb"></span><span class="avm-row__body"><span class="avm-row__name">Abagund</span><span class="avm-row__l2">7px 11px · gap 8 — <code>.sac-item</code></span></span></div>
@@ -1180,13 +1221,13 @@ komplett eigene Rezepturen, und das ist einer der Gründe, warum es 26 gibt.</p>
 <div class="buehne">
 	<figure class="wahl">
 		<figcaption class="bad">falsch · Namen springen</figcaption>
-		<div class="fen fen--werkzeug avm-editor-body">
-			<div class="fkopf is-draggable">
-				<span class="fkopf__griff" aria-hidden="true">⁝⁝</span>
-				<h2 class="fkopf__titel">Literatur</h2>
-				<button class="fknopf fknopf--gefasst" type="button">✕</button>
+		<div class="avm-fenster avm-fenster--werkzeug avm-editor-body">
+			<div class="avm-fenster__kopf">
+				<span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>
+				<h2 class="avm-fenster__titel">Literatur</h2>
+				<button class="avm-fenster__knopf avm-fenster__knopf--gefasst" type="button">✕</button>
 			</div>
-			<div class="frumpf fliste fliste--cover fliste--ohne-regel">
+			<div class="avm-fenster__rumpf avm-list avm-list--cover avm-list--ohne-regel">
 				<button class="avm-row" type="button"><span class="avm-row__bild"></span><span class="avm-row__body"><span class="avm-row__l1"><span class="avm-row__name">Siegelbruch</span></span><span class="avm-row__l2">DSA5 · gruppenabenteuer</span></span></button>
 				<button class="avm-row" type="button"><span class="avm-row__body"><span class="avm-row__l1"><span class="avm-row__name">40 Jahre und ein Schelm</span></span><span class="avm-row__l2">DSA1, DSA2 · anthologie</span></span></button>
 				<button class="avm-row" type="button"><span class="avm-row__bild"></span><span class="avm-row__body"><span class="avm-row__l1"><span class="avm-row__name">Die Verschwörung von Gareth</span></span><span class="avm-row__l2">DSA1-Ausbau · gruppenabenteuer</span></span></button>
@@ -1198,13 +1239,13 @@ komplett eigene Rezepturen, und das ist einer der Gründe, warum es 26 gibt.</p>
 	</figure>
 	<figure class="wahl">
 		<figcaption class="ok">richtig · eine Textkante</figcaption>
-		<div class="fen fen--werkzeug avm-editor-body">
-			<div class="fkopf is-draggable">
-				<span class="fkopf__griff" aria-hidden="true">⁝⁝</span>
-				<h2 class="fkopf__titel">Literatur</h2>
-				<button class="fknopf fknopf--gefasst" type="button">✕</button>
+		<div class="avm-fenster avm-fenster--werkzeug avm-editor-body">
+			<div class="avm-fenster__kopf">
+				<span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>
+				<h2 class="avm-fenster__titel">Literatur</h2>
+				<button class="avm-fenster__knopf avm-fenster__knopf--gefasst" type="button">✕</button>
 			</div>
-			<div class="frumpf fliste fliste--cover">
+			<div class="avm-fenster__rumpf avm-list avm-list--cover">
 				<button class="avm-row" type="button"><span class="avm-row__bild"></span><span class="avm-row__body"><span class="avm-row__l1"><span class="avm-row__name">Siegelbruch</span></span><span class="avm-row__l2">DSA5 · gruppenabenteuer</span></span></button>
 				<button class="avm-row" type="button"><span class="avm-row__body"><span class="avm-row__l1"><span class="avm-row__name">40 Jahre und ein Schelm</span></span><span class="avm-row__l2">DSA1, DSA2 · anthologie</span></span></button>
 				<button class="avm-row" type="button"><span class="avm-row__bild"></span><span class="avm-row__body"><span class="avm-row__l1"><span class="avm-row__name">Die Verschwörung von Gareth</span></span><span class="avm-row__l2">DSA1-Ausbau · gruppenabenteuer</span></span></button>
@@ -1218,13 +1259,13 @@ komplett eigene Rezepturen, und das ist einer der Gründe, warum es 26 gibt.</p>
 	</figure>
 	<figure class="wahl">
 		<figcaption class="ok">dieselbe Regel · Wappen (quadratisch)</figcaption>
-		<div class="fen fen--werkzeug avm-editor-body">
-			<div class="fkopf is-draggable">
-				<span class="fkopf__griff" aria-hidden="true">⁝⁝</span>
-				<h2 class="fkopf__titel">Territorien</h2>
-				<button class="fknopf fknopf--gefasst" type="button">✕</button>
+		<div class="avm-fenster avm-fenster--werkzeug avm-editor-body">
+			<div class="avm-fenster__kopf">
+				<span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>
+				<h2 class="avm-fenster__titel">Territorien</h2>
+				<button class="avm-fenster__knopf avm-fenster__knopf--gefasst" type="button">✕</button>
 			</div>
-			<div class="frumpf fliste fliste--wappen">
+			<div class="avm-fenster__rumpf avm-list avm-list--wappen">
 				<button class="avm-row" type="button"><span class="avm-row__vor" aria-hidden="true">▸</span><span class="avm-row__bild"></span><span class="avm-row__body"><span class="avm-row__l1"><span class="avm-row__name">Alanfanisches Imperium</span></span><span class="avm-row__l2">1009 BF – heute · Wiki ↗</span></span></button>
 				<button class="avm-row" type="button"><span class="avm-row__vor" aria-hidden="true">▸</span><span class="avm-row__body"><span class="avm-row__l1"><span class="avm-row__name">Gjalskerland</span></span><span class="avm-row__l2">ohne Wappen</span></span></button>
 				<button class="avm-row" type="button"><span class="avm-row__vor" aria-hidden="true">▸</span><span class="avm-row__bild"></span><span class="avm-row__body"><span class="avm-row__l1"><span class="avm-row__name">Herzogtum Paavi</span></span><span class="avm-row__l2">930 BF – heute · Wiki ↗</span></span></button>

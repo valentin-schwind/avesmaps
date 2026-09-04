@@ -46,8 +46,15 @@ assert.ok(/id="garetien-importer-open"[^>]*hidden/.test(html),
 // verschiebbar (js/ui/dialog-drag.js sucht nach der FORM, nicht nach einer Namensliste).
 assert.ok(/id="garetien-importer"[^>]*role="dialog"/.test(html),
 	"Die Huelle braucht role=dialog, sonst greift dialog-drag.js nicht.");
-assert.ok(html.includes('class="gi-win__head"'),
-	"Die Kopfzeile muss auf __head enden -- danach sucht AVESMAPS_DIALOG_DRAG_HANDLES.");
+assert.ok(html.includes('class="avm-fenster__kopf"'),
+	"Die Kopfzeile ist die des Bauteils (css/components/fenster.css).");
+// 💣 UND DIE FORM MUSS DER ZIEH-MECHANISMUS KENNEN. Er sucht nach `__head`/`-head`; das
+// Bauteil heisst deutsch (`__kopf`). Ohne die passende Zeile in AVESMAPS_DIALOG_DRAG_HANDLES
+// hoert jedes umgestellte Fenster LAUTLOS auf, verschiebbar zu sein -- genau das ist beim
+// Bau am 04.09.2026 passiert und nur vom Testfeld aufgefallen.
+const dragJs = read("js", "ui", "dialog-drag.js");
+assert.ok(/\[class\*="__kopf"\]/.test(dragJs),
+	"dialog-drag.js kennt `__kopf` nicht -- der Importer waere nicht mehr verschiebbar.");
 
 // 🔴 KEIN Scrim, KEIN mittiges Modal: der Owner will die Karte SEHEN, waehrend er die Liste
 // durchgeht. Deshalb ist die Huelle NICHT .avm-editor-dialog.
@@ -79,10 +86,22 @@ const winRegel = cssOhneKommentar.slice(
 assert.ok(/\bresize:\s*both\b/.test(winRegel),
 	"das Fenster muss `resize: both` tragen -- der Owner zieht es sich so breit, wie sein Bestand es braucht");
 
-// 💣 `resize` wirkt NUR bei `overflow` ungleich `visible`. Wer das `overflow: hidden` der Huelle
-// entfernt, nimmt das Ziehen lautlos mit -- und es faellt erst auf, wenn jemand es benutzen will.
-assert.ok(/\boverflow:\s*hidden\b/.test(winRegel),
-	"`overflow: hidden` ist die Bedingung fuer `resize` und deshalb tragend, nicht kosmetisch");
+// 💣 `resize` wirkt NUR bei `overflow` ungleich `visible`. Wer das `overflow: hidden` entfernt,
+// nimmt das Ziehen lautlos mit -- und es faellt erst auf, wenn jemand es benutzen will.
+// 🔴 SEIT 04.09.2026 KOMMT ES AUS DEM BAUTEIL (.avm-fenster, css/components/fenster.css), nicht
+//    mehr aus .gi-win: die Huelle wurde entdoppelt, damit das Bauteil wirklich gewinnt. Geprueft
+//    werden deshalb BEIDE Haelften -- die Regel im Bauteil UND dass dieses Fenster sie traegt.
+//    Eine Haelfte allein waere hier nichts wert: das Bauteil ohne die Klasse wirkt nicht, und die
+//    Klasse ohne die Regel auch nicht.
+const bauteil = read("css", "components", "fenster.css").replace(/\/\*[\s\S]*?\*\//g, "");
+const fensterRegel = /\.avm-fenster\s*\{([^}]*)\}/.exec(bauteil);
+assert.ok(fensterRegel && /\boverflow:\s*hidden\b/.test(fensterRegel[1]),
+	"`overflow: hidden` fehlt im Bauteil -- das ist die Bedingung fuer `resize` und deshalb tragend");
+// 🪤 `(?=[\s"])` statt `\b`: eine Wortgrenze sieht den BINDESTRICH als Grenze, also matcht
+//    `\bavm-fenster\b` auch `avm-fenster--werkzeug` -- die Zusicherung ueberlebte ihre eigene
+//    Mutation (Klasse aus dem Markup entfernt, Test blieb gruen). Gemessen beim Bau am 04.09.2026.
+assert.ok(/id="garetien-importer"[^>]*class="[^"]*avm-fenster(?=[\s"])/.test(html),
+	"die Huelle traegt `.avm-fenster` nicht -- dann greift das `overflow: hidden` des Bauteils nicht");
 
 // 💣 DIE SCHARFE ZUSICHERUNG. `max-width` darf NICHT mit dem Planer rechnen -- `width` darueber
 // tut es, und dann ist der Deckel auf jedem Schirm, wo dieser zweite Term zieht, GENAU die

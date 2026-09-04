@@ -33,6 +33,10 @@
    iframe ist -- seine Auswahlliste steht in index.html und soll wie die Listen der uebrigen
    Editorfenster aussehen (Owner 2026-08-15). Dieselbe Datei laedt editor-page.css fuer die sechs
    Editorseiten; die Regel steht also weiterhin genau einmal. */
+/* Das Fenster-Bauteil (Kopfleiste, Schliessknopf, Rumpf-Scroll, Fussleiste, Bildlaufleiste).
+   Entwurf docs/fensterformen-mockup.html, Regel docs/design-language.md §Fenster.
+   🔴 VOR den Wirten: seine Regeln sind (0,1,0), die Wirte duerfen sie ueberschreiben. */
+@import url("components/fenster.css");
 @import url("components/editor-row.css");
 /* Der Statuskreis neben einem Listennamen. Dieselbe Reise wie die Zeile darueber und aus
    demselben Grund: er gehoert der App (Panel-Listen, Territorien-Baum) UND den Editorfenstern,

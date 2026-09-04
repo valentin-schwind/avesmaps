@@ -146,6 +146,13 @@ body.modal-dialog-open {
    Dieselben Selektoren stehen im Modul; sie sind dort die Bedingung, hier das sichtbare Versprechen.
    Nach der FORM gesucht statt nach Klassennamen (Begruendung im Modulkopf): so ist jedes kuenftige
    Fenster ohne Zutun dabei, statt still liegenzubleiben. */
+/* 💣 `__kopf` seit 04.09.2026 -- das Fenster-Bauteil (css/components/fenster.css) heisst
+   deutsch. Diese Liste ist die CSS-Gegenstelle zu AVESMAPS_DIALOG_DRAG_HANDLES in
+   js/ui/dialog-drag.js; wer dort eine Form ergaenzt und HIER nicht, laesst die Kopfleiste
+   ihren `user-select: none` verlieren -- und beim Ziehen markiert sich der Titel.
+   Beide Erzeuger, immer zusammen. */
+
+[role="dialog"] > [class*="__kopf"],
 [role="dialog"] > [class*="__head"],
 [role="dialog"] > [class*="-head"],
 [data-avesmaps-drag-handle] {

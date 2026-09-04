@@ -756,10 +756,30 @@
 	   dreimal verschieden), also stehen sie hier: tokens.css laden BEIDE Welten. Der Name ist
 	   die Stufe, nicht die Pixelzahl — --space-* trägt global +2px. */
 	--avm-control-h: 32px;                              /* Suchfeld, Eingabe, Auswahl, Knopf */
+	/* 🔴 DER SEITENEINZUG IST ÜBERALL 14 (--space-12) — daran hängt die EINE Kante, durch die
+	   Kopfleiste, Menüband, Rumpf und Fußleiste eines Fensters senkrecht fluchten
+	   (docs/design-language.md §Fenster, Mockup docs/fensterformen-mockup.html).
+	   💣 Das SENKRECHTE Polster folgt der BEDIENHÖHE des Bandes, das waagerechte NIEMALS:
+	      Kopf- und Fußleiste tragen 32px-Elemente -> 6, das Menüband 48px-Kacheln -> 10,
+	      die Statuszeile ist einzeilig -> 6. Wer waagerecht 12 schreibt, nimmt die Kante zurück. */
+	--avm-kopf-pad: var(--space-4) var(--space-12);     /* 6 / 14 — Kopfleiste und Fußleiste */
 	--avm-ribbon-pad: var(--space-8) var(--space-12);   /* 10 / 14 — Menüband */
 	--avm-ribbon-gap: var(--space-4);                   /* 6 */
-	--avm-status-pad: var(--space-4) var(--space-12);   /* 6 / 14 — Statuszeile */
+	--avm-status-pad: var(--space-4) var(--space-12);   /* 6 / 14 — Statuszeile, Listenkopf */
 	--avm-status-min-h: 30px;
+	/* 🔧 WAAGERECHT STEHT ER NOCH AUF 12 -- und das ist Absicht, kein Versehen.
+	   Die Spalten sind die EINZIGE Zone, die nicht auf der gemeinsamen 14er-Kante steht
+	   (Menüband und Statuszeile tragen sie schon), und er soll dorthin. Aber:
+	   💣 DIESEN TOKEN LESEN NEUN FENSTER GLEICHZEITIG -- .avm-col (Landschaften-, Wege-,
+	      Kraftlinien-, Orte-, Literatur-, Karten-Editor), .wp-fn und .wp-tempo (Funktionen,
+	      Tempowerte), der Vorkommen-Editor, dazu fuenf iframe-Seiten inline. Ihn hier zu
+	      aendern verschiebt sie alle auf einmal um 2px -- eine sichtbare Aenderung an neun
+	      Fenstern in einem Push, in dem der Owner EINES erwartet (AGENTS.md §9: "Ein Commit,
+	      ein Push, sein Blick -- dann der naechste").
+	   ⚠️ Und KEIN Test haelt den Zahlenwert fest; das Feld bliebe gruen.
+	   ⭐ Wer ein Fenster einzeln auf die Kante zieht, ueberschreibt den Token AN SEINER HUELLE
+	      (so macht es .gi-win seit dem 04.09.2026). Wenn alle neun dort sind, faellt der
+	      Wert hier auf --space-12 und die lokalen Zeilen fallen weg. */
 	--avm-col-pad: var(--space-6) var(--space-10);      /* 8 / 12 — jede der drei Spalten */
 	--avm-row-pad: var(--space-2) var(--space-4);       /* 4 / 6 — Listenzeile */
 	--avm-field-label-w: 130px;                         /* Beschriftung links neben dem Feld */

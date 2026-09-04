@@ -189,9 +189,18 @@ wahr(/\bresize:\s*none\b/.test(rollRegel[1]),
 // 🔴 EIN Selektor statt einer Liste der vier Bloecke: eine Liste veraltet lautlos, und der naechste
 // Block stuende eingeklappt sichtbar da. Geprueft wird deshalb die FORM, nicht die Wirkung auf die
 // heutigen vier.
-wahr(/\.gi-win\.is-minimized\s*>\s*:not\(\.gi-win__head\)\s*\{[^}]*display:\s*none/.test(cssOhneKommentar),
-	"eingeklappt bleibt GENAU die Kopfzeile stehen -- ueber `> :not(.gi-win__head)`, nicht ueber "
-	+ "eine Liste der heutigen Bloecke, die beim naechsten Zuwachs lautlos veraltet");
+// 🔴 SEIT 04.09.2026 IM BAUTEIL (css/components/fenster.css): die Huelle traegt
+// `.avm-fenster`, und dort steht `.avm-fenster.is-minimized > :not(.avm-fenster__kopf)`.
+// Geprueft wird weiterhin die FORM -- EIN Selektor statt einer Liste der heutigen Bloecke --,
+// nur eben in der Datei, die sie jetzt haelt. Haenge die Regel nie wieder hierher zurueck:
+// zwei Fassungen derselben Regel sind genau die Divergenz, die das Bauteil beendet.
+const bauteilCss = lies("css/components/fenster.css").replace(/\/\*[\s\S]*?\*\//g, "");
+wahr(/\.avm-fenster\.is-minimized\s*>\s*:not\(\.avm-fenster__kopf\)\s*\{[^}]*display:\s*none/.test(bauteilCss),
+	"eingeklappt bleibt GENAU die Kopfzeile stehen -- ueber `> :not(.avm-fenster__kopf)` im "
+	+ "Bauteil, nicht ueber eine Liste der heutigen Bloecke, die beim naechsten Zuwachs "
+	+ "lautlos veraltet");
+wahr(!/\.gi-win\.is-minimized\s*>\s*:not\(/.test(cssOhneKommentar),
+	"die alte Zonen-Regel steht noch in garetien-importer.css -- zwei Fassungen derselben Regel");
 
 // Die Basisregel bleibt unberuehrt: ausgeklappt ist das Fenster weiter aufziehbar.
 const basis = cssOhneKommentar.slice(
@@ -204,7 +213,7 @@ wahr(/\bresize:\s*both\b/.test(basis) && /\bmin-height:\s*\d/.test(basis),
 // =================================================================================================
 
 const html = lies("index.html");
-const kopfVon = html.indexOf('<div class="gi-win__head">');
+const kopfVon = html.indexOf('<div class="avm-fenster__kopf">');
 wahr(kopfVon > 0, "die Titelleiste des Importers fehlt in index.html");
 const kopf = html.slice(kopfVon, html.indexOf("</div>", kopfVon));
 wahr(kopf.length < 1500,
