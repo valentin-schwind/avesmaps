@@ -1170,11 +1170,61 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
    ist auf Owner-Wunsch entfallen -- sie stand auf `auto`, fiel ohne Text auf 0 zusammen und liess den
    Regler beim ersten Anfassen um genau ihre Breite aufspringen. Ohne die Spalte gibt es nichts mehr,
    das springen könnte; ob ein Wert abgeleitet ist, sagt „Auf Automatik zurück". */
+/* 🔴 VIER Spalten seit dem 04.09.2026: Beschriftung | Schieber | Zahl | ↺.
+   ⚠️ Die Zahlenspalte ist von 5em auf 5.6em gewachsen -- „3200" passte nicht hinein (Owner, am Bild).
+   Die ↺-Spalte ist schmal und bleibt STEHEN, auch wenn der Knopf `hidden` ist: sonst spraenge die
+   ganze Zeile um seine Breite, sobald man einen Regler anfasst -- genau das Springen, wegen dem die
+   vierte Spalte 2026-07-29 schon einmal entfallen ist. */
 .ecosystem-properties-dialog__terrainrow {
 	display: grid;
-	grid-template-columns: 9.5em minmax(0, 1fr) 5em;
+	grid-template-columns: 9.5em minmax(0, 1fr) 5.6em 1.4em;
 	align-items: center;
 	column-gap: var(--space-8);
+}
+
+/* Die Hülle um den Schieber trägt die Vorgabemarke -- der Schieber selbst kann kein Kind haben. */
+.ecosystem-properties-dialog__sliderwrap {
+	position: relative;
+	display: block;
+	min-width: 0;
+}
+
+.ecosystem-properties-dialog__sliderwrap input[type="range"] {
+	width: 100%;
+}
+
+/* 🔴 Das Dreieck der Vorgabe, wie bei den Zoombändern. Es sitzt UNTER dem Schieber und zeigt nach
+   oben; `left` kommt aus dem Anteil zwischen min und max.
+   ⚠️ `pointer-events: none` -- es darf den Griff nicht abfangen, es liegt genau auf seiner Bahn. */
+.ecosystem-properties-dialog__slidermark {
+	position: absolute;
+	bottom: -2px;
+	width: 0;
+	height: 0;
+	margin-left: -4px;
+	border-left: 4px solid transparent;
+	border-right: 4px solid transparent;
+	border-bottom: 5px solid var(--color-text-muted);
+	pointer-events: none;
+}
+
+/* Der Rücksetz-Knopf: nur da, wenn der Wert von der Vorlage abweicht. */
+.ecosystem-properties-dialog__reset {
+	width: 1.4em;
+	height: 1.4em;
+	padding: 0;
+	border: 0;
+	border-radius: var(--radius-sm);
+	background: transparent;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-small);
+	line-height: 1;
+	cursor: pointer;
+}
+
+.ecosystem-properties-dialog__reset:hover {
+	background: var(--color-button-soft);
+	color: var(--color-text);
 }
 
 .ecosystem-properties-dialog__terrainnum {
@@ -1304,6 +1354,39 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 	border-right: 4px solid transparent;
 	border-top: 5px solid var(--color-accent-brown);
 }
+/* 🔴 DER STRICH DER DURCHSCHNITTSHÖHE (Owner 04.09.2026, im Mockup rot eingezeichnet). Er ist die
+   zweite Antwort auf „steht da 1500?" -- die Zahl darunter sagt es genau, der Strich zeigt, WO auf
+   der Skala sie liegt, zwischen den Gipfeln.
+   💣 Er geht DURCH den Balken und darüber hinaus: nur über dem Balken wäre er zwischen den
+   Gipfelmarken kaum auszumachen, nur auf dem Balken verschwände er im hellen Drittel (dieselbe
+   Falle, wegen der die Gipfelmarke ÜBER dem Balken steht).
+   ⚠️ `pointer-events: none` -- die Skala trägt Titel-Tooltips auf den Marken, und ein Strich quer
+   darüber fienge sie ab. */
+.ecosystem-properties-dialog__scalemean {
+	position: absolute;
+	bottom: -4px;
+	top: -10px;
+	width: 2px;
+	margin-left: -1px;
+	background: var(--color-accent-brown);
+	pointer-events: none;
+}
+
+/* Der Fuss des Strichs -- ein kleines Dreieck, damit er auf dem hellen Ende nicht als Kratzer im
+   Verlauf gelesen wird. */
+.ecosystem-properties-dialog__scalemean::after {
+	content: "";
+	position: absolute;
+	left: 50%;
+	bottom: -4px;
+	transform: translateX(-50%);
+	width: 0;
+	height: 0;
+	border-left: 4px solid transparent;
+	border-right: 4px solid transparent;
+	border-bottom: 5px solid var(--color-accent-brown);
+}
+
 /* Mehrere Gipfel auf EXAKT derselben Höhe -- etwas breiter, damit „eine Marke, zwei Gipfel" nicht
    wie ein einzelner aussieht. */
 .ecosystem-properties-dialog__scalemark--gruppe {

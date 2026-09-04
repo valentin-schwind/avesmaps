@@ -1305,7 +1305,12 @@
 		{ key: "terrain_plateau", element: "plateau", decimals: 2 },
 		{ key: "terrain_hypsometrie", element: "hypsometrie", decimals: 2 },
 		{ key: "terrain_avg_height", element: "avgheight", decimals: 0 },
-		{ key: "terrain_mean_height", element: "meanheight", decimals: 0 },
+		// 🪤 „terrain_mean_height" IST GEFALLEN (Owner 04.09.2026: „Durchschnittshöhe wird zu
+		// Hypsometrie so wie du wolltest"). Sie war seit dem V12-Umbau wirkungslos -- `reglerFuer`
+		// reichte sie nie an den Trichter durch --, und ihre Aufgabe hat die Hypsometrie uebernommen:
+		// dieselbe Groesse, nur normiert und mit einem Namen, der sie beschreibt.
+		// 🔴 Die SPALTE bleibt in der Datenbank (der Deploy loescht nie); aus dem Fenster ist sie raus,
+		// und die WIRKLICHE Durchschnittshoehe steht seit demselben Tag unter der Hoehenskala.
 		// V12 (2026-09-04): die Regler der lokalen Gebirgssimulation.
 		// ⚠️ `terrain_bergform` ist der einzige, dessen Fehlen die RECHNUNG abschaltet statt sie nur
 		// auf eine Vorgabe zu setzen: `undefined` ergibt Radius 0, und `addiereGipfelkegel` kehrt
@@ -1382,13 +1387,6 @@
 			terrain_grain: typeof ECOSYSTEM_HEIGHT_GRAIN === "number" ? ECOSYSTEM_HEIGHT_GRAIN : 3.2,
 			terrain_levels: typeof ECOSYSTEM_HEIGHT_LEVELS === "number" ? ECOSYSTEM_HEIGHT_LEVELS : 3,
 			terrain_avg_height: maximum,
-			// 🪤 Das ist eine ANZEIGE, keine Rechnung. Ohne eingestellten Durchschnitt sucht das Feld gar
-			// keine Potenz -- der Mittelwert fällt dort hin, wo er hinfällt. Wohin das ist, wurde einmal
-			// gemessen (ECOSYSTEM_HEIGHT_NOISE_MEAN_RATIO); der Regler zeigt es, damit „(auto)" eine Zahl
-			// hat, an der man ablesen kann, wovon man sich beim Anfassen entfernt.
-			terrain_mean_height: Math.round(
-				(typeof ECOSYSTEM_HEIGHT_NOISE_MEAN_RATIO === "number" ? ECOSYSTEM_HEIGHT_NOISE_MEAN_RATIO : 0.23)
-				* maximum),
 			// V12: GELESEN, nicht abgeschrieben -- die Konstanten stehen in
 			// map-features-ecosystem-hydrologie.js, weil dort gerechnet wird. Eine zweite Fassung
 			// hier liesse „(auto)" eine andere Zahl anzeigen als die, mit der gerechnet wird.
@@ -1413,55 +1411,6 @@
 		};
 	}
 
-	// Der Durchschnitt kann das Maximum nicht überholen -- eine Fläche, die zum Rand hin auf null ausläuft,
-	// hat im Mittel weniger als an ihrer höchsten Stelle. Der Regler bekommt seine Obergrenze deshalb vom
-	// Regler darüber, statt sie fest im Markup zu tragen.
-	//
-	// 🪤 Es genügt NICHT, den Wert zu klemmen: `max` muss mitwandern, weil das Zahlenfeld daneben genau
-	// gegen `regler.max` klemmt (siehe die Verdrahtung unten). Ohne das liesse sich dort eine 9.000
-	// eintippen, während der Regler bei 3.000 steht -- zwei sichtbare Wahrheiten.
-	//
-	// 🔴 UND „AUTO" BLEIBT AUTO. Ein unberührter Durchschnitt FOLGT dem Maximum, statt geklemmt zu werden:
-	// er ist ja gar kein eingestellter Wert, sondern die Anzeige dessen, wo der Mittelwert von selbst
-	// landet. Bliebe er beim Ziehen am Maximum stehen, sähe „(auto)" nach einer Entscheidung aus, und wer
-	// das Maximum halbiert, bekäme eine Auto-Anzeige, die zu nichts mehr passt.
-	function syncTerrainMeanBounds() {
-		const maximum = propertiesElement("avgheight");
-		const mittel = propertiesElement("meanheight");
-		const mittelZahl = propertiesElement("meanheight-num");
-		const feld = TERRAIN_FIELDS.find((eintrag) => eintrag.key === "terrain_mean_height");
-		if (!maximum || !mittel || !feld) {
-			return;
-		}
-		const grenze = Number(maximum.value);
-		if (!Number.isFinite(grenze)) {
-			return;
-		}
-		// 💣 DEN WERT VOR DEM `max` LESEN. Ein `input[type=range]` klemmt seinen `value` SOFORT, sobald man
-		// sein `max` senkt -- die Prüfung „steht der Durchschnitt über der neuen Grenze?" wäre danach immer
-		// falsch, weil der Browser ihn längst heruntergezogen hat. Genau so ging es schief: der Regler
-		// zeigte die geklemmte Zahl, die Vorschau rechnete weiter mit der alten, und zu sehen war das
-		// nirgends -- die Oberfläche sah in jedem Zwischenschritt richtig aus. Vom Prüfaufbau gefangen.
-		const vorher = Number(mittel.value);
-		mittel.max = String(grenze);
-		if (mittelZahl) {
-			mittelZahl.max = String(grenze);
-		}
-
-		const anteil = typeof ECOSYSTEM_HEIGHT_NOISE_MEAN_RATIO === "number" ? ECOSYSTEM_HEIGHT_NOISE_MEAN_RATIO : 0.23;
-		if (!terrainTouched.terrain_mean_height) {
-			mittel.value = String(Math.round(anteil * grenze));
-		} else if (vorher > grenze) {
-			mittel.value = String(grenze);
-			// Ein Klemmen ist eine Wertänderung wie jede andere -- die Vorschau muss davon wissen, sonst
-			// zeigt sie ein Gelände, dessen Ø über seinem eigenen Maximum liegt.
-			const area = currentPropertiesArea();
-			if (area) {
-				area.terrain_mean_height = Number(mittel.value);
-			}
-		}
-		syncTerrainOutput(feld, currentPropertiesArea());
-	}
 
 	/* ── Vorlagen ─────────────────────────────────────────────────────────────────────────────── */
 
@@ -1535,9 +1484,36 @@
 		});
 		// Die Obergrenze der Durchschnittshoehe folgt der Kammhoehe -- dieselbe Kopplung wie beim
 		// Ziehen von Hand.
-		syncTerrainMeanBounds();
+		// 🔴 Die Vorlage wird GEMERKT -- als Herkunft, nicht als Bindung (Owner 04.09.2026: „Presets
+		// sollen gespeichert werden"). Von ihr nehmen die ↺ ihre Vorgabe, und ihr Name steht im Titel
+		// der Falte.
+		const feldname = liste === (typeof ECOSYSTEM_HYDRO_HOEHENSTUFEN !== "undefined"
+			? ECOSYSTEM_HYDRO_HOEHENSTUFEN
+			: null)
+			? "terrain_preset_hoehe"
+			: "terrain_preset_morph";
+		area[feldname] = String(key || "");
+		terrainTouched[feldname] = true;
+		renderTerrainControls(area);
 		schedulePreviewRedraw();
 		setTerrainStatus("Vorlage übernommen (" + gesetzt + " Werte) — noch nicht gespeichert.", false);
+	}
+
+	// ↺: EINEN Regler auf die Vorgabe der gemerkten Vorlage zuruecksetzen.
+	// ⚠️ Nur diesen einen. „Auf Automatik zurueck" daneben nimmt ALLE Werte weg und loescht die
+	// Zeile -- das ist etwas anderes, und die zwei duerfen sich nicht vermischen.
+	function setzeReglerAufVorlage(feld) {
+		const area = currentPropertiesArea();
+		const vorlage = vorlagenWerte(area);
+		const regler = propertiesElement(feld.element);
+		if (!area || !regler || !(feld.key in vorlage)) {
+			return;
+		}
+		regler.value = String(vorlage[feld.key]);
+		terrainTouched[feld.key] = true;
+		syncTerrainOutput(feld, area);
+		syncTerrainVorgabe(feld, area, vorlage);
+		schedulePreviewRedraw();
 	}
 
 	// Hat diese Flaeche einen Anhaltspunkt fuer ihr Gelaende -- einen Gipfel ODER eine Kammlinie?
@@ -1612,6 +1588,93 @@
 		}
 	}
 
+	// Die Werte der zuletzt angewandten Vorlage -- die Vorgabe, auf die ein ↺ zuruecksetzt.
+	//
+	// 🔴 Aus der HERKUNFTSANGABE (`terrain_preset_morph` / `_hoehe`), nicht aus einer Bindung: die
+	// gespeicherten Zahlen bleiben die Wahrheit, der Name sagt nur, woher sie kamen.
+	// ⚠️ Ein unbekannter Schluessel (Vorlage spaeter umbenannt) liefert einfach nichts -- dann gibt es
+	// keine Marken und keine Knoepfe, und das Gelaende bleibt unveraendert.
+	function vorlagenWerte(area) {
+		const werte = {};
+		const nimm = (liste, key) => {
+			const roh = typeof avesmapsHydroVorlage === "function"
+				? avesmapsHydroVorlage(liste, key)
+				: null;
+			if (!roh) {
+				return;
+			}
+			Object.keys(roh).forEach((schluessel) => {
+				const feldKey = VORLAGEN_FELDER[schluessel];
+				if (feldKey) { werte[feldKey] = roh[schluessel]; }
+			});
+		};
+		nimm(typeof ECOSYSTEM_HYDRO_MORPHOLOGIEN !== "undefined" ? ECOSYSTEM_HYDRO_MORPHOLOGIEN : [],
+			area?.terrain_preset_morph);
+		nimm(typeof ECOSYSTEM_HYDRO_HOEHENSTUFEN !== "undefined" ? ECOSYSTEM_HYDRO_HOEHENSTUFEN : [],
+			area?.terrain_preset_hoehe);
+
+		return werte;
+	}
+
+	// Der Name der gemerkten Vorlagen, fuer den Titel der Falte.
+	function vorlagenName(liste, key) {
+		const treffer = (Array.isArray(liste) ? liste : []).find((v) => v && v.key === String(key || ""));
+
+		return treffer ? treffer.name : "";
+	}
+
+	// 🔴 DIE VORGABEMARKE UND DER ↺ -- beide haengen an DERSELBEN Frage: weicht der Regler von der
+	// Vorlage ab? Zwei getrennte Rechnungen liefen beim naechsten Umbau auseinander, und dann stuende
+	// ein Knopf neben einer Marke, die woanders sitzt.
+	// ⚠️ Verglichen wird GERUNDET auf die Nachkommastellen des Feldes: der Regler liefert Strings,
+	// und `0.3` gegen `0.30` waere sonst eine Abweichung.
+	function terrainAbweichung(feld, area, vorlage) {
+		const regler = propertiesElement(feld.element);
+		if (!regler || !(feld.key in vorlage)) {
+			return null;                     // keine Vorlage -> keine Marke, kein Knopf
+		}
+		const soll = Number(vorlage[feld.key]);
+		const ist = Number(regler.value);
+		if (!Number.isFinite(soll) || !Number.isFinite(ist)) {
+			return null;
+		}
+		const stellen = Number(feld.decimals) || 0;
+		const gleich = soll.toFixed(stellen) === ist.toFixed(stellen);
+
+		return { soll, ist, gleich };
+	}
+
+	// Marke und Knopf einer Zeile auf den Stand bringen.
+	function syncTerrainVorgabe(feld, area, vorlage) {
+		const regler = propertiesElement(feld.element);
+		const knopf = propertiesElement(feld.element + "-reset");
+		const marke = propertiesElement(feld.element + "-mark");
+		const stand = terrainAbweichung(feld, area, vorlage);
+		if (knopf) { knopf.hidden = !stand || stand.gleich; }
+		if (!marke) {
+			return;
+		}
+		if (!stand || !regler) {
+			marke.hidden = true;
+
+			return;
+		}
+		// 💣 Die Marke sitzt anteilig zwischen min und max des REGLERS, nicht auf einer festen Skala:
+		// „Einschnitt" laeuft bis 3000, „Sattel" bis 1. Dieselbe Rechnung wie bei den Zoombaendern.
+		const min = Number(regler.min);
+		const max = Number(regler.max);
+		const spanne = max - min;
+		if (!(spanne > 0)) {
+			marke.hidden = true;
+
+			return;
+		}
+		const anteil = Math.max(0, Math.min(1, (stand.soll - min) / spanne));
+		marke.hidden = false;
+		marke.style.left = (100 * anteil) + "%";
+		marke.title = "Vorgabe der Vorlage: " + stand.soll;
+	}
+
 	function renderTerrainControls(area) {
 		const block = propertiesElement("terrain");
 		if (!block) {
@@ -1626,7 +1689,10 @@
 		}
 
 		terrainTouched = {};
-		// 🔴 Bei JEDEM Aufbau neu und auf „—": eine Vorlage ist eine Aktion, kein gespeicherter Stand.
+		const vorlagenStand = vorlagenWerte(area);
+		// 🔴 Bei JEDEM Aufbau neu und auf „—": das Auswahlfeld ist eine AKTION. Was gemerkt wird,
+		// steht im Titel der Falte -- ein stehengebliebener Eintrag im Feld laese sich wie eine
+		// lebende Bindung.
 		fuelleVorlagenFeld("morphologie", typeof ECOSYSTEM_HYDRO_MORPHOLOGIEN !== "undefined"
 			? ECOSYSTEM_HYDRO_MORPHOLOGIEN
 			: []);
@@ -1641,6 +1707,22 @@
 		if (ridge) { ridge.hidden = !ohneAnhalt; }
 		if (hinweis) { hinweis.hidden = !ohneAnhalt; }
 
+		// 🔴 Der Titel der Falte nennt die gemerkte Vorlage (Owner 04.09.2026). Sie ist eine
+		// HERKUNFTSANGABE: die Zahlen sind die Wahrheit, der Name sagt, woher sie kamen.
+		const titel = propertiesElement("foldtitle");
+		if (titel) {
+			const m = vorlagenName(typeof ECOSYSTEM_HYDRO_MORPHOLOGIEN !== "undefined"
+				? ECOSYSTEM_HYDRO_MORPHOLOGIEN
+				: [], area?.terrain_preset_morph);
+			const h = vorlagenName(typeof ECOSYSTEM_HYDRO_HOEHENSTUFEN !== "undefined"
+				? ECOSYSTEM_HYDRO_HOEHENSTUFEN
+				: [], area?.terrain_preset_hoehe);
+			const beide = [m, h].filter(Boolean).join("/");
+			titel.textContent = beide
+				? "Erosion und Feinabstimmung (Letztes Preset: " + beide + ")"
+				: "Erosion und Feinabstimmung";
+		}
+
 		const vorgabe = terrainDefaults(area);
 		TERRAIN_FIELDS.forEach((feld) => {
 			const regler = propertiesElement(feld.element);
@@ -1651,9 +1733,9 @@
 			terrainTouched[feld.key] = gesetzt !== null && gesetzt !== undefined;
 			regler.value = String(terrainTouched[feld.key] ? gesetzt : vorgabe[feld.key]);
 			syncTerrainOutput(feld, area);
+			syncTerrainVorgabe(feld, area, vorlagenStand);
 		});
 		// Zum Schluss, wenn beide Höhenregler stehen: die Obergrenze des Durchschnitts hängt am Maximum.
-		syncTerrainMeanBounds();
 		setTerrainStatus("");
 	}
 
@@ -1687,7 +1769,17 @@
 		// `terrainTouched` und entscheidet beim Speichern über NULL, das hängt nicht an der Anzeige.
 	}
 
-	function setTerrainStatus(message, isError) {
+	// 🔴 EINE FRIST, KEIN ZWEITER ZUSTAND. Seit der Zeichner jeden Anstrich meldet, konkurrieren zwei
+	// Sorten Meldung um dieselbe Zeile: die FLUECHTIGE („Höhenfeld aktualisiert", bei jedem Zoom- und
+	// Pan-Schritt) und die BLEIBENDE („Gelände gespeichert", „konnte nicht ermittelt werden").
+	// Ohne die Frist waere die zweite nach der naechsten Kartenbewegung weg, bevor sie jemand liest.
+	// ⚠️ Ein FEHLER haelt laenger als eine Erfolgsmeldung -- er ist die Meldung, die man wirklich
+	// gelesen haben muss.
+	let terrainStatusFrist = 0;
+	const TERRAIN_STATUS_FRIST_MS = 4000;
+	const TERRAIN_STATUS_FRIST_FEHLER_MS = 12000;
+
+	function setTerrainStatus(message, isError, opt) {
 		const status = propertiesElement("terrain-status");
 		if (!status) {
 			return;
@@ -1695,6 +1787,10 @@
 		status.textContent = String(message || "");
 		status.hidden = String(message || "") === "";
 		status.classList.toggle("ecosystem-properties-dialog__error", Boolean(isError));
+		// Eine fluechtige Meldung setzt KEINE Frist -- sonst sperrte sie sich selbst aus.
+		terrainStatusFrist = opt && opt.fluechtig
+			? terrainStatusFrist
+			: Date.now() + (isError ? TERRAIN_STATUS_FRIST_FEHLER_MS : TERRAIN_STATUS_FRIST_MS);
 	}
 
 	// 💣 Gedrosselt über requestAnimationFrame. Ein Regler feuert `input` bei jeder Mausbewegung --
@@ -1747,7 +1843,6 @@
 		if (angewandt) {
 			// Eine Art kann eine Maximalhöhe vorgeben, ohne einen Durchschnitt zu nennen -- dann muss der
 			// Durchschnitt der neuen Obergrenze folgen, statt auf der Zahl der vorigen Art stehenzubleiben.
-			syncTerrainMeanBounds();
 			schedulePreviewRedraw();
 			setTerrainStatus("Vorgabe der Art übernommen — noch nicht gespeichert.", false);
 		}
@@ -1759,6 +1854,11 @@
 			return;
 		}
 		const payload = { public_id: String(area.public_id || "") };
+		// 🔴 Die gemerkte Vorlage reist mit -- bei „Auf Automatik zurueck" als leerer String, der
+		// serverseitig zu NULL wird. Sonst behielte eine zurueckgesetzte Flaeche ihren Vorlagennamen
+		// und damit ↺-Knoepfe, die auf Werte zeigen, die sie nicht mehr hat.
+		payload.terrain_preset_morph = reset ? "" : String(area.terrain_preset_morph || "");
+		payload.terrain_preset_hoehe = reset ? "" : String(area.terrain_preset_hoehe || "");
 		TERRAIN_FIELDS.forEach((feld) => {
 			// 🔴 Leerer String = NULL = „ableiten". Der Server unterscheidet das von einer 0, und ein
 			// unberührter Regler darf nie als Entscheidung durchgehen.
@@ -1773,6 +1873,8 @@
 			TERRAIN_FIELDS.forEach((feld) => {
 				area[feld.key] = ergebnis?.[feld.key] ?? null;
 			});
+			area.terrain_preset_morph = ergebnis?.terrain_preset_morph ?? null;
+			area.terrain_preset_hoehe = ergebnis?.terrain_preset_hoehe ?? null;
 			renderTerrainControls(area);
 			// Das Feld dieser Fläche ist veraltet -- dieselbe Kante wie bei einer Gipfeländerung.
 			if (window.AvesmapsEcosystemHeightRender?.invalidate) {
@@ -2044,6 +2146,22 @@
 		// Grundrelief, Talabzug und Erosion verschieben ihn danach noch nach oben. Gemeldet wird, was
 		// am Ende dasteht.
 		const mittel = Number(window.AvesmapsEcosystemHeightRender?.mittelhoehe?.() || 0);
+		// 🔴 UND EIN STRICH AUF DER SKALA, an derselben Stelle (Owner 04.09.2026, im Mockup rot
+		// eingezeichnet): die Zahl darunter sagt es genau, der Strich zeigt, WO sie zwischen den
+		// Gipfeln liegt.
+		// ⚠️ Er wird in DIESELBE Leiste gehaengt wie die Gipfelmarken -- sie ist `position: relative`
+		// und schon vermessen; eine eigene Huelle waere eine zweite Stelle, an der eine Prozentzahl
+		// gerechnet wird.
+		if (mittel > 0 && weisspunkt > 0) {
+			const strich = document.createElement("span");
+			strich.className = "ecosystem-properties-dialog__scalemean";
+			// 💣 Geklemmt: die Durchschnittshoehe kann den Weisspunkt nicht ueberschreiten (er IST das
+			// Maximum), aber ein halb gerechnetes Feld waehrend eines Laufs schon -- und ein Strich
+			// ausserhalb der Leiste haengt im Nichts.
+			strich.style.left = (100 * Math.max(0, Math.min(1, mittel / weisspunkt))) + "%";
+			strich.title = "Durchschnittshöhe: " + avesmapsHoehenskalaZahl(mittel);
+			bar.appendChild(strich);
+		}
 		if (mittel > 0) {
 			note.append(document.createElement("br"));
 			note.append(document.createTextNode("Durchschnittshöhe dieser Fläche: "));
@@ -2068,9 +2186,26 @@
 		}
 		hoehenskalaAbo = window.AvesmapsEcosystemHeightRender.onPaint(() => {
 			const area = currentPropertiesArea();
-			if (area) {
-				renderEcosystemHeightScale(area);
+			if (!area) {
+				return;
 			}
+			renderEcosystemHeightScale(area);
+			// 🔴 JEDER ANSTRICH WIRD GEMELDET (Owner 04.09.2026: „unten die statusleiste soll mir
+			// immer anzeigen, wenn das höhenfeld aktualisiert wurde").
+			//
+			// 💣 Nur wenn KEINE andere Meldung laeuft. Der Zeichner malt auch bei jedem Zoom- und
+			// Pan-Schritt; eine Erfolgs- oder Fehlermeldung („Gelände gespeichert", „Der Gebirgszug
+			// konnte nicht ermittelt werden") waere sonst nach der naechsten Kartenbewegung weg,
+			// bevor sie jemand gelesen hat. Der Riegel ist die Frist, die `setTerrainStatus` ohnehin
+			// setzt -- kein zweiter Zustand daneben.
+			// ⚠️ Und die Dauer steht dabei: sie ist die einzige Zahl, an der man merkt, dass eine
+			// feine Stufe teuer wird (grob 128, fein 256 Zellen je Kante).
+			if (terrainStatusFrist > Date.now()) {
+				return;
+			}
+			const ms = Number(window.AvesmapsEcosystemHeightRender?.lastPaintMs?.() || 0);
+			setTerrainStatus("Höhenfeld aktualisiert" + (ms > 0 ? " (" + Math.round(ms) + " ms)" : "")
+				+ ".", false, { fluechtig: true });
 		});
 	}
 
@@ -2660,7 +2795,6 @@
 				// Danach, nicht davor: erst steht der neue Wert, dann folgt der Durchschnitt seiner
 				// Obergrenze. Am Durchschnittsregler selbst ist es ein Nullgriff, am Maximum zieht es ihn
 				// mit -- und bei „auto" führt es die angezeigte Zahl nach.
-				syncTerrainMeanBounds();
 				// 🔴 LIVE, nicht erst beim Speichern (Owner 2026-07-28). Ein Geländeregler ohne sofortiges
 				// Bild ist ein Ratespiel: man stellt eine Zahl ein, speichert, schaut, korrigiert. Der Wert
 				// wandert deshalb sofort in die Fläche IM SPEICHER und das Feld wird neu gebaut.
@@ -2683,6 +2817,17 @@
 			// faellig wird. `input` waehrend des Ziehens hat die grobe Stufe schon gesetzt.
 			propertiesElement(feld.element)?.addEventListener("change", () => {
 				window.AvesmapsEcosystemHeightRender?.setPreviewCoarse?.(false);
+			});
+			// ⚠️ Der ↺ kommt und geht WAEHREND des Ziehens -- sonst stuende er noch da, wenn der Wert
+			// schon wieder auf der Vorgabe liegt, und waere ein Knopf ohne Wirkung.
+			propertiesElement(feld.element)?.addEventListener("input", () => {
+				syncTerrainVorgabe(feld, currentPropertiesArea(), vorlagenWerte(currentPropertiesArea()));
+			});
+			propertiesElement(feld.element + "-num")?.addEventListener("input", () => {
+				syncTerrainVorgabe(feld, currentPropertiesArea(), vorlagenWerte(currentPropertiesArea()));
+			});
+			propertiesElement(feld.element + "-reset")?.addEventListener("click", () => {
+				setzeReglerAufVorlage(feld);
 			});
 		});
 		// Die zwei Vorlagen-Felder. ⚠️ `change`, nicht `input`: ein `<select>` feuert beides, und bei

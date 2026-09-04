@@ -32,7 +32,7 @@ function pruefe(name, fn) {
 	}
 }
 
-// 🔴 DIE ZWOELF. Wer einen dreizehnten Regler baut, trägt ihn HIER ein — und der Test sagt ihm dann, welche
+// 🔴 DIE ELF. Wer einen zwoelften Regler baut, trägt ihn HIER ein — und der Test sagt ihm dann, welche
 // der sechs Stellen er vergessen hat.
 // 💣 `terrain_levels` und `terrain_erosion` waren bis zum 04.09.2026 EINE Spalte, und `reglerFuer`
 // gab denselben Wert als `stufen` UND als `erosion` weiter: wer die Erosion hochzog, verstellte
@@ -44,7 +44,6 @@ const REGLER = [
 	{ key: "terrain_plateau", element: "plateau" },
 	{ key: "terrain_hypsometrie", element: "hypsometrie" },
 	{ key: "terrain_avg_height", element: "avgheight" },
-	{ key: "terrain_mean_height", element: "meanheight" },
 	{ key: "terrain_bergform", element: "bergform" },
 	{ key: "terrain_rauschen", element: "rauschen" },
 	{ key: "terrain_sattel", element: "sattel" },
@@ -162,20 +161,15 @@ pruefe("die Beschriftungen sagen, was der Regler TUT", () => {
 		"der Regler heisst nicht „Kammhoehe (ohne Einzelgipfel)\"");
 	assert.ok(markup.includes('id="ecosystem-properties-avgheight"'),
 		"die Kennung `-avgheight` wurde mit umbenannt -- eine gecachte Seite greift dann ins Leere");
-	// ⚠️ Und der Nachbar darf nicht auf einen Namen verweisen, den es nicht mehr gibt.
-	const nachbar = markup.slice(markup.indexOf("Mittlere H&ouml;he der Fl&auml;che"),
-		markup.indexOf("Mittlere H&ouml;he der Fl&auml;che") + 600);
-	assert.ok(!nachbar.includes("Maximalh&ouml;he"),
-		"der Hinweistext der Durchschnittshoehe nennt noch die alte Beschriftung");
-	// 🔴 Und er sagt, dass diese Zahl derzeit NICHT wirkt: `reglerFuer` reicht `terrain_mean_height`
-	// nicht an den Trichter durch. Ein Regler, dessen Wert nirgends gilt, ist von einem kaputten
-	// Formular nicht zu unterscheiden.
-	assert.ok(nachbar.includes("NICHT"),
-		"der Hinweistext verschweigt, dass die Durchschnittshoehe in der Simulation nicht wirkt");
-	assert.ok(!/mean:\s*area\?\.terrain_mean_height/.test(render)
-		&& !render.includes("terrain_mean_height"),
-		"`reglerFuer` reicht `terrain_mean_height` inzwischen doch durch -- dann ist der Hinweistext "
-		+ "falsch geworden und muss mit");
+	// 🪤 HIER STAND EINE PRUEFUNG AUF DEN HINWEISTEXT DER „DURCHSCHNITTSHOEHE" -- sie sagte, dass
+	// der Regler in der Simulation nicht wirkt. Der Regler ist am 04.09.2026 gefallen (Owner:
+	// „Durchschnittshöhe wird zu Hypsometrie so wie du wolltest"), und mit ihm der Text.
+	// ⭐ Was von ihm bleibt, steht woanders: die WIRKLICHE Durchschnittshoehe unter der
+	// Hoehenskala, und die Hypsometrie als Regler, der dieselbe Groesse normiert einstellt.
+	assert.ok(!markup.includes('id="ecosystem-properties-meanheight"'),
+		"der Regler „Durchschnittshoehe\" steht wieder im Fenster -- er wirkt nicht");
+	assert.ok(!properties.includes("terrain_mean_height:"),
+		"`terrain_mean_height` steht wieder in TERRAIN_FIELDS");
 });
 
 pruefe("terrainDefaults LIEST die Modulkonstanten, statt Zahlen abzuschreiben", () => {
@@ -289,22 +283,67 @@ pruefe("offen stehen nur die zwei Vorlagen und die Kammhoehe -- der Rest ist Fei
 	const block = ohneKommentare.slice(
 		ohneKommentare.indexOf('id="ecosystem-properties-terrain"'),
 		ohneKommentare.indexOf('id="ecosystem-properties-heightscale"'));
-	const falte = block.indexOf("<summary>Einstellungen</summary>");
-	assert.ok(falte > 0, "die Falte heisst nicht mehr Einstellungen");
+	// 🔴 Der Titel der Falte wird ZUR LAUFZEIT geschrieben (er nennt die gemerkte Vorlage), im
+	// Markup steht nur die Huelle. Gesucht wird deshalb die Kennung, nicht der Text.
+	const falte = block.indexOf('id="ecosystem-properties-foldtitle"');
+	assert.ok(falte > 0, "die Falte hat keinen benannten Titel mehr");
 
-	// Vor der Falte: die zwei Vorlagen und die Kammhoehe. Sonst nichts.
+	// 🔴 Vor der Falte: die zwei Vorlagen und die Durchschnittshoehe. Sonst nichts.
+	// ⚠️ WAS EIN PRESET SETZT, IST EIN DETAIL (Owner 04.09.2026: „Hypsometrie und Kammhöhe (ohne
+	// Einzelgipfel) sollen ebenfalls in die presets mitaufgenommen werden und in die details
+	// wandern"). Die Kammhoehe steht in den Hoehenstufen, die Hypsometrie in den Morphologien --
+	// beide werden also von der Vorlage darueber gesetzt und gehoeren nicht daneben.
+	// ⚠️ Die „Durchschnittshoehe" bleibt oben, weil KEINE Vorlage sie setzt: sie ist die einzige
+	// Zahl hier, die ein Editor aus einer Quelle uebernimmt.
 	const offen = block.slice(0, falte);
-	for (const id of ["morphologie", "hoehenstufe", "avgheight"]) {
+	for (const id of ["morphologie", "hoehenstufe"]) {
 		assert.ok(offen.includes('id="ecosystem-properties-' + id + '"'),
 			"`" + id + "` steht nicht mehr offen");
 	}
 	// 💣 Alles andere gehoert IN die Falte -- sonst waechst der Dialog wieder auf zwoelf Zeilen.
 	for (const id of ["grain", "bergform", "rauschen", "sattel", "talbreite", "einschnitt",
-		"erosion", "hypsometrie", "plateau", "levels", "meanheight"]) {
+		"erosion", "hypsometrie", "plateau", "levels", "avgheight"]) {
 		assert.ok(!offen.includes('id="ecosystem-properties-' + id + '"'),
 			"`" + id + "` steht offen statt in den Einstellungen");
 		assert.ok(block.includes('id="ecosystem-properties-' + id + '"'),
 			"`" + id + "` ist ganz verschwunden");
+	}
+});
+
+pruefe("was eine Vorlage setzt, steht in den Details -- nicht offen daneben", () => {
+	// 🔴 Owner 04.09.2026: „Hypsometrie und Kammhöhe (ohne Einzelgipfel) sollen ebenfalls in die
+	// presets mitaufgenommen werden und in die details wandern".
+	// 💣 DIE REGEL DAHINTER: ein Regler, den die Vorlage darueber ohnehin setzt, ist ein Detail. Wer
+	// ihn offen danebenstellt, laedt dazu ein, ihn zu verstellen und dann die Vorlage zu wechseln --
+	// und wundert sich, dass seine Zahl weg ist.
+	const hydro = require(path.join(WURZEL, "js/map-features/map-features-ecosystem-hydrologie.js"));
+	const ohneKommentare = markup.replace(/<!--[\s\S]*?-->/g, "");
+	const block = ohneKommentare.slice(
+		ohneKommentare.indexOf('id="ecosystem-properties-terrain"'),
+		ohneKommentare.indexOf('id="ecosystem-properties-heightscale"'));
+	const offen = block.slice(0, block.indexOf('id="ecosystem-properties-foldtitle"'));
+	// Jeder Schluessel, den irgendeine Vorlage setzt.
+	const gesetzt = new Set();
+	for (const v of hydro.ECOSYSTEM_HYDRO_MORPHOLOGIEN.concat(hydro.ECOSYSTEM_HYDRO_HOEHENSTUFEN)) {
+		Object.keys(v.werte).forEach((k) => gesetzt.add(k));
+	}
+	// Die Uebersetzung Vorlagen-Schluessel -> Formularfeld steht in properties.js.
+	const uebersetzung = properties.slice(properties.indexOf("const VORLAGEN_FELDER = {"),
+		properties.indexOf("};", properties.indexOf("const VORLAGEN_FELDER = {")));
+	for (const schluessel of gesetzt) {
+		// 🪤 OHNE REGEX: ein zusammengebautes Muster hat beim Bau dreimal sein Escaping durch
+		// zwei Sprachen verloren -- `'\s'` in einem JS-String ist schlicht `s`, und das Muster traf nie.
+		// Die Tabelle schreibt `schluessel: "terrain_..."` woertlich; danach wird gesucht.
+		const marke = schluessel + ': "';
+		const pos = uebersetzung.indexOf(marke);
+		const treffer = pos < 0
+			? null
+			: [null, uebersetzung.slice(pos + marke.length, uebersetzung.indexOf('"', pos + marke.length))];
+		assert.ok(treffer, "der Vorlagen-Schluessel `" + schluessel + "` hat keine Uebersetzung");
+		const feld = REGLER.find((r) => r.key === treffer[1]);
+		assert.ok(feld, "zu `" + treffer[1] + "` gibt es keinen Regler");
+		assert.ok(!offen.includes('id="ecosystem-properties-' + feld.element + '"'),
+			"`" + feld.element + "` steht offen, obwohl eine Vorlage ihn setzt");
 	}
 });
 

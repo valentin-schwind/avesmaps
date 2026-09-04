@@ -446,6 +446,19 @@ function avesmapsEcosystemEnsureTables(PDO $pdo): void
         // 🔴 An der FLAECHE, nicht an der Region: das Hoehenfeld entsteht je Flaeche, und eine Region
         // mit zwei Flaechen haette sonst eine Kammlinie fuer beide.
         'terrain_ridge_line' => 'MEDIUMTEXT',
+        // 🔴 WELCHE VORLAGE ZULETZT ANGEWANDT WURDE (Owner 04.09.2026: „Presets sollen gespeichert
+        // werden"). Zwei Schluessel aus ECOSYSTEM_HYDRO_MORPHOLOGIEN / _HOEHENSTUFEN.
+        //
+        // 💣 DAS IST EINE HERKUNFTSANGABE, KEINE BINDUNG. Die gespeicherten ZAHLEN bleiben die
+        // Wahrheit; der Name sagt nur, woher sie kamen -- und wovon die Ruecksetz-Knoepfe im Fenster
+        // ihre Vorgabe nehmen. Wuerde die Flaeche an die Vorlage GEBUNDEN, muesste bei jeder
+        // Aenderung an der Tabelle entschieden werden, ob bestehende Flaechen mitwandern, und beides
+        // waere falsch: mitwandern aendert Gelaende hinter dem Ruecken, nicht mitwandern macht den
+        // gespeicherten Namen zur Luege.
+        // ⚠️ Ein unbekannter Schluessel (Vorlage spaeter umbenannt) ist deshalb harmlos: das Fenster
+        // zeigt dann keine Vorgabemarken, das Gelaende bleibt unveraendert.
+        'terrain_preset_morph' => 'VARCHAR(40)',
+        'terrain_preset_hoehe' => 'VARCHAR(40)',
     ] as $column => $type) {
         if (!$areaColumnExists($pdo, $column)) {
             $pdo->exec('ALTER TABLE ecosystem_area ADD COLUMN ' . $column . ' ' . $type . ' NULL');
@@ -1691,6 +1704,8 @@ function avesmapsEcosystemReadAreas(
                 a.terrain_plateau,
                 a.terrain_hypsometrie,
                 a.terrain_ridge_line,
+                a.terrain_preset_morph,
+                a.terrain_preset_hoehe,
                 a.terrain_bergform,
                 a.terrain_rauschen,
                 a.terrain_talbreite,
@@ -1768,6 +1783,12 @@ function avesmapsEcosystemReadAreas(
             // ⚠️ Als geparste Liste, nicht als JSON-Text: der Browser reicht sie direkt an den
             // Trichter, und ein zweiter Parse-Weg waere die Stelle, an der die Form auseinanderlaeuft.
             'terrain_ridge_line' => avesmapsEcosystemDecodeRidgeLine($row['terrain_ridge_line'] ?? null),
+            'terrain_preset_morph' => $row['terrain_preset_morph'] === null
+                ? null
+                : (string) $row['terrain_preset_morph'],
+            'terrain_preset_hoehe' => $row['terrain_preset_hoehe'] === null
+                ? null
+                : (string) $row['terrain_preset_hoehe'],
             'terrain_bergform' => $row['terrain_bergform'] === null ? null : (float) $row['terrain_bergform'],
             'terrain_rauschen' => $row['terrain_rauschen'] === null ? null : (float) $row['terrain_rauschen'],
             'terrain_talbreite' => $row['terrain_talbreite'] === null ? null : (float) $row['terrain_talbreite'],
@@ -4758,6 +4779,20 @@ function avesmapsUpdateEcosystemAreaTerrain(PDO $pdo, array $payload, int $userI
             $werte[$feld] = $lesen($payload[$feld], $min, $max);
         }
     }
+    // 🔴 Die zwei Vorlagen-Schluessel: TEXT, nicht Zahl -- und sie gehen durch dieselbe Klemme wie
+    // jeder andere Bezeichner. Ein leerer String heisst „keine Vorlage" und wird zu NULL.
+    // ⚠️ Der Server prueft NICHT, ob der Schluessel in der Tabelle steht: die Tabelle lebt im
+    // Browser (AGENTS.md §5, keine zweite Wahrheit), und ein unbekannter Name ist harmlos -- das
+    // Fenster zeigt dann einfach keine Vorgabemarken.
+    foreach (['terrain_preset_morph', 'terrain_preset_hoehe'] as $feld) {
+        if (!array_key_exists($feld, $payload)) {
+            continue;
+        }
+        $wert = avesmapsNormalizeSingleLine((string) $payload[$feld], 40);
+        $felder[] = $feld . ' = :' . $feld;
+        $werte[$feld] = $wert === '' ? null : $wert;
+    }
+
     if ($felder === []) {
         throw new InvalidArgumentException('Es wurde kein Geländewert mitgeschickt.');
     }
@@ -4785,6 +4820,7 @@ function avesmapsUpdateEcosystemAreaTerrain(PDO $pdo, array $payload, int $userI
     $lesenZurueck = $pdo->prepare(
         'SELECT terrain_grain, terrain_levels, terrain_avg_height, terrain_mean_height,
                 terrain_erosion, terrain_plateau, terrain_hypsometrie, terrain_ridge_line,
+                terrain_preset_morph, terrain_preset_hoehe,
                 terrain_bergform, terrain_rauschen, terrain_talbreite, terrain_einschnitt,
                 terrain_sattel
            FROM ecosystem_area WHERE public_id = :p LIMIT 1'
@@ -4813,6 +4849,12 @@ function avesmapsUpdateEcosystemAreaTerrain(PDO $pdo, array $payload, int $userI
         'terrain_talbreite' => ($row['terrain_talbreite'] ?? null) === null ? null : (float) $row['terrain_talbreite'],
         'terrain_einschnitt' => ($row['terrain_einschnitt'] ?? null) === null ? null : (float) $row['terrain_einschnitt'],
         'terrain_sattel' => ($row['terrain_sattel'] ?? null) === null ? null : (float) $row['terrain_sattel'],
+        'terrain_preset_morph' => ($row['terrain_preset_morph'] ?? null) === null
+            ? null
+            : (string) $row['terrain_preset_morph'],
+        'terrain_preset_hoehe' => ($row['terrain_preset_hoehe'] ?? null) === null
+            ? null
+            : (string) $row['terrain_preset_hoehe'],
         'revision' => $revision,
     ];
 }
