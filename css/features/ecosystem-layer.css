@@ -1214,6 +1214,16 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 	text-align: right;
 }
 
+/* Die zwei Vorlagen-Felder (V12, 2026-09-04). 💣 Sie sitzen in DERSELBEN Zeile wie die Regler, deren
+   Raster drei Spalten hat (Beschriftung | Regler | Zahl) -- ein `<select>` fuellt hier Spalte 2 und 3
+   zusammen, sonst stuende es auf der Breite eines Schiebers und liesse rechts eine Luecke, in der
+   nichts steht. */
+.ecosystem-properties-dialog__terrainselect {
+	grid-column: 2 / -1;
+	min-width: 0;
+	width: 100%;
+}
+
 
 .ecosystem-properties-dialog__terrainrow input[type="range"] {
 	min-width: 0;

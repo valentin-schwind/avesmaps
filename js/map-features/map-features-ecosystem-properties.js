@@ -1462,6 +1462,83 @@
 		syncTerrainOutput(feld, currentPropertiesArea());
 	}
 
+	/* ── Vorlagen ─────────────────────────────────────────────────────────────────────────────── */
+
+	// Welcher Regler traegt welchen Vorlagen-Schluessel. 🔴 Die Vorlagen sprechen die Sprache des
+	// Trichters (`plateau`, `hypsometrie`, `koernung` …), die Formularfelder die der Datenbank
+	// (`terrain_plateau` …) -- ohne diese Uebersetzung schriebe eine Vorlage ins Leere, und zwar
+	// lautlos: ein unbekannter Schluessel findet einfach kein Feld.
+	const VORLAGEN_FELDER = {
+		koernung: "terrain_grain",
+		stufen: "terrain_levels",
+		erosion: "terrain_erosion",
+		plateau: "terrain_plateau",
+		hypsometrie: "terrain_hypsometrie",
+		bergform: "terrain_bergform",
+		rauschen: "terrain_rauschen",
+		sattel: "terrain_sattel",
+		talbreite: "terrain_talbreite",
+		einschnitt: "terrain_einschnitt",
+		maximalhoehe: "terrain_avg_height",
+	};
+
+	// Die Auswahlfelder aus den TABELLEN fuellen, nie aus einer Liste im Markup: eine Liste von Hand
+	// waere beim naechsten Eintrag still unvollstaendig.
+	// ⚠️ Immer mit „—" an erster Stelle und ausgewaehlt: eine Vorlage ist eine AKTION, kein Zustand.
+	// Die Flaeche speichert Zahlen, keinen Namen -- ein stehengebliebener Name waere eine Behauptung
+	// ueber etwas, das nirgends steht.
+	function fuelleVorlagenFeld(element, liste) {
+		const feld = propertiesElement(element);
+		if (!feld) {
+			return;
+		}
+		const eintraege = Array.isArray(liste) ? liste : [];
+		feld.innerHTML = "";
+		const leer = document.createElement("option");
+		leer.value = "";
+		leer.textContent = "—";
+		feld.appendChild(leer);
+		eintraege.forEach((vorlage) => {
+			const option = document.createElement("option");
+			option.value = String(vorlage.key);
+			option.textContent = String(vorlage.name);
+			feld.appendChild(option);
+		});
+		feld.value = "";
+	}
+
+	// Eine Vorlage anwenden: die genannten Regler setzen, als „angefasst" merken, neu zeichnen.
+	// 🔴 NICHT SPEICHERN. Der Editor sieht das Ergebnis und entscheidet dann -- dieselbe Trennung wie
+	// bei jedem anderen Regler, und sie ist der Grund, warum „Auf Automatik zurueck" daneben noch
+	// etwas bedeutet.
+	function wendeVorlageAn(liste, key) {
+		const area = currentPropertiesArea();
+		const werte = typeof avesmapsHydroVorlage === "function"
+			? avesmapsHydroVorlage(liste, key)
+			: null;
+		if (!area || !werte) {
+			return;
+		}
+		let gesetzt = 0;
+		Object.keys(werte).forEach((schluessel) => {
+			const feldKey = VORLAGEN_FELDER[schluessel];
+			const feld = TERRAIN_FIELDS.find((f) => f.key === feldKey);
+			const regler = feld ? propertiesElement(feld.element) : null;
+			if (!regler) {
+				return;
+			}
+			regler.value = String(werte[schluessel]);
+			terrainTouched[feld.key] = true;
+			syncTerrainOutput(feld, area);
+			gesetzt++;
+		});
+		// Die Obergrenze der Durchschnittshoehe folgt der Kammhoehe -- dieselbe Kopplung wie beim
+		// Ziehen von Hand.
+		syncTerrainMeanBounds();
+		schedulePreviewRedraw();
+		setTerrainStatus("Vorlage übernommen (" + gesetzt + " Werte) — noch nicht gespeichert.", false);
+	}
+
 	function renderTerrainControls(area) {
 		const block = propertiesElement("terrain");
 		if (!block) {
@@ -1476,6 +1553,13 @@
 		}
 
 		terrainTouched = {};
+		// 🔴 Bei JEDEM Aufbau neu und auf „—": eine Vorlage ist eine Aktion, kein gespeicherter Stand.
+		fuelleVorlagenFeld("morphologie", typeof ECOSYSTEM_HYDRO_MORPHOLOGIEN !== "undefined"
+			? ECOSYSTEM_HYDRO_MORPHOLOGIEN
+			: []);
+		fuelleVorlagenFeld("hoehenstufe", typeof ECOSYSTEM_HYDRO_HOEHENSTUFEN !== "undefined"
+			? ECOSYSTEM_HYDRO_HOEHENSTUFEN
+			: []);
 		const vorgabe = terrainDefaults(area);
 		TERRAIN_FIELDS.forEach((feld) => {
 			const regler = propertiesElement(feld.element);
@@ -2492,6 +2576,19 @@
 			propertiesElement(feld.element)?.addEventListener("change", () => {
 				window.AvesmapsEcosystemHeightRender?.setPreviewCoarse?.(false);
 			});
+		});
+		// Die zwei Vorlagen-Felder. ⚠️ `change`, nicht `input`: ein `<select>` feuert beides, und bei
+		// Tastaturbedienung liefe `input` bei jedem Durchblaettern -- also ein voller Rechenlauf je
+		// Pfeiltaste.
+		propertiesElement("morphologie")?.addEventListener("change", (ereignis) => {
+			wendeVorlageAn(typeof ECOSYSTEM_HYDRO_MORPHOLOGIEN !== "undefined"
+				? ECOSYSTEM_HYDRO_MORPHOLOGIEN
+				: [], ereignis?.target?.value);
+		});
+		propertiesElement("hoehenstufe")?.addEventListener("change", (ereignis) => {
+			wendeVorlageAn(typeof ECOSYSTEM_HYDRO_HOEHENSTUFEN !== "undefined"
+				? ECOSYSTEM_HYDRO_HOEHENSTUFEN
+				: [], ereignis?.target?.value);
 		});
 		propertiesElement("terrain-auto")?.addEventListener("click", () => void saveTerrainSettings(true));
 		// 🔴 „Hoehenfeld erzeugen" (Owner 04.09.2026). Er tut ZWEI Dinge, und zwar in dieser

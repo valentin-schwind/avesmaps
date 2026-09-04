@@ -1,0 +1,291 @@
+"use strict";
+
+/**
+ * Die Vorlagen: „Morphologie" und „Höhenstufe".
+ *
+ * 🔴 Owner 04.09.2026: acht Geländeformen und fünf Höhenstufen als Auswahlfeld, statt zwölf einzelner
+ * Zahlen von Hand. Eine Vorlage ist eine AKTION, kein Zustand: sie schreibt Werte in die Regler und
+ * ist danach vergessen. Gespeichert werden die Zahlen, nie der Name.
+ */
+
+const assert = require("assert");
+const fs = require("fs");
+const path = require("path");
+
+const WURZEL = path.join(__dirname, "..", "..", "..");
+const lies = (p) => fs.readFileSync(path.join(WURZEL, p), "utf8");
+const hydro = require(path.join(WURZEL, "js/map-features/map-features-ecosystem-hydrologie.js"));
+
+let gehalten = 0;
+const pruefe = (name, fn) => {
+	try {
+		fn();
+		gehalten++;
+		console.log("  ok  " + name);
+	} catch (fehler) {
+		console.error("  FEHLER  " + name + "\n    " + fehler.message);
+		process.exitCode = 1;
+	}
+};
+
+const markup = lies("index.html");
+const properties = lies("js/map-features/map-features-ecosystem-properties.js");
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════
+   1. DIE TABELLEN
+   ══════════════════════════════════════════════════════════════════════════════════════════════ */
+
+pruefe("beide Tabellen sind vollständig und tragen die bestellten Namen", () => {
+	// 🔴 Die Namen sind die des Owners, wörtlich. Wer einen umbenennt, benennt eine Geländeform um,
+	// die ein Editor im Fenster wiedererkennen soll.
+	assert.deepStrictEqual(
+		hydro.ECOSYSTEM_HYDRO_MORPHOLOGIEN.map((v) => v.name),
+		["Plateau", "Rumpfgebirge", "Härtling", "Kuppengebirge", "Kegelberge", "Gratgebirge",
+			"Massiv", "Karstrelief"],
+		"die Morphologien stimmen nicht mit der Bestellung überein");
+	assert.deepStrictEqual(
+		hydro.ECOSYSTEM_HYDRO_HOEHENSTUFEN.map((v) => v.name),
+		["Tiefland", "Hügelland", "Vorgebirge", "Mittelgebirge", "Hochgebirge"],
+		"die Höhenstufen stimmen nicht mit der Bestellung überein");
+});
+
+pruefe("die zwei Tabellen fassen einander NICHT an", () => {
+	// 💣 ZWEI FRAGEN, ZWEI TABELLEN. Die Morphologie sagt, welche FORM das Gelände hat, die
+	// Höhenstufe, wie hoch es liegt -- ein Kuppengebirge gibt es im Hügelland wie im Hochgebirge.
+	// Griffe eine Morphologie an die Kammhöhe, überschriebe die Wahl einer Form still die Höhe,
+	// und der Editor müsste die Reihenfolge kennen, in der er die zwei Felder bedient.
+	for (const v of hydro.ECOSYSTEM_HYDRO_MORPHOLOGIEN) {
+		assert.ok(!("maximalhoehe" in v.werte),
+			"die Morphologie „" + v.name + "\" setzt die Kammhöhe -- das ist die Aufgabe der Höhenstufe");
+	}
+	for (const v of hydro.ECOSYSTEM_HYDRO_HOEHENSTUFEN) {
+		assert.deepStrictEqual(Object.keys(v.werte), ["maximalhoehe"],
+			"die Höhenstufe „" + v.name + "\" setzt mehr als die Kammhöhe");
+	}
+});
+
+pruefe("jeder Vorlagenwert liegt in den Schranken seines Reglers", () => {
+	// 💣 Die Schranken stehen an DREI Stellen (Regler im Markup, Klemme im Server, Klemme im
+	// Trichter). Eine Vorlage, die darüber hinausgeht, wird beim Speichern still gekappt -- und das
+	// gespeicherte Gebirge ist dann ein anderes als das gezeigte.
+	const grenzen = {
+		koernung: [1, 24], stufen: [1, 8], erosion: [0, 5], plateau: [0, 1],
+		hypsometrie: [0, 0.7], bergform: [0, 12], rauschen: [0, 1], sattel: [0.3, 1],
+		talbreite: [0, 6], einschnitt: [0, 3000], maximalhoehe: [0, 20000],
+	};
+	const alle = hydro.ECOSYSTEM_HYDRO_MORPHOLOGIEN.concat(hydro.ECOSYSTEM_HYDRO_HOEHENSTUFEN);
+	for (const v of alle) {
+		for (const [schluessel, wert] of Object.entries(v.werte)) {
+			const spanne = grenzen[schluessel];
+			assert.ok(spanne, "„" + v.name + "\" setzt den unbekannten Regler `" + schluessel + "`");
+			assert.ok(wert >= spanne[0] && wert <= spanne[1],
+				"„" + v.name + "\": " + schluessel + " = " + wert + " liegt ausserhalb ["
+				+ spanne[0] + ", " + spanne[1] + "]");
+		}
+	}
+});
+
+pruefe("die Vorlagen liefern eine KOPIE, keine Referenz", () => {
+	// 💣 Gäbe sie die Tabellenzeile selbst heraus, veränderte der erste Aufrufer, der einen Wert
+	// anfasst, die Vorlage für alle folgenden -- und zwar für die Laufzeit des ganzen Tabs.
+	const a = hydro.avesmapsHydroVorlage(hydro.ECOSYSTEM_HYDRO_MORPHOLOGIEN, "massiv");
+	a.plateau = 0.999;
+	const b = hydro.avesmapsHydroVorlage(hydro.ECOSYSTEM_HYDRO_MORPHOLOGIEN, "massiv");
+	assert.notStrictEqual(b.plateau, 0.999, "die Vorlage wurde vom Aufrufer verändert");
+	assert.strictEqual(hydro.avesmapsHydroVorlage(hydro.ECOSYSTEM_HYDRO_MORPHOLOGIEN, "gibtsnicht"), null,
+		"ein unbekannter Schlüssel liefert nicht null");
+});
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════
+   2. SIE MÜSSEN UNTERSCHIEDLICHE GELÄNDE ERGEBEN
+   ══════════════════════════════════════════════════════════════════════════════════════════════ */
+
+pruefe("acht Morphologien ergeben acht verschiedene Gelände", () => {
+	// 🔴 DIE EIGENTLICHE ZUSICHERUNG. Acht Namen, die dasselbe Feld liefern, sind acht Lügen -- und
+	// genau das ist beim ersten Entwurf passiert: „Massiv" und „Plateau" lagen bei 42,3 % gegen
+	// 43,9 % Fläche auf Gipfelhöhe, also praktisch gleich. Erst die zweite Runde trennte sie.
+	// ⚠️ Gemessen wird das hypsometrische Integral, weil es die Form beschreibt und nicht die Höhe.
+	const MX = 25, MY = 25, R = 18;
+	const istDrin = (x, y) => {
+		const dx = x - MX, dy = y - MY, w = Math.atan2(dy, dx);
+
+		return Math.hypot(dx, dy) <= R * (1 + (0.13 * Math.sin(3 * w)) + (0.07 * Math.cos((5 * w) + 1)));
+	};
+	const gipfel = [
+		{ x: MX - 10, y: MY - 4, h: 2600 },
+		{ x: MX, y: MY + 0.5, h: 4000 },
+		{ x: MX + 9, y: MY + 4, h: 3100 },
+	];
+	const werte = hydro.ECOSYSTEM_HYDRO_MORPHOLOGIEN.map((v) => {
+		const o = hydro.avesmapsGebirgsRasterBauen({
+			bounds: { min_x: 0, min_y: 0, max_x: 50, max_y: 50 },
+			istDrin,
+			peaks: gipfel,
+			kurve: [[MX - 11, MY - 4], [MX, MY], [MX + 10, MY + 4]],
+			regler: Object.assign({ maximalhoehe: 0 },
+				hydro.avesmapsHydroVorlage(hydro.ECOSYSTEM_HYDRO_MORPHOLOGIEN, v.key)),
+			saat: 4242,
+		});
+
+		// 💣 DREI KENNZAHLEN, NICHT EINE. Das HI allein reicht nicht: „Massiv" und „Gratgebirge"
+		// duerfen dieselbe Hoehenverteilung haben und trotzdem verschieden aussehen -- der eine hat
+		// einen breiten Kern, der andere einen scharfen Grat. Gemessen werden deshalb Verteilung
+		// (HI), Flaechenanteil auf Gipfelhoehe (das Plateau) und Rauheit (die Zerfurchung).
+		let hoch = 0;
+		let drin = 0;
+		let max = 0;
+		let rau = 0;
+		let m = 0;
+		for (let k = 0; k < o.h.length; k++) { if (o.r.drin[k] && o.h[k] > max) { max = o.h[k]; } }
+		for (let k = 0; k < o.h.length; k++) {
+			if (!o.r.drin[k]) { continue; }
+			drin++;
+			if (o.h[k] > 0.8 * max) { hoch++; }
+		}
+		for (let j = 1; j < o.r.hh - 1; j++) {
+			for (let i = 1; i < o.r.w - 1; i++) {
+				const k = (j * o.r.w) + i;
+				if (!o.r.drin[k] || !o.r.drin[k - 1]) { continue; }
+				rau += Math.abs(o.h[k] - o.h[k - 1]);
+				m++;
+			}
+		}
+
+		// 💣 UND EINE VIERTE, DIE DIE SKALA MISST. Drei Aggregate ueber die ganze Flaeche trennen
+		// „Kuppengebirge" und „Karstrelief" nicht -- ihre Hoehenverteilung ist aehnlich, ihr
+		// Unterschied ist die KOERNUNG (9 gegen 2). Gemessen wird deshalb das Verhaeltnis der Rauheit
+		// auf kurzer zu der auf langer Distanz: ein feinkoerniges Relief hat viel Struktur schon
+		// zwischen Nachbarzellen, ein grobwelliges erst ueber acht.
+		// 🪤 Ohne diese Zahl habe ich beim Bau dreimal die Vorlagenwerte verschoben, um einen Test zu
+		// befriedigen, der den Unterschied gar nicht sehen konnte -- und dabei die Namen von ihren
+		// Formen entfernt. Wer eine Zusicherung nicht erfuellen kann, prueft zuerst, ob sie das
+		// Richtige misst.
+		let fern = 0;
+		let fm = 0;
+		for (let j = 8; j < o.r.hh - 8; j++) {
+			for (let i = 8; i < o.r.w - 8; i++) {
+				const k = (j * o.r.w) + i;
+				if (!o.r.drin[k] || !o.r.drin[k - 8]) { continue; }
+				fern += Math.abs(o.h[k] - o.h[k - 8]);
+				fm++;
+			}
+		}
+		const nah = m ? rau / m : 0;
+		const weit = fm ? fern / fm : 0;
+
+		return {
+			name: v.name,
+			hi: hydro.hypsometrischesIntegral(o.h, o.r.drin),
+			plateau: drin ? hoch / drin : 0,
+			rauheit: m ? (rau / m) / max : 0,
+			koernigkeit: weit > 0 ? nah / weit : 0,
+		};
+	});
+	// 🪤 UND DIE SCHWELLE IST NIEDRIG, MIT GRUND. Acht Formen leben in EINEM stetigen Raum -- sie
+	// sind zwangsläufig Nachbarn, und „Gratgebirge" neben „Massiv" ist kein Fehler, sondern die
+	// Wirklichkeit (HI 0,534 gegen 0,560). Die erste Fassung setzte 0,04 und zog damit die Werte
+	// künstlich auseinander, bis die Namen nicht mehr zu ihren Formen passten. Was dieser Test
+	// verhindern soll, ist echte DOPPLUNG: zwei Vorlagen, die dasselbe Feld liefern.
+	for (let a = 0; a < werte.length; a++) {
+		for (let b = a + 1; b < werte.length; b++) {
+			const x = werte[a];
+			const y = werte[b];
+			const getrennt = Math.abs(x.hi - y.hi) > 0.02
+				|| Math.abs(x.plateau - y.plateau) > 0.04
+				|| Math.abs(x.rauheit - y.rauheit) > 0.004
+				|| Math.abs(x.koernigkeit - y.koernigkeit) > 0.02;
+			assert.ok(getrennt,
+				"„" + x.name + "\" und „" + y.name + "\" ergeben dasselbe Gelände: HI "
+				+ x.hi.toFixed(3) + "/" + y.hi.toFixed(3)
+				+ ", Plateau " + (100 * x.plateau).toFixed(1) + "/" + (100 * y.plateau).toFixed(1) + " %"
+				+ ", Rauheit " + x.rauheit.toFixed(4) + "/" + y.rauheit.toFixed(4)
+				+ ", Koernigkeit " + x.koernigkeit.toFixed(3) + "/" + y.koernigkeit.toFixed(3));
+		}
+	}
+});
+
+pruefe("keine zwei Vorlagen tragen dieselben Werte", () => {
+	// 🔴 DAS IST DIE HARTE FRAGE, und sie braucht keine Toleranz: zwei Eintraege mit identischen
+	// Zahlen sind zwei Namen fuer eine Sache, ganz gleich wie das Feld aussieht. Der Test darueber
+	// misst das ERGEBNIS und muss Nachbarschaft erlauben; dieser misst die ABSICHT.
+	const alle = hydro.ECOSYSTEM_HYDRO_MORPHOLOGIEN;
+	for (let a = 0; a < alle.length; a++) {
+		for (let b = a + 1; b < alle.length; b++) {
+			assert.notDeepStrictEqual(alle[a].werte, alle[b].werte,
+				"„" + alle[a].name + "\" und „" + alle[b].name + "\" tragen dieselben Werte");
+		}
+	}
+	const schluessel = alle.map((v) => v.key)
+		.concat(hydro.ECOSYSTEM_HYDRO_HOEHENSTUFEN.map((v) => v.key));
+	assert.strictEqual(new Set(schluessel).size, schluessel.length,
+		"ein Vorlagen-Schluessel kommt doppelt vor -- `avesmapsHydroVorlage` faende dann immer den ersten");
+});
+
+pruefe("die Höhenstufen steigen streng an", () => {
+	const hoehen = hydro.ECOSYSTEM_HYDRO_HOEHENSTUFEN.map((v) => v.werte.maximalhoehe);
+	for (let n = 1; n < hoehen.length; n++) {
+		assert.ok(hoehen[n] > hoehen[n - 1],
+			"„" + hydro.ECOSYSTEM_HYDRO_HOEHENSTUFEN[n].name + "\" ist nicht höher als die Stufe davor");
+	}
+});
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════
+   3. DIE VERDRAHTUNG
+   ══════════════════════════════════════════════════════════════════════════════════════════════ */
+
+pruefe("die Auswahlfelder stehen im Markup und werden aus den TABELLEN gefüllt", () => {
+	assert.ok(markup.includes('id="ecosystem-properties-morphologie"'), "das Morphologie-Feld fehlt");
+	assert.ok(markup.includes('id="ecosystem-properties-hoehenstufe"'), "das Höhenstufen-Feld fehlt");
+	// 💣 KEINE `<option>` im Markup: eine Liste von Hand wäre beim nächsten Tabelleneintrag still
+	// unvollständig, und niemand zählt nach.
+	const ohneKommentare = markup.replace(/<!--[\s\S]*?-->/g, "");
+	for (const id of ["morphologie", "hoehenstufe"]) {
+		const start = ohneKommentare.indexOf('id="ecosystem-properties-' + id + '"');
+		const ende = ohneKommentare.indexOf("</select>", start);
+		assert.ok(start > 0 && ende > start, "das Feld " + id + " hat kein schliessendes Tag");
+		assert.ok(!ohneKommentare.slice(start, ende).includes("<option"),
+			"das Feld " + id + " trägt Einträge im Markup -- sie gehören in die Tabelle");
+	}
+	assert.ok(properties.includes("ECOSYSTEM_HYDRO_MORPHOLOGIEN")
+		&& properties.includes("ECOSYSTEM_HYDRO_HOEHENSTUFEN"),
+		"die Oberfläche liest die Tabellen nicht");
+});
+
+pruefe("jeder Vorlagen-Schlüssel findet einen Regler -- sonst schreibt er ins Leere", () => {
+	// 💣 Die Vorlagen sprechen die Sprache des Trichters (`plateau`, `koernung` …), die Formularfelder
+	// die der Datenbank (`terrain_plateau` …). Fehlt eine Übersetzung, schreibt die Vorlage lautlos
+	// ins Leere: ein unbekannter Schlüssel findet einfach kein Feld, und es gibt keine Fehlermeldung.
+	const block = properties.slice(properties.indexOf("const VORLAGEN_FELDER = {"),
+		properties.indexOf("};", properties.indexOf("const VORLAGEN_FELDER = {")));
+	const alle = hydro.ECOSYSTEM_HYDRO_MORPHOLOGIEN.concat(hydro.ECOSYSTEM_HYDRO_HOEHENSTUFEN);
+	const schluessel = new Set();
+	for (const v of alle) { Object.keys(v.werte).forEach((k) => schluessel.add(k)); }
+	for (const k of schluessel) {
+		assert.ok(new RegExp("\\b" + k + ":").test(block),
+			"der Vorlagen-Schlüssel `" + k + "` hat keine Übersetzung in VORLAGEN_FELDER");
+	}
+	// Und jedes ZIEL muss ein echtes Feld sein.
+	const felder = properties.slice(properties.indexOf("const TERRAIN_FIELDS = ["),
+		properties.indexOf("];", properties.indexOf("const TERRAIN_FIELDS = [")));
+	for (const treffer of block.matchAll(/"(terrain_[a-z_]+)"/g)) {
+		assert.ok(felder.includes('"' + treffer[1] + '"'),
+			"VORLAGEN_FELDER zeigt auf `" + treffer[1] + "`, das es in TERRAIN_FIELDS nicht gibt");
+	}
+});
+
+pruefe("eine Vorlage SPEICHERT nicht -- sie setzt nur die Regler", () => {
+	// 🔴 Der Editor sieht das Ergebnis und entscheidet dann. Dieselbe Trennung wie bei jedem anderen
+	// Regler, und sie ist der Grund, warum „Auf Automatik zurück" daneben noch etwas bedeutet.
+	const start = properties.indexOf("function wendeVorlageAn(");
+	const ende = properties.indexOf("\n\t}", start);
+	assert.ok(start > 0 && ende > start, "wendeVorlageAn wurde nicht gefunden");
+	const rumpf = properties.slice(start, ende);
+	assert.ok(!rumpf.includes("saveTerrainSettings") && !rumpf.includes("postEcosystemEdit"),
+		"das Anwenden einer Vorlage schreibt in die Datenbank");
+	assert.ok(rumpf.includes("schedulePreviewRedraw"),
+		"nach dem Anwenden wird das Bild nicht neu gezeichnet");
+});
+
+if (!process.exitCode) {
+	console.log("\n" + gehalten + " Zusicherungen gehalten.");
+}
