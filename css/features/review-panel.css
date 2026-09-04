@@ -11,7 +11,13 @@
 	z-index: 1100;
 	display: flex;
 	flex-direction: column;
-	width: min(400px, calc(100vw - 64px));
+	/* =£ DIESELBE Breite wie das Infopanel, nie eine eigene Rechnung. Beide Panels teilen sich
+	   DIESELBEN Randlaschen ("Info" / "Editor"), und die sitzen an `--avesmaps-ip-w` -- eine zweite
+	   Breite laesst die Lasche neben ihrem Panel stehen, statt an dessen Kante. Am Zeiger fiel das nie
+	   auf, weil beide `min()` dort auf 400 deckeln; am Telefon war dieses Panel `100vw - 64px` und
+	   damit 40px schmaler als die Kante, an der seine Lasche klebte -- die Lasche stand frei in der
+	   Karte (Owner 04.09.2026, am Telefon fotografiert). */
+	width: var(--avesmaps-ip-w);
 	overflow: hidden;
 	border: 1px solid var(--color-border);
 	border-radius: 8px 0 0 8px;
@@ -68,7 +74,7 @@
 .review-panel-toggle {
 	position: fixed;
 	top: var(--avesmaps-tab-top);
-	right: min(400px, calc(100vw - 64px));
+	right: var(--avesmaps-ip-w);
 	z-index: 1020;
 	width: var(--avesmaps-tab-w);
 	height: var(--avesmaps-tab-h);
