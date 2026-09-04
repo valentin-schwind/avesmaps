@@ -21,6 +21,18 @@
  *    (`avm-editor-dialog__header`, `political-territory-editor-dialog__header`) -- an der haengen
  *    ihre EIGENEN Regeln (Zieh-Verhalten der durchsichtigen Huelle, Grund). Sie faellt erst,
  *    wenn niemand sie mehr liest; das ist eine eigene Aufraeumung, kein Nebeneffekt hier.
+ *
+ * 🪤 DIESE DATEI LAG AM 04.09.2026 NICHT AUF DEM SERVER -- 404, waehrend index.html sie mit
+ *    korrektem ?v=-Stempel anforderte. Ursache ist die Falle aus AGENTS.md §9: ein zweiter Push
+ *    waehrend eines laufenden Deploys BRICHT dessen Lauf ab, und ein abgebrochener Lauf laedt
+ *    NICHTS hoch. Der naechste rechnet seine Dateien ab `github.event.before` -- also ab dem
+ *    abgebrochenen Commit -- und dessen EIGENE Dateien laedt damit nie jemand.
+ * 💣 Es faellt nicht auf: der Stempel in index.html ist der neue, die Datei dahinter fehlt einfach.
+ *    Kein Test sieht es, die Konsole zeigt nur ein nacktes 404 ohne Dateinamen. Gemessen war die
+ *    Folge schwer -- jedes umgestellte Fenster stand auf `display: block`: Griff, Titel und ✕
+ *    untereinander, Titel 13,3px statt 16, nativer Knopf statt 32x32.
+ * ⭐ Geheilt wird das NUR durch eine Inhaltsaenderung -- deshalb steht diese Notiz hier. Gefunden
+ *    hat es der Blick ins NETZ-PROTOKOLL der Live-Seite nach dem Push, nicht die Konsole.
  */
 
 /**
