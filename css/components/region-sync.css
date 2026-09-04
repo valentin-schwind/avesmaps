@@ -1116,7 +1116,7 @@
 	grid-template-columns: 16px minmax(0, 1fr);
 	grid-template-rows: auto auto;
 	align-items: center;
-	column-gap: 7px;
+	column-gap: var(--space-6);
 	/* 💣 War 7px. Der Kommentar hier begründete sie mit "einheitlich wie Siedlungen" — jemand hatte
 	   sie bewusst von 2 auf 7 gehoben, um zu vereinheitlichen. Owner 14.08.2026: "ja die 7px
 	   umdrehen". Jetzt haben ALLE Listen 2px, die Einheitlichkeit bleibt also gewahrt, nur enger.
@@ -1125,7 +1125,11 @@
 	row-gap: 2px;
 	width: 100%;
 	box-sizing: border-box;
-	padding: 5px 8px;
+	/* 🔴 Dasselbe Polster wie .avm-row (css/components/editor-row.css). Hier stand `5px 8px` --
+	   zwei Zahlen, die es auf der Abstandsskala GAR NICHT gibt (2/4/6/8/10/12/16/20/24 → 4/6/8/…),
+	   und 1-2px neben der Schwesterliste. Owner 04.09.2026: „die margins/paddings von listen. jedes
+	   sieht anders aus … aber der style sollte einheitlich sein." */
+	padding: var(--avm-row-pad);
 	/* Die Trennlinie war --color-panel-muted, eine FLÄCHENfarbe (#f1ece1 hell) und als Linie kaum
 	   sichtbar. --color-divider ist laut tokens.css "section separator — same everywhere".
 	   ⚠️ Als border-width-0-Kurzform geschrieben, weil Literatur, Karten und Vorkommen ihre Zeilen

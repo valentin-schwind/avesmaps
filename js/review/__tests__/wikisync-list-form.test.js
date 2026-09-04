@@ -103,8 +103,19 @@ assert.ok(/row-gap:\s*2px/.test(rumpf),
 	+ "Hoehenersparnis -- nicht aus kleinerer Schrift.");
 checks++;
 
-assert.ok(/padding:\s*5px 8px/.test(rumpf),
-	'Der gemeinsamen Zeile fehlt "padding: 5px 8px" (war 6px 8px).');
+// 🔴 SEIT 04.09.2026 DAS GETEILTE TOKEN statt `5px 8px`. Die alte Zusicherung nagelte einen Wert
+// fest, den es auf der Abstandsskala GAR NICHT gibt (2/4/6/8/… → 4/6/8/10/…) und der 1-2px neben
+// der Schwesterliste .avm-row lag -- genau die Divergenz, die der Owner am 04.09.2026 gemeldet hat:
+// „die margins/paddings von listen. jedes sieht anders aus … aber der style sollte einheitlich sein."
+// ⚠️ Die ABSICHT der alten Zeile bleibt gewahrt und wird weiter geprueft: die Zeile darf nicht
+//    zurueck auf hoehere Werte driften. --avm-row-pad ist 4/6 und damit KLEINER als die 5/8 von
+//    damals -- im Browser gemessen 42px -> 40px je Zeile.
+assert.ok(/padding:\s*var\(--avm-row-pad\)/.test(rumpf),
+	"Der gemeinsamen Zeile fehlt das geteilte Polster var(--avm-row-pad) -- dasselbe wie .avm-row.");
+checks++;
+
+assert.ok(!/padding:\s*\d+px/.test(rumpf),
+	"Die Zeile traegt wieder ein hartkodiertes Polster statt des Tokens (AGENTS.md §12).");
 checks++;
 
 // ---- 7. Die Schriftskala -- 11px ist die Untergrenze --------------------------------------------
