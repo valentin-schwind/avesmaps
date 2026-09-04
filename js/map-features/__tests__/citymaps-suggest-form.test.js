@@ -287,12 +287,14 @@ assert.ok(!/margin-top/.test(hintRegel), "der Hinweis UNTER einem Feld bleibt an
 		"Der Sucher findet keine Knopfmarken mehr (" + knopfMarken.size + ") -- er misst sich selbst kaputt");
 	const ohneZuhoerer = [];
 	for (const marke of knopfMarken) {
-		// Gelesen wird ueber closest("[data-…]") oder querySelector("[data-…]")
-		const gelesen = js.includes('closest("[' + marke + ']")')
-			|| js.includes("closest('[" + marke + "]')")
-			|| js.includes('querySelector("[' + marke + ']")')
-			|| js.includes('querySelectorAll("[' + marke + ']")')
-			|| js.includes('matches("[' + marke + ']")');
+		// 🪤 BEIDE Anfuehrungsformen bei ALLEN Lesearten. Der Sucher kannte sie zuerst nur bei
+		//    closest() -- eine Lesestelle mit einfachen Anfuehrungszeichen haette er nicht gefunden
+		//    und den Knopf faelschlich als unverdrahtet gemeldet. Ein Fehlalarm in einer Wache ist
+		//    teurer als ihr Schweigen: beim naechsten Mal glaubt ihr niemand mehr.
+		const gelesen = ["closest", "querySelector", "querySelectorAll", "matches"].some(function (art) {
+			return js.includes(art + "(\"[" + marke + "]\")")
+				|| js.includes(art + "('[" + marke + "]')");
+		});
 		if (!gelesen) { ohneZuhoerer.push(marke); }
 	}
 	assert.deepStrictEqual(ohneZuhoerer, [],

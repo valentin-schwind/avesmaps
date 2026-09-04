@@ -354,9 +354,16 @@
       Spezifitaet (0,1,0) siegt also die spaetere. Die alte Aufzaehlung im Kommentar nannte
       „Rand, Radius, Grund, Schatten und overflow" und liess die Flex-Richtung aus -- eine
       Aufzaehlung, die eine Eigenschaft vergisst, laesst genau diese stehen.
-   ⚠️ Es faellt heute nicht auf, weil das Fenster GENAU ZWEI Kinder hat (Kopf, Rumpf) und ein
-      zweizeiliges Raster dort dasselbe tut wie eine Flexspalte. Beim dritten Kind waere es
-      auseinandergelaufen. Was BLEIBT, ist nur, dass das Modal die Flaeche seines Wirts fuellt. */
+   🪤 UND DER GRUND, DEN ICH ZUERST DAFUER ANGAB, WAR FALSCH: hier stand „faellt nicht auf, weil
+      das Fenster GENAU ZWEI Kinder hat -- beim dritten waere es auseinandergelaufen". Das
+      Fenster gibt es ZWEIMAL: „Funktionen" hat zwei Kinder, „Tempowerte" hat DREI (Kopf,
+      Rumpf, Speicherleiste). Der Dreikinder-Fall stand also schon danebem, als ich ihn als
+      kuenftige Gefahr beschrieb.
+      ⭐ Ein Pruefagent hat beide Fassungen im echten Browser gerendert und vermessen: Grid
+      und Flex loesen fuer diese Kette PIXELGLEICH auf (Kopf y=14 h=45, Rumpf y=59 h=691,
+      Leiste y=758 h=38 -- in beiden). Kein Kind traegt `grid-row`/`grid-column`. Der Umbau
+      ist damit nachweislich folgenlos -- aber aus einem anderen Grund, als ich zuerst schrieb.
+   ⚠️ Was BLEIBT, ist nur, dass das Modal die Flaeche seines Wirts fuellt. */
 .wp-modal__box {
 	width: 100%;
 	height: 100%;

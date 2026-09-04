@@ -706,6 +706,13 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
    umzubauen -- dieselbe Antwort wie beim Meldeformular („Ort bearbeiten").
    ⚠️ Die negativen Aussenraender heben GENAU das Polster des Rumpfes auf (--space-16), damit
       die Trennlinie randlos laeuft. Wer eines von beiden aendert, aendert beide. */
+   🪤 Und DASS es beim Intro-Blatt ueberhaupt klebt, hat einen subtileren Grund als die drei
+      anderen: dort ist die Leiste ein GESCHWISTER des Rumpfes, kein Kind. `position: sticky`
+      richtet sich aber nach dem naechsten Vorfahren mit `overflow != visible` -- und das ist
+      hier die Huelle selbst (`overflow: hidden` aus dem Bauteil), nicht der Rumpf. Es
+      funktioniert also, nur nicht aus dem Grund, den die Verschachtelung nahelegt. Von einem
+      Pruefagenten im echten Browser vermessen, auch bei kuenstlich verengter Fensterhoehe:
+      kein Clipping, Polster 6/14, Knopf vollstaendig sichtbar.
 .ecosystem-assign-dialog__actions,
 .label-assign-dialog__actions,
 .ecosystem-intro-dialog__actions,
