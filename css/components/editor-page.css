@@ -33,6 +33,12 @@
    Dialog in index.html lebt und diese Datei nie sieht. Ein @import muss VOR jeder Regel stehen
    (nur Kommentare dürfen davor), deshalb sitzt er hier oben und nicht unten bei den Zeilenregeln.
    Die sechs Editorseiten merken nichts: sie binden editor-page.css und bekommen die Zeile mit. */
+/* Das Fenster-Bauteil (Kopfleiste, Schliessknopf, Rumpf-Scroll, Fussleiste, Bildlaufleiste).
+   Die sechs Editorseiten sind eigenstaendige iframe-Dokumente und laden css/styles.css NICHT --
+   ohne diesen @import kaeme ihr Modale (Darstellung, Funktionen, Tempowerte, die sechs
+   modal-box-Fenster) nie an das Bauteil und schriebe es zum siebten Mal ab.
+   ⚠️ Auch dieser @import muss VOR jeder Regel stehen. */
+@import url("fenster.css");
 @import url("editor-row.css");
 
 /* 💣 Und der Statuskreis daneben -- dieselbe Bauform, derselbe Grund. Er stand bis 2026-08-18 in

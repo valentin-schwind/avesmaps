@@ -112,10 +112,11 @@
 <!-- „Funktionen anzeigen" — its own window, INSIDE this document. It belongs to the editor, so it
      lives with it; a second overlay in the host would need its own opener and its own lifecycle. -->
 <div class="wp-modal" id="wpFnOverlay" hidden>
-  <div class="wp-modal__box" role="dialog" aria-modal="true" aria-labelledby="wpFnTitle">
-    <div class="wp-modal__head">
-      <h2 id="wpFnTitle">Das Reisemodell, wie es gerade rechnet</h2>
-      <button type="button" class="wp-modal__close" id="wpFnClose" aria-label="Schließen">✕</button>
+  <div class="wp-modal__box avm-fenster avm-fenster--werkzeug" role="dialog" aria-modal="true" aria-labelledby="wpFnTitle">
+    <div class="wp-modal__head avm-fenster__kopf">
+      <span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>
+      <h2 class="avm-fenster__titel" id="wpFnTitle">Das Reisemodell, wie es gerade rechnet</h2>
+      <button type="button" class="avm-fenster__knopf avm-fenster__knopf--gefasst" id="wpFnClose" aria-label="Schließen">✕</button>
     </div>
     <div class="wp-fn" id="wpFnBody"></div>
   </div>
@@ -126,10 +127,11 @@
      🔴 Die GA-Tafel selbst steht im SERVER (api/_internal/routing/travel-values.php); hier stehen
      nur die Werte, die von dort kommen. Zweimal gepflegt liefen sie auseinander. -->
 <div class="wp-modal" id="wpTempoOverlay" hidden>
-  <div class="wp-modal__box" role="dialog" aria-modal="true" aria-labelledby="wpTempoTitle">
-    <div class="wp-modal__head">
-      <h2 id="wpTempoTitle">Tempowerte — die Zahlen der Geographia Aventurica</h2>
-      <button type="button" class="wp-modal__close" id="wpTempoClose" aria-label="Schließen">✕</button>
+  <div class="wp-modal__box avm-fenster avm-fenster--werkzeug" role="dialog" aria-modal="true" aria-labelledby="wpTempoTitle">
+    <div class="wp-modal__head avm-fenster__kopf">
+      <span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>
+      <h2 class="avm-fenster__titel" id="wpTempoTitle">Tempowerte — die Zahlen der Geographia Aventurica</h2>
+      <button type="button" class="avm-fenster__knopf avm-fenster__knopf--gefasst" id="wpTempoClose" aria-label="Schließen">✕</button>
     </div>
     <div class="wp-tempo" id="wpTempoBody"></div>
     <!-- ⭐ Dieselbe Speicherleiste wie die Liste darunter (.avm-savebar), nicht eine zweite: EIN
