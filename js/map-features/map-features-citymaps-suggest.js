@@ -195,9 +195,9 @@
 		overlay = document.createElement("div");
 		overlay.id = "avesmaps-citymap-suggest";
 		overlay.className = "avesmaps-adv-dialog citymap-suggest";
-		overlay.innerHTML = '<div class="avesmaps-adv-dialog__box" role="dialog" aria-modal="true" aria-labelledby="citymap-suggest-title">'
-			+ '<div class="avesmaps-adv-dialog__head"><span class="avesmaps-adv-dialog__title" id="citymap-suggest-title"></span>'
-			+ '<button type="button" class="avesmaps-adv-dialog__close" data-citymap-suggest-close aria-label="' + esc(t("cityMaps.closeAria", "Schließen")) + '">✕</button></div>'
+		overlay.innerHTML = '<div class="avesmaps-adv-dialog__box avm-fenster avm-fenster--blatt" role="dialog" aria-modal="true" aria-labelledby="citymap-suggest-title">'
+			+ '<div class="avesmaps-adv-dialog__head avm-fenster__kopf"><span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span><span class="avesmaps-adv-dialog__title avm-fenster__titel" id="citymap-suggest-title"></span>'
+			+ '<button type="button" class="avesmaps-adv-dialog__close avm-fenster__knopf avm-fenster__knopf--nackt" data-citymap-suggest-close aria-label="' + esc(t("cityMaps.closeAria", "Schließen")) + '">✕</button></div>'
 			+ '<form class="citymap-suggest__body" novalidate>'
 			// Das Hinweisfeld (Owner 2026-07-17). Sagt beides ausdruecklich: du musst nicht, aber es hilft.
 			// Der letzte Satz ist der wichtige -- er nimmt die Sorge, ein halb ausgefuellter Vorschlag sei
@@ -590,9 +590,9 @@
 		overlay = document.createElement("div");
 		overlay.id = "avesmaps-citymap-fundort";
 		overlay.className = "avesmaps-adv-dialog citymap-suggest citymap-fundort";
-		overlay.innerHTML = '<div class="avesmaps-adv-dialog__box" role="dialog" aria-modal="true" aria-labelledby="citymap-fundort-title">'
-			+ '<div class="avesmaps-adv-dialog__head"><span class="avesmaps-adv-dialog__title" id="citymap-fundort-title"></span>'
-			+ '<button type="button" class="avesmaps-adv-dialog__close" data-fundort-close aria-label="' + esc(t("cityMaps.closeAria", "Schließen")) + '">✕</button></div>'
+		overlay.innerHTML = '<div class="avesmaps-adv-dialog__box avm-fenster avm-fenster--blatt" role="dialog" aria-modal="true" aria-labelledby="citymap-fundort-title">'
+			+ '<div class="avesmaps-adv-dialog__head avm-fenster__kopf"><span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span><span class="avesmaps-adv-dialog__title avm-fenster__titel" id="citymap-fundort-title"></span>'
+			+ '<button type="button" class="avesmaps-adv-dialog__close avm-fenster__knopf avm-fenster__knopf--nackt" data-fundort-close aria-label="' + esc(t("cityMaps.closeAria", "Schließen")) + '">✕</button></div>'
 			+ '<form class="citymap-suggest__body" novalidate>'
 			+ '<p class="citymap-suggest__notice">' + esc(t("cityMaps.fundortNotice",
 				"Kennst du eine weitere Stelle, an der es diese Karte gibt? Bezeichnung und Link genügen — die Bezeichnung ist das, was der Leser anklickt, also die Fundstelle selbst („Wiki-Aventurica“), nicht die Karte.")) + '</p>'

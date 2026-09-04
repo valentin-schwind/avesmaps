@@ -386,44 +386,15 @@
 .avesmaps-adv-dialog.is-open {
 	display: flex;
 }
+/* ⚠️ Grund, Radius, Schatten und overflow gehoeren dem Bauteil (--radius-lg: es ist ein BLATT
+   -- ansehen, schliessen). Hier stand `border-radius: 10px` hartkodiert. Was bleibt, ist das
+   Mass dieser Fenster. */
 .avesmaps-adv-dialog__box {
-	display: flex;
-	flex-direction: column;
-	/* 860px (Aufgabe B, §2.3): die Zeile braucht 62 + Mitte + 196 plus Padding. Der Nested-Dialog setzt
-	   sich in game-literature-dialog.css weiterhin auf seine eigene Breite. */
+	/* 860px (Aufgabe B, §2.3): die Zeile braucht 62 + Mitte + 196 plus Padding. Der Nested-Dialog
+	   setzt sich in game-literature-dialog.css weiterhin auf seine eigene Breite. */
 	width: min(860px, 100%);
 	max-height: min(82vh, 900px);
-	background: var(--color-panel);
 	color: var(--color-text-strong);
-	border-radius: 10px;
-	box-shadow: var(--shadow-dialog);
-	overflow: hidden;
-}
-.avesmaps-adv-dialog__head {
-	flex: 0 0 auto;
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: 10px;
-	padding: 13px 16px;
-	border-bottom: 1px solid var(--color-divider);
-	font-size: 15px;
-	font-weight: 700;
-}
-.avesmaps-adv-dialog__close {
-	flex: 0 0 auto;
-	appearance: none;
-	border: none;
-	background: transparent;
-	font-size: 18px;
-	line-height: 1;
-	color: var(--color-text-muted);
-	cursor: pointer;
-	padding: 3px 7px;
-	border-radius: 5px;
-}
-.avesmaps-adv-dialog__close:hover {
-	background: var(--color-hover-wash);
 }
 /* Aufgabe B (§2.3): der flache Dialog ist eine LISTE, kein Kachelraster -- in eine 92px-Kachel passt keine
    Link-Spalte. Die Klasse heisst weiter __grid: sie ist der Karten-Container, auf den die geteilten

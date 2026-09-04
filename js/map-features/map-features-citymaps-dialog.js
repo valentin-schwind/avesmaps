@@ -36,9 +36,9 @@
 		overlay = document.createElement("div");
 		overlay.id = "avesmaps-citymaps-dialog";
 		overlay.className = "avesmaps-adv-dialog avesmaps-citymaps-dialog";
-		overlay.innerHTML = '<div class="avesmaps-adv-dialog__box" role="dialog" aria-modal="true">'
-			+ '<div class="avesmaps-adv-dialog__head"><span class="avesmaps-adv-dialog__title"></span>'
-			+ '<button type="button" class="avesmaps-adv-dialog__close" aria-label="' + esc(tr("cityMaps.closeAria", "Schließen")) + '">✕</button></div>'
+		overlay.innerHTML = '<div class="avesmaps-adv-dialog__box avm-fenster avm-fenster--blatt" role="dialog" aria-modal="true">'
+			+ '<div class="avesmaps-adv-dialog__head avm-fenster__kopf"><span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span><span class="avesmaps-adv-dialog__title avm-fenster__titel"></span>'
+			+ '<button type="button" class="avesmaps-adv-dialog__close avm-fenster__knopf avm-fenster__knopf--nackt" aria-label="' + esc(tr("cityMaps.closeAria", "Schließen")) + '">✕</button></div>'
 			+ '<div class="avesmaps-citymaps-dialog__controls"></div>'
 			+ '<div class="avesmaps-citymaps-dialog__grid"></div>'
 			+ '<div class="avesmaps-citymaps-dialog__foot"></div></div>';
