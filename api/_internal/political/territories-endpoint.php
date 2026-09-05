@@ -1,4 +1,5 @@
 <?php
+// 🪤 05.09.2026 Stempel-Heilung: der Deploy-Lauf zu 40f050a61/2e9a44016 wurde in der Warteschlange abgebrochen (ein zweiter Push, waehrend er wartete) und hat nichts hochgeladen -- der naechste Lauf rechnet ab dem abgebrochenen Commit und laedt diese Datei nie. Nur eine Inhaltsaenderung heilt das (AGENTS.md §9, css/components/fenster.css).
 
 declare(strict_types=1);
 
