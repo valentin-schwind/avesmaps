@@ -186,6 +186,19 @@ function avesmapsPoliticalUpdateGeometry(PDO $pdo, array $payload, array $user):
     $incomingStyle = is_array($payload['style_json'] ?? null) ? $payload['style_json'] : [];
     $style = array_merge($currentStyle, $incomingStyle);
 
+    // 💣 Die bbox-Spalten folgen der GEOMETRIE -- bei JEDEM Schreiben, nicht nur beim Anlegen.
+    // Bis zum 05.09.2026 schrieb dieser Pfad geometry_geojson neu und liess min_x..max_y stehen;
+    // gesetzt hatte sie nur der Anlege-Pfad, aus dem Start-Sechseck des Platzhalters. Gemessen am
+    // Dump vom 04.09.2026: 896 von 908 aktiven Zeilen trugen noch den Sechseck-Kasten (20x17,32,
+    // 100x86,6, 160x138,56 -- die Hoehe ist die Breite mal sqrt(3)/2). Jeder Leser, der ueber diese
+    // Spalten VORFILTERT, war blind, sobald die Flaeche aus ihrem Sechseck herausgewachsen war:
+    // „Was ist hier?" fand um Al'Anfa kein Imperium (Zeile 1011: gespeichert x 437..457, echt
+    // x 394..512), „Zum Gebiet springen" (territory_bounds) flog auf das Sechseck, das Inventar
+    // sortierte nach Sechseckflaechen. Der Layer filtert NICHT ueber die bbox und zeichnete deshalb
+    // richtig -- darum fiel es erst auf, als ein zweiter Leser die Spalten glaubte. Der Bestand ist
+    // ueber die Aktion `repair_geometry_bounds` (avesmapsPoliticalRepairGeometryBounds) nachgezogen.
+    $bounds = avesmapsPoliticalCalculateGeometryBounds($geometry);
+
     $statement = $pdo->prepare(
         'UPDATE political_territory_geometry
         SET territory_id = :territory_id,
@@ -194,6 +207,10 @@ function avesmapsPoliticalUpdateGeometry(PDO $pdo, array $payload, array $user):
             valid_to_bf = :valid_to_bf,
             min_zoom = :min_zoom,
             max_zoom = :max_zoom,
+            min_x = :min_x,
+            min_y = :min_y,
+            max_x = :max_x,
+            max_y = :max_y,
             source = :source,
             style_json = :style_json,
             updated_by = :updated_by
@@ -204,6 +221,10 @@ function avesmapsPoliticalUpdateGeometry(PDO $pdo, array $payload, array $user):
         'id' => (int) $geometryRow['id'],
         'territory_id' => $territoryId,
         'geometry_geojson' => avesmapsPoliticalEncodeJsonOrNull($geometry),
+        'min_x' => $bounds['min_x'],
+        'min_y' => $bounds['min_y'],
+        'max_x' => $bounds['max_x'],
+        'max_y' => $bounds['max_y'],
         'valid_from_bf' => avesmapsPoliticalReadOptionalInt($payload['valid_from_bf'] ?? $geometryRow['valid_from_bf'] ?? null),
         'valid_to_bf' => avesmapsPoliticalReadOptionalInt($payload['valid_to_bf'] ?? $geometryRow['valid_to_bf'] ?? null),
         'min_zoom' => avesmapsPoliticalReadOptionalZoom($payload['min_zoom'] ?? $geometryRow['min_zoom'] ?? null),
@@ -1525,6 +1546,133 @@ function avesmapsPoliticalCalculateGeometryBounds(array $geometry): array {
         'min_y' => min($yValues),
         'max_x' => max($xValues),
         'max_y' => max($yValues),
+    ];
+}
+
+/**
+ * Zieht die bbox-Spalten (min_x..max_y) aller Geometriezeilen aus ihrer Geometrie nach.
+ *
+ * Der Bestand vom 05.09.2026 (siehe avesmapsPoliticalUpdateGeometry): 896 von 908 aktiven Zeilen
+ * trugen noch den Kasten ihres Start-Sechsecks. Trockenlauf ist die Vorgabe -- er zaehlt und zeigt
+ * eine Stichprobe, schreibt aber nichts. Scharf (`$trockenlauf = false`) schreibt er hoechstens
+ * `$limit` Zeilen, jede einzeln; ein Fehler an einer Zeile wird gemeldet, nicht geschluckt, und haelt
+ * die uebrigen nicht auf. Ein zweiter Lauf findet nichts mehr (idempotent).
+ *
+ * 🔴 Nur die vier bbox-Spalten -- kein updated_by und kein updated_at: das ist eine Datenreparatur,
+ * keine Bearbeitung, und das Inventar zeigt updated_at als „zuletzt geaendert". `updated_at =
+ * updated_at` haelt MySQLs ON UPDATE CURRENT_TIMESTAMP still (eine Spalte, die ausdruecklich auf ihren
+ * eigenen Wert gesetzt wird, wird nicht automatisch fortgeschrieben). Kein Audit-Eintrag aus demselben
+ * Grund: die Geometrie selbst aendert sich nicht, nur ihre abgeleitete Kennzahl.
+ * ⚠️ Auch INAKTIVE Zeilen: der Papierkorb ist wiederherstellbar, und ohne Nachzug kaeme die alte bbox
+ * mit der Zeile zurueck.
+ * ⚠️ Blockweise, 200 je Abfrage: eine Geometrie kann zweistellige Kilobyte tragen, alle ~950 auf
+ * einmal waeren ein zweistelliger Megabyte-Puffer auf STRATO.
+ */
+function avesmapsPoliticalRepairGeometryBounds(PDO $pdo, bool $trockenlauf = true, int $limit = 1000): array {
+    $limit = max(1, $limit);
+    // DECIMAL(10,4) rundet auf vier Stellen; die Koordinaten der Karte tragen drei. Alles unter einem
+    // Tausendstel ist Rundung, keine Abweichung.
+    $toleranz = 0.001;
+    $geprueft = 0;
+    $abweichend = 0;
+    $repariert = 0;
+    $unlesbar = 0;
+    $fehler = [];
+    $stichprobe = [];
+
+    $lesen = $pdo->prepare(
+        'SELECT id, public_id, territory_id, is_active, geometry_geojson, min_x, min_y, max_x, max_y
+        FROM political_territory_geometry
+        WHERE id > :nach
+        ORDER BY id ASC
+        LIMIT 200'
+    );
+    $schreiben = $pdo->prepare(
+        'UPDATE political_territory_geometry
+        SET min_x = :min_x,
+            min_y = :min_y,
+            max_x = :max_x,
+            max_y = :max_y,
+            updated_at = updated_at
+        WHERE id = :id'
+    );
+
+    $nach = 0;
+    while (true) {
+        $lesen->execute(['nach' => $nach]);
+        $zeilen = $lesen->fetchAll(PDO::FETCH_ASSOC);
+        if ($zeilen === []) {
+            break;
+        }
+        foreach ($zeilen as $zeile) {
+            $nach = (int) $zeile['id'];
+            $geprueft++;
+            try {
+                $soll = avesmapsPoliticalCalculateGeometryBounds(avesmapsPoliticalDecodeJson($zeile['geometry_geojson'] ?? null));
+            } catch (InvalidArgumentException) {
+                $unlesbar++;
+                continue;
+            }
+            $ist = [
+                'min_x' => (float) ($zeile['min_x'] ?? 0),
+                'min_y' => (float) ($zeile['min_y'] ?? 0),
+                'max_x' => (float) ($zeile['max_x'] ?? 0),
+                'max_y' => (float) ($zeile['max_y'] ?? 0),
+            ];
+            $delta = max(
+                abs($soll['min_x'] - $ist['min_x']),
+                abs($soll['min_y'] - $ist['min_y']),
+                abs($soll['max_x'] - $ist['max_x']),
+                abs($soll['max_y'] - $ist['max_y'])
+            );
+            if ($delta <= $toleranz) {
+                continue;
+            }
+            $abweichend++;
+            if (count($stichprobe) < 12) {
+                $stichprobe[] = [
+                    'id' => (int) $zeile['id'],
+                    'public_id' => (string) ($zeile['public_id'] ?? ''),
+                    'territory_id' => isset($zeile['territory_id']) ? (int) $zeile['territory_id'] : null,
+                    'is_active' => (int) ($zeile['is_active'] ?? 0) === 1,
+                    'delta' => round($delta, 3),
+                    'stored' => $ist,
+                    'computed' => $soll,
+                ];
+            }
+            if ($trockenlauf || $repariert >= $limit) {
+                continue;
+            }
+            try {
+                $schreiben->execute([
+                    'id' => (int) $zeile['id'],
+                    'min_x' => $soll['min_x'],
+                    'min_y' => $soll['min_y'],
+                    'max_x' => $soll['max_x'],
+                    'max_y' => $soll['max_y'],
+                ]);
+                $repariert++;
+            } catch (Throwable $exception) {
+                $fehler[] = [
+                    'id' => (int) $zeile['id'],
+                    'public_id' => (string) ($zeile['public_id'] ?? ''),
+                    'message' => $exception->getMessage(),
+                ];
+            }
+        }
+    }
+
+    return [
+        'ok' => true,
+        'dry_run' => $trockenlauf,
+        'limit' => $limit,
+        'checked' => $geprueft,
+        'stale' => $abweichend,
+        'repaired' => $repariert,
+        'remaining' => max(0, $abweichend - $repariert),
+        'unreadable' => $unlesbar,
+        'errors' => $fehler,
+        'sample' => $stichprobe,
     ];
 }
 

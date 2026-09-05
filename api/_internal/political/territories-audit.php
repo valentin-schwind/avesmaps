@@ -495,6 +495,20 @@ function avesmapsPoliticalRestoreAuditTerritories(PDO $pdo, array $beforePayload
 }
 
 function avesmapsPoliticalApplyGeometryAuditSnapshot(PDO $pdo, string $geometryPublicId, array $snapshot, int $userId): void {
+    // 🔴 Die bbox kommt aus der GEOMETRIE des Schnappschusses, nicht aus seinen bbox-Feldern: ein
+    // Schnappschuss von vor dem 05.09.2026 traegt den veralteten Sechseck-Kasten (siehe
+    // avesmapsPoliticalUpdateGeometry), und ein Rueckgaengig legte ihn sonst wieder in die Zeile --
+    // nachdem repair_geometry_bounds sie gerade erst nachgezogen hat. Die Felder bleiben als
+    // Rueckfall fuer einen Schnappschuss ohne lesbare Geometrie.
+    $bounds = null;
+    if (is_array($snapshot['geometry_geojson'] ?? null)) {
+        try {
+            $bounds = avesmapsPoliticalCalculateGeometryBounds($snapshot['geometry_geojson']);
+        } catch (InvalidArgumentException) {
+            $bounds = null;
+        }
+    }
+
     $statement = $pdo->prepare(
         'UPDATE political_territory_geometry
         SET territory_id = :territory_id,
@@ -521,10 +535,10 @@ function avesmapsPoliticalApplyGeometryAuditSnapshot(PDO $pdo, string $geometryP
         'valid_to_bf' => isset($snapshot['valid_to_bf']) ? avesmapsPoliticalNullableInt($snapshot['valid_to_bf']) : null,
         'min_zoom' => isset($snapshot['min_zoom']) ? avesmapsPoliticalNullableInt($snapshot['min_zoom']) : null,
         'max_zoom' => isset($snapshot['max_zoom']) ? avesmapsPoliticalNullableInt($snapshot['max_zoom']) : null,
-        'min_x' => (float) ($snapshot['min_x'] ?? 0),
-        'min_y' => (float) ($snapshot['min_y'] ?? 0),
-        'max_x' => (float) ($snapshot['max_x'] ?? 0),
-        'max_y' => (float) ($snapshot['max_y'] ?? 0),
+        'min_x' => $bounds['min_x'] ?? (float) ($snapshot['min_x'] ?? 0),
+        'min_y' => $bounds['min_y'] ?? (float) ($snapshot['min_y'] ?? 0),
+        'max_x' => $bounds['max_x'] ?? (float) ($snapshot['max_x'] ?? 0),
+        'max_y' => $bounds['max_y'] ?? (float) ($snapshot['max_y'] ?? 0),
         'source' => avesmapsPoliticalNullableString((string) ($snapshot['source'] ?? '')),
         'style_json' => avesmapsPoliticalEncodeJsonOrNull($snapshot['style_json'] ?? null),
         'is_active' => (int) ($snapshot['is_active'] ?? 0) === 1 ? 1 : 0,

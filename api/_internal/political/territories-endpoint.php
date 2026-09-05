@@ -251,6 +251,18 @@ try {
         'delete_geometry_part' => avesmapsPoliticalDeleteGeometryPart($pdo, $payload, $user),
         'hard_delete_geometry' => avesmapsPoliticalHardDeleteUnassignedGeometry($pdo, $payload, $user),
         'purge_unassigned_geometries' => avesmapsPoliticalPurgeUnassignedGeometries($pdo, $payload, $user),
+        // Die bbox-Spalten der Geometriezeilen aus ihrer Geometrie nachziehen (der Sechseck-Befund
+        // vom 05.09.2026, siehe avesmapsPoliticalUpdateGeometry). NUR Admins; Trockenlauf ist die
+        // Vorgabe, scharf erst mit `apply: true` -- dieselbe Bauform wie takeover_other_sources.
+        'repair_geometry_bounds' => (static function () use ($pdo, $payload, $user): array {
+            if (!avesmapsUserCan($user, 'admin')) {
+                avesmapsErrorResponse(403, 'forbidden', 'Das Nachziehen der bbox-Spalten ist Admins vorbehalten.');
+            }
+            $scharf = ($payload['apply'] ?? false) === true;
+            $limit = (int) ($payload['limit'] ?? 1000);
+
+            return avesmapsPoliticalRepairGeometryBounds($pdo, !$scharf, $limit > 0 ? $limit : 1000);
+        })(),
         'geometry_operation' => avesmapsPoliticalApplyGeometryOperationResult($pdo, $payload, $user),
         'geometry_operation_debug' => avesmapsPoliticalDebugGeometryOperation($payload),
         'undo_audit_change' => avesmapsPoliticalUndoAuditChange($pdo, $payload, $user),
