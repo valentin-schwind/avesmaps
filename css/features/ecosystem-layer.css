@@ -1313,6 +1313,56 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 	color: var(--color-text);
 }
 
+/* Die Überschrift einer Reglergruppe (05.09.2026, Owner: „mach die knopf-rangfolge und die gruppen").
+   🔴 TRENNLINIE UND ÜBERSCHRIFT, KEIN KASTEN -- §12 der Designsprache, wörtlich: „Group by divider
+   (--color-divider line + heading), not by framed boxes". Vorher lagen elf gleich aussehende
+   Reglerzeilen ohne jede Trennung untereinander; ein eigener Kommentar im Markup hatte diese
+   Gruppierung schon einmal entworfen und war nie gebaut worden.
+   ⚠️ Die ERSTE Gruppe bekommt keine Linie: sie steht direkt unter dem `summary`, das seine eigene
+   trägt -- zwei Linien übereinander lesen sich wie ein leerer Abschnitt dazwischen.
+   ⚠️ Dieselben Werte wie jede andere Aufschrift dieser Rolle im Haus: Versalien,
+   `--font-size-caption`, `--font-weight-bold`, `--color-accent-strong`, `--letter-spacing-caps`.
+   Eine weitere Rezeptur für dieselbe Rolle wäre genau die Divergenz, vor der §12 warnt.
+   🪤 HIER STAND ZUERST `--color-accent-brown` UND `letter-spacing: 0.06em` -- und das war die
+   Wiederholung eines Fehlers, der am 04.09.2026 schon einmal korrigiert wurde: der Rahmenkasten
+   trug dieselbe falsche Farbe, `docs/design-language.md` §Rahmenkasten hält die Korrektur
+   ausdrücklich fest („Hier stand `--color-accent-brown`, und das war … eine zweite, falsche Angabe
+   zur selben Sache"). Der Kommentar berief sich auf den Rahmenkasten und schrieb dessen ALTEN Wert
+   ab. §12 sagt es an der Wurzel: „section / card headings → `--color-accent-strong` (gold)".
+   ⚠️ Und die Laufweite ist ein TOKEN (`--letter-spacing-caps`, 0.08em), keine gegriffene Zahl --
+   0.06em wäre die fünfte Variante derselben Rolle gewesen. */
+.ecosystem-properties-dialog__terraingroup {
+	margin: var(--space-4) 0 0;
+	border-top: 1px solid var(--color-divider);
+	padding-top: var(--space-6);
+	color: var(--color-accent-strong);
+	font-size: var(--font-size-caption);
+	font-weight: var(--font-weight-bold);
+	letter-spacing: var(--letter-spacing-caps);
+	text-transform: uppercase;
+}
+
+.ecosystem-properties-dialog__terraingroup:first-of-type {
+	margin-top: 0;
+	border-top: 0;
+	padding-top: 0;
+}
+
+/* 💣 DIE ZEILEN IN DER FALTE HATTEN NULL ABSTAND -- und das sieht man erst, wenn man es nachrechnet.
+   `.ecosystem-properties-dialog__terrain` ist ein Raster mit `row-gap`, aber ein Raster verteilt
+   seinen Gap nur zwischen seinen DIREKTEN Kindern; das `<details>` ist genau EINES davon und
+   rendert seinen Inhalt im normalen Blockfluss. `.terrainrow` selbst setzt kein `margin`. Elf
+   Reglerzeilen klebten also aneinander, während die zwei Zeilen ÜBER der Falte (Morphologie,
+   Höhenstufe -- echte Rasterkinder) ihre 8px hatten.
+   🔴 Das ist kein Fehler dieses Umbaus: die Falte kam am 04.09.2026, der Abstand fehlte seither.
+   Er wird hier nachgezogen, weil eine Gruppierung ohne Luft zwischen den Zeilen nichts gruppiert --
+   die Überschrift stünde dann so dicht an ihrer Gruppe wie die Zeilen aneinander.
+   ⚠️ Nur die Zeilen IN der Falte: die zwei darüber bekommen ihren Abstand vom Raster, und beides
+   zugleich gäbe dort den doppelten. Gefunden von einem Prüfagenten, gerechnet statt gesehen. */
+.ecosystem-properties-dialog__terrainfold > .ecosystem-properties-dialog__terrainrow {
+	margin-top: var(--space-6);
+}
+
 .ecosystem-properties-dialog__terrainactions {
 	display: flex;
 	gap: var(--space-6);

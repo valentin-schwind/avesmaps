@@ -2129,10 +2129,36 @@
 							     &bdquo;n weitere Quellen&ldquo; und das Fenster &bdquo;Hinweise&ldquo;. -->
 							<details class="ecosystem-properties-dialog__terrainfold">
 								<summary><span id="ecosystem-properties-foldtitle">Erosion und Feinabstimmung</span></summary>
-							<label class="ecosystem-properties-dialog__terrainrow">
-								<span>Erhebungen</span>
-								<span class="ecosystem-properties-dialog__sliderwrap"><input id="ecosystem-properties-grain" type="range" min="1" max="24" step="0.1" /><span id="ecosystem-properties-grain-mark" class="ecosystem-properties-dialog__slidermark" hidden></span></span>
-								<input id="ecosystem-properties-grain-num" class="ecosystem-properties-dialog__terrainnum" type="number" min="1" max="24" step="0.1" inputmode="decimal" aria-label="Wert eingeben" /><button type="button" id="ecosystem-properties-grain-reset" class="ecosystem-properties-dialog__reset" hidden title="Auf die Vorgabe der Vorlage zur&uuml;cksetzen" aria-label="Auf die Vorgabe der Vorlage zur&uuml;cksetzen">&#8635;</button>
+							<!-- 🔴 DREI GRUPPEN, GETRENNT DURCH EINE LINIE (Owner 05.09.2026: „mach die knopf-rangfolge
+							     und die gruppen“). §12 der Designsprache: gruppiert wird mit Trennlinie und Überschrift,
+							     nicht mit Kästen. Vorher lagen elf gleich aussehende Reglerzeilen ohne jede Trennung
+							     untereinander -- und die Reihenfolge trennte, was zusammengehört.
+							     ⚠️ Die Reihenfolge INNERHALB einer Gruppe ist die der RECHNUNG (Kamm → Bergform → Rauschen
+							     → Hypsometrie → Täler → Erosion), nicht die alphabetische: wer von oben nach unten
+							     einstellt, soll nicht an einem Regler drehen, den ein späterer wieder überschreibt. -->
+							<!-- Was den Ruecken traegt: wo er durchhaengt, wie hoch er steht, wie breit er oben ist, wie weit ein Einzelberg ausstrahlt und wie die Hoehen sich verteilen. -->
+							<p class="ecosystem-properties-dialog__terraingroup">Kamm und Form</p>
+							<label class="ecosystem-properties-dialog__terrainrow" title="Wie weit die Kammlinie zwischen zwei Gipfeln durchh&auml;ngt. 1 = Plateau.">
+								<span>Kamm-Sattel</span>
+								<span class="ecosystem-properties-dialog__sliderwrap"><input id="ecosystem-properties-sattel" type="range" min="0.3" max="1" step="0.01" /><span id="ecosystem-properties-sattel-mark" class="ecosystem-properties-dialog__slidermark" hidden></span></span>
+								<input id="ecosystem-properties-sattel-num" class="ecosystem-properties-dialog__terrainnum" type="number" min="0.3" max="1" step="0.01" inputmode="decimal" aria-label="Wert eingeben" /><button type="button" id="ecosystem-properties-sattel-reset" class="ecosystem-properties-dialog__reset" hidden title="Auf die Vorgabe der Vorlage zur&uuml;cksetzen" aria-label="Auf die Vorgabe der Vorlage zur&uuml;cksetzen">&#8635;</button>
+							</label>
+							<!-- 🔴 &bdquo;Kammh&ouml;he (ohne Einzelgipfel)&ldquo; seit dem 04.09.2026 (Owner). Sie hie&szlig;
+							     &bdquo;Maximalh&ouml;he&ldquo;, und das war seit V12 falsch: die Gipfel &uuml;berragen sie, sie ist
+							     nicht das Maximum. Sie ist der SOCKEL des Kamms &mdash; die H&ouml;he, unter die das
+							     R&uuml;ckgrat des Gebirges zwischen zwei Gipfeln nicht f&auml;llt.
+							     💣 Die KENNUNGEN bleiben (`terrain_avg_height`, `-avgheight`) &mdash; dieselbe Trennung
+							     wie bei &bdquo;Neuigkeiten&ldquo;/`changelog`: eine umgetaufte Kennung l&auml;sst eine gecachte
+							     Seite ins Leere greifen, und der Deploy l&ouml;scht nie. -->
+							<label class="ecosystem-properties-dialog__terrainrow" title="Die H&ouml;he des Gebirgsr&uuml;ckens dort, wo kein Gipfel steht. Sie HEBT nur: liegt der Kamm zwischen den Gipfeln ohnehin h&ouml;her, &auml;ndert sie nichts &mdash; erst dar&uuml;ber tritt das R&uuml;ckgrat durchgehend hervor. Ein Gipfel unter diesem Wert beh&auml;lt seine eingetragene H&ouml;he; der Kamm um ihn herum steht dann h&ouml;her als er.">
+								<span>Kammh&ouml;he (ohne Einzelgipfel)</span>
+								<span class="ecosystem-properties-dialog__sliderwrap"><input id="ecosystem-properties-avgheight" type="range" min="0" max="20000" step="50" /><span id="ecosystem-properties-avgheight-mark" class="ecosystem-properties-dialog__slidermark" hidden></span></span>
+								<input id="ecosystem-properties-avgheight-num" class="ecosystem-properties-dialog__terrainnum" type="number" min="0" max="20000" step="50" inputmode="decimal" aria-label="Wert eingeben" /><button type="button" id="ecosystem-properties-avgheight-reset" class="ecosystem-properties-dialog__reset" hidden title="Auf die Vorgabe der Vorlage zur&uuml;cksetzen" aria-label="Auf die Vorgabe der Vorlage zur&uuml;cksetzen">&#8635;</button>
+							</label>
+							<label class="ecosystem-properties-dialog__terrainrow" title="Wo die Abbruchkante des Kamms steht, gemessen vom Fl&auml;chenrand. 1 = der Kamm selbst (eine Linie); kleinere Werte schieben die Kante nach au&szlig;en und machen aus dem Kamm eine Plateaufl&auml;che &mdash; bei kleinen Werten ein Tafelberg mit steiler Wand. Die Kante folgt dabei der FORM der Fl&auml;che, die Wand ist also rundherum gleich breit. Gipfel bleiben auf ihrer H&ouml;he und ragen heraus.">
+								<span>Plateau</span>
+								<span class="ecosystem-properties-dialog__sliderwrap"><input id="ecosystem-properties-plateau" type="range" min="0" max="1" step="0.05" /><span id="ecosystem-properties-plateau-mark" class="ecosystem-properties-dialog__slidermark" hidden></span></span>
+								<input id="ecosystem-properties-plateau-num" class="ecosystem-properties-dialog__terrainnum" type="number" min="0" max="1" step="0.05" inputmode="decimal" aria-label="Wert eingeben" /><button type="button" id="ecosystem-properties-plateau-reset" class="ecosystem-properties-dialog__reset" hidden title="Auf die Vorgabe der Vorlage zur&uuml;cksetzen" aria-label="Auf die Vorgabe der Vorlage zur&uuml;cksetzen">&#8635;</button>
 							</label>
 							<!-- V12 (2026-09-04): die Regler der lokalen Gebirgssimulation. 🔴 Sie stehen in ZWEI
 							     Gruppen, weil neun Regler in einer Reihe eine Wand w&auml;ren: was das GEBIRGE
@@ -2142,16 +2168,30 @@
 								<span class="ecosystem-properties-dialog__sliderwrap"><input id="ecosystem-properties-bergform" type="range" min="0" max="12" step="0.1" /><span id="ecosystem-properties-bergform-mark" class="ecosystem-properties-dialog__slidermark" hidden></span></span>
 								<input id="ecosystem-properties-bergform-num" class="ecosystem-properties-dialog__terrainnum" type="number" min="0" max="12" step="0.1" inputmode="decimal" aria-label="Wert eingeben" /><button type="button" id="ecosystem-properties-bergform-reset" class="ecosystem-properties-dialog__reset" hidden title="Auf die Vorgabe der Vorlage zur&uuml;cksetzen" aria-label="Auf die Vorgabe der Vorlage zur&uuml;cksetzen">&#8635;</button>
 							</label>
+							<label class="ecosystem-properties-dialog__terrainrow" title="Das hypsometrische Integral (Strahler 1952): wie sich die Fl&auml;che &uuml;ber die H&ouml;he verteilt, gemessen als mittlere H&ouml;he geteilt durch Gipfelh&ouml;he. &Uuml;ber 0,6 ein massiges Gebirge mit erhaltenen Hochfl&auml;chen; 0,35 bis 0,6 reif mit kr&auml;ftigem Talnetz; darunter Restberge &uuml;ber weitem Vorland. Die Alpen liegen um 0,4 bis 0,5. 0 = nicht gesetzt, dann bleibt die Verteilung, die sich aus Kamm, Rauschen und Erosion ergibt. &#9888; Zwei Einschr&auml;nkungen: der Wert gilt dem GRUNDRELIEF &mdash; T&auml;ler und Erosion verschieben ihn danach noch nach oben &mdash; und &uuml;ber rund 0,6 s&auml;ttigt der Regler, weil die Flankenpotenz an ihrer Grenze steht (darunter w&uuml;rde aus dem Auslauf am Fl&auml;chenrand eine Wand, und die Naht zweier &uuml;berlappender Gebirge w&auml;re als Kante sichtbar). Wo genau, h&auml;ngt vom Gebirge ab.">
+								<span>Hypsometrie</span>
+								<span class="ecosystem-properties-dialog__sliderwrap"><input id="ecosystem-properties-hypsometrie" type="range" min="0" max="0.7" step="0.01" /><span id="ecosystem-properties-hypsometrie-mark" class="ecosystem-properties-dialog__slidermark" hidden></span></span>
+								<input id="ecosystem-properties-hypsometrie-num" class="ecosystem-properties-dialog__terrainnum" type="number" min="0" max="0.7" step="0.01" inputmode="decimal" aria-label="Wert eingeben" /><button type="button" id="ecosystem-properties-hypsometrie-reset" class="ecosystem-properties-dialog__reset" hidden title="Auf die Vorgabe der Vorlage zur&uuml;cksetzen" aria-label="Auf die Vorgabe der Vorlage zur&uuml;cksetzen">&#8635;</button>
+							</label>
+							<!-- Das Grundrauschen. DREI Regler fuer EINE Sache -- Staerke, Groesse, Feinheit --, und die Staerke schaltet die beiden anderen ab: bei Rauschen 0 aendert weder Erhebungen noch Detailstufen ein einziges Pixel (gemessen 05.09.2026). Genau deshalb stehen sie beieinander; vorher lagen Rauschen und Detailstufen acht Zeilen auseinander, und der Tooltip der einen musste vor der Verwechslung mit der anderen warnen. -->
+							<p class="ecosystem-properties-dialog__terraingroup">K&ouml;rnung</p>
 							<label class="ecosystem-properties-dialog__terrainrow" title="St&auml;rke des Grundrauschens. Es ist der Keim der Verzweigung &mdash; ohne St&ouml;rung wird das Rinnennetz radial.">
 								<span>Rauschen</span>
 								<span class="ecosystem-properties-dialog__sliderwrap"><input id="ecosystem-properties-rauschen" type="range" min="0" max="1" step="0.01" /><span id="ecosystem-properties-rauschen-mark" class="ecosystem-properties-dialog__slidermark" hidden></span></span>
 								<input id="ecosystem-properties-rauschen-num" class="ecosystem-properties-dialog__terrainnum" type="number" min="0" max="1" step="0.01" inputmode="decimal" aria-label="Wert eingeben" /><button type="button" id="ecosystem-properties-rauschen-reset" class="ecosystem-properties-dialog__reset" hidden title="Auf die Vorgabe der Vorlage zur&uuml;cksetzen" aria-label="Auf die Vorgabe der Vorlage zur&uuml;cksetzen">&#8635;</button>
 							</label>
-							<label class="ecosystem-properties-dialog__terrainrow" title="Wie weit die Kammlinie zwischen zwei Gipfeln durchh&auml;ngt. 1 = Plateau.">
-								<span>Kamm-Sattel</span>
-								<span class="ecosystem-properties-dialog__sliderwrap"><input id="ecosystem-properties-sattel" type="range" min="0.3" max="1" step="0.01" /><span id="ecosystem-properties-sattel-mark" class="ecosystem-properties-dialog__slidermark" hidden></span></span>
-								<input id="ecosystem-properties-sattel-num" class="ecosystem-properties-dialog__terrainnum" type="number" min="0.3" max="1" step="0.01" inputmode="decimal" aria-label="Wert eingeben" /><button type="button" id="ecosystem-properties-sattel-reset" class="ecosystem-properties-dialog__reset" hidden title="Auf die Vorgabe der Vorlage zur&uuml;cksetzen" aria-label="Auf die Vorgabe der Vorlage zur&uuml;cksetzen">&#8635;</button>
+							<label class="ecosystem-properties-dialog__terrainrow">
+								<span>Erhebungen</span>
+								<span class="ecosystem-properties-dialog__sliderwrap"><input id="ecosystem-properties-grain" type="range" min="1" max="24" step="0.1" /><span id="ecosystem-properties-grain-mark" class="ecosystem-properties-dialog__slidermark" hidden></span></span>
+								<input id="ecosystem-properties-grain-num" class="ecosystem-properties-dialog__terrainnum" type="number" min="1" max="24" step="0.1" inputmode="decimal" aria-label="Wert eingeben" /><button type="button" id="ecosystem-properties-grain-reset" class="ecosystem-properties-dialog__reset" hidden title="Auf die Vorgabe der Vorlage zur&uuml;cksetzen" aria-label="Auf die Vorgabe der Vorlage zur&uuml;cksetzen">&#8635;</button>
 							</label>
+							<label class="ecosystem-properties-dialog__terrainrow" title="Detailtiefe des Grundrauschens: wie viele Oktaven es &uuml;bereinanderlegt. Wenige Stufen geben gro&szlig;e weiche Wellen, viele geben feine K&ouml;rnung obendrauf. Nicht zu verwechseln mit &bdquo;Rauschen&ldquo; &mdash; das ist die St&auml;rke, dies hier die Feinheit.">
+								<span>Detailstufen</span>
+								<span class="ecosystem-properties-dialog__sliderwrap"><input id="ecosystem-properties-levels" type="range" min="1" max="8" step="1" /><span id="ecosystem-properties-levels-mark" class="ecosystem-properties-dialog__slidermark" hidden></span></span>
+								<input id="ecosystem-properties-levels-num" class="ecosystem-properties-dialog__terrainnum" type="number" min="1" max="8" step="1" inputmode="decimal" aria-label="Wert eingeben" /><button type="button" id="ecosystem-properties-levels-reset" class="ecosystem-properties-dialog__reset" hidden title="Auf die Vorgabe der Vorlage zur&uuml;cksetzen" aria-label="Auf die Vorgabe der Vorlage zur&uuml;cksetzen">&#8635;</button>
+							</label>
+							<!-- Was das Wasser schneidet. Talbreite und Einschnitt wirken NUR, wo ein Fluss oder See die Flaeche beruehrt -- ohne Gewaesser aendern sie nachweislich nichts. -->
+							<p class="ecosystem-properties-dialog__terraingroup">Wasser und Erosion</p>
 							<label class="ecosystem-properties-dialog__terrainrow" title="Halbe Talbreite: von der Flussachse bis zum Talrand. Ein Bach z&auml;hlt mit der H&auml;lfte.">
 								<span>Talbreite</span>
 								<span class="ecosystem-properties-dialog__sliderwrap"><input id="ecosystem-properties-talbreite" type="range" min="0" max="6" step="0.1" /><span id="ecosystem-properties-talbreite-mark" class="ecosystem-properties-dialog__slidermark" hidden></span></span>
@@ -2173,33 +2213,6 @@
 								<span class="ecosystem-properties-dialog__sliderwrap"><input id="ecosystem-properties-erosion" type="range" min="0" max="5" step="1" /><span id="ecosystem-properties-erosion-mark" class="ecosystem-properties-dialog__slidermark" hidden></span></span>
 								<input id="ecosystem-properties-erosion-num" class="ecosystem-properties-dialog__terrainnum" type="number" min="0" max="5" step="1" inputmode="decimal" aria-label="Wert eingeben" /><button type="button" id="ecosystem-properties-erosion-reset" class="ecosystem-properties-dialog__reset" hidden title="Auf die Vorgabe der Vorlage zur&uuml;cksetzen" aria-label="Auf die Vorgabe der Vorlage zur&uuml;cksetzen">&#8635;</button>
 							</label>
-							<!-- 🔴 &bdquo;Kammh&ouml;he (ohne Einzelgipfel)&ldquo; seit dem 04.09.2026 (Owner). Sie hie&szlig;
-							     &bdquo;Maximalh&ouml;he&ldquo;, und das war seit V12 falsch: die Gipfel &uuml;berragen sie, sie ist
-							     nicht das Maximum. Sie ist der SOCKEL des Kamms &mdash; die H&ouml;he, unter die das
-							     R&uuml;ckgrat des Gebirges zwischen zwei Gipfeln nicht f&auml;llt.
-							     💣 Die KENNUNGEN bleiben (`terrain_avg_height`, `-avgheight`) &mdash; dieselbe Trennung
-							     wie bei &bdquo;Neuigkeiten&ldquo;/`changelog`: eine umgetaufte Kennung l&auml;sst eine gecachte
-							     Seite ins Leere greifen, und der Deploy l&ouml;scht nie. -->
-							<label class="ecosystem-properties-dialog__terrainrow" title="Die H&ouml;he des Gebirgsr&uuml;ckens dort, wo kein Gipfel steht. Sie HEBT nur: liegt der Kamm zwischen den Gipfeln ohnehin h&ouml;her, &auml;ndert sie nichts &mdash; erst dar&uuml;ber tritt das R&uuml;ckgrat durchgehend hervor. Ein Gipfel unter diesem Wert beh&auml;lt seine eingetragene H&ouml;he; der Kamm um ihn herum steht dann h&ouml;her als er.">
-								<span>Kammh&ouml;he (ohne Einzelgipfel)</span>
-								<span class="ecosystem-properties-dialog__sliderwrap"><input id="ecosystem-properties-avgheight" type="range" min="0" max="20000" step="50" /><span id="ecosystem-properties-avgheight-mark" class="ecosystem-properties-dialog__slidermark" hidden></span></span>
-								<input id="ecosystem-properties-avgheight-num" class="ecosystem-properties-dialog__terrainnum" type="number" min="0" max="20000" step="50" inputmode="decimal" aria-label="Wert eingeben" /><button type="button" id="ecosystem-properties-avgheight-reset" class="ecosystem-properties-dialog__reset" hidden title="Auf die Vorgabe der Vorlage zur&uuml;cksetzen" aria-label="Auf die Vorgabe der Vorlage zur&uuml;cksetzen">&#8635;</button>
-							</label>
-							<label class="ecosystem-properties-dialog__terrainrow" title="Das hypsometrische Integral (Strahler 1952): wie sich die Fl&auml;che &uuml;ber die H&ouml;he verteilt, gemessen als mittlere H&ouml;he geteilt durch Gipfelh&ouml;he. &Uuml;ber 0,6 ein massiges Gebirge mit erhaltenen Hochfl&auml;chen; 0,35 bis 0,6 reif mit kr&auml;ftigem Talnetz; darunter Restberge &uuml;ber weitem Vorland. Die Alpen liegen um 0,4 bis 0,5. 0 = nicht gesetzt, dann bleibt die Verteilung, die sich aus Kamm, Rauschen und Erosion ergibt. &#9888; Zwei Einschr&auml;nkungen: der Wert gilt dem GRUNDRELIEF &mdash; T&auml;ler und Erosion verschieben ihn danach noch nach oben &mdash; und &uuml;ber rund 0,6 s&auml;ttigt der Regler, weil die Flankenpotenz an ihrer Grenze steht (darunter w&uuml;rde aus dem Auslauf am Fl&auml;chenrand eine Wand, und die Naht zweier &uuml;berlappender Gebirge w&auml;re als Kante sichtbar). Wo genau, h&auml;ngt vom Gebirge ab.">
-								<span>Hypsometrie</span>
-								<span class="ecosystem-properties-dialog__sliderwrap"><input id="ecosystem-properties-hypsometrie" type="range" min="0" max="0.7" step="0.01" /><span id="ecosystem-properties-hypsometrie-mark" class="ecosystem-properties-dialog__slidermark" hidden></span></span>
-								<input id="ecosystem-properties-hypsometrie-num" class="ecosystem-properties-dialog__terrainnum" type="number" min="0" max="0.7" step="0.01" inputmode="decimal" aria-label="Wert eingeben" /><button type="button" id="ecosystem-properties-hypsometrie-reset" class="ecosystem-properties-dialog__reset" hidden title="Auf die Vorgabe der Vorlage zur&uuml;cksetzen" aria-label="Auf die Vorgabe der Vorlage zur&uuml;cksetzen">&#8635;</button>
-							</label>
-							<label class="ecosystem-properties-dialog__terrainrow" title="Wo die Abbruchkante des Kamms steht, gemessen vom Fl&auml;chenrand. 1 = der Kamm selbst (eine Linie); kleinere Werte schieben die Kante nach au&szlig;en und machen aus dem Kamm eine Plateaufl&auml;che &mdash; bei kleinen Werten ein Tafelberg mit steiler Wand. Die Kante folgt dabei der FORM der Fl&auml;che, die Wand ist also rundherum gleich breit. Gipfel bleiben auf ihrer H&ouml;he und ragen heraus.">
-								<span>Plateau</span>
-								<span class="ecosystem-properties-dialog__sliderwrap"><input id="ecosystem-properties-plateau" type="range" min="0" max="1" step="0.05" /><span id="ecosystem-properties-plateau-mark" class="ecosystem-properties-dialog__slidermark" hidden></span></span>
-								<input id="ecosystem-properties-plateau-num" class="ecosystem-properties-dialog__terrainnum" type="number" min="0" max="1" step="0.05" inputmode="decimal" aria-label="Wert eingeben" /><button type="button" id="ecosystem-properties-plateau-reset" class="ecosystem-properties-dialog__reset" hidden title="Auf die Vorgabe der Vorlage zur&uuml;cksetzen" aria-label="Auf die Vorgabe der Vorlage zur&uuml;cksetzen">&#8635;</button>
-							</label>
-							<label class="ecosystem-properties-dialog__terrainrow" title="Detailtiefe des Grundrauschens: wie viele Oktaven es &uuml;bereinanderlegt. Wenige Stufen geben gro&szlig;e weiche Wellen, viele geben feine K&ouml;rnung obendrauf. Nicht zu verwechseln mit &bdquo;Rauschen&ldquo; &mdash; das ist die St&auml;rke, dies hier die Feinheit.">
-								<span>Detailstufen</span>
-								<span class="ecosystem-properties-dialog__sliderwrap"><input id="ecosystem-properties-levels" type="range" min="1" max="8" step="1" /><span id="ecosystem-properties-levels-mark" class="ecosystem-properties-dialog__slidermark" hidden></span></span>
-								<input id="ecosystem-properties-levels-num" class="ecosystem-properties-dialog__terrainnum" type="number" min="1" max="8" step="1" inputmode="decimal" aria-label="Wert eingeben" /><button type="button" id="ecosystem-properties-levels-reset" class="ecosystem-properties-dialog__reset" hidden title="Auf die Vorgabe der Vorlage zur&uuml;cksetzen" aria-label="Auf die Vorgabe der Vorlage zur&uuml;cksetzen">&#8635;</button>
-							</label>
 							</details>
 							<!-- 🔴 &bdquo;Diese Fl&auml;che kann gar kein Relief bekommen&ldquo; (Owner 05.09.2026, an den
 							     &bdquo;Salamandersteinen&ldquo;: null Gipfel, keine Kammh&ouml;he &mdash; „hat kein h&ouml;henbild obwohl
@@ -2215,6 +2228,7 @@
 							<p id="ecosystem-properties-terrain-flachhint" class="ecosystem-properties-dialog__terrainhint" hidden>Diese Fl&auml;che hat keinen Gipfel und keine Kammh&ouml;he &mdash; sie bleibt flach, egal wie die Regler stehen. W&auml;hle eine H&ouml;henstufe (oder trage eine Kammh&ouml;he ein), dann entsteht ein Relief.</p>
 							<p id="ecosystem-properties-terrain-ridgehint" class="ecosystem-properties-dialog__terrainhint" hidden>Diese Fl&auml;che hat weder einen Gipfel noch eine Kammlinie. Das Gel&auml;nde nutzt ersatzweise ihre Mittelachse &mdash; „Gebirgszug ermitteln" rechnet die echte Linie ihres Zugs.</p>
 							<div class="ecosystem-properties-dialog__terrainactions">
+								<button id="ecosystem-properties-terrain-grayscale" type="button" class="ecosystem-properties-dialog__button ecosystem-properties-dialog__button--toggle" aria-pressed="false" title="Unbeleuchtetes Höhenbild anzeigen">Graustufen</button>
 								<!-- 🔴 „Gebirgszug ermitteln" (Owner 04.09.2026). Er kommt NUR, wenn die Fl&auml;che weder
 								     einen Gipfel noch eine Kammlinie hat &mdash; dann n&auml;mlich hat das Gel&auml;nde keinen
 								     einzigen Anhaltspunkt, und der Editor stellt zw&ouml;lf Regler ein, ohne dass sich
@@ -2223,10 +2237,9 @@
 								     Beschriftungskurve: die entst&uuml;nde nur bei eingeschalteter Kurvenbeschriftung,
 								     und niemand soll die Namensanzeige umstellen m&uuml;ssen, um sein Gel&auml;nde zu
 								     formen. Derselbe Rechner, nur ohne die Weiche davor. -->
-								<button id="ecosystem-properties-terrain-ridge" type="button" class="ecosystem-properties-dialog__button ecosystem-properties-dialog__button--main" hidden>Gebirgszug ermitteln</button>
-								<button id="ecosystem-properties-terrain-build" type="button" class="ecosystem-properties-dialog__button ecosystem-properties-dialog__button--main">H&ouml;henfeld erzeugen</button>
-								<button id="ecosystem-properties-terrain-grayscale" type="button" class="ecosystem-properties-dialog__button ecosystem-properties-dialog__button--toggle" aria-pressed="false" title="Unbeleuchtetes Höhenbild anzeigen">Graustufen</button>
+								<button id="ecosystem-properties-terrain-ridge" type="button" class="ecosystem-properties-dialog__button" hidden>Gebirgszug ermitteln</button>
 								<button id="ecosystem-properties-terrain-auto" type="button" class="ecosystem-properties-dialog__button">Auf Automatik zur&uuml;ck</button>
+								<button id="ecosystem-properties-terrain-build" type="button" class="ecosystem-properties-dialog__button ecosystem-properties-dialog__button--primary">H&ouml;henfeld erzeugen</button>
 							</div>
 
 							<p id="ecosystem-properties-terrain-status" class="ecosystem-properties-dialog__status" role="status" hidden></p>

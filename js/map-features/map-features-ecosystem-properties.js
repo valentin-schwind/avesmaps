@@ -1314,9 +1314,12 @@
 		// 🔴 Die SPALTE bleibt in der Datenbank (der Deploy loescht nie); aus dem Fenster ist sie raus,
 		// und die WIRKLICHE Durchschnittshoehe steht seit demselben Tag unter der Hoehenskala.
 		// V12 (2026-09-04): die Regler der lokalen Gebirgssimulation.
-		// ⚠️ `terrain_bergform` ist der einzige, dessen Fehlen die RECHNUNG abschaltet statt sie nur
-		// auf eine Vorgabe zu setzen: `undefined` ergibt Radius 0, und `addiereGipfelkegel` kehrt
-		// dann sofort zurueck. Die uebrigen fallen weich auf die Modulvorgaben.
+		// 🪤 HIER STAND DAS GEGENTEIL, und es war seit dem 04.09.2026 falsch: „`terrain_bergform` ist
+		// der einzige, dessen Fehlen die RECHNUNG abschaltet -- `undefined` ergibt Radius 0". Der Code
+		// tut das Umgekehrte (`addiereGipfelkegel`, Z. 524): `undefined` nimmt die Modulvorgabe 2,5 wie
+		// jeder andere Regler, und die ausdrueckliche **0** schaltet die Gipfelkegel ab. Wer den alten
+		// Satz las, hielt einen leeren Wert fuer gefaehrlich und die 0 fuer harmlos -- genau
+		// andersherum. Gefunden von einem Pruefagenten am 05.09.2026, gemessen am Rumpf der Funktion.
 		{ key: "terrain_bergform", element: "bergform", decimals: 1 },
 		{ key: "terrain_rauschen", element: "rauschen", decimals: 2 },
 		{ key: "terrain_sattel", element: "sattel", decimals: 2 },
