@@ -231,6 +231,65 @@ die Hülle.
 `.ecosystem-transfer-dialog`. Alle übrigen sind bereits richtig gebaut — es ist kein Umbau,
 sondern das Entfernen von drei `overflow-y: auto`.
 
+### Die Zonen — die Hülle polstert nicht, jede Zone polstert sich selbst
+
+🔴 Owner 05.09.2026, nachdem „Hinweise" und „Neuigkeiten" ihre Innenabstände verloren hatten:
+„halte den stil für diese form von fenstern fest (weiss nicht wie die heissen)". **Sie heißen
+Blatt** (`.avm-fenster--blatt`) — genauer: sie sind die **Lese-Fassung** davon. Die Regel oben
+definiert das Blatt als „kurzes Formular: ausfüllen, speichern, weg"; diese zwei füllt niemand
+aus, sie werden gelesen. Für die Hülle ändert das nichts, für die **Zonen** alles.
+
+**Ein Fenster hat drei Sorten Zone, und jede trägt ihr eigenes Polster:**
+
+| Zone | Polster | wer sie hat |
+|---|---|---|
+| Kopfleiste, Fußleiste | `--avm-kopf-pad` (6 / 14) | jedes Fenster |
+| Menüband | `--avm-ribbon-pad` (10 / 14) | Werkzeugfenster mit Kacheln |
+| **Rumpf und jede feste Inhaltszone** | `--avm-col-pad` (8 / **14**) | jedes Fenster |
+
+💣 **Die Hülle auf `padding: 0` zu stellen ist ein HALBER Handgriff — der zweite ist am
+04.09.2026 ausgefallen.** Die Hülle verlor ihr altes `padding: 16px 18px`, die Zonen darunter
+bekamen nichts, und der Text klebte an der Fensterkante. Live gemessen am 05.09.2026:
+Einleitung, Liste und Fußzeile der „Neuigkeiten" begannen bei x=824, dem Rand des Fensters,
+während der Titel darüber 14px Einzug hatte; „Hinweise" ebenso, Impressum und
+Datenschutzerklärung eingeschlossen.
+⚠️ **Kein Test sah es.** Die Zusicherungen des Umbaus prüfen Kopfzeile, Titel, Schließknopf,
+Radius und den Rumpf-*Scroll* — nach dem *Polster* hat keine gefragt. Gemeldet hat es der Owner.
+Wächter seither `js/app/__tests__/fenster-zonen-polster.test.js`.
+
+🔴 **Der Seiteneinzug ist überall 14 — und er wird lokal gesetzt**, solange `--avm-col-pad`
+global auf 12 steht (`tokens.css` sagt warum: neun Fenster lesen ihn gleichzeitig). Ein Fenster,
+das seine Kante geradezieht, schreibt an seine Hülle:
+
+```css
+--avm-col-pad: var(--space-6) var(--space-12);   /* 8 / 14 */
+```
+
+⚠️ Ohne diese Zeile steht der Rumpf **zwei Pixel enger** als der Kopf darüber — die Sorte
+Abweichung, die niemand meldet und die trotzdem jedes Fenster ein bisschen anders aussehen lässt.
+
+**Eine feste Inhaltszone** — Einleitung über dem Rumpf, Fußtext darunter, eine Meldungszeile —
+liest denselben Wert wie der Rumpf, nicht `--avm-kopf-pad`: sie trägt Text, keine 32px hohen
+Bedienelemente. Und weil ihr Rand am Element sitzt und ihr Polster innen, läuft ihr Trenner ohne
+negative Außenränder von Kante zu Kante.
+
+💣 **Ein `position: sticky; top: 0` IM Rumpf bricht an genau diesem Polster.** Es klebt an der
+**Content**-Box, also um das Polster *unter* der Kante — und in diesem Streifen scrollt Inhalt
+sichtbar durch (gemessen: das Monatsband der „Neuigkeiten" 8,0px unterhalb, darüber lief der
+Eintragstext). Vorher gab es das nicht, weil der Rumpf kein Polster hatte.
+⭐ Abhilfe ist ein **negatives `top`** plus eine **Abdeckung per Schlagschatten** in
+`--color-panel` — **nie ein zweites padding-top**: das änderte auch den *ungeklebten* Abstand
+(gemessen 24 → 32px). 🔴 Die drei Werte sind gekoppelt und lesen dieselbe Variable; getrennt
+geschrieben sind sie heute gleich und beim nächsten Mal nicht, und der Fehler ist still — im
+Standbild sieht das Band richtig aus.
+
+⚠️ **Gemessen am Livestand 05.09.2026 machen es fünf weitere Fenster anders**, und keines davon
+ist gemeldet: „Karteneintrag melden" und „Neue Bewertung" tragen eine Einleitung mit
+`padding: 0`, „Vorkommen bearbeiten" und „Konflikte" einen Rumpf mit `padding: 0`, und die vier
+Landschafts-Blätter („Landschaften", „Fläche kopieren", „Fläche zuweisen", „Label zuweisen")
+eine abgeschriebene `18px` statt des Tokens. Das ist Bestandsaufnahme, kein Auftrag — wer eines
+davon anfasst, zieht es hierher.
+
 ### Der Griff `⁝⁝`
 
 🔴 **Jedes Fenster ist verschiebbar und trägt den Griff** (Owner 04.09.2026: „Du kannst alle
