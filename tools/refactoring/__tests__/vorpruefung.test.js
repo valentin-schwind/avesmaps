@@ -312,4 +312,26 @@ const DUMP = [
 			.some((t) => t.datei.endsWith("verweildauer-test.php")), "ohne Quelltext-Lesen keine Bindung aus diesem Test");
 	}
 	console.log("vorpruefung G: ok");
+
+	// -- H: die drei Werkzeugfallen aus liste.md (Entwurf §5) ------------------------------------
+	{
+		// (1) NUL-Bytes in einer NACHBARDATEI (powerline-topology.js traegt zwei) duerfen den Scan nicht
+		// vergiften -- jede Datei wird einzeln gelesen, kein grep-Strom.
+		const r = tempRepo();
+		r.schreibe("js/app/ziel.js", "function lebt() {}\nfunction auchLebt() {}\n");
+		r.schreibe("js/map-features/powerline-topology.js", "const TRENNER = \" \";\nfunction topo(x, y) { return x + TRENNER + y; }\n");
+		r.schreibe("tools/paths/test-register.mjs", 'const files = ["js/app/ziel.js"];\n');
+		r.schreibe("js/app/__tests__/ziel.test.js", 'const q = fs.readFileSync(path.join(ROOT, "js/app/ziel.js"), "utf8");\nconst i = q.indexOf("function lebt");\n');
+		const erg = v.vorpruefung({ datei: "js/app/ziel.js", wurzel: r.dir, min: 1 });
+		// beide Treffer sind richtig: das Register UND der Test, der den Pfad in Anfuehrungszeichen nennt
+		assert.deepStrictEqual(erg.register.map((x) => x.datei).sort(), ["js/app/__tests__/ziel.test.js", "tools/paths/test-register.mjs"]);
+		assert.deepStrictEqual(erg.quelltextTests.map((t) => t.namen), [["lebt"]]);
+		// (2) kein `\b` in einem RegExp-Aufbau des Skripts -- im Skript wird daraus das Backspace-Zeichen
+		const quelle = fs.readFileSync(path.join(__dirname, "..", "vorpruefung.mjs"), "utf8");
+		const regexpAufbau = [...quelle.matchAll(/new RegExp\(([^;]*)\)/g)].map((m) => m[1]).join("\n");
+		assert.ok(!/\\b/.test(regexpAufbau.replace(/\\\\b/g, "")), "kein Wortgrenzen-\\b in new RegExp(...) -- Wort-Token statt RegExp");
+		// (3) `async function` wird gefunden (A6) -- und `^function ` allein waere die Falle
+		assert.ok(v.findeFunktionen("async function a() {}\n", "js").length === 1);
+	}
+	console.log("vorpruefung H: ok");
 })().catch((e) => { console.error(e); process.exit(1); });
