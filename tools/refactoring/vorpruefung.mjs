@@ -76,14 +76,31 @@ function zeileVon(text, pos) {
 	return z;
 }
 
-// Globale Funktionsdeklarationen (Spalte 0, oder eingerueckt im Inline-Script eines HTML) samt Rumpf.
+// Klammertiefe je Zeichen (nur Code zaehlt): 0 = oberste Ebene.
+function klammertiefen(text, maske) {
+	const tiefe = new Int32Array(text.length);
+	let t = 0;
+	for (let i = 0; i < text.length; i++) {
+		tiefe[i] = t;
+		if (maske[i] !== 1) continue;
+		if (text[i] === "{") t++;
+		else if (text[i] === "}") t = Math.max(0, t - 1);
+	}
+	return tiefe;
+}
+
+// GLOBALE Funktionsdeklarationen samt Rumpf -- global heisst Klammertiefe 0, nicht Spalte 0:
+// eine eingerueckte Deklaration im Rumpf einer IIFE (wege-editor.js, review-garetien-importer.js)
+// ist eine Closure und kein Ziel; eine eingerueckte auf oberster Ebene eines Inline-Scripts ist global.
 // `start` zeigt auf das `function`/`async`-Wort, `ende` hinter die schliessende Klammer (exklusiv).
 export function findeFunktionen(text, sprache) {
 	const maske = codeMaske(text, sprache);
+	const tiefen = klammertiefen(text, maske);
 	const ergebnis = [];
 	for (const m of text.matchAll(DEKLARATION)) {
 		const start = m.index + m[0].search(/\S/);
 		if (maske[start] !== 1) continue; // steht in einem Kommentar oder String
+		if (tiefen[start] !== 0) continue; // Closure in einer IIFE, Methode, verschachtelte Funktion
 		let i = m.index + m[0].length;
 		while (i < text.length && !(text[i] === "{" && maske[i] === 1)) i++; // Parameterliste ueberspringen
 		let tiefe = 0; let ende = -1;

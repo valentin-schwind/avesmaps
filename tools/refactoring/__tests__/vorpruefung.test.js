@@ -90,6 +90,13 @@ const DUMP = [
 	assert.deepStrictEqual(fk.map((f) => f.name), ["echt"]);
 	assert.deepStrictEqual([...v.pruefeLadezeit(v.blendeRuempfeAus(imKommentar, fk), ["echt"]).keys()], ["echt"]);
 
+	// A8: global heisst Klammertiefe 0, nicht Spalte 0 -- eine Closure in einer IIFE (wege-editor.js)
+	// ist kein Ziel, eine eingerueckte Deklaration auf oberster Ebene (Inline-Script) schon
+	const iife = "(function () {\n\tfunction closure() { return 1; }\n\twindow.x = closure;\n})();\n  function eingerueckt() { return 2; }\nfunction global() { return 3; }\n";
+	assert.deepStrictEqual(v.findeFunktionen(iife, "js").map((f) => f.name), ["eingerueckt", "global"]);
+	const phpKlasse = "<?php\nclass K {\n\tfunction methode() {}\n}\nif (!function_exists('spaet')) {\n\tfunction spaet() {}\n}\nfunction frei() {}\n";
+	assert.deepStrictEqual(v.findeFunktionen(phpKlasse, "php").map((f) => f.name), ["frei"]);
+
 	console.log("vorpruefung A: ok");
 
 	// -- B: Dateiregister (02.09.2026) -- ein Test fuehrt eine Dateiliste von Hand ----------------
