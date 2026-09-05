@@ -432,6 +432,26 @@ const waehle = (feldId, wert) => {
 				"der Hinweis bleibt stehen, obwohl die Höhenstufe das Problem gerade gelöst hat");
 			assert.strictEqual(flaeche.terrain_avg_height, 1500, "die Höhenstufe kam nicht an");
 		});
+
+		pruefe("und er zieht auch beim ZIEHEN des Reglers mit", () => {
+			// 💣 DER FEHLER, DEN DIESE ZUSICHERUNG FESTNAGELT: der Hinweis stand allein in
+			// `renderTerrainControls` -- also nur beim Öffnen und nach dem Speichern. Wer danach die
+			// Kammhöhe zog, las weiter „diese Fläche bleibt flach", während das Relief daneben schon
+			// dastand. Am 05.09.2026 im BROWSER gesehen, nicht von einem Test: die Fläche trug 2.800
+			// Schritt und der Satz stand unverändert da. Die Zusicherung darüber hat es nicht
+			// gefangen, weil eine Vorlage `renderTerrainControls` mitruft -- der Reglerzug nicht.
+			// ⚠️ Es ist dieselbe Klasse wie bei der Ausgrauung: eine Anzeige, die erst beim nächsten
+			// Öffnen nachkommt, ist keine Rückmeldung, sondern ein zweiter Zustand.
+			const regler = element("ecosystem-properties-avgheight");
+			regler.value = "0";
+			regler.feuere("input");
+			assert.strictEqual(element("ecosystem-properties-terrain-flachhint").hidden, false,
+				"die Kammhöhe steht auf 0 und der Hinweis fehlt");
+			regler.value = "1200";
+			regler.feuere("input");
+			assert.strictEqual(element("ecosystem-properties-terrain-flachhint").hidden, true,
+				"die Kammhöhe steht auf 1200 und der Hinweis behauptet weiter, die Fläche bleibe flach");
+		});
 	}
 
 	// ---- 6c. „Gebirgszug ermitteln" legt die fehlende Höhe vor ------------------------------------

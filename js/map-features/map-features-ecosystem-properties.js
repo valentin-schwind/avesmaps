@@ -1787,11 +1787,13 @@
 		// NULL, Kammlinie mit 32 Punkten sauber gerechnet).
 		// 💣 GEFRAGT WIRD DIE REGEL DES TRICHTERS, nicht eine eigene Fassung davon: sonst sagt das
 		// Fenster „bleibt flach", während das Bild eins zeigt, oder umgekehrt.
-		const flach = propertiesElement("terrain-flachhint");
-		if (flach) {
-			flach.hidden = typeof avesmapsGebirgeBleibtFlach !== "function"
-				|| !avesmapsGebirgeBleibtFlach(peaksInsideArea(area).length, area?.terrain_avg_height);
-		}
+		// 🔴 GESETZT WIRD SIE IN `syncReglerWirkung` -- dort, wo auch die Ausgrauung sitzt, und von
+		// denselben Stellen gerufen (Aufbau UND jeder Reglerzug). Stand sie nur hier, käme sie erst
+		// beim nächsten Öffnen nach; genau das war am 05.09.2026 im Browser zu sehen.
+		// ⚠️ NICHT HIER RUFEN, sondern am Ende dieser Funktion: davor stehen die Regler noch auf den
+		// Werten der VORIGEN Fläche, und `gewaesserAmOrt` trägt deren Antwort. Ein Aufruf an dieser
+		// Stelle graute nach der falschen Fläche aus -- eine Zeile, die nur beim Wechsel zwischen
+		// zwei Flächen falsch ist und beim ersten Öffnen richtig aussieht.
 
 		// 🔴 Der Titel der Falte nennt die gemerkte Vorlage (Owner 04.09.2026). Sie ist eine
 		// HERKUNFTSANGABE: die Zahlen sind die Wahrheit, der Name sagt, woher sie kamen.
@@ -1878,6 +1880,25 @@
 	let gewaesserAmOrt = null;          // 🔴 `null` = „nicht gefragt" -> es wird NICHTS ausgegraut.
 
 	function syncReglerWirkung(area) {
+		// 🔴 DER FLACH-HINWEIS ZIEHT HIER MIT, nicht nur beim Aufbau des Fensters. Er stand bis zum
+		// 05.09.2026 allein in `renderTerrainControls` -- also nur beim Öffnen und nach dem Speichern.
+		// Wer danach eine Kammhöhe zog, las weiter „diese Fläche bleibt flach", während das Relief
+		// daneben schon dastand. Im Browser gesehen, nicht von einem Test: die Fläche trug 2.800
+		// Schritt Kammhöhe und der Satz stand unverändert da.
+		// ⚠️ Es ist dieselbe Klasse Fehler wie bei der Ausgrauung eine Zeile weiter -- eine Anzeige,
+		// die erst beim nächsten Öffnen nachkommt, ist keine Rückmeldung, sondern ein zweiter Zustand.
+		// Deshalb steht sie jetzt in DERSELBEN Funktion und wird von denselben Stellen gerufen.
+		const flach = propertiesElement("terrain-flachhint");
+		if (flach && typeof avesmapsGebirgeBleibtFlach === "function") {
+			// ⚠️ Gelesen wird der REGLER, nicht die Fläche. Heute stünde in beiden dasselbe -- der
+			// andere `input`-Handler schreibt die Fläche, bevor dieser läuft, und eine Mutationsprobe
+			// am 05.09.2026 hat die Fassung „aus der Fläche" deshalb als verhaltensgleich ausgewiesen.
+			// Der Regler ist trotzdem die richtige Quelle: er ist das, was der Editor SIEHT, und die
+			// Anzeige hängt damit nicht an der Reihenfolge zweier Zuhörer am selben Ereignis.
+			const hoehe = propertiesElement("avgheight");
+			flach.hidden = !avesmapsGebirgeBleibtFlach(peaksInsideArea(area).length,
+				hoehe ? Number(hoehe.value) : area?.terrain_avg_height);
+		}
 		if (typeof avesmapsGebirgsReglerOhneWirkung !== "function") {
 			return;
 		}
