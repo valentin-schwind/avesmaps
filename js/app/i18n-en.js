@@ -64,7 +64,6 @@ window.AVESMAPS_I18N_EN = {
 	// Die Ueberschrift entsteht erst zur Laufzeit (enhanceRoutePlannerOptionPanel) und blieb
 	// deshalb bisher deutsch; sie beschriftet jetzt die eingeklappte Zeile.
 	"planner.options.heading": "Travel options",
-	"planner.overview.default": "Waypoints and travel time are shown here.",
 
 	// --- planner: the ⓘ dialog behind the "Reiseoptionen" heading (route-options-info.js) ---
 	// Every number in it is read from the computation tables at open time, so only the prose
@@ -883,6 +882,7 @@ window.AVESMAPS_I18N_EN = {
 	"legal.group.copyright": "Copyright and licenses",
 	"legal.group.content": "Content and data sources",
 	"legal.group.privacy": "Data protection",
+	"legal.group.maps": "Our maps",
 	"legal.group.tech": "Technology and licenses",
 	"legal.group.liability": "Disclaimer",
 	// The one-line hint under each section heading. Collapsed, the eight headings are the dialog's
@@ -892,6 +892,7 @@ window.AVESMAPS_I18N_EN = {
 	"legal.hint.project": "Fan project, not an official DSA publication",
 	"legal.hint.copyright": "Trademarks, map material, coats of arms, images, covers",
 	"legal.hint.content": "Path data, wiki reconciliation, community reports",
+	"legal.hint.maps": "The original map by Ina Kramer and the modern version made from it",
 	"legal.hint.tech": "Leaflet, jQuery, route finding",
 	"legal.hint.liability": "Content, links, availability",
 	"legal.hint.privacy": "Log data, no cookies, statistics, your rights",
@@ -912,6 +913,8 @@ window.AVESMAPS_I18N_EN = {
 	"legal.social.lead": "Chat and follow",
 	"legal.social.body": "Questions, feedback or just want to chat? The Avesmaps community meets on Discord. On our channels we show what is taking shape right now.",
 	"legal.contact.discord": "Or reach us directly in the Avesmaps community on Discord:",
+	"legal.originalMap.lead": "The original map.",
+	"legal.originalMap.body": "It all starts with the Aventurien map by illustrator Ina Kramer — the drawn original that every coastline, every river course and every settlement point on Avesmaps goes back to. It is not merely a historical basis but still selectable: the map fan offers it as the “Original” base layer, alongside the modern version made from it. The two sit geometrically on top of each other — so you can switch between them in the middle of planning a journey without a single place moving.",
 	"legal.stylizedMap.lead": "Modern map.",
 	"legal.stylizedMap.inaLink": "Ina Kramer on Wikipedia",
 	"legal.stylizedMap.body": "The new terrain map was produced with generative AI in several steps from the original Aventurien map by the great graphic artist Ina Kramer. The terrain map was cut into tiles, stripped of all lettering, and redrawn and upscaled tile by tile by an image AI as a painted terrain map. So that nothing would shift, every tile was then put back precisely onto the geometry of the original — coastlines, rivers, paths and borders lie where they lay before, and nothing was added that was not already there. Land and water surfaces were prepared separately and merged again, the red settlement markers of the original map were carried along as their own strand, the result was finished by hand and finally cut into the tiles of the six zoom levels (32,768 × 32,768 pixels).",
@@ -926,6 +929,7 @@ window.AVESMAPS_I18N_EN = {
 	"pipeline.step6": "Land and water",
 	"pipeline.step7": "Finished by hand",
 	"pipeline.step8": "Tiles of the map",
+	"legal.sources.maps": "Maps.",
 	"legal.sources.fan": "Fan sources.",
 	"legal.sources.wikiLicense": "Wiki Aventurica license (CC BY-SA 3.0)",
 	"legal.sources.tech": "Technology.",
@@ -1017,7 +1021,7 @@ window.AVESMAPS_I18N_EN = {
 	"legal.covers.lead": "Covers.",
 	"legal.covers.body": "The cover images of DSA publications shown for literature entries are used with permission from Ulisses. Where available in the shop, the cover links to the respective publication at Ulisses or in the F-Shop; if the publication is not listed there, the link instead leads to the corresponding Wiki Aventurica article or the German National Library.",
 	"legal.mapMaterial.lead": "Map material.",
-	"legal.mapMaterial.body": "The interactive map is based on edited map material and the location, path and geometry data derived from it. Insofar as official DSA map material by Ulisses is used, this is done exclusively under the licence terms Ulisses grants to fan projects; the applicable one is the licence agreement for the Ulisses Kartenpaket. It permits reproduction, distribution and expressly also modifications, as long as the use stays non-commercial and the modification is marked as a fan project, and it requires that every distribution carries a copy of the licence or its full internet address (URI) — which is why it is linked at the end of this paragraph. Modifications of the map material serve solely the technical implementation as an interactive map and non-commercial use around Das Schwarze Auge. Tools used for editing and creating map material include ChatGPT, Qwen and Midjourney.",
+	"legal.mapMaterial.body": "The interactive map is based on edited map material and the location, path and geometry data derived from it. Insofar as official DSA map material by Ulisses is used, this is done exclusively under the licence terms Ulisses grants to fan projects; the applicable one is the licence agreement for the Ulisses Kartenpaket. It permits reproduction, distribution and expressly also modifications, as long as the use stays non-commercial and the modification is marked as a fan project, and it requires that every distribution carries a copy of the licence or its full internet address (URI) — which is why it is linked at the end of this section. Modifications of the map material serve solely the technical implementation as an interactive map and non-commercial use around Das Schwarze Auge. Tools used for editing and creating map material include ChatGPT, Qwen and Midjourney.",
 	"legal.mapMaterial.licenseLink": "Licence agreement for the Ulisses Kartenpaket",
 	// 💣 legal.mapMaterial.dl* were the two archive download links (finding A25), removed on
 	//    2026-08-06 by owner decision. The keys go with them -- a translation without a target is

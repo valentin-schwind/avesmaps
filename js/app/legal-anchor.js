@@ -9,12 +9,13 @@
 // in einer vm-Sandbox mit einem echten, kleinen DOM ausfuehren -- so wie
 // js/app/__tests__/keyboard-shortcuts.test.js es fuer die Tastaturbefehle tut.
 
-// Die acht Abschnitte des Fensters, benannt nach ihrer i18n-Gruppe (`legal.group.*` in index.html).
+// Die neun Abschnitte des Fensters, benannt nach ihrer i18n-Gruppe (`legal.group.*` in index.html).
 const AVESMAPS_LEGAL_SECTION_ANCHORS = [
 	"legal-usage",
 	"legal-project",
 	"legal-copyright",
 	"legal-content",
+	"legal-maps",
 	"legal-tech",
 	"legal-liability",
 	"legal-privacy",
@@ -28,6 +29,7 @@ const AVESMAPS_LEGAL_SECTION_ANCHORS = [
 const AVESMAPS_LEGAL_ANCHOR_ALIASES = {
 	impressum: "legal-contact",
 	kontakt: "legal-contact",
+	karten: "legal-maps",
 	datenschutz: "legal-privacy",
 	hinweise: "legal-dialog",
 };
