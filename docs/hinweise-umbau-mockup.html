@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hinweise — Umbauvorschlag 05.09.2026</title>
+<!--
+  ENTWURF, nichts davon ist gebaut. Owner-Auftrag 05.09.2026, woertlich:
+  „kannst du in ‚Hinweise' -> einen neuen abschnitt nach ‚Inhalte und Datenquellen' einfuegen
+   ‚Unsere Karten'. fuege dort die absaetze aus den anderen sektionen ein, wo es um die karte
+   geht. Wir haben einerseits die Ina-Kramer-Karte und andererseits unsere KI-generierte
+   hochaufgeloeste ‚Moderne' Version. die abschnitte wo es darum geht, wie die zustande gekommen
+   ist, sollen da rein. geh ausserdem nochmal die gesamte seite durch. Links kommen immer ans
+   ende einer sektion (z.B. Fanquellen). ausserdem sollst du die sekundaertitel z.B. unter
+   ‚Technik und Lizenzen' - ‚Leaflet, jQuery, Wegfindung' durch aussagekraefte subtitles
+   ersetzen. die sind alle alt. schau auch nochmal, ob du aenderungen siehst. mach mir von
+   deinen geplanten aenderungen ein vorschlag."
+
+  Diese Seite ist der Vorschlag. Sie zeigt die Struktur, nicht das fertige Markup -- ueber
+  Struktur entscheidet man an einer Liste, nicht an 300 Zeilen HTML.
+-->
+<style>
+:root {
+	color-scheme: light dark;
+	--grund: #f4f0e6; --panel: #fffdf7; --text: #2a2620; --stumm: #6f6656;
+	--linie: #ded5c2; --akzent: #8a6d3b; --stark: #6b4f22;
+	--neu: #2f6b3f; --neu-grund: #e6f2e8;
+	--weg: #8a3b3b; --weg-grund: #f6e7e7;
+	--alt: #7a6a3a; --alt-grund: #f7f1dc;
+}
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme="light"]) {
+		--grund: #1f1d18; --panel: #2b2820; --text: #ece5d6; --stumm: #a89a80;
+		--linie: #453f33; --akzent: #d7c38b; --stark: #e8d9a8;
+		--neu: #8fd3a3; --neu-grund: #24352a;
+		--weg: #e8a3a3; --weg-grund: #3a2626;
+		--alt: #e0cf8e; --alt-grund: #37301c;
+	}
+}
+body { margin: 0; padding: 28px 20px 80px; background: var(--grund); color: var(--text);
+	font: 15px/1.55 "Segoe UI", system-ui, sans-serif; }
+.blatt { max-width: 940px; margin: 0 auto; }
+h1 { font-size: 24px; margin: 0 0 4px; color: var(--stark); }
+.unter { color: var(--stumm); margin: 0 0 26px; }
+h2 { font-size: 18px; color: var(--stark); margin: 34px 0 8px; padding-bottom: 6px;
+	border-bottom: 1px solid var(--linie); }
+h3 { font-size: 15px; margin: 20px 0 6px; color: var(--akzent); }
+p { margin: 0 0 10px; }
+.karte { background: var(--panel); border: 1px solid var(--linie); border-radius: 10px;
+	padding: 14px 16px; margin: 0 0 12px; }
+.karte h4 { margin: 0 0 2px; font-size: 15px; color: var(--stark); }
+.sub { color: var(--stumm); font-size: 13px; margin: 0 0 10px; }
+.sub b { color: var(--akzent); font-weight: 600; }
+ul { margin: 6px 0 0; padding-left: 20px; }
+li { margin: 3px 0; }
+.marke { display: inline-block; padding: 1px 7px; border-radius: 999px; font-size: 11px;
+	font-weight: 700; letter-spacing: .03em; text-transform: uppercase; vertical-align: 2px; }
+.m-neu { background: var(--neu-grund); color: var(--neu); }
+.m-weg { background: var(--weg-grund); color: var(--weg); }
+.m-alt { background: var(--alt-grund); color: var(--alt); }
+table { border-collapse: collapse; width: 100%; margin: 8px 0 0; font-size: 13.5px; }
+th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--linie);
+	vertical-align: top; }
+th { color: var(--stumm); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+td.alt { color: var(--stumm); text-decoration: line-through; }
+td.neu { color: var(--stark); font-weight: 600; }
+.frage { background: var(--alt-grund); border-left: 3px solid var(--alt); padding: 10px 14px;
+	border-radius: 0 8px 8px 0; margin: 10px 0; }
+.frage b { color: var(--alt); }
+code { background: var(--panel); border: 1px solid var(--linie); border-radius: 4px;
+	padding: 0 4px; font-size: 12.5px; }
+.zahl { font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+<div class="blatt">
+
+<h1>Hinweise — Umbauvorschlag</h1>
+<p class="unter">05.09.2026 · nichts davon ist gebaut · gemessen am Livestand, nicht geschätzt</p>
+
+<p>Aus acht Abschnitten werden neun. „Unsere Karten“ steht nach „Inhalte und Datenquellen“ und
+sammelt ein, was heute über drei Abschnitte verstreut ist. Dazu: alle Untertitel neu, jede
+Sektion bekommt ihre Linkzeile am Ende, und vier inhaltlich überholte Stellen.</p>
+
+<!-- ══════════════════════════════════════════════════════════════════════════════════════ -->
+<h2>1 · Die neue Gliederung</h2>
+
+<div class="karte">
+	<h4>1. Bedienung</h4>
+	<p class="sub">heute: <i>Tastenbefehle — und was die Karte ausbremst</i><br>
+	   neu: <b>Tastenbefehle, Bedienhilfen und was die Karte langsam macht</b></p>
+	<p class="sub">unverändert. Der alte Untertitel nennt zwei von zwei Unterabschnitten, aber
+	   „ausbremst“ klingt nach einem Fehler der Karte — gemeint ist der Werbeblocker.</p>
+</div>
+
+<div class="karte">
+	<h4>2. Projekt und rechtlicher Status</h4>
+	<p class="sub">heute: <i>Fanprojekt, keine offizielle DSA-Publikation</i><br>
+	   neu: <b>Wer dahintersteckt, und was Avesmaps ausdrücklich nicht ist</b></p>
+	<p class="sub">unverändert. Der alte Untertitel wiederholt fast wörtlich den Titel.</p>
+</div>
+
+<div class="karte">
+	<h4>3. Urheberrecht und Lizenzen</h4>
+	<p class="sub">heute: <i>Marken, Kartenmaterial, Wappen, Bilder, Cover</i><br>
+	   neu: <b>Ulisses-Marken, Fanrichtlinien, Wappen, Bilder und Cover</b></p>
+	<ul>
+		<li><span class="marke m-weg">geht</span> <b>Kartenmaterial.</b> → nach „Unsere Karten“
+			(siehe Abschnitt 2 unten — das ist die eine Stelle, an der ich eine Entscheidung
+			von dir brauche)</li>
+		<li>bleibt: Marken- und Rechtehinweis · Fanrichtlinien · Keine freie Lizenz für
+			DSA-Material · Wappen · Bilder · Cover</li>
+		<li><span class="marke m-neu">neu</span> Linkzeile am Ende: <b>Lizenzen.</b> — heute hat
+			diese Sektion <em>keine</em>, ihr einziger Link hängt mitten im Text</li>
+	</ul>
+</div>
+
+<div class="karte">
+	<h4>4. Inhalte und Datenquellen</h4>
+	<p class="sub">heute: <i>Wegedaten, Wiki-Abgleich, Community-Meldungen</i><br>
+	   neu: <b>Woher Orte, Wege und Gebiete kommen — und wer sie prüft</b></p>
+	<ul>
+		<li>unverändert: Orts-, Wege- und Routendaten · Datenabgleich · Kartendaten aus Garetien
+			und dem Kosch · Community-Meldungen und Bewertungen</li>
+		<li><span class="marke m-weg">rückt</span> der Link <b>CC BY-NC-SA 3.0</b> steht heute
+			mitten im Garetien-Absatz und zieht in die Fanquellen-Zeile</li>
+		<li>Der alte Untertitel nennt den Garetien-Import nicht, obwohl er seit dem 12.08.2026
+			drinsteht und der größte Einzelposten dieser Sektion ist.</li>
+	</ul>
+</div>
+
+<div class="karte" style="border-color: var(--neu); border-width: 2px;">
+	<h4><span class="marke m-neu">neu</span> 5. Unsere Karten</h4>
+	<p class="sub">neu: <b>Die Originalkarte von Ina Kramer und die moderne Fassung daraus</b></p>
+	<ul>
+		<li><span class="marke m-neu">neu geschrieben</span> <b>Die Originalkarte.</b> — was sie
+			ist, von wem sie stammt, und dass sie unter „Original“ weiterhin als Untergrund
+			wählbar ist. Diesen Absatz gibt es heute <em>nicht</em>: Ina Kramer wird zwar im
+			Modern-Absatz genannt, aber die Originalkarte selbst wird nirgends erklärt.</li>
+		<li><span class="marke m-weg">kommt aus „Technik und Lizenzen“</span> <b>Moderne Karte.</b>
+			— unverändert, samt dem achtstufigen Schaubild</li>
+		<li><span class="marke m-weg">kommt aus „Urheberrecht“</span> <b>Kartenmaterial.</b>
+			— unverändert</li>
+		<li><span class="marke m-neu">neu</span> Linkzeile: <b>Karten.</b> Ina Kramer bei
+			Wikipedia · Lizenzvereinbarung zum Ulisses-Kartenpaket</li>
+	</ul>
+</div>
+
+<div class="karte">
+	<h4>6. Technik und Lizenzen</h4>
+	<p class="sub">heute: <i>Leaflet, jQuery, Wegfindung</i><br>
+	   neu: <b>Open-Source-Bausteine, unser Quellcode und wie die Route rechnet</b></p>
+	<ul>
+		<li><span class="marke m-weg">geht</span> <b>Moderne Karte.</b> samt Schaubild → nach
+			„Unsere Karten“</li>
+		<li>bleibt: Software und Open-Source-Komponenten · Quellcode · Wegfindung</li>
+		<li><span class="marke m-weg">rückt</span> <b>Was die MIT-Lizenz abdeckt und was nicht</b>
+			steht heute mitten im Quellcode-Absatz und zieht in die Technik-Zeile</li>
+		<li>Der alte Untertitel nennt drei Bibliotheken, von denen zwei im Text stehen — und
+			verschweigt, dass hier der eigene Quellcode und seine Lizenz erklärt werden.</li>
+	</ul>
+</div>
+
+<div class="karte">
+	<h4>7. Haftungsausschluss</h4>
+	<p class="sub">heute: <i>Inhalte, Links, Verfügbarkeit</i><br>
+	   neu: <b>Wofür wir geradestehen — und wofür nicht</b></p>
+	<p class="sub">unverändert. Der alte Untertitel ist eine Inhaltsangabe der drei Absatztitel.</p>
+</div>
+
+<div class="karte">
+	<h4>8. Datenschutz</h4>
+	<p class="sub">heute: <i>Logdaten, keine Cookies, Statistik, deine Rechte</i><br>
+	   neu: <b>Keine Cookies, kein Tracking — was der Server trotzdem sieht</b></p>
+	<p class="sub">unverändert. Der alte Untertitel ist der einzige, der schon etwas sagt
+	   („keine Cookies“); der neue stellt es nur voran.</p>
+</div>
+
+<div class="karte">
+	<h4>9. Kontakt und Impressum</h4>
+	<p class="sub">heute: <i>Betreiber, Anschrift, Nachricht schreiben</i><br>
+	   neu: <b>Anschrift nach §5 DDG und wie du uns erreichst</b></p>
+	<p class="sub">unverändert.</p>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════════════════ -->
+<h2>2 · Die eine Entscheidung, die ich dir nicht abnehmen kann</h2>
+
+<div class="frage">
+	<p><b>Wandert „Kartenmaterial.“ ganz mit, oder bleibt die Lizenz im Urheberrecht?</b></p>
+	<p>Der Absatz erklärt zwei Dinge in einem: <em>(a)</em> unter welcher Ulisses-Lizenz wir das
+	Kartenmaterial bearbeiten dürfen, und <em>(b)</em> dass dabei ChatGPT, Qwen und Midjourney zum
+	Einsatz kommen. Dein Auftrag nennt <em>(b)</em> — die Herkunft. <em>(a)</em> ist eine
+	Lizenzfrage und stünde eigentlich im Urheberrecht.</p>
+	<p><b>Mein Vorschlag: er wandert ganz.</b> Ein Absatz, der von der Karte handelt, gehört in
+	den Kartenabschnitt, und die Lizenzauflage ist erfüllt, solange die vollständige Adresse
+	irgendwo auf der Seite steht — sie zieht in die Linkzeile von „Unsere Karten“ mit. Ihn zu
+	zerschneiden ergäbe zwei halbe Absätze, die einander erklären müssten.</p>
+	<p class="sub">⚠️ Die Lizenz verlangt ausdrücklich, dass „eine Kopie der Lizenz oder ihre
+	vollständige Internetadresse beiliegt“. Der Link darf also nicht ersatzlos verschwinden —
+	deshalb steht er im Vorschlag namentlich in der neuen Linkzeile.</p>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════════════════ -->
+<h2>3 · Links ans Ende — was das konkret bewegt</h2>
+
+<p>Heute haben <span class="zahl">2</span> von 8 Sektionen eine Linkzeile am Ende
+(„Fanquellen.“ und „Technik.“). Vier Links hängen mitten im Text.</p>
+
+<table>
+	<tr><th>Link</th><th>steht heute</th><th>soll stehen</th></tr>
+	<tr>
+		<td>Lizenzvereinbarung zum Ulisses-Kartenpaket</td>
+		<td class="alt">im Absatz „Kartenmaterial“</td>
+		<td class="neu">Linkzeile „Karten.“ (neue Sektion)</td>
+	</tr>
+	<tr>
+		<td>CC BY-NC-SA 3.0</td>
+		<td class="alt">im Garetien-Absatz</td>
+		<td class="neu">Linkzeile „Fanquellen.“</td>
+	</tr>
+	<tr>
+		<td>Ina Kramer bei Wikipedia</td>
+		<td class="alt">im Absatz „Moderne Karte“</td>
+		<td class="neu">Linkzeile „Karten.“</td>
+	</tr>
+	<tr>
+		<td>Was die MIT-Lizenz abdeckt und was nicht</td>
+		<td class="alt">mitten im Quellcode-Absatz</td>
+		<td class="neu">Linkzeile „Technik.“</td>
+	</tr>
+</table>
+
+<p class="sub" style="margin-top: 12px;">⚠️ <b>Eine Ausnahme schlage ich vor:</b> die
+Discord-Adresse im Impressum. Sie steht mitten im Absatz „E-Mail.“, aber sie <em>ist</em> die
+Kontaktangabe — sie ans Ende zu schieben nähme dem Satz seinen Gegenstand. Kontaktangaben sind
+keine Quellenverweise.</p>
+
+<!-- ══════════════════════════════════════════════════════════════════════════════════════ -->
+<h2>4 · Was inhaltlich überholt ist</h2>
+
+<div class="karte">
+	<h4><span class="marke m-alt">überholt</span> Der Bach ist keine Wand mehr</h4>
+	<p class="sub">Im Absatz „Wegfindung“ steht: „Meer, Seen und Flüsse sind unpassierbar —
+	gequert wird nur dort, wo ein gezeichneter Weg quert.“ Seit dem <b>30.08.2026</b> ist ein
+	Bach eine <b>Furt</b>: er kostet das Dreifache, sperrt aber nicht
+	(<code>AVESMAPS_ROUTE_OFFROAD_BACH_FACTOR</code>). Der Satz beschreibt einen Zustand, den es
+	seit einer Woche nicht mehr gibt.</p>
+	<p class="sub"><b>Vorschlag:</b> einen Halbsatz ergänzen — „…; ein Bach lässt sich queren,
+	kostet aber deutlich mehr Zeit.“</p>
+</div>
+
+<div class="karte">
+	<h4><span class="marke m-alt">fehlt</span> Drei Untergründe, fünf Ansichten</h4>
+	<p class="sub">Seit dem <b>26.08.2026</b> kreuzt der Kartenfächer fünf Ansichten mit drei
+	Untergründen (Old · Original · Modern). Die Hinweise kennen nur „die Karte“. Das ist genau
+	die Stelle, an der die Originalkarte erwähnt gehört — sie ist heute ein <em>wählbarer
+	Untergrund</em>, nicht bloß eine historische Vorlage.</p>
+	<p class="sub"><b>Vorschlag:</b> ein Satz im neuen Absatz „Die Originalkarte.“ Kein eigener
+	Abschnitt — was die Karte <em>kann</em>, gehört ins Handbuch, nicht in die Hinweise.</p>
+</div>
+
+<div class="karte">
+	<h4><span class="marke m-alt">fehlt</span> Landschaften, Klimazonen, Vorkommen</h4>
+	<p class="sub">„Inhalte und Datenquellen“ nennt Orte, Wege, Gebiete, Wappen und
+	Community-Meldungen. Landschaftsflächen, Klimazonen und die Vorkommen (Natur &amp; Waren)
+	fehlen — und die sind eine <em>Herkunftsfrage</em>: sie sind größtenteils von uns erzeugt,
+	nicht abgeleitet. Das gehört in einen Abschnitt, der erklärt, woher die Daten kommen.</p>
+	<p class="sub"><b>Vorschlag:</b> ein Satz im Absatz „Orts-, Wege- und Routendaten.“</p>
+</div>
+
+<div class="karte">
+	<h4><span class="marke m-alt">geprüft, aber richtig</span> Die sechs Zoomstufen</h4>
+	<p class="sub">„…in die Kacheln der sechs Zoomstufen geschnitten“ — das sah nach einem
+	Zahlendreher aus, weil die Karte bis Zoom 7 geht. Nachgemessen: <code>maxNativeZoom: 5</code>,
+	also Stufen 0 bis 5 = sechs gekachelte Stufen; 6 und 7 sind Überzoom. <b>Der Satz stimmt und
+	bleibt.</b></p>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════════════════ -->
+<h2>5 · Was ich <em>nicht</em> anfasse</h2>
+<ul>
+	<li><b>Keinen Rechtstext umformulieren.</b> Haftung, Datenschutz und Impressum bleiben Wort
+		für Wort, wie sie sind — dort ändere ich nur den Untertitel. Ein umgeschriebener
+		Haftungsabsatz ist kein Redaktionsvorgang.</li>
+	<li><b>Keine Absätze kürzen.</b> Die drei Umzüge nehmen ihren Text unverändert mit.</li>
+	<li><b>Die Reihenfolge der übrigen Sektionen.</b> Nur „Unsere Karten“ kommt dazu.</li>
+	<li><b>Das Schaubild.</b> Es zieht als Ganzes um; an seinen acht Schritten ändert sich
+		nichts.</li>
+</ul>
+
+<h2>6 · Wenn du zustimmst</h2>
+<p>Ein Commit, ein Push, dein Blick — das ist bei sichtbaren Änderungen die Regel. Ich würde es
+in <b>zwei</b> Schritten live schicken, weil zwei verschiedene Dinge geprüft werden wollen:</p>
+<ul>
+	<li><b>Schritt 1 — die Struktur:</b> neue Sektion, die drei Umzüge, die vier Links ans Ende.
+		Danach schaust du, ob die Karten-Sektion vollständig ist.</li>
+	<li><b>Schritt 2 — die Sprache:</b> alle neun Untertitel und die drei inhaltlichen
+		Nachträge (Bach, Untergründe, Landschaften).</li>
+</ul>
+
+</div>
+</body>
+</html>
