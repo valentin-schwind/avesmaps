@@ -148,7 +148,40 @@ const DUMP = [
 		const fns = v.findeFunktionen(text, "js");
 		const namen = fns.map((f) => f.name);
 		const vmt = v.findeVmTests("js/review/review-path-sync.js", r.dir, namen);
-		assert.deepStrictEqual(vmt, [{ datei: "js/review/__tests__/ausreisser-loesen.test.js", genannt: ["loadVerlaufCases"] }]);
+		assert.deepStrictEqual(vmt, [{ datei: "js/review/__tests__/ausreisser-loesen.test.js", genannt: ["loadVerlaufCases"], wie: "variable quelle" }]);
+
+		// D2: GANZ gegen AUSGESCHNITTEN -- nur das Ganze bindet (die drei Ladewege des Hauses)
+		// (a) direkt im vm-Aufruf
+		r.schreibe("js/review/__tests__/direkt.test.js",
+			'vm.runInThisContext(fs.readFileSync(path.join(__dirname, "../review-path-sync.js"), "utf8"), { filename: "x" });\nfindVerlaufCase(1);\n');
+		// (c) Lade-Hilfsfunktion mit Pfadliste
+		r.schreibe("js/review/__tests__/helfer.test.js",
+			'function lade(rel) {\n\tconst absolute = path.join(ROOT, rel);\n\tvm.runInThisContext(fs.readFileSync(absolute, "utf8"), { filename: absolute });\n}\n' +
+			'["js/app/utils.js", "js/review/review-path-sync.js"].forEach(lade);\nverlaufOpenCleanTotal([]);\n');
+		// ausgeschnitten: schneidet per indexOf/slice -> KEIN vm-Test, aber Pruefung 3 kennt den Namen
+		r.schreibe("js/review/__tests__/schnipsel.test.js",
+			'const seite = fs.readFileSync(path.join(ROOT, "js/review/review-path-sync.js"), "utf8");\n' +
+			'const von = seite.indexOf("function findVerlaufCase");\nconst schnipsel = [seite.slice(von, seite.indexOf("\\n}", von) + 2)];\n' +
+			"vm.runInContext(schnipsel.join(\"\\n\"), ctx);\n");
+		// nur gelesen, in vm laeuft eine ANDERE Datei -> kein vm-Test
+		r.schreibe("js/review/__tests__/nurgelesen.test.js",
+			'const dialog = fs.readFileSync(path.join(ROOT, "js/review/review-path-sync.js"), "utf8");\nassert.ok(dialog.includes("handlePathWikiAssignmentPick"));\n' +
+			'vm.runInContext(fs.readFileSync(path.join(ROOT, "js/app/utils.js"), "utf8"), ctx);\n');
+		const vmt2 = v.findeVmTests("js/review/review-path-sync.js", r.dir, namen);
+		assert.deepStrictEqual(vmt2.map((t) => [path.posix.basename(t.datei), t.wie]).sort(), [
+			["ausreisser-loesen.test.js", "variable quelle"], ["direkt.test.js", "direkt"], ["helfer.test.js", "helfer lade (Liste)"],
+		]);
+		const qt2 = v.findeQuelltextTests("js/review/review-path-sync.js", r.dir);
+		assert.deepStrictEqual(qt2.map((t) => [path.posix.basename(t.datei), t.namen]), [["schnipsel.test.js", ["findVerlaufCase"]]]);
+		// (b) Ableitung ohne Ausschnitt: der groesste <script>-Block einer Editorseite ueber eine Funktion
+		r.schreibe("html/editor.html", "<script>\nfunction a() { return b(); }\nfunction b() { return 1; }\n</script>\n");
+		r.schreibe("js/pages/__tests__/editor-form.test.js",
+			'const editorQuelle = fs.readFileSync(path.join(wurzel, "html/editor.html"), "utf8");\n' +
+			'function oberflaechenQuelle() {\n\tconst bloecke = editorQuelle.match(/<script>([\\s\\S]*?)<\\/script>/g) || [];\n\treturn bloecke.map((x) => x.replace(/^<script>/, "").replace(/<\\/script>$/, "")).sort((p, q) => q.length - p.length)[0];\n}\n' +
+			'vm.runInContext(oberflaechenQuelle(), kasten, { filename: "editor.html" });\nvm.runInContext("a", kasten)();\n');
+		const ergHtml = v.vorpruefung({ datei: "html/editor.html", wurzel: r.dir, min: 1 });
+		assert.deepStrictEqual(ergHtml.vmTests.map((t) => t.wie), ["variable oberflaechenQuelle"]);
+		assert.deepStrictEqual(ergHtml.funktionen.map((f) => [f.name, f.gebunden.length > 0]), [["a", true], ["b", true]], "b haengt transitiv an a");
 		const graph = v.aufrufgraph(text, fns);
 		assert.deepStrictEqual([...graph.get("loadVerlaufCases")].sort(), ["findVerlaufCase", "renderVerlaufCaseList"]);
 		const gebunden = v.fixpunkt(["loadVerlaufCases"], graph);
@@ -157,10 +190,84 @@ const DUMP = [
 		assert.ok(!gebunden.has("handlePathWikiAssignmentPick"), "frei bleibt genau eine");
 		// Mutationsprobe 1: der Test laedt die Datei nicht mehr per vm -> keine Bindung
 		r.schreibe("js/review/__tests__/ausreisser-loesen.test.js", 'require("../review-path-sync.js"); loadVerlaufCases();\n');
-		assert.deepStrictEqual(v.findeVmTests("js/review/review-path-sync.js", r.dir, namen), []);
+		assert.ok(!v.findeVmTests("js/review/review-path-sync.js", r.dir, namen).some((t) => t.datei.endsWith("ausreisser-loesen.test.js")),
+			"ohne vm-Lauf keine Bindung aus diesem Test");
 		// Mutationsprobe 2: eine Kante weniger im Graphen -> der Abschluss schrumpft
 		const graph2 = new Map(graph); graph2.set("renderVerlaufCaseList", new Set());
 		assert.ok(!v.fixpunkt(["loadVerlaufCases"], graph2).has("verlaufOpenCleanTotal"));
 	}
 	console.log("vorpruefung D: ok");
+
+	// -- E: PHP -- Konstanten muessen VOR der require_once-Stelle definiert sein (citymaps.php, 04.09.) --
+	{
+		const php = [
+			"<?php",
+			"declare(strict_types=1);",
+			"const AVESMAPS_CITYMAP_WIKI_API = 'x';",
+			"define('AVESMAPS_CITYMAP_LIMIT', 5);",
+			"function a(): int { return AVESMAPS_CITYMAP_LIMIT + strlen(AVESMAPS_CITYMAP_WIKI_API) + JSON_THROW_ON_ERROR; }",
+			"function b(): string { return AVESMAPS_SPAETER; }",
+			"const AVESMAPS_SPAETER = 'zu spaet';",
+			"function c(): int { return 1; }",
+			"",
+		].join("\n");
+		const fns = v.findeFunktionen(php, "php");
+		assert.deepStrictEqual(fns.map((f) => f.name), ["a", "b", "c"]);
+		const k = v.konstantenImBlock(php, fns, 0, 1); // Block a..b
+		assert.deepStrictEqual(k.map((x) => [x.name, x.definiertVor]).sort(),
+			[["AVESMAPS_CITYMAP_LIMIT", true], ["AVESMAPS_CITYMAP_WIKI_API", true], ["AVESMAPS_SPAETER", false]]);
+		// JSON_THROW_ON_ERROR (Kernkonstante, nirgends definiert) darf NICHT auftauchen
+		assert.ok(!k.some((x) => x.name === "JSON_THROW_ON_ERROR"));
+		// und der Orchestrator macht daraus einen Bindungsgrund fuer den Block a..b, nicht fuer c
+		const r = tempRepo();
+		r.schreibe("api/_internal/app/x.php", php);
+		const erg = v.vorpruefung({ datei: "api/_internal/app/x.php", wurzel: r.dir, von: "a", bis: "b", min: 1 });
+		assert.strictEqual(erg.sprache, "php");
+		assert.strictEqual(erg.block.frei, false);
+		assert.ok(erg.block.gruende.some((g) => /AVESMAPS_SPAETER/.test(g)));
+		assert.deepStrictEqual(erg.funktionen.find((f) => f.name === "c").gebunden, []);
+	}
+
+	// -- F: HTML-Inline-Script, freie Bloecke, Orchestrator, CLI ---------------------------------
+	{
+		const r = tempRepo();
+		const html = [
+			"<!doctype html>",
+			"<script src=\"/js/ui/x.js\"></script>",
+			"<script>",
+			"function eins() { return 1; }",
+			"function zwei() { return eins(); }",
+			"",
+			"let zustandDazwischen = 0;",
+			"function drei() { return 3; }",
+			"function vier() { return 4; }",
+			"window.vier = vier;",
+			"</script>",
+			"",
+		].join("\n");
+		r.schreibe("html/seite.html", html);
+		const inl = v.inlineScript(html);
+		assert.strictEqual(inl.zeilenVersatz, 3);
+		const erg = v.vorpruefung({ datei: "html/seite.html", wurzel: r.dir, min: 1 });
+		assert.strictEqual(erg.sprache, "js");
+		assert.deepStrictEqual(erg.funktionen.map((f) => [f.name, f.von]), [["eins", 4], ["zwei", 5], ["drei", 8], ["vier", 9]]);
+		assert.deepStrictEqual(erg.funktionen.find((f) => f.name === "vier").gebunden, ["ladezeit: Z. 10"]);
+		assert.deepStrictEqual(erg.zustand.map((z) => z.zeile), [7, 10]);
+		// eins+zwei ein Block; drei allein (dazwischen Zustand); vier gebunden
+		assert.deepStrictEqual(erg.freieBloecke.map((b) => b.namen), [["eins", "zwei"], ["drei"]]);
+		assert.ok(Array.isArray(erg.nichtGesehen) && erg.nichtGesehen.length >= 3);
+		// Blockvorschlag: eins..drei ist NICHT frei (Zustand dazwischen), eins..zwei ist frei
+		assert.strictEqual(v.vorpruefung({ datei: "html/seite.html", wurzel: r.dir, von: "eins", bis: "drei" }).block.frei, false);
+		assert.strictEqual(v.vorpruefung({ datei: "html/seite.html", wurzel: r.dir, von: "eins", bis: "zwei" }).block.frei, true);
+		// min greift: mit min 3 ist nur eins..zwei (2 Zeilen) zu klein -> keine Bloecke
+		assert.deepStrictEqual(v.vorpruefung({ datei: "html/seite.html", wurzel: r.dir, min: 3 }).freieBloecke, []);
+		// CLI
+		const { execFileSync } = require("child_process");
+		const out = JSON.parse(execFileSync(process.execPath, [path.join(__dirname, "..", "vorpruefung.mjs"),
+			"html/seite.html", "--wurzel", r.dir, "--min", "1"], { encoding: "utf8" }));
+		assert.strictEqual(out.datei, "html/seite.html");
+		assert.strictEqual(typeof out.blob, "string");
+		assert.deepStrictEqual(out.freieBloecke.map((b) => b.namen), [["eins", "zwei"], ["drei"]]);
+	}
+	console.log("vorpruefung E, F: ok");
 })().catch((e) => { console.error(e); process.exit(1); });

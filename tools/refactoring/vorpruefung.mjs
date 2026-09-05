@@ -204,8 +204,9 @@ export function findeQuelltextTests(zielpfad, wurzel) {
 		const text = lies(wurzel, rel);
 		if (!nenntDatei(text, basis)) continue;
 		const namen = new Set();
-		for (const m of text.matchAll(/extract\w*\(\s*[^,()]*,\s*["']([A-Za-z_$][\w$]*)["']/g)) namen.add(m[1]);
-		for (const m of text.matchAll(/extract\w*\(\s*["']([A-Za-z_$][\w$]*)["']/g)) namen.add(m[1]);
+		// extractFunction(quelle, "name") · extract("name") · lift("name") · holeFunktion("name") · schneide…("name")
+		for (const m of text.matchAll(/(?:extract\w*|lift|hole\w*|schneide\w*)\(\s*[^,()"']*,\s*["']([A-Za-z_$][\w$]*)["']/g)) namen.add(m[1]);
+		for (const m of text.matchAll(/(?:extract\w*|lift|hole\w*|schneide\w*)\(\s*["']([A-Za-z_$][\w$]*)["']/g)) namen.add(m[1]);
 		for (const m of text.matchAll(/indexOf\(\s*["'](?:async\s+)?function\s+([A-Za-z_$][\w$]*)/g)) namen.add(m[1]);
 		// Regex-Literal im Test: /function\s+NAME\b/ oder /function NAME\(/ -- hier als Text gelesen,
 		// deshalb steht `\\s\+` (die Zeichen Backslash-s-Backslash-Plus) neben `\s+` (echter Leerraum).
@@ -215,8 +216,66 @@ export function findeQuelltextTests(zielpfad, wurzel) {
 	return funde;
 }
 
-// Pruefung 4a: Tests, die die Zieldatei ALLEIN in einen vm-Kontext laden -- ein Aufruf in eine
-// Geschwisterdatei ist dort ein ReferenceError. Genannt gilt als gerufen (konservativ).
+const VM_LAUF = /runInContext|runInNewContext|runInThisContext|vm\.Script|new Script\(/;
+const AUSSCHNITT = /\.slice\(|\.substring\(|\.substr\(|indexOf\(|extract\w*\(|lift\(|hole\w*\(|schneide\w*\(|schnipsel/;
+
+// Laedt dieser Test die Zieldatei GANZ in einen vm-Kontext? Nur dann gilt die Aufrufkette:
+// eine Geschwisterdatei existiert in diesem Kontext nicht, und jeder Aufruf dorthin ist ein
+// ReferenceError. Ein Test, der nur STUECKE ausschneidet (slice/extract/lift), hat die Kette
+// heute schon nicht -- er faellt unter Pruefung 3 (die Namen, die er schneidet).
+// Drei Wege, gemessen an den Tests des Hauses (05.09.2026):
+//   (a) direkt:   vm.runInThisContext(fs.readFileSync(path.join(__dirname, "../route-plan.js"), "utf8"))
+//   (b) Variable: const quelle = fs.readFileSync(...review-path-sync.js...); vm.runInContext(quelle, ...)
+//       -- auch ueber eine Ableitung ohne Ausschnitt (quelle.replace(...), oberflaechenQuelle() mit
+//       match(/<script>/) fuer den groessten Inline-Block einer Editorseite)
+//   (c) Lade-Hilfsfunktion: function lade(rel) { vm.runInThisContext(fs.readFileSync(...)) } + lade("…/ziel.js")
+//       oder eine Liste von Pfaden, die mit ihr durchlaufen wird.
+// ⚠️ Heuristik. Ein uebersehener Fall kostet einen verworfenen Schnitt am roten Testfeld VOR dem
+// Push, nie eine Regression -- deshalb darf sie im Zweifel FREI sagen, wenn kein Ganz-Lade-Beleg da ist.
+export function laedtGanz(text, basis) {
+	const b = basis.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+	const zielString = "[\"'][^\"'\\n]*" + b + "[\"']";
+	// (a) direkt
+	if (new RegExp("(runIn\\w*Context|vm\\.Script|new Script)\\(\\s*(?:fs\\.)?readFileSync\\([^;]{0,240}?" + b, "s").test(text)) return "direkt";
+	// (b) Variable + Ableitungen
+	const getaint = new Set();
+	for (const m of text.matchAll(new RegExp("(?:const|let|var)\\s+([A-Za-z_$][\\w$]*)\\s*=\\s*(?:await\\s+)?(?:fs\\.)?(?:readFileSync|readFile)\\([^;]{0,240}?" + b, "gs"))) getaint.add(m[1]);
+	let gewachsen = true;
+	while (gewachsen) {
+		gewachsen = false;
+		for (const m of text.matchAll(/(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*([^;]{1,400});/gs)) {
+			if (getaint.has(m[1])) continue;
+			const tok = wortTokens(m[2]);
+			if ([...getaint].some((v) => tok.has(v)) && !AUSSCHNITT.test(m[2])) { getaint.add(m[1]); gewachsen = true; }
+		}
+		for (const f of findeFunktionen(text, "js")) {
+			if (getaint.has(f.name)) continue;
+			const rumpf = text.slice(f.start, f.ende);
+			const tok = wortTokens(rumpf);
+			if ([...getaint].some((v) => tok.has(v)) && !AUSSCHNITT.test(rumpf)) { getaint.add(f.name); gewachsen = true; }
+		}
+	}
+	for (const v of getaint) {
+		if (new RegExp("(runIn\\w*Context|vm\\.Script|new Script)\\(\\s*" + v.replace(/\$/g, "\\$") + "\\b").test(text)) return "variable " + v;
+	}
+	// (c) Lade-Hilfsfunktion
+	for (const f of findeFunktionen(text, "js")) {
+		const rumpf = text.slice(f.start, f.ende);
+		if (!/(runIn\w*Context|vm\.Script|new Script)\(\s*(?:fs\.)?readFileSync\(/s.test(rumpf)) continue;
+		const h = f.name.replace(/\$/g, "\\$");
+		if (new RegExp(h + "\\(\\s*" + zielString).test(text)) return "helfer " + f.name;
+		// Pfadliste, die mit der Hilfsfunktion durchlaufen wird
+		for (const m of text.matchAll(/\[[^\]]{0,2000}\]/gs)) {
+			if (!new RegExp(zielString).test(m[0])) continue;
+			const danach = text.slice(m.index + m[0].length, m.index + m[0].length + 400);
+			if (new RegExp("(forEach|map)\\(\\s*" + h + "\\b|" + h + "\\(").test(danach)) return "helfer " + f.name + " (Liste)";
+		}
+	}
+	return null;
+}
+
+// Pruefung 4a: Tests, die die Zieldatei GANZ in einen vm-Kontext laden. Genannt gilt als gerufen
+// (konservativ); `wie` sagt, welcher der drei Ladewege erkannt wurde.
 export function findeVmTests(zielpfad, wurzel, funktionsnamen) {
 	const basis = path.posix.basename(zielpfad);
 	const funde = [];
@@ -224,10 +283,12 @@ export function findeVmTests(zielpfad, wurzel, funktionsnamen) {
 		if (!IST_TEST(rel)) continue;
 		const text = lies(wurzel, rel);
 		if (!nenntDatei(text, basis)) continue;
-		if (!/runInContext|runInNewContext|runInThisContext|vm\.Script|new Script\(/.test(text)) continue;
+		if (!VM_LAUF.test(text)) continue;
+		const wie = laedtGanz(text, basis);
+		if (!wie) continue;
 		const tokens = wortTokens(text);
 		const genannt = funktionsnamen.filter((n) => tokens.has(n));
-		funde.push({ datei: rel, genannt });
+		funde.push({ datei: rel, genannt, wie });
 	}
 	return funde;
 }
@@ -255,4 +316,166 @@ export function fixpunkt(startnamen, graph) {
 		for (const z of graph.get(n) || []) if (!aus.has(z)) { aus.add(z); stapel.push(z); }
 	}
 	return aus;
+}
+
+// -- PHP: Konstanten, die der Block liest, muessen VOR der Blockstelle definiert sein (Entwurf §3 C).
+// Bezeichner, die nirgends in der Datei definiert werden (PHP_EOL, JSON_THROW_ON_ERROR), sagen nichts
+// und werden weggelassen. `von`/`bis` sind Indizes in `funktionen`.
+export function konstantenImBlock(text, funktionen, von, bis) {
+	const start = funktionen[von].start;
+	const rumpf = funktionen.slice(von, bis + 1).map((f) => text.slice(f.start, f.ende)).join("\n");
+	const namen = new Set([...rumpf.matchAll(/(?<![\w$])([A-Z][A-Z0-9_]{3,})(?![\w$])/g)].map((m) => m[1]));
+	const aus = [];
+	for (const name of namen) {
+		const def = new RegExp("(define\\(\\s*['\"]" + name + "['\"]|const\\s+" + name + "\\s*=)", "g");
+		let zeile = null; let definiertVor = false; let irgendwo = false;
+		for (const m of text.matchAll(def)) {
+			irgendwo = true;
+			if (m.index < start) { definiertVor = true; zeile = zeileVon(text, m.index); break; }
+		}
+		if (!irgendwo) continue;
+		aus.push({ name, definiertVor, zeile });
+	}
+	return aus;
+}
+
+// -- HTML: der groesste Inline-<script>-Block. `zeilenVersatz` ist die Zeilennummer der <script>-Zeile;
+// Zeile z des Blocktexts liegt in der HTML-Datei auf z + zeilenVersatz - 1 (Zeile 1 des Blocks ist der
+// Rest der <script>-Zeile selbst).
+export function inlineScript(html) {
+	let best = null;
+	for (const m of html.matchAll(/<script(?![^>]*\ssrc=)[^>]*>([\s\S]*?)<\/script>/gi)) {
+		if (!best || m[1].length > best.text.length) best = { text: m[1], zeilenVersatz: zeileVon(html, m.index) };
+	}
+	return best || { text: "", zeilenVersatz: 0 };
+}
+
+// -- Freie Bloecke: Laeufe ungebundener Funktionen, zwischen denen nichts als Leerraum/Kommentar steht.
+export function freieBloecke(text, funktionen, gebunden, minZeilen, sprache = "js") {
+	const aus = [];
+	let lauf = [];
+	const schliesse = () => {
+		if (lauf.length) {
+			const zeilen = lauf[lauf.length - 1].bis - lauf[0].von + 1;
+			if (zeilen >= minZeilen) aus.push({ von: lauf[0].von, bis: lauf[lauf.length - 1].bis, namen: lauf.map((f) => f.name), zeilen });
+		}
+		lauf = [];
+	};
+	for (const f of funktionen) {
+		if (gebunden.has(f.name)) { schliesse(); continue; }
+		if (lauf.length) {
+			const zwischen = text.slice(lauf[lauf.length - 1].ende, f.start);
+			if (/\S/.test(ohneKommentare(zwischen, sprache))) schliesse();
+		}
+		lauf.push(f);
+	}
+	schliesse();
+	return aus;
+}
+
+// Blob-Hash wie git ihn im Index fuehrt (Clean-Filter inklusive, also CRLF -> LF im Repo).
+// Ausserhalb eines Repos hasht `git hash-object` den Rohinhalt; ohne git: null.
+export function gitBlob(wurzel, rel) {
+	try {
+		return childProcess.execFileSync("git", ["-C", wurzel, "hash-object", rel], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+	} catch { return null; }
+}
+
+// Was dieses Skript NICHT sieht -- steht in JEDER Ausgabe als Satz, nie als Schweigen (Entwurf §5).
+export const NICHT_GESEHEN = [
+	"Closures in IIFE-Modulen (der Scan sieht nur globale Deklarationen)",
+	"dynamisch zusammengesetzte Namen (window[\"avesmaps\" + x], new Function, eval)",
+	"Aufrufe aus .php-Seiten, die JS inline erzeugen (edit/*.php)",
+	"Inline-Handler in HTML-Attributen (onclick=\"name(\") und CSS-Klassen, die ein Block per String erzeugt",
+];
+
+// -- Der Orchestrator: eine Datei, alle Pruefungen, ein JSON.
+export function vorpruefung({ datei, wurzel = ".", von = null, bis = null, min = 150 }) {
+	const endung = path.posix.extname(datei);
+	const roh = lies(wurzel, datei);
+	let sprache; let text; let versatz = 0;
+	if (endung === ".php") { sprache = "php"; text = roh; }
+	else if (endung === ".js" || endung === ".mjs") { sprache = "js"; text = roh; }
+	else if (endung === ".html") { sprache = "js"; const inl = inlineScript(roh); text = inl.text; versatz = inl.zeilenVersatz ? inl.zeilenVersatz - 1 : 0; }
+	else throw new Error("unbekannte Endung: " + endung);
+
+	const fns = findeFunktionen(text, sprache).map((f) => ({ ...f, von: f.von + versatz, bis: f.bis + versatz }));
+	const namen = fns.map((f) => f.name);
+	const oberste = blendeRuempfeAus(text, fns);
+	const zustand = pruefeZustand(oberste, sprache).map((z) => ({ zeile: z.zeile + versatz, text: z.text }));
+	const gruende = new Map(namen.map((n) => [n, []]));
+	const merke = (n, g) => { if (gruende.has(n)) gruende.get(n).push(g); };
+
+	const lade = pruefeLadezeit(oberste, namen, sprache);
+	for (const [n, zeilen] of lade) merke(n, "ladezeit: Z. " + zeilen.map((z) => z + versatz).join(", "));
+
+	const register = findeRegister(datei, wurzel);
+	const quelltextTests = findeQuelltextTests(datei, wurzel);
+	for (const t of quelltextTests) for (const n of t.namen) merke(n, "quelltext: " + t.datei);
+
+	let vmTests = [];
+	if (sprache === "js") {
+		vmTests = findeVmTests(datei, wurzel, namen);
+		const graph = aufrufgraph(text, fns);
+		// Die Aufrufkette zaehlt NUR im vm-Kontext (dort fehlt die Geschwisterdatei). Ein Ladezeit-Bezug
+		// bindet nur den Namen selbst: seine Aufrufe laufen spaeter und finden die Geschwisterdatei vor.
+		const start = new Set(vmTests.flatMap((t) => t.genannt));
+		for (const t of vmTests) for (const n of t.genannt) merke(n, "vm: " + t.datei);
+		for (const n of fixpunkt([...start], graph)) {
+			if (start.has(n)) continue;
+			const ueber = [...start].find((s) => fixpunkt([s], graph).has(n));
+			merke(n, "vm-transitiv: ueber " + ueber);
+		}
+	}
+
+	let konstanten = [];
+	let i0 = 0; let i1 = fns.length - 1;
+	if (von && bis) { i0 = namen.indexOf(von); i1 = namen.indexOf(bis); }
+	if (sprache === "php" && fns.length) {
+		// Je FUNKTION: eine Konstante, die erst nach ihrem eigenen Start definiert wird, bindet nur sie --
+		// nicht die ganze Datei (sonst band eine spaete Konstante alle 100 Funktionen von ecosystem.php).
+		fns.forEach((f, i) => {
+			for (const k of konstantenImBlock(text, fns, i, i)) if (!k.definiertVor) merke(f.name, "konstante: " + k.name + " erst nach dieser Funktion definiert");
+		});
+		// Fuer den vorgeschlagenen Block zaehlt die BLOCKSTELLE (dort steht spaeter das require_once).
+		if (i0 >= 0 && i1 >= i0) konstanten = konstantenImBlock(text, fns, i0, i1);
+	}
+
+	const gebunden = new Set([...gruende].filter(([, g]) => g.length).map(([n]) => n));
+	const bloecke = freieBloecke(text, fns, gebunden, min, sprache);
+
+	let block = null;
+	if (von && bis) {
+		const bg = [];
+		if (i0 < 0 || i1 < 0 || i1 < i0) bg.push("Blockgrenzen nicht gefunden oder verkehrt");
+		else {
+			for (const f of fns.slice(i0, i1 + 1)) for (const g of gruende.get(f.name)) bg.push(f.name + " -- " + g);
+			for (const k of konstanten) if (!k.definiertVor) bg.push("konstante: " + k.name + " nicht vor der Blockstelle definiert");
+			const dazwischen = ohneKommentare(text.slice(fns[i0].start, fns[i1].ende), sprache);
+			const nurRuempfe = blendeRuempfeAus(dazwischen, findeFunktionen(dazwischen, sprache));
+			if (/\S/.test(nurRuempfe)) bg.push("Zustand oder Ladezeit-Code zwischen den Funktionen des Blocks");
+		}
+		block = { von, bis, frei: bg.length === 0, gruende: bg };
+	}
+
+	return {
+		datei, sprache, blob: gitBlob(wurzel, datei),
+		funktionen: fns.map((f) => ({ name: f.name, von: f.von, bis: f.bis, gebunden: gruende.get(f.name) })),
+		zustand, register, quelltextTests, vmTests, konstanten, freieBloecke: bloecke, block, nichtGesehen: NICHT_GESEHEN,
+	};
+}
+
+// -- CLI: node tools/refactoring/vorpruefung.mjs <datei> [--wurzel .] [--von a --bis b] [--min 150]
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+	const args = process.argv.slice(2);
+	const opt = {}; const frei = [];
+	for (let i = 0; i < args.length; i++) {
+		if (args[i].startsWith("--")) { opt[args[i].slice(2)] = args[i + 1]; i++; }
+		else frei.push(args[i]);
+	}
+	try {
+		if (!frei[0]) throw new Error("Aufruf: vorpruefung.mjs <datei> [--wurzel .] [--von a --bis b] [--min 150]");
+		const erg = vorpruefung({ datei: frei[0], wurzel: opt.wurzel || ".", von: opt.von || null, bis: opt.bis || null, min: Number(opt.min || 150) });
+		process.stdout.write(JSON.stringify(erg, null, 2) + "\n");
+	} catch (e) { process.stderr.write(String(e.message) + "\n"); process.exit(2); }
 }
