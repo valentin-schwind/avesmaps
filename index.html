@@ -3950,6 +3950,11 @@
 			<script src="js/map-features/map-features-ecosystem-heightmap-raster.js"></script>
 			<script src="js/map-features/map-features-ecosystem-hydrologie.js"></script>
 			<script src="js/map-features/map-features-ecosystem-height-render.js"></script>
+			<!-- 🔴 Ein Klick auf ein Gebirge zeigt sein Relief (Owner 05.09.2026), ohne dass der
+			     Eigenschaften-Dialog aufgehen muss. Reine Regel plus Bestandsliste, kein DOM; sie
+			     benutzt nur die öffentliche `setSolid`-Schnittstelle des Zeichners darüber und wird
+			     aus dem Auswahl-Trichter in map-features-ecosystem-rendering.js gerufen. -->
+			<script src="js/map-features/hoehenfeld-bei-auswahl.js"></script>
 			<!-- Fall #79: die Höhenskala im Topographie-Dialog. Reiner Rechner (Marken, Gruppierung,
 			     Achse) ohne DOM und ohne Karte; er MUSS vor map-features-ecosystem-properties.js
 			     stehen, das ihn beim Aufbau des Dialogs ruft. -->

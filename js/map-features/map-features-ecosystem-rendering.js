@@ -824,6 +824,14 @@ function setSelectedEcosystemArea(publicId) {
 	if (typeof syncEcosystemGeometryEdit === "function") {
 		syncEcosystemGeometryEdit();
 	}
+	// 🔴 UND SEIT 05.09.2026 ZEIGT DIE AUSWAHL DAS RELIEF (Owner: „dass die relief-karte schon
+	// erscheint, wenn man auf ein gebirge klickt"). Die Regel steht in hoehenfeld-bei-auswahl.js --
+	// hier nur der Aufruf, aus demselben Grund wie bei `syncEcosystemGeometryEdit` daneben: die
+	// Auswahl hat EINEN Trichter, und was an ihr hängt, hängt hier.
+	// ⚠️ Auch beim ABWÄHLEN (`publicId` leer) -- das Ausschalten gehört derselben Regel.
+	if (typeof avesmapsHoehenfeldBeiAuswahl === "function") {
+		avesmapsHoehenfeldBeiAuswahl(nextId);
+	}
 	syncEcosystemDoubleClickZoom();
 }
 
