@@ -87,7 +87,9 @@ const BEISPIEL = `# Refactoring-Arbeitspakete
 		assert.ok(pk.verlauf.length >= 1, pk.id + ": Verlauf fehlt");
 		if (pk.status === "erledigt") {
 			assert.ok(/\([0-9a-f]{7,}\)/.test(pk.statusRoh), pk.id + ": erledigt ohne SHA");
-			if (pk.verfahren !== "D") assert.ok(fs.existsSync(path.join(ROOT, pk.ziel)), pk.id + ": Geschwisterdatei " + pk.ziel + " fehlt");
+			// Ein Doppelungs-Paket „eine ist tot" hat als Ziel eine LOESCHUNG („gelöscht in <sha>") -- dann darf
+			// die Datei gerade nicht mehr da sein. Nur ein Ziel mit Dateiendung ist eine Geschwisterdatei.
+			if (pk.verfahren !== "D" && /\.(js|mjs|php)$/.test(pk.ziel)) assert.ok(fs.existsSync(path.join(ROOT, pk.ziel)), pk.id + ": Geschwisterdatei " + pk.ziel + " fehlt");
 		}
 		if (pk.verfahren === "D") assert.ok(/tools\/perf\//.test(pk.messskript), pk.id + ": Perf-Paket ohne Messskript unter tools/perf/");
 	}

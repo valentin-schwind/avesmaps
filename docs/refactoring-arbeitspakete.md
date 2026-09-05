@@ -211,14 +211,14 @@ Stand der Erstfüllung: `1cb5e09bd` (05.09.2026), 30 Pakete. Verworfen/nachgezog
 - Verlauf: 05.09.2026 angelegt (Analyse, Rangwert 17250)
 
 ### P-020 · api/app/ecosystem-areas.php · Verfahren D
-- Status: GO nötig
+- Status: offen
 - Stand: 1cb5e09bd · Blob: f2ed1e0535fdb007ac502be626e113d3b3d4d4fd
 - Block: „Ensure auf dem öffentlichen Lesepfad“ — avesmapsEcosystemEnsureTables … avesmapsEcosystemEnsureTables (gerufen in ecosystem-areas.php Z. 111, definiert in api/_internal/app/ecosystem.php Z. 275, 13 Abfragen in Schleifen plus DDL je Aufruf)
 - Ziel: `avesmapsEcosystemEnsureTables($pdo)` am Lesepfad `api/app/ecosystem-areas.php` durch `avesmapsSchemaEnsureOnce('ecosystem', (new ReflectionFunction('avesmapsEcosystemEnsureTables'))->getFileName(), fn() => avesmapsEcosystemEnsureTables($pdo))` binden — der zweite Parameter ist die Datei, in der die Ensure-Funktion DEFINIERT ist (heute `ecosystem.php`; nach einem C-Schnitt automatisch die Geschwisterdatei), NIE `__FILE__` des Aufrufers: `ecosystem-areas.php` hat 20 Commits in 180 Tagen, `ecosystem.php` 94 — die Dateien ändern sich unabhängig, und ein falscher Pfad zeigte eine neue Spalte bis zu eine Stunde lang nicht an (Backend-Agent 05.09.2026). Riegel: `api/_internal/schema-ensure-once.php`, dieselbe Bauform wie beim politischen Endpunkt (AGENTS §10). NUR der Lesepfad; alle Schreibwege in ecosystem.php behalten den Roh-Ensure.
 - Messskript: tools/perf/ecosystem-areas-ensure.php (zu schreiben) — zählender PDO-Wrapper über der SQLite-Fixture der `climate-*-test.php`: Abfragen je `GET areas`-Aufruf vorher/nachher (Erwartung beim zweiten Aufruf: minus die 38 `prepare/query/exec` von `avesmapsEcosystemEnsureTables` Z. 275–1108, darunter 18 `CREATE TABLE` und 8 `SHOW COLUMNS`/`PRAGMA` — Behauptungsprüfer 05.09.2026; „13“ war die Zahl des Geruchs, nicht der Arbeit), `ausgabe_sha256` des JSON-Rumpfs gleich.
 - Vorprüfung (05.09.2026): gleiche Ausgabe, weniger Arbeit — ABER `avesmapsEcosystemEnsureTables` trägt neben DDL auch DATENMIGRATIONEN und SEEDS (`UPDATE ecosystem_area SET terrain_erosion = terrain_levels`, `affects_paths`-Seed, die `offroad_factor`-Tabelle; Z. 505–535, 765–800). Mit dem Riegel laufen sie höchstens einmal je Stunde statt je Anfrage — nie öfter. Vor dem GO prüfen: verlässt sich ein SCHREIBWEG darauf, dass der Lesepfad einen Backfill für frisch angelegte Zeilen nachholt? Wenn ja, ist es keine reine Perf-Änderung. Die zwei Warnungen in `ecosystem.php` gegen einen geteilten „was anything new?“-Merker meinen das WIEDER-Ausführen eines Seeds — das tut der Riegel nicht.
 - Fallen: 💣 Der Marker trägt die MTIME der DEFINIERENDEN Datei — das ist die Datei, in der `avesmapsEcosystemEnsureTables` steht (heute ecosystem.php; nach einem C-Schnitt der Ensure-Funktionen deren Geschwisterdatei), sonst läuft ein neuer `ALTER TABLE` bis zu eine Stunde später in „Unknown column“. 💣 Nie innerhalb einer Transaktion rufen (DDL committet implizit). ⚠️ Fällt OFFEN aus (Temp nicht schreibbar → Ensure wie bisher). 🔴 Die Live-Gegenprobe nach dem Deploy beweist den Marker-Pfad NICHT (der gerade gelaufene Ensure ist ohnehin frisch) — der Beleg ist der DIFF: der Behauptungsprüfer liest das zweite Argument. Owner-Probe: erstes von drei Perf-Paketen.
-- Verlauf: 05.09.2026 angelegt (Perf-Geruch: abfrage-in-schleife ×13 in avesmapsEcosystemEnsureTables; Aufrufer auf dem Lesepfad belegt)
+- Verlauf: 05.09.2026 angelegt (Perf-Geruch: abfrage-in-schleife ×13 in avesmapsEcosystemEnsureTables; Aufrufer auf dem Lesepfad belegt) · 05.09.2026 GO Owner (Perf-Probe 1 von 3; nur mit Agenten, Riegel D)
 
 ### P-021 · api/_internal/app/lore.php · Verfahren D
 - Status: GO nötig
@@ -241,7 +241,7 @@ Stand der Erstfüllung: `1cb5e09bd` (05.09.2026), 30 Pakete. Verworfen/nachgezog
 - Verlauf: 05.09.2026 angelegt (AGENTS §10, gemessen am Dump vom 04.09.2026: 2.143 → 1.993 ms Rauschen bei der Derived-Löschung, die Kosten liegen in den Wappen-Unterabfragen)
 
 ### P-023 · api/_internal/wiki/regions.php · Verfahren C
-- Status: GO nötig
+- Status: offen
 - Stand: 1cb5e09bd · Blob: 8c8da87e9dbc3d779bc50f893795a245386956bd
 - Block: „Doppelung: Kurzbeschreibung aus dem Wikitext“ — avesmapsWikiRegionExtractDescription … avesmapsWikiRegionExtractDescription (dreifach: `paths.php` `avesmapsWikiPathExtractDescription` Z. 551–589, `regions.php` Z. 619–660, `settlements.php` `avesmapsWikiSettlementExtractDescription` Z. 780–821)
 - Ziel: neue abhängigkeitsfreie Datei `api/_internal/wiki/wiki-text-extract.php` mit `avesmapsWikiExtractLeadDescription(string $wikitext, string $infoboxBlock): string`, `require_once` aus paths/regions/settlements (Vorbild: `path-naming.php`, „dependency-free, required by BOTH paths.php and powerlines.php“). Die drei alten Namen bleiben als Einzeiler-Weiterreicher, bis alle Aufrufer umgestellt sind.
@@ -250,10 +250,10 @@ Stand der Erstfüllung: `1cb5e09bd` (05.09.2026), 30 Pakete. Verworfen/nachgezog
 - Empfehlung: zusammenlegen — keine Verhaltensvereinigung nötig, die drei sind heute wortgleich; reine Deduplizierung plus drei `require_once`-Zeilen.
 - Beleg: `git blame -w -L 551,589 -- api/_internal/wiki/paths.php` → fdcbfe33af; `-L 619,660 -- regions.php` → cc29579ef4; `-L 779,821 -- settlements.php` → 3e9982813b; `grep -rln ExtractDescription` → nur die vier Dateien, kein Test.
 - Fallen: kein Test hält die drei gegeneinander — eine Änderung an einer Kopie (Grenzwert 1200) bliebe in den anderen stehen. Historiker-Lauf 05.09.2026.
-- Verlauf: 05.09.2026 angelegt (Doppelungs-Scan, gleichheit 1,00; Historiker)
+- Verlauf: 05.09.2026 angelegt (Doppelungs-Scan, gleichheit 1,00; Historiker) · 05.09.2026 GO Owner (zusammenlegen; alte Namen bleiben als Weiterreicher)
 
 ### P-024 · api/_internal/wiki/sync-monitor.php · Verfahren C
-- Status: GO nötig
+- Status: offen
 - Stand: 1cb5e09bd · Blob: 767a14f7cfc522aead59ffbecc69371a993c55d1
 - Block: „Doppelung: das Crawl-Skelett der Wiki-Sync-Libs“ — avesmapsWikiSyncMonitorEnqueue … avesmapsWikiSyncMonitorEnqueue (Familie: `Enqueue` dreifach in sync-monitor/regions/paths; `FetchCategory`, `RunStatus`, `StartRun`, `Clear` je paths ↔ regions)
 - Ziel: `api/_internal/wiki/wiki-crawler-base.php` — der Masterplan (M4, seit `723aae060` 13.06.2026) nennt genau diese Datei als aufgeschoben. Parametrisiert über Queue-/Staging-Tabelle, Default-Seeds und Max-Depth-Konstante; die Path-/Region-Namen bleiben als Weiterreicher.
@@ -262,10 +262,10 @@ Stand der Erstfüllung: `1cb5e09bd` (05.09.2026), 30 Pakete. Verworfen/nachgezog
 - Empfehlung: zusammenlegen — `Enqueue` zuerst (alle drei Aufrufer identisch, kandidatenreifste Funktion), dann die vier Paare.
 - Beleg: `paths.php:136-159/162-186/190-225/628-655/690-709`, `regions.php:262-287/290-320/323-362/704-733/771-792`, `sync-monitor.php:384-410`; `docs/refactoring-masterplan.md` M4 „wiki-crawler-base.php“. Kein Test hält eine der fünf Familien einzeln fest.
 - Fallen: `territory-plan-test.php:562` liest den QUELLTEXT des gleichnamigen ENDPUNKTS `api/edit/wiki/sync-monitor.php`, nicht dieser Lib (ein früherer Satz hier behauptete das Gegenteil — Behauptungsprüfer 05.09.2026). Die Risikorichtung ist real: ein Bugfix in einer Kopie läuft an den anderen vorbei.
-- Verlauf: 05.09.2026 angelegt (Doppelungs-Scan, 9 Paare der Familie; Historiker)
+- Verlauf: 05.09.2026 angelegt (Doppelungs-Scan, 9 Paare der Familie; Historiker) · 05.09.2026 GO Owner (zusammenlegen; alte Namen bleiben als Weiterreicher)
 
 ### P-025 · api/_internal/political/territories-geometry.php · Verfahren C
-- Status: GO nötig
+- Status: offen
 - Stand: 1cb5e09bd · Blob: b4230f91d43e3cf271ec45820692669705b5164d
 - Block: „Doppelung: bbox-Parameter lesen“ — avesmapsPoliticalReadOptionalBoundingBox … avesmapsPoliticalReadOptionalBoundingBox (dreifach: `api/app/map-features.php` `avesmapsParseOptionalBoundingBox` Z. 558–591, `territories-geometry.php` Z. 1680–1714, `api/_internal/app/ecosystem.php` `avesmapsEcosystemParseBoundingBox` Z. 1299 — die dritte fand der Scan nicht, der Historiker schon)
 - Ziel: eine neutrale reine Bibliotheksdatei (`api/_internal/app/bbox-parse.php`, `avesmapsParseBoundingBox`), per `require_once` aus allen drei Stellen. NICHT das eine aus dem anderen einbinden: `map-features.php` ist ein ENDPUNKT mit Bootstrap, ein `require` ließe den ganzen Request-Handler mitlaufen (Kommentar `ecosystem.php:1296-1298` sagt genau das).
@@ -274,19 +274,19 @@ Stand der Erstfüllung: `1cb5e09bd` (05.09.2026), 30 Pakete. Verworfen/nachgezog
 - Empfehlung: zusammenlegen über eine dritte, gemeinsame Bibliotheksstelle (nutzlastfrei: kein Bootstrap, keine DB, nur `InvalidArgumentException`).
 - Beleg: `api/app/map-features.php:558-591`, `territories-geometry.php:1680-1714`, `ecosystem.php:1294-1299`; Commits a1ce7c11f, 815327b32, d760df69e, 9d938c047a. Kein Test hält die Fassungen gegeneinander.
 - Fallen: ein künftiger Fix (Dezimaltrennzeichen, Fehlermeldung) an einer Kopie liefe lautlos an zwei anderen vorbei.
-- Verlauf: 05.09.2026 angelegt (Doppelungs-Scan, gleichheit 1,00; Historiker)
+- Verlauf: 05.09.2026 angelegt (Doppelungs-Scan, gleichheit 1,00; Historiker) · 05.09.2026 GO Owner (zusammenlegen; alte Namen bleiben als Weiterreicher)
 
 ### P-026 · js/territory/territory-editor-preview.js · Verfahren A
-- Status: GO nötig
+- Status: erledigt (c9458e14a)
 - Stand: 1cb5e09bd · Blob: ef3c5ad62206fd7b1c891fd73fe65b52e6ca7f79
 - Block: „Doppelung: getTreeMapStatus — eine ist tot“ — getTreeMapStatus … getTreeMapStatus (Zwilling in `territory-editor-embedded.js` Z. 856–886, live verdrahtet)
-- Ziel: `js/territory/territory-editor-preview.js` löschen (Systemtest 05.08.2026, Befund B16 „von keiner Seite geladen“). 🔴 Die Routine löscht nie — Owner-Handlung.
+- Ziel: gelöscht in c9458e14a (Owner-GO 05.09.2026); auf dem Server bleibt die Datei als Waise, der Deploy löscht nie
 - Unterschied: semantisch keiner; zeichengleich nicht — `getTreeCoverageStatus` schreibt `(status) => …` gegen `status => …`, `getTreeMapStatus` sein `return` einzeilig gegen dreizeilig (Behauptungsprüfer 05.09.2026).
 - Warum: beide aus dem Squash-Commit `3a97fa5bed` (25.05.2026, „Restore repository“); preview ist ein Überbleibsel der Vor-Reorg-Phase.
 - Empfehlung: eine ist tot — Datei löschen.
 - Beleg: `git grep -rn territory-editor-preview` → kein Aufrufer in `index.html`, `html/*.html`, `edit/*.php`, `territory-editor-inline-host.js`; einzige Nennung `docs/systemtest-2026-08-05/befunde/3-sackgassen.md`.
 - Fallen: keine — kein Loader, kein Test, keine Referenz.
-- Verlauf: 05.09.2026 angelegt (Doppelungs-Scan, gleichheit 1,00; Historiker; deckt B16)
+- Verlauf: 05.09.2026 angelegt (Doppelungs-Scan, gleichheit 1,00; Historiker; deckt B16) · 05.09.2026 GO Owner · 05.09.2026 erledigt (c9458e14a): Datei gelöscht
 
 ### P-027 · js/review/review-label-wiki.js · Verfahren A
 - Status: GO nötig
@@ -298,10 +298,10 @@ Stand der Erstfüllung: `1cb5e09bd` (05.09.2026), 30 Pakete. Verworfen/nachgezog
 - Empfehlung: zusammenlegen (eine Funktion mit `wikiKey`, URL-Konstante als Parameter).
 - Beleg: `git blame -L316,333 js/map-features/map-features-ecosystem-properties.js` → bf2a745678; `-L180,196 js/review/review-label-wiki.js` → 374b82da8f; kein Test nennt einen der beiden Namen.
 - Fallen: `map-features-ecosystem-properties.js` ist ein IIFE-Modul (Nicht-Ziel der Routine) — die Zusammenlegung ändert dort eine Closure; Owner-Sache. Vorher prüfen, ob die zwei URL-Konstanten je auseinanderlaufen sollen (heute nicht).
-- Verlauf: 05.09.2026 angelegt (Doppelungs-Scan, gleichheit 1,00; Historiker)
+- Verlauf: 05.09.2026 angelegt (Doppelungs-Scan, gleichheit 1,00; Historiker) · 05.09.2026 GO Owner — aber die Zusammenlegung ändert eine Closure im IIFE-Modul map-features-ecosystem-properties.js (Nicht-Ziel der Routine, Owner-Entscheid 05.09.): bleibt GO nötig als Owner-Aufgabe, die Routine baut es nicht
 
 ### P-028 · api/_internal/map/features.php · Verfahren C
-- Status: GO nötig
+- Status: offen
 - Stand: 1cb5e09bd · Blob: 13e80b2efdec7cc9f6a0dbf07a688d6ae1ff111f
 - Block: „Doppelung: UUID v4 und map_revision-Zähler“ — avesmapsUuidV4 … avesmapsUuidV4 (dreifach: `features.php` Z. 4251, `political/territory.php` `avesmapsPoliticalUuidV4` Z. 1082, `wiki/sync.php` `avesmapsWikiSyncUuidV4` Z. 104; dazu `avesmapsNextMapRevision` `features.php` Z. 4069 ~ `avesmapsWikiSyncNextMapRevision` `wiki/locations-helpers.php` Z. 149)
 - Ziel: neue abhängigkeitsfreie Datei `api/_internal/uuid.php` (nur die eine Funktion) und ein ebenso kleiner `map-revision.php`; die alten Namen bleiben als Weiterreicher. NICHT durch Requiren einer der drei Großdateien — Kommentare in `citymaps.php:902`, `ecosystem.php:70`, `game-literature.php:791`, `edit/reports/locations.php:8` begründen, warum niemand die 2700-Zeilen-Datei für einen 15-Zeilen-Helfer einbindet.
@@ -310,10 +310,10 @@ Stand der Erstfüllung: `1cb5e09bd` (05.09.2026), 30 Pakete. Verworfen/nachgezog
 - Empfehlung: zusammenlegen in eine abhängigkeitsfreie Datei — erfüllt genau die im Code genannte Bedingung.
 - Beleg: `git blame -w -L 4251,4251 -- api/_internal/map/features.php` u. a.; Kommentare `api/_internal/app/citymaps.php:902-903`, `api/_internal/app/ecosystem.php:70-72`.
 - Fallen: `settlement-places-test.php` sucht `avesmapsUuidV4` im Quelltext von `features.php` (Prüfung 3b) — der Weiterreicher muss dort stehen bleiben oder der Test mitwandern.
-- Verlauf: 05.09.2026 angelegt (Doppelungs-Scan, gleichheit 1,00 / 0,91; Historiker)
+- Verlauf: 05.09.2026 angelegt (Doppelungs-Scan, gleichheit 1,00 / 0,91; Historiker) · 05.09.2026 GO Owner (zusammenlegen; alte Namen bleiben als Weiterreicher)
 
 ### P-029 · api/_internal/wiki/lore-sync.php · Verfahren C
-- Status: GO nötig
+- Status: offen
 - Stand: 1cb5e09bd · Blob: 3c2206a3574a5951d91ce23f3f57253ad982c03b
 - Block: „Doppelung: Feldplan des Override-sicheren Abgleichs“ — avesmapsLoreFieldPlan … avesmapsLoreFieldPlan (Zwilling `avesmapsGameLiteratureFieldPlan` in `game-literature-sync.php` Z. 61)
 - Ziel: ein generischer `avesmapsWikiFieldPlan(current, desired, fieldOrigins, fields, normalizeFn)` — reine Funktion, DB-frei — in einer kleinen geteilten Datei; beide Aufrufer sind durch identische Signatur austauschbar.
@@ -322,10 +322,10 @@ Stand der Erstfüllung: `1cb5e09bd` (05.09.2026), 30 Pakete. Verworfen/nachgezog
 - Empfehlung: zusammenlegen (AGENTS §5 sinngemäß: ein Parameter statt einer zweiten Datei).
 - Beleg: `game-literature-sync.php:61`, `lore-sync.php:91` und Kopf Z. 8–9; Tests `game-literature-sync-test.php`, `lore-sync-test.php` prüfen nur den je eigenen Aufrufer.
 - Fallen: kein Test hält die beiden gegeneinander; die Vereinigung ändert kein Verhalten, solange `normalizeFn` je Aufrufer mitgegeben wird.
-- Verlauf: 05.09.2026 angelegt (Doppelungs-Scan, gleichheit 1,00; Historiker)
+- Verlauf: 05.09.2026 angelegt (Doppelungs-Scan, gleichheit 1,00; Historiker) · 05.09.2026 GO Owner (zusammenlegen; alte Namen bleiben als Weiterreicher)
 
 ### P-030 · api/_internal/app/ecosystem-display.php · Verfahren C
-- Status: GO nötig
+- Status: offen
 - Stand: 1cb5e09bd · Blob: 82b1091bd62e4b97cfb27bcfb1b4071fbd67e492
 - Block: „Doppelung: Tafel mit Stempel lesen“ — avesmapsEcosystemDisplayRead … avesmapsEcosystemDisplayRead (Zwilling `avesmapsZoomBandsRead` in `zoom-bands.php` Z. 156)
 - Ziel: ein generischer `avesmapsAppSettingTafelRead($pdo, $settingKey, $stampKey): array{value,stamp}`, den beide Wrapper (mit ihren heutigen Rückgabe-Schlüsseln `display`/`bands`) dünn aufrufen.
@@ -334,7 +334,7 @@ Stand der Erstfüllung: `1cb5e09bd` (05.09.2026), 30 Pakete. Verworfen/nachgezog
 - Empfehlung: zusammenlegen.
 - Beleg: `ecosystem-display.php:366`, `zoom-bands.php:156`; Tests `ecosystem-display-test.php`, `zoom-bands-test.php` prüfen je nur den eigenen Aufrufer.
 - Fallen: beide Leser fallen OFFEN aus (jeder Fehler ⇒ Vorgabe, AGENTS §11 Zoombänder) — der geteilte Leser muss dieselbe Regel tragen; `avesmapsAppSettingEnsureWideValue` nur aus Schreibern rufen (AGENTS §10).
-- Verlauf: 05.09.2026 angelegt (Doppelungs-Scan, gleichheit 1,00; Historiker)
+- Verlauf: 05.09.2026 angelegt (Doppelungs-Scan, gleichheit 1,00; Historiker) · 05.09.2026 GO Owner (zusammenlegen; alte Namen bleiben als Weiterreicher)
 
 ---
 
