@@ -239,21 +239,35 @@ export function findeQuelltextTests(zielpfad, wurzel) {
 // Ein Name, der in so einem Test NUR bar vorkommt (als Aufruf ueber die require-Kette), bindet nicht;
 // einer, der in einem String-Literal steht, bindet -- nach dem Umzug findet ihn der Test dort nicht mehr.
 // Auch ein Praefix-String ("avesmapsDeleteCitymap") bindet alle Namen, die mit ihm beginnen.
+// Kalibriert am 05.09.2026 an acht echten Tests: ein Name in einer ASSERT-MELDUNG bindet nicht,
+// ein `file_get_contents` auf eine LOGDATEI liest keine Lib. Gebunden ist ein Name nur, wenn er als
+// String in einem SUCH-Aufruf steht (str_contains/strpos/substr_count/preg_match ...) oder als Argument
+// eines Ausschneide-Helfers ($rumpfVon('name'), $quelleVon(...)), UND der Test die Zieldatei liest.
+const PHP_SUCHE = /(str_contains|str_starts_with|str_ends_with|strpos|stripos|strrpos|substr_count|preg_match|preg_match_all|preg_replace|preg_split|preg_quote|strstr|mb_strpos|mb_substr_count)\s*\(([^;]*)/g;
+const PHP_HELFER = /\$?(\w*(?:rumpf|quelle|source|extract|schneide|hole|lift|body|snippet)\w*)\s*\(\s*['"]([A-Za-z_][\w]*)['"]/gi;
+
 export function findePhpQuelltextTests(zielpfad, wurzel, funktionsnamen) {
 	if (!zielpfad.endsWith(".php")) return [];
 	const basis = path.posix.basename(zielpfad);
+	const b = basis.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+	// Der Basisname muss das ENDE des Pfad-Strings sein ("…/features.php'") -- eine Logdatei
+	// "visitor-analytics.php.log" ist nicht die Lib.
+	const liestZiel = new RegExp("(file_get_contents|\\bfile|token_get_all|PhpToken::tokenize)\\s*\\([^;]{0,200}?" + b + "['\"]|\\(\\s*['\"][^'\"\\n]*" + b + "['\"]\\s*\\)", "s");
 	const funde = [];
 	for (const rel of alleDateien(wurzel, ["api", "tools"], [".php"])) {
 		if (!(/__tests__\/[^/]+\.php$/.test(rel) || /(^|\/)test-[^/]+\.php$/.test(rel))) continue;
 		const text = lies(wurzel, rel);
 		if (!nenntDatei(text, basis)) continue;
 		if (!/file_get_contents|\bfile\(|token_get_all|PhpToken::tokenize/.test(text)) continue;
-		const strings = [...text.matchAll(/'((?:[^'\\]|\\.)*)'|"((?:[^"\\]|\\.)*)"/g)].map((m) => m[1] ?? m[2]);
+		if (!liestZiel.test(text)) continue;
+		const strings = [];
+		for (const m of text.matchAll(PHP_SUCHE)) for (const s of m[2].matchAll(/'((?:[^'\\]|\\.)*)'|"((?:[^"\\]|\\.)*)"/g)) strings.push(s[1] ?? s[2]);
+		for (const m of text.matchAll(PHP_HELFER)) strings.push(m[2]);
 		const namen = new Set();
 		for (const s of strings) {
 			for (const n of funktionsnamen) {
 				if (s === n || s.includes(n)) { namen.add(n); continue; }
-				// Praefix: der String ist ein Anfangsstueck des Namens und mindestens so lang wie "avesmaps" + 4
+				// Praefix: der String ist ein Anfangsstueck des Namens (citymap-delete-parity sucht "avesmapsDeleteCitymap")
 				if (s.length >= 12 && /^[A-Za-z_][\w]*$/.test(s) && n.startsWith(s)) namen.add(n);
 			}
 		}

@@ -287,20 +287,29 @@ const DUMP = [
 		// Praefix-String "avesmapsDeleteCitymap" -> bindet DeleteCitymapChildRows
 		r.schreibe("api/_internal/analytics/__tests__/verweildauer-test.php",
 			"<?php\nrequire __DIR__ . '/../visitor-analytics.php';\n$quelle = file_get_contents(__DIR__ . '/../visitor-analytics.php');\n" +
-			"assert(substr_count($quelle, 'avesmapsVisitorFinishLiveRun(') === 2);\nassert(str_contains($quelle, 'avesmapsDeleteCitymap'));\n$x = avesmapsVisitorReadGeo();\n");
+			"assert(substr_count($quelle, 'avesmapsVisitorFinishLiveRun(') === 2);\nassert(str_contains($quelle, 'avesmapsDeleteCitymap'));\n$x = avesmapsVisitorReadGeo();\n" +
+			// eine ASSERT-MELDUNG nennt RecordLive -- das ist keine Bindung
+			"assert($x === [], 'avesmapsVisitorRecordLive muss vorher nichts schreiben');\n");
 		// liest den Quelltext NICHT (nur require + Aufrufe) -> bindet nichts, obwohl Namen als Strings stehen
 		r.schreibe("api/_internal/analytics/__tests__/nur-aufrufe-test.php",
 			"<?php\nrequire __DIR__ . '/../visitor-analytics.php';\n$f = 'avesmapsVisitorRecordLive'; $f();\n");
+		// liest eine LOGDATEI, nicht die Lib -- und sucht darin einen Funktionsnamen: keine Bindung
+		r.schreibe("api/_internal/analytics/__tests__/protokoll-test.php",
+			"<?php\nrequire __DIR__ . '/../visitor-analytics.php';\n$log = (string) @file_get_contents('/tmp/visitor-analytics.php.log');\nassert(str_contains($log, 'avesmapsVisitorReadGeo'));\n");
+		// Ausschneide-Helfer: $rumpfVon('name') schneidet den Rumpf aus der gelesenen Quelle -> bindet
+		r.schreibe("api/_internal/analytics/__tests__/rumpf-test.php",
+			"<?php\n$quelle = (string) file_get_contents(__DIR__ . '/../visitor-analytics.php');\n$rumpfVon = static fn(string $n): string => substr($quelle, strpos($quelle, 'function ' . $n));\n$r = $rumpfVon('avesmapsVisitorRecordLive');\n");
 		const erg = v.vorpruefung({ datei: "api/_internal/analytics/visitor-analytics.php", wurzel: r.dir, min: 1 });
 		const geb = Object.fromEntries(erg.funktionen.map((f) => [f.name, f.gebunden]));
 		assert.deepStrictEqual(geb.avesmapsVisitorFinishLiveRun, ["quelltext: api/_internal/analytics/__tests__/verweildauer-test.php"]);
 		assert.deepStrictEqual(geb.avesmapsDeleteCitymapChildRows, ["quelltext: api/_internal/analytics/__tests__/verweildauer-test.php"]);
-		assert.deepStrictEqual(geb.avesmapsVisitorReadGeo, []);
-		assert.deepStrictEqual(geb.avesmapsVisitorRecordLive, []);
+		assert.deepStrictEqual(geb.avesmapsVisitorReadGeo, [], "Logdatei-Leser und Assert-Meldung binden nicht");
+		assert.deepStrictEqual(geb.avesmapsVisitorRecordLive, ["quelltext: api/_internal/analytics/__tests__/rumpf-test.php"], "Ausschneide-Helfer bindet");
 		// Mutationsprobe: der Test liest den Quelltext nicht mehr -> keine Bindung
 		r.schreibe("api/_internal/analytics/__tests__/verweildauer-test.php",
 			"<?php\nrequire __DIR__ . '/../visitor-analytics.php';\nassert(is_callable('avesmapsVisitorFinishLiveRun'));\n");
-		assert.deepStrictEqual(v.vorpruefung({ datei: "api/_internal/analytics/visitor-analytics.php", wurzel: r.dir, min: 1 }).quelltextTests, []);
+		assert.ok(!v.vorpruefung({ datei: "api/_internal/analytics/visitor-analytics.php", wurzel: r.dir, min: 1 }).quelltextTests
+			.some((t) => t.datei.endsWith("verweildauer-test.php")), "ohne Quelltext-Lesen keine Bindung aus diesem Test");
 	}
 	console.log("vorpruefung G: ok");
 })().catch((e) => { console.error(e); process.exit(1); });
