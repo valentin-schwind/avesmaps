@@ -393,8 +393,9 @@ Fenster. Damit stehen Filter und Neu-laden gleich hoch nebeneinander.
 (`.review-panel__refresh-btn`) verstößt gegen **vier** Regeln dieses Guides: `15px` steht auf
 keiner Skalenstufe · `--radius-sm` ist die Hülle, **alle Bedienelemente** sind `--radius-md` ·
 `--color-link` gehört Links, nicht Knopfglyphen · `padding: 1px 9px` erreicht die Bedienhöhe
-nicht (~19px statt 32). Die aus „Mails" (`.mail-inbox__refresh`) ist nackt und 16px — näher
-dran, aber ohne Trefferfeld.
+nicht (~19px statt 32). Die aus „Mails" (`.mail-inbox__refresh`) war nackt und 16px — näher
+dran, aber ohne Trefferfeld. ✅ Seit 05.09.2026 tragen beide dieselbe Klasse; die eigene hält
+nur die Lage am Zeilenende.
 
 ⚠️ Allein für „n Einträge neben einer Liste" stehen **sechs** Größen im Bestand:
 `--font-size-caption` · `--font-size-small` · `12px` · `13px` · `11,5px` · `11px`.

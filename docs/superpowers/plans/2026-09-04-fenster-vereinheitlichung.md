@@ -1,21 +1,30 @@
 # Fenster-Vereinheitlichung — die Liste
 
-**Stand 05.09.2026 · 37 von 41 Fenstern umgestellt; D, E, T3 und der Rahmenkasten erledigt.**
+**Stand 05.09.2026 · ALLE Fenster umgestellt — die Wache zählt 52 Hüllen, 51 am Bauteil, 1 begründete
+Ausnahme (Spotlight); D, E und T3 erledigt.**
 Entwurf und Mockup: `docs/fensterformen-mockup.html`, Regelwerk: `docs/design-language.md`
 §Fenster. Bauteile: `css/components/fenster.css` + `js/ui/fenster-kopf.js`.
 
+🪤 **Hier stand bis zum 05.09.2026 „37 von 41".** Die Zahl war schon am Nachmittag des 04.09.
+überholt — die Übernahme-Vorschau (Variante B, `084dfd76f`), die drei Fenster der
+Reisegeschwindigkeiten und der Dump-Bericht (`24ef46658`), die drei Karten-Werkzeuge (`2dba67911`)
+kamen nach dem Eintrag ans Bauteil, und die Überschrift zog nicht nach. Wer die Liste liest, sollte
+die Wache fragen (`js/ui/__tests__/fenster-kopf-versorgt.test.js`, Abschnitt 3), nicht die
+Überschrift: nur die zählt wirklich.
+
 | Abschnitt | Stand |
 |---|---|
-| A · Werkzeugfenster (26) | **live** — dazu Funktionen, Tempowerte, Darstellung, Territoriumseditor |
+| A · Werkzeugfenster (26) | **live** — dazu Funktionen, Tempowerte, Darstellung, Territoriumseditor, Dump-Bericht, die drei Karten-Werkzeuge (C, 04.09. nachträglich) |
 | B · Blatt (15) | **live** — vier davon hatten einen Tag lang keine Breite und kein Polster (200px statt 420), geheilt in `870ee2cdd` |
-| C · Unberührt (8) | eingehalten; drei davon am 04.09. versehentlich beschädigt und repariert (`c2eb849ff`) |
-| D · Hintergrundklick | **live** — 16 Fenster statt 7, alle über das eine Bauteil |
-| E · Listenkopf | **live** — „Meldungen" angeglichen, zwei Filter-Kopien zeichengleich |
+| C · Unberührt (8) | eingehalten; drei davon am 04.09. versehentlich beschädigt und repariert (`c2eb849ff`); die drei Karten-Werkzeuge bekamen später doch die Kopfzeile — ihre Hülle bleibt durchlässig (`2dba67911`) |
+| D · Hintergrundklick | **live** — 16 Fenster statt 7, alle über das eine Bauteil; seit 05.09. dazu die sechs Sync-Fenster (22) |
+| E · Listenkopf | **live** — „Meldungen" angeglichen, zwei Filter-Kopien zeichengleich; seit 05.09. auch der ⟳ des Postfachs auf derselben Form |
 | Reiter (T3) | **live** — tote Pillen-Rezeptur gefallen, `.dg-tab` auf Unterstrich; der Rest (~50 Regeln, u.a. die Dokument-Reiter der Territorien) ist ein eigener Durchgang |
 | Listenzeile `.avm-row` + Bildplatz | 🔧 offen |
 | Rahmenkasten (4 Rezepturen) | **live 04.09.2026** in drei Schritten (`97dd3ccb0` Quellen · `266cde7ae` Meldeformular · `12fd8b2a9` Routenplaner) — `css/components/rahmenkasten.css`, Form von `.fs-scope`, Werte von `.report-section`, klappbar = K2 |
-| 6 × `modal-box` (Sync-Seiten) | Werte angeglichen, **Bauform bewusst nicht** — eigener Durchgang |
-| Übernahme-Vorschau · Reisegeschwindigkeiten · Postfach | **begründet NICHT** — anders gebaut, siehe unten |
+| 6 × `modal-box` (Sync-Seiten, A21–A26) | **live 05.09.2026** — als Werkzeugfenster; `.modal-title`/`.modal-actions` gefallen, `.modal-box` trägt nur das Maß, der Rumpf scrollt statt der inneren Kästen (`.zb`, `.ident-table`, zwei Inline-Styles) |
+| Übernahme-Vorschau (A12) · Reisegeschwindigkeiten (A15) | **live 04.09.2026** — die Begründung „anders gebaut" hielt nicht, siehe unten |
+| Postfach (A16) | **kein Fenster** — ein Listenkopf (E); der ⟳ seit 05.09. auf der Hausform, die Reiter waren schon `.status-subtab` |
 | A13 Kartensammlung · A14 Literatur · Besondere Stätten | **live als WERKZEUGfenster** — zuerst als Blatt gebaut, gegen die eigene Regel; korrigiert |
 
 ### Was der zweite Prüfagent gefunden hat — vier echte Fehler in meiner Arbeit
@@ -38,19 +47,33 @@ bleiben offen, während man daneben recherchiert.
 Unterstrich, während darüber „zeichengleich zu `.avm-tab`" stand. Im Hellen fällt das nicht auf
 (102,8 gegen 86,6), im Dunkeln bricht es ein (55,4 gegen 125,1).
 
-### Drei Fenster bleiben — weil sie anders gebaut sind, nicht weil sie vergessen wurden
+### Die „begründeten Ausnahmen" — und was aus jeder geworden ist
 
-🔴 **Übernahme-Vorschau** (`sheet__head`): ein DREIZEILIGER Kopf — Titel, Befund, Meta. Das ist
-kein Titel-und-✕-Streifen; das Bauteil darüberzulegen zerlegte die drei Zeilen. Was mit Befund
-und Meta geschehen soll, ist eine Gestaltungsfrage und gehört dem Owner.
+🪤 Am 04.09. früh standen hier vier Fenster als „bleiben, weil anders gebaut". **Drei der vier
+Begründungen hielten nicht**, und das ist die Lehre dieses Abschnitts: eine Ausnahme, die man aus
+dem Gedächtnis begründet, ist eine ungeprüfte Annahme mit Fußnote.
 
-🔴 **Reisegeschwindigkeiten** (`tsi-head`): ein Hinweisbanner mit ⓘ, kein Fensterkopf.
-
-🔴 **Postfach**: hat gar keinen `__head` — seine Reiterleiste IST der Kopf.
-
-🔴 **Die sechs `modal-box`-Fenster** der zwei Sync-Seiten haben weder Schließknopf noch
-Rumpf-Container; ihr Inhalt liegt flach im gepolsterten Kasten. Ihre WERTE sind angeglichen und
-per Test gehalten, ihre BAUFORM bleibt — sie aufzuschneiden ist ein eigener Durchgang.
+- **Übernahme-Vorschau** (`sheet__head`, „DREIZEILIGER Kopf, gehört dem Owner"): Mockup mit drei
+  Kopfformen (`docs/uebernahme-vorschau-kopf-mockup.html`), Owner: „B" — Griff und ✕ außen, Titel
+  und Befund gestapelt, Meta im Rumpf. **Live 04.09.2026** (`084dfd76f`). Nebenbei: sie trug kein
+  `role="dialog"` und war damit für Screenreader kein Fenster und für die Wache unsichtbar
+  (`352859b9c`).
+- **Reisegeschwindigkeiten** (`tsi-head`, „Hinweisbanner mit ⓘ, kein Fensterkopf"): das ⓘ ist
+  Zierat DAVOR; `.tsi-head` ist ein vollwertiger Kopf und `.tsi-dialog` die Hülle von DREI Fenstern
+  (Reiseoptionen, Reisegeschwindigkeiten, Kurven). Ein Detail angesehen, aufs Ganze geschlossen.
+  **Live 04.09.2026** (`24ef46658`).
+- **Die sechs `modal-box`-Fenster** („Bauform bleibt, eigener Durchgang"): **live 05.09.2026** —
+  Werkzeugfenster mit Kopfzeile, gefasstem ✕, scrollendem Rumpf und Fußleiste (Massenhandlung
+  links, Hauptgruppe rechts). Beide Seiten in EINEM Commit, weil die Wache die zwei CSS-Kopien
+  zeichengleich verlangt. 💣 Zwei fremde Tests führen den Inline-Block der Siedlungsseite in einem
+  Sandkasten AUS und fielen mit `ReferenceError` auf das neu geladene Schleier-Bauteil um — die
+  changelog-dialog-Falle, diesmal vom Testfeld gefangen. Wache:
+  `js/pages/__tests__/sync-modale-am-bauteil.test.js`.
+- **Postfach** („hat gar keinen `__head`"): die einzige Begründung, die stimmt — es ist **kein
+  Fenster**, sondern ein Reiter-Panel im Editor. Seine Reiter sind seit jeher `.status-subtab`
+  (Unterstrich, T3), nur der ⟳ war die zweite Form des Neu-laden-Knopfs (nackt, 16px, ohne
+  Trefferfeld). Seit 05.09. trägt er `.review-panel__refresh-btn`; die eigene Klasse hält nur die
+  Lage. Das ist Abschnitt E, nicht A16.
 
 ### Was die Prüfagenten gefunden haben, das ich nicht gesehen habe
 
@@ -113,17 +136,17 @@ Wappen/Thumbs, Bildlaufleiste im Hausstil, Titelleisten 8px schlanker, Hintergru
 | A9 | **Vorkommen bearbeiten** (Natur & Waren) | `.location-report-dialog` + ID-Overrides | die angeschraubte Titelleiste fällt weg · ID-Scrollbar-Abschrift fällt |
 | A10 | **Konflikte** | `.location-report-dialog` | 🔴 **Bauart-Wechsel Blatt → Fenster** · Einklappen springt heute weg, bleibt künftig stehen |
 | A11 | **Social Media Hub** | `.social-hub` | Titel 17→16 · Polster 16/24→6/14 · ✕ bekommt Trefferfeld · Radius `lg`→`sm` |
-| A12 | **Übernahme-Vorschau** | `.sync-plan-host .sheet` | Kopfpolster `14/18/12`→`6/14` · Zeile `9px 0`→`.avm-row` |
+| A12 | **Übernahme-Vorschau** | `.sync-plan-host .sheet` | Kopfpolster `14/18/12`→`6/14` · Zeile `9px 0`→`.avm-row` · ✅ Variante B (Owner), `084dfd76f` |
 | A13 | **Kartensammlung** | `.avesmaps-citymaps-dialog` | Kopf `13/16`→`6/14` · ✕ (`5px`-Radius, `3px 7px`) → 32×32 · Zeile → `.avm-row` |
 | A14 | **Literatur „Alle anzeigen"** | `.avesmaps-adv-dialog` | Titel 15→16 · ✕ 18px→32×32 · Zeile `12px 0`→`.avm-row` · Cover-Bündigkeit |
-| A15 | **Reisegeschwindigkeiten** | `.tsi-*` | Kopf `--space-16/20`→`6/14` · ✕ (Titelgröße) → 32×32 |
-| A16 | **Postfach** | `.mail-inbox` | Reiter `gap 14`→`.avm-tabs` · Kopf/Fuß |
+| A15 | **Reisegeschwindigkeiten** | `.tsi-*` | Kopf `--space-16/20`→`6/14` · ✕ (Titelgröße) → 32×32 · ✅ drei Fenster, `24ef46658` |
+| A16 | **Postfach** | `.mail-inbox` | ⚠️ kein Fenster — Reiter-Panel; die Reiter sind `.status-subtab`, der ⟳ seit 05.09. auf `.review-panel__refresh-btn` (Abschnitt E) |
 | A17 | **Regel bearbeiten** (Vorkommen) | `.lore-rule-dialog` | Kopf `--space-8/12`→`6/14` |
 | A18 | **Darstellung** (Landschaften-Editor) | `.avm-modal__box` | Titel `20px`→16 · Hülle scrollt → Rumpf · Radius `lg`→`sm` |
 | A19 | **Funktionen** (Wege-Editor) | `.wp-modal__box` | Kopf `--space-8/12`→`6/14` · ✕ Textknopf → 32×32 |
 | A20 | **Tempowerte** (Wege-Editor) | `.wp-modal__box` | dito |
-| A21–23 | **Sync-Monitor: 3 Modale** | `.modal-box` | Kopf · ✕ · Rumpf-Scroll |
-| A24–26 | **Siedlungseditor: 3 Modale** (u. a. Zoombänder, Eigenes Wappen) | `.modal-box` | dito |
+| A21–23 | **Sync-Monitor: 3 Modale** | `.modal-box` | Kopf · ✕ · Rumpf-Scroll · ✅ 05.09.2026, `.modal-box--geom` statt Inline-style |
+| A24–26 | **Siedlungseditor: 3 Modale** (u. a. Zoombänder, Eigenes Wappen) | `.modal-box` | dito · ✅ 05.09.2026, `renderZoomBandsActions` baut die Fußleiste mit Massenhandlung links |
 
 ---
 
@@ -216,6 +239,10 @@ die Bedienhöhe nicht (gemessen ~19px statt 32).
 `--avm-control-h` × `--avm-control-h` mit `--radius-md` und weichem Umriss** — dieselbe Form wie
 das ✕ im Fenster und der Filter-Knopf daneben. Damit stehen Filter und Neu-laden endlich
 nebeneinander gleich hoch.
+
+✅ **Beide ⟳ tragen seit 05.09.2026 EINE Klasse** (`.review-panel__refresh-btn`); `.mail-inbox__refresh`
+hält nur noch `margin-left: auto`. Im Browser gemessen: Knopf 32×32, Reiter 31,4 hoch, beide
+Unterkanten auf einen halben Pixel gleich. Wache: `listenkopf.test.js`, letzter Abschnitt.
 
 ⚠️ **Und die Zähler selbst:** allein für „n Einträge neben einer Liste" stehen **sechs** Größen im
 Bestand — `--font-size-caption` (11) · `--font-size-small` (12) · `12px` · `13px` · `11,5px` ·
