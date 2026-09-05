@@ -20,6 +20,10 @@ require_once __DIR__ . '/../map/features.php';
 require_once __DIR__ . '/../app/feature-sources.php';
 require_once __DIR__ . '/../app/ecosystem.php';
 require_once __DIR__ . '/../app/ecosystem-display.php';
+// ⚠️ NACH `../map/features.php`, und das ist tragend: `avesmapsSettlementPlaceAdd` braucht
+// `avesmapsUuidV4`, und die wohnt dort (settlement-places.php bindet sie bewusst nicht selbst ein
+// -- siehe den Kopf jener Datei). Umgedreht wirft die Staetten-Anlage beim ersten Klick.
+require_once __DIR__ . '/../app/settlement-places.php';
 
 // 🔴 ES IST EIN BRIEFSPIEL, KEIN EIGENER TYP (Owner 27.08.2026: „wichtig ist auch die kategorie
 // der quelle ... beispiel Briefspiel (Weiden)"). garetien.de und koschwiki.de sind genau das --
@@ -1478,6 +1482,24 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
 
         try {
             $ziel = (string) ($nach['ziel'] ?? '');
+            // 🔴 „INNERORTS EINFUEGEN" IST EINE EIGENE HANDLUNG, kein anderes Kartenziel. Sie legt
+            // eine STAETTE an (settlement_place) und ruehrt `map_features` nicht an -- ein Objekt
+            // ohne Weltkarten-Position kann dort nicht liegen, die Geometrie ist Pflicht.
+            // 💣 UND SIE FAELLT NIE STILL AUF DIE KARTE ZURUECK. Wer den Knopf drueckt, will KEINEN
+            // Kartenpunkt; ein Rueckfall waere von aussen nicht von „hat funktioniert" zu
+            // unterscheiden -- und das Objekt laege danach an einer Stelle, an die es niemand
+            // gesetzt hat. Fehlt der Befund, bricht das Item ab und sagt warum.
+            $innerortsOrt = null;
+            if (avesmapsGaretienInnerortsGewuenscht($einstellungen)) {
+                $innerortsOrt = avesmapsGaretienInnerortsAusVorschlag($nach);
+                if ($innerortsOrt === null) {
+                    throw new RuntimeException(
+                        'Fuer "' . $item['label'] . '" gibt es keinen Innerorts-Befund'
+                        . ' -- der Vorschlag stammt aus einem Lauf vor dem 02.09.2026 oder das'
+                        . ' Objekt liegt nicht dicht genug an einer gleichnamigen Ortschaft.'
+                    );
+                }
+            }
             // 🔴 ZWEI PUBLIC-IDS, NICHT EINE. $publicId ist das angelegte Objekt (steht als
             // Vermerk im Item, und bei einer Flaeche ist das die REGION -- die Ruecknahme loescht
             // darueber via avesmapsDeleteEcosystemRegion). $quellePublicId ist der ID-Raum, in dem
@@ -1486,7 +1508,31 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
             // nicht der Region) -- fuer Weg/Ort/Gipfel sind beide gleich, nur bei der Flaeche
             // (See/Meer/Sumpf/…) laufen sie auseinander.
             $quellePublicId = null;
-            if ($ziel === 'path') {
+            if ($innerortsOrt !== null) {
+                // 🔴 DER TYP IST IHR QUELLTYP, nicht unser Subtyp. Die Staetten-Zeile der Infobox
+                // gruppiert nach dem Vokabular des Wikis („Tempel", „Gasthaus", „Burg") -- unser
+                // `gebaeude` waere dort eine Gruppe, in der alles liegt. `typ` steht seit dem
+                // Planbau im Vorschlag und ist genau dieses Wort.
+                $publicId = avesmapsSettlementPlaceAdd($pdo, [
+                    'name' => (string) $nach['name'],
+                    'place_type' => (string) ($nach['typ'] ?? ''),
+                    'settlement_public_id' => (string) $innerortsOrt['public_id'],
+                    'settlement_name' => (string) $innerortsOrt['name'],
+                    // ⚠️ Der eigene Artikel, nicht die Export-Arbeitsseite: die Staetten-Zeile
+                    // verlinkt ihn, und ein Leser soll auf garetien.de landen.
+                    'wiki_url' => (string) ($nach['artikel_quelle']['url'] ?? ''),
+                    'origin' => 'garetien',
+                ], $userId);
+                // 🔴 DIE QUELLE HAENGT AUCH AN EINER STAETTE. Sie traegt die RECHTSFOLGE (Lizenz
+                // cc-by-nc-sa-3.0, Namensnennung „VolkoV / garetien.de") und darf nicht davon
+                // abhaengen, in welcher Tabelle das Objekt gelandet ist. `settlement_place` ist
+                // deshalb ein `entity_type` der GETEILTEN Quellentabelle -- die zwei Zeilen, die
+                // AGENTS.md §5 dafuer vorsieht, statt einer zweiten Quellenverwaltung.
+                // 🔧 Angezeigt wird sie heute nirgends: die Staetten-Zeile der Infobox kennt nur
+                // Name, Art und Artikel-Link. Aufgezeichnet ist sie trotzdem.
+                $entityType = 'settlement_place';
+                $quellePublicId = $publicId;
+            } elseif ($ziel === 'path') {
                 // 🔴 DIE HANDEINGABE DES KASTENS „Eingefuegt wird" (Owner 30.08.2026: „dann weg
                 // bearbeiten"). Ohne sie ist das dritte Array LEER, und dann ist dieser Aufruf
                 // zeichengleich mit dem von vorher -- „Alle angezeigten einfuegen" schickt nie
@@ -1674,6 +1720,43 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
  * Bauform und derselbe Grund wie bei `avesmapsGaretienItemAbschliessen`, das den Vermerk SETZT.
  * Eine Regel, die einen von zwei Erzeugern bindet, ist keine Regel.
  */
+/**
+ * Hat der Editor „Innerorts einfuegen" gedrueckt? REIN, kein I/O.
+ */
+function avesmapsGaretienInnerortsGewuenscht(?array $einstellungen): bool
+{
+    // 🔴 NUR AUF AUSDRUECKLICHEN WUNSCH. „Alle angezeigten einfuegen" schickt gar keine
+    // Einstellungen -- ein Sammellauf legt also NIE eine Staette an, sondern immer das, was er
+    // bisher angelegt hat. Der Knopf „Innerorts einfuegen (X)" ist eine Einzelhandlung, und das
+    // ist der Owner-Entscheid: der Importer schlaegt vor, er entscheidet nicht.
+    return is_array($einstellungen) && ($einstellungen['innerorts'] ?? false) === true;
+}
+
+/**
+ * Der Innerorts-Befund EINES Vorschlags -- oder null. REIN, kein I/O.
+ *
+ * 💣 GELESEN, NICHT GERECHNET. Der Befund entsteht im Planbau ueber den ganzen Ortsbestand
+ * (avesmapsGaretienInnerortsBefund, garetien-abgleich.php); ihn hier noch einmal zu rechnen waere
+ * eine zweite Wahrheit darueber, zu welcher Stadt ein Objekt gehoert -- und der Editor hat den
+ * Ortsnamen auf dem Knopf gelesen, den DIESER Befund beschriftet hat. Ein zweiter Rechner koennte
+ * eine andere Stadt liefern als die, die im Knopf stand.
+ *
+ * ⚠️ Beides muss da sein: ohne `public_id` gaebe es keine Bindung, ohne Namen keine Anzeige.
+ *
+ * @return array{public_id:string, name:string}|null
+ */
+function avesmapsGaretienInnerortsAusVorschlag(array $nach): ?array
+{
+    $befund = $nach['innerorts'] ?? null;
+    if (!is_array($befund)) {
+        return null;
+    }
+    $publicId = trim((string) ($befund['public_id'] ?? ''));
+    $name = trim((string) ($befund['name'] ?? ''));
+
+    return ($publicId !== '' && $name !== '') ? ['public_id' => $publicId, 'name' => $name] : null;
+}
+
 /**
  * Die STROEMUNGSRICHTUNG, die dieser Vorschlag mitbringt -- oder `null`. REIN, kein I/O.
  *
@@ -2057,7 +2140,18 @@ function avesmapsGaretienRuecknahmeAusfuehren(PDO $pdo, int $runId, array $itemI
         $ziel = is_array($nach) ? (string) ($nach['ziel'] ?? '') : '';
 
         try {
-            if ($ziel === 'path' || $ziel === 'location' || $ziel === 'label') {
+            // 🔴 ZUERST NACHSEHEN, WO DAS OBJEKT WIRKLICH LIEGT. Ein innerorts eingefuegtes Objekt
+            // traegt `ziel = 'location'` wie jedes andere Bauwerk -- aber es steht in
+            // `settlement_place` und nicht in `map_features`; der generische Loeschweg darunter
+            // faende es nie und meldete „Objekt nicht gefunden" fuer etwas, das sehr wohl da ist.
+            // 💣 Gefragt wird die TABELLE, nicht ein zweiter Vermerk am Item: ein Marker in
+            // `apply_note` waere eine zweite Buchfuehrung darueber, was schon geschrieben wurde --
+            // genau die, die dieses Modul beim Uebernahme-Vermerk ausdruecklich vermeidet.
+            // ⚠️ WEICH: `is_active = 0`, kein DELETE. Ein erneutes „Innerorts einfuegen" belebt
+            // dieselbe Zeile wieder (avesmapsSettlementPlaceAdd), samt ihrer Quellenverknuepfung.
+            if (avesmapsSettlementPlaceExists($pdo, $publicId)) {
+                avesmapsSettlementPlaceDeactivate($pdo, $publicId, (int) ($user['id'] ?? 0));
+            } elseif ($ziel === 'path' || $ziel === 'location' || $ziel === 'label') {
                 // Strom/Fluss/Bach, Reichsstrasse/Strasse/Weg/Pfad, Ortschaften, Berggipfel: je
                 // EINE map_features-Zeile (avesmapsCreatePathFeature/…PointFeature/…LabelFeature
                 // oben) -- derselbe generische Loeschweg fuer alle vier, weil keins davon eine

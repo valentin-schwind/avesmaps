@@ -34,10 +34,15 @@ try {
     // the map_features region label that `region` already means.
     // 🔴 Must stay in step with the write path's list in api/edit/map/feature-sources.php: a type
     // that may be written but not read stores sources nobody can see again.
-    $allowedTypes = ['settlement', 'territory', 'region', 'path', 'citymap', 'lore', 'powerline', 'ecosystem'];
+    // `settlement_place` joined 2026-09-02: an object that lies INSIDE a town has no map position
+    // and therefore no map_features row (see api/_internal/app/settlement-places.php) -- but it is
+    // imported from garetien.de and carries that import's licence and attribution. Two lines here,
+    // not a source system of its own, exactly as AGENTS.md §5 prescribes.
+    $allowedTypes = ['settlement', 'territory', 'region', 'path', 'citymap', 'lore', 'powerline', 'ecosystem', 'settlement_place'];
 
     if (!in_array($entityType, $allowedTypes, true) || $entityPublicId === '') {
-        avesmapsErrorResponse(400, 'invalid_request', 'entity_type (settlement|territory|region|path|citymap|lore|powerline|ecosystem) und entity_public_id sind erforderlich.');
+        avesmapsErrorResponse(400, 'invalid_request', 'entity_type (settlement|territory|region|path|citymap|lore|powerline|ecosystem|settlement_place)'
+            . ' und entity_public_id sind erforderlich.');
     }
 
     $pdo = avesmapsCreatePdo($config['database'] ?? []);

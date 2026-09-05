@@ -564,7 +564,7 @@ function avesmapsGaretienArtikelQuelleAus(string $wiki, string $seite): ?array
  * eine ungewandelte Geometrie faellt nirgends auf, sie landet nur weit ausserhalb, und das
  * Objekt sieht danach niemand wieder.
  */
-function avesmapsGaretienPlanEintrag(array $zeile, array $ziel, array $urteil): array
+function avesmapsGaretienPlanEintrag(array $zeile, array $ziel, array $urteil, ?array $innerorts = null): array
 {
     $punkte = avesmapsGaretienZeilePunkte($zeile);
     $wiki = (string) ($zeile['wiki'] ?? 'ggp');
@@ -668,6 +668,11 @@ function avesmapsGaretienPlanEintrag(array $zeile, array $ziel, array $urteil): 
             'anlass' => $urteil['anlass'],
             // Nur eine ANGABE fuer den Menschen, der die Zeile ansieht -- nie ein Ziel.
             'nachbar' => $zufluss ? $urteil['treffer_name'] : null,
+            // 🔴 NUR AN EINEM NEUZUGANG, und die Abwesenheit ist die Aussage. „Innerorts einfuegen"
+            // heisst „lege dieses Objekt als Staette einer Stadt an, statt es auf die Karte zu
+            // setzen" -- an einem 'changed' gibt es nichts anzulegen, unser Objekt liegt schon da.
+            // Ein Angebot, das dort auftauchte, waere ein Knopf, der etwas Zweites erzeugt.
+            ...($innerorts !== null && $istNeu ? ['innerorts' => $innerorts] : []),
         ],
         'override' => [],
         // 🔴 Ein Zufluss startet UNGEHAKT, mit dem Grund in der Beschriftung. Alles andere
@@ -1120,14 +1125,16 @@ function avesmapsGaretienUeberVierterAusgang(array $urteil): bool
  * @param array<string,true> $quellen
  * @return list<array>
  */
-function avesmapsGaretienEintraegeFuerUrteil(array $zeile, array $ziel, array $urteil, array $quellen): array
+function avesmapsGaretienEintraegeFuerUrteil(array $zeile, array $ziel, array $urteil, array $quellen, ?array $innerorts = null): array
 {
     if (!avesmapsGaretienUeberVierterAusgang($urteil)) {
-        return [avesmapsGaretienPlanEintrag($zeile, $ziel, $urteil)];
+        return [avesmapsGaretienPlanEintrag($zeile, $ziel, $urteil, $innerorts)];
     }
+    // ⚠️ Die ERGAENZUNGEN bekommen ihn NICHT, und das ist keine Luecke: sie beschreiben ein Objekt,
+    // das bei uns schon LIEGT (vierter Ausgang). „Innerorts einfuegen" hat dort nichts anzulegen.
     $eintraege = avesmapsGaretienErgaenzungsEintraege($zeile, $ziel, $urteil, $quellen);
     if ($eintraege === [] && ($urteil['anlass'] ?? null) === 'artikel_widerspruch') {
-        return [avesmapsGaretienPlanEintrag($zeile, $ziel, $urteil)];
+        return [avesmapsGaretienPlanEintrag($zeile, $ziel, $urteil, $innerorts)];
     }
 
     return $eintraege;
@@ -1590,7 +1597,13 @@ function avesmapsGaretienBaueSyncPlan(PDO $pdo, int $importRunId, int $userId = 
         // 🔴 SEIT 02.09.2026 NIMMT IHN AUCH DER ARTIKEL-WIDERSPRUCH -- die Weiche samt ihrem
         // Rueckfall steht rein in avesmapsGaretienEintraegeFuerUrteil, damit sie pruefbar ist,
         // ohne eine ganze Datenbank aufzubauen.
-        $eintraege = avesmapsGaretienEintraegeFuerUrteil($zeile, $ziel, $urteil, $quellenBestand);
+        // 🔴 DER INNERORTS-BEFUND ENTSTEHT HIER, EINMAL JE ZEILE. Ihn im Lesepfad zu rechnen waere
+        // eine zweite Wahrheit ueber „gehoert das in eine Stadt?" -- und sie liefe je Zeile der
+        // Arbeitsliste, ueber alle Ortschaften unseres Bestands.
+        $eintraege = avesmapsGaretienEintraegeFuerUrteil(
+            $zeile, $ziel, $urteil, $quellenBestand,
+            avesmapsGaretienInnerortsBefund($pdo, $zeile, $ziel)
+        );
         foreach ($eintraege as $eintrag) {
             // 🔴 Die Vorwahl kommt aus der HAUSREGEL, sie wird nicht nachgebaut: 'deleted' nie,
             // 'changed' faellt beim zweiten Ueberspringen heraus. Ein zweiter Vorwahl-Rechner waere

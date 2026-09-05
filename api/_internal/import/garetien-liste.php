@@ -16,6 +16,9 @@ declare(strict_types=1);
 require_once __DIR__ . '/garetien-plan.php';
 // ⚠️ Fuer avesmapsEcosystemReadRegionTypes (das Flaechen-Vokabular der Zielwahl).
 require_once __DIR__ . '/../app/ecosystem.php';
+// Fuer avesmapsSettlementPlacePublicIds: „uebernommen · innerorts" (Entwurf 2026-09-02 §4) liest
+// die TABELLE der Staetten, nie einen zweiten Vermerk am Item -- dieselbe Regel wie die Ruecknahme.
+require_once __DIR__ . '/../app/settlement-places.php';
 
 /**
  * So viele Objekte je Antwort -- der Rest blaettert ueber `versatz`.
@@ -455,7 +458,7 @@ function avesmapsGaretienArbeitslisteObjekte(PDO $pdo, int $importRunId): array
     // 2. ALLE Items des Laufs -- OHNE LIMIT und NICHT ueber avesmapsSyncPlanItems (die deckelt
     // bei 200 je Gruppe, und genau das soll hier wegfallen).
     $itemStmt = $pdo->prepare(
-        'SELECT id, entity_key, change_type, before_json, after_json, selected, apply_state'
+        'SELECT id, entity_key, change_type, before_json, after_json, selected, apply_state, apply_note'
         . ' FROM sync_plan_item WHERE run_id = :r ORDER BY id'
     );
     $itemStmt->execute([':r' => $planRunId]);
@@ -476,6 +479,9 @@ function avesmapsGaretienArbeitslisteObjekte(PDO $pdo, int $importRunId): array
             'change_type' => $changeType,
             'selected' => (int) $roh['selected'],
             'apply_state' => $roh['apply_state'] !== null ? (string) $roh['apply_state'] : null,
+            // Der Vermerk der Uebernahme: die angelegte public_id (avesmapsGaretienItemAbschliessen).
+            // Gelesen nur fuer die Frage „liegt das als Staette?" -- siehe avesmapsGaretienListeInnerortsUebernommen.
+            'apply_note' => (string) ($roh['apply_note'] ?? ''),
             'declined' => ($entscheidungen[$entscheidungsSchluessel]['declined_at'] ?? null) !== null,
             // 🔴 Der DAUERHAFTE Uebernahme-Vermerk (avesmapsSyncPlanRecordApplied). Er ist das
             // Gegenstueck zu `declined` und aus demselben Grund noetig: `apply_state` stirbt mit
@@ -528,6 +534,10 @@ function avesmapsGaretienArbeitslisteObjekte(PDO $pdo, int $importRunId): array
     // 4. Objekte MIT Item bauen -- Name/Typ/Wiki/Ebene/Geometrie/Wiki-Link aus dem after des
     // ERSTEN Items, das sie traegt; ihre Staging-Zeile liefert nur urteil/grund UND die Felder,
     // die kein `after` kennt (lodmin/lodmax/extra), nach.
+    // 🔴 EINMAL je Listenbau, nicht je Objekt: die aktiven Staetten als Menge. Faellt ohne Tabelle
+    // (frische Installation) still auf leer -- dann ist nichts innerorts uebernommen, und das stimmt.
+    $staetten = avesmapsSettlementPlacePublicIds($pdo);
+
     $objekte = [];
     foreach ($gruppen as $key => $items) {
         $zeile = $zeilenNachSchluessel[$key] ?? null;
@@ -644,6 +654,23 @@ function avesmapsGaretienArbeitslisteObjekte(PDO $pdo, int $importRunId): array
             // wird lautlos gar nicht gezeichnet. Ein Weg-Ziel (Fluss/Bach/Strom) traegt `kind: null`
             // und bleibt davon unberuehrt (siehe der Riegel in review-garetien-karte.js).
             'kind' => (string) ($erstesAfter['kind'] ?? ''),
+            // 🔴 „INNERORTS EINFUEGEN" -- DURCHGEREICHT, NICHT HERGELEITET. Der Befund (welche
+            // Ortschaft, wie weit) entsteht EINMAL im Planbau ueber den ganzen Ortsbestand; ihn
+            // hier zu rechnen liefe je Filterklick und je Zeile ueber rund 2900 Ortschaften.
+            // 💣 UND DAS FELD MUSS HIER WIRKLICH STEHEN. Die Item-Liste unten hat eine
+            // AUSDRUECKLICHE Feldliste: was dort nicht genannt ist, verlaesst die Tuer nicht --
+            // genau daran ist `applied` am 01.09.2026 gescheitert (der Riegel im Browser war
+            // gebaut und las ein Feld, das nie ankam). Deshalb steht der Befund am OBJEKT, wo die
+            // Knopfleiste ihn liest, und nicht am Item.
+            // ⚠️ Ein Lauf, der vor dem 02.09.2026 gebaut wurde, traegt ihn nicht -- der Knopf
+            // erscheint dort erst nach dem naechsten „Holen & Rechnen". Ein Rueckfall, der ihn
+            // hier nachrechnet, waere genau die zweite Wahrheit, die der Kommentar oben ausschliesst.
+            'innerorts' => (array) ($erstesAfter['innerorts'] ?? []),
+            // 🔴 „UEBERNOMMEN · INNERORTS" (Entwurf §4): liegt das, was dieser Lauf angelegt hat, als STAETTE?
+            // Gefragt wird die Tabelle, nie ein zweiter Vermerk am Item -- derselbe Grund wie bei der Ruecknahme
+            // (garetien-uebernahme.php). ⚠️ Ehrlich nur fuer den LAUFENDEN Lauf: ein aus einem alten Lauf
+            // uebernommenes Objekt traegt hier `false`, die Ruecknahme findet es trotzdem (sie fragt selbst).
+            'innerorts_uebernommen' => avesmapsGaretienListeInnerortsUebernommen($items, $staetten),
             'seite' => $zeile !== null ? avesmapsGaretienSeitenNameAusZeile($zeile) : '',
             // 🔴 Deckungsgrad und Nenner kommen vom SERVER. Der Deckungsgrad IST das Ergebnis des
             // Abgleichs; der Nenner ist die Zahl der wirklich verglichenen Probepunkte, und die ist
@@ -744,6 +771,13 @@ function avesmapsGaretienArbeitslisteObjekte(PDO $pdo, int $importRunId): array
             'kind' => '',
             // Dieselbe Auskunft wie bei `kind`: ohne Item kein `ziel`.
             'ziel' => '',
+            // ⚠️ LEER, und das ist die richtige Aussage: diese Zeilen haben KEINEN Vorschlag, also
+            // gibt es auch nichts innerorts einzufuegen. 🪤 Das Feld steht hier trotzdem, weil
+            // dies der ZWEITE Erzeuger von Objekten ist -- eine fehlende Zeile waere im Browser
+            // `undefined` statt `[]`, und der naechste Leser, der `.name` darauf liest, faellt um.
+            'innerorts' => [],
+            // Ohne Item ist nichts uebernommen -- und das Feld steht trotzdem da (zweiter Erzeuger, siehe oben).
+            'innerorts_uebernommen' => false,
             'seite' => avesmapsGaretienSeitenNameAusZeile($zeile),
             'deckung' => $treffer['deckung'],
             'probepunkte' => avesmapsGaretienListeProbepunkte($treffer['abschnitte']),
@@ -1026,4 +1060,28 @@ function avesmapsGaretienNaehe(PDO $pdo, int $importRunId, string $ziel): array
     $objekte = avesmapsGaretienArbeitslisteObjekte($pdo, $importRunId)['objekte'];
 
     return avesmapsGaretienNaeheAusObjekten($objekte, $ziel);
+}
+
+/**
+ * PURE: Hat dieser Lauf das Objekt als STAETTE angelegt (statt als Kartenobjekt)?
+ *
+ * Ein Item ist in diesem Lauf uebernommen, wenn `apply_state = 'done'`; sein Vermerk ist die angelegte
+ * public_id. Steht sie in der Menge der aktiven Staetten, liegt das Objekt innerorts. Eine Staette
+ * mit `is_active = 0` (zurueckgenommen) zaehlt nicht -- die Menge traegt nur aktive.
+ *
+ * @param list<array{apply_state:?string, apply_note?:string}> $items
+ * @param array<string,true> $staetten
+ */
+function avesmapsGaretienListeInnerortsUebernommen(array $items, array $staetten): bool
+{
+    if ($staetten === []) {
+        return false;
+    }
+    foreach ($items as $item) {
+        if (($item['apply_state'] ?? null) === 'done' && isset($staetten[(string) ($item['apply_note'] ?? '')])) {
+            return true;
+        }
+    }
+
+    return false;
 }

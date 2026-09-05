@@ -278,6 +278,14 @@ function avesmapsGaretienUebernahmeTestPdo(): PDO
     $pdo->exec("INSERT INTO ecosystem_region_type (kind, type_key, label) VALUES
         ('topographie', 'see', 'See'), ('topographie', 'meer', 'Meer'), ('vegetation', 'suempfe_moore', 'Sümpfe und Moore')");
     $pdo->exec('CREATE TABLE app_setting (setting_key TEXT PRIMARY KEY, setting_value TEXT)');
+    // ⚠️ Von Hand, weil avesmapsSettlementPlaceEnsureSchema MySQL-eigenes DDL traegt (AUTO_INCREMENT,
+    // ENGINE=InnoDB), das die exec()-Naht oben SCHLUCKT. „Innerorts einfuegen" (02.09.2026) legt hier
+    // ab -- ein Objekt ohne Weltkarten-Position, das zu einer Stadt gehoert.
+    $pdo->exec('CREATE TABLE settlement_place (id INTEGER PRIMARY KEY AUTOINCREMENT, public_id TEXT NOT NULL,
+        name TEXT NOT NULL, place_type TEXT, settlement_public_id TEXT NOT NULL, settlement_name TEXT NOT NULL,
+        wiki_url TEXT, origin TEXT NOT NULL, is_active INTEGER NOT NULL DEFAULT 1, created_by INTEGER,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE (settlement_public_id, name))');
     avesmapsEnsureSyncPlanTablesSqlite($pdo);
     // ⚠️ Von Hand, nicht ueber avesmapsEnsureFeatureSourceTables: dessen DDL ist MySQL-eigen und
     // laeuft hier nicht. Dieselbe Loesung wie in feature-source-live-entity-test.php.
@@ -3404,5 +3412,101 @@ assert($eO['fehler'] === [] && $eO['angelegt'] === 1, 'der Weg entsteht trotzdem
 assert((int) $pdoO->query("SELECT COUNT(*) FROM map_features WHERE feature_subtype = 'crossing'")
     ->fetchColumn() === 0, '⚠️ mit abgeschaltetem Haekchen entsteht KEINE Kreuzung');
 $pruefungen += 2;
+
+// =================================================================================================
+// „INNERORTS EINFUEGEN" -- eine Staette statt eines Kartenobjekts
+// (Entwurf docs/superpowers/specs/2026-09-02-innerorts-import-design.md; Bibliothek
+// api/_internal/app/settlement-places.php)
+// =================================================================================================
+$pdoI = avesmapsGaretienUebernahmeTestPdo();
+$laufI = (int) avesmapsSyncPlanOpenRun($pdoI, AVESMAPS_GARETIEN_PLAN_KIND)['id'];
+/** Ein Bauwerks-Vorschlag, wie garetien-plan.php ihn baut -- mit oder ohne Innerorts-Befund. */
+$baueBauwerk = static function (string $name, ?array $innerorts) use ($bauePunktEintrag): array {
+    $eintrag = $bauePunktEintrag('location', 'gebaeude', $name, 520.0, 520.0);
+    $eintrag['after']['typ'] = 'Tempel';
+    $eintrag['after']['artikel_quelle'] = [
+        'url' => 'https://www.garetien.de/index.php/Garetien:' . rawurlencode($name),
+        'label' => $name . ' auf garetien.de', 'license' => 'cc-by-nc-sa-3.0', 'attribution' => 'VolkoV / garetien.de',
+    ];
+    if ($innerorts !== null) {
+        $eintrag['after']['innerorts'] = $innerorts;
+    }
+
+    return $eintrag;
+};
+$befundWandleth = ['public_id' => 'stadt-wandleth', 'name' => 'Wandleth', 'meilen' => 0.09];
+$vorherFeaturesI = (int) $pdoI->query('SELECT COUNT(*) FROM map_features')->fetchColumn();
+
+// --- Der Klick auf „Innerorts einfuegen (Wandleth)": eine Staette, kein Kartenobjekt.
+avesmapsSyncPlanAddItem($pdoI, $laufI, $baueBauwerk('Wandlether Rondratempel', $befundWandleth));
+$rondraId = $itemIdVon($pdoI, 'Wandlether Rondratempel (Probe)');
+$eI = avesmapsGaretienUebernehmen($pdoI, $laufI, [$rondraId], ['id' => 7], ['innerorts' => true]);
+assert($eI['fehler'] === [] && $eI['angelegt'] === 1, 'die Staette wird angelegt: ' . json_encode($eI, JSON_UNESCAPED_UNICODE));
+$staette = $pdoI->query("SELECT * FROM settlement_place WHERE name = 'Wandlether Rondratempel'")->fetch(PDO::FETCH_ASSOC);
+assert($staette !== false && $staette['settlement_public_id'] === 'stadt-wandleth'
+    && $staette['settlement_name'] === 'Wandleth' && (int) $staette['is_active'] === 1,
+    'sie haengt an der public_id des Ortes, mit seinem Namen: ' . json_encode($staette));
+assert($staette['place_type'] === 'Tempel',
+    '🔴 der Typ ist IHR Quelltyp („Tempel"), nicht unser Subtyp -- die Staetten-Zeile gruppiert nach dem Wort des Wikis: ' . json_encode($staette['place_type']));
+assert($staette['origin'] === 'garetien' && str_contains((string) $staette['wiki_url'], 'garetien.de'),
+    'Herkunft und eigener Artikel reisen mit: ' . json_encode([$staette['origin'], $staette['wiki_url']]));
+assert((int) $pdoI->query('SELECT COUNT(*) FROM map_features')->fetchColumn() === $vorherFeaturesI,
+    '🔴 KEIN Kartenobjekt: die Staette hat keine Weltkarten-Position');
+$quelleI = $pdoI->prepare("SELECT COUNT(*) FROM feature_sources WHERE entity_type = 'settlement_place' AND entity_public_id = ?");
+$quelleI->execute([$staette['public_id']]);
+assert((int) $quelleI->fetchColumn() >= 1,
+    'die Quelle mit der Rechtsfolge haengt an entity_type=settlement_place -- die zwei Zeilen aus AGENTS.md §5, kein zweites Quellensystem');
+assert(($eI['quellen_neu'][0]['entity_type'] ?? null) === 'settlement_place' && ($eI['quellen_neu'][0]['sources'] ?? []) !== [],
+    'und die Rueckmeldung an den Browser nennt den Typ samt Liste: ' . json_encode($eI['quellen_neu'], JSON_UNESCAPED_UNICODE));
+$itemI = $pdoI->query('SELECT apply_state, apply_note FROM sync_plan_item WHERE id = ' . $rondraId)->fetch(PDO::FETCH_ASSOC);
+assert($itemI['apply_state'] === 'done' && $itemI['apply_note'] === $staette['public_id'],
+    'der Vermerk am Item ist die public_id der Staette: ' . json_encode($itemI));
+$pruefungen += 8;
+
+// --- 💣 KEIN STILLER RUECKFALL auf die Karte: ohne Befund bricht das Item ab und sagt warum.
+avesmapsSyncPlanAddItem($pdoI, $laufI, $baueBauwerk('Tempel ohne Befund', null));
+$ohneId = $itemIdVon($pdoI, 'Tempel ohne Befund (Probe)');
+$eOhne = avesmapsGaretienUebernehmen($pdoI, $laufI, [$ohneId], ['id' => 7], ['innerorts' => true]);
+assert($eOhne['angelegt'] === 0 && count($eOhne['fehler']) === 1
+    && str_contains((string) $eOhne['fehler'][0]['grund'], 'Innerorts-Befund'),
+    'ohne Befund: Fehler mit Grund, nichts angelegt: ' . json_encode($eOhne, JSON_UNESCAPED_UNICODE));
+assert((int) $pdoI->query('SELECT COUNT(*) FROM map_features')->fetchColumn() === $vorherFeaturesI,
+    'und es entsteht KEIN Kartenpunkt -- ein Rueckfall waere von „hat funktioniert" nicht zu unterscheiden');
+assert($pdoI->query('SELECT apply_state FROM sync_plan_item WHERE id = ' . $ohneId)->fetchColumn() === 'failed',
+    'das Item steht auf failed');
+$pruefungen += 3;
+
+// --- 🔴 Ein Sammellauf (ohne Einstellungen) legt NIE eine Staette an -- der Befund allein
+// entscheidet nichts, der Importer schlaegt vor, der Editor entscheidet.
+avesmapsSyncPlanAddItem($pdoI, $laufI, $baueBauwerk('Wandlether Praiostempel', $befundWandleth));
+$praiosId = $itemIdVon($pdoI, 'Wandlether Praiostempel (Probe)');
+$ePraios = avesmapsGaretienUebernehmen($pdoI, $laufI, [$praiosId], ['id' => 7]);
+assert($ePraios['angelegt'] === 1 && $ePraios['fehler'] === [],
+    'ohne Einstellungen wird uebernommen: ' . json_encode($ePraios, JSON_UNESCAPED_UNICODE));
+assert((int) $pdoI->query('SELECT COUNT(*) FROM map_features')->fetchColumn() === $vorherFeaturesI + 1,
+    '... und zwar auf die KARTE');
+assert((int) $pdoI->query("SELECT COUNT(*) FROM settlement_place WHERE name = 'Wandlether Praiostempel'")->fetchColumn() === 0,
+    'keine Staette');
+$pruefungen += 3;
+
+// --- Die Ruecknahme fragt die TABELLE, nicht einen zweiten Vermerk: weich, is_active = 0.
+$rI = avesmapsGaretienRuecknahmeAusfuehren($pdoI, $laufI, [$rondraId], ['id' => 7]);
+assert($rI['zurueckgenommen'] === 1 && $rI['fehler'] === [],
+    'die Staette laesst sich zuruecknehmen: ' . json_encode($rI, JSON_UNESCAPED_UNICODE));
+$staetteNach = $pdoI->query("SELECT is_active, public_id FROM settlement_place WHERE name = 'Wandlether Rondratempel'")->fetch(PDO::FETCH_ASSOC);
+assert((int) $staetteNach['is_active'] === 0, '⚠️ WEICH: is_active = 0, kein DELETE');
+assert((int) $pdoI->query('SELECT COUNT(*) FROM map_features')->fetchColumn() === $vorherFeaturesI + 1,
+    'map_features bleibt unberuehrt (der Praiostempel steht noch)');
+assert($pdoI->query('SELECT apply_state FROM sync_plan_item WHERE id = ' . $rondraId)->fetchColumn() === null,
+    'das Item ist zurueck auf offen');
+// Ein erneutes „Innerorts einfuegen" belebt DIESELBE Zeile -- keine Dublette, dieselbe public_id.
+$eWieder = avesmapsGaretienUebernehmen($pdoI, $laufI, [$rondraId], ['id' => 7], ['innerorts' => true]);
+assert($eWieder['angelegt'] === 1 && $eWieder['fehler'] === [],
+    'erneut einfuegen: ' . json_encode($eWieder, JSON_UNESCAPED_UNICODE));
+$staetteWieder = $pdoI->query("SELECT is_active, public_id FROM settlement_place WHERE name = 'Wandlether Rondratempel'")->fetchAll(PDO::FETCH_ASSOC);
+assert(count($staetteWieder) === 1 && (int) $staetteWieder[0]['is_active'] === 1
+    && $staetteWieder[0]['public_id'] === $staetteNach['public_id'],
+    'dieselbe Zeile lebt wieder: ' . json_encode($staetteWieder));
+$pruefungen += 6;
 
 echo "OK: {$pruefungen} Pruefungen\n";

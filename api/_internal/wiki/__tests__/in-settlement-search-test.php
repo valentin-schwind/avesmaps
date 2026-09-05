@@ -129,6 +129,30 @@ $ohneUrl = avesmapsBuildInSettlementPlaceList(
 assert($ohneUrl[0]['wiki_url'] === '', 'fehlende wiki_url wird zu leerem String, nicht null');
 echo "payload wiki_url ok\n";
 
+// ------------------------------------------- GESPEICHERTE STAETTEN (settlement_place) ---
+// Vierte Quelle seit 02.09.2026: eine von einem Menschen eingetragene Staette (Garetien-Import,
+// „Innerorts einfuegen", api/_internal/app/settlement-places.php) kommt SCHON AUFGELOEST herein
+// und steht VOR den Ableitungen -- der `$seen`-Riegel ist derselbe, wer zuerst kommt, gewinnt.
+$gespeichert = [[
+    'name' => 'Akademie der Erscheinungen', 'settlement' => 'Wandleth', 'type' => 'Tempel',
+    'wiki_url' => 'https://www.garetien.de/index.php/Garetien:Akademie',
+]];
+$mitGespeichert = avesmapsBuildInSettlementPlaceList($placeRows, $scopeIndex, $gespeichert);
+assert(count($mitGespeichert) === 1, 'derselbe Name steht EINMAL: ' . count($mitGespeichert));
+assert($mitGespeichert[0]['settlement'] === 'Wandleth' && $mitGespeichert[0]['type'] === 'Tempel',
+    '💣 die eingetragene Staette schlaegt ihre geratene Ableitung -- andersherum kaeme die Entscheidung des Editors nie an: '
+    . json_encode($mitGespeichert[0]));
+$nurGespeichert = avesmapsBuildInSettlementPlaceList([], ['settlements' => [], 'regions' => []],
+    [['name' => 'Rondratempel', 'settlement' => 'Wandleth']]);
+assert(count($nurGespeichert) === 1 && $nurGespeichert[0]['wiki_url'] === '' && $nurGespeichert[0]['type'] === '',
+    'ohne Registry-Zeilen tragen die gespeicherten allein -- fehlende Felder sind leere Strings');
+assert(avesmapsBuildInSettlementPlaceList([], $scopeIndex,
+    [['name' => '', 'settlement' => 'Wandleth'], ['name' => 'X', 'settlement' => '']]) === [],
+    'ohne Namen oder ohne Ort faellt eine gespeicherte Zeile heraus');
+assert(avesmapsBuildInSettlementPlaceList($placeRows, $scopeIndex) === avesmapsBuildInSettlementPlaceList($placeRows, $scopeIndex, []),
+    'ohne gespeicherte Staetten ist alles wie vorher');
+echo "gespeicherte staetten ok\n";
+
 // ------------------------------------------------------- DIE GOTTHEIT (Discord #54) ---
 // „wo liegt eigentlich der naechste [Gottheit]-Schrein?" -- dafuer muss die Gottheit zweierlei
 // sein: sichtbar in der Trefferzeile UND suchbar.

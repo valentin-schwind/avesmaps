@@ -65,10 +65,15 @@ try {
     // 🔴 Deliberately NOT reusing `region`: that one means a map_features REGION LABEL. A landscape
     // region is a row in ecosystem_region, a different table with different ids -- sharing the key
     // would silently join sources across two unrelated things.
-    $allowedTypes = ['settlement', 'region', 'path', 'territory', 'citymap', 'lore', 'powerline', 'ecosystem'];
+    //
+    // `settlement_place` joined 2026-09-02, the same two-line change: an object that lies inside a
+    // town has no map position and thus no map_features row (api/_internal/app/settlement-places.php),
+    // but an imported one carries the Briefspiel licence and attribution. Its entity_public_id is
+    // settlement_place.public_id.
+    $allowedTypes = ['settlement', 'region', 'path', 'territory', 'citymap', 'lore', 'powerline', 'ecosystem', 'settlement_place'];
 
     if (!in_array($entityType, $allowedTypes, true)) {
-        avesmapsErrorResponse(400, 'invalid_request', 'entity_type muss settlement, region, path, territory, citymap, lore, powerline oder ecosystem sein.');
+        avesmapsErrorResponse(400, 'invalid_request', 'entity_type muss settlement, region, path, territory, citymap, lore, powerline, ecosystem oder settlement_place sein.');
     }
     // 🔴 DIESE AKTIONEN FRAGEN NACH EINEM WIRT, NICHT NACH EINEM OBJEKT, und stehen deshalb ohne
     // `entity_public_id` da: `inspect_url`, `save_corpus` und die zwei des Titel-Laufs (wie

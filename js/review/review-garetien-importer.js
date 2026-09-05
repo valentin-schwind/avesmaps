@@ -918,6 +918,12 @@
 		if (grund !== "") {
 			l2 += " · " + avesmapsGaretienEscape(grund);
 		}
+		// 🔴 „Übernommen · innerorts" (Entwurf 2026-09-02 §4): die Zeile sagt, WO das Objekt liegt. Das Feld
+		// kommt vom SERVER (er fragt die Tabelle der Stätten), und es zählt nur an einer übernommenen Zeile --
+		// ein Feld ohne Stand ist keine Aussage.
+		if (String(o.stand || "") === "uebernommen" && o.innerorts_uebernommen === true) {
+			l2 += " · innerorts";
+		}
 
 		return '<div class="avm-row" data-key="' + avesmapsGaretienEscape(o.key || "") + '">'
 			+ '<input type="checkbox"' + checkboxAttribute + '>'
@@ -3733,7 +3739,16 @@
 		const zusatz = ruecknahme.disabled
 			? ruecknahme.grund
 			: 'Kann mit „Zurücknehmen" wieder entfernt werden.';
-		return '<p class="gi-why">Liegt bereits auf der Karte. ' + avesmapsGaretienEscape(zusatz) + "</p>";
+		// 🔴 Eine STÄTTE liegt nicht auf der Karte -- der Satz sagt, wo sie liegt (Entwurf 2026-09-02 §4).
+		// „Liegt bereits auf der Karte" wäre für sie schlicht falsch, und ein Editor suchte den Punkt vergebens.
+		let lage = "Liegt bereits auf der Karte.";
+		if (objekt.innerorts_uebernommen === true) {
+			const stadt = garetienInnerortsOrt(objekt);
+			lage = stadt !== ""
+				? 'Liegt als Stätte in „' + avesmapsGaretienEscape(stadt) + '", ohne Position auf der Karte.'
+				: "Liegt als Stätte einer Stadt, ohne Position auf der Karte.";
+		}
+		return '<p class="gi-why">' + lage + " " + avesmapsGaretienEscape(zusatz) + "</p>";
 	}
 
 	/* =============================================================================================
@@ -4353,8 +4368,30 @@
 	// NICHT mehr in dieser Tafel (sie kämen sonst VOR der Zahl zu stehen, „…(3)" statt „(3) …"),
 	// sondern in AVESMAPS_GARETIEN_HANDLUNG_MIT_RUECKFRAGE weiter unten, die sie ans Ende hängt --
 	// NACH der Zahl.
+	/*
+	 * REIN: der Innerorts-Befund dieses Objekts -- der Name der Stadt, oder "".
+	 *
+	 * 🔴 GELESEN, NICHT GERECHNET. Welche Stadt in Frage kommt, entscheidet der Server beim
+	 * „Holen & Rechnen" über den ganzen Ortsbestand (avesmapsGaretienInnerortsBefund,
+	 * garetien-abgleich.php). Der Browser kennt die Ortschaften der Karte gar nicht alle -- was
+	 * geladen ist, hängt an Zoom und Ansicht, und ein hier gerechneter Befund flackerte mit dem
+	 * Kartenausschnitt. Dieselbe Begründung wie beim Statuskreis der Vorkommen (AGENTS.md §11).
+	 *
+	 * ⚠️ Ein Lauf von vor dem 02.09.2026 trägt das Feld nicht -- dann gibt es den Knopf nicht,
+	 * bis einmal neu gerechnet wurde. Das ist die zurückhaltende Richtung: kein Knopf ist besser
+	 * als einer, der eine Stadt nennt, die niemand gemessen hat.
+	 */
+	function garetienInnerortsOrt(objekt) {
+		const befund = (objekt && objekt.innerorts) || null;
+		if (!befund || typeof befund !== "object") { return ""; }
+		return String(befund.name || "").trim();
+	}
+
 	const AVESMAPS_GARETIEN_HANDLUNG_BESCHRIFTUNG = {
 		neu: "Neu einfügen",
+		// ⚠️ Die Stadt fehlt hier mit Absicht: sie hängt am OBJEKT, nicht an der Handlung, und
+		// wird in garetienHandlungBauen angehängt -- dieselbe Bauform wie „Bei „Rakula" …".
+		innerorts: "Innerorts einfügen",
 		name: "Namen ersetzen",
 		quelle: "Quelle + Artikel einfügen",
 		geometrie: "Ausgewählte Segmente ersetzen",
@@ -4386,6 +4423,11 @@
 	const AVESMAPS_GARETIEN_HANDLUNG_TON = {
 		neu: "go",
 		ablehnen: "danger",
+		// 🔴 „Innerorts einfügen" steht NEUTRAL daneben (Entwurf §4). Grün kodiert in diesem
+		// Fenster „legt etwas auf der Karte an" -- und genau das tut diese Handlung NICHT: sie
+		// legt eine Stätte in einer Stadt an, ohne Kartenposition. Zwei grüne Knöpfe
+		// nebeneinander behaupteten außerdem, es gebe zwei gleichrangige Hauptwege; es gibt einen
+		// Hauptweg und eine begründete Alternative.
 	};
 
 	// Die Knöpfe, die ihre Zahl im Namen tragen. 🔴 „(n)" ist die Zahl der schon ANGEHAKTEN
@@ -4497,6 +4539,10 @@
 	// Richtung.
 	const AVESMAPS_GARETIEN_ITEMS_JE_HANDLUNG = {
 		neu: function (item) { return String((item && item.change_type) || "") === "new"; },
+		// 🔴 DIESELBE MENGE WIE „neu", und deshalb dasselbe Prädikat statt einer zweiten Kopie:
+		// „innerorts" ist kein anderer Vorschlag, sondern ein anderer ZIELORT für denselben. Zwei
+		// wortgleiche Bedingungen liefen beim ersten Zusatz auseinander.
+		innerorts: function (item) { return String((item && item.change_type) || "") === "new"; },
 		name: function (item) { return garetienItemSchreibt(item, "name"); },
 		quelle: function (item) {
 			return garetienItemSchreibt(item, "quelle") && !garetienItemSchreibt(item, "name");
@@ -4597,6 +4643,10 @@
 					+ "Übereinstimmung gefunden hat. Das bestehende Objekt bleibt unberührt."
 				: "Legt " + benannt + " als neues Objekt auf der Karte an — mit den Einstellungen "
 					+ "aus „Eingefügt wird\" und den Quellen darunter.";
+		case "innerorts":
+			return "Legt " + benannt + " als besondere Stätte in „" + garetienInnerortsOrt(o)
+				+ "\" an — OHNE Position auf der Karte. Es erscheint dort in der Infobox der Stadt "
+				+ "und in der Suche, nicht als eigener Punkt.";
 		case "quelle":
 			return "Trägt bei " + ziel + " nur die Quellen nach: " + quellenSatz
 				+ ". Name, Verlauf und alle übrigen Felder bleiben unverändert.";
@@ -4643,7 +4693,7 @@
 				: "";
 		}
 		if (items.length > 0) { return ""; }
-		if (name === "neu") {
+		if (name === "neu" || name === "innerorts") {
 			return "dieser Lauf trägt für dieses Objekt keinen Vorschlag „neu anlegen\"";
 		}
 		if (name === "name") {
@@ -4682,6 +4732,12 @@
 		// dort ist Platz für den vollen Satz.
 		const zielText = name === "quelle" ? garetienQuelleZielText(items) : "";
 		let beschriftung = AVESMAPS_GARETIEN_HANDLUNG_BESCHRIFTUNG[name] || name;
+		// 🔴 DER ORTSNAME STEHT IM KNOPF, nicht im Hilfetext (Entwurf §4). Der Editor entscheidet
+		// nicht „innerorts ja/nein", sondern „innerorts IN WANDLETH" -- und wenn die Stadt falsch
+		// ist, sieht er es, bevor er drückt. Das ist der einzige Riegel, den diese Handlung hat.
+		if (name === "innerorts") {
+			beschriftung += " (" + garetienInnerortsOrt(objekt) + ")";
+		}
 		if (zielText !== "") {
 			// „Bei „Rakula" Quelle + Artikel einfügen" -- der Owner-Wortlaut. Das „Bei …" steht
 			// VORNE, damit die Zahl am Ende bleibt, wo sie bei jedem anderen Knopf auch steht.
@@ -4891,7 +4947,18 @@
 				garetienZurueckOffenBauen(o),
 			].filter(Boolean);
 		}
-		const namen = AVESMAPS_GARETIEN_HANDLUNGEN_JE_URTEIL[String(o.urteil || "")] || ["ablehnen"];
+		const namen = (AVESMAPS_GARETIEN_HANDLUNGEN_JE_URTEIL[String(o.urteil || "")] || ["ablehnen"]).slice();
+		// 🔴 „Innerorts einfügen" HÄNGT AM OBJEKT, NICHT AM URTEIL -- und steht deshalb nicht in
+		// AVESMAPS_GARETIEN_HANDLUNGEN_JE_URTEIL. Er erscheint nur, wenn der Server einen Befund
+		// mitgeschickt hat (Abstand UND Namenstreffer, avesmapsGaretienInnerortsBefund); sonst
+		// steht er GAR NICHT da. Ein dauerhaft ausgegrauter Knopf behauptet eine Möglichkeit, die
+		// es nicht gibt -- dieselbe Owner-Regel wie bei „Zurücknehmen" (30.08.2026).
+		// ⚠️ Direkt NEBEN „neu", nicht am Ende: er ist dessen Alternative, keine Nachbemerkung.
+		const stadt = garetienInnerortsOrt(o);
+		const stelle = namen.indexOf("neu");
+		if (stadt !== "" && stelle !== -1) {
+			namen.splice(stelle + 1, 0, "innerorts");
+		}
 		return namen.map(function (name) { return garetienHandlungBauen(name, o); });
 	}
 
@@ -5341,17 +5408,26 @@
 	function garetienNeuKlick(ereignis, objekte, runId, fragen) {
 		const ziel = ereignis && ereignis.target;
 		if (!ziel || typeof ziel.closest !== "function") { return null; }
-		const knopf = ziel.closest('[data-handlung="neu"]');
+		// 🔴 ZWEI KNÖPFE, EIN WEG. „Innerorts einfügen" ist derselbe Ablauf wie „Neu einfügen" --
+		// anhaken, übernehmen, Anzeige bereinigen, Liste neu holen -- und unterscheidet sich in
+		// GENAU einem Wert: der Handeingabe, die mitreist. Ein zweiter Klick-Handler wäre eine
+		// zweite Fassung des Laufriegels (garetienEinfuegenLaeuft) und der Fehlerbehandlung, und
+		// die läuft beim ersten Umbau auseinander.
+		const knopf = ziel.closest('[data-handlung="neu"], [data-handlung="innerorts"]');
 		if (!knopf || knopf.disabled) { return null; }
+		const handlung = String(knopf.getAttribute("data-handlung") || "neu");
 		const objekt = garetienObjektNach(knopf.getAttribute("data-key"), objekte);
 		if (!objekt) { return null; }
-		const rumpf = garetienHandlungsRumpf("neu", objekt, runId);
+		const rumpf = garetienHandlungsRumpf(handlung, objekt, runId);
 		if (!rumpf) { return null; }
 		// 💣 Ein „Nein" zählt trotzdem als GEFUNDEN (`return true`) -- sonst fiele derselbe Klick
 		// zu garetienHandlungKlick durch, das über die geteilte Tür (GARETIEN_PLAN_ENDPUNKT) ein
 		// wirkungsloses, aber unnötiges `select` verschickte, OHNE die Rückfrage noch einmal zu
 		// stellen. Dieselbe Falle wie bei garetienRuecknahmeKlick.
-		if (garetienNeuIstZusatz(objekt)) {
+		// ⚠️ NUR BEI „neu". Die Rückfrage warnt davor, ein ZWEITES Kartenobjekt neben ein
+		// getroffenes zu legen („sonst legt jemand aus Versehen den zweiten Krähensee an") --
+		// „Innerorts einfügen" legt gar kein Kartenobjekt an, die Kollision kann es nicht geben.
+		if (handlung === "neu" && garetienNeuIstZusatz(objekt)) {
 			const ok = typeof fragen === "function" ? fragen(garetienZusatzRueckfrageText(objekt)) : false;
 			if (!ok) { return true; }
 		}
@@ -5363,7 +5439,13 @@
 
 		// Der Kasten „Eingefügt wird" (Owner 30.08.2026) -- NUR dieser Einzelknopf liest ihn und
 		// reicht ihn weiter; siehe die Begründung an garetienEinfuegenAusfuehren.
-		const einstellungen = garetienEingabenFuerServer(objekt);
+		// 🔴 UND „innerorts" SCHICKT IHN NICHT MIT. Der Kasten beschreibt, was auf der KARTE
+		// entstünde (Form, Art, Farbe, Strömung); ein innerorts eingefügtes Objekt entsteht dort
+		// nicht. Mitgeschickt würde die Zielwahl serverseitig noch einmal auf die Geometrie
+		// angewandt -- eine Umformung für ein Objekt, das keine Geometrie bekommt.
+		const einstellungen = handlung === "innerorts"
+			? { innerorts: true }
+			: garetienEingabenFuerServer(objekt);
 
 		// `rumpf.ids` ist bereits der VOLLE Umfang (garetienHandlungsRumpf/garetienHandlungBauen
 		// filtern nie nach Tick-Zustand) -- Anhaken und Übernehmen decken hier dieselbe Menge ab.
@@ -6630,6 +6712,8 @@
 			garetienZielWahlMarkup,
 			// Fuenf-Punkte-Brief 30.08.2026, Punkt 6b
 			garetienEingefuegtWirdUebernommenHinweis,
+			// 02.09.2026: „Innerorts einfügen" -- der Befund-Leser (Ortsname aus dem Server-Befund).
+			garetienInnerortsOrt,
 			// Owner-Nachtrag 30.08.2026: die Weg-/Ort-Einstellungen ("vergiss nicht die andern
 			// einstellungen aus 'Weg bearbeiten', 'Ort bearbeiten' usw.")
 			garetienEingefuegtWirdZeileMitHinweis,

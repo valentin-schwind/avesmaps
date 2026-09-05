@@ -199,14 +199,38 @@ function avesmapsBuildSettlementLocationIndex(array $rows): array
  * Die Stadt steht nur dann in `settlement`, wenn der Klassifikator sie EINDEUTIG erkannt hat
  * (scope = inside); "unklar" faellt raus wie ueberall sonst.
  *
+ * 🔴 VIERTE QUELLE seit 02.09.2026: GESPEICHERTE Staetten (`settlement_place`, siehe
+ * api/_internal/app/settlement-places.php). Sie kommen SCHON AUFGELOEST herein -- ihren Ort hat
+ * ihnen ein Mensch gegeben, nicht der Klassifikator -- und stehen deshalb VOR den abgeleiteten:
+ * 💣 der `$seen`-Riegel ist derselbe, und wer zuerst kommt, gewinnt. Eine bewusst eingetragene
+ * Staette schlaegt damit ihre geratene Ableitung; andersherum kaeme die Entscheidung des Editors
+ * nie an, und zwar lautlos.
+ *
  * @param list<array{title:string, raw:string, type_label:string, wiki_url:string}> $registryRows
  * @param array{settlements:array<string,bool>, regions:array<string,bool>} $scopeIndex
+ * @param list<array{name:string, settlement:string, type:string, wiki_url:string}> $storedPlaces
  * @return list<array{name:string, settlement:string, type:string}>
  */
-function avesmapsBuildInSettlementPlaceList(array $registryRows, array $scopeIndex): array
+function avesmapsBuildInSettlementPlaceList(array $registryRows, array $scopeIndex, array $storedPlaces = []): array
 {
     $places = [];
     $seen = [];
+
+    foreach ($storedPlaces as $storedPlace) {
+        $name = trim((string) ($storedPlace['name'] ?? ''));
+        $settlement = trim((string) ($storedPlace['settlement'] ?? ''));
+        if ($name === '' || $settlement === '' || isset($seen[$name])) {
+            continue;
+        }
+
+        $seen[$name] = true;
+        $places[] = [
+            'name' => $name,
+            'settlement' => $settlement,
+            'type' => (string) ($storedPlace['type'] ?? ''),
+            'wiki_url' => (string) ($storedPlace['wiki_url'] ?? ''),
+        ];
+    }
 
     foreach ($registryRows as $registryRow) {
         $title = trim((string) ($registryRow['title'] ?? ''));

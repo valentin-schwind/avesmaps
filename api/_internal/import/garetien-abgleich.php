@@ -13,6 +13,10 @@ require_once __DIR__ . '/garetien-koordinaten.php';
 // Fuer AVESMAPS_TERRAIN_MEILEN_PER_MAPUNIT: die Begruendungen nennen Meilen, nicht
 // Karteneinheiten (Owner 31.08.2026: „kurz und auf was es sich bezieht").
 require_once __DIR__ . '/../routing/terrain-factor.php';
+// Fuer avesmapsIstBauwerksklasse / AVESMAPS_ORTSKLASSEN: der Innerorts-Befund unten fragt
+// „ist das ein Bauwerk?" und „welche Klassen sind SIEDLUNGEN?" -- beides ist ein Merkmal mit
+// eigenem Namen, kein Vergleich auf 'gebaeude' (siehe den Kopf von ortsklassen.php).
+require_once __DIR__ . '/../ortsklassen.php';
 
 /**
  * Ortschaften (Entwurf §3.1) sind EINE Familie -- Owner-Entscheid 30.08.2026, sinngemaess: ein
@@ -1167,10 +1171,8 @@ function avesmapsGaretienFindeBestand(PDO $pdo, array $zeile, ?array $ziel): arr
 
     if ($bester !== null && $besterAbstand <= avesmapsGaretienTrefferSchwelle($ziel)) {
         // 3. Der Name -- NUR als Zusatz zur Meldung, nie als Entscheidung.
-        $gleicherName = avesmapsGaretienNamenAehnlich(
-            (string) ($zeile['anzeige'] ?? ''),
-            $bester['name']
-        );
+        // 🔴 Bauwerk gegen Siedlung: nur der GANZE Name -- siehe avesmapsGaretienTrefferNameGleich.
+        $gleicherName = avesmapsGaretienTrefferNameGleich($ziel, $bester, (string) ($zeile['anzeige'] ?? ''));
 
         // 🔴 BEI EINEM PUNKT ENTSCHEIDET DER NAME (Owner 31.08.2026). Ihre „Burg Gryffenwacht"
         // lag 1,90 Einheiten neben unserem Dorf „Valpolust" und galt als dasselbe Objekt. Gemessen
@@ -1288,17 +1290,290 @@ function avesmapsGaretienHuellenBeruehrenSich(array $probe, array $kandidat): bo
  */
 function avesmapsGaretienNamenAehnlich(string $a, string $b): bool
 {
-    $normalisiere = static function (string $s): string {
-        $s = mb_strtolower(trim($s), 'UTF-8');
-        $s = preg_replace('~^(der|die|das)\s+~u', '', $s) ?? $s;
-
-        return preg_replace('~[^\p{L}\p{N}]+~u', '', $s) ?? $s;
-    };
-    $a = $normalisiere($a);
-    $b = $normalisiere($b);
+    $a = avesmapsGaretienNamenNormalisiert($a);
+    $b = avesmapsGaretienNamenNormalisiert($b);
     if ($a === '' || $b === '') {
         return false;
     }
 
     return $a === $b || str_starts_with($a, $b) || str_starts_with($b, $a);
 }
+
+/**
+ * Die Normalform eines Namens fuer den Vergleich: klein, ohne Artikel, nur Buchstaben und Ziffern.
+ * EINE Rechnung fuer beide Fragen (aehnlich / gleich) -- zwei Fassungen liefen beim ersten Sonderzeichen auseinander.
+ */
+function avesmapsGaretienNamenNormalisiert(string $s): string
+{
+    $s = mb_strtolower(trim($s), 'UTF-8');
+    $s = preg_replace('~^(der|die|das)\s+~u', '', $s) ?? $s;
+
+    return preg_replace('~[^\p{L}\p{N}]+~u', '', $s) ?? $s;
+}
+
+/** Derselbe Name -- ganz, nicht am Wortanfang. Leer ist nie gleich. */
+function avesmapsGaretienNamenGleich(string $a, string $b): bool
+{
+    $a = avesmapsGaretienNamenNormalisiert($a);
+
+    return $a !== '' && $a === avesmapsGaretienNamenNormalisiert($b);
+}
+
+/**
+ * Traegt ihr Objekt denselben Namen wie unser Treffer?
+ *
+ * 🔴 BAUWERK GEGEN SIEDLUNG: NUR DER GANZE NAME. Die Bauwerks-Suchfamilie enthaelt die Siedlungen
+ * (ihre „Burg X" kann bei uns als `dorf` liegen), und avesmapsGaretienNamenAehnlich vergleicht am
+ * WORTANFANG -- „wandletherrondratempel" beginnt mit „wandleth", also galt der Tempel bis zum
+ * 05.09.2026 als die Stadt: „deckt sich", die Quelle haengte sich an Wandleth, und das
+ * Innerorts-Angebot, das GENAU diesen Fall meint (Entwurf §2d: 11 von 27 Kandidaten tragen den
+ * Ortsnamen), konnte nie erscheinen. Ein Bauwerk, das den Namen seiner Stadt TRAEGT, ist ein
+ * Bauwerk IN der Stadt, nicht die Stadt. Gleich ist es nur bei gleichem Namen -- ihre Burg
+ * „Gryffenwacht" gegen unser Dorf „Gryffenwacht" (Owner 31.08.2026: bei Punkten entscheidet der Name).
+ *
+ * ⚠️ Alle anderen Paarungen behalten das schwache Wortanfang-Signal: unser „Der Grosse Fluss" und
+ * ihr „Grosser Fluss" sind dasselbe, und dort ist der Name ohnehin nie allein entscheidend.
+ * Gefragt wird avesmapsIstBauwerksklasse, nie `=== 'gebaeude'` (Kopf von ortsklassen.php).
+ */
+function avesmapsGaretienTrefferNameGleich(array $ziel, array $treffer, string $ihrName): bool
+{
+    $unsereArt = (string) ($treffer['art'] ?? '');
+    if (avesmapsIstBauwerksklasse((string) ($ziel['subtyp'] ?? '')) && $unsereArt !== '' && !avesmapsIstBauwerksklasse($unsereArt)) {
+        return avesmapsGaretienNamenGleich($ihrName, (string) ($treffer['name'] ?? ''));
+    }
+
+    return avesmapsGaretienNamenAehnlich($ihrName, (string) ($treffer['name'] ?? ''));
+}
+
+// =================================================================================================
+// INNERORTS -- „dieses Objekt gehoert IN eine Stadt, nicht auf die Karte"
+// =================================================================================================
+// Entwurf: docs/superpowers/specs/2026-09-02-innerorts-import-design.md
+// Owner 02.09.2026, woertlich: „ich hole und rechne und der importer sieht ‚ah das ist ein objekt,
+// das koennte innerorts liegen' und bietet neben dem Button ‚Neu einfuegen' die alternative ein
+// ‚Innerorts einfuegen (Punin)'."
+//
+// 🔴 ER SCHLAEGT VOR, ER ENTSCHEIDET NICHT. Alles hier rechnet einen KANDIDATEN; ob ein Objekt
+// innerorts eingefuegt wird, entscheidet der Editor mit einem Klick auf einen Knopf, der den
+// Ortsnamen traegt. Bei rund einem Dutzend Faellen auf 8348 Zeilen rechtfertigt nichts einen
+// stillen Pfad -- und ein falsch einsortiertes Objekt ist von aussen nicht von einem fehlenden zu
+// unterscheiden.
+
+/**
+ * 🔴 DIE SCHWELLE IST GEMESSEN, NICHT GERATEN (Entwurf §2d). Von 1048 ggp-Bauwerken liegen 27
+ * naeher als eine halbe Meile an einer Ortschaft, und 11 davon (40,7 %) tragen deren Namen im
+ * eigenen -- gegen 0,6 % jenseits von 5 Meilen. 68-fache Anreicherung; das Signal ist echt.
+ *
+ * 💣 ABSTAND ALLEIN REICHT NICHT, und das ist der Befund, den die KONTROLLGRUPPE gebracht hat:
+ * 4,5 % der Bauwerke liegen unter einer Meile an einer Ortschaft -- und exakt 4,5 % der
+ * ORTSCHAFTEN auch. Ein Dorf 800 Schritt neben einer Stadt ist ein Nachbardorf, keine Staette.
+ * Ohne die Gegenprobe haette „4,5 % liegen dicht an einer Stadt" wie ein Befund ausgesehen.
+ *
+ * 🔧 Sie trennt heute sauber, aber an 27 Faellen. Ob sie bei einem gewachsenen Export noch trennt,
+ * wird man neu messen muessen.
+ */
+const AVESMAPS_GARETIEN_INNERORTS_MEILEN = 0.5;
+
+/**
+ * PURE: einen Namen fuer den Innerorts-Vergleich falten.
+ *
+ * 🔴 DAS IST KEINE SCHLUESSELBILDUNG. `avesmapsFoldToAscii` (api/_internal/text/ascii-fold.php)
+ * bildet den `wiki_key` und faltet Umlaute bewusst auf '?', weil das die Form des Servers ist, an
+ * der rund zehn Tabellen haengen (AGENTS.md §5). Hier steht eine ganz andere Frage: erkennt ein
+ * Mensch in „Wandlether Baumeisterzunft" den Ort „Wandleth" wieder? Dafuer muss „oe" ein „o"
+ * werden und kein Fragezeichen. ⚠️ Das Ergebnis wird NIE gespeichert und nie als Schluessel
+ * benutzt -- es lebt genau so lange wie der eine Vergleich.
+ *
+ * ⚠️ DIE UMLAUT-TABELLE MUSS NICHT VOLLSTAENDIG SEIN, und das ist kein Versehen: was sie nicht
+ * kennt, faellt hinterher als Nicht-ASCII ganz heraus -- auf BEIDEN Seiten gleich. „Táyârret"
+ * wird zu „tyrret", der Objektname ebenso, und der Vergleich stimmt weiterhin. Genannt sind die
+ * deutschen Umlaute, weil nur bei ihnen die zwei Quellen wirklich verschieden schreiben.
+ *
+ * ⚠️ Die Wortgrenzen BLEIBEN (als einzelne Leerzeichen) -- sie sind der Riegel unten.
+ */
+function avesmapsGaretienInnerortsFalten(string $name): string
+{
+    $name = mb_strtolower(trim($name), 'UTF-8');
+    $name = strtr($name, ['ä' => 'a', 'ö' => 'o', 'ü' => 'u', 'ß' => 'ss']);
+    // Erst faellt alles Nicht-ASCII HERAUS (kein Leerzeichen, keine Wortgrenze -- „Táyârret" wird
+    // „tyrret", nicht „t y rret"), dann wird jede uebrige Zeichenfolge ohne Buchstabe oder Ziffer
+    // EINE Wortgrenze. 🪤 Bis zum 05.09.2026 tat die Zeile beides in einem Schritt und machte aus
+    // jedem Akzent eine Wortgrenze -- der Kommentar oben versprach das Streichen, der Code tat es nicht.
+    $name = (string) preg_replace('~[^\x20-\x7e]+~', '', $name);
+    $name = (string) preg_replace('~[^a-z0-9]+~', ' ', $name);
+
+    return trim((string) preg_replace('~\s+~', ' ', $name));
+}
+
+/**
+ * PURE: der Wortstamm eines Ortsnamens fuer den Vergleich.
+ *
+ * 🔴 EIN SCHLUSS-`e` FAELLT WEG, und dafuer gibt es einen Grund: der Ortsname taucht im Objektnamen
+ * fast immer als EIGENSCHAFTSWORT auf. „Auersberge" steckt nicht in „Auersberger Hof", „auersberg"
+ * sehr wohl. ⚠️ Nur das Schluss-`e`, nichts weiter: wer hier eine Endungsliste aufmacht, baut eine
+ * Wortformenlehre und faengt damit Namen, die nichts miteinander zu tun haben.
+ */
+function avesmapsGaretienInnerortsStamm(string $ortsName): string
+{
+    $ort = avesmapsGaretienInnerortsFalten($ortsName);
+    if ($ort !== '' && str_ends_with($ort, 'e')) {
+        $ort = substr($ort, 0, -1);
+    }
+
+    return $ort;
+}
+
+/**
+ * PURE: Nennt der OBJEKTNAME diesen Ort?
+ *
+ * 💣 GEPRUEFT WIRD AM WORTANFANG, nicht irgendwo in der Zeichenkette. Ohne den Riegel traefe der
+ * Stamm eines kurzen Ortsnamens („Aue" -> „au") mitten in „Bauernhof", und ein Bauernhof waere
+ * innerorts in Aue. Der Wortanfang beantwortet das ohne eine geratene Mindestlaenge -- eine Zahl,
+ * die niemand gemessen hat, waere hier genau die Sorte Konstante, die spaeter als Regel gelesen
+ * wird.
+ *
+ * ⚠️ Der Ortsname darf mehrere Woerter haben („Neuen Kalkspitz"); gesucht wird dann die ganze
+ * Folge ab einem Wortanfang.
+ */
+function avesmapsGaretienNameNenntOrt(string $objektName, string $ortsName): bool
+{
+    $objekt = avesmapsGaretienInnerortsFalten($objektName);
+    $stamm = avesmapsGaretienInnerortsStamm($ortsName);
+    if ($objekt === '' || $stamm === '') {
+        return false;
+    }
+
+    return (bool) preg_match('~(^| )' . preg_quote($stamm, '~') . '~', $objekt);
+}
+
+/**
+ * Die Ortsklassen, die eine SIEDLUNG bezeichnen -- die Gegenmenge zu den Bauwerksklassen.
+ *
+ * 💣 SIE WIRD ABGELEITET, NIE ABGESCHRIEBEN. Eine dritte Bauwerksklasse muesste sonst hier ein
+ * zweites Mal ausgetragen werden, und wer das vergisst, bekommt keinen Fehler: ein Gebaeude waere
+ * dann selbst ein moeglicher Wirt, und „Turm X" laege innerorts in „Burg X" nebenan. Genau diese
+ * Falle beschreibt der Kopf von ortsklassen.php fuer die sieben Vergleiche auf 'gebaeude'.
+ *
+ * @return list<array{0:null, 1:string}> in der Form, die `suchen` in AVESMAPS_GARETIEN_TYP_MAP hat
+ */
+function avesmapsGaretienSiedlungsFamilie(): array
+{
+    $familie = [];
+    foreach (AVESMAPS_ORTSKLASSEN as $klasse) {
+        if (!avesmapsIstBauwerksklasse($klasse)) {
+            $familie[] = [null, $klasse];
+        }
+    }
+
+    return $familie;
+}
+
+/**
+ * PURE: der Innerorts-Kandidat zu einem Objekt -- oder null.
+ *
+ * 💣 ES GEWINNT DIE NAECHSTE ORTSCHAFT MIT NAMENSTREFFER, NICHT DIE NAECHSTE UEBERHAUPT. Erst die
+ * naechste zu nehmen und DANN den Namen zu fragen, waere ein stilles Veto: liegt ein namenloser
+ * Nachbarort 0,1 Meilen naeher als der, dessen Namen das Objekt traegt, gaebe es gar keinen
+ * Kandidaten -- und von aussen saehe das aus, als habe der Importer nichts gefunden.
+ *
+ * @param list<array{0:float,1:float}> $punkte                die Punkte IHRES Objekts
+ * @param list<array{public_id:string,name:string,punkte:list<array{0:float,1:float}>}> $ortschaften
+ * @return array{public_id:string, name:string, abstand:float}|null
+ */
+function avesmapsGaretienInnerortsKandidat(array $punkte, string $objektName, array $ortschaften): ?array
+{
+    if ($punkte === []) {
+        return null;
+    }
+    $schwelle = AVESMAPS_GARETIEN_INNERORTS_MEILEN / AVESMAPS_TERRAIN_MEILEN_PER_MAPUNIT;
+    // ⭐ Quadriert vergleichen: die Wurzel kostet und aendert an der Ordnung nichts. Sie wird
+    // genau einmal gezogen, fuer den Gewinner.
+    $schwelleQ = $schwelle * $schwelle;
+
+    $bester = null;
+    $besterQ = INF;
+    foreach ($ortschaften as $ort) {
+        // ⭐ ERST DER ABSTAND, DANN DER NAME -- und das ist eine Laufzeitfrage, keine Regelfrage.
+        // Der Bestand hat rund 2900 Ortschaften und der Export rund 1000 Bauwerke; der Namenstest
+        // ist ein regulaerer Ausdruck, der Abstandstest sind zwei Subtraktionen. Andersherum
+        // liefen drei Millionen Mustervergleiche durch den Planbau -- genau die Sorte Schleife,
+        // die am 02.09.2026 schon einmal eine 502 erzeugt hat.
+        // 🔴 An der ENTSCHEIDUNG aendert die Reihenfolge nichts: verglichen werden am Ende alle
+        // Ortschaften in Reichweite, und unter ihnen gewinnt die naechste MIT Namenstreffer.
+        $abstandQ = INF;
+        foreach ((array) ($ort['punkte'] ?? []) as [$ox, $oy]) {
+            foreach ($punkte as [$x, $y]) {
+                $dx = ((float) $x) - ((float) $ox);
+                $dy = ((float) $y) - ((float) $oy);
+                if ($dx > $schwelle || $dx < -$schwelle || $dy > $schwelle || $dy < -$schwelle) {
+                    continue;
+                }
+                $q = $dx * $dx + $dy * $dy;
+                if ($q < $abstandQ) {
+                    $abstandQ = $q;
+                }
+            }
+        }
+        if ($abstandQ > $schwelleQ || $abstandQ >= $besterQ) {
+            continue;
+        }
+        $name = trim((string) ($ort['name'] ?? ''));
+        $publicId = (string) ($ort['public_id'] ?? '');
+        if ($name === '' || $publicId === '' || !avesmapsGaretienNameNenntOrt($objektName, $name)) {
+            continue;
+        }
+        $besterQ = $abstandQ;
+        $bester = ['public_id' => $publicId, 'name' => $name, 'abstand' => sqrt($abstandQ)];
+    }
+
+    return $bester;
+}
+
+/**
+ * Der Innerorts-Befund zu EINER Staging-Zeile -- mit geladenem Bestand.
+ *
+ * 🔴 NUR BAUWERKE. Ein Dorf neben einer Stadt ist ein Nachbardorf (die Kontrollgruppe oben), ein
+ * Wald neben einer Stadt ist ein Wald. Gefragt wird `avesmapsIstBauwerksklasse`, nie
+ * `subtyp === 'gebaeude'`: seit dem 31.08.2026 gibt es zwei Bauwerksklassen, und ein Vergleich auf
+ * einen Wert haette das Stadtviertel still ausgelassen.
+ *
+ * ⚠️ Faellt still auf null aus. „Kein Kandidat" ist der Normalfall (rund ein Dutzend von 8348
+ * Zeilen) und darf den Planbau nie anhalten.
+ *
+ * @return array{public_id:string, name:string, meilen:float}|null
+ */
+function avesmapsGaretienInnerortsBefund(PDO $pdo, array $zeile, ?array $ziel): ?array
+{
+    if (!is_array($ziel) || ($ziel['ziel'] ?? '') !== 'location'
+        || !avesmapsIstBauwerksklasse((string) ($ziel['subtyp'] ?? ''))) {
+        return null;
+    }
+    $objektName = trim((string) ($zeile['anzeige'] ?? ''));
+    if ($objektName === '') {
+        return null;
+    }
+    $punkte = avesmapsGaretienZeilePunkte($zeile);
+    if ($punkte === []) {
+        return null;
+    }
+
+    // ⭐ Ueber denselben Kandidatenspeicher wie der Abgleich: die Ortschaften werden je Lauf EINMAL
+    // geladen, egal wie viele Bauwerke danach fragen.
+    $ortschaften = avesmapsGaretienKandidaten($pdo, [
+        'ziel' => 'location',
+        'subtyp' => 'stadt',
+        'suchen' => avesmapsGaretienSiedlungsFamilie(),
+    ]);
+
+    $kandidat = avesmapsGaretienInnerortsKandidat($punkte, $objektName, $ortschaften);
+    if ($kandidat === null) {
+        return null;
+    }
+
+    return [
+        'public_id' => $kandidat['public_id'],
+        'name' => $kandidat['name'],
+        'meilen' => round($kandidat['abstand'] * AVESMAPS_TERRAIN_MEILEN_PER_MAPUNIT, 2),
+    ];
+}
+

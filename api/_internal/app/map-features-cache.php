@@ -14,13 +14,15 @@ declare(strict_types=1);
 //
 // 🔴 ABER DER SCHLUESSEL KANN HIER NICHT VOR DEM PDO STEHEN. Der Politik-Layer bildet ihn aus
 // `$_GET` allein und kommt deshalb ohne Datenbank aus. Unser Stempel ist der ETag, und der braucht
-// drei Lesevorgaenge (map_revision, Klimastempel, Tempostempel). Die sind billig; teuer ist alles,
+// vier Lesevorgaenge (map_revision, Klimastempel, Tempostempel, Staettenstempel). Die sind billig;
+// teuer ist alles,
 // was DANACH kommt -- und genau das faellt weg. Der Schnellpfad sitzt deshalb direkt hinter der
 // 304-Pruefung, nicht vor dem Verbindungsaufbau.
 //
 // 💣 UND ER HAT EINE FRIST, OBWOHL ER NACH DEM ETAG SCHLUESSELT -- das ist die tragende
 // Entscheidung dieser Datei. Der ETag-Keim deckt Nutzlastversion, `map_revision`, bbox,
-// since_revision, edit_mode sowie Klima- und Tempostempel ab. Er deckt NICHT ab: die beiden
+// since_revision, edit_mode sowie Klima-, Tempo- und Staettenstempel ab (der letzte seit dem
+// 02.09.2026, fuer `settlement_place` -- siehe avesmapsSettlementPlaceReadStamp). Er deckt NICHT ab: die beiden
 // Wappen-Schalter, den Notaus fuer Siedlungsbilder, die Wiki-Tabellen und `feature_sources`.
 // Aendert sich eines davon, ohne dass `map_revision` sich bewegt, dann behaelt heute ein WARMER
 // Client seine alte Kopie (er bekommt eine 304) -- ein kalter bekommt frische Daten. Ein Cache

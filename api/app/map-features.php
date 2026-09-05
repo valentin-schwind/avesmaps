@@ -13,6 +13,7 @@ require_once __DIR__ . '/../_internal/media-license.php';
 // it in too, but a kill switch on this path must not depend on a neighbour's include staying put.
 require_once __DIR__ . '/../_internal/app/app-setting.php';
 require_once __DIR__ . '/../_internal/app/in-settlement-search.php';
+require_once __DIR__ . '/../_internal/app/settlement-places.php';
 // Which label belongs to which landscape region. ONE definition of that relation, shared with
 // api/app/ecosystem-areas.php -- it is stored twice (once per direction) and neither side alone is
 // complete, so a second copy of the rule here would be the second truth. Pure functions + one reader;
@@ -162,13 +163,34 @@ const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 22;
  * @return list<array{name:string, settlement:string, type:string}>
  */
 function avesmapsMapFeaturesInSettlementPlaces(PDO $pdo): array {
+    // 💣 ZWEI QUELLEN, ZWEI EIGENE NETZE. Die gespeicherten Staetten stehen in ihrem eigenen
+    // `try` -- faellt die Wiki-Ableitung aus (Spalte fehlt, Sync nie gelaufen), duerfen die
+    // eingetragenen NICHT mitfallen: sie sind die einzigen, hinter denen ein Mensch steht, und
+    // ihr Verschwinden saehe von aussen wie „nie gespeichert" aus.
+    $storedPlaces = [];
+    try {
+        $storedPlaces = avesmapsSettlementPlaceRows($pdo);
+    } catch (Throwable) {
+        $storedPlaces = [];
+    }
+
+    $registryRows = [];
     try {
         $registryRows = avesmapsFetchInSettlementSearchRows($pdo);
-        if ($registryRows === []) {
-            return [];
-        }
+    } catch (Throwable) {
+        $registryRows = [];
+    }
 
-        return avesmapsBuildInSettlementPlaceList($registryRows, avesmapsPlaceScopeLoadIndex($pdo));
+    if ($registryRows === [] && $storedPlaces === []) {
+        return [];
+    }
+
+    try {
+        // ⚠️ Der Scope-Index wird nur fuer die ABLEITUNG gebraucht; ohne Registry-Zeilen gaebe es
+        // nichts zu klassifizieren, und die Abfrage waere reine Last.
+        $scopeIndex = $registryRows === [] ? ['settlements' => [], 'regions' => []] : avesmapsPlaceScopeLoadIndex($pdo);
+
+        return avesmapsBuildInSettlementPlaceList($registryRows, $scopeIndex, $storedPlaces);
     } catch (Throwable) {
         return [];
     }
@@ -243,7 +265,10 @@ try {
     // Bei unveraenderten Daten antwortet der Server mit 304 -> der Client nutzt seine Kopie; die teure
     // Query UND der 14-MB-Transfer entfallen komplett. Cache-Control: no-cache = jedes Mal revalidieren,
     // aber 304 statt Vollantwort, solange die Revision gleich bleibt.
-    $etag = avesmapsMapFeaturesETag($revision, $_GET, avesmapsClimateReadStamp($pdo), $travelValues['stamp']);
+    // ⚠️ EINE ZEILE, und das ist keine Formatfrage: `tempowerte-nutzlast-test.php` schneidet diesen
+    // Aufruf bis zum Zeilenende heraus, um zu belegen, dass die Stempel wirklich hineingereicht
+    // werden. Mehrzeilig gesetzt sieht der Test nur noch den Funktionsnamen und faellt um.
+    $etag = avesmapsMapFeaturesETag($revision, $_GET, avesmapsClimateReadStamp($pdo), $travelValues['stamp'], avesmapsSettlementPlaceReadStamp($pdo));
     $ifNoneMatch = (string) ($_SERVER['HTTP_IF_NONE_MATCH'] ?? '');
     if ($ifNoneMatch !== '' && avesmapsETagMatches($ifNoneMatch, $etag)) {
         avesmapsMapFeaturesSendCacheHeaders($etag);
@@ -605,7 +630,13 @@ function avesmapsFetchMapRevision(PDO $pdo): int {
 // ⚠️ Der Kommentar an der Nutzlast sagte bis heute „wer im Fenster speichert, sieht ihn beim
 // naechsten vollen Laden". Das stimmte nicht: mit `no-cache, must-revalidate` und unveraendertem
 // ETag IST das naechste volle Laden ein 304.
-function avesmapsMapFeaturesETag(int $revision, array $queryParams, string $climateStamp = '', string $travelStamp = ''): string {
+// 💣 UND $placesStamp AUS DEMSELBEN GRUND (02.09.2026). Die Nutzlast traegt `in_settlement_places`,
+// und seit heute schreibt der Garetien-Import dort GESPEICHERTE Staetten hinein -- eine Zeile in
+// `settlement_place` bewegt kein Kartenobjekt und hebt deshalb `map_revision` nicht. Ohne diesen
+// Keim bekaeme jeder warme Browser sein 304, und die frisch eingefuegte Staette taeuchte weder im
+// Reiseplaner-Autocomplete noch in der Infobox-Zeile „Staetten" auf. Dritte Auflage derselben
+// Falle nach Klimastempel und Tempowerten -- und die vierte, wenn man den Wappen-Notaus mitzaehlt.
+function avesmapsMapFeaturesETag(int $revision, array $queryParams, string $climateStamp = '', string $travelStamp = '', string $placesStamp = ''): string {
     // Appended ONLY in edit mode, so the public seed stays byte-identical to what it was before this
     // switch existed -- otherwise every visitor would re-download the whole payload once after the deploy
     // for a marker that changes nothing for them.
@@ -615,7 +646,10 @@ function avesmapsMapFeaturesETag(int $revision, array $queryParams, string $clim
         // ⚠️ Nur anhaengen, wenn es ihn gibt: ein leerer Stempel (Lesevorgang ausgefallen) haelt den
         // Keim Zeichen fuer Zeichen so, wie er vor dieser Leitung war -- kein Client laedt dann
         // 21 MB neu, weil einmal eine Einstellung nicht lesbar war.
-        . ($travelStamp !== '' ? '|t=' . $travelStamp : '');
+        . ($travelStamp !== '' ? '|t=' . $travelStamp : '')
+        // ⚠️ Dieselbe Zurueckhaltung wie beim Reisestempel: leer bleibt leer, damit die Welt nicht
+        // 21 MB neu laedt, weil die Tabelle einmal nicht lesbar war -- oder es sie noch gar nicht gibt.
+        . ($placesStamp !== '' ? '|s=' . $placesStamp : '');
     return 'W/"mf-' . AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION . '-' . $revision . '-' . substr(hash('sha1', $seed), 0, 10) . '"';
 }
 

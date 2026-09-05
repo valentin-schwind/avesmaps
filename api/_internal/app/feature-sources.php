@@ -1369,6 +1369,20 @@ function avesmapsFeatureSourcesReadWikiUrl(PDO $pdo, string $entityType, string 
             return ''; // no lore tables on this installation -> no wiki link, not a 500
         }
     }
+    // Eine STAETTE (settlement_place, 02.09.2026 -- ein Objekt ohne Kartenposition, das zu einer Stadt
+    // gehoert) ist keine map_features-Zeile; ihr Artikel steht in ihrer eigenen Tabelle. Fiele sie unten
+    // in die map_features-Abfrage durch, lieferte eine id-Kollision die Adresse eines FREMDEN Objekts --
+    // dieselbe Falle, vor der der citymap-Zweig darunter warnt. Ohne Tabelle: leer, kein 500.
+    if ($entityType === 'settlement_place') {
+        try {
+            $s = $pdo->prepare('SELECT wiki_url FROM settlement_place WHERE public_id = :id LIMIT 1');
+            $s->execute(['id' => $publicId]);
+
+            return trim((string) ($s->fetchColumn() ?: ''));
+        } catch (Throwable) {
+            return '';
+        }
+    }
     // A citymap is not a map_features row and has no wiki page of its own (Spec §3.1 gives it no
     // wiki_url column). Falling through to the lookup below would query map_features with a citymap id
     // and, on a collision, hand back an unrelated feature's wiki_url.
