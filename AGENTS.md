@@ -459,6 +459,41 @@ is the default, English is opt-in. Therefore:
   🪤 Und der Kommentar „Default-Start ist Zoom 0 -> spart den ~10MB-Startblock“ im Loader war TOT:
   der Startzoom ist `AVESMAPS_DEFAULT_MAP_ZOOM = 3` (am Telefon 2), die Bedingung greift beim Start
   also nie. Wer dort eine Startersparnis vermutet, sucht an der falschen Stelle.
+- 💣 **Die bbox-Spalten einer Geometriezeile sind ABGELEITETE Daten — jeder Schreiber von
+  `geometry_geojson` rechnet sie neu, und kein Leser darf sie ohne diese Zusage glauben.** Gemessen am
+  Dump vom 04.09.2026: **896 von 908** aktiven Zeilen in `political_territory_geometry` trugen in
+  `min_x..max_y` noch den Kasten ihres Start-Sechsecks (20×17,32 · 100×86,6 · 160×138,56 — die Hoehe
+  ist die Breite mal √3/2). Gesetzt hatte ihn der Anlege-Pfad; `avesmapsPoliticalUpdateGeometry` schrieb
+  die Geometrie neu und liess die vier Spalten stehen. Der Layer filtert nicht ueber die bbox und
+  zeichnete richtig — darum fiel es erst bei den Lesern auf, die sie glauben: „Was ist hier?" war um
+  Al'Anfa blind (Zeile 1011: gespeichert x 437..457, echt x 394..512; gemeldet 18.08.2026, zwei Wochen
+  als „veraltete bbox, nicht belegt" notiert), „Zum Gebiet springen" (`territory_bounds`) flog aufs
+  Sechseck, das Inventar sortierte nach Sechseckflaechen, der Sprungpunkt der Audit-Liste lag daneben.
+  ✅ **Seit 05.09.2026** setzen alle drei Schreibwege die bbox aus der Geometrie: Aendern,
+  Rueckgaengig (aus der GEOMETRIE des Schnappschusses, nie aus seinen Feldern — ein alter Eintrag
+  legte sonst den Kasten zurueck) und die Admin-Aktion `repair_geometry_bounds` (Trockenlauf-Vorgabe,
+  `apply: true`, blockweise, auch Papierkorb, ohne `updated_at` anzufassen). Der Bestand ist am
+  05.09.2026 nachgezogen: **952 von 1.020** Zeilen (aktive und inaktive) in 1,5 s, Gegenprobe 0.
+  ⭐ Die Lehre: eine Zahl, die man aus etwas anderem RECHNEN kann, wird nicht gepflegt, sondern bei
+  jedem Schreiben neu gerechnet — und wer eine Zeile repariert, zaehlt vorher die ganze Tabelle; ein
+  Datenfehler mit einem Erzeuger ist nie ein Einzelfall. Test:
+  `api/_internal/political/__tests__/geometrie-bbox-folgt-der-geometrie-test.php` (fuehrt „Was ist
+  hier?" blind und sehend aus; seine Rueckgaengig-Zusicherung fand beim Bau eine echte Luecke).
+  🔧 **Offen, am Dump gefunden:** „Was ist hier?" verwirft eine Geometrie mit veraltetem
+  `valid_to_bf` (Baronie Waischenroth 1039, Baronie Nevelung 1020, Sultanat Unau 1010 — drei von
+  908), waehrend der Layer sie ueber seinen Renderer-Rueckfall (B in `territories-layer.php`) weiter
+  zeichnet, solange keine juengere Geometrie sie verdraengt. Zwei Leser, zwei Gueltigkeitsregeln.
+- 💣 **Eine neu berechnete Aussenhuelle raeumt ihre Vorgaengerinnen weg.** `avesmapsPoliticalSaveDerivedGeometry`
+  loeschte bis zum 05.09.2026 nie: je Neuberechnung eine Zeile mehr mit `is_active = 0`, und NICHTS
+  liest oder reaktiviert je eine inaktive Huelle („Grenzen berechnen" holt sie als NEUE Zeile zurueck,
+  in genau diesem Pfad). Gemessen 04.09.2026: 5.263 tote gegen 131 aktive Zeilen (88 MB), in zehn Tagen
+  nach der Aufraeumung vom 25.08. nachgewachsen — eine einmalige Loeschung war nie eine Loesung.
+  Jetzt loescht der Speicherpfad nach dem INSERT, in derselben Transaktion, die inaktiven Zeilen SEINES
+  Gebiets (`avesmapsPoliticalPruneSupersededDerivedGeometry`); eine OHNE Nachfolgerin deaktivierte
+  Huelle bleibt weich stehen (Owner-Entscheid 16.08.2026), bis ihre Neuberechnung sie dorthin bringt.
+  ⚠️ `generated_at` kommt seither aus dem Spalten-Default statt als `CURRENT_TIMESTAMP(3)` im INSERT
+  — zeichengleich auf MySQL (Live-DDL nachgelesen), und der Grund, warum
+  `derived-huelle-ohne-leiche-test.php` den Speicherpfad in SQLite WIRKLICH faehrt statt ihn zu lesen.
 - **Albenhus/Zwerch** display-inheritance anomaly: a save writes resolved displays
   globally onto all ancestors.
 - **Schema is in code, not `sql/`:** ~14 tables exist only as inline PHP DDL;
