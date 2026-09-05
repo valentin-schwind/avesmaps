@@ -268,17 +268,22 @@ function avesmapsPoliticalSaveDerivedGeometry(PDO $pdo, array $payload, array $u
             'updated_by' => $userId,
         ]);
 
+        // ⚠️ generated_at kommt aus dem Spalten-Default (DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+        // in der Live-DDL nachgelesen am 05.09.2026) -- zeichengleich zu dem, was hier bis dahin
+        // ausdruecklich als `CURRENT_TIMESTAMP(3)` stand. Der Grund fuer den Umzug ist der Test:
+        // SQLite parst `CURRENT_TIMESTAMP(3)` nicht, und erst ohne den Wert im INSERT kann
+        // derived-huelle-ohne-leiche-test.php diesen Pfad WIRKLICH fahren, statt ihn zu lesen.
         $insertStatement = $pdo->prepare(
             'INSERT INTO political_territory_derived_geometry (
                 public_id, territory_id, geometry_geojson, label_lng, label_lat,
                 min_zoom, max_zoom, min_x, min_y, max_x, max_y, show_inner_boundaries,
                 inner_boundary_geojson, fill_remainder_geojson, contested_pieces_geojson,
-                source_revision, generated_at, is_active, created_by, updated_by
+                source_revision, is_active, created_by, updated_by
             ) VALUES (
                 :public_id, :territory_id, :geometry_geojson, :label_lng, :label_lat,
                 :min_zoom, :max_zoom, :min_x, :min_y, :max_x, :max_y, :show_inner_boundaries,
                 :inner_boundary_geojson, :fill_remainder_geojson, :contested_pieces_geojson,
-                :source_revision, CURRENT_TIMESTAMP(3), 1, :created_by, :updated_by
+                :source_revision, 1, :created_by, :updated_by
             )'
         );
         $insertStatement->execute([
@@ -302,6 +307,17 @@ function avesmapsPoliticalSaveDerivedGeometry(PDO $pdo, array $payload, array $u
             'updated_by' => $userId,
         ]);
 
+        // 💣 Die Leiche. Bis zum 05.09.2026 blieb je Neuberechnung die alte Zeile mit is_active = 0
+        // stehen -- und NICHTS liest oder reaktiviert je eine inaktive Huelle: alle Leser filtern
+        // is_active = 1, einen Reaktivierer gibt es nicht, „Grenzen berechnen" holt sie als NEUE Zeile
+        // zurueck, genau hier. Gemessen 04.09.2026: 5.263 tote gegen 131 aktive Zeilen, 88 MB, in zehn
+        // Tagen nach der letzten Aufraeumung nachgewachsen. Sobald die Nachfolgerin steht, ist jede
+        // inaktive Zeile dieses Gebiets ueberholt -- weg damit, in derselben Transaktion.
+        // ⚠️ NUR dieses Gebiet und NUR inaktive: eine OHNE Nachfolgerin deaktivierte Huelle (Quelle
+        // geloescht, avesmapsPoliticalDeactivateDerivedGeometryForTerritoryChain; Owner-Entscheid vom
+        // 16.08.2026, weich statt hart) bleibt stehen -- bis ihre Neuberechnung sie hierher bringt.
+        avesmapsPoliticalPruneSupersededDerivedGeometry($pdo, $territoryId);
+
         $pdo->commit();
     } catch (Throwable $exception) {
         if ($pdo->inTransaction()) {
@@ -318,6 +334,20 @@ function avesmapsPoliticalSaveDerivedGeometry(PDO $pdo, array $payload, array $u
         'target_name' => $target['target_name'],
         'derived_geometry' => avesmapsPoliticalFetchDerivedGeometryByPublicId($pdo, $publicId),
     ];
+}
+
+// Loescht die inaktiven Huellen EINES Gebiets. 🔴 Nur rufen, wenn seine aktive Nachfolgerin schon
+// steht (avesmapsPoliticalSaveDerivedGeometry, nach dem INSERT) -- fuer eine Huelle ohne Nachfolgerin
+// gilt der weiche Loeschweg. Liefert die Zahl der entfernten Zeilen.
+function avesmapsPoliticalPruneSupersededDerivedGeometry(PDO $pdo, int $territoryId): int {
+    $statement = $pdo->prepare(
+        'DELETE FROM political_territory_derived_geometry
+        WHERE territory_id = :territory_id
+            AND is_active = 0'
+    );
+    $statement->execute(['territory_id' => $territoryId]);
+
+    return $statement->rowCount();
 }
 
 function avesmapsPoliticalDeleteDerivedGeometry(PDO $pdo, array $payload, array $user): array {
