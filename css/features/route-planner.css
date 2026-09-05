@@ -11,9 +11,13 @@
 	font-family: inherit !important;
 }
 
+/* 🔴 DERSELBE TAKT WIE DAS PANEL. Der Abstand zwischen zwei Wegpunktzeilen ist derselbe wie der
+   zwischen den Bloecken darunter -- eine Spalte mit zwei Rhythmen liest sich als Versehen, nicht
+   als Gliederung (Owner 05.09.2026: „die abstaende sind auch noch nicht gleich"). Der Wert steht
+   an EINER Stelle, `--space-6`; #search liest denselben. */
 #waypoints {
 	display: grid;
-	gap: 5px;
+	gap: var(--space-6);
 }
 
 .waypoint-container {
@@ -92,16 +96,18 @@
 	color: var(--color-placeholder);
 }
 
-#waypoints,
-#waypoints .waypoint-container,
-#search .input-options {
-	padding: 0 0 5px 0;
-}
-
+/* 💣 HIER STAND EIN 5-px-SOCKEL UNTER DREI KAESTEN, und er ADDIERTE sich auf den Abstand des
+   Panels: sichtbar 13px zwischen der letzten Wegpunktzeile und „Ziel hinzufuegen" und noch einmal
+   13px zwischen dem Knopf und den Transportmitteln, gegen 8px zwischen den zwei Einstellgruppen
+   und 5px zwischen zwei Wegpunktzeilen -- vier verschiedene Abstaende in einer Spalte, alle im
+   Browser gemessen (05.09.2026). Ein Kasten, der sich seinen Abstand selbst dazulegt, bricht den
+   Takt; der Takt gehoert #search (`gap`, css/layout/map-layout.css).
+   ⚠️ Der Sockel unter `.waypoint-container` war ohnehin wirkungslos -- die Zeile traegt ihr
+   eigenes Polster (`padding: 3px 4px` weiter oben), und gemessen kam davon 0 an. */
 .input-options {
 	display: grid;
 	grid-template-columns: minmax(0, 1fr);
-	gap: 5px;
+	gap: var(--space-6);
 }
 
 .input-options button {

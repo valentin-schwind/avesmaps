@@ -1,7 +1,14 @@
 /* Route planner waypoint timeline */
+/* 💣 DIESES BLATT LAEDT NACH route-planner.css UND SETZT DENSELBEN `gap` -- gleiche Spezifitaet,
+   also gewinnt es. Wer den Abstand der Wegpunktzeilen dort aendert, aendert nichts (am 05.09.2026
+   gemessen: 5px blieben 5px, waehrend im anderen Blatt schon 8 standen).
+   🔴 UND DER ABSTAND IST MIT DER PUNKTLINIE GEKOPPELT: der gestrichelte Verbinder zwischen zwei
+   Wegpunkten ueberbrueckt genau diese Luecke (`bottom: calc(-1 * <gap> - 50% + 9px)` weiter unten).
+   Beide lesen deshalb DASSELBE Token. Wer nur eines anfasst, bekommt eine Linie, die vor dem
+   naechsten Punkt endet -- oder ueber ihn hinauslaeuft. */
 #waypoints {
 	display: grid;
-	gap: 5px;
+	gap: var(--space-6);
 	overflow: visible;
 }
 
@@ -78,7 +85,8 @@
 	position: absolute;
 	left: 39.5px;
 	top: calc(50% + 9px);
-	bottom: calc(-5px - 50% + 9px);
+	/* 🔴 Die `-1 * var(--space-6)` sind die Luecke des Rasters oben -- ein Wert, zwei Leser. */
+	bottom: calc(-1 * var(--space-6) - 50% + 9px);
 	width: 3px;
 	background-image: radial-gradient(circle, var(--color-text-muted) 1.35px, transparent 1.55px);
 	background-repeat: repeat-y;

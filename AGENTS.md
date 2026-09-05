@@ -964,6 +964,15 @@ hex values across 38 CSS files).
   14px, und in einem Elternteil mit `gap` kommt das obendrauf — im Routenplaner 19px zwischen den
   zwei Gruppen gegen 8px überall sonst, und nur beim ZWEITEN Kasten (das `margin: 0` daneben trug
   eine Kennung und gewann nur dort). Der Rhythmus gehört dem Elternteil.
+  🔴 **UND DAS GILT FÜR JEDES KIND DER SPALTE: der senkrechte Takt gehört EINEM Elternteil.**
+  Dieselbe Spalte trug am 05.09.2026 vier Abstände — 5px zwischen zwei Wegpunktzeilen, **13px** vor
+  „Ziel hinzufügen" und noch einmal 13px davor zu den Transportmitteln (je ein `padding: 0 0 5px`
+  PLUS dem `gap`), 8px zwischen den Einstellgruppen. Von außen sieht man keinen Sockel, nur „das ist
+  nicht gleich" (Owner mit zwei Bildern). 🪤 Zweite Hälfte: derselbe `gap` stand in ZWEI Blättern mit
+  gleicher Spezifität — die Änderung im früher geladenen war lautlos wirkungslos; beide nennen jetzt
+  denselben Token. 💣 Wer einen solchen Abstand ändert, sucht vorher seine MITLESER: die gestrichelte
+  Wegpunkt-Verbindungslinie überbrückt genau diese Lücke (`calc(-1 * var(--space-6) - 50% + 9px)`)
+  und endet sonst vor dem nächsten Punkt. Test: `js/app/__tests__/routenplaner-takt.test.js`.
   💣 **EIN Layoutmodus für beide Zustände, und EIN Mittel für den Abstand** (die Ränder der
   Kinder, nie zusätzlich ein `gap`): gekürzt wird am KOPF per `text-overflow`, der Lauf bleibt
   `inline`. Der Wechsel auf `inline-flex` beim Zuklappen ließ das ⓘ 5px seitlich springen (gap

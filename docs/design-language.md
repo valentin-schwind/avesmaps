@@ -543,6 +543,17 @@ Gruppen gegen 8px überall sonst, und zwar nur beim *zweiten* Kasten, weil das `
 Kennung trug (1,0,0) und nur dort gewann. Wer den Kasten in eine Flex- oder Grid-Spalte hängt, nimmt
 den Stapelrand dort zurück — der Rhythmus gehört dem Elternteil.
 
+🔴 **Der senkrechte Takt einer Spalte gehört EINEM Elternteil, und die Kinder legen nichts dazu.**
+Dieselbe Spalte trug am 05.09.2026 **vier** Abstände: 5px zwischen zwei Wegpunktzeilen, **13px**
+zwischen der letzten Zeile und „Ziel hinzufügen" und noch einmal 13px bis zu den Transportmitteln
+(je ein `padding: 0 0 5px` **plus** dem `gap` des Panels), 8px zwischen den zwei Einstellgruppen.
+Von außen sieht man keinen Sockel, nur „das ist nicht gleich". 🪤 Und die zweite Hälfte: derselbe
+`gap` stand in **zwei Blättern** mit gleicher Spezifität — die Änderung im früher geladenen war
+lautlos wirkungslos. Beide nennen jetzt denselben Token. 💣 Wer so einen Abstand ändert, sucht
+vorher seine **Mitleser**: die gestrichelte Verbindungslinie der Wegpunkte überbrückt genau diese
+Lücke (`bottom: calc(-1 * var(--space-6) - 50% + 9px)`) und endet sonst vor dem nächsten Punkt.
+Gewacht von `js/app/__tests__/routenplaner-takt.test.js`.
+
 💣 **EIN Layoutmodus für beide Zustände, und EIN Mittel für den Abstand.** Gekürzt wird am
 **Kopf** (`white-space: nowrap` + `overflow: hidden` + `text-overflow: ellipsis`); der Lauf
 bleibt `inline`. Der naheliegende Wechsel auf `inline-flex` beim Zuklappen verschob zweierlei,
