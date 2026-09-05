@@ -101,8 +101,36 @@ pruefe("im Geländeabschnitt ist genau ein Knopf gefüllt -- und es ist der rich
 
 const GRUPPEN = {
 	"Kamm und Form": ["sattel", "avgheight", "plateau", "bergform", "hypsometrie"],
-	"K&ouml;rnung": ["rauschen", "grain", "levels"],
-	"Wasser und Erosion": ["talbreite", "einschnitt", "erosion"],
+	"Grundrauschen": ["rauschen", "grain", "levels"],
+	"Wasser und T&auml;ler": ["talbreite", "einschnitt", "erosion"],
+};
+
+// 🔴 DIE BESCHRIFTUNGEN, wie der Owner sie am 05.09.2026 bestellt hat („ja benenn alle richtig!").
+// Ein Name sagt, was der Regler TUT -- die Kennungen bleiben, wie sie sind (dieselbe Trennung wie
+// bei „Neuigkeiten"/`changelog`: eine umgetaufte Kennung laesst eine gecachte Seite ins Leere
+// greifen, und der Deploy loescht nie).
+const NAMEN = {
+	sattel: "Durchhang zwischen den Gipfeln",
+	// ⚠️ UNVERAENDERT: „Kammhoehe (ohne Einzelgipfel)" ist ein Owner-Entscheid vom 04.09.2026 und
+	// sagt genau, was sie tut -- sie ist der SOCKEL des Kamms, nicht das Maximum. „Alle richtig
+	// benennen" heisst nicht „alle umbenennen".
+	avgheight: "Kammh&ouml;he (ohne Einzelgipfel)",
+	// 🪤 Der Regler ist verkehrt herum gepolt: 1 = Kamm als LINIE, kleine Werte = breite Tafel.
+	// „Plateau" las sich deshalb wie sein Gegenteil; „Kammschaerfe" laeuft mit dem Wert.
+	plateau: "Kammsch&auml;rfe",
+	bergform: "Ausstrahlung der Gipfel",
+	// ⚠️ Der Fachbegriff „hypsometrisches Integral (Strahler 1952)" steht weiter im Tooltip -- er
+	// geht nicht verloren, er steht nur nicht mehr als Beschriftung da.
+	hypsometrie: "Massigkeit",
+	rauschen: "St&auml;rke des Rauschens",
+	grain: "Zahl der Erhebungen",
+	levels: "Feinheit des Rauschens",
+	talbreite: "Talbreite",
+	einschnitt: "Taltiefe",
+	// 🔴 „Erosion" war der irrefuehrendste Name im Fenster: der Lauf traegt ab UND hebt denselben
+	// Betrag gleichmaessig wieder an (Owner-Entscheid 04.09.2026, damit kein Kamm ueber seine Gipfel
+	// waechst). Die Gesamthoehe bleibt also gleich -- was entsteht, ist das Rinnennetz.
+	erosion: "Rinnennetz",
 };
 
 pruefe("die elf Regler stehen in drei benannten Gruppen", () => {
@@ -154,6 +182,67 @@ pruefe("die erste Gruppe trägt KEINE Linie", () => {
 	assert.ok(i > 0, "die erste Gruppe bekommt keine Ausnahme -- sie steht mit doppelter Linie da");
 	const regel = blatt.slice(i, blatt.indexOf("}", i));
 	assert.ok(/border-top:\s*0/.test(regel), "die Ausnahme nimmt die Linie nicht weg");
+});
+
+pruefe("jeder Regler traegt die bestellte Beschriftung", () => {
+	const gefunden = {};
+	for (const m of abschnitt.matchAll(
+		/<span>([^<]+)<\/span>\s*<span class="ecosystem-properties-dialog__sliderwrap"><input id="ecosystem-properties-([a-z]+)"/g)) {
+		gefunden[m[2]] = m[1];
+	}
+	assert.deepStrictEqual(gefunden, NAMEN,
+		"die Beschriftungen weichen von der Bestellung ab");
+});
+
+pruefe("jeder Regler hat einen erklaerenden Tooltip", () => {
+	// 💣 „Zahl der Erhebungen" (damals „Erhebungen") war der ERSTE Regler im Fenster und als
+	// einziger von elf ohne jede Erklaerung -- gefunden von einem Pruefagenten, nicht von einem
+	// Test. Ein Regler ohne Tooltip ist eine Zahl ohne Bedeutung.
+	const ohne = [];
+	for (const m of abschnitt.matchAll(
+		/<label class="ecosystem-properties-dialog__terrainrow"([^>]*)>\s*<span>([^<]+)<\/span>/g)) {
+		if (!m[1].includes("title=")) { ohne.push(m[2]); }
+	}
+	assert.deepStrictEqual(ohne, [], "ohne Tooltip: " + ohne.join(", "));
+});
+
+pruefe("die stillen Faelle stehen im Tooltip", () => {
+	// 🔴 SIEBEN REGLER TUN UNTER BESTIMMTEN BEDINGUNGEN NACHWEISLICH NICHTS, und das Fenster graut
+	// keinen einzigen aus. Bis die Regler das selbst zeigen, muss es wenigstens DASTEHEN -- sonst
+	// dreht ein Editor an einer Zahl, die nichts bewirken KANN, und haelt das Werkzeug fuer kaputt.
+	// ⚠️ Gemessen, nicht vermutet: `if (rauschen > 0)` umschliesst Koernung UND Stufen
+	// (map-features-ecosystem-hydrologie.js), und `baueEcosystemTaeler` laeuft nur ueber uebergebene
+	// Fluss- und Seelinien.
+	const noetig = [
+		// 🔴 Auch die STÄRKE selbst muss es sagen -- sie ist der Schalter, nicht das Opfer. Eine
+		// Mutationsprobe hat gezeigt, dass ihr Satz sonst ungeprüft wegfallen kann: die zwei Regler
+		// darunter sagen dann „wirkt nur, wenn die Stärke über 0 steht", und an der Stärke selbst
+		// steht nicht, was ihre 0 anrichtet.
+		["rauschen", "wirkungslos"],
+		["grain", "St&auml;rke des Rauschens"],
+		["levels", "St&auml;rke des Rauschens"],
+		["talbreite", "Fluss oder ein See"],
+		["einschnitt", "Fluss oder ein See"],
+		["sattel", "ohne Gipfel"],
+	];
+	// Je Regler den ganzen Label-Block ausschneiden -- kein zusammengesetzter Regex, der beim
+	// nächsten Attribut im Markup zerfällt.
+	const bloecke = {};
+	for (const m of abschnitt.matchAll(
+		/<label class="ecosystem-properties-dialog__terrainrow"[^>]*>[\s\S]*?<\/label>/g)) {
+		const kid = m[0].match(/id="ecosystem-properties-([a-z]+)" type="range"/);
+		if (kid) { bloecke[kid[1]] = m[0]; }
+	}
+	assert.ok(Object.keys(bloecke).length === 11,
+		"es wurden " + Object.keys(bloecke).length + " statt 11 Reglerblöcke gefunden -- der Test "
+		+ "prüft dann die falschen");
+	for (const [kid, satz] of noetig) {
+		assert.ok(bloecke[kid], "der Regler `" + kid + "` steht nicht mehr im Abschnitt");
+		const titel = bloecke[kid].slice(0, bloecke[kid].indexOf(">"));
+		assert.ok(titel.includes(satz),
+			"der Tooltip von `" + kid + "` sagt nicht, wann der Regler nichts tut (erwartet: „"
+			+ satz + "“)");
+	}
 });
 
 if (!process.exitCode) {
