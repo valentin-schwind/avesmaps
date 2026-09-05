@@ -2948,7 +2948,17 @@
 			</div>
 				</div>
 			</section>
-			<div id="overview" data-i18n="planner.overview.default">Wegpunkte und Dauer der Reise werden hier angezeigt.</div>
+			<!-- 🔴 LEER IST DIE VORGABE, und leer heisst unsichtbar: `#overview:empty { display: none }`
+			     (css/features/route-overview.css). Owner 05.09.2026: „die box mit dem text ‚Wegpunkte und
+			     Dauer der Reise ...' soll erst angezeigt werden, wenn auch eine route angezeigt wird."
+			     Ein umrandeter Kasten, der nur erklaert, dass er spaeter etwas enthaelt, ist unter den
+			     Eingaben nur eine Behauptung von Inhalt.
+			     💣 KEIN `data-i18n` mehr. Der Sprachumschalter schreibt in JEDES so ausgezeichnete Element
+			     seinen Text -- mit dem Attribut stuende der Satz beim ersten Wechsel auf EN wieder da, und
+			     zwar in einem Kasten, den niemand mehr erwartet.
+			     ⚠️ „Route wird berechnet..." und „Keine Route gefunden" setzt route-engine.js weiterhin in
+			     denselben Kasten; dann ist er zu Recht sichtbar. -->
+			<div id="overview"></div>
 		</div>
 		<!-- 🔴 Die Randlasche steht NEBEN dem Panel, nicht darin. Bis zum 11.08.2026 war sie ein Kind
 		     von #search -- und das ging gut, solange #search nie wirklich scrollte. Seit es eine

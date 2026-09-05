@@ -29,7 +29,15 @@ body {
 	max-height: 95vh;
 	display: flex;
 	flex-direction: column;
-	gap: 5px;
+	/* 🔴 DER RHYTHMUS DES PANELS STEHT HIER, UND NUR HIER: der Abstand zwischen Kopf, Wegpunkten,
+	   „Ziel hinzufuegen", den zwei Einstellgruppen und dem Reiseplan. Ein Kind, das sich seinen
+	   Abstand selbst dazulegt, bricht ihn -- genau das tat der Stapelrand des Rahmenkastens
+	   (`.avm-rahmen + .avm-rahmen`, 14px obendrauf), und zwar nur bei einem der beiden Kaesten:
+	   19px dort gegen 5px ueberall sonst. Nachgezogen wird das im Bauteil, nicht mit einer
+	   Ausnahme hier (css/features/route-planner.css).
+	   Hier standen 5px -- eine Zahl auf keiner Skala des Hauses und zwischen den umrandeten
+	   Gruppen zu eng (Owner 05.09.2026: „der abstand … waere schoener"). `--space-6` = 8px. */
+	gap: var(--space-6);
 	overflow-x: hidden;
 	overflow-y: auto;
 	/* 🔴 HIER STAND EINE ROLLBALKEN-RINNE (`scrollbar-gutter`), am 12.08.2026 eingebaut und am

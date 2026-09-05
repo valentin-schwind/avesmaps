@@ -296,18 +296,58 @@
 .planner-group__head {
 	min-width: 0;
 	padding: 0 8px;
-	transition: background 0.12s ease;
+	/* Die Aufschrift WANDERT beim Klappen (K2) -- sie faehrt mit statt zu springen. Dieselbe
+	   Groessenordnung wie die Hoehe des Koerpers darunter (0,24s), damit es eine Bewegung ist. */
+	transition: background 0.12s ease, margin 0.2s ease, padding 0.2s ease;
 }
 
-/* Zugeklappt IST der Kopf die Gruppe: er bekommt die Hoehe der alten Leiste zurueck (gemessen
-   28px) und die Rundung des Rahmens, und die Zusammenfassung kuerzt sich mit Auslassung, statt
-   umzubrechen -- ein umbrechender zugeklappter Kasten liest sich wie ein halb offener. */
+/* 🔴 AUFGEKLAPPT IST NUR DIE AUFSCHRIFT DER SCHALTER, nicht die ganze Kopfzeile. Der Kopf ist dort
+   ein Block ueber die volle Breite, den der negative Rand 7,4px UEBER den Kasten hebt: ein Klick in
+   die Luecke ueber dem Rahmen -- also ausserhalb -- klappte die Gruppe zu, ohne Zeigerhand und ohne
+   Hellung. Im Browser gemessen 05.09.2026: Streifen 325px breit, 17,1px hoch, davon 7,4px
+   ausserhalb des Kastens; `elementFromPoint` traf dort den Kopf.
+   💣 Geloest ueber `pointer-events`, nicht ueber eine zweite Bedingung im Zuhoerer: so stimmt auch
+   die TREFFERPRUEFUNG (Cursor, Hellung, was unter dem Zeiger liegt) und nicht nur das Ergebnis des
+   Klicks. Der Klick des Laufs blubbert weiter zum Kopf -- `pointer-events: none` schaltet die
+   Trefferpruefung DIESES Elements ab, nicht das Blubbern seiner Kinder. Es bleibt bei dem EINEN
+   Zuhoerer am Kopf (map-features-planner-groups.js), also auch bei der Regel gegen die
+   Doppelanmeldung.
+   ⚠️ Zugeklappt gilt das Gegenteil, und das ist gewollt: dort IST die Leiste der Knopf -- sie
+   hellt sich ganz und ist auch neben den Woertern anklickbar. */
+.planner-group--open .planner-group__head {
+	pointer-events: none;
+}
+
+.planner-group--open .planner-group__head .avm-rahmen__schrift {
+	pointer-events: auto;
+}
+
+/* Zugeklappt IST der Kopf die Gruppe -- und die Aufschrift steht dann IN der Leiste, mittig. Sie
+   sitzt nur AUFGEKLAPPT auf einer Linie; in der Leiste gibt es keine zu maskieren.
+   💣 DAZU MUSS DER NEGATIVE RAND DES BAUTEILS WEG, und genau das fehlte vom 04. bis zum 05.09.2026.
+   `.avm-rahmen__kopf` hebt den Kopf um `0.5lh` (8,24px) -- richtig auf der Rahmenlinie, falsch,
+   sobald der Kasten eine Leiste ist. Im Browser gemessen: die Aufschrift ragte 0,92px ueber die
+   Oberkante der Leiste und LOESCHTE sie dort mit ihrem eigenen Grund (der Rahmen sah zerschnitten
+   aus, rechts blieb ein Stummel), ihre Mitte lag bei 7,19px in einer 28,58px hohen Leiste, und
+   darunter standen 13,28px Luft.
+   🪤 UND DIE LEISTE MASS TROTZDEM DIE ZUGESAGTEN 28px: der negative Rand oben und der
+   `margin-bottom` des Bauteils unten hoben sich in der HOEHE gerade auf. Zwei Fehler, die sich zu
+   der einen Zahl addierten, die abgenommen wurde -- gemessen werden muss die LAGE der Aufschrift,
+   nicht die Hoehe des Kastens.
+   🔴 Der Mockup-Vertrag nennt sie: `margin: var(--space-4) 0 var(--space-4) 3px` an einem Kasten
+   ohne eigenes Polster (docs/rahmenkasten-mockup.html, .k2). Hier traegt der Kopf das seitliche
+   Polster selbst -- dieselbe Rechnung, nur an einer anderen Stelle notiert: senkrecht `--space-4`,
+   seitlich 8px + 3px wie aufgeklappt. */
 .planner-group--collapsed .planner-group__head {
-	padding: 6px 8px;
+	margin: 0 0 0 3px;
+	padding: var(--space-4) 8px;
 	border-radius: calc(var(--radius-md) - 1px);
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
+	/* Die ganze Leiste ist der Knopf -- also traegt sie auch die Zeigerhand, nicht nur der
+	   Schalter darin. */
+	cursor: pointer;
 }
 
 /* Die HELLUNG liegt auf der ganzen Kopfzeile, nicht nur auf dem Schalter: der teilt sich die
@@ -317,7 +357,12 @@
 /* ⚠️ NUR ZUGEKLAPPT. Aufgeklappt ist der Kopf eine Aufschrift auf der Rahmenlinie, kein Knopf --
    ein durchlaufender Hellungsstreifen quer durch die Linie sieht dort aus wie ein Fehler. Die
    Rueckmeldung uebernimmt dann der Titel selbst (er wird heller). */
-.planner-group--collapsed .planner-group__head:has(.planner-group__toggle:hover),
+/* 💣 `:hover` AM KOPF SELBST, nicht `:has(.planner-group__toggle:hover)`. Anklickbar ist die ganze
+   Leiste (der Zuhoerer haengt am Kopf) -- hell wurde sie aber nur ueber den Woertern des Schalters,
+   also nicht ueber der Zusammenfassung und nicht rechts daneben. Hellung und Klickflaeche sind
+   dieselbe Flaeche, sonst sagt die Rueckmeldung etwas anderes als der Klick tut.
+   Der Fokusring bleibt an `:has(…:focus-visible)`: den bekommt nur der Schalter. */
+.planner-group--collapsed .planner-group__head:hover,
 .planner-group--collapsed .planner-group__head:has(.planner-group__toggle:focus-visible) {
 	background: var(--color-hover-wash);
 }
@@ -453,11 +498,15 @@
 
 /* Eingeklappt schrumpft die Gruppe auf ihre Kopfzeile. Polster UND Trenner fallen weg --
    der Schalter ist dann selbst die sichtbare Einheit, und ein Trenner um eine einzelne
-   Knopfzeile herum liest sich als Fehler. Uebrig bleiben die 28 px des Schalters plus der
-   5-px-Abstand, den #search ohnehin zwischen alle Kinder legt.
+   Knopfzeile herum liest sich als Fehler. Uebrig bleiben die 30,8 px der Leiste (Aufschrift
+   16,5 + 2x6 Polster + 2x1 Rahmen) plus der Abstand, den #search ohnehin zwischen alle Kinder
+   legt.
+   🪤 Hier stand „28 px", und die Zahl war ein Zufall: bis zum 05.09.2026 hob der negative Rand
+   des Bauteils oben genau den `margin-bottom` unten auf -- die Leiste mass richtig und ihre
+   Aufschrift stand trotzdem 7px zu hoch, halb auf dem eigenen Rahmen (siehe oben).
    💣 Die Kennung MUSS mit in den Selektor: die Polster-Regel oben spricht `#transport-options`
    an (1,0,0) und schlaegt jede reine Klasse. Ohne sie bleibt die Gruppe eingeklappt 55 px hoch
-   statt 28 -- die halbe Ersparnis. */
+   statt 31 -- die halbe Ersparnis. */
 /* Der Rahmen umgibt die GANZE Gruppe, Kopfzeile UND Inhalt (Owner 2026-08-02). Zwei Dinge
    loest das auf einmal: der Inhalt kann nicht mehr breiter werden als die Titelzeile -- vorher
    war er das, weil der Schalter sich seine Zeile mit dem Info-Knopf teilt, der Koerper aber
@@ -486,6 +535,17 @@
 	background: transparent;
 	box-sizing: border-box;
 }
+/* 💣 DER ABSTAND ZWISCHEN DEN GRUPPEN GEHOERT #search, NICHT DEM BAUTEIL. `.avm-rahmen +
+   .avm-rahmen` legt 14px Stapelrand auf, und im Panel kommt der zum `gap` HINZU. Gemessen
+   05.09.2026: 19px zwischen den zwei Gruppen gegen 8px ueberall sonst -- und zwar nur beim
+   ZWEITEN Kasten, weil das `margin: 0` der Regel darueber die Kennung `#transport-options`
+   (1,0,0) traegt und damit dort gewann, an `.route-planner-options-panel` (0,1,0) aber verlor.
+   Dieselbe Kennungsfalle, vor der diese Datei schon zweimal warnt; hier hat sie einen
+   ungleichmaessigen Rhythmus erzeugt, den man sieht, ohne ihn benennen zu koennen.
+   🔴 (0,4,0), damit die Ladereihenfolge der Blaetter nicht entscheidet. */
+.planner-group.avm-rahmen + .planner-group.avm-rahmen {
+	margin-top: 0;
+}
 /* 💣 DIE FUELLUNG GILT NUR ZUGEKLAPPT. Aufgeklappt sitzt die Aufschrift AUF der Rahmenlinie,
    also oben ausserhalb und unten innerhalb -- mit Fuellung liegen dort zwei Farben, und die eine
    Farbe, mit der sie die Linie maskiert, kann nicht beide sein. Zugeklappt IST die Gruppe der
@@ -501,6 +561,13 @@
    Ladereihenfolge der Blaetter. */
 .avm-rahmen.planner-group--open {
 	--avm-rahmen-grund: var(--color-panel);
+}
+/* 💣 UND ZUGEKLAPPT GAR KEINER. Der Grund der Aufschrift hat genau eine Aufgabe: die Rahmenlinie
+   unter ihr zu maskieren. In der Leiste liegt keine Linie unter ihr, sondern die Fuellung des
+   Knopfes -- ein Grund darauf ist ein sichtbarer Fleck. Gemessen: Aufschrift #37342b auf einer
+   Leiste #3a362c, dazu die Hellung beim Ueberfahren, die dann nur um den Fleck herum lief. */
+.avm-rahmen.planner-group--collapsed {
+	--avm-rahmen-grund: transparent;
 }
 #transport-options.planner-group--collapsed,
 .route-planner-options-panel.planner-group--collapsed {
@@ -532,6 +599,7 @@
 @media (prefers-reduced-motion: reduce) {
 	#transport-options,
 	.route-planner-options-panel,
+	.planner-group__head,
 	.planner-group__body,
 	.planner-group__summary,
 	.planner-group__caret {

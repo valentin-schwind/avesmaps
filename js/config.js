@@ -256,7 +256,6 @@ const ROUTE_ICON_PATHS = {
 
 ROUTE_ICON_PATHS.Gebirgspass = ROUTE_ICON_PATHS.Gebirgspfad;
 
-const DEFAULT_OVERVIEW_TEXT = "Wegpunkte und Dauer der Reise werden hier angezeigt.";
 const DEFAULT_ROUTE_QUERY_PARAM = "route";
 const ROUTE_QUERY_PARAM_ALIASES = ["route", "routes", "router"];
 const SHARE_PIN_QUERY_PARAM = "pin";

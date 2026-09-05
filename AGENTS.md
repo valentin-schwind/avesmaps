@@ -944,6 +944,26 @@ hex values across 38 CSS files).
   🔴 **Beim Klappen wandert die Aufschrift nur SENKRECHT.** Ihre x-Position ist die Summe aus
   Kastenpolster + Kopfrand + Polster des Laufs, und alle drei stehen in BEIDEN Zuständen gleich;
   Seitenränder werden durchsichtig, nie auf `0` (das verschiebt den Kasten um 1px).
+  🔴 **UND SIE KOMMT IN DER LEISTE AN, NICHT AUF DEREN RAHMEN — „nur senkrecht" sagt die Richtung,
+  nicht das Ziel.** Genau daran ist der Routenplaner am 04.09.2026 vorbeigebaut und stand einen Tag
+  so live: der negative Rand des offenen Zustands blieb stehen, die Aufschrift wanderte **dy 6**
+  statt **dy 14,25**, ragte 0,92px über die Oberkante und **löschte dort mit ihrem eigenen Grund den
+  Rahmen** (zerschnitten, rechts ein Stummel). 🪤 **Die Leiste maß dabei die zugesagten 28px** —
+  negativer Rand oben und `margin-bottom` unten hoben sich in der HÖHE gerade auf; zwei Fehler, die
+  sich zu der einen abgenommenen Zahl addierten. **Geprüft wird die LAGE der Aufschrift, nie die
+  Höhe des Kastens.** 💣 Mit der Linie fällt auch ihr **Grund** (er maskiert eine Linie; in der
+  Leiste ist er ein Fleck auf der Knopffüllung, gemessen #37342b auf #3a362c).
+  🔴 **Die Klickfläche wechselt mit dem Zustand, und die Hellung ist dieselbe Fläche.** Zugeklappt
+  IST die Leiste der Knopf (überall anklickbar, hellt sich ganz, Zeigerhand); aufgeklappt ist NUR
+  die Aufschrift der Schalter — der Kopf ist dort ein Block über die volle Breite, den der negative
+  Rand über den Kasten hebt: gemessen 325×17,1px, davon **7,4px außerhalb** des Rahmens, und ein
+  Klick in die Lücke ÜBER dem Kasten klappte zu. ⭐ Über `pointer-events` gelöst (`none` am Kopf,
+  `auto` am Lauf), nicht über eine zweite Bedingung im Zuhörer: so stimmt auch die Trefferprüfung
+  (Cursor, Hellung, was unter dem Zeiger liegt), nicht nur das Ergebnis des Klicks.
+  ⚠️ **Der Kasten legt seinen Abstand nach außen nicht selbst.** `.avm-rahmen + .avm-rahmen` stapelt
+  14px, und in einem Elternteil mit `gap` kommt das obendrauf — im Routenplaner 19px zwischen den
+  zwei Gruppen gegen 8px überall sonst, und nur beim ZWEITEN Kasten (das `margin: 0` daneben trug
+  eine Kennung und gewann nur dort). Der Rhythmus gehört dem Elternteil.
   💣 **EIN Layoutmodus für beide Zustände, und EIN Mittel für den Abstand** (die Ränder der
   Kinder, nie zusätzlich ein `gap`): gekürzt wird am KOPF per `text-overflow`, der Lauf bleibt
   `inline`. Der Wechsel auf `inline-flex` beim Zuklappen ließ das ⓘ 5px seitlich springen (gap

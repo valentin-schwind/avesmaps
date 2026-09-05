@@ -216,4 +216,97 @@ const ohneKommentare = (css) => css.replace(/\/\*[\s\S]*?\*\//g, "");
 		+ "dem Rahmenkasten drei Seiten weg");
 }
 
-console.log("OK -- der Rahmenkasten haengt dran, die Kopplungen sind benannt, keine zweite Rezeptur.");
+// ---- 10. K2: zugeklappt steht die Aufschrift IN der Leiste, nicht auf ihrem Rahmen -----------
+// 💣 DER FEHLER, GEGEN DEN DAS HIER STEHT (04. -> 05.09.2026, live, vom Owner gemeldet). Das
+//    Bauteil hebt den Kopf um `calc(-1 * pad - 0.5lh)` -- damit sitzt die Aufschrift AUF der
+//    Rahmenlinie, und genau das ist aufgeklappt richtig. Zugeklappt ist der Kasten eine Leiste und
+//    hat dort keine Linie mehr: der negative Rand liess die Aufschrift 0,92px ueber die Oberkante
+//    ragen, wo ihr eigener Grund den Rahmen LOESCHTE (er sah zerschnitten aus, rechts blieb ein
+//    Stummel), Titelmitte 7,19px in einer 28,58px hohen Leiste, darunter 13,28px Luft.
+// 🪤 UND DIE LEISTE MASS DABEI DIE ZUGESAGTEN 28px: negativer Rand oben und `margin-bottom` unten
+//    hoben sich in der HOEHE gerade auf. Die abgenommene Zahl war die Summe zweier Fehler --
+//    deshalb prueft dieser Abschnitt die LAGE (kein negativer Rand mehr, kein maskierender Grund)
+//    und nicht die Hoehe.
+// 🔴 Der Mockup-Vertrag nennt die Lage: `margin: var(--space-4) 0 var(--space-4) 3px`
+//    (docs/rahmenkasten-mockup.html, .k2). Gemessen nach der Korrektur: dx 0, dy 14,25 -- genau
+//    die Zahl, die docs/design-language.md §Rahmenkasten seit dem 04.09.2026 zusagt.
+{
+	const css = ohneKommentare(lies("css/features/route-planner.css"));
+	const regeln = Array.from(css.matchAll(/([^{}]+)\{([^}]*)\}/g))
+		.map((m) => ({ sel: m[1].trim(), rumpf: m[2] }));
+
+	const leiste = regeln.filter((r) => /\.planner-group--collapsed\s+\.planner-group__head\s*$/.test(r.sel));
+	assert.strictEqual(leiste.length, 1, "genau eine Regel formt die zugeklappte Leiste");
+	const rand = leiste[0].rumpf.match(/(?:^|;)\s*margin:\s*([^;]+)/);
+	assert.ok(rand, "sie setzt einen eigenen `margin` -- ohne ihn gilt der NEGATIVE des Bauteils weiter");
+	assert.ok(!/-|calc\(/.test(rand[1]),
+		"und zwar ohne negativen Anteil: `" + rand[1].trim() + "` -- ein `calc(-…)` hier ist der Fehler von 04.09.2026");
+	assert.ok(/cursor:\s*pointer/.test(leiste[0].rumpf),
+		"die ganze Leiste traegt die Zeigerhand, nicht nur der Schalter darin");
+
+	// Der Grund der Aufschrift maskiert eine LINIE. In der Leiste gibt es keine -- er ist dort ein Fleck.
+	const gruende = regeln.filter((r) => /planner-group--collapsed/.test(r.sel) && /--avm-rahmen-grund/.test(r.rumpf));
+	assert.strictEqual(gruende.length, 1, "genau eine Regel setzt den Grund der zugeklappten Aufschrift");
+	assert.ok(/transparent/.test(gruende[0].rumpf),
+		"und zwar auf `transparent`: " + gruende[0].rumpf.trim());
+	assert.ok(/\.avm-rahmen\.planner-group--collapsed/.test(gruende[0].sel),
+		"auf (0,2,0) wie beim offenen Zustand -- das Bauteil setzt den Vorgabewert am SELBEN Element, "
+		+ "auf gleicher Spezifitaet entschiede die Ladereihenfolge: " + gruende[0].sel);
+}
+
+// ---- 11. Aufgeklappt ist nur die AUFSCHRIFT der Schalter -------------------------------------
+// 💣 Der Kopf ist ein Block ueber die volle Breite, den der negative Rand ueber den Kasten hebt.
+//    Gemessen 05.09.2026: 325px breit, 17,1px hoch, davon 7,4px AUSSERHALB des Rahmens -- ein
+//    Klick in die Luecke ueber dem Kasten klappte die Gruppe zu, ohne Zeigerhand und ohne Hellung.
+// 🔴 Zugeklappt gilt das Gegenteil und muss gelten: dort IST die Leiste der Knopf. Ihre Hellung
+//    haengt deshalb am `:hover` DES KOPFES -- an `:has(.planner-group__toggle:hover)` hellte sie
+//    nur ueber den Woertern, waehrend der Klick auf der ganzen Leiste wirkte. Rueckmeldung und
+//    Klickflaeche sind dieselbe Flaeche.
+{
+	const css = ohneKommentare(lies("css/features/route-planner.css"));
+	const regeln = Array.from(css.matchAll(/([^{}]+)\{([^}]*)\}/g))
+		.map((m) => ({ sel: m[1].trim(), rumpf: m[2] }));
+
+	const stumm = regeln.filter((r) => /\.planner-group--open\s+\.planner-group__head\s*$/.test(r.sel)
+		&& /pointer-events:\s*none/.test(r.rumpf));
+	assert.strictEqual(stumm.length, 1,
+		"der aufgeklappte Kopf nimmt keine Zeiger an -- sonst ist der unsichtbare Streifen zurueck");
+	const laut = regeln.filter((r) => /\.planner-group--open\s+\.planner-group__head\s+\.avm-rahmen__schrift/.test(r.sel)
+		&& /pointer-events:\s*auto/.test(r.rumpf));
+	assert.strictEqual(laut.length, 1,
+		"…und der Lauf darin nimmt sie wieder an -- ohne diese Zeile klappt aufgeklappt GAR NICHTS mehr");
+
+	const hellung = regeln.filter((r) => /planner-group--collapsed/.test(r.sel)
+		&& /background:\s*var\(--color-hover-wash\)/.test(r.rumpf));
+	assert.strictEqual(hellung.length, 1, "eine Regel hellt die zugeklappte Leiste");
+	assert.ok(/\.planner-group__head:hover/.test(hellung[0].sel),
+		"und zwar am Kopf selbst, nicht nur ueber den Woertern des Schalters: " + hellung[0].sel);
+}
+
+// ---- 12. Der Rhythmus des Panels gehoert #search, nicht dem Bauteil --------------------------
+// 💣 `.avm-rahmen + .avm-rahmen` legt 14px Stapelrand auf, und in einer Flex-Spalte kommt der zum
+//    `gap` HINZU. Gemessen 05.09.2026: 19px zwischen den zwei Einstellgruppen gegen 5px ueberall
+//    sonst -- und zwar nur beim ZWEITEN Kasten, weil das `margin: 0` der Gruppenregel die Kennung
+//    `#transport-options` (1,0,0) traegt und an `.route-planner-options-panel` (0,1,0) verlor.
+{
+	const css = ohneKommentare(lies("css/features/route-planner.css"));
+	const regeln = Array.from(css.matchAll(/([^{}]+)\{([^}]*)\}/g))
+		.map((m) => ({ sel: m[1].trim(), rumpf: m[2] }));
+	const aufheber = regeln.filter((r) => /\.planner-group[^,{]*\+\s*\.planner-group/.test(r.sel)
+		&& /margin-top:\s*0/.test(r.rumpf));
+	assert.strictEqual(aufheber.length, 1,
+		"eine Regel nimmt den Stapelrand des Bauteils zwischen den zwei Gruppen zurueck");
+	assert.ok((aufheber[0].sel.match(/\.avm-rahmen/g) || []).length === 2,
+		"auf (0,4,0), damit weder Kennung noch Ladereihenfolge entscheidet: " + aufheber[0].sel);
+
+	// Und der Abstand selbst steht als Token an EINER Stelle -- eine nackte Zahl dort ist genau
+	// die Skala, an der sich die Kaesten spaeter wieder vorbeimogeln.
+	const layout = ohneKommentare(lies("css/layout/map-layout.css"));
+	const suche = layout.match(/#search\s*\{([^}]*)\}/);
+	assert.ok(suche, "#search steht in css/layout/map-layout.css");
+	const gap = suche[1].match(/(?:^|;)\s*gap:\s*([^;]+)/);
+	assert.ok(gap && /^var\(--space-/.test(gap[1].trim()),
+		"der Abstand des Panels ist ein Token der Skala, keine gegriffene Zahl: " + (gap ? gap[1].trim() : "keiner"));
+}
+
+console.log("OK -- der Rahmenkasten haengt dran, die Kopplungen sind benannt, K2 steht IN der Leiste.");

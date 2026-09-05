@@ -16,10 +16,10 @@
    .route-plan-summary__note (css/features/route-planner.css). */
 #overview {
 	flex: 0 0 auto;
-	/* Kein eigener margin-top mehr: #search ist eine Flex-Spalte mit 5 px Abstand zwischen ALLEN
-	   Kindern, der Rand kam obendrauf und machte aus 5 px hier 11. Die 6 px gehen an die
-	   Routenoptionen darueber, die mehr Luft zwischen ihren Zeilen brauchen (Owner 2026-08-02) --
-	   und der Abstand zum Plan liegt jetzt auf demselben Mass wie ueberall sonst im Panel. */
+	/* Kein eigener margin-top: #search ist eine Flex-Spalte und legt den Abstand zwischen ALLEN
+	   Kindern selbst (`gap`, css/layout/map-layout.css) -- ein Rand hier kaeme obendrauf und
+	   machte aus dem einen Mass zwei. Genau das ist dem Rahmenkasten der Einstellgruppen am
+	   04.09.2026 passiert (19px statt 8px zwischen ihnen). */
 	padding: var(--space-10);
 	border: 1px solid var(--color-border);
 	border-radius: var(--radius-md);

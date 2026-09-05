@@ -253,8 +253,14 @@ $("#toggleLabelsWithRegion").change(() => {
 	syncPlannerStateToUrl();
 });
 
+// 🔴 LEER, nicht „Wegpunkte und Dauer der Reise werden hier angezeigt." -- und leer heisst
+// unsichtbar (`#overview:empty`, css/features/route-overview.css). Owner 05.09.2026: die Box „soll
+// erst angezeigt werden, wenn auch eine route angezeigt wird".
+// ⚠️ Das gilt nur der RUHE. Die zwei Zwischenzustaende setzt route-engine.js weiterhin als Text in
+// denselben Kasten („Route wird berechnet...", „Keine Route gefunden"), und dort ist er richtig:
+// beide sind eine Antwort auf eine Handlung, der leere Kasten war keine.
 function resetOverview() {
-	$("#overview").html(tr("planner.overview.default", DEFAULT_OVERVIEW_TEXT));
+	$("#overview").empty();
 }
 
 function resetRoutePresentation() {

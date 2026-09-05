@@ -516,6 +516,33 @@ unten fuhr: eine Diagonale, die wie ein Verrutschen aussieht und nicht wie ein �
 Seitenränder werden dafür **durchsichtig**, nie auf `0` gesetzt — das lässt den Kasten 1px
 weiter links beginnen.
 
+🔴 **Und sie kommt IN der Leiste an, nicht auf deren Rahmen.** „Nur senkrecht" sagt die Richtung,
+nicht das Ziel — und genau daran ist der Routenplaner am 04.09.2026 vorbeigebaut: der negative Rand
+des offenen Zustands (`calc(-1 * pad - 0.5lh)`) blieb stehen, die Aufschrift wanderte **dy 6** statt
+**dy 14,25** und ragte 0,92px über die Oberkante der Leiste, wo ihr eigener Grund den Rahmen
+**löschte** — er sah zerschnitten aus, rechts blieb ein Stummel stehen. 🪤 **Und die Leiste maß dabei
+die zugesagten 28px:** negativer Rand oben und `margin-bottom` unten hoben sich in der *Höhe* gerade
+auf. Zwei Fehler, die sich zu der einen Zahl addierten, die abgenommen wurde — **geprüft wird die
+Lage der Aufschrift, nie die Höhe des Kastens.** 💣 Mit der Linie fällt auch ihr **Grund**: er
+maskiert eine Linie, und in der Leiste liegt unter ihr die Füllung des Knopfes — ein Grund darauf ist
+ein sichtbarer Fleck (gemessen #37342b auf #3a362c), um den die Hellung beim Überfahren herumläuft.
+
+🔴 **Die Klickfläche wechselt mit dem Zustand, und die Hellung ist dieselbe Fläche.** Zugeklappt
+**ist** die Leiste der Knopf: überall anklickbar, hellt sich ganz, trägt die Zeigerhand. Aufgeklappt
+ist **nur die Aufschrift** der Schalter — der Kopf ist dort ein Block über die volle Breite, den der
+negative Rand über den Kasten hebt: gemessen 325px breit, 17,1px hoch, davon **7,4px außerhalb** des
+Rahmens; ein Klick in die Lücke *über* dem Kasten klappte die Gruppe zu, ohne Zeigerhand und ohne
+Hellung. ⭐ Gelöst über `pointer-events` (`none` am Kopf, `auto` am Lauf darin), nicht über eine
+zweite Bedingung im Zuhörer: so stimmt auch die **Trefferprüfung** — Cursor, Hellung, was unter dem
+Zeiger liegt — und nicht nur das Ergebnis des Klicks. Der eine Zuhörer bleibt am Kopf; `pointer-events`
+schaltet die Trefferprüfung *dieses* Elements ab, nicht das Blubbern seiner Kinder.
+
+⚠️ **Der Kasten legt seinen Abstand nach außen nicht selbst.** `.avm-rahmen + .avm-rahmen` stapelt
+14px — in einem Elternteil mit `gap` kommt das **obendrauf**: im Routenplaner 19px zwischen den zwei
+Gruppen gegen 8px überall sonst, und zwar nur beim *zweiten* Kasten, weil das `margin: 0` daneben eine
+Kennung trug (1,0,0) und nur dort gewann. Wer den Kasten in eine Flex- oder Grid-Spalte hängt, nimmt
+den Stapelrand dort zurück — der Rhythmus gehört dem Elternteil.
+
 💣 **EIN Layoutmodus für beide Zustände, und EIN Mittel für den Abstand.** Gekürzt wird am
 **Kopf** (`white-space: nowrap` + `overflow: hidden` + `text-overflow: ellipsis`); der Lauf
 bleibt `inline`. Der naheliegende Wechsel auf `inline-flex` beim Zuklappen verschob zweierlei,
