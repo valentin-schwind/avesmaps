@@ -263,16 +263,22 @@ const ECOSYSTEM_HYDRO_MORPHOLOGIEN = [
 	{
 		key: "karst",
 		name: "Karst",
-		// 🔴 DIE WERTE DER ROTEN SICHEL, wie sie live gespeichert sind (Owner 04.09.2026: „gib genau
-		// diesen einstellungen ein neues preset: Karst" -- am Bild der Sichel). Sie sind KEIN
-		// gerechnetes Ideal, sondern ein gewachsener Bestand: grobe Koernung (23,6), volle Erosion,
-		// kein Plateau, keine Hypsometrie-Vorgabe -- und als einzige der zehn kein Fachbegriff der
-		// Systematik, sondern ein Bestandswert.
+		// 🔴 DIE WERTE EINES EINGESTELLTEN GEBIRGES, nicht eines gewachsenen Bestands (Owner
+		// 05.09.2026, am Bild des Rorwhed: „will ich als default settings fuer karst"). Als einzige
+		// der zehn kein Fachbegriff der Systematik, sondern ein abgenommenes Bild.
+		// 🪤 SIE HIESSEN BIS ZUM 05.09.2026 ANDERS -- die Rote Sichel, wie sie am 04.09. live
+		// gespeichert war (koernung 23,6 · bergform 2,5 · rauschen 0,35 · sattel 0,75 · talbreite 1,5
+		// · einschnitt 400 · erosion 5 · plateau 1 · stufen 5). Wer die alte Fassung sucht: sie steht
+		// weiter an jeder Flaeche, die sie gespeichert hat -- eine Vorlage ist ein Ausgangspunkt, kein
+		// Zustand, und eine geaenderte Tabelle ruehrt gespeichertes Gelaende nicht an.
 		// ⚠️ `hypsometrie: 0` heisst „nicht gesetzt" -- das Feld landet dort, wo es von selbst
-		// hinfaellt (an der Sichel HI 0,276). Eine Zahl daraus zu machen waere eine Behauptung, die
-		// der Owner nicht getroffen hat.
-		werte: { plateau: 1, hypsometrie: 0, erosion: 5, bergform: 2.5, rauschen: 0.35,
-			sattel: 0.75, koernung: 23.6, stufen: 5, talbreite: 1.5, einschnitt: 400 },
+		// hinfaellt. Eine Zahl daraus zu machen waere eine Behauptung, die der Owner nicht getroffen
+		// hat; im Bild stand der Regler auf 0,00.
+		// ⚠️ Die Kammhoehe 1750 aus demselben Bild steht NICHT hier (Owner-Entscheid 05.09.2026):
+		// sie ist die Frage der Hoehenstufe. Eine Morphologie, die die Hoehe mitbestimmt, ueberschriebe
+		// still die Wahl daneben -- und Karst waere die einzige der zehn, die das tut.
+		werte: { plateau: 0.85, hypsometrie: 0, erosion: 4, bergform: 10.5, rauschen: 0.94,
+			sattel: 0.33, koernung: 18, stufen: 3, talbreite: 3.8, einschnitt: 1925 },
 	},
 ];
 
@@ -315,6 +321,23 @@ const ECOSYSTEM_HYDRO_HOEHENSTUFEN = [
 	{ key: "mittelgebirge", name: "Mittelgebirge", werte: { maximalhoehe: 1500 } },
 	{ key: "hochgebirge", name: "Hochgebirge", werte: { maximalhoehe: 3200 } },
 ];
+
+// Bleibt diese Flaeche flach, egal wie man an den Reglern dreht?
+//
+// 🔴 DIE REGEL DES TRICHTERS, ALS EINE FRAGE -- und deshalb steht sie hier und nicht im Fenster.
+// `avesmapsGebirgsRasterBauen` kehrt bei genau dieser Lage sofort mit `leer: true` zurueck: ohne
+// Gipfel UND ohne Kammhoehe gibt es keinen einzigen Stuetzpunkt, und ein Gebirge daraus zu erfinden
+// waere das „erfundene Gelaendedetail", vor dem oekosystem-instruction.md §4.1 warnt.
+// 💣 SIE HAT ZWEI LESER: den Trichter selbst und den Eigenschaften-Dialog, der es dem Editor SAGT,
+// statt ihn zwoelf Regler stellen zu lassen, die nichts bewirken koennen. Live gemeldet am
+// 05.09.2026 an den „Salamandersteinen": null Gipfel in der Flaeche, keine Kammhoehe -- „hat kein
+// höhenbild obwohl ich das feld erzeugt habe". Eine zweite Fassung im Fenster liefe beim naechsten
+// Umbau auseinander, und dann saehe der Hinweis richtig aus und waere falsch.
+// ⚠️ Eine gerechnete KAMMLINIE reicht nicht: sie sagt, WO der Kamm laeuft, nicht WIE HOCH er ist.
+// Genau daran ist der gemeldete Fall gescheitert -- „Gebirgszug ermitteln" hatte sauber geliefert.
+function avesmapsGebirgeBleibtFlach(gipfelAnzahl, maximalhoehe) {
+	return !(Number(gipfelAnzahl) > 0) && !(Number(maximalhoehe) > 0);
+}
 
 // Die Werte EINER Vorlage, oder null. ⚠️ Eine Kopie: der Aufrufer schreibt in die Regler, und die
 // Tabelle darf sich dabei nicht veraendern.
@@ -1706,7 +1729,7 @@ function avesmapsGebirgsRasterBauen(eingabe) {
 	// (`buildEcosystemHeightField`): ein Gebirge ganz ohne Stuetzpunkt zu erfinden waere das
 	// „erfundene Gelaendedetail", vor dem oekosystem-instruction.md §4.1 warnt.
 	const maximalhoehe = Number(reg.maximalhoehe) > 0 ? Number(reg.maximalhoehe) : 0;
-	if (!peaks.length && !(maximalhoehe > 0)) {
+	if (avesmapsGebirgeBleibtFlach(peaks.length, maximalhoehe)) {
 		return { r, h, fest, festEro, senke, kern, mantel, kammMaske, leer: true, schritte: 0 };
 	}
 
@@ -2149,6 +2172,7 @@ if (typeof module !== "undefined" && module.exports) {
 		ECOSYSTEM_HYDRO_EROSIONSSTUFEN, ECOSYSTEM_HYDRO_EROSION_VORGABE,
 		ECOSYSTEM_HYDRO_PLATEAU_VORGABE, randAbstand,
 		ECOSYSTEM_HYDRO_MORPHOLOGIEN, ECOSYSTEM_HYDRO_HOEHENSTUFEN, avesmapsHydroVorlage,
+		avesmapsGebirgeBleibtFlach,
 		ECOSYSTEM_HYDRO_MORPH_ALTNAMEN, avesmapsHydroMorphSchluessel,
 		ECOSYSTEM_HYDRO_HYPSOMETRIE_VORGABE, ECOSYSTEM_HYDRO_HYPSO_POTENZ_MIN,
 		ECOSYSTEM_HYDRO_HYPSO_POTENZ_MAX, hypsometrischesIntegral, zieheAufHypsometrie, ECOSYSTEM_HYDRO_STANDARDHOEHE,

@@ -135,14 +135,21 @@ function applyEcosystemAreaPayload(payload) {
 		}
 	};
 
-	areas.forEach((area) => {
-		const publicId = String(area?.public_id || "");
+	// 🔴 EIN TRICHTER, VOR BEIDEN ZWEIGEN. Die frische Zeile wird genau hier durch die Bewahrung
+	// geschickt -- danach ist sie für den billigen Zweig (`_ecosystemArea = area`), für den Neubau
+	// (`buildEcosystemAreaLayer(area)`) und für `merkeHoehenbildVeraltet` dieselbe. Am Zweig einzeln
+	// gesetzt hätte der nächste Anlass ihn vergessen.
+	const offeneFlaeche = avesmapsEcosystemOffeneGelaendeflaeche();
+	areas.forEach((frischeZeile) => {
+		const publicId = String(frischeZeile?.public_id || "");
 		if (!publicId) {
 			return;
 		}
 		seenPublicIds.add(publicId);
 
 		const existingLayer = ecosystemLayers.get(publicId);
+		const area = avesmapsEcosystemGelaendeVorschauBewahren(
+			existingLayer?._ecosystemArea, frischeZeile, offeneFlaeche);
 		if (existingLayer) {
 			const previous = existingLayer._ecosystemArea;
 			// Same geometry and same kind -> the layer on the map is still the right one. Only the
@@ -356,6 +363,21 @@ function ecosystemAreaAffectsHeightField(area) {
 // 💣 `geometry_revision` genügt NICHT. Eine Geländespeicherung (`update_area_terrain`) bumpt sie nicht,
 // die Werte reisen aber im nächsten Ladevorgang mit -- ohne diese Prüfung übernähme der Loader sie ins
 // Flächenobjekt, während der Höhenstapel mit den alten weiterrechnet.
+// 🔴 EINE AUFZÄHLUNG, ZWEI LESER: der Vergleich „hat sich am Höhenfeld etwas geändert?" und die
+// Bewahrung der ungespeicherten Vorschau. Zwei getrennte Listen liefen beim nächsten Regler
+// auseinander, und der Fehler wäre in beide Richtungen still.
+const ECOSYSTEM_TERRAIN_WERTFELDER = [
+	"terrain_grain", "terrain_levels", "terrain_avg_height", "terrain_mean_height",
+	"terrain_erosion", "terrain_plateau", "terrain_hypsometrie",
+	"terrain_preset_morph", "terrain_preset_hoehe",
+	"terrain_bergform", "terrain_rauschen", "terrain_sattel",
+	"terrain_talbreite", "terrain_einschnitt",
+];
+// Die Bewahrung nimmt die Kammlinie DAZU. ⚠️ Der Vergleich oben darf sie nicht in dieser Liste
+// haben: sie ist ein Array, und `!==` wäre darauf Referenzgleichheit -- jede Antwort gälte als
+// Änderung. Er vergleicht sie deshalb eigens nach WERT (`avesmapsKammlinieText`).
+const ECOSYSTEM_TERRAIN_VORSCHAU_FELDER = ECOSYSTEM_TERRAIN_WERTFELDER.concat(["terrain_ridge_line"]);
+
 // Die Kammlinie als vergleichbarer Text. `null` und eine leere Liste sind dasselbe: „keine Linie".
 function avesmapsKammlinieText(linie) {
 	return Array.isArray(linie) && linie.length > 0 ? JSON.stringify(linie) : "";
@@ -397,13 +419,53 @@ function ecosystemHeightRelevantChange(previous, next) {
 		return true;
 	}
 
-	return [
-		"terrain_grain", "terrain_levels", "terrain_avg_height", "terrain_mean_height",
-		"terrain_erosion", "terrain_plateau", "terrain_hypsometrie",
-		"terrain_preset_morph", "terrain_preset_hoehe",
-		"terrain_bergform", "terrain_rauschen", "terrain_sattel",
-		"terrain_talbreite", "terrain_einschnitt",
-	].some((feld) => (previous?.[feld] ?? null) !== (next?.[feld] ?? null));
+	return ECOSYSTEM_TERRAIN_WERTFELDER.some((feld) => (previous?.[feld] ?? null) !== (next?.[feld] ?? null));
+}
+
+// Was der Editor eingestellt und noch NICHT gespeichert hat, überlebt ein Nachladen.
+//
+// 💣 DER DIALOG HAT KEINE EIGENE KOPIE. `currentPropertiesArea()` liest bei jedem Zugriff
+// `ecosystemLayers.get(id)._ecosystemArea`, und ein Reglerzug schreibt seine Vorschau genau dorthin
+// (ausdrücklich als Vorschau: die Zeile in der Datenbank ändert sich erst mit „Gelände speichern").
+// Bis zum 05.09.2026 ersetzte der Loader dieses Objekt bei JEDEM Nachladen durch die frische
+// Serverzeile -- und damit war alles weg, was noch nicht gespeichert war.
+// 🔴 Und nachgeladen wird oft: `moveend`/`zoomend` (jeder Schwenk, jeder Zoomschritt), jeder eigene
+// Schreibvorgang mit `immediate`, und über den Rückweg der Beschriftungen auch dann, wenn ein
+// ZWEITER Editor irgendwo speichert. Der Owner meldete es als „setzt es aus heiterem himmel die
+// einstellungen plötzlich zurück … es passiert auch ohne dass ich klicke".
+//
+// 🔴 NUR DIE FLÄCHE, DIE OFFEN IM FENSTER STEHT, und nur ihre GELÄNDEspalten. Jede andere Fläche
+// übernimmt die frischen Werte wie bisher, und auch an der offenen kommen Name, Art und Geometrie
+// frisch durch -- sonst wäre aus dem Schutz ein Einfrieren geworden, und die Arbeit des zweiten
+// Editors bliebe unsichtbar.
+// ⚠️ REIN, und der Vorgänger wird nicht angefasst: an ihm hängt der offene Dialog.
+function avesmapsEcosystemGelaendeVorschauBewahren(vorher, frisch, offeneId) {
+	const offen = String(offeneId || "");
+	if (!vorher || !frisch || offen === "" || String(frisch.public_id || "") !== offen) {
+		return frisch;
+	}
+	const bewahrt = Object.assign({}, frisch);
+	// 💣 `hasOwnProperty`, nicht `??` oder `||`: eine ausdrücklich gewählte 0 (die Hypsometrie des
+	// Karst, eine Bergform 0) ist eine Entscheidung und darf nicht als „nichts" gelesen werden.
+	ECOSYSTEM_TERRAIN_VORSCHAU_FELDER.forEach((feld) => {
+		if (Object.prototype.hasOwnProperty.call(vorher, feld)) {
+			bewahrt[feld] = vorher[feld];
+		}
+	});
+
+	return bewahrt;
+}
+
+// Welche Fläche steht gerade offen im Eigenschaften-Fenster? 🔴 Die Frage beantwortet das Fenster
+// selbst -- der Loader führt keinen zweiten Merker daneben, der auseinanderlaufen könnte.
+// ⚠️ Fällt GESCHLOSSEN aus: ohne das Modul (oder mit einer älteren Fassung im Cache) gibt es nichts
+// zu schützen, und es bleibt beim alten Verhalten.
+function avesmapsEcosystemOffeneGelaendeflaeche() {
+	const frage = typeof window !== "undefined"
+		? window.AvesmapsEcosystemProperties?.offeneFlaeche
+		: null;
+
+	return typeof frage === "function" ? String(frage() || "") : "";
 }
 
 function hookEcosystemViewportReload() {
@@ -418,6 +480,7 @@ if (typeof module !== "undefined" && module.exports) {
 	// Nur die zwei reinen Entscheidungsfunktionen -- der Rest des Moduls hängt an Leaflet und der Karte.
 	module.exports = {
 		ecosystemAreaAffectsHeightField, ecosystemHeightRelevantChange, avesmapsKammlinieText,
-		ecosystemAreaBetrifftHoehenbild,
+		ecosystemAreaBetrifftHoehenbild, avesmapsEcosystemGelaendeVorschauBewahren,
+		ECOSYSTEM_TERRAIN_VORSCHAU_FELDER,
 	};
 }

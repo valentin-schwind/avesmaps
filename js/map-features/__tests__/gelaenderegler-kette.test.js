@@ -32,6 +32,31 @@ function pruefe(name, fn) {
 	}
 }
 
+// Den Rumpf einer Funktion ausschneiden -- bis zu ihrer schliessenden Klammer, nicht bis zu einer
+// festen Zeichenzahl.
+//
+// 🪤 UNTEN STANDEN 2000 ZEICHEN, mit der Begruendung, ein Muster aus Umbruch und Tabulator lasse
+// sich durch die Werkzeugebenen nicht transportieren. Am 05.09.2026 ist genau dieser Ausschnitt
+// umgefallen: ein Bugfix gab `ermittleGebirgszug` einen Kommentarblock, `invalidate`/`redraw`
+// rutschten aus dem Fenster, und der Test meldete „das Hoehenfeld wird nach dem Rechnen nicht neu
+// gezeichnet" -- an zwei Zeilen, die unveraendert dastanden. Ein Test, der bei laengeren
+// Kommentaren rot wird, misst die Kommentarlaenge.
+// ⚠️ Die alte Warnung stimmt trotzdem, und sie hat beim Beheben ZUGESCHLAGEN: ein Python-Einschub
+// hat die Escapes als echte Umbrueche in die Datei geschrieben. Die Lehre ist nicht „feste Laenge",
+// sondern „diesen Block mit einem Werkzeug einfuegen, das Escapes durchreicht".
+// ⚠️ ZEILENENDENNEUTRAL (Arbeitskopie CRLF, CI LF), und der Rueckfall geht NICHT ueber `||` auf ein
+// `indexOf`-Ergebnis -- `-1 + 3` ist 2 und saehe gueltig aus (AGENTS.md §9).
+function funktionsRumpf(quelle, kopf) {
+	const text = String(quelle).replace(/\r\n/g, "\n");
+	const start = text.indexOf(kopf);
+	if (start < 0) {
+		return "";
+	}
+	const ende = text.indexOf("\n\t}", start);
+
+	return ende > start ? text.slice(start, ende + 3) : text.slice(start);
+}
+
 // 🔴 DIE ELF. Wer einen zwoelften Regler baut, trägt ihn HIER ein — und der Test sagt ihm dann, welche
 // der sechs Stellen er vergessen hat.
 // 💣 `terrain_levels` und `terrain_erosion` waren bis zum 04.09.2026 EINE Spalte, und `reglerFuer`
@@ -213,11 +238,8 @@ pruefe("Gebirgszug ermitteln kommt nur ohne Anhalt -- und rechnet die Kammlinie"
 	// Und er geht denselben Weg wie die Aktion "Labelkurve aktualisieren" im Kontextmenue.
 	const start = properties.indexOf("async function ermittleGebirgszug(");
 	assert.ok(start > 0, "die Funktion fehlt");
-	// ⚠️ Ein fester Ausschnitt statt der Suche nach dem Funktionsende: ein Muster mit
-	// Zeilenumbruch und Tabulator laesst sich durch drei Werkzeugebenen (Shell, Python, JS) nicht
-	// zuverlaessig transportieren -- beim Bau hat es viermal einen echten Umbruch in den Quelltext
-	// geschrieben. 2000 Zeichen decken die Funktion sicher ab.
-	const rumpf = properties.slice(start, start + 2000);
+	// ⚠️ Der ganze Rumpf, nicht 2000 Zeichen davon -- die Begruendung steht bei `funktionsRumpf`.
+	const rumpf = funktionsRumpf(properties, "async function ermittleGebirgszug(");
 	// 🔴 `compute_ridge`, NICHT `refresh_curve`. Jene Aktion rechnet die BESCHRIFTUNGSKURVE, und die
 	// entsteht nur bei eingeschalteter Kurvenbeschriftung -- der erste Bau rief sie, und der Knopf
 	// antwortete auf einer Flaeche ohne Kurvenbeschriftung mit „Für diese Fläche entsteht keine

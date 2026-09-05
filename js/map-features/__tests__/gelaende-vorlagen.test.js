@@ -76,7 +76,13 @@ pruefe("die zehn Vorlagen tragen die gemessenen Werte des Owners", () => {
 		rumpfgebirge:   [16,   2,   0.3,  0.8,  2,    400, 5, 0.3,  0.85, 5],
 		schild:         [20,   0.3, 0.12, 0.95, 3,    200, 5, 0.7,  0.15, 2],
 		inselberg:      [14,   8,   0.2,  0.3,  2.5,  550, 5, 0.15, 1,    3],
-		karst:          [23.6, 2.5, 0.35, 0.75, 1.5,  400, 5, 0,    1,    5],
+		// 🔴 Karst am 05.09.2026 NEU GEMESSEN, am Bild des Rorwhed („will ich als default settings
+		// für karst"). Die alte Zeile war der Bestand der Roten Sichel vom Vortag; die neue ist ein
+		// eingestelltes Gebirge -- gröber gekörnt, viel weiter ausstrahlende Einzelberge, ein tief
+		// eingesattelter Kamm und mit 1925 der tiefste Einschnitt aller zehn Formen.
+		// ⚠️ Die Kammhöhe 1750 aus demselben Bild steht bewusst NICHT hier: sie ist die Frage der
+		// Höhenstufe (Owner-Entscheid 05.09.2026), und die Zusicherung darunter hält das fest.
+		karst:          [18,   10.5, 0.94, 0.33, 3.8, 1925, 4, 0,    0.85, 3],
 	};
 	const spalten = ["koernung", "bergform", "rauschen", "sattel", "talbreite", "einschnitt",
 		"erosion", "hypsometrie", "plateau", "stufen"];

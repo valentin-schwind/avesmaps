@@ -2201,6 +2201,18 @@
 								<input id="ecosystem-properties-levels-num" class="ecosystem-properties-dialog__terrainnum" type="number" min="1" max="8" step="1" inputmode="decimal" aria-label="Wert eingeben" /><button type="button" id="ecosystem-properties-levels-reset" class="ecosystem-properties-dialog__reset" hidden title="Auf die Vorgabe der Vorlage zur&uuml;cksetzen" aria-label="Auf die Vorgabe der Vorlage zur&uuml;cksetzen">&#8635;</button>
 							</label>
 							</details>
+							<!-- 🔴 &bdquo;Diese Fl&auml;che kann gar kein Relief bekommen&ldquo; (Owner 05.09.2026, an den
+							     &bdquo;Salamandersteinen&ldquo;: null Gipfel, keine Kammh&ouml;he &mdash; „hat kein h&ouml;henbild obwohl
+							     ich das feld erzeugt habe&ldquo;). Der Trichter kehrt in genau dieser Lage sofort mit
+							     einem leeren Raster zur&uuml;ck, und ohne diesen Satz stellt ein Editor zw&ouml;lf Regler
+							     ein, die nichts bewirken K&Ouml;NNEN.
+							     💣 Er ist NICHT derselbe wie der Hinweis daneben: jener sagt, dass die LINIE fehlt
+							     (und die Mittelachse einspringt), dieser sagt, dass die H&Ouml;HE fehlt. Eine gerechnete
+							     Kammlinie sagt, WO der Kamm l&auml;uft, nicht WIE HOCH er ist &mdash; genau daran ist der
+							     gemeldete Fall gescheitert, w&auml;hrend „Gebirgszug ermitteln&ldquo; sauber geliefert hatte.
+							     🔴 Die Bedingung ist `avesmapsGebirgeBleibtFlach` &mdash; DIESELBE Funktion, mit der der
+							     Trichter entscheidet. -->
+							<p id="ecosystem-properties-terrain-flachhint" class="ecosystem-properties-dialog__terrainhint" hidden>Diese Fl&auml;che hat keinen Gipfel und keine Kammh&ouml;he &mdash; sie bleibt flach, egal wie die Regler stehen. W&auml;hle eine H&ouml;henstufe (oder trage eine Kammh&ouml;he ein), dann entsteht ein Relief.</p>
 							<p id="ecosystem-properties-terrain-ridgehint" class="ecosystem-properties-dialog__terrainhint" hidden>Diese Fl&auml;che hat weder einen Gipfel noch eine Kammlinie. Das Gel&auml;nde nutzt ersatzweise ihre Mittelachse &mdash; „Gebirgszug ermitteln" rechnet die echte Linie ihres Zugs.</p>
 							<div class="ecosystem-properties-dialog__terrainactions">
 								<!-- 🔴 „Gebirgszug ermitteln" (Owner 04.09.2026). Er kommt NUR, wenn die Fl&auml;che weder

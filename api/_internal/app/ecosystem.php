@@ -4762,7 +4762,19 @@ function avesmapsUpdateEcosystemAreaTerrain(PDO $pdo, array $payload, int $userI
     }
     if (array_key_exists('terrain_levels', $payload)) {
         $felder[] = 'terrain_levels = :terrain_levels';
-        $stufen = $lesen($payload['terrain_levels'], 0.0, 5.0);
+        // 🔴 1..8 WIE DER REGLER, nicht 0..5. Hier stand 0..5, und das war der Rest einer Trennung,
+        // die nur halb nachgezogen wurde: bis zum 04.09.2026 trug `terrain_levels` ZWEI Größen in
+        // einer Spalte -- die Oktaven des Grundrauschens und die Erosionsstufe --, und 0..5 war die
+        // Spanne der EROSION. `055ad2bdd` hat beide getrennt (Owner: „terrain_levels trenn die
+        // beiden!"), die Erosion bekam ihre eigene Spalte samt eigener 0..5-Klemme, der Regler wurde
+        // auf 1..8 aufgezogen -- diese Zeile blieb stehen und klemmte seither eine Größe auf die
+        // Schranke einer anderen.
+        // 💣 Der Preis war ein STILLER Wertsprung: „Detailstufen 6" (so setzt es die Vorlage
+        // „Gratgebirge") kam als 5 zurück, und der Editor sah nach dem Speichern ein anderes Gebirge
+        // als davor -- gemeldet am 05.09.2026 als „macht alle werte wild durcheinander".
+        // ⚠️ Gewacht von `js/map-features/__tests__/gelaende-schranken-gleich.test.js`, das ALLE elf
+        // Regler gegen `index.html` hält. Wer eine Schranke hier ändert, ändert sie dort mit.
+        $stufen = $lesen($payload['terrain_levels'], 1.0, 8.0);
         $werte['terrain_levels'] = $stufen === null ? null : (int) round($stufen);
     }
     if (array_key_exists('terrain_avg_height', $payload)) {

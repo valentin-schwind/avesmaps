@@ -1471,6 +1471,21 @@
 				return;
 			}
 			regler.value = String(werte[schluessel]);
+			// 💣 UND IN DIE FLÄCHE, nicht nur in den Regler -- sonst ist die Vorlage zwei Zeilen
+			// später wieder weg. `renderTerrainControls` unten baut JEDEN Schieber aus `area[feld.key]`
+			// neu auf, und der Zeichner liest ohnehin ausschliesslich die Fläche (`reglerFuer`, das
+			// kein DOM kennt). Bis zum 05.09.2026 stand hier nur die Zeile darüber: der Editor wählte
+			// eine Form, der Schieber sprang zurück, das Bild blieb, wie es war -- gemeldet als „die
+			// presets haben keinen effekt", und für die Höhenstufe hiess dasselbe „höhenstufe tut
+			// nichts mit den höhen".
+			// 🔴 DER WERT KOMMT VOM REGLER ZURÜCK, nicht aus der Tabelle: ein `input[type=range]`
+			// KLEMMT beim Zuweisen auf `min`/`max`. Nähme die Fläche die rohe Zahl, zeigte der Editor
+			// den gekappten Wert und gespeichert würde der ungekappte -- zwei sichtbare Wahrheiten,
+			// dieselbe Falle, die „Schild" (0,72 bei max 0,7) und „Inselberg" (0,2 bei min 0,3) am
+			// 04.09.2026 je einmal getroffen hat.
+			// 🪤 Es ist eine VORSCHAU, keine Speicherung -- genau wie beim Ziehen von Hand: die Zeile
+			// in der Datenbank ändert sich erst mit „Gelände speichern".
+			area[feld.key] = Number(regler.value);
 			terrainTouched[feld.key] = true;
 			syncTerrainOutput(feld, area);
 			gesetzt++;
@@ -1571,10 +1586,42 @@
 				return;
 			}
 			area.terrain_ridge_line = antwort.terrain_ridge_line;
+			// 🔴 UND EINE KAMMHÖHE DAZU, WENN SONST NICHTS ENTSTEHEN KANN (Owner-Entscheid 05.09.2026).
+			// Eine Linie sagt, WO der Kamm läuft -- nicht, wie hoch er ist. Ohne Gipfel und ohne Höhe
+			// kehrt der Trichter mit einem leeren Raster zurück, und der Editor hat einen Knopf
+			// gedrückt, der sauber geliefert hat, und sieht trotzdem nichts („Salamandersteine",
+			// 05.09.2026).
+			// 🔴 VORBELEGT, NICHT GESPEICHERT: der Wert steht als Vorschau im Regler, die Statuszeile
+			// sagt es, und erst „Höhenfeld erzeugen" schreibt ihn. Eine still gespeicherte Höhe wäre
+			// eine Behauptung über das Gebirge, die niemand getroffen hat.
+			// ⚠️ Die Zahl ist GELESEN, nicht gegriffen: es ist die Höhenstufe „Mittelgebirge" aus
+			// derselben Tabelle, die das Auswahlfeld füllt -- eine 1500 von Hand hier wäre die zweite
+			// Wahrheit, sobald jemand die Stufe verschiebt.
+			const stufe = typeof avesmapsHydroVorlage === "function"
+				&& typeof ECOSYSTEM_HYDRO_HOEHENSTUFEN !== "undefined"
+				? avesmapsHydroVorlage(ECOSYSTEM_HYDRO_HOEHENSTUFEN, "mittelgebirge")
+				: null;
+			const bliebeFlach = typeof avesmapsGebirgeBleibtFlach === "function"
+				&& avesmapsGebirgeBleibtFlach(peaksInsideArea(area).length, area.terrain_avg_height);
+			let vorbelegt = 0;
+			if (bliebeFlach && stufe && Number(stufe.maximalhoehe) > 0) {
+				const feld = TERRAIN_FIELDS.find((f) => f.key === "terrain_avg_height");
+				const regler = feld ? propertiesElement(feld.element) : null;
+				if (regler) {
+					regler.value = String(stufe.maximalhoehe);
+					area.terrain_avg_height = Number(regler.value);
+					area.terrain_preset_hoehe = "mittelgebirge";
+					vorbelegt = area.terrain_avg_height;
+				}
+			}
 			window.AvesmapsEcosystemHeightRender?.invalidate?.();
 			window.AvesmapsEcosystemHeightRender?.redraw?.();
 			renderTerrainControls(area);
-			setTerrainStatus("Gebirgszug ermittelt — das Gelände folgt jetzt seiner Linie.", false);
+			setTerrainStatus(vorbelegt
+				? "Gebirgszug ermittelt — das Gelände folgt jetzt seiner Linie. Die Kammhöhe war leer "
+					+ "und steht vorläufig auf " + vorbelegt + " (Mittelgebirge); ohne sie bliebe die "
+					+ "Fläche flach. Noch nicht gespeichert."
+				: "Gebirgszug ermittelt — das Gelände folgt jetzt seiner Linie.", false);
 		} catch (fehler) {
 			setTerrainStatus("Der Gebirgszug konnte nicht ermittelt werden: "
 				+ (fehler?.message || "unbekannter Fehler"), true);
@@ -1730,6 +1777,18 @@
 		const hinweis = propertiesElement("terrain-ridgehint");
 		if (ridge) { ridge.hidden = !ohneAnhalt; }
 		if (hinweis) { hinweis.hidden = !ohneAnhalt; }
+		// 🔴 UND DIE ZWEITE, GANZ ANDERE LÜCKE: die Fläche hat vielleicht eine Kammlinie, aber keine
+		// HÖHE. Dann kehrt der Trichter mit einem leeren Raster zurück, und kein Regler dieser Welt
+		// ändert daran etwas -- gemeldet am 05.09.2026 an den „Salamandersteinen" („hat kein höhenbild
+		// obwohl ich das feld erzeugt habe"; live nachgemessen: null Gipfel, `terrain_avg_height`
+		// NULL, Kammlinie mit 32 Punkten sauber gerechnet).
+		// 💣 GEFRAGT WIRD DIE REGEL DES TRICHTERS, nicht eine eigene Fassung davon: sonst sagt das
+		// Fenster „bleibt flach", während das Bild eins zeigt, oder umgekehrt.
+		const flach = propertiesElement("terrain-flachhint");
+		if (flach) {
+			flach.hidden = typeof avesmapsGebirgeBleibtFlach !== "function"
+				|| !avesmapsGebirgeBleibtFlach(peaksInsideArea(area).length, area?.terrain_avg_height);
+		}
 
 		// 🔴 Der Titel der Falte nennt die gemerkte Vorlage (Owner 04.09.2026). Sie ist eine
 		// HERKUNFTSANGABE: die Zahlen sind die Wahrheit, der Name sagt, woher sie kamen.
@@ -2965,6 +3024,18 @@
 			open: openEcosystemPropertiesDialog,
 			close: closeEcosystemPropertiesDialog,
 			isOpen: isEcosystemPropertiesDialogOpen,
+			// 🔴 WELCHE FLÄCHE STEHT OFFEN -- die Frage stellt der Loader vor jedem Nachladen
+			// (`avesmapsEcosystemGelaendeVorschauBewahren`). Sie wird HIER beantwortet, weil hier der
+			// Zustand liegt; ein zweiter Merker im Loader liefe beim ersten Sonderfall auseinander.
+			// ⚠️ Ein geschlossenes Fenster hat keine offene Fläche -- sonst schützte der Loader die
+			// zuletzt bearbeitete für immer vor frischen Serverwerten, und das ist genau die Störung
+			// („meine Änderung kommt nicht an"), die dieses Projekt schon mehrfach bezahlt hat.
+			// 🪤 Die Abfrage auf `isOpen` ist HEUTE doppelt gemoppelt: `closeEcosystemPropertiesDialog`
+			// leert `propertiesSourcePublicId` selbst, eine Mutationsprobe am 05.09.2026 zeigte sie
+			// deshalb als wirkungslos. Sie steht trotzdem da, weil sie die REGEL ausspricht statt sich
+			// auf eine Aufräumzeile 2.700 Zeilen weiter oben zu verlassen -- wer die je vergisst,
+			// bekommt eine eingefrorene Fläche und keinen Fehler.
+			offeneFlaeche: () => (isEcosystemPropertiesDialogOpen() ? String(propertiesSourcePublicId || "") : ""),
 			// Die Geschwister-Verteilung, damit auch die RÜCKRICHTUNG sie benutzt
 			// (map-features-ecosystem-label-writeback.js). Eine zweite Fassung derselben Schleife wäre
 			// die zweite Wahrheit darüber, was von einer Fläche an ihre Labels durchträgt.

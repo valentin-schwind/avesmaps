@@ -183,10 +183,28 @@ pruefe("jeder Anstrich meldet sich -- aber überschreibt keine bleibende Meldung
    4. DIE VORLAGE WIRD GEMERKT
    ══════════════════════════════════════════════════════════════════════════════════════════════ */
 
+// Den Rumpf einer Funktion ausschneiden -- bis zu ihrer schliessenden Klammer, nicht bis zu einer
+// festen Zeichenzahl.
+// 🪤 HIER STANDEN 2000 ZEICHEN, und am 05.09.2026 ist genau das umgefallen: ein Bugfix hat
+// `wendeVorlageAn` einen Kommentarblock gegeben, die gesuchten Zeichenketten rutschten aus dem
+// Fenster, und der Test meldete „die angewandte Vorlage wird nicht gemerkt" -- an einer Zeile, die
+// unverändert dastand. Ein Test, der bei längeren Kommentaren rot wird, misst die Kommentarlänge.
+// ⚠️ ZEILENENDENNEUTRAL: die Arbeitskopie trägt CRLF, die CI legt LF hin (AGENTS.md §9). Ein Muster
+// mit `\r\n` wäre hier grün und im Deploy-Tor rot.
+function funktionsRumpf(quelle, kopf) {
+	const text = String(quelle).replace(/\r\n/g, "\n");
+	const start = text.indexOf(kopf);
+	if (start < 0) {
+		return "";
+	}
+	const ende = text.indexOf("\n\t}", start);
+
+	return ende > start ? text.slice(start, ende + 3) : text.slice(start);
+}
+
 pruefe("das Anwenden einer Vorlage merkt ihren Schlüssel", () => {
-	const i = properties.indexOf("function wendeVorlageAn(");
-	assert.ok(i > 0, "wendeVorlageAn fehlt");
-	const rumpf = properties.slice(i, i + 2000);
+	const rumpf = funktionsRumpf(properties, "function wendeVorlageAn(");
+	assert.ok(rumpf !== "", "wendeVorlageAn fehlt");
 	assert.ok(rumpf.includes("terrain_preset_hoehe") && rumpf.includes("terrain_preset_morph"),
 		"die angewandte Vorlage wird nicht gemerkt");
 	// 🔴 WELCHES der beiden Felder, entscheidet die LISTE -- nicht der Schlüssel. Eine Vorlage
