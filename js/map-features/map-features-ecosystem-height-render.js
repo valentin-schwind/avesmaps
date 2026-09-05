@@ -328,11 +328,32 @@
 	// liess das ALTE Relief stehen: der Editor verschiebt einen Gipfel und sieht nichts.
 	// ⚠️ Ein stilles Falschbild ist schlimmer als ein fehlendes -- man haelt die Aenderung fuer
 	// wirkungslos und dreht weiter.
-	function invalidateEcosystemHeightField() {
+	//
+	// 🔴 UND GENAU DESHALB GIBT ES SEIT 05.09.2026 ZWEI ANLAESSE, NICHT EINEN (Owner: „beim pannen der
+	// karte verschwindet das höhenbild für eine weile und kommt dann wieder, soll aber bleiben"):
+	//
+	//   EDIT   -- jemand hat etwas geaendert (Regler, Gipfel, Pinsel). Das Bild geht weg, bis das neue
+	//             da ist; der Satz oben gilt unveraendert.
+	//   NACHLADEN -- die Karte wurde geschwenkt und der Loader hat Flaechen ausgetauscht. Hier hat
+	//             NIEMAND etwas geaendert, und ein leeres Bild waere keine ehrliche Auskunft, sondern
+	//             eine Luecke von rund anderthalb Sekunden bei jedem Schwenk.
+	//
+	// 💣 Das ist keine Aufweichung der Regel darueber, sondern ihre Wiederherstellung: der GEWOEHNLICHE
+	// Weg (Schluessel aendert sich, `ensureHydroRaster` startet den Rechner) laesst das alte Bild
+	// ohnehin stehen, bis das neue kommt. Nur `invalidate()` fiel aus der Reihe -- und der Loader ruft
+	// es bei JEDEM `moveend`, sobald ein Gebirge in den Ausschnitt kommt oder ihn verlaesst.
+	// ⚠️ Die Korrektheit haengt nicht an dieser Weiche: `hydroSchluessel` wird in BEIDEN Faellen
+	// geleert, und der Schluessel vergleicht WERTE (`hydroFlaechenSchluessel` serialisiert Regler,
+	// Gipfel und Kammlinie). Ein Bild, das stehen bleibt, wird also in jedem Fall ersetzt.
+	//
+	// @param {boolean} [behalteBild] true = Nachladen; das zuletzt gemalte Raster bleibt sichtbar.
+	function invalidateEcosystemHeightField(behalteBild) {
 		nachbarSchnittCache = new WeakMap();
 		hydroLaeuft?.abort();
 		hydroLaeuft = null;
-		hydroRaster = null;
+		if (behalteBild !== true) {
+			hydroRaster = null;
+		}
 		hydroSchluessel = "";
 		stackDirty = true;
 		heightStack = null;

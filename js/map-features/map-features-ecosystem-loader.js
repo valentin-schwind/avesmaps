@@ -243,7 +243,12 @@ function applyEcosystemAreaPayload(payload) {
 	// hat. Das Flag oben wird nur gesetzt, wenn eine für das Höhenfeld erhebliche Fläche dazukommt,
 	// verschwindet oder ihre Geländewerte wechselt.
 	if (heightStackStale) {
-		window.AvesmapsEcosystemHeightRender?.invalidate?.();
+		// 🔴 MIT `true`: das ist ein NACHLADEN, keine Aenderung. Der Benutzer hat nur geschwenkt --
+		// das zuletzt gemalte Relief bleibt stehen, bis das neu gerechnete da ist (Owner 05.09.2026:
+		// „soll aber bleiben"). Ohne das Argument fiel das Bild bei jedem Schwenk fuer rund anderthalb
+		// Sekunden aus, weil hier schon ein Gebirge genuegt, das in den Ausschnitt kommt oder ihn
+		// verlaesst.
+		window.AvesmapsEcosystemHeightRender?.invalidate?.(true);
 	}
 	window.AvesmapsEcosystemHeightRender?.redraw?.();
 
@@ -349,6 +354,11 @@ function ecosystemAreaAffectsHeightField(area) {
 // 💣 `geometry_revision` genügt NICHT. Eine Geländespeicherung (`update_area_terrain`) bumpt sie nicht,
 // die Werte reisen aber im nächsten Ladevorgang mit -- ohne diese Prüfung übernähme der Loader sie ins
 // Flächenobjekt, während der Höhenstapel mit den alten weiterrechnet.
+// Die Kammlinie als vergleichbarer Text. `null` und eine leere Liste sind dasselbe: „keine Linie".
+function avesmapsKammlinieText(linie) {
+	return Array.isArray(linie) && linie.length > 0 ? JSON.stringify(linie) : "";
+}
+
 function ecosystemHeightRelevantChange(previous, next) {
 	if (ecosystemAreaAffectsHeightField(previous) !== ecosystemAreaAffectsHeightField(next)) {
 		return true;                          // z. B. Art von „gebirge" weg oder hin
@@ -363,12 +373,21 @@ function ecosystemHeightRelevantChange(previous, next) {
 	// (`saveTerrainSettings` verwirft den Stapel direkt), wohl aber beim Pan/Zoom-Nachladen und bei
 	// einem zweiten Editor -- der Loader uebernimmt die neuen Werte, waehrend der Hoehenstapel mit
 	// den alten weiterrechnet. Gefunden von einem Pruefagenten, nicht von einem Test.
+	// 💣 DIE KAMMLINIE IST EINE LISTE, UND `!==` IST DARAUF REFERENZGLEICHHEIT. Hier stand, das
+	// genuege, weil eine neue Antwort ein neues Array sei -- richtig, und genau deshalb war die
+	// Antwort fuer JEDE Flaeche mit Kammlinie IMMER „hat sich geaendert". Bei jedem Schwenk. Der
+	// Preis war frueher ein Stapelneubau, seit V12 ein Erosionslauf von rund anderthalb Sekunden,
+	// und bis zum 05.09.2026 dazu ein leeres Bild.
+	// ⭐ Verglichen wird sie deshalb nach WERT -- wie `hydroFlaechenSchluessel` im Zeichner, der
+	// dieselbe Liste serialisiert. Zwei Leser derselben Frage, und nur einer richtig, ist keine Regel.
+	if (avesmapsKammlinieText(previous?.terrain_ridge_line) !== avesmapsKammlinieText(next?.terrain_ridge_line)) {
+		return true;
+	}
+
 	return [
 		"terrain_grain", "terrain_levels", "terrain_avg_height", "terrain_mean_height",
 		"terrain_erosion", "terrain_plateau", "terrain_hypsometrie",
-		// ⚠️ Die Kammlinie ist eine LISTE -- der Vergleich unten ist `!==`, also Referenzgleichheit.
-		// Das genuegt: der Loader ersetzt die Flaeche als Ganzes, eine neue Antwort ist ein neues Array.
-		"terrain_ridge_line", "terrain_preset_morph", "terrain_preset_hoehe",
+		"terrain_preset_morph", "terrain_preset_hoehe",
 		"terrain_bergform", "terrain_rauschen", "terrain_sattel",
 		"terrain_talbreite", "terrain_einschnitt",
 	].some((feld) => (previous?.[feld] ?? null) !== (next?.[feld] ?? null));
@@ -384,5 +403,5 @@ function hookEcosystemViewportReload() {
 
 if (typeof module !== "undefined" && module.exports) {
 	// Nur die zwei reinen Entscheidungsfunktionen -- der Rest des Moduls hängt an Leaflet und der Karte.
-	module.exports = { ecosystemAreaAffectsHeightField, ecosystemHeightRelevantChange };
+	module.exports = { ecosystemAreaAffectsHeightField, ecosystemHeightRelevantChange, avesmapsKammlinieText };
 }
