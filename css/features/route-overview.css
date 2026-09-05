@@ -16,10 +16,19 @@
    .route-plan-summary__note (css/features/route-planner.css). */
 #overview {
 	flex: 0 0 auto;
-	/* Kein eigener margin-top: #search ist eine Flex-Spalte und legt den Abstand zwischen ALLEN
-	   Kindern selbst (`gap`, css/layout/map-layout.css) -- ein Rand hier kaeme obendrauf und
-	   machte aus dem einen Mass zwei. Genau das ist dem Rahmenkasten der Einstellgruppen am
-	   04.09.2026 passiert (19px statt 8px zwischen ihnen). */
+	/* 🔴 DIE 4px SIND DIE BLOCKLUFT, und sie sind dieselbe Zahl wie ueber den zwei Einstellgruppen.
+	   Das Panel faehrt zwei Rhythmen, und das ist Absicht: INNERHALB der Wegpunktliste 8px (`gap`
+	   von #search, css/layout/map-layout.css), ZWISCHEN den umrandeten Bloecken 12px. Die zwei
+	   Gruppen holen sich die 4px als optische Korrektur (ihre Aufschrift ragt 6,92px ueber die
+	   Oberkante); dieser Kasten hat keinen Ueberstand -- er bekommt sie, damit die Reihe nicht
+	   12 / 12 / 8 laeuft. Gemessen am 05.09.2026 auf der Live-Seite, Owner: „zwischen reiseoptionen
+	   und der reiseübersicht ist der abstand noch zu klein".
+	   ⚠️ Das ist die AUSNAHME von „der Takt gehoert #search": ein Kind legt hier bewusst 4px dazu.
+	   Wer sie streicht, bekommt den gemeldeten Fall zurueck; wer sie erhoeht, muss die zwei
+	   Gruppen mitziehen (css/features/route-planner.css) -- die drei Zahlen sind EINE Aussage.
+	   ⚠️ Leer traegt der Kasten `display: none` (unten) und damit auch keinen Rand -- ohne Route
+	   bleibt die Spalte unveraendert. */
+	margin-top: var(--space-2);
 	padding: var(--space-10);
 	border: 1px solid var(--color-border);
 	border-radius: var(--radius-md);

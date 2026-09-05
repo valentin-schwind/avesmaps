@@ -122,6 +122,17 @@ const TAKT = "var(--space-6)";
 	const randZwei = (geschwister[0].rumpf.match(/(?:^|;)\s*margin-top:\s*([^;]+)/) || [])[1].trim();
 	assert.strictEqual(randZwei, "var(--space-2)",
 		"…und zwar mit DEMSELBEN Token, nicht mit 0: " + randZwei);
+
+	// 🔴 UND DER REISEPLAN-KASTEN FAEHRT DIESELBE BLOCKLUFT. Er hat keinen Ueberstand -- er bekommt
+	//    die 4px, damit die Reihe nicht 12 / 12 / 8 laeuft (Owner 05.09.2026: „zwischen reiseoptionen
+	//    und der reiseübersicht ist der abstand noch zu klein"; live gemessen 12 / 12 / 8).
+	//    Die DREI Stellen sind EINE Aussage: zwischen umrandeten Bloecken stehen 12px.
+	const uebersicht = regeln(lies("css/features/route-overview.css"))
+		.filter((r) => /^#overview$/.test(r.sel));
+	assert.strictEqual(uebersicht.length, 1, "genau eine Grundregel formt die Reiseuebersicht");
+	const randDrei = (uebersicht[0].rumpf.match(/(?:^|;)\s*margin-top:\s*([^;]+)/) || [])[1];
+	assert.strictEqual((randDrei || "").trim(), "var(--space-2)",
+		"die Reiseuebersicht traegt dieselbe Blockluft wie die zwei Gruppen: " + randDrei);
 }
 
 // ---- 6. Der Rahmenkasten WAECHST NICHT in der Flex-Spalte des Panels ------------------------
