@@ -127,4 +127,40 @@ const DUMP = [
 		assert.deepStrictEqual(v.findeQuelltextTests("js/routing/route-plan.js", r.dir), []);
 	}
 	console.log("vorpruefung B, C: ok");
+
+	// -- D: vm-Bindung, transitiv (04.09.2026) -- der Test ruft eine, gebunden sind vier --------
+	{
+		const r = tempRepo();
+		r.schreibe("js/review/review-path-sync.js", [
+			"function loadVerlaufCases() { return renderVerlaufCaseList(findVerlaufCase(1)); }",
+			"function renderVerlaufCaseList(list) { return verlaufOpenCleanTotal(list); }",
+			"function findVerlaufCase(id) { return id; }",
+			"function verlaufOpenCleanTotal(l) { return l; }",
+			"function handlePathWikiAssignmentPick() { return 21; }",
+			"",
+		].join("\n"));
+		r.schreibe("js/review/__tests__/ausreisser-loesen.test.js",
+			'const quelle = fs.readFileSync(path.join(ROOT, "js", "review", "review-path-sync.js"), "utf8");\n' +
+			"vm.createContext(sandbox);\n" +
+			'vm.runInContext(quelle, sandbox, { filename: "review-path-sync.js" });\n' +
+			"sandbox.loadVerlaufCases();\n");
+		const text = fs.readFileSync(path.join(r.dir, "js/review/review-path-sync.js"), "utf8");
+		const fns = v.findeFunktionen(text, "js");
+		const namen = fns.map((f) => f.name);
+		const vmt = v.findeVmTests("js/review/review-path-sync.js", r.dir, namen);
+		assert.deepStrictEqual(vmt, [{ datei: "js/review/__tests__/ausreisser-loesen.test.js", genannt: ["loadVerlaufCases"] }]);
+		const graph = v.aufrufgraph(text, fns);
+		assert.deepStrictEqual([...graph.get("loadVerlaufCases")].sort(), ["findVerlaufCase", "renderVerlaufCaseList"]);
+		const gebunden = v.fixpunkt(["loadVerlaufCases"], graph);
+		assert.deepStrictEqual([...gebunden].sort(),
+			["findVerlaufCase", "loadVerlaufCases", "renderVerlaufCaseList", "verlaufOpenCleanTotal"]);
+		assert.ok(!gebunden.has("handlePathWikiAssignmentPick"), "frei bleibt genau eine");
+		// Mutationsprobe 1: der Test laedt die Datei nicht mehr per vm -> keine Bindung
+		r.schreibe("js/review/__tests__/ausreisser-loesen.test.js", 'require("../review-path-sync.js"); loadVerlaufCases();\n');
+		assert.deepStrictEqual(v.findeVmTests("js/review/review-path-sync.js", r.dir, namen), []);
+		// Mutationsprobe 2: eine Kante weniger im Graphen -> der Abschluss schrumpft
+		const graph2 = new Map(graph); graph2.set("renderVerlaufCaseList", new Set());
+		assert.ok(!v.fixpunkt(["loadVerlaufCases"], graph2).has("verlaufOpenCleanTotal"));
+	}
+	console.log("vorpruefung D: ok");
 })().catch((e) => { console.error(e); process.exit(1); });

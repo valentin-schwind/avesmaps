@@ -214,3 +214,45 @@ export function findeQuelltextTests(zielpfad, wurzel) {
 	}
 	return funde;
 }
+
+// Pruefung 4a: Tests, die die Zieldatei ALLEIN in einen vm-Kontext laden -- ein Aufruf in eine
+// Geschwisterdatei ist dort ein ReferenceError. Genannt gilt als gerufen (konservativ).
+export function findeVmTests(zielpfad, wurzel, funktionsnamen) {
+	const basis = path.posix.basename(zielpfad);
+	const funde = [];
+	for (const rel of alleDateien(wurzel, ["js", "tools"], [".js", ".mjs"])) {
+		if (!IST_TEST(rel)) continue;
+		const text = lies(wurzel, rel);
+		if (!nenntDatei(text, basis)) continue;
+		if (!/runInContext|runInNewContext|runInThisContext|vm\.Script|new Script\(/.test(text)) continue;
+		const tokens = wortTokens(text);
+		const genannt = funktionsnamen.filter((n) => tokens.has(n));
+		funde.push({ datei: rel, genannt });
+	}
+	return funde;
+}
+
+// Pruefung 4b: Aufrufgraph innerhalb der Datei -- welche Blocknamen stehen im Rumpf welcher Funktion?
+export function aufrufgraph(text, funktionen) {
+	const namen = new Set(funktionen.map((f) => f.name));
+	const graph = new Map();
+	for (const f of funktionen) {
+		const tokens = wortTokens(text.slice(f.start, f.ende));
+		const ziele = new Set();
+		for (const n of namen) if (n !== f.name && tokens.has(n)) ziele.add(n);
+		graph.set(f.name, ziele);
+	}
+	return graph;
+}
+
+// Pruefung 4c: transitiver Abschluss -- alles, was ein gebundener Name ruft, ist gebunden.
+// 💣 Das ist die Lehre vom 04.09.2026: „welche Namen nennt ein Test" sah 21 gebundene, es waren 51.
+export function fixpunkt(startnamen, graph) {
+	const aus = new Set(startnamen);
+	const stapel = [...startnamen];
+	while (stapel.length) {
+		const n = stapel.pop();
+		for (const z of graph.get(n) || []) if (!aus.has(z)) { aus.add(z); stapel.push(z); }
+	}
+	return aus;
+}
