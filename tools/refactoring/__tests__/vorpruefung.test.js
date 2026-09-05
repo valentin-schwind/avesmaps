@@ -91,4 +91,40 @@ const DUMP = [
 	assert.deepStrictEqual([...v.pruefeLadezeit(v.blendeRuempfeAus(imKommentar, fk), ["echt"]).keys()], ["echt"]);
 
 	console.log("vorpruefung A: ok");
+
+	// -- B: Dateiregister (02.09.2026) -- ein Test fuehrt eine Dateiliste von Hand ----------------
+	{
+		const r = tempRepo();
+		r.schreibe("js/review/review-wiki-sync.js", "function loadLoreList() {}\nfunction b() {}\n");
+		r.schreibe("tools/paths/test-wiki-sync-panel-tab.mjs",
+			'const searched = ["js/review/review-wiki-sync.js", "js/review/review-wiki-sync-cases.js"]\n' +
+			'\t.map((file) => readFileSync(path.join(repoRoot, file), "utf8")).join("\\n");\n');
+		r.schreibe("js/ui/egal.js", "// erwaehnt js/review/review-wiki-sync.js nur im Kommentar, ohne Anfuehrungszeichen\n");
+		const reg = v.findeRegister("js/review/review-wiki-sync.js", r.dir);
+		assert.deepStrictEqual(reg, [{ datei: "tools/paths/test-wiki-sync-panel-tab.mjs", zeile: 1 }]);
+		// Mutationsprobe: Register auf eine andere Datei -> kein Treffer
+		r.schreibe("tools/paths/test-wiki-sync-panel-tab.mjs", 'const searched = ["js/review/review-settlement-list.js"];\n');
+		assert.deepStrictEqual(v.findeRegister("js/review/review-wiki-sync.js", r.dir), []);
+	}
+
+	// -- C: Quelltext-lesende Tests (03.09.2026) -- extractFunction(quelle, "name") -------------
+	{
+		const r = tempRepo();
+		r.schreibe("js/routing/route-plan.js", "function isRoutePlanMarkerName() {}\nfunction routeAirLegsNote() {}\nfunction fitRoute() {}\n");
+		r.schreibe("js/routing/__tests__/air-distance.test.js",
+			'const planSource = fs.readFileSync(path.join(ROOT, "js", "routing", "route-plan.js"), "utf8");\n' +
+			'const a = extractFunction(planSource, "routeAirLegsNote", "route-plan.js");\n' +
+			'const i = planSource.indexOf("function isRoutePlanMarkerName");\n' +
+			'const m = planSource.match(/function\\s+fitRoute\\b/);\n');
+		r.schreibe("js/routing/__tests__/anderes.test.js", 'extractFunction(src, "fitRoute"); // liest NICHT route-plan.js\n');
+		const qt = v.findeQuelltextTests("js/routing/route-plan.js", r.dir);
+		assert.strictEqual(qt.length, 1);
+		assert.strictEqual(qt[0].datei, "js/routing/__tests__/air-distance.test.js");
+		assert.deepStrictEqual([...qt[0].namen].sort(), ["fitRoute", "isRoutePlanMarkerName", "routeAirLegsNote"]);
+		// Mutationsprobe: der Test schneidet nichts mehr heraus -> keine Namen, kein Eintrag
+		r.schreibe("js/routing/__tests__/air-distance.test.js",
+			'const planSource = fs.readFileSync(path.join(ROOT, "js", "routing", "route-plan.js"), "utf8");\nassert.ok(planSource.length > 0);\n');
+		assert.deepStrictEqual(v.findeQuelltextTests("js/routing/route-plan.js", r.dir), []);
+	}
+	console.log("vorpruefung B, C: ok");
 })().catch((e) => { console.error(e); process.exit(1); });

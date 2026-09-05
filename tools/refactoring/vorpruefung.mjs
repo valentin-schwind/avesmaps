@@ -149,3 +149,68 @@ export function pruefeLadezeit(oberste, namen, sprache = "js") {
 	});
 	return treffer;
 }
+
+// -- Dateisystem: jede Datei einzeln lesen (kein grep-Strom -- NUL-Bytes in powerline-topology.js).
+export function alleDateien(wurzel, unterordner, endungen) {
+	const aus = [];
+	const gehe = (dir) => {
+		let eintraege = [];
+		try { eintraege = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+		for (const e of eintraege) {
+			const p = path.join(dir, e.name);
+			if (e.isDirectory()) { if (e.name !== "third-party" && e.name !== "node_modules") gehe(p); }
+			else if (endungen.some((x) => e.name.endsWith(x))) aus.push(path.relative(wurzel, p).split(path.sep).join("/"));
+		}
+	};
+	for (const u of unterordner) gehe(path.join(wurzel, u));
+	return aus.sort();
+}
+
+function lies(wurzel, rel) { return fs.readFileSync(path.join(wurzel, rel), "utf8"); }
+
+// Pruefung 2: handgepflegte Dateiregister -- der Zielpfad steht in Anfuehrungszeichen in js/ oder tools/.
+// Ob ein Treffer ein Register ist, das nachgezogen werden muss, entscheidet der Lauf (eine Zeile,
+// wie das <script>-Tag); der Agent prueft, ob er es getan hat.
+export function findeRegister(zielpfad, wurzel) {
+	const funde = [];
+	for (const rel of alleDateien(wurzel, ["js", "tools"], [".js", ".mjs"])) {
+		if (rel === zielpfad) continue;
+		const zeilen = lies(wurzel, rel).split("\n");
+		zeilen.forEach((z, idx) => {
+			if (z.includes(`"${zielpfad}"`) || z.includes(`'${zielpfad}'`)) funde.push({ datei: rel, zeile: idx + 1 });
+		});
+	}
+	return funde;
+}
+
+const IST_TEST = (rel) => /__tests__\/[^/]+\.test\.js$/.test(rel) || /(^|\/)test-[^/]+\.mjs$/.test(rel);
+
+// Ein Test „nennt" die Zieldatei nur, wenn ihr Basisname in einem String-Literal steht
+// (readFileSync(..., "route-plan.js"), "js/routing/route-plan.js") -- eine Erwaehnung im
+// Kommentar („liest NICHT route-plan.js") ist keine Bindung.
+function nenntDatei(text, basis) {
+	const b = basis.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+	return new RegExp("[\"'][^\"'\\n]*" + b + "[\"']").test(text);
+}
+
+// Pruefung 3: Tests, die die Zieldatei als Text lesen und Funktionen beim Namen herausschneiden.
+// Muster: extractFunction(quelle, "NAME"), extract("NAME"), indexOf("function NAME"),
+// Regex-Literal /function\s+NAME\b/ bzw. /function NAME\(/.
+export function findeQuelltextTests(zielpfad, wurzel) {
+	const basis = path.posix.basename(zielpfad);
+	const funde = [];
+	for (const rel of alleDateien(wurzel, ["js", "tools"], [".js", ".mjs"])) {
+		if (!IST_TEST(rel)) continue;
+		const text = lies(wurzel, rel);
+		if (!nenntDatei(text, basis)) continue;
+		const namen = new Set();
+		for (const m of text.matchAll(/extract\w*\(\s*[^,()]*,\s*["']([A-Za-z_$][\w$]*)["']/g)) namen.add(m[1]);
+		for (const m of text.matchAll(/extract\w*\(\s*["']([A-Za-z_$][\w$]*)["']/g)) namen.add(m[1]);
+		for (const m of text.matchAll(/indexOf\(\s*["'](?:async\s+)?function\s+([A-Za-z_$][\w$]*)/g)) namen.add(m[1]);
+		// Regex-Literal im Test: /function\s+NAME\b/ oder /function NAME\(/ -- hier als Text gelesen,
+		// deshalb steht `\\s\+` (die Zeichen Backslash-s-Backslash-Plus) neben `\s+` (echter Leerraum).
+		for (const m of text.matchAll(/\/function(?:\\s\+|\s+)([A-Za-z_$][\w$]*)(?:\\b|\\\(|\()/g)) namen.add(m[1]);
+		if (namen.size) funde.push({ datei: rel, namen: [...namen] });
+	}
+	return funde;
+}
