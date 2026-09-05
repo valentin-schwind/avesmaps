@@ -954,6 +954,19 @@ const ECOSYSTEM_HYDRO_SEEBECKEN = 1.6;
 // Punkt seiner Strecke, und `max(0, h − bed)` ist null. Gemessen: die Achse des Weisswassers lag
 // EINEN Schritt unter ihrem Nachbarn, im Bild war nichts zu sehen.
 const ECOSYSTEM_HYDRO_EINSCHNITT = 400;
+// Welcher Bruchteil des oertlichen Gelaendes unter der Talsohle STEHEN BLEIBT.
+//
+// 🔴 EIN TAL SCHNEIDET NIE BIS AUF NULL (Owner 05.09.2026: „ein tal sollte nie auf 0 schneiden,
+// dann is es ja gleich mit dem meeresspiegel"). `ECOSYSTEM_HYDRO_EINSCHNITT` ist eine ABSOLUTE Zahl
+// in Schritt; wo das Gelaende niedriger liegt als sie, zog sie es auf 0 -- und was auf 0 steht,
+// wird gar nicht gemalt: die Kachel scheint durch, und das Gebirge sieht aus, als haette es ein
+// Loch. Der Deckel wirkt DA, wo der Einschnitt gerechnet wird (`baueEcosystemTaeler`).
+// ⚠️ 0,25 heisst: ein Tal nimmt hoechstens drei Viertel der oertlichen Reliefhoehe weg. Das ist
+// eine gewaehlte Zahl, kein Messwert -- sie ist so gross, dass ein Durchbruchstal noch tief
+// aussieht, und so klein, dass unter der Sohle sichtbar Gebirge bleibt.
+// ⚠️ 0 macht den Deckel wirkungslos (der Einschnitt darf dann wieder bis auf null gehen), 1 legt
+// jedes Tal still. Beides ist gueltig und beides ist eine Entscheidung, keine Vorgabe.
+const ECOSYSTEM_HYDRO_TALSOHLE_REST = 0.25;
 // Ab welchem Kernwert eine Zelle als SOHLE gilt (und nach der Erosion exakt auf den Talboden gesetzt
 // wird) statt als Flanke. 0,85 entspricht rund einem Fuenftel der Talbreite um die Achse.
 const ECOSYSTEM_HYDRO_SOHLE_KERN = 0.85;
@@ -1140,7 +1153,27 @@ function baueEcosystemTaeler(r, hoehe, fluesse, seen, istImSee, optionen) {
 			// Ein gezeichneter Fluss hat sich aber in SEIN Gelaende eingegraben -- also schneidet er
 			// mindestens `einschnitt` tief unter das oertliche Niveau.
 			// ⭐ Die Monotonie ueberlebt das: `min` zweier fallender Folgen faellt.
-			const eingegraben = gelaende - einschnitt;
+			// 🔴 EIN TAL SCHNEIDET NIE BIS AUF NULL (Owner 05.09.2026: „ein tal sollte nie auf 0
+			// schneiden, dann is es ja gleich mit dem meeresspiegel. es sollte um einen gewissen
+			// betrag in das gebirge schneiden"). Der Einschnitt ist eine ABSOLUTE Zahl in Schritt;
+			// wo das Gelaende niedriger ist als sie, zog sie es auf 0 -- und was auf 0 steht, malt
+			// der Zeichner gar nicht: die Kachel scheint durch, und das Gebirge sieht aus, als haette
+			// es ein Loch. Live gemessen an den Beilunker Bergen (05.09.2026): bei Massigkeit 0,04
+			// liegt das Gelaende im Mittel bei rund 110 Schritt, der Einschnitt betraegt 400 -- 128
+			// von 5.261 Zellen im Inneren waren leer, 63 davon direkt an einem Fluss.
+			//
+			// 💣 GEDECKELT WIRD DER EINSCHNITT, NICHT ANGEHOBEN DER BODEN. `boden` ist der KUMULATIVE
+			// Tiefstwert des Laufs -- er traegt, was der Fluss weiter oben erreicht hat, und genau das
+			// haelt ihn monoton fallend. Ein `Math.max(boden, …)` darauf liesse ihn wieder steigen,
+			// sobald das Gelaende steigt: der Fluss floesse bergauf. Die Deckelung greift dagegen VOR
+			// dem `min` und laesst die Kette fallend.
+			// ⚠️ Anteilig, nicht absolut: ein fester Sockel (etwa 50 Schritt) waere in einem
+			// Hochgebirge nichts und in einem Huegelland alles. So bleibt in jeder Hoehenlage
+			// derselbe Bruchteil des oertlichen Reliefs stehen.
+			// ⚠️ Am Flaechenrand laeuft `gelaende` gegen 0, und damit auch der Rest -- richtig so:
+			// dort endet das Gebirge, und der Fluss verlaesst es.
+			const wirksam = Math.min(einschnitt, gelaende * (1 - ECOSYSTEM_HYDRO_TALSOHLE_REST));
+			const eingegraben = gelaende - wirksam;
 			boden = Math.min(boden, eingegraben);
 			// Der Regler „Tiefe": 1 = bis auf den Talboden (die reine Regel aus #109), darunter bleibt
 			// ein Anteil der oertlichen Hoehe stehen.
