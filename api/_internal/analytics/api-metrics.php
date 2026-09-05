@@ -295,8 +295,24 @@ function avesmapsApiMetricsSpoolAnhaengen(array $zeilen, string $tag): bool {
         }
         $text .= $satz . "\n";
     }
-    // LOCK_EX, damit zwei gleichzeitige Anfragen sich keine Zeile zerschneiden.
-    return @file_put_contents($datei, $text, FILE_APPEND | LOCK_EX) !== false;
+    $handle = @fopen($datei, 'ab');
+    if ($handle === false) {
+        return false;
+    }
+    try {
+        // Ein belegter Puffer darf keinen PHP-Worker festhalten. Der Aufrufer nutzt
+        // bei false den vorhandenen Datenbank-Schreibweg.
+        if (!@flock($handle, LOCK_EX | LOCK_NB)) {
+            return false;
+        }
+        $groesse = fstat($handle);
+        if ($groesse === false || $groesse['size'] + strlen($text) > AVESMAPS_API_METRICS_SPOOL_MAX_BYTES) {
+            return false;
+        }
+        return @fwrite($handle, $text) === strlen($text);
+    } finally {
+        fclose($handle);
+    }
 }
 
 /**

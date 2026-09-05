@@ -49,6 +49,7 @@ class Attrappe {
 	appendChild(kind) { this.options.push(kind); return kind; }
 	replaceChildren() { this.options = []; }
 	addEventListener() {}
+	setAttribute(name, value) { this[name] = String(value); }
 	removeEventListener() {}
 	focus() {}
 	select() {}

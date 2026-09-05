@@ -138,7 +138,7 @@ $first = islandTestRun($pdo);
 
 assert($first !== '', 'the first run reaches the revision bump (sqlite cannot execute it)');
 assert(
-    str_contains($first, 'DUPLICATE'),
+    str_contains($first, 'IGNORE'),
     'and it fails ON THE BUMP, not somewhere else -- got: ' . $first
 );
 

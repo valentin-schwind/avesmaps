@@ -360,7 +360,7 @@ function avesmapsClimateReadTerritoryZones(PDO $pdo, string $territoryPublicId):
  * why. Exactly the trap the klima layer already paid for once (spec §6.1, the seed that had to move out
  * of EnsureTables because DDL does not raise the revision either).
  *
- * Two single-row reads: the ecosystem counter (rises on any landscape write, divider saves included) and
+ * Two single-row reads: the map-relevant ecosystem counter (excludes terrain settings) and
  * the assignment stamp (rises when "Zugehörigkeit rechnen" recomputes the region shares, which can
  * happen without any geometry moving).
  */
@@ -369,7 +369,8 @@ function avesmapsClimateReadStamp(PDO $pdo): string
     $revision = 0;
     $computedAt = '';
     try {
-        $statement = $pdo->query('SELECT revision FROM ecosystem_revision WHERE id = 1');
+        // Row 2 starts on the first write after the update; old installations keep row 1.
+        $statement = $pdo->query('SELECT revision FROM ecosystem_revision WHERE id IN (1, 2) ORDER BY id DESC LIMIT 1');
         $value = $statement === false ? false : $statement->fetchColumn();
         $revision = $value === false ? 0 : (int) $value;
     } catch (Throwable) {

@@ -376,6 +376,12 @@ function baueRaster(bounds, cellSize, istDrin, deckel, istImVerbund) {
 	}
 	const w = Math.round(spanX / cell) + 1;
 	const hh = Math.round(spanY / cell) + 1;
+	// Dieselben Grenzen wie terrain-store.php, vor der ersten Rasterbelegung.
+	if (![bounds.min_x, bounds.min_y, bounds.max_x, bounds.max_y, cell].every(Number.isFinite)
+		|| spanX < 0 || spanY < 0 || w < 1 || hh < 1
+		|| w > 65535 || hh > 65535 || w * hh > 4000000) {
+		throw new RangeError("Das Höhenfeld überschreitet die zulässige Rastergröße (4 Millionen Zellen).");
+	}
 	const drin = new Uint8Array(w * hh);
 	const verbund = typeof istImVerbund === "function";
 	const eigen = verbund ? new Uint8Array(w * hh) : drin;
@@ -1993,6 +1999,140 @@ function avesmapsGebirgsRasterBauen(eingabe) {
 		fd: zustand.fd, acc: zustand.acc,
 		kamm, kegel, see, fluss, tal, talIndex, schritte, leer: false,
 	};
+}
+
+// Der Worker lädt genau die bereits vom Deploy gestempelte Rechnerdatei.
+const ECOSYSTEM_HYDRO_SCRIPT_URL = typeof document !== "undefined" ? document.currentScript?.src : null;
+
+function avesmapsGebirgsEigenesRaster(eingabe) {
+	return avesmapsGebirgsRasterBauen({
+		...eingabe,
+		istDrin: (x, y) => pointInGeometry([x, y], eingabe.geometry),
+		istImVerbund: null,
+		istImSee: (i, x, y) => pointInGeometry([x, y], eingabe.seen[i].g),
+	});
+}
+
+function avesmapsGebirgsRasterProbe(raster, x, y) {
+	const r = raster.r;
+	const fx = (x - r.bounds.min_x) / r.cell;
+	const fy = (y - r.bounds.min_y) / r.cell;
+	if (fx < 0 || fy < 0 || fx > r.w - 1 || fy > r.hh - 1
+		|| !pointInGeometry([x, y], raster.geometry)) { return null; }
+	const i = Math.min(Math.floor(fx), Math.max(0, r.w - 2));
+	const j = Math.min(Math.floor(fy), Math.max(0, r.hh - 2));
+	const tx = fx - i;
+	const ty = fy - j;
+	const rechts = Math.min(i + 1, r.w - 1);
+	const unten = Math.min(j + 1, r.hh - 1);
+	const nw = raster.h[j * r.w + i];
+	const ne = raster.h[j * r.w + rechts];
+	const sw = raster.h[unten * r.w + i];
+	const se = raster.h[unten * r.w + rechts];
+	return {
+		h: nw * (1 - tx) * (1 - ty) + ne * tx * (1 - ty) + sw * (1 - tx) * ty + se * tx * ty,
+		gx: ((ne - nw) * (1 - ty) + (se - sw) * ty) / r.cellS,
+		gy: ((sw - nw) * (1 - tx) + (se - ne) * tx) / r.cellS,
+	};
+}
+
+// „Was liegt an dieser Stelle?" -- und darauf antworten alle Felder GLEICHBERECHTIGT: erst
+// interpolieren, dann am Abfragepunkt maskieren und maximieren, wortgleich zum PHP-Leser
+// (`avesmapsHeightmapSampleSum`, der trotz seines Namens das Maximum nimmt und gar kein „eigenes"
+// Raster kennt).
+//
+// 💣 BIS ZUM 05.09.2026 BRACH SIE AB, SOBALD DAS EIGENE FELD NICHTS LIEFERTE -- und damit war ein
+// ueberlappender Nachbar ausserhalb der eigenen Flaeche unlesbar, obwohl die Wegfindung ihn dort
+// sehr wohl liest. Karte und Wegfindung sagten an derselben Stelle zweierlei.
+// ⚠️ Fuer den Speicherlauf aendert das nichts: der fragt nur Zellen ab, die in der eigenen Flaeche
+// liegen (`r.eigen`), und dort ist das eigene Feld nie null.
+function avesmapsGebirgsVerbundProbe(raster, x, y) {
+	let probe = avesmapsGebirgsRasterProbe(raster, x, y);
+	for (const nachbar of raster.nachbarRaster || []) {
+		const fremd = avesmapsGebirgsRasterProbe(nachbar, x, y);
+		if (fremd && (!probe || fremd.h > probe.h)) { probe = fremd; }
+	}
+	return probe;
+}
+
+function avesmapsGebirgsRasterMitUeberlappung(eingabe) {
+	const eigen = avesmapsGebirgsEigenesRaster(eingabe);
+	const raster = { r: eigen.r, h: eigen.h, geometry: eingabe.geometry, nachbarRaster: [] };
+	// Unabhängige Felder bleiben getrennt: kein Nachbarwert darf außerhalb des Schnitts
+	// durch die Interpolation in eine angrenzende Zelle gelangen.
+	for (const nachbar of eingabe.nachbarFelder || []) {
+		const fremd = avesmapsGebirgsEigenesRaster(nachbar);
+		raster.nachbarRaster.push({ r: fremd.r, h: fremd.h, geometry: nachbar.geometry });
+	}
+	let summe = 0;
+	let maximum = 0;
+	for (let j = 0; j < raster.r.hh; j++) {
+		for (let i = 0; i < raster.r.w; i++) {
+			if (!raster.r.eigen[j * raster.r.w + i]) { continue; }
+			const probe = avesmapsGebirgsVerbundProbe(raster,
+				raster.r.bounds.min_x + i * raster.r.cell, raster.r.bounds.min_y + j * raster.r.cell);
+			summe += probe?.h || 0;
+			maximum = Math.max(maximum, probe?.h || 0);
+		}
+	}
+	return { ...raster, maximalhoehe: maximum, mittelhoehe: raster.r.eigenN ? summe / raster.r.eigenN : 0, leer: maximum <= 0 };
+}
+
+function avesmapsGebirgsWorkerStart(scriptUrl) {
+	importScripts(scriptUrl);
+	self.onmessage = ({ data }) => {
+		try {
+			const o = avesmapsGebirgsRasterMitUeberlappung(data);
+			const transfer = new Set();
+			const packe = (raster) => {
+				const { w, hh, cell, cellS, bounds, drinN, drin, eigen } = raster.r;
+				[drin.buffer, eigen.buffer, raster.h.buffer].forEach((buffer) => transfer.add(buffer));
+				return { r: { w, hh, cell, cellS, bounds, drinN, drin, eigen }, h: raster.h, geometry: raster.geometry };
+			};
+			const daten = { ...packe(o), nachbarRaster: o.nachbarRaster.map(packe),
+				leer: o.leer, maximalhoehe: o.maximalhoehe, mittelhoehe: o.mittelhoehe };
+			self.postMessage(daten, [...transfer]);
+		} catch (error) {
+			self.postMessage({ error: error?.message || "Die Höhenberechnung ist fehlgeschlagen." });
+		}
+	};
+}
+
+function avesmapsGebirgsRasterImWorker(eingabe, signal) {
+	return new Promise((resolve, reject) => {
+		if (signal?.aborted) {
+			reject(new Error("Höhenberechnung abgebrochen."));
+			return;
+		}
+		if (typeof Worker === "undefined" || !ECOSYSTEM_HYDRO_SCRIPT_URL) {
+			reject(new Error("Dieser Browser kann die Höhenberechnung nicht im Hintergrund ausführen."));
+			return;
+		}
+		const source = [pointInRing, pointInPolygon, pointInGeometry].map((fn) => fn.toString()).join("\n")
+			+ "\n(" + avesmapsGebirgsWorkerStart.toString() + ")(" + JSON.stringify(ECOSYSTEM_HYDRO_SCRIPT_URL) + ");";
+		const url = URL.createObjectURL(new Blob([source], { type: "text/javascript" }));
+		let worker;
+		let timer;
+		const finish = (error, result) => {
+			clearTimeout(timer);
+			signal?.removeEventListener("abort", abort);
+			worker?.terminate();
+			URL.revokeObjectURL(url);
+			if (error) { reject(error); } else { resolve(result); }
+		};
+		const abort = () => finish(new Error("Höhenberechnung abgebrochen."));
+		try {
+			worker = new Worker(url);
+			worker.onmessage = ({ data }) => finish(data.error ? new Error(data.error) : null, data);
+			worker.onerror = () => finish(new Error("Die Höhenberechnung im Hintergrund ist fehlgeschlagen."));
+			worker.onmessageerror = () => finish(new Error("Das Höhenfeld konnte nicht übertragen werden."));
+			signal?.addEventListener("abort", abort, { once: true });
+			timer = setTimeout(() => finish(new Error("Die Höhenberechnung hat das Zeitlimit von fünf Minuten überschritten.")), 300000);
+			worker.postMessage(eingabe);
+		} catch (error) {
+			finish(error);
+		}
+	});
 }
 
 if (typeof module !== "undefined" && module.exports) {

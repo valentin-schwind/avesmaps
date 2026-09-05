@@ -298,7 +298,7 @@ assert((int) $merkerZaehler->fetchColumn() === 0,
 // so wurde die Falle „DDL committet still" schon einmal ohne Datenbank nachgewiesen: die Reihenfolge
 // der Zeilennummern beantwortet die Frage.
 $quelle = (string) file_get_contents(__DIR__ . '/../../app/ecosystem.php');
-$start = strpos($quelle, 'function avesmapsEcosystemEnsureTables(PDO $pdo): void');
+$start = strpos($quelle, 'function avesmapsEcosystemMigrateTables(PDO $pdo): void');
 assert($start !== false, 'avesmapsEcosystemEnsureTables ist auffindbar');
 // Bis zur naechsten Funktion auf Spaltenanfang -- das ist der Rumpf.
 $ende = strpos($quelle, "\nfunction ", $start + 10);
@@ -802,7 +802,7 @@ $quelleV = (string) file_get_contents(__DIR__ . '/../../app/ecosystem.php');
 // 💣 Kommentare ZUERST weg: der Rumpf erklaert die Fuellung in Prosa, und ein Test, der die
 // Erklaerung mitliest, schlaegt genau an der Warnung an, statt am Aufruf.
 $ohneKommentareV = preg_replace('~//[^\n]*~', '', $quelleV);
-$vonV = strpos($ohneKommentareV, 'function avesmapsEcosystemEnsureTables(');
+$vonV = strpos($ohneKommentareV, 'function avesmapsEcosystemMigrateTables(');
 assert($vonV !== false, 'die Ensure-Funktion muss auffindbar sein');
 $bisV = strpos($ohneKommentareV, "\nfunction ", $vonV + 10);
 assert($bisV !== false && $bisV > $vonV, 'und ihr Ende ebenso');

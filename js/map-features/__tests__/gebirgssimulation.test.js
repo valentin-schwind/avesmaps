@@ -16,6 +16,12 @@ const vm = require("vm");
 
 const WURZEL = path.join(__dirname, "..", "..", "..");
 let gehalten = 0;
+const asynchron = [];
+function pruefeAsync(name, fn) {
+	asynchron.push(fn().then(() => { gehalten++; console.log("  ok  " + name); }).catch((error) => {
+		console.error(name, error); process.exitCode = 1;
+	}));
+}
 
 function pruefe(name, fn) {
 	try {
@@ -830,7 +836,7 @@ pruefe("der Rand-Riegel gilt den Zellen INNERHALB mit Relief 0, nicht nur denen 
    2. DIE MALSCHLEIFE -- wirklich gefahren
    ══════════════════════════════════════════════════════════════════════════════════════════════ */
 
-pruefe("redraw() laeuft ohne Wurf durch -- der ganze Anstrich, nicht nur bis putImageData", () => {
+pruefeAsync("redraw() laeuft ohne Wurf durch -- der ganze Anstrich, nicht nur bis putImageData", async () => {
 	const quelle = fs.readFileSync(
 		path.join(WURZEL, "js/map-features/map-features-ecosystem-height-render.js"), "utf8");
 
@@ -841,11 +847,13 @@ pruefe("redraw() laeuft ohne Wurf durch -- der ganze Anstrich, nicht nur bis put
 		geometry: { type: "Polygon", coordinates: [[[1, 1], [19, 1], [19, 19], [1, 19], [1, 1]]] },
 		terrain_grain: 4, terrain_levels: 2, terrain_avg_height: 4000,
 	};
-	const gemalt = { putImageData: 0 };
+	const gemalt = { putImageData: 0, pixels: null };
+	let anstrich;
+	const fertig = new Promise((resolve) => { anstrich = resolve; });
 	const ctx2d = {
-		setTransform() {}, clearRect() {},
+		setTransform() {}, clearRect() {}, save() {}, restore() {}, beginPath() {}, moveTo() {}, lineTo() {}, closePath() {}, fill() {},
 		createImageData: (w, h) => ({ data: new Uint8ClampedArray(w * h * 4) }),
-		putImageData() { gemalt.putImageData++; },
+		putImageData(image) { gemalt.putImageData++; gemalt.pixels = image.data; anstrich(); },
 	};
 	const canvas = {
 		width: 0, height: 0, style: {}, classList: { add() {}, toggle() {} },
@@ -864,16 +872,17 @@ pruefe("redraw() laeuft ohne Wurf durch -- der ganze Anstrich, nicht nur bis put
 	// 🔴 ATTRAPPEN OHNE PROXY. Ein Proxy, der jeden Bezeichner beantwortet, verschluckt genau den
 	// ReferenceError, um dessen willen dieser Test existiert (Lehre vom 03.09.2026).
 	const ctx = {
+		...require("./gebirgs-worker-hilfe.cjs")(),
 		console: { log() {}, warn() {}, error() {} },
 		Math, Number, String, Array, Object, JSON, Float64Array, Uint8Array, Uint8ClampedArray,
 		Infinity, NaN, isFinite, Map, Set, Date,
 		performance: { now: () => 0 },
-		setTimeout: () => 0,
+		setTimeout: (fn, delay) => delay === 300000 ? setTimeout(fn, delay) : 0,
 		requestAnimationFrame: () => 0,
 		devicePixelRatio: 1,
 		map: karte,
 		L: { DomUtil: { setPosition() {} } },
-		document: { createElement: () => canvas },
+		document: { createElement: () => canvas, currentScript: { src: path.join(WURZEL, "js/map-features/map-features-ecosystem-hydrologie.js") } },
 		ecosystemLayers: new Map([["probe", { _ecosystemArea: flaeche }]]),
 		labelData: [],
 		pathData: [],
@@ -903,8 +912,19 @@ pruefe("redraw() laeuft ohne Wurf durch -- der ganze Anstrich, nicht nur bis put
 	// 💣 GENAU DER ABLAUF, DER GEBROCHEN WAR: Dialog auf -> voller Anstrich.
 	zeichner.setSolid(true, "probe");
 	zeichner.redraw();
+	const zeitlimit = setTimeout(() => anstrich(), 10000);
+	await fertig;
+	clearTimeout(zeitlimit);
 	assert.ok(gemalt.putImageData > 0, "es wurde gar nicht gemalt -- der Anstrich kam nie an");
 
+	const beleuchtet = gemalt.pixels.slice();
+	zeichner.setGrayscale(true);
+	assert.ok(gemalt.pixels.some((wert, i) => i % 4 < 3 && wert !== beleuchtet[i]), "Toggle verändert die sichtbare Darstellung.");
+	for (let k = 0; k < gemalt.pixels.length; k += 4) {
+		assert.equal(gemalt.pixels[k], gemalt.pixels[k + 1]);
+		assert.equal(gemalt.pixels[k], gemalt.pixels[k + 2], "Graustufen sind neutral.");
+	}
+	assert.ok(zeichner.mittelhoehe() > 0);
 	// Und der Weg zurueck: Dialog zu.
 	zeichner.setSolid(false);
 	zeichner.redraw();
@@ -945,20 +965,10 @@ pruefe("der Zeichner meldet die Durchschnittshoehe -- ueber die Zellen INNERHALB
 		"innen und ueber alles sind fast gleich (" + innen.toFixed(0) + " gegen "
 		+ ueberAlles.toFixed(0) + ") -- diese Fixture kann den Fehler nicht zeigen");
 
-	// Und der Zeichner muss ueber `drinN` mitteln, nicht ueber die Rasterlaenge.
-	const quelle = fs.readFileSync(
-		path.join(WURZEL, "js/map-features/map-features-ecosystem-height-render.js"), "utf8");
-	const start = quelle.indexOf("mittelhoehe: () => {");
-	assert.ok(start > 0, "der Zeichner meldet keine Durchschnittshoehe");
-	const rumpf = quelle.slice(start, start + 600);
-	// 🪤 DIE DIVISION SELBST, nicht bloss der Name. Die erste Fassung suchte `hydroRaster.r.drinN`
-	// irgendwo im Rumpf -- und fand es im WAECHTER eine Zeile darueber, waehrend die Rechnung schon
-	// durch `hydroRaster.h.length` ersetzt war. Die Mutation ueberlebte.
-	assert.ok(rumpf.includes("summe / hydroRaster.r.drinN"),
-		"gemittelt wird nicht ueber die Zellen INNERHALB -- die Nullen ausserhalb ziehen den Schnitt "
-		+ "herunter, und die Zahl ist als Vergleich mit einer Quellenangabe wertlos");
-	assert.ok(rumpf.includes("hydroRaster.r.drin[k]"),
-		"summiert wird ohne den Innen-Filter");
+	// Der Worker mittelt im eigenen Polygon; der Zeichner übernimmt dieses Ergebnis.
+	const quelle = fs.readFileSync(path.join(WURZEL, "js/map-features/map-features-ecosystem-height-render.js"), "utf8");
+	assert.ok(quelle.includes("mittelhoehe: () => hydroRaster?.mittelhoehe || 0"));
+
 });
 
 pruefe("die Hoehen-Pane liegt UNTER den Fluessen und UEBER den Flaechenfuellungen", () => {
@@ -987,4 +997,4 @@ pruefe("die Hoehen-Pane liegt UNTER den Fluessen und UEBER den Flaechenfuellunge
 		+ "Gebirgsflaeche verdeckt dann das Hoehenfeld, und der Editor sieht gar nichts");
 });
 
-console.log("\n" + gehalten + " Zusicherungen gehalten.");
+Promise.all(asynchron).then(() => console.log("\n" + gehalten + " Zusicherungen gehalten."));

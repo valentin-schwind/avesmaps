@@ -157,17 +157,31 @@
 
 	// Solange der Flächendialog offen ist: volle Deckung statt höhenabhängigem Alpha.
 	let solidMode = false;
-	// 🔴 NUR EIN GEBIRGE GLEICHZEITIG (Owner 04.09.2026). Bis dahin malte die Leinwand den ganzen
-	// Stapel -- jede Gebirgsfläche der Karte auf einmal. Das war bei einer Buckelsumme billig (eine
-	// Abfrage je Punkt), ist es bei einem gerechneten Raster aber nicht: jede Fläche kostet einen
-	// eigenen Erosionslauf. Und es war nie die Frage, die der Editor stellt -- er stellt EINE Fläche
-	// ein und will sehen, was er einstellt.
+	let graustufen = false;
+	// 🔴 EIN GEBIRGE UND SEINE ÜBERLAPPENDEN NACHBARN -- sonst nichts (Owner 04./05.09.2026). Bis
+	// zum 04.09. malte die Leinwand den ganzen Stapel, jede Gebirgsfläche der Karte auf einmal. Das
+	// war bei einer Buckelsumme billig (eine Abfrage je Punkt), ist es bei einem gerechneten Raster
+	// aber nicht: jede Fläche kostet einen eigenen Erosionslauf. Und es war nie die Frage, die der
+	// Editor stellt -- er stellt EINE Fläche ein und will sehen, was er einstellt.
+	//
+	// 🔴 DIE AUSNAHME SIND ECHTE ÜBERLAPPUNGEN (Owner 05.09.2026: „bei überlappungen kann man gerne
+	// auch das andere gebirge angezeigt bekommen, damit man den übergang sieht" -- Anlass waren
+	// Finsterkamm und Schwarzkuppen, die sich sechs Gipfel teilen). Sie kosten nichts extra: ihre
+	// Raster werden für das Maximum ohnehin gebaut, das Zeichnen kommt gratis dazu.
+	// 💣 „Überlappend" heißt POLYGONSCHNITT mit positiver Fläche, nie Rechteckberührung. Genau daran
+	// ist der Zustand vom 04.09. gescheitert: `nachbarnVon()` verglich die Hüllrechtecke, und zwei
+	// Gebirge, die einander nie berühren, wurden zu einem Verbund -- gemalt wurde er dann bis an das
+	// Hüllrechteck der aktiven Fläche und dort schnurgerade abgeschnitten.
+	// 🔴 UND ES IST DIESELBE LISTE FÜR BEIDES, Maximum wie Anzeige (`verbundGeometrien`). Zwei
+	// Auswahlen wären zwei Begriffe von „gehört dazu", und sie liefen beim ersten Sonderfall
+	// auseinander.
 	let aktiveFlaeche = null;                // die public_id der Fläche, deren Dialog offen ist
 	// Das gerechnete Raster dieser einen Fläche. Teuer (Randwertaufgabe + Erosion, ~1,5 s), also
 	// einmal je Parameteränderung -- nicht je Bild. Zoom und Pan malen nur neu.
 	let hydroRaster = null;
 	let hydroSchluessel = "";
-	let hydroLaeuft = false;
+	let hydroLaeuft = null;
+	let nachbarSchnittCache = new WeakMap();
 	// 💣 EIN RASTERBAU KOSTET RUND 1,5 SEKUNDEN, und die Regler bauen bei JEDEM Zieh-Bild neu.
 	// Ungedrosselt heisst das 1,5 s Blockade je Frame -- der Regler fuehlt sich an, als haenge der
 	// Tab. Deshalb zwei Aufloesungen: waehrend des Ziehens ein grobes Vorschauraster, beim Loslassen
@@ -315,6 +329,9 @@
 	// ⚠️ Ein stilles Falschbild ist schlimmer als ein fehlendes -- man haelt die Aenderung fuer
 	// wirkungslos und dreht weiter.
 	function invalidateEcosystemHeightField() {
+		nachbarSchnittCache = new WeakMap();
+		hydroLaeuft?.abort();
+		hydroLaeuft = null;
 		hydroRaster = null;
 		hydroSchluessel = "";
 		stackDirty = true;
@@ -358,58 +375,13 @@
 	   Endpunkte; die FORM muss übereinstimmen, sonst zeigt die Karte ein anderes Gelände als das
 	   gespeicherte (siehe den Kopf von map-features-ecosystem-hydrologie.js). */
 
-	// 💣 EIN GIPFEL, EIN FELD -- und die Zuteilung ist NICHT „liegt in dieser Flaeche".
-	//
-	// Gemessen am Livebestand (04.09.2026): **6 Gipfel liegen in ZWEI Gebirgsflaechen** (Finsterkamm
-	// und Schwarzkuppen teilen sich Hoher Stumpen, Drei Schwestern, Finsterkopp, Horndrachenfels
-	// zweimal). Wer sie beiden Feldern gibt, speichert zwei Raster, die BEIDE den Gipfel tragen --
-	// und `avesmapsHeightmapSampleSum` addiert sie beim Lesen. Der Hohe Stumpen stuende dann mit
-	// 5.000 statt 2.500 Schritt in der Wegfindung.
-	// ⚠️ Ohne Ueberlappung ist die Zuteilung wirkungslos; sie kostet dann nur einen Polygontest je
-	// Gipfel und Nachbarflaeche.
-	//
-	// 🔴 GEWAEHLT WIRD DIE KLEINSTE ENTHALTENDE FLAECHE, bei Gleichstand die kleinere `public_id` --
-	// wortgleich die Regel aus `assignEcosystemPeaksToAreas` (V8). Sie ist eine Eigenschaft der
-	// GEOMETRIE, nicht der Ladereihenfolge: „die erste, die ihn enthaelt" laege nach einem Neuladen
-	// anders, und dasselbe Gebirge saehe zweimal verschieden aus.
+	// Jedes Gebirge trägt seine eigenen Gipfel. Überlappungen werden beim Lesen per Maximum
+	// verbunden; eine exklusive Gipfelzuteilung würde das andere Gebirge künstlich absenken.
 	function gipfelDieserFlaeche(area) {
 		const geometry = geometrieVon(area);
-		if (!geometry) {
-			return [];
-		}
-		const alle = topographyAreas();
-		const flaeche = (kandidat) => {
-			const g = geometrieVon(kandidat);
-
-			return g && typeof ecosystemGeometryArea === "function"
-				? ecosystemGeometryArea(g)
-				: Infinity;
-		};
-		const meine = String(area?.public_id || "");
-		const meineFlaeche = flaeche(area);
-
-		return peakList()
+		return geometry ? peakList()
 			.filter((peak) => pointInGeometry([peak.x, peak.y], geometry))
-			.filter((peak) => {
-				// Gewinnt eine ANDERE Flaeche diesen Gipfel? Dann traegt ihn nicht dieses Feld.
-				for (const kandidat of alle) {
-					const id = String(kandidat?.public_id || "");
-					if (id === meine) {
-						continue;
-					}
-					const g = geometrieVon(kandidat);
-					if (!g || !pointInGeometry([peak.x, peak.y], g)) {
-						continue;
-					}
-					const andere = flaeche(kandidat);
-					if (andere < meineFlaeche || (andere === meineFlaeche && id < meine)) {
-						return false;
-					}
-				}
-
-				return true;
-			})
-			.map((peak) => ({ x: peak.x, y: peak.y, h: peak.height }));
+			.map((peak) => ({ x: peak.x, y: peak.y, h: peak.height })) : [];
 	}
 
 	function flaecheMitId(publicId) {
@@ -544,72 +516,58 @@
 		};
 	}
 
-	// Woran sich das Raster als „noch gültig" erkennt. 💣 Jeder Wert, der in die Rechnung eingeht,
-	// gehört hier hinein -- fehlt einer, bleibt beim Drehen am Regler das alte Bild stehen.
-	// Die Gebirgsflaechen, die diese hier BERUEHREN -- ihr Rechengebiet gehoert zum selben Verbund.
-	//
-	// 🔴 Owner 04.09.2026: „wenn zwei gebirge aneinander angrenzen bzw. sich ueberlappen teilen sie
-	// sich keine gemeinsame ausgangslage fuer die hoehe". Ohne den Verbund faellt jede Flaeche an
-	// IHRER Kante auf null (`sorDurchgang` liest ausserhalb als 0), und an der Naht steht ein Tal,
-	// das es auf der Karte nicht gibt -- gemessen an zwei 2.600er Kaemmen: Einschnitt auf 1.114
-	// Schritt. Mit Verbund: 2.314, und beide Flaechen liefern dort fast denselben Wert.
-	//
-	// ⚠️ VORGEFILTERT UEBER DIE BBOX, sonst kostet jede Zelle einen Polygontest gegen alle 69
-	// Gebirge. Die bbox reist ohnehin mit; ein grosszuegiger Rand (eine Zellweite) faengt Flaechen,
-	// die sich nur beruehren.
+	// Nur Polygone mit positiver Schnittfläche sind Nachbarn. Randkontakt und überlappende
+	// Rasterrechtecke reichen nicht; Löcher und MultiPolygone bleiben beim Schnitt erhalten.
 	function nachbarnVon(area) {
 		const eigen = area?.bounds;
-		if (!eigen) {
-			return [];
+		const geometry = geometrieVon(area);
+		if (!eigen || !geometry || !window.polygonClipping) { return []; }
+		const meine = String(area.public_id || "");
+		const nachbarn = [];
+		for (const kandidat of topographyAreas()) {
+			if (String(kandidat?.public_id || "") === meine) { continue; }
+			const b = kandidat?.bounds;
+			const g = geometrieVon(kandidat);
+			if (!b || !g || b.min_x >= eigen.max_x || b.max_x <= eigen.min_x
+				|| b.min_y >= eigen.max_y || b.max_y <= eigen.min_y) { continue; }
+			// Rechtecke sind nur ein Vorfilter. Erst eine echte Schnittfläche verbindet Gebirge.
+			let cache = nachbarSchnittCache.get(geometry);
+			if (!cache) { cache = new WeakMap(); nachbarSchnittCache.set(geometry, cache); }
+			if (!cache.has(g)) {
+				cache.set(g, window.polygonClipping.intersection(geometry.coordinates, g.coordinates).length > 0);
+			}
+			if (cache.get(g)) { nachbarn.push({ area: kandidat, geometry: g }); }
 		}
-		const luft = ECOSYSTEM_HYDRO_ZELLWEITE;
-		const meine = String(area?.public_id || "");
+		return nachbarn;
+	}
 
-		return topographyAreas()
-			.filter((kandidat) => {
-				if (String(kandidat?.public_id || "") === meine) { return false; }
-				const b = kandidat?.bounds;
-				if (!b || !geometrieVon(kandidat)) { return false; }
+	function gebirgsEingabeFuer(area, deckel) {
+		return {
+			bounds: area.bounds,
+			geometry: geometrieVon(area),
+			peaks: gipfelDieserFlaeche(area),
+			kurve: kurveFuer(area),
+			fluesse: fluesseFuer(area),
+			seen: seenFuer(area),
+			deckel,
+			regler: reglerFuer(area),
+			saat: hydroSaatFuer(area),
+		};
+	}
 
-				return Number(b.min_x) - luft <= Number(eigen.max_x)
-					&& Number(b.max_x) + luft >= Number(eigen.min_x)
-					&& Number(b.min_y) - luft <= Number(eigen.max_y)
-					&& Number(b.max_y) + luft >= Number(eigen.min_y);
-			})
-			.map((kandidat) => ({ area: kandidat, geometry: geometrieVon(kandidat) }));
+	function hydroFlaechenSchluessel(area) {
+		return JSON.stringify([
+			area.public_id, area.geometry_revision, reglerFuer(area),
+			gipfelDieserFlaeche(area), kurveFuer(area), hydroSaatFuer(area),
+		]);
 	}
 
 	function hydroSchluesselFuer(area) {
-		const reg = reglerFuer(area);
-		const geometry = geometrieVon(area);
-		// 💣 DIE GIPFEL GEHOEREN IN DEN SCHLUESSEL. Sie gehen in die Rechnung ein, also entwertet
-		// ihre Aenderung das Raster -- ohne sie stand nach dem Verschieben eines Gipfels das alte
-		// Relief da, und der Editor haelt seine Eingabe fuer wirkungslos.
-		// ⚠️ Fluesse, Seen und die Kammlinie stehen NICHT darin: sie aendern sich nur ueber einen
-		// Speichervorgang, und der ruft ohnehin `invalidate()`. Sie hier bei jedem Bild zu
-		// serialisieren waere teuer fuer einen Fall, den die Invalidierung schon traegt.
-		const gipfel = geometry
-			? gipfelDieserFlaeche(area)
-				.map((peak) => peak.x + "," + peak.y + "," + peak.h)
-				.sort()
-				.join(";")
-			: "";
-
-		return [
-			String(area?.public_id || ""), String(area?.geometry_revision ?? 0),
-			reg.koernung, reg.stufen, reg.erosion, reg.maximalhoehe,
-			reg.bergform, reg.rauschen, reg.sattel, reg.talbreite, reg.einschnitt, reg.plateau, reg.hypsometrie,
-			// 💣 Die Kammlinie GEHOERT IN DEN SCHLUESSEL: sie geht in die Rechnung ein, also entwertet
-			// ihre Aenderung das Raster. Ohne sie stuende nach „Gebirgszug ermitteln" das alte Relief
-			// da, und der Knopf saehe wirkungslos aus. Nur die LAENGE, nicht die Punkte -- der
-			// Schluessel wird bei jedem Bild gebaut, und die Linie hat 32 davon.
-			Array.isArray(area?.terrain_ridge_line) ? area.terrain_ridge_line.length : 0,
-			// 💣 Der VERBUND gehoert in den Schluessel: kommt ein Nachbargebirge dazu oder faellt eins
-			// weg, ist das Feld ein anderes. Die Zahl genuegt -- die Gipfel der Nachbarn stehen
-			// ohnehin in `gipfel` darunter.
-			nachbarnVon(area).length,
-			gipfel, hydroGrob ? "grob" : "fein",
-		].join("|");
+		return JSON.stringify([
+			hydroFlaechenSchluessel(area),
+			nachbarnVon(area).map((n) => hydroFlaechenSchluessel(n.area)).sort(),
+			hydroGrob,
+		]);
 	}
 
 	// 🔴 Kein Math.random(): dieselbe Saat wie in V8, aus Identitaet und Geometrie-Revision.
@@ -630,52 +588,55 @@
 		if (hydroRaster && hydroSchluessel === schluessel) {
 			return hydroRaster;
 		}
-		if (hydroLaeuft) {
-			return hydroRaster;              // ein Lauf genügt; das Bild kommt, wenn er fertig ist
+		if (hydroLaeuft?.schluessel === schluessel) {
+			return hydroRaster;
 		}
 		const geometry = geometrieVon(area);
 		if (!geometry || !area.bounds) {
 			return null;
 		}
-		hydroLaeuft = true;
-		try {
-			const seen = seenFuer(area);
-			const nachbarn = nachbarnVon(area);
-			hydroRaster = avesmapsGebirgsRasterBauen({
-				bounds: area.bounds,
-				istDrin: (x, y) => pointInGeometry([x, y], geometry),
-				// 🔴 DAS RECHENGEBIET REICHT IN DIE NACHBARN HINEIN, das SPEICHERgebiet nicht.
-				// Ohne das faellt die Loesung an der eigenen Kante auf null, und an der Naht steht ein
-				// Tal (gemessen: 1.114 statt 2.314 Schritt zwischen zwei 2.600er Kaemmen).
-				istImVerbund: nachbarn.length
-					? (x, y) => nachbarn.some((n) => pointInGeometry([x, y], n.geometry))
-					: null,
-				// ⚠️ Und die Gipfel der Nachbarn MUESSEN mit: sonst hat das erweiterte Gebiet keine
-				// Zwaenge und zieht das Feld an der Naht wieder herunter -- die Loesung liefe dann
-				// gegen den Aussenrand des Nachbarn statt gegen dessen Kamm.
-				peaks: gipfelDieserFlaeche(area)
-					.concat(nachbarn.flatMap((n) => gipfelDieserFlaeche(n.area))),
-				kurve: kurveFuer(area),
-				fluesse: fluesseFuer(area),
-				seen,
-				istImSee: (i, x, y) => pointInGeometry([x, y], seen[i].g),
-				deckel: hydroGrob ? ECOSYSTEM_HYDRO_RASTER_GROB : ECOSYSTEM_HYDRO_RASTER_N,
-				regler: reglerFuer(area),
-				saat: hydroSaatFuer(area),
-			});
+		hydroLaeuft?.abort();
+		const controller = new AbortController();
+		controller.schluessel = schluessel;
+		hydroLaeuft = controller;
+		const deckel = hydroGrob ? ECOSYSTEM_HYDRO_RASTER_GROB : ECOSYSTEM_HYDRO_RASTER_N;
+		void avesmapsGebirgsRasterImWorker({
+			...gebirgsEingabeFuer(area, deckel),
+			nachbarFelder: nachbarnVon(area).map((n) => gebirgsEingabeFuer(n.area, deckel)),
+		}, controller.signal).then((raster) => {
+			if (hydroLaeuft !== controller) { return; }
+			hydroLaeuft = null;
+			hydroRaster = raster;
 			hydroSchluessel = schluessel;
-		} catch (error) {
-			// Ein Rechenfehler darf die Ebene nicht mitnehmen -- die Karte bleibt bedienbar.
+			redraw();
+		}).catch((error) => {
+			if (hydroLaeuft !== controller) { return; }
+			hydroLaeuft = null;
 			hydroRaster = null;
 			hydroSchluessel = "";
-			if (typeof console !== "undefined" && console.warn) {
-				console.warn("Höhenfeld konnte nicht gerechnet werden:", error);
-			}
-		} finally {
-			hydroLaeuft = false;
-		}
+			console.warn("Höhenfeld konnte nicht gerechnet werden:", error);
+		});
 
 		return hydroRaster;
+	}
+
+	// Die Flächen, die das Bild zeigt: die angeklickte und jede, die sie wirklich überlappt.
+	// Die Auswahl trifft `nachbarnVon()` -- hier wird sie nur ausgepackt.
+	function verbundGeometrien(raster) {
+		return [raster.geometry]
+			.concat((raster.nachbarRaster || []).map((nachbar) => nachbar.geometry))
+			.filter(Boolean);
+	}
+
+	// Vorzeichenbehaftete Fläche (Gauß-Trapezformel). Gebraucht wird NUR ihr Vorzeichen: die
+	// Umlaufrichtung eines Rings, damit die Maske Löcher von Flächen unterscheiden kann.
+	function ringFlaeche(punkte) {
+		let summe = 0;
+		for (let i = 0, j = punkte.length - 1; i < punkte.length; j = i++) {
+			summe += (punkte[j][0] * punkte[i][1]) - (punkte[i][0] * punkte[j][1]);
+		}
+
+		return summe;
 	}
 
 	function redraw() {
@@ -719,12 +680,12 @@
 			meldeAnstrich(0);
 			return;
 		}
-		const gr = raster.r;
-		const gh = raster.h;
-		let hoechster = 0;
-		for (let k = 0; k < gh.length; k++) {
-			if (gr.drin[k] && gh[k] > hoechster) { hoechster = gh[k]; }
-		}
+		// 🔴 DIE HÖHENSKALA GEHÖRT DER ANGEKLICKTEN FLÄCHE. `maximalhoehe` ist das Maximum über
+		// IHRE Zellen; ein gezeigter Nachbar, der höher ist, läuft oben weiß aus. Seine FORM bleibt
+		// lesbar (das Streiflicht moduliert weiter), und die Zahlen unter der Skala meinen weiterhin
+		// die Fläche, deren Regler danebenstehen. Die Skala des Verbunds wäre eine Zahl, die zu
+		// keinem Bedienelement des Dialogs gehört.
+		const hoechster = raster.maximalhoehe;
 		const reference = Math.max(HEIGHT_WHITE_SCHRITT * 0.02, hoechster);
 		meldeAnstrich(reference);
 		const started = performance.now();
@@ -738,46 +699,20 @@
 		const deltaX = (stepLatLng.lng - originLatLng.lng) / STEP;
 		const deltaY = (stepLatLng.lat - originLatLng.lat) / STEP;
 
-		// Höhe und Gefälle an einer KARTENstelle, bilinear aus dem Raster.
-		// 💣 Der Gradient kommt aus DENSELBEN vier Ecken wie die Höhe. Zwei getrennte Abfragen laufen
-		// an Zellgrenzen auseinander, und das Streiflicht bekommt dort eine Naht.
-		// 🔴 Und er wird in RASTERzellen gerechnet, nicht in Bildschirmpunkten -- sonst änderte sich
-		// die Beleuchtung mit dem Zoom, und dieselbe Flanke wäre einmal hell und einmal dunkel.
-		const zelleS = gr.cellS;
-		function liesRaster(x, y) {
-			const fx = (x - gr.bounds.min_x) / gr.cell;
-			const fy = (y - gr.bounds.min_y) / gr.cell;
-			let i = Math.floor(fx);
-			let j = Math.floor(fy);
-			if (i < 0 || j < 0 || i > gr.w - 2 || j > gr.hh - 2) {
-				return null;
-			}
-			const k = j * gr.w + i;
-			// Außerhalb der Fläche sagt das Feld NICHTS -- nicht „null". Ein Punkt, dessen vier Ecken
-			// nicht alle innen liegen, bleibt unbemalt; sonst zöge sich der Auslauf über den Rand.
-			if (!gr.drin[k] || !gr.drin[k + 1] || !gr.drin[k + gr.w] || !gr.drin[k + gr.w + 1]) {
-				return null;
-			}
-			const tx = fx - i;
-			const ty = fy - j;
-			const nw = gh[k];
-			const ne = gh[k + 1];
-			const sw = gh[k + gr.w];
-			const se = gh[k + gr.w + 1];
-
-			return {
-				h: (nw * (1 - tx) * (1 - ty)) + (ne * tx * (1 - ty)) + (sw * (1 - tx) * ty) + (se * tx * ty),
-				gx: (((ne - nw) * (1 - ty)) + ((se - sw) * ty)) / zelleS,
-				gy: (((sw - nw) * (1 - tx)) + ((se - ne) * tx)) / zelleS,
-			};
-		}
+		// Die Beleuchtung liest das Gefälle desselben unabhängigen Felds, das am tatsächlichen
+		// Bildpunkt die größte Höhe liefert. Polygone maskieren auch Löcher.
+		// ⭐ Und weil im Überlapp das Maximum gilt und jedes Feld an SEINER Kante auf null läuft,
+		// geht `max(A,B)` an A's Rand stetig in B über: der Übergang trägt keine Helligkeitsstufe.
+		// Deshalb wird der Nachbar auch nicht abgeschwächt oder eingefärbt -- das machte aus dem
+		// Übergang wieder eine Kante. Welche Fläche die angeklickte ist, sagt ihre weiße Kontur.
+		const liesRaster = (x, y) => avesmapsGebirgsVerbundProbe(raster, x, y);
 
 		for (let sy = 0; sy < size.y; sy += STEP) {
 			const y = originLatLng.lat + sy * deltaY;
 			for (let sx = 0; sx < size.x; sx += STEP) {
 				const x = originLatLng.lng + sx * deltaX;
 				const probe = liesRaster(x, y);
-				if (!probe || !(probe.h > 0)) {
+				if (!probe || (!graustufen && !(probe.h > 0))) {
 					continue;                // unbemalt = alpha 0, siehe oben
 				}
 				// 🔴 STREIFLICHT STATT GRAUSTUFEN (Owner 04.09.2026: „die streiflicht ansicht soll die
@@ -790,10 +725,10 @@
 				const t = Math.max(0, Math.min(1, probe.h / reference));
 				// Höhe UND Licht: die Höhe trägt die Lesbarkeit der Skala (die Höhenskala im Dialog
 				// nennt dieselben Zahlen), das Licht die Form.
-				const wert = 255 * (0.25 + 0.75 * licht) * (0.35 + 0.65 * t);
+				const wert = graustufen ? 255 * t : 255 * (0.25 + 0.75 * licht) * (0.35 + 0.65 * t);
 				const r = wert;
 				const g = wert;
-				const b = Math.min(255, wert * 1.04);
+				const b = graustufen ? wert : Math.min(255, wert * 1.04);
 				const alpha = solidMode ? 255 : Math.round(255 * Math.min(1, Math.sqrt(t) / Math.sqrt(HEIGHT_FULL_VEIL_SCHRITT / HEIGHT_WHITE_SCHRITT)));
 				const px0 = Math.round(sx * dpr);
 				const py0 = Math.round(sy * dpr);
@@ -810,6 +745,47 @@
 		}
 		context.setTransform(1, 0, 0, 1, 0, 0);
 		context.putImageData(image, 0, 0);
+		// Die vier Pixel breiten Malblöcke enden exakt an den Konturen des Verbunds.
+		// destination-in maskiert auch schmale Löcher, die zwischen Abtastpunkten liegen.
+		//
+		// 💣 EINE MASKE AUS MEHREREN FLÄCHEN VERTRÄGT KEIN `evenodd`: wo zwei Gebirge einander
+		// überlappen, ist die Windungszahl 2 -- und damit fiele ausgerechnet der Überlapp als „Loch"
+		// heraus, also genau das Stück, um dessentwillen der Nachbar überhaupt gezeigt wird. Mit
+		// `nonzero` vereinigen sich die Flächen; dafür trägt dann die UMLAUFRICHTUNG der Ringe die
+		// Bedeutung -- ein Loch muss andersherum laufen als sein Außenring, sonst ist es keins mehr.
+		// 🔴 Die Richtung wird deshalb GERECHNET, nie geglaubt: `ring[0]` ist per Hausvertrag der
+		// Außenring (`pointInPolygon` liest ihn so), aber seine Umlaufrichtung steht in keinem
+		// Datum -- und die Karte spiegelt y, was jeden Ring zusätzlich dreht. Gerechnet wird darum
+		// in BILDpunkten, nach der Projektion.
+		// ⭐ Das Loch einer Fläche, über dem die andere liegt, bleibt damit richtig GEFÜLLT: dort
+		// steht Windung +1 (Nachbar) +1 (Außenring) -1 (Loch). Der Anstrich sagt dasselbe -- die
+		// Fläche mit dem Loch liefert dort nichts, der Nachbar seinen Wert.
+		// ⚠️ Bei einem in sich selbst geschlagenen Ring gehen `nonzero` und der Punkttest (Even-Odd)
+		// auseinander. Die Maske ist dann großzügiger als der Anstrich -- und weil sie nur wegnehmen
+		// kann, bleibt schlimmstenfalls ein Malblock ungetrimmt stehen.
+		context.save();
+		context.globalCompositeOperation = "destination-in";
+		context.fillStyle = "white";
+		context.beginPath();
+		for (const geometry of verbundGeometrien(raster)) {
+			const polygons = geometry.type === "MultiPolygon"
+				? geometry.coordinates : [geometry.coordinates];
+			for (const polygon of polygons) {
+				for (let ring = 0; ring < polygon.length; ring++) {
+					const punkte = polygon[ring].map(([x, y]) => [
+						(x - originLatLng.lng) / deltaX * dpr,
+						(y - originLatLng.lat) / deltaY * dpr,
+					]);
+					if ((ringFlaeche(punkte) > 0) !== (ring === 0)) { punkte.reverse(); }
+					punkte.forEach(([px, py], index) => {
+						if (index === 0) { context.moveTo(px, py); } else { context.lineTo(px, py); }
+					});
+					context.closePath();
+				}
+			}
+		}
+		context.fill("nonzero");
+		context.restore();
 		context.setTransform(dpr, 0, 0, dpr, 0, 0);
 		lastPaintMs = performance.now() - started;
 
@@ -881,6 +857,10 @@
 	// Stapel zu malen. Das ist die sichere Richtung: lieber nichts zeigen als das Falsche.
 	function setHeightCanvasSolid(on, areaPublicId) {
 		const next = Boolean(on);
+		if (!next || String(areaPublicId || "") !== aktiveFlaeche) {
+			hydroLaeuft?.abort();
+			hydroLaeuft = null;
+		}
 		const naechsteFlaeche = next ? String(areaPublicId || "") : null;
 		if (next === solidMode && naechsteFlaeche === aktiveFlaeche) {
 			return;
@@ -940,6 +920,13 @@
 	// Raster mit einem Fingerabdruck aus den Reglern, die IN DER DATENBANK stehen
 	// (`avesmapsTerrainAreaFingerprint`) -- kaeme das Raster zuerst, traege es den Abdruck der alten
 	// Werte und gaelte im selben Moment als veraltet.
+	let rasterBerechnung = null;
+
+	function abbrechenGebirgsRaster() {
+		rasterBerechnung?.abort();
+		rasterBerechnung = null;
+	}
+
 	async function gebirgsRasterHochladen(area) {
 		const geometry = geometrieVon(area);
 		if (!area || !geometry || !area.bounds || typeof avesmapsGebirgsRasterBauen !== "function") {
@@ -948,26 +935,18 @@
 		if (typeof postEcosystemEdit !== "function") {
 			return { hochgeladen: false, grund: "kein Schreibweg" };
 		}
-		const seen = seenFuer(area);
-		const nachbarn = nachbarnVon(area);
-		const o = avesmapsGebirgsRasterBauen({
-			bounds: area.bounds,
-			istDrin: (x, y) => pointInGeometry([x, y], geometry),
-			// Derselbe Verbund wie in der Anzeige -- sonst speicherte der Lauf ein anderes Gebirge,
-			// als der Editor gesehen hat.
-			istImVerbund: nachbarn.length
-				? (x, y) => nachbarn.some((n) => pointInGeometry([x, y], n.geometry))
-				: null,
-			peaks: gipfelDieserFlaeche(area)
-				.concat(nachbarn.flatMap((n) => gipfelDieserFlaeche(n.area))),
-			kurve: kurveFuer(area),
-			fluesse: fluesseFuer(area),
-			seen,
-			istImSee: (i, x, y) => pointInGeometry([x, y], seen[i].g),
-			// 🔴 KEIN Deckel -- die volle Aufloesung, wie oben begruendet.
-			regler: reglerFuer(area),
-			saat: hydroSaatFuer(area),
-		});
+
+		abbrechenGebirgsRaster();
+		const controller = new AbortController();
+		rasterBerechnung = controller;
+		let o;
+		try {
+			// Nur das eigene Feld speichern. Die Wegberechnung verbindet die gespeicherten
+			// Felder im tatsächlichen Polygonüberlapp per Maximum, nie per Rasterrechteck.
+			o = await avesmapsGebirgsRasterImWorker(gebirgsEingabeFuer(area), controller.signal);
+		} finally {
+			if (rasterBerechnung === controller) { rasterBerechnung = null; }
+		}
 		if (!o || !o.r || !o.r.drinN) {
 			return { hochgeladen: false, grund: "leeres Raster" };
 		}
@@ -1011,7 +990,10 @@
 	}
 
 	window.AvesmapsEcosystemHeightRender = {
+		setGrayscale(on) { graustufen = Boolean(on); redraw(); },
+		isGrayscale: () => graustufen,
 		hochladen: gebirgsRasterHochladen,
+		abbrechen: abbrechenGebirgsRaster,
 		redraw,
 		setPreviewCoarse: setHeightPreviewCoarse,
 		invalidate: invalidateEcosystemHeightField,
@@ -1030,17 +1012,7 @@
 		// ⚠️ Gemittelt wird ueber die Zellen INNERHALB der Flaeche -- ausserhalb steht 0, und die
 		// zoegen den Schnitt beliebig weit herunter, je nachdem wie eckig die bbox um die Flaeche
 		// sitzt.
-		mittelhoehe: () => {
-			if (!hydroRaster || !hydroRaster.r || !hydroRaster.r.drinN) {
-				return 0;
-			}
-			let summe = 0;
-			for (let k = 0; k < hydroRaster.h.length; k++) {
-				if (hydroRaster.r.drin[k]) { summe += hydroRaster.h[k]; }
-			}
-
-			return summe / hydroRaster.r.drinN;
-		},
+		mittelhoehe: () => hydroRaster?.mittelhoehe || 0,
 		onPaint: (listener) => {
 			if (typeof listener !== "function") {
 				return () => {};

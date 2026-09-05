@@ -14,6 +14,7 @@ declare(strict_types=1);
 // exactly what the derived cache exists to prevent.
 
 require_once __DIR__ . '/terrain-store.php';
+require_once __DIR__ . '/climate-membership.php';
 
 /**
  * PURE: one DB row -> a usable raster, with the blob left as a BINARY STRING.
@@ -75,6 +76,11 @@ function avesmapsHeightmapSampleOne(array $raster, float $x, float $y): ?float
     // Outside is „no data", NOT 0 -- a point beyond every bbox is unknown ground, and calling it
     // level would make a missing raster indistinguishable from a plain.
     if ($fx < 0.0 || $fy < 0.0 || $fx > (float) ($raster['width'] - 1) || $fy > (float) ($raster['height'] - 1)) {
+        return null;
+    }
+    // Das Rechteck ist nur Speicherplatz. Außerhalb des zugehörigen Polygons
+    // darf auch ein älteres Raster keine Höhe für die Wegberechnung liefern.
+    if (array_key_exists('geometry', $raster) && !avesmapsClimateGeometryContains($raster['geometry'], $x, $y)) {
         return null;
     }
 
@@ -140,12 +146,16 @@ function avesmapsHeightmapSampleSum(array $rasters, float $x, float $y): ?float
 function avesmapsHeightmapLoadAll(PDO $pdo): array
 {
     $statement = $pdo->query(
-        'SELECT area_id, origin_x, origin_y, cell_size_mapunits, width_px, height_px, sample_bytes, samples
-           FROM ecosystem_area_heightmap ORDER BY area_id'
+        'SELECT h.area_id, h.origin_x, h.origin_y, h.cell_size_mapunits, h.width_px, h.height_px,
+                h.sample_bytes, h.samples, a.geometry_geojson
+           FROM ecosystem_area_heightmap h
+           INNER JOIN ecosystem_area a ON a.id = h.area_id AND a.is_active = 1
+           ORDER BY h.area_id'
     );
     $rasters = [];
     foreach ($statement === false ? [] : $statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
         $raster = avesmapsHeightmapDecode($row);
+        $raster['geometry'] = json_decode((string) $row['geometry_geojson'], true);
         $raster['area_id'] = (int) $row['area_id'];
         $raster['min_x'] = $raster['origin_x'];
         $raster['min_y'] = $raster['origin_y'];
@@ -167,13 +177,16 @@ function avesmapsHeightmapLoadAll(PDO $pdo): array
 function avesmapsHeightmapGlobalStamp(PDO $pdo): string
 {
     $statement = $pdo->query(
-        'SELECT area_id, geometry_revision, terrain_fingerprint, peaks_fingerprint
-           FROM ecosystem_area_heightmap ORDER BY area_id'
+        'SELECT h.area_id, h.geometry_revision, h.terrain_fingerprint, h.peaks_fingerprint, h.computed_at,
+                a.geometry_revision AS current_geometry_revision, a.is_active
+           FROM ecosystem_area_heightmap h INNER JOIN ecosystem_area a ON a.id = h.area_id
+           ORDER BY h.area_id'
     );
-    $parts = [];
+    $parts = ['polygon-mask-v1'];
     foreach ($statement === false ? [] : $statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
         $parts[] = $row['area_id'] . ':' . $row['geometry_revision'] . ':'
-            . $row['terrain_fingerprint'] . ':' . $row['peaks_fingerprint'];
+            . $row['terrain_fingerprint'] . ':' . $row['peaks_fingerprint'] . ':' . $row['computed_at']
+            . ':' . $row['current_geometry_revision'] . ':' . $row['is_active'];
     }
 
     return sha1(implode('|', $parts));

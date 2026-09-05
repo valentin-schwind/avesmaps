@@ -219,6 +219,8 @@
 	}
 
 	function closeEcosystemPropertiesDialog() {
+		terrainSaveGeneration++;
+		window.AvesmapsEcosystemHeightRender?.abbrechen?.();
 		if (typeof avesmapsLandschaftDialogHaelfte === "function") {
 			avesmapsLandschaftDialogHaelfte("flaeche", false);
 		}
@@ -1323,6 +1325,8 @@
 	];
 	// Wird gesetzt, sobald der Editor einen Regler anfasst: ab dann gilt der Regler, nicht die Ableitung.
 	let terrainTouched = {};
+	let terrainSaving = false;
+	let terrainSaveGeneration = 0;
 
 	// Das Raster DIESER Flaeche rechnen und hochladen.
 	//
@@ -1330,10 +1334,6 @@
 	// (`avesmapsGebirgsRasterBauen`) -- wer hier eine eigene Kette baute, speicherte ein anderes
 	// Gelaende als das gezeigte. Genau das ist der Owner-Auftrag: „das was ich seh soll das sein mit
 	// dem gerechnet wird."
-	// 🔧 OFFEN: der Upload selbst haengt an `avesmapsTerrainHeightmapPut`, und dessen Vertrag sagt
-	// „ein Raster traegt nur das EIGENE Feld, der Leser summiert". Der Trichter liefert eine
-	// absolute Hoehe. Solange das nicht entschieden ist, rechnet der Knopf und ZEIGT das Ergebnis,
-	// laedt es aber nicht hoch -- lieber kein Raster als ein falsch addiertes.
 	async function buildTerrainRaster() {
 		const knopf = propertiesElement("terrain-build");
 		const area = currentPropertiesArea();
@@ -1346,20 +1346,13 @@
 		try {
 			// Erst die Regler festschreiben -- sonst rechnet der Lauf mit Werten, die nur im
 			// Browser stehen.
-			await saveTerrainSettings(false);
-			// Dann das feine Bild. `setPreviewCoarse(false)` erzwingt die volle Aufloesung.
-			window.AvesmapsEcosystemHeightRender?.setPreviewCoarse?.(false);
-			window.AvesmapsEcosystemHeightRender?.invalidate?.();
-			window.AvesmapsEcosystemHeightRender?.redraw?.();
-			// 💣 DIE MELDUNG SAGT, WAS WIRKLICH PASSIERT IST. Der Knopf heisst „Höhenfeld erzeugen",
-			// und ein Editor liest daraus „gespeichert" -- er laedt das Raster aber NICHT hoch (siehe
-			// den Kopf dieser Funktion). Eine Meldung, die nur „neu gerechnet" sagt, laesst genau
-			// diese Luecke offen; ein Editor haelt das Feld fuer abgelegt und wundert sich, warum
-			// die Reisezeiten unveraendert sind.
+			const ergebnis = await saveTerrainSettings(false);
+			if (!ergebnis?.hochgeladen) {
+				throw new Error(ergebnis?.grund || "Das Höhenfeld wurde nicht hochgeladen.");
+			}
 			if (typeof showFeedbackToast === "function") {
 				showFeedbackToast("Höhenfeld für „" + (area.region_name || "diese Fläche")
-					+ "“ neu gerechnet und als Vorschau gezeigt. Für die Wegfindung gespeichert wird es"
-					+ " erst mit „Höhenraster“ im Landschaften-Editor.", "ok");
+					+ "“ erzeugt und für die Wegfindung gespeichert.", "ok");
 			}
 		} catch (error) {
 			if (typeof showFeedbackToast === "function") {
@@ -1692,7 +1685,21 @@
 		marke.title = "Vorgabe der Vorlage: " + stand.soll;
 	}
 
+	function renderTerrainGrayscaleToggle() {
+		const graustufen = propertiesElement("terrain-grayscale");
+		const aktiv = Boolean(window.AvesmapsEcosystemHeightRender?.isGrayscale?.());
+		graustufen?.setAttribute("aria-pressed", String(aktiv));
+		if (graustufen) { graustufen.title = aktiv ? "Beleuchtetes Relief anzeigen" : "Unbeleuchtetes Höhenbild anzeigen"; }
+	}
+
+	function toggleTerrainGrayscale() {
+		const render = window.AvesmapsEcosystemHeightRender;
+		render?.setGrayscale?.(!render.isGrayscale());
+		renderTerrainGrayscaleToggle();
+	}
+
 	function renderTerrainControls(area) {
+		renderTerrainGrayscaleToggle();
 		const block = propertiesElement("terrain");
 		if (!block) {
 			return;
@@ -1866,6 +1873,9 @@
 	}
 
 	async function saveTerrainSettings(reset) {
+		if (terrainSaving) {
+			return { hochgeladen: false, grund: "Eine Geländespeicherung läuft bereits." };
+		}
 		const area = currentPropertiesArea();
 		if (!area || typeof postEcosystemEdit !== "function") {
 			return;
@@ -1885,8 +1895,14 @@
 		});
 
 		setTerrainStatus("Wird gespeichert …", false);
+		terrainSaving = true;
+		const generation = ++terrainSaveGeneration;
+		window.AvesmapsEcosystemHeightRender?.abbrechen?.();
 		try {
 			const ergebnis = await postEcosystemEdit("update_area_terrain", payload);
+			if (generation !== terrainSaveGeneration) {
+				return { hochgeladen: false, grund: "Höhenberechnung abgebrochen." };
+			}
 			TERRAIN_FIELDS.forEach((feld) => {
 				area[feld.key] = ergebnis?.[feld.key] ?? null;
 			});
@@ -1909,7 +1925,7 @@
 			// ⚠️ Und es faellt OFFEN aus: die Regler sind gespeichert, auch wenn der Upload scheitert
 			// (ein grosses Gebirge kann an `post_max_size` scheitern). Die Meldung sagt dann, was
 			// wirklich passiert ist -- „Gelaende gespeichert" allein waere eine halbe Wahrheit.
-			setTerrainStatus(reset ? "Zurück auf Automatik." : "Gelände gespeichert — Höhenfeld wird hochgeladen …", false);
+			setTerrainStatus(reset ? "Zurück auf Automatik." : "Gelände gespeichert — Höhenfeld wird berechnet und hochgeladen …", false);
 			if (reset) {
 				setTerrainStatus("Zurück auf Automatik.", false);
 
@@ -1917,17 +1933,29 @@
 			}
 			try {
 				const ergebnisRaster = await window.AvesmapsEcosystemHeightRender?.hochladen?.(area);
+				if (generation !== terrainSaveGeneration) {
+					return { hochgeladen: false, grund: "Höhenberechnung abgebrochen." };
+				}
 				setTerrainStatus(ergebnisRaster?.hochgeladen
 					? "Gelände gespeichert, Höhenfeld hochgeladen ("
 						+ Math.round((ergebnisRaster.bytes || 0) / 1024) + " KB)."
 					: "Gelände gespeichert — das Höhenfeld wurde NICHT hochgeladen.",
 				!ergebnisRaster?.hochgeladen);
+				return ergebnisRaster;
 			} catch (fehler) {
-				setTerrainStatus("Gelände gespeichert, aber das Höhenfeld konnte nicht hochgeladen "
-					+ "werden: " + (fehler?.message || "unbekannter Fehler"), true);
+				if (generation === terrainSaveGeneration) {
+					setTerrainStatus("Gelände gespeichert, aber das Höhenfeld konnte nicht hochgeladen "
+						+ "werden: " + (fehler?.message || "unbekannter Fehler"), true);
+				}
+				return { hochgeladen: false, grund: fehler?.message || "Upload fehlgeschlagen." };
 			}
 		} catch (error) {
-			setTerrainStatus(error?.message || "Das Gelände konnte nicht gespeichert werden.", true);
+			if (generation === terrainSaveGeneration) {
+				setTerrainStatus(error?.message || "Das Gelände konnte nicht gespeichert werden.", true);
+			}
+			return { hochgeladen: false, grund: error?.message || "Speichern fehlgeschlagen." };
+		} finally {
+			terrainSaving = false;
 		}
 	}
 
@@ -2473,7 +2501,7 @@
 	async function submitEcosystemPropertiesDialog(event) {
 		event?.preventDefault();
 		const area = currentPropertiesArea();
-		if (propertiesBusy || !area) {
+		if (propertiesBusy || terrainSaving || !area) {
 			return;
 		}
 		// 🔴 KEIN eigener Geländeknopf mehr (Owner 2026-07-28): „ich will kein extra button ‚Gelände
@@ -2484,7 +2512,11 @@
 		// REGION -- scheitert das Gelände, sagt seine eigene Statuszeile das, und der Rest läuft weiter,
 		// statt eine halb gespeicherte Fläche zu hinterlassen.
 		if (TERRAIN_FIELDS.some((feld) => terrainTouched[feld.key])) {
+			const generation = terrainSaveGeneration + 1;
 			await saveTerrainSettings(false);
+			if (generation !== terrainSaveGeneration || currentPropertiesArea() !== area) {
+				return;
+			}
 		}
 
 		const name = String(propertiesElement("name")?.value || "").trim();
@@ -2671,7 +2703,7 @@
 
 	async function requestEcosystemRegionDelete() {
 		const area = currentPropertiesArea();
-		if (propertiesBusy || !area) {
+		if (propertiesBusy || terrainSaving || !area) {
 			return;
 		}
 		// Ohne belastbare Zahl wird nicht gefragt und nicht gelöscht -- siehe regionAreaCountLoaded.
@@ -2869,6 +2901,7 @@
 		// „Hoehenraster" im Landschaften-Editor; die zwei sind verschiedene Handlungen.
 		propertiesElement("terrain-ridge")?.addEventListener("click", () => void ermittleGebirgszug());
 		propertiesElement("terrain-build")?.addEventListener("click", () => void buildTerrainRaster());
+		propertiesElement("terrain-grayscale")?.addEventListener("click", toggleTerrainGrayscale);
 		// Haken umgelegt -> Feld sperren/freigeben, und beim Anhaken einen frischen Griff erzeugen.
 		// Artwechsel -> der Griff folgt der Art, aber nur solange der Haken steht.
 		propertiesElement("autoname")?.addEventListener("change", () => syncPropertiesAutoName({ regenerate: true }));

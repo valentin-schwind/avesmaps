@@ -737,6 +737,16 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 	box-shadow: var(--focus-ring);
 }
 
+.ecosystem-properties-dialog__button--toggle[aria-pressed="true"] {
+	border-color: var(--color-accent-brown);
+	background: var(--color-button-soft-hover);
+	box-shadow: inset 0 0 0 1px var(--color-accent-brown);
+}
+
+.ecosystem-properties-dialog__button--toggle[aria-pressed="true"]:focus-visible {
+	box-shadow: inset 0 0 0 1px var(--color-accent-brown), var(--focus-ring);
+}
+
 /* The one main action of this dialog is filled; "Abbrechen" stays soft (§12 button hierarchy). */
 .ecosystem-region-dialog__button--primary,
 .ecosystem-properties-dialog__button--primary,

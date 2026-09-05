@@ -72,6 +72,15 @@ assert(substr_count($inhalt, "\n") === 4, 'vier Zeilen im Puffer, nicht zwei');
 // Eine leere Zeilenliste ist kein Fehlschlag -- sonst zahlte der Aufrufer grundlos eine Verbindung.
 assert(avesmapsApiMetricsSpoolAnhaengen([], '2026-09-04') === true, 'leere Liste = Erfolg');
 
+// Eine belegte Datei muss sofort in den Datenbank-Rückfall führen.
+$sperre = fopen(avesmapsApiMetricsSpoolDatei(), 'ab');
+assert(flock($sperre, LOCK_EX | LOCK_NB));
+$start = hrtime(true);
+assert(avesmapsApiMetricsSpoolAnhaengen($zeilen, '2026-09-04') === false);
+assert((hrtime(true) - $start) / 1e6 < 200, 'der Puffer wartet nicht auf eine belegte Sperre');
+fclose($sperre);
+assert(file_get_contents(avesmapsApiMetricsSpoolDatei()) === $inhalt, 'bei belegter Sperre bleibt der Puffer unverändert');
+
 // ===========================================================================
 // 2) Gruppieren zaehlt zusammen -- und der TAG bleibt am Satz
 // ===========================================================================

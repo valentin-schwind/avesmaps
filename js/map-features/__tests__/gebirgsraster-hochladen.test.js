@@ -47,14 +47,17 @@ function ladeRenderModul(schreibweg, extra) {
 	// Moduls ins Leere laufen, und der Export fehlt, ohne dass irgendetwas wirft.
 	const sandkasten = {
 		console: { warn() {}, log() {}, error() {} },
+		...require("./gebirgs-worker-hilfe.cjs")(),
 		document: {
+			currentScript: { src: require("node:path").resolve(__dirname, "../map-features-ecosystem-hydrologie.js") },
 			createElement: () => ({
 				getContext: () => null,
 				style: {},
 				classList: { add() {}, remove() {}, toggle() {} },
 			}),
 		},
-		setTimeout: () => 0,
+		setTimeout: (fn, delay) => delay === 300000 ? setTimeout(fn, delay) : 0,
+		clearTimeout,
 		requestAnimationFrame: () => 0,
 		performance: { now: () => 0 },
 		devicePixelRatio: 1,
@@ -81,7 +84,7 @@ function ladeRenderModul(schreibweg, extra) {
 		Infinity, NaN, Map, Set, Date,
 		Uint8Array, Uint8ClampedArray, Uint16Array, Float64Array, Float32Array, Int32Array,
 		// Die Karte, so weit der Uploader sie braucht.
-		pointInGeometry: (punkt, geometrie) => geometrie.pruefe(punkt[0], punkt[1]),
+
 		ecosystemHeightSeed: () => 4242,
 		// Die Gipfelweiche der Karte -- dieselbe Liste wie `ECOSYSTEM_PEAK_SUBTYPES`.
 		isEcosystemPeakSubtype: (art) => art === "berggipfel" || art === "vulkan",
@@ -97,6 +100,7 @@ function ladeRenderModul(schreibweg, extra) {
 	const kontext = vm.createContext(sandkasten);
 	// Die Kodierregel und der Trichter -- in derselben Reihenfolge wie in index.html.
 	for (const datei of [
+		"js/map-features/map-features-point-in-polygon.js",
 		"js/map-features/map-features-ecosystem-heightmap-raster.js",
 		"js/map-features/map-features-ecosystem-hydrologie.js",
 		"js/map-features/map-features-ecosystem-height-render.js",
@@ -108,7 +112,7 @@ function ladeRenderModul(schreibweg, extra) {
 	return { kontext, sandkasten, gerufen };
 }
 
-const GEOMETRIE = { pruefe: (x, y) => x >= 1 && x <= 19 && y >= 1 && y <= 19 };
+const GEOMETRIE = { type: "Polygon", coordinates: [[[1, 1], [19.01, 1], [19.01, 19.01], [1, 19.01], [1, 1]]] };
 const FLAECHE = {
 	public_id: "flaeche-1",
 	geometry_revision: 3,
@@ -120,6 +124,19 @@ const UMGEBUNG = {
 	labelData: [],
 	ecosystemGeometryArea: () => 100,
 };
+
+pruefe("Graustufen und Beleuchtung ändern keinen einzigen gespeicherten Höhenwert", async () => {
+	const { sandkasten, gerufen } = ladeRenderModul(() => Promise.resolve({ written: 1 }), UMGEBUNG);
+	sandkasten.map.getSize = () => ({ x: 0, y: 0 });
+	const modul = sandkasten.AvesmapsEcosystemHeightRender;
+	const area = { ...FLAECHE, terrain_avg_height: 2000, terrain_erosion: 1 };
+	await modul.hochladen(area);
+	modul.setGrayscale(true);
+	assert.strictEqual(modul.isGrayscale(), true);
+	await modul.hochladen(area);
+	assert.strictEqual(gerufen[0].rumpf.samples, gerufen[1].rumpf.samples);
+	assert.ok(Buffer.from(gerufen[0].rumpf.samples, "base64").some((byte) => byte > 0));
+});
 
 pruefe("der Upload laeuft durch und schickt ein vollstaendiges Raster", async () => {
 	const { sandkasten, gerufen } = ladeRenderModul(() => Promise.resolve({ written: 1 }), UMGEBUNG);

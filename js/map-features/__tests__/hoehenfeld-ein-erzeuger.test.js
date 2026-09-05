@@ -93,7 +93,7 @@ pruefe("der Flaechendialog-Weg rechnet mit dem V12-Trichter, nicht mit der Bergs
 	assert.ok(upload > 0, "der Uploader wurde nicht gefunden");
 	const bis = render.indexOf('"heightmap_put"', upload);
 	const rumpf = render.slice(upload, bis);
-	assert.ok(rumpf.includes("avesmapsGebirgsRasterBauen("),
+	assert.ok(rumpf.includes("await avesmapsGebirgsRasterImWorker("),
 		"der Uploader ruft den V12-Trichter nicht");
 	assert.ok(!rumpf.includes("rasterizeEcosystemHeightField"),
 		"der Uploader tastet die alte Höhenfunktion ab, statt das gerechnete Raster zu nehmen");

@@ -274,6 +274,14 @@ const AVESMAPS_ECOSYSTEM_MAX_POSITIONS = 20000;
 // departures from the plan's literal DDL.
 function avesmapsEcosystemEnsureTables(PDO $pdo): void
 {
+    require_once __DIR__ . '/ecosystem-schema-state.php';
+    avesmapsEcosystemSchemaEnsure($pdo, static function () use ($pdo): void {
+        avesmapsEcosystemMigrateTables($pdo);
+    });
+}
+
+function avesmapsEcosystemMigrateTables(PDO $pdo): void
+{
     // 💣 CREATE TABLE IF NOT EXISTS heals the FIRST case only. On a table that already exists it is a
     // no-op, so a column added later needs an information_schema-driven ALTER instead. That is why every
     // decision below is made NOW rather than "when we need it".
@@ -1105,6 +1113,9 @@ function avesmapsEcosystemEnsureTables(PDO $pdo): void
     // VOR einer Transaktion (siehe die Schreib-Handler weiter unten), nie darin.
     require_once __DIR__ . '/../routing/travel-values-migration.php';
     avesmapsTravelValuesMigrateOnce($pdo);
+    if (avesmapsAppSettingGetWithoutDdl($pdo, AVESMAPS_TRAVEL_VALUES_MIGRATION_KEY, '') !== '1') {
+        throw new RuntimeException('Die Landschaftsmigration konnte noch nicht abgeschlossen werden.');
+    }
 }
 
 // ---- 2026-07-30: `insel` moves from derographisch to topographie ------------------------------------
@@ -1255,11 +1266,17 @@ function avesmapsEcosystemSeedRegionTypes(PDO $pdo): void
 // ---- revision counter -------------------------------------------------------------------------------
 // Word for word after avesmapsNextMapRevision (api/_internal/map/features.php:2531) -- and pointedly NOT
 // that function. See the file header.
-function avesmapsNextEcosystemRevision(PDO $pdo): int
+function avesmapsNextEcosystemRevision(PDO $pdo, bool $mapPayloadChanged = true): int
 {
+    // Zeile 2 bewahrt den bisherigen Kartenstempel beim ersten Gelände-Schreibvorgang.
+    $pdo->exec(
+        'INSERT IGNORE INTO ecosystem_revision (id, revision)
+         SELECT 2, revision FROM ecosystem_revision WHERE id = 1'
+    );
+    $rows = $mapPayloadChanged ? '(1, 2), (2, 2)' : '(1, 2)';
     $pdo->exec(
         'INSERT INTO ecosystem_revision (id, revision)
-         VALUES (1, 2)
+         VALUES ' . $rows . '
          ON DUPLICATE KEY UPDATE revision = revision + 1'
     );
 
@@ -4815,7 +4832,7 @@ function avesmapsUpdateEcosystemAreaTerrain(PDO $pdo, array $payload, int $userI
 
     // 🔴 ecosystem_revision, NIE avesmapsNextMapRevision(): das Gelände einer Fläche ist eine
     // Ökosystem-Angelegenheit und entwertet nicht die Kartennutzlast jedes Besuchers (siehe Kopf).
-    $revision = avesmapsNextEcosystemRevision($pdo);
+    $revision = avesmapsNextEcosystemRevision($pdo, false);
 
     $lesenZurueck = $pdo->prepare(
         'SELECT terrain_grain, terrain_levels, terrain_avg_height, terrain_mean_height,

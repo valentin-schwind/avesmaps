@@ -36,6 +36,15 @@ $row = [
 ];
 $raster = avesmapsHeightmapDecode($row);
 
+$masked = $raster;
+$masked['geometry'] = ['type' => 'Polygon', 'coordinates' => [
+    [[10, 20], [10.5, 20], [10, 20.25], [10, 20]],
+]];
+assert(avesmapsHeightmapSampleOne($masked, 10.45, 20.2) === null,
+    'Ein Punkt im Rasterrechteck, aber außerhalb des Polygons, liefert keine Höhe.');
+assert(avesmapsHeightmapSampleOne($masked, 10.05, 20.05) !== null,
+    'Innerhalb des Polygons bleiben die numerischen Höhen erhalten.');
+
 // 🔴 THE BLOB STAYS A STRING. unpack('v*') would cost a measured 43 bytes per element -- 42 to 95 MB
 // at 78 areas against 5,25 MB of blob.
 assert(is_string($raster['samples']), 'the raster must stay a binary string, never a PHP array');
