@@ -126,6 +126,14 @@ function applyEcosystemAreaPayload(payload) {
 	// Wird nur gesetzt, wenn sich an einer für das Höhenfeld erheblichen Fläche wirklich etwas ändert --
 	// ein Neubau kostet live rund 306 ms, das darf nicht bei jedem Schwenk laufen.
 	let heightStackStale = false;
+	// 🔴 EIN Trichter für alle vier Anlässe (dazugekommen, ersetzt, entfernt, Geländewert geändert).
+	// Einzeln gesetzt wäre die Frage „betrifft das überhaupt das Bild?" vier Mal zu stellen, und beim
+	// nächsten Anlass vergessen -- dieselbe Bauart wie die Verkehrsmittel-Sperre im Routing.
+	const merkeHoehenbildVeraltet = (kandidat) => {
+		if (ecosystemAreaAffectsHeightField(kandidat) && ecosystemAreaBetrifftHoehenbild(kandidat)) {
+			heightStackStale = true;
+		}
+	};
 
 	areas.forEach((area) => {
 		const publicId = String(area?.public_id || "");
@@ -145,7 +153,7 @@ function applyEcosystemAreaPayload(payload) {
 				// billige Abzweigung neue Werte ins Flächenobjekt, während der Stapel mit den alten
 				// weiterrechnet: zwei Wahrheiten, und die sichtbare wäre die falsche.
 				if (ecosystemHeightRelevantChange(previous, area)) {
-					heightStackStale = true;
+					merkeHoehenbildVeraltet(area);
 				}
 				existingLayer._ecosystemArea = area;
 				if (typeof existingLayer.setTooltipContent === "function") {
@@ -163,9 +171,7 @@ function applyEcosystemAreaPayload(payload) {
 				}
 				return;
 			}
-			if (ecosystemAreaAffectsHeightField(previous)) {
-				heightStackStale = true;
-			}
+			merkeHoehenbildVeraltet(previous);
 			removeEcosystemAreaLayer(publicId);
 		}
 
@@ -175,9 +181,7 @@ function applyEcosystemAreaPayload(payload) {
 			return;
 		}
 		// 🔴 HIER kommt die Fläche NEU dazu -- genau der Fall, an dem die Ingrakuppen hingen.
-		if (ecosystemAreaAffectsHeightField(area)) {
-			heightStackStale = true;
-		}
+		merkeHoehenbildVeraltet(area);
 		ecosystemLayers.set(publicId, layer);
 		layer.addTo(map);
 		// Only now does the <path> element exist. A rebuilt area that was selected has to get its class
@@ -207,9 +211,7 @@ function applyEcosystemAreaPayload(payload) {
 	Array.from(ecosystemLayers.keys()).forEach((publicId) => {
 		if (!seenPublicIds.has(publicId)) {
 			// Vor dem Entfernen fragen -- danach ist das Flächenobjekt weg.
-			if (ecosystemAreaAffectsHeightField(ecosystemLayers.get(publicId)?._ecosystemArea)) {
-				heightStackStale = true;
-			}
+			merkeHoehenbildVeraltet(ecosystemLayers.get(publicId)?._ecosystemArea);
 			removeEcosystemAreaLayer(publicId);
 		}
 	});
@@ -359,6 +361,17 @@ function avesmapsKammlinieText(linie) {
 	return Array.isArray(linie) && linie.length > 0 ? JSON.stringify(linie) : "";
 }
 
+// Berührt diese Fläche das Höhenbild, das gerade auf der Karte steht?
+//
+// 🔴 IM ZWEIFEL JA. Fehlt die Frage (der Zeichner ist nicht geladen, eine ältere Fassung liegt im
+// Cache), bleibt es beim alten, grosszügigen Verhalten: lieber einmal zu viel gerechnet als ein Bild,
+// das eine Änderung nicht zeigt. Der teure Fall ist Rechenzeit, der billige wäre ein Falschbild.
+function ecosystemAreaBetrifftHoehenbild(area) {
+	const frage = typeof window !== "undefined" ? window.AvesmapsEcosystemHeightRender?.betrifftAnzeige : null;
+
+	return typeof frage !== "function" || frage(area) === true;
+}
+
 function ecosystemHeightRelevantChange(previous, next) {
 	if (ecosystemAreaAffectsHeightField(previous) !== ecosystemAreaAffectsHeightField(next)) {
 		return true;                          // z. B. Art von „gebirge" weg oder hin
@@ -403,5 +416,8 @@ function hookEcosystemViewportReload() {
 
 if (typeof module !== "undefined" && module.exports) {
 	// Nur die zwei reinen Entscheidungsfunktionen -- der Rest des Moduls hängt an Leaflet und der Karte.
-	module.exports = { ecosystemAreaAffectsHeightField, ecosystemHeightRelevantChange, avesmapsKammlinieText };
+	module.exports = {
+		ecosystemAreaAffectsHeightField, ecosystemHeightRelevantChange, avesmapsKammlinieText,
+		ecosystemAreaBetrifftHoehenbild,
+	};
 }

@@ -539,6 +539,25 @@
 
 	// Nur Polygone mit positiver Schnittfläche sind Nachbarn. Randkontakt und überlappende
 	// Rasterrechtecke reichen nicht; Löcher und MultiPolygone bleiben beim Schnitt erhalten.
+	//
+	// 🔴 EINE Rechnung, zwei Leser: `nachbarnVon` (wer wird mitgezeichnet) und `betrifftAnzeige`
+	// (muss das Bild neu gerechnet werden). Wer die zweite Frage eigenständig beantwortet, hat zwei
+	// Begriffe von „gehört dazu" -- und sie laufen beim ersten Sonderfall auseinander.
+	function ueberlappen(geometry, eigen, kandidat) {
+		const b = kandidat?.bounds;
+		const g = geometrieVon(kandidat);
+		if (!b || !g || b.min_x >= eigen.max_x || b.max_x <= eigen.min_x
+			|| b.min_y >= eigen.max_y || b.max_y <= eigen.min_y) { return false; }
+		// Rechtecke sind nur ein Vorfilter. Erst eine echte Schnittfläche verbindet Gebirge.
+		let cache = nachbarSchnittCache.get(geometry);
+		if (!cache) { cache = new WeakMap(); nachbarSchnittCache.set(geometry, cache); }
+		if (!cache.has(g)) {
+			cache.set(g, window.polygonClipping.intersection(geometry.coordinates, g.coordinates).length > 0);
+		}
+
+		return cache.get(g) === true;
+	}
+
 	function nachbarnVon(area) {
 		const eigen = area?.bounds;
 		const geometry = geometrieVon(area);
@@ -547,19 +566,37 @@
 		const nachbarn = [];
 		for (const kandidat of topographyAreas()) {
 			if (String(kandidat?.public_id || "") === meine) { continue; }
-			const b = kandidat?.bounds;
-			const g = geometrieVon(kandidat);
-			if (!b || !g || b.min_x >= eigen.max_x || b.max_x <= eigen.min_x
-				|| b.min_y >= eigen.max_y || b.max_y <= eigen.min_y) { continue; }
-			// Rechtecke sind nur ein Vorfilter. Erst eine echte Schnittfläche verbindet Gebirge.
-			let cache = nachbarSchnittCache.get(geometry);
-			if (!cache) { cache = new WeakMap(); nachbarSchnittCache.set(geometry, cache); }
-			if (!cache.has(g)) {
-				cache.set(g, window.polygonClipping.intersection(geometry.coordinates, g.coordinates).length > 0);
+			if (ueberlappen(geometry, eigen, kandidat)) {
+				nachbarn.push({ area: kandidat, geometry: geometrieVon(kandidat) });
 			}
-			if (cache.get(g)) { nachbarn.push({ area: kandidat, geometry: g }); }
 		}
+
 		return nachbarn;
+	}
+
+	// Berührt diese Fläche das Bild, das GERADE gezeigt wird?
+	//
+	// 🔴 Der Loader fragt danach, bevor er ein Nachladen als „Höhenfeld veraltet" meldet (Owner
+	// 05.09.2026). Vorher genügte ihm, dass überhaupt irgendein Gebirge in den Ausschnitt kam oder
+	// ihn verliess -- unter V8 richtig, weil ein globaler Stapel ALLE Gebirge trug, seit V12 aber
+	// bedeutungslos: das Bild trägt die angeklickte Fläche und ihre echten Überlappungen, sonst
+	// nichts. Ein Gebirge zweihundert Einheiten weiter kostete so einen Erosionslauf für nichts.
+	//
+	// 💣 GEFRAGT WIRD MIT DEM FLÄCHENOBJEKT, nicht mit einer public_id. Die neu dazugekommene Fläche
+	// steht zum Zeitpunkt der Frage noch nicht in `ecosystemLayers`, und die entfernte steht schon
+	// nicht mehr darin -- eine Frage über die Registry wäre genau in den zwei Fällen blind, um
+	// derentwillen es sie gibt.
+	// ⚠️ Ohne angezeigtes Gebirge ist die Antwort NEIN: dann wird gar nichts gemalt, und es gibt
+	// nichts, das veralten könnte.
+	function betrifftAnzeige(kandidat) {
+		if (!aktiveFlaeche || !kandidat) { return false; }
+		if (String(kandidat.public_id || "") === String(aktiveFlaeche)) { return true; }
+		const area = flaecheMitId(aktiveFlaeche);
+		const eigen = area?.bounds;
+		const geometry = geometrieVon(area);
+		if (!eigen || !geometry || !window.polygonClipping) { return false; }
+
+		return ueberlappen(geometry, eigen, kandidat);
 	}
 
 	function gebirgsEingabeFuer(area, deckel) {
@@ -1021,6 +1058,8 @@
 		setSolid: setHeightCanvasSolid,
 		lastPaintMs: () => lastPaintMs,
 		stack: () => heightStack,
+		// Gehört diese Fläche zu dem, was gerade gemalt ist? Der Loader fragt vor dem Nachladen.
+		betrifftAnzeige,
 		// Fall #79: der Weisspunkt des letzten Anstrichs, und wer davon erfahren will.
 		whitePoint: () => lastWhitePoint,
 		// 🔴 DIE DURCHSCHNITTSHOEHE DES GERECHNETEN FELDES (Owner 04.09.2026: „einfach die

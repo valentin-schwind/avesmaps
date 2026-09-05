@@ -4,8 +4,13 @@ const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
 const source = fs.readFileSync(path.join(__dirname, "../map-features-ecosystem-height-render.js"), "utf8").replace(/\r\n/g, "\n");
-const start = source.indexOf("\tfunction nachbarnVon(area)");
-const funktion = source.slice(start, source.indexOf("\n\t}", start) + 3);
+// 🔴 Seit dem 05.09.2026 sind es ZWEI Funktionen: `ueberlappen` traegt die Rechnung,
+// `nachbarnVon` und `betrifftAnzeige` sind ihre zwei Leser. Ausgeschnitten wird deshalb der ganze
+// Block -- ein Schnitt allein um `nachbarnVon` laeuft in einen ReferenceError, und der saehe wie
+// ein Sachfehler aus.
+const start = source.indexOf("\tfunction ueberlappen(geometry, eigen, kandidat)");
+const nachbarStart = source.indexOf("\tfunction nachbarnVon(area)", start);
+const funktion = source.slice(start, source.indexOf("\n\t}", nachbarStart) + 3);
 const polygon = (coordinates) => ({ type: "Polygon", coordinates });
 const a = { public_id: "a", bounds: { min_x: 0, min_y: 0, max_x: 10, max_y: 10 },
 	geometry: polygon([[[0, 0], [10, 0], [0, 10], [0, 0]]]) };
