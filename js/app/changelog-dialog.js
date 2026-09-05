@@ -32,6 +32,72 @@ var AVESMAPS_CHANGELOG_CATEGORY_LABELS = {
 	community: "Community",
 };
 
+// Zerlegt einen Eintragstext in Text- und Link-Stuecke: [{ art: "text", wert }] bzw.
+// [{ art: "link", wert, adresse }]. Rein -- kein DOM, kein Modulzustand, kein `document`.
+//
+// 🔴 SIE GIBT ES, WEIL DIESE DATEI NICHT MIT innerHTML BAUEN DARF (siehe Dateikopf): die
+//    Eintraege sind Datenbankinhalt. Der Renderer haengt aus den Stuecken Textknoten und <a>
+//    ans DOM, und damit kann ein Eintragstext nie zur Skriptquelle werden.
+// 🔴 Erkannt wird AUSSCHLIESSLICH http:// und https://. Das ist zugleich der Riegel gegen
+//    `javascript:` und der Grund, warum ein nacktes „www.example.de" nicht verlinkt wird: ob
+//    eine Zeichenkette mit Punkt eine Adresse ist, kann man nur raten -- und ein geratener Link
+//    im Fliesstext ist schlimmer als gar keiner.
+// 💣 DAS NACHLAUFENDE SATZZEICHEN GEHOERT DEM SATZ. Der Eintrag vom 04.09.2026 endet auf
+//    „…watch?v=gBJn-d_B3w4." -- wer den Punkt mitnimmt, baut einen Link auf eine Videokennung,
+//    die es nicht gibt. Es faellt niemandem auf: der Link sieht richtig aus, YouTube antwortet
+//    mit seiner eigenen Fehlerseite, und niemand sucht die Ursache im Changelog.
+// ⚠️ Bei der Klammer wird GEZAEHLT, nicht abgeschnitten: Wikipedia-Adressen tragen Klammern im
+//    Pfad (`…/Aventurien_(Welt)`). Wer stumpf jede schliessende Klammer wegnimmt, zerlegt genau
+//    die Adressen, die eine brauchen; wer keine wegnimmt, schluckt die Klammer eines
+//    eingeklammerten Satzes.
+function avesmapsChangelogTextSegmente(roh) {
+	var text = roh == null ? "" : String(roh);
+	var stuecke = [];
+	if (!text) return stuecke;
+
+	var NACHLAUF = ".,;:!?\u2026\"'\u00bb\u00ab\u201c\u201e\u2019\u201a";
+	var zaehle = function (s, z) {
+		var n = 0;
+		for (var i = 0; i < s.length; i++) { if (s.charAt(i) === z) n++; }
+		return n;
+	};
+	var schneide = function (adresse) {
+		var a = adresse;
+		while (a.length) {
+			var letztes = a.charAt(a.length - 1);
+			if (NACHLAUF.indexOf(letztes) > -1) { a = a.slice(0, -1); continue; }
+			if (letztes === ")" && zaehle(a, "(") < zaehle(a, ")")) { a = a.slice(0, -1); continue; }
+			if (letztes === "]" && zaehle(a, "[") < zaehle(a, "]")) { a = a.slice(0, -1); continue; }
+			break;
+		}
+		return a;
+	};
+	var schiebeText = function (wert) {
+		if (!wert) return;
+		var letztes = stuecke[stuecke.length - 1];
+		// Zwei Textstuecke hintereinander werden EINES -- sonst haengt der Renderer zwei
+		// Textknoten nebeneinander, und ein Test auf die Stueckzahl misst etwas anderes als das
+		// sichtbare Ergebnis.
+		if (letztes && letztes.art === "text") { letztes.wert += wert; return; }
+		stuecke.push({ art: "text", wert: wert });
+	};
+
+	var muster = /https?:\/\/[^\s]+/gi;
+	var gelesen = 0;
+	var treffer;
+	while ((treffer = muster.exec(text)) !== null) {
+		var roher = treffer[0];
+		var adresse = schneide(roher);
+		// Nach dem Schnitt muss hinter dem Schema noch etwas stehen -- „https://." ist keine Adresse.
+		if (!/^https?:\/\/[^\/].*/i.test(adresse)) { continue; }
+		schiebeText(text.slice(gelesen, treffer.index));
+		stuecke.push({ art: "link", wert: adresse, adresse: adresse });
+		gelesen = treffer.index + adresse.length;
+	}
+	schiebeText(text.slice(gelesen));
+	return stuecke;
+}
+
 (function () {
 	// ZWEI Öffner: die Kachel „Was ist neu?" in den Hinweisen und der Knopf „Neuigkeiten" unten
 	// rechts an der Karte. Wohin der Fokus beim Schliessen zurückkehrt, entscheidet nicht die Liste,
@@ -153,7 +219,24 @@ var AVESMAPS_CHANGELOG_CATEGORY_LABELS = {
 			if (entry.body) {
 				var text = document.createElement("p");
 				text.className = "changelog-entry__text";
-				text.textContent = String(entry.body);
+				// 🔴 Die Adressen im Text werden echte Links -- per DOM, nie per innerHTML
+				//    (Dateikopf). Extern heisst hier: IMMER, denn erkannt wird nur http/https auf
+				//    einen fremden Wirt; deshalb traegt jeder gebaute Link target=_blank und damit
+				//    das ↗ aus dem Blatt.
+				// 💣 rel="noopener noreferrer" ist Pflicht neben target=_blank: ohne noopener
+				//    bekommt die fremde Seite ueber window.opener einen Griff auf unseren Tab.
+				avesmapsChangelogTextSegmente(String(entry.body)).forEach(function (stueck) {
+					if (stueck.art === "link") {
+						var verweis = document.createElement("a");
+						verweis.href = stueck.adresse;
+						verweis.textContent = stueck.wert;
+						verweis.target = "_blank";
+						verweis.rel = "noopener noreferrer";
+						text.appendChild(verweis);
+						return;
+					}
+					text.appendChild(document.createTextNode(stueck.wert));
+				});
 				body.appendChild(text);
 			}
 

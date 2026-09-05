@@ -196,11 +196,24 @@
 	line-height: 1.5;
 }
 
-.changelog-dialog__foot a {
+/* ---- Links: EINE Regel fuer Fusszeile und Eintragstext ---------------------------------------
+   🔴 AGENTS.md §12: Links lesen --color-link (goldbraun, nie blau), und ein Verweis nach
+      ausserhalb bekommt ein nachlaufendes ↗. Beide Flaechen stehen in DERSELBEN Selektorliste --
+      abgeschriebene Werte waeren genau die Divergenz, vor der §12 warnt.
+   🚩 Bis zum 05.09.2026 galt die Regel nur der Fusszeile, und dort gibt es gar keinen Link (sie
+      nennt Discord im Fliesstext). Sie lief also seit Monaten ins Leere, waehrend die drei
+      Eintraege mit einer Adresse sie als KLARTEXT zeigten -- gemeldet vom Owner.
+   ⚠️ overflow-wrap: anywhere ist kein Zierrat: die laengste Adresse im Bestand misst 88 Zeichen
+      und passt in keine Zeile dieses Fensters. Ohne die Zeile schiebt sie die Spalte auf oder
+      haengt dem Rumpf eine waagerechte Bildlaufleiste an. */
+.changelog-dialog__foot a,
+.changelog-entry__text a {
 	color: var(--color-link);
+	overflow-wrap: anywhere;
 }
 
-.changelog-dialog__foot a[target="_blank"]::after {
+.changelog-dialog__foot a[target="_blank"]::after,
+.changelog-entry__text a[target="_blank"]::after {
 	content: " ↗";
 }
 
