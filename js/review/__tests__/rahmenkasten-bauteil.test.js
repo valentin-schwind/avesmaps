@@ -279,8 +279,21 @@ const ohneKommentare = (css) => css.replace(/\/\*[\s\S]*?\*\//g, "");
 	const hellung = regeln.filter((r) => /planner-group--collapsed/.test(r.sel)
 		&& /background:\s*var\(--color-hover-wash\)/.test(r.rumpf));
 	assert.strictEqual(hellung.length, 1, "eine Regel hellt die zugeklappte Leiste");
-	assert.ok(/\.planner-group__head:hover/.test(hellung[0].sel),
-		"und zwar am Kopf selbst, nicht nur ueber den Woertern des Schalters: " + hellung[0].sel);
+	// 🔴 AN DER GRUPPE, NICHT AM KOPF (05.09.2026, Owner: „immer noch der spalt zwischen rahmen und
+	//    mouseover farbe"). Der Kopf traegt `margin-left: 3px` und eine eigene Rundung -- seine
+	//    Fuellung endet damit vor der Rahmenlinie. Die Gruppe hat `padding: 0` und fuellt bis
+	//    darunter. Ein `:hover` am Kopf kann diesen Spalt bauartbedingt nicht schliessen.
+	assert.ok(!/\.planner-group__head:hover/.test(hellung[0].sel),
+		"die Hellung liegt an der GRUPPE, nicht am Kopf -- am Kopf bleibt ein Spalt zum Rahmen: "
+		+ hellung[0].sel);
+	// 💣 UND DIE KENNUNG MUSS MIT, zum VIERTEN Mal in dieser Datei: die Fuellung der zugeklappten
+	//    Leiste spricht `#transport-options` an (1,1,0) und schlaegt JEDE reine Klassenregel. Ohne
+	//    sie hellt sich nur die Gruppe ohne Kennung, und zwei gleich aussehende Kaesten fuehlen sich
+	//    verschieden an. Gefunden hat das ein Pruefagent, kein Test -- deshalb steht er jetzt hier.
+	assert.ok(/#transport-options\.planner-group--collapsed:hover/.test(hellung[0].sel),
+		"…und mit der Kennung, sonst verliert sie gegen die Fuellung derselben Gruppe: " + hellung[0].sel);
+	assert.ok(/\.route-planner-options-panel\.planner-group--collapsed:hover/.test(hellung[0].sel),
+		"…und die zweite Gruppe steht ebenso im Selektor: " + hellung[0].sel);
 }
 
 // ---- 12. Der Rhythmus des Panels gehoert #search, nicht dem Bauteil --------------------------

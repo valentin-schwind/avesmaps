@@ -978,6 +978,17 @@ hex values across 38 CSS files).
   (Owner 05.09.2026). Ein eigener `margin-top: var(--space-2)` gleicht das aus. **Unterschied zum
   verbotenen Sockel: ein Sockel macht gleiche Abstände ungleich, diese Korrektur macht ungleich
   AUSSEHENDE gleich** — und sie gehört an JEDE Stelle, die den Rand dieses Kastens setzt (hier zwei).
+  💣 **UND SEIN `flex: 1 1 100%` IST IN EINER FLEX-SPALTE EINE FALLE — sie hat den Routenplaner am
+  Telefon einen Tag lang zerlegt.** Die Zeile ist für eine flex-ZEILE gedacht (volle Breite); in
+  einer SPALTE misst `flex-basis: 100%` die **Höhe** und `flex-grow: 1` frisst jeden freien Platz.
+  Hat die Spalte eine definite Höhe — am Telefon hängt `#search` zwischen `top` und `bottom`,
+  gemessen 840px —, wachsen die Kästen auf ein Vielfaches: **291px statt 133,6px**, der Kopf
+  **96,2px statt 17,5px**, eine zugeklappte Leiste ein 380px hoher gefüllter Kasten. 🔴 **Am Zeiger
+  unsichtbar**, weil die Spalte dort keine definite Höhe hat und es nichts zu verteilen gibt — der
+  Fehler stand vom 04.09. bis 05.09.2026 live, und kein Test und kein Blick am Desktop konnte ihn
+  sehen. Wer den Kasten in eine Flex-Spalte hängt, setzt dort `flex: 0 0 auto`. ⭐ Und die Lehre
+  darüber: **eine Layoutzeile, die „volle Breite" meint, muss die Achse ihres Wirts kennen** —
+  `flex`/`grid` haben keine Richtung, bis jemand eine gibt.
   💣 **EIN Layoutmodus für beide Zustände, und EIN Mittel für den Abstand** (die Ränder der
   Kinder, nie zusätzlich ein `gap`): gekürzt wird am KOPF per `text-overflow`, der Lauf bleibt
   `inline`. Der Wechsel auf `inline-flex` beim Zuklappen ließ das ⓘ 5px seitlich springen (gap

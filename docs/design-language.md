@@ -554,6 +554,15 @@ vorher seine **Mitleser**: die gestrichelte Verbindungslinie der Wegpunkte über
 Lücke (`bottom: calc(-1 * var(--space-6) - 50% + 9px)`) und endet sonst vor dem nächsten Punkt.
 Gewacht von `js/app/__tests__/routenplaner-takt.test.js`.
 
+💣 **`flex: 1 1 100%` am Kasten ist in einer flex-SPALTE eine Falle.** Die Zeile meint „volle
+Breite" und gilt einer flex-*Zeile*; in einer Spalte misst `flex-basis: 100%` die **Höhe** und
+`flex-grow: 1` frisst jeden freien Platz. Hat die Spalte eine definite Höhe (am Telefon hängt
+`#search` zwischen `top` und `bottom`, gemessen 840px), wachsen die Kästen auf ein Vielfaches:
+**291 statt 133,6px**, der Kopf **96,2 statt 17,5px**, eine zugeklappte Leiste ein 380px hoher
+gefüllter Kasten. 🔴 Am Zeiger **unsichtbar** — dort hat die Spalte keine definite Höhe. Der Fehler
+stand einen Tag live, ohne dass ein Test oder ein Desktop-Blick ihn sehen konnte. Wer den Kasten in
+eine Flex-Spalte hängt, setzt dort `flex: 0 0 auto` (`.planner-group.avm-rahmen`).
+
 ⚠️ **Die eine Ausnahme heißt ÜBERSTAND, und sie ist messbar von einem Sockel zu unterscheiden.**
 Ein Kasten, dessen Aufschrift auf der Rahmenlinie sitzt, ragt über seine eigene Oberkante hinaus
 (gemessen **6,92px**): vom 8px-Takt bleiben zwischen dem Element darüber und den Buchstaben

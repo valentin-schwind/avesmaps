@@ -49,27 +49,29 @@
 	--letter-spacing-caps: 0.08em;
 	/* Schriftgroesse der EINGABEFELDER -- getrennt von der Lese-Skala oben, weil sie am Finger
 	   auf die iOS-Schwelle springt (siehe den (pointer: coarse)-Block unter diesem :root).
+	   🔴 Owner 05.09.2026 („dropdown auf 13 und die eingabefelder auch"): --font-size-body (13px),
+	   vorher --font-size-small (12px). Der Sprung am Finger auf 16px bleibt unberuehrt.
 	   ⚠️ Gilt den FELDERN, nicht ihren Beschriftungen: die Felder haben feste Hoehen, die Schrift
 	   waechst dort nach innen. Beschriftungszeilen mitzuheben machte das Panel hoeher -- und dessen
 	   Hoehenbudget ist eine eigene, groessere Frage. */
-	--font-size-control: var(--font-size-small);
-	/* Schriftgroesse der DROPDOWNS -- ein EIGENER Token, der nur zufaellig denselben Wert hat wie
-	   --font-size-control.
-	   🔴 Owner 11.08.2026 "alle auf 14px" (die Dropdowns waren untereinander verschieden gross),
-	   Owner 05.09.2026 "--font-size-dropdown auf 12px": jetzt so gross wie die Beschriftungen,
-	   Radios und Zahlenfelder daneben -- im Routenplaner standen sonst vier Groessen in einer
-	   Spalte (11 / 12 / 13,33 / 14).
+	--font-size-control: var(--font-size-body);
+	/* Schriftgroesse der DROPDOWNS -- ein EIGENER Token, der am Zeiger denselben Wert hat wie
+	   --font-size-control und am Finger NICHT.
+	   🔴 Owner 11.08.2026 „alle auf 14px" (die Dropdowns waren untereinander verschieden gross);
+	   Owner 05.09.2026 erst „auf 12px", nach dem Blick aufs Telefon dann „dropdown auf 13 und die
+	   eingabefelder auch". Damit lesen Dropdowns und Eingabefelder am Zeiger dieselben 13px, und
+	   im Routenplaner steht nur noch EINE Groesse neben der 11px-Aufschrift.
 	   💣 GETRENNT BLEIBEN MUSS ER TROTZDEM, und das ist der ganze Grund seiner Existenz:
 	   --font-size-control traegt die iOS-SCHWELLE und springt am Finger auf 16px (der
 	   (pointer: coarse)-Block unter diesem :root) -- unter 16 zoomt Safari beim Fokus in ein
 	   Eingabefeld und kehrt nicht zurueck. Wer hier `var(--font-size-control)` schreibt, zieht
 	   jede Combobox am Telefon auf 16px mit; wer umgekehrt die Felder auf diesen Token setzt,
 	   holt den Zoom zurueck. Zwei Token, zwei Gruende, gleicher Wert am Zeiger.
-	   ⚠️ AM TELEFON stehen damit Dropdowns auf 12px neben Eingabefeldern auf 16px. Das ist die
-	   Folge des Entscheids und keine Nachlaessigkeit; soll der Finger groessere Dropdowns
-	   bekommen, gehoert dieser Token in den (pointer: coarse)-Block -- dann aber mit einem
-	   eigenen Wert, nicht durch Zusammenlegen. */
-	--font-size-dropdown: var(--font-size-small);
+	   ⚠️ AM TELEFON stehen damit 13px-Dropdowns neben 16px-Eingabefeldern. Das ist die Folge des
+	   Entscheids und keine Nachlaessigkeit; soll der Finger groessere Dropdowns bekommen, gehoert
+	   dieser Token in den (pointer: coarse)-Block -- dann aber mit einem eigenen Wert, nicht durch
+	   Zusammenlegen. */
+	--font-size-dropdown: var(--font-size-body);
 
 	/* Der Pfeil unserer Auswahlfelder. 💣 Als Token, weil ihn ZWEI Stellen brauchen (Meldedialog
 	   und Routenplaner) und ein zweiter Data-URI genau die Divergenz waere, vor der §12 warnt --

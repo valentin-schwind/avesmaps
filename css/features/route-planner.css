@@ -118,6 +118,11 @@
 	color: var(--color-button-text);
 	cursor: pointer;
 	font: inherit;
+	/* NACH `font: inherit` -- die Kurzform setzt font-size mit und ueberschriebe diese Zeile sonst
+	   (dieselbe Reihenfolgefalle wie bei den Zahlenfeldern weiter oben).
+	   🔴 Ohne sie erbt der Knopf die 13,3333px aus `body { font-size: 10pt }` -- ein Wert auf
+	   KEINER Skala des Hauses, und seit dem 05.09.2026 der einzige im Panel, der nicht 13 ist. */
+	font-size: var(--font-size-control);
 	box-shadow: 0 3px 8px rgba(52, 41, 32, 0.16);
 	transition: background 0.12s ease, transform 0.12s ease, box-shadow 0.12s ease;
 }
@@ -363,13 +368,27 @@
 /* ⚠️ NUR ZUGEKLAPPT. Aufgeklappt ist der Kopf eine Aufschrift auf der Rahmenlinie, kein Knopf --
    ein durchlaufender Hellungsstreifen quer durch die Linie sieht dort aus wie ein Fehler. Die
    Rueckmeldung uebernimmt dann der Titel selbst (er wird heller). */
-/* 💣 `:hover` AM KOPF SELBST, nicht `:has(.planner-group__toggle:hover)`. Anklickbar ist die ganze
-   Leiste (der Zuhoerer haengt am Kopf) -- hell wurde sie aber nur ueber den Woertern des Schalters,
-   also nicht ueber der Zusammenfassung und nicht rechts daneben. Hellung und Klickflaeche sind
-   dieselbe Flaeche, sonst sagt die Rueckmeldung etwas anderes als der Klick tut.
-   Der Fokusring bleibt an `:has(…:focus-visible)`: den bekommt nur der Schalter. */
-.planner-group--collapsed .planner-group__head:hover,
-.planner-group--collapsed .planner-group__head:has(.planner-group__toggle:focus-visible) {
+/* 💣 DIE HELLUNG LIEGT AUF DER GRUPPE, NICHT AUF DEM KOPF -- sonst bleibt ein SPALT zum Rahmen.
+   Der Kopf traegt `margin-left: 3px` (die x-Lage der Aufschrift) und eine eigene Rundung; seine
+   Fuellung endet damit 3px vor der linken Rahmenlinie und in den Ecken frueher. Der Owner hat
+   genau das gemeldet („immer noch der spalt zwischen rahmen und mouseover farbe", 05.09.2026).
+   Die Gruppe hat `padding: 0` und IHRE Fuellung reicht bis unter die Rahmenlinie.
+   🔴 Anklickbar bleibt der Kopf (dort haengt der Zuhoerer) -- Hellung und Klickflaeche sind
+   trotzdem dieselbe Flaeche, denn der Kopf fuellt die zugeklappte Gruppe ganz aus.
+   ⚠️ `:hover` an der GRUPPE, nicht am Kopf: am Kopf griffe es nicht ueber dessen eigenen Rand
+   hinaus, und genau der ist der Spalt. Der Fokusring bleibt an `:has(…:focus-visible)` -- den
+   bekommt nur der Schalter. */
+/* 💣 UND DIE KENNUNG MUSS MIT IN DEN SELEKTOR -- zum VIERTEN Mal in dieser Datei, und
+   diesmal hat sie ein Pruefagent gefunden, nicht der Autor. Die Fuellung der zugeklappten
+   Leiste spricht `#transport-options` an (1,1,0) und schlaegt damit JEDE reine Klassenregel --
+   egal wie viele Klassen sie traegt, egal wer spaeter im Blatt steht. Ohne die Kennung hellt
+   sich beim Ueberfahren nur die Gruppe OHNE Kennung (Reiseoptionen, 0,1,0 gegen 0,3,0); die
+   Transportmittel bleiben stumm. Zwei Kaesten, die gleich aussehen und sich verschieden
+   anfuehlen -- und im Standbild ist der Unterschied unsichtbar. */
+#transport-options.planner-group--collapsed:hover,
+#transport-options.planner-group--collapsed:has(.planner-group__toggle:focus-visible),
+.route-planner-options-panel.planner-group--collapsed:hover,
+.route-planner-options-panel.planner-group--collapsed:has(.planner-group__toggle:focus-visible) {
 	background: var(--color-hover-wash);
 }
 
@@ -566,6 +585,21 @@
    -- genau der Fall, den der Owner am 05.09.2026 gemeldet hat. */
 .planner-group.avm-rahmen + .planner-group.avm-rahmen {
 	margin-top: var(--space-2);
+}
+
+/* 💣 UND DIE ZEILE, DIE DAS PANEL AM TELEFON ZERLEGT HAT: `.avm-rahmen` traegt `flex: 1 1 100%`.
+   Das ist fuer eine Flex-ZEILE gemeint (die Eingabezeile des Quellen-Editors, wo der Kasten sonst
+   auf seine Inhaltsbreite schrumpft). #search ist aber eine Flex-SPALTE -- dort misst
+   `flex-basis: 100%` die HOEHE, und `flex-grow: 1` frisst jeden freien Platz.
+   🔴 Am Zeiger unsichtbar, weil #search dort keine feste Hoehe hat (Inhalt bestimmt sie, also gibt
+   es keinen freien Platz). AM TELEFON hat es eine (`top`/`bottom`-Anker, gemessen 840px), und dann
+   wachsen beide Gruppen: im iframe nachgestellt 291px statt 133,6px je Gruppe, der Kopf 96,2px
+   statt 17,5px -- die Aufschrift klebte oben, darunter ein leeres Feld, und die zugeklappte
+   „Reiseoptionen" war ein 380px hoher gefuellter Kasten (Owner-Bilder vom 05.09.2026, 08:14/08:16).
+   ⚠️ Der Kasten selbst bleibt unveraendert -- er hat recht fuer seinen Wirt. Wer ihn in eine
+   Flex-SPALTE haengt, nimmt ihm hier das Wachsen; die Warnung dazu steht am Bauteil. */
+.planner-group.avm-rahmen {
+	flex: 0 0 auto;
 }
 /* 💣 DIE FUELLUNG GILT NUR ZUGEKLAPPT. Aufgeklappt sitzt die Aufschrift AUF der Rahmenlinie,
    also oben ausserhalb und unten innerhalb -- mit Fuellung liegen dort zwei Farben, und die eine
@@ -1609,17 +1643,21 @@
 .route-plan-entry--chained:not(:has(~ .route-plan-entry--chained))::after {
 	content: none;
 }
-/* Das Wegpunktfeld am Finger.
-   💣 `input.waypoint-input`, nicht `.waypoint-input`: die Klassenregel weiter oben gewinnt nicht --
-   das Feld rendert 13,33px statt der dort stehenden 15px. Am 10.08.2026 gemessen, indem beide
-   Fassungen in die laufende Seite eingespritzt wurden: die Klasse allein bewegt nichts,
-   Element+Klasse setzt sich durch.
-   ⚠️ Und deshalb NUR am groben Zeiger: eine Regel, die auch am Zeiger gewinnt, verschoebe das Feld
-   dort von 13,33 auf 12px. Die alte 15px-Regel bleibt unangetastet. */
-@media (pointer: coarse) {
-	input.waypoint-input {
-		font-size: var(--font-size-control);
-	}
+/* Das Wegpunktfeld liest den Token -- an JEDEM Zeiger.
+   💣 `input.waypoint-input`, nicht `.waypoint-input`: die Klassenregel weiter oben gewinnt nicht.
+   Der Grund ist jQuery-UI: `.ui-widget input { font-size: 1em }` (0,1,1) schlaegt `.waypoint-input`
+   (0,1,0), und `#search` traegt `ui-widget` -- das Feld rendert deshalb die geerbten 13,33px aus
+   `body { font-size: 10pt }` statt der dort stehenden 15px. Am 10.08.2026 durch Einspritzen beider
+   Fassungen in die laufende Seite gemessen, am 05.09.2026 in der Kaskade nachgewiesen.
+   Element+Klasse (0,1,1) steht gleichauf mit jQuery-UI und gewinnt ueber die Ladereihenfolge.
+   🔴 Seit 05.09.2026 OHNE Media Query (Owner: „dropdown auf 13 und die eingabefelder auch"):
+   der Token traegt den Sprung selbst -- am Zeiger --font-size-body (13px), am Finger 16px aus dem
+   einen (pointer: coarse)-Block in tokens.css. Zwei Regeln mit demselben Wert waeren die
+   Divergenz, die dieses Blatt an anderer Stelle schon bezahlt hat.
+   ⚠️ Die alte 15px-Regel bleibt unangetastet -- sie gewinnt heute nicht, und sie zu aendern
+   verschoebe das Feld, falls die Kaskade dort einmal aufgeraeumt wird. */
+input.waypoint-input {
+	font-size: var(--font-size-control);
 }
 
 

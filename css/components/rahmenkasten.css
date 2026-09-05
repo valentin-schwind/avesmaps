@@ -39,7 +39,17 @@
 	   Bei echter Panelbreite (400px) gemessen: 439/379/379 gegen 373/373/373, eine Treppe
 	   statt einer Kante.
 	   ⚠️ In einem Block-Elternteil ist die Zeile wirkungslos — sie kostet dort nichts und
-	   verhindert, dass das Bauteil vom Ort abhängt, an dem es hängt. */
+	   verhindert, dass das Bauteil vom Ort abhängt, an dem es hängt.
+	   💣 IN EINER FLEX-SPALTE IST SIE EINE FALLE, und sie hat den Routenplaner am Telefon
+	   zerlegt: dort misst `flex-basis: 100%` die HOEHE und `flex-grow: 1` frisst jeden freien
+	   Platz. Hat die Spalte eine feste Hoehe -- am Telefon haengt #search zwischen `top` und
+	   `bottom`, gemessen 840px --, wachsen die Kaesten auf ein Vielfaches: 291px statt 133,6px,
+	   der Kopf 96,2px statt 17,5px, und eine zugeklappte Leiste wurde ein 380px hoher gefuellter
+	   Kasten (Owner-Bilder 05.09.2026). Am Zeiger unsichtbar, weil die Spalte dort keine feste
+	   Hoehe hat und es damit keinen freien Platz zu verteilen gibt.
+	   🔴 Wer den Kasten in eine Flex-SPALTE haengt, nimmt ihm dort das Wachsen:
+	   `flex: 0 0 auto` (so macht es `.planner-group.avm-rahmen` in
+	   css/features/route-planner.css). */
 	flex: 1 1 100%;
 	/* 💣 UND `min-width: 0` DAZU, sonst ist die Zeile darüber wirkungslos: ein Flex-Kind hat
 	   `min-width: auto` und weigert sich, unter seine INHALTSbreite zu schrumpfen. Das lange

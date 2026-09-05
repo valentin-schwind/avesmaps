@@ -62,12 +62,20 @@ assert.ok(feldRegel[1].indexOf("font: inherit") < feldRegel[1].indexOf("font-siz
 // `.waypoint-input { font-size: 16px }` bewegt NICHTS (das Feld bleibt bei 13,33px), erst
 // `input.waypoint-input` setzt sich durch. Ohne die hoehere Spezifitaet bliebe die Schwelle am
 // wichtigsten Feld des Planers wirkungslos, und zwar lautlos.
-const wegpunktRegel = planner.match(
-	/@media\s*\(pointer:\s*coarse\)\s*\{[^}]*input\.waypoint-input\s*\{([^}]*)\}/);
+// 🔴 SEIT 05.09.2026 OHNE MEDIA QUERY (Owner: „dropdown auf 13 und die eingabefelder auch"): der
+//    Token traegt den Sprung selbst -- am Zeiger --font-size-body, am Finger 16px aus dem einen
+//    coarse-Block. Zwei Regeln mit demselben Wert waeren die Divergenz, gegen die dieser Test
+//    sonst steht. Geprueft wird deshalb die SPEZIFITAET (`input.` muss dabei sein) und der Token,
+//    nicht mehr die Media Query.
+const wegpunktRegel = planner.match(/(?:^|\n)input\.waypoint-input\s*\{([^}]*)\}/);
 assert.ok(wegpunktRegel,
-	"route-planner.css traegt eine (pointer: coarse)-Regel fuer `input.waypoint-input`"
-	+ " -- mit blossem `.waypoint-input` bliebe die Schwelle dort wirkungslos (live gemessen)");
+	"route-planner.css traegt eine Regel fuer `input.waypoint-input` -- mit blossem"
+	+ " `.waypoint-input` bliebe sie wirkungslos: jQuery-UI setzt `.ui-widget input"
+	+ " { font-size: 1em }` (0,1,1), und #search traegt `ui-widget` (live gemessen 10.08./05.09.2026)");
 assert.ok(/var\(--font-size-control\)/.test(wegpunktRegel[1]), "und sie liest den Token");
+assert.ok(!/@media\s*\(pointer:\s*coarse\)\s*\{[^}]*input\.waypoint-input/.test(planner),
+	"…und NUR diese eine -- eine zweite, media-gebundene Regel mit demselben Wert waere die"
+	+ " Divergenz, die beim naechsten Taktwechsel auseinanderlaeuft");
 assert.ok(/\.waypoint-input\s*\{[^}]*font-size:\s*15px/.test(planner),
 	"die alte 15px-Regel bleibt unangetastet -- sie gewinnt heute ohnehin nicht, und sie zu aendern"
 	+ " koennte den Zeiger verschieben, falls die Kaskade dort einmal repariert wird");
@@ -419,6 +427,14 @@ assert.ok(dropdownDeklaration, "tokens.css definiert --font-size-dropdown");
 assert.ok(!/--font-size-control/.test(dropdownDeklaration[1]),
 	"und zwar OHNE --font-size-control zu lesen -- der traegt die iOS-Schwelle und springt am Finger"
 	+ " auf 16px, was jede Combobox mitnaehme: " + dropdownDeklaration[1].trim());
+// ⚠️ UND DIE GEGENRICHTUNG: der Feld-Token darf den Dropdown-Token ebenso wenig lesen.
+//    Heute waere das folgenlos (der coarse-Block setzt --font-size-control ohnehin auf 16px),
+//    aber es macht aus zwei Gruenden EINEN Wert -- und beim naechsten Dropdown-Entscheid folgten
+//    die Eingabefelder am Zeiger stillschweigend mit.
+const controlDeklaration = tokens.match(/--font-size-control:\s*([^;]+);/);
+assert.ok(controlDeklaration && !/--font-size-dropdown/.test(controlDeklaration[1]),
+	"--font-size-control liest NICHT --font-size-dropdown -- zwei Token, zwei Gruende: "
+	+ (controlDeklaration ? controlDeklaration[1].trim() : "keine Deklaration"));
 assert.ok(!/--font-size-dropdown/.test(coarse),
 	"…und der Finger-Block laesst ihn in Ruhe -- sonst waere die Trennung der zwei Token wirkungslos");
 [".transport-combobox", ".transport-combobox__label", ".transport-combobox__option span"]

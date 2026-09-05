@@ -124,5 +124,35 @@ const TAKT = "var(--space-6)";
 		"…und zwar mit DEMSELBEN Token, nicht mit 0: " + randZwei);
 }
 
+// ---- 6. Der Rahmenkasten WAECHST NICHT in der Flex-Spalte des Panels ------------------------
+// 💣 DER TEUERSTE FEHLER DIESES TAGES, und am Zeiger unsichtbar. `.avm-rahmen` traegt
+//    `flex: 1 1 100%` -- gemeint fuer eine Flex-ZEILE (die Eingabezeile des Quellen-Editors, wo der
+//    Kasten sonst auf seine Inhaltsbreite schrumpft). #search ist eine Flex-SPALTE: dort misst
+//    `flex-basis: 100%` die HOEHE und `flex-grow: 1` frisst jeden freien Platz.
+// 🔴 Am Zeiger hat #search keine feste Hoehe (der Inhalt bestimmt sie) -- es gibt keinen freien
+//    Platz, also passiert nichts. AM TELEFON haengt es zwischen `top` und `bottom` (gemessen
+//    840px), und dann wachsen beide Gruppen: 291px statt 133,6px, der Kopf 96,2px statt 17,5px,
+//    die zugeklappte „Reiseoptionen" ein 380px hoher gefuellter Kasten. Owner-Bilder 05.09.2026.
+// ⚠️ Das Bauteil bleibt unveraendert -- es hat recht fuer seinen Wirt. Geprueft wird, dass der
+//    Planer ihm das Wachsen NIMMT und dass die Zeile im Bauteil noch dasteht (sonst prueft dieser
+//    Abschnitt ab morgen nichts mehr).
+{
+	const rs = regeln(lies("css/features/route-planner.css"));
+	const opt = rs.filter((r) => /^\.planner-group\.avm-rahmen$/.test(r.sel) && /(^|;)\s*flex:/.test(r.rumpf));
+	assert.strictEqual(opt.length, 1,
+		"eine Regel nimmt den zwei Gruppen das Wachsen in der Flex-Spalte");
+	const wert = (opt[0].rumpf.match(/(?:^|;)\s*flex:\s*([^;]+)/) || [])[1].trim();
+	assert.strictEqual(wert, "0 0 auto",
+		"und zwar auf `0 0 auto` -- `flex-grow: 0` allein liesse `flex-basis: 100%` stehen, und das ist"
+		+ " in einer Spalte die volle HOEHE: " + wert);
+
+	const bauteil = regeln(lies("css/components/rahmenkasten.css"))
+		.filter((r) => /^\.avm-rahmen$/.test(r.sel));
+	assert.strictEqual(bauteil.length, 1, "das Bauteil hat genau eine Grundregel");
+	assert.ok(/flex:\s*1 1 100%/.test(bauteil[0].rumpf),
+		"…und die traegt weiterhin `flex: 1 1 100%` fuer ihren Zeilen-Wirt -- faellt sie, ist die"
+		+ " Ausnahme hier eine Regel gegen nichts");
+}
+
 console.log("OK -- ein Takt im Routenplaner, ein Token, die Punktlinie liest denselben, "
 	+ "und der Ueberstand der Aufschrift ist an beiden Stellen ausgeglichen.");
