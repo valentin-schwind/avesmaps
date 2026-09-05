@@ -888,15 +888,15 @@ window.AVESMAPS_I18N_EN = {
 	// The one-line hint under each section heading. Collapsed, the eight headings are the dialog's
 	// table of contents, and these lines are what makes it one — they say what is inside without
 	// opening it. Keep them short enough for a single line at 680 px.
-	"legal.hint.usage": "Keyboard shortcuts — and what slows the map down",
-	"legal.hint.project": "Fan project, not an official DSA publication",
-	"legal.hint.copyright": "Trademarks, map material, coats of arms, images, covers",
-	"legal.hint.content": "Path data, wiki reconciliation, community reports",
+	"legal.hint.usage": "Keyboard shortcuts, accessibility aids and what slows the map down",
+	"legal.hint.project": "Who is behind it — and what Avesmaps explicitly is not",
+	"legal.hint.copyright": "Ulisses trademarks, fan guidelines, coats of arms, images and covers",
+	"legal.hint.content": "Where places, paths and territories come from — and who checks them",
 	"legal.hint.maps": "The original map by Ina Kramer and the modern version made from it",
-	"legal.hint.tech": "Leaflet, jQuery, route finding",
-	"legal.hint.liability": "Content, links, availability",
-	"legal.hint.privacy": "Log data, no cookies, statistics, your rights",
-	"legal.hint.contact": "Operator, address, send a message",
+	"legal.hint.tech": "Open-source building blocks, our source code and how routing works",
+	"legal.hint.liability": "What we stand behind — and what we do not",
+	"legal.hint.privacy": "No cookies, no tracking — what the server sees anyway",
+	"legal.hint.contact": "Address under § 5 DDG and how to reach us",
 	"legal.liability.content.lead": "Liability for content.",
 	"legal.liability.content.body": "The content of this website is created with the greatest possible care. However, no guarantee is given for its accuracy, completeness or timeliness. To the extent permitted by law, no liability is accepted for damage arising from the use or non-use of the information provided. The operator is responsible for their own content under the general laws, but is not obliged to monitor transmitted or stored third-party information or to investigate circumstances that indicate unlawful activity.",
 	"legal.liability.links.lead": "Liability for links.",
@@ -1031,7 +1031,7 @@ window.AVESMAPS_I18N_EN = {
 	"legal.fanGuidelines.lead": "Fan guidelines and fan-project labeling.",
 	"legal.fanGuidelines.body": "Avesmaps identifies itself as a fan project. The use of the DSA-FANPROJEKT logo and the legal notices is done in the spirit of the fan guidelines published by Ulisses. Permission to use certain materials may be revoked or prohibited in individual cases by the rights holders. Upon a corresponding notice from rights holders, affected content will be reviewed and, where necessary, removed or adapted.",
 	"legal.routeData.lead": "Location, path and route data.",
-	"legal.routeData.body": "Location, crossing, path and route data has in part been derived from various publicly accessible fan and reference sources, editorially revised, supplemented and technically prepared for Avesmaps. Based on the sources known so far, parts of the underlying data are oriented on avespfade.de; Oliver Hackstein and Florian Mazur are named there as the source. According to avespfade.de, individual location positions were in part based on the DereGlobus project. Avesmaps makes no claim to completeness, canonicity or official validity of this data.",
+	"legal.routeData.body": "Location, crossing, path and route data has in part been derived from various publicly accessible fan and reference sources, editorially revised, supplemented and technically prepared for Avesmaps. Based on the sources known so far, parts of the underlying data are oriented on avespfade.de; Oliver Hackstein and Florian Mazur are named there as the source. According to avespfade.de, individual location positions were in part based on the DereGlobus project. Landscape areas, climate zones and the entries on nature and goods, by contrast, are created here for the most part: they are an editorial reading of the sources, not something taken from a template. Avesmaps makes no claim to completeness, canonicity or official validity of this data.",
 	"legal.communityReports.lead": "Community reports and ratings.",
 	// 💣 The sentence used to promise editorial review for reports AND ratings (finding A22). It was
 	// true for reports and false for ratings -- those appear at once. One word in the heading covered
@@ -1047,7 +1047,7 @@ window.AVESMAPS_I18N_EN = {
 	"legal.sourceCode.body": "The source code written for Avesmaps is open source and available on GitHub under the MIT license. That license covers the source code only — it does not cover the map tiles, the location, path, territory and geometry data, nor DSA-related texts, coats of arms, images or trademarks. For that content, the rights of the respective sources and the Ulisses fan guidelines continue to apply.",
 	"legal.sourceCode.link": "What the MIT license covers and what it does not",
 	"legal.routing.lead": "Pathfinding.",
-	"legal.routing.body": "Route planning uses Dijkstra's algorithm over a weighted path graph (nodes are places and crossings, edges the paths with length and travel time per transport mode) and runs either directly in the browser or on the server. Where there is no path — for the right-click command that travels to a point on the map, or for a destination away from the path network — an A* algorithm additionally searches a terrain grid of cells half a map unit across. Every step is priced by landscape and difference in height: forest, swamp and mountains slow you down, climbs cost time, and sea, lakes and rivers are impassable — they are crossed only where a drawn path crosses them. The cross-country leg that is found is then attached to the path graph as a single edge; the route itself is computed by Dijkstra again.",
+	"legal.routing.body": "Route planning uses Dijkstra's algorithm over a weighted path graph (nodes are places and crossings, edges the paths with length and travel time per transport mode) and runs either directly in the browser or on the server. Where there is no path — for the right-click command that travels to a point on the map, or for a destination away from the path network — an A* algorithm additionally searches a terrain grid of cells half a map unit across. Every step is priced by landscape and difference in height: forest, swamp and mountains slow you down, climbs cost time, and sea, lakes and rivers are impassable — they are crossed only where a drawn path crosses them. A brook is the exception: it can be forded, but at three times the time cost. The cross-country leg that is found is then attached to the path graph as a single edge; the route itself is computed by Dijkstra again.",
 	"legal.analytics.lead": "Visitor statistics and geolocation.",
 	"legal.analytics.body": "Avesmaps collects anonymous, strictly aggregated usage statistics (page views, features used, time on site, approximate origin) — without sharing with third parties. Unique daily visitors are estimated via a non-reversible, daily-rotating hash that is not stored permanently. The approximate origin (country/state) is derived server-side from the IP address; the IP address itself is not stored. The underlying IP geolocation database is provided by DB-IP.com under the Creative Commons CC BY 4.0 license.",
 	"legal.privacy.hosting.lead": "Server log data.",
