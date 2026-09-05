@@ -373,6 +373,14 @@ is the default, English is opt-in. Therefore:
   einfach. Wer mehrere Schritte hintereinander live schickt, **wartet den Lauf ab** oder prüft
   danach jede Datei einzeln gegen die Live-Seite. Geheilt wird auch hier nur durch eine
   Inhaltsänderung.
+  🔴 **Präzisiert 05.09.2026: abgebrochen wird der WARTENDE Lauf, nicht der laufende.** Der Workflow
+  trägt seit jeher `cancel-in-progress: false` — ein laufender Lauf ist geschützt; steht aber ein Lauf
+  als `pending` in der Warteschlange und ein weiterer Push kommt, ersetzt GitHub den wartenden und
+  verbucht ihn als `cancelled`, ohne dass er je gestartet ist. Die Folge ist dieselbe: seine Dateien
+  lädt nie jemand. Gemessen an `33931523075` — ein politik-Commit einer Nachbarsitzung, abgebrochen
+  durch den Push DIESER Sitzung, geheilt per Stempel wie `7160cdafb`. ⭐ Vor dem Push also
+  `gh run list --limit 3` lesen: ein `in_progress` UND ein `pending` heißen warten — und der Lauf einer
+  **anderen** Sitzung zählt genauso wie der eigene.
 - 💣 **Ein SQLite-Test kann eine MySQL-Regression ERZWINGEN.** Am 16.08.2026 baute eine Sitzung
   `DELETE g FROM political_territory_geometry g LEFT JOIN …` in
   `DELETE … WHERE id IN (SELECT g.id FROM political_territory_geometry g …)` um, damit die
@@ -421,7 +429,16 @@ is the default, English is opt-in. Therefore:
   nachgemessen in `avesmapsAcquireMapFeatureLock`. ⚠️ Gebunden sind nur die TAKT-Pfade (Sperr-Wecker,
   Meldungsliste, Aenderungsverlauf, politischer Endpunkt); die Schreibwege behalten den Roh-Ensure,
   sie laufen je Handlung. Test: `api/_internal/__tests__/schema-ensure-once-test.php`.
-  🔴 **Und der N+1 des Derived-Layers ist unberuehrt** — die Zeile darueber bleibt gueltig.
+  ✅ **Der N+1 des Derived-Layers ist seit dem 14.06.2026 (`1e4d5bc46`, M6) und dem 05.08.2026
+  (`17e5e5dee` + `354a4c35b`, A20) abgebaut** — hier stand bis zum 05.09.2026 „unberuehrt", geschrieben
+  am 03.09. ohne Blick in den Code. Stand, am Dump vom 04.09.2026 nachgezaehlt: der Territorien-
+  Schnappschuss wird EINMAL je Anfrage geholt, die Quell-IDs aller Huellen in ZWEI Abfragen aufgeloest;
+  nur der Wiki-Zweig des Sammlers fragt je Huelle noch zweimal nach (`avesmapsPoliticalFetchWikiById` +
+  Namensabgleich), und das trifft **11 von 131** Huellen (ohne parent_id-Kinder, mit wiki_id) — 22 kleine
+  indizierte Abfragen. 🔴 Die zwei Sekunden eines Cache-Miss liegen NICHT dort: die Loeschung der 5.263
+  toten Derived-Zeilen (159 → 2,6 MB) brachte 2.143 → 1.993 ms, Rauschen. Wer sie sucht, misst die drei
+  korrelierten Wappen-Unterabfragen je Layer-Zeile (`staging_coat`, `staging_coat_license`,
+  `coat_override_json`) und die PHP-seitige Geometrie- und JSON-Arbeit fuer ~870 KB Ausgabe.
   ✅ **Der Zoom-Teil ist seit 26.08.2026 erledigt** (Perf-Paket 1). Die Ebene wurde bei JEDEM
   Zoomschritt komplett neu geholt — der Zoom ist ein Anfrageparameter, und der Client erzwang
   `cache: "no-store"` plus `_=Date.now()`-Cachebrecher; die Antwort trug serverseitig GAR KEINE
