@@ -859,6 +859,22 @@ hex values across 38 CSS files).
   sich für ein Mockup wörtliche Werte definiert, liegt auf jeder Kante 2px daneben.
   🔴 **Die Hülle hat `padding: 0`**, jede Zone trägt ihr Polster selbst — dadurch läuft jeder
   Trenner ohne negative Außenränder von Kante zu Kante.
+  💣 **UND DAS SIND ZWEI HANDGRIFFE, NICHT EINER — der zweite ist am 04.09.2026 bei „Hinweise" und
+  „Neuigkeiten" ausgefallen.** Die Hülle verlor ihr `padding: 16px 18px`, die Zonen darunter
+  bekamen nichts, und der Text klebte an der Fensterkante (live gemessen 05.09.2026: Einleitung,
+  Liste und Fußzeile bei x=824, dem Rand des Fensters, während der Titel 14px Einzug hatte;
+  „Hinweise" ebenso, Impressum und Datenschutzerklärung eingeschlossen). ⚠️ **Kein Test sah es:**
+  die Zusicherungen des Umbaus prüfen Kopfzeile, Titel, Schließknopf, Radius und den
+  Rumpf-SCROLL — nach dem POLSTER hat keine gefragt. Gemeldet hat es der Owner. Wächter seither
+  `js/app/__tests__/fenster-zonen-polster.test.js`.
+  💣 **Und ein `position: sticky; top: 0` IM Rumpf bricht an genau diesem Polster.** Es klebt an
+  der CONTENT-Box, also um das Polster UNTER der Kante — und in diesem Streifen scrollt Inhalt
+  sichtbar durch (gemessen: das Monatsband der „Neuigkeiten" 8,0px unterhalb, darüber lief der
+  Eintragstext). Vorher gab es das nicht, weil der Rumpf kein Polster hatte. ⭐ Die Abhilfe ist ein
+  negatives `top` plus eine Abdeckung per Schlagschatten in `--color-panel`, **nie ein zweites
+  padding-top**: das änderte auch den UNgeklebten Abstand (gemessen 24 → 32px). 🔴 Die drei Werte
+  sind gekoppelt und lesen dieselbe Variable — getrennt geschrieben sind sie heute gleich und beim
+  nächsten Mal nicht, und der Fehler ist still: im Standbild sieht es richtig aus.
   🔴 **Der Trenner unter der Kopfleiste ist DURCHGEHEND und steht immer — der TITEL bekommt
   keinen.** 💣 Die Falle ist eine generische Elementregel, die ins Bauteil hineinreicht: der
   Titel ist ein `<h2>`, also legt ein `h2 { border-bottom }` aus dem Dokument eine zweite,
