@@ -554,6 +554,15 @@ vorher seine **Mitleser**: die gestrichelte Verbindungslinie der Wegpunkte über
 Lücke (`bottom: calc(-1 * var(--space-6) - 50% + 9px)`) und endet sonst vor dem nächsten Punkt.
 Gewacht von `js/app/__tests__/routenplaner-takt.test.js`.
 
+⚠️ **Die eine Ausnahme heißt ÜBERSTAND, und sie ist messbar von einem Sockel zu unterscheiden.**
+Ein Kasten, dessen Aufschrift auf der Rahmenlinie sitzt, ragt über seine eigene Oberkante hinaus
+(gemessen **6,92px**): vom 8px-Takt bleiben zwischen dem Element darüber und den Buchstaben
+**1,08px**, und der Kasten „stößt fast an" (Owner 05.09.2026). Ein kleiner eigener `margin-top`
+(`--space-2`) gleicht das aus. **Der Unterschied zum verbotenen Sockel: ein Sockel macht gleiche
+Abstände ungleich, diese Korrektur macht ungleich *aussehende* gleich.** 💣 Sie muss an **jede**
+Stelle, die den Rand dieses Kastens setzt — im Routenplaner sind das zwei (die Gruppenregel und
+der Aufheber des Stapelrands, der sonst den zweiten Kasten wieder auf 0 zieht).
+
 💣 **EIN Layoutmodus für beide Zustände, und EIN Mittel für den Abstand.** Gekürzt wird am
 **Kopf** (`white-space: nowrap` + `overflow: hidden` + `text-overflow: ellipsis`); der Lauf
 bleibt `inline`. Der naheliegende Wechsel auf `inline-flex` beim Zuklappen verschob zweierlei,

@@ -98,4 +98,31 @@ const TAKT = "var(--space-6)";
 		+ unten.trim());
 }
 
-console.log("OK -- ein Takt im Routenplaner, ein Token, und die Punktlinie liest denselben.");
+// ---- 5. Die 4px ueber den zwei Rahmenkaesten: eine OPTISCHE Korrektur, an ZWEI Stellen --------
+// 🔴 Das ist die Ausnahme von Abschnitt 2, und sie ist gemessen, nicht gefuehlt: die Aufschrift
+//    dieser zwei Kaesten sitzt AUF der Rahmenlinie und ragt 6,92px UEBER die Oberkante hinaus.
+//    Vom 8px-Takt bleiben zwischen dem Element darueber und den Buchstaben 1,08px -- Owner
+//    05.09.2026: „stossen fast am item darueber an". Mit `--space-2` sind es 5,08px.
+//    Der Unterschied zum Sockel aus Abschnitt 2: ein Sockel macht gleiche Abstaende ungleich,
+//    diese Zahl macht ungleich AUSSEHENDE gleich.
+// 💣 Sie steht an ZWEI Stellen -- an der Gruppenregel und im Aufheber des Stapelrands, der sonst
+//    den ZWEITEN Kasten wieder auf 0 zieht (er ist (0,4,0) und gewinnt). Steht dort eine 0,
+//    stossen die „Reiseoptionen" an die „Transportmittel" -- genau der gemeldete Fall.
+{
+	const rs = regeln(lies("css/features/route-planner.css"));
+	const gruppe = rs.filter((r) => /#transport-options,\s*\.route-planner-options-panel/.test(r.sel)
+		&& /(^|;)\s*margin:/.test(r.rumpf));
+	assert.strictEqual(gruppe.length, 1, "genau eine Regel setzt den Rand der zwei Gruppen");
+	const randGruppe = (gruppe[0].rumpf.match(/(?:^|;)\s*margin:\s*([^;]+)/) || [])[1].trim();
+	assert.ok(/^var\(--space-2\)\s+0\s+0$/.test(randGruppe),
+		"die Gruppen tragen `var(--space-2) 0 0` -- gefunden: " + randGruppe);
+
+	const geschwister = rs.filter((r) => /\.planner-group[^,{]*\+\s*\.planner-group/.test(r.sel));
+	assert.strictEqual(geschwister.length, 1, "genau eine Regel regelt den Rand zwischen den Gruppen");
+	const randZwei = (geschwister[0].rumpf.match(/(?:^|;)\s*margin-top:\s*([^;]+)/) || [])[1].trim();
+	assert.strictEqual(randZwei, "var(--space-2)",
+		"…und zwar mit DEMSELBEN Token, nicht mit 0: " + randZwei);
+}
+
+console.log("OK -- ein Takt im Routenplaner, ein Token, die Punktlinie liest denselben, "
+	+ "und der Ueberstand der Aufschrift ist an beiden Stellen ausgeglichen.");

@@ -973,6 +973,11 @@ hex values across 38 CSS files).
   denselben Token. 💣 Wer einen solchen Abstand ändert, sucht vorher seine MITLESER: die gestrichelte
   Wegpunkt-Verbindungslinie überbrückt genau diese Lücke (`calc(-1 * var(--space-6) - 50% + 9px)`)
   und endet sonst vor dem nächsten Punkt. Test: `js/app/__tests__/routenplaner-takt.test.js`.
+  ⚠️ **Die eine Ausnahme heißt ÜBERSTAND:** ein Kasten mit Aufschrift AUF der Linie ragt 6,92px
+  über seine Oberkante — vom 8px-Takt bleiben 1,08px bis zu den Buchstaben, und er „stößt fast an"
+  (Owner 05.09.2026). Ein eigener `margin-top: var(--space-2)` gleicht das aus. **Unterschied zum
+  verbotenen Sockel: ein Sockel macht gleiche Abstände ungleich, diese Korrektur macht ungleich
+  AUSSEHENDE gleich** — und sie gehört an JEDE Stelle, die den Rand dieses Kastens setzt (hier zwei).
   💣 **EIN Layoutmodus für beide Zustände, und EIN Mittel für den Abstand** (die Ränder der
   Kinder, nie zusätzlich ein `gap`): gekürzt wird am KOPF per `text-overflow`, der Lauf bleibt
   `inline`. Der Wechsel auf `inline-flex` beim Zuklappen ließ das ⓘ 5px seitlich springen (gap

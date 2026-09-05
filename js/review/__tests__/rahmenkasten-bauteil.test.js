@@ -288,14 +288,20 @@ const ohneKommentare = (css) => css.replace(/\/\*[\s\S]*?\*\//g, "");
 //    `gap` HINZU. Gemessen 05.09.2026: 19px zwischen den zwei Einstellgruppen gegen 5px ueberall
 //    sonst -- und zwar nur beim ZWEITEN Kasten, weil das `margin: 0` der Gruppenregel die Kennung
 //    `#transport-options` (1,0,0) traegt und an `.route-planner-options-panel` (0,1,0) verlor.
+// ⚠️ Gefragt ist NICHT „margin-top: 0", sondern „nicht der Stapelrand des Bauteils". Seit dem
+//    05.09.2026 steht dort die optische Korrektur fuer den Ueberstand der Aufschrift
+//    (`var(--space-2)`, Owner: „stossen fast am item darueber an") -- ihren genauen Wert haelt
+//    js/app/__tests__/routenplaner-takt.test.js, damit dieselbe Tatsache nur EINEN Waechter hat.
 {
 	const css = ohneKommentare(lies("css/features/route-planner.css"));
 	const regeln = Array.from(css.matchAll(/([^{}]+)\{([^}]*)\}/g))
 		.map((m) => ({ sel: m[1].trim(), rumpf: m[2] }));
 	const aufheber = regeln.filter((r) => /\.planner-group[^,{]*\+\s*\.planner-group/.test(r.sel)
-		&& /margin-top:\s*0/.test(r.rumpf));
+		&& /margin-top:/.test(r.rumpf));
 	assert.strictEqual(aufheber.length, 1,
 		"eine Regel nimmt den Stapelrand des Bauteils zwischen den zwei Gruppen zurueck");
+	assert.ok(!/margin-top:\s*var\(--space-12\)/.test(aufheber[0].rumpf),
+		"…und ersetzt ihn, statt ihn zu wiederholen: " + aufheber[0].rumpf.trim());
 	assert.ok((aufheber[0].sel.match(/\.avm-rahmen/g) || []).length === 2,
 		"auf (0,4,0), damit weder Kennung noch Ladereihenfolge entscheidet: " + aufheber[0].sel);
 

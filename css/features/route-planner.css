@@ -536,7 +536,19 @@
 	/* Was diese Gruppen aus der alten gemeinsamen Regel behalten -- ohne deren Rahmen. */
 	display: grid;
 	gap: 0;
-	margin: 0;
+	/* 🔴 DIE 4px SIND EINE OPTISCHE KORREKTUR, KEIN ZWEITER RHYTHMUS -- und der Unterschied ist
+	   gemessen. Die Aufschrift dieser zwei Kaesten sitzt AUF der Rahmenlinie und ragt damit
+	   6,92px UEBER die Oberkante des Kastens hinaus (`calc(-1 * pad - 0.5lh)`, das Bauteil).
+	   Vom 8px-Takt des Panels bleiben zwischen dem Element darueber und den Buchstaben also
+	   1,08px -- Owner 05.09.2026: „stossen fast am item darueber an". Mit den 4px sind es 5,08px.
+	   ⚠️ NICHT zu verwechseln mit den 5-px-Sockeln, die am selben Tag gefallen sind: die legten
+	   sich unsichtbar unter einen Kasten und machten den Takt ungleich. Diese Zahl gleicht einen
+	   UEBERSTAND aus, den der Kasten selbst hat -- ohne sie sind die Abstaende zwar gleich
+	   gerechnet, aber ungleich zu SEHEN. Wer die Aufschrift je in den Kasten holt (oder ihre
+	   Schriftgroesse aendert), rechnet diese Zahl neu.
+	   💣 Sie steht an ZWEI Stellen (hier und im Aufheber des Stapelrands weiter unten, der sonst
+	   den zweiten Kasten wieder auf 0 zieht) und muss beide Male dasselbe Token nennen. */
+	margin: var(--space-2) 0 0;
 	padding: 0;
 	background: transparent;
 	box-sizing: border-box;
@@ -548,9 +560,12 @@
    (1,0,0) traegt und damit dort gewann, an `.route-planner-options-panel` (0,1,0) aber verlor.
    Dieselbe Kennungsfalle, vor der diese Datei schon zweimal warnt; hier hat sie einen
    ungleichmaessigen Rhythmus erzeugt, den man sieht, ohne ihn benennen zu koennen.
-   🔴 (0,4,0), damit die Ladereihenfolge der Blaetter nicht entscheidet. */
+   🔴 (0,4,0), damit die Ladereihenfolge der Blaetter nicht entscheidet.
+   ⚠️ Und der Wert ist NICHT 0, sondern dieselbe optische Korrektur wie oben: die Aufschrift des
+   zweiten Kastens ragt genauso ueber seine Oberkante. Mit `0` stiesse sie an den Kasten darueber
+   -- genau der Fall, den der Owner am 05.09.2026 gemeldet hat. */
 .planner-group.avm-rahmen + .planner-group.avm-rahmen {
-	margin-top: 0;
+	margin-top: var(--space-2);
 }
 /* 💣 DIE FUELLUNG GILT NUR ZUGEKLAPPT. Aufgeklappt sitzt die Aufschrift AUF der Rahmenlinie,
    also oben ausserhalb und unten innerhalb -- mit Fuellung liegen dort zwei Farben, und die eine
