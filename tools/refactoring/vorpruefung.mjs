@@ -235,6 +235,12 @@ export function findeQuelltextTests(zielpfad, wurzel, funktionsnamen = []) {
 					else if (sucht && s === n) namen.add(n);
 				}
 			}
+			// Regex-LITERAL mit Funktionsname am Quelltext (change-log-target.test.js:
+			// /getChangeLogFocusTooltip[\s\S]{0,220}changeLogEntryTarget\(entry\)/.test(quelle)) -- Behauptungspruefer 05.09.2026
+			for (const m of text.matchAll(/(?<![\w$)\]])\/(?![\/*])((?:[^\/\\\n]|\\.)+)\/[gimsuyd]*/g)) {
+				const tok = wortTokens(m[1]);
+				for (const n of funktionsnamen) if (tok.has(n)) namen.add(n);
+			}
 		}
 		// extractFunction(quelle, "name") · extract("name") · lift("name") · holeFunktion("name") · schneide…("name")
 		for (const m of text.matchAll(/(?:extract\w*|lift|hole\w*|schneide\w*)\(\s*[^,()"']*,\s*["']([A-Za-z_$][\w$]*)["']/g)) namen.add(m[1]);
@@ -342,6 +348,8 @@ export function laedtGanz(text, basis) {
 	// (b) Variable + Ableitungen
 	const getaint = new Set();
 	for (const m of text.matchAll(new RegExp("(?:const|let|var)\\s+([A-Za-z_$][\\w$]*)\\s*=\\s*(?:await\\s+)?(?:fs\\.)?(?:readFileSync|readFile)\\([^;]{0,240}?" + b, "gs"))) getaint.add(m[1]);
+	// Behauptungspruefer 05.09.2026: die Quelle kommt auch ueber einen LESE-HELFER (`const html = lies("html/x.html")`)
+	for (const m of text.matchAll(new RegExp("(?:const|let|var)\\s+([A-Za-z_$][\\w$]*)\\s*=\\s*(?:await\\s+)?[A-Za-z_$][\\w$.]*\\(\\s*['\"][^'\"\\n]*" + b + "['\"]", "g"))) getaint.add(m[1]);
 	let gewachsen = true;
 	while (gewachsen) {
 		gewachsen = false;
@@ -360,10 +368,28 @@ export function laedtGanz(text, basis) {
 	for (const v of getaint) {
 		if (new RegExp("(runIn\\w*Context|vm\\.Script|new Script)\\(\\s*" + v.replace(/\$/g, "\\$") + "\\b").test(text)) return "variable " + v;
 	}
-	// (c) Lade-Hilfsfunktion
+	// (c) Lade-Hilfsfunktion -- als `function lade(rel) { … }` ODER als Pfeilfunktion
+	//     `const load = (rel) => vm.runInThisContext(fs.readFileSync(...))` (Behauptungspruefer 05.09.2026)
+	const helfer = [];
 	for (const f of findeFunktionen(text, "js")) {
-		const rumpf = text.slice(f.start, f.ende);
-		if (!/(runIn\w*Context|vm\.Script|new Script)\(\s*(?:fs\.)?readFileSync\(/s.test(rumpf)) continue;
+		if (/(runIn\w*Context|vm\.Script|new Script)\(\s*(?:fs\.)?readFileSync\(/s.test(text.slice(f.start, f.ende))) helfer.push(f.name);
+	}
+	for (const m of text.matchAll(/(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>\s*/g)) {
+		// Rumpf der Pfeilfunktion: ein Block `{ … }` bis zur passenden Klammer (route-entry-path-ids.test.js:
+		// `const load = (rel) => { const abs = …; vm.runInThisContext(fs.readFileSync(abs, …)); };`), sonst bis zum `;`
+		let rumpf;
+		const ab = m.index + m[0].length;
+		if (text[ab] === "{") {
+			let tiefe = 0; let i = ab;
+			for (; i < text.length; i++) { if (text[i] === "{") tiefe++; else if (text[i] === "}") { tiefe--; if (tiefe === 0) break; } }
+			rumpf = text.slice(ab, i + 1);
+		} else {
+			rumpf = text.slice(ab, text.indexOf(";", ab) < 0 ? text.length : text.indexOf(";", ab));
+		}
+		if (/(runIn\w*Context|vm\.Script|new Script)\(\s*(?:fs\.)?readFileSync\(/s.test(rumpf)) helfer.push(m[1]);
+	}
+	for (const name of helfer) {
+		const f = { name };
 		const h = f.name.replace(/\$/g, "\\$");
 		if (new RegExp(h + "\\(\\s*" + zielString).test(text)) return "helfer " + f.name;
 		// Pfadliste, die mit der Hilfsfunktion durchlaufen wird

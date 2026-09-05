@@ -371,4 +371,41 @@ const DUMP = [
 		assert.deepStrictEqual(php2.quelltextTests, [{ datei: "api/_internal/wiki/__tests__/lib-test.php", namen: ["avesmapsWikiSyncMonitorRunStatus"] }]);
 	}
 	console.log("vorpruefung I: ok");
+
+	// -- J: die drei Luecken des Behauptungspruefers (05.09.2026) --------------------------------
+	{
+		const r = tempRepo();
+		r.schreibe("js/routing/route-engine.js", "function getServerRouteDebug() { return 1; }\nfunction buildServerGeometryRouteSegment() { return getServerRouteDebug(); }\nfunction frei() { return 3; }\n");
+		// (1) Lade-Helfer als PFEILFUNKTION (route-entry-path-ids.test.js: const load = (rel) => vm.runInThisContext(...))
+		r.schreibe("js/routing/__tests__/route-entry-path-ids.test.js",
+			'const load = (rel) => vm.runInThisContext(fs.readFileSync(path.join(__dirname, rel), "utf8"), { filename: rel });\n' +
+			'load("../route-engine.js");\nload("../route-plan.js");\nconst seg = buildServerGeometryRouteSegment();\n');
+		// dieselbe Hilfsfunktion mit BLOCK-Rumpf (so steht sie wirklich in route-entry-path-ids.test.js)
+		r.schreibe("js/routing/__tests__/route-entry-terrain.test.js",
+			'const load = (relativePath) => {\n\tconst absolutePath = path.join(__dirname, relativePath);\n\tvm.runInThisContext(fs.readFileSync(absolutePath, "utf8"), { filename: absolutePath });\n};\n' +
+			'load("../route-engine.js");\nconst x = buildServerGeometryRouteSegment();\n');
+		// (2) Regex-LITERAL mit Funktionsname am Quelltext (change-log-target.test.js:115)
+		r.schreibe("js/review/review-panels-change-log.js", "function getChangeLogFocusTooltip() { return changeLogEntryTarget(entry); }\nfunction andere() {}\n");
+		r.schreibe("js/review/__tests__/change-log-target.test.js",
+			'const quelle = fs.readFileSync(path.join(ROOT, "js/review/review-panels-change-log.js"), "utf8");\n' +
+			"assert.ok(/getChangeLogFocusTooltip[\\s\\S]{0,220}changeLogEntryTarget\\(entry\\)/.test(quelle));\n");
+		// (3) Quellvariable ueber einen LESE-HELFER (const html = lies("html/x.html")) und der groesste <script>-Block
+		r.schreibe("html/literatur.html", "<script>\nfunction aeWikiFeldZuruecksetzen(f) { return f; }\nfunction auchFrei() {}\n</script>\n");
+		r.schreibe("js/ui/__tests__/wiki-assign-literatur.test.js",
+			'const lies = (rel) => fs.readFileSync(path.join(wurzel, rel), "utf8");\nconst html = lies("html/literatur.html");\n' +
+			'const bloecke = [...html.matchAll(/<script>([\\s\\S]*?)<\\/script>/g)].map((m) => m[1]);\nconst groesster = bloecke.sort((a, b) => b.length - a.length)[0];\n' +
+			'vm.runInContext(groesster, kasten);\nvm.runInContext("aeWikiFeldZuruecksetzen(\\"genre\\")", kasten);\n');
+		const e1 = v.vorpruefung({ datei: "js/routing/route-engine.js", wurzel: r.dir, min: 1 });
+		assert.deepStrictEqual(e1.vmTests.map((t) => [path.posix.basename(t.datei), t.wie]).sort(),
+			[["route-entry-path-ids.test.js", "helfer load"], ["route-entry-terrain.test.js", "helfer load"]]);
+		assert.ok(e1.funktionen.find((f) => f.name === "getServerRouteDebug").gebunden.some((g) => g.startsWith("vm-transitiv")), "transitiv ueber buildServerGeometryRouteSegment");
+		assert.deepStrictEqual(e1.funktionen.find((f) => f.name === "frei").gebunden, []);
+		const e2 = v.vorpruefung({ datei: "js/review/review-panels-change-log.js", wurzel: r.dir, min: 1 });
+		assert.deepStrictEqual(e2.funktionen.find((f) => f.name === "getChangeLogFocusTooltip").gebunden, ["quelltext: js/review/__tests__/change-log-target.test.js"]);
+		assert.deepStrictEqual(e2.funktionen.find((f) => f.name === "andere").gebunden, []);
+		const e3 = v.vorpruefung({ datei: "html/literatur.html", wurzel: r.dir, min: 1 });
+		assert.deepStrictEqual(e3.vmTests.map((t) => t.wie), ["variable groesster"]);
+		assert.ok(e3.funktionen.find((f) => f.name === "aeWikiFeldZuruecksetzen").gebunden.length > 0);
+	}
+	console.log("vorpruefung J: ok");
 })().catch((e) => { console.error(e); process.exit(1); });
