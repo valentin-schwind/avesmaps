@@ -882,7 +882,7 @@ window.AVESMAPS_I18N_EN = {
 	"legal.group.copyright": "Copyright and licenses",
 	"legal.group.content": "Content and data sources",
 	"legal.group.privacy": "Data protection",
-	"legal.group.maps": "The maps on Avesmaps",
+	"legal.group.maps": "Maps on Avesmaps",
 	"legal.group.tech": "Technology and licenses",
 	"legal.group.liability": "Disclaimer",
 	// The one-line hint under each section heading. Collapsed, the eight headings are the dialog's
