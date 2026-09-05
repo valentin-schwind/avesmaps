@@ -13,10 +13,20 @@
    wird VOR fenster.css importiert, also gewann ohnehin das Bauteil. Toter Code ist trotzdem
    irrefuehrend -- wer ihn liest, rechnet mit `padding: 16px 18px`, und wer je die
    Importreihenfolge umstellt, bekommt es ploetzlich wirklich.
-   ⚠️ Was BLEIBT, ist das Mass dieses Fensters. */
+   ⚠️ Was BLEIBT, ist das Mass dieses Fensters -- und der SEITENEINZUG seines Rumpfes. */
+/* 🔴 DIE KANTE, LOKAL -- wie bei den anderen umgestellten Fenstern. --avm-col-pad steht global
+   noch auf 12 (tokens.css sagt warum: neun Fenster lesen ihn gleichzeitig). Sie faellt, sobald
+   der globale Wert nachzieht.
+   💣 UND SIE IST HIER NICHT NUR FEINSCHLIFF: die Huelle traegt seit dem Umbau `padding: 0`, also
+      traegt JEDE Zone ihr Polster selbst -- der Kopf tut das (--avm-kopf-pad), der Rumpf tat es
+      nicht. Gemessen auf der Live-Seite: das Ehrenzeichen und alle acht Abschnitte begannen bei
+      x=734, dem linken Rand des Fensters, waehrend der Titel 14px Einzug hatte. Impressum und
+      Datenschutzerklaerung klebten an der Kante. Wer eine Huelle auf `padding: 0` stellt, zieht
+      ihre Zonen im selben Zug nach. */
 .legal-dialog {
 	width: min(860px, 100%);
 	max-height: min(90vh, 940px);
+	--avm-col-pad: var(--space-6) var(--space-12);
 }
 
 .legal-dialog:focus {
@@ -46,11 +56,8 @@
 	text-transform: uppercase;
 }
 
-.legal-dialog__scroll {
-	flex: 1 1 auto;
-	min-height: 0;
-	overflow-y: auto;
-}
+/* 🔴 Flex, Scroll und Polster kommen aus .avm-fenster__rumpf (das Markup traegt die Klasse) --
+   hier bleibt nichts davon stehen, sonst steht dieselbe Zusage zweimal da. */
 
 .legal-dialog__content p {
 	margin: 0 0 10px 0;

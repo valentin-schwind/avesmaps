@@ -19,30 +19,47 @@
    wird VOR fenster.css importiert, also gewann ohnehin das Bauteil. Toter Code ist trotzdem
    irrefuehrend -- wer ihn liest, rechnet mit `padding: 16px 18px`, und wer je die
    Importreihenfolge umstellt, bekommt es ploetzlich wirklich.
-   ⚠️ Was BLEIBT, ist das Mass dieses Fensters. */
+   ⚠️ Was BLEIBT, ist das Mass dieses Fensters -- und der SEITENEINZUG seiner Zonen. */
+/* 🔴 DIE KANTE, LOKAL -- wie bei den anderen umgestellten Fenstern. --avm-col-pad steht global
+   noch auf 12 (tokens.css sagt warum: neun Fenster lesen ihn gleichzeitig). Sie faellt, sobald
+   der globale Wert nachzieht.
+   💣 UND SIE IST HIER NICHT NUR FEINSCHLIFF: die Huelle traegt seit dem Umbau `padding: 0`, also
+      traegt JEDE Zone ihr Polster selbst -- der Kopf tut das (--avm-kopf-pad), die drei Zonen
+      darunter taten es nicht. Gemessen auf der Live-Seite: Einleitung, Liste und Fusszeile
+      begannen bei x=824, dem linken Rand des Fensters, waehrend der Titel 14px Einzug hatte.
+      Der Text klebte an der Kante. Wer eine Huelle auf `padding: 0` stellt, zieht ihre Zonen
+      im selben Zug nach -- sonst faellt genau die Haelfte weg, die niemand als Regel liest. */
 .changelog-dialog {
 	width: min(680px, 100%);
 	max-height: min(80vh, 760px);
+	/* 🔴 Die SENKRECHTE Haelfte traegt einen eigenen Namen, weil das klebende Monatsband sie
+	   ausrechnen muss (siehe .changelog-month). Zwei gekoppelte Werte lesen so DENSELBEN, statt
+	   dass einer von beiden beim naechsten Mal danebenliegt. */
+	--changelog-luft: var(--space-6);
+	--avm-col-pad: var(--changelog-luft) var(--space-12);
 }
 
 .changelog-dialog:focus {
 	outline: none;
 }
 
+/* Die drei Zonen unter dem Kopf tragen ihr Polster selbst -- alle drei denselben Wert, damit
+   der Seiteneinzug an EINER Stelle nachzuzaehlen ist und die Trenner von Kante zu Kante laufen
+   (das Polster steht INNEN, der Rand am Element -- deshalb braucht es keine negativen
+   Aussenraender, siehe css/components/fenster.css). */
 .changelog-dialog__intro {
 	flex: 0 0 auto;
-	margin: 0 0 12px;
-	padding-bottom: 12px;
+	margin: 0;
+	padding: var(--avm-col-pad);
 	border-bottom: 1px solid var(--color-divider);
 	color: var(--color-text-muted);
 	font-size: var(--font-size-small);
 	line-height: 1.5;
 }
 
+/* 🔴 Flex, Scroll und Polster kommen aus .avm-fenster__rumpf (das Markup traegt die Klasse).
+   Hier steht nur, was DIESE Liste braucht. */
 .changelog-dialog__scroll {
-	flex: 1 1 auto;
-	min-height: 0;
-	overflow-y: auto;
 	/* 💣 Ohne das steht der frisch geöffnete Verlauf ganz UNTEN, beim ältesten Eintrag. Der Kasten
 	   zeigt erst „Lade …", dann ersetzen ihn 42 Einträge — und das Scroll-Anchoring des Browsers
 	   hält dabei den bisher sichtbaren Inhalt fest und scrollt um dessen Höhe mit. Bei einer Liste,
@@ -57,10 +74,22 @@
    man gerade liest. Der eigene Hintergrund ist dafür nötig: darunter läuft die Perlenkette durch. */
 .changelog-month {
 	position: sticky;
-	top: 0;
+	/* 💣 NICHT `top: 0` -- seit der Rumpf sein eigenes Polster traegt (05.09.2026), klebt
+	      `top: 0` an dessen CONTENT-Box, also --changelog-luft UNTER der Kante, und in diesem
+	      Streifen scrollt Text sichtbar durch. Im Browser gemessen: Band 8,0px unterhalb der
+	      Rumpfkante, darueber lief der Eintragstext hindurch.
+	   ⚠️ Das Band wird deshalb um genau dieses Polster hoeher gezogen und DECKT den Streifen mit
+	      einem Schlagschatten in der Panelfarbe ab -- kein zweites Polster: ein hoeheres
+	      padding-top wuerde auch den UNgeklebten Abstand aendern (gemessen: 24 -> 32px zwischen
+	      Eintrag und Monatsband), und darum ging es hier nicht. Der Schatten malt nur, er
+	      verschiebt nichts, und der Rumpf schneidet ihn an seiner eigenen Kante ab.
+	   ⚠️ Die drei Werte sind GEKOPPELT und lesen dieselbe Variable: wer einen von Hand aendert,
+	      bekommt den Streifen zurueck. */
+	top: calc(-1 * var(--changelog-luft));
 	z-index: 1;
 	margin: 18px 0 10px;
-	padding: 6px 0;
+	padding: var(--space-4) 0;
+	box-shadow: 0 calc(-1 * var(--changelog-luft)) 0 0 var(--color-panel);
 	background: var(--color-panel);
 	color: var(--color-accent-strong);
 	font-size: var(--font-size-subhead);
@@ -159,8 +188,8 @@
 
 .changelog-dialog__foot {
 	flex: 0 0 auto;
-	margin: 6px 0 0;
-	padding-top: 10px;
+	margin: 0;
+	padding: var(--avm-col-pad);
 	border-top: 1px solid var(--color-divider);
 	color: var(--color-text-muted);
 	font-size: var(--font-size-caption);

@@ -111,8 +111,12 @@ DIALOG_FELDER.forEach(([rel, selector, name]) => {
 });
 
 // Und die Fenster muessen scrollen, sonst waere das Wachsen der Felder ein Ueberlauf.
-[["css/features/location-reviews.css", "Bewertungen"],
- ["css/components/legal-dialog.css", "Hinweise"]].forEach(([rel, name]) => {
+// 🔴 „Hinweise" stand hier bis zum 05.09.2026 mit drin und wurde am DATEIINHALT geprueft
+//    (irgendwo ein `overflow-y: auto` in legal-dialog.css). Seit sein Rumpf am Bauteil haengt,
+//    gibt es diese Zeile dort nicht mehr -- sie waere die zweite Fassung derselben Zusage. Die
+//    SORGE bleibt woertlich dieselbe (das Kontaktformular waechst am Finger, also muss das
+//    Fenster scrollen) und wird unten geprueft, an der Stelle, die sie jetzt einloest.
+[["css/features/location-reviews.css", "Bewertungen"]].forEach(([rel, name]) => {
 	const css = withoutComments(read(...rel.split("/")));
 	assert.ok(/overflow-y:\s*auto/.test(css),
 		`${name} scrollt -- daran haengt, dass die groesseren Felder nicht ueberlaufen`);
@@ -143,6 +147,12 @@ const traeger = (rumpfMarkup.match(/class="location-report-form[^"]*avm-fenster_
 assert.ok(traeger >= 9,
 	`nur ${traeger} Fenster tragen den Rumpf -- es sind neun Blaetter, die diese Huelle teilen; `
 	+ "fehlt einem der Rumpf, scrollt dort wieder das ganze Fenster");
+// 💣 Und „Hinweise" NAMENTLICH, nicht ueber die Menge darueber: `traeger >= 9` ist eine Zahl, und
+//    sie bliebe gruen, wenn ausgerechnet dieses eine Fenster seinen Rumpf verloere. Genau daran
+//    haengt hier aber ein Befund -- das Kontaktformular sitzt in DIESEM Fenster.
+assert.ok(/class="legal-dialog__scroll avm-fenster__rumpf"/.test(rumpfMarkup),
+	"Hinweise scrollt -- sein Rumpf traegt .avm-fenster__rumpf; ohne das laeuft wieder die Huelle,"
+	+ " und die am Finger gewachsenen Kontaktfelder laufen ueber");
 
 // ---- Die Suchkachel: EINE Regel mit ihren Nachbarn ------------------------------------------------
 //
