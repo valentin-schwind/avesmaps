@@ -73,6 +73,29 @@ assert.ok(!/--color-link/.test(refresh),
 assert.ok(!/font-size:\s*\d+px/.test(refresh),
 	"Der ⟳ traegt wieder eine harte Schriftgroesse statt eines Tokens (AGENTS.md §12)");
 
+// ---- Und der ZWEITE Neu-laden-Knopf (Postfach) traegt dieselbe Form, nicht eine eigene ----------
+// 🔴 Der Knopf gibt es im Panel genau zweimal -- „Meldungen" und „Mails". Bis zum 05.09.2026 hatte
+//    er zwei Formen: gefasst 32x32 hier, nackt 16px ohne Trefferfeld dort (Bauplan Abschnitt E:
+//    „Nur der Neu-laden-Knopf wird einmal zentral gerade gezogen, weil er nur zweimal vorkommt").
+//    Die Form kommt aus EINER Klasse; die eigene Klasse des Postfachs traegt nur noch die LAGE.
+{
+	const index = lies("index.html");
+	const mailKnopf = index.match(/<button id="mail-refresh" class="([^"]+)"/);
+	assert.ok(mailKnopf, "der ⟳ des Postfachs (#mail-refresh) fehlt in index.html");
+	assert.ok(mailKnopf[1].split(/\s+/).includes("review-panel__refresh-btn"),
+		"der ⟳ des Postfachs traegt .review-panel__refresh-btn nicht -- zwei Formen fuer denselben Knopf");
+	// ⚠️ mail-inbox.css schreibt EINE Regel je Zeile -- `regel()` oben erwartet den Kopf allein auf
+	//    seiner Zeile und faende hier nichts. Deshalb ein Regex ueber den kommentarfreien Text.
+	const mailCss = lies("css", "features", "mail-inbox.css").replace(/\/\*[\s\S]*?\*\//g, "");
+	const lage = mailCss.match(/^\s*\.mail-inbox__refresh\s*\{([^}]*)\}/m);
+	assert.ok(lage, ".mail-inbox__refresh fehlt in mail-inbox.css -- die Lage am Zeilenende braucht sie");
+	assert.ok(!/font-size|border|background|padding|color|appearance/.test(lage[1]),
+		"`.mail-inbox__refresh` traegt wieder FORM (" + lage[1].trim() + ") -- die kommt aus .review-panel__refresh-btn");
+	assert.ok(!/\.mail-inbox__refresh:hover/.test(mailCss),
+		"`.mail-inbox__refresh:hover` steht wieder da -- der Hover gehoert der geteilten Form");
+	console.log("OK -- beide ⟳ des Panels teilen eine Form");
+}
+
 // ---- Die DREI Reiterebenen des Editor-Panels teilen EINE Rezeptur -------------------------------
 // 🪤 WARUM. Owner 04.09.2026 mit Bild: „da ist irgendwas der strich verloren gegangen." Er war nie
 //    da. Die OBERSTE Zeile (Community · Änderungen · WikiSync · Status) markierte „aktiv" mit einer

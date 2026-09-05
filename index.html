@@ -487,7 +487,10 @@
 						<button class="status-subtab is-active" type="button" data-mail-tab="empfangen">Empfangen</button>
 						<button class="status-subtab" type="button" data-mail-tab="gesendet">Gesendet</button>
 						<button class="status-subtab" type="button" data-mail-tab="archiv">Archiv</button>
-						<button id="mail-refresh" class="mail-inbox__refresh" type="button" title="Aktualisieren" aria-label="Aktualisieren">↻</button>
+						<!-- ⭐ Dieselbe Hausform wie der ⟳ ueber „Meldungen" (.review-panel__refresh-btn): der Neu-laden-Knopf
+						     gibt es im Panel zweimal, und er hatte zwei Formen (nackt 16px ohne Trefferfeld gegen gefasst
+						     32x32). Owner 04.09.2026: „inkonsistente header". Die eigene Klasse traegt nur noch die LAGE. -->
+						<button id="mail-refresh" class="review-panel__refresh-btn mail-inbox__refresh" type="button" title="Aktualisieren" aria-label="Aktualisieren">↻</button>
 					</nav>
 					<div class="mail-inbox__pane is-active" data-mail-pane="empfangen">
 						<div id="mail-inbox-list" class="mail-inbox__list" aria-live="polite"></div>

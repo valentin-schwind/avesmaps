@@ -5,8 +5,11 @@
    breaks the Status sub-tabs. This row just mirrors the shared sub-tab-row styling; the
    Empfangen/Gesendet buttons still use the shared .status-subtab class. */
 .mail-inbox__tabs { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; border-bottom: 1px solid var(--color-border); padding: 4px 12px 0; }
-.mail-inbox__refresh { margin-left: auto; border: 0; background: none; color: var(--color-text-muted); cursor: pointer; font-size: 16px; line-height: 1; padding: 4px; appearance: none; -webkit-appearance: none; }
-.mail-inbox__refresh:hover { color: var(--color-text-strong); }
+/* 🔴 Der ⟳ traegt seine FORM aus .review-panel__refresh-btn (css/features/review-panel.css) -- Symbolknopf
+   --avm-control-h im Quadrat, --radius-md, weicher Umriss, dieselbe Bauart wie das ✕ der Fenster
+   (docs/design-language.md §Listenkopf). Hier steht nur noch die LAGE am Zeilenende. Bis zum
+   05.09.2026 war er nackt, 16px, ohne Trefferfeld -- die zweite von zwei Fassungen desselben Knopfs. */
+.mail-inbox__refresh { margin-left: auto; }
 .mail-inbox__pane { display: none; padding: 8px 12px 12px; }
 /* The active pane is the desktop scroll region (mirrors .review-panel__list): it fills the
    space under the Mails tab row and scrolls its own content (message list + opened detail)
