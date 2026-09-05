@@ -233,6 +233,35 @@ export function findeQuelltextTests(zielpfad, wurzel) {
 	return funde;
 }
 
+// Pruefung 3b: PHP-Tests, die den QUELLTEXT der Zieldatei lesen (file_get_contents / file() /
+// token_get_all) und darin Funktionsnamen als STRING suchen -- verweildauer-test.php zaehlt so die
+// Aufrufer von avesmapsVisitorFinishLiveRun, citymap-delete-parity sucht avesmapsDeleteCitymap*.
+// Ein Name, der in so einem Test NUR bar vorkommt (als Aufruf ueber die require-Kette), bindet nicht;
+// einer, der in einem String-Literal steht, bindet -- nach dem Umzug findet ihn der Test dort nicht mehr.
+// Auch ein Praefix-String ("avesmapsDeleteCitymap") bindet alle Namen, die mit ihm beginnen.
+export function findePhpQuelltextTests(zielpfad, wurzel, funktionsnamen) {
+	if (!zielpfad.endsWith(".php")) return [];
+	const basis = path.posix.basename(zielpfad);
+	const funde = [];
+	for (const rel of alleDateien(wurzel, ["api", "tools"], [".php"])) {
+		if (!(/__tests__\/[^/]+\.php$/.test(rel) || /(^|\/)test-[^/]+\.php$/.test(rel))) continue;
+		const text = lies(wurzel, rel);
+		if (!nenntDatei(text, basis)) continue;
+		if (!/file_get_contents|\bfile\(|token_get_all|PhpToken::tokenize/.test(text)) continue;
+		const strings = [...text.matchAll(/'((?:[^'\\]|\\.)*)'|"((?:[^"\\]|\\.)*)"/g)].map((m) => m[1] ?? m[2]);
+		const namen = new Set();
+		for (const s of strings) {
+			for (const n of funktionsnamen) {
+				if (s === n || s.includes(n)) { namen.add(n); continue; }
+				// Praefix: der String ist ein Anfangsstueck des Namens und mindestens so lang wie "avesmaps" + 4
+				if (s.length >= 12 && /^[A-Za-z_][\w]*$/.test(s) && n.startsWith(s)) namen.add(n);
+			}
+		}
+		if (namen.size) funde.push({ datei: rel, namen: [...namen] });
+	}
+	return funde;
+}
+
 const VM_LAUF = /runInContext|runInNewContext|runInThisContext|vm\.Script|new Script\(/;
 const AUSSCHNITT = /\.slice\(|\.substring\(|\.substr\(|indexOf\(|extract\w*\(|lift\(|hole\w*\(|schneide\w*\(|schnipsel/;
 
@@ -427,7 +456,7 @@ export function vorpruefung({ datei, wurzel = ".", von = null, bis = null, min =
 	for (const [n, zeilen] of lade) merke(n, "ladezeit: Z. " + zeilen.map((z) => z + versatz).join(", "));
 
 	const register = findeRegister(datei, wurzel);
-	const quelltextTests = findeQuelltextTests(datei, wurzel);
+	const quelltextTests = [...findeQuelltextTests(datei, wurzel), ...findePhpQuelltextTests(datei, wurzel, namen)];
 	for (const t of quelltextTests) for (const n of t.namen) merke(n, "quelltext: " + t.datei);
 
 	let vmTests = [];

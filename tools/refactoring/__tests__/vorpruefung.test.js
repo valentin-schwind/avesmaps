@@ -277,4 +277,30 @@ const DUMP = [
 		assert.deepStrictEqual(out.freieBloecke.map((b) => b.namen), [["eins", "zwei"], ["drei"]]);
 	}
 	console.log("vorpruefung E, F: ok");
+
+	// -- G: PHP-Tests, die den Quelltext der Lib lesen (Pruefung 3b) ----------------------------
+	{
+		const r = tempRepo();
+		r.schreibe("api/_internal/analytics/visitor-analytics.php",
+			"<?php\nfunction avesmapsVisitorFinishLiveRun(): void {}\nfunction avesmapsVisitorRecordLive(): void { avesmapsVisitorFinishLiveRun(); }\nfunction avesmapsVisitorReadGeo(): array { return []; }\nfunction avesmapsDeleteCitymapChildRows(): void {}\n");
+		// zaehlt Aufrufer im QUELLTEXT (String) -> bindet FinishLiveRun; ruft ReadGeo nur bar -> bindet nicht;
+		// Praefix-String "avesmapsDeleteCitymap" -> bindet DeleteCitymapChildRows
+		r.schreibe("api/_internal/analytics/__tests__/verweildauer-test.php",
+			"<?php\nrequire __DIR__ . '/../visitor-analytics.php';\n$quelle = file_get_contents(__DIR__ . '/../visitor-analytics.php');\n" +
+			"assert(substr_count($quelle, 'avesmapsVisitorFinishLiveRun(') === 2);\nassert(str_contains($quelle, 'avesmapsDeleteCitymap'));\n$x = avesmapsVisitorReadGeo();\n");
+		// liest den Quelltext NICHT (nur require + Aufrufe) -> bindet nichts, obwohl Namen als Strings stehen
+		r.schreibe("api/_internal/analytics/__tests__/nur-aufrufe-test.php",
+			"<?php\nrequire __DIR__ . '/../visitor-analytics.php';\n$f = 'avesmapsVisitorRecordLive'; $f();\n");
+		const erg = v.vorpruefung({ datei: "api/_internal/analytics/visitor-analytics.php", wurzel: r.dir, min: 1 });
+		const geb = Object.fromEntries(erg.funktionen.map((f) => [f.name, f.gebunden]));
+		assert.deepStrictEqual(geb.avesmapsVisitorFinishLiveRun, ["quelltext: api/_internal/analytics/__tests__/verweildauer-test.php"]);
+		assert.deepStrictEqual(geb.avesmapsDeleteCitymapChildRows, ["quelltext: api/_internal/analytics/__tests__/verweildauer-test.php"]);
+		assert.deepStrictEqual(geb.avesmapsVisitorReadGeo, []);
+		assert.deepStrictEqual(geb.avesmapsVisitorRecordLive, []);
+		// Mutationsprobe: der Test liest den Quelltext nicht mehr -> keine Bindung
+		r.schreibe("api/_internal/analytics/__tests__/verweildauer-test.php",
+			"<?php\nrequire __DIR__ . '/../visitor-analytics.php';\nassert(is_callable('avesmapsVisitorFinishLiveRun'));\n");
+		assert.deepStrictEqual(v.vorpruefung({ datei: "api/_internal/analytics/visitor-analytics.php", wurzel: r.dir, min: 1 }).quelltextTests, []);
+	}
+	console.log("vorpruefung G: ok");
 })().catch((e) => { console.error(e); process.exit(1); });
