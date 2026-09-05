@@ -181,11 +181,11 @@
 		clearBrushPreview();
 		// Parked: neither ring nor outline. A brush circle that follows the pointer without painting
 		// anything is a lie about what the next click does.
-		if (brushPanHold) {
+		if (brushPanHold || !brushMode) {
 			return;
 		}
 		const color = brushColor();
-		if (brushWorkingGeometry) {
+		if (brushWorkingGeometry && brushDirty) {
 			brushResultLayer = L.polygon(geometryToLatLngs(brushWorkingGeometry), {
 				pane: "measurementPane",
 				color,
@@ -323,7 +323,15 @@
 	function finishStroke() {
 		brushStrokeActive = false;
 		brushLastStampPoint = null;
+		zeichnePinselflaeche(brushWorkingGeometry);
 		planeSpeichern();
+	}
+
+	function zeichnePinselflaeche(geometry, publicId = brushAreaPublicId) {
+		const layer = ecosystemLayers.get(publicId);
+		if (layer && geometry) {
+			layer.setLatLngs(geometryToLatLngs(geometry));
+		}
 	}
 
 	// Plant den Schreibvorgang. Jeder neue Strich schiebt ihn nach hinten -- bis der Deckel greift.
@@ -367,6 +375,7 @@
 			return;
 		}
 
+		const gespeicherteGeometrie = brushWorkingGeometry;
 		brushSaving = true;
 		try {
 			// Ein Strich ist ohnehin EIN Schreibvorgang -- die Klammer trägt hier vor allem die
@@ -376,11 +385,14 @@
 				return await postEcosystemEdit("update_area_geometry", {
 					public_id: String(area.public_id),
 					expected_revision: Number(area.geometry_revision),
-					geometry_geojson: brushWorkingGeometry,
+					geometry_geojson: gespeicherteGeometrie,
 				});
 			});
-			brushDirty = false;
-			brushErsteAenderungMs = 0;
+			// Weitergemalte Striche gehoeren nicht zur bereits laufenden Anfrage.
+			brushDirty = brushWorkingGeometry !== gespeicherteGeometrie;
+			if (!brushDirty) {
+				brushErsteAenderungMs = 0;
+			}
 
 			// 💣 DIE NEUE REVISION KOMMT AUS DER ANTWORT, NICHT AUS EINEM NEULADEN. Das ist die tragende
 			// Zeile dieses Umbaus: der naechste Schreibvorgang schickt `expected_revision`, und laege die
@@ -398,7 +410,19 @@
 			const geometrieAusAntwort = antwort?.area?.geometry;
 			if (geometrieAusAntwort) {
 				area.geometry_geojson = geometrieAusAntwort;
-				brushWorkingGeometry = geometrieAusAntwort;
+				area.geometry = geometrieAusAntwort;
+				if (!brushDirty) {
+					brushWorkingGeometry = geometrieAusAntwort;
+					zeichnePinselflaeche(geometrieAusAntwort, String(area.public_id));
+				}
+				if (typeof ecosystemAreaAffectsHeightField === "function" && ecosystemAreaAffectsHeightField(area)) {
+					window.AvesmapsEcosystemHeightRender?.invalidate?.();
+					window.AvesmapsEcosystemHeightRender?.redraw?.();
+				}
+			}
+
+			if (brushDirty) {
+				planeSpeichern();
 			}
 
 			if (typeof invalidateEcosystemRegionCache === "function") {
@@ -616,6 +640,7 @@
 		// Ein noch nicht gespeicherter Strich geht NICHT verloren -- dieselbe Regel wie beim Ecken-Editor:
 		// wer die Maus losgelassen hat, hat gespeichert; wer mitten im Strich abbricht, auch.
 		if (brushDirty) {
+			zeichnePinselflaeche(brushWorkingGeometry);
 			void speichereSofort();
 		}
 		brushMode = "";

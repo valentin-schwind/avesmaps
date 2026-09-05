@@ -48,8 +48,8 @@ pruefe(/BRUSH_SPEICHER_RUHE_MS = 2500/.test(KONSTANTEN), "Ruhefrist steht auf 25
 pruefe(/BRUSH_SPEICHER_MAX_MS = 15000/.test(KONSTANTEN), "Deckel steht auf 15000 ms");
 
 // --- Eine Welt bauen, in der der Block wirklich laeuft --------------------------------------------
-function welt({ antwortRevision = 8, wirftBeimSpeichern = null } = {}) {
-	const protokoll = { posts: [], reloads: [], reloadsSofort: 0, cacheLeerungen: 0, meldungen: [] };
+function welt({ antwortRevision = 8, wirftBeimSpeichern = null, warteBeimSpeichern = null } = {}) {
+	const protokoll = { posts: [], reloads: [], reloadsSofort: 0, cacheLeerungen: 0, meldungen: [], umrisse: [] };
 	let jetzt = 1_000_000;
 	let naechsteId = 1;
 	const timer = new Map();
@@ -61,6 +61,8 @@ function welt({ antwortRevision = 8, wirftBeimSpeichern = null } = {}) {
 	};
 
 	const ctx = {
+		ecosystemLayers: new Map([[flaeche.public_id, { setLatLngs: (geometry) => protokoll.umrisse.push(geometry) }]]),
+		geometryToLatLngs: (geometry) => geometry,
 		console,
 		Number,
 		Math,
@@ -77,11 +79,14 @@ function welt({ antwortRevision = 8, wirftBeimSpeichern = null } = {}) {
 		areaByPublicId: (id) => (String(id) === flaeche.public_id ? flaeche : null),
 		areaGeometry: (a) => a?.geometry_geojson || a?.geometry || null,
 		postEcosystemEdit: async (aktion, rumpf) => {
-			protokoll.posts.push({ aktion, expected_revision: rumpf.expected_revision });
+			protokoll.posts.push({ aktion, expected_revision: rumpf.expected_revision, geometry: rumpf.geometry_geojson });
+			if (warteBeimSpeichern) {
+				await warteBeimSpeichern;
+			}
 			if (wirftBeimSpeichern) {
 				throw new Error(wirftBeimSpeichern);
 			}
-			return { ok: true, area: { geometry_revision: antwortRevision, geometry: flaeche.geometry_geojson } };
+			return { ok: true, area: { geometry_revision: antwortRevision, geometry: rumpf.geometry_geojson } };
 		},
 		withEcosystemOperation: async (label, run) => await run(),
 		invalidateEcosystemRegionCache: () => { protokoll.cacheLeerungen += 1; },
@@ -110,7 +115,8 @@ function welt({ antwortRevision = 8, wirftBeimSpeichern = null } = {}) {
 		${KONSTANTEN}
 		${LOGIK}
 		globalThis.__griff = {
-			strich: () => { brushDirty = true; finishStroke(); },
+			strich: () => { brushWorkingGeometry = JSON.parse(JSON.stringify(brushWorkingGeometry)); brushDirty = true; finishStroke(); },
+			geometrie: () => brushWorkingGeometry,
 			sofort: () => speichereSofort(),
 			dirty: () => brushDirty,
 			revision: () => brushUndoRevision,
@@ -232,6 +238,35 @@ function welt({ antwortRevision = 8, wirftBeimSpeichern = null } = {}) {
 	pruefe(w.griff.dirty() === true,
 		"nach einem Fehlschlag bleibt der Stand ungespeichert -- er darf NICHT als geschrieben gelten");
 	pruefe(w.protokoll.meldungen.length === 1, "und der Editor wird gewarnt");
+}
+
+// Der Umriss wird schon beim Loslassen gefuellt, ohne Serverantwort oder Reload.
+{
+	const w = welt();
+	w.griff.strich();
+	pruefe(w.protokoll.umrisse[0] === w.griff.geometrie(), "Loslassen zeichnet den neuen Umriss sofort");
+	pruefe(w.protokoll.posts.length === 0, "sofortiges Zeichnen erzeugt keinen zusaetzlichen Schreibvorgang");
+	await w.griff.sofort();
+	pruefe(w.protokoll.umrisse.at(-1) === w.flaeche.geometry_geojson, "gespeicherter Umriss und neue Revision passen zusammen");
+	pruefe(!w.griff.dirty(), "nach Erfolg ist keine ungespeicherte Vorschau mehr erforderlich");
+}
+
+// Eine langsame Antwort darf einen inzwischen gemalten Strich nicht verschlucken.
+{
+	let freigeben;
+	const warteBeimSpeichern = new Promise((resolve) => { freigeben = resolve; });
+	const w = welt({ warteBeimSpeichern });
+	w.griff.strich();
+	const speichern = w.griff.sofort();
+	w.griff.strich();
+	const neuerStrich = w.griff.geometrie();
+	freigeben();
+	await speichern;
+	pruefe(w.griff.dirty(), "weitergemalter Strich bleibt ungespeichert");
+	pruefe(w.griff.geometrie() === neuerStrich, "Antwort ersetzt den weitergemalten Strich nicht");
+	await w.verstreiche(2600);
+	pruefe(w.protokoll.posts.length === 2, "weitergemalter Strich wird nachgespeichert");
+	pruefe(w.protokoll.posts[1].expected_revision === 8, "Nachspeichern verwendet die bestaetigte Revision");
 }
 
 console.log(fehler === 0
