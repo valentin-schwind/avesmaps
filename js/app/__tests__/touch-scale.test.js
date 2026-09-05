@@ -402,15 +402,25 @@ assert.ok(/#map-corner-actions\s*\{[^}]*z-index:\s*var\(--z-map-ui\)/.test(legal
 
 // ---- Alle Dropdowns tragen EINE Groesse -- und die ist NICHT die iOS-Schwelle -------------------
 //
-// Owner 11.08.2026: erst "die unterschiedlichen schriftgroessen der dropdowns", dann "alle auf 14px".
+// Owner 11.08.2026: erst "die unterschiedlichen schriftgroessen der dropdowns", dann "alle auf 14px";
+// Owner 05.09.2026: "--font-size-dropdown auf 12px" -- so gross wie die Beschriftungen daneben.
 // 💣 Deshalb ein EIGENER Token. --font-size-control traegt die iOS-Schwelle (>=16px, sonst zoomt
 // Safari beim Fokus in ein Eingabefeld). Haette man den auf 14 gesetzt, waeren Wegpunktfeld und
 // Zahlenfelder mit unter die Schwelle gerutscht -- also genau das zurueckgeholt, was zwei Commits
 // vorher behoben wurde.
-const dropdownGroesse = tokens.match(/--font-size-dropdown:\s*([0-9.]+)px/);
-assert.ok(dropdownGroesse, "tokens.css definiert --font-size-dropdown");
-assert.ok(dropdownGroesse[1] !== controlFont[1],
-	"und zwar getrennt von der iOS-Schwelle -- ein gemeinsamer Token zoege die Eingabefelder mit");
+// 🔴 GEPRUEFT WIRD DIE TRENNUNG, NICHT DER WERT. Hier stand `dropdownGroesse[1] !== controlFont[1]`
+//    -- ein Vergleich zweier ZAHLEN. Seit dem 05.09.2026 sind beide am Zeiger 12px, und die
+//    Zusicherung waere rot geworden, obwohl die Trennung heil ist: der Finger-Block hebt NUR
+//    --font-size-control. Gefragt ist also, ob der Dropdown-Token unabhaengig deklariert ist und
+//    vom Finger-Block in Ruhe gelassen wird -- gleiche Werte sind erlaubt, gemeinsame Herkunft
+//    nicht.
+const dropdownDeklaration = tokens.match(/--font-size-dropdown:\s*([^;]+);/);
+assert.ok(dropdownDeklaration, "tokens.css definiert --font-size-dropdown");
+assert.ok(!/--font-size-control/.test(dropdownDeklaration[1]),
+	"und zwar OHNE --font-size-control zu lesen -- der traegt die iOS-Schwelle und springt am Finger"
+	+ " auf 16px, was jede Combobox mitnaehme: " + dropdownDeklaration[1].trim());
+assert.ok(!/--font-size-dropdown/.test(coarse),
+	"…und der Finger-Block laesst ihn in Ruhe -- sonst waere die Trennung der zwei Token wirkungslos");
 [".transport-combobox", ".transport-combobox__label", ".transport-combobox__option span"]
 	.forEach((selector) => {
 		const rule = planner.match(new RegExp("^" + escapeRe(selector) + "\\s*\\{([^}]*)\\}", "m"));
