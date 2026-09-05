@@ -1192,6 +1192,22 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 	column-gap: var(--space-8);
 }
 
+/* Ein Regler, der GERADE nichts bewirken kann (Owner 05.09.2026: „doch grau aus was gerade nichts
+   kann"). Welche das sind, entscheidet `avesmapsGebirgsReglerOhneWirkung` im Rechner -- hier steht
+   nur, wie es aussieht.
+   🔴 GEDÄMPFT, NICHT GESPERRT. Der Wert gilt weiter und wird gespeichert; er wirkt nur gerade
+   nicht. Wer eine Fläche vorbereitet -- erst die Körnung stellen, dann das Rauschen aufdrehen --,
+   darf daran nicht gehindert werden; ein `disabled` wäre ein Riegel gegen etwas Sinnvolles. Den
+   Grund nennt der Tooltip der Zeile („Wirkt gerade nicht: …").
+   ⚠️ `opacity` auf der ganzen Zeile, nicht `color` je Element: die Zeile trägt Text, einen
+   Schieber, ein Zahlenfeld, eine Vorgabemarke und das ↺ -- fünf Dinge in fünf Farben, und jedes
+   einzeln zu dämpfen wäre die fünfte Rezeptur für denselben Zustand.
+   ⚠️ 0.45 und nicht weniger: darunter fällt der Schiebergriff unter die Wahrnehmungsschwelle, und
+   ein Regler, den man nicht mehr SIEHT, ist von einem fehlenden nicht zu unterscheiden. */
+.ecosystem-properties-dialog__terrainrow--still {
+	opacity: 0.45;
+}
+
 /* Die Hülle um den Schieber trägt die Vorgabemarke -- der Schieber selbst kann kein Kind haben. */
 .ecosystem-properties-dialog__sliderwrap {
 	position: relative;

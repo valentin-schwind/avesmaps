@@ -1821,6 +1821,14 @@
 			syncTerrainOutput(feld, area);
 			syncTerrainVorgabe(feld, area, vorlagenStand);
 		});
+		// 🔴 EINMAL JE AUFBAU, nicht bei jedem Reglerzug: `gewaesserBeruehrt` prüft jeden Flussweg
+		// punktweise gegen die Geometrie, und ob ein Fluss die Fläche berührt, ändert sich beim
+		// Ziehen ohnehin nicht. Das Rauschen dagegen ändert sich dabei sehr wohl -- deshalb steht die
+		// Auswertung selbst in `syncReglerWirkung` und wird auch aus dem `input`-Handler gerufen.
+		// ⚠️ Fällt auf `null` aus, wenn der Zeichner nicht da ist: dann wird nichts ausgegraut.
+		const frage = window.AvesmapsEcosystemHeightRender?.gewaesserBeruehrt;
+		gewaesserAmOrt = typeof frage === "function" ? frage(area) === true : null;
+		syncReglerWirkung(area);
 		// Zum Schluss, wenn beide Höhenregler stehen: die Obergrenze des Durchschnitts hängt am Maximum.
 		setTerrainStatus("");
 	}
@@ -1853,6 +1861,51 @@
 		// löschen hätte den Sprung geheilt, der Owner wollte die Spalte aber ganz weg.
 		// Ob ein Wert abgeleitet ist, sagt weiterhin „Auf Automatik zurück"; die Unterscheidung lebt in
 		// `terrainTouched` und entscheidet beim Speichern über NULL, das hängt nicht an der Anzeige.
+	}
+
+	// ---- Was gerade nichts bewirken kann, steht grau da ---------------------------------------------
+	//
+	// 🔴 Owner 05.09.2026: „doch grau aus was gerade nichts kann". Sieben Regler sind unter
+	// bestimmten Bedingungen nachweislich wirkungslos, und das Fenster hat es bis dahin mit keinem
+	// Zeichen gesagt -- ein Editor drehte an einer Zahl, die nichts bewirken KONNTE, und hielt das
+	// Werkzeug für kaputt.
+	//
+	// 🔴 DIE BEDINGUNGEN STEHEN IM RECHNER (`avesmapsGebirgsReglerOhneWirkung`), nicht hier. Hier
+	// steht nur, wie sie aussehen.
+	// ⚠️ GRAU, ABER BEDIENBAR: der Wert gilt weiter und wird gespeichert -- er wirkt nur gerade
+	// nicht. Wer eine Fläche vorbereitet (erst die Körnung stellen, dann das Rauschen aufdrehen),
+	// darf daran nicht gehindert werden. Ein `disabled` wäre ein Riegel gegen etwas Sinnvolles.
+	let gewaesserAmOrt = null;          // 🔴 `null` = „nicht gefragt" -> es wird NICHTS ausgegraut.
+
+	function syncReglerWirkung(area) {
+		if (typeof avesmapsGebirgsReglerOhneWirkung !== "function") {
+			return;
+		}
+		// 💣 Das Rauschen kommt vom REGLER, nicht aus der Fläche: die Ausgrauung muss beim Ziehen
+		// mitgehen, und die Fläche bekommt ihren Wert erst im selben Zug geschrieben.
+		const regler = propertiesElement("rauschen");
+		const stille = avesmapsGebirgsReglerOhneWirkung({
+			gipfel: peaksInsideArea(area).length,
+			rauschen: regler ? Number(regler.value) : area?.terrain_rauschen,
+			gewaesser: gewaesserAmOrt,
+		});
+		TERRAIN_FIELDS.forEach((feld) => {
+			const zeile = propertiesElement(feld.element)?.closest?.(".ecosystem-properties-dialog__terrainrow");
+			if (!zeile) {
+				return;
+			}
+			const grund = stille[feld.key] || "";
+			zeile.classList.toggle("ecosystem-properties-dialog__terrainrow--still", grund !== "");
+			// ⚠️ Der ursprüngliche Tooltip wird GEMERKT, nicht überschrieben: er erklärt, was der
+			// Regler tut, und das gilt auch dann, wenn er gerade nichts tut. Ohne das Merken wäre er
+			// nach dem ersten Wechsel für immer weg.
+			if (zeile.dataset.titelOriginal === undefined) {
+				zeile.dataset.titelOriginal = zeile.getAttribute("title") || "";
+			}
+			const original = zeile.dataset.titelOriginal;
+			zeile.setAttribute("title", grund === "" ? original : "Wirkt gerade nicht: " + grund
+				+ (original === "" ? "" : "\n\n" + original));
+		});
 	}
 
 	// 🔴 EINE FRIST, KEIN ZWEITER ZUSTAND. Seit der Zeichner jeden Anstrich meldet, konkurrieren zwei
@@ -2933,6 +2986,12 @@
 			// schon wieder auf der Vorgabe liegt, und waere ein Knopf ohne Wirkung.
 			propertiesElement(feld.element)?.addEventListener("input", () => {
 				syncTerrainVorgabe(feld, currentPropertiesArea(), vorlagenWerte(currentPropertiesArea()));
+				// 💣 UND DIE AUSGRAUUNG ZIEHT MIT. „Stärke des Rauschens" auf 0 macht „Zahl" und
+				// „Feinheit" im selben Moment wirkungslos -- eine Ausgrauung, die erst beim nächsten
+				// Öffnen nachkommt, ist keine Rückmeldung, sondern ein zweiter Zustand.
+				// ⚠️ Am `input` jedes Reglers, nicht nur am Rauschen: die Regel darf wachsen, ohne
+				// dass jemand hier eine zweite Liste pflegt.
+				syncReglerWirkung(currentPropertiesArea());
 			});
 			propertiesElement(feld.element + "-num")?.addEventListener("input", () => {
 				syncTerrainVorgabe(feld, currentPropertiesArea(), vorlagenWerte(currentPropertiesArea()));

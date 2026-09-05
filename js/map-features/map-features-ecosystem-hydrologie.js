@@ -339,6 +339,48 @@ function avesmapsGebirgeBleibtFlach(gipfelAnzahl, maximalhoehe) {
 	return !(Number(gipfelAnzahl) > 0) && !(Number(maximalhoehe) > 0);
 }
 
+// Welche Regler koennen GERADE nichts bewirken -- und warum?
+//
+// 🔴 DIE BEDINGUNGEN STEHEN HIER, WEIL HIER GERECHNET WIRD. Jede einzelne ist am Rumpf von
+// `avesmapsGebirgsRasterBauen` abgelesen, nicht geschaetzt:
+//   • `if (rauschen > 0)` umschliesst die GANZE Rauschschleife -- bei Staerke 0 werden `koernung`
+//     und `stufen` nie gelesen. Gemessen: das Feld ist Bit fuer Bit dasselbe.
+//   • `baueEcosystemTaeler` laeuft ueber die uebergebenen Fluss- und Seelinien. Beruehrt kein
+//     Gewaesser die Flaeche, entsteht keine Talachse, und `talbreite`/`einschnitt` gehen ins Leere.
+//   • `addiereGipfelkegel` kehrt ohne Gipfel sofort zurueck (`bergform`), und `kammHoeheAn` liefert
+//     ohne Gipfel ueberall denselben Wert, weil dann ALLE Kammpunkte auf der Kammhoehe liegen --
+//     der Durchhang (`sattel`) hat nichts, wozwischen er durchhaengen koennte.
+//
+// 💣 EINE REGEL, ZWEI LESER: der Trichter arbeitet danach, das Fenster graut danach aus. Eine
+// zweite Fassung in der Oberflaeche liefe beim naechsten Umbau auseinander -- und der Fehler waere
+// still in beide Richtungen (ein Regler, der grau ist und wirkt, oder einer, der wirkt und grau
+// aussieht).
+// ⚠️ NICHT hier drin: die Saettigung der Massigkeit ueber ~0,6 und die tote Anlaufstrecke der
+// Kammhoehe. Beide sind keine „wirkt nicht"-Zustaende, sondern „wirkt nicht MEHR" bzw. „wirkt noch
+// nicht" -- sie haengen am gerechneten Feld, nicht an einer Bedingung, die man ansehen kann. Sie
+// stehen im Tooltip.
+// ⚠️ `gewaesser` darf `null` sein („weiss ich nicht"): dann wird NICHTS ausgegraut. Im Zweifel
+// lieber ein Regler zu viel bedienbar als einer, der grundlos gesperrt aussieht.
+function avesmapsGebirgsReglerOhneWirkung(lage) {
+	const l = lage || {};
+	const raus = {};
+	if (!(Number(l.rauschen) > 0)) {
+		raus.terrain_grain = "Die Stärke des Rauschens steht auf 0 — es wird gar kein Rauschen gerechnet.";
+		raus.terrain_levels = raus.terrain_grain;
+	}
+	if (l.gewaesser === false) {
+		raus.terrain_talbreite = "Kein Fluss und kein See berührt diese Fläche — es entsteht kein Tal.";
+		raus.terrain_einschnitt = raus.terrain_talbreite;
+	}
+	if (!(Number(l.gipfel) > 0)) {
+		raus.terrain_bergform = "Diese Fläche hat keinen Gipfel — es gibt keinen Einzelberg, der ausstrahlen könnte.";
+		raus.terrain_sattel = "Ohne Gipfel liegt die Kammlinie ihrer ganzen Länge nach auf der Kammhöhe — "
+			+ "dazwischen kann nichts durchhängen.";
+	}
+
+	return raus;
+}
+
 // Die Werte EINER Vorlage, oder null. ⚠️ Eine Kopie: der Aufrufer schreibt in die Regler, und die
 // Tabelle darf sich dabei nicht veraendern.
 function avesmapsHydroVorlage(liste, key) {
@@ -2172,7 +2214,7 @@ if (typeof module !== "undefined" && module.exports) {
 		ECOSYSTEM_HYDRO_EROSIONSSTUFEN, ECOSYSTEM_HYDRO_EROSION_VORGABE,
 		ECOSYSTEM_HYDRO_PLATEAU_VORGABE, randAbstand,
 		ECOSYSTEM_HYDRO_MORPHOLOGIEN, ECOSYSTEM_HYDRO_HOEHENSTUFEN, avesmapsHydroVorlage,
-		avesmapsGebirgeBleibtFlach,
+		avesmapsGebirgeBleibtFlach, avesmapsGebirgsReglerOhneWirkung,
 		ECOSYSTEM_HYDRO_MORPH_ALTNAMEN, avesmapsHydroMorphSchluessel,
 		ECOSYSTEM_HYDRO_HYPSOMETRIE_VORGABE, ECOSYSTEM_HYDRO_HYPSO_POTENZ_MIN,
 		ECOSYSTEM_HYDRO_HYPSO_POTENZ_MAX, hypsometrischesIntegral, zieheAufHypsometrie, ECOSYSTEM_HYDRO_STANDARDHOEHE,

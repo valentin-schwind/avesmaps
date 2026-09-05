@@ -1060,6 +1060,14 @@
 		stack: () => heightStack,
 		// Gehört diese Fläche zu dem, was gerade gemalt ist? Der Loader fragt vor dem Nachladen.
 		betrifftAnzeige,
+		// 🔴 BERÜHRT EIN GEWÄSSER DIESE FLÄCHE? Das Fenster fragt es, um „Talbreite" und „Taltiefe"
+		// auszugrauen, wenn sie nichts bewirken können -- und es fragt DIESE Rechnung, weil sie
+		// dieselbe ist, mit der das Feld gebaut wird. Eine zweite Fassung im Dialog liefe beim
+		// nächsten Umbau auseinander, und der Fehler wäre in beide Richtungen still.
+		// ⚠️ TEUER: `fluesseFuer` prüft jeden Flussweg punktweise gegen die Geometrie. Der Aufrufer
+		// fragt einmal je geöffneter Fläche, nicht bei jedem Reglerzug -- ob ein Fluss die Fläche
+		// berührt, ändert sich beim Ziehen ohnehin nicht.
+		gewaesserBeruehrt: (area) => fluesseFuer(area).length > 0 || seenFuer(area).length > 0,
 		// Fall #79: der Weisspunkt des letzten Anstrichs, und wer davon erfahren will.
 		whitePoint: () => lastWhitePoint,
 		// 🔴 DIE DURCHSCHNITTSHOEHE DES GERECHNETEN FELDES (Owner 04.09.2026: „einfach die
