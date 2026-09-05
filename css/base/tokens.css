@@ -123,8 +123,29 @@
 
 	/* Accent = coat-of-arms gold; links in warm gold-brown (NEVER blue) */
 	--color-accent: #bfa03a;
-	--color-accent-strong: #9c7f22;
-	--color-link: #8f7326;
+	/* 🔴 NACHGESCHAERFT AM 05.09.2026 (Owner-Entscheid auf das Kontrastaudit vom 13.08.2026,
+	   docs/kontrast-audit-gold-und-knopfpaar.md §4.1). Vorher `#9c7f22` -- und damit stand JEDE
+	   Gold-Beschriftung des hellen Themas unter AA: 3,78 auf `--color-panel` bis 3,17 auf
+	   `--color-button-soft`, verlangt sind 4,5:1 fuer Text unter 18,66px fett. Das Audit hatte
+	   `#82681e` empfohlen und dabei die Flaechen gezaehlt, auf denen damals wirklich Gold-Text
+	   stand; `--color-button-soft` war KEINE davon.
+	   💣 Seit dem 04.09.2026 ist sie eine: die zugeklappte Leiste des Rahmenkastens traegt ihre
+	   Aufschrift darauf (Routenplaner). `#82681e` haette dort 4,39 gegeben -- knapp daneben.
+	   Deshalb eine Stufe tiefer: `#7e651d` misst 5,49 / 5,17 / 4,90 / 4,73 / 4,73 / 4,61 auf
+	   panel / -soft / page-bg / -muted / pill / button-soft. Farbton (47°) und Saettigung bleiben,
+	   nur die Helligkeit sinkt -- das Gold wird erdiger, nicht braun.
+	   ⚠️ Das DUNKLE Thema bleibt unberuehrt: `#dcc77e` steht dort zwischen 5,6 und 9,8.
+	   ⚠️ Und `--color-panel-active` (#e7ddc9) erreicht auch damit nur 4,14 -- auf dieser Flaeche
+	   steht nachweislich kein Gold-TEXT (Audit §2). Wer dort welchen hinschreibt, misst neu.
+	   Gewacht von js/app/__tests__/goldkontrast.test.js. */
+	--color-accent-strong: #7e651d;
+	/* 💣 DER LINK MUSS MITWANDERN, und das ist keine Kosmetik (Audit §4.1): er war mit `#8f7326`
+	   die DUNKLERE der beiden Goldfarben (4,45 gegen 3,78) und verfehlte AA um 0,05. Bliebe er
+	   stehen, waere die Aufschrift ploetzlich dunkler als der Link -- die Rangfolge kippt, und der
+	   Link waere das einzige Textgold unter AA. `#79611b` misst 5,84 / 5,51 / 5,21 / 5,04 / 5,03 /
+	   4,90 und bleibt eine Spur dunkler als die Aufschrift (Luminanz 0,127 gegen 0,138).
+	   ⚠️ `--color-link-hover` bleibt unveraendert dunkler (0,108) -- die Ordnung Link > Hover haelt. */
+	--color-link: #79611b;
 	--color-link-hover: #6f5a1c;
 
 	/* Secondary accent-brown — the WikiSync/label-path-location edit dialogs' own

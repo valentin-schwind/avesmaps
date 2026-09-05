@@ -7,6 +7,36 @@ zweier Token aus `css/base/tokens.css`, die app-weit wirken.
 
 **🔧 Dieses Dokument ändert nichts.** Es rechnet und legt dem Owner zwei Entscheidungen vor.
 
+---
+
+## ✅ Entscheidung zu Befund 1 — Owner 05.09.2026 („ja")
+
+**Umgesetzt, aber eine Stufe tiefer als hier empfohlen: `--color-accent-strong: #7e651d`,
+`--color-link: #79611b`** (Commit vom 05.09.2026).
+
+💣 **Die Prämisse von §4.1 war beim Umsetzen bereits überholt.** Das Audit empfahl `#82681e` und
+zählte dafür die Flächen, auf denen im August nachweisbar Gold-*Text* stand — `--color-button-soft`
+war keine davon. Seit dem **04.09.2026** ist sie eine: die zugeklappte Leiste des Rahmenkastens
+trägt ihre Aufschrift darauf (Routenplaner). Dort hätte `#82681e` nur **4,39** gegeben. `#7e651d`
+misst **5,49 / 5,17 / 4,90 / 4,73 / 4,73 / 4,61** auf panel / -soft / page-bg / -muted / pill /
+button-soft — alle sechs über AA.
+
+⭐ **Die Lehre daraus steht jetzt als Test:** eine Kontrastzahl gilt einer **Paarung**, nicht einer
+Farbe. Wer eine Aufschrift auf eine neue Fläche setzt, macht eine bestandene Messung ungültig, ohne
+die Farbe anzufassen. `js/app/__tests__/goldkontrast.test.js` misst deshalb beide Goldtöne gegen
+**alle sechs** Flächen bei jedem Lauf — und zusätzlich die Ordnung Aufschrift > Link > Hover.
+
+⚠️ **Nicht umgesetzt, bewusst:** `--color-panel-active` (#e7ddc9) bleibt mit 4,14 darunter — dort
+steht laut §2 kein Gold-Text. Und `.wp-dist__seg--4` hat **keinen** eigenen Wert bekommen, obwohl
+§4.1 das verlangt: der Balken ist seit dem Audit als **tot** nachgewiesen (er steht nur in
+`css/pages/wege-editor.css` und im Mockup, in keinem Markup und keinem JS). Sein Abstand zu
+`--seg--5` fällt damit rechnerisch von 1,63 auf 1,12 — sichtbar für niemanden. Wer den Balken je
+belebt, pinnt vorher beide Segmente.
+
+**Befund 2 (Knopfpaar) bleibt offen** — dazu gab es keine Entscheidung.
+
+---
+
 ## 1. Verfahren
 
 WCAG 2.1, Relativluminanz nach sRGB-Formel, keine Alpha-Verrechnung (alle beteiligten Werte
