@@ -213,7 +213,7 @@ function nenntDatei(text, basis) {
 // Pruefung 3: Tests, die die Zieldatei als Text lesen und Funktionen beim Namen herausschneiden.
 // Muster: extractFunction(quelle, "NAME"), extract("NAME"), indexOf("function NAME"),
 // Regex-Literal /function\s+NAME\b/ bzw. /function NAME\(/.
-export function findeQuelltextTests(zielpfad, wurzel) {
+export function findeQuelltextTests(zielpfad, wurzel, funktionsnamen = []) {
 	const basis = path.posix.basename(zielpfad);
 	const funde = [];
 	for (const rel of alleDateien(wurzel, ["js", "tools"], [".js", ".mjs"])) {
@@ -221,6 +221,21 @@ export function findeQuelltextTests(zielpfad, wurzel) {
 		const text = lies(wurzel, rel);
 		if (!nenntDatei(text, basis)) continue;
 		const namen = new Set();
+		// Skeptiker 05.09.2026: `schneide("function zbvBandwert(kind, cls, z) {")` (Signatur-String) und
+		// `["resetZoomBandRow"]` + `new RegExp("function " + n)` (Name im Array) sahen die Muster unten nicht.
+		// Deshalb: in einem Test, der die Quelle liest, bindet jeder String-Literal, der `function NAME`
+		// enthaelt, und jeder, der GENAU ein Funktionsname ist, sobald der Test Quelltext DURCHSUCHT
+		// (RegExp/indexOf/match/search). Eine Assert-Meldung (`n + " wurde gefunden"`) ist keins von beidem.
+		if (funktionsnamen.length && /readFileSync|readFile\(|fs\.promises/.test(text)) {
+			const sucht = /new RegExp\(|\.indexOf\(|\.match\(|\.search\(|\.includes\(|\.lastIndexOf\(/.test(text);
+			const literale = [...text.matchAll(/'((?:[^'\\\n]|\\.)*)'|"((?:[^"\\\n]|\\.)*)"|`((?:[^`\\]|\\.)*)`/g)].map((m) => m[1] ?? m[2] ?? m[3]);
+			for (const s of literale) {
+				for (const n of funktionsnamen) {
+					if (new RegExp("function\\s+" + n.replace(/\$/g, "\\$") + "(?![\\w$])").test(s)) namen.add(n);
+					else if (sucht && s === n) namen.add(n);
+				}
+			}
+		}
 		// extractFunction(quelle, "name") · extract("name") · lift("name") · holeFunktion("name") · schneide…("name")
 		for (const m of text.matchAll(/(?:extract\w*|lift|hole\w*|schneide\w*)\(\s*[^,()"']*,\s*["']([A-Za-z_$][\w$]*)["']/g)) namen.add(m[1]);
 		for (const m of text.matchAll(/(?:extract\w*|lift|hole\w*|schneide\w*)\(\s*["']([A-Za-z_$][\w$]*)["']/g)) namen.add(m[1]);
@@ -250,30 +265,57 @@ export function findePhpQuelltextTests(zielpfad, wurzel, funktionsnamen) {
 	if (!zielpfad.endsWith(".php")) return [];
 	const basis = path.posix.basename(zielpfad);
 	const b = basis.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-	// Der Basisname muss das ENDE des Pfad-Strings sein ("…/features.php'") -- eine Logdatei
-	// "visitor-analytics.php.log" ist nicht die Lib.
-	const liestZiel = new RegExp("(file_get_contents|\\bfile|token_get_all|PhpToken::tokenize)\\s*\\([^;]{0,200}?" + b + "['\"]|\\(\\s*['\"][^'\"\\n]*" + b + "['\"]\\s*\\)", "s");
 	const funde = [];
 	for (const rel of alleDateien(wurzel, ["api", "tools"], [".php"])) {
 		if (!(/__tests__\/[^/]+\.php$/.test(rel) || /(^|\/)test-[^/]+\.php$/.test(rel))) continue;
 		const text = lies(wurzel, rel);
 		if (!nenntDatei(text, basis)) continue;
 		if (!/file_get_contents|\bfile\(|token_get_all|PhpToken::tokenize/.test(text)) continue;
-		if (!liestZiel.test(text)) continue;
+		if (!liestDieseDatei(text, rel, zielpfad, b)) continue;
 		const strings = [];
 		for (const m of text.matchAll(PHP_SUCHE)) for (const s of m[2].matchAll(/'((?:[^'\\]|\\.)*)'|"((?:[^"\\]|\\.)*)"/g)) strings.push(s[1] ?? s[2]);
 		for (const m of text.matchAll(PHP_HELFER)) strings.push(m[2]);
 		const namen = new Set();
 		for (const s of strings) {
-			for (const n of funktionsnamen) {
-				if (s === n || s.includes(n)) { namen.add(n); continue; }
-				// Praefix: der String ist ein Anfangsstueck des Namens (citymap-delete-parity sucht "avesmapsDeleteCitymap")
-				if (s.length >= 12 && /^[A-Za-z_][\w]*$/.test(s) && n.startsWith(s)) namen.add(n);
+			for (const n of funktionsnamen) if (s === n || s.includes(n)) namen.add(n);
+			// Praefix: der String ist ein Anfangsstueck des Namens (citymap-delete-parity sucht "avesmapsDeleteCitymap").
+			// Skeptiker 05.09.2026: ein Praefix, der den GANZEN Namensraum trifft ("avesmapsWikiSyncMonitor" =
+			// alle 22 Funktionen), ist keine Suche nach einer Funktion -- er bindet nur, wenn er weniger als ein
+			// Viertel der Funktionen der Zieldatei trifft (bis zu zwei Treffer gelten immer als spezifisch).
+			if (s.length >= 12 && /^[A-Za-z_][\w]*$/.test(s)) {
+				const treffer = funktionsnamen.filter((n) => n.startsWith(s) && n !== s);
+				if (treffer.length && treffer.length <= Math.max(2, funktionsnamen.length / 4)) for (const n of treffer) namen.add(n);
 			}
 		}
 		if (namen.size) funde.push({ datei: rel, namen: [...namen] });
 	}
 	return funde;
+}
+
+// Liest dieser Test WIRKLICH die Zieldatei -- oder nur eine gleichnamige (api/edit/wiki/sync-monitor.php
+// ist der ENDPUNKT, api/_internal/wiki/sync-monitor.php die Lib; Skeptiker 05.09.2026)? Pfad-Strings
+// werden aufgeloest: `__DIR__ . '/../x.php'` relativ zum Testverzeichnis, `'api/...'` relativ zur Wurzel.
+// Der Basisname muss das ENDE des Strings sein (eine Logdatei "x.php.log" ist keine Lib); ein blosser
+// Basisname ohne Schraegstrich gilt konservativ als Treffer.
+function liestDieseDatei(text, testRel, zielpfad, b) {
+	const testDir = path.posix.dirname(testRel);
+	// Nur Strings INNERHALB eines Lese-Aufrufs zaehlen -- `require __DIR__ . '/../x.php'` liest nichts,
+	// es bindet die Funktionen ein (und die ueberleben den Umzug ueber die require-Kette).
+	const segmente = [];
+	for (const m of text.matchAll(/(?:file_get_contents|\bfile|token_get_all|PhpToken::tokenize)\s*\(([^;]*)/g)) segmente.push(m[1]);
+	for (const m of text.matchAll(/(?<![\w$])(?!require|include)\$?\w+\s*\(\s*(['"][^'"\n]*['"])\s*\)/g)) segmente.push(m[1]);
+	const muster = new RegExp("['\"]([^'\"\\n]*" + b + ")['\"]", "g");
+	const kandidaten = [];
+	for (const seg of segmente) for (const m of seg.matchAll(muster)) kandidaten.push(m[1]);
+	for (const k of kandidaten) {
+		if (!k.includes("/")) return true;
+		let aufgeloest;
+		if (k.startsWith("/")) aufgeloest = path.posix.normalize(testDir + k); // __DIR__ . '/../x.php'
+		else if (k.startsWith(".")) aufgeloest = path.posix.normalize(testDir + "/" + k);
+		else aufgeloest = path.posix.normalize(k); // 'api/_internal/...' relativ zur Wurzel
+		if (aufgeloest === zielpfad || aufgeloest.endsWith("/" + zielpfad)) return true;
+	}
+	return false;
 }
 
 const VM_LAUF = /runInContext|runInNewContext|runInThisContext|vm\.Script|new Script\(/;
@@ -470,7 +512,7 @@ export function vorpruefung({ datei, wurzel = ".", von = null, bis = null, min =
 	for (const [n, zeilen] of lade) merke(n, "ladezeit: Z. " + zeilen.map((z) => z + versatz).join(", "));
 
 	const register = findeRegister(datei, wurzel);
-	const quelltextTests = [...findeQuelltextTests(datei, wurzel), ...findePhpQuelltextTests(datei, wurzel, namen)];
+	const quelltextTests = [...findeQuelltextTests(datei, wurzel, namen), ...findePhpQuelltextTests(datei, wurzel, namen)];
 	for (const t of quelltextTests) for (const n of t.namen) merke(n, "quelltext: " + t.datei);
 
 	let vmTests = [];

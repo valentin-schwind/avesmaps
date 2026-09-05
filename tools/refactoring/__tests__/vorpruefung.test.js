@@ -334,4 +334,41 @@ const DUMP = [
 		assert.ok(v.findeFunktionen("async function a() {}\n", "js").length === 1);
 	}
 	console.log("vorpruefung H: ok");
+
+	// -- I: die zwei Blocker des Skeptikers (05.09.2026) und der falsche Beleg --------------------
+	{
+		const r = tempRepo();
+		// (1) JS: ein Test schneidet per SIGNATUR-String und per RegExp aus einem Namens-Array
+		r.schreibe("html/editor.html", "<script>\nfunction zbvBandwert(kind, cls, z) { return 1; }\nfunction resetZoomBandRow(row) { return row; }\nfunction frei() { return 2; }\n</script>\n");
+		r.schreibe("js/pages/__tests__/vorschau-messung.test.js",
+			'const SEITE = fs.readFileSync(path.join(ROOT, "html/editor.html"), "utf8");\n' +
+			'const schneide = (kopf) => { const s = SEITE.indexOf(kopf); assert.notStrictEqual(s, -1); return SEITE.slice(s, SEITE.indexOf("\\n}", s) + 2); };\n' +
+			'vm.runInContext(schneide("function zbvBandwert(kind, cls, z) {"), ctx);\n');
+		r.schreibe("js/pages/__tests__/dialog.test.js",
+			'const seite = fs.readFileSync(path.join(ROOT, "html/editor.html"), "utf8");\n' +
+			'const setter = ["resetZoomBandRow"];\nfor (const n of setter) { const m = seite.match(new RegExp("function " + n + "\\\\(")); assert.ok(m, n + " wurde gefunden"); }\n');
+		const erg = v.vorpruefung({ datei: "html/editor.html", wurzel: r.dir, min: 1 });
+		const geb = Object.fromEntries(erg.funktionen.map((f) => [f.name, f.gebunden]));
+		assert.deepStrictEqual(geb.zbvBandwert, ["quelltext: js/pages/__tests__/vorschau-messung.test.js"], "Signatur-String bindet");
+		assert.deepStrictEqual(geb.resetZoomBandRow, ["quelltext: js/pages/__tests__/dialog.test.js"], "Name im Array + RegExp-Aufbau bindet");
+		assert.deepStrictEqual(geb.frei, [], "eine Assert-Meldung (n + ' wurde gefunden') bindet nicht");
+
+		// (2) PHP: gleicher Basisname, ANDERE Datei -- der Test liest den Endpunkt api/edit/wiki/x.php,
+		//     nicht die Lib api/_internal/wiki/x.php. Und ein Praefix, der den ganzen Namensraum trifft,
+		//     ist keine Suche nach einer Funktion.
+		r.schreibe("api/_internal/wiki/sync-monitor.php", "<?php\nfunction avesmapsWikiSyncMonitorNormalizeTitle() {}\nfunction avesmapsWikiSyncMonitorClassifyRole() {}\nfunction avesmapsWikiSyncMonitorCrawlStep() {}\nfunction avesmapsWikiSyncMonitorRunStatus() {}\n");
+		r.schreibe("api/edit/wiki/sync-monitor.php", "<?php\nrequire __DIR__ . '/../../_internal/wiki/sync-monitor.php';\n");
+		r.schreibe("api/_internal/wiki/__tests__/territory-plan-test.php",
+			"<?php\n$endpunkt = (string) file_get_contents(__DIR__ . '/../../../edit/wiki/sync-monitor.php');\n" +
+			"assert(str_contains($endpunkt, 'avesmapsWikiSyncMonitor'));\nassert(substr_count($endpunkt, 'avesmapsWikiSyncMonitorRunStatus(') === 0);\n");
+		const php = v.vorpruefung({ datei: "api/_internal/wiki/sync-monitor.php", wurzel: r.dir, min: 1 });
+		assert.deepStrictEqual(php.quelltextTests, [], "der Endpunkt ist nicht die Lib -- keine Bindung");
+		// dieselbe Suche gegen die LIB: der Namensraum-Praefix bindet nichts, der volle Name schon
+		r.schreibe("api/_internal/wiki/__tests__/lib-test.php",
+			"<?php\n$q = (string) file_get_contents(__DIR__ . '/../sync-monitor.php');\n" +
+			"assert(str_contains($q, 'avesmapsWikiSyncMonitor'));\nassert(substr_count($q, 'avesmapsWikiSyncMonitorRunStatus(') === 1);\n");
+		const php2 = v.vorpruefung({ datei: "api/_internal/wiki/sync-monitor.php", wurzel: r.dir, min: 1 });
+		assert.deepStrictEqual(php2.quelltextTests, [{ datei: "api/_internal/wiki/__tests__/lib-test.php", namen: ["avesmapsWikiSyncMonitorRunStatus"] }]);
+	}
+	console.log("vorpruefung I: ok");
 })().catch((e) => { console.error(e); process.exit(1); });
