@@ -146,9 +146,46 @@ function stehtNichtProbe() {
 		});
 }
 
+// ---------------------------------------------------------------------------
+// 4. DIE VORSCHAUZEILEN (sync_plan_item, 05.09.2026) -- dieselbe Naht, ein zweites Feld.
+//
+// `plan.vorschau_aufgeraeumt` traegt, was avesmapsSyncPlanStartRun beim Start des neuen Laufs an
+// offenen Zeilen UEBERHOLTER Laeufe abgeraeumt hat (gemessen 04.09.2026: 61.237 solcher Zeilen,
+// 92,5 MB, ohne einen einzigen Loeschweg). Dieselben drei Zustaende wie beim Staging: Objekt =
+// so viel ist weg, `null` = gescheitert, `laeufe: 0` schweigt.
+// ---------------------------------------------------------------------------
+function vorschauProbe() {
+	laufZeile.textContent = "";
+	const antwort = {
+		ok: true, plan_run_id: 43, vorschlaege: 12,
+		staging_aufgeraeumt: { laeufe: 0, zeilen: 0, waisen: 0, offen: 0 },
+		vorschau_aufgeraeumt: { laeufe: 6, zeilen: 31544, offen: 12 },
+	};
+	return mod.garetienLaufStarten(spion(antwort), ["ggp:Gewaesser"], mod.garetienLaufKachelAktualisieren, listeHolen)
+		.then(function () {
+			wahr(laufZeile.textContent.indexOf("31544 Vorschauzeilen aus 6 Läufen weg") >= 0,
+				"was der Server an Vorschauzeilen abgeraeumt hat, steht in der Kachel -- gelesen wurde: „" + laufZeile.textContent + "\"");
+			wahr(laufZeile.textContent.indexOf("12 offen") >= 0, "und was der Deckel liegen liess");
+			const fehl = { ok: true, plan_run_id: 44, staging_aufgeraeumt: { laeufe: 0, zeilen: 0, waisen: 0, offen: 0 }, vorschau_aufgeraeumt: null };
+			return mod.garetienLaufStarten(spion(fehl), ["ggp:Gewaesser"], mod.garetienLaufKachelAktualisieren, listeHolen);
+		})
+		.then(function () {
+			wahr(laufZeile.textContent.indexOf("Vorschau-Aufräumen fehlgeschlagen") >= 0,
+				"💣 ein Fehlschlag wird genannt, nicht verschwiegen -- gelesen wurde: „" + laufZeile.textContent + "\"");
+			gleich(laufZeile.textContent.indexOf("Vorschauzeilen"), -1, "und die alte Zahl ist weg");
+			const still = { ok: true, plan_run_id: 45, staging_aufgeraeumt: { laeufe: 0, zeilen: 0, waisen: 0, offen: 0 }, vorschau_aufgeraeumt: { laeufe: 0, zeilen: 0, offen: 0 } };
+			return mod.garetienLaufStarten(spion(still), ["ggp:Gewaesser"], mod.garetienLaufKachelAktualisieren, listeHolen);
+		})
+		.then(function () {
+			gleich(laufZeile.textContent.indexOf("Vorschau"), -1,
+				"`laeufe: 0` schweigt -- „0 Vorschauzeilen weg\" stuende sonst dauerhaft da: „" + laufZeile.textContent + "\"");
+		});
+}
+
 nahtProbe()
 	.then(fehlschlagProbe)
 	.then(stehtNichtProbe)
+	.then(vorschauProbe)
 	.then(function () {
 		console.log("garetien-staging-aufraeumung-naht: " + checks + " Pruefungen bestanden.");
 	})

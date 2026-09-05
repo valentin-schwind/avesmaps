@@ -307,6 +307,16 @@ function avesmapsEnsureSyncPlanTablesSqlite(PDO $pdo): void
 function avesmapsSyncPlanStartRun(PDO $pdo, string $kind, int $userId, ?string $sourceStamp): int
 {
     avesmapsSyncPlanSupersedeRuns($pdo, $kind);
+    // 🔴 UND DIE OFFENEN ZEILEN DER UEBERHOLTEN LAEUFE DIESER ART (05.09.2026, siehe
+    // avesmapsSyncPlanAufraeumen) -- gedeckelt. Ein Fehlschlag kippt den neuen Lauf NICHT: er wird als
+    // `null` gemerkt und vom Garetien-Importer in seiner Kachel genannt, nie verschluckt.
+    try {
+        avesmapsSyncPlanAufraeumen($pdo, $kind);
+    } catch (PDOException $exception) {
+        error_log('sync-plan: Aufraeumen der Vorschauzeilen (' . $kind . ') fehlgeschlagen: ' . $exception->getMessage());
+        $speicher = &avesmapsSyncPlanAufraeumSpeicher();
+        $speicher[$kind] = null;
+    }
 
     $pdo->prepare(
         "INSERT INTO sync_plan_run (kind, state, source_stamp, created_by)
@@ -914,4 +924,102 @@ function avesmapsSyncPlanDecisionTargetsForItems(PDO $pdo, int $runId, array $id
     }
 
     return array_values($ziele);
+}
+
+// =================================================================================================
+// AUFRAEUMEN -- die offenen Vorschauzeilen ueberholter Laeufe (05.09.2026)
+// =================================================================================================
+//
+// 🔴 BIS ZUM 05.09.2026 HATTE `sync_plan_item` IM GANZEN CODE KEINEN EINZIGEN LOESCHWEG. Gemessen am
+// Dump vom 04.09.2026: 92,5 MB / 61.613 Zeilen in 55 Laeufen -- davon 17 `done`, 359
+// stale/skipped/failed und 61.237 OFFEN (apply_state NULL) in ueberholten Laeufen, die niemand
+// mehr uebernehmen kann, weil jede Oberflaeche nur den OFFENEN Lauf ihrer Art liest. Jedes
+// „Holen & Rechnen" des Garetien-Importers legte 7-10 MB nach (18 ueberholte Laeufe zu je
+// 4.000-6.400 Zeilen). Die Staging-Aufraeumung des Importers (04.09.) fasst diese Tabelle bewusst
+// nicht an, weil sie acht Arten gehoert -- deshalb sitzt der Loeschweg HIER, am Start eines Laufs.
+
+/**
+ * Hoechstens so viele ueberholte Laeufe raeumt EIN Start eines neuen Laufs ab.
+ *
+ * Sechs Garetien-Laeufe sind rund 30.000 Zeilen in einer Anfrage -- dieselbe Groessenordnung wie
+ * die drei Staging-Laeufe (25.000 Zeilen), die der Importer je „Holen & Rechnen" abraeumt. Der
+ * Rest wartet auf den naechsten Start; die Kachel des Importers nennt, wie viele.
+ */
+const AVESMAPS_SYNC_PLAN_AUFRAEUM_DECKEL = 6;
+
+/**
+ * Das Ergebnis der letzten Aufraeumung je Art -- fuer den Aufrufer von avesmapsSyncPlanStartRun.
+ *
+ * ⚠️ Ein Prozess-Speicher, weil StartRun eine feste Rueckgabe hat (die Lauf-Nummer) und acht
+ * Aufrufer: eine stille Loeschung ist von „nichts passiert" nicht zu unterscheiden, also muss
+ * wenigstens der Garetien-Importer sie in seiner Kachel nennen koennen. `null` heisst
+ * „gescheitert" (StartRun faengt den Fehler, damit der neue Lauf entsteht), ein fehlender
+ * Schluessel „in diesem Prozess nicht gelaufen".
+ *
+ * @return array<string, array{laeufe:int, zeilen:int, offen:int}|null>
+ */
+function &avesmapsSyncPlanAufraeumSpeicher(): array
+{
+    static $speicher = [];
+
+    return $speicher;
+}
+
+/**
+ * @return array{laeufe:int, zeilen:int, offen:int}|null|false  false = in diesem Prozess nicht gelaufen
+ */
+function avesmapsSyncPlanLetzteAufraeumung(string $kind): array|null|false
+{
+    $speicher = &avesmapsSyncPlanAufraeumSpeicher();
+
+    return array_key_exists($kind, $speicher) ? $speicher[$kind] : false;
+}
+
+/**
+ * Die offenen Vorschauzeilen ueberholter Laeufe EINER Art abraeumen -- gedeckelt je Aufruf.
+ *
+ * 🔴 WAS BLEIBT, und warum: `done` (die laufuebergreifende Ruecknahme und der Nachzug des
+ * Garetien-Importers lesen ihre `apply_note`), stale/skipped/failed (Protokoll einer Uebernahme),
+ * alle Zeilen des OFFENEN Laufs (die Arbeitsliste), alle Zeilen ANDERER Arten, und die
+ * `sync_plan_run`-Zeilen selbst (die Ruecknahme JOINt sie fuer die Art, done-Zeilen haengen an
+ * ihrem Lauf). Nur `state = 'superseded'` ist ueberholt -- ein `applied`-Lauf ist das Ende einer
+ * Uebernahme-Vorschau und bleibt.
+ *
+ * 💣 KEIN `DELETE ... LIMIT` und keine Subquery auf die eigene Tabelle: das erste kennt SQLite
+ * ohne SQLITE_ENABLE_UPDATE_DELETE_LIMIT nicht, das zweite lehnt MySQL mit Fehler 1093 ab. Die
+ * faelligen Laeufe werden VORHER ermittelt und einzeln abgeraeumt -- dieselbe Form wie die
+ * Staging-Aufraeumung (garetien-abruf.php), und sie laeuft auf beiden.
+ * ⚠️ Vom AELTESTEN her: wer den Deckel erreicht, hat den groessten Ballast zuerst weg.
+ * ⚠️ Faellt NICHT still aus -- der Aufrufer (StartRun) faengt, merkt `null` und meldet.
+ *
+ * @return array{laeufe:int, zeilen:int, offen:int}
+ */
+function avesmapsSyncPlanAufraeumen(PDO $pdo, string $kind, int $deckel = AVESMAPS_SYNC_PLAN_AUFRAEUM_DECKEL): array
+{
+    // 💣 Die Klemme steht IM Rumpf, nicht beim Aufrufer: ein Deckel 0 hiesse „nie aufraeumen",
+    // und die Tabelle wuechse weiter, waehrend alles gruen aussieht.
+    $deckel = max(1, $deckel);
+
+    $stmt = $pdo->prepare(
+        "SELECT r.id FROM sync_plan_run r
+          WHERE r.kind = :k AND r.state = 'superseded'
+            AND EXISTS (SELECT 1 FROM sync_plan_item i WHERE i.run_id = r.id AND i.apply_state IS NULL)
+          ORDER BY r.id ASC"
+    );
+    $stmt->execute(['k' => $kind]);
+    $faellig = array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN) ?: []);
+    $dran = array_slice($faellig, 0, $deckel);
+
+    $loesche = $pdo->prepare('DELETE FROM sync_plan_item WHERE run_id = :r AND apply_state IS NULL');
+    $zeilen = 0;
+    foreach ($dran as $lauf) {
+        $loesche->execute(['r' => $lauf]);
+        $zeilen += $loesche->rowCount();
+    }
+
+    $ergebnis = ['laeufe' => count($dran), 'zeilen' => $zeilen, 'offen' => count($faellig) - count($dran)];
+    $speicher = &avesmapsSyncPlanAufraeumSpeicher();
+    $speicher[$kind] = $ergebnis;
+
+    return $ergebnis;
 }

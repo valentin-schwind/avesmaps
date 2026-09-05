@@ -176,6 +176,13 @@ try {
             // 🔴 UND DAS WIRD EBENSO GEMELDET, aus demselben Grund wie die zwei Zeilen darunter:
             // eine stille Loeschung ist von „nichts passiert" nicht zu unterscheiden.
             'staging_aufgeraeumt' => $aufgeraeumt,
+            // 🔴 UND DIE VORSCHAUZEILEN ueberholter Laeufe (sync_plan_item, 05.09.2026) -- abgeraeumt beim
+            // Start des Laufs, den der Planbau gerade angelegt hat (avesmapsSyncPlanStartRun). Dieselben
+            // drei Zustaende wie eine Zeile darueber: Objekt = so viel ist weg, null = gescheitert; ein
+            // Prozess, in dem kein Lauf startete, laesst das Feld weg (keine Aussage).
+            ...(avesmapsSyncPlanLetzteAufraeumung(AVESMAPS_GARETIEN_PLAN_KIND) !== false
+                ? ['vorschau_aufgeraeumt' => avesmapsSyncPlanLetzteAufraeumung(AVESMAPS_GARETIEN_PLAN_KIND)]
+                : []),
             // 🔴 UND DAS AUFRAEUMEN WIRD EBENSO GEMELDET. Eine stille Loeschung an
             // fremden Objekten ist von „nichts passiert" nicht zu unterscheiden -- dieselbe
             // Regel wie eine Zeile darueber.

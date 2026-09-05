@@ -1833,6 +1833,9 @@
 	// fängt es, damit es den fertigen Plan nicht kippt) · `undefined` = keine Aussage (ein älterer
 	// Lauf oder ein Server vor dieser Änderung nennt das Feld gar nicht).
 	let garetienLaufAufraeumung;
+	// `vorschau_aufgeraeumt` aus `action:'plan'` (05.09.2026): die offenen Vorschauzeilen ueberholter
+	// Laeufe (sync_plan_item), abgeraeumt beim Start des neuen Laufs -- dieselben drei Zustaende.
+	let garetienLaufVorschauAufraeumung;
 
 	// Die Ebenen-Schlüssel sind stabile Kennungen (`Gewaesser`, `Waelder`, `Ortschaften_1`) und
 	// bleiben es -- sie stecken im Bezeichner `wiki:ebene`, den der Endpunkt entgegennimmt. Nur die
@@ -1984,6 +1987,18 @@
 			teile.push(weg + (weg === 1 ? " alter Lauf weg" : " alte Läufe weg")
 				+ (offen > 0 ? ", " + offen + " offen" : ""));
 		}
+		// Dieselben drei Zustände für die VORSCHAUZEILEN (sync_plan_item, 05.09.2026): die offenen Zeilen
+		// überholter Läufe, abgeräumt beim Start des neuen (avesmapsSyncPlanStartRun). Bis dahin hatte
+		// diese Tabelle keinen Löschweg -- 61.237 solcher Zeilen, 92,5 MB (Dump 04.09.2026).
+		if (l.vorschau === null) {
+			teile.push("Vorschau-Aufräumen fehlgeschlagen");
+		} else if (l.vorschau && Number(l.vorschau.laeufe) > 0) {
+			const vLaeufe = Number(l.vorschau.laeufe);
+			const vOffen = Number(l.vorschau.offen) || 0;
+			teile.push((Number(l.vorschau.zeilen) || 0) + " Vorschauzeilen aus " + vLaeufe
+				+ (vLaeufe === 1 ? " Lauf weg" : " Läufen weg")
+				+ (vOffen > 0 ? ", " + vOffen + " offen" : ""));
+		}
 		return teile.join(" · ");
 	}
 
@@ -2077,6 +2092,7 @@
 				dauerMs: garetienRechenDauerMs,
 				fehler: garetienEbenenFehler,
 				aufgeraeumt: garetienLaufAufraeumung,
+				vorschau: garetienLaufVorschauAufraeumung,
 			});
 		}
 		const knopf = document.getElementById("garetien-run-tile");
@@ -2225,6 +2241,8 @@
 						// übernommen, ohne `||`-Rückfall: `null` IST die Aussage „gescheitert“, und ein
 						// Rückfall auf 0 machte daraus „nichts zu tun“.
 						garetienLaufAufraeumung = plan.staging_aufgeraeumt;
+						// Und die Vorschauzeilen -- roh, aus demselben Grund (`null` IST eine Aussage).
+						garetienLaufVorschauAufraeumung = plan.vorschau_aufgeraeumt;
 						// Zeitstempel und Zeilenzahl kommen vom SERVER, nicht aus der Browseruhr.
 						return garetienLaufUebernehmen(rufe, zustand.importRunId);
 					})
