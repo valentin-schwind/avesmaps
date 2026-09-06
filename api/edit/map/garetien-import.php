@@ -226,7 +226,19 @@ try {
             // Liste stehen -- der Endpunkt baut sein Filterfeld aus genau ihr, und ein fehlender
             // Schluessel wird still verworfen. Genau so war die Kachel „Angezeigte Zeilen" von
             // ihrer Auslieferung bis zum 31.08.2026 wirkungslos.
-            'keys' => array_slice((array) ($payload['keys'] ?? []), 0, AVESMAPS_GARETIEN_LISTE_MAX),
+            // 💣 F6 (Fixrunde 1 zu Aufgabe 5): ein verschachteltes Element (`[$k, ['boese']]`)
+            // erzeugt ohne Filter eine „Array to string conversion"-Warnung je Objekt in
+            // avesmapsGaretienListeObjektPasstFilter (`array_map('strval', ...)`) -- kein Fatal,
+            // aber Laerm im Fehlerprotokoll bei jedem betroffenen Nachschlag.
+            // 🔴 REIHENFOLGE: ERST FILTERN, DANN KAPPEN, DANN NEU INDIZIEREN. Wer zuerst kappt
+            // und danach filtert, kappt Luecken statt Werte -- ein verschachteltes Element unter
+            // den ersten AVESMAPS_GARETIEN_LISTE_MAX Eintraegen risse dann einen echten Schluessel
+            // aus der Liste, der weiter hinten stand, statt einfach zu verschwinden.
+            'keys' => array_values(array_slice(
+                array_filter((array) ($payload['keys'] ?? []), 'is_scalar'),
+                0,
+                AVESMAPS_GARETIEN_LISTE_MAX
+            )),
         ]));
     }
 

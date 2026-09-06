@@ -71,12 +71,45 @@ assert($antwort['objekte'][0]['key'] === $keyUebernommen,
     'und es ist wirklich das uebernommene Objekt, nicht zufaellig eins mit stand=offen');
 $pruefungen += 2;
 
-// Deckel: mehr als AVESMAPS_GARETIEN_LISTE_MAX Schluessel werden gekappt, nicht abgelehnt.
-$viele = array_fill(0, AVESMAPS_GARETIEN_LISTE_MAX + 5, $keyOffen);
-$antwort = avesmapsGaretienArbeitsliste($pdo, $runId, ['keys' => $viele]);
-assert(count($antwort['objekte']) <= AVESMAPS_GARETIEN_LISTE_MAX,
-    'ein ueberlanger Schluessel-Nachschlag darf nicht abbrechen: ' . count($antwort['objekte']));
+// F1 (Fixrunde 1 zu Aufgabe 5): `keys` schlaegt auch die SEITENAUFTEILUNG -- `versatz` und
+// `anzahl` liegen AUSSERHALB des Filters, in avesmapsGaretienArbeitsliste, und ein geerbtes
+// `versatz`/`anzahl` aus dem vorigen Reiter-Aufruf hielte sonst genau die Haelfte eines
+// Nachschlags zurueck. Der Pruefer hat es am unveraenderten Code gemessen:
+//   Nachschlag mit geerbtem versatz=5        -> 0 Objekte  bei gesamt=1
+//   Nachschlag 6 keys mit geerbtem anzahl=2  -> 2 Objekte  bei gesamt=6
+// -- objekte leer bei gesamt>0 liest sich wie „alle sind weg", das schlimmste denkbare Bild fuer
+// den kuenftigen Absender der Import-Stage.
+$antwort = avesmapsGaretienArbeitsliste($pdo, $runId, ['keys' => [$keyOffen], 'versatz' => 5]);
+assert(count($antwort['objekte']) === 1,
+    'keys setzt versatz auf 0 zurueck, sonst verschwindet der einzige Treffer hinter der Seite: '
+    . count($antwort['objekte']));
 $pruefungen++;
+
+$alleSchluessel = array_column($liste['objekte'], 'key');
+assert(count($alleSchluessel) === 6, 'die Vorbedingung: die Fixture traegt sechs Objekte, nicht '
+    . count($alleSchluessel));
+$pruefungen++;
+$antwort = avesmapsGaretienArbeitsliste($pdo, $runId, ['keys' => $alleSchluessel, 'anzahl' => 2]);
+assert(count($antwort['objekte']) === 6,
+    'keys setzt anzahl auf den Deckel zurueck, sonst kappt ein geerbtes anzahl den Nachschlag: '
+    . count($antwort['objekte']));
+$pruefungen++;
+
+// F2 (Fixrunde 1 zu Aufgabe 5): `keys` schlaegt auch einen LISTENFILTER (ebene/typ/urteil/wiki),
+// nicht nur `stand`. Der Pruefer hat gemessen: schiebt man den `keys`-Block hinter die
+// ebene/typ/urteil/wiki-Schleife (aber vor `stand`), ueberleben ALLE drei bisherigen
+// Listentests -- die Zusicherung oben prueft nur gegen `stand`, nie gegen einen Listenfilter.
+$antwort = avesmapsGaretienArbeitsliste(
+    $pdo,
+    $runId,
+    ['keys' => [$keyOffen], 'ebene' => ['nicht-die-ebene-des-gardel']]
+);
+assert(count($antwort['objekte']) === 1, 'keys gewinnt auch gegen einen Listenfilter (ebene): ' . count($antwort['objekte']));
+assert($antwort['objekte'][0]['key'] === $keyOffen,
+    'und es ist wirklich das nachgeschlagene Objekt, nicht zufaellig eins mit ebene-Treffer');
+$pruefungen += 2;
+
+// F5 (Fixrunde 1 zu Aufgabe 5): der Deckel ist am ENDPUNKT zugesichert (garetien-endpunkt-test.php), nicht hier -- gegen diese 6-Objekte-Fixture waere `count <= MAX` strukturell immer wahr.
 
 // ⚠️ Gegenprobe zur eigenen Regel: EIN LEERES `keys`-Array ist KEIN Filter, sondern die Abwesenheit
 // eines Nachschlags -- dieselbe Regel wie bei ebene/typ/urteil/wiki (Docblock von

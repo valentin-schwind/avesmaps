@@ -304,7 +304,18 @@ assert(count($gesendet) >= 9, 'die Rumpfe wurden wirklich gelesen: ' . implode('
 $code = $nurCode($roh);
 $listeVon = strpos($code, "\$action === 'liste'");
 assert($listeVon !== false, 'der liste-Zweig steht im Endpunkt');
-preg_match_all("~\\\$payload\\['([a-z_]+)'\\]~", substr($code, $listeVon, 2000), $gelesen);
+// 🔴 FIXRUNDE 1 ZU AUFGABE 5, BEFUND F3: DAS FENSTER ENDET AM NAECHSTEN ZWEIGANFANG, NICHT BEI
+// EINER FESTEN ZAHL. Ein festes `substr(..., 2000)` reicht 620 Zeichen ueber den `liste`-Zweig
+// hinaus (kommentarfrei gemessen: `'keys'` bei Offset 1209, der naechste `$action === ` bei
+// 1380) -- eine Mutation, die die `keys`-Zeile aus `liste` entfernt und in den NACHBARzweig
+// einfuegt, ueberlebt beide Zusicherungen unten. `+20` versetzt die Suche hinter das eigene
+// `$action === 'liste'`-Literal (20 Zeichen lang), sonst findet strpos sich selbst.
+// ⚠️ Faellt der `liste`-Zweig als LETZTER der Datei aus, gibt es keinen naechsten `$action === `
+// mehr -- dann gilt der Rest der Datei als Fenster, NIE eine Laenge 0 (die machte jede
+// Zusicherung unten stillschweigend wahr).
+$naechsteWeiche = strpos($code, "\$action === ", $listeVon + 20);
+$listeZweigLaenge = $naechsteWeiche === false ? (strlen($code) - $listeVon) : ($naechsteWeiche - $listeVon);
+preg_match_all("~\\\$payload\\['([a-z_]+)'\\]~", substr($code, $listeVon, $listeZweigLaenge), $gelesen);
 $gelesenNamen = array_values(array_unique($gelesen[1]));
 
 // `action` beantwortet der Verteiler weiter oben, nicht der Filter.
@@ -320,16 +331,27 @@ assert($fehlend === [],
 // „Angezeigte Zeilen" bis zum 31.08.2026 wirkungslos gemacht hat: der Endpunkt baut sein
 // Filterfeld aus einer ausdruecklichen Liste, und ein dort fehlender Schluessel wird still
 // verworfen, ohne dass irgendein Fehler entsteht. Geprueft wird deshalb direkt an dieser Liste.
-$listeFilterfeld = substr($code, $listeVon, 2000);
+$listeFilterfeld = substr($code, $listeVon, $listeZweigLaenge);
 assert(preg_match("~'keys'\s*=>~", $listeFilterfeld) === 1,
     'der liste-Zweig baut sein Filterfeld ohne den `keys`-Nachschlag der Import-Stage -- ein '
     . 'geschicktes `keys` wuerde still verworfen');
 // 💣 UND DER DECKEL GEHOERT ZUR SELBEN ZEILE -- ein `keys` OHNE `array_slice(...,
 // AVESMAPS_GARETIEN_LISTE_MAX)` liesse eine beliebig lange Liste unbeschnitten in die Bibliothek
 // laufen; die Kappung ist serverseitig, nicht nur eine Empfehlung im Browser.
+// ⚠️ Der optionale `array_values(`-Mantel gehoert zum Skalarfilter (F6, Fixrunde 1 zu Aufgabe 5):
+// `array_slice` steht seither NICHT mehr direkt hinter `=>`, sondern hinter `array_values(`.
 assert(
-    preg_match("~'keys'\s*=>\s*array_slice\([^;]*AVESMAPS_GARETIEN_LISTE_MAX~", $listeFilterfeld) === 1,
+    preg_match("~'keys'\s*=>\s*(?:array_values\(\s*)?array_slice\([^;]*AVESMAPS_GARETIEN_LISTE_MAX~", $listeFilterfeld) === 1,
     'das `keys`-Feld ist nicht mit array_slice(..., AVESMAPS_GARETIEN_LISTE_MAX) gedeckelt'
+);
+// 🔴 F6 (Fixrunde 1 zu Aufgabe 5): ein verschachteltes `keys`-Element (`[$k, ['boese']]`) erzeugt
+// ohne Skalarfilter eine „Array to string conversion"-Warnung je Objekt (kein Fatal, aber Laerm
+// im Fehlerprotokoll). Geprueft wird, dass `is_scalar` zwischen `=>` und dem Deckel liegt --
+// irgendwo im ganzen Endpunkt stuende es auch fuer einen voellig anderen Zweig.
+assert(
+    preg_match("~'keys'\s*=>[\s\S]*?is_scalar[\s\S]*?AVESMAPS_GARETIEN_LISTE_MAX~", $listeFilterfeld) === 1,
+    'das `keys`-Feld filtert nicht auf Skalare -- ein verschachteltes Element wirft "Array to '
+    . 'string conversion" statt sauber zu verschwinden'
 );
 
 // =================================================================================================

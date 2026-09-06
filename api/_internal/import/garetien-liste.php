@@ -377,6 +377,21 @@ function avesmapsGaretienListeObjektHatVormerkung(array $items): bool
 }
 
 /**
+ * Hat dieser Filter einen `keys`-Nachschlag? REIN -- kein I/O.
+ *
+ * 🔴 EIN Helfer, ZWEI Erzeuger (Fixrunde 1 zu Aufgabe 5, Befund F1): der Filter selbst
+ * (avesmapsGaretienListeObjektPasstFilter, direkt darunter) UND die Seitenaufteilung
+ * (avesmapsGaretienArbeitsliste), die `keys` GENAUSO schlagen muss -- sonst haelt ein geerbtes
+ * `versatz`/`anzahl` genau die Haelfte eines Nachschlags zurueck, und `objekte` sieht bei
+ * `gesamt > 0` leer aus, das schlimmste denkbare Bild. Eine Regel, die einen von zwei Erzeugern
+ * bindet, ist keine Regel (AGENTS.md §11).
+ */
+function avesmapsGaretienListeFilterHatKeys(array $filter): bool
+{
+    return isset($filter['keys']) && is_array($filter['keys']) && $filter['keys'] !== [];
+}
+
+/**
  * Passt ein fertig gebautes Objekt auf den Filter? REIN -- kein I/O.
  *
  * 💣 `ebene`/`typ`/`urteil`/`wiki` sind LISTEN (Mehrfachauswahl): eine leere Liste heisst
@@ -389,7 +404,12 @@ function avesmapsGaretienListeObjektPasstFilter(array $objekt, array $filter): b
     // hinweg; nach einem „Holen & Rechnen" fragt sie „gibt es diese sieben noch, und wie stehen
     // sie jetzt". Ein zusaetzlich geerbtes `stand: "offen"` liesse dabei genau die heraus, deren
     // Zustand sich geaendert hat -- also die einzige Auskunft, um die es geht.
-    if (isset($filter['keys']) && is_array($filter['keys']) && $filter['keys'] !== []) {
+    // 🔴 UND ER SCHLAEGT AUCH DIE SEITENAUFTEILUNG (Fixrunde 1 zu Aufgabe 5, Befund F1): `versatz`
+    // und `anzahl` liegen AUSSERHALB dieser Funktion, in avesmapsGaretienArbeitsliste -- „steht
+    // VOR allem anderen" schuetzte dort NICHTS, ein geerbtes `versatz` liess den Nachschlag leer
+    // aussehen, obwohl `gesamt` seine Treffer zaehlte. Beide Stellen fragen deshalb denselben
+    // Helfer, avesmapsGaretienListeFilterHatKeys.
+    if (avesmapsGaretienListeFilterHatKeys($filter)) {
         return in_array((string) $objekt['key'], array_map('strval', $filter['keys']), true);
     }
 
@@ -911,10 +931,21 @@ function avesmapsGaretienArbeitsliste(PDO $pdo, int $importRunId, array $filter)
     ));
 
     $gesamt = count($gefiltert);
-    $versatz = max(0, (int) ($filter['versatz'] ?? 0));
-    $anzahl = (int) ($filter['anzahl'] ?? AVESMAPS_GARETIEN_LISTE_MAX);
-    if ($anzahl <= 0 || $anzahl > AVESMAPS_GARETIEN_LISTE_MAX) {
+    // 🔴 FIXRUNDE 1 ZU AUFGABE 5, BEFUND F1: `keys` schlaegt auch die SEITENAUFTEILUNG. Ein
+    // Nachschlag-Aufruf traegt oft ein geerbtes `versatz`/`anzahl` aus dem vorigen Reiter mit --
+    // ohne diese Weiche haette der Prüfer recht behalten: `objekte` leer bei `gesamt: 1`, das
+    // schlimmste denkbare Bild fuer den kuenftigen Absender der Import-Stage. Derselbe Helfer wie
+    // im Filter oben (avesmapsGaretienListeFilterHatKeys) -- eine zweite Abschrift derselben drei
+    // Pruefungen liefe beim naechsten Feldnamen auseinander.
+    if (avesmapsGaretienListeFilterHatKeys($filter)) {
+        $versatz = 0;
         $anzahl = AVESMAPS_GARETIEN_LISTE_MAX;
+    } else {
+        $versatz = max(0, (int) ($filter['versatz'] ?? 0));
+        $anzahl = (int) ($filter['anzahl'] ?? AVESMAPS_GARETIEN_LISTE_MAX);
+        if ($anzahl <= 0 || $anzahl > AVESMAPS_GARETIEN_LISTE_MAX) {
+            $anzahl = AVESMAPS_GARETIEN_LISTE_MAX;
+        }
     }
 
     return [
