@@ -41,48 +41,48 @@ Stand der Erstfüllung: `1cb5e09bd` (05.09.2026), 30 Pakete. Verworfen/nachgezog
 
 ### P-001 · js/review/review-wiki-sync.js · Verfahren A
 - Status: offen
-- Stand: 1cb5e09bd · Blob: e8719aa6dbd60d7872e6880be817bfbb11433334
-- Block: „Dump-Bericht-Helfer“ — avesmapsDumpReportInjectStyles … avesmapsDumpReportRunSectionHtml (8 Funktionen, ~282 Zeilen ab Z. 1274)
+- Stand: 2211f8d3e · Blob: bad35591bdebde899c90aa8a1d613064088ac7d9
+- Block: „Dump-Bericht-Helfer“ — avesmapsDumpReportInjectStyles … avesmapsDumpReportRunSectionHtml (8 Funktionen, ~282 Zeilen ab Z. 1279)
 - Ziel: js/review/review-wiki-sync-dump-report.js, <script> direkt neben dem Original
 - Vorprüfung (05.09.2026): Ladezeit-Bezug 0 · Register 14 · Quelltext-Tests 0 (Blocknamen: 0) · vm-Bindung 0 · Konstanten fehlend 0 · Datei 4044 Zeilen, 174 Commits/180 d · heiß (1 d, wartet auf Abkühlung)
 - Fallen: `avesmapsOpenDumpReport` (trägt den `window`-Export) und der Zustand `let avesmapsDumpReportStylesInjected` BLEIBEN in der Originaldatei — der Lauf vom 01.09.2026 scheiterte, weil er den Export mitnahm. `avesmapsDumpReportInjectStyles` schreibt die globale `let`-Variable aus der Geschwisterdatei; das ist über Skriptgrenzen erlaubt (globaler lexikalischer Geltungsbereich klassischer Skripte). `lore-dialog-layout.test.js` lädt die Datei allein in einen vm-Kontext und ruft laut Vorprüfung keinen der acht Namen — nach dem Schnitt trotzdem den Test fahren.
-- Verlauf: 05.09.2026 angelegt (Analyse, Rangwert 703656)
+- Verlauf: 05.09.2026 angelegt (Analyse, Rangwert 703656) · 06.09.2026 nachgezogen: `2211f8d3e` hat drei Hunks bei Z. 843/2756/3959 -- alle ausserhalb des Blocks; Block an den Namen unveraendert zusammenhaengend und frei, nur um +5 Zeilen gewandert
 
 ### P-002 · js/review/review-wiki-sync.js · Verfahren A
 - Status: offen
-- Stand: 1cb5e09bd · Blob: e8719aa6dbd60d7872e6880be817bfbb11433334
-- Block: „Sync-Läufe je Objektart und Publikationen“ — setWikiSyncKindStatus … runWikiSyncPublicationsSyncLoop (6 Funktionen, ~281 Zeilen ab Z. 1721)
+- Stand: 2211f8d3e · Blob: bad35591bdebde899c90aa8a1d613064088ac7d9
+- Block: „Sync-Läufe je Objektart und Publikationen“ — setWikiSyncKindStatus … runWikiSyncPublicationsSyncLoop (6 Funktionen, ~281 Zeilen ab Z. 1726)
 - Ziel: js/review/review-wiki-sync-kind-loops.js, <script> direkt neben dem Original
 - Vorprüfung (05.09.2026): Ladezeit-Bezug 0 · Register 14 · Quelltext-Tests 0 (Blocknamen: 0) · vm-Bindung 0 · Konstanten fehlend 0 · Datei 4044 Zeilen, 174 Commits/180 d · heiß (1 d, wartet auf Abkühlung)
 - Fallen: Mehrere Register-Treffer auf den Zielpfad (die Vorprüfung zählt sie); `tools/paths/test-wiki-sync-panel-tab.mjs` führt die Dateiliste der Reiter-Lader von Hand (Lehre vom 02.09.2026) — steht einer dieser sechs Namen in seiner Lader-Tabelle, gehört die neue Datei in die Liste (eine Zeile, wie das `<script>`-Tag).
-- Verlauf: 05.09.2026 angelegt (Analyse, Rangwert 703656)
+- Verlauf: 05.09.2026 angelegt (Analyse, Rangwert 703656) · 06.09.2026 nachgezogen: `2211f8d3e` hat drei Hunks bei Z. 843/2756/3959 -- alle ausserhalb des Blocks; Block an den Namen unveraendert zusammenhaengend und frei, nur um +5 Zeilen gewandert
 
 ### P-003 · api/_internal/app/ecosystem.php · Verfahren C
 - Status: offen
-- Stand: 1cb5e09bd · Blob: 9ad1cabb9960d854b2f882246f69bac64849f6a6
-- Block: „Klimazonen“ — avesmapsEcosystemClimateZones … avesmapsEcosystemClimateReset (12 Funktionen, ~564 Zeilen ab Z. 5349)
+- Stand: 2211f8d3e · Blob: a2d7aecd078bb86133d1dc44dcf1ad8c5e60df6a
+- Block: „Klimazonen“ — avesmapsEcosystemClimateZones … avesmapsEcosystemClimateReset (12 Funktionen, ~564 Zeilen ab Z. 5361)
 - Ziel: api/_internal/app/ecosystem-klima.php, require_once an der Blockstelle
 - Vorprüfung (05.09.2026): Ladezeit-Bezug 0 · Register 3 · Quelltext-Tests 0 (Blocknamen: 0) · vm-Bindung 0 · Konstanten fehlend 0 · Datei 5896 Zeilen, 91 Commits/180 d · heiß (1 d, wartet auf Abkühlung)
 - Fallen: `climate-insert-zone-test.php` und `climate-rename-test.php` requiren `ecosystem.php` (SQLite, transparent); `climate-membership-test.php` requiret nur `climate-membership.php`. `avesmapsClimateAssertNotDerived` (AGENTS §11: ein Band darf nie als Polygon bearbeitet werden) liegt in `api/_internal/app/climate-zones.php:529`, nicht hier. Kopfkommentar ENGLISCH wie der Dateikopf von `ecosystem.php` (Z. 5–10 nennt die Sprachregel „code/identifiers/messages EN“ ausdrücklich), auch wenn der Rumpf gemischt ist. ⚠️ `avesmapsEcosystemClimateZones` wird aus dem Verlauf-Block (`avesmapsListEcosystemChanges`, Z. 5047) gerufen — die zwei ecosystem.php-Pakete sind gekoppelt, jede Reihenfolge ist zulässig, aber keine Konstellation ohne beide Geschwisterdateien darf getestet werden, die es live nicht gibt.
-- Verlauf: 05.09.2026 angelegt (Analyse, Rangwert 536536)
+- Verlauf: 05.09.2026 angelegt (Analyse, Rangwert 536536) · 06.09.2026 nachgezogen: 980bc5b7f hat 12 Kommentarzeilen bei Z. 4762 ergänzt (außerhalb aller drei Blöcke); Block an den Namen unverändert zusammenhängend und frei
 
 ### P-004 · api/_internal/app/ecosystem.php · Verfahren C
 - Status: offen
-- Stand: 1cb5e09bd · Blob: 9ad1cabb9960d854b2f882246f69bac64849f6a6
-- Block: „Änderungsverlauf und Rückgängig“ — avesmapsEcosystemCanUndoAction … avesmapsEcosystemRestoreRegionLabel (8 Funktionen, ~411 Zeilen ab Z. 4917)
+- Stand: 2211f8d3e · Blob: a2d7aecd078bb86133d1dc44dcf1ad8c5e60df6a
+- Block: „Änderungsverlauf und Rückgängig“ — avesmapsEcosystemCanUndoAction … avesmapsEcosystemRestoreRegionLabel (8 Funktionen, ~411 Zeilen ab Z. 4929)
 - Ziel: api/_internal/app/ecosystem-verlauf.php, require_once an der Blockstelle
 - Vorprüfung (05.09.2026): Ladezeit-Bezug 0 · Register 3 · Quelltext-Tests 0 (Blocknamen: 0) · vm-Bindung 0 · Konstanten fehlend 0 · Datei 5896 Zeilen, 91 Commits/180 d · heiß (1 d, wartet auf Abkühlung)
 - Fallen: Zwei Klima-Helfer (`avesmapsEcosystemClimateDividerName`, `…SouthKeyOfAudit`) liegen im Lauf, weil das Rückgängig sie für Audit-Zeilen der Trennlinien braucht — sie gehören zum Verlauf, nicht zum Klima-Paket. Kein Kartenstempel-Bump beim Umzug (nur Ort). ⚠️ Der Block ruft `avesmapsEcosystemClimateZones` (Z. 5047) aus dem Klimazonen-Paket derselben Datei — technisch unschädlich (require_once, Aufruf zur Laufzeit), aber die beiden Pakete sind gekoppelt: nach dem einen Schnitt den anderen im Kopf behalten (Skeptiker 05.09.2026).
-- Verlauf: 05.09.2026 angelegt (Analyse, Rangwert 536536)
+- Verlauf: 05.09.2026 angelegt (Analyse, Rangwert 536536) · 06.09.2026 nachgezogen: 980bc5b7f hat 12 Kommentarzeilen bei Z. 4762 ergänzt (außerhalb aller drei Blöcke); Block an den Namen unverändert zusammenhängend und frei
 
 ### P-005 · api/_internal/app/ecosystem.php · Verfahren C
 - Status: offen
-- Stand: 1cb5e09bd · Blob: 9ad1cabb9960d854b2f882246f69bac64849f6a6
+- Stand: 2211f8d3e · Blob: a2d7aecd078bb86133d1dc44dcf1ad8c5e60df6a
 - Block: „Regionen lesen und Wiki-Schlüssel“ — avesmapsEcosystemWikiSlug … avesmapsListEcosystemRegionsByWikiKey (7 Funktionen, ~268 Zeilen ab Z. 2331)
 - Ziel: api/_internal/app/ecosystem-regionen.php, require_once an der Blockstelle
 - Vorprüfung (05.09.2026): Ladezeit-Bezug 0 · Register 3 · Quelltext-Tests 0 (Blocknamen: 0) · vm-Bindung 0 · Konstanten fehlend 0 · Datei 5896 Zeilen, 91 Commits/180 d · heiß (1 d, wartet auf Abkühlung)
 - Fallen: Enger als der freie Block: `avesmapsEcosystemApplyRegionFieldOrigins` (curve-label-store-test liest den Quelltext) und `avesmapsAssignEcosystemWikiRegion`/`…AssignIsDryRun` (ecosystem-label-wiki-durchtrag-test) bleiben in `ecosystem.php`. Die Leser hier sind rein.
-- Verlauf: 05.09.2026 angelegt (Analyse, Rangwert 536536)
+- Verlauf: 05.09.2026 angelegt (Analyse, Rangwert 536536) · 06.09.2026 nachgezogen: 980bc5b7f hat 12 Kommentarzeilen bei Z. 4762 ergänzt (außerhalb aller drei Blöcke); Block an den Namen unverändert zusammenhängend und frei
 
 ### P-006 · api/_internal/map/features.php · Verfahren C
 - Status: offen
@@ -121,13 +121,13 @@ Stand der Erstfüllung: `1cb5e09bd` (05.09.2026), 30 Pakete. Verworfen/nachgezog
 - Verlauf: 05.09.2026 angelegt (Analyse, Rangwert 133799)
 
 ### P-010 · api/_internal/routing/client-graph.php · Verfahren C
-- Status: offen
+- Status: verworfen (Fingerabdruck: Block zu klein)
 - Stand: 1cb5e09bd · Blob: 054b6e83f0bd7625ad2e30941f6d9c8562035c45
 - Block: „Verkehrsmittel-Regeln“ — avesmapsNormalizeClientRouteSubtype … avesmapsClientRoutePathAllowedTransports (9 Funktionen, ~108 Zeilen ab Z. 1630)
 - Ziel: api/_internal/routing/client-graph-transport.php, require_once an der Blockstelle
 - Vorprüfung (05.09.2026): Ladezeit-Bezug 0 · Register 1 · Quelltext-Tests 0 (Blocknamen: 0) · vm-Bindung 0 · Konstanten fehlend 0 · Datei 2017 Zeilen, 48 Commits/180 d
 - Fallen: AGENTS §11: die Verkehrsmittel-Sperre wird von VIER Erzeugern gefragt (Erzeuger von Querfeldein-Kanten in `client-graph.php` und `offroad-leg.php`; `avesmapsIsClientTransportAllowedForPath` hat hier drei interne Aufrufer, Z. 241/738/833) — der Umzug ändert keinen Aufrufer, und `carriage-offroad-test.php` fährt die Route wirklich. `travel-values.php` liefert das Tempo-Raster. `AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE` steht in `client-graph.php:30` VOR der Blockstelle (die Vorprüfung zählt sie), drei weitere `AVESMAPS_ROUTE_*` in `request.php:27-29`. 🔴 `offroad-leg.php` wird NICHT mitgeschnitten — zwei der vier Erzeuger der Sperre bleiben dort; die neue Datei trägt nur die Regeln, nicht „die Sperre“ (Backend-Agent 05.09.2026).
-- Verlauf: 05.09.2026 angelegt (Analyse, Rangwert 96816)
+- Verlauf: 05.09.2026 angelegt (Analyse, Rangwert 96816) · 06.09.2026 gebaut und GEMESSEN, dann zurueckgebaut: 118 Einfuegungen / 108 Loeschungen = 8,5 % gegen den 5-%-Riegel. Struktureller Grund, verfaellt NICHT: der Overhead einer PHP-Geschwisterdatei ist konstant 9-10 Zeilen (`<?php` + `declare` + 3-Zeilen-Kopf + `require_once`), ein Block unter ~170 Zeilen kann den Riegel also nie bestehen. Am Block selbst war nichts auszusetzen (block.frei, Testfeld unberuehrt, `request-contract-test.php` globbt das Verzeichnis und haette die Geschwisterdatei mitgelesen). 🔧 Owner: entweder den Boden im Riegel anerkennen (dann auch P-007/P-016/P-018 verwerfen) oder den Block mit einem Nachbarblock zusammenlegen.
 
 ### P-011 · api/_internal/app/citymaps.php · Verfahren C
 - Status: offen
@@ -253,7 +253,7 @@ Stand der Erstfüllung: `1cb5e09bd` (05.09.2026), 30 Pakete. Verworfen/nachgezog
 - Verlauf: 05.09.2026 angelegt (Doppelungs-Scan, gleichheit 1,00; Historiker) · 05.09.2026 GO Owner (zusammenlegen; alte Namen bleiben als Weiterreicher)
 
 ### P-024 · api/_internal/wiki/sync-monitor.php · Verfahren C
-- Status: offen
+- Status: erledigt (82f713e18)
 - Stand: 1cb5e09bd · Blob: 767a14f7cfc522aead59ffbecc69371a993c55d1
 - Block: „Doppelung: das Crawl-Skelett der Wiki-Sync-Libs“ — avesmapsWikiSyncMonitorEnqueue … avesmapsWikiSyncMonitorEnqueue (Familie: `Enqueue` dreifach in sync-monitor/regions/paths; `FetchCategory`, `RunStatus`, `StartRun`, `Clear` je paths ↔ regions)
 - Ziel: `api/_internal/wiki/wiki-crawler-base.php` — der Masterplan (M4, seit `723aae060` 13.06.2026) nennt genau diese Datei als aufgeschoben. Parametrisiert über Queue-/Staging-Tabelle, Default-Seeds und Max-Depth-Konstante; die Path-/Region-Namen bleiben als Weiterreicher.
@@ -262,7 +262,7 @@ Stand der Erstfüllung: `1cb5e09bd` (05.09.2026), 30 Pakete. Verworfen/nachgezog
 - Empfehlung: zusammenlegen — `Enqueue` zuerst (alle drei Aufrufer identisch, kandidatenreifste Funktion), dann die vier Paare.
 - Beleg: `paths.php:136-159/162-186/190-225/628-655/690-709`, `regions.php:262-287/290-320/323-362/704-733/771-792`, `sync-monitor.php:384-410`; `docs/refactoring-masterplan.md` M4 „wiki-crawler-base.php“. Kein Test hält eine der fünf Familien einzeln fest.
 - Fallen: `territory-plan-test.php:562` liest den QUELLTEXT des gleichnamigen ENDPUNKTS `api/edit/wiki/sync-monitor.php`, nicht dieser Lib (ein früherer Satz hier behauptete das Gegenteil — Behauptungsprüfer 05.09.2026). Die Risikorichtung ist real: ein Bugfix in einer Kopie läuft an den anderen vorbei.
-- Verlauf: 05.09.2026 angelegt (Doppelungs-Scan, 9 Paare der Familie; Historiker) · 05.09.2026 GO Owner (zusammenlegen; alte Namen bleiben als Weiterreicher)
+- Verlauf: 05.09.2026 angelegt (Doppelungs-Scan, 9 Paare der Familie; Historiker) · 05.09.2026 GO Owner (zusammenlegen; alte Namen bleiben als Weiterreicher) · 06.09.2026 erster Schnitt der Empfehlung gebaut: `Enqueue` dreifach -> `avesmapsWikiCrawlEnqueue` in `api/_internal/wiki/wiki-crawler-base.php`, die drei alten Namen als Weiterreicher. Die vier Paare (`FetchCategory`, `RunStatus`, `StartRun`, `Clear`) stehen noch aus - dafuer ein Folgepaket. ⚠️ Der Tabellenname ist jetzt Parameter statt Konstante und wandert in den SQL-Text; der geteilte Rumpf traegt dafuer einen Bezeichner-Riegel, der fuer alle drei Wirte beweisbar ein No-op ist (nur drei Aufrufer im Baum, alle mit literaler Konstante - Widerleger 06.09.2026).
 
 ### P-025 · api/_internal/political/territories-geometry.php · Verfahren C
 - Status: offen
