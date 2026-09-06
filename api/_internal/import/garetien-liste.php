@@ -384,6 +384,15 @@ function avesmapsGaretienListeObjektHatVormerkung(array $items): bool
  */
 function avesmapsGaretienListeObjektPasstFilter(array $objekt, array $filter): bool
 {
+    // 🔴 `keys` IST EIN NACHSCHLAG, KEIN FILTER -- und deshalb steht er VOR allem anderen und
+    // schlaegt insbesondere `stand`. Die Stage des Fensters haelt Objekte ueber alle Staende
+    // hinweg; nach einem „Holen & Rechnen" fragt sie „gibt es diese sieben noch, und wie stehen
+    // sie jetzt". Ein zusaetzlich geerbtes `stand: "offen"` liesse dabei genau die heraus, deren
+    // Zustand sich geaendert hat -- also die einzige Auskunft, um die es geht.
+    if (isset($filter['keys']) && is_array($filter['keys']) && $filter['keys'] !== []) {
+        return in_array((string) $objekt['key'], array_map('strval', $filter['keys']), true);
+    }
+
     foreach (['ebene', 'typ', 'urteil', 'wiki'] as $feld) {
         $erlaubt = (array) ($filter[$feld] ?? []);
         if ($erlaubt !== [] && !in_array($objekt[$feld], $erlaubt, true)) {

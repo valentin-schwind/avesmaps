@@ -222,6 +222,11 @@ try {
             // AVESMAPS_GARETIEN_LISTE_MAX. Eine zweite Schranke hier waere die zweite Wahrheit
             // ueber die Obergrenze.
             'anzahl' => (int) ($payload['anzahl'] ?? 0),
+            // 🔴 Der Nachschlag der Import-Stage (06.09.2026). Er MUSS in dieser ausdruecklichen
+            // Liste stehen -- der Endpunkt baut sein Filterfeld aus genau ihr, und ein fehlender
+            // Schluessel wird still verworfen. Genau so war die Kachel „Angezeigte Zeilen" von
+            // ihrer Auslieferung bis zum 31.08.2026 wirkungslos.
+            'keys' => array_slice((array) ($payload['keys'] ?? []), 0, AVESMAPS_GARETIEN_LISTE_MAX),
         ]));
     }
 

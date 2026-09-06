@@ -313,6 +313,25 @@ assert($fehlend === [],
     'DER ENDPUNKT LIEST NICHT, WAS DER BROWSER SCHICKT -- verloren gehen: ' . implode(', ', $fehlend)
     . ' (gesendet: ' . implode(', ', $gesendet) . ' | gelesen: ' . implode(', ', $gelesenNamen) . ')');
 
+// 🔴 NACHTRAG (Ruecklauf des Koordinators, 06.09.2026, Aufgabe 5): DER `keys`-NACHSCHLAG DER
+// IMPORT-STAGE IST VOM ABSCHNITT OBEN NOCH NICHT SICHTBAR -- er landet zuerst als Backend-
+// Faehigkeit, sein JS-Absender folgt erst in einer spaeteren Aufgabe, und der obige Vergleich
+// prueft nur, was der BROWSER heute schon schickt. Genau DAS ist die Falle, die die Kachel
+// „Angezeigte Zeilen" bis zum 31.08.2026 wirkungslos gemacht hat: der Endpunkt baut sein
+// Filterfeld aus einer ausdruecklichen Liste, und ein dort fehlender Schluessel wird still
+// verworfen, ohne dass irgendein Fehler entsteht. Geprueft wird deshalb direkt an dieser Liste.
+$listeFilterfeld = substr($code, $listeVon, 2000);
+assert(preg_match("~'keys'\s*=>~", $listeFilterfeld) === 1,
+    'der liste-Zweig baut sein Filterfeld ohne den `keys`-Nachschlag der Import-Stage -- ein '
+    . 'geschicktes `keys` wuerde still verworfen');
+// 💣 UND DER DECKEL GEHOERT ZUR SELBEN ZEILE -- ein `keys` OHNE `array_slice(...,
+// AVESMAPS_GARETIEN_LISTE_MAX)` liesse eine beliebig lange Liste unbeschnitten in die Bibliothek
+// laufen; die Kappung ist serverseitig, nicht nur eine Empfehlung im Browser.
+assert(
+    preg_match("~'keys'\s*=>\s*array_slice\([^;]*AVESMAPS_GARETIEN_LISTE_MAX~", $listeFilterfeld) === 1,
+    'das `keys`-Feld ist nicht mit array_slice(..., AVESMAPS_GARETIEN_LISTE_MAX) gedeckelt'
+);
+
 // =================================================================================================
 // 💣 JEDER SCHLUESSEL, DEN `avesmapsGaretienApplyStep` LIEFERT, MUSS DER `apply`-ZWEIG WEITERREICHEN
 // =================================================================================================
