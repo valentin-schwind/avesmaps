@@ -1805,14 +1805,13 @@
 	color: var(--color-link);
 }
 
-/* ⚠️ Vorsorge, nicht Reparatur: heute trägt die Zelle kein eigenes `display`, also versteckt
-   `[hidden]` sie von selbst. Wer ihr je eines gibt (ein Icon als `inline-flex`), hebt das lautlos
-   auf -- und dann stünde in JEDER Zeile ein Fadenkreuz, auch dort, wo es nichts zu zeigen gibt.
-   Genau deshalb steht dieselbe Zeile unter `.change-log-entry__actions`, wo `display: flex`
-   tatsächlich aus dem geteilten Block kommt. */
-.change-log-entry__focus[hidden] {
-	display: none;
-}
+/* 🪤 HIER STAND EIN `[hidden] { display: none }`, und es war überflüssig -- die Begründung daneben
+   („wer der Zelle je ein eigenes display gibt, hebt das Verstecken auf") ist FALSCH: `base/reset.css`
+   trägt `[hidden] { display: none !important }` global, und ein `!important` schlägt jede normale
+   Autorregel, egal wie spezifisch oder wie spät sie kommt. Im Browser gegengemessen, mit einer
+   späteren, spezifischeren Regel als schärfstem Gegner: verborgen bleibt `none`.
+   ⚠️ Die zwei Nachbarn (`__actions[hidden]`, `__l2[hidden]`) tragen dieselbe unnötige Zeile. Sie
+   bleiben stehen -- unbestellter Umbau; wer eine anfasst, nimmt sie mit. */
 
 .change-log-group__count {
 	grid-column: 4;
