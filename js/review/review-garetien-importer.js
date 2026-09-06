@@ -574,9 +574,12 @@
 			listeEl.innerHTML = '<p class="avm-empty">Noch kein Import-Lauf. „Holen &amp; Rechnen" '
 				+ "im Menüband holt die gewählten Ebenen und rechnet den Abgleich.</p>";
 		}
-		// Die Statuszeile zeigt die Ruhe-Bilanz -- ohne Lauf "Noch kein Lauf", ohne eine Null zu
-		// behaupten, die niemand gezählt hat.
-		garetienStatusRuhe();
+		// Die Statuszeile zeigt die Ruhe-Bilanz -- ohne Lauf "Noch kein Lauf". 🔴 Pruefrunde
+		// 06.09.2026, Befund 2: OHNE Argument fiele garetienStatusRuhe auf `zustand.letzteAntwort`
+		// zurueck -- das wird nie zurueckgesetzt und koennte hier eine Bilanz aus einem VORHERIGEN
+		// Lauf zeigen, waehrend "Noch kein Lauf" danebensteht. Ein explizites `{}` erzwingt die
+		// ehrliche Null: 0 Objekte, 0 mit Vorschlag, nichts Gezaehltes wird behauptet.
+		garetienStatusRuhe({});
 		// Fuenf-Punkte-Brief 30.08.2026, Punkt 1: die alte Bilanzzeile ("N von M Objekten") ist
 		// restlos entfernt -- was hier bleibt, ist NUR der Neutral-Hinweis (Sicht-Tafel, Aufgabe 3),
 		// und der hat ohne Lauf nichts zu melden.

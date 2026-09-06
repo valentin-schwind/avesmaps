@@ -22,7 +22,13 @@ assert.ok(lies("css/styles.css").includes('@import url("components/editor-body.c
 // von editor-page.css; in index.html sind sie UNDEFINIERT, und `color: var(--mut)` ohne Rueckfall
 // ist dann ungueltig. Der Block muss die echten Tokens nennen.
 const block = body.slice(body.indexOf("\n.avm-status {"));
-const bisEnde = block.slice(0, block.indexOf("\n.avm-tabs") === -1 ? block.length : block.indexOf("\n.avm-tabs"));
+const bisEndeRoh = block.slice(0, block.indexOf("\n.avm-tabs") === -1 ? block.length : block.indexOf("\n.avm-tabs"));
+// 🔴 Pruefrunde 06.09.2026, Befund 3: EIN Quelltexttest darf Kommentare nicht mitlesen
+// (AGENTS.md §9 / die globalen Zusicherungen des Briefs). Ohne das Strippen kann eine Prosa-
+// Erklaerung, die einen Tokennamen woertlich nennt, eine echte Mutation an der Deklaration
+// daneben verdecken -- gemessen ueberlebten sonst `var(--color-panel-soft)` → `var(--soft)` und
+// ein Pixel-Literal statt `--avm-status-pad`.
+const bisEnde = bisEndeRoh.replace(/\/\*[\s\S]*?\*\//g, "");
 ["--mut", "--soft", "--line", "--ok", "--bad"].forEach((alias) => {
 	assert.ok(!new RegExp("var\\(" + alias + "\\)").test(bisEnde),
 		"Alias " + alias + " erreicht index.html nicht -- echtes Token nennen");
@@ -30,4 +36,9 @@ const bisEnde = block.slice(0, block.indexOf("\n.avm-tabs") === -1 ? block.lengt
 ["--color-text-muted", "--color-panel-soft", "--color-divider"].forEach((token) => {
 	assert.ok(bisEnde.includes(token), token + " fehlt in .avm-status");
 });
-console.log("OK -- 9 Zusicherungen");
+// 💣 Ohne diese Zusicherung faengt keine der obigen ein Pixel-Literal: `padding: 6px 14px;`
+// statt `padding: var(--avm-status-pad);` enthaelt keinen der gesuchten Aliase und keinen der
+// gesuchten Farb-/Rand-Tokens -- eine eigene, gezielte Zusicherung dafuer.
+assert.ok(bisEnde.includes("var(--avm-status-pad)"),
+	"das Innenpolster muss --avm-status-pad nennen, kein Pixel-Literal");
+console.log("OK -- 13 Zusicherungen");

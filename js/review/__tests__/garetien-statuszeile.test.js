@@ -28,6 +28,7 @@ assert.strictEqual(gerufen, 1, "der Link ruft seine Handlung");
 //    eine Übernahme, die zwei Handlungen her ist.
 api.garetienStatusSetzen("Stage geleert", "", null);
 assert.strictEqual(dom.el("#garetien-status-aktion").hidden, true);
+assert.strictEqual(dom.el("#garetien-status-aktion").onclick, null, "der alte Handler geht mit");
 assert.strictEqual(dom.klassen("#garetien-status-text").includes("ok"), false, "der Ton geht mit");
 
 // 4. 💣 EIN FEHLER ERSETZT DIE LISTE NICHT MEHR.
@@ -38,4 +39,4 @@ assert.ok(dom.klassen("#garetien-status-text").includes("bad"));
 assert.ok(dom.text("#garetien-status-text").includes("Dieser Lauf laesst sich nicht mehr aendern."));
 assert.ok(dom.text("#garetien-status-text").includes("die Liste ist unverändert"),
 	"der Satz sagt, dass nichts verloren ist");
-console.log("OK -- 12 Zusicherungen");
+console.log("OK -- 13 Zusicherungen");

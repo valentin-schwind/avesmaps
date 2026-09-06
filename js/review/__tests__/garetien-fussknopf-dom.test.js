@@ -56,46 +56,11 @@ function tick() {
 // (`if (!el) { return; }`) -- ein volleres Dokument wuerde mehr Code mitfahren, ohne dass diese
 // Datei etwas davon prueft.
 
-function macheElement(id) {
-	const el = {
-		id: id,
-		hidden: false,
-		disabled: false,
-		textContent: "",
-		innerHTML: "",
-		value: "",
-		dataset: {},
-		onclick: null,
-		_hoerer: {},
-		// 🔴 Aufgabe 1 (06.09.2026): war bis dahin ein reiner Stub (`contains()` immer `false`) --
-		// die Statuszeile setzt "ok"/"bad" wirklich und muss das auch pruefbar tragen.
-		_klassen: new Set(),
-		addEventListener(art, fn) {
-			this._hoerer[art] = this._hoerer[art] || [];
-			this._hoerer[art].push(fn);
-		},
-		querySelectorAll() { return []; },
-		querySelector() { return null; },
-		getAttribute() { return null; },
-		classList: {
-			add() { Array.prototype.forEach.call(arguments, (k) => el._klassen.add(k)); },
-			remove() { Array.prototype.forEach.call(arguments, (k) => el._klassen.delete(k)); },
-			contains(k) { return el._klassen.has(k); },
-			toggle(k, erzwingen) {
-				const soll = erzwingen === undefined ? !el._klassen.has(k) : Boolean(erzwingen);
-				if (soll) { el._klassen.add(k); } else { el._klassen.delete(k); }
-				return soll;
-			},
-		},
-		/** Einen echten Klick ausloesen -- so, wie ihn der Browser zustellt. */
-		klick() {
-			if (typeof el.onclick === "function") { el.onclick({ target: el }); }
-			(el._hoerer.click || []).forEach((fn) => fn({ target: el }));
-			return (el._hoerer.click || []).length;
-		},
-	};
-	return el;
-}
+// 🔴 Pruefrunde 06.09.2026, Befund 4: die Element-Fabrik ist NICHT mehr eine eigene Kopie -- sie
+// kam mit Aufgabe 1 aus js/review/__tests__/helfer/garetien-testumgebung.js hinzu (dieselbe Form,
+// jetzt samt `klick()`, das diese Datei braucht). Diese Datei baut ihr `global.document`/`ELEMENTE`
+// weiterhin selbst (eigene IDs, eigenes `fetch`), aber die Element-Fabrik selbst ist geteilt.
+const { macheElement } = require("./helfer/garetien-testumgebung.js");
 
 const ELEMENTE = {};
 // 🔴 Aufgabe 8: „garetien-list" kam dazu, weil garetienListeFehlerZeigen damals DORTHIN schrieb.

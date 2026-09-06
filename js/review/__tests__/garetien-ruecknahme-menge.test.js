@@ -35,40 +35,11 @@ function tick() {
 
 // ---- Das gefaelschte `document` -- dieselbe magere Form wie garetien-fussknopf-dom.test.js -----
 
-function macheElement(id) {
-	const el = {
-		id: id,
-		hidden: false,
-		disabled: false,
-		textContent: "",
-		innerHTML: "",
-		value: "",
-		dataset: {},
-		onclick: null,
-		_hoerer: {},
-		// 🔴 Aufgabe 1 (06.09.2026): war ein reiner Stub -- die Statuszeile setzt "ok"/"bad"
-		// wirklich und muss das auch pruefbar tragen (Abschnitt 7 unten).
-		_klassen: new Set(),
-		addEventListener(art, fn) {
-			this._hoerer[art] = this._hoerer[art] || [];
-			this._hoerer[art].push(fn);
-		},
-		querySelectorAll() { return []; },
-		querySelector() { return null; },
-		getAttribute() { return null; },
-		classList: {
-			add() { Array.prototype.forEach.call(arguments, (k) => el._klassen.add(k)); },
-			remove() { Array.prototype.forEach.call(arguments, (k) => el._klassen.delete(k)); },
-			contains(k) { return el._klassen.has(k); },
-			toggle(k, erzwingen) {
-				const soll = erzwingen === undefined ? !el._klassen.has(k) : Boolean(erzwingen);
-				if (soll) { el._klassen.add(k); } else { el._klassen.delete(k); }
-				return soll;
-			},
-		},
-	};
-	return el;
-}
+// 🔴 Pruefrunde 06.09.2026, Befund 4: die Element-Fabrik ist NICHT mehr eine eigene Kopie -- sie
+// kam mit Aufgabe 1 aus js/review/__tests__/helfer/garetien-testumgebung.js hinzu. Diese Datei
+// baut ihr `global.document`/`ELEMENTE` weiterhin selbst (eigene IDs, eigener Reiterwechsel-Weg),
+// aber die Element-Fabrik selbst ist geteilt.
+const { macheElement } = require("./helfer/garetien-testumgebung.js");
 
 const ELEMENTE = {};
 // 🔴 „garetien-tabs" MUSS dabei sein: nur so wird beim ersten Listenlauf ein Reiterwechsel auf

@@ -57,7 +57,10 @@ const ELEMENTE = {};
 // 🔴 Fuenf-Punkte-Brief 30.08.2026, Punkt 1: `garetien-balance` heisst jetzt `garetien-neutral-
 // hinweis` -- die alte Bilanzzeile ist entfernt, das verbliebene Element traegt nur noch den
 // Neutral-Hinweis der Sicht-Tafel.
-["garetien-listcol", "garetien-tabs", "garetien-list", "garetien-runline", "garetien-search",
+// 🔴 Pruefrunde 06.09.2026, Befund 5: "garetien-runline" ist raus -- die stille Laufzeile gibt
+// es seit Aufgabe 1 (06.09.2026) nicht mehr im Markup, ihr Nachfolger ist die Statuszeile
+// (garetien-status-text/-aktion), die dieser Test hier nicht anfasst.
+["garetien-listcol", "garetien-tabs", "garetien-list", "garetien-search",
 	"garetien-filter-toggle", "garetien-filter-menu", "garetien-anzeige-hinweis",
 	"garetien-neutral-hinweis", "garetien-detailcol"]
 	.forEach((id) => { ELEMENTE[id] = macheElement(id); });

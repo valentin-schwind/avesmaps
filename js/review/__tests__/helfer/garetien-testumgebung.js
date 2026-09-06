@@ -16,6 +16,11 @@
  *
  * ⚠️ Absichtlich MAGER: die Fabrik legt nur die Elemente an, die ein Test wirklich braucht --
  * die drei Statuszeilen-Elemente (Text, Aktion, Liste) sind immer dabei, weitere ueber `extraIds`.
+ *
+ * ⭐ `macheElement` ist einzeln exportiert: ein Test mit eigenem `global.document`/`ELEMENTE`-Bau
+ * (eigene fetch-Attrappen, eigene IDs) importiert NUR die Element-Fabrik, statt seine eigene
+ * `classList`-Verfolgung mitzuschleppen -- so machen es garetien-fussknopf-dom.test.js und
+ * garetien-ruecknahme-menge.test.js (Befund 4, Aufgabe-1-Pruefrunde 06.09.2026).
  */
 
 const path = require("path");
@@ -62,6 +67,12 @@ function macheElement(id) {
 		querySelectorAll() { return []; },
 		querySelector() { return null; },
 		getAttribute() { return null; },
+		/** Einen echten Klick ausloesen -- so, wie ihn der Browser zustellt (onclick UND addEventListener). */
+		klick() {
+			if (typeof el.onclick === "function") { el.onclick({ target: el }); }
+			(el._hoerer.click || []).forEach((fn) => fn({ target: el }));
+			return (el._hoerer.click || []).length;
+		},
 	};
 	return el;
 }
@@ -118,8 +129,7 @@ function ladeImporter(extraIds) {
 		klick(selektor) {
 			const e = dom.el(selektor);
 			if (!e) { return; }
-			if (typeof e.onclick === "function") { e.onclick({ target: e }); }
-			(e._hoerer.click || []).forEach((fn) => fn({ target: e }));
+			e.klick();
 		},
 	};
 
