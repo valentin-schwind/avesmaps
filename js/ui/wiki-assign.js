@@ -1098,6 +1098,10 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 	// 💣 Er wird nur bei `schreibt === "speichern"` ueberhaupt sichtbar (im Modellbauer geprueft) --
 	// gesetzt wird er hier trotzdem bedingungslos, damit die Weiche an EINER Stelle steht.
 	let ungespeichert = false;
+	// 🔴 „Es laeuft gerade eine Zuweisung." Der Riegel gegen den zweiten Klick (siehe
+	// `trefferWaehlen`). Er gehoert HIERHER und nicht in eine Oberflaeche: acht Objektarten in elf
+	// Oberflaechen waehlen ueber dieselbe Funktion, und je Mount gibt es genau einen Kasten.
+	let laeuftZuweisung = false;
 
 	function neuerZustand(modus) {
 		return { modus: modus, suchtext: "", treffer: [], aktiv: 0, syncZeilen: [], suchFehler: "", listenId: listenId };
@@ -1391,9 +1395,24 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 		if (!treffer) {
 			return;
 		}
+		// 💣 EIN ZWEITER KLICK SCHICKT KEINE ZWEITE ZUWEISUNG AB. In jedem Ausfallfenster vom
+		// 30.08. bis 06.09.2026 stehen 12 bis 22 `POST settlements.php` EINES Browsers binnen rund
+		// zwanzig Sekunden -- ein Editor, bei dem nichts passiert, waehlt denselben Treffer noch
+		// einmal, und jede dieser Anfragen hielt einen PHP-Arbeiter samt Datenbankverbindung.
+		// 🔴 Die Ursache dafuer, DASS nichts passierte, ist behoben (der Server wartet nicht mehr
+		// auf die Drossel, api/_internal/wiki/sync.php); das hier ist die zweite Haelfte, und sie
+		// steht im GETEILTEN Bauteil, weil alle acht Objektarten durch diese eine Funktion waehlen.
+		// ⚠️ Der Riegel faellt in BEIDEN Ausgaengen wieder -- eine abgelehnte Zuweisung ist der
+		// haeufigste Fall („Wiki gerade belegt", „Ziel-Ort nicht gefunden"), und bliebe er dann zu,
+		// koennte der Editor es nie wieder versuchen, ohne den Dialog neu zu oeffnen.
+		if (laeuftZuweisung) {
+			return;
+		}
+		laeuftZuweisung = true;
 		// ⏱️ Der Anfang der Messung -- siehe den Ablehnungszweig unten.
 		const begonnen = Date.now();
 		avesmapsWikiAssignRufen(opt.zuweisen, treffer).then(() => {
+			laeuftZuweisung = false;
 			// 🔴 Das Bauteil uebernimmt den Treffer SELBST in seinen Zustand, statt neu zu laden:
 			// eine Oberflaeche, die erst beim „Speichern“ schreibt (Kraftlinien), haette sonst
 			// nichts zurueckzugeben, und der frisch gewaehlte Artikel verschwaende sofort wieder.
@@ -1410,6 +1429,7 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 			ui = neuerZustand("zugewiesen");
 			zeichne();
 		}, (fehler) => {
+			laeuftZuweisung = false;
 			// 🔴 DER SERVER HAT NEIN GESAGT -- also wird NICHTS gemalt. Bis zum 16.08.2026 gab es
 			// hier gar keinen zweiten Zweig: eine abgelehnte Zusage aus `zuweisen` blieb eine
 			// unbehandelte Ablehnung, und die Suche blieb offen stehen. Schlimmer waere nur das
