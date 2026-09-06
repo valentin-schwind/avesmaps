@@ -133,30 +133,12 @@ function avesmapsWikiPathBuildStatus(PDO $pdo): array {
     return ['ok' => true, 'max_depth' => AVESMAPS_WIKI_PATH_MAX_DEPTH, 'tables' => $tables];
 }
 
+require_once __DIR__ . '/wiki-crawler-base.php';
+
+// Weiterreicher: der Rumpf stand hier dreifach wortgleich, nur die Queue-Tabelle war verschieden
+// (P-024). Der Name bleibt, damit kein Aufrufer sich aendert.
 function avesmapsWikiPathEnqueue(PDO $pdo, string $runId, string $title, int $depth, string $role, string $source): int {
-    $title = avesmapsWikiSyncMonitorNormalizeTitle($title);
-    if ($title === '') {
-        return 0;
-    }
-    $dedupKey = avesmapsPoliticalSlug($title);
-    if ($dedupKey === '') {
-        return 0;
-    }
-    $statement = $pdo->prepare(
-        'INSERT IGNORE INTO ' . AVESMAPS_WIKI_PATH_QUEUE_TABLE . '
-            (run_id, dedup_key, wiki_title, wiki_key, depth, role, source, status, created_at)
-        VALUES (:run_id, :dedup_key, :wiki_title, :wiki_key, :depth, :role, :source, \'pending\', CURRENT_TIMESTAMP(3))'
-    );
-    $statement->execute([
-        'run_id' => $runId,
-        'dedup_key' => $dedupKey,
-        'wiki_title' => mb_substr($title, 0, 255, 'UTF-8'),
-        'wiki_key' => $role === 'page' ? $dedupKey : null,
-        'depth' => $depth,
-        'role' => $role,
-        'source' => mb_substr($source, 0, 255, 'UTF-8'),
-    ]);
-    return $statement->rowCount();
+    return avesmapsWikiCrawlEnqueue($pdo, AVESMAPS_WIKI_PATH_QUEUE_TABLE, $runId, $title, $depth, $role, $source);
 }
 
 function avesmapsWikiPathStartRun(PDO $pdo, array $seeds, array $options = []): array {
