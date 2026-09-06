@@ -1783,6 +1783,37 @@
 	font-size: var(--font-size-caption);
 }
 
+/* Das Fadenkreuz einer Zeile: „hier lässt sich hinspringen". 🔴 Spalte 4 ist in einer Kindzeile die
+   freie -- dort zeigt der Bündelkopf seine Anzahl, eine Kindzeile hat keine. Eine eigene Spalte
+   anzuhängen hätte die Tafel für ALLE Zeilen verbreitert und dem Titel Platz genommen.
+   ⚠️ Mittig statt rechtsbündig: die Anzahl darüber ist eine Zahl und richtet sich am Komma aus, ein
+   Zeichen hat keine Grundlinie zum Ausrichten. */
+.change-log-entry__focus {
+	grid-column: 4;
+	justify-self: center;
+	color: var(--color-text-muted);
+	/* ⚠️ Die Grösse des Rückgängig-Knopfs nebenan, nicht die der Zeitangabe: bei 11px war der Ring
+	   im Browser gemessen ein Punkt. Ein Hinweis, den man suchen muss, beantwortet die Frage nicht,
+	   für die er da ist. */
+	font-size: var(--font-size-small);
+	line-height: 1;
+}
+
+/* Erst zusammen mit der Zeile wird es deutlich -- ruhend ist es eine Auskunft, kein Angebot. */
+.change-log-entry:hover .change-log-entry__focus,
+.change-log-entry:focus-visible .change-log-entry__focus {
+	color: var(--color-link);
+}
+
+/* ⚠️ Vorsorge, nicht Reparatur: heute trägt die Zelle kein eigenes `display`, also versteckt
+   `[hidden]` sie von selbst. Wer ihr je eines gibt (ein Icon als `inline-flex`), hebt das lautlos
+   auf -- und dann stünde in JEDER Zeile ein Fadenkreuz, auch dort, wo es nichts zu zeigen gibt.
+   Genau deshalb steht dieselbe Zeile unter `.change-log-entry__actions`, wo `display: flex`
+   tatsächlich aus dem geteilten Block kommt. */
+.change-log-entry__focus[hidden] {
+	display: none;
+}
+
 .change-log-group__count {
 	grid-column: 4;
 	color: var(--color-text-muted);

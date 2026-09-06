@@ -10,6 +10,9 @@ require_once __DIR__ . '/../audit-detail.php';
 require_once __DIR__ . '/../audit-prune.php';
 // Der Urheber-Filter des Fensters „Änderungen" -- dieselbe Regel wie bei Karte und Landschaften.
 require_once __DIR__ . '/../audit-filter.php';
+// „Wo auf der Karte war das?" -- der Sprungpunkt hinter dem Fadenkreuz. Eine Rechnung fuer alle drei
+// Protokolle; die Form liest der Browser, eine vierte waere ein stiller Fehlschlag.
+require_once __DIR__ . '/../audit-focus.php';
 
 function avesmapsPoliticalReadAudit(PDO $pdo, array $query): array {
     $yearBf = avesmapsPoliticalReadOptionalInt($query['year_bf'] ?? null) ?? AVESMAPS_POLITICAL_DEFAULT_YEAR_BF;
@@ -312,29 +315,29 @@ function avesmapsPoliticalBuildAuditFocusTarget(array $beforePayload, array $aft
         return null;
     }
 
-    $minX = (float) ($snapshot['min_x'] ?? 0);
-    $minY = (float) ($snapshot['min_y'] ?? 0);
-    $maxX = (float) ($snapshot['max_x'] ?? 0);
-    $maxY = (float) ($snapshot['max_y'] ?? 0);
-    $lat = ($minY + $maxY) / 2;
-    $lng = ($minX + $maxX) / 2;
-    if (abs($maxX - $minX) < 0.0001 && abs($maxY - $minY) < 0.0001) {
-        return [
-            'type' => 'point',
-            'lat' => round($lat, 6),
-            'lng' => round($lng, 6),
-        ];
+    // 🔴 DIE GEOMETRIE ENTSCHEIDET, NICHT DIE bbox-FELDER DES SCHNAPPSCHUSSES. Die vier Spalten waren
+    // abgeleitete Daten, die kein Schreiber nachzog (AGENTS.md §10): sie trugen den Kasten des
+    // Sechsecks, mit dem die Flaeche einmal angelegt wurde. Am Dump vom 04.09.2026 gezaehlt --
+    // **222 von 223** Protokollzeilen wiesen damit an eine Stelle, an der nichts liegt.
+    // ⚠️ Die Bestandsreparatur der Geometrie-Tabelle heilt das nicht: ein Protokoll ist ein Archiv,
+    // seine Schnappschuesse bleiben, wie sie geschrieben wurden. Dieselbe Regel hat das Zuruecknehmen
+    // in `avesmapsPoliticalApplyGeometryAuditSnapshot` schon, aus demselben Grund.
+    $geometry = avesmapsAuditReadGeometry($snapshot['geometry_geojson'] ?? null);
+    if ($geometry !== null) {
+        $ausGeometrie = avesmapsAuditFocusFromGeometry($geometry);
+        if ($ausGeometrie !== null) {
+            return $ausGeometrie;
+        }
     }
 
-    return [
-        'type' => 'bounds',
-        'lat' => round($lat, 6),
-        'lng' => round($lng, 6),
-        'bounds' => [
-            [round($minY, 6), round($minX, 6)],
-            [round($maxY, 6), round($maxX, 6)],
-        ],
-    ];
+    // ⚠️ Rueckfall fuer eine sehr alte Zeile ohne lesbare Geometrie: dann ist der gespeicherte Kasten
+    // die beste verfuegbare Auskunft -- schlechter als gar kein Ziel ist er nicht.
+    return avesmapsAuditFocusFromBounds(
+        (float) ($snapshot['min_x'] ?? 0),
+        (float) ($snapshot['min_y'] ?? 0),
+        (float) ($snapshot['max_x'] ?? 0),
+        (float) ($snapshot['max_y'] ?? 0)
+    );
 }
 
 function avesmapsPoliticalResolveAuditPrimaryPublicId(array $beforePayload, array $afterPayload): string {

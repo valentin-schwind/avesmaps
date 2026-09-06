@@ -16,6 +16,10 @@ require_once __DIR__ . '/../../_internal/audit-detail.php';
 // „Zeig mir die Zeilen DIESER Leute" -- ohne Auswahl die juengsten von allen, mit Auswahl die
 // juengsten von den Ausgewaehlten. Erst moeglich, seit jedes Protokoll je Person aufraeumt.
 require_once __DIR__ . '/../../_internal/audit-filter.php';
+// „Wo auf der Karte war das?" -- der Sprungpunkt hinter dem Fadenkreuz. 💣 Die Rechnung stand
+// dreimal im Haus (hier, in territories-audit.php, gar nicht bei den Landschaften); jetzt einmal,
+// weil ein Editor sonst je nach Objektart an verschiedene Stellen springt.
+require_once __DIR__ . '/../../_internal/audit-focus.php';
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
@@ -149,12 +153,12 @@ function avesmapsBuildAuditFocusTarget(array $row, array $before, array $after):
     ];
     $snapshots = avesmapsFocusSnapshotOrder((string) $row['action'], $before, $after, $current);
     foreach ($snapshots as $snapshot) {
-        $geometry = avesmapsReadAuditGeometry($snapshot['geometry_json'] ?? null);
+        $geometry = avesmapsAuditReadGeometry($snapshot['geometry_json'] ?? null);
         if ($geometry === null) {
             continue;
         }
 
-        return avesmapsBuildGeometryFocusTarget($geometry);
+        return avesmapsAuditFocusFromGeometry($geometry);
     }
 
     return null;
@@ -170,72 +174,6 @@ function avesmapsFocusSnapshotOrder(string $action, array $before, array $after,
 
 function avesmapsSnapshotIsInactive(array $snapshot): bool {
     return array_key_exists('is_active', $snapshot) && (int) $snapshot['is_active'] !== 1;
-}
-
-function avesmapsReadAuditGeometry(mixed $value): ?array {
-    if ($value === null || $value === '') {
-        return null;
-    }
-    if (is_array($value)) {
-        return isset($value['type']) ? $value : null;
-    }
-
-    try {
-        $decoded = json_decode((string) $value, true, 512, JSON_THROW_ON_ERROR);
-    } catch (JsonException) {
-        return null;
-    }
-
-    return is_array($decoded) && isset($decoded['type']) ? $decoded : null;
-}
-
-function avesmapsBuildGeometryFocusTarget(array $geometry): ?array {
-    $coordinatePairs = [];
-    avesmapsCollectAuditCoordinatePairs($geometry['coordinates'] ?? null, $coordinatePairs);
-    if ($coordinatePairs === []) {
-        return null;
-    }
-
-    $xValues = array_map(static fn(array $coordinate): float => $coordinate[0], $coordinatePairs);
-    $yValues = array_map(static fn(array $coordinate): float => $coordinate[1], $coordinatePairs);
-    $minX = min($xValues);
-    $maxX = max($xValues);
-    $minY = min($yValues);
-    $maxY = max($yValues);
-    $lat = ($minY + $maxY) / 2;
-    $lng = ($minX + $maxX) / 2;
-
-    if (count($coordinatePairs) === 1 || (abs($minX - $maxX) < 0.0001 && abs($minY - $maxY) < 0.0001)) {
-        return [
-            'type' => 'point',
-            'lat' => round($lat, 6),
-            'lng' => round($lng, 6),
-        ];
-    }
-
-    return [
-        'type' => 'bounds',
-        'lat' => round($lat, 6),
-        'lng' => round($lng, 6),
-        'bounds' => [
-            [round($minY, 6), round($minX, 6)],
-            [round($maxY, 6), round($maxX, 6)],
-        ],
-    ];
-}
-
-function avesmapsCollectAuditCoordinatePairs(mixed $coordinates, array &$coordinatePairs): void {
-    if (!is_array($coordinates)) {
-        return;
-    }
-    if (count($coordinates) >= 2 && is_numeric($coordinates[0] ?? null) && is_numeric($coordinates[1] ?? null)) {
-        $coordinatePairs[] = [(float) $coordinates[0], (float) $coordinates[1]];
-        return;
-    }
-
-    foreach ($coordinates as $coordinate) {
-        avesmapsCollectAuditCoordinatePairs($coordinate, $coordinatePairs);
-    }
 }
 
 function avesmapsDecodeAuditJson(mixed $value): array {

@@ -29,6 +29,10 @@ require_once __DIR__ . '/app-setting.php';
 require_once __DIR__ . '/../audit-prune.php';
 // Der Urheber-Filter des Fensters „Änderungen" -- dieselbe Regel wie bei Karte und Territorien.
 require_once __DIR__ . '/../audit-filter.php';
+// „Wo auf der Karte war das?" -- der Sprungpunkt hinter dem Fadenkreuz, in der Form, die der Browser
+// liest. Eine Rechnung fuer alle drei Protokolle; eine eigene daneben liesse ein Editor je nach
+// Objektart an verschiedene Stellen springen.
+require_once __DIR__ . '/../audit-focus.php';
 
 // Die Stapelreihenfolge: die Schrittweite und die EINMALIGE Startaufstellung, die die abgeschaffte
 // Groessenregel des Browsers ein letztes Mal ausfuehrt (19.08.2026). Zieht ecosystem-flaeche.php mit
@@ -5033,6 +5037,19 @@ function avesmapsListEcosystemChanges(PDO $pdo, bool $canUndoChanges, array $edi
 {
     avesmapsEcosystemEnsureTables($pdo);
 
+    return avesmapsEcosystemReadChangeLog($pdo, $canUndoChanges, $editorNames);
+}
+
+/**
+ * Der Lesepfad selbst -- ohne DDL, damit er sich gegen eine SQLite-Fixture WIRKLICH fahren laesst.
+ *
+ * 💣 Der Schnitt ist keine Kosmetik. `avesmapsEcosystemEnsureTables` schreibt MySQL-DDL
+ * (`ENGINE=InnoDB`), das SQLite ablehnt; solange die Abfrage dahinter stand, konnte kein Test dieser
+ * Datei mehr als ihren Quelltext lesen -- und ein Regex kennt keinen Geltungsbereich. Gefahren wird
+ * er von `api/_internal/app/__tests__/aenderungen-sprungpunkt-landschaft-test.php`.
+ */
+function avesmapsEcosystemReadChangeLog(PDO $pdo, bool $canUndoChanges, array $editorNames = []): array
+{
     [$wo, $filterParameter] = avesmapsAuditActorWhereClause(
         avesmapsAuditResolveActorFilter($pdo, $editorNames),
         'audit.actor_user_id'
@@ -5078,6 +5095,9 @@ function avesmapsListEcosystemChanges(PDO $pdo, bool $canUndoChanges, array $edi
         }
     }
 
+    // „Wo auf der Karte war das?" -- EIN Nachschlag fuer alle Zeilen, nicht einer je Zeile.
+    $focusTargets = avesmapsEcosystemChangeFocusTargets($pdo, $rows);
+
     $groups = [];
     foreach ($rows as $row) {
         // Eine Trennlinie zeigt weder auf eine Fläche noch auf eine Region -- sie IST die Grenze
@@ -5109,9 +5129,17 @@ function avesmapsListEcosystemChanges(PDO $pdo, bool $canUndoChanges, array $edi
                 'kind' => (string) ($row['region_kind'] ?? ''),
                 'area_public_id' => (string) ($row['area_public_id'] ?? ''),
                 'undoable_actions' => true,
+                'focus' => null,
             ];
         }
         $groups[$key]['steps'] += 1;
+        // 💣 DIE ERSTE ZEILE DER GESTE, DIE EINE STELLE HAT -- nicht die anfuehrende. „Zerschneiden"
+        // ist create_region + create_area unter EINER Klammer, und die anfuehrende Zeile kann die
+        // sein, die gar keine Flaeche nennt; haengte das Fadenkreuz an ihr, entschiede die
+        // Reihenfolge der Zeilen darueber, ob eine ganze Geste auffindbar ist.
+        if ($groups[$key]['focus'] === null) {
+            $groups[$key]['focus'] = avesmapsEcosystemChangeRowFocus($row, $focusTargets);
+        }
         // Eine Gruppe gilt als zurückgenommen, sobald IRGENDEINE ihrer Zeilen es ist -- ein halb
         // zurückgenommener Vorgang darf keinen zweiten Knopf anbieten.
         $groups[$key]['undone'] = $groups[$key]['undone'] || (string) ($row['undone_at'] ?? '') !== '';
@@ -5140,6 +5168,9 @@ function avesmapsListEcosystemChanges(PDO $pdo, bool $canUndoChanges, array $edi
             'name' => $group['name'],
             'kind' => $group['kind'],
             'public_id' => $group['area_public_id'],
+            // 🔴 Die Form ist die, die der Browser liest (`focusAuditChangeTarget`) -- dieselbe wie
+            // bei Karte und Herrschaftsgebieten. `null` schaltet das Fadenkreuz ab.
+            'focus' => $group['focus'],
         ];
     }
 
@@ -5150,6 +5181,160 @@ function avesmapsListEcosystemChanges(PDO $pdo, bool $canUndoChanges, array $edi
         'actors' => avesmapsAuditActorRoster($pdo, 'ecosystem_geometry_audit_log'),
         'changes' => $changes,
     ];
+}
+
+/**
+ * Die Stelle auf der Karte, die zu einer Protokollzeile gehoert.
+ *
+ * 💣 DIE LANDSCHAFTEN SCHICKTEN GAR KEINE. Die Zeile trug nur die Kennung ihrer Flaeche, und die kann
+ * der Browser nicht nachschlagen -- er kennt Orte, Wege und Labels. Jede Landschaftszeile antwortete
+ * deshalb mit „Objekt ist nicht mehr aktiv oder wurde noch nicht neu geladen.", waehrend die Flaeche
+ * quicklebendig danebenlag (am Dump vom 04.09.2026: 109 von 200 Zeilen).
+ *
+ * 🔴 ZWEI WEGE, wie beim Namen der Zeile eine Etage hoeher: die Zeile nennt entweder ihre FLAECHE
+ * (dann ist deren Huellbox die Stelle) oder nur ihre REGION -- dann umschliesst die Stelle ALLE
+ * Flaechen dieser Region. Ohne den zweiten Weg truege fast die Haelfte aller Zeilen kein Fadenkreuz
+ * („Region geaendert", „Region erstellt": 91 von 200).
+ *
+ * 💣 Geloeschte Flaechen zaehlen MIT (kein `is_active`-Filter). Eine Flaeche wird weich geloescht und
+ * ihre Zeile bleibt stehen -- die Stelle gibt es also weiter, und ein Editor will sie gerade dann
+ * sehen. Genau diese Zeilen liefen vorher in die falsche Fehlermeldung.
+ *
+ * ⚠️ Gerechnet wird aus den bbox-SPALTEN, nicht aus der Geometrie: `ecosystem_area` fuehrt sie, und
+ * jeder Schreibweg zieht sie nach. Die Geometrie einer Flaeche traegt bis zu 20.000 Positionen --
+ * ueber 200 Zeilen geholt waeren das Megabytes fuer vier Zahlen; dieselbe Begruendung, aus der die
+ * Abfrage oben `after_json` nur fuer die Klima-Zeilen mitnimmt.
+ *
+ * @param array<int, array<string, mixed>> $rows
+ * @return array<string, array<string, mixed>>
+ */
+function avesmapsEcosystemChangeFocusTargets(PDO $pdo, array $rows): array
+{
+    $areaIds = [];
+    $regionIds = [];
+    foreach ($rows as $row) {
+        $area = trim((string) ($row['area_public_id'] ?? ''));
+        $region = trim((string) ($row['region_public_id'] ?? ''));
+        if ($area !== '') {
+            $areaIds[$area] = true;
+        }
+        if ($region !== '') {
+            $regionIds[$region] = true;
+        }
+    }
+
+    return avesmapsEcosystemFocusByArea($pdo, array_keys($areaIds))
+        + avesmapsEcosystemFocusByRegion($pdo, array_keys($regionIds));
+}
+
+/**
+ * Die Stelle EINER Zeile: erst ihre Flaeche, dann ihre Region.
+ *
+ * @param array<string, array<string, mixed>> $focusTargets
+ */
+function avesmapsEcosystemChangeRowFocus(array $row, array $focusTargets): ?array
+{
+    $area = trim((string) ($row['area_public_id'] ?? ''));
+    if ($area !== '' && isset($focusTargets['area:' . $area])) {
+        return $focusTargets['area:' . $area];
+    }
+    $region = trim((string) ($row['region_public_id'] ?? ''));
+    if ($region !== '' && isset($focusTargets['region:' . $region])) {
+        return $focusTargets['region:' . $region];
+    }
+
+    return null;
+}
+
+/**
+ * @param array<int, string> $publicIds
+ * @return array<string, array<string, mixed>>
+ */
+function avesmapsEcosystemFocusByArea(PDO $pdo, array $publicIds): array
+{
+    if ($publicIds === []) {
+        return [];
+    }
+
+    // 💣 Jeder Platzhalter GENAU EINMAL -- `avesmapsCreatePdo` schaltet ATTR_EMULATE_PREPARES ab, und
+    // MySQL lehnt einen doppelt benutzten Namen mit HY093 ab. Dieselbe Falle, an der „Was ist hier?"
+    // mit `ok:true` und leerem Inhalt geantwortet hat.
+    [$platzhalter, $parameter] = avesmapsEcosystemFocusPlaceholders($publicIds);
+    $statement = $pdo->prepare(
+        'SELECT public_id, min_x, min_y, max_x, max_y
+           FROM ecosystem_area
+          WHERE public_id IN (' . implode(', ', $platzhalter) . ')'
+    );
+    $statement->execute($parameter);
+
+    $targets = [];
+    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) ?: [] as $zeile) {
+        $targets['area:' . (string) $zeile['public_id']] = avesmapsAuditFocusFromBounds(
+            (float) $zeile['min_x'],
+            (float) $zeile['min_y'],
+            (float) $zeile['max_x'],
+            (float) $zeile['max_y']
+        );
+    }
+
+    return $targets;
+}
+
+/**
+ * @param array<int, string> $publicIds
+ * @return array<string, array<string, mixed>>
+ */
+function avesmapsEcosystemFocusByRegion(PDO $pdo, array $publicIds): array
+{
+    if ($publicIds === []) {
+        return [];
+    }
+
+    [$platzhalter, $parameter] = avesmapsEcosystemFocusPlaceholders($publicIds);
+    $statement = $pdo->prepare(
+        'SELECT region.public_id AS region_public_id,
+                MIN(area.min_x) AS min_x, MIN(area.min_y) AS min_y,
+                MAX(area.max_x) AS max_x, MAX(area.max_y) AS max_y
+           FROM ecosystem_region region
+           INNER JOIN ecosystem_area area ON area.region_id = region.id
+          WHERE region.public_id IN (' . implode(', ', $platzhalter) . ')
+          GROUP BY region.public_id'
+    );
+    $statement->execute($parameter);
+
+    $targets = [];
+    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) ?: [] as $zeile) {
+        // ⚠️ Eine Region ohne jede Flaeche faellt durch den INNER JOIN heraus und bekommt KEINEN
+        // Eintrag -- also kein Fadenkreuz. Ein erfundener Nullpunkt floege in die Kartenecke, und der
+        // Editor haette keinen Anhalt, dass es die Stelle gar nicht gibt.
+        if ($zeile['min_x'] === null) {
+            continue;
+        }
+        $targets['region:' . (string) $zeile['region_public_id']] = avesmapsAuditFocusFromBounds(
+            (float) $zeile['min_x'],
+            (float) $zeile['min_y'],
+            (float) $zeile['max_x'],
+            (float) $zeile['max_y']
+        );
+    }
+
+    return $targets;
+}
+
+/**
+ * @param array<int, string> $werte
+ * @return array{0: array<int, string>, 1: array<string, string>}
+ */
+function avesmapsEcosystemFocusPlaceholders(array $werte): array
+{
+    $platzhalter = [];
+    $parameter = [];
+    foreach (array_values($werte) as $position => $wert) {
+        $platzhalter[] = ':f' . $position;
+        $parameter['f' . $position] = $wert;
+    }
+
+    return [$platzhalter, $parameter];
 }
 
 // Nimmt eine ganze Geste zurück -- die Zeile, auf die der Knopf zeigt, und alle Zeilen ihrer Klammer.

@@ -684,6 +684,58 @@ function changeLogGroupHeader(gruppe) {
 	return element;
 }
 
+// Kann diese Zeile auf ihre Stelle springen? 💣 DIE LISTE LOG VORHER IN BEIDE RICHTUNGEN.
+//
+// `public_id` allein war die Bedingung -- aber nachschlagen kann der Browser nur KARTEN-Kennungen
+// (findLocationMarkerByPublicId und seine zwei Geschwister durchsuchen Orte, Wege und Labels). Bei
+// einer Landschaft ist die Kennung die einer Fläche, bei einem Herrschaftsgebiet die einer
+// Geometriezeile; beide fand nie jemand, und die Zeile antwortete mit „Objekt ist nicht mehr aktiv
+// oder wurde noch nicht neu geladen." über ein Objekt, dem nichts fehlte. Am Dump vom 04.09.2026
+// gezählt: 109 der jüngsten 200 Landschaftszeilen.
+//
+// 🔴 Ein `focus` vom Server zählt für JEDE Quelle -- er ist eine Koordinate und braucht kein
+// Nachschlagen. Die Kennung zählt nur bei der Karte, wo sie zusätzlich die Infobox öffnet.
+// ⚠️ Fehlt die Herkunft, gilt die Kartenregel: genau das setzt `loadChangeLog` für seine
+// Kartenzeilen, und eine Zeile aus einem älteren Zwischenstand darf ihren Knopf nicht stumm
+// verlieren.
+function changeLogEntryCanFocus(entry) {
+	if (changeLogFocusIsUsable(entry?.focus)) {
+		return true;
+	}
+
+	return String(entry?.audit_source || "map_feature") === "map_feature" && Boolean(entry?.public_id);
+}
+
+// 💣 DAS FADENKREUZ IST EIN VERSPRECHEN, also muss es dieselbe Frage beantworten wie der Klick.
+// `focusAuditChangeTarget` verwirft ein Ziel ausserhalb der Karte und faellt danach auf den
+// Kennungs-Weg -- ein Fadenkreuz darueber führte am Ende doch in die Fehlermeldung, und der Editor
+// stünde vor einem Knopf, der sich widerspricht.
+// ⚠️ Geprüft wird auf ENDLICHKEIT, nicht auf Wahrheitswert: 0/0 ist eine gültige Stelle (die Karte
+// beginnt dort), und `Boolean(0)` nähme ausgerechnet der linken unteren Ecke ihr Fadenkreuz.
+function changeLogFocusIsUsable(focus) {
+	if (!focus) {
+		return false;
+	}
+	// 🪤 `Number(null)` und `Number("")` sind BEIDE 0, und 0 ist endlich -- eine Zeile mit
+	// `lat: null` bekäme damit ein Fadenkreuz auf die linke untere Kartenecke. Erst der Wert, dann
+	// die Umwandlung.
+	const zahl = (wert) => (typeof wert === "number" || (typeof wert === "string" && wert.trim() !== "")
+		? Number(wert)
+		: NaN);
+	const lat = zahl(focus.lat);
+	const lng = zahl(focus.lng);
+	if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+		return false;
+	}
+	// ⚠️ Ohne geladene Karte (Test, früher Seitenaufbau) wird geglaubt, was der Server sagt -- die
+	// Grenzprüfung ist ein Riegel gegen kaputte Daten, kein Ersatz für sie.
+	if (typeof isWithinMapBounds !== "function" || typeof L === "undefined") {
+		return true;
+	}
+
+	return isWithinMapBounds(L.latLng(lat, lng));
+}
+
 // Eine Zeile. 🔴 Klasse und `data-change-id` bleiben, wie sie waren -- die Klick- und Rückgängig-
 // Zuhörer hängen in js/routing/routing.js am Dokument und suchen genau danach.
 function changeLogEntryRow(entry) {
@@ -696,9 +748,8 @@ function changeLogEntryRow(entry) {
 	itemElement.classList.add("change-log-entry--grouped");
 	// 💣 Nur was sich zeigen lässt, ist ein Knopf. Eine Moderationszeile hat kein Kartenobjekt --
 	// als Knopf angeboten, antwortet sie beim Klick „Dieses Objekt kann nicht lokalisiert werden.",
-	// was nach einem Fehler aussieht und keiner ist. Gilt allgemein: weder public_id noch focus =
-	// nichts zum Hinspringen.
-	const canFocusEntry = Boolean(entry.public_id) || Boolean(entry.focus);
+	// was nach einem Fehler aussieht und keiner ist.
+	const canFocusEntry = changeLogEntryCanFocus(entry);
 	itemElement.classList.toggle("change-log-entry--static", !canFocusEntry);
 	if (canFocusEntry) {
 		itemElement.tabIndex = 0;
@@ -722,10 +773,28 @@ function changeLogEntryRow(entry) {
 	// nicht, wenn eine andere Zelle fehlt. Das Argument gälte nur bei automatischer Platzierung.
 	itemElement.innerHTML = `
 		<span class="change-log-entry__target"></span>
+		<span class="change-log-entry__focus"></span>
 		<span class="change-log-entry__time"></span>
 		<span class="change-log-entry__actions"></span>
 		<span class="change-log-entry__l2"></span>
 	`;
+	// 🔴 DAS FADENKREUZ IST EINE MARKE, KEIN ZWEITER KNOPF. Die ZEILE ist der Knopf; ein Knopf im
+	// Knopf gäbe der Tastatur je Zeile einen zweiten Halt, und Enter darauf täte nichts -- der
+	// keydown-Zuhörer in routing.js gibt bei `event.target !== this` auf. Der Klick landet deshalb
+	// auf der Zeile und braucht keinen eigenen Zuhörer.
+	// ⚠️ Das Zeichen allein trägt die Bedeutung nicht: der Satz steht im `title`, wie beim
+	// Rückgängig-Knopf nebenan. Für eine Vorlesehilfe spricht die Zeile.
+	const focusElement = itemElement.querySelector(".change-log-entry__focus");
+	if (canFocusEntry) {
+		// 🪤 NICHT „⌖" (U+2316 POSITION INDICATOR), so treffend der Name klingt: im Browser gemessen
+		// rendert es 5,3px breit, wo ⊕/⊙/⌾ 11,3px belegen -- bei dieser Schriftgröße ist es ein Strich, den
+		// niemand als Fadenkreuz erkennt. Der Ring mit Kreuz trägt die Bedeutung und die Fläche.
+		focusElement.textContent = "⊕";
+		focusElement.title = "Auf der Karte zur Stelle springen";
+		focusElement.setAttribute("aria-hidden", "true");
+	} else {
+		focusElement.hidden = true;
+	}
 	// 🔴 SPALTE 2 TRÄGT DIE AKTION, nicht den Namen: der steht in der Kopfzeile darüber. Ihn je Zeile
 	// zu wiederholen war der halbe Grund, warum die Liste so viel Platz brauchte; die Spalte aber
 	// LEER zu lassen liesse jede Zeile ohne Kopf dastehen und schöbe ihren Text allein in Zeile zwei.
