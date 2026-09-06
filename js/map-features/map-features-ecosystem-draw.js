@@ -479,26 +479,56 @@ function ecosystemLabelStyleFor(regionType) {
 //
 // 🪤 Schlägt der Abruf fehl, wird trotzdem verknüpft — nur mager. Der SCHLÜSSEL ist die Verbindung;
 // alles andere holt „Sync" nach. Gar nicht zu verknüpfen wäre der schlechtere Ausgang.
+// 💣 GLEICHZEITIGE ABRUFE DESSELBEN SCHLUESSELS SIND EIN ABRUF. Im Zugriffsprotokoll vom
+// 30.08.–06.09.2026 steht `regions.php?action=staging_sample` mit bis zu 18 ZEICHENGLEICHEN
+// Aufrufen in derselben Sekunde -- immer derselbe Schluessel, 558 Stueck in einer Viertelstunde.
+// Jeder davon ist eine PHP-Anfrage mit eigener Datenbankverbindung; auf STRATOs geteiltem Hosting
+// ist das genau die Last, vor der AGENTS.md §9 warnt.
+//
+// 🔴 GEBUENDELT WIRD NUR DAS LAUFENDE, NIE DAS ERGEBNIS. Wer denselben Schnappschuss zweimal
+// NACHEINANDER holt, bekommt zweimal frische Daten -- am Inhalt aendert sich damit nichts, was ein
+// Editor je sehen koennte. Ein Ergebnis-Zwischenspeicher haette die Frage „wie lange gilt er?"
+// aufgeworfen, und die falsche Antwort waere ein Editor, der seine eigene Aenderung nicht sieht.
+//
+// ⚠️ Der Eintrag faellt im `finally` -- auch nach einem Fehlschlag. Bliebe er stehen, waere ein
+// einmal gescheiterter Schluessel fuer immer blockiert, und der magere Rueckfall unten gaebe still
+// fuer alle Zeit dieselbe Antwort.
+const ecosystemWikiRegionSnapshotLaufend = new Map();
+
 async function ecosystemWikiRegionSnapshot(wikiKey, fallbackUrl) {
 	const key = String(wikiKey || "").trim();
 	if (key === "") {
 		return null;
 	}
-	try {
-		const response = await fetch(
-			`/api/edit/wiki/regions.php?action=staging_sample&wiki_keys=${encodeURIComponent(key)}&limit=1`,
-			{ credentials: "same-origin" }
-		);
-		const data = await response.json();
-		const row = (data.rows || [])[0];
-		if (row && typeof labelWikiRegionFromRow === "function") {
-			return labelWikiRegionFromRow(row);
-		}
-	} catch (error) {
-		console.warn("Wiki-Schnappschuss für das Region-Label nicht ladbar:", error);
+	const laufend = ecosystemWikiRegionSnapshotLaufend.get(key);
+	if (laufend) {
+		return laufend;
 	}
 
-	return { wiki_key: key, wiki_url: String(fallbackUrl || "") };
+	const zusage = (async () => {
+		try {
+			const response = await fetch(
+				`/api/edit/wiki/regions.php?action=staging_sample&wiki_keys=${encodeURIComponent(key)}&limit=1`,
+				{ credentials: "same-origin" }
+			);
+			const data = await response.json();
+			const row = (data.rows || [])[0];
+			if (row && typeof labelWikiRegionFromRow === "function") {
+				return labelWikiRegionFromRow(row);
+			}
+		} catch (error) {
+			console.warn("Wiki-Schnappschuss für das Region-Label nicht ladbar:", error);
+		}
+
+		return { wiki_key: key, wiki_url: String(fallbackUrl || "") };
+	})();
+
+	ecosystemWikiRegionSnapshotLaufend.set(key, zusage);
+	try {
+		return await zusage;
+	} finally {
+		ecosystemWikiRegionSnapshotLaufend.delete(key);
+	}
 }
 
 async function createEcosystemRegionLabel(regionPublicId, geometry, text, showName, regionType, wikiRegion = null) {
