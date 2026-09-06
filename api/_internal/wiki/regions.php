@@ -30,6 +30,17 @@ const AVESMAPS_WIKI_REGION_STAGING_TABLE = 'wiki_region_staging';
 const AVESMAPS_WIKI_REGION_QUEUE_TABLE = 'wiki_region_queue';
 const AVESMAPS_WIKI_REGION_MAX_DEPTH = 5; // Kategorie-Rekursionstiefe (Typ-Subkats sind verschachtelt: Hochland->Gebirge).
 
+// Die Spalten, die der Match-Lauf (avesmapsWikiRegionMatch) je Staging-Zeile holt. EINE Liste fuer
+// SELECT und Zeilenbauer (avesmapsWikiRegionMatchEntry): liest der Bauer eine Spalte, die hier
+// fehlt, sieht er NULL -- und der Test dazu (regionen-suche-titel-schluessel-test.php) fuettert
+// genau diese Liste, damit das auffaellt. 🔴 `title` und `synonyms_json` stehen hier, weil die
+// Suche im Panel den ARTIKELTITEL finden muss: „Suedperricum" traegt |Name=Perricumer Land, und
+// bis zum 06.09.2026 reiste nur der Name zum Browser.
+const AVESMAPS_WIKI_REGION_MATCH_COLUMNS = [
+    'wiki_key', 'title', 'name', 'match_key', 'synonyms_json',
+    'art', 'continent', 'region_parent', 'affiliation_staat', 'image_url', 'wiki_url',
+];
+
 // Dach-Kategorien des Derographie-Baums. Rekursiv (Subkats werden als role=category
 // weiterverfolgt). Deckt Land + Gewaesser + Gross-/Mischregionen ab.
 function avesmapsWikiRegionDefaultSeeds(): array {
@@ -1181,6 +1192,43 @@ function avesmapsWikiRegionReadMapLabelsByWikiRegion(PDO $pdo): array {
     return $byWikiKey;
 }
 
+/**
+ * REIN: eine Staging-Zeile (Spalten = AVESMAPS_WIKI_REGION_MATCH_COLUMNS) -> die Zeile, die das
+ * Panel bekommt. Der Kontinent kommt vom Aufrufer, weil der ihn schon fuer seinen Filter gelesen
+ * hat. `synonyms` ist immer eine Liste von Zeichenketten -- ein unlesbares synonyms_json ist eine
+ * LEERE Liste, kein Fehler, sonst wuerfe eine einzige kaputte Zeile die ganze Liste.
+ *
+ * @param array<string, mixed> $row
+ * @return array<string, mixed>
+ */
+function avesmapsWikiRegionMatchEntry(array $row, string $continent): array {
+    $synonyms = [];
+    $roh = $row['synonyms_json'] ?? null;
+    $dekodiert = is_string($roh) && $roh !== '' ? json_decode($roh, true) : (is_array($roh) ? $roh : null);
+    if (is_array($dekodiert)) {
+        foreach ($dekodiert as $synonym) {
+            if (is_string($synonym) && trim($synonym) !== '') {
+                $synonyms[] = $synonym;
+            }
+        }
+    }
+
+    return [
+        'wiki_key' => (string) $row['wiki_key'],
+        'name' => (string) $row['name'],
+        // Der Artikeltitel ist NICHT der Name: |Name= der Infobox darf abweichen (Suedperricum ->
+        // „Perricumer Land"). Die Suche im Panel liest beide, plus die Synonyme und den Schluessel.
+        'title' => (string) ($row['title'] ?? ''),
+        'synonyms' => $synonyms,
+        'art' => (string) ($row['art'] ?? ''),
+        'continent' => $continent,
+        'region_parent' => (string) ($row['region_parent'] ?? ''),
+        'affiliation_staat' => (string) ($row['affiliation_staat'] ?? ''),
+        'wiki_url' => (string) ($row['wiki_url'] ?? ''),
+        'has_image' => trim((string) ($row['image_url'] ?? '')) !== '',
+    ];
+}
+
 function avesmapsWikiRegionMatch(PDO $pdo, array $options = []): array {
     avesmapsWikiRegionEnsureTables($pdo);
     // '' = alle Kontinente; Default Aventurien (Karte ist Aventurien).
@@ -1192,7 +1240,7 @@ function avesmapsWikiRegionMatch(PDO $pdo, array $options = []): array {
     $mapLabelCount = array_sum(array_map('count', $labelsByKey));
 
     $rows = $pdo->query(
-        'SELECT wiki_key, name, match_key, art, continent, region_parent, affiliation_staat, synonyms_json, image_url, wiki_url
+        'SELECT ' . implode(', ', AVESMAPS_WIKI_REGION_MATCH_COLUMNS) . '
         FROM ' . AVESMAPS_WIKI_REGION_STAGING_TABLE
     )->fetchAll(PDO::FETCH_ASSOC);
 
@@ -1238,16 +1286,7 @@ function avesmapsWikiRegionMatch(PDO $pdo, array $options = []): array {
             $hits[$label['public_id'] !== '' ? $label['public_id'] : $label['name']] = $label;
         }
 
-        $entry = [
-            'wiki_key' => (string) $row['wiki_key'],
-            'name' => (string) $row['name'],
-            'art' => (string) ($row['art'] ?? ''),
-            'continent' => $continent,
-            'region_parent' => (string) ($row['region_parent'] ?? ''),
-            'affiliation_staat' => (string) ($row['affiliation_staat'] ?? ''),
-            'wiki_url' => (string) ($row['wiki_url'] ?? ''),
-            'has_image' => trim((string) ($row['image_url'] ?? '')) !== '',
-        ];
+        $entry = avesmapsWikiRegionMatchEntry($row, $continent);
 
         if ($hits === []) {
             $missing[] = $entry;

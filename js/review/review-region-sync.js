@@ -17,6 +17,22 @@ function regionRowContinent(row) {
 function regionContinentMatch(row) {
 	return regionContinentFilter.size === 0 || regionContinentFilter.has(regionRowContinent(row));
 }
+// Der Suchtext des Reiters gegen EINE Zeile. Das eine Praedikat fuer Liste UND Typ-Filter-Zaehler --
+// stand es zweimal da, zaehlte der Typ-Filter andere Treffer, als die Liste zeigt.
+// 🔴 Der Artikeltitel, die Synonyme und der Schluessel stehen VOR dem Namen, weil der Name nicht
+// der Titel ist: „Südperricum" traegt |Name=Perricumer Land, und bis zum 06.09.2026 fand die Suche
+// die Zeile deshalb nicht (Owner: „titel und synonyme in die suche, wichtig ist der key").
+// ⚠️ `title`/`synonyms` duerfen fehlen (map-only-Zeilen tragen sie nie) -- dann zaehlt der Rest.
+function regionRowMatchesSearch(row, filterValue) {
+	const needle = String(filterValue || "").trim().toLowerCase();
+	if (needle === "") {
+		return true;
+	}
+	const synonyms = Array.isArray(row.synonyms) ? row.synonyms : [];
+	return [row.wiki_key, row.title, row.name, ...synonyms, row.art, row.region_parent, row.affiliation_staat]
+		.filter(Boolean)
+		.some((value) => String(value).toLowerCase().includes(needle));
+}
 // Kontinent-Filter-Optionen: distinct Kontinente (Aventurien zuerst), Zähler aus ALLEN Zeilen.
 function regionContinentOptions() {
 	if (!regionSyncData) {
@@ -40,18 +56,8 @@ function regionTypeOptions() {
 	if (!regionSyncData) {
 		return [];
 	}
-	const filterValue = (regionSyncElement("region-sync-filter")?.value || "").trim().toLowerCase();
-	const rows = regionSyncCurrentRows().filter((row) => {
-		if (!regionContinentMatch(row)) {
-			return false;
-		}
-		if (filterValue === "") {
-			return true;
-		}
-		return [row.name, row.art, row.region_parent, row.affiliation_staat]
-			.filter(Boolean)
-			.some((value) => String(value).toLowerCase().includes(filterValue));
-	});
+	const filterValue = regionSyncElement("region-sync-filter")?.value || "";
+	const rows = regionSyncCurrentRows().filter((row) => regionContinentMatch(row) && regionRowMatchesSearch(row, filterValue));
 	const byArt = new Map();
 	for (const row of rows) {
 		const art = (String(row.art || "").trim()) || "(ohne Art)";
@@ -189,13 +195,7 @@ function regionRowMatchesFilters(row) {
 	if (regionTypeFilter.size > 0 && !regionTypeFilter.has((String(row.art || "").trim()) || "(ohne Art)")) {
 		return false;
 	}
-	const filterValue = (regionSyncElement("region-sync-filter")?.value || "").trim().toLowerCase();
-	if (filterValue === "") {
-		return true;
-	}
-	return [row.name, row.art, row.region_parent, row.affiliation_staat]
-		.filter(Boolean)
-		.some((value) => String(value).toLowerCase().includes(filterValue));
+	return regionRowMatchesSearch(row, regionSyncElement("region-sync-filter")?.value || "");
 }
 
 function renderRegionSyncList() {
