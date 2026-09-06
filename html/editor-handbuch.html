@@ -202,7 +202,7 @@
 <body>
 	<div class="hb-topbar">
 		<span class="hb-topbar__title">Avesmaps · Editor-Handbuch</span>
-		<span class="hb-topbar__meta">Stand: 06.09.2026</span>
+		<span class="hb-topbar__meta">Stand: 07.09.2026</span>
 		<div class="hb-topbar__actions">
 			<button type="button" class="theme-toggle-btn" aria-label="Auf dunkles Design umschalten" title="Design umschalten (hell/dunkel)">
 				<svg class="theme-toggle-ico theme-toggle-ico--sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2" /><g stroke-width="1.9" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="4.4" /><line x1="12" y1="19.6" x2="12" y2="22" /><line x1="2" y1="12" x2="4.4" y2="12" /><line x1="19.6" y1="12" x2="22" y2="12" /><line x1="4.9" y1="4.9" x2="6.6" y2="6.6" /><line x1="17.4" y1="17.4" x2="19.1" y2="19.1" /><line x1="4.9" y1="19.1" x2="6.6" y2="17.4" /><line x1="17.4" y1="6.6" x2="19.1" y2="4.9" /></g></svg>
@@ -1207,21 +1207,52 @@
 				<p>Aus der Community kommen zwei Sorten Beiträge: <strong>„Karte vorschlagen"</strong> (eine ganz neue Karte) und <strong>„+ Neuer Fundort"</strong> (eine weitere Stelle für eine bekannte Karte). Beide erscheinen erst nach deiner Freigabe im Reiter <a href="#meldungen">Meldungen</a> — bei einer neuen Karte heißt der Knopf dort <strong>„Anlegen"</strong>, bei Fundorten <strong>„Ergänzen"</strong>. Fremde Fundorte kannst du nicht löschen, nur <strong>„Unterdrücken"</strong>; das wirkt sofort, ohne Speichern.</p>
 
 				<h3 id="natur-waren" class="hb-sub">Vorkommen</h3>
-				<p>Pflanzen, Tiere, Spezies und Handelswaren aus dem Wiki — was wo wächst, lebt und gehandelt wird. Anders als Literatur und Karten ist das kein Produkt, sondern Weltwissen: Es bekommt keinen eigenen Punkt auf der Karte, sondern erscheint in der Infobox der Orte, Regionen, Wege und Gebiete, zu denen es gehört — bei Wegen und bei einer Routen-Etappe über die Landschaften, durch die sie führen. Eine <a href="#lebensraum-regeln">Lebensraum-Regel</a> wirkt auf alle diese Stellen.</p>
+				<p>Pflanzen, Tiere, Spezies und Handelswaren aus dem Wiki — was wo wächst, lebt und gehandelt wird. Ein Vorkommen bekommt <strong>keinen eigenen Punkt auf der Karte</strong>. Es erscheint in der Infobox der Orte, Regionen, Wege und Gebiete, zu denen es gehört — bei Wegen und Routen-Etappen über die Landschaften, durch die sie führen. Eine <a href="#lebensraum-regeln">Lebensraum-Regel</a> wirkt auf alle diese Stellen.</p>
 				<p>Unter der Auswahl steht <em>ein</em> Knopf: <strong>„Vorkommen bearbeiten"</strong>. Er öffnet das Fenster und startet nichts. Das Datum des letzten Syncs steht in der Auswahlzeile selbst — oder „nie", solange der Bestand leer ist.</p>
-				<div class="hb-note hb-tip"><strong>Der Sync steht nicht im Reiter, sondern im Fenster.</strong> Du findest ihn als 🚨-Kachel <strong>„Vorkommen syncen"</strong> im Menüband des Fensters (siehe <a href="#n-editoren">Die acht Sync-Editoren</a>). Er liest den kompletten Wiki-Dump und braucht mehrere Minuten. Manuelle und unterdrückte Einträge bleiben unangetastet; ein zweiter Klick bringt nichts, es läuft immer nur ein Lauf.</div>
+				<div class="hb-note hb-tip"><strong>Der Sync steht nicht im Reiter, sondern im Fenster</strong> — als 🚨-Kachel <strong>„Vorkommen syncen"</strong> in dessen Menüband. Er braucht mehrere Minuten. Manuelle und unterdrückte Einträge bleiben unangetastet.</div>
 				<p>Über der Liste stehen die Arten als Reiter: <strong>Alle · Fauna · Flora · Waren · Spezies</strong>. Alle vier Arten sind gleichberechtigt; <strong>Spezies</strong> erscheint in der Infobox als vierte Zeile unter Flora.</p>
 
 				<h5>Das Fenster</h5>
-				<p>Oben das <a href="#n-editoren">Menüband</a>: links die 🚨-Kachel <strong>„Vorkommen syncen"</strong>, daneben die vier Schalter <strong>Fauna · Flora · Waren · Spezies</strong> für die <em>öffentliche Anzeige</em> (die Daten bleiben liegen und sind beim Zurückschalten sofort wieder da), dann <strong>„Zugehörigkeit rechnen"</strong> und <strong>„Regeln ableiten"</strong>.</p>
+				<p>Oben das <a href="#n-editoren">Menüband</a> mit vier Kacheln:</p>
+				<ul>
+					<li><strong>🚨 Vorkommen syncen</strong> — liest den Wiki-Dump und vergleicht. Siehe <em>Der Sync</em> unten.</li>
+					<li><strong>Fauna · Flora · Waren · Spezies</strong> — vier Schalter für die <em>öffentliche Anzeige</em>. Die Daten bleiben liegen und sind beim Zurückschalten sofort wieder da.</li>
+					<li><strong>Zugehörigkeit rechnen</strong> — öffnet den <a href="#landschaften">Landschaften</a>-Editor, wo du rechnest.</li>
+					<li><strong>Regeln ableiten</strong> — baut Regeln aus den Wiki-Feldern. Siehe <a href="#lebensraum-regeln">Lebensraum-Regeln</a>.</li>
+				</ul>
 				<div class="hb-note hb-warn"><strong>Eine Regel trifft nichts, solange die Flächen nicht gerechnet sind.</strong> Das „innerhalb von" einer <a href="#lebensraum-regeln">Lebensraum-Regel</a> liest die Zuordnung, die <strong>„Zugehörigkeit rechnen"</strong> anlegt — eine danach neu gezeichnete Fläche hat dort keine Zeile und ist für Regeln stumm, ohne Fehlermeldung. Die Kachel nennt in ihrer Unterzeile, wie viele Flächen offen sind, und öffnet den <a href="#landschaften">Landschaften</a>-Editor: gerechnet wird dort unter <em>„Rechnen ▾"</em>, von Hand, nie automatisch.</div>
 				<p>Darunter die Reiter <strong>Alle / Fauna / Flora / Waren / Spezies</strong> mit der jeweiligen Anzahl. <strong>„Alle"</strong> steht voran; dort nennt jede Zeile ihre Art dazu, damit sich „Bräubier" (Ware) und „Bräuwurm" (Fauna) auseinanderhalten lassen.</p>
-				<p>Das Fenster ist <strong>dreispaltig</strong> wie die anderen Editoren: links die Liste mit dem Suchfeld <em>„Name oder Art suchen …"</em> und dem Trichter <strong>„Filter ▾"</strong>, in der Mitte <strong>„Stammdaten"</strong>, rechts <strong>„Vorkommen"</strong>. Über den beiden rechten sitzt eine Kopfzeile mit Name und Art des gewählten Eintrags. Jede Spalte scrollt für sich, und die drei Titel bleiben dabei stehen. Jede Listenzeile nennt die zugeordneten Orte im Klartext — „Weiden, Kosch, Nordmarken" statt „3 Orte".</p>
-				<div class="hb-note hb-tip"><strong>Im Trichter steht „Kontinent" schon auf <em>Aventurien</em>.</strong> Sechs Abschnitte: <strong>Kontinent</strong>, <strong>Herkunft</strong> (Wiki · manuell · Community · unterdrückt), <strong>Ortsangabe</strong> (mit/ohne), <strong>Quelle</strong> (mit/ohne), <strong>Auf Karte</strong> (auffindbar · offen · nicht zugewiesen — genau die drei Zustände des <a href="#kreise">grünen Kreises</a>) und <strong>Vorkommen über</strong> (Orte · Regeln). Die Vorgabe „Aventurien" markiert den Knopf nicht. Suchst du also etwas aus Myranor oder Uthuria und findest es nicht, steht sie noch. Den Trichter gibt es in beiden Listen, im Reiter wie im Fenster; gefiltert wird auf dem Server, die Auswahl greift also auf den ganzen Bestand und nicht nur auf die schon geladenen Zeilen.</div>
+				<p>Das Fenster ist <strong>dreispaltig</strong> wie die anderen Editoren:</p>
+				<ul>
+					<li><strong>Links</strong> die Liste, mit dem Suchfeld <em>„Name oder Art suchen …"</em> und dem Trichter <strong>„Filter ▾"</strong>. Jede Zeile nennt ihre Orte im Klartext — „Weiden, Kosch, Nordmarken" statt „3 Orte".</li>
+					<li><strong>Mitte:</strong> „Stammdaten".</li>
+					<li><strong>Rechts:</strong> „Vorkommen".</li>
+				</ul>
+				<p>Über den beiden rechten Spalten steht Name und Art des gewählten Eintrags. Jede Spalte scrollt für sich, die drei Titel bleiben stehen.</p>
+				<h5>Der Trichter „Filter ▾"</h5>
+				<table class="hb-table">
+					<tr><th>Abschnitt</th><th>Wonach er auswählt</th></tr>
+					<tr><td><strong>Kontinent</strong></td><td>Aventurien, Myranor, Uthuria …</td></tr>
+					<tr><td><strong>Herkunft</strong></td><td>Wiki · manuell · Community · unterdrückt</td></tr>
+					<tr><td><strong>Ortsangabe</strong></td><td>mit / ohne</td></tr>
+					<tr><td><strong>Quelle</strong></td><td>mit / ohne</td></tr>
+					<tr><td><strong>Auf Karte</strong></td><td>auffindbar · offen · nicht zugewiesen — die drei Zustände des <a href="#kreise">grünen Kreises</a></td></tr>
+					<tr><td><strong>Vorkommen über</strong></td><td>Orte · Regeln</td></tr>
+				</table>
+				<p>Den Trichter gibt es in beiden Listen, im Reiter wie im Fenster. Gefiltert wird auf dem Server — die Auswahl greift auf den ganzen Bestand, nicht nur auf die geladenen Zeilen.</p>
+				<div class="hb-note hb-tip"><strong>„Kontinent" steht schon auf <em>Aventurien</em>.</strong> Diese Vorgabe markiert den Knopf nicht. Suchst du etwas aus Myranor oder Uthuria und findest es nicht, steht sie noch.</div>
 				<p><strong>Ein Klick auf eine Listenzeile öffnet den Editor</strong> für diesen Eintrag; er füllt die beiden rechten Spalten. Ein Klick auf eine andere Zeile wechselt direkt dorthin — <strong>„← Zurück zur Liste"</strong> brauchst du nur, um die beiden rechten Spalten zu leeren. Das Fenster bleibt dabei offen, und deine Änderungen gehen nicht verloren: Felder speichern beim Fokusverlust. Ein Klick in der Liste im Reiter dahinter öffnet das Fenster gleich mit dem passenden Eintrag.</p>
 
 				<h5>Einen Eintrag bearbeiten</h5>
-				<p>Überschreibbar sind <strong>Name</strong>, <strong>Gruppe</strong>, <strong>Lebensraum</strong> und <strong>Weitere Namen</strong>, bei Waren zusätzlich der <strong>Gegenstandstyp</strong>. <strong>Es gibt keinen Speichern-Knopf</strong> — ein Feld wird gespeichert, sobald es den Fokus verliert. Ein überschriebenes Feld trägt danach die Marke <strong>„von Hand"</strong>.</p>
+				<p>Überschreibbar sind:</p>
+				<ul>
+					<li><strong>Name</strong></li>
+					<li><strong>Gruppe</strong></li>
+					<li><strong>Lebensraum</strong></li>
+					<li><strong>Weitere Namen</strong></li>
+					<li><strong>Gegenstandstyp</strong> — nur bei Waren</li>
+				</ul>
+				<p><strong>Es gibt keinen Speichern-Knopf.</strong> Ein Feld wird gespeichert, sobald es den Fokus verliert, und trägt danach die Marke <strong>„von Hand"</strong>.</p>
 				<p>Darunter steht <strong>„Vorkommen"</strong> mit einer Zahl in Klammern — sie zählt die Ortszeilen <em>und</em> die Regelkarten darunter zusammen. Einen neuen Ort trägst du unten ins Feld <em>„Ort, Region oder Gebiet …"</em> und drückst <strong>„+ Ort"</strong>; das <strong>„×"</strong> am Ende einer Zeile nimmt einen wieder weg. Daneben sitzt <strong>„+ Regel"</strong> — siehe <a href="#lebensraum-regeln">Lebensraum-Regeln</a>.</p>
 				<p>Unter den Stammdaten stehen die <strong>Quellen</strong> — <strong>dieselbe Quellenverwaltung wie beim Ort, der Region, dem Weg und dem Gebiet</strong>: hinzufügen mit Titel, Link, Art und Seitenzahl, entfernen, und eine Vorschlagsliste über den geteilten Quellenkatalog. Was aus dem Publikationsteil des Wiki-Artikels stammt, steht unter <strong>„automatisch"</strong> — was du selbst einträgst, darunter.</p>
 				<div class="hb-note hb-tip"><strong>Nimm eine Quelle aus der Vorschlagsliste, wenn sie dort auftaucht.</strong> Dann hängt dein Eintrag an <em>demselben</em> Buch wie alle anderen, statt eine zweite Zeile für dasselbe Werk anzulegen. Der Katalog ist projektweit — ein Titel, den du hier sauber verknüpfst, ist überall sauber.</div>
@@ -1240,12 +1271,12 @@
 				<div class="hb-note hb-tip"><strong>Ohne Landschaftsart meint das Feld die Fläche <em>selbst</em>.</strong> „Almada" allein trifft genau diese eine Fläche, nicht die vierzehn Wälder darin — ein Ort, keine Auswahl. Welche der beiden Lesarten gerade gilt, sagt dir der ausgeschriebene Satz.</div>
 				<p>Unten steht <strong>„Was die Regel trifft"</strong> — wie viele Flächen und Orte gerade zutreffen, mit dem Rechenweg je Bedingung. Die Zahl wird kurz nach jeder Änderung neu geholt; <em>„wird berechnet …"</em> ist also kein Fehler. <strong>„Regel übernehmen"</strong> speichert, <strong>„Regel löschen"</strong> nimmt sie wieder weg, <strong>„Abbrechen"</strong> verwirft.</p>
 				<div class="hb-note hb-warn"><strong>Jede einzelne Bedingung muss etwas einschränken.</strong> Nicht nur die Regel als Ganzes: Bleiben in <em>einer</em> Bedingung alle drei Felder leer, träfe die Regel alles, und gespeichert wird sie nicht. Der Editor sagt vorher, welche gemeint ist — <em>„Bedingung 2 schränkt nichts ein"</em> —, und die Trefferanzeige bleibt so lange auf <em>„Noch keine Einschränkung"</em> stehen. Entweder du füllst die Bedingung, oder du nimmst sie heraus.</div>
-				<div class="hb-note hb-tip"><strong>Regelkarten stehen in derselben Liste wie die Orte, hinter ihnen, und tragen die Marke „von Hand".</strong> Das ist richtig so: Eine Regel legst immer du an, nie der Wiki-Abgleich — sie überlebt darum jeden Sync. Eine Trefferzahl steht auf der Karte bewusst <em>nicht</em>; die siehst du nur im geöffneten Regeleditor, weil sie jedes Mal frisch über den ganzen Bestand gerechnet werden muss.</div>
+				<div class="hb-note hb-tip"><strong>Regelkarten stehen hinter den Orten in derselben Liste und tragen die Marke „von Hand".</strong> Eine Regel legst immer du an, nie der Wiki-Abgleich — sie überlebt jeden Sync. Die Trefferzahl siehst du nur im geöffneten Regeleditor.</div>
 
 				<h5>Der Sync</h5>
-				<p>Ein Klick auf die 🚨-Kachel erledigt beides hintereinander: erst den Dump lesen, dann vergleichen. Der Fortschritt läuft in der Kachel selbst mit („Dump lesen … 12.000 Seiten · 900 Einträge", dann „vergleichen … 300/5100"), damit darunter nichts verspringt. <strong>Geschrieben wird dabei nichts.</strong> Am Ende steht, was der Lauf gefunden hat („17 Unterschiede — Vorschau offen: 4 neu, 11 geändert, 2 stillzulegen"), und die <a href="#uebernahme">Übernahme-Vorschau</a> geht auf. Erst dein <strong>„Übernehmen"</strong> darin schreibt — und erst danach steht ein neues Datum in „zuletzt gesynct".</p>
-				<p><strong>Ein vorheriges „Dump holen" ist nicht nötig</strong> — der Knopf arbeitet auf der zwischengespeicherten Dump-Kopie und holt sie nur nach, wenn sie älter als eine Stunde ist. Ein zweiter Klick während des Laufs bleibt wirkungslos. Geht etwas schief, steht der Grund in der Kachel und bleibt dort bis zum nächsten Versuch stehen.</p>
-				<div class="hb-note hb-tip"><strong>Ein kontinentweiter Eintrag steht nur im aufgeklappten Teil der Infobox.</strong> Sonst hängte etwa „Tiefzwerg" sichtbar an jedem Ort. Der Menüband-Schalter <strong>„Spezies"</strong> ist der Notaus für die ganze Art.</div>
+				<p>Ein Klick auf die 🚨-Kachel erledigt beides hintereinander: erst den Dump lesen, dann vergleichen. Der Fortschritt läuft in der Kachel selbst mit („Dump lesen … 12.000 Seiten · 900 Einträge", dann „vergleichen … 300/5100"), damit darunter nichts verspringt. <strong>Geschrieben wird dabei nichts.</strong> Am Ende steht, was der Lauf gefunden hat („17 Unterschiede — Vorschau offen: 4 neu, 11 geändert, 2 stillzulegen"), und die <a href="#uebernahme">Übernahme-Vorschau</a> geht auf. Erst dein <strong>„Übernehmen"</strong> darin schreibt. Das Datum in „zuletzt gesynct" rückt dagegen mit <em>jedem</em> Lauf vor — auch wenn es nichts zu übernehmen gab.</p>
+				<p><strong>Ein vorheriges „Dump holen" ist nicht nötig</strong> — der Knopf holt sich, was er braucht. Ein zweiter Klick während des Laufs bleibt wirkungslos. Geht etwas schief, steht der Grund in der Kachel.</p>
+				<div class="hb-note hb-tip"><strong>Ein kontinentweiter Eintrag steht nur im aufgeklappten Teil der Infobox</strong> — „Tiefzwerg" hängt sonst an jedem Ort. Der Menüband-Schalter <strong>„Spezies"</strong> ist der Notaus für die ganze Art.</div>
 			</section>
 
 			<!-- ============================= 3. AUFGABEN ============================= -->
@@ -1327,25 +1358,44 @@
 				<ul class="hb-steps">
 					<li>Reiter <strong>Offen</strong> wählen. Links die Liste, rechts das ausgewählte Objekt.</li>
 					<li>Ein Objekt anklicken und rechts prüfen: Name, Art, Geometrie, Quelle.</li>
-					<li>Passt es, <strong>anhaken</strong>. Anhaken schreibt noch nichts.</li>
-					<li>Unten rechts <strong>„Angehakte übernehmen"</strong> drücken. Es kommt erst die Übernahme-Vorschau — geschrieben wird nur, was dort angehakt bleibt.</li>
+					<li>Passt es, die passende <strong>Handlung</strong> drücken. <strong>„Neu einfügen"</strong> legt das Objekt sofort an; die übrigen Handlungen merken es nur vor.</li>
+					<li>Für das Vorgemerkte unten rechts <strong>„Stage importieren"</strong> drücken. Es kommt erst die Übernahme-Vorschau — geschrieben wird nur, was dort angehakt bleibt.</li>
+					<li>Die <strong>Statuszeile</strong> meldet danach, was angelegt wurde.</li>
 				</ul>
 				<h4>Die vier Reiter</h4>
 				<table class="hb-table">
 					<tr><th>Reiter</th><th>Was darin steht</th></tr>
 					<tr><td><strong>Offen</strong></td><td>Noch nicht entschieden.</td></tr>
-					<tr><td><strong>Anzeigen</strong></td><td>Was du zur Ansicht auf die Karte gelegt hast. Diese Menge lebt nur in deinem Browser.</td></tr>
+					<tr><td><strong>Stage</strong></td><td>Was auf der Karte liegt und beim Importieren geschrieben wird. Diese Menge lebt nur in deinem Browser. <strong>Suche und Filter wirken hier nicht.</strong></td></tr>
 					<tr><td><strong>Abgelehnt</strong></td><td>Von dir verworfen. Wird nicht wieder vorgeschlagen.</td></tr>
 					<tr><td><strong>Übernommen</strong></td><td>Steht auf der Karte.</td></tr>
 				</table>
+				<h4>Die Handlungen am einzelnen Objekt</h4>
+				<p>Rechts am gewählten Objekt steht, was sich damit tun lässt. Welche Knöpfe erscheinen, hängt vom Objekt ab. <strong>Die ersten beiden schreiben sofort</strong>, die übrigen merken nur vor — die kommen dann mit „Stage importieren" auf die Karte.</p>
+				<table class="hb-table">
+					<tr><th>Knopf</th><th>Was er vormerkt</th></tr>
+					<tr><td><strong>Neu einfügen</strong></td><td><strong>Legt das Objekt sofort auf der Karte an</strong> — ein zweiter Schritt folgt nicht. Der Hauptweg, als einziger <strong>grün</strong>.</td></tr>
+					<tr><td><strong>Innerorts einfügen (Stadt)</strong></td><td>Legt es <strong>sofort</strong> als Stätte <em>in</em> einer Stadt an, ohne eigene Kartenposition. Die Stadt steht im Knopf — stimmt sie nicht, drück ihn nicht.</td></tr>
+					<tr><td><strong>Namen ersetzen</strong></td><td>Übernimmt nur den Namen auf ein Objekt, das schon daliegt.</td></tr>
+					<tr><td><strong>Quelle + Artikel einfügen</strong></td><td>Ergänzt nur Quelle und Artikellink. Es entsteht kein neues Kartenobjekt.</td></tr>
+					<tr><td><strong>Ausgewählte Segmente ersetzen</strong></td><td>Tauscht die Geometrie der angehakten Abschnitte.</td></tr>
+					<tr><td><strong>Ablehnen</strong></td><td>Verwirft das Objekt. Als einziger <strong>rot</strong>.</td></tr>
+					<tr><td><strong>Wieder vorschlagen</strong></td><td>Holt ein abgelehntes Objekt zurück nach <em>Offen</em>.</td></tr>
+				</table>
+				<div class="hb-note hb-warn"><strong>„Neu einfügen" fragt vorher nach, wenn der Abgleich etwas Ähnliches gefunden hat.</strong> Die Rückfrage nennt das bestehende Objekt. Bestätigst du, steht das neue sofort auf der Karte — zurück geht es über den „Rückgängig"-Link der Statuszeile.</div>
+				<div class="hb-note hb-tip"><strong>Die Zahl im Knopf sagt, wie viel schon vorgemerkt ist</strong> — nicht, wie viel möglich wäre. „Namen ersetzen (0)" neben „Quelle + Artikel einfügen (6)" heißt also: von den sechs Abschnitten ist die Quelle schon vorgemerkt, die Umbenennung noch nicht.</div>
 				<h4>Die Knopfleiste unten</h4>
 				<ul>
-					<li><strong>Alle markieren</strong> und <strong>Keines markieren</strong> setzen die Markierung für die ganze Liste.</li>
-					<li><strong>Markierte anzeigen</strong> legt sie auf die Karte, <strong>Anzeige leeren</strong> nimmt sie wieder herunter.</li>
+					<li><strong>Alle wählen</strong> und <strong>Auswahl aufheben</strong> setzen die Häkchen für die ganze Liste.</li>
+					<li><strong>Auf die Stage</strong> legt die gewählten Objekte auf die Karte, <strong>Stage leeren</strong> nimmt sie wieder herunter.</li>
 					<li><strong>Alle zentrieren</strong> zoomt auf alles, was gerade angezeigt ist.</li>
-					<li><strong>Markierte zurücknehmen</strong> holt Übernommenes von der Karte zurück. Nur auf dem Reiter <em>Übernommen</em>.</li>
+					<li><strong>Import zurücknehmen</strong> holt Übernommenes von der Karte zurück. Nur auf dem Reiter <em>Übernommen</em>.</li>
+				<div class="hb-note hb-warn"><strong>„Auswahl aufheben" und „Import zurücknehmen" sind zwei sehr verschiedene Knöpfe.</strong> Der eine räumt nur Häkchen ab, der andere nimmt einen ausgeführten Import von der Karte zurück.</div>
 				</ul>
 				<p>Am einzelnen übernommenen Objekt stehen zwei Verben: <strong>„Zurücknehmen"</strong> setzt es zurück auf <em>Offen</em>, <strong>„Ablehnen"</strong> nimmt es zurück <em>und</em> legt es nach <em>Abgelehnt</em>.</p>
+				<h4>Die Statuszeile</h4>
+				<p>Unter dem Menüband läuft eine Zeile mit, die jede Rückmeldung des Fensters trägt. In Ruhe steht dort die Bilanz des Laufs: <em>„Lauf … · 4.312 Objekte · 900 mit Vorschlag · 12 auf der Stage"</em>. Nach einem Import steht dort, was entstanden ist — <em>„✓ 4 Objekte importiert — 3 Wege (2 Bäche), 1 Fläche"</em> — und daneben ein <strong>„Rückgängig"</strong>-Link, der die eben angelegten Objekte wieder entfernt.</p>
+				<div class="hb-note hb-tip"><strong>Ging etwas schief, wird die Zeile rot und nennt den Grund des Servers</strong> — <em>„✕ 1 von 4 nicht importiert: …"</em>. Die Liste bleibt dabei stehen, wie sie war; du verlierst deine Auswahl nicht.</div>
 				<h4>Das Menüband</h4>
 				<p>Drei Kacheln. <strong>„Holen &amp; Rechnen"</strong> und <strong>„Ebenen"</strong> gehören dem Betreiber — sie rufen die fremden Server ab und rechnen den Abgleich neu. <strong>„Angezeigte Zeilen"</strong> stellst du selbst: 1000, 2000, 4000 oder alle. Die Vorgabe ist 1000, weil ein paar tausend Zeilen langsame Rechner ausbremsen.</p>
 				<div class="hb-note hb-warn"><strong>Diese Daten tragen eine Lizenz.</strong> Sie stammen von Volker Strunk (VolkoV) und stehen unter CC BY-NC-SA 3.0. Die Namensnennung reist als Quelle mit, dazu der Link auf den zugehörigen Artikel. Lösch beides nicht aus der Infobox.</div>
@@ -1359,7 +1409,7 @@
 					<tr><td><code>/idee</code></td><td>Eine Verbesserung vorschlagen.</td></tr>
 					<tr><td><code>/frage</code></td><td>Eine Frage stellen.</td></tr>
 					<tr><td><code>/offen</code></td><td>Alle offenen Fälle anzeigen — Bugs, Ideen und Fragen.</td></tr>
-					<tr><td><code>/erledigt &lt;nummer&gt;</code></td><td>Einen Fall schließen.</td></tr>
+					<tr><td><code>/erledigt nummer:&lt;Nr.&gt;</code></td><td>Einen Fall schließen.</td></tr>
 					<tr><td><code>/hilfe</code></td><td>Interaktive Hilfe und häufige Fragen.</td></tr>
 				</table>
 				<div class="hb-note hb-tip"><strong>Beschreibe, was du <em>getan</em> hast, nicht nur was falsch aussah.</strong> „Ort angeklickt, Bearbeiten, Namen geändert, Speichern — danach war das Wappen weg" ist um Längen nützlicher als „Wappen kaputt". Die Routine arbeitet mit dem, was im Fall steht.</div>
@@ -1451,6 +1501,7 @@
 				<p>Über der Liste stehen <strong>„Meine"</strong> und <strong>„Alle"</strong>, daneben ein <strong>Suchfeld</strong> und <strong>„Filter ▾"</strong> mit einem Häkchen je Editor. Ohne Auswahl zeigt die Liste die jüngsten 200 Einträge von allen, mit Auswahl die jüngsten 200 <em>der Ausgewählten</em>. Gesucht wird in dem, was in der Zeile steht — Objekt, Aktion, Erklärzeile, Urheber — und nur im Geladenen, nicht in der ganzen Historie.</p>
 				<p>Hier steht auch, wie über <a href="#meldungen">Meldungen</a> entschieden wurde: <strong>„Meldung angenommen"</strong>, <strong>„Meldung verworfen"</strong> und <strong>„Meldung zurückgestellt"</strong>, mit Namen und Begründung. Diese drei tragen <em>keinen</em> „Rückgängig"-Knopf. Was eine Annahme <em>erzeugt</em> hat (einen Ort, eine Karte), schreibt seinen eigenen Eintrag, und der ist der rücknehmbare.</p>
 				<p><strong>Jede Zeile ist ein Bündel</strong> und klappt über ihr Dreieck auf — auch eine mit nur einer Änderung. Zusammengezogen wird, was <em>dieselbe Person</em> am <em>selben Objekt</em> innerhalb einer Viertelstunde getan hat. Der Knopf zum Zurücknehmen steht <em>in der aufgeklappten Zeile</em>, nicht in der Kopfzeile: <strong>↶</strong> nimmt zurück, <strong>↷</strong> stellt wieder her. Danach steht in der Zeile <em>„Rückgängig gemacht"</em>, und oben entsteht ein <em>neuer</em> Eintrag <em>„Rückgängig: …"</em> — der lässt sich ebenfalls zurücknehmen.</p>
+				<p><strong>Ein Klick auf die Zeile springt auf der Karte zur Stelle.</strong> Ob das geht, sagt das Zeichen <strong>⊕</strong> am rechten Rand der Zeile: steht es da, gibt es einen Punkt zum Anfliegen. Zeilen ohne das Zeichen — etwa eine Entscheidung über eine Meldung — haben keine Stelle auf der Karte.</p>
 				<div class="hb-note hb-tip"><strong>Strg+Z wirkt hier nicht.</strong> Zurückgenommen wird nur mit einem Klick auf den benannten Eintrag. Die Tastenkombination gehört allein dem Zeichnen von Grenzen (siehe <a href="#territorien">Territorien</a>).</div>
 
 				<h3 id="status" class="hb-sub">Status</h3>
