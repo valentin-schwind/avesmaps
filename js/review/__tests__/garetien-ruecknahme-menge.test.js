@@ -68,16 +68,16 @@ const {
 	garetienRuecknahmeMengeRueckfrageText,
 	garetienRuecknahmeMengeAusfuehren,
 	garetienRuecknahmeMengeKlick,
-	avesmapsGaretienMarkierungUmschalten,
-	avesmapsGaretienMarkierungHat,
+	avesmapsGaretienAuswahlUmschalten,
+	avesmapsGaretienAuswahlHat,
 	avesmapsGaretienListeRendern,
 } = mod;
 
 // ⚠️ Die Markierung ist ein TOGGLE und ueberlebt Abschnitte hinweg (genau wie in der echten
 // Sitzung) -- diese zwei Helfer setzen einen bestimmten Zielzustand, statt blind umzuschalten,
 // damit die Reihenfolge der Abschnitte hier keine Rolle spielt.
-function markieren(key) { if (!avesmapsGaretienMarkierungHat(key)) { avesmapsGaretienMarkierungUmschalten(key); } }
-function entmarkieren(key) { if (avesmapsGaretienMarkierungHat(key)) { avesmapsGaretienMarkierungUmschalten(key); } }
+function markieren(key) { if (!avesmapsGaretienAuswahlHat(key)) { avesmapsGaretienAuswahlUmschalten(key); } }
+function entmarkieren(key) { if (avesmapsGaretienAuswahlHat(key)) { avesmapsGaretienAuswahlUmschalten(key); } }
 
 ["garetienKetteAbarbeiten", "garetienRuecknahmeMengeZustand", "garetienRuecknahmeMengeKnopfSetzen",
 	"garetienRuecknahmeMengeRueckfrageText", "garetienRuecknahmeMengeAusfuehren",

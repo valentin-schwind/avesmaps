@@ -188,35 +188,35 @@ wahr(typeof importer.avesmapsGaretienKarteKlickBehandeln === "function",
 	"der Importer hat keinen Behandler fuer den Kartenklick");
 
 // Vorher: nichts markiert, nichts ausgewaehlt.
-importer.avesmapsGaretienAnzeigeLeeren();
-importer.avesmapsGaretienAnzeigeHinzufuegen([OBJEKT]);
-gleich(importer.avesmapsGaretienMarkierungHat(OBJEKT.key), false, "vorher darf nichts markiert sein");
+importer.avesmapsGaretienStageLeeren();
+importer.avesmapsGaretienStageHinzufuegen([OBJEKT]);
+gleich(importer.avesmapsGaretienAuswahlHat(OBJEKT.key), false, "vorher darf nichts markiert sein");
 
 const ergebnis = importer.avesmapsGaretienKarteKlickBehandeln(OBJEKT.key, [OBJEKT]);
 
 // AUSGEWAEHLT: ja.
 gleich(ergebnis, OBJEKT.key, "der Klick waehlt das Objekt nicht aus");
 // MARKIERT: nein, und das ist die Zusicherung, um die der Owner ausdruecklich gebeten hat.
-gleich(importer.avesmapsGaretienMarkierungHat(OBJEKT.key), false,
+gleich(importer.avesmapsGaretienAuswahlHat(OBJEKT.key), false,
 	"der Kartenklick hat das Objekt ANGEHAEKELT -- er darf nur auswaehlen. Das Haekchen ist eine "
 	+ "Entscheidung, die der Editor spaeter in 'Markierte anzeigen' und den Sammelhandlungen "
 	+ "wiederfindet; ein Blick darf sie nicht treffen.");
 
 // Und ein zweiter Klick auf dasselbe Objekt haekelt es auch nicht nachtraeglich an.
 importer.avesmapsGaretienKarteKlickBehandeln(OBJEKT.key, [OBJEKT]);
-gleich(importer.avesmapsGaretienMarkierungHat(OBJEKT.key), false,
+gleich(importer.avesmapsGaretienAuswahlHat(OBJEKT.key), false,
 	"der zweite Kartenklick haekelt an -- er darf die Markierung nie beruehren");
 
 // ⚠️ Gegenprobe: die Markierung LAESST sich setzen -- sonst belegte die Zusicherung oben nur, dass
-// avesmapsGaretienMarkierungHat immer false liefert (die Vakuum-Falle dieser Aufgabe).
-importer.avesmapsGaretienMarkierungUmschalten(OBJEKT.key);
-gleich(importer.avesmapsGaretienMarkierungHat(OBJEKT.key), true,
+// avesmapsGaretienAuswahlHat immer false liefert (die Vakuum-Falle dieser Aufgabe).
+importer.avesmapsGaretienAuswahlUmschalten(OBJEKT.key);
+gleich(importer.avesmapsGaretienAuswahlHat(OBJEKT.key), true,
 	"die Markierung laesst sich gar nicht setzen -- die Zusicherung darueber waere wertlos");
 // Und ein Kartenklick nimmt sie auch nicht WEG.
 importer.avesmapsGaretienKarteKlickBehandeln(OBJEKT.key, [OBJEKT]);
-gleich(importer.avesmapsGaretienMarkierungHat(OBJEKT.key), true,
+gleich(importer.avesmapsGaretienAuswahlHat(OBJEKT.key), true,
 	"der Kartenklick hat die Markierung geloescht -- er darf sie in KEINE Richtung anfassen");
-importer.avesmapsGaretienMarkierungUmschalten(OBJEKT.key);
+importer.avesmapsGaretienAuswahlUmschalten(OBJEKT.key);
 
 // =================================================================================================
 // 5. Ein unbekannter Schluessel faellt offen aus

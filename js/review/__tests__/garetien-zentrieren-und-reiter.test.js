@@ -66,9 +66,9 @@ const mod = require(path.resolve(__dirname, "..", "review-garetien-importer.js")
 const {
 	garetienAlleZentrierenZustand,
 	garetienAlleZentrierenKnopfSetzen,
-	avesmapsGaretienAnzeigeLeeren,
-	avesmapsGaretienAnzeigeHinzufuegen,
-	avesmapsGaretienMarkierungUmschalten,
+	avesmapsGaretienStageLeeren,
+	avesmapsGaretienStageHinzufuegen,
+	avesmapsGaretienAuswahlUmschalten,
 	avesmapsGaretienFensterZustand,
 } = mod;
 
@@ -101,10 +101,10 @@ gleich(ZENTRIEREN.disabled, false, "zwei Objekte auf der Karte oeffnen ihn -- so
 // =================================================================================================
 // C. Der KLICK ruft den Zeichner -- mit dem, was wirklich auf der Karte liegt
 // =================================================================================================
-avesmapsGaretienAnzeigeLeeren();
+avesmapsGaretienStageLeeren();
 const eins = { key: "z:1", name: "Eins", geometrie: [[10, 10]], items: [] };
 const zwei = { key: "z:2", name: "Zwei", geometrie: [[20, 20]], items: [] };
-avesmapsGaretienAnzeigeHinzufuegen([eins, zwei]);
+avesmapsGaretienStageHinzufuegen([eins, zwei]);
 
 let gerufenMit = null;
 let rufe = 0;
@@ -132,19 +132,19 @@ ZENTRIEREN.klick();
 gleich(rufe, 1, "ohne geladenen Zeichner passiert nichts, und es wirft auch nichts");
 
 // =================================================================================================
-// D. „Markierte anzeigen" wechselt auf den Reiter „Anzeigen"
+// D. „Auf die Stage" wechselt auf den Reiter „Stage"
 // =================================================================================================
 // 💣 DIESER ABSCHNITT IST DER GRUND FUER DIESE DATEI. Vor ihm liess sich die Zeile
-// `zustand.stand = "anzeigen"` entfernen, ohne dass irgendein Test im Repo rot wurde.
-avesmapsGaretienAnzeigeLeeren();
-avesmapsGaretienMarkierungUmschalten("z:1");
-wahr(avesmapsGaretienFensterZustand().stand !== "anzeigen",
-	"Zeuge: vorher steht der Reiter NICHT auf „Anzeigen\" -- sonst belegt die Zeile darunter nichts");
+// `zustand.stand = "stage"` entfernen, ohne dass irgendein Test im Repo rot wurde.
+avesmapsGaretienStageLeeren();
+avesmapsGaretienAuswahlUmschalten("z:1");
+wahr(avesmapsGaretienFensterZustand().stand !== "stage",
+	"Zeuge: vorher steht der Reiter NICHT auf „Stage\" -- sonst belegt die Zeile darunter nichts");
 MARK_SHOW.klick();
-gleich(avesmapsGaretienFensterZustand().stand, "anzeigen",
-	"nach dem Klick steht der Reiter auf „Anzeigen\" -- dort liegt, was der Knopf gerade "
+gleich(avesmapsGaretienFensterZustand().stand, "stage",
+	"nach dem Klick steht der Reiter auf „Stage\" -- dort liegt, was der Knopf gerade "
 	+ "hineingelegt hat");
 
-avesmapsGaretienAnzeigeLeeren();
+avesmapsGaretienStageLeeren();
 
 console.log(`garetien-zentrieren-und-reiter: ${checks} Pruefungen bestanden.`);

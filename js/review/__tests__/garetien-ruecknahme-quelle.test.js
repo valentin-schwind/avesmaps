@@ -36,8 +36,8 @@ const {
 	garetienRuecknahmeSenden,
 	garetienRuecknahmeMengeZustand,
 	garetienRuecknahmeMengeRueckfrageText,
-	avesmapsGaretienMarkierungUmschalten,
-	avesmapsGaretienMarkierungHat,
+	avesmapsGaretienAuswahlUmschalten,
+	avesmapsGaretienAuswahlHat,
 } = mod;
 
 [
@@ -298,8 +298,8 @@ async function pruefeSendenArray() {
 //    mischen ('new'-Löschung UND 'quelle'-only), und ein Objekt kann MEHRERE ids beisteuern
 // =================================================================================================
 function pruefeMenge() {
-	avesmapsGaretienMarkierungUmschalten(wegNeu.key);
-	avesmapsGaretienMarkierungUmschalten(wegQuelleMehrfach.key);
+	avesmapsGaretienAuswahlUmschalten(wegNeu.key);
+	avesmapsGaretienAuswahlUmschalten(wegQuelleMehrfach.key);
 
 	const stand = garetienRuecknahmeMengeZustand([wegNeu, wegQuelleMehrfach, wegGemischt], "uebernommen");
 	gleich(stand.markiert, 2, "zwei markiert");
@@ -323,9 +323,9 @@ function pruefeMenge() {
 
 	// Aufraeumen -- die Markierung ist Modulzustand und wuerde sonst in nachfolgenden Zusicherungen
 	// dieser Datei nachwirken.
-	avesmapsGaretienMarkierungUmschalten(wegNeu.key);
-	avesmapsGaretienMarkierungUmschalten(wegQuelleMehrfach.key);
-	gleich(avesmapsGaretienMarkierungHat(wegNeu.key), false, "sauber abgeraeumt");
+	avesmapsGaretienAuswahlUmschalten(wegNeu.key);
+	avesmapsGaretienAuswahlUmschalten(wegQuelleMehrfach.key);
+	gleich(avesmapsGaretienAuswahlHat(wegNeu.key), false, "sauber abgeraeumt");
 }
 
 pruefeSendenArray().then(function () {

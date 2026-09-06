@@ -80,10 +80,10 @@ global.window = global.window || {};
 global.window.location = global.window.location || { search: "", hostname: "", protocol: "http:" };
 
 const mod = require(path.resolve(__dirname, "..", "review-garetien-importer.js"));
-const { garetienKeySelektor, garetienAuswahlMarkieren, garetienDetailWaehlen } = mod;
+const { garetienKeySelektor, garetienZeileHervorheben, garetienDetailWaehlen } = mod;
 
 wahr(typeof garetienKeySelektor === "function", "garetienKeySelektor fehlt im Export");
-wahr(typeof garetienAuswahlMarkieren === "function", "garetienAuswahlMarkieren fehlt im Export");
+wahr(typeof garetienZeileHervorheben === "function", "garetienZeileHervorheben fehlt im Export");
 
 // =================================================================================================
 // 1. Der Selektor -- die Schlüssel tragen `:` und `!`, das muss ein gültiger Selektor bleiben

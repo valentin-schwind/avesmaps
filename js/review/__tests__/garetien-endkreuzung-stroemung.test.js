@@ -267,7 +267,7 @@ gleich(karte.AVESMAPS_GARETIEN_FELD_ENDKREUZUNGEN, fenster.AVESMAPS_GARETIEN_FEL
 const wegA = pfad("k1");
 const wegB = pfad("k2");
 const ortC = Object.assign({}, fluss("k3"), { typ: "Ort", ziel: "location", subtyp: "dorf" });
-fenster.avesmapsGaretienAnzeigeHinzufuegen([wegA, wegB, ortC]);
+fenster.avesmapsGaretienStageHinzufuegen([wegA, wegB, ortC]);
 const gezeichnet = fenster.avesmapsGaretienAufDerKarte([wegA, wegB, ortC]);
 const marke = (key) => (gezeichnet.filter((o) => o.key === key)[0]
 	|| {})[fenster.AVESMAPS_GARETIEN_FELD_ENDKREUZUNGEN];

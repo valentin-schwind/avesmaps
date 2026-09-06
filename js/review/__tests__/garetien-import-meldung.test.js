@@ -20,7 +20,7 @@ const assert = require("assert");
 const mod = require(path.resolve(__dirname, "..", "review-garetien-importer.js"));
 const {
 	garetienImportMeldung, garetienImportFormenText,
-	garetienAnzeigeNeuIds, garetienOhneFehlgeschlagene,
+	garetienStageNeuIds, garetienOhneFehlgeschlagene,
 	AVESMAPS_GARETIEN_JE_FORM_LEER,
 } = mod.__test;
 
@@ -38,7 +38,7 @@ function tief(ist, soll, warum) {
 	checks++;
 }
 
-["garetienImportMeldung", "garetienImportFormenText", "garetienAnzeigeNeuIds",
+["garetienImportMeldung", "garetienImportFormenText", "garetienStageNeuIds",
 	"garetienOhneFehlgeschlagene", "AVESMAPS_GARETIEN_JE_FORM_LEER",
 ].forEach(function (name) {
 	wahr(mod.__test[name] !== undefined, name + " fehlt in __test");
@@ -150,18 +150,18 @@ const objektZusatz = {
 	items: [{ id: 704, anlass: "zusatz", felder: [], change_type: "new", selected: 0 }],
 };
 
-tief(garetienAnzeigeNeuIds([objektNeu]), [701], "ein 'new'-Item zählt");
-tief(garetienAnzeigeNeuIds([objektGeaendert]), [],
+tief(garetienStageNeuIds([objektNeu]), [701], "ein 'new'-Item zählt");
+tief(garetienStageNeuIds([objektGeaendert]), [],
 	"🔴 ein 'changed'-Item (Ergänzung an einem BESTEHENDEN Objekt) zählt NIE -- es hat kein "
 	+ "neues Kartenobjekt angelegt");
-tief(garetienAnzeigeNeuIds([objektGeometrie]), [],
+tief(garetienStageNeuIds([objektGeometrie]), [],
 	"das Geometrie-Item bleibt draußen -- garetienHakenItems schließt es aus");
-tief(garetienAnzeigeNeuIds([objektZusatz]), [],
+tief(garetienStageNeuIds([objektZusatz]), [],
 	"und ebenso das Zusatz-Item ('trotzdem neu anlegen') -- dieselbe Ausnahme wie beim "
 	+ "Zeilenhäkchen");
-tief(garetienAnzeigeNeuIds([objektNeu, objektGeaendert]), [701], "gemischt: nur das new-Item zählt");
-tief(garetienAnzeigeNeuIds([]), [], "leere Anzeige -> leere Liste");
-tief(garetienAnzeigeNeuIds(null), [], "ohne Anzeige -> leere Liste, kein Wurf");
+tief(garetienStageNeuIds([objektNeu, objektGeaendert]), [701], "gemischt: nur das new-Item zählt");
+tief(garetienStageNeuIds([]), [], "leere Anzeige -> leere Liste");
+tief(garetienStageNeuIds(null), [], "ohne Anzeige -> leere Liste, kein Wurf");
 
 tief(garetienOhneFehlgeschlagene([701, 702, 703], []), [701, 702, 703], "ohne Fehler bleibt alles");
 tief(garetienOhneFehlgeschlagene([701, 702, 703], [{ item: 702, grund: "X" }]), [701, 703],

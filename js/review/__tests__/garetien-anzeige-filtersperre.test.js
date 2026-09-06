@@ -6,7 +6,7 @@
 //
 // Ausfuehren, vom Repo-Wurzelverzeichnis: node js/review/__tests__/garetien-anzeige-filtersperre.test.js
 //
-// 🔴 WARUM ES DIESE DATEI GIBT: garetienAnzeigeFilterSperreSetzen ruehrt an DOM-Eigenschaften
+// 🔴 WARUM ES DIESE DATEI GIBT: garetienStageFilterSperreSetzen ruehrt an DOM-Eigenschaften
 // (`disabled`, `hidden`), die kein reiner Test messen kann -- dasselbe Muster wie
 // garetien-fussknopf-dom.test.js daneben. Gemessen wird am ERGEBNIS in einem gefaelschten
 // `document`, UEBER DEN ECHTEN KLICKWEG (den Tab-Klick, nicht ein direkter Funktionsaufruf) --
@@ -75,15 +75,18 @@ global.document = {
 global.window = global.window || {};
 
 const mod = require(path.resolve(__dirname, "..", "review-garetien-importer.js"));
-const { avesmapsGaretienListeRendern, garetienAnzeigeFilterSperreSetzen, garetienListeSkelettMarkup }
+const { avesmapsGaretienListeRendern, garetienStageFilterSperreSetzen, garetienListeSkelettMarkup }
 	= mod;
 
-wahr(typeof garetienAnzeigeFilterSperreSetzen === "function",
-	"garetienAnzeigeFilterSperreSetzen fehlt im Export");
+wahr(typeof garetienStageFilterSperreSetzen === "function",
+	"garetienStageFilterSperreSetzen fehlt im Export");
 
 // Der sichtbare Hinweistext steht im statischen Skelett -- kein Test hier baut ihn nach.
+// 🔴 Aufgabe 8: der Wortlaut heisst seither „Was hier steht, liegt auf der Karte und wird mit
+// „Stage importieren" angelegt — gefiltert wird nach Name und Typ."
 wahr(garetienListeSkelettMarkup().includes(
-	"Der Reiter zeigt, was auf der Karte liegt — hier wird nicht gefiltert."
+	"Was hier steht, liegt auf der Karte und wird mit „Stage importieren\" angelegt — gefiltert "
+	+ "wird nach Name und Typ."
 ), "der Hinweistext fehlt im Skelett -- ohne ihn ist die Sperre nicht ERKENNBAR, nur wirksam");
 wahr(/id="garetien-anzeige-hinweis"[^>]*\bhidden\b/.test(garetienListeSkelettMarkup()),
 	"der Hinweis startet VERSTECKT -- auf dem Start-Reiter (ein Server-Reiter) wird ja gefiltert");
@@ -118,10 +121,10 @@ async function hauptlauf() {
 	// Ein zufaellig offen gelassenes Trichter-Panel, um die Schliess-Nebenwirkung zu pruefen.
 	FILTER_MENU.hidden = false;
 
-	// ---- 2. Simulierter Tab-Klick auf "Anzeigen" -- der ECHTE Klickweg -------------------------
+	// ---- 2. Simulierter Tab-Klick auf "Stage" -- der ECHTE Klickweg ----------------------------
 	//
 	// garetienListeSkelettVerdrahten haengt seinen Listener beim ERSTEN Aufbau (oben) an
-	// `garetien-tabs`. RULING R5: der Reiter „Anzeigen" fragt nie den Server, sein Zweig in
+	// `garetien-tabs`. RULING R5: der Reiter „Stage" fragt nie den Server, sein Zweig in
 	// avesmapsGaretienListeHolen() rendert SYNCHRON -- kein `fetch` noetig, keine Wartezeit.
 	let fetchAufrufe = 0;
 	global.fetch = () => {
@@ -134,11 +137,11 @@ async function hauptlauf() {
 		});
 	};
 
-	klickTab("anzeigen");
+	klickTab("stage");
 	gleich(fetchAufrufe, 0,
-		"der Reiter Anzeigen fragt nie den Server (RULING R5) -- die Sperre steht schon, bevor "
+		"der Reiter Stage fragt nie den Server (RULING R5) -- die Sperre steht schon, bevor "
 		+ "irgendein `fetch` noetig waere");
-	gleich(SUCHE.disabled, true, "auf dem Reiter Anzeigen ist die Suche gesperrt");
+	gleich(SUCHE.disabled, true, "auf dem Reiter Stage ist die Suche gesperrt");
 	gleich(FILTER_TOGGLE.disabled, true, "und der Filterknopf ebenso");
 	gleich(HINWEIS.hidden, false, "und der Grund steht SICHTBAR daneben");
 	gleich(FILTER_MENU.hidden, true,
@@ -154,8 +157,8 @@ async function hauptlauf() {
 	gleich(HINWEIS.hidden, true, "und der Hinweis verschwindet wieder");
 
 	// ---- 4. Und noch einmal hin und her, damit die Regel nicht nur EINMAL zufaellig stimmt ------
-	klickTab("anzeigen");
-	gleich(SUCHE.disabled, true, "ein zweiter Wechsel auf den Reiter Anzeigen sperrt erneut");
+	klickTab("stage");
+	gleich(SUCHE.disabled, true, "ein zweiter Wechsel auf den Reiter Stage sperrt erneut");
 	klickTab("offen");
 	await tickAbwarten();
 	gleich(SUCHE.disabled, false, "und ein zweiter Rueckwechsel gibt erneut frei");

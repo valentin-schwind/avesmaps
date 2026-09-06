@@ -5,7 +5,7 @@
 //   node js/review/__tests__/garetien-import-verdrahtung.test.js
 //
 // 🔴 WARUM ES DIESE DATEI GIBT. garetien-import-meldung.test.js prüft nur die REINE Rechnung
-// (garetienImportMeldung, garetienAnzeigeNeuIds, garetienOhneFehlgeschlagene je für sich) -- und
+// (garetienImportMeldung, garetienStageNeuIds, garetienOhneFehlgeschlagene je für sich) -- und
 // hätte VIER echte Verdrahtungsfehler grün durchgelassen: die Meldung landet VOR statt NACH
 // avesmapsGaretienListeHolen() (genau die Falle, die beim Bau gefunden und "behoben" wurde, aber
 // nie an der ECHTEN Kette geprüft war), die Meldung wird gar nicht gesetzt, der `change_type`-Filter
@@ -104,8 +104,8 @@ function fetchDesMischlaufs() {
 
 async function pruefeFussknopf() {
 	const { api, dom, ELEMENTE } = ladeImporter(EXTRA_IDS);
-	api.avesmapsGaretienAnzeigeLeeren();
-	api.avesmapsGaretienAnzeigeHinzufuegen([objNeu, objNeuScheitert, objErgaenzung]);
+	api.avesmapsGaretienStageLeeren();
+	api.avesmapsGaretienStageHinzufuegen([objNeu, objNeuScheitert, objErgaenzung]);
 
 	const gefragt = [];
 	const fragen = function (text) { gefragt.push(text); return true; };
@@ -267,8 +267,8 @@ async function pruefeNeuKlickScheitert() {
 async function pruefeFussknopfListenfehler() {
 	const { api, dom, ELEMENTE } = ladeImporter(EXTRA_IDS);
 	const objekt = { key: "n:lf", items: [{ id: 811, change_type: "new", selected: 0 }] };
-	api.avesmapsGaretienAnzeigeLeeren();
-	api.avesmapsGaretienAnzeigeHinzufuegen([objekt]);
+	api.avesmapsGaretienStageLeeren();
+	api.avesmapsGaretienStageHinzufuegen([objekt]);
 
 	const fragen = function () { return true; };
 	const f = machFetch(function (rumpf) {

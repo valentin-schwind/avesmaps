@@ -63,7 +63,7 @@ const markup = garetienDetailMarkup(natter);
 wahr(markup.includes("w-4471") && markup.includes("w-5008") && markup.includes("w-6120"),
 	"alle drei getroffenen Abschnitte gehoeren in die Einzelansicht");
 wahr(/gi-seg[^"]*is-full[^"]*"[\s\S]{0,400}Gardel/.test(markup),
-	"der Gardel bekommt kein Item und muss als `is-full` dastehen: nichts zu ersetzen");
+	"der Gardel bekommt kein Item und muss als `is-full` dastehen: bleibt unberührt");
 wahr(markup.includes("is-empty"), "ein namenloser Abschnitt wird als Luecke gekennzeichnet");
 
 // Die Zahl im Kasten ist die der ABSCHNITTE, nicht der Items.
@@ -98,7 +98,7 @@ wahr(m2.includes("is-overwrite"), "ein vorhandener Name traegt den Warnton");
 // die Lage „ueberschreiben" konnte auf „Name fehlt" durchfallen (denn `felder` traegt dort nur
 // 'name'), und der Test blieb gruen. Ein Abschnitt, der „Name fehlt" sagt, wo ein vorhandener
 // Name ersetzt wuerde, ist genau die stillschweigende Ueberschreibung, die der Brief verbietet.
-wahr(m2.includes("⚠ Name weicht ab"),
+wahr(m2.includes("anderer Name"),
 	"das Ueberschreiben sagt es auch im TEXT, nicht nur in einer Klasse");
 wahr(!m2.includes("Name fehlt"),
 	"ein vorhandener Name „fehlt\" nicht -- er wuerde ersetzt");
@@ -155,7 +155,7 @@ wahr(nurName.includes("gi-seg__to"),
 	"ein Namens-Item zeigt sein „→ neuer Name\", auch ohne Quelle");
 
 const nichts = segFall({ public_id: "w-3", name: "Gardel", punkte: 6 }, []);
-wahr(nichts.includes("nichts zu ersetzen"), "ein Abschnitt ohne Item sagt „nichts zu ersetzen\"");
+wahr(nichts.includes("bleibt unberührt"), "ein Abschnitt ohne Item sagt „bleibt unberührt\"");
 wahr(/<input type="checkbox" disabled>/.test(nichts),
 	"ein Abschnitt ohne Item ist nicht anhakbar");
 
@@ -639,7 +639,7 @@ schriftgroessen.forEach((zeile) => {
 // 🔴 Aufgabe 2 (Entwurf §3): die Karte zeigt seither die ANZEIGE-MENGE, nicht mehr das
 // „angehakte" -- `avesmapsGaretienAufDerKarte` liest `items[].selected` gar nicht mehr (das war
 // der zweite Konstruktionsfehler: 7930 von 8213 Objekten haben ueberhaupt kein Item). Dieser Block
-// misst deshalb gegen `avesmapsGaretienAnzeigeHinzufuegen`/`-Leeren`, nicht mehr gegen ein
+// misst deshalb gegen `avesmapsGaretienStageHinzufuegen`/`-Leeren`, nicht mehr gegen ein
 // `selected: 1`-Item.
 wahr(typeof mod.avesmapsGaretienAufDerKarte === "function",
 	"avesmapsGaretienAufDerKarte fehlt im Export");
@@ -652,8 +652,8 @@ const inAnzeige = { key: "inAnzeige", name: "Alke", typ: "Bach", urteil: "neu",
 const kartenObjekte = [perz, inAnzeige];
 
 // Vorher: die Anzeige-Menge traegt genau EIN Objekt, keine Zeile ist angeklickt.
-mod.avesmapsGaretienAnzeigeLeeren();
-mod.avesmapsGaretienAnzeigeHinzufuegen([inAnzeige]);
+mod.avesmapsGaretienStageLeeren();
+mod.avesmapsGaretienStageHinzufuegen([inAnzeige]);
 mod.garetienDetailWaehlen(null, kartenObjekte);
 gleich(mod.avesmapsGaretienAufDerKarte(kartenObjekte).map((o) => o.key).join(","), "inAnzeige",
 	"ohne angeklickte Zeile liegt genau die ANZEIGE-MENGE auf der Karte");
@@ -684,6 +684,6 @@ gleich(doppelt.filter((k) => k === "inAnzeige").length, 1,
 	"das angeklickte UND bereits in der Anzeige liegende Objekt steht genau einmal auf der Karte");
 checks++;
 
-mod.avesmapsGaretienAnzeigeLeeren();
+mod.avesmapsGaretienStageLeeren();
 
 console.log(`garetien-einzelansicht: ${checks} Pruefungen bestanden.`);

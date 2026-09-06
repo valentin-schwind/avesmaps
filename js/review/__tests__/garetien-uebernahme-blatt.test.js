@@ -374,7 +374,7 @@ mitFetch(
 // =================================================================================================
 //
 // 🔴 SEIT AUFGABE 5 (29.08.2026, Entwurf §3.3) NIMMT DER KNOPF DIE ANZEIGE-LISTE, KEINE ZAHL MEHR:
-// „Alle angezeigten einfügen (n von m)" ersetzt „Angehakte übernehmen (n)". n zaehlt die
+// „Stage importieren (n von m)" ersetzt „Angehakte übernehmen (n)". n zaehlt die
 // angezeigten Objekte MIT mindestens einem Item, m die ganze Anzeige -- „Nur Angezeigtes kann
 // uebernommen werden" (Owner). Die ausfuehrliche Pruefung dieser Regel (samt der Haeppchen-Regel
 // aus dem Nachtrag zu Aufgabe 5) steht in garetien-anzeige-menge.test.js; hier nur die Gegenprobe
@@ -385,13 +385,13 @@ const ohneItem = { key: "ggp:Berge:7", items: [] };
 
 const knopfLeer = garetienUebernahmeKnopfZustand([ohneItem]);
 const knopfVoll = garetienUebernahmeKnopfZustand([mitItem, mitItem, ohneItem]);
-gleich(knopfVoll.beschriftung, "Alle angezeigten einfügen (2 von 3)",
+gleich(knopfVoll.beschriftung, "Stage importieren (2 von 3)",
 	"der Knopf traegt „n von m\" -- zwei der drei Angezeigten haben ein Item");
 gleich(knopfVoll.gesperrt, false, "und ist offen, solange mindestens ein Vorschlag angezeigt wird");
 gleich(knopfLeer.gesperrt, true,
 	"🔴 kein Vorschlag unter den Angezeigten ⇒ gesperrt. Ein Blatt mit null Zeilen ist eine "
 	+ "Sackgasse: das echte Blatt haette dort nicht einmal einen Uebernehmen-Knopf.");
-gleich(knopfLeer.beschriftung, "Alle angezeigten einfügen (0 von 1)", "und sagt die Null auch");
+gleich(knopfLeer.beschriftung, "Stage importieren (0 von 1)", "und sagt die Null auch");
 wahr(knopfLeer.hinweis.length > 0, "… und sagt WARUM");
 gleich(knopfVoll.hinweis, "",
 	"die Gegenprobe: bei mindestens einem Vorschlag steht KEIN Hinweis da -- sonst waere er "
@@ -407,7 +407,7 @@ gleich(blattLeer.closeLabel, "Schließen", "und sein anderer Knopf heisst dann �
 // Eine leere oder fehlende Anzeige faellt auf „0 von 0" -- die sichere Richtung.
 gleich(garetienUebernahmeKnopfZustand([]).gesperrt, true, "eine leere Anzeige sperrt");
 gleich(garetienUebernahmeKnopfZustand(undefined).anzahl, 0, "und eine fehlende ebenso");
-gleich(garetienUebernahmeKnopfZustand(undefined).beschriftung, "Alle angezeigten einfügen (0 von 0)",
+gleich(garetienUebernahmeKnopfZustand(undefined).beschriftung, "Stage importieren (0 von 0)",
 	"…und nennt zwei Nullen, keine Ausnahme");
 
 // Ohne `document` fasst die DOM-Haelfte nichts an und wirft nicht.

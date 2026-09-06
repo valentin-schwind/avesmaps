@@ -1617,7 +1617,7 @@ global.window.avesmapsGaretienSichtFuer = mod.avesmapsGaretienSichtFuer;
 // ---- 14. Fix-Runde 2 zu Aufgabe 3: die Meldung MUSS dieselbe Menge zaehlen wie die Karte zeichnet
 //
 // 🔴 Review-Befund: `avesmapsGaretienListeRendern` fuetterte die Neutral-Meldung aus
-// `avesmapsGaretienAnzeigeListe()`, waehrend JEDER Kartenaufruf laengst `avesmapsGaretienAufDerKarte()`
+// `avesmapsGaretienStageListe()`, waehrend JEDER Kartenaufruf laengst `avesmapsGaretienAufDerKarte()`
 // zeichnet -- und die ist um das ANGEKLICKTE, aber (noch) nicht in die Anzeige uebernommene Objekt
 // erweitert (seit `b45bc5cfa`, Owner-Beispiel „Perz"). Eine Zeile mit Ebene Wege/Grenzen/Sonstiges
 // anklicken (immer neutral, RULING R3) und dann etwas re-rendern, das dieselbe Listenansicht neu
@@ -1640,7 +1640,7 @@ function attrappe14(id) {
 			classList: { add() {}, remove() {}, toggle() {} },
 			addEventListener() {}, removeEventListener() {},
 			// ⚠️ BEIDE Sucher. Die Attrappe kannte lange nur `querySelectorAll`, weil das die
-			// damalige Fassung von garetienAuswahlMarkieren benutzte -- als sie am 30.08.2026 auf
+			// damalige Fassung von garetienZeileHervorheben benutzte -- als sie am 30.08.2026 auf
 			// gezielte `querySelector`-Zugriffe umgestellt wurde (O(1) statt ein Lauf ueber 8212
 			// Zeilen), fiel dieser Test mit "is not a function" um. Eine Attrappe, die nur das
 			// kann, was ihr heutiger Aufrufer braucht, bricht beim naechsten.
@@ -1653,9 +1653,9 @@ function attrappe14(id) {
 }
 global.document.getElementById = function (id) { return attrappe14(id); };
 
-importer.avesmapsGaretienAnzeigeLeeren();
+importer.avesmapsGaretienStageLeeren();
 importer.garetienDetailWaehlen(null, []);
-importer.avesmapsGaretienAnzeigeHinzufuegen([alke]);
+importer.avesmapsGaretienStageHinzufuegen([alke]);
 const neutralerKlick = {
 	key: "klick-neutral", name: "Kometensturz", urteil: "ergaenzung", ebene: "Sternenhimmel",
 	typ: "Komet", items: [], abschnitte: [],
@@ -1689,7 +1689,7 @@ wahr(hinweisMitKlick !== hinweisOhneKlick,
 // verlassen (der Rest der Datei geht von einem `document` aus, dessen `getElementById` immer
 // `null` liefert).
 global.document.getElementById = getElementByIdVorher14;
-importer.avesmapsGaretienAnzeigeLeeren();
+importer.avesmapsGaretienStageLeeren();
 importer.garetienDetailWaehlen(null, []);
 
 // ---- 15. Owner-Meldung 29.08.2026: „Avesmaps" ist nur bedienbar, wenn wirklich unsere Geometrie
@@ -1783,13 +1783,13 @@ global.document.getElementById = function (id) { return attrappe15(id); };
 // sich zeigen, dass eine Sperre daran nichts aendert.
 global.window.avesmapsGaretienKarteSicht = function () { return { ihre: true, unsere: false }; };
 
-importer.avesmapsGaretienAnzeigeLeeren();
+importer.avesmapsGaretienStageLeeren();
 importer.garetienDetailWaehlen(null, []);
 
 // Fall 1 (Zusicherung): die Anzeige-Menge traegt EIN Objekt mit eigenen Abschnitten (natter) NEBEN
 // einem ohne (blutmoor) -- geoeffnet ist BLUTMOOR selbst, das keinen einzigen Abschnitt nennt.
 // Gemessen wird trotzdem die GANZE Menge, nicht das geoeffnete Objekt allein: der Knopf bleibt frei.
-importer.avesmapsGaretienAnzeigeHinzufuegen([blutmoor, natter]);
+importer.avesmapsGaretienStageHinzufuegen([blutmoor, natter]);
 importer.garetienDetailWaehlen(blutmoor.key, [blutmoor, natter]);
 importer.avesmapsGaretienListeRendern(
 	{ objekte: [blutmoor, natter], reiter: {}, gesamt: 2, bilanz: {}, facetten: {} });
@@ -1800,8 +1800,8 @@ wahr(knopfFrei !== "" && !/\bdisabled\b/.test(knopfFrei) && /aria-pressed="false
 
 // Fall 2, die DIFFERENZ: dieselbe Steuerung, jetzt OHNE natter in der Anzeige-Menge -- der Knopf
 // muss wirklich UMSCHALTEN, nicht in 'frei' kleben bleiben.
-importer.avesmapsGaretienAnzeigeLeeren();
-importer.avesmapsGaretienAnzeigeHinzufuegen([blutmoor]);
+importer.avesmapsGaretienStageLeeren();
+importer.avesmapsGaretienStageHinzufuegen([blutmoor]);
 importer.garetienDetailWaehlen(blutmoor.key, [blutmoor]);
 importer.avesmapsGaretienListeRendern({ objekte: [blutmoor], reiter: {}, gesamt: 1, bilanz: {}, facetten: {} });
 const detailGesperrt = attrappe15("garetien-detailcol").innerHTML;
@@ -1825,7 +1825,7 @@ wahr(/aria-pressed="false"/.test(knopfGesperrt),
 
 // Fall 3: natter kommt zurueck -- die Steuerung wechselt ein ZWEITES Mal (nicht nur einmal), und
 // derselbe An/Aus-Stand ('aus') ueberlebt die Sperre unveraendert.
-importer.avesmapsGaretienAnzeigeHinzufuegen([natter]);
+importer.avesmapsGaretienStageHinzufuegen([natter]);
 importer.garetienDetailWaehlen(blutmoor.key, [blutmoor, natter]);
 importer.avesmapsGaretienListeRendern(
 	{ objekte: [blutmoor, natter], reiter: {}, gesamt: 2, bilanz: {}, facetten: {} });
@@ -1840,7 +1840,7 @@ wahr(/aria-pressed="false"/.test(knopfWiederFrei),
 global.document.getElementById = getElementByIdVorher15;
 delete global.window.avesmapsGaretienKarteSicht;
 delete global.window.avesmapsGaretienUnsereIds;
-importer.avesmapsGaretienAnzeigeLeeren();
+importer.avesmapsGaretienStageLeeren();
 importer.garetienDetailWaehlen(null, []);
 
 // ---- 16. DIE RINGSTRUKTUR (Owner-Meldung 30.08.2026: „diese wirre rosa linie") ----------------
@@ -2016,8 +2016,8 @@ gleich(nach(karte17b, IHRE).length, 1, "ihre Form bleibt -- der Knopf zeigt sie 
 // --- Die Ausnahme: das GEOEFFNETE Objekt bleibt vergleichbar.
 // Ohne sie waere ein ueber den Knopf hereingeholtes Objekt nie mehr mit unserem Bestand zu
 // vergleichen -- und genau dafuer ist dieses Fenster da.
-importer.avesmapsGaretienAnzeigeLeeren();
-importer.avesmapsGaretienAnzeigeHinzufuegen([nachbar17]);
+importer.avesmapsGaretienStageLeeren();
+importer.avesmapsGaretienStageHinzufuegen([nachbar17]);
 importer.avesmapsGaretienNurIhreMerken([nachbar17]);
 const ohneAuswahl = importer.avesmapsGaretienAufDerKarte([nachbar17]);
 gleich(ohneAuswahl[0][NUR_IHRE], true, "solange niemand die Zeile ansieht, gilt die Marke");
@@ -2026,7 +2026,7 @@ const mitAuswahl = importer.avesmapsGaretienAufDerKarte([nachbar17]);
 wahr(!mitAuswahl[0][NUR_IHRE],
 	"das geoeffnete Objekt zeigt wieder beide Seiten -- sonst waere es nie mehr vergleichbar");
 importer.garetienDetailWaehlen(null, []);
-importer.avesmapsGaretienAnzeigeLeeren();
+importer.avesmapsGaretienStageLeeren();
 
 
 // =================================================================================================
@@ -2048,10 +2048,10 @@ wahr(mod.AVESMAPS_GARETIEN_FELD_GEWAEHLT !== mod.AVESMAPS_GARETIEN_FELD_NUR_IHRE
 
 // --- Das Fenster stempelt GENAU die offene Zeile, und zwar auf einer KOPIE.
 const GEWAEHLT = mod.AVESMAPS_GARETIEN_FELD_GEWAEHLT;
-importer.avesmapsGaretienAnzeigeLeeren();
+importer.avesmapsGaretienStageLeeren();
 const objOffen = { key: "gw:1", name: "Offen", geometrie: [[10, 10]], items: [] };
 const objDaneben = { key: "gw:2", name: "Daneben", geometrie: [[20, 20]], items: [] };
-importer.avesmapsGaretienAnzeigeHinzufuegen([objOffen, objDaneben]);
+importer.avesmapsGaretienStageHinzufuegen([objOffen, objDaneben]);
 
 const ohneAuswahlGw = importer.avesmapsGaretienAufDerKarte([objOffen, objDaneben]);
 wahr(!ohneAuswahlGw.some((o) => o && o[GEWAEHLT]),
@@ -2071,7 +2071,7 @@ wahr(!objOffen[GEWAEHLT], "gestempelt wird eine KOPIE, nie das Objekt der Anzeig
 // Mutationsprobe hat gezeigt, dass ein Test ueber nur einen der beiden Wege den anderen ungeprueft
 // laesst; seither hat die Funktion nur noch EINEN Ausgang, und diese Zeile haelt das fest.
 importer.garetienDetailWaehlen(null, []);
-importer.avesmapsGaretienAnzeigeLeeren();
+importer.avesmapsGaretienStageLeeren();
 const objNurOffen = { key: "gw:3", name: "Nur offen", geometrie: [[30, 30]], items: [] };
 importer.garetienDetailWaehlen("gw:3", [objNurOffen]);
 const angehaengt = importer.avesmapsGaretienAufDerKarte([objNurOffen]);
@@ -2081,7 +2081,7 @@ gleich(angehaengt[0][GEWAEHLT], true,
 	+ "nicht in der Anzeige-Menge liegt, weiter gestrichelt");
 wahr(!objNurOffen[GEWAEHLT], "und auch hier wird eine KOPIE gestempelt");
 importer.garetienDetailWaehlen(null, []);
-importer.avesmapsGaretienAnzeigeLeeren();
+importer.avesmapsGaretienStageLeeren();
 
 // --- Und der Zeichner macht daraus eine durchgehende Kontur.
 // 🔴 Gemessen wird das, was wirklich an Leaflet geht: `dashArray`. Ein Test ueber „das Feld kommt

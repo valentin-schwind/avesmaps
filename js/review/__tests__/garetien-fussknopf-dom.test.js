@@ -1,5 +1,5 @@
 // Aufgabe 5 des Garetien Importers -- die DOM-Haelfte des Fussknopfs
-// „Alle angezeigten einfügen (n von m)".
+// „Stage importieren (n von m)".
 // Auftrag: docs/superpowers/specs/2026-08-27-garetien-importer-fenster-auftrag.md §5.4
 // Entwurf: docs/superpowers/specs/2026-08-29-garetien-importer-sichtwerkzeug-design.md §3.3
 // Brief:   .superpowers/sdd/2026-08-29-garetien-importer-sichtwerkzeug/task-5-brief.md
@@ -86,10 +86,10 @@ const mod = require(path.resolve(__dirname, "..", "review-garetien-importer.js")
 const {
 	garetienUebernahmeKnopfSetzen,
 	avesmapsGaretienListeRendern,
-	avesmapsGaretienAnzeigeLeeren,
-	avesmapsGaretienAnzeigeHinzufuegen,
-	avesmapsGaretienAnzeigeListe,
-	avesmapsGaretienAnzeigeHat,
+	avesmapsGaretienStageLeeren,
+	avesmapsGaretienStageHinzufuegen,
+	avesmapsGaretienStageListe,
+	avesmapsGaretienStageHat,
 } = mod;
 
 const KNOPF = ELEMENTE["garetien-apply"];
@@ -114,7 +114,7 @@ const ohneVorschlag2    = { key: "ggp:Berge:8", items: [] };
 // =================================================================================================
 
 const stand3 = garetienUebernahmeKnopfSetzen([mitVorschlagOffen, ohneVorschlag, ohneVorschlag2]);
-gleich(KNOPF.textContent, "Alle angezeigten einfügen (1 von 3)",
+gleich(KNOPF.textContent, "Stage importieren (1 von 3)",
 	"💣 der Knopf traegt „n von m\" -- nicht mehr nur EINE Zahl -- nur `mitVorschlagOffen` traegt "
 	+ "ein Item, die zwei anderen sind angezeigt, aber nicht einfuegbar");
 gleich(KNOPF.disabled, false, "und er ist offen, weil n >= 1");
@@ -129,7 +129,7 @@ gleich(stand3 && stand3.gesamt, 3, "…samt der Gesamtzahl der Anzeige, nicht nu
 // =================================================================================================
 
 garetienUebernahmeKnopfSetzen([ohneVorschlag]);
-gleich(KNOPF.textContent, "Alle angezeigten einfügen (0 von 1)",
+gleich(KNOPF.textContent, "Stage importieren (0 von 1)",
 	"ein angezeigtes Objekt ohne Vorschlag zaehlt bei m mit, nie bei n");
 gleich(KNOPF.disabled, true,
 	"🔴 kein Vorschlag unter den Angezeigten ⇒ gesperrt. Das Blatt haette dort nichts zu zeigen.");
@@ -143,7 +143,7 @@ wahr(HINWEIS.textContent.indexOf("Keines der angezeigten") === 0,
 // muessen auseinanderfallen, sonst verwechselt ein Editor „nichts hingelegt" mit „nichts davon
 // einfuegbar".
 garetienUebernahmeKnopfSetzen([]);
-gleich(KNOPF.textContent, "Alle angezeigten einfügen (0 von 0)", "die leere Anzeige nennt zwei Nullen");
+gleich(KNOPF.textContent, "Stage importieren (0 von 0)", "die leere Anzeige nennt zwei Nullen");
 gleich(HINWEIS.textContent, "Nichts angezeigt — leg links etwas auf die Karte.",
 	"…mit einem ANDEREN Hinweistext als der Fall „angezeigt, aber ohne Vorschlag\" oben");
 
@@ -158,13 +158,13 @@ gleich(HINWEIS.textContent, "Nichts angezeigt — leg links etwas auf die Karte.
 // gesperrt, und der Listenlauf muss ihn davon wegbewegen -- OHNE dass die Antwort selbst
 // irgendetwas ueber `angehakt` sagt (Aufgabe 5 hat diese Quelle ERSETZT, nicht ergaenzt).
 
-gleich(KNOPF.textContent, "Alle angezeigten einfügen (0 von 0)",
+gleich(KNOPF.textContent, "Stage importieren (0 von 0)",
 	"die Gegenprobe zum Ausgangspunkt: der Knopf steht wirklich auf (0 von 0), bevor die Liste laeuft");
 
-avesmapsGaretienAnzeigeLeeren();
-avesmapsGaretienAnzeigeHinzufuegen([mitVorschlagOffen, ohneVorschlag]);
+avesmapsGaretienStageLeeren();
+avesmapsGaretienStageHinzufuegen([mitVorschlagOffen, ohneVorschlag]);
 avesmapsGaretienListeRendern({ ok: true, objekte: [], gesamt: 0, bilanz: {}, reiter: {}, facetten: {} });
-gleich(KNOPF.textContent, "Alle angezeigten einfügen (1 von 2)",
+gleich(KNOPF.textContent, "Stage importieren (1 von 2)",
 	"💣 der Listenlauf liest jetzt die ANZEIGE-MENGE -- 1 von 2, obwohl die Antwort selbst gar "
 	+ "keine `angehakt`-Angabe traegt");
 gleich(KNOPF.disabled, false, "und macht ihn auf");
@@ -172,9 +172,9 @@ gleich(KNOPF.disabled, false, "und macht ihn auf");
 // Die Gegenprobe: der Listenlauf faehrt den Knopf auch wieder ZU, sobald die Anzeige wieder leer
 // ist. Ohne sie kann die Zusicherung darueber von einem Knopf erfuellt werden, der nur einmal
 // aufgeht und nie mehr zu.
-avesmapsGaretienAnzeigeLeeren();
+avesmapsGaretienStageLeeren();
 avesmapsGaretienListeRendern({ ok: true, objekte: [], gesamt: 0, bilanz: {}, reiter: {}, facetten: {} });
-gleich(KNOPF.textContent, "Alle angezeigten einfügen (0 von 0)", "und beim naechsten Lauf wieder zurueck");
+gleich(KNOPF.textContent, "Stage importieren (0 von 0)", "und beim naechsten Lauf wieder zurueck");
 gleich(KNOPF.disabled, true, "samt Sperre");
 gleich(HINWEIS.hidden, false, "und samt Grund");
 
@@ -185,7 +185,7 @@ avesmapsGaretienListeRendern({
 	ok: true, objekte: [], gesamt: 0, bilanz: {}, reiter: {}, facetten: {},
 	angehakt: { new: 99, changed: 1 },
 });
-gleich(KNOPF.textContent, "Alle angezeigten einfügen (0 von 0)",
+gleich(KNOPF.textContent, "Stage importieren (0 von 0)",
 	"`angehakt` aus der Antwort ist tot -- der Fussknopf zaehlt die ANZEIGE, und die ist hier leer");
 gleich(KNOPF.disabled, true, "…und bleibt deshalb gesperrt");
 
@@ -230,9 +230,9 @@ function listeAntwortLeer() {
 async function pruefeFussknopfSchreibtWirklich() {
 	// D0: SCHADENSFALL 30.08.2026 (Owner: „Eine Warnung gabs nicht … hat unsere ganze karte
 	// zerstört") -- die Rückfrage nennt die ECHTE Zahl, und OHNE Bestätigung passiert NICHTS.
-	avesmapsGaretienAnzeigeLeeren();
-	avesmapsGaretienAnzeigeHinzufuegen([mitVorschlagOffen]);
-	garetienUebernahmeKnopfSetzen(avesmapsGaretienAnzeigeListe());
+	avesmapsGaretienStageLeeren();
+	avesmapsGaretienStageHinzufuegen([mitVorschlagOffen]);
+	garetienUebernahmeKnopfSetzen(avesmapsGaretienStageListe());
 
 	let letzterRueckfrageText = null;
 	const echtesFetchD0 = global.fetch;
@@ -254,8 +254,8 @@ async function pruefeFussknopfSchreibtWirklich() {
 
 	// Und die Anzeige geht zurück auf den Stand, den D1 erwartet ("(0 von 0)"/gesperrt) -- D0 hat
 	// sie fürs Nennen der echten Zahl absichtlich gefüllt, D1 prüft den gesperrten Ausgangszustand.
-	avesmapsGaretienAnzeigeLeeren();
-	garetienUebernahmeKnopfSetzen(avesmapsGaretienAnzeigeListe());
+	avesmapsGaretienStageLeeren();
+	garetienUebernahmeKnopfSetzen(avesmapsGaretienStageListe());
 
 	// D1: GESPERRT (der Zustand, den Abschnitt C hinterlassen hat) -- kein einziger Netzruf.
 	const echtesFetchD1 = global.fetch;
@@ -268,9 +268,9 @@ async function pruefeFussknopfSchreibtWirklich() {
 	// ALTEN VERHALTEN: vorher loeste das GAR KEIN fetch aus (es oeffnete nur das Blatt). Jetzt MUSS
 	// trotzdem `apply` gerufen werden -- sonst bliebe eine fruehere Vormerkung (z.B. aus einem
 	// „Namen ersetzen"-Klick anderswo) fuer immer nur vorgemerkt und nie wirklich uebernommen.
-	avesmapsGaretienAnzeigeLeeren();
-	avesmapsGaretienAnzeigeHinzufuegen([mitVorschlagVoll]);
-	garetienUebernahmeKnopfSetzen(avesmapsGaretienAnzeigeListe());
+	avesmapsGaretienStageLeeren();
+	avesmapsGaretienStageHinzufuegen([mitVorschlagVoll]);
+	garetienUebernahmeKnopfSetzen(avesmapsGaretienStageListe());
 	gleich(KNOPF.disabled, false, "die Anzeige traegt einen Vorschlag -- offen");
 
 	const d2 = machFetch(function (pfad, rumpf) {
@@ -295,13 +295,13 @@ async function pruefeFussknopfSchreibtWirklich() {
 	gleich(d2.angefragt[0].pfad, "/api/edit/wiki/sync-plan.php", "…durch die eine Uebernahme-Tuer");
 	gleich(d2.angefragt[1].rumpf.stand, "uebernommen",
 		"…dann die gezielte Nachlese, WELCHE Objekte jetzt wirklich uebernommen sind");
-	gleich(avesmapsGaretienAnzeigeHat(mitVorschlagVoll.key), false,
+	gleich(avesmapsGaretienStageHat(mitVorschlagVoll.key), false,
 		"und das jetzt bestaetigt uebernommene Objekt hat die Anzeige verlassen");
 
 	// D3: ein WIRKLICH offener Vorschlag -- select, DANN apply, DANN die zwei Lesevorgaenge.
-	avesmapsGaretienAnzeigeLeeren();
-	avesmapsGaretienAnzeigeHinzufuegen([mitVorschlagOffen]);
-	garetienUebernahmeKnopfSetzen(avesmapsGaretienAnzeigeListe());
+	avesmapsGaretienStageLeeren();
+	avesmapsGaretienStageHinzufuegen([mitVorschlagOffen]);
+	garetienUebernahmeKnopfSetzen(avesmapsGaretienStageListe());
 	gleich(KNOPF.disabled, false, "…und wieder offen, jetzt mit einem UNGEHAKTEN Vorschlag");
 
 	const d3 = machFetch(function (pfad, rumpf) {
@@ -333,9 +333,9 @@ async function pruefeFussknopfSchreibtWirklich() {
 	// D4: Ein Fehler MITTENDRIN (schon beim Anhaken) bricht ab, entsperrt den Knopf wieder und
 	// darf nie als Erfolg durchgehen (Brief). 🔴 SEIT AUFGABE 1 (06.09.2026) STEHT ER IN DER
 	// STATUSZEILE, NICHT MEHR IN DER LISTE -- die bleibt unberuehrt stehen.
-	avesmapsGaretienAnzeigeLeeren();
-	avesmapsGaretienAnzeigeHinzufuegen([mitVorschlagOffen]);
-	garetienUebernahmeKnopfSetzen(avesmapsGaretienAnzeigeListe());
+	avesmapsGaretienStageLeeren();
+	avesmapsGaretienStageHinzufuegen([mitVorschlagOffen]);
+	garetienUebernahmeKnopfSetzen(avesmapsGaretienStageListe());
 	LISTE_EL.innerHTML = "<div class='avm-row'>vorher unveraendert</div>";
 
 	const d4 = machFetch(function (pfad, rumpf) {
@@ -360,9 +360,9 @@ async function pruefeFussknopfSchreibtWirklich() {
 	// sperrt den Knopf SYNCHRON (noch bevor die erste Antwort da ist) -- der zweite Klick trifft
 	// deshalb schon in der Verdrahtung auf `uebernehmenBtn.disabled` und ruft die Einfuege-Funktion
 	// gar nicht erst auf.
-	avesmapsGaretienAnzeigeLeeren();
-	avesmapsGaretienAnzeigeHinzufuegen([mitVorschlagOffen]);
-	garetienUebernahmeKnopfSetzen(avesmapsGaretienAnzeigeListe());
+	avesmapsGaretienStageLeeren();
+	avesmapsGaretienStageHinzufuegen([mitVorschlagOffen]);
+	garetienUebernahmeKnopfSetzen(avesmapsGaretienStageListe());
 
 	const d5 = machFetch(function (pfad, rumpf) {
 		if (rumpf.action === "apply") {

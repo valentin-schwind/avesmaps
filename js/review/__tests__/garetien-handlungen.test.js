@@ -280,7 +280,7 @@ tief(garetienHakenRumpf(strasse, "w-2213", 7),
 	{ action: "select", kind: "garetien", run_id: 7, ids: [103, 203], selected: true },
 	"der Rumpf des Abschnittshaekchens geht durch dieselbe Tuer wie alles andere");
 
-// 🔴 Aufgabe 2 (29.08.2026): die ZEILE zeigt seither die MARKIERUNG (`zustand.markiert`), nicht
+// 🔴 Aufgabe 2 (29.08.2026): die ZEILE zeigt seither die MARKIERUNG (`zustand.auswahl`), nicht
 // mehr den Item-Zustand -- „Markieren aendert nichts" (Owner). garetienHakenItems/-Plan/-Rumpf
 // bleiben oben UNVERAENDERT als reine Rechnung stehen (Aufgabe 5 braucht sie fuer den Fussknopf
 // „Alle angezeigten einfuegen"), aber die Zeile selbst liest sie nicht mehr: ihr Haekchen kennt
@@ -292,10 +292,11 @@ wahr(!/checked/.test(mod.garetienZeileMarkup(einer, false)),
 	+ "angehakt waere");
 wahr(!/data-part/.test(mod.garetienZeileMarkup(einer, true)),
 	"und nie mehr dreiwertig -- das Geometrie-Item hat mit dem Haekchen der Zeile nichts mehr zu tun");
-// ⚠️ Das Leuchten zaehlt weiter ALLE Items und ist UNABHAENGIG von der Markierung: ein
-// vorgemerkter Geometrie-Ersatz IST eine Vormerkung und gehoert auf die Karte, markiert oder nicht.
-gleich(mod.avesmapsGaretienHatAuswahl({ items: [{ id: 1, anlass: "geometrie", selected: 1 }] }), true,
-	"ein angehaktes Geometrie-Item laesst das Objekt leuchten");
+// 🔴 Aufgabe 8: das Leuchten (✦) und sein Erzeuger avesmapsGaretienHatAuswahl sind restlos
+// entfernt -- es zeigte die SERVER-VORMERKUNG, die der Editor seit Aufgabe 2 nicht mehr in der
+// Hand hat (siehe garetien-liste-zeile.test.js).
+wahr(typeof mod.avesmapsGaretienHatAuswahl === "undefined",
+	"avesmapsGaretienHatAuswahl ist entfernt, keine leere Huelle geblieben");
 
 // =================================================================================================
 // E2. Das Zusatz-Item darf NIE ueber eine Massenhandlung mitlaufen (Schadensfall 30.08.2026)
@@ -303,7 +304,7 @@ gleich(mod.avesmapsGaretienHatAuswahl({ items: [{ id: 1, anlass: "geometrie", se
 //
 // Owner-Bestellung 30.08.2026: „Alle angezeigten einfuegen" hat 3007 Objekte uebernommen, viele
 // davon Dubletten -- weil garetienHakenItems das Zusatz-Item ("trotzdem neu anlegen" trotz
-// erkannter Kollision, garetien-plan.php) nicht kannte und `garetienAnzeigeAnhakenIds` es deshalb
+// erkannter Kollision, garetien-plan.php) nicht kannte und `garetienStageAnhakenIds` es deshalb
 // bei jedem Ergaenzungs-Objekt MIT anhakte. Ein Ergaenzungs-Objekt mit Kollision traegt hier DREI
 // Items: das legitime Ergaenzungs-Item (unser bestehendes Objekt bekommt die Quelle), das
 // Geometrie-Item (eigener Knopf, siehe Abschnitt E) und das Zusatz-Item selbst.
@@ -340,14 +341,14 @@ tief(garetienHakenPlan(kollisionsobjekt, null), { ids: [9500], selected: true },
 tief(garetienHakenItems(zufluss).map((i) => i.id), [1],
 	"ein genuiner 'new'-Neuzugang (anlass:'zufluss', KEIN Zusatz-Item) bleibt vollstaendig erreichbar");
 
-// Und von der Seite der Massenuebernahme selbst: `garetienAnzeigeAnhakenIds` ist die Funktion
+// Und von der Seite der Massenuebernahme selbst: `garetienStageAnhakenIds` ist die Funktion
 // hinter „Alle angezeigten einfuegen" (Aufgabe 5/8). Die Differenz zaehlt: die id des Zusatz-Items
 // darf NIE auftauchen, die des echten Neuzugangs IMMER.
 const echterNeuzugang = {
 	key: "k-echt-neu-mengen", urteil: "neu", abschnitte: [],
 	items: [{ id: 9600, anlass: null, change_type: "new", selected: 0 }],
 };
-const mengeIds = mod.garetienAnzeigeAnhakenIds([kollisionsobjekt, echterNeuzugang]).slice()
+const mengeIds = mod.garetienStageAnhakenIds([kollisionsobjekt, echterNeuzugang]).slice()
 	.sort(function (a, b) { return a - b; });
 tief(mengeIds, [9500, 9600],
 	"🔴 die Massenuebernahme hakt das changed-Item (9500) und den echten Neuzugang (9600) an -- "
@@ -470,7 +471,7 @@ gesendet = [];
 gleich(garetienHakenKlick({ target: hakenZiel(strasse.key, null) }, objekte, 7, senden), true,
 	"ein Klick auf das Zeilenhaekchen markiert -- er schickt NICHTS mehr");
 gleich(gesendet.length, 0, "der Sender wird beim Zeilenhaekchen nicht mehr gerufen");
-gleich(mod.avesmapsGaretienMarkierungHat(strasse.key), true, "und der Markierungsstand traegt es");
+gleich(mod.avesmapsGaretienAuswahlHat(strasse.key), true, "und der Markierungsstand traegt es");
 
 gesendet = [];
 gleich(garetienHakenKlick({ target: hakenZiel(strasse.key, null) }, objekte, 7, senden), false,
@@ -497,14 +498,14 @@ gleich(garetienHakenKlick({ target: kette([{ passt: [], attribute: {} }]) }, obj
 // 🔴 Der Review fand: kein bestehender Test fuhr diesen kombinierten Pfad -- die
 // Handlungen-Tests benutzen synthetische DOM-Stubs (wie hier), aber niemand hatte den Fall MIT
 // `data-seg` durch GENAU DIESEN Verteiler (garetienHakenKlick) geschickt. Das hier ist dieser Fall.
-const vorMarkierung = mod.avesmapsGaretienMarkierungHat(strasse.key);
+const vorMarkierung = mod.avesmapsGaretienAuswahlHat(strasse.key);
 gesendet = [];
 gleich(garetienHakenKlick({ target: hakenZiel(strasse.key, "w-2213") }, objekte, 7, senden), "gesendet",
 	"ein Klick auf ein Abschnittshaekchen sendet weiterhin -- er ist KEIN Marker");
 gleich(gesendet.length, 1, "und zwar genau einmal");
 tief(gesendet[0], { action: "select", kind: "garetien", run_id: 7, ids: [103, 203], selected: true },
 	"mit den Items GENAU dieses Abschnitts, durch dieselbe Tuer wie zuvor (garetienHakenRumpf)");
-gleich(mod.avesmapsGaretienMarkierungHat(strasse.key), vorMarkierung,
+gleich(mod.avesmapsGaretienAuswahlHat(strasse.key), vorMarkierung,
 	"und die Markierung des Objekts bleibt UNBERUEHRT -- das Abschnittshaekchen ist kein Marker");
 
 // Gegenprobe: DASSELBE Objekt, aber OHNE `data-seg` -- markiert, sendet nichts. Die Weiche haengt
@@ -517,12 +518,12 @@ gleich(gesendet.length, 0, "und hier wird, wie beim Zeilenhaekchen, nichts gesen
 
 // Und ein Abschnittshaekchen an einem UNBEKANNTEN Abschnitt sendet nichts (garetienHakenRumpf gibt
 // null zurueck) -- und ruehrt die Markierung ebenfalls nicht an.
-const vorMarkierungEiner = mod.avesmapsGaretienMarkierungHat(einer.key);
+const vorMarkierungEiner = mod.avesmapsGaretienAuswahlHat(einer.key);
 gesendet = [];
 gleich(garetienHakenKlick({ target: hakenZiel(einer.key, "w-9999") }, objekte, 7, senden), null,
 	"ein unbekannter Abschnitt sendet nichts");
 gleich(gesendet.length, 0, "wirklich nichts");
-gleich(mod.avesmapsGaretienMarkierungHat(einer.key), vorMarkierungEiner,
+gleich(mod.avesmapsGaretienAuswahlHat(einer.key), vorMarkierungEiner,
 	"und die Markierung bleibt unberuehrt -- auch im Fehlschlagfall ist das Abschnittshaekchen "
 	+ "kein Marker");
 
@@ -1225,7 +1226,10 @@ async function pruefeNeuKlickZusatz() {
 	wahr(zusatzFrage.includes("Krähensee"), "die Rückfrage nennt den Namen");
 	wahr(zusatzFrage.includes("0.42 Einheiten"), "und den Grund aus dem Abgleich (Name+Abstand)");
 	wahr(zusatzFrage.includes("ZUSÄTZLICH"), "und sagt ausdrücklich, dass ANGELEGT statt ersetzt wird");
-	wahr(zusatzFrage.includes("Jetzt wird nur vorgemerkt"), "und dass jetzt noch nichts geschrieben wird");
+	// 🔴 Aufgabe 8: „Jetzt wird nur vorgemerkt. Geschrieben wird erst mit „Angehakte übernehmen"."
+	// heisst seither „Das Objekt kommt auf die Stage und wird mit „Stage importieren" angelegt."
+	wahr(zusatzFrage.includes("kommt auf die Stage"), "und dass jetzt noch nichts geschrieben wird");
+	wahr(zusatzFrage.includes("Stage importieren"), "und nennt den Knopf, der es wirklich anlegt");
 
 	// 💣 OHNE BESTÄTIGUNG PASSIERT NICHTS -- und der Klick gilt trotzdem als BEHANDELT (return
 	// true), sonst fiele er zu garetienHandlungKlick durch (dieselbe Falle wie bei

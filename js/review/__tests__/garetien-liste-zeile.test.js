@@ -28,7 +28,7 @@ function wahr(bedingung, warum) {
 	checks++;
 }
 
-const { garetienZeileMarkup, avesmapsGaretienCheckboxZustand, avesmapsGaretienHatAuswahl } = mod;
+const { garetienZeileMarkup, avesmapsGaretienCheckboxZustand } = mod;
 
 wahr(typeof garetienZeileMarkup === "function", "garetienZeileMarkup fehlt im Export");
 wahr(typeof avesmapsGaretienCheckboxZustand === "function", "avesmapsGaretienCheckboxZustand fehlt im Export");
@@ -108,7 +108,7 @@ gleich(ohneItems.dreiwertig, false);
 
 // ---- Aufgabe 2 (29.08.2026): das Haekchen der ZEILE wird zum reinen MARKER ----------------------
 // 🔴 RULING (Aufgabe 2, Entwurf §3.2): `checked` kommt jetzt aus einem zweiten Argument (dem
-// Markierungsstand aus `zustand.markiert`), NICHT mehr aus dem Item-Zustand -- „Markieren aendert
+// Markierungsstand aus `zustand.auswahl`), NICHT mehr aus dem Item-Zustand -- „Markieren aendert
 // nichts" (Owner 29.08.2026). Damit faellt weg, was hier VORHER stand: KEIN `disabled` mehr (ein
 // Objekt OHNE Items -- 7930 von 8213, Entwurf §3 -- muss sich GENAUSO markieren lassen wie eines
 // mit Vorschlag) und KEIN dreiwertiger Zustand mehr (Markieren ist ein Bool, kein Item-Mix).
@@ -133,17 +133,20 @@ wahr(/<input type="checkbox" checked>/.test(
 		+ "kein Item-Mix");
 });
 
-// avesmapsGaretienHatAuswahl treibt das ✦ ("leuchtet") -- schon EIN angehaktes Item genuegt,
-// auch bei einem sonst dreiwertigen Objekt. ⚠️ UNVERAENDERT und UNABHAENGIG von der Markierung:
-// ein vorgemerkter Geometrie-Ersatz IST eine Vormerkung und gehoert auf die Karte, markiert oder
-// nicht (Aufgabe 2).
-gleich(avesmapsGaretienHatAuswahl(fuenfAbschnitteZweiAngehakt), true, "2 von 5 angehakt -> leuchtet");
-gleich(avesmapsGaretienHatAuswahl(Object.assign({}, basis, { items: [{ id: 1, selected: 0 }] })), false);
-wahr(garetienZeileMarkup(fuenfAbschnitteZweiAngehakt, false).includes("lit-dot"),
-	"ein Objekt mit >=1 angehaktem Item traegt das ✦ hinter dem Namen -- auch UNMARKIERT");
+// ---- Aufgabe 8: das ✦ (.lit-dot) und sein Erzeuger avesmapsGaretienHatAuswahl sind restlos
+// entfernt -----------------------------------------------------------------------------------
+//
+// 🔴 Es zeigte die SERVER-VORMERKUNG (irgendein Item mit `selected===1`), die der Editor seit
+// Aufgabe 2 nicht mehr in der Hand hat -- stehen zu lassen hiesse, ein drittes Wort neben
+// „Auswahl" und „Stage" im Fenster zu behalten. Dieselbe Begruendung gilt fuer den Filtereintrag
+// "nur ungehakte" (siehe garetien-filtertrichter.test.js).
+wahr(typeof mod.avesmapsGaretienHatAuswahl === "undefined",
+	"avesmapsGaretienHatAuswahl ist entfernt, keine leere Huelle geblieben");
+wahr(!garetienZeileMarkup(fuenfAbschnitteZweiAngehakt, false).includes("lit-dot"),
+	"kein Objekt traegt noch das ✦ hinter dem Namen -- auch nicht eines mit angehakten Items");
 wahr(!garetienZeileMarkup(Object.assign({}, basis, { items: [{ id: 1, selected: 0 }] }), true)
 	.includes("lit-dot"),
-	"ohne Auswahl darf kein ✦ stehen -- auch MARKIERT nicht");
+	"und erst recht keines ohne Vorschlag");
 
 // ---- Die Bilanzzeile ("N von M Objekten · ✦ K leuchten") ist restlos entfernt -----------------
 //
@@ -189,8 +192,8 @@ const tabs = mod.avesmapsGaretienTabsMarkup(
 );
 // 🔴 RULING R1 (Aufgabe 1, 29.08.2026): „Vorgemerkt" ist an dieser Stelle durch „Anzeigen"
 // ersetzt -- die client-seitige Anzeige-Menge (garetien-anzeige-menge.test.js), nicht mehr ein
-// aus `selected` abgeleiteter Bearbeitungsstand.
-["Offen", "Anzeigen", "Abgelehnt", "Übernommen"].forEach((label) => {
+// aus `selected` abgeleiteter Bearbeitungsstand. Aufgabe 8: „Anzeigen" heisst seither „Stage".
+["Offen", "Stage", "Abgelehnt", "Übernommen"].forEach((label) => {
 	wahr(tabs.includes(label), `Reiter "${label}" fehlt`);
 });
 wahr(tabs.includes("avm-tab"), "die Reiter muessen .avm-tab tragen (Hausform, editor-body.css)");

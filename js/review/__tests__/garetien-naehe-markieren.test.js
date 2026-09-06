@@ -111,9 +111,9 @@ gleich(garetienNaeheKlick({ target: scheinKnopf(false) }, null), null,
 	"eine fehlende Liste bricht nichts");
 
 // ---- Miss die DIFFERENZ: eine vorher bestehende Markierung/Anzeige bleibt -- der Klick ERGAENZT.
-modul.avesmapsGaretienAnzeigeLeeren();
-modul.avesmapsGaretienMarkierungUmschalten("vorher-markiert");
-modul.avesmapsGaretienAnzeigeHinzufuegen([{ key: "vorher-angezeigt", name: "V" }]);
+modul.avesmapsGaretienStageLeeren();
+modul.avesmapsGaretienAuswahlUmschalten("vorher-markiert");
+modul.avesmapsGaretienStageHinzufuegen([{ key: "vorher-angezeigt", name: "V" }]);
 
 const nachbarn = [
 	{ key: "nachbar-1", name: "Nachbar 1", geometrie: [[1, 1]] },
@@ -121,13 +121,13 @@ const nachbarn = [
 ];
 const ergebnis = garetienNaeheKlick({ target: scheinKnopf(false) }, nachbarn);
 gleich(ergebnis, 2, "der Klick meldet die Zahl der markierten/angezeigten Nachbarn");
-gleich(modul.avesmapsGaretienMarkierungHat("nachbar-1"), true, "Nachbar 1 ist jetzt markiert");
-gleich(modul.avesmapsGaretienMarkierungHat("nachbar-2"), true, "Nachbar 2 ist jetzt markiert");
-gleich(modul.avesmapsGaretienAnzeigeHat("nachbar-1"), true, "Nachbar 1 liegt jetzt auf der Karte (Anzeige-Menge)");
-gleich(modul.avesmapsGaretienAnzeigeHat("nachbar-2"), true, "Nachbar 2 liegt jetzt auf der Karte (Anzeige-Menge)");
-gleich(modul.avesmapsGaretienMarkierungHat("vorher-markiert"), true,
+gleich(modul.avesmapsGaretienAuswahlHat("nachbar-1"), true, "Nachbar 1 ist jetzt markiert");
+gleich(modul.avesmapsGaretienAuswahlHat("nachbar-2"), true, "Nachbar 2 ist jetzt markiert");
+gleich(modul.avesmapsGaretienStageHat("nachbar-1"), true, "Nachbar 1 liegt jetzt auf der Karte (Anzeige-Menge)");
+gleich(modul.avesmapsGaretienStageHat("nachbar-2"), true, "Nachbar 2 liegt jetzt auf der Karte (Anzeige-Menge)");
+gleich(modul.avesmapsGaretienAuswahlHat("vorher-markiert"), true,
 	"eine vorher bestehende Markierung bleibt -- der Klick LEERT KEINE Auswahl (Auftrag)");
-gleich(modul.avesmapsGaretienAnzeigeHat("vorher-angezeigt"), true,
+gleich(modul.avesmapsGaretienStageHat("vorher-angezeigt"), true,
 	"und ein vorher angezeigtes Objekt bleibt ebenfalls liegen");
 
 // =================================================================================================
@@ -215,11 +215,11 @@ async function pruefeAbruf() {
 //
 // 🔴 DIE MARKE STEHT NEBEN DER ANZEIGE-MENGE, NICHT IN IHR. Die Menge haelt die Objekte, wie der
 // Server sie geliefert hat; ein Feld hineinzuschreiben ginge beim naechsten Auffrischen
-// (avesmapsGaretienAnzeigeAuffrischen ersetzt die Fassung nach jedem Schreibvorgang) still
+// (avesmapsGaretienStageAuffrischen ersetzt die Fassung nach jedem Schreibvorgang) still
 // verloren -- und die magenta Formen kaemen zurueck, ohne dass jemand etwas getan haette.
-modul.avesmapsGaretienAnzeigeLeeren();
+modul.avesmapsGaretienStageLeeren();
 const ausAnderemWeg = { key: "eigenweg", name: "Von Hand angezeigt", geometrie: [[5, 5]] };
-modul.avesmapsGaretienAnzeigeHinzufuegen([ausAnderemWeg]);
+modul.avesmapsGaretienStageHinzufuegen([ausAnderemWeg]);
 const ausNaehe = [
 	{ key: "naeh-1", name: "Nachbar A", geometrie: [[1, 1]] },
 	{ key: "naeh-2", name: "Nachbar B", geometrie: [[2, 2]] },
@@ -239,14 +239,14 @@ wahr(!nachKey["eigenweg"][modul.AVESMAPS_GARETIEN_FELD_NUR_IHRE],
 	"ein von Hand angezeigtes Objekt behaelt sein magenta Gegenstueck");
 
 // Die Anzeige-Menge selbst bleibt unberuehrt -- gestempelt wird eine KOPIE fuer die Karte.
-const inDerMenge = modul.avesmapsGaretienAnzeigeListe()
+const inDerMenge = modul.avesmapsGaretienStageListe()
 	.filter(function (o) { return String(o.key) === "naeh-1"; })[0];
 wahr(!inDerMenge[modul.AVESMAPS_GARETIEN_FELD_NUR_IHRE],
 	"das Objekt in der Anzeige-Menge bleibt, wie der Server es geliefert hat");
 
 // Ein anderer Weg HEBT die Marke auf: wer denselben Nachbarn ueber „Markierte anzeigen" hereinholt,
 // will ihn ganz sehen.
-modul.avesmapsGaretienAnzeigeHinzufuegen([ausNaehe[0]]);
+modul.avesmapsGaretienStageHinzufuegen([ausNaehe[0]]);
 const nachErneutemZeigen = modul.avesmapsGaretienAufDerKarte([])
 	.filter(function (o) { return String(o.key) === "naeh-1"; })[0];
 wahr(!nachErneutemZeigen[modul.AVESMAPS_GARETIEN_FELD_NUR_IHRE],
@@ -257,11 +257,11 @@ gleich(modul.avesmapsGaretienAufDerKarte([])
 
 // „Anzeige leeren" vergisst auch die Marken -- sonst traegt ein spaeter wieder hereingeholtes
 // Objekt sie aus einer Sitzung, an die sich niemand mehr erinnert.
-modul.avesmapsGaretienAnzeigeLeeren();
-modul.avesmapsGaretienAnzeigeHinzufuegen([ausNaehe[1]]);
+modul.avesmapsGaretienStageLeeren();
+modul.avesmapsGaretienStageHinzufuegen([ausNaehe[1]]);
 wahr(!modul.avesmapsGaretienAufDerKarte([])[0][modul.AVESMAPS_GARETIEN_FELD_NUR_IHRE],
 	"nach dem Leeren der Anzeige ist keine Marke mehr uebrig");
-modul.avesmapsGaretienAnzeigeLeeren();
+modul.avesmapsGaretienStageLeeren();
 
 pruefeAbruf().then(function () {
 
@@ -272,22 +272,22 @@ pruefeAbruf().then(function () {
 // --- Das GEOEFFNETE Objekt geht mit in die Anzeige. 🔴 Nicht Kosmetik: `garetienDetailRendern`
 // sucht `zustand.detailKey` in der gerade gerenderten Liste. Steht das offene Objekt nicht darin,
 // ist `gewaehlt` null und die rechte Spalte raeumt sich beim Reiterwechsel selbst ab -- gemessen.
-modul.avesmapsGaretienAnzeigeLeeren();
+modul.avesmapsGaretienStageLeeren();
 const offenesObjekt = { key: "e:offen", name: "Alling", geometrie: [[1, 1]] };
 const nachbarn2 = [{ key: "e:n1", name: "N1", geometrie: [[2, 2]] }];
 gleich(garetienNaeheKlick({ target: scheinKnopf(false) }, nachbarn2, offenesObjekt), 1,
 	"der Rueckgabewert bleibt die Zahl der NACHBARN -- nicht die der angezeigten Objekte");
-gleich(modul.avesmapsGaretienAnzeigeHat("e:n1"), true, "der Nachbar liegt in der Anzeige");
-gleich(modul.avesmapsGaretienAnzeigeHat("e:offen"), true,
+gleich(modul.avesmapsGaretienStageHat("e:n1"), true, "der Nachbar liegt in der Anzeige");
+gleich(modul.avesmapsGaretienStageHat("e:offen"), true,
 	"und das geoeffnete Objekt ebenso -- sonst zeigt der Reiter „Anzeigen“ weniger, als auf der "
 	+ "Karte liegt, und die Einzelansicht laeuft leer");
 
 // ⚠️ Ohne `eigenes` bleibt alles wie vorher -- der dritte Parameter ist zusaetzlich, nicht Pflicht.
-modul.avesmapsGaretienAnzeigeLeeren();
+modul.avesmapsGaretienStageLeeren();
 garetienNaeheKlick({ target: scheinKnopf(false) }, nachbarn2);
-gleich(modul.avesmapsGaretienAnzeigeHat("e:n1"), true, "der Nachbar kommt auch ohne dritten Parameter");
-gleich(modul.avesmapsGaretienAnzeigeHat("e:offen"), false, "und sonst nichts");
-modul.avesmapsGaretienAnzeigeLeeren();
+gleich(modul.avesmapsGaretienStageHat("e:n1"), true, "der Nachbar kommt auch ohne dritten Parameter");
+gleich(modul.avesmapsGaretienStageHat("e:offen"), false, "und sonst nichts");
+modul.avesmapsGaretienStageLeeren();
 
 // --- Und der Klickverteiler wechselt den Reiter. Gemessen am Quelltext, weil der Knopf in der
 // DETAILSPALTE steht und ueber einen delegierten Zuhoerer laeuft, den dieser Test nicht aufbaut.
@@ -298,9 +298,9 @@ const quelleOhneKommentare = require("fs")
 	.replace(/\r\n/g, "\n")
 	.replace(/\/\*[\s\S]*?\*\//g, "")
 	.replace(/^\s*\/\/.*$/gm, "");
-wahr(/garetienNaeheKlick\(ereignis, _garetienNaeheGefunden, naeheOffen\)\) \{\n\s*zustand\.stand = "anzeigen";/
+wahr(/garetienNaeheKlick\(ereignis, _garetienNaeheGefunden, naeheOffen\)\) \{\n\s*zustand\.stand = "stage";/
 	.test(quelleOhneKommentare),
-	"der Klickverteiler muss direkt nach dem Naehe-Klick auf den Reiter „Anzeigen“ wechseln");
+	"der Klickverteiler muss direkt nach dem Naehe-Klick auf den Reiter „Stage“ wechseln");
 wahr(/const naeheOffen = \(zustand\.objekte \|\| \[\]\)/.test(quelleOhneKommentare),
 	"und dabei das geoeffnete Objekt heraussuchen und mitgeben");
 	console.log(`garetien-naehe-markieren: ${checks} Pruefungen bestanden.`);

@@ -26,74 +26,74 @@ const mitVorschlag  = { key: "ggp:Gewaesser:1", name: "Alke",       typ: "Bach",
 const ohneVorschlag = { key: "ggp:Berge:7",     name: "Krähenkopf", typ: "Berg", items: [] };
 
 // ---- 1. Ein Objekt OHNE Vorschlag kommt in die Menge -------------------------------------------
-modul.avesmapsGaretienAnzeigeLeeren();
-gleich(modul.avesmapsGaretienAnzeigeHinzufuegen([ohneVorschlag]), 1,
+modul.avesmapsGaretienStageLeeren();
+gleich(modul.avesmapsGaretienStageHinzufuegen([ohneVorschlag]), 1,
 	"ein Objekt ohne jedes Item MUSS in die Anzeige koennen -- das sind 7930 von 8213");
-gleich(modul.avesmapsGaretienAnzeigeHat("ggp:Berge:7"), true, "und es liegt drin");
+gleich(modul.avesmapsGaretienStageHat("ggp:Berge:7"), true, "und es liegt drin");
 
 // ---- 2. Gemerkt wird das OBJEKT, nicht der Schluessel -------------------------------------------
 //
 // Der Server liefert je Abruf nur die gefilterte Seite. Ein Schluessel ohne Objekt waere nach dem
 // naechsten Filterwechsel nicht mehr aufloesbar -- die Karte verloere genau das, was der Editor
 // zusammengetragen hat. Die DIFFERENZ dazu: nach dem Hinzufuegen ist der NAME noch da.
-gleich(modul.avesmapsGaretienAnzeigeListe()[0].name, "Krähenkopf",
+gleich(modul.avesmapsGaretienStageListe()[0].name, "Krähenkopf",
 	"die Menge haelt das ganze Objekt -- sonst ueberlebt sie keinen Filterwechsel");
 
 // ---- 3. Entdoppelt, und die Reihenfolge ist die des Einfuegens ----------------------------------
-modul.avesmapsGaretienAnzeigeHinzufuegen([ohneVorschlag, mitVorschlag]);
-gleich(modul.avesmapsGaretienAnzeigeListe().length, 2,
+modul.avesmapsGaretienStageHinzufuegen([ohneVorschlag, mitVorschlag]);
+gleich(modul.avesmapsGaretienStageListe().length, 2,
 	"zweimal dasselbe Objekt ergibt EINEN Eintrag -- zweimal gezeichnet waere ein doppelt "
 	+ "kraeftiger Strich");
-tief(modul.avesmapsGaretienAnzeigeListe().map((o) => o.key), ["ggp:Berge:7", "ggp:Gewaesser:1"],
+tief(modul.avesmapsGaretienStageListe().map((o) => o.key), ["ggp:Berge:7", "ggp:Gewaesser:1"],
 	"Einfuegereihenfolge, damit die Liste sich unter dem Editor nicht umsortiert");
 
 // ---- 4. Leeren leert wirklich ------------------------------------------------------------------
-gleich(modul.avesmapsGaretienAnzeigeLeeren(), 0, "„Anzeige leeren\" leert");
-gleich(modul.avesmapsGaretienAnzeigeListe().length, 0, "und danach ist sie leer");
-gleich(modul.avesmapsGaretienAnzeigeHat("ggp:Berge:7"), false, "auch fuer den Einzelnachschlag");
+gleich(modul.avesmapsGaretienStageLeeren(), 0, "„Stage leeren\" leert");
+gleich(modul.avesmapsGaretienStageListe().length, 0, "und danach ist sie leer");
+gleich(modul.avesmapsGaretienStageHat("ggp:Berge:7"), false, "auch fuer den Einzelnachschlag");
 
 // ---- 5. Der Reiter „Anzeigen" steht an zweiter Stelle und traegt seine Zahl ---------------------
 //
 // ⚠️ Gemessen wird die REIHENFOLGE, nicht nur das Vorkommen: „Anzeigen" ersetzt „Vorgemerkt" an
 // dessen Stelle, damit der Editor seinen Reiter nicht suchen muss.
-modul.avesmapsGaretienAnzeigeHinzufuegen([ohneVorschlag]);
+modul.avesmapsGaretienStageHinzufuegen([ohneVorschlag]);
 const tabs = modul.avesmapsGaretienTabsMarkup({ offen: 259, abgelehnt: 3, uebernommen: 0 }, "offen");
 const reihenfolge = (tabs.match(/data-stand="([a-z]+)"/g) || []).map((s) => s.slice(12, -1));
-tief(reihenfolge, ["offen", "anzeigen", "abgelehnt", "uebernommen"],
-	"vier Reiter, und „anzeigen\" steht an der Stelle des alten „vorgemerkt\"");
-wahr(tabs.includes("Anzeigen (1)"),
+tief(reihenfolge, ["offen", "stage", "abgelehnt", "uebernommen"],
+	"vier Reiter, und „stage\" steht an der Stelle des alten „vorgemerkt\"");
+wahr(tabs.includes("Stage (1)"),
 	"die Zahl kommt aus der MENGE, nicht aus der Serverantwort -- der Server kennt sie nicht");
 
-// ---- 6. Die DIFFERENZ: der Server wird nach „anzeigen" nie gefragt ------------------------------
+// ---- 6. Die DIFFERENZ: der Server wird nach „stage" nie gefragt ---------------------------------
 //
 // 🪤 Die Vakuum-Falle waere, hier den Quelltext zu lesen. Gemessen wird stattdessen, dass
-// `anzeigen` in der Server-Standleiter GAR NICHT vorkommt -- ein `stand: "anzeigen"` waere ein
+// `stage` in der Server-Standleiter GAR NICHT vorkommt -- ein `stand: "stage"` waere ein
 // Filter auf einen Wert, den `avesmapsGaretienListeObjektStand` nie zurueckgibt, und die Liste
 // bliebe fuer immer leer.
-wahr(!modul.AVESMAPS_GARETIEN_SERVER_STAENDE.includes("anzeigen"),
-	"„anzeigen\" ist KEIN Serverstand -- es wird im Browser gerendert");
+wahr(!modul.AVESMAPS_GARETIEN_SERVER_STAENDE.includes("stage"),
+	"„stage\" ist KEIN Serverstand -- es wird im Browser gerendert");
 tief(modul.AVESMAPS_GARETIEN_SERVER_STAENDE, ["offen", "abgelehnt", "uebernommen"],
 	"und `vorgemerkt` ist aus der Leiter heraus -- sonst springt die Zeile beim Anhaken");
 
 // ---- 7. Das Haekchen ist ein MARKER und schreibt NICHTS ----------------------------------------
 //
 // 🔴 KORRIGIERT (Fix-Runde 1, Punkt 2): hier stand ein Spion, der nie verdrahtet wurde --
-// `avesmapsGaretienMarkierungUmschalten` hat gar keinen `senden`-Parameter, also blieb
+// `avesmapsGaretienAuswahlUmschalten` hat gar keinen `senden`-Parameter, also blieb
 // `gleich(gesendet, 0, …)` gruen, egal was die Funktion tut (Vakuum-Zusicherung). Die ECHTE Probe
 // braucht den Klickverteiler `garetienHakenKlick` mit einem wirklich verdrahteten Spion -- die
 // steht bereits in `js/review/__tests__/garetien-handlungen.test.js`, Abschnitt "Das Haekchen"
 // (RULING R6), und deckt zusaetzlich den zweiten Aufrufer (Abschnittshaekchen) mit ab. Hier bleibt
-// nur, was diese Datei WIRKLICH pruefen kann: `avesmapsGaretienMarkierungUmschalten` toggelt.
-modul.avesmapsGaretienAnzeigeLeeren();
-gleich(modul.avesmapsGaretienMarkierungUmschalten("ggp:Berge:7"), true, "erster Klick markiert");
-gleich(modul.avesmapsGaretienMarkierungUmschalten("ggp:Berge:7"), false, "zweiter Klick nimmt zurueck");
+// nur, was diese Datei WIRKLICH pruefen kann: `avesmapsGaretienAuswahlUmschalten` toggelt.
+modul.avesmapsGaretienStageLeeren();
+gleich(modul.avesmapsGaretienAuswahlUmschalten("ggp:Berge:7"), true, "erster Klick markiert");
+gleich(modul.avesmapsGaretienAuswahlUmschalten("ggp:Berge:7"), false, "zweiter Klick nimmt zurueck");
 
-// ---- 8. „Markierte anzeigen" legt sie dazu und laesst sie markiert ------------------------------
-modul.avesmapsGaretienMarkierungUmschalten("ggp:Berge:7");
-gleich(modul.avesmapsGaretienMarkierteAnzeigen([ohneVorschlag, mitVorschlag]), 1,
+// ---- 8. „Auf die Stage" legt sie dazu und laesst sie markiert -----------------------------------
+modul.avesmapsGaretienAuswahlUmschalten("ggp:Berge:7");
+gleich(modul.avesmapsGaretienAuswahlAufDieStage([ohneVorschlag, mitVorschlag]), 1,
 	"nur das MARKIERTE kommt in die Anzeige, nicht die ganze Liste");
-gleich(modul.avesmapsGaretienAnzeigeHat("ggp:Berge:7"), true, "und es liegt drin");
-gleich(modul.avesmapsGaretienMarkierungHat("ggp:Berge:7"), true,
+gleich(modul.avesmapsGaretienStageHat("ggp:Berge:7"), true, "und es liegt drin");
+gleich(modul.avesmapsGaretienAuswahlHat("ggp:Berge:7"), true,
 	"es bleibt markiert und bleibt in „Offen\" -- „sie sind ja immer noch offen\"");
 
 // ---- 9. Die Karte zeigt die ANZEIGE, nicht mehr die Haekchen -----------------------------------
@@ -106,33 +106,33 @@ tief(aufDerKarte.map((o) => o.key), ["ggp:Berge:7"],
 	+ "obwohl sein Item `selected: 1` traegt");
 
 // =================================================================================================
-// 10. RULING R5 (Luecke im Plan): der Reiter „Anzeigen" baut seine Antwort selbst -- ohne Server
+// 10. RULING R5 (Luecke im Plan): der Reiter „Stage" baut seine Antwort selbst -- ohne Server
 // =================================================================================================
 //
-// Kein Server-Feld heisst „anzeigen" (Abschnitt 6 oben) -- ein `stand: "anzeigen"` waere ein
+// Kein Server-Feld heisst „stage" (Abschnitt 6 oben) -- ein `stand: "stage"` waere ein
 // Filter auf einen Wert, den der Server nie liefert, und die Liste bliebe fuer immer leer.
 // avesmapsGaretienListeHolen() nimmt bei diesem Reiter deshalb einen ZWEITEN Weg:
-// garetienAnzeigenAntwortBauen() baut die "Antwort" aus der Anzeige-Menge nach, OHNE zu filtern --
+// garetienStageAntwortBauen() baut die "Antwort" aus der Stage-Menge nach, OHNE zu filtern --
 // Suche und Filtertrichter wirken nur auf die drei Server-Reiter (Entwurf §3.1).
-modul.avesmapsGaretienAnzeigeLeeren();
-modul.avesmapsGaretienAnzeigeHinzufuegen([ohneVorschlag, mitVorschlag]);
-const anzeigenAntwort = modul.garetienAnzeigenAntwortBauen({
+modul.avesmapsGaretienStageLeeren();
+modul.avesmapsGaretienStageHinzufuegen([ohneVorschlag, mitVorschlag]);
+const stageAntwort = modul.garetienStageAntwortBauen({
 	reiter: { offen: 259, abgelehnt: 3, uebernommen: 0 },
 	bilanz: { neu: 5 },
 });
-tief(anzeigenAntwort.objekte.map((o) => o.key), ["ggp:Berge:7", "ggp:Gewaesser:1"],
-	"die Antwort traegt GENAU die Anzeige-Menge, ungefiltert");
-gleich(anzeigenAntwort.gesamt, 2, "gesamt ist die Groesse der Menge, nicht die eines Servers");
-gleich(anzeigenAntwort.reiter.anzeigen, 2,
+tief(stageAntwort.objekte.map((o) => o.key), ["ggp:Berge:7", "ggp:Gewaesser:1"],
+	"die Antwort traegt GENAU die Stage-Menge, ungefiltert");
+gleich(stageAntwort.gesamt, 2, "gesamt ist die Groesse der Menge, nicht die eines Servers");
+gleich(stageAntwort.reiter.stage, 2,
 	"der Reiterwert ist derselbe wie gesamt -- die Bilanzzeile zeigt dann „N Objekte\", nie "
 	+ "„N von M\"");
-gleich(anzeigenAntwort.reiter.offen, 259,
+gleich(stageAntwort.reiter.offen, 259,
 	"die uebrigen Reiterzahlen bleiben aus der letzten echten Serverantwort erhalten");
-gleich(anzeigenAntwort.bilanz.neu, 5, "und die Laufbilanz ebenso -- „Anzeigen\" hat keine eigene");
+gleich(stageAntwort.bilanz.neu, 5, "und die Laufbilanz ebenso -- „Stage\" hat keine eigene");
 
 // 🔴 Fuenf-Punkte-Brief 30.08.2026, Punkt 1: die Bilanzzeile (und ihr Erzeuger
 // avesmapsGaretienBalanceZeileText) ist restlos entfernt (Owner: „weiß sowieso nicht was das
-// bedeutet") -- `anzeigenAntwort.reiter.anzeigen` bleibt trotzdem Teil dieser Antwort-Form (siehe
+// bedeutet") -- `stageAntwort.reiter.stage` bleibt trotzdem Teil dieser Antwort-Form (siehe
 // oben), auch ohne einen aktuellen Leser dafuer.
 wahr(typeof modul.avesmapsGaretienBalanceZeileText === "undefined",
 	"avesmapsGaretienBalanceZeileText ist entfernt, keine leere Huelle geblieben");
@@ -142,7 +142,7 @@ wahr(typeof modul.avesmapsGaretienBalanceZeileText === "undefined",
 // 🔴 7930 der 8213 Objekte haben keinen. Ein Knopf, der „244 einfuegen" verspricht und 37 einfuegt,
 // ist eine Falschaussage ueber die naechste Handlung.
 const stand = modul.garetienUebernahmeKnopfZustand([mitVorschlag, ohneVorschlag, ohneVorschlag]);
-gleich(stand.beschriftung, "Alle angezeigten einfügen (1 von 3)",
+gleich(stand.beschriftung, "Stage importieren (1 von 3)",
 	"1 von 3 -- nur `mitVorschlag` traegt ein Item");
 gleich(stand.gesperrt, false, "mit mindestens einem Vorschlag ist der Knopf bedienbar");
 
@@ -153,7 +153,7 @@ gleich(leer.hinweis !== "", true,
 	+ "in Chrome keine Zeigerereignisse und zeigt seinen `title` deshalb nie");
 
 gleich(modul.garetienUebernahmeKnopfZustand([]).beschriftung,
-	"Alle angezeigten einfügen (0 von 0)", "die leere Anzeige nennt zwei Nullen, keine Ausnahme");
+	"Stage importieren (0 von 0)", "die leere Anzeige nennt zwei Nullen, keine Ausnahme");
 
 // ---- 10b. Fix-Runde 1: ein Objekt mit NUR einem Geometrie-Item zaehlt NICHT als "mit Vorschlag" -
 //
@@ -162,7 +162,7 @@ gleich(modul.garetienUebernahmeKnopfZustand([]).beschriftung,
 // `deckt_sich`, Name und Quelle stimmen schon, es bleibt nur das Geometrie-Item uebrig).
 // `garetienHakenItems` schliesst das Geometrie-Item grundsaetzlich vom Haekchen-Pfad aus (eigener
 // Knopf mit Rueckfrage) -- ein Objekt mit AUSSCHLIESSLICH einem solchen Item liefert deshalb ueber
-// `garetienAnzeigeAnhakenIds` NIE eine id. Zaehlte `n` trotzdem roh ueber `items.length`, verspraeche
+// `garetienStageAnhakenIds` NIE eine id. Zaehlte `n` trotzdem roh ueber `items.length`, verspraeche
 // der Knopf ein Einfuegen, das beim Klick nichts sendet -- dieselbe Falschaussage eine Stelle
 // kleiner. Gemessen wird die DIFFERENZ: der Geometrie-Fall zaehlt nicht, ein gewoehnliches Item
 // daneben zaehlt doch -- in EINER Anzeige-Menge, damit die Zahl wirklich zwischen beiden unterscheidet.
@@ -177,16 +177,16 @@ gleich(standGeometrie.anzahl, 0,
 gleich(standGeometrie.gesperrt, true, "…und ist deshalb allein genommen gesperrt");
 
 const standGemischt = modul.garetienUebernahmeKnopfZustand([nurGeometrie, mitVorschlag]);
-gleich(standGemischt.beschriftung, "Alle angezeigten einfügen (1 von 2)",
+gleich(standGemischt.beschriftung, "Stage importieren (1 von 2)",
 	"die Gegenprobe in DERSELBEN Anzeige-Menge: `mitVorschlag` (ein gewoehnliches Item) zaehlt "
 	+ "weiterhin, `nurGeometrie` weiterhin nicht -- 1 von 2, nicht 2 von 2");
 
-// Und von der ANDEREN Seite bestaetigt: `garetienAnzeigeAnhakenIds` (die Funktion, die die
+// Und von der ANDEREN Seite bestaetigt: `garetienStageAnhakenIds` (die Funktion, die die
 // tatsaechlich zu sendenden ids baut) liefert fuer `nurGeometrie` NIE eine id, waehrend ein
 // gewoehnliches, noch offenes Item danebem sehr wohl beitraegt -- genau die Uebereinstimmung, die
 // Fix-Runde 1 zwischen Anzeige-Zahl und Anhak-Menge verlangt.
 const mitOffenemItem = { key: "ggp:Offen:1", items: [{ id: 701, selected: 0 }] };
-tief(modul.garetienAnzeigeAnhakenIds([nurGeometrie, mitOffenemItem]), [701],
+tief(modul.garetienStageAnhakenIds([nurGeometrie, mitOffenemItem]), [701],
 	"nur das gewoehnliche offene Item traegt eine id bei, das Geometrie-Item NIE -- dieselbe "
 	+ "Filterung wie in `n`");
 
@@ -210,7 +210,7 @@ gleich(standZusatz.anzahl, 1,
 	+ "extra mit");
 gleich(standZusatz.gesperrt, false, "und der Knopf ist bedienbar");
 
-tief(modul.garetienAnzeigeAnhakenIds([mitZusatz]), [810],
+tief(modul.garetienStageAnhakenIds([mitZusatz]), [810],
 	"🔴 die Massenuebernahme haengt NUR das legitime Ergaenzungs-Item an -- die id des Zusatz-Items "
 	+ "(811) taucht NIE auf, sonst legte derselbe Klick still eine Dublette an");
 
@@ -220,7 +220,7 @@ const echtNeu = {
 	key: "ggp:EchtNeu:1", name: "Neuer Bach", typ: "Bach",
 	items: [{ id: 820, anlass: null, change_type: "new", selected: 0 }],
 };
-tief(modul.garetienAnzeigeAnhakenIds([mitZusatz, echtNeu]).slice().sort(function (a, b) { return a - b; }),
+tief(modul.garetienStageAnhakenIds([mitZusatz, echtNeu]).slice().sort(function (a, b) { return a - b; }),
 	[810, 820],
 	"gemischt: das changed-Item UND der echte Neuzugang haken an, das Zusatz-Item bleibt aussen vor");
 
@@ -262,23 +262,23 @@ tief(modul.garetienIdsInHaeppchen([1, 2, 3]), [[1, 2, 3]],
 	tief(haeppchen201[1], [201], "und der Rest liegt im zweiten");
 }
 
-// ---- 11b. garetienAnzeigeAnhakenIds -- wer traegt ueberhaupt eine id bei? -----------------------
+// ---- 11b. garetienStageAnhakenIds -- wer traegt ueberhaupt eine id bei? -----------------------
 {
 	const gemischt = idsObjektGemischt("ggp:gemischt:1", [{ id: 920, selected: true }, { id: 921, selected: false }]);
-	tief(modul.garetienAnzeigeAnhakenIds([gemischt]), [920, 921],
+	tief(modul.garetienStageAnhakenIds([gemischt]), [920, 921],
 		"ein Objekt mit MINDESTENS einem offenen Item liefert ALLE seine ids -- auch die schon "
 		+ "angehakten, denn der Fussknopf haengt an, er nimmt nichts weg");
 
 	const schonVoll = idsObjekt("ggp:voll:1", [930, 931], true);
-	tief(modul.garetienAnzeigeAnhakenIds([schonVoll]), [],
+	tief(modul.garetienStageAnhakenIds([schonVoll]), [],
 		"ein Objekt, dessen Items schon VOLLSTAENDIG angehakt sind, liefert KEINE ids -- nichts "
 		+ "zu tun -- `garetienHakenPlan` gaebe dort die Toggle-Richtung ALLES-AB zurueck, und "
 		+ "genau die darf der Fussknopf nie senden)");
 
-	tief(modul.garetienAnzeigeAnhakenIds([ohneVorschlag]), [], "ein Objekt ohne jedes Item traegt nichts bei");
+	tief(modul.garetienStageAnhakenIds([ohneVorschlag]), [], "ein Objekt ohne jedes Item traegt nichts bei");
 
 	const teil = idsObjekt("ggp:teil:1", [940, 941], false);
-	tief(modul.garetienAnzeigeAnhakenIds([schonVoll, teil, ohneVorschlag]), [940, 941],
+	tief(modul.garetienStageAnhakenIds([schonVoll, teil, ohneVorschlag]), [940, 941],
 		"gemischt: nur das Objekt mit offenen Items traegt bei, in EINFUEGE-Reihenfolge");
 }
 
@@ -287,10 +287,10 @@ tief(modul.garetienIdsInHaeppchen([1, 2, 3]), [[1, 2, 3]],
 // AUFGEFRISCHT, nie entfernt
 // =================================================================================================
 //
-// Diagnose: `zustand.anzeige.set(...)` wurde bis dahin AUSSCHLIESSLICH aus
-// `avesmapsGaretienAnzeigeHinzufuegen` gerufen. Eine Handlung ("Neu einfuegen", "Namen ersetzen",
+// Diagnose: `zustand.stage.set(...)` wurde bis dahin AUSSCHLIESSLICH aus
+// `avesmapsGaretienStageHinzufuegen` gerufen. Eine Handlung ("Neu einfuegen", "Namen ersetzen",
 // ein Abschnittshaekchen) ging an den Server, `avesmapsGaretienHandlungSenden` holte die Liste neu
-// -- aber die KOPIEN in `zustand.anzeige` blieben auf dem alten Stand. Weder das ✦ noch der ✓ am
+// -- aber die KOPIEN in `zustand.stage` blieben auf dem alten Stand. Weder das ✦ noch der ✓ am
 // Handlungsknopf noch die Einzelansicht aenderten sich: der Knopf tat scheinbar nichts.
 //
 // 🔴 Gemessen wird die DIFFERENZ, in EINEM Aufruf von `avesmapsGaretienListeRendern` (dem
@@ -301,8 +301,8 @@ tief(modul.garetienIdsInHaeppchen([1, 2, 3]), [[1, 2, 3]],
 	};
 	const bleibtDraussen = { key: "ggp:Berge:99", name: "Fern-Berg", typ: "Berg", items: [] };
 
-	modul.avesmapsGaretienAnzeigeLeeren();
-	modul.avesmapsGaretienAnzeigeHinzufuegen([veraltet, bleibtDraussen]);
+	modul.avesmapsGaretienStageLeeren();
+	modul.avesmapsGaretienStageHinzufuegen([veraltet, bleibtDraussen]);
 
 	// Die "frische Serverantwort" traegt eine GEAENDERTE Fassung von `veraltet` (selected jetzt 1)
 	// und NICHT `bleibtDraussen` -- genau die Lage nach einem gefilterten/seitenweisen Abruf
@@ -317,28 +317,28 @@ tief(modul.garetienIdsInHaeppchen([1, 2, 3]), [[1, 2, 3]],
 		gesamt: 1,
 	});
 
-	gleich(modul.avesmapsGaretienAnzeigeHat("ggp:Fluss:9"), true,
+	gleich(modul.avesmapsGaretienStageHat("ggp:Fluss:9"), true,
 		"das Objekt bleibt in der Anzeige -- Auffrischen ERSETZT, es entfernt nicht");
 	gleich(
-		modul.avesmapsGaretienAnzeigeListe().filter((o) => o.key === "ggp:Fluss:9")[0].items[0].selected,
+		modul.avesmapsGaretienStageListe().filter((o) => o.key === "ggp:Fluss:9")[0].items[0].selected,
 		1,
 		"…und traegt jetzt den NEUEN Wert aus der Serverantwort -- die alte Kopie mit selected:0 ist weg"
 	);
 	tief(
-		modul.avesmapsGaretienAnzeigeListe().map((o) => o.key).sort(),
+		modul.avesmapsGaretienStageListe().map((o) => o.key).sort(),
 		["ggp:Berge:99", "ggp:Fluss:9"],
 		"und das Objekt, das die Antwort NICHT nennt (`bleibtDraussen`), liegt UNVERAENDERT weiter "
 		+ "drin -- eine gefilterte/seitenweise Antwort darf die Anzeige nie leeren"
 	);
 	gleich(
-		modul.avesmapsGaretienAnzeigeListe().filter((o) => o.key === "ggp:Berge:99")[0],
+		modul.avesmapsGaretienStageListe().filter((o) => o.key === "ggp:Berge:99")[0],
 		bleibtDraussen,
 		"…und zwar als DIESELBE Referenz, unangetastet"
 	);
 }
 
 // Die DIFFERENZ zum zweiten Renderweg: der Reiter „Anzeigen" baut seine „Antwort" aus der Menge
-// SELBST nach (`garetienAnzeigenAntwortBauen`) -- ein Aufruf von `avesmapsGaretienListeRendern`
+// SELBST nach (`garetienStageAntwortBauen`) -- ein Aufruf von `avesmapsGaretienListeRendern`
 // darueber darf die Menge weder leeren noch sonst veraendern, er ist ein wirkungsloser Nachschlag
 // auf sich selbst. 🔴 Eine Regel, die nur einen von zwei Renderwegen bindet, ist keine Regel --
 // genau das ist in diesem Umbau heute schon zweimal passiert (RULING R2, R7).
@@ -346,17 +346,17 @@ tief(modul.garetienIdsInHaeppchen([1, 2, 3]), [[1, 2, 3]],
 	const objekt = {
 		key: "ggp:See:1", name: "Kraehensee", typ: "See", items: [{ id: 1, selected: 0 }],
 	};
-	modul.avesmapsGaretienAnzeigeLeeren();
-	modul.avesmapsGaretienAnzeigeHinzufuegen([objekt]);
-	const anzeigenAntwort = modul.garetienAnzeigenAntwortBauen({ reiter: {}, bilanz: {} });
+	modul.avesmapsGaretienStageLeeren();
+	modul.avesmapsGaretienStageHinzufuegen([objekt]);
+	const anzeigenAntwort = modul.garetienStageAntwortBauen({ reiter: {}, bilanz: {} });
 	modul.avesmapsGaretienListeRendern(anzeigenAntwort);
-	gleich(modul.avesmapsGaretienAnzeigeHat("ggp:See:1"), true,
+	gleich(modul.avesmapsGaretienStageHat("ggp:See:1"), true,
 		"der 'Anzeigen'-Zweig (er baut seine Antwort aus der Menge selbst) laesst die Menge "
 		+ "unangetastet");
-	gleich(modul.avesmapsGaretienAnzeigeListe().length, 1, "und nichts verschwindet dabei");
+	gleich(modul.avesmapsGaretienStageListe().length, 1, "und nichts verschwindet dabei");
 }
 
-modul.avesmapsGaretienAnzeigeLeeren();
+modul.avesmapsGaretienStageLeeren();
 
 // =================================================================================================
 // 13. Aufgabe 8: garetienFussknopfKlick schreibt WIRKLICH -- anhaken, DANN uebernehmen
@@ -518,7 +518,7 @@ async function pruefeFussknopfHaeppchen() {
 }
 
 // =================================================================================================
-// 14. Aufgabe 8: avesmapsGaretienAnzeigeNachEinfuegenBereinigen -- nur Uebernommenes verlaesst die Anzeige
+// 14. Aufgabe 8: avesmapsGaretienStageNachEinfuegenBereinigen -- nur Uebernommenes verlaesst die Anzeige
 // =================================================================================================
 //
 // ⚠️ „Nur was uebernommen wurde, verlaesst die Anzeige" (Brief) -- gemessen gegen einen gezielten
@@ -529,8 +529,8 @@ async function pruefeAnzeigeBereinigen() {
 	const nochOffen = { key: "ggp:Fluss:2", name: "Alter Bach", items: [{ id: 2, selected: 0 }] };
 	const ohneVorschlagBleibt = { key: "ggp:Berge:9", name: "Fernberg", items: [] };
 
-	modul.avesmapsGaretienAnzeigeLeeren();
-	modul.avesmapsGaretienAnzeigeHinzufuegen([uebernommen, nochOffen, ohneVorschlagBleibt]);
+	modul.avesmapsGaretienStageLeeren();
+	modul.avesmapsGaretienStageHinzufuegen([uebernommen, nochOffen, ohneVorschlagBleibt]);
 
 	const gestellt = [];
 	const rufe = function (pfad, rumpf) {
@@ -540,7 +540,7 @@ async function pruefeAnzeigeBereinigen() {
 			objekte: [Object.assign({}, uebernommen, { stand: "uebernommen" })],
 		});
 	};
-	const entfernt = await modul.avesmapsGaretienAnzeigeNachEinfuegenBereinigen(rufe, 4711);
+	const entfernt = await modul.avesmapsGaretienStageNachEinfuegenBereinigen(rufe, 4711);
 
 	gleich(gestellt.length, 1, "EIN gezielter Nachlese-Ruf -- keine Schleife ueber mehrere Seiten");
 	gleich(gestellt[0].pfad, "/api/edit/map/garetien-import.php", "gegen die lesende Adresse");
@@ -549,16 +549,16 @@ async function pruefeAnzeigeBereinigen() {
 		"🔴 gezielt auf den Reiter uebernommen -- unabhaengig vom gerade aktiven UI-Reiter");
 	gleich(gestellt[0].rumpf.run_id, 4711, "mit der hereingereichten Lauf-Nummer");
 	gleich(entfernt, 1, "genau EIN Objekt wurde als uebernommen bestaetigt und entfernt");
-	gleich(modul.avesmapsGaretienAnzeigeHat("ggp:See:1"), false,
+	gleich(modul.avesmapsGaretienStageHat("ggp:See:1"), false,
 		"das bestaetigt uebernommene Objekt hat die Anzeige verlassen");
-	gleich(modul.avesmapsGaretienAnzeigeHat("ggp:Fluss:2"), true,
+	gleich(modul.avesmapsGaretienStageHat("ggp:Fluss:2"), true,
 		"ein noch offenes Objekt bleibt liegen -- der Server hat es nicht als uebernommen genannt");
-	gleich(modul.avesmapsGaretienAnzeigeHat("ggp:Berge:9"), true,
+	gleich(modul.avesmapsGaretienStageHat("ggp:Berge:9"), true,
 		"und ein Objekt OHNE Vorschlag bleibt erst recht liegen -- es konnte nie uebernommen werden");
 }
 
 // =================================================================================================
-// 15. Aufgabe 10: „Alle markieren" -- markiert alle Zeilen der AKTUELLEN Liste, ergaenzt statt ersetzt
+// 15. Aufgabe 10: „Alle wählen" -- markiert alle Zeilen der AKTUELLEN Liste, ergaenzt statt ersetzt
 // =================================================================================================
 //
 // Brief: .superpowers/sdd/2026-08-29-garetien-importer-sichtwerkzeug/task-9-brief.md (Aufgabe 10)
@@ -567,49 +567,49 @@ async function pruefeAnzeigeBereinigen() {
 	const b = { key: "gi10:b", name: "B", items: [] };
 	const c = { key: "gi10:c", name: "C", items: [] };
 	// Eine bereits markierte Zeile aus einer ANDEREN Ansicht -- sie darf nicht verloren gehen.
-	modul.avesmapsGaretienMarkierungUmschalten("gi10:vorher");
-	gleich(modul.avesmapsGaretienMarkierungHat("gi10:vorher"), true,
+	modul.avesmapsGaretienAuswahlUmschalten("gi10:vorher");
+	gleich(modul.avesmapsGaretienAuswahlHat("gi10:vorher"), true,
 		"die Fixture steht wirklich markiert da");
 
 	// ---- Miss die DIFFERENZ: eine Liste mit drei Zeilen markiert genau diese drei ----------------
-	gleich(modul.avesmapsGaretienAlleMarkieren([a, b, c]), 3,
+	gleich(modul.avesmapsGaretienAlleWaehlen([a, b, c]), 3,
 		"drei bislang unmarkierte Zeilen -- alle drei werden neu markiert");
-	[a, b, c].forEach((o) => gleich(modul.avesmapsGaretienMarkierungHat(o.key), true,
-		`${o.key} muss nach „Alle markieren\" markiert sein`));
+	[a, b, c].forEach((o) => gleich(modul.avesmapsGaretienAuswahlHat(o.key), true,
+		`${o.key} muss nach „Alle wählen\" markiert sein`));
 
 	// ---- Er ERGAENZT, er ERSETZT NICHT: die vorher markierte Zeile bleibt markiert ---------------
-	gleich(modul.avesmapsGaretienMarkierungHat("gi10:vorher"), true,
+	gleich(modul.avesmapsGaretienAuswahlHat("gi10:vorher"), true,
 		"eine vorher markierte Zeile aus einer anderen Filteransicht bleibt markiert");
 
 	// ---- Ein zweiter Aufruf ueber dieselbe Liste markiert nichts NEU -------------------------------
-	gleich(modul.avesmapsGaretienAlleMarkieren([a, b, c]), 0,
+	gleich(modul.avesmapsGaretienAlleWaehlen([a, b, c]), 0,
 		"schon markierte Zeilen werden beim zweiten Aufruf nicht noch einmal gezaehlt");
 
 	// ---- Eine leere/fehlende Liste markiert nichts -------------------------------------------------
-	gleich(modul.avesmapsGaretienAlleMarkieren([]), 0, "eine leere Liste markiert nichts");
-	gleich(modul.avesmapsGaretienAlleMarkieren(), 0, "und auch ganz ohne Argument passiert nichts");
+	gleich(modul.avesmapsGaretienAlleWaehlen([]), 0, "eine leere Liste markiert nichts");
+	gleich(modul.avesmapsGaretienAlleWaehlen(), 0, "und auch ganz ohne Argument passiert nichts");
 
 	// ---- Ein Objekt ohne Schluessel wird uebersprungen, nicht geworfen -----------------------------
-	gleich(modul.avesmapsGaretienAlleMarkieren([{ name: "ohne key" }, null, undefined]), 0,
+	gleich(modul.avesmapsGaretienAlleWaehlen([{ name: "ohne key" }, null, undefined]), 0,
 		"ein Objekt ohne Schluessel bricht nichts und markiert auch nichts");
 
 	// ---- Der Knopf-Zustand: Beschriftung traegt die Zahl der GERENDERTEN Zeilen -------------------
-	const standDrei = modul.garetienAlleMarkierenZustand([a, b, c], "offen");
-	gleich(standDrei.beschriftung, "Alle markieren (3)", "die Zahl der gerenderten Zeilen steht im Knopf");
+	const standDrei = modul.garetienAlleWaehlenZustand([a, b, c], "offen");
+	gleich(standDrei.beschriftung, "Alle wählen (3)", "die Zahl der gerenderten Zeilen steht im Knopf");
 	gleich(standDrei.gesperrt, false, "auf dem Reiter „Offen\" ist er bedienbar");
 
-	// ---- Im Reiter „Anzeigen" ist er sinnlos und gesperrt ------------------------------------------
-	const standAnzeigen = modul.garetienAlleMarkierenZustand([a, b, c], "anzeigen");
-	gleich(standAnzeigen.gesperrt, true, "auf „Anzeigen\" ist er gesperrt -- dort liegt ohnehin alles");
+	// ---- Im Reiter „Stage" ist er sinnlos und gesperrt ----------------------------------------------
+	const standStage = modul.garetienAlleWaehlenZustand([a, b, c], "stage");
+	gleich(standStage.gesperrt, true, "auf „Stage\" ist er gesperrt -- dort liegt ohnehin alles");
 	// 🔴 OHNE Hinweistext (Owner 30.08.2026: „verbraucht nur platz"). Beide Gruende sagten nur „hier
 	// gibt es nichts zu tun"; das sagt der graue Knopf mit seiner Zahl bereits. Festgenagelt, damit
 	// niemand versehentlich eine neue Zeile daneben einfuehrt.
-	gleich(standAnzeigen.hinweis, undefined, "der Zustand traegt gar keinen Hinweistext mehr");
+	gleich(standStage.hinweis, undefined, "der Zustand traegt gar keinen Hinweistext mehr");
 
 	// ---- Eine leere gerenderte Liste sperrt ihn ebenfalls ------------------------------------------
-	const standLeer = modul.garetienAlleMarkierenZustand([], "offen");
+	const standLeer = modul.garetienAlleWaehlenZustand([], "offen");
 	gleich(standLeer.gesperrt, true, "nichts in der Liste -- nichts zu markieren");
-	gleich(standLeer.beschriftung, "Alle markieren (0)",
+	gleich(standLeer.beschriftung, "Alle wählen (0)",
 		"und die Zahl im Knopf sagt es -- sie ist seit dem 30.08.2026 der einzige Traeger dieser "
 		+ "Auskunft, der Hinweistext daneben ist weg");
 }
