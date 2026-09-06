@@ -41,21 +41,21 @@ Stand der Erstfüllung: `1cb5e09bd` (05.09.2026), 30 Pakete. Verworfen/nachgezog
 
 ### P-001 · js/review/review-wiki-sync.js · Verfahren A
 - Status: offen
-- Stand: 2211f8d3e · Blob: bad35591bdebde899c90aa8a1d613064088ac7d9
+- Stand: 62ef8c877 · Blob: ff8c689558e9944081089df5676aa9dbdb6bcce5
 - Block: „Dump-Bericht-Helfer“ — avesmapsDumpReportInjectStyles … avesmapsDumpReportRunSectionHtml (8 Funktionen, ~282 Zeilen ab Z. 1279)
 - Ziel: js/review/review-wiki-sync-dump-report.js, <script> direkt neben dem Original
 - Vorprüfung (05.09.2026): Ladezeit-Bezug 0 · Register 14 · Quelltext-Tests 0 (Blocknamen: 0) · vm-Bindung 0 · Konstanten fehlend 0 · Datei 4044 Zeilen, 174 Commits/180 d · heiß (1 d, wartet auf Abkühlung)
 - Fallen: `avesmapsOpenDumpReport` (trägt den `window`-Export) und der Zustand `let avesmapsDumpReportStylesInjected` BLEIBEN in der Originaldatei — der Lauf vom 01.09.2026 scheiterte, weil er den Export mitnahm. `avesmapsDumpReportInjectStyles` schreibt die globale `let`-Variable aus der Geschwisterdatei; das ist über Skriptgrenzen erlaubt (globaler lexikalischer Geltungsbereich klassischer Skripte). `lore-dialog-layout.test.js` lädt die Datei allein in einen vm-Kontext und ruft laut Vorprüfung keinen der acht Namen — nach dem Schnitt trotzdem den Test fahren.
-- Verlauf: 05.09.2026 angelegt (Analyse, Rangwert 703656) · 06.09.2026 nachgezogen: `2211f8d3e` hat drei Hunks bei Z. 843/2756/3959 -- alle ausserhalb des Blocks; Block an den Namen unveraendert zusammenhaengend und frei, nur um +5 Zeilen gewandert
+- Verlauf: 05.09.2026 angelegt (Analyse, Rangwert 703656) · 06.09.2026 nachgezogen: `2211f8d3e` hat drei Hunks bei Z. 843/2756/3959 -- alle ausserhalb des Blocks; Block an den Namen unveraendert zusammenhaengend und frei, nur um +5 Zeilen gewandert · 06.09.2026 nachgezogen: `289d0b2a9` haengt acht Zeilen bei Z. 2749 an -- weit ausserhalb des Blocks; Block an den Namen unveraendert zusammenhaengend und frei, Zeilennummer unveraendert
 
 ### P-002 · js/review/review-wiki-sync.js · Verfahren A
 - Status: offen
-- Stand: 2211f8d3e · Blob: bad35591bdebde899c90aa8a1d613064088ac7d9
+- Stand: 62ef8c877 · Blob: ff8c689558e9944081089df5676aa9dbdb6bcce5
 - Block: „Sync-Läufe je Objektart und Publikationen“ — setWikiSyncKindStatus … runWikiSyncPublicationsSyncLoop (6 Funktionen, ~281 Zeilen ab Z. 1726)
 - Ziel: js/review/review-wiki-sync-kind-loops.js, <script> direkt neben dem Original
 - Vorprüfung (05.09.2026): Ladezeit-Bezug 0 · Register 14 · Quelltext-Tests 0 (Blocknamen: 0) · vm-Bindung 0 · Konstanten fehlend 0 · Datei 4044 Zeilen, 174 Commits/180 d · heiß (1 d, wartet auf Abkühlung)
 - Fallen: Mehrere Register-Treffer auf den Zielpfad (die Vorprüfung zählt sie); `tools/paths/test-wiki-sync-panel-tab.mjs` führt die Dateiliste der Reiter-Lader von Hand (Lehre vom 02.09.2026) — steht einer dieser sechs Namen in seiner Lader-Tabelle, gehört die neue Datei in die Liste (eine Zeile, wie das `<script>`-Tag).
-- Verlauf: 05.09.2026 angelegt (Analyse, Rangwert 703656) · 06.09.2026 nachgezogen: `2211f8d3e` hat drei Hunks bei Z. 843/2756/3959 -- alle ausserhalb des Blocks; Block an den Namen unveraendert zusammenhaengend und frei, nur um +5 Zeilen gewandert
+- Verlauf: 05.09.2026 angelegt (Analyse, Rangwert 703656) · 06.09.2026 nachgezogen: `2211f8d3e` hat drei Hunks bei Z. 843/2756/3959 -- alle ausserhalb des Blocks; Block an den Namen unveraendert zusammenhaengend und frei, nur um +5 Zeilen gewandert · 06.09.2026 nachgezogen: `289d0b2a9` haengt acht Zeilen bei Z. 2749 an -- weit ausserhalb des Blocks; Block an den Namen unveraendert zusammenhaengend und frei, Zeilennummer unveraendert
 
 ### P-003 · api/_internal/app/ecosystem.php · Verfahren C
 - Status: offen
@@ -139,13 +139,13 @@ Stand der Erstfüllung: `1cb5e09bd` (05.09.2026), 30 Pakete. Verworfen/nachgezog
 - Verlauf: 05.09.2026 angelegt (Analyse, Rangwert 81095)
 
 ### P-012 · api/_internal/wiki/sync-monitor.php · Verfahren C
-- Status: offen
-- Stand: 1cb5e09bd · Blob: 767a14f7cfc522aead59ffbecc69371a993c55d1
+- Status: verworfen (überholt: Block durch P-024 zerschnitten)
+- Stand: 62ef8c877 · Blob: 511d66bbc8d1250af94f90894cce499881d0c49b
 - Block: „Crawl der Territorienseiten“ — avesmapsWikiSyncMonitorNormalizeTitle … avesmapsWikiSyncMonitorCrawlStep (12 Funktionen, ~406 Zeilen ab Z. 329)
 - Ziel: api/_internal/wiki/sync-monitor-crawl.php, require_once an der Blockstelle
 - Vorprüfung (05.09.2026): Ladezeit-Bezug 0 · Register 0 · Quelltext-Tests 0 (Blocknamen: 0) · vm-Bindung 0 · Konstanten fehlend 0 · Datei 769 Zeilen, 79 Commits/180 d
 - Fallen: `territory-plan-test.php:562` liest den QUELLTEXT von `api/edit/wiki/sync-monitor.php` — das ist der ENDPUNKT, nicht diese Lib (gleicher Basisname; die Vorprüfung löst den Pfad seit 05.09.2026 auf). AGENTS §11 (eigene Knoten): `sync-monitor.php:39` trägt einen Zeilenkommentar mit `_internal/wiki/*`, an dem ein Blockkommentar-Entferner 380 Zeilen frisst — der Verdrahtungstest liest per Tokenizer und prüft `require`-Zeilen; nach dem Schnitt den Test lesen. `avesmapsWikiSyncMonitorEnqueue` ist eine Doppelung mit `regions.php`/`paths.php` (Doppelungs-Paket) — hier nur verschieben. Die Konstanten `AVESMAPS_WIKI_SYNC_MONITOR_CATEGORY_PAGE_LIMIT`/`_MAX` liest der Block; sie stehen davor (Vorprüfung zählt).
-- Verlauf: 05.09.2026 angelegt (Analyse, Rangwert 60751)
+- Verlauf: 05.09.2026 angelegt (Analyse, Rangwert 60751) · 06.09.2026 verworfen. `82f713e18` -- der eigene Vorlauf P-024 -- hat `require_once __DIR__ . '/wiki-crawler-base.php';` bei Z. 383 MITTEN in den Block gelegt; `block.frei` ist damit false mit dem Grund „Zustand oder Ladezeit-Code zwischen den Funktionen des Blocks“. Der Fehlalarm aus `tools/refactoring/__tests__/vorpruefung.test.js` (Owner-Punkt 2 in liste.md) kommt hinzu, ist aber nicht mehr der Grund. ⭐ Die zwei freien Bloecke der Datei -- Z. 33-302 (7 Funktionen) und Z. 387-548 (5) -- koennen im Ueberwachungsmodus neue Pakete werden
 
 ### P-013 · api/_internal/wiki/citymap-sync.php · Verfahren C
 - Status: offen
@@ -157,13 +157,13 @@ Stand der Erstfüllung: `1cb5e09bd` (05.09.2026), 30 Pakete. Verworfen/nachgezog
 - Verlauf: 05.09.2026 angelegt (Analyse, Rangwert 53284)
 
 ### P-014 · api/_internal/app/lore.php · Verfahren C
-- Status: offen
+- Status: erledigt (62ef8c877)
 - Stand: 1cb5e09bd · Blob: 35f088858349343f338957f249d77c3a30b0118f
 - Block: „Schlüssel und Ortsauflösung“ — avesmapsLoreMatchKey … avesmapsLoreExpandFromMaps (6 Funktionen, ~222 Zeilen ab Z. 1001)
 - Ziel: api/_internal/app/lore-schluessel.php, require_once an der Blockstelle
 - Vorprüfung (05.09.2026): Ladezeit-Bezug 0 · Register 0 · Quelltext-Tests 0 (Blocknamen: 0) · vm-Bindung 0 · Konstanten fehlend 0 · Datei 1513 Zeilen, 25 Commits/180 d
 - Fallen: AGENTS §11 (Vorkommen): kein Namensvergleich, kein Abschneiden von Klammerzusätzen — die Regel steht in diesen Funktionen und bleibt Zeichen für Zeichen. `lore-orte-auf-der-karte-test.php` requiret die Lib.
-- Verlauf: 05.09.2026 angelegt (Analyse, Rangwert 37825)
+- Verlauf: 05.09.2026 angelegt (Analyse, Rangwert 37825) · 06.09.2026 erledigt als `62ef8c877` (-> api/_internal/app/lore-schluessel.php, lore.php 1512 -> 1288 Zeilen; Fingerabdruck 237/226 = 4,64 %; Testfeld 499 JS + 385 PHP gruen; drei Widerleger-Agenten ohne blockenden Fund -- die Rolle Behauptung hat die Zeilenzahl im Betreff um eins korrigiert, weil `rangliste.mjs` mit `split("\n").length` eine Phantomzeile mitzaehlt)
 
 ### P-015 · api/_internal/wiki/path-verlauf.php · Verfahren C
 - Status: offen
@@ -242,7 +242,7 @@ Stand der Erstfüllung: `1cb5e09bd` (05.09.2026), 30 Pakete. Verworfen/nachgezog
 
 ### P-023 · api/_internal/wiki/regions.php · Verfahren C
 - Status: offen
-- Stand: 1cb5e09bd · Blob: 8c8da87e9dbc3d779bc50f893795a245386956bd
+- Stand: 62ef8c877 · Blob: 9063bcd1b4c43083f40552ec86262e03452dd855
 - Block: „Doppelung: Kurzbeschreibung aus dem Wikitext“ — avesmapsWikiRegionExtractDescription … avesmapsWikiRegionExtractDescription (dreifach: `paths.php` `avesmapsWikiPathExtractDescription` Z. 551–589, `regions.php` Z. 619–660, `settlements.php` `avesmapsWikiSettlementExtractDescription` Z. 780–821)
 - Ziel: neue abhängigkeitsfreie Datei `api/_internal/wiki/wiki-text-extract.php` mit `avesmapsWikiExtractLeadDescription(string $wikitext, string $infoboxBlock): string`, `require_once` aus paths/regions/settlements (Vorbild: `path-naming.php`, „dependency-free, required by BOTH paths.php and powerlines.php“). Die drei alten Namen bleiben als Einzeiler-Weiterreicher, bis alle Aufrufer umgestellt sind.
 - Unterschied: keiner außer Namen und drei Leerzeilen (paths kompakter; regions ↔ settlements diff-Exit 0) — Regex, Grenzwerte 700/1200, Aufruf von `avesmapsWikiSyncCleanPoliticalTerritoryWikiValue` wortgleich.
@@ -250,7 +250,7 @@ Stand der Erstfüllung: `1cb5e09bd` (05.09.2026), 30 Pakete. Verworfen/nachgezog
 - Empfehlung: zusammenlegen — keine Verhaltensvereinigung nötig, die drei sind heute wortgleich; reine Deduplizierung plus drei `require_once`-Zeilen.
 - Beleg: `git blame -w -L 551,589 -- api/_internal/wiki/paths.php` → fdcbfe33af; `-L 619,660 -- regions.php` → cc29579ef4; `-L 779,821 -- settlements.php` → 3e9982813b; `grep -rln ExtractDescription` → nur die vier Dateien, kein Test.
 - Fallen: kein Test hält die drei gegeneinander — eine Änderung an einer Kopie (Grenzwert 1200) bliebe in den anderen stehen. Historiker-Lauf 05.09.2026.
-- Verlauf: 05.09.2026 angelegt (Doppelungs-Scan, gleichheit 1,00; Historiker) · 05.09.2026 GO Owner (zusammenlegen; alte Namen bleiben als Weiterreicher)
+- Verlauf: 05.09.2026 angelegt (Doppelungs-Scan, gleichheit 1,00; Historiker) · 05.09.2026 GO Owner (zusammenlegen; alte Namen bleiben als Weiterreicher) · 06.09.2026 nachgezogen: `82f713e18` (P-024) hat das Enqueue bei Z. 261-263 auf einen Weiterreicher gekuerzt -- der Block wandert um rund -21 Zeilen und bleibt an den Namen frei
 
 ### P-024 · api/_internal/wiki/sync-monitor.php · Verfahren C
 - Status: erledigt (82f713e18)
@@ -314,7 +314,7 @@ Stand der Erstfüllung: `1cb5e09bd` (05.09.2026), 30 Pakete. Verworfen/nachgezog
 
 ### P-029 · api/_internal/wiki/lore-sync.php · Verfahren C
 - Status: offen
-- Stand: 1cb5e09bd · Blob: 3c2206a3574a5951d91ce23f3f57253ad982c03b
+- Stand: 62ef8c877 · Blob: b199473f32de4d08eeabc22d28565ddf0d05fc99
 - Block: „Doppelung: Feldplan des Override-sicheren Abgleichs“ — avesmapsLoreFieldPlan … avesmapsLoreFieldPlan (Zwilling `avesmapsGameLiteratureFieldPlan` in `game-literature-sync.php` Z. 61)
 - Ziel: ein generischer `avesmapsWikiFieldPlan(current, desired, fieldOrigins, fields, normalizeFn)` — reine Funktion, DB-frei — in einer kleinen geteilten Datei; beide Aufrufer sind durch identische Signatur austauschbar.
 - Unterschied: keiner außer Namen/Konstanten und zwei übersetzten Kommentarzeilen. Der Dateikopf von `lore-sync.php` (Z. 8–9) sagt es selbst: „Spiegelt api/_internal/wiki/game-literature-sync.php 1:1“.
@@ -322,7 +322,7 @@ Stand der Erstfüllung: `1cb5e09bd` (05.09.2026), 30 Pakete. Verworfen/nachgezog
 - Empfehlung: zusammenlegen (AGENTS §5 sinngemäß: ein Parameter statt einer zweiten Datei).
 - Beleg: `game-literature-sync.php:61`, `lore-sync.php:91` und Kopf Z. 8–9; Tests `game-literature-sync-test.php`, `lore-sync-test.php` prüfen nur den je eigenen Aufrufer.
 - Fallen: kein Test hält die beiden gegeneinander; die Vereinigung ändert kein Verhalten, solange `normalizeFn` je Aufrufer mitgegeben wird.
-- Verlauf: 05.09.2026 angelegt (Doppelungs-Scan, gleichheit 1,00; Historiker) · 05.09.2026 GO Owner (zusammenlegen; alte Namen bleiben als Weiterreicher)
+- Verlauf: 05.09.2026 angelegt (Doppelungs-Scan, gleichheit 1,00; Historiker) · 05.09.2026 GO Owner (zusammenlegen; alte Namen bleiben als Weiterreicher) · 06.09.2026 nachgezogen: `289d0b2a9` fuegt bei Z. 534 und 924 ein -- beide ausserhalb der freien Bloecke; Block an den Namen unveraendert frei
 
 ### P-030 · api/_internal/app/ecosystem-display.php · Verfahren C
 - Status: offen
