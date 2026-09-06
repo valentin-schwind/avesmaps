@@ -1,8 +1,12 @@
 // Meldung C (30.08.2026, Owner): „zurücknehmen ist da, aber nicht 'Alle markieren zurücknehmen'".
-// Der Fußknopf hieß „Markierte zurücknehmen (n von m)", seit Aufgabe 8 (Fixrunde 1) „Auswahl
-// zurücknehmen (n von m)" -- das Gegenstück zu „Alle angezeigten einfügen"
-// auf der ANDEREN Seite des Fensters, fuer den DRINGENDEN Rueckbau der 3007 versehentlich
-// uebernommenen Objekte.
+// Der Fußknopf hieß „Markierte zurücknehmen (n von m)", mit Aufgabe 8 (Fixrunde 1) kurz „Auswahl
+// zurücknehmen (n von m)" und seit Fixrunde 2 „Import zurücknehmen (n von m)" -- das Gegenstück zu
+// „Stage importieren" auf der ANDEREN Seite des Fensters, fuer den DRINGENDEN Rueckbau der 3007
+// versehentlich uebernommenen Objekte.
+// 🔴 Warum die zweite Umbenennung: „Auswahl zurücknehmen" stand drei Zeilen unter „Auswahl
+// aufheben", das bloss Haekchen abraeumt -- gleiches erstes Wort, und der eine der beiden nimmt
+// einen ausgefuehrten Import von der Karte zurueck. Der gefaehrlichere sagt jetzt, WAS er
+// zurueckholt.
 //
 // Ausfuehren, vom Repo-Wurzelverzeichnis: node js/review/__tests__/garetien-ruecknahme-menge.test.js
 //
@@ -147,7 +151,7 @@ const objC = { key: "c", stand: "uebernommen", items: [{ id: 103, change_type: "
 	gleich(zustand1.gewaehlt, 3, "alle drei sind gewaehlt");
 	gleich(zustand1.ruecknehmbar, 2, "nur A und B tragen ein 'new'+'done'-Item");
 	tief(zustand1.ids, [101, 102], "…und genau deren Item-ids");
-	gleich(zustand1.beschriftung, "Auswahl zurücknehmen (2 von 3)",
+	gleich(zustand1.beschriftung, "Import zurücknehmen (2 von 3)",
 		"💣 Zusicherung 1 des Auftrags: „2 von 3\"");
 	gleich(zustand1.gesperrt, false, "2 ruecknehmbare -> offen");
 
@@ -188,7 +192,7 @@ const objC = { key: "c", stand: "uebernommen", items: [{ id: 103, change_type: "
 	markieren("b");
 	markieren("c");
 	garetienRuecknahmeMengeKnopfSetzen([objA, objB, objC]);
-	gleich(KNOPF.textContent, "Auswahl zurücknehmen (2 von 3)");
+	gleich(KNOPF.textContent, "Import zurücknehmen (2 von 3)");
 	gleich(KNOPF.disabled, false);
 	gleich(HINWEIS.hidden, true, "kein Grund noetig, solange der Knopf offen ist");
 
@@ -312,7 +316,7 @@ const objC = { key: "c", stand: "uebernommen", items: [{ id: 103, change_type: "
 		markieren("b");
 		await aufReiterUebernommenWechseln([objA, objB]);
 		garetienRuecknahmeMengeKnopfSetzen([objA, objB]);
-		gleich(KNOPF.textContent, "Auswahl zurücknehmen (2 von 2)");
+		gleich(KNOPF.textContent, "Import zurücknehmen (2 von 2)");
 
 		LISTE_EL.innerHTML = "<div class='avm-row'>vorher unveraendert</div>";
 		const d = machFetch(function (pfad, rumpf) {

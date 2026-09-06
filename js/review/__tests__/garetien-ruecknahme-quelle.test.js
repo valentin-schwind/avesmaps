@@ -308,7 +308,7 @@ function pruefeMenge() {
 	tief(stand.ids, [601, 603, 604],
 		"🔴 MISS DIE DIFFERENZ: `ids` sammelt ALLE Items ÜBER ALLE Objekte hinweg FLACH -- eine "
 		+ "id vom 'new'-Objekt UND BEIDE ids des mehrteiligen 'quelle'-Objekts");
-	gleich(stand.beschriftung, "Auswahl zurücknehmen (2 von 2)");
+	gleich(stand.beschriftung, "Import zurücknehmen (2 von 2)");
 
 	const frageGemischt = garetienRuecknahmeMengeRueckfrageText([wegNeu, wegQuelleMehrfach]);
 	wahr(frageGemischt.includes("werden aus unserer Karte entfernt"),

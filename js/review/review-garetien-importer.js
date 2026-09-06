@@ -152,7 +152,7 @@
 		// Die letzte Antwort von action:'liste' -- avesmapsGaretienAngehakt() liest daraus, denn
 		// `angehakt` zaehlt den GANZEN Lauf (Aufgabe 8), unabhaengig vom aktiven Filter/Reiter.
 		letzteAntwort: null,
-		// 🔴 DIE ANZEIGE-MENGE GEHOERT DEM FENSTER, NICHT DEM VORSCHLAG (Entwurf §3).
+		// 🔴 DIE STAGE GEHOERT DEM FENSTER, NICHT DEM VORSCHLAG (Entwurf §3).
 		// Bis zum 29.08.2026 hing „liegt auf der Karte" an `items[].selected` -- und 7930 der 8213
 		// Objekte haben ueberhaupt kein Item. Sie konnten damit NIE angezeigt werden; kein
 		// Umbenennen einer Beschriftung haette das geaendert.
@@ -162,14 +162,14 @@
 		// 🔴 Eine `Map` und nicht ein Objekt: sie haelt die Einfuegereihenfolge zu, und ein
 		// Objektschluessel wie „constructor" kann ihr nichts anhaben.
 		stage: new Map(),
-		// 🔴 Aufgabe 2: die Markierung ist CLIENT-SEITIG und schreibt nichts (Owner 29.08.2026:
-		// „Markieren aendert nichts"). Sie hat genau einen Zweck: der Knopf „Markierte anzeigen".
+		// 🔴 Aufgabe 2: die Auswahl ist CLIENT-SEITIG und schreibt nichts (Owner 29.08.2026:
+		// „Markieren aendert nichts"). Sie hat genau einen Zweck: der Knopf „Auf die Stage".
 		auswahl: new Set(),
 		// 🔴 Owner 30.08.2026: „der button sollte nur imports nicht unsere eigenen anzeigen".
 		// Wer ueber „Imports in der Nähe anzeigen" hereinkommt, wird in SEINER Farbe gezeichnet --
 		// unser magenta Gegenstueck bleibt weg, bis jemand das Objekt oeffnet oder es auf einem
-		// anderen Weg in die Anzeige holt.
-		// 💣 EINE MENGE NEBEN DER ANZEIGE, KEIN FELD DARIN. avesmapsGaretienStageAuffrischen
+		// anderen Weg auf die Stage holt.
+		// 💣 EINE MENGE NEBEN DER STAGE, KEIN FELD DARIN. avesmapsGaretienStageAuffrischen
 		// ersetzt nach jedem Schreibvorgang die gespeicherte Fassung durch die frische vom Server;
 		// ein in das Objekt geschriebenes Feld waere danach still fort, und die magenta Formen
 		// kaemen zurueck, ohne dass jemand etwas getan haette.
@@ -213,7 +213,7 @@
 	 */
 	const AVESMAPS_GARETIEN_HAKEN_KLICK = "avesmapsGaretienKarteKlick";
 
-	// ---- Die Anzeige-Menge ------------------------------------------------------------------------
+	// ---- Die Stage --------------------------------------------------------------------------------
 	//
 	// 🔴 CLIENT-SEITIG, und das ist eine Bedingung, keine Bequemlichkeit: eine Server-Tabelle dafuer
 	// waere eine dritte Import-Tabelle und verstiesse gegen die Abbau-Regel (Auftrag §5.5).
@@ -229,7 +229,7 @@
 			// vorhandenen Schluessel sortiert nicht um.
 			zustand.stage.set(String(o.key), o);
 			// 🔴 EIN GEWOEHNLICHER WEG IN DIE ANZEIGE HEBT DIE „nur ihre"-MARKE AUF. Wer denselben
-			// Nachbarn ueber „Markierte anzeigen" oder einen Zeilenknopf hereinholt, will ihn ganz
+			// Nachbarn ueber „Auf die Stage" oder einen Zeilenknopf hereinholt, will ihn ganz
 			// sehen -- und der Naehe-Klick setzt seine Marke NACH diesem Aufruf wieder.
 			zustand.nurIhre.delete(String(o.key));
 		});
@@ -261,7 +261,7 @@
 		return zustand.stage.has(String(schluessel));
 	}
 
-	// ---- Regression 29.08.2026 (Owner-Meldung): die Anzeige-Menge nach einem Schreibvorgang AUFFRISCHEN
+	// ---- Regression 29.08.2026 (Owner-Meldung): die Stage nach einem Schreibvorgang AUFFRISCHEN
 	//
 	// 🔴 BIS DAHIN GAB ES DAFUER GAR KEINEN ERZEUGER. `zustand.stage.set(...)` wurde
 	// ausschliesslich aus avesmapsGaretienStageHinzufuegen gerufen -- eine Handlung ("Neu
@@ -271,7 +271,7 @@
 	// sich -- der Knopf tat scheinbar nichts.
 	//
 	// 🔴 AUFGEFRISCHT, NIE ENTFERNT. Die Serverantwort ist gefiltert und seitenweise
-	// (AVESMAPS_GARETIEN_LISTE_MAX); die Anzeige-Menge ist ausdruecklich filter- und
+	// (AVESMAPS_GARETIEN_LISTE_MAX); die Stage ist ausdruecklich filter- und
 	// seitenunabhaengig (Entwurf §3, §3.1). Ein Objekt, das in einer Antwort nicht vorkommt, faellt
 	// deshalb NICHT heraus -- nur wer WIRKLICH in der Antwort steht, bekommt seine frische Fassung.
 	// Wer die Menge an der Antwort ausrichtete, leerte dem Editor beim naechsten Filterklick die Karte.
@@ -287,7 +287,7 @@
 		});
 	}
 
-	// ---- Aufgabe 8: nach dem Einfuegen -- nur was WIRKLICH uebernommen wurde, verlaesst die Anzeige
+	// ---- Aufgabe 8: nach dem Einfuegen -- nur was WIRKLICH uebernommen wurde, verlaesst die Stage
 	//
 	// ⚠️ „Nur was uebernommen wurde, verlaesst die Anzeige" (Brief) -- die uebrigen (ohne Vorschlag,
 	// oder deren Uebernahme scheiterte: `stale`/`failed`) bleiben liegen, sonst verschwindet dem
@@ -308,7 +308,12 @@
 		return rufe(GARETIEN_ENDPUNKT, {
 			action: "liste", run_id: runId, stand: "uebernommen",
 			ebene: [], typ: [], urteil: [], wiki: [], suche: "",
-			nur_ungehakt: false, nur_mehrteilig: false,
+			// ⚠️ `nur_ungehakt` ist hier gefallen (Fixrunde 2): der Filter gibt es im Fenster nicht
+			// mehr, das Feld stand hart auf `false` und war damit folgenlos. Der SERVER kennt ihn
+			// weiter (garetien-liste.php, mit eigenen Tests) und liest ihn per `?? false` -- ein
+			// fehlendes Feld ist dort dasselbe wie `false`. Ein totes Feld im Rumpf sieht wie ein
+			// benutzter Schalter aus, und der naechste Leser sucht den Erzeuger.
+			nur_mehrteilig: false,
 		}).then(function (antwort) {
 			avesmapsGaretienStageAuffrischen((antwort && antwort.objekte) || []);
 			let entfernt = 0;
@@ -324,10 +329,10 @@
 		});
 	}
 
-	// ---- Die Markierung: ein reiner MARKER, kein Schreibweg (Aufgabe 2, Entwurf §3.2) --------------
+	// ---- Die Auswahl: ein reiner MARKER, kein Schreibweg (Aufgabe 2, Entwurf §3.2) ----------------
 	//
 	// 🔴 „Markieren aendert nichts" (Owner 29.08.2026). Sie schreibt nicht, sie verschiebt keine
-	// Zeile -- ihr einziger Zweck ist der Knopf „Markierte anzeigen".
+	// Zeile -- ihr einziger Zweck ist der Knopf „Auf die Stage".
 
 	function avesmapsGaretienAuswahlUmschalten(schluessel) {
 		const s = String(schluessel);
@@ -340,8 +345,8 @@
 		return zustand.auswahl.has(String(schluessel));
 	}
 
-	// ---- Owner-Auftrag B (30.08.2026): „Keines markieren" -- leert die MARKIERUNG, nicht die
-	// Anzeige. Dieselbe Trennung wie ueberall in diesem Abschnitt: „Anzeige leeren"
+	// ---- Owner-Auftrag B (30.08.2026): „Keines markieren" -- leert die AUSWAHL, nicht die
+	// Stage. Dieselbe Trennung wie ueberall in diesem Abschnitt: „Stage leeren"
 	// (avesmapsGaretienStageLeeren) und „Keines markieren" sind zwei verschiedene Mengen, und ein
 	// Knopf, der beide zugleich leerte, verwischte genau die Trennung, die „Markieren aendert
 	// nichts" ausdruecklich haelt. Dieselbe Rueckgabe-Form wie avesmapsGaretienStageLeeren --
@@ -351,7 +356,7 @@
 		return zustand.auswahl.size;
 	}
 
-	// „Markierte anzeigen": sie kommen ZUSAETZLICH in die Anzeige und BLEIBEN markiert und offen.
+	// „Auf die Stage": sie kommen ZUSAETZLICH auf die Stage und BLEIBEN gewaehlt und offen.
 	// ⚠️ Die Liste kommt HEREIN (Hausform in dieser Datei), damit sich am Ergebnis messen laesst,
 	// welche Objekte wirklich uebernommen wurden.
 	function avesmapsGaretienAuswahlAufDieStage(objekte) {
@@ -362,13 +367,13 @@
 		return liste.length;
 	}
 
-	// ---- Aufgabe 10: „Alle markieren" -- markiert ALLE Zeilen der AKTUELLEN (gerenderten) Liste ---
+	// ---- Aufgabe 10: „Alle wählen" -- waehlt ALLE Zeilen der AKTUELLEN (gerenderten) Liste -------
 	// Owner 29.08.2026: „einen button, namens 'Alle markieren', der alle in der aktuellen liste
 	// markiert". „Aktuelle Liste" heißt: was WIRKLICH gerendert ist -- gedeckelt auf
 	// AVESMAPS_GARETIEN_LISTE_MAX und gefiltert (Brief) --, nicht der ganze Lauf.
 	//
-	// 🔴 ER ERGÄNZT, ER ERSETZT NICHT (Brief): schon markierte Zeilen anderer Filteransichten
-	// bleiben markiert -- derselbe Zug wie avesmapsGaretienStageHinzufuegen, nur auf dem anderen
+	// 🔴 ER ERGÄNZT, ER ERSETZT NICHT (Brief): schon gewählte Zeilen anderer Filteransichten
+	// bleiben gewählt -- derselbe Zug wie avesmapsGaretienStageHinzufuegen, nur auf dem anderen
 	// Set. Ein `zustand.auswahl = new Set(...)` verlöre beim Filterwechsel die Auswahl.
 	function avesmapsGaretienAlleWaehlen(objekte) {
 		let gewaehlt = 0;
@@ -417,9 +422,10 @@
 		return stand;
 	}
 
-	// ---- Owner-Auftrag B (30.08.2026): „Keines markieren" -- neben „Alle markieren", derselbe
-	// Bau (REIN + DOM-Haelfte). 🔴 Gesperrt heisst hier NUR "nichts markiert" (Auftrag) -- anders
-	// als „Alle markieren" haengt sie an KEINEM Reiter: die Markierung ist filter-/reiterunabhaengig
+	// ---- Owner-Auftrag B (30.08.2026): „Keines markieren" -- heute „Auswahl aufheben", neben
+	// „Alle wählen", derselbe Bau (REIN + DOM-Haelfte). 🔴 Gesperrt heisst hier NUR "nichts
+	// gewaehlt" (Auftrag) -- anders als „Alle wählen" haengt sie an KEINEM Reiter: die Auswahl ist
+	// filter-/reiterunabhaengig
 	// (dieselbe Menge, die „Markierte anzeigen" ueberall liest), also darf auch ihr Leeren auf
 	// jedem Reiter moeglich sein.
 	function garetienAuswahlAufhebenZustand(anzahlAusgewaehlt) {
@@ -448,7 +454,7 @@
 	// Wörtlich: „außerdem wär ein button mit 'Alle zentrieren' hilfreich, wo die ansicht auf alle
 	// in 'Anzeigen' gelisteten objekte zoomt (gemeinsamer mittelpunkt und vermutlich herauszoomt)".
 	//
-	// 🔴 GEMESSEN WIRD DIE ANZEIGE-MENGE, NICHT DIE GERENDERTE LISTE -- anders als bei „Alle
+	// 🔴 GEMESSEN WIRD DIE STAGE, NICHT DIE GERENDERTE LISTE -- anders als bei „Alle
 	// markieren" daneben. Der Auftrag nennt „alle in 'Anzeigen' gelisteten", und das ist genau
 	// diese Menge; sie liegt auf der Karte, egal auf welchem Reiter man gerade steht. Ein Knopf,
 	// der die Zeilen des Reiters „Offen" anflöge, würde auf etwas zoomen, das gar nicht gezeichnet
@@ -485,7 +491,7 @@
 			stand: zustand.stand,
 			filter: zustand.filter,
 			detailKey: zustand.detailKey,
-			// Aufgabe 1: eine frische Liste aus der Anzeige-Menge, kein Griff auf die Map selbst --
+			// Aufgabe 1: eine frische Liste aus der Stage, kein Griff auf die Map selbst --
 			// dieselbe Kopie-Zusage wie bei `objekte`/`auswahl` oben.
 			stage: avesmapsGaretienStageListe(),
 		};
@@ -587,17 +593,17 @@
 			neutralHinweisEl.textContent = "";
 			neutralHinweisEl.hidden = true;
 		}
-		// Aufgabe 16/5: ohne Lauf gibt es keine Anzeige -- und damit nichts einzufuegen.
+		// Aufgabe 16/5: ohne Lauf gibt es keine Stage -- und damit nichts einzufuegen.
 		garetienUebernahmeKnopfSetzen(avesmapsGaretienStageListe());
-		// Aufgabe 10: ohne Lauf gibt es auch keine gerenderte Zeile -- und damit nichts zu markieren.
+		// Aufgabe 10: ohne Lauf gibt es auch keine gerenderte Zeile -- und damit nichts zu waehlen.
 		garetienAlleWaehlenKnopfSetzen([]);
 		// Owner-Auftrag B: „Keines markieren" haengt an KEINEM Lauf und KEINEM Reiter (siehe seine
-		// eigene Begruendung) -- die echte Groesse der Markierung wird hier trotzdem gemessen, nicht
+		// eigene Begruendung) -- die echte Groesse der Auswahl wird hier trotzdem gemessen, nicht
 		// auf 0 gezwungen.
 		garetienAuswahlAufhebenKnopfSetzen(zustand.auswahl.size);
 		// Owner 30.08.2026: „Alle zentrieren" misst die ANZEIGE-Menge -- ohne Lauf ist sie leer.
 		garetienAlleZentrierenKnopfSetzen(avesmapsGaretienStageListe().length);
-		// Meldung C (30.08.2026): ohne Lauf gibt es auch nichts Markiertes zurückzunehmen.
+		// Meldung C (30.08.2026): ohne Lauf gibt es auch nichts Gewähltes zurückzunehmen.
 		garetienRuecknahmeMengeKnopfSetzen([]);
 	}
 
@@ -942,7 +948,7 @@
 	// nicht mehr den Item-Zustand -- „Markieren aendert nichts" (Owner 29.08.2026). Es gibt darum
 	// auch KEIN `disabled` mehr: ein Objekt OHNE jedes Item (7930 von 8213) muss sich genauso
 	// markieren lassen wie eines mit Vorschlag, sonst waere „Markierte anzeigen" fuer sie tot.
-	// ⚠️ REIN: der Markierungsstand kommt als zweites Argument HEREIN, nicht aus dem Modulzustand
+	// ⚠️ REIN: der Auswahlstand kommt als zweites Argument HEREIN, nicht aus dem Modulzustand
 	// -- sonst liesse sich diese Funktion nicht ohne DOM pruefen.
 	function garetienZeileMarkup(objekt, istAusgewaehlt) {
 		const o = objekt || {};
@@ -1078,11 +1084,19 @@
 			// NICHT (Entwurf §3.1) -- das muss ERKENNBAR sein, nicht nur wahr. Steht standardmaessig
 			// `hidden`; garetienStageFilterSperreSetzen() schaltet Text UND die `disabled`-Sperre
 			// von Suchfeld/Filterknopf gemeinsam (siehe dort).
+			// 🔴 DER SATZ BESCHREIBT HEUTE, NICHT DEN ENTWURF (Fixrunde 2, C1). Bis dahin stand hier
+			// „— gefiltert wird nach Name und Typ." und damit das GEGENTEIL der drei Zeilen darueber:
+			// garetienStageFilterSperreSetzen() sperrt Suchfeld und Filterknopf auf genau diesem
+			// Reiter, der Editor las also ein Versprechen und sah daneben zwei ausgegraute
+			// Bedienelemente. Der Entwurf (§3.1) will dieses Filtern wirklich -- gebaut hat es keine
+			// Aufgabe dieses Plans; es kommt als eigene Aufgabe nach. Bis dahin sagt der Satz, was
+			// stimmt: ein Hinweis, der mehr verspricht als die Oberflaeche kann, ist schlimmer als
+			// keiner.
 			+ '<p class="gi-anzeigehinweis" id="garetien-anzeige-hinweis" hidden>Was hier steht, liegt auf '
-			+ 'der Karte und wird mit „Stage importieren" angelegt — gefiltert wird nach Name und Typ.</p>'
-			// 🔴 Die zwei Anzeige-Knoepfe („Markierte anzeigen", „Anzeige leeren") stehen seit
+			+ 'der Karte und wird mit „Stage importieren" angelegt — Suche und Filter wirken hier nicht.</p>'
+			// 🔴 Die zwei Stage-Knoepfe („Auf die Stage", „Stage leeren") stehen seit
 			// 29.08.2026 NICHT mehr hier -- Owner-Meldung: sie gehoeren in die Fusszeile, links von
-			// „Alle angezeigten einfuegen". Sie stehen jetzt STATISCH in index.html (.gi-foot, vor
+			// „Stage importieren". Sie stehen jetzt STATISCH in index.html (.gi-foot, vor
 			// #garetien-apply) und werden in bindFenster() verdrahtet (dieselbe Stelle wie der
 			// Fussknopf selbst) -- nicht mehr hier, wo nur einmalig gebautes, dynamisches Skelett
 			// entsteht. Die IDs (garetien-mark-show, garetien-anzeige-clear) sind unveraendert.
@@ -1096,12 +1110,12 @@
 			+ '<div class="avm-scroll gi-list" id="garetien-list"></div>';
 	}
 
-	// Nach den zwei Anzeige-Knoepfen (Aufgabe 2) UND nach jeder Handlung, die die Anzeige aendert
+	// Nach den zwei Stage-Knoepfen (Aufgabe 2) UND nach jeder Handlung, die die Stage aendert
 	// (Aufgabe 5), muss die Spalte neu gezeichnet werden. 🔴 Steht der Reiter gerade auf „Anzeigen",
 	// ist ein Neuzeichnen aus der letzten SERVER-Antwort falsch -- diese Ansicht IST die
-	// Anzeige-Menge, also wird sie ueber denselben Weg wie ein Reiterwechsel neu gebaut
+	// Stage, also wird sie ueber denselben Weg wie ein Reiterwechsel neu gebaut
 	// (avesmapsGaretienListeHolen, RULING R5). Auf jedem anderen Reiter reicht ein Neuzeichnen aus
-	// der zuletzt geholten Antwort -- ein Markieren/Leeren aendert an IHR nichts, nur an der
+	// der zuletzt geholten Antwort -- ein Wählen/Leeren aendert an IHR nichts, nur an der
 	// Reiterzahl „Anzeigen (n)" und an der Karte.
 	function garetienStageNeuZeichnen() {
 		if (zustand.stand === "stage") {
@@ -1149,7 +1163,7 @@
 				entprellTimer = setTimeout(function () { avesmapsGaretienListeHolen(); }, 250);
 			});
 		}
-		// 🔴 Die zwei Anzeige-Knoepfe werden NICHT MEHR hier verdrahtet -- sie stehen seit
+		// 🔴 Die zwei Stage-Knoepfe werden NICHT MEHR hier verdrahtet -- sie stehen seit
 		// 29.08.2026 statisch in index.html (.gi-foot) und nicht mehr in diesem dynamisch gebauten
 		// Skelett. Ihre Verdrahtung steht jetzt in bindFenster(), zusammen mit den uebrigen
 		// statischen Fussknoepfen (derselbe Grund: ein Element, das schon beim Laden im DOM steht,
@@ -1197,7 +1211,7 @@
 	}
 
 	/*
-	 * Aufgabe 3 (Sicht-Tafel, Entwurf §4.1): welche Objekte der Anzeige-Menge OHNE eigene Sicht-Regel
+	 * Aufgabe 3 (Sicht-Tafel, Entwurf §4.1): welche Objekte der Stage OHNE eigene Sicht-Regel
 	 * gezeichnet werden. REIN -- kein DOM.
 	 *
 	 * 🔴 `avesmapsGaretienSichtFuer` kommt aus dem globalen Raum (review-garetien-karte.js), genauso
@@ -1240,7 +1254,7 @@
 		const a = antwort || {};
 		const objekte = a.objekte || [];
 
-		// Regression 29.08.2026: JEDE frische Antwort frischt passende Eintraege der Anzeige-Menge
+		// Regression 29.08.2026: JEDE frische Antwort frischt passende Eintraege der Stage
 		// auf -- VOR der hasDocument-Weiche, damit BEIDE Renderwege sie bekommen: der echte
 		// Serverabruf (avesmapsGaretienListeHolen, `stand !== "stage"`) UND der „Stage"-Zweig
 		// (garetienStageAntwortBauen baut seine "Antwort" aus derselben Menge nach -- dort ist der
@@ -1284,10 +1298,10 @@
 		if (neutralHinweisEl) {
 			// Fix-Runde 2 zu Aufgabe 3 gilt unveraendert: die Neutral-Meldung MUSS
 			// `avesmapsGaretienAufDerKarte(objekte)` lesen, NICHT `avesmapsGaretienStageListe()` --
-			// obwohl Letztere die naheliegendere Wahl scheint ("die Anzeige-Menge ist doch, was
+			// obwohl Letztere die naheliegendere Wahl scheint ("die Stage ist doch, was
 			// angezeigt wird"). Sie ist es nicht mehr: seit `b45bc5cfa` (Owner-Beispiel „Perz")
 			// zeichnet JEDER Kartenaufruf `avesmapsGaretienAufDerKarte()`, und die traegt zusaetzlich
-			// das ANGEKLICKTE, aber noch nicht angezeigte Objekt (siehe deren Kommentar). Die zwei
+			// das ANGEKLICKTE, aber noch nicht auf der Stage liegende Objekt (siehe deren Kommentar). Die zwei
 			// Mengen unterscheiden sich also um genau EIN Objekt -- und das ist ausgerechnet das,
 			// auf das der Editor gerade schaut. Mit `avesmapsGaretienStageListe()` liesse sich eine
 			// Ebene Wege/Grenzen/Sonstiges anklicken (die per RULING R3/R9 immer neutral sind) und
@@ -1303,13 +1317,13 @@
 			neutralHinweisEl.hidden = neutralMarkup === "";
 		}
 
-		// Aufgabe 5: der Fussknopf traegt „n von m" der ANZEIGE-MENGE, nicht mehr die Zahl der
+		// Aufgabe 5: der Fussknopf traegt „n von m" der STAGE, nicht mehr die Zahl der
 		// angehakten Items -- „Nur angezeigte koennen uebernommen werden" (Owner). Die Anzeige ist
 		// filterunabhaengig (Entwurf §3.1), deshalb wird hier NICHT `objekte` (die gefilterte Sicht)
 		// gereicht, sondern dieselbe Menge, die auch auf der Karte liegt.
 		garetienUebernahmeKnopfSetzen(avesmapsGaretienStageListe());
 		// Aufgabe 10: „Alle markieren" traegt dagegen die Zahl der GERENDERTEN Zeilen -- `objekte`
-		// ist genau die aktuelle (gefilterte, gedeckelte) Ansicht, nicht die Anzeige-Menge.
+		// ist genau die aktuelle (gefilterte, gedeckelte) Ansicht, nicht die Stage.
 		garetienAlleWaehlenKnopfSetzen(objekte);
 		// Owner-Auftrag B: „Keines markieren" -- die ECHTE Groesse von `zustand.auswahl`, unabhaengig
 		// vom Reiter (siehe ihre eigene Begruendung).
@@ -1340,17 +1354,17 @@
 	}
 
 	/*
-	 * Was auf der Karte liegt: DIE ANZEIGE-MENGE -- und das ANGEKLICKTE dazu.
+	 * Was auf der Karte liegt: DIE STAGE -- und das ANGEKLICKTE dazu.
 	 *
 	 * 🔴 HIER STAND BIS ZUM 29.08.2026 `liste.filter(avesmapsGaretienHatAuswahl)`, also
 	 * `items[].selected`. Ein Objekt OHNE Item hat kein Haekchen und war damit auf KEINE Weise
 	 * sichtbar zu machen -- und das sind 7930 von 8213. Owner: „ich will, dass alles was
 	 * importiert werden kann angezeigt werden kann."
 	 *
-	 * ⚠️ Entdoppelt ueber den Schluessel: das angeklickte Objekt liegt oft schon in der Anzeige,
+	 * ⚠️ Entdoppelt ueber den Schluessel: das angeklickte Objekt liegt oft schon auf der Stage,
 	 * und zweimal gezeichnet ergaebe einen doppelt so kraeftigen Strich.
 	 * ⚠️ Das ANGEKLICKTE kommt weiterhin dazu, ohne in die Menge zu wandern: eine Zeile ansehen
-	 * soll die Anzeige nicht heimlich fuellen (dann waere „Anzeige leeren" nie wirksam).
+	 * soll die Stage nicht heimlich fuellen (dann waere „Stage leeren" nie wirksam).
 	 */
 	function avesmapsGaretienAufDerKarte(objekte) {
 		const raus = avesmapsGaretienNurIhreStempeln(avesmapsGaretienStageListe());
@@ -1391,7 +1405,7 @@
 	 * 🔴 DIESELBE BAUFORM WIE `avesmapsGaretienNurIhreStempeln` darüber, und aus demselben Grund:
 	 * ENTSCHIEDEN WIRD IM FENSTER, gezeichnet im Zeichner. Der Zeichner weiß nicht, welche Zeile
 	 * offen ist, und soll es nicht wissen -- er liest nur ein Feld am Objekt.
-	 * 🔴 GESTEMPELT WIRD EINE KOPIE. Die Anzeige-Menge hält die Objekte, wie der Server sie
+	 * 🔴 GESTEMPELT WIRD EINE KOPIE. Die Stage hält die Objekte, wie der Server sie
 	 * geliefert hat; sie zu verändern schriebe sich über `zustand.objekte` bis in die Listenzeile
 	 * durch, denn beide halten dieselbe Referenz. (Genau daran ist der Nur-ihre-Stempel beinahe
 	 * gescheitert -- deshalb steht der Satz dort ein zweites Mal.)
@@ -1439,7 +1453,7 @@
 	 * Ziel-Weiche DAVOR: sonst bekäme jedes angezeigte Objekt einen Eingabenzustand, den niemand
 	 * angefasst hat.
 	 *
-	 * 🔴 GESTEMPELT WIRD EINE KOPIE. Die Anzeige-Menge hält die Objekte, wie der Server sie
+	 * 🔴 GESTEMPELT WIRD EINE KOPIE. Die Stage hält die Objekte, wie der Server sie
 	 * geliefert hat; sie zu verändern schriebe sich über `zustand.objekte` bis in die Listenzeile
 	 * durch, denn beide halten dieselbe Referenz. (Der Satz steht hier zum dritten Mal, weil der
 	 * Nur-ihre-Stempel genau daran beinahe gescheitert ist.)
@@ -1462,7 +1476,7 @@
 	 * Menge ist -- jeder Aufruf von window.avesmapsGaretienKarteZeigen geht durch ihn, und
 	 * garetienUnsereVorhanden (die Sperre des Knopfes „Avesmaps") misst dieselbe Menge. Eine Marke
 	 * an den Aufrufstellen waere beim naechsten Zeichenweg vergessen.
-	 * 🔴 GESTEMPELT WIRD EINE KOPIE. Die Anzeige-Menge haelt die Objekte, wie der Server sie
+	 * 🔴 GESTEMPELT WIRD EINE KOPIE. Die Stage haelt die Objekte, wie der Server sie
 	 * geliefert hat; sie zu veraendern schriebe sich ueber `zustand.objekte` bis in die Listenzeile
 	 * durch, denn beide halten dieselbe Referenz.
 	 * 🔴 DAS GERADE GEOEFFNETE OBJEKT IST AUSGENOMMEN. Wer eine Zeile ansieht, will vergleichen --
@@ -1487,7 +1501,7 @@
 	// NIE beim Server erfragt -- `stand: "stage"` steht nicht in AVESMAPS_GARETIEN_SERVER_STAENDE,
 	// ein `stand: "stage"` im Rumpf waere ein Filter auf einen Wert, den
 	// `avesmapsGaretienListeObjektStand` nie liefert, und die Liste bliebe fuer immer leer.
-	// Diese reine Funktion baut die "Antwort" aus der Anzeige-Menge nach, damit
+	// Diese reine Funktion baut die "Antwort" aus der Stage nach, damit
 	// avesmapsGaretienListeRendern denselben Weg nimmt wie nach einem echten Abruf -- kein
 	// zweiter Rendercode fuer einen vierten Reiter.
 	// 🔴 „Anzeigen" FILTERT NICHT (Entwurf §3.1): Suche und Filtertrichter wirken nur auf die drei
@@ -1617,8 +1631,16 @@
 		return AVESMAPS_GARETIEN_WIKI_LABEL[wert] || wert;
 	}
 
+	// 💣 EINE TABELLE, KEINE KONSTANTE (Fixrunde 2, Minor 3). Die Funktion ignorierte seit dem
+	// Wegfall des zweiten Filters ihr Argument und gab bei JEDEM Wert denselben Satz zurueck --
+	// waehrend garetienChipBeschriftung() sie dynamisch ruft. Der zweite Wert dieses Abschnitts
+	// haette also stillschweigend die Beschriftung des ersten getragen. Dieselbe Bauform wie
+	// garetienWikiLabel direkt darueber; heute hat der Abschnitt genau einen Wert, und das ist der
+	// Grund fuer die Tabelle, nicht dagegen.
+	const AVESMAPS_GARETIEN_NUR_LABEL = { mehrteilig: "nur mit mehreren Abschnitten" };
+
 	function garetienNurZeigenLabel(wert) {
-		return "nur mit mehreren Abschnitten";
+		return AVESMAPS_GARETIEN_NUR_LABEL[wert] || wert;
 	}
 
 	// Owner-Meldung 29.08.2026: Typen, aus denen wir ohnehin nichts holen (Beispiel "BurgKlein" --
@@ -4093,7 +4115,7 @@
 
 	/*
 	 * 🔴 „GARETIEN" BLEIBT UNBERÜHRT (Owner-Meldung 29.08.2026, Auftrag §„Was heute ist"): in der
-	 * Anzeige liegt ihre Geometrie immer, sonst stünde die Zeile gar nicht in der Anzeige-Menge --
+	 * Anzeige liegt ihre Geometrie immer, sonst stünde die Zeile gar nicht in der Stage --
 	 * nur „Avesmaps" bekommt die Sperre.
 	 *
 	 * 🔴 Fuenf-Punkte-Brief 30.08.2026, Punkt 5: der sichtbare Grund WIEDERHOLT nur, was der
@@ -4224,7 +4246,7 @@
 	// mitgeschickt.
 	// 🔴 Der Klick LEERT NICHTS (Auftrag): `avesmapsGaretienAlleWaehlen`/`avesmapsGaretienAnzeige-
 	// Hinzufuegen` ERGÄNZEN beide, wie überall in diesem Fenster.
-	// 🔴 `eigenes` ist das GEOEFFNETE Objekt, und es geht mit in die Anzeige (Owner 30.08.2026,
+	// 🔴 `eigenes` ist das GEOEFFNETE Objekt, und es geht mit auf die Stage (Owner 30.08.2026,
 	// zusammen mit dem Reiterwechsel unten). Zwei Gruende, und der zweite ist der wichtigere:
 	//   · Es liegt ohnehin schon auf der Karte -- `avesmapsGaretienAufDerKarte` haengt die offene
 	//     Zeile immer an. Ohne diese Zeile zeigte der Reiter „Anzeigen" 42 Nachbarn, waehrend 43
@@ -4271,7 +4293,7 @@
 	// wäre die zweite Regel darüber, was auf der Karte liegt.
 	// 🔴 `unsereVorhanden` fehlt in den meisten bestehenden Aufrufen (Tests, die nur EIN Objekt
 	// kennen) -- ohne Angabe fällt diese Funktion auf `garetienUnsereVorhanden([objekt])` zurück,
-	// dieselbe Regel, nur ohne die übrige Anzeige-Menge. Der echte Aufrufer (`garetienDetailRendern`)
+	// dieselbe Regel, nur ohne die übrige Stage. Der echte Aufrufer (`garetienDetailRendern`)
 	// übergibt stattdessen IMMER die tatsächlich gezeichnete Menge (`avesmapsGaretienAufDerKarte`),
 	// weil genau die -- und nicht das einzelne geöffnete Objekt -- entscheidet, was auf der Karte
 	// liegt (Owner-Meldung 29.08.2026: „nur aktiviert, wenn was in der Nähe … gefunden wurde").
@@ -5192,7 +5214,7 @@
 		// `window.avesmapsGaretienKarteZeigen` bekommt (`avesmapsGaretienAufDerKarte`), nicht
 		// `objekte` allein (der aktive Reiter) und nicht `avesmapsGaretienStageListe()` allein (die
 		// vergisst das angeklickte, noch nicht angezeigte Objekt). Wird bei JEDEM Aufbau dieser
-		// Spalte neu gemessen, nicht nur beim ersten Öffnen -- „Markierte anzeigen" und „Anzeige
+		// Spalte neu gemessen, nicht nur beim ersten Öffnen -- „Auf die Stage" und „Stage
 		// leeren" ändern diese Menge, ohne das angeklickte Objekt zu wechseln.
 		const unsereVorhanden = garetienUnsereVorhanden(avesmapsGaretienAufDerKarte(objekte));
 		spalte.innerHTML = garetienDetailMarkup(gewaehlt, sicht, unsereVorhanden);
@@ -5284,7 +5306,7 @@
 	 * Zeile und die frisch gezeichnete Karte fallen dort von selbst ab. Ein eigener Weg waere eine
 	 * zweite Wahrheit darueber, was „gewaehlt" heisst.
 	 *
-	 * ⚠️ Ein unbekannter Schluessel faellt OFFEN aus: Anzeige-Menge und Kartendaten koennen
+	 * ⚠️ Ein unbekannter Schluessel faellt OFFEN aus: Stage und Kartendaten koennen
 	 * auseinanderlaufen (ein Objekt wurde eingefuegt und ist fort), und ein Wurf hier risse Leaflets
 	 * Ereigniskette fuer die ganze Karte mit -- nicht nur fuer diese eine Form.
 	 */
@@ -5331,7 +5353,7 @@
 		if (sichtKnopf) {
 			// ⚠️ `disabled` wird hier NOCH EINMAL geprüft: das Attribut ist die Anzeige, nicht der
 			// Riegel -- dieselbe Trennung wie beim Handlungsknopf (`garetienHandlungKlick`) und beim
-			// Häkchen (`garetienHakenKlick`). „Avesmaps" ohne unsere Geometrie in der Anzeige-Menge
+			// Häkchen (`garetienHakenKlick`). „Avesmaps" ohne unsere Geometrie in der Stage
 			// darf auch dann nichts umschalten, wenn ihn ein Test oder ein synthetisches Ereignis
 			// direkt anklickt, statt ihn dem echten Browser zu überlassen.
 			if (sichtKnopf.disabled) { return null; }
@@ -5698,9 +5720,9 @@
 	// 🔴 Owner: „zurücknehmen ist da, aber nicht 'Alle markieren zurücknehmen'". Die Menge fehlte --
 	// nur die EINZELNE Rücknahme gab es (oben).
 	//
-	// 🔴 ER WIRKT AUF DIE MARKIERTEN, NICHT DIE ANZEIGE-MENGE -- symmetrisch zu „Markierte anzeigen"
+	// 🔴 ER WIRKT AUF DIE AUSWAHL, NICHT DIE STAGE -- symmetrisch zu „Auf die Stage"
 	// (`avesmapsGaretienAuswahlAufDieStage`), das ebenfalls die gerenderte Liste gegen
-	// `zustand.auswahl` filtert. „Alle markieren" ist der vom Owner genannte Weg dorthin.
+	// `zustand.auswahl` filtert. „Alle wählen" ist der vom Owner genannte Weg dorthin.
 	// 🔴 UND ER STEHT NUR AUF DEM REITER „ÜBERNOMMEN": in den drei anderen gibt es nichts
 	// zurückzunehmen (dort trägt ein Objekt gar kein 'new'+'done'-Item). Der Knopf bleibt trotzdem
 	// immer gerendert -- dieselbe Hausform wie „Alle markieren" auf dem Reiter „Anzeigen": gesperrt,
@@ -5743,7 +5765,14 @@
 			ids: paare.reduce(function (acc, p) {
 				return acc.concat(p.items.map(function (item) { return Number(item.id); }));
 			}, []),
-			beschriftung: "Auswahl zurücknehmen (" + paare.length + " von " + gewaehlte.length + ")",
+			// 🔴 „IMPORT zurücknehmen", nicht „Auswahl zurücknehmen" (Fixrunde 2, I4). Die
+			// Vereinheitlichung auf zwei Begriffe hatte hier eine NEUE Kollision erzeugt: drei
+			// Zeilen ueber diesem Knopf steht „Auswahl aufheben", das bloss Haekchen abraeumt --
+			// zwei Knoepfe nebeneinander, gleiches erstes Wort, und der eine nimmt einen bereits
+			// ausgefuehrten Import von der Karte zurueck. Vorher unterschieden sie sich im ersten
+			// Wort („Keines markieren" / „Markierte zurücknehmen"); das darf der gefaehrlichere von
+			// beiden nicht verlieren. Er sagt jetzt, WAS er zurueckholt -- den Import.
+			beschriftung: "Import zurücknehmen (" + paare.length + " von " + gewaehlte.length + ")",
 			gesperrt: falscherReiter || paare.length === 0,
 			hinweis: hinweis,
 		};
@@ -5961,7 +5990,7 @@
 	// Funktion wird von BEIDEN Verdrahtungsstellen gerufen (dem Listenkasten in
 	// `garetienListeSkelettVerdrahten` UND der Detailspalte in der Fensterverdrahtung weiter
 	// unten), und die zwei Häkchen beantworten NICHT dieselbe Frage:
-	//   - ZEILENHÄKCHEN (kein `data-seg`) = „markiere für die ANZEIGE" -- Entwurf §3.2 spricht
+	//   - ZEILENHÄKCHEN (kein `data-seg`) = „wähle für die STAGE" -- Entwurf §3.2 spricht
 	//     AUSDRÜCKLICH nur von diesem Häkchen. Client-seitig, schreibt nichts (Owner: „Markieren
 	//     ändert nichts").
 	//   - ABSCHNITTSHÄKCHEN (trägt `data-seg`, aus `garetienAbschnittMarkup`) = „welche Items
@@ -6032,8 +6061,10 @@
 
 	// REIN: was der Fussknopf sagt und ob er geht.
 	//
-	// 🔴 ER NIMMT DIE ANZEIGE-MENGE, NICHT MEHR EINE ZAHL (Aufgabe 5, 29.08.2026). „Nur angezeigte
-	// koennen uebernommen werden" (Owner) -- Anzeige ist die Vorstufe, nicht der Ersatz.
+	// 🔴 ER NIMMT DIE STAGE, NICHT MEHR EINE ZAHL (Aufgabe 5, 29.08.2026). „Nur angezeigte
+	// koennen uebernommen werden" (Owner) -- die Stage ist die Vorstufe, nicht der Ersatz.
+	// ⚠️ Das Owner-Zitat steht woertlich, in SEINEM Vokabular von damals ("angezeigte"); nur die
+	// Prosa darum herum spricht heutiges. Ein umgeschriebenes Zitat ist keines mehr.
 	// 🔴 UND ER SAGT „n von m". Von 8213 Objekten haben 7930 keinen Vorschlag; sie duerfen
 	// angezeigt werden (das ist der ganze Sinn dieses Werkzeugs), aber eingefuegt werden kann nur,
 	// was ein Item hat. Ein Knopf, der „244 einfuegen" verspricht und 37 einfuegt, ist eine
@@ -6064,8 +6095,11 @@
 				? ""
 				: (liste.length === 0
 					? "Die Stage ist leer — leg links etwas darauf."
-					: "Keines der Objekte auf der Stage hat einen Vorschlag — sie haben in diesem Lauf keinen "
-						+ "Vorschlag."),
+					// Der Nebensatz sagt den GRUND, nicht noch einmal den Befund (Fixrunde 2, I5) --
+					// er stand hier einen Tag lang als „… — sie haben in diesem Lauf keinen
+					// Vorschlag." und wiederholte damit wortgleich, was der Hauptsatz schon sagt.
+					: "Keines der Objekte auf der Stage hat einen Vorschlag — für ihre Art gibt es in "
+						+ "diesem Lauf noch keine Zuordnung."),
 		};
 	}
 
@@ -6249,7 +6283,7 @@
 	// 💣 DER SERVER SCHICKT DIE VOLLE LISTE, NICHT NUR UNSERE QUELLE -- und das muss er, weil
 	// `syncFeatureSourcesToClientCache` die Quellenliste einer Entitaet UEBERSCHREIBT. Bei einer
 	// Ergaenzung (eine Quelle an ein BESTEHENDES Objekt, der Fall „Eupelmunder Moor") verschwaenden
-	// sonst dessen andere Quellen aus der Anzeige -- derselbe Fehler wie der gemeldete, nur
+	// sonst dessen andere Quellen von der Stage -- derselbe Fehler wie der gemeldete, nur
 	// andersherum.
 	function garetienQuellenNachtragen(antwort) {
 		const liste = (antwort && antwort.quellen_neu) || [];
@@ -6355,7 +6389,7 @@
 		melden(0);
 
 		// ⚠️ KEIN Rückfall auf "gesamt === 0 -> nichts tun" beim ANHAKEN: ein bereits VOLLSTÄNDIG
-		// angehaktes Objekt braucht keine neue Markierung (`sauber` ist dann leer), steht aber
+		// angehaktes Objekt braucht kein neues Anhaken (`sauber` ist dann leer), steht aber
 		// trotzdem als echter Vorschlag in der Datenbank und MUSS `apply` erreichen -- sonst bliebe
 		// eine frühere Vormerkung (z.B. ein "Namen ersetzen"-Klick) für immer nur vorgemerkt.
 		// `uebernahmeIds` bleibt in genau diesem Fall NICHT leer (siehe garetienStageUebernahmeIds)
@@ -6426,7 +6460,7 @@
 		}).then(function () { return summe; });
 	}
 
-	// Der Fußknopf: dieselbe Funktion, mit der Anzeige-Menge als Item-Quelle (Aufgabe 5 lieferte
+	// Der Fußknopf: dieselbe Funktion, mit der Stage als Item-Quelle (Aufgabe 5 lieferte
 	// `garetienStageAnhakenIds`, Aufgabe 8 führt sie wirklich aus statt nur anzuhaken).
 	//
 	// 🔴 DER RÜCKFALL "nichts zu tun" GEHÖRT HIERHIN, NICHT IN garetienEinfuegenAusfuehren: er
@@ -6454,6 +6488,12 @@
 	// des Knopfs (garetienUebernahmeKnopfZustand) -- seit der Skopierung von `apply`
 	// (garetienEinfuegenAusfuehren schickt seine ids jetzt mit) ist „n" hier auch wirklich die
 	// geschriebene Menge, keine Schätzung mehr.
+	// 🔴 DER ZWEITE SATZ BLEIBT -- und das ist eine ausdrueckliche Abweichung vom Auftrag der
+	// Fixrunde 1, der ihn „ersatzlos" streichen wollte (Fixrunde 2, I3). Er benennt eine
+	// UNUMKEHRBARE Handlung: „Zurücknehmen" holt nur NEU ANGELEGTE Objekte zurueck; was an einem
+	// bestehenden Objekt geaendert wurde, ist weg. Genau davor warnt das Haus, und genau diese
+	// Warnung hat am 30.08.2026 gefehlt („Eine Warnung gabs nicht", Owner, nach einem Schadensfall).
+	// Ein Auftrag, der eine solche Warnung streichen will, wird gemeldet, nicht ausgefuehrt.
 	function garetienEinfuegenRueckfrageText(anzahl) {
 		return "Wirklich " + anzahl + (anzahl === 1 ? " Objekt" : " Objekte")
 			+ " von der Stage in die Karte einfügen?\n\n"
@@ -6666,7 +6706,7 @@
 				// Verteiler darüber, mit der schon geladenen Trefferliste dieses Objekts.
 				// Owner 30.08.2026: „soll auch automatisch ins tab 'Anzeigen' wechseln" --
 				// derselbe Zug wie bei „Markierte anzeigen" im Fussknopf-Bund, und aus demselben
-				// Grund: der Knopf legt Objekte in die Anzeige-Menge, und genau die zeigt jener
+				// Grund: der Knopf legt Objekte in die Stage, und genau die zeigt jener
 				// Reiter. Wer ihn drueckt und auf „Offen" stehen bleibt, sieht von seiner Handlung
 				// nur eine Zahl im Reiterkopf.
 				const naeheOffen = (zustand.objekte || []).filter(function (o) {
@@ -6695,7 +6735,7 @@
 		// seinen reinen Zug, danach zeichnet garetienStageNeuZeichnen Liste und Karte neu.
 		// Aufgabe 10: „Alle markieren" -- derselbe Zug wie die zwei Knoepfe darunter (reine
 		// Markierung, danach garetienStageNeuZeichnen), aber mit den GERENDERTEN Zeilen
-		// (`zustand.objekte`) statt der Anzeige-Menge oder einer Item-Auswahl.
+		// (`zustand.objekte`) statt der Stage oder einer Item-Auswahl.
 		const markAlleBtn = hasDocument ? document.getElementById("garetien-mark-all") : null;
 		if (markAlleBtn) {
 			markAlleBtn.addEventListener("click", function () {
@@ -6741,7 +6781,7 @@
 				avesmapsGaretienAuswahlAufDieStage(zustand.objekte);
 				// 🔴 UND DER REITER WECHSELT MIT (Owner 30.08.2026: „Beim Klick auf 'Markierte
 				// anzeigen' kannst du auf das 'Anzeigen'-Tab gehen"). Der Knopf legt Objekte in die
-				// Anzeige-Menge, und genau die zeigt jener Reiter -- wer ihn drückt und auf „Offen"
+				// Stage, und genau die zeigt jener Reiter -- wer ihn drückt und auf „Offen"
 				// stehen bleibt, sieht von seiner Handlung nur eine Zahl im Reiterkopf.
 				// ⚠️ Der Wechsel geht über `zustand.stand` und dann durch denselben Trichter wie ein
 				// Reiterklick (garetienStageNeuZeichnen ruft auf „anzeigen" avesmapsGaretienListeHolen).
@@ -6887,7 +6927,7 @@
 			avesmapsGaretienDarfAdminHandlung,
 			avesmapsGaretienFensterZustand,
 			avesmapsGaretienRufe,
-			// Aufgabe 1: die Anzeige-Menge -- gehoert dem Fenster, nicht dem Vorschlag (Entwurf §3).
+			// Aufgabe 1: die Stage -- gehoert dem Fenster, nicht dem Vorschlag (Entwurf §3).
 			avesmapsGaretienStageHinzufuegen,
 			avesmapsGaretienNurIhreMerken,
 			AVESMAPS_GARETIEN_FELD_NUR_IHRE,
@@ -6901,7 +6941,7 @@
 			avesmapsGaretienStageLeeren,
 			avesmapsGaretienStageListe,
 			avesmapsGaretienStageHat,
-			// Regression 29.08.2026: die Anzeige-Menge nach einem Schreibvorgang auffrischen, nie entfernen.
+			// Regression 29.08.2026: die Stage nach einem Schreibvorgang auffrischen, nie entfernen.
 			avesmapsGaretienStageAuffrischen,
 			AVESMAPS_GARETIEN_SERVER_STAENDE,
 			// Aufgabe 2: das Haekchen ist ein reiner Marker (Entwurf §3.2)
@@ -7034,7 +7074,7 @@
 			AVESMAPS_GARETIEN_PARTEI_IHRE,
 			AVESMAPS_GARETIEN_PARTEI_UNSERE,
 			// Owner-Meldung 29.08.2026: „Avesmaps" ist nur bedienbar, wenn unsere Geometrie in der
-			// Anzeige-Menge liegt.
+			// Stage liegt.
 			garetienUnsereVorhanden,
 			AVESMAPS_GARETIEN_SICHT_GESPERRT_GRUND,
 			// Aufgabe 15

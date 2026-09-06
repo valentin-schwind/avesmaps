@@ -410,8 +410,6 @@ html.avesmaps-planner-collapsed .gi-win {
    darum die gedaempfte Farbe des Wirts; kursiv als einziger Unterschied zum Rest der Zeile. */
 .gi-neutral-hinweis .gi-neutral { font-style: italic; }
 
-/* Ein angehaktes Objekt LEUCHTET auf der Karte (Aufgabe 14) -- die Zeile sagt es mit. */
-.lit-dot { color: var(--color-marker-active); font-weight: var(--font-weight-bold); }
 
 /* Das Urteil in der Zeile ist FARBE ALS DATEN, nicht Chrome (Designsprache) -- warme Familie,
    kein Blau. deckt_sich/uebersprungen teilen sich die gedämpfte Klasse. */

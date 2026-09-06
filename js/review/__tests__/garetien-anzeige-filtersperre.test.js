@@ -82,11 +82,16 @@ wahr(typeof garetienStageFilterSperreSetzen === "function",
 	"garetienStageFilterSperreSetzen fehlt im Export");
 
 // Der sichtbare Hinweistext steht im statischen Skelett -- kein Test hier baut ihn nach.
-// 🔴 Aufgabe 8: der Wortlaut heisst seither „Was hier steht, liegt auf der Karte und wird mit
-// „Stage importieren" angelegt — gefiltert wird nach Name und Typ."
+// 🔴 Aufgabe 8 (Fixrunde 2): der Wortlaut heisst seither „Was hier steht, liegt auf der Karte und
+// wird mit „Stage importieren" angelegt — Suche und Filter wirken hier nicht."
+// 💣 Er hiess einen Tag lang „… — gefiltert wird nach Name und Typ." und behauptete damit das
+// GEGENTEIL dessen, was diese Datei prueft: hier drunter wird zugesichert, dass Suchfeld und
+// Filterknopf auf diesem Reiter `disabled` sind. Diese Zusicherung ist deshalb kein Wortlaut-Pinsel,
+// sondern die Gegenprobe -- sie und die zwei `disabled`-Pruefungen darunter muessen zusammen
+// gelesen werden koennen, ohne sich zu widersprechen.
 wahr(garetienListeSkelettMarkup().includes(
-	"Was hier steht, liegt auf der Karte und wird mit „Stage importieren\" angelegt — gefiltert "
-	+ "wird nach Name und Typ."
+	"Was hier steht, liegt auf der Karte und wird mit „Stage importieren\" angelegt — Suche und "
+	+ "Filter wirken hier nicht."
 ), "der Hinweistext fehlt im Skelett -- ohne ihn ist die Sperre nicht ERKENNBAR, nur wirksam");
 wahr(/id="garetien-anzeige-hinweis"[^>]*\bhidden\b/.test(garetienListeSkelettMarkup()),
 	"der Hinweis startet VERSTECKT -- auf dem Start-Reiter (ein Server-Reiter) wird ja gefiltert");
