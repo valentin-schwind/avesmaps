@@ -5468,7 +5468,15 @@
 		return "„" + name + "“ wird ZUSÄTZLICH angelegt — der Abgleich hat eine Übereinstimmung "
 			+ "gefunden" + (grund === "" ? "" : " (" + grund + ")") + ". Das bestehende Objekt "
 			+ "bleibt dabei unberührt.\n\n"
-			+ "Das Objekt kommt auf die Stage und wird mit „Stage importieren“ angelegt.";
+			// 💣 DIESER SATZ SAGT, WAS DIESER KLICK TUT -- und dieser Klick legt SOFORT an.
+			// Vom 06.09. bis zur Designabnahme stand hier „kommt auf die Stage und wird mit
+			// „Stage importieren“ angelegt“; das ist die Beschreibung einer ANDEREN Handlung.
+			// `garetienNeuKlick` ruft `garetienEinfuegenAusfuehren`, und die schickt `select` UND
+			// unmittelbar danach `apply` -- das Objekt steht am Ende dieses Klicks auf der Karte.
+			// Der Editor hätte danach einen zweiten Schritt gesucht, der nichts mehr zu tun hat.
+			// ⚠️ Die strukturgleiche Rückfrage für „Ausgewählte Segmente ersetzen“ sagt zu Recht
+			// das Gegenteil: JENE Handlung schickt wirklich nur `select`.
+			+ "Das Objekt wird jetzt sofort als eigenes Objekt angelegt.";
 	}
 
 	function garetienNeuKlick(ereignis, objekte, runId, fragen) {

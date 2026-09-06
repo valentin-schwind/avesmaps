@@ -1226,10 +1226,15 @@ async function pruefeNeuKlickZusatz() {
 	wahr(zusatzFrage.includes("Krähensee"), "die Rückfrage nennt den Namen");
 	wahr(zusatzFrage.includes("0.42 Einheiten"), "und den Grund aus dem Abgleich (Name+Abstand)");
 	wahr(zusatzFrage.includes("ZUSÄTZLICH"), "und sagt ausdrücklich, dass ANGELEGT statt ersetzt wird");
-	// 🔴 Aufgabe 8: „Jetzt wird nur vorgemerkt. Geschrieben wird erst mit „Angehakte übernehmen"."
-	// heisst seither „Das Objekt kommt auf die Stage und wird mit „Stage importieren" angelegt."
-	wahr(zusatzFrage.includes("kommt auf die Stage"), "und dass jetzt noch nichts geschrieben wird");
-	wahr(zusatzFrage.includes("Stage importieren"), "und nennt den Knopf, der es wirklich anlegt");
+	// 💣 DIE RÜCKFRAGE MUSS SAGEN, WAS DIESER KLICK TUT -- und er legt SOFORT an. Genau diese
+	// Zusicherung stand am 06.09.2026 andersherum da („kommt auf die Stage … mit „Stage
+	// importieren" angelegt") und beschrieb damit eine ANDERE Handlung: der Klick ruft
+	// `garetienEinfuegenAusfuehren`, und die schickt `select` UND `apply` -- oben in dieser Datei
+	// ausdrücklich zugesichert („select, dann WIRKLICH apply"). Beide Zusicherungen standen
+	// dreissig Zeilen auseinander im selben Blatt, ohne dass jemand sie gegeneinander hielt.
+	wahr(zusatzFrage.includes("sofort"), "und dass der Klick das Objekt SOFORT anlegt");
+	wahr(!zusatzFrage.includes("Stage importieren"),
+		"und nennt NICHT einen zweiten Knopf, der hier nichts mehr zu tun hat");
 
 	// 💣 OHNE BESTÄTIGUNG PASSIERT NICHTS -- und der Klick gilt trotzdem als BEHANDELT (return
 	// true), sonst fiele er zu garetienHandlungKlick durch (dieselbe Falle wie bei
