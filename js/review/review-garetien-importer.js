@@ -5430,14 +5430,6 @@
 	// gesperrt mit „Fügt ein …" stehen bleibt.
 	let garetienEinfuegenLaeuft = false;
 
-	// Aufgabe 3 (06.09.2026): die Item-ids, die der LETZTE Einfuegen-Lauf wirklich neu angelegt hat --
-	// die Menge, die der „Rückgängig"-Link der Statuszeile anbietet (garetienImportMeldung). 🔴 NUR
-	// 'new'-Items, nie eine Ergänzung an einem BESTEHENDEN Objekt (garetienEinfuegenRueckfrageText:
-	// „Neu angelegte Objekte lassen sich über „Zurücknehmen“ wieder entfernen"). Wird bei jedem Lauf
-	// NEU gesetzt, nicht ergänzt -- ein Link darf nie auf eine Übernahme zeigen, die zwei Handlungen
-	// zurückliegt.
-	let garetienLetzteNeuenIds = [];
-
 	// ---- Meldung B (30.08.2026): "trotzdem neu anlegen" trotz erkannter Kollision -------------
 	//
 	// 🔴 Owner: „bei bestehenden Fläche, wo er Kollisionen erkannt hat ... kann ich Quelle +
@@ -5518,31 +5510,32 @@
 		// `rumpf.ids` ist bereits der VOLLE Umfang (garetienHandlungsRumpf/garetienHandlungBauen
 		// filtern nie nach Tick-Zustand) -- Anhaken und Übernehmen decken hier dieselbe Menge ab.
 		return garetienEinfuegenAusfuehren(rumpf.ids, rumpf.ids, runId, avesmapsGaretienRufe, null, einstellungen)
+			// Aufgabe 3 (06.09.2026), Prüfrunde: die Meldung MUSS nach avesmapsGaretienListeHolen()
+			// stehen (dessen avesmapsGaretienListeRendern ruft garetienStatusRuhe, das die
+			// Statuszeile sonst sofort wieder überschriebe) -- UND sie darf nicht verloren gehen,
+			// wenn GENAU DIESER Nachlauf scheitert: was `summe` meldet, liegt schon auf der Karte.
+			// 🔴 `rumpf.ids` ist hier bereits die reine 'new'-Menge (siehe
+			// AVESMAPS_GARETIEN_ITEMS_JE_HANDLUNG.neu/innerorts) -- anders als beim Fussknopf
+			// braucht es hier kein garetienAnzeigeNeuIds.
 			.then(function (summe) {
+				const meldung = garetienImportMeldung(summe);
+				const neuIds = garetienOhneFehlgeschlagene(rumpf.ids, summe && summe.fehler);
+				const aktion = garetienRueckgaengigNachEinfuegenAktion(neuIds, runId, fragen);
 				return avesmapsGaretienAnzeigeNachEinfuegenBereinigen(avesmapsGaretienRufe, runId)
-					.then(function () { return summe; });
-			})
-			// Aufgabe 3 (06.09.2026): siehe die Begruendung in garetienFussknopfEinfuegenKlick -- die
-			// Meldung muss NACH avesmapsGaretienListeHolen() stehen, sonst ueberschreibt dessen
-			// garetienStatusRuhe sie sofort wieder.
-			.then(function (summe) {
-				return avesmapsGaretienListeHolen().then(function (ergebnis) {
-					// 🔴 `rumpf.ids` ist hier bereits die reine 'new'-Menge (siehe
-					// AVESMAPS_GARETIEN_ITEMS_JE_HANDLUNG.neu/innerorts) -- anders als beim
-					// Fussknopf braucht es hier kein garetienAnzeigeNeuIds.
-					garetienLetzteNeuenIds = garetienOhneFehlgeschlagene(rumpf.ids, summe && summe.fehler);
-					const meldung = garetienImportMeldung(summe);
-					garetienStatusSetzen(meldung.text, meldung.ton, garetienLetzteNeuenIds.length
-						? { text: "Rückgängig", ruf: function () {
-							garetienRuecknahmeMengeAusfuehren(
-								garetienLetzteNeuenIds, runId, avesmapsGaretienRufe, null
-							)
-								.then(function () { return avesmapsGaretienListeHolen(); })
-								.catch(function (fehler) { garetienListeFehlerZeigen(fehler); });
-						} }
-						: null);
-					return ergebnis;
-				});
+					.then(function () { return avesmapsGaretienListeHolen(); })
+					.then(function (ergebnis) {
+						garetienStatusSetzen(meldung.text, meldung.ton, aktion);
+						return ergebnis;
+					})
+					.catch(function (nachlaufFehler) {
+						const satz = (nachlaufFehler && nachlaufFehler.message)
+							|| "Die Anfrage ist fehlgeschlagen.";
+						garetienStatusSetzen(
+							meldung.text + " · ✕ Liste konnte nicht aktualisiert werden: " + satz,
+							"bad", aktion
+						);
+						return null;
+					});
 			})
 			.then(function (ergebnis) {
 				garetienEinfuegenLaeuft = false;
@@ -5925,6 +5918,58 @@
 			});
 	}
 
+	// ---- Aufgabe 3, Prüfrunde (06.09.2026): der „Rückgängig"-Link NACH einem Einfügen ------------
+	//
+	// 🔴 Entwurf §5.4: „Rücknahme genau dieser Items über `action: ruecknahme`, mit Rückfrage" --
+	// die erste Fassung dieses Links rief `garetienRuecknahmeMengeAusfuehren` ohne Rückfrage, ohne
+	// Riegel und ohne Fortschritt auf. Er bekommt jetzt dieselbe Form wie die Rücknahme-Menge
+	// daneben: eine Rückfrage, die die Folge und die Zahl nennt, denselben Riegel
+	// (`garetienRuecknahmeMengeLaeuft` -- eine überlappende Rücknahme aus zwei Auslösern ist
+	// dieselbe Gefahr wie ein Doppelklick auf denselben Knopf), und einen Fortschritt IN der
+	// Statuszeile, damit der Editor nicht sekundenlang „5 Objekte importiert" liest, während im
+	// Hintergrund schon zurückgenommen wird.
+	function garetienRueckgaengigNachEinfuegenRueckfrageText(anzahl) {
+		return "Wirklich " + anzahl
+			+ (anzahl === 1 ? " gerade angelegtes Objekt" : " gerade angelegte Objekte")
+			+ " wieder von der Karte entfernen?";
+	}
+
+	// REIN im Rückgabewert (kein DOM-Zugriff, solange `ruf` nicht ausgeführt wird): baut die
+	// `aktion` für `garetienStatusSetzen` aus den 'new'-ids DIESES Laufs. `null` ohne ids, damit
+	// `garetienStatusSetzen` den Link verbirgt (siehe dessen Vertrag) -- derselbe Fall wie ein Lauf,
+	// der nur Quellen ergänzt hat, oder einer, bei dem jedes 'new'-Item gescheitert ist.
+	function garetienRueckgaengigNachEinfuegenAktion(ids, runId, fragen) {
+		const sauber = (ids || []).map(Number).filter(function (id) { return id > 0; });
+		if (sauber.length === 0) { return null; }
+		return {
+			text: "Rückgängig",
+			ruf: function () {
+				if (garetienRuecknahmeMengeLaeuft) { return; }
+				if (typeof fragen === "function"
+					&& !fragen(garetienRueckgaengigNachEinfuegenRueckfrageText(sauber.length))) {
+					return;
+				}
+				garetienRuecknahmeMengeLaeuft = true;
+				const knopf = hasDocument ? document.getElementById("garetien-status-aktion") : null;
+				function fortschritt(fertig, gesamt) {
+					if (!knopf) { return; }
+					knopf.textContent = gesamt > 0
+						? "Nimmt zurück … " + fertig + " von " + gesamt
+						: "Nimmt zurück …";
+				}
+				garetienRuecknahmeMengeAusfuehren(sauber, runId, avesmapsGaretienRufe, fortschritt)
+					.then(function () { return avesmapsGaretienListeHolen(); })
+					.then(function () {
+						garetienRuecknahmeMengeLaeuft = false;
+					})
+					.catch(function (fehler) {
+						garetienRuecknahmeMengeLaeuft = false;
+						garetienListeFehlerZeigen(fehler);
+					});
+			},
+		};
+	}
+
 	// Der Häkchen-Wechsel -- für die Listenzeile UND die Abschnittszeile. Beide tragen ihren
 	// `data-key` selbst; die Abschnittszeile zusätzlich ihr `data-seg`.
 	//
@@ -6300,7 +6345,12 @@
 				+ (quellen === 1 ? " Quelle ergänzt" : " Quellen ergänzt"));
 		}
 		if (fehler.length > 0) {
-			const gesamt = angelegt + fehler.length;
+			// 🔴 Prüfrunde 06.09.2026, Befund 2 (Koordinator): der Nenner ist NICHT nur `angelegt`
+			// -- eine erfolgreiche Quellen-Ergänzung (`quellen`) wurde ebenso VERSUCHT, sie hat nur
+			// kein neues Kartenobjekt hinterlassen. Gezählt wird, was `apply` durchlaufen hat:
+			// angelegt (neues Objekt) + quellen (nur ergänzt) + fehler.length (gescheitert). Ohne
+			// `quellen` im Nenner zählt ein Mischlauf zu klein -- vier Items ergaben „1 von 3".
+			const gesamt = angelegt + quellen + fehler.length;
 			// ⚠️ Genannt wird der Grund des ERSTEN Fehlschlags samt Zahl der übrigen -- eine Zeile
 			// trägt keine fünf Sätze, und die übrigen stehen in ihren Zeilen.
 			const rest = fehler.length > 1 ? " (und " + (fehler.length - 1) + " weitere)" : "";
@@ -6454,31 +6504,32 @@
 				? "Fügt ein … " + fertig + " von " + gesamt
 				: "Fügt ein …";
 		}
+		// Aufgabe 3 (06.09.2026), Prüfrunde: die Meldung MUSS nach avesmapsGaretienListeHolen()
+		// stehen (dessen avesmapsGaretienListeRendern ruft garetienStatusRuhe, das die Statuszeile
+		// sonst sofort wieder überschriebe) -- UND sie darf nicht verloren gehen, wenn GENAU DIESER
+		// Nachlauf scheitert: was `summe` meldet, liegt schon auf der Karte.
 		return garetienFussknopfKlick(angezeigte, runId, avesmapsGaretienRufe, fortschritt)
 			.then(function (summe) {
+				const meldung = garetienImportMeldung(summe);
+				const neuIds = garetienOhneFehlgeschlagene(
+					garetienAnzeigeNeuIds(angezeigte), summe && summe.fehler
+				);
+				const aktion = garetienRueckgaengigNachEinfuegenAktion(neuIds, runId, fragen);
 				return avesmapsGaretienAnzeigeNachEinfuegenBereinigen(avesmapsGaretienRufe, runId)
-					.then(function () { return summe; });
-			})
-			// Aufgabe 3 (06.09.2026): die Meldung MUSS nach avesmapsGaretienListeHolen() stehen --
-			// dessen avesmapsGaretienListeRendern ruft `garetienStatusRuhe`, das die Statuszeile
-			// sonst sofort wieder ueberschriebe (beide gehen ueber garetienStatusSetzen).
-			.then(function (summe) {
-				return avesmapsGaretienListeHolen().then(function (ergebnis) {
-					garetienLetzteNeuenIds = garetienOhneFehlgeschlagene(
-						garetienAnzeigeNeuIds(angezeigte), summe && summe.fehler
-					);
-					const meldung = garetienImportMeldung(summe);
-					garetienStatusSetzen(meldung.text, meldung.ton, garetienLetzteNeuenIds.length
-						? { text: "Rückgängig", ruf: function () {
-							garetienRuecknahmeMengeAusfuehren(
-								garetienLetzteNeuenIds, runId, avesmapsGaretienRufe, null
-							)
-								.then(function () { return avesmapsGaretienListeHolen(); })
-								.catch(function (fehler) { garetienListeFehlerZeigen(fehler); });
-						} }
-						: null);
-					return ergebnis;
-				});
+					.then(function () { return avesmapsGaretienListeHolen(); })
+					.then(function (ergebnis) {
+						garetienStatusSetzen(meldung.text, meldung.ton, aktion);
+						return ergebnis;
+					})
+					.catch(function (nachlaufFehler) {
+						const satz = (nachlaufFehler && nachlaufFehler.message)
+							|| "Die Anfrage ist fehlgeschlagen.";
+						garetienStatusSetzen(
+							meldung.text + " · ✕ Liste konnte nicht aktualisiert werden: " + satz,
+							"bad", aktion
+						);
+						return null;
+					});
 			})
 			.then(function (ergebnis) {
 				garetienEinfuegenLaeuft = false;
@@ -7036,11 +7087,6 @@
 			// garetienAnzeigeAnhakenIds (siehe deren Kommentare)
 			garetienAnzeigeUebernahmeIds,
 			garetienEinfuegenRueckfrageText,
-			// Aufgabe 3 (06.09.2026): das Import-Ergebnis in der Statuszeile
-			garetienImportFormenText,
-			garetienImportMeldung,
-			garetienAnzeigeNeuIds,
-			garetienOhneFehlgeschlagene,
 			// Meldung B (30.08.2026): „trotzdem neu anlegen“ trotz erkannter Kollision
 			garetienItemIstZusatz,
 			garetienNeuIstZusatz,
@@ -7079,11 +7125,18 @@
 			garetienRuecknahmeMengeRueckfrageText,
 			garetienRuecknahmeMengeAusfuehren,
 			garetienRuecknahmeMengeKlick,
-			// Aufgabe 3 (06.09.2026): der Weg des Briefs (`require(...).__test`) fuer die beiden
-			// REINEN Funktionen -- neben den flachen Exporten oben, keine zweite Fassung.
+			// Aufgabe 3 (06.09.2026), Prüfrunde: das Import-Ergebnis in der Statuszeile -- EIN Weg
+			// hinein (`require(...).__test`, wie der Brief es fuer die Tests vorgibt), nicht zwei.
+			// Vorher lagen zwei dieser Funktionen flach daneben; das Konsolidieren ist der ganze
+			// Unterschied, keine Funktion ist neu.
 			__test: {
 				garetienImportFormenText,
 				garetienImportMeldung,
+				garetienAnzeigeNeuIds,
+				garetienOhneFehlgeschlagene,
+				garetienRueckgaengigNachEinfuegenRueckfrageText,
+				garetienRueckgaengigNachEinfuegenAktion,
+				AVESMAPS_GARETIEN_JE_FORM_LEER,
 			},
 		};
 	}
