@@ -5430,6 +5430,14 @@
 	// gesperrt mit „Fügt ein …" stehen bleibt.
 	let garetienEinfuegenLaeuft = false;
 
+	// Aufgabe 3 (06.09.2026): die Item-ids, die der LETZTE Einfuegen-Lauf wirklich neu angelegt hat --
+	// die Menge, die der „Rückgängig"-Link der Statuszeile anbietet (garetienImportMeldung). 🔴 NUR
+	// 'new'-Items, nie eine Ergänzung an einem BESTEHENDEN Objekt (garetienEinfuegenRueckfrageText:
+	// „Neu angelegte Objekte lassen sich über „Zurücknehmen“ wieder entfernen"). Wird bei jedem Lauf
+	// NEU gesetzt, nicht ergänzt -- ein Link darf nie auf eine Übernahme zeigen, die zwei Handlungen
+	// zurückliegt.
+	let garetienLetzteNeuenIds = [];
+
 	// ---- Meldung B (30.08.2026): "trotzdem neu anlegen" trotz erkannter Kollision -------------
 	//
 	// 🔴 Owner: „bei bestehenden Fläche, wo er Kollisionen erkannt hat ... kann ich Quelle +
@@ -5510,10 +5518,32 @@
 		// `rumpf.ids` ist bereits der VOLLE Umfang (garetienHandlungsRumpf/garetienHandlungBauen
 		// filtern nie nach Tick-Zustand) -- Anhaken und Übernehmen decken hier dieselbe Menge ab.
 		return garetienEinfuegenAusfuehren(rumpf.ids, rumpf.ids, runId, avesmapsGaretienRufe, null, einstellungen)
-			.then(function () {
-				return avesmapsGaretienAnzeigeNachEinfuegenBereinigen(avesmapsGaretienRufe, runId);
+			.then(function (summe) {
+				return avesmapsGaretienAnzeigeNachEinfuegenBereinigen(avesmapsGaretienRufe, runId)
+					.then(function () { return summe; });
 			})
-			.then(function () { return avesmapsGaretienListeHolen(); })
+			// Aufgabe 3 (06.09.2026): siehe die Begruendung in garetienFussknopfEinfuegenKlick -- die
+			// Meldung muss NACH avesmapsGaretienListeHolen() stehen, sonst ueberschreibt dessen
+			// garetienStatusRuhe sie sofort wieder.
+			.then(function (summe) {
+				return avesmapsGaretienListeHolen().then(function (ergebnis) {
+					// 🔴 `rumpf.ids` ist hier bereits die reine 'new'-Menge (siehe
+					// AVESMAPS_GARETIEN_ITEMS_JE_HANDLUNG.neu/innerorts) -- anders als beim
+					// Fussknopf braucht es hier kein garetienAnzeigeNeuIds.
+					garetienLetzteNeuenIds = garetienOhneFehlgeschlagene(rumpf.ids, summe && summe.fehler);
+					const meldung = garetienImportMeldung(summe);
+					garetienStatusSetzen(meldung.text, meldung.ton, garetienLetzteNeuenIds.length
+						? { text: "Rückgängig", ruf: function () {
+							garetienRuecknahmeMengeAusfuehren(
+								garetienLetzteNeuenIds, runId, avesmapsGaretienRufe, null
+							)
+								.then(function () { return avesmapsGaretienListeHolen(); })
+								.catch(function (fehler) { garetienListeFehlerZeigen(fehler); });
+						} }
+						: null);
+					return ergebnis;
+				});
+			})
 			.then(function (ergebnis) {
 				garetienEinfuegenLaeuft = false;
 				return ergebnis;
@@ -6078,6 +6108,31 @@
 		return ids;
 	}
 
+	// Aufgabe 3 (06.09.2026): die TEILMENGE von `garetienAnzeigeUebernahmeIds`, die wirklich ein
+	// NEUES Kartenobjekt anlegt -- nur `change_type === 'new'` zählt, eine Namens-/Quellen-Ergänzung
+	// an einem BESTEHENDEN Objekt (`changed`) nicht. Nur diese Menge lässt sich über „Zurücknehmen"
+	// wieder entfernen (garetienEinfuegenRueckfrageText).
+	function garetienAnzeigeNeuIds(angezeigte) {
+		const ids = [];
+		(angezeigte || []).forEach(function (objekt) {
+			garetienHakenItems(objekt).forEach(function (item) {
+				if (String((item && item.change_type) || "") !== "new") { return; }
+				const id = Number(item && item.id);
+				if (id > 0) { ids.push(id); }
+			});
+		});
+		return ids;
+	}
+
+	// REIN: aus einer id-Liste die Fehlschläge DIESES Laufs herausnehmen. Ein Item, das `apply`
+	// unter `fehler` gemeldet hat, wurde NICHT angelegt und darf nicht über „Rückgängig" angeboten
+	// werden -- sonst zeigte der Link auf ein Objekt, das nie auf der Karte stand.
+	function garetienOhneFehlgeschlagene(ids, fehler) {
+		const fehlerIds = (Array.isArray(fehler) ? fehler : [])
+			.map(function (f) { return Number(f && f.item); });
+		return (ids || []).filter(function (id) { return fehlerIds.indexOf(id) === -1; });
+	}
+
 	// REIN: eine id-Liste in Haeppchen zu hoechstens GARETIEN_ANHAKEN_HAEPPCHEN.
 	// 🪤 Gezaehlt werden hier die IDS, nicht die Objekte -- ein Objekt kann zwei Items tragen (eine
 	// „Ergaenzung" mit Namens- UND Quellen-Item), und die Grenze von 200 gilt dem Endpunkt-Rumpf.
@@ -6183,6 +6238,79 @@
 		return getragen;
 	}
 
+	// ---- Aufgabe 3: das Import-Ergebnis in der Statuszeile (06.09.2026) -----------------------------
+	// Brief: .superpowers/sdd/2026-09-06-garetien-importer-stage/task-3-brief.md
+
+	// REIN: die sieben Formzähler eines Import-Laufs im LEERZUSTAND -- dieselben Schlüssel wie
+	// `angelegt_je_form` aus der `apply`-Antwort (garetien-uebernahme.php,
+	// AVESMAPS_GARETIEN_JE_FORM_LEER). Der Startwert von `summe.angelegt_je_form` in
+	// garetienEinfuegenAusfuehren.
+	const AVESMAPS_GARETIEN_JE_FORM_LEER = {
+		path: 0, bach: 0, region: 0, label: 0, location: 0, settlement_place: 0, quelle: 0,
+	};
+
+	// REIN: die Formen eines Import-Laufs als Satzteil. Eine Form mit 0 wird NICHT genannt --
+	// „0 Flächen" ist keine Auskunft, sondern Rauschen.
+	// 🔴 `bach` steht in KLAMMERN beim Weg, weil er dessen Teilmenge ist (siehe die Zählung in
+	// garetien-uebernahme.php). Als eigener Posten gezählt ergäbe die Aufzählung mehr Objekte,
+	// als angelegt wurden.
+	const AVESMAPS_GARETIEN_FORM_WORT = {
+		path: ["Weg", "Wege"], region: ["Fläche", "Flächen"], label: ["Beschriftung", "Beschriftungen"],
+		location: ["Ort", "Orte"], settlement_place: ["Stätte", "Stätten"],
+	};
+
+	function garetienImportFormenText(jeForm) {
+		const f = jeForm || {};
+		const teile = [];
+		Object.keys(AVESMAPS_GARETIEN_FORM_WORT).forEach(function (schluessel) {
+			const n = Number(f[schluessel] || 0);
+			if (n === 0) { return; }
+			const wort = AVESMAPS_GARETIEN_FORM_WORT[schluessel][n === 1 ? 0 : 1];
+			let stueck = n + " " + wort;
+			if (schluessel === "path" && Number(f.bach || 0) > 0) {
+				stueck += " (" + Number(f.bach) + (Number(f.bach) === 1 ? " Bach)" : " Bäche)");
+			}
+			teile.push(stueck);
+		});
+		return teile.join(", ");
+	}
+
+	/*
+	 * REIN: was nach einem Import in der Statuszeile steht.
+	 *
+	 * 🔴 EIN TEILERFOLG IST EINE WARNUNG, KEINE ERFOLGSMELDUNG. Vier von fünf angelegt heißt: eines
+	 * liegt NICHT auf der Karte, und der Editor muss es wissen -- grün gemeldet sucht er es nie.
+	 * 🔴 DER GRUND KOMMT VOM SERVER und wird nicht nachgebaut: „aus 1 Punkten lässt sich kein Ziel
+	 * der Art path bauen" entsteht in avesmapsGaretienZielUebersteuern, und eine zweite Fassung im
+	 * Browser liefe beim ersten neuen Fehlerfall auseinander.
+	 */
+	function garetienImportMeldung(summe) {
+		const s = summe || {};
+		const angelegt = Number(s.applied || 0);
+		const fehler = Array.isArray(s.fehler) ? s.fehler : [];
+		const quellen = Number((s.angelegt_je_form || {}).quelle || 0);
+		const formen = garetienImportFormenText(s.angelegt_je_form);
+		const teile = [];
+		if (angelegt > 0) {
+			teile.push("✓ " + angelegt + (angelegt === 1 ? " Objekt importiert" : " Objekte importiert")
+				+ (formen === "" ? "" : " — " + formen));
+		}
+		if (quellen > 0) {
+			teile.push((angelegt > 0 ? "" : "✓ ") + quellen
+				+ (quellen === 1 ? " Quelle ergänzt" : " Quellen ergänzt"));
+		}
+		if (fehler.length > 0) {
+			const gesamt = angelegt + fehler.length;
+			// ⚠️ Genannt wird der Grund des ERSTEN Fehlschlags samt Zahl der übrigen -- eine Zeile
+			// trägt keine fünf Sätze, und die übrigen stehen in ihren Zeilen.
+			const rest = fehler.length > 1 ? " (und " + (fehler.length - 1) + " weitere)" : "";
+			teile.push("✕ " + fehler.length + " von " + gesamt + " nicht importiert: "
+				+ String(fehler[0].grund || "unbekannter Grund") + rest);
+		}
+		if (teile.length === 0) { teile.push("Es war nichts zu importieren."); }
+		return { text: teile.join(" · "), ton: fehler.length > 0 ? "bad" : (angelegt + quellen > 0 ? "ok" : "") };
+	}
+
 	function garetienEinfuegenAusfuehren(idsZumAnhaken, idsZumUebernehmen, runId, rufe, fortschritt, einstellungen) {
 		const sauber = (idsZumAnhaken || []).map(Number).filter(function (id) { return id > 0; });
 		const uebernahmeIds = (idsZumUebernehmen || []).map(Number).filter(function (id) { return id > 0; });
@@ -6200,7 +6328,13 @@
 		// und trägt die Handlung trotzdem zu Ende.
 		const haeppchenAnhaken = garetienIdsInHaeppchen(sauber);
 		const haeppchenUebernehmen = garetienIdsInHaeppchen(uebernahmeIds);
-		const summe = { applied: 0, deleted: 0, stale: 0, skipped: 0, declined: 0 };
+		// Aufgabe 3 (06.09.2026): `fehler`/`angelegt_je_form` reisen ab jetzt IN `summe` mit --
+		// Startwert ist eine eigene Kopie von AVESMAPS_GARETIEN_JE_FORM_LEER, nie die Konstante
+		// selbst (sonst schriebe der Lauf in sie hinein und der nächste Aufruf begänne nicht bei 0).
+		const summe = {
+			applied: 0, deleted: 0, stale: 0, skipped: 0, declined: 0,
+			fehler: [], angelegt_je_form: Object.assign({}, AVESMAPS_GARETIEN_JE_FORM_LEER),
+		};
 		let verarbeitet = 0;
 		let iterationen = 0;
 		// 💣 DER DECKEL gegen eine Endlosschleife bei einem Server, der nie `done` meldet --
@@ -6237,6 +6371,16 @@
 						// laengeren Laufs; an den Aufrufstellen waere es beim naechsten Knopf
 						// vergessen.
 						garetienQuellenNachtragen(antwort);
+						// Aufgabe 3 (06.09.2026): dieselbe Sammelstelle -- jede Antwort eines
+						// Häppchens trägt ihre EIGENEN Fehler/Formzahlen, `summe` hält die Summe über
+						// den GANZEN Lauf (mehrere Häppchen bei > GARETIEN_ANHAKEN_HAEPPCHEN ids).
+						if (Array.isArray(antwort && antwort.fehler)) {
+							summe.fehler = summe.fehler.concat(antwort.fehler);
+						}
+						const jeFormAntwort = (antwort && antwort.angelegt_je_form) || {};
+						Object.keys(summe.angelegt_je_form).forEach(function (schluessel) {
+							summe.angelegt_je_form[schluessel] += Number(jeFormAntwort[schluessel] || 0);
+						});
 						verarbeitet = Math.min(gesamt, verarbeitet + Number((antwort && antwort.processed) || 0));
 						melden(verarbeitet);
 						if (antwort && antwort.done === true) { return; }
@@ -6311,10 +6455,31 @@
 				: "Fügt ein …";
 		}
 		return garetienFussknopfKlick(angezeigte, runId, avesmapsGaretienRufe, fortschritt)
-			.then(function () {
-				return avesmapsGaretienAnzeigeNachEinfuegenBereinigen(avesmapsGaretienRufe, runId);
+			.then(function (summe) {
+				return avesmapsGaretienAnzeigeNachEinfuegenBereinigen(avesmapsGaretienRufe, runId)
+					.then(function () { return summe; });
 			})
-			.then(function () { return avesmapsGaretienListeHolen(); })
+			// Aufgabe 3 (06.09.2026): die Meldung MUSS nach avesmapsGaretienListeHolen() stehen --
+			// dessen avesmapsGaretienListeRendern ruft `garetienStatusRuhe`, das die Statuszeile
+			// sonst sofort wieder ueberschriebe (beide gehen ueber garetienStatusSetzen).
+			.then(function (summe) {
+				return avesmapsGaretienListeHolen().then(function (ergebnis) {
+					garetienLetzteNeuenIds = garetienOhneFehlgeschlagene(
+						garetienAnzeigeNeuIds(angezeigte), summe && summe.fehler
+					);
+					const meldung = garetienImportMeldung(summe);
+					garetienStatusSetzen(meldung.text, meldung.ton, garetienLetzteNeuenIds.length
+						? { text: "Rückgängig", ruf: function () {
+							garetienRuecknahmeMengeAusfuehren(
+								garetienLetzteNeuenIds, runId, avesmapsGaretienRufe, null
+							)
+								.then(function () { return avesmapsGaretienListeHolen(); })
+								.catch(function (fehler) { garetienListeFehlerZeigen(fehler); });
+						} }
+						: null);
+					return ergebnis;
+				});
+			})
 			.then(function (ergebnis) {
 				garetienEinfuegenLaeuft = false;
 				return ergebnis;
@@ -6871,6 +7036,11 @@
 			// garetienAnzeigeAnhakenIds (siehe deren Kommentare)
 			garetienAnzeigeUebernahmeIds,
 			garetienEinfuegenRueckfrageText,
+			// Aufgabe 3 (06.09.2026): das Import-Ergebnis in der Statuszeile
+			garetienImportFormenText,
+			garetienImportMeldung,
+			garetienAnzeigeNeuIds,
+			garetienOhneFehlgeschlagene,
 			// Meldung B (30.08.2026): „trotzdem neu anlegen“ trotz erkannter Kollision
 			garetienItemIstZusatz,
 			garetienNeuIstZusatz,
@@ -6909,6 +7079,12 @@
 			garetienRuecknahmeMengeRueckfrageText,
 			garetienRuecknahmeMengeAusfuehren,
 			garetienRuecknahmeMengeKlick,
+			// Aufgabe 3 (06.09.2026): der Weg des Briefs (`require(...).__test`) fuer die beiden
+			// REINEN Funktionen -- neben den flachen Exporten oben, keine zweite Fassung.
+			__test: {
+				garetienImportFormenText,
+				garetienImportMeldung,
+			},
 		};
 	}
 })();
