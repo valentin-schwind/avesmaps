@@ -258,9 +258,91 @@ async function pruefeNeuKlickScheitert() {
 	global.fetch = echtesFetch;
 }
 
+// =================================================================================================
+// C. Prüfrunde 06.09.2026, Befund 5: Import gelingt, der FOLGENDE Listenabruf lehnt ab -- die
+// Meldung darf NICHT verschluckt werden. Beide Klickverteiler, sonst bindet die Regel nur einen
+// von zwei Erzeugern.
+// =================================================================================================
+
+async function pruefeFussknopfListenfehler() {
+	const { api, dom, ELEMENTE } = ladeImporter(EXTRA_IDS);
+	const objekt = { key: "n:lf", items: [{ id: 811, change_type: "new", selected: 0 }] };
+	api.avesmapsGaretienAnzeigeLeeren();
+	api.avesmapsGaretienAnzeigeHinzufuegen([objekt]);
+
+	const fragen = function () { return true; };
+	const f = machFetch(function (rumpf) {
+		if (rumpf.action === "select") { return { ok: true }; }
+		if (rumpf.action === "apply") {
+			return {
+				ok: true, done: true, applied: 1, deleted: 0, stale: 0, processed: 1, remaining: 0,
+				skipped: 0, declined: 0, fehler: [],
+				angelegt_je_form: { path: 1, bach: 0, region: 0, label: 0, location: 0, settlement_place: 0, quelle: 0 },
+			};
+		}
+		if (rumpf.action === "liste" && rumpf.stand === "uebernommen") { return { ok: true, objekte: [] }; }
+		// 🔴 GENAU DIESER Listenabruf lehnt ab -- avesmapsGaretienRufe wirft, weil ok !== true.
+		if (rumpf.action === "liste") { return { ok: false, error: { message: "dump_locked" } }; }
+		throw new Error("unerwartet: " + rumpf.action);
+	});
+	const echtesFetch = global.fetch;
+	global.fetch = f.fn;
+
+	await api.garetienFussknopfEinfuegenKlick(4711, fragen);
+
+	const text1 = dom.text("#garetien-status-text");
+	wahr(text1.includes("1 Objekt importiert"),
+		"🔴 Befund 5: was angelegt wurde bleibt sichtbar, TROTZ Listenfehler: " + text1);
+	wahr(text1.includes("dump_locked"), "…und der Listenfehler hängt an: " + text1);
+	wahr(dom.klassen("#garetien-status-text").includes("bad"), "Ton bad wegen des Listenfehlers");
+	gleich(dom.text("#garetien-status-aktion"), "Rückgängig",
+		"🔴 der Rückgängig-Link bleibt angeboten -- GENAU HIER am wichtigsten, weil das Objekt auf "
+		+ "der Karte liegt und der Editor sonst nichts davon erfährt");
+	gleich(ELEMENTE["garetien-status-aktion"].hidden, false, "…und ist sichtbar");
+
+	global.fetch = echtesFetch;
+}
+
+async function pruefeNeuKlickListenfehler() {
+	const { api, dom, ELEMENTE } = ladeImporter(EXTRA_IDS);
+	const objekt = {
+		key: "neu:lf", urteil: "neu", abschnitte: [],
+		items: [{ id: 912, change_type: "new", selected: 0 }],
+	};
+
+	const f = machFetch(function (rumpf) {
+		if (rumpf.action === "select") { return { ok: true }; }
+		if (rumpf.action === "apply") {
+			return {
+				ok: true, done: true, applied: 1, deleted: 0, stale: 0, processed: 1, remaining: 0,
+				skipped: 0, declined: 0, fehler: [],
+				angelegt_je_form: { path: 1, bach: 0, region: 0, label: 0, location: 0, settlement_place: 0, quelle: 0 },
+			};
+		}
+		if (rumpf.action === "liste" && rumpf.stand === "uebernommen") { return { ok: true, objekte: [] }; }
+		if (rumpf.action === "liste") { return { ok: false, error: { message: "dump_locked" } }; }
+		throw new Error("unerwartet: " + rumpf.action);
+	});
+	const echtesFetch = global.fetch;
+	global.fetch = f.fn;
+
+	await api.garetienNeuKlick({ target: neuZiel(objekt.key) }, [objekt], 4711, function () { return true; });
+
+	const text1 = dom.text("#garetien-status-text");
+	wahr(text1.includes("1 Objekt importiert"), "auch hier bleibt sichtbar, was angelegt wurde: " + text1);
+	wahr(text1.includes("dump_locked"), "…mit dem Listenfehler: " + text1);
+	wahr(dom.klassen("#garetien-status-text").includes("bad"), "Ton bad");
+	gleich(dom.text("#garetien-status-aktion"), "Rückgängig", "Rückgängig bleibt angeboten");
+	gleich(ELEMENTE["garetien-status-aktion"].hidden, false, "…sichtbar");
+
+	global.fetch = echtesFetch;
+}
+
 pruefeFussknopf()
 	.then(pruefeNeuKlickErfolg)
 	.then(pruefeNeuKlickScheitert)
+	.then(pruefeFussknopfListenfehler)
+	.then(pruefeNeuKlickListenfehler)
 	.then(function () {
 		console.log(`garetien-import-verdrahtung ok -- ${checks} Zusicherungen`);
 	})
