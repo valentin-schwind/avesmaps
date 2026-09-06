@@ -171,7 +171,63 @@ assert(
     '3c: keine Kategorie steht doppelt in der Abfrageliste'
 );
 
+// ===== 4) UND KEINE VIERTE KOPIE IRGENDWO SONST ===============================================
+// 🔴 DIE ZUSICHERUNG, DIE DEN NAECHSTEN FAENGT. Die drei Tafeln oben waren nicht die erste
+// Doppelung dieser Art -- `AVESMAPS_WIKI_CASE_LABELS` war es vor ihnen, mit demselben Schaden und
+// derselben Begruendung im selben Endpunkt. Eine Regel, die nur die vier bekannten Namen prueft,
+// haette keine davon vorher gefunden. Also wird der ganze Baum gezaehlt.
+//
+// ⚠️ Zwei Doppelungen sind ECHT und trotzdem harmlos: sie stehen je in zwei ENDPUNKTEN, und ein
+// Endpunkt laedt nie einen anderen -- sie treffen sich also in keinem Request. Beide stehen
+// deshalb hier mit Grund, wie im Register des Drossel-Waechters. Wer eine dritte eintraegt, muss
+// dasselbe belegen koennen.
+$erlaubteDoppelungen = [
+    'AVESMAPS_LOCATION_SUBTYPES' => 'Zwei Endpunkte (api/app/report-location.php, api/edit/map/features.php). '
+        . 'Sie laden einander nie, treffen sich also in keinem Request. Gegen das Auseinanderlaufen '
+        . 'haelt ortsklassen-test.php alle fuenf Listen dieses Namens gegeneinander.',
+    'AVESMAPS_WIKI_SYNC_NO_AUTO_HANDLE' => 'Zwei Endpunkte (api/edit/wiki/sync.php, '
+        . 'api/edit/wiki/territories.php). Ein Schalter, den jeder Endpunkt fuer sich setzt, bevor '
+        . 'er endpoint.php laedt -- er GEHOERT dorthin und laesst sich nicht teilen.',
+];
+
+$mehrfach = [];
+foreach ($dateien as $pfad => $quelle) {
+    // Tests duerfen Konstanten fuer ihre Fixtures anlegen -- sie laufen einzeln.
+    if (str_contains($pfad, '/__tests__/')) {
+        continue;
+    }
+    if (preg_match_all('/^\s*const\s+([A-Z][A-Z0-9_]*)\s*=/m', $quelle, $treffer) === 0) {
+        continue;
+    }
+    foreach ($treffer[1] as $name) {
+        $mehrfach[$name][substr($pfad, strlen($repo) + 1)] = true;
+    }
+}
+
+foreach ($mehrfach as $name => $orte) {
+    if (count($orte) < 2) {
+        continue;
+    }
+    assert(
+        array_key_exists($name, $erlaubteDoppelungen),
+        "4a: {$name} wird in " . count($orte) . ' Dateien auf Dateiebene definiert ('
+            . implode(', ', array_keys($orte)) . ') -- die zuerst geladene gewinnt lautlos. '
+            . 'Entweder zusammenlegen, oder hier mit dem Beleg eintragen, dass die Dateien sich '
+            . 'in keinem Request treffen.'
+    );
+}
+foreach ($erlaubteDoppelungen as $name => $grund) {
+    assert(trim($grund) !== '', "4b: die Ausnahme fuer {$name} traegt keinen Grund");
+    assert(
+        isset($mehrfach[$name]) && count($mehrfach[$name]) > 1,
+        "4c: {$name} steht gar nicht mehr doppelt -- die Ausnahme verwaltet ein Gespenst und "
+            . 'gehoert entfernt'
+    );
+}
+
 echo 'OK  1: die vier Wiki-Tafeln werden je EINMAL definiert -- in der Bibliothek.' . "\n";
 echo 'OK  2: kein Schluessel der gemessenen Fassung ist verlorengegangen.' . "\n";
 echo 'OK  3: der Crawl fragt die echten Kategorien ab und keine erfundene ('
     . count($kategorien) . " Kategorien).\n";
+echo 'OK  4: und im ganzen Baum steht keine weitere Konstante doppelt (ausser '
+    . count($erlaubteDoppelungen) . " begruendeten, die sich nie im selben Request treffen).\n";
