@@ -333,8 +333,64 @@ for ($i = $klammerAuf, $n = strlen($vorschauCode); $i < $n; $i++) {
 }
 assert($tiefe === 0 && $block !== '', 'der Antwortblock wurde vollstaendig eingefangen');
 
-preg_match_all("~'([a-z_]+)'\s*=>~", $block, $imBlock);
-$endpunktSchluessel = array_values(array_unique($imBlock[1]));
+// 🔴 TIEFE 1, NICHT "IRGENDWO IM BLOCK" (Ruecklauf des Koordinators, 06.09.2026, belegtes
+// Fehlgruen 1): ein flacher Regex `'key' =>` findet dieselbe Zeichenfolge auch UNTER einem
+// Zwischenschluessel -- `'fehler' => …` und `'angelegt_je_form' => …` haetten unter einem
+// erfundenen `'meta' => [ … ]` genauso gruen ausgesehen, obwohl auf oberster Ebene nichts
+// ankaeme. Der Block wird deshalb an seinen TOP-LEVEL-Kommas aufgeteilt (dieselbe Klammertiefen-
+// Zerlegung wie beim IF(...)-Uebersetzer in garetien-uebernahme-test.php, hier ueber `(`/`)`
+// UND `[`/`]` gemeinsam, weil ein Wert wie `is_array($step['x'] ?? null) ? $step['x'] : []`
+// beide Klammerarten verschachtelt).
+$innen = substr($block, 1, -1);
+$segmente = [];
+$segTiefe = 0;
+$segInText = false;
+$segStueck = '';
+for ($i = 0, $n = strlen($innen); $i < $n; $i++) {
+    $z = $innen[$i];
+    if ($z === "'") { $segInText = !$segInText; }
+    if (!$segInText) {
+        if ($z === '[' || $z === '(') { $segTiefe++; }
+        if ($z === ']' || $z === ')') { $segTiefe--; }
+        if ($z === ',' && $segTiefe === 0) { $segmente[] = $segStueck; $segStueck = ''; continue; }
+    }
+    $segStueck .= $z;
+}
+if (trim($segStueck) !== '') { $segmente[] = $segStueck; }
+
+// 🔴 UND RECHTS VOM PFEIL STEHT WIRKLICH DER `$step`-SCHLUESSEL (belegtes Fehlgruen 2): eine
+// fest verdrahtete `'fehler' => []` traegt den Namen `fehler` genauso im Quelltext wie die
+// echte Weiterleitung -- ein Test, der nur den NAMEN sucht, kann die beiden nicht
+// unterscheiden. Verlangt wird deshalb `$step['<derselbe Schluessel>']` in der Wertseite, in
+// exakt der Form, in der `quellen_neu` es daneben schon tut.
+// ⚠️ `done` ist die EINE bekannte Ausnahme: es liest `$done`, eine lokale Variable, die weiter
+// oben bereits aus `$step['done']` abgeleitet wurde -- kein zweiter Erzeuger, nur eine
+// zwischengeschaltete Bool-Umformung.
+$endpunktSchluessel = [];
+$ohneWertVerweis = [];
+foreach ($segmente as $segment) {
+    if (!preg_match("~^\s*'([a-z_]+)'\s*=>\s*(.*)$~s", $segment, $treffer)) {
+        continue;
+    }
+    $schluessel = $treffer[1];
+    $wert = trim($treffer[2]);
+    $endpunktSchluessel[] = $schluessel;
+    // 'ok' gehoert nicht zur Rueckgabe des Schritts -- der Endpunkt setzt es selbst
+    // (`'ok' => true`). Geprueft wird nur, was tatsaechlich aus `$echteSchluessel` stammt.
+    if (!in_array($schluessel, $echteSchluessel, true)) {
+        continue;
+    }
+    if ($schluessel === 'done') {
+        if ($wert !== '$done') {
+            $ohneWertVerweis[] = $schluessel;
+        }
+        continue;
+    }
+    if (!str_contains($wert, "\$step['" . $schluessel . "']")) {
+        $ohneWertVerweis[] = $schluessel;
+    }
+}
+$endpunktSchluessel = array_values(array_unique($endpunktSchluessel));
 
 // `ok` steht nicht in der Rueckgabe des Schritts (der Endpunkt setzt es selbst) -- die einzige
 // Ausnahme, die der Vergleich kennen darf.
@@ -343,5 +399,8 @@ assert($fehlendeSchluessel === [],
     'DER apply-ZWEIG REICHT NICHT WEITER, WAS DER SCHRITT LIEFERT -- verloren gehen: '
     . implode(', ', $fehlendeSchluessel) . ' (Schritt: ' . implode(', ', $echteSchluessel)
     . ' | Endpunkt: ' . implode(', ', $endpunktSchluessel) . ')');
+assert($ohneWertVerweis === [],
+    'DIESE SCHLUESSEL STEHEN AUF DER LINKEN SEITE, IHR WERT LIEST ABER NICHT $step[...]: '
+    . implode(', ', $ohneWertVerweis));
 
 echo "OK: garetien-endpunkt-test\n";

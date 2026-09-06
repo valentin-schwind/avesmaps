@@ -557,7 +557,11 @@ assert($label['feature_type'] === 'label', 'es ist ein Label');
 assert(json_decode((string) $label['geometry_json'], true)['type'] === 'Point', 'und ein PUNKT, keine Flaeche');
 $flaeche = $pdo->query('SELECT * FROM ecosystem_area')->fetch(PDO::FETCH_ASSOC);
 assert($flaeche !== false && (int) $flaeche['region_id'] === (int) $region['id'], 'die Flaeche haengt an der Region');
-$pruefungen += 8;
+// 🔴 NACHTRAG (Ruecklauf des Koordinators, 06.09.2026): `angelegt_je_form.region` war bislang nur
+// gegen `=== 0` gesichert (an einem Weg-Item) -- eine Flaeche, die wirklich entsteht, wurde nie
+// gemessen. Genau HIER entsteht eine (Muehlsee), also gehoert die Zusicherung hierher.
+assert($e3['angelegt_je_form']['region'] === 1, 'die Flaeche zaehlt als region: ' . json_encode($e3['angelegt_je_form']));
+$pruefungen += 9;
 
 // --- 🔴 KORREKTUR A (Owner-Nachtrag 30.08.2026): OHNE eine gespeicherte Uebersteuerung fuer die
 // Art 'see' bleibt es beim heutigen GRUNDWERT -- ausdruecklich, nicht zufaellig. Diese Zeile ist
@@ -1264,10 +1268,15 @@ $schrittMoor = avesmapsGaretienApplyStep($pdo3, $runId9, 1, ['id' => 1, 'usernam
 // `applied` (das misst `objekt_felder`, nicht mehr das GANZE `felder` samt Quelle), sondern in
 // `angelegt_je_form.quelle`. Hier stand bis dahin `applied === 1`; das war derselbe Zaehler, der
 // bei einer echten Namens-/Geometrie-Aenderung (siehe schritt4/schritt6/schritt7 oben) weiterhin
-// auf 1 steht -- die Vermischung war genau der Fehler, den die Formzaehlung beheben sollte
-// (sonst ergaebe die Summe der fuenf Formen NICHT `applied`, sobald ein Lauf 'new' und 'changed'
-// mischt). "Uebernommen" wird deshalb hier an `skipped`/`remaining`/`done` UND am neuen Zaehler
-// belegt, nicht mehr an `applied` allein.
+// auf 1 steht.
+// 🔴 DER GRUND IST DIE STATUSZEILE, KEINE SUMMEN-INVARIANTE (die es zwischen 'new' und 'changed'
+// nicht gibt -- schritt4/schritt6/schritt7 haben alle `objekt_felder > 0` und trotzdem keine
+// Fuenf-Formen-Summe, die etwas ueber `applied` aussagt). `garetienImportMeldung`
+// (js/review/review-garetien-importer.js) baut aus `applied` "N Objekte importiert" und aus
+// `angelegt_je_form.quelle` GETRENNT "N Quellen ergaenzt" -- zaehlte die Moor-Quelle in BEIDEN,
+// laese der Editor fuer DIESE eine Handlung "1 Objekt importiert · 1 Quelle ergaenzt", obwohl kein
+// einziges Objekt entstanden ist. "Uebernommen" wird deshalb hier an `skipped`/`remaining`/`done`
+// UND am neuen Zaehler belegt, nicht mehr an `applied` allein.
 assert($schrittMoor['skipped'] === 0 && $schrittMoor['remaining'] === 0 && $schrittMoor['done'] === true,
     'die Moor-Quelle wurde nicht uebernommen: ' . json_encode($schrittMoor));
 assert($schrittMoor['applied'] === 0, 'eine reine Quellen-Ergaenzung legt kein Kartenobjekt an: ' . json_encode($schrittMoor));
@@ -1470,7 +1479,10 @@ assert($ortZeile['feature_type'] === 'location' && $ortZeile['feature_subtype'] 
     'feature_type/feature_subtype stimmen: ' . json_encode($ortZeile));
 assert(!str_contains((string) $ortZeile['properties_json'], 'wiki_region'),
     'ein Ort bekommt KEINE Wiki-Landschaft zugewiesen: ' . $ortZeile['properties_json']);
-$pruefungen += 4;
+// 🔴 NACHTRAG (Ruecklauf des Koordinators, 06.09.2026): `angelegt_je_form.location` war bislang
+// nur gegen `=== 0` gesichert -- hier entsteht wirklich ein Ort.
+assert($eOrt['angelegt_je_form']['location'] === 1, 'der Ort zaehlt als location: ' . json_encode($eOrt['angelegt_je_form']));
+$pruefungen += 5;
 
 // 🔴 Die Quelle haengt an entity_type='settlement', NICHT 'location' -- das ist die Bindung, die
 // map-features.php:1228 fuer den Infobox-Quellenkasten benutzt.
@@ -1745,7 +1757,10 @@ $bergZeile = $pdoNeu->query("SELECT public_id, feature_type, feature_subtype, na
 assert($bergZeile !== false, 'der Gipfel steht in map_features');
 assert($bergZeile['feature_type'] === 'label' && $bergZeile['feature_subtype'] === 'berggipfel',
     'feature_type/feature_subtype stimmen: ' . json_encode($bergZeile));
-$pruefungen += 3;
+// 🔴 NACHTRAG (Ruecklauf des Koordinators, 06.09.2026): `angelegt_je_form.label` war bislang nur
+// gegen `=== 0` gesichert -- hier entsteht wirklich ein Berggipfel-Label.
+assert($eBerg['angelegt_je_form']['label'] === 1, 'der Gipfel zaehlt als label: ' . json_encode($eBerg['angelegt_je_form']));
+$pruefungen += 4;
 
 // --- 🔴 DER IMPORT SETZT DIE VORGABE DER ART: min_zoom=2, max_zoom=6, priority=4, size=17 --
 // zeichenidentisch mit der gespeicherten Uebersteuerung, und andere Werte als bei der Muehlsee-
@@ -3473,7 +3488,10 @@ assert(($eI['quellen_neu'][0]['entity_type'] ?? null) === 'settlement_place' && 
 $itemI = $pdoI->query('SELECT apply_state, apply_note FROM sync_plan_item WHERE id = ' . $rondraId)->fetch(PDO::FETCH_ASSOC);
 assert($itemI['apply_state'] === 'done' && $itemI['apply_note'] === $staette['public_id'],
     'der Vermerk am Item ist die public_id der Staette: ' . json_encode($itemI));
-$pruefungen += 8;
+// 🔴 NACHTRAG (Ruecklauf des Koordinators, 06.09.2026): `angelegt_je_form.settlement_place` war
+// bislang nur gegen `=== 0` gesichert -- hier entsteht wirklich eine Staette.
+assert($eI['angelegt_je_form']['settlement_place'] === 1, 'die Staette zaehlt als settlement_place: ' . json_encode($eI['angelegt_je_form']));
+$pruefungen += 9;
 
 // --- 💣 KEIN STILLER RUECKFALL auf die Karte: ohne Befund bricht das Item ab und sagt warum.
 avesmapsSyncPlanAddItem($pdoI, $laufI, $baueBauwerk('Tempel ohne Befund', null));

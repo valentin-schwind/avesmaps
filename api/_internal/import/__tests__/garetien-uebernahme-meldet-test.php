@@ -58,7 +58,13 @@ final class AvesmapsGaretienUebernahmeMeldetTestPdo extends PDO
         return $fetchMode === null ? parent::query($query) : parent::query($query, $fetchMode, ...$args);
     }
 
-    /** Zeichengleich aus AvesmapsGaretienUebernahmeTestPdo -- siehe die Begruendung am Klassenkopf. */
+    /**
+     * Zeichengleich aus AvesmapsGaretienUebernahmeTestPdo -- siehe die Begruendung am Klassenkopf.
+     *
+     * 💣 Das IF wird KLAMMERWEISE zerlegt und nicht per Regex: `IF(VALUES(label) = '', label,
+     * VALUES(label))` ist verschachtelt, und ein Muster mit `[^,]*` schneidet es an der falschen
+     * Stelle auseinander -- lautlos, mit gueltigem SQL als Ergebnis.
+     */
     private static function mysqlUpsertNachSqlite(string $query): string
     {
         $schluessel = str_contains($query, 'INTO sources')
@@ -68,6 +74,16 @@ final class AvesmapsGaretienUebernahmeMeldetTestPdo extends PDO
         $tabelle = str_contains($query, 'INTO sources') ? 'sources' : 'feature_sources';
         $query = preg_replace('~VALUES\(([a-z_]+)\)~i', 'excluded.$1', $query) ?? $query;
 
+        // IF(a, b, c) -> CASE WHEN a THEN b ELSE c END, von innen nach aussen.
+        //
+        // 💣 DER ZERLEGER MUSS ZEICHENKETTEN KENNEN. Ohne `$inText` spaltet er auch an einem Komma
+        // INNERHALB eines Literals: `IF(own_fields NOT LIKE '%,is_official,%', a, b)` zerfaellt in
+        // fuenf Teile statt drei, die Schleife bricht ab (`count !== 3`) und laesst JEDES `IF(` der
+        // Anweisung stehen -- SQLite meldet dann „no such function: IF", und zwar an einer Stelle,
+        // die mit dem eigentlichen Feld nichts zu tun hat.
+        // 🪤 UND ES FAELLT LOKAL NICHT AUF: SQLite kennt `IF` seit 3.32 als Alias von `iif`, dieser
+        // Rechner faehrt 3.51. Der Deploy-Runner ist aelter -- gruen hier, rot im Tor. Dieselbe
+        // Klasse Fallgrube wie CRLF gegen LF, nur eine Ebene tiefer (02.09.2026, ein Deploy).
         while (($ab = strpos($query, 'IF(')) !== false) {
             $tiefe = 0;
             $inText = false;
@@ -280,8 +296,15 @@ $angelegteWege = (int) $pdo->query("SELECT COUNT(*) FROM map_features WHERE feat
 assert($angelegteWege === 1, 'genau ein Weg liegt auf der Karte: ' . $angelegteWege);
 $bach = $pdo->query("SELECT properties_json FROM map_features WHERE feature_type = 'path'")->fetch(PDO::FETCH_ASSOC);
 assert(str_contains((string) $bach['properties_json'], '"is_bach":true'), 'und er traegt das Bach-Haekchen: ' . $bach['properties_json']);
-assert((int) $pdo->query('SELECT COUNT(*) FROM map_features')->fetchColumn() >= 1,
-    'und ueberhaupt etwas liegt auf der Karte (die zwei Endkreuzungen zaehlen mit)');
+// 🔴 KORRIGIERT (Ruecklauf des Koordinators, 06.09.2026): `COUNT(*) FROM map_features >= 1` war
+// eine Tautologie -- der Weg allein (zwei Zeilen darueber schon auf `=== 1` geprueft) erfuellt
+// sie bereits. Gemeint waren die zwei Endkreuzungen, die `avesmapsGaretienSetztEndkreuzungen`
+// ohne `endpoint_crossings: false` im Einstellungs-Rumpf anlegt (Vorgabe JA, siehe die
+// Begruendung an der Funktion) -- die werden jetzt wirklich gezaehlt.
+$angelegteKreuzungen = (int) $pdo->query(
+    "SELECT COUNT(*) FROM map_features WHERE feature_type = 'junction' AND feature_subtype = 'crossing'"
+)->fetchColumn();
+assert($angelegteKreuzungen === 2, 'genau zwei Endkreuzungen liegen auf der Karte: ' . $angelegteKreuzungen);
 $pruefungen += 3;
 
 // =================================================================================================
@@ -328,5 +351,30 @@ $quelleAmBestand = (int) $pdo2->query(
 )->fetchColumn();
 assert($quelleAmBestand === 1, 'die Quelle haengt wirklich am bestehenden Weg: ' . $quelleAmBestand);
 $pruefungen++;
+
+// =================================================================================================
+// 🔴 NACHTRAG (Ruecklauf des Koordinators, 06.09.2026): `fehler[].grund` MUSS gekappt sein, wie
+// `apply_note` -- er reist seit diesem Tag bis in die Antwort von sync-plan.php und damit zu
+// JEDEM Editor. Ein 'changed'-Item mit einem Anlass ausserhalb der erlaubten Liste
+// ('widerspruch') baut seinen Grund aus dem Label des Items zusammen ("<Label> braucht eine
+// Entscheidung von Hand") -- ein ueberlanges Label reicht, um das Kappen zu pruefen, ohne
+// irgendein Kartenobjekt oder eine Quelle zu beruehren (dieser Zweig scheitert VOR jedem
+// Schreibvorgang ausser dem Item-Vermerk selbst).
+$pdo3 = avesmapsGaretienUebernahmeMeldetTestPdo();
+$langesLabel = str_repeat('X', 400);
+$idLang = avesmapsGaretienUebernahmeMeldetItemAnlegen($pdo3, $runId, 'langer-grund', $langesLabel, [
+    'herkunft' => 'garetien',
+    'anlass' => 'widerspruch',
+    'ziel' => 'path',
+    'subtyp' => 'Flussweg',
+]);
+$pdo3->prepare('UPDATE sync_plan_item SET change_type = :ct, entity_public_id = :pid WHERE id = :id')
+    ->execute(['ct' => 'changed', 'pid' => '00000000-0000-4000-8000-00000000be9e', 'id' => $idLang]);
+$ergebnisLang = avesmapsGaretienApplyStep($pdo3, $runId, 1, ['id' => 1], null, [$idLang]);
+assert(count($ergebnisLang['fehler']) === 1, 'genau ein Fehlschlag: ' . json_encode($ergebnisLang['fehler']));
+$grundLang = $ergebnisLang['fehler'][0]['grund'];
+assert(strlen($grundLang) <= 300, 'der Grund ist auf 300 Zeichen gekappt, nicht ' . strlen($grundLang) . ': ' . $grundLang);
+assert(str_contains($grundLang, str_repeat('X', 100)), 'und er ist der ECHTE Text, kein Platzhalter: ' . $grundLang);
+$pruefungen += 2;
 
 echo "OK ({$pruefungen} Pruefungen)\n";

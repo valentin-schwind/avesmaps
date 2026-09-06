@@ -343,6 +343,14 @@ try {
                 // bisher nur in `apply_note` in der Datenbank und nie im Browser. `angelegt_je_form`:
                 // Wege/Baeche/Flaechen/Beschriftungen/Orte/Staetten/Ergaenzungen einzeln gezaehlt,
                 // statt einer nackten `applied`-Zahl.
+                // 💣 Kein rohes getMessage() an den Client (Informationsabfluss, Meilenstein M1,
+                // AGENTS.md §10: "several edit endpoints leak getMessage() to clients") -- derselbe
+                // Praezedenzfall wie am Auffang-catch in garetien-import.php
+                // (garetien-endpunkt-test.php prueft ihn dort). ⚠️ Anders als dort ist DIESER
+                // Wert nicht auf Admins beschraenkt: 'apply' laeuft fuer jeden Editor mit
+                // Faehigkeit `edit` (seit 31.08.2026). `fehler[].grund` wird deshalb in
+                // `avesmapsGaretienUebernehmen` bereits auf 300 Zeichen gekappt (`mb_substr`,
+                // wie `apply_note`), bevor er ueberhaupt hierher gereicht wird.
                 'fehler' => is_array($step['fehler'] ?? null) ? $step['fehler'] : [],
                 'angelegt_je_form' => is_array($step['angelegt_je_form'] ?? null) ? $step['angelegt_je_form'] : [],
             ]);

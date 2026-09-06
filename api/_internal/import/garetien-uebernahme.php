@@ -700,13 +700,6 @@ function avesmapsGaretienErgaenzungAnwenden(PDO $pdo, array $nach, string $publi
     $felder = (array) ($nach['felder'] ?? []);
     $userId = (int) ($user['id'] ?? 0);
     $geschrieben = 0;
-    // 🔴 GETRENNT VON `$geschrieben` SEIT DEM 06.09.2026 (Import-Stage, Aufgabe 2, Nachtrag): das
-    // OBJEKT selbst zaehlt nur bei name/geometrie -- die Quelle ist additiv an einem BESTEHENDEN
-    // Objekt und legt kein neues Kartenobjekt an. `avesmapsGaretienUebernehmen` braucht diese
-    // Trennung, um `applied` (= wirklich veraenderte/angelegte Objekte) von `angelegt_je_form.quelle`
-    // (= reine Zitat-Ergaenzungen) auseinanderzuhalten -- vermischt behauptete "3 Wege" faelschlich
-    // drei neue Objekte, waehrend in Wahrheit nur ein alter drei Quellen dazubekommen hat.
-    $objektGeschrieben = 0;
     // 🔴 ZWEI PUBLIC-IDS, dieselbe Trennung wie im Anlegen (avesmapsGaretienUebernehmen): $publicId
     // ist das ZIEL des Update-Aufrufs -- bei einer Flaeche die REGION, die avesmapsUpdateEcosystemRegion
     // / …AreaGeometry auch tatsaechlich brauchen. Der ID-Raum, in dem die Karte die QUELLE
@@ -756,7 +749,6 @@ function avesmapsGaretienErgaenzungAnwenden(PDO $pdo, array $nach, string $publi
                 );
             }
             $geschrieben++;
-            $objektGeschrieben++;
         }
         if (in_array('geometrie', $felder, true)) {
             avesmapsUpdatePathFeatureGeometry($pdo, [
@@ -765,7 +757,6 @@ function avesmapsGaretienErgaenzungAnwenden(PDO $pdo, array $nach, string $publi
                 'coordinates' => avesmapsGaretienGeoJsonNachHausvertrag((array) $nach['geometry']['coordinates']),
             ], $user);
             $geschrieben++;
-            $objektGeschrieben++;
         }
     } elseif (($nach['ziel'] ?? '') === 'location') {
         // 🔴 Ortschaften (Entwurf §3.1). 💣 avesmapsUpdatePointFeatureDetails IST GENAUSO WENIG
@@ -799,7 +790,6 @@ function avesmapsGaretienErgaenzungAnwenden(PDO $pdo, array $nach, string $publi
                 'other_source' => $props['other_source'] ?? null,
             ], $user);
             $geschrieben++;
-            $objektGeschrieben++;
         }
         if (in_array('geometrie', $felder, true)) {
             $punkt = avesmapsGaretienPunktAusGeometrie($nach);
@@ -809,7 +799,6 @@ function avesmapsGaretienErgaenzungAnwenden(PDO $pdo, array $nach, string $publi
                 'lat' => $punkt['lat'],
             ], $user);
             $geschrieben++;
-            $objektGeschrieben++;
         }
     } elseif (($nach['ziel'] ?? '') === 'label') {
         // 🔴 Der Berggipfel (Entwurf §3.4). ⭐ avesmapsUpdateLabelFeature IST ein Teil-Update fuer
@@ -831,7 +820,6 @@ function avesmapsGaretienErgaenzungAnwenden(PDO $pdo, array $nach, string $publi
                 'feature_subtype' => (string) ($vorher['feature_subtype'] ?? 'berggipfel'),
             ], $user);
             $geschrieben++;
-            $objektGeschrieben++;
         }
         if (in_array('geometrie', $felder, true)) {
             $punkt = avesmapsGaretienPunktAusGeometrie($nach);
@@ -841,7 +829,6 @@ function avesmapsGaretienErgaenzungAnwenden(PDO $pdo, array $nach, string $publi
                 'lat' => $punkt['lat'],
             ], $user);
             $geschrieben++;
-            $objektGeschrieben++;
         }
     } else {
         if (in_array('name', $felder, true)) {
@@ -851,7 +838,6 @@ function avesmapsGaretienErgaenzungAnwenden(PDO $pdo, array $nach, string $publi
                 'auto_name' => false,
             ], $userId);
             $geschrieben++;
-            $objektGeschrieben++;
         }
         // 🔴 RULING R6 (Owner, nach R5): geometrie ersetzen gilt fuer ALLE Formen -- Flaechen
         // UND Wege/Fluesse. R5 hatte versucht, diesen Zweig fuer Regionen wegzudefinieren; der
@@ -902,7 +888,6 @@ function avesmapsGaretienErgaenzungAnwenden(PDO $pdo, array $nach, string $publi
                 'geometry' => $nach['geometry'],
             ], $userId);
             $geschrieben++;
-            $objektGeschrieben++;
         }
     }
 
@@ -930,6 +915,16 @@ function avesmapsGaretienErgaenzungAnwenden(PDO $pdo, array $nach, string $publi
             $beruehrt = ['entity_type' => $entityType, 'public_id' => $quellePublicId];
         }
     }
+
+    // 🔴 ABGELEITET, NICHT MITGEFUEHRT (Ruecklauf des Koordinators, 06.09.2026): acht parallele
+    // `$objektGeschrieben++`-Zeilen neben `$geschrieben++` waren eine von Hand gepflegte
+    // Ableitung, die per Konstruktion IMMER `$geschrieben - ($quellen > 0 ? 1 : 0)` ergab -- die
+    // Klasse Fehler, vor der AGENTS.md §10 an den bbox-Spalten warnt: eine Zahl, die man RECHNEN
+    // kann, wird nicht gepflegt. Ein neunter Schreibpfad, der nur das erste `++` bekaeme, machte
+    // `applied` still zu klein. `$geschrieben` zaehlt name+geometrie+quelle zusammen, und `quelle`
+    // ist die einzige der drei, die NICHT zum Objekt selbst gehoert -- die Differenz IST
+    // `objekt_felder`.
+    $objektGeschrieben = $geschrieben - ($quellen > 0 ? 1 : 0);
 
     return ['felder' => $geschrieben, 'quellen' => $quellen, 'quelle_an' => $beruehrt, 'objekt_felder' => $objektGeschrieben];
 }
@@ -1462,7 +1457,13 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
                 // ⚠️ LAUT, nicht still: eine verworfene Zielwahl waere von „hat funktioniert"
                 // nicht zu unterscheiden, und das Objekt laege danach in der falschen Form auf der
                 // Karte.
-                $fehler[] = ['item' => (int) $item['id'], 'grund' => $abbruch->getMessage()];
+                // 🔴 GEKAPPT WIE `apply_note` ZWEI ZEILEN DARUNTER (Ruecklauf des Koordinators,
+                // 06.09.2026): `fehler[].grund` reist seit dem 06.09.2026 bis in die Antwort von
+                // sync-plan.php und damit zu JEDEM Editor mit Faehigkeit `edit` -- nicht nur zum
+                // Admin, wie beim Fetch-Fehler in garetien-import.php (AGENTS.md §10: "several
+                // edit endpoints leak getMessage() to clients", Meilenstein M1). Ein ungekapptes
+                // `getMessage()` waere genau dieser Mangel, neu aufgemacht.
+                $fehler[] = ['item' => (int) $item['id'], 'grund' => mb_substr($abbruch->getMessage(), 0, 300, 'UTF-8')];
                 avesmapsGaretienItemAbschliessen(
                     $pdo,
                     (int) $item['id'],
@@ -1489,7 +1490,7 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
             // Frage an einen Menschen und keine Anweisung, unser Objekt zu ueberschreiben.
             if (!in_array($anlass, ['ergaenzung', 'umbenennung', 'geometrie'], true)) {
                 $grund = '"' . $item['label'] . '" braucht eine Entscheidung von Hand';
-                $fehler[] = ['item' => (int) $item['id'], 'grund' => $grund];
+                $fehler[] = ['item' => (int) $item['id'], 'grund' => mb_substr($grund, 0, 300, 'UTF-8')];
                 avesmapsGaretienItemAbschliessen($pdo, (int) $item['id'], 'stale', mb_substr($grund, 0, 300, 'UTF-8'));
                 continue;
             }
@@ -1501,10 +1502,16 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
                 // Rueckfrage): name/geometrie-Aenderungen sind ein wirklich veraendertes
                 // Kartenobjekt, eine Quelle ist ein additiver Verweis an einem BESTEHENDEN --
                 // `objekt_felder` haelt das auseinander, `felder` (das GANZE, quelle inklusive)
-                // bleibt fuer Rueckwaertskompatibilitaet stehen. Vorher zaehlte eine reine
-                // Quellen-Ergaenzung mit in `applied`, und die Formzahlen-Zusicherung
-                // (Summe der fuenf Formen == applied) hielt nur, weil kein Test je 'new' und
-                // 'changed' im selben Lauf mischte.
+                // bleibt fuer Rueckwaertskompatibilitaet stehen.
+                // 🔴 DIE ECHTE BEGRUENDUNG STEHT IN DER STATUSZEILE, NICHT IN EINER SUMMEN-
+                // INVARIANTE (die es zwischen 'new' und 'changed' NICHT gibt -- siehe
+                // schritt4/schritt6/schritt7 in garetien-uebernahme-test.php, alle mit
+                // objekt_felder > 0 und trotzdem ohne diese Aussage). `garetienImportMeldung`
+                // (js/review/review-garetien-importer.js, Aufgabe 3) baut aus `applied` den Satz
+                // "N Objekte importiert" und aus `angelegt_je_form.quelle` GETRENNT den Satz
+                // "N Quellen ergaenzt". Zaehlte eine reine Quellen-Ergaenzung in BEIDEN mit, laese
+                // ein Editor fuer EINE Handlung "3 Objekte importiert · 3 Quellen ergaenzt" --
+                // drei erfundene Kartenobjekte, die es nie gab.
                 $angelegt += ($ergebnis['objekt_felder'] ?? 0) > 0 ? 1 : 0;
                 $quellen += $ergebnis['quellen'];
                 // 🔴 DER ERGAENZUNGSZWEIG ZAEHLT ALS `quelle`, NIE ALS EINE DER FUENF FORMEN --
@@ -1526,7 +1533,9 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
                 }
                 avesmapsGaretienItemAbschliessen($pdo, (int) $item['id'], 'done', (string) $item['entity_public_id'], $userId);
             } catch (Throwable $abbruch) {
-                $fehler[] = ['item' => (int) $item['id'], 'grund' => $abbruch->getMessage()];
+                // 🔴 GEKAPPT WIE `apply_note` -- siehe die Begruendung am ersten Fehlschlagfang
+                // dieser Funktion.
+                $fehler[] = ['item' => (int) $item['id'], 'grund' => mb_substr($abbruch->getMessage(), 0, 300, 'UTF-8')];
                 avesmapsGaretienItemAbschliessen($pdo, (int) $item['id'], 'failed', mb_substr($abbruch->getMessage(), 0, 300, 'UTF-8'));
             }
             continue;
@@ -1538,7 +1547,7 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
         if ((string) $item['change_type'] !== 'new') {
             $grund = 'Stufe 1 legt nur an und aendert nichts Vorhandenes -- "'
                 . $item['label'] . '" braucht eine Entscheidung von Hand';
-            $fehler[] = ['item' => (int) $item['id'], 'grund' => $grund];
+            $fehler[] = ['item' => (int) $item['id'], 'grund' => mb_substr($grund, 0, 300, 'UTF-8')];
             // 💣 Auch hier ein Vermerk -- siehe oben. `stale` und nicht `failed`: es ist nichts
             // kaputt, die Zeile gehoert nur nicht in diese Stufe.
             avesmapsGaretienItemAbschliessen($pdo, (int) $item['id'], 'stale', mb_substr($grund, 0, 300, 'UTF-8'));
@@ -1721,7 +1730,9 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
             // 🔴 Ein Fehlschlag bei EINEM Objekt haelt die uebrigen nicht auf, aber er wird
             // benannt. Ein stiller Ueberspringer waere von "wurde angelegt" nicht zu
             // unterscheiden -- und die Zahl im Ergebnis waere eine Behauptung.
-            $fehler[] = ['item' => (int) $item['id'], 'grund' => $abbruch->getMessage()];
+            // 🔴 GEKAPPT WIE `apply_note` -- siehe die Begruendung am ersten Fehlschlagfang
+            // dieser Funktion.
+            $fehler[] = ['item' => (int) $item['id'], 'grund' => mb_substr($abbruch->getMessage(), 0, 300, 'UTF-8')];
             avesmapsGaretienItemAbschliessen($pdo, (int) $item['id'], 'failed', mb_substr($abbruch->getMessage(), 0, 300, 'UTF-8'));
         }
     }
