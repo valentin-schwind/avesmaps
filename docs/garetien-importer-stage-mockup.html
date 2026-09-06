@@ -1,0 +1,500 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — der Garetien Importer mit Import-Stage</title>
+<style>
+/* Die Farben, Grade, Abstände und Radien stammen 1:1 aus css/base/tokens.css (helles Thema,
+   darunter der Block :root[data-theme="dark"]), die Fensterhülle aus css/components/fenster.css,
+   Menüband/Reiter aus editor-body.css, die Listenzeile aus editor-row.css. NICHTS hier ist geraten.
+   ⚠️ Dieses Mockup ist ein ENTWURF ZUR ABNAHME (06.09.2026) und trägt bewusst KEINE bindende
+      Marke -- gebunden wird, was der Owner freigibt, und erst dann.
+   🔴 Blau kommt nur in der KARTE vor (--color-path-flussweg, --color-path-bach): Daten, nicht Chrome. */
+@font-face {
+	font-family: "Faculty Glyphic";
+	src: url("../fonts/FacultyGlyphic-Regular.woff2") format("woff2");
+	font-display: swap;
+}
+:root {
+	--font-ui: "Faculty Glyphic", "Arial", sans-serif;
+	--font-size-caption: 11px; --font-size-small: 12px; --font-size-body: 13px;
+	--font-size-reading: 14px; --font-size-subhead: 16px; --font-size-title: 20px;
+	--leading-tight: 1.15; --leading-snug: 1.25; --leading-normal: 1.45;
+	--font-weight-regular: 400; --font-weight-bold: 700;
+	--color-page-bg: #f3f0e8; --color-panel: #fffdf9; --color-panel-soft: #faf6ee;
+	--color-panel-muted: #f1ece1; --color-panel-active: #e7ddc9;
+	--color-text: #2e271e; --color-text-strong: #3c3327; --color-text-muted: #706557;
+	--color-placeholder: #9a8f7e;
+	--color-border: #ddd3c3; --color-border-strong: #cdbfa8; --color-divider: rgba(125,115,96,.30);
+	--color-button: #5b5548; --color-button-border: #635b4d; --color-button-text: #f6efe1;
+	--color-button-hover: #6a6353; --color-on-button-muted: rgba(246,239,225,.72);
+	--color-button-soft: #efe9db; --color-button-soft-text: #564b3b; --color-button-soft-border: #cdbda0;
+	--color-button-soft-hover: #e7ddc9; --color-button-soft-active: #e0d6c0;
+	--color-accent: #bfa03a; --color-accent-strong: #9c7f22; --color-accent-brown: #7a5a2c;
+	--color-link: #8f7326; --color-link-hover: #6f5a1c;
+	--color-pill: #f3ecd9; --color-pill-border: #d7c7a2; --color-pill-text: #675024;
+	--color-danger: #9d3a2e; --color-danger-soft: #fbeae6; --color-danger-soft-border: #d3a79c; --color-danger-soft-text: #7f2e24;
+	--color-success: #2f7d3a; --color-success-soft: #eef6e2; --color-success-soft-border: #a9c07f; --color-success-soft-text: #3c5a1c;
+	--color-warning: #b8860b; --color-warning-soft: #faeeda; --color-warning-soft-border: #ef9f27; --color-warning-soft-text: #854f0b;
+	--color-path-flussweg: #3f7191; --color-path-bach: #4f6f87; --color-marker-active: #f0b429;
+	--color-marker-settlement: #cc2f2a; --color-ecosystem-vegetation-wald: #3f6b2c;
+	--color-ecosystem-topographie-see: #4a86a8; --color-garetien-unsere: #b8367a;
+	--color-map-ground: #ece4d2;
+	--color-focus: rgba(191,160,58,.45); --focus-ring: 0 0 0 3px var(--color-focus);
+	--color-hover-wash: rgba(191,160,58,.14); --color-active-wash: rgba(191,160,58,.24);
+	--color-disabled-bg: #ece7dd; --color-disabled-text: #a99f8e; --color-disabled-border: #dcd3c4;
+	--space-2: 4px; --space-4: 6px; --space-6: 8px; --space-8: 10px; --space-10: 12px;
+	--space-12: 14px; --space-16: 18px; --space-20: 22px; --space-24: 26px;
+	--radius-sm: 5px; --radius-md: 8px; --radius-lg: 10px;
+	--avm-control-h: 32px;
+	--avm-kopf-pad: var(--space-4) var(--space-12);
+	--avm-ribbon-pad: var(--space-8) var(--space-12);
+	--avm-ribbon-gap: var(--space-4);
+	--avm-col-pad: var(--space-6) var(--space-12);
+	--avm-status-pad: var(--space-4) var(--space-12);
+	--avm-row-pad: var(--space-2) var(--space-4);
+	--shadow-dialog: 0 20px 45px rgba(0,0,0,.38); --shadow-panel: 0 8px 24px rgba(0,0,0,.16);
+}
+:root[data-theme="dark"] {
+	--color-page-bg: #211f19; --color-panel: #312e26; --color-panel-soft: #37342b; --color-panel-muted: #39352b;
+	--color-panel-active: #4c4636; --color-text: #eee7da; --color-text-strong: #f5f0e4; --color-text-muted: #b4a895;
+	--color-placeholder: #7b7467; --color-border: #514a3c; --color-border-strong: #615a49; --color-divider: rgba(207,197,171,.24);
+	--color-button: #6b6456; --color-button-border: #7a7361; --color-button-text: #f5ebd7; --color-button-hover: #5e5749;
+	--color-on-button-muted: rgba(245,235,215,.7);
+	--color-button-soft: #3a362c; --color-button-soft-text: #eae1cf; --color-button-soft-border: #585142; --color-button-soft-hover: #453f32;
+	--color-button-soft-active: #4a4437;
+	--color-accent: #cfb767; --color-accent-strong: #dcc77e; --color-accent-brown: #d3b285; --color-link: #d7c38b; --color-link-hover: #e3d39f;
+	--color-pill: #3b3522; --color-pill-border: #5c5237; --color-pill-text: #e7d7a5;
+	--color-danger: #d27566; --color-danger-soft: #3f2a26; --color-danger-soft-border: #6b463f; --color-danger-soft-text: #e8a297;
+	--color-success: #7cc48a; --color-success-soft: #2c3a24; --color-success-soft-border: #4d6b3a; --color-success-soft-text: #9cd39a;
+	--color-warning: #e0b45c; --color-warning-soft: #3b3122; --color-warning-soft-border: #6d5629; --color-warning-soft-text: #e9c684;
+	--color-path-flussweg: #7fc9f0; --color-path-bach: #89a7bd; --color-ecosystem-topographie-see: #6fa9c9;
+	--color-map-ground: #2c2820;
+	--color-disabled-bg: #3a352c; --color-disabled-text: #7b7467; --color-disabled-border: #4a4438;
+}
+* { box-sizing: border-box; }
+body { margin: 0; padding: var(--space-24) var(--space-20) 80px; background: var(--color-page-bg); color: var(--color-text);
+	font: var(--font-size-reading)/var(--leading-normal) var(--font-ui); -webkit-font-smoothing: antialiased; }
+.wrap { max-width: 1400px; margin: 0 auto; }
+h1 { margin: 0 0 var(--space-2); font-size: var(--font-size-title); color: var(--color-text-strong); }
+.lede { max-width: 84ch; margin: 0 0 var(--space-16); color: var(--color-text-muted); }
+body > .wrap > h2 { max-width: 1360px; margin: var(--space-24) 0 var(--space-8); padding-bottom: var(--space-4);
+	border-bottom: 1px solid var(--color-divider); font-size: var(--font-size-subhead); color: var(--color-text-strong); }
+body > .wrap > h3 { margin: var(--space-16) 0 var(--space-4); font-size: var(--font-size-reading); color: var(--color-accent-strong); }
+.wrap > p, .wrap > ul { max-width: 84ch; }
+ul { padding-left: var(--space-20); } li { margin: var(--space-2) 0; }
+b, strong { color: var(--color-text-strong); }
+code { padding: 1px 5px; border-radius: var(--radius-sm); background: var(--color-panel-muted);
+	font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: var(--font-size-small); }
+a { color: var(--color-link); }
+.note { max-width: 88ch; margin: var(--space-12) 0; padding: var(--space-10) var(--space-12); border: 1px solid var(--color-border);
+	border-left: 3px solid var(--color-accent); border-radius: var(--radius-md); background: var(--color-panel-soft); font-size: var(--font-size-body); }
+.note--warn { border-left-color: var(--color-warning-soft-border); background: var(--color-warning-soft); }
+.note--stop { border-left-color: var(--color-danger-soft-border); background: var(--color-danger-soft); }
+.cap { max-width: 88ch; margin: var(--space-6) 0 var(--space-20); font-size: var(--font-size-small); color: var(--color-text-muted); }
+table { width: 100%; max-width: 1200px; border-collapse: collapse; margin: var(--space-10) 0 var(--space-20); font-size: var(--font-size-body); }
+th, td { padding: var(--space-4) var(--space-10) var(--space-4) 0; text-align: left; vertical-align: top; border-bottom: 1px solid var(--color-divider); }
+th { font-size: var(--font-size-caption); letter-spacing: .06em; text-transform: uppercase; color: var(--color-text-muted); }
+td { color: var(--color-text-muted); } td b { color: var(--color-text-strong); }
+.scroll { overflow-x: auto; }
+.themetoggle { position: fixed; right: 18px; top: 18px; z-index: 9; height: var(--avm-control-h); padding: 0 var(--space-10);
+	border: 1px solid var(--color-button-soft-border); border-radius: var(--radius-md); background: var(--color-button-soft);
+	color: var(--color-button-soft-text); font: inherit; font-size: var(--font-size-small); cursor: pointer; }
+
+/* ---- Die Bühne: Karte mit Fenster ---------------------------------------------------------- */
+.stagewrap { overflow-x: auto; margin: var(--space-12) 0 var(--space-6); }
+.stage { position: relative; width: 1360px; height: 760px; border: 1px solid var(--color-border-strong); border-radius: var(--radius-sm);
+	overflow: hidden; background: var(--color-map-ground); box-shadow: var(--shadow-panel); }
+.stage svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+/* 🔴 1000px statt 855 (Owner 06.09.2026: „kannst du das fenster breiter machen") -- die Zahl
+   steht in css/components/garetien-importer.css an ZWEI Stellen (offener/eingeklappter Planer). */
+.stage__win { position: absolute; left: 18px; top: 18px; width: 1000px; height: 720px; }
+
+/* ---- Fensterhülle (fenster.css, Werkzeugfenster) ------------------------------------------- */
+.avm-fenster { display: flex; flex-direction: column; overflow: hidden; padding: 0; background: var(--color-panel); color: var(--color-text);
+	box-shadow: var(--shadow-dialog); font-size: var(--font-size-body); line-height: var(--leading-snug); }
+.avm-fenster--werkzeug { border: 1px solid var(--color-border-strong); border-radius: var(--radius-sm); }
+.avm-fenster__kopf { display: flex; align-items: center; gap: var(--avm-ribbon-gap); padding: var(--avm-kopf-pad);
+	border-bottom: 1px solid var(--color-divider); cursor: grab; }
+.avm-fenster__griff { flex: none; color: var(--color-text-muted); font-size: var(--font-size-subhead); line-height: 1; user-select: none; }
+.avm-fenster__titel { flex: 1 1 auto; min-width: 0; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+	font-size: var(--font-size-subhead); line-height: var(--leading-tight); font-weight: var(--font-weight-bold); color: var(--color-text-strong); }
+.avm-fenster__zusatz { flex: 0 1 auto; min-width: 0; color: var(--color-text-muted); font-size: var(--font-size-body); }
+.avm-fenster__knopf { flex: none; width: var(--avm-control-h); height: var(--avm-control-h); display: grid; place-items: center; padding: 0;
+	border-radius: var(--radius-md); font: inherit; font-size: var(--font-size-body); line-height: 1; cursor: pointer; }
+.avm-fenster__knopf--gefasst { border: 1px solid var(--color-button-soft-border); background: var(--color-button-soft); color: var(--color-button-soft-text); }
+.avm-fenster__fuss { display: flex; flex-wrap: wrap; align-items: center; gap: var(--avm-ribbon-gap); padding: var(--avm-kopf-pad); border-top: 1px solid var(--color-divider); }
+.avm-fenster__fuss-haupt { display: inline-flex; align-items: center; gap: var(--avm-ribbon-gap); margin-left: auto; }
+.avm-fenster__fuss-hinweis { color: var(--color-text-muted); font-size: var(--font-size-caption); }
+
+/* ---- Menüband (editor-body.css) ---------------------------------------------------------- */
+.avm-ribbon-bar { padding: var(--avm-ribbon-pad); background: var(--color-panel-soft); border-bottom: 1px solid var(--color-border); }
+.avm-ribbon { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: var(--avm-ribbon-gap); align-items: stretch; }
+.avm-tile { display: flex; flex-direction: column; justify-content: center; align-items: flex-start; text-align: left; min-height: 48px;
+	padding: var(--space-4) var(--space-8); gap: 1px; line-height: var(--leading-tight); border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md); background: var(--color-button-soft); color: var(--color-button-soft-text); font: inherit; cursor: pointer; }
+.avm-tile .t1 { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--font-size-body); font-weight: var(--font-weight-bold); }
+.avm-tile .t2 { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--font-size-caption); color: var(--color-text-muted); }
+.avm-tile:disabled { background: var(--color-disabled-bg); color: var(--color-disabled-text); border-color: var(--color-disabled-border); cursor: not-allowed; }
+.gi-zeilen { height: 24px; margin-top: 2px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-panel); font: inherit; font-size: var(--font-size-caption); color: var(--color-text); }
+
+/* ---- DIE STATUSZEILE (NEU) -- die Hausform .avm-status aus editor-page.css ------------------- */
+.avm-status { display: flex; align-items: center; gap: var(--space-12); padding: var(--avm-status-pad); min-height: 28px;
+	color: var(--color-text-muted); background: var(--color-panel-soft); border-bottom: 1px solid var(--color-divider); white-space: nowrap; font-size: var(--font-size-small); }
+.avm-status__text { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.avm-status__text.ok { color: var(--color-success-soft-text); }
+.avm-status__text.bad { color: var(--color-danger-soft-text); }
+.avm-status__text b { color: inherit; }
+.avm-status a { flex: none; font-size: var(--font-size-caption); }
+
+/* ---- Spalten ------------------------------------------------------------------------------- */
+.avm-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); flex: 1 1 auto; min-height: 0; }
+.avm-col { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; padding: var(--avm-col-pad); }
+.avm-col + .avm-col { border-left: 1px solid var(--color-border); padding: 0; }
+.avm-tabs { display: flex; flex-wrap: wrap; gap: var(--space-12); margin-bottom: var(--space-4); border-bottom: 1px solid var(--color-border); }
+.avm-tab { flex: 0 0 auto; padding: var(--space-4) 1px; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: none;
+	color: var(--color-text-muted); font: inherit; font-size: var(--font-size-body); line-height: var(--leading-tight); white-space: nowrap; cursor: pointer; }
+.avm-tab.is-active { color: var(--color-text-strong); font-weight: var(--font-weight-bold); border-bottom-color: var(--color-text-strong); }
+.gi-searchrow { display: flex; gap: var(--space-4); margin-bottom: var(--space-4); align-items: center; }
+.gi-search { flex: 1 1 auto; min-width: 0; height: var(--avm-control-h); padding: 0 var(--space-6); border: 1px solid var(--color-border);
+	border-radius: var(--radius-md); background: var(--color-panel); color: var(--color-placeholder); font: inherit; font-size: var(--font-size-small); }
+.btn { height: var(--avm-control-h); padding: 0 var(--space-8); border: 1px solid var(--color-button-soft-border); border-radius: var(--radius-md);
+	background: var(--color-button-soft); color: var(--color-button-soft-text); font: inherit; font-size: var(--font-size-small); cursor: pointer; white-space: nowrap; }
+.btn--main { background: var(--color-button); border-color: var(--color-button-border); color: var(--color-button-text); font-weight: var(--font-weight-bold); }
+.btn--danger { color: var(--color-danger-soft-text); border-color: var(--color-danger-soft-border); }
+.btn--go { color: var(--color-success-soft-text); border-color: var(--color-success-soft-border); }
+.btn--stage { border-color: var(--color-accent); color: var(--color-text-strong); font-weight: var(--font-weight-bold); }
+.btn:disabled { background: var(--color-disabled-bg); color: var(--color-disabled-text); border-color: var(--color-disabled-border); cursor: not-allowed; }
+.btn--sym { width: var(--avm-control-h); padding: 0; }
+/* 🔴 ZWEIZEILIGE KNÖPFE, EINE REIHE (Owner 06.09.2026: „die buttons mehrzeilig damit sie einzeilig
+   angeordnet werden können"). Dieselbe Bauform wie die Kacheln des Menübands (.avm-tile: t1 fett,
+   t2 gedämpft, 48px), damit Zustand und Zahl IN den Knopf wandern statt daneben. Die Reihen tragen
+   deshalb das Menüband-Polster (--avm-ribbon-pad) und brechen NICHT um (flex-wrap: nowrap). */
+.btn2 { display: flex; flex-direction: column; justify-content: center; align-items: flex-start; text-align: left; min-height: 48px;
+	padding: var(--space-4) var(--space-8); gap: 1px; line-height: var(--leading-tight); border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md); background: var(--color-button-soft); color: var(--color-button-soft-text); font: inherit; cursor: pointer; white-space: nowrap; }
+.btn2 .t1 { font-size: var(--font-size-body); font-weight: var(--font-weight-bold); }
+.btn2 .t2 { font-size: var(--font-size-caption); color: var(--color-text-muted); }
+.btn2--main { background: var(--color-button); border-color: var(--color-button-border); color: var(--color-button-text); }
+.btn2--main .t2 { color: var(--color-on-button-muted); }
+.btn2--danger { color: var(--color-danger-soft-text); border-color: var(--color-danger-soft-border); }
+.btn2--danger .t2 { color: var(--color-danger-soft-text); }
+.btn2--stage { border-color: var(--color-accent); color: var(--color-text-strong); }
+.btn2:disabled { background: var(--color-disabled-bg); color: var(--color-disabled-text); border-color: var(--color-disabled-border); cursor: not-allowed; }
+.btn2:disabled .t2 { color: var(--color-disabled-text); }
+.gi-listkopf { display: flex; align-items: center; gap: var(--space-6); padding: var(--space-2) 0 var(--space-4); font-size: var(--font-size-caption); color: var(--color-text-muted); }
+.gi-listkopf label { display: inline-flex; align-items: center; gap: var(--space-2); }
+.gi-listkopf .spacer { flex: 1 1 auto; }
+.gi-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-4); }
+.gi-chip { display: inline-flex; align-items: center; gap: var(--space-2); padding: 1px var(--space-4); border: 1px solid var(--color-pill-border);
+	border-radius: var(--radius-md); background: var(--color-pill); color: var(--color-pill-text); font-size: var(--font-size-caption); }
+.avm-scroll { flex: 1 1 auto; min-height: 0; overflow: auto; }
+
+/* ---- Listenzeile (editor-row.css) -------------------------------------------------------- */
+.avm-row { display: flex; align-items: center; gap: var(--space-6); padding: var(--avm-row-pad); border: 1px solid transparent; border-radius: var(--radius-md); cursor: pointer; }
+.avm-row:hover { background: var(--color-hover-wash); }
+.avm-row.is-selected { background: var(--color-active-wash); border-color: var(--color-accent); }
+.avm-row__text { flex: 1 1 auto; min-width: 0; }
+.avm-row__l1 { display: flex; align-items: baseline; gap: var(--space-4); }
+.avm-row__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: var(--font-weight-bold); }
+.avm-row__kind { flex: none; font-size: var(--font-size-caption); color: var(--color-text-muted); }
+.avm-row__l2 { font-size: var(--font-size-caption); color: var(--color-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.u { font-weight: var(--font-weight-bold); }
+.u--neu { color: var(--color-success); } .u--erg { color: var(--color-accent-strong); } .u--zweif { color: var(--color-warning); }
+.u--wider { color: var(--color-danger); } .u--deckt { color: var(--color-text-muted); }
+.gi-stagemark { flex: none; padding: 0 var(--space-4); border-radius: var(--radius-md); border: 1px solid var(--color-accent);
+	color: var(--color-text-strong); font-size: var(--font-size-caption); font-weight: var(--font-weight-bold); }
+.gi-stagemark--als { border-style: dashed; font-weight: var(--font-weight-regular); color: var(--color-text-muted); }
+
+/* ---- Auswahlleiste unter der Liste (NEU) --------------------------------------------------- */
+.gi-auswahl { flex: none; display: flex; flex-wrap: nowrap; align-items: center; gap: var(--avm-ribbon-gap); margin: var(--space-4) calc(-1 * var(--space-12)) 0;
+	padding: var(--space-8) var(--space-12) 0; border-top: 1px solid var(--color-divider); font-size: var(--font-size-caption); color: var(--color-text-muted); }
+.gi-auswahl b { color: var(--color-text-strong); }
+.gi-auswahl .btn2 { flex: 1 1 0; min-width: 0; }
+.gi-acts .btn2, .avm-fenster__fuss .btn2 { flex: 1 1 0; min-width: 0; }
+.avm-fenster__fuss .avm-fenster__fuss-haupt { flex: 1 1 0; min-width: 0; }
+.avm-fenster__fuss .avm-fenster__fuss-haupt .btn2 { flex: 1 1 auto; }
+
+/* ---- Einzelansicht ----------------------------------------------------------------------- */
+.gi-detail { flex: 1 1 auto; min-height: 0; overflow: auto; padding: var(--avm-col-pad); }
+.gi-detail__name { margin: 0; font-size: var(--font-size-subhead); color: var(--color-text-strong); }
+.gi-detail__meta { margin: 2px 0 var(--space-6); font-size: var(--font-size-caption); color: var(--color-text-muted); }
+.gi-sicht { display: flex; gap: var(--space-4); align-items: center; margin-bottom: var(--space-6); }
+.gi-sicht__knopf { display: inline-flex; align-items: center; gap: var(--space-4); height: 26px; padding: 0 var(--space-6); border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md); background: var(--color-button-soft); color: var(--color-button-soft-text); font: inherit; font-size: var(--font-size-caption); cursor: pointer; }
+.gi-sicht__fleck { width: 10px; height: 10px; border-radius: 50%; background: var(--gi-sicht-farbe); }
+.gi-sicht__knopf--ihre { --gi-sicht-farbe: var(--color-marker-active); } .gi-sicht__knopf--unsere { --gi-sicht-farbe: var(--color-garetien-unsere); }
+.gi-sec { margin: var(--space-8) 0 var(--space-2); font-size: var(--font-size-caption); letter-spacing: .06em; text-transform: uppercase; color: var(--color-accent-brown); font-weight: var(--font-weight-bold); }
+.gi-sec__note { margin-left: var(--space-6); letter-spacing: 0; text-transform: none; font-weight: var(--font-weight-regular); color: var(--color-text-muted); }
+.gi-why { margin: 0 0 var(--space-4); font-size: var(--font-size-small); color: var(--color-text-muted); }
+.gi-seg { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-2) var(--space-4); border-radius: var(--radius-md); font-size: var(--font-size-small); }
+.gi-seg__name { font-weight: var(--font-weight-bold); } .gi-seg__gap { color: var(--color-text-muted); } .gi-seg__id { margin-left: auto; font-size: var(--font-size-caption); color: var(--color-text-muted); }
+.gi-insert { margin-top: var(--space-4); }
+.gi-insert__row { display: flex; align-items: center; gap: var(--space-6); margin: 0 0 var(--space-2); font-size: var(--font-size-small); }
+.gi-insert__row > span:first-child { flex: 0 0 112px; color: var(--color-text-muted); }
+.gi-insert__select, .gi-insert__input { height: 26px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-panel); color: var(--color-text); font: inherit; font-size: var(--font-size-small); }
+.gi-insert__input { width: 64px; text-align: right; }
+.gi-insert__hint { font-size: var(--font-size-caption); color: var(--color-warning-soft-text); }
+.gi-insert__live { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--font-size-caption); color: var(--color-success-soft-text); }
+.gi-insert__live::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--color-success); }
+.gi-acts { flex: none; display: flex; flex-wrap: nowrap; gap: var(--avm-ribbon-gap); padding: var(--avm-ribbon-pad); border-top: 1px solid var(--color-divider); }
+.gi-acts__grund { flex: 1 0 100%; margin: var(--space-2) 0 0; font-size: var(--font-size-caption); color: var(--color-text-muted); }
+.gi-naehe { flex: none; display: flex; flex-wrap: nowrap; align-items: center; gap: var(--avm-ribbon-gap); padding: var(--avm-ribbon-pad); border-top: 1px solid var(--color-divider); font-size: var(--font-size-small); }
+.gi-naehe select { flex: 1 1 0; min-width: 0; height: var(--avm-control-h); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-panel); color: var(--color-text); font: inherit; font-size: var(--font-size-small); }
+.gi-naehe .btn2 { flex: 0 0 auto; }
+.avm-fenster__fuss { flex-wrap: nowrap; padding: var(--avm-ribbon-pad); }
+.gi-naehe .lbl { color: var(--color-text-muted); }
+
+/* Kartenlegende auf der Bühne */
+.leg { position: absolute; right: 18px; bottom: 18px; padding: var(--space-6) var(--space-10); border: 1px solid var(--color-border); border-radius: var(--radius-md);
+	background: var(--color-panel); font-size: var(--font-size-caption); color: var(--color-text-muted); box-shadow: var(--shadow-panel); }
+.leg i { display: inline-block; width: 22px; height: 0; border-top: 3px solid; vertical-align: middle; margin-right: 6px; }
+
+/* Varianten der Statuszeile (Abschnitt 3) */
+.demo { max-width: 855px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); margin: var(--space-6) 0 var(--space-12); overflow: hidden; }
+.demo .avm-status { border-bottom: 0; }
+.demo .avm-fenster__fuss { border-top: 1px solid var(--color-divider); }
+.map-label { position: absolute; transform: translate(-50%, -50%); font-weight: var(--font-weight-bold); letter-spacing: .02em;
+	color: #eaf3ff; text-shadow: 0 0 3px rgba(0,0,0,.9), 0 0 6px rgba(0,0,0,.7); pointer-events: none; }
+.map-label--bach { font-style: italic; font-size: 11px; }
+.map-label--see { font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<button class="themetoggle" id="themetoggle" type="button">Dunkles Thema</button>
+
+<h1>Der Garetien Importer mit Import-Stage — Entwurf zur Abnahme</h1>
+<p class="lede">Ein Objekt wird nicht mehr „eingefügt", sondern erst <b>auf die Stage</b> gelegt. Was auf der Stage liegt, liegt
+sichtbar auf der Karte — mit genau den Einstellungen, die rechts stehen — und wird erst mit <b>einem</b> Knopf importiert.
+Damit fallen sieben Fußknöpfe auf drei, drei Auswahlbegriffe auf einen, und jede Handlung sagt in der Statuszeile, was sie getan hat.</p>
+
+<h2>1 · Das Fenster — die vier Zonen und was hineingehört</h2>
+<div class="stagewrap"><div class="stage">
+	<svg viewBox="0 0 1360 760" aria-hidden="true">
+		<defs><pattern id="g" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="rgba(0,0,0,.06)"/></pattern></defs>
+		<rect width="1360" height="760" fill="url(#g)"/>
+		<!-- ein See (Stage: Fläche) -->
+		<path d="M1010 120 c40 -30 120 -20 150 10 c30 30 10 90 -30 110 c-50 25 -120 10 -140 -30 c-15 -30 -10 -70 20 -90z" fill="var(--color-ecosystem-topographie-see)" fill-opacity=".45" stroke="var(--color-ecosystem-topographie-see)" stroke-width="3" stroke-dasharray="7 5"/>
+		<path d="M1010 120 c40 -30 120 -20 150 10 c30 30 10 90 -30 110 c-50 25 -120 10 -140 -30 c-15 -30 -10 -70 20 -90z" fill="none" stroke="var(--color-marker-active)" stroke-width="9" stroke-opacity=".28"/>
+		<!-- der Bach „Alke" (Stage: Weg → Bach, gewählt: durchgezogen) -->
+		<path d="M905 420 C 960 400, 1010 470, 1080 450 S 1200 380, 1290 410" fill="none" stroke="var(--color-marker-active)" stroke-width="10" stroke-opacity=".3"/>
+		<path d="M905 420 C 960 400, 1010 470, 1080 450 S 1200 380, 1290 410" fill="none" stroke="var(--color-path-bach)" stroke-width="2.5"/>
+		<!-- Strömungsdreiecke -->
+		<g fill="var(--color-marker-active)"><path d="M990 434 l-8 -5 v10z"/><path d="M1130 420 l-8 -5 v10z"/><path d="M1240 396 l-8 -5 v10z"/></g>
+		<!-- Endkreuzungs-Ringe -->
+		<circle cx="905" cy="420" r="7" fill="none" stroke="var(--color-marker-active)" stroke-width="2"/><circle cx="1290" cy="410" r="7" fill="none" stroke="var(--color-marker-active)" stroke-width="2"/>
+		<!-- unser vorhandener Fluss (magenta), gestagt wird daneben ein Nachbar-Bach (gestrichelt) -->
+		<path d="M950 560 C 1020 540, 1080 600, 1150 570 S 1260 520, 1330 560" fill="none" stroke="var(--color-garetien-unsere)" stroke-width="3"/>
+		<path d="M1010 620 C 1060 600, 1100 640, 1170 630" fill="none" stroke="var(--color-path-bach)" stroke-width="2.5" stroke-dasharray="6 5"/>
+		<!-- ein Ort (Stage: Ort, Punkt mit Zoomband-Größe) -->
+		<circle cx="1000" cy="300" r="7" fill="var(--color-marker-settlement)" stroke="#fff" stroke-width="1.5"/>
+		<circle cx="1000" cy="300" r="13" fill="none" stroke="var(--color-marker-active)" stroke-width="3" stroke-opacity=".5"/>
+	</svg>
+	<!-- Die Beschriftungs-VORSCHAU (neu): Name in der gewählten Größe, nur innerhalb des Zoombands -->
+	<span class="map-label map-label--see" style="left:1080px; top:170px;">Krähensee</span>
+	<span class="map-label map-label--bach" style="left:1090px; top:438px;">Alke</span>
+	<span class="map-label" style="left:1000px; top:282px; font-size:11px;">Perz</span>
+	<div class="leg">
+		<div><i style="border-color:var(--color-path-bach)"></i>Stage: ihr Objekt, Zielform schon sichtbar (Bach: dünn, Name kursiv)</div>
+		<div><i style="border-color:var(--color-garetien-unsere)"></i>Avesmaps: was bei uns liegt</div>
+		<div><i style="border-color:var(--color-marker-active); border-top-width:6px; opacity:.5"></i>goldener Hof = liegt auf der Stage · durchgezogen = gerade geöffnet</div>
+	</div>
+
+	<div class="stage__win avm-fenster avm-fenster--werkzeug" role="dialog" aria-label="Garetien Importer">
+		<div class="avm-fenster__kopf">
+			<span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>
+			<h2 class="avm-fenster__titel">Garetien Importer</h2>
+			<span class="avm-fenster__zusatz">Lauf 05.09. 14:02 · 8 213 Objekte</span>
+			<button class="avm-fenster__knopf avm-fenster__knopf--gefasst" type="button" aria-label="Fenster einklappen">−</button>
+			<button class="avm-fenster__knopf avm-fenster__knopf--gefasst" type="button" aria-label="Schließen">✕</button>
+		</div>
+		<div class="avm-ribbon-bar"><div class="avm-ribbon">
+			<button class="avm-tile" type="button"><span class="t1">Holen &amp; Rechnen</span><span class="t2">Lauf 05.09. 14:02 · 0,42 s</span></button>
+			<button class="avm-tile" type="button"><span class="t1">Ebenen ▾</span><span class="t2">alle 18</span></button>
+			<label class="avm-tile"><span class="t1">Angezeigte Zeilen</span><select class="gi-zeilen"><option>alle (8213)</option></select></label>
+		</div></div>
+		<!-- 🔴 NEU: die Statuszeile. Ruhezustand = Bilanz des Laufs; nach jeder Handlung = ihr Ergebnis. -->
+		<div class="avm-status"><span class="avm-status__text ok"><b>✓ 3 Objekte importiert</b> — 2 Wege (davon 1 Bach), 1 Fläche · 1 nicht importiert: „Ostrand" — aus 1 Punkt lässt sich kein Weg bauen</span><a href="#s3">Rückgängig</a></div>
+		<div class="avm-cols">
+			<div class="avm-col">
+				<div class="avm-tabs">
+					<button class="avm-tab" type="button">Offen (3 905)</button>
+					<button class="avm-tab is-active" type="button">Stage (7)</button>
+					<button class="avm-tab" type="button">Übernommen (289)</button>
+					<button class="avm-tab" type="button">Abgelehnt (12)</button>
+				</div>
+				<div class="gi-searchrow">
+					<input class="gi-search" type="search" placeholder="Namen suchen …">
+					<button class="btn" type="button">Filter ▾ (1)</button>
+				</div>
+				<div class="gi-chips"><span class="gi-chip">Typ: Bach · See ✕</span></div>
+				<div class="gi-listkopf"><label><input type="checkbox"> alle 7</label><span class="spacer"></span><span>7 auf der Stage · 5 mit Vorschlag</span></div>
+				<div class="avm-scroll">
+					<div class="avm-row is-selected"><input type="checkbox" checked><span class="avm-row__text">
+						<span class="avm-row__l1"><span class="avm-row__name">Alke</span><span class="avm-row__kind">Fluss</span></span>
+						<span class="avm-row__l2"><span class="u u--neu">neu</span> · 0,9 Meilen von „Natter" · anderer Name</span></span>
+						<span class="gi-stagemark gi-stagemark--als">→ Weg · Bach</span></div>
+					<div class="avm-row"><input type="checkbox" checked><span class="avm-row__text">
+						<span class="avm-row__l1"><span class="avm-row__name">Krähensee</span><span class="avm-row__kind">See</span></span>
+						<span class="avm-row__l2"><span class="u u--neu">neu</span> · nichts in 6 Meilen</span></span>
+						<span class="gi-stagemark gi-stagemark--als">→ Fläche · See</span></div>
+					<div class="avm-row"><input type="checkbox"><span class="avm-row__text">
+						<span class="avm-row__l1"><span class="avm-row__name">Perz</span><span class="avm-row__kind">Dorf</span></span>
+						<span class="avm-row__l2"><span class="u u--neu">neu</span> · nichts in 0,9 Meilen</span></span>
+						<span class="gi-stagemark gi-stagemark--als">→ Ort · Dorf</span></div>
+					<div class="avm-row"><input type="checkbox"><span class="avm-row__text">
+						<span class="avm-row__l1"><span class="avm-row__name">Rakula</span><span class="avm-row__kind">Fluss</span></span>
+						<span class="avm-row__l2"><span class="u u--erg">Ergänzung</span> · deckt sich mit „Rakula" (Flussweg-118)</span></span>
+						<span class="gi-stagemark gi-stagemark--als">→ nur Quelle + Artikel</span></div>
+					<div class="avm-row"><input type="checkbox"><span class="avm-row__text">
+						<span class="avm-row__l1"><span class="avm-row__name">Wandlether Zunfthaus</span><span class="avm-row__kind">Gebaeude</span></span>
+						<span class="avm-row__l2"><span class="u u--neu">neu</span> · 0,3 Meilen von „Wandleth"</span></span>
+						<span class="gi-stagemark gi-stagemark--als">→ Stätte in „Wandleth"</span></div>
+					<div class="avm-row"><input type="checkbox"><span class="avm-row__text">
+						<span class="avm-row__l1"><span class="avm-row__name">Pilperbach</span><span class="avm-row__kind">Bach</span></span>
+						<span class="avm-row__l2"><span class="u u--zweif">Zweifel</span> · liegt auf „Natter" — Zufluss?</span></span>
+						<span class="gi-stagemark gi-stagemark--als">→ Weg · Bach</span></div>
+					<div class="avm-row"><input type="checkbox"><span class="avm-row__text">
+						<span class="avm-row__l1"><span class="avm-row__name">Blutmoor</span><span class="avm-row__kind">Sumpf</span></span>
+						<span class="avm-row__l2"><span class="u u--deckt">ohne Vorschlag</span> · Ebene ohne Zuordnung — bleibt nur zur Ansicht</span></span>
+						<span class="gi-stagemark gi-stagemark--als">nur Ansicht</span></div>
+				</div>
+				<!-- 🔴 NEU: die Auswahlleiste. Erscheint nur, wenn etwas angehakt ist; die Knöpfe folgen dem Reiter. -->
+				<div class="gi-auswahl">
+					<button class="btn2" type="button"><span class="t1">Von der Stage nehmen</span><span class="t2">2 ausgewählte</span></button>
+					<button class="btn2 btn2--danger" type="button"><span class="t1">Ablehnen</span><span class="t2">2 ausgewählte</span></button>
+					<button class="btn2" type="button"><span class="t1">Auswahl aufheben</span><span class="t2">2 von 7</span></button></div>
+			</div>
+			<div class="avm-col">
+				<div class="gi-detail">
+					<h4 class="gi-detail__name">Alke</h4>
+					<p class="gi-detail__meta"><a href="#">Garetien:Alke ↗</a> · LOD 3–6 · ggp / Gewaesser · ohne <code>extra</code></p>
+					<div class="gi-sicht">
+						<button class="btn" type="button" style="height:26px;font-size:var(--font-size-caption)">✦ Zentrieren</button>
+						<button class="gi-sicht__knopf gi-sicht__knopf--ihre" type="button" aria-pressed="true"><span class="gi-sicht__fleck"></span>Garetien</button>
+						<button class="gi-sicht__knopf gi-sicht__knopf--unsere" type="button" aria-pressed="true"><span class="gi-sicht__fleck"></span>Avesmaps</button>
+					</div>
+					<p class="gi-sec">Was bei uns an derselben Stelle liegt<span class="gi-sec__note">1 Abschnitt · Deckung Median 0,31</span></p>
+					<div class="gi-seg"><span class="gi-seg__name">Natter</span><span class="gi-seg__gap">bleibt unberührt</span><span class="gi-seg__id">Flussweg-4471 · 9 von 16 Punkten</span></div>
+					<p class="gi-sec">Der Grund</p>
+					<p class="gi-why">0,9 Meilen von „Natter" (bei uns Flussweg) · anderer Name — der Abgleich hält die Alke für einen Zufluss, nicht für die Natter.</p>
+
+					<!-- 🔴 UMBENANNT: „Eingefügt wird" → „Wird importiert als". Die Form-Auswahl trägt ALLE Ausgänge,
+					     auch Stätte und „nur Quelle + Artikel" -- damit gibt es rechts nur noch EINEN Vorwärtsknopf. -->
+					<p class="gi-sec">Wird importiert als <span class="gi-sec__note"><span class="gi-insert__live">Vorschau auf der Karte folgt jeder Änderung</span></span></p>
+					<div class="gi-insert">
+						<p class="gi-insert__row"><span>Form</span><select class="gi-insert__select"><option>Weg</option><option>Fläche</option><option>Beschriftung</option><option>Ort</option><option>Stätte in einer Stadt</option><option>Nur Quelle + Artikel an „Natter"</option></select></p>
+						<p class="gi-insert__row"><span>Art</span><select class="gi-insert__select"><option>Flussweg</option><option selected>Bach (nicht befahrbar)</option><option>Reichsstraße</option><option>Straße</option><option>Weg</option><option>Pfad</option></select>
+							<span class="gi-insert__hint">Vorschlag der Zuordnung war „Flussweg"</span></p>
+						<p class="gi-insert__row"><span>Name anzeigen</span><label><input type="checkbox" checked> Name auf der Karte</label></p>
+						<p class="gi-insert__row"><span>Sichtbar ab Zoom</span><input class="gi-insert__input" type="number" value="4"> <span class="gi-insert__hint">Vorgabe der Art 4 — liegt außerhalb, verschwindet der Name auf der Stage</span></p>
+						<p class="gi-insert__row"><span>Kreuzungen</span><label><input type="checkbox" checked> an Anfang und Ende</label></p>
+						<p class="gi-insert__row"><span>Strömung</span><button class="btn" type="button" style="height:26px">wie die Quelle ⇄</button></p>
+						<p class="gi-insert__row"><span>Verkehrsmittel</span><span class="gi-insert__hint">keine — ein Bach ist nicht befahrbar, er zählt nur im Gelände</span></p>
+					</div>
+					<p class="gi-sec">Wiki und Quellen</p>
+					<p class="gi-why">Sammelquelle „Briefspiel (Garetien)" · Wiki-Artikel <a href="#">„Alke" ↗</a> · CC BY-NC-SA 3.0 — einmal an der Quelle.</p>
+				</div>
+				<!-- 🔴 DIE KNOPFLEISTE: genau EIN Vorwärtsknopf je Zustand. Hier: liegt schon auf der Stage. -->
+				<div class="gi-acts">
+					<button class="btn2" type="button" title="Nimmt „Alke" von der Stage. Auf der Karte wird nichts geändert."><span class="t1">Von der Stage nehmen</span><span class="t2">liegt als Weg · Bach</span></button>
+					<button class="btn2 btn2--danger" type="button" title="Nimmt „Alke" aus dem Arbeitsvorrat — auf der Karte wird nichts geändert."><span class="t1">Ablehnen</span><span class="t2">mit „Wieder vorschlagen" zurück</span></button>
+				</div>
+				<!-- 🔴 „Imports in der Nähe stagen" mit Typenfilter -->
+				<div class="gi-naehe"><span class="lbl">In der Nähe:</span>
+					<select><option>gleicher Typ · Fluss (3)</option><option>Bach (5)</option><option>See (1)</option><option>Dorf (2)</option><option>alle Typen (11)</option></select>
+					<button class="btn2 btn2--stage" type="button"><span class="t1">Auf die Stage</span><span class="t2">3 Nachbarn · 6 Meilen</span></button></div>
+			</div>
+		</div>
+		<div class="avm-fenster__fuss">
+			<button class="btn2" type="button"><span class="t1">Stage leeren</span><span class="t2">7 Objekte</span></button>
+			<button class="btn2" type="button"><span class="t1">Alle zentrieren</span><span class="t2">Karte auf die Stage</span></button>
+			<span class="avm-fenster__fuss-haupt">
+				<button class="btn2 btn2--main" type="button"><span class="t1">Stage importieren (5)</span><span class="t2">3 Wege (2 Bäche) · 1 Fläche · 1 Stätte · 2 nur Ansicht</span></button>
+			</span>
+		</div>
+	</div>
+</div></div>
+<p class="cap">Die Bühne zeigt den Reiter „Stage" mit sieben Objekten; rechts die geöffnete „Alke", die als <b>Bach</b> importiert wird. Auf der
+Karte sind alle Stage-Objekte gezeichnet — mit dem Namen in der gewählten Größe (nur innerhalb ihres Zoombands), dem Bach dünn und kursiv,
+den Strömungsdreiecken und den Endkreuzungs-Ringen. Die Statuszeile trägt das Ergebnis der letzten Handlung; der „Rückgängig"-Link nimmt
+den letzten Import zurück.</p>
+
+<h2>2 · Die Knopf-Landkarte — welcher Knopf steht wo, und wann</h2>
+<div class="scroll"><table>
+<tr><th>Zone</th><th>Knopf</th><th>Sichtbar</th><th>Zustand / Grund</th><th>Wirkung</th></tr>
+<tr><td rowspan="3"><b>Menüband</b> (nur Admin)</td><td>Holen &amp; Rechnen</td><td>immer</td><td>gesperrt ohne Ebene, während eines Laufs, für Nicht-Admins (Grund in der Unterzeile)</td><td>holt die Ebenen, rechnet den Abgleich; <b>die Stage wird danach am neuen Lauf nachgeschlagen</b> (was es nicht mehr gibt, fällt heraus und wird in der Statuszeile genannt)</td></tr>
+<tr><td>Ebenen ▾</td><td>immer</td><td>wie heute</td><td>was der nächste Lauf holt</td></tr>
+<tr><td>Angezeigte Zeilen</td><td>immer</td><td>wie heute</td><td>Deckel der Liste</td></tr>
+<tr><td><b>Statuszeile</b> (neu)</td><td>— (Text + „Rückgängig"/„Details")</td><td>immer</td><td>Ruhe: Bilanz des Laufs · nach Handlung: Ergebnis · Fehler: rot, <b>die Liste bleibt stehen</b></td><td>ersetzt Fehler-in-der-Liste, Rückfragen bleiben</td></tr>
+<tr><td rowspan="2"><b>Listenzeile</b></td><td>☐ (Mehrfachauswahl)</td><td>immer</td><td>reiner Marker, schreibt nichts</td><td>öffnet die Auswahlleiste unter der Liste</td></tr>
+<tr><td>Zeile anklicken</td><td>immer</td><td>—</td><td>öffnet rechts die Einzelansicht und zeichnet das Objekt auf der Karte (auch ohne Stage)</td></tr>
+<tr><td rowspan="4"><b>Auswahlleiste</b> (nur wenn ≥1 angehakt, Knöpfe je Reiter)</td><td>Auf die Stage (n)</td><td>Offen</td><td>zählt nur Objekte mit Vorschlag</td><td>legt die Auswahl auf die Stage, wechselt auf „Stage"</td></tr>
+<tr><td>Von der Stage nehmen (n)</td><td>Stage</td><td>—</td><td>nur Buchführung</td></tr>
+<tr><td>Ablehnen (n)</td><td>Offen · Stage</td><td>Rückfrage nennt die Zahl</td><td>aus dem Vorrat, mit „Wieder vorschlagen" zurück</td></tr>
+<tr><td>Zurücknehmen (n) · Zurück nach Offen (n)</td><td>Übernommen</td><td>Rückfrage nennt, was von der Karte verschwindet</td><td>wie heute „Markierte zurücknehmen", nur dort, wo die Auswahl ist</td></tr>
+<tr><td rowspan="5"><b>Einzelansicht rechts</b> (Knopfleiste, EIN Vorwärtsknopf je Zustand)</td><td>Auf die Stage</td><td>Offen, nicht gestagt, mit Vorschlag</td><td>der einzige hervorgehobene Knopf</td><td>legt genau dieses Objekt mit seinen Einstellungen auf die Stage</td></tr>
+<tr><td>Von der Stage nehmen</td><td>gestagt</td><td>—</td><td>Buchführung</td></tr>
+<tr><td>Ablehnen (rot)</td><td>Offen · Stage</td><td>—</td><td>wie heute</td></tr>
+<tr><td>Zurücknehmen (rot) · Ablehnen (rot) · Zurück nach Offen</td><td>Übernommen</td><td>wie heute (Grund statt Knopf, wenn nicht möglich)</td><td>wie heute</td></tr>
+<tr><td>Wieder vorschlagen</td><td>Abgelehnt</td><td>—</td><td>wie heute</td></tr>
+<tr><td><b>Nähe-Zeile</b></td><td>[Typ ▾] Auf die Stage (n)</td><td>Objekt mit Geometrie</td><td>Auswahl: gleicher Typ (Vorgabe) · jeder gefundene Typ mit Zahl · alle</td><td>staged die Nachbarn <b>in ihrer Vorschlagsform</b>, ohne sie zu öffnen</td></tr>
+<tr><td colspan="5"><b>Alle Knöpfe der drei Leisten (Auswahl · Handlung · Fuß) sind zweizeilig</b> wie die Kacheln des Menübands: Zeile 1 die Handlung, Zeile 2 Zahl oder Zustand. So stehen sie in EINER Reihe und brechen nie um (Owner 06.09.2026). Das Fenster wird dafür 1000 statt 855 px breit.</td></tr>
+<tr><td rowspan="3"><b>Fußleiste</b></td><td>Stage leeren (n)</td><td>immer</td><td>gesperrt bei leerer Stage</td><td>Buchführung, nichts auf der Karte</td></tr>
+<tr><td>Alle zentrieren</td><td>immer</td><td>gesperrt bei leerer Stage</td><td>zoomt auf die Stage</td></tr>
+<tr><td><b>Stage importieren (n)</b></td><td>immer, die EINE gefüllte Handlung</td><td>„n" = Objekte mit Vorschlag; die zweite Zeile schlüsselt nach Form auf und nennt den Rest („2 nur Ansicht")</td><td>Rückfrage mit derselben Aufschlüsselung, dann Import <b>je Objekt mit seinen Einstellungen</b>, Ergebnis in der Statuszeile</td></tr>
+</table></div>
+<div class="note">Weg fallen: <b>„Alle markieren", „Keines markieren", „Markierte anzeigen", „Anzeige leeren", „Markierte zurücknehmen", „Neu einfügen",
+„Innerorts einfügen", „Bei … Quelle + Artikel einfügen"</b>. Ihre Arbeit übernehmen das Kopf-Häkchen „alle", die Auswahlleiste und die Form-Auswahl
+„Wird importiert als" — Stätte und „nur Quelle + Artikel" sind dort zwei weitere Formen, keine eigenen Knöpfe.</div>
+
+<h2 id="s3">3 · Der Ablauf — und was die Statuszeile dabei sagt</h2>
+<ol>
+	<li><b>Offen → Stage.</b> Zeile anklicken, rechts prüfen, „Auf die Stage" — oder mehrere anhaken und „Auf die Stage (n)". Nähe-Zeile: Nachbarn desselben Typs dazu.</li>
+	<li><b>Auf der Stage einstellen.</b> Form/Art (Fluss → Bach, Wald → Forst bleibt Wald, Berg → Gipfel, Bauwerk → Stätte), Name, Zoomband, Größe. Jede Änderung zeichnet die Karte neu — Zoomband inklusive: außerhalb verschwindet der Name, und die Statuszeile sagt es.</li>
+	<li><b>Stage importieren (n).</b> Rückfrage: „7 Objekte importieren? 3 Wege (davon 2 Bäche), 2 Flächen, 1 Ort, 1 Stätte in „Wandleth". 2 Objekte ohne Vorschlag bleiben auf der Stage." Dann Import in Häppchen, Fortschritt im Knopf.</li>
+	<li><b>Ergebnis.</b> Statuszeile grün mit Zahlen je Form; nicht importierte Objekte <b>mit Grund</b> und Link zur Zeile; „Rückgängig" nimmt den letzten Import zurück. Importierte verlassen die Stage und stehen in „Übernommen".</li>
+</ol>
+<h3>Die drei Gesichter der Statuszeile</h3>
+<div class="demo"><div class="avm-status"><span class="avm-status__text">Lauf 05.09. 14:02 · 8 213 Objekte · 3 917 mit Vorschlag · 7 auf der Stage</span></div></div>
+<div class="demo"><div class="avm-status"><span class="avm-status__text ok"><b>✓ 5 Objekte importiert</b> — 3 Wege (2 Bäche), 1 Fläche, 1 Stätte · Quellen an allen 5</span><a href="#">Rückgängig</a></div></div>
+<div class="demo"><div class="avm-status"><span class="avm-status__text bad"><b>✕ 1 von 5 nicht importiert:</b> „Ostrand" — aus 1 Punkt lässt sich kein Weg bauen. Wähle rechts eine andere Form.</span><a href="#">Zur Zeile</a></div></div>
+<div class="demo"><div class="avm-status"><span class="avm-status__text bad"><b>✕ Der Server hat nicht geantwortet</b> — nichts wurde geschrieben. Die Liste ist unverändert; noch einmal versuchen.</span></div></div>
+<p class="cap">Heute ersetzt ein Fehler die ganze Liste durch einen Satz, und ein gelungener Import sagt gar nichts. Beides wandert in diese eine Zeile;
+die Rückfragen vor „Stage importieren", „Ablehnen" und „Zurücknehmen" bleiben (sie nennen die Folge beim Namen).</p>
+
+<h2>4 · Die Stage auf der Karte — was gezeichnet wird</h2>
+<ul>
+	<li><b>Ihre Geometrie in der Zielform</b> (wie heute: echte Kartenfarbe, gestrichelt; das geöffnete Objekt durchgezogen; goldener Hof = auf der Stage). Ein <b>Bach</b> zeichnet dünner (2 px) in <code>--color-path-bach</code> — das Token gibt es schon, benutzt hat es nie jemand.</li>
+	<li><b>Der Name als Vorschau</b> — neu. In der eingestellten Größe am Flächenmittelpunkt bzw. am Ort, nur wenn „Name anzeigen" an ist und der aktuelle Zoom im Zoomband liegt. Beim Zoomen verschwindet und erscheint er wie auf der fertigen Karte. Beim Ort folgt er der Klassentafel (Zoombänder), beim Weg der Wegart.</li>
+	<li><b>Was schon da ist:</b> Strömungsdreiecke, Endkreuzungs-Ringe, die magenta Avesmaps-Seite, die zwei Sicht-Knöpfe. Unverändert.</li>
+	<li><b>Nur Ansicht:</b> ein Objekt ohne Vorschlag (Ebene ohne Zuordnung) darf auf die Stage, wird gezeichnet, aber nie importiert — die Zeile sagt „nur Ansicht", der Fußknopf zählt es nicht.</li>
+</ul>
+
+<h2>5 · „Imports in der Nähe stagen" mit Typenfilter</h2>
+<p>Die Umkreissuche bleibt am Server (Ausdehnung des Objekts + 1 Karteneinheit = 3 Meilen); die Antwort bringt schon volle Objekte samt Typ mit.
+Der Filter ist deshalb rein im Fenster: die Auswahl listet <b>„gleicher Typ · Fluss (3)"</b> als Vorgabe, dann jeden gefundenen Typ mit Zahl, zuletzt
+„alle Typen (11)". „Auf die Stage (n)" nennt die Zahl der gewählten Gruppe. Gestagt wird in der <b>Vorschlagsform</b> des Abgleichs — wer alle Bäche
+eines Tals als Bach will, setzt den Filter auf „Bach", staged, und braucht rechts nichts mehr anzufassen.</p>
+
+<h2>6 · Was sich unter der Haube ändert (kurz)</h2>
+<ul>
+	<li><b>Stage = die heutige Anzeige-Menge</b> (client-seitig), plus je Objekt seine Einstellungen (die gibt es schon, sie reisen nur bei „Neu einfügen"). Neu: sie reisen <b>je Item</b> mit dem Sammel-Import (<code>einstellungen_je_item</code> im <code>apply</code>-Rumpf, Server liest je Zeile).</li>
+	<li><b>Bach als Art:</b> die Art-Auswahl bekommt „Bach (nicht befahrbar)" unter Weg → schickt <code>subtyp: Flussweg, is_bach: true</code>; der Server nimmt <code>is_bach</code> in <code>avesmapsGaretienZielUebersteuern</code> entgegen (heute entscheidet allein die Zuordnungstabelle).</li>
+	<li><b>Stätte und „nur Quelle + Artikel" als Form:</b> dieselben Items wie heute („innerorts", „quelle"), nur aus der Form-Auswahl statt aus zwei Knöpfen.</li>
+	<li><b>Statuszeile:</b> die Übernahme gibt ihre Fehlergründe zurück (heute nur die Zahl), der Browser zeigt Summe und Gründe; Fehler ersetzen die Liste nicht mehr.</li>
+	<li><b>Stage überlebt einen Lauf ehrlich:</b> nach „Holen &amp; Rechnen" wird die Stage per Schlüssel am neuen Lauf nachgeschlagen (<code>liste</code> bekommt einen <code>keys</code>-Filter); veraltete Item-Nummern laufen sonst still ins Leere.</li>
+</ul>
+</div>
+<script>
+(function () {
+	var root = document.documentElement, btn = document.getElementById("themetoggle");
+	function setze(dunkel) { if (dunkel) { root.setAttribute("data-theme", "dark"); btn.textContent = "Helles Thema"; } else { root.removeAttribute("data-theme"); btn.textContent = "Dunkles Thema"; } }
+	btn.addEventListener("click", function () { setze(!root.hasAttribute("data-theme")); });
+	setze(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+})();
+</script>
+</body>
+</html>
