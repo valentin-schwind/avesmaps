@@ -1080,6 +1080,13 @@ function avesmapsGaretienApplyStep(PDO $pdo, int $runId, int $userId, ?array $us
         // Die Quellen der beruehrten Objekte, damit der Browser sie ohne Neuladen zeigen kann --
         // siehe die Begruendung am Ende von avesmapsGaretienUebernehmen.
         'quellen_neu' => $ergebnis['quellen_neu'] ?? [],
+        // 🔴 DIE GRUENDE, NICHT NUR IHRE ZAHL (06.09.2026). `skipped` sagt „zwei sind nicht
+        // durchgekommen"; welche und warum, stand bisher ausschliesslich in `apply_note` in der
+        // Datenbank und erreichte keinen Browser. Die Statuszeile des Fensters nennt sie jetzt
+        // beim Namen -- dieselbe Regel wie ueberall im Haus: eine stille Ausnahme ist von „hat
+        // funktioniert" nicht zu unterscheiden.
+        'fehler' => $ergebnis['fehler'],
+        'angelegt_je_form' => $ergebnis['angelegt_je_form'],
     ];
 }
 
@@ -1352,6 +1359,19 @@ function avesmapsGaretienItemAbschliessen(PDO $pdo, int $itemId, string $applySt
     );
 }
 
+// 🔴 DIE SIEBEN FORMEN, GENAU EINMAL -- die frisch angelegten Objekte lesbar aufgeschluesselt
+// statt einer nackten Zahl (06.09.2026, Import-Stage). `bach` ist die TEILMENGE von `path`, kein
+// eigener Topf: ein Bach IST ein Flussweg mit Haekchen (AVESMAPS_GARETIEN_TYP_MAP). `quelle`
+// zaehlt den ERGAENZUNGS-Zweig (ein bestehendes Objekt bekommt eine Quelle dazu, siehe
+// avesmapsGaretienErgaenzungAnwenden) -- dort entsteht kein neues Kartenobjekt, nur ein Verweis.
+// ⚠️ EINE Konstante fuer beide Stellen, die diese Form kennen (der frueh verlassene Leerlauf unten
+// und der echte Zaehler im Rumpf): zwei Array-Literale liefen beim naechsten neuen Schluessel
+// auseinander, und der Leerlauf haette einen Schluessel weniger gehabt als die echte Zaehlung.
+const AVESMAPS_GARETIEN_JE_FORM_LEER = [
+    'path' => 0, 'bach' => 0, 'region' => 0, 'label' => 0,
+    'location' => 0, 'settlement_place' => 0, 'quelle' => 0,
+];
+
 /**
  * Die angehakten Vorschlaege eines Vorschau-Laufs uebernehmen.
  *
@@ -1360,12 +1380,17 @@ function avesmapsGaretienItemAbschliessen(PDO $pdo, int $itemId, string $applySt
  *     „warum darf ich das nicht verändern?"), oder null (keine -- der Grundfall, und IMMER der
  *     Fall bei „Alle angezeigten einfügen"). Wirkt nur auf 'new'-Items mit ziel 'region'/'label'
  *     -- ein Ort/Weg speichert keines dieser Felder, siehe avesmapsGaretienLabelUebersteuerung.
- * @return array{angelegt:int, quellen:int, fehler:list<array{item:int, grund:string}>}
+ * @return array{angelegt:int, quellen:int, fehler:list<array{item:int, grund:string}>,
+ *     angelegt_je_form:array{path:int,bach:int,region:int,label:int,location:int,
+ *     settlement_place:int,quelle:int}}
  */
 function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array $user = [], ?array $einstellungen = null): array
 {
     if ($itemIds === []) {
-        return ['angelegt' => 0, 'quellen' => 0, 'fehler' => [], 'quellen_neu' => []];
+        return [
+            'angelegt' => 0, 'quellen' => 0, 'fehler' => [], 'quellen_neu' => [],
+            'angelegt_je_form' => AVESMAPS_GARETIEN_JE_FORM_LEER,
+        ];
     }
     // ⚠️ Das selbstheilende DDL steht beim ENDPUNKT, nicht hier -- wie bei zoom-bands.php. Eine
     // Bibliothek, die beim Schreiben Tabellen anlegt, laesst sich gegen keine andere Datenbank
@@ -1396,6 +1421,10 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
     $angelegt = 0;
     $quellen = 0;
     $fehler = [];
+    // 🔴 DIE FORMZAEHLUNG DIESES LAUFS -- siehe AVESMAPS_GARETIEN_JE_FORM_LEER oben. Sie gehoert in
+    // den RUMPF der Funktion, nicht in eine Signatur oder einen globalen Zustand: eine spaetere
+    // Erweiterung (Aufgabe 4, `$jeItem`) darf diese Zaehlung unveraendert lassen.
+    $jeForm = AVESMAPS_GARETIEN_JE_FORM_LEER;
 
     foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $item) {
         // 🔴 Zweimal uebernehmen legt NICHT zweimal an. Der Vermerk steht am Item, nicht an einer
@@ -1455,6 +1484,19 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
                 );
                 $angelegt += $ergebnis['felder'] > 0 ? 1 : 0;
                 $quellen += $ergebnis['quellen'];
+                // 🔴 DER ERGAENZUNGSZWEIG ZAEHLT ALS `quelle`, NIE ALS EINE DER FUENF FORMEN --
+                // hier entsteht kein neues Kartenobjekt, nur ein Verweis an einem BESTEHENDEN.
+                // „3 Wege" wuerde sonst behaupten, drei neue Wege liegen auf der Karte, waehrend
+                // in Wahrheit ein alter drei Quellen dazubekommen hat.
+                // ⚠️ DIESELBE BEDINGUNG WIE `$angelegt` ZWEI ZEILEN DARUEBER, nicht "jedes
+                // verarbeitete Item": ein Ergaenzungsversuch OHNE gefundene Adresse (kein Artikel,
+                // kein Wirt -- knapp die Haelfte der Zeilen) laeuft ohne Fehler durch, haette aber
+                // NICHTS ergaenzt. Ungeprueft mitgezaehlt behauptete "3 Quellen ergaenzt", waehrend
+                // real vielleicht keine einzige neue Zeile entstanden ist -- dieselbe stille
+                // Ausnahme, vor der dieses Haus ueberall warnt.
+                if ($ergebnis['felder'] > 0) {
+                    $jeForm['quelle']++;
+                }
                 if (is_array($ergebnis['quelle_an'] ?? null)) {
                     $quellenNeu[$ergebnis['quelle_an']['entity_type'] . ':' . $ergebnis['quelle_an']['public_id']]
                         = $ergebnis['quelle_an'];
@@ -1532,6 +1574,7 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
                 // Name, Art und Artikel-Link. Aufgezeichnet ist sie trotzdem.
                 $entityType = 'settlement_place';
                 $quellePublicId = $publicId;
+                $jeForm['settlement_place']++;
             } elseif ($ziel === 'path') {
                 // 🔴 DIE HANDEINGABE DES KASTENS „Eingefuegt wird" (Owner 30.08.2026: „dann weg
                 // bearbeiten"). Ohne sie ist das dritte Array LEER, und dann ist dieser Aufruf
@@ -1553,6 +1596,14 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
                 ], avesmapsGaretienWegUebersteuerung($einstellungen)), $user);
                 $publicId = avesmapsGaretienPublicIdAus($feature, 'Der Weg');
                 [$entityType, $quellePublicId] = avesmapsGaretienQuellenZiel('path', $publicId);
+                $jeForm['path']++;
+                // 🔴 `bach` ist die TEILMENGE von `path`, kein eigener Topf: ein Bach IST ein
+                // Flussweg mit Haekchen (AVESMAPS_GARETIEN_TYP_MAP). Zaehlte er nur hier, ergaeben
+                // die Formzahlen zusammen weniger als `applied`, und die Statuszeile behauptete,
+                // ein Objekt sei verschwunden.
+                if (avesmapsGaretienNachIstBach($nach)) {
+                    $jeForm['bach']++;
+                }
                 // 🔴 KREUZUNGEN AN BEIDE ENDEN, Vorgabe JA (Owner 02.09.2026). Ohne sie haengt der
                 // Weg im Routennetz an nichts -- die Begruendung steht an
                 // avesmapsGaretienSetztEndkreuzungen.
@@ -1581,6 +1632,7 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
                 // 🔴 Die Bindung 'location' -> 'settlement' steht in avesmapsGaretienQuellenZiel,
                 // nicht hier -- ein anderer Wert liesse die Quelle unauffindbar im Katalog liegen.
                 [$entityType, $quellePublicId] = avesmapsGaretienQuellenZiel('location', $publicId);
+                $jeForm['location']++;
             } elseif ($ziel === 'label') {
                 // 🔴 Der Berggipfel ist die EINZIGE Punkt-Ausnahme: ein Label OHNE Region/Flaeche
                 // dahinter (Entwurf §3.4).
@@ -1615,6 +1667,7 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
                 // 🔴 Ein Berggipfel ist ein FREIES Label -- es gibt hier keine Region, an die die
                 // Quelle stattdessen haengen koennte. Die Weiche sagt dafuer 'region' + eigene id.
                 [$entityType, $quellePublicId] = avesmapsGaretienQuellenZiel('label', $publicId);
+                $jeForm['label']++;
             } else {
                 $ergebnis = avesmapsGaretienFlaecheAnlegen($pdo, $nach, $user, $userId, $einstellungen);
                 $publicId = $ergebnis['public_id'];
@@ -1627,6 +1680,7 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
                 // ⚠️ $ergebnis['label_public_id'] wird fuer die Quellenfrage NICHT mehr gebraucht
                 // -- die Beschriftung LIEST die Quellen der Flaeche, sie traegt sie nicht.
                 [$entityType, $quellePublicId] = avesmapsGaretienQuellenZiel('region', $publicId);
+                $jeForm['region']++;
             }
             $angelegt++;
             $neueQuellen = avesmapsGaretienQuellenAnlegen(
@@ -1701,7 +1755,7 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
 
     return [
         'angelegt' => $angelegt, 'quellen' => $quellen, 'fehler' => $fehler,
-        'quellen_neu' => $quellenRueck,
+        'quellen_neu' => $quellenRueck, 'angelegt_je_form' => $jeForm,
     ];
 }
 
