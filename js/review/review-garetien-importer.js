@@ -498,15 +498,69 @@
 		return hasDocument ? document.getElementById("garetien-importer") : null;
 	}
 
-	// Ein Fehler beim Laden der Liste steht IN der Liste, nicht in der Konsole.
-	function garetienListeFehlerZeigen(fehler) {
-		garetienListeSkelettSicherstellen();
-		const listeEl = hasDocument ? document.getElementById("garetien-list") : null;
-		if (listeEl) {
-			listeEl.innerHTML = '<p class="avm-error">'
-				+ avesmapsGaretienEscape((fehler && fehler.message) || "Die Liste konnte nicht geladen werden.")
-				+ "</p>";
+	/*
+	 * DIE STATUSZEILE — der EINE Erzeuger jeder Rückmeldung dieses Fensters (06.09.2026).
+	 *
+	 * 🔴 EINE FUNKTION, KEIN ZWEITER WEG. Bis heute hatte das Fenster drei Halbwege: ein
+	 * Fehlersatz ERSETZTE die Liste, ein Fortschritt stand flüchtig IM Knopf, und ein Erfolg
+	 * meldete GAR NICHTS (`garetienEinfuegenAusfuehren` summierte `applied/skipped` und warf die
+	 * Summe weg). Wer eine vierte Meldung anbaut, ruft diese Funktion.
+	 *
+	 * 🔴 DER TON GEHT MIT. `ton: ""` nimmt `ok`/`bad` wieder ab — sonst bliebe eine grüne
+	 * Erfolgsmeldung farbig unter einem Satz, der nur noch „Stage geleert" sagt.
+	 * 🔴 UND DIE HANDLUNG GEHT MIT. `aktion: null` versteckt den Link; „Rückgängig" darf nie auf
+	 * eine Übernahme zeigen, die zwei Handlungen zurückliegt.
+	 */
+	function garetienStatusSetzen(text, ton, aktion) {
+		if (!hasDocument) { return null; }
+		const textEl = document.getElementById("garetien-status-text");
+		if (textEl) {
+			textEl.textContent = String(text || "");
+			textEl.classList.remove("ok", "bad");
+			if (ton === "ok" || ton === "bad") { textEl.classList.add(ton); }
 		}
+		const knopf = document.getElementById("garetien-status-aktion");
+		if (knopf) {
+			// ⚠️ Der Zuhoerer wird ERSETZT, nicht ergaenzt: der Knopf steht statisch im Markup und
+			// ueberlebt jede Handlung -- ein `addEventListener` je Meldung liefe hoch.
+			knopf.onclick = (aktion && typeof aktion.ruf === "function") ? aktion.ruf : null;
+			knopf.textContent = aktion ? String(aktion.text || "") : "";
+			knopf.hidden = !aktion;
+		}
+		return { text: String(text || ""), ton: ton || "" };
+	}
+
+	// Der Ruhezustand: die Bilanz des LAUFS. Sie ersetzt avesmapsGaretienRunlineMarkup --
+	// dieselben Zahlen, nur ohne eigene Zeile. ⚠️ Die Stage-Zahl kommt aus der MENGE, der Server
+	// kennt sie nicht.
+	// ⚠️ Heisst ab Aufgabe 8 `zustand.stage` -- die Umbenennung zieht diese Zeile mit (siehe die
+	// Namenstabelle am Ende des Bauplans).
+	function garetienStatusRuhe(antwort) {
+		const a = antwort || zustand.letzteAntwort || {};
+		const b = a.bilanz || {};
+		const zahl = (feld) => Number(b[feld] || 0);
+		const gesamt = zahl("neu") + zahl("ergaenzung") + zahl("zweifel")
+			+ zahl("widerspruch") + zahl("deckt_sich") + zahl("uebersprungen");
+		const mitVorschlag = zahl("neu") + zahl("ergaenzung") + zahl("zweifel") + zahl("widerspruch");
+		const lauf = garetienLetzterLauf ? "Lauf " + garetienLaufStempel(garetienLetzterLauf) : "Noch kein Lauf";
+		return garetienStatusSetzen(
+			lauf + " · " + gesamt + " Objekte · " + mitVorschlag + " mit Vorschlag · "
+				+ zustand.anzeige.size + " auf der Stage",
+			"", null
+		);
+	}
+
+	/*
+	 * Ein Fehler steht in der STATUSZEILE, nicht in der Liste (06.09.2026).
+	 *
+	 * 💣 BIS HEUTE ERSETZTE ER `#garetien-list` durch einen Satz. Der Editor verlor damit 1000
+	 * Zeilen wegen einer Anfrage, die vielleicht nur eine Rückfrage betraf -- und erfuhr nicht,
+	 * dass ein Reiterklick sie zurückholt. Die Liste ist nach einem gescheiterten Schreibvorgang
+	 * ohnehin nicht falsch: es wurde ja nichts geschrieben.
+	 */
+	function garetienListeFehlerZeigen(fehler) {
+		const satz = (fehler && fehler.message) || "Die Anfrage ist fehlgeschlagen.";
+		return garetienStatusSetzen("✕ " + satz + " — die Liste ist unverändert.", "bad", null);
 	}
 
 	// 🔴 EIN SATZ statt einer Fehlermeldung (Aufgabe 12b): „es gibt noch keinen Lauf" ist ein
@@ -520,10 +574,9 @@
 			listeEl.innerHTML = '<p class="avm-empty">Noch kein Import-Lauf. „Holen &amp; Rechnen" '
 				+ "im Menüband holt die gewählten Ebenen und rechnet den Abgleich.</p>";
 		}
-		// Die Zahl der Laufzeile gehört einem Lauf; ohne Lauf steht sie leer, statt eine Null zu
+		// Die Statuszeile zeigt die Ruhe-Bilanz -- ohne Lauf "Noch kein Lauf", ohne eine Null zu
 		// behaupten, die niemand gezählt hat.
-		const laufzeileEl = document.getElementById("garetien-runline");
-		if (laufzeileEl) { laufzeileEl.textContent = ""; }
+		garetienStatusRuhe();
 		// Fuenf-Punkte-Brief 30.08.2026, Punkt 1: die alte Bilanzzeile ("N von M Objekten") ist
 		// restlos entfernt -- was hier bleibt, ist NUR der Neutral-Hinweis (Sicht-Tafel, Aufgabe 3),
 		// und der hat ohne Lauf nichts zu melden.
@@ -937,23 +990,10 @@
 			+ "</div>";
 	}
 
-	// ---- Zwei Bilanzzeilen, und sie sagen Verschiedenes (Owner 14.08.2026) -------------------------
-	//
-	// Die STILLE Zeile UEBER der Suche (.gi-runline) ist die Bilanz des LAUFS -- sie bewegt sich
-	// beim Filtern nicht. Sie kommt direkt aus `bilanz` (Aufgabe 8), unabhaengig vom Filter/Reiter.
-	function avesmapsGaretienRunlineMarkup(bilanz) {
-		const b = bilanz || {};
-		const zahl = (feld) => Number(b[feld] || 0);
-		const gesamt = zahl("neu") + zahl("ergaenzung") + zahl("zweifel")
-			+ zahl("widerspruch") + zahl("deckt_sich") + zahl("uebersprungen");
-		return "<b>" + gesamt + "</b> Zeilen · "
-			+ "<b>" + zahl("neu") + "</b> neu · "
-			+ "<b>" + zahl("zweifel") + "</b> mit Zweifel · "
-			+ "<b>" + zahl("widerspruch") + "</b> widersprüchlich · "
-			+ "<b>" + zahl("ergaenzung") + "</b> Ergänzung · "
-			+ "<b>" + zahl("deckt_sich") + "</b> deckt sich · "
-			+ "<b>" + zahl("uebersprungen") + "</b> übersprungen";
-	}
+	// 🔴 Die STILLE Zeile UEBER der Suche (.gi-runline, Owner 14.08.2026) ist am 06.09.2026 in der
+	// Statuszeile aufgegangen: `avesmapsGaretienRunlineMarkup` gibt es nicht mehr, ihr Nachfolger
+	// ist `garetienStatusRuhe` (siehe oben, neben `garetienStatusSetzen`) -- dieselben Zahlen, nur
+	// ohne eigene Zeile.
 
 	// 🔴 Fuenf-Punkte-Brief 30.08.2026, Punkt 1: die Zeile UNTER der Suche ("N von M Objekten · ✦ K
 	// leuchten") ist restlos entfernt (Owner: „weiß sowieso nicht was das bedeutet"). Ihr Erzeuger
@@ -1226,8 +1266,7 @@
 		const listcol = garetienListeSkelettSicherstellen();
 		if (!listcol) { return; }
 
-		const runlineEl = document.getElementById("garetien-runline");
-		if (runlineEl) { runlineEl.innerHTML = avesmapsGaretienRunlineMarkup(a.bilanz); }
+		garetienStatusRuhe(a);
 
 		const tabsEl = document.getElementById("garetien-tabs");
 		if (tabsEl) { tabsEl.innerHTML = avesmapsGaretienTabsMarkup(a.reiter, zustand.stand); }
@@ -6676,7 +6715,8 @@
 			avesmapsGaretienHatAuswahl,
 			avesmapsGaretienAufDerKarte,
 			avesmapsGaretienUrteilInfo,
-			avesmapsGaretienRunlineMarkup,
+			// 06.09.2026: avesmapsGaretienRunlineMarkup ist entfallen, ihr Nachfolger heisst
+			// garetienStatusRuhe und steht bei den uebrigen Statuszeilen-Funktionen unten.
 			avesmapsGaretienTabsMarkup,
 			avesmapsGaretienAngehakt,
 			avesmapsGaretienAngehaktAus,
@@ -6710,6 +6750,10 @@
 			garetienLaufUebernehmen,
 			garetienFensterFuellen,
 			garetienLaufStarten,
+			// Aufgabe 1 (06.09.2026): die Statuszeile -- der EINE Erzeuger jeder Rückmeldung.
+			garetienStatusSetzen,
+			garetienStatusRuhe,
+			garetienListeFehlerZeigen,
 			// Aufgabe 13
 			garetienDetailMarkup,
 			// Aufgabe 13b

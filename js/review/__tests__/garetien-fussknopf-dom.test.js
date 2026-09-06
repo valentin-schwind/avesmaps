@@ -57,7 +57,7 @@ function tick() {
 // Datei etwas davon prueft.
 
 function macheElement(id) {
-	return {
+	const el = {
 		id: id,
 		hidden: false,
 		disabled: false,
@@ -65,7 +65,11 @@ function macheElement(id) {
 		innerHTML: "",
 		value: "",
 		dataset: {},
+		onclick: null,
 		_hoerer: {},
+		// 🔴 Aufgabe 1 (06.09.2026): war bis dahin ein reiner Stub (`contains()` immer `false`) --
+		// die Statuszeile setzt "ok"/"bad" wirklich und muss das auch pruefbar tragen.
+		_klassen: new Set(),
 		addEventListener(art, fn) {
 			this._hoerer[art] = this._hoerer[art] || [];
 			this._hoerer[art].push(fn);
@@ -73,20 +77,33 @@ function macheElement(id) {
 		querySelectorAll() { return []; },
 		querySelector() { return null; },
 		getAttribute() { return null; },
-		classList: { toggle() {}, add() {}, remove() {}, contains() { return false; } },
+		classList: {
+			add() { Array.prototype.forEach.call(arguments, (k) => el._klassen.add(k)); },
+			remove() { Array.prototype.forEach.call(arguments, (k) => el._klassen.delete(k)); },
+			contains(k) { return el._klassen.has(k); },
+			toggle(k, erzwingen) {
+				const soll = erzwingen === undefined ? !el._klassen.has(k) : Boolean(erzwingen);
+				if (soll) { el._klassen.add(k); } else { el._klassen.delete(k); }
+				return soll;
+			},
+		},
 		/** Einen echten Klick ausloesen -- so, wie ihn der Browser zustellt. */
 		klick() {
-			(this._hoerer.click || []).forEach((fn) => fn({ target: this }));
-			return (this._hoerer.click || []).length;
+			if (typeof el.onclick === "function") { el.onclick({ target: el }); }
+			(el._hoerer.click || []).forEach((fn) => fn({ target: el }));
+			return (el._hoerer.click || []).length;
 		},
 	};
+	return el;
 }
 
 const ELEMENTE = {};
-// 🔴 Aufgabe 8: „garetien-list" kam dazu -- garetienListeFehlerZeigen schreibt DORTHIN (nicht in
-// die Spalte „garetien-listcol" selbst), und ohne einen eigenen Eintrag faende die gefaelschte
-// getElementById()-Weiche es nie, egal was die Spalte als String-innerHTML traegt.
-["garetien-apply", "garetien-apply-hint", "garetien-listcol", "garetien-list", "garetien-sheet"]
+// 🔴 Aufgabe 8: „garetien-list" kam dazu, weil garetienListeFehlerZeigen damals DORTHIN schrieb.
+// Seit Aufgabe 1 (06.09.2026) tut sie das nicht mehr -- ein Fehler steht in der Statuszeile
+// (garetien-status-text/-aktion), und genau deshalb bleibt „garetien-list" hier trotzdem stehen:
+// D4 weiter unten prueft ausdruecklich, dass sie UNBERUEHRT bleibt.
+["garetien-apply", "garetien-apply-hint", "garetien-listcol", "garetien-list", "garetien-sheet",
+	"garetien-status-text", "garetien-status-aktion"]
 	.forEach((id) => { ELEMENTE[id] = macheElement(id); });
 
 global.document = {
@@ -348,11 +365,13 @@ async function pruefeFussknopfSchreibtWirklich() {
 		+ "eine weitere Vormerkung");
 	gleich(d3.angefragt[3].rumpf.stand, "offen", "…und die Listenaktualisierung liest den aktiven Reiter");
 
-	// D4: Ein Fehler MITTENDRIN (schon beim Anhaken) bricht ab, steht IN der Liste und entsperrt
-	// den Knopf wieder -- er darf nie als Erfolg durchgehen (Brief).
+	// D4: Ein Fehler MITTENDRIN (schon beim Anhaken) bricht ab, entsperrt den Knopf wieder und
+	// darf nie als Erfolg durchgehen (Brief). 🔴 SEIT AUFGABE 1 (06.09.2026) STEHT ER IN DER
+	// STATUSZEILE, NICHT MEHR IN DER LISTE -- die bleibt unberuehrt stehen.
 	avesmapsGaretienAnzeigeLeeren();
 	avesmapsGaretienAnzeigeHinzufuegen([mitVorschlagOffen]);
 	garetienUebernahmeKnopfSetzen(avesmapsGaretienAnzeigeListe());
+	LISTE_EL.innerHTML = "<div class='avm-row'>vorher unveraendert</div>";
 
 	const d4 = machFetch(function (pfad, rumpf) {
 		if (rumpf.action === "select") { return { ok: false, error: { message: "dump_locked" } }; }
@@ -365,8 +384,11 @@ async function pruefeFussknopfSchreibtWirklich() {
 	global.fetch = echtesFetchD4;
 
 	gleich(d4.angefragt.length, 1, "🔴 ein Fehler mittendrin bricht die Kette ab -- kein `apply` danach");
-	wahr(LISTE_EL.innerHTML.indexOf("dump_locked") !== -1,
-		"und der Fehler steht IN der Liste -- er darf nie als Erfolg durchgehen");
+	wahr(ELEMENTE["garetien-status-text"].textContent.indexOf("dump_locked") !== -1,
+		"der Fehler steht in der Statuszeile -- er darf nie als Erfolg durchgehen");
+	wahr(ELEMENTE["garetien-status-text"]._klassen.has("bad"), "und traegt den Ton bad");
+	gleich(LISTE_EL.innerHTML, "<div class='avm-row'>vorher unveraendert</div>",
+		"💣 die Liste bleibt UNBERUEHRT -- ein Fehler ersetzt sie nicht mehr (Aufgabe 1)");
 	gleich(KNOPF.disabled, false, "…und der Knopf wird wieder freigegeben, nicht fuer immer gesperrt");
 
 	// D5: WAEHREND ein Lauf laeuft, startet ein zweiter Klick KEINE zweite Sequenz. Der erste Klick

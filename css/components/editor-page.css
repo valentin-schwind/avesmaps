@@ -306,12 +306,13 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════════════════════
- * THE SHARED EDITOR BODY — aliases, the host class, the status line, the field column, the
- * savebar. 🔴 NOT ribbon/tiles/columns/scroll/tabs/badges anymore — those moved out on 2026-08-27,
- * see css/components/editor-body.css (imported at the top of this file). This header used to
- * describe all of it in one place; it stayed here because the aliases and the host-scoped
- * button/input rules below are still true and still belong to the SIX EDITOR PAGES specifically
- * (they key off `.avm-editor-body`, which the „Garetien Importer" window does not carry).
+ * THE SHARED EDITOR BODY — aliases, the host class, the field column, the savebar. 🔴 NOT
+ * ribbon/tiles/columns/scroll/tabs/badges anymore — those moved out on 2026-08-27, and NOT the
+ * status line either — it moved out on 06.09.2026, see css/components/editor-body.css (imported
+ * at the top of this file). This header used to describe all of it in one place; it stayed here
+ * because the aliases and the host-scoped button/input rules below are still true and still
+ * belong to the SIX EDITOR PAGES specifically (they key off `.avm-editor-body`, which the
+ * „Garetien Importer" window does not carry).
  *
  * 💣 MOVED HERE ON 2026-08-02, and the reason is the whole point of this file. Every rule below
  *    was written for the SEVENTH editor (css/pages/landschaften-editor.css) and lived there. The
@@ -365,14 +366,15 @@ body.avm-editor-body {
 	color: var(--fg);
 }
 
-/* 💣 Menüband, Kachel, Spalten, Rollkasten, Reiter und Zeilen-Badge (.avm-ribbon-bar, .avm-ribbon,
-   .avm-tile samt Modifikatoren, .avm-cols, .avm-col samt Modifikatoren, .avm-scroll samt
-   Modifikator, .avm-tabs, .avm-tab, .avm-empty, .avm-error, .avm-pill samt Modifikator) stehen
-   seit 2026-08-27 NICHT mehr hier, sondern in css/components/editor-body.css (oben per @import
-   gebunden). Grund: das Fenster „Garetien Importer" lebt in index.html, nicht in einem
-   Editor-iframe, und braucht dieselben Formen. Nicht hierher zurueckkopieren -- dann gaebe es sie
-   zweimal, und genau daraus ist die Divergenz vom 14.08.2026 gewachsen. Gewacht von
-   js/pages/__tests__/editor-body-single-source.test.js. */
+/* 💣 Menüband, Kachel, Spalten, Rollkasten, Reiter, Zeilen-Badge UND (seit 06.09.2026) die
+   Statuszeile (.avm-ribbon-bar, .avm-ribbon, .avm-tile samt Modifikatoren, .avm-cols, .avm-col
+   samt Modifikatoren, .avm-scroll samt Modifikator, .avm-tabs, .avm-tab, .avm-empty, .avm-error,
+   .avm-pill samt Modifikator, .avm-status samt .avm-status__text) stehen NICHT mehr hier, sondern
+   in css/components/editor-body.css (oben per @import gebunden). Grund: das Fenster „Garetien
+   Importer" lebt in index.html, nicht in einem Editor-iframe, und braucht dieselben Formen. Nicht
+   hierher zurueckkopieren -- dann gaebe es sie zweimal, und genau daraus ist die Divergenz vom
+   14.08.2026 gewachsen. Gewacht von js/pages/__tests__/editor-body-single-source.test.js und
+   js/app/__tests__/statuszeile-geteilt.test.js. */
 
 /* 💣 `:where()` IS LOAD-BEARING HERE, and it cost a measurement to find out. On the seventh
    editor's own page this was a bare `button { … }` (specificity 0,0,1), so every `.avm-tile`,
@@ -394,33 +396,6 @@ body.avm-editor-body {
 
 :where(.avm-editor-body) button:hover { background: var(--color-button-soft-hover); }
 :where(.avm-editor-body) button:disabled { opacity: .5; cursor: default; }
-
-/* ---- Status line (Spec §3.4) ----------------------------------------------------------------
- * Its own row UNDER the ribbon, full width. One line, ellipsised: a long message must never push
- * the columns down.
- */
-.avm-status {
-	display: flex;
-	align-items: center;
-	gap: var(--space-12);
-	padding: var(--avm-status-pad);
-	min-height: var(--avm-status-min-h);
-	color: var(--mut);
-	background: var(--soft);
-	border-bottom: 1px solid var(--line);
-	white-space: nowrap;
-}
-
-.avm-status__text {
-	flex: 1 1 auto;
-	min-width: 0;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-}
-
-.avm-status__text.ok { color: var(--ok); }
-.avm-status__text.bad { color: var(--bad); }
 
 /* Same `:where()` reasoning as the button block above: element selectors must stay at element
    specificity, or a page's own `.klasse input` rules stop winning. */

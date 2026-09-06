@@ -4253,7 +4253,17 @@
 			<div class="avm-ribbon-bar">
 				<div class="avm-ribbon" id="garetien-ribbon"></div>
 			</div>
-			<p class="gi-runline" id="garetien-runline"></p>
+			<!-- 🔴 DIE STATUSZEILE (06.09.2026). Sie ersetzt die stille Laufzeile: in Ruhe die
+			     Bilanz des Laufs, nach jeder Handlung deren Ergebnis, bei einem Fehler den Grund
+			     in Rot — und die Liste bleibt dabei stehen. Bis dahin ersetzte ein Fehler die
+			     ganze Liste durch einen Satz, und eine gelungene Übernahme meldete gar nichts.
+			     ⚠️ `.avm-status` ist die Hausform (css/components/editor-body.css) — dieselbe
+			     Zeile wie im Wege- und Landschaften-Editor, kein eigenes Aussehen.
+			     ⚠️ role="status" + aria-live="polite": die Meldung erscheint ohne Fokuswechsel. -->
+			<div class="avm-status" role="status" aria-live="polite">
+				<span class="avm-status__text" id="garetien-status-text"></span>
+				<button class="gi-status__aktion" type="button" id="garetien-status-aktion" hidden></button>
+			</div>
 			<div class="avm-cols avm-cols--2">
 				<div class="avm-col" id="garetien-listcol"></div>
 				<div class="avm-col" id="garetien-detailcol"></div>

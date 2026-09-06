@@ -154,16 +154,32 @@ wahr(!garetienZeileMarkup(Object.assign({}, basis, { items: [{ id: 1, selected: 
 wahr(typeof mod.avesmapsGaretienBalanceZeileText === "undefined",
 	"avesmapsGaretienBalanceZeileText ist entfernt, keine leere Huelle geblieben");
 
-// ---- Die stille Laufzeile (.gi-runline) -- Bilanz des LAUFS, unabhaengig vom Filter -----------
-
-wahr(typeof mod.avesmapsGaretienRunlineMarkup === "function", "avesmapsGaretienRunlineMarkup fehlt");
-const runline = mod.avesmapsGaretienRunlineMarkup({
-	neu: 199, ergaenzung: 25, zweifel: 32, widerspruch: 3, deckt_sich: 24, uebersprungen: 6,
-});
-gleich(/(\D|^)289(\D|$)/.test(runline), true, "289 Zeilen insgesamt (Summe aller Urteile) muss vorkommen");
-["199", "25", "32", "3", "24", "6"].forEach((zahl) => {
-	wahr(runline.includes(zahl), `Runline muss die Zahl ${zahl} enthalten`);
-});
+// ---- Die stille Laufzeile (.gi-runline) ist am 06.09.2026 (Aufgabe 1) in der Statuszeile
+// aufgegangen -- avesmapsGaretienRunlineMarkup gibt es nicht mehr, ihr Nachfolger heisst
+// garetienStatusRuhe. Der Verhaltenstest dafuer steht in garetien-statuszeile.test.js (dieselbe
+// Statuszeile, kein Nachbau); hier nur der Beleg, dass die alte Funktion wirklich weg ist und die
+// neue -- am ERGEBNIS im DOM, nicht am Quelltext -- dieselbe Formel liefert.
+wahr(typeof mod.avesmapsGaretienRunlineMarkup === "undefined",
+	"avesmapsGaretienRunlineMarkup ist entfernt, keine leere Huelle geblieben");
+wahr(typeof mod.garetienStatusRuhe === "function", "garetienStatusRuhe fehlt im Export");
+wahr(typeof mod.garetienStatusSetzen === "function", "garetienStatusSetzen fehlt im Export");
+{
+	// Eigene, DOM-faehige Modulinstanz -- `mod` oben wurde OHNE `document` geladen (die uebrigen
+	// Zusicherungen dieser Datei pruefen bewusst nur die pure Haelfte), garetienStatusRuhe
+	// schreibt aber wirklich in die Statuszeile.
+	const { ladeImporter } = require("./helfer/garetien-testumgebung.js");
+	const { api: statusApi, dom: statusDom } = ladeImporter();
+	statusApi.garetienStatusRuhe({
+		bilanz: { neu: 199, ergaenzung: 25, zweifel: 32, widerspruch: 3, deckt_sich: 24, uebersprungen: 6 },
+	});
+	const runline = statusDom.text("#garetien-status-text");
+	// 🔴 ANDERS ALS avesmapsGaretienRunlineMarkup zeigt garetienStatusRuhe keine Einzelzahlen mehr
+	// je Urteil -- nur die Summe (289 = 199+25+32+3+24+6) und die Menge MIT Vorschlag
+	// (259 = 199+25+32+3, ohne "deckt_sich"/"uebersprungen").
+	wahr(/(\D|^)289(\D|$)/.test(runline), "289 Objekte insgesamt (Summe aller Urteile) muss vorkommen");
+	wahr(/(\D|^)259(\D|$)/.test(runline), "259 mit Vorschlag (ohne deckt_sich/uebersprungen) muss vorkommen");
+	wahr(runline.includes("Noch kein Lauf"), "ohne Lauf steht das ausdruecklich da, keine geratene Zeit");
+}
 
 // ---- Die Reiter zeigen den BEARBEITUNGSSTAND, nicht das Urteil --------------------------------
 

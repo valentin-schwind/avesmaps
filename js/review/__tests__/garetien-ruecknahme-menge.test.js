@@ -36,7 +36,7 @@ function tick() {
 // ---- Das gefaelschte `document` -- dieselbe magere Form wie garetien-fussknopf-dom.test.js -----
 
 function macheElement(id) {
-	return {
+	const el = {
 		id: id,
 		hidden: false,
 		disabled: false,
@@ -44,7 +44,11 @@ function macheElement(id) {
 		innerHTML: "",
 		value: "",
 		dataset: {},
+		onclick: null,
 		_hoerer: {},
+		// 🔴 Aufgabe 1 (06.09.2026): war ein reiner Stub -- die Statuszeile setzt "ok"/"bad"
+		// wirklich und muss das auch pruefbar tragen (Abschnitt 7 unten).
+		_klassen: new Set(),
 		addEventListener(art, fn) {
 			this._hoerer[art] = this._hoerer[art] || [];
 			this._hoerer[art].push(fn);
@@ -52,16 +56,28 @@ function macheElement(id) {
 		querySelectorAll() { return []; },
 		querySelector() { return null; },
 		getAttribute() { return null; },
-		classList: { toggle() {}, add() {}, remove() {}, contains() { return false; } },
+		classList: {
+			add() { Array.prototype.forEach.call(arguments, (k) => el._klassen.add(k)); },
+			remove() { Array.prototype.forEach.call(arguments, (k) => el._klassen.delete(k)); },
+			contains(k) { return el._klassen.has(k); },
+			toggle(k, erzwingen) {
+				const soll = erzwingen === undefined ? !el._klassen.has(k) : Boolean(erzwingen);
+				if (soll) { el._klassen.add(k); } else { el._klassen.delete(k); }
+				return soll;
+			},
+		},
 	};
+	return el;
 }
 
 const ELEMENTE = {};
 // 🔴 „garetien-tabs" MUSS dabei sein: nur so wird beim ersten Listenlauf ein Reiterwechsel auf
 // „Übernommen" moeglich -- genau der Weg, auf dem `zustand.stand`/`zustand.objekte` in Wahrheit
 // entstehen (kein Test-Hintertuerchen, dieselbe Funktion, die auch ein echter Klick nimmt).
+// 🔴 „garetien-status-text" kam mit Aufgabe 1 (06.09.2026) dazu: ein Fehler steht seither dort,
+// nicht mehr in der Liste (siehe Abschnitt 7).
 ["garetien-listcol", "garetien-list", "garetien-tabs",
-	"garetien-ruecknahme-markierte", "garetien-ruecknahme-markierte-hint"]
+	"garetien-ruecknahme-markierte", "garetien-ruecknahme-markierte-hint", "garetien-status-text"]
 	.forEach((id) => { ELEMENTE[id] = macheElement(id); });
 
 global.document = {
@@ -326,6 +342,7 @@ const objC = { key: "c", stand: "uebernommen", items: [{ id: 103, change_type: "
 		garetienRuecknahmeMengeKnopfSetzen([objA, objB]);
 		gleich(KNOPF.textContent, "Markierte zurücknehmen (2 von 2)");
 
+		LISTE_EL.innerHTML = "<div class='avm-row'>vorher unveraendert</div>";
 		const d = machFetch(function (pfad, rumpf) {
 			if (rumpf.action === "ruecknahme" && rumpf.ids[0] === 101) {
 				return { ok: true, zurueckgenommen: 1, fehler: [] };
@@ -342,10 +359,16 @@ const objC = { key: "c", stand: "uebernommen", items: [{ id: 103, change_type: "
 
 		tief(d.angefragt.filter((a) => a.rumpf.action === "ruecknahme").map((a) => a.rumpf.ids[0]),
 			[101, 102], "🔴 die Kette haelt NACH dem Fehlschlag an -- kein dritter Ruf, keine Liste danach");
-		wahr(LISTE_EL.innerHTML.indexOf("1 von 2") !== -1,
-			"💣 die Fehlermeldung steht IN der Liste und nennt die ZAHL der schon zurueckgenommenen: "
-			+ LISTE_EL.innerHTML);
-		wahr(LISTE_EL.innerHTML.indexOf("server_kaputt") !== -1, "…und den GRUND aus der Serverantwort");
+		// 🔴 SEIT AUFGABE 1 (06.09.2026): der Fehler steht in der STATUSZEILE, nicht mehr in der
+		// Liste -- die bleibt unberuehrt stehen.
+		wahr(ELEMENTE["garetien-status-text"].textContent.indexOf("1 von 2") !== -1,
+			"💣 die Fehlermeldung nennt die ZAHL der schon zurueckgenommenen: "
+			+ ELEMENTE["garetien-status-text"].textContent);
+		wahr(ELEMENTE["garetien-status-text"].textContent.indexOf("server_kaputt") !== -1,
+			"…und den GRUND aus der Serverantwort");
+		wahr(ELEMENTE["garetien-status-text"]._klassen.has("bad"), "…mit dem Ton bad");
+		gleich(LISTE_EL.innerHTML, "<div class='avm-row'>vorher unveraendert</div>",
+			"💣 die Liste bleibt UNBERUEHRT -- ein Fehler ersetzt sie nicht mehr (Aufgabe 1)");
 		gleich(KNOPF.disabled, false, "der Knopf entsperrt sich wieder -- kein haengender Riegel");
 	}
 

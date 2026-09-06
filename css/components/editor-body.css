@@ -229,3 +229,45 @@
 	color: var(--color-warning);
 	border-color: var(--color-warning-soft-border);
 }
+
+/* ---- Die Statuszeile ------------------------------------------------------------------------
+ * Eine eigene Reihe unter dem Menüband, volle Breite, EINZEILIG und ellipsiert: eine lange
+ * Meldung darf die Spalten nie nach unten drücken.
+ *
+ * 🔴 SIE STAND BIS ZUM 06.09.2026 IN editor-page.css und war damit den Editor-SEITEN vorbehalten.
+ * Das Fenster „Garetien Importer" lebt aber in index.html und lädt jene Datei nie — dieselbe
+ * Reise wie editor-row.css, map-status-circle.css und wiki-override.css, und aus demselben
+ * Grund: eine Regel, zwei Welten, EINE Datei, die beide laden.
+ * 💣 UND DESHALB DIE ECHTEN TOKENS, NICHT DIE KURZ-ALIASE. `--soft`/`--line`/`--mut`/`--ok`/
+ *    `--bad` stehen im `:root` von editor-page.css; in index.html sind sie undefiniert, und
+ *    `color: var(--mut)` ohne Rückfall ist dann ungültig — die Zeile erbte still die Textfarbe.
+ *    Der Kommentar an jenem `:root` sagt es selbst: neue Regeln greifen zum echten Token.
+ * ⚠️ Die vier Editor-SEITEN mit einer INLINE abgeschriebenen Fassung (#status im Sync-Monitor,
+ *    #plStatus, #settlementStatus, dazu citymap- und literatur-Editor) bleiben unangetastet —
+ *    sie hierher zu ziehen ist ein eigener Auftrag, nicht dieser.
+ */
+.avm-status {
+	display: flex;
+	align-items: center;
+	gap: var(--space-12);
+	padding: var(--avm-status-pad);
+	min-height: var(--avm-status-min-h);
+	color: var(--color-text-muted);
+	background: var(--color-panel-soft);
+	border-bottom: 1px solid var(--color-divider);
+	white-space: nowrap;
+}
+
+.avm-status__text {
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* 💣 `--color-success-soft-text`/`--color-danger-soft-text` statt `--color-success`/
+   `--color-danger`: auf `--color-panel-soft` misst `--color-danger` im dunklen Thema unter 4,5 —
+   dieselbe Messung, die `.gi-win .btn--danger` schon trägt. */
+.avm-status__text.ok { color: var(--color-success-soft-text); }
+.avm-status__text.bad { color: var(--color-danger-soft-text); }

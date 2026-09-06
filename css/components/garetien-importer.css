@@ -298,15 +298,9 @@ html.avesmaps-planner-collapsed .gi-win {
    ist der Ton des Menuebands; der Fensterkopf traegt seit dem 04.09.2026 GAR KEINEN eigenen Grund mehr. */
 .gi-win .avm-ribbon-bar { background: var(--color-panel-soft); }
 
-/* ---- Die stille Zeile: die Bilanz des LAUFS (Aufgabe 11+ füllt sie). ---------------------- */
-.gi-runline {
-	margin: 0;
-	max-width: none;
-	padding: var(--space-4) var(--space-12);
-	background: var(--color-panel-muted);
-	font-size: var(--font-size-caption);
-	color: var(--color-text-muted);
-}
+/* 🔴 Die stille Zeile „.gi-runline" (Aufgabe 11+, Bilanz des LAUFS) ist am 06.09.2026 (Aufgabe 1)
+   durch die Statuszeile (.avm-status, css/components/editor-body.css) ersetzt worden -- diese
+   Regel ist ersatzlos entfallen, .gi-runline steht in keinem Markup mehr. */
 
 /* ⚠️ Die rechte Spalte polstert nicht selbst -- das tut die rollende Einzelansicht darin
    (Aufgabe 11+). Specificity 0,3,0 schlägt die geteilte 0,2,0 aus editor-body.css. */
@@ -1272,3 +1266,20 @@ html.avesmaps-planner-collapsed .gi-win {
 	padding: var(--space-6) var(--space-12);
 	border-top: 1px solid var(--color-divider);
 }
+
+/* Der Handlungs-Link der Statuszeile („Rückgängig", „Zur Zeile"). Ein LINK, kein Knopf: er ist
+   der Nebenausgang einer Meldung, nicht ihre Handlung — dieselbe Rangfolge wie überall in diesem
+   Fenster (AGENTS.md §12: die eine gefüllte Handlung steht im Fuß). */
+.gi-status__aktion {
+	flex: none;
+	padding: 0;
+	border: 0;
+	background: none;
+	color: var(--color-link);
+	font: inherit;
+	font-size: var(--font-size-caption);
+	text-decoration: underline;
+	cursor: pointer;
+}
+.gi-status__aktion:hover { color: var(--color-link-hover); }
+.gi-status__aktion[hidden] { display: none; }
