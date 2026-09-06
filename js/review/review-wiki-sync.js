@@ -843,8 +843,13 @@ async function refreshWikiSyncKindSyncedStatus() {
 		const synced = await fetchWikiSyncKindLastSynced();
 		// Same answer, second reader: the rail shows one date per subject and translates the
 		// subject key to this map's sync kind through the registry (wikiSyncSubjectSyncKind).
-		// VERSCHMELZEN, nicht ersetzen: der Lore-Schluessel kommt aus einem anderen Endpunkt
-		// (siehe loadLoreList) und waere bei jedem Neuladen dieser Antwort sonst wieder weg.
+		// 🔴 Das ist der EINE Schreiber der Datumskarte -- seit 06.09.2026 auch fuer Vorkommen: der
+		// Server liefert `lore` in derselben Antwort (avesmapsWikiDumpSyncKindLastSynced). Vorher
+		// haengte die Vorkommen-Liste ihren Wert hier ein, nur nach dem Klick auf das Subjekt, und
+		// die Zelle blieb beim Laden leer. Verschmolzen statt ersetzt bleibt es trotzdem: ein
+		// Schluessel, den EINE Antwort nicht nennt, darf keinen Wert loeschen, den eine fruehere
+		// brachte -- und jede neue Art ohne Schluessel faengt der Naht-Test
+		// (api/_internal/wiki/__tests__/vorkommen-datum-in-der-leiste-test.php).
 		wikiSyncKindSyncedRaw = Object.assign({}, wikiSyncKindSyncedRaw, synced);
 		renderWikiSyncSubjectRail();
 		// Das DATUM steht rechts neben dem Knopf -- bei allen sechs Reitern gleich (Owner 2026-07-19,
@@ -2756,6 +2761,12 @@ async function startWikiSyncLoreSync() {
 					// Fehlschlag aus.
 					loadLoreList("dialog");
 					loadLoreList("panel");
+					// Und die Auswahlzeile ueber den EINEN Schreiber (wie Literatur eine Seite
+					// weiter oben): seit 06.09.2026 haengt die Liste ihr Datum dort nicht mehr ein,
+					// der Server liefert `lore` in derselben Karte wie alle anderen Arten.
+					if (typeof refreshWikiSyncKindSyncedStatus === "function") {
+						void refreshWikiSyncKindSyncedStatus();
+					}
 				},
 			});
 		}
@@ -3959,7 +3970,7 @@ window.openAvesmapsSyncEditorOverlay = window.openAvesmapsSyncEditorOverlay || f
 			if (editorReload) editorReload.click();
 		} catch (editorError) { /* Editor evtl. nicht offen. */ }
 	};
-	closeButton.addEventListener("click", closeOverlay);
+	closeButton.addEventListener("click", closeOverlay);
 	const frame = document.createElement("iframe");
 	frame.className = "political-territory-editor-dialog__frame";
 	frame.src = buildSyncEditorSrc();

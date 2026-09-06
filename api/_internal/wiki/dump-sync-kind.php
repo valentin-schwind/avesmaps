@@ -201,6 +201,17 @@ function avesmapsWikiDumpSyncKindLastSynced(PDO $pdo): array
     if (function_exists('avesmapsWikiPowerlineLastSynced')) {
         $result['powerline'] = avesmapsWikiPowerlineLastSynced($pdo);
     }
+    // Vorkommen (lore) sind ebenfalls kein sync_kind; ihr Stempel liegt in app_setting
+    // (AVESMAPS_LORE_LAST_SYNCED_SETTING, gelesen von avesmapsLoreLastSynced in lore-sync.php, das
+    // dump.php laedt). 💣 Bis zum 06.09.2026 fehlte dieser Schluessel: die Leiste holt DIESE Karte
+    // beim Laden, und Vorkommen bekam sein Datum nur ueber die Antwort der Vorkommen-Liste -- also
+    // erst nach dem Klick auf das Subjekt, asynchron, und jeder weitere Klick verwarf die laufende
+    // Antwort. Owner: „nur wenn ich paar mal drauf klickt kommt das datum". Derselbe Riegel wie bei
+    // den drei Arten darueber; die Naht zur Client-Registry haelt
+    // __tests__/vorkommen-datum-in-der-leiste-test.php (jeder syncKind hat hier einen Schluessel).
+    if (function_exists('avesmapsLoreLastSynced')) {
+        $result['lore'] = avesmapsLoreLastSynced($pdo);
+    }
 
     return $result;
 }

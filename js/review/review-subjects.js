@@ -71,8 +71,11 @@ const WIKI_SYNC_LORE_VIEWS = [
 // spelled differently from the subject key, so the rail must translate rather than guess. null
 // means no date source at all. powerlines now records a reconcile timestamp
 // (avesmapsWikiPowerlineLastSynced, wired into avesmapsWikiDumpSyncKindLastSynced like
-// adventure/citymap), so it carries syncKind "powerline"; lore's date comes from a separate
-// injection (loadLoreList), not from that server map.
+// adventure/citymap), so it carries syncKind "powerline"; lore hängt seit 06.09.2026 an derselben
+// Karte (avesmapsLoreLastSynced, gleicher Riegel) -- vorher kam sein Datum nur mit der
+// Vorkommen-Liste, also erst nach dem Klick, und die Zelle blieb beim Laden leer.
+// 🔴 Jeder syncKind hier MUSS ein Schluessel jener Karte sein; der Naht-Test
+// api/_internal/wiki/__tests__/vorkommen-datum-in-der-leiste-test.php haelt das fest.
 const WIKI_SYNC_SUBJECTS = [
 	{ key: "locations",   label: "Orte",        syncButtonId: "wiki-sync-sync-settlement",  editorButtonId: "settlement-editor-open", syncKind: "settlement", views: WIKI_SYNC_MAP_VIEWS },
 	{ key: "territories", label: "Territorien", syncButtonId: "wiki-sync-territories",      editorButtonId: null,                     syncKind: "territory",  views: WIKI_SYNC_MAP_VIEWS },
@@ -83,9 +86,9 @@ const WIKI_SYNC_SUBJECTS = [
 	{ key: "citymaps",    label: "Karten",      syncButtonId: null,                         editorButtonId: "citymaps-editor-open",   syncKind: "citymap",    views: [] },
 	// Label "Vorkommen", key stays `lore`: renaming the key buys nothing but a chance to miss
 	// one place (same reasoning as index.html:383). Here label and key even agree.
-	// syncKind "lore" beantwortet NICHT der Dump-Endpunkt, sondern der Lore-Katalog selbst
-	// (api/app/lore.php liefert last_synced aus app_setting). loadLoreList hängt den Wert in
-	// dieselbe Map ein, aus der die Auswahlzeile alle Daten liest.
+	// syncKind "lore" beantwortet der Dump-Endpunkt wie alle anderen (avesmapsWikiDumpSyncKindLastSynced
+	// liest den Stempel aus app_setting). Bis 06.09.2026 stand hier das Gegenteil, und es war der
+	// Fehler: die Zelle bekam ihr Datum nur aus der Vorkommen-Liste, also nie beim Laden.
 	{ key: "lore",        label: "Vorkommen",   syncButtonId: "wiki-sync-sync-lore",        editorButtonId: "wiki-sync-lore-open",    syncKind: "lore",       views: WIKI_SYNC_LORE_VIEWS },
 ];
 

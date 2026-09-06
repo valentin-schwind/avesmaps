@@ -190,13 +190,14 @@ function avesmapsLoreFetchList(view, append) {
 				// Der gemeinsame Streifen zeichnet sich mit den frischen Zahlen neu -- er trägt
 				// bewusst keine data-lore-count-Chips, die die Schleife oben bedienen könnte.
 				renderWikiSyncLoreViewTabs(counts);
-				// Das Datum der Auswahlzeile kommt aus DIESER Antwort. Vorkommen ist keine
-				// sync_kind des Dump-Endpunkts; sein Datum steht in app_setting und reist mit dem
-				// Katalog mit -- deshalb wird es hier eingehaengt statt dort abgefragt.
-				if (data && data.ok) {
-					wikiSyncKindSyncedRaw = Object.assign({}, wikiSyncKindSyncedRaw, { lore: data.last_synced || null });
-					renderWikiSyncSubjectRail();
-				}
+				// 🔴 KEIN Einhaengen von `last_synced` in die Datumskarte der Auswahlzeile mehr. Bis zum
+				// 06.09.2026 stand das hier -- und war der EINZIGE Weg, auf dem Vorkommen sein Datum
+				// bekam: erst nach dem Klick auf das Subjekt, asynchron, und jeder weitere Klick
+				// verwarf die laufende Antwort ueber das Token oben (Owner: „nur wenn ich paar mal
+				// drauf klickt kommt das datum"). Seither liefert der Server `lore` in derselben
+				// Karte wie alle anderen Arten (avesmapsWikiDumpSyncKindLastSynced), und die Leiste
+				// hat EINEN Schreiber: refreshWikiSyncKindSyncedStatus. Das Datum am Knopf darunter
+				// (renderLoreLastSynced) liest weiterhin diese Antwort -- das ist ein anderes Feld.
 			}
 			// Kurze Liste in hohem Container: sofort die nächste Seite, sonst gäbe es keinen
 			// Scrollbalken, mit dem man die restlichen Einträge je erreichen könnte.

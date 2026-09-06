@@ -73,8 +73,9 @@ declare(strict_types=1);
  *        -> { present, size, age_seconds, last_fetch_at, last_ok_at, username, url }.
  *           Never includes the password.
  *   GET  ?action=last_synced
- *        -> { synced: { settlement, path, region, territory } }, each a MySQL
- *           DATETIME string or null. READ-ONLY (no lock, no writes): backs the
+ *        -> { synced: { settlement, path, region, territory, adventure, citymap,
+ *           citymap_staged, powerline, lore } }, each a MySQL DATETIME string or
+ *           null. READ-ONLY (no lock, no writes): backs the
  *           per-tab "Zuletzt gesynct: <date>" labels on panel load/reload, since
  *           those previously only ever came from a fresh sync_kind response and
  *           went blank again after a reload. See
