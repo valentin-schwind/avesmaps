@@ -672,7 +672,7 @@ function avesmapsGaretienFlaecheAnlegen(PDO $pdo, array $nach, array $user, int 
  * Transaktion, Revision, Sperrpruefung und Protokoll -- ein eigenes UPDATE waere der zweite
  * Erzeuger, und eine Regel, die einen von zwei Erzeugern bindet, ist keine.
  *
- * @return array{felder:int, quellen:int}
+ * @return array{felder:int, quellen:int, objekt_felder:int}
  */
 function avesmapsGaretienErgaenzungAnwenden(PDO $pdo, array $nach, string $publicId, array $user, string $entityKey = ''): array
 {
@@ -700,6 +700,13 @@ function avesmapsGaretienErgaenzungAnwenden(PDO $pdo, array $nach, string $publi
     $felder = (array) ($nach['felder'] ?? []);
     $userId = (int) ($user['id'] ?? 0);
     $geschrieben = 0;
+    // 🔴 GETRENNT VON `$geschrieben` SEIT DEM 06.09.2026 (Import-Stage, Aufgabe 2, Nachtrag): das
+    // OBJEKT selbst zaehlt nur bei name/geometrie -- die Quelle ist additiv an einem BESTEHENDEN
+    // Objekt und legt kein neues Kartenobjekt an. `avesmapsGaretienUebernehmen` braucht diese
+    // Trennung, um `applied` (= wirklich veraenderte/angelegte Objekte) von `angelegt_je_form.quelle`
+    // (= reine Zitat-Ergaenzungen) auseinanderzuhalten -- vermischt behauptete "3 Wege" faelschlich
+    // drei neue Objekte, waehrend in Wahrheit nur ein alter drei Quellen dazubekommen hat.
+    $objektGeschrieben = 0;
     // 🔴 ZWEI PUBLIC-IDS, dieselbe Trennung wie im Anlegen (avesmapsGaretienUebernehmen): $publicId
     // ist das ZIEL des Update-Aufrufs -- bei einer Flaeche die REGION, die avesmapsUpdateEcosystemRegion
     // / …AreaGeometry auch tatsaechlich brauchen. Der ID-Raum, in dem die Karte die QUELLE
@@ -749,6 +756,7 @@ function avesmapsGaretienErgaenzungAnwenden(PDO $pdo, array $nach, string $publi
                 );
             }
             $geschrieben++;
+            $objektGeschrieben++;
         }
         if (in_array('geometrie', $felder, true)) {
             avesmapsUpdatePathFeatureGeometry($pdo, [
@@ -757,6 +765,7 @@ function avesmapsGaretienErgaenzungAnwenden(PDO $pdo, array $nach, string $publi
                 'coordinates' => avesmapsGaretienGeoJsonNachHausvertrag((array) $nach['geometry']['coordinates']),
             ], $user);
             $geschrieben++;
+            $objektGeschrieben++;
         }
     } elseif (($nach['ziel'] ?? '') === 'location') {
         // 🔴 Ortschaften (Entwurf §3.1). 💣 avesmapsUpdatePointFeatureDetails IST GENAUSO WENIG
@@ -790,6 +799,7 @@ function avesmapsGaretienErgaenzungAnwenden(PDO $pdo, array $nach, string $publi
                 'other_source' => $props['other_source'] ?? null,
             ], $user);
             $geschrieben++;
+            $objektGeschrieben++;
         }
         if (in_array('geometrie', $felder, true)) {
             $punkt = avesmapsGaretienPunktAusGeometrie($nach);
@@ -799,6 +809,7 @@ function avesmapsGaretienErgaenzungAnwenden(PDO $pdo, array $nach, string $publi
                 'lat' => $punkt['lat'],
             ], $user);
             $geschrieben++;
+            $objektGeschrieben++;
         }
     } elseif (($nach['ziel'] ?? '') === 'label') {
         // 🔴 Der Berggipfel (Entwurf §3.4). ⭐ avesmapsUpdateLabelFeature IST ein Teil-Update fuer
@@ -820,6 +831,7 @@ function avesmapsGaretienErgaenzungAnwenden(PDO $pdo, array $nach, string $publi
                 'feature_subtype' => (string) ($vorher['feature_subtype'] ?? 'berggipfel'),
             ], $user);
             $geschrieben++;
+            $objektGeschrieben++;
         }
         if (in_array('geometrie', $felder, true)) {
             $punkt = avesmapsGaretienPunktAusGeometrie($nach);
@@ -829,6 +841,7 @@ function avesmapsGaretienErgaenzungAnwenden(PDO $pdo, array $nach, string $publi
                 'lat' => $punkt['lat'],
             ], $user);
             $geschrieben++;
+            $objektGeschrieben++;
         }
     } else {
         if (in_array('name', $felder, true)) {
@@ -838,6 +851,7 @@ function avesmapsGaretienErgaenzungAnwenden(PDO $pdo, array $nach, string $publi
                 'auto_name' => false,
             ], $userId);
             $geschrieben++;
+            $objektGeschrieben++;
         }
         // 🔴 RULING R6 (Owner, nach R5): geometrie ersetzen gilt fuer ALLE Formen -- Flaechen
         // UND Wege/Fluesse. R5 hatte versucht, diesen Zweig fuer Regionen wegzudefinieren; der
@@ -888,6 +902,7 @@ function avesmapsGaretienErgaenzungAnwenden(PDO $pdo, array $nach, string $publi
                 'geometry' => $nach['geometry'],
             ], $userId);
             $geschrieben++;
+            $objektGeschrieben++;
         }
     }
 
@@ -916,7 +931,7 @@ function avesmapsGaretienErgaenzungAnwenden(PDO $pdo, array $nach, string $publi
         }
     }
 
-    return ['felder' => $geschrieben, 'quellen' => $quellen, 'quelle_an' => $beruehrt];
+    return ['felder' => $geschrieben, 'quellen' => $quellen, 'quelle_an' => $beruehrt, 'objekt_felder' => $objektGeschrieben];
 }
 
 /**
@@ -1482,19 +1497,27 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
                 $ergebnis = avesmapsGaretienErgaenzungAnwenden(
                     $pdo, $nach, (string) $item['entity_public_id'], $user, (string) $item['entity_key']
                 );
-                $angelegt += $ergebnis['felder'] > 0 ? 1 : 0;
+                // 🔴 NUR DAS OBJEKT SELBST ZAEHLT ALS `applied` (06.09.2026, Nachtrag auf
+                // Rueckfrage): name/geometrie-Aenderungen sind ein wirklich veraendertes
+                // Kartenobjekt, eine Quelle ist ein additiver Verweis an einem BESTEHENDEN --
+                // `objekt_felder` haelt das auseinander, `felder` (das GANZE, quelle inklusive)
+                // bleibt fuer Rueckwaertskompatibilitaet stehen. Vorher zaehlte eine reine
+                // Quellen-Ergaenzung mit in `applied`, und die Formzahlen-Zusicherung
+                // (Summe der fuenf Formen == applied) hielt nur, weil kein Test je 'new' und
+                // 'changed' im selben Lauf mischte.
+                $angelegt += ($ergebnis['objekt_felder'] ?? 0) > 0 ? 1 : 0;
                 $quellen += $ergebnis['quellen'];
                 // 🔴 DER ERGAENZUNGSZWEIG ZAEHLT ALS `quelle`, NIE ALS EINE DER FUENF FORMEN --
                 // hier entsteht kein neues Kartenobjekt, nur ein Verweis an einem BESTEHENDEN.
                 // „3 Wege" wuerde sonst behaupten, drei neue Wege liegen auf der Karte, waehrend
                 // in Wahrheit ein alter drei Quellen dazubekommen hat.
-                // ⚠️ DIESELBE BEDINGUNG WIE `$angelegt` ZWEI ZEILEN DARUEBER, nicht "jedes
-                // verarbeitete Item": ein Ergaenzungsversuch OHNE gefundene Adresse (kein Artikel,
-                // kein Wirt -- knapp die Haelfte der Zeilen) laeuft ohne Fehler durch, haette aber
-                // NICHTS ergaenzt. Ungeprueft mitgezaehlt behauptete "3 Quellen ergaenzt", waehrend
-                // real vielleicht keine einzige neue Zeile entstanden ist -- dieselbe stille
-                // Ausnahme, vor der dieses Haus ueberall warnt.
-                if ($ergebnis['felder'] > 0) {
+                // ⚠️ GEZAEHLT WIRD AN `quellen` (WIRKLICH HINZUGEFUEGT), NICHT AN `felder`: ein
+                // Ergaenzungsversuch OHNE gefundene Adresse (kein Artikel, kein Wirt -- knapp die
+                // Haelfte der Zeilen) laeuft ohne Fehler durch, haette aber NICHTS ergaenzt.
+                // Ungeprueft mitgezaehlt behauptete "3 Quellen ergaenzt", waehrend real vielleicht
+                // keine einzige neue Zeile entstanden ist -- dieselbe stille Ausnahme, vor der
+                // dieses Haus ueberall warnt.
+                if ($ergebnis['quellen'] > 0) {
                     $jeForm['quelle']++;
                 }
                 if (is_array($ergebnis['quelle_an'] ?? null)) {

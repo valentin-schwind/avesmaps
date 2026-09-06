@@ -1259,8 +1259,20 @@ avesmapsSyncPlanAddItem($pdo3, $runId9, [
     'override' => [], 'selected' => 1,
 ]);
 $schrittMoor = avesmapsGaretienApplyStep($pdo3, $runId9, 1, ['id' => 1, 'username' => 'test']);
-assert($schrittMoor['applied'] === 1, 'die Moor-Quelle wurde nicht uebernommen: ' . json_encode($schrittMoor));
-$pruefungen++;
+// 🔴 GEAENDERT 06.09.2026 (Import-Stage, Nachtrag): eine REINE Quellen-Ergaenzung legt kein neues
+// Kartenobjekt an und veraendert kein Feld des Objekts selbst -- sie zaehlt seither NICHT mehr in
+// `applied` (das misst `objekt_felder`, nicht mehr das GANZE `felder` samt Quelle), sondern in
+// `angelegt_je_form.quelle`. Hier stand bis dahin `applied === 1`; das war derselbe Zaehler, der
+// bei einer echten Namens-/Geometrie-Aenderung (siehe schritt4/schritt6/schritt7 oben) weiterhin
+// auf 1 steht -- die Vermischung war genau der Fehler, den die Formzaehlung beheben sollte
+// (sonst ergaebe die Summe der fuenf Formen NICHT `applied`, sobald ein Lauf 'new' und 'changed'
+// mischt). "Uebernommen" wird deshalb hier an `skipped`/`remaining`/`done` UND am neuen Zaehler
+// belegt, nicht mehr an `applied` allein.
+assert($schrittMoor['skipped'] === 0 && $schrittMoor['remaining'] === 0 && $schrittMoor['done'] === true,
+    'die Moor-Quelle wurde nicht uebernommen: ' . json_encode($schrittMoor));
+assert($schrittMoor['applied'] === 0, 'eine reine Quellen-Ergaenzung legt kein Kartenobjekt an: ' . json_encode($schrittMoor));
+assert($schrittMoor['angelegt_je_form']['quelle'] === 1, 'sie zaehlt stattdessen als Quelle: ' . json_encode($schrittMoor));
+$pruefungen += 3;
 
 // 🔴 UMGEDREHT AM 03.09.2026, aus demselben Grund wie oben beim Muehlsee: die Quelle einer
 // ERGAENZUNG an einer Flaeche haengt an der FLAECHE (`ecosystem` + Regions-id), nicht an ihrer

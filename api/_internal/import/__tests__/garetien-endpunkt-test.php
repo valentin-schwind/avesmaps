@@ -20,6 +20,11 @@ if (ini_get('zend.assertions') !== '1') {
     exit(2);
 }
 
+// 🔴 NACHTRAG (Ruecklauf des Koordinators, 06.09.2026): fuer den NAHT-TEST ganz unten in dieser
+// Datei muss `avesmapsGaretienApplyStep` WIRKLICH LAUFEN, nicht nur im Quelltext stehen -- nur so
+// kennt der Test die ECHTEN Schluessel seiner Rueckgabe.
+require_once __DIR__ . '/../garetien-uebernahme.php';
+
 $pfad = __DIR__ . '/../../../edit/map/garetien-import.php';
 $roh = file_get_contents($pfad);
 assert(is_string($roh) && $roh !== '', 'api/edit/map/garetien-import.php existiert');
@@ -271,4 +276,72 @@ $fehlend = array_values(array_diff($gesendet, $gelesenNamen, ['action']));
 assert($fehlend === [],
     'DER ENDPUNKT LIEST NICHT, WAS DER BROWSER SCHICKT -- verloren gehen: ' . implode(', ', $fehlend)
     . ' (gesendet: ' . implode(', ', $gesendet) . ' | gelesen: ' . implode(', ', $gelesenNamen) . ')');
+
+// =================================================================================================
+// 💣 JEDER SCHLUESSEL, DEN `avesmapsGaretienApplyStep` LIEFERT, MUSS DER `apply`-ZWEIG WEITERREICHEN
+// =================================================================================================
+// PLANFEHLER (Ruecklauf des Koordinators, 06.09.2026): die eigene Feldliste des `apply`-Antwort-
+// blocks in sync-plan.php (`avesmapsJsonResponse(200, [...])`) ist GENAU DIESELBE Falle wie oben
+// bei „Angezeigte Zeilen" -- eine ausdrueckliche Liste, die ein neues Feld lautlos wegwirft, weil
+// niemand sie nachzieht. Dort warf sie `anzahl` weg und ein Regler war monatelang wirkungslos,
+// ohne dass ein Test es merkte; hier haetten `fehler`/`angelegt_je_form` denselben Weg gehen
+// koennen: `avesmapsGaretienApplyStep` liefert sie, der `apply`-Zweig reichte sie bis zum
+// 06.09.2026 nicht weiter, und beide Haelften waren fuer sich genommen gruen.
+//
+// ⚠️ GEPRUEFT WIRD DIE NAHT, NICHT DIE HAELFTEN: ein Test, der nur zusichert, dass
+// `avesmapsGaretienApplyStep` seine Felder zurueckgibt (wie garetien-uebernahme-meldet-test.php es
+// tut), findet diesen Fehler NIE -- er liegt in der Schicht DARUEBER. Deshalb hier: der SCHRITT
+// wird WIRKLICH GERUFEN (nicht nur gelesen), und seine echten Rueckgabe-Schluessel werden gegen
+// den comment-freien Antwortblock des Endpunkts gehalten.
+//
+// ⭐ EIN LEERER LAUF GENUEGT (`itemIds = []`): sowohl `avesmapsGaretienUebernehmen` als auch
+// `avesmapsGaretienPendingCountScoped` geben dafuer sofort auf (siehe deren eigene
+// `$itemIds === []`-Rueckfaelle) -- die volle Rueckgabeform entsteht ohne jede Tabelle mit
+// Karteninhalt, nur die von `avesmapsEnsureSyncPlanTables` selbst angelegten.
+$pdoNaht = new PDO('sqlite::memory:', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+$schrittNaht = avesmapsGaretienApplyStep($pdoNaht, 1, 1, ['id' => 1], null, []);
+$echteSchluessel = array_keys($schrittNaht);
+assert(in_array('fehler', $echteSchluessel, true) && in_array('angelegt_je_form', $echteSchluessel, true),
+    'die Vorbedingung des Tests selbst: der Schritt muss diese Felder wirklich liefern, sonst '
+    . 'prueft der Rest nichts: ' . implode(', ', $echteSchluessel));
+
+// Der `apply`-Antwortblock, comment-frei -- derselbe `$nurCode`-Riegel wie oben, jetzt auf
+// sync-plan.php angewendet (`$vorschau` ist bereits dessen Rohinhalt).
+$vorschauCode = $nurCode($vorschau);
+$applyVon = strpos($vorschauCode, "case 'apply':");
+assert($applyVon !== false, 'der apply-Zweig steht in sync-plan.php');
+$antwortVon = strpos($vorschauCode, 'avesmapsJsonResponse(200, [', $applyVon);
+assert($antwortVon !== false, 'und er antwortet mit avesmapsJsonResponse(200, [...])');
+// Klammerweise bis zur passenden `]` -- dieselbe Zerlegung wie beim IF(...)-Uebersetzer in
+// garetien-uebernahme-test.php, nur auf `[`/`]` statt `(`/`)` (AGENTS.md §9: ein Muster, das an
+// jedem Komma spaltet, faellt an einem verschachtelten Ausdruck lautlos falsch auseinander).
+$klammerAuf = strpos($vorschauCode, '[', $antwortVon);
+$tiefe = 0;
+$inText = false;
+$block = '';
+for ($i = $klammerAuf, $n = strlen($vorschauCode); $i < $n; $i++) {
+    $z = $vorschauCode[$i];
+    if ($z === "'") { $inText = !$inText; }
+    if (!$inText) {
+        if ($z === '[') { $tiefe++; }
+        if ($z === ']') {
+            $tiefe--;
+            if ($tiefe === 0) { $block .= $z; break; }
+        }
+    }
+    $block .= $z;
+}
+assert($tiefe === 0 && $block !== '', 'der Antwortblock wurde vollstaendig eingefangen');
+
+preg_match_all("~'([a-z_]+)'\s*=>~", $block, $imBlock);
+$endpunktSchluessel = array_values(array_unique($imBlock[1]));
+
+// `ok` steht nicht in der Rueckgabe des Schritts (der Endpunkt setzt es selbst) -- die einzige
+// Ausnahme, die der Vergleich kennen darf.
+$fehlendeSchluessel = array_values(array_diff($echteSchluessel, $endpunktSchluessel, ['ok']));
+assert($fehlendeSchluessel === [],
+    'DER apply-ZWEIG REICHT NICHT WEITER, WAS DER SCHRITT LIEFERT -- verloren gehen: '
+    . implode(', ', $fehlendeSchluessel) . ' (Schritt: ' . implode(', ', $echteSchluessel)
+    . ' | Endpunkt: ' . implode(', ', $endpunktSchluessel) . ')');
+
 echo "OK: garetien-endpunkt-test\n";

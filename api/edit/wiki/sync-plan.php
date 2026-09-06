@@ -334,6 +334,17 @@ try {
                 // komplett neulade stehts glaub dran". Der Kartenstempel allein heilt das nicht:
                 // die geladene Seite fragt die Kartendaten nicht noch einmal ab.
                 'quellen_neu' => is_array($step['quellen_neu'] ?? null) ? $step['quellen_neu'] : [],
+                // 🔴 WIE `quellen_neu` DARUEBER: GETEILT VON ALLEN ACHT ZWEIGEN, UND NUR DER
+                // GARETIEN-IMPORT FUELLT SIE (06.09.2026, Import-Stage). Die uebrigen sieben
+                // Objektarten kennen weder einen Fehlergrund je Item noch eine Formzaehlung --
+                // ihr `$step` traegt die Schluessel nicht, und der `is_array(...) ? ... : []`-Riegel
+                // liefert ihnen eine leere Liste/ein leeres Array statt eines PHP-Fehlers auf
+                // fehlendem Index. `fehler`: Item-Nummer + der ECHTE Fehlertext je Fehlschlag,
+                // bisher nur in `apply_note` in der Datenbank und nie im Browser. `angelegt_je_form`:
+                // Wege/Baeche/Flaechen/Beschriftungen/Orte/Staetten/Ergaenzungen einzeln gezaehlt,
+                // statt einer nackten `applied`-Zahl.
+                'fehler' => is_array($step['fehler'] ?? null) ? $step['fehler'] : [],
+                'angelegt_je_form' => is_array($step['angelegt_je_form'] ?? null) ? $step['angelegt_je_form'] : [],
             ]);
             // no break -- avesmapsJsonResponse exits.
 
