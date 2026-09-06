@@ -253,6 +253,10 @@ try {
             // Einzelknopf „Neu einfügen" mit -- fehlt sie, ist das der Grundfall (Vorgabe der Art),
             // nie ein Fehler. Siehe avesmapsGaretienEinstellungenAusRumpf.
             $garetienEinstellungen = null;
+            // 🔴 Und die Handeingaben JE ITEM (06.09.2026, Import-Stage). Beide werden
+            // gelesen: `einstellungen` bleibt der Rueckfall fuer jeden Aufrufer, der nur ein
+            // Objekt schickt.
+            $garetienJeItem = null;
             if ($kind === 'garetien') {
                 $garetienItemIds = avesmapsGaretienApplyIdsAusRumpf($payload);
                 if ($garetienItemIds === []) {
@@ -265,6 +269,7 @@ try {
                     );
                 }
                 $garetienEinstellungen = avesmapsGaretienEinstellungenAusRumpf($payload);
+                $garetienJeItem = avesmapsGaretienEinstellungenJeItemAusRumpf($payload);
             }
 
             // 🔴 THE SECOND CONFIRMATION IS A SERVER RULE, NOT A DISABLED BUTTON. A greyed-out button is
@@ -301,7 +306,8 @@ try {
                 // nicht-leer -- der einzige der acht Zweige, der `apply` auf eine ausdrueckliche
                 // id-Liste beschraenkt statt auf den ganzen Lauf.
                 'garetien' => avesmapsGaretienApplyStep(
-                    $pdo, $runId, $userId, $currentUser, null, $garetienItemIds, $garetienEinstellungen
+                    $pdo, $runId, $userId, $currentUser, null, $garetienItemIds, $garetienEinstellungen,
+                    $garetienJeItem
                 ),
             };
             $done = ($step['done'] ?? false) === true;

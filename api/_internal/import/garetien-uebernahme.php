@@ -1021,6 +1021,43 @@ function avesmapsGaretienEinstellungenAusRumpf(array $payload): ?array
 }
 
 /**
+ * Die Handeingaben JE ITEM aus dem Anfragerumpf (06.09.2026, Import-Stage).
+ *
+ * 🔴 EIN RUMPF JE ITEM, NICHT EINER FUER ALLE. Der alte Schluessel `einstellungen` galt fuer
+ * saemtliche Items eines Aufrufs; das war unbedenklich, solange der einzige Aufrufer mit
+ * Handeingabe („Neu einfuegen") auf GENAU EIN Objekt skopiert war. Die Stage schickt viele
+ * Objekte auf einmal, jedes mit eigener Zielwahl — ein gemeinsamer Rumpf legte die Wahl des
+ * zuletzt geoeffneten auf alle uebrigen.
+ *
+ * 💣 DIE SCHLUESSEL KOMMEN ALS ZEICHENKETTEN AN. JSON kennt keine Zahlen als Objektschluessel;
+ * `json_decode(..., true)` liefert `"7" => [...]`. PHP wandelt numerische Zeichenketten beim
+ * Array-Zugriff still um — aber `array_key_exists(7, $roh)` waere `false`, wenn wir es nicht
+ * ausdruecklich normalisierten. Genau daran scheitert sonst der Abgleich mit `(int) $item['id']`.
+ *
+ * ⚠️ KEINE VALIDIERUNG DER WERTE, nur der Form — wie beim Geschwister
+ * avesmapsGaretienEinstellungenAusRumpf. Der Server bleibt an seiner gewohnten Stelle die letzte
+ * Instanz (avesmapsGaretienZielUebersteuern wirft bei einem unmoeglichen Ziel).
+ *
+ * @return ?array<int, array>
+ */
+function avesmapsGaretienEinstellungenJeItemAusRumpf(array $payload): ?array
+{
+    $roh = $payload['einstellungen_je_item'] ?? null;
+    if (!is_array($roh) || $roh === []) {
+        return null;
+    }
+    $raus = [];
+    foreach ($roh as $schluessel => $rumpf) {
+        $id = (int) $schluessel;
+        if ($id > 0 && is_array($rumpf)) {
+            $raus[$id] = $rumpf;
+        }
+    }
+
+    return $raus === [] ? null : $raus;
+}
+
+/**
  * EIN Haeppchen der Uebernahme, fuer die vorhandene Vorschau (api/edit/wiki/sync-plan.php).
  *
  * 🔴 DAS IST DIE EINE TUER. Der Endpunkt des Imports hat bewusst KEIN eigenes `apply` mehr: die
@@ -1038,12 +1075,17 @@ function avesmapsGaretienEinstellungenAusRumpf(array $payload): ?array
  *     (api/edit/wiki/sync-plan.php, kind='garetien') gibt seit diesem Fund IMMER eine
  *     nicht-leere Liste mit -- ohne sie lehnt der Endpunkt die Anfrage ab, bevor sie hier ankommt.
  * @param ?array $einstellungen Handeingabe des Kastens „Eingefügt wird" (Owner 30.08.2026), oder
- *     null. Gilt fuer ALLE 'new'-Items dieses Aufrufs -- das ist unbedenklich, weil der EINZIGE
- *     Aufrufer, der jemals eine Handeingabe mitschickt (der Einzelknopf „Neu einfügen"), $itemIds
- *     stets auf GENAU EIN Objekt skopiert (siehe garetienEinfuegenAusfuehren). Die Massenübernahme
- *     „Alle angezeigten einfügen" schickt NIE eine Handeingabe -- sie uebergibt hier immer null.
+ *     null. Gilt fuer ALLE 'new'-Items dieses Aufrufs, DIE KEINEN EIGENEN EINTRAG in `$jeItem`
+ *     tragen -- der Rueckfall auf „ein Rumpf fuer alle", unbedenklich, weil der EINZIGE Aufrufer,
+ *     der jemals eine Handeingabe OHNE `$jeItem` mitschickt (der Einzelknopf „Neu einfügen"),
+ *     $itemIds stets auf GENAU EIN Objekt skopiert (siehe garetienEinfuegenAusfuehren). Die
+ *     Massenübernahme „Alle angezeigten einfügen" schickt NIE eine Handeingabe -- sie uebergibt
+ *     hier immer null.
+ * @param ?array<int, array> $jeItem Die Handeingaben JE ITEM der Stage (06.09.2026,
+ *     avesmapsGaretienEinstellungenJeItemAusRumpf) -- schlaegt `$einstellungen` fuer jedes Item mit
+ *     eigenem Eintrag, siehe avesmapsGaretienUebernehmen.
  */
-function avesmapsGaretienApplyStep(PDO $pdo, int $runId, int $userId, ?array $user, ?int $budget = null, ?array $itemIds = null, ?array $einstellungen = null): array
+function avesmapsGaretienApplyStep(PDO $pdo, int $runId, int $userId, ?array $user, ?int $budget = null, ?array $itemIds = null, ?array $einstellungen = null, ?array $jeItem = null): array
 {
     $budget = $budget ?? AVESMAPS_SYNC_PLAN_APPLY_BUDGET;
     // ⚠️ DDL oben, einmal, VOR jeder Transaktion: MySQL committet eine offene Transaktion, sobald
@@ -1055,7 +1097,7 @@ function avesmapsGaretienApplyStep(PDO $pdo, int $runId, int $userId, ?array $us
         ? avesmapsSyncPlanPendingItems($pdo, $runId, $budget)
         : avesmapsGaretienPendingItemsScoped($pdo, $runId, $itemIds, $budget);
     $ids = array_map(static fn(array $r): int => (int) $r['id'], $offen);
-    $ergebnis = avesmapsGaretienUebernehmen($pdo, $runId, $ids, is_array($user) ? $user : ['id' => $userId], $einstellungen);
+    $ergebnis = avesmapsGaretienUebernehmen($pdo, $runId, $ids, is_array($user) ? $user : ['id' => $userId], $einstellungen, $jeItem);
     $rest = $itemIds === null
         ? avesmapsSyncPlanPendingCount($pdo, $runId)
         : avesmapsGaretienPendingCountScoped($pdo, $runId, $itemIds);
@@ -1390,11 +1432,19 @@ const AVESMAPS_GARETIEN_JE_FORM_LEER = [
  *     „warum darf ich das nicht verändern?"), oder null (keine -- der Grundfall, und IMMER der
  *     Fall bei „Alle angezeigten einfügen"). Wirkt nur auf 'new'-Items mit ziel 'region'/'label'
  *     -- ein Ort/Weg speichert keines dieser Felder, siehe avesmapsGaretienLabelUebersteuerung.
+ *     🔴 DER RUECKFALL, WENN `$jeItem` NULL IST -- ein Item mit eigenem Eintrag in `$jeItem`
+ *     sieht diesen Parameter nie.
+ * @param ?array<int, array> $jeItem Die Handeingaben JE ITEM (06.09.2026, Import-Stage,
+ *     avesmapsGaretienEinstellungenJeItemAusRumpf). `null` heisst „kein Aufrufer dieser Aufgabe" --
+ *     dann gilt `$einstellungen` fuer alle Items wie bisher. Ist `$jeItem` gesetzt, bekommt JEDES
+ *     Item NUR seinen eigenen Eintrag oder gar keine Handeingabe -- nie den gemeinsamen Rumpf,
+ *     auch dann nicht, wenn das Item selbst fehlt (siehe die Begruendung an `$rumpfDesItems`
+ *     unten).
  * @return array{angelegt:int, quellen:int, fehler:list<array{item:int, grund:string}>,
  *     angelegt_je_form:array{path:int,bach:int,region:int,label:int,location:int,
  *     settlement_place:int,quelle:int}}
  */
-function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array $user = [], ?array $einstellungen = null): array
+function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array $user = [], ?array $einstellungen = null, ?array $jeItem = null): array
 {
     if ($itemIds === []) {
         return [
@@ -1443,6 +1493,13 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
         if (($item['apply_state'] ?? null) === 'done') {
             continue;
         }
+        // 🔴 DIE WAHL DIESES EINEN ITEMS SCHLAEGT DEN GEMEINSAMEN RUMPF -- und ein Item OHNE
+        // Eintrag bekommt KEINEN: `null` heisst „keine Handeingabe", nicht „nimm die des
+        // Nachbarn". Fiele es auf `$einstellungen` zurueck, truege ein Objekt die Wahl eines
+        // anderen, und das ist genau der Fehler, den diese Erweiterung behebt.
+        $rumpfDesItems = ($jeItem !== null && array_key_exists((int) $item['id'], $jeItem))
+            ? $jeItem[(int) $item['id']]
+            : ($jeItem === null ? $einstellungen : null);
         $nach = json_decode((string) $item['after_json'], true);
         // 🔴 DIE WAHL DES EDITORS LEGT SICH AUF DEN VORSCHLAG -- HIER UND NUR HIER.
         // `$nach` entsteht an genau dieser Stelle; jeder Leser weiter unten fragt `ziel`/`subtyp`
@@ -1452,7 +1509,7 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
         // soll gar nicht erst umgeformt werden.
         if (is_array($nach) && ($nach['herkunft'] ?? '') === 'garetien') {
             try {
-                $nach = avesmapsGaretienZielUebersteuern($nach, $einstellungen);
+                $nach = avesmapsGaretienZielUebersteuern($nach, $rumpfDesItems);
             } catch (Throwable $abbruch) {
                 // ⚠️ LAUT, nicht still: eine verworfene Zielwahl waere von „hat funktioniert"
                 // nicht zu unterscheiden, und das Objekt laege danach in der falschen Form auf der
@@ -1564,7 +1621,7 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
             // unterscheiden -- und das Objekt laege danach an einer Stelle, an die es niemand
             // gesetzt hat. Fehlt der Befund, bricht das Item ab und sagt warum.
             $innerortsOrt = null;
-            if (avesmapsGaretienInnerortsGewuenscht($einstellungen)) {
+            if (avesmapsGaretienInnerortsGewuenscht($rumpfDesItems)) {
                 $innerortsOrt = avesmapsGaretienInnerortsAusVorschlag($nach);
                 if ($innerortsOrt === null) {
                     throw new RuntimeException(
@@ -1612,7 +1669,7 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
                 // bearbeiten"). Ohne sie ist das dritte Array LEER, und dann ist dieser Aufruf
                 // zeichengleich mit dem von vorher -- „Alle angezeigten einfuegen" schickt nie
                 // Einstellungen und legt Wege deshalb weiter genau wie bisher an.
-                $flussrichtung = avesmapsGaretienFlussrichtungAus($nach, $einstellungen);
+                $flussrichtung = avesmapsGaretienFlussrichtungAus($nach, $rumpfDesItems);
                 $feature = avesmapsCreatePathFeature($pdo, array_merge([
                     'name' => (string) $nach['name'],
                     'feature_subtype' => (string) $nach['subtyp'],
@@ -1625,7 +1682,7 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
                     'is_bach' => avesmapsGaretienNachIstBach($nach),
                     // 💣 GeoJSON [x,y] -> Hausvertrag, siehe avesmapsGaretienGeoJsonNachHausvertrag.
                     'coordinates' => avesmapsGaretienGeoJsonNachHausvertrag((array) $nach['geometry']['coordinates']),
-                ], avesmapsGaretienWegUebersteuerung($einstellungen)), $user);
+                ], avesmapsGaretienWegUebersteuerung($rumpfDesItems)), $user);
                 $publicId = avesmapsGaretienPublicIdAus($feature, 'Der Weg');
                 [$entityType, $quellePublicId] = avesmapsGaretienQuellenZiel('path', $publicId);
                 $jeForm['path']++;
@@ -1639,7 +1696,7 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
                 // 🔴 KREUZUNGEN AN BEIDE ENDEN, Vorgabe JA (Owner 02.09.2026). Ohne sie haengt der
                 // Weg im Routennetz an nichts -- die Begruendung steht an
                 // avesmapsGaretienSetztEndkreuzungen.
-                if (avesmapsGaretienSetztEndkreuzungen($einstellungen)) {
+                if (avesmapsGaretienSetztEndkreuzungen($rumpfDesItems)) {
                     avesmapsGaretienEndkreuzungenAnlegen(
                         $pdo,
                         (array) $nach['geometry']['coordinates'],
@@ -1659,7 +1716,7 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
                     'feature_subtype' => (string) $nach['subtyp'],
                     'lng' => $punkt['lng'],
                     'lat' => $punkt['lat'],
-                ], avesmapsGaretienOrtUebersteuerung($einstellungen)), $user);
+                ], avesmapsGaretienOrtUebersteuerung($rumpfDesItems)), $user);
                 $publicId = avesmapsGaretienPublicIdAus($feature, 'Der Ort');
                 // 🔴 Die Bindung 'location' -> 'settlement' steht in avesmapsGaretienQuellenZiel,
                 // nicht hier -- ein anderer Wert liesse die Quelle unauffindbar im Katalog liegen.
@@ -1692,7 +1749,7 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
                 $feature = avesmapsCreateLabelFeature($pdo, array_merge(
                     ['text' => (string) $nach['name'], 'feature_subtype' => (string) $nach['subtyp'],
                         'lng' => $punkt['lng'], 'lat' => $punkt['lat']],
-                    avesmapsGaretienLabelUebersteuerung($einstellungen, avesmapsGaretienLabelVorgabeFuerArt($pdo, (string) $nach['subtyp'])),
+                    avesmapsGaretienLabelUebersteuerung($rumpfDesItems, avesmapsGaretienLabelVorgabeFuerArt($pdo, (string) $nach['subtyp'])),
                     $wikiZuweisung !== null ? ['wiki_region' => $wikiZuweisung] : []
                 ), $user);
                 $publicId = avesmapsGaretienPublicIdAus($feature, 'Der Gipfel');
@@ -1701,7 +1758,7 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
                 [$entityType, $quellePublicId] = avesmapsGaretienQuellenZiel('label', $publicId);
                 $jeForm['label']++;
             } else {
-                $ergebnis = avesmapsGaretienFlaecheAnlegen($pdo, $nach, $user, $userId, $einstellungen);
+                $ergebnis = avesmapsGaretienFlaecheAnlegen($pdo, $nach, $user, $userId, $rumpfDesItems);
                 $publicId = $ergebnis['public_id'];
                 // 🔴 SEIT SCHRITT 5 DES QUELLEN-UMBAUS (03.09.2026) TRAEGT DIE FLAECHE IHRE
                 // QUELLEN SELBST -- $publicId ist die REGION, und genau das ist die id, unter der
@@ -2155,7 +2212,13 @@ function avesmapsGaretienRuecknahmeAusfuehren(PDO $pdo, int $runId, array $itemI
                 avesmapsGaretienItemZurueckAufOffen($pdo, $itemId);
                 $zurueckgenommen++;
             } catch (Throwable $abbruch) {
-                $fehler[] = ['item' => $itemId, 'grund' => $abbruch->getMessage()];
+                // 🔴 GEKAPPT WIE `apply_note` IN avesmapsGaretienUebernehmen (Ruling 13, 06.09.2026
+                // nachgezogen): die Ruecknahme laeuft ueber DIESELBE Tuer wie die Uebernahme
+                // (api/edit/map/garetien-import.php, Aktion 'ruecknahme') und ist NICHT admin-only --
+                // dieselbe Editor-Population, die dort schon geschuetzt ist. Ein ungekapptes
+                // `getMessage()` waere hier genau der Mangel, vor dem AGENTS.md §10/M1 warnt, nur an
+                // der einen Stelle, die zuerst durchgerutscht war.
+                $fehler[] = ['item' => $itemId, 'grund' => mb_substr($abbruch->getMessage(), 0, 300, 'UTF-8')];
             }
             continue;
         }
@@ -2275,7 +2338,13 @@ function avesmapsGaretienRuecknahmeAusfuehren(PDO $pdo, int $runId, array $itemI
             }
             $zurueckgenommen++;
         } catch (Throwable $abbruch) {
-            $fehler[] = ['item' => $itemId, 'grund' => $abbruch->getMessage()];
+            // 🔴 GEKAPPT WIE `apply_note` IN avesmapsGaretienUebernehmen (Ruling 13, 06.09.2026
+            // nachgezogen): die Ruecknahme laeuft ueber DIESELBE Tuer wie die Uebernahme
+            // (api/edit/map/garetien-import.php, Aktion 'ruecknahme') und ist NICHT admin-only --
+            // dieselbe Editor-Population, die dort schon geschuetzt ist. Ein ungekapptes
+            // `getMessage()` waere hier genau der Mangel, vor dem AGENTS.md §10/M1 warnt, nur an
+            // der einen Stelle, die zuerst durchgerutscht war.
+            $fehler[] = ['item' => $itemId, 'grund' => mb_substr($abbruch->getMessage(), 0, 300, 'UTF-8')];
         }
     }
 
