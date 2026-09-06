@@ -131,12 +131,6 @@ td { color: var(--color-text-muted); } td b { color: var(--color-text-strong); }
 /* ---- Menüband (editor-body.css) ---------------------------------------------------------- */
 .avm-ribbon-bar { padding: var(--avm-ribbon-pad); background: var(--color-panel-soft); border-bottom: 1px solid var(--color-border); }
 .avm-ribbon { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: var(--avm-ribbon-gap); align-items: stretch; }
-.avm-tile { display: flex; flex-direction: column; justify-content: center; align-items: flex-start; text-align: left; min-height: 48px;
-	padding: var(--space-4) var(--space-8); gap: 1px; line-height: var(--leading-tight); border: 1px solid var(--color-button-soft-border);
-	border-radius: var(--radius-md); background: var(--color-button-soft); color: var(--color-button-soft-text); font: inherit; cursor: pointer; }
-.avm-tile .t1 { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--font-size-body); font-weight: var(--font-weight-bold); }
-.avm-tile .t2 { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--font-size-caption); color: var(--color-text-muted); }
-.avm-tile:disabled { background: var(--color-disabled-bg); color: var(--color-disabled-text); border-color: var(--color-disabled-border); cursor: not-allowed; }
 .gi-zeilen { height: 24px; margin-top: 2px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-panel); font: inherit; font-size: var(--font-size-caption); color: var(--color-text); }
 
 /* ---- DIE STATUSZEILE (NEU) -- die Hausform .avm-status aus editor-page.css ------------------- */
@@ -168,21 +162,32 @@ td { color: var(--color-text-muted); } td b { color: var(--color-text-strong); }
 .btn:disabled { background: var(--color-disabled-bg); color: var(--color-disabled-text); border-color: var(--color-disabled-border); cursor: not-allowed; }
 .btn--sym { width: var(--avm-control-h); padding: 0; }
 /* 🔴 ZWEIZEILIGE KNÖPFE, EINE REIHE (Owner 06.09.2026: „die buttons mehrzeilig damit sie einzeilig
-   angeordnet werden können"). Dieselbe Bauform wie die Kacheln des Menübands (.avm-tile: t1 fett,
-   t2 gedämpft, 48px), damit Zustand und Zahl IN den Knopf wandern statt daneben. Die Reihen tragen
-   deshalb das Menüband-Polster (--avm-ribbon-pad) und brechen NICHT um (flex-wrap: nowrap). */
-.btn2 { display: flex; flex-direction: column; justify-content: center; align-items: flex-start; text-align: left; min-height: 48px;
+   angeordnet werden können").
+   💣 ES IST `.avm-tile` — DIE KACHEL DES MENÜBANDS, KEINE NEUE KLASSE. Sie steht in
+      css/components/editor-body.css, index.html lädt sie über styles.css, und das Fenster kleidet
+      sie schon ein (`.gi-win .avm-tile` in garetien-importer.css, samt gemessenem :disabled).
+   🪤 `.btn2` wäre der naheliegende Name und ist BESETZT: im Landschaften-Editor ein einfacher
+      Modalknopf, in drei Sync-Editoren eine INLINE abgeschriebene Kachel. Eine siebte Rezeptur
+      unter einem Namen, der anderswo etwas anderes heißt (AGENTS.md §11).
+   Die Reihen tragen das Menüband-Polster (--avm-ribbon-pad) und brechen NICHT um. */
+.avm-tile { display: flex; flex-direction: column; justify-content: center; align-items: flex-start; text-align: left; min-height: 48px;
 	padding: var(--space-4) var(--space-8); gap: 1px; line-height: var(--leading-tight); border: 1px solid var(--color-button-soft-border);
 	border-radius: var(--radius-md); background: var(--color-button-soft); color: var(--color-button-soft-text); font: inherit; cursor: pointer; white-space: nowrap; }
-.btn2 .t1 { font-size: var(--font-size-body); font-weight: var(--font-weight-bold); }
-.btn2 .t2 { font-size: var(--font-size-caption); color: var(--color-text-muted); }
-.btn2--main { background: var(--color-button); border-color: var(--color-button-border); color: var(--color-button-text); }
-.btn2--main .t2 { color: var(--color-on-button-muted); }
-.btn2--danger { color: var(--color-danger-soft-text); border-color: var(--color-danger-soft-border); }
-.btn2--danger .t2 { color: var(--color-danger-soft-text); }
-.btn2--stage { border-color: var(--color-accent); color: var(--color-text-strong); }
-.btn2:disabled { background: var(--color-disabled-bg); color: var(--color-disabled-text); border-color: var(--color-disabled-border); cursor: not-allowed; }
-.btn2:disabled .t2 { color: var(--color-disabled-text); }
+.avm-tile .t1 { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--font-size-body); font-weight: var(--font-weight-bold); }
+.avm-tile .t2 { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--font-size-caption); color: var(--color-text-muted); }
+.avm-tile--primary { background: var(--color-button); border-color: var(--color-button-border); color: var(--color-button-text); }
+.avm-tile--primary .t2 { color: var(--color-on-button-muted); }
+/* Zwei neue Modifier, im Fenster gescopt — dieselben Töne wie `.gi-win .btn--danger` und der
+   Akzentrahmen der Stage. Schrift und Rahmen, nie Füllung (AGENTS.md §12). */
+.avm-tile--danger { color: var(--color-danger-soft-text); border-color: var(--color-danger-soft-border); }
+.avm-tile--danger .t2 { color: var(--color-danger-soft-text); }
+.avm-tile--stage { border-color: var(--color-accent); color: var(--color-text-strong); }
+/* ⚠️ GESPERRT heißt in einer Knopfreihe „geht gerade nicht", nicht „läuft" — die gemessene
+   Fortschritts-Sperre (gestrichelte Goldkante, cursor: progress) gehört dem Menüband und bleibt
+   dort. Beide Zeilen stehen auf --color-text-muted: gemessen 4,62 hell / 5,71 dunkel auf
+   --color-disabled-bg; --color-disabled-text ergäbe für die Überschrift 2,12. */
+.avm-tile:disabled { background: var(--color-disabled-bg); border-color: var(--color-disabled-border); cursor: not-allowed; }
+.avm-tile:disabled .t1, .avm-tile:disabled .t2 { color: var(--color-text-muted); }
 .gi-listkopf { display: flex; align-items: center; gap: var(--space-6); padding: var(--space-2) 0 var(--space-4); font-size: var(--font-size-caption); color: var(--color-text-muted); }
 .gi-listkopf label { display: inline-flex; align-items: center; gap: var(--space-2); }
 .gi-listkopf .spacer { flex: 1 1 auto; }
@@ -211,10 +216,10 @@ td { color: var(--color-text-muted); } td b { color: var(--color-text-strong); }
 .gi-auswahl { flex: none; display: flex; flex-wrap: nowrap; align-items: center; gap: var(--avm-ribbon-gap); margin: var(--space-4) calc(-1 * var(--space-12)) 0;
 	padding: var(--space-8) var(--space-12) 0; border-top: 1px solid var(--color-divider); font-size: var(--font-size-caption); color: var(--color-text-muted); }
 .gi-auswahl b { color: var(--color-text-strong); }
-.gi-auswahl .btn2 { flex: 1 1 0; min-width: 0; }
-.gi-acts .btn2, .avm-fenster__fuss .btn2 { flex: 1 1 0; min-width: 0; }
+.gi-auswahl .avm-tile { flex: 1 1 0; min-width: 0; }
+.gi-acts .avm-tile, .avm-fenster__fuss .avm-tile { flex: 1 1 0; min-width: 0; }
 .avm-fenster__fuss .avm-fenster__fuss-haupt { flex: 1 1 0; min-width: 0; }
-.avm-fenster__fuss .avm-fenster__fuss-haupt .btn2 { flex: 1 1 auto; }
+.avm-fenster__fuss .avm-fenster__fuss-haupt .avm-tile { flex: 1 1 auto; }
 
 /* ---- Einzelansicht ----------------------------------------------------------------------- */
 .gi-detail { flex: 1 1 auto; min-height: 0; overflow: auto; padding: var(--avm-col-pad); }
@@ -242,7 +247,7 @@ td { color: var(--color-text-muted); } td b { color: var(--color-text-strong); }
 .gi-acts__grund { flex: 1 0 100%; margin: var(--space-2) 0 0; font-size: var(--font-size-caption); color: var(--color-text-muted); }
 .gi-naehe { flex: none; display: flex; flex-wrap: nowrap; align-items: center; gap: var(--avm-ribbon-gap); padding: var(--avm-ribbon-pad); border-top: 1px solid var(--color-divider); font-size: var(--font-size-small); }
 .gi-naehe select { flex: 1 1 0; min-width: 0; height: var(--avm-control-h); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-panel); color: var(--color-text); font: inherit; font-size: var(--font-size-small); }
-.gi-naehe .btn2 { flex: 0 0 auto; }
+.gi-naehe .avm-tile { flex: 0 0 auto; }
 .avm-fenster__fuss { flex-wrap: nowrap; padding: var(--avm-ribbon-pad); }
 .gi-naehe .lbl { color: var(--color-text-muted); }
 
@@ -363,9 +368,9 @@ Damit fallen sieben Fußknöpfe auf drei, drei Auswahlbegriffe auf einen, und je
 				</div>
 				<!-- 🔴 NEU: die Auswahlleiste. Erscheint nur, wenn etwas angehakt ist; die Knöpfe folgen dem Reiter. -->
 				<div class="gi-auswahl">
-					<button class="btn2" type="button"><span class="t1">Von der Stage nehmen</span><span class="t2">2 ausgewählte</span></button>
-					<button class="btn2 btn2--danger" type="button"><span class="t1">Ablehnen</span><span class="t2">2 ausgewählte</span></button>
-					<button class="btn2" type="button"><span class="t1">Auswahl aufheben</span><span class="t2">2 von 7</span></button></div>
+					<button class="avm-tile" type="button"><span class="t1">Von der Stage nehmen</span><span class="t2">2 ausgewählte</span></button>
+					<button class="avm-tile avm-tile--danger" type="button"><span class="t1">Ablehnen</span><span class="t2">2 ausgewählte</span></button>
+					<button class="avm-tile" type="button"><span class="t1">Auswahl aufheben</span><span class="t2">2 von 7</span></button></div>
 			</div>
 			<div class="avm-col">
 				<div class="gi-detail">
@@ -399,20 +404,20 @@ Damit fallen sieben Fußknöpfe auf drei, drei Auswahlbegriffe auf einen, und je
 				</div>
 				<!-- 🔴 DIE KNOPFLEISTE: genau EIN Vorwärtsknopf je Zustand. Hier: liegt schon auf der Stage. -->
 				<div class="gi-acts">
-					<button class="btn2" type="button" title="Nimmt „Alke" von der Stage. Auf der Karte wird nichts geändert."><span class="t1">Von der Stage nehmen</span><span class="t2">liegt als Weg · Bach</span></button>
-					<button class="btn2 btn2--danger" type="button" title="Nimmt „Alke" aus dem Arbeitsvorrat — auf der Karte wird nichts geändert."><span class="t1">Ablehnen</span><span class="t2">mit „Wieder vorschlagen" zurück</span></button>
+					<button class="avm-tile" type="button" title="Nimmt „Alke" von der Stage. Auf der Karte wird nichts geändert."><span class="t1">Von der Stage nehmen</span><span class="t2">liegt als Weg · Bach</span></button>
+					<button class="avm-tile avm-tile--danger" type="button" title="Nimmt „Alke" aus dem Arbeitsvorrat — auf der Karte wird nichts geändert."><span class="t1">Ablehnen</span><span class="t2">mit „Wieder vorschlagen" zurück</span></button>
 				</div>
 				<!-- 🔴 „Imports in der Nähe stagen" mit Typenfilter -->
 				<div class="gi-naehe"><span class="lbl">In der Nähe:</span>
 					<select><option>gleicher Typ · Fluss (3)</option><option>Bach (5)</option><option>See (1)</option><option>Dorf (2)</option><option>alle Typen (11)</option></select>
-					<button class="btn2 btn2--stage" type="button"><span class="t1">Auf die Stage</span><span class="t2">3 Nachbarn · 6 Meilen</span></button></div>
+					<button class="avm-tile avm-tile--stage" type="button"><span class="t1">Auf die Stage</span><span class="t2">3 Nachbarn · 6 Meilen</span></button></div>
 			</div>
 		</div>
 		<div class="avm-fenster__fuss">
-			<button class="btn2" type="button"><span class="t1">Stage leeren</span><span class="t2">7 Objekte</span></button>
-			<button class="btn2" type="button"><span class="t1">Alle zentrieren</span><span class="t2">Karte auf die Stage</span></button>
+			<button class="avm-tile" type="button"><span class="t1">Stage leeren</span><span class="t2">7 Objekte</span></button>
+			<button class="avm-tile" type="button"><span class="t1">Alle zentrieren</span><span class="t2">Karte auf die Stage</span></button>
 			<span class="avm-fenster__fuss-haupt">
-				<button class="btn2 btn2--main" type="button"><span class="t1">Stage importieren (5)</span><span class="t2">3 Wege (2 Bäche) · 1 Fläche · 1 Stätte · 2 nur Ansicht</span></button>
+				<button class="avm-tile avm-tile--primary" type="button"><span class="t1">Stage importieren (5)</span><span class="t2">3 Wege (2 Bäche) · 1 Fläche · 1 Stätte · 2 nur Ansicht</span></button>
 			</span>
 		</div>
 	</div>
@@ -441,7 +446,7 @@ den letzten Import zurück.</p>
 <tr><td>Zurücknehmen (rot) · Ablehnen (rot) · Zurück nach Offen</td><td>Übernommen</td><td>wie heute (Grund statt Knopf, wenn nicht möglich)</td><td>wie heute</td></tr>
 <tr><td>Wieder vorschlagen</td><td>Abgelehnt</td><td>—</td><td>wie heute</td></tr>
 <tr><td><b>Nähe-Zeile</b></td><td>[Typ ▾] Auf die Stage (n)</td><td>Objekt mit Geometrie</td><td>Auswahl: gleicher Typ (Vorgabe) · jeder gefundene Typ mit Zahl · alle</td><td>staged die Nachbarn <b>in ihrer Vorschlagsform</b>, ohne sie zu öffnen</td></tr>
-<tr><td colspan="5"><b>Alle Knöpfe der drei Leisten (Auswahl · Handlung · Fuß) sind zweizeilig</b> wie die Kacheln des Menübands: Zeile 1 die Handlung, Zeile 2 Zahl oder Zustand. So stehen sie in EINER Reihe und brechen nie um (Owner 06.09.2026). Das Fenster wird dafür 1000 statt 855 px breit.</td></tr>
+<tr><td colspan="5"><b>Alle Knöpfe der drei Leisten (Auswahl · Handlung · Fuß) sind <code>.avm-tile</code></b>, die Kachel des Menübands (keine neue Klasse — <code>.btn2</code> ist im Haus besetzt): Zeile 1 die Handlung, Zeile 2 Zahl oder Zustand. So stehen sie in EINER Reihe und brechen nie um (Owner 06.09.2026). Das Fenster wird dafür 1000 statt 855 px breit.</td></tr>
 <tr><td rowspan="3"><b>Fußleiste</b></td><td>Stage leeren (n)</td><td>immer</td><td>gesperrt bei leerer Stage</td><td>Buchführung, nichts auf der Karte</td></tr>
 <tr><td>Alle zentrieren</td><td>immer</td><td>gesperrt bei leerer Stage</td><td>zoomt auf die Stage</td></tr>
 <tr><td><b>Stage importieren (n)</b></td><td>immer, die EINE gefüllte Handlung</td><td>„n" = Objekte mit Vorschlag; die zweite Zeile schlüsselt nach Form auf und nennt den Rest („2 nur Ansicht")</td><td>Rückfrage mit derselben Aufschlüsselung, dann Import <b>je Objekt mit seinen Einstellungen</b>, Ergebnis in der Statuszeile</td></tr>
