@@ -11,35 +11,23 @@ const AVESMAPS_WIKI_SYNC_NO_AUTO_HANDLE = true;
 // endpoint file). See that file's docblock for the live-500 history.
 require __DIR__ . '/../../_internal/wiki/sync-constants.php';
 
-const AVESMAPS_WIKI_SETTLEMENT_CLASS_LABELS = [
-    'dorf' => 'Dorf',
-    'kleinstadt' => 'Kleinstadt',
-    'stadt' => 'Stadt',
-    "grossstadt" => "Gro\u{00DF}stadt",
-    'metropole' => 'Metropole',
-    "gebaeude" => "Besondere Bauwerke/St\u{00E4}tten",
-    'stadtviertel' => 'Stadtviertel',
-];
-
-const AVESMAPS_WIKI_CATEGORY_TO_CLASS = [
-    'Dorf' => 'dorf',
-    'Kleinstadt' => 'kleinstadt',
-    'Stadt' => 'stadt',
-    'Mittlere Stadt' => 'stadt',
-    "Gro\u{00DF}stadt" => 'grossstadt',
-    "Metropole (Siedlungsgr\u{00F6}\u{00DF}e)" => 'metropole',
-];
-
-const AVESMAPS_WIKI_LOCATION_SUBTYPE_LABELS = [
-    'dorf' => 'Dorf',
-    "gebaeude" => "Besondere Bauwerke/St\u{00E4}tten",
-    'stadtviertel' => 'Stadtviertel',
-    'kleinstadt' => 'Kleinstadt',
-    'stadt' => 'Stadt',
-    "grossstadt" => "Gro\u{00DF}stadt",
-    'metropole' => 'Metropole',
-];
-
+// 🔴 HIER STANDEN BIS ZUM 07.09.2026 DREI WEITERE KOPIEN -- AVESMAPS_WIKI_SETTLEMENT_CLASS_LABELS,
+// AVESMAPS_WIKI_CATEGORY_TO_CLASS und AVESMAPS_WIKI_LOCATION_SUBTYPE_LABELS. Sie sind aus genau dem
+// Grund gefallen, den der Absatz darunter fuer AVESMAPS_WIKI_CASE_LABELS schon beschreibt, und sie
+// haben denselben Schaden angerichtet, nur schwerer:
+//
+// 💣 DIE KOPIE VON AVESMAPS_WIKI_CATEGORY_TO_CLASS WAR VERALTET. Sie fuehrte „Stadt" und „Mittlere
+// Stadt" -- zwei Kategorien, die es im Wiki NICHT gibt (die Messung steht als Kommentar an der
+// Fassung in locations.php) -- und kannte die echte Kategorie „Mittelgrosse Stadt" nicht. Weil sie
+// gewann, fragte der LIVE-Crawl ueber diesen Endpunkt zwei leere Kategorien ab und uebersah die
+// eine, auf die es ankam. Ein Ort daraus bekam keine Ortsklasse, und dann RAET der Parser sie
+// („dorf", `settlement_class_guessed`) -- genau die Falle, die am 17.08.2026 die Metropole Gareth
+// zum Dorf machen wollte. Der Dump-Pfad, der locations.php ohne diesen Endpunkt laedt, las
+// unterdessen die richtige Fassung: dieselbe Wiki-Kategorie, zwei Antworten.
+//
+// ⚠️ Den zwei Beschriftungstafeln fehlte dafuer in locations.php `stadtviertel`; es ist dort
+// ergaenzt, damit nichts verlorengeht. Gewacht von wiki-konstanten-einmal-test.php.
+//
 // AVESMAPS_WIKI_CASE_LABELS is defined ONCE, in api/_internal/wiki/locations.php
 // (required below via endpoint.php). This endpoint used to declare its OWN copy
 // here; because both were file-scope `const` (which cannot be defined()-guarded)

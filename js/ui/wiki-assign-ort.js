@@ -37,7 +37,11 @@
 // Die Ortsgroessen. 🔴 STABILE SCHLUESSEL, keine Beschriftungen (AGENTS.md §2) -- dieselben,
 // die beide Oberflaechen als `<option value>` fuehren (index.html „location-edit-type",
 // SETTLEMENT_EDIT_TYPE_OPTIONS in html/wiki-sync-settlement-editor.html) und die der Server als
-// AVESMAPS_WIKI_SETTLEMENT_CLASS_LABELS kennt (api/edit/wiki/sync.php:14-21).
+// AVESMAPS_WIKI_SETTLEMENT_CLASS_LABELS kennt (api/_internal/wiki/locations.php).
+// 🪤 Hier stand bis zum 07.09.2026 „api/edit/wiki/sync.php:14-21". Dort lag eine ZWEITE Fassung
+// derselben Tafel, die die Bibliothek lautlos ueberstimmte -- sie ist gefallen (AGENTS.md §10).
+// ⚠️ Ohne Zeilennummer: sie veraltet beim naechsten Einschub, und ein Verweis, der auf die falsche
+// Stelle zeigt, ist schlechter als keiner.
 const AVESMAPS_WIKI_ASSIGN_ORT_GROESSEN = ["dorf", "kleinstadt", "stadt", "grossstadt", "metropole", "gebaeude", "stadtviertel"];
 
 // Die bearbeitbaren KARTENFELDER des Orts -- die einzige Liste davon im Browser.

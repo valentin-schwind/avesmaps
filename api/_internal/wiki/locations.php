@@ -29,8 +29,17 @@ const AVESMAPS_WIKI_CASE_LABELS = [
     "coordinate_drift" => "Position weicht vom Wiki ab",
 ];
 
+// 🔴 DIE BESCHRIFTUNGEN ALLER ORTSKLASSEN -- und `stadtviertel` gehoert dazu, seit es die Klasse
+// gibt (Owner 30.08.2026, Garetien-Import: 22 Objekte, „wie Gebaeude, aber innerorts"; die
+// Benennung steht in api/_internal/ortsklassen.php). Es fehlte hier bis zum 07.09.2026 und fiel
+// nicht auf, weil der Endpunkt api/edit/wiki/sync.php eine eigene Kopie dieser Tafeln FUEHRTE, die
+// es kannte -- und die gewann, weil sie zuerst geladen wurde. Was PHP dazu sagte, waren 474 Zeilen
+// „already defined" im Fehlerprotokoll, die niemand las.
+// ⚠️ `ortsklassen-test.php` haelt die fuenf SUBTYPES-Listen des Hauses gegeneinander, DIESE zwei
+// Tafeln aber nicht -- dafuer gibt es seit dem 07.09.2026 wiki-konstanten-einmal-test.php.
 const AVESMAPS_WIKI_LOCATION_SUBTYPE_LABELS = [
     'gebaeude' => 'Besondere Bauwerke/Stätten',
+    'stadtviertel' => 'Stadtviertel',
     'metropole' => 'Metropole',
     'grossstadt' => 'Großstadt',
     'stadt' => 'Stadt',
@@ -40,6 +49,7 @@ const AVESMAPS_WIKI_LOCATION_SUBTYPE_LABELS = [
 
 const AVESMAPS_WIKI_SETTLEMENT_CLASS_LABELS = [
     'gebaeude' => 'Besondere Bauwerke/Stätten',
+    'stadtviertel' => 'Stadtviertel',
     'metropole' => 'Metropole',
     'grossstadt' => 'Großstadt',
     'stadt' => 'Stadt',
