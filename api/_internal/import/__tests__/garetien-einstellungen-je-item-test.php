@@ -137,6 +137,138 @@ function avesmapsGaretienEinstellungenJeItemAnlegen(PDO $pdo, int $runId, string
     return (int) $pdo->lastInsertId();
 }
 
+/**
+ * Der RUMPF EINER FUNKTION, kommentarfrei -- die Grundlage fuer eine Instanzzahl-Zusicherung wie
+ * „$einstellungen kommt darin genau einmal vor" (Ruecklauf des Koordinators, 06.09.2026, zweite
+ * Runde zu Aufgabe 4).
+ *
+ * 🔴 WARUM EINE QUELLTEXT-ZUSICHERUNG STATT ACHT SZENARIEN: der Pruefer hat den Sweep gefahren --
+ * `$rumpfDesItems` an jeder der acht Aufrufstellen in `avesmapsGaretienUebernehmen` einzeln durch
+ * `$einstellungen` ersetzt, danach das ganze Import-Verzeichnis gefahren. NUR die Stelle, die
+ * `avesmapsGaretienZielUebersteuern` ruft, wurde rot (die bestehenden jeItem-Szenarien dieser
+ * Datei erwischen genau sie). Die uebrigen sieben (Weg, Ort, Stroemungsrichtung, Endkreuzungen,
+ * Innerorts, Flaeche, Label-Uebersteuerung) blieben GRUEN, weil kein Szenario dieser Datei einen
+ * Weg mit Verkehrsmitteln, einen Ort mit Ortsart usw. baut. Acht neue Szenarien waeren acht neue
+ * Fixtures fuer eine einzige Frage: „schlaegt `$rumpfDesItems` ueberall `$einstellungen`?" -- eine
+ * Quelltextzusicherung beantwortet sie mit EINER Zusicherung und bindet auch die NEUNTE Stelle,
+ * die noch niemand geschrieben hat.
+ *
+ * 🔴 KOMMENTARFREI UEBER `token_get_all`, ZEILENENDENNEUTRAL VOR DEM TOKENISIEREN (AGENTS.md §9:
+ * hier CRLF, im Deploy-Tor LF) -- dieselbe Zerlegung wie in den Nachbartests dieser Datei
+ * (`garetien-quellen-ziel-test.php`, `garetien-endpunkt-test.php`).
+ *
+ * 💣 DIE KLAMMERTIEFE WIRD ANFUEHRUNGSZEICHEN-BEWUSST GEZAEHLT: eine `{`/`}` INNERHALB eines
+ * Zeichenketten-Literals darf die Tiefe nicht veraendern, sonst schneidet der Zaehler an der
+ * falschen Stelle -- dieselbe Lehre wie beim `IF(...)`-Uebersetzer in `garetien-uebernahme-test.php`
+ * (AGENTS.md §9: ein Muster, das an jedem Komma spaltet, faellt an einem verschachtelten Ausdruck
+ * lautlos falsch auseinander).
+ *
+ * @return string der Funktionsrumpf, OHNE die umschliessenden `{`/`}`
+ */
+function avesmapsFunktionsRumpfOhneKommentare(string $quelltext, string $funktionsname): string
+{
+    $quelltext = str_replace("\r\n", "\n", $quelltext);
+    $ohneKommentare = '';
+    foreach (token_get_all($quelltext) as $token) {
+        if (is_array($token)) {
+            if (in_array($token[0], [T_COMMENT, T_DOC_COMMENT], true)) {
+                continue;
+            }
+            $ohneKommentare .= $token[1];
+            continue;
+        }
+        $ohneKommentare .= $token;
+    }
+
+    $signatur = 'function ' . $funktionsname . '(';
+    $sigPos = strpos($ohneKommentare, $signatur);
+    if ($sigPos === false) {
+        throw new RuntimeException("Funktion $funktionsname nicht gefunden -- Signatur '$signatur' fehlt.");
+    }
+
+    // Die Parameterliste ueberspringen: Klammertiefe an '(' / ')', anfuehrungszeichen-bewusst.
+    $i = $sigPos + strlen($signatur);
+    $n = strlen($ohneKommentare);
+    $tiefe = 1;
+    $inSingle = false;
+    $inDouble = false;
+    for (; $i < $n; $i++) {
+        $z = $ohneKommentare[$i];
+        if ($z === chr(92) && ($inSingle || $inDouble)) {
+            $i++;
+            continue;
+        }
+        if ($z === "'" && !$inDouble) {
+            $inSingle = !$inSingle;
+            continue;
+        }
+        if ($z === '"' && !$inSingle) {
+            $inDouble = !$inDouble;
+            continue;
+        }
+        if ($inSingle || $inDouble) {
+            continue;
+        }
+        if ($z === '(') {
+            $tiefe++;
+        }
+        if ($z === ')') {
+            $tiefe--;
+            if ($tiefe === 0) {
+                $i++;
+                break;
+            }
+        }
+    }
+
+    // Den Rueckgabetyp ueberspringen, bis zur oeffnenden geschweiften Klammer des Rumpfes.
+    while ($i < $n && $ohneKommentare[$i] !== '{') {
+        $i++;
+    }
+    if ($i >= $n) {
+        throw new RuntimeException("Rumpfanfang von $funktionsname nicht gefunden.");
+    }
+    $rumpfStart = $i + 1;
+
+    $tiefeGeschweift = 1;
+    $inSingle = false;
+    $inDouble = false;
+    $rumpfEnde = null;
+    for ($k = $rumpfStart; $k < $n; $k++) {
+        $z = $ohneKommentare[$k];
+        if ($z === chr(92) && ($inSingle || $inDouble)) {
+            $k++;
+            continue;
+        }
+        if ($z === "'" && !$inDouble) {
+            $inSingle = !$inSingle;
+            continue;
+        }
+        if ($z === '"' && !$inSingle) {
+            $inDouble = !$inDouble;
+            continue;
+        }
+        if ($inSingle || $inDouble) {
+            continue;
+        }
+        if ($z === '{') {
+            $tiefeGeschweift++;
+        }
+        if ($z === '}') {
+            $tiefeGeschweift--;
+            if ($tiefeGeschweift === 0) {
+                $rumpfEnde = $k;
+                break;
+            }
+        }
+    }
+    if ($rumpfEnde === null) {
+        throw new RuntimeException("Rumpfende von $funktionsname nicht gefunden.");
+    }
+
+    return substr($ohneKommentare, $rumpfStart, $rumpfEnde - $rumpfStart);
+}
+
 // =================================================================================================
 // --- Schritt 1/4/5: ZWEI ITEMS, ZWEI RUEMPFE -- jedes bringt seine eigene Wahl mit.
 $pdo = avesmapsGaretienEinstellungenJeItemTestPdo();
@@ -358,5 +490,31 @@ assert(strlen($grundLangC) <= 300,
     . strlen($grundLangC) . ': ' . $grundLangC);
 assert(str_contains($grundLangC, str_repeat('Q', 100)), 'und es ist der ECHTE Text, kein Platzhalter: ' . $grundLangC);
 $pruefungen += 3;
+
+// =================================================================================================
+// --- 🔴 PRUEFERAUFLAGE (Ruecklauf des Koordinators, 06.09.2026, zweite Runde): DIE QUELLTEXT-
+// ZUSICHERUNG STATT ACHT SZENARIEN. `$einstellungen` darf im RUMPF von `avesmapsGaretienUebernehmen`
+// GENAU EINMAL vorkommen -- in der Zeile, die `$rumpfDesItems` rechnet. Acht Leser fragen
+// `$rumpfDesItems`; eine vergessene Stelle, die stattdessen `$einstellungen` liest, gibt einem
+// Objekt still die Einstellung seines Nachbarn. Siehe die Begruendung am Kopf von
+// `avesmapsFunktionsRumpfOhneKommentare` oben fuer die Messung, die diese Zusicherung ausgeloest
+// hat (der Sweep des Pruefers: sieben von acht Aufrufstellen blieben bei einer reinen
+// Verhaltensprobe gruen).
+$uebernahmeQuelltext = (string) file_get_contents(__DIR__ . '/../garetien-uebernahme.php');
+$rumpfUebernehmen = avesmapsFunktionsRumpfOhneKommentare($uebernahmeQuelltext, 'avesmapsGaretienUebernehmen');
+$einstellungenTreffer = preg_match_all('/\$einstellungen\b/', $rumpfUebernehmen);
+assert($einstellungenTreffer === 1,
+    '💣 $einstellungen darf im Rumpf von avesmapsGaretienUebernehmen GENAU EINMAL vorkommen -- '
+    . 'in der Zeile, die $rumpfDesItems rechnet. Gefunden: ' . $einstellungenTreffer);
+$pruefungen++;
+
+// ⚠️ UND DIE VORBEDINGUNG DES TESTS SELBST: der Rumpf muss WIRKLICH `$rumpfDesItems` UND acht
+// Aufrufstellen davon enthalten, sonst prueft die Zusicherung oben eine leere Funktion. Die acht
+// Namen stammen woertlich aus dem Bericht der Aufgabe (die Ziel-, Weg-, Orts-, Label- und
+// Flaechen-Uebersteuerung, die Innerorts-, Stroemungsrichtungs- und Endkreuzungs-Frage).
+assert(preg_match_all('/\$rumpfDesItems\b/', $rumpfUebernehmen) >= 8,
+    'die Vorbedingung: der Rumpf liest $rumpfDesItems an mindestens acht Stellen -- sonst waere '
+    . 'die Zusicherung oben ein Vakuum: ' . preg_match_all('/\$rumpfDesItems\b/', $rumpfUebernehmen));
+$pruefungen++;
 
 echo "OK ({$pruefungen} Pruefungen)\n";
