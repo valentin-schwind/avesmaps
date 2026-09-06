@@ -323,14 +323,36 @@ function avesmapsWikiSyncDrosselUeberProzessgrenze(
  * (HTTP 502) war "zu schneller als erlaubt" geworden -- dieselbe Grenze, nur von der anderen
  * Seite gerissen.
  *
- * ⭐ GEMESSEN 24.08.2026: JEDER Aufrufer der Wiki-API im Haus sitzt in einer Crawl-Bibliothek
- * (locations/paths/regions/settlements/territories/sync-monitor/dump-category-layer). Es gibt
- * KEINEN interaktiven Einzelabruf ans lebende Wiki -- die Zuweisungsdialoge suchen in unseren
- * eigenen Tabellen. Deshalb gilt der dauerhafte Abstand hier ohne Ausnahme; die Unterscheidung
- * "Massenlauf gegen Einzelabruf" haette heute eine leere zweite Haelfte. ⚠️ Kommt je ein
- * interaktiver Abruf dazu, ist DAS die Stelle, an der er eine Ausnahme braeuchte -- und die
- * Entscheidung gehoert dem Owner, nicht dem Code: der Crawl-delay gilt unserem User-Agent,
- * nicht einzelnen Funktionen.
+ * 🪤 HIER STAND BIS ZUM 07.09.2026: "GEMESSEN 24.08.2026: JEDER Aufrufer der Wiki-API im Haus
+ * sitzt in einer Crawl-Bibliothek. Es gibt KEINEN interaktiven Einzelabruf ans lebende Wiki --
+ * die Zuweisungsdialoge suchen in unseren eigenen Tabellen." Fuer Wege und Landschaften stimmt
+ * das bis heute (nachgemessen ueber die Aufrufkette, wiki-interaktiv-drossel-test.php §G); fuer
+ * den ORT stimmte es NIE: `assign_to` holt die Infobox live (avesmapsWikiSettlementBuildFromTitle
+ * -> avesmapsWikiSyncFetchPoliticalTerritoryPageContents). Weil der Satz so allgemein dastand,
+ * hat ihn niemand nachgemessen -- und der Abruf lief in den WARTENDEN Zweig.
+ *
+ * 💣 DER PREIS WAR DIE ARBEITER-SAETTIGUNG, VOR DER DIESE DATEI ZWEI ABSAETZE WEITER OBEN WARNT.
+ * Ein Klick im Ortseditor konnte bis zu vierhundert Sekunden schlafen (zwanzig Sekunden Abstand
+ * mal zwanzig Warteplaetzen) und hielt dabei einen PHP-Arbeiter UND eine der zwanzig
+ * Datenbankverbindungen; ein Editor, bei dem nichts passiert, klickt noch einmal. Im
+ * Zugriffsprotokoll stehen in jedem Ausfallfenster vom 30.08. bis 06.09.2026 zwoelf bis
+ * zweiundzwanzig solcher Klicks binnen zwanzig Sekunden -- danach antwortete JEDER PHP-Aufruf des
+ * Kontos mit 500, spaeter minutenlang mit 404 auf existierende Dateien (am 04.09. achtundsiebzig
+ * Minuten), waehrend die statischen Dateien weiterliefen.
+ *
+ * ⭐ DIE UNTERSCHEIDUNG GIBT ES JETZT, und sie liegt NICHT hier: `avesmapsWikiSyncInteraktiv`
+ * (wiki/sync.php) sagt je Anfrage, ob dieser Abruf warten darf, und der interaktive Fall geht
+ * durch `avesmapsWikiDrosselPlatzFrei` unten -- denselben Zweig wie `coat.php`. Der Abstand, den
+ * das Wiki sieht, bleibt unveraendert: ein abgewiesener Abruf holt nichts und belegt nichts.
+ *
+ * 💣 UND ER GILT BEIDEN TRANSPORTEN, NICHT NUR DEM OFFENSICHTLICHEN. Der erste Entwurf band nur
+ * `avesmapsWikiSyncApiRequest` (die Abfrage) und liess `avesmapsWikiSyncApiPost` (die Anmeldung)
+ * unberuehrt -- ein Pruefagent hat daraufhin 22,154 s Blockade im selben Klick gemessen, weil der
+ * Weg zur Abfrage ueber zwei Anmelde-POSTs fuehrt, sobald die abgelegte Sitzung abgelaufen ist.
+ * Beide sind jetzt gebunden, und im Dialog wird die Anmeldung ganz uebersprungen (sie hebt nur die
+ * Stapelgroesse, und ein Dialog holt EINEN Titel). Das Register in
+ * `wiki-drossel-alle-erzeuger-test.php` fuehrt beide Transporte seit jeher nebeneinander auf --
+ * wer eine Regel einbaut, prueft sie gegen DIESE Liste.
  *
  * Die zwei Parameter existieren NUR fuer den Test: ohne sie muesste der die vollen 20 Sekunden
  * schlafen und einen echten uploads/-Pfad haben -- ein Test, der 20 Sekunden kostet, wird als

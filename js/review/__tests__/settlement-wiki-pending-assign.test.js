@@ -41,14 +41,26 @@ global.locationEditMarkerEntry = null;
 
 const PREVIEW_URL = "https://de.wiki-aventurica.de/wiki/Gareth";
 const requests = [];
+// 🔴 STEUERBAR, weil der Server seit dem 07.09.2026 sagen kann, dass seine Antwort aus dem
+// Zwischenspeicher stammt: war der Drosselplatz des Wikis belegt, nimmt er die zuletzt geholte
+// Infobox statt abzusagen (`aus_vorrat`, api/_internal/wiki/settlements.php).
+let antwortAusVorrat = false;
 global.fetch = (url, options) => {
 	requests.push({ url: String(url), method: (options && options.method) || "GET" });
 	return Promise.resolve({
 		json: () => Promise.resolve({
 			ok: true,
 			settlement: { title: "Gareth", name: "Gareth", wiki_url: PREVIEW_URL },
+			wiki_name: "Gareth",
+			aus_vorrat: antwortAusVorrat,
 		}),
 	});
+};
+
+// Was der Editor wirklich liest -- der Spion ersetzt die leere Attrappe von oben.
+const toasts = [];
+global.showFeedbackToast = (text, art) => {
+	toasts.push({ text: String(text), art: String(art) });
 };
 
 // Seit dem 16.08.2026 (Aufgabe 5 der Wiki-Zuweisung) steuert review-settlement-wiki.js nur noch den
@@ -102,7 +114,48 @@ const { selectSettlementWikiResult, removeSettlementWiki } = require("../review-
 		"auch das Zurücknehmen schreibt beim Anlegen nichts"
 	);
 
+	// 5) DER ZWISCHENSPEICHER WIRD BENANNT -- ausgefuehrt, nicht als Zeichenkette geprueft.
+	// 💣 Diese Zusicherung gibt es, weil die erste Fassung des Satzes `data?.aus_vorrat` LAS, und
+	// `data` steht mit `const` im try-Block darueber: ein ReferenceError im Erfolgsfall, den kein
+	// Quelltext-Test gesehen haette. Dieselbe Klasse wie der Ausfall vom 03.09.2026, bei dem zwei
+	// gruene Tests einen fehlenden Geltungsbereich uebersahen -- gefunden hat ihn dort erst die
+	// Konsole der Live-Seite.
+	toasts.length = 0;
+	antwortAusVorrat = true;
+	await selectSettlementWikiResult("Gareth");
+	assert.ok(toasts.length > 0, "der Anlege-Fall meldet sich ueberhaupt");
+	assert.ok(
+		toasts.some((t) => t.text.includes("Zwischenspeicher")),
+		"eine Vorschau aus dem Zwischenspeicher sagt es: " + JSON.stringify(toasts)
+	);
+
+	// 6) Und der BEARBEITEN-Fall genauso -- dort wird wirklich geschrieben, also wiegt es schwerer.
+	// ⚠️ Ab hier gibt es einen Marker, damit `selectSettlementWikiResult` den assign_to-Zweig nimmt.
+	toasts.length = 0;
+	global.locationEditMarkerEntry = { publicId: "abc-123", location: {} };
+	global.refreshLocationMarkerPopup = () => {};
+	await selectSettlementWikiResult("Gareth", {});
+	assert.ok(
+		requests.some((r) => r.method === "POST"),
+		"der Bearbeiten-Fall schreibt (assign_to)"
+	);
+	assert.ok(
+		toasts.some((t) => t.text.includes("Zwischenspeicher") && t.art === "info"),
+		"eine Zuweisung aus dem Zwischenspeicher sagt es, und zwar als Hinweis statt als Erfolg: "
+			+ JSON.stringify(toasts)
+	);
+
+	// 7) Der Normalfall bleibt der Normalfall -- sonst stuende der Hinweis an jeder Zuweisung.
+	toasts.length = 0;
+	antwortAusVorrat = false;
+	await selectSettlementWikiResult("Gareth", {});
+	assert.ok(
+		toasts.some((t) => t.art === "success" && !t.text.includes("Zwischenspeicher")),
+		"eine frische Zuweisung meldet schlicht Erfolg: " + JSON.stringify(toasts)
+	);
+
 	console.log("OK - Zuweisen beim Anlegen merkt sich die Auswahl, ohne zu schreiben");
+	console.log("OK - und eine Antwort aus dem Zwischenspeicher wird in beiden Faellen benannt");
 })().catch((error) => {
 	console.error(error);
 	process.exit(1);

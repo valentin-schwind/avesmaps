@@ -38,6 +38,16 @@ const AVESMAPS_WIKI_TITLE_BATCH_SIZE_BOT = 500;
 const AVESMAPS_WIKI_SEARCH_RESULT_LIMIT = 5;
 const AVESMAPS_WIKI_REQUEST_TIMEOUT_SECONDS = 30;
 /**
+ * 🔴 DAS ZEITLIMIT EINES ABRUFS, AUF DEN EIN MENSCH WARTET (siehe avesmapsWikiSyncInteraktiv).
+ *
+ * 💣 Die 30 Sekunden daneben gelten einem Stapelschritt, der ohnehin Minuten dauern darf. Im
+ * Dialog sind sie die Zeit, die ein PHP-Arbeiter und eine der zwanzig Datenbankverbindungen
+ * belegt bleiben, waehrend der Editor eine Antwort erwartet -- und er klickt lange vorher wieder.
+ * Acht Sekunden sind reichlich fuer EINE Seitenabfrage (gemessen im Normalfall deutlich unter
+ * einer) und kurz genug, dass ein haengendes Wiki keinen Arbeiter festhaelt.
+ */
+const AVESMAPS_WIKI_REQUEST_TIMEOUT_SECONDS_INTERAKTIV = 8;
+/**
  * 💣 DIE ZAHL DER WIEDERHOLUNGEN IST EINE ZEITGRENZE, KEINE HARTNAECKIGKEIT. Sie stand auf
  * 3, als die Drossel bei 0,6 s lag. Mit dem Crawl-delay 20 und der doppelten Basis darunter
  * ergab das eine Leiter von 40 + 80 + 120 = 240 Sekunden -- in EINEM Schritt, ohne
@@ -158,6 +168,69 @@ function avesmapsWikiSyncPageUrl(string $title): string {
  * auffaellt. Dieselbe Falle wie bei PDOException (siehe api/edit/wiki/paths.php).
  */
 class AvesmapsWikiUnreachableException extends RuntimeException {}
+
+/**
+ * 🔴 „DER DROSSELPLATZ IST BELEGT" IST NOCH EINMAL EIN EIGENER FALL -- und der einzige, bei dem
+ * ein zweiter Versuch binnen Sekunden gelingt. Das Wiki antwortet; WIR halten den Abstand ein.
+ *
+ * 💣 SIE ERBT VON AvesmapsWikiUnreachableException, und das ist beides zugleich: eine Bequemlichkeit
+ * und eine Falle. Bequem, weil jeder Endpunkt, der nur den allgemeinen Fall kennt, weiterhin
+ * richtig antwortet (503 mit dem fertigen Satz) -- die Vererbung ist der Grund, warum dieser Umbau
+ * KEINEN anderen Endpunkt anfassen muss. Falle, weil ein Endpunkt, der BEIDE kennt, den
+ * spezielleren ZUERST fangen muss; darunter waere der Zweig tot, ohne dass es auffiele. Dieselbe
+ * Reihenfolge-Regel wie bei PDOException/RuntimeException, und `settlement-absagegrund-test.php`
+ * liest sie ab.
+ */
+class AvesmapsWikiBelegtException extends AvesmapsWikiUnreachableException {}
+
+/**
+ * IST DIESER ABRUF EINER, AUF DEN EIN MENSCH GERADE WARTET?
+ *
+ * 💣 DER GRUND, AUS DEM ES DEN SCHALTER GIBT (Log-Auswertung 06.09.2026). `assign_to` im
+ * Ortseditor holt die Wiki-Seite LIVE und ging dabei durch den WARTENDEN Zweig der Drossel:
+ * 20 Sekunden Abstand, bis zu zwanzig Wartende, dazu 30 s Zeitlimit und zwei Wiederholungen mit
+ * 40 und 80 Sekunden Pause. Die ganze Zeit haelt die Anfrage einen PHP-Arbeiter UND eine der
+ * zwanzig Datenbankverbindungen -- und ein Editor, bei dem nichts passiert, klickt noch einmal.
+ * In jedem Ausfallfenster stehen 12 bis 22 solcher Klicks binnen zwanzig Sekunden; danach
+ * antwortete JEDER PHP-Aufruf des Kontos mit 500, spaeter minutenlang mit 404 auf existierende
+ * Dateien, waehrend die statischen Dateien weiterliefen (am 04.09.2026 achtundsiebzig Minuten).
+ *
+ * 🔴 DIE VORGABE IST „WARTEN", und sie muss es bleiben. Ein Dump-Schritt, der den Schalter nie
+ * anfasst, verhaelt sich wie bisher -- er ist in Schritte zerlegt und darf Zeit kosten. Faellt die
+ * Vorgabe je auf „interaktiv", braechen die Massenlaeufe bei belegtem Platz ab, statt zu warten,
+ * und ein abgebrochener Schritt gibt die Pipeline-Sperre nicht frei (der Freigabe-Zweig sitzt in
+ * einem catch, das ein Fatal ueberspringt).
+ *
+ * ⚠️ Der Zustand gilt JE ANFRAGE, wie `avesmapsWikiBotZustand` daneben -- auf STRATO ist das je
+ * Web-Anfrage ein eigener Prozess.
+ */
+function avesmapsWikiSyncInteraktiv(?bool $neuerZustand = null): bool {
+    static $interaktiv = false;
+
+    if ($neuerZustand !== null) {
+        $interaktiv = $neuerZustand;
+    }
+
+    return $interaktiv;
+}
+
+/**
+ * REIN: der Satz, den ein Editor bei belegtem Drosselplatz liest.
+ *
+ * 🔴 ER SAGT NICHT „nicht erreichbar". Das Wiki antwortet ja -- wir halten unseren eigenen
+ * Crawl-delay ein. Der Unterschied ist fuer den Editor der ganze Inhalt der Meldung: er soll
+ * kurz warten und es noch einmal versuchen, statt zu glauben, das Wiki sei weg (und dann sofort
+ * wieder zu klicken -- genau das war der Ausfall).
+ *
+ * 💣 DIE WARTEZEIT WIRD GERECHNET, NICHT ABGESCHRIEBEN. Wer den Crawl-delay aendert, aendert den
+ * Satz mit; eine abgeschriebene Zahl waere beim naechsten Mal falsch, und niemand zaehlt nach.
+ */
+function avesmapsWikiSyncBelegtMessage(): string {
+    $sekunden = (int) ceil(AVESMAPS_WIKI_REQUEST_DELAY_MICROSECONDS / 1000000);
+
+    return 'Das Wiki Aventurica ist gerade durch einen anderen Abruf belegt. '
+        . 'Bitte in etwa ' . $sekunden . ' Sekunden noch einmal versuchen.';
+}
 
 /**
  * REIN: baut den Satz, den ein Editor im Toast liest.
@@ -386,10 +459,25 @@ function avesmapsWikiSyncApiPost(array $params, array $cookies): array {
     $kopfzeilen = avesmapsWikiSyncRequestHeaderLines($cookies)
         . "Content-Type: application/x-www-form-urlencoded\r\n";
 
+    // 💣 DER ZWEITE TRANSPORT, UND ER BRAUCHT DENSELBEN RIEGEL WIE DER ERSTE. Bis zum 07.09.2026
+    // fragte er ausnahmslos den WARTENDEN Zweig -- auch dann, wenn ein Editor im Dialog auf die
+    // Antwort wartete. Der Weg dorthin ist nicht ausgedacht, sondern gemessen (22,154 s):
+    //   assign_to -> BuildFromTitle -> FetchPoliticalTerritoryPageContents
+    //             -> avesmapsWikiSyncTitleBatchSize -> avesmapsWikiBotSitzungSicherstellen
+    //             -> ZWEIMAL hierher (Token holen, dann anmelden)
+    // Eine abgelegte Sitzung haelt nur AVESMAPS_WIKI_BOT_SESSION_MAX_AGE; fuer einen Klick nach
+    // einer Pause ist der Anmeldeweg der Normalfall.
+    // 🔴 Der Aufbau der Sitzung wird im interaktiven Modus inzwischen ganz uebersprungen
+    // (avesmapsWikiBotSitzungSicherstellen) -- dieser Riegel ist das NETZ darunter, fuer jeden
+    // kuenftigen Aufrufer, der den Schalter setzt und diesen Transport doch erreicht.
+    $interaktiv = avesmapsWikiSyncInteraktiv();
+
     $context = stream_context_create([
         'http' => [
             'method' => 'POST',
-            'timeout' => AVESMAPS_WIKI_REQUEST_TIMEOUT_SECONDS,
+            'timeout' => $interaktiv
+                ? AVESMAPS_WIKI_REQUEST_TIMEOUT_SECONDS_INTERAKTIV
+                : AVESMAPS_WIKI_REQUEST_TIMEOUT_SECONDS,
             'header' => $kopfzeilen,
             'content' => $rumpf,
             'ignore_errors' => true,
@@ -400,7 +488,13 @@ function avesmapsWikiSyncApiPost(array $params, array $cookies): array {
         ],
     ]);
 
-    avesmapsWikiSyncThrottleWikiRequest();
+    if ($interaktiv) {
+        if (!avesmapsWikiDrosselPlatzFrei()) {
+            throw new AvesmapsWikiBelegtException(avesmapsWikiSyncBelegtMessage());
+        }
+    } else {
+        avesmapsWikiSyncThrottleWikiRequest();
+    }
 
     $http_response_header = null;
     $rohantwort = @file_get_contents(AVESMAPS_WIKI_API_URL, false, $context);
@@ -710,6 +804,28 @@ function avesmapsWikiBotSitzungSicherstellen(): bool {
     if ($abgelegt !== null) {
         avesmapsWikiBotZustand(['status' => 'bot', 'grund' => '', 'cookies' => $abgelegt, 'aus_ablage' => true]);
         return true;
+    }
+
+    // 🔴 IM DIALOG WIRD NICHT ANGEMELDET -- und das ist keine Sparmassnahme, sondern die richtige
+    // Antwort auf die Frage, wofuer die Anmeldung da ist: sie hebt die STAPELGROESSE von 50 auf
+    // 500 Titel (avesmapsWikiTitleBatchSizeFuerZustand). Ein Zuweisungsdialog holt EINEN Titel.
+    // Dafuer ist sie nutzlos -- und sie kostet zwei weitere Drosselplaetze, also im schlechtesten
+    // Fall zweimal den vollen Abstand, bevor die eigentliche Abfrage ueberhaupt beginnt.
+    //
+    // 💣 GEMESSEN, NICHT VERMUTET: 22,154 s in genau diesem Zweig, gefunden von einem Pruefagenten,
+    // nachdem der Umbau schon fertig aussah. Der Riegel in avesmapsWikiSyncApiPost allein haette
+    // den Fall zwar entschaerft -- aber zu einer ABSAGE gemacht, obwohl der Abruf anonym haette
+    // gelingen koennen. Ein Editor, der nichts zugewiesen bekommt, ist der schlechtere Ausgang.
+    //
+    // ⚠️ Eine bereits ABGELEGTE Sitzung wird weiter genutzt (der Zweig darueber) -- die kostet
+    // nichts und bringt die groessere Stapelgroesse gratis mit. Uebersprungen wird nur der
+    // AUFBAU einer neuen.
+    if (avesmapsWikiSyncInteraktiv()) {
+        avesmapsWikiBotZustand([
+            'status' => 'anonym',
+            'grund' => 'interaktiver Abruf -- keine Anmeldung, sie dient nur der Stapelgroesse',
+        ]);
+        return false;
     }
 
     $tokenAntwort = avesmapsWikiSyncApiPost(['action' => 'query', 'meta' => 'tokens', 'type' => 'login'], []);
@@ -1094,9 +1210,30 @@ function avesmapsWikiSyncApiRequest(array $params): array {
     // namenlos waren. `error_get_last()` liefert die Warnung auch bei unterdruecktem Fehler.
     $lastWarning = '';
 
-    for ($attempt = 0; $attempt <= AVESMAPS_WIKI_REQUEST_RETRY_COUNT; $attempt++) {
+    // 🔴 ZWEI ZEITBUDGETS, EIN ABRUFER. Ein Stapelschritt darf auf seinen Drosselplatz warten und
+    // es zweimal wiederholen; ein Abruf aus einem Dialog darf beides NICHT -- er haelt dabei einen
+    // PHP-Arbeiter und eine Datenbankverbindung, und der Editor klickt laengst wieder.
+    // Die Wiederholungen fallen im Dialog mit: 40 und 80 Sekunden Backoff waeren dort dieselbe
+    // Blockade noch einmal, und ein Mensch wiederholt selbst, wenn er die Absage liest.
+    $interaktiv = avesmapsWikiSyncInteraktiv();
+    $letzterVersuch = $interaktiv ? 0 : AVESMAPS_WIKI_REQUEST_RETRY_COUNT;
+
+    for ($attempt = 0; $attempt <= $letzterVersuch; $attempt++) {
         if ($attempt === 0) {
-            avesmapsWikiSyncThrottleWikiRequest();
+            if ($interaktiv) {
+                // 💣 DER NICHT WARTENDE ZWEIG -- wortgleiche Begruendung wie in `api/app/coat.php`:
+                // zwanzig Sekunden Schlaf halten einen PHP-Arbeiter, und mehrere gleichzeitige
+                // Abrufe machen daraus mehrere. Das ist die Arbeiter-Saettigung aus AGENTS.md §10,
+                // also die teurere Haelfte des Problems. Eine Absage ist billig: sie kommt sofort,
+                // nennt ihren Grund, und der naechste Versuch gelingt.
+                // ⚠️ Er reserviert NICHTS, wenn er abweist -- sonst schoebe jeder abgewiesene Klick
+                // den naechsten echten Abruf um einen vollen Abstand nach hinten.
+                if (!avesmapsWikiDrosselPlatzFrei()) {
+                    throw new AvesmapsWikiBelegtException(avesmapsWikiSyncBelegtMessage());
+                }
+            } else {
+                avesmapsWikiSyncThrottleWikiRequest();
+            }
         } else {
             // 💣 AUCH DER WIEDERHOLVERSUCH RESERVIERT SEINEN PLATZ. Bis 25.08.2026 schlief
             // hier nur der Backoff und vermerkte NICHTS -- der naechste Prozess las dann
@@ -1113,7 +1250,9 @@ function avesmapsWikiSyncApiRequest(array $params): array {
         $context = stream_context_create([
             'http' => [
                 'method' => 'GET',
-                'timeout' => AVESMAPS_WIKI_REQUEST_TIMEOUT_SECONDS,
+                'timeout' => $interaktiv
+                    ? AVESMAPS_WIKI_REQUEST_TIMEOUT_SECONDS_INTERAKTIV
+                    : AVESMAPS_WIKI_REQUEST_TIMEOUT_SECONDS,
                 'header' => avesmapsWikiSyncRequestHeaderLines($istBot ? (array) ($botZustand['cookies'] ?? []) : []),
                 'ignore_errors' => true,
             ],

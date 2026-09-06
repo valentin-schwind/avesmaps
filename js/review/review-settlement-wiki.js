@@ -146,9 +146,15 @@ function settlementWikiTitleFromUrl(wikiUrl) {
 // das Bauteil braucht eine ABLEHNUNG, sonst malt es eine Wahl, die es nicht gibt.
 async function selectSettlementWikiResultWhileCreating(title, treffer) {
 	let settlement = null;
+	// 🪤 EIGENE VARIABLE, WEIL `data` mit `const` IM try-Block steht und darunter nicht mehr
+	// sichtbar ist. Die erste Fassung las `data?.aus_vorrat` unten im Toast -- ein ReferenceError
+	// im Erfolgsfall, den kein Regex-Test gesehen haette: dieselbe Klasse wie der Ausfall vom
+	// 03.09.2026, bei dem zwei gruene Tests einen fehlenden Geltungsbereich uebersahen.
+	let ausVorrat = false;
 	try {
 		const data = await settlementWikiGet(`?action=preview&title=${encodeURIComponent(title)}`);
 		settlement = data && data.ok === true ? data.settlement : null;
+		ausVorrat = data?.aus_vorrat === true;
 		if (!settlement) {
 			throw new Error(apiErrorMessage(data, "Ort konnte nicht gelesen werden"));
 		}
@@ -167,7 +173,14 @@ async function selectSettlementWikiResultWhileCreating(title, treffer) {
 	}
 	// Die Suchzeile trug nur die Ortsgroesse; erst hier stehen die Infoboxwerte bereit.
 	avesmapsWikiAssignOrtTrefferAnreichern(treffer, settlement);
-	showFeedbackToast?.(`„${settlement.name || title}" wird beim Anlegen verbunden.`, "info");
+	// Wortgleich zum Bearbeiten-Fall: auch die Vorschau kann aus dem Vorrat kommen, und der
+	// Anlege-Fall merkt sich genau diese Antwort, um sie nach `create_point` zu verbinden.
+	showFeedbackToast?.(
+		ausVorrat
+			? `„${settlement.name || title}" wird beim Anlegen verbunden — aus dem Zwischenspeicher, das Wiki war gerade belegt.`
+			: `„${settlement.name || title}" wird beim Anlegen verbunden.`,
+		"info"
+	);
 }
 
 /**
@@ -270,7 +283,18 @@ async function selectSettlementWikiResult(title, treffer) {
 	// Schreibvorgang und stehen in seiner Antwort. Ohne diese Zeile bliebe der Zuweisungskasten
 	// unmittelbar nach der Wahl fast leer (js/ui/wiki-assign-ort.js erklaert, warum).
 	avesmapsWikiAssignOrtTrefferAnreichern(treffer, result.settlement);
-	showFeedbackToast?.(`„${result.wiki_name}" verbunden.`, "success");
+	// 🔴 EINE ZUWEISUNG AUS DEM VORRAT SAGT ES. War der Drosselplatz des Wikis belegt, nimmt der
+	// Server die zuletzt geholte Infobox statt abzusagen (`aus_vorrat`, settlements.php) -- und die
+	// kann von gestern sein. Ohne diesen Satz waere sie von einer frischen Zuweisung nicht zu
+	// unterscheiden, und genau das ist die Falle, aus der dieser Vorrat kommt: er wurde jahrelang
+	// geschrieben und nie gelesen.
+	// ⚠️ „info" und nicht „success": es hat geklappt, aber nicht so, wie der Editor denkt.
+	showFeedbackToast?.(
+		result.aus_vorrat === true
+			? `„${result.wiki_name}" verbunden — aus dem Zwischenspeicher, das Wiki war gerade belegt.`
+			: `„${result.wiki_name}" verbunden.`,
+		result.aus_vorrat === true ? "info" : "success"
+	);
 	if (typeof refreshActiveWikiSyncPanelAfterAssignment === "function") {
 		void refreshActiveWikiSyncPanelAfterAssignment();
 	}

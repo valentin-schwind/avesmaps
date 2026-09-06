@@ -39,6 +39,14 @@ try {
     if ($requestMethod === 'POST') {
         $payload = avesmapsReadJsonRequest();
         $action = trim((string) ($payload['action'] ?? ($_GET['action'] ?? '')));
+        // 🔴 WER NICHT MASSENLAUF IST, WARTET NICHT AUF DAS WIKI. `assign_to` holt die Infobox
+        // live; ueber den wartenden Zweig der Drossel hielt dieser Klick bis zu vierhundert
+        // Sekunden einen PHP-Arbeiter samt Datenbankverbindung, und ein Editor, bei dem nichts
+        // passiert, klickt noch einmal. Genau daran hingen die Ausfaelle vom 30.08. bis
+        // 06.09.2026 -- Begruendung und Messung in avesmapsWikiSyncInteraktiv (wiki/sync.php).
+        // ⚠️ Die Regel steht in der Bibliothek, nicht hier: eine zweite Liste liefe beim ersten
+        // neuen Massenlauf auseinander.
+        avesmapsWikiSyncInteraktiv(!avesmapsWikiSettlementAktionWartetAufDrossel($action));
         $isApply = static fn(): bool => ($payload['dry_run'] ?? true) === false && (string) ($payload['confirm'] ?? '') === 'apply';
 
         $response = match ($action) {
@@ -142,6 +150,9 @@ try {
     }
 
     $action = trim((string) ($_GET['action'] ?? 'status'));
+    // Dieselbe Regel wie im POST-Zweig -- die Lese-Aktionen sind alle interaktiv, und `preview`
+    // holt als einzige davon live ab.
+    avesmapsWikiSyncInteraktiv(!avesmapsWikiSettlementAktionWartetAufDrossel($action));
 
     $response = match ($action) {
         'status', '' => avesmapsWikiSettlementStatus($pdo),
@@ -156,7 +167,15 @@ try {
         'settlement_detail' => avesmapsWikiSettlementDetail($pdo, (string) ($_GET['public_id'] ?? '')),
         'assignment' => avesmapsWikiSettlementGetAssignment($pdo, (string) ($_GET['public_id'] ?? '')),
         'search' => avesmapsWikiSettlementSearch($pdo, (string) ($_GET['q'] ?? ''), (int) ($_GET['limit'] ?? 30)),
-        'preview' => ['ok' => true, 'settlement' => avesmapsWikiSettlementBuildFromTitle($pdo, (string) ($_GET['title'] ?? ''))],
+        // ⚠️ Die Klammer nur, damit `aus_vorrat` mitreisen kann: der Anlege-Fall merkt sich diese
+        // Antwort und verbindet sie spaeter -- er muss genauso erfahren, dass sie aus dem Vorrat
+        // stammt, wie der Bearbeiten-Fall (avesmapsWikiSettlementBuildFromTitle).
+        'preview' => (static function () use ($pdo): array {
+            $ausVorrat = false;
+            $settlement = avesmapsWikiSettlementBuildFromTitle($pdo, (string) ($_GET['title'] ?? ''), $ausVorrat);
+
+            return ['ok' => true, 'settlement' => $settlement, 'aus_vorrat' => $ausVorrat];
+        })(),
         default => null,
     };
 
@@ -174,6 +193,16 @@ try {
     // Vorher wurde $error gefangen und nie benutzt -- die Ausnahme verschwand spurlos, und genau
     // das machte Fall #84 unauffindbar. Der Helfer steht seit laengerem in bootstrap.php:409.
     avesmapsServerErrorResponse($error, 'wiki-settlements');
+} catch (AvesmapsWikiBelegtException $error) {
+    // 🔴 NICHT DASSELBE WIE „nicht erreichbar", UND DER UNTERSCHIED IST DIE HANDLUNGSANWEISUNG:
+    // das Wiki antwortet, WIR halten unseren eigenen Crawl-delay ein. Ein zweiter Versuch
+    // gelingt binnen Sekunden -- deshalb ein eigener Code, den die Oberflaeche spaeter gezielt
+    // behandeln kann, und ein Satz, der die Wartezeit nennt (avesmapsWikiSyncBelegtMessage).
+    // 💣 ER MUSS VOR DEM UNERREICHBAR-ZWEIG STEHEN, denn er erbt von ihm -- darunter waere er
+    // tot, ohne dass es auffiele. Dieselbe Falle wie bei PDOException/RuntimeException; gelesen
+    // und festgenagelt von settlement-absagegrund-test.php.
+    // ⚠️ 503 wie sein Elternfall: die Ursache liegt ausserhalb dieser Anfrage.
+    avesmapsErrorResponse(503, 'wiki_busy', $error->getMessage());
 } catch (AvesmapsWikiUnreachableException $error) {
     // 🔴 WEDER UNSER FEHLER NOCH DER DES EDITORS -- das Wiki hat nicht geantwortet. Bis zum
     // 20.08.2026 fiel dieser Fall in den RuntimeException-Zweig darunter und ging als

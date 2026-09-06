@@ -163,12 +163,22 @@ const AVESMAPS_WIKI_ASSIGN_TIPP_PAUSE_MS = 180;
 /**
  * Ab wann eine misslungene Zuweisung ihre DAUER mitnennt (Millisekunden).
  *
- * 🔴 SIE UNTERSCHEIDET ZWEI FEHLER, DIE GLEICH AUSSEHEN. Vor jedem Wiki-Abruf des Servers sitzt
- * eine Drossel von 20 Sekunden (AVESMAPS_WIKI_REQUEST_DELAY_MICROSECONDS, drossel.php), und das
- * Zuweisen holt die Seite LIVE -- eine Absage nach 21 s ist eine ganz andere Geschichte als eine
- * nach 0,2 s, und ohne die Zahl liest man beide als „geht nicht".
- * ⚠️ 5 Sekunden, weil darunter nichts von der Drossel stammen KANN: sie spannt 20 s auf. Was
- * schneller absagt, ist eine echte Absage des Endpunkts, und dort waere ein „nach 0 s" nur Rauschen.
+ * 🔴 SIE UNTERSCHEIDET ZWEI FEHLER, DIE GLEICH AUSSEHEN: eine Absage nach zwanzig Sekunden ist
+ * eine andere Geschichte als eine nach 0,2 s, und ohne die Zahl liest man beide als „geht nicht".
+ *
+ * 🪤 HIER STAND BIS ZUM 07.09.2026 DIE HERLEITUNG DAZU -- und sie ist seither ueberholt: „Vor
+ * jedem Wiki-Abruf sitzt eine Drossel von 20 Sekunden, und das Zuweisen holt die Seite LIVE ...
+ * 5 Sekunden, weil darunter nichts von der Drossel stammen KANN." Genau dieses Warten war der
+ * Fehler, nicht die Anzeige: ein Abruf aus einem Dialog wartet seit dem Umbau NICHT mehr auf die
+ * Drossel, sondern sagt bei belegtem Platz sofort ab -- mit eigenem Satz und eigenem Fehlercode
+ * (`wiki_busy`, avesmapsWikiSyncBelegtMessage in api/_internal/wiki/sync.php). Das lange Warten
+ * hat den PHP-Arbeiter und eine Datenbankverbindung gehalten und das Konto reihenweise
+ * lahmgelegt (Ausfaelle vom 30.08. bis 06.09.2026).
+ *
+ * ⚠️ DIE SCHWELLE BLEIBT TROTZDEM, nur mit anderer Begruendung: was heute noch lange braucht, ist
+ * ein langsames Wiki (bis AVESMAPS_WIKI_REQUEST_TIMEOUT_SECONDS_INTERAKTIV) oder eine langsame
+ * Datenbank -- und auch das will ein Editor unterschieden wissen. Unter fuenf Sekunden waere die
+ * Zahl nur Rauschen.
  */
 const AVESMAPS_WIKI_ASSIGN_LANGSAM_MS = 5000;
 
@@ -1415,11 +1425,13 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 			// ⚠️ Beides bleibt: der Toast der Oberflaeche (sie kennt den Endpunkt) UND diese Zeile am
 			// Ort des Klicks. Sie widersprechen einander nicht -- die eine ist die Nachricht, die
 			// andere der Zustand.
-			// ⏱️ MIT DER DAUER, UND DAS IST HIER DER EIGENTLICHE BEFUND. Vor jedem Wiki-Abruf des
-			// Servers sitzt eine Drossel von 20 s (AVESMAPS_WIKI_REQUEST_DELAY_MICROSECONDS,
-			// api/_internal/wiki/drossel.php), und `assign_to` holt die Seite LIVE. „Nach 21 s"
-			// unterscheidet damit eine ueberschrittene Zeitgrenze von einer echten Absage -- ohne die
-			// Zahl sehen beide Faelle gleich aus.
+			// ⏱️ MIT DER DAUER. Sie unterscheidet eine ueberschrittene Zeitgrenze von einer echten
+			// Absage -- ohne die Zahl sehen beide Faelle gleich aus.
+			// 🪤 Hier stand als Begruendung „vor jedem Wiki-Abruf sitzt eine Drossel von 20 s, und
+			// `assign_to` holt die Seite LIVE". Das war der FEHLER, nicht die Erklaerung: seit dem
+			// 07.09.2026 wartet ein Abruf aus einem Dialog nicht mehr auf die Drossel (siehe
+			// AVESMAPS_WIKI_ASSIGN_LANGSAM_MS oben). Lange dauert heute nur noch ein langsames Wiki
+			// oder eine langsame Datenbank.
 			// ⚠️ Erst ab AVESMAPS_WIKI_ASSIGN_LANGSAM_MS, sonst stuende an jeder gewoehnlichen Absage
 			// („Ziel-Ort nicht gefunden") ein „nach 0 s", das nichts sagt.
 			// 💣 EINE NOCH LAUFENDE SUCHE WUERDE DIESE MELDUNG SOFORT WIEDER WEGWISCHEN -- im Browser

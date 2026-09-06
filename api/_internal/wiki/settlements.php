@@ -46,6 +46,52 @@ require_once __DIR__ . '/../app/coat-display.php';
 
 const AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE = 'wiki_sync_pages';
 
+/**
+ * DIE MASSENLAEUFE DES SIEDLUNGS-SYNCS -- die Aktionen, die auf einen Drosselplatz WARTEN duerfen.
+ *
+ * ⚠️ NICHT ALLE VON IHNEN RUFEN HEUTE UEBERHAUPT DAS WIKI (nachgemessen 07.09.2026: die vier
+ * Wappen- und Territorien-Sammellaeufe lesen und schreiben nur unsere eigenen Tabellen). Sie
+ * stehen trotzdem hier, weil sie dem Namen und der Absicht nach Massenlaeufe sind: braucht einer
+ * von ihnen je einen Abruf, ist er in dem Moment richtig eingeordnet, statt bei belegtem Platz
+ * mitten im Lauf abzusagen. Eine Aktion zu viel kostet nichts; eine zu wenig bricht einen Lauf ab.
+ *
+ * 🔴 DIE VORGABE IST „NICHT WARTEN", und die Richtung ist der ganze Punkt. Eine Aktion, die hier
+ * fehlt, sagt bei belegtem Platz sofort ab -- der Preis eines Irrtums ist also eine Absage, die
+ * man wiederholt. Andersherum waere er ein PHP-Arbeiter samt Datenbankverbindung, der bis zu
+ * vierhundert Sekunden blockiert, ohne dass es jemand sieht. Genau daran hingen die Ausfaelle
+ * vom 30.08. bis 06.09.2026 (siehe avesmapsWikiSyncInteraktiv in wiki/sync.php).
+ *
+ * ⚠️ HIER STEHT KEINE ZAHL. Eine Zahl im Kommentar liest sich wie eine vollstaendige Liste, und
+ * niemand zaehlt nach -- dieselbe Lehre wie bei der Verkehrsmittel-Sperre und den Rauschfiltern
+ * des Konfliktzentrums (AGENTS.md §11). Wer einen Massenlauf ergaenzt, ergaenzt ihn in DIESER
+ * Aufzaehlung.
+ *
+ * 💣 Auch ein Massenlauf, der als Trockenlauf faehrt, wartet -- er holt dieselben Seiten. Die
+ * Unterscheidung ist „viele Seiten in einem Schritt", nicht „schreibt oder nicht".
+ */
+const AVESMAPS_WIKI_SETTLEMENT_STAPELAKTIONEN = [
+    'bulk_connect',
+    'crawl_buildings',
+    'crawl_building_types',
+    'crawl_building_type',
+    'enrich_details',
+    'backfill_continents',
+    'bulk_record_ruins',
+    'bulk_record_coats',
+    'localize_coats',
+    'cleanup_coats',
+    'bulk_assign_territories',
+];
+
+/**
+ * REIN: darf diese Aktion auf einen Drosselplatz warten?
+ *
+ * ⚠️ Getrimmt, weil der Endpunkt die Aktion aus dem Anfragerumpf liest.
+ */
+function avesmapsWikiSettlementAktionWartetAufDrossel(string $action): bool {
+    return in_array(trim($action), AVESMAPS_WIKI_SETTLEMENT_STAPELAKTIONEN, true);
+}
+
 // Stellt die nullbare Cache-Spalte details_json an wiki_sync_pages sicher (idempotent).
 function avesmapsWikiSettlementEnsureSchema(PDO $pdo): void {
     avesmapsWikiSyncEnsureCoreTables($pdo);
@@ -903,13 +949,59 @@ function avesmapsWikiSettlementRegistryRow(PDO $pdo, string $title): ?array {
 }
 
 // Lädt + parst die Infobox einer Siedlung on-demand (für Vorschau/Zuordnung).
-function avesmapsWikiSettlementBuildFromTitle(PDO $pdo, string $title): array {
+function avesmapsWikiSettlementBuildFromTitle(PDO $pdo, string $title, ?bool &$ausVorrat = null): array {
+    // 🔴 DER AUSGANGSPARAMETER IST DIE ANTWORT AUF „STILL". Ein Rueckfall, den niemand sieht, ist
+    // von einem frischen Abruf nicht zu unterscheiden -- und der Aufrufer schreibt das Ergebnis
+    // dauerhaft an ein Kartenobjekt. Er steht hier und nicht als Feld IM Nest, weil das Nest
+    // unveraendert nach `properties.wiki_settlement` wandert: eine Herkunftsmarke darin stuende
+    // danach fuer immer in den Kartendaten.
+    // ⚠️ Zuerst zuruecksetzen -- ein Aufrufer, der die Variable wiederverwendet, bekaeme sonst die
+    // Antwort des vorigen Aufrufs.
+    $ausVorrat = false;
     $title = avesmapsWikiSyncMonitorNormalizeTitle(trim($title));
     if ($title === '') {
         throw new RuntimeException('title fehlt.');
     }
     $registry = avesmapsWikiSettlementRegistryRow($pdo, $title);
-    $contents = avesmapsWikiSyncFetchPoliticalTerritoryPageContents([$title]);
+
+    // 🔴 DER EINE RUECKFALL, UND ER GILT NUR DEM BELEGTEN DROSSELPLATZ. Wer eine Seite zuweist,
+    // die wir schon einmal geholt haben, bekommt sie aus dem Vorrat statt einer Absage.
+    //
+    // ⚠️ UND DER VORRAT KANN BELIEBIG ALT SEIN. Hier stand zuerst „die Wiki-Seite hat sich in den
+    // zwanzig Sekunden kaum geaendert" -- das beschreibt einen Mechanismus, den es nicht gibt:
+    // `details_json` wird bei jeder scharfen Zuweisung geschrieben und hat KEINE Ablauffrist, der
+    // Eintrag kann also von gestern oder vom Juli sein. Ein Pruefagent hat den Satz widerlegt,
+    // bevor er live ging. Deshalb ist der Rueckfall BENANNT statt still: `$ausVorrat` reist bis
+    // in die Antwort des Endpunkts, und die Oberflaeche sagt es dem Editor.
+    //
+    // 💣 UND WIRKLICH NUR DIESER FALL. Ein „nicht erreichbar" (Sperre, Zeitueberschreitung,
+    // kaputtes JSON) darf NICHT still aus dem Vorrat bedient werden: dann saehe ein dauerhaft
+    // gestoerter Abruf wie ein gelungener aus, und die Karte fuellte sich mit Daten von
+    // unbekanntem Alter, ohne dass es je jemandem auffiele. Deshalb faengt der Zweig
+    // AvesmapsWikiBelegtException und nicht ihre Elternklasse -- und der Test haelt das fest.
+    //
+    // ⚠️ Das NEST bleibt unmarkiert -- es wird als `properties.wiki_settlement` dauerhaft an ein
+    // Kartenobjekt geschrieben, und eine Herkunftsmarke darin stuende danach fuer immer in den
+    // Kartendaten. Die Herkunft reist deshalb NEBEN dem Nest (`$ausVorrat`) und zusaetzlich ins
+    // Protokoll.
+    try {
+        $contents = avesmapsWikiSyncFetchPoliticalTerritoryPageContents([$title]);
+    } catch (AvesmapsWikiBelegtException $belegt) {
+        $vorrat = avesmapsWikiSettlementCachedDetails($pdo, $title);
+        if ($vorrat === null) {
+            throw $belegt;
+        }
+
+        avesmapsWikiSyncLogServerError('wiki_settlement_aus_vorrat', [
+            'title' => $title,
+            'grund' => $belegt->getMessage(),
+        ]);
+
+        $ausVorrat = true;
+
+        return $vorrat;
+    }
+
     $wikitext = (string) ($contents[$title] ?? '');
     if (trim($wikitext) === '') {
         throw new RuntimeException('Wiki-Seite nicht gefunden oder leer: ' . $title);
@@ -920,6 +1012,66 @@ function avesmapsWikiSettlementBuildFromTitle(PDO $pdo, string $title): array {
         (string) ($registry['settlement_class'] ?? ''),
         (string) ($registry['wiki_url'] ?? '')
     );
+}
+
+/**
+ * DIE ZULETZT GEPARSTE INFOBOX AUS DEM VORRAT -- oder `null`, wenn es keine gibt.
+ *
+ * 🔴 DAS GEGENSTUECK ZU avesmapsWikiSettlementCacheDetails, DAS ES BIS ZUM 07.09.2026 NICHT GAB.
+ * Die Spalte wurde bei jeder scharfen Zuweisung geschrieben und NIRGENDS gelesen -- ein Vorrat,
+ * den niemand anfasst, ist keiner. Gelesen wird er jetzt an genau einer Stelle: wenn der
+ * Drosselplatz belegt ist und der Editor sonst eine Absage bekaeme (avesmapsWikiSettlementBuildFromTitle).
+ *
+ * 💣 EIN HALBER VORRAT IST KEINER. Der Rueckgabewert wandert als `properties.wiki_settlement` an
+ * ein Kartenobjekt und wird von der Infobox gelesen; fehlt `title` oder `name`, waere das eine
+ * Zuweisung ohne Namen. Ein Eintrag aus einer aelteren Fassung des Parsers kann Felder vermissen,
+ * die es damals nicht gab -- deshalb entscheiden die zwei tragenden, nicht die Vollstaendigkeit.
+ *
+ * ⚠️ Faellt OFFEN aus: fehlende Spalte, kaputtes JSON, jeder Fehler -> `null`, und der Aufrufer
+ * sagt ab wie ohne Vorrat. Ein Vorrat darf nie der Grund sein, dass etwas NICHT geht.
+ */
+function avesmapsWikiSettlementCachedDetails(PDO $pdo, string $title): ?array {
+    $title = trim($title);
+    if ($title === '') {
+        return null;
+    }
+
+    try {
+        $statement = $pdo->prepare(
+            'SELECT details_json FROM ' . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . '
+             WHERE title = :t LIMIT 1'
+        );
+        $statement->execute(['t' => $title]);
+        $roh = $statement->fetchColumn();
+    } catch (Throwable $exception) {
+        return null;
+    }
+
+    if (!is_string($roh) || trim($roh) === '') {
+        return null;
+    }
+
+    $vorrat = avesmapsWikiSyncDecodeJson($roh);
+    if (trim((string) ($vorrat['title'] ?? '')) === '' || trim((string) ($vorrat['name'] ?? '')) === '') {
+        return null;
+    }
+
+    // 💣 DAS WAPPEN KOMMT NICHT MIT, UND DAS IST DER EINZIGE GRUND, AUS DEM DIESER VORRAT
+    // UEBERHAUPT GEFAEHRLICH WAERE. Bis zum 23.08.2026 las der Parser `wappen|bild|wappenbild|
+    // bilddatei` in EIN Feld: hatte ein Ort kein Wappen, aber ein Foto in der Infobox, landete das
+    // FOTO im Wappenfeld. Der Parser ist repariert, die Karte wurde aufgeraeumt (`cleanup_coats`)
+    // -- `details_json` aber NICHT, und es laesst sich auch nicht nachtraeglich reparieren, weil
+    // der Rohtext dort nicht liegt (siehe den Kopf von wappen-aufraeumen.php). Ein alter Eintrag
+    // traegt die falsche Adresse also bis heute.
+    //
+    // `wiki_settlement.wappen_url` IST ein Anzeigepfad (api/app/map-features.php:781 ff.) -- ohne
+    // diese Zeile brächte ein Rueckfall genau die Altlast zurueck, die der Owner wegraeumen liess,
+    // still und an einem Ort, an dem niemand danach sucht. Ein FEHLENDES Wappen ist dagegen ein
+    // bekannter, gueltiger Zustand: derselbe Endpunkt leert das Feld selbst, sobald ein eigener
+    // Upload oder der Notaus dazwischenkommt, und der naechste frische Abruf traegt es nach.
+    $vorrat['wappen_url'] = '';
+
+    return $vorrat;
 }
 
 // Bestes-Effort-Cache der geparsten Infobox in wiki_sync_pages.details_json (nur UPDATE).
@@ -956,7 +1108,13 @@ function avesmapsWikiSettlementAssignTo(PDO $pdo, string $title, string $publicI
         throw new RuntimeException('Ziel-Ort nicht gefunden.');
     }
 
-    $settlement = avesmapsWikiSettlementBuildFromTitle($pdo, $title);
+    // 🔴 `aus_vorrat` REIST MIT BIS IN DIE ANTWORT. Ein Rueckfall auf den Infobox-Vorrat (nur bei
+    // belegtem Drosselplatz, siehe avesmapsWikiSettlementBuildFromTitle) schreibt Daten, deren
+    // Alter niemand kennt, dauerhaft an ein Kartenobjekt -- der Editor muss das erfahren, sonst
+    // ist eine Zuweisung aus dem Vorrat von einer frischen nicht zu unterscheiden.
+    // ⚠️ NEBEN dem Nest, nie darin: `$settlement` wandert unveraendert in `properties`.
+    $ausVorrat = false;
+    $settlement = avesmapsWikiSettlementBuildFromTitle($pdo, $title, $ausVorrat);
 
     if ($dryRun) {
         return [
@@ -966,6 +1124,7 @@ function avesmapsWikiSettlementAssignTo(PDO $pdo, string $title, string $publicI
             'wiki_name' => $settlement['name'],
             'target_name' => (string) $target['name'],
             'settlement' => $settlement,
+            'aus_vorrat' => $ausVorrat,
         ];
     }
 
@@ -1002,6 +1161,7 @@ function avesmapsWikiSettlementAssignTo(PDO $pdo, string $title, string $publicI
         'wiki_name' => $settlement['name'],
         'target_name' => (string) $target['name'],
         'settlement' => $settlement,
+        'aus_vorrat' => $ausVorrat,
         'revision' => $revision,
         'kanon' => avesmapsFeatureSourcesKanonFuerEines(
             $pdo, 'settlement', $publicId, (string) ($settlement['wiki_url'] ?? '')
