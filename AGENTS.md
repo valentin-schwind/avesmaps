@@ -244,6 +244,18 @@ is the default, English is opt-in. Therefore:
   by explicit path. Leave foreign modified/untracked files alone (that session
   will commit them). If a push is rejected, `fetch` + `rebase origin/master`
   (autostash) + retry — never force-push.
+  🔴 **Und dieses Rebase-Rezept gilt NUR fuer einen Baum, in dem AUSSCHLIESSLICH eigene Arbeit
+  liegt — im geteilten Hauptcheckout also praktisch nie.** Am 06.09.2026 zum dritten Mal daneben:
+  der Autostash nahm die fremde Datei sauber mit, aber die Nachbarsitzung schrieb WAEHREND des
+  Rebase weiter in den Baum, der Pick brach ab (HEAD detached auf `origin/master`, eigene
+  Aenderungen nicht im Baum, `git push` meldet dann faelschlich „lokal == remote"), und ein
+  `git rebase --abort` haette ihre 74 frischen Zeilen `audit-log.php` als `reset --hard` wortlos
+  zurueckgesetzt. ⭐ Bei abgelehntem Push stattdessen den Wegwerf-Worktree:
+  `git worktree add --detach <scratch>/pushwt origin/master` → dort `git cherry-pick <eigener-sha>`
+  → `git push origin HEAD:master` → `git worktree remove` + `prune`. Der Hauptbaum bleibt
+  byte-identisch. ⚠️ Steckt man schon MITTEN im abgebrochenen Rebase: `git rebase --quit` (laesst
+  Baum und HEAD stehen), den Autostash aus `.git/rebase-merge/autostash` per `git stash apply <sha>`
+  zurueck, dann den eigenen Commit aus dem Reflog per `format-patch` + `apply --3way` neu aufsetzen.
 - **STRATO caution:** never loop expensive endpoints (e.g. the political layer) —
   it saturated PHP workers once and looked like a DB outage. Probe with a single
   request.
