@@ -17,10 +17,18 @@ require_once __DIR__ . '/../garetien-uebernahme.php';
 $pruefungen = 0;
 
 /**
- * 🔴 ZEICHENGLEICH AUS `garetien-uebernahme-meldet-test.php` (`AvesmapsGaretienUebernahmeMeldetTestPdo`),
- * NICHT NACHGEBAUT -- siehe die Begruendung dort: eine zweite, vereinfachte Fassung derselben
- * Klammer-Zerlegung liefe beim naechsten neuen `IF(...)`-Zweig des Quellensystems lautlos
- * auseinander (AGENTS.md §5, „nie eine zweite Wahrheit").
+ * 🔴 `exec()` UND `query()` SIND ZEICHENGLEICH AUS `garetien-uebernahme-meldet-test.php`
+ * (`AvesmapsGaretienUebernahmeMeldetTestPdo`) UEBERNOMMEN, NICHT NACHGEBAUT.
+ *
+ * ⚠️ `prepare()` DAGEGEN IST EINE BEWUSST VEREINFACHTE FASSUNG -- gemessen, nicht behauptet: sie
+ * laesst die MySQL-Upsert-Bruecke weg (`mysqlUpsertNachSqlite`, die Klammer-Zerlegung von
+ * `ON DUPLICATE KEY UPDATE` -> SQLites `ON CONFLICT ... DO UPDATE`). Diese Aufgabe prueft die
+ * ROUTUNG der Handeingaben, kein Item dieses Pruefstands legt eine Quelle an
+ * (`avesmapsGaretienQuellenAnlegen` laeuft mit leerer Adressliste durch, siehe die Begruendung am
+ * Pruefstand unten) -- die Luecke ist hier sachlich folgenlos.
+ * 💣 WER DIESE DATEI UM EIN QUELLENTRAGENDES ITEM ERWEITERT, HOLT SICH DIE BRUECKE AUS
+ * `garetien-uebernahme-meldet-test.php` MIT -- ohne sie wirft SQLite an `ON DUPLICATE KEY
+ * UPDATE`, und der Fehler liest sich wie ein Fehler des Quellensystems, nicht des Pruefstands.
  */
 final class AvesmapsGaretienEinstellungenJeItemTestPdo extends PDO
 {
@@ -318,6 +326,37 @@ $grundLang = $ruecknahme['fehler'][0]['grund'];
 assert(strlen($grundLang) <= 300,
     '💣 auch die Ruecknahme kappt ihren Grund auf 300 Zeichen, nicht ' . strlen($grundLang) . ': ' . $grundLang);
 assert(str_contains($grundLang, str_repeat('Z', 100)), 'und es ist der ECHTE Text, kein Platzhalter: ' . $grundLang);
+$pruefungen += 3;
+
+// =================================================================================================
+// --- 🔴 RULING 13, ZWEITER PFAD (Ruecklauf des Koordinators, 06.09.2026): DER 'changed'/QUELLE-
+// ONLY-ZWEIG DER RUECKNAHME WAR UNGEDECKT -- die erste Probe oben faengt nur den 'new'-Zweig.
+// Der Weg hinein, wie vom Pruefer benannt: ein 'changed'-Item mit `felder: ['quelle']`, gesetzter
+// `entity_public_id`, `apply_state='done'` und einem unbekannten, 400 Zeichen langen `ziel` --
+// `avesmapsGaretienQuellenZiel` wirft den Zielnamen woertlich
+// ('Unbekanntes Ziel "..." -- es ist nicht entscheidbar, wo die Quelle haengen soll.').
+$pdo5 = avesmapsGaretienEinstellungenJeItemTestPdo();
+$runId5 = 1;
+$langesZielC = str_repeat('Q', 400);
+$idLangC = avesmapsGaretienEinstellungenJeItemAnlegen($pdo5, $runId5, 'quelle-changed-lang', 'Quelle mit langem Ziel', [
+    'herkunft' => 'garetien',
+    'felder' => ['quelle'],
+    'ziel' => $langesZielC,
+]);
+// ⚠️ DREI Spalten von Hand gesetzt, nicht nur `apply_state`: der Zweig verlangt `change_type =
+// 'changed'` (der Helfer legt immer 'new' an) UND eine nicht-leere `entity_public_id` (das ZIEL
+// der Ergaenzung, geprueft VOR dem Aufruf, der wirft).
+$pdo5->prepare('UPDATE sync_plan_item SET change_type = :ct, entity_public_id = :pid, apply_state = :s WHERE id = :id')
+    ->execute(['ct' => 'changed', 'pid' => 'irgendein-bestandsobjekt', 's' => 'done', 'id' => $idLangC]);
+$ruecknahmeC = avesmapsGaretienRuecknahmeAusfuehren($pdo5, $runId5, [$idLangC], ['id' => 1]);
+assert($ruecknahmeC['zurueckgenommen'] === 0,
+    'nichts wurde zurueckgenommen -- das Ziel ist unbekannt: ' . json_encode($ruecknahmeC));
+assert(count($ruecknahmeC['fehler']) === 1, 'genau ein Fehlschlag: ' . json_encode($ruecknahmeC['fehler']));
+$grundLangC = $ruecknahmeC['fehler'][0]['grund'];
+assert(strlen($grundLangC) <= 300,
+    '💣 auch der quelle-only-Zweig der Ruecknahme kappt seinen Grund auf 300 Zeichen, nicht '
+    . strlen($grundLangC) . ': ' . $grundLangC);
+assert(str_contains($grundLangC, str_repeat('Q', 100)), 'und es ist der ECHTE Text, kein Platzhalter: ' . $grundLangC);
 $pruefungen += 3;
 
 echo "OK ({$pruefungen} Pruefungen)\n";

@@ -211,6 +211,42 @@ $verteilerPos = strpos($vorschau, "'garetien' => avesmapsGaretienApplyStep(");
 assert($riegelPos !== false && $verteilerPos !== false && $riegelPos < $verteilerPos,
     'der id-Riegel steht VOR dem Verteiler-Zweig, der ihn benutzt');
 
+// 🔴 NACHTRAG (Ruecklauf des Koordinators, 06.09.2026, Aufgabe 4): DIE NAHT ZU
+// `einstellungen_je_item` WAR UNGEPRUEFT -- entfernt man die Leser-Zeile in sync-plan.php, wird
+// hier kein Test rot. Dieselbe Klasse Fehlgruen wie beim `apply`-Antwortblock oben, in derselben
+// Datei. Der alte, gemeinsame Rumpf (`einstellungen`) fehlte hier ebenso -- beide werden jetzt
+// geprueft.
+assert(str_contains($vorschau, 'avesmapsGaretienEinstellungenAusRumpf('),
+    'die Vorschau liest weiterhin den gemeinsamen Rumpf -- der Rueckfall fuer jeden Aufrufer, '
+    . 'der nur ein Objekt schickt');
+assert(str_contains($vorschau, 'avesmapsGaretienEinstellungenJeItemAusRumpf('),
+    'und liest die Handeingaben JE ITEM aus dem Rumpf (Aufgabe 4, Import-Stage)');
+
+// 💣 UND `$garetienJeItem` STEHT WIRKLICH IM AUFRUF, nicht nur irgendwo in der Datei -- eine
+// Zuweisung ohne Weitergabe waere lautlos wirkungslos. Klammerweise bis zur passenden `)`,
+// dieselbe Zerlegung wie beim Antwortblock weiter unten (dort auf `[`/`]`), hier auf `(`/`)`.
+$aufrufKlammerAuf = strpos($vorschau, '(', $verteilerPos + strlen("'garetien' => avesmapsGaretienApplyStep"));
+assert($aufrufKlammerAuf !== false, 'der Verteiler-Aufruf hat eine oeffnende Klammer');
+$aufrufTiefe = 0;
+$aufrufInText = false;
+$aufrufBlock = '';
+for ($i = $aufrufKlammerAuf, $n = strlen($vorschau); $i < $n; $i++) {
+    $z = $vorschau[$i];
+    if ($z === "'") { $aufrufInText = !$aufrufInText; }
+    if (!$aufrufInText) {
+        if ($z === '(') { $aufrufTiefe++; }
+        if ($z === ')') {
+            $aufrufTiefe--;
+            if ($aufrufTiefe === 0) { $aufrufBlock .= $z; break; }
+        }
+    }
+    $aufrufBlock .= $z;
+}
+assert($aufrufTiefe === 0 && $aufrufBlock !== '', 'der Verteiler-Aufruf wurde vollstaendig eingefangen');
+assert(str_contains($aufrufBlock, '$garetienJeItem'),
+    'und $garetienJeItem steht wirklich IM avesmapsGaretienApplyStep(...)-Aufruf, nicht nur in '
+    . 'der Zuweisung davor: ' . $aufrufBlock);
+
 // =================================================================================================
 // 💣 JEDES FELD, DAS DER BROWSER IN EINER `liste`-ANFRAGE SCHICKT, MUSS DIESER ENDPUNKT AUCH LESEN
 // =================================================================================================
