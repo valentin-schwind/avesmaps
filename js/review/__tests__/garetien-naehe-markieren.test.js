@@ -3,13 +3,15 @@
 // ueber die eigene Ausdehnung hinaus steht als AVESMAPS_GARETIEN_NAEHE_ZUSCHLAG in
 // api/_internal/import/garetien-liste.php -- hier steht bewusst KEINE Zahl, sie ist am 30.08.2026
 // schon einmal gewandert, von 5 auf 1) werden weitere Objekte aus dem Import markiert UND gleich
-// angezeigt -- der Klick leert keine Auswahl, die Zahl kommt vom SERVER (er sucht ueber den GANZEN
-// Lauf, nicht ueber die hoechstens 500 geladenen Zeilen).
+// auf die Stage gelegt -- der Klick leert keine Auswahl, die Zahl kommt vom SERVER (er sucht ueber
+// den GANZEN Lauf, nicht ueber die hoechstens 500 geladenen Zeilen).
 //
 // 🔴 Der Knopf hiess bis zum 30.08.2026 „… markieren". Der Name war eine Luege, seit der Klick die
-// Treffer auch in die Anzeige legt (Abschnitt C misst genau das); die Beschriftung nennt jetzt die
-// SICHTBARE Wirkung. Der DATEINAME bleibt `garetien-naehe-markieren.test.js` -- eine Beschriftung
-// wandert, eine Kennung nicht (AGENTS.md §11, „Neuigkeiten"/`changelog`).
+// Treffer auch auf die Stage legt (Abschnitt C misst genau das); die Beschriftung nannte danach die
+// SICHTBARE Wirkung („… anzeigen"). 🔴 SEIT AUFGABE 8 (FIXRUNDE 1) HEISST DIE STELLE „STAGE" --
+// der Knopf ist ZWEIMAL umbenannt: „… markieren" -> „… anzeigen" -> „… stagen". Der DATEINAME
+// bleibt `garetien-naehe-markieren.test.js` -- eine Beschriftung wandert, eine Kennung nicht
+// (AGENTS.md §11, „Neuigkeiten"/`changelog`).
 //
 // Ausfuehren, vom Repo-Wurzelverzeichnis:
 //   node js/review/__tests__/garetien-naehe-markieren.test.js
@@ -71,12 +73,12 @@ wahr(typeof garetienNaeheKlick === "function", "garetienNaeheKlick fehlt im Expo
 // A. garetienNaeheKnopfZustand -- REIN: Beschriftung traegt die Zahl, Sperre + Grund bei null
 // =================================================================================================
 const leer = garetienNaeheKnopfZustand([]);
-gleich(leer.beschriftung, "Imports in der Nähe anzeigen (0)", "auch ohne Treffer nennt der Knopf die Zahl");
+gleich(leer.beschriftung, "Imports in der Nähe stagen (0)", "auch ohne Treffer nennt der Knopf die Zahl");
 gleich(leer.gesperrt, true, "ohne Treffer ist nichts zu markieren");
 wahr(leer.hinweis.length > 0, "und der Grund steht sichtbar da");
 
 const voll = garetienNaeheKnopfZustand([{ key: "a" }, { key: "b" }, { key: "c" }]);
-gleich(voll.beschriftung, "Imports in der Nähe anzeigen (3)", "die Beschriftung nennt die genaue Zahl -- Beispiel des Auftrags: (15)");
+gleich(voll.beschriftung, "Imports in der Nähe stagen (3)", "die Beschriftung nennt die genaue Zahl -- Beispiel des Auftrags: (15)");
 gleich(voll.gesperrt, false, "mit Treffern ist der Knopf bedienbar");
 gleich(voll.hinweis, "", "und ohne Hinweis");
 
@@ -176,7 +178,7 @@ async function pruefeAbruf() {
 
 		// Nach dem Laden zeigt garetienNaeheMarkup den GELADENEN Stand fuer GENAU dieses Objekt.
 		const geladenesMarkup = garetienNaeheMarkup(objekt);
-		wahr(geladenesMarkup.includes("Imports in der Nähe anzeigen (1)"),
+		wahr(geladenesMarkup.includes("Imports in der Nähe stagen (1)"),
 			"nach der Antwort zeigt der Knopf die echte Zahl: " + geladenesMarkup);
 		wahr(!geladenesMarkup.includes("disabled"), "und ist bedienbar, weil ein Treffer da ist");
 
@@ -209,7 +211,7 @@ async function pruefeAbruf() {
 // D. DER KNOPF ZEIGT NUR IMPORTE (Owner 30.08.2026: „der button sollte nur imports nicht unsere
 //    eigenen anzeigen")
 // =================================================================================================
-// Er heisst „Imports in der Nähe anzeigen", und genau das tut er jetzt: die Nachbarn kommen in
+// Er heisst „Imports in der Nähe stagen", und genau das tut er jetzt: die Nachbarn kommen in
 // IHRER Farbe auf die Karte, unsere magenta Gegenstuecke bleiben weg. Wer vergleichen will, oeffnet
 // das Objekt -- dafuer gibt es die Einzelansicht und die zwei Sicht-Knoepfe.
 //

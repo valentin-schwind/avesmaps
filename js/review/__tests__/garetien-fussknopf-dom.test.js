@@ -136,16 +136,16 @@ gleich(KNOPF.disabled, true,
 gleich(HINWEIS.hidden, false,
 	"⚠️ und der Grund wird SICHTBAR. In einem `title` erschiene er nie: ein deaktivierter Knopf "
 	+ "bekommt keine Zeigerereignisse.");
-wahr(HINWEIS.textContent.indexOf("Keines der angezeigten") === 0,
-	"…und der Grund nennt, DASS angezeigte Objekte da sind, nur eben ohne Vorschlag");
+wahr(HINWEIS.textContent.indexOf("Keines der Objekte auf der Stage") === 0,
+	"…und der Grund nennt, DASS Objekte auf der Stage liegen, nur eben ohne Vorschlag");
 
-// Die leere Anzeige ist ein ANDERER Grund als „angezeigt, aber ohne Vorschlag" -- beide Saetze
+// Die leere Stage ist ein ANDERER Grund als „auf der Stage, aber ohne Vorschlag" -- beide Saetze
 // muessen auseinanderfallen, sonst verwechselt ein Editor „nichts hingelegt" mit „nichts davon
 // einfuegbar".
 garetienUebernahmeKnopfSetzen([]);
-gleich(KNOPF.textContent, "Stage importieren (0 von 0)", "die leere Anzeige nennt zwei Nullen");
-gleich(HINWEIS.textContent, "Nichts angezeigt — leg links etwas auf die Karte.",
-	"…mit einem ANDEREN Hinweistext als der Fall „angezeigt, aber ohne Vorschlag\" oben");
+gleich(KNOPF.textContent, "Stage importieren (0 von 0)", "die leere Stage nennt zwei Nullen");
+gleich(HINWEIS.textContent, "Die Stage ist leer — leg links etwas darauf.",
+	"…mit einem ANDEREN Hinweistext als der Fall „auf der Stage, aber ohne Vorschlag\" oben");
 
 // =================================================================================================
 // C. Der Knopf folgt dem LISTENLAUF -- und zwar der ANZEIGE-MENGE, nicht mehr `angehakt`

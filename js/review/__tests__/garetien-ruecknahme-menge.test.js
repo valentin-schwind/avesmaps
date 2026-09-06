@@ -1,5 +1,6 @@
 // Meldung C (30.08.2026, Owner): „zurücknehmen ist da, aber nicht 'Alle markieren zurücknehmen'".
-// Der Fußknopf „Markierte zurücknehmen (n von m)" -- das Gegenstück zu „Alle angezeigten einfügen"
+// Der Fußknopf hieß „Markierte zurücknehmen (n von m)", seit Aufgabe 8 (Fixrunde 1) „Auswahl
+// zurücknehmen (n von m)" -- das Gegenstück zu „Alle angezeigten einfügen"
 // auf der ANDEREN Seite des Fensters, fuer den DRINGENDEN Rueckbau der 3007 versehentlich
 // uebernommenen Objekte.
 //
@@ -143,10 +144,10 @@ const objC = { key: "c", stand: "uebernommen", items: [{ id: 103, change_type: "
 	markieren("c");
 
 	const zustand1 = garetienRuecknahmeMengeZustand([objA, objB, objC], "uebernommen");
-	gleich(zustand1.markiert, 3, "alle drei sind markiert");
+	gleich(zustand1.gewaehlt, 3, "alle drei sind gewaehlt");
 	gleich(zustand1.ruecknehmbar, 2, "nur A und B tragen ein 'new'+'done'-Item");
 	tief(zustand1.ids, [101, 102], "…und genau deren Item-ids");
-	gleich(zustand1.beschriftung, "Markierte zurücknehmen (2 von 3)",
+	gleich(zustand1.beschriftung, "Auswahl zurücknehmen (2 von 3)",
 		"💣 Zusicherung 1 des Auftrags: „2 von 3\"");
 	gleich(zustand1.gesperrt, false, "2 ruecknehmbare -> offen");
 
@@ -164,14 +165,14 @@ const objC = { key: "c", stand: "uebernommen", items: [{ id: 103, change_type: "
 	entmarkieren("b");
 	entmarkieren("c");
 	const zustandLeer = garetienRuecknahmeMengeZustand([objA, objB, objC], "uebernommen");
-	gleich(zustandLeer.markiert, 0, "keine Markierung mehr");
+	gleich(zustandLeer.gewaehlt, 0, "keine Auswahl mehr");
 	gleich(zustandLeer.gesperrt, true);
 	gleich(zustandLeer.hinweis, "", "ebenfalls ohne Hinweistext -- die Zahl im Knopf sagt es");
 
 	// Nur ein 'changed'-Objekt markiert -> markiert>0, aber ruecknehmbar=0, eigener Grund.
 	markieren("c");
 	const zustandNurChanged = garetienRuecknahmeMengeZustand([objA, objB, objC], "uebernommen");
-	gleich(zustandNurChanged.markiert, 1);
+	gleich(zustandNurChanged.gewaehlt, 1);
 	gleich(zustandNurChanged.ruecknehmbar, 0);
 	gleich(zustandNurChanged.gesperrt, true);
 	wahr(zustandNurChanged.hinweis.indexOf("bestehendes Objekt") !== -1,
@@ -187,7 +188,7 @@ const objC = { key: "c", stand: "uebernommen", items: [{ id: 103, change_type: "
 	markieren("b");
 	markieren("c");
 	garetienRuecknahmeMengeKnopfSetzen([objA, objB, objC]);
-	gleich(KNOPF.textContent, "Markierte zurücknehmen (2 von 3)");
+	gleich(KNOPF.textContent, "Auswahl zurücknehmen (2 von 3)");
 	gleich(KNOPF.disabled, false);
 	gleich(HINWEIS.hidden, true, "kein Grund noetig, solange der Knopf offen ist");
 
@@ -311,7 +312,7 @@ const objC = { key: "c", stand: "uebernommen", items: [{ id: 103, change_type: "
 		markieren("b");
 		await aufReiterUebernommenWechseln([objA, objB]);
 		garetienRuecknahmeMengeKnopfSetzen([objA, objB]);
-		gleich(KNOPF.textContent, "Markierte zurücknehmen (2 von 2)");
+		gleich(KNOPF.textContent, "Auswahl zurücknehmen (2 von 2)");
 
 		LISTE_EL.innerHTML = "<div class='avm-row'>vorher unveraendert</div>";
 		const d = machFetch(function (pfad, rumpf) {

@@ -371,14 +371,14 @@
 	// bleiben markiert -- derselbe Zug wie avesmapsGaretienStageHinzufuegen, nur auf dem anderen
 	// Set. Ein `zustand.auswahl = new Set(...)` verlöre beim Filterwechsel die Auswahl.
 	function avesmapsGaretienAlleWaehlen(objekte) {
-		let markiert = 0;
+		let gewaehlt = 0;
 		(objekte || []).forEach(function (o) {
 			if (!o || o.key === undefined || o.key === null || o.key === "") { return; }
 			const s = String(o.key);
-			if (!zustand.auswahl.has(s)) { markiert++; }
+			if (!zustand.auswahl.has(s)) { gewaehlt++; }
 			zustand.auswahl.add(s);
 		});
-		return markiert;
+		return gewaehlt;
 	}
 
 	// REIN: Beschriftung + Sperre des Knopfes „Alle markieren" -- er trägt die Zahl der GERENDERTEN
@@ -454,8 +454,8 @@
 	// der die Zeilen des Reiters „Offen" anflöge, würde auf etwas zoomen, das gar nicht gezeichnet
 	// ist.
 	// ⚠️ Deshalb hängt er an KEINEM Reiter (wie „Keines markieren", anders als „Alle markieren").
-	function garetienAlleZentrierenZustand(anzahlAngezeigt) {
-		const anzahl = Number(anzahlAngezeigt) || 0;
+	function garetienAlleZentrierenZustand(anzahlAufDerStage) {
+		const anzahl = Number(anzahlAufDerStage) || 0;
 		return {
 			anzahl: anzahl,
 			beschriftung: "Alle zentrieren",
@@ -463,9 +463,9 @@
 		};
 	}
 
-	function garetienAlleZentrierenKnopfSetzen(anzahlAngezeigt) {
+	function garetienAlleZentrierenKnopfSetzen(anzahlAufDerStage) {
 		if (!hasDocument) { return null; }
-		const stand = garetienAlleZentrierenZustand(anzahlAngezeigt);
+		const stand = garetienAlleZentrierenZustand(anzahlAufDerStage);
 		const knopf = document.getElementById("garetien-zentrieren-alle");
 		if (knopf) {
 			knopf.textContent = stand.beschriftung;
@@ -4119,16 +4119,19 @@
 			+ "</div>";
 	}
 
-	// ---- Owner-Auftrag A (30.08.2026): „Imports in der Nähe anzeigen" ------------------------------
+	// ---- Owner-Auftrag A (30.08.2026): „Imports in der Nähe anzeigen" -- inzwischen „… stagen" ----
 	//
 	// 🔴 Der Knopf hieß bis zum 30.08.2026 „… markieren", und der Name war eine Lüge: der Klick
-	// markiert NICHT nur, er legt die Treffer im selben Zug in die Anzeige (`garetienNaeheKlick`
+	// markiert NICHT nur, er legt die Treffer im selben Zug auf die Stage (`garetienNaeheKlick`
 	// ruft beides). Möglich wurde das, weil die Serverantwort die ganzen Objekte ohnehin mitbringt —
 	// damit fällt die 500er-Grenze der geladenen Liste wirklich weg, statt nur benannt zu werden.
 	// Owner dazu: „Du hast dich natürlich nicht daran gehalten nur zu markieren, sondern hast es
-	// gleich auf anzeigen getan, aber das is in ordnung." Die Beschriftung nennt jetzt die SICHTBARE
-	// Wirkung — dieselbe Lehre wie beim Knopf „✦ Zentrieren" ein Stück weiter unten, dessen Name
-	// ebenfalls stehen blieb, nachdem sich seine Wirkung verschoben hatte.
+	// gleich auf anzeigen getan, aber das is in ordnung." Die Beschriftung nannte danach die
+	// SICHTBARE Wirkung („… anzeigen") — dieselbe Lehre wie beim Knopf „✦ Zentrieren" ein Stück
+	// weiter unten, dessen Name ebenfalls stehen blieb, nachdem sich seine Wirkung verschoben hatte.
+	// 🔴 UND SEIT AUFGABE 8 (Vokabular-Vereinheitlichung, Fixrunde 1) HEISST DIE STELLE „STAGE",
+	// NICHT MEHR „ANZEIGE" -- der Knopf ist damit ZWEIMAL umbenannt: „… markieren" -> „… anzeigen"
+	// -> „… stagen". Wer nur den Absatz darüber liest, ohne diese Zeile, hält ihn für aktuell.
 	// ⚠️ Gewandert ist die BESCHRIFTUNG, nicht die Kennungen: `data-naehe`, `garetienNaeheKlick`,
 	// `avesmapsGaretienNaehe` und `garetien-naehe-markieren.test.js` heißen weiter wie vorher —
 	// dieselbe Trennung wie bei „Neuigkeiten"/`changelog` (AGENTS.md §11).
@@ -4145,7 +4148,7 @@
 		const anzahl = Array.isArray(gefunden) ? gefunden.length : 0;
 		return {
 			anzahl: anzahl,
-			beschriftung: "Imports in der Nähe anzeigen (" + anzahl + ")",
+			beschriftung: "Imports in der Nähe stagen (" + anzahl + ")",
 			gesperrt: anzahl === 0,
 			hinweis: anzahl === 0 ? "Kein weiteres Import-Objekt im Umkreis gefunden." : "",
 		};
@@ -5689,8 +5692,8 @@
 		return senden(ids.length === 1 ? ids[0] : ids, runId, ablehnenIds);
 	}
 
-	// ---- Meldung C (30.08.2026): „Markierte zurücknehmen" -- das Gegenstück zu „Alle angezeigten
-	// einfügen" auf der ANDEREN Seite des Fensters -----------------------------------------------
+	// ---- Meldung C (30.08.2026): „Markierte zurücknehmen" -- seit Aufgabe 8 (Fixrunde 1) „Auswahl
+	// zurücknehmen" -- das Gegenstück zu „Alle angezeigten einfügen" auf der ANDEREN Seite -------
 	//
 	// 🔴 Owner: „zurücknehmen ist da, aber nicht 'Alle markieren zurücknehmen'". Die Menge fehlte --
 	// nur die EINZELNE Rücknahme gab es (oben).
@@ -5714,11 +5717,11 @@
 	// OBJEKTE (die "n von m"-Anzeige bezieht sich auf Objekte, nicht auf Items).
 	function garetienRuecknahmeMengeZustand(objekte, stand) {
 		const falscherReiter = stand !== "uebernommen";
-		const markierte = (objekte || []).filter(function (o) {
+		const gewaehlte = (objekte || []).filter(function (o) {
 			return o && zustand.auswahl.has(String(o.key));
 		});
 		const paare = [];
-		markierte.forEach(function (o) {
+		gewaehlte.forEach(function (o) {
 			const items = garetienRuecknahmeItems(o);
 			if (items.length > 0) { paare.push({ objekt: o, items: items }); }
 		});
@@ -5728,19 +5731,19 @@
 		// erklärt: es IST etwas markiert, und trotzdem geht nichts -- ohne den Satz sucht ein
 		// Editor den Fehler bei sich.
 		let hinweis = "";
-		if (!falscherReiter && markierte.length > 0 && paare.length === 0) {
-			hinweis = "Keines der markierten Objekte lässt sich zurücknehmen — sie haben ein "
+		if (!falscherReiter && gewaehlte.length > 0 && paare.length === 0) {
+			hinweis = "Keines der gewählten Objekte lässt sich zurücknehmen — sie haben ein "
 				+ "bestehendes Objekt verändert.";
 		}
 		return {
-			markiert: markierte.length,
+			gewaehlt: gewaehlte.length,
 			ruecknehmbar: paare.length,
 			// Die OBJEKTE (nicht nur ihre Item-ids) -- die Rückfrage zählt daran Wege gegen Flächen.
 			objekte: paare.map(function (p) { return p.objekt; }),
 			ids: paare.reduce(function (acc, p) {
 				return acc.concat(p.items.map(function (item) { return Number(item.id); }));
 			}, []),
-			beschriftung: "Markierte zurücknehmen (" + paare.length + " von " + markierte.length + ")",
+			beschriftung: "Auswahl zurücknehmen (" + paare.length + " von " + gewaehlte.length + ")",
 			gesperrt: falscherReiter || paare.length === 0,
 			hinweis: hinweis,
 		};
@@ -6047,8 +6050,8 @@
 	// ANZEIGE-Zahl und die ANHAK-Menge muessen ueber dieselbe Filterung laufen, sonst laufen sie
 	// auseinander -- „beide Haekchen meinen also dieselbe Menge" steht schon als Regel an
 	// `garetienHakenItems` selbst; hier ist die Doppelung zum zweiten Mal aufgetreten.
-	function garetienUebernahmeKnopfZustand(angezeigte) {
-		const liste = angezeigte || [];
+	function garetienUebernahmeKnopfZustand(stageObjekte) {
+		const liste = stageObjekte || [];
 		const mitVorschlag = liste.filter(function (o) {
 			return o && garetienHakenItems(o).length > 0;
 		}).length;
@@ -6060,16 +6063,16 @@
 			hinweis: mitVorschlag > 0
 				? ""
 				: (liste.length === 0
-					? "Nichts angezeigt — leg links etwas auf die Karte."
-					: "Keines der angezeigten Objekte hat einen Vorschlag — sie haben in diesem Lauf keinen "
+					? "Die Stage ist leer — leg links etwas darauf."
+					: "Keines der Objekte auf der Stage hat einen Vorschlag — sie haben in diesem Lauf keinen "
 						+ "Vorschlag."),
 		};
 	}
 
 	// Die DOM-Haelfte dazu. Sie steht an EINER Stelle, damit Knopf und Hinweis nie auseinanderlaufen.
-	function garetienUebernahmeKnopfSetzen(angezeigte) {
+	function garetienUebernahmeKnopfSetzen(stageObjekte) {
 		if (!hasDocument) { return null; }
-		const stand = garetienUebernahmeKnopfZustand(angezeigte);
+		const stand = garetienUebernahmeKnopfZustand(stageObjekte);
 		const knopf = document.getElementById("garetien-apply");
 		if (knopf) {
 			knopf.textContent = stand.beschriftung;
@@ -6101,9 +6104,9 @@
 	// VOLLSTAENDIG angehakt sind, liefert dort `selected: false` (die Toggle-Richtung „alles ab") --
 	// genau das ist der Grund, warum nur `plan.selected === true` uebernommen wird: dieser Knopf
 	// haengt an, er nimmt nie etwas zurueck.
-	function garetienStageAnhakenIds(angezeigte) {
+	function garetienStageAnhakenIds(stageObjekte) {
 		const ids = [];
-		(angezeigte || []).forEach(function (objekt) {
+		(stageObjekte || []).forEach(function (objekt) {
 			const plan = garetienHakenPlan(objekt, null);
 			if (plan && plan.selected === true) {
 				ids.push.apply(ids, plan.ids);
@@ -6123,9 +6126,9 @@
 	// bliebe die Vormerkung fuer immer nur vorgemerkt. Diese Funktion filtert deshalb nicht nach
 	// Tick-Zustand, nur nach `garetienHakenItems` (derselbe Ausschluss von Geometrie- und
 	// Zusatz-Item wie beim Zeilenhaekchen).
-	function garetienStageUebernahmeIds(angezeigte) {
+	function garetienStageUebernahmeIds(stageObjekte) {
 		const ids = [];
-		(angezeigte || []).forEach(function (objekt) {
+		(stageObjekte || []).forEach(function (objekt) {
 			garetienHakenItems(objekt).forEach(function (item) {
 				const id = Number(item && item.id);
 				if (id > 0) { ids.push(id); }
@@ -6138,9 +6141,9 @@
 	// NEUES Kartenobjekt anlegt -- nur `change_type === 'new'` zählt, eine Namens-/Quellen-Ergänzung
 	// an einem BESTEHENDEN Objekt (`changed`) nicht. Nur diese Menge lässt sich über „Zurücknehmen"
 	// wieder entfernen (garetienEinfuegenRueckfrageText).
-	function garetienStageNeuIds(angezeigte) {
+	function garetienStageNeuIds(stageObjekte) {
 		const ids = [];
-		(angezeigte || []).forEach(function (objekt) {
+		(stageObjekte || []).forEach(function (objekt) {
 			garetienHakenItems(objekt).forEach(function (item) {
 				if (String((item && item.change_type) || "") !== "new") { return; }
 				const id = Number(item && item.id);
@@ -6432,8 +6435,8 @@
 	// etwas NEUES anzuhaken hätte. Ein Objekt, dessen Items schon VOLLSTÄNDIG angehakt sind (z.B.
 	// von einem früheren "Namen ersetzen"-Klick), liefert dort KEINE ids -- trägt aber trotzdem
 	// einen echten, noch nicht übernommenen Vorschlag in der Datenbank.
-	function garetienFussknopfKlick(angezeigte, runId, rufe, fortschritt) {
-		const liste = angezeigte || [];
+	function garetienFussknopfKlick(stageObjekte, runId, rufe, fortschritt) {
+		const liste = stageObjekte || [];
 		const hatVorschlag = liste.some(function (o) { return o && garetienHakenItems(o).length > 0; });
 		if (!hatVorschlag) {
 			return Promise.resolve({ applied: 0, deleted: 0, stale: 0, skipped: 0, declined: 0 });
@@ -6453,7 +6456,7 @@
 	// geschriebene Menge, keine Schätzung mehr.
 	function garetienEinfuegenRueckfrageText(anzahl) {
 		return "Wirklich " + anzahl + (anzahl === 1 ? " Objekt" : " Objekte")
-			+ " aus der Anzeige in die Karte einfügen?\n\n"
+			+ " von der Stage in die Karte einfügen?\n\n"
 			+ "Neu angelegte Objekte lassen sich über „Zurücknehmen“ wieder entfernen. Für "
 			+ "Änderungen an bestehenden Objekten (Name, Quelle, Geometrie) gibt es keinen Rückweg.";
 	}
@@ -6469,8 +6472,8 @@
 	// VOR dem Riegel `garetienEinfuegenLaeuft`, damit ein "Nein" den laufenden Zustand nie berührt.
 	function garetienFussknopfEinfuegenKlick(runId, fragen) {
 		if (garetienEinfuegenLaeuft) { return Promise.resolve(null); }
-		const angezeigte = avesmapsGaretienStageListe();
-		const stand = garetienUebernahmeKnopfZustand(angezeigte);
+		const stageObjekte = avesmapsGaretienStageListe();
+		const stand = garetienUebernahmeKnopfZustand(stageObjekte);
 		if (stand.gesperrt) { return Promise.resolve(null); }
 		if (typeof fragen === "function" && !fragen(garetienEinfuegenRueckfrageText(stand.anzahl))) {
 			return Promise.resolve(null);
@@ -6489,11 +6492,11 @@
 		// stehen (dessen avesmapsGaretienListeRendern ruft garetienStatusRuhe, das die Statuszeile
 		// sonst sofort wieder überschriebe) -- UND sie darf nicht verloren gehen, wenn GENAU DIESER
 		// Nachlauf scheitert: was `summe` meldet, liegt schon auf der Karte.
-		return garetienFussknopfKlick(angezeigte, runId, avesmapsGaretienRufe, fortschritt)
+		return garetienFussknopfKlick(stageObjekte, runId, avesmapsGaretienRufe, fortschritt)
 			.then(function (summe) {
 				const meldung = garetienImportMeldung(summe);
 				const neuIds = garetienOhneFehlgeschlagene(
-					garetienStageNeuIds(angezeigte), summe && summe.fehler
+					garetienStageNeuIds(stageObjekte), summe && summe.fehler
 				);
 				const aktion = garetienRueckgaengigNachEinfuegenAktion(neuIds, runId, fragen);
 				return avesmapsGaretienStageNachEinfuegenBereinigen(avesmapsGaretienRufe, runId)
@@ -6763,9 +6766,9 @@
 				}
 			});
 		}
-		const anzeigeLeerenBtn = hasDocument ? document.getElementById("garetien-anzeige-clear") : null;
-		if (anzeigeLeerenBtn) {
-			anzeigeLeerenBtn.addEventListener("click", function () {
+		const stageLeerenBtn = hasDocument ? document.getElementById("garetien-anzeige-clear") : null;
+		if (stageLeerenBtn) {
+			stageLeerenBtn.addEventListener("click", function () {
 				avesmapsGaretienStageLeeren();
 				garetienStageNeuZeichnen();
 			});

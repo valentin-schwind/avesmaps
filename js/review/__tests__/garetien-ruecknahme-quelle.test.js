@@ -302,13 +302,13 @@ function pruefeMenge() {
 	avesmapsGaretienAuswahlUmschalten(wegQuelleMehrfach.key);
 
 	const stand = garetienRuecknahmeMengeZustand([wegNeu, wegQuelleMehrfach, wegGemischt], "uebernommen");
-	gleich(stand.markiert, 2, "zwei markiert");
+	gleich(stand.gewaehlt, 2, "zwei gewaehlt");
 	gleich(stand.ruecknehmbar, 2,
 		"🔴 GEZÄHLT WERDEN OBJEKTE, NICHT ITEMS: der mehrteilige Weg zählt als EIN rücknehmbares Objekt");
 	tief(stand.ids, [601, 603, 604],
 		"🔴 MISS DIE DIFFERENZ: `ids` sammelt ALLE Items ÜBER ALLE Objekte hinweg FLACH -- eine "
 		+ "id vom 'new'-Objekt UND BEIDE ids des mehrteiligen 'quelle'-Objekts");
-	gleich(stand.beschriftung, "Markierte zurücknehmen (2 von 2)");
+	gleich(stand.beschriftung, "Auswahl zurücknehmen (2 von 2)");
 
 	const frageGemischt = garetienRuecknahmeMengeRueckfrageText([wegNeu, wegQuelleMehrfach]);
 	wahr(frageGemischt.includes("werden aus unserer Karte entfernt"),
