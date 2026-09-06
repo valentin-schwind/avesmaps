@@ -531,6 +531,35 @@ function avesmapsLoreLastSynced(PDO $pdo): ?string
     return $value === '' ? null : $value;
 }
 
+/**
+ * „Zuletzt gesynct" stempeln -- der LAUF ist es, nicht erst die Uebernahme.
+ *
+ * Owner 06.09.2026: „man soll wissen, wann zuletzt gesynct wurde. ob was gesynct wurde ist dabei
+ * egal." Bis dahin stempelte NUR die Uebernahme (lore-plan-apply.php), und die laeuft bei null
+ * Unterschieden nie, weil das Vorschau-Blatt dort keinen „Uebernehmen"-Knopf zeigt -- ein
+ * Vorkommen-Lauf ohne Unterschiede rueckte das Datum also nicht vor. Dieselbe Regression, die
+ * Karten und Literatur am 25.08.2026 hatten (sync-lauf-stempel-test.php), eine Art weiter.
+ *
+ * Beide Haelften stempeln, und das sind nicht zwei Wahrheitsbesitzer: derselbe Vorgang zu einem
+ * zweiten Zeitpunkt. Beide schreiben gmdate() in dieselbe Zeile, koennen also nur vorruecken.
+ * Der Lauf-Stempel sitzt am ENDPUNKT (dump.php, Fertig-Zweig von sync_lore), nie in
+ * avesmapsLorePlanStep -- die Rechenhaelfte bleibt rein (sync-plan-purity-test.php).
+ *
+ * ⚠️ Wirft nie. Ein fehlender Zeitstempel ist ein Schoenheitsfehler; ein Abgleich, der daran
+ * abbricht, ist keiner.
+ */
+function avesmapsLoreStampLastSynced(PDO $pdo): void
+{
+    if (!function_exists('avesmapsAppSettingSet')) {
+        return;
+    }
+    try {
+        avesmapsAppSettingSet($pdo, AVESMAPS_LORE_LAST_SYNCED_SETTING, gmdate('Y-m-d H:i:s'));
+    } catch (Throwable) {
+        // Siehe Docblock: kosmetisch.
+    }
+}
+
 /** Anzahl Staging-Katalogzeilen -- Nenner fuer die Fortschrittsanzeige. 0 wenn es die Tabelle noch nicht gibt. */
 function avesmapsLoreCountStaging(PDO $pdo): int
 {
@@ -892,8 +921,10 @@ function avesmapsLoreLastStaged(PDO $pdo): ?string
  * api/_internal/wiki/__tests__/sync-plan-purity-test.php sichert diese Eigenschaft ueber alles, was diese
  * Funktion erreicht, in jeder Tiefe.
  *
- * Der Zeitstempel (AVESMAPS_LORE_LAST_SYNCED_SETTING) wandert in die Ausfuehr-Haelfte: er sagt "der
- * Bestand ist abgeglichen", und hier ist nichts abgeglichen worden.
+ * Der Zeitstempel (AVESMAPS_LORE_LAST_SYNCED_SETTING) sitzt NICHT hier: der Lauf stempelt am
+ * Endpunkt (dump.php, Fertig-Zweig von sync_lore, Owner 06.09.2026 „gesynct is gesynct"), die
+ * Uebernahme stempelt ebenfalls -- beide ueber avesmapsLoreStampLastSynced. Diese Funktion bleibt
+ * rein; sync-lauf-stempel-test.php misst ihren Rumpf darauf.
  *
  * @return array<string,int|bool|string|array>
  */

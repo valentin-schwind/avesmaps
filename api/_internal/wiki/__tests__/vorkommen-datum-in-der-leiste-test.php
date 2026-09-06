@@ -197,9 +197,16 @@ assert(
     str_contains($quelle('api/_internal/app/lore.php'), "'" . AVESMAPS_LORE_LAST_SYNCED_SETTING . "'"),
     'der Katalog-Leser liest dasselbe Literal wie AVESMAPS_LORE_LAST_SYNCED_SETTING'
 );
+// Seit 06.09.2026 stempeln Lauf UND Uebernahme ueber DENSELBEN Stempler (avesmapsLoreStampLastSynced,
+// lore-sync.php) -- der einzige Ort, der die Konstante schreibt. sync-lauf-stempel-test.php haelt
+// den Lauf; hier die Uebernahme, damit sie nicht wieder auf ein eigenes Literal zurueckfaellt.
 assert(
-    str_contains($quelle('api/_internal/wiki/lore-plan-apply.php'), 'AVESMAPS_LORE_LAST_SYNCED_SETTING'),
-    'die Uebernahme stempelt ueber die Konstante'
+    str_contains($quelle('api/_internal/wiki/lore-plan-apply.php'), 'avesmapsLoreStampLastSynced('),
+    'die Uebernahme stempelt ueber den geteilten Stempler'
+);
+assert(
+    str_contains($quelle('api/_internal/wiki/lore-sync.php'), 'avesmapsAppSettingSet($pdo, AVESMAPS_LORE_LAST_SYNCED_SETTING'),
+    'der Stempler schreibt die Konstante, die der Leser liest'
 );
 
 // ===========================================================================

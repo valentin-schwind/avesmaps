@@ -943,6 +943,12 @@ try {
 
             avesmapsWikiDumpLockHeartbeat($pdo, $lockUserId, 'sync_lore');
             if ($loreDone) {
+                // 🔴 DER LAUF IST „gesynct" (Owner 06.09.2026: „man soll wissen, wann zuletzt gesynct
+                // wurde. ob was gesynct wurde ist dabei egal"). Gestempelt HIER, im Fertig-Zweig -- nicht
+                // je Teilschritt, nicht in der Rechenfunktion (die bleibt rein) und nicht erst in der
+                // Uebernahme, die bei null Unterschieden nie laeuft. Wie Karten und Literatur seit dem
+                // 25.08.2026; festgenagelt von sync-lauf-stempel-test.php.
+                avesmapsLoreStampLastSynced($pdo);
                 avesmapsWikiDumpLockRelease($pdo, $lockUserId);
                 $lockHeldByThisRequest = false;
             }

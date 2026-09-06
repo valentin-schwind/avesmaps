@@ -162,6 +162,25 @@ function zeile(subjectKey) {
 		+ "zeigt sonst bis zum Neuladen den alten Stempel");
 	checks++;
 
+	// ---- 4. Der LAUF frischt die Leiste auf, nicht erst die Uebernahme -----------------------
+	// Owner 06.09.2026: „man soll wissen, wann zuletzt gesynct wurde. ob was gesynct wurde ist dabei
+	// egal". Der Server stempelt seither im Fertig-Zweig von sync_lore (sync-lauf-stempel-test.php);
+	// der Client muss die Leiste nach dem Rechenlauf holen -- VOR der Vorschau und unabhaengig davon,
+	// ob jemand etwas uebernimmt. Ein Lauf mit null Unterschieden zeigt sonst weiter das alte Datum,
+	// obwohl der Server laengst das neue traegt. Dieselbe Stelle wie bei Literatur und Karten.
+	const lauf = src.indexOf("async function startWikiSyncLoreSync(");
+	assert.ok(lauf > 0, "startWikiSyncLoreSync steht in review-wiki-sync.js");
+	checks++;
+	const rechenlauf = src.indexOf("runWikiSyncLoreSyncLoop(", lauf);
+	const vorschau = src.indexOf("openSyncPlanSheet({", lauf);
+	assert.ok(rechenlauf > lauf && vorschau > rechenlauf, "im Lauf folgt auf den Rechenlauf die Vorschau");
+	checks++;
+	const zwischen = src.slice(rechenlauf, vorschau);
+	assert.ok(zwischen.includes("refreshWikiSyncKindSyncedStatus("),
+		"nach dem Rechenlauf und VOR der Vorschau frischt startWikiSyncLoreSync die Leiste auf -- "
+		+ "sonst rueckt ein Lauf mit null Unterschieden das Datum nicht vor, obwohl der Server gestempelt hat");
+	checks++;
+
 	console.log(`OK vorkommen-datum-in-der-leiste (${checks} Zusicherungen)`);
 })().catch((error) => {
 	console.error(error);

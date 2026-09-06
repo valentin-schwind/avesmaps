@@ -2746,6 +2746,14 @@ async function startWikiSyncLoreSync() {
 		setWikiSyncStatus(note, "success");
 		showFeedbackToast(note, "success");
 
+		// Wie bei Karten und Literatur: der LAUF stempelt „zuletzt gesynct" (Owner 06.09.2026: „man soll
+		// wissen, wann zuletzt gesynct wurde. ob was gesynct wurde ist dabei egal"), also frischt die
+		// Leiste hier auf -- vor der Vorschau und unabhängig davon, ob jemand etwas übernimmt. Bis dahin
+		// rückte ein Lauf mit null Unterschieden das Datum nie vor, weil nur die Übernahme stempelte.
+		if (typeof refreshWikiSyncKindSyncedStatus === "function") {
+			void refreshWikiSyncKindSyncedStatus();
+		}
+
 		// Die Vorschau öffnet in DIESER Seite: das Vorkommen-Fenster liegt auf --z-editor-overlay,
 		// das Blatt auf --z-modal, also darüber.
 		// 🔴 IMMER, auch bei null Unterschieden (Owner 2026-08-07) -- Begründung beim Quellen-Abgleich.

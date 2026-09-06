@@ -365,16 +365,13 @@ function avesmapsLoreApplyFinish(PDO $pdo, int $runId, int $userId, ?array $user
 
     avesmapsSyncPlanMarkApplied($pdo, $runId, $userId);
 
-    // ERST JETZT stempeln, und nur hier: der Zeitstempel sagt „der Bestand ist abgeglichen". Nach einem
-    // Rechenlauf gesetzt wäre er eine stille Lüge -- der Editor liest ihn als „übernommen". (Genau das
-    // stand schon am alten Reconcile: „ein Zeitstempel nach einem Probelauf wäre eine stille Lüge".)
-    if (function_exists('avesmapsAppSettingSet')) {
-        try {
-            avesmapsAppSettingSet($pdo, AVESMAPS_LORE_LAST_SYNCED_SETTING, gmdate('Y-m-d H:i:s'));
-        } catch (Throwable) {
-            // Einstellungstabelle fehlt -> ohne Zeitstempel weiter, kein Abbruch.
-        }
-    }
+    // Die Uebernahme stempelt „zuletzt gesynct" -- UND der Lauf (dump.php, Fertig-Zweig von sync_lore).
+    // 🔴 Hier stand bis zum 06.09.2026 „und nur hier", mit der Begruendung, ein Stempel nach einem
+    // Rechenlauf sei eine stille Luege. Der Owner hat es umgedreht: „man soll wissen, wann zuletzt
+    // gesynct wurde. ob was gesynct wurde ist dabei egal" -- und ein Lauf mit null Unterschieden
+    // kommt hier nie an, weil das Blatt dann keinen „Uebernehmen"-Knopf zeigt. Der geteilte Stempler
+    // haelt beide Haelften auf derselben Zeile (sync-lauf-stempel-test.php).
+    avesmapsLoreStampLastSynced($pdo);
     if (function_exists('avesmapsWikiSyncNextMapRevision')) {
         avesmapsWikiSyncNextMapRevision($pdo); // Vorkommen und ihre Quellen reisen im Kartenpayload
     }

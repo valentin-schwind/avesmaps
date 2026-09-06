@@ -43,6 +43,10 @@ if (ini_get('zend.assertions') !== '1') {
 require_once __DIR__ . '/../../app/app-setting.php';
 require_once __DIR__ . '/../citymap-sync.php';
 require_once __DIR__ . '/../game-literature-sync.php';
+// Vorkommen seit 06.09.2026 (Owner: „man soll wissen, wann zuletzt gesynct wurde. ob was gesynct
+// wurde ist dabei egal") -- bis dahin stempelte NUR ihre Uebernahme (lore-plan-apply.php), also
+// genau die Regression von oben, nur eine Art weiter.
+require_once __DIR__ . '/../lore-sync.php';
 
 /**
  * SQLite spricht kein MySQL. Zwei Stellen werden uebersetzt, sonst nichts -- dieselbe Bauart wie
@@ -124,6 +128,27 @@ assert(
     'Karten und Literatur stempeln in getrennte Zeilen'
 );
 
+// Vorkommen, dieselbe Zusicherung. Der Leser (avesmapsLoreLastSynced) stand seit dem 06.08.2026 da,
+// der geteilte Stempler nicht -- die Uebernahme schrieb den Schluessel direkt.
+assert(avesmapsLoreLastSynced($pdo) === null, 'Vorkommen: vor dem ersten Lauf gibt es keinen Stempel');
+
+avesmapsLoreStampLastSynced($pdo);
+$vorkommenStempel = avesmapsLoreLastSynced($pdo);
+assert(is_string($vorkommenStempel) && $vorkommenStempel !== '', 'Vorkommen: der Lauf-Stempel ist zurueckzulesen');
+assert(
+    preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $vorkommenStempel) === 1,
+    'Vorkommen: der Stempel hat die Form, die der Leser der Leiste parst (got ' . $vorkommenStempel . ')'
+);
+assert(
+    trim(avesmapsAppSettingGet($pdo, AVESMAPS_LORE_LAST_SYNCED_SETTING, '')) === $vorkommenStempel,
+    'Vorkommen: Stempel und Leser teilen den app_setting-Schluessel'
+);
+assert(
+    AVESMAPS_LORE_LAST_SYNCED_SETTING !== AVESMAPS_CITYMAP_LAST_SYNCED_SETTING
+    && AVESMAPS_LORE_LAST_SYNCED_SETTING !== AVESMAPS_GAME_LITERATURE_LAST_SYNCED_SETTING,
+    'Vorkommen stempeln in eine eigene Zeile'
+);
+
 // ===========================================================================
 // 2. Ein zweiter Lauf ueberschreibt -- der Stempel ist der LETZTE Lauf, keine Sammlung.
 // ===========================================================================
@@ -149,6 +174,7 @@ $warf = false;
 try {
     avesmapsCitymapStampLastSynced($ohneTabelle);
     avesmapsGameLiteratureStampLastSynced($ohneTabelle);
+    avesmapsLoreStampLastSynced($ohneTabelle);
 } catch (Throwable) {
     $warf = true;
 }
@@ -176,6 +202,7 @@ $quelle = static function (string $pfad): string {
 foreach ([
     'api/_internal/wiki/citymap-plan-apply.php' => 'avesmapsCitymapStampLastSynced(',
     'api/_internal/wiki/game-literature-plan-apply.php' => 'avesmapsGameLiteratureStampLastSynced(',
+    'api/_internal/wiki/lore-plan-apply.php' => 'avesmapsLoreStampLastSynced(',
 ] as $pfad => $aufruf) {
     assert(
         str_contains($quelle($pfad), $aufruf),
@@ -236,6 +263,7 @@ $block = static function (string $quelltext, string $kopf): string {
 foreach ([
     ['sync_citymaps', '$cmDone', 'avesmapsCitymapStampLastSynced(', 'avesmapsCitymapPlanStep', 'api/_internal/wiki/citymap-sync.php'],
     ['sync_adventures', '$advDone', 'avesmapsGameLiteratureStampLastSynced(', 'avesmapsGameLiteraturePlanStep', 'api/_internal/wiki/game-literature-sync.php'],
+    ['sync_lore', '$loreDone', 'avesmapsLoreStampLastSynced(', 'avesmapsLorePlanStep', 'api/_internal/wiki/lore-sync.php'],
 ] as [$aktion, $bedingung, $aufruf, $rechner, $rechnerDatei]) {
     $rumpf = $zweig($dump, $aktion);
     assert(str_contains($rumpf, $aufruf), "{$aktion} stempelt den Lauf");
