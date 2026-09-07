@@ -202,7 +202,7 @@
 <body>
 	<div class="hb-topbar">
 		<span class="hb-topbar__title">Avesmaps · Editor-Handbuch</span>
-		<span class="hb-topbar__meta">Stand: 07.09.2026</span>
+		<span class="hb-topbar__meta">Stand: 08.09.2026</span>
 		<div class="hb-topbar__actions">
 			<button type="button" class="theme-toggle-btn" aria-label="Auf dunkles Design umschalten" title="Design umschalten (hell/dunkel)">
 				<svg class="theme-toggle-ico theme-toggle-ico--sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2" /><g stroke-width="1.9" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="4.4" /><line x1="12" y1="19.6" x2="12" y2="22" /><line x1="2" y1="12" x2="4.4" y2="12" /><line x1="19.6" y1="12" x2="22" y2="12" /><line x1="4.9" y1="4.9" x2="6.6" y2="6.6" /><line x1="17.4" y1="17.4" x2="19.1" y2="19.1" /><line x1="4.9" y1="19.1" x2="6.6" y2="17.4" /><line x1="17.4" y1="6.6" x2="19.1" y2="4.9" /></g></svg>
@@ -851,7 +851,7 @@
 				<div class="hb-note hb-tip"><strong>Eine Vorlage ist ein Ausgangspunkt, keine Bindung.</strong> Sie schreibt ihre Werte in die Regler und ist damit erledigt — gespeichert werden die <em>Zahlen</em>. Ihr Name bleibt nur als Herkunftsangabe im Titel der Falte stehen und sagt den ↺-Knöpfen, wohin sie zurücksetzen. Änderst du danach einen Regler, bleibt die Vorlage stehen und das Dreieck zeigt, wovon du dich entfernt hast.</div>
 				<div class="hb-note hb-warn"><strong>Kein Gipfel und keine Kammlinie? Dann hat das Gelände keinen Anhaltspunkt.</strong> Die Regler bewegen dann fast nichts, weil die Fläche nichts hat, dem sie folgen könnte. In diesem Fall steht über den Knöpfen <strong>„Gebirgszug ermitteln"</strong> — er rechnet die Mittelachse der Fläche als Kammlinie. Das ist <em>nicht</em> dasselbe wie die Kurvenbeschriftung und schaltet sie auch nicht ein.</div>
 				<p>Bei einer <strong>Gebirgs</strong>fläche folgt die <strong>Höhenskala</strong>: ein Graubalken mit Achse in Schritt und den Gipfeln dieser Fläche an ihrer Stelle — die Ablesehilfe zu „hell ist hoch, dunkel ist niedrig". Sie ändert nichts an der Karte. <strong>Ihr hellster Ton ist der höchste Gipfel aller gerade geladenen Gebirgsflächen</strong>: dieselbe Fläche wirkt dunkler, sobald ein höherer Nachbar im Bild ist. Darunter steht die <strong>Durchschnittshöhe</strong> dieser Fläche als Zahl, und ein senkrechter Strich zeigt sie auf dem Balken — die Zahl, die im Wiki steht, lässt sich damit direkt vergleichen.</p>
-				<div class="hb-note hb-tip"><strong>Eine frisch eingeschaltete Kurve ist erst nach dem Rechnen zu sehen.</strong> Der gebogene Name liegt in einem Zwischenspeicher. Für <em>eine</em> Fläche füllt ihn <strong>„Labelkurve aktualisieren"</strong> im Untermenü <em>„Form ändern ▸"</em> — das darf jeder Editor, und der Eintrag erscheint nur dort, wo die Region die Kurvenbeschriftung anhat. Für den ganzen Bestand gibt es <strong>„Kurven"</strong> im Sammelmenü <em>„Rechnen ▾"</em> des Landschaften-Editors — auch das darf jeder Editor, und es dauert rund zwanzig Sekunden. Änderst du die Form einer Fläche, ist ihre Kurve zunächst wieder weg — dann führt derselbe Weg zurück.</div>
+				<div class="hb-note hb-tip"><strong>Eine frisch eingeschaltete Kurve ist erst nach dem Rechnen zu sehen.</strong> Der gebogene Name liegt in einem Zwischenspeicher. Für <em>eine</em> Fläche füllt ihn <strong>„Labelkurve aktualisieren"</strong> im Untermenü <em>„Form ändern ▸"</em> — das darf jeder Editor, und der Eintrag erscheint nur dort, wo die Region die Kurvenbeschriftung anhat. Für den ganzen Bestand gibt es <strong>„Kurven"</strong> im Sammelmenü <em>„Rechnen ▾"</em> des Landschaften-Editors — auch das darf jeder Editor, und es dauert rund zwanzig Sekunden. Änderst du die Form einer Fläche, rechnet sich ihre Kurve beim Speichern selbst nach. Nur wenn <em>viele</em> Flächen auf einmal gewandert sind — nach einem Sammellauf oder einem Import —, bleibt der Rest liegen, bis jemand „Kurven" drückt.</div>
 				<div class="hb-note hb-tip"><strong>Die Ränder siehst du nur beim Bearbeiten.</strong> Eine Kontur wird nur gezeichnet, solange <em>eine</em> Ebene im Editiermodus offen ist — nicht in „Alle" und nicht für Besucher. „Im Frontend fehlen die Ränder" ist also die Regel, kein Fehler.</div>
 				<h5>Klimazonen: die Ausnahme</h5>
 				<p>Die vierte Ebene zeichnest du <strong>nicht</strong>. Ihre Bänder — Polar bis Tropisch, von Nord nach Süd — sind <em>abgeleitet</em>: du ziehst nur die <strong>Trennlinien</strong> dazwischen, und die Bänder werden bei jedem Speichern neu gerechnet. Deshalb kann es zwischen zwei Zonen weder Lücke noch Überlappung geben — ein Band <em>ist</em> der Raum zwischen zwei Linien.</p>
@@ -1184,7 +1184,7 @@
 				<h5>Die Felder</h5>
 				<ul class="hb-steps">
 					<li><strong>Identität</strong> — Titel, Karten-Link, <strong>„Urheber"</strong> und <strong>„Verlag"</strong>. Der Urheber hat die Karte <em>gezeichnet</em>, der Verlag den Band <em>gedruckt</em>.</li>
-					<li><strong>Einordnung</strong> — Art, Gültigkeit in BF und <strong>Format</strong>, also die Größe des gedruckten Blatts, wie das Wiki sie schreibt („A2", „33,5x25,5"). Breite und Höhe daneben sind Pixel eines Scans und füllen sich beim Upload von selbst.</li>
+					<li><strong>Einordnung</strong> — Art, Gültigkeit in BF, <strong>Farbigkeit</strong> (<em>Unbekannt</em>, <em>Schwarzweiß bzw. Graustufen</em>, <em>Brauntöne</em>, <em>Farbig</em> — lass „Unbekannt" stehen, wenn du es nicht weißt) und <strong>Format</strong>, also die Größe des gedruckten Blatts, wie das Wiki sie schreibt („A2", „33,5x25,5"). Breite und Höhe daneben sind Pixel eines Scans und füllen sich beim Upload von selbst.</li>
 					<li><strong>Wiki-Artikel</strong> — im <a href="#v-wiki">Zuweisungskasten</a>, gesucht statt getippt, und <em>je Karte</em>. Nicht dasselbe wie der Karten-Link: Der zeigt auf die <em>Publikation</em>, der Artikel auf die Seite <em>über diese Karte</em>. Nur ein <em>von Hand</em> gesetzter Artikel bringt die Karte in die <a href="#konflikte">Konflikt-Prüfung</a>.</li>
 				</ul>
 
@@ -1353,13 +1353,15 @@
 
 				<h3 id="garetien-importer" class="hb-sub">Garetien Importer</h3>
 				<p>Der Knopf <strong>„🗺 Garetien Importer"</strong> steht im Reiter <strong>Editor → WikiSync</strong>, neben <em>„⚖️ Konflikte"</em>. Er öffnet ein verschiebbares Fenster mit Kartenobjekten aus <strong>garetien.de</strong> und <strong>koschwiki.de</strong> — Gewässer, Wege, Wälder, Berge, Ortschaften und Herrschaftsgebiete. Du gehst sie durch und entscheidest Objekt für Objekt.</p>
-				<div class="hb-note hb-tip"><strong>Beim Öffnen stellt sich die Karte um.</strong> Ansicht <em>Landschaften</em>, Ebene <em>Alle</em>, dazu Wege, Beschriftungen, Grenzen, Flüsse, Kreuzungen und alle Ortsklassen sichtbar — du sollst sehen, was schon daliegt. Routenplaner und Editorpanel klappen zur Seite und bleiben es; hol sie über ihre Laschen zurück.</div>
+				<div class="hb-note hb-tip"><strong>Beim Öffnen stellt sich die Karte um.</strong> Ansicht <em>Landschaften</em>, Ebene <em>Alle</em>, dazu Wege, Beschriftungen, Grenzen, Flüsse und Seen, Kreuzungen und alle Ortsklassen sichtbar — du sollst sehen, was schon daliegt. Routenplaner und Editorpanel klappen zur Seite und bleiben es; hol sie über ihre Laschen zurück.</div>
 				<h4>So gehst du vor</h4>
+				<p>Der Weg ist immer derselbe: <strong>Offen → Stage → „Stage importieren" → Übernommen</strong>.</p>
 				<ul class="hb-steps">
 					<li>Reiter <strong>Offen</strong> wählen. Links die Liste, rechts das ausgewählte Objekt.</li>
 					<li>Ein Objekt anklicken und rechts prüfen: Name, Art, Geometrie, Quelle.</li>
-					<li>Passt es, die passende <strong>Handlung</strong> drücken. <strong>„Neu einfügen"</strong> legt das Objekt sofort an; die übrigen Handlungen merken es nur vor.</li>
-					<li>Für das Vorgemerkte unten rechts <strong>„Stage importieren"</strong> drücken. Es kommt erst die Übernahme-Vorschau — geschrieben wird nur, was dort angehakt bleibt.</li>
+					<li>Passt es, <strong>„Auf die Stage"</strong> drücken. Es liegt dann zur Ansicht auf der Karte — geschrieben ist noch nichts.</li>
+					<li>Passt es nicht, <strong>„Ablehnen"</strong>.</li>
+					<li>Ist die Stage voll, unten rechts <strong>„Stage importieren"</strong> drücken. Es kommt erst die Übernahme-Vorschau — geschrieben wird nur, was dort angehakt bleibt.</li>
 					<li>Die <strong>Statuszeile</strong> meldet danach, was angelegt wurde.</li>
 				</ul>
 				<h4>Die vier Reiter</h4>
@@ -1370,29 +1372,39 @@
 					<tr><td><strong>Abgelehnt</strong></td><td>Von dir verworfen. Wird nicht wieder vorgeschlagen.</td></tr>
 					<tr><td><strong>Übernommen</strong></td><td>Steht auf der Karte.</td></tr>
 				</table>
-				<h4>Die Handlungen am einzelnen Objekt</h4>
-				<p>Rechts am gewählten Objekt steht, was sich damit tun lässt. Welche Knöpfe erscheinen, hängt vom Objekt ab. <strong>Die ersten beiden schreiben sofort</strong>, die übrigen merken nur vor — die kommen dann mit „Stage importieren" auf die Karte.</p>
+				<h4>Die Knöpfe am einzelnen Objekt</h4>
+				<p>Rechts am gewählten Objekt steht, was sich damit tun lässt. Welche Knöpfe erscheinen, hängt vom Zustand des Objekts ab.</p>
 				<table class="hb-table">
-					<tr><th>Knopf</th><th>Was er vormerkt</th></tr>
-					<tr><td><strong>Neu einfügen</strong></td><td><strong>Legt das Objekt sofort auf der Karte an</strong> — ein zweiter Schritt folgt nicht. Der Hauptweg, als einziger <strong>grün</strong>.</td></tr>
+					<tr><th>Knopf</th><th>Was er tut</th></tr>
+					<tr><td><strong>Auf die Stage</strong></td><td>Legt das Objekt zur Ansicht auf die Karte. Schreibt nichts.</td></tr>
+					<tr><td><strong>Von der Stage nehmen</strong></td><td>Nimmt es wieder herunter. Derselbe Fleck, sobald es oben liegt.</td></tr>
 					<tr><td><strong>Innerorts einfügen (Stadt)</strong></td><td>Legt es <strong>sofort</strong> als Stätte <em>in</em> einer Stadt an, ohne eigene Kartenposition. Die Stadt steht im Knopf — stimmt sie nicht, drück ihn nicht.</td></tr>
-					<tr><td><strong>Namen ersetzen</strong></td><td>Übernimmt nur den Namen auf ein Objekt, das schon daliegt.</td></tr>
-					<tr><td><strong>Quelle + Artikel einfügen</strong></td><td>Ergänzt nur Quelle und Artikellink. Es entsteht kein neues Kartenobjekt.</td></tr>
-					<tr><td><strong>Ausgewählte Segmente ersetzen</strong></td><td>Tauscht die Geometrie der angehakten Abschnitte.</td></tr>
 					<tr><td><strong>Ablehnen</strong></td><td>Verwirft das Objekt. Als einziger <strong>rot</strong>.</td></tr>
 					<tr><td><strong>Wieder vorschlagen</strong></td><td>Holt ein abgelehntes Objekt zurück nach <em>Offen</em>.</td></tr>
 				</table>
-				<div class="hb-note hb-warn"><strong>„Neu einfügen" fragt vorher nach, wenn der Abgleich etwas Ähnliches gefunden hat.</strong> Die Rückfrage nennt das bestehende Objekt. Bestätigst du, steht das neue sofort auf der Karte — zurück geht es über den „Rückgängig"-Link der Statuszeile.</div>
-				<div class="hb-note hb-tip"><strong>Die Zahl im Knopf sagt, wie viel schon vorgemerkt ist</strong> — nicht, wie viel möglich wäre. „Namen ersetzen (0)" neben „Quelle + Artikel einfügen (6)" heißt also: von den sechs Abschnitten ist die Quelle schon vorgemerkt, die Umbenennung noch nicht.</div>
-				<h4>Die Knopfleiste unten</h4>
+				<div class="hb-note hb-tip"><strong>Die zweite Zeile von „Auf die Stage" sagt, was der Import wirklich tut.</strong> <em>„als Fluss"</em> legt ein neues Objekt an. <em>„ergänzt nur die Quelle"</em> hängt Quelle und Artikel an ein bestehendes. <em>„nur Ansicht"</em> heißt: hier gibt es nichts zu importieren, du siehst es nur. <em>„zusätzlich als …"</em> heißt: der Abgleich hat etwas Ähnliches gefunden, das Objekt kommt trotzdem als eigenes dazu — dafür kommt eine Rückfrage.</div>
+				<p>Ein <strong>übernommenes</strong> Objekt zeigt statt dieser Knöpfe drei andere: <strong>„Zurücknehmen"</strong> holt es von der Karte zurück, <strong>„Ablehnen"</strong> nimmt es zurück <em>und</em> legt es nach <em>Abgelehnt</em>, <strong>„Zurück nach Offen"</strong> stellt es wieder zur Entscheidung.</p>
+				<h4>Mehrere auf einmal: die Auswahlleiste</h4>
+				<p>Sobald du eine Zeile ankreuzt, erscheint unter der Liste eine Leiste. Jeder ihrer Knöpfe trägt das Wort <strong>Auswahl</strong> und wirkt auf die Häkchen — nie auf das Objekt rechts. Welche Knöpfe kommen, hängt vom Reiter ab:</p>
+				<table class="hb-table">
+					<tr><th>Reiter</th><th>Knöpfe der Leiste</th></tr>
+					<tr><td><strong>Offen</strong></td><td>Auswahl auf die Stage · Auswahl ablehnen · Auswahl aufheben</td></tr>
+					<tr><td><strong>Stage</strong></td><td>Auswahl von der Stage nehmen · Auswahl ablehnen · Auswahl aufheben</td></tr>
+					<tr><td><strong>Übernommen</strong></td><td>Auswahl aus der Karte zurücknehmen · Auswahl zurück nach Offen · Auswahl aufheben</td></tr>
+					<tr><td><strong>Abgelehnt</strong></td><td>Auswahl wieder vorschlagen · Auswahl aufheben</td></tr>
+				</table>
+				<div class="hb-note hb-warn"><strong>„Auswahl aufheben" und „Auswahl aus der Karte zurücknehmen" stehen nebeneinander und tun völlig Verschiedenes.</strong> Der eine räumt nur Häkchen ab, der andere nimmt einen ausgeführten Import von der Karte zurück.</div>
+				<div class="hb-note hb-tip"><strong>Die Zahl im Knopf zählt, was er wirklich bewegen kann</strong> — nicht, wie viel du angehakt hast. Kann er nichts ausrichten, ist er grau und nennt den Grund. <strong>Ein Reiterwechsel räumt die Häkchen ab:</strong> die Auswahl gehört der Ansicht, in der du sie gesetzt hast.</div>
+				<h4>Die Knopfleiste ganz unten</h4>
+				<p>Was hier steht, gilt der ganzen Liste oder der ganzen Stage:</p>
 				<ul>
-					<li><strong>Alle wählen</strong> und <strong>Auswahl aufheben</strong> setzen die Häkchen für die ganze Liste.</li>
-					<li><strong>Auf die Stage</strong> legt die gewählten Objekte auf die Karte, <strong>Stage leeren</strong> nimmt sie wieder herunter.</li>
+					<li><strong>Alle wählen</strong> kreuzt jede Zeile der angezeigten Liste an.</li>
+					<li><strong>Stage leeren</strong> nimmt alles wieder von der Karte herunter.</li>
 					<li><strong>Alle zentrieren</strong> zoomt auf alles, was gerade angezeigt ist.</li>
-					<li><strong>Import zurücknehmen</strong> holt Übernommenes von der Karte zurück. Nur auf dem Reiter <em>Übernommen</em>.</li>
-				<div class="hb-note hb-warn"><strong>„Auswahl aufheben" und „Import zurücknehmen" sind zwei sehr verschiedene Knöpfe.</strong> Der eine räumt nur Häkchen ab, der andere nimmt einen ausgeführten Import von der Karte zurück.</div>
+					<li><strong>Stage importieren</strong> ist die Haupthandlung des Fensters — der einzige gefüllte Knopf.</li>
 				</ul>
-				<p>Am einzelnen übernommenen Objekt stehen zwei Verben: <strong>„Zurücknehmen"</strong> setzt es zurück auf <em>Offen</em>, <strong>„Ablehnen"</strong> nimmt es zurück <em>und</em> legt es nach <em>Abgelehnt</em>.</p>
+				<h4>Nachbarn mitnehmen</h4>
+				<p>Unter dem gewählten Objekt steht <strong>„Imports in der Nähe wählen"</strong>. Er kreuzt an, was in der Umgebung liegt — mehr nicht; auf die Stage kommen die Treffer über die Auswahlleiste. Das Feld daneben grenzt ein: <em>gleicher Typ</em> (Vorgabe), ein einzelner Typ oder <em>alle Typen</em>. Die Zahl im Knopf folgt deiner Wahl.</p>
 				<h4>Die Statuszeile</h4>
 				<p>Unter dem Menüband läuft eine Zeile mit, die jede Rückmeldung des Fensters trägt. In Ruhe steht dort die Bilanz des Laufs: <em>„Lauf … · 4.312 Objekte · 900 mit Vorschlag · 12 auf der Stage"</em>. Nach einem Import steht dort, was entstanden ist — <em>„✓ 4 Objekte importiert — 3 Wege (2 Bäche), 1 Fläche"</em> — und daneben ein <strong>„Rückgängig"</strong>-Link, der die eben angelegten Objekte wieder entfernt.</p>
 				<div class="hb-note hb-tip"><strong>Ging etwas schief, wird die Zeile rot und nennt den Grund des Servers</strong> — <em>„✕ 1 von 4 nicht importiert: …"</em>. Die Liste bleibt dabei stehen, wie sie war; du verlierst deine Auswahl nicht.</div>
@@ -1436,7 +1448,7 @@
 				<div class="hb-note hb-tip"><strong>Sehr lange Listen werden gekürzt — und sagen es.</strong> Steht in der Statuszeile <em>„Mehr als …&nbsp;Meldungen"</em> statt einer Zahl, siehst du nicht alles. Der Satz dahinter nennt, welche Hälfte gekürzt wurde.</div>
 
 				<h4>Eine Änderungsmeldung bearbeiten</h4>
-				<p>Der Dialog geht vorbefüllt auf — aber <strong>nur dort, wo der Vorschlag von der Karte abweicht</strong>. Genau diese Felder bekommen einen <strong>roten Rahmen</strong>. Vorgeschlagene Quellen stehen im Quellen-Block in einer eigenen Gruppe <em>„Aus der Meldung (wird beim Speichern übernommen)"</em>.</p>
+				<p>Der Dialog geht vorbefüllt auf — aber <strong>nur dort, wo der Vorschlag von der Karte abweicht</strong>. Genau diese Felder bekommen einen <strong>roten Rahmen</strong>. Gemeldete Quellen trägt dir der Quellen-Block <strong>einzeln zur Prüfung vor</strong>: über dem Formular steht <em>„Aus der Meldung: Quelle 1 von 2"</em>, die Felder sind vorbefüllt. <strong>„Speichern"</strong> nimmt die Quelle und rückt zur nächsten, <strong>„Überspringen"</strong> lässt sie liegen. Nichts wird still übernommen.</p>
 				<p>Der Wunsch selbst steht <strong>schreibgeschützt</strong> über der Beschreibung: <em>„Änderungswunsch von …"</em>. Er soll umgesetzt werden, nicht veröffentlicht.</p>
 				<div class="hb-note hb-warn"><strong>Eine vorgeschlagene Position ist bereits eingetragen, wenn der Dialog aufgeht.</strong> Es gibt keinen Knopf zum Übernehmen — und keinen zum Ablehnen. Speicherst du, wandert der Ort. Willst du den Namen übernehmen, die Position aber nicht, dann speichere hier <em>nicht</em>, sondern ändere den Ort auf dem normalen Weg und verwirf die Meldung.</div>
 				<div class="hb-note hb-tip"><strong>Meldung ≠ Auftrag.</strong> Prüf den Hinweis gegen das Wiki, bevor du ihn übernimmst. Nichts wird automatisch veröffentlicht — die Entscheidung liegt bei dir.</div>
@@ -1760,7 +1772,7 @@
 				<p>Das Menü hat <strong>fünf Gruppen</strong>, und der Unterschied ist der Blick. <strong>„Orte"</strong> (die sechs Ortsklassen als Bildknöpfe) und <strong>„Ebenen"</strong> sagen, was die Karte <em>zeigt</em> — die beiden sieht jeder Besucher. <strong>„Prüfen"</strong> zeigt in zwei Spalten, was an der Karte <em>nicht stimmt</em>, <strong>„Mapstil"</strong> wechselt den Kartengrund, und <strong>„Freie Labels markieren"</strong> leuchtet eine Beschriftungsart an. Die letzten drei tragen neben der Überschrift den Zusatz <em>„nur Editoren"</em> und stehen erst im Bearbeiten-Modus da.</p>
 				<table class="hb-table">
 					<tr><th>Häkchen</th><th>Zeigt</th></tr>
-					<tr><td><strong>Wege</strong> / <strong>Flüsse</strong> / <strong>Seewege</strong></td><td>Die Linien der jeweiligen Sorte. <strong>Seewege</strong> ist als einzige Zeile der Gruppe „Ebenen" auf den Bearbeiten-Modus beschränkt — außerhalb wäre der Haken wirkungslos.</td></tr>
+					<tr><td><strong>Wege</strong> / <strong>Flüsse und Seen</strong> / <strong>Seewege</strong></td><td>Die Linien der jeweiligen Sorte. <strong>Flüsse und Seen</strong> nimmt die Seeflächen mit, aber nicht die Seenamen — die hängen an <em>Beschriftungen</em>. <strong>Seewege</strong> ist als einzige Zeile der Gruppe „Ebenen" auf den Bearbeiten-Modus beschränkt — außerhalb wäre der Haken wirkungslos.</td></tr>
 					<tr><td><strong>Labels</strong></td><td>Die Beschriftungen der Karte. <em>Übersteuert den Kartenmodus in beide Richtungen:</em> abgehakt sind sie weg, wo der Modus sie zeigen würde — angehakt da, wo er sie unterdrückt.</td></tr>
 					<tr><td><strong>Grenzen</strong></td><td>Die Territoriengrenzen, ebenfalls als Übersteuerung des Modus. Beide Haken gibt es, weil Beschriftungen und Grenzen beim Zeichnen im Weg stehen.</td></tr>
 					<tr><td><strong>Kreuzungen</strong></td><td>Alle Knotenpunkte des Wegenetzes.</td></tr>
@@ -1779,7 +1791,7 @@
 				<div class="hb-note hb-tip"><strong>Ein markierter Name wird auf jeder Zoomstufe gezeichnet</strong> — auch unterhalb der Stufe, ab der er sonst erscheint. Nur das Zoomband fällt weg: der Haken „Labels" und die gewählte Ansicht gelten weiter. Treffen violetter und karminroter Kasten denselben Namen, gewinnt der violette.</div>
 				<div class="hb-note hb-tip"><strong>Die Prüf-Häkchen holen ihre Funde hervor, statt sie nur zu markieren.</strong> <em>„Unverbunden"</em>, <em>„Kreuzungen mit 2 Wegen"</em>, <em>„Kreuzungen"</em> und <em>„Offene Wegenden"</em> zeigen ihre Funde unabhängig davon, welche Ortsgrößen an sind und wie weit du herausgezoomt hast. Der Bildausschnitt gilt weiterhin. Im Menü tragen ihre Zeilen <strong>den Marker selbst als Zeichen</strong> — dunkler Kern, farbiger Ring —, die Farbe steht also schon in der Zeile.</div>
 				<div class="hb-note hb-tip"><strong>Einen türkisen Fund kannst du melden, statt ihn selbst aufzulösen.</strong> Ein Klick auf die Kreuzung öffnet ihr Popup; darin steht neben „Zu Ort konvertieren" und „Kreuzung verschieben" die Kachel <strong>„Kreuzung melden"</strong>. Sie legt eine Zeile in die Zwischenablage — die Wegart und ein Link direkt auf die Stelle. <strong>Nicht die Nummer melden:</strong> „Kreuzung-2090" ist ein Zähler deines Browsers und rutscht, sobald jemand eine Kreuzung früher einsortiert — am nächsten Tag wäre sie falsch, der Link nicht.</div>
-				<div class="hb-note hb-tip"><strong>Ein ausgegrauter Schalter ist nicht kaputt.</strong> Manche Ansichten sperren einen Schalter ohnehin — dann ist seine Zeile grau und nennt im Titel den Grund. <strong>Kraftlinien</strong> sperrt Wege, Flüsse, Seewege, „Offene Wegenden", Grenzen und die Ortsklassen (dort zeichnet die „Magiersicht" nichts davon), <strong>Nur Karte</strong> sperrt die Grenzen, weil in dieser Ansicht gar keine Gebietsdaten geladen werden. Sein Zustand bleibt dabei unangetastet: Zurück in einer Ansicht, in der er wirkt, steht er wieder so, wie du ihn gelassen hast.</div>
+				<div class="hb-note hb-tip"><strong>Ein ausgegrauter Schalter ist nicht kaputt.</strong> Manche Ansichten sperren einen Schalter ohnehin — dann ist seine Zeile grau und nennt im Titel den Grund. <strong>Kraftlinien</strong> sperrt Wege, Flüsse und Seen, Seewege, „Offene Wegenden", Grenzen und die Ortsklassen (dort zeichnet die „Magiersicht" nichts davon), <strong>Nur Karte</strong> sperrt die Grenzen, weil in dieser Ansicht gar keine Gebietsdaten geladen werden. Sein Zustand bleibt dabei unangetastet: Zurück in einer Ansicht, in der er wirkt, steht er wieder so, wie du ihn gelassen hast.</div>
 				<div class="hb-note hb-tip"><strong>„Labels" und „Grenzen" halten nicht über einen Moduswechsel hinweg.</strong> Bei jedem Wechsel des Kartenmodus springen beide auf das zurück, was der neue Modus von sich aus zeigt. Sie sind eine Abweichung <em>nach</em> dem Wechsel, kein Dauerzustand.</div>
 
 				<h3 id="n-menues" class="hb-sub">Die beiden Kontextmenüs</h3>
