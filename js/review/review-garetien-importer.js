@@ -287,46 +287,61 @@
 		});
 	}
 
-	// ---- Aufgabe 8: nach dem Einfuegen -- nur was WIRKLICH uebernommen wurde, verlaesst die Stage
-	//
-	// ⚠️ „Nur was uebernommen wurde, verlaesst die Anzeige" (Brief) -- die uebrigen (ohne Vorschlag,
-	// oder deren Uebernahme scheiterte: `stale`/`failed`) bleiben liegen, sonst verschwindet dem
-	// Editor die Karte unter der Hand, ohne dass etwas passiert waere.
-	//
-	// 🔴 GEPRUEFT WIRD GEGEN DEN SERVER, NIE VERMUTET: `apply` meldet nur AGGREGIERTE Zahlen (wie
-	// viele insgesamt geschrieben wurden), nie WELCHE Objekte es waren -- und ein anderswo bereits
-	// vorgemerktes Item koennte mitgelaufen sein. Ob EIN bestimmtes Objekt jetzt „uebernommen"
-	// steht, sagt deshalb nur der Server.
-	//
-	// 🔴 EIN GEZIELTER, EINMALIGER Nachlese-Ruf auf den Server-Reiter „uebernommen" -- unabhaengig
-	// vom gerade aktiven UI-Reiter, damit ein Editor auf „Offen" nicht deshalb die Karte verliert.
-	// ⚠️ Und OHNE Schleife: fuer diesen Import passen alle moeglichen Uebernahmen (heute hoechstens
-	// 283 -- nur ein Objekt MIT Vorschlag kann je uebernommen werden) in eine einzige Seite
-	// (AVESMAPS_GARETIEN_LISTE_MAX). Ein zweiter Ruf mit `versatz` waere hier genau die
-	// Endpunktschleife, vor der AGENTS.md warnt (der Endpunkt liest das GANZE Laufinventar neu ein).
-	function avesmapsGaretienStageNachEinfuegenBereinigen(rufe, runId) {
+	/*
+	 * Aufgabe 6 (06.09.2026): DIE STAGE AM GELTENDEN LAUF NACHSCHLAGEN.
+	 *
+	 * 💣 DER STILLE FEHLER, DEN DAS BEHEBT: die Item-Nummern der Stage gehoeren nach einem
+	 * „Holen & Rechnen" einem ueberholten Lauf. `select`/`apply` filtern auf
+	 * `run_id = ? AND id IN (...)`, treffen null Zeilen und melden `done: true` -- der Knopf sieht
+	 * aus, als haette er gearbeitet.
+	 * 🔴 EIN RUF FUER DIE GANZE STAGE (`keys`), nicht einer je Objekt: bei 200 gestagten Objekten
+	 * waeren das 200 Anfragen an einen Endpunkt, der jedes Mal das ganze Laufinventar liest --
+	 * genau die Schleife, vor der AGENTS.md fuer STRATO warnt.
+	 * 🔴 KEIN Filterfeld im Rumpf: `keys` schlaegt serverseitig jeden Filter und die
+	 * Seitenaufteilung (avesmapsGaretienListeFilterHatKeys). Wer hier zusaetzlich leere Filter
+	 * mitschickt, schreibt dieselbe Regel ein zweites Mal auf -- und die zweite veraltet.
+	 * 🔴 ERSETZT `avesmapsGaretienStageNachEinfuegenBereinigen` (Aufgabe 8): jene fragte nur den
+	 * Reiter „uebernommen" ab und sah damit EINE Sorte Veraenderung. Dieser Weg sieht alle -- er
+	 * fragt nach GENAU DEN Objekten, die auf der Stage liegen, unabhaengig von ihrem Stand.
+	 * ⚠️ Faellt OFFEN aus: scheitert der Ruf, bleibt die Stage stehen. Eine geleerte Stage nach
+	 * einem Netzfehler waere der teurere Ausgang -- die Arbeit einer halben Stunde.
+	 */
+	function garetienStageNachschlagen(rufe) {
+		const schluessel = Array.from(zustand.stage.keys());
+		if (schluessel.length === 0) {
+			return Promise.resolve({ gefunden: 0, verschwunden: [] });
+		}
 		return rufe(GARETIEN_ENDPUNKT, {
-			action: "liste", run_id: runId, stand: "uebernommen",
-			ebene: [], typ: [], urteil: [], wiki: [], suche: "",
-			// ⚠️ `nur_ungehakt` ist hier gefallen (Fixrunde 2): der Filter gibt es im Fenster nicht
-			// mehr, das Feld stand hart auf `false` und war damit folgenlos. Der SERVER kennt ihn
-			// weiter (garetien-liste.php, mit eigenen Tests) und liest ihn per `?? false` -- ein
-			// fehlendes Feld ist dort dasselbe wie `false`. Ein totes Feld im Rumpf sieht wie ein
-			// benutzter Schalter aus, und der naechste Leser sucht den Erzeuger.
-			nur_mehrteilig: false,
+			action: "liste", run_id: zustand.importRunId, keys: schluessel,
 		}).then(function (antwort) {
-			avesmapsGaretienStageAuffrischen((antwort && antwort.objekte) || []);
-			let entfernt = 0;
-			Array.from(zustand.stage.entries()).forEach(function (eintrag) {
-				const schluessel = eintrag[0];
-				const objekt = eintrag[1];
-				if (objekt && objekt.stand === "uebernommen") {
-					zustand.stage.delete(schluessel);
-					entfernt++;
-				}
+			const frisch = {};
+			((antwort && antwort.objekte) || []).forEach(function (o) {
+				if (o && o.key !== undefined && o.key !== null) { frisch[String(o.key)] = o; }
 			});
-			return entfernt;
+			const verschwunden = [];
+			schluessel.forEach(function (s) {
+				if (frisch[s]) {
+					// 🔴 ERSETZEN, nicht ergaenzen: es geht um die frischen Item-Nummern.
+					zustand.stage.set(s, frisch[s]);
+					return;
+				}
+				zustand.stage.delete(s);
+				zustand.nurIhre.delete(s);
+				verschwunden.push(s);
+			});
+			return { gefunden: Object.keys(frisch).length, verschwunden: verschwunden };
+		}).catch(function () {
+			return { gefunden: 0, verschwunden: [] };
 		});
+	}
+
+	// Der Satz fuer ausgeschiedene Stage-Objekte -- EIN Bauer fuer alle drei Anschlussstellen
+	// (garetienLaufStarten, beide Import-Ketten), damit der Wortlaut nicht dreimal im Code steht
+	// und beim naechsten Formulierungswunsch auseinanderlaeuft.
+	function garetienStageVerschwundenSatz(anzahl) {
+		const n = Number(anzahl) || 0;
+		return (n === 1 ? "1 Objekt" : n + " Objekte")
+			+ " auf der Stage gibt es im neuen Lauf nicht mehr.";
 	}
 
 	// ---- Die Auswahl: ein reiner MARKER, kein Schreibweg (Aufgabe 2, Entwurf §3.2) ----------------
@@ -2290,6 +2305,17 @@
 						garetienLaufVorschauAufraeumung = plan.vorschau_aufgeraeumt;
 						// Zeitstempel und Zeilenzahl kommen vom SERVER, nicht aus der Browseruhr.
 						return garetienLaufUebernehmen(rufe, zustand.importRunId);
+					})
+					// Aufgabe 6 (06.09.2026): die Stage überlebt diesen Lauf -- ihre Item-Nummern
+					// gehören sonst dem ÜBERHOLTEN Lauf. Vor dem Listenabruf, damit ein Editor, der
+					// sofort danach einfügt, nicht mit toten Nummern arbeitet.
+					.then(function () { return garetienStageNachschlagen(rufe); })
+					.then(function (nachschlag) {
+						const anzahl = (nachschlag && nachschlag.verschwunden) ? nachschlag.verschwunden.length : 0;
+						// ⚠️ NUR bei Funden: garetienLaufStarten setzt sonst nirgends die Statuszeile,
+						// ein Aufruf mit `anzahl === 0` überschriebe also grundlos eine ältere Meldung
+						// (z. B. den Erfolg des letzten Einfügens).
+						if (anzahl > 0) { garetienStatusSetzen(garetienStageVerschwundenSatz(anzahl), "", null); }
 					})
 					.then(function () { return listeHolen(); });
 			})
@@ -5535,11 +5561,23 @@
 				const meldung = garetienImportMeldung(summe);
 				const neuIds = garetienOhneFehlgeschlagene(rumpf.ids, summe && summe.fehler);
 				const aktion = garetienRueckgaengigNachEinfuegenAktion(neuIds, runId, fragen);
-				return avesmapsGaretienStageNachEinfuegenBereinigen(avesmapsGaretienRufe, runId)
-					.then(function () { return avesmapsGaretienListeHolen(); })
-					.then(function (ergebnis) {
-						garetienStatusSetzen(meldung.text, meldung.ton, aktion);
-						return ergebnis;
+				// Aufgabe 6: der Nachlauf schlaegt die GANZE Stage am geltenden Lauf nach (statt nur
+				// den Reiter „uebernommen" abzufragen) -- eine ausgeschiedene Nachbarzeile wird in
+				// dieselbe Meldung gehaengt, statt lautlos zu verschwinden.
+				return garetienStageNachschlagen(avesmapsGaretienRufe)
+					.then(function (nachschlag) {
+						return avesmapsGaretienListeHolen().then(function (ergebnis) {
+							return { ergebnis: ergebnis, nachschlag: nachschlag };
+						});
+					})
+					.then(function (paar) {
+						const anzahl = (paar.nachschlag && paar.nachschlag.verschwunden)
+							? paar.nachschlag.verschwunden.length : 0;
+						const text = anzahl > 0
+							? meldung.text + " · " + garetienStageVerschwundenSatz(anzahl)
+							: meldung.text;
+						garetienStatusSetzen(text, meldung.ton, aktion);
+						return paar.ergebnis;
 					})
 					.catch(function (nachlaufFehler) {
 						const satz = (nachlaufFehler && nachlaufFehler.message)
@@ -6547,11 +6585,22 @@
 					garetienStageNeuIds(stageObjekte), summe && summe.fehler
 				);
 				const aktion = garetienRueckgaengigNachEinfuegenAktion(neuIds, runId, fragen);
-				return avesmapsGaretienStageNachEinfuegenBereinigen(avesmapsGaretienRufe, runId)
-					.then(function () { return avesmapsGaretienListeHolen(); })
-					.then(function (ergebnis) {
-						garetienStatusSetzen(meldung.text, meldung.ton, aktion);
-						return ergebnis;
+				// Aufgabe 6: derselbe Nachlauf wie bei „Neu einfügen" -- die GANZE Stage am
+				// geltenden Lauf nachschlagen, statt nur den Reiter „uebernommen" abzufragen.
+				return garetienStageNachschlagen(avesmapsGaretienRufe)
+					.then(function (nachschlag) {
+						return avesmapsGaretienListeHolen().then(function (ergebnis) {
+							return { ergebnis: ergebnis, nachschlag: nachschlag };
+						});
+					})
+					.then(function (paar) {
+						const anzahl = (paar.nachschlag && paar.nachschlag.verschwunden)
+							? paar.nachschlag.verschwunden.length : 0;
+						const text = anzahl > 0
+							? meldung.text + " · " + garetienStageVerschwundenSatz(anzahl)
+							: meldung.text;
+						garetienStatusSetzen(text, meldung.ton, aktion);
+						return paar.ergebnis;
 					})
 					.catch(function (nachlaufFehler) {
 						const satz = (nachlaufFehler && nachlaufFehler.message)
@@ -7110,7 +7159,10 @@
 			garetienIdsInHaeppchen,
 			garetienFussknopfKlick,
 			// Aufgabe 8: „Neu einfügen“ und „Alle angezeigten einfügen“ schreiben wirklich
-			avesmapsGaretienStageNachEinfuegenBereinigen,
+			// Aufgabe 6 (06.09.2026): garetienStageNachschlagen ersetzt
+			// avesmapsGaretienStageNachEinfuegenBereinigen -- siehe dessen Definition.
+			garetienStageNachschlagen,
+			garetienStageVerschwundenSatz,
 			garetienEinfuegenAusfuehren,
 			garetienNeuKlick,
 			garetienFussknopfEinfuegenKlick,

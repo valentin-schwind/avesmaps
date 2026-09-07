@@ -518,45 +518,11 @@ async function pruefeFussknopfHaeppchen() {
 }
 
 // =================================================================================================
-// 14. Aufgabe 8: avesmapsGaretienStageNachEinfuegenBereinigen -- nur Uebernommenes verlaesst die Anzeige
-// =================================================================================================
-//
-// ⚠️ „Nur was uebernommen wurde, verlaesst die Anzeige" (Brief) -- gemessen gegen einen gezielten
-// Nachlese-Ruf auf den Server-Reiter „uebernommen", NICHT gegen eine Vermutung im Browser: `apply`
-// selbst nennt nie, WELCHE Objekte es waren.
-async function pruefeAnzeigeBereinigen() {
-	const uebernommen = { key: "ggp:See:1", name: "Krähensee", items: [{ id: 1, selected: 0 }] };
-	const nochOffen = { key: "ggp:Fluss:2", name: "Alter Bach", items: [{ id: 2, selected: 0 }] };
-	const ohneVorschlagBleibt = { key: "ggp:Berge:9", name: "Fernberg", items: [] };
-
-	modul.avesmapsGaretienStageLeeren();
-	modul.avesmapsGaretienStageHinzufuegen([uebernommen, nochOffen, ohneVorschlagBleibt]);
-
-	const gestellt = [];
-	const rufe = function (pfad, rumpf) {
-		gestellt.push({ pfad: pfad, rumpf: rumpf });
-		return Promise.resolve({
-			ok: true,
-			objekte: [Object.assign({}, uebernommen, { stand: "uebernommen" })],
-		});
-	};
-	const entfernt = await modul.avesmapsGaretienStageNachEinfuegenBereinigen(rufe, 4711);
-
-	gleich(gestellt.length, 1, "EIN gezielter Nachlese-Ruf -- keine Schleife ueber mehrere Seiten");
-	gleich(gestellt[0].pfad, "/api/edit/map/garetien-import.php", "gegen die lesende Adresse");
-	gleich(gestellt[0].rumpf.action, "liste", "als gewoehnlicher Listenabruf");
-	gleich(gestellt[0].rumpf.stand, "uebernommen",
-		"🔴 gezielt auf den Reiter uebernommen -- unabhaengig vom gerade aktiven UI-Reiter");
-	gleich(gestellt[0].rumpf.run_id, 4711, "mit der hereingereichten Lauf-Nummer");
-	gleich(entfernt, 1, "genau EIN Objekt wurde als uebernommen bestaetigt und entfernt");
-	gleich(modul.avesmapsGaretienStageHat("ggp:See:1"), false,
-		"das bestaetigt uebernommene Objekt hat die Anzeige verlassen");
-	gleich(modul.avesmapsGaretienStageHat("ggp:Fluss:2"), true,
-		"ein noch offenes Objekt bleibt liegen -- der Server hat es nicht als uebernommen genannt");
-	gleich(modul.avesmapsGaretienStageHat("ggp:Berge:9"), true,
-		"und ein Objekt OHNE Vorschlag bleibt erst recht liegen -- es konnte nie uebernommen werden");
-}
-
+// 14. (entfernt) Aufgabe 6 (06.09.2026): `avesmapsGaretienStageNachEinfuegenBereinigen` -- die
+// Funktion, die dieser Abschnitt prüfte, ist der abgelöste Nachlauf. Sie fragte nur den
+// Server-Reiter „uebernommen" ab und sah damit EINE Sorte Veränderung; ihre Nachfolgerin
+// `garetienStageNachschlagen` schlägt die ganze Stage am geltenden Lauf nach und sieht alle. Ihr
+// eigener Test steht in js/review/__tests__/garetien-stage-nachschlagen.test.js.
 // =================================================================================================
 // 15. Aufgabe 10: „Alle wählen" -- markiert alle Zeilen der AKTUELLEN Liste, ergaenzt statt ersetzt
 // =================================================================================================
@@ -615,8 +581,6 @@ async function pruefeAnzeigeBereinigen() {
 }
 
 pruefeFussknopfHaeppchen().then(function () {
-	return pruefeAnzeigeBereinigen();
-}).then(function () {
 	console.log(`garetien-anzeige-menge: ${checks} Pruefungen bestanden.`);
 }).catch(function (fehler) {
 	console.error(fehler);

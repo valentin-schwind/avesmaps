@@ -123,6 +123,9 @@ function ziel(handlung, key, options) {
 }
 
 async function pruefeKlick() {
+	// 🔴 Aufgabe 6 (06.09.2026): der Nachlauf „garetienStageNachschlagen" fragt seither die STAGE
+	// per `keys` ab, nicht mehr den Reiter „uebernommen" -- und die Stage bleibt in dieser Datei
+	// leer, also bleibt der Nachlauf ganz aus (js/review/__tests__/garetien-stage-nachschlagen.test.js).
 	const echtesFetch = global.fetch;
 	const gestellt = [];
 	global.fetch = function (pfad, optionen) {
@@ -132,8 +135,6 @@ async function pruefeKlick() {
 		if (rumpf.action === "apply") {
 			roh = { ok: true, done: true, applied: 1, deleted: 0, stale: 0, processed: 1,
 				remaining: 0, skipped: 0, declined: 0 };
-		} else if (rumpf.action === "liste" && rumpf.stand === "uebernommen") {
-			roh = { ok: true, objekte: [] };
 		} else {
 			roh = { ok: true, plan_run_id: 7, gesamt: 0, objekte: [], bilanz: {}, reiter: {}, facetten: {} };
 		}
@@ -148,8 +149,9 @@ async function pruefeKlick() {
 		wahr(lauf && typeof lauf.then === "function", "der Klick wird uebernommen und wirklich ausgefuehrt");
 		gleich(knopfDom.disabled, true, "der Knopf sperrt sich sofort, synchron");
 		await lauf;
-		tief(gestellt.map((a) => a.rumpf.action), ["select", "apply", "liste", "liste"],
-			"derselbe Ablauf wie „Neu einfuegen\": anhaken, uebernehmen, Nachlese, Liste");
+		tief(gestellt.map((a) => a.rumpf.action), ["select", "apply", "liste"],
+			"derselbe Ablauf wie „Neu einfuegen\": anhaken, uebernehmen, Liste (die Stage ist leer, "
+			+ "der Stage-Nachlauf bleibt aus)");
 		tief(gestellt[0].rumpf.ids, [41], "mit dem new-Item");
 		tief(gestellt[1].rumpf.einstellungen, { innerorts: true },
 			"🔴 GENAU EIN anderer Wert: die Handeingabe ist `{innerorts:true}` -- nicht der Kasten „Eingefuegt wird\"");
@@ -177,7 +179,7 @@ async function pruefeKlick() {
 			"⚠️ „innerorts\" fragt NICHT -- es entsteht kein zweites Kartenobjekt, die Kollision kann es nicht geben");
 		await laufI;
 		gleich(gefragt.length, 1, "keine weitere Rueckfrage");
-		tief(gestellt.map((a) => a.rumpf.action), ["select", "apply", "liste", "liste"], "und der Ablauf ist derselbe");
+		tief(gestellt.map((a) => a.rumpf.action), ["select", "apply", "liste"], "und der Ablauf ist derselbe");
 		gleich(gestellt[1].rumpf.einstellungen.innerorts, true, "mit innerorts");
 	} finally {
 		global.fetch = echtesFetch;

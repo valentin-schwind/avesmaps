@@ -1156,7 +1156,11 @@ async function pruefeNeuKlick() {
 	gleich(mod.garetienNeuKlick({ target: neuZiel(deckt.key) }, [deckt], 7), null,
 		"ohne einen Vorschlag „neu einfügen\" gibt es nichts zu senden");
 
-	// Der ECHTE Fall: select, DANN WIRKLICH apply, DANN die Bereinigung, DANN die Listenaktualisierung.
+	// Der ECHTE Fall: select, DANN WIRKLICH apply, DANN die Listenaktualisierung.
+	// 🔴 Aufgabe 6 (06.09.2026): der Nachlauf „garetienStageNachschlagen" fragt seither die STAGE
+	// per `keys` ab, nicht mehr den Reiter „uebernommen" -- und die Stage ist hier LEER (dieser
+	// Test staged nichts), also bleibt der Nachlauf ganz aus (Zusicherung „eine leere Stage ruft
+	// gar nicht", js/review/__tests__/garetien-stage-nachschlagen.test.js).
 	const echtesFetch = global.fetch;
 	const gestellt = [];
 	global.fetch = function (pfad, optionen) {
@@ -1166,8 +1170,6 @@ async function pruefeNeuKlick() {
 		if (rumpf.action === "apply") {
 			roh = { ok: true, done: true, applied: 1, deleted: 0, stale: 0, processed: 1,
 				remaining: 0, skipped: 0, declined: 0 };
-		} else if (rumpf.action === "liste" && rumpf.stand === "uebernommen") {
-			roh = { ok: true, objekte: [] };
 		} else {
 			roh = { ok: true, plan_run_id: 7, gesamt: 0, objekte: [], bilanz: {}, reiter: {}, facetten: {} };
 		}
@@ -1188,9 +1190,9 @@ async function pruefeNeuKlick() {
 	await erste;
 	global.fetch = echtesFetch;
 
-	tief(gestellt.map((a) => a.rumpf.action), ["select", "apply", "liste", "liste"],
-		"🔴 select, dann WIRKLICH apply, dann die gezielte Nachlese, dann die Listenaktualisierung "
-		+ "-- und NICHTS Zusaetzliches vom zweiten Klick");
+	tief(gestellt.map((a) => a.rumpf.action), ["select", "apply", "liste"],
+		"🔴 select, dann WIRKLICH apply, dann die Listenaktualisierung -- der Stage-Nachlauf bleibt "
+		+ "aus (die Stage ist leer), und NICHTS Zusaetzliches vom zweiten Klick");
 	tief(gestellt[0].rumpf.ids, [1], "…mit genau der id des \"neu\"-Items");
 	gleich(gestellt[0].rumpf.action, "select", "erst wird angehakt");
 	gleich(gestellt[1].rumpf.action, "apply",
@@ -1253,7 +1255,9 @@ async function pruefeNeuKlickZusatz() {
 		"ohne 'fragen'-Funktion wird ABGELEHNT, nicht durchgewunken");
 
 	// „Ja": danach läuft DIESELBE echte Sequenz wie beim normalen Neuzugang (select, apply,
-	// liste, liste) -- die Rückfrage ändert nichts an DEM, was am Ende geschrieben wird, nur OB.
+	// liste) -- die Rückfrage ändert nichts an DEM, was am Ende geschrieben wird, nur OB.
+	// 🔴 Aufgabe 6 (06.09.2026): der Stage-Nachlauf bleibt aus, die Stage ist leer (siehe oben in
+	// pruefeNeuKlick).
 	const echtesFetch = global.fetch;
 	const gestellt = [];
 	global.fetch = function (pfad, optionen) {
@@ -1263,8 +1267,6 @@ async function pruefeNeuKlickZusatz() {
 		if (rumpf.action === "apply") {
 			roh = { ok: true, done: true, applied: 1, deleted: 0, stale: 0, processed: 1,
 				remaining: 0, skipped: 0, declined: 0 };
-		} else if (rumpf.action === "liste" && rumpf.stand === "uebernommen") {
-			roh = { ok: true, objekte: [] };
 		} else {
 			roh = { ok: true, plan_run_id: 7, gesamt: 0, objekte: [], bilanz: {}, reiter: {}, facetten: {} };
 		}
@@ -1278,7 +1280,7 @@ async function pruefeNeuKlickZusatz() {
 	await lauf;
 	global.fetch = echtesFetch;
 	gleich(gefragtJa.length, 1, "genau EINMAL gefragt");
-	tief(gestellt.map((a) => a.rumpf.action), ["select", "apply", "liste", "liste"],
+	tief(gestellt.map((a) => a.rumpf.action), ["select", "apply", "liste"],
 		"nach der Bestätigung läuft dieselbe echte Sequenz wie beim normalen Neuzugang");
 	tief(gestellt[0].rumpf.ids, [901], "…mit genau der id des Zusatz-Items, nicht der Ergänzung");
 }

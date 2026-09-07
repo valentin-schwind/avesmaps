@@ -273,13 +273,26 @@ async function pruefeFussknopfSchreibtWirklich() {
 	garetienUebernahmeKnopfSetzen(avesmapsGaretienStageListe());
 	gleich(KNOPF.disabled, false, "die Anzeige traegt einen Vorschlag -- offen");
 
+	// 🔴 Aufgabe 6 (06.09.2026): der Nachlauf fragt seither per `keys` nach, nicht mehr per
+	// `stand: "uebernommen"` -- und `keys` schlaegt serverseitig JEDEN Stand (garetien-liste.php,
+	// avesmapsGaretienListeFilterHatKeys). 💣 DAS ÄNDERT DIE FOLGE: ein gefundenes Objekt bleibt
+	// jetzt auf der Stage (nur seine Kopie wird aufgefrischt) -- „verlässt die Stage" gilt seit
+	// dieser Aufgabe nur noch für Objekte, die im GELTENDEN LAUF gar nicht mehr existieren, nicht
+	// mehr fürs blosse Erreichen von `stand: "uebernommen"`. Siehe
+	// js/review/__tests__/garetien-stage-nachschlagen.test.js für die reine Regel.
 	const d2 = machFetch(function (pfad, rumpf) {
 		if (rumpf.action === "apply") {
 			return { ok: true, done: true, applied: 1, deleted: 0, stale: 0, processed: 1,
 				remaining: 0, skipped: 0, declined: 0 };
 		}
-		if (rumpf.action === "liste" && rumpf.stand === "uebernommen") {
-			return { ok: true, objekte: [Object.assign({}, mitVorschlagVoll, { stand: "uebernommen" })] };
+		if (rumpf.action === "liste" && Array.isArray(rumpf.keys)) {
+			return {
+				ok: true,
+				objekte: [Object.assign({}, mitVorschlagVoll, {
+					stand: "uebernommen",
+					items: [{ id: 4001, change_type: "new", selected: 1 }],
+				})],
+			};
 		}
 		return listeAntwortLeer();
 	});
@@ -293,10 +306,13 @@ async function pruefeFussknopfSchreibtWirklich() {
 		"🔴 KEIN `select` (nichts ist NEU anzuhaken), aber `apply` geht trotzdem hinaus -- genau die "
 		+ "Differenz zum alten Verhalten");
 	gleich(d2.angefragt[0].pfad, "/api/edit/wiki/sync-plan.php", "…durch die eine Uebernahme-Tuer");
-	gleich(d2.angefragt[1].rumpf.stand, "uebernommen",
-		"…dann die gezielte Nachlese, WELCHE Objekte jetzt wirklich uebernommen sind");
-	gleich(avesmapsGaretienStageHat(mitVorschlagVoll.key), false,
-		"und das jetzt bestaetigt uebernommene Objekt hat die Anzeige verlassen");
+	tief(d2.angefragt[1].rumpf.keys, [mitVorschlagVoll.key],
+		"…dann der Stage-Nachlauf: EIN Ruf mit `keys`, nicht mehr mit `stand: \"uebernommen\"\"");
+	gleich(avesmapsGaretienStageHat(mitVorschlagVoll.key), true,
+		"das Objekt bleibt auf der Stage -- `keys` findet es unabhängig von seinem Stand, und nur "
+		+ "was im Lauf GAR NICHT mehr existiert, verlässt sie (Aufgabe 6)");
+	gleich(avesmapsGaretienStageListe()[0].items[0].id, 4001,
+		"und seine Item-Nummer ist die frische aus der Nachlese, nicht mehr die alte");
 
 	// D3: ein WIRKLICH offener Vorschlag -- select, DANN apply, DANN die zwei Lesevorgaenge.
 	avesmapsGaretienStageLeeren();
@@ -304,12 +320,13 @@ async function pruefeFussknopfSchreibtWirklich() {
 	garetienUebernahmeKnopfSetzen(avesmapsGaretienStageListe());
 	gleich(KNOPF.disabled, false, "…und wieder offen, jetzt mit einem UNGEHAKTEN Vorschlag");
 
+	// 🔴 Aufgabe 6: derselbe Nachlauf wie in D2 -- `keys`, kein `stand`.
 	const d3 = machFetch(function (pfad, rumpf) {
 		if (rumpf.action === "apply") {
 			return { ok: true, done: true, applied: 1, deleted: 0, stale: 0, processed: 1,
 				remaining: 0, skipped: 0, declined: 0 };
 		}
-		if (rumpf.action === "liste" && rumpf.stand === "uebernommen") {
+		if (rumpf.action === "liste" && Array.isArray(rumpf.keys)) {
 			return { ok: true, objekte: [Object.assign({}, mitVorschlagOffen, { stand: "uebernommen" })] };
 		}
 		return listeAntwortLeer();
@@ -321,13 +338,14 @@ async function pruefeFussknopfSchreibtWirklich() {
 	global.fetch = echtesFetchD3;
 
 	tief(d3.angefragt.map(function (a) { return a.rumpf.action; }), ["select", "apply", "liste", "liste"],
-		"💣 VIER Anfragen in dieser Reihenfolge: anhaken, WIRKLICH uebernehmen, die gezielte "
-		+ "Nachlese, dann die gewoehnliche Listenaktualisierung");
+		"💣 VIER Anfragen in dieser Reihenfolge: anhaken, WIRKLICH uebernehmen, der Stage-Nachlauf, "
+		+ "dann die gewoehnliche Listenaktualisierung");
 	tief(d3.angefragt[0].rumpf.ids, [501], "…mit genau der id des offenen Items");
 	gleich(d3.angefragt[0].rumpf.selected, true, "der Fussknopf HAENGT AN, er toggelt nie ab");
 	gleich(d3.angefragt[1].rumpf.action, "apply",
 		"🔴 die tragende Zusicherung dieser Aufgabe: NACH dem Anhaken kommt `apply`, nicht bloss "
 		+ "eine weitere Vormerkung");
+	tief(d3.angefragt[2].rumpf.keys, [mitVorschlagOffen.key], "…der Stage-Nachlauf fragt gezielt nach");
 	gleich(d3.angefragt[3].rumpf.stand, "offen", "…und die Listenaktualisierung liest den aktiven Reiter");
 
 	// D4: Ein Fehler MITTENDRIN (schon beim Anhaken) bricht ab, entsperrt den Knopf wieder und
