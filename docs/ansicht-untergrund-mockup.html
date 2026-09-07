@@ -7,6 +7,7 @@
 <style>
 
 /* ===== base/tokens.css (woertlich kopiert) ===== */
+/* 🪤 04.09.2026 Stempel-Heilung nach einem abgebrochenen Deploy -- die Begruendung steht in css/components/fenster.css. */
 /* Avesmaps design tokens — the single source of truth for the shared warm,
    aventurian visual language. Never hardcode a colour, size, radius, spacing, or
    divider in a component; add or reuse a token here. See docs/design-language.md.
@@ -24,6 +25,15 @@
 
 	/* Typography scale — 7 rungs, 11px floor (see "Typography" in the doc) */
 	--font-size-caption: 11px;  /* labels, pills, meta — the floor */
+	/* 🔴 DIE EINE AUSNAHME UNTER DER UNTERGRENZE, und sie hat einen eigenen Namen, damit sie
+	   sichtbar eine Ausnahme bleibt statt die Leiter nach unten zu verlaengern. Owner
+	   02.09.2026: „mach die schrift von offiziell/inoffiziel 9px … die pille ist die absolute
+	   ausnahme". Sie gilt AUSSCHLIESSLICH dem Kanonwort im Etikett (.fs-kanon) -- ein kurzes,
+	   gefettetes Versalwort auf gefuellter Flaeche; das Bezeichnerfeld daneben bleibt auf der
+	   Untergrenze. Wer einen zweiten Leser fuer diesen Token sucht: es soll keinen geben.
+	   ⚠️ Ein Griff nach diesem Wert an anderer Stelle ist fast immer der Fehler, den
+	   --font-size-caption schon einmal geerbt hat (9,5px, vom Nachbarn abgeschrieben). */
+	--font-size-kanon: 9px;     /* NUR das Kanonwort -- unter der Untergrenze, Owner-Entscheid */
 	--font-size-small: 12px;    /* dense body — the workhorse */
 	--font-size-body: 13px;     /* default controls / body */
 	--font-size-reading: 14px;  /* comfortable reading */
@@ -48,20 +58,29 @@
 	--letter-spacing-caps: 0.08em;
 	/* Schriftgroesse der EINGABEFELDER -- getrennt von der Lese-Skala oben, weil sie am Finger
 	   auf die iOS-Schwelle springt (siehe den (pointer: coarse)-Block unter diesem :root).
+	   🔴 Owner 05.09.2026 („dropdown auf 13 und die eingabefelder auch"): --font-size-body (13px),
+	   vorher --font-size-small (12px). Der Sprung am Finger auf 16px bleibt unberuehrt.
 	   ⚠️ Gilt den FELDERN, nicht ihren Beschriftungen: die Felder haben feste Hoehen, die Schrift
 	   waechst dort nach innen. Beschriftungszeilen mitzuheben machte das Panel hoeher -- und dessen
 	   Hoehenbudget ist eine eigene, groessere Frage. */
-	--font-size-control: var(--font-size-small);
-	/* Schriftgroesse der DROPDOWNS -- eigener Wert, nicht --font-size-control (Owner 11.08.2026:
-	   "alle auf 14px").
-	   💣 Getrennt, weil --font-size-control die iOS-SCHWELLE traegt: unter 16px zoomt Safari beim
-	   Fokus in ein Eingabefeld und kehrt nicht zurueck. Ein gemeinsamer Token auf 14 haette das
-	   Wegpunktfeld und die Zahlenfelder mit unter die Schwelle gezogen -- also genau das
-	   zurueckgeholt, was zwei Commits vorher behoben wurde.
-	   ⚠️ Fuer die nachgebauten Comboboxen ist 14 unbedenklich (<button>, kein Fokus-Zoom). Fuer
-	   die zwei nativen <select> ist es NICHT geprueft -- ob iOS auch dort zoomt, sagt nur ein
-	   echtes Geraet. */
-	--font-size-dropdown: 14px;
+	--font-size-control: var(--font-size-body);
+	/* Schriftgroesse der DROPDOWNS -- ein EIGENER Token, der am Zeiger denselben Wert hat wie
+	   --font-size-control und am Finger NICHT.
+	   🔴 Owner 11.08.2026 „alle auf 14px" (die Dropdowns waren untereinander verschieden gross);
+	   Owner 05.09.2026 erst „auf 12px", nach dem Blick aufs Telefon dann „dropdown auf 13 und die
+	   eingabefelder auch". Damit lesen Dropdowns und Eingabefelder am Zeiger dieselben 13px, und
+	   im Routenplaner steht nur noch EINE Groesse neben der 11px-Aufschrift.
+	   💣 GETRENNT BLEIBEN MUSS ER TROTZDEM, und das ist der ganze Grund seiner Existenz:
+	   --font-size-control traegt die iOS-SCHWELLE und springt am Finger auf 16px (der
+	   (pointer: coarse)-Block unter diesem :root) -- unter 16 zoomt Safari beim Fokus in ein
+	   Eingabefeld und kehrt nicht zurueck. Wer hier `var(--font-size-control)` schreibt, zieht
+	   jede Combobox am Telefon auf 16px mit; wer umgekehrt die Felder auf diesen Token setzt,
+	   holt den Zoom zurueck. Zwei Token, zwei Gruende, gleicher Wert am Zeiger.
+	   ⚠️ AM TELEFON stehen damit 13px-Dropdowns neben 16px-Eingabefeldern. Das ist die Folge des
+	   Entscheids und keine Nachlaessigkeit; soll der Finger groessere Dropdowns bekommen, gehoert
+	   dieser Token in den (pointer: coarse)-Block -- dann aber mit einem eigenen Wert, nicht durch
+	   Zusammenlegen. */
+	--font-size-dropdown: var(--font-size-body);
 
 	/* Der Pfeil unserer Auswahlfelder. 💣 Als Token, weil ihn ZWEI Stellen brauchen (Meldedialog
 	   und Routenplaner) und ein zweiter Data-URI genau die Divergenz waere, vor der §12 warnt --
@@ -113,8 +132,29 @@
 
 	/* Accent = coat-of-arms gold; links in warm gold-brown (NEVER blue) */
 	--color-accent: #bfa03a;
-	--color-accent-strong: #9c7f22;
-	--color-link: #8f7326;
+	/* 🔴 NACHGESCHAERFT AM 05.09.2026 (Owner-Entscheid auf das Kontrastaudit vom 13.08.2026,
+	   docs/kontrast-audit-gold-und-knopfpaar.md §4.1). Vorher `#9c7f22` -- und damit stand JEDE
+	   Gold-Beschriftung des hellen Themas unter AA: 3,78 auf `--color-panel` bis 3,17 auf
+	   `--color-button-soft`, verlangt sind 4,5:1 fuer Text unter 18,66px fett. Das Audit hatte
+	   `#82681e` empfohlen und dabei die Flaechen gezaehlt, auf denen damals wirklich Gold-Text
+	   stand; `--color-button-soft` war KEINE davon.
+	   💣 Seit dem 04.09.2026 ist sie eine: die zugeklappte Leiste des Rahmenkastens traegt ihre
+	   Aufschrift darauf (Routenplaner). `#82681e` haette dort 4,39 gegeben -- knapp daneben.
+	   Deshalb eine Stufe tiefer: `#7e651d` misst 5,49 / 5,17 / 4,90 / 4,73 / 4,73 / 4,61 auf
+	   panel / -soft / page-bg / -muted / pill / button-soft. Farbton (47°) und Saettigung bleiben,
+	   nur die Helligkeit sinkt -- das Gold wird erdiger, nicht braun.
+	   ⚠️ Das DUNKLE Thema bleibt unberuehrt: `#dcc77e` steht dort zwischen 5,6 und 9,8.
+	   ⚠️ Und `--color-panel-active` (#e7ddc9) erreicht auch damit nur 4,14 -- auf dieser Flaeche
+	   steht nachweislich kein Gold-TEXT (Audit §2). Wer dort welchen hinschreibt, misst neu.
+	   Gewacht von js/app/__tests__/goldkontrast.test.js. */
+	--color-accent-strong: #7e651d;
+	/* 💣 DER LINK MUSS MITWANDERN, und das ist keine Kosmetik (Audit §4.1): er war mit `#8f7326`
+	   die DUNKLERE der beiden Goldfarben (4,45 gegen 3,78) und verfehlte AA um 0,05. Bliebe er
+	   stehen, waere die Aufschrift ploetzlich dunkler als der Link -- die Rangfolge kippt, und der
+	   Link waere das einzige Textgold unter AA. `#79611b` misst 5,84 / 5,51 / 5,21 / 5,04 / 5,03 /
+	   4,90 und bleibt eine Spur dunkler als die Aufschrift (Luminanz 0,127 gegen 0,138).
+	   ⚠️ `--color-link-hover` bleibt unveraendert dunkler (0,108) -- die Ordnung Link > Hover haelt. */
+	--color-link: #79611b;
 	--color-link-hover: #6f5a1c;
 
 	/* Secondary accent-brown — the WikiSync/label-path-location edit dialogs' own
@@ -127,6 +167,40 @@
 	--color-accent-brown-focus: rgba(122, 90, 58, 0.18);
 
 	/* Pills / tags (e.g. publication sources) */
+	/* 🔴 DAS KANON-ETIKETT (01.09.2026, Entwurf 2026-08-27-kanon-etikett-design.md).
+	   Gold = im Kanon, Blaugruen = nicht. 🔴 KEIN ROT fuer „inoffiziell" -- die Briefspiele sind
+	   der Grund, warum es diese Inhalte gibt; ein Warnrot machte aus einer Herkunftsangabe eine
+	   Qualitaetsaussage. Blaugruen kommt sonst nirgends in der Oberflaeche vor und ist damit
+	   eindeutig. Gemessen gegen die Fuellung: 4,9:1 (gold) und 5,9:1 (blaugruen), AA ist 4,5. */
+	--color-kanon-official: #8a6b16;
+	--color-kanon-official-text: #fffaea;
+	--color-kanon-unofficial: #1f6b64;
+	--color-kanon-unofficial-text: #eafaf7;
+	/* 🔴 DIE FASSUNG FUER DAUERHAFT DUNKLE FLAECHEN -- sie steht hier im hellen Block, weil sie
+	   NICHT mit dem Thema kippt: die Suchkachel ist in beiden Themen dunkel. Ohne sie trug der
+	   Chip dort die helle Fassung, und die hebt sich vom dunklen Grund kaum ab -- gemessen
+	   2,33:1 gegen 8,61:1 im dunklen Thema, also unter den 3:1, die eine Nicht-Text-Grenze
+	   braucht. Die Schrift IM Chip war mit 5,83:1 die ganze Zeit lesbar; auffallen konnte er nur
+	   nicht, und genau das ist seine Aufgabe.
+	   ⭐ Das dunkle Thema unten nimmt dieselben vier Werte, statt sie ein zweites Mal zu tippen. */
+	--color-kanon-official-on-dark: #dcc77e;
+	--color-kanon-official-text-on-dark: #2b2311;
+	--color-kanon-unofficial-on-dark: #6fc7bd;
+	--color-kanon-unofficial-text-on-dark: #0f2f2b;
+
+	/* Die Schrift der Suchkachel -- derselbe Grund wie beim Chip darueber: sie ist in BEIDEN Themen
+	   dunkel, diese drei Werte kippen also nicht mit dem Thema und haben bewusst KEIN helles
+	   Gegenstueck (deshalb auch kein `-on-dark`-Suffix: das bezeichnet hier die zweite Fassung eines
+	   Tokens, das eine erste hat).
+	   🔴 Wer sie je in den dunklen Block unten spiegelt oder im hellen Thema umdreht, macht die
+	   Suche im hellen Thema unlesbar -- dunkle Schrift auf dunklem Grund.
+	   Die Abstufungen sind derselbe Ton mit weniger Deckkraft: `soft` traegt die Typangabe neben
+	   einem Treffer UND die Statuszeile darunter (gemessen 8,12:1 gegen die Kachel), `faint` den
+	   Platzhalter im Eingabefeld. */
+	--color-spotlight-text: #fff9ef;
+	--color-spotlight-text-soft: rgba(255, 249, 239, 0.68);
+	--color-spotlight-text-faint: rgba(255, 249, 239, 0.58);
+
 	--color-pill: #f3ecd9;
 	--color-pill-border: #d7c7a2;
 	--color-pill-text: #675024;
@@ -195,6 +269,26 @@
 	   SELECTED route waypoint (see above). The marker sits on the always-light map tiles, so the dark
 	   value stays the same warm gold. */
 	--color-marker-active: #f0b429;
+	/* 🔴 DIE ZWEITE FARBE DES GARETIEN-IMPORTERS: UNSERE Geometrie (Owner 29.08.2026 -- „mach zwei
+	   farbige Knoepfe und jeder der Knoepfe zeigt in seiner Farbe seine Flaeche an oder blendet
+	   sie aus. Dann kann man direkt vergleichen was besser ist").
+	   IHRE Geometrie behaelt `--color-marker-active` (Gold) -- deshalb steht hier nur EIN neues
+	   Token und keine Kopie des Goldwertes: zwei Namen fuer dieselbe Farbe laufen beim naechsten
+	   Umton auseinander.
+	   ⚠️ Magenta gewaehlt, weil die Karte alles andere schon traegt: Gruen (Gelaende), Braun/Tan
+	   (Wege), Hellblau (Gewaesser), Rot (Ortsmarken) und jetzt Gold (ihre Fassung). Magenta ist
+	   der einzige Ton, der gegen ALLE fuenf steht. Kein Blau -- das waere von unseren Gewaessern
+	   nicht zu unterscheiden, und genau die vergleicht man hier am haeufigsten.
+	   🔴 Farbe kodiert hier DATEN, nicht Chrome (AGENTS.md §12 laesst das ausdruecklich zu). */
+	--color-garetien-unsere: #b5279b;
+	/* 🔴 DIE DRITTE FARBE DES GARETIEN-IMPORTERS: die KOLLISION (Owner 29.08.2026 -- „Kollisionen
+	   (oder Ergaenzungsfragen) mit bestehenden koennen durch rotes gluehen ergänzt werden“).
+	   ⚠️ ERGAENZUNG, kein Ersatz: das rote Gluehen liegt als zweiter Hof AUSSEN um das goldene
+	   (ihre Fassung) bzw. magentafarbene (unsere). Wer es statt der Herkunftsfarbe zeichnete,
+	   naehme dem Bild genau die Auskunft, um die es geht.
+	   ⚠️ Nicht --color-path-open-end mitbenutzt, obwohl es derselbe Rotton waere: das heisst
+	   „offenes Wegende“ und liefe beim naechsten Umton auseinander. */
+	--color-garetien-kollision: #d92b2b;
 
 	/* Editor-Markierungswerkzeuge (Discord #25) -- kräftige Warnringe um Marker, je ein Ton pro
 	   Befund: pink = "Unverbunden" (gar keine Anbindung), türkis = "Kreuzungen mit 2 Wegen"
@@ -226,6 +320,68 @@
 	   `var()` tragen, weder im Canvas- noch im SVG-Renderer. Wer den Wert ändert, ändert ihn hier --
 	   der Rückfallwert dort ist nur die Notbremse, wenn der Token fehlt. */
 	--color-path-open-end: #e01b24;
+
+	/* Pruefhaken „Keine Wiki-Zuweisung" (Owner 01.09.2026: „das objekt ohne wiki-eintrag auffaellig
+	   rot markieren", egal ob Ort, Flaeche oder Weg). EIN Ton fuer alle vier Objektarten -- Ortsring,
+	   Wegsaum, Flaechenkontur und Label-Halo sagen dasselbe, und vier Toene fuer einen Befund waeren
+	   vier Legenden statt einer.
+	   💣 BEWUSST NICHT --color-path-open-end MITBENUTZT, obwohl beide rot sind: das heisst „offenes
+	   Wegende" und liefe beim naechsten Umton auseinander -- dieselbe Begruendung, die schon ueber
+	   --color-garetien-kollision steht. Und die beiden treffen sich auf DEMSELBEN Weg: ein Weg kann
+	   ein offenes Ende UND keine Zuweisung haben, dann traegt er die rote Mitte des einen und den
+	   Saum des anderen. Waeren es dieselben Werte, waere das ein roter Klumpen ohne Aussage.
+	   ⚠️ Deshalb ist dieser Ton DUNKLER und blaeulicher als #e01b24 -- nebeneinander unterscheidbar.
+	   ⚠️ Wird auch im JS gelesen (Leaflet-Linienfarben koennen kein `var()` tragen, weder im Canvas-
+	   noch im SVG-Renderer -- siehe --color-path-open-end darueber). Wer den Wert aendert, aendert ihn
+	   HIER; die Rueckfallwerte im JS sind nur die Notbremse, wenn der Token fehlt.
+	   Gepinnt wie die Ringe darueber: liegt auf den IMMER-hellen Kartenkacheln, kein Dark-Override. */
+	--color-check-no-wiki: #a01029;
+	/* Derselbe Befund, aber schon NACHGESEHEN (der Merker `wiki_no_article`, „kein Wiki-Artikel
+	   vorhanden"). Kein zweiter Ton, sondern derselbe blasser: es ist dieselbe Sache in einem
+	   spaeteren Zustand, und ein eigener Farbton behauptete einen eigenen Befund.
+	   ⚠️ Live traegt den Merker fast niemand: 7 Orte (einer davon zusaetzlich eine Zuweisung, der
+	   faellt also auf „zugewiesen“ zurueck -- bleiben 6), 0 Wege, 0 Beschriftungen (01.09.2026
+	   gemessen). Bei den Landschaftsflaechen kann es ihn gar nicht geben, deren Merker ist am
+	   16.08.2026 mit dem Haekchen gefallen. Der blasse Ton ist also fast immer ungenutzt -- er steht
+	   trotzdem, weil der Merker beim Weg und beim Label lebt (das Konfliktzentrum setzt ihn). */
+	--color-check-no-wiki-checked: rgba(160, 16, 41, 0.42);
+
+	/* „Freie Labels markieren" (Owner 02.09.2026: „alle freien labels vom typ z.B. ‚Fluss‘ markieren
+	   (roter rahmen)"). Ein SCHEINWERFER, kein Befund: er leuchtet die gewaehlte Labelart an, damit ein
+	   Editor die Dubletten selbst sieht -- „Inoscha" steht einmal als freie Beschriftung und einmal als
+	   Name seines Flusswegs da, und welche der beiden weg soll, entscheidet kein Programm.
+	   💣 GEMESSEN GEGEN ALLE DREI ROTS DER KARTE, nicht nur gegen den einen Nachbarn im Diff. Der erste
+	   Entwurf stand auf #e0342f und war von --color-marker-waypoint (#e33b35) nicht zu unterscheiden --
+	   RGB-Abstand 9,7 bei unter 1 Grad Farbtondifferenz. Genau diese Kollision hat --color-path-open-end
+	   ein paar Zeilen weiter oben ausdruecklich vermieden („das Rot gehoert den Reise-Wegpunkten"), und
+	   der Entwurf hier haette sie stillschweigend wieder eingebaut. Jetzt: Wegpunkt 73,5 · offenes
+	   Wegende 64,8 · Wiki-Zuweisung 73,2 -- die einzige freie Nische im Rot der Karte ist der KALTE Rand
+	   (Karmin), weil die drei anderen den neutralen und den warmen schon belegen.
+	   💣 Und die Trennung von --color-check-no-wiki ist die kritischste: die zwei treffen sich auf
+	   DERSELBEN Beschriftung -- der eine faerbt ihren Halo, dieser zieht einen Kasten darum. Waeren es
+	   dieselben Werte, wuesste bei einem roten Namen niemand mehr, welches der zwei Werkzeuge spricht.
+	   ⚠️ Unterschieden wird ohnehin auch an der FORM (Schein gegen Kasten), der Ton ist die zweite
+	   Haelfte -- aber eine Form, die allein tragen muss, ist genau das, worauf sich dieses Projekt beim
+	   Nachbartoken nicht verlassen wollte. Bewacht von freie-label-markierung-verdrahtung.test.js, das
+	   den Abstand zu ALLEN drei misst.
+	   ⚠️ Wird auch im JS gelesen (map-features-freie-label-markierung-check.js): der gebogene Name wird
+	   auf Canvas gemalt, und dort loest `var()` nicht auf. Wer den Wert aendert, aendert ihn HIER; der
+	   Rueckfall im JS ist nur die Notbremse, wenn der Token fehlt.
+	   Gepinnt wie die Ringe darueber: liegt auf den IMMER-hellen Kartenkacheln, kein Dark-Override. */
+	--color-check-free-label: #d1005d;
+
+	/* Pruefhaken „Doppelte Beschriftungen" (Owner 02.09.2026) -- derselbe Kasten wie beim Scheinwerfer
+	   darueber, aber ein BEFUND statt einer Auswahl, und beide sind gleichzeitig einschaltbar.
+	   💣 DESHALB EIN ANDERER FARBRAUM, NICHT NUR EIN ANDERES ROT: das Rot der Karte ist voll (Wegpunkt,
+	   offenes Wegende, Wiki-Zuweisung, Scheinwerfer), ein fuenfter Ton darin waere von mindestens einem
+	   nicht mehr zu trennen. Violett ist frei -- gemessen: settlement-site 77 · garetien 76 ·
+	   unconnected 132 · free-label 123 · edit-handle 138.
+	   ⚠️ Und die Rangfolge ist gebaut, nicht geraten: der BEFUND schlaegt den Scheinwerfer
+	   (AVESMAPS_LABEL_MARKIERER in js/map-features/label-markierungen.js) -- wer eine Art anleuchtet
+	   und zugleich Dubletten sucht, will bei einem doppelten Namen den Befund sehen.
+	   ⚠️ Wird auch im JS gelesen (Canvas kennt kein `var()`); der Rueckfall dort ist die Notbremse.
+	   Gepinnt wie seine Nachbarn: liegt auf den IMMER-hellen Kartenkacheln, kein Dark-Override. */
+	--color-check-duplicate-label: #6a1b9a;
 
 	/* „Grenze aus Territorien" (Fall #68) -- die Territoriumsumrisse, solange das Fenster offen ist
 	   (leise), und der Umriss unter dem Zeiger (laut). Gepinnt wie die Ringe darueber: beides liegt auf
@@ -300,7 +456,22 @@
 	   in warm brown would be unreadable to every editor who has ever seen a map. */
 	--color-ecosystem-topographie-gebirge: #7a6c5e;         /* mountains, brown-grey */
 	--color-ecosystem-topographie-huegelland: #7d8f6e;      /* hills, grey-green */
-	--color-ecosystem-topographie-see: #4a86b8;             /* lake, blue */
+	/* Vor-/Mittelgebirge: zwischen dem Gebirgs-Braungrau (#7a6c5e) und dem Huegel-Graugruen
+	   (#7d8f6e) -- es ist der Uebergang zwischen beiden, und der Ton sagt das. */
+	--color-ecosystem-topographie-vorgebirge_mittelgebirge: #7c7b66;
+	/* 🔴 DER SEE TRAEGT DIE FARBE DES FLUSSES (Owner 07.09.2026: „Kannst du Seen dieselbe Fuellung
+	   geben wie die Farbe der Fluesse"). Der Wert ist KEIN eigener Ton, sondern der der Flusslinie --
+	   `centerColors.Flussweg` in getPathStyleColors (js/map-features/map-features.js), gemessen als
+	   rgb(110,198,255). Ein See ist derselbe Wasserkoerper wie der Fluss, der hineinlaeuft; als
+	   mattes #4a86b8 neben dem hellen Flusscyan las sich das am Angbarer See wie zwei Gewaesser.
+	   💣 DIE ZWEI WERTE SIND EIN PAAR, UND DER ANDERE STEHT NICHT IN DIESER DATEI: die Wegfarben sind
+	   in getPathStyleColors hartkodiert und lesen kein Token. Wer den Fluss umtoent, zieht diese Zeile
+	   nach -- sonst faellt das Paar lautlos auseinander, und der Bruch sieht wieder wie Absicht aus.
+	   ⚠️ Gleich ist der WERT, nicht das Bild: die Flaeche liegt mit der Deckkraft ihrer Ebene auf der
+	   Karte (live 0,5 aus der Tafel „Darstellung"), die Flusslinie deckt voll. Der See bleibt also
+	   etwas blasser -- gewollt, und der Grund, warum hier NICHT zusaetzlich an der Deckkraft gedreht
+	   wurde: die gehoert dem Editor und seiner Tafel, nicht diesem Ton. */
+	--color-ecosystem-topographie-see: #6ec6ff;             /* lake -- the river's blue, see above */
 	--color-ecosystem-topographie-meer: #2d5f8a;            /* sea, dark blue */
 	--color-ecosystem-topographie-kueste: #3f9e9a;          /* coast, turquoise */
 	--color-ecosystem-topographie-wadi: #9b8a5c;            /* wadi, sand with an olive cast -- a bed that is dry most of the time */
@@ -312,7 +483,7 @@
 	/* Owner 2026-07-30, the day `insel` moved from derographisch to topographie. 🔴 NOT optional: without
 	   this token ecosystemAreaColor() falls back to --color-ecosystem-topographie, which IS the mountain
 	   brown-grey -- all 251 islands would render as mountains. Sandy beige-olive: reads as LAND against
-	   see (#4a86b8) and meer (#2d5f8a), and stays apart from gebirge (#7a6c5e) and hochebene (#9a9b82). */
+	   see (#6ec6ff) and meer (#2d5f8a), and stays apart from gebirge (#7a6c5e) and hochebene (#9a9b82). */
 	--color-ecosystem-topographie-insel: #b2a273;           /* island, sandy beige-olive -- dry land ringed by water */
 
 	/* Klimazonen (Owner 2026-08-03). Sieben Bänder von Nord nach Süd, abgeleitet aus sechs
@@ -524,17 +695,41 @@
 	   (#f3f0e8). 💣 Die erste Fassung rechnete gegen --color-panel-soft (#faf6ee) und landete bei
 	   4,27 bis 4,38: knapp daneben ist hier unbrauchbar, und nur die Messung in der echten Seite
 	   hat es gezeigt.
-	   ⚠️ Reichsstraße, Straße und Weg haben KEIN Token. Ihre Kartenfarben sind Weiß, Grau und
-	   Hellwarm — als Text wären das keine Farben, sondern Rauschen. Sie tragen die kräftige bzw.
-	   die gedämpfte Schriftfarbe.
+	   🔴 SEIT 02.09.2026 HABEN REICHSSTRASSE, STRASSE UND WEG EIN TOKEN. Hier stand bis dahin
+	   „haben KEIN Token", begründet damit, dass Weiß, Grau und Hellwarm als Text keine Farben
+	   seien, sondern Rauschen. Das galt für die Wegeliste und gilt dort weiter — es galt aber nie
+	   für den ZWEITEN Leser dieser Familie: die Karte des Garetien-Importers leitet ihren Farbton
+	   nach der Hauskonvention als `--color-path-<subtyp>` her (avesmapsGaretienSichtFuer). Für
+	   diese drei gab es nichts, `var()` wurde ungültig, und JEDE importierte Reichsstraße, Straße
+	   und jeder Weg wurde golden statt in seiner Wegart-Farbe gezeichnet — bei einer Konsolen-
+	   meldung je Objekt. Der Importer vergibt genau fünf Wegarten (Flussweg, Reichsstrasse,
+	   Strasse, Weg, Pfad), DREI davon waren betroffen: das war die Mehrheit, kein Sonderfall.
+	   ⚠️ Sie folgen derselben Regel wie ihre fünf Geschwister — der Kartenton, so weit
+	   abgedunkelt/aufgehellt, dass 4,5 erreicht ist. Weil Weiß und Grau abgedunkelt beide zu Grau
+	   werden, trägt die Reichsstraße den KÜHLEN Ton (ihr Kartenrand ist als einziger grau, nicht
+	   weiß), die Straße das reine Neutral und der Weg sein entsättigtes Warm. Gemessen gegen
+	   #f3f0e8: 8,27 / 4,75 / 5,95; jedes Paar dieser Familie liegt bei dE ≥ 10,8 auseinander —
+	   über den bestehenden Nachbarschaften (pfad~wuestenpfad 9,2, flussweg~bach 6,2).
+	   ⚠️ DIE WEGELISTE BEKOMMT SIE NICHT AUTOMATISCH: css/pages/wege-editor.css führt seine Arten
+	   einzeln auf, und wege-art-farben.test.js prüft eine eigene Liste. Wer sie dort haben will,
+	   trägt Regel UND Testliste nach — die Entscheidung „als Text Rauschen" ist damit nicht
+	   aufgehoben, sondern nur nicht mehr die Begründung für ein fehlendes Token.
 	   ⚠️ Blau bei Fluss- und Seeweg ist die Regel, nicht die Ausnahme: docs/design-language.md
 	   („No blue = UI chrome only") erlaubt es ausdrücklich, wo Farbe DATEN kodiert statt
 	   Bedienoberfläche — wie schon bei den Wassertönen der Landschaften-Ebene. */
+	--color-path-reichsstrasse: #3f4750;
+	--color-path-strasse: #6a6a6a;
+	--color-path-weg: #635a4d;
 	--color-path-pfad: #86654e;
 	--color-path-gebirgspass: #965d52;
 	--color-path-wuestenpfad: #7b6a48;
 	--color-path-flussweg: #3f7191;
 	--color-path-seeweg: #296db9;
+	/* Bach — vom Flussweg abgeleitet, aber ein EIGENES Token: heller und blasser (H≈206 statt 203,
+	   S≈26% statt 39%), weil ein Bach schmaler ist und den Fluss nicht überschreien soll. Eine
+	   geteilte Farbe mit --color-path-flussweg liefe beim nächsten Umton auseinander. Gemessen
+	   4,66:1 gegen denselben Grund (#f3f0e8) wie die übrigen Wegarten-Tokens oben. */
+	--color-path-bach: #4f6f87;
 	--color-map-presence-text: #2f6b3a; /* darker text variant of the above, same pinning rule */
 
 	/* Territory-assignment picker (parent-tree/tabs/breadcrumb "active" rows) —
@@ -613,10 +808,30 @@
 	   dreimal verschieden), also stehen sie hier: tokens.css laden BEIDE Welten. Der Name ist
 	   die Stufe, nicht die Pixelzahl — --space-* trägt global +2px. */
 	--avm-control-h: 32px;                              /* Suchfeld, Eingabe, Auswahl, Knopf */
+	/* 🔴 DER SEITENEINZUG IST ÜBERALL 14 (--space-12) — daran hängt die EINE Kante, durch die
+	   Kopfleiste, Menüband, Rumpf und Fußleiste eines Fensters senkrecht fluchten
+	   (docs/design-language.md §Fenster, Mockup docs/fensterformen-mockup.html).
+	   💣 Das SENKRECHTE Polster folgt der BEDIENHÖHE des Bandes, das waagerechte NIEMALS:
+	      Kopf- und Fußleiste tragen 32px-Elemente -> 6, das Menüband 48px-Kacheln -> 10,
+	      die Statuszeile ist einzeilig -> 6. Wer waagerecht 12 schreibt, nimmt die Kante zurück. */
+	--avm-kopf-pad: var(--space-4) var(--space-12);     /* 6 / 14 — Kopfleiste und Fußleiste */
 	--avm-ribbon-pad: var(--space-8) var(--space-12);   /* 10 / 14 — Menüband */
 	--avm-ribbon-gap: var(--space-4);                   /* 6 */
-	--avm-status-pad: var(--space-4) var(--space-12);   /* 6 / 14 — Statuszeile */
+	--avm-status-pad: var(--space-4) var(--space-12);   /* 6 / 14 — Statuszeile, Listenkopf */
 	--avm-status-min-h: 30px;
+	/* 🔧 WAAGERECHT STEHT ER NOCH AUF 12 -- und das ist Absicht, kein Versehen.
+	   Die Spalten sind die EINZIGE Zone, die nicht auf der gemeinsamen 14er-Kante steht
+	   (Menüband und Statuszeile tragen sie schon), und er soll dorthin. Aber:
+	   💣 DIESEN TOKEN LESEN NEUN FENSTER GLEICHZEITIG -- .avm-col (Landschaften-, Wege-,
+	      Kraftlinien-, Orte-, Literatur-, Karten-Editor), .wp-fn und .wp-tempo (Funktionen,
+	      Tempowerte), der Vorkommen-Editor, dazu fuenf iframe-Seiten inline. Ihn hier zu
+	      aendern verschiebt sie alle auf einmal um 2px -- eine sichtbare Aenderung an neun
+	      Fenstern in einem Push, in dem der Owner EINES erwartet (AGENTS.md §9: "Ein Commit,
+	      ein Push, sein Blick -- dann der naechste").
+	   ⚠️ Und KEIN Test haelt den Zahlenwert fest; das Feld bliebe gruen.
+	   ⭐ Wer ein Fenster einzeln auf die Kante zieht, ueberschreibt den Token AN SEINER HUELLE
+	      (so macht es .gi-win seit dem 04.09.2026). Wenn alle neun dort sind, faellt der
+	      Wert hier auf --space-12 und die lokalen Zeilen fallen weg. */
 	--avm-col-pad: var(--space-6) var(--space-10);      /* 8 / 12 — jede der drei Spalten */
 	--avm-row-pad: var(--space-2) var(--space-4);       /* 4 / 6 — Listenzeile */
 	--avm-field-label-w: 130px;                         /* Beschriftung links neben dem Feld */
@@ -661,6 +876,19 @@
 	--avesmaps-tab-w: 30px;
 	--avesmaps-tab-top: 30px;
 	--avesmaps-tab-h: 140px;
+	/* 🔴 Die PANEL-REITER "Info" und "Editor" behalten diese Maße AUCH am Telefon (Owner
+	   04.09.2026: "editor und infotab sollten nicht abmessung und groesse der lasche vom
+	   routenplaner auf dem handy haben. sondern vom desktop"). Sie sind ein anderes Bauteil als der
+	   Griff des Planers: der ist am Telefon ein PFEIL ohne Wort und darf deshalb auf 26x56 schrumpfen
+	   (unten im Telefon-Block) -- diese beiden tragen ihre BESCHRIFTUNG und sind zu zweit ein
+	   Reiterpaar, zwischen dem man waehlt. Bei 56px stapelten sie sich als zwei Briefmarken an der
+	   Kante.
+	   💣 Darum ein EIGENER Satz und keine abgeschriebenen Zahlen an den zwei Laschen: sonst wandert
+	   beim naechsten Anfassen die eine und die andere bleibt stehen -- genau die Divergenz, wegen der
+	   --avesmaps-tab-* ueberhaupt entstanden ist. */
+	--avesmaps-paneltab-w: 30px;
+	--avesmaps-paneltab-top: 30px;
+	--avesmaps-paneltab-h: 140px;
 	/* Der Kantenschatten der Telefon-Lasche: ein schmales dunkles Band an genau der Kante, unter der
 	   sie hervorkommt -- ausdruecklich KEIN Verlauf ueber die volle Breite (Owner 12.08.2026, am
 	   Entwurf entschieden: „nicht ueber die volle breite, sondern dass es so aussieht wenn die lasche
@@ -832,11 +1060,20 @@ html.avesmaps-phone {
 	--color-accent-strong: #dcc77e;
 	/* Wegarten im dunklen Thema — dieselben Farbtöne, für den dunklen Panelgrund aufgehellt.
 	   Gemessen 4,7 bis 6,8 (die vorhandene gedämpfte Schrift liegt bei 5,3). */
+	/* Reichsstraße/Straße/Weg — dieselbe Ordnung wie im hellen Thema (kühl / neutral / warm), für
+	   den dunklen Grund aufgehellt. Gemessen gegen #211f19: 12,79 / 7,85 / 9,17. */
+	--color-path-reichsstrasse: #dfe3e9;
+	--color-path-strasse: #b4b3af;
+	--color-path-weg: #cdc0a6;
 	--color-path-pfad: #c79a78;
 	--color-path-gebirgspass: #d99184;
 	--color-path-wuestenpfad: #d8bd85;
 	--color-path-flussweg: #7fc9f0;
 	--color-path-seeweg: #5aa6e0;
+	/* Bach — dieselbe blasse, entsättigte Ableitung wie im hellen Thema (H≈206, S≈28% statt der
+	   satten 79% des Flusswegs), für den dunklen Panelgrund aufgehellt. Gemessen 4,93:1 gegen
+	   --color-panel-soft (#37342b), innerhalb der Spanne der übrigen Wegarten-Tokens oben. */
+	--color-path-bach: #89a7bd;
 
 	--color-link: #d7c38b;
 	--color-link-hover: #e3d39f;
@@ -846,6 +1083,15 @@ html.avesmaps-phone {
 	--color-accent-brown-soft: #a3835c;
 	--color-accent-brown-text: #241d14;
 	--color-accent-brown-focus: rgba(201, 169, 126, 0.25);
+
+	/* Kanon-Etikett, dunkel: Fuellung und Schrift tauschen die Rolle, damit das Feld auf dem
+	   dunklen Grund nicht als Loch wirkt. Gemessen 9,5:1 und 7,2:1.
+	   ⚠️ Die Werte stehen im hellen Block als `*-on-dark` -- sie gelten auch fuer Flaechen, die in
+	   BEIDEN Themen dunkel sind (die Suchkachel), und duerfen deshalb nur einmal existieren. */
+	--color-kanon-official: var(--color-kanon-official-on-dark);
+	--color-kanon-official-text: var(--color-kanon-official-text-on-dark);
+	--color-kanon-unofficial: var(--color-kanon-unofficial-on-dark);
+	--color-kanon-unofficial-text: var(--color-kanon-unofficial-text-on-dark);
 
 	--color-pill: #3b3522;
 	--color-pill-border: #5c5237;
@@ -892,6 +1138,12 @@ html.avesmaps-phone {
 	--color-star: #e6b850;
 	--color-star-muted: #6f6552;
 	--color-marker-active: #f0b429;
+	/* Der Zwilling im dunklen Thema: heller und weniger gesaettigt, damit er auf der dunklen
+	   Gelaendefarbe nicht zulaeuft. Siehe die Begruendung im hellen Block. */
+	--color-garetien-unsere: #f07ad8;
+	/* Der Zwilling im dunklen Thema -- heller, damit er auf dem dunklen Untergrund nicht zulaeuft.
+	   Siehe die Begruendung im hellen Block. */
+	--color-garetien-kollision: #ff6b6b;
 
 	--color-focus: rgba(207, 183, 103, 0.5);
 	--color-hover-wash: rgba(207, 183, 103, 0.18);
@@ -994,9 +1246,15 @@ html.avesmaps-phone {
 	margin: 0;
 	padding: 5px;
 	display: grid;
-	/* Am Zeiger eine Reihe, am Telefon 2x3 (Owner 11.08.2026). Die Regel darunter bleibt in
-	   beiden Faellen dieselbe: die letzte Zelle ist die aktive und liegt auf der Kachel. */
-	grid-template-columns: repeat(6, auto);
+	/* Am Zeiger EINE Reihe, am schmalen Telefon 3 Spalten (Owner 11.08.2026 / 26.08.2026). Die
+	   Regel darunter bleibt in beiden Faellen dieselbe: die letzte Zelle ist die aktive und liegt
+	   auf der Kachel.
+	   💣 Die Spaltenzahl kommt aus dem JS (--map-layer-spalten), nicht als feste 6. Seit „Original"
+	   ein Untergrund ist, sind es fuenf Ansichten -- eine feste 6 waere ab sofort eine Zahl, die
+	   nichts mehr beschreibt, und beim naechsten Zu- oder Abgang wieder falsch.
+	   ⚠️ Als CSS-Variable, NICHT als Inline-Style: ein Inline-Style schluege die Media Query unten,
+	   und das schmale Telefon bekaeme wieder eine Reihe, die nicht hineinpasst. */
+	grid-template-columns: repeat(var(--map-layer-spalten, 6), auto);
 	gap: 6px;
 	border: 1px solid var(--color-border-strong);
 	border-radius: var(--radius-sm);
@@ -1104,9 +1362,16 @@ html.avesmaps-phone {
 	}
 }
 
-/* 437px braucht die Reihe. Unterhalb davon bricht sie auf 2x3 (221px) -- eine Form, zwei
-   Aufteilungen, kein zweiter Bauplan. */
-@media (max-width: 560px) {
+/* 🔴 DIE GRENZE IST GERECHNET, NICHT GERATEN (Owner 26.08.2026: „ueberleg dir, ob die auf einem
+   Mobilgeraet nebeneinander passen. bei 6 mach 2x3, aber wenns passt mach in der breit max 1x5").
+   Fuenf Kacheln: 5x66 + 4x6 Spalt + 2x5 Polsterung + 2x1 Rahmen = 366px, dazu 2x12px Kartenrand
+   = 390px Bildschirmbreite. Das ist genau ein iPhone 12/13/14 (390) und jedes uebliche Android
+   (412); das kleinste Geraet (320) bleibt darunter und bekommt 3 Spalten, also 3+2.
+   ⚠️ Hier stand 560px -- eine Zahl aus der Zeit von SECHS Ansichten (die brauchten 438+24=462px).
+   Sie haette fuenf Kacheln auf jedem Telefon umbrechen lassen, obwohl sie auf den meisten passen.
+   💣 Und sie war schon damals zu gross: der Kommentar darueber nannte 437px als Bedarf, die Regel
+   griff aber ab 560. Zwischen 438 und 560 brach sie um, ohne dass es noetig war. */
+@media (max-width: 389px) {
 	.map-layer-picker__menu {
 		grid-template-columns: repeat(3, auto);
 	}
@@ -1170,9 +1435,20 @@ html.avesmaps-phone {
 	white-space: nowrap;
 }
 
+/* 🔴 DER RAND BEIM UEBERFAHREN MUSS AUF JEDEM BILD TRAGEN (Owner 26.08.2026, mit zwei
+   Bildschirmfotos: „mach die mouse over rahmen im oberen menue so wie im unteren").
+   💣 --color-border-strong ist ein mittleres Braungrau und geht auf BEIDEN Grundhelligkeiten
+   unter -- gemessen an der laufenden Seite: 2,22:1 auf hellem Gras, 1,59:1 auf dunklem Wald.
+   Dass es im Ansichtsmenue trotzdem auffiel und im Untergrundmenue nicht, lag allein am Bild:
+   die Ansichts-Symbole sind flaechiger und ruhiger als ein echter Kartenausschnitt.
+   ⭐ --color-text traegt mit 8,88:1 auf dunklem Grund; den hellen deckt der Trennstrich darunter
+   (4,40:1 auf Gras). Erst ZUSAMMEN decken die beiden jede Kachel ab -- genau so funktioniert
+   auch die aktive Zelle, nur mit Gold statt Weiss.
+   ⚠️ Der Rand bleibt NEUTRAL und wird nicht golden: sonst waere „ueberfahren" nicht mehr von
+   „gewaehlt" zu unterscheiden. Weiss gegen Gold ist der Unterschied, den beide brauchen. */
 .map-layer-picker__menu .map-layer-picker__cell:hover .map-layer-picker__thumb,
 .map-layer-picker__menu .map-layer-picker__cell:focus-visible .map-layer-picker__thumb {
-	border-color: var(--color-border-strong);
+	border-color: var(--color-text);
 }
 
 .map-layer-picker__cell:focus-visible {
@@ -1194,11 +1470,170 @@ html.avesmaps-phone {
 	background-image: linear-gradient(var(--color-hover-wash), var(--color-hover-wash));
 }
 
+/* ===== DIE ZWEITE STUFE: die Untergrund-Reihe (26.08.2026) =====================================
+   Entwurf: docs/superpowers/specs/2026-08-26-ansicht-untergrund-kreuzen-design.md
+
+   Sie schwebt UEBER der Ansichtsreihe. Das ist kein Widerspruch zu 'im Fluss, nicht schwebend'
+   weiter oben: jene Regel gilt dem Aufklappen nach UNTEN, wo das Raster die Zoom-Knoepfe verdeckte.
+   Nach oben liegt nur Karte, und das Anzeige-Menue nebenan geht mit `bottom: 100%` denselben Weg. */
+.map-layer-picker {
+	position: relative;
+}
+
+/* 🔴 DIE TEILUNG. Das Untermenue faehrt als EINE Kachelbreite aus der Ansichtszelle heraus und
+   faechert sich in die Untergruende auf. Getragen von `clip-path` -- derselbe Grund wie beim
+   Aufrollen des Hauptrasters: es verschiebt nicht und blendet nicht, und die Zellen darin behalten
+   ihre eigene Staffelung.
+   💣 Die Startbreite ist --map-layer-tile, nie eine abgeschriebene 78: waechst das laengste Wort,
+   waechst die Zelle, und der Spalt begaenne sonst daneben.
+   💣 --map-layer-spalt setzt das JS aus der Lage der Quellzelle -- die Reihe teilt sich GENAU ueber
+   der Ansicht, auf der der Zeiger steht, nicht in ihrer eigenen Mitte. Ohne das saehe man nicht,
+   wozu sie gehoert. */
+.map-layer-picker__grund {
+	position: absolute;
+	bottom: calc(100% + 6px);
+	margin: 0;
+	z-index: 1;
+	--map-layer-spalt: 50%;
+	clip-path: inset(-40px calc(100% - var(--map-layer-spalt) - var(--map-layer-tile) / 2) -40px
+	                 calc(var(--map-layer-spalt) - var(--map-layer-tile) / 2) round var(--radius-sm));
+	transition: clip-path 110ms cubic-bezier(0.4, 0, 1, 1);
+}
+
+/* ⚠️ `left` NUR hier, nicht in der Grundregel: beim ersten Oeffnen soll die Reihe an ihrer Stelle
+   erscheinen, nicht von links hereinfahren. Offen traegt derselbe Wert das Wandern von einer
+   Ansicht zur naechsten -- eine offene Reihe wird nicht geschlossen und neu aufgefaechert. */
+.map-layer-picker__grund.is-open {
+	clip-path: inset(-40px 0 -40px 0 round var(--radius-sm));
+	transition: clip-path 190ms cubic-bezier(0.22, 0.61, 0.36, 1), left 160ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+/* 💣 DIE LUECKE IST DER FEHLER, NICHT DIE ZEIT. Zwischen Ansichtsreihe und Untermenue liegen 6px;
+   wer hochfaehrt, ist fuer einen Moment ueber NICHTS, und ein mouseleave dort naehme die Stufe weg,
+   die der Benutzer gerade ansteuert. Die Bruecke gehoert zur Unterreihe, ueberdeckt die Luecke und
+   ist unsichtbar -- der Weg nach oben ist damit lueckenlos. Der Nachlauf im JS ist der zweite
+   Riegel, fuer alles Uebrige (seitlich vorbei, ruckende Maus).
+   ⚠️ Sie liegt INNERHALB des clip-path-Ueberhangs (-40px), wird also nicht weggeschnitten. */
+.map-layer-picker__grund::after {
+	content: "";
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: -10px;
+	height: 10px;
+}
+
+/* Die Zellen der zweiten Stufe blenden von der Teilungsstelle nach aussen auf. Anders als beim
+   Hauptraster wird von VORN gezaehlt: hier gibt es keine aktive Zelle, die auf dem Fleck der
+   zugeklappten Kachel liegen muesste. */
+.map-layer-picker__grund .map-layer-picker__cell:nth-child(2) { transition-delay: 25ms; }
+.map-layer-picker__grund .map-layer-picker__cell:nth-child(3) { transition-delay: 50ms; }
+.map-layer-picker__grund .map-layer-picker__cell:nth-child(4) { transition-delay: 75ms; }
+
+/* Die Vorschau ist ein Kartenausschnitt, kein Symbol -- er fuellt die Kachel. */
+.map-layer-picker__grund .map-layer-picker__thumb img {
+	object-fit: cover;
+}
+
+/* 🔴 DIE MARKIERUNG DES GEWAEHLTEN IST IN BEIDEN STUFEN DIESELBE (Owner 26.08.2026: „und das was
+   gerade selektiert ist auch"). Sie stand zuerst nur an der zweiten Stufe, weil deren Kacheln echte
+   Kartenausschnitte sind und ein goldbrauner Rand darauf untergeht. Aber auch die Ansichts-Symbole
+   sind Kartenbilder -- der helle Trennstrich hilft dort genauso, und zwei verschieden markierte
+   Auswahlen in einem Menue sind eine Divergenz, kein Feinschliff.
+   Die aktive Zelle traegt schon 2px in --color-link (geteilte Regel); dies setzt sie vom BILD ab.
+   💣 Der helle Strich liegt INNEN, zwischen Bild und Goldrand -- aussen grenzte er die Marke gegen
+   das Panel ab, wo es gar kein Problem gibt; das Problem ist das BILD.
+   💣 Als Pseudo-Element, nicht als inset-Schatten: das Bild fuellt den Thumb ganz aus und deckte
+   einen Innenschatten zu. */
+.map-layer-picker__thumb {
+	position: relative;
+}
+/* 🔴 UND DASSELBE BEIM UEBERFAHREN (Owner 26.08.2026: „kannst du diese mouse over rahmen im
+   oberen menue so machen wie den rahmen bei mouse over menue im unteren").
+   💣 Die Hover-Regel war schon vorher fuer BEIDE Stufen dieselbe -- der Unterschied kam vom BILD:
+   der graue Rand geht auf den hellen gruenen Untergrund-Kacheln unter, waehrend er auf den
+   dunkleren Ansichts-Symbolen auffaellt. Es war also nie eine Regel zu aendern, sondern eine
+   Lesbarkeit herzustellen -- genau wie bei der aktiven Zelle.
+   ⚠️ Der Rand bleibt --color-border-strong und wird NICHT golden: sonst waere „ueberfahren" nicht
+   mehr von „gewaehlt" zu unterscheiden. Nur der helle Trennstrich kommt dazu. */
+.map-layer-picker__cell.is-active .map-layer-picker__thumb::before,
+.map-layer-picker__menu .map-layer-picker__cell:hover .map-layer-picker__thumb::before,
+.map-layer-picker__menu .map-layer-picker__cell:focus-visible .map-layer-picker__thumb::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	z-index: 1;
+	border: 1px solid var(--color-panel);
+	border-radius: inherit;
+	pointer-events: none;
+}
+
+/* Die Ansicht, aus der die zweite Stufe herausfaehrt, ist markiert -- sonst ist nicht zu sehen,
+   wozu die Reihe darueber gehoert. */
+.map-layer-picker__cell.is-quelle .map-layer-picker__thumb {
+	outline: 2px solid var(--color-accent-brown);
+	outline-offset: 1px;
+}
+
+/* ===== Die zweite ZEILE: der Untergrund unter dem Ansichtsnamen ================================
+   💣 Voll deckend, aber in eigener Farbe: --color-link ist im Menue ohnehin die Farbe des
+   Gewaehlten (sie traegt den Rand der aktiven Zelle). Bei halber Deckkraft lag der Kontrast bei
+   2,09:1 -- unter jeder Lesbarkeitsschwelle; mit voller Deckkraft traegt die FARBE den
+   Unterschied, nicht die Blaesse (gemessen 4,45:1 hell, 7,79:1 dunkel). */
+.map-layer-picker__label--grund {
+	color: var(--color-link);
+	margin-top: -3px;
+}
+
+/* 🔴 UND SIE BLENDET AUS, SOBALD DAS MENUE AUFKLAPPT. Im offenen Menue waehlt man den Untergrund in
+   der zweiten Stufe -- die Auskunft in der Zeile waere dort veraltet, kaum dass man hinsieht.
+   ⭐ Es braucht dafuer KEINEN Zustand im JS: die Zeile sitzt in den Menuezellen, und `.is-open`
+   kommt erst im naechsten Bild (das Menue braucht das ohnehin fuer sein Aufrollen). Sie startet
+   also bei 1 und blendet von selbst auf 0 -- der Uebergang faellt gratis ab.
+   ⚠️ Damit loest sich auch die Frage nach den LEEREN Zeilen der uebrigen Ansichten: offen ist die
+   Zeile ueberall unsichtbar, die aktive Zelle bildet keine Ausnahme. Der Platz bleibt reserviert,
+   sonst spraenge die Kachel beim Aufklappen um die Hoehe dieser Zeile. */
+.map-layer-picker__menu .map-layer-picker__label--grund {
+	opacity: 1;
+	transition: opacity 150ms ease;
+}
+.map-layer-picker__menu.is-open .map-layer-picker__label--grund {
+	opacity: 0;
+}
+
+/* Die zweite Stufe traegt selbst keine zweite Zeile -- sie IST der Untergrund. */
+.map-layer-picker__grund .map-layer-picker__label--grund {
+	display: none;
+}
+
+/* ===== DIE VEKTORSCHICHT (26.08.2026) ==========================================================
+   Die Ansicht liegt als Vektor UEBER dem gewaehlten Untergrund -- deshalb zeigt jede Kachel die
+   echte Kreuzung, statt sie als fertiges Bild zu erwarten.
+   ⚠️ pointer-events: none, sonst faengt das SVG den Klick, den die Zelle bekommen soll. */
+.map-layer-picker__vektor {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	display: block;
+	pointer-events: none;
+}
+
+/* 💣 Die Markierung liegt UEBER dem Vektor. Ohne diese Zeile zeichnet der Vektor ueber den hellen
+   Trennstrich der aktiven bzw. ueberfahrenen Zelle -- und ausgerechnet dort, wo er am noetigsten
+   ist (die Straende der Kraftlinien laufen bis an den Rand). */
+.map-layer-picker__cell.is-active .map-layer-picker__thumb::before,
+.map-layer-picker__menu .map-layer-picker__cell:hover .map-layer-picker__thumb::before,
+.map-layer-picker__menu .map-layer-picker__cell:focus-visible .map-layer-picker__thumb::before {
+	z-index: 2;
+}
+
 
 /* ===== nur fuer dieses Mockup ===== */
 :root {
 	--map-layer-cell: 66px;
 	--map-layer-tile: calc(var(--map-layer-cell) + 12px);
+	--map-layer-spalt: 50%;
 }
 body {
 	margin: 0;
@@ -1493,7 +1928,7 @@ h2 { font-size: var(--font-size-subhead); margin: 0 0 4px; }
 </div>
 
 <script>
-const DATEN = {"ansichten":[{"wert":"deregraphic","name":"Standard","bild":"../icons/layer-tiles/deregraphic.webp","overlay":"<g fill=\"none\" stroke=\"#2b2119\" stroke-opacity=\".45\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M-2 17 C3 16.3 7.5 15.6 11.5 14.5\" stroke-width=\"4.5\"/><path d=\"M11.5 14.5 C9.6 9.9 7 5.2 4.5 0.5\" stroke-width=\"4\"/><path d=\"M11.5 14.5 C12.8 9.4 14 4.4 14.6 -2\" stroke-width=\"3.6\"/><path d=\"M11.5 14.5 C15.2 10.8 19.4 6.2 24 2\" stroke-width=\"3.6\"/><path d=\"M11.5 14.5 C18 16.4 24.4 17.7 30 18 C37 18.4 43 19 50 19.6\" stroke-width=\"5\"/><path d=\"M11.5 14.5 C17.6 20.4 28.4 29.8 40 39 C43 41.4 46 43.8 49.5 46.5\" stroke-width=\"4.5\"/><path d=\"M11.5 14.5 C10.4 21 8.6 27.4 7 34 C6.2 39.4 5.6 44.6 5 50\" stroke-width=\"4\"/><path d=\"M28 30 C27.4 36 26.6 43 26 50\" stroke-width=\"3\"/></g><g fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M-2 17 C3 16.3 7.5 15.6 11.5 14.5\" stroke=\"#efe3cb\" stroke-width=\"2.4\"/><path d=\"M11.5 14.5 C9.6 9.9 7 5.2 4.5 0.5\" stroke=\"#e4d6ba\" stroke-width=\"2\"/><path d=\"M11.5 14.5 C12.8 9.4 14 4.4 14.6 -2\" stroke=\"#e4d6ba\" stroke-width=\"1.8\"/><path d=\"M11.5 14.5 C15.2 10.8 19.4 6.2 24 2\" stroke=\"#d8c8a8\" stroke-width=\"1.8\"/><path d=\"M11.5 14.5 C18 16.4 24.4 17.7 30 18 C37 18.4 43 19 50 19.6\" stroke=\"#fdf8ee\" stroke-width=\"2.8\"/><path d=\"M11.5 14.5 C17.6 20.4 28.4 29.8 40 39 C43 41.4 46 43.8 49.5 46.5\" stroke=\"#efe3cb\" stroke-width=\"2.4\"/><path d=\"M11.5 14.5 C10.4 21 8.6 27.4 7 34 C6.2 39.4 5.6 44.6 5 50\" stroke=\"#e4d6ba\" stroke-width=\"2\"/><path d=\"M28 30 C27.4 36 26.6 43 26 50\" stroke=\"#cbbb9e\" stroke-width=\"1.3\" stroke-dasharray=\"2 2\"/></g><g fill=\"#cc2f2a\" stroke=\"#fff\"><circle cx=\"11.5\" cy=\"14.5\" r=\"3.6\" stroke-width=\"1.5\"/><circle cx=\"7\" cy=\"34\" r=\"2.1\" stroke-width=\"1.2\"/><circle cx=\"24\" cy=\"2\" r=\"1.9\" stroke-width=\"1.1\"/><circle cx=\"30\" cy=\"18\" r=\"1.7\" stroke-width=\"1\"/><circle cx=\"40\" cy=\"39\" r=\"1.7\" stroke-width=\"1\"/><circle cx=\"4.5\" cy=\"0.5\" r=\"1.5\" stroke-width=\"1\"/></g>","grundFilter":"","grundDeckkraft":0},{"wert":"political","name":"Politisch","bild":"../icons/layer-tiles/political.webp","overlay":"<path d=\"M0 0 H25 C23 13 29 19 25 29 L19 48 H0 Z\" fill=\"#a4543f\" fill-opacity=\".8\"/><path d=\"M25 0 H48 V19 C39 17 33 23 25 29 29 19 23 13 25 0 Z\" fill=\"#5b7a8c\" fill-opacity=\".8\"/><path d=\"M25 29 C33 23 39 17 48 19 V48 H19 Z\" fill=\"#8a7f4e\" fill-opacity=\".8\"/><g fill=\"none\" stroke=\"#d3d3d3\"><path d=\"M19 48 L25 29 C33 23 39 17 48 19\" stroke-width=\"2.4\"/><path d=\"M25 0 C23 13 29 19 25 29\" stroke-width=\"2.4\"/><path d=\"M25 29 L19 48\" stroke-width=\"1.2\" stroke-dasharray=\"3 2.5\" stroke-opacity=\".85\"/></g>","grundFilter":"","grundDeckkraft":0},{"wert":"powerlines","name":"Kraftlinien","bild":"../icons/layer-tiles/powerlines.webp","overlay":"<g fill=\"none\" stroke-linecap=\"round\"><g stroke=\"rgba(255,70,90,.42)\" stroke-width=\"6\"><path d=\"M-4 6 L15 17 L34 31 L54 40\"/><path d=\"M15 17 L21 -4\"/><path d=\"M15 17 L-4 27\"/><path d=\"M34 31 L54 20\"/><path d=\"M34 31 L28 52\"/></g><g stroke=\"rgba(255,105,130,.82)\" stroke-width=\"2.8\"><path d=\"M-4 6 L15 17 L34 31 L54 40\"/><path d=\"M15 17 L21 -4\"/><path d=\"M15 17 L-4 27\"/><path d=\"M34 31 L54 20\"/><path d=\"M34 31 L28 52\"/></g><g stroke=\"rgba(255,235,240,1)\" stroke-width=\"1\"><path d=\"M-4 6 L15 17 L34 31 L54 40\"/><path d=\"M15 17 L21 -4\"/><path d=\"M15 17 L-4 27\"/><path d=\"M34 31 L54 20\"/><path d=\"M34 31 L28 52\"/></g></g><g fill=\"rgba(255,70,90,.38)\"><circle cx=\"15\" cy=\"17\" r=\"6.5\"/><circle cx=\"34\" cy=\"31\" r=\"5.5\"/></g><g fill=\"rgba(255,105,130,.9)\"><circle cx=\"15\" cy=\"17\" r=\"3.6\"/><circle cx=\"34\" cy=\"31\" r=\"3\"/></g><g fill=\"rgba(255,235,240,1)\"><circle cx=\"15\" cy=\"17\" r=\"1.7\"/><circle cx=\"34\" cy=\"31\" r=\"1.4\"/></g>","grundFilter":"saturate(0.1) brightness(0.6)","grundDeckkraft":0},{"wert":"ecosystem","name":"Landschaften","bild":"../icons/layer-tiles/ecosystem.webp","overlay":"<path d=\"M0 22 C7 17 12 23 18 19 26 14 33 20 40 15 44 12 46 16 48 14 V30 C43 33 38 27 31 31 24 35 18 29 11 33 6 36 3 31 0 34 Z\" fill=\"#5f7d33\" fill-opacity=\".8\"/><path d=\"M0 34 C3 31 6 36 11 33 18 29 24 35 31 31 38 27 43 33 48 30 V40 C42 43 37 38 30 41 23 44 17 39 10 42 5 44 3 41 0 43 Z\" fill=\"#a8bd8a\" fill-opacity=\".78\"/><g fill=\"#3f6b2c\" fill-opacity=\".85\"><path d=\"M2 3 C6 0 11 1 13 4 15 8 11 11 7 10 3 9 0 6 2 3 Z\"/><path d=\"M30 2 C35 0 40 2 41 6 42 10 37 12 33 10 29 8 27 4 30 2 Z\"/><path d=\"M36 20 C41 18 46 21 46 25 46 29 41 30 38 27 35 25 33 22 36 20 Z\"/><path d=\"M13 24 C17 22 21 24 21 27 21 30 17 31 15 29 12 27 11 25 13 24 Z\"/><path d=\"M22 41 C27 39 32 41 32 45 32 48 27 48 24 47 21 45 20 42 22 41 Z\"/></g><g fill=\"#7a6c5e\" fill-opacity=\".8\"><path d=\"M0 44 C4 40 8 45 13 42 18 39 22 44 26 42 L28 48 H0 Z\"/></g><path d=\"M40 44 C43 41 46 44 48 42 V48 H38 Z\" fill=\"#7d8f6e\" fill-opacity=\".78\"/><g fill=\"#4a86b8\" fill-opacity=\".85\"><path d=\"M0 13 C6 12 10 15 16 15 24 15 32 17 48 18 V21 C32 20 24 18 16 18 10 18 6 16 0 16 Z\"/><ellipse cx=\"20\" cy=\"6\" rx=\"3.4\" ry=\"2\"/><ellipse cx=\"27\" cy=\"9\" rx=\"2.6\" ry=\"1.6\"/></g>","grundFilter":"","grundDeckkraft":0.25},{"wert":"none","name":"Nur Karte","bild":"../icons/layer-tiles/none.webp","overlay":"","grundFilter":"","grundDeckkraft":0}],"untergruende":[{"wert":"old","name":"Old","bild":"../tiles/old/3/map_17_-17.webp","nurEditor":true,"labels":true},{"wert":"original","name":"Original","bild":"../tiles/original/3/map_17_-17.webp","nurEditor":false,"labels":false},{"wert":"stylized","name":"Modern","bild":"../tiles/stylized/3/map_17_-17.webp","nurEditor":false,"labels":false}],"zeiten":{"auf":140,"zu":260,"blende":130}};
+const DATEN = {"ansichten":[{"wert":"deregraphic","name":"Standard","bild":"../icons/layer-tiles/deregraphic.webp","overlay":"<g fill=\"none\" stroke=\"#2b2119\" stroke-opacity=\".45\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M-2 17 C3 16.3 7.5 15.6 11.5 14.5\" stroke-width=\"4.5\"/><path d=\"M11.5 14.5 C9.6 9.9 7 5.2 4.5 0.5\" stroke-width=\"4\"/><path d=\"M11.5 14.5 C12.8 9.4 14 4.4 14.6 -2\" stroke-width=\"3.6\"/><path d=\"M11.5 14.5 C15.2 10.8 19.4 6.2 24 2\" stroke-width=\"3.6\"/><path d=\"M11.5 14.5 C18 16.4 24.4 17.7 30 18 C37 18.4 43 19 50 19.6\" stroke-width=\"5\"/><path d=\"M11.5 14.5 C17.6 20.4 28.4 29.8 40 39 C43 41.4 46 43.8 49.5 46.5\" stroke-width=\"4.5\"/><path d=\"M11.5 14.5 C10.4 21 8.6 27.4 7 34 C6.2 39.4 5.6 44.6 5 50\" stroke-width=\"4\"/><path d=\"M28 30 C27.4 36 26.6 43 26 50\" stroke-width=\"3\"/></g><g fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M-2 17 C3 16.3 7.5 15.6 11.5 14.5\" stroke=\"#efe3cb\" stroke-width=\"2.4\"/><path d=\"M11.5 14.5 C9.6 9.9 7 5.2 4.5 0.5\" stroke=\"#e4d6ba\" stroke-width=\"2\"/><path d=\"M11.5 14.5 C12.8 9.4 14 4.4 14.6 -2\" stroke=\"#e4d6ba\" stroke-width=\"1.8\"/><path d=\"M11.5 14.5 C15.2 10.8 19.4 6.2 24 2\" stroke=\"#d8c8a8\" stroke-width=\"1.8\"/><path d=\"M11.5 14.5 C18 16.4 24.4 17.7 30 18 C37 18.4 43 19 50 19.6\" stroke=\"#fdf8ee\" stroke-width=\"2.8\"/><path d=\"M11.5 14.5 C17.6 20.4 28.4 29.8 40 39 C43 41.4 46 43.8 49.5 46.5\" stroke=\"#efe3cb\" stroke-width=\"2.4\"/><path d=\"M11.5 14.5 C10.4 21 8.6 27.4 7 34 C6.2 39.4 5.6 44.6 5 50\" stroke=\"#e4d6ba\" stroke-width=\"2\"/><path d=\"M28 30 C27.4 36 26.6 43 26 50\" stroke=\"#cbbb9e\" stroke-width=\"1.3\" stroke-dasharray=\"2 2\"/></g><g fill=\"#cc2f2a\" stroke=\"#fff\"><circle cx=\"11.5\" cy=\"14.5\" r=\"3.6\" stroke-width=\"1.5\"/><circle cx=\"7\" cy=\"34\" r=\"2.1\" stroke-width=\"1.2\"/><circle cx=\"24\" cy=\"2\" r=\"1.9\" stroke-width=\"1.1\"/><circle cx=\"30\" cy=\"18\" r=\"1.7\" stroke-width=\"1\"/><circle cx=\"40\" cy=\"39\" r=\"1.7\" stroke-width=\"1\"/><circle cx=\"4.5\" cy=\"0.5\" r=\"1.5\" stroke-width=\"1\"/></g>","grundFilter":"","grundDeckkraft":0},{"wert":"political","name":"Politisch","bild":"../icons/layer-tiles/political.webp","overlay":"<path d=\"M0 0 H25 C23 13 29 19 25 29 L19 48 H0 Z\" fill=\"#a4543f\" fill-opacity=\".8\"/><path d=\"M25 0 H48 V19 C39 17 33 23 25 29 29 19 23 13 25 0 Z\" fill=\"#5b7a8c\" fill-opacity=\".8\"/><path d=\"M25 29 C33 23 39 17 48 19 V48 H19 Z\" fill=\"#8a7f4e\" fill-opacity=\".8\"/><g fill=\"none\" stroke=\"#d3d3d3\"><path d=\"M19 48 L25 29 C33 23 39 17 48 19\" stroke-width=\"2.4\"/><path d=\"M25 0 C23 13 29 19 25 29\" stroke-width=\"2.4\"/><path d=\"M25 29 L19 48\" stroke-width=\"1.2\" stroke-dasharray=\"3 2.5\" stroke-opacity=\".85\"/></g>","grundFilter":"","grundDeckkraft":0},{"wert":"powerlines","name":"Kraftlinien","bild":"../icons/layer-tiles/powerlines.webp","overlay":"<g fill=\"none\" stroke-linecap=\"round\"><g stroke=\"rgba(255,70,90,.42)\" stroke-width=\"6\"><path d=\"M-4 6 L15 17 L34 31 L54 40\"/><path d=\"M15 17 L21 -4\"/><path d=\"M15 17 L-4 27\"/><path d=\"M34 31 L54 20\"/><path d=\"M34 31 L28 52\"/></g><g stroke=\"rgba(255,105,130,.82)\" stroke-width=\"2.8\"><path d=\"M-4 6 L15 17 L34 31 L54 40\"/><path d=\"M15 17 L21 -4\"/><path d=\"M15 17 L-4 27\"/><path d=\"M34 31 L54 20\"/><path d=\"M34 31 L28 52\"/></g><g stroke=\"rgba(255,235,240,1)\" stroke-width=\"1\"><path d=\"M-4 6 L15 17 L34 31 L54 40\"/><path d=\"M15 17 L21 -4\"/><path d=\"M15 17 L-4 27\"/><path d=\"M34 31 L54 20\"/><path d=\"M34 31 L28 52\"/></g></g><g fill=\"rgba(255,70,90,.38)\"><circle cx=\"15\" cy=\"17\" r=\"6.5\"/><circle cx=\"34\" cy=\"31\" r=\"5.5\"/></g><g fill=\"rgba(255,105,130,.9)\"><circle cx=\"15\" cy=\"17\" r=\"3.6\"/><circle cx=\"34\" cy=\"31\" r=\"3\"/></g><g fill=\"rgba(255,235,240,1)\"><circle cx=\"15\" cy=\"17\" r=\"1.7\"/><circle cx=\"34\" cy=\"31\" r=\"1.4\"/></g>","grundFilter":"saturate(0.1) brightness(0.6)","grundDeckkraft":0},{"wert":"ecosystem","name":"Landschaften","bild":"../icons/layer-tiles/ecosystem.webp","overlay":"<path d=\"M0 22 C7 17 12 23 18 19 26 14 33 20 40 15 44 12 46 16 48 14 V30 C43 33 38 27 31 31 24 35 18 29 11 33 6 36 3 31 0 34 Z\" fill=\"#5f7d33\" fill-opacity=\".8\"/><path d=\"M0 34 C3 31 6 36 11 33 18 29 24 35 31 31 38 27 43 33 48 30 V40 C42 43 37 38 30 41 23 44 17 39 10 42 5 44 3 41 0 43 Z\" fill=\"#a8bd8a\" fill-opacity=\".78\"/><g fill=\"#3f6b2c\" fill-opacity=\".85\"><path d=\"M2 3 C6 0 11 1 13 4 15 8 11 11 7 10 3 9 0 6 2 3 Z\"/><path d=\"M30 2 C35 0 40 2 41 6 42 10 37 12 33 10 29 8 27 4 30 2 Z\"/><path d=\"M36 20 C41 18 46 21 46 25 46 29 41 30 38 27 35 25 33 22 36 20 Z\"/><path d=\"M13 24 C17 22 21 24 21 27 21 30 17 31 15 29 12 27 11 25 13 24 Z\"/><path d=\"M22 41 C27 39 32 41 32 45 32 48 27 48 24 47 21 45 20 42 22 41 Z\"/></g><g fill=\"#7a6c5e\" fill-opacity=\".8\"><path d=\"M0 44 C4 40 8 45 13 42 18 39 22 44 26 42 L28 48 H0 Z\"/></g><path d=\"M40 44 C43 41 46 44 48 42 V48 H38 Z\" fill=\"#7d8f6e\" fill-opacity=\".78\"/><g fill=\"#6ec6ff\" fill-opacity=\".85\"><path d=\"M0 13 C6 12 10 15 16 15 24 15 32 17 48 18 V21 C32 20 24 18 16 18 10 18 6 16 0 16 Z\"/><ellipse cx=\"20\" cy=\"6\" rx=\"3.4\" ry=\"2\"/><ellipse cx=\"27\" cy=\"9\" rx=\"2.6\" ry=\"1.6\"/></g>","grundFilter":"","grundDeckkraft":0.25},{"wert":"none","name":"Nur Karte","bild":"../icons/layer-tiles/none.webp","overlay":"","grundFilter":"","grundDeckkraft":0}],"untergruende":[{"wert":"old","name":"Old","bild":"../tiles/old/3/map_17_-17.webp","nurEditor":true,"labels":true},{"wert":"original","name":"Original","bild":"../tiles/original/3/map_17_-17.webp","nurEditor":false,"labels":false},{"wert":"stylized","name":"Modern","bild":"../tiles/stylized/3/map_17_-17.webp","nurEditor":false,"labels":false}],"zeiten":{"auf":140,"zu":260,"blende":130}};
 let istEditor = false;
 let zeitlupe = 1;
 let amTelefon = false;
