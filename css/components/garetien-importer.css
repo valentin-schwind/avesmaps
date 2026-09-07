@@ -1332,6 +1332,20 @@ html.avesmaps-planner-collapsed .gi-win {
 	border-top: 1px solid var(--color-divider);
 }
 
+/* Der GRUND eines gesperrten Leistenknopfs -- Fixrunde 1 (C2, 07.09.2026).
+   🔴 SICHTBAR, nie in einem `title`: ein deaktivierter Knopf bekommt in Chrome keine
+   Zeigerereignisse, sein Tooltip erscheint also nie. Dieselbe Loesung und dieselbe Bauform wie
+   `.gi-foot__hint` beim Fussknopf -- eine eigene Klasse nur, weil sie hier UNTER den Knoepfen
+   steht (`flex-basis: 100%` in einer umbrechenden Flex-Zeile) statt daneben.
+   ⚠️ Der Kasten selbst ist `hidden`, solange nichts gewaehlt ist; ein leerer Grund erzeugt gar
+   kein Element (siehe garetienAuswahlleisteMarkup). */
+.gi-auswahlleiste__grund {
+	flex: 0 0 100%;
+	margin: 0;
+	font-size: var(--font-size-caption);
+	color: var(--color-text-muted);
+}
+
 /* ---- Owner-Auftrag A (30.08.2026): "Imports in der Naehe anzeigen" ----------------------- *
  *
  * 🔴 GESCHWISTER von `.gi-acts`, aus demselben Grund: sie ist Bedienung, keine Ansicht, und darf

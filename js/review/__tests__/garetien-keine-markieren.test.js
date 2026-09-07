@@ -2,9 +2,12 @@
 // 'Keines markieren'." Leert `zustand.auswahl`, weich (`.btn`), gesperrt mit sichtbarem Grund,
 // wenn nichts ausgewaehlt ist.
 //
-// 🔴 Aufgabe 8: „Keines markieren" heisst seither „Auswahl aufheben"
-// (garetienAuswahlAufhebenZustand/-KnopfSetzen) -- der Owner-Auftrag bleibt als woertliches
-// Zitat stehen, die Beschriftung selbst hat sich geaendert.
+// 🔴 Aufgabe 8: „Keines markieren" heisst seither „Auswahl aufheben".
+// 🔴 FIXRUNDE 1 (D2, 07.09.2026): der Knopf hat den FUSS VERLASSEN und steht in der Auswahlleiste --
+// eine Handlung, die der AUSWAHL gilt, gehoert dorthin, wo die Auswahl ihre Zahl hat. Damit sind
+// `garetienAuswahlAufhebenZustand`/`-KnopfSetzen` ersatzlos gefallen; Beschriftung und Sperre kommen
+// aus `garetienAuswahlleisteZustand`. Der REINE Zug `avesmapsGaretienAuswahlAufheben` ist
+// unveraendert, und er ist der Gegenstand dieser Datei.
 //
 // Ausfuehren, vom Repo-Wurzelverzeichnis: node js/review/__tests__/garetien-keine-markieren.test.js
 "use strict";
@@ -19,20 +22,28 @@ function wahr(bed, warum) { assert.ok(bed, warum || ""); checks++; }
 const modul = require(path.resolve(__dirname, "..", "review-garetien-importer.js"));
 
 // =================================================================================================
-// 1. garetienAuswahlAufhebenZustand -- REIN: Beschriftung, Sperre, sichtbarer Grund
+// 1. Beschriftung und Sperre kommen aus der AUSWAHLLEISTE -- REIN
 // =================================================================================================
-const leer = modul.garetienAuswahlAufhebenZustand(0);
-gleich(leer.beschriftung, "Auswahl aufheben", "die Beschriftung traegt keine Zahl -- anders als „Alle wählen\"");
-gleich(leer.gesperrt, true, "ohne eine einzige Auswahl ist nichts zu leeren");
-// 🔴 OHNE Hinweistext (Owner 30.08.2026: „verbraucht nur platz") -- „Nichts markiert — nichts zu
-// leeren." sagte nur, was der graue Knopf schon sagt.
-gleich(leer.hinweis, undefined, "der Zustand traegt gar keinen Hinweistext mehr");
+// ⚠️ „Auswahl aufheben" ist der einzige Knopf der Leiste OHNE Eintrag in der Zaehler-Tafel: er
+// raeumt die GANZE Auswahl ab, auch die Zeilen, die ein Filter gerade ausblendet, und kann deshalb
+// immer. Gemessen wird genau das.
+const knopfAufheben = (anzahl, objekte) => modul.garetienAuswahlleisteZustand("offen", anzahl, objekte)
+	.knoepfe.filter((k) => k.name === "auswahl_aufheben")[0];
 
-const voll = modul.garetienAuswahlAufhebenZustand(3);
+gleich(modul.garetienAuswahlleisteZustand("offen", 0, []).sichtbar, false,
+	"ohne eine einzige Auswahl gibt es die Leiste gar nicht -- das ist die neue „Sperre\"");
+const voll = knopfAufheben(3, []);
+gleich(voll.t1, "Auswahl aufheben", "die Beschriftung traegt keine Zahl im Namen");
+gleich(voll.t2, "3 Objekte", "die Zahl steht in Zeile 2");
 gleich(voll.gesperrt, false, "mit mindestens einer Auswahl ist der Knopf bedienbar");
-gleich(voll.beschriftung, "Auswahl aufheben", "die Beschriftung bleibt gleich -- sie zeigt keine Zahl");
-
-gleich(modul.garetienAuswahlAufhebenZustand().gesperrt, true, "ganz ohne Argument gilt dasselbe wie 0");
+gleich(voll.grund, "", "und er nennt keinen Grund -- er kann ja");
+// 💣 Auch wenn KEINES der gewaehlten Objekte in der Ansicht steht (Filterwechsel), bleibt er offen:
+// er raeumt die Auswahl ab, nicht die Zeilen.
+gleich(knopfAufheben(3, []).gesperrt, false,
+	"💣 er zaehlt die GANZE Auswahl, nicht die sichtbaren Objekte");
+gleich(modul.garetienAuswahlAufhebenZustand, undefined,
+	"🔴 die alte Fuss-Fassung ist ersatzlos gefallen -- zwei Erzeuger derselben Beschriftung "
+	+ "liefen beim naechsten Umbau auseinander");
 
 // =================================================================================================
 // 2. avesmapsGaretienAuswahlAufheben -- leert WIRKLICH, ergaenzt nichts, ersetzt nichts

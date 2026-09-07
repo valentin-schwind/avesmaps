@@ -512,32 +512,16 @@
 		return stand;
 	}
 
-	// ---- Owner-Auftrag B (30.08.2026): „Keines markieren" -- heute „Auswahl aufheben", neben
-	// „Alle wählen", derselbe Bau (REIN + DOM-Haelfte). 🔴 Gesperrt heisst hier NUR "nichts
-	// gewaehlt" (Auftrag) -- anders als „Alle wählen" haengt sie an KEINEM Reiter: die Auswahl ist
-	// filter-/reiterunabhaengig
-	// (dieselbe Menge, die „Markierte anzeigen" ueberall liest), also darf auch ihr Leeren auf
-	// jedem Reiter moeglich sein.
-	function garetienAuswahlAufhebenZustand(anzahlAusgewaehlt) {
-		const anzahl = Number(anzahlAusgewaehlt) || 0;
-		return {
-			anzahl: anzahl,
-			beschriftung: "Auswahl aufheben",
-			gesperrt: anzahl === 0,
-		};
-	}
-
-	function garetienAuswahlAufhebenKnopfSetzen(anzahlAusgewaehlt) {
-		if (!hasDocument) { return null; }
-		const stand = garetienAuswahlAufhebenZustand(anzahlAusgewaehlt);
-		const knopf = document.getElementById("garetien-mark-none");
-		if (knopf) {
-			knopf.textContent = stand.beschriftung;
-			knopf.disabled = stand.gesperrt;
-		}
-
-		return stand;
-	}
+	// ---- Owner-Auftrag B (30.08.2026): „Keines markieren" -- heute „Auswahl aufheben".
+	//
+	// 🔴 ER STEHT SEIT DEM 07.09.2026 NICHT MEHR IM FUSS, sondern in der AUSWAHLLEISTE (Fixrunde 1,
+	// D2): eine Handlung, die der AUSWAHL gilt, gehoert dorthin, wo die Auswahl ihre Zahl und ihren
+	// Kontext hat. Der Fuss behaelt, was der ganzen Stage gilt -- „Alle wählen", „Stage leeren",
+	// „Alle zentrieren", „Stage importieren". Der reine Zug `avesmapsGaretienAuswahlAufheben`
+	// (oben) ist unveraendert; Beschriftung und Sperre kommen jetzt aus
+	// `garetienAuswahlleisteZustand`.
+	// ⚠️ „Alle wählen" BLEIBT dagegen im Fuss: die Leiste erscheint erst, wenn schon etwas gewaehlt
+	// ist, und kann den Knopf, der die erste Auswahl macht, deshalb gar nicht tragen.
 
 	/* ---- Aufgabe 9+10 (07.09.2026): DIE AUSWAHLLEISTE ------------------------------------------
 	 *
@@ -563,15 +547,95 @@
 		abgelehnt: ["auswahl_wieder", "auswahl_aufheben"],
 	};
 
+	/*
+	 * 🔴 JEDER KNOPF DIESER LEISTE TRAEGT DAS WORT „Auswahl" (Fixrunde 1, D1/D2/D3, 07.09.2026).
+	 * Vier von ihnen standen bis dahin ZEICHENGLEICH auch in der Einzelansicht rechts („Von der
+	 * Stage nehmen", „Zurücknehmen", „Zurück nach Offen", „Wieder vorschlagen") und meinten dort
+	 * etwas anderes: EIN Objekt statt der Auswahl. Genau diese Verwechslung ist die Owner-Meldung
+	 * vom 07.09.2026 -- er hakte „Gramfeldermoor" an und lehnte „Briskenmoor" ab. Der Owner hat den
+	 * Weg zweimal selbst vorgegeben („Auswahl ablehnen", „Auswahl auf die Stage" -- „dann wär klar
+	 * was auf der Stage landet").
+	 *
+	 * 🔴 „Auswahl aus der Karte zurücknehmen" IST EINE GEMESSENE ABWEICHUNG vom Auftrag, der
+	 * schlicht „Auswahl zurücknehmen" verlangte. Der Grund steht in diesem Haus schon geschrieben
+	 * (Fixrunde 2, I4, an garetienRuecknahmeMengeZustand): dieser Knopf nimmt einen bereits
+	 * AUSGEFUEHRTEN Import von der Karte zurueck, und „Auswahl zurücknehmen" liest sich wie „die
+	 * Auswahl zurueckziehen" -- also wie sein Nachbar „Auswahl aufheben", der nur Haekchen
+	 * abraeumt. Auf dem Reiter „Übernommen" stehen die beiden nebeneinander; deshalb sagt der
+	 * gefaehrlichere der beiden, WORAUS er zurueckholt. Der Auftrag erlaubt die Laenge ausdruecklich
+	 * („passt eine Zeile nicht, trägt Zeile 2 die Zahl und Zeile 1 darf umbrechen").
+	 */
 	const AVESMAPS_GARETIEN_AUSWAHL_BESCHRIFTUNG = {
 		auswahl_stage: "Auswahl auf die Stage",
-		auswahl_entstagen: "Von der Stage nehmen",
+		auswahl_entstagen: "Auswahl von der Stage nehmen",
 		auswahl_ablehnen: "Auswahl ablehnen",
-		auswahl_ruecknahme: "Zurücknehmen",
-		auswahl_zurueck_offen: "Zurück nach Offen",
-		auswahl_wieder: "Wieder vorschlagen",
+		auswahl_ruecknahme: "Auswahl aus der Karte zurücknehmen",
+		auswahl_zurueck_offen: "Auswahl zurück nach Offen",
+		auswahl_wieder: "Auswahl wieder vorschlagen",
 		auswahl_aufheben: "Auswahl aufheben",
 	};
+
+	/*
+	 * 💣 JEDER KNOPF ZAEHLT UEBER DIE OBJEKTE, DIE ER WIRKLICH BEWEGEN KANN (Fixrunde 1, C2).
+	 *
+	 * Bis hierher zaehlte nur „Auswahl ablehnen" ueber die Objekte dieser Ansicht; die vier
+	 * uebrigen Verben nahmen die GROESSE der Auswahl und sperrten damit nie. Gemessen am
+	 * 07.09.2026: Reiter „Übernommen", 3 gewaehlt, keines ruecknehmbar -- der Fussknopf stand
+	 * gesperrt mit sichtbarem Grund, der Leistenknopf daneben BEDIENBAR und rot, und sein Klick
+	 * blieb wortlos. Genau der stille Klick, den dieser Schritt beseitigen soll.
+	 *
+	 * 🔴 EINE TAFEL, ZWEI LESER: die Anzeige (garetienAuswahlleisteZustand) und der Klickweg
+	 * (garetienAuswahlStillerAusgangText). Eine Regel, die einen von zwei Erzeugern bindet, ist
+	 * keine Regel.
+	 * ⚠️ Gezaehlt wird ueber die SICHTBAR gewaehlten Objekte. „Auswahl aufheben" ist die Ausnahme
+	 * und steht deshalb NICHT in dieser Tafel -- es raeumt die ganze Auswahl ab, auch die Zeilen,
+	 * die ein Filter gerade ausblendet, und kann immer.
+	 */
+	const AVESMAPS_GARETIEN_AUSWAHL_ZAEHLER = {
+		// Ansehen darf man jedes Objekt -- auch eines ohne Vorschlag („nur Ansicht", Entwurf §4).
+		// ⚠️ GEMESSENE ABWEICHUNG vom Entwurf, der hier „nur Objekte mit Vorschlag" verlangt: alle
+		// gewaehlten landen wirklich auf der Stage, und ein Knopf, der 3 sagt und 2 legt, waere die
+		// Falschaussage, die dieser Schritt abstellt (Auftrag D4: „gebaut ist das Gegenteil, und
+		// der Bau hat recht").
+		auswahl_stage: function (objekte) { return objekte.length; },
+		// Auf dem Reiter „Stage" liegt jede angezeigte Zeile per Definition auf der Stage --
+		// gezaehlt wird deshalb schlicht, was gewaehlt und sichtbar ist. (Der Reiter ist der
+		// einzige, auf dem dieser Knopf steht.)
+		auswahl_entstagen: function (objekte) { return objekte.length; },
+		auswahl_ablehnen: function (objekte) { return objekte.filter(garetienHatItem).length; },
+		auswahl_wieder: function (objekte) { return objekte.filter(garetienHatItem).length; },
+		// 🔴 `garetienRuecknahmeItems` ist die EINZIGE Pruefung fuer „laesst sich zuruecknehmen" --
+		// dieselbe, die der Einzelknopf und garetienRuecknahmeMengeZustand fragen.
+		auswahl_ruecknahme: function (objekte) {
+			return objekte.filter(function (o) { return garetienRuecknahmeItems(o).length > 0; }).length;
+		},
+		auswahl_zurueck_offen: function (objekte) {
+			return objekte.filter(function (o) { return garetienZurueckOffenItems(o).length > 0; }).length;
+		},
+	};
+
+	/*
+	 * Der GRUND, den ein gesperrter Knopf nennt -- sichtbar unter der Leiste, nie in einem `title`
+	 * (ein deaktivierter Knopf bekommt in Chrome keine Zeigerereignisse). Dieselbe Tafel speist die
+	 * Meldung des stillen Ausgangs; „nur ein Knopf, der einen Grund nennt, meldet ihn auch" ist
+	 * derselbe Riegel wie bei garetienStillerAusgangText.
+	 * ⚠️ Die drei Knoepfe, die immer koennen, solange etwas gewaehlt ist, brauchen keinen: ihre
+	 * Sperre heisst „nichts gewaehlt", und dann gibt es die Leiste gar nicht.
+	 */
+	const AVESMAPS_GARETIEN_AUSWAHL_GRUND = {
+		auswahl_ablehnen: "keines der gewählten Objekte trägt einen Vorschlag",
+		auswahl_wieder: "keines der gewählten Objekte trägt einen Vorschlag",
+		auswahl_ruecknahme: "keines der gewählten Objekte lässt sich zurücknehmen — sie haben ein "
+			+ "bestehendes Objekt verändert",
+		auswahl_zurueck_offen: "keines der gewählten Objekte wurde übernommen",
+	};
+
+	// REIN: traegt dieses Objekt ueberhaupt ein Item? Ein Objekt ohne Vorschlag traegt zu
+	// „ablehnen"/„wieder vorschlagen" nichts bei (garetien-liste.php gibt solchen Zeilen fest
+	// 'offen'); es mitzuzaehlen waere eine Falschaussage.
+	function garetienHatItem(objekt) {
+		return ((objekt && objekt.items) || []).length > 0;
+	}
 
 	// EINE Tafel, kein `if` -- dieselbe Bauform wie AVESMAPS_GARETIEN_HANDLUNG_TON daneben.
 	// Was hier nicht steht, ist neutral.
@@ -599,26 +663,26 @@
 		const anzahl = Number(anzahlGewaehlt) || 0;
 		if (anzahl <= 0) { return { sichtbar: false, knoepfe: [] }; }
 		const liste = objekte || [];
-		// ⚠️ „Ablehnen" zählt NUR, was ein Item trägt. Ein Objekt ohne Vorschlag trägt nichts bei
-		// (garetien-liste.php gibt solchen Zeilen fest 'offen'); es mitzuzählen wäre eine
-		// Falschaussage, und der Knopf verspräche eine Wirkung, die er nicht hat.
-		const mitItem = liste.filter(function (o) {
-			return ((o && o.items) || []).length > 0;
-		}).length;
 		const namen = AVESMAPS_GARETIEN_AUSWAHL_KNOEPFE_JE_REITER[String(stand || "")]
 			|| ["auswahl_aufheben"];
 
 		return {
 			sichtbar: true,
 			knoepfe: namen.map(function (name) {
-				const eigene = name === "auswahl_ablehnen";
-				const zahl = eigene ? mitItem : anzahl;
+				// 🔴 Fixrunde 1 (C2): die Zahl kommt aus der Zaehler-Tafel. „Auswahl aufheben" hat
+				// dort keinen Eintrag und nimmt die GANZE Auswahl -- es raeumt auch die Haekchen
+				// ab, die ein Filter gerade ausblendet.
+				const zaehler = AVESMAPS_GARETIEN_AUSWAHL_ZAEHLER[name];
+				const zahl = typeof zaehler === "function" ? zaehler(liste) : anzahl;
 				return {
 					name: name,
 					t1: AVESMAPS_GARETIEN_AUSWAHL_BESCHRIFTUNG[name] || name,
 					t2: garetienAnzahlText(zahl, "Objekt", "Objekte"),
 					ton: AVESMAPS_GARETIEN_AUSWAHL_TON[name] || "",
 					gesperrt: zahl === 0,
+					// Nur ein GESPERRTER Knopf nennt einen Grund -- am bedienbaren waere er die
+					// Erklaerung fuer etwas, das gar nicht eintritt.
+					grund: zahl === 0 ? (AVESMAPS_GARETIEN_AUSWAHL_GRUND[name] || "") : "",
 				};
 			}),
 		};
@@ -627,20 +691,35 @@
 	// REIN: die Leiste als Markup -- "" heißt „es gibt sie gerade nicht".
 	// 💣 UNSICHTBAR HEISST LEER, nicht eine leere Hülle: ein `hidden`-Kasten mit Knöpfen darin
 	// bleibt für einen synthetischen Klick erreichbar, und der Verteiler fände sein Ziel.
+	// 🔴 Der GRUND reist doppelt: SICHTBAR unter den Knöpfen (`.gi-auswahlleiste__grund`) und als
+	// `data-grund` am Knopf selbst -- der Klickweg liest ihn dort, damit Anzeige und Meldung
+	// dieselbe Zeichenkette sind und nie auseinanderlaufen.
 	function garetienAuswahlleisteMarkup(stand) {
 		const s = stand || {};
 		if (!s.sichtbar || !Array.isArray(s.knoepfe) || s.knoepfe.length === 0) { return ""; }
-		return s.knoepfe.map(function (k) {
+		const knoepfe = s.knoepfe.map(function (k) {
 			let klasse = "btn";
 			if (k.ton === "danger") { klasse += " btn--danger"; }
 			if (k.ton === "accent") { klasse += " btn--accent"; }
+			const grund = String(k.grund || "");
 			return '<button class="' + klasse + ' gi-act--zwei" type="button"'
 				+ ' data-auswahl="' + avesmapsGaretienEscape(k.name) + '"'
+				+ (grund === "" ? "" : ' data-grund="' + avesmapsGaretienEscape(grund) + '"')
 				+ (k.gesperrt ? " disabled" : "") + ">"
 				+ '<span class="gi-auswahl__t1">' + avesmapsGaretienEscape(k.t1) + "</span>"
 				+ '<span class="gi-auswahl__t2">' + avesmapsGaretienEscape(k.t2) + "</span>"
 				+ "</button>";
 		}).join("");
+		// ⚠️ Ein Satz je gesperrtem Knopf, entdoppelt: „Ablehnen" und „Wieder vorschlagen" teilen
+		// sich ihren Grund, und derselbe Satz zweimal untereinander liest sich wie zwei Befunde.
+		const gruende = [];
+		s.knoepfe.forEach(function (k) {
+			const g = String(k.grund || "");
+			if (g !== "" && gruende.indexOf(g) === -1) { gruende.push(g); }
+		});
+		return knoepfe + (gruende.length === 0 ? ""
+			: '<p class="gi-auswahlleiste__grund">'
+				+ avesmapsGaretienEscape(gruende.join(" · ")) + "</p>");
 	}
 
 	// Die DOM-Hälfte -- dieselbe Aufteilung wie bei „Alle wählen" daneben: Inhalt UND Sichtbarkeit
@@ -804,14 +883,12 @@
 		garetienUebernahmeKnopfSetzen(avesmapsGaretienStageListe());
 		// Aufgabe 10: ohne Lauf gibt es auch keine gerenderte Zeile -- und damit nichts zu waehlen.
 		garetienAlleWaehlenKnopfSetzen([]);
-		// Owner-Auftrag B: „Keines markieren" haengt an KEINEM Lauf und KEINEM Reiter (siehe seine
-		// eigene Begruendung) -- die echte Groesse der Auswahl wird hier trotzdem gemessen, nicht
-		// auf 0 gezwungen.
-		garetienAuswahlAufhebenKnopfSetzen(zustand.auswahl.size);
 		// Owner 30.08.2026: „Alle zentrieren" misst die ANZEIGE-Menge -- ohne Lauf ist sie leer.
 		garetienAlleZentrierenKnopfSetzen(avesmapsGaretienStageListe().length);
-		// Meldung C (30.08.2026): ohne Lauf gibt es auch nichts Gewähltes zurückzunehmen.
-		garetienRuecknahmeMengeKnopfSetzen([]);
+		// Fixrunde 1 (D2): „Auswahl aufheben" und „Import zurücknehmen" stehen seit dem 07.09.2026
+		// in der Auswahlleiste, nicht mehr im Fuss -- ohne Lauf gibt es dort nichts zu waehlen, also
+		// auch keine Leiste.
+		garetienAuswahlleisteSetzen(0, [], zustand.stand);
 	}
 
 	// Der Füllvorgang beim Öffnen, mit seinen Werkzeugen herein -- aus demselben Grund wie bei
@@ -1330,15 +1407,42 @@
 	// (avesmapsGaretienListeHolen, RULING R5). Auf jedem anderen Reiter reicht ein Neuzeichnen aus
 	// der zuletzt geholten Antwort -- ein Wählen/Leeren aendert an IHR nichts, nur an der
 	// Reiterzahl „Anzeigen (n)" und an der Karte.
+	// ⚠️ Sie GIBT ihren Listenlauf ZURUECK (Fixrunde 1, C3-Nachlauf): eine Meldung, die nach dem
+	// Zeichnen stehen soll, braucht etwas zum Anhaengen -- `avesmapsGaretienListeRendern` ruft
+	// `garetienStatusRuhe` und ueberschriebe sie sonst sofort mit der neutralen Bilanz. Dieselbe
+	// Reihenfolge, die der Einfuege-Weg seit dem 06.09. einhaelt.
 	function garetienStageNeuZeichnen() {
 		if (zustand.stand === "stage") {
-			avesmapsGaretienListeHolen();
-			return;
+			return avesmapsGaretienListeHolen();
 		}
 		avesmapsGaretienListeRendern(zustand.letzteAntwort);
 		if (typeof window !== "undefined" && typeof window.avesmapsGaretienKarteZeigen === "function") {
 			window.avesmapsGaretienKarteZeigen(avesmapsGaretienAufDerKarte());
 		}
+		return Promise.resolve(null);
+	}
+
+	/*
+	 * DER EINE REITERWECHSEL DIESES FENSTERS (Fixrunde 1, C3 -- 07.09.2026).
+	 *
+	 * 🔴 DIE AUSWAHL GEHOERT DER ANSICHT, NICHT DEM OBJEKT (Entwurf §4). Bis hierher ueberlebte sie
+	 * jeden Reiterwechsel, und das ist genau die Falle, die der Entwurf benennt: „auf Offen
+	 * ausgewählt, auf Übernommen zurückgenommen". Gemessen am 07.09.2026: Reiter „Abgelehnt",
+	 * 3 global gewaehlt, 0 davon sichtbar -- die Leiste stand da, ihr Knopf war bedienbar, und der
+	 * Klick blieb wortlos.
+	 *
+	 * 💣 EIN TRICHTER, DREI ERZEUGER. Den Reiter wechseln der Reiterklick, „Auswahl auf die Stage"
+	 * und „Imports in der Nähe anzeigen" -- eine Regel, die einen von dreien bindet, ist keine
+	 * Regel. Deshalb setzt NIEMAND mehr `zustand.stand` von Hand.
+	 * ⚠️ Ein Wechsel auf den Reiter, auf dem man schon steht, ist keiner: dann bleibt die Auswahl.
+	 * Der Rueckgabewert sagt, ob wirklich gewechselt wurde.
+	 */
+	function garetienReiterSetzen(neuerStand) {
+		const s = String(neuerStand || "");
+		if (s === "" || s === zustand.stand) { return false; }
+		zustand.stand = s;
+		zustand.auswahl.clear();
+		return true;
 	}
 
 	function garetienListeSkelettVerdrahten() {
@@ -1347,9 +1451,7 @@
 			tabsEl.addEventListener("click", function (ereignis) {
 				const knopf = ereignis.target.closest ? ereignis.target.closest(".avm-tab") : null;
 				if (!knopf) { return; }
-				const stand = knopf.getAttribute("data-stand");
-				if (!stand || stand === zustand.stand) { return; }
-				zustand.stand = stand;
+				if (!garetienReiterSetzen(knopf.getAttribute("data-stand"))) { return; }
 				avesmapsGaretienListeHolen();
 			});
 		}
@@ -1374,7 +1476,9 @@
 		if (auswahlleisteEl) {
 			auswahlleisteEl.addEventListener("click", function (ereignis) {
 				const ergebnis = garetienAuswahlleisteKlick(ereignis, zustand.objekte, zustand.planRunId, {
-					senden: avesmapsGaretienHandlungSenden,
+					// 🔴 Fixrunde 1 (C1): der MENGEN-Sender, in Haeppchen -- der Endpunkt kappt eine
+					// laengere id-Liste stillschweigend (siehe garetienMengeSendenMitMeldung).
+					sendenMenge: avesmapsGaretienMengeSenden,
 					fragen: garetienFragen,
 					// 🔴 Der Mengen-Rueckweg geht durch den VORHANDENEN Verteiler, nicht durch eine
 					// zweite Fassung: er traegt Rueckfrage, Riegel und Fortschritt schon.
@@ -1385,12 +1489,31 @@
 				});
 				if (!ergebnis) { return; }
 				// Die drei client-seitigen Handlungen zeichnen sofort neu; die schreibenden holen
-				// ihre Liste ohnehin selbst (avesmapsGaretienHandlungSenden).
+				// ihre Liste ohnehin selbst (avesmapsGaretienMengeSenden).
 				if (ergebnis.handlung === "auswahl_stage") {
 					// 🔴 UND DER REITER WECHSELT MIT -- derselbe Zug wie beim Fussknopf „Auf die
 					// Stage" (Owner 30.08.2026): wer eine Menge dorthin legt, will sie sehen.
-					zustand.stand = "stage";
-					garetienStageNeuZeichnen();
+					// ⚠️ Ueber den EINEN Trichter (garetienReiterSetzen), der dabei die Auswahl
+					// leert -- sie gehoert der Ansicht (Entwurf §4, Fixrunde 1 C3).
+					garetienReiterSetzen("stage");
+					const uebersprungen = Number(ergebnis.uebersprungen || 0);
+					const anzahl = ergebnis.anzahl;
+					// 💣 Die Meldung steht NACH dem Listenlauf -- `avesmapsGaretienListeRendern`
+					// ruft `garetienStatusRuhe` und setzte sie sonst sofort auf die neutrale Bilanz
+					// zurueck (dieselbe Reihenfolge wie beim Einfuege-Weg). Sie nennt, was
+					// liegengeblieben ist: ein „Nein" auf die Zusatz-Rueckfrage laesst genau diese
+					// Objekte zurueck, und stillschweigend waere das die Falle, die dieser Schritt
+					// abstellt.
+					Promise.resolve(garetienStageNeuZeichnen()).then(function () {
+						if (uebersprungen > 0) {
+							garetienStatusSetzen(
+								garetienAnzahlText(anzahl, "Objekt", "Objekte")
+									+ " auf die Stage gelegt, " + uebersprungen
+									+ " zusätzlich anzulegende übersprungen.",
+								"ok", null
+							);
+						}
+					});
 				} else if (ergebnis.handlung === "auswahl_entstagen"
 					|| ergebnis.handlung === "auswahl_aufheben") {
 					garetienStageNeuZeichnen();
@@ -1569,9 +1692,6 @@
 		// Aufgabe 10: „Alle markieren" traegt dagegen die Zahl der GERENDERTEN Zeilen -- `objekte`
 		// ist genau die aktuelle (gefilterte, gedeckelte) Ansicht, nicht die Stage.
 		garetienAlleWaehlenKnopfSetzen(objekte);
-		// Owner-Auftrag B: „Keines markieren" -- die ECHTE Groesse von `zustand.auswahl`, unabhaengig
-		// vom Reiter (siehe ihre eigene Begruendung).
-		garetienAuswahlAufhebenKnopfSetzen(zustand.auswahl.size);
 		// Aufgabe 9+10 (07.09.2026): die Auswahlleiste. ⚠️ Sie bekommt BEIDES -- die Groesse der
 		// Auswahl (fuer ihre Zahlen) und die GEWAEHLTEN Objekte der aktuellen Ansicht (fuer die
 		// Frage, ob ueberhaupt eines ein Item traegt). Die zwei koennen auseinanderlaufen, siehe
@@ -1584,10 +1704,6 @@
 		// Owner 30.08.2026: „Alle zentrieren" misst die ANZEIGE-Menge (was wirklich gezeichnet ist),
 		// nicht `objekte` -- siehe die Begründung an garetienAlleZentrierenZustand.
 		garetienAlleZentrierenKnopfSetzen(avesmapsGaretienStageListe().length);
-		// Meldung C (30.08.2026): „Markierte zurücknehmen" -- dieselbe gerenderte Liste, gefiltert
-		// auf `zustand.auswahl` UND den Reiter „Übernommen" (innerhalb der Funktion selbst).
-		garetienRuecknahmeMengeKnopfSetzen(objekte);
-
 		// Aufgabe 13: die Auswahl ueberlebt einen Listenlauf -- aber nur, solange ihre Zeile in der
 		// Ansicht steht. Faellt sie durch Filter oder Reiter heraus, faellt auch die Auswahl: eine
 		// Einzelansicht neben einer Liste, in der ihre Zeile gar nicht vorkommt, ist ein Geist -- und
@@ -4816,18 +4932,17 @@
 	// (Meldung B, 30.08.2026; garetien-plan.php haengt es an jedes 'deckt_sich'-Objekt, IMMER
 	// ungehakt, `change_type:'new'`, `anlass:'zusatz'`)?
 	//
-	// 🔴 DIE EINE STELLE FUER DIESE FRAGE (Schadensfall 30.08.2026, Aufgabe 19/20). Bis hierher
-	// beantwortete NUR `garetienNeuIstZusatz` (weiter unten) sie -- objektweise, fuer EINEN
-	// Aufrufer (die Rueckfrage vor „Neu einfuegen"). Jeder Pfad, der Items zum ANHAKEN oder
-	// UEBERNEHMEN SAMMELT, muss dasselbe Praedikat fragen und das Zusatz-Item ausschliessen --
+	// 🔴 DIE EINE STELLE FUER DIESE FRAGE (Schadensfall 30.08.2026, Aufgabe 19/20). Jeder Pfad, der
+	// Items zum ANHAKEN sammelt, muss dasselbe Praedikat fragen und das Zusatz-Item ausschliessen --
 	// sonst hakt eine Massenhandlung es MIT an, und ein Klick aendert dann gleichzeitig das
 	// GETROFFENE Objekt (das legitime Ergaenzungs-Item) UND legt daneben eine Dublette an (das
 	// Zusatz-Item). Genau das ist am 30.08.2026 mit „Alle angezeigten einfuegen" passiert: 3007
 	// Objekte, viele davon Dubletten, weil `garetienHakenItems` das Zusatz-Item nicht kannte.
-	// ⚠️ Der EINE legitime Weg zu diesem Item bleibt der Einzelknopf „Neu einfuegen" (der bei einer
-	// Kollision zu „trotzdem neu anlegen" wird, siehe garetienNeuKlick) -- er fragt bewusst NICHT
-	// dieses Praedikat, sondern `AVESMAPS_GARETIEN_ITEMS_JE_HANDLUNG.neu`
-	// (`change_type === 'new'`), das das Zusatz-Item WEITERHIN findet.
+	// ⚠️ DER EINE LEGITIME WEG ZU DIESEM ITEM IST SEIT DEM 07.09.2026 EIN ANDERER (Fixrunde 1, B3).
+	// Bis dahin war es der Einzelknopf „Neu einfuegen"; mit dessen Streichung hatte das Zusatz-Item
+	// gar keinen Zugang mehr. Heute traegt die STAGE es -- aber NUR fuer ein Objekt, das sonst
+	// nichts vorzuweisen hat, und nur nach einer Rueckfrage: siehe `garetienStageVorhaben` gleich
+	// unter `garetienHakenItems`.
 	function garetienItemIstZusatz(item) {
 		return Boolean(item) && String((item && item.change_type) || "") === "new"
 			&& garetienItemAnlass(item) === "zusatz";
@@ -4862,16 +4977,60 @@
 	// vor. Dieselbe Grenze zieht garetienAbschnittsItems für die Abschnittszeile -- beide Häkchen
 	// meinen also dieselbe Menge.
 	// 🔴 SCHADENSFALL 30.08.2026: das Zusatz-Item (garetienItemIstZusatz) gehört aus demselben
-	// Grund NICHT hierher -- diese Funktion speist sowohl das Zeilenhäkchen als auch
-	// `garetienStageAnhakenIds` (die Massenübernahme „Alle angezeigten einfügen"). Ein
-	// Zusatz-Item, das hier mitliefe, würde bei jedem Klick auf diesen Knopf zusätzlich zur
-	// Änderung am getroffenen Objekt eine Dublette anlegen -- „trotzdem neu anlegen" ist die
-	// begründete AUSNAHME und bleibt dem Einzelknopf „Neu einfügen" vorbehalten
-	// (AVESMAPS_GARETIEN_ITEMS_JE_HANDLUNG.neu fragt bewusst NICHT dieses Praedikat).
+	// Grund NICHT hierher -- diese Funktion speist das Zeilenhäkchen. Ein Zusatz-Item, das hier
+	// mitliefe, würde bei jedem Klick auf ein Häkchen zusätzlich zur Änderung am getroffenen
+	// Objekt eine Dublette anlegen. „Trotzdem neu anlegen" ist die begründete AUSNAHME und geht
+	// seit dem 07.09.2026 über die Stage (garetienStageVorhaben darunter) -- NIE über ein Häkchen.
 	function garetienHakenItems(objekt) {
 		return ((objekt && objekt.items) || []).filter(function (item) {
 			return garetienItemAnlass(item) !== "geometrie" && !garetienItemIstZusatz(item);
 		});
+	}
+
+	/*
+	 * REIN: was die STAGE mit diesem Objekt vorhat -- „neu" | „ergaenzung" | „zusatz" | „nichts".
+	 *
+	 * 🔴 FIXRUNDE 1, BEFUND B3 (07.09.2026). Bis hierher lasen zwei Stellen dieselbe Frage
+	 * verschieden: der Vorwärtsknopf fragte `garetienEingefuegtWirdHatVorschlag` (irgendein Item
+	 * mit `change_type === 'new'`, das Zusatz-Item eingeschlossen) und versprach „als Flussweg",
+	 * während `garetienStageUebernahmeIds` über `garetienHakenItems` lief und für dasselbe Objekt
+	 * NICHTS lieferte. Zwei Leser, zwei Antworten, ein Knopf. Diese Funktion ist die EINE Antwort:
+	 * die Anzeige (garetienStageZeile2) und der Schreibumfang (garetienStageItems) lesen sie beide.
+	 *
+	 * 🔴 DAS ZUSATZ-ITEM KOMMT NUR MIT, WENN DAS OBJEKT SONST NICHTS HAT -- und das ist kein
+	 * Feinschliff, sondern der Riegel gegen den Schadensfall vom 30.08.2026. AM DUMP GEMESSEN
+	 * (04.09.2026, Lauf 73 = der offene Lauf mit 4.294 Items):
+	 *
+	 *     3.385 Objekte  echtes NEU (Haken-Item mit change_type 'new')
+	 *         4 Objekte  nur ERGAENZUNG (Quelle), ohne Zusatz-Item
+	 *       334 Objekte  ERGAENZUNG **und** Zusatz-Item   <-- die gemischte Lage
+	 *       194 Objekte  NUR das Zusatz-Item              <-- die Lage aus B3
+	 *
+	 * 💣 Der Auftrag der Fixrunde nannte 528 Objekte mit Zusatz-Item und schrieb, bei „allen 528"
+	 * sei es das EINZIGE. Das stimmt fuer 194; die uebrigen 334 tragen daneben ein legitimes
+	 * Quellen-Ergaenzungs-Item. Haette die Stage bei denen BEIDE Items uebernommen, wuerde ein
+	 * Import gleichzeitig die Quelle am getroffenen Objekt ergaenzen UND eine Dublette anlegen --
+	 * exakt der Schaden vom 30.08.2026 („hat unsere ganze karte zerstoert"), nur ueber einen neuen
+	 * Knopf. Deshalb: erst das Haken-Item, und NUR wenn es keines gibt, das Zusatz-Item.
+	 */
+	function garetienStageVorhaben(objekt) {
+		const haken = garetienHakenItems(objekt);
+		if (haken.length > 0) {
+			return haken.some(function (item) {
+				return String((item && item.change_type) || "") === "new";
+			}) ? "neu" : "ergaenzung";
+		}
+		return ((objekt && objekt.items) || []).some(garetienItemIstZusatz) ? "zusatz" : "nichts";
+	}
+
+	// REIN: die Items, die die STAGE fuer dieses Objekt uebernimmt -- gebaut aus DERSELBEN Weiche,
+	// damit Anzeige und Schreibumfang nie auseinanderlaufen koennen.
+	// ⚠️ Das Geometrie-Item bleibt draussen (es hat seinen eigenen Knopf mit Rueckfrage) -- es
+	// kommt in keinem der vier Faelle vor.
+	function garetienStageItems(objekt) {
+		return garetienStageVorhaben(objekt) === "zusatz"
+			? ((objekt && objekt.items) || []).filter(garetienItemIstZusatz)
+			: garetienHakenItems(objekt);
 	}
 
 	// Welche Items gehören zu welchem Knopf?
@@ -4990,17 +5149,19 @@
 		// NICHTS geschrieben wird -- das ist der ganze Sinn der Stage, und ein Editor, der „Auf die
 		// Stage" für „einfügen" hält, drückt gleich darauf verwundert „Zurücknehmen".
 		case "stage":
-			return "Legt " + benannt + " auf die Stage: es wird auf der Karte VORGESCHAUT und mit "
-				+ "„Stage importieren\" angelegt. Jetzt wird noch nichts geschrieben.";
+			// 🔴 Fixrunde 1 (B3): das Zusatz-Objekt bekommt SEINEN eigenen Satz. Sein Weg auf die
+			// Stage ist der Weg, den „Neu einfügen" bis zum 07.09.2026 war -- und er endet, anders
+			// als jener, erst bei „Stage importieren".
+			return garetienStageVorhaben(o) === "zusatz"
+				? "Legt " + benannt + " auf die Stage, um es ZUSÄTZLICH als eigenes Objekt "
+					+ "anzulegen — obwohl der Abgleich eine Übereinstimmung gefunden hat. Das "
+					+ "bestehende Objekt bleibt unberührt. Geschrieben wird erst mit "
+					+ "„Stage importieren\"."
+				: "Legt " + benannt + " auf die Stage: es wird auf der Karte VORGESCHAUT und mit "
+					+ "„Stage importieren\" angelegt. Jetzt wird noch nichts geschrieben.";
 		case "entstagen":
 			return "Nimmt " + benannt + " wieder von der Stage — es wird dann nicht mehr "
 				+ "vorgeschaut und von „Stage importieren\" nicht angelegt. Der Vorschlag bleibt.";
-		case "neu":
-			return garetienNeuIstZusatz(o)
-				? "Legt " + benannt + " ZUSÄTZLICH als eigenes Objekt an, obwohl der Abgleich eine "
-					+ "Übereinstimmung gefunden hat. Das bestehende Objekt bleibt unberührt."
-				: "Legt " + benannt + " als neues Objekt auf der Karte an — mit den Einstellungen "
-					+ "aus „Eingefügt wird\" und den Quellen darunter.";
 		case "innerorts":
 			return "Legt " + benannt + " als besondere Stätte in „" + garetienInnerortsOrt(o)
 				+ "\" an — OHNE Position auf der Karte. Es erscheint dort in der Infobox der Stadt "
@@ -5296,16 +5457,32 @@
 	 * ⚠️ NIE GESPERRT -- ansehen darf man jedes Objekt, auch eines ohne Vorschlag. Was dann passiert,
 	 * sagt die zweite Zeile („nur Ansicht"), nicht ein grauer Knopf.
 	 */
+	// 🔴 FIXRUNDE 1, BEFUND B3: DIESE ZEILE FRAGT `garetienStageVorhaben`, NICHT MEHR
+	// `garetienEingefuegtWirdHatVorschlag`. Jene Frage lautet „gäbe es hier etwas ANZULEGEN" und
+	// zaehlt das Zusatz-Item mit -- gemessen am Lauf 73 versprach der Knopf damit 528 Objekten
+	// „als Flussweg", waehrend der Import bei 194 davon gar nichts tat und bei 334 nur eine Quelle
+	// ergaenzte. Vier Faelle, vier Saetze, und alle vier sagen, was „Stage importieren" wirklich tut.
 	function garetienStageZeile2(objekt, aufDerStage) {
-		// „Hat einen Vorschlag" heisst hier: es gaebe beim Import wirklich etwas anzulegen --
-		// dieselbe Frage, die der Kasten „Eingefügt wird" stellt, mit demselben Praedikat.
-		if (!garetienEingefuegtWirdHatVorschlag(objekt)) {
+		const vorhaben = garetienStageVorhaben(objekt);
+		if (vorhaben === "nichts") {
 			return aufDerStage ? "liegt nur zur Ansicht" : "nur Ansicht";
+		}
+		// ⚠️ Eine ERGAENZUNG legt nichts an -- sie haengt die Quelle an ein BESTEHENDES Objekt
+		// (AVESMAPS_GARETIEN_ERGAENZUNG_FELDER ist genau `['quelle']`). „als Fluss" waere hier die
+		// Beschreibung einer anderen Handlung.
+		if (vorhaben === "ergaenzung") {
+			return aufDerStage ? "liegt für die Quelle" : "ergänzt nur die Quelle";
 		}
 		// ⚠️ Die GEWAEHLTE Form, nicht der rohe Vorschlag (garetienUnserBeschriftung liest
 		// `garetienZielWahlZu`) -- sonst verspraeche der Knopf „als Fläche", waehrend der Kasten
 		// darueber „Berggipfel" zeigt. Ohne gewaehlte Art bleibt der ehrliche Rueckfall.
 		const art = garetienUnserBeschriftung(objekt) || "Vorschlag dieses Laufs";
+		// 🔴 „zusätzlich" IST DIE AUSSAGE: der Abgleich hat etwas gefunden, und dieses Objekt kommt
+		// TROTZDEM als eigenes dazu. Ohne das Wort liest sich der Knopf wie jeder Neuzugang, und
+		// genau davor warnt die Rueckfrage (garetienZusatzRueckfrageText).
+		if (vorhaben === "zusatz") {
+			return (aufDerStage ? "liegt zusätzlich als " : "zusätzlich als ") + art;
+		}
 		return (aufDerStage ? "liegt als " : "als ") + art;
 	}
 
@@ -5476,16 +5653,31 @@
 	// hat das Kästchen beim Klick schon umgeschaltet, und zwei Buchhaltungen laufen beim ersten
 	// Abbruch auseinander. Dreiwertig (halb angehakt) heißt „alle anhaken" -- die aufbauende
 	// Richtung, wie bei jedem dreiwertigen Häkchen.
-	function garetienHakenPlan(objekt, publicId) {
-		const items = (publicId === null || publicId === undefined || publicId === "")
-			? garetienHakenItems(objekt)
-			: garetienAbschnittsItems(objekt, publicId);
-		const ids = items
+	// REIN: die TOGGLE-Regel, aus einer Item-Menge. 🔴 EINE Regel, zwei Mengen -- das Zeilenhäkchen
+	// fragt sie über `garetienHakenItems`, der Stage-Import über `garetienStageItems`. Vor der
+	// Fixrunde 1 stand sie nur in `garetienHakenPlan`, und `garetienStageAnhakenIds` hätte sie beim
+	// Anschluss des Zusatz-Items abschreiben müssen -- eine Regel in zwei Fassungen läuft beim
+	// ersten Umbau auseinander.
+	function garetienPlanAusItems(items) {
+		const liste = items || [];
+		const ids = liste
 			.map(function (item) { return Number(item && item.id); })
 			.filter(function (id) { return id > 0; });
 		if (ids.length === 0) { return null; }
 
-		return { ids: ids, selected: !items.every(avesmapsGaretienItemIstAngehakt) };
+		return { ids: ids, selected: !liste.every(avesmapsGaretienItemIstAngehakt) };
+	}
+
+	function garetienHakenPlan(objekt, publicId) {
+		return garetienPlanAusItems((publicId === null || publicId === undefined || publicId === "")
+			? garetienHakenItems(objekt)
+			: garetienAbschnittsItems(objekt, publicId));
+	}
+
+	// Der Plan des STAGE-Imports -- dieselbe Toggle-Regel, die andere Item-Menge (siehe
+	// garetienStageItems).
+	function garetienStagePlan(objekt) {
+		return garetienPlanAusItems(garetienStageItems(objekt));
 	}
 
 	function garetienHakenRumpf(objekt, publicId, runId) {
@@ -5876,10 +6068,12 @@
 	 *
 	 * ⚠️ Ereignis UND Objektliste kommen HEREIN, damit sich am ERGEBNIS messen lässt, welches
 	 * Objekt wirklich auf die Stage kam -- dieselbe Bauform wie die drei Verteiler daneben.
-	 * ⚠️ KEINE Rückfrage: beide Richtungen sind mit demselben Knopf sofort umkehrbar, und auf der
-	 * Karte wird dabei nichts angelegt.
+	 * ⚠️ KEINE Rückfrage -- MIT GENAU EINER AUSNAHME (Fixrunde 1, B3): ein Objekt, dessen einziges
+	 * Item das Zusatz-Item ist, legt beim Import ein ZWEITES Kartenobjekt neben ein getroffenes.
+	 * Das ist die ausdrückliche Wahl, die früher „Neu einfügen" war, und sie fragt nach. Alles
+	 * andere ist mit demselben Knopf sofort umkehrbar, und auf der Karte wird dabei nichts angelegt.
 	 */
-	function garetienStageKlick(ereignis, objekte) {
+	function garetienStageKlick(ereignis, objekte, fragen) {
 		const ziel = ereignis && ereignis.target;
 		if (!ziel || typeof ziel.closest !== "function") { return null; }
 		const knopf = ziel.closest('[data-handlung="stage"], [data-handlung="entstagen"]');
@@ -5890,6 +6084,14 @@
 		if (name === "entstagen") {
 			avesmapsGaretienStageEntfernen([objekt.key]);
 			return { handlung: "entstagen", objekt: objekt, groesse: zustand.stage.size };
+		}
+		// 💣 Ein „Nein" zaehlt trotzdem als GEFUNDEN (`handlung: "stage_abgelehnt"`, kein `null`) --
+		// sonst fiele derselbe Klick weiter zu `garetienHandlungKlick` durch und verschickte ein
+		// sinnloses `select` an die geteilte Tuer. Dieselbe Falle wie bei garetienNeuKlick und
+		// garetienRuecknahmeKlick.
+		if (garetienStageVorhaben(objekt) === "zusatz") {
+			const ok = typeof fragen === "function" ? fragen(garetienZusatzRueckfrageText(objekt)) : false;
+			if (!ok) { return { handlung: "stage_abgelehnt", objekt: objekt, groesse: zustand.stage.size }; }
 		}
 		avesmapsGaretienStageHinzufuegen([objekt]);
 		return { handlung: "stage", objekt: objekt, groesse: zustand.stage.size };
@@ -5940,12 +6142,41 @@
 		const gewaehlte = (objekte || []).filter(function (o) {
 			return o && avesmapsGaretienAuswahlHat(o.key);
 		});
+		// 💣 FIXRUNDE 1 (C2): DER STILLE AUSGANG MELDET AUCH HIER SEINEN GRUND. Bis dahin gab es
+		// `garetienStillerAusgangMelden` nur im ANDEREN Klickweg (garetienHandlungKlick) -- „eine
+		// Regel, die einen von zwei Klickwegen bindet, ist keine Regel". Der Grund kommt vom Knopf
+		// selbst (`data-grund`), also aus derselben Zeichenkette, die sichtbar unter der Leiste
+		// steht.
+		const still = function () { garetienAuswahlStillerAusgangMelden(knopf); return null; };
 
 		if (name === "auswahl_aufheben") {
 			return { handlung: name, anzahl: avesmapsGaretienAuswahlAufheben() };
 		}
 		if (name === "auswahl_stage") {
-			return { handlung: name, anzahl: avesmapsGaretienAuswahlAufDieStage(objekte) };
+			// 🔴 FIXRUNDE 1 (B3): ein Objekt, dessen einziges Item das Zusatz-Item ist, kommt nur
+			// nach einer Rueckfrage auf die Stage -- dieselbe Regel wie beim Einzelknopf
+			// (garetienStageKlick), hier EINMAL fuer die ganze Menge gestellt.
+			// ⚠️ Ein „Nein" verwirft nur DIESE Objekte, nicht die ganze Handlung: der Rest der
+			// Auswahl kommt trotzdem auf die Stage, und das Ergebnis sagt, wie viele liegenblieben
+			// („nie stillschweigend weggelassen", dieselbe Sorgfalt wie bei „Auswahl ablehnen").
+			const zusatz = garetienZusatzObjekte(gewaehlte);
+			let liste = gewaehlte;
+			let uebersprungen = 0;
+			if (zusatz.length > 0) {
+				const ok = typeof w.fragen === "function"
+					&& w.fragen(garetienZusatzMengeRueckfrageText(zusatz));
+				if (!ok) {
+					liste = gewaehlte.filter(function (o) {
+						return garetienStageVorhaben(o) !== "zusatz";
+					});
+					uebersprungen = zusatz.length;
+				}
+			}
+			return {
+				handlung: name,
+				anzahl: avesmapsGaretienAuswahlAufDieStage(liste),
+				uebersprungen: uebersprungen,
+			};
 		}
 		if (name === "auswahl_entstagen") {
 			return {
@@ -5955,7 +6186,7 @@
 		}
 		if (name === "auswahl_ablehnen" || name === "auswahl_wieder") {
 			const ids = garetienAuswahlAblehnenIds(gewaehlte);
-			if (ids.length === 0) { return null; }
+			if (ids.length === 0) { return still(); }
 			// ⚠️ Gefragt wird NUR beim Ablehnen. „Wieder vorschlagen" ist die aufbauende Richtung
 			// und fragt niemanden -- dieselbe Regel wie beim Einzelknopf.
 			if (name === "auswahl_ablehnen" && typeof w.fragen === "function"
@@ -5964,28 +6195,57 @@
 			}
 			const meldung = name === "auswahl_ablehnen"
 				? garetienAuswahlAblehnenMeldung(gewaehlte)
-				: garetienAnzahlText(gewaehlte.length, "Objekt", "Objekte")
-					+ " wieder vorgeschlagen.";
-			return w.senden({
+				: garetienAnzahlText(garetienAuswahlAblehnenMengen(gewaehlte).abgelehnt,
+					"Objekt", "Objekte") + " wieder vorgeschlagen.";
+			// 💣 FIXRUNDE 1 (C1): GEDECKELT WAR DIE ANFRAGE, NICHT DIE HANDLUNG. `ids.slice(0, 200)`
+			// warf den Rest weg und meldete trotzdem die volle Zahl. Jetzt gehen ALLE ids hinaus,
+			// in Haeppchen -- derselbe Weg wie beim Stage-Import.
+			return w.sendenMenge({
 				action: name === "auswahl_ablehnen" ? "decline" : "undecline",
 				kind: GARETIEN_PLAN_ART,
 				run_id: runId,
-				// 💣 Gedeckelt wie das Sammel-Anhaken: der Endpunkt nimmt nicht beliebig viele ids
-				// auf einmal (AVESMAPS_SYNC_PLAN_CATEGORY_LIMIT).
-				ids: ids.slice(0, GARETIEN_ANHAKEN_HAEPPCHEN),
-			}, meldung);
+			}, ids, meldung);
 		}
-		if (name === "auswahl_ruecknahme" && typeof w.ruecknahme === "function") {
-			return w.ruecknahme();
+		if (name === "auswahl_ruecknahme") {
+			// ⚠️ Gezaehlt wird HIER mit derselben Tafel wie in der Anzeige, statt sich auf den
+			// Rueckgabewert des Mengen-Verteilers zu verlassen: der liefert eine Zusage, und eine
+			// Zusage ist immer wahr -- ein `|| still()` dahinter koennte nie zuschlagen.
+			if (AVESMAPS_GARETIEN_AUSWAHL_ZAEHLER.auswahl_ruecknahme(gewaehlte) === 0) { return still(); }
+			return typeof w.ruecknahme === "function" ? w.ruecknahme() : null;
 		}
 		if (name === "auswahl_zurueck_offen" && typeof w.zurueckOffen === "function") {
 			const items = gewaehlte.reduce(function (acc, o) {
 				return acc.concat(garetienZurueckOffenItems(o));
 			}, []);
-			if (items.length === 0) { return null; }
+			if (items.length === 0) { return still(); }
 			return w.zurueckOffen(items.map(function (item) { return item.id; }), runId);
 		}
-		return null;
+		return still();
+	}
+
+	/*
+	 * REIN: was die Statuszeile sagt, wenn ein LEISTEN-Knopf nichts hinausschickt -- oder "".
+	 *
+	 * 🔴 DERSELBE RIEGEL WIE BEI garetienStillerAusgangText: gemeldet wird nur, was einen GRUND
+	 * nennt. Er steht am Knopf (`data-grund`, aus AVESMAPS_GARETIEN_AUSWAHL_GRUND), also in
+	 * derselben Zeichenkette, die sichtbar unter der Leiste steht -- zwei Fassungen desselben
+	 * Satzes liefen beim ersten Umbau auseinander.
+	 * ⚠️ Ohne Grund bleibt es still: ein bedienbarer Knopf, der nichts ausrichtet, ist nach C2 gar
+	 * nicht mehr moeglich, und eine erfundene Meldung waere schlimmer als keine.
+	 */
+	function garetienAuswahlStillerAusgangText(knopf) {
+		const grund = String((knopf && typeof knopf.getAttribute === "function"
+			&& knopf.getAttribute("data-grund")) || "");
+		if (grund === "") { return ""; }
+		const name = String((knopf && typeof knopf.getAttribute === "function"
+			&& knopf.getAttribute("data-auswahl")) || "");
+		const t1 = AVESMAPS_GARETIEN_AUSWAHL_BESCHRIFTUNG[name] || name;
+		return "✕ " + t1 + " geht nicht: " + grund + ".";
+	}
+
+	function garetienAuswahlStillerAusgangMelden(knopf) {
+		const text = garetienAuswahlStillerAusgangText(knopf);
+		return text === "" ? null : garetienStatusSetzen(text, "bad", null);
 	}
 
 	// REIN: was nach einer geglückten Handlung in der Statuszeile steht -- oder "" (dann meldet die
@@ -6026,25 +6286,22 @@
 	// 🔴 Owner: „bei bestehenden Fläche, wo er Kollisionen erkannt hat ... kann ich Quelle +
 	// Artikel und Geometrie ersetzen aber die Region nicht 'neu hinzufügen'". garetien-plan.php
 	// legt seither IMMER ein Zusatz-Item an (`anlass:'zusatz'`, `change_type:'new'`,
-	// `entity_public_id:null`) -- diese zwei Funktionen erkennen es und fragen nach, BEVOR
-	// garetienNeuKlick es wie jeden anderen Neuzugang behandelt.
-
-	// REIN: ist die "Neu einfügen"-Handlung hier die begründete AUSNAHME „trotzdem, trotz
-	// Kollision", oder der normale Fall (kein Treffer)? Entscheidet das ITEM, nicht das URTEIL --
-	// `anlass==='zusatz'` ist die einzige Quelle dieser Unterscheidung (garetien-plan.php,
-	// avesmapsGaretienErgaenzungsEintraege). Ein urteilsbasierter Riegel liefe auseinander,
-	// sobald ein Objekt trotz 'ergaenzung'-Urteil KEIN legitimes Ergänzungs-Item, aber ein
-	// Zusatz-Item trägt (alle Abschnitte fremd benannt) -- der Riegel muss trotzdem greifen.
-	// 🔴 Fragt seit Schadensfall 30.08.2026 dasselbe Praedikat wie `garetienHakenItems`
-	// (garetienItemIstZusatz) -- EINE Stelle fuer „ist das ein Zusatz-Item", nicht zwei
-	// wortgleiche Bedingungen, die auseinanderlaufen koennten.
-	function garetienNeuIstZusatz(objekt) {
-		return ((objekt && objekt.items) || []).some(garetienItemIstZusatz);
-	}
+	// `entity_public_id:null`).
+	//
+	// 🔴 SEIT DEM 07.09.2026 ERKENNT ES `garetienStageVorhaben` (oben bei garetienHakenItems), NICHT
+	// MEHR EIN EIGENES `garetienNeuIstZusatz`. Jenes fragte objektweise „traegt das Objekt IRGENDWO
+	// ein Zusatz-Item" und war damit fuer die 334 gemischten Objekte des Laufs 73 zu weitherzig; die
+	// Weiche oben unterscheidet, ob das Zusatz-Item der EINZIGE Weg nach vorn ist. Geblieben ist
+	// die Rueckfrage darunter -- sie fragt jetzt vor „Auf die Stage".
 
 	// REIN: die Rückfrage vor „trotzdem neu anlegen" -- sie NENNT, was daneben liegt (Owner:
 	// „sonst legt jemand aus Versehen den zweiten Krähensee an"). Name und Abstand stehen in der
 	// Einzelansicht bereits (`objekt.grund`, vom Abgleich gebaut) -- keine zweite Rechnung dafür.
+	//
+	// 🔴 SIE STEHT SEIT DEM 07.09.2026 AN EINER ANDEREN STELLE (Fixrunde 1, B3). Frueher fragte sie
+	// vor „Neu einfuegen"; mit dessen Streichung war sie tot, und das Zusatz-Item hatte gar keinen
+	// Zugang mehr. Heute fragt sie vor „Auf die Stage" -- einzeln (garetienStageKlick) wie in der
+	// Menge (garetienAuswahlleisteKlick, ueber garetienZusatzMengeRueckfrageText).
 	function garetienZusatzRueckfrageText(objekt) {
 		const o = objekt || {};
 		const name = String(o.name || "").trim() || "(ohne Namen)";
@@ -6053,43 +6310,70 @@
 		return "„" + name + "“ wird ZUSÄTZLICH angelegt — der Abgleich hat eine Übereinstimmung "
 			+ "gefunden" + (grund === "" ? "" : " (" + grund + ")") + ". Das bestehende Objekt "
 			+ "bleibt dabei unberührt.\n\n"
-			// 💣 DIESER SATZ SAGT, WAS DIESER KLICK TUT -- und dieser Klick legt SOFORT an.
-			// Vom 06.09. bis zur Designabnahme stand hier „kommt auf die Stage und wird mit
-			// „Stage importieren“ angelegt“; das ist die Beschreibung einer ANDEREN Handlung.
-			// `garetienNeuKlick` ruft `garetienEinfuegenAusfuehren`, und die schickt `select` UND
-			// unmittelbar danach `apply` -- das Objekt steht am Ende dieses Klicks auf der Karte.
-			// Der Editor hätte danach einen zweiten Schritt gesucht, der nichts mehr zu tun hat.
-			// ⚠️ Die strukturgleiche Rückfrage für „Ausgewählte Segmente ersetzen“ sagt zu Recht
-			// das Gegenteil: JENE Handlung schickt wirklich nur `select`.
-			+ "Das Objekt wird jetzt sofort als eigenes Objekt angelegt.";
+			// 💣 DIESER SATZ SAGT, WAS DIESER KLICK TUT -- und das ist seit dem 07.09.2026 etwas
+			// anderes. Bis zur Designabnahme stand hier „kommt auf die Stage und wird mit „Stage
+			// importieren“ angelegt“, und das war damals FALSCH: `garetienNeuKlick` schickte
+			// `select` UND unmittelbar danach `apply`, das Objekt stand am Ende des Klicks auf der
+			// Karte. Danach hiess der Satz „wird jetzt sofort als eigenes Objekt angelegt". Mit dem
+			// Wegfall von „Neu einfuegen" (Aufgabe 9+10) fragt dieselbe Rueckfrage jetzt vor „Auf
+			// die Stage" -- und dort schreibt nichts. Der alte Satz waere hier die Beschreibung
+			// einer Handlung, die es nicht mehr gibt.
+			+ "Es kommt auf die Stage und wird erst mit „Stage importieren\" wirklich angelegt.";
+	}
+
+	// REIN: welche der gewaehlten Objekte auf der Stage ihr ZUSATZ-Item mitbringen wuerden --
+	// dieselbe Weiche wie beim Einzelknopf (garetienStageVorhaben), damit Menge und Einzelstueck
+	// nicht zwei Meinungen haben. „Eine Regel, die einen von zwei Erzeugern bindet, ist keine."
+	function garetienZusatzObjekte(objekte) {
+		return (objekte || []).filter(function (o) {
+			return garetienStageVorhaben(o) === "zusatz";
+		});
+	}
+
+	// REIN: die Rueckfrage der MENGE. Sie nennt die Zahl und die drei ersten Namen -- eine
+	// Rueckfrage ueber 40 Objekte, die keinen einzigen nennt, ist eine Zahl ohne Gegenstand.
+	// ⚠️ Ein „Nein" verwirft NICHT die ganze Handlung: die uebrigen gewaehlten Objekte kommen
+	// trotzdem auf die Stage, und die Meldung sagt, wie viele uebersprungen wurden (dieselbe
+	// Sorgfalt wie bei „Auswahl ablehnen"). Verworfen wird genau das, wovor gewarnt wurde.
+	function garetienZusatzMengeRueckfrageText(objekte) {
+		const liste = objekte || [];
+		const namen = liste.slice(0, 3).map(function (o) {
+			return "„" + (String((o && o.name) || "").trim() || "(ohne Namen)") + "\"";
+		}).join(", ");
+		const rest = liste.length > 3 ? " und " + (liste.length - 3) + " weitere" : "";
+		return garetienAnzahlText(liste.length, "Objekt", "Objekte") + " der Auswahl "
+			+ (liste.length === 1 ? "wird" : "werden") + " ZUSÄTZLICH angelegt — der Abgleich hat "
+			+ (liste.length === 1 ? "dafür" : "für sie") + " jeweils eine Übereinstimmung gefunden "
+			+ "(" + namen + rest + "). Die bestehenden Objekte bleiben unberührt.\n\n"
+			+ "Mit „OK\" kommen sie mit auf die Stage. Mit „Abbrechen\" bleiben nur sie liegen — "
+			+ "der Rest der Auswahl kommt trotzdem darauf.";
 	}
 
 	function garetienNeuKlick(ereignis, objekte, runId, fragen) {
 		const ziel = ereignis && ereignis.target;
 		if (!ziel || typeof ziel.closest !== "function") { return null; }
-		// 🔴 ZWEI KNÖPFE, EIN WEG. „Innerorts einfügen" ist derselbe Ablauf wie „Neu einfügen" --
-		// anhaken, übernehmen, Anzeige bereinigen, Liste neu holen -- und unterscheidet sich in
-		// GENAU einem Wert: der Handeingabe, die mitreist. Ein zweiter Klick-Handler wäre eine
-		// zweite Fassung des Laufriegels (garetienEinfuegenLaeuft) und der Fehlerbehandlung, und
-		// die läuft beim ersten Umbau auseinander.
-		const knopf = ziel.closest('[data-handlung="neu"], [data-handlung="innerorts"]');
+		// 🔴 SEIT DEM 07.09.2026 IST HIER NUR NOCH EIN KNOPF. „Neu einfügen" (`data-handlung="neu"`)
+		// ist mit Owner-Punkt 12 gefallen -- angelegt wird über „Stage importieren". Geblieben ist
+		// „Innerorts einfügen (Stadt)", und das ist eine GEMESSENE Ausnahme (siehe garetienHandlungen):
+		// der Stage-Import schickt keine `einstellungen`, und `avesmapsGaretienInnerortsGewuenscht`
+		// entscheidet ausschliesslich daraus.
+		// ⚠️ Der Name der Funktion bleibt -- eine Umbenennung waere eine Aenderung ohne Wirkung an
+		// acht Stellen; die Verdrahtung nennt sie an genau einer.
+		// ⚠️ Die Zusatz-Rueckfrage steht NICHT mehr hier, sondern an garetienStageKlick: „trotzdem
+		// neu anlegen" laeuft seither ueber die Stage. „Innerorts einfügen" legt gar kein
+		// Kartenobjekt an, die Kollision kann es hier nicht geben.
+		const knopf = ziel.closest('[data-handlung="innerorts"]');
 		if (!knopf || knopf.disabled) { return null; }
-		const handlung = String(knopf.getAttribute("data-handlung") || "neu");
+		const handlung = String(knopf.getAttribute("data-handlung") || "innerorts");
 		const objekt = garetienObjektNach(knopf.getAttribute("data-key"), objekte);
 		if (!objekt) { return null; }
 		const rumpf = garetienHandlungsRumpf(handlung, objekt, runId);
 		if (!rumpf) { return null; }
-		// 💣 Ein „Nein" zählt trotzdem als GEFUNDEN (`return true`) -- sonst fiele derselbe Klick
-		// zu garetienHandlungKlick durch, das über die geteilte Tür (GARETIEN_PLAN_ENDPUNKT) ein
-		// wirkungsloses, aber unnötiges `select` verschickte, OHNE die Rückfrage noch einmal zu
-		// stellen. Dieselbe Falle wie bei garetienRuecknahmeKlick.
-		// ⚠️ NUR BEI „neu". Die Rückfrage warnt davor, ein ZWEITES Kartenobjekt neben ein
-		// getroffenes zu legen („sonst legt jemand aus Versehen den zweiten Krähensee an") --
-		// „Innerorts einfügen" legt gar kein Kartenobjekt an, die Kollision kann es nicht geben.
-		if (handlung === "neu" && garetienNeuIstZusatz(objekt)) {
-			const ok = typeof fragen === "function" ? fragen(garetienZusatzRueckfrageText(objekt)) : false;
-			if (!ok) { return true; }
-		}
+		// ⚠️ `fragen` reist weiter mit, obwohl hier heute nichts mehr gefragt wird -- dieselbe
+		// Bauform wie `void stand` in garetienAlleWaehlenZustand: die Verdrahtung reicht es herein,
+		// und ein weggelassener Parameter waere beim naechsten rueckfragepflichtigen Gedanken still
+		// verschwunden. Er wird bewusst NICHT gelesen; die Zusatz-Rueckfrage sitzt an der Stage.
+		void fragen;
 		if (garetienEinfuegenLaeuft) { return Promise.resolve(null); }
 
 		garetienEinfuegenLaeuft = true;
@@ -6386,21 +6670,10 @@
 	// Die DOM-Hälfte dazu -- dieselbe Aufteilung wie beim Fußknopf (garetienUebernahmeKnopfSetzen)
 	// und bei „Alle markieren" (garetienAlleWaehlenKnopfSetzen): Knopf und Hinweis werden an EINER
 	// Stelle gesetzt, damit sie nie auseinanderlaufen.
-	function garetienRuecknahmeMengeKnopfSetzen(objekte) {
-		if (!hasDocument) { return null; }
-		const stand = garetienRuecknahmeMengeZustand(objekte, zustand.stand);
-		const knopf = document.getElementById("garetien-ruecknahme-markierte");
-		if (knopf) {
-			knopf.textContent = stand.beschriftung;
-			knopf.disabled = stand.gesperrt;
-		}
-		const hinweisEl = document.getElementById("garetien-ruecknahme-markierte-hint");
-		if (hinweisEl) {
-			hinweisEl.textContent = stand.hinweis;
-			hinweisEl.hidden = stand.hinweis === "";
-		}
-		return stand;
-	}
+	// 🔴 DIE DOM-HAELFTE IST AM 07.09.2026 GEFALLEN (Fixrunde 1, D2): der Knopf steht nicht mehr im
+	// Fuss, sondern als „Auswahl aus der Karte zurücknehmen" in der Auswahlleiste, und die baut sich
+	// aus `garetienAuswahlleisteZustand`. Die REINE Haelfte darueber bleibt -- sie liefert dem
+	// Klickweg weiter Item-ids, Rueckfrage-Objekte und den Reiter-Riegel.
 
 	// REIN: die Rückfrage vor der MENGEN-Rücknahme -- sie nennt die Zahl und sagt, was verschwindet
 	// (Auftrag), und dass spätere Bearbeitungen mitgehen (Owner-Entscheid 2 aus Aufgabe 9, gilt hier
@@ -6514,13 +6787,15 @@
 		}
 
 		garetienRuecknahmeMengeLaeuft = true;
-		const knopf = hasDocument ? document.getElementById("garetien-ruecknahme-markierte") : null;
-		if (knopf) { knopf.disabled = true; }
+		// 🔴 DER FORTSCHRITT STEHT SEIT DEM 07.09.2026 IN DER STATUSZEILE, nicht mehr im Knopf
+		// (Fixrunde 1, D2): der Fussknopf „Import zurücknehmen" ist in die Auswahlleiste gewandert,
+		// und die wird bei jedem Listenlauf komplett neu gebaut -- ein Text, den man in ihren Knopf
+		// schreibt, ist beim naechsten Aufbau fort. Die Statuszeile ist dieselbe Flaeche, die auch
+		// der „Rückgängig"-Link daneben fuer seinen Fortschritt benutzt.
 		function fortschritt(fertig, gesamt) {
-			if (!knopf) { return; }
-			knopf.textContent = gesamt > 0
+			garetienStatusSetzen(gesamt > 0
 				? "Nimmt zurück … " + fertig + " von " + gesamt
-				: "Nimmt zurück …";
+				: "Nimmt zurück …", "", null);
 		}
 		return garetienRuecknahmeMengeAusfuehren(stand.ids, runId, avesmapsGaretienRufe, fortschritt)
 			.then(function () { return avesmapsGaretienListeHolen(); })
@@ -6531,7 +6806,6 @@
 			.catch(function (fehler) {
 				garetienRuecknahmeMengeLaeuft = false;
 				garetienListeFehlerZeigen(fehler);
-				garetienRuecknahmeMengeKnopfSetzen(zustand.objekte);
 				return null;
 			});
 	}
@@ -6670,6 +6944,43 @@
 		return garetienHandlungSendenMitMeldung(rumpf, meldung, null, null);
 	}
 
+	/*
+	 * DIESELBE TUER, aber fuer eine MENGE von Item-ids -- in Haeppchen, danach EINMAL die Liste und
+	 * EINMAL die Meldung.
+	 *
+	 * 💣 FIXRUNDE 1, BEFUND C1 (07.09.2026): `api/edit/wiki/sync-plan.php` kappt `ids` bei
+	 * AVESMAPS_SYNC_PLAN_CATEGORY_LIMIT (200) -- ohne Fehler, ohne Hinweis, fuer `decline` UND
+	 * `undecline`. Die Auswahlleiste schickte bis dahin `ids.slice(0, 200)` und meldete trotzdem
+	 * die volle Zahl: mit 250 gewaehlten Objekten stand „250 Objekte abgelehnt." da, waehrend 50
+	 * unberuehrt blieben. Die kleinste Zeilenstufe der Liste ist 1000, das ist der Normalfall.
+	 * ⭐ Vorbild ist `garetienEinfuegenAusfuehren`: dieselben Haeppchen, dieselbe Kette, nur ohne
+	 * `apply`-Schritt. Eine Meldung, die mehr behauptet als geschehen ist, gibt es damit nicht mehr.
+	 * ⚠️ Die Liste wird EINMAL geholt, ganz am Ende -- nicht je Haeppchen: dieser Endpunkt liest das
+	 * ganze Laufinventar neu ein, und eine Schleife darauf ist genau die Last, vor der AGENTS.md
+	 * warnt.
+	 */
+	function garetienMengeSendenMitMeldung(rumpf, ids, meldung, rufe, listeHolen) {
+		const tuer = typeof rufe === "function"
+			? rufe
+			: function (r) { return avesmapsGaretienRufe(GARETIEN_PLAN_ENDPUNKT, r); };
+		const liste = typeof listeHolen === "function" ? listeHolen : avesmapsGaretienListeHolen;
+		const haeppchen = garetienIdsInHaeppchen((ids || []).slice());
+		return garetienKetteAbarbeiten(haeppchen, function (teil) {
+			return tuer(Object.assign({}, rumpf, { ids: teil }));
+		})
+			.then(function () { return liste(); })
+			.then(function () {
+				return String(meldung || "") === ""
+					? null
+					: garetienStatusSetzen(String(meldung), "ok", null);
+			})
+			.catch(function (fehler) { garetienListeFehlerZeigen(fehler); return null; });
+	}
+
+	function avesmapsGaretienMengeSenden(rumpf, ids, meldung) {
+		return garetienMengeSendenMitMeldung(rumpf, ids, meldung, null, null);
+	}
+
 	function garetienFragen(text) {
 		return typeof window !== "undefined" && typeof window.confirm === "function"
 			? window.confirm(text)
@@ -6705,19 +7016,22 @@
 	// ⚠️ Der Grund fuer „gesperrt" steht SICHTBAR daneben, nie in einem `title`: ein deaktivierter
 	// Knopf bekommt keine Zeigerereignisse, sein `title` erscheint in Chrome also nie. Dasselbe
 	// Mittel wie im Blatt selbst, wo der Grund als Text in der Fusszeile steht.
-	// 💣 FIX-RUNDE 1: `n` wird ueber `garetienHakenItems(o)` gezaehlt, NICHT ueber rohes
+	// 💣 FIX-RUNDE 1: `n` wird ueber die Item-Menge des Stage-Imports gezaehlt, NICHT ueber rohes
 	// `o.items.length`. Ein Objekt, dessen EINZIGES Item ein Geometrie-Item ist (Urteil
 	// `deckt_sich`, Name und Quelle stimmen schon -- `api/_internal/import/__tests__/
 	// garetien-plan-test.php:339-345` baut genau so einen Fall), zaehlte sonst als „mit Vorschlag",
-	// obwohl `garetienStageAnhakenIds` fuer es NIE eine id liefert: `garetienHakenItems` schliesst
-	// das Geometrie-Item vom Haekchen-Pfad grundsaetzlich aus (eigener Knopf mit Rueckfrage). Die
-	// ANZEIGE-Zahl und die ANHAK-Menge muessen ueber dieselbe Filterung laufen, sonst laufen sie
-	// auseinander -- „beide Haekchen meinen also dieselbe Menge" steht schon als Regel an
-	// `garetienHakenItems` selbst; hier ist die Doppelung zum zweiten Mal aufgetreten.
+	// obwohl `garetienStageAnhakenIds` fuer es NIE eine id liefert. Die ANZEIGE-Zahl und die
+	// ANHAK-Menge muessen ueber dieselbe Filterung laufen, sonst laufen sie auseinander -- hier ist
+	// die Doppelung zum zweiten Mal aufgetreten.
+	// 🔴 UND SEIT DER FIXRUNDE 1 ZU AUFGABE 9+10 IST DIE FILTERUNG `garetienStageItems`, NICHT
+	// `garetienHakenItems`: ein Objekt, dessen einziges Item ein Zusatz-Item ist, wird ueber die
+	// Stage sehr wohl angelegt (Befund B3) und muss deshalb auch mitgezaehlt werden. Zaehlte der
+	// Knopf weiter ueber die Haken-Items, sagte er „0 von 1", waehrend der Vorwaertsknopf daneben
+	// „als Flussweg" verspricht -- genau der Widerspruch, den B3 beschreibt.
 	function garetienUebernahmeKnopfZustand(stageObjekte) {
 		const liste = stageObjekte || [];
 		const mitVorschlag = liste.filter(function (o) {
-			return o && garetienHakenItems(o).length > 0;
+			return o && garetienStageItems(o).length > 0;
 		}).length;
 		return {
 			anzahl: mitVorschlag,
@@ -6731,8 +7045,13 @@
 					// Der Nebensatz sagt den GRUND, nicht noch einmal den Befund (Fixrunde 2, I5) --
 					// er stand hier einen Tag lang als „… — sie haben in diesem Lauf keinen
 					// Vorschlag." und wiederholte damit wortgleich, was der Hauptsatz schon sagt.
-					: "Keines der Objekte auf der Stage hat einen Vorschlag — für ihre Art gibt es in "
-						+ "diesem Lauf noch keine Zuordnung."),
+					// 🔴 UND ER SAGT SEIT DER FIXRUNDE 1 ZU AUFGABE 9+10 DAS RICHTIGE. Vorher stand
+					// hier „für ihre Art gibt es in diesem Lauf noch keine Zuordnung" -- das war fuer
+					// die 528 Objekte mit Zusatz-Item schlicht falsch: eine Zuordnung GAB es, das Item
+					// war nur ausgeschlossen. Wer den Satz las, suchte den Fehler beim Abgleich statt
+					// beim Werkzeug.
+					: "Keines der Objekte auf der Stage hat einen Vorschlag — der Abgleich hat für "
+						+ "sie in diesem Lauf nichts gefunden, was sich anlegen oder ergänzen ließe."),
 		};
 	}
 
@@ -6771,10 +7090,14 @@
 	// VOLLSTAENDIG angehakt sind, liefert dort `selected: false` (die Toggle-Richtung „alles ab") --
 	// genau das ist der Grund, warum nur `plan.selected === true` uebernommen wird: dieser Knopf
 	// haengt an, er nimmt nie etwas zurueck.
+	// 🔴 FIXRUNDE 1 (B3): `garetienStagePlan` statt `garetienHakenPlan`. `apply` schreibt
+	// ausschliesslich, was `selected = 1` traegt (avesmapsSyncPlanPendingItems) -- ein Zusatz-Item,
+	// das der Uebernahme-Umfang zwar nennt, das aber nie angehakt wurde, erreichte den Server nie.
+	// Anhaken und Uebernehmen muessen deshalb ueber DIESELBE Item-Menge laufen.
 	function garetienStageAnhakenIds(stageObjekte) {
 		const ids = [];
 		(stageObjekte || []).forEach(function (objekt) {
-			const plan = garetienHakenPlan(objekt, null);
+			const plan = garetienStagePlan(objekt);
 			if (plan && plan.selected === true) {
 				ids.push.apply(ids, plan.ids);
 			}
@@ -6791,12 +7114,12 @@
 	// schon von einer FRUEHEREN Handlung (z.B. „Namen ersetzen") angehakt, aber noch nicht
 	// uebernommen ist, braucht KEIN neues Anhaken -- `apply` MUSS es trotzdem erreichen, sonst
 	// bliebe die Vormerkung fuer immer nur vorgemerkt. Diese Funktion filtert deshalb nicht nach
-	// Tick-Zustand, nur nach `garetienHakenItems` (derselbe Ausschluss von Geometrie- und
-	// Zusatz-Item wie beim Zeilenhaekchen).
+	// Tick-Zustand, nur nach `garetienStageItems` (Geometrie-Item ausgeschlossen; das Zusatz-Item
+	// NUR, wenn das Objekt sonst nichts hat -- siehe garetienStageVorhaben).
 	function garetienStageUebernahmeIds(stageObjekte) {
 		const ids = [];
 		(stageObjekte || []).forEach(function (objekt) {
-			garetienHakenItems(objekt).forEach(function (item) {
+			garetienStageItems(objekt).forEach(function (item) {
 				const id = Number(item && item.id);
 				if (id > 0) { ids.push(id); }
 			});
@@ -6808,10 +7131,14 @@
 	// NEUES Kartenobjekt anlegt -- nur `change_type === 'new'` zählt, eine Namens-/Quellen-Ergänzung
 	// an einem BESTEHENDEN Objekt (`changed`) nicht. Nur diese Menge lässt sich über „Zurücknehmen"
 	// wieder entfernen (garetienEinfuegenRueckfrageText).
+	// ⚠️ FIXRUNDE 1 (B3): auch hier `garetienStageItems` -- ein ueber die Stage angelegtes
+	// Zusatz-Objekt ist ein NEUES Kartenobjekt und muss sich zuruecknehmen lassen. Ueber
+	// `garetienHakenItems` gelesen fehlte es in der Rueckgaengig-Liste, waehrend es auf der Karte
+	// stand: ein Objekt ohne Rueckweg.
 	function garetienStageNeuIds(stageObjekte) {
 		const ids = [];
 		(stageObjekte || []).forEach(function (objekt) {
-			garetienHakenItems(objekt).forEach(function (item) {
+			garetienStageItems(objekt).forEach(function (item) {
 				if (String((item && item.change_type) || "") !== "new") { return; }
 				const id = Number(item && item.id);
 				if (id > 0) { ids.push(id); }
@@ -7097,14 +7424,14 @@
 	// `garetienStageAnhakenIds`, Aufgabe 8 führt sie wirklich aus statt nur anzuhaken).
 	//
 	// 🔴 DER RÜCKFALL "nichts zu tun" GEHÖRT HIERHIN, NICHT IN garetienEinfuegenAusfuehren: er
-	// fragt, ob IRGENDEIN angezeigtes Objekt überhaupt einen Vorschlag trägt (`garetienHakenItems`
+	// fragt, ob IRGENDEIN angezeigtes Objekt überhaupt einen Vorschlag trägt (`garetienStageItems`
 	// -- dieselbe Zählung wie garetienUebernahmeKnopfZustand) -- nicht, ob `garetienStageAnhakenIds`
 	// etwas NEUES anzuhaken hätte. Ein Objekt, dessen Items schon VOLLSTÄNDIG angehakt sind (z.B.
 	// von einem früheren "Namen ersetzen"-Klick), liefert dort KEINE ids -- trägt aber trotzdem
 	// einen echten, noch nicht übernommenen Vorschlag in der Datenbank.
 	function garetienFussknopfKlick(stageObjekte, runId, rufe, fortschritt) {
 		const liste = stageObjekte || [];
-		const hatVorschlag = liste.some(function (o) { return o && garetienHakenItems(o).length > 0; });
+		const hatVorschlag = liste.some(function (o) { return o && garetienStageItems(o).length > 0; });
 		if (!hatVorschlag) {
 			return Promise.resolve({ applied: 0, deleted: 0, stale: 0, skipped: 0, declined: 0 });
 		}
@@ -7342,7 +7669,10 @@
 				// 🔴 KEIN Reiterwechsel: hier legt der Editor EIN Objekt hin, während er es ansieht;
 				// ihn dabei auf einen anderen Reiter zu werfen risse ihm die Einzelansicht weg. Der
 				// Wechsel gehört der MENGE (Auswahlleiste, Nähe-Knopf), nicht dem Einzelstück.
-				if (garetienStageKlick(ereignis, zustand.objekte)) {
+				// 🔴 `garetienFragen` reist seit dem 07.09.2026 (Fixrunde 1, B3) MIT: ein Objekt,
+				// dessen einziges Item das Zusatz-Item ist, kommt nur nach einer Rueckfrage auf die
+				// Stage -- derselbe Zug wie bei „Zurücknehmen" und beim Fussknopf.
+				if (garetienStageKlick(ereignis, zustand.objekte, garetienFragen)) {
 					garetienStageNeuZeichnen();
 					garetienDetailRendern(zustand.objekte);
 					return;
@@ -7368,7 +7698,9 @@
 					return o && String(o.key) === String(zustand.detailKey);
 				})[0] || null;
 				if (garetienNaeheKlick(ereignis, _garetienNaeheGefunden, naeheOffen)) {
-					zustand.stand = "stage";
+					// ⚠️ Ueber den EINEN Trichter (Fixrunde 1, C3): jeder Reiterwechsel leert die
+					// Auswahl -- sie gehoert der Ansicht, nicht dem Objekt (Entwurf §4).
+					garetienReiterSetzen("stage");
 					garetienStageNeuZeichnen();
 					return;
 				}
@@ -7399,17 +7731,10 @@
 				garetienStageNeuZeichnen();
 			});
 		}
-		// Owner-Auftrag B (30.08.2026): „Keines markieren" -- derselbe Zug, nur leerend statt
-		// hinzufuegend. `garetienStageNeuZeichnen` zeichnet danach die Listenzeilen (ihr
-		// Markiert-Zustand) und die zwei Fussknoepfe neu, wie bei „Alle markieren".
-		const markKeinerBtn = hasDocument ? document.getElementById("garetien-mark-none") : null;
-		if (markKeinerBtn) {
-			markKeinerBtn.addEventListener("click", function () {
-				if (markKeinerBtn.disabled) { return; }
-				avesmapsGaretienAuswahlAufheben();
-				garetienStageNeuZeichnen();
-			});
-		}
+		// 🔴 Fixrunde 1 (D2), 07.09.2026: „Auswahl aufheben" (#garetien-mark-none) ist aus dem Fuss
+		// GEFALLEN und steht in der Auswahlleiste -- dort, wo die Auswahl ihre Zahl hat. Sein Zug
+		// (`avesmapsGaretienAuswahlAufheben`) ist unveraendert; verdrahtet wird er im Zuhoerer der
+		// Leiste (garetienListeSkelettVerdrahten).
 		// Owner 31.08.2026: die Zeilen-Kachel. 🔴 Sie holt die Liste NEU -- der Deckel ist ein
 		// Server-Parameter, kein Zuschnitt im Browser; ihn hier zu beschneiden hiesse, eine zweite
 		// Wahrheit ueber „was steht in der Liste" zu fuehren.
@@ -7430,21 +7755,10 @@
 				avesmapsGaretienListeHolen();
 			});
 		}
-		const markZeigenBtn = hasDocument ? document.getElementById("garetien-mark-show") : null;
-		if (markZeigenBtn) {
-			markZeigenBtn.addEventListener("click", function () {
-				avesmapsGaretienAuswahlAufDieStage(zustand.objekte);
-				// 🔴 UND DER REITER WECHSELT MIT (Owner 30.08.2026: „Beim Klick auf 'Markierte
-				// anzeigen' kannst du auf das 'Anzeigen'-Tab gehen"). Der Knopf legt Objekte in die
-				// Stage, und genau die zeigt jener Reiter -- wer ihn drückt und auf „Offen"
-				// stehen bleibt, sieht von seiner Handlung nur eine Zahl im Reiterkopf.
-				// ⚠️ Der Wechsel geht über `zustand.stand` und dann durch denselben Trichter wie ein
-				// Reiterklick (garetienStageNeuZeichnen ruft auf „anzeigen" avesmapsGaretienListeHolen).
-				// Ein eigener Renderweg hier wäre der zweite Erzeuger derselben Ansicht.
-				zustand.stand = "stage";
-				garetienStageNeuZeichnen();
-			});
-		}
+		// 🔴 Fixrunde 1 (D2), 07.09.2026: „Auswahl auf die Stage" (#garetien-mark-show) ist ebenfalls
+		// aus dem Fuss gefallen. Er stand dort ZEICHENGLEICH neben dem Knopf der Auswahlleiste und
+		// tat dasselbe -- zwei Erzeuger einer Handlung, und beim naechsten Umbau laufen sie
+		// auseinander. Der Reiterwechsel danach gehoert jetzt dem Leisten-Zuhoerer.
 		// Owner 30.08.2026: „Alle zentrieren" -- die Ansicht zoomt auf ALLE angezeigten Objekte.
 		// 🔴 Gereicht wird dieselbe Menge, die auch gezeichnet ist (avesmapsGaretienAufDerKarte),
 		// nicht die rohe Anzeige-Liste: die zwei laufen genau dann auseinander, wenn ein Objekt
@@ -7468,17 +7782,10 @@
 				garetienStageNeuZeichnen();
 			});
 		}
-		// Meldung C (30.08.2026): „Markierte zurücknehmen" -- der Löschweg der MENGE, derselbe
-		// Riegel-Zug wie beim Fußknopf „Angehakte übernehmen" darunter (`disabled` NOCH EINMAL
-		// geprüft, das Attribut ist die Anzeige, nicht der Riegel).
-		const ruecknahmeMengeBtn = hasDocument
-			? document.getElementById("garetien-ruecknahme-markierte") : null;
-		if (ruecknahmeMengeBtn) {
-			ruecknahmeMengeBtn.addEventListener("click", function () {
-				if (ruecknahmeMengeBtn.disabled) { return; }
-				garetienRuecknahmeMengeKlick(zustand.planRunId, garetienFragen);
-			});
-		}
+		// 🔴 Fixrunde 1 (D2), 07.09.2026: „Import zurücknehmen" (#garetien-ruecknahme-markierte) ist
+		// aus dem Fuss gefallen und heisst in der Auswahlleiste „Auswahl aus der Karte
+		// zurücknehmen". Der Verteiler (garetienRuecknahmeMengeKlick) ist unveraendert und wird
+		// vom Leisten-Zuhoerer gerufen.
 		// Aufgabe 16: die EINE gefuellte Handlung des Fensters.
 		// ⚠️ `disabled` wird hier NOCH EINMAL geprueft -- das Attribut ist die Anzeige, nicht der
 		// Riegel; dieselbe Trennung wie bei garetienHandlungKlick und beim Ebenen-Riegel.
@@ -7738,6 +8045,11 @@
 			garetienHandlungsMarkup,
 			garetienHakenItems,
 			garetienHakenPlan,
+			// Fixrunde 1 (07.09.2026, B3): was die STAGE uebernimmt -- die eine Weiche, die Anzeige
+			// und Schreibumfang gemeinsam lesen
+			garetienStageVorhaben,
+			garetienStageItems,
+			garetienStagePlan,
 			garetienHakenRumpf,
 			garetienGeometrieRueckfrageText,
 			garetienHandlungKlick,
@@ -7771,10 +8083,12 @@
 			// garetienStageAnhakenIds (siehe deren Kommentare)
 			garetienStageUebernahmeIds,
 			garetienEinfuegenRueckfrageText,
-			// Meldung B (30.08.2026): „trotzdem neu anlegen“ trotz erkannter Kollision
+			// Meldung B (30.08.2026): „trotzdem neu anlegen“ trotz erkannter Kollision -- seit
+			// Fixrunde 1 zu Aufgabe 9+10 ueber die Stage (garetienStageVorhaben oben)
 			garetienItemIstZusatz,
-			garetienNeuIstZusatz,
 			garetienZusatzRueckfrageText,
+			garetienZusatzObjekte,
+			garetienZusatzMengeRueckfrageText,
 			// Aufgabe 9: „Zurücknehmen" -- der eine Löschweg dieses Fensters
 			// Meldung (30.08.2026): die enge Ausnahme für 'quelle'-only 'changed'-Items
 			garetienItemIstQuelleNur,
@@ -7789,9 +8103,9 @@
 			avesmapsGaretienAlleWaehlen,
 			garetienAlleWaehlenZustand,
 			garetienAlleWaehlenKnopfSetzen,
-			// Owner-Auftrag B (30.08.2026): „Keines markieren"
+			// Owner-Auftrag B (30.08.2026): „Keines markieren" -- der reine Zug; Beschriftung und
+			// Sperre kommen seit Fixrunde 1 (D2) aus garetienAuswahlleisteZustand.
 			avesmapsGaretienAuswahlAufheben,
-			garetienAuswahlAufhebenZustand,
 			// Aufgabe 9+10 (07.09.2026): die Auswahlleiste und der Vorwaertsknopf
 			garetienAuswahlleisteZustand,
 			garetienAuswahlleisteMarkup,
@@ -7804,6 +8118,10 @@
 			garetienStageZeile2,
 			garetienStageKlick,
 			garetienStillerAusgangText,
+			garetienAuswahlStillerAusgangText,
+			avesmapsGaretienMengeSenden,
+			garetienMengeSendenMitMeldung,
+			garetienReiterSetzen,
 			garetienHandlungMeldung,
 			garetienHandlungSendenMitMeldung,
 			avesmapsGaretienStageEntfernen,
@@ -7815,12 +8133,10 @@
 			garetienZeilenOptionenMarkup,
 			garetienZeileHervorheben,
 			garetienAlleZentrierenKnopfSetzen,
-			garetienAuswahlAufhebenKnopfSetzen,
 			// Meldung C (30.08.2026): „Markierte zurücknehmen" -- die Menge, symmetrisch zum
 			// Fußknopf „Einfügen".
 			garetienKetteAbarbeiten,
 			garetienRuecknahmeMengeZustand,
-			garetienRuecknahmeMengeKnopfSetzen,
 			garetienRuecknahmeMengeRueckfrageText,
 			garetienRuecknahmeMengeAusfuehren,
 			garetienRuecknahmeMengeKlick,

@@ -4274,28 +4274,27 @@
 				     Sie zählte einen SERVERstand, der seit Aufgabe 1 (Markieren ist ein reiner Marker,
 				     kein Bearbeitungsstand mehr) nichts mehr über das Fenster aussagte. -->
 				<!-- 🔴 Umgezogen 29.08.2026 (Owner-Meldung): „Markierte anzeigen" und „Anzeige leeren"
-				     standen vorher oben im Listenskelett (.gi-anzeigebar) -- jetzt hier, links von der
-				     Haupthandlung. Beide WEICH (`.btn`, kein `--main`): die Haupthandlung des Fensters
-				     bleibt „Alle angezeigten einfügen" (AGENTS.md §12). Verdrahtet in bindFenster()
-				     (js/review/review-garetien-importer.js), nicht mehr in garetienListeSkelettVerdrahten
-				     -- diese zwei Knöpfe stehen von Anfang an statisch hier, wie #garetien-apply selbst. -->
+				     standen vorher oben im Listenskelett (.gi-anzeigebar) -- dann hier, links von der
+				     Haupthandlung. WEICH (`.btn`, kein `--main`): die Haupthandlung des Fensters bleibt
+				     „Stage importieren" (AGENTS.md §12). Verdrahtet in bindFenster()
+				     (js/review/review-garetien-importer.js), nicht in garetienListeSkelettVerdrahten --
+				     was hier steht, steht von Anfang an statisch da, wie #garetien-apply selbst.
+				     ⚠️ Von den beiden ist nur „Stage leeren" geblieben; „Auswahl auf die Stage" ist am
+				     07.09.2026 in die Auswahlleiste gewandert (siehe den Block darunter). -->
 				<!-- Aufgabe 10 (Owner 29.08.2026): „Alle markieren" markiert alle Zeilen der aktuellen
 				     Liste -- links von den beiden Knöpfen darüber, ebenso WEICH.
 				     🔴 OHNE Hinweiszeile (Owner 30.08.2026): seine zwei Gründe sagten nur „hier gibt
 				     es nichts zu tun", und das sagt der graue Knopf samt seiner „(0)" bereits. -->
 				<button class="btn" type="button" id="garetien-mark-all">Alle wählen</button>
-				<!-- Owner-Auftrag B (30.08.2026): „Neben 'Alle markieren (500)' braucht es auch noch
-				     'Keines markieren'." Leert `zustand.markiert`, weich (`.btn`), gesperrt, wenn nichts
-				     markiert ist -- dieselbe Bauform wie „Alle markieren" direkt daneben. -->
-				<button class="btn" type="button" id="garetien-mark-none">Auswahl aufheben</button>
-				<!-- Owner-Punkt 17 (07.09.2026), wörtlich: „der Button ‚Auswahl auf die Stage' …
-				     dann wär klar was auf der Stage landet (nämlich die aktuelle Auswahl)".
-				     🔴 UND SEIT DEMSELBEN TAG IST DER NAME ZWINGEND, nicht nur klarer: die
-				     Einzelansicht rechts trägt jetzt ihren eigenen Knopf „Auf die Stage", und der
-				     gilt EINEM Objekt. Zwei gleichnamige Knöpfe mit verschiedener Reichweite sind
-				     genau die Verwechslung, an der „Ablehnen" gescheitert ist (der Owner hakte eine
-				     Zeile an und traf das Objekt der Einzelansicht). -->
-				<button class="btn" type="button" id="garetien-mark-show">Auswahl auf die Stage</button>
+				<!-- 🔴 FIXRUNDE 1 (D2, 07.09.2026): DREI KNÖPFE HABEN DEN FUSS VERLASSEN.
+				     „Auswahl aufheben" (#garetien-mark-none), „Auswahl auf die Stage"
+				     (#garetien-mark-show) und „Import zurücknehmen" (#garetien-ruecknahme-markierte)
+				     stehen jetzt in der AUSWAHLLEISTE unter der Liste -- dort tragen sie ihre Zahl
+				     und ihren Kontext, und dort standen drei von ihnen ohnehin schon zeichengleich
+				     daneben. Der Fuß behält, was der GANZEN STAGE gilt: Alle wählen · Stage leeren ·
+				     Alle zentrieren · Stage importieren.
+				     ⚠️ „Alle wählen" BLEIBT hier: die Leiste erscheint erst, wenn schon etwas
+				     gewählt ist, und kann den Knopf, der die erste Auswahl macht, nicht tragen. -->
 				<button class="btn" type="button" id="garetien-anzeige-clear">Stage leeren</button>
 				<!-- Owner 30.08.2026, wörtlich: „außerdem wär ein button mit 'Alle zentrieren'
 				     hilfreich, wo die ansicht auf alle in 'Anzeigen' gelisteten objekte zoomt
@@ -4304,16 +4303,6 @@
 				     🔴 Er misst die ANZEIGE-Menge, nicht die gerenderte Liste: er soll auf das zoomen,
 				     was wirklich auf der Karte liegt. Gesperrt, wenn dort nichts liegt. -->
 				<button class="btn" type="button" id="garetien-zentrieren-alle" disabled>Alle zentrieren</button>
-				<!-- Meldung C (30.08.2026, Owner): „zurücknehmen ist da, aber nicht 'Alle markieren
-				     zurücknehmen'" -- das Gegenstück zur Einzelzeile „Zurücknehmen", auf den MARKIERTEN
-				     (nicht der Anzeige-Menge), nur auf dem Reiter „Übernommen" bedienbar. `.btn--danger`
-				     wie die Einzelzeile: Rot als Schrift, keine Füllung (AGENTS.md §12) -- die eine
-				     gefüllte Handlung des Fensters bleibt „Angehakte übernehmen" rechts. Immer gerendert,
-				     gesperrt + Grund SICHTBAR auf den drei anderen Reitern (dieselbe Hausform wie „Alle
-				     markieren" auf dem Reiter „Anzeigen"). Verdrahtet in bindFenster()
-				     (js/review/review-garetien-importer.js). -->
-				<button class="btn btn--danger" type="button" id="garetien-ruecknahme-markierte" disabled>Import zurücknehmen (0 von 0)</button>
-				<span class="gi-foot__hint" id="garetien-ruecknahme-markierte-hint" hidden></span>
 				<!-- 🔴 Umgehängt 30.08.2026, seit die Zählzeile links (die den Hinweis bisher physisch
 				     an den Anfang der Zeile geschoben hat) weg ist: der Grund für den gesperrten
 				     Hauptknopf steht jetzt DIREKT VOR ihm, in einem gemeinsamen Wirt -- man liest ihn,

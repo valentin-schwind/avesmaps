@@ -161,11 +161,10 @@ const AUSNAHMEN_KONTEXTE = [
 		grund: "DOM-Kennung des Knopfes „Stage leeren“ -- dieselbe Regel-5-Begruendung; sein "
 			+ "sichtbares Label wurde laengst umbenannt, seine Kennung bewusst nicht.",
 	},
-	{
-		kontext: "garetien-ruecknahme-markierte",
-		grund: "DOM-Kennung des Knopfes „Auswahl zurücknehmen“ (und ihr Hinweis-Pendant mit "
-			+ "`-hint`-Suffix, das dieselbe Zeichenkette traegt) -- dieselbe Regel-5-Begruendung.",
-	},
+	// 🔴 FIXRUNDE 1 (D2, 07.09.2026): die Ausnahme fuer `garetien-ruecknahme-markierte` ist GEFALLEN.
+	// Der Knopf steht seither in der Auswahlleiste, die ihre Knoepfe zur Laufzeit baut -- die Kennung
+	// gibt es nirgends mehr, und eine tote Amnestie entschuldigte beim naechsten Mal ein echtes
+	// „markierte", das jemand zurueckschmuggelt.
 	{
 		kontext: "Auf Karte anzeigen",
 		grund: "Häkchen `showName` -- ob der NAME auf der Karte steht, hat mit der Stage nichts "
@@ -322,13 +321,41 @@ wahr(!/\bzustand\.markiert\b/i.test(quelle), "zustand.markiert darf nicht mehr v
 // 5. Die Kennungen bleiben -- dieselbe Trennung wie bei „Neuigkeiten"/`changelog` (AGENTS.md §11):
 // eine umgetaufte Kennung liesse eine gecachte Seite ins Leere greifen.
 //
-// 🔴 Der Plan sicherte zu, `garetien-mark-show` sei WEG -- das war ein Planfehler und ist mit dem
-// Brief zurueckgenommen: die alten Fussknoepfe fallen in Aufgabe 9, nicht hier.
+// 🔴 FIXRUNDE 1 (D2, 07.09.2026): DREI DIESER KENNUNGEN SIND JETZT WIRKLICH WEG.
+// `garetien-mark-none`, `garetien-mark-show` und `garetien-ruecknahme-markierte` haben den Fuss
+// verlassen; ihre Handlungen stehen in der AUSWAHLLEISTE, die ihre Knoepfe zur Laufzeit baut und
+// gar keine Kennungen vergibt (`data-auswahl` statt `id`). Der Plan hatte ihren Wegfall schon fuer
+// Aufgabe 9 vorgesehen -- er kam eine Fixrunde spaeter.
+// ⚠️ Geblieben ist `garetien-mark-all`: die Leiste erscheint erst, wenn schon etwas gewaehlt ist,
+// und kann den Knopf, der die ERSTE Auswahl macht, deshalb nicht tragen.
 // =================================================================================================
-["garetien-mark-all", "garetien-mark-none", "garetien-mark-show"].forEach((id) => {
+["garetien-mark-all"].forEach((id) => {
 	wahr(garetienHtmlTeil.includes('id="' + id + '"'),
 		"die Kennung " + id + " muss weiterhin im Markup des Garetien-Fensters stehen");
 });
+["garetien-mark-none", "garetien-mark-show", "garetien-ruecknahme-markierte"].forEach((id) => {
+	wahr(!garetienHtmlTeil.includes('id="' + id + '"'),
+		"die Kennung " + id + " ist mit dem Umzug in die Auswahlleiste gefallen");
+});
+
+// 🔴 UND DER FUSS TRAEGT GENAU VIER KNOEPFE, in dieser Reihenfolge (Fixrunde 1, D2): was der
+// GANZEN STAGE gilt. Ihre Beschriftungen sind hier festgenagelt -- vor der Fixrunde liess sich
+// jeder Fussknopftext umbenennen, ohne dass irgendein Test rot wurde.
+// ⚠️ Gemessen wird der `.gi-foot`-Block, nicht die ganze Datei: „Stage leeren" steht auch in
+// Kommentaren, und ein `includes` ueber das ganze Markup traefe die.
+{
+	const fussStart = garetienHtmlTeil.indexOf('<div class="gi-foot');
+	wahr(fussStart !== -1, "der Fuss des Fensters muss auffindbar sein");
+	const fuss = garetienHtmlTeil.slice(fussStart, garetienHtmlTeil.indexOf("</div>", garetienHtmlTeil.indexOf("gi-foot__main")));
+	const knopfTexte = [];
+	const muster = /<button[^>]*>([^<]*)<\/button>/g;
+	let treffer = muster.exec(fuss);
+	while (treffer) { knopfTexte.push(treffer[1].trim()); treffer = muster.exec(fuss); }
+	assert.deepStrictEqual(knopfTexte,
+		["Alle wählen", "Stage leeren", "Alle zentrieren", "Stage importieren (0)"],
+		"der Fuss traegt genau die vier Knoepfe der GANZEN STAGE, in dieser Reihenfolge");
+	checks++;
+}
 
 // =================================================================================================
 // 6. AVESMAPS_GARETIEN_SERVER_STAENDE enthaelt "stage" nicht -- der Reiter ist rein clientseitig,

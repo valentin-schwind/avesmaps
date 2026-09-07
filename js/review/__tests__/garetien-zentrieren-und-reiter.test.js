@@ -49,7 +49,7 @@ function macheElement(id) {
 const ELEMENTE = {};
 [
 	"garetien-apply", "garetien-apply-hint", "garetien-listcol", "garetien-list", "garetien-sheet",
-	"garetien-mark-all", "garetien-mark-none", "garetien-mark-show", "garetien-anzeige-clear",
+	"garetien-mark-all", "garetien-anzeige-clear",
 	"garetien-zentrieren-alle", "garetien-detailcol", "garetien-tabs",
 ].forEach((id) => { ELEMENTE[id] = macheElement(id); });
 
@@ -69,14 +69,15 @@ const {
 	avesmapsGaretienStageLeeren,
 	avesmapsGaretienStageHinzufuegen,
 	avesmapsGaretienAuswahlUmschalten,
+	avesmapsGaretienAuswahlAufheben,
 	avesmapsGaretienFensterZustand,
+	garetienReiterSetzen,
 } = mod;
 
 wahr(typeof garetienAlleZentrierenZustand === "function", "garetienAlleZentrierenZustand fehlt im Export");
 wahr(typeof garetienAlleZentrierenKnopfSetzen === "function", "garetienAlleZentrierenKnopfSetzen fehlt im Export");
 
 const ZENTRIEREN = ELEMENTE["garetien-zentrieren-alle"];
-const MARK_SHOW = ELEMENTE["garetien-mark-show"];
 
 // =================================================================================================
 // A. „Alle zentrieren" -- REIN: Beschriftung ohne Zahl, gesperrt bei leerer Anzeige
@@ -113,8 +114,8 @@ global.window.avesmapsGaretienKarteAlleZentrieren = function (objekte) {
 };
 
 garetienAlleZentrierenKnopfSetzen(2);   // damit er nicht gesperrt ist
-wahr(MARK_SHOW._hoerer.click && ZENTRIEREN._hoerer.click,
-	"beide Knoepfe muessen ueberhaupt einen Zuhoerer tragen -- sonst misst der Rest nichts");
+wahr(ZENTRIEREN._hoerer.click,
+	"der Knopf muss ueberhaupt einen Zuhoerer tragen -- sonst misst der Rest nichts");
 ZENTRIEREN.klick();
 gleich(rufe, 1, "ein Klick ruft den Zeichner GENAU einmal");
 gleich((gerufenMit || []).length, 2, "und reicht ihm beide angezeigten Objekte");
@@ -132,18 +133,34 @@ ZENTRIEREN.klick();
 gleich(rufe, 1, "ohne geladenen Zeichner passiert nichts, und es wirft auch nichts");
 
 // =================================================================================================
-// D. „Auf die Stage" wechselt auf den Reiter „Stage"
+// D. „Auswahl auf die Stage" wechselt auf den Reiter „Stage" -- DER TRICHTER
 // =================================================================================================
 // 💣 DIESER ABSCHNITT IST DER GRUND FUER DIESE DATEI. Vor ihm liess sich die Zeile
 // `zustand.stand = "stage"` entfernen, ohne dass irgendein Test im Repo rot wurde.
+//
+// 🔴 FIXRUNDE 1 (D2/C3, 07.09.2026): DER KNOPF STEHT NICHT MEHR IM FUSS. „Auswahl auf die Stage"
+// (#garetien-mark-show) ist in die Auswahlleiste gewandert, und der ECHTE Klick darauf wird jetzt
+// in `garetien-auswahlleiste.test.js` gefahren (dort haengt der delegierte Zuhoerer, samt der
+// Zusicherung, dass die Auswahl den Wechsel NICHT ueberlebt). Hier bleibt der TRICHTER, durch den
+// alle drei Reiterwechsel dieses Fensters gehen -- ausgefuehrt, nicht gelesen.
 avesmapsGaretienStageLeeren();
 avesmapsGaretienAuswahlUmschalten("z:1");
 wahr(avesmapsGaretienFensterZustand().stand !== "stage",
 	"Zeuge: vorher steht der Reiter NICHT auf „Stage\" -- sonst belegt die Zeile darunter nichts");
-MARK_SHOW.klick();
-gleich(avesmapsGaretienFensterZustand().stand, "stage",
-	"nach dem Klick steht der Reiter auf „Stage\" -- dort liegt, was der Knopf gerade "
-	+ "hineingelegt hat");
+gleich(avesmapsGaretienFensterZustand().auswahl.length, 1, "Zeuge: und es ist etwas gewaehlt");
+gleich(garetienReiterSetzen("stage"), true, "der Trichter meldet den Wechsel");
+gleich(avesmapsGaretienFensterZustand().stand, "stage", "und der Reiter steht auf „Stage\"");
+gleich(avesmapsGaretienFensterZustand().auswahl.length, 0,
+	"💣 UND DIE AUSWAHL IST LEER -- sie gehoert der ANSICHT, nicht dem Objekt (Entwurf §4). Ohne "
+	+ "das stand die Leiste auf einem Reiter, auf dem keines der gewaehlten Objekte sichtbar war, "
+	+ "und ihr Klick blieb wortlos.");
+// ⚠️ Ein Wechsel auf den Reiter, auf dem man schon steht, ist keiner -- dann bleibt die Auswahl.
+avesmapsGaretienAuswahlUmschalten("z:2");
+gleich(garetienReiterSetzen("stage"), false, "derselbe Reiter meldet KEINEN Wechsel");
+gleich(avesmapsGaretienFensterZustand().auswahl.length, 1, "und raeumt die Auswahl nicht ab");
+gleich(garetienReiterSetzen(""), false, "ein leerer Reitername ebenso wenig");
+gleich(avesmapsGaretienFensterZustand().auswahl.length, 1);
+avesmapsGaretienAuswahlAufheben();
 
 avesmapsGaretienStageLeeren();
 

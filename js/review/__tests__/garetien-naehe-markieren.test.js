@@ -300,9 +300,15 @@ const quelleOhneKommentare = require("fs")
 	.replace(/\r\n/g, "\n")
 	.replace(/\/\*[\s\S]*?\*\//g, "")
 	.replace(/^\s*\/\/.*$/gm, "");
-wahr(/garetienNaeheKlick\(ereignis, _garetienNaeheGefunden, naeheOffen\)\) \{\n\s*zustand\.stand = "stage";/
+// 🔴 FIXRUNDE 1 (C3, 07.09.2026): der Reiter wechselt seither ueber den EINEN Trichter
+// `garetienReiterSetzen`, nie mehr per `zustand.stand = …` von Hand -- er leert dabei die
+// Auswahl, weil sie zur ANSICHT gehoert (Entwurf §4). Wer hier wieder eine direkte Zuweisung
+// einbaut, umgeht die Leerung.
+wahr(/garetienNaeheKlick\(ereignis, _garetienNaeheGefunden, naeheOffen\)\) \{\n\s*garetienReiterSetzen\("stage"\);/
 	.test(quelleOhneKommentare),
-	"der Klickverteiler muss direkt nach dem Naehe-Klick auf den Reiter „Stage“ wechseln");
+	"der Klickverteiler muss nach dem Naehe-Klick ueber garetienReiterSetzen auf „Stage“ wechseln");
+wahr(!/zustand\.stand = "stage";/.test(quelleOhneKommentare),
+	"und NIRGENDS mehr per direkter Zuweisung -- sonst ueberlebt die Auswahl den Reiterwechsel");
 wahr(/const naeheOffen = \(zustand\.objekte \|\| \[\]\)/.test(quelleOhneKommentare),
 	"und dabei das geoeffnete Objekt heraussuchen und mitgeben");
 	console.log(`garetien-naehe-markieren: ${checks} Pruefungen bestanden.`);

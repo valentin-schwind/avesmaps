@@ -156,9 +156,22 @@ tief(garetienStageNeuIds([objektGeaendert]), [],
 	+ "neues Kartenobjekt angelegt");
 tief(garetienStageNeuIds([objektGeometrie]), [],
 	"das Geometrie-Item bleibt draußen -- garetienHakenItems schließt es aus");
-tief(garetienStageNeuIds([objektZusatz]), [],
-	"und ebenso das Zusatz-Item ('trotzdem neu anlegen') -- dieselbe Ausnahme wie beim "
-	+ "Zeilenhäkchen");
+// 🔴 FIXRUNDE 1 (B3, 07.09.2026) HAT DIESE ZUSICHERUNG UMGEDREHT. Bis dahin stand hier „und
+// ebenso das Zusatz-Item ('trotzdem neu anlegen')" mit `[]` -- richtig, solange „Neu einfügen" der
+// EINZIGE Weg zu diesem Item war und der Stage-Import es nie anlegte. Seit dem Wegfall dieses
+// Knopfes traegt die STAGE es (garetienStageVorhaben === "zusatz"), und dann MUSS es hier
+// auftauchen: `garetienStageNeuIds` speist „Rückgängig" nach dem Einfügen -- fehlte es, staende das
+// gerade angelegte Objekt auf der Karte OHNE Rueckweg.
+tief(garetienStageNeuIds([objektZusatz]), [704],
+	"🔴 das Zusatz-Item zaehlt, WENN es der einzige Weg nach vorn ist -- sonst gaebe es fuer das "
+	+ "angelegte Objekt kein „Rückgängig\"");
+// ⚠️ Die GEGENPROBE: traegt dasselbe Objekt daneben ein legitimes Item, bleibt das Zusatz-Item
+// draussen -- sonst legte ein Import Ergaenzung UND Dublette an (Schadensfall 30.08.2026).
+tief(garetienStageNeuIds([{ key: "z:2", items: [
+	{ id: 711, anlass: "ergaenzung", felder: ["quelle"], change_type: "changed", selected: 0 },
+	{ id: 712, anlass: "zusatz", felder: [], change_type: "new", selected: 0 },
+] }]), [],
+	"💣 gemischtes Objekt: das Zusatz-Item bleibt draussen, und das 'changed'-Item ist kein 'new'");
 tief(garetienStageNeuIds([objektNeu, objektGeaendert]), [701], "gemischt: nur das new-Item zählt");
 tief(garetienStageNeuIds([]), [], "leere Anzeige -> leere Liste");
 tief(garetienStageNeuIds(null), [], "ohne Anzeige -> leere Liste, kein Wurf");

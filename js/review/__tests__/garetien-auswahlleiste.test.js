@@ -11,7 +11,13 @@
 const assert = require("assert");
 const { ladeImporter } = require("./helfer/garetien-testumgebung.js");
 
-const { api, dom } = ladeImporter(["garetien-auswahlleiste", "garetien-mark-all"]);
+const { api, dom } = ladeImporter(["garetien-auswahlleiste", "garetien-mark-all",
+	// 🔴 Fixrunde 1 (C3): fuer Abschnitt 13 wird die Liste WIRKLICH gezeichnet -- nur so
+	// entsteht der delegierte Zuhoerer auf der Leiste (garetienListeSkelettVerdrahten).
+	"garetien-listcol", "garetien-tabs", "garetien-search", "garetien-chips",
+	"garetien-neutral-hinweis", "garetien-anzeige-hinweis", "garetien-detailcol",
+	"garetien-apply", "garetien-apply-hint", "garetien-zentrieren-alle", "garetien-anzeige-clear",
+	"garetien-filter-toggle", "garetien-filter-menu"]);
 const {
 	garetienAuswahlleisteZustand, garetienAuswahlleisteMarkup,
 	garetienAlleWaehlenZustand,
@@ -171,14 +177,17 @@ avesmapsGaretienAuswahlUmschalten("a");
 let gesendet = [];
 let gefragt = [];
 const werkzeuge = {
-	senden: (rumpf, meldung) => { gesendet.push({ rumpf, meldung }); return "gesendet"; },
+	// 🔴 FIXRUNDE 1 (C1, 07.09.2026): der Verteiler reicht die ids GETRENNT heraus, weil der
+	// Sender sie in Haeppchen zerlegt -- `api/edit/wiki/sync-plan.php` kappt eine laengere Liste
+	// stillschweigend bei 200, und die Leiste meldete trotzdem die volle Zahl.
+	sendenMenge: (rumpf, ids, meldung) => { gesendet.push({ rumpf, ids, meldung }); return "gesendet"; },
 	fragen: (text) => { gefragt.push(text); return true; },
 };
 
 const ergebnisAblehnen = garetienAuswahlleisteKlick(leistenEreignis("auswahl_ablehnen"), alle, 7, werkzeuge);
 gleich(ergebnisAblehnen, "gesendet", "der Klick geht durch die geteilte Tuer");
 gleich(gesendet.length, 1, "genau einmal");
-tief(gesendet[0].rumpf.ids, [1],
+tief(gesendet[0].ids, [1],
 	"💣 abgelehnt wird DIE AUSWAHL („Gramfeldermoor\"), nicht das Objekt der Einzelansicht");
 gleich(gesendet[0].rumpf.action, "decline", "als Ablehnung");
 gleich(gefragt.length, 1, "und vorher wird gefragt");
@@ -189,14 +198,14 @@ wahr(String(gesendet[0].meldung).includes("1 Objekt abgelehnt"),
 // „Nein" schickt nichts.
 gesendet = []; gefragt = [];
 gleich(garetienAuswahlleisteKlick(leistenEreignis("auswahl_ablehnen"), alle, 7,
-	{ senden: werkzeuge.senden, fragen: () => false }), null, "ein „Nein\" schickt nichts");
+	{ sendenMenge: werkzeuge.sendenMenge, fragen: () => false }), null, "ein „Nein\" schickt nichts");
 gleich(gesendet.length, 0, "wirklich nichts");
 
 // ⚠️ Objekte OHNE Item tragen nichts bei -- sie werden UEBERSPRUNGEN und in der Meldung GENANNT.
 avesmapsGaretienAuswahlUmschalten("c");   // jetzt a + c gewaehlt
 gesendet = []; gefragt = [];
 garetienAuswahlleisteKlick(leistenEreignis("auswahl_ablehnen"), alle, 7, werkzeuge);
-tief(gesendet[0].rumpf.ids, [1], "das Objekt ohne Item traegt keine id bei");
+tief(gesendet[0].ids, [1], "das Objekt ohne Item traegt keine id bei");
 wahr(String(gesendet[0].meldung).includes("1 ohne Vorschlag übersprungen"),
 	"…und wird in der Rueckmeldung GENANNT, nie stillschweigend weggelassen: " + gesendet[0].meldung);
 wahr(gefragt[0].includes("unberührt"), "auch die Rueckfrage sagt es: " + gefragt[0]);
@@ -239,4 +248,244 @@ avesmapsGaretienAuswahlAufheben();
 gleich(garetienAuswahlleisteKlick({ target: { closest: () => null } }, alle, 7, werkzeuge), null,
 	"ein Klick neben die Leiste tut nichts");
 
-console.log("OK -- " + checks + " Zusicherungen");
+// =================================================================================================
+// 10. FIXRUNDE 1 / D1: JEDER Knopf der Leiste traegt das Wort „Auswahl".
+// =================================================================================================
+// 🔴 Vier von ihnen standen bis zum 07.09.2026 ZEICHENGLEICH auch in der Einzelansicht rechts und
+// meinten dort etwas anderes: EIN Objekt statt der Auswahl. Genau diese Verwechslung ist die
+// Owner-Meldung, die diesen ganzen Schritt ausgeloest hat.
+["offen", "stage", "uebernommen", "abgelehnt"].forEach((stand) => {
+	garetienAuswahlleisteZustand(stand, 2, [mitItem, ohneItem]).knoepfe.forEach((k) => {
+		wahr(k.t1.indexOf("Auswahl") !== -1,
+			"jeder Leistenknopf traegt „Auswahl\": " + stand + "/" + k.name + " -> " + k.t1);
+	});
+});
+// 🔴 „Auswahl aus der Karte zurücknehmen" ist eine GEMESSENE ABWEICHUNG vom Auftrag, der schlicht
+// „Auswahl zurücknehmen" verlangte: dieser Knopf steht auf dem Reiter „Übernommen" NEBEN „Auswahl
+// aufheben", und „zurücknehmen" liest sich dort wie „die Auswahl zurückziehen". Genau diese
+// Kollision hat die Fixrunde 2 zu Aufgabe 9 im Fuss schon einmal beseitigt (I4, „Import
+// zurücknehmen" statt „Auswahl zurücknehmen") -- der gefaehrlichere der beiden Knoepfe muss sagen,
+// WORAUS er zurueckholt.
+{
+	const uebernommen = garetienAuswahlleisteZustand("uebernommen", 2, [mitItem, ohneItem]);
+	const namenDort = uebernommen.knoepfe.map((k) => k.t1);
+	wahr(namenDort[0].indexOf("aus der Karte") !== -1,
+		"💣 der Ruecknahme-Knopf sagt, WORAUS er zurueckholt: " + namenDort[0]);
+	gleich(new Set(namenDort).size, namenDort.length,
+		"…und keine zwei Knoepfe eines Reiters heissen gleich");
+}
+
+// =================================================================================================
+// 11. FIXRUNDE 1 / C2: JEDER Knopf zaehlt ueber die Objekte, die er WIRKLICH bewegen kann.
+// =================================================================================================
+// 💣 Gemessen am 07.09.2026: Reiter „Übernommen", 3 gewaehlt, keines ruecknehmbar -- der Fussknopf
+// stand gesperrt mit sichtbarem Grund, der Leistenknopf daneben BEDIENBAR und rot, und sein Klick
+// blieb wortlos. Genau der stille Klick, den dieser Schritt beseitigen soll.
+const uebernommenOhneRuecknahme = {
+	key: "u1", stand: "uebernommen", name: "Nicht ruecknehmbar",
+	// ⚠️ `felder: ["name","quelle"]`, NICHT nur "quelle" -- ein reines Quellen-Item waere
+	// ruecknehmbar (garetienItemIstQuelleNur), und die Zusicherung darunter waere Vakuum.
+	items: [{ id: 21, change_type: "changed", felder: ["name", "quelle"], apply_state: "done" }],
+};
+const uebernommenMitRuecknahme = {
+	key: "u2", stand: "uebernommen", name: "Ruecknehmbar",
+	items: [{ id: 22, change_type: "new", felder: [], apply_state: "done", entity_public_id: "Region-7" }],
+};
+{
+	const nurUnruecknehmbar = garetienAuswahlleisteZustand("uebernommen", 3, [uebernommenOhneRuecknahme]);
+	const r = nurUnruecknehmbar.knoepfe[0];
+	gleich(r.name, "auswahl_ruecknahme");
+	gleich(r.t2, "0 Objekte", "💣 gezaehlt wird, was WIRKLICH ruecknehmbar ist -- nicht die Auswahlgroesse");
+	gleich(r.gesperrt, true, "…und dann ist der Knopf gesperrt statt bedienbar-und-wirkungslos");
+	wahr(r.grund !== "", "…mit sichtbarem Grund: " + r.grund);
+	// Die Gegenprobe: mit einem ruecknehmbaren Objekt geht er auf.
+	const mitR = garetienAuswahlleisteZustand("uebernommen", 1, [uebernommenMitRuecknahme]).knoepfe[0];
+	gleich(mitR.t2, "1 Objekt");
+	gleich(mitR.gesperrt, false, "sonst waere die Sperre oben Vakuum");
+	gleich(mitR.grund, "", "ein bedienbarer Knopf nennt keinen Grund");
+	// „Zurück nach Offen" zaehlt seine eigene Menge -- ein 'new'-Objekt hat dort nichts.
+	const zurueck = garetienAuswahlleisteZustand("uebernommen", 1, [uebernommenMitRuecknahme]).knoepfe[1];
+	gleich(zurueck.name, "auswahl_zurueck_offen");
+	gleich(zurueck.gesperrt, true, "ein neu angelegtes Objekt faellt nicht „zurück nach Offen\"");
+	const zurueck2 = garetienAuswahlleisteZustand("uebernommen", 1, [uebernommenOhneRuecknahme]).knoepfe[1];
+	gleich(zurueck2.gesperrt, false, "ein geaendertes schon -- sonst waere die Zeile darueber Vakuum");
+}
+// ⚠️ „Auswahl aufheben" ist der EINZIGE ohne Zaehler-Eintrag: er raeumt die ganze Auswahl ab, auch
+// die Zeilen, die ein Filter ausblendet.
+gleich(garetienAuswahlleisteZustand("offen", 3, []).knoepfe[2].gesperrt, false,
+	"„Auswahl aufheben\" kann auch, wenn kein gewaehltes Objekt sichtbar ist");
+gleich(garetienAuswahlleisteZustand("offen", 3, []).knoepfe[2].t2, "3 Objekte");
+// …und „Auswahl auf die Stage" zaehlt ALLE gewaehlten (D4: auch ein Objekt ohne Vorschlag landet
+// wirklich dort, „nur Ansicht") -- gemessen an der Menge, nicht an der Auswahlgroesse.
+gleich(garetienAuswahlleisteZustand("offen", 2, [mitItem, ohneItem]).knoepfe[0].t2, "2 Objekte",
+	"⚠️ „Auswahl auf die Stage\" zaehlt auch das Objekt ohne Vorschlag -- es landet wirklich dort");
+
+// Der GRUND steht auch SICHTBAR im Markup, nicht nur im Zustand -- ein `title` an einem gesperrten
+// Knopf erscheint in Chrome nie.
+{
+	const markup = garetienAuswahlleisteMarkup(
+		garetienAuswahlleisteZustand("uebernommen", 3, [uebernommenOhneRuecknahme])
+	);
+	wahr(markup.indexOf('class="gi-auswahlleiste__grund"') !== -1,
+		"der Grund steht als eigener Absatz unter den Knoepfen");
+	wahr(markup.indexOf("data-grund=") !== -1,
+		"💣 …und AM KNOPF, damit der Klickweg dieselbe Zeichenkette liest wie die Anzeige");
+	// ⚠️ Entdoppelt: „Ablehnen" und „Wieder vorschlagen" teilen sich ihren Grund.
+	const doppelt = garetienAuswahlleisteMarkup(garetienAuswahlleisteZustand("offen", 1, [ohneItem]));
+	const treffer = doppelt.split('class="gi-auswahlleiste__grund"').length - 1;
+	gleich(treffer, 1, "hoechstens EIN Grund-Absatz je Leiste");
+	// Ein bedienbarer Knopf traegt gar kein data-grund.
+	gleich(garetienAuswahlleisteMarkup(garetienAuswahlleisteZustand("offen", 1, [mitItem]))
+		.indexOf("data-grund="), -1, "ein bedienbarer Knopf nennt keinen Grund");
+}
+
+// =================================================================================================
+// 12. FIXRUNDE 1 / C2: DER STILLE AUSGANG DER LEISTE MELDET SEINEN GRUND.
+// =================================================================================================
+// 💣 `garetienStillerAusgangMelden` gab es nur im ANDEREN Klickweg (garetienHandlungKlick) --
+// „eine Regel, die einen von zwei Klickwegen bindet, ist keine Regel".
+const { garetienAuswahlStillerAusgangText, garetienStillerAusgangText } = api;
+wahr(typeof garetienAuswahlStillerAusgangText === "function",
+	"garetienAuswahlStillerAusgangText fehlt im Export");
+const knopfAttrappe = (name, grund) => ({
+	getAttribute: (a) => (a === "data-auswahl" ? name : (a === "data-grund" ? grund : null)),
+});
+{
+	const text = garetienAuswahlStillerAusgangText(
+		knopfAttrappe("auswahl_ruecknahme", "keines der gewählten Objekte lässt sich zurücknehmen")
+	);
+	wahr(text.indexOf("Auswahl aus der Karte zurücknehmen") !== -1,
+		"die Meldung nennt den Knopf: " + text);
+	wahr(text.indexOf("geht nicht") !== -1, "…und sagt, dass er nicht kann");
+	wahr(text.indexOf("zurücknehmen") !== -1, "…und den Grund");
+}
+// 🔴 DER RIEGEL: nur ein Knopf, der einen GRUND nennt, meldet ihn auch. Ohne Grund bleibt es still.
+gleich(garetienAuswahlStillerAusgangText(knopfAttrappe("auswahl_stage", "")), "",
+	"🔴 ohne Grund keine Meldung -- eine erfundene waere schlimmer als keine");
+gleich(garetienAuswahlStillerAusgangText(knopfAttrappe("auswahl_stage", null)), "");
+gleich(garetienAuswahlStillerAusgangText(null), "", "und ohne Knopf erst recht nichts");
+// ⚠️ Derselbe Riegel gilt seit jeher im anderen Klickweg -- er war bis zur Fixrunde 1 UNGEPRUEFT.
+gleich(garetienStillerAusgangText("stage", { key: "x", name: "X", urteil: "neu", items: [] }), "",
+	"🔴 auch dort: ein Knopf ohne Grund (der Vorwaertsknopf ist nie gesperrt) meldet nichts");
+wahr(garetienStillerAusgangText("ablehnen", { key: "x", name: "X", urteil: "neu", items: [] })
+	.indexOf("geht nicht") !== -1,
+	"…und einer MIT Grund meldet ihn -- sonst waere die Zeile darueber Vakuum");
+
+// Der ECHTE Klickweg schreibt ihn in die Statuszeile.
+{
+	avesmapsGaretienAuswahlAufheben();
+	avesmapsGaretienAuswahlUmschalten("u1");
+	dom.el("#garetien-status-text").textContent = "";
+	const ereignisMitGrund = {
+		target: {
+			closest(sel) {
+				return sel === "[data-auswahl]"
+					? knopfAttrappe("auswahl_ruecknahme", "keines der gewählten Objekte lässt sich zurücknehmen")
+					: null;
+			},
+		},
+	};
+	let ruecknahmeGerufen = 0;
+	const ergebnis = garetienAuswahlleisteKlick(ereignisMitGrund, [uebernommenOhneRuecknahme], 7, {
+		ruecknahme: () => { ruecknahmeGerufen++; return Promise.resolve(null); },
+	});
+	gleich(ergebnis, null, "der Klick richtet nichts aus");
+	gleich(ruecknahmeGerufen, 0, "💣 …und geht gar nicht erst an den Verteiler");
+	wahr(dom.text("#garetien-status-text").indexOf("geht nicht") !== -1,
+		"💣 ABER ER SAGT ES: " + dom.text("#garetien-status-text"));
+	avesmapsGaretienAuswahlAufheben();
+}
+
+// =================================================================================================
+// 13. FIXRUNDE 1 / C1: „Auswahl ablehnen" KAPPT NICHT MEHR -- und meldet nur, was wirklich geht.
+// =================================================================================================
+// 💣 `api/edit/wiki/sync-plan.php` schneidet `ids` bei AVESMAPS_SYNC_PLAN_CATEGORY_LIMIT (200) ab,
+// ohne Fehler und ohne Hinweis -- fuer `decline` UND `undecline`. Mit 250 gewaehlten Objekten stand
+// „250 Objekte abgelehnt." da, waehrend 50 unberuehrt blieben. Die kleinste Zeilenstufe der Liste
+// ist 1000; das ist der Normalfall, kein Randfall.
+{
+	const viele = [];
+	for (let i = 0; i < 250; i++) {
+		viele.push({ key: "v" + i, stand: "offen", urteil: "neu", name: "V" + i,
+			items: [{ id: 1000 + i, change_type: "new" }] });
+	}
+	avesmapsGaretienAuswahlAufheben();
+	viele.forEach((o) => avesmapsGaretienAuswahlUmschalten(o.key));
+	const geschickt = [];
+	const ergebnis = garetienAuswahlleisteKlick(leistenEreignis("auswahl_ablehnen"), viele, 7, {
+		sendenMenge: (rumpf, ids, meldung) => { geschickt.push({ rumpf, ids, meldung }); return "ok"; },
+		fragen: () => true,
+	});
+	gleich(ergebnis, "ok");
+	gleich(geschickt.length, 1, "EIN Aufruf -- das Zerlegen macht der Sender, nicht der Verteiler");
+	gleich(geschickt[0].ids.length, 250,
+		"💣 ALLE 250 ids gehen hinaus -- vorher waren es 200, und gemeldet wurden trotzdem 250");
+	wahr(String(geschickt[0].meldung).indexOf("250 Objekte abgelehnt") !== -1,
+		"…und die Meldung stimmt damit wieder: " + geschickt[0].meldung);
+	avesmapsGaretienAuswahlAufheben();
+}
+// Und der SENDER zerlegt wirklich -- ausgefuehrt, nicht gelesen.
+(async function () {
+	const { garetienMengeSendenMitMeldung } = api;
+	wahr(typeof garetienMengeSendenMitMeldung === "function", "garetienMengeSendenMitMeldung fehlt");
+	const rufe = [];
+	const ids = [];
+	for (let i = 1; i <= 450; i++) { ids.push(i); }
+	dom.el("#garetien-status-text").textContent = "";
+	await garetienMengeSendenMitMeldung(
+		{ action: "decline", kind: "garetien", run_id: 7 }, ids, "450 Objekte abgelehnt.",
+		function (rumpf) { rufe.push(rumpf); return Promise.resolve({ ok: true }); },
+		// 💣 DER LISTENLAUF LEERT DIE STATUSZEILE -- genau das tut `avesmapsGaretienListeRendern`
+		//    ueber `garetienStatusRuhe`. Ohne diese Zeile ist die Zusicherung darunter VAKUUM: eine
+		//    Meldung, die VOR dem Listenlauf gesetzt wird, ueberlebt eine untaetige Attrappe genauso.
+		//    Gemessen 07.09.2026 -- die Mutation „Meldung vor den Listenlauf" hatte den Test
+		//    zunaechst ueberlebt.
+		function () { dom.el("#garetien-status-text").textContent = ""; return Promise.resolve(null); }
+	);
+	gleich(rufe.length, 3, "💣 450 ids gehen in DREI Haeppchen zu hoechstens 200 hinaus");
+	gleich(rufe[0].ids.length, 200);
+	gleich(rufe[2].ids.length, 50);
+	gleich(rufe.reduce((n, r) => n + r.ids.length, 0), 450, "…und keine einzige id faellt weg");
+	gleich(rufe[0].action, "decline", "die uebrigen Felder des Rumpfes reisen unveraendert mit");
+	gleich(dom.text("#garetien-status-text"), "450 Objekte abgelehnt.",
+		"💣 die Meldung steht NACH dem Listenlauf -- davor setzte der Renderer sie sofort zurueck");
+
+	// ===============================================================================================
+	// 14. FIXRUNDE 1 / C3: DIE AUSWAHL UEBERLEBT DEN REITERWECHSEL NICHT -- am ECHTEN Zuhoerer.
+	// ===============================================================================================
+	// 💣 Entwurf §4 sagt es ausdruecklich: sie gehoert zur ANSICHT, nicht zum Objekt. Gemessen am
+	// 07.09.2026: Reiter „Abgelehnt", 3 global gewaehlt, 0 davon sichtbar -> die Leiste stand da, ihr
+	// Knopf war bedienbar, und der Klick blieb wortlos.
+	const objekteFuerLauf = [
+		{ key: "r1", stand: "offen", urteil: "neu", name: "R1", items: [{ id: 501, change_type: "new" }] },
+		{ key: "r2", stand: "offen", urteil: "neu", name: "R2", items: [{ id: 502, change_type: "new" }] },
+	];
+	avesmapsGaretienAuswahlAufheben();
+	avesmapsGaretienStageLeeren();
+	// 🔴 Über die ECHTE Tür: `zustand.objekte` entsteht ausschliesslich in
+	// `avesmapsGaretienListeHolen` -- ein blosses `avesmapsGaretienListeRendern` zeichnet zwar,
+	// laesst den Modulzustand aber leer, und der Klickverteiler bekaeme eine leere Objektliste.
+	const echterFetch = global.fetch;
+	global.fetch = function () {
+		return Promise.resolve({ json: () => Promise.resolve({ ok: true, objekte: objekteFuerLauf, plan_run_id: 7 }) });
+	};
+	await api.avesmapsGaretienListeHolen();
+	global.fetch = echterFetch;
+	const leisteEl = dom.el("#garetien-auswahlleiste");
+	const zuhoerer = (leisteEl._hoerer.click || [])[0];
+	wahr(typeof zuhoerer === "function",
+		"die Leiste muss ueberhaupt einen delegierten Zuhoerer tragen -- sonst misst der Rest nichts");
+	objekteFuerLauf.forEach((o) => avesmapsGaretienAuswahlUmschalten(o.key));
+	gleich(api.avesmapsGaretienFensterZustand().auswahl.length, 2, "Zeuge: zwei sind gewaehlt");
+	wahr(api.avesmapsGaretienFensterZustand().stand !== "stage", "Zeuge: und der Reiter steht woanders");
+	zuhoerer(leistenEreignis("auswahl_stage"));
+	gleich(api.avesmapsGaretienFensterZustand().stand, "stage",
+		"der ECHTE Klick legt sie auf die Stage und wechselt den Reiter");
+	gleich(api.avesmapsGaretienFensterZustand().auswahl.length, 0,
+		"💣 UND DIE AUSWAHL IST DANACH LEER -- sie gehoert der Ansicht (Entwurf §4)");
+	gleich(avesmapsGaretienStageHat("r1"), true, "…die Objekte liegen aber sehr wohl auf der Stage");
+	avesmapsGaretienStageLeeren();
+	avesmapsGaretienAuswahlAufheben();
+
+	console.log("OK -- " + checks + " Zusicherungen");
+})().catch(function (fehler) { console.error(fehler); process.exit(1); });

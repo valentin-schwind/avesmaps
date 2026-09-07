@@ -52,8 +52,12 @@ const ELEMENTE = {};
 // entstehen (kein Test-Hintertuerchen, dieselbe Funktion, die auch ein echter Klick nimmt).
 // 🔴 „garetien-status-text" kam mit Aufgabe 1 (06.09.2026) dazu: ein Fehler steht seither dort,
 // nicht mehr in der Liste (siehe Abschnitt 7).
-["garetien-listcol", "garetien-list", "garetien-tabs",
-	"garetien-ruecknahme-markierte", "garetien-ruecknahme-markierte-hint", "garetien-status-text"]
+// 🔴 FIXRUNDE 1 (D2, 07.09.2026): #garetien-ruecknahme-markierte und seinen Hinweis gibt es
+// NICHT MEHR -- der Knopf steht als „Auswahl aus der Karte zurücknehmen“ in der Auswahlleiste,
+// die ihre Knoepfe zur Laufzeit baut (`data-auswahl` statt `id`). Die REINE Haelfte
+// (garetienRuecknahmeMengeZustand) und der Verteiler (garetienRuecknahmeMengeKlick) sind
+// unveraendert und werden hier weiter gefahren; der Fortschritt steht seither in der Statuszeile.
+["garetien-listcol", "garetien-list", "garetien-tabs", "garetien-status-text"]
 	.forEach((id) => { ELEMENTE[id] = macheElement(id); });
 
 global.document = {
@@ -69,7 +73,6 @@ const mod = require(path.resolve(__dirname, "..", "review-garetien-importer.js")
 const {
 	garetienKetteAbarbeiten,
 	garetienRuecknahmeMengeZustand,
-	garetienRuecknahmeMengeKnopfSetzen,
 	garetienRuecknahmeMengeRueckfrageText,
 	garetienRuecknahmeMengeAusfuehren,
 	garetienRuecknahmeMengeKlick,
@@ -84,14 +87,12 @@ const {
 function markieren(key) { if (!avesmapsGaretienAuswahlHat(key)) { avesmapsGaretienAuswahlUmschalten(key); } }
 function entmarkieren(key) { if (avesmapsGaretienAuswahlHat(key)) { avesmapsGaretienAuswahlUmschalten(key); } }
 
-["garetienKetteAbarbeiten", "garetienRuecknahmeMengeZustand", "garetienRuecknahmeMengeKnopfSetzen",
+["garetienKetteAbarbeiten", "garetienRuecknahmeMengeZustand",
 	"garetienRuecknahmeMengeRueckfrageText", "garetienRuecknahmeMengeAusfuehren",
 	"garetienRuecknahmeMengeKlick"].forEach(function (name) {
 	wahr(typeof mod[name] === "function", name + " fehlt im Export");
 });
 
-const KNOPF = ELEMENTE["garetien-ruecknahme-markierte"];
-const HINWEIS = ELEMENTE["garetien-ruecknahme-markierte-hint"];
 const TABS = ELEMENTE["garetien-tabs"];
 const LISTE_EL = ELEMENTE["garetien-list"];
 
@@ -184,17 +185,21 @@ const objC = { key: "c", stand: "uebernommen", items: [{ id: 103, change_type: "
 	entmarkieren("c"); // wieder abwaehlen
 
 	// =============================================================================================
-	// 2. Die DOM-Haelfte -- garetienRuecknahmeMengeKnopfSetzen, ECHT auf dem Reiter „Übernommen"
+	// 2. Der Stand auf dem Reiter „Übernommen" -- ECHT, ueber einen Reiterwechsel
 	// =============================================================================================
+	// 🔴 Die DOM-Haelfte (garetienRuecknahmeMengeKnopfSetzen) ist am 07.09.2026 gefallen; was sie
+	// schrieb, baut jetzt die Auswahlleiste aus DIESEM Zustand. Gemessen wird deshalb der Zustand.
 	await aufReiterUebernommenWechseln([objA, objB, objC]);
 
 	markieren("a");
 	markieren("b");
 	markieren("c");
-	garetienRuecknahmeMengeKnopfSetzen([objA, objB, objC]);
-	gleich(KNOPF.textContent, "Import zurücknehmen (2 von 3)");
-	gleich(KNOPF.disabled, false);
-	gleich(HINWEIS.hidden, true, "kein Grund noetig, solange der Knopf offen ist");
+	{
+		const standDom = garetienRuecknahmeMengeZustand([objA, objB, objC], "uebernommen");
+		gleich(standDom.beschriftung, "Import zurücknehmen (2 von 3)");
+		gleich(standDom.gesperrt, false);
+		gleich(standDom.hinweis, "", "kein Grund noetig, solange der Knopf offen ist");
+	}
 
 	// =============================================================================================
 	// 3. garetienRuecknahmeMengeRueckfrageText -- REIN: nennt die Zahl
@@ -315,8 +320,8 @@ const objC = { key: "c", stand: "uebernommen", items: [{ id: 103, change_type: "
 		markieren("a");
 		markieren("b");
 		await aufReiterUebernommenWechseln([objA, objB]);
-		garetienRuecknahmeMengeKnopfSetzen([objA, objB]);
-		gleich(KNOPF.textContent, "Import zurücknehmen (2 von 2)");
+		gleich(garetienRuecknahmeMengeZustand([objA, objB], "uebernommen").beschriftung,
+			"Import zurücknehmen (2 von 2)");
 
 		LISTE_EL.innerHTML = "<div class='avm-row'>vorher unveraendert</div>";
 		const d = machFetch(function (pfad, rumpf) {
@@ -345,7 +350,18 @@ const objC = { key: "c", stand: "uebernommen", items: [{ id: 103, change_type: "
 		wahr(ELEMENTE["garetien-status-text"]._klassen.has("bad"), "…mit dem Ton bad");
 		gleich(LISTE_EL.innerHTML, "<div class='avm-row'>vorher unveraendert</div>",
 			"💣 die Liste bleibt UNBERUEHRT -- ein Fehler ersetzt sie nicht mehr (Aufgabe 1)");
-		gleich(KNOPF.disabled, false, "der Knopf entsperrt sich wieder -- kein haengender Riegel");
+		// 🔴 FIXRUNDE 1 (D2): frueher stand hier „der Knopf entsperrt sich wieder“. Den Knopf gibt
+		// es nicht mehr; der haengende Riegel ist seither der MODULZUSTAND, und genau der wird hier
+		// gemessen -- ein zweiter Klick muss wirklich wieder etwas senden.
+		{
+			const d2 = machFetch(function () { return { ok: true, zurueckgenommen: 1, fehler: [] }; });
+			const echt2 = global.fetch;
+			global.fetch = d2.fn;
+			await garetienRuecknahmeMengeKlick(1, function () { return true; });
+			global.fetch = echt2;
+			wahr(d2.angefragt.some((a) => a.rumpf.action === "ruecknahme"),
+				"💣 nach dem Fehlschlag laesst sich wieder zuruecknehmen -- kein haengender Riegel");
+		}
 	}
 
 	console.log("garetien-ruecknahme-menge.test.js: " + checks + " Zusicherungen OK");

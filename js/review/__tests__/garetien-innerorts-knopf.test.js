@@ -29,7 +29,7 @@ function tief(ist, soll, warum) {
 }
 
 ["garetienInnerortsOrt", "garetienHandlungen", "garetienHandlungTitel", "garetienNeuKlick",
-	"garetienNeuIstZusatz", "garetienZeileMarkup", "garetienEingefuegtWirdUebernommenHinweis",
+	"garetienStageVorhaben", "garetienZeileMarkup", "garetienEingefuegtWirdUebernommenHinweis",
 ].forEach((name) => wahr(typeof mod[name] === "function", name + " fehlt im Export"));
 
 const namen = (objekt) => mod.garetienHandlungen(objekt).map((k) => k.name);
@@ -180,7 +180,15 @@ async function pruefeKlick() {
 				{ id: 61, anlass: "zusatz", felder: [], change_type: "new", selected: 0 },
 			],
 		});
-		wahr(mod.garetienNeuIstZusatz(kollision) === true, "(die Attrappe IST eine Kollision)");
+		// 🔴 FIXRUNDE 1 (B3, 07.09.2026): `garetienNeuIstZusatz` gibt es nicht mehr. Die Frage
+		// beantwortet `garetienStageVorhaben` — und sie ist ENGER: das Zusatz-Item zählt nur, wenn
+		// das Objekt sonst NICHTS vorzuweisen hat. Diese Attrappe trägt daneben ein legitimes
+		// Ergänzungs-Item, ist also „ergaenzung“ — genau die Lage, in der ein mitlaufendes Zusatz-Item
+		// den Schadensfall vom 30.08.2026 wiederholte (Ergänzung UND Dublette in einem Import).
+		gleich(mod.garetienStageVorhaben(kollision), "ergaenzung",
+			"💣 das Zusatz-Item bleibt draußen, solange ein legitimes Item danebensteht");
+		gleich(mod.garetienStageVorhaben({ items: [{ id: 61, anlass: "zusatz", change_type: "new" }] }),
+			"zusatz", "(allein steht es sehr wohl für sich)");
 		// 🔴 Seit dem 07.09.2026 gibt es den Knopf „neu" nicht mehr (Owner-Punkt 12) -- und die TUER
 		// bleibt auch dann zu, wenn ein synthetisches Ereignis ihn von Hand anfliegt:
 		// `garetienHandlungsRumpf` findet keinen Knopf dieses Namens mehr und liefert `null`.
