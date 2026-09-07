@@ -4548,19 +4548,39 @@
 			+ "</div>";
 	}
 
-	// ---- Owner-Auftrag A (30.08.2026): „Imports in der Nähe anzeigen" -- inzwischen „… stagen" ----
+	// ---- Owner-Auftrag A (30.08.2026): „Imports in der Nähe anzeigen" -- inzwischen „… wählen" ----
 	//
-	// 🔴 Der Knopf hieß bis zum 30.08.2026 „… markieren", und der Name war eine Lüge: der Klick
-	// markiert NICHT nur, er legt die Treffer im selben Zug auf die Stage (`garetienNaeheKlick`
-	// ruft beides). Möglich wurde das, weil die Serverantwort die ganzen Objekte ohnehin mitbringt —
-	// damit fällt die 500er-Grenze der geladenen Liste wirklich weg, statt nur benannt zu werden.
-	// Owner dazu: „Du hast dich natürlich nicht daran gehalten nur zu markieren, sondern hast es
-	// gleich auf anzeigen getan, aber das is in ordnung." Die Beschriftung nannte danach die
-	// SICHTBARE Wirkung („… anzeigen") — dieselbe Lehre wie beim Knopf „✦ Zentrieren" ein Stück
-	// weiter unten, dessen Name ebenfalls stehen blieb, nachdem sich seine Wirkung verschoben hatte.
-	// 🔴 UND SEIT AUFGABE 8 (Vokabular-Vereinheitlichung, Fixrunde 1) HEISST DIE STELLE „STAGE",
-	// NICHT MEHR „ANZEIGE" -- der Knopf ist damit ZWEIMAL umbenannt: „… markieren" -> „… anzeigen"
-	// -> „… stagen". Wer nur den Absatz darüber liest, ohne diese Zeile, hält ihn für aktuell.
+	// 🔴 Der Knopf hieß bis zum 30.08.2026 „… markieren", wurde dann „… anzeigen" (weil der Klick
+	// die Treffer im selben Zug auf die Stage legte) und seit Aufgabe 8 (Fixrunde 1) „… stagen".
+	// Owner am 07.09.2026, nach dem dritten Namen: „‚Import in der Nähe anzeigen' tut sie stagen.
+	// […] sollte eigentlich ‚Import in der Nähe markieren' heißen und noch nicht stagen. ERST wenn
+	// ich die objekte sehe, will ich sie aber stagen können. weil wir jetzt den button ‚Auf die
+	// Stage' haben, brauchen wir das aber nicht mehr."
+	//
+	// 🔴 AUFGABE 13 (07.09.2026): DER KLICK STAGT NICHT MEHR. Er legt die Treffer nur noch in die
+	// AUSWAHL (`avesmapsGaretienAlleWaehlen`) -- auf die Stage kommen sie über „Auswahl auf die
+	// Stage", denselben Knopf, den der Owner in seinem Satz selbst nennt. DER NAME: der Owner bot
+	// „markieren" oder „anzeigen" an -- beide Wörter sind gerade abgeschaffte Vokabeln (zwei der
+	// sieben, über die er sich in Aufgabe 8 beschwert hatte). Der Knopf heißt deshalb „Imports in
+	// der Nähe wählen (n)".
+	// 💣 UND DIE FOLGE: DIE TREFFER WERDEN NICHT MEHR GEZEICHNET. Was auf der Karte liegt, ist die
+	// Stage (`avesmapsGaretienAufDerKarte`) -- bis der Editor „Auswahl auf die Stage" drückt, sieht
+	// er die Treffer nur als angehakte Zeilen in der Liste. Damit entfällt auch der Reiterwechsel
+	// auf „Stage", den der Klick bis hierher auslöste (siehe der Klickverteiler weiter unten): er
+	// zeigte Objekte, die jetzt gar nicht mehr gezeichnet werden.
+	// ⚠️ `avesmapsGaretienNurIhreMerken` VERLIERT DAMIT SEINEN EINZIGEN AUFRUFER -- gemessen: er war
+	// der einzige im ganzen Fenster (`garetien-karte.test.js` ruft die Funktion daneben direkt, um
+	// den ZEICHNER unabhängig von diesem Knopf zu prüfen). Entschieden: die Marke FÄLLT für diesen
+	// Weg, sie wandert NICHT zu „Auswahl auf die Stage" mit. Erstens wäre sie dort keine Ausnahme
+	// mehr, sondern die Regel für JEDES ausgewählte Objekt -- auch für eine von Hand angehakte
+	// Zeile ohne jeden Bezug zu „in der Nähe", die schon vorher ganz normal (mit beiden Seiten) auf
+	// die Stage kam (`garetienStageKlick`, `avesmapsGaretienAuswahlAufDieStage` -- keiner der
+	// beiden setzt die Marke). Zweitens hatte die Marke nur einen Sinn, solange DIESER Klick selbst
+	// zeichnete: „zeig den Fund, ohne ihn wie einen bereits abgeglichenen Treffer aussehen zu
+	// lassen". Ein Klick, der nichts mehr zeichnet, hat dafür keine Verwendung mehr. Der
+	// Mechanismus selbst (Feld, Zeichner, Löschung beim gewöhnlichen Stagen) bleibt unangetastet --
+	// ihn auszubauen wäre ein zweiter, unbestellter Umbau.
+	//
 	// ⚠️ Gewandert ist die BESCHRIFTUNG, nicht die Kennungen: `data-naehe`, `garetienNaeheKlick`,
 	// `avesmapsGaretienNaehe` und `garetien-naehe-markieren.test.js` heißen weiter wie vorher —
 	// dieselbe Trennung wie bei „Neuigkeiten"/`changelog` (AGENTS.md §11).
@@ -4572,15 +4592,82 @@
 	// geladenen Zeilen fände nur, was gerade sichtbar ist, und der Knopf verspräche
 	// dann eine Zahl, die von der Ansicht statt von der Karte abhängt.
 
-	// REIN: Beschriftung + Sperre, aus der schon vom Server gelieferten Trefferliste.
+	// REIN: Beschriftung + Sperre einer Trefferliste. Aufgabe 13: sie bekommt nicht mehr den ganzen
+	// Fund, sondern die vom Typenfilter GEWÄHLTE Teilmenge (`garetienNaeheMenge`) -- die Zahl im
+	// Knopf folgt der Wahl, nicht der Gesamtzahl (Brief: „Imports in der Nähe wählen (2)", nicht
+	// „(24)").
 	function garetienNaeheKnopfZustand(gefunden) {
 		const anzahl = Array.isArray(gefunden) ? gefunden.length : 0;
 		return {
 			anzahl: anzahl,
-			beschriftung: "Imports in der Nähe stagen (" + anzahl + ")",
+			beschriftung: "Imports in der Nähe wählen (" + anzahl + ")",
 			gesperrt: anzahl === 0,
 			hinweis: anzahl === 0 ? "Kein weiteres Import-Objekt im Umkreis gefunden." : "",
 		};
+	}
+
+	/*
+	 * Aufgabe 13 (07.09.2026): DER TYPENFILTER -- BEIDE REIN, kein DOM, kein Modulzustand.
+	 *
+	 * Auftrag: „einen Filter bzw. ein Dropdown, um Objekte gleichen oder eines bestimmten Typs" zu
+	 * erfassen.
+	 *
+	 * 🔴 DIE ZEILEN SIND DATEN, KEINE AUSZEICHNUNG (Brief) -- sie entstehen aus der schon geladenen
+	 * Trefferliste samt Anzahl. Eine handgeschriebene Typenliste liefe beim nächsten Typ still
+	 * auseinander -- im Haus schon zweimal passiert (die Kartensuche kennt bis heute 18 Arten
+	 * nicht).
+	 * ⚠️ Die übrigen Typen stehen ALPHABETISCH (Zusicherung 2) -- eine Reihenfolge nach Häufigkeit
+	 * wechselte mit jedem neuen Objekt den Platz.
+	 *
+	 * @param gefunden    die schon geladene Trefferliste (`_garetienNaeheGefunden`).
+	 * @param eigenerTyp  der Typ des GEÖFFNETEN Objekts (`objekt.typ`) -- "" heißt „keiner/unbekannt".
+	 */
+	function garetienNaeheGruppen(gefunden, eigenerTyp) {
+		const liste = Array.isArray(gefunden) ? gefunden : [];
+		const eigen = String(eigenerTyp || "");
+		const nachTyp = {};
+		liste.forEach(function (o) {
+			const t = String((o && o.typ) || "");
+			nachTyp[t] = (nachTyp[t] || 0) + 1;
+		});
+		const gruppen = [];
+		// Zusicherung 1+4: die Vorgabe ist der EIGENE Typ und steht oben -- aber nur, wenn es
+		// überhaupt einen gibt, sonst fällt die Gruppe WEG statt leer dazustehen.
+		if (eigen !== "") {
+			gruppen.push({
+				key: "gleich",
+				label: "gleicher Typ · " + eigen + " (" + (nachTyp[eigen] || 0) + ")",
+			});
+		}
+		Object.keys(nachTyp).sort().forEach(function (t) {
+			gruppen.push({ key: t, label: t + " (" + nachTyp[t] + ")" });
+		});
+		gruppen.push({ key: "alle", label: "alle Typen (" + liste.length + ")" });
+		return gruppen;
+	}
+
+	// REIN: welche der gefundenen Objekte die Wahl im Dropdown gerade meint (Zusicherung 3).
+	function garetienNaeheMenge(gefunden, eigenerTyp, wahl) {
+		const liste = Array.isArray(gefunden) ? gefunden : [];
+		const w = String(wahl || "");
+		if (w === "alle") { return liste; }
+		const gesucht = w === "gleich" ? String(eigenerTyp || "") : w;
+		return liste.filter(function (o) { return String((o && o.typ) || "") === gesucht; });
+	}
+
+	// REIN: die Wahl des Dropdowns für die gerade gültigen Gruppen -- `_garetienNaeheWahl`
+	// (Modulzustand, siehe unten) fällt auf die ERSTE Gruppe zurück, solange niemand gewählt hat
+	// oder die Wahl zu keiner der aktuellen Gruppen mehr passt (z. B. nach einem Objektwechsel).
+	function garetienNaeheWahlAktuell(gruppen) {
+		const liste = Array.isArray(gruppen) ? gruppen : [];
+		const passt = liste.some(function (g) { return g.key === _garetienNaeheWahl; });
+		if (passt) { return _garetienNaeheWahl; }
+		return liste.length ? liste[0].key : "alle";
+	}
+
+	// Setzt die Wahl -- gerufen vom delegierten "input"-Zuhörer der Detailspalte (data-naehe-typ).
+	function garetienNaeheWahlSetzen(wert) {
+		_garetienNaeheWahl = String(wert || "");
 	}
 
 	// Modulzustand: EIN Abruf je geöffneter Zeile (dieselbe Wache wie bei der Wiki-Landschaft-Suche,
@@ -4593,6 +4680,12 @@
 	// den gerade benutzten Knopf im selben Klick wieder auf "wird ermittelt" zurückfallen.
 	let _garetienNaeheLetzterKey = null;
 	let _garetienNaeheGefunden = null;
+	// Aufgabe 13: die WAHL im Typenfilter -- NEBEN dem DOM, wie das Feld darüber (Brief: „Der
+	// Zustand der Wahl steht NEBEN dem DOM ... die Detailspalte wird bei jedem Listenabruf neu
+	// gebaut, eine Wahl am <select> wäre sonst verloren"). `null` heißt „noch nichts gewählt" --
+	// den Vorgabewert liefert `garetienNaeheWahlAktuell` aus den GERADE gültigen Gruppen, nie eine
+	// feste Zeichenkette hier (die Vorgabe hängt vom eigenen Typ des jeweils offenen Objekts ab).
+	let _garetienNaeheWahl = null;
 
 	// REIN: das Markup, aus dem schon geladenen (oder noch fehlenden) Stand für GENAU dieses Objekt.
 	// 🔴 Erscheint nur, wo es überhaupt einen Mittelpunkt gibt -- dieselbe Bedingung wie beim Knopf
@@ -4605,12 +4698,46 @@
 			return '<div class="gi-naehe"><button class="btn" type="button" id="garetien-naehe-btn" '
 				+ "data-naehe disabled>Wird ermittelt …</button></div>";
 		}
-		const stand = garetienNaeheKnopfZustand(geladen);
-		const hinweisMarkup = stand.hinweis === "" ? ""
-			: '<span class="gi-foot__hint">' + avesmapsGaretienEscape(stand.hinweis) + "</span>";
-		return '<div class="gi-naehe"><button class="btn" type="button" id="garetien-naehe-btn" data-naehe'
+		if (geladen.length === 0) {
+			const stand = garetienNaeheKnopfZustand(geladen);
+			return '<div class="gi-naehe"><button class="btn" type="button" id="garetien-naehe-btn" '
+				+ "data-naehe disabled>" + avesmapsGaretienEscape(stand.beschriftung) + "</button>"
+				+ '<span class="gi-foot__hint">' + avesmapsGaretienEscape(stand.hinweis) + "</span></div>";
+		}
+		// Aufgabe 13: der Typenfilter -- die Gruppen kommen aus der geladenen Trefferliste UND dem
+		// eigenen Typ des geöffneten Objekts, die Wahl fällt ohne eigenes Zutun auf die erste
+		// Gruppe (den eigenen Typ, wenn es ihn gibt).
+		const eigenerTyp = String(objekt.typ || "");
+		const gruppen = garetienNaeheGruppen(geladen, eigenerTyp);
+		const wahl = garetienNaeheWahlAktuell(gruppen);
+		const menge = garetienNaeheMenge(geladen, eigenerTyp, wahl);
+		const stand = garetienNaeheKnopfZustand(menge);
+		const auswahlMarkup = gruppen.map(function (g) {
+			return '<option value="' + avesmapsGaretienEscape(g.key) + '"'
+				+ (g.key === wahl ? " selected" : "") + ">" + avesmapsGaretienEscape(g.label) + "</option>";
+		}).join("");
+		return '<div class="gi-naehe">'
+			+ '<select class="gi-naehe__typ" id="garetien-naehe-typ" data-naehe-typ>' + auswahlMarkup
+			+ "</select>"
+			+ '<button class="btn" type="button" id="garetien-naehe-btn" data-naehe'
 			+ (stand.gesperrt ? " disabled" : "") + ">" + avesmapsGaretienEscape(stand.beschriftung)
-			+ "</button>" + hinweisMarkup + "</div>";
+			+ "</button></div>";
+	}
+
+	// REIN: die Menge, die der Knopf JETZT auswählen würde -- dieselbe Rechnung wie im Markup
+	// (`garetienNaeheMarkup`), damit Anzeige und Klick nie auseinanderlaufen (eine Regel, die nur
+	// einen von zwei Erzeugern bindet, ist keine Regel). Ohne geladenen Treffer (Platzhalter oder
+	// „kein Fund") liefert sie eine leere Liste.
+	function garetienNaeheAktuelleMenge(objekt) {
+		if (!objekt) { return []; }
+		const schluessel = String(objekt.key || "");
+		const geladen = schluessel === _garetienNaeheLetzterKey ? _garetienNaeheGefunden : null;
+		const liste = Array.isArray(geladen) ? geladen : [];
+		if (liste.length === 0) { return []; }
+		const eigenerTyp = String(objekt.typ || "");
+		const gruppen = garetienNaeheGruppen(liste, eigenerTyp);
+		const wahl = garetienNaeheWahlAktuell(gruppen);
+		return garetienNaeheMenge(liste, eigenerTyp, wahl);
 	}
 
 	// Fragt bei Bedarf den Umkreis für das GERADE GEÖFFNETE Objekt ab -- über denselben Sender wie
@@ -4622,6 +4749,9 @@
 		if (schluessel === _garetienNaeheLetzterKey) { return; }
 		_garetienNaeheLetzterKey = schluessel;
 		_garetienNaeheGefunden = null;
+		// Aufgabe 13: ein NEUES Objekt beginnt ohne Wahl -- sonst traegt der Typenfilter des
+		// vorherigen Objekts (z. B. "gleich" fuer dessen Typ) in die naechste Zeile hinein.
+		_garetienNaeheWahl = null;
 		if (!hasDocument || typeof fetch !== "function") { return; }
 		avesmapsGaretienRufe(GARETIEN_ENDPUNKT, {
 			action: "naehe",
@@ -4642,48 +4772,22 @@
 		});
 	}
 
-	// Der Klick: markiert UND zeigt die gefundenen Nachbarn. 🔴 ZWEI ZÜGE IN EINEM KLICK, ABSICHT --
-	// der Server liefert bereits VOLLE Objekte (avesmapsGaretienArbeitslisteObjekte kennt sie
-	// ohnehin für den ganzen Lauf), damit schließt sich die Lücke aus dem Auftrag ("markierte
-	// Nachbarn, die nicht in der geladenen Liste stehen, lassen sich nicht anzeigen") VOLLSTÄNDIG,
-	// statt sie nur zu benennen: ein gefundener Nachbar liegt sofort auf der Karte, unabhängig von
-	// den Zeilen der gerade geladenen Seite. „Alle markieren" bleibt davon unberührt
-	// -- ihr Vertrag „Markieren ändert nichts" gilt dort, wo `zustand.objekte` ohnehin schon die
-	// richtige Antwort ist; hier ist sie es nicht, und der Server hat die richtige Antwort bereits
-	// mitgeschickt.
-	// 🔴 Der Klick LEERT NICHTS (Auftrag): `avesmapsGaretienAlleWaehlen`/`avesmapsGaretienAnzeige-
-	// Hinzufuegen` ERGÄNZEN beide, wie überall in diesem Fenster.
-	// 🔴 `eigenes` ist das GEOEFFNETE Objekt, und es geht mit auf die Stage (Owner 30.08.2026,
-	// zusammen mit dem Reiterwechsel unten). Zwei Gruende, und der zweite ist der wichtigere:
-	//   · Es liegt ohnehin schon auf der Karte -- `avesmapsGaretienAufDerKarte` haengt die offene
-	//     Zeile immer an. Ohne diese Zeile zeigte der Reiter „Anzeigen" 42 Nachbarn, waehrend 43
-	//     Objekte gezeichnet sind: er waere nicht mehr die Liste dessen, was auf der Karte liegt,
-	//     und genau das ist seine einzige Aufgabe.
-	//   · Und die EINZELANSICHT LIEFE SONST LEER. `garetienDetailRendern` sucht `zustand.detailKey`
-	//     in der gerade gerenderten Liste; steht das offene Objekt nicht darin, ist `gewaehlt` null
-	//     und die rechte Spalte raeumt sich beim Reiterwechsel selbst ab -- gemessen, nicht vermutet.
-	// ⚠️ Die ZAHL im Knopf bleibt die der NACHBARN (der Rueckgabewert). Sie beantwortet „wie viele
-	// liegen in der Naehe", nicht „wie viele liegen jetzt auf der Karte" -- zwei verschiedene Fragen,
-	// und die zweite steht im Reiterkopf.
-	// ⚠️ Und es bekommt KEINE Nur-ihre-Marke: das geoeffnete Objekt ist von ihr ohnehin ausgenommen
-	// (avesmapsGaretienNurIhreStempeln) -- wer eine Zeile ansieht, will beide Seiten vergleichen.
-	function garetienNaeheKlick(ereignis, gefunden, eigenes) {
+	// Der Klick: legt die (vom Typenfilter gewählte) Menge NUR NOCH IN DIE AUSWAHL -- Aufgabe 13
+	// (07.09.2026), siehe der Owner-Auftrag am Kopf dieses Abschnitts. `menge` ist bereits die
+	// gewählte Teilmenge (`garetienNaeheAktuelleMenge`, dieselbe Rechnung wie im Markup); diese
+	// Funktion selbst kennt weder Gruppen noch Server, sie prüft nur den Klick und wählt.
+	// 🔴 Der Klick LEERT NICHTS (Auftrag): `avesmapsGaretienAlleWaehlen` ERGÄNZT, wie überall in
+	// diesem Fenster. Auf die Stage kommen die gewählten Objekte erst über „Auswahl auf die Stage"
+	// -- diese Funktion stagt nichts mehr und setzt auch keine „nur ihre"-Marke (Begründung am Kopf
+	// dieses Abschnitts: die Marke hatte nur einen Sinn, solange dieser Klick selbst zeichnete).
+	function garetienNaeheKlick(ereignis, menge) {
 		const ziel = ereignis && ereignis.target;
 		if (!ziel || typeof ziel.closest !== "function") { return null; }
 		const knopf = ziel.closest("[data-naehe]");
 		if (!knopf || knopf.disabled) { return null; }
-		const liste = Array.isArray(gefunden) ? gefunden : [];
+		const liste = Array.isArray(menge) ? menge : [];
 		if (liste.length === 0) { return null; }
 		avesmapsGaretienAlleWaehlen(liste);
-		avesmapsGaretienStageHinzufuegen(liste);
-		// 🔴 NACH dem Hinzufuegen (Owner 30.08.2026: „der button sollte nur imports nicht unsere
-		// eigenen anzeigen"). Die Reihenfolge ist tragend: avesmapsGaretienStageHinzufuegen
-		// LOESCHT die Marke, damit ein gewoehnlicher Weg sie aufhebt -- davor gesetzt waere sie im
-		// selben Zug wieder fort.
-		avesmapsGaretienNurIhreMerken(liste);
-		if (eigenes && eigenes.key !== undefined && eigenes.key !== null) {
-			avesmapsGaretienStageHinzufuegen([eigenes]);
-		}
 		return liste.length;
 	}
 
@@ -7723,20 +7827,14 @@
 				// Definition.
 				if (garetienZurueckOffenKlick(ereignis, zustand.objekte, zustand.planRunId,
 					garetienZurueckOffenSenden)) { return; }
-				// Owner-Auftrag A: „Imports in der Nähe anzeigen" -- derselbe Zug wie die drei
-				// Verteiler darüber, mit der schon geladenen Trefferliste dieses Objekts.
-				// Owner 30.08.2026: „soll auch automatisch ins tab 'Anzeigen' wechseln" --
-				// derselbe Zug wie bei „Markierte anzeigen" im Fussknopf-Bund, und aus demselben
-				// Grund: der Knopf legt Objekte in die Stage, und genau die zeigt jener
-				// Reiter. Wer ihn drueckt und auf „Offen" stehen bleibt, sieht von seiner Handlung
-				// nur eine Zahl im Reiterkopf.
+				// Aufgabe 13 (07.09.2026): „Imports in der Nähe wählen" -- STAGT NICHT MEHR
+				// (Begründung am Kopf von garetienNaeheKlick). Der Knopf legt die vom Typenfilter
+				// gewählte Teilmenge in die Auswahl; der Reiterwechsel auf „Stage" entfällt, weil
+				// der Klick nichts mehr auf die Karte legt, das man dort ansehen müsste.
 				const naeheOffen = (zustand.objekte || []).filter(function (o) {
 					return o && String(o.key) === String(zustand.detailKey);
 				})[0] || null;
-				if (garetienNaeheKlick(ereignis, _garetienNaeheGefunden, naeheOffen)) {
-					// ⚠️ Ueber den EINEN Trichter (Fixrunde 1, C3): jeder Reiterwechsel leert die
-					// Auswahl -- sie gehoert der Ansicht, nicht dem Objekt (Entwurf §4).
-					garetienReiterSetzen("stage");
+				if (garetienNaeheKlick(ereignis, garetienNaeheAktuelleMenge(naeheOffen))) {
 					garetienStageNeuZeichnen();
 					return;
 				}
@@ -7746,7 +7844,16 @@
 			// Der Kasten „Eingefügt wird" (Owner 30.08.2026): ein EIGENER Zuhörer, weil Zahlenfelder
 			// per "input" tippen, nicht klicken -- derselbe Delegationsgriff wie beim Klick-Zuhörer
 			// oben, einmal beim Start, überlebt jeden Lauf von garetienDetailRendern.
+			// 🔴 Aufgabe 13: der Typenfilter-<select> (`data-naehe-typ`) läuft VOR
+			// `garetienEingabenAendern` ab und mit eigenem, frühem Ausgang -- er gehört zu keinem
+			// Ziel-Objekt und hat kein `data-gi-feld`, das jene Funktion verstünde.
 			detailEl.addEventListener("input", function (ereignis) {
+				const ziel = ereignis && ereignis.target;
+				if (ziel && ziel.hasAttribute && ziel.hasAttribute("data-naehe-typ")) {
+					garetienNaeheWahlSetzen(ziel.value);
+					garetienDetailRendern(zustand.objekte);
+					return;
+				}
 				garetienEingabenAendern(ereignis, zustand.objekte);
 			});
 		}
@@ -8035,11 +8142,17 @@
 			garetienWikiLandschaftPlatzhalterId,
 			garetienWikiLandschaftBeiBedarfLaden,
 			garetienWikiLandschaftStand,
-			// Owner-Auftrag A (30.08.2026): „Imports in der Nähe anzeigen"
+			// Owner-Auftrag A (30.08.2026): „Imports in der Nähe anzeigen" -- inzwischen „... wählen"
 			garetienNaeheKnopfZustand,
 			garetienNaeheMarkup,
 			garetienNaeheBeiBedarfLaden,
 			garetienNaeheKlick,
+			// Aufgabe 13 (07.09.2026): der Typenfilter -- beide REIN, fuer garetien-naehe-typfilter.test.js
+			garetienNaeheGruppen,
+			garetienNaeheMenge,
+			garetienNaeheWahlAktuell,
+			garetienNaeheWahlSetzen,
+			garetienNaeheAktuelleMenge,
 			// KORREKTUR B (30.08.2026): die manuelle Wiki-Suche, wenn der automatische Treffer leer bleibt
 			garetienWikiSucheHostId,
 			garetienWikiSucheBeiBedarfZeigen,

@@ -2,16 +2,24 @@
 // Einzelansicht, unter den vorhandenen Knoepfen. Im groben Umkreis um ein Objekt (der Zuschlag
 // ueber die eigene Ausdehnung hinaus steht als AVESMAPS_GARETIEN_NAEHE_ZUSCHLAG in
 // api/_internal/import/garetien-liste.php -- hier steht bewusst KEINE Zahl, sie ist am 30.08.2026
-// schon einmal gewandert, von 5 auf 1) werden weitere Objekte aus dem Import markiert UND gleich
-// auf die Stage gelegt -- der Klick leert keine Auswahl, die Zahl kommt vom SERVER (er sucht ueber
-// den GANZEN Lauf, nicht ueber die hoechstens 500 geladenen Zeilen).
+// schon einmal gewandert, von 5 auf 1) werden weitere Objekte aus dem Import gefunden.
 //
-// 🔴 Der Knopf hiess bis zum 30.08.2026 „… markieren". Der Name war eine Luege, seit der Klick die
-// Treffer auch auf die Stage legt (Abschnitt C misst genau das); die Beschriftung nannte danach die
-// SICHTBARE Wirkung („… anzeigen"). 🔴 SEIT AUFGABE 8 (FIXRUNDE 1) HEISST DIE STELLE „STAGE" --
-// der Knopf ist ZWEIMAL umbenannt: „… markieren" -> „… anzeigen" -> „… stagen". Der DATEINAME
-// bleibt `garetien-naehe-markieren.test.js` -- eine Beschriftung wandert, eine Kennung nicht
-// (AGENTS.md §11, „Neuigkeiten"/`changelog`).
+// 🔴 Der Knopf hiess bis zum 30.08.2026 „… markieren", wurde dann „… anzeigen" (weil der Klick die
+// Treffer im selben Zug auf die Stage legte) und seit Aufgabe 8 (Fixrunde 1) „… stagen".
+//
+// 🔴 AUFGABE 13 (07.09.2026): DER KNOPF STAGT NICHT MEHR. Owner, woertlich: „‚Import in der Naehe
+// anzeigen' tut sie stagen. […] sollte eigentlich ‚Import in der Naehe markieren' heissen und
+// noch nicht stagen. ERST wenn ich die objekte sehe, will ich sie aber stagen koennen. weil wir
+// jetzt den button ‚Auf die Stage' haben, brauchen wir das aber nicht mehr." Der Klick legt die
+// Treffer seither NUR in die AUSWAHL (`avesmapsGaretienAlleWaehlen`); auf die Stage kommen sie
+// ueber „Auswahl auf die Stage" (eigene Tests: die Auswahlleiste). Der Knopf heisst jetzt
+// „Imports in der Nähe wählen (n)" -- der Owner bot „markieren"/„anzeigen" an, beide Woerter sind
+// gerade abgeschaffte Vokabeln.
+// 🔴 Abschnitt C misst hier deshalb die neue Regel: der Klick WAEHLT, staged aber nicht mehr --
+// der Typenfilter selbst (welche Teilmenge des Funds gewaehlt wird) ist eine eigene Datei,
+// js/review/__tests__/garetien-naehe-typfilter.test.js.
+// Der DATEINAME bleibt `garetien-naehe-markieren.test.js` -- eine Beschriftung wandert, eine
+// Kennung nicht (AGENTS.md §11, „Neuigkeiten"/`changelog`).
 //
 // Ausfuehren, vom Repo-Wurzelverzeichnis:
 //   node js/review/__tests__/garetien-naehe-markieren.test.js
@@ -73,12 +81,12 @@ wahr(typeof garetienNaeheKlick === "function", "garetienNaeheKlick fehlt im Expo
 // A. garetienNaeheKnopfZustand -- REIN: Beschriftung traegt die Zahl, Sperre + Grund bei null
 // =================================================================================================
 const leer = garetienNaeheKnopfZustand([]);
-gleich(leer.beschriftung, "Imports in der Nähe stagen (0)", "auch ohne Treffer nennt der Knopf die Zahl");
-gleich(leer.gesperrt, true, "ohne Treffer ist nichts zu markieren");
+gleich(leer.beschriftung, "Imports in der Nähe wählen (0)", "auch ohne Treffer nennt der Knopf die Zahl");
+gleich(leer.gesperrt, true, "ohne Treffer ist nichts zu waehlen");
 wahr(leer.hinweis.length > 0, "und der Grund steht sichtbar da");
 
 const voll = garetienNaeheKnopfZustand([{ key: "a" }, { key: "b" }, { key: "c" }]);
-gleich(voll.beschriftung, "Imports in der Nähe stagen (3)", "die Beschriftung nennt die genaue Zahl -- Beispiel des Auftrags: (15)");
+gleich(voll.beschriftung, "Imports in der Nähe wählen (3)", "die Beschriftung nennt die genaue Zahl -- Beispiel des Auftrags: (15)");
 gleich(voll.gesperrt, false, "mit Treffern ist der Knopf bedienbar");
 gleich(voll.hinweis, "", "und ohne Hinweis");
 
@@ -90,11 +98,13 @@ gleich(garetienNaeheMarkup({ key: "x", geometrie: [] }), "", "ohne eigene Geomet
 
 const platzhalter = garetienNaeheMarkup({ key: "gi:test:1", geometrie: [[10, 20]] });
 wahr(platzhalter.includes("Wird ermittelt"), "vor dem ersten Laden zeigt der Knopf einen Platzhalter: " + platzhalter);
-wahr(platzhalter.includes("disabled"), "der Platzhalter ist gesperrt, es gibt noch nichts zu markieren");
+wahr(platzhalter.includes("disabled"), "der Platzhalter ist gesperrt, es gibt noch nichts zu waehlen");
 wahr(platzhalter.includes("data-naehe"), "der Knopf traegt sein Erkennungsmerkmal fuer den Klick-Verteiler");
 
 // =================================================================================================
-// C. garetienNaeheKlick -- markiert UND zeigt an, leert nichts, verlangt einen echten Treffer
+// C. garetienNaeheKlick -- WAEHLT, STAGT NICHTS MEHR (Aufgabe 13), leert nichts, verlangt einen
+//    echten Treffer. Der zweite Parameter ist die bereits vom Typenfilter gewaehlte Menge --
+//    diese Funktion selbst kennt keine Gruppen (die hat garetien-naehe-typfilter.test.js).
 // =================================================================================================
 function scheinKnopf(disabled, passtSelektor) {
 	return {
@@ -106,14 +116,16 @@ function scheinKnopf(disabled, passtSelektor) {
 gleich(garetienNaeheKlick({ target: scheinKnopf(false, false) }, [{ key: "a", geometrie: [[0, 0]] }]), null,
 	"ein Klick ausserhalb des Knopfes tut nichts");
 gleich(garetienNaeheKlick({ target: scheinKnopf(true) }, [{ key: "a", geometrie: [[0, 0]] }]), null,
-	"ein gesperrter Knopf tut nichts, auch wenn `gefunden` etwas enthaelt");
+	"ein gesperrter Knopf tut nichts, auch wenn die Menge etwas enthaelt");
 gleich(garetienNaeheKlick({ target: scheinKnopf(false) }, []), null,
 	"ohne einen einzigen Treffer passiert nichts");
 gleich(garetienNaeheKlick({ target: scheinKnopf(false) }, null), null,
 	"eine fehlende Liste bricht nichts");
 
-// ---- Miss die DIFFERENZ: eine vorher bestehende Markierung/Anzeige bleibt -- der Klick ERGAENZT.
+// ---- Miss die DIFFERENZ: eine vorher bestehende Auswahl/Stage bleibt -- der Klick ERGAENZT die
+// Auswahl und ruehrt die Stage ueberhaupt nicht an.
 modul.avesmapsGaretienStageLeeren();
+modul.avesmapsGaretienAuswahlAufheben();
 modul.avesmapsGaretienAuswahlUmschalten("vorher-markiert");
 modul.avesmapsGaretienStageHinzufuegen([{ key: "vorher-angezeigt", name: "V" }]);
 
@@ -122,15 +134,19 @@ const nachbarn = [
 	{ key: "nachbar-2", name: "Nachbar 2", geometrie: [[2, 2]] },
 ];
 const ergebnis = garetienNaeheKlick({ target: scheinKnopf(false) }, nachbarn);
-gleich(ergebnis, 2, "der Klick meldet die Zahl der markierten/angezeigten Nachbarn");
-gleich(modul.avesmapsGaretienAuswahlHat("nachbar-1"), true, "Nachbar 1 ist jetzt markiert");
-gleich(modul.avesmapsGaretienAuswahlHat("nachbar-2"), true, "Nachbar 2 ist jetzt markiert");
-gleich(modul.avesmapsGaretienStageHat("nachbar-1"), true, "Nachbar 1 liegt jetzt auf der Karte (Anzeige-Menge)");
-gleich(modul.avesmapsGaretienStageHat("nachbar-2"), true, "Nachbar 2 liegt jetzt auf der Karte (Anzeige-Menge)");
+gleich(ergebnis, 2, "der Klick meldet die Zahl der GEWAEHLTEN Objekte");
+gleich(modul.avesmapsGaretienAuswahlHat("nachbar-1"), true, "Nachbar 1 ist jetzt ausgewaehlt");
+gleich(modul.avesmapsGaretienAuswahlHat("nachbar-2"), true, "Nachbar 2 ist jetzt ausgewaehlt");
+gleich(modul.avesmapsGaretienStageHat("nachbar-1"), false,
+	"Nachbar 1 liegt NICHT auf der Stage -- der Knopf stagt seit Aufgabe 13 nicht mehr");
+gleich(modul.avesmapsGaretienStageHat("nachbar-2"), false,
+	"und Nachbar 2 ebenso wenig");
 gleich(modul.avesmapsGaretienAuswahlHat("vorher-markiert"), true,
-	"eine vorher bestehende Markierung bleibt -- der Klick LEERT KEINE Auswahl (Auftrag)");
+	"eine vorher bestehende Auswahl bleibt -- der Klick LEERT KEINE Auswahl (Auftrag)");
 gleich(modul.avesmapsGaretienStageHat("vorher-angezeigt"), true,
-	"und ein vorher angezeigtes Objekt bleibt ebenfalls liegen");
+	"und ein vorher gestagtes Objekt bleibt ebenfalls liegen -- der Klick ruehrt die Stage gar nicht an");
+modul.avesmapsGaretienStageLeeren();
+modul.avesmapsGaretienAuswahlAufheben();
 
 // =================================================================================================
 // D. Die Ordnung im Markup: der Knopf steht UNTER den vorhandenen Knöpfen (.gi-acts), nicht davor
@@ -178,7 +194,7 @@ async function pruefeAbruf() {
 
 		// Nach dem Laden zeigt garetienNaeheMarkup den GELADENEN Stand fuer GENAU dieses Objekt.
 		const geladenesMarkup = garetienNaeheMarkup(objekt);
-		wahr(geladenesMarkup.includes("Imports in der Nähe stagen (1)"),
+		wahr(geladenesMarkup.includes("Imports in der Nähe wählen (1)"),
 			"nach der Antwort zeigt der Knopf die echte Zahl: " + geladenesMarkup);
 		wahr(!geladenesMarkup.includes("disabled"), "und ist bedienbar, weil ein Treffer da ist");
 
@@ -208,91 +224,36 @@ async function pruefeAbruf() {
 }
 
 // =================================================================================================
-// D. DER KNOPF ZEIGT NUR IMPORTE (Owner 30.08.2026: „der button sollte nur imports nicht unsere
-//    eigenen anzeigen")
+// F. DIE „NUR IHRE"-MARKE FAELLT FUER DIESEN WEG (Aufgabe 13, 07.09.2026) -- GEGENPROBE zum
+//    Verhalten bis zum 07.09.2026 (Owner 30.08.2026: „der button sollte nur imports nicht unsere
+//    eigenen anzeigen"). Der Mechanismus selbst (Feld, Zeichner) bleibt unangetastet und wird
+//    unabhaengig davon in js/review/__tests__/garetien-karte.test.js geprueft; hier steht nur die
+//    Entscheidung, dass DIESER Klick sie nicht mehr setzt -- weil er nichts mehr zeichnet, hat die
+//    Marke an dieser Stelle keine Aufgabe mehr.
 // =================================================================================================
-// Er heisst „Imports in der Nähe stagen", und genau das tut er jetzt: die Nachbarn kommen in
-// IHRER Farbe auf die Karte, unsere magenta Gegenstuecke bleiben weg. Wer vergleichen will, oeffnet
-// das Objekt -- dafuer gibt es die Einzelansicht und die zwei Sicht-Knoepfe.
-//
-// 🔴 DIE MARKE STEHT NEBEN DER ANZEIGE-MENGE, NICHT IN IHR. Die Menge haelt die Objekte, wie der
-// Server sie geliefert hat; ein Feld hineinzuschreiben ginge beim naechsten Auffrischen
-// (avesmapsGaretienStageAuffrischen ersetzt die Fassung nach jedem Schreibvorgang) still
-// verloren -- und die magenta Formen kaemen zurueck, ohne dass jemand etwas getan haette.
 modul.avesmapsGaretienStageLeeren();
-const ausAnderemWeg = { key: "eigenweg", name: "Von Hand angezeigt", geometrie: [[5, 5]] };
-modul.avesmapsGaretienStageHinzufuegen([ausAnderemWeg]);
-const ausNaehe = [
+modul.avesmapsGaretienAuswahlAufheben();
+const naeheOhneMarke = [
 	{ key: "naeh-1", name: "Nachbar A", geometrie: [[1, 1]] },
 	{ key: "naeh-2", name: "Nachbar B", geometrie: [[2, 2]] },
 ];
-garetienNaeheKlick({ target: scheinKnopf(false) }, ausNaehe);
-
-const aufDerKarte = modul.avesmapsGaretienAufDerKarte([]);
-const nachKey = {};
-aufDerKarte.forEach(function (o) { nachKey[String(o.key)] = o; });
-gleich(aufDerKarte.length, 3, "alle drei liegen auf der Karte -- der Knopf blendet nichts aus");
-gleich(nachKey["naeh-1"][modul.AVESMAPS_GARETIEN_FELD_NUR_IHRE], true,
-	"ein ueber den Naehe-Knopf gekommener Nachbar traegt die Marke");
-gleich(nachKey["naeh-2"][modul.AVESMAPS_GARETIEN_FELD_NUR_IHRE], true, "und der zweite auch");
-// 💣 DIE DIFFERENZ, ohne die die Marke Vakuum waere: ein Objekt aus einem ANDEREN Weg traegt sie
-// nicht -- sonst haette der Knopf nicht die Anzeige geaendert, sondern die ganze Karte.
-wahr(!nachKey["eigenweg"][modul.AVESMAPS_GARETIEN_FELD_NUR_IHRE],
-	"ein von Hand angezeigtes Objekt behaelt sein magenta Gegenstueck");
-
-// Die Anzeige-Menge selbst bleibt unberuehrt -- gestempelt wird eine KOPIE fuer die Karte.
-const inDerMenge = modul.avesmapsGaretienStageListe()
-	.filter(function (o) { return String(o.key) === "naeh-1"; })[0];
-wahr(!inDerMenge[modul.AVESMAPS_GARETIEN_FELD_NUR_IHRE],
-	"das Objekt in der Anzeige-Menge bleibt, wie der Server es geliefert hat");
-
-// Ein anderer Weg HEBT die Marke auf: wer denselben Nachbarn ueber „Markierte anzeigen" hereinholt,
-// will ihn ganz sehen.
-modul.avesmapsGaretienStageHinzufuegen([ausNaehe[0]]);
-const nachErneutemZeigen = modul.avesmapsGaretienAufDerKarte([])
-	.filter(function (o) { return String(o.key) === "naeh-1"; })[0];
-wahr(!nachErneutemZeigen[modul.AVESMAPS_GARETIEN_FELD_NUR_IHRE],
-	"ein zweiter, gewoehnlicher Weg in die Anzeige nimmt die Marke zurueck");
-gleich(modul.avesmapsGaretienAufDerKarte([])
-	.filter(function (o) { return String(o.key) === "naeh-2"; })[0][modul.AVESMAPS_GARETIEN_FELD_NUR_IHRE],
-	true, "und der andere Nachbar behaelt seine -- aufgehoben wird EINZELN, nicht pauschal");
-
-// „Anzeige leeren" vergisst auch die Marken -- sonst traegt ein spaeter wieder hereingeholtes
-// Objekt sie aus einer Sitzung, an die sich niemand mehr erinnert.
-modul.avesmapsGaretienStageLeeren();
-modul.avesmapsGaretienStageHinzufuegen([ausNaehe[1]]);
-wahr(!modul.avesmapsGaretienAufDerKarte([])[0][modul.AVESMAPS_GARETIEN_FELD_NUR_IHRE],
-	"nach dem Leeren der Anzeige ist keine Marke mehr uebrig");
-modul.avesmapsGaretienStageLeeren();
-
-pruefeAbruf().then(function () {
+garetienNaeheKlick({ target: scheinKnopf(false) }, naeheOhneMarke);
+naeheOhneMarke.forEach(function (o) {
+	wahr(!o[modul.AVESMAPS_GARETIEN_FELD_NUR_IHRE],
+		"der Klick darf die 'nur ihre'-Marke nicht mehr setzen -- er zeichnet nichts mehr: "
+		+ JSON.stringify(o));
+});
+// Und ohnehin liegt keines der beiden auf der Karte (Stage) -- die Frage "wird nur ihre Seite
+// gezeichnet" stellt sich fuer diesen Klick gar nicht mehr.
+gleich(modul.avesmapsGaretienAufDerKarte([]).length, 0,
+	"ohne Staging liegt nach dem Klick nichts auf der Karte");
+modul.avesmapsGaretienAuswahlAufheben();
 
 // =================================================================================================
-// E. Owner 30.08.2026: „soll auch automatisch ins tab 'Anzeigen' wechseln"
+// G. DER KLICKVERTEILER: kein Reiterwechsel mehr, kein `eigenes`, keine Stage -- gemessen am
+//    Quelltext, weil der Knopf in der DETAILSPALTE steht und ueber einen delegierten Zuhoerer
+//    laeuft, den dieser Test nicht aufbaut.
 // =================================================================================================
-
-// --- Das GEOEFFNETE Objekt geht mit in die Anzeige. 🔴 Nicht Kosmetik: `garetienDetailRendern`
-// sucht `zustand.detailKey` in der gerade gerenderten Liste. Steht das offene Objekt nicht darin,
-// ist `gewaehlt` null und die rechte Spalte raeumt sich beim Reiterwechsel selbst ab -- gemessen.
-modul.avesmapsGaretienStageLeeren();
-const offenesObjekt = { key: "e:offen", name: "Alling", geometrie: [[1, 1]] };
-const nachbarn2 = [{ key: "e:n1", name: "N1", geometrie: [[2, 2]] }];
-gleich(garetienNaeheKlick({ target: scheinKnopf(false) }, nachbarn2, offenesObjekt), 1,
-	"der Rueckgabewert bleibt die Zahl der NACHBARN -- nicht die der angezeigten Objekte");
-gleich(modul.avesmapsGaretienStageHat("e:n1"), true, "der Nachbar liegt in der Anzeige");
-gleich(modul.avesmapsGaretienStageHat("e:offen"), true,
-	"und das geoeffnete Objekt ebenso -- sonst zeigt der Reiter „Anzeigen“ weniger, als auf der "
-	+ "Karte liegt, und die Einzelansicht laeuft leer");
-
-// ⚠️ Ohne `eigenes` bleibt alles wie vorher -- der dritte Parameter ist zusaetzlich, nicht Pflicht.
-modul.avesmapsGaretienStageLeeren();
-garetienNaeheKlick({ target: scheinKnopf(false) }, nachbarn2);
-gleich(modul.avesmapsGaretienStageHat("e:n1"), true, "der Nachbar kommt auch ohne dritten Parameter");
-gleich(modul.avesmapsGaretienStageHat("e:offen"), false, "und sonst nichts");
-modul.avesmapsGaretienStageLeeren();
-
-// --- Und der Klickverteiler wechselt den Reiter. Gemessen am Quelltext, weil der Knopf in der
-// DETAILSPALTE steht und ueber einen delegierten Zuhoerer laeuft, den dieser Test nicht aufbaut.
 // ⚠️ Kommentare werden vorher entfernt: der Test schluege sonst an der Erklaerung an, die den
 // Mechanismus beschreibt -- und der naechste Leser loescht dann den Kommentar (AGENTS.md-Falle).
 const quelleOhneKommentare = require("fs")
@@ -300,18 +261,31 @@ const quelleOhneKommentare = require("fs")
 	.replace(/\r\n/g, "\n")
 	.replace(/\/\*[\s\S]*?\*\//g, "")
 	.replace(/^\s*\/\/.*$/gm, "");
-// 🔴 FIXRUNDE 1 (C3, 07.09.2026): der Reiter wechselt seither ueber den EINEN Trichter
-// `garetienReiterSetzen`, nie mehr per `zustand.stand = …` von Hand -- er leert dabei die
-// Auswahl, weil sie zur ANSICHT gehoert (Entwurf §4). Wer hier wieder eine direkte Zuweisung
-// einbaut, umgeht die Leerung.
-wahr(/garetienNaeheKlick\(ereignis, _garetienNaeheGefunden, naeheOffen\)\) \{\n\s*garetienReiterSetzen\("stage"\);/
+
+// 🔴 Aufgabe 13: der Klick reicht die vom Typenfilter GEWAEHLTE Menge herein
+// (`garetienNaeheAktuelleMenge`), nicht mehr die rohe Trefferliste und kein drittes `eigenes` mehr.
+wahr(/garetienNaeheKlick\(ereignis, garetienNaeheAktuelleMenge\(naeheOffen\)\)\)/
 	.test(quelleOhneKommentare),
-	"der Klickverteiler muss nach dem Naehe-Klick ueber garetienReiterSetzen auf „Stage“ wechseln");
-wahr(!/zustand\.stand = "stage";/.test(quelleOhneKommentare),
-	"und NIRGENDS mehr per direkter Zuweisung -- sonst ueberlebt die Auswahl den Reiterwechsel");
-wahr(/const naeheOffen = \(zustand\.objekte \|\| \[\]\)/.test(quelleOhneKommentare),
-	"und dabei das geoeffnete Objekt heraussuchen und mitgeben");
-	console.log(`garetien-naehe-markieren: ${checks} Pruefungen bestanden.`);
+	"der Klickverteiler muss die vom Typenfilter gewaehlte Menge uebergeben, nicht den rohen Fund");
+
+// 🔴 UND NIRGENDS MEHR EIN REITERWECHSEL AUF „STAGE" NACH DIESEM KLICK -- der Knopf legt nichts
+// mehr auf die Karte, es gibt also nichts mehr, das ein anderer Reiter zeigen muesste. Gesucht wird
+// GEZIELT der Block dieses einen Verteilers: das Muster "Klick -> ... -> stage" existiert im Haus
+// noch an einer ANDEREN Stelle (der Auswahlleisten-Knopf "Auswahl auf die Stage"), die bleibt
+// unberuehrt und darf ihn weiterhin tragen.
+const naeheBlock = quelleOhneKommentare.match(
+	/if \(garetienNaeheKlick\(ereignis, garetienNaeheAktuelleMenge\(naeheOffen\)\)\) \{[\s\S]*?\n\t{4}\}/
+);
+wahr(naeheBlock !== null, "der Klickblock des Naehe-Knopfs muss auffindbar sein");
+wahr(!/garetienReiterSetzen/.test(naeheBlock[0]),
+	"der Naehe-Klickblock darf den Reiter nicht mehr wechseln -- nichts kommt mehr auf die Karte");
+wahr(!/avesmapsGaretienStageHinzufuegen/.test(naeheBlock[0]),
+	"und er darf nichts mehr auf die Stage legen");
+
+console.log(`garetien-naehe-markieren: ${checks} Pruefungen bestanden.`);
+
+pruefeAbruf().then(function () {
+	console.log(`garetien-naehe-markieren (Abruf): ${checks} Pruefungen bestanden.`);
 }).catch(function (fehler) {
 	console.error(fehler);
 	process.exitCode = 1;
