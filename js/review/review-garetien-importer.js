@@ -389,11 +389,15 @@
 	// Fixrunde 1 (06.09.2026): der Satz fuer FERTIGE Stage-Objekte -- eigener Wortlaut, weil es sie
 	// weiterhin gibt, sie sind nur nicht mehr Sache der Stage. "Gibt es nicht mehr" waere hier eine
 	// falsche Aussage ueber ein Objekt, das gerade erfolgreich importiert wurde.
+	// Fixrunde 2 (07.09.2026), D1: „haten" ist kein Wort -- fuer n>1 stand hier "hat" + "en". Der
+	// Bericht der Fixrunde 1 behauptete die richtige Beugung, gemessen aber nur an `includes`-
+	// Teilstuecken; kein Test hatte den FERTIGEN Satz je erzeugt. Jetzt "hat"/"haben" als eigenes
+	// Wort, nicht als Stamm+Endung.
 	function garetienStageFertigSatz(anzahl) {
 		const n = Number(anzahl) || 0;
 		return (n === 1 ? "1 Objekt" : n + " Objekte")
 			+ " auf der Stage " + (n === 1 ? "ist" : "sind") + " bereits uebernommen oder abgelehnt"
-			+ " und hat" + (n === 1 ? "" : "en") + " die Stage verlassen.";
+			+ " und " + (n === 1 ? "hat" : "haben") + " die Stage verlassen.";
 	}
 
 	// Fixrunde 1: EIN Bauer fuer den kombinierten Nachschlag-Satz -- beide Anschlussstellen
@@ -407,6 +411,28 @@
 		if (verschwundenAnzahl > 0) { teile.push(garetienStageVerschwundenSatz(verschwundenAnzahl)); }
 		if (fertigAnzahl > 0) { teile.push(garetienStageFertigSatz(fertigAnzahl)); }
 		return teile.join(" ");
+	}
+
+	// Fixrunde 2 (07.09.2026), D2: an einer ERFOLGREICHEN Einfuege-Handlung findet der Nachschlag
+	// IMMER die soeben bearbeiteten Objekte als "fertig" wieder -- der Fussknopf verarbeitet per
+	// Definition genau die Stage, „Innerorts einfügen" genau das eine angeklickte Objekt, und nach
+	// erfolgreichem `apply` meldet der Server exakt diese Objekte als uebernommen zurueck. Ungefiltert
+	// zaehlten sie also **immer** als „fertig", nie nur bei einer echten Nebenwirkung, und „bereits"
+	// behauptete einen frueheren, unabhaengigen Zustand, den es nie gab -- der Normalfall eines
+	// gewoehnlichen, erfolgreichen Imports zeigte dann zwei Meldungen fuer dieselbe Sache.
+	// 🔴 Nur an den ZWEI Einfuege-Aufrufstellen (garetienNeuKlick/innerorts, garetienFussknopfEinfuegenKlick)
+	// -- `garetienLaufStarten` meldet weiterhin ungefiltert, denn dort ist „fertig" wirklich eine
+	// fremde, aeltere Stage-Leiche (Zusicherung 3 des Briefs).
+	// REIN: kein DOM, kein Modulzustand. Liefert bei leerer `eigeneSchluessel`-Menge dasselbe Objekt
+	// zurueck (keine unnoetige Kopie), sonst eine flache Kopie mit gefiltertem `fertig`.
+	function garetienStageNachschlagOhneEigene(nachschlag, eigeneSchluessel) {
+		const eigene = new Set((eigeneSchluessel || [])
+			.filter(function (s) { return s !== null && s !== undefined && s !== ""; })
+			.map(function (s) { return String(s); }));
+		if (eigene.size === 0) { return nachschlag; }
+		const fertig = ((nachschlag && nachschlag.fertig) || [])
+			.filter(function (s) { return !eigene.has(String(s)); });
+		return Object.assign({}, nachschlag, { fertig: fertig });
 	}
 
 	// ---- Die Auswahl: ein reiner MARKER, kein Schreibweg (Aufgabe 2, Entwurf §3.2) ----------------
@@ -6414,8 +6440,12 @@
 						});
 					})
 					.then(function (paar) {
+						// Fixrunde 2 (07.09.2026), D2: dieses Objekt wurde soeben selbst eingefuegt --
+						// sein Schluessel taucht im Nachschlag zwangslaeufig als "fertig" auf und wird
+						// herausgerechnet, bevor der Satz entsteht (garetienStageNachschlagOhneEigene).
+						const nachschlag = garetienStageNachschlagOhneEigene(paar.nachschlag, [objekt.key]);
 						// Fixrunde 1: verschwunden und fertig getrennt genannt, nie zusammengeworfen.
-						const nachschlagSatz = garetienStageNachschlagSatz(paar.nachschlag);
+						const nachschlagSatz = garetienStageNachschlagSatz(nachschlag);
 						const text = nachschlagSatz
 							? meldung.text + " · " + nachschlagSatz
 							: meldung.text;
@@ -7508,8 +7538,14 @@
 						});
 					})
 					.then(function (paar) {
+						// Fixrunde 2 (07.09.2026), D2: der Fussknopf verarbeitet per Definition
+						// GENAU die Stage -- ihre Schluessel tauchen im Nachschlag zwangslaeufig als
+						// "fertig" auf und werden herausgerechnet, bevor der Satz entsteht.
+						const nachschlag = garetienStageNachschlagOhneEigene(
+							paar.nachschlag, stageObjekte.map(function (o) { return o && o.key; })
+						);
 						// Fixrunde 1: verschwunden und fertig getrennt genannt, nie zusammengeworfen.
-						const nachschlagSatz = garetienStageNachschlagSatz(paar.nachschlag);
+						const nachschlagSatz = garetienStageNachschlagSatz(nachschlag);
 						const text = nachschlagSatz
 							? meldung.text + " · " + nachschlagSatz
 							: meldung.text;
@@ -8076,6 +8112,9 @@
 			// Fixrunde 1 (06.09.2026): die Stage behaelt uebernommene/abgelehnte Objekte nicht mehr.
 			garetienStageFertigSatz,
 			garetienStageNachschlagSatz,
+			// Fixrunde 2 (07.09.2026), D2: die eigenen Schluessel einer Einfuege-Handlung werden aus
+			// `fertig` herausgerechnet, bevor der Satz entsteht.
+			garetienStageNachschlagOhneEigene,
 			garetienEinfuegenAusfuehren,
 			garetienNeuKlick,
 			garetienFussknopfEinfuegenKlick,

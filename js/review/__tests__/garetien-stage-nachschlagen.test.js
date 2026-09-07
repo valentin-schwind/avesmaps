@@ -193,6 +193,46 @@ async function pruefeFertigeStaende(api) {
 		"ohne jeden Fund bleibt der Satz leer -- ein Aufrufer darf ihn dann ignorieren");
 	gleich(api.garetienStageNachschlagSatz({ verschwunden: [], fertig: ["f"] }),
 		api.garetienStageFertigSatz(1), "nur fertig -- derselbe Satz wie der eigene Bauer, ohne Anhaengsel");
+
+	// -----------------------------------------------------------------------------------------
+	// Fixrunde 2 (07.09.2026), D1: „haten" ist kein Wort. Der Bericht der Fixrunde 1 behauptete
+	// die richtige Beugung -- geprueft hatten das bis hierher nur `includes`-Teilstuecke
+	// (Zeile 190 oben: "uebernommen oder abgelehnt" UND "2 Objekte", nie der ANSCHLUSS
+	// dazwischen). Eine Behauptung ueber einen erzeugten Satz ist keine Messung, solange der
+	// Satz nicht erzeugt wurde -- hier steht deshalb der VOLLSTAENDIGE Satz, zeichengleich.
+	// -----------------------------------------------------------------------------------------
+	gleich(api.garetienStageFertigSatz(1),
+		"1 Objekt auf der Stage ist bereits uebernommen oder abgelehnt und hat die Stage verlassen.",
+		"der volle Satz fuer n=1, zeichengleich -- nicht nur ein Teilstueck");
+	gleich(api.garetienStageFertigSatz(2),
+		"2 Objekte auf der Stage sind bereits uebernommen oder abgelehnt und haben die Stage verlassen.",
+		"der volle Satz fuer n=2, zeichengleich -- \"haben\", nicht die alte Verstuemmelung \"haten\"");
+
+	// -----------------------------------------------------------------------------------------
+	// Fixrunde 2 (07.09.2026), D2 (reine Haelfte): `garetienStageNachschlagOhneEigene` rechnet
+	// GENAU die genannten Schluessel aus `fertig` heraus, laesst `verschwunden` unberuehrt und
+	// tut bei einer leeren Menge nichts.
+	// -----------------------------------------------------------------------------------------
+	tief(
+		api.garetienStageNachschlagOhneEigene({ verschwunden: ["v"], fertig: ["a", "b", "c"] }, ["b"]),
+		{ verschwunden: ["v"], fertig: ["a", "c"] },
+		"genau der genannte Schluessel verschwindet aus `fertig`, `verschwunden` bleibt unberuehrt"
+	);
+	tief(
+		api.garetienStageNachschlagOhneEigene({ verschwunden: [], fertig: ["a", "b"] }, ["a", "b"]),
+		{ verschwunden: [], fertig: [] },
+		"ALLE genannten Schluessel koennen `fertig` restlos leeren"
+	);
+	const ungefiltert = { verschwunden: ["v"], fertig: ["a"] };
+	gleich(api.garetienStageNachschlagOhneEigene(ungefiltert, []), ungefiltert,
+		"eine LEERE Schluesselmenge liefert dasselbe Objekt zurueck -- keine unnoetige Kopie");
+	gleich(api.garetienStageNachschlagOhneEigene(ungefiltert, undefined), ungefiltert,
+		"…und dasselbe gilt ganz ohne zweites Argument");
+	tief(
+		api.garetienStageNachschlagOhneEigene({ fertig: ["a"] }, ["fremd"]),
+		{ fertig: ["a"] },
+		"ein Schluessel, der gar nicht in `fertig` steht, aendert nichts"
+	);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -308,6 +348,175 @@ async function pruefeAnschlussLaufStarten(api, dom) {
 }
 
 // ---------------------------------------------------------------------------------------------
+// D. Fixrunde 2 (07.09.2026), D2+D3: dieselbe Endezu-Ende-Probe wie Abschnitt C, jetzt an den
+//    ZWEI EINFUEGE-Aufrufstellen (garetienNeuKlick/„innerorts", garetienFussknopfEinfuegenKlick).
+//    Vorher hatte NUR garetienLaufStarten (Abschnitt C) eine Zusicherung auf den resultierenden
+//    Statustext -- ein vertauschtes Trennzeichen oder eine falsche Variable an den anderen beiden
+//    fiel keinem Test auf (D3). Zugleich die END-TO-END-Probe des D2-Fixes: eine erfolgreiche
+//    Einfuege-Handlung darf sich nicht selbst als „bereits uebernommen oder abgelehnt" melden --
+//    der HAEUFIGSTE Fall, gemessen am ausgefuehrten Modul (D2-Brief).
+//
+// ⚠️ ABWEICHUNG, GEMESSEN: Zusicherung 2 des Briefs ("ein FREMDES Objekt bleibt gemeldet") wird
+//    hier nur an EINER Stelle (garetienNeuKlick/„innerorts") end-to-end nachgestellt. Am
+//    Fussknopf verarbeitet `garetienFussknopfEinfuegenKlick` per Definition die GANZE aktuelle
+//    Stage (`avesmapsGaretienStageListe()`) -- ein "fremdes" Objekt DANEBEN gaebe es dort nur
+//    ueber eine Wettlaufbedingung (die Stage aendert sich WAEHREND der laufenden Kette), und das
+//    waere ein Test einer anderen, ungebauten Sache. Die Filterung selbst ist an beliebigen
+//    Schluesselmengen bereits rein getestet (Abschnitt A2); hier zaehlt fuer den Fussknopf nur
+//    Zusicherung 1.
+// ---------------------------------------------------------------------------------------------
+
+/** Ein `fetch`, das select/apply/liste(+keys)/liste unterscheidet -- dieselbe Form wie `machFetch`
+ *  in garetien-fussknopf-dom.test.js, hier lokal nachgebaut, weil diese Datei ihre Anfragen sonst
+ *  ueber `spion`/`spionLauf` faengt, die kein `select`/`apply` kennen. */
+function fetchFuerEinfuegen(nachschlagAntwort) {
+	return function (pfad, optionen) {
+		const rumpf = JSON.parse((optionen && optionen.body) || "{}");
+		let daten;
+		if (rumpf.action === "select") {
+			daten = { ok: true };
+		} else if (rumpf.action === "apply") {
+			daten = { ok: true, done: true, applied: 1, deleted: 0, stale: 0, processed: 1,
+				remaining: 0, skipped: 0, declined: 0 };
+		} else if (rumpf.action === "liste" && Array.isArray(rumpf.keys)) {
+			daten = Object.assign({ ok: true }, nachschlagAntwort);
+		} else {
+			daten = { ok: true, objekte: [], gesamt: 0, bilanz: {}, reiter: {}, facetten: {} };
+		}
+		return Promise.resolve({ json: function () { return Promise.resolve(daten); } });
+	};
+}
+
+// Ein Klick-Ereignis fuer garetienNeuKlick("innerorts") -- derselbe minimalistische Aufbau wie in
+// garetien-innerorts-knopf.test.js, hier nur fuer den EINEN gebrauchten Knopfnamen.
+function ereignisInnerorts(schluessel) {
+	const knopf = {
+		disabled: false,
+		textContent: "",
+		getAttribute: function (name) {
+			if (name === "data-handlung") { return "innerorts"; }
+			if (name === "data-key") { return schluessel; }
+			return null;
+		},
+		closest: function (auswahl) {
+			return auswahl === '[data-handlung="innerorts"]' ? knopf : null;
+		},
+	};
+	return { target: knopf };
+}
+
+const OBJEKT_INNERORTS = {
+	key: "ggp:Bauwerke:Tempel:1", name: "Wandlether Tempel", urteil: "neu",
+	innerorts: { public_id: "stadt-wandleth", name: "Wandleth", meilen: 0.09 },
+	items: [{ id: 900, change_type: "new" }],
+};
+
+async function pruefeAnschlussNeuKlick(api, dom) {
+	const echtesFetch = global.fetch;
+	try {
+		// 1. Der NORMALFALL: „Innerorts einfügen" bearbeitet GENAU dieses eine Objekt -- der
+		//    Nachschlag findet es folgerichtig als „fertig" wieder, und die Meldung darf das
+		//    NICHT ein zweites Mal aussprechen.
+		api.avesmapsGaretienStageLeeren();
+		api.avesmapsGaretienStageHinzufuegen([OBJEKT_INNERORTS]);
+		global.fetch = fetchFuerEinfuegen({
+			objekte: [Object.assign({}, OBJEKT_INNERORTS, { stand: "uebernommen" })],
+		});
+		await api.garetienNeuKlick(ereignisInnerorts(OBJEKT_INNERORTS.key), [OBJEKT_INNERORTS], 7, null);
+		const text1 = dom.text("#garetien-status-text");
+		wahr(text1.indexOf("importiert") !== -1, "die Erfolgsmeldung steht -- gelesen: " + text1);
+		gleich(text1.indexOf("bereits uebernommen oder abgelehnt"), -1,
+			'🔴 D2: das soeben eingefuegte Objekt darf sich nicht selbst als "fertig" melden -- gelesen: "'
+			+ text1 + '"');
+
+		// 2. Liegt DANEBEN ein FREMDES Objekt, das der Nachschlag ALS FERTIG meldet, bleibt es
+		//    genannt -- der Filter trifft nur den einen soeben bearbeiteten Schluessel.
+		api.avesmapsGaretienStageLeeren();
+		api.avesmapsGaretienStageHinzufuegen([OBJEKT_INNERORTS, { key: "fremd:1", items: [{ id: 1 }] }]);
+		global.fetch = fetchFuerEinfuegen({
+			objekte: [
+				Object.assign({}, OBJEKT_INNERORTS, { stand: "uebernommen" }),
+				{ key: "fremd:1", items: [{ id: 1 }], stand: "abgelehnt" },
+			],
+		});
+		await api.garetienNeuKlick(ereignisInnerorts(OBJEKT_INNERORTS.key), [OBJEKT_INNERORTS], 7, null);
+		const text2 = dom.text("#garetien-status-text");
+		wahr(text2.indexOf("1 Objekt") !== -1 && text2.indexOf("bereits uebernommen oder abgelehnt") !== -1,
+			'ein FREMDES fertiges Objekt bleibt genannt -- gelesen: "' + text2 + '"');
+	} finally {
+		global.fetch = echtesFetch;
+	}
+}
+
+async function pruefeAnschlussFussknopf(api, dom) {
+	const echtesFetch = global.fetch;
+	try {
+		const stageObjekt = { key: "ggp:Gewaesser:9", items: [{ id: 501, selected: 0 }] };
+
+		// Der Regelfall aus dem D2-Brief: der Fussknopf verarbeitet PER DEFINITION genau die
+		// Stage -- nach erfolgreichem `apply` findet der Nachschlag GENAU dieses Objekt als
+		// „fertig", und die Meldung darf das nicht ein zweites Mal aussprechen. Das ist die
+		// Verdopplung, die vor dieser Fixrunde JEDEM erfolgreichen Import widerfuhr.
+		api.avesmapsGaretienStageLeeren();
+		api.avesmapsGaretienStageHinzufuegen([stageObjekt]);
+		global.fetch = fetchFuerEinfuegen({
+			objekte: [Object.assign({}, stageObjekt, { stand: "uebernommen" })],
+		});
+		await api.garetienFussknopfEinfuegenKlick(7, function () { return true; });
+		const text1 = dom.text("#garetien-status-text");
+		wahr(text1.indexOf("importiert") !== -1, "die Erfolgsmeldung steht -- gelesen: " + text1);
+		gleich(text1.indexOf("bereits uebernommen oder abgelehnt"), -1,
+			'🔴 D2: „Stage importieren" meldet die soeben eingefuegten Objekte nicht ein zweites Mal '
+			+ 'als "fertig" -- gelesen: "' + text1 + '"');
+	} finally {
+		global.fetch = echtesFetch;
+	}
+}
+
+// ---------------------------------------------------------------------------------------------
+// E. Fixrunde 2 (07.09.2026), D4: der Nachschlag fragt am LAUF (`zustand.importRunId`) nach,
+//    nicht am PLAN (`zustand.planRunId`) -- beide leben im selben Modul und werden fuer
+//    select/apply gebraucht (der Rumpf trennt sie: `run_id: runId` dort, `run_id:
+//    zustand.importRunId` im Nachschlag). Die alte Zusicherung dafuer ist beim Umbau
+//    weggefallen.
+// ---------------------------------------------------------------------------------------------
+async function pruefeRunIdImRumpf(api) {
+	const listeHolen = function () { return Promise.resolve({ ok: true }); };
+	const gesehen = { rumpf: null };
+	const rufe = function (adresse, rumpf) {
+		if (rumpf && rumpf.action === "fetch") { return Promise.resolve({ ok: true, run_id: 1234, fehler: [] }); }
+		if (rumpf && rumpf.action === "plan") {
+			return Promise.resolve({
+				ok: true, plan_run_id: 9999,
+				staging_aufgeraeumt: { laeufe: 0, zeilen: 0, waisen: 0, offen: 0 },
+			});
+		}
+		if (rumpf && rumpf.action === "runs") {
+			return Promise.resolve({
+				ok: true,
+				runs: [{ id: 1234, started_at: "2026-09-07 10:00:00", finished_at: "2026-09-07 10:05:00", status: "done", zeilen: 1 }],
+			});
+		}
+		if (rumpf && rumpf.action === "liste") {
+			gesehen.rumpf = rumpf;
+			return Promise.resolve({ objekte: [] });
+		}
+		return Promise.resolve({ ok: true });
+	};
+
+	api.avesmapsGaretienStageLeeren();
+	api.avesmapsGaretienStageHinzufuegen([{ key: "z", items: [{ id: 1 }] }]);
+	await api.garetienLaufStarten(rufe, ["ggp:Gewaesser"], api.garetienLaufKachelAktualisieren, listeHolen);
+
+	wahr(gesehen.rumpf !== null, "der Stage-Nachschlag hat wirklich einen `liste`-Ruf ausgeloest");
+	gleich(gesehen.rumpf.run_id, 1234,
+		"🔴 D4: `run_id` im Rumpf ist `zustand.importRunId` (der LAUF aus `action:'fetch'`, hier 1234)");
+	gleich(gesehen.rumpf.run_id === 9999, false,
+		"…und NICHT `zustand.planRunId` (der PLAN aus `action:'plan'`, hier 9999) -- die alte "
+		+ "Zusicherung dafuer fiel beim Umbau weg");
+}
+
+// ---------------------------------------------------------------------------------------------
 
 const { api, dom } = ladeImporter(["garetien-run-state", "garetien-run-tile"]);
 
@@ -315,6 +524,9 @@ pruefeReineMechanik(api)
 	.then(function () { return pruefeFertigeStaende(api); })
 	.then(function () { pruefeAlteBereinigungWeg(); })
 	.then(function () { return pruefeAnschlussLaufStarten(api, dom); })
+	.then(function () { return pruefeAnschlussNeuKlick(api, dom); })
+	.then(function () { return pruefeAnschlussFussknopf(api, dom); })
+	.then(function () { return pruefeRunIdImRumpf(api); })
 	.then(function () {
 		console.log("garetien-stage-nachschlagen: " + checks + " Pruefungen bestanden.");
 	})
