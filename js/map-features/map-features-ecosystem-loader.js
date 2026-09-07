@@ -194,6 +194,12 @@ function applyEcosystemAreaPayload(payload) {
 		// Only now does the <path> element exist. A rebuilt area that was selected has to get its class
 		// back, otherwise saving a geometry would silently drop the selection ring.
 		applyEcosystemSelectionClass(layer);
+		// 💣 UND DIE GEWAESSER-KLASSE GENAUSO: sie haengt am selben frischen <path>. Ohne diese Zeile
+		// kaeme eine ausgeblendete Seeflaeche beim naechsten Neuaufbau (Speichern, Live-Abgleich)
+		// wortlos zurueck, obwohl der Haken weiter aus steht.
+		if (typeof applyEcosystemGewaesserKlasse === "function") {
+			applyEcosystemGewaesserKlasse(layer);
+		}
 		// Dasselbe gilt fuer die Deckkraft: sie steht als CSS-Variable am <path>, und den gibt es
 		// erst jetzt. 💣 Vor addTo(map) liefert getElement() null, und der Wert waere lautlos weg.
 		applyEcosystemAreaDeckkraft(layer);

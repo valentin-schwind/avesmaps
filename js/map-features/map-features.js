@@ -112,7 +112,17 @@ $("#mapStyleSelect").on("change", function () {
 	setMapStyle(String(this.value || "stylized"), { persist: true });
 });
 $("#togglePaths").change(syncPathVisibility);
-$("#toggleRivers").change(syncPathVisibility);
+// 🔴 EIN HAKEN, ZWEI GEWERKE (Owner 07.09.2026: „Fluesse und Seen"): die Flusswege ueber
+// syncPathVisibility, die Seeflaechen der Landschaftsebene ueber avesmapsSyncEcosystemGewaesserSicht.
+// ⚠️ Beide in EINEM Zuhoerer -- getrennt registriert stuende nach einem Klick die eine Haelfte auf
+// altem Stand, und das saehe wie ein verschluckter Klick aus (dieselbe Lehre wie bei „Offene
+// Wegenden" am 22.08.2026).
+$("#toggleRivers").change(function () {
+	syncPathVisibility();
+	if (typeof avesmapsSyncEcosystemGewaesserSicht === "function") {
+		avesmapsSyncEcosystemGewaesserSicht();
+	}
+});
 $("#toggleSeaPaths").change(syncPathVisibility);
 $("#toggleMapLabels").change(syncLabelVisibility);
 // force=true: ein Haken loest weder moveend noch zoomend aus, und redraw() steigt ohne force aus,

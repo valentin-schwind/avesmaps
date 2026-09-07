@@ -258,6 +258,65 @@ function ecosystemAreaStyle(kind, regionType, area = null) {
 	return stil;
 }
 
+// ---- Fluesse UND Seen an EINEM Haken (Owner 07.09.2026) ------------------------------------------
+//
+// Owner: „kannst du jetzt 'Fluesse und Seen' anzeigen / ausblenden [statt] nur 'Fluesse'" -- gestellt
+// unmittelbar nachdem der See die Farbe des Flusses bekommen hat. Ein Gewaesser, ein Ton, ein Schalter.
+//
+// 🔴 DER HAKEN NIMMT DIE FLAECHEN MIT, NICHT DIE NAMEN -- und das ist gemessen, nicht gewaehlt.
+// Live am 07.09.2026: 43 Flaechen der Art `see`, aber 148 BESCHRIFTUNGEN vom Typ `see`; die meisten
+// Seen sind ueberhaupt keine Vektorflaeche, sondern nur ein Name ueber dem Wasser, das die Kachel malt.
+// Und in der Standardansicht steht `#toggleRivers` ab Werk auf AUS (die Voreinstellung vom 26.07.2026,
+// map-features-display-mode.js). Gingen die Namen mit, verloere JEDER Besucher dort 148 Seenamen, ohne
+// dass irgendwer das bestellt haette. Beschriftungen haben ihren eigenen Schalter („Labels").
+//
+// 🔴 NUR `see`, nicht alles Wasser (Owner 07.09.2026 auf Nachfrage: „Ich will Seen und Fluesse mit
+// einem Schalter ein- und ausblenden"). Meer, Kueste und Flussdelta behalten ihren eigenen Ton und
+// ihre eigene Sichtbarkeit -- ein Haken, der die Meere wegnimmt, hiesse nicht mehr „Fluesse und Seen".
+//
+// ⚠️ In Ansichten ohne Landschaftsebene gibt es GAR KEINE See-Flaechen (live gemessen: 0 in
+// „Standard") -- dort wirkt der Haken wie bisher allein auf die Fluesse. Das ist keine leere Zusage,
+// sondern die Abwesenheit der Sache: wo kein See gezeichnet ist, gibt es auch keinen auszublenden.
+
+// Rein, ohne DOM und ohne Modulzustand: ist das eine Flaeche, die am Fluss-Haken haengt?
+// 💣 BEIDE Felder, nicht nur die Art: `insel` kommt in zwei Ebenen vor (siehe
+// avesmapsEcosystemDisplayFlaechenKey), und eine Art allein ist in diesem Datenmodell kein Schluessel.
+function avesmapsIstSeeFlaeche(area) {
+	return String(area?.kind || "") === "topographie" && String(area?.region_type || "") === "see";
+}
+
+// Der Haken, als Frage. 🔴 Faellt OFFEN aus: ohne das Bedienelement gilt „sichtbar" -- lieber ein See
+// zu viel als eine Flaeche, die niemand mehr zurueckholen kann (die Owner-Regel von den verwaisten
+// Aussenhuellen).
+function avesmapsSeeFlaechenSichtbar() {
+	const haken = (typeof document !== "undefined") ? document.getElementById("toggleRivers") : null;
+	return haken ? haken.checked === true : true;
+}
+
+// Zustand als Klasse am <path>, Wert im CSS -- dieselbe Bauart wie applyEcosystemSelectionClass
+// darunter. 💣 Nach JEDEM (Neu-)Aufbau noetig: ein neu gebauter Layer bekommt ein frisches <path>.
+function applyEcosystemGewaesserKlasse(layer) {
+	const element = typeof layer?.getElement === "function" ? layer.getElement() : null;
+	if (!element) {
+		return;
+	}
+	element.classList.toggle("ecosystem-area--gewaesser-aus",
+		avesmapsIstSeeFlaeche(layer._ecosystemArea) && !avesmapsSeeFlaechenSichtbar());
+}
+
+// Alle Flaechen nachziehen. Laeuft am `change` des Hakens (map-features.js) und ist damit der
+// Gegenpart zu syncPathVisibility, das dort in derselben Zeile haengt.
+function avesmapsSyncEcosystemGewaesserSicht() {
+	if (typeof ecosystemLayers === "undefined" || !(ecosystemLayers instanceof Map)) {
+		return;
+	}
+	ecosystemLayers.forEach((layer) => {
+		if (avesmapsIstSeeFlaeche(layer?._ecosystemArea)) {
+			applyEcosystemGewaesserKlasse(layer);
+		}
+	});
+}
+
 // Selection is a class on the path, not a style: the matrix in the stylesheet turns it into the
 // stronger fill and the full contour. Re-applied after every (re)build, because a rebuilt layer gets a
 // fresh <path> element.

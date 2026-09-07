@@ -303,7 +303,7 @@ window.AVESMAPS_I18N_EN = {
 	"display.layer.paths": "Roads",
 	"display.layer.labels": "Labels",
 	"display.layer.borders": "Borders",
-	"display.layer.rivers": "Rivers",
+	"display.layer.rivers": "Rivers and lakes",
 	"display.layer.seapaths": "Sea routes",
 	// Why a switch is greyed out. A lock without a reason reads like a bug — these two sentences
 	// are the reason, and they name the cause, not the symptom.

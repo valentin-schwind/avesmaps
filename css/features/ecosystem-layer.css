@@ -1800,6 +1800,19 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 
    🪤 Leaflet writes stroke/fill as SVG presentation ATTRIBUTES, which CSS outranks -- which is why the
    contour can be set here without a second set of numbers in ecosystemAreaStyle(). */
+/* Fluesse UND Seen an EINEM Haken (Owner 07.09.2026). Die Klasse setzt
+   applyEcosystemGewaesserKlasse am <path>, sobald `#toggleRivers` aus ist -- Begruendung und Umfang
+   stehen dort (map-features-ecosystem-rendering.js).
+   💣 `display: none` und NICHT `fill-opacity: 0`: eine nur durchsichtige Flaeche faengt weiterhin
+   jeden Klick, und dieses Blatt legt die Deckkraft an mehreren Stellen fest (--eco-fill,
+   --eco-fill-art, die Zwei-Klassen-Regeln) -- eine davon gewaenne. Ausgeblendet heisst hier: nicht
+   gezeichnet und nicht anfassbar, wie bei jeder anderen abgeschalteten Ebene auch.
+   ⚠️ Der Selektor traegt dieselbe Spezifitaet wie die Fuellregeln daneben; eine schlanke
+   Klassenregel (0,1,0) verloere gegen `.ecosystem-pane--active > svg path.leaflet-interactive`. */
+.leaflet-pane.ecosystem-pane > svg path.leaflet-interactive.ecosystem-area--gewaesser-aus {
+	display: none;
+}
+
 .ecosystem-pane > svg path.leaflet-interactive.ecosystem-area--selected {
 	stroke: var(--color-ecosystem-selected-outline);
 	stroke-opacity: 1;
