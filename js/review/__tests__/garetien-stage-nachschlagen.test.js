@@ -8,6 +8,18 @@
 // als hätte er gearbeitet. `garetienStageNachschlagen` schlägt die ganze Stage in EINEM Ruf am
 // geltenden Lauf nach, ersetzt veraltete Item-Nummern und entfernt, was es dort nicht mehr gibt.
 //
+// Fixrunde 1 (06.09.2026): Brief .superpowers/sdd/2026-09-06-garetien-importer-stage/task-6-fix-1.md
+//
+// 🔴 DIE REGRESSION, DIE DIESE RUNDE BEHEBT: der Nachschlag oben fragt per `keys` nach, und `keys`
+// schlägt serverseitig JEDEN Filter -- auch `stand`. Ein Objekt, das der Fussknopf gerade
+// übernommen hat, findet der Server also weiterhin (nur mit `stand: "uebernommen"`), und die alte
+// Regel "gefunden -> bleibt liegen" legte es zurück auf die Stage. Der Weg durchs Fenster ist aber
+// Offen -> Stage -> „Stage importieren" -> Übernommen: was übernommen ist, hat die Stage
+// verlassen. Bliebe es liegen, zählte der Fussknopf beim nächsten Klick Objekte mit, die schon auf
+// der Karte stehen. `garetienStageNachschlagen` liest jetzt zusätzlich den frischen `stand`:
+// „uebernommen"/„abgelehnt" nehmen das Objekt von der Stage, in ein EIGENES Feld (`fertig`) --
+// nicht in `verschwunden`, denn das Objekt gibt es weiterhin, es ist nur fertig.
+//
 // Ausfuehren, vom Repo-Wurzelverzeichnis: node js/review/__tests__/garetien-stage-nachschlagen.test.js
 
 "use strict";
@@ -72,7 +84,7 @@ async function pruefeReineMechanik(api) {
 	const rufe2 = spion({ objekte: [] });
 	const leer = await api.garetienStageNachschlagen(rufe2);
 	gleich(rufe2.anzahl, 0, "ohne Stage kein Ruf");
-	tief(leer, { gefunden: 0, verschwunden: [] });
+	tief(leer, { gefunden: 0, verschwunden: [], fertig: [] });
 
 	// 5. 💣 EIN FEHLSCHLAG LAESST DIE STAGE STEHEN -- lieber eine veraltete Stage als eine
 	//    geleerte. Eine geleerte Stage nach einem Netzfehler waere der teurere Ausgang: die
@@ -81,7 +93,7 @@ async function pruefeReineMechanik(api) {
 	const kaputterRuf = function () { return Promise.reject(new Error("Netz")); };
 	const nachFehlschlag = await api.garetienStageNachschlagen(kaputterRuf);
 	gleich(api.avesmapsGaretienStageHat("a"), true, "die Stage bleibt nach einem Fehlschlag stehen");
-	tief(nachFehlschlag, { gefunden: 0, verschwunden: [] }, "und faellt OFFEN aus, statt zu werfen");
+	tief(nachFehlschlag, { gefunden: 0, verschwunden: [], fertig: [] }, "und faellt OFFEN aus, statt zu werfen");
 
 	// 6. 💣 DER RUMPF TRAEGT KEINEN FILTER. `keys` schlaegt serverseitig jeden Filter UND die
 	//    Seitenaufteilung (avesmapsGaretienListeFilterHatKeys); ein zweites Klarsetzen im Client
@@ -93,6 +105,94 @@ async function pruefeReineMechanik(api) {
 		.forEach(function (feld) {
 			wahr(!(feld in rufe3.letzterRumpf), "kein Filterfeld im Rumpf: " + feld);
 		});
+}
+
+// ---------------------------------------------------------------------------------------------
+// A2. Fixrunde 1 (06.09.2026): „uebernommen"/„abgelehnt" verlassen die Stage, ohne als
+//     „verschwunden" zu gelten -- die vier Zusicherungen des Fix-Briefs.
+// ---------------------------------------------------------------------------------------------
+async function pruefeFertigeStaende(api) {
+	// Zusicherung 1: ein Objekt, dessen frischer Stand "uebernommen" ist, liegt danach NICHT mehr
+	// auf der Stage und steht im neuen Feld `fertig` -- NICHT in `verschwunden`.
+	api.avesmapsGaretienStageLeeren();
+	api.avesmapsGaretienStageHinzufuegen([{ key: "u", items: [{ id: 1 }] }]);
+	const rufeU = spion({ objekte: [{ key: "u", items: [{ id: 1 }], stand: "uebernommen" }] });
+	const ergebnisU = await api.garetienStageNachschlagen(rufeU);
+	gleich(api.avesmapsGaretienStageHat("u"), false, "ein uebernommenes Objekt verlaesst die Stage");
+	tief(ergebnisU.fertig, ["u"], "…und steht im Feld `fertig`");
+	tief(ergebnisU.verschwunden, [], "…NICHT im Feld `verschwunden` -- es gibt es ja noch");
+
+	// Zusicherung 2: dasselbe fuer "abgelehnt".
+	api.avesmapsGaretienStageLeeren();
+	api.avesmapsGaretienStageHinzufuegen([{ key: "a", items: [{ id: 2 }] }]);
+	const rufeA = spion({ objekte: [{ key: "a", items: [{ id: 2 }], stand: "abgelehnt" }] });
+	const ergebnisA = await api.garetienStageNachschlagen(rufeA);
+	gleich(api.avesmapsGaretienStageHat("a"), false, "ein abgelehntes Objekt verlaesst die Stage");
+	tief(ergebnisA.fertig, ["a"], "…und steht im Feld `fertig`");
+	tief(ergebnisA.verschwunden, [], "…NICHT im Feld `verschwunden`");
+
+	// Zusicherung 3 (= Zusicherung 2 der Aufgabe 6, muss weiter halten): ein Objekt mit Stand
+	// "offen" bleibt liegen und behaelt seine frischen Item-Nummern.
+	api.avesmapsGaretienStageLeeren();
+	api.avesmapsGaretienStageHinzufuegen([{ key: "o", items: [{ id: 3 }] }]);
+	const rufeO = spion({ objekte: [{ key: "o", items: [{ id: 33 }], stand: "offen" }] });
+	const ergebnisO = await api.garetienStageNachschlagen(rufeO);
+	gleich(api.avesmapsGaretienStageHat("o"), true, "ein offenes Objekt bleibt auf der Stage");
+	tief(ergebnisO.fertig, [], "…und zaehlt nicht als fertig");
+	const objektO = api.avesmapsGaretienStageListe().find(function (o) { return o.key === "o"; });
+	tief(objektO.items.map(function (i) { return i.id; }), [33], "…mit den frischen Item-Nummern");
+
+	// Zusicherung 4: ein UNBEKANNTER Stand laesst das Objekt liegen -- die sichere Richtung,
+	// ausdruecklich geprueft. "Alles ausser offen" waere eine Aussage ueber einen Stand, den es
+	// heute noch nicht gibt; die Liste ist benannt, kein `!== "offen"`.
+	api.avesmapsGaretienStageLeeren();
+	api.avesmapsGaretienStageHinzufuegen([{ key: "x", items: [{ id: 4 }] }]);
+	const rufeX = spion({ objekte: [{ key: "x", items: [{ id: 44 }], stand: "nagelneu_und_unbekannt" }] });
+	const ergebnisX = await api.garetienStageNachschlagen(rufeX);
+	gleich(api.avesmapsGaretienStageHat("x"), true,
+		"ein unbekannter Stand laesst das Objekt liegen, statt es fuer 'fertig' zu halten");
+	tief(ergebnisX.fertig, [], "…und zaehlt nicht als fertig");
+	tief(ergebnisX.verschwunden, [], "…und auch nicht als verschwunden -- der Server kennt es ja");
+
+	// Und dasselbe fuer ein Objekt OHNE jeden `stand` (undefined) -- derselbe sichere Fall.
+	api.avesmapsGaretienStageLeeren();
+	api.avesmapsGaretienStageHinzufuegen([{ key: "y", items: [{ id: 5 }] }]);
+	const rufeY = spion({ objekte: [{ key: "y", items: [{ id: 55 }] }] });
+	await api.garetienStageNachschlagen(rufeY);
+	gleich(api.avesmapsGaretienStageHat("y"), true, "…auch ganz ohne `stand`-Feld");
+
+	// Ein gemischter Lauf: verschwunden, fertig und offen kommen zusammen vor und werden nicht
+	// vermischt.
+	api.avesmapsGaretienStageLeeren();
+	api.avesmapsGaretienStageHinzufuegen([
+		{ key: "v", items: [{ id: 10 }] },   // verschwindet (kommt in der Antwort nicht vor)
+		{ key: "f", items: [{ id: 11 }] },   // wird fertig (uebernommen)
+		{ key: "b", items: [{ id: 12 }] },   // bleibt offen
+	]);
+	const rufeGemischt = spion({
+		objekte: [
+			{ key: "f", items: [{ id: 111 }], stand: "uebernommen" },
+			{ key: "b", items: [{ id: 122 }], stand: "offen" },
+		],
+	});
+	const gemischt = await api.garetienStageNachschlagen(rufeGemischt);
+	tief(gemischt.verschwunden, ["v"]);
+	tief(gemischt.fertig, ["f"]);
+	gleich(api.avesmapsGaretienStageHat("v"), false);
+	gleich(api.avesmapsGaretienStageHat("f"), false);
+	gleich(api.avesmapsGaretienStageHat("b"), true);
+
+	// Zusicherung 5 (Teil 1, reine Funktion): der kombinierte Satz nennt BEIDE Faelle getrennt,
+	// mit ihren eigenen Zahlen -- kein gemeinsamer Topf.
+	const satzBeide = api.garetienStageNachschlagSatz({ verschwunden: ["v"], fertig: ["f", "g"] });
+	wahr(satzBeide.includes("1 Objekt") && satzBeide.includes("im neuen Lauf nicht mehr"),
+		"…nennt die verschwundenen (1) -- gelesen: " + satzBeide);
+	wahr(satzBeide.includes("2 Objekte") && satzBeide.includes("uebernommen oder abgelehnt"),
+		"…UND die fertigen (2), als eigenen Satz -- gelesen: " + satzBeide);
+	gleich(api.garetienStageNachschlagSatz({ verschwunden: [], fertig: [] }), "",
+		"ohne jeden Fund bleibt der Satz leer -- ein Aufrufer darf ihn dann ignorieren");
+	gleich(api.garetienStageNachschlagSatz({ verschwunden: [], fertig: ["f"] }),
+		api.garetienStageFertigSatz(1), "nur fertig -- derselbe Satz wie der eigene Bauer, ohne Anhaengsel");
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -185,6 +285,26 @@ async function pruefeAnschlussLaufStarten(api, dom) {
 	gleich(api.avesmapsGaretienStageHat("weg:2"), true, "das Objekt bleibt auf der Stage");
 	const stageObjekt = api.avesmapsGaretienStageListe().find(function (o) { return o.key === "weg:2"; });
 	tief(stageObjekt.items.map(function (i) { return i.id; }), [12], "und seine Item-Nummer ist frisch");
+
+	// 3. Fixrunde 1, Zusicherung 5 END-TO-END: verschwunden UND fertig treten in DEMSELBEN Lauf
+	//    auf und werden in der Statuszeile GETRENNT genannt, mit ihren eigenen Zahlen -- nicht als
+	//    ein gemeinsames "3 Objekte ...".
+	api.avesmapsGaretienStageLeeren();
+	api.avesmapsGaretienStageHinzufuegen([
+		{ key: "weg:3", items: [{ id: 20 }] },   // verschwindet
+		{ key: "weg:4", items: [{ id: 21 }] },   // wird uebernommen
+	]);
+	await api.garetienLaufStarten(
+		spionLauf({ objekte: [{ key: "weg:4", items: [{ id: 210 }], stand: "uebernommen" }] }),
+		["ggp:Gewaesser"], api.garetienLaufKachelAktualisieren, listeHolen
+	);
+	const statusText3 = dom.text("#garetien-status-text");
+	gleich(api.avesmapsGaretienStageHat("weg:3"), false, "die verschwundene Zeile ist weg");
+	gleich(api.avesmapsGaretienStageHat("weg:4"), false, "die uebernommene Zeile ist ebenfalls weg");
+	wahr(statusText3.includes("1 Objekt") && statusText3.includes("im neuen Lauf nicht mehr"),
+		'nennt "verschwunden" -- gelesen: "' + statusText3 + '"');
+	wahr(statusText3.includes("1 Objekt") && statusText3.includes("uebernommen oder abgelehnt"),
+		'UND nennt "fertig", als eigenen Satz -- gelesen: "' + statusText3 + '"');
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -192,6 +312,7 @@ async function pruefeAnschlussLaufStarten(api, dom) {
 const { api, dom } = ladeImporter(["garetien-run-state", "garetien-run-tile"]);
 
 pruefeReineMechanik(api)
+	.then(function () { return pruefeFertigeStaende(api); })
 	.then(function () { pruefeAlteBereinigungWeg(); })
 	.then(function () { return pruefeAnschlussLaufStarten(api, dom); })
 	.then(function () {

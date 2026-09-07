@@ -273,13 +273,14 @@ async function pruefeFussknopfSchreibtWirklich() {
 	garetienUebernahmeKnopfSetzen(avesmapsGaretienStageListe());
 	gleich(KNOPF.disabled, false, "die Anzeige traegt einen Vorschlag -- offen");
 
-	// 🔴 Aufgabe 6 (06.09.2026): der Nachlauf fragt seither per `keys` nach, nicht mehr per
+	// 🔴 Aufgabe 6 (06.09.2026): der Nachlauf fragt per `keys` nach, nicht mehr per
 	// `stand: "uebernommen"` -- und `keys` schlaegt serverseitig JEDEN Stand (garetien-liste.php,
-	// avesmapsGaretienListeFilterHatKeys). 💣 DAS ÄNDERT DIE FOLGE: ein gefundenes Objekt bleibt
-	// jetzt auf der Stage (nur seine Kopie wird aufgefrischt) -- „verlässt die Stage" gilt seit
-	// dieser Aufgabe nur noch für Objekte, die im GELTENDEN LAUF gar nicht mehr existieren, nicht
-	// mehr fürs blosse Erreichen von `stand: "uebernommen"`. Siehe
-	// js/review/__tests__/garetien-stage-nachschlagen.test.js für die reine Regel.
+	// avesmapsGaretienListeFilterHatKeys). Fixrunde 1 (06.09.2026): GENAU DESHALB legte der
+	// Nachschlag ein gerade uebernommenes Objekt wieder auf die Stage zurueck -- der Weg durchs
+	// Fenster ist Offen -> Stage -> „Stage importieren" -> Uebernommen, und was uebernommen ist,
+	// hat die Stage verlassen. `garetienStageNachschlagen` liest den frischen `stand` jetzt selbst:
+	// „uebernommen"/„abgelehnt" nehmen das Objekt von der Stage, ohne es als „verschwunden" zu
+	// zaehlen (siehe js/review/__tests__/garetien-stage-nachschlagen.test.js fuer die reine Regel).
 	const d2 = machFetch(function (pfad, rumpf) {
 		if (rumpf.action === "apply") {
 			return { ok: true, done: true, applied: 1, deleted: 0, stale: 0, processed: 1,
@@ -308,11 +309,9 @@ async function pruefeFussknopfSchreibtWirklich() {
 	gleich(d2.angefragt[0].pfad, "/api/edit/wiki/sync-plan.php", "…durch die eine Uebernahme-Tuer");
 	tief(d2.angefragt[1].rumpf.keys, [mitVorschlagVoll.key],
 		"…dann der Stage-Nachlauf: EIN Ruf mit `keys`, nicht mehr mit `stand: \"uebernommen\"\"");
-	gleich(avesmapsGaretienStageHat(mitVorschlagVoll.key), true,
-		"das Objekt bleibt auf der Stage -- `keys` findet es unabhängig von seinem Stand, und nur "
-		+ "was im Lauf GAR NICHT mehr existiert, verlässt sie (Aufgabe 6)");
-	gleich(avesmapsGaretienStageListe()[0].items[0].id, 4001,
-		"und seine Item-Nummer ist die frische aus der Nachlese, nicht mehr die alte");
+	gleich(avesmapsGaretienStageHat(mitVorschlagVoll.key), false,
+		"🔴 Fixrunde 1: ein Objekt, dessen frischer Stand \"uebernommen\" ist, verlaesst die Stage -- "
+		+ "sie ist nicht mehr sein Platz, egal ob `keys` es noch findet");
 
 	// D3: ein WIRKLICH offener Vorschlag -- select, DANN apply, DANN die zwei Lesevorgaenge.
 	avesmapsGaretienStageLeeren();
@@ -320,7 +319,8 @@ async function pruefeFussknopfSchreibtWirklich() {
 	garetienUebernahmeKnopfSetzen(avesmapsGaretienStageListe());
 	gleich(KNOPF.disabled, false, "…und wieder offen, jetzt mit einem UNGEHAKTEN Vorschlag");
 
-	// 🔴 Aufgabe 6: derselbe Nachlauf wie in D2 -- `keys`, kein `stand`.
+	// 🔴 Aufgabe 6: derselbe Nachlauf wie in D2 -- `keys`, kein `stand`. Fixrunde 1: die Nachlese
+	// meldet diesmal `stand: "uebernommen"`, das Objekt verlaesst also die Stage.
 	const d3 = machFetch(function (pfad, rumpf) {
 		if (rumpf.action === "apply") {
 			return { ok: true, done: true, applied: 1, deleted: 0, stale: 0, processed: 1,
@@ -347,6 +347,8 @@ async function pruefeFussknopfSchreibtWirklich() {
 		+ "eine weitere Vormerkung");
 	tief(d3.angefragt[2].rumpf.keys, [mitVorschlagOffen.key], "…der Stage-Nachlauf fragt gezielt nach");
 	gleich(d3.angefragt[3].rumpf.stand, "offen", "…und die Listenaktualisierung liest den aktiven Reiter");
+	gleich(avesmapsGaretienStageHat(mitVorschlagOffen.key), false,
+		"🔴 Fixrunde 1: auch hier verlaesst das nun uebernommene Objekt die Stage");
 
 	// D4: Ein Fehler MITTENDRIN (schon beim Anhaken) bricht ab, entsperrt den Knopf wieder und
 	// darf nie als Erfolg durchgehen (Brief). 🔴 SEIT AUFGABE 1 (06.09.2026) STEHT ER IN DER

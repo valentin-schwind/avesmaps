@@ -305,11 +305,26 @@
 	 * fragt nach GENAU DEN Objekten, die auf der Stage liegen, unabhaengig von ihrem Stand.
 	 * ⚠️ Faellt OFFEN aus: scheitert der Ruf, bleibt die Stage stehen. Eine geleerte Stage nach
 	 * einem Netzfehler waere der teurere Ausgang -- die Arbeit einer halben Stunde.
+	 *
+	 * Fixrunde 1 (06.09.2026): DIE STAGE BEHAELT UEBERNOMMENE OBJEKTE.
+	 * 🔴 Der Weg durchs Fenster ist Offen -> Stage -> „Stage importieren" -> Uebernommen. Was
+	 * uebernommen ist, hat die Stage verlassen -- der Nachschlag legte es sonst zurueck, weil
+	 * `keys` serverseitig JEDEN Filter schlaegt, auch `stand`, und das gerade uebernommene Objekt
+	 * also weiterhin findet.
+	 * 🔴 ZWEI FAELLE, ZWEI FELDER: `verschwunden` heisst „gibt es im neuen Lauf nicht mehr",
+	 * `fertig` heisst „gibt es noch, ist aber fertig". Wer sie zusammenwuerfe, saehe dem Editor
+	 * nach einem erfolgreichen Import „3 Objekte gibt es nicht mehr".
+	 * 🔴 DIE REGEL STEHT ALS BENANNTE LISTE, NICHT ALS `!== "offen"`: „alles ausser offen" waere
+	 * eine Aussage ueber jeden kuenftigen Stand, den noch niemand erfunden hat. Ein UNBEKANNTER
+	 * Stand laesst das Objekt deshalb liegen -- die sichere Richtung, eine faelschlich geraeumte
+	 * Stage ist die Arbeit einer halben Stunde.
 	 */
+	const GARETIEN_STAGE_FERTIGE_STAENDE = ["uebernommen", "abgelehnt"];
+
 	function garetienStageNachschlagen(rufe) {
 		const schluessel = Array.from(zustand.stage.keys());
 		if (schluessel.length === 0) {
-			return Promise.resolve({ gefunden: 0, verschwunden: [] });
+			return Promise.resolve({ gefunden: 0, verschwunden: [], fertig: [] });
 		}
 		return rufe(GARETIEN_ENDPUNKT, {
 			action: "liste", run_id: zustand.importRunId, keys: schluessel,
@@ -319,19 +334,30 @@
 				if (o && o.key !== undefined && o.key !== null) { frisch[String(o.key)] = o; }
 			});
 			const verschwunden = [];
+			const fertig = [];
 			schluessel.forEach(function (s) {
-				if (frisch[s]) {
-					// 🔴 ERSETZEN, nicht ergaenzen: es geht um die frischen Item-Nummern.
-					zustand.stage.set(s, frisch[s]);
+				const o = frisch[s];
+				if (!o) {
+					zustand.stage.delete(s);
+					zustand.nurIhre.delete(s);
+					verschwunden.push(s);
 					return;
 				}
-				zustand.stage.delete(s);
-				zustand.nurIhre.delete(s);
-				verschwunden.push(s);
+				if (GARETIEN_STAGE_FERTIGE_STAENDE.indexOf(String(o.stand || "")) !== -1) {
+					// 🔴 Uebernommen/abgelehnt: das Objekt gibt es noch, aber die Stage ist nicht
+					// mehr sein Platz -- es verlaesst sie, OHNE als "verschwunden" zu zaehlen.
+					zustand.stage.delete(s);
+					zustand.nurIhre.delete(s);
+					fertig.push(s);
+					return;
+				}
+				// Offen, oder ein unbekannter Stand: liegen lassen, aber mit den frischen
+				// Item-Nummern -- das ist Zusicherung 3 (offen) und Zusicherung 4 (unbekannt).
+				zustand.stage.set(s, o);
 			});
-			return { gefunden: Object.keys(frisch).length, verschwunden: verschwunden };
+			return { gefunden: Object.keys(frisch).length, verschwunden: verschwunden, fertig: fertig };
 		}).catch(function () {
-			return { gefunden: 0, verschwunden: [] };
+			return { gefunden: 0, verschwunden: [], fertig: [] };
 		});
 	}
 
@@ -342,6 +368,29 @@
 		const n = Number(anzahl) || 0;
 		return (n === 1 ? "1 Objekt" : n + " Objekte")
 			+ " auf der Stage gibt es im neuen Lauf nicht mehr.";
+	}
+
+	// Fixrunde 1 (06.09.2026): der Satz fuer FERTIGE Stage-Objekte -- eigener Wortlaut, weil es sie
+	// weiterhin gibt, sie sind nur nicht mehr Sache der Stage. "Gibt es nicht mehr" waere hier eine
+	// falsche Aussage ueber ein Objekt, das gerade erfolgreich importiert wurde.
+	function garetienStageFertigSatz(anzahl) {
+		const n = Number(anzahl) || 0;
+		return (n === 1 ? "1 Objekt" : n + " Objekte")
+			+ " auf der Stage " + (n === 1 ? "ist" : "sind") + " bereits uebernommen oder abgelehnt"
+			+ " und hat" + (n === 1 ? "" : "en") + " die Stage verlassen.";
+	}
+
+	// Fixrunde 1: EIN Bauer fuer den kombinierten Nachschlag-Satz -- beide Anschlussstellen
+	// (garetienLaufStarten, beide Import-Ketten) haengen dieselben zwei Meldungen an, in derselben
+	// Reihenfolge, getrennt durch denselben Bindestrich. Zusicherung 5: beide Faelle werden
+	// GETRENNT genannt, mit ihren Zahlen -- kein gemeinsamer Topf.
+	function garetienStageNachschlagSatz(nachschlag) {
+		const verschwundenAnzahl = (nachschlag && nachschlag.verschwunden) ? nachschlag.verschwunden.length : 0;
+		const fertigAnzahl = (nachschlag && nachschlag.fertig) ? nachschlag.fertig.length : 0;
+		const teile = [];
+		if (verschwundenAnzahl > 0) { teile.push(garetienStageVerschwundenSatz(verschwundenAnzahl)); }
+		if (fertigAnzahl > 0) { teile.push(garetienStageFertigSatz(fertigAnzahl)); }
+		return teile.join(" ");
 	}
 
 	// ---- Die Auswahl: ein reiner MARKER, kein Schreibweg (Aufgabe 2, Entwurf §3.2) ----------------
@@ -2311,11 +2360,12 @@
 					// sofort danach einfügt, nicht mit toten Nummern arbeitet.
 					.then(function () { return garetienStageNachschlagen(rufe); })
 					.then(function (nachschlag) {
-						const anzahl = (nachschlag && nachschlag.verschwunden) ? nachschlag.verschwunden.length : 0;
 						// ⚠️ NUR bei Funden: garetienLaufStarten setzt sonst nirgends die Statuszeile,
-						// ein Aufruf mit `anzahl === 0` überschriebe also grundlos eine ältere Meldung
-						// (z. B. den Erfolg des letzten Einfügens).
-						if (anzahl > 0) { garetienStatusSetzen(garetienStageVerschwundenSatz(anzahl), "", null); }
+						// ein Aufruf ohne Fund überschriebe also grundlos eine ältere Meldung (z. B.
+						// den Erfolg des letzten Einfügens). Fixrunde 1: zwei Sätze, zwei Zahlen --
+						// verschwunden und fertig getrennt, nie in einer Meldung zusammengeworfen.
+						const satz = garetienStageNachschlagSatz(nachschlag);
+						if (satz) { garetienStatusSetzen(satz, "", null); }
 					})
 					.then(function () { return listeHolen(); });
 			})
@@ -5571,10 +5621,10 @@
 						});
 					})
 					.then(function (paar) {
-						const anzahl = (paar.nachschlag && paar.nachschlag.verschwunden)
-							? paar.nachschlag.verschwunden.length : 0;
-						const text = anzahl > 0
-							? meldung.text + " · " + garetienStageVerschwundenSatz(anzahl)
+						// Fixrunde 1: verschwunden und fertig getrennt genannt, nie zusammengeworfen.
+						const nachschlagSatz = garetienStageNachschlagSatz(paar.nachschlag);
+						const text = nachschlagSatz
+							? meldung.text + " · " + nachschlagSatz
 							: meldung.text;
 						garetienStatusSetzen(text, meldung.ton, aktion);
 						return paar.ergebnis;
@@ -6594,10 +6644,10 @@
 						});
 					})
 					.then(function (paar) {
-						const anzahl = (paar.nachschlag && paar.nachschlag.verschwunden)
-							? paar.nachschlag.verschwunden.length : 0;
-						const text = anzahl > 0
-							? meldung.text + " · " + garetienStageVerschwundenSatz(anzahl)
+						// Fixrunde 1: verschwunden und fertig getrennt genannt, nie zusammengeworfen.
+						const nachschlagSatz = garetienStageNachschlagSatz(paar.nachschlag);
+						const text = nachschlagSatz
+							? meldung.text + " · " + nachschlagSatz
 							: meldung.text;
 						garetienStatusSetzen(text, meldung.ton, aktion);
 						return paar.ergebnis;
@@ -7163,6 +7213,9 @@
 			// avesmapsGaretienStageNachEinfuegenBereinigen -- siehe dessen Definition.
 			garetienStageNachschlagen,
 			garetienStageVerschwundenSatz,
+			// Fixrunde 1 (06.09.2026): die Stage behaelt uebernommene/abgelehnte Objekte nicht mehr.
+			garetienStageFertigSatz,
+			garetienStageNachschlagSatz,
 			garetienEinfuegenAusfuehren,
 			garetienNeuKlick,
 			garetienFussknopfEinfuegenKlick,
