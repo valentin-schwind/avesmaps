@@ -443,6 +443,16 @@ pruefe('der Endpunkt leitet nicht auf uploads/map/ weiter',
 // 💣 DER TOKEN-ZWEIG DARF DEN SITZUNGSRIEGEL NICHT RUFEN. `avesmapsRequireUserWithCapability`
 // antwortet mit 401 und beendet -- stuende der Aufruf vor der Weiche, waere der ganze Umbau
 // wirkungslos und ein Externer bekaeme „bitte anmelden" auf einen Link, den er von uns hat.
+// 💣 DIE WEICHE FRAGT NACH DEM PARAMETER, NICHT NACH SEINER GUELTIGKEIT. Am 08.09.2026 live
+// gemessen: ein verstuemmelter Token (Mail-Clients brechen 32 Zeichen um) normalisierte auf ''
+// und fiel damit in den Sitzungszweig -- der Empfaenger bekam „Du bist fuer diese Aktion nicht
+// angemeldet" auf einen Link, den er von uns hat und fuer den er nie ein Konto bekommt.
+pruefe('die Weiche entscheidet am ROHEN Parameter, nicht am normalisierten',
+    str_contains($endpunkt, "if (\$tokenRoh !== '')"));
+pruefe('ein unbrauchbarer Token endet im Token-Zweig, nicht im Sitzungsriegel',
+    (int) strpos($endpunkt, "if (\$tokenRoh !== '')")
+    < (int) strpos($endpunkt, 'avesmapsRequireUserWithCapability'));
+
 $vorWeiche = substr($endpunkt, 0, (int) strpos($endpunkt, "\$_GET['token']"));
 pruefe('der Sitzungsriegel steht NICHT vor der Token-Weiche',
     !str_contains($vorWeiche, 'avesmapsRequireUserWithCapability'));

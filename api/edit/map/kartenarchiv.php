@@ -66,12 +66,25 @@ if ($requestMethod !== 'GET' && $requestMethod !== 'HEAD') {
 // 💣 Der Token gewinnt, wenn beide da sind, und `datei` wird dann NICHT gelesen. Die Datei
 // haengt am Token; naehme sie der Parameter, waere ein Link auf die Kacheln (161 MB) zugleich
 // einer auf die Gesamtkarte (1,73 GB).
-$token = avesmapsKartenarchivLinkTokenNormalisieren((string) ($_GET['token'] ?? ''));
+// 💣 DIE WEICHE FRAGT, OB DER PARAMETER DA IST -- nicht, ob er GUELTIG ist. Sonst faellt ein
+// verstuemmelter Token in den Sitzungszweig, und der Empfaenger bekommt „Du bist fuer diese
+// Aktion nicht angemeldet" auf einen Link, den er von uns hat und fuer den er nie ein Konto
+// bekommen wird. Live gemessen am 08.09.2026, genau so. Und es ist der Normalfall, nicht der
+// Sonderfall: ein 32-Zeichen-Token in einer Mail wird von Clients umgebrochen.
+$tokenRoh = (string) ($_GET['token'] ?? '');
+$token = avesmapsKartenarchivLinkTokenNormalisieren($tokenRoh);
 $currentUser = null;
 $linkZeile = null;
 $pdo = null;
 
-if ($token !== '') {
+if ($tokenRoh !== '') {
+    // Unbrauchbare Form: dieselbe nichtssagende Antwort wie ein unbekannter Token. Ein Hinweis
+    // auf die erwartete Laenge waere eine Hilfe beim Raten und hilft dem Empfaenger nicht --
+    // er kann seinen Link nur neu anfordern.
+    if ($token === '') {
+        avesmapsErrorResponse(404, 'archive_not_found', 'Dieses Archiv gibt es nicht.');
+    }
+
     // ⚠️ Hier braucht es die Datenbank VOR der ersten Kopfzeile -- ein Fehlschlag muss eine
     // lesbare Absage werden, nicht ein halb ausgeliefertes Archiv.
     try {
