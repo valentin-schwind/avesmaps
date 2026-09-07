@@ -262,10 +262,29 @@ checks += 3;
 // am Bild nichts, und der Editor haelt sein Speichern fuer wirkungslos („speichere, nix passiert").
 assert.ok(labelsQ.includes("function avesmapsCurveSettingAufLabelsAnwenden("),
 	"es gibt keinen Weg, eine gespeicherte Kurveneinstellung auf die Karte zu bringen");
-const anwStart = labelsQ.indexOf("function avesmapsCurveSettingAufLabelsAnwenden(");
-const anwender = labelsQ.slice(anwStart, labelsQ.indexOf("function ", anwStart + 10));
-assert.ok(anwender.includes("eintrag.label.curveLine = null"),
+// 🔴 SEIT 07.09.2026 IST DER ANWENDER ZWEIGETEILT, und die Zusicherungen sind mitgewandert -- nicht
+// weggefallen. `avesmapsCurveDatenAnLabels` setzt die Daten, `avesmapsCurveNachzeichnen` zeichnet
+// nach; `avesmapsCurveSettingAufLabelsAnwenden` ruft beide hintereinander. Der Grund fuer den Schnitt
+// steht dort: der Sammellauf „Rechnen -> Kurven" bringt 82 Regionen auf einmal, und das Nachzeichnen
+// rechnet jedes Mal ALLE Kurvenlabels der Karte neu -- 82 Mal waere untragbar. Wer die zwei wieder
+// zusammenlegt, muss diesen Test mitnehmen (und den Sammelweg neu begruenden).
+function funktionsRumpf(quelle, name) {
+	const von = quelle.indexOf("function " + name + "(");
+	assert.ok(von >= 0, name + " steht nicht in map-features-labels.js");
+	// Zeilenendenneutral: Arbeitskopie CRLF, CI LF (AGENTS.md §9).
+	const bis = quelle.indexOf("\n}", von);
+	assert.ok(bis > von, name + " hat kein Ende");
+	return quelle.slice(von, bis + 2);
+}
+const daten = funktionsRumpf(labelsQ, "avesmapsCurveDatenAnLabels");
+const anwender = funktionsRumpf(labelsQ, "avesmapsCurveNachzeichnen");
+assert.ok(daten.includes("eintrag.label.curveLine = null"),
 	"das AUSschalten entfernt die Kurve nicht -- das Label bliebe gebogen");
+// Und die zwei Haelften muessen auch wirklich verbunden sein -- sonst sind beide fuer sich gruen und
+// ein gespeichertes Gebiet zeichnet trotzdem nichts nach.
+const einzelweg = funktionsRumpf(labelsQ, "avesmapsCurveSettingAufLabelsAnwenden");
+assert.ok(einzelweg.includes("avesmapsCurveNachzeichnen(avesmapsCurveDatenAnLabels("),
+	"der Einzelweg verbindet Daten und Nachzeichnen nicht mehr");
 // ⚠️ Auf den AUFRUF pruefen, nicht auf den Namen: die `typeof`-Absicherung eine Zeile darueber
 // enthaelt ihn ebenfalls, und dann ueberlebt das Entfernen des Aufrufs die Pruefung.
 assert.ok(anwender.includes("scheduleLabelCollisionResolution();"),
@@ -283,7 +302,7 @@ assert.ok(posSync > -1, "die Marker der geaenderten Labels werden nicht einzeln 
 assert.ok(posPlatz < posSync,
 	"erst neu rechnen, DANN die Marker nachziehen -- umgekehrt fragt der Riegel den alten Stand ab");
 checks += 3;
-checks += 3;
+checks += 4;
 
 // 💣 UND BEIDE Speicherwege muessen ihn rufen -- einer allein ist keine Regel (AGENTS.md §11).
 const writeback = fs.readFileSync(path.join(wurzel, "js/map-features/map-features-ecosystem-label-writeback.js"), "utf8");

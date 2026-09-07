@@ -1416,26 +1416,17 @@ function shouldShowLabelMarker(entry, zoomLevel = map.getZoom(), renderBounds = 
 // erscheinendes Kurvenlabel -- fuer Plan 2 hingenommen und gemessen (Aufgabe 7), nicht behoben: die
 // Ankerpruefung gilt heute allen Labels, sie hier allein fuer Kurven zu aendern waere eine zweite
 // Sichtbarkeitsregel.
-// Eine frisch gespeicherte Kurveneinstellung SOFORT auf die Karte bringen.
+// Die Kurvendaten EINER Region an ihre Labels haengen -- OHNE nachzuzeichnen.
 //
-// 🔴 WARUM ES DAS BRAUCHT: die Kurve reist im Kartenpayload, und der wird nach einem Speichern nicht
-// neu geholt. Ohne diesen Schritt aendert sich am Bild gar nichts -- der Editor stellt um, drueckt
-// Speichern und sieht denselben Zustand wie vorher. Genau so gemeldet am 23.08.2026
-// („speichere, nix passiert").
+// 🔴 WARUM GETRENNT: das Nachzeichnen ist teuer und global (avesmapsKurvenlabelPlatzierungen rechnet
+// JEDES Kurvenlabel der Karte neu). Fuer ein gespeichertes Gebiet ist das genau richtig; fuer den
+// Sammellauf, der 82 Regionen auf einmal bringt, waere es 82 volle Neuberechnungen. Deshalb setzt
+// dieser Teil nur die Daten, und der Aufrufer entscheidet, wann gezeichnet wird.
 //
-// ⚠️ EINSCHALTEN kann hier keine Kurve herbeizaubern: sie wird auf dem SERVER gerechnet und liegt im
-// Zwischenspeicher, den nur der Sammellauf fuellt („Kurven rechnen“ im Landschaften-Editor). Diese
-// Funktion setzt deshalb beim Einschalten nur die ANZAHL; die Kurve selbst erscheint nach dem Lauf.
-// AUSschalten dagegen wirkt sofort -- die Kurve wird entfernt, das Label ist wieder ein normales.
-//
-// ⭐ Mit `roheLinie` faellt auch das Einschalten sofort ins Bild: die Aktion `refresh_curve` rechnet
-// die Kurve serverseitig und reicht sie zurueck, statt den Browser auf den naechsten Kartenpayload
-// warten zu lassen.
-function avesmapsCurveSettingAufLabelsAnwenden(regionPublicId, an, max, roheLinie) {
+// ⚠️ Die Rueckgabe sind die BERUEHRTEN Eintraege, nicht ihre Anzahl -- der Sammelweg sammelt sie ein
+// und zeichnet einmal fuer alle nach.
+function avesmapsCurveDatenAnLabels(regionPublicId, an, max, roheLinie) {
 	const eintraege = avesmapsLabelEntriesForEcosystemRegion(regionPublicId);
-	if (eintraege.length === 0) {
-		return 0;
-	}
 	for (const eintrag of eintraege) {
 		if (an === false) {
 			eintrag.label.curveLine = null;
@@ -1458,19 +1449,32 @@ function avesmapsCurveSettingAufLabelsAnwenden(regionPublicId, an, max, roheLini
 		// waagerecht (Entwurf §4.3). Sein Icon kennt die Drehung, nicht die Kurve -- also neu bauen.
 		eintrag.marker.setIcon(createLabelIcon(eintrag.label));
 	}
-	// 💣 UND JETZT DIE DREI SCHRITTE IN GENAU DIESER REIHENFOLGE. Am 23.08.2026 im Browser des Owners
-	// gemessen, nachdem „Kurvenbeschriftung aus" den Namen GANZ verschwinden liess:
-	//
-	// 1. Die Platzierung NEU RECHNEN. `avesmapsLabelWirdAlsKurveGemalt` fragt das Ergebnis des letzten
-	//    Durchgangs; ohne Neurechnung gilt das eben abgeschaltete Label dort weiter als „wird als
-	//    Kurve gemalt", und der Riegel haelt seinen Marker unten. Gemessen: shouldShowLabelMarker
-	//    blieb `false`, obwohl Zoomband, Bildausschnitt und Ansicht alle passten.
-	//    ⚠️ Gerufen wird sie fuer ihren NEUAUFBAU, nicht fuer ihren Rueckgabewert.
-	// 2. Die Marker der geaenderten Labels EINZELN nachziehen. `avesmapsSyncKurvenlabelMarker`
-	//    kann das nicht: er ueberspringt jedes Label OHNE `curveLine` -- und genau das ist ein eben
-	//    abgeschaltetes. Gemessen: nach ihm blieb der Marker weg, nach syncLabelMarkerVisibility kam
-	//    er zurueck.
-	// 3. Und den normalen Durchgang anstossen, damit Kollisionen und Canvas nachziehen.
+	return eintraege;
+}
+
+// Die drei Schritte des Nachzeichnens -- EINMAL, egal wie viele Regionen sich geaendert haben.
+//
+// 💣 UND SIE STEHEN IN GENAU DIESER REIHENFOLGE. Am 23.08.2026 im Browser des Owners gemessen,
+// nachdem „Kurvenbeschriftung aus" den Namen GANZ verschwinden liess:
+//
+// 1. Die Platzierung NEU RECHNEN. `avesmapsLabelWirdAlsKurveGemalt` fragt das Ergebnis des letzten
+//    Durchgangs; ohne Neurechnung gilt das eben abgeschaltete Label dort weiter als „wird als
+//    Kurve gemalt", und der Riegel haelt seinen Marker unten. Gemessen: shouldShowLabelMarker
+//    blieb `false`, obwohl Zoomband, Bildausschnitt und Ansicht alle passten.
+//    ⚠️ Gerufen wird sie fuer ihren NEUAUFBAU, nicht fuer ihren Rueckgabewert.
+// 2. Die Marker der geaenderten Labels EINZELN nachziehen. `avesmapsSyncKurvenlabelMarker`
+//    kann das nicht: er ueberspringt jedes Label OHNE `curveLine` -- und genau das ist ein eben
+//    abgeschaltetes. Gemessen: nach ihm blieb der Marker weg, nach syncLabelMarkerVisibility kam
+//    er zurueck.
+// 3. Und den normalen Durchgang anstossen, damit Kollisionen und Canvas nachziehen.
+//
+// ⚠️ Kein beruehrtes Label heisst: gar nicht zeichnen. Eine Region ohne Beschriftung darf keinen
+// Durchgang ueber die ganze Karte ausloesen -- beim Sammellauf traefe das sonst jede Region, die
+// zwar eine Kurve hat, aber (noch) kein Label traegt.
+function avesmapsCurveNachzeichnen(eintraege) {
+	if (eintraege.length === 0) {
+		return 0;
+	}
 	if (typeof avesmapsKurvenlabelPlatzierungen === "function") {
 		avesmapsKurvenlabelPlatzierungen(null);
 	}
@@ -1481,6 +1485,66 @@ function avesmapsCurveSettingAufLabelsAnwenden(regionPublicId, an, max, roheLini
 		scheduleLabelCollisionResolution();
 	}
 	return eintraege.length;
+}
+
+// Eine frisch gespeicherte Kurveneinstellung SOFORT auf die Karte bringen.
+//
+// 🔴 WARUM ES DAS BRAUCHT: die Kurve reist im Kartenpayload, und der wird nach einem Speichern nicht
+// neu geholt. Ohne diesen Schritt aendert sich am Bild gar nichts -- der Editor stellt um, drueckt
+// Speichern und sieht denselben Zustand wie vorher. Genau so gemeldet am 23.08.2026
+// („speichere, nix passiert").
+//
+// ⚠️ EINSCHALTEN kann hier keine Kurve herbeizaubern: sie wird auf dem SERVER gerechnet und liegt im
+// Zwischenspeicher, den nur der Sammellauf fuellt („Kurven rechnen“ im Landschaften-Editor). Diese
+// Funktion setzt deshalb beim Einschalten nur die ANZAHL; die Kurve selbst erscheint nach dem Lauf.
+// AUSschalten dagegen wirkt sofort -- die Kurve wird entfernt, das Label ist wieder ein normales.
+//
+// ⭐ Mit `roheLinie` faellt auch das Einschalten sofort ins Bild: die Aktion `refresh_curve` rechnet
+// die Kurve serverseitig und reicht sie zurueck, statt den Browser auf den naechsten Kartenpayload
+// warten zu lassen.
+function avesmapsCurveSettingAufLabelsAnwenden(regionPublicId, an, max, roheLinie) {
+	return avesmapsCurveNachzeichnen(avesmapsCurveDatenAnLabels(regionPublicId, an, max, roheLinie));
+}
+
+// Der SAMMELWEG: die frisch gerechneten Kurven des Laufs „Rechnen -> Kurven" auf die Karte bringen.
+//
+// 🔴 WARUM ES DAS BRAUCHT (Owner 07.09.2026: „hat aber keinen effekt auf das zuruecksetzen der
+// betroffenen faelle"): der Sammellauf schreibt den Zwischenspeicher, aber die Karte liest ihn nur
+// beim VOLLEN Laden der Nutzlast. Der Editor ist ein iframe ueber der lebenden Karte, die Nutzlast
+// wird nach einem Speichern nicht neu geholt, und der Lauf bumpt `ecosystem_revision`, nicht
+// `map_revision` -- der Live-Abgleich sieht also auch nichts. Ohne diesen Weg wirkt der Knopf tot.
+//
+// 💣 EIN NACHZEICHNEN FUER ALLE. Der Einzelweg daneben zeichnet je Aufruf nach; 82 Regionen mal
+// avesmapsKurvenlabelPlatzierungen (das jedes Kurvenlabel der Karte neu rechnet) waere der Grund,
+// diesen Weg wieder auszubauen.
+//
+// 🔴 ER SETZT NUR, ER ENTFERNT NIE. Die Ablage nennt ausschliesslich Regionen, deren
+// Kurvenbeschriftung AN ist und deren Kurve sich rechnen liess -- ein Fehlen heisst also entweder
+// „ausgeschaltet" ODER „gerade nicht rechenbar", und die zwei sind hier nicht zu unterscheiden. Aus
+// dem Fehlen auf „aus" zu schliessen naehme einem Label seine Kurve, weil der Server sie einmal
+// nicht liefern konnte. Das AUSschalten hat seinen eigenen, ausdruecklichen Weg (der Einzelweg mit
+// `an === false`) und wirkt bereits beim Speichern.
+//
+// @param {Object<string, {line: Array, max: number}>} baselines wie `action: "baselines"` sie liefert
+function avesmapsCurveBaselinesAufLabelsAnwenden(baselines) {
+	if (!baselines || typeof baselines !== "object") {
+		return 0;
+	}
+	const beruehrt = [];
+	for (const regionPublicId of Object.keys(baselines)) {
+		const satz = baselines[regionPublicId];
+		const linie = satz && satz.line;
+		// ⚠️ Die Pruefung steht schon hier, nicht erst im Leser: eine unbrauchbare Linie soll nicht
+		// einmal die Labels ihrer Region beruehren -- sonst zaehlten sie als „geaendert" und loesten
+		// ein Nachzeichnen aus, das nichts zu zeichnen hat.
+		if (!Array.isArray(linie) || linie.length < 2) {
+			continue;
+		}
+		for (const eintrag of avesmapsCurveDatenAnLabels(regionPublicId, true, satz.max, linie)) {
+			beruehrt.push(eintrag);
+		}
+	}
+	return avesmapsCurveNachzeichnen(beruehrt);
 }
 
 // Die Beschriftungen EINER Landschaftsflaeche -- fuer „Beschriftung bearbeiten“ im Flaechenmenue.

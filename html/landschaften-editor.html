@@ -1534,6 +1534,46 @@ function renderHeightmapTile() {
 // gesperrt und sagt, dass sie rechnet -- ohne diesen Satz sieht ein Editor eine tote Seite.
 const CURVE_RUN_API = "/api/edit/map/curve-labels-run.php";
 
+// Die frisch gerechneten Kurven auf die KARTE bringen.
+//
+// 🔴 WARUM ES DAS BRAUCHT (Owner 07.09.2026: „Rechnen -> Kurven ... hat aber keinen effekt auf das
+// zuruecksetzen der betroffenen faelle"): der Lauf darunter schreibt den Zwischenspeicher
+// serverseitig korrekt -- die Karte liest ihn aber nur beim VOLLEN Laden der Nutzlast, und die wird
+// nach einem Speichern nicht neu geholt. Dieser Editor ist ein iframe ueber der lebenden Karte;
+// deren `labelMarkers` behalten ihre alten Objekte. Der Lauf bumpt ausserdem `ecosystem_revision`,
+// nicht `map_revision` -- der Live-Abgleich sieht also ebenfalls nichts. Ohne diesen Schritt aendert
+// sich am Bild GAR NICHTS, und ein Label, das seine Kurve bei einer Geometrieaenderung verloren hat,
+// bleibt waagerecht, bis jemand die ganze Seite neu laedt.
+//
+// ⚠️ `action: "baselines"` RECHNET NICHT. Es liest denselben Zwischenspeicher, den jeder Besucher
+// ohnehin bekommt (gemessen unter 20 ms) -- der teure Teil ist der Lauf davor. Deshalb ist der
+// zweite Abruf kein zweiter Sammellauf.
+//
+// 🔴 DER SAMMELWEG, nicht der Einzelweg: `avesmapsCurveSettingAufLabelsAnwenden` zeichnet je Aufruf
+// die ganze Karte nach; bei 82 Regionen waeren das 82 volle Neuberechnungen der Platzierung.
+//
+// ⚠️ Er gibt `null` zurueck, wenn er nichts ausrichten kann (standalone geoeffnet, Abruf gescheitert).
+// Der Lauf selbst hat dann trotzdem gewirkt -- das darf ihn nicht zum Fehlschlag machen.
+async function curveKurvenAufDieKarteBringen() {
+	let parentWindow;
+	try { parentWindow = window.parent; } catch (error) { parentWindow = null; }
+	if (!parentWindow || parentWindow === window
+		|| typeof parentWindow.avesmapsCurveBaselinesAufLabelsAnwenden !== "function") {
+		return null;
+	}
+	const antwort = await fetch(CURVE_RUN_API, {
+		method: "POST",
+		credentials: "same-origin",
+		headers: { Accept: "application/json", "Content-Type": "application/json" },
+		body: JSON.stringify({ action: "baselines" }),
+	});
+	const daten = await antwort.json();
+	if (!antwort.ok || daten.ok === false || !daten.baselines) {
+		return null;
+	}
+	return parentWindow.avesmapsCurveBaselinesAufLabelsAnwenden(daten.baselines);
+}
+
 async function runCurveLabels() {
 	const tile = $("ecoCurves");
 	const info = $("ecoCurvesInfo");
@@ -1564,6 +1604,19 @@ async function runCurveLabels() {
 		// Kurve zeigt, waere schlimmer als keine: sie sieht richtig aus. Also verwerfen; der naechste
 		// Blick ins Fenster holt sie frisch.
 		ecoDisplayKurvenLinien = null;
+		// 💣 UND JETZT DIE KARTE NACHZIEHEN -- ohne diesen Schritt bleibt der Lauf unsichtbar (siehe
+		// curveKurvenAufDieKarteBringen). Ein Fehlschlag HIER darf den gelungenen Lauf nicht zum
+		// Fehlschlag machen: gerechnet und abgelegt ist er, das naechste volle Laden zeigt ihn ohnehin.
+		let nachgezogen = null;
+		try {
+			nachgezogen = await curveKurvenAufDieKarteBringen();
+		} catch (fehler) {
+			console.warn("Kurven konnten nicht auf die Karte gebracht werden:", fehler);
+		}
+		if (nachgezogen !== null) {
+			teile.push(nachgezogen + " auf der Karte nachgezogen");
+		}
+		info.textContent = teile.join(" · ");
 		flashStatus("Kurven gerechnet: " + teile.join(" · ") + " · " + sekunden + " s", "ok");
 	} catch (error) {
 		info.textContent = "fehlgeschlagen";
