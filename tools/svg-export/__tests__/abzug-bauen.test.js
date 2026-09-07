@@ -57,7 +57,13 @@ assert.deepStrictEqual(
 // ---- 3. Die Farben: dieselben Vorgaben wie im Browser ----------------------------------
 const oekosysteme = FX.OEKOSYSTEME;
 const farben = L.vorgabeFarben(oekosysteme, token);
-assert.strictEqual(farben.areaColors.see, "#82befe", "Owner-Vorgabe schlaegt den Token");
+assert.strictEqual(farben.areaColors.see, "#4c89c6",
+	"Owner-Vorgabe schlaegt den Token -- seit 08.09.2026 die Flussfarbe");
+// 🔴 Ein Gewaesser, ein Ton -- auch im naechtlichen Abzug, nicht nur im Browser.
+assert.strictEqual(farben.areaColors.see, farben.wayColors.Flussweg,
+	"See und Fluss sind derselbe Ton");
+assert.strictEqual(farben.wayColors.Bach, farben.wayColors.Flussweg,
+	"und der Bach ebenso -- er wird ueber die Breite unterschieden, nicht ueber die Farbe");
 assert.strictEqual(farben.areaColors.wald, "#589a64");
 assert.strictEqual(farben.areaColors.gebirge, "#acaea2");
 assert.strictEqual(farben.areaColors.meer, token("--color-ecosystem-topographie-meer"),

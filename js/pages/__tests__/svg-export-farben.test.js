@@ -22,7 +22,9 @@ const token = (name) => tafel[name] || "";
 // ---- 1. Die Owner-Vorgaben schlagen die Kartenfarbe -----------------------------------
 // 🔴 Owner 15.08.2026: „seen sind 82befe, flüsse 4c89c6, wege f5ffe9, wälder 589a64,
 // gebirge acaea2, der rest wie aus dem programm."
-assert.strictEqual(F.svgxFarbeVorgabe("landschaften/topographie/see", token, {}, ""), "#82befe");
+// 🔴 UND SEIT 08.09.2026 IST DER SEE DIE FLUSSFARBE (Owner: „beide #4c89c6") -- der Abzug
+// uebernimmt die REGEL der Karte („ein Gewaesser, ein Ton"), aber mit seinem eigenen Blau.
+assert.strictEqual(F.svgxFarbeVorgabe("landschaften/topographie/see", token, {}, ""), "#4c89c6");
 assert.strictEqual(F.svgxFarbeVorgabe("landschaften/vegetation/wald", token, {}, ""), "#589a64",
 	"die Vorgabe schlaegt den Token #3f6b2c");
 assert.strictEqual(F.svgxFarbeVorgabe("landschaften/topographie/gebirge", token, {}, ""), "#acaea2");
@@ -32,6 +34,17 @@ assert.strictEqual(F.svgxFarbeVorgabe("landschaften/topographie/gebirge", token,
 		`${art} ist ein Landweg`);
 });
 assert.strictEqual(F.svgxFarbeVorgabe("wege/Flussweg", token, B.SVGX_WAY_COLORS, ""), "#4c89c6");
+// 🔴 DIE EIGENTLICHE ZUSICHERUNG: die drei Gewaesser sind EIN Ton. Gegeneinander gemessen,
+// nicht gegen eine abgeschriebene Zahl -- so faengt sie auch den Fall, dass jemand alle
+// drei umtoent und dabei einen vergisst.
+// 💣 Der Bach gehoert dazu: er ist ein Flussweg mit Haekchen und wird ueber die BREITE
+// unterschieden, nie ueber die Farbe. Ohne seine Vorgabe fiele er auf SVGX_WAY_COLORS.Bach
+// zurueck -- heute zufaellig ein anderes Blau (#6ec6ff, der Kartenton), und im Abzug waere
+// er der eine helle Strich im Gewaessernetz.
+const gewaesser = ["landschaften/topographie/see", "wege/Flussweg", "wege/Bach"]
+	.map((pfad) => F.svgxFarbeVorgabe(pfad, token, B.SVGX_WAY_COLORS, ""));
+assert.strictEqual(new Set(gewaesser).size, 1,
+	"See, Fluss und Bach tragen im Abzug denselben Ton -- gemessen: " + gewaesser.join(" / "));
 assert.strictEqual(F.svgxFarbeVorgabe("wege/Seeweg", token, B.SVGX_WAY_COLORS, ""),
 	B.SVGX_WAY_COLORS.Seeweg, "der Seeweg ist eine Schiffsroute, kein Landweg");
 

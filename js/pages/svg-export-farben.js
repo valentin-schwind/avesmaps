@@ -20,8 +20,20 @@
 // ⚠️ „wege" heißt hier die sechs LANDwege. Seeweg bleibt bei seinem Kartenton, weil er
 // eine Schiffsroute ist und kein Landweg; der Flussweg hat seinen eigenen Wert bekommen.
 // Falls das anders gemeint war: die Farbfelder auf der Seite ändern es in einem Klick.
+//
+// 🔴 SEIT 08.09.2026 TRÄGT DER SEE DIE FLUSSFARBE -- auch hier, aber mit dem Blau DIESES
+// Abzugs. Owner: „kannst du das auch im svg fixen", nachdem der See auf der Karte die
+// Flussfarbe bekommen hatte; auf die Frage, welches Blau, entschied er sich für „beide
+// #4c89c6" -- also die Flussvorgabe von oben, nicht das hellere #6ec6ff der Karte.
+// ⭐ DER ABZUG IST EIN EIGENES GESTALTUNGSSTÜCK, und diese Zeile ist der Beleg dafür: er
+// übernimmt die REGEL der Karte („ein Gewässer, ein Ton"), nicht ihren Wert. Wer die drei
+// Wasserzeilen hier je entfernt, damit der Abzug „der Karte folgt", macht ihn heller, als
+// der Owner ihn zweimal bestellt hat -- am 15.08. und am 08.09.2026.
+// 💣 DIE DREI WERTE SIND EIN SATZ, kein Zufall: See, Flussweg und Bach müssen gleich sein,
+// sonst zerfällt das Gewässernetz im Abzug in zwei oder drei Blautöne. Der Test hält sie
+// gegeneinander, nicht gegen eine abgeschriebene Zahl.
 const SVGX_COLOR_PRESETS = {
-	"landschaften/topographie/see": "#82befe",
+	"landschaften/topographie/see": "#4c89c6",   // = wege/Flussweg, Owner 08.09.2026
 	"landschaften/vegetation/wald": "#589a64",
 	"landschaften/topographie/gebirge": "#acaea2",
 	"wege/Flussweg": "#4c89c6",
