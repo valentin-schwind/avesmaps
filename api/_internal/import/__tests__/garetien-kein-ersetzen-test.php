@@ -173,10 +173,18 @@ foreach (['name', 'geometrie'] as $verb) {
         '🔴 das Verb "' . $verb . '" wird nicht mehr angeboten: ' . $tafel);
     $pruefungen++;
 }
-// ⚠️ Und die Gegenprobe, damit die zwei Zeilen darüber nicht bloß eine leere Tafel messen. „quelle"
-// gehört ausdrücklich dazu: sie BLEIBT (Owner), und ein Riegel, der sie mit wegnähme, wäre die
-// Überkorrektur in die andere Richtung.
-foreach (['quelle', 'neu', 'ablehnen'] as $verb) {
+// 🔴 SEIT 07.09.2026 STEHEN AUCH „neu" UND „quelle" NICHT MEHR IN DER TAFEL (Owner-Punkt 12:
+// „es macht doch keinen sinn, dass sachen eingefügt werden können, wenn es noch nicht auf der
+// stage liegt"). Das ist KEINE Rücknahme des Owner-Entscheids vom 31.08.2026 — die Quellen-
+// Ergänzung ist weiterhin erlaubt und reist über die Stage (Zusicherung 3 oben, `$geworfenQuelle`);
+// gefallen ist nur der Knopf, der an der Stage vorbei sofort geschrieben hat.
+foreach (['neu', 'quelle'] as $verb) {
+    assert(!str_contains($tafel, '"' . $verb . '"'),
+        '🔴 das Verb "' . $verb . '" geht seit dem 07.09.2026 über die Stage: ' . $tafel);
+    $pruefungen++;
+}
+// ⚠️ Und die Gegenprobe, damit die vier Zeilen darüber nicht bloß eine leere Tafel messen.
+foreach (['stage', 'ablehnen'] as $verb) {
     assert(str_contains($tafel, '"' . $verb . '"'),
         'das Verb "' . $verb . '" bleibt: ' . $tafel);
     $pruefungen++;

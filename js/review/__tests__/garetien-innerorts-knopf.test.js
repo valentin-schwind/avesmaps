@@ -63,19 +63,30 @@ gleich(mod.garetienInnerortsOrt({ innerorts: { name: "  " } }), "", "ein leerer 
 // =================================================================================================
 // B. Die Knopfleiste
 // =================================================================================================
-tief(namen(mitBefund), ["neu", "innerorts", "ablehnen"],
-	"🔴 direkt NEBEN „neu\", als dessen Alternative -- nicht am Ende der Leiste");
-tief(namen(ohneBefund), ["neu", "ablehnen"],
+// 🔴 Seit dem 07.09.2026 heisst der Nachbar „stage" statt „neu" -- „Neu einfügen" ist gefallen
+// (Owner-Punkt 12), der Vorwaertsknopf legt jetzt erst auf die Stage.
+// 💣 „Innerorts einfügen" ist NICHT mitgefallen, obwohl der Brief es streichen wollte: der
+// Stage-Import schickt keine `einstellungen`, und `avesmapsGaretienInnerortsGewuenscht`
+// (garetien-uebernahme.php) entscheidet ausschliesslich daraus -- gestrichen waere die Staette
+// in einer Stadt UNERREICHBAR. Die Zeile bleibt, bis „Stätte in X" eine FORM im Kasten
+// „Wird importiert als" ist (Entwurf §5.1).
+tief(namen(mitBefund), ["stage", "innerorts", "ablehnen"],
+	"🔴 direkt NEBEN dem Vorwaertsknopf, als dessen Alternative -- nicht am Ende der Leiste");
+tief(namen(ohneBefund), ["stage", "ablehnen"],
 	"🔴 ohne Befund steht der Knopf GAR NICHT da -- kein dauerhaft ausgegrauter Zwilling");
-tief(namen(altLauf), ["neu", "ablehnen"], "ein alter Lauf: auch nicht");
+tief(namen(altLauf), ["stage", "ablehnen"], "ein alter Lauf: auch nicht");
 const k = knopf(mitBefund, "innerorts");
 wahr(k.beschriftung.startsWith("Innerorts einfügen (Wandleth)"),
 	"der Ortsname steht IM Knopf, nicht im Hilfetext: " + k.beschriftung);
 gleich(k.ton, "", "🔴 NEUTRAL -- gruen kodiert „legt etwas auf der Karte an\", und genau das tut er nicht");
-gleich(knopf(mitBefund, "neu").ton, "go", "(der Nachbar „neu\" bleibt gruen)");
+gleich(knopf(mitBefund, "stage").ton, "accent",
+	"(der Nachbar traegt seit dem 07.09.2026 den AKZENT -- gruen hiesse „legt auf der Karte an\")");
 gleich(k.disabled, false, "und er ist scharf");
-tief(k.ids, knopf(mitBefund, "neu").ids,
-	"🔴 DIESELBE MENGE wie „neu\" -- ein anderer ZIELORT fuer denselben Vorschlag, nicht ein anderer Vorschlag");
+// ⚠️ Den Vergleichspartner „neu" gibt es nicht mehr; gemessen wird jetzt direkt gegen das
+// new-Item -- dieselbe Aussage („ein anderer ZIELORT fuer denselben Vorschlag"), nur ohne den
+// gefallenen Knopf als Zeugen.
+tief(k.ids, mitBefund.items.filter((i) => i.change_type === "new").map((i) => i.id),
+	"🔴 DIESELBE MENGE wie der Vorschlag „neu anlegen\" -- ein anderer ZIELORT, nicht ein anderer Vorschlag");
 tief(k.ids, [41], "naemlich das new-Item");
 const titel = mod.garetienHandlungTitel("innerorts", mitBefund);
 wahr(titel.includes("Wandleth") && titel.includes("OHNE Position"),
@@ -90,8 +101,8 @@ const ergaenzung = {
 		{ id: 51, anlass: "zusatz", felder: [], change_type: "new", selected: 0 },
 	],
 };
-wahr(namen(ergaenzung).includes("neu") && !namen(ergaenzung).includes("innerorts"),
-	"ohne Befund kein Angebot, auch wenn „neu\" (trotzdem anlegen) dasteht");
+wahr(namen(ergaenzung).includes("stage") && !namen(ergaenzung).includes("innerorts"),
+	"ohne Befund kein Angebot, auch wenn ein Zusatz-Item (trotzdem anlegen) dasteht");
 
 // =================================================================================================
 // C. Der Klick: EIN Weg mit „neu", und genau EIN anderer Wert
@@ -170,15 +181,20 @@ async function pruefeKlick() {
 			],
 		});
 		wahr(mod.garetienNeuIstZusatz(kollision) === true, "(die Attrappe IST eine Kollision)");
-		gleich(mod.garetienNeuKlick({ target: ziel("neu", kollision.key) }, [kollision], 7, nein), true,
-			"„neu\" fragt -- und ein Nein zaehlt als uebernommen (nichts geht hinaus)");
-		gleich(gefragt.length, 1, "genau eine Rueckfrage");
+		// 🔴 Seit dem 07.09.2026 gibt es den Knopf „neu" nicht mehr (Owner-Punkt 12) -- und die TUER
+		// bleibt auch dann zu, wenn ein synthetisches Ereignis ihn von Hand anfliegt:
+		// `garetienHandlungsRumpf` findet keinen Knopf dieses Namens mehr und liefert `null`.
+		// ⚠️ Das ist die Zusicherung, die aus der alten wird („neu fragt und ein Nein zaehlt als
+		// uebernommen") -- sie prueft dieselbe Naht, nur von der anderen Seite: nichts geht hinaus.
+		gleich(mod.garetienNeuKlick({ target: ziel("neu", kollision.key) }, [kollision], 7, nein), null,
+			"„neu\" gibt es nicht mehr -- der Klick wird nicht einmal uebernommen");
+		gleich(gefragt.length, 0, "keine Rueckfrage, weil es nichts zu fragen gibt");
 		gleich(gestellt.length, 0, "nichts hinausgeschickt");
 		const laufI = mod.garetienNeuKlick({ target: ziel("innerorts", kollision.key) }, [kollision], 7, nein);
 		wahr(laufI && typeof laufI.then === "function",
 			"⚠️ „innerorts\" fragt NICHT -- es entsteht kein zweites Kartenobjekt, die Kollision kann es nicht geben");
 		await laufI;
-		gleich(gefragt.length, 1, "keine weitere Rueckfrage");
+		gleich(gefragt.length, 0, "keine Rueckfrage -- „innerorts\" fragt ohnehin nie");
 		tief(gestellt.map((a) => a.rumpf.action), ["select", "apply", "liste"], "und der Ablauf ist derselbe");
 		gleich(gestellt[1].rumpf.einstellungen.innerorts, true, "mit innerorts");
 	} finally {

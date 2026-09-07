@@ -259,9 +259,18 @@ const oben = obersteEbene(skelett);
 // 🔴 Fuenf-Punkte-Brief 30.08.2026, Punkt 1: `gi-balance` heisst jetzt `gi-neutral-hinweis` -- die
 // alte Bilanzzeile ist weg, das verbliebene Element traegt NUR noch den Neutral-Hinweis der
 // Sicht-Tafel (Aufgabe 3) und ist deshalb ehrlich umbenannt, kein Nachfolger unter altem Namen.
-gleich(oben.join(","), "avm-tabs,gi-searchrow,gi-anzeigehinweis,gi-chips,gi-neutral-hinweis,avm-scroll",
-	"die linke Spalte hat SECHS Geschwister in dieser Reihenfolge -- stehen Chips, Neutral-Hinweis "
+// 🔴 Seit dem 07.09.2026 (Aufgabe 9+10) kommt die Auswahlleiste als SIEBTES Geschwister dazu --
+// UNTER der Liste und AUSSERHALB ihres Rollkastens: laege sie darin, stuende die Handlung bei 500
+// Zeilen hinter der Bildlaufleiste (dieselbe Begruendung wie bei `.gi-acts` in der Detailspalte).
+gleich(oben.join(","),
+	"avm-tabs,gi-searchrow,gi-anzeigehinweis,gi-chips,gi-neutral-hinweis,avm-scroll,gi-auswahlleiste",
+	"die linke Spalte hat SIEBEN Geschwister in dieser Reihenfolge -- stehen Chips, Neutral-Hinweis "
 	+ "oder Liste IN der `.gi-searchrow`, legt deren `display: flex` sie nebeneinander");
+checks++;
+// ⚠️ Und die Auswahlleiste steht NACH der Liste, nicht davor: sie ist die Folge einer Auswahl,
+// die man in der Liste trifft.
+wahr(oben.indexOf("gi-auswahlleiste") > oben.indexOf("avm-scroll"),
+	"die Auswahlleiste steht UNTER der Liste");
 checks++;
 
 // Und die DIFFERENZ zur Regression: die zwei Anzeige-Knoepfe stehen NICHT MEHR in diesem Skelett --

@@ -1205,6 +1205,62 @@ html.avesmaps-planner-collapsed .gi-win {
 	border-color: var(--color-success-soft-border);
 }
 
+/* „Auf die Stage" traegt den AKZENT -- Aufgabe 9+10 (07.09.2026), Entwurf §5.2: „Gruen heisst in
+   diesem Fenster ‚legt auf der Karte an‘, und die Stage legt nichts an." Dieselbe Bauform wie
+   `.btn--danger` und `.btn--go` darueber: SCHRIFT UND RAHMEN, KEINE FUELLUNG (AGENTS.md §12 -- die
+   eine gefuellte Handlung dieses Fensters ist „Stage importieren" im Fuss).
+   💣 DIE SCHRIFT IST `--color-accent-brown`, NICHT `--color-accent` -- und das ist ein MESSERGEBNIS,
+   keine Vorliebe. Der Entwurf nennt `--color-accent` (#bfa03a); auf dem weichen Knopfgrund
+   (`--color-button-soft`) ergibt das im HELLEN Thema **2,09:1** und liegt damit weit unter den 4,5,
+   die AA fuer 12px (--font-size-small) verlangt -- das Gold ist als FLAECHE gedacht, nicht als
+   Schrift. Gemessen wurden alle drei Akzent-Toene: `--color-accent` 2,09 hell / 6,09 dunkel,
+   `--color-accent-strong` 4,61 / 7,18 (bestanden, aber mit 0,11 Luft), `--color-accent-brown`
+   5,18 / 5,42. Genommen ist der dritte, weil er als EINZIGER in beiden Themen Luft hat -- dieselbe
+   Entscheidung wie bei `.btn--danger` (dunkel knapp) und `.btn--go` (hell knapp), nur dass hier
+   BEIDE Themen den Ausschlag geben.
+   ⚠️ Der RAHMEN darf das Gold tragen: er ist keine Schrift, und `--color-accent-strong` liegt mit
+   4,61/7,18 klar ueber den 3,0, die AA fuer Nicht-Text verlangt. So bleibt der Knopf golden
+   gerandet und trotzdem lesbar. */
+.gi-win .btn--accent {
+	color: var(--color-accent-brown);
+	border-color: var(--color-accent-strong);
+}
+
+/* Ein ZWEIZEILIGER Knopf -- Owner-Entscheid 7 (06.09.2026): „kannst du das fenster breiter machen,
+   die buttons mehrzeilig damit sie einzeilig angeordnet werden können". Die Zahl bzw. der Zusatz
+   steht in Zeile 2, damit der NAME kurz genug bleibt, dass alle Knoepfe einer Leiste in EINE Reihe
+   passen.
+   💣 `min-height` statt `height`: die Grundform (`.gi-win .btn`) setzt `min-height:
+   --avm-control-h` und `padding: 0 …` -- zwei Zeilen brauchen ein senkrechtes Polster, sonst
+   klebt die zweite Zeile an der Unterkante. Eine feste `height` schnitte sie ab. */
+.gi-win .gi-act--zwei {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	justify-content: center;
+	/* ⚠️ KEIN `gap` -- die `line-height: 1.25` traegt den Abstand schon, und ein Zwischenraum in
+	   px waere der einzige hartkodierte Wert dieses Abschnitts (die Skala kennt nichts unter
+	   `--space-2` = 4px, und 4px zwischen zwei Zeilen eines Knopfes ist zu viel). */
+	padding: var(--space-2) var(--space-8);
+	line-height: 1.25;
+	text-align: left;
+}
+
+.gi-act__t2,
+.gi-auswahl__t2 {
+	font-size: var(--font-size-caption);
+	color: var(--color-text-muted);
+	/* ⚠️ Die zweite Zeile erbt die Akzent-/Rot-Schrift des Knopfes NICHT: sie sagt, WAS geschieht
+	   („als Flussweg (Bach)", „3 Objekte"), nicht wie dringend es ist. Zweimal dieselbe Farbe
+	   uebereinander machte aus dem Ton eine Flaeche statt einer Hervorhebung. */
+	font-weight: var(--font-weight-regular);
+}
+
+/* Ein GESPERRTER zweizeiliger Knopf: `.gi-win .btn:disabled` (0,3,0) faerbt die erste Zeile grau,
+   die zweite haengt an ihrer eigenen Regel und bliebe sonst bunt daneben stehen. */
+.gi-win .btn:disabled .gi-act__t2,
+.gi-win .btn:disabled .gi-auswahl__t2 { color: inherit; }
+
 /* Der ERLEDIGT-Zustand: alle Items dieses Knopfes sind angehakt. 🔴 Der Zustand steht IM Knopf --
    „Bei „Rakula" Quelle + Artikel einfuegen (1) ✓" --, nicht in einer Zeile daneben.
    🔴 SEIT 02.09.2026 NEUTRAL GEFUELLT, NICHT GRUEN -- und das ist ein Befund aus dem BROWSER, nicht
@@ -1240,6 +1296,41 @@ html.avesmaps-planner-collapsed .gi-win {
 }
 
 .gi-acts__grund span { display: block; }
+
+/* 💣 DIE LEISTE SAGT, FUER WEN SIE GILT (Owner-Meldung 07.09.2026: „ablehnen geht generell nicht").
+   Sie gehoert dem Objekt der EINZELANSICHT -- ein Klick auf ein Listenhaekchen wechselt die nicht,
+   und der Owner hat deshalb ein anderes Objekt abgelehnt als das, das er angehakt hatte.
+   Die Ueberschrift steht in derselben Form wie „DER GRUND" und „WAS BEI UNS AN DERSELBEN STELLE
+   LIEGT" darueber (`.gi-sec` traegt Versalien, Sperrung und Farbe).
+   ⚠️ Ohne die eigene Trennlinie von `.gi-sec`: die Leiste hat als `flex: none`-Geschwister von
+   `.gi-detail` schon ihren eigenen `border-top`, und zwei Linien uebereinander lesen sich wie ein
+   leerer Abschnitt dazwischen. Und ohne dessen `padding-top`, aus demselben Grund. */
+.gi-acts__titel {
+	flex: 1 0 100%;
+	padding-top: 0;
+	border-top: 0;
+}
+
+/* ---- Aufgabe 9+10 (07.09.2026): die Auswahlleiste --------------------------------------------- *
+ *
+ * 🔴 UNTER der Liste und AUSSERHALB ihres Rollkastens -- dieselbe Bauform und dieselbe Begruendung
+ *    wie `.gi-acts` in der Detailspalte: laege sie in `.gi-list`, stuende die Handlung bei 500
+ *    Zeilen hinter der Bildlaufleiste.
+ * 🔴 EIGENE Trennlinie: sie beantwortet eine ANDERE Frage als die Liste darueber (nicht „was gibt
+ *    es", sondern „was tue ich mit dem Gewaehlten") -- Gruppierung durch Trennlinie, nicht durch
+ *    einen Rahmen (AGENTS.md §12).
+ * ⚠️ Sie erscheint und verschwindet mit der Auswahl; deshalb KEIN `min-height` und kein Platz auf
+ *    Vorrat -- die Liste darueber bekommt den Raum zurueck, sobald nichts mehr gewaehlt ist.
+ */
+.gi-auswahlleiste {
+	display: flex;
+	flex-wrap: wrap;
+	flex: none;
+	gap: var(--space-2);
+	margin-top: var(--space-6);
+	padding-top: var(--space-6);
+	border-top: 1px solid var(--color-divider);
+}
 
 /* ---- Owner-Auftrag A (30.08.2026): "Imports in der Naehe anzeigen" ----------------------- *
  *

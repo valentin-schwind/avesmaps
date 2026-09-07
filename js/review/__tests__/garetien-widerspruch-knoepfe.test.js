@@ -27,6 +27,10 @@ function gleich(ist, soll, warum) {
 	assert.strictEqual(ist, soll, warum || "");
 	checks++;
 }
+function tief(ist, soll, warum) {
+	assert.deepStrictEqual(ist, soll, warum);
+	checks++;
+}
 function wahr(bedingung, warum) {
 	assert.ok(bedingung, warum || "");
 	checks++;
@@ -66,13 +70,19 @@ const DROMMSEL = {
 // Einzeleintrag allein sind beide schreibenden Knöpfe gesperrt -- die Zeile hat dann nur
 // „Ablehnen", und genau das war die Sackgasse. Der Test hält den Zustand fest, damit die
 // Zusicherung darunter etwas bedeutet.
-gleich(knopf(DROMMSEL, "neu").disabled, true,
-	"mit dem toten Einzeleintrag ist „Neu einfügen\" gesperrt");
-gleich(knopf(DROMMSEL, "quelle").disabled, true, "und „Quelle + Artikel einfügen\" auch");
-wahr(knopf(DROMMSEL, "neu").grund !== "", "💣 und beide sagen, warum -- ein Knopf ohne Grund ist "
-	+ "von einem kaputten Knopf nicht zu unterscheiden");
-wahr(knopf(DROMMSEL, "quelle").grund !== "", "auch der zweite");
+// 🔴 UMGEBAUT AM 07.09.2026: „Neu einfügen" und „Bei X Quelle + Artikel einfügen" sind gefallen
+// (Owner-Punkt 12) -- angelegt wird ueber die Stage. Gemessen wird derselbe Sachverhalt jetzt an
+// den ITEMS, die der Stage-Import wirklich schreibt (`garetienStageUebernahmeIds`), statt an zwei
+// Knoepfen, die es nicht mehr gibt. Die Aussage ist dieselbe: mit dem toten Einzeleintrag gibt es
+// nichts anzulegen und nichts zu ergaenzen.
+tief(mod.garetienStageUebernahmeIds([DROMMSEL]), [4710],
+	"mit dem toten Einzeleintrag traegt die Stage nur den Vermerk selbst");
+gleich(mod.garetienHakenItems(DROMMSEL).filter(function (i) {
+	return String(i.change_type) === "new";
+}).length, 0, "…und KEIN anzulegendes Objekt -- genau das war die Sackgasse");
 gleich(knopf(DROMMSEL, "ablehnen").disabled, false, "„Ablehnen\" ging schon immer");
+gleich(knopf(DROMMSEL, "stage").disabled, false,
+	"und ansehen darf man die Zeile auch dann -- der Vorwaertsknopf ist nie gesperrt");
 
 // =================================================================================================
 // 2. MIT DEN ZWEI ITEMS AUS DEM VIERTEN AUSGANG
@@ -93,22 +103,25 @@ const MIT_ANGEBOTEN = Object.assign({}, DROMMSEL, {
 	],
 });
 
-gleich(knopf(MIT_ANGEBOTEN, "neu").disabled, false,
-	"🔴 „Neu einfügen\" ist bedienbar -- ihr Verlauf lässt sich als eigenes Objekt anlegen");
-gleich(knopf(MIT_ANGEBOTEN, "quelle").disabled, false,
-	"🔴 und „Quelle + Artikel einfügen\" trägt die Quelle an unserem Fluss nach");
+// 🔴 Die Quellen-Ergaenzung erreicht die Karte weiterhin -- ueber die Stage. Genau das war die
+// Messung, mit der „Bei X Quelle + Artikel einfügen" am 07.09.2026 gestrichen werden DURFTE:
+// `garetienStageUebernahmeIds` traegt das Luecken-Item, und der Server nimmt es an
+// (AVESMAPS_GARETIEN_ERGAENZUNG_FELDER, garetien-uebernahme.php).
+tief(mod.garetienStageUebernahmeIds([MIT_ANGEBOTEN]), [4711],
+	"🔴 die Quelle an unserem Fluss reist ueber die Stage -- sonst waere die Handlung unerreichbar");
 
-// 🔴 DAS ZUSATZ-ITEM IST NIE VORANGEHAKT (Owner: „darf niemals vorangehakt sein"). Eine Dublette
-// anzulegen ist die begründete Ausnahme, nicht der bequeme Weg.
-gleich(knopf(MIT_ANGEBOTEN, "neu").angehakt, 0, "„Neu einfügen\" startet ungehakt");
-// ⚠️ Die Quelle dagegen ist vorangehakt: sie füllt eine LÜCKE und überschreibt nichts.
-gleich(knopf(MIT_ANGEBOTEN, "quelle").angehakt, 1, "die Quelle ist vorangehakt");
-
-// 💣 „Quelle" darf das Zusatz-Item NICHT mitnehmen und „neu" nicht das Lücken-Item -- sonst
-// änderte ein Klick gleichzeitig unser Objekt UND legte eine Dublette daneben (der Schadensfall
-// vom 30.08.2026, 3007 Objekte).
-gleich(knopf(MIT_ANGEBOTEN, "quelle").gesamt, 1, "💣 „Quelle\" fasst nur das Lücken-Item");
-gleich(knopf(MIT_ANGEBOTEN, "neu").gesamt, 1, "💣 und „Neu einfügen\" nur das Zusatz-Item");
+// 💣 UND DAS ZUSATZ-ITEM REIST NICHT MIT. `garetienHakenItems` schliesst es aus -- das ist der
+// Riegel aus dem Schadensfall vom 30.08.2026 (3007 Objekte, viele davon Dubletten), und er gilt
+// unveraendert: ein Sammellauf darf nie gleichzeitig unser Objekt aendern UND eine Dublette
+// danebenlegen.
+// 🔧 OFFEN, und beim Streichen von „Neu einfügen" am 07.09.2026 ausdruecklich gemessen: damit hat
+// das Zusatz-Item („trotzdem neu anlegen") derzeit GAR KEINEN Erzeuger mehr -- sein einziger war
+// jener Knopf. Es kommt zurueck, sobald die Stage je Objekt eine FORM traegt (Entwurf §5.1); bis
+// dahin ist die sichere Richtung, dass keine Dublette entsteht.
+gleich(mod.garetienStageUebernahmeIds([MIT_ANGEBOTEN]).indexOf(4712), -1,
+	"💣 das Zusatz-Item bleibt aussen vor -- der Riegel des Schadensfalls vom 30.08.2026");
+gleich(mod.garetienHakenItems(MIT_ANGEBOTEN).length, 1,
+	"💣 genau EIN Item traegt die Stage: das Luecken-Item");
 
 // =================================================================================================
 // 3. DER ZUFLUSS BLEIBT, WIE ER WAR
@@ -121,8 +134,9 @@ const ZUFLUSS = {
 	abschnitte: [],
 	items: [{ id: 815, change_type: "new", anlass: null, felder: [], selected: 0 }],
 };
-gleich(knopf(ZUFLUSS, "neu").disabled, false, "der Zufluss lässt sich weiter anlegen");
+tief(mod.garetienStageUebernahmeIds([ZUFLUSS]), [815],
+	"der Zufluss lässt sich weiter anlegen -- sein eigenes 'new' reist ueber die Stage");
 gleich(garetienHandlungen(ZUFLUSS).filter(function (h) { return h.name === "quelle"; }).length, 0,
-	"⚠️ und bekommt keinen Quellen-Knopf");
+	"⚠️ und bekommt keinen Quellen-Knopf (den gibt es seit dem 07.09.2026 nirgends mehr)");
 
 console.log("OK garetien-widerspruch-knoepfe: " + checks + " Zusicherungen");

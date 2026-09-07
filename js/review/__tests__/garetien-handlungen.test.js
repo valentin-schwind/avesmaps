@@ -66,17 +66,18 @@ const zufluss = {
 	items: [{ id: 1, anlass: "zufluss", change_type: "new", selected: false }],
 };
 const zuflussKnoepfe = namen(zufluss);
-wahr(zuflussKnoepfe.includes("neu"), "ein Zufluss ist ein NEUES Objekt");
+wahr(zuflussKnoepfe.includes("stage"),
+	"ein Zufluss ist ein NEUES Objekt -- und geht wie jedes ueber die Stage");
 wahr(!zuflussKnoepfe.includes("name"),
 	"ein Zufluss ersetzt nichts -- unser Nachbar ist der Hauptfluss");
 wahr(!zuflussKnoepfe.includes("geometrie"),
 	"💣 Ein pauschales Ersetzen ersetzte hier die Natter durch ihren Seitenarm -- gueltige id, "
 	+ "keine Fehlermeldung.");
-tief(zuflussKnoepfe, ["neu", "ablehnen"], "und sonst gibt es beim Zweifel nichts");
+tief(zuflussKnoepfe, ["stage", "ablehnen"], "und sonst gibt es beim Zweifel nichts");
 
 // „neu" sieht genauso aus -- es liegt nichts da, es gibt nichts zu ersetzen.
 tief(namen({ urteil: "neu", abschnitte: [], items: [{ id: 9, change_type: "new", selected: 1 }] }),
-	["neu", "ablehnen"], "„neu\": einfuegen oder ablehnen");
+	["stage", "ablehnen"], "„neu\": auf die Stage oder ablehnen");
 
 // 🔴 SEIT 31.08.2026 GIBT ES KEIN ERSETZEN MEHR (Owner: „es gibt neu oder nix - kein
 // verändern, kein ersetzen"). Hier standen „name", „quelle" und „geometrie" -- alle drei schrieben
@@ -84,13 +85,15 @@ tief(namen({ urteil: "neu", abschnitte: [], items: [{ id: 9, change_type: "new",
 // ablehnen. ⚠️ Die Zeile mit Treffer bleibt importierbar (ihr Zusatz-Item), sie kann nur nichts
 // mehr überschreiben.
 tief(namen({ urteil: "ergaenzung", abschnitte: [{ public_id: "w-1", name: "x" }], items: [] }),
-	["quelle", "neu", "ablehnen"],
-	"die Ergaenzung: Quelle ergaenzen, als eigenes Objekt anlegen, oder ablehnen");
+	["stage", "ablehnen"],
+	"die Ergaenzung: auf die Stage oder ablehnen -- ihre Quelle reist von dort mit");
 // 💣 UND „NAMEN ERSETZEN" / „SEGMENTE ERSETZEN" GIBT ES IN KEINEM URTEIL MEHR. Ohne diese Schleife
 // bewiese die Zeile darüber nur, dass EIN Urteil sie los ist -- „widerspruch" trug beide ebenfalls.
 ["neu", "zweifel", "ergaenzung", "widerspruch", "deckt_sich", "uebersprungen"].forEach((urteil) => {
 	const gefunden = namen({ urteil, abschnitte: [{ public_id: "w-1", name: "x" }], items: [] });
-	["name", "geometrie"].forEach((verb) => {
+	// 🔴 Seit dem 07.09.2026 stehen „neu" und „quelle" MIT in dieser Liste (Owner-Punkt 12): sie
+	// schrieben SOFORT in die Karte und gingen damit an der Stage vorbei.
+	["name", "geometrie", "neu", "quelle"].forEach((verb) => {
 		wahr(!gefunden.includes(verb),
 			'das Urteil "' + urteil + '" bietet "' + verb + '" nicht mehr an: ' + gefunden.join(", "));
 	});
@@ -100,17 +103,19 @@ tief(namen({ urteil: "ergaenzung", abschnitte: [{ public_id: "w-1", name: "x" }]
 // Geometriefrage vorn („die Reihenfolge ist die Aussage") -- sie ist ein Ersetzen und gibt es nicht
 // mehr. Was bleibt: als eigenes Objekt anlegen oder ablehnen.
 tief(namen({ urteil: "widerspruch", abschnitte: [{ public_id: "w-1", name: "x" }], items: [] }),
-	["quelle", "neu", "ablehnen"],
-	"🔴 der Widerspruch bekommt „neu\" (Owner: „widerspricht ist kein grund, dass es nicht trotzdem "
-	+ "eingefuegt werden darf\")");
+	["stage", "ablehnen"],
+	"🔴 der Widerspruch bekommt seinen Vorwaertsknopf (Owner: „widerspricht ist kein grund, dass es "
+	+ "nicht trotzdem eingefuegt werden darf\")");
 
 // 🔴 „deckt sich" hat seit 31.08.2026 ZWEI Ausgaenge: es kann auch als EIGENES Objekt angelegt
 // werden. Das ist der einzige Ausgang, den das Abschalten des Ersetzens uebriglaesst -- ohne ihn
 // waere eine Zeile mit Treffer ueberhaupt nicht mehr importierbar.
-tief(namen({ urteil: "deckt_sich", abschnitte: [], items: [] }), ["quelle", "neu", "ablehnen"],
-	"„deckt sich\": Quelle ergaenzen, als eigenes Objekt anlegen, oder ablehnen");
-tief(namen({ urteil: "uebersprungen", abschnitte: [], items: [] }), ["ablehnen"],
-	"„uebersprungen\" ebenso");
+tief(namen({ urteil: "deckt_sich", abschnitte: [], items: [] }), ["stage", "ablehnen"],
+	"„deckt sich\": auf die Stage oder ablehnen");
+// ⚠️ Auch eine Zeile OHNE Vorschlag darf auf die Stage -- dort wird sie gezeichnet, nie
+// importiert („nur Ansicht", Entwurf §4).
+tief(namen({ urteil: "uebersprungen", abschnitte: [], items: [] }), ["stage", "ablehnen"],
+	"„uebersprungen\": ansehen oder ablehnen");
 
 // 🔴 Die zurueckhaltende Richtung: fuer ein Urteil, das dieser Code nicht kennt, wird KEINE
 // schreibende Handlung angeboten. Eine Tafel, die im Zweifel „Neu einfuegen" zeigte, boete an,
@@ -173,7 +178,7 @@ const strasse = {
 [["einer", einer], ["strasse", strasse]].forEach(function (paar) {
 	const wie = paar[0];
 	const objekt = paar[1];
-	tief(namen(objekt), ["quelle", "neu", "ablehnen"],
+	tief(namen(objekt), ["stage", "ablehnen"],
 		wie + ": aus Umbenennungs- und Geometrie-Items werden keine Knoepfe mehr");
 	["name", "geometrie"].forEach(function (verb) {
 		gleich(garetienHandlungsRumpf(verb, objekt, 7), null,
@@ -188,24 +193,34 @@ const strasse = {
 // dieses Fensters: ein Item, das AUCH den Namen schreibt, wird nie als „Nur Quelle" angeboten
 // (AVESMAPS_GARETIEN_ITEMS_JE_HANDLUNG.quelle). Sie wirkt heute als zweiter Riegel gegen genau die
 // Umbenennung, die abgeschaltet wurde.
-wahr(garetienHandlungsRumpf("quelle", strasse, 7) !== null,
-	'strasse: "quelle" geht weiterhin hinaus -- sie ist additiv und traegt die Rechtsfolge');
-tief(garetienHandlungsRumpf("quelle", strasse, 7).ids, [201, 202, 203, 204, 205, 206],
-	"und zwar genau die sechs reinen Quellen-Items");
-gleich(garetienHandlungsRumpf("quelle", einer, 7), null,
-	'🔴 ein Item, das AUCH den Namen schreibt, wird NICHT als "Nur Quelle" angeboten');
+// 🔴 SEIT 07.09.2026 GEHT AUCH "quelle" NICHT MEHR ALS KNOPF HINAUS (Owner-Punkt 12) -- die
+// Ergaenzung reist ueber die STAGE. Genau das ist die Messung, die das Streichen erlaubt hat:
+// ohne sie waere die Handlung unerreichbar gewesen, und das haette der Brief verboten.
+gleich(garetienHandlungsRumpf("quelle", strasse, 7), null,
+	'strasse: "quelle" ist kein Knopf mehr');
+tief(mod.garetienStageUebernahmeIds([strasse]),
+	[101, 201, 102, 202, 103, 203, 104, 204, 105, 205, 106, 206],
+	"…sondern reist ueber die Stage: alle Items, die ein Haekchen bewegen darf");
+tief(mod.garetienStageUebernahmeIds([einer]).length > 0, true,
+	'🔴 auch ein Item, das AUCH den Namen schreibt, liegt in der Stage-Menge -- der Riegel dagegen '
+	+ 'steht im SERVER (AVESMAPS_GARETIEN_ERGAENZUNG_FELDER, garetien-uebernahme.php), nicht hier');
 
 
 // =================================================================================================
 // D. Der Rumpf, der hinausgeht -- und was NICHT hinausgeht
 // =================================================================================================
 
-tief(garetienHandlungsRumpf("neu", zufluss, 7),
-	{ action: "select", kind: "garetien", run_id: 7, ids: [1], selected: true },
-	"„Neu einfuegen\" hakt das new-Item an -- ueber `select`, nicht ueber einen eigenen Weg");
-tief(garetienHandlungsRumpf("quelle", strasse, 7).ids, [201, 202, 203, 204, 205, 206],
-	"„Nur Quelle + Artikel\" hakt genau die sechs Quellen-Items an");
-gleich(garetienHandlungsRumpf("quelle", strasse, 7).selected, true, "sie HAKT AN");
+// 🔴 „Neu einfuegen" und „Nur Quelle + Artikel" schicken seit dem 07.09.2026 NICHTS mehr hinaus --
+// die Tuer bleibt auch dann zu, wenn jemand den Namen von Hand hineinreicht.
+gleich(garetienHandlungsRumpf("neu", zufluss, 7), null,
+	"„Neu einfuegen\" gibt es nicht mehr -- angelegt wird ueber „Stage importieren\"");
+gleich(garetienHandlungsRumpf("quelle", strasse, 7), null,
+	"„Nur Quelle + Artikel\" ebenso");
+// ⚠️ UND DIE GEGENPROBE, damit die zwei Zeilen darueber nicht nur messen, dass ueberhaupt nichts
+// mehr geht: „Ablehnen" geht sehr wohl.
+tief(garetienHandlungsRumpf("ablehnen", zufluss, 7),
+	{ action: "decline", kind: "garetien", run_id: 7, ids: [1] },
+	"„Ablehnen\" geht weiterhin hinaus");
 
 // 🔴 „Namen ersetzen" und „Ausgewählte Segmente ersetzen" schicken NICHTS mehr hinaus (Owner
 // 31.08.2026). Die Items liegen weiterhin in der Datenbank -- kein Knopf fasst sie noch an, und
@@ -246,9 +261,11 @@ gleich(garetienHandlungsRumpf("ablehnen", deckt, 7), null, "es geht also auch ni
 // 🔴 HIER STAND DIE UMSCHALT-REGEL DER GEOMETRIE („nur sie schaltet um, sonst gaebe es keinen
 // Rueckweg"). Ihr Knopf ist weg, die Regel damit gegenstandslos.
 // ⚠️ Was BLEIBT: die uebrigen Knoepfe haken nur AN, nie ab -- zurueckgenommen wird an der
-// Abschnittszeile. Gemessen an „Nur Quelle + Artikel", dem einzigen verbliebenen Bestandsknopf.
-gleich(garetienHandlungsRumpf("quelle", strasse, 7).selected, true,
-	'„Nur Quelle + Artikel" hakt immer AN, nie ab');
+// Abschnittszeile. 🔴 Gemessen wird das seit dem 07.09.2026 am HAEKCHEN, nicht mehr an „Nur
+// Quelle + Artikel": jener Knopf ist gefallen (Owner-Punkt 12), und das Haekchen ist der einzige
+// verbliebene Weg, ein Bestands-Item vorzumerken.
+gleich(garetienHakenRumpf(strasse, "w-2213", 7).selected, true,
+	"das Abschnittshaekchen hakt AN, solange nicht alles angehakt ist");
 
 // =================================================================================================
 // E. Das Haekchen -- Zeile und Abschnitt bewegen DIESELBE Menge
@@ -409,23 +426,25 @@ function handlungsZiel(name, key, options) {
 }
 
 gesendet = [];
-// 🔴 „Nur Quelle + Artikel" ist der einzige Bestandsknopf, der noch etwas hinausschickt.
-gleich(garetienHandlungKlick({ target: handlungsZiel("quelle", strasse.key) }, objekte, 7, senden, jaSagen),
-	"gesendet", "ein Klick auf „Nur Quelle + Artikel\" schickt");
+// 🔴 SEIT 07.09.2026 IST „Ablehnen" DER EINZIGE KNOPF DIESES VERTEILERS, DER NOCH ETWAS
+// HINAUSSCHICKT (Owner-Punkt 12). „Nur Quelle + Artikel" stand hier bis dahin; die Ergaenzung
+// reist jetzt ueber die Stage.
+gleich(garetienHandlungKlick({ target: handlungsZiel("ablehnen", strasse.key) }, objekte, 7, senden, jaSagen)
+	!== null, true, "ein Klick auf „Ablehnen\" schickt");
 gleich(gesendet.length, 1, "und zwar genau einmal");
-tief(gesendet[0].ids, [201, 202, 203, 204, 205, 206], "mit den Items dieses Knopfes");
-gleich(gefragt.length, 0, "er fragt NICHT nach -- er ergaenzt nur, er ersetzt nichts");
+gleich(gesendet[0].action, "decline", "als Ablehnung");
+gleich(gefragt.length, 0, "er fragt hier NICHT nach -- die Rueckfrage haengt an der Auswahlleiste");
 
-// 🔴 UND DIE ZWEI ERSETZUNGS-KNOEPFE SCHICKEN AUCH ÜBER DEN KLICKVERTEILER NICHTS (Owner
-// 31.08.2026). Hier stand die Rueckfrage vor „Ausgewaehlte Segmente ersetzen"; es gibt sie nicht
-// mehr, weil es den Knopf nicht mehr gibt.
+// 🔴 UND DIE VIER GEFALLENEN KNOEPFE SCHICKEN AUCH ÜBER DEN KLICKVERTEILER NICHTS.
+// „name"/„geometrie" fielen am 31.08.2026 (kein Ersetzen), „neu"/„quelle" am 07.09.2026
+// (angelegt wird ueber die Stage).
 // 💣 Gemessen am KLICK, nicht nur am Rumpf-Bauer: ein Ereignis, das durch alle Verteiler faellt,
 // landet zuletzt bei garetienHandlungKlick -- genau dort muss es folgenlos bleiben.
 gesendet = []; gefragt = [];
-["name", "geometrie"].forEach(function (verb) {
+["name", "geometrie", "neu", "quelle"].forEach(function (verb) {
 	garetienHandlungKlick({ target: handlungsZiel(verb, strasse.key) }, objekte, 7, senden, jaSagen);
 });
-gleich(gesendet.length, 0, "🔴 weder „Namen ersetzen\" noch „Segmente ersetzen\" schicken etwas");
+gleich(gesendet.length, 0, "🔴 keiner der vier gefallenen Knoepfe schickt etwas");
 gleich(gefragt.length, 0, "und gefragt wird auch nichts mehr");
 
 // Ein ausgegrauter Knopf schickt nichts -- der Riegel steht ZWEIMAL (Anzeige und Rechnung).
@@ -533,19 +552,24 @@ gleich(mod.avesmapsGaretienAuswahlHat(einer.key), vorMarkierungEiner,
 
 const leiste = garetienHandlungsMarkup(strasse);
 wahr(/^<div class="gi-acts">/.test(leiste), "die Leiste ist ein .gi-acts");
-wahr(/data-handlung="quelle"/.test(leiste) && /data-key="ggp:Wege:Reichsstrasse:Angbarer"/.test(leiste),
+wahr(/data-handlung="stage"/.test(leiste) && /data-key="ggp:Wege:Reichsstrasse:Angbarer"/.test(leiste),
 	"jeder Knopf traegt seine Handlung UND seinen Schluessel selbst -- kein Modulzustand daneben");
-// 🔴 UND DIE ZWEI ERSETZUNGS-KNOEPFE STEHEN NICHT MEHR IM MARKUP (Owner 31.08.2026). Das ist die
-// Zusicherung an der Oberflaeche: ein Knopf, den der Server ablehnt, waere eine Fehlermeldung als
-// Bedienelement.
-wahr(!/data-handlung="name"/.test(leiste) && !/data-handlung="geometrie"/.test(leiste),
-	"weder „Namen ersetzen\" noch „Segmente ersetzen\" stehen noch im Markup: " + leiste);
+// 🔴 UND DIE VIER GEFALLENEN KNOEPFE STEHEN NICHT MEHR IM MARKUP. Das ist die Zusicherung an der
+// Oberflaeche: ein Knopf, den der Server ablehnt oder der an der Stage vorbeischreibt, waere eine
+// Fehlermeldung als Bedienelement.
+["name", "geometrie", "neu", "quelle"].forEach(function (verb) {
+	wahr(leiste.indexOf('data-handlung="' + verb + '"') === -1,
+		'„' + verb + '" steht nicht mehr im Markup');
+});
 wahr(/class="btn btn--danger"[^>]*data-handlung="ablehnen"/.test(leiste),
 	"„Ablehnen\" traegt --color-danger als SCHRIFT-Klasse, nicht als Fuellung");
 wahr(!/btn--main/.test(leiste),
 	"🔴 KEINE gefuellte Handlung in der Einzelansicht -- die eine steht im Fuss (AGENTS.md §12)");
-wahr(/btn--done[^>]*data-handlung="quelle"/.test(leiste),
-	"der erledigte Knopf traegt btn--done");
+// ⚠️ Den erledigten Knopf gibt es in dieser Leiste seit dem 07.09.2026 nicht mehr -- „erledigt"
+// hing an den Bestandsknoepfen, und die sind gefallen. Der Zustand selbst wird unten am
+// Knopf-OBJEKT weiter gemessen (knopf(strasseGehakt, ...)); hier bleibt nur die Gegenprobe, dass
+// die Leiste keinen erledigten Knopf mehr zeigt.
+wahr(!/btn--done/.test(leiste), "kein erledigter Knopf mehr in der Leiste");
 // 💣 IN DER ABNAHME IM BROWSER GEFUNDEN: „Ablehnen" trug ein ✓ und den gruenen Grund, sobald
 // zufaellig ALLE Items angehakt waren -- es las sich als „schon abgelehnt", waehrend in Wahrheit
 // das Gegenteil galt (alles vorgemerkt). „Erledigt" heisst ausschliesslich „die Items DIESES
@@ -559,23 +583,26 @@ gleich(knopf(allesGehakt, "ablehnen").erledigt, false,
 // mehr. „Nur Quelle + Artikel" tut dasselbe -- gemessen an der STRASSE, deren Quellen-Items GENAU
 // `['quelle']` tragen (bei `einer` steht `['name','quelle']`, und ein solches Item wird nie als
 // „Nur Quelle" angeboten).
-const strasseGehakt = Object.assign({}, strasse, {
-	items: strasse.items.map((i) => Object.assign({}, i, { selected: 1 })),
-});
-gleich(knopf(strasseGehakt, "quelle").erledigt, true,
-	"die Gegenprobe: derselbe Zustand macht „Nur Quelle + Artikel\" sehr wohl erledigt");
 gleich(knopf(abgelehnt, "wieder").erledigt, false, "und „Wieder vorschlagen\" ebenso wenig");
+// ⚠️ Die Gegenprobe lief bis zum 07.09.2026 ueber „Nur Quelle + Artikel"; den Knopf gibt es nicht
+// mehr, und damit auch keinen Knopf, der „erledigt" ueberhaupt erreichen kann
+// (AVESMAPS_GARETIEN_HANDLUNG_HAKT_AN nennt keinen der verbliebenen). Gemessen wird das jetzt
+// direkt: KEIN Knopf der Leiste ist erledigt, egal wie viel angehakt ist.
+gleich(garetienHandlungen(Object.assign({}, strasse, {
+	items: strasse.items.map((i) => Object.assign({}, i, { selected: 1 })),
+})).some((k) => k.erledigt), false,
+	"kein verbliebener Knopf kann „erledigt\" werden");
 wahr(!/btn--done[^>]*data-handlung="ablehnen"|data-handlung="ablehnen"[^>]*btn--done/
 	.test(garetienHandlungsMarkup(allesGehakt)),
 	"und auch im Markup traegt „Ablehnen\" die Klasse nicht");
 // ⚠️ Die Beschriftung nennt seit dem 02.09.2026 ihr ZIEL (Owner: „Bei Fläche-057 Quelle +
 // Artikel einfügen (1)"). Bei sechs getroffenen Abschnitten ist das ihre Zahl, nicht ihr Name.
-wahr(/Bei 6 Abschnitten Quelle \+ Artikel einfügen \(6\) ✓</.test(leiste),
-	"und sein ✓ steht IM Knopf, hinter Ziel und Zahl: " + leiste);
-// ⚠️ Der Gegenprobe-Knopf war „Namen ersetzen (0)"; es gibt ihn nicht mehr. „Neu einfuegen"
-// traegt in dieser Lage kein Haekchen und ist damit der nicht-erledigte Zeuge.
-wahr(!/data-handlung="neu"[^>]*btn--done/.test(leiste),
-	"ein nicht erledigter Knopf traegt weder die Klasse noch das Haken-Zeichen");
+// 🔴 SEIT 07.09.2026 STEHT DER ZUSATZ IN ZEILE 2, NIE IM NAMEN (Owner-Entscheid 7: zweizeilige
+// Knoepfe, damit sie in EINE Reihe passen). Der Vorwaertsknopf heisst schlicht „Auf die Stage",
+// und was dort laege, sagt die zweite Zeile.
+wahr(leiste.indexOf('<span class="gi-act__t1">Auf die Stage</span>') !== -1,
+	"Zeile 1 traegt den blossen Namen: " + leiste);
+wahr(leiste.indexOf('<span class="gi-act__t2">') !== -1, "und Zeile 2 den Zusatz");
 
 // 🔴 Ein ausgegrauter Knopf traegt seinen Grund im title -- gemessen am Objekt OHNE Vorschlag,
 // dem einzigen, das noch einen gesperrten Knopf erzeugt („Ablehnen" ohne Item).
@@ -953,32 +980,44 @@ gleich(garetienHandlungsRumpf("ruecknahme_ablehnen", wegUebernommen, 7), null,
 // =================================================================================================
 
 // ---- P1: der Ton haengt an einer TAFEL, und nur zwei Knoepfe tragen einen ----------------------
-tief(Object.keys(AVESMAPS_GARETIEN_HANDLUNG_TON).sort(), ["ablehnen", "neu"],
+// 🔴 Seit 07.09.2026 traegt den einen Ton der VORWAERTSKNOPF statt „Neu einfügen" -- und es ist
+// der AKZENT, nicht Gruen: Gruen hiesse „legt auf der Karte an", und die Stage legt nichts an.
+tief(Object.keys(AVESMAPS_GARETIEN_HANDLUNG_TON).sort(), ["ablehnen", "stage"],
 	"GENAU zwei Handlungen tragen einen Ton -- „der rest sollte eher neutral sein\"");
-gleich(AVESMAPS_GARETIEN_HANDLUNG_TON.neu, "go", "„Neu einfügen\" ist gruen");
+gleich(AVESMAPS_GARETIEN_HANDLUNG_TON.stage, "accent", "„Auf die Stage\" traegt den Akzent");
 gleich(AVESMAPS_GARETIEN_HANDLUNG_TON.ablehnen, "danger", "„Ablehnen\" ist rot");
 
 // Und am gebauten Knopf, nicht nur an der Tafel -- sonst koennte sie wirkungslos verdrahtet sein.
-gleich(knopf(strasse, "neu").ton, "go", "der gebaute Knopf traegt den Ton der Tafel");
+gleich(knopf(strasse, "stage").ton, "accent", "der gebaute Knopf traegt den Ton der Tafel");
 gleich(knopf(strasse, "ablehnen").ton, "danger", "und „Ablehnen\" seinen");
-gleich(knopf(strasse, "quelle").ton, "", "💣 „Quelle + Artikel\" bleibt NEUTRAL");
-gleich(knopf(abgelehnt, "wieder").ton, "", "und „Wieder vorschlagen\" ebenso");
+gleich(knopf(abgelehnt, "wieder").ton, "", "und „Wieder vorschlagen\" ist neutral");
+// 💣 Der RUECKWEG traegt KEINEN Ton -- nur der Weg nach vorn wird hervorgehoben, sonst tragen
+// zwei Knoepfe derselben Leiste dieselbe Betonung.
+mod.avesmapsGaretienStageHinzufuegen([strasse]);
+gleich(knopf(strasse, "entstagen").ton, "", "„Von der Stage nehmen\" bleibt NEUTRAL");
+mod.avesmapsGaretienStageLeeren();
 
 // ---- P2: die Klassen im Markup -- und ausdruecklich KEINE Fuellung -----------------------------
 const leisteP = garetienHandlungsMarkup(strasse);
-wahr(/class="btn btn--go"[^>]*data-handlung="neu"/.test(leisteP),
-	"„Neu einfügen\" traegt btn--go: " + leisteP);
+wahr(/class="btn btn--accent[^"]*"[^>]*data-handlung="stage"/.test(leisteP),
+	"„Auf die Stage\" traegt btn--accent: " + leisteP);
 wahr(/class="btn btn--danger"[^>]*data-handlung="ablehnen"/.test(leisteP),
 	"„Ablehnen\" traegt btn--danger: " + leisteP);
 // 💣 DIE GEGENPROBE, die den Sinn traegt: der neutrale Knopf traegt KEINE Tonklasse. Ohne sie
 // koennte die Regel jedem Knopf eine Farbe geben und die Zeilen darueber waeren trotzdem gruen.
-wahr(!/class="[^"]*btn--(go|danger)[^"]*"[^>]*data-handlung="quelle"/.test(leisteP),
-	"„Quelle + Artikel\" traegt weder btn--go noch btn--danger: " + leisteP);
+mod.avesmapsGaretienStageHinzufuegen([strasse]);
+wahr(!/class="[^"]*btn--(accent|danger)[^"]*"[^>]*data-handlung="entstagen"/
+	.test(garetienHandlungsMarkup(strasse)),
+	"„Von der Stage nehmen\" traegt weder btn--accent noch btn--danger");
+mod.avesmapsGaretienStageLeeren();
 
 // 💣 UND DIE REGEL, DIE DIE KOLLISION VERHINDERT: `btn--go` faerbt nur Schrift und Rahmen, die
 // FUELLUNG gehoert `btn--done` („alle Items dieses Knopfes sind vorgemerkt"). Gemessen am
 // Stylesheet, denn nur dort steht sie -- ein `background` in .btn--go machte die zwei Aussagen
 // ununterscheidbar, und zwar lautlos.
+// ⚠️ Beide Klassen sind seit dem 07.09.2026 an KEINEM Knopf dieser Leiste mehr erreichbar (die
+// Knoepfe, die sie trugen, sind gefallen) -- die Regeln bleiben trotzdem unter Test: sie stehen
+// weiter im Blatt, und wer sie „aufraeumt", nimmt der Begruendung ihren Beleg.
 const giCss = fs.readFileSync(path.join(WURZEL, "css", "components", "garetien-importer.css"), "utf8");
 const giCssOhneKommentare = giCss.replace(/\/\*[\s\S]*?\*\//g, "");
 const regelGo = (giCssOhneKommentare.match(/\.gi-win \.btn--go\s*\{([^}]*)\}/) || [])[1];
@@ -1012,33 +1051,29 @@ const eineFlaeche = {
 	items: [{ id: 31, anlass: "ergaenzung", felder: ["quelle"], change_type: "changed", selected: 1,
 		abschnitt: { public_id: "Fläche-057", name: "" } }],
 };
-gleich(knopf(eineFlaeche, "quelle").beschriftung, "Bei Fläche-057 Quelle + Artikel einfügen (1)",
-	"der Owner-Wortlaut, Zeichen fuer Zeichen");
-// 💣 „Quelle" bleibt GROSS -- ein automatisches Kleinschreiben des ersten Zeichens waere die
-// englische Gewohnheit; im Deutschen ist es ein Substantiv.
-wahr(knopf(eineFlaeche, "quelle").beschriftung.includes(" Quelle + Artikel"),
-	"„Quelle\" bleibt gross geschrieben, auch mitten im Satz");
+// 🔴 SEIT 07.09.2026 GEMESSEN AM REINEN BAUER, nicht mehr am Knopf: „Bei X Quelle + Artikel
+// einfügen" ist gefallen (Owner-Punkt 12), die REGEL, wie ein Ziel benannt wird, bleibt aber
+// gueltig -- `garetienQuelleZielText` traegt sie, und sie ist exportiert.
+gleich(garetienQuelleZielText(eineFlaeche.items), "Fläche-057",
+	"EIN Abschnitt ohne Namen wird bei seiner Kennung genannt");
 
 // Ein BENANNTER Abschnitt wird bei seinem Namen genannt, nicht bei seiner Kennung.
 const einBenannter = JSON.parse(JSON.stringify(eineFlaeche));
 einBenannter.abschnitte[0].name = "Rakula";
 einBenannter.items[0].abschnitt.name = "Rakula";
-gleich(knopf(einBenannter, "quelle").beschriftung, "Bei „Rakula\" Quelle + Artikel einfügen (1)",
+gleich(garetienQuelleZielText(einBenannter.items), "„Rakula\"",
 	"ein benannter Abschnitt wird bei seinem Namen genannt");
 
 // MEHRERE werden gezaehlt -- ein Knopf ist kein Satz, und sechs Namen passten nicht hinein.
-gleich(knopf(strasse, "quelle").beschriftung, "Bei 6 Abschnitten Quelle + Artikel einfügen (6)",
-	"mehrere Abschnitte werden gezaehlt");
+gleich(garetienQuelleZielText(strasse.items.filter((i) => i.felder.indexOf("name") === -1)),
+	"6 Abschnitten", "mehrere Abschnitte werden gezaehlt");
 
-// 🔴 GEZAEHLT WIRD UEBER DIE ITEMS DIESES KNOPFES, nicht ueber `objekt.abschnitte`. Die Strasse
-// hat sechs getroffene Abschnitte; haette nur einer eine Quellenluecke, muesste der Knopf DIESEN
+// 🔴 GEZAEHLT WIRD UEBER DIE UEBERGEBENEN ITEMS, nicht ueber `objekt.abschnitte`. Die Strasse
+// hat sechs getroffene Abschnitte; haette nur einer eine Quellenluecke, muesste der Satz DIESEN
 // EINEN nennen -- sonst benennt er ein Ziel, das der Klick gar nicht anfasst.
-const strasseEineLuecke = JSON.parse(JSON.stringify(strasse));
-strasseEineLuecke.items = strasseEineLuecke.items.filter(function (i) {
-	return i.felder.indexOf("name") !== -1 || i.abschnitt.public_id === "w-2213";
-});
-gleich(knopf(strasseEineLuecke, "quelle").beschriftung,
-	"Bei „Reichsstrasse 3\" Quelle + Artikel einfügen (1)",
+gleich(garetienQuelleZielText(strasse.items.filter(function (i) {
+	return i.felder.indexOf("name") === -1 && i.abschnitt.public_id === "w-2213";
+})), "„Reichsstrasse 3\"",
 	"sechs getroffene Abschnitte, EINE Quellenluecke -- benannt wird die Luecke");
 
 // Und die reine Regel dahinter, ohne Knopf drumherum.
@@ -1055,7 +1090,10 @@ gleich(garetienQuelleZielText([
 ]), "„Alke\"", "zwei Items an EINEM Abschnitt sind EIN Ziel");
 
 // ---- P4: die Tooltips -- sie nennen die FOLGE und sagen, was „Artikel" ist ----------------------
-const titelQuelle = knopf(strasse, "quelle").titel;
+// 🔴 SEIT 07.09.2026 AM REINEN BAUER GEMESSEN: den Knopf „Nur Quelle + Artikel" gibt es nicht
+// mehr, seinen SATZ (`garetienHandlungTitel`) sehr wohl -- er erklaert weiterhin, was „Artikel"
+// ist, und ist exportiert.
+const titelQuelle = mod.garetienHandlungTitel("quelle", strasse, "6 Abschnitten");
 wahr(titelQuelle.includes("Wiki-Artikel"),
 	"💣 der Tooltip sagt, was „Artikel\" ist -- genau die Frage des Owners: " + titelQuelle);
 wahr(titelQuelle.includes("Sammelquelle"), "und dass die andere die Sammelquelle ist");
@@ -1067,13 +1105,13 @@ wahr(titelQuelle.includes("Briefspiel (Garetien)"),
 	"die Sammelquelle wird BEIM NAMEN genannt, aus dem Feld des Objekts: " + titelQuelle);
 
 // 💣 UND WENN ES KEINEN ARTIKEL GIBT (42 % der Zeilen), verspricht der Satz auch keinen.
-const ohneArtikel = knopf(eineFlaeche, "quelle").titel;
+const ohneArtikel = mod.garetienHandlungTitel("quelle", eineFlaeche, "Fläche-057");
 wahr(ohneArtikel.includes("hat dieses Objekt nicht"),
 	"ohne Artikel sagt der Satz das, statt eine Quelle zu versprechen: " + ohneArtikel);
 wahr(!ohneArtikel.includes("und den Wiki-Artikel „"), "und er nennt keinen");
 
 // Jeder Knopf, den dieses Fenster bauen kann, hat einen Tooltip -- kein stiller Ausfall.
-[[strasse, "neu"], [strasse, "quelle"], [strasse, "ablehnen"], [abgelehnt, "wieder"]]
+[[strasse, "stage"], [strasse, "ablehnen"], [abgelehnt, "wieder"]]
 	.forEach(function (paar) {
 		const k = knopf(paar[0], paar[1]);
 		wahr(String(k.titel || "").length > 20,
@@ -1092,22 +1130,28 @@ uebernommeneKnoepfe.forEach(function (k) {
 
 // 💣 DIE TOOLTIPS SIND VERSCHIEDEN. Eine Tafel, die jedem denselben Satz gibt, waere gruen und
 // wertlos.
-const alleTitel = ["neu", "quelle", "ablehnen"].map(function (n) { return knopf(strasse, n).titel; });
-gleich(new Set(alleTitel).size, 3, "drei Knoepfe, drei verschiedene Saetze");
+const alleTitel = ["stage", "ablehnen"].map(function (n) { return knopf(strasse, n).titel; });
+gleich(new Set(alleTitel).size, 2, "zwei Knoepfe, zwei verschiedene Saetze");
+// ⚠️ Und der RUECKWEG sagt etwas anderes als der Hinweg -- sonst laese sich „Von der Stage
+// nehmen" wie „Auf die Stage".
+mod.avesmapsGaretienStageHinzufuegen([strasse]);
+wahr(knopf(strasse, "entstagen").titel !== alleTitel[0],
+	"und der Rueckweg hat seinen eigenen Satz");
+mod.avesmapsGaretienStageLeeren();
 
 // ---- P5: im Markup -- und der GESPERRTE Knopf zeigt seinen GRUND, nicht die Erklaerung ---------
 // ⚠️ Gemessen an „Ablehnen": bei der Strasse ist „Neu einfügen" GESPERRT (der Lauf traegt fuer
 // sie keinen 'new'-Vorschlag) und traegt deshalb zu Recht seinen Grund statt der Erklaerung.
 wahr(/data-handlung="ablehnen"[^>]*title="Nimmt /.test(leisteP),
 	"ein bedienbarer Knopf traegt seinen Tooltip im title: " + leisteP);
-// Und ein bedienbares „Neu einfügen" ebenso -- am Objekt, das wirklich eines anbietet.
+// Und der Vorwaertsknopf ebenso -- am Objekt, das wirklich einen Vorschlag traegt.
 const leisteNeu = garetienHandlungsMarkup(Object.assign({}, eineFlaeche, {
 	urteil: "neu",
 	items: [{ id: 41, anlass: null, felder: ["name", "quelle"], change_type: "new", selected: 1,
 		abschnitt: null }],
 }));
-wahr(/data-handlung="neu"[^>]*title="Legt „Rakula/.test(leisteNeu),
-	"ein bedienbares „Neu einfügen\" traegt seine Erklaerung: " + leisteNeu);
+wahr(/data-handlung="stage"[^>]*title="Legt „Rakula/.test(leisteNeu),
+	"„Auf die Stage\" traegt seine Erklaerung: " + leisteNeu);
 // 🔴 Beim gesperrten schlaegt der Grund die Erklaerung: „warum kann ich das gerade nicht" ist die
 // Frage, die dort ansteht. (`deckt` ist das Objekt ohne jeden Vorschlag.)
 const leisteGesperrt = garetienHandlungsMarkup(deckt);
@@ -1139,151 +1183,16 @@ function neuZiel(key, options) {
 	}, options || {})]);
 }
 
-async function pruefeNeuKlick() {
-	const objekteM = [zufluss]; // urteil "zweifel" -> traegt "neu" (Abschnitt A)
-
-	// Ein fremdes Ziel (kein `data-handlung="neu"`) -- der Verteiler steigt aus, OHNE etwas zu tun.
-	gleich(mod.garetienNeuKlick({ target: kette([{ passt: [], attribute: {} }]) }, objekteM, 7), null,
-		"ein Klick neben den Knopf tut nichts");
-	gleich(mod.garetienNeuKlick({ target: handlungsZiel("name", strasse.key) }, objekteM, 7), null,
-		"und ein ANDERER Handlungsknopf (hier: „Namen ersetzen\") auch nicht -- nur „neu\" gehoert ihm");
-
-	// Ein gesperrter Knopf tut nichts.
-	gleich(mod.garetienNeuKlick({ target: neuZiel(zufluss.key, { disabled: true }) }, objekteM, 7), null,
-		"ein disabled-Knopf loest nichts aus");
-
-	// Ein Objekt ohne "neu"-Item -- garetienHandlungsRumpf liefert null, der Verteiler tut nichts.
-	gleich(mod.garetienNeuKlick({ target: neuZiel(deckt.key) }, [deckt], 7), null,
-		"ohne einen Vorschlag „neu einfügen\" gibt es nichts zu senden");
-
-	// Der ECHTE Fall: select, DANN WIRKLICH apply, DANN die Listenaktualisierung.
-	// 🔴 Aufgabe 6 (06.09.2026): der Nachlauf „garetienStageNachschlagen" fragt seither die STAGE
-	// per `keys` ab, nicht mehr den Reiter „uebernommen" -- und die Stage ist hier LEER (dieser
-	// Test staged nichts), also bleibt der Nachlauf ganz aus (Zusicherung „eine leere Stage ruft
-	// gar nicht", js/review/__tests__/garetien-stage-nachschlagen.test.js).
-	const echtesFetch = global.fetch;
-	const gestellt = [];
-	global.fetch = function (pfad, optionen) {
-		const rumpf = JSON.parse((optionen && optionen.body) || "{}");
-		gestellt.push({ pfad: String(pfad), rumpf: rumpf });
-		let roh;
-		if (rumpf.action === "apply") {
-			roh = { ok: true, done: true, applied: 1, deleted: 0, stale: 0, processed: 1,
-				remaining: 0, skipped: 0, declined: 0 };
-		} else {
-			roh = { ok: true, plan_run_id: 7, gesamt: 0, objekte: [], bilanz: {}, reiter: {}, facetten: {} };
-		}
-		return Promise.resolve({ json: () => Promise.resolve(roh) });
-	};
-
-	const knopfM = neuZiel(zufluss.key);
-	const erste = mod.garetienNeuKlick({ target: knopfM }, objekteM, 7);
-	wahr(erste && typeof erste.then === "function",
-		"der Klick liefert eine Promise zurueck -- er wird wirklich ausgefuehrt");
-	gleich(knopfM.disabled, true, "der Knopf sperrt sich SOFORT, synchron");
-	gleich(knopfM.textContent, "Fügt ein …", "und traegt seinen Stand in der eigenen Beschriftung");
-
-	// 🔴 Ein zweiter Klick, WAEHREND der erste noch laeuft -- er darf KEINE zweite Sequenz starten.
-	const zweite = mod.garetienNeuKlick({ target: neuZiel(zufluss.key) }, objekteM, 7);
-	gleich(await zweite, null, "ein zweiter Klick waehrend des Laufens loest nichts aus");
-
-	await erste;
-	global.fetch = echtesFetch;
-
-	tief(gestellt.map((a) => a.rumpf.action), ["select", "apply", "liste"],
-		"🔴 select, dann WIRKLICH apply, dann die Listenaktualisierung -- der Stage-Nachlauf bleibt "
-		+ "aus (die Stage ist leer), und NICHTS Zusaetzliches vom zweiten Klick");
-	tief(gestellt[0].rumpf.ids, [1], "…mit genau der id des \"neu\"-Items");
-	gleich(gestellt[0].rumpf.action, "select", "erst wird angehakt");
-	gleich(gestellt[1].rumpf.action, "apply",
-		"🔴 die tragende Zusicherung: „Neu einfügen\" schickt apply, nicht bloss ein zweites select");
-}
+// 🔴 pruefeNeuKlick IST AM 07.09.2026 ENTFALLEN -- „Neu einfügen" gibt es nicht mehr
+// (Owner-Punkt 12: angelegt wird ueber „Stage importieren"). Denselben Ablauf (select → apply → liste, mit Riegel und Knopfsperre) faehrt weiterhin garetien-innerorts-knopf.test.js ueber „Innerorts einfügen" -- den EINEN Aufrufer, der garetienNeuKlick noch hat.
+async function pruefeNeuKlick() { /* entfallen, siehe oben */ }
 
 // 🔴 Meldung B (30.08.2026, Owner): „trotzdem neu anlegen" trotz erkannter Kollision -- dieselbe
 // Verdrahtung wie oben (garetienNeuKlick), aber mit einer Rückfrage DAVOR, weil das Ziel-Item
 // diesmal `anlass:'zusatz'` trägt statt ein genuiner Neuzugang zu sein.
-async function pruefeNeuKlickZusatz() {
-	const kollision = {
-		key: "k-kollision", urteil: "ergaenzung", name: "Krähensee", wiki: "ggp",
-		grund: 'Geometrie liegt 0.42 Einheiten von "Krähensee" (anderer Name)',
-		abschnitte: [{ public_id: "r-1", name: "Krähensee alt" }],
-		items: [
-			{ id: 900, anlass: "ergaenzung", felder: ["quelle"], change_type: "changed", selected: 1,
-				abschnitt: { public_id: "r-1", name: "Krähensee alt" } },
-			{ id: 901, anlass: "zusatz", felder: [], change_type: "new", selected: 0 },
-		],
-	};
-
-	wahr(mod.garetienNeuIstZusatz(kollision) === true,
-		"ein Zusatz-Item macht 'Neu einfügen' zur begründeten Ausnahme");
-	wahr(mod.garetienNeuIstZusatz(einer) === false,
-		"ohne Zusatz-Item ist es der normale Fall -- keine Rückfrage nötig");
-	wahr(mod.garetienNeuIstZusatz(zufluss) === false,
-		"ein GENUINER Neuzugang (kein Treffer) ist ebenfalls KEIN Zusatz-Item");
-
-	gleich(knopf(kollision, "neu").disabled, false, "die Kollision bekommt trotzdem 'Neu einfügen'");
-	tief(knopf(kollision, "neu").ids, [901], "und zwar genau das Zusatz-Item, nicht die Ergänzung");
-
-	const zusatzFrage = mod.garetienZusatzRueckfrageText(kollision);
-	wahr(zusatzFrage.includes("Krähensee"), "die Rückfrage nennt den Namen");
-	wahr(zusatzFrage.includes("0.42 Einheiten"), "und den Grund aus dem Abgleich (Name+Abstand)");
-	wahr(zusatzFrage.includes("ZUSÄTZLICH"), "und sagt ausdrücklich, dass ANGELEGT statt ersetzt wird");
-	// 💣 DIE RÜCKFRAGE MUSS SAGEN, WAS DIESER KLICK TUT -- und er legt SOFORT an. Genau diese
-	// Zusicherung stand am 06.09.2026 andersherum da („kommt auf die Stage … mit „Stage
-	// importieren" angelegt") und beschrieb damit eine ANDERE Handlung: der Klick ruft
-	// `garetienEinfuegenAusfuehren`, und die schickt `select` UND `apply` -- oben in dieser Datei
-	// ausdrücklich zugesichert („select, dann WIRKLICH apply"). Beide Zusicherungen standen
-	// dreissig Zeilen auseinander im selben Blatt, ohne dass jemand sie gegeneinander hielt.
-	wahr(zusatzFrage.includes("sofort"), "und dass der Klick das Objekt SOFORT anlegt");
-	wahr(!zusatzFrage.includes("Stage importieren"),
-		"und nennt NICHT einen zweiten Knopf, der hier nichts mehr zu tun hat");
-
-	// 💣 OHNE BESTÄTIGUNG PASSIERT NICHTS -- und der Klick gilt trotzdem als BEHANDELT (return
-	// true), sonst fiele er zu garetienHandlungKlick durch (dieselbe Falle wie bei
-	// garetienRuecknahmeKlick, siehe deren Begründung).
-	const gefragtNein = [];
-	const neinM = (text) => { gefragtNein.push(text); return false; };
-	const zielNein = neuZiel(kollision.key);
-	gleich(mod.garetienNeuKlick({ target: zielNein }, [kollision], 7, neinM), true,
-		"„Nein\" in der Rückfrage gilt als BEHANDELT -- kein Fallthrough zu garetienHandlungKlick");
-	gleich(gefragtNein.length, 1, "gefragt wurde");
-	gleich(zielNein.disabled, undefined, "und der Knopf wird NICHT gesperrt -- es lief ja nichts");
-
-	// Ohne `fragen`-Funktion überhaupt (ein Verdrahtungsfehler): dieselbe sichere Richtung wie
-	// garetienFragen selbst -- im Zweifel geschieht nichts.
-	gleich(mod.garetienNeuKlick({ target: neuZiel(kollision.key) }, [kollision], 7), true,
-		"ohne 'fragen'-Funktion wird ABGELEHNT, nicht durchgewunken");
-
-	// „Ja": danach läuft DIESELBE echte Sequenz wie beim normalen Neuzugang (select, apply,
-	// liste) -- die Rückfrage ändert nichts an DEM, was am Ende geschrieben wird, nur OB.
-	// 🔴 Aufgabe 6 (06.09.2026): der Stage-Nachlauf bleibt aus, die Stage ist leer (siehe oben in
-	// pruefeNeuKlick).
-	const echtesFetch = global.fetch;
-	const gestellt = [];
-	global.fetch = function (pfad, optionen) {
-		const rumpf = JSON.parse((optionen && optionen.body) || "{}");
-		gestellt.push({ pfad: String(pfad), rumpf: rumpf });
-		let roh;
-		if (rumpf.action === "apply") {
-			roh = { ok: true, done: true, applied: 1, deleted: 0, stale: 0, processed: 1,
-				remaining: 0, skipped: 0, declined: 0 };
-		} else {
-			roh = { ok: true, plan_run_id: 7, gesamt: 0, objekte: [], bilanz: {}, reiter: {}, facetten: {} };
-		}
-		return Promise.resolve({ json: () => Promise.resolve(roh) });
-	};
-	const gefragtJa = [];
-	const jaM = (text) => { gefragtJa.push(text); return true; };
-	const lauf = mod.garetienNeuKlick({ target: neuZiel(kollision.key) }, [kollision], 7, jaM);
-	wahr(lauf && typeof lauf.then === "function",
-		"bei „Ja\" liefert der Klick eine Promise zurück -- er wird wirklich ausgeführt");
-	await lauf;
-	global.fetch = echtesFetch;
-	gleich(gefragtJa.length, 1, "genau EINMAL gefragt");
-	tief(gestellt.map((a) => a.rumpf.action), ["select", "apply", "liste"],
-		"nach der Bestätigung läuft dieselbe echte Sequenz wie beim normalen Neuzugang");
-	tief(gestellt[0].rumpf.ids, [901], "…mit genau der id des Zusatz-Items, nicht der Ergänzung");
-}
+// 🔴 pruefeNeuKlickZusatz IST AM 07.09.2026 ENTFALLEN -- „Neu einfügen" gibt es nicht mehr
+// (Owner-Punkt 12: angelegt wird ueber „Stage importieren"). Der Zusatz-Weg („trotzdem neu anlegen") hatte NUR diesen Knopf als Erzeuger und ist damit derzeit unerreichbar -- gemessen und im Bericht benannt. Die REINEN Teile (garetienNeuIstZusatz, garetienZusatzRueckfrageText) stehen unveraendert weiter unter Test.
+async function pruefeNeuKlickZusatz() { /* entfallen, siehe oben */ }
 
 // =================================================================================================
 // N. Aufgabe 9: „Zurücknehmen" -- ein übernommenes Objekt wieder von der Karte holen

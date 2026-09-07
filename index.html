@@ -4288,7 +4288,14 @@
 				     'Keines markieren'." Leert `zustand.markiert`, weich (`.btn`), gesperrt, wenn nichts
 				     markiert ist -- dieselbe Bauform wie „Alle markieren" direkt daneben. -->
 				<button class="btn" type="button" id="garetien-mark-none">Auswahl aufheben</button>
-				<button class="btn" type="button" id="garetien-mark-show">Auf die Stage</button>
+				<!-- Owner-Punkt 17 (07.09.2026), wörtlich: „der Button ‚Auswahl auf die Stage' …
+				     dann wär klar was auf der Stage landet (nämlich die aktuelle Auswahl)".
+				     🔴 UND SEIT DEMSELBEN TAG IST DER NAME ZWINGEND, nicht nur klarer: die
+				     Einzelansicht rechts trägt jetzt ihren eigenen Knopf „Auf die Stage", und der
+				     gilt EINEM Objekt. Zwei gleichnamige Knöpfe mit verschiedener Reichweite sind
+				     genau die Verwechslung, an der „Ablehnen" gescheitert ist (der Owner hakte eine
+				     Zeile an und traf das Objekt der Einzelansicht). -->
+				<button class="btn" type="button" id="garetien-mark-show">Auswahl auf die Stage</button>
 				<button class="btn" type="button" id="garetien-anzeige-clear">Stage leeren</button>
 				<!-- Owner 30.08.2026, wörtlich: „außerdem wär ein button mit 'Alle zentrieren'
 				     hilfreich, wo die ansicht auf alle in 'Anzeigen' gelisteten objekte zoomt

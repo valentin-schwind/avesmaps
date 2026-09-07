@@ -564,9 +564,12 @@ async function pruefeFussknopfHaeppchen() {
 	gleich(standDrei.beschriftung, "Alle wählen (3)", "die Zahl der gerenderten Zeilen steht im Knopf");
 	gleich(standDrei.gesperrt, false, "auf dem Reiter „Offen\" ist er bedienbar");
 
-	// ---- Im Reiter „Stage" ist er sinnlos und gesperrt ----------------------------------------------
+	// ---- 🔴 Im Reiter „Stage" ist er seit dem 07.09.2026 NICHT MEHR GESPERRT (Owner-Punkt 18:
+	//      „alle wählen geht auch nicht auf der stage"). Hier stand „dort liegt ohnehin alles" --
+	//      das galt, solange „Alle markieren" nur Zeilen in die Anzeige schob. Heute ist die
+	//      Auswahl die EINGABE fuer Ablehnen, Von-der-Stage-nehmen und Importieren.
 	const standStage = modul.garetienAlleWaehlenZustand([a, b, c], "stage");
-	gleich(standStage.gesperrt, true, "auf „Stage\" ist er gesperrt -- dort liegt ohnehin alles");
+	gleich(standStage.gesperrt, false, "auf „Stage\" waehlt man jetzt auch alle");
 	// 🔴 OHNE Hinweistext (Owner 30.08.2026: „verbraucht nur platz"). Beide Gruende sagten nur „hier
 	// gibt es nichts zu tun"; das sagt der graue Knopf mit seiner Zahl bereits. Festgenagelt, damit
 	// niemand versehentlich eine neue Zeile daneben einfuehrt.

@@ -174,10 +174,16 @@ function kette(knoten) {
 	};
 	return kandidaten[0];
 }
+// 🔴 SEIT 07.09.2026 FAEHRT DIESE DATEI DEN EINZELKNOPF UEBER „Innerorts einfügen".
+// „Neu einfügen" ist gefallen (Owner-Punkt 12: angelegt wird ueber „Stage importieren"), und
+// `garetienNeuKlick` hat damit nur noch EINEN Aufrufer -- eben jenen. Geprueft wird derselbe
+// Ablauf wie zuvor (select → apply → Meldung → Rückgängig); nur der Knopfname wechselt.
+// 💣 Die Objekte dieser Datei tragen deshalb einen `innerorts`-Befund -- ohne ihn baut
+// `garetienHandlungen` den Knopf GAR NICHT, und `garetienHandlungsRumpf` liefert null.
 function neuZiel(key) {
 	return kette([{
-		passt: ['[data-handlung="neu"]', "[data-handlung]", "[data-key]"],
-		attribute: { "data-handlung": "neu", "data-key": key }, disabled: false, textContent: "",
+		passt: ['[data-handlung="innerorts"]', "[data-handlung]", "[data-key]"],
+		attribute: { "data-handlung": "innerorts", "data-key": key }, disabled: false, textContent: "",
 	}]);
 }
 
@@ -185,6 +191,7 @@ async function pruefeNeuKlickErfolg() {
 	const { api, dom } = ladeImporter(EXTRA_IDS);
 	const objekt = {
 		key: "neu:1", urteil: "neu", abschnitte: [],
+		innerorts: { name: "Wandleth", public_id: "Ort-9" },
 		items: [{ id: 901, change_type: "new", selected: 0 }],
 	};
 
@@ -226,6 +233,7 @@ async function pruefeNeuKlickScheitert() {
 	const { api, dom, ELEMENTE } = ladeImporter(EXTRA_IDS);
 	const objekt = {
 		key: "neu:2", urteil: "neu", abschnitte: [],
+		innerorts: { name: "Wandleth", public_id: "Ort-9" },
 		items: [{ id: 902, change_type: "new", selected: 0 }],
 	};
 
@@ -307,6 +315,7 @@ async function pruefeNeuKlickListenfehler() {
 	const { api, dom, ELEMENTE } = ladeImporter(EXTRA_IDS);
 	const objekt = {
 		key: "neu:lf", urteil: "neu", abschnitte: [],
+		innerorts: { name: "Wandleth", public_id: "Ort-9" },
 		items: [{ id: 912, change_type: "new", selected: 0 }],
 	};
 
