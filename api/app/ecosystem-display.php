@@ -34,6 +34,11 @@ try {
 }
 
 // Schwacher ETag auf dem Stempel: unveraendert -> 304, und der Browser nutzt seine Kopie.
+//
+// 🪤 WIE BEI `zoom-bands.php`: fuer einen gewoehnlichen Browser ist dieser Weg nicht erreichbar,
+// weil STRATO den `ETag` aus einer Antwort mit Rumpf entfernt (die Begruendung samt Messung steht
+// dort). Bewusst nicht nachgebaut -- 1.783 Bytes je Abruf, und ein wirksamer 304 braucht Server-
+// UND Client-Umbau samt Invalidierung.
 $etag = 'W/"eco-disp-' . ($state['stamp'] !== '' ? $state['stamp'] : '0') . '"';
 header('ETag: ' . $etag);
 header('Cache-Control: no-cache, must-revalidate');

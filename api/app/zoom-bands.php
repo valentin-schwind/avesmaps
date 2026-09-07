@@ -33,6 +33,24 @@ try {
 }
 
 // Schwacher ETag auf dem Stempel: unverändert -> 304, und der Browser nutzt seine Kopie.
+//
+// 🪤 DIESER WEG IST FUER EINEN GEWOEHNLICHEN BROWSER NICHT ERREICHBAR -- gemessen am 07.09.2026.
+// Vor STRATOs PHP sitzt etwas, das den `ETag` aus einer Antwort MIT Rumpf entfernt (AGENTS.md §10,
+// dort an `/api/locations/` nachgewiesen); die Live-Antwort dieses Endpunkts trägt nur
+// `Cache-Control`. Wer den Tag nie erfährt, kann ihn auch nicht zurückschicken, und der
+// 304-Zweig unten bleibt für ihn tot. `map-features` löst das mit einem zweiten Kopf
+// (`X-Avesmaps-ETag`) PLUS einer eigenen Client-Ablage -- ein 304 nützt nur, wer die alte
+// Nutzlast noch hat.
+//
+// ⚠️ HIER WURDE DAS BEWUSST NICHT NACHGEBAUT (07.09.2026, nachgerechnet statt geschätzt): die
+// Antwort ist 741 Bytes und wird rund 450-mal am Tag geholt -- die Ersparnis wäre ein Drittel
+// Megabyte pro Tag, und dafür bräuchte es Server- UND Client-Umbau samt Invalidierung nach jedem
+// Speichern im Zoomband-Fenster. Ein `max-age` statt dessen wäre billiger und genau die Falle,
+// vor der das Haus mehrfach warnt: der Admin, der die Bänder einstellt, sähe seine eigene
+// Änderung nicht.
+//
+// 🔧 Offen und nicht geklärt: es kommen trotzdem rund 40 echte 304 am Tag zustande. Woher diese
+// Clients ihren Tag haben, ist unbekannt -- vermutlich eine Zwischenschicht, nicht der Browser.
 $etag = 'W/"zb-' . ($state['stamp'] !== '' ? $state['stamp'] : '0') . '"';
 header('ETag: ' . $etag);
 header('Cache-Control: no-cache, must-revalidate');
