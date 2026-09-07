@@ -111,6 +111,80 @@ function avesmapsApiMetricsZone(string $schluessel): string {
  * gekommen, ist sie an einem Fatal Error, einem Speicherueberlauf oder einem Zeitlimit gestorben
  * -- und PHP meldet in diesem Zustand oft weiterhin 200. Der Code luegt dann; das Flag nicht.
  */
+/**
+ * DIE FEHLERTYPEN, DIE EINE ANFRAGE TOETEN -- und die einzige Liste davon im Haus.
+ *
+ * 💣 SIE WIRD GETEILT, NICHT ABGESCHRIEBEN. Zwei Listen laufen beim naechsten Fehlertyp
+ * auseinander, und der Unterschied waere STILL: der Fatal-Melder (avesmapsRegisterFatalReporter,
+ * bootstrap.php) schriebe eine Zeile ins Protokoll, waehrend der Zaehler dieselbe Anfrage als
+ * gelungen verbucht -- oder umgekehrt. Beide lesen deshalb diese Konstante.
+ *
+ * ⚠️ Sie steht HIER und nicht in bootstrap.php, weil bootstrap diese Datei laedt und nicht
+ * umgekehrt.
+ */
+const AVESMAPS_HARTE_FEHLERTYPEN = [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR];
+
+/**
+ * REIN: hat diese Anfrage geantwortet -- und womit?
+ *
+ * 💣 DER ANLASS (Owner-Screenshot des Panels, 07.09.2026): „Fehlerquote 12,2 %", angefuehrt von
+ * `app/political-territories` mit 25.828 Faellen des Codes „leer" und `app/map-features` mit
+ * 6.692. Nachgemessen ist beides KEIN Fehler: die politische Ebene antwortet an fuenf Stellen mit
+ * eigenen Kopfzeilen und `exit` (Schnellpfad, Cache-Treffer, frischer Aufbau, zweimal 304),
+ * `map-features` gzipt selbst und beantwortet `If-None-Match` mit 304. Ein 304 ist der beste Fall
+ * ueberhaupt -- null Bytes ueber die Leitung. Repoweit gibt es 38 solcher Ausgaenge in 19 Dateien;
+ * sie alle einzeln zu binden waere die Mehr-Erzeuger-Falle mit 38 Erzeugern.
+ *
+ * 🔴 DIE UNTERSCHEIDUNG IST NICHT „ging etwas raus?", SONDERN „ist etwas GESTORBEN?". Nach einem
+ * Fatal meldet PHP haeufig weiterhin 200 -- der Statuscode luegt dann, `error_get_last()` nicht.
+ *
+ * ⚠️ IM ZWEIFEL NICHT ABGESCHLOSSEN. Ein uebersehener Fatal ist der teure Fehler; er ist der
+ * einzige Grund, aus dem diese Messung existiert. Deshalb genuegt „keine Kopfzeilen gesendet",
+ * um die Anfrage als gestorben zu fuehren.
+ *
+ * @param array{status: int, code: ?string}|null $antwort   was der Trichter hinterlegt hat
+ * @param array{type: int}|null                  $letzterFehler  error_get_last()
+ * @param bool                                   $headersGesendet headers_sent()
+ * @param int|null                               $laufzeitStatus  http_response_code() oder null
+ * @return array{abgeschlossen: bool, status: ?int, code: ?string}
+ */
+function avesmapsApiMetricsAbschluss(
+    ?array $antwort,
+    ?array $letzterFehler,
+    bool $headersGesendet,
+    ?int $laufzeitStatus
+): array {
+    $fatal = is_array($letzterFehler)
+        && in_array($letzterFehler['type'] ?? 0, AVESMAPS_HARTE_FEHLERTYPEN, true);
+
+    // Der Trichter ist der Beleg -- und er gilt auch dann, wenn der Prozess DANACH stirbt: die
+    // Antwort ist beim Client angekommen.
+    //
+    // 💣 ER GILT ABER NICHT, WENN NIE EIN BYTE HINAUSGING. `avesmapsApiMetricsMerkeAntwort` laeuft
+    // IN `avesmapsJsonResponse`, also VOR dem Versand des Rumpfes: stirbt der Prozess dazwischen --
+    // ein `json_encode`, das wirft, ein Zeitlimit, ein Speicherlimit --, ist die Antwort gemerkt
+    // und niemals gesendet. Sie als 200 zu zaehlen waere genau die Luege, gegen die es diese
+    // Messung gibt: der Client saehe einen Netzfehler, das Panel einen Erfolg.
+    // ⚠️ Gefunden von einem Pruefagenten am 07.09.2026 -- die Luecke gab es schon vor dieser
+    // Funktion (`$abgeschlossen = is_array($antwort)` traf dieselbe unbedingte Aussage).
+    if (is_array($antwort) && isset($antwort['status']) && !($fatal && !$headersGesendet)) {
+        return [
+            'abgeschlossen' => true,
+            'status' => (int) $antwort['status'],
+            'code' => $antwort['code'] ?? null,
+        ];
+    }
+
+    if ($fatal || !$headersGesendet) {
+        return ['abgeschlossen' => false, 'status' => null, 'code' => null];
+    }
+
+    // Ein eigener Ausgang ohne Todesursache: 304, Cache-Treffer, selbst gepackte Nutzlast.
+    // ⚠️ `http_response_code()` liefert `false`, wenn nie einer gesetzt wurde -- dann gilt PHPs
+    // Vorgabe 200, sonst faellt eine gelungene Antwort in die Klasse „leer".
+    return ['abgeschlossen' => true, 'status' => $laufzeitStatus ?? 200, 'code' => null];
+}
+
 function avesmapsApiMetricsStatusKlasse(?int $status, bool $abgeschlossen): string {
     if (!$abgeschlossen) {
         return 'leer';
@@ -475,6 +549,7 @@ function avesmapsApiMetricsAufteilen(array $zeilen): array {
     $endpunkte = [];
     $klassen = [];
     $zonen = [];
+    $ohneVerbindung = 0;
 
     foreach ($zeilen as $zeile) {
         $dimension = (string) ($zeile['dimension'] ?? '');
@@ -485,6 +560,19 @@ function avesmapsApiMetricsAufteilen(array $zeilen): array {
         }
         $schluessel = substr($dimension, 0, $trenner);
         $klasse = substr($dimension, $trenner + 1);
+
+        // 🪤 `ohne_verbindung` IST KEIN ENDPUNKT, und bis zum 07.09.2026 stand es als einer in der
+        // Rangliste (Owner-Screenshot: Platz 10 mit 17.817). Es ist eine ZUSATZmarke fuer Anfragen,
+        // die keine Datenbank gebraucht haben, und sie wird NEBEN der Zeile des echten Endpunkts
+        // geschrieben. Mitgezaehlt blaeht sie deshalb dreierlei auf: die Gesamtsumme (jede solche
+        // Anfrage zaehlt zweimal), die Rangliste (ein Eintrag, den es nicht gibt) und die
+        // Fehlerquote -- ihre Auspraegung `leer` faellt dort in die schlechte Haelfte, obwohl sie
+        // nur „diese Anfrage brauchte keine Datenbank" bedeutet.
+        // ⭐ Verloren geht sie nicht: sie bekommt ihr eigenes Feld, und das Panel zeigt sie dort.
+        if ($schluessel === 'ohne_verbindung') {
+            $ohneVerbindung += $anzahl;
+            continue;
+        }
 
         $endpunkte[$schluessel] = ($endpunkte[$schluessel] ?? 0) + $anzahl;
         $klassen[$klasse] = ($klassen[$klasse] ?? 0) + $anzahl;
@@ -505,6 +593,7 @@ function avesmapsApiMetricsAufteilen(array $zeilen): array {
         'endpunkte' => $alsListe($endpunkte),
         'klassen' => $alsListe($klassen),
         'zonen' => $alsListe($zonen),
+        'ohne_verbindung' => $ohneVerbindung,
     ];
 }
 

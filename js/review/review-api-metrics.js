@@ -247,8 +247,16 @@ function renderApiDashboard(mount, data) {
 		+ apiEndpunktKarte(m.endpunkte)
 		+ '<div class="va-card"><p class="va-card__label">Wie geantwortet wurde</p>'
 		+ apiKlassenBalken(m.klassen)
-		+ '<p class="va-storage" style="margin-top:9px">„leer" = die Antwort ging nie durch den '
-		+ "Trichter. Ein Fatal Error sieht im Browser aus wie ein Netzfehler.</p></div>"
+		+ '<p class="va-storage" style="margin-top:9px">„leer" = die Anfrage ist gestorben, bevor '
+		+ "sie antworten konnte — ein Fatal Error, ein Zeit- oder Speicherlimit. Im Browser sieht "
+		+ "das aus wie ein Netzfehler.<br>"
+		// 🪤 `ohne_verbindung` STAND BIS ZUM 07.09.2026 IN DER RANGLISTE DER ENDPUNKTE (Platz 10
+		// mit 17.817) -- es ist aber keiner, sondern eine Zusatzmarke NEBEN der Zeile des echten
+		// Endpunkts. Mitgezaehlt blaehte sie die Gesamtzahl auf und schob ihren „leer"-Anteil in
+		// die Fehlerquote. Sie steht jetzt hier, wo sie etwas aussagt: wie viel Verkehr die
+		// Datenbank gar nicht erst erreicht.
+		+ apiEscape(Number(m.ohne_verbindung || 0).toLocaleString("de-DE"))
+		+ " Anfragen kamen ohne Datenbank aus (Zwischenspeicher-Treffer und 304).</p></div>"
 		+ apiFehlerKarte(m.fehler)
 		+ apiZonenKarte(m.zonen, m.endpunkte)
 		+ '<div class="va-card"><p class="va-card__label">Wann die Last liegt (Ortszeit)</p>'

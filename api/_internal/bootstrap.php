@@ -551,8 +551,11 @@ function avesmapsRegisterFatalReporter(string $context = ''): void {
             return;
         }
 
-        $harteTypen = [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR];
-        if (!in_array($letzter['type'] ?? 0, $harteTypen, true)) {
+        // 💣 GETEILTE LISTE, KEINE ZWEITE. Der API-Zaehler stellt dieselbe Frage („ist die Anfrage
+        // gestorben?"), und zwei Listen liefen beim naechsten Fehlertyp auseinander -- still: hier
+        // entstuende eine Protokollzeile, waehrend der Zaehler dieselbe Anfrage als gelungen
+        // verbucht. Die Liste steht in analytics/api-metrics.php, weil diese Datei jene laedt.
+        if (!in_array($letzter['type'] ?? 0, AVESMAPS_HARTE_FEHLERTYPEN, true)) {
             return;
         }
 
@@ -678,8 +681,20 @@ function avesmapsApiMetricsRegistrieren(): void {
                 return;
             }
 
-            $antwort = $GLOBALS['avesmapsApiMetricsAntwort'] ?? null;
-            $abgeschlossen = is_array($antwort);
+            // 🔴 EIN EIGENER AUSGANG IST KEINE TODESURSACHE. 38 Ausgaenge in 19 Dateien antworten
+            // absichtlich am Trichter vorbei -- 304, Cache-Treffer der politischen Ebene, die
+            // selbst gepackte Nutzlast von `map-features`. Bis zum 07.09.2026 galten sie alle als
+            // Fatal; im Panel standen dadurch 25.828 „Fehler" fuer einen Endpunkt, der einwandfrei
+            // arbeitete. Die Regel steht rein und geprueft in api-metrics.php.
+            $abschluss = avesmapsApiMetricsAbschluss(
+                $GLOBALS['avesmapsApiMetricsAntwort'] ?? null,
+                error_get_last(),
+                headers_sent(),
+                // `http_response_code()` gibt `false` zurueck, wenn nie einer gesetzt wurde.
+                is_int($laufzeitStatus = http_response_code()) ? $laufzeitStatus : null
+            );
+            $antwort = ['status' => $abschluss['status'], 'code' => $abschluss['code']];
+            $abgeschlossen = $abschluss['abgeschlossen'];
 
             $pdo = avesmapsLetzteDatenbankverbindung();
             $ohneVerbindung = $pdo === null;
