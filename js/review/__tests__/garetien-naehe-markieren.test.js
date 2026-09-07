@@ -34,6 +34,7 @@ const path = require("path");
 
 let checks = 0;
 function gleich(ist, soll, warum) { assert.strictEqual(ist, soll, warum || ""); checks++; }
+function tief(ist, soll, warum) { assert.deepStrictEqual(ist, soll, warum || ""); checks++; }
 function wahr(bedingung, warum) { assert.ok(bedingung, warum || ""); checks++; }
 const ruhe = () => new Promise((fertig) => setTimeout(fertig, 0));
 
@@ -176,7 +177,10 @@ async function pruefeAbruf() {
 			return Promise.resolve({
 				json: () => Promise.resolve({
 					ok: true,
-					gefunden: [{ key: "server-nachbar", name: "Servernachbar", geometrie: [[0, 0]] }],
+					// ⚠️ `stand` gehoert seit Befund C (07.09.2026) zu jedem Treffer: der Knopf
+					// waehlt nur, was auf dem AKTUELLEN Reiter liegt, und der ist hier „offen".
+					gefunden: [{ key: "server-nachbar", name: "Servernachbar", stand: "offen",
+						geometrie: [[0, 0]] }],
 					radius: 12.5,
 				}),
 			});
@@ -230,24 +234,76 @@ async function pruefeAbruf() {
 //    unabhaengig davon in js/review/__tests__/garetien-karte.test.js geprueft; hier steht nur die
 //    Entscheidung, dass DIESER Klick sie nicht mehr setzt -- weil er nichts mehr zeichnet, hat die
 //    Marke an dieser Stelle keine Aufgabe mehr.
+//
+// 🪤 SAMMELFIXRUNDE 07.09.2026 (Befund C): DIESE ZUSICHERUNG WAR VAKUUM. Sie prueft das Feld an den
+//    ROHEN Eingabeobjekten -- gesetzt wird es aber NIE dort, sondern nur auf KOPIEN beim Zeichnen
+//    (`avesmapsGaretienNurIhreStempeln`, „GESTEMPELT WIRD EINE KOPIE"). Der Setzer liess sich
+//    wieder einbauen, ohne dass ein Test rot wurde. Gemessen wird jetzt `zustand.nurIhre` selbst --
+//    ueber die einzige Stelle, an der die Marke sichtbar wird: die gezeichnete Menge.
 // =================================================================================================
 modul.avesmapsGaretienStageLeeren();
 modul.avesmapsGaretienAuswahlAufheben();
 const naeheOhneMarke = [
-	{ key: "naeh-1", name: "Nachbar A", geometrie: [[1, 1]] },
-	{ key: "naeh-2", name: "Nachbar B", geometrie: [[2, 2]] },
+	{ key: "naeh-1", name: "Nachbar A", stand: "offen", geometrie: [[1, 1]] },
+	{ key: "naeh-2", name: "Nachbar B", stand: "offen", geometrie: [[2, 2]] },
 ];
+// 🔴 ERST AUF DIE STAGE, DANN KLICKEN. Nur was gezeichnet wird, kann die Marke ueberhaupt tragen --
+// und die Reihenfolge ist zwingend: `avesmapsGaretienStageHinzufuegen` LOESCHT die Marke („ein
+// gewoehnlicher Weg in die Anzeige hebt sie auf"). Umgekehrt herum waere die Probe wieder Vakuum.
+modul.avesmapsGaretienStageHinzufuegen(naeheOhneMarke);
 garetienNaeheKlick({ target: scheinKnopf(false) }, naeheOhneMarke);
-naeheOhneMarke.forEach(function (o) {
+modul.avesmapsGaretienAufDerKarte([]).forEach(function (o) {
 	wahr(!o[modul.AVESMAPS_GARETIEN_FELD_NUR_IHRE],
 		"der Klick darf die 'nur ihre'-Marke nicht mehr setzen -- er zeichnet nichts mehr: "
 		+ JSON.stringify(o));
 });
-// Und ohnehin liegt keines der beiden auf der Karte (Stage) -- die Frage "wird nur ihre Seite
-// gezeichnet" stellt sich fuer diesen Klick gar nicht mehr.
-gleich(modul.avesmapsGaretienAufDerKarte([]).length, 0,
-	"ohne Staging liegt nach dem Klick nichts auf der Karte");
+// 💣 DIE GEGENPROBE, ohne die alles darueber Vakuum bleibt: der Mechanismus IST heil -- wer die
+// Marke setzt, sieht sie auch an der gezeichneten Menge.
+modul.avesmapsGaretienNurIhreMerken(naeheOhneMarke);
+const mitMarke = modul.avesmapsGaretienAufDerKarte([])
+	.filter(function (o) { return o[modul.AVESMAPS_GARETIEN_FELD_NUR_IHRE] === true; });
+gleich(mitMarke.length, 2,
+	"💣 Gegenprobe: von Hand gesetzt TRAEGT die gezeichnete Kopie die Marke -- sonst misst die "
+	+ "Zusicherung darueber nichts");
+modul.avesmapsGaretienStageLeeren();
 modul.avesmapsGaretienAuswahlAufheben();
+
+// =================================================================================================
+// F2. SAMMELFIXRUNDE 07.09.2026 / BEFUND C: DER KNOPF WAEHLT NUR, WAS AUF DEM AKTUELLEN REITER
+//     LIEGT -- und nennt den Rest.
+// =================================================================================================
+// 💣 Zwei Regeln, jede fuer sich richtig, ihre Kombination eine Sackgasse: die Auswahl wird beim
+//   Reiterwechsel GELEERT (sie gehoert zur Ansicht), der Naehe-Knopf suchte aber ueber den ganzen
+//   Lauf und waehlte auch Treffer an, die auf einem ANDEREN Reiter liegen. Bleibt der Editor
+//   stehen, zaehlt die Leiste den fremden Treffer nicht mit und er ist nicht adressierbar; wechselt
+//   er hinueber, loescht der Wechsel die ganze Auswahl.
+// 🔴 GEFUNDEN WERDEN SIE WEITERHIN ALLE -- nur GEWAEHLT wird der Rest nicht.
+{
+	const { garetienNaeheReiterTeilung, garetienNaeheFremdSatz } = modul;
+	wahr(typeof garetienNaeheReiterTeilung === "function", "garetienNaeheReiterTeilung fehlt im Export");
+	const fund = [
+		{ key: "o1", stand: "offen" }, { key: "o2", stand: "offen" },
+		{ key: "u1", stand: "uebernommen" }, { key: "x1", stand: "abgelehnt" },
+	];
+	const aufOffen = garetienNaeheReiterTeilung(fund, "offen", function () { return false; });
+	tief(aufOffen.hier.map((o) => o.key), ["o1", "o2"], "auf „Offen\" sind zwei waehlbar");
+	tief(aufOffen.fremd.map((o) => o.key), ["u1", "x1"],
+		"🔴 …und die uebrigen zwei bleiben GEFUNDEN, nur nicht gewaehlt");
+	const aufUebernommen = garetienNaeheReiterTeilung(fund, "uebernommen", function () { return false; });
+	tief(aufUebernommen.hier.map((o) => o.key), ["u1"], "auf „Uebernommen\" kehrt sich das um");
+	// 🔴 Der Reiter „Anzeigen" hat keinen `stand` -- er wird an der STAGE gemessen (RULING R5).
+	const aufStage = garetienNaeheReiterTeilung(fund, "stage",
+		function (key) { return key === "u1"; });
+	tief(aufStage.hier.map((o) => o.key), ["u1"],
+		"💣 auf „Anzeigen\" entscheidet die Stage, nicht ein Serverwert -- ein `stand: 'stage'` gibt es nicht");
+	// ⚠️ Ein leerer/unbekannter Reiter laesst NICHTS durch -- die zurueckhaltende Richtung.
+	gleich(garetienNaeheReiterTeilung(fund, "", null).hier.length, 0, "leerer Reiter: nichts waehlbar");
+	gleich(garetienNaeheReiterTeilung(fund, "", null).fremd.length, 4, "…aber alles gefunden");
+	gleich(garetienNaeheReiterTeilung(null, "offen", null).hier.length, 0, "keine Liste bricht nichts");
+	// Der Satz, den Hinweis UND Meldung sich teilen.
+	gleich(garetienNaeheFremdSatz(1), "1 Treffer liegt auf einem anderen Reiter.", "Einzahl");
+	gleich(garetienNaeheFremdSatz(6), "6 Treffer liegen auf anderen Reitern.", "Mehrzahl");
+}
 
 // =================================================================================================
 // G. DER KLICKVERTEILER: kein Reiterwechsel mehr, kein `eigenes`, keine Stage -- gemessen am
@@ -264,7 +320,7 @@ const quelleOhneKommentare = require("fs")
 
 // 🔴 Aufgabe 13: der Klick reicht die vom Typenfilter GEWAEHLTE Menge herein
 // (`garetienNaeheAktuelleMenge`), nicht mehr die rohe Trefferliste und kein drittes `eigenes` mehr.
-wahr(/garetienNaeheKlick\(ereignis, garetienNaeheAktuelleMenge\(naeheOffen\)\)\)/
+wahr(/garetienNaeheKlick\(ereignis, garetienNaeheAktuelleMenge\(naeheOffen\)\)/
 	.test(quelleOhneKommentare),
 	"der Klickverteiler muss die vom Typenfilter gewaehlte Menge uebergeben, nicht den rohen Fund");
 
@@ -274,13 +330,20 @@ wahr(/garetienNaeheKlick\(ereignis, garetienNaeheAktuelleMenge\(naeheOffen\)\)\)
 // noch an einer ANDEREN Stelle (der Auswahlleisten-Knopf "Auswahl auf die Stage"), die bleibt
 // unberuehrt und darf ihn weiterhin tragen.
 const naeheBlock = quelleOhneKommentare.match(
-	/if \(garetienNaeheKlick\(ereignis, garetienNaeheAktuelleMenge\(naeheOffen\)\)\) \{[\s\S]*?\n\t{4}\}/
+	/if \(naeheGewaehlt\) \{[\s\S]*?\n\t{4}\}/
 );
 wahr(naeheBlock !== null, "der Klickblock des Naehe-Knopfs muss auffindbar sein");
 wahr(!/garetienReiterSetzen/.test(naeheBlock[0]),
 	"der Naehe-Klickblock darf den Reiter nicht mehr wechseln -- nichts kommt mehr auf die Karte");
 wahr(!/avesmapsGaretienStageHinzufuegen/.test(naeheBlock[0]),
 	"und er darf nichts mehr auf die Stage legen");
+// 💣 Sammelfixrunde 07.09.2026 (Befund C): die Zahl der FREMDEN Treffer wird VOR dem Klick gelesen
+// -- er waehlt, und die Auswahl kann den Stand danach verschieben. Gemessen wird die Reihenfolge im
+// Quelltext, weil beide Zeilen im delegierten Zuhoerer der Detailspalte stehen.
+const posFremd = quelleOhneKommentare.indexOf("const naeheFremd = garetienNaeheFremdAnzahl(naeheOffen);");
+const posKlick = quelleOhneKommentare.indexOf("const naeheGewaehlt = garetienNaeheKlick(");
+wahr(posFremd !== -1 && posKlick !== -1, "beide Zeilen muessen im Verteiler stehen");
+wahr(posFremd < posKlick, "💣 die Fremd-Zahl wird VOR dem Klick gelesen, nicht danach");
 
 console.log(`garetien-naehe-markieren: ${checks} Pruefungen bestanden.`);
 

@@ -397,6 +397,92 @@ wahr(garetienStillerAusgangText("ablehnen", { key: "x", name: "X", urteil: "neu"
 }
 
 // =================================================================================================
+// 12b. SAMMELFIXRUNDE 07.09.2026 / BEFUND B: ALLE SECHS GRUND-TEXTE, WORTGENAU.
+// =================================================================================================
+// 💣 `auswahl_stage` und `auswahl_entstagen` grauten bei 0 aus, OHNE einen Grund zu nennen, und ihr
+//   Klickweg meldete nichts -- waehrend die vier Nachbarn beides taten. Der Kommentar an
+//   AVESMAPS_GARETIEN_AUSWAHL_GRUND behauptete, das koenne nicht sein („ihre Sperre heisst ‚nichts
+//   gewaehlt', und dann gibt es die Leiste gar nicht"). Messbar falsch: die Auswahl UEBERLEBT einen
+//   Filterwechsel (nur `garetienReiterSetzen` leert sie), die Leiste haengt an der GLOBALEN Auswahl,
+//   diese zwei Knoepfe zaehlen ueber die SICHTBAREN.
+// 🔴 UND ALLE SECHS WERDEN WORTGENAU FESTGENAGELT. Zwei der vier alten Texte waren UNGEPRUEFT: auf
+//   `""` gesetzt blieb das Feld gruen (`auswahl_zurueck_offen`, `auswahl_wieder`) -- ein Grund, den
+//   niemand misst, ist ein Grund, den niemand vermisst.
+const GRUND_NICHT_SICHTBAR = "keines der gewählten Objekte steht in dieser Ansicht — "
+	+ "ein Filter blendet sie gerade aus";
+{
+	// Der erreichbare Zustand: 3 global gewaehlt, KEINES davon in der Ansicht.
+	const stageKnopf = garetienAuswahlleisteZustand("offen", 3, []).knoepfe[0];
+	gleich(stageKnopf.name, "auswahl_stage");
+	gleich(stageKnopf.t2, "0 Objekte", "gezaehlt wird ueber die SICHTBAR gewaehlten");
+	gleich(stageKnopf.gesperrt, true, "…und dann ist der Knopf gesperrt");
+	gleich(stageKnopf.grund, GRUND_NICHT_SICHTBAR, "💣 …MIT Grund, wie seine vier Nachbarn");
+
+	const entstagenKnopf = garetienAuswahlleisteZustand("stage", 3, []).knoepfe[0];
+	gleich(entstagenKnopf.name, "auswahl_entstagen");
+	gleich(entstagenKnopf.grund, GRUND_NICHT_SICHTBAR, "💣 …und derselbe Fall auf dem Reiter Stage");
+
+	// Gegenprobe, sonst waeren die zwei Zeilen darueber Vakuum: mit einem sichtbaren Objekt gehen
+	// beide auf und nennen KEINEN Grund.
+	gleich(garetienAuswahlleisteZustand("offen", 1, [mitItem]).knoepfe[0].gesperrt, false);
+	gleich(garetienAuswahlleisteZustand("offen", 1, [mitItem]).knoepfe[0].grund, "");
+	gleich(garetienAuswahlleisteZustand("stage", 1, [mitItem]).knoepfe[0].gesperrt, false);
+	gleich(garetienAuswahlleisteZustand("stage", 1, [mitItem]).knoepfe[0].grund, "");
+
+	// ---- Und die vier alten, wortgenau. -----------------------------------------------------------
+	gleich(garetienAuswahlleisteZustand("offen", 1, [ohneItem]).knoepfe[1].grund,
+		"keines der gewählten Objekte trägt einen Vorschlag", "auswahl_ablehnen");
+	gleich(garetienAuswahlleisteZustand("abgelehnt", 1, [ohneItem]).knoepfe[0].grund,
+		"keines der gewählten Objekte trägt einen Vorschlag", "auswahl_wieder");
+	gleich(garetienAuswahlleisteZustand("uebernommen", 3, [uebernommenOhneRuecknahme]).knoepfe[0].grund,
+		"keines der gewählten Objekte lässt sich zurücknehmen — sie haben ein bestehendes Objekt "
+		+ "verändert", "auswahl_ruecknahme");
+	gleich(garetienAuswahlleisteZustand("uebernommen", 1, [uebernommenMitRuecknahme]).knoepfe[1].grund,
+		"keines der gewählten Objekte wurde übernommen", "auswahl_zurueck_offen");
+}
+
+// ---- Und der KLICKWEG der zwei meldet ihn auch -- ausgefuehrt, nicht gelesen. ------------------
+// 💣 Bis zur Sammelfixrunde liefen beide Zweige auch mit leerer Liste durch und gaben
+//   `{handlung, anzahl: 0}` zurueck: ein Klick, der nichts tut und nichts sagt.
+{
+	const knopfMitGrund = (name) => ({
+		target: {
+			closest(sel) {
+				return sel === "[data-auswahl]"
+					? {
+						disabled: false,
+						getAttribute: (attr) => (attr === "data-auswahl" ? name
+							: (attr === "data-grund" ? GRUND_NICHT_SICHTBAR : null)),
+					}
+					: null;
+			},
+		},
+	});
+	["auswahl_stage", "auswahl_entstagen"].forEach(function (name) {
+		avesmapsGaretienAuswahlAufheben();
+		avesmapsGaretienStageLeeren();
+		// Gewaehlt ist etwas -- es steht nur nicht in der hereingereichten (gefilterten) Ansicht.
+		avesmapsGaretienAuswahlUmschalten("nicht-sichtbar");
+		dom.el("#garetien-status-text").textContent = "";
+		const ergebnis = garetienAuswahlleisteKlick(knopfMitGrund(name), [], 7, {});
+		gleich(ergebnis, null, name + ": der Klick richtet nichts aus");
+		gleich(avesmapsGaretienStageHat("nicht-sichtbar"), false, name + ": …und bewegt die Stage nicht");
+		wahr(dom.text("#garetien-status-text").indexOf("geht nicht") !== -1,
+			"💣 " + name + " SAGT ES: " + dom.text("#garetien-status-text"));
+		wahr(dom.text("#garetien-status-text").indexOf(GRUND_NICHT_SICHTBAR) !== -1,
+			"…mit demselben Satz, der sichtbar unter der Leiste steht");
+	});
+	// Gegenprobe: mit einem sichtbaren Objekt geht „Auswahl auf die Stage" den normalen Weg.
+	avesmapsGaretienAuswahlAufheben();
+	avesmapsGaretienStageLeeren();
+	avesmapsGaretienAuswahlUmschalten("a");
+	const echt = garetienAuswahlleisteKlick(knopfMitGrund("auswahl_stage"), [mitItem], 7, {});
+	gleich(echt && echt.anzahl, 1, "sonst waere der stille Ausgang oben Vakuum");
+	avesmapsGaretienStageLeeren();
+	avesmapsGaretienAuswahlAufheben();
+}
+
+// =================================================================================================
 // 13. FIXRUNDE 1 / C1: „Auswahl ablehnen" KAPPT NICHT MEHR -- und meldet nur, was wirklich geht.
 // =================================================================================================
 // 💣 `api/edit/wiki/sync-plan.php` schneidet `ids` bei AVESMAPS_SYNC_PLAN_CATEGORY_LIMIT (200) ab,

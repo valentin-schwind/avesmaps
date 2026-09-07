@@ -419,10 +419,16 @@ function avesmapsGaretienLabelVorgabeFuerArt(PDO $pdo, string $subtyp): array
  * INSTANZ und wirft bei einem unsinnigen Wert (z.B. `max_zoom < min_zoom`) -- ein Eingabefeld ist
  * die Anzeige, nicht der Riegel, dieselbe Trennung wie bei jedem gesperrten Knopf dieses Fensters.
  *
- * 🔴 `$einstellungen === null` HEISST „KEINE HANDEINGABE" (z.B. „Alle angezeigten einfügen" --
- * die Massenübernahme nimmt IMMER die Vorgabe der Art, nie die Handeingabe eines einzelnen
- * Objekts, siehe die Verdrahtung in review-garetien-importer.js). Das Ergebnis ist dann exakt
- * $vorgabeDerArt, unveraendert.
+ * 🔴 KEINE HANDEINGABE HEISST: WEDER `$einstellungen` NOCH EIN EIGENER EINTRAG IN `$jeItem`. Dann
+ * ist das Ergebnis exakt $vorgabeDerArt, unveraendert.
+ * 🪤 HIER STAND BIS ZUM 07.09.2026: „die Massenübernahme nimmt IMMER die Vorgabe der Art, nie die
+ * Handeingabe eines einzelnen Objekts". Das galt fuer „Alle angezeigten einfügen" -- den Knopf gibt
+ * es nicht mehr. Sein Nachfolger „Stage importieren" schickt seit dem 07.09.2026
+ * `einstellungen_je_item` (garetienStageEinstellungenJeItem, review-garetien-importer.js): EINEN
+ * Rumpf JE OBJEKT, und die Regel „ein gemeinsamer Rumpf fuer viele Objekte ist verboten" wird
+ * genau dadurch gewahrt -- `$einstellungen` bleibt dort weiterhin `null`.
+ * ⚠️ Wer den alten Satz liest, baut den Fehler wieder ein, der am 07.09.2026 gemessen wurde: der
+ * Editor waehlte „Berggipfel", angelegt wurde ein Gebirge, und die Anzeige behauptete das Gegenteil.
  *
  * @param ?array $einstellungen Rumpf aus dem Kasten (`size`/`priority`/`min_zoom`/`max_zoom`/
  *     `show_name`/`is_nodix`), oder null.

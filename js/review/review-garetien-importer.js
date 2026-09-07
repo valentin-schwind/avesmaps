@@ -645,10 +645,29 @@
 	 * (ein deaktivierter Knopf bekommt in Chrome keine Zeigerereignisse). Dieselbe Tafel speist die
 	 * Meldung des stillen Ausgangs; „nur ein Knopf, der einen Grund nennt, meldet ihn auch" ist
 	 * derselbe Riegel wie bei garetienStillerAusgangText.
-	 * ⚠️ Die drei Knoepfe, die immer koennen, solange etwas gewaehlt ist, brauchen keinen: ihre
-	 * Sperre heisst „nichts gewaehlt", und dann gibt es die Leiste gar nicht.
+	 *
+	 * 🔴 JEDER KNOPF DIESER LEISTE MIT EINEM ZAEHLER STEHT HIER (Sammelfixrunde 07.09.2026,
+	 * Befund B). Bis dahin fehlten `auswahl_stage` und `auswahl_entstagen`: sie grauten bei 0 aus,
+	 * OHNE einen Grund zu nennen, und ihr Klickweg meldete nichts -- waehrend die vier Nachbarn
+	 * beides taten. „Eine Regel, die vier von sechs Erzeugern bindet, ist keine Regel."
+	 * 🪤 HIER STAND, DAS KOENNE NICHT SEIN: „ihre Sperre heisst ‚nichts gewaehlt', und dann gibt es
+	 * die Leiste gar nicht." Das ist MESSBAR FALSCH und widerspricht der Erklaerung an
+	 * garetienAuswahlleisteZustand zwei Funktionen weiter, die die zwei Zahlen ausdruecklich
+	 * auseinanderlaufen laesst. Der Weg dorthin fuehrt ueber die Oberflaeche: die Auswahl
+	 * ueberlebt einen FILTERwechsel (nur der Reiterwechsel leert sie, garetienReiterSetzen). Ist
+	 * danach kein gewaehltes Objekt sichtbar, steht die Leiste weiter da -- sie haengt an der
+	 * GLOBALEN Auswahl --, waehrend diese beiden Knoepfe ueber die SICHTBAREN zaehlen.
+	 * ⚠️ „Auswahl aufheben" ist der einzige ohne Eintrag, und das bleibt so: es hat gar keinen
+	 * Zaehler (es raeumt die ganze Auswahl ab, auch die ausgeblendeten Zeilen) und kann deshalb nie
+	 * gesperrt sein, solange die Leiste ueberhaupt sichtbar ist.
 	 */
 	const AVESMAPS_GARETIEN_AUSWAHL_GRUND = {
+		// ⚠️ Der Satz nennt die LAGE, nicht die Auswahl: gewaehlt ist etwas (sonst gaebe es die
+		// Leiste nicht), es steht nur nicht in dieser Ansicht.
+		auswahl_stage: "keines der gewählten Objekte steht in dieser Ansicht — ein Filter blendet "
+			+ "sie gerade aus",
+		auswahl_entstagen: "keines der gewählten Objekte steht in dieser Ansicht — ein Filter "
+			+ "blendet sie gerade aus",
 		auswahl_ablehnen: "keines der gewählten Objekte trägt einen Vorschlag",
 		auswahl_wieder: "keines der gewählten Objekte trägt einen Vorschlag",
 		auswahl_ruecknahme: "keines der gewählten Objekte lässt sich zurücknehmen — sie haben ein "
@@ -1457,9 +1476,14 @@
 	 * 3 global gewaehlt, 0 davon sichtbar -- die Leiste stand da, ihr Knopf war bedienbar, und der
 	 * Klick blieb wortlos.
 	 *
-	 * 💣 EIN TRICHTER, DREI ERZEUGER. Den Reiter wechseln der Reiterklick, „Auswahl auf die Stage"
-	 * und „Imports in der Nähe anzeigen" -- eine Regel, die einen von dreien bindet, ist keine
-	 * Regel. Deshalb setzt NIEMAND mehr `zustand.stand` von Hand.
+	 * 💣 EIN TRICHTER, UND HIER STEHT KEINE ZAHL. Den Reiter wechseln der Reiterklick und „Auswahl
+	 * auf die Stage" -- eine Regel, die einen von ihnen bindet, ist keine Regel. Deshalb setzt
+	 * NIEMAND mehr `zustand.stand` von Hand.
+	 * 🪤 Hier stand „DREI ERZEUGER", und der dritte war „Imports in der Nähe anzeigen" -- den gibt
+	 * es seit Aufgabe 13 (07.09.2026) nicht mehr: der Knopf waehlt nur noch und wechselt den Reiter
+	 * gar nicht. Eine Zahl liest sich wie eine vollstaendige Liste, und niemand zaehlt nach
+	 * (AGENTS.md, dieselbe Falle wie bei der Verkehrsmittel-Sperre und den Rauschfiltern des
+	 * Konfliktzentrums). Wer einen Erzeuger ergaenzt, ergaenzt ihn in DIESER Aufzaehlung.
 	 * ⚠️ Ein Wechsel auf den Reiter, auf dem man schon steht, ist keiner: dann bleibt die Auswahl.
 	 * Der Rueckgabewert sagt, ob wirklich gewechselt wurde.
 	 */
@@ -4596,13 +4620,74 @@
 	// Fund, sondern die vom Typenfilter GEWÄHLTE Teilmenge (`garetienNaeheMenge`) -- die Zahl im
 	// Knopf folgt der Wahl, nicht der Gesamtzahl (Brief: „Imports in der Nähe wählen (2)", nicht
 	// „(24)").
-	function garetienNaeheKnopfZustand(gefunden) {
+	/*
+	 * REIN: die Trefferliste am GERADE offenen Reiter teilen (Sammelfixrunde 07.09.2026, Befund C).
+	 *
+	 * 💣 ZWEI REGELN, JEDE FUER SICH RICHTIG, IHRE KOMBINATION EINE SACKGASSE. Seit dem 07.09.2026
+	 * leert `garetienReiterSetzen` die Auswahl beim Reiterwechsel (sie gehoert zur Ansicht), und
+	 * der Naehe-Knopf sucht ueber den GANZEN Lauf, ohne Filter auf den Bearbeitungsstand. Er waehlte
+	 * damit auch Treffer an, die auf einem ANDEREN Reiter liegen: bleibt der Editor stehen, zaehlt
+	 * die Leiste den fremden Treffer nicht mit und er ist nicht adressierbar; wechselt er hinueber,
+	 * um ihn zu sehen, LOESCHT der Wechsel die ganze Auswahl -- auch die Treffer, die vorher
+	 * bedienbar waren. Vor Aufgabe 13 konnte das nicht passieren, weil der Klick sofort stagte und
+	 * den Reiter selbst mitnahm.
+	 *
+	 * 🔴 GEFUNDEN WERDEN SIE WEITERHIN ALLE -- dass in der Naehe etwas schon Uebernommenes liegt,
+	 * ist eine nuetzliche Auskunft. Nur GEWAEHLT wird es nicht, und die Zahl im Knopf wie die Zahlen
+	 * des Typenfilters folgen derselben Grenze (sonst verspraeche der Filter mehr, als der Klick tut).
+	 *
+	 * 🔴 DER REITER „Anzeigen" IST DIE CLIENT-MENGE und hat keinen `stand` -- er wird an der STAGE
+	 * gemessen, nicht an einem Serverwert (RULING R5: `stand: "stage"` liefert
+	 * `avesmapsGaretienListeObjektStand` nie).
+	 * ⚠️ Ein leerer/unbekannter Reiter laesst NICHTS durch -- die zurueckhaltende Richtung: lieber
+	 * ein Knopf, der nichts waehlt, als eine Auswahl, die niemand bedienen kann.
+	 *
+	 * @param aufDerStage Praedikat `(key) => bool` -- hereingereicht statt hier gelesen, damit die
+	 *                    Regel ohne Modulzustand pruefbar bleibt.
+	 */
+	function garetienNaeheReiterTeilung(gefunden, reiter, aufDerStage) {
+		const liste = Array.isArray(gefunden) ? gefunden : [];
+		const r = String(reiter || "");
+		const istAufDerStage = typeof aufDerStage === "function"
+			? aufDerStage
+			: function () { return false; };
+		const hier = [];
+		const fremd = [];
+		liste.forEach(function (o) {
+			const passt = r === "stage"
+				? istAufDerStage(String((o && o.key) || ""))
+				: (r !== "" && String((o && o.stand) || "") === r);
+			(passt ? hier : fremd).push(o);
+		});
+		return { hier: hier, fremd: fremd };
+	}
+
+	// REIN: der Satz fuer die Treffer, die dieser Klick NICHT waehlen kann -- EIN Bauer fuer den
+	// Hinweis unter dem Knopf UND die Meldung nach dem Klick. Zwei Fassungen desselben Satzes
+	// liefen beim ersten Formulierungswunsch auseinander (dieselbe Bauform wie
+	// garetienStageVerschwundenSatz).
+	function garetienNaeheFremdSatz(anzahl) {
+		const n = Number(anzahl) || 0;
+		return n === 1
+			? "1 Treffer liegt auf einem anderen Reiter."
+			: n + " Treffer liegen auf anderen Reitern.";
+	}
+
+	// REIN: Beschriftung + Sperre + Hinweis. `gefunden` ist die vom Typenfilter GEWAEHLTE Teilmenge
+	// DIESES Reiters, `fremdAnzahl` die Zahl der Treffer auf anderen Reitern (Befund C).
+	// ⚠️ „Kein weiteres Import-Objekt im Umkreis gefunden." gilt nur, wenn wirklich NICHTS da ist --
+	// mit Treffern auf anderen Reitern waere der Satz eine Falschaussage.
+	function garetienNaeheKnopfZustand(gefunden, fremdAnzahl) {
 		const anzahl = Array.isArray(gefunden) ? gefunden.length : 0;
+		const fremd = Number(fremdAnzahl) || 0;
+		const teile = [];
+		if (anzahl === 0 && fremd === 0) { teile.push("Kein weiteres Import-Objekt im Umkreis gefunden."); }
+		if (fremd > 0) { teile.push(garetienNaeheFremdSatz(fremd)); }
 		return {
 			anzahl: anzahl,
 			beschriftung: "Imports in der Nähe wählen (" + anzahl + ")",
 			gesperrt: anzahl === 0,
-			hinweis: anzahl === 0 ? "Kein weiteres Import-Objekt im Umkreis gefunden." : "",
+			hinweis: teile.join(" "),
 		};
 	}
 
@@ -4687,57 +4772,91 @@
 	// feste Zeichenkette hier (die Vorgabe hängt vom eigenen Typ des jeweils offenen Objekts ab).
 	let _garetienNaeheWahl = null;
 
+	/*
+	 * DER EINE LESER DES NAEHE-KASTENS -- Gruppen, Wahl, gewählte Menge und die Zahl der Treffer
+	 * auf anderen Reitern, für GENAU dieses Objekt.
+	 *
+	 * 🔴 EINE RECHNUNG FÜR MARKUP UND KLICK (Sammelfixrunde 07.09.2026, Befund C). Vorher stand sie
+	 * zweimal da -- in `garetienNaeheMarkup` und `garetienNaeheAktuelleMenge` --, und die
+	 * Reitergrenze wäre die dritte Regel gewesen, die man an zwei Stellen hätte nachziehen müssen.
+	 * Eine Regel, die einen von zwei Erzeugern bindet, ist keine Regel.
+	 *
+	 * ⚠️ `geladen === null` heißt „wird noch gesucht", `[]` heißt „gesucht, nichts gefunden" -- die
+	 * zwei zusammenzuwerfen ließe den Platzhalter für immer stehen.
+	 * ⚠️ Der Reiter kommt mit demselben Rückfall herein wie in `avesmapsGaretienListeHolen`
+	 * (`zustand.stand || "offen"`): beim Laden des Moduls ist er `null`, und ohne den Rückfall
+	 * fiele jeder Treffer in die Fremd-Menge.
+	 */
+	function garetienNaeheStandZu(objekt) {
+		const leer = { geladen: null, gruppen: [], wahl: "", menge: [], waehlbar: 0, fremd: 0 };
+		if (!objekt) { return leer; }
+		const schluessel = String(objekt.key || "");
+		const geladen = schluessel === _garetienNaeheLetzterKey ? _garetienNaeheGefunden : null;
+		if (geladen === null) { return leer; }
+		const teilung = garetienNaeheReiterTeilung(
+			geladen, zustand.stand || "offen", avesmapsGaretienStageHat
+		);
+		const eigenerTyp = String(objekt.typ || "");
+		const gruppen = garetienNaeheGruppen(teilung.hier, eigenerTyp);
+		const wahl = garetienNaeheWahlAktuell(gruppen);
+		return {
+			geladen: geladen,
+			gruppen: gruppen,
+			wahl: wahl,
+			menge: garetienNaeheMenge(teilung.hier, eigenerTyp, wahl),
+			waehlbar: teilung.hier.length,
+			fremd: teilung.fremd.length,
+		};
+	}
+
 	// REIN: das Markup, aus dem schon geladenen (oder noch fehlenden) Stand für GENAU dieses Objekt.
 	// 🔴 Erscheint nur, wo es überhaupt einen Mittelpunkt gibt -- dieselbe Bedingung wie beim Knopf
 	// „✦ Zentrieren" darüber: ohne eigene Geometrie kein Umkreis, kein Knopf, der nichts täte.
 	function garetienNaeheMarkup(objekt) {
 		if (!objekt || !Array.isArray(objekt.geometrie) || objekt.geometrie.length === 0) { return ""; }
-		const schluessel = String(objekt.key || "");
-		const geladen = schluessel === _garetienNaeheLetzterKey ? _garetienNaeheGefunden : null;
-		if (geladen === null) {
+		const stand = garetienNaeheStandZu(objekt);
+		if (stand.geladen === null) {
 			return '<div class="gi-naehe"><button class="btn" type="button" id="garetien-naehe-btn" '
 				+ "data-naehe disabled>Wird ermittelt …</button></div>";
 		}
-		if (geladen.length === 0) {
-			const stand = garetienNaeheKnopfZustand(geladen);
+		const knopf = garetienNaeheKnopfZustand(stand.menge, stand.fremd);
+		const hinweisMarkup = knopf.hinweis === "" ? ""
+			: '<span class="gi-foot__hint">' + avesmapsGaretienEscape(knopf.hinweis) + "</span>";
+		// 🔴 KEIN TYPENFILTER, WO ES NICHTS ZU FILTERN GIBT -- weder ohne Fund noch, wenn ALLE
+		// Treffer auf anderen Reitern liegen (Befund C). Ein Dropdown über eine leere Menge böte
+		// lauter „(0)"-Zeilen an.
+		if (stand.waehlbar === 0) {
 			return '<div class="gi-naehe"><button class="btn" type="button" id="garetien-naehe-btn" '
-				+ "data-naehe disabled>" + avesmapsGaretienEscape(stand.beschriftung) + "</button>"
-				+ '<span class="gi-foot__hint">' + avesmapsGaretienEscape(stand.hinweis) + "</span></div>";
+				+ "data-naehe disabled>" + avesmapsGaretienEscape(knopf.beschriftung) + "</button>"
+				+ hinweisMarkup + "</div>";
 		}
 		// Aufgabe 13: der Typenfilter -- die Gruppen kommen aus der geladenen Trefferliste UND dem
 		// eigenen Typ des geöffneten Objekts, die Wahl fällt ohne eigenes Zutun auf die erste
 		// Gruppe (den eigenen Typ, wenn es ihn gibt).
-		const eigenerTyp = String(objekt.typ || "");
-		const gruppen = garetienNaeheGruppen(geladen, eigenerTyp);
-		const wahl = garetienNaeheWahlAktuell(gruppen);
-		const menge = garetienNaeheMenge(geladen, eigenerTyp, wahl);
-		const stand = garetienNaeheKnopfZustand(menge);
-		const auswahlMarkup = gruppen.map(function (g) {
+		const auswahlMarkup = stand.gruppen.map(function (g) {
 			return '<option value="' + avesmapsGaretienEscape(g.key) + '"'
-				+ (g.key === wahl ? " selected" : "") + ">" + avesmapsGaretienEscape(g.label) + "</option>";
+				+ (g.key === stand.wahl ? " selected" : "") + ">"
+				+ avesmapsGaretienEscape(g.label) + "</option>";
 		}).join("");
 		return '<div class="gi-naehe">'
 			+ '<select class="gi-naehe__typ" id="garetien-naehe-typ" data-naehe-typ>' + auswahlMarkup
 			+ "</select>"
 			+ '<button class="btn" type="button" id="garetien-naehe-btn" data-naehe'
-			+ (stand.gesperrt ? " disabled" : "") + ">" + avesmapsGaretienEscape(stand.beschriftung)
-			+ "</button></div>";
+			+ (knopf.gesperrt ? " disabled" : "") + ">" + avesmapsGaretienEscape(knopf.beschriftung)
+			+ "</button>" + hinweisMarkup + "</div>";
 	}
 
-	// REIN: die Menge, die der Knopf JETZT auswählen würde -- dieselbe Rechnung wie im Markup
-	// (`garetienNaeheMarkup`), damit Anzeige und Klick nie auseinanderlaufen (eine Regel, die nur
-	// einen von zwei Erzeugern bindet, ist keine Regel). Ohne geladenen Treffer (Platzhalter oder
-	// „kein Fund") liefert sie eine leere Liste.
+	// REIN: die Menge, die der Knopf JETZT auswählen würde -- DIESELBE Rechnung wie im Markup, weil
+	// beide durch `garetienNaeheStandZu` gehen. Ohne geladenen Treffer (Platzhalter oder „kein
+	// Fund") liefert sie eine leere Liste.
 	function garetienNaeheAktuelleMenge(objekt) {
-		if (!objekt) { return []; }
-		const schluessel = String(objekt.key || "");
-		const geladen = schluessel === _garetienNaeheLetzterKey ? _garetienNaeheGefunden : null;
-		const liste = Array.isArray(geladen) ? geladen : [];
-		if (liste.length === 0) { return []; }
-		const eigenerTyp = String(objekt.typ || "");
-		const gruppen = garetienNaeheGruppen(liste, eigenerTyp);
-		const wahl = garetienNaeheWahlAktuell(gruppen);
-		return garetienNaeheMenge(liste, eigenerTyp, wahl);
+		return garetienNaeheStandZu(objekt).menge;
+	}
+
+	// REIN: wie viele Treffer der Klick NICHT wählen kann, weil sie auf einem anderen Reiter liegen
+	// -- für die Meldung nach dem Klick, aus demselben Leser wie die Menge selbst.
+	function garetienNaeheFremdAnzahl(objekt) {
+		return garetienNaeheStandZu(objekt).fremd;
 	}
 
 	// Fragt bei Bedarf den Umkreis für das GERADE GEÖFFNETE Objekt ab -- über denselben Sender wie
@@ -6283,6 +6402,14 @@
 			return { handlung: name, anzahl: avesmapsGaretienAuswahlAufheben() };
 		}
 		if (name === "auswahl_stage") {
+			// 💣 SAMMELFIXRUNDE 07.09.2026 (Befund B): DERSELBE STILLE AUSGANG WIE BEI DEN VIER
+			// NACHBARN. Bis dahin lief dieser Zweig auch mit leerer `gewaehlte`-Liste durch und gab
+			// `{handlung, anzahl: 0}` zurueck -- ein Klick, der nichts tut und nichts sagt.
+			// Erreichbar ueber die Oberflaeche: die Auswahl ueberlebt einen Filterwechsel, die
+			// Leiste haengt an der GLOBALEN Auswahl, dieser Knopf zaehlt ueber die SICHTBAREN.
+			// 🔴 Gezaehlt wird mit der TAFEL, nicht mit `gewaehlte.length` -- eine zweite Fassung
+			// derselben Frage liefe beim ersten Zaehlerwechsel gegen die Anzeige.
+			if (AVESMAPS_GARETIEN_AUSWAHL_ZAEHLER.auswahl_stage(gewaehlte) === 0) { return still(); }
 			// 🔴 FIXRUNDE 1 (B3): ein Objekt, dessen einziges Item das Zusatz-Item ist, kommt nur
 			// nach einer Rueckfrage auf die Stage -- dieselbe Regel wie beim Einzelknopf
 			// (garetienStageKlick), hier EINMAL fuer die ganze Menge gestellt.
@@ -6309,6 +6436,8 @@
 			};
 		}
 		if (name === "auswahl_entstagen") {
+			// 💣 Befund B, zweite Haelfte -- dieselbe Begruendung wie beim Knopf darueber.
+			if (AVESMAPS_GARETIEN_AUSWAHL_ZAEHLER.auswahl_entstagen(gewaehlte) === 0) { return still(); }
 			return {
 				handlung: name,
 				anzahl: avesmapsGaretienStageEntfernen(gewaehlte.map(function (o) { return o.key; })),
@@ -7290,6 +7419,83 @@
 		return (ids || []).filter(function (id) { return fehlerIds.indexOf(id) === -1; });
 	}
 
+	/*
+	 * REIN: die Handeingaben der Stage, JE ITEM -- `{ "<item_id>": <rumpf> }` fuer den
+	 * `apply`-Rumpf (`einstellungen_je_item`, serverseitig
+	 * avesmapsGaretienEinstellungenJeItemAusRumpf / avesmapsGaretienUebernehmen).
+	 *
+	 * 🔴 DAS IST DER FEHLENDE ABSENDER (Sammelfixrunde 07.09.2026, Befund A). Die Serverseite
+	 * liegt seit dem 06.09.2026 fertig da und hatte keinen Aufrufer: der Stage-Import schickte
+	 * WEDER `einstellungen` NOCH `einstellungen_je_item`, also fiel jedes Item auf die Vorgabe
+	 * seiner Art zurueck. Gemessen: der Editor waehlte im Kasten „Wird eingefügt" „Berggipfel",
+	 * der Knopf sagte „als berggipfel" -- und angelegt wurde eine Flaeche. Damit war Punkt 6 der
+	 * Owner-Liste („dass ein fluss ein bach werden kann") wirkungslos, waehrend die Anzeige das
+	 * Gegenteil behauptete. Bis „Neu einfügen" fiel, trug jener Einzelknopf die Wahl mit; der
+	 * Stage-Import tat es nie.
+	 *
+	 * 🔴 EIN RUMPF JE OBJEKT, AN JEDES SEINER ITEMS GEHEFTET. Die Wahl steht am OBJEKT
+	 * (`garetienZielWahlZu`), geschrieben wird je ITEM -- ein gemeinsamer `einstellungen`-Rumpf
+	 * legte die Wahl des zuletzt geoeffneten Objekts auf alle uebrigen (genau die Begruendung, mit
+	 * der `einstellungen_je_item` gebaut wurde).
+	 *
+	 * 💣 NUR 'new'-ITEMS BEKOMMEN EINEN EINTRAG -- eine GEMESSENE Verengung, kein Versehen.
+	 * `avesmapsGaretienZielUebersteuern` (garetien-plan.php) laeuft serverseitig ueber JEDES Item,
+	 * auch ueber ein `changed` (eine Namens-/Quellen-Ergaenzung an einem BESTEHENDEN Objekt), und
+	 * formt bei abweichendem `ziel` die Geometrie um. Und abweichen KANN sie: `garetienZielVorbelegung`
+	 * traegt die Bergfamilien-Regel („kleine Gebirgs-/Huegelflaeche wird ein Gipfel"), der
+	 * Planeintrag nicht -- ein `ergaenzung`-Item an so einem Objekt bekaeme sonst ein Polygon zum
+	 * Punkt umgeformt, obwohl niemand ein neues Kartenobjekt anlegt. Der Kasten heisst „Wird
+	 * eingefügt" und beschreibt genau das: was NEU entsteht.
+	 * ⚠️ „Nicht genannt" ist deshalb etwas anderes als „ausdruecklich leer": ein Objekt ohne
+	 * 'new'-Item (eine reine Ergaenzung, oder gar kein Vorschlag) traegt KEINEN Eintrag, und der
+	 * Server behandelt es wie bisher -- ohne Handeingabe, mit der Vorgabe seiner Art.
+	 *
+	 * ⚠️ Gelesen wird `garetienStageItems` -- dieselbe Weiche, aus der auch der SCHREIBUMFANG des
+	 * Imports entsteht (garetienStageUebernahmeIds). Eine eigene Item-Auswahl hier liefe beim
+	 * ersten Sonderfall (Zusatz-Item) gegen den Umfang, den `apply` wirklich bekommt.
+	 */
+	function garetienStageEinstellungenJeItem(objekte) {
+		const raus = {};
+		(objekte || []).forEach(function (objekt) {
+			if (!objekt) { return; }
+			const rumpf = garetienEingabenFuerServer(objekt);
+			if (!rumpf) { return; }
+			garetienStageItems(objekt).forEach(function (item) {
+				// 🔴 DAS HAUS-PRAEDIKAT, keine vierte Abschrift von `change_type === 'new'`.
+				if (!AVESMAPS_GARETIEN_ITEMS_JE_HANDLUNG.neu(item)) { return; }
+				const id = Number(item && item.id);
+				if (id > 0) { raus[String(id)] = rumpf; }
+			});
+		});
+		return raus;
+	}
+
+	/*
+	 * REIN: aus dem Woerterbuch je Item NUR die Eintraege DIESES Haeppchens -- oder `null`, wenn
+	 * keiner dabei ist.
+	 *
+	 * 💣 DER DECKEL IST DERSELBE WIE BEIM ANHAKEN. Der Import laeuft in Haeppchen zu
+	 * GARETIEN_ANHAKEN_HAEPPCHEN ids, und jedes Haeppchen braucht die Einstellungen SEINER Items --
+	 * das ganze Woerterbuch an jeden Ruf gehaengt liesse den Rumpf mit der Stage wachsen, waehrend
+	 * die id-Liste daneben ausdruecklich gedeckelt ist.
+	 * 🔴 `null` STATT EINES LEEREN OBJEKTS: der Server liest `einstellungen_je_item: {}` als
+	 * „kein Aufrufer dieser Aufgabe" und faellt damit auf den gemeinsamen `einstellungen`-Rumpf
+	 * zurueck -- „nicht genannt" und „ausdruecklich leer" duerfen hier nicht dasselbe werden.
+	 */
+	function garetienEinstellungenJeItemFuerHaeppchen(jeItem, ids) {
+		if (!jeItem) { return null; }
+		const raus = {};
+		let anzahl = 0;
+		(ids || []).forEach(function (id) {
+			const schluessel = String(id);
+			if (Object.prototype.hasOwnProperty.call(jeItem, schluessel)) {
+				raus[schluessel] = jeItem[schluessel];
+				anzahl++;
+			}
+		});
+		return anzahl === 0 ? null : raus;
+	}
+
 	// REIN: eine id-Liste in Haeppchen zu hoechstens GARETIEN_ANHAKEN_HAEPPCHEN.
 	// 🪤 Gezaehlt werden hier die IDS, nicht die Objekte -- ein Objekt kann zwei Items tragen (eine
 	// „Ergaenzung" mit Namens- UND Quellen-Item), und die Grenze von 200 gilt dem Endpunkt-Rumpf.
@@ -7348,11 +7554,22 @@
 	// einfügen" sind beide Listen IDENTISCH (garetienHandlungsRumpf liefert schon den vollen
 	// Umfang, ohne Toggle-Filterung).
 	//
-	// 🔴 `einstellungen` (Owner 30.08.2026, Kasten „Eingefügt wird"): NUR garetienNeuKlick reicht
-	// hier je etwas herein -- der Fußknopf (garetienFussknopfKlick, „Alle angezeigten einfügen")
-	// ruft diese Funktion ohne den sechsten Parameter, `undefined` bleibt also `undefined` und wird
-	// unten NIE in den `apply`-Rumpf gehängt. Genau DAS ist die Umsetzung der Regel „die
-	// Massenübernahme nimmt die Vorgaben, nie die Handeingaben" -- strukturell, nicht per Vereinbarung.
+	// 🔴 ZWEI HANDEINGABE-PARAMETER, UND SIE MEINEN VERSCHIEDENES.
+	//
+	// `einstellungen` (Owner 30.08.2026, Kasten „Wird eingefügt") gilt ALLEN Items eines Aufrufs und
+	// ist deshalb nur dort erlaubt, wo der Aufruf auf GENAU EIN Objekt skopiert ist: heute
+	// ausschließlich `garetienNeuKlick` („Innerorts einfügen", das damit `{innerorts: true}`
+	// schickt -- `avesmapsGaretienInnerortsGewuenscht` entscheidet ausschließlich daraus).
+	//
+	// `einstellungenJeItem` (Sammelfixrunde 07.09.2026, Befund A) ist der Weg für eine MENGE: ein
+	// eigener Rumpf je Item, gebaut von `garetienStageEinstellungenJeItem`. Ihn schickt der Fußknopf
+	// („Stage importieren"). 🔴 Hier stand bis zum 07.09.2026, die Massenübernahme reiche
+	// GRUNDSÄTZLICH nichts herein -- „die Massenübernahme nimmt die Vorgaben, nie die Handeingaben",
+	// strukturell abgesichert. Das war die Regel von vor der Import-Stage und ist mit ihr gefallen:
+	// seit die Stage der einzige Schreibweg ist, wäre sie nicht mehr Sicherheit, sondern der
+	// stillschweigende Verlust jeder Wahl (gemessen: „Berggipfel" gewählt, Gebirge angelegt).
+	// ⚠️ Was BLEIBT, ist die Regel darunter: ein gemeinsamer Rumpf für viele Objekte ist verboten.
+	// Deshalb sind es zwei Parameter und nicht einer.
 	// Die Quellen der eben angelegten Objekte in den Kartenspeicher der GELADENEN Seite nachtragen.
 	//
 	// Owner-Meldung 31.08.2026, woertlich: „ich hab ein moor importiert, aber es fehlt die 'quelle,
@@ -7473,7 +7690,7 @@
 		return { text: teile.join(" · "), ton: fehler.length > 0 ? "bad" : (angelegt + quellen > 0 ? "ok" : "") };
 	}
 
-	function garetienEinfuegenAusfuehren(idsZumAnhaken, idsZumUebernehmen, runId, rufe, fortschritt, einstellungen) {
+	function garetienEinfuegenAusfuehren(idsZumAnhaken, idsZumUebernehmen, runId, rufe, fortschritt, einstellungen, einstellungenJeItem) {
 		const sauber = (idsZumAnhaken || []).map(Number).filter(function (id) { return id > 0; });
 		const uebernahmeIds = (idsZumUebernehmen || []).map(Number).filter(function (id) { return id > 0; });
 		const gesamt = uebernahmeIds.length;
@@ -7524,6 +7741,12 @@
 					// bliebe der Schlüssel `undefined` im JSON-Rumpf ohnehin weg, aber explizit ist
 					// hier klarer als implizit.
 					if (einstellungen) { rumpfApply.einstellungen = einstellungen; }
+					// 🔴 Sammelfixrunde 07.09.2026 (Befund A): die Handeingaben JE ITEM -- und zwar
+					// NUR die Items DIESES Häppchens (`teil`), nie das ganze Wörterbuch. Ohne den
+					// Schnitt wüchse der Rumpf mit der Stage, während die id-Liste daneben
+					// ausdrücklich gedeckelt ist.
+					const jeItemDesTeils = garetienEinstellungenJeItemFuerHaeppchen(einstellungenJeItem, teil);
+					if (jeItemDesTeils) { rumpfApply.einstellungen_je_item = jeItemDesTeils; }
 					return rufe(GARETIEN_PLAN_ENDPUNKT, rumpfApply).then(function (antwort) {
 						["applied", "deleted", "stale", "skipped", "declined"].forEach(function (feld) {
 							summe[feld] += Number((antwort && antwort[feld]) || 0);
@@ -7572,8 +7795,12 @@
 		// 🔴 SCHADENSFALL 30.08.2026: ZWEI verschiedene Mengen -- `garetienStageAnhakenIds` sagt,
 		// was NEU angehakt werden muss, `garetienStageUebernahmeIds` sagt, was `apply` schreiben
 		// darf (der volle Umfang der ANGEZEIGTEN Objekte, nie mehr).
+		// 🔴 UND SEIT DEM 07.09.2026 (Befund A) DIE HANDEINGABEN JE ITEM: der sechste Parameter
+		// bleibt `null` (ein gemeinsamer Rumpf für eine ganze Menge wäre die Wahl des zuletzt
+		// geöffneten Objekts auf allen übrigen), der siebte trägt je Item den Rumpf SEINES Objekts.
 		return garetienEinfuegenAusfuehren(
-			garetienStageAnhakenIds(liste), garetienStageUebernahmeIds(liste), runId, rufe, fortschritt
+			garetienStageAnhakenIds(liste), garetienStageUebernahmeIds(liste), runId, rufe, fortschritt,
+			null, garetienStageEinstellungenJeItem(liste)
 		);
 	}
 
@@ -7834,8 +8061,26 @@
 				const naeheOffen = (zustand.objekte || []).filter(function (o) {
 					return o && String(o.key) === String(zustand.detailKey);
 				})[0] || null;
-				if (garetienNaeheKlick(ereignis, garetienNaeheAktuelleMenge(naeheOffen))) {
-					garetienStageNeuZeichnen();
+				// 🔴 Sammelfixrunde 07.09.2026 (Befund C): die Zahl der Treffer auf ANDEREN Reitern
+				// wird VOR dem Klick gelesen -- er wählt, und die Auswahl kann den Stand danach
+				// verschieben.
+				const naeheFremd = garetienNaeheFremdAnzahl(naeheOffen);
+				const naeheGewaehlt = garetienNaeheKlick(ereignis, garetienNaeheAktuelleMenge(naeheOffen));
+				if (naeheGewaehlt) {
+					// 💣 DIE MELDUNG STEHT NACH DEM NEUZEICHNEN -- `avesmapsGaretienListeRendern`
+					// ruft `garetienStatusRuhe` und setzte sie sonst sofort auf die neutrale Bilanz
+					// zurück (dieselbe Reihenfolge wie bei „Auswahl auf die Stage" und beim
+					// Einfüge-Weg).
+					// 🔴 Gemeldet wird nur, wenn es wirklich etwas zu nennen gibt: der Rest, den
+					// dieser Klick NICHT wählen konnte. Ohne ihn bleibt die Bilanz stehen.
+					Promise.resolve(garetienStageNeuZeichnen()).then(function () {
+						if (naeheFremd > 0) {
+							garetienStatusSetzen(
+								naeheGewaehlt + " gewählt · " + garetienNaeheFremdSatz(naeheFremd),
+								"ok", null
+							);
+						}
+					});
 					return;
 				}
 				garetienHandlungKlick(ereignis, zustand.objekte, zustand.planRunId,
@@ -8153,6 +8398,12 @@
 			garetienNaeheWahlAktuell,
 			garetienNaeheWahlSetzen,
 			garetienNaeheAktuelleMenge,
+			// Sammelfixrunde 07.09.2026, Befund C: die Reitergrenze -- REIN, plus der EINE Leser
+			// und der Satz, den Hinweis und Meldung sich teilen.
+			garetienNaeheReiterTeilung,
+			garetienNaeheStandZu,
+			garetienNaeheFremdAnzahl,
+			garetienNaeheFremdSatz,
 			// KORREKTUR B (30.08.2026): die manuelle Wiki-Suche, wenn der automatische Treffer leer bleibt
 			garetienWikiSucheHostId,
 			garetienWikiSucheBeiBedarfZeigen,
@@ -8234,6 +8485,10 @@
 			// Schadensfall 30.08.2026: der volle Schreibumfang fuer `apply`, ANDERS als
 			// garetienStageAnhakenIds (siehe deren Kommentare)
 			garetienStageUebernahmeIds,
+			// Sammelfixrunde 07.09.2026, Befund A: die Handeingaben JE ITEM -- der Absender, der
+			// dem seit dem 06.09.2026 fertigen Serverteil gefehlt hat.
+			garetienStageEinstellungenJeItem,
+			garetienEinstellungenJeItemFuerHaeppchen,
 			garetienEinfuegenRueckfrageText,
 			// Meldung B (30.08.2026): „trotzdem neu anlegen“ trotz erkannter Kollision -- seit
 			// Fixrunde 1 zu Aufgabe 9+10 ueber die Stage (garetienStageVorhaben oben)

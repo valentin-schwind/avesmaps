@@ -441,8 +441,15 @@ async function pruefeAnschlussNeuKlick(api, dom) {
 		});
 		await api.garetienNeuKlick(ereignisInnerorts(OBJEKT_INNERORTS.key), [OBJEKT_INNERORTS], 7, null);
 		const text2 = dom.text("#garetien-status-text");
-		wahr(text2.indexOf("1 Objekt") !== -1 && text2.indexOf("bereits uebernommen oder abgelehnt") !== -1,
-			'ein FREMDES fertiges Objekt bleibt genannt -- gelesen: "' + text2 + '"');
+		// 🔴 SAMMELFIXRUNDE 07.09.2026 (Befund D2): DER VOLLSTAENDIGE SATZ, nicht zwei Teilstuecke.
+		// Mit `indexOf` gemessen ueberlebte die Mutation „Trennzeichen ` · ` an beiden Stellen
+		// vertauschen" -- beide Teilstuecke standen ja weiter da, nur in der falschen Reihenfolge.
+		// Genau diese Mutation nannte der eigene Auftrag als Beispiel, und genau sie lief durch.
+		gleich(text2,
+			"✓ 1 Objekt importiert · 1 Objekt auf der Stage ist bereits uebernommen oder abgelehnt "
+			+ "und hat die Stage verlassen.",
+			'ein FREMDES fertiges Objekt bleibt genannt, und der GANZE Satz stimmt -- gelesen: "'
+			+ text2 + '"');
 	} finally {
 		global.fetch = echtesFetch;
 	}
@@ -464,10 +471,31 @@ async function pruefeAnschlussFussknopf(api, dom) {
 		});
 		await api.garetienFussknopfEinfuegenKlick(7, function () { return true; });
 		const text1 = dom.text("#garetien-status-text");
-		wahr(text1.indexOf("importiert") !== -1, "die Erfolgsmeldung steht -- gelesen: " + text1);
-		gleich(text1.indexOf("bereits uebernommen oder abgelehnt"), -1,
-			'🔴 D2: „Stage importieren" meldet die soeben eingefuegten Objekte nicht ein zweites Mal '
-			+ 'als "fertig" -- gelesen: "' + text1 + '"');
+		// 🔴 Befund D2 (07.09.2026): DER VOLLSTAENDIGE SATZ. Mit `indexOf` gemessen blieb hier jede
+		// Reihenfolge und jedes Trennzeichen unbemerkt.
+		gleich(text1, "✓ 1 Objekt importiert",
+			'die Erfolgsmeldung steht -- und NUR sie: das soeben eingefuegte Objekt darf sich nicht '
+			+ 'selbst als "fertig" melden. Gelesen: "' + text1 + '"');
+
+		// ---- Und der Fall MIT Anhang: nur so ist das Trennzeichen ueberhaupt messbar. -------------
+		// 💣 Der Fussknopf verarbeitet per Definition die GANZE Stage, seine „fertig"-Meldung wird
+		//    also immer weggefiltert (D2). Ein VERSCHWUNDENES Objekt bleibt dagegen stehen
+		//    (`garetienStageNachschlagOhneEigene` filtert nur `fertig`) -- damit entsteht hier ein
+		//    zusammengesetzter Satz, und die Mutation „Trennzeichen ` · ` vertauschen" wird sichtbar.
+		//    Ohne diesen Fall war die Zusicherung am Fussknopf gegen sie blind.
+		const zweitesStageObjekt = { key: "ggp:Gewaesser:10", items: [{ id: 502, selected: 0 }] };
+		api.avesmapsGaretienStageLeeren();
+		api.avesmapsGaretienStageHinzufuegen([stageObjekt, zweitesStageObjekt]);
+		global.fetch = fetchFuerEinfuegen({
+			// Nur das erste kommt zurueck -- das zweite gibt es im Lauf nicht mehr.
+			objekte: [Object.assign({}, stageObjekt, { stand: "uebernommen" })],
+		});
+		await api.garetienFussknopfEinfuegenKlick(7, function () { return true; });
+		const text2 = dom.text("#garetien-status-text");
+		gleich(text2,
+			"✓ 1 Objekt importiert · 1 Objekt auf der Stage gibt es im neuen Lauf nicht mehr.",
+			'💣 der GANZE Satz, in dieser Reihenfolge und mit diesem Trennzeichen -- gelesen: "'
+			+ text2 + '"');
 	} finally {
 		global.fetch = echtesFetch;
 	}

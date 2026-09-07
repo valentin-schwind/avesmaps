@@ -66,8 +66,14 @@ wahr(typeof garetienNaeheMenge === "function", "garetienNaeheMenge fehlt im Expo
 // =================================================================================================
 // A. garetienNaeheGruppen / garetienNaeheMenge -- EXAKT der Brief (Zusicherungen 1-4)
 // =================================================================================================
+// ⚠️ `stand: "offen"` steht seit der Sammelfixrunde 07.09.2026 (Befund C) an JEDEM Treffer -- der
+// Naehe-Knopf waehlt nur, was auf dem AKTUELLEN Reiter liegt, und der Reiter ist hier „offen"
+// (`zustand.stand` ist beim Laden `null` und faellt wie in avesmapsGaretienListeHolen darauf
+// zurueck). Ein Treffer OHNE `stand` gehoerte zu keinem Reiter und waere nicht waehlbar -- so
+// kommt er aus `garetien-liste.php` auch nie.
 const gefunden = [
-	{ key: "a", typ: "Fluss" }, { key: "b", typ: "Fluss" }, { key: "c", typ: "Bach" }, { key: "d", typ: "See" },
+	{ key: "a", typ: "Fluss", stand: "offen" }, { key: "b", typ: "Fluss", stand: "offen" },
+	{ key: "c", typ: "Bach", stand: "offen" }, { key: "d", typ: "See", stand: "offen" },
 ];
 
 // 1. Vorgabe ist der EIGENE Typ, und er steht oben.
@@ -196,7 +202,87 @@ async function pruefeMarkupUndKlick() {
 	}
 }
 
-pruefeMarkupUndKlick().then(function () {
+// =================================================================================================
+// E. SAMMELFIXRUNDE 07.09.2026 / BEFUND C: DIE ZAHLEN DES TYPENFILTERS FOLGEN DERSELBEN GRENZE
+//    WIE DER KLICK -- sonst verspricht der Filter mehr, als der Knopf tut.
+// =================================================================================================
+async function pruefeReitergrenze() {
+	const echtesFetch = global.fetch;
+	try {
+		// Vier Fluesse, aber nur ZWEI auf dem Reiter „Offen" -- die anderen sind schon uebernommen
+		// bzw. abgelehnt. Gefunden werden sie alle (der Server sucht ueber den ganzen Lauf).
+		const gemischt = [
+			{ key: "f1", typ: "Fluss", stand: "offen" },
+			{ key: "f2", typ: "Fluss", stand: "offen" },
+			{ key: "f3", typ: "Fluss", stand: "uebernommen" },
+			{ key: "b1", typ: "Bach", stand: "abgelehnt" },
+		];
+		global.fetch = function () {
+			return Promise.resolve({
+				json: () => Promise.resolve({ ok: true, gefunden: gemischt, radius: 5 }),
+			});
+		};
+		const objekt = { key: "gi:reiter:1", typ: "Fluss", geometrie: [[3, 3]] };
+		garetienNaeheBeiBedarfLaden(objekt);
+		await new Promise((fertig) => setTimeout(fertig, 0));
+
+		const markup = garetienNaeheMarkup(objekt);
+		// 🔴 Der Knopf nennt ZWEI, nicht vier.
+		wahr(markup.includes("Imports in der Nähe wählen (2)"),
+			"💣 der Knopf zaehlt nur die Treffer DIESES Reiters: " + markup);
+		wahr(!markup.includes("wählen (4)"), "…und nicht den ganzen Fund");
+		// 🔴 Und der Typenfilter ebenso: „gleicher Typ · Fluss (2)", nicht (3); „alle Typen (2)",
+		// nicht (4); und „Bach" taucht gar nicht mehr auf, weil auf diesem Reiter keiner liegt.
+		wahr(markup.includes("gleicher Typ · Fluss (2)"),
+			"💣 die eigene Gruppe folgt derselben Grenze: " + markup);
+		wahr(markup.includes("alle Typen (2)"), "…und „alle Typen\" auch: " + markup);
+		wahr(!markup.includes("Bach ("),
+			"eine Art, von der auf diesem Reiter nichts liegt, steht gar nicht in der Liste");
+		// 🔴 GEFUNDEN werden sie trotzdem alle -- der Rest wird BENANNT, nicht verschwiegen.
+		wahr(markup.includes("2 Treffer liegen auf anderen Reitern."),
+			"💣 der Rest wird genannt: " + markup);
+
+		// Und der Klick waehlt wirklich nur die zwei.
+		modul.avesmapsGaretienAuswahlAufheben();
+		const menge = garetienNaeheAktuelleMenge(objekt);
+		tief(menge.map((o) => o.key), ["f1", "f2"], "die aktuelle Menge endet an der Reitergrenze");
+		gleich(modul.garetienNaeheFremdAnzahl(objekt), 2, "…und zwei bleiben ausserhalb");
+		garetienNaeheKlick({
+			target: { disabled: false, closest(sel) { return sel === "[data-naehe]" ? this : null; } },
+		}, menge);
+		gleich(modul.avesmapsGaretienAuswahlHat("f1"), true, "f1 ist gewaehlt");
+		gleich(modul.avesmapsGaretienAuswahlHat("f3"), false,
+			"🔴 f3 liegt auf „Uebernommen\" und wird NICHT gewaehlt -- sonst waere er nicht "
+			+ "adressierbar, und ein Reiterwechsel zu ihm loeschte die ganze Auswahl");
+		modul.avesmapsGaretienAuswahlAufheben();
+
+		// ---- Alles auf FREMDEN Reitern: kein Typenfilter, gesperrter Knopf, ehrlicher Hinweis ----
+		global.fetch = function () {
+			return Promise.resolve({
+				json: () => Promise.resolve({
+					ok: true, radius: 5,
+					gefunden: [{ key: "z1", typ: "Fluss", stand: "uebernommen" }],
+				}),
+			});
+		};
+		const nurFremd = { key: "gi:reiter:2", typ: "Fluss", geometrie: [[4, 4]] };
+		garetienNaeheBeiBedarfLaden(nurFremd);
+		await new Promise((fertig) => setTimeout(fertig, 0));
+		const markupFremd = garetienNaeheMarkup(nurFremd);
+		wahr(markupFremd.includes("wählen (0)") && markupFremd.includes("disabled"),
+			"ohne waehlbaren Treffer ist der Knopf gesperrt: " + markupFremd);
+		wahr(!markupFremd.includes("<select"),
+			"🔴 und es gibt keinen Typenfilter ueber eine leere Menge: " + markupFremd);
+		wahr(markupFremd.includes("1 Treffer liegt auf einem anderen Reiter."),
+			"💣 der Hinweis nennt den Grund: " + markupFremd);
+		wahr(!markupFremd.includes("Kein weiteres Import-Objekt im Umkreis gefunden"),
+			"⚠️ …und behauptet NICHT, es sei nichts gefunden worden -- das waere eine Falschaussage");
+	} finally {
+		if (echtesFetch) { global.fetch = echtesFetch; } else { delete global.fetch; }
+	}
+}
+
+pruefeMarkupUndKlick().then(pruefeReitergrenze).then(function () {
 	console.log(`garetien-naehe-typfilter: ${checks} Pruefungen bestanden.`);
 }).catch(function (fehler) {
 	console.error(fehler);
