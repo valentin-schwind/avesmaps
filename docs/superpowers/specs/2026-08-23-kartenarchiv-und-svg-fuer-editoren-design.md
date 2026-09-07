@@ -42,6 +42,9 @@ angemeldete Personen ausgegeben**. Konkret heißt das drei Zusagen:
 - 🔴 **Kein nackter Link.** Es gibt keine Adresse, die ohne Sitzung die Datei liefert — das
   war genau der Zustand, den A25 abgestellt hat („wer die Adresse kennt oder im Verlauf
   hat, lädt weiter"). Die verworfene Bauform dazu steht in §7.
+  🔴 **DIESE ZUSAGE GILT SEIT DEM 08.09.2026 NICHT MEHR UNVERÄNDERT** — siehe §9. Es gibt
+  jetzt eine Adresse, die ohne Sitzung liefert; sie **läuft ab**, und genau das war der
+  Unterschied zu der Bauform, die §7 verworfen hat.
 
 ---
 
@@ -219,3 +222,33 @@ geht.
 - 🔧 **Der echte Ablauf gegen die große Datei** ist nicht gemessen: 1,73 GB durch einen
   STRATO-Worker mit Fortsetzen hat hier niemand gefahren. Die Range-Rechnung ist geprüft,
   das Verhalten des Hosts unter Last nicht.
+
+---
+
+## 9 · Nachtrag 08.09.2026 — der ablaufende Link für Externe
+
+Owner am 08.09.2026: *„wir wollen auch externen leuten die karte schicken können, aber am
+besten über einen token download, wo der empfänger das ding runterladen kann und dann läuft
+der link ab."* Frist 7 Tage, **ein** Endpunkt.
+
+🔴 **Damit fällt Zusage 2 aus §1** („es entsteht KEINE Adresse, die ohne Sitzung liefert").
+Sie fiel damals mit der Begründung, ein solcher Link sei „ein nackter, teilbarer Link, der
+sich **nie wieder ändert**" — und der Ablauf ist genau dieser Unterschied. Was dafür stimmen
+muss, damit die Begründung trägt, steht im Kopf von
+[`api/_internal/map/kartenarchiv-link.php`](../../../api/_internal/map/kartenarchiv-link.php):
+die Frist, die Bindung an **eine** Datei, die Sichtbarkeit im Editor samt Rücknahme, und der
+Beleg. **Wer eines davon abschafft, schafft die Begründung ab.**
+
+**Zusage 1 und 3 sind unberührt.** Die `uploads/map/.htaccess` wird weiterhin nicht angefasst
+(auch der Token-Weg liest aus dem Dateisystem und leitet nirgends hin), und jeder Download
+hinterlässt weiter eine Zeile — auf dem Token-Weg unter dem **Erzeuger** des Links und dessen
+Zweck (`avesmapsKartenarchivLinkBeleg`), weil es dort keinen angemeldeten Namen gibt.
+
+**Was §7 weiterhin verwirft, ist unverändert richtig:** die Weiterleitung auf einen
+unratbaren Pfad. Der Token-Weg leitet *nicht* weiter — er streamt durch denselben PHP-Ausgang
+wie der Sitzungsweg, und deshalb kann er den Ablauf überhaupt prüfen.
+
+⚠️ **Der offene Punkt aus §8 wird dadurch grösser, nicht kleiner:** 1,73 GB durch einen
+STRATO-Worker ist weiterhin ungemessen, und Externe erhöhen die Zahl der möglichen
+gleichzeitigen Downloads. Deshalb der Deckel von 50 gleichzeitig gültigen Links — er begrenzt
+nicht die Last, aber er begrenzt, wie viele Leute gleichzeitig eingeladen sein können.

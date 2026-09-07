@@ -382,3 +382,90 @@
 	display: inline-block;
 	text-decoration: none;
 }
+
+/* --- Die ablaufenden Downloadlinks (Owner-Auftrag 08.09.2026) -----------------------
+   Ein Editor stellt je Archiv einen befristeten Link aus und schickt ihn nach draussen.
+   Die Formensprache ist die der Archivzeile darueber -- Trennlinien, weiche Knoepfe, kein
+   Rahmenkasten (design-language.md). Nichts hiervon ist eine Haupthandlung: die heisst
+   auf dieser Seite „SVG erzeugen" und ist der einzige gefuellte Knopf. */
+
+/* 🔴 KEINE zweite Ueberschriften-Rezeptur: die Liste traegt `.svgx-group__title` und hier
+   steht nur, was an ihr anders ist -- der Abstand nach oben, weil sie MITTEN im Abschnitt
+   sitzt und nicht an dessen Anfang. Eine vollstaendige Abschrift stand hier zuerst; es ist
+   dieselbe Falle, vor der der Kommentar bei `.svgx-heading` ganz oben warnt, und sie waere
+   beim naechsten Anfassen einer der beiden lautlos auseinandergelaufen. */
+.svgx-links__titel {
+	margin-top: 14px;
+}
+
+/* Die Falte um das Link-Formular. 💣 `flex: 0 0 100%` und nicht `1 1 100%`: die Zeile ist
+   eine flex-ZEILE, hier misst die Basis also die Breite -- richtig. Die wachsende Form ist
+   trotzdem verboten, weil dieselben drei Zahlen in einer flex-SPALTE die HOEHE meinen und den
+   Kasten auf ein Vielfaches aufblasen (AGENTS.md §12, der Routenplaner hat das einen Tag lang
+   live bezahlt). */
+.svgx-archive__fold {
+	flex: 0 0 100%;
+}
+
+/* Der Klapptext ist Text, kein Knopf: die Zeile hat mit „Herunterladen" schon ihre Handlung,
+   und ein zweiter Knopf daneben liesse beide gleich wichtig aussehen. */
+.svgx-archive__fold > summary {
+	cursor: pointer;
+	padding: 4px 0;
+	color: var(--color-link);
+	font-size: 13px;
+}
+
+.svgx-archive__share {
+	display: flex;
+	align-items: flex-end;
+	flex-wrap: wrap;
+	gap: 6px 10px;
+	margin-top: 6px;
+}
+
+.svgx-archive__field {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	font-size: 13px;
+	color: var(--color-text-muted);
+}
+
+/* Das Namensfeld darf wachsen, die Frist bleibt schmal -- „Kartograph Hesindian vom Forum"
+   ist der Normalfall, „7 Tage" nie laenger. */
+.svgx-archive__field:first-of-type {
+	flex: 1 1 12em;
+}
+
+.svgx-archive__field input,
+.svgx-archive__field select {
+	padding: 5px 8px;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-input-bg, var(--color-panel));
+	color: var(--color-text);
+	font: inherit;
+}
+
+/* Die ausgegebenen Links. Die Adresse steht in einem Feld zum Kopieren, nicht als Verweis:
+   ein Klick darauf laedt dem Editor versehentlich 1,73 GB herunter. */
+.svgx-links__adresse {
+	flex: 1 1 100%;
+	padding: 5px 8px;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-input-bg, var(--color-panel));
+	color: var(--color-text-muted);
+	font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+	font-size: 12px;
+}
+
+/* ⚠️ Gedaempft, nicht versteckt: der Editor soll SEHEN, dass sein Link abgelaufen ist.
+   „ist weg" und „hat nie existiert" duerfen nicht gleich aussehen -- das ist die erste
+   Frage nach einem misslungenen Versand. */
+.svgx-archive__row.is-abgelaufen .svgx-archive__name,
+.svgx-archive__row.is-abgelaufen .svgx-archive__meta {
+	color: var(--color-text-muted);
+	font-weight: 400;
+}

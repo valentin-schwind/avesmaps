@@ -46,10 +46,12 @@ declare(strict_types=1);
 
 require __DIR__ . '/../api/auth.php';
 require_once __DIR__ . '/../api/_internal/map/kartenarchiv.php';
+require_once __DIR__ . '/../api/_internal/map/kartenarchiv-link.php';
 
 $config = avesmapsLoadApiConfig(dirname(__DIR__) . '/api');
 $pdo = avesmapsCreatePdo($config['database'] ?? []);
 $loginError = '';
+$linkMeldung = '';
 
 $requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
 if ($requestMethod === 'POST') {
@@ -61,14 +63,71 @@ if ($requestMethod === 'POST') {
         exit;
     }
 
-    $user = avesmapsLogin($pdo, (string) ($_POST['username'] ?? ''), (string) ($_POST['password'] ?? ''));
-    if ($user !== null && avesmapsUserCan($user, 'edit')) {
-        header('Location: ./svg-export.php');
-        exit;
-    }
+    // Die ablaufenden Downloadlinks. Sie laufen ueber DIESE Seite und nicht ueber einen eigenen
+    // JSON-Endpunkt -- aus demselben Grund, aus dem es keine `action=list` gibt: die Liste
+    // rendert die Seite serverseitig aus derselben Bibliothek, und ein zweiter Weg zur selben
+    // Auskunft ist ein zweiter Weg, auf dem sie falsch sein kann.
+    // 💣 Das `else` unten ist tragend, kein Stil. Der Login-Zweig beantwortet jedes
+    // `$user === null` mit `avesmapsLogout()` -- fiele dieser Zweig dort hinein, waere ein
+    // Editor nach dem Anlegen eines Links abgemeldet, und es saehe wie ein abgelaufenes
+    // Sitzungscookie aus statt wie ein Programmierfehler.
+    if ($action === 'link_neu' || $action === 'link_weg') {
+        $handelnder = avesmapsCurrentUser();
+        if ($handelnder === null || !avesmapsUserCan($handelnder, 'edit')) {
+            avesmapsLogout();
+            header('Location: ./svg-export.php');
+            exit;
+        }
 
-    avesmapsLogout();
-    $loginError = 'Login fehlgeschlagen oder keine Editor-Berechtigung.';
+        try {
+            avesmapsKartenarchivLinkEnsureTable($pdo);
+
+            if ($action === 'link_neu') {
+                // ⚠️ Der Pfad-Riegel steht in der BIBLIOTHEK (avesmapsKartenarchivLinkAnlegen)
+                // und nicht hier: heute ist dies der einzige Erzeuger, morgen ist das kein
+                // Argument mehr. Er wirft eine RuntimeException, die der catch unten anzeigt.
+                avesmapsKartenarchivLinkAnlegen(
+                    $pdo,
+                    (string) ($_POST['datei'] ?? ''),
+                    avesmapsKartenarchivLinkFrist($_POST['tage'] ?? null),
+                    isset($handelnder['id']) ? (int) $handelnder['id'] : null,
+                    (string) ($handelnder['username'] ?? ''),
+                    (string) ($_POST['notiz'] ?? '')
+                );
+                $linkMeldung = 'Der Link ist angelegt und steht unten in der Liste.';
+            } else {
+                $weg = avesmapsKartenarchivLinkZurueckziehen($pdo, (int) ($_POST['id'] ?? 0));
+                $linkMeldung = $weg
+                    ? 'Der Link gilt ab sofort nicht mehr.'
+                    : 'Dieser Link war bereits zurueckgezogen.';
+            }
+        } catch (Throwable $exception) {
+            // ⚠️ Der Deckel und der Pfad-Riegel melden sich hier mit ihrem eigenen Satz; alles
+            // andere bekommt einen allgemeinen. Ein still verschluckter Fehlschlag waere von
+            // einem angelegten Link nicht zu unterscheiden -- und der Editor verschickte eine
+            // Adresse, die es nicht gibt.
+            $linkMeldung = $exception instanceof RuntimeException
+                ? $exception->getMessage()
+                : 'Der Link liess sich nicht anlegen.';
+            error_log('svg-export: Kartenarchiv-Link: ' . $exception->getMessage());
+        }
+
+        // 💣 KEIN Redirect mit dem Token in der Adresse -- er landete sonst im Browserverlauf
+        // und in jedem Proxy-Protokoll dazwischen. Die Seite rendert unten weiter, die Meldung
+        // steht am Kasten, und der frische Link steht ohnehin oben in seiner Liste.
+        // ⚠️ Damit ist das hier bewusst KEIN Post/Redirect/Get: ein Neuladen legt einen zweiten
+        // Link an. Der Preis ist ein ueberzaehliger Link, den man zurueckziehen kann -- gegen
+        // einen Token, der durch den Verlauf des Editors wandert, ist das der kleinere.
+    } else {
+        $user = avesmapsLogin($pdo, (string) ($_POST['username'] ?? ''), (string) ($_POST['password'] ?? ''));
+        if ($user !== null && avesmapsUserCan($user, 'edit')) {
+            header('Location: ./svg-export.php');
+            exit;
+        }
+
+        avesmapsLogout();
+        $loginError = 'Login fehlgeschlagen oder keine Editor-Berechtigung.';
+    }
 }
 
 $currentUser = avesmapsCurrentUser();
@@ -78,6 +137,31 @@ $isEditor = $currentUser !== null && avesmapsUserCan($currentUser, 'edit');
 // Die Begruendung steht im Kopf der Bibliothek -- es ist dieselbe, mit der der Owner seine
 // .htaccess nach ENDUNG statt nach Dateinamen filtert.
 $kartenarchive = $isEditor ? avesmapsKartenarchivListe() : [];
+
+// Die ablaufenden Downloadlinks (Owner-Auftrag 08.09.2026). Auch abgelaufene und
+// zurueckgezogene stehen mit in der Liste, bis die Gnadenfrist sie raeumt: „mein Link tut
+// nichts mehr" braucht eine sichtbare Antwort, sonst ist „abgelaufen" von „hat nie existiert"
+// nicht zu unterscheiden.
+//
+// ⚠️ Faellt OFFEN aus: laesst sich die Tabelle nicht lesen, fehlt der Abschnitt -- die
+// Archivliste darueber und der SVG-Bauer sind davon unberuehrt.
+$archivLinks = [];
+if ($isEditor) {
+    try {
+        avesmapsKartenarchivLinkEnsureTable($pdo);
+        avesmapsKartenarchivLinkAufraeumen($pdo);
+        $archivLinks = avesmapsKartenarchivLinkListe($pdo);
+    } catch (Throwable $exception) {
+        error_log('svg-export: Kartenarchiv-Links nicht lesbar: ' . $exception->getMessage());
+    }
+}
+
+// 💣 Der Host kommt aus der ANFRAGE, nicht aus einer Konstanten: die Seite laeuft auf der
+// Live-Domain und lokal, und ein hartkodiertes avesmaps.de ergaebe im lokalen Baum einen Link,
+// der auf den Produktivserver zeigt -- also auf ein Archiv, das dort ein anderes ist.
+$linkHost = (string) ($_SERVER['HTTP_HOST'] ?? '');
+$linkHttps = ((string) ($_SERVER['HTTPS'] ?? '')) !== '' && ((string) ($_SERVER['HTTPS'] ?? '')) !== 'off';
+$jetztFuerLinks = avesmapsKartenarchivLinkJetzt();
 
 /**
  * The layer list, in DRAW order -- in SVG the first one lies at the BOTTOM.
@@ -270,7 +354,7 @@ $renderNode = static function (array $node, string $parentPath, int $depth) use 
     <!-- Hand-written on purpose: the deploy's asset stamper only follows index.html and
          html/*.html, so it never reaches this PHP page. Bump these whenever the stylesheet
          or either script changes, or editors keep the cached files. See AGENTS.md sec.7. -->
-    <link rel="stylesheet" href="../css/pages/svg-export.css?v=20260824-karte-herunterladen" />
+    <link rel="stylesheet" href="../css/pages/svg-export.css?v=20260908-archiv-link" />
 </head>
 
 <body class="edit-page">
@@ -476,15 +560,101 @@ $renderNode = static function (array $node, string $parentPath, int $depth) use 
                                     <span class="svgx-archive__name"><?php echo htmlspecialchars((string) $archiv['name'], ENT_QUOTES, 'UTF-8'); ?></span>
                                     <span class="svgx-archive__meta"><?php echo htmlspecialchars(avesmapsKartenarchivGroesse((int) $archiv['size']), ENT_QUOTES, 'UTF-8'); ?> &middot; <?php echo date('d.m.Y', (int) $archiv['mtime']); ?></span>
                                     <a class="svgx-secondary svgx-archive__button" href="/api/edit/map/kartenarchiv.php?datei=<?php echo rawurlencode((string) $archiv['name']); ?>">Herunterladen</a>
+                                    <!-- Das Formular fuer den ablaufenden Link. Es steht IN der Zeile
+                                         seines Archivs, damit der Dateiname nicht noch einmal gewaehlt
+                                         werden muss -- die Datei haengt am Token, und die haeufigste
+                                         Verwechslung waere „ich wollte die Kacheln, nicht 1,73 GB".
+
+                                         🔴 EINE FALTE, IMMER ZU -- die Hausform fuer genau diesen Fall
+                                         (Owner 03.09.2026 zum Quellenkasten: „alle boxen unter einem
+                                         klapptext verschwinden … immer mit klappe zu"). Der haeufige
+                                         Handgriff hier ist „Herunterladen"; das Ausstellen eines Links
+                                         ist die Ausnahme und darf die Zeile nicht dauerhaft verdoppeln.
+                                         💣 Nativ, und nichts anderes: nur `<details>` laesst Strg+F den
+                                         Text darin finden und klappt selbst auf -- dieselbe Begruendung
+                                         wie beim Fenster „Hinweise" und beim Quellenkasten.
+                                         ⚠️ Es wird NIE `open` gesetzt: der Zustand ist das `open` des
+                                         Elements und sonst nichts, und nach jedem Absenden baut die
+                                         Seite neu -- ein Modulzustand daneben liefe auseinander. -->
+                                    <details class="svgx-archive__fold">
+                                    <summary>Link f&uuml;r Externe &hellip;</summary>
+                                    <form class="svgx-archive__share" method="post" action="./svg-export.php">
+                                        <input type="hidden" name="action" value="link_neu" />
+                                        <input type="hidden" name="datei" value="<?php echo htmlspecialchars((string) $archiv['name'], ENT_QUOTES, 'UTF-8'); ?>" />
+                                        <label class="svgx-archive__field">
+                                            <span>F&uuml;r wen?</span>
+                                            <input type="text" name="notiz" maxlength="<?php echo AVESMAPS_KARTENARCHIV_LINK_NOTIZ_MAX; ?>" placeholder="Name oder Anlass" required />
+                                        </label>
+                                        <label class="svgx-archive__field">
+                                            <span>G&uuml;ltig</span>
+                                            <select name="tage">
+                                                <?php foreach (AVESMAPS_KARTENARCHIV_LINK_FRISTEN as $frist) : ?>
+                                                    <option value="<?php echo (int) $frist; ?>"<?php echo $frist === AVESMAPS_KARTENARCHIV_LINK_FRIST_VORGABE ? ' selected' : ''; ?>><?php echo (int) $frist; ?> Tage</option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                        </label>
+                                        <button class="svgx-secondary" type="submit">Link erzeugen</button>
+                                    </form>
+                                    </details>
                                 </li>
                             <?php endforeach; ?>
                         </ul>
                         <p class="svgx-hint">Gro&szlig;e Dateien &ndash; der Browser darf abbrechen und fortsetzen, es f&auml;ngt nicht wieder von vorn an.</p>
                     <?php endif; ?>
+
+                    <?php if ($linkMeldung !== '') : ?>
+                        <p class="svgx-status" role="status"><?php echo htmlspecialchars($linkMeldung, ENT_QUOTES, 'UTF-8'); ?></p>
+                    <?php endif; ?>
+
+                    <?php if ($archivLinks !== []) : ?>
+                        <!-- ⚠️ Dieselbe Ueberschriften-Rezeptur wie jede Gruppe dieser Seite
+                             (`.svgx-group__title`); eigen ist nur der Abstand nach oben. Eine
+                             zweite, vollstaendige Fassung stand hier zuerst -- genau die
+                             Abschrift, vor der der Kopf von svg-export.css warnt. -->
+                        <h3 class="svgx-group__title svgx-links__titel">Ausgegebene Links</h3>
+                        <ul class="svgx-archive svgx-links">
+                            <?php foreach ($archivLinks as $link) : ?>
+                                <?php
+                                $gilt = avesmapsKartenarchivLinkIstGueltig($link, $jetztFuerLinks);
+                                $adresse = avesmapsKartenarchivLinkAdresse($linkHost, (string) $link['token'], $linkHttps);
+                                $rest = ($link['revoked_at'] ?? null) !== null
+                                    ? 'zur&uuml;ckgezogen'
+                                    : htmlspecialchars(
+                                        avesmapsKartenarchivLinkRestText((string) $link['expires_at'], $jetztFuerLinks),
+                                        ENT_QUOTES,
+                                        'UTF-8'
+                                    );
+                                ?>
+                                <li class="svgx-archive__row<?php echo $gilt ? '' : ' is-abgelaufen'; ?>">
+                                    <span class="svgx-archive__name"><?php echo htmlspecialchars((string) $link['note'], ENT_QUOTES, 'UTF-8'); ?></span>
+                                    <span class="svgx-archive__meta">
+                                        <?php echo htmlspecialchars((string) $link['file_name'], ENT_QUOTES, 'UTF-8'); ?>
+                                        &middot; <?php echo $rest; ?>
+                                        &middot; von <?php echo htmlspecialchars((string) $link['creator_name'], ENT_QUOTES, 'UTF-8'); ?>
+                                        &middot; <?php echo (int) $link['hits']; ?>&times; geholt
+                                    </span>
+                                    <?php if ($gilt) : ?>
+                                        <!-- Zum Kopieren, nicht zum Klicken: ein <a> hier l&auml;dt dem Editor
+                                             versehentlich 1,73 GB herunter. `readonly` statt `disabled`, sonst
+                                             l&auml;sst sich der Text nicht markieren. -->
+                                        <input class="svgx-links__adresse" type="text" readonly onfocus="this.select()"
+                                               value="<?php echo htmlspecialchars($adresse, ENT_QUOTES, 'UTF-8'); ?>" />
+                                        <form method="post" action="./svg-export.php">
+                                            <input type="hidden" name="action" value="link_weg" />
+                                            <input type="hidden" name="id" value="<?php echo (int) $link['id']; ?>" />
+                                            <button class="svgx-secondary" type="submit">Zur&uuml;ckziehen</button>
+                                        </form>
+                                    <?php endif; ?>
+                                </li>
+                            <?php endforeach; ?>
+                        </ul>
+                    <?php endif; ?>
+
                     <p class="svgx-hint">
-                        Arbeitsmaterial f&uuml;r die Kartenpflege, <strong>nicht zur Weitergabe</strong>: das Projekt hat zugesagt,
-                        kein reines Bilderarchiv zu sein (<code>NOTICE.md</code>), &ouml;ffentlich sind die Archive deshalb gesperrt.
-                        Jeder Download wird mit Namen festgehalten.
+                        Arbeitsmaterial f&uuml;r die Kartenpflege. Das Projekt hat zugesagt, kein reines Bilderarchiv zu sein
+                        (<code>NOTICE.md</code>) &ndash; &ouml;ffentlich sind die Archive deshalb gesperrt, und ein Link an
+                        Externe gilt <strong>befristet und f&uuml;r genau diese eine Datei</strong>. Jeder Download wird
+                        festgehalten, auch der &uuml;ber einen Link.
                     </p>
                 </div>
             </section>
