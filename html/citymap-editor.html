@@ -886,6 +886,26 @@
       </select></div>`;
   }
 
+  // Die Farbigkeit ist die EINZIGE Eigenschaft dieser Gruppe mit vier Antworten (Owner 07.09.2026:
+  // „nur Graustufe, Brauntöne, Farbig, Unbekannt"). Bis dahin war sie ein ceTri, und dessen „nein"
+  // hiess dem Leser gegenüber „schwarzweiß" — zwei Namen für einen Wert, und für eine Sepia-Karte
+  // gab es gar keinen.
+  // 🔴 Sie ist bewusst KEIN ceSelect: dessen Platzhalter ist ein leerer erster Eintrag, der wie ein
+  // unausgefülltes Feld aussieht. „unbekannt" ist hier eine ANTWORT und heisst so — dieselbe Regel
+  // wie beim ceTri daneben, nur mit einer Stufe mehr.
+  // ⚠️ „Unbekannt" GROSS, anders als im ceTri daneben: dort sind alle drei Antworten Ja/Nein-Zustaende
+  // und durchgehend klein, hier sind alle vier WERTE eines Auswahlfelds -- eine Liste, eine Schreibweise.
+  const CE_COLOR_MODES = [["", "Unbekannt"], ["graustufen", "Schwarzweiß bzw. Graustufen"], ["braun", "Brauntöne"], ["farbig", "Farbig"]];
+
+  function ceColorMode(label, name, value) {
+    const v = value == null ? "" : String(value);
+    return `<div class="ce-row"><span class="ce-row__label">${ceEscape(label)}</span>
+      <select class="ce-select ce-tri" data-cm-field="${name}">
+        ${CE_COLOR_MODES.map(([key, text]) =>
+          `<option value="${ceEscape(key)}"${v === key ? " selected" : ""}>${ceEscape(text)}</option>`).join("")}
+      </select></div>`;
+  }
+
   function ceSelect(label, name, value, options, placeholder) {
     return `<div class="ce-row"><span class="ce-row__label">${ceEscape(label)}</span>
       <select class="ce-select" data-cm-field="${name}">
@@ -1149,7 +1169,7 @@
         <p class="ce-hint">„Format“ ist die Größe des gedruckten Blatts, wie das Wiki sie schreibt: „A2“ oder „33,5x25,5“. Das ist kein Zahlenfeld — Breite/Höhe sind Pixel eines Scans, das Wiki nennt Zentimeter.</p>
       </div>
       <div class="ce-grp"><p class="ce-grp__title">Eigenschaften</p>
-        ${ceTri("farbig", "is_color", v.is_color)}
+        ${ceColorMode("Farbigkeit", "color_mode", v.color_mode)}
         ${ceTri("mehrstöckig", "is_multilevel", v.is_multilevel)}
         ${ceTri("beschriftet (Legende)", "is_labeled", v.is_labeled)}
         ${ceTri("offiziell", "is_official", v.is_official)}

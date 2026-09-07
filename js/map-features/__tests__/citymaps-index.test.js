@@ -6,6 +6,7 @@ const {
 	avesmapsCitymapActiveFacets,
 	avesmapsCitymapMatchesFilter,
 	avesmapsCitymapTypeLabel,
+	avesmapsCitymapColorModeLabel,
 } = require("../map-features-citymaps.js");
 
 // ---- labels ----
@@ -17,10 +18,10 @@ assert.strictEqual(avesmapsCitymapTypeLabel("was-auch-immer"), "was-auch-immer")
 assert.strictEqual(avesmapsCitymapTypeLabel(""), "");
 
 // ---- render shape: the three-valued rule (Spec §3.1) ----
-// This is the assertion the whole feature hangs on. `!!citymap.is_color` would turn every unknown into
-// false, and the reader would be told "nicht farbig" about a map nobody ever examined.
+// This is the assertion the whole feature hangs on. Coercing an absent value onto one of the three
+// stages would tell the reader "Graustufen" about a map nobody ever examined.
 const unknown = avesmapsCitymapToRenderShape({ public_id: "a", title: "T" });
-assert.strictEqual(unknown.is_color, null, "absent is_color stays unknown, not false");
+assert.strictEqual(unknown.color_mode, null, "absent color_mode stays unknown, not a stage");
 assert.strictEqual(unknown.is_spoiler, null);
 assert.strictEqual(unknown.valid_from_bf, null);
 assert.strictEqual(unknown.width_px, null);
@@ -28,13 +29,32 @@ assert.deepStrictEqual(unknown.types, []);
 assert.deepStrictEqual(unknown.links, []);
 
 const known = avesmapsCitymapToRenderShape({
-	public_id: "b", title: "Gareth", is_color: false, is_spoiler: true, is_official: 1,
+	public_id: "b", title: "Gareth", color_mode: "graustufen", is_spoiler: true, is_official: 1,
 	valid_from_bf: 1027, valid_to_bf: 9999, width_px: 2000, types: ["stadtplan"],
 	thumb: "/uploads/kartensammlungen/b/thumb-1.png", map_url: "https://example.org/m",
 	links: [{ key: "map", url: "https://example.org/m", state: "online" }],
 	sources: [{ label: "Herz des Reiches", official: true }],
 });
-assert.strictEqual(known.is_color, false, "an explicit false stays false");
+assert.strictEqual(known.color_mode, "graustufen", "an explicit stage survives");
+// Die VIERTE Stufe, der ganze Anlass des Umbaus (Owner 07.09.2026): eine Sepia-Karte war weder "farbig"
+// noch "schwarzweiss", und es gab keinen dritten Platz fuer sie.
+assert.strictEqual(avesmapsCitymapToRenderShape({ color_mode: "braun" }).color_mode, "braun");
+// Ein fremder Wert faellt auf "unbekannt", nie auf eine Stufe -- dieselbe Richtung wie auf dem Server.
+assert.strictEqual(avesmapsCitymapToRenderShape({ color_mode: "neon" }).color_mode, null);
+// 💣 DIE ZWEI ALTEN TRI-BOOL-ANTWORTEN BLEIBEN LESBAR: eine gecachte Seite in einem offenen Tab stempelt
+// data-color noch als "1"/"0", und sie hiessen unveraendert farbig bzw. graustufen. Ohne diese Zeile
+// verloere so ein Tab still jede Farbangabe.
+assert.strictEqual(avesmapsCitymapToRenderShape({ color_mode: true }).color_mode, "farbig");
+assert.strictEqual(avesmapsCitymapToRenderShape({ color_mode: "0" }).color_mode, "graustufen");
+// Die Beschriftungen kommen aus EINEM Uebersetzer -- der Editor, das Meldeformular und die Kartenzeile
+// lesen alle diese drei Woerter.
+// 🔴 EIN Wert, ZWEI Namen (Owner 07.09.2026: „mach Graustufen zu Schwarzweiß bzw. Graustufen"). Der
+// SCHLUESSEL bleibt `graustufen` -- er steht in citymap.color_mode; nur die Beschriftung wurde breiter.
+assert.strictEqual(avesmapsCitymapColorModeLabel("graustufen"), "Schwarzweiß bzw. Graustufen");
+assert.strictEqual(avesmapsCitymapColorModeLabel("braun"), "Brauntöne");
+assert.strictEqual(avesmapsCitymapColorModeLabel("farbig"), "Farbig");
+assert.strictEqual(avesmapsCitymapColorModeLabel(null), "", "unbekannt hat KEIN Wort (§3.1)");
+assert.strictEqual(avesmapsCitymapColorModeLabel("neon"), "", "und ein fremder Wert auch nicht");
 assert.strictEqual(known.is_spoiler, true);
 assert.strictEqual(known.is_official, true, "1 -> true");
 assert.strictEqual(known.valid_to_bf, 9999);
@@ -44,13 +64,13 @@ console.log("citymap render shape ok");
 // ---- index ----
 const catalog = [
 	{
-		public_id: "m1", title: "Gareth Gesamtplan", types: ["stadtplan"], art: "politisch", is_color: true,
+		public_id: "m1", title: "Gareth Gesamtplan", types: ["stadtplan"], art: "politisch", color_mode: "farbig",
 		is_official: true, valid_from_bf: 1027, valid_to_bf: 9999,
 		sources: [{ label: "Herz des Reiches" }],
 		places: [{ target_kind: "settlement", target_public_id: "loc-gareth", target_wiki_key: "wiki:Gareth", territory_path: ["wiki:Garetien", "wiki:Kosch"] }],
 	},
 	{
-		public_id: "m2", title: "Kaiserviertel", types: ["viertel", "bezirk"], art: "skizze", is_color: false,
+		public_id: "m2", title: "Kaiserviertel", types: ["viertel", "bezirk"], art: "skizze", color_mode: "graustufen",
 		is_spoiler: true, valid_from_bf: 1040, valid_to_bf: 1045,
 		sources: [{ label: "Herz des Reiches" }],
 		places: [{ target_kind: "settlement", target_public_id: "loc-gareth", target_wiki_key: "wiki:Gareth", territory_path: ["wiki:Garetien"] }],
@@ -117,8 +137,11 @@ assert.ok(avesmapsCitymapMatchesFilter(m1, null), "no filter object -> pass");
 // THE §3.7 RULE: unknown matches no filter but "alle". m3 knows none of its properties.
 assert.ok(!avesmapsCitymapMatchesFilter(m3, { colorOnly: true, showSpoiler: true }), "unknown colour fails 'farbig'");
 assert.ok(!avesmapsCitymapMatchesFilter(m3, { officialOnly: true, showSpoiler: true }));
-// An explicit FALSE also fails "farbig" -- but for the honest reason.
+// Eine belegte ANDERE Stufe faellt ebenfalls durch -- aber aus dem ehrlichen Grund.
 assert.ok(!avesmapsCitymapMatchesFilter(m2, { colorOnly: true, showSpoiler: true }));
+// 🔴 BRAUNTOENE SIND NICHT "farbig". Der Schalter fragt nach der bunten Karte; Sepia ist monochrom, und
+// wer den Haken setzt, sucht sie nicht. Das ist eine Entscheidung, keine Nachlaessigkeit.
+assert.ok(!avesmapsCitymapMatchesFilter({ color_mode: "braun" }, { colorOnly: true, showSpoiler: true }));
 assert.ok(avesmapsCitymapMatchesFilter(m1, { colorOnly: true, showSpoiler: true }));
 
 // "nur kostenlose" (is_paid, owner 2026-07-17) is the one toggle that matches a known FALSE -- "nur
@@ -181,10 +204,10 @@ console.log("citymap filter ok");
 // Die Regel: ein Filter erscheint nur, wenn er DIESE Liste wirklich teilt -- mindestens eine Karte passt
 // UND mindestens eine nicht. So kann es tote Chips wie "mehrstoeckig" (0 von 419 erfasst) nie wieder geben.
 const gareth = [
-  { is_color: true, is_official: true, valid_to_bf: 1038, links: [{ is_paid: true }, { is_paid: false }] },
-  { is_color: true, is_official: null, links: [] },
-  { is_color: false, is_official: null, links: [] },
-  { is_color: null, is_official: null, links: [{ is_paid: null }] },
+  { color_mode: "farbig", is_official: true, valid_to_bf: 1038, links: [{ is_paid: true }, { is_paid: false }] },
+  { color_mode: "farbig", is_official: null, links: [] },
+  { color_mode: "graustufen", is_official: null, links: [] },
+  { color_mode: null, is_official: null, links: [{ is_paid: null }] },
 ];
 const f = avesmapsCitymapActiveFacets(gareth);
 assert.strictEqual(f.color, true, "2 farbig, 2 nicht -> teilt");
@@ -193,9 +216,12 @@ assert.strictEqual(f.free, true, "1 hat einen belegt freien Weg, 3 nicht -> teil
 assert.strictEqual(f.years, false, "nur EINE Karte traegt ein Jahr -> es gibt nichts zu filtern");
 
 // Alle gleich -> der Filter kann nichts ausrichten und erscheint nicht.
-assert.strictEqual(avesmapsCitymapActiveFacets([{ is_color: true }, { is_color: true }]).color, false);
+assert.strictEqual(avesmapsCitymapActiveFacets([{ color_mode: "farbig" }, { color_mode: "farbig" }]).color, false);
+// ⚠️ Und die Facette misst weiterhin NUR "farbig": zwei Karten, von denen eine braun und eine grau ist,
+// teilen die Liste fuer diesen Schalter nicht -- er wuerde beide ausblenden und stuende fuer nichts da.
+assert.strictEqual(avesmapsCitymapActiveFacets([{ color_mode: "braun" }, { color_mode: "graustufen" }]).color, false);
 // 168 von 245 Orten haben genau EINE Karte. Dort steht keine Leiste.
-const solo = avesmapsCitymapActiveFacets([{ is_color: true, is_official: true, links: [{ is_paid: false }] }]);
+const solo = avesmapsCitymapActiveFacets([{ color_mode: "farbig", is_official: true, links: [{ is_paid: false }] }]);
 assert.strictEqual(solo.color, false);
 assert.strictEqual(solo.official, false);
 assert.strictEqual(solo.free, false);
@@ -222,7 +248,7 @@ assert.strictEqual(avesmapsCitymapActiveFacets([{ is_spoiler: null }, { is_spoil
 assert.strictEqual(avesmapsCitymapActiveFacets([{}]).spoiler, false);
 
 // ---- Praedikat: die gestrichenen Dimensionen sind wirkungslos ---------------------------------------
-const shape = { types: ["stadtplan"], art: "politisch", is_color: true, is_multilevel: false, is_spoiler: true, sources: [{ label: "X" }], links: [] };
+const shape = { types: ["stadtplan"], art: "politisch", color_mode: "farbig", is_multilevel: false, is_spoiler: true, sources: [{ label: "X" }], links: [] };
 assert.strictEqual(avesmapsCitymapMatchesFilter(shape, { types: new Set(["hoehlen"]) }), true, "Typ ist kein Filter mehr"); assert.strictEqual(avesmapsCitymapMatchesFilter(shape, { multilevelOnly: true }), true, "mehrstoeckig ist kein Filter mehr");
 assert.strictEqual(avesmapsCitymapMatchesFilter(shape, { labeledOnly: true }), true, "beschriftet ist kein Filter mehr");
 assert.strictEqual(avesmapsCitymapMatchesFilter(shape, { paidOnly: true }), true, "nur kostenpflichtige ist gestrichen");
@@ -231,9 +257,9 @@ assert.strictEqual(avesmapsCitymapMatchesFilter(shape, { source: "anderes" }), t
 // Der Spoiler-CHIP ist weg, der DECKEL bleibt (er sitzt im Markup). Eine Spoilerkarte wird gelistet.
 assert.strictEqual(avesmapsCitymapMatchesFilter(shape, {}), true);
 // Die vier, die bleiben, wirken.
-assert.strictEqual(avesmapsCitymapMatchesFilter({ is_color: true }, { colorOnly: true }), true);
-assert.strictEqual(avesmapsCitymapMatchesFilter({ is_color: false }, { colorOnly: true }), false);
-assert.strictEqual(avesmapsCitymapMatchesFilter({ is_color: null }, { colorOnly: true }), false, "unbekannt matcht keinen Filter (§3.7)");
+assert.strictEqual(avesmapsCitymapMatchesFilter({ color_mode: "farbig" }, { colorOnly: true }), true);
+assert.strictEqual(avesmapsCitymapMatchesFilter({ color_mode: "graustufen" }, { colorOnly: true }), false);
+assert.strictEqual(avesmapsCitymapMatchesFilter({ color_mode: null }, { colorOnly: true }), false, "unbekannt matcht keinen Filter (§3.7)");
 assert.strictEqual(avesmapsCitymapMatchesFilter({ is_official: true }, { officialOnly: true }), true);
 assert.strictEqual(avesmapsCitymapMatchesFilter({ links: [{ is_paid: false }] }, { freeOnly: true }), true);
 

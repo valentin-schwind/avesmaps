@@ -284,7 +284,10 @@ function detailAntwort(ueberschreibungen) {
 			map_url_label: "", map_local_url: "", map_license: "unknown_other", map_license_note: "",
 			thumb_url: "", thumb_local_url: "", thumb_auto_url: "", thumb_license: "unknown_other",
 			thumb_license_note: "", thumb_origin: "manual", thumb_auto_state: "",
-			art: "stadtplan", is_color: true, is_multilevel: null, is_labeled: null,
+			// `color_mode` statt des alten Tri-Bools `is_color` (Owner 07.09.2026, vierstufig). Die Fixture
+			// gibt vor, die Form von avesmapsCitymapDetailForEdit zu sein -- dann muss sie ihr auch folgen,
+			// sonst uebernimmt der naechste Umbau von hier eine Form, die es nicht mehr gibt.
+			art: "stadtplan", color_mode: "farbig", is_multilevel: null, is_labeled: null,
 			is_official: true, is_spoiler: null, is_paid: null, has_scale: null,
 			width_px: null, height_px: null, format: "", valid_from_bf: null, valid_to_bf: null,
 			author: "", publisher: "Ulisses Spiele", note: "", status: "approved", origin: "wiki",

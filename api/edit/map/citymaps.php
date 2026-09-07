@@ -45,6 +45,12 @@ try {
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
     $userId = (int) ($user['id'] ?? 0);
 
+    // Der Bestand von `is_color` auf `color_mode` (Owner 07.09.2026). Selbstbegrenzend und ohne
+    // Marker -- die Begruendung samt Riegel steht bei der Funktion. Er steht HIER und nicht in der
+    // Bibliothek, weil avesmapsCitymapsEnsureTables aus der RECHEN-Haelfte des Syncs erreicht wird
+    // und die in keine Nutztabelle schreiben darf (sync-plan-purity-test.php).
+    avesmapsCitymapsEnsureColorModeBackfill($pdo);
+
     $result = match ($action) {
         'list' => avesmapsListCitymapsForEdit($pdo),
         'detail' => (static function () use ($pdo, $payload): array {

@@ -230,9 +230,11 @@ function cityMapDataAttributes(m) {
 		+ ' data-title="' + placeExtrasEscape(m.title || "") + '"'
 		+ ' data-types="' + placeExtrasEscape((m.types || []).join(",")) + '"'
 		+ ' data-art="' + placeExtrasEscape(m.art || "") + '"'
-		// Tri-state travels as "1" | "0" | "" -- an empty attribute is UNKNOWN, not false (§3.1). A
-		// data-color="0" would claim we know the map is not coloured.
-		+ ' data-color="' + cityMapTriAttr(m.is_color) + '"'
+		// Tri-state travels as "1" | "0" | "" -- an empty attribute is UNKNOWN, not false (§3.1).
+		// ⚠️ data-color IST KEIN TRI-STATE MEHR: es traegt seit dem 07.09.2026 den Schluessel der
+		// Farbstufe (graustufen|braun|farbig), leer = unbekannt. Die Regel darueber gilt unveraendert --
+		// ein leeres Attribut ist „niemand hat es erfasst", nie „nicht farbig".
+		+ ' data-color="' + placeExtrasEscape(m.color_mode || "") + '"'
 		+ ' data-multilevel="' + cityMapTriAttr(m.is_multilevel) + '"'
 		+ ' data-labeled="' + cityMapTriAttr(m.is_labeled) + '"'
 		+ ' data-official="' + cityMapTriAttr(m.is_official) + '"'
@@ -529,12 +531,15 @@ function cityMapRowSuffix(m) {
 	if (m && m.types && m.types.length && typeof avesmapsCitymapTypeLabel === "function") {
 		parts.push(m.types.map(avesmapsCitymapTypeLabel).join(" & "));
 	}
-	// is_color === false ist BEKANNT, nicht unbekannt -- es zu drucken ist die Anwendung von §3.1, nicht
-	// ihr Bruch (dieselbe Begruendung wie bei "kostenlos"). Nur null faellt weg.
-	if (m && m.is_color === true) {
-		parts.push(tr("cityMaps.trait.color", "farbig"));
-	} else if (m && m.is_color === false) {
-		parts.push(tr("cityMaps.trait.greyscale", "schwarzweiß"));
+	// „Graustufen" ist BEKANNT, nicht unbekannt -- es zu drucken ist die Anwendung von §3.1, nicht ihr
+	// Bruch (dieselbe Begruendung wie bei "kostenlos"). Nur null faellt weg.
+	// 🔴 DIE BESCHRIFTUNG KOMMT AUS DEM EINEN UEBERSETZER (avesmapsCitymapColorModeLabel), nicht aus
+	// zwei tr()-Aufrufen nebeneinander: bis zum 07.09.2026 stand hier fuer is_color === false das Wort
+	// „schwarzweiß", waehrend der Editor dasselbe Feld „nein" nannte -- zwei Namen fuer einen Wert, und
+	// genau daran ist die Vierstufigkeit haengengeblieben.
+	if (m && m.color_mode && typeof avesmapsCitymapColorModeLabel === "function") {
+		var colorLabel = avesmapsCitymapColorModeLabel(m.color_mode);
+		if (colorLabel) { parts.push(colorLabel); }
 	}
 	return parts.join(" · ");
 }

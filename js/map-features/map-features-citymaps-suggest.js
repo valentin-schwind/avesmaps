@@ -77,8 +77,16 @@
 	// gültige Antwort, keine Lücke — und ein Melder, der "mehrstöckig" nicht beurteilen kann, soll nichts
 	// behaupten müssen. Ein Default "nein" würde genau die erfundenen Fakten erzeugen, die §3.1 verbietet.
 	var TRI = [["", "unbekannt"], ["1", "ja"], ["0", "nein"]];
+	// Die Farbigkeit ist die EINZIGE Eigenschaft mit vier Antworten (Owner 07.09.2026) -- alle anderen
+	// bleiben Ja/Nein/unbekannt. Der leere Wert steht auch hier vorn und ist die Vorauswahl, aus demselben
+	// Grund: ein Melder, der es nicht beurteilen kann, soll nichts behaupten muessen.
+	// 🔴 DIE SCHLUESSEL SIND DIE DES SERVERS (AVESMAPS_CITYMAP_COLOR_MODES) und werden nie uebersetzt.
+	// ⚠️ „Unbekannt" GROSS, anders als im TRI daneben: dort sind alle drei Antworten Ja/Nein-Zustaende
+	// und durchgehend klein, hier sind alle vier WERTE eines Auswahlfelds -- eine Liste, eine
+	// Schreibweise. Der Owner hat sie am 07.09.2026 selbst so geschrieben.
+	var COLOR_MODES = [["", "Unbekannt"], ["graustufen", "Schwarzweiß bzw. Graustufen"], ["braun", "Brauntöne"], ["farbig", "Farbig"]];
 	var PROPS = [
-		["is_color", "farbig"], ["is_multilevel", "mehrstöckig"], ["is_labeled", "beschriftet (Legende)"],
+		["is_multilevel", "mehrstöckig"], ["is_labeled", "beschriftet (Legende)"],
 		["is_official", "offiziell"], ["is_spoiler", "Spoiler (Spielinhalte)"],
 		// "kostenpflichtig" darf der Melder mitschicken -- anders als eine Lizenz schaltet es nichts frei,
 		// es ist eine schlichte Beobachtung ("das kostet was"), die er beim Blick auf die Shop-Seite hat.
@@ -171,6 +179,26 @@
 					+ ' value="' + esc(o[0]) + '" data-citymap-suggest-tri="' + esc(key) + '"'
 					+ (index === 0 ? " checked" : "") + ' />'
 					+ '<span>' + esc(t("cityMaps.tri." + (o[0] || "unknown"), o[1])) + '</span></label>';
+			}).join("")
+			+ '</span></div>';
+	}
+
+	// Die Farbigkeit: DIESELBE Segmentleiste wie die sechs Ja/Nein-Zeilen, nur mit vier Feldern -- kein
+	// zweites Bauteil und kein <select> daneben, sonst stuenden in einem Kasten zwei Bauformen fuer
+	// dieselbe Art Frage.
+	// ⚠️ `--wide` ist der Grund, warum es trotzdem aufs Telefon passt. Im Browser gemessen (07.09.2026):
+	//    die vierstufige Leiste ist 242px breit, das Label 88, dazwischen 12 Spalte -- 342px Bedarf.
+	//    Ein 375px-Telefon bietet 339px, die Zeile stuende also auf den Pixel genau und ohne jede
+	//    Reserve. Unter 400px stapelt die Klasse sie deshalb unter ihr Label, derselbe Griff wie bei
+	//    .citymap-fundort__paid. Die Rechnung samt Schwelle steht bei der Regel selbst.
+	function colorModeMarkup(label) {
+		return '<div class="citymap-suggest__prop citymap-suggest__prop--wide"><span>' + esc(label) + '</span>'
+			+ '<span class="citymap-suggest__tri" role="radiogroup" aria-label="' + esc(label) + '">'
+			+ COLOR_MODES.map(function (o, index) {
+				return '<label><input type="radio" name="citymap-suggest-color_mode"'
+					+ ' value="' + esc(o[0]) + '" data-citymap-suggest-tri="color_mode"'
+					+ (index === 0 ? " checked" : "") + ' />'
+					+ '<span>' + esc(t("cityMaps.colorMode." + (o[0] || "unknown"), o[1])) + '</span></label>';
 			}).join("")
 			+ '</span></div>';
 	}
@@ -271,6 +299,7 @@
 				// "alle". Der Melder erfaehrt damit die echte Folge des Weglassens statt eines Appells.
 				t("cityMaps.suggestWhyProps", "Danach filtern die Leser. Was hier fehlt, taucht in keinem Filter auf."),
 				'<div class="citymap-suggest__props">'
+				+ colorModeMarkup(t("cityMaps.prop.color_mode", "Farbigkeit"))
 				+ PROPS.map(function (p) { return triMarkup(p[0], t("cityMaps.prop." + p[0], p[1])); }).join("")
 				+ '</div>'
 				+ '<p class="citymap-suggest__hint">' + esc(t("cityMaps.suggestUnknownHint",
@@ -446,6 +475,9 @@
 		PROPS.forEach(function (p) {
 			citymap[p[0]] = triVal(overlay, p[0]);
 		});
+		// Liest DENSELBEN Zuhoerer wie die Ja/Nein-Zeilen (data-citymap-suggest-tri), weil es dieselbe
+		// Radiogruppen-Bauform ist -- nur die Werte sind andere.
+		citymap.color_mode = triVal(overlay, "color_mode");
 
 		var hp = overlay.querySelector("[data-citymap-suggest-hp]");
 		// Die Position ist für eine Karte nur ein grober Anker — verbindlich ist place.target_public_id.

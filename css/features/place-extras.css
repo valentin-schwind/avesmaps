@@ -1163,6 +1163,46 @@ select.citymap-fundort__input {
 	.citymap-fundort__row {
 		grid-template-columns: minmax(0, 1fr);
 	}
+	/* Die Farbigkeit hat VIER Antworten statt dreier (Owner 07.09.2026). Sie stapelt unter ihr Label und
+	   nimmt die volle Breite -- derselbe Griff wie beim Dreierschalter darueber, und aus demselben Grund.
+	   Die fuenf Ja/Nein-Zeilen bleiben unberuehrt: ihre Leiste misst 128px und passt ueberall.
+
+	   🔴 DIE SCHWELLE IST GEMESSEN, UND SIE IST ZWEIMAL GEWANDERT -- das ist der Grund, warum die Zahlen
+	   hier stehen. Im Browser nachgemessen (07.09.2026, echte Dialogmasse: width min(560px, 100%),
+	   padding 12px 18px 14px):
+
+	       Beschriftung „Graustufen“              4er-Leiste 242px -> Bedarf 342px Inhalt = 378px Viewport
+	       Beschriftung „Schwarzweiß bzw. …“      4er-Leiste 328px -> Bedarf 428px Inhalt = 464px Viewport
+
+	   Der erste Entwurf schrieb „rund 300px“ ins CSS, ohne zu messen, und stapelte ab 520px. Die Messung
+	   ergab 242px, also wanderte die Schwelle auf 400 -- und beim naechsten Owner-Satz („mach Graustufen
+	   zu Schwarzweiß bzw. Graustufen“) wurde die Leiste 86px breiter und 400 war zu niedrig: zwischen 400
+	   und 464px waere die Zeile gebrochen, ohne dass die Regel greift. Bei 375px ohne sie gemessen: das
+	   Label wird auf 1px zusammengequetscht.
+	   ⚠️ WER DIE BESCHRIFTUNG AENDERT, MISST DIESE SCHWELLE NACH. Sie haengt an der Textbreite, und der
+	   Fehler ist still -- er zeigt sich nur zwischen zwei Fensterbreiten, die niemand zufaellig trifft. */
+	.citymap-suggest__prop--wide {
+		grid-template-columns: minmax(0, 1fr);
+		align-items: start;
+		gap: var(--space-2);
+	}
+	/* 💣 UNTEREINANDER, NICHT VIER NEBENEINANDER. Der erste Entwurf gab den vier Segmenten gleiche
+	   Breiten (flex: 1 1 0) -- bei 375px sind das 84px je Antwort, und „Schwarzweiß bzw. Graustufen"
+	   brach dort auf DREI Zeilen um (im Browser gemessen: Segmenthoehe 49px gegen 22px der Nachbarn,
+	   die Leiste 51px hoch, die Zeile 69px). Es sah aus wie ein Fehler, nicht wie eine Auswahl.
+	   ⭐ Untereinander bleibt jede Antwort einzeilig, und die Trefferflaeche wird ganz nebenbei
+	   telefontauglich. */
+	.citymap-suggest__prop--wide .citymap-suggest__tri {
+		display: flex;
+		flex-direction: column;
+	}
+	/* Die Trennlinie wandert mit der Richtung: die Grundregel setzt sie LINKS (label + label span),
+	   und uebereinander gestapelt gehoert sie nach oben. Ohne das Zuruecknehmen stuende an jedem
+	   Segment ein Strich an der falschen Kante. */
+	.citymap-suggest__prop--wide .citymap-suggest__tri label + label span {
+		border-left: 0;
+		border-top: 1px solid var(--color-border);
+	}
 }
 
 /* ---- eine Karten-Zeile ----

@@ -101,8 +101,8 @@ foreach ([
 // to be a decision someone makes on purpose -- which is the point. (It already earned its keep once: the
 // is_paid column of 2026-07-17 turned this line red until it was consciously admitted.)
 assert(array_keys($sneaky['citymap']) === [
-    'title', 'map_url', 'thumb_url', 'author', 'note', 'art',
-    'is_color', 'is_multilevel', 'is_labeled', 'is_official', 'is_spoiler', 'is_paid',
+    'title', 'map_url', 'thumb_url', 'author', 'note', 'art', 'color_mode',
+    'is_multilevel', 'is_labeled', 'is_official', 'is_spoiler', 'is_paid',
     'valid_from_bf', 'valid_to_bf', 'width_px', 'height_px',
 ]);
 // A citymap built from this payload can never name a licence column -> the NOT NULL DEFAULT stands.
@@ -145,9 +145,19 @@ assert(avesmapsNormalizeCitymapReportPayload($valid + ['art' => 'erfunden'])['ci
 assert(avesmapsNormalizeCitymapReportPayload($valid)['citymap']['art'] === '');
 
 // Three-valued properties survive as three-valued (§3.1) -- unknown must not collapse into "no".
-$tri = avesmapsNormalizeCitymapReportPayload($valid + ['is_color' => true, 'is_spoiler' => '0']);
-assert($tri['citymap']['is_color'] === 1);
+$tri = avesmapsNormalizeCitymapReportPayload($valid + ['color_mode' => 'farbig', 'is_spoiler' => '0']);
+assert($tri['citymap']['color_mode'] === 'farbig');
 assert($tri['citymap']['is_spoiler'] === 0);
+// Die Farbigkeit ist seit dem 07.09.2026 VIERwertig und deshalb der einzige Nicht-Tri-Bool hier.
+// Unbekannt bleibt unbekannt, und ein fremder Wert wird zu unbekannt -- nie zu einer Stufe.
+assert(avesmapsNormalizeCitymapReportPayload($valid)['citymap']['color_mode'] === null);
+assert(avesmapsNormalizeCitymapReportPayload($valid + ['color_mode' => 'braun'])['citymap']['color_mode'] === 'braun');
+assert(avesmapsNormalizeCitymapReportPayload($valid + ['color_mode' => 'neon'])['citymap']['color_mode'] === null);
+// 💣 UND DIE ZWEI ALTEN TRI-BOOL-ANTWORTEN BLEIBEN LESBAR: ein Melde-Formular aus einem offenen Tab
+// schickt noch '1'/'0', und sie hiessen unveraendert farbig bzw. graustufen. Ohne diese Uebersetzung
+// faellt so eine Meldung still auf 'unbekannt' -- der Melder hat geantwortet, und niemand merkt es.
+assert(avesmapsNormalizeCitymapReportPayload($valid + ['color_mode' => '1'])['citymap']['color_mode'] === 'farbig');
+assert(avesmapsNormalizeCitymapReportPayload($valid + ['color_mode' => '0'])['citymap']['color_mode'] === 'graustufen');
 assert($tri['citymap']['is_multilevel'] === null);
 assert($tri['citymap']['is_labeled'] === null);
 
@@ -227,7 +237,7 @@ $fromClient = avesmapsNormalizeCitymapReportPayload([
     'width_px' => '',
     'height_px' => '',
     'types' => ['stadtplan'],
-    'is_color' => '1',
+    'color_mode' => 'farbig',
     'is_multilevel' => '',
     'is_labeled' => '0',
     'is_official' => '',
@@ -243,7 +253,7 @@ $fromClient = avesmapsNormalizeCitymapReportPayload([
 assert($fromClient['citymap']['title'] === 'Gareth — Gesamtplan');
 assert($fromClient['citymap']['map_url'] === 'https://example.org/gareth');
 assert($fromClient['citymap']['art'] === 'politisch');
-assert($fromClient['citymap']['is_color'] === 1);
+assert($fromClient['citymap']['color_mode'] === 'farbig');
 assert($fromClient['citymap']['is_labeled'] === 0);
 assert($fromClient['citymap']['is_multilevel'] === null); // "" -> unknown, NOT false
 assert($fromClient['citymap']['is_paid'] === 1);

@@ -103,6 +103,26 @@ const AVESMAPS_CITYMAP_TYPE_KEYS = [
 // Single choice (Spec §3.1). NULL = unknown, which is why '' is not a member here.
 const AVESMAPS_CITYMAP_ARTS = ['politisch', 'derographisch', 'topologisch', 'skizze'];
 
+// Die FARBIGKEIT einer Karte, seit dem 07.09.2026 vierstufig (Owner: „nur Graustufe, Brauntoene,
+// Farbig, Unbekannt"). Bis dahin war es der Tri-Bool `is_color` -- ja/nein/unbekannt --, und dessen
+// „nein" hiess dem Leser gegenueber „schwarzweiss", obwohl es in Wahrheit jede monochrome Karte
+// meinte. Genau diese Ungenauigkeit ist der Anlass: eine Sepia-Karte war weder „farbig" noch
+// „schwarzweiss", und es gab keinen dritten Platz.
+//
+// 🔴 NULL BLEIBT „UNBEKANNT", und '' ist deshalb kein Mitglied dieser Liste -- dieselbe Regel wie
+// bei AVESMAPS_CITYMAP_ARTS darueber und die Kernregel der ganzen Datei (§3.1): „niemand hat es
+// erfasst" ist nie „es ist nicht farbig".
+//
+// 💣 DIE SCHLUESSEL SIND DEUTSCH UND STABIL (AGENTS.md §8: Option-Slugs werden nie uebersetzt). Die
+// sichtbaren Beschriftungen stehen im Editor, im Melde-Formular und in der i18n-Tafel des Clients --
+// hier steht der Wert, der in der Spalte landet.
+//
+// ⚠️ `braun` kann der Wiki-Sync NICHT liefern: die Wiki-Tabelle kennt genau zwei Spalten, „Farbe"
+// und „s/w". Brauntoene ist damit ein reiner Handwert -- und geschuetzt, weil jeder Editor-Schreib-
+// vorgang die Zeile auf origin='manual' stempelt und avesmapsCitymapReconcilePlan sie danach
+// ueberspringt (api/_internal/wiki/citymap-sync.php).
+const AVESMAPS_CITYMAP_COLOR_MODES = ['graustufen', 'braun', 'farbig'];
+
 // Provenance (Spec §3.1). The values are behaviour, not decoration:
 //   manual    -- an editor typed it (or adopted a wiki map by editing it). The wiki sync never touches it.
 //   community -- born from an approved reader suggestion (§3.8). The wiki sync never touches it either.
@@ -168,6 +188,7 @@ function avesmapsCitymapsEnsureTables(PDO $pdo): void
             thumb_license_note VARCHAR(2000) NULL,
             art VARCHAR(24) NULL,
             is_color TINYINT(1) NULL,
+            color_mode VARCHAR(16) NULL,
             is_multilevel TINYINT(1) NULL,
             is_labeled TINYINT(1) NULL,
             is_official TINYINT(1) NULL,
@@ -439,6 +460,55 @@ function avesmapsCitymapsEnsureTables(PDO $pdo): void
             $pdo->exec('ALTER TABLE citymap ADD COLUMN ' . $spalte . ' ' . $typ . ' NULL');
         }
     }
+    // color_mode: der Nachfolger des Tri-Bools `is_color` (Owner 07.09.2026, siehe
+    // AVESMAPS_CITYMAP_COLOR_MODES).
+    //
+    // 🔴 NUR DAS ALTER, KEIN BACKFILL. Diese Funktion wird aus der RECHEN-Haelfte des Kartensammlungs-
+    // Syncs erreicht, und die schreibt in KEINE Nutztabelle -- sync-plan-purity-test.php haelt das fest
+    // (DDL ist dort ausdruecklich erlaubt, ein UPDATE nicht). Der Backfill steht deshalb in
+    // `avesmapsCitymapsEnsureColorModeBackfill` und wird von den ENDPUNKTEN gerufen, nie von hier.
+    // 🪤 UND DER NAME STEHT HIER OHNE KLAMMERN: der Erreichbarkeits-Walk jenes Waechters liest den
+    // Funktionsrumpf SAMT Kommentaren, und `name(` ist fuer ihn ein Aufruf. Mit Klammern zoege dieser
+    // Satz genau die Funktion in die Rechen-Haelfte, deren Fernhaltung er beschreibt.
+    // ⚠️ Das ALTER muss trotzdem HIER stehen: der Sync liest `citymap` mit einer Spaltenliste, die
+    // color_mode nennt -- ohne die Spalte laeuft er in „Unknown column", noch bevor irgendein Endpunkt
+    // den Backfill fahren konnte.
+    if (!$columnExists('color_mode')) {
+        $pdo->exec('ALTER TABLE citymap ADD COLUMN color_mode VARCHAR(16) NULL');
+    }
+}
+
+/**
+ * Zieht den Bestand von `is_color` auf `color_mode` nach. Selbstbegrenzend, ohne Marker.
+ *
+ * 💣 DER RIEGEL IST, DASS ER `is_color` IN DERSELBEN ANWEISUNG LEERT. Ohne das braeuchte er einen
+ * Marker: mit der blossen Bedingung „color_mode IS NULL" liefe er bei jedem Aufruf erneut, und sobald
+ * ein Editor eine Karte bewusst auf „unbekannt" zuruecksetzt, waehrend ihr altes is_color=1
+ * stehenbleibt, schriebe der naechste Lesezugriff „farbig" zurueck -- eine Entscheidung, die sich von
+ * selbst rueckgaengig macht. So dagegen ist eine einmal angefasste Zeile fuer ihn unsichtbar: ihr
+ * is_color IST NULL, und `WHERE is_color IS NOT NULL` trifft sie nie wieder.
+ *
+ * 🔴 Er ist damit auch die Stelle, an der die alte Spalte STIRBT -- Zeile fuer Zeile, statt per DROP
+ * COLUMN. Die Spalte selbst bleibt stehen (der Rueckweg, falls die Migration je zurueckgenommen werden
+ * muss); nur ihr Inhalt wandert. Nach dem ersten vollen Lauf trifft er null Zeilen und kostet einen
+ * Index-Scan ueber 536 Zeilen -- deshalb braucht er keine Frist und keinen app_setting-Eintrag.
+ *
+ * ⚠️ EIN Fenster bleibt, und es ist Sekunden breit: setzt ein Editor eine Karte von „farbig" auf
+ * „unbekannt", BEVOR dieser Lauf sie je gesehen hat, holt er sie einmal zurueck. Der erste Besucher
+ * nach dem Deploy schliesst es -- der oeffentliche Katalog ruft ihn.
+ *
+ * ⚠️ NICHT aus avesmapsCitymapsEnsureTables rufen (siehe dort) und nicht aus einer offenen
+ * Transaktion: er steht neben DDL, und MySQL committet bei DDL implizit.
+ */
+function avesmapsCitymapsEnsureColorModeBackfill(PDO $pdo): void
+{
+    avesmapsCitymapsEnsureTables($pdo);
+    $pdo->exec(
+        "UPDATE citymap SET
+            color_mode = CASE WHEN is_color = 1 THEN 'farbig' ELSE 'graustufen' END,
+            is_color = NULL
+         WHERE color_mode IS NULL AND is_color IS NOT NULL"
+    );
 }
 
 function avesmapsCitymapsCount(PDO $pdo): int
@@ -562,6 +632,43 @@ function avesmapsCitymapTriBool(mixed $raw): ?int
         return null;
     }
     return ((bool) $raw) ? 1 : 0;
+}
+
+/**
+ * Die eine Lesart der Farbigkeit (AVESMAPS_CITYMAP_COLOR_MODES). NULL = unbekannt.
+ *
+ * 🔴 EIN UNBEKANNTER WERT FAELLT AUF NULL, NIE AUF EINEN DER DREI. Das Auswahlfeld bietet genau vier
+ * Antworten an, ein fremder Wert kommt also aus einer handgebauten Anfrage -- und „wir wissen es
+ * nicht" ist dafuer die ehrliche Antwort, waehrend ein Rueckfall auf 'graustufen' eine Behauptung
+ * waere, die niemand aufgestellt hat. Dieselbe nachsichtige Richtung wie bei `art` weiter unten.
+ *
+ * ⚠️ Er nimmt zusaetzlich die ZWEI ALTEN Tri-Bool-Antworten an ('1'/'0', true/false): ein Editor mit
+ * gecachtem Formular oder ein Melde-Formular aus einem offenen Tab schickt sie noch, und sie
+ * bedeuten unveraendert „farbig" bzw. „graustufen" -- dieselbe Uebersetzung wie die Migration in
+ * avesmapsCitymapsEnsureTables. Ohne das faellt ein alter Tab still auf „unbekannt" zurueck.
+ */
+function avesmapsCitymapColorMode(mixed $raw): ?string
+{
+    if ($raw === null || $raw === '') {
+        return null;
+    }
+    if ($raw === true) {
+        return 'farbig';
+    }
+    if ($raw === false) {
+        return 'graustufen';
+    }
+    $value = strtolower(trim((string) $raw));
+    if ($value === '' || $value === 'null' || $value === 'unknown' || $value === 'unbekannt') {
+        return null;
+    }
+    if ($value === '1') {
+        return 'farbig';
+    }
+    if ($value === '0') {
+        return 'graustufen';
+    }
+    return in_array($value, AVESMAPS_CITYMAP_COLOR_MODES, true) ? $value : null;
 }
 
 function avesmapsCitymapIntOrNull(mixed $raw): ?int
@@ -707,7 +814,7 @@ function avesmapsCitymapsReadCatalog(PDO $pdo): array
     avesmapsCitymapsEnsureTables($pdo);
     $rows = $pdo->query(
         "SELECT id, public_id, title, parent_id, map_url, map_url_label, map_local_url, map_license,
-                thumb_url, thumb_local_url, thumb_license, art, is_color, is_multilevel, is_labeled,
+                thumb_url, thumb_local_url, thumb_license, art, color_mode, is_multilevel, is_labeled,
                 is_official, is_spoiler, is_paid, has_scale, width_px, height_px, format,
                 valid_from_bf, valid_to_bf, author, publisher, note
            FROM citymap
@@ -756,7 +863,7 @@ function avesmapsCitymapsReadCatalog(PDO $pdo): array
             'map_local_url' => avesmapsCitymapPublicMapLocalUrl($row),
             'thumb' => $previewsOn ? avesmapsCitymapPublicThumbUrl($row) : '',
             'art' => (string) ($row['art'] ?? ''),
-            'is_color' => avesmapsCitymapTriBoolOut($row['is_color']),
+            'color_mode' => avesmapsCitymapColorMode($row['color_mode'] ?? null),
             'is_multilevel' => avesmapsCitymapTriBoolOut($row['is_multilevel']),
             'is_labeled' => avesmapsCitymapTriBoolOut($row['is_labeled']),
             'is_official' => avesmapsCitymapTriBoolOut($row['is_official']),
@@ -1148,7 +1255,7 @@ function avesmapsCitymapDetailForEdit(PDO $pdo, string $publicId): ?array
             'thumb_origin' => avesmapsCitymapNormalizeThumbOrigin($row['thumb_origin'] ?? null),
             'thumb_auto_state' => (string) ($row['thumb_auto_state'] ?? ''),
             'art' => (string) ($row['art'] ?? ''),
-            'is_color' => avesmapsCitymapTriBoolOut($row['is_color']),
+            'color_mode' => avesmapsCitymapColorMode($row['color_mode'] ?? null),
             'is_multilevel' => avesmapsCitymapTriBoolOut($row['is_multilevel']),
             'is_labeled' => avesmapsCitymapTriBoolOut($row['is_labeled']),
             'is_official' => avesmapsCitymapTriBoolOut($row['is_official']),
@@ -1236,13 +1343,18 @@ function avesmapsUpsertCitymap(PDO $pdo, array $data, int $userId = 0, string $o
     $editableFields = [
         'map_url', 'map_url_label', 'map_license', 'map_license_note', 'map_license_author',
         'thumb_url', 'thumb_license', 'thumb_license_note', 'thumb_license_author',
-        'art', 'is_color', 'is_multilevel', 'is_labeled', 'is_official', 'is_spoiler', 'is_paid', 'has_scale',
+        'art', 'color_mode', 'is_multilevel', 'is_labeled', 'is_official', 'is_spoiler', 'is_paid', 'has_scale',
         'width_px', 'height_px', 'format', 'valid_from_bf', 'valid_to_bf', 'author', 'publisher', 'note',
         'status', 'article_url', 'article_key', 'article_title', 'no_article',
     ];
 
     $normalize = static function (string $field, mixed $raw): int|string|null {
-        if (in_array($field, ['is_color', 'is_multilevel', 'is_labeled', 'is_official', 'is_spoiler', 'is_paid',
+        // VIERWERTIG, nicht dreiwertig (Owner 07.09.2026) -- die einzige Eigenschaft, die keine
+        // Ja/Nein-Frage ist. NULL bleibt „unbekannt" wie bei allen anderen.
+        if ($field === 'color_mode') {
+            return avesmapsCitymapColorMode($raw);
+        }
+        if (in_array($field, ['is_multilevel', 'is_labeled', 'is_official', 'is_spoiler', 'is_paid',
             'has_scale'], true)) {
             return avesmapsCitymapTriBool($raw);
         }
@@ -1466,7 +1578,27 @@ function avesmapsNormalizeCitymapReportPayload(mixed $raw): array
     // is_paid rides along: it is a plain observation ("you have to buy this"), not a claim that unlocks
     // anything. Unlike a licence it gates nothing -- a reporter looking at a shop page simply knows it, and
     // §3.8's "Feldumfang voll wie im Editor" applies.
-    foreach (['is_color', 'is_multilevel', 'is_labeled', 'is_official', 'is_spoiler', 'is_paid'] as $field) {
+    // Vierwertig und deshalb VOR der Tri-Bool-Schleife -- ein Melder waehlt hier aus vier Antworten,
+    // nicht aus drei (siehe AVESMAPS_CITYMAP_COLOR_MODES).
+    //
+    // 💣 DER RUECKFALL AUF DEN ALTEN SCHLUESSEL IST HIER KEIN KOMFORT, SONDERN DER RIEGEL GEGEN EINEN
+    // STILLEN DATENVERLUST -- und diese Funktion ist die EINZIGE Stelle, an der er greifen kann. Sie
+    // laeuft zweimal: beim Eingang einer Meldung UND beim Genehmigen, wo
+    // avesmapsCreateCitymapFromReport das gespeicherte `payload_json` erneut durch sie schickt
+    // (api/edit/reports/locations.php). Eine Meldung, die vor dem 07.09.2026 eingereicht wurde und noch
+    // offen in `map_reports` liegt, traegt dort den ALTEN Schluessel `is_color` -- das damalige Formular
+    // hat ihn so verschickt. Ohne diese zwei Zeilen bekaeme die daraus angelegte Karte
+    // `color_mode = NULL`, obwohl der Melder geantwortet hat: kein Fehler, keine Meldung, und dem
+    // Pruefer faellt nichts auf.
+    //
+    // 🔴 GEPRUEFT WIRD, OB DER SCHLUESSEL DA IST -- nicht, ob er einen Wert hat. Ein HEUTIGES Formular
+    // schickt `color_mode: ''`, und das ist eine ANTWORT („unbekannt"), keine Luecke; faellt man auch
+    // darauf zurueck, ueberschriebe ein mitgeschicktes altes `is_color` die bewusste Antwort des
+    // Melders. Dieselbe Unterscheidung wie bei `no_article` im Editor-Schreibweg.
+    $citymap['color_mode'] = array_key_exists('color_mode', $data)
+        ? avesmapsCitymapColorMode($data['color_mode'])
+        : avesmapsCitymapColorMode($data['is_color'] ?? null);
+    foreach (['is_multilevel', 'is_labeled', 'is_official', 'is_spoiler', 'is_paid'] as $field) {
         $citymap[$field] = avesmapsCitymapTriBool($data[$field] ?? null);
     }
     foreach (['valid_from_bf', 'valid_to_bf', 'width_px', 'height_px'] as $field) {

@@ -44,6 +44,12 @@ try {
         avesmapsJsonResponse(200, ['ok' => true, 'citymaps' => [], 'citymaps_enabled' => false]);
     }
 
+    // Der Bestand von `is_color` auf `color_mode` (Owner 07.09.2026). Selbstbegrenzend und ohne
+    // Marker -- die Begruendung samt Riegel steht bei der Funktion. Er steht HIER und nicht in der
+    // Bibliothek, weil avesmapsCitymapsEnsureTables aus der RECHEN-Haelfte des Syncs erreicht wird
+    // und die in keine Nutztabelle schreiben darf (sync-plan-purity-test.php).
+    avesmapsCitymapsEnsureColorModeBackfill($pdo);
+
     $citymaps = avesmapsCitymapsReadCatalog($pdo);
 
     // Decorate each link with its checked state (Spec §1.7, the embedded path): ONE extra query for the

@@ -6,7 +6,7 @@ const assert = require("assert");
 const { escapeHtml } = require("../../app/utils.js");
 const { avesmapsLinkStatusMarkup, avesmapsLinkStatusLinkClass } = require("../../app/link-status.js");
 const { avesmapsFilterBarMarkup } = require("../../ui/filter-bar.js");
-const { avesmapsCitymapTypeLabel, avesmapsCitymapArtLabel } = require("../map-features-citymaps.js");
+const { avesmapsCitymapTypeLabel, avesmapsCitymapArtLabel, avesmapsCitymapColorModeLabel } = require("../map-features-citymaps.js");
 
 global.escapeHtml = escapeHtml;
 global.avesmapsLinkStatusMarkup = avesmapsLinkStatusMarkup;
@@ -14,6 +14,10 @@ global.avesmapsLinkStatusLinkClass = avesmapsLinkStatusLinkClass;
 global.avesmapsFilterBarMarkup = avesmapsFilterBarMarkup;
 global.avesmapsCitymapTypeLabel = avesmapsCitymapTypeLabel;
 global.avesmapsCitymapArtLabel = avesmapsCitymapArtLabel;
+// 🔴 Die Zeile ist tragend, nicht Beiwerk: cityMapRowSuffix liest die Farbstufe ueber DIESEN einen
+// Uebersetzer, und ohne ihn faellt die Farbangabe still aus der Zeile -- der Test saehe "Stadtplan" und
+// haette nichts zu beanstanden.
+global.avesmapsCitymapColorModeLabel = avesmapsCitymapColorModeLabel;
 global.tr = function (key, germanDefault, params) {
   let out = String(germanDefault == null ? "" : germanDefault);
   Object.keys(params || {}).forEach((name) => {
@@ -76,14 +80,18 @@ console.log("citymap helpers ok");
 const plain = cityMapCardMarkup({
   public_id: "m1", title: "Gareth Gesamtplan", map_url: "https://example.org/plan",
   thumb: "/uploads/kartensammlungen/m1/thumb-1.png", types: ["stadtplan"], art: "politisch",
-  is_color: true, is_spoiler: null, valid_from_bf: 1027, valid_to_bf: 9999,
+  color_mode: "farbig", is_spoiler: null, valid_from_bf: 1027, valid_to_bf: 9999,
 });
 assert.ok(plain.includes('href="https://example.org/plan"') && plain.includes('target="_blank"'), "card links out");
 assert.ok(plain.includes('src="/uploads/kartensammlungen/m1/thumb-1.png"'), "card shows the thumb");
 assert.ok(!plain.includes("is-spoiler") && !plain.includes("data-citymap-reveal"), "non-spoiler has no cover");
-// The tri-state data contract: "1" | "0" | "" -- and "" for unknown, NOT "0". A data-color="0" would
-// claim we know the map is not coloured.
-assert.ok(plain.includes('data-color="1"'), "known true -> 1");
+// The tri-state data contract: "1" | "0" | "" -- and "" for unknown, NOT "0". A data-spoiler="0" would
+// claim we know the map is not a spoiler.
+// ⚠️ data-color IST DIE AUSNAHME: es traegt seit dem 07.09.2026 den Schluessel der Farbstufe, nicht "1".
+// Die Regel darueber gilt fuer es unveraendert -- leer heisst "niemand hat es erfasst", nie "graustufen".
+assert.ok(plain.includes('data-color="farbig"'), "die Farbstufe reist als Schluessel");
+assert.ok(cityMapCardMarkup({ public_id: "m9", title: "T", color_mode: "braun" }).includes('data-color="braun"'));
+assert.ok(cityMapCardMarkup({ public_id: "m9", title: "T" }).includes('data-color=""'), "unbekannt -> leer, nie eine Stufe");
 assert.ok(plain.includes('data-spoiler=""'), "unknown -> empty, never 0");
 assert.ok(plain.includes('data-multilevel=""'), "absent -> empty");
 assert.ok(plain.includes('data-from="1027"') && plain.includes('data-to="9999"'));
@@ -345,13 +353,17 @@ assert.strictEqual(cityMapBandLabel({ title: "Leere Klammer ()" }), "Leere Klamm
 assert.strictEqual(cityMapBandLabel({}), "");
 
 // ---- Suffix: Typ + Ausfuehrung ----------------------------------------------------------------------
-assert.strictEqual(cityMapRowSuffix({ types: ["stadtplan"], is_color: true }), "Stadtplan · farbig");
+assert.strictEqual(cityMapRowSuffix({ types: ["stadtplan"], color_mode: "farbig" }), "Stadtplan · Farbig");
 // DAS ist der Grund fuer die ganze Uebung: 238 von 419 Karten haben is_color === false, und die Zeile
 // druckte es nicht -- 21 Titelpaare sahen dadurch aus wie Dubletten.
-assert.strictEqual(cityMapRowSuffix({ types: ["stadtplan"], is_color: false }), "Stadtplan · schwarzweiß");
+assert.strictEqual(cityMapRowSuffix({ types: ["stadtplan"], color_mode: "graustufen" }), "Stadtplan · Schwarzweiß bzw. Graustufen");
+// Die vierte Stufe (Owner 07.09.2026). 🔴 Das Wort kommt aus avesmapsCitymapColorModeLabel und NICHT aus
+// einem zweiten tr() hier: bis dahin nannte die Zeile denselben Wert "schwarzweiß", waehrend der Editor
+// ihn "nein" nannte -- zwei Namen fuer eine Sache, und genau daran ist die Vierstufigkeit haengengeblieben.
+assert.strictEqual(cityMapRowSuffix({ types: ["stadtplan"], color_mode: "braun" }), "Stadtplan · Brauntöne");
 // null bleibt unbekannt und faellt weg (Spec §3.1) -- false tut das NICHT.
-assert.strictEqual(cityMapRowSuffix({ types: ["stadtplan"], is_color: null }), "Stadtplan");
-assert.strictEqual(cityMapRowSuffix({ types: ["ortsplan", "stadtplan"], is_color: true }), "Ortsplan & Stadtplan · farbig");
+assert.strictEqual(cityMapRowSuffix({ types: ["stadtplan"], color_mode: null }), "Stadtplan");
+assert.strictEqual(cityMapRowSuffix({ types: ["ortsplan", "stadtplan"], color_mode: "farbig" }), "Ortsplan & Stadtplan · Farbig");
 assert.strictEqual(cityMapRowSuffix({}), "");
 
 // ---- Fakten der aufgeklappten Zeile -----------------------------------------------------------------
@@ -371,12 +383,12 @@ assert.deepStrictEqual(cityMapRowFacts({ note: "Format: A4 · Maßstab: 1:12.750
 
 // ---- die Zeile --------------------------------------------------------------------------------------
 const newRow = buildCityMapRowMarkup({
-  public_id: "m1", title: "Stadtplan von Gareth (Herz des Reiches)", types: ["stadtplan"], is_color: false,
+  public_id: "m1", title: "Stadtplan von Gareth (Herz des Reiches)", types: ["stadtplan"], color_mode: "graustufen",
   sources: [{ label: "Herz des Reiches" }], map_url: "https://example.org/k",
   links: [{ key: "map", label: "Karte", url: "https://example.org/k", state: "online", is_paid: null }],
 });
 assert.ok(newRow.includes("Herz des Reiches"), "der Band ist die Ueberschrift");
-assert.ok(newRow.includes("schwarzweiß"), "die Ausfuehrung steht in der Titelzeile");
+assert.ok(newRow.includes("Schwarzweiß bzw. Graustufen"), "die Ausfuehrung steht in der Titelzeile");
 assert.ok(!newRow.includes(">Stadtplan von Gareth (Herz des Reiches)<"), "der Formel-Titel wird nicht mehr als Text gedruckt");
 assert.ok(!newRow.includes("citymap-row__linkshead"), "die Zeilen-Ueberschrift 'Zu finden bei' ist weg");
 assert.ok(newRow.includes("online") && newRow.includes("link-status--online"), "der Erreichbarkeits-Status wird jetzt AUCH bei Karten gezeigt (Owner 2026-07-18)");

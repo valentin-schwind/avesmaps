@@ -63,6 +63,13 @@ function avesmapsCitymapApplyStep(PDO $pdo, int $runId, int $userId, ?array $use
 
         $catalogFind->execute(['wk' => $wikiKey]);
         $catalog = $catalogFind->fetch(PDO::FETCH_ASSOC) ?: null;
+        // 🔴 DERSELBE Uebergangs-Rueckfall wie in der Rechen-Haelfte (`avesmapsCitymapStagingColorMode`,
+        // citymap-sync.php). Er MUSS auch hier stehen: die Uebernahme rechnet den Plan gegen den
+        // Sandkasten NEU, und laese sie die Spalte roh, schriebe sie genau die Loeschung, die die
+        // Vorschau nebenan gar nicht angeboten hat -- ein Haekchen fuer „Farbig" und ein Ergebnis „—".
+        if ($catalog !== null) {
+            $catalog['color_mode'] = avesmapsCitymapStagingColorMode($catalog);
+        }
 
         if ($changeType === 'deleted') {
             $liveFind->execute(['wk' => $wikiKey]);

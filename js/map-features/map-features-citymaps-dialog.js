@@ -81,7 +81,12 @@
 			title: card.getAttribute("data-title") || "",
 			types: types ? types.split(",") : [],
 			art: card.getAttribute("data-art") || "",
-			is_color: triFromAttr(card.getAttribute("data-color")),
+			// KEIN triFromAttr: data-color traegt seit dem 07.09.2026 den Schluessel der Farbstufe,
+			// nicht "1"/"0". Der Normalisierer nimmt die alte Form trotzdem an -- eine gecachte Seite
+			// im offenen Tab stempelt sie noch.
+			color_mode: (typeof avesmapsCitymapNormalizeColorMode === "function")
+				? avesmapsCitymapNormalizeColorMode(card.getAttribute("data-color"))
+				: (card.getAttribute("data-color") || null),
 			is_multilevel: triFromAttr(card.getAttribute("data-multilevel")),
 			is_labeled: triFromAttr(card.getAttribute("data-labeled")),
 			is_official: triFromAttr(card.getAttribute("data-official")),

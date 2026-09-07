@@ -175,15 +175,20 @@ $cards = $result['cards'];
 assert(findCard($cards, 'Abilacht', 'Landkartenset Die Siebenwindküste', 'stadtplan-farbe') !== null);
 $vg2 = findCard($cards, 'Abilacht', 'Die Siebenwindküste', 'stadtplan-farbe');
 assert($vg2 !== null);                       // the TARGET, not "VG2"
-assert($vg2['is_color'] === 1);              // column position encodes colour
+assert($vg2['color_mode'] === 'farbig');     // column position encodes colour
 assert($vg2['type_key'] === 'stadtplan');
 assert($vg2['title'] === 'Stadtplan von Abilacht (Die Siebenwindküste)');
 
 $sw = findCard($cards, "Al'Anfa", 'Stunden der Entscheidung', 'stadtplan-sw');
-assert($sw !== null && $sw['is_color'] === 0);
+// 🔴 Die Wiki-Spalte heisst „s/w", der Wert heisst seit dem 07.09.2026 „graustufen" -- die VARIANTE
+// bleibt trotzdem 'stadtplan-sw': sie ist Teil des wiki_key und damit Identitaet, nicht Anzeige.
+assert($sw !== null && $sw['color_mode'] === 'graustufen');
 $env = findCard($cards, "Al'Anfa", 'Das Bornland', 'umgebung');
 assert($env !== null);
-assert($env['is_color'] === null);           // unknown, NOT 0 -- the core rule of citymaps.php
+assert($env['color_mode'] === null);         // unknown, NOT 'graustufen' -- the core rule of citymaps.php
+// ⚠️ Und die Wiki-Liste liefert NIE 'braun': sie kennt genau zwei Spalten. Brauntoene sind ein reiner
+// Handwert -- geschuetzt dadurch, dass ein Editor-Schreibvorgang die Zeile auf origin='manual' stempelt.
+assert(!in_array('braun', array_column($cards, 'color_mode'), true));
 assert($env['type_key'] === 'uebersicht');
 assert($env['title'] === "Umgebungskarte von Al'Anfa (Das Bornland)");
 
@@ -246,7 +251,7 @@ assert(findCard($cards, "Al'Anfa", 'IdDM', 'stadtplan-farbe') === null);
 // (c) City the old list never had -> the new list owns it.
 $neu = findCard($cards, 'Neustadt', 'Borbarads Erben', 'stadtplan-sw');
 assert($neu !== null);
-assert($neu['is_color'] === 0);
+assert($neu['color_mode'] === 'graustufen');
 assert($neu['author'] === 'Max Muster');
 assert($neu['is_labeled'] === null);                   // "-" is unknown, not "unlabelled"
 
@@ -310,7 +315,7 @@ $cards = avesmapsCitymapParseStadtplanindex($page)['cards'];
 
 $stadtplan = array_values(array_filter($cards, static fn(array $c): bool => $c['title'] === 'Stadtplan von Havena (AGF)'));
 assert(count($stadtplan) === 1);           // Farbe + s/w folded into ONE map (was 2 before the fix)
-assert($stadtplan[0]['is_color'] === 1);   // the richer (colour) row wins -> colour is kept
+assert($stadtplan[0]['color_mode'] === 'farbig');   // the richer (colour) row wins -> colour is kept
 assert($stadtplan[0]['type_key'] === 'stadtplan');
 
 $umgebung = array_values(array_filter($cards, static fn(array $c): bool => $c['title'] === 'Umgebungskarte von Havena (AGF)'));
@@ -513,20 +518,20 @@ echo "kontinent-titles ok\n";
 
 // ---------------------------------------------------------------------- DEDUP ---
 $dupes = [
-    ['wiki_key' => 'k1', 'author' => null, 'note' => 'N', 'is_labeled' => null, 'is_color' => 1, 'art' => null],
-    ['wiki_key' => 'k1', 'author' => 'A', 'note' => null, 'is_labeled' => 1, 'is_color' => null, 'art' => null],
+    ['wiki_key' => 'k1', 'author' => null, 'note' => 'N', 'is_labeled' => null, 'color_mode' => 'farbig', 'art' => null],
+    ['wiki_key' => 'k1', 'author' => 'A', 'note' => null, 'is_labeled' => 1, 'color_mode' => null, 'art' => null],
 ];
 $deduped = avesmapsCitymapDedupeByWikiKey($dupes);
 assert(count($deduped) === 1);
 assert($deduped[0]['author'] === 'A');        // blanks filled from the twin rather than row order winning
 assert($deduped[0]['note'] === 'N');
-assert($deduped[0]['is_color'] === 1);
+assert($deduped[0]['color_mode'] === 'farbig');
 echo "dedupe ok\n";
 
 // ------------------------------------------------------- RECONCILE PLAN ---
 // The override-safety heart. Every rule here is one the owner named explicitly.
 $desired = ['title' => 'Stadtplan von X (Q)', 'map_url' => 'https://de.wiki-aventurica.de/wiki/Q',
-    'art' => null, 'is_color' => 1, 'is_labeled' => null, 'author' => 'Ina Kramer', 'note' => 'Mit Legende',
+    'art' => null, 'color_mode' => 'farbig', 'is_labeled' => null, 'author' => 'Ina Kramer', 'note' => 'Mit Legende',
     'format' => 'A2', 'has_scale' => 1, 'publisher' => 'Fanpro'];
 
 // No live row -> create.
@@ -548,7 +553,7 @@ assert(array_key_exists('map_url', $noUrl['set']));
 // A wiki row that already matches -> NO-OP. This IS "zweiter Sync-Lauf legt KEINE Dubletten an".
 $live = ['origin' => 'wiki', 'status' => 'approved', 'title' => 'Stadtplan von X (Q)',
     'map_url' => 'https://de.wiki-aventurica.de/wiki/Q', 'art' => null,
-    'is_color' => 1, 'is_labeled' => null, 'author' => 'Ina Kramer', 'note' => 'Mit Legende',
+    'color_mode' => 'farbig', 'is_labeled' => null, 'author' => 'Ina Kramer', 'note' => 'Mit Legende',
     'format' => 'A2', 'has_scale' => 1, 'publisher' => 'Fanpro'];
 $plan = avesmapsCitymapReconcilePlan($live, $desired);
 assert($plan['action'] === 'noop');
@@ -578,9 +583,9 @@ assert($set === ['format' => 'A2', 'has_scale' => 1, 'note' => 'Mit Legende', 'p
 
 // NULL vs '' are both "unknown" -> no spurious write.
 $plan = avesmapsCitymapReconcilePlan(
-    ['origin' => 'wiki', 'status' => 'approved', 'title' => 'T', 'art' => null, 'is_color' => null,
+    ['origin' => 'wiki', 'status' => 'approved', 'title' => 'T', 'art' => null, 'color_mode' => null,
      'is_labeled' => null, 'author' => '', 'note' => null],
-    ['title' => 'T', 'art' => null, 'is_color' => null, 'is_labeled' => null, 'author' => null, 'note' => null]
+    ['title' => 'T', 'art' => null, 'color_mode' => null, 'is_labeled' => null, 'author' => null, 'note' => null]
 );
 assert($plan['action'] === 'noop');
 

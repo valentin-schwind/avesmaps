@@ -23,6 +23,41 @@ var AVESMAPS_CITYMAP_TYPE_LABELS = {
 var AVESMAPS_CITYMAP_ART_LABELS = {
 	politisch: "Politisch", derographisch: "Derographisch", topologisch: "Topologisch", skizze: "Skizze",
 };
+// Die vier Stufen der Farbigkeit (Owner 07.09.2026: „nur Graustufe, Brauntoene, Farbig, Unbekannt").
+// Der VIERTE steht nicht in dieser Tafel: „unbekannt" ist die Abwesenheit eines Schluessels (null), und
+// ein Eintrag dafuer waere die Zeile, die §3.1 verbietet -- der Leser bekaeme ein Wort fuer etwas, das
+// niemand behauptet hat.
+//
+// 💣 DIE SCHLUESSEL SIND DIE DES SERVERS (AVESMAPS_CITYMAP_COLOR_MODES, api/_internal/app/citymaps.php)
+// und werden nie uebersetzt -- die Beschriftungen daneben schon, ueber tr() wie bei Typ und Art.
+var AVESMAPS_CITYMAP_COLOR_MODE_LABELS = {
+	// ⚠️ „Schwarzweiß bzw. Graustufen" ist EIN Wert unter zwei Namen (Owner 07.09.2026): die Stufe
+	// deckt beides ab, weil eine reine Zweifarbkarte und eine mit Grauabstufungen fuer den Leser
+	// dieselbe Frage beantworten. Der SCHLUESSEL bleibt `graustufen` -- er steht in der Spalte
+	// citymap.color_mode, und ihn umzubenennen waere eine Datenmigration, keine Umbenennung.
+	graustufen: "Schwarzweiß bzw. Graustufen", braun: "Brauntöne", farbig: "Farbig",
+};
+
+function avesmapsCitymapColorModeLabel(key) {
+	var slug = String(key == null ? "" : key);
+	if (!slug || !AVESMAPS_CITYMAP_COLOR_MODE_LABELS[slug]) {
+		return "";
+	}
+	return (typeof tr === "function") ? tr("cityMaps.colorMode." + slug, AVESMAPS_CITYMAP_COLOR_MODE_LABELS[slug]) : AVESMAPS_CITYMAP_COLOR_MODE_LABELS[slug];
+}
+
+// Die eine Lesart im Browser -- Gegenstueck zu avesmapsCitymapColorMode() auf dem Server, und aus
+// demselben Grund: ein fremder Wert faellt auf null („unbekannt"), nie auf eine der drei Stufen.
+// ⚠️ Sie nimmt die zwei ALTEN Tri-Bool-Antworten mit an (true/false, "1"/"0"): eine DOM-Shape aus einer
+// gecachten Seite traegt sie noch, und sie hiessen unveraendert „farbig" bzw. „graustufen".
+function avesmapsCitymapNormalizeColorMode(raw) {
+	if (raw === true) { return "farbig"; }
+	if (raw === false) { return "graustufen"; }
+	var value = String(raw == null ? "" : raw).trim().toLowerCase();
+	if (value === "1") { return "farbig"; }
+	if (value === "0") { return "graustufen"; }
+	return AVESMAPS_CITYMAP_COLOR_MODE_LABELS[value] ? value : null;
+}
 
 function avesmapsCitymapTypeLabel(key) {
 	var slug = String(key == null ? "" : key);
@@ -69,9 +104,10 @@ function avesmapsCitymapToRenderShape(citymap) {
 		map_local_url: citymap.map_local_url || "",
 		art: citymap.art || "",
 		types: Array.isArray(citymap.types) ? citymap.types : [],
-		// Three-valued (§3.1): null = nobody recorded it. NEVER coerce to false -- the reader would be
-		// shown a definite "nicht farbig" that nobody asserted, and the filter would match on it.
-		is_color: (citymap.is_color == null) ? null : !!citymap.is_color,
+		// VIERWERTIG seit dem 07.09.2026 (Owner): null = niemand hat es erfasst, sonst einer der drei
+		// Schluessel aus AVESMAPS_CITYMAP_COLOR_MODE_LABELS. NIE auf einen Wert zwingen -- der Leser
+		// bekaeme sonst eine Aussage, die niemand getroffen hat, und der Filter traefe darauf zu.
+		color_mode: avesmapsCitymapNormalizeColorMode(citymap.color_mode),
 		is_multilevel: (citymap.is_multilevel == null) ? null : !!citymap.is_multilevel,
 		is_labeled: (citymap.is_labeled == null) ? null : !!citymap.is_labeled,
 		is_official: (citymap.is_official == null) ? null : !!citymap.is_official,
@@ -245,7 +281,7 @@ function avesmapsCitymapActiveFacets(shapes) {
 	});
 	var keys = Object.keys(years).map(Number);
 	return {
-		color: splits(function (s) { return s.is_color === true; }),
+		color: splits(function (s) { return s.color_mode === "farbig"; }),
 		official: splits(function (s) { return s.is_official === true; }),
 		free: splits(avesmapsCitymapHasFreeAccess),
 		// Zwei Karten MIT Jahr und unterschiedliche Jahre. Eine Karte mit einer Spanne liefert zwar zwei
@@ -315,7 +351,10 @@ function avesmapsCitymapMatchesFilter(shape, filter) {
 	}
 	// §3.7: "Unbekannte Werte matchen keinen Filter ausser 'alle'." Jeder Check verlangt ein explizites
 	// true -- null (unbekannt) faellt durch, und genau dafuer sind die Felder dreiwertig.
-	if (filter.colorOnly && shape.is_color !== true) {
+	// Der Schalter fragt nach „farbig", nicht nach „irgendeine Farbe": Brauntoene sind eine MONOCHROME
+	// Karte (Sepia), und wer den Haken setzt, sucht die bunte. Graustufen und unbekannt fallen ohnehin
+	// durch -- §3.7, unbekannt matcht keinen Filter ausser „alle".
+	if (filter.colorOnly && shape.color_mode !== "farbig") {
 		return false;
 	}
 	if (filter.officialOnly && shape.is_official !== true) {
@@ -535,6 +574,8 @@ if (typeof module !== "undefined" && module.exports) {
 		avesmapsCitymapIsPaidOnly: avesmapsCitymapIsPaidOnly,
 		avesmapsCitymapTypeLabel: avesmapsCitymapTypeLabel,
 		avesmapsCitymapArtLabel: avesmapsCitymapArtLabel,
+		avesmapsCitymapColorModeLabel: avesmapsCitymapColorModeLabel,
+		avesmapsCitymapNormalizeColorMode: avesmapsCitymapNormalizeColorMode,
 	};
 }
 if (typeof window !== "undefined") {
@@ -545,6 +586,8 @@ if (typeof window !== "undefined") {
 	window.avesmapsCitymapMatchesFilter = avesmapsCitymapMatchesFilter;
 	window.avesmapsCitymapTypeLabel = avesmapsCitymapTypeLabel;
 	window.avesmapsCitymapArtLabel = avesmapsCitymapArtLabel;
+	window.avesmapsCitymapColorModeLabel = avesmapsCitymapColorModeLabel;
+	window.avesmapsCitymapNormalizeColorMode = avesmapsCitymapNormalizeColorMode;
 	window.getCityMapsForPlace = getCityMapsForPlace;
 	window.getCityMapsForTerritory = getCityMapsForTerritory;
 	window.getCityMapsForRegion = getCityMapsForRegion;

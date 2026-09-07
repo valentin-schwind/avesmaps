@@ -126,10 +126,10 @@ function avesmapsCitymapWikiKey(string $index, string $identity, string $source,
  * Colour-agnostic identity token for a Stadtplanindex variant. The wiki lists the same city map in the
  * Farbe column AND the s/w column of one publication (and the new list adds a colour-unknown row); all
  * three carry the identical title "Stadtplan von X (Quelle)" -- they are ONE map to the collection, the
- * colour is data (is_color), not identity. Folding stadtplan-farbe / stadtplan-sw / stadtplan onto a
- * single 'stadtplan' key lets avesmapsCitymapDedupeByWikiKey merge the twins (richer row wins, is_color
+ * colour is data (color_mode), not identity. Folding stadtplan-farbe / stadtplan-sw / stadtplan onto a
+ * single 'stadtplan' key lets avesmapsCitymapDedupeByWikiKey merge the twins (richer row wins, colour
  * kept); 'umgebung' is a DIFFERENT map and keeps its own key. Fixes the 23 same-title wiki duplicates
- * measured 2026-07-18. The stored `variant`/`is_color` fields are untouched -- only the identity is.
+ * measured 2026-07-18. The stored `variant`/`color_mode` fields are untouched -- only the identity is.
  */
 function avesmapsCitymapStadtplanIdentityVariant(string $variant): string
 {
@@ -244,18 +244,20 @@ function avesmapsCitymapIsMyranorSection(string $heading): bool
 
 /**
  * The old Stadtplanindex table: "Stadt | Stadtplan (Farbe) | Stadtplan (s/w) | Umgebungskarte".
- * Column position encodes both the type and is_color -- that is the whole reason the variant is part
- * of the identity.
+ * Column position encodes both the type and the colour mode -- that is the whole reason the variant is
+ * part of the identity.
  *
  * @return array<int, array<string, mixed>>
  */
 function avesmapsCitymapParseOldStadtplanRows(string $sectionBody): array
 {
-    // [variant, type_key, is_color] per column index (1..3). NULL is_color = unknown, never 0:
+    // [variant, type_key, color_mode] per column index (1..3). NULL = unknown, never 'graustufen':
     // "nobody recorded whether it is coloured" is not "it is not coloured" (citymaps.php core rule).
+    // 🔴 DIE WIKI-LISTE KENNT NUR ZWEI DER VIER STUFEN. 'braun' entsteht hier nie -- Brauntoene sind
+    // ein reiner Handwert, und die Wiki-Tabelle hat keine Spalte dafuer (AVESMAPS_CITYMAP_COLOR_MODES).
     $columns = [
-        1 => ['stadtplan-farbe', 'stadtplan', 1],
-        2 => ['stadtplan-sw', 'stadtplan', 0],
+        1 => ['stadtplan-farbe', 'stadtplan', 'farbig'],
+        2 => ['stadtplan-sw', 'stadtplan', 'graustufen'],
         3 => ['umgebung', 'uebersicht', null],
     ];
 
@@ -271,7 +273,7 @@ function avesmapsCitymapParseOldStadtplanRows(string $sectionBody): array
         }
         $city = $cityTargets[0];
 
-        foreach ($columns as $index => [$variant, $typeKey, $isColor]) {
+        foreach ($columns as $index => [$variant, $typeKey, $colorMode]) {
             if (!isset($cells[$index])) {
                 continue;
             }
@@ -281,7 +283,7 @@ function avesmapsCitymapParseOldStadtplanRows(string $sectionBody): array
                     'source_raw' => $source,
                     'variant' => $variant,
                     'type_key' => $typeKey,
-                    'is_color' => $isColor,
+                    'color_mode' => $colorMode,
                     'is_labeled' => null,
                     // The old table has four columns and none of them is Format or Maßstab. Unknown ->
                     // NULL, and the new list may fill them in via avesmapsCitymapMergeStadtplanRows.
@@ -390,14 +392,20 @@ function avesmapsCitymapParseNewStadtplanRows(string $sectionBody): array
             continue;
         }
 
+        // Die Zelle sagt "Farbe" oder "s/w" und sonst nichts -- zwei der vier Stufen. 'braun' kann
+        // von hier nie kommen; wer Brauntoene setzt, tut das im Editor, und dann steht die Zeile auf
+        // origin='manual' und avesmapsCitymapReconcilePlan fasst sie nie wieder an.
         $colorCell = strtolower(trim($cells[2] ?? ''));
-        $isColor = null;
+        $colorMode = null;
         if (str_contains($colorCell, 'farbe')) {
-            $isColor = 1;
+            $colorMode = 'farbig';
         } elseif ($colorCell === 'sw' || str_contains($colorCell, 's/w')) {
-            $isColor = 0;
+            $colorMode = 'graustufen';
         }
-        $variant = $isColor === 1 ? 'stadtplan-farbe' : ($isColor === 0 ? 'stadtplan-sw' : 'stadtplan');
+        // 🔴 DIE VARIANTE BLEIBT 'stadtplan-sw', AUCH WENN DER WERT JETZT 'graustufen' HEISST: sie ist
+        // Teil des wiki_key und damit IDENTITAET, nicht Anzeige (AGENTS.md Paragraph 5 -- ein umbenannter
+        // Schluessel bricht jeden Join, der ihn benutzt).
+        $variant = $colorMode === 'farbig' ? 'stadtplan-farbe' : ($colorMode === 'graustufen' ? 'stadtplan-sw' : 'stadtplan');
 
         foreach ($split['sources'] as $i => $source) {
             $format = avesmapsCitymapParallelValue($formatCell, $i, $split['split']);
@@ -429,7 +437,7 @@ function avesmapsCitymapParseNewStadtplanRows(string $sectionBody): array
                 'source_raw' => $source,
                 'variant' => $variant,
                 'type_key' => 'stadtplan',
-                'is_color' => $isColor,
+                'color_mode' => $colorMode,
                 'is_labeled' => $isLabeled,
                 // "A2", "33,5x25,5", "ca. 8,5 x 8,5 cm" -- centimetres and DIN names. A VARCHAR, never
                 // width_px: those are pixels, and the wiki has never written one.
@@ -592,7 +600,7 @@ function avesmapsCitymapParseStadtplanindex(string $wikitext): array
             'variant' => $variant,
             'type_key' => (string) $row['type_key'],
             'art' => null,
-            'is_color' => $row['is_color'],
+            'color_mode' => $row['color_mode'],
             'is_labeled' => $row['is_labeled'],
             'format' => $row['format'] !== null ? avesmapsCitymapUnescapeApostrophes((string) $row['format']) : null,
             'has_scale' => $row['has_scale'],
@@ -622,7 +630,7 @@ function avesmapsCitymapDedupeByWikiKey(array $cards): array
             continue;
         }
         // Keep the richer row: fill blanks rather than let row order decide.
-        foreach (['author', 'note', 'is_labeled', 'is_color', 'art', 'format', 'has_scale'] as $field) {
+        foreach (['author', 'note', 'is_labeled', 'color_mode', 'art', 'format', 'has_scale'] as $field) {
             if (($byKey[$key][$field] ?? null) === null && ($card[$field] ?? null) !== null) {
                 $byKey[$key][$field] = $card[$field];
             }
@@ -762,7 +770,7 @@ function avesmapsCitymapParseContinentRows(string $sectionBody, string $continen
             'variant' => 'kontinent',
             'type_key' => 'uebersicht',
             'art' => avesmapsCitymapArtFromTitle($description),
-            'is_color' => null,
+            'color_mode' => null,
             'is_labeled' => null,
             'format' => $format,
             'has_scale' => $scaleRead['has_scale'],
@@ -826,7 +834,7 @@ function avesmapsCitymapParseRegionalRows(string $sectionBody): array
             'variant' => 'regional',
             'type_key' => 'region',
             'art' => avesmapsCitymapArtFromTitle($title),
-            'is_color' => null,
+            'color_mode' => null,
             'is_labeled' => null,
             // The regional table has no Abmessungen/Maßstab columns at all. (The format often hides in
             // the map's own title -- "Politische Karte der Flusslande (A2)" -- but that parenthetical is
@@ -942,7 +950,7 @@ function avesmapsCitymapReconcilePlan(?array $current, array $desired): array
     // publisher is copied from the publication's {{Infobox Produkt}}|Verlag (see
     // avesmapsCitymapPublisherForSource) and is NOT the author: our own UI defines "Urheber" as who
     // DREW the map, and "Ulisses"/"Fanpro" is who printed the book it appeared in.
-    $fields = ['title', 'map_url', 'art', 'is_color', 'is_labeled', 'format', 'has_scale', 'author',
+    $fields = ['title', 'map_url', 'art', 'color_mode', 'is_labeled', 'format', 'has_scale', 'author',
         'publisher', 'note'];
 
     if ($current === null) {
@@ -1267,7 +1275,7 @@ function avesmapsEnsureCitymapStagingTables(PDO $pdo): void
             variant VARCHAR(24) NOT NULL,
             type_key VARCHAR(24) NOT NULL,
             art VARCHAR(24) NULL,
-            is_color TINYINT(1) NULL,
+            color_mode VARCHAR(16) NULL,
             is_labeled TINYINT(1) NULL,
             format VARCHAR(120) NULL,
             has_scale TINYINT(1) NULL,
@@ -1294,6 +1302,20 @@ function avesmapsEnsureCitymapStagingTables(PDO $pdo): void
     }
     if (!$stagingColumn($pdo, 'has_scale')) {
         $pdo->exec('ALTER TABLE wiki_citymap_catalog ADD COLUMN has_scale TINYINT(1) NULL AFTER format');
+    }
+    // color_mode loest is_color ab (Owner 07.09.2026, AVESMAPS_CITYMAP_COLOR_MODES).
+    //
+    // 🔴 NUR DAS ALTER, KEIN BACKFILL -- diese Funktion wird aus der RECHEN-Haelfte des Syncs erreicht,
+    // und die schreibt in keine Nutztabelle (sync-plan-purity-test.php haelt das fest, mit genau einer
+    // namentlichen Ausnahme, die eine Owner-Entscheidung war). Ein `UPDATE wiki_citymap_catalog` haette
+    // hier gestanden, und der Waechter hat es beim ersten Lauf gefangen.
+    // ⭐ Die Luecke, die der Backfill schliessen sollte, schliesst stattdessen ein LESER:
+    // `avesmapsCitymapStagingColorMode` rechnet den Wert aus is_color, solange die neue Spalte leer ist.
+    // 🪤 Ohne Klammern geschrieben -- der Walk jenes Waechters liest Kommentare mit und haelt `name(`
+    // fuer einen Aufruf.
+    // Eine Zahl, die man aus etwas anderem rechnen kann, wird nicht gepflegt (AGENTS.md Paragraph 10).
+    if (!$stagingColumn($pdo, 'color_mode')) {
+        $pdo->exec('ALTER TABLE wiki_citymap_catalog ADD COLUMN color_mode VARCHAR(16) NULL AFTER art');
     }
 
     // The live citymap/citymap_place tables (self-healing DDL in api/_internal/app/citymaps.php).
@@ -1394,6 +1416,35 @@ function avesmapsCitymapBuildCatalogStep(PDO $pdo, string $dumpPath, int $cursor
  *
  * @param array<int, array<string, mixed>> $cards
  */
+/**
+ * Die Farbigkeit EINER Staging-Zeile, mit dem Uebergangs-Rueckfall auf die alte Spalte. REIN.
+ *
+ * 💣 SIE IST DER RIEGEL GEGEN EINEN STILLEN DATENVERLUST, kein Komfort. Zwischen dem Deploy und dem
+ * naechsten „Dump holen" liegen Stunden bis Tage, und in diesem Fenster ist `color_mode` im Sandkasten
+ * leer, waehrend `citymap.color_mode` schon migriert ist. Ohne diesen Rueckfall lieferte der Plan
+ * „gewuenscht: unbekannt" und boete an, 298 wiki-eigenen Karten ihre Farbigkeit zu nehmen -- in der
+ * Uebernahme-Vorschau vorangehakt, weil es wie eine echte Wiki-Aenderung aussieht.
+ *
+ * ⚠️ Der Rueckfall wird von selbst wirkungslos: der naechste Dump-Lauf schreibt `color_mode` echt, und
+ * dann gewinnt er. Er darf trotzdem stehen bleiben, solange die alte Spalte existiert -- ihn zu
+ * entfernen kostet nichts, ihn zu frueh zu entfernen kostet die 298 Karten.
+ *
+ * @param array<string, mixed> $row
+ */
+function avesmapsCitymapStagingColorMode(array $row): ?string
+{
+    $mode = $row['color_mode'] ?? null;
+    if ($mode !== null && $mode !== '') {
+        return (string) $mode;
+    }
+    $alt = $row['is_color'] ?? null;
+    if ($alt === null || $alt === '') {
+        return null;
+    }
+
+    return ((int) $alt === 1) ? 'farbig' : 'graustufen';
+}
+
 function avesmapsCitymapWriteStaging(PDO $pdo, array $cards): int
 {
     if ($cards === []) {
@@ -1404,14 +1455,14 @@ function avesmapsCitymapWriteStaging(PDO $pdo, array $cards): int
     $pdo->prepare('DELETE FROM wiki_citymap_catalog WHERE index_page = :ix')->execute(['ix' => $index]);
     $insert = $pdo->prepare(
         'INSERT INTO wiki_citymap_catalog
-            (wiki_key, index_page, title, place_raw, source_raw, variant, type_key, art, is_color,
+            (wiki_key, index_page, title, place_raw, source_raw, variant, type_key, art, color_mode,
              is_labeled, format, has_scale, author, note, synced_at)
          VALUES (:wk, :ix, :title, :place, :source, :variant, :tk, :art, :color, :labeled, :format, :scale,
                  :author, :note, CURRENT_TIMESTAMP(3))
          ON DUPLICATE KEY UPDATE
             title = VALUES(title), place_raw = VALUES(place_raw), source_raw = VALUES(source_raw),
             variant = VALUES(variant), type_key = VALUES(type_key), art = VALUES(art),
-            is_color = VALUES(is_color), is_labeled = VALUES(is_labeled), format = VALUES(format),
+            color_mode = VALUES(color_mode), is_labeled = VALUES(is_labeled), format = VALUES(format),
             has_scale = VALUES(has_scale), author = VALUES(author),
             note = VALUES(note), synced_at = CURRENT_TIMESTAMP(3)'
     );
@@ -1427,7 +1478,7 @@ function avesmapsCitymapWriteStaging(PDO $pdo, array $cards): int
             'variant' => (string) $card['variant'],
             'tk' => (string) $card['type_key'],
             'art' => $card['art'],
-            'color' => $card['is_color'],
+            'color' => $card['color_mode'],
             'labeled' => $card['is_labeled'],
             'format' => $card['format'] !== null ? mb_substr((string) $card['format'], 0, 120, 'UTF-8') : null,
             'scale' => $card['has_scale'],
@@ -1962,7 +2013,7 @@ function avesmapsCitymapReconcileEntityWrites(PDO $pdo, array $catalog, int $use
     }
 
     $find = $pdo->prepare(
-        'SELECT id, public_id, origin, status, title, map_url, art, is_color, is_labeled, format,
+        'SELECT id, public_id, origin, status, title, map_url, art, color_mode, is_labeled, format,
                 has_scale, author, publisher, note
            FROM citymap WHERE wiki_key = :wk LIMIT 1'
     );
@@ -1989,7 +2040,7 @@ function avesmapsCitymapReconcileEntityWrites(PDO $pdo, array $catalog, int $use
         // the template for this whole file, uses this same helper for exactly this reason.
         $publicId = avesmapsWikiSyncUuidV4();
         $pdo->prepare(
-            "INSERT INTO citymap (public_id, wiki_key, title, map_url, art, is_color, is_labeled, format,
+            "INSERT INTO citymap (public_id, wiki_key, title, map_url, art, color_mode, is_labeled, format,
                                   has_scale, author, publisher, note,
                                   origin, status, map_license, thumb_license, created_by)
              VALUES (:pid, :wk, :title, :url, :art, :color, :labeled, :format, :scale, :author, :publisher,
@@ -2001,7 +2052,7 @@ function avesmapsCitymapReconcileEntityWrites(PDO $pdo, array $catalog, int $use
             // NOT NULL DEFAULT '' -- a source we cannot link to yields '', never null.
             'url' => (string) ($plan['set']['map_url'] ?? ''),
             'art' => $plan['set']['art'],
-            'color' => $plan['set']['is_color'],
+            'color' => $plan['set']['color_mode'],
             'labeled' => $plan['set']['is_labeled'],
             'format' => $plan['set']['format'],
             'scale' => $plan['set']['has_scale'],
@@ -2084,7 +2135,7 @@ function avesmapsCitymapPlanForCatalogRow(PDO $pdo, array $catalog): array
     $sourceRaw = (string) ($catalog['source_raw'] ?? '');
 
     $find = $pdo->prepare(
-        'SELECT id, public_id, origin, status, title, map_url, art, is_color, is_labeled, format,
+        'SELECT id, public_id, origin, status, title, map_url, art, color_mode, is_labeled, format,
                 has_scale, author, publisher, note
            FROM citymap WHERE wiki_key = :wk LIMIT 1'
     );
@@ -2177,6 +2228,10 @@ function avesmapsCitymapPlanStep(PDO $pdo, string $cursor, int $userId, ?int $bu
     foreach ($catalogRows as $catalog) {
         $nextCursor = (string) $catalog['wiki_key'];
         $processed++;
+        // Uebergangs-Rueckfall auf die alte Spalte, solange der erste Dump-Lauf nach dem Umbau aussteht.
+        // Die Begruendung steht bei avesmapsCitymapStagingColorMode -- ohne diese Zeile boete der Plan an,
+        // 298 Karten ihre Farbigkeit zu nehmen.
+        $catalog['color_mode'] = avesmapsCitymapStagingColorMode($catalog);
 
         $computed = avesmapsCitymapPlanForCatalogRow($pdo, $catalog);
         $item = $computed['item'];

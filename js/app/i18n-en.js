@@ -1224,8 +1224,14 @@ window.AVESMAPS_I18N_EN = {
 	// Not complementary: a map nobody has judged matches neither, and a map with both a free and a paid
 	// link appears only under "free" -- the free way in exists.
 	"cityMaps.filter.freeOnly": "free",
-	"cityMaps.trait.color": "colour",
-	"cityMaps.trait.greyscale": "greyscale",
+	// The colour of a map became four-valued on 07.09.2026 (owner: „nur Graustufe, Brauntöne, Farbig,
+	// Unbekannt"), so the two trait keys that used to live here -- trait.color / trait.greyscale -- are
+	// gone with the tri-bool they belonged to. UNKNOWN deliberately has no key: it is the absence of a
+	// value, and the reader is shown nothing rather than a word for it (§3.1).
+	"cityMaps.colorMode.unknown": "Unknown",
+	"cityMaps.colorMode.graustufen": "black & white or greyscale",
+	"cityMaps.colorMode.braun": "brown tones",
+	"cityMaps.colorMode.farbig": "colour",
 	"cityMaps.trait.multilevel": "multi-level",
 	"cityMaps.trait.labeled": "labelled",
 	"cityMaps.trait.official": "official",

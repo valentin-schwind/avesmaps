@@ -77,7 +77,36 @@ assert.ok(/PROPS\.map\(function \(p\) \{ return triMarkup\(p\[0\]/.test(js),
 	"jede Eigenschaft aus PROPS bekommt einen Dreierschalter");
 const propsListe = js.slice(js.indexOf("var PROPS = "), js.indexOf("];", js.indexOf("var PROPS = ")));
 const propKeys = (propsListe.match(/\["(is_[a-z_]+)"/g) || []).map((s) => s.slice(2, -1));
-assert.strictEqual(propKeys.length, 6, "sechs Eigenschaften, wie im Entwurf");
+assert.strictEqual(propKeys.length, 5, "fuenf Ja/Nein-Eigenschaften -- die Farbigkeit ist seit dem 07.09.2026 keine mehr");
+
+// ---------------------------------------------------------------------------------------------
+// 3b. Die Farbigkeit: VIER Antworten, dieselbe Segmentleiste (Owner 07.09.2026).
+// ---------------------------------------------------------------------------------------------
+// 💣 SIE MUSS EINGESAMMELT WERDEN. Sie steht nicht in PROPS und faellt damit aus der Schleife heraus,
+// die alle anderen Eigenschaften einliest -- ohne eine eigene Zeile schickte das Formular die Antwort
+// des Melders NIE, und weder ein Fehler noch eine leere Zeile wuerde das verraten.
+assert.ok(/citymap\.color_mode = triVal\(overlay, "color_mode"\)/.test(js),
+	"die Farbigkeit wird eingesammelt, obwohl sie nicht in PROPS steht");
+// Sie benutzt DENSELBEN Leser wie die Ja/Nein-Zeilen, weil es dieselbe Radiogruppen-Bauform ist.
+assert.ok(/data-citymap-suggest-tri="color_mode"/.test(js), "sie traegt die Kennung, die triVal abfragt");
+// Und sie steht im Formular -- ein eingesammeltes Feld ohne Bedienelement waere immer leer.
+assert.ok(/\+ colorModeMarkup\(/.test(js), "die Zeile wird auch gebaut, nicht nur ausgelesen");
+const modiListe = js.slice(js.indexOf("var COLOR_MODES = "), js.indexOf("];", js.indexOf("var COLOR_MODES = ")));
+const modi = (modiListe.match(/\["([a-z]*)",/g) || []).map((s) => s.slice(2, -2));
+assert.deepStrictEqual(modi, ["", "graustufen", "braun", "farbig"],
+	"vier Antworten, und die leere (unbekannt) steht vorn -- sie ist die Vorauswahl (§3.1)");
+// 🔴 Die drei Schluessel sind die des Servers (AVESMAPS_CITYMAP_COLOR_MODES) und werden nie uebersetzt.
+// 🪤 GEPRUEFT WIRD DER SCHLUESSEL, NICHT DAS WORT. Hier stand `!/"schwarzwei/` und sollte die vom Owner
+// verworfene FUENFTE Stufe abwehren. Die Zusicherung war schon immer schwaecher, als sie aussah (der
+// Regex verlangte Kleinschreibung), und seit dem 07.09.2026 ist sie endgueltig wirkungslos: die Stufe
+// `graustufen` heisst seither „Schwarzweiß bzw. Graustufen" (Owner), das Wort ist also zurueck -- als
+// BESCHRIFTUNG. Was nicht zurueckkommen darf, ist ein eigener SCHLUESSEL dafuer.
+assert.ok(!/\["schwarzwei[^"]*",/.test(js), "keine eigene Stufe für schwarzweiß -- der Owner hat sie verworfen");
+assert.ok(/\["graustufen", "Schwarzweiß bzw\. Graustufen"\]/.test(js),
+	"das Wort lebt als Beschriftung der graustufen-Stufe weiter, nicht als eigener Wert");
+// Ohne die schmale Regel stapelt die Zeile nicht -- gemessen 342px Bedarf gegen 339px Platz auf einem
+// 375px-Telefon, also auf den Pixel genau und ohne Reserve.
+assert.ok(/citymap-suggest__prop--wide/.test(js), "die vierstufige Zeile traegt ihre eigene schmale Regel");
 
 // ---------------------------------------------------------------------------------------------
 // 4. Abbrechen links, gefuellter Hauptknopf rechts -- in BEIDEN Dialogen.

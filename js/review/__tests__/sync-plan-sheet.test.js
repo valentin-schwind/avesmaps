@@ -57,7 +57,7 @@ assert.strictEqual(footer({ selected: 200, hidden: 4812, deletions: 0 }).selecte
 // ---- Die Feldnamen -----------------------------------------------------------------------------
 //
 // Ein roher Spaltenname in der Vorschau ist keine Antwort: „has_scale → 1" sagt niemandem etwas.
-["title", "map_url", "art", "is_color", "is_labeled", "format", "has_scale", "author", "publisher",
+["title", "map_url", "art", "color_mode", "is_labeled", "format", "has_scale", "author", "publisher",
 	"note", "place", "source", "links"].forEach((field) => {
 	const label = fieldLabel(field);
 	assert.notStrictEqual(label, field, `${field} hat eine deutsche Beschriftung`);

@@ -300,7 +300,7 @@ function syncPlanFieldLabel(field) {
 		title: "Titel",
 		map_url: "Wiki-Link",
 		art: "Art",
-		is_color: "Farbe",
+		color_mode: "Farbigkeit",
 		is_labeled: "Beschriftet",
 		format: "Format",
 		has_scale: "Maßstab",
@@ -387,8 +387,17 @@ function syncPlanFieldValue(field, value) {
 	if (value === null || value === undefined || value === "") {
 		return "—";
 	}
-	if (field === "is_color" || field === "is_labeled" || field === "has_scale") {
+	if (field === "is_labeled" || field === "has_scale") {
 		return String(value) === "1" ? "ja" : "nein";
+	}
+	// VIERWERTIG, nicht dreiwertig (Owner 07.09.2026): der Schluessel steht in der Zeile, der Leser
+	// braucht das Wort. Kommt der Uebersetzer nicht mit (der Sync-Monitor laedt map-features-citymaps.js
+	// nicht zwingend), steht der Schluessel da -- haesslich, aber nie irrefuehrend.
+	if (field === "color_mode") {
+		const label = (typeof avesmapsCitymapColorModeLabel === "function")
+			? avesmapsCitymapColorModeLabel(value)
+			: "";
+		return label || String(value);
 	}
 
 	return String(value);
