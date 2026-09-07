@@ -450,7 +450,19 @@
 	/* Vor-/Mittelgebirge: zwischen dem Gebirgs-Braungrau (#7a6c5e) und dem Huegel-Graugruen
 	   (#7d8f6e) -- es ist der Uebergang zwischen beiden, und der Ton sagt das. */
 	--color-ecosystem-topographie-vorgebirge_mittelgebirge: #7c7b66;
-	--color-ecosystem-topographie-see: #4a86b8;             /* lake, blue */
+	/* 🔴 DER SEE TRAEGT DIE FARBE DES FLUSSES (Owner 07.09.2026: „Kannst du Seen dieselbe Fuellung
+	   geben wie die Farbe der Fluesse"). Der Wert ist KEIN eigener Ton, sondern der der Flusslinie --
+	   `centerColors.Flussweg` in getPathStyleColors (js/map-features/map-features.js), gemessen als
+	   rgb(110,198,255). Ein See ist derselbe Wasserkoerper wie der Fluss, der hineinlaeuft; als
+	   mattes #4a86b8 neben dem hellen Flusscyan las sich das am Angbarer See wie zwei Gewaesser.
+	   💣 DIE ZWEI WERTE SIND EIN PAAR, UND DER ANDERE STEHT NICHT IN DIESER DATEI: die Wegfarben sind
+	   in getPathStyleColors hartkodiert und lesen kein Token. Wer den Fluss umtoent, zieht diese Zeile
+	   nach -- sonst faellt das Paar lautlos auseinander, und der Bruch sieht wieder wie Absicht aus.
+	   ⚠️ Gleich ist der WERT, nicht das Bild: die Flaeche liegt mit der Deckkraft ihrer Ebene auf der
+	   Karte (live 0,5 aus der Tafel „Darstellung"), die Flusslinie deckt voll. Der See bleibt also
+	   etwas blasser -- gewollt, und der Grund, warum hier NICHT zusaetzlich an der Deckkraft gedreht
+	   wurde: die gehoert dem Editor und seiner Tafel, nicht diesem Ton. */
+	--color-ecosystem-topographie-see: #6ec6ff;             /* lake -- the river's blue, see above */
 	--color-ecosystem-topographie-meer: #2d5f8a;            /* sea, dark blue */
 	--color-ecosystem-topographie-kueste: #3f9e9a;          /* coast, turquoise */
 	--color-ecosystem-topographie-wadi: #9b8a5c;            /* wadi, sand with an olive cast -- a bed that is dry most of the time */
@@ -462,7 +474,7 @@
 	/* Owner 2026-07-30, the day `insel` moved from derographisch to topographie. 🔴 NOT optional: without
 	   this token ecosystemAreaColor() falls back to --color-ecosystem-topographie, which IS the mountain
 	   brown-grey -- all 251 islands would render as mountains. Sandy beige-olive: reads as LAND against
-	   see (#4a86b8) and meer (#2d5f8a), and stays apart from gebirge (#7a6c5e) and hochebene (#9a9b82). */
+	   see (#6ec6ff) and meer (#2d5f8a), and stays apart from gebirge (#7a6c5e) and hochebene (#9a9b82). */
 	--color-ecosystem-topographie-insel: #b2a273;           /* island, sandy beige-olive -- dry land ringed by water */
 
 	/* Klimazonen (Owner 2026-08-03). Sieben Bänder von Nord nach Süd, abgeleitet aus sechs
