@@ -113,7 +113,7 @@ function svgxVorgabeFarben(oekosysteme, token, wegarten, ortsarten, wegfarben, o
 	const wayColors = {};
 	(wegarten || []).forEach((art) => { wayColors[art] = vorgabe("wege/" + art); });
 
-	// ⚠️ SVGX_PLACE_KINDS fuehrt OBJEKTE ({slug, label, r}), und der Ortsbauer schlaegt die
+	// ⚠️ SVGX_PLACE_KINDS fuehrt OBJEKTE ({slug, label, meilen, r}), und der Ortsbauer schlaegt die
 	// Farbe unter `slug` nach. Ein forEach ueber das Objekt selbst ergaebe "[object Object]" --
 	// und weil der Bauer dann still auf seine Vorgabefarbe zurueckfaellt, saehe man dem Abzug
 	// nichts an.

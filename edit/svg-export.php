@@ -489,20 +489,13 @@ $renderNode = static function (array $node, string $parentPath, int $depth) use 
                 </div>
             </section>
         </main>
-        <!-- 🔴 VOR svg-export-page.js: die Seite liest daraus avesmapsResolveLocationZoomBands, um
-             die Ortszirkel im Maßstab der höchsten Zoomstufe zu zeichnen. Ohne diese Zeile fällt
-             der Abzug still auf die Vorgabetafel des Bauers zurück -- gleicher Maßstab, aber die
-             Übersteuerung eines Admins wirkt nicht mehr.
-             ⚠️ Diese Datei ruft von sich aus NICHTS ab (siehe ihren Kopf); den Abruf macht
-             svg-export-page.js über /api/app/zoom-bands.php. -->
-        <script src="../js/map-features/location-zoom-bands.js?v=20260831-svgexport-22"></script>
         <!-- ⚠️ ZUERST: svg-export-build.js zeichnet die Kurvenform der Kraftlinien mit der
              GETEILTEN Regel (avesmapsPowerlineCurvedPoints) -- dieselbe, die die Karte fährt.
              Fehlt sie, wirft der Abzug laut, statt die Linien still gerade zu zeichnen. -->
         <script src="../js/map-features/powerline-topology.js?v=20260831-svgexport-21"></script>
-        <script src="../js/pages/svg-export-build.js?v=20260908-svgexport-23"></script>
-        <script src="../js/pages/svg-export-farben.js?v=20260908-svgexport-23"></script>
-        <script src="../js/pages/svg-export-page.js?v=20260908-svgexport-23"></script>
+        <script src="../js/pages/svg-export-build.js?v=20260908-svgexport-24"></script>
+        <script src="../js/pages/svg-export-farben.js?v=20260908-svgexport-24"></script>
+        <script src="../js/pages/svg-export-page.js?v=20260908-svgexport-24"></script>
     <?php endif; ?>
 </body>
 

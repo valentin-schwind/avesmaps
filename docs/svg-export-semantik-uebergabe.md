@@ -1,6 +1,6 @@
 # Die Vektorkarte als semantische Quelle — Übergabe
 
-**Stand:** 22.08.2026 · **Für:** eine Sitzung, die aus diesem Abzug Bildgenerierungs-Prompts baut
+**Stand:** 08.09.2026 · **Für:** eine Sitzung, die aus diesem Abzug Bildgenerierungs-Prompts baut
 
 ## Worum es geht
 
@@ -216,22 +216,33 @@ Linienstärke-Regler. In Pixeln: `avm:breite × avm:einheit_px`.
 
 ### Orte
 
-`avm:radius` in viewBox-Einheiten. ⚠️ **Darstellungsradius, keine gemessene Stadtausdehnung** —
-Avesmaps speichert Orte als Punkte; niemand hat je die Fläche von Gareth erhoben.
-Metropole 0,2078 · Großstadt 0,1559 · Stadt 0,1247 · Kleinstadt 0,097 · Dorf 0,0693 ·
-Gebäude 0,0485. Eine unbekannte Ortsklasse bekommt 0,08.
+`avm:radius` in viewBox-Einheiten — die halbe **geschätzte Ortsausdehnung**.
+Metropole 0,9167 · Großstadt 0,3667 · Stadt 0,2083 · Kleinstadt 0,1167 · Dorf 0,0833 ·
+Gebäude und Stadtviertel 0,025. Eine unbekannte Ortsklasse bekommt 0,1.
+Bei 1 Karteneinheit = 3 Meilen sind das als **Durchmesser**: Metropole 5,5 Meilen ·
+Großstadt 2,2 · Stadt 1,25 · Kleinstadt 0,7 · Dorf 0,5 · Gebäude 0,15.
 
-🔴 **Seit 22.08.2026 hat die Zahl einen MASSSTAB, und er ist eine andere Größenordnung
-als vorher.** Sie ist jetzt die Größe, die die Karte dem Ort auf ihrer höchsten Zoomstufe
-gibt (Zoombänder-Tafel bei z7, umgerechnet über `2^7` Bildpunkte je Karteneinheit) — davor
-waren es sechs gegriffene Zahlen (2,2 … 0,6), unter denen eine Metropole **13,2 Meilen**
-breit war und ein Dorf 4,2. Bei 1 Karteneinheit = 3 Meilen ergibt das jetzt: Metropole
-1,25 Meilen (rund 2,0 km), Dorf 0,42 (rund 670 m). **Wer die alten Radien in einem
-Prompt oder Renderer verankert hat, muss nachziehen — die Faktoren sind rund 1/10.**
+🔴 **Seit 08.09.2026 ist die Zahl eine ORTSAUSDEHNUNG, und das ist die Umkehrung dessen,
+was hier vom 22.08. bis dahin stand.** Damals war sie ein *Darstellungsradius*: die Größe,
+die die Karte dem Ort auf ihrer höchsten Zoomstufe gibt (Zoombänder-Tafel bei z7). Diese
+Kopplung ist gefallen — ein Marker von 5,5 Meilen wäre bei z7 rund 235 px breit, ein Kreis
+so groß wie ein halbes Herzogtum. Was die Karte **zeichnet** und was ein Ort **misst**, sind
+zwei Zahlen, und die Tafel der einen kann die andere nicht tragen.
+**Wer die alten Radien in einem Prompt oder Renderer verankert hat, muss nachziehen** — der
+Faktor reicht von 4,4 (Metropole) bis 0,52 (Gebäude, es wurde als einziges kleiner).
 
-⚠️ Verstellt ein Admin die Zoombänder, wandert diese Zahl mit; sie gilt wie `avm:breite`
-für **diesen** Abzug. Bleibt die Serverantwort aus, greift dieselbe Tafel als Vorgabe —
-der Maßstab ist derselbe, nur ohne Übersteuerung.
+⚠️ **Geschätzt heißt geschätzt.** Avesmaps speichert Orte als Punkte; niemand hat je die
+Fläche von Gareth erhoben. Die Reihe folgt den Einwohner-Medianen des Livebestands
+(Dump 04.09.2026: Metropole 40.000 · Großstadt 6.200 · Stadt 2.000 · Kleinstadt 650 ·
+Dorf 300) unter ⌀ ∝ √Einwohner, also konstanter Bevölkerungsdichte. Owner 08.09.2026 gab
+die zwei Anker (Gareth 5,5 Meilen, Dorf 0,5); gegen diese Mediane gerechnet ergeben genau
+sie den Exponenten 0,490 statt 0,5 — die Spanne schließt sich von selbst.
+Gebäude/Stadtviertel ist die einzige Zahl **ohne** Einwohnerbeleg (0,15 Meilen ≈ 240 m,
+eine große Burganlage).
+
+⚠️ Die Zahl hängt **an der Ortsklasse, nicht am einzelnen Ort** — alle neun Metropolen
+tragen 5,5 Meilen, auch die mit 20.000 Einwohnern. Und sie folgt der Zoombänder-Tafel
+**nicht** mehr: verstellt ein Admin die Marker-Größen, ändert das am Abzug nichts.
 
 ### Wasser
 

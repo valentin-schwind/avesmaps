@@ -107,4 +107,24 @@ assert.deepStrictEqual(
 	"die Erscheinungsstufen der Namen"
 );
 
+
+// ---- Die hoechste Zoomstufe der Karte steht an ZWEI Stellen und muss eine Kopie bleiben ------
+// 🔴 Es gibt keinen geteilten Export fuer "die hoechste Zoomstufe der Karte" (js/app/bootstrap.js
+// setzt sie als Leaflet-Option); der Ortseditor schreibt sie als ZOOM_BAND_MAP_MAX_ZOOM ab, um
+// die Baenderplots zu zeichnen. Laufen sie auseinander, bedient ein Admin eine Spalte, die die
+// Karte nie zeigt -- und merkt es nie.
+// ⚠️ NICHT AVESMAPS_ZOOM_BAND_MAX_ZOOM (8): die Datenschicht traegt bewusst eine Stufe mehr.
+// ⚠️ Diese Zusicherung stand bis zum 08.09.2026 in js/pages/__tests__/svg-export-ortsgroessen.js
+// -- der SVG-Abzug mass seine Ortszirkel damals bei z7. Seit er eine eigene Tafel in Meilen
+// fuehrt, hat er mit maxZoom nichts mehr zu tun, und der Waechter waere mit der Kopplung
+// ersatzlos verschwunden. Er gehoert ohnehin hierher: gewacht wird ein Zoomband, kein Abzug.
+{
+	const lies = (datei) => fs.readFileSync(path.join(__dirname, "../../..", datei), "utf8");
+	const ausBootstrap = /maxZoom:\s*(\d+)/.exec(lies("js/app/bootstrap.js"));
+	assert.ok(ausBootstrap, "maxZoom in js/app/bootstrap.js nicht gefunden");
+	const ausEditor = /ZOOM_BAND_MAP_MAX_ZOOM\s*=\s*(\d+)/.exec(lies("html/wiki-sync-settlement-editor.html"));
+	assert.ok(ausEditor, "ZOOM_BAND_MAP_MAX_ZOOM im Ortseditor nicht gefunden");
+	assert.strictEqual(Number(ausEditor[1]), Number(ausBootstrap[1]),
+		"ZOOM_BAND_MAP_MAX_ZOOM (Ortseditor) ist von maxZoom in js/app/bootstrap.js weggelaufen");
+}
 console.log("zoombaender-vorgabe: alle Zusicherungen erfüllt");
