@@ -20,6 +20,8 @@ require_once __DIR__ . '/../../_internal/app/ecosystem.php';
 // this dispatcher and not on the public read path.
 require_once __DIR__ . '/../../_internal/app/path-ecosystem.php';
 // V11: the terrain store. It needs avesmapsUuidV4 from features.php above, like V9's store does.
+// Die Beschriftungskurven -- fuer das Nachrechnen am Ende dieser Datei (avesmapsCurveRefreshStale).
+require_once __DIR__ . '/../../_internal/app/curve-label-store.php';
 require_once __DIR__ . '/../../_internal/app/terrain-store.php';
 require_once __DIR__ . '/../../_internal/app/heightmap.php';
 
@@ -177,6 +179,32 @@ try {
         'climate_reset' => avesmapsEcosystemClimateReset($pdo, $userId),
         default => avesmapsErrorResponse(400, 'invalid_action', 'Unknown action.'),
     };
+
+    // 💣 DIE BESCHRIFTUNGSKURVE FOLGT DER GEOMETRIE (Owner 07.09.2026: „setzen sich kurvenlabels immer
+    // wieder zurueck zu normalen labels"). Die Kurve steht nicht am Label, sie liegt je Region im
+    // Zwischenspeicher und ist mit dem Fingerabdruck ihrer aktiven Flaechen gestempelt. Jede
+    // Geometrieaenderung macht ihn ungueltig -- danach liefert die Nutzlast das Label OHNE Kurve, und
+    // es wird waagerecht gezeichnet, obwohl die Einstellung „an" sagt. Nachgerechnet hat das bis dahin
+    // nur `update_region` (und auch nur mit der Kurveneinstellung im Rumpf) und `refresh_curve`; der
+    // normale Weg „Flaeche aendern" rief keinen von beiden.
+    //
+    // 🔴 HIER UND NICHT IN DEN HANDLERN. Den Fingerabdruck aendern heute vier von ihnen (Anlegen,
+    // Geometrie aendern, Loeschen, Rueckgaengig), und eine Regel, die drei davon bindet, ist keine
+    // Regel -- dieselbe Falle wie bei der Verkehrsmittel-Sperre und der Ausstiegsregel (AGENTS.md §11).
+    // avesmapsCurveRefreshStale fragt stattdessen die Datenbank, WELCHE eingeschaltete Region gerade
+    // einen anderen Fingerabdruck traegt als ihre abgelegte Kurve; damit erbt jeder kuenftige Handler
+    // die Regel, ohne sie zu kennen. Und es steht NACH dem match: die Handler committen selbst, und
+    // gerechnet wird nie in einer offenen Transaktion.
+    //
+    // ⚠️ NUR NACH EINEM SCHREIBVORGANG, erkannt an der `revision` in der Antwort -- die setzt jeder
+    // Schreibweg ueber avesmapsNextEcosystemRevision, und kein Lesepfad. Ohne diesen Riegel zahlte
+    // jede Statusabfrage (`assignment_status`, `list_changes`, der 45-s-Takt) die Aggregatabfrage mit.
+    //
+    // ⭐ Der Normalfall kostet genau diese eine billige Abfrage: gerechnet wird nur, was sich wirklich
+    // geaendert hat -- bei einer gezogenen Ecke eine Region, sonst keine.
+    if (array_key_exists('revision', $result)) {
+        avesmapsCurveRefreshStale($pdo);
+    }
 
     avesmapsJsonResponse(200, ['ok' => true] + $result);
 } catch (InvalidArgumentException $exception) {

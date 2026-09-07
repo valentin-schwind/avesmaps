@@ -551,3 +551,101 @@ function avesmapsCurveRebuildCache(PDO $pdo): array
         'ok' => $zurueck === $json,
     ];
 }
+
+// Nach einem Schreibvorgang: welche eingeschaltete Region traegt jetzt einen anderen Fingerabdruck
+// als ihre abgelegte Kurve? Genau die rechnen -- und sonst keine.
+//
+// 🔴 WARUM ES DAS GIBT (Owner 07.09.2026: „setzen sich kurvenlabels immer wieder zurueck zu normalen
+// labels ... die option Kurvenbeschriftung ist bei den faellen aktiv"). Die Kurve haengt am
+// Fingerabdruck (SUM(geometry_revision), COUNT(*)) der aktiven Flaechen einer Region. Jede
+// Geometrieaenderung macht `geometry_revision + 1`, jede neue oder stillgelegte Flaeche aendert die
+// Anzahl -- danach ueberspringt avesmapsCurveBaselinesFromCache die Region, die Nutzlast liefert das
+// Label OHNE Kurve, und es wird waagerecht gezeichnet, waehrend die Einstellung weiter „an" sagt.
+// Nachgerechnet wurde bis dahin NUR bei update_region (und auch nur, wenn die Kurveneinstellung im
+// Rumpf stand) und beim Menuepunkt „Labelkurve aktualisieren"; der normale Weg „Flaeche aendern"
+// rief keinen von beiden.
+//
+// 💣 UND DESHALB HAENGT DIE REGEL AM FINGERABDRUCK, NICHT AN EINER LISTE VON SCHREIBERN. Den
+// Fingerabdruck aendern heute vier Funktionen (Anlegen, Geometrie aendern, Loeschen, Rueckgaengig) --
+// eine Regel, die drei davon bindet, ist keine Regel, und genau diese Falle hat dieses Projekt an der
+// Verkehrsmittel-Sperre und an der Ausstiegsregel je einmal bezahlt (AGENTS.md §11). Hier steht
+// deshalb KEINE Aufzaehlung von Aufrufern: gefragt wird die Datenbank, und jeder kuenftige Schreiber
+// erbt die Regel, ohne sie zu kennen.
+//
+// ⭐ DER NORMALFALL KOSTET EINE BILLIGE ABFRAGE. Es ist dieselbe Aggregatabfrage, die der oeffentliche
+// Lesepfad ohnehin je Kartenanfrage faehrt (avesmapsCurveReadBaselines, gemessen unter 20 ms).
+// Gerechnet (165-796 ms je Flaeche) wird nur, wenn sich wirklich etwas geaendert hat -- bei einem
+// Editor, der eine Ecke zieht, ist das genau EINE Region, und bei allen uebrigen Schreibvorgaengen
+// keine.
+//
+// ⚠️ DER DECKEL ist kein Sicherheitsnetz, sondern eine Aussage: ein einzelner Handgriff beruehrt eine
+// Region, ein Verschmelzen zwei. Sind mehr veraltet, hat ein Sammellauf oder ein Import gearbeitet --
+// und dann gehoert das Nachrechnen dorthin, nicht an eine einzelne Speicherung. Der Rest bleibt
+// liegen, bis „Rechnen -> Kurven" laeuft: der Zustand von vorher, also nie schlechter.
+//
+// 💣 ER FAELLT WEICH AUS, mit Protokolleintrag. Er haengt hinter JEDEM Schreibvorgang des
+// Landschafts-Endpunkts; ein Wurf machte aus einem gelungenen Speichern einen Fehlschlag, und der
+// Editor haette seine Aenderung verloren geglaubt, obwohl sie steht -- dieselbe Begruendung wie beim
+// Nachrechnen in avesmapsUpdateEcosystemRegion.
+//
+// 🔴 NIE INNERHALB EINER TRANSAKTION rufen: er schreibt in `app_setting` und rechnet dabei Geometrie.
+// Die Handler des Endpunkts committen selbst, der Aufruf steht NACH ihnen.
+//
+// @return array{gerechnet:list<string>, offen:int, fehler:string}
+function avesmapsCurveRefreshStale(PDO $pdo, int $deckel = 3): array
+{
+    $raus = ['gerechnet' => [], 'offen' => 0, 'fehler' => ''];
+    try {
+        // Dieselbe Abfrage wie im Leser -- die Aggregation in einer Ableitungstabelle, damit die
+        // aeussere ohne GROUP BY ueber eine JSON-Spalte auskommt (siehe avesmapsCurveReadBaselines).
+        $stmt = $pdo->query(
+            'SELECT r.public_id AS region_id, r.properties_json AS props, x.rev, x.cnt
+             FROM ecosystem_region r
+             INNER JOIN (
+                 SELECT region_id, SUM(geometry_revision) AS rev, COUNT(*) AS cnt
+                 FROM ecosystem_area
+                 WHERE is_active = 1
+                 GROUP BY region_id
+             ) x ON x.region_id = r.id
+             WHERE r.is_active = 1'
+        );
+        $rows = $stmt !== false ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+
+        $ablage = json_decode(avesmapsAppSettingGetWithoutDdl($pdo, avesmapsCurveCacheKey(), ''), true);
+        $regions = (is_array($ablage) && is_array($ablage['regions'] ?? null)) ? $ablage['regions'] : [];
+
+        foreach ($rows as $row) {
+            $props = json_decode((string) ($row['props'] ?? ''), true);
+            // 🔴 Ausgeschaltet heisst: gar nicht erst ansehen. Das ist der Riegel, der den Normalfall
+            // kostenlos macht -- live 82 von 1463 Regionen tragen die Kurvenbeschriftung.
+            if (!avesmapsCurveLabelSettingsFromProperties(is_array($props) ? $props : null)['enabled']) {
+                continue;
+            }
+            $id = (string) $row['region_id'];
+            $rec = $regions[$id] ?? null;
+            // Dieselbe Frage wie im Leser: stimmt das PAAR aus Revisionssumme und Flaechenzahl?
+            // Eine Region ohne Eintrag ist ebenso veraltet wie eine mit falschem Stempel.
+            if (is_array($rec)
+                && (int) ($rec['rev'] ?? -1) === (int) $row['rev']
+                && (int) ($rec['cnt'] ?? -1) === (int) $row['cnt']) {
+                continue;
+            }
+            if (count($raus['gerechnet']) >= max(0, $deckel)) {
+                $raus['offen']++;
+                continue;
+            }
+            // ⚠️ Der Einzelrechner MISCHT in die bestehende Ablage ein, er baut sie nicht neu -- sonst
+            // verloeren die uebrigen Regionen ihre Kurven (siehe avesmapsCurveRefreshCacheForRegion).
+            $ergebnis = avesmapsCurveRefreshCacheForRegion($pdo, $id);
+            if ($ergebnis['gerechnet']) {
+                $raus['gerechnet'][] = $id;
+            }
+        }
+    } catch (Throwable $e) {
+        // ⚠️ Still nach aussen, aber nicht blind: ohne diese Zeile ist ein Ausfall unauffindbar.
+        error_log('avesmapsCurveRefreshStale: ' . $e->getMessage());
+        $raus['fehler'] = $e->getMessage();
+    }
+
+    return $raus;
+}
