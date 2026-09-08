@@ -32,12 +32,25 @@ if (assert_options(ASSERT_ACTIVE) !== 1 || ini_get('zend.assertions') !== '1') {
     exit(1);
 }
 
-/** Ein fertiges GeoJSON-Objekt, so wie avesmapsMapFeatureRowToGeoJsonFeature es liefert. */
-function objekt(string $featureType, string $publicId, string $wikiUrl = ''): array
+/**
+ * Ein fertiges GeoJSON-Objekt, so wie avesmapsMapFeatureRowToGeoJsonFeature es liefert.
+ *
+ * 🔴 `$zugewiesen` ist der Unterschied, um den sich seit dem 08.09.2026 alles dreht: NUR mit
+ * Zuweisungsnest (`wiki_settlement`/`wiki_region`/`wiki_path`) gilt ein Objekt als verbunden.
+ * Ein blosser `properties.wiki_url` kann GERATEN sein -- avesmapsEnrichMapFeatureWikiUrl fuellt
+ * ihn per Namensabgleich -- und darf deshalb nie „offiziell" ausloesen.
+ */
+function objekt(string $featureType, string $publicId, string $wikiUrl = '', bool $zugewiesen = false): array
 {
     $properties = ['public_id' => $publicId, 'feature_type' => $featureType, 'feature_subtype' => ''];
     if ($wikiUrl !== '') {
         $properties['wiki_url'] = $wikiUrl;
+    }
+    if ($zugewiesen) {
+        $nest = ['location' => 'wiki_settlement', 'label' => 'wiki_region', 'path' => 'wiki_path'][$featureType] ?? '';
+        if ($nest !== '') {
+            $properties[$nest] = ['wiki_key' => 'k-' . $publicId, 'wiki_url' => $wikiUrl];
+        }
     }
 
     return ['type' => 'Feature', 'geometry' => null, 'properties' => $properties];
@@ -221,14 +234,20 @@ assert(!isset($kanon['settlement:p-geist']),
 $kanon = avesmapsFeatureSourcesDeriveKanon($katalog, [], ['settlement:p-apfeldorn' => 222]);
 assert($kanon['settlement:p-apfeldorn'] === ['kanon' => 'inoffiziell', 'bezeichner_label' => 'Wiki Aventurica'],
     'ein ns-222-Objekt ohne jede Quellzeile ist trotzdem inoffiziell -- der Zweck des Umbaus');
+// 🔴 UMGEDREHT AM 08.09.2026. Hier stand „ns 0 ohne Quelle bleibt ohne Etikett" -- richtig,
+// solange nur eine QUELLE offiziell machen konnte. Owner an diesem Tag: „also ‚offiziell' wenn
+// ‚wiki-zuweisung = true'". Eine Hauptraum-Zuweisung IST die offizielle Quelle; der Artikel steht
+// als erste Zeile im Quellenkasten und braucht keine zweite Katalogzeile daneben.
 $kanon = avesmapsFeatureSourcesDeriveKanon($katalog, [], ['settlement:p-gareth' => 0]);
-assert(!isset($kanon['settlement:p-gareth']), 'ns 0 ohne Quelle bleibt ohne Etikett');
+assert($kanon['settlement:p-gareth'] === ['kanon' => 'offiziell'],
+    'eine Zuweisung im Hauptraum macht offiziell -- ganz ohne Katalogquelle');
 // ⚠️ ns 218 (DSK) und ns 220 (Elf) sind OFFIZIELLE Inhaltsraeume -- Owner 01.09.2026: „elf ist
 // offiziell, ilaris nicht". Sie duerfen kein inoffizielles Etikett ausloesen. Ein Etikett
 // „offiziell" setzen sie aber auch nicht: das taete nur eine offizielle QUELLE (Rang 1).
 foreach ([218, 220] as $offiziellerRaum) {
     $kanon = avesmapsFeatureSourcesDeriveKanon($katalog, [], ['settlement:p-x' => $offiziellerRaum]);
-    assert(!isset($kanon['settlement:p-x']), "ns {$offiziellerRaum} ist offiziell -- kein inoffizielles Etikett");
+    assert($kanon['settlement:p-x'] === ['kanon' => 'offiziell'],
+        "ns {$offiziellerRaum} ist ein OFFIZIELLER Inhaltsraum -- die Zuweisung macht offiziell");
 }
 // 🔴 ns 444 (Ilaris) IST ein Inhaltsraum, nur ein unoffizieller -- Owner 01.09.2026: „elf ist
 // offiziell, ilaris nicht". Er traegt deshalb dasselbe Etikett wie ns 222.
@@ -240,11 +259,17 @@ assert($kanon['settlement:p-ilaris'] === ['kanon' => 'inoffiziell', 'bezeichner_
 // Kategorieseite „inoffiziell": eine Behauptung, die niemand aufgestellt hat.
 $kanon = avesmapsFeatureSourcesDeriveKanon($katalog, [], ['settlement:p-kategorie' => 14]);
 assert(!isset($kanon['settlement:p-kategorie']), '`null` heisst „nicht gefragt", nicht „inoffiziell"');
-// Owner 31.08.2026: „gibt es was Offizielles, is uns ns222 egal".
+// 🔴 UMGEDREHT AM 08.09.2026, und diesmal in die andere Richtung. Hier stand „eine offizielle
+// Quelle schlaegt auch den inoffiziellen Namensraum" (Owner 31.08.2026: „gibt es was Offizielles,
+// is uns ns222 egal"). Owner am 08.09.2026: „die besonderheit ist der wiki ns222, wenn der
+// zugewiesen is und das ding is inoffiziell im wiki, gilt das." Die ZUWEISUNG ist jetzt Rang 1,
+// und ns 222 ist ihre inoffizielle Haelfte -- sie schlaegt damit auch eine offizielle Quellzeile.
+// ⚠️ Praktisch beruehrt das fast nichts: von 608 inoffiziellen Objekten des Livebestands liegt
+// genau EINES in ns 222 (02.09.2026 gemessen). Die Regel muss trotzdem eindeutig sein.
 $kanon = avesmapsFeatureSourcesDeriveKanon($katalog,
     ['settlement:p-doppelt' => [['source_id' => 1]]], ['settlement:p-doppelt' => 222]);
-assert($kanon['settlement:p-doppelt'] === ['kanon' => 'offiziell'],
-    'eine offizielle Quelle schlaegt auch den inoffiziellen Namensraum');
+assert($kanon['settlement:p-doppelt'] === ['kanon' => 'inoffiziell', 'bezeichner_label' => 'Wiki Aventurica'],
+    'die ns-222-Zuweisung schlaegt seit 08.09.2026 auch die offizielle Quelle');
 
 // ---- 9. RANG 2 STEHT VOR RANG 3 -- der Namensraum schlaegt die Quellzeile ---------------------
 // 🔴 SO HAELT ES ENTWURF §2.1 FEST (Owner-Freigabe 27.08.2026): offizielle Quelle · ns 222 ·
@@ -277,11 +302,16 @@ assert($kanon['settlement:p-nurquelle'] === ['kanon' => 'inoffiziell', 'bezeichn
 // 🔴 Und „Wiki Aventurica" gilt NUR dem Wiki (Owner 02.09.2026: „soll nur dranstehen, wenn es ein
 // ns222 fall ist"). Ein Raum, der KEIN Inhalt ist, loest nichts aus -- das prueft Abschnitt 8
 // oben; hier die zweite Haelfte: ein OFFIZIELLER Inhaltsraum ebenso wenig.
+// 🔴 UMGEDREHT AM 08.09.2026 -- DAS IST DER GEMELDETE FALL. Hier stand, ein offizieller Raum
+// duerfe die Quellzeile „nicht ueberschreiben", also blieb ein Ort mit Hauptraum-Artikel und
+// einer Briefspielquelle „INOFFIZIELL │ Briefspiel". Owner am 08.09.2026: „wenn editoren weitere,
+// inoffizielle quellen hinzufügen, dann stehn die als z.b. inoffiziell | briefspiel dran, aber
+// das objekt bleibt offiziell. es darf dann oben kein inoffiziell stehen."
 foreach ([0 => 'Hauptraum', 218 => 'DSK', 220 => 'Elf'] as $raum => $name) {
     $kanon = avesmapsFeatureSourcesDeriveKanon($katalog,
         ['settlement:p-raum' => [['source_id' => 2]]], ['settlement:p-raum' => $raum]);
-    assert($kanon['settlement:p-raum'] === ['kanon' => 'inoffiziell', 'bezeichner_type' => 'briefspiel'],
-        "ns {$raum} ({$name}) ist offiziell und darf die Quellzeile nicht ueberschreiben");
+    assert($kanon['settlement:p-raum'] === ['kanon' => 'offiziell'],
+        "ns {$raum} ({$name}): die Zuweisung bleibt offiziell, die Briefspielquelle steht nur im Kasten");
 }
 
 // ---- 10. Beide Mengen bilden den Suchraum -----------------------------------------------------
@@ -301,6 +331,68 @@ assert($kanon === [
     'settlement:p-apfeldorn' => ['kanon' => 'inoffiziell', 'bezeichner_label' => 'Wiki Aventurica'],
     'powerline:k-nord' => ['kanon' => 'inoffiziell', 'bezeichner_label' => 'Wiki Aventurica'],
 ], 'die Abnahme: aus ns 222 wird ein inoffizielles Etikett, aus ns 0 keines');
+
+// ---- 11b. DIE VIER FAELLE DES OWNERS (08.09.2026) ---------------------------------------------
+// Er hat sie selbst als Tabelle aufgeschrieben, nachdem am Pergelbach derselbe Fluss einmal
+// „offiziell" und zweimal „inoffiziell" im Kopf trug:
+//
+//   oben: offiziell   | wiki        <- Zuweisung Hauptraum, sonst nichts
+//   oben: offiziell   | wiki        <- Zuweisung Hauptraum + Briefspielquelle
+//   oben: inoffiziell | wiki        <- Zuweisung ns 222 + Briefspielquelle
+//   oben: inoffiziell | briefspiel  <- KEINE Zuweisung, nur die Briefspielquelle
+//   oben: nix                       <- weder noch
+//
+// ⚠️ Das „| wiki" seiner Notation ist die HERKUNFT der Aussage, keine Halbpille: „offiziell" ist
+// und bleibt die volle, runde Pille ohne Bezeichner (Owner 03.09.2026, am 08.09. an den
+// Screenshots von Salderkeim und Trallop bestaetigt).
+$briefspiel = ['settlement:p-fall' => [['source_id' => 2]]];
+$f = static fn(array $refs, array $raeume): array
+    => avesmapsFeatureSourcesDeriveKanon($katalog, $refs, $raeume)['settlement:p-fall'] ?? [];
+
+assert($f([], ['settlement:p-fall' => 0]) === ['kanon' => 'offiziell'],
+    'Fall 1: Zuweisung im Hauptraum, sonst nichts -> offiziell');
+assert($f($briefspiel, ['settlement:p-fall' => 0]) === ['kanon' => 'offiziell'],
+    'Fall 2: Hauptraum + Briefspielquelle -> bleibt offiziell, die Quelle steht nur im Kasten');
+assert($f($briefspiel, ['settlement:p-fall' => 222])
+    === ['kanon' => 'inoffiziell', 'bezeichner_label' => 'Wiki Aventurica'],
+    'Fall 3: ns 222 + Briefspielquelle -> inoffiziell, Bezeichner ist der Korpus');
+assert($f($briefspiel, []) === ['kanon' => 'inoffiziell', 'bezeichner_type' => 'briefspiel'],
+    'Fall 4: keine Zuweisung, nur die Quelle -> inoffiziell mit ihrer ART');
+assert($f([], []) === [], 'Fall 5: weder Zuweisung noch Quelle -> gar kein Etikett');
+
+// ---- 11c. PUBLIKATIONEN MACHEN KEINEN KANON ---------------------------------------------------
+// 🔴 Owner 08.09.2026: „publikationen sind übrigens nicht wichtig - die werden einfach gelistet,
+// was auch immer da drin steht kann egal sein, offiziell / inoffiziell machen es nur quellen."
+// 💣 DIESE ZEILE IST DER EIGENTLICHE BEFUND HINTER DER MELDUNG. Der Pergelbach trug seine drei
+// offiziellen Publikationsquellen an EINEM seiner drei Abschnitte -- der Publikations-Abgleich
+// ist ein Stichtagslauf, und die zwei anderen Abschnitte wurden erst danach zugewiesen. Solange
+// eine Publikation den Kanon machen durfte, zerfiel derselbe Fluss dadurch in zwei Aussagen.
+// Am Dump vom 08.09.2026: 16 von 477 mehrteiligen Wegen betroffen, immer „1 von N".
+$publikation = [['source_id' => 1, 'reference_kind' => 'ausfuehrlich']];
+assert(avesmapsFeatureSourcesDeriveKanon($katalog, ['settlement:p-pub' => $publikation], []) === [],
+    'eine offizielle PUBLIKATION allein macht kein Etikett -- sie wird nur gelistet');
+assert(avesmapsFeatureSourcesDeriveKanon(
+        $katalog,
+        ['settlement:p-pub2' => [['source_id' => 2], ['source_id' => 1, 'reference_kind' => 'erwaehnung']]],
+        []
+    )['settlement:p-pub2'] === ['kanon' => 'inoffiziell', 'bezeichner_type' => 'briefspiel'],
+    'die offizielle Publikation daneben aendert nichts: nur die direkte Quelle spricht');
+
+// ---- 11d. EIN GERATENER LINK MACHT NICHT OFFIZIELL --------------------------------------------
+// 💣 DIE FALLE DIESES UMBAUS. avesmapsEnrichMapFeatureWikiUrl fuellt `properties.wiki_url` per
+// Namensabgleich, wenn keine gespeicherte da ist -- 99 Orte und 12 Wege tragen so einen
+// Phantomlink (AGENTS.md §11). Wuerde der zaehlen, bekaemen sie ein „offiziell", das nie jemand
+// gesetzt hat. Owner 08.09.2026: „ich will eigentlich dass die 113 ihre wiki-zuweisung direkt
+// und nicht aus den publikationen bekommen."
+$geraten = avesmapsMapFeaturesWikiNamespaces([objekt('location', 'p-dommel', $WA . 'Dommel')]);
+assert($geraten === [], 'ohne Zuweisungsnest zaehlt der Hauptraum-Link nicht -- er koennte geraten sein');
+$echt = avesmapsMapFeaturesWikiNamespaces([objekt('location', 'p-trallop', $WA . 'Trallop', true)]);
+assert($echt === ['settlement:p-trallop' => 0], 'MIT Zuweisungsnest meldet sich der Hauptraum als 0');
+// ⚠️ Die Gegenrichtung bleibt die sichere: ein UNzugewiesenes Objekt mit erkennbar inoffiziellem
+// Raum behaelt sein Etikett. Das galt vor dem Umbau und darf nicht verlorengehen.
+assert(avesmapsMapFeaturesWikiNamespaces([objekt('location', 'p-apf', $WA . 'Inoffiziell:Apfeldorn')])
+    === ['settlement:p-apf' => 222],
+    'ns 222 spricht auch ohne Nest -- „inoffiziell" ist die Richtung, die nichts kaputtmacht');
 
 // ---- 12. Der Endpunkt fuettert sie auch wirklich mit den OBJEKTEN -----------------------------
 // 💣 Ohne diese Zusicherung waere alles darueber gruen und die Karte trotzdem leer: der Fehler
@@ -367,12 +459,15 @@ $mitOffizieller = avesmapsFeatureSourcesDeriveKanon(
     ['territory:T-TAY' => [['source_id' => 7]]],
     ['territory:T-TAY' => 222]
 );
-assert(($mitOffizieller['territory:T-TAY']['kanon'] ?? '') === 'offiziell',
-    'eine offizielle Quelle schlaegt den inoffiziellen Raum -- auch beim Territorium');
+assert(($mitOffizieller['territory:T-TAY']['kanon'] ?? '') === 'inoffiziell',
+    'auch beim Territorium schlaegt die ns-222-Zuweisung seit 08.09.2026 die offizielle Quelle');
 
-// ⚠️ Der Hauptraum ist KEINE Aussage: ns 0 liefert kein Etikett, nicht „offiziell".
-assert(avesmapsFeatureSourcesDeriveKanon([], [], ['territory:T-GAR' => 0]) === [],
-    'ein Territorium aus dem Hauptraum bekommt kein Etikett aus dem Raum allein');
+// 🔴 UMGEDREHT AM 08.09.2026: hier stand „der Hauptraum ist KEINE Aussage". Fuer ein Territorium
+// IST `political_territory.wiki_url` die Zuweisung -- eine eigene Spalte, die nur ein
+// Schreibvorgang fuellt, nie ein Namensraten. Sie macht damit offiziell wie ueberall sonst.
+assert(avesmapsFeatureSourcesDeriveKanon([], [], ['territory:T-GAR' => 0])
+    === ['territory:T-GAR' => ['kanon' => 'offiziell']],
+    'ein Territorium mit Hauptraum-Zuweisung ist offiziell');
 
 // 💣 DIE VERDRAHTUNG. Ohne den zweiten Leser im Endpunkt ist die ganze Gruppe hier Theorie: die
 // Territoriumsschluessel kaemen nie in der Ableitung an. Am Zeilenanfang gesucht, aus demselben

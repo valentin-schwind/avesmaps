@@ -230,3 +230,42 @@ assert($p['id'] === 0 && $p['ns'] === 222);
 echo "seitenkennung ok\n";
 
 echo "ALLE TESTS OK\n";
+
+// ---- avesmapsWikiNamespaceFromWikiUrlMitHauptraum (08.09.2026) --------------------------------
+// 🔴 Der Unterschied zur Funktion darueber ist der HAUPTRAUM: er meldet sich als `0` statt als
+// `null`. Erst damit laesst sich „im Hauptraum verbunden" von „gar nicht verbunden" trennen --
+// die Bedingung, an der seit dem 08.09.2026 das Kanon-Etikett haengt (Owner: „also ‚offiziell'
+// wenn ‚wiki-zuweisung = true'").
+$mh = 'avesmapsWikiNamespaceFromWikiUrlMitHauptraum';
+assert($mh('https://de.wiki-aventurica.de/wiki/Trallop') === 0,
+    'ein praefixloser Wiki-Titel ist der Hauptraum und meldet sich als 0');
+assert($mh('https://de.wiki-aventurica.de/wiki/Inoffiziell:Apfeldorn') === 222,
+    'ein Praefix wird weiterhin abgelesen');
+assert($mh('https://de.wiki-aventurica.de/de/index.php?title=Inoffiziell:Apfeldorn') === 222,
+    'auch die zweite Adressform des Wikis');
+assert($mh('https://de.wiki-aventurica.de/de/index.php?title=Trallop') === 0,
+    'und dort ebenso der Hauptraum');
+
+// 💣 DIE TRAGENDE ZUSICHERUNG: EINE FREMDE ADRESSE IST KEIN HAUPTRAUM. Ohne die eigene
+// Wirtspruefung faende `?? 0` fuer JEDE Adresse den Hauptraum -- eine Briefspielseite waere im
+// Kopf ihres Objekts „offiziell". Die Delegation nach unten allein reicht nicht: sie antwortet
+// auf einen fremden Wirt mit demselben `null` wie auf einen praefixlosen Wiki-Titel.
+foreach ([
+    'https://garetien.de/Ort/Dommel',
+    'https://www.wiki-aventurica.example.com/wiki/Trallop',
+    'https://de.wiki-aventurica.de.boese.tld/wiki/Trallop',
+    'nonsens',
+    '',
+] as $fremd) {
+    assert($mh($fremd) === null, "fremde Adresse ergibt null, nie den Hauptraum: {$fremd}");
+}
+// ⚠️ Eine Wiki-Adresse OHNE Artikeltitel benennt nichts und ist keine Zuweisung.
+foreach ([
+    'https://de.wiki-aventurica.de/wiki/',
+    'https://de.wiki-aventurica.de/',
+    'https://de.wiki-aventurica.de/de/index.php?title=',
+] as $ohneTitel) {
+    assert($mh($ohneTitel) === null, "ohne Titel keine Zuweisung: {$ohneTitel}");
+}
+// ⭐ Die Subdomain-Regel der Funktion darunter gilt unveraendert weiter.
+assert($mh('https://wiki-aventurica.de/wiki/Trallop') === 0, 'auch ohne Subdomain');

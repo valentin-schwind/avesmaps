@@ -2945,6 +2945,17 @@ const AVESMAPS_MAP_FEATURES_KANON_ENTITY_TYPE_BY_FEATURE_TYPE = [
     'powerline' => 'powerline',
 ];
 
+// Wo die ECHTE Wiki-Zuweisung eines Kartenobjekts steht -- das Nest, nicht `properties.wiki_url`.
+// 💣 `powerline` fehlt hier ABSICHTLICH und ist kein vergessener vierter Eintrag: eine Kraftlinie
+// hat kein Nest, ihre Adresse steht blank in `properties.wiki_url` und wird nie geraten
+// (avesmapsEnrichMapFeatureWikiUrl steigt fuer sie aus). Der Leser behandelt genau diesen Fall
+// eigens; wer hier `'powerline' => 'wiki_url'` ergaenzt, laesst ihn ins Leere greifen.
+const AVESMAPS_MAP_FEATURES_KANON_WIKI_NEST_BY_FEATURE_TYPE = [
+    'location' => 'wiki_settlement',
+    'label' => 'wiki_region',
+    'path' => 'wiki_path',
+];
+
 /**
  * Der Wiki-Namensraum je Objekt -- der dritte Eingang der Kanon-Ableitung darunter.
  *
@@ -2989,12 +3000,46 @@ function avesmapsMapFeaturesWikiNamespaces(array $features): array
         if ($entityType === '' || $publicId === '') {
             continue;
         }
+        // 🔴 DAS ZUWEISUNGSNEST ZUERST, NIE NUR `properties.wiki_url` (Owner 08.09.2026: „ich will
+        // eigentlich dass die 113 ihre wiki-zuweisung direkt und nicht aus den publikationen
+        // bekommen"). Seit dem 08.09.2026 macht eine Zuweisung im Hauptraum das Objekt OFFIZIELL --
+        // und `wiki_url` ist dafuer keine taugliche Grundlage: avesmapsEnrichMapFeatureWikiUrl RAET
+        // sie bei Leere per Namensabgleich dazu. 99 Orte und 12 Wege tragen so einen Phantomlink
+        // (AGENTS.md §11), und die haetten damit ein „offiziell" bekommen, das nie jemand gesetzt hat.
+        // Gemessen am Dump vom 08.09.2026: 113 Objekte (Dommel, Barras, Grünau) haben GAR KEIN Nest
+        // und ihre Publikationen als einzige Quelle -- sie brauchen eine echte Zuweisung, kein
+        // geratenes Etikett.
+        $nestSchluessel = AVESMAPS_MAP_FEATURES_KANON_WIKI_NEST_BY_FEATURE_TYPE[
+            (string) ($properties['feature_type'] ?? '')
+        ] ?? '';
+        $nest = $nestSchluessel !== '' ? ($properties[$nestSchluessel] ?? null) : null;
+        $zugewiesen = is_array($nest)
+            && (trim((string) ($nest['wiki_key'] ?? '')) !== '' || trim((string) ($nest['wiki_url'] ?? '')) !== '');
+        // ⚠️ Die Kraftlinie hat kein Nest: ihr `properties.wiki_url` ist explizit oder leer, nie
+        // geraten (avesmapsEnrichMapFeatureWikiUrl steigt fuer sie aus). Dort IST die Adresse die
+        // Zuweisung.
+        if ($nestSchluessel === '' && trim((string) ($properties['wiki_url'] ?? '')) !== '') {
+            $zugewiesen = true;
+        }
         $wikiUrl = trim((string) ($properties['wiki_url'] ?? ''));
+        if (is_array($nest) && trim((string) ($nest['wiki_url'] ?? '')) !== '') {
+            $wikiUrl = trim((string) $nest['wiki_url']);
+        }
         if ($wikiUrl === '') {
             continue;
         }
+        if ($zugewiesen) {
+            $ns = avesmapsWikiNamespaceFromWikiUrlMitHauptraum($wikiUrl);
+            if ($ns !== null) {
+                $out[$entityType . ':' . $publicId] = $ns;
+            }
+            continue;
+        }
+        // ⚠️ OHNE Zuweisung bleibt genau EINE Aussage moeglich, und sie ist die sichere Richtung:
+        // ein erkennbar INOFFIZIELLER Raum. Der galt hier schon vor dem 08.09.2026 und darf durch
+        // den Umbau nicht verlorengehen -- „offiziell" entsteht ohne Zuweisung dagegen nie.
         $ns = avesmapsWikiNamespaceFromWikiUrl($wikiUrl);
-        if ($ns !== null) {
+        if ($ns !== null && avesmapsWikiNamespaceIsOfficial($ns) === false) {
             $out[$entityType . ':' . $publicId] = $ns;
         }
     }
@@ -3064,7 +3109,10 @@ function avesmapsPoliticalTerritoryWikiNamespaces(PDO $pdo): array
         if ($publicId === '' || $wikiUrl === '') {
             continue;
         }
-        $ns = avesmapsWikiNamespaceFromWikiUrl($wikiUrl);
+        // 🔴 HIER IST DIE ADRESSE DIE ZUWEISUNG: `political_territory.wiki_url` ist eine eigene
+        // Spalte, die nur ein Schreibvorgang fuellt -- kein Namensraten wie bei den Kartenobjekten.
+        // Deshalb zaehlt der Hauptraum hier genauso wie ns 222 (Owner-Regel vom 08.09.2026).
+        $ns = avesmapsWikiNamespaceFromWikiUrlMitHauptraum($wikiUrl);
         if ($ns !== null) {
             $out['territory:' . $publicId] = $ns;
         }
@@ -3180,7 +3228,10 @@ function avesmapsFeatureSourcesKanonFuerEines(
     $key = $entityType . ':' . $publicId;
 
     $raeume = [];
-    $ns = avesmapsWikiNamespaceFromWikiUrl(trim($wikiUrl));
+    // 🔴 MIT Hauptraum: der Aufrufer hat gerade eine Zuweisung GESCHRIEBEN, die Adresse ist also
+    // per Konstruktion eine echte -- und eine Hauptraum-Zuweisung macht seit dem 08.09.2026
+    // offiziell. Ohne diesen Leser saehe der Editor sein eigenes Ergebnis erst nach F5 anders.
+    $ns = avesmapsWikiNamespaceFromWikiUrlMitHauptraum(trim($wikiUrl));
     if ($ns !== null) {
         $raeume[$key] = $ns;
     }
@@ -3218,6 +3269,18 @@ function avesmapsFeatureSourcesDeriveKanon(array $catalog, array $refs, array $w
             // abgewendet beschreibt. Ein Objekt, dessen EINZIGE Quelle eine Altquelle ist, bekam
             // damit kein Etikett, und weil „kein Etikett" ein gueltiger Zustand ist, fiel es
             // nicht auf. Der Schluessel wird deshalb genommen, wie er ist.
+            // 🔴 EINE PUBLIKATION MACHT WEDER OFFIZIELL NOCH INOFFIZIELL (Owner 08.09.2026:
+            // „publikationen sind übrigens nicht wichtig - die werden einfach gelistet, was auch
+            // immer da drin steht kann egal sein, offiziell / inoffiziell machen es nur quellen").
+            // Erkannt am `reference_kind` -- genau daran trennt auch der Quellenkasten die Zeile
+            // „Quelle(n):" von der Publikationstabelle (js/ui/feature-source-markup.js).
+            // 💣 Ohne diese Zeile entschied die UNGLEICHE Verteilung der Publikationen ueber den
+            // Kopf: der Pergelbach trug seine drei Publikationsquellen an EINEM seiner drei
+            // Abschnitte, und derselbe Fluss stand dadurch einmal offiziell und zweimal
+            // inoffiziell da (gemeldet 08.09.2026, ebenso Kaltwasser).
+            if (trim((string) ($ref['reference_kind'] ?? '')) !== '') {
+                continue;
+            }
             $id = $ref['source_id'] ?? null;
             $eintrag = (is_int($id) || is_string($id)) ? ($catalog[$id] ?? null) : null;
             if (!is_array($eintrag)) {
@@ -3237,51 +3300,53 @@ function avesmapsFeatureSourcesDeriveKanon(array $catalog, array $refs, array $w
             }
         }
 
-        if ($hatOffizielle) {
-            $out[$key] = ['kanon' => 'offiziell'];
-            continue;
+        // 🔴 RANG 1 SEIT DEM 08.09.2026: DIE WIKI-ZUWEISUNG ENTSCHEIDET, NICHT DIE QUELLEN.
+        // Owner, wortwoertlich: „also ‚offiziell' wenn ‚wiki-zuweisung = true'" -- und davor:
+        // „wenn es eine offizielle quelle gibt (normaler namensraum im wiki) und verbunden, ist es
+        // offiziell (oben im header). wenn editoren weitere, inoffizielle quellen hinzufügen, dann
+        // stehn die als z.b. inoffiziell | briefspiel dran, aber das objekt bleibt offiziell. […]
+        // es sei denn es verliert seine wiki-zuweisung (dann gilt inoffiziell)."
+        //
+        // 💣 DAS KEHRT DIE ALTE RANGFOLGE UM, und der Grund ist ein gemeldeter Widerspruch: bis
+        // hierher fragte die Ableitung ZUERST die Katalogquellen. Fehlte die offizielle Quelle,
+        // gewann damit eine beliebige inoffizielle -- ein Ort mit Hauptraum-Artikel UND einer
+        // Briefspielquelle stand als „INOFFIZIELL │ Briefspiel" da, obwohl er im Wiki ganz normal
+        // verzeichnet ist. Gemeldet am 08.09.2026 am Pergelbach und am Kaltwasser: derselbe Fluss
+        // trug an einem Abschnitt „offiziell" und an zweien „inoffiziell", weil seine
+        // Publikationsquellen nur an einem der drei Abschnitte hingen. 41 Objekte im Livebestand.
+        //
+        // 🔴 DIE ZUWEISUNG IST DIE ANWESENHEIT DES SCHLUESSELS, nicht sein Wert. Der Leser
+        // (avesmapsMapFeaturesWikiNamespaces) traegt ein Objekt nur ein, wenn es ein echtes
+        // Zuweisungsnest hat -- der Hauptraum meldet sich dabei als `0`. Ein bloss GERATENER
+        // `properties.wiki_url` kommt hier nie an; das ist die halbe Miete dieser Regel.
+        // ⚠️ Die eine Ausnahme im Leser: ein UNzugewiesenes Objekt mit erkennbar inoffiziellem
+        // Raum bleibt eingetragen. Es faellt hier in denselben Zweig und bleibt inoffiziell --
+        // die sichere Richtung, und der Zustand von vor diesem Umbau.
+        $ns = $wikiNamespaces[$key] ?? null;
+        if ($ns !== null) {
+            $raumOffiziell = avesmapsWikiNamespaceIsOfficial((int) $ns);
+            if ($raumOffiziell === false) {
+                // ns 222 / ns 444: „Inoffiziell │ Wiki Aventurica". Der Bezeichner ist hier
+                // ausdruecklich der KORPUSNAME und nicht die Art -- Owner 02.09.2026, siehe die
+                // Begruendung im Docblock oben.
+                $out[$key] = ['kanon' => 'inoffiziell', 'bezeichner_label' => 'Wiki Aventurica'];
+                continue;
+            }
+            if ($raumOffiziell === true) {
+                // 🔴 OHNE BEZEICHNER: „offiziell" ist immer die ganze, runde Pille (Owner
+                // 03.09.2026: „bei Offiziell will ich die volle pille"), und am 08.09.2026 an
+                // zwei Screenshots (Salderkeim, Trallop) bestaetigt. Die Halbpille sagt, dass
+                // etwas OFFEN ist; offiziell trennt nichts auf.
+                $out[$key] = ['kanon' => 'offiziell'];
+                continue;
+            }
+            // ⚠️ `null` heisst „Raum ist kein Inhaltsraum" (Kategorie, Vorlage, Datei). Das ist
+            // KEINE Aussage und faellt bewusst durch zu den Quellen darunter.
         }
 
-        // 🔴 RANG 2: der Wiki-Namensraum des Objekts. Owner 31.08.2026: „gibt es was Offizielles,
-        // ist uns ns 222 egal" -- deshalb steht dieser Zweig NACH der offiziellen Quelle und nicht
-        // davor. Liegt der Artikel in einem inoffiziellen Raum, ist das Objekt inoffiziell, auch
-        // wenn ihm sonst jede Quellzeile fehlt.
-        // ⚠️ `avesmapsWikiNamespaceIsOfficial` gibt `null` fuer einen Raum, der kein Inhalt ist --
-        // das ist KEINE Aussage und darf hier nichts ausloesen.
-        $ns = $wikiNamespaces[$key] ?? null;
-        $raumIstInoffiziell = $ns !== null && avesmapsWikiNamespaceIsOfficial((int) $ns) === false;
-
-        // 🔴 RANG 2 STEHT WIEDER VOR RANG 3 -- so, wie der Entwurf §2.1 es festhaelt (Owner-Freigabe
-        // 27.08.2026: offizielle Quelle · ns 222 · inoffizielle Quelle · ohne Quelle). Vom
-        // 31.08. bis zum 02.09.2026 war die Reihenfolge hier GETAUSCHT, mit einer Begruendung, die
-        // fuer sich genommen richtig war und den entscheidenden Fall uebersehen hat:
-        //
-        //   „trotzdem find ichs nett, wenn da briefspiel steht, wenns ein briefspiel-ort ist"
-        //   (Owner 27.08.2026)
-        //
-        // 💣 DER SATZ GILT WEITER -- ER TRIFFT DIESEN FALL NUR NICHT. Bei einem Objekt in ns 222
-        // IST die „Quelle" der Wiki-Artikel selbst, und ihr `label` ist deshalb der SEITENTITEL,
-        // kein Korpusname: es stand „INOFFIZIELL │ Apfeldorn" da, wo „INOFFIZIELL │ Wiki
-        // Aventurica" hingehoert (Owner-Meldung 02.09.2026). Ein Seitentitel an der Stelle eines
-        // Korpusnamens ist nicht genauer, sondern eine andere Aussage -- er sieht aus wie die
-        // Angabe eines Angebots und ist der Name eines Artikels.
-        // ⭐ Und die echten Korpora bleiben unberuehrt: von den 608 inoffiziellen Objekten des
-        // Livebestands liegt genau EINES in ns 222 (02.09.2026 gemessen; „Briefspiel" 283,
-        // „AlmadaWiki" 113, „Albernisches Briefspiel" 54 -- alle ohne ns-222-Adresse). Die
-        // Rangfolge nimmt also keinem Briefspielort seinen Namen, sie nimmt nur dem Wiki-Artikel
-        // den Anschein, einer zu sein.
-        // ⚠️ Wer sie erneut tauschen will, braucht zuerst einen KORPUSNAMEN an der ns-222-Quelle --
-        // solange dort der Seitentitel steht, ist der genauere Bezeichner der ungenauere.
-        // 🚩 UND DIE GRUNDLAGE DIESES SATZES HAT SICH AM 03.09.2026 VERSCHOBEN: Rang 3 gibt seither
-        // gar keinen Titel mehr her, sondern die ART („Briefspiel") -- genau das, was der Owner am
-        // 27.08.2026 „nett" fand. Der Rang bleibt trotzdem, wie er ist: dieser Zweig ist der EINZIGE,
-        // der ein Objekt OHNE jede Quellzeile ueberhaupt als inoffiziell erkennt, und „Wiki
-        // Aventurica" ist ausdruecklich bestellt (Owner 02.09.2026: „soll nur dranstehen, wenn es ein
-        // ns222 fall ist"). Es ist damit der einzige Bezeichner, der KEINE Art ist -- wer die zwei
-        // Regeln vereinheitlichen will, fragt vorher, ob dort „Wiki-Artikel" stehen soll (das ist
-        // die Art, die die Wiki-ZEILE im Quellenkasten seit dem 03.09.2026 rechts traegt).
-        if ($raumIstInoffiziell) {
-            $out[$key] = ['kanon' => 'inoffiziell', 'bezeichner_label' => 'Wiki Aventurica'];
+        // ---- Ohne Zuweisung entscheiden die Quellen, wie eh und je -----------------------------
+        if ($hatOffizielle) {
+            $out[$key] = ['kanon' => 'offiziell'];
             continue;
         }
 

@@ -200,6 +200,54 @@ function avesmapsPublicationCatalogIsOfficial(mixed $pageNs): bool
  * ⚠️ `strtolower` ist TRAGEND, weil der Ausdruck fallabhaengig ist (kein `i`-Flag, wie bei den
  * Geschwistern): DNS ist fallunabhaengig, und eine gespeicherte Adresse darf `DE.WIKI-...` heissen.
  */
+/**
+ * DERSELBE NAMENSRAUM, ABER DER HAUPTRAUM MELDET SICH ALS `0` STATT ALS `null`.
+ *
+ * 🔴 WOFUER: das Kanon-Etikett fragt seit dem 08.09.2026 zuerst die WIKI-ZUWEISUNG (Owner:
+ * "wenn es eine offizielle quelle gibt (normaler namensraum im wiki) und verbunden, ist es
+ * offiziell"). Dafuer muss "im Hauptraum verbunden" von "gar nicht verbunden" unterscheidbar
+ * sein -- und genau das kann avesmapsWikiNamespaceFromWikiUrl nicht: sie gibt fuer beide `null`,
+ * weil ein praefixloser Titel keinen Namensraum IM WORT traegt.
+ *
+ * 💣 DER WIRT WIRD HIER EIGENS GEPRUEFT, UND DAS IST TRAGEND. Ohne diese Pruefung bekaeme JEDE
+ * fremde Adresse (`https://garetien.de/...`) den Hauptraum `0` und damit "offiziell" -- eine
+ * Briefspielseite waere im Kopf ihres Objekts kanonisch. Die Delegation nach unten allein
+ * reicht nicht: sie antwortet auf einen fremden Wirt mit demselben `null` wie auf einen
+ * praefixlosen Wiki-Titel, und genau diese zwei Faelle muessen hier auseinandergehen.
+ *
+ * ⚠️ Eine Wiki-Adresse OHNE Titel (`/wiki/`, die blanke Domain) ergibt weiterhin `null`: sie
+ * benennt keinen Artikel, ist also keine Zuweisung.
+ *
+ * @return int|null Namensraum (0 = Hauptraum), `null` = keine Wiki-Aventurica-Artikeladresse
+ */
+function avesmapsWikiNamespaceFromWikiUrlMitHauptraum(string $url): ?int
+{
+    $url = trim($url);
+    if ($url === '') {
+        return null;
+    }
+    $wirt = strtolower((string) (parse_url($url, PHP_URL_HOST) ?? ''));
+    if (preg_match('/(^|\.)wiki-aventurica\.de$/', $wirt) !== 1) {
+        return null;
+    }
+    // Traegt die Adresse ueberhaupt einen Artikeltitel? Dieselbe Ablesung wie in der Funktion
+    // darunter, nur ohne die Namensraum-Tafel -- ein leerer Titel ist keine Zuweisung.
+    $pfad = (string) (parse_url($url, PHP_URL_PATH) ?? '');
+    $titel = '';
+    if (($pos = strpos($pfad, '/wiki/')) !== false) {
+        $titel = rawurldecode(substr($pfad, $pos + 6));
+    } elseif (str_contains($pfad, 'index.php')) {
+        parse_str((string) (parse_url($url, PHP_URL_QUERY) ?? ''), $abfrage);
+        $roh = $abfrage['title'] ?? null;
+        $titel = is_string($roh) ? $roh : '';
+    }
+    if (trim($titel) === '') {
+        return null;
+    }
+
+    return avesmapsWikiNamespaceFromWikiUrl($url) ?? 0;
+}
+
 function avesmapsWikiNamespaceFromWikiUrl(string $url): ?int
 {
     $url = trim($url);

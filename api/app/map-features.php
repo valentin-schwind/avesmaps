@@ -474,9 +474,22 @@ try {
         // schlimmer als ein altes.
         'feature_kanon' => [
             'vorgabe' => 'offiziell',
+            // 💣 „OFFIZIELL" WIRD NUR DANN WEGGELASSEN, WENN DIE VORGABE ES IM BROWSER AUCH ERREICHT.
+            // `resolveFeatureKanon` (js/ui/popups.js) gibt fuer ein Objekt OHNE Verweise `null`
+            // zurueck -- „unbelegt, die Vorgabe gilt hier nicht". Das war richtig, solange nur eine
+            // Katalogquelle offiziell machen konnte. Seit dem 08.09.2026 macht die blosse
+            // WIKI-ZUWEISUNG offiziell (Owner: „also ‚offiziell' wenn ‚wiki-zuweisung = true'"),
+            // und solche Objekte haben oft gar keine Katalogzeile: 1084 im Bestand vom 08.09.2026.
+            // Ohne die zweite Bedingung hier waere ihr Etikett am Server richtig und im Browser
+            // unsichtbar -- der teuerste aller Faelle, weil beide Seiten fuer sich gruen aussehen.
+            // ⭐ Der Preis ist klein und gerechnet: rund 1084 zusaetzliche Eintraege (~54 KB in
+            // einer 21-MB-Nutzlast). Die Alternative -- eine zweite Liste „diese sind zugewiesen"
+            // -- waere groesser UND ein zweiter Zustand neben diesem.
             'abweichungen' => (object) array_filter(
                 $featureKanon,
-                static fn(array $e): bool => ($e['kanon'] ?? '') !== 'offiziell'
+                static fn(array $e, string $schluessel): bool => ($e['kanon'] ?? '') !== 'offiziell'
+                    || ($featureSourceRefs[$schluessel] ?? []) === [],
+                ARRAY_FILTER_USE_BOTH
             ),
         ],
         // Objekte, die IN einer Stadt liegen (Villen, Plaetze, Stadttempel, Gassen) -- je Eintrag
