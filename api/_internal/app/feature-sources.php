@@ -3353,6 +3353,49 @@ function avesmapsFeatureSourcesKanonFuerEines(
     return isset($refs[$key]) && $refs[$key] !== [] ? ['kanon' => ''] : null;
 }
 
+/**
+ * „KEIN ETIKETT" ALS AUSDRUECKLICHE AUSKUNFT -- fuer die Objekte, die eine brauchen.
+ *
+ * 🚩 Owner 08.09.2026: „hm warte mal, Dommel ist nicht zugewiesen, aber es steht offiziell dran."
+ * `resolveFeatureKanon` (js/ui/popups.js) faellt fuer ein Objekt MIT Verweisen auf die Vorgabe
+ * „offiziell" zurueck -- ein FEHLENDER Eintrag heisst dort „offiziell", nicht „nichts". Seit
+ * Publikationen keinen Kanon mehr machen, gibt es aber Objekte MIT Quellen und OHNE Etikett.
+ *
+ * 💣 UND SIE GILT NUR DEN BEDIENTEN OBJEKTARTEN. Der erste Anlauf schrieb den Leer-Eintrag fuer
+ * JEDEN Schluessel aus `feature_sources` -- und traf damit **447 Landschaftsflaechen**
+ * (`ecosystem`), um die es nie ging: der Kanon-Leser kennt sie gar nicht
+ * (AVESMAPS_MAP_FEATURES_KANON_ENTITY_TYPE_BY_FEATURE_TYPE), sie koennen also per Konstruktion
+ * nie ein Etikett bekommen -- und verloren so ihr bisheriges „offiziell" aus der Vorgabe.
+ * Live gemessen am 08.09.2026: 591 Leer-Eintraege, davon 447 ecosystem, 107 path, 23 settlement,
+ * 14 territory. Gemeint waren die 130 der letzten drei.
+ * ⚠️ Wer `ecosystem` (oder `citymap`, `lore`) je an den Kanon anschliesst, ergaenzt sie DORT und
+ * bekommt den Leer-Eintrag von hier geschenkt -- nicht umgekehrt.
+ *
+ * @param array<string, list<array<string, mixed>>> $refs   "typ:public_id" => Verweise
+ * @param array<string, array<string, mixed>> $kanon        was die Ableitung gefunden hat
+ * @return array<string, array{kanon:string}> die zusaetzlichen Leer-Eintraege
+ */
+function avesmapsFeatureSourcesKanonLeerEintraege(array $refs, array $kanon): array
+{
+    $bedient = array_flip(array_merge(
+        array_values(AVESMAPS_MAP_FEATURES_KANON_ENTITY_TYPE_BY_FEATURE_TYPE),
+        ['territory']
+    ));
+
+    $out = [];
+    foreach (array_diff_key($refs, $kanon) as $schluessel => $verweise) {
+        if ($verweise === []) {
+            continue;
+        }
+        $typ = explode(':', (string) $schluessel, 2)[0];
+        if (isset($bedient[$typ])) {
+            $out[$schluessel] = ['kanon' => ''];
+        }
+    }
+
+    return $out;
+}
+
 function avesmapsFeatureSourcesDeriveKanon(array $catalog, array $refs, array $wikiNamespaces = []): array
 {
     $out = [];

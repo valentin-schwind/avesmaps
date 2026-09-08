@@ -496,10 +496,9 @@ try {
             // einer 21-MB-Nutzlast). Die Alternative -- eine zweite Liste „diese sind zugewiesen"
             // -- waere groesser UND ein zweiter Zustand neben diesem.
             'abweichungen' => (object) array_filter(
-                $featureKanon + array_map(
-                    static fn(): array => ['kanon' => ''],
-                    array_diff_key($mapFeaturesIstDelta ? [] : $featureSourceRefs, $featureKanon)
-                ),
+                $featureKanon + ($mapFeaturesIstDelta
+                    ? []
+                    : avesmapsFeatureSourcesKanonLeerEintraege($featureSourceRefs, $featureKanon)),
                 static fn(array $e, string $schluessel): bool => ($e['kanon'] ?? '') !== 'offiziell'
                     || ($featureSourceRefs[$schluessel] ?? []) === [],
                 ARRAY_FILTER_USE_BOTH

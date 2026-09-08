@@ -512,9 +512,28 @@ assert(strpos($endpunkt, 'avesmapsMapFeaturesWikiNamespaces($features)') !== fal
 // 💣 DER LEER-EINTRAG. Ohne ihn ist die ganze Gruppe 11f Theorie: der Server leitet richtig ab
 // und der Browser zeigt trotzdem „offiziell" (Owner-Meldung 08.09.2026, Dommel). Gemessen wird
 // die Ergaenzung um die Schluessel, die Verweise haben und KEIN Etikett bekommen.
-assert(strpos($endpunkt, "array_diff_key(") !== false
-    && strpos($endpunkt, "['kanon' => '']") !== false,
+assert(strpos($endpunkt, 'avesmapsFeatureSourcesKanonLeerEintraege($featureSourceRefs, $featureKanon)') !== false,
     'die Nutzlast muss „kein Etikett" fuer Objekte MIT Verweisen ausdruecklich mitschicken');
+
+// 💣 UND NUR FUER DIE BEDIENTEN OBJEKTARTEN. Der erste Anlauf schrieb den Leer-Eintrag fuer jeden
+// Schluessel aus `feature_sources` -- und nahm damit **447 Landschaftsflaechen** ihr „offiziell",
+// um die es nie ging: der Kanon-Leser kennt `ecosystem` gar nicht, sie koennen per Konstruktion
+// nie ein Etikett bekommen. Live gemessen 08.09.2026: 591 Eintraege, davon 447 ecosystem.
+$leer = avesmapsFeatureSourcesKanonLeerEintraege([
+    'settlement:p-dommel' => [['source_id' => 1, 'reference_kind' => 'ausfuehrlich']],
+    'path:w-1' => [['source_id' => 1]],
+    'territory:T-1' => [['source_id' => 1]],
+    'ecosystem:e-1' => [['source_id' => 1]],
+    'citymap:c-1' => [['source_id' => 1]],
+    'lore:l-1' => [['source_id' => 1]],
+    'settlement:p-hat-etikett' => [['source_id' => 2]],
+], ['settlement:p-hat-etikett' => ['kanon' => 'inoffiziell']]);
+assert(array_keys($leer) === ['settlement:p-dommel', 'path:w-1', 'territory:T-1'],
+    'nur die Objektarten, die der Kanon-Leser bedient, bekommen „kein Etikett" gesagt');
+assert($leer['settlement:p-dommel'] === ['kanon' => ''], 'und zwar als leerer Zustand');
+// ⚠️ Ein Objekt, das ein Etikett HAT, bekommt keinen zweiten Eintrag -- sonst uebermalte der
+// Leer-Eintrag die echte Aussage.
+assert(!isset($leer['settlement:p-hat-etikett']), 'ein vorhandenes Etikett bleibt unangetastet');
 assert(strpos($endpunkt, 'function avesmapsMapFeaturesWikiNamespaces') === false,
     'sie darf nicht in die Endpunktdatei zurueckwandern -- dort erreicht sie kein Test');
 // 💣 AM ZEILENANFANG SUCHEN, NICHT IRGENDWO. `strpos` findet einen AUSKOMMENTIERTEN Aufruf
