@@ -288,6 +288,12 @@ table.mess td.z { text-align: right; font-variant-numeric: tabular-nums; }
 				<span class="gi-insert__val"><select class="gi-insert__select"><option>Bauwerk</option></select></span>
 			</p>
 			<p class="gi-insert__row">Nodix <span class="gi-insert__val">☐</span></p>
+			<p class="gi-insert__row">Innerorts
+				<span class="gi-insert__val"><select class="gi-insert__select">
+					<option selected>— auf die Karte —</option>
+					<option>Wandleth · 0,09 Meilen · Name passt</option>
+				</select></span>
+			</p>
 		</div>
 
 		<p class="grund ok">
@@ -297,7 +303,7 @@ table.mess td.z { text-align: right; font-variant-numeric: tabular-nums; }
 		</p>
 
 		<div class="gi-fuss">
-			<button class="btn btn--neu" type="button">Neu einfügen</button>
+			<button class="btn btn--neu" type="button">Auf die Stage</button>
 			<button class="btn btn--soft" type="button">Innerorts einfügen (Wandleth)</button>
 			<button class="btn btn--danger" type="button">Ablehnen</button>
 		</div>
@@ -324,8 +330,16 @@ table.mess td.z { text-align: right; font-variant-numeric: tabular-nums; }
 			aber es ist die sichtbare Folge dieses Entwurfs.
 		</p>
 		<p class="note">
-			⚠️ Der Knopf erscheint <b>nur</b>, wenn beide Signale zusammentreffen. Sonst steht er gar
-			nicht da — ein dauerhaft ausgegrauter Knopf behauptet eine Möglichkeit, die es nicht gibt.
+			⚠️ Der Knopf erscheint <b>nur</b>, wenn eine Siedlung in Reichweite liegt. Sonst steht er
+			gar nicht da — ein dauerhaft ausgegrauter Knopf behauptet eine Möglichkeit, die es nicht
+			gibt.
+		</p>
+		<p class="note">
+			🔴 <b>Nachtrag 07.09.2026:</b> „Neu einfügen" heißt seit dem Stage-Umbau
+			<b>„Auf die Stage"</b>, und die Reichweite sind <b>5 Meilen ohne Namenspflicht</b>
+			(Entwurf §2e). Die Zeile <b>Innerorts</b> im Kasten ist neu — sie steht auf
+			<em>„— auf die Karte —"</em>, und genau darum legt „Stage importieren" nichts an, was
+			niemand gewählt hat.
 		</p>
 	</div>
 </div>
@@ -366,6 +380,72 @@ table.mess td.z { text-align: right; font-variant-numeric: tabular-nums; }
 			💣 So sieht die Mehrheit aus: von 1048 Bauwerken des Exports liegen <b>27</b> näher als
 			eine halbe Meile an einer Ortschaft, der Median ist <b>12,4 Meilen</b>. VolkoV verortet
 			seine Bauwerke.
+		</p>
+	</div>
+</div>
+
+<h2>2b · Mehrere Städte in Reichweite — die Wahl (07.09.2026)</h2>
+
+<div class="buehne">
+
+	<div class="gi-detail zeigt-innerorts">
+		<p class="gi-titel">Wandlether Rondra-Tempel</p>
+		<p class="gi-meta">Wiki-Artikel ↗ · LOD 7–14 · ggp / Ortschaften_2</p>
+
+		<p class="gi-sec">Eingefügt wird</p>
+		<div class="gi-insert">
+			<p class="gi-why gi-insert__kopf">Tempel (garetien.de) → Bauwerk (Avesmaps)</p>
+			<p class="gi-insert__row">Form
+				<span class="gi-insert__val"><select class="gi-insert__select"><option>Ort</option></select></span>
+			</p>
+			<p class="gi-insert__row">Art
+				<span class="gi-insert__val"><select class="gi-insert__select"><option>Bauwerk</option></select></span>
+			</p>
+			<p class="gi-insert__row">Innerorts
+				<span class="gi-insert__val"><select class="gi-insert__select">
+					<option>— auf die Karte —</option>
+					<option>Aue · 0,03 Meilen</option>
+					<option selected>Wandleth · 0,09 Meilen · Name passt</option>
+				</select></span>
+			</p>
+			<p class="gi-insert__row"><span class="gi-insert__hint">
+				Wird als Stätte in „Wandleth“ angelegt — OHNE Position auf der Karte. Form und Art
+				gelten dafür nicht.
+			</span></p>
+		</div>
+
+		<div class="gi-fuss">
+			<button class="btn btn--neu" type="button">Auf die Stage</button>
+			<button class="btn btn--soft" type="button">Innerorts einfügen (Wandleth)</button>
+			<button class="btn btn--danger" type="button">Ablehnen</button>
+		</div>
+	</div>
+
+	<div>
+		<p class="note" style="margin-top:0">
+			🔴 <b>Sortiert nach Entfernung</b> (Owner 07.09.2026) — <em>Aue</em> liegt näher als
+			<em>Wandleth</em>. Die <b>Marke „Name passt"</b> steht trotzdem an Wandleth: sie ist das
+			einzige gemessene Signal (68-fache Anreicherung, Entwurf §2d) und sagt dem Editor, warum
+			die zweite Zeile die richtige ist.
+		</p>
+		<p class="note">
+			💣 <b>Die Vorauswahl folgt der Liste nicht.</b> Sie nimmt den nächsten Kandidaten
+			<em>mit</em> Namenstreffer. Nach bloßer Nähe stünde „Innerorts einfügen (Aue)" im Knopf,
+			während Wandleth gemeint ist — und bis zum 07.09.2026 hatte der Importer dort recht.
+		</p>
+		<p class="note">
+			🔴 <b>Der Satz unter dem Feld gehört dazu.</b> Ohne ihn behauptet der Kasten weiter
+			„Form: Ort · Art: Bauwerk" für ein Objekt, das auf der Karte gar nicht entsteht.
+		</p>
+		<p class="note">
+			⭐ <b>Die Wahl reist über die Stage mit.</b> <code>garetienEingabenFuerServer</code>
+			schickt <code>{innerorts, innerorts_public_id}</code>; bis dahin legte „Stage importieren"
+			<em>nie</em> eine Stätte an, und der Einzelknopf war der einzige Weg dorthin.
+		</p>
+		<p class="note">
+			⚠️ Die Liste wird beim Öffnen der Zeile <b>frisch nachgeschlagen</b> — eine Stadt, die
+			dieser Lauf gerade erst importiert hat, steht sonst erst nach einem zweiten
+			„Holen &amp; Rechnen" zur Wahl.
 		</p>
 	</div>
 </div>
