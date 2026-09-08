@@ -3205,29 +3205,48 @@ function avesmapsPoliticalTerritoryWikiNamespaces(PDO $pdo): array
  * ---------------------------------------------------------------------------
  * Entwurf: docs/superpowers/specs/2026-08-27-kanon-etikett-design.md
  *
- * 🔴 DIE REGEL, in dieser Reihenfolge (Owner 27.-31.08.2026), Entwurf §2.1:
- *   1. mindestens EINE offizielle Quelle    -> 'offiziell'    (auch neben zehn inoffiziellen)
- *   2. sonst mindestens eine INOFFIZIELLE   -> 'inoffiziell' + dem GENAUEN Bezeichner
- *      Quelle                                  („Briefspiel (Garetien)")
- *   3. sonst inoffizieller WIKI-NAMENSRAUM  -> 'inoffiziell' + Bezeichner „Wiki Aventurica"
+ * 🔴 DIE REGEL, in dieser Reihenfolge (Owner 08.09.2026), Entwurf §2.1:
+ *   1. WIKI-ZUWEISUNG in inoffiziellem Raum -> 'inoffiziell' + Bezeichner „Wiki Aventurica"
  *      (ns 222 Inoffiziell, ns 444 Ilaris)     -- auch ohne jede Quellzeile
- *   4. sonst                                -> gar kein Eintrag (der Besucher sieht nichts;
+ *   2. WIKI-ZUWEISUNG im Hauptraum          -> 'offiziell'   (volle Pille, kein Bezeichner)
+ *      (bzw. ns 218/220, ebenfalls offiziell)  -- die Quellen daneben aendern daran NICHTS
+ *   3. ohne Zuweisung: offizielle Quelle    -> 'offiziell'
+ *   4. ohne Zuweisung: inoffizielle Quelle  -> 'inoffiziell' + der ART („Briefspiel (2)")
+ *   5. sonst                                -> gar kein Eintrag (der Besucher sieht nichts;
  *                                              „Ohne Quelle" ist eine reine Editorenanzeige)
  *
- * ⚠️ DIESE LISTE NANNTE EINEN TAG LANG NUR DREI RAENGE und liess den Namensraum ganz weg -- ihr
- * Punkt 3 sagte „gar keine Quelle -> gar kein Eintrag", und das ist seit dem ns-222-Umbau falsch:
- * ein Objekt aus ns 222 OHNE jede Quelle bekommt sehr wohl ein Etikett, das ist der Zweck des
- * Umbaus. Schlimmer noch hiess „Rang 2" oben und im Code darunter Verschiedenes. Wer eine
- * Rangliste in einem Docblock fuehrt, muss sie beim Einbau eines Rangs mitfuehren -- sonst
- * beschreibt sie die Fassung davor und liest sich trotzdem wie eine Zusage.
- * ⚠️ Die Nummern 2 und 3 stehen im CODE in umgekehrter Reihenfolge (der Namensraum wird vorher
- * berechnet, spricht aber nur, wenn keine inoffizielle Quelle da ist). Das Ergebnis ist dieses
- * hier; die Begruendung steht an der Stelle selbst.
+ * 💣 RANG 1 UND 2 SIND AM 08.09.2026 NACH VORN GEWANDERT, und das ist eine Umkehrung, keine
+ * Ergaenzung. Bis dahin fragte die Ableitung ZUERST die Katalogquellen; fehlte die offizielle,
+ * gewann eine beliebige inoffizielle. Ein Ort mit ganz normalem Hauptraum-Artikel UND einer
+ * Briefspielquelle stand deshalb als „INOFFIZIELL │ Briefspiel" da. Owner an diesem Tag:
  *
- * 🔴 EIN EINTRAG KANN NICHT OFFIZIELL UND INOFFIZIELL SEIN. „Offiziell schlaegt immer
- * inoffiziell": hat ein offizieller Ort zusaetzlich eine Briefspielquelle, bleibt er offiziell --
- * die inoffizielle Quelle aendert nichts daran, dass es ihn im gedruckten Aventurien gibt. Sie
- * bleibt an ihrer Zeile im Quellenkasten sichtbar, nur nicht am Kopf.
+ *   „also ‚offiziell' wenn ‚wiki-zuweisung = true'" und „wenn editoren weitere, inoffizielle
+ *   quellen hinzufügen, dann stehn die als z.b. inoffiziell | briefspiel dran, aber das objekt
+ *   bleibt offiziell. es darf dann oben kein inoffiziell stehen. […] es sei denn es verliert
+ *   seine wiki-zuweisung (dann gilt inoffiziell)."
+ *
+ * 🚩 ANLASS war der Pergelbach: derselbe Fluss trug an einem Abschnitt „offiziell" und an zweien
+ * „inoffiziell", weil seine offiziellen Publikationsquellen nur an EINEM seiner drei Abschnitte
+ * hingen (Kaltwasser genauso). 41 Objekte im Bestand vom 08.09.2026 haben dadurch gekippt.
+ *
+ * 💣 PUBLIKATIONEN ZAEHLEN GAR NICHT MEHR MIT (Owner 08.09.2026: „publikationen sind übrigens
+ * nicht wichtig - die werden einfach gelistet […] offiziell / inoffiziell machen es nur
+ * quellen"). Erkannt am `reference_kind`; die Schleife unten ueberspringt sie.
+ *
+ * ⚠️ DIESE LISTE STAND SCHON ZWEIMAL FALSCH DA -- einmal mit drei statt vier Raengen, einmal mit
+ * vertauschten Nummern 2 und 3. Wer eine Rangliste in einem Docblock fuehrt, muss sie beim
+ * Umbau MITFUEHREN, sonst beschreibt sie die Fassung davor und liest sich trotzdem wie eine
+ * Zusage. Die Reihenfolge hier ist die des Codes darunter, Zeile fuer Zeile.
+ * 🔴 Rang 1 und 2 sind im Code EIN Block (`$wikiNamespaces[$key]`): die Anwesenheit des
+ * Schluessels ist die Zuweisung, sein Wert entscheidet die Haelfte. Ein bloss GERATENER
+ * `properties.wiki_url` kommt dort nie an -- siehe avesmapsMapFeaturesWikiNamespaces.
+ *
+ * 🔴 EIN EINTRAG KANN NICHT OFFIZIELL UND INOFFIZIELL SEIN, und seit dem 08.09.2026 entscheidet
+ * das die ZUWEISUNG, nicht mehr „offiziell schlaegt immer inoffiziell": hat ein Objekt mit
+ * Hauptraum-Artikel zusaetzlich eine Briefspielquelle, bleibt es offiziell -- die inoffizielle
+ * Quelle bleibt an ihrer Zeile im Quellenkasten sichtbar, nur nicht am Kopf. Umgekehrt schlaegt
+ * ein ns-222-Artikel jetzt auch eine offizielle Quellzeile (Owner: „wenn der zugewiesen is und
+ * das ding is inoffiziell im wiki, gilt das"); bis zum 08.09.2026 war es andersherum.
  *
  * 💣 HIER STEHT KEIN ANZEIGETEXT. Der Bezeichner faehrt als DATEN mit -- als `bezeichner_type`
  * (+ `bezeichner_count` ab zwei Quellen), aus denen die Anzeige „Briefspiel" bzw. „Briefspiel (2)"
