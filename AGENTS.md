@@ -522,7 +522,7 @@ is the default, English is opt-in. Therefore:
   aufgenommene Spalte kennen** -- `avesmapsAssertUndoPatchStillCurrent` wirft, wenn eine Undo-Spalte
   weder im Nachher-Stand steht noch herleitbar ist. Ohne diese Deckung haette der Umbau JEDES alte
   Undo dieser vier Aktionen unbrauchbar gemacht; sie kennt alle vier bereits.
-  🩤 **Der naheliegende Riegel waere hier der Fehler gewesen.** Der erste Vorschlag war ein
+  🪤 **Der naheliegende Riegel waere hier der Fehler gewesen.** Der erste Vorschlag war ein
   Typriegel in `update_point`, wie ihn `avesmapsWikiSyncUpdateLocationFeature` traegt („WikiSync kann
   nur Orts-Punkte bearbeiten."). Er haette „Zu Ort konvertieren" ersatzlos zerstoert. **Ist eine
   Umwandlung ERLAUBT, muss sie umkehrbar sein** -- der Fehler lag nie im Hinweg.
