@@ -11,19 +11,29 @@ declare(strict_types=1);
  * und dann laeuft der link ab." Frist 7 Tage, EIN Endpunkt (Owner am selben Tag).
  *
  * 🔴 WAS DIESE DATEI AUFWEICHT, UND WARUM DAS TRAGBAR IST.
- * Der Entwurf vom 23.08.2026 gibt drei Zusagen (siehe Kopf von kartenarchiv.php). Die zweite
- * lautet woertlich: „Es entsteht KEINE Adresse, die ohne Sitzung liefert." Genau die faellt
- * hier -- und sie fiel damals mit der Begruendung, ein solcher Link waere „ein nackter,
- * teilbarer Link, der sich NIE WIEDER AENDERT". Der Ablauf ist der ganze Unterschied:
+ * Der Entwurf vom 23.08.2026 gibt VIER Zusagen (§1 dort, gespiegelt im Kopf von
+ * kartenarchiv.php -- die Nummern sind die des Entwurfs). ZUSAGE 3 lautet woertlich: „Es
+ * entsteht KEINE Adresse, die ohne Sitzung liefert."
+ *
+ * 🔴 DIESE DATEI IST DIE EINZIGE AUSNAHME DAVON, UND SIE IST BESTELLT -- keine Aufhebung.
+ * Eine DAUERHAFTE Adresse ohne Sitzung gibt es weiterhin nicht. Zusage 3 ENTSTAND seinerzeit mit
+ * der Begruendung, ein solcher Link waere „ein nackter, teilbarer Link, der sich NIE WIEDER
+ * AENDERT"; der Ablauf ist der ganze Unterschied:
  *
  *   - Die Adresse gilt hoechstens 30, per Vorgabe 7 Tage, und dann nie wieder.
  *   - Sie gilt fuer GENAU EINE Datei -- der Dateiname haengt am Token, nicht an der Adresse.
  *   - Sie ist im Editor sichtbar und jederzeit vorzeitig zurueckziehbar.
  *   - Sie traegt einen Erzeuger und einen Zweck, und jeder Download darueber hinterlaesst
- *     weiterhin eine Zeile (Zusage 3 bleibt damit unangetastet).
+ *     weiterhin eine Zeile (Zusage 4 bleibt damit unangetastet).
  *
- * Zusage 1 -- die `uploads/map/.htaccess` -- ist ebenfalls unberuehrt: auch der Token-Weg
- * liest aus dem Dateisystem und leitet nirgendwohin weiter.
+ * Zusage 1 (die `uploads/map/.htaccess`) und Zusage 2 (kein Link im Hinweise-Fenster) sind
+ * ebenfalls unberuehrt: auch der Token-Weg liest aus dem Dateisystem und leitet nirgendwohin
+ * weiter, und im Hinweise-Fenster steht nach wie vor nichts.
+ *
+ * 💣 AN DEN, DER SPAETER HIER STEHT UND AUFRAEUMEN WILL: ein sitzungsfreier Downloadweg neben
+ * einer 🔴-Zeile, die „kein nackter Link" sagt, sieht aus wie ein Versehen. Er ist keines.
+ * Der Rueckbau-Waechter in __tests__/kartenarchiv-link-test.php wird rot, bevor das jemand
+ * still tun kann -- und er nennt dabei, was gerade verschwindet.
  *
  * ⚠️ Die Grenze, die dabei bleibt: `NOTICE.md` sagt zu, das Projekt nicht „als reines
  * Bilder- oder Textarchiv" zu betreiben. Ein befristeter Link an eine benannte Person ist
@@ -227,7 +237,7 @@ function avesmapsKartenarchivLinkRestText(string $ablauf, string $jetzt): string
 /**
  * Der Name, unter dem ein Token-Download im Protokoll steht.
  *
- * 🔴 Zusage 3 des Entwurfs vom 23.08.2026 lautet „jeder Download hinterlaesst eine Zeile mit
+ * 🔴 Zusage 4 des Entwurfs vom 23.08.2026 lautet „jeder Download hinterlaesst eine Zeile mit
  * Namen". Auf diesem Weg gibt es keinen angemeldeten Namen -- also traegt die Zeile den
  * ERZEUGER des Links und dessen Zweck. Ein „extern" oder ein leeres Feld waere das Ende
  * dieser Zusage, und zwar lautlos: die Tabelle saehe weiter gepflegt aus.
@@ -249,7 +259,7 @@ function avesmapsKartenarchivLinkBeleg(string $erzeuger, string $notiz): string
     // UNGEKAPPTE Text. Gemessen 214 Zeichen statt der zugesagten 120, mit kaputten Bytes darin;
     // in `actor_name VARCHAR(120)` heisst das je nach SQL-Modus eine Ausnahme, und die faengt
     // der Protokollblock des Endpunkts ab: der Download liefe durch, die Zeile fehlte, und
-    // Zusage 3 des Entwurfs waere fuer genau diesen Download lautlos ausgefallen.
+    // Zusage 4 des Entwurfs waere fuer genau diesen Download lautlos ausgefallen.
     // Der Weg dorthin ist eng (`creator_name` kommt aus der Datenbank, `note` ist schon
     // normalisiert) -- aber ein Rueckfall, der die Zusicherung VERLETZT, ist kein Rueckfall.
     $hart = (string) preg_replace('/[^\x20-\x7E]/', '', substr($text, 0, AVESMAPS_KARTENARCHIV_LINK_BELEG_MAX));

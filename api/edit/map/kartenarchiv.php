@@ -18,9 +18,12 @@ declare(strict_types=1);
  *
  * 🔴 SEIT 08.09.2026 GIBT ES EINEN ZWEITEN RIEGEL: `?token=…` liefert OHNE Sitzung, solange
  * der Link gilt (Owner-Auftrag am selben Tag, damit ein Editor die Karte auch an jemanden
- * ohne Konto schicken kann). Das weicht Zusage 2 des Entwurfs vom 23.08.2026 auf -- warum
- * das tragbar ist und was dafuer stimmen muss, steht im Kopf von
- * api/_internal/map/kartenarchiv-link.php. Wer den Ablauf entfernt, entfernt die Begruendung.
+ * ohne Konto schicken kann). Das ist die EINZIGE Ausnahme zu Zusage 3 des Entwurfs vom
+ * 23.08.2026, sie ist BESTELLT und keine Aufhebung -- eine DAUERHAFTE Adresse ohne Sitzung
+ * gibt es weiterhin nicht. Warum das tragbar ist und was dafuer stimmen muss, steht im Kopf
+ * von api/_internal/map/kartenarchiv-link.php. Wer den Ablauf entfernt, entfernt die
+ * Begruendung; wer den ganzen Token-Weg entfernt, nimmt eine bestellte Funktion weg (der
+ * Rueckbau-Waechter im Test sagt das dann).
  *
  * ⚠️ GET, kein POST, und das ist hier richtig: der Aufrufer ist ein gewoehnliches
  * `<a href download>` auf edit/svg-export.php. Ein POST koennte kein Browser-Download mit
@@ -150,7 +153,7 @@ if ($requestMethod === 'GET' && avesmapsKartenarchivIstDownloadStart($bereich)) 
     try {
         $pdo ??= avesmapsCreatePdo($config['database'] ?? []);
 
-        // 🔴 Zusage 3 des Entwurfs vom 23.08.2026 -- „jeder Download hinterlaesst eine Zeile mit
+        // 🔴 Zusage 4 des Entwurfs vom 23.08.2026 -- „jeder Download hinterlaesst eine Zeile mit
         // Namen" -- gilt auf BEIDEN Wegen. Auf dem Token-Weg gibt es keinen angemeldeten Namen,
         // also traegt die Zeile den ERZEUGER des Links und dessen Zweck. Ein leeres Feld waere
         // das lautlose Ende dieser Zusage: die Tabelle saehe weiter gepflegt aus.

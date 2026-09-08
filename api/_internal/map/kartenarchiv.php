@@ -16,13 +16,27 @@ declare(strict_types=1);
  * sperrt (Vorlage: docs/systemtest-2026-08-05/uploads-map.htaccess).
  *
  * Diese Datei ist die AUSNAHME davon für angemeldete Editoren -- und sie ist nur deshalb
- * eine vertretbare Ausnahme, weil sie drei Zusagen einhält:
+ * eine vertretbare Ausnahme, weil sie die vier Zusagen des Entwurfs einhält.
+ *
+ * 🔴 DIE NUMMERN SIND DIE DES ENTWURFS (§1), und das ist seit dem 08.09.2026 so. Bis dahin
+ * stand die Liste hier als DREIERliste ohne das Hinweise-Fenster und dort als Dreierliste
+ * ohne das Protokoll -- dieselbe Zusage hiess an einer Stelle „die zweite" und an der anderen
+ * „die dritte", und drei Verweise im Code zeigten auf die falsche. Ergaenzt wird nur im
+ * Entwurf; kartenarchiv-link-test.php haelt die Nummern gegen diesen Kopf.
+ *
  *   1. 🔴 Die .htaccess bleibt unangetastet. Gelesen wird aus dem DATEISYSTEM, nie über
- *      HTTP -- der Riegel für alle anderen bleibt scharf.
- *   2. 🔴 Es entsteht KEINE Adresse, die ohne Sitzung liefert. Kein Weiterleiten auf einen
+ *      HTTP -- der Riegel für alle anderen bleibt scharf, und es wird nie weitergeleitet.
+ *   2. 🔴 Kein Link im öffentlichen Hinweise-Fenster.
+ *   3. 🔴 Es entsteht KEINE Adresse, die ohne Sitzung liefert. Kein Weiterleiten auf einen
  *      „unratbaren" Pfad: der wäre danach ein nackter, teilbarer Link, der sich nie wieder
  *      ändert -- exakt der Zustand, den A25 abgestellt hat.
- *   3. Jeder Download hinterlässt eine Zeile mit Namen (§ Protokoll unten).
+ *      ⭐ MIT GENAU EINER AUSNAHME seit dem 08.09.2026: dem befristeten Downloadlink. Sie ist
+ *      BESTELLT (Owner-Auftrag, Wortlaut im Entwurf §9) und keine Aufhebung -- eine
+ *      DAUERHAFTE Adresse ohne Sitzung gibt es weiterhin nicht. Wer den Token-Weg im Zuge
+ *      einer Aufräumung entfernt, weil er dieser Zeile zu widersprechen scheint, nimmt eine
+ *      gewünschte Funktion weg; der Rückbau-Wächter im Test sagt das dann laut.
+ *   4. Jeder Download hinterlässt eine Zeile mit Namen (§ Protokoll unten) -- auf dem
+ *      Token-Weg der ERZEUGER des Links samt Zweck.
  *
  * Diese Datei ist REIN, bis auf die zwei Funktionen am Ende, die die Datenbank brauchen.
  * Sie öffnet keine Datei, setzt keinen Kopf und schreibt nichts aus -- das tut der

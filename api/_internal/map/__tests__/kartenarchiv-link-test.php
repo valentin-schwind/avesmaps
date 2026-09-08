@@ -8,11 +8,16 @@ declare(strict_types=1);
  * aber am besten ueber einen token download, wo der empfaenger das ding runterladen kann
  * und dann laeuft der link ab."
  *
- * 🔴 Dieser Link weicht eine Zusage des Entwurfs vom 23.08.2026 auf („es entsteht KEINE
- * Adresse, die ohne Sitzung liefert", api/_internal/map/kartenarchiv.php §2). Verworfen war
- * damals ein Link, „der sich nie wieder aendert" -- der Ablauf ist genau der Unterschied.
- * Deshalb ist die ABLAUF-Rechnung hier die wichtigste Zusicherung der Datei: haelt sie
- * nicht, ist der Unterschied weg und mit ihm die Begruendung.
+ * 🔴 Dieser Link ist die EINZIGE Ausnahme zu ZUSAGE 3 des Entwurfs vom 23.08.2026 („es
+ * entsteht KEINE Adresse, die ohne Sitzung liefert"). Verworfen war damals ein Link, „der
+ * sich nie wieder aendert" -- der Ablauf ist genau der Unterschied. Deshalb ist die
+ * ABLAUF-Rechnung hier die wichtigste Zusicherung der Datei: haelt sie nicht, ist der
+ * Unterschied weg und mit ihm die Begruendung.
+ *
+ * 🔴 UND DESHALB TRAEGT DIESE DATEI ZWEI WAECHTER, die keine Rechnung pruefen (Abschnitt 10):
+ * einen gegen den stillen RUECKBAU des Token-Wegs -- er sieht neben einer 🔴-Zeile, die „kein
+ * nackter Link" sagt, wie ein Versehen aus und ist keines -- und einen gegen das erneute
+ * AUSEINANDERLAUFEN der Zusagen-Nummern, das genau diesen Umbau schon einmal gekostet hat.
  *
  * Geprueft wird, was tatsaechlich danebengehen kann:
  *   1. Der ABLAUF -- inklusive der Sekunde, auf der er kippt.
@@ -150,7 +155,7 @@ pruefe('abgelaufen wird als abgelaufen benannt',
 // 5 · Der Beleg
 // ================================================================================================
 //
-// 🔴 Zusage 3 des Entwurfs vom 23.08.2026: „Jeder Download hinterlaesst eine Zeile mit Namen."
+// 🔴 Zusage 4 des Entwurfs vom 23.08.2026: „Jeder Download hinterlaesst eine Zeile mit Namen."
 // Auf dem Token-Weg gibt es keinen angemeldeten Namen -- also traegt die Zeile den ERZEUGER und
 // den Zweck. Eine Zeile mit „extern" oder leer waere das Ende dieser Zusage.
 
@@ -181,7 +186,7 @@ pruefe('der gekappte Beleg ist gueltiges UTF-8',
 // ungueltigem UTF-8 `null`; der erste Rueckfall war der UNGEKAPPTE Text -- gemessen 214 Zeichen
 // statt der zugesagten 120, gefunden von einem Pruefagenten. In `actor_name VARCHAR(120)` heisst
 // das je nach SQL-Modus eine Ausnahme, und die faengt der Protokollblock des Endpunkts ab:
-// der Download liefe durch, die Zeile fehlte, und Zusage 3 waere lautlos ausgefallen.
+// der Download liefe durch, die Zeile fehlte, und Zusage 4 waere lautlos ausgefallen.
 $kaputt = avesmapsKartenarchivLinkBeleg('abc' . chr(0xFF) . chr(0xFE) . str_repeat('x', 200), '');
 pruefe('auch bei kaputten Bytes passt der Beleg in die Spalte',
     strlen($kaputt) <= 120 && belegZeichen($kaputt) <= 120);
@@ -395,6 +400,16 @@ if (!in_array('sqlite', PDO::getAvailableDrivers(), true)) {
 // str_contains ueber die rohe Datei schlaegt also an der Warnung an, die vor dem Muster warnt.
 // Derselbe Tokenizer wie in kartenarchiv-test.php nebenan; ein preg_replace ueber /* … */
 // waere hier gefaehrlich, weil ein `/*` in einem ZEILENkommentar den halben Code wegfraesse.
+/**
+ * Der Gegenspieler zu linkOhneKommentare(): der Nummerierungs-Waechter misst GENAU die Prosa
+ * -- die Zusagen stehen in Dateikoepfen, nicht im Code. Eigener Name, damit niemand die zwei
+ * beim Lesen verwechselt und den Waechter versehentlich blind macht.
+ */
+function linkMitProsa(string $pfad): string
+{
+    return (string) file_get_contents($pfad);
+}
+
 function linkOhneKommentare(string $pfad): string
 {
     $roh = (string) file_get_contents($pfad);
@@ -432,7 +447,7 @@ pruefe('der Endpunkt liest die Datei aus der Link-Zeile',
 pruefe('auch der Token-Weg geht durch avesmapsKartenarchivPfad',
     substr_count($endpunkt, 'avesmapsKartenarchivPfad') >= 1);
 
-// 🔴 Der Beleg bleibt: der Token-Weg protokolliert, sonst faellt Zusage 3 des Entwurfs.
+// 🔴 Der Beleg bleibt: der Token-Weg protokolliert, sonst faellt Zusage 4 des Entwurfs.
 pruefe('der Endpunkt bildet den Beleg fuer den Token-Weg',
     str_contains($endpunkt, 'avesmapsKartenarchivLinkBeleg'));
 
@@ -531,6 +546,86 @@ pruefe('die Seite bietet das Erzeugen eines Links an',
     str_contains($seite, 'link_neu'));
 pruefe('die Seite bietet das Zurueckziehen an',
     str_contains($seite, 'link_weg'));
+
+// ================================================================================================
+// 10 · Die zwei Waechter -- sie pruefen keine Rechnung, sondern einen ENTSCHEID
+// ================================================================================================
+
+// ---- 10a · Der RUECKBAU-Waechter ---------------------------------------------------------------
+//
+// 🔴 Owner 08.09.2026: „nicht dass irgendwer auf die idee kommt den zurueckzubauen."
+//
+// Ein sitzungsfreier Downloadweg neben einer 🔴-Zeile, die „kein nackter Link" sagt, sieht fuer
+// jeden spaeteren Leser wie ein Versehen oder ein Regelbruch aus -- besonders fuer eine
+// Aufraeum-Runde, die Widersprueche zwischen Doku und Code einsammelt. Ein Kommentar haelt das
+// nicht auf; ein roter Test, der beim Namen nennt, was gerade verschwindet, schon.
+//
+// ⚠️ Er sagt NICHT, dass der Token-Weg fuer immer bleiben muss. Er sagt, dass sein Entfernen eine
+// ENTSCHEIDUNG ist und kein Aufraeumen -- wer sie trifft, loescht diesen Abschnitt bewusst mit.
+$rueckbau = [
+    'die Bibliothek des Links' => is_file($repoRoot . '/api/_internal/map/kartenarchiv-link.php'),
+    'die Ablaufrechnung' => function_exists('avesmapsKartenarchivLinkIstGueltig'),
+    'die Token-Weiche im Endpunkt' => str_contains($endpunkt, "\$_GET['token']"),
+    'das Anlegen eines Links' => function_exists('avesmapsKartenarchivLinkAnlegen'),
+    'das Zurueckziehen' => function_exists('avesmapsKartenarchivLinkZurueckziehen'),
+    'der Knopf auf der Seite' => str_contains($seite, 'link_neu'),
+];
+$fehlt = array_keys(array_filter($rueckbau, static fn(bool $da): bool => !$da));
+if ($fehlt !== []) {
+    echo "\n";
+    echo "  ==============================================================================\n";
+    echo "  RUECKBAU-WAECHTER: der befristete Downloadlink ist unvollstaendig.\n";
+    echo "  Es fehlt: " . implode(', ', $fehlt) . "\n";
+    echo "\n";
+    echo "  Falls du das gerade entfernt hast, weil es Zusage 3 des Entwurfs vom 23.08.2026\n";
+    echo "  zu widersprechen schien (\"es entsteht KEINE Adresse, die ohne Sitzung liefert\"):\n";
+    echo "  Das ist die EINZIGE Ausnahme dazu, und sie ist BESTELLT. Owner am 08.09.2026:\n";
+    echo "    \"wir wollen auch externen leuten die karte schicken koennen, aber am besten\n";
+    echo "     ueber einen token download ... und dann laeuft der link ab\"\n";
+    echo "    \"nicht dass irgendwer auf die idee kommt den zurueckzubauen\"\n";
+    echo "\n";
+    echo "  Begruendung und Grenzen: Abschnitt 9 des Entwurfs\n";
+    echo "  docs/superpowers/specs/2026-08-23-kartenarchiv-und-svg-fuer-editoren-design.md\n";
+    echo "  Willst du ihn trotzdem entfernen, loesche diesen Waechter ausdruecklich mit.\n";
+    echo "  ==============================================================================\n";
+}
+pruefe('der befristete Downloadlink ist vollstaendig da (Rueckbau-Waechter)', $fehlt === []);
+
+// ---- 10b · Der NUMMERIERUNGS-Waechter -----------------------------------------------------------
+//
+// 💣 Die vier Zusagen standen bis zum 08.09.2026 ZWEIMAL im Haus, als zwei verschiedene
+// DREIERlisten: der Entwurf ohne das Protokoll, der Kopf von kartenarchiv.php ohne das
+// Hinweise-Fenster. Dieselbe Zusage hiess dadurch an einer Stelle „die zweite" und an der anderen
+// „die dritte" -- und als der Token-Weg dazukam, zeigten drei Verweise im Code auf die falsche
+// Nummer. Aufgefallen ist es dem Owner beim Lesen, keinem Test.
+//
+// ⭐ Gemessen werden die STICHWORTE je Nummer, nicht der Wortlaut: die zwei Fassungen duerfen
+// verschieden formuliert sein (die eine ist Prosa, die andere ein Dateikopf), sie muessen
+// dieselbe Zusage unter derselben Nummer fuehren.
+$entwurfText = linkMitProsa(
+    $repoRoot . '/docs/superpowers/specs/2026-08-23-kartenarchiv-und-svg-fuer-editoren-design.md'
+);
+$kopfText = linkMitProsa($repoRoot . '/api/_internal/map/kartenarchiv.php');
+
+$stichworte = [1 => 'htaccess', 2 => 'Hinweise-Fenster', 3 => 'ohne Sitzung', 4 => 'Zeile mit Namen'];
+foreach ($stichworte as $nummer => $wort) {
+    // Im Entwurf steht „N. …" am Zeilenanfang, im Dateikopf „ *   N. …".
+    pruefe("Zusage {$nummer} traegt im Entwurf das Stichwort \"{$wort}\"",
+        (bool) preg_match('/^' . $nummer . '\..{0,500}?' . preg_quote($wort, '/') . '/ms', $entwurfText));
+    pruefe("Zusage {$nummer} traegt im Kopf von kartenarchiv.php dasselbe Stichwort",
+        (bool) preg_match('/^ \*   ' . $nummer . '\..{0,500}?' . preg_quote($wort, '/') . '/ms', $kopfText));
+}
+
+// 🔴 Und keine der beteiligten Dateien darf die Sitzungs-Zusage unter einer anderen Nummer
+// fuehren -- genau das war der Zustand vor dem 08.09.2026.
+foreach ([
+    'api/_internal/map/kartenarchiv-link.php',
+    'api/edit/map/kartenarchiv.php',
+    'api/_internal/map/kartenarchiv.php',
+] as $datei) {
+    pruefe("{$datei} nennt die Sitzungs-Zusage nicht mehr als Zusage 2",
+        !preg_match('/Zusage 2[^\n]{0,140}(ohne Sitzung|nackter Link)/u', linkMitProsa($repoRoot . '/' . $datei)));
+}
 
 if ($fehler > 0) {
     echo "kartenarchiv-link-test.php: {$fehler} von {$zusicherungen} Zusicherungen GERISSEN\n";

@@ -32,19 +32,31 @@ Gegengeprüft in beide Richtungen: Archive **403**, Wappen weiterhin **200**.
 Gemessen am 23.08.2026: beide URLs antworten weiterhin **403**.
 
 **Die Grenze, auf der dieser Entwurf steht:** nicht „wieder offen", sondern **an benannte,
-angemeldete Personen ausgegeben**. Konkret heißt das drei Zusagen:
+angemeldete Personen ausgegeben**.
 
-- 🔴 Die `uploads/map/.htaccess` wird **nicht angefasst**. PHP liest die Datei aus dem
-  Dateisystem, nicht über HTTP — der Riegel für alle anderen bleibt scharf.
-- 🔴 **Kein Link im öffentlichen Hinweise-Fenster.**
-  [`js/app/__tests__/legal-texts.test.js`](../../../js/app/__tests__/legal-texts.test.js)
-  bleibt grün, die Zusage in `NOTICE.md` unangetastet.
-- 🔴 **Kein nackter Link.** Es gibt keine Adresse, die ohne Sitzung die Datei liefert — das
-  war genau der Zustand, den A25 abgestellt hat („wer die Adresse kennt oder im Verlauf
-  hat, lädt weiter"). Die verworfene Bauform dazu steht in §7.
-  🔴 **DIESE ZUSAGE GILT SEIT DEM 08.09.2026 NICHT MEHR UNVERÄNDERT** — siehe §9. Es gibt
-  jetzt eine Adresse, die ohne Sitzung liefert; sie **läuft ab**, und genau das war der
-  Unterschied zu der Bauform, die §7 verworfen hat.
+> 🔴 **DIE VIER ZUSAGEN — DIESE LISTE IST DIE QUELLE, UND IHRE NUMMERN SIND VERBINDLICH.**
+> Sie stand bis zum 08.09.2026 zweimal im Haus, mit **verschiedener Zählung**: hier als
+> Dreierliste ohne das Protokoll, im Kopf von `api/_internal/map/kartenarchiv.php` als
+> Dreierliste ohne das Hinweise-Fenster. Dieselbe Zusage hieß dadurch an einer Stelle „die
+> zweite" und an der anderen „die dritte" — und als der befristete Link dazukam, zeigten
+> drei Verweise im Code auf die falsche Nummer. Wer eine Zusage ergänzt, ergänzt sie **hier**
+> und nirgends sonst; `kartenarchiv-link-test.php` hält die Nummern gegen den Code.
+
+1. 🔴 Die `uploads/map/.htaccess` wird **nicht angefasst**. PHP liest die Datei aus dem
+   Dateisystem, nicht über HTTP — der Riegel für alle anderen bleibt scharf. Es wird auch
+   **nicht weitergeleitet**: keine Antwort dieses Projekts nennt je die gesperrte Adresse.
+2. 🔴 **Kein Link im öffentlichen Hinweise-Fenster.**
+   [`js/app/__tests__/legal-texts.test.js`](../../../js/app/__tests__/legal-texts.test.js)
+   bleibt grün, die Zusage in `NOTICE.md` unangetastet.
+3. 🔴 **Kein nackter Link.** Es gibt keine Adresse, die ohne Sitzung die Datei liefert — das
+   war genau der Zustand, den A25 abgestellt hat („wer die Adresse kennt oder im Verlauf
+   hat, lädt weiter"). Die verworfene Bauform dazu steht in §7.
+   ⭐ **MIT GENAU EINER AUSNAHME, seit 08.09.2026: dem befristeten Downloadlink (§9).**
+   Die Zusage selbst steht unverändert — es gibt weiterhin keine *dauerhafte* Adresse ohne
+   Sitzung, und die Ausnahme ist eine Ausnahme und keine neue Regel.
+4. 🔴 **Jeder Download hinterlässt eine Zeile mit Namen** (`map_archive_download`). Auf dem
+   Weg über einen befristeten Link steht dort der **Erzeuger** des Links samt Zweck, weil es
+   dort keinen angemeldeten Namen gibt.
 
 ---
 
@@ -231,18 +243,36 @@ Owner am 08.09.2026: *„wir wollen auch externen leuten die karte schicken kön
 besten über einen token download, wo der empfänger das ding runterladen kann und dann läuft
 der link ab."* Frist 7 Tage, **ein** Endpunkt.
 
-🔴 **Damit fällt Zusage 2 aus §1** („es entsteht KEINE Adresse, die ohne Sitzung liefert").
-Sie fiel damals mit der Begründung, ein solcher Link sei „ein nackter, teilbarer Link, der
-sich **nie wieder ändert**" — und der Ablauf ist genau dieser Unterschied. Was dafür stimmen
-muss, damit die Begründung trägt, steht im Kopf von
+## 9.1 · Der Status: eine benannte Ausnahme zu Zusage 3, keine neue Regel
+
+🔴 **Dies ist die EINZIGE Ausnahme zu Zusage 3 aus §1, sie ist BESTELLT, und sie ist keine
+Aufhebung.** Es gibt weiterhin keine *dauerhafte* Adresse ohne Sitzung — es gibt eine, die
+abläuft. Zusage 3 entstand seinerzeit mit der Begründung, ein solcher Link sei „ein nackter,
+teilbarer Link, der sich **nie wieder ändert**"; der Ablauf ist genau dieser Unterschied,
+und die verworfene Bauform aus §7 (eine Apache-Weiterleitung) ist auch heute nicht gebaut —
+der Token-Weg streamt durch denselben PHP-Ausgang, und **nur deshalb** kann er den Ablauf
+überhaupt prüfen.
+
+💣 **AN WEN DAS HIER GERICHTET IST: an den, der später über diesen Code stolpert.** Ein
+sitzungsfreier Downloadweg neben einer 🔴-Zeile, die „kein nackter Link" sagt, sieht aus wie
+ein Versehen oder ein Regelbruch. Er ist beides nicht. Wer ihn im Zuge einer Aufräumung
+entfernt, nimmt eine Funktion weg, um die der Owner am 08.09.2026 im Wortlaut oben gebeten
+hat. ⭐ **Deshalb steht der Rückbau-Wächter in
+[`kartenarchiv-link-test.php`](../../../api/_internal/map/__tests__/kartenarchiv-link-test.php)**
+— ein Kommentar allein hätte das nicht aufgehalten; ein roter Test, der beim Namen nennt, was
+gerade verschwindet, schon.
+
+Was stimmen muss, damit die Begründung trägt, steht im Kopf von
 [`api/_internal/map/kartenarchiv-link.php`](../../../api/_internal/map/kartenarchiv-link.php):
 die Frist, die Bindung an **eine** Datei, die Sichtbarkeit im Editor samt Rücknahme, und der
-Beleg. **Wer eines davon abschafft, schafft die Begründung ab.**
+Beleg. **Wer eines davon abschafft, schafft die Begründung ab** — und dann ist der Rückbau
+richtig, aber er ist dann eine Entscheidung und kein Aufräumen.
 
-**Zusage 1 und 3 sind unberührt.** Die `uploads/map/.htaccess` wird weiterhin nicht angefasst
-(auch der Token-Weg liest aus dem Dateisystem und leitet nirgends hin), und jeder Download
-hinterlässt weiter eine Zeile — auf dem Token-Weg unter dem **Erzeuger** des Links und dessen
-Zweck (`avesmapsKartenarchivLinkBeleg`), weil es dort keinen angemeldeten Namen gibt.
+**Zusage 1, 2 und 4 sind unberührt.** Die `uploads/map/.htaccess` wird weiterhin nicht
+angefasst (auch der Token-Weg liest aus dem Dateisystem und leitet nirgends hin), im
+Hinweise-Fenster steht weiterhin kein Link, und jeder Download hinterlässt weiter eine Zeile
+— auf dem Token-Weg unter dem **Erzeuger** des Links und dessen Zweck
+(`avesmapsKartenarchivLinkBeleg`), weil es dort keinen angemeldeten Namen gibt.
 
 **Was §7 weiterhin verwirft, ist unverändert richtig:** die Weiterleitung auf einen
 unratbaren Pfad. Der Token-Weg leitet *nicht* weiter — er streamt durch denselben PHP-Ausgang
