@@ -755,12 +755,18 @@ html.avesmaps-planner-collapsed .gi-win {
    waegt (0,1,0) und waere WIRKUNGSLOS -- sichtbar wuerde das erst an einem See, an dem der falsche
    Tooltip erscheint. Deshalb dieselbe Kette plus die eigene Klasse: (0,3,2).
    ⚠️ Fuer Linien und Ringe ist die Regel folgenlos (sie tragen `fill: none`, dort trifft `auto`
-   ohnehin nur die Kontur) -- sie steht trotzdem fuer alle vier Klassen, damit die Zusicherung eine
-   Regel ist und keine Aufzaehlung von Faellen. */
+   ohnehin nur die Kontur) -- sie steht trotzdem fuer JEDE Klasse, die der Zeichner vergibt, damit
+   die Zusicherung eine Regel ist und keine Aufzaehlung von Faellen.
+   🪤 Und genau daran ist sie am 08.09.2026 fast gescheitert: die neue `.gi-map-auswahl` kam dazu
+   und stand hier NICHT -- folgenlos, weil sie immer `flaeche: false` traegt, aber der Satz darueber
+   war damit falsch. Hier steht deshalb keine ZAHL mehr („alle vier Klassen"): eine Zahl liest sich
+   wie eine vollstaendige Liste, und niemand zaehlt nach. Der Waechtertest haelt die Liste gegen die
+   Klassen, die der Zeichner wirklich vergibt. */
 .leaflet-pane > svg path.leaflet-interactive.gi-map-ihre,
 .leaflet-pane > svg path.leaflet-interactive.gi-map-unsere,
 .leaflet-pane > svg path.leaflet-interactive.gi-map-schein,
-.leaflet-pane > svg path.leaflet-interactive.gi-map-schein-ihre { pointer-events: stroke; }
+.leaflet-pane > svg path.leaflet-interactive.gi-map-schein-ihre,
+.leaflet-pane > svg path.leaflet-interactive.gi-map-auswahl { pointer-events: stroke; }
 
 
 .gi-sec {

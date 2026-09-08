@@ -36,6 +36,13 @@ function tief(ist, soll, warum) {
 	assert.deepStrictEqual(ist, soll, warum || "");
 	checks++;
 }
+// Fuer gerechnete Pixelmasse: 26,6 + 6,5 ist in binaerer Gleitkomma nicht exakt 33,1, und ein
+// strictEqual daran waere ein Test, der die Rechnung fuer falsch erklaert, weil sie richtig ist.
+function nahe(ist, soll, warum) {
+	assert.ok(Math.abs(Number(ist) - Number(soll)) < 1e-9,
+		(warum || "") + " (ist " + ist + ", soll " + soll + ")");
+	checks++;
+}
 
 // ---- Die gefaelschte Karte und das gefaelschte Leaflet -----------------------------------------
 //
@@ -1142,17 +1149,71 @@ wahr(ringBlock.indexOf("#") === -1 && ringBlock.indexOf("rgb") === -1,
 // waere wirkungslos.
 const zeigerRegel = (kartenCss.match(/[^}]*pointer-events:\s*stroke[^}]*\}/) || [""])[0];
 wahr(zeigerRegel !== "", "die Zeigerregel `pointer-events: stroke` fehlt");
-// 🔴 Aufgabe 3: VIER Klassen jetzt, nicht mehr drei -- der neue Hof braucht denselben Riegel wie
-// die uebrigen drei, sonst faengt seine Kontur keinen Tooltip.
-[".gi-map-ihre", ".gi-map-unsere", ".gi-map-schein", ".gi-map-schein-ihre"].forEach((klasse) => {
-	wahr(zeigerRegel.indexOf("path.leaflet-interactive" + klasse) !== -1,
-		"die Zeigerregel muss " + klasse + " MIT der Leaflet-Kette nennen, sonst ueberstimmt "
+// 🔴 HIER STAND EINE ZAHL („VIER Klassen jetzt, nicht mehr drei"), und genau daran ist die Regel
+// am 08.09.2026 fast gescheitert: die Auswahl-Kontur kam als fuenfte dazu und stand nicht in der
+// CSS-Liste -- folgenlos (sie traegt immer `fill: false`), aber der Satz „das ist eine Regel und
+// keine Aufzaehlung von Faellen" war damit falsch, und der Test hier haette es nie gemeldet: er
+// hielt seine eigene Aufzaehlung gegen die des Blattes, also zwei Abschriften gegeneinander.
+// ⭐ Gefragt wird deshalb der ZEICHNER: jede Klasse, die er vergibt, muss in der Regel stehen.
+// ⚠️ ZWEI Ausnahmen, und jede bringt ihren eigenen BELEG mit -- nicht bloss einen Grund als Prosa.
+// 🪤 Die zweite hat diese Probe SOFORT gefunden: `gi-map-endkreuzung` war dem Autor nicht bekannt,
+// und die Abschrift von vorher kannte sie ebenso wenig. Genau das ist der Wert der Ableitung.
+// 💣 UND DIE BELEGE SIND VERSCHIEDEN, weil die Gruende verschieden sind -- ein gemeinsamer Beleg
+// („sie hat ihre eigene pointer-events-Regel") war der erste Versuch und war fuer die Kollision
+// falsch: die hat keine und darf keine haben. Wer beide gleich prueft, prueft eine davon nicht.
+const ZEIGER_AUSNAHMEN = {
+	// 🔴 Die Kollision ist kein eigenes Element, sondern haengt NEBEN einer Hof-Klasse am selben
+	// Pfad (garetienHofKlasse). Ihr Riegel IST der des Hofes -- eine eigene Regel waere eine Regel
+	// fuer ein Element, das es nicht gibt.
+	// Beleg: sie wird im Blatt nie ALLEIN adressiert, immer nur zusammen mit einer Hof-Klasse.
+	"gi-map-kollision": {
+		grund: "haengt am Hof, ist kein eigenes Element",
+		beleg: function (klasse) {
+			const alleine = kartenCss.match(new RegExp("(^|[\\s,>])\\." + klasse + "\\s*\\{", "m"));
+			wahr(alleine === null,
+				"." + klasse + " darf im Blatt nie ALLEIN adressiert werden -- ihr Riegel ist der "
+				+ "des Hofes, an dem sie haengt: " + (alleine && alleine[0]));
+			wahr(kartenCss.indexOf(".gi-map-schein-ihre." + klasse) !== -1
+				&& kartenCss.indexOf(".gi-map-schein." + klasse) !== -1,
+				"." + klasse + " muss an BEIDEN Hoefen kombiniert geregelt sein -- eine Regel, die "
+				+ "einen von zwei Erzeugern bindet, ist keine Regel");
+		},
+	},
+	// 🔴 Der Kreuzungsring ist ein divIcon-MARKER, kein SVG-Pfad -- die Leaflet-Kette
+	// `svg path.leaflet-interactive` trifft ihn nie. Er traegt `interactive: false` und seine eigene
+	// Regel `pointer-events: none`: der Klick gehoert dem Objekt darunter, nicht seiner Marke. Ihn
+	// in die Strichregel zu nehmen waere das Gegenteil dessen, was er will.
+	// Beleg: er hat wirklich seine eigene Regel -- sonst waere „ausgenommen" von „vergessen" nicht
+	// zu unterscheiden.
+	"gi-map-endkreuzung": {
+		grund: "divIcon-Marker mit eigenem pointer-events: none, kein SVG-Pfad",
+		beleg: function (klasse) {
+			const eigen = kartenCss.match(new RegExp("\\." + klasse + "\\s*\\{[^}]*\\}"));
+			wahr(eigen !== null && /pointer-events:\s*none/.test(eigen[0]),
+				"." + klasse + " ist von der Strichregel ausgenommen und braucht deshalb seine "
+				+ "eigene: " + (eigen && eigen[0]));
+		},
+	},
+};
+const ZEICHNER_KLASSEN = Object.keys(mod)
+	.filter((name) => name.indexOf("AVESMAPS_GARETIEN_KLASSE_") === 0)
+	.map((name) => mod[name])
+	.filter((klasse) => typeof klasse === "string" && klasse !== "");
+wahr(ZEICHNER_KLASSEN.length >= 5,
+	"der Zeichner vergibt weniger Klassen als erwartet -- dann misst diese Probe nichts: "
+	+ JSON.stringify(ZEICHNER_KLASSEN));
+ZEICHNER_KLASSEN.forEach((klasse) => {
+	const ausnahme = ZEIGER_AUSNAHMEN[klasse];
+	if (ausnahme) {
+		wahr(zeigerRegel.indexOf("." + klasse) === -1,
+			"die Ausnahme ." + klasse + " (" + ausnahme.grund + ") darf NICHT in der Strichregel "
+			+ "stehen: " + zeigerRegel);
+		ausnahme.beleg(klasse);
+		return;
+	}
+	wahr(zeigerRegel.indexOf("path.leaflet-interactive." + klasse) !== -1,
+		"die Zeigerregel muss ." + klasse + " MIT der Leaflet-Kette nennen, sonst ueberstimmt "
 		+ "leaflet.css sie lautlos: " + zeigerRegel);
-});
-// Und die vier Klassen im CSS sind wirklich die vier, die der Zeichner vergibt.
-[IHRE, UNSERE, SCHEIN, SCHEIN_IHRE].forEach((klasse) => {
-	wahr(zeigerRegel.indexOf("." + klasse) !== -1,
-		"die Klasse " + klasse + " kommt aus dem Zeichner und fehlt in der Zeigerregel");
 });
 
 // ---- 11e. Aufgabe 4: das rote Gluehen bei einer Kollision (Entwurf §4.2) ----------------------
@@ -2127,10 +2188,13 @@ wahr(blutmoorOhne.indexOf(durchgehende[0].options.color) !== -1,
 // einer Karte voller gestrichelter Importe ist „durchgezogen statt gestrichelt" ein Unterschied,
 // den man SUCHEN muss. Der Abschnitt darueber prueft weiterhin die Strichelung -- sie bleibt, sie
 // ist nur nicht mehr die ganze Aussage.
-// ⭐ Gegen 12 Mutationen gefahren (Riegel weg · Breite = Hofbreite · Breite < Hofbreite ·
-// halbdurchsichtig · Farbe = Gold · Kollisionsklasse an der Kontur · Kontur füllt · CSS-Regel weg ·
-// Leuchten schmaler als der Hof · Token fehlt hell · Token fehlt dunkel · Block hinter den Hof
-// verschoben), alle gefangen.
+// ⭐ Gegen 19 Mutationen gefahren, alle gefangen. Die ersten zwölf am Ring selbst (Riegel weg ·
+// Breite = Hofbreite · Breite < Hofbreite · halbdurchsichtig · Farbe = Gold · Kollisionsklasse an
+// der Kontur · Kontur füllt · CSS-Regel weg · Leuchten schmaler als der Hof · Token fehlt hell ·
+// Token fehlt dunkel · Block hinter den Hof verschoben), die sieben weiteren an der Punktregel und
+// am Zeiger-Wächter (alte Fassung zurück · Innenkante auf dem Punkt · Außenkante woanders ·
+// Punktweiche greift nie · kein Rückfall · fünfte Klasse fehlt wieder · ausgenommene Klasse ohne
+// eigene Regel).
 // 🪤 UND EINE MESSFALLE, die diese Zeilen beim Bau zweimal an der falschen Karte gemessen haben:
 // der Zeichner haelt EINE Ebenengruppe im Modul. Ein zweiter `avesmapsGaretienKarteZeigen` auf
 // einer ANDEREN gefaelschten Karte nimmt dieselbe Gruppe von der ersten wieder ab -- `kartGw`
@@ -2229,6 +2293,73 @@ const rangKollision = kartKollisionGw.ebenen();
 wahr(rangKollision.findIndex((e) => traegtKlasse(e, AUSWAHL))
     < rangKollision.findIndex((e) => traegtKlasse(e, SCHEIN_IHRE) && traegtKlasse(e, KOLLISION)),
     "💣 die weisse Kontur wird VOR IHREM roten Gluehen gezeichnet, sonst waescht sie es aus");
+
+// =================================================================================================
+// UND DER PUNKT -- der Fall, in dem „breiterer Strich" zusammenbricht
+// =================================================================================================
+// 💣 EIN `circleMarker` LEGT SEINEN STRICH BEIDSEITIG DES RADIUS, nicht beidseitig einer
+// Mittellinie. Ein 21 px breiter Strich auf Radius 4 reicht nach INNEN bis −6,5 -- aus dem Punkt
+// wird eine gefuellte weisse Scheibe, und die GROESSE des Punktes ist eine Aussage der Sicht-Tafel
+// (Entwurf §4.1). Der erste Bau dieses Rings hat genau das getan; gefunden hat es ein Pruefagent,
+// der die echten Zoombaender nachgerechnet hat (dorf z6 = −1,63, kleinstadt z8 = 3,8 px Restloch --
+// erst eine Metropole saehe ueberhaupt wie ein Ring aus). Kein Test sah es, weil beide Fixturen des
+// Abschnitts darueber eine Linie und eine Flaeche sind.
+// ⭐ Gemessen wird die REGEL, nicht die Zahl: der Ring liegt genau auf dem Band, das bei einer Linie
+// sichtbar ist -- innen an der Aussenkante des Hofes, aussen am Ende des Linienstrichs.
+const ringRechner = mod.garetienAuswahlRingAmPunkt;
+wahr(typeof ringRechner === "function",
+    "garetienAuswahlRingAmPunkt fehlt im Export -- die Regel waere dann nur ueber die Karte messbar");
+[8, 18, 53.2].forEach((d) => {
+    const r = ringRechner(d);
+    const innen = r.durchmesser / 2 - r.breite / 2;
+    const aussen = r.durchmesser / 2 + r.breite / 2;
+    // 🔴 DIE ZUSICHERUNG, DIE DIE ALTE FASSUNG VERLETZTE: die Innenkante liegt AUSSERHALB des
+    // Punktes -- und zwar genau an der Aussenkante seines Hofes.
+    nahe(innen, d / 2 + mod.AVESMAPS_GARETIEN_SCHEIN_BREITE / 2,
+        "d=" + d + ": die Innenkante sitzt an der Aussenkante des Hofes");
+    nahe(aussen, d / 2 + mod.AVESMAPS_GARETIEN_AUSWAHL_BREITE / 2,
+        "d=" + d + ": die Aussenkante endet dort, wo der Strich einer Linie endet");
+    wahr(innen > d / 2,
+        "d=" + d + ": der Ring darf den Punkt NICHT beruehren -- Innenkante " + innen
+        + " gegen Radius " + (d / 2));
+    // Und die Gegenprobe, die den Befund festhaelt: die naive Fassung (voller Strich auf dem
+    // Radius des Punktes) haette ihn zugedeckt. Ohne diese Zeile weiss der naechste Leser nicht,
+    // wovor die Regel schuetzt.
+    wahr(d / 2 - mod.AVESMAPS_GARETIEN_AUSWAHL_BREITE / 2 < d / 2,
+        "d=" + d + ": die naive Fassung reichte bis "
+        + (d / 2 - mod.AVESMAPS_GARETIEN_AUSWAHL_BREITE / 2) + " und damit in den Punkt hinein");
+});
+// Ohne bekannten Durchmesser derselbe Rueckfall wie im Zeichner -- sonst rechnete er mit `NaN`.
+nahe(ringRechner(undefined).durchmesser, ringRechner(mod.AVESMAPS_GARETIEN_PUNKT_RADIUS * 2).durchmesser,
+    "ein unbekannter Durchmesser faellt auf denselben Wert wie der Zeichner zurueck");
+
+// --- Und derselbe Ablauf ueber die Karte: ein gewaehlter ORT.
+const dorfGewaehlt = Object.assign({}, dorfObjekt);
+dorfGewaehlt[GEWAEHLT] = true;
+const kartPunkt = gefaelschteKarte();
+kartPunkt.zoom = 4;
+avesmapsGaretienKarteZeigen([dorfGewaehlt], kartPunkt);
+const punktKontur = nach(kartPunkt, AUSWAHL)[0];
+const punktForm = nach(kartPunkt, IHRE)[0];
+wahr(!!punktKontur && !!punktForm, "der gewaehlte Ort traegt Kontur UND Form");
+gleich(punktKontur._bauer, "circleMarker",
+    "die Kontur eines Punktes ist ein circleMarker, keine Linie");
+wahr(punktKontur.options.radius > punktForm.options.radius,
+    "💣 der Ring liegt AUSSEN um den Punkt (" + punktKontur.options.radius + " > "
+    + punktForm.options.radius + ") -- auf demselben Radius waere er eine gefuellte Scheibe");
+wahr(punktKontur.options.radius - punktKontur.options.weight / 2 >= punktForm.options.radius,
+    "und seine Innenkante beruehrt den Punkt nicht");
+wahr(punktKontur.options.weight < mod.AVESMAPS_GARETIEN_AUSWAHL_BREITE,
+    "⚠️ ein Punkt bekommt das BAND, nicht die volle Strichbreite der Linie ("
+    + punktKontur.options.weight + " gegen " + mod.AVESMAPS_GARETIEN_AUSWAHL_BREITE + ")");
+// 🔴 Und die Groesse des Punktes selbst ist unberuehrt -- das ist die Aussage, die der erste Bau
+// geloescht hat. Gemessen gegen denselben Ort OHNE Marke.
+const kartPunktOhne = gefaelschteKarte();
+kartPunktOhne.zoom = 4;
+avesmapsGaretienKarteZeigen([dorfObjekt], kartPunktOhne);
+gleich(punktForm.options.radius, nach(kartPunktOhne, IHRE)[0].options.radius,
+    "die Marke aendert die GROESSE des Punktes nicht -- sie ist eine Aussage der Sicht-Tafel");
+gleich(nach(kartPunktOhne, AUSWAHL).length, 0, "und ohne Marke kein Ring am Punkt");
 
 // 💣 OHNE GEWAEHLTE ZEILE GIBT ES SIE GAR NICHT -- sonst leuchtete die ganze Karte.
 const kartKonturOhne = gefaelschteKarte();
