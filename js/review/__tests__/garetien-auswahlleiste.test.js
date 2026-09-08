@@ -150,8 +150,11 @@ gleich(leiste.innerHTML, "", "und leer -- kein Knopf, den ein Klick noch treffen
 //    der Owner hakte „Gramfeldermoor" an und lehnte „Briskenmoor" ab.
 // =================================================================================================
 const { garetienAuswahlleisteKlick, avesmapsGaretienAuswahlUmschalten,
+	avesmapsGaretienAuswahlObjekte,
+	avesmapsGaretienAuswahlAuffrischen,
 	avesmapsGaretienAuswahlAufheben, avesmapsGaretienStageHat, avesmapsGaretienStageLeeren,
-	avesmapsGaretienStageHinzufuegen } = api;
+	avesmapsGaretienStageHinzufuegen, avesmapsGaretienAlleWaehlen,
+	avesmapsGaretienStageListe } = api;
 
 // Ein Ereignis, das auf einen Leistenknopf zeigt -- so, wie der Browser es zustellt.
 const leistenEreignis = (name, gesperrt) => ({
@@ -408,19 +411,24 @@ wahr(garetienStillerAusgangText("ablehnen", { key: "x", name: "X", urteil: "neu"
 // 🔴 UND ALLE SECHS WERDEN WORTGENAU FESTGENAGELT. Zwei der vier alten Texte waren UNGEPRUEFT: auf
 //   `""` gesetzt blieb das Feld gruen (`auswahl_zurueck_offen`, `auswahl_wieder`) -- ein Grund, den
 //   niemand misst, ist ein Grund, den niemand vermisst.
-const GRUND_NICHT_SICHTBAR = "keines der gewählten Objekte steht in dieser Ansicht — "
-	+ "ein Filter blendet sie gerade aus";
+// 🔴 NACHGEZOGEN AM 08.09.2026: die zwei Texte nannten die Lage „steht nicht in dieser Ansicht --
+//   ein Filter blendet sie gerade aus". Die gibt es nicht mehr; die Leiste rechnet seither ueber die
+//   GANZE Auswahl (Owner: „ich will dass auch die ausgewählt sind, die grad nicht auf der liste
+//   sind oder die gefiltert werden"). Was bleibt, ist die Zusicherung darum herum: ein GESPERRTER
+//   Knopf nennt einen Grund, und zwar wortgenau.
+const GRUND_NICHTS_BRAUCHBARES = "die Auswahl trägt gerade nichts, was sich auf die Stage legen lässt";
 {
-	// Der erreichbare Zustand: 3 global gewaehlt, KEINES davon in der Ansicht.
+	// Der erreichbare Zustand: gewaehlt ist etwas, aber kein einziger Eintrag traegt ein Objekt
+	// (siehe avesmapsGaretienAuswahlObjekte) -- die Liste kommt deshalb leer herein.
 	const stageKnopf = garetienAuswahlleisteZustand("offen", 3, []).knoepfe[0];
 	gleich(stageKnopf.name, "auswahl_stage");
-	gleich(stageKnopf.t2, "0 Objekte", "gezaehlt wird ueber die SICHTBAR gewaehlten");
+	gleich(stageKnopf.t2, "0 Objekte", "gezaehlt wird ueber die Objekte, die die Auswahl wirklich haelt");
 	gleich(stageKnopf.gesperrt, true, "…und dann ist der Knopf gesperrt");
-	gleich(stageKnopf.grund, GRUND_NICHT_SICHTBAR, "💣 …MIT Grund, wie seine vier Nachbarn");
+	gleich(stageKnopf.grund, GRUND_NICHTS_BRAUCHBARES, "💣 …MIT Grund, wie seine vier Nachbarn");
 
 	const entstagenKnopf = garetienAuswahlleisteZustand("stage", 3, []).knoepfe[0];
 	gleich(entstagenKnopf.name, "auswahl_entstagen");
-	gleich(entstagenKnopf.grund, GRUND_NICHT_SICHTBAR, "💣 …und derselbe Fall auf dem Reiter Stage");
+	gleich(entstagenKnopf.grund, "die Auswahl trägt gerade nichts, was auf der Stage liegt", "💣 …und derselbe Fall auf dem Reiter Stage");
 
 	// Gegenprobe, sonst waeren die zwei Zeilen darueber Vakuum: mit einem sichtbaren Objekt gehen
 	// beide auf und nennen KEINEN Grund.
@@ -452,7 +460,7 @@ const GRUND_NICHT_SICHTBAR = "keines der gewählten Objekte steht in dieser Ansi
 					? {
 						disabled: false,
 						getAttribute: (attr) => (attr === "data-auswahl" ? name
-							: (attr === "data-grund" ? GRUND_NICHT_SICHTBAR : null)),
+							: (attr === "data-grund" ? GRUND_NICHTS_BRAUCHBARES : null)),
 					}
 					: null;
 			},
@@ -469,7 +477,7 @@ const GRUND_NICHT_SICHTBAR = "keines der gewählten Objekte steht in dieser Ansi
 		gleich(avesmapsGaretienStageHat("nicht-sichtbar"), false, name + ": …und bewegt die Stage nicht");
 		wahr(dom.text("#garetien-status-text").indexOf("geht nicht") !== -1,
 			"💣 " + name + " SAGT ES: " + dom.text("#garetien-status-text"));
-		wahr(dom.text("#garetien-status-text").indexOf(GRUND_NICHT_SICHTBAR) !== -1,
+		wahr(dom.text("#garetien-status-text").indexOf(GRUND_NICHTS_BRAUCHBARES) !== -1,
 			"…mit demselben Satz, der sichtbar unter der Leiste steht");
 	});
 	// Gegenprobe: mit einem sichtbaren Objekt geht „Auswahl auf die Stage" den normalen Weg.
@@ -572,6 +580,79 @@ const GRUND_NICHT_SICHTBAR = "keines der gewählten Objekte steht in dieser Ansi
 	gleich(avesmapsGaretienStageHat("r1"), true, "…die Objekte liegen aber sehr wohl auf der Stage");
 	avesmapsGaretienStageLeeren();
 	avesmapsGaretienAuswahlAufheben();
+
+	// =============================================================================================
+	// DER WORKFLOW DES OWNERS (08.09.2026) -- „Imports in der Nähe wählen" → abwählen/anwählen →
+	// „Auf die Stage", über Zeilen, die gerade NICHT in der Liste stehen.
+	// =============================================================================================
+	// 💣 GENAU DAS WAR KAPUTT, und die Oberfläche erklärte es auch noch: „keines der gewählten
+	// Objekte steht in dieser Ansicht — ein Filter blendet sie gerade aus". Die Leiste sagte
+	// „0 Objekte" bei sechs gewählten, und beide Handlungsknöpfe waren gesperrt. Der Owner:
+	// „das is doch murx, ich will dass auch die ausgewählt sind, die grad nicht auf der liste sind
+	// oder die gefiltert werden."
+	avesmapsGaretienAuswahlAufheben();
+	avesmapsGaretienStageLeeren();
+
+	// Drei Objekte, wie sie „Imports in der Nähe" liefert -- VOLLE Objekte mit Items.
+	const fern1 = { key: "fern-1", name: "Alkensee", urteil: "neu",
+		items: [{ id: 91, change_type: "new", selected: 0 }] };
+	const fern2 = { key: "fern-2", name: "Alffe", urteil: "neu",
+		items: [{ id: 92, change_type: "new", selected: 0 }] };
+	const fern3 = { key: "fern-3", name: "Alke", urteil: "neu",
+		items: [{ id: 93, change_type: "new", selected: 0 }] };
+	avesmapsGaretienAlleWaehlen([fern1, fern2, fern3]);
+
+	// 🔴 DIE ANSICHT IST LEER -- ein Filter blendet alle drei aus, oder sie liegen auf einem
+	// anderen Reiter. Genau die Lage aus dem Screenshot.
+	const ansichtLeer = [];
+	tief(avesmapsGaretienAuswahlObjekte(ansichtLeer).map((o) => o.key), ["fern-1", "fern-2", "fern-3"],
+		"💣 die Auswahl kennt ihre Objekte selbst -- sie haengt nicht daran, ob eine Zeile gerade "
+		+ "gezeichnet ist");
+
+	const leiste = garetienAuswahlleisteZustand("offen", 3, avesmapsGaretienAuswahlObjekte(ansichtLeer));
+	wahr(leiste.sichtbar, "die Leiste steht da");
+	const stageKnopf = leiste.knoepfe.filter((k) => k.name === "auswahl_stage")[0];
+	gleich(stageKnopf.gesperrt, false,
+		"🔴 „Auswahl auf die Stage“ ist BEDIENBAR -- vorher war er gesperrt, obwohl drei Objekte "
+		+ "gewaehlt waren");
+	wahr(stageKnopf.t2.includes("3 Objekte"),
+		"...und traegt die volle Zahl, nicht 0: " + stageKnopf.t2);
+	gleich(stageKnopf.grund, "",
+		"⚠️ und KEINEN Grund -- der Satz „ein Filter blendet sie aus“ war die Erklaerung dafuer, "
+		+ "dass die Bedienung nicht tut, was sie soll");
+
+	// Und der Klick wirkt wirklich auf alle drei -- mit leerer Ansicht.
+	avesmapsGaretienStageLeeren();
+	const ergebnisFern = garetienAuswahlleisteKlick(
+		leistenEreignis("auswahl_stage"), ansichtLeer, 7, werkzeuge
+	);
+	gleich(ergebnisFern && ergebnisFern.anzahl, 3,
+		"🔴 „Auf die Stage“ legt ALLE DREI ab, obwohl keine ihrer Zeilen in der Ansicht steht");
+	gleich(avesmapsGaretienStageListe().length, 3, "...und sie liegen wirklich auf der Stage");
+
+	// ⚠️ Abwaehlen bleibt abwaehlen: der mittlere Schritt des Workflows.
+	avesmapsGaretienAuswahlUmschalten("fern-2");
+	tief(avesmapsGaretienAuswahlObjekte(ansichtLeer).map((o) => o.key), ["fern-1", "fern-3"],
+		"ein abgewaehltes Objekt ist raus -- auch ohne sichtbare Zeile");
+
+	// 💣 EIN EINTRAG OHNE OBJEKT wird aus der ANSICHT nachgeschlagen, nie andersherum: sonst
+	// entschiede wieder die Ansicht, was zur Auswahl gehoert.
+	avesmapsGaretienAuswahlAufheben();
+	avesmapsGaretienAuswahlUmschalten("fern-1");
+	tief(avesmapsGaretienAuswahlObjekte([]).map((o) => o.key), [],
+		"ohne Objekt und ohne Nachschlag zaehlt der Eintrag fuer keine Handlung");
+	tief(avesmapsGaretienAuswahlObjekte([fern1]).map((o) => o.key), ["fern-1"],
+		"...mit der Ansicht als Nachschlag schon");
+
+	// Und die Auffrischung: ein gemerktes Objekt bekommt den neuen Stand.
+	avesmapsGaretienAuswahlAufheben();
+	avesmapsGaretienAlleWaehlen([fern1]);
+	avesmapsGaretienAuswahlAuffrischen([{ key: "fern-1", name: "Alkensee", urteil: "abgelehnt",
+		items: [{ id: 91, change_type: "new", selected: 1 }] }]);
+	gleich(avesmapsGaretienAuswahlObjekte([])[0].urteil, "abgelehnt",
+		"💣 ein gemerktes Objekt altert nicht -- sonst traegt es den Stand vom Moment der Wahl");
+	avesmapsGaretienAuswahlAufheben();
+	avesmapsGaretienStageLeeren();
 
 	console.log("OK -- " + checks + " Zusicherungen");
 })().catch(function (fehler) { console.error(fehler); process.exit(1); });

@@ -164,7 +164,17 @@
 		stage: new Map(),
 		// 🔴 Aufgabe 2: die Auswahl ist CLIENT-SEITIG und schreibt nichts (Owner 29.08.2026:
 		// „Markieren aendert nichts"). Sie hat genau einen Zweck: der Knopf „Auf die Stage".
-		auswahl: new Set(),
+		// 🔴 EINE MAP, KEIN SET (Owner 08.09.2026: „ich will dass auch die ausgewählt sind, die grad
+		// nicht auf der liste sind oder die gefiltert werden"). Sie hält Schlüssel UND Objekt.
+		// 💣 ALS SET WAR DER WORKFLOW KAPUTT, den der Owner beschreibt: „Imports in der Nähe wählen"
+		// → abwählen/anwählen → auf die Stage. Der erste Schritt wählt Objekte, die auf einem
+		// anderen Reiter oder hinter einem Filter liegen; der letzte schlug sie dann in der
+		// ANGEZEIGTEN Liste nach und fand nichts. Die Leiste sagte „0 Objekte" und meldete „ein
+		// Filter blendet sie aus" -- eine Erklärung dafür, dass die Bedienung nicht tut, was sie
+		// soll, statt dass sie es tut.
+		// ⚠️ `has`, `size`, `delete` und `clear` heissen bei Map wie bei Set -- nur `add` wird `set`,
+		// und eine Iteration muss `.keys()` bzw. `.values()` sagen.
+		auswahl: new Map(),
 		// 🔴 Owner 30.08.2026: „der button sollte nur imports nicht unsere eigenen anzeigen".
 		// Wer ueber „Imports in der Nähe anzeigen" hereinkommt, wird in SEINER Farbe gezeichnet --
 		// unser magenta Gegenstueck bleibt weg, bis jemand das Objekt oeffnet oder es auf einem
@@ -440,11 +450,62 @@
 	// 🔴 „Markieren aendert nichts" (Owner 29.08.2026). Sie schreibt nicht, sie verschiebt keine
 	// Zeile -- ihr einziger Zweck ist der Knopf „Auf die Stage".
 
-	function avesmapsGaretienAuswahlUmschalten(schluessel) {
+	/*
+	 * ⚠️ DAS OBJEKT KOMMT MIT, nicht nur sein Schlüssel. Ohne es müsste jede Handlung es später in
+	 * der ANGEZEIGTEN Liste nachschlagen -- und genau daran ist der Workflow des Owners gescheitert
+	 * (siehe `zustand.auswahl`). Fehlt es ausnahmsweise, steht `null` in der Map: die Zählung
+	 * überspringt solche Einträge, statt sie mitzuzählen und dann nichts zu tun.
+	 */
+	function avesmapsGaretienAuswahlUmschalten(schluessel, objekt) {
 		const s = String(schluessel);
 		if (zustand.auswahl.has(s)) { zustand.auswahl.delete(s); return false; }
-		zustand.auswahl.add(s);
+		zustand.auswahl.set(s, objekt || null);
 		return true;
+	}
+
+	/*
+	 * REIN gelesen: die gewählten OBJEKTE -- ALLE, auch die, deren Zeile ein Filter gerade ausblendet
+	 * oder die auf einem anderen Reiter liegen.
+	 *
+	 * 🔴 DAS IST DIE MENGE, AUF DIE JEDE HANDLUNG DER AUSWAHLLEISTE WIRKT. Sie aus der angezeigten
+	 * Liste zu bilden hiesse: was man nicht sieht, kann man nicht bewegen -- und der Weg „Imports in
+	 * der Nähe wählen → abwählen/anwählen → auf die Stage" führt per Konstruktion über Zeilen, die
+	 * gerade nicht dastehen.
+	 * ⚠️ DIE MAP FÜHRT, DIE ANSICHT FÜLLT LÜCKEN. `nachschlag` (üblicherweise die gerade
+	 * angezeigte Liste) wird nur für Einträge gefragt, zu denen die Map KEIN Objekt hält -- etwa
+	 * weil jemand per Schlüssel allein gewählt hat. Andersherum wäre es der alte Fehler: dann
+	 * entschiede wieder die Ansicht, was zur Auswahl gehört.
+	 * ⚠️ Bleibt ein Eintrag auch danach ohne Objekt, fällt er heraus -- ihn mitzuzählen hiesse, eine
+	 * Handlung zu versprechen, die nichts zu tun hat.
+	 */
+	function avesmapsGaretienAuswahlObjekte(nachschlag) {
+		const ausAnsicht = {};
+		(nachschlag || []).forEach(function (o) {
+			if (o && o.key !== undefined && o.key !== null) { ausAnsicht[String(o.key)] = o; }
+		});
+		const raus = [];
+		zustand.auswahl.forEach(function (objekt, schluessel) {
+			const o = objekt || ausAnsicht[schluessel] || null;
+			if (o) { raus.push(o); }
+		});
+		return raus;
+	}
+
+	/*
+	 * Frischt die gemerkten Objekte aus einer neuen Serverantwort auf.
+	 *
+	 * 💣 OHNE DAS ALTERT DIE AUSWAHL. Ein gemerktes Objekt trägt den Stand von dem Moment, in dem es
+	 * gewählt wurde; nach einem Import oder einer Ablehnung stimmen seine Items nicht mehr. Die
+	 * Stage hat dasselbe Problem und löst es genauso (avesmapsGaretienStageAuffrischen) -- eine
+	 * zweite Regel dafür wäre die Divergenz, vor der AGENTS.md §11 warnt.
+	 * ⚠️ Nur AUFFRISCHEN, nie erweitern oder entfernen: was gewählt ist, entscheidet der Editor.
+	 */
+	function avesmapsGaretienAuswahlAuffrischen(objekte) {
+		(objekte || []).forEach(function (o) {
+			if (!o || o.key === undefined || o.key === null) { return; }
+			const s = String(o.key);
+			if (zustand.auswahl.has(s)) { zustand.auswahl.set(s, o); }
+		});
 	}
 
 	function avesmapsGaretienAuswahlHat(schluessel) {
@@ -465,10 +526,14 @@
 	// „Auf die Stage": sie kommen ZUSAETZLICH auf die Stage und BLEIBEN gewaehlt und offen.
 	// ⚠️ Die Liste kommt HEREIN (Hausform in dieser Datei), damit sich am Ergebnis messen laesst,
 	// welche Objekte wirklich uebernommen wurden.
+	// 🔴 SIE NIMMT DIE GEMERKTEN OBJEKTE, NICHT DIE ANGEZEIGTE LISTE (Owner 08.09.2026). Hier stand
+	// `(objekte || zustand.objekte || []).filter(…)` -- damit fiel alles heraus, was ein Filter
+	// gerade ausblendete oder was auf einem anderen Reiter lag, und genau das ist der Normalfall
+	// nach „Imports in der Nähe wählen".
+	// ⚠️ Der Parameter bleibt: er ist der Weg, mit dem ein Test (und ein Aufrufer, der es besser
+	// weiss) eine bestimmte Menge vorgeben kann -- nur ist er nicht mehr die Vorgabe.
 	function avesmapsGaretienAuswahlAufDieStage(objekte) {
-		const liste = (objekte || zustand.objekte || []).filter(function (o) {
-			return o && zustand.auswahl.has(String(o.key));
-		});
+		const liste = avesmapsGaretienAuswahlObjekte(objekte || zustand.objekte);
 		avesmapsGaretienStageHinzufuegen(liste);
 		return liste.length;
 	}
@@ -487,7 +552,7 @@
 			if (!o || o.key === undefined || o.key === null || o.key === "") { return; }
 			const s = String(o.key);
 			if (!zustand.auswahl.has(s)) { gewaehlt++; }
-			zustand.auswahl.add(s);
+			zustand.auswahl.set(s, o);
 		});
 		return gewaehlt;
 	}
@@ -662,12 +727,16 @@
 	 * gesperrt sein, solange die Leiste ueberhaupt sichtbar ist.
 	 */
 	const AVESMAPS_GARETIEN_AUSWAHL_GRUND = {
-		// ⚠️ Der Satz nennt die LAGE, nicht die Auswahl: gewaehlt ist etwas (sonst gaebe es die
-		// Leiste nicht), es steht nur nicht in dieser Ansicht.
-		auswahl_stage: "keines der gewählten Objekte steht in dieser Ansicht — ein Filter blendet "
-			+ "sie gerade aus",
-		auswahl_entstagen: "keines der gewählten Objekte steht in dieser Ansicht — ein Filter "
-			+ "blendet sie gerade aus",
+		// 🔴 DER SATZ „ein Filter blendet sie gerade aus" IST AM 08.09.2026 GEFALLEN, samt der Lage,
+		// die er beschrieb. Er stand hier, weil die Leiste über die SICHTBAREN Objekte rechnete --
+		// und war damit die Erklärung dafür, dass die Bedienung nicht tut, was sie soll, statt dass
+		// sie es tut (Owner: „das is doch murx"). Seit die Auswahl ihre Objekte selbst hält, kann
+		// dieser Knopf nur noch aus EINEM Grund leer sein: es ist nichts Brauchbares gewählt.
+		// ⚠️ Erreichbar ist das praktisch nur über einen Eintrag ohne Objekt (siehe
+		// avesmapsGaretienAuswahlObjekte) -- der Satz bleibt trotzdem, weil ein gesperrter Knopf
+		// ohne Grund schlimmer ist als einer mit einem seltenen.
+		auswahl_stage: "die Auswahl trägt gerade nichts, was sich auf die Stage legen lässt",
+		auswahl_entstagen: "die Auswahl trägt gerade nichts, was auf der Stage liegt",
 		auswahl_ablehnen: "keines der gewählten Objekte trägt einen Vorschlag",
 		auswahl_wieder: "keines der gewählten Objekte trägt einen Vorschlag",
 		auswahl_ruecknahme: "keines der gewählten Objekte lässt sich zurücknehmen — sie haben ein "
@@ -699,10 +768,16 @@
 	 *                        AVESMAPS_GARETIEN_HANDLUNGEN_JE_URTEIL).
 	 * @param anzahlGewaehlt  die GRÖSSE der Auswahl -- sie entscheidet über `sichtbar` und trägt
 	 *                        die Zahl der meisten Knöpfe.
-	 * @param objekte         die gewählten Objekte, SOWEIT sie in der Ansicht stehen. 💣 Die zwei
-	 *                        können auseinanderlaufen (eine Auswahl überlebt einen Filterwechsel),
-	 *                        und deshalb kommen beide herein: die Zahl im Knopf gehört der Auswahl,
-	 *                        die Frage „trägt überhaupt eines ein Item" nur den sichtbaren.
+	 * @param objekte         die gewählten Objekte -- ALLE, auch die, deren Zeile ein Filter gerade
+	 *                        ausblendet oder die auf einem anderen Reiter liegen
+	 *                        (avesmapsGaretienAuswahlObjekte).
+	 *                        🔴 Bis zum 08.09.2026 waren das nur die SICHTBAREN, und das war der
+	 *                        gemeldete Fehler: nach „Imports in der Nähe wählen" stand hier eine
+	 *                        leere Liste, die Leiste sagte „0 Objekte" und erklärte dem Editor, ein
+	 *                        Filter blende seine Auswahl aus -- statt sie zu bewegen.
+	 *                        ⚠️ Beide Argumente bleiben, weil sie Verschiedenes messen: `anzahl` ist
+	 *                        die Größe der Auswahl, `objekte` sind die, zu denen wir ein Objekt
+	 *                        haben (ein Eintrag ohne Objekt zählt für keine Handlung).
 	 */
 	function garetienAuswahlleisteZustand(stand, anzahlGewaehlt, objekte) {
 		const anzahl = Number(anzahlGewaehlt) || 0;
@@ -818,7 +893,9 @@
 			planRunId: zustand.planRunId,
 			importRunId: zustand.importRunId,
 			objekte: zustand.objekte.slice(),
-			auswahl: Array.from(zustand.auswahl),
+			// ⚠️ Weiterhin die SCHLUESSEL, nicht die Map-Eintraege: `Array.from` liefert bei einer
+			// Map Paare `[key, wert]`, und jeder Leser dieser Kopie erwartet eine Schluesselliste.
+			auswahl: Array.from(zustand.auswahl.keys()),
 			stand: zustand.stand,
 			filter: zustand.filter,
 			detailKey: zustand.detailKey,
@@ -1679,6 +1756,11 @@
 		// nur einen von zwei Erzeugern bindet, ist keine Regel; genau das ist in diesem Umbau heute
 		// schon zweimal passiert (RULING R2, R7).
 		avesmapsGaretienStageAuffrischen(objekte);
+		// 🔴 Und dieselbe Auffrischung für die AUSWAHL (08.09.2026): sie hält ihre Objekte seit
+		// diesem Tag selbst, und ein gemerktes Objekt trägt sonst den Stand vom Moment der Wahl.
+		// Dieselbe Stelle, derselbe Grund -- eine Regel, die einen von zwei Speichern bindet, ist
+		// keine Regel.
+		avesmapsGaretienAuswahlAuffrischen(objekte);
 
 		if (!hasDocument) { return; }
 		const listcol = garetienListeSkelettSicherstellen();
@@ -1746,9 +1828,12 @@
 		// Auswahl (fuer ihre Zahlen) und die GEWAEHLTEN Objekte der aktuellen Ansicht (fuer die
 		// Frage, ob ueberhaupt eines ein Item traegt). Die zwei koennen auseinanderlaufen, siehe
 		// garetienAuswahlleisteZustand.
+		// 🔴 DIE GANZE AUSWAHL (Owner 08.09.2026) -- nicht mehr ihre sichtbare Teilmenge. Die zwei
+		// Argumente können seither gar nicht mehr auseinanderlaufen; sie bleiben getrennt, weil die
+		// Zahl der Auswahl gehört und die Frage „trägt es ein Item" den Objekten.
 		garetienAuswahlleisteSetzen(
 			zustand.auswahl.size,
-			objekte.filter(function (o) { return o && avesmapsGaretienAuswahlHat(o.key); }),
+			avesmapsGaretienAuswahlObjekte(objekte),
 			zustand.stand
 		);
 		// Owner 30.08.2026: „Alle zentrieren" misst die ANZEIGE-Menge (was wirklich gezeichnet ist),
@@ -6784,10 +6869,12 @@
 		if (!knopf || knopf.disabled) { return null; }
 		const w = werkzeuge || {};
 		const name = String(knopf.getAttribute("data-auswahl") || "");
-		// Nur die GEWÄHLTEN, und in der Reihenfolge der Ansicht.
-		const gewaehlte = (objekte || []).filter(function (o) {
-			return o && avesmapsGaretienAuswahlHat(o.key);
-		});
+		// 🔴 DIE GANZE AUSWAHL, nicht die sichtbare Teilmenge (Owner 08.09.2026). Hier stand
+		// `(objekte || []).filter(…)` -- und damit tat jeder Knopf dieser Leiste nur etwas an den
+		// Zeilen, die gerade dastanden. Der Weg „Imports in der Nähe wählen → abwählen/anwählen →
+		// auf die Stage" führt per Konstruktion über Zeilen, die ein Filter ausblendet oder die auf
+		// einem anderen Reiter liegen; er war damit unbenutzbar.
+		const gewaehlte = avesmapsGaretienAuswahlObjekte(objekte);
 		// 💣 FIXRUNDE 1 (C2): DER STILLE AUSGANG MELDET AUCH HIER SEINEN GRUND. Bis dahin gab es
 		// `garetienStillerAusgangMelden` nur im ANDEREN Klickweg (garetienHandlungKlick) -- „eine
 		// Regel, die einen von zwei Klickwegen bindet, ist keine Regel". Der Grund kommt vom Knopf
@@ -6802,8 +6889,10 @@
 			// 💣 SAMMELFIXRUNDE 07.09.2026 (Befund B): DERSELBE STILLE AUSGANG WIE BEI DEN VIER
 			// NACHBARN. Bis dahin lief dieser Zweig auch mit leerer `gewaehlte`-Liste durch und gab
 			// `{handlung, anzahl: 0}` zurueck -- ein Klick, der nichts tut und nichts sagt.
-			// Erreichbar ueber die Oberflaeche: die Auswahl ueberlebt einen Filterwechsel, die
-			// Leiste haengt an der GLOBALEN Auswahl, dieser Knopf zaehlt ueber die SICHTBAREN.
+			// 🔴 SEIT DEM 08.09.2026 KANN DAS NUR NOCH HEISSEN „die Auswahl ist leer oder trägt
+			// nichts Brauchbares". Hier stand: „die Leiste haengt an der GLOBALEN Auswahl, dieser
+			// Knopf zaehlt ueber die SICHTBAREN" -- das war die Beschreibung des Fehlers, den der
+			// Owner gemeldet hat, nicht seine Rechtfertigung. Beide zählen jetzt dieselbe Menge.
 			// 🔴 Gezaehlt wird mit der TAFEL, nicht mit `gewaehlte.length` -- eine zweite Fassung
 			// derselben Frage liefe beim ersten Zaehlerwechsel gegen die Anzeige.
 			if (AVESMAPS_GARETIEN_AUSWAHL_ZAEHLER.auswahl_stage(gewaehlte) === 0) { return still(); }
@@ -7562,7 +7651,9 @@
 		}
 		const schluessel = traeger.getAttribute("data-key");
 		if (!schluessel) { return null; }
-		return avesmapsGaretienAuswahlUmschalten(schluessel);
+		// ⚠️ Das OBJEKT wird mitgegeben, nicht nur sein Schlüssel -- die Auswahl merkt es sich, damit
+		// eine Handlung es später nicht in einer womöglich gefilterten Liste suchen muss.
+		return avesmapsGaretienAuswahlUmschalten(schluessel, garetienObjektNach(schluessel, objekte));
 	}
 
 	// Der EINE Weg hinaus für jede Handlung: durch die Übernahme-Tür, danach die Liste NEU HOLEN.
@@ -8844,6 +8935,8 @@
 			garetienHandlungsRumpf,
 			garetienHandlungsMarkup,
 			garetienInnerortsKandidatenVon,
+			avesmapsGaretienAuswahlObjekte,
+			avesmapsGaretienAuswahlAuffrischen,
 			garetienUmkreisZu,
 			garetienUmkreisSetzen,
 			garetienUmkreisVergessen,
