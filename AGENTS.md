@@ -502,6 +502,44 @@ is the default, English is opt-in. Therefore:
   `valid_to_bf` (Baronie Waischenroth 1039, Baronie Nevelung 1020, Sultanat Unau 1010 — drei von
   908), waehrend der Layer sie ueber seinen Renderer-Rueckfall (B in `territories-layer.php`) weiter
   zeichnet, solange keine juengere Geometrie sie verdraengt. Zwei Leser, zwei Gueltigkeitsregeln.
+- 💣 **Ein „Rueckgaengig" muss GENAU die Spalten zurueckschreiben, die seine Aktion gesetzt hat --
+  eine ausgelassene Spalte ist ein halbes Undo, und heraus kommt ein Zustand, den kein Schreibweg
+  herstellen kann.** `avesmapsUndoColumnsForAuditAction` (`api/_internal/map/features.php`) liess bei
+  VIER Aktionen `feature_type` aus, obwohl ihr UPDATE ihn schreibt (`update_point`,
+  `wiki_sync_update_point`, `update_powerline_details`, `update_path_details`). Sichtbar wurde es an
+  einer Kreuzung: „Zu Ort konvertieren" ist eine ECHTE, gewollte Funktion (Kachel
+  `convert-crossing-to-location`, `js/ui/popups.js`) und laeuft durch `update_point`, das die Spalte
+  auf 'location' setzt; das Undo holte Name, Subtyp und `properties_json` zurueck und liess die Spalte
+  stehen. Uebrig blieb `feature_type='location'` neben `feature_subtype='crossing'` -- am Dump vom
+  04.09.2026 die **einzige Zeile von 18.703**, deren Spalte ihrem eigenen `properties_json`
+  widerspricht. Karte und Routing fingen sie ueber ihren Subtyp-Rueckfall ab, der SVG-Abzug und jeder
+  Leser ohne einen solchen nicht -- dort zaehlte sie als Ort, und sie passierte seither auch den
+  WikiSync-Riegel, der nur `feature_type` verlangt.
+  🔴 **Die Liste spiegelt das UPDATE, nicht die Familie:** `update_label` steht BEWUSST allein,
+  weil sein UPDATE die Spalte gar nicht anfasst. Wer es der Vierergruppe zuschlaegt, laesst ein Undo
+  eine Spalte zurueckschreiben, die seine Aktion nie gesetzt hat.
+  💣 **`avesmapsInferUndoAfterColumnValue` muss den geschriebenen Wert fuer JEDE neu
+  aufgenommene Spalte kennen** -- `avesmapsAssertUndoPatchStillCurrent` wirft, wenn eine Undo-Spalte
+  weder im Nachher-Stand steht noch herleitbar ist. Ohne diese Deckung haette der Umbau JEDES alte
+  Undo dieser vier Aktionen unbrauchbar gemacht; sie kennt alle vier bereits.
+  🩤 **Der naheliegende Riegel waere hier der Fehler gewesen.** Der erste Vorschlag war ein
+  Typriegel in `update_point`, wie ihn `avesmapsWikiSyncUpdateLocationFeature` traegt („WikiSync kann
+  nur Orts-Punkte bearbeiten."). Er haette „Zu Ort konvertieren" ersatzlos zerstoert. **Ist eine
+  Umwandlung ERLAUBT, muss sie umkehrbar sein** -- der Fehler lag nie im Hinweg.
+  ⭐ **Die Erwartung wird aus dem Quelltext GERECHNET, nicht abgeschrieben:** der Test liest jedes
+  `UPDATE map_features ... SET ...` samt der Audit-Aktion, die dieselbe Funktion protokolliert, und
+  haelt die Undo-Liste dagegen -- damit faellt er in BEIDE Richtungen auf (eine neue Spalte im UPDATE
+  ohne Undo ebenso wie eine Undo-Spalte, die niemand schreibt). ⚠️ Vereinigt wird je Aktion,
+  weil ZWEI Funktionen dieselbe Aktion schreiben koennen (`avesmapsUpdatePathGroupDetails`
+  protokolliert `update_path_details` ohne `feature_type`); massgeblich ist der vollstaendigste
+  Schreiber. Nach dem Umbau stimmt der Spiegel fuer alle zehn Aktionen, vorher fuer sechs.
+  ✅ **Bestand nachgezogen am 08.09.2026** ueber die Admin-Aktion `repair_crossing_type`
+  (Trockenlauf-Vorgabe, scharf mit `apply: true`, auch Papierkorb, EIN Revisions-Bump je Lauf und
+  KEINER im Leerlauf): 1 Zeile repariert, zweiter Lauf 0, live `location|crossing` = 0. Die Regel, auf
+  der sie ruht: die Paarung ist ueber KEINEN Schreibweg herstellbar, weil `avesmapsReadLocationSubtype`
+  fuer 'crossing' wirft (es steht nicht in `AVESMAPS_LOCATION_SUBTYPES`) -- wo sie trotzdem steht, ist
+  sie Beschaedigung. Tests: `undo-stellt-feature-type-zurueck-test.php`,
+  `kreuzungstyp-reparatur-test.php`.
 - 💣 **Eine neu berechnete Aussenhuelle raeumt ihre Vorgaengerinnen weg.** `avesmapsPoliticalSaveDerivedGeometry`
   loeschte bis zum 05.09.2026 nie: je Neuberechnung eine Zeile mehr mit `is_active = 0`, und NICHTS
   liest oder reaktiviert je eine inaktive Huelle („Grenzen berechnen" holt sie als NEUE Zeile zurueck,
