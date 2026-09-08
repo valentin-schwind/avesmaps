@@ -264,7 +264,12 @@ function renderFeatureSourceLine(entityType, entityPublicId, wikiUrl, linkClass,
 		// ⚠️ Der Wiki-Artikel ist KEINE Katalogquelle -- sein Kanon ist der des OBJEKTS, weil der
 		// Namensraum dieses Artikels ihn bestimmt hat (avesmapsWikiNamespaceFromWikiUrl).
 		// `undefined` heisst „kein Stempel", nicht „offiziell".
-		wikiOfficial: kanon ? kanon.kanon === "offiziell" : undefined,
+		// 💣 `kanon.kanon` KANN LEER SEIN, und dann ist `undefined` die richtige Antwort, nicht
+		// `false`. Seit dem 08.09.2026 gibt es Objekte mit Quellen und ohne Etikett (Publikationen
+		// machen keinen Kanon mehr); ein leerer Zustand als `false` gelesen haengte der Wiki-Zeile
+		// ein „INOFFIZIELL │ Wiki-Artikel" an -- eine Behauptung ueber einen Artikel, ueber den
+		// niemand etwas gesagt hat. `undefined` heisst „kein Stempel" und laesst die Pille ganz weg.
+		wikiOfficial: (kanon && kanon.kanon) ? kanon.kanon === "offiziell" : undefined,
 		kanonLabels: {
 			official: tr("popup.kanonOfficial", "Offiziell"),
 			unofficial: tr("popup.kanonUnofficial", "Inoffiziell"),

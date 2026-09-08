@@ -3341,7 +3341,16 @@ function avesmapsFeatureSourcesKanonFuerEines(
         $raeume
     );
 
-    return $kanon[$key] ?? null;
+    // 💣 „KEIN ETIKETT" WIRD AUSDRUECKLICH GEMELDET, wenn das Objekt Verweise hat -- sonst
+    // loescht der Aufrufer seinen Abweichungseintrag und der Browser faellt auf die Vorgabe
+    // „offiziell" zurueck. Dieselbe Falle wie in der Nutzlast (api/app/map-features.php), nur
+    // eine Schreibaktion spaeter: wer eine Wiki-Zuweisung ENTFERNT, saehe sein Objekt sonst
+    // weiterhin als offiziell, bis er die Seite neu laedt.
+    if (isset($kanon[$key])) {
+        return $kanon[$key];
+    }
+
+    return isset($refs[$key]) && $refs[$key] !== [] ? ['kanon' => ''] : null;
 }
 
 function avesmapsFeatureSourcesDeriveKanon(array $catalog, array $refs, array $wikiNamespaces = []): array

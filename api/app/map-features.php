@@ -472,6 +472,16 @@ try {
         // ⚠️ Der Preis: aendert ein Editor eine `wiki_url`, bleibt das Etikett bis zum Neuladen
         // alt. Das betrifft nur den Editiermodus -- und ein falsch AUFGEFRISCHTES Etikett waere
         // schlimmer als ein altes.
+        // 💣 „KEIN ETIKETT" MUSS AUSDRUECKLICH GESAGT WERDEN, sobald das Objekt IRGENDEINE Quelle
+        // hat. `resolveFeatureKanon` faellt fuer ein Objekt MIT Verweisen auf die Vorgabe
+        // „offiziell" zurueck -- ein fehlender Eintrag heisst dort also nicht „kein Etikett",
+        // sondern „offiziell". Das war richtig, solange jede Quelle den Kanon machte; seit dem
+        // 08.09.2026 zaehlen Publikationen nicht mehr mit, und damit gibt es Objekte MIT Quellen
+        // und OHNE Etikett -- Dommel etwa haengt an einer einzigen Publikation.
+        // 🚩 Owner-Meldung am selben Tag, eine Stunde nach dem Deploy: „hm warte mal, Dommel ist
+        // nicht zugewiesen, aber es steht offiziell dran." Der Server hatte richtig abgeleitet,
+        // die Auskunft erreichte den Browser nur nie. 113 Objekte im Bestand.
+        // ⚠️ `''` ist der Zustand „nichts zu sagen": featureKanonBadgeMarkup gibt darauf "" zurueck.
         'feature_kanon' => [
             'vorgabe' => 'offiziell',
             // 💣 „OFFIZIELL" WIRD NUR DANN WEGGELASSEN, WENN DIE VORGABE ES IM BROWSER AUCH ERREICHT.
@@ -486,7 +496,10 @@ try {
             // einer 21-MB-Nutzlast). Die Alternative -- eine zweite Liste „diese sind zugewiesen"
             // -- waere groesser UND ein zweiter Zustand neben diesem.
             'abweichungen' => (object) array_filter(
-                $featureKanon,
+                $featureKanon + array_map(
+                    static fn(): array => ['kanon' => ''],
+                    array_diff_key($mapFeaturesIstDelta ? [] : $featureSourceRefs, $featureKanon)
+                ),
                 static fn(array $e, string $schluessel): bool => ($e['kanon'] ?? '') !== 'offiziell'
                     || ($featureSourceRefs[$schluessel] ?? []) === [],
                 ARRAY_FILTER_USE_BOTH

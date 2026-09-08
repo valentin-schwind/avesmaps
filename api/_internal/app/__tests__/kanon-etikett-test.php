@@ -476,6 +476,27 @@ $namenlos = avesmapsMapFeaturesWikiNamespaces([
 ]);
 assert(!isset($namenlos['path:w-00']), 'ohne Namen keine Gruppe');
 
+// ---- 11f. „KEIN ETIKETT" MUSS DEN BROWSER ERREICHEN -------------------------------------------
+// 🚩 Owner 08.09.2026, eine Stunde nach dem Umbau: „hm warte mal, Dommel ist nicht zugewiesen,
+// aber es steht offiziell dran." Die Ableitung war richtig -- Dommels einzige Quelle ist eine
+// Publikation, und die zaehlt nicht mehr --, aber `resolveFeatureKanon` (js/ui/popups.js) faellt
+// fuer ein Objekt MIT Verweisen auf die Vorgabe „offiziell" zurueck. Ein FEHLENDER Eintrag heisst
+// dort also „offiziell", nicht „nichts". 113 Objekte im Bestand vom 08.09.2026.
+// 💣 Erst durch den Publikationsriegel gibt es diese Sorte ueberhaupt: Objekte MIT Quellen und
+// OHNE Etikett. Vorher war „kein Etikett" gleichbedeutend mit „keine Verweise", und dann stimmte
+// der Rueckfall des Browsers.
+$dommel = avesmapsFeatureSourcesDeriveKanon(
+    $katalog,
+    ['settlement:p-dommel' => [['source_id' => 1, 'reference_kind' => 'ausfuehrlich']]],
+    []
+);
+assert(!isset($dommel['settlement:p-dommel']),
+    'die Ableitung sagt weiterhin „kein Etikett" -- sie kennt den Browser-Rueckfall nicht');
+// 🔴 DIE UEBERSETZUNG IN DIE NUTZLAST steht im Endpunkt und wird dort gemessen (Abschnitt 12):
+// er ergaenzt fuer JEDES Objekt mit Verweisen ohne Etikett ein ausdrueckliches `['kanon' => '']`.
+// ⚠️ `''` ist der Zustand „nichts zu sagen": featureKanonBadgeMarkup gibt darauf "" zurueck, und
+// die Wiki-Zeile bekommt `undefined` statt `false` (js/ui/__tests__/kanon-ohne-etikett.test.js).
+
 // ---- 12. Der Endpunkt fuettert sie auch wirklich mit den OBJEKTEN -----------------------------
 // 💣 Ohne diese Zusicherung waere alles darueber gruen und die Karte trotzdem leer: der Fehler
 // war nie in der Funktion, sondern in dem, was der Endpunkt ihr reicht.
@@ -488,6 +509,12 @@ assert(is_file($endpunktPfad), "die Endpunktdatei muss unter {$endpunktPfad} lie
 $endpunkt = (string) file_get_contents($endpunktPfad);
 assert(strpos($endpunkt, 'avesmapsMapFeaturesWikiNamespaces($features)') !== false,
     'der Endpunkt muss die FERTIGEN Objekte uebergeben, nicht $rows');
+// 💣 DER LEER-EINTRAG. Ohne ihn ist die ganze Gruppe 11f Theorie: der Server leitet richtig ab
+// und der Browser zeigt trotzdem „offiziell" (Owner-Meldung 08.09.2026, Dommel). Gemessen wird
+// die Ergaenzung um die Schluessel, die Verweise haben und KEIN Etikett bekommen.
+assert(strpos($endpunkt, "array_diff_key(") !== false
+    && strpos($endpunkt, "['kanon' => '']") !== false,
+    'die Nutzlast muss „kein Etikett" fuer Objekte MIT Verweisen ausdruecklich mitschicken');
 assert(strpos($endpunkt, 'function avesmapsMapFeaturesWikiNamespaces') === false,
     'sie darf nicht in die Endpunktdatei zurueckwandern -- dort erreicht sie kein Test');
 // 💣 AM ZEILENANFANG SUCHEN, NICHT IRGENDWO. `strpos` findet einen AUSKOMMENTIERTEN Aufruf
