@@ -167,6 +167,20 @@ p.lead { margin: 0 0 var(--space-16); color: var(--color-text-muted); max-width:
 	border: 1px solid var(--color-border); border-radius: var(--radius-sm);
 	font: var(--font-size-small)/1 var(--font-ui);
 }
+/* Der Umkreis-Spinner (08.09.2026). ⚠️ Nachgezeichnet, nicht das echte Blatt: dieses Mockup trägt
+   seine eigenen Maße (Höhe 28px statt --avm-control-h) und wäre mit der Produktionsregel im Bild
+   inkonsistent. Verbindlich ist `.gi-umkreis` in css/components/garetien-importer.css. */
+.gi-umkreis {
+	display: inline-flex; align-items: center; gap: var(--space-2);
+	font: var(--font-size-small)/1 var(--font-ui); color: var(--color-text-muted);
+}
+.gi-umkreis__feld {
+	width: 4em; height: 28px; padding: 0 var(--space-4);
+	background: var(--color-panel-soft); color: var(--color-text);
+	border: 1px solid var(--color-border); border-radius: var(--radius-sm);
+	font: inherit;
+}
+
 /* 🔴 Der Kasten wird beim Überfahren des Innerorts-Knopfes ABGEBLENDET, nicht ausgeblendet:
    verschwände er, spränge die Spalte und der Editor verlöre den Bezug. */
 .gi-insert { transition: opacity 120ms ease; }
@@ -294,6 +308,11 @@ table.mess td.z { text-align: right; font-variant-numeric: tabular-nums; }
 					<option>Wandleth · 0,09 Meilen · Name passt</option>
 				</select></span>
 			</p>
+			<p class="gi-insert__row"><label class="gi-umkreis">
+				<span>Umkreis</span>
+				<input type="number" class="gi-insert__input gi-umkreis__feld" min="0" max="20" step="1" value="5">
+				<span class="gi-umkreis__einheit">Meilen</span>
+			</label></p>
 		</div>
 
 		<p class="grund ok">
@@ -363,6 +382,14 @@ table.mess td.z { text-align: right; font-variant-numeric: tabular-nums; }
 			<p class="gi-insert__row">Art
 				<span class="gi-insert__val"><select class="gi-insert__select"><option>Bauwerk</option></select></span>
 			</p>
+			<p class="gi-insert__row">Innerorts
+				<span class="gi-insert__val" style="color:var(--color-text-muted)">keine Siedlung innerhalb von 5,00 Meilen</span>
+			</p>
+			<p class="gi-insert__row"><label class="gi-umkreis">
+				<span>Umkreis</span>
+				<input type="number" class="gi-insert__input gi-umkreis__feld" min="0" max="20" step="1" value="5">
+				<span class="gi-umkreis__einheit">Meilen</span>
+			</label></p>
 		</div>
 
 		<div class="gi-fuss">
@@ -383,6 +410,18 @@ table.mess td.z { text-align: right; font-variant-numeric: tabular-nums; }
 		</p>
 	</div>
 </div>
+
+<p class="note">
+	💣 <b>Der Spinner steht auch hier</b> (08.09.2026) — obwohl gerade nichts gefunden wurde. Das ist
+	die tragende Regel des Spinners: fände die Suche bei 5 Meilen nichts und verschwände dann das
+	Feld, mit dem man sie auf 12 stellt, wäre es genau dann weg, wenn man es braucht. Ein
+	Bedienelement, das nur erscheint, wenn man es nicht mehr braucht, ist keines.
+</p>
+<p class="note">
+	🔴 <b>Geklemmt wird serverseitig</b> (<code>avesmapsGaretienUmkreisMeilen</code>) —
+	<code>max="20"</code> ist eine Bitte an den Browser. Und „nicht genannt" ist etwas anderes als
+	„0": jenes nimmt die Vorgabe, dieses sucht wirklich mit 0.
+</p>
 
 <h2>2b · Mehrere Städte in Reichweite — die Wahl (07.09.2026)</h2>
 
