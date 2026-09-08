@@ -480,4 +480,37 @@ assert($ohneWertVerweis === [],
     'DIESE SCHLUESSEL STEHEN AUF DER LINKEN SEITE, IHR WERT LIEST ABER NICHT $step[...]: '
     . implode(', ', $ohneWertVerweis));
 
+// =================================================================================================
+// Die Aktion `innerorts_kandidaten` (07.09.2026) -- der frische Nachschlag der Staedte
+// =================================================================================================
+// 🔴 Owner: „einer bestehenden ODER ANDEREN IMPORTIERTEN Siedlung". Der Befund im `after_json`
+// stammt vom Planbau; diese Aktion rechnet gegen den heutigen Bestand.
+assert(str_contains($quelle, "\$action === 'innerorts_kandidaten'"),
+    'die Aktion `innerorts_kandidaten` steht im Endpunkt');
+assert(str_contains($quelle, 'avesmapsGaretienInnerortsKandidatenFrisch($pdo, $importRun, $ziel)'),
+    'und sie ruft den frischen Nachschlag, statt den Befund des Laufs noch einmal auszugeben');
+
+// 💣 SIE IST EIN LESEWEG UND DARF KEIN ADMIN SEIN -- der Riegel darueber nennt genau fuenf
+// Aktionen, und ein Editor muss die Staedte sehen koennen, ohne rechnen zu duerfen (dieselbe
+// Begruendung wie bei `naehe`, `liste` und `ruecknahme`).
+$adminZeile = [];
+if (preg_match("~in_array\(\\\$action, \[([^\]]*)\]~", $quelle, $treffer) === 1) {
+    $adminZeile = array_map(
+        static fn (string $t): string => trim($t, " '\"\n\t"),
+        explode(',', $treffer[1])
+    );
+}
+assert($adminZeile !== [], 'der Admin-Riegel steht als in_array-Liste da');
+assert(!in_array('innerorts_kandidaten', $adminZeile, true),
+    '💣 `innerorts_kandidaten` gehoert NICHT in den Admin-Riegel: ' . implode(', ', $adminZeile));
+assert(!in_array('naehe', $adminZeile, true) && in_array('plan', $adminZeile, true),
+    '(die Gegenprobe: `naehe` steht auch nicht drin, `plan` sehr wohl -- sonst misst die Zeile darueber nichts)');
+
+// ⚠️ BEIDE Parameter werden geprueft, wie bei `naehe`: ohne Lauf und ohne Objekt gibt es nichts
+// nachzuschlagen, und ein stiller Rueckfall auf „irgendeinen Lauf" waere die schlimmere Antwort.
+$innerortsZweig = substr($quelle, (int) strpos($quelle, "\$action === 'innerorts_kandidaten'"));
+$innerortsZweig = substr($innerortsZweig, 0, 900);
+assert(str_contains($innerortsZweig, "'no_run'") && str_contains($innerortsZweig, "'no_target'"),
+    'der Zweig lehnt eine Anfrage ohne Lauf und ohne Objekt ab: ' . $innerortsZweig);
+
 echo "OK: garetien-endpunkt-test\n";

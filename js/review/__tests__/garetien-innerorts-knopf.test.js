@@ -325,6 +325,16 @@ function pruefeAuswahlfeld() {
 	gleich(mod.garetienInnerortsWahlZu(mitListe), "dorf-aue", "die Wahl liegt neben dem DOM und haelt");
 	gleich(mod.garetienInnerortsZiel(mitListe).name, "Aue",
 		"🔴 und der Knopf nennt jetzt SIE, nicht mehr die Vorauswahl");
+	// 💣 AM KNOPF SELBST GEMESSEN, nicht nur am Leser dahinter. `garetienInnerortsZiel` richtig zu
+	// haben und ihn an der Beschriftung NICHT zu rufen ist genau der Fehler, den der Kommentar an
+	// der Handlungsleiste beschreibt: der Knopf sagte „Innerorts einfügen (Wandleth)", die Anfrage
+	// daneben schickte „dorf-aue". Eine Mutationsprobe (07.09.2026) hat diese Luecke gefunden --
+	// die Zusicherung darueber allein hat sie ueberlebt.
+	const knopfNachWahl = mod.garetienHandlungen(mitListe).filter((h) => h.name === "innerorts")[0];
+	wahr(knopfNachWahl && knopfNachWahl.beschriftung.indexOf("(Aue)") !== -1,
+		"der KNOPF traegt die gewaehlte Stadt: " + (knopfNachWahl && knopfNachWahl.beschriftung));
+	wahr(mod.garetienHandlungTitel("innerorts", mitListe).includes("Aue"),
+		"...und der Tooltip ebenso -- zwei Erzeuger, ein Leser");
 	const mitWahl = mod.garetienEingabenFuerServer(mitListe);
 	tief(mitWahl, { innerorts: true, innerorts_public_id: "dorf-aue" },
 		"⭐ DADURCH WIRKT INNERORTS UEBER DIE STAGE -- bis zum 07.09.2026 legte „Stage importieren\" "
