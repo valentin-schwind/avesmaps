@@ -833,13 +833,18 @@ garetienEingabenAendern({ target: { getAttribute: () => null, hasAttribute: () =
 gleich(garetienEingabenZustandZu(objektJ).size, 18, "ein Ziel ohne data-gi-feld bewegt nichts");
 
 // Eine Zahl wird übernommen.
-const feldGroesse = { getAttribute: () => "size", hasAttribute: () => true, type: "number", value: "27" };
+// 🪤 NAMENSTREU antworten, nicht auf jede Frage "size" -- dieselbe Lehre wie in Abschnitt H2, und
+// hier stand sie bis zum 08.09.2026 verletzt da: `getAttribute: () => "size"` beantwortet auch die
+// Frage nach `data-gi-umkreis` mit "size", und der Umkreis-Spinner (Owner 08.09.2026) hielt das
+// Zahlenfeld daraufhin fuer seinen eigenen. Ein echtes DOM-Element liefert dort `null`.
+const nurGroesse = (name) => (name === "data-gi-feld" ? "size" : null);
+const feldGroesse = { getAttribute: nurGroesse, hasAttribute: (n) => n === "data-gi-feld", type: "number", value: "27" };
 garetienEingabenAendern({ target: feldGroesse }, [objektJ]);
 gleich(garetienEingabenZustandZu(objektJ).size, 27, "eine getippte Zahl wird übernommen");
 
 // Ein kaputter/leerer Wert wird VERWORFEN, nicht als NaN gespeichert -- der letzte gültige Stand
 // bleibt stehen.
-const feldKaputt = { getAttribute: () => "size", hasAttribute: () => true, type: "number", value: "" };
+const feldKaputt = { getAttribute: nurGroesse, hasAttribute: (n) => n === "data-gi-feld", type: "number", value: "" };
 garetienEingabenAendern({ target: feldKaputt }, [objektJ]);
 gleich(garetienEingabenZustandZu(objektJ).size, 27,
 	"ein leeres Feld überschreibt den letzten gültigen Wert NICHT mit NaN");

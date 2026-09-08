@@ -487,8 +487,21 @@ assert($ohneWertVerweis === [],
 // stammt vom Planbau; diese Aktion rechnet gegen den heutigen Bestand.
 assert(str_contains($quelle, "\$action === 'innerorts_kandidaten'"),
     'die Aktion `innerorts_kandidaten` steht im Endpunkt');
-assert(str_contains($quelle, 'avesmapsGaretienInnerortsKandidatenFrisch($pdo, $importRun, $ziel)'),
+assert(str_contains($quelle, 'avesmapsGaretienInnerortsKandidatenFrisch('),
     'und sie ruft den frischen Nachschlag, statt den Befund des Laufs noch einmal auszugeben');
+
+// 🔴 Der Umkreis-Spinner (Owner 08.09.2026): BEIDE Aktionen reichen die Meilen durch DENSELBEN
+// Pruefer. 💣 Geklemmt wird serverseitig -- ein `max="20"` im Markup ist eine Bitte an den Browser,
+// und eine Umkreissuche mit 10.000 Meilen laeuft gegen den ganzen Bestand.
+assert(substr_count($quelle, 'avesmapsGaretienUmkreisMeilen(') === 2,
+    'GENAU ZWEI Aufrufe des Pruefers -- einer je Umkreis; eine Regel, die einen von zwei Erzeugern '
+    . 'bindet, ist keine Regel: ' . substr_count($quelle, 'avesmapsGaretienUmkreisMeilen('));
+foreach (['innerorts_kandidaten', 'naehe'] as $aktion) {
+    $ab = (int) strpos($quelle, "\$action === '" . $aktion . "'");
+    $zweig = substr($quelle, $ab, 1200);
+    assert(str_contains($zweig, 'avesmapsGaretienUmkreisMeilen($payload[\'meilen\'] ?? null)'),
+        'die Aktion `' . $aktion . '` liest `meilen` aus dem Rumpf und schickt es durch den Pruefer');
+}
 
 // 💣 SIE IST EIN LESEWEG UND DARF KEIN ADMIN SEIN -- der Riegel darueber nennt genau fuenf
 // Aktionen, und ein Editor muss die Staedte sehen koennen, ohne rechnen zu duerfen (dieselbe

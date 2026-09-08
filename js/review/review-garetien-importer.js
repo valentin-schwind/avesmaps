@@ -3590,7 +3590,12 @@
 		// stumm, was schlimmer ist als ein veraltetes Ergebnis.
 		// ⚠️ `input` statt `change`, damit die Spinner-Pfeile sofort greifen; ein unveränderter Wert
 		// löst nichts aus (garetienUmkreisSetzen meldet das).
-		const umkreisFeld = ziel.getAttribute("data-gi-umkreis");
+		// ⚠️ NUR WENN ES KEIN KASTENFELD IST. Ein Element ist entweder ein Feld von „Eingefügt wird"
+		// oder der Umkreis-Spinner, nie beides -- und diese Reihenfolge macht den Zweig unempfindlich
+		// gegen eine Attrappe, die jede Attributfrage mit demselben Wort beantwortet (genau daran ist
+		// garetien-eingefuegt-wird.test.js hier umgefallen, und dieselbe Lehre steht als 🪤 in seinem
+		// Abschnitt H2 -- dort war `data-gi-transport` der Leser, der darauf hereinfiel).
+		const umkreisFeld = feld ? "" : ziel.getAttribute("data-gi-umkreis");
 		if (umkreisFeld) {
 			if (!garetienUmkreisSetzen(umkreisFeld, ziel.value)) { return; }
 			if (umkreisFeld === "innerorts") {
