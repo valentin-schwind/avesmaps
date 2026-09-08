@@ -1103,6 +1103,65 @@ function avesmapsGaretienNaehe(PDO $pdo, int $importRunId, string $ziel): array
 }
 
 /**
+ * Die Innerorts-Kandidaten EINES Objekts, FRISCH gegen den heutigen Ortsbestand gerechnet.
+ *
+ * 🔴 DER GRUND IST EIN OWNER-SATZ: „einer bestehenden ODER ANDEREN IMPORTIERTEN Siedlung"
+ * (07.09.2026). Der Befund im `after_json` entsteht beim Planbau -- eine Stadt, die dieser Lauf
+ * gerade erst angelegt hat, kann darin nicht stehen. Ohne diesen Nachschlag muesste der Editor
+ * jedes Mal „Holen & Rechnen" fahren, nur um die Stadt zu sehen, die er vor zwei Minuten selbst
+ * importiert hat.
+ *
+ * 💣 UND DESHALB STEHT ER HIER UND NICHT IM LESEPFAD DER LISTE. `AVESMAPS_GARETIEN_LISTE_MAX` ist
+ * 10000: ein `liste`-Abruf liefert bis zu zehntausend Objekte, und fuer jedes die rund 2900
+ * Ortschaften abzusuchen waere zehntausend Umkreissuchen JE FILTERKLICK. Der Kommentar an
+ * `'innerorts'` weiter oben sagt genau das, und er hat recht. Dies hier ist die Gegenrichtung: EIN
+ * Objekt, EINE Umkreissuche, und nur wenn der Editor das Auswahlfeld wirklich oeffnet -- dieselbe
+ * Bauform wie `avesmapsGaretienNaehe` daneben.
+ *
+ * ⚠️ Die Punkte kommen aus der Arbeitsliste (`avesmapsGaretienListeGeometriePunkte`), nicht aus der
+ * Staging-Zeile. Fuer ein Bauwerk ist das derselbe eine Punkt -- ein `Point` reist ungekuerzt mit;
+ * ausgeduennt wird an dieser Stelle nichts.
+ *
+ * ⚠️ NUR BAUWERKE, wie im Planbau (avesmapsGaretienInnerortsBefund): gefragt wird
+ * `avesmapsIstBauwerksklasse`, nie `subtyp === 'gebaeude'` -- es gibt seit dem 31.08.2026 zwei
+ * Bauwerksklassen, und ein Vergleich auf einen Wert liesse das Stadtviertel still aus.
+ * 🔴 GEFRAGT WIRD DIE GEWAEHLTE FORM, nicht der Vorschlag: `ziel`/`subtyp` des Objekts sind die
+ * Vorbelegung, und wer im Kasten „Eingefuegt wird" auf eine Flaeche umgestellt hat, bekommt hier
+ * zu Recht nichts mehr angeboten. Der Client fragt in dem Fall gar nicht erst.
+ *
+ * @return list<array{public_id:string, name:string, meilen:float, nennt_name:bool}>
+ */
+function avesmapsGaretienInnerortsKandidatenFrisch(PDO $pdo, int $importRunId, string $ziel): array
+{
+    $objekte = avesmapsGaretienArbeitslisteObjekte($pdo, $importRunId)['objekte'];
+    $objekt = $objekte[$ziel] ?? null;
+    if ($objekt === null) {
+        return [];
+    }
+    if ((string) ($objekt['ziel'] ?? '') !== 'location'
+        || !avesmapsIstBauwerksklasse((string) ($objekt['subtyp'] ?? ''))) {
+        return [];
+    }
+    $punkte = (array) ($objekt['geometrie'] ?? []);
+    $name = trim((string) ($objekt['name'] ?? ''));
+    if ($punkte === [] || $name === '') {
+        return [];
+    }
+
+    // ⭐ Derselbe Kandidatenspeicher wie der Abgleich -- die Ortschaften werden je Anfrage EINMAL
+    // geladen, und er traegt den heutigen Bestand samt allem, was dieser Lauf schon angelegt hat.
+    $ortschaften = avesmapsGaretienKandidaten($pdo, [
+        'ziel' => 'location',
+        'subtyp' => 'stadt',
+        'suchen' => avesmapsGaretienSiedlungsFamilie(),
+    ]);
+
+    return avesmapsGaretienInnerortsListeInMeilen(
+        avesmapsGaretienInnerortsKandidaten($punkte, $name, $ortschaften)
+    );
+}
+
+/**
  * PURE: Hat dieser Lauf das Objekt als STAETTE angelegt (statt als Kartenobjekt)?
  *
  * Ein Item ist in diesem Lauf uebernommen, wenn `apply_state = 'done'`; sein Vermerk ist die angelegte

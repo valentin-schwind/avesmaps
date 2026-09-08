@@ -1628,12 +1628,14 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
             // gesetzt hat. Fehlt der Befund, bricht das Item ab und sagt warum.
             $innerortsOrt = null;
             if (avesmapsGaretienInnerortsGewuenscht($rumpfDesItems)) {
-                $innerortsOrt = avesmapsGaretienInnerortsAusVorschlag($nach);
+                $innerortsOrt = avesmapsGaretienInnerortsAusVorschlag($nach, $rumpfDesItems);
                 if ($innerortsOrt === null) {
                     throw new RuntimeException(
                         'Fuer "' . $item['label'] . '" gibt es keinen Innerorts-Befund'
-                        . ' -- der Vorschlag stammt aus einem Lauf vor dem 02.09.2026 oder das'
-                        . ' Objekt liegt nicht dicht genug an einer gleichnamigen Ortschaft.'
+                        . ' -- der Vorschlag stammt aus einem Lauf vor dem 02.09.2026 oder es liegt'
+                        . ' keine Ortschaft innerhalb von '
+                        . rtrim(rtrim(number_format(AVESMAPS_GARETIEN_INNERORTS_MEILEN, 1, ',', ''), '0'), ',')
+                        . ' Meilen. Ein "Holen & Rechnen" rechnet den Befund neu.'
                     );
                 }
             }
@@ -1894,14 +1896,45 @@ function avesmapsGaretienInnerortsGewuenscht(?array $einstellungen): bool
  *
  * ⚠️ Beides muss da sein: ohne `public_id` gaebe es keine Bindung, ohne Namen keine Anzeige.
  *
+ * 🔴 UND SEIT DEM 07.09.2026 DARF DER EDITOR WAEHLEN (Owner: „sind in der Naehe mehrere soll ein
+ * dropdown Menue sortiert nach entfernung zur auswahl stehen"). Seine Wahl steht als
+ * `innerorts_public_id` in der Handeingabe DIESES Items.
+ *
+ * 💣 SIE WIRD GEPRUEFT, NICHT GEGLAUBT: sie gilt nur, wenn sie in den `kandidaten` DIESES
+ * Vorschlags steht. Ohne den Riegel bände ein beliebiger Anfragerumpf eine Staette an eine
+ * beliebige `public_id` -- und weil `settlement_place` weich schreibt und die Staetten-Zeile nur
+ * einen Namen zeigt, faellt eine falsche Bindung niemandem auf. Denselben Weg geht
+ * `avesmapsGaretienZielUebersteuern` fuer die Form: der Client waehlt, der Server prueft gegen das,
+ * was er selbst angeboten hat.
+ * ⚠️ EINE UNBEKANNTE WAHL FAELLT AUF DIE VORAUSWAHL ZURUECK, statt zu werfen -- der einzige Weg,
+ * auf dem sie entsteht, ist ein Lauf, dessen Kandidatenliste sich seit dem Klick geaendert hat
+ * (ein zweites „Holen & Rechnen" in einem anderen Tab). Dann ist die Vorauswahl die richtige
+ * Antwort, und der Abbruchriegel weiter unten faengt den Fall, dass es gar keine gibt.
+ * 🪤 Ein Lauf VOR dem 07.09.2026 traegt gar keine `kandidaten` -- dort kann keine Wahl gelten, und
+ * die Vorauswahl ist ohnehin die einzige Stadt, die je angeboten wurde.
+ *
  * @return array{public_id:string, name:string}|null
  */
-function avesmapsGaretienInnerortsAusVorschlag(array $nach): ?array
+function avesmapsGaretienInnerortsAusVorschlag(array $nach, ?array $einstellungen = null): ?array
 {
     $befund = $nach['innerorts'] ?? null;
     if (!is_array($befund)) {
         return null;
     }
+
+    $gewaehlt = trim((string) ($einstellungen['innerorts_public_id'] ?? ''));
+    if ($gewaehlt !== '') {
+        foreach ((array) ($befund['kandidaten'] ?? []) as $kandidat) {
+            if (!is_array($kandidat) || trim((string) ($kandidat['public_id'] ?? '')) !== $gewaehlt) {
+                continue;
+            }
+            $name = trim((string) ($kandidat['name'] ?? ''));
+            if ($name !== '') {
+                return ['public_id' => $gewaehlt, 'name' => $name];
+            }
+        }
+    }
+
     $publicId = trim((string) ($befund['public_id'] ?? ''));
     $name = trim((string) ($befund['name'] ?? ''));
 

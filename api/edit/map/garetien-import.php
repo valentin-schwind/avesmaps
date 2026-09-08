@@ -263,6 +263,34 @@ try {
         avesmapsJsonResponse(200, ['ok' => true] + avesmapsGaretienNaehe($pdo, $importRun, $ziel));
     }
 
+    // --- Die Innerorts-Kandidaten EINES Objekts, frisch gerechnet.
+    //
+    // 🔴 Owner 07.09.2026: „einer bestehenden oder anderen importierten Siedlung". Der Befund im
+    // `after_json` stammt vom Planbau und kennt keine Stadt, die dieser Lauf selbst angelegt hat;
+    // diese Aktion rechnet gegen den heutigen Bestand. Gerufen wird sie, wenn der Editor das
+    // Auswahlfeld oeffnet -- nicht beim Aufbau der Liste (die Begruendung steht an
+    // avesmapsGaretienInnerortsKandidatenFrisch: bis zu 10000 Objekte je `liste`-Abruf).
+    //
+    // ⚠️ LESEWEG, also kein Admin-Riegel -- wie `naehe`, `liste` und `ruecknahme`. Er rechnet und
+    // schreibt nichts; die Wahl, die daraus folgt, geht durch `apply` und wird DORT noch einmal
+    // gegen die Kandidaten des Vorschlags geprueft (avesmapsGaretienInnerortsAusVorschlag).
+    if ($action === 'innerorts_kandidaten') {
+        $importRun = (int) ($payload['run_id'] ?? 0);
+        if ($importRun <= 0) {
+            avesmapsErrorResponse(400, 'no_run', 'Es wurde kein Import-Lauf genannt.');
+        }
+        $ziel = avesmapsNormalizeSingleLine((string) ($payload['ziel'] ?? ''), 190);
+        if ($ziel === '') {
+            avesmapsErrorResponse(400, 'no_target', 'Es wurde kein Objekt genannt.');
+        }
+        avesmapsJsonResponse(200, [
+            'ok' => true,
+            // ⚠️ Eine LEERE Liste ist eine gueltige Antwort („keine Stadt in Reichweite"), kein
+            // Fehler -- der Client laesst sein Auswahlfeld dann bei der Vorauswahl stehen.
+            'kandidaten' => avesmapsGaretienInnerortsKandidatenFrisch($pdo, $importRun, $ziel),
+        ]);
+    }
+
     // 🔴 EIN `apply` GIBT ES HIER NICHT, und das ist Absicht. Uebernommen wird ueber die
     // vorhandene Vorschau (api/edit/wiki/sync-plan.php, Art 'garetien') -- dort haengen der
     // Einzelflug-Riegel, die zweite Bestaetigung fuer Loeschungen, das Protokoll und der

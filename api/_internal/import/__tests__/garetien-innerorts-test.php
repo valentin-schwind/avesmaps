@@ -59,43 +59,88 @@ assert(avesmapsGaretienNameNenntOrt('', 'Wandleth') === false && avesmapsGaretie
 $pruefungen += 8;
 
 // =================================================================================================
-// B. Der Kandidat -- rein
+// B. Die Kandidaten -- rein, nach Entfernung sortiert
 // =================================================================================================
-$schwelle = AVESMAPS_GARETIEN_INNERORTS_MEILEN / AVESMAPS_TERRAIN_MEILEN_PER_MAPUNIT;   // 0,5 Meilen in Karteneinheiten
+// 🔴 UMBAU 07.09.2026: aus dem EINEN Kandidaten wurde eine LISTE, und der Namenstreffer ist von der
+// Bedingung zur Marke geworden. Die Begruendung samt der Messung, die dadurch umgedreht wird, steht
+// an AVESMAPS_GARETIEN_INNERORTS_MEILEN.
+$schwelle = AVESMAPS_GARETIEN_INNERORTS_MEILEN / AVESMAPS_TERRAIN_MEILEN_PER_MAPUNIT;   // 5 Meilen in Karteneinheiten
 $ortschaften = [
     ['public_id' => 'dorf-aue', 'name' => 'Aue', 'punkte' => [[100.00, 100.0]]],
     ['public_id' => 'stadt-wandleth', 'name' => 'Wandleth', 'punkte' => [[100.10, 100.0]]],
 ];
-$k = avesmapsGaretienInnerortsKandidat([[100.02, 100.0]], 'Wandlether Baumeisterzunft', $ortschaften);
-assert($k !== null && $k['public_id'] === 'stadt-wandleth',
-    '💣 die naechste Ortschaft MIT Namenstreffer gewinnt -- die naehere ohne (Aue, 0,02) ist kein stilles Veto: ' . json_encode($k));
-assert(abs($k['abstand'] - 0.08) < 1e-9, 'und der Abstand ist der zu IHR: ' . json_encode($k));
-assert(avesmapsGaretienInnerortsKandidat([[100.10 + $schwelle + 0.001, 100.0]], 'Wandlether Hof', $ortschaften) === null,
+$k = avesmapsGaretienInnerortsKandidaten([[100.02, 100.0]], 'Wandlether Baumeisterzunft', $ortschaften);
+assert(count($k) === 2, 'beide Ortschaften liegen in Reichweite und stehen zur Wahl: ' . json_encode($k));
+assert($k[0]['public_id'] === 'dorf-aue' && $k[1]['public_id'] === 'stadt-wandleth',
+    '🔴 SORTIERT NACH ENTFERNUNG (Owner 07.09.2026) -- Aue liegt 0,02 weg, Wandleth 0,08: ' . json_encode($k));
+assert($k[0]['nennt_name'] === false && $k[1]['nennt_name'] === true,
+    '💣 der Namenstreffer ist die MARKE, nicht mehr die Bedingung -- er ordnet die Liste nicht, er beschriftet sie');
+assert(abs($k[1]['abstand'] - 0.08) < 1e-9, 'und der Abstand ist der zu IHR: ' . json_encode($k));
+// 💣 DIE GEGENPROBE ZUR UMKEHR, und sie ist die Zusicherung, an der ein Rueckbau auffliegt: bis zum
+// 07.09.2026 gab ein Objektname OHNE Ortsnamen GAR KEINEN Kandidaten (Entwurf §2c, „Abstand allein
+// trennt nicht"). Der Abstand entscheidet seither nichts mehr, er BEGRENZT nur, was zur Wahl steht.
+$ohneNamen = avesmapsGaretienInnerortsKandidaten([[100.02, 100.0]], 'Rondratempel', $ortschaften);
+assert(count($ohneNamen) === 2, 'ohne Namenstreffer stehen sie trotzdem zur Wahl: ' . json_encode($ohneNamen));
+assert($ohneNamen[0]['nennt_name'] === false && $ohneNamen[1]['nennt_name'] === false, 'und beide ohne Marke');
+// 🔴 DIE VORAUSWAHL FOLGT DER LISTE NICHT. Sie nimmt den Namenstreffer, sonst waere der Umbau eine
+// Verschlechterung: der Knopf schluege „Aue" vor, waehrend „Wandleth" gemeint ist.
+assert(avesmapsGaretienInnerortsVorauswahl($k)['public_id'] === 'stadt-wandleth',
+    '💣 die Vorauswahl ist der naechste MIT Namenstreffer, nicht der naechste ueberhaupt');
+assert(avesmapsGaretienInnerortsVorauswahl($ohneNamen)['public_id'] === 'dorf-aue',
+    '...und ohne jeden Namenstreffer der naechste ueberhaupt');
+$zweiMarken = [
+    ['public_id' => 'w-fern', 'name' => 'Wandleth', 'meilen' => 0.4, 'nennt_name' => true],
+    ['public_id' => 'w-nah', 'name' => 'Wandleth', 'meilen' => 0.1, 'nennt_name' => true],
+];
+assert(avesmapsGaretienInnerortsVorauswahl($zweiMarken)['public_id'] === 'w-fern',
+    'bei mehreren Marken gewinnt die ERSTE der (nach Entfernung sortierten) Liste');
+assert(avesmapsGaretienInnerortsKandidaten([[100.10 + $schwelle + 0.001, 100.0]], 'Wandlether Hof', $ortschaften) === [],
     'jenseits der Schwelle gibt es keinen Kandidaten');
-assert(avesmapsGaretienInnerortsKandidat([[100.10 + $schwelle - 0.001, 100.0]], 'Wandlether Hof', $ortschaften) !== null,
+assert(avesmapsGaretienInnerortsKandidaten([[100.10 + $schwelle - 0.001, 100.0]], 'Wandlether Hof', $ortschaften) !== [],
     'diesseits schon -- die Schwelle ist AVESMAPS_GARETIEN_INNERORTS_MEILEN, umgerechnet in Karteneinheiten');
-// 🔴 Und die Schwelle ist die GEMESSENE (Entwurf §2d: 27 von 1048 Bauwerken unter einer halben Meile, 11
-// davon mit Ortsnamen, gegen 0,6 % jenseits von 5 Meilen) -- eine Zahl, kein Gefuehl. Wer sie aendert,
-// aendert eine Messung; die zwei Vergleiche darueber allein wandern mit der Konstante mit und saehen
-// eine Verschiebung nie (Mutationsprobe 05.09.2026).
-assert(AVESMAPS_GARETIEN_INNERORTS_MEILEN === 0.5, 'die Innerorts-Schwelle ist eine halbe Meile');
-assert(avesmapsGaretienInnerortsKandidat([[100.10 + 0.4 / AVESMAPS_TERRAIN_MEILEN_PER_MAPUNIT, 100.0]], 'Wandlether Hof', $ortschaften) !== null,
-    '0,4 Meilen: Kandidat');
-assert(avesmapsGaretienInnerortsKandidat([[100.10 + 0.6 / AVESMAPS_TERRAIN_MEILEN_PER_MAPUNIT, 100.0]], 'Wandlether Hof', $ortschaften) === null,
-    '0,6 Meilen: keiner');
-assert(avesmapsGaretienInnerortsKandidat([], 'Wandlether Hof', $ortschaften) === null, 'ohne Punkte kein Kandidat');
-assert(avesmapsGaretienInnerortsKandidat([[100.02, 100.0]], 'Rondratempel', $ortschaften) === null,
-    'ohne Namenstreffer kein Kandidat, so nah es auch liegt (Entwurf §2c: Abstand allein trennt nicht)');
+// 🔴 Die Schwelle ist seit dem 07.09.2026 eine OWNER-ZAHL, keine gemessene (die 0,5 davor war an 27
+// Faellen gemessen). Wer sie aendert, aendert eine Owner-Entscheidung; die zwei Vergleiche darueber
+// allein wandern mit der Konstante mit und saehen eine Verschiebung nie (Mutationsprobe 05.09.2026).
+assert(AVESMAPS_GARETIEN_INNERORTS_MEILEN === 5.0, 'die Innerorts-Schwelle sind fuenf Meilen');
+assert(avesmapsGaretienInnerortsKandidaten([[100.10 + 4.0 / AVESMAPS_TERRAIN_MEILEN_PER_MAPUNIT, 100.0]], 'Wandlether Hof', $ortschaften) !== [],
+    '4 Meilen: Kandidat');
+assert(avesmapsGaretienInnerortsKandidaten([[100.10 + 6.0 / AVESMAPS_TERRAIN_MEILEN_PER_MAPUNIT, 100.0]], 'Wandlether Hof', $ortschaften) === [],
+    '6 Meilen: keiner');
+assert(avesmapsGaretienInnerortsKandidaten([], 'Wandlether Hof', $ortschaften) === [], 'ohne Punkte kein Kandidat');
 $zweiTreffer = [
     ['public_id' => 'w-fern', 'name' => 'Wandleth', 'punkte' => [[100.12, 100.0]]],
     ['public_id' => 'w-nah', 'name' => 'Wandleth', 'punkte' => [[100.05, 100.0]]],
 ];
-assert(avesmapsGaretienInnerortsKandidat([[100.0, 100.0]], 'Wandlether Hof', $zweiTreffer)['public_id'] === 'w-nah',
-    'unter mehreren Treffern gewinnt der naechste');
-assert(avesmapsGaretienInnerortsKandidat([[100.02, 100.0]], 'Wandlether Hof',
-    [['public_id' => '', 'name' => 'Wandleth', 'punkte' => [[100.0, 100.0]]]]) === null,
+assert(avesmapsGaretienInnerortsKandidaten([[100.0, 100.0]], 'Wandlether Hof', $zweiTreffer)[0]['public_id'] === 'w-nah',
+    'unter mehreren Treffern steht der naechste vorn -- auch wenn er im Bestand hinten stand');
+assert(avesmapsGaretienInnerortsKandidaten([[100.02, 100.0]], 'Wandlether Hof',
+    [['public_id' => '', 'name' => 'Wandleth', 'punkte' => [[100.0, 100.0]]]]) === [],
     'ohne public_id keine Bindung, also kein Kandidat');
-$pruefungen += 11;
+// ⚠️ GEDECKELT WIRD NACH DEM SORTIEREN -- was wegfaellt, ist immer das Entfernteste. Ohne diese
+// Reihenfolge zeigte das Auswahlfeld acht beliebige statt der acht naechsten Staedte.
+$viele = [];
+for ($i = 0; $i < AVESMAPS_GARETIEN_INNERORTS_KANDIDATEN + 4; $i++) {
+    // Absichtlich in UMGEKEHRTER Reihenfolge angelegt: der entfernteste zuerst.
+    $viele[] = ['public_id' => 'ort-' . $i, 'name' => 'Ort ' . $i,
+        'punkte' => [[100.0 + 0.01 * (AVESMAPS_GARETIEN_INNERORTS_KANDIDATEN + 4 - $i), 100.0]]];
+}
+$gedeckelt = avesmapsGaretienInnerortsKandidaten([[100.0, 100.0]], 'Irgendein Hof', $viele);
+assert(count($gedeckelt) === AVESMAPS_GARETIEN_INNERORTS_KANDIDATEN,
+    'hoechstens AVESMAPS_GARETIEN_INNERORTS_KANDIDATEN stehen zur Wahl: ' . count($gedeckelt));
+assert($gedeckelt[0]['public_id'] === 'ort-' . (AVESMAPS_GARETIEN_INNERORTS_KANDIDATEN + 3),
+    'und der naechste steht vorn, nicht der erste des Bestands: ' . json_encode($gedeckelt[0]));
+$pruefungen += 18;
+
+// Der geteilte Umrechner -- EIN Erzeuger fuer Planbau und frischen Nachschlag.
+$inMeilen = avesmapsGaretienInnerortsListeInMeilen([
+    ['public_id' => 'a', 'name' => 'A', 'abstand' => 1.0, 'nennt_name' => true],
+]);
+assert(abs($inMeilen[0]['meilen'] - AVESMAPS_TERRAIN_MEILEN_PER_MAPUNIT) < 1e-9,
+    'eine Karteneinheit sind AVESMAPS_TERRAIN_MEILEN_PER_MAPUNIT Meilen: ' . json_encode($inMeilen));
+assert(!array_key_exists('abstand', $inMeilen[0]),
+    'und die Karteneinheit verlaesst den Endpunkt NICHT -- zwei Masse in einer Zeile liest niemand richtig');
+assert($inMeilen[0]['nennt_name'] === true, 'die Marke reist mit');
+$pruefungen += 3;
 
 $familie = array_column(avesmapsGaretienSiedlungsFamilie(), 1);
 assert(!in_array('gebaeude', $familie, true) && !in_array('stadtviertel', $familie, true),
@@ -246,5 +291,69 @@ $objekte3 = $nachName(avesmapsGaretienArbeitsliste($pdo, 1, []));
 assert(($objekte3['Wandlether Rondratempel']['innerorts_uebernommen'] ?? null) === false,
     'eine zurueckgenommene Staette (is_active = 0) zaehlt nicht mehr');
 $pruefungen += 3;
+
+// =================================================================================================
+// F. Die Kandidatenliste -- im Plan, in der Arbeitsliste, und FRISCH nachgeschlagen
+// =================================================================================================
+// 🔴 Owner 07.09.2026: „sind in der Naehe mehrere soll ein dropdown Menue sortiert nach entfernung
+// zur auswahl stehen". Die Liste reist IM Befund mit (ein Feld, nicht zwei -- die Begruendung steht
+// an avesmapsGaretienInnerortsBefund), also kommt sie ohne eine einzige Aenderung an
+// garetien-liste.php beim Client an. Genau das sichert dieser Abschnitt.
+$rondraKandidaten = $rondraNach['innerorts']['kandidaten'] ?? null;
+assert(is_array($rondraKandidaten) && count($rondraKandidaten) === 2,
+    'der Vorschlag traegt BEIDE Ortschaften in Reichweite: ' . json_encode($rondraKandidaten));
+assert($rondraKandidaten[0]['name'] === 'Aue' && $rondraKandidaten[1]['name'] === 'Wandleth',
+    'nach Entfernung sortiert -- Aue (0,03 Meilen) vor Wandleth (0,09): ' . json_encode($rondraKandidaten));
+assert($rondraKandidaten[0]['nennt_name'] === false && $rondraKandidaten[1]['nennt_name'] === true,
+    'mit der Marke an der Stadt, deren Namen das Bauwerk traegt');
+assert(($rondraNach['innerorts']['public_id'] ?? null) === 'stadt-wandleth',
+    '💣 und die VORAUSWAHL ist trotzdem Wandleth -- der Knopf schlaegt nicht die naechste, sondern die '
+    . 'wahrscheinliche Stadt vor (siehe avesmapsGaretienInnerortsVorauswahl)');
+assert(count($objekte['Wandlether Rondratempel']['innerorts']['kandidaten'] ?? []) === 2,
+    'und die Arbeitsliste reicht sie durch, ohne dass garetien-liste.php sie kennt: '
+    . json_encode($objekte['Wandlether Rondratempel']['innerorts'] ?? null));
+$pruefungen += 5;
+
+// Der FRISCHE Nachschlag -- die Haelfte des Owner-Satzes, die der Planbau nicht kann („oder anderen
+// importierten Siedlung"). Er rechnet gegen den HEUTIGEN Bestand, nicht gegen das `after_json`.
+$schluesselRondra = $objekte['Wandlether Rondratempel']['key'];
+$frisch = avesmapsGaretienInnerortsKandidatenFrisch($pdo, 1, $schluesselRondra);
+assert(count($frisch) === 2 && $frisch[0]['name'] === 'Aue' && $frisch[1]['name'] === 'Wandleth',
+    'derselbe Befund wie im Plan, nur eben gerade gerechnet: ' . json_encode($frisch));
+// 💣 DIE PROBE AUF DEN OWNER-SATZ: eine Stadt, die es beim Planbau noch NICHT gab, steht sofort in
+// der frischen Liste -- ohne ein zweites „Holen & Rechnen".
+$ortAnlegen->execute(['stadt-neuling', 'Neuling', 'location', 'stadt', $punkt($tx + 0.02, $ty), '{}']);
+avesmapsGaretienKandidatenVergessen();
+$frisch2 = avesmapsGaretienInnerortsKandidatenFrisch($pdo, 1, $schluesselRondra);
+assert(count($frisch2) === 3 && in_array('Neuling', array_column($frisch2, 'name'), true),
+    '🔴 eine eben angelegte Siedlung steht sofort zur Wahl: ' . json_encode(array_column($frisch2, 'name')));
+assert(count($objekte['Wandlether Rondratempel']['innerorts']['kandidaten']) === 2,
+    '...waehrend der Befund im `after_json` unberuehrt bleibt -- er ist ein Schnappschuss des Planbaus');
+assert(avesmapsGaretienInnerortsKandidatenFrisch($pdo, 1, 'gibtesnicht') === [],
+    'ein unbekanntes Objekt: leere Liste, kein Fehler');
+assert(avesmapsGaretienInnerortsKandidatenFrisch($pdo, 1, $objekte['Wandlether Vorwerk']['key']) === [],
+    '🔴 NUR BAUWERKE -- ein Dorf neben einer Stadt ist ein Nachbardorf, auch im frischen Nachschlag');
+$pruefungen += 5;
+
+// =================================================================================================
+// G. Die WAHL des Editors -- geprueft, nicht geglaubt
+// =================================================================================================
+require_once __DIR__ . '/../garetien-uebernahme.php';
+$nachMitListe = $rondraNach;
+assert((avesmapsGaretienInnerortsAusVorschlag($nachMitListe)['public_id'] ?? null) === 'stadt-wandleth',
+    'ohne Wahl gilt die Vorauswahl -- wie vor dem 07.09.2026');
+assert((avesmapsGaretienInnerortsAusVorschlag($nachMitListe, ['innerorts_public_id' => 'dorf-aue'])['name'] ?? null) === 'Aue',
+    'eine Wahl aus der Liste gilt: der Editor entscheidet sich fuer das naehere Dorf');
+// 💣 DER RIEGEL. Ohne ihn bände ein beliebiger Anfragerumpf eine Staette an eine beliebige
+// public_id -- und weil settlement_place weich schreibt und die Staetten-Zeile nur einen Namen
+// zeigt, faellt eine falsche Bindung niemandem auf.
+assert((avesmapsGaretienInnerortsAusVorschlag($nachMitListe, ['innerorts_public_id' => 'stadt-erfunden'])['public_id'] ?? null) === 'stadt-wandleth',
+    '💣 eine Stadt, die NICHT in den Kandidaten steht, faellt auf die Vorauswahl zurueck -- nie durch');
+$ohneListe = ['innerorts' => ['public_id' => 'stadt-wandleth', 'name' => 'Wandleth', 'meilen' => 0.09]];
+assert((avesmapsGaretienInnerortsAusVorschlag($ohneListe, ['innerorts_public_id' => 'dorf-aue'])['public_id'] ?? null) === 'stadt-wandleth',
+    '🪤 ein Lauf VOR dem 07.09.2026 traegt keine `kandidaten` -- dort kann keine Wahl gelten');
+assert(avesmapsGaretienInnerortsAusVorschlag(['innerorts' => []], ['innerorts_public_id' => 'dorf-aue']) === null,
+    'und ohne Befund gibt es nichts zu waehlen');
+$pruefungen += 5;
 
 echo "OK: {$pruefungen} Pruefungen\n";
