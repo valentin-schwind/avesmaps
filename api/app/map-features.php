@@ -137,7 +137,21 @@ require_once __DIR__ . '/../_internal/app/map-features-cache.php';
 //    607 alte Titel-Bezeichner im Rumpf; fuenf Minuten spaeter 0 alte, 607 Arten. Wer die erste
 //    Messung glaubt, sucht den Fehler in seinem Code, wo keiner ist. ⭐ Nach dem Deploy erst
 //    NACH der Frist messen -- oder am ETag ablesen, dass der Aufbau ueberhaupt neu WAR.
-const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 22;
+// 23 (08.09.2026): die Wiki-Adresse kommt aus der ZUWEISUNG statt aus dem Namen
+//    (avesmapsEnrichMapFeatureWikiUrl, Rueckbau des Rateweges). Kein neues Feld, sondern ein
+//    WERTwechsel in `properties.wiki_url`: rund 100 Objekte verlieren ihren Link, 171 bekommen
+//    einen, 43 bekommen einen anderen.
+//    💣 UND GENAU DESHALB WAER ER OHNE DIESEN BUMP UNSICHTBAR GEBLIEBEN -- derselbe Riegel wie bei
+//    20 und 21: `map_revision` bewegt sich von einer Code-Aenderung nicht, das ETag ist Zeichen fuer
+//    Zeichen dasselbe, und ein warmer Browser (js/app/kartendaten-speicher.js legt Nutzlast und Tag
+//    in IndexedDB ab) bekommt sein 304 samt der alten, GERATENEN Adresse. Im Editor faellt das nie
+//    auf -- dort wird weder gelesen noch abgelegt --, beim Besucher immer.
+//    🪤 Gefunden hat es ein Pruefagent NACH dem Deploy, nicht der Autor und kein Test: die
+//    Bump-Regel steht in dieser Liste dreimal ausgeschrieben, und sie wurde trotzdem uebersehen,
+//    weil der Umbau sich wie ein Bugfix anfuehlte und nicht wie eine Nutzlast-Aenderung.
+//    ⭐ Die Frage, die das faengt: aendert mein Fix den INHALT dieser Antwort, ohne ein Kartenobjekt
+//    anzufassen? Dann gehoert der Bump dazu -- unabhaengig davon, ob ein Feld dazukommt.
+const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 23;
 
 // 🔴 avesmapsMapFeaturesWikiNamespaces() UND die zugehoerige Typ-Zuordnung stehen NICHT hier,
 // sondern in api/_internal/app/feature-sources.php, direkt neben avesmapsFeatureSourcesDeriveKanon,
