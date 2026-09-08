@@ -202,7 +202,7 @@
 <body>
 	<div class="hb-topbar">
 		<span class="hb-topbar__title">Avesmaps · Editor-Handbuch</span>
-		<span class="hb-topbar__meta">Stand: 08.09.2026</span>
+		<span class="hb-topbar__meta">Stand: 09.09.2026</span>
 		<div class="hb-topbar__actions">
 			<button type="button" class="theme-toggle-btn" aria-label="Auf dunkles Design umschalten" title="Design umschalten (hell/dunkel)">
 				<svg class="theme-toggle-ico theme-toggle-ico--sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2" /><g stroke-width="1.9" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="4.4" /><line x1="12" y1="19.6" x2="12" y2="22" /><line x1="2" y1="12" x2="4.4" y2="12" /><line x1="19.6" y1="12" x2="22" y2="12" /><line x1="4.9" y1="4.9" x2="6.6" y2="6.6" /><line x1="17.4" y1="17.4" x2="19.1" y2="19.1" /><line x1="4.9" y1="19.1" x2="6.6" y2="17.4" /><line x1="17.4" y1="6.6" x2="19.1" y2="4.9" /></g></svg>
@@ -1290,9 +1290,16 @@
 				<p>Beim Öffnen läuft die Prüfung einmal automatisch. <strong>Neu prüfen</strong> oben rechts wiederholt sie — nötig, nachdem du etwas repariert hast oder ein Sync gelaufen ist.</p>
 				<h4>Die Zeile „Letzter Dump-Lauf" ganz oben</h4>
 				<p>Über den Fällen sitzt fest verankert eine Zeile, die <em>kein</em> Fall ist: der Bericht des letzten <strong>„📥 Dump holen"</strong>. Sie nennt den Zeitpunkt und ob der Lauf <strong>unauffällig</strong> war oder <strong>auffällig</strong> — dann steht der Grund gleich daneben, etwa <em>„1 Selbsttest rot"</em>, <em>„Schritt … nicht abgeschlossen"</em> oder <em>„… weniger als im vorigen Lauf"</em>. Ein Klick öffnet die vollen Zahlen des Laufs. Gab es noch keinen Bericht, steht dort <em>„kein Bericht vorhanden"</em>.</p>
-				<div class="hb-note hb-tip"><strong>Die Zeile ist zum Lesen da, nicht zum Entscheiden.</strong> Sie hat keine Knöpfe, zählt in keinem Zähler mit und bleibt auch ohne Konflikte stehen. Ein <em>auffälliger</em> Bericht ist ein Hinweis an den Betreiber, keine Aufgabe für dich.</div>
+				<div class="hb-note hb-tip"><strong>Die Zeile ist zum Lesen da, nicht zum Entscheiden.</strong> Ein <em>auffälliger</em> Bericht ist ein Hinweis an den Betreiber, keine Aufgabe für dich.</div>
 				<h4>Die Leiste links</h4>
-				<p>Drei Filter, die sich kombinieren lassen. <strong>Objektart</strong> zeigt, was betroffen ist — ein Fall zwischen einem Ort und einem Territorium erscheint unter <em>beiden</em>. <strong>Schweregrad</strong> sagt, wie dringend hingeschaut werden sollte — nicht, wer recht hat. <em>Wichtig</em> heißt: hier stimmt etwas nachweislich nicht zusammen (zwei Objekte auf einem Artikel). Ob das <em>falsch</em> ist, entscheidest du — manches ist gewollt. <em>Abweichung</em> heißt: Karte und Wiki sind verschiedener Meinung. <em>Ungeprüft</em> heißt: hat nur noch niemand angesehen. <strong>Status</strong> ist die Zustandsanzeige eines Falls:</p>
+				<p>Drei Filter, die sich kombinieren lassen. <strong>Objektart</strong> zeigt, was betroffen ist — ein Fall zwischen einem Ort und einem Territorium erscheint unter <em>beiden</em>. <strong>Schweregrad</strong> sagt, wie dringend hinzusehen ist — nicht, wer recht hat:</p>
+				<table class="hb-table">
+					<tr><th>Schweregrad</th><th>Bedeutung</th></tr>
+					<tr><td><strong>Wichtig</strong></td><td>Hier stimmt etwas nachweislich nicht zusammen — zwei Objekte auf einem Artikel. Ob das <em>falsch</em> ist, entscheidest du; manches ist gewollt.</td></tr>
+					<tr><td><strong>Abweichung</strong></td><td>Karte und Wiki sind verschiedener Meinung.</td></tr>
+					<tr><td><strong>Ungeprüft</strong></td><td>Hat nur noch niemand angesehen.</td></tr>
+				</table>
+				<p><strong>Status</strong> ist die Zustandsanzeige eines Falls:</p>
 				<table class="hb-table">
 					<tr><th>Status</th><th>Bedeutung</th></tr>
 					<tr><td><strong>Offen</strong></td><td>Sollte gemacht werden. Niemand hat sich entschieden.</td></tr>
@@ -1325,16 +1332,21 @@
 					<tr><td><strong>Zurückstellen</strong> / <strong>Archivieren</strong></td><td>Ändern keine Daten.</td></tr>
 				</table>
 				<div class="hb-note hb-warn"><strong>Der wichtigste Unterschied im ganzen Fenster:</strong> „Trennen" allein kann rückgängig gemacht werden, ohne dass es jemand merkt — der Server darf bei passendem Namen erneut verknüpfen. Wenn du <em>weißt</em>, dass es im Wiki nichts gibt, nimm <strong>„Kein Wiki-Eintrag"</strong>. Das ist die Angabe, die hält.</div>
-				<div class="hb-note hb-warn"><strong>Bei einem Weg und bei einer Kraftlinie fasst jeder dieser Knöpfe die <em>ganze Linie</em></strong> — mit allen ihren Abschnitten, nicht nur den einen, den du gerade ansiehst. Das gilt für „Behält den Link", „Trennen", „Kein Wiki-Eintrag" und „Artikel übernehmen" gleichermaßen. Bei einem <strong>Ort, einer Region und einem Territorium</strong> trifft der Klick dagegen genau dieses eine Objekt. Was auf der Karte eine Linie ist, sind in den Daten viele kurze Stücke (siehe <a href="#kraftlinien">Kraftlinien</a>). Der Knopf sagt dir die Reichweite vorher; die Zahl daneben („6 Segmente") ist gemeint, wie sie dasteht.</div>
+				<div class="hb-note hb-warn"><strong>Bei einem Weg und bei einer Kraftlinie fasst jeder dieser Knöpfe die <em>ganze Linie</em></strong> — alle Abschnitte, nicht nur den, den du ansiehst; das gilt für alle vier Knöpfe oben. Bei <strong>Ort, Region und Territorium</strong> trifft der Klick genau das eine Objekt. Der Knopf nennt die Reichweite vorher, und die Zahl daneben („6 Segmente") ist wörtlich gemeint.</div>
 				<p>Manche Objekte tragen den Hinweis <em>„aus der Wiki-Zuordnung"</em>. Bei ihnen hängt die Verknüpfung an der ganzen Infobox — Einwohner, Region, Wappen. Sie werden hier bewusst nicht angefasst; das gehört in den jeweiligen Sync-Editor.</p>
 				<h4>Wann ein Fall wiederkommt</h4>
 				<p>Konflikte werden bei jeder Prüfung <strong>neu berechnet</strong>, nicht gespeichert. Ein reparierter verschwindet also von selbst. Eine Entscheidung gilt für <em>die Lage, zu der du sie getroffen hast</em>: ändert sich daran etwas — im Wiki oder bei uns —, taucht der Fall wieder als offen auf.</p>
-				<div class="hb-note hb-tip"><strong>Was verglichen wird.</strong> Auf denselben Wiki-Artikel geprüft werden <strong>Orte, Wege, Regionen, Kraftlinien, Territorien, Literatur und Karten</strong> — quer über alle Tabellen hinweg. So fällt auch auf, wenn eine Siedlung und eine gleichnamige Baronie denselben Artikel beanspruchen. Dazu kommen die Fälle aus dem letzten WikiSync-Lauf.</div>
-				<div class="hb-note hb-tip"><strong>Eine Karte zählt nur mit einem <em>von Hand</em> gesetzten Artikel.</strong> Ihr Wiki-Schlüssel ist kein Artikel, sondern aus Stadt, Quelle und Variante gebaut; ihr Karten-Link und ein aus dem Wiki übernommener Artikel zeigen auf die <em>Publikation</em>, in der die Karte abgedruckt ist. Dass Dutzende Karten aus demselben Band dieselbe Seite tragen, ist kein Widerspruch — all das bleibt ungelesen. Eine Karte <em>ohne</em> Artikel steht ebenfalls nicht auf der Liste: Die weit überwiegende Mehrheit ist von uns gezeichnet. Ganz draußen bleiben die <strong>Quellen</strong>: dass viele Objekte dieselbe Publikation zitieren, ist der Sinn eines gemeinsamen Quellenverzeichnisses.</div>
+				<h4>Was verglichen wird</h4>
+				<p>Auf denselben Wiki-Artikel geprüft werden <strong>Orte, Wege, Regionen, Kraftlinien, Territorien, Literatur und Karten</strong> — quer über alle Tabellen. So fällt auf, wenn eine Siedlung und eine gleichnamige Baronie denselben Artikel beanspruchen. Dazu kommen die Fälle aus dem letzten WikiSync-Lauf.</p>
+				<table class="hb-table">
+					<tr><th>Bleibt draußen</th><th>Warum</th></tr>
+					<tr><td><strong>Karten ohne von Hand gesetzten Artikel</strong></td><td>Ihr Wiki-Schlüssel ist kein Artikel, und ein übernommener Link zeigt auf die <em>Publikation</em>. Dass Dutzende Karten desselben Bandes dieselbe Seite tragen, ist kein Widerspruch.</td></tr>
+					<tr><td><strong>Quellen</strong></td><td>Dass viele Objekte dieselbe Publikation zitieren, ist der Sinn eines gemeinsamen Quellenverzeichnisses.</td></tr>
+				</table>
 				<h4>Die Gruppe „Dieselbe Beschriftung zweimal"</h4>
 				<p>Die einzige Gruppe, die keinen Wiki-Widerspruch meldet, sondern <strong>doppelte Daten bei uns</strong>: zwei Beschriftungen mit demselben Wiki-Artikel, demselben Namen und derselben Art. Eine davon zeichnet die Karte meist gar nicht und ist dort nicht anklickbar — deshalb steht der Löschknopf hier. Mehrere Beschriftungen <em>einer</em> Landschaftsfläche sind kein Fall: ein langes Gebirge darf seinen Namen mehrfach tragen.</p>
 				<p>Die Beteiligten sehen einander zum Verwechseln ähnlich. Unterscheiden kannst du sie an der <strong>Lage</strong> (<em>x … · y …</em>) und daran, ob eine von ihnen eine <strong>Höhe</strong> trägt.</p>
-				<div class="hb-note hb-warn"><strong>Trägt eine Beschriftung eine Höhe, ist sie ein Stützpunkt des Höhenfelds der Karte.</strong> Gipfel und Vulkane geben dem Gelände mit ihrer Höhe in <em>Schritt</em> seine Form; löschst du die falsche der beiden, verliert die Karte diesen Stützpunkt lautlos. Deshalb fragt genau diese Zeile ein <strong>zweites Mal</strong> nach und nennt die Folge beim Namen — trägt der Zwilling keine Höhe, sagt sie das zusätzlich. Die höhenlose Zeile bleibt ein normaler Klick. <strong>Im Zweifel die ohne Höhe löschen.</strong></div>
+				<div class="hb-note hb-warn"><strong>Trägt eine Beschriftung eine Höhe, ist sie ein Stützpunkt des Höhenfelds der Karte.</strong> Gipfel und Vulkane geben dem Gelände mit ihrer Höhe in <em>Schritt</em> seine Form; löschst du die falsche der beiden, verliert die Karte den Stützpunkt lautlos. Genau diese Zeile fragt deshalb ein <strong>zweites Mal</strong> nach. <strong>Im Zweifel die ohne Höhe löschen.</strong></div>
 				<div class="hb-note hb-tip"><strong>Steht statt des Knopfes <em>„gehört zu einer Landschaftsfläche"</em>, ist das kein Fehler.</strong> An dieser Beschriftung hängt eine gezeichnete Fläche; wäre sie deren letzte, verschwände die ganze Fläche mit ihr. Das gehört in den <a href="#landschaften">Landschaften</a>-Editor, nicht hierher.</div>
 				<h4>Zwei Gruppen, die sich zum Verwechseln ähnlich lesen</h4>
 				<p>Beide heißen sinngemäß „hat nichts im Wiki" — sie beantworten aber verschiedene Fragen:</p>
@@ -1343,7 +1355,7 @@
 					<tr><td><strong>Kein Wiki-Schlüssel</strong></td><td><strong>Am Objekt steht kein Link.</strong> Eine Zustandsangabe — es hat noch niemand verknüpft. Ob es im Wiki etwas gäbe, ist damit gar nicht gesagt. Gilt für <em>alle</em> Objektarten und wird bei jeder Prüfung neu berechnet.</td></tr>
 					<tr><td><strong>Keine Zuordnung gefunden</strong></td><td><strong>Es wurde gesucht — erfolglos.</strong> Der WikiSync-Lauf hat über Namen und ähnliche Schreibweisen geprüft und nicht einmal einen Kandidaten gefunden. Gilt nur für <em>Orte</em> (Siedlungen und Bauwerke) und ist eine Momentaufnahme des letzten Laufs.</td></tr>
 				</table>
-				<div class="hb-note hb-tip"><strong>Ein Ort kann in beiden stehen</strong> — das ist kein Doppeleintrag: die eine Gruppe beschreibt seinen Zustand, die andere das Ergebnis einer Suche. Manche Fälle stehen nur in einer der beiden, und die sagen jeweils etwas Eigenes:</div>
+				<p><strong>Ein Ort kann in beiden stehen</strong> — kein Doppeleintrag: die eine Gruppe beschreibt seinen Zustand, die andere das Ergebnis einer Suche. Manche Fälle stehen nur in einer der beiden, und die sagen jeweils etwas Eigenes:</p>
 				<table class="hb-table">
 					<tr><th>Steht nur in …</th><th>Was das bedeutet</th></tr>
 					<tr><td><strong>Kein Wiki-Schlüssel</strong></td><td>Alles, was kein Ort ist — <strong>Wege, Regionen, Kraftlinien</strong> ohne Link, denn der WikiSync-Lauf schaut die gar nicht an. Dazu Orte ohne Link, deren Name im Wiki <em>sehr wohl</em> etwas trifft: die tragen dann <em>„passender Artikel gefunden“</em> und sind der handfeste Fall — es fehlt nur die Verknüpfung.</td></tr>
@@ -1378,12 +1390,16 @@
 					<tr><th>Knopf</th><th>Was er tut</th></tr>
 					<tr><td><strong>Auf die Stage</strong></td><td>Legt das Objekt zur Ansicht auf die Karte. Schreibt nichts.</td></tr>
 					<tr><td><strong>Von der Stage nehmen</strong></td><td>Nimmt es wieder herunter. Derselbe Fleck, sobald es oben liegt.</td></tr>
-					<tr><td><strong>Innerorts einfügen (Stadt)</strong></td><td>Legt es <strong>sofort</strong> als Stätte <em>in</em> einer Stadt an, ohne eigene Kartenposition. Die Stadt steht im Knopf — stimmt sie nicht, drück ihn nicht.</td></tr>
+					<tr><td><strong>Innerorts einfügen (Stadt)</strong></td><td>Schnellweg: legt es <strong>sofort</strong> als Stätte <em>in</em> der Stadt an, die im Knopf steht — ohne eigene Kartenposition.</td></tr>
 					<tr><td><strong>Ablehnen</strong></td><td>Verwirft das Objekt. Als einziger <strong>rot</strong>.</td></tr>
 					<tr><td><strong>Wieder vorschlagen</strong></td><td>Holt ein abgelehntes Objekt zurück nach <em>Offen</em>.</td></tr>
 				</table>
 				<div class="hb-note hb-tip"><strong>Die zweite Zeile von „Auf die Stage" sagt, was der Import wirklich tut.</strong> <em>„als Fluss"</em> legt ein neues Objekt an. <em>„ergänzt nur die Quelle"</em> hängt Quelle und Artikel an ein bestehendes. <em>„nur Ansicht"</em> heißt: hier gibt es nichts zu importieren, du siehst es nur. <em>„zusätzlich als …"</em> heißt: der Abgleich hat etwas Ähnliches gefunden, das Objekt kommt trotzdem als eigenes dazu — dafür kommt eine Rückfrage.</div>
 				<p>Ein <strong>übernommenes</strong> Objekt zeigt statt dieser Knöpfe drei andere: <strong>„Zurücknehmen"</strong> holt es von der Karte zurück, <strong>„Ablehnen"</strong> nimmt es zurück <em>und</em> legt es nach <em>Abgelehnt</em>, <strong>„Zurück nach Offen"</strong> stellt es wieder zur Entscheidung.</p>
+				<h4>Innerorts statt auf die Karte</h4>
+				<p>Ein Bauwerk kann als <strong>Stätte in einer Stadt</strong> landen statt als eigener Punkt. Im Kasten <strong>„Eingefügt wird"</strong> steht dafür die Zeile <strong>„Innerorts"</strong> mit allen Städten in Reichweite, nach Entfernung sortiert. Vorgewählt ist <strong>„— auf die Karte —"</strong>; wählst du eine Stadt, sagt die Zeile darunter, was das heißt — kein Kartenpunkt, und Form und Art gelten dafür nicht.</p>
+				<p>Die Wahl gilt für <strong>beide Wege</strong>: für „Stage importieren" ebenso wie für den Schnellknopf, der die gewählte Stadt beim Namen nennt. Der <strong>Umkreis</strong> darunter steuert, wie weit gesucht wird — <strong>0 bis 20 Meilen</strong>, Vorgabe 5. Er steht auch da, wenn nichts gefunden wurde; dann dreh ihn hoch.</p>
+				<div class="hb-note hb-warn"><strong>Die Vorauswahl ist mit Absicht „auf die Karte".</strong> Der Vorschlag des Servers steht in der Liste, angehakt ist er nicht. Sonst legte ein „Stage importieren" für hunderte Objekte stillschweigend Stätten an — und ein falsch einsortiertes Objekt ist von außen nicht von einem fehlenden zu unterscheiden.</div>
 				<h4>Mehrere auf einmal: die Auswahlleiste</h4>
 				<p>Sobald du eine Zeile ankreuzt, erscheint unter der Liste eine Leiste. Jeder ihrer Knöpfe trägt das Wort <strong>Auswahl</strong> und wirkt auf die Häkchen — nie auf das Objekt rechts. Welche Knöpfe kommen, hängt vom Reiter ab:</p>
 				<table class="hb-table">
@@ -1404,7 +1420,8 @@
 					<li><strong>Stage importieren</strong> ist die Haupthandlung des Fensters — der einzige gefüllte Knopf.</li>
 				</ul>
 				<h4>Nachbarn mitnehmen</h4>
-				<p>Unter dem gewählten Objekt steht <strong>„Imports in der Nähe wählen"</strong>. Er kreuzt an, was in der Umgebung liegt — mehr nicht; auf die Stage kommen die Treffer über die Auswahlleiste. Das Feld daneben grenzt ein: <em>gleicher Typ</em> (Vorgabe), ein einzelner Typ oder <em>alle Typen</em>. Die Zahl im Knopf folgt deiner Wahl.</p>
+				<p>Unter dem gewählten Objekt steht <strong>„Imports in der Nähe wählen"</strong>. Er kreuzt an, was in der Umgebung liegt — mehr nicht; auf die Stage kommen die Treffer über die Auswahlleiste. Das Feld daneben grenzt ein: <em>gleicher Typ</em> (Vorgabe), ein einzelner Typ oder <em>alle Typen</em>. <strong>„Umkreis +"</strong> stellt die Weite, <strong>0 bis 20 Meilen</strong>, Vorgabe 3. Die Zahl im Knopf folgt beidem.</p>
+				<div class="hb-note hb-tip"><strong>„Umkreis +" ist ein Zuschlag, kein Radius.</strong> Gemessen wird ab dem <em>Rand</em> des gewählten Objekts. Eine große Waldfläche ist sonst breiter als ihr eigener Suchkreis und fände nichts.</div>
 				<h4>Die Statuszeile</h4>
 				<p>Unter dem Menüband läuft eine Zeile mit, die jede Rückmeldung des Fensters trägt. In Ruhe steht dort die Bilanz des Laufs: <em>„Lauf … · 4.312 Objekte · 900 mit Vorschlag · 12 auf der Stage"</em>. Nach einem Import steht dort, was entstanden ist — <em>„✓ 4 Objekte importiert — 3 Wege (2 Bäche), 1 Fläche"</em> — und daneben ein <strong>„Rückgängig"</strong>-Link, der die eben angelegten Objekte wieder entfernt.</p>
 				<div class="hb-note hb-tip"><strong>Ging etwas schief, wird die Zeile rot und nennt den Grund des Servers</strong> — <em>„✕ 1 von 4 nicht importiert: …"</em>. Die Liste bleibt dabei stehen, wie sie war; du verlierst deine Auswahl nicht.</div>
@@ -1850,7 +1867,10 @@
 
 				<h4>Originalkarte herunterladen</h4>
 				<p>Ganz unten auf derselben Seite stehen die Archive, aus denen die Kartenkacheln entstanden sind. Sie gehen über ein Gigabyte; bricht der Download ab, setzt er fort statt von vorn zu beginnen.</p>
-				<div class="hb-note hb-warn"><strong>Arbeitsmaterial, nicht zur Weitergabe.</strong> Das Projekt hat zugesagt, kein reines Bilderarchiv zu sein. Jeder Download wird mit deinem Namen festgehalten.</div>
+				<h4>Ein Archiv an Externe geben</h4>
+				<p>In jeder Archiv-Zeile steckt die Falte <strong>„Link für Externe …"</strong>. Trag ein, <strong>für wen</strong> der Link ist, wähl die Frist — <strong>1, 7 oder 30 Tage</strong>, Vorgabe 7 — und drück <strong>„Link erzeugen"</strong>. Er funktioniert ohne Anmeldung und gilt für genau diese eine Datei.</p>
+				<p>Darunter steht <strong>„Ausgegebene Links"</strong> mit Notiz, Datei, Restlaufzeit, Aussteller und Abrufzahl. Die Adresse steht in einem Feld <strong>zum Kopieren</strong> — klick sie nicht an, sonst lädst du dir selbst das Archiv herunter. <strong>„Zurückziehen"</strong> macht einen Link sofort ungültig.</p>
+				<div class="hb-note hb-warn"><strong>Arbeitsmaterial.</strong> Das Projekt hat zugesagt, kein reines Bilderarchiv zu sein — darum ist ein Link befristet und an eine Datei gebunden. Jeder Download wird festgehalten, auch der über einen Link.</div>
 
 				<h4>Datenbank-Backup</h4>
 				<p>Nur Admins. Ein Klick auf <strong>„Backup erstellen"</strong> zieht Schema <em>und</em> Daten als gepackte <code>.sql.gz</code>-Datei; einspielen lässt sie sich per <code>mysql</code> oder über den Import von phpMyAdmin. Der Lauf geht in kleinen Schritten: <strong>den Tab offen lassen, bis 100&nbsp;% erreicht sind</strong>. Der Haken <em>„WikiSync-Zwischenspeicher überspringen"</em> macht die Datei kleiner.</p>
