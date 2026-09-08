@@ -241,10 +241,11 @@ assert(
 //      vollstaendig liest. Jetzt laeuft sie ueber den ganzen api/-Baum.
 //   2. Sie suchte `"['wiki_path'] = "` MIT Leerzeichen; `$props['wiki_path']=$p;` lief gruen durch.
 //      Jetzt `\['wiki_path'\]\s*=` (und kein `==`).
-// ⚠️ Ausnahmen sind einzeln benannt und begruendet, nicht pauschal: die zwei Stellen in
-// path-verlauf.php sind keine Zuweiser, sondern NACHSTEMPLER -- sie lesen ein VORHANDENES
+// ⚠️ Ausnahmen sind einzeln benannt und begruendet, nicht pauschal: die zwei Stellen des
+// Verlauf-Syncs sind keine Zuweiser, sondern NACHSTEMPLER -- sie lesen ein VORHANDENES
 // `$props['wiki_path']`, aendern `source`/`course_hash`/`course_hops` darin und steigen aus, wenn
-// gar keines da ist (:58-75, :1376-1381). Ein Nachstempeln ist keine neue Zuweisung und darf den
+// gar keines da ist (path-verlauf.php:58-75,
+// path-verlauf-faelle.php:164-169). Ein Nachstempeln ist keine neue Zuweisung und darf den
 // Merker deshalb nicht anfassen.
 // ⚠️ Ebenfalls Textprobe -- jeder dieser Wege braucht eine PDO.
 const AVESMAPS_WEG_TEST_KEINE_ZUWEISER = [
