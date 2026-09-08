@@ -67,6 +67,18 @@ try {
         'undo_audit_change' => avesmapsUndoAuditChange($pdo, $payload, $user),
         'acquire_lock' => avesmapsAcquireMapFeatureLock($pdo, $payload, $user),
         'release_lock' => avesmapsReleaseMapFeatureLock($pdo, $payload, $user),
+        // Die Spalte `feature_type` einer Kreuzung nachziehen, deren Undo sie stehen liess (Befund
+        // 08.09.2026, siehe avesmapsRepairCrossingFeatureType). NUR Admins; Trockenlauf ist die
+        // Vorgabe, scharf erst mit `apply: true` -- dieselbe Bauform wie `repair_geometry_bounds`.
+        'repair_crossing_type' => (static function () use ($pdo, $payload, $user): array {
+            if (!avesmapsUserCan($user, 'admin')) {
+                avesmapsErrorResponse(403, 'forbidden', 'Das Nachziehen des Kreuzungstyps ist Admins vorbehalten.');
+            }
+            $scharf = ($payload['apply'] ?? false) === true;
+            $limit = (int) ($payload['limit'] ?? 500);
+
+            return avesmapsRepairCrossingFeatureType($pdo, $user, !$scharf, $limit > 0 ? $limit : 500);
+        })(),
         default => throw new InvalidArgumentException('Die Edit-Aktion ist unbekannt.'),
     };
 

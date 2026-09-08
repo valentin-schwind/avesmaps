@@ -1837,6 +1837,111 @@ function avesmapsCreateCrossingFeature(PDO $pdo, array $payload, array $user): a
     }
 }
 
+// 💣 DIE GEGENPROBE ZUM UNDO-LECK. Eine Zeile mit `feature_subtype = 'crossing'` MUSS eine
+// Kreuzungsschreibweise im `feature_type` tragen -- 'junction' seit dem Anlegepfad, 'crossing' als
+// Altbestand (929 Zeilen, Dump 04.09.2026). Die Paarung location|crossing ist ueber KEINEN Schreibweg
+// herstellbar: `avesmapsReadLocationSubtype` wirft fuer 'crossing' (es steht nicht in
+// AVESMAPS_LOCATION_SUBTYPES), „Zu Ort konvertieren" setzt also immer eine echte Ortsgroesse. Wo die
+// Paarung trotzdem steht, ist sie Beschaedigung -- entstanden am Undo von `update_point`, das die Spalte
+// stehen liess (Erzeuger geschlossen am 08.09.2026, siehe avesmapsUndoColumnsForAuditAction). Am Dump
+// vom 04.09.2026 genau EINE Zeile von 18.703.
+//
+// 🔴 TROCKENLAUF IST DIE VORGABE, scharf erst mit `apply: true` -- dieselbe Bauform wie
+// `repair_geometry_bounds` und `takeover_other_sources`.
+// ⚠️ AUCH INAKTIVE Zeilen: eine beschaedigte Zeile im Papierkorb kaeme beim Wiederherstellen
+// falsch zurueck. Die Kartenrevision wird EINMAL gebumpt, nicht je Zeile -- es ist ein Vorgang, und ohne
+// den Bump behielte jeder warme Browser seine 304-Antwort mit dem alten Typ (AGENTS.md §10).
+// ⚠️ Ohne Transaktion, wie das Geschwister `repair_geometry_bounds`: der Lauf ist idempotent,
+// ein Abbruch laesst sich einfach wiederholen.
+function avesmapsRepairCrossingFeatureType(PDO $pdo, array $user, bool $trockenlauf = true, int $limit = 500): array {
+    $limit = max(1, min($limit, 5000));
+
+    // ⚠️ Die Schranke wird INTERPOLIERT, nicht gebunden -- das ist die Form des Hauses
+    // (api/edit/reports/locations.php, api/_internal/app/lore.php). `$limit` ist eine Zeile darueber
+    // auf 1..5000 geklemmt, also eine Zahl und keine Eingabe; ein gebundenes LIMIT gaebe es sonst
+    // nirgends im Projekt.
+    $lesen = $pdo->prepare(
+        "SELECT id, public_id, feature_type, feature_subtype, name, properties_json, is_active
+        FROM map_features
+        WHERE feature_subtype = 'crossing'
+          AND feature_type NOT IN ('junction', 'crossing')
+        ORDER BY id ASC
+        LIMIT " . $limit
+    );
+    $lesen->execute();
+    $zeilen = $lesen->fetchAll(PDO::FETCH_ASSOC);
+
+    $stichprobe = [];
+    $repariert = 0;
+    $revision = 0;
+    $schreiben = null;
+
+    if ($zeilen !== [] && !$trockenlauf) {
+        $revision = avesmapsNextMapRevision($pdo);
+        $schreiben = $pdo->prepare(
+            'UPDATE map_features
+            SET feature_type = :feature_type,
+                revision = :revision,
+                updated_by = :updated_by
+            WHERE id = :id'
+        );
+    }
+
+    foreach ($zeilen as $zeile) {
+        $nest = avesmapsDecodeJsonColumnForEdit($zeile['properties_json'] ?? null);
+        $ausNest = (string) ($nest['feature_type'] ?? '');
+        // ⚠️ Das Nest ist ZEUGE, nicht Wahrheit: es zaehlt nur, wenn es selbst eine
+        // Kreuzungsschreibweise nennt (bei der gefundenen Zeile sagt es 'junction'). Sonst gilt die
+        // Vorgabe des Anlegepfads. Massgeblich bleibt die SPALTE -- die Kartennutzlast ueberschreibt
+        // properties.feature_type ohnehin aus ihr (api/app/map-features.php).
+        $ziel = in_array($ausNest, ['junction', 'crossing'], true) ? $ausNest : 'junction';
+
+        $stichprobe[] = [
+            'public_id' => (string) $zeile['public_id'],
+            'name' => (string) ($zeile['name'] ?? ''),
+            'is_active' => (int) ($zeile['is_active'] ?? 0),
+            'feature_type_vorher' => (string) $zeile['feature_type'],
+            'feature_type_nachher' => $ziel,
+            'aus_properties' => $ausNest,
+        ];
+
+        if ($trockenlauf || $schreiben === null) {
+            continue;
+        }
+
+        $schreiben->execute([
+            'id' => (int) $zeile['id'],
+            'feature_type' => $ziel,
+            'revision' => $revision,
+            'updated_by' => (int) ($user['id'] ?? 0),
+        ]);
+        $repariert++;
+
+        avesmapsWriteMapAuditLog(
+            $pdo,
+            (int) $zeile['id'],
+            'repair_crossing_type',
+            (int) ($user['id'] ?? 0),
+            avesmapsEncodeAuditJson($zeile),
+            avesmapsEncodeAuditJson([
+                'public_id' => (string) $zeile['public_id'],
+                'feature_type' => $ziel,
+                'feature_subtype' => 'crossing',
+                'revision' => $revision,
+            ])
+        );
+    }
+
+    return [
+        'ok' => true,
+        'dry_run' => $trockenlauf,
+        'gefunden' => count($zeilen),
+        'repariert' => $repariert,
+        'revision' => $revision,
+        'stichprobe' => array_slice($stichprobe, 0, 25),
+    ];
+}
+
 // Direction-independent edge key -- mirrors avesmapsPowerlineEdgeKey in
 // js/map-features/powerline-topology.js so the client's reorder preview and this server-side recompute
 // classify segments into the same undirected edges (a segment A->B and the ordered pair B->A collapse).
