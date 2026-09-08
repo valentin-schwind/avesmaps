@@ -812,7 +812,7 @@ window.openAvesmapsSettlementEditorOverlay = window.openAvesmapsSettlementEditor
 		overlay.hidden = true;
 		document.body.style.overflow = "";
 	};
-	closeButton.addEventListener("click", closeOverlay);
+	closeButton.addEventListener("click", closeOverlay);
 	const frame = document.createElement("iframe");
 	frame.className = "avm-editor-dialog__frame";
 	frame.src = buildSettlementEditorSrc();
@@ -880,7 +880,7 @@ window.openAvesmapsGameLiteratureEditorOverlay = window.openAvesmapsGameLiteratu
 	closeButton.addEventListener("click", closeOverlay);
 	// Exposed so the editor iframe can close itself after a save (owner 2026-07-17: "beim speichern
 	// zugehen"). Re-assigned on every open, which is correct: closeOverlay closes over THIS overlay.
-	window.closeAvesmapsGameLiteratureEditorOverlay = closeOverlay;
+	window.closeAvesmapsGameLiteratureEditorOverlay = closeOverlay;
 	const frame = document.createElement("iframe");
 	frame.className = "political-territory-editor-dialog__frame";
 	frame.addEventListener("load", () => postSelect(frame));
@@ -950,7 +950,7 @@ window.openAvesmapsCitymapEditorOverlay = window.openAvesmapsCitymapEditorOverla
 	closeButton.addEventListener("click", closeOverlay);
 	// Exposed so the editor iframe can close itself after a save (owner 2026-07-17: "beim speichern
 	// zugehen"). Re-assigned on every open, which is correct: closeOverlay closes over THIS overlay.
-	window.closeAvesmapsCitymapEditorOverlay = closeOverlay;
+	window.closeAvesmapsCitymapEditorOverlay = closeOverlay;
 	const frame = document.createElement("iframe");
 	frame.className = "political-territory-editor-dialog__frame";
 	frame.addEventListener("load", () => postRefresh(frame));
