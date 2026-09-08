@@ -114,7 +114,7 @@ foreach ([[true, true], [true, false], [false, true], [false, false]] as [$lokal
         $lage = sprintf('lokal=%s wiki=%s herkunft=%s', var_export($lokal, true), var_export($wiki, true), $herkunft ?: '(leer)');
         $ergebnis = null;
         try {
-            $ergebnis = avesmapsMapFeatureRowToGeoJsonFeature($ortMit($herkunft), [], [], [], true, $lokal, $wiki);
+            $ergebnis = avesmapsMapFeatureRowToGeoJsonFeature($ortMit($herkunft), [], [], true, $lokal, $wiki);
         } catch (Throwable $e) {
             assert(false, "DER KERN VON TEIL 1: der Feature-Bauer wirft bei $lage -- "
                 . get_class($e) . ': ' . $e->getMessage());
@@ -139,7 +139,7 @@ foreach ([[true, true], [true, false], [false, true], [false, false]] as [$lokal
 // bekommt (die Abnahme gehoert an den SELTENEN Zweig, aber der haeufige darf nicht sterben).
 $ohne = $ortMit('own');
 $ohne['properties_json'] = '{}';
-$r = avesmapsMapFeatureRowToGeoJsonFeature($ohne, [], [], [], true, false, false);
+$r = avesmapsMapFeatureRowToGeoJsonFeature($ohne, [], [], true, false, false);
 assert(is_array($r), 'ein Ort ohne Wappen laeuft durch');
 assert(!isset($r['properties']['coat']['url']) || $r['properties']['coat']['url'] === '',
     'und bekommt keines angehaengt -- ein Platzhalter an einem Ort, der nie eines hatte, sieht aus '

@@ -132,8 +132,17 @@ assert($crossFound[0]['severity'] === 'error');
 // 15.08.2026 meldete sie 144 Kraftlinien-Segmente als "kein Wiki-Schluessel", 69 davon MIT Link.
 assert(avesmapsConflictExtractClaim([])['wiki_url'] === '');
 assert(avesmapsConflictExtractClaim([])['claim_source'] === '');
-// Das schlichte Feld gewinnt -- und nur es darf aus dem Konfliktzentrum geleert werden (repair.php).
-$plainClaim = avesmapsConflictExtractClaim(['wiki_url' => 'https://w/wiki/A', 'wiki_powerline' => ['wiki_url' => 'https://w/wiki/B']]);
+// 🔴 UMGEDREHT AM 08.09.2026 (Owner: „also zuweisung im wiki gewinnt"). Hier stand: „Das schlichte
+// Feld gewinnt -- und nur es darf aus dem Konfliktzentrum geleert werden." Das galt, solange der
+// Lesepfad der Karte dieselbe Reihenfolge hatte. Seit dem Rueckbau des Namensratens
+// (api/app/__tests__/wiki-url-aus-der-zuweisung-test.php) gewinnt dort das NEST -- und zwei Leser
+// derselben Frage muessen dieselbe Antwort geben, sonst nennt die Karte einen anderen Artikel als
+// der Fall, der ihn beanstandet. Am Livebestand betraf das 43 Objekte.
+$blockVorPlain = avesmapsConflictExtractClaim(['wiki_url' => 'https://w/wiki/A', 'wiki_powerline' => ['wiki_url' => 'https://w/wiki/B']]);
+assert($blockVorPlain['wiki_url'] === 'https://w/wiki/B');
+assert($blockVorPlain['claim_source'] === 'wiki_powerline');
+// Das schlichte Feld bleibt der Rueckfall fuer Objekte OHNE Zuweisung.
+$plainClaim = avesmapsConflictExtractClaim(['wiki_url' => 'https://w/wiki/A']);
 assert($plainClaim['wiki_url'] === 'https://w/wiki/A');
 assert($plainClaim['claim_source'] === 'wiki_url');
 assert(avesmapsConflictExtractClaim(['wiki_settlement' => ['wiki_url' => 'https://w/wiki/S']])['claim_source'] === 'wiki_settlement');

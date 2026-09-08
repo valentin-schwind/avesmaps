@@ -215,7 +215,11 @@ assert(
 );
 // 🔴 Und die header()-Zeilen stehen NUR noch im Helfer. Der steht am Dateiende, also HINTER dem
 // ersten teuren Lader -- ein nackter Kopfzeilenblock oben im Ablauf laege davor.
-$mfLoadAt = strpos($mapFeaturesSource, 'avesmapsLoadWikiSyncLocationLinks($pdo)');
+// ⚠️ Der Anker hiess bis zum 08.09.2026 `avesmapsLoadWikiSyncLocationLinks($pdo)`. Den Lader gibt
+// es nicht mehr -- er speiste den zurueckgebauten Rateweg der Wiki-Adresse
+// (api/app/__tests__/wiki-url-aus-der-zuweisung-test.php). `avesmapsLoadWikiSyncBuildingTypes`
+// steht seither an genau derselben Stelle und ist der erste teure Lader hinter dem 304-Block.
+$mfLoadAt = strpos($mapFeaturesSource, 'avesmapsLoadWikiSyncBuildingTypes($pdo)');
 assert(is_int($mfLoadAt), 'der erste teure Lader ist auffindbar');
 assert(
     strpos($mapFeaturesSource, "header('ETag: ' . \$etag);") > $mfLoadAt,

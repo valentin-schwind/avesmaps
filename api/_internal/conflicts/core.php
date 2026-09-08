@@ -89,16 +89,30 @@ const AVESMAPS_CONFLICT_SEGMENTED_TYPES = ['path', 'powerline'];
  *         AVESMAPS_CONFLICT_CLAIM_BLOCKS
  */
 function avesmapsConflictExtractClaim(array $properties): array {
-    $plain = trim((string) ($properties['wiki_url'] ?? ''));
-    if ($plain !== '') {
-        return ['wiki_url' => $plain, 'claim_source' => 'wiki_url'];
-    }
-
+    // 🔴 DIE ZUWEISUNG SCHLAEGT DAS FLACHE FELD (Owner 08.09.2026: „also zuweisung im wiki
+    // gewinnt") -- und zwar in DERSELBEN Reihenfolge wie im Lesepfad der Karte
+    // (avesmapsEnrichMapFeatureWikiUrl, api/app/map-features.php). Zwei Leser derselben Frage
+    // muessen dieselbe Antwort geben: sonst nennt die Karte einen anderen Artikel als der Fall, der
+    // ihn beanstandet, und die Reparatur trifft ein Feld, das gar nicht angezeigt wird.
+    //
+    // 💣 BIS ZUM 08.09.2026 STAND DAS FLACHE FELD VORN, und daraus fiel ein Knopf, der nichts tut:
+    // ein Objekt MIT Zuweisung UND flachem Feld bekam `claim_source = 'wiki_url'`, 》Trennen《
+    // entfernte das flache Feld -- und der Link blieb sichtbar, weil die Zuweisung ihn liefert. Mit
+    // der gedrehten Reihenfolge ist `claim_source` der Block, und avesmapsConflictUnlinkRowRefusal
+    // weist den Fall mit seiner vorhandenen Meldung ab („bitte im zustaendigen Editor loesen --
+    // dort haengt die ganze Infobox dran"). Sicherheitsregel 1 im Kopf von repair.php bleibt damit
+    // unveraendert gueltig; sie greift jetzt nur fuer MEHR Objekte, naemlich auch fuer die mit
+    // beidem. Am Livebestand vom 08.09.2026 sind das 43 Objekte.
     foreach (AVESMAPS_CONFLICT_CLAIM_BLOCKS as $block) {
         $nested = trim((string) ($properties[$block]['wiki_url'] ?? ''));
         if ($nested !== '') {
             return ['wiki_url' => $nested, 'claim_source' => $block];
         }
+    }
+
+    $plain = trim((string) ($properties['wiki_url'] ?? ''));
+    if ($plain !== '') {
+        return ['wiki_url' => $plain, 'claim_source' => 'wiki_url'];
     }
 
     return ['wiki_url' => '', 'claim_source' => ''];

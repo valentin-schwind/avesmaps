@@ -298,7 +298,6 @@ try {
         }
     }
 
-    $wikiLocationLinks = avesmapsLoadWikiSyncLocationLinks($pdo);
     $buildingTypes = avesmapsLoadWikiSyncBuildingTypes($pdo);
     // Settlement -> political context: resolve each place's STORED ray-cast territory assignment
     // (properties.territory_wiki_key/territory_public_id, written by the Siedlungseditor) into a
@@ -355,7 +354,7 @@ try {
     // noch sources + feature_sources. Eine zweite Quelle der Wahrheit gibt es nicht mehr (AGENTS.md §5).
 
     $features = array_map(
-        static fn(array $row): array => avesmapsMapFeatureRowToGeoJsonFeature($row, $wikiLocationLinks, $buildingTypes, $politicalContext, $settlementImagesEnabled, $coatsLocalEnabled, $coatsWikiEnabled),
+        static fn(array $row): array => avesmapsMapFeatureRowToGeoJsonFeature($row, $buildingTypes, $politicalContext, $settlementImagesEnabled, $coatsLocalEnabled, $coatsWikiEnabled),
         $rows
     );
 
@@ -779,7 +778,7 @@ function avesmapsMapFeaturesSettlementImagesEnabled(PDO $pdo): bool {
 // demselben Grund wie avesmapsSettlementCoatIsPublic() daneben: diese Datei ist ein Endpunkt und beim
 // `require` fuer einen Test nicht seiteneffektfrei ladbar, die Zieldatei schon).
 
-function avesmapsMapFeatureRowToGeoJsonFeature(array $row, array $wikiLocationLinks = [], array $buildingTypes = [], array $politicalContext = [], bool $settlementImagesEnabled = true, bool $coatsLocalEnabled = true,
+function avesmapsMapFeatureRowToGeoJsonFeature(array $row, array $buildingTypes = [], array $politicalContext = [], bool $settlementImagesEnabled = true, bool $coatsLocalEnabled = true,
     bool $coatsWikiEnabled = true): array {
     // ⚠️ Was frueher EIN Schalter war ($settlementCoatsEnabled), sind seit dem 23.08.2026 zwei --
     // nach Herkunft getrennt. Beide sind PARAMETER dieser Funktion, nicht Variablen des
@@ -818,7 +817,7 @@ function avesmapsMapFeatureRowToGeoJsonFeature(array $row, array $wikiLocationLi
     if (!$coatsLocalEnabled && !$coatsWikiEnabled && is_array($properties['wiki_settlement'] ?? null)) {
         $properties['wiki_settlement']['wappen_url'] = '';
     }
-    $properties = avesmapsEnrichMapFeatureWikiUrl($properties, $row, $wikiLocationLinks);
+    $properties = avesmapsEnrichMapFeatureWikiUrl($properties);
     $style = avesmapsDecodeJsonColumn($row['style_json'] ?? null);
     foreach ($style as $styleKey => $styleValue) {
         $properties[$styleKey] = $styleValue;
@@ -1291,61 +1290,95 @@ function avesmapsResolveSettlementPolitical(string $settlementName, array $prope
     ];
 }
 
-function avesmapsLoadWikiSyncLocationLinks(PDO $pdo): array {
-    $statement = $pdo->query(
-        'SELECT normalized_key, wiki_url
-        FROM wiki_sync_pages
-        WHERE wiki_url IS NOT NULL AND wiki_url <> \'\'
-            AND normalized_key IS NOT NULL AND normalized_key <> \'\''
-    );
-    if ($statement === false) {
-        return [];
-    }
-
-    $links = [];
-    foreach ($statement->fetchAll() as $row) {
-        $normalizedKey = trim((string) ($row['normalized_key'] ?? ''));
-        $wikiUrl = trim((string) ($row['wiki_url'] ?? ''));
-        if ($normalizedKey === '' || $wikiUrl === '') {
-            continue;
-        }
-
-        $links[$normalizedKey] ??= $wikiUrl;
-    }
-
-    return $links;
-}
-
-function avesmapsEnrichMapFeatureWikiUrl(array $properties, array $row, array $wikiLocationLinks): array {
-    if ((string) ($properties['wiki_url'] ?? '') !== '') {
-        return $properties;
-    }
-    // An editor has stated that this place has NO wiki article (conflict centre, "Kein Wiki-Eintrag").
-    // Without honouring that, an empty column is indistinguishable from "nobody set one yet" and the
-    // guess below simply puts the wrong link back -- which is why deleting a link never stuck and
-    // Discord #38 kept reappearing. A deliberate emptiness is data, not a gap to fill.
+/**
+ * Die Wiki-Adresse eines Kartenobjekts -- AUS SEINER ZUWEISUNG, nie aus seinem Namen.
+ *
+ * 🔴 OWNER-ENTSCHEID 08.09.2026, woertlich: „wenn key dann url, wenn kein key keine url".
+ *
+ * 💣 BIS DAHIN RIET DIESE FUNKTION, UND DAS IST DER GRUND, WARUM SIE ES NICHT MEHR DARF.
+ * Sie schlug den normalisierten NAMEN des Objekts in `wiki_sync_pages` nach und haengte die Adresse
+ * der gleichnamigen Seite an; der Schluessel im Zuweisungs-Nest war mit `wiki_url` ueberhaupt nicht
+ * verdrahtet. Am Livebestand vom 08.09.2026 gemessen (Orte + Wege + Beschriftungen):
+ *   4442 Objekte, bei denen Rateweg und Zuweisung dasselbe sagen -- weil das Objekt so heisst wie
+ *        sein Artikel; dort fiel es nie auf,
+ *     49 Objekte, deren Zuweisung auf einen ANDEREN Artikel zeigt als der gleichnamige,
+ *    160 Objekte mit Link OHNE jede Zuweisung („Phantome"),
+ *    171 Objekte MIT Zuweisung und OHNE Link, weil ihr Artikel anders heisst als sie
+ *        (z.B. Beschriftung „Charyptik" -> Artikel „Charyptisch").
+ *
+ * 💣 UND DER GERATENE LINK LIESS SICH NICHT LOESCHEN. Die Adresse war nirgends gespeichert, sondern
+ * entstand bei jedem Lesen neu -- ein Editor konnte die Zuweisung entfernen, so oft er wollte, beim
+ * naechsten Kartenaufruf stand sie wieder da. Das war Discord #38 (d373ce6c4, 20.07.2026); damals
+ * bekam es mit `wiki_no_article` einen Notausgang NEBEN der Regel statt einer Rangfolge, und kam
+ * am 08.09.2026 wieder: zwei Waelder „Falkenforst", eine einzige Wiki-Seite dieses Namens, und der
+ * Rateweg haengte sie an beide -- auch an den, der gar nicht gemeint war.
+ *
+ * 🔴 DIE RANGFOLGE (Owner 08.09.2026: „also zuweisung im wiki gewinnt"):
+ *   1. `wiki_no_article` -- die ausdrueckliche Editor-Aussage „dieses Objekt hat keinen Artikel".
+ *   2. die Adresse aus dem ZUWEISUNGS-NEST.
+ *   3. eine gespeicherte flache `properties.wiki_url` -- nur noch als Rueckfall fuer Objekte OHNE
+ *      Zuweisung.
+ *   sonst: nichts.
+ *
+ * 💣 PUNKT 2 VOR PUNKT 3 IST DIE ENTSCHEIDUNG, NICHT EIN DETAIL. Bis zum 08.09.2026 gewann das
+ * flache Feld, und 43 Objekte trugen dort einen ANDEREN Artikel als in ihrer Zuweisung -- teils grob
+ * falsch (》Alfwalden《 zeigte auf `/Alfensen`, 》Goldklamm (Rorwhed)《 auf `/Goldklamm_(Kosch)`),
+ * teils nur unpraeziser (》Theron《 statt 》Theron (Fluss)《). Der Owner hat sie durchgesehen: die
+ * Zuweisung ist in jedem Fall die richtige.
+ *
+ * 🔴 DIESELBE RANGFOLGE GILT IM KONFLIKTZENTRUM (`avesmapsConflictExtractClaim`,
+ * api/_internal/conflicts/core.php). Zwei Leser derselben Frage muessen dieselbe Antwort geben --
+ * sonst nennt die Karte einen anderen Artikel als der Fall, der ihn beanstandet. Aus der gedrehten
+ * Rangfolge faellt dort ausserdem der richtige Riegel: ein Objekt MIT Zuweisung wird beim 》Trennen《
+ * jetzt abgewiesen („bitte im zustaendigen Editor loesen"), statt sein flaches Feld zu verlieren und
+ * den Link trotzdem zu behalten -- ein Klick, der nichts tut.
+ *
+ * ⚠️ Punkt 2 wehrt seit diesem Umbau nichts mehr ab und bleibt trotzdem stehen: der Merker ist eine
+ * Aussage, kein Notbehelf, er wird anderswo gelesen, und ein kuenftiger Erzeuger soll ihn nicht
+ * uebergehen. Wer ihn hier streicht, streicht keine tote Zeile.
+ *
+ * 💣 EIN NEST OHNE `wiki_url` IST KEINE ADRESSE -- und kein Anlass, doch wieder zu raten. Genau die
+ * 171 stummen Objekte oben sind der Fall, um den es geht.
+ *
+ * ⚠️ Der Preis, gemessen und gewollt: von den 160 Objekten mit Link OHNE Zuweisung tragen 58 eine
+ * GESPEICHERTE flache Adresse und behalten sie (Punkt 3); die uebrigen rund 100 verlieren ihn -- es
+ * sind die, deren Link nur aus dem Namen entstand. Wer sie verlinkt haben will, weist ihnen einen
+ * Artikel zu.
+ * 🪤 Hier stand zuerst „160 verlieren ihren Link". Das war eine Zahl aus der NUTZLAST, in der ein
+ * gespeicherter und ein geratener Wert identisch aussehen -- unterscheiden kann sie nur, wer
+ * `properties_json` liest. Eine Zahl aus dem Lesepfad ist keine Zahl ueber den Bestand.
+ *
+ * Test: api/app/__tests__/wiki-url-aus-der-zuweisung-test.php
+ */
+function avesmapsEnrichMapFeatureWikiUrl(array $properties): array {
     if (!empty($properties['wiki_no_article'])) {
         return $properties;
     }
 
-    // A powerline's wiki link is explicit or nothing. The name match below is built for PLACES:
-    // a powerline named like a settlement would silently inherit that settlement's article --
-    // the Discord #38 class of bug, where a guessed link became real data on the next save.
-    if ((string) ($row['feature_type'] ?? '') === 'powerline') {
+    // 🔴 DIE ZUWEISUNG SCHLAEGT DAS GESPEICHERTE FELD (Owner 08.09.2026: „also zuweisung im wiki
+    // gewinnt"). Am Livebestand gemessen: 43 Objekte nennen in beiden Feldern verschiedene Artikel,
+    // und in JEDEM Fall ist die Zuweisung die richtige -- teils grob falsch („Alfwalden" zeigte auf
+    // `/Alfensen`, „Goldklamm (Rorwhed)" auf `/Goldklamm_(Kosch)`), teils nur unpraeziser
+    // („Theron" statt „Theron (Fluss)"). Die flachen Werte sind zum Teil eingefrorenes Raten aus
+    // der Zeit vor diesem Umbau: der geratene Link stand im Eingabefeld des Editors und wurde beim
+    // naechsten Speichern zu echten Daten.
+    // 🔴 Die Nest-Liste steht in `AVESMAPS_CONFLICT_CLAIM_BLOCKS` (api/_internal/conflicts/core.php)
+    // und NUR dort -- eine Abschrift hier kannte `wiki_powerline` schon einmal nicht. Diese Datei
+    // ist ein Endpunkt und laedt die Konflikt-Bibliothek nicht; die Liste wird deshalb von
+    // `wiki-url-aus-der-zuweisung-test.php` gegen die dortige gehalten, statt sie zu raten.
+    foreach (['wiki_settlement', 'wiki_path', 'wiki_region', 'wiki_powerline'] as $nest) {
+        if (!is_array($properties[$nest] ?? null)) {
+            continue;
+        }
+        $adresse = trim((string) ($properties[$nest]['wiki_url'] ?? ''));
+        if ($adresse === '') {
+            continue;
+        }
+
+        $properties['wiki_url'] = $adresse;
+
         return $properties;
     }
-
-    $locationName = trim((string) ($row['name'] ?? ''));
-    if ($locationName === '') {
-        return $properties;
-    }
-
-    $matchKey = avesmapsWikiSyncCreateMatchKey($locationName);
-    if ($matchKey === '' || !isset($wikiLocationLinks[$matchKey])) {
-        return $properties;
-    }
-
-    $properties['wiki_url'] = (string) ($wikiLocationLinks[$matchKey] ?? '');
 
     return $properties;
 }

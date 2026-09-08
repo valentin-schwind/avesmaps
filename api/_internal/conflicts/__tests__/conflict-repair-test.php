@@ -101,10 +101,23 @@ assert(str_contains($fromBlock, 'Wiki-Zuordnung'));
 // Auch mit passender Erwartung bleibt es Regel 1 -- die Erwartung macht ein Nest nicht loeschbar.
 assert(avesmapsConflictUnlinkRowRefusal($blockClaim, 'https://de.wiki-aventurica.de/wiki/Hexenband') !== '');
 
-// Das schlichte Feld gewinnt: liegt beides vor, ist die Zeile ueber das schlichte Feld loesbar --
-// sonst waere jede vom Abgleich beschriebene Kraftlinie fuer immer unantastbar.
+// 🔴 UMGEDREHT AM 08.09.2026 (Owner: „also zuweisung im wiki gewinnt"). Hier stand: „Das schlichte
+// Feld gewinnt: liegt beides vor, ist die Zeile ueber das schlichte Feld loesbar -- sonst waere jede
+// vom Abgleich beschriebene Kraftlinie fuer immer unantastbar."
+//
+// 💣 DIE ALTE SORGE IST BERECHTIGT UND WIRD BEANTWORTET, NICHT UEBERGANGEN: „unantastbar" waere die
+// Zeile nur ohne zustaendigen Editor. Den gibt es fuer jedes der vier Nester (Orts-, Wege-,
+// Landschaften- und Kraftlinien-Editor), und genau dorthin zeigt die Absage.
+// 💣 WAS DIE ALTE FASSUNG STATTDESSEN ERZEUGTE: seit die Karte das NEST anzeigt, entfernte
+// 》Trennen《 bei einem Objekt mit BEIDEM das flache Feld -- und der Link blieb sichtbar, weil ihn
+// die Zuweisung liefert. Ein Knopf, der nichts tut, ist schlimmer als eine Absage, die sagt wohin.
 assert(avesmapsConflictUnlinkRowRefusal(
     $blockClaim + ['wiki_url' => 'https://de.wiki-aventurica.de/wiki/Hexenband'],
+    'https://de.wiki-aventurica.de/wiki/Hexenband'
+) !== '');
+// Ohne Nest bleibt die Zeile ueber das schlichte Feld loesbar -- daran aendert sich nichts.
+assert(avesmapsConflictUnlinkRowRefusal(
+    ['wiki_url' => 'https://de.wiki-aventurica.de/wiki/Hexenband'],
     'https://de.wiki-aventurica.de/wiki/Hexenband'
 ) === '');
 

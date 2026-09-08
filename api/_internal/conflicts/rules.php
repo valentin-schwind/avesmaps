@@ -9,13 +9,18 @@ declare(strict_types=1);
  * nothing here writes -- detection is machine work, deciding is editor work
  * (docs/konfliktmanagement-design.md §3).
  *
- * DETECTION RUNS ON THE RAW STORED DATA, not on the enriched map-features payload. That matters:
- * avesmapsEnrichMapFeatureWikiUrl() invents a wiki_url by name when the column is empty, so the
- * payload shows collisions that exist only at request time. Those are an enrichment defect (fixed
- * separately in P3), not a data conflict, and mixing them in would tell an editor to repair a row
- * that is already empty. Consequence to expect: this rule finds FEWER settlement collisions than
- * the 2026-07-20 payload measurement (12 groups) -- the difference is exactly the 7 runtime-guessed
- * ones, which have nothing stored to repair.
+ * DETECTION RUNS ON THE RAW STORED DATA, not on the enriched map-features payload.
+ *
+ * 🔴 DER GRUND HAT SICH AM 08.09.2026 GEAENDERT, DIE REGEL NICHT. Hier stand:
+ * „avesmapsEnrichMapFeatureWikiUrl() invents a wiki_url by name when the column is empty, so the
+ * payload shows collisions that exist only at request time" -- mit der Folge, dass diese Regel
+ * WENIGER Kollisionen fand als die Nutzlast (12 Gruppen am 20.07.2026, davon 7 nur zur Laufzeit
+ * geraten). Das Namensraten ist zurueckgebaut; die Nutzlast erfindet nichts mehr, und der
+ * Unterschied faellt weg.
+ * ⚠️ Auf den rohen Daten zu arbeiten bleibt trotzdem richtig -- ein Fall soll auf das zeigen, was
+ * GESPEICHERT ist und repariert werden kann, nicht auf einen Anzeigewert. Und seit demselben Tag
+ * lesen beide Seiten ohnehin dieselbe Rangfolge (avesmapsConflictExtractClaim: Zuweisung vor
+ * flachem Feld, wie im Lesepfad der Karte).
  */
 
 require_once __DIR__ . '/core.php';
@@ -725,10 +730,16 @@ function avesmapsConflictRuleCatalog(): array {
             'hint' => 'Ein Wiki-Artikel sollte prinzipiell nur zu einem Objekt gehören. Es gibt natürlich Ausnahmen, trotzdem lohnt sich ein Blick auf potentielle Konflikte. Segmente einer Straße sind ausgenommen und tauchen hier gar nicht erst auf.',
             'severity' => AVESMAPS_CONFLICT_ERROR,
             'actions' => ['pick_one', 'unlink', 'defer', 'ignore'],
-            // What each button DOES. The difference between "Trennen" and "Kein Wiki-Eintrag" is not
-            // cosmetic: only the second one sticks, because the enrichment keeps proposing a link for
-            // any name it can match. Without this spelled out, an editor picks the weaker verb and
-            // the link quietly returns -- which is Discord #38 all over again.
+            // What each button DOES.
+            // 🔴 UMGESCHRIEBEN AM 08.09.2026 -- UND ES WAR EDITOR-SICHTBARER TEXT, KEIN KOMMENTAR.
+            // Hier stand: „only the second one sticks, because the enrichment keeps proposing a link
+            // for any name it can match", und die zwei Saetze unten sagten Editoren, 》Trennen《 halte
+            // nicht und 》Kein Wiki-Eintrag《 sei der einzige dauerhafte Weg. Seit dem Rueckbau des
+            // Namensratens (avesmapsEnrichMapFeatureWikiUrl, api/app/map-features.php) stimmt das
+            // nicht mehr: der Server schlaegt gar nichts mehr vor, 》Trennen《 haelt.
+            // 💣 Wer der alten Anweisung weiter folgte, schrieb `wiki_no_article: true` auf Objekte,
+            // DIE EINEN ARTIKEL HABEN -- und den Merker lesen Statuskreis, Kanon-Etikett und die
+            // Segment-Erbschaft. Das war Datenschaden, kein Anzeigefehler.
             // 🔴 Die REICHWEITE gehört in jeden dieser Sätze (Owner 15.08.2026). Ein Weg und eine
             // Kraftlinie sind viele Zeilen mit einem Namen, und seit dem 15.08.2026 fasst jeder
             // dieser Knöpfe die ganze Linie — „Nur dieses Objekt“ war danach schlicht falsch. Wer
@@ -736,8 +747,8 @@ function avesmapsConflictRuleCatalog(): array {
             // getroffen, sondern eine Überraschung erlebt.
             'verbs' => [
                 ['label' => 'Behält den Link', 'effect' => 'Dieses Objekt bleibt mit dem Artikel verknüpft, alle anderen in diesem Fall verlieren ihre Verknüpfung. Bei einem Weg oder einer Kraftlinie gilt beides für die ganze Linie: der Behalter behält sie mit allen seinen Segmenten, die anderen verlieren sie mit allen ihren.'],
-                ['label' => 'Trennen', 'effect' => 'Dieses Objekt verliert die Verknüpfung — bei einem Weg oder einer Kraftlinie die ganze Linie mit allen ihren Segmenten, bei Orten, Regionen und Territorien nur dieses eine Objekt. Achtung: Trägt es einen Namen, der zu einem Wiki-Artikel passt, kann der Server ihn später erneut vorschlagen.'],
-                ['label' => 'Kein Wiki-Eintrag', 'effect' => 'Trennt UND hält fest, dass es im Wiki nichts dazu gibt — bei einem Weg oder einer Kraftlinie für die ganze Linie, sonst für dieses eine Objekt. Nur so bleibt die Trennung dauerhaft — nichts wird mehr vorgeschlagen.'],
+                ['label' => 'Trennen', 'effect' => 'Dieses Objekt verliert die Verknüpfung — bei einem Weg oder einer Kraftlinie die ganze Linie mit allen ihren Segmenten, bei Orten, Regionen und Territorien nur dieses eine Objekt. Die Trennung hält: der Server schlägt von sich aus keinen Link mehr vor. Stammt die Verknüpfung dagegen aus einer Wiki-Zuweisung, wird hier abgelehnt — an ihr hängt die ganze Infobox, sie wird im zuständigen Editor gelöst.'],
+                ['label' => 'Kein Wiki-Eintrag', 'effect' => 'Trennt UND hält fest, dass es im Wiki nichts dazu gibt — bei einem Weg oder einer Kraftlinie für die ganze Linie, sonst für dieses eine Objekt. Nimm das nur, wenn es wirklich keinen Artikel gibt: für eine bloße Trennung genügt „Trennen“.'],
                 ['label' => 'Genehmigt', 'effect' => 'Der Fund stimmt, die Lage ist aber richtig so — etwa ein Meer aus zwei Buchten, die beide beschriftet werden müssen. Ändert die Daten nicht und taucht nicht wieder unter „Wichtig“ auf.'],
                 ['label' => 'Zurückstellen / Archivieren', 'effect' => 'Ändern die Daten nicht. Zurückgestellt heißt „später“, archiviert heißt „bewusst so gelassen, aber weiterhin falsch“ — beides bleibt auffindbar und umkehrbar.'],
             ],
