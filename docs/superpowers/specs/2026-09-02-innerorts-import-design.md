@@ -108,6 +108,45 @@ Hunderter.
 ⭐ **Das ist die Rechtfertigung für „Angebot statt Automatik".** Bei einem Dutzend Fällen kostet ein
 Fehlgriff wenig, und der Editor sieht den Ortsnamen im Knopf.
 
+### 🔴 (e) NACHTRAG 07.09.2026 — die Regel ist umgedreht, die Messung bleibt wahr
+
+Owner, wörtlich: „Der Button soll kommen, wenn der Name X in Y oder 5 Meilen in der Nähe einer
+bestehenden oder anderen importierten Siedlung sein sollte. Sind in der Nähe mehrere soll ein
+dropdown Menü sortiert nach entfernung zur auswahl stehen, für welches man sich innerorts
+entscheiden möchte."
+
+**Anlass:** der Knopf war unauffindbar. Nach (d) trifft das Kriterium **11 von 1048** ggp-Bauwerken
+— und seit dem Stage-Umbau (07.09.2026, `f0362ab`) läuft der normale Import über Auswahl → Stage →
+„Stage importieren", wo es ihn gar nicht gab. Zusammen heißt das: praktisch nie sichtbar, und wenn
+sichtbar, dann auf einem Weg, den niemand mehr geht.
+
+**Was gilt jetzt:** Kandidat ist jede Siedlung innerhalb von **5 Meilen**; der Namenstreffer ist
+**keine Bedingung mehr, sondern eine Marke** an der Zeile. Der Preis steht im Code:
+
+| | vorher (0,5 Meilen UND Name) | jetzt (5 Meilen, Name als Marke) |
+|---|---|---|
+| ggp-Bauwerke mit Angebot | 11 | rund 350 (§2d: 698 liegen über 5 Meilen) |
+
+💣 **Damit ist (c) formal umgedreht — und (c) bleibt trotzdem richtig.** Die Kontrollgruppe hat
+bewiesen, dass Nähe **kein Befund** ist (4,5 % der Bauwerke unter einer Meile an einer Ortschaft,
+und exakt 4,5 % der Ortschaften auch). Was sie widerlegt, ist ein *automatischer Schluss*. Nähe ist
+seither nur noch der **Filter für ein Angebot**, und welche Stadt es wird, entscheidet der Editor
+aus einer Liste. Genau diese Rechtfertigung steht in (d) schon: „Angebot statt Automatik".
+
+🔴 **Zwei Regeln halten das zusammen, und ohne sie wäre der Umbau eine Verschlechterung:**
+
+1. **Die Liste ist nach Entfernung sortiert, die VORAUSWAHL ist es nicht.** Sie nimmt den nächsten
+   Kandidaten *mit Namenstreffer* (`avesmapsGaretienInnerortsVorauswahl`). Der Namenstreffer ist das
+   einzige gemessene Signal (68-fache Anreicherung, (d)); nach bloßer Nähe stünde in der Testfixture
+   „Innerorts einfügen (Aue)" im Knopf, während „Wandleth" gemeint ist — und bis zum 07.09.2026
+   hatte der Importer dort **recht**.
+2. **Im Kasten ist „auf die Karte" vorausgewählt.** Bei 350 Objekten legte eine vorbelegte Stadt
+   beim nächsten „Stage importieren" stillschweigend dreihundert Stätten an. §5 („Keine Automatik")
+   gilt unverändert — der Vorschlag steht im Knopf und in der Liste, gewählt ist er nicht.
+
+⚠️ **Die 5 Meilen sind eine Owner-Zahl, keine gemessene Schwelle** — anders als die 0,5 davor, die
+an 27 Fällen gemessen war. Sie trennt nichts; sie begrenzt, was zur Wahl steht.
+
 ---
 
 ## 3 · Der Speicher — die eigentliche Entscheidung
@@ -169,10 +208,33 @@ Im Kasten „Eingefügt wird" steht neben **„Neu einfügen"** ein zweiter Knop
 
 > **Innerorts einfügen (Wandleth)**
 
-🔴 **Er erscheint nur, wenn beide Signale zusammentreffen** — unter `AVESMAPS_GARETIEN_INNERORTS_MEILEN`
-(0,5) *und* der Ortsname steckt im Objektnamen. Sonst steht er gar nicht da; ein dauerhaft
-ausgegrauter Knopf behauptet eine Möglichkeit, die es nicht gibt (dieselbe Owner-Regel wie bei
-„Zurücknehmen", 30.08.2026).
+🔴 **Er erscheint nur, wenn eine Siedlung in Reichweite liegt** — `AVESMAPS_GARETIEN_INNERORTS_MEILEN`
+(seit 07.09.2026: 5, siehe §2e). Sonst steht er gar nicht da; ein dauerhaft ausgegrauter Knopf
+behauptet eine Möglichkeit, die es nicht gibt (dieselbe Owner-Regel wie bei „Zurücknehmen",
+30.08.2026).
+
+🔴 **Und seit dem 07.09.2026 steht die Stadt zur Wahl** (§2e): im Kasten „Eingefügt wird" die Zeile
+**„Innerorts"** — ein Auswahlfeld mit allen Städten in Reichweite, nach Entfernung sortiert, je
+Zeile `Wandleth · 0,09 Meilen · Name passt`. Der erste Eintrag heißt **„— auf die Karte —"** und ist
+vorausgewählt. Ist eine Stadt gewählt, sagt die Zeile darunter, was das heißt (kein Kartenpunkt,
+Form und Art gelten nicht), und der Knopf trägt **ihren** Namen.
+
+⭐ **Damit wirkt Innerorts über die Stage** — `garetienEingabenFuerServer` schickt bei getroffener
+Wahl `{innerorts, innerorts_public_id}`, und `garetienStageEinstellungenJeItem` heftet den Rumpf an
+die 'new'-Items. Bis dahin legte „Stage importieren" nie eine Stätte an, und der Einzelknopf war der
+einzige Weg dorthin; `f0362ab` musste ihn deshalb als „GEMESSENE ABWEICHUNG" stehen lassen.
+
+⚠️ **Die Liste wird beim Öffnen einer Zeile FRISCH nachgeschlagen** (`innerorts_kandidaten`,
+`avesmapsGaretienInnerortsKandidatenFrisch`) — das ist die Hälfte des Owner-Satzes, die der Planbau
+nicht kann („oder anderen importierten Siedlung"): eine Stadt, die dieser Lauf gerade erst angelegt
+hat, steht sonst erst nach einem zweiten „Holen & Rechnen" zur Wahl. 💣 Sie gehört **nicht** in den
+Lesepfad der Liste — `AVESMAPS_GARETIEN_LISTE_MAX` ist 10000, das wären zehntausend Umkreissuchen je
+Filterklick.
+
+💣 **Die gewählte `public_id` wird serverseitig geprüft, nicht geglaubt** — sie gilt nur, wenn sie in
+den `kandidaten` dieses Vorschlags steht (`avesmapsGaretienInnerortsAusVorschlag`). Ohne den Riegel
+bände ein beliebiger Anfragerumpf eine Stätte an eine beliebige Stadt, und weil `settlement_place`
+weich schreibt und die Stätten-Zeile nur einen Namen zeigt, fiele das niemandem auf.
 
 ⚠️ **Der Ortsname steht IM Knopf**, nicht im Hilfetext: der Editor entscheidet nicht „innerorts
 ja/nein", sondern „innerorts **in Wandleth**" — und wenn der Ort falsch ist, sieht er es, bevor er
@@ -212,9 +274,15 @@ Innerorts-Fall, und sie ohne Ort einzusortieren hiesse, sie unter einer geratene
 
 ## 6 · Offene Punkte
 
-🔧 **Die Schwelle 0,5 Meilen ist gemessen, aber an 27 Fällen.** Sie trennt heute sauber (11 mit
-Namenstreffer gegen 0,6 % Hintergrund); ob sie bei einem gewachsenen Export noch trennt, wird man
-neu messen müssen.
+🔧 **Die Schwelle sind seit dem 07.09.2026 fünf Meilen, und sie ist NICHT gemessen** (§2e). Die 0,5
+davor war an 27 Fällen gemessen und trennte sauber (11 mit Namenstreffer gegen 0,6 % Hintergrund);
+die 5 ist eine Owner-Zahl und trennt nichts — sie begrenzt, was zur Wahl steht. Ob acht Kandidaten
+(`AVESMAPS_GARETIEN_INNERORTS_KANDIDATEN`) in dicht besiedelten Gegenden reichen oder zu viele sind,
+ist am Livebestand ungemessen.
+
+🔧 **Der Ablauf mit angemeldeter Sitzung steht weiter aus** — Auswahlfeld, frischer Nachschlag und
+der Stage-Weg sind über Tests und im Node-Lauf abgenommen, nicht im Browser gegen die echte
+Datenbank.
 
 🔧 **Ein Objekt, das später doch verortet wird**, hätte dann zwei Existenzen — die Stätte und den
 Kartenpunkt. Der Importer müsste das beim nächsten Lauf erkennen. Für Stufe 1 nicht gebaut; die
