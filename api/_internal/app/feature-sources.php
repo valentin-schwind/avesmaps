@@ -3044,7 +3044,86 @@ function avesmapsMapFeaturesWikiNamespaces(array $features): array
         }
     }
 
-    return $out;
+    return avesmapsMapFeaturesWegGruppeErbtZuweisung($features, $out);
+}
+
+/**
+ * EIN WEG IST EIN DING, AUCH WENN ER IN ABSCHNITTEN AUF DER KARTE LIEGT.
+ *
+ * 🔴 Owner 08.09.2026: „segmente eines flusses, der gleich heisst, sollten gleich behandelt werden,
+ * wenn wikisync was tut. und wenn wiki sync etwas offiziell oder inoffiziell macht oder entfernt,
+ * muss das fuer alle segmente des flusses, die davor oder dahinter verlaufen auch gelten."
+ *
+ * 💣 OHNE DIESE ERBSCHAFT VERSCHIEBT DER KANON-UMBAU DEN FEHLER NUR. Seit dem 08.09.2026 macht die
+ * Zuweisung offiziell -- und Zuweisungen haengen am ABSCHNITT. Am Dump desselben Tages gemessen:
+ * von 350 mehrteiligen Wegen mit echtem Namen sind **16 nur teilweise zugewiesen** (Sichelstieg 1
+ * von 6, Sieben-Baronien-Weg 27 von 31, Alte Strasse 12 von 15, Schattenbachpass 4 von 6). Dort
+ * stuende derselbe Weg wieder mit zwei Aussagen da -- genau die Meldung, die den Umbau ausgeloest
+ * hat, nur eine Ursache weiter.
+ *
+ * 🔴 DIE GRUPPE IST DER NAME, NICHT DER `wiki_key`. Ein unzugewiesenes Segment HAT keinen
+ * `wiki_key` und faellt aus jeder Schluesselgruppe heraus -- die Erbschaft muss aber gerade IHN
+ * erreichen. Gruppiert wird deshalb wie in `wpGroupKeyOf` (js/pages/wege-editor-model.js) auf
+ * seiner Namensseite: Wegart + Name.
+ *
+ * 💣 DREI RIEGEL, JEDER EINZELN BEGRUENDET:
+ *   1. `wiki_no_article` erbt NIE. Ein Editor hat dort ausdruecklich gesagt, dass es keinen
+ *      Artikel gibt -- eine geerbte Zuweisung waere die Discord-#38-Falle, in der ein geratener
+ *      Link zu Daten wird. Eine bewusste Leere ist Information.
+ *   2. UNEINIGE Gruppen erben nichts. Tragen die zugewiesenen Segmente verschiedene Namensraeume,
+ *      ist nicht entscheidbar, welcher gilt -- und „im Zweifel offiziell" waere die unsichere
+ *      Richtung. Lieber kein Etikett als ein erfundenes.
+ *   3. Ein Segment, das SELBST schon eine Aussage hat, wird nie ueberschrieben. Der Rueckfall fuer
+ *      unzugewiesene ns-222-Objekte eine Funktion weiter oben ist eine solche Aussage.
+ *
+ * ⚠️ NUR WEGE. Orte und Beschriftungen liegen einmal auf der Karte; zwei gleichnamige Doerfer sind
+ * zwei Doerfer, keine zwei Haelften desselben. Genau deshalb steht hier `path` und keine Liste.
+ * ⚠️ Und es ist eine reine ANZEIGE-Erbschaft: in der Datenbank aendert sich nichts. Die Zuweisung
+ * der fehlenden Segmente bleibt Editorenarbeit (der Pruefhaken „Keine Wiki-Zuweisung" zeigt sie);
+ * bis dahin sagt der Kopf wenigstens fuer den ganzen Weg dasselbe.
+ *
+ * @param list<array<string, mixed>> $features fertige GeoJSON-Objekte
+ * @param array<string, int> $namespaces was der Leser bisher gefunden hat
+ * @return array<string, int> dasselbe, ergaenzt um die geerbten Segmente
+ */
+function avesmapsMapFeaturesWegGruppeErbtZuweisung(array $features, array $namespaces): array
+{
+    $gruppen = [];
+    foreach ($features as $feature) {
+        $properties = $feature['properties'] ?? null;
+        if (!is_array($properties) || (string) ($properties['feature_type'] ?? '') !== 'path') {
+            continue;
+        }
+        $publicId = (string) ($properties['public_id'] ?? '');
+        $name = trim((string) ($properties['name'] ?? ''));
+        if ($publicId === '' || $name === '') {
+            continue;
+        }
+        $gruppe = ((string) ($properties['feature_subtype'] ?? '')) . '|' . $name;
+        $schluessel = 'path:' . $publicId;
+        if (array_key_exists($schluessel, $namespaces)) {
+            // Riegel 3: eine eigene Aussage gewinnt -- gesammelt wird sie als Vorlage der Gruppe.
+            $gruppen[$gruppe]['raeume'][$namespaces[$schluessel]] = true;
+            continue;
+        }
+        if (!empty($properties['wiki_no_article'])) {
+            continue; // Riegel 1
+        }
+        $gruppen[$gruppe]['offen'][] = $schluessel;
+    }
+
+    foreach ($gruppen as $gruppe) {
+        $raeume = array_keys($gruppe['raeume'] ?? []);
+        $offen = $gruppe['offen'] ?? [];
+        if ($offen === [] || count($raeume) !== 1) {
+            continue; // nichts zu erben, oder Riegel 2
+        }
+        foreach ($offen as $schluessel) {
+            $namespaces[$schluessel] = (int) $raeume[0];
+        }
+    }
+
+    return $namespaces;
 }
 
 /**

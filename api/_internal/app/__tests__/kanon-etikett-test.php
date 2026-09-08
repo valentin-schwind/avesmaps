@@ -394,6 +394,88 @@ assert(avesmapsMapFeaturesWikiNamespaces([objekt('location', 'p-apf', $WA . 'Ino
     === ['settlement:p-apf' => 222],
     'ns 222 spricht auch ohne Nest -- „inoffiziell" ist die Richtung, die nichts kaputtmacht');
 
+// ---- 11e. EIN WEG IST EIN DING -- die Segmente teilen die Zuweisung ---------------------------
+// 🔴 Owner 08.09.2026: „segmente eines flusses, der gleich heisst, sollten gleich behandelt
+// werden, wenn wikisync was tut."
+// 💣 OHNE DAS VERSCHIEBT DER UMBAU DEN FEHLER NUR. Am Dump vom 08.09.2026: von 350 mehrteiligen
+// Wegen mit echtem Namen sind 16 nur TEILWEISE zugewiesen (Sichelstieg 1 von 6, Sieben-Baronien-
+// Weg 27 von 31). Dort stuende derselbe Weg wieder mit zwei Aussagen da.
+$segment = static function (string $publicId, string $name, string $art, array $extra = []): array {
+    $p = ['public_id' => $publicId, 'feature_type' => 'path', 'feature_subtype' => $art, 'name' => $name];
+
+    return ['type' => 'Feature', 'geometry' => null, 'properties' => $p + $extra];
+};
+$zugewiesen = static fn(string $url): array => ['wiki_path' => ['wiki_key' => 'k', 'wiki_url' => $url]];
+
+// Der gemeldete Fall: ein Fluss, drei Abschnitte, nur einer traegt die Zuweisung.
+$fluss = avesmapsMapFeaturesWikiNamespaces([
+    $segment('w-1', 'Pergelbach', 'Flussweg', $zugewiesen($WA . 'Pergelbach')),
+    $segment('w-2', 'Pergelbach', 'Flussweg'),
+    $segment('w-3', 'Pergelbach', 'Flussweg'),
+]);
+assert($fluss === ['path:w-1' => 0, 'path:w-2' => 0, 'path:w-3' => 0],
+    'alle Abschnitte desselben Flusses erben die Zuweisung -- sonst steht er dreimal verschieden da');
+
+// 💣 RIEGEL 1: ein ausdrueckliches „kein Wiki-Eintrag" erbt NIE. Sonst waere die Erbschaft die
+// Discord-#38-Falle, in der ein geratener Link zu Daten wird -- eine bewusste Leere ist Information.
+$mitMerker = avesmapsMapFeaturesWikiNamespaces([
+    $segment('w-a', 'Hagweg', 'Weg', $zugewiesen($WA . 'Hagweg')),
+    $segment('w-b', 'Hagweg', 'Weg', ['wiki_no_article' => true]),
+]);
+assert($mitMerker === ['path:w-a' => 0],
+    'ein Segment mit „kein Wiki-Eintrag" bleibt unberuehrt');
+
+// 💣 RIEGEL 2: eine UNEINIGE Gruppe erbt nichts -- welcher Raum sollte auch gelten?
+$uneinig = avesmapsMapFeaturesWikiNamespaces([
+    $segment('w-x', 'Zweistieg', 'Pfad', $zugewiesen($WA . 'Zweistieg')),
+    $segment('w-y', 'Zweistieg', 'Pfad', $zugewiesen($WA . 'Inoffiziell:Zweistieg')),
+    $segment('w-z', 'Zweistieg', 'Pfad'),
+]);
+assert(!isset($uneinig['path:w-z']),
+    'bei zwei verschiedenen Raeumen in einer Gruppe wird nichts vererbt -- lieber keins als erfunden');
+assert($uneinig['path:w-x'] === 0 && $uneinig['path:w-y'] === 222,
+    'die eigenen Aussagen der Gruppe bleiben davon unberuehrt');
+
+// 💣 RIEGEL 3: eine EIGENE Aussage wird nie ueberschrieben. Der ns-222-Rueckfall fuer
+// unzugewiesene Objekte ist eine solche Aussage.
+$eigene = avesmapsMapFeaturesWikiNamespaces([
+    $segment('w-p', 'Grenzweg', 'Pfad', $zugewiesen($WA . 'Grenzweg')),
+    $segment('w-q', 'Grenzweg', 'Pfad', ['wiki_url' => $WA . 'Inoffiziell:Grenzweg']),
+]);
+assert($eigene === ['path:w-p' => 0, 'path:w-q' => 222],
+    'das unzugewiesene ns-222-Segment behaelt seine eigene Aussage');
+
+// ⚠️ DIE WEGART GEHOERT ZUM GRUPPENSCHLUESSEL. „Nôrrnstieg" gibt es im Bestand als Pfad UND als
+// Gebirgspass (Dump 08.09.2026) -- das sind zwei Wege, keine zwei Haelften.
+$gleichnamig = avesmapsMapFeaturesWikiNamespaces([
+    $segment('w-n1', 'Nôrrnstieg', 'Pfad', $zugewiesen($WA . 'Nôrrnstieg')),
+    $segment('w-n2', 'Nôrrnstieg', 'Gebirgspass'),
+]);
+assert(!isset($gleichnamig['path:w-n2']),
+    'gleicher Name, andere Wegart -> andere Gruppe, keine Erbschaft');
+
+// 🔴 NUR WEGE ERBEN. Zwei gleichnamige Doerfer sind zwei Doerfer.
+$ort1 = objekt('location', 'o-1', $WA . 'Grünau', true);
+$ort1['properties']['name'] = 'Grünau';
+$ort2 = objekt('location', 'o-2', '');
+$ort2['properties']['name'] = 'Grünau';
+$orte = avesmapsMapFeaturesWikiNamespaces([$ort1, $ort2]);
+assert($orte === ['settlement:o-1' => 0], 'Orte erben nichts -- sie liegen einmal auf der Karte');
+// 🪤 GEGEN DIESE ZUSICHERUNG IST EINE MUTATION AEQUIVALENT, und das ist kein Mangel: nimmt man
+// den `path`-Filter aus avesmapsMapFeaturesWegGruppeErbtZuweisung heraus, aendert sich NICHTS --
+// die Funktion baut ihre Schluessel ohnehin als `path:<id>`, ein Ort wird unter `settlement:<id>`
+// also weder als Vorlage gefunden noch ueberschrieben. Zwei Riegel fuer dieselbe Sache; wer den
+// einen entfernt, wird vom anderen gehalten. Nachgemessen am 08.09.2026 -- nicht suchen gehen.
+
+
+// ⚠️ Ein Weg OHNE Namen bildet keine Gruppe (der Bestand traegt 101 solcher Stuecke als
+// „Pfad-5372"): sie sind je Abschnitt verschieden benannt und finden einander ohnehin nie.
+$namenlos = avesmapsMapFeaturesWikiNamespaces([
+    $segment('w-0', '', 'Pfad', $zugewiesen($WA . 'Irgendwas')),
+    $segment('w-00', '', 'Pfad'),
+]);
+assert(!isset($namenlos['path:w-00']), 'ohne Namen keine Gruppe');
+
 // ---- 12. Der Endpunkt fuettert sie auch wirklich mit den OBJEKTEN -----------------------------
 // 💣 Ohne diese Zusicherung waere alles darueber gruen und die Karte trotzdem leer: der Fehler
 // war nie in der Funktion, sondern in dem, was der Endpunkt ihr reicht.
