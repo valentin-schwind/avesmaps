@@ -702,6 +702,18 @@ html.avesmaps-planner-collapsed .gi-win {
    wieder Gold. */
 .gi-map-schein-ihre { filter: drop-shadow(0 0 14px var(--color-marker-active)); }
 
+/* Die Kontur der GEWAEHLTEN Zeile (Owner 08.09.2026). 🔴 Ein EIGENER, HELLER Ring unter der Form --
+   nicht die Form selbst umgefaerbt: ihre Farbe ist die Aussage „was fuer ein Objekt das ist" und
+   darf nie zuruecktreten (dieselbe Regel wie beim goldenen Hof darueber).
+   💣 Die durchgezogene Linie allein reichte nicht. Sie kam am 30.08.2026 als Antwort auf „kannst du
+   einer selektierten Flaeche einen durchgehende kontur geben" -- und war acht Tage spaeter die
+   Meldung „die durchgezogene linie sehen die editoren nicht immer". Auf einer Karte voller
+   gestrichelter Importe ist „durchgezogen statt gestrichelt" ein Unterschied, den man SUCHEN muss;
+   hell gegen bunt ist einer, den man sieht.
+   ⚠️ Das Leuchten ist deutlich weiter als beim Schein (22px gegen 14px) und weiss -- sonst
+   verschwaende es im goldenen Hof, der direkt darueber liegt. */
+.gi-map-auswahl { filter: drop-shadow(0 0 22px var(--color-garetien-auswahl)); }
+
 /* 🔴 DIE KOLLISION -- ein ZWEITER, roter Hof AUSSEN um den ersten (Entwurf §4.2, Owner
    29.08.2026: „Kollisionen (oder Ergaenzungsfragen) mit bestehenden koennen durch rotes gluehen
    ergänzt werden"). Der Fall, den der Owner nannte: der Kraehensee liegt im Import UND bei uns,

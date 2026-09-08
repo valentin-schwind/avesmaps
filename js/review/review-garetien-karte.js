@@ -146,6 +146,28 @@
 	var AVESMAPS_GARETIEN_PUNKT_RADIUS = 8;
 	var AVESMAPS_GARETIEN_SCHEIN_BREITE = 13;
 	var AVESMAPS_GARETIEN_SCHEIN_DECKKRAFT = 0.55;
+
+	/*
+	 * Die Kontur der GEWAEHLTEN Zeile (Owner 08.09.2026: „kannst du konturen, die selektiert und
+	 * sichtbar sind eine helle, auffaellige kontur geben, die durchgezogene linie sehen die editoren
+	 * nicht immer").
+	 *
+	 * 💣 SIE IST BREITER ALS DER SCHEIN, und das ist tragend: der goldene Hof (13) liegt DIREKT
+	 * darueber. Waere der helle Ring gleich breit oder schmaler, saehe man von ihm nichts -- er
+	 * verschwaende vollstaendig unter dem Gold, und die Aenderung waere unsichtbar, ohne dass ein
+	 * Test es merkt.
+	 * ⚠️ VOLLE Deckkraft, anders als der Schein (0,55): halbdurchsichtig ueber einer bunten Karte
+	 * ist genau das, was der Owner an der durchgezogenen Linie beanstandet -- man muss hinsehen,
+	 * statt es zu sehen.
+	 * 🪤 DIE 21 IST EINE STRICHBREITE UND HAT NICHTS MIT DER 21 DER KOLLISION ZU TUN. Dort ist es
+	 * der RADIUS des roten Gluehens (`.gi-map-*.gi-map-kollision`, css/components/
+	 * garetien-importer.css) -- zwei verschiedene Groessen, die zufaellig dieselbe Zahl tragen. Wer
+	 * sie „vereinheitlicht", koppelt die Sichtbarkeit dieses Rings an eine Warnfarbe, mit der er
+	 * nichts zu schaffen hat.
+	 */
+	var AVESMAPS_GARETIEN_AUSWAHL_BREITE = 21;
+	var AVESMAPS_GARETIEN_AUSWAHL_DECKKRAFT = 1;
+	var AVESMAPS_GARETIEN_TOKEN_AUSWAHL = "--color-garetien-auswahl";
 	// 🔴 NUR NOCH DER RUECKFALL (30.08.2026, Owner: „das Design dessen, was es werden wird,
 	// uebernehmen -- z.b. die Farbe einer Sumpflaeche"). Wie voll eine ECHTE Flaeche gefuellt ist,
 	// haengt von ihrer Art ab -- derographisch 0,16, Vegetation/Topographie 0,72, Klima 0,30
@@ -172,6 +194,9 @@
 	// gemeinsamer Hof mit `AVESMAPS_GARETIEN_KLASSE_SCHEIN` ginge nicht: dessen Farbe ist an
 	// UNSERE Partei gebunden (Magenta) und muss es bleiben, siehe der Kommentar dort.
 	var AVESMAPS_GARETIEN_KLASSE_SCHEIN_IHRE = "gi-map-schein-ihre";
+	// Die helle Kontur der gewaehlten Zeile -- eigene Klasse, weil ihr Leuchten weiter reicht als
+	// das der zwei Scheine und eine eigene Farbe traegt (css/components/garetien-importer.css).
+	var AVESMAPS_GARETIEN_KLASSE_AUSWAHL = "gi-map-auswahl";
 	// 🔴 NEU seit Aufgabe 4 (Entwurf §4.2): die KOLLISION -- ein Objekt, bei dem an derselben
 	// Stelle bei UNS etwas liegt UND eine Frage offen ist. Sie haengt NEBEN der Hof-Klasse am
 	// selben Element (Leaflets `className` nimmt mehrere, durch Leerzeichen getrennt) -- eine
@@ -938,6 +963,7 @@
 
 		var liste = objekte || [];
 		var farbeIhre = garetienTokenFarbe(AVESMAPS_GARETIEN_TOKEN_IHRE);
+		var farbeAuswahl = garetienTokenFarbe(AVESMAPS_GARETIEN_TOKEN_AUSWAHL);
 		var farbeUnsere = garetienTokenFarbe(AVESMAPS_GARETIEN_TOKEN_UNSERE);
 
 		// 💣 ERST SAMMELN, DANN IN ZWEI DURCHGAENGEN ZEICHNEN -- Hof und Form je Abschnitt direkt
@@ -1056,6 +1082,43 @@
 				deckkraft: garetienFlaechenDeckkraft(objekt),
 				durchmesser: garetienPunktDurchmesser(objekt, k),
 			});
+		});
+
+		// 🔴 DIE KONTUR DER GEWAEHLTEN ZEILE -- ZUERST, also GANZ UNTEN. Owner 08.09.2026: „kannst
+		// du konturen, die selektiert und sichtbar sind eine helle, auffaellige kontur geben, die
+		// durchgezogene linie sehen die editoren nicht immer."
+		//
+		// 💣 DIE DURCHGEZOGENE LINIE WAR DIE ANTWORT VOM 30.08.2026 auf dieselbe Frage („kannst du
+		// einer selektierten Flaeche einen durchgehende kontur geben") -- und acht Tage spaeter die
+		// Meldung. Auf einer Karte voller gestrichelter Importe ist „durchgezogen statt
+		// gestrichelt" ein Unterschied, den man SUCHEN muss; hell gegen bunt ist einer, den man
+		// sieht. Die Strichelung tritt weiterhin zurueck (unten), sie ist nur nicht mehr die ganze
+		// Aussage.
+		//
+		// 🔴 EIN EIGENER RING, NICHT DIE FORM UMGEFAERBT: ihre Farbe sagt, WAS fuer ein Objekt das
+		// ist (Sicht-Tafel), und diese Aussage darf nie zuruecktreten -- dieselbe Regel, die schon
+		// den goldenen Hof von der Form trennt.
+		// ⚠️ GANZ UNTEN und BREITER als der Hof darueber: laege er oben, verdeckte er die Form,
+		// deren Farbe die Aussage traegt; waere er gleich breit, saehe man ihn gar nicht.
+		ihre.forEach(function (eintrag) {
+			if (!eintrag.gewaehlt) { return; }
+			var kontur = garetienForm(l, eintrag.punkte, {
+				pane: AVESMAPS_GARETIEN_IHRE_PANE,
+				klasse: AVESMAPS_GARETIEN_KLASSE_AUSWAHL,
+				farbe: farbeAuswahl,
+				breite: AVESMAPS_GARETIEN_AUSWAHL_BREITE,
+				deckkraft: AVESMAPS_GARETIEN_AUSWAHL_DECKKRAFT,
+				// Wie die zwei Hoefe: IMMER ein Strich, auch unter einer Flaeche -- eine gefuellte
+				// weisse Flaeche loeschte das Kartenbild unter dem Objekt.
+				flaeche: false,
+				strichelung: null,
+				titel: eintrag.titel,
+				schluessel: eintrag.schluessel,
+				// Derselbe Durchmesser wie Form und Hof -- verschiedene Radien rissen den Ring
+				// neben den Punkt (siehe garetienForm).
+				durchmesser: eintrag.durchmesser,
+			});
+			if (kontur) { gruppe.addLayer(kontur); }
 		});
 
 		// 🔴 IHR HOF: GOLD, NEU seit RULING R8. Die Form darueber traegt seither ihre ECHTE
@@ -1542,6 +1605,9 @@
 			AVESMAPS_GARETIEN_KLASSE_UNSERE,
 			AVESMAPS_GARETIEN_KLASSE_SCHEIN,
 			AVESMAPS_GARETIEN_KLASSE_SCHEIN_IHRE,
+			AVESMAPS_GARETIEN_KLASSE_AUSWAHL,
+			AVESMAPS_GARETIEN_AUSWAHL_BREITE,
+			AVESMAPS_GARETIEN_SCHEIN_BREITE,
 			AVESMAPS_GARETIEN_PARTEI_IHRE,
 			AVESMAPS_GARETIEN_PARTEI_UNSERE,
 			AVESMAPS_GARETIEN_FELD_NUR_IHRE,

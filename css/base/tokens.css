@@ -280,6 +280,14 @@
 	   ⚠️ Nicht --color-path-open-end mitbenutzt, obwohl es derselbe Rotton waere: das heisst
 	   „offenes Wegende“ und liefe beim naechsten Umton auseinander. */
 	--color-garetien-kollision: #d92b2b;
+	/* Die Kontur der GEWAEHLTEN Zeile auf der Karte (Owner 08.09.2026: „kannst du konturen, die
+	   selektiert und sichtbar sind eine helle, auffaellige kontur geben, die durchgezogene linie
+	   sehen die editoren nicht immer").
+	   🔴 WEISS, und in BEIDEN Themen dasselbe: die Kartenflaeche darunter ist ein gezeichnetes
+	   Pergament und wechselt mit dem Thema NICHT -- ein themenabhaengiger Ton waere hier eine
+	   Anpassung an etwas, das sich gar nicht bewegt.
+	   ⚠️ Er kodiert DATEN („diese Zeile ist offen"), nicht Chrome -- AGENTS.md §12 laesst das zu. */
+	--color-garetien-auswahl: #ffffff;
 
 	/* Editor-Markierungswerkzeuge (Discord #25) -- kräftige Warnringe um Marker, je ein Ton pro
 	   Befund: pink = "Unverbunden" (gar keine Anbindung), türkis = "Kreuzungen mit 2 Wegen"
@@ -1135,6 +1143,8 @@ html.avesmaps-phone {
 	/* Der Zwilling im dunklen Thema -- heller, damit er auf dem dunklen Untergrund nicht zulaeuft.
 	   Siehe die Begruendung im hellen Block. */
 	--color-garetien-kollision: #ff6b6b;
+	/* Unveraendert weiss -- siehe die Begruendung an der hellen Fassung. */
+	--color-garetien-auswahl: #ffffff;
 
 	--color-focus: rgba(207, 183, 103, 0.5);
 	--color-hover-wash: rgba(207, 183, 103, 0.18);

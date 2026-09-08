@@ -155,6 +155,8 @@ const SIEDLUNG = "#cc2f2a";
 // Ebenen-Tafel selbst auf den Neutral-Rueckfall zurueck (Tokenname nicht gefunden), und die
 // Flaechen-Deckkraft-Probe (Abschnitt 11f) misst dann eine LINIE statt einer Flaeche.
 const WALD = "#3f6b2c";
+// Die helle Kontur der gewaehlten Zeile (08.09.2026) -- weiss, in BEIDEN Themen derselbe Wert.
+const HELL = "#ffffff";
 let tokenAbfragen = [];
 // ⚠️ Vollstaendig genug, dass auch review-garetien-importer.js (Abschnitt 12) darin starten kann:
 // dessen `hasDocument` ist ein `typeof document !== "undefined"`, und sein boot() greift dann
@@ -175,6 +177,7 @@ const TOKEN_WERTE = {
 	"--color-marker-settlement": SIEDLUNG,
 	"--color-ecosystem-vegetation-wald": WALD,
 	"--color-ecosystem-derographisch-kontinent": "#575757",
+	"--color-garetien-auswahl": HELL,
 };
 global.getComputedStyle = function (element) {
 	return {
@@ -250,6 +253,7 @@ const SCHEIN = mod.AVESMAPS_GARETIEN_KLASSE_SCHEIN;
 // Aufgabe 3 (RULING R8): der NEUE goldene Hof unter IHRER Form -- eigene Klasse, siehe
 // review-garetien-karte.js und css/components/garetien-importer.css.
 const SCHEIN_IHRE = mod.AVESMAPS_GARETIEN_KLASSE_SCHEIN_IHRE;
+const AUSWAHL = mod.AVESMAPS_GARETIEN_KLASSE_AUSWAHL;
 // Aufgabe 4 (Entwurf §4.2): die KOLLISION -- haengt NEBEN einer Hof-Klasse, nie an ihrer Stelle.
 const KOLLISION = mod.AVESMAPS_GARETIEN_KLASSE_KOLLISION;
 const IHRE_PANE = mod.AVESMAPS_GARETIEN_IHRE_PANE;
@@ -873,6 +877,8 @@ wahr(quelle.indexOf('"--color-marker-active"') !== -1,
 	"ihr Goldton muss aus --color-marker-active kommen (css/base/tokens.css)");
 wahr(quelle.indexOf('"--color-garetien-unsere"') !== -1,
 	"unser Magenta muss aus --color-garetien-unsere kommen (css/base/tokens.css)");
+wahr(quelle.indexOf('"--color-garetien-auswahl"') !== -1,
+	"die helle Kontur muss aus --color-garetien-auswahl kommen (css/base/tokens.css)");
 // Und die zwei Tokens muessen im Stylesheet auch WIRKLICH stehen -- ein Tokenname, den es nicht
 // gibt, macht `var()` ungueltig und faellt erst im Browser auf.
 const tokensCss = fs.readFileSync(path.join(WURZEL, "css", "base", "tokens.css"), "utf8");
@@ -886,7 +892,8 @@ const tokensCss = fs.readFileSync(path.join(WURZEL, "css", "base", "tokens.css")
 // Probe haette „fehlt im hellen Block" gemeldet und dabei nichts geprueft. Hier live passiert.
 const DUNKEL_AB = tokensCss.search(/^:root\[data-theme="dark"\]\s*\{/m);
 wahr(DUNKEL_AB > 1000, "der dunkle Block ist in tokens.css nicht zu finden -- die Probe misst nichts");
-["--color-marker-active", "--color-garetien-unsere", "--color-garetien-kollision"].forEach((name) => {
+["--color-marker-active", "--color-garetien-unsere", "--color-garetien-kollision",
+	"--color-garetien-auswahl"].forEach((name) => {
 	const stellen = [];
 	const muster = new RegExp("^\\s*" + name + "\\s*:", "gm");
 	let treffer = muster.exec(tokensCss);
@@ -2110,5 +2117,123 @@ const blutmoorOhne = nach(kartOhne, IHRE).filter((e) => !!e.options.dashArray)
 	.map((e) => e.options.color);
 wahr(blutmoorOhne.indexOf(durchgehende[0].options.color) !== -1,
 	"die gewaehlte Form traegt dieselbe Farbe wie ohne Marke -- nur die Strichelung faellt weg");
+
+// =================================================================================================
+// DIE HELLE KONTUR DER GEWAEHLTEN ZEILE (Owner 08.09.2026)
+// =================================================================================================
+// 💣 SIE IST DIE ZWEITE ANTWORT AUF DIESELBE FRAGE. Am 30.08.2026 bekam die gewaehlte Zeile eine
+// DURCHGEZOGENE Linie („kannst du einer selektierten Flaeche einen durchgehende kontur geben") --
+// acht Tage spaeter die Meldung: „die durchgezogene linie sehen die editoren nicht immer". Auf
+// einer Karte voller gestrichelter Importe ist „durchgezogen statt gestrichelt" ein Unterschied,
+// den man SUCHEN muss. Der Abschnitt darueber prueft weiterhin die Strichelung -- sie bleibt, sie
+// ist nur nicht mehr die ganze Aussage.
+// ⭐ Gegen 12 Mutationen gefahren (Riegel weg · Breite = Hofbreite · Breite < Hofbreite ·
+// halbdurchsichtig · Farbe = Gold · Kollisionsklasse an der Kontur · Kontur füllt · CSS-Regel weg ·
+// Leuchten schmaler als der Hof · Token fehlt hell · Token fehlt dunkel · Block hinter den Hof
+// verschoben), alle gefangen.
+// 🪤 UND EINE MESSFALLE, die diese Zeilen beim Bau zweimal an der falschen Karte gemessen haben:
+// der Zeichner haelt EINE Ebenengruppe im Modul. Ein zweiter `avesmapsGaretienKarteZeigen` auf
+// einer ANDEREN gefaelschten Karte nimmt dieselbe Gruppe von der ersten wieder ab -- `kartGw`
+// (oben) zaehlt danach NULL Ebenen, obwohl die Zusicherung fuenfzehn Zeilen darueber dort noch
+// zwei gefunden hat. Wer die Kontur an `kartGw` messen wollte, las eine leergeraeumte Karte und
+// haette den Zeichner fuer kaputt gehalten. Also: EIGENE Karte, frisch gezeichnet.
+const kartKontur = gefaelschteKarte();
+avesmapsGaretienKarteZeigen([natter, blutmoorGewaehlt], kartKontur);
+const konturen = nach(kartKontur, AUSWAHL);
+gleich(konturen.length, 1,
+    "🔴 GENAU EINE Kontur -- die der gewaehlten Zeile, nicht eine je Objekt");
+
+// 💣 BREITER ALS DER GOLDENE HOF, der direkt darueber liegt. Waere sie gleich breit oder schmaler,
+// saehe man von ihr NICHTS -- die Aenderung waere unsichtbar, ohne dass ein Test es merkt. Genau
+// diese Zusicherung ist der Grund, warum die zwei Breiten exportiert sind.
+wahr(mod.AVESMAPS_GARETIEN_AUSWAHL_BREITE > mod.AVESMAPS_GARETIEN_SCHEIN_BREITE,
+    "die Kontur (" + mod.AVESMAPS_GARETIEN_AUSWAHL_BREITE + ") ist breiter als der Schein ("
+    + mod.AVESMAPS_GARETIEN_SCHEIN_BREITE + ")");
+gleich(konturen[0].options.weight, mod.AVESMAPS_GARETIEN_AUSWAHL_BREITE,
+    "...und die gezeichnete Linie traegt genau diese Breite");
+gleich(konturen[0].options.opacity, 1,
+    "⚠️ VOLLE Deckkraft -- halbdurchsichtig ueber einer bunten Karte ist genau das, was an der "
+    + "durchgezogenen Linie beanstandet wurde");
+// 🔴 Und sie kommt aus dem TOKEN, nicht aus einer Zahl im Zeichner (der Quelltext-Waechter oben
+// verbietet jeden Hex-Wert in der Datei; diese Zeile misst, dass der gelesene Wert wirklich ANKOMMT
+// -- ein Tokenname, den es nicht gibt, liefert "" und zeichnete eine farblose Linie).
+gleich(konturen[0].options.color, HELL,
+    "die Kontur traegt den Wert aus --color-garetien-auswahl");
+
+// 🔴 GANZ UNTEN: sie wird VOR dem goldenen Hof und vor der Form gezeichnet. Laege sie oben,
+// verdeckte sie die Form, deren Farbe die Aussage „was fuer ein Objekt das ist" traegt.
+const reihenfolge = kartKontur.ebenen();
+const platzKontur = reihenfolge.findIndex((e) => traegtKlasse(e, AUSWAHL));
+const platzHof = reihenfolge.findIndex((e) => traegtKlasse(e, SCHEIN_IHRE));
+const platzForm = reihenfolge.findIndex((e) => traegtKlasse(e, IHRE));
+wahr(platzKontur !== -1 && platzHof !== -1 && platzForm !== -1, "alle drei Schichten liegen da");
+wahr(platzKontur < platzHof && platzKontur < platzForm,
+    "💣 die Kontur liegt UNTER Hof und Form: " + platzKontur + " < " + platzHof + " / " + platzForm);
+
+// 🔴 EIN EIGENER RING, NICHT DIE FORM UMGEFAERBT: die Form der gewaehlten Zeile behaelt ihre
+// Kartenfarbe (Sicht-Tafel). Gemessen an der Form DIESER Karte, nicht an der von oben.
+const formGewaehlt = nach(kartKontur, IHRE).filter((e) => !e.options.dashArray)[0];
+wahr(!!formGewaehlt, "die gewaehlte Form liegt auf dieser Karte");
+wahr(konturen[0].options.color !== formGewaehlt.options.color,
+    "die Kontur traegt eine EIGENE Farbe, nicht die der Form: "
+    + konturen[0].options.color + " vs " + formGewaehlt.options.color);
+// ⚠️ Und sie ist eine LINIE, keine gefuellte Flaeche -- weiss gefuellt loeschte das Kartenbild
+// unter dem Objekt. Gemessen am BAUER und an der Option: `blutmoor` ist eine Flaeche, ihre Form
+// zeichnet `L.polygon` -- die Kontur darunter darf trotzdem nur ein Strich sein.
+gleich(konturen[0].options.fill, false, "sie fuellt nicht");
+
+// Und die zweite Haelfte der Aenderung liegt im BLATT: das Leuchten. Ohne diese Zeilen waere der
+// Ring ein harter weisser Strich -- „auffaellig" war er dann, „hell" nicht.
+// 🔴 Sein Radius muss GROESSER sein als der des goldenen Hofes darueber (14px), sonst verschwindet
+// er in ihm; gemessen wird die Zahl, nicht bloss die Anwesenheit der Regel.
+const auswahlBlock = (kartenCss.match(/\.gi-map-auswahl\s*\{[^}]*\}/) || [""])[0];
+wahr(auswahlBlock !== "",
+    "die Regel fuer .gi-map-auswahl fehlt -- ohne sie leuchtet die Kontur nicht");
+const auswahlRadius = Number((auswahlBlock.match(/drop-shadow\(\s*0\s+0\s+(\d+)px/) || [])[1]);
+wahr(auswahlRadius > 14,
+    "das Leuchten der Kontur (" + auswahlRadius + "px) muss weiter reichen als der goldene Hof "
+    + "(14px), sonst sieht man es nicht: " + auswahlBlock);
+wahr(/var\(--color-garetien-auswahl\)/.test(auswahlBlock),
+    "auch das Leuchten nimmt seinen Ton aus dem Token: " + auswahlBlock);
+wahr(!/#[0-9a-fA-F]{3,8}\b/.test(auswahlBlock) && !/\brgba?\(/.test(auswahlBlock),
+    "kein hartkodierter Farbwert im .gi-map-auswahl-Block");
+
+// 💣 UND DER FALL, DER MICH AN DIESEM RING AM MEISTEN GEKOSTET HAT: ein Objekt, das GEWAEHLT ist
+// UND kollidiert. Der rote Kollisionston ist kein eigener Ring, sondern ein ZWEITES `drop-shadow`
+// (Radius 21px) an DERSELBEN Ebene wie der goldene Hof -- und die weisse Kontur bringt ihr eigenes
+// Leuchten von 22px mit. Waere sie oben, waeschte ihr Weiss das Rot aus, und die Auskunft „hier
+// kollidiert etwas" (Owner 29.08.2026) waere ausgerechnet an dem Objekt weg, das der Editor gerade
+// ansieht. Dass sie GANZ UNTEN liegt, ist deshalb nicht nur eine Frage der Form-Farbe.
+// 🔴 Gemessen wird die Zusicherung, die das haelt: die Kollisionsklasse bleibt am HOF, und die
+// Kontur traegt sie NICHT -- sie hat mit dem Urteil nichts zu tun und darf es nie mitfuehren.
+const kollisionGewaehlt = Object.assign({}, kollisionsSee);
+kollisionGewaehlt[GEWAEHLT] = true;
+const kartKollisionGw = gefaelschteKarte();
+avesmapsGaretienKarteZeigen([kollisionGewaehlt], kartKollisionGw);
+const konturKollision = nach(kartKollisionGw, AUSWAHL);
+gleich(konturKollision.length, 1, "das gewaehlte Kollisionsobjekt bekommt seine Kontur");
+wahr(!traegtKlasse(konturKollision[0], KOLLISION),
+    "💣 die Kontur traegt die Kollisionsklasse NICHT -- ihr Weiss wuerde das rote Gluehen sonst "
+    + "an sich ziehen, statt es dem Hof zu lassen");
+const hofNochRot = nach(kartKollisionGw, SCHEIN_IHRE).filter((e) => traegtKlasse(e, KOLLISION));
+gleich(hofNochRot.length, 1,
+    "⚠️ und IHR Hof glueht weiterhin rot -- die Kontur hat das Urteil nicht verdraengt");
+// Und die Reihenfolge auch in diesem Fall: erst Weiss, dann IHR rotes Gluehen darueber.
+// 🪤 Gemessen wird der Hof IHRER Seite, nicht „irgendeine Ebene mit der Kollisionsklasse": UNSER
+// Hof traegt sie ebenfalls (beide Seiten zeigen eine Kollision) und liegt seit RULING R8 unter
+// ALLEM von ihrer Seite -- schon der goldene Hof deckt ihn also, lange vor dieser Kontur. Genau
+// darum bindet die Regel BEIDE Seiten: die Auskunft haengt nicht an der unteren allein. Ein
+// findIndex ueber die blosse Kollisionsklasse fand unseren Hof auf Platz 0 und die Zusicherung
+// war rot, obwohl an der Sache nichts falsch war.
+const rangKollision = kartKollisionGw.ebenen();
+wahr(rangKollision.findIndex((e) => traegtKlasse(e, AUSWAHL))
+    < rangKollision.findIndex((e) => traegtKlasse(e, SCHEIN_IHRE) && traegtKlasse(e, KOLLISION)),
+    "💣 die weisse Kontur wird VOR IHREM roten Gluehen gezeichnet, sonst waescht sie es aus");
+
+// 💣 OHNE GEWAEHLTE ZEILE GIBT ES SIE GAR NICHT -- sonst leuchtete die ganze Karte.
+const kartKonturOhne = gefaelschteKarte();
+avesmapsGaretienKarteZeigen([natter, blutmoor], kartKonturOhne);
+gleich(nach(kartKonturOhne, AUSWAHL).length, 0,
+    "ohne offene Zeile zeichnet keine Kontur");
 
 console.log(`garetien-karte: ${checks} Pruefungen bestanden.`);
