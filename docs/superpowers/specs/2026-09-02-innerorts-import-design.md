@@ -231,6 +231,29 @@ hat, steht sonst erst nach einem zweiten „Holen & Rechnen" zur Wahl. 💣 Sie 
 Lesepfad der Liste — `AVESMAPS_GARETIEN_LISTE_MAX` ist 10000, das wären zehntausend Umkreissuchen je
 Filterklick.
 
+🔴 **Und seit dem 08.09.2026 stellt ein Spinner die Reichweite ein** (Owner: „einen numerischen
+spinner … der zwischen 0 - 20 die meilen eingrenzt" — auf die Rückfrage, welcher Umkreis gemeint
+sei: „beide"). Er steht unter dem Auswahlfeld, 0–20 Meilen in ganzen Schritten, Vorgabe 5.
+
+💣 **Er steht auch da, wenn nichts gefunden wurde** — die tragende Regel. Bis dahin hing die ganze
+Zeile am Befund; fände die Suche bei 5 Meilen nichts und verschwände dann das Feld, mit dem man sie
+auf 12 stellt, wäre es genau dann weg, wenn man es braucht. Deshalb hängt die Zeile jetzt am
+**Bauwerk** (`avesmapsIstBauwerksklasse`, das geteilte Merkmal) und nicht am Treffer — und aus
+demselben Grund fragt der frische Nachschlag für **jedes** geöffnete Bauwerk nach, nicht nur für
+eines mit Planbau-Befund: ein Tempel 8 Meilen neben einer Stadt hätte sonst auch bei 20 Meilen
+keinen Vorschlag.
+
+💣 **Geklemmt wird serverseitig** (`avesmapsGaretienUmkreisMeilen`, ein Prüfer für beide Spinner):
+ein `max="20"` im Markup ist eine Bitte an den Browser, und eine Umkreissuche mit 10.000 Meilen
+läuft gegen den ganzen Bestand. 🔴 „Nicht genannt" und „0" sind dabei verschiedene Antworten — jenes
+nimmt die Vorgabe der aufgerufenen Funktion (so kennt jede Vorgabe genau eine Stelle), dieses sucht
+wirklich mit 0.
+
+⚠️ **„Imports in der Nähe" hat denselben Spinner**, dort aber als **Zuschlag** über die eigene
+Ausdehnung hinaus („Umkreis +", Vorgabe 3 Meilen = 1 Karteneinheit). Als ganzer Radius gelesen fände
+eine große Waldfläche mit 3 Meilen gar nichts mehr. `AVESMAPS_GARETIEN_NAEHE_ZUSCHLAG` bleibt in
+Karteneinheiten — die Fixturen rechnen relativ zu ihr —, umgerechnet wird beim Eintritt.
+
 💣 **Die gewählte `public_id` wird serverseitig geprüft, nicht geglaubt** — sie gilt nur, wenn sie in
 den `kandidaten` dieses Vorschlags steht (`avesmapsGaretienInnerortsAusVorschlag`). Ohne den Riegel
 bände ein beliebiger Anfragerumpf eine Stätte an eine beliebige Stadt, und weil `settlement_place`
@@ -274,7 +297,8 @@ Innerorts-Fall, und sie ohne Ort einzusortieren hiesse, sie unter einer geratene
 
 ## 6 · Offene Punkte
 
-🔧 **Die Schwelle sind seit dem 07.09.2026 fünf Meilen, und sie ist NICHT gemessen** (§2e). Die 0,5
+🔧 **Die Schwelle ist seit dem 08.09.2026 einstellbar** (Spinner, 0–20 Meilen); die fünf Meilen sind
+nur noch ihre Vorgabe — und auch die ist NICHT gemessen (§2e). Die 0,5
 davor war an 27 Fällen gemessen und trennte sauber (11 mit Namenstreffer gegen 0,6 % Hintergrund);
 die 5 ist eine Owner-Zahl und trennt nichts — sie begrenzt, was zur Wahl steht. Ob acht Kandidaten
 (`AVESMAPS_GARETIEN_INNERORTS_KANDIDATEN`) in dicht besiedelten Gegenden reichen oder zu viele sind,
