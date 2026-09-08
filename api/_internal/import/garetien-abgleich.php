@@ -1360,19 +1360,46 @@ function avesmapsGaretienTrefferNameGleich(array $ziel, array $treffer, string $
 // unterscheiden.
 
 /**
- * 🔴 DIE SCHWELLE IST GEMESSEN, NICHT GERATEN (Entwurf §2d). Von 1048 ggp-Bauwerken liegen 27
- * naeher als eine halbe Meile an einer Ortschaft, und 11 davon (40,7 %) tragen deren Namen im
- * eigenen -- gegen 0,6 % jenseits von 5 Meilen. 68-fache Anreicherung; das Signal ist echt.
+ * 🔴 FUENF MEILEN, UND DER NAME IST KEINE BEDINGUNG MEHR (Owner 07.09.2026, woertlich: „Der Button
+ * soll kommen, wenn der Name X in Y oder 5 Meilen in der Naehe einer bestehenden oder anderen
+ * importierten Siedlung sein sollte. Sind in der Naehe mehrere soll ein dropdown Menue sortiert
+ * nach entfernung zur auswahl stehen, fuer welches man sich innerorts entscheiden moechte.").
  *
- * 💣 ABSTAND ALLEIN REICHT NICHT, und das ist der Befund, den die KONTROLLGRUPPE gebracht hat:
- * 4,5 % der Bauwerke liegen unter einer Meile an einer Ortschaft -- und exakt 4,5 % der
- * ORTSCHAFTEN auch. Ein Dorf 800 Schritt neben einer Stadt ist ein Nachbardorf, keine Staette.
- * Ohne die Gegenprobe haette „4,5 % liegen dicht an einer Stadt" wie ein Befund ausgesehen.
+ * 💣 DAMIT IST EINE GEMESSENE ENTSCHEIDUNG UMGEDREHT -- UND DIE MESSUNG BLEIBT WAHR. Entwurf §2c
+ * hat „Abstand allein" mit einer KONTROLLGRUPPE widerlegt: 4,5 % der Bauwerke liegen unter einer
+ * Meile an einer Ortschaft -- und exakt 4,5 % der ORTSCHAFTEN auch. Ein Dorf 800 Schritt neben
+ * einer Stadt ist ein Nachbardorf, keine Staette. Ohne die Gegenprobe haette „4,5 % liegen dicht
+ * an einer Stadt" wie ein Befund ausgesehen.
+ * 🔴 WAS SIE WIDERLEGT, IST EIN AUTOMATISCHER SCHLUSS -- und den gibt es hier seit jeher nicht.
+ * Der Abstand ist kein Befund, sondern der Filter fuer ein ANGEBOT: welche Stadt es wird, waehlt
+ * der Editor aus einer nach Entfernung sortierten Liste. Genau diese Rechtfertigung steht schon
+ * in §2d („Angebot statt Automatik"). Eine Stadt in Reichweite ist eine sinnvolle WAHL, auch wo
+ * sie kein Beweis ist.
+ * ⚠️ DER PREIS IST GEMESSEN UND GEWOLLT: die Wahl steht jetzt an rund 350 von 1048 ggp-Bauwerken
+ * statt an 11 (§2d: 698 liegen ueber 5 Meilen). Der Anlass war das Gegenteil davon -- bei 11 von
+ * 8348 Zeilen fand der Owner den Knopf nicht mehr.
  *
- * 🔧 Sie trennt heute sauber, aber an 27 Faellen. Ob sie bei einem gewachsenen Export noch trennt,
- * wird man neu messen muessen.
+ * 🔴 DER NAMENSTREFFER BLEIBT, ALS MARKE STATT ALS BEDINGUNG. Er ist das einzige gemessene Signal
+ * (11 von 27 unter 0,5 Meilen gegen 0,6 % jenseits von 5 -- 68-fache Anreicherung, §2d). Als
+ * Pflicht waere er jetzt falsch, weggeworfen waere er eine Verschlechterung: er reist als
+ * `nennt_name` an jedem Kandidaten mit und steht in dessen Zeile, damit der Editor sieht, warum
+ * eine Stadt besser passt als ihre Nachbarin.
+ *
+ * 🔧 5 MEILEN IST EINE OWNER-ZAHL, KEINE GEMESSENE SCHWELLE -- anders als die 0,5 davor, die an
+ * 27 Faellen gemessen war. Sie trennt nichts; sie begrenzt, was zur Wahl steht.
  */
-const AVESMAPS_GARETIEN_INNERORTS_MEILEN = 0.5;
+const AVESMAPS_GARETIEN_INNERORTS_MEILEN = 5.0;
+
+/**
+ * Wie viele Staedte das Auswahlfeld hoechstens anbietet.
+ *
+ * 💣 EIN DECKEL, WEIL EINE LANGE LISTE KEINE WAHL MEHR IST. Bei 5 Meilen liegen in dicht
+ * besiedelten Gegenden mehrere Ortschaften in Reichweite; die naechsten acht sind eine Auswahl,
+ * dreissig sind ein Suchproblem -- und ein Auswahlfeld, das man scrollen muss, beantwortet die
+ * Frage „welche ist gemeint?" schlechter als eines, das sie zeigt.
+ * ⚠️ GEDECKELT WIRD NACH DEM SORTIEREN: was wegfaellt, ist immer das Entfernteste.
+ */
+const AVESMAPS_GARETIEN_INNERORTS_KANDIDATEN = 8;
 
 /**
  * PURE: einen Namen fuer den Innerorts-Vergleich falten.
@@ -1469,37 +1496,46 @@ function avesmapsGaretienSiedlungsFamilie(): array
 }
 
 /**
- * PURE: der Innerorts-Kandidat zu einem Objekt -- oder null.
+ * PURE: die Innerorts-Kandidaten zu einem Objekt -- nach ENTFERNUNG sortiert, hoechstens
+ * AVESMAPS_GARETIEN_INNERORTS_KANDIDATEN Stueck, leere Liste wenn keiner in Reichweite liegt.
  *
- * 💣 ES GEWINNT DIE NAECHSTE ORTSCHAFT MIT NAMENSTREFFER, NICHT DIE NAECHSTE UEBERHAUPT. Erst die
- * naechste zu nehmen und DANN den Namen zu fragen, waere ein stilles Veto: liegt ein namenloser
- * Nachbarort 0,1 Meilen naeher als der, dessen Namen das Objekt traegt, gaebe es gar keinen
- * Kandidaten -- und von aussen saehe das aus, als habe der Importer nichts gefunden.
+ * 🔴 SORTIERT WIRD NACH ENTFERNUNG, NICHT NACH NAMENSTREFFER (Owner 07.09.2026: „sortiert nach
+ * entfernung"). Hier stand bis dahin „ES GEWINNT DIE NAECHSTE ORTSCHAFT MIT NAMENSTREFFER, NICHT
+ * DIE NAECHSTE UEBERHAUPT" -- und das war richtig, SOLANGE es einen stillen Gewinner gab: ein
+ * namenloser Nachbarort 0,1 Meilen naeher haette den einzigen Kandidaten verdraengt, und von
+ * aussen haette das ausgesehen, als habe der Importer nichts gefunden.
+ * 💣 GENAU DIESE GEFAHR GIBT ES NICHT MEHR, weil es keinen Gewinner mehr gibt, sondern eine Liste.
+ * Der Namenstreffer kann niemanden mehr verdraengen -- er steht als `nennt_name` an seiner Zeile.
+ * Wer die alte Sortierregel zurueckholt, dreht die Owner-Sortierung um, ohne etwas zu gewinnen.
+ *
+ * ⚠️ DER ERSTE EINTRAG IST DIE VORAUSWAHL -- also die NAECHSTE Ortschaft, nicht die mit dem
+ * passenden Namen. Das ist gefahrlos, weil der Editor die Alternative SIEHT: eine Stadt, die 0,3
+ * Meilen weiter liegt und den Namen traegt, steht in der Zeile darunter, mit ihrer Marke.
  *
  * @param list<array{0:float,1:float}> $punkte                die Punkte IHRES Objekts
  * @param list<array{public_id:string,name:string,punkte:list<array{0:float,1:float}>}> $ortschaften
- * @return array{public_id:string, name:string, abstand:float}|null
+ * @return list<array{public_id:string, name:string, abstand:float, nennt_name:bool}>
  */
-function avesmapsGaretienInnerortsKandidat(array $punkte, string $objektName, array $ortschaften): ?array
+function avesmapsGaretienInnerortsKandidaten(array $punkte, string $objektName, array $ortschaften): array
 {
     if ($punkte === []) {
-        return null;
+        return [];
     }
     $schwelle = AVESMAPS_GARETIEN_INNERORTS_MEILEN / AVESMAPS_TERRAIN_MEILEN_PER_MAPUNIT;
     // ⭐ Quadriert vergleichen: die Wurzel kostet und aendert an der Ordnung nichts. Sie wird
-    // genau einmal gezogen, fuer den Gewinner.
+    // genau einmal je Kandidat gezogen, erst wenn er in der Liste steht.
     $schwelleQ = $schwelle * $schwelle;
 
-    $bester = null;
-    $besterQ = INF;
+    $gefunden = [];
     foreach ($ortschaften as $ort) {
         // ⭐ ERST DER ABSTAND, DANN DER NAME -- und das ist eine Laufzeitfrage, keine Regelfrage.
         // Der Bestand hat rund 2900 Ortschaften und der Export rund 1000 Bauwerke; der Namenstest
         // ist ein regulaerer Ausdruck, der Abstandstest sind zwei Subtraktionen. Andersherum
         // liefen drei Millionen Mustervergleiche durch den Planbau -- genau die Sorte Schleife,
         // die am 02.09.2026 schon einmal eine 502 erzeugt hat.
-        // 🔴 An der ENTSCHEIDUNG aendert die Reihenfolge nichts: verglichen werden am Ende alle
-        // Ortschaften in Reichweite, und unter ihnen gewinnt die naechste MIT Namenstreffer.
+        // 🔴 SEIT DEM 07.09.2026 IST DIE REIHENFOLGE SOGAR TRAGEND, nicht nur schnell: der
+        // Namenstest ENTSCHEIDET nichts mehr, er beschriftet nur -- gefragt wird er deshalb
+        // ausschliesslich fuer die Handvoll Ortschaften, die den Abstandstest bestanden haben.
         $abstandQ = INF;
         foreach ((array) ($ort['punkte'] ?? []) as [$ox, $oy]) {
             foreach ($punkte as [$x, $y]) {
@@ -1514,19 +1550,87 @@ function avesmapsGaretienInnerortsKandidat(array $punkte, string $objektName, ar
                 }
             }
         }
-        if ($abstandQ > $schwelleQ || $abstandQ >= $besterQ) {
+        if ($abstandQ > $schwelleQ) {
             continue;
         }
         $name = trim((string) ($ort['name'] ?? ''));
         $publicId = (string) ($ort['public_id'] ?? '');
-        if ($name === '' || $publicId === '' || !avesmapsGaretienNameNenntOrt($objektName, $name)) {
+        // ⚠️ BEIDES MUSS DA SEIN: ohne `public_id` gaebe es keine Bindung, ohne Namen keine
+        // Anzeige -- dieselbe Pruefung wie in avesmapsGaretienInnerortsAusVorschlag.
+        if ($name === '' || $publicId === '') {
             continue;
         }
-        $besterQ = $abstandQ;
-        $bester = ['public_id' => $publicId, 'name' => $name, 'abstand' => sqrt($abstandQ)];
+        $gefunden[] = [
+            'public_id' => $publicId,
+            'name' => $name,
+            'abstand' => sqrt($abstandQ),
+            // 🔴 Die MARKE, nicht die Bedingung -- siehe AVESMAPS_GARETIEN_INNERORTS_MEILEN.
+            'nennt_name' => avesmapsGaretienNameNenntOrt($objektName, $name),
+        ];
     }
 
-    return $bester;
+    // 💣 STABIL SORTIEREN, und darauf ruht eine Zusage: zwei Ortschaften im selben Abstand
+    // (dieselbe Stadt zweimal erfasst, ein Objektpunkt genau zwischen beiden) behalten die
+    // Reihenfolge des Bestands, statt bei jedem Lauf zu tauschen -- sonst zeigte das Auswahlfeld
+    // nach einem „Holen & Rechnen" eine andere Vorauswahl, ohne dass sich etwas geaendert hat.
+    // `usort` ist seit PHP 8.0 stabil (die Sprachversion dieses Projekts, AGENTS.md §1).
+    usort($gefunden, static fn (array $a, array $b): int => $a['abstand'] <=> $b['abstand']);
+
+    // ⚠️ GEDECKELT WIRD NACH DEM SORTIEREN -- was wegfaellt, ist immer das Entfernteste.
+    return array_slice($gefunden, 0, AVESMAPS_GARETIEN_INNERORTS_KANDIDATEN);
+}
+
+/**
+ * PURE: welcher Kandidat steht im Knopf? Der naechste MIT Namenstreffer, sonst der naechste.
+ *
+ * 🔴 DIE LISTE IST NACH ENTFERNUNG SORTIERT, DIE VORAUSWAHL IST ES NICHT -- und das ist kein
+ * Widerspruch zum Owner-Satz „sortiert nach entfernung" (07.09.2026), sondern seine andere Haelfte.
+ * Sortiert wird, was zur WAHL steht; vorausgewaehlt wird, was wir fuer richtig halten.
+ *
+ * 💣 SONST WAERE DER UMBAU EINE VERSCHLECHTERUNG. Der Namenstreffer ist das einzige gemessene
+ * Signal (68-fache Anreicherung, Entwurf §2d); die Fixture dieses Tests ist genau der Fall: das
+ * Dorf „Aue" liegt 0,03 Meilen vom „Wandlether Rondratempel", die Stadt „Wandleth" 0,09. Nach
+ * blosser Naehe stuende „Innerorts einfuegen (Aue)" im Knopf -- ein Klick auf den Vorschlag legte
+ * die Staette in der falschen Stadt an, und bis zum 07.09.2026 hatte der Importer hier RECHT.
+ * ⚠️ Die naehere Ortschaft geht dabei nicht verloren: sie steht in der Liste, an erster Stelle.
+ *
+ * ⚠️ Bei MEHREREN Namenstreffern gewinnt der naechste -- die Liste ist sortiert, also der erste,
+ * den diese Schleife findet.
+ *
+ * @param list<array{public_id:string, name:string, meilen:float, nennt_name:bool}> $liste nicht leer
+ * @return array{public_id:string, name:string, meilen:float, nennt_name:bool}
+ */
+function avesmapsGaretienInnerortsVorauswahl(array $liste): array
+{
+    foreach ($liste as $kandidat) {
+        if (($kandidat['nennt_name'] ?? false) === true) {
+            return $kandidat;
+        }
+    }
+
+    return $liste[0];
+}
+
+/**
+ * PURE: Kandidaten in die Form, die den Endpunkt verlaesst -- Karteneinheiten werden Meilen.
+ *
+ * 💣 EIN UMRECHNER FUER ALLE ERZEUGER, und das ist keine Kosmetik. Die Zahl steht am Knopf, in der
+ * Zeile des Auswahlfelds und in der Begruendung; zwei Rundungen an zwei Stellen laufen beim ersten
+ * Streit ueber eine Nachkommastelle auseinander, und dann zeigt dasselbe Objekt „0,2 Meilen" und
+ * „0,19 Meilen" nebeneinander. Erzeuger sind heute zwei: der Planbau (avesmapsGaretienInnerortsBefund)
+ * und der frische Nachschlag der Leseseite (avesmapsGaretienInnerortsKandidatenFrisch).
+ *
+ * @param list<array{public_id:string, name:string, abstand:float, nennt_name:bool}> $kandidaten
+ * @return list<array{public_id:string, name:string, meilen:float, nennt_name:bool}>
+ */
+function avesmapsGaretienInnerortsListeInMeilen(array $kandidaten): array
+{
+    return array_map(static fn (array $k): array => [
+        'public_id' => (string) $k['public_id'],
+        'name' => (string) $k['name'],
+        'meilen' => round(((float) $k['abstand']) * AVESMAPS_TERRAIN_MEILEN_PER_MAPUNIT, 2),
+        'nennt_name' => ($k['nennt_name'] ?? false) === true,
+    ], $kandidaten);
 }
 
 /**
@@ -1537,10 +1641,18 @@ function avesmapsGaretienInnerortsKandidat(array $punkte, string $objektName, ar
  * `subtyp === 'gebaeude'`: seit dem 31.08.2026 gibt es zwei Bauwerksklassen, und ein Vergleich auf
  * einen Wert haette das Stadtviertel still ausgelassen.
  *
- * ⚠️ Faellt still auf null aus. „Kein Kandidat" ist der Normalfall (rund ein Dutzend von 8348
- * Zeilen) und darf den Planbau nie anhalten.
+ * ⚠️ Faellt still auf null aus. „Kein Kandidat" darf den Planbau nie anhalten.
  *
- * @return array{public_id:string, name:string, meilen:float}|null
+ * 🔴 ZWEI DINGE IN EINEM FELD, und das ist Absicht. Die drei Schluessel `public_id`/`name`/`meilen`
+ * sind die VORAUSWAHL und stehen zeichengleich da wie vor dem 07.09.2026 -- jeder bestehende Leser
+ * (avesmapsGaretienInnerortsAusVorschlag, garetienInnerortsOrt im Browser, die Knopfbeschriftung)
+ * liest weiter genau sie. `kandidaten` kommt daneben. Ein zweites Feld im `after_json` haette an
+ * jeder Naht einzeln nachgezogen werden muessen -- Plan, Liste, Uebernahme, Client --, und eine
+ * davon haette es vergessen; so reicht `garetien-liste.php` es OHNE Aenderung mit durch.
+ * ⚠️ Der erste Kandidat steht damit zweimal drin. Das ist der Preis fuer die unveraenderte Form
+ * der Vorauswahl, und er ist billig: vier Zahlen.
+ *
+ * @return array{public_id:string, name:string, meilen:float, kandidaten:list<array{public_id:string, name:string, meilen:float, nennt_name:bool}>}|null
  */
 function avesmapsGaretienInnerortsBefund(PDO $pdo, array $zeile, ?array $ziel): ?array
 {
@@ -1565,15 +1677,21 @@ function avesmapsGaretienInnerortsBefund(PDO $pdo, array $zeile, ?array $ziel): 
         'suchen' => avesmapsGaretienSiedlungsFamilie(),
     ]);
 
-    $kandidat = avesmapsGaretienInnerortsKandidat($punkte, $objektName, $ortschaften);
-    if ($kandidat === null) {
+    $kandidaten = avesmapsGaretienInnerortsKandidaten($punkte, $objektName, $ortschaften);
+    if ($kandidaten === []) {
         return null;
     }
 
+    $liste = avesmapsGaretienInnerortsListeInMeilen($kandidaten);
+    $vorauswahl = avesmapsGaretienInnerortsVorauswahl($liste);
+
     return [
-        'public_id' => $kandidat['public_id'],
-        'name' => $kandidat['name'],
-        'meilen' => round($kandidat['abstand'] * AVESMAPS_TERRAIN_MEILEN_PER_MAPUNIT, 2),
+        // Die VORAUSWAHL, in der Form von vor dem 07.09.2026 -- ohne `nennt_name`, damit die drei
+        // Schluessel bleiben, die ihre Leser kennen.
+        'public_id' => $vorauswahl['public_id'],
+        'name' => $vorauswahl['name'],
+        'meilen' => $vorauswahl['meilen'],
+        'kandidaten' => $liste,
     ];
 }
 
