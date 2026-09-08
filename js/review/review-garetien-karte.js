@@ -854,6 +854,38 @@
 	 */
 	var AVESMAPS_GARETIEN_HAKEN_KLICK = "avesmapsGaretienKarteKlick";
 
+	/*
+	 * Der helle Auswahlring EINES PUNKTES -- GERECHNET aus den zwei vorhandenen Breiten, nie
+	 * aufgeschrieben.
+	 *
+	 * 💣 DER PUNKT IST DER FALL, IN DEM „BREITERER STRICH AUF DEMSELBEN RADIUS" ZUSAMMENBRICHT.
+	 * Bei einer Linie liegt der Strich beidseitig der Mittellinie, und von den 21 px sieht man
+	 * genau das Band, das der 13-px-Hof nicht deckt: 4 px. Bei einem `circleMarker` liegt der
+	 * Strich beidseitig des RADIUS -- ein 21 px breiter Strich auf Radius 8 reicht nach INNEN bis
+	 * −2,5 und macht aus dem Punkt eine gefuellte weisse Scheibe von 37 px. Nachgerechnet an den
+	 * echten Zoombaendern (js/map-features/location-zoom-bands.js): „dorf" bei z6 liegt bei −1,63,
+	 * „kleinstadt" bei z8 laesst 3,8 px Loch -- erst eine Metropole sieht ueberhaupt wie ein Ring
+	 * aus. Die GROESSE des Punktes ist aber eine Aussage der Sicht-Tafel (Entwurf §4.1), und eine
+	 * Scheibe von 37 bis 80 px loescht sie.
+	 * ⭐ Also derselbe SICHTBARE Effekt, andere Geometrie: der Ring wird so gelegt, dass er genau
+	 * das Band belegt, das bei einer Linie sichtbar ist -- innen an der Aussenkante des Hofes
+	 * (r + 13/2), aussen dort, wo der Strich einer Linie endet (r + 21/2). Der Punkt selbst bleibt
+	 * damit unberuehrt: seine Groesse und seine Farbe stehen weiter frei.
+	 * 🔴 BEIDE Zahlen sind Ableitungen, keine neuen Konstanten -- wer eine der zwei Breiten
+	 * aendert, aendert diesen Ring mit. Aufgeschrieben liefen sie beim ersten Umton auseinander,
+	 * und der Fehler wuerde still sein (der Ring saesse ein paar Pixel neben dem Hof).
+	 */
+	function garetienAuswahlRingAmPunkt(durchmesser) {
+		var d = typeof durchmesser === "number" ? durchmesser : AVESMAPS_GARETIEN_PUNKT_RADIUS * 2;
+		var innen = d / 2 + AVESMAPS_GARETIEN_SCHEIN_BREITE / 2;
+		var aussen = d / 2 + AVESMAPS_GARETIEN_AUSWAHL_BREITE / 2;
+		return {
+			// Der Durchmesser, den `garetienForm` halbiert -- die Mittellinie des Bandes.
+			durchmesser: (innen + aussen),
+			breite: aussen - innen,
+		};
+	}
+
 	function garetienForm(l, punkte, opt) {
 		var basis = {
 			pane: opt.pane,
@@ -1100,13 +1132,30 @@
 		// den goldenen Hof von der Form trennt.
 		// ⚠️ GANZ UNTEN und BREITER als der Hof darueber: laege er oben, verdeckte er die Form,
 		// deren Farbe die Aussage traegt; waere er gleich breit, saehe man ihn gar nicht.
+		// 🔴 UND DER PREIS DIESER REIHENFOLGE IST GEMESSEN UND ANGENOMMEN: der Hof wird NACH dem
+		// Ring gezeichnet, sein halbdurchsichtiges Leuchten liegt also ueber dem sichtbaren weissen
+		// Band. Ohne Kollision ist das ein leichter Goldstich (Reichweite 20,5 gegen 32,5 px, also
+		// rund 12 px Luft). MIT Kollision reicht der rote Anteil bis ~27,5 px, die Luft schrumpft
+		// auf rund 5 px, und das Band wird sichtbar rosa getoent.
+		// ⚠️ Das ist die richtige Richtung, nicht ein Fehler: der Owner hat BEIDES bestellt -- die
+		// helle Auswahl (08.09.2026) und das rote Gluehen bei einer Kollision (29.08.2026) -- und
+		// der spaetere Wunsch hebt den fruehen nicht auf. Andersherum waeschte das Weiss die Warnung
+		// ausgerechnet an dem Objekt aus, das der Editor gerade ansieht. Ein rosa Band bleibt ein
+		// Band; ein Objekt ohne Marke hat gar keines.
 		ihre.forEach(function (eintrag) {
 			if (!eintrag.gewaehlt) { return; }
+			// 🔴 EIN PUNKT BEKOMMT EINEN ECHTEN RING, KEINEN DICKEN STRICH -- siehe
+			// garetienAuswahlRingAmPunkt: auf demselben Radius waere er eine gefuellte Scheibe und
+			// loeschte die Groessenaussage der Sicht-Tafel. Dieselbe SICHTBARE Breite, andere Lage.
+			var istPunkt = garetienIstPunktliste(eintrag.punkte) && eintrag.punkte.length === 1;
+			var ring = istPunkt
+				? garetienAuswahlRingAmPunkt(eintrag.durchmesser)
+				: { durchmesser: eintrag.durchmesser, breite: AVESMAPS_GARETIEN_AUSWAHL_BREITE };
 			var kontur = garetienForm(l, eintrag.punkte, {
 				pane: AVESMAPS_GARETIEN_IHRE_PANE,
 				klasse: AVESMAPS_GARETIEN_KLASSE_AUSWAHL,
 				farbe: farbeAuswahl,
-				breite: AVESMAPS_GARETIEN_AUSWAHL_BREITE,
+				breite: ring.breite,
 				deckkraft: AVESMAPS_GARETIEN_AUSWAHL_DECKKRAFT,
 				// Wie die zwei Hoefe: IMMER ein Strich, auch unter einer Flaeche -- eine gefuellte
 				// weisse Flaeche loeschte das Kartenbild unter dem Objekt.
@@ -1114,9 +1163,11 @@
 				strichelung: null,
 				titel: eintrag.titel,
 				schluessel: eintrag.schluessel,
-				// Derselbe Durchmesser wie Form und Hof -- verschiedene Radien rissen den Ring
-				// neben den Punkt (siehe garetienForm).
-				durchmesser: eintrag.durchmesser,
+				// Bei einer Linie/Flaeche wirkungslos, bei einem Punkt die Mittellinie des Bandes
+				// (garetienAuswahlRingAmPunkt). Konzentrisch bleibt er in jedem Fall -- ein
+				// `circleMarker` sitzt immer auf seinem Mittelpunkt, der Ring reisst also nicht
+				// neben den Punkt, wie es ein versetzter SCHEIN taete.
+				durchmesser: ring.durchmesser,
 			});
 			if (kontur) { gruppe.addLayer(kontur); }
 		});
@@ -1608,6 +1659,8 @@
 			AVESMAPS_GARETIEN_KLASSE_AUSWAHL,
 			AVESMAPS_GARETIEN_AUSWAHL_BREITE,
 			AVESMAPS_GARETIEN_SCHEIN_BREITE,
+			garetienAuswahlRingAmPunkt,
+			AVESMAPS_GARETIEN_PUNKT_RADIUS,
 			AVESMAPS_GARETIEN_PARTEI_IHRE,
 			AVESMAPS_GARETIEN_PARTEI_UNSERE,
 			AVESMAPS_GARETIEN_FELD_NUR_IHRE,
