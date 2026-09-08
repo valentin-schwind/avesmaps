@@ -356,4 +356,47 @@ assert(avesmapsGaretienInnerortsAusVorschlag(['innerorts' => []], ['innerorts_pu
     'und ohne Befund gibt es nichts zu waehlen');
 $pruefungen += 5;
 
+// =================================================================================================
+// H. Der Umkreis-Spinner (Owner 08.09.2026) -- 0 bis 20 Meilen, geprueft am SERVER
+// =================================================================================================
+assert(AVESMAPS_GARETIEN_UMKREIS_MIN_MEILEN === 0.0 && AVESMAPS_GARETIEN_UMKREIS_MAX_MEILEN === 20.0,
+    'die Grenzen sind die Owner-Zahlen: 0 bis 20 Meilen');
+// 🔴 „NICHT GENANNT" UND „0" SIND VERSCHIEDENE ANTWORTEN -- ohne diese Trennung koennte man den
+// Umkreis nie auf 0 stellen, oder ein alter Client suchte plötzlich mit 0.
+assert(avesmapsGaretienUmkreisMeilen(null) === null, 'nicht genannt: null (die Funktion nimmt ihre eigene Vorgabe)');
+assert(avesmapsGaretienUmkreisMeilen('') === null, 'leer: ebenso');
+assert(avesmapsGaretienUmkreisMeilen('abc') === null, 'kein Zahlwert: ebenso');
+assert(avesmapsGaretienUmkreisMeilen(0) === 0.0, '💣 eine ausdrueckliche 0 GILT -- sie ist der Rand des Bereichs, nicht „keine Angabe"');
+assert(avesmapsGaretienUmkreisMeilen('7') === 7.0, 'eine Zahl als Zeichenkette (so kommt sie aus dem Rumpf)');
+assert(avesmapsGaretienUmkreisMeilen(12.5) === 12.5, 'und als Zahl');
+// 💣 GEKLEMMT, NICHT ABGELEHNT: ein `max="20"` im Markup ist eine Bitte an den Browser. Eine
+// Umkreissuche mit 10.000 Meilen liefe gegen den ganzen Bestand -- die Schleife, die am 02.09.2026
+// eine 502 erzeugt hat.
+assert(avesmapsGaretienUmkreisMeilen(10000) === 20.0, 'ueber der Grenze wird geklemmt, nicht abgelehnt');
+assert(avesmapsGaretienUmkreisMeilen(-5) === 0.0, 'unter der Grenze ebenso');
+assert(avesmapsGaretienUmkreisMeilen(INF) === null, 'unendlich ist keine Zahl fuer diesen Zweck');
+assert(avesmapsGaretienUmkreisMeilen(null, 5.0) === 5.0, 'mit ausdruecklicher Vorgabe faellt „nicht genannt" auf sie');
+$pruefungen += 10;
+
+// Die Reichweite wirkt WIRKLICH -- gemessen an derselben Fixture wie Abschnitt B.
+$weit = [['public_id' => 'stadt-fern', 'name' => 'Fernstadt', 'punkte' => [[100.0 + 8.0 / AVESMAPS_TERRAIN_MEILEN_PER_MAPUNIT, 100.0]]]];
+assert(avesmapsGaretienInnerortsKandidaten([[100.0, 100.0]], 'Irgendein Hof', $weit) === [],
+    'mit der Vorgabe (5 Meilen) liegt eine Stadt in 8 Meilen ausserhalb');
+assert(count(avesmapsGaretienInnerortsKandidaten([[100.0, 100.0]], 'Irgendein Hof', $weit, 12.0)) === 1,
+    '🔴 mit 12 Meilen aus dem Spinner steht sie zur Wahl -- die Reichweite ist ein Parameter, keine Konstante mehr');
+assert(avesmapsGaretienInnerortsKandidaten([[100.0, 100.0]], 'Irgendein Hof', $weit, 0.0) === [],
+    '⚠️ und mit 0 findet sie nichts -- die 0 ist ein gueltiger Wert, kein „nimm die Vorgabe"');
+assert(count(avesmapsGaretienInnerortsKandidaten([[100.02, 100.0]], 'Wandlether Baumeisterzunft', $ortschaften, null)) === 2,
+    'null nimmt die Vorgabe AVESMAPS_GARETIEN_INNERORTS_MEILEN');
+$pruefungen += 4;
+
+// Und der Befund reicht sie durch, bis in den frischen Nachschlag.
+$fernBefund = avesmapsGaretienInnerortsBefund($pdo, $zeileTempel, $zielTempel, 0.0);
+assert($fernBefund === null, 'mit 0 Meilen gibt es keinen Befund, auch wo bei 5 einer war');
+assert((avesmapsGaretienInnerortsBefund($pdo, $zeileTempel, $zielTempel, 12.0)['name'] ?? null) === 'Wandleth',
+    'mit 12 Meilen weiterhin -- und die Vorauswahl bleibt die Stadt mit dem Namenstreffer');
+assert(avesmapsGaretienInnerortsKandidatenFrisch($pdo, 1, $schluesselRondra, 0.0) === [],
+    'der frische Nachschlag nimmt sie ebenso entgegen');
+$pruefungen += 3;
+
 echo "OK: {$pruefungen} Pruefungen\n";

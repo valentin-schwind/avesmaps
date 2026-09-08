@@ -260,7 +260,16 @@ try {
         if ($ziel === '') {
             avesmapsErrorResponse(400, 'no_target', 'Es wurde kein Objekt genannt.');
         }
-        avesmapsJsonResponse(200, ['ok' => true] + avesmapsGaretienNaehe($pdo, $importRun, $ziel));
+        // 🔴 Der Umkreis-Spinner (Owner 08.09.2026, 0-20 Meilen). Geklemmt wird SERVERSEITIG durch
+        // avesmapsGaretienUmkreisMeilen -- ein `max="20"` im Markup ist eine Bitte an den Browser.
+        // ⚠️ Fehlt das Feld, reist `null` weiter und die Funktion nimmt ihre eigene Vorgabe (ein
+        // alter Client verhaelt sich damit genau wie vorher).
+        avesmapsJsonResponse(200, ['ok' => true] + avesmapsGaretienNaehe(
+            $pdo,
+            $importRun,
+            $ziel,
+            avesmapsGaretienUmkreisMeilen($payload['meilen'] ?? null)
+        ));
     }
 
     // --- Die Innerorts-Kandidaten EINES Objekts, frisch gerechnet.
@@ -287,7 +296,13 @@ try {
             'ok' => true,
             // ⚠️ Eine LEERE Liste ist eine gueltige Antwort („keine Stadt in Reichweite"), kein
             // Fehler -- der Client laesst sein Auswahlfeld dann bei der Vorauswahl stehen.
-            'kandidaten' => avesmapsGaretienInnerortsKandidatenFrisch($pdo, $importRun, $ziel),
+            // 🔴 Derselbe Spinner, derselbe Pruefer -- siehe `naehe` darueber.
+            'kandidaten' => avesmapsGaretienInnerortsKandidatenFrisch(
+                $pdo,
+                $importRun,
+                $ziel,
+                avesmapsGaretienUmkreisMeilen($payload['meilen'] ?? null)
+            ),
         ]);
     }
 

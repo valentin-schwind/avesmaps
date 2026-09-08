@@ -3549,7 +3549,11 @@
 	// Eingabe mit verwerfen).
 	function garetienEingabenAendern(ereignis, objekte) {
 		const ziel = ereignis && ereignis.target;
-		if (!ziel || !ziel.getAttribute || !ziel.hasAttribute("data-gi-feld")) { return; }
+		// ⚠️ Der Umkreis-Spinner trägt `data-gi-umkreis` statt `data-gi-feld` -- er ist kein Feld des
+		// Kastens „Eingefügt wird" (das beschreibt EIN Objekt), sondern eine Einstellung des
+		// Fensters. Ohne ihn hier fiele er durch den frühen Ausgang und täte gar nichts.
+		if (!ziel || !ziel.getAttribute
+			|| (!ziel.hasAttribute("data-gi-feld") && !ziel.hasAttribute("data-gi-umkreis"))) { return; }
 		if (zustand.detailKey === null) { return; }
 		const objekt = (objekte || zustand.objekte || []).filter(function (o) {
 			return o && String(o.key) === String(zustand.detailKey);
@@ -3575,6 +3579,30 @@
 				&& typeof window.avesmapsGaretienKarteZeigen === "function") {
 				window.avesmapsGaretienKarteZeigen(avesmapsGaretienAufDerKarte());
 			}
+			return;
+		}
+		// 🔴 DER UMKREIS-SPINNER VERWIRFT DAS ERGEBNIS SEINER SUCHE, nicht nur den Wert. Ohne das
+		// zeigte die Spalte nach dem Drehen weiter die alte Trefferliste -- der Spinner sähe kaputt
+		// aus, obwohl er richtig gesetzt hat.
+		// 💣 ZWEI Speicher je Suche, und BEIDE müssen weg: das Ergebnis (`_garetienInnerortsFrisch`
+		// bzw. `_garetienNaeheGefunden`) UND der Riegel gegen doppelte Abrufe (`…LetzterKey`).
+		// Bliebe der Riegel stehen, käme gar keine neue Anfrage -- die Liste wäre leer und die Suche
+		// stumm, was schlimmer ist als ein veraltetes Ergebnis.
+		// ⚠️ `input` statt `change`, damit die Spinner-Pfeile sofort greifen; ein unveränderter Wert
+		// löst nichts aus (garetienUmkreisSetzen meldet das).
+		const umkreisFeld = ziel.getAttribute("data-gi-umkreis");
+		if (umkreisFeld) {
+			if (!garetienUmkreisSetzen(umkreisFeld, ziel.value)) { return; }
+			if (umkreisFeld === "innerorts") {
+				_garetienInnerortsFrisch = {};
+				_garetienInnerortsLetzterKey = null;
+				garetienInnerortsFrischLaden(objekt);
+			} else {
+				_garetienNaeheGefunden = null;
+				_garetienNaeheLetzterKey = null;
+				garetienNaeheBeiBedarfLaden(objekt);
+			}
+			garetienDetailRendern(objekte || zustand.objekte || []);
 			return;
 		}
 		// 🔴 DIE INNERORTS-WAHL BAUT DIE SPALTE NEU, wie die Zielwahl darunter -- sie entscheidet,
@@ -4375,6 +4403,112 @@
 	function garetienInnerortsWahlVergessen() { _garetienInnerortsWahl = {}; }
 
 	/*
+	 * Der Umkreis-Spinner (Owner 08.09.2026: „einen numerischen spinner … der zwischen 0 - 20 die
+	 * meilen eingrenzt") -- ZWEI Werte, für die zwei Umkreise dieses Fensters.
+	 *
+	 * 🔴 SIE GEHÖREN DEM FENSTER, NICHT DEM OBJEKT. Ein Suchradius ist eine Einstellung wie ein
+	 * Filter: wer ihn an einem Tempel hochdreht, will ihn am nächsten auch hoch haben. Am Objekt
+	 * gehalten müsste man ihn in jeder Zeile neu einstellen -- und das ist der Grund, aus dem der
+	 * Owner ihn überhaupt bestellt hat.
+	 * ⚠️ Deshalb steht er NICHT in den Eingaben des Kastens „Eingefügt wird" (dort liegt, was ein
+	 * Objekt beschreibt) -- dieselbe Trennung wie beim Typenfilter des Umkreises.
+	 *
+	 * 💣 DIE GRENZEN STEHEN AUCH SERVERSEITIG (avesmapsGaretienUmkreisMeilen), und die dort sind die
+	 * verbindlichen: `min`/`max` am `<input>` sind eine Bitte an den Browser. Diese zwei Zahlen sind
+	 * die ANZEIGE derselben Regel, nicht die Regel -- der Test hält beide gegeneinander.
+	 */
+	const GARETIEN_UMKREIS_MIN = 0;
+	const GARETIEN_UMKREIS_MAX = 20;
+	// Die Vorgaben spiegeln die Server-Konstanten: 5 Meilen Innerorts-Reichweite
+	// (AVESMAPS_GARETIEN_INNERORTS_MEILEN), 3 Meilen Nähe-Zuschlag
+	// (AVESMAPS_GARETIEN_NAEHE_ZUSCHLAG = 1 Karteneinheit × 3).
+	const GARETIEN_UMKREIS_VORGABE = { innerorts: 5, naehe: 3 };
+
+	let _garetienUmkreis = { innerorts: GARETIEN_UMKREIS_VORGABE.innerorts,
+		naehe: GARETIEN_UMKREIS_VORGABE.naehe };
+
+	/* REIN: der eingestellte Umkreis einer der zwei Suchen, in Meilen. */
+	function garetienUmkreisZu(welcher) {
+		const wert = Number(_garetienUmkreis[welcher]);
+		return Number.isFinite(wert) ? wert : GARETIEN_UMKREIS_VORGABE[welcher];
+	}
+
+	/*
+	 * Setzt einen Umkreis. Gibt zurück, ob sich WIRKLICH etwas geändert hat.
+	 *
+	 * 💣 Der Rückgabewert ist tragend: an ihm hängt, ob ein Neuabruf losgeht. Ohne ihn löste jedes
+	 * `input`-Ereignis eine Anfrage aus -- auch das, das denselben Wert noch einmal meldet (ein
+	 * Klick auf den Spinner-Pfeil an der Grenze tut genau das, und dort wird geklemmt).
+	 * ⚠️ Geklemmt wird auch hier, nicht nur serverseitig: sonst stünde im Feld eine Zahl, mit der
+	 * niemand gesucht hat.
+	 */
+	function garetienUmkreisSetzen(welcher, roh) {
+		const zahl = Number(roh);
+		const vorher = garetienUmkreisZu(welcher);
+		if (!Number.isFinite(zahl)) { return false; }
+		const geklemmt = Math.max(GARETIEN_UMKREIS_MIN, Math.min(GARETIEN_UMKREIS_MAX, zahl));
+		_garetienUmkreis[welcher] = geklemmt;
+		return geklemmt !== vorher;
+	}
+
+	function garetienUmkreisVergessen() {
+		_garetienUmkreis = { innerorts: GARETIEN_UMKREIS_VORGABE.innerorts,
+			naehe: GARETIEN_UMKREIS_VORGABE.naehe };
+	}
+
+	/*
+	 * REIN: der Spinner als Markup -- EIN Bauer für beide Umkreise.
+	 *
+	 * 🔴 DIE HAUSFORM, nicht eine eigene: `type="number"` mit `gi-insert__input`, wie das Höhenfeld
+	 * und die Zahlenfelder des Kastens „Eingefügt wird". Eine zweite Rezeptur für „Zahl mit Pfeilen"
+	 * wäre genau die Divergenz, die AGENTS.md §11 für die Listenzeilen (sieben Rezepturen) und die
+	 * Wiki-Zuweisung (sechs Fassungen) zweimal beschreibt.
+	 * ⚠️ `step="1"` und ganze Meilen: der Owner hat 0-20 gesagt, nicht 0,0-20,0 -- und ein Umkreis
+	 * auf zwei Nachkommastellen ist eine Genauigkeit, die die Daten nicht hergeben.
+	 */
+	function garetienUmkreisSpinnerMarkup(welcher, beschriftung) {
+		const id = "garetien-umkreis-" + welcher;
+		return '<label class="gi-umkreis" for="' + id + '">'
+			+ "<span>" + avesmapsGaretienEscape(beschriftung) + "</span>"
+			+ '<input type="number" class="gi-insert__input gi-umkreis__feld" id="' + id + '"'
+			+ ' data-gi-umkreis="' + avesmapsGaretienEscape(welcher) + '"'
+			+ ' min="' + GARETIEN_UMKREIS_MIN + '" max="' + GARETIEN_UMKREIS_MAX + '" step="1"'
+			+ ' value="' + garetienUmkreisZu(welcher) + '" inputmode="numeric">'
+			+ '<span class="gi-umkreis__einheit">Meilen</span></label>';
+	}
+
+	/*
+	 * Ist die GEWÄHLTE Form dieses Objekts ein Bauwerk? Nur dann gibt es überhaupt eine
+	 * Innerorts-Frage (ein Dorf neben einer Stadt ist ein Nachbardorf, nicht eine Stätte).
+	 *
+	 * 🔴 GEFRAGT WIRD DAS GETEILTE MERKMAL (`avesmapsIstBauwerksklasse`, js/ui/ortsklassen.js), NIE
+	 * `subtyp === "gebaeude"`: es gibt seit dem 31.08.2026 zwei Bauwerksklassen, und ein Vergleich
+	 * auf einen Wert liesse das Stadtviertel still aus -- serverseitig steht dieselbe Frage mit
+	 * derselben Begründung (avesmapsGaretienInnerortsBefund).
+	 * 💣 NACHGESCHLAGEN BEI JEDEM AUFRUF und LAUT geworfen, wenn es fehlt -- keine Ersatzliste. Eine
+	 * zweite Fassung der Klassenliste wäre die zweite Wahrheit, die dieses Merkmal überhaupt
+	 * abgeschafft hat. Im Browser lädt `index.html` ortsklassen.js davor, unter Node greift der
+	 * `require`-Zweig (dieselbe Bauform wie `featureSourcePagesShorten`, AGENTS.md §11).
+	 */
+	function garetienIstBauwerksklasse(subtyp) {
+		if (typeof avesmapsIstBauwerksklasse === "function") {
+			return avesmapsIstBauwerksklasse(subtyp);
+		}
+		if (typeof require === "function") {
+			return require("../ui/ortsklassen.js").avesmapsIstBauwerksklasse(subtyp);
+		}
+		throw new Error("avesmapsIstBauwerksklasse fehlt -- js/ui/ortsklassen.js muss vorher geladen sein");
+	}
+
+	/* REIN: Hat dieses Objekt überhaupt eine Innerorts-Frage? */
+	function garetienInnerortsMoeglich(objekt) {
+		if (!objekt) { return false; }
+		const wahl = garetienZielWahlZu(objekt);
+		return String(wahl.ziel || "") === "location"
+			&& garetienIstBauwerksklasse(String(wahl.subtyp || ""));
+	}
+
+	/*
 	 * REIN: die gewählte Stadt dieses Objekts -- "" heisst „auf die Karte".
 	 *
 	 * ⚠️ Eine Wahl, die in den Kandidaten NICHT (mehr) steht, zählt nicht. Das kann passieren: der
@@ -4478,8 +4612,21 @@
 	 * §4 mit dem Abblenden beim Überfahren des Knopfes meint, nur dass die Wahl hier BLEIBT.
 	 */
 	function garetienInnerortsZeileMarkup(objekt, deaktiviert) {
+		// 🔴 DIE FRAGE GEHÖRT DEM BAUWERK, nicht dem Treffer. Bis zum 08.09.2026 hing die ganze
+		// Zeile am Befund -- mit dem Spinner geht das nicht mehr: fände die Suche bei 5 Meilen
+		// nichts, wäre auch das Feld weg, mit dem man sie auf 12 stellen würde. Ein Bedienelement,
+		// das nur erscheint, wenn man es nicht mehr braucht, ist keines.
+		if (!garetienInnerortsMoeglich(objekt)) { return ""; }
 		const kandidaten = garetienInnerortsKandidatenVon(objekt);
-		if (kandidaten.length === 0) { return ""; }
+		// ⚠️ An einem übernommenen Objekt ist nichts mehr zu suchen -- dort steht die Wahl als reine
+		// Anzeige, ohne Spinner (er wäre ein Regler ohne Wirkung).
+		const spinner = deaktiviert ? "" : '<p class="gi-insert__row">'
+			+ garetienUmkreisSpinnerMarkup("innerorts", "Umkreis") + "</p>";
+		if (kandidaten.length === 0) {
+			return '<p class="gi-insert__row">Innerorts <span class="gi-insert__val gi-insert__hint">'
+				+ "keine Siedlung innerhalb von " + garetienZahlText(garetienUmkreisZu("innerorts"))
+				+ " Meilen</span></p>" + spinner;
+		}
 		const wahl = garetienInnerortsWahlZu(objekt);
 		const optionen = ['<option value=""' + (wahl === "" ? " selected" : "") + '>— auf die Karte —</option>']
 			.concat(kandidaten.map(function (k) {
@@ -4495,7 +4642,8 @@
 			+ (wahl === "" ? "" : '<p class="gi-insert__row"><span class="gi-insert__hint">'
 				+ "Wird als Stätte in „" + avesmapsGaretienEscape(garetienInnerortsZiel(objekt).name)
 				+ "“ angelegt — OHNE Position auf der Karte. Form und Art gelten dafür nicht."
-				+ "</span></p>");
+				+ "</span></p>")
+			+ spinner;
 	}
 
 	function garetienZielWahlZu(objekt) {
@@ -4994,9 +5142,15 @@
 	function garetienNaeheMarkup(objekt) {
 		if (!objekt || !Array.isArray(objekt.geometrie) || objekt.geometrie.length === 0) { return ""; }
 		const stand = garetienNaeheStandZu(objekt);
+		// 🔴 DER SPINNER STEHT IN ALLEN DREI ZUSTÄNDEN -- auch bei „kein Fund". Dieselbe Regel wie
+		// bei der Innerorts-Zeile: fände die Suche mit 3 Meilen nichts und verschwände dann das
+		// Feld, mit dem man auf 12 stellt, wäre es genau dann weg, wenn man es braucht.
+		// ⚠️ Er steuert den ZUSCHLAG über die eigene Ausdehnung hinaus, nicht den ganzen Radius
+		// (avesmapsGaretienNaeheAusObjekten) -- deshalb heisst er hier „Umkreis +".
+		const spinner = garetienUmkreisSpinnerMarkup("naehe", "Umkreis +");
 		if (stand.geladen === null) {
 			return '<div class="gi-naehe"><button class="btn" type="button" id="garetien-naehe-btn" '
-				+ "data-naehe disabled>Wird ermittelt …</button></div>";
+				+ "data-naehe disabled>Wird ermittelt …</button>" + spinner + "</div>";
 		}
 		const knopf = garetienNaeheKnopfZustand(stand.menge, stand.fremd);
 		const hinweisMarkup = knopf.hinweis === "" ? ""
@@ -5007,7 +5161,7 @@
 		if (stand.waehlbar === 0) {
 			return '<div class="gi-naehe"><button class="btn" type="button" id="garetien-naehe-btn" '
 				+ "data-naehe disabled>" + avesmapsGaretienEscape(knopf.beschriftung) + "</button>"
-				+ hinweisMarkup + "</div>";
+				+ spinner + hinweisMarkup + "</div>";
 		}
 		// Aufgabe 13: der Typenfilter -- die Gruppen kommen aus der geladenen Trefferliste UND dem
 		// eigenen Typ des geöffneten Objekts, die Wahl fällt ohne eigenes Zutun auf die erste
@@ -5022,7 +5176,7 @@
 			+ "</select>"
 			+ '<button class="btn" type="button" id="garetien-naehe-btn" data-naehe'
 			+ (knopf.gesperrt ? " disabled" : "") + ">" + avesmapsGaretienEscape(knopf.beschriftung)
-			+ "</button>" + hinweisMarkup + "</div>";
+			+ "</button>" + spinner + hinweisMarkup + "</div>";
 	}
 
 	// REIN: die Menge, die der Knopf JETZT auswählen würde -- DIESELBE Rechnung wie im Markup, weil
@@ -5067,7 +5221,13 @@
 	 * nur älter.
 	 */
 	function garetienInnerortsFrischLaden(objekt) {
-		if (!objekt || garetienInnerortsOrt(objekt) === "") { return; }
+		// 🔴 SEIT DEM SPINNER (08.09.2026) HÄNGT DER ABRUF AM BAUWERK, NICHT AM BEFUND. Hier stand
+		// `garetienInnerortsOrt(objekt) === ""` -- gefragt wurde also nur, wo der Planbau (mit
+		// seinen 5 Meilen) schon etwas gefunden hatte. Damit wäre der Spinner nach OBEN wirkungslos
+		// gewesen: ein Tempel 8 Meilen neben einer Stadt hat keinen Planbau-Befund, und ohne Abruf
+		// bliebe er auch bei 20 Meilen ohne Vorschlag. Der Preis ist eine Umkreissuche je geöffnetem
+		// Bauwerk statt je Bauwerk MIT Befund -- ein Objekt, eine Abfrage, wie beim Nachbarn daneben.
+		if (!garetienInnerortsMoeglich(objekt)) { return; }
 		const schluessel = String(objekt.key || "");
 		if (schluessel === "" || schluessel === _garetienInnerortsLetzterKey) { return; }
 		_garetienInnerortsLetzterKey = schluessel;
@@ -5076,6 +5236,7 @@
 			action: "innerorts_kandidaten",
 			run_id: zustand.importRunId,
 			ziel: schluessel,
+			meilen: garetienUmkreisZu("innerorts"),
 		}).then(function (antwort) {
 			// ⚠️ Gegen den EIGENEN Schlüssel geprüft, nicht gegen `zustand.detailKey` -- dieselbe
 			// Wache wie beim Umkreis: eine überholte Antwort verwirft sich selbst.
@@ -5103,6 +5264,7 @@
 			action: "naehe",
 			run_id: zustand.importRunId,
 			ziel: schluessel,
+			meilen: garetienUmkreisZu("naehe"),
 		}).then(function (antwort) {
 			// ⚠️ Gegen den EIGENEN Schlüssel geprüft, nicht gegen `zustand.detailKey`: nur so verwirft
 			// eine überholte Antwort sich selbst, auch wenn der Editor zwischenzeitlich zu einem
@@ -8677,6 +8839,12 @@
 			garetienHandlungsRumpf,
 			garetienHandlungsMarkup,
 			garetienInnerortsKandidatenVon,
+			garetienUmkreisZu,
+			garetienUmkreisSetzen,
+			garetienUmkreisVergessen,
+			garetienUmkreisSpinnerMarkup,
+			garetienInnerortsMoeglich,
+			garetienNaeheMarkup,
 			garetienInnerortsKandidatText,
 			garetienInnerortsWahlZu,
 			garetienInnerortsWahlVergessen,

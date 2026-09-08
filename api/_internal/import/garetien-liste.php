@@ -1028,7 +1028,7 @@ const AVESMAPS_GARETIEN_NAEHE_ZUSCHLAG = 1.0;
  *
  * @param array<string, array{geometrie: list<array{0:float,1:float}>}> $objekte
  */
-function avesmapsGaretienNaeheAusObjekten(array $objekte, string $ziel): array
+function avesmapsGaretienNaeheAusObjekten(array $objekte, string $ziel, ?float $zuschlagMeilen = null): array
 {
     $leer = ['gefunden' => [], 'radius' => 0.0];
 
@@ -1062,7 +1062,19 @@ function avesmapsGaretienNaeheAusObjekten(array $objekte, string $ziel): array
             $eigenAbstand = $d;
         }
     }
-    $radius = $eigenAbstand + AVESMAPS_GARETIEN_NAEHE_ZUSCHLAG;
+    // 🔴 DER SPINNER STEUERT DEN ZUSCHLAG, NICHT DEN GANZEN RADIUS (Owner 08.09.2026). Der Radius
+    // ist „eigene Ausdehnung + Zuschlag", und das muss er bleiben: als GANZER Radius gelesen faende
+    // eine grosse Waldflaeche mit 3 Meilen gar nichts mehr -- ihre eigene Ausdehnung ist groesser
+    // als die Zahl im Feld, und der Knopf sagte „kein Fund" fuer Nachbarn, die sie beruehren.
+    // 🔴 UND DIE KONSTANTE BLEIBT IN KARTENEINHEITEN. Der Spinner rechnet in MEILEN (die Einheit,
+    // in der der Owner denkt und die ueberall sonst in diesem Fenster steht), umgerechnet wird
+    // HIER. `AVESMAPS_GARETIEN_NAEHE_ZUSCHLAG` unangetastet zu lassen ist kein Zoegern: die vier
+    // Fixturen in garetien-naehe-test.php rechnen ausdruecklich RELATIV zu ihr, und ihr Kommentar
+    // sagt, dass eine Aenderung sie nicht anfassen darf.
+    $zuschlag = $zuschlagMeilen === null
+        ? AVESMAPS_GARETIEN_NAEHE_ZUSCHLAG
+        : $zuschlagMeilen / AVESMAPS_TERRAIN_MEILEN_PER_MAPUNIT;
+    $radius = $eigenAbstand + $zuschlag;
     $radiusQuadrat = $radius ** 2;
 
     $gefunden = [];
@@ -1095,11 +1107,11 @@ function avesmapsGaretienNaeheAusObjekten(array $objekte, string $ziel): array
  * Der PDO-Zwilling zu avesmapsGaretienNaeheAusObjekten -- liest den GANZEN Lauf (nie eine Seite,
  * siehe die Begruendung an der reinen Funktion oben) und reicht die Objekte durch.
  */
-function avesmapsGaretienNaehe(PDO $pdo, int $importRunId, string $ziel): array
+function avesmapsGaretienNaehe(PDO $pdo, int $importRunId, string $ziel, ?float $zuschlagMeilen = null): array
 {
     $objekte = avesmapsGaretienArbeitslisteObjekte($pdo, $importRunId)['objekte'];
 
-    return avesmapsGaretienNaeheAusObjekten($objekte, $ziel);
+    return avesmapsGaretienNaeheAusObjekten($objekte, $ziel, $zuschlagMeilen);
 }
 
 /**
@@ -1131,7 +1143,7 @@ function avesmapsGaretienNaehe(PDO $pdo, int $importRunId, string $ziel): array
  *
  * @return list<array{public_id:string, name:string, meilen:float, nennt_name:bool}>
  */
-function avesmapsGaretienInnerortsKandidatenFrisch(PDO $pdo, int $importRunId, string $ziel): array
+function avesmapsGaretienInnerortsKandidatenFrisch(PDO $pdo, int $importRunId, string $ziel, ?float $meilen = null): array
 {
     $objekte = avesmapsGaretienArbeitslisteObjekte($pdo, $importRunId)['objekte'];
     $objekt = $objekte[$ziel] ?? null;
@@ -1157,7 +1169,7 @@ function avesmapsGaretienInnerortsKandidatenFrisch(PDO $pdo, int $importRunId, s
     ]);
 
     return avesmapsGaretienInnerortsListeInMeilen(
-        avesmapsGaretienInnerortsKandidaten($punkte, $name, $ortschaften)
+        avesmapsGaretienInnerortsKandidaten($punkte, $name, $ortschaften, $meilen)
     );
 }
 
