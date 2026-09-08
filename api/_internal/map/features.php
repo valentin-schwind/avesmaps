@@ -497,10 +497,24 @@ function avesmapsUndoColumnsForAuditAction(string $action): array {
         'move_label',
         'update_path_geometry',
         'update_region_geometry' => ['geometry_json'],
+        // 💣 `feature_type` GEHOERT DAZU, WEIL DIESE VIER IHN SCHREIBEN -- und ein Undo, das eine
+        // Spalte auslaesst, die seine Aktion gesetzt hat, ist ein halbes Undo. Genau daran ist eine
+        // Kreuzung zerbrochen: „Zu Ort konvertieren" fuehrt durch `update_point` (Spalte auf
+        // 'location'), das Undo holte Name, Subtyp und Nest zurueck und liess die Spalte stehen --
+        // uebrig blieb `feature_type='location'` neben `feature_subtype='crossing'`: die einzige Zeile
+        // im Bestand, deren Spalte ihrem eigenen properties_json widerspricht (1 von 18.703, gemessen
+        // am Dump vom 04.09.2026). Karte und Routing fingen es ueber den Subtyp ab, der SVG-Abzug und
+        // jeder Leser ohne Subtyp-Rueckfall nicht.
+        // ⚠️ `avesmapsInferUndoAfterColumnValue` kennt den geschriebenen Wert fuer alle VIER -- ein
+        // Alteintrag ohne `feature_type` im Nachher-Stand bleibt damit rueckgaengig zu machen.
         'update_point',
         'wiki_sync_update_point',
         'update_powerline_details',
-        'update_path_details',
+        'update_path_details' => ['feature_type', 'name', 'feature_subtype', 'properties_json'],
+        // 🔴 `update_label` steht BEWUSST allein: es ist das einzige der fuenf, dessen UPDATE die
+        // Spalte `feature_type` gar nicht anfasst (nur name/feature_subtype/properties_json). Wer es der
+        // Gruppe darueber zuschlaegt, laesst ein Undo eine Spalte zurueckschreiben, die seine Aktion nie
+        // gesetzt hat. Die Liste spiegelt das UPDATE, nicht die Familie.
         'update_label' => ['name', 'feature_subtype', 'properties_json'],
         'update_region' => ['name', 'properties_json', 'style_json'],
         default => [],

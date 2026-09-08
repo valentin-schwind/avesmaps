@@ -75,7 +75,7 @@ foreach (['update_point', 'wiki_sync_update_point', 'update_label', 'update_path
         "undo_{$action} restores exactly the columns {$action}'s undo wrote"
     );
 }
-assert(avesmapsUndoColumnsForAuditAction('undo_update_point') === ['name', 'feature_subtype', 'properties_json'], 'the point columns, spelled out');
+assert(avesmapsUndoColumnsForAuditAction('undo_update_point') === ['feature_type', 'name', 'feature_subtype', 'properties_json'], 'the point columns, spelled out -- feature_type included since update_point writes it');
 assert(avesmapsUndoColumnsForAuditAction('undo_move_point') === ['geometry_json'], 'a move only moves back');
 
 // An action that was never undoable does not become undoable by being prefixed.
