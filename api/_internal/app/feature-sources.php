@@ -3542,6 +3542,13 @@ function avesmapsFeatureSourcesDeriveKanon(array $catalog, array $refs, array $w
  * truege Abschnitt 5 ein „INOFFIZIELL │ Briefspiel", waehrend sein Quellenkasten leer ist -- ein
  * Etikett, das die Liste darunter nicht deckt. Verteilt werden die Quellzeilen selbst.
  *
+ * 🔴 VERTEILT WERDEN NUR ECHTE QUELLEN, NIE PUBLIKATIONEN (erkannt am `reference_kind`). Die
+ * gehoeren dem Publikations-Abgleich, der sie an jedes ZUGEWIESENE Segment haengt und wieder
+ * abraeumt, wenn sie aus dem Artikel verschwinden -- an ein unzugewiesenes Segment kopiert waeren
+ * sie Waisen, die niemand mehr aufraeumt. Am Livebestand gemessen (08.09.2026): von 1070
+ * fehlenden Verknuepfungen waren **1035 Publikationen** und 35 echte Quellen; der Sichelstieg
+ * allein haette 285 bekommen. Fuer sie ist der richtige Weg die ZUWEISUNG der fehlenden Segmente.
+ *
  * ⭐ DAS IST KEIN NEUER MECHANISMUS, sondern ein Nachzieher. Die Eingabezeile des Quellen-Editors
  * verteilt seit dem 03.09.2026 per VORGABE an „alle N Abschnitte dieses Weges" (2.347 von 2.511
  * Wegquellen haengen dadurch schon an allen). Nur der Altbestand hat das nie gesehen.
@@ -3660,12 +3667,30 @@ function avesmapsFeatureSourcesVerteileWegQuellen(
         }
 
         // Die Vereinigung: jede `approved` Quelle, die IRGENDEIN Abschnitt dieser Gruppe traegt.
+        // 🔴 OHNE DIE PUBLIKATIONEN, und das ist die tragende Auswahl dieses Laufs. Owner
+        // 08.09.2026: „publikationen sind übrigens nicht wichtig - die werden einfach gelistet."
+        // 💣 GEMESSEN, NICHT GESCHAETZT: der erste Trockenlauf gegen die Live-Datenbank meldete
+        // **1070** fehlende Verknuepfungen -- davon **1035 Publikationen** und 35 echte Quellen.
+        // Der Sichelstieg allein haette 285 Publikationszeilen bekommen, der Rathilstieg 176.
+        // 🔴 UND SIE GEHOEREN NICHT HIERHER: `origin = 'wiki_publication'` verwaltet der
+        // Publikations-Abgleich (api/_internal/wiki/publication-sync.php). Er haengt sie an jedes
+        // ZUGEWIESENE Segment und raeumt sie wieder ab, wenn sie aus dem Artikel verschwinden --
+        // ueber `properties_json LIKE '%"wiki_path"%'`. Ein Segment OHNE Zuweisung findet er nie:
+        // dorthin kopierte Publikationen waeren Waisen, die niemand mehr aufraeumt. Genau solche
+        // liegen schon herum (Dommel, Barras -- siehe avesmapsMapFeaturesWikiNamespaces).
+        // ⭐ Der richtige Weg fuer sie ist die ZUWEISUNG der fehlenden Segmente; danach verteilt
+        // der Abgleich sie von selbst und haelt sie aktuell.
         $quellen = [];
         foreach ($liste as $s) {
             foreach ($vorhanden[$s['public_id']] ?? [] as $sid => $status) {
-                if ($status === 'approved' && !isset($quellen[$sid])) {
-                    $quellen[$sid] = $vorlage[$s['public_id'] . '|' . $sid] ?? null;
+                if ($status !== 'approved' || isset($quellen[$sid])) {
+                    continue;
                 }
+                $row = $vorlage[$s['public_id'] . '|' . $sid] ?? null;
+                if ($row === null || trim((string) ($row['reference_kind'] ?? '')) !== '') {
+                    continue; // eine Publikation -- der Wiki-Abgleich ist ihr Eigentuemer
+                }
+                $quellen[$sid] = $row;
             }
         }
         if ($quellen === []) {

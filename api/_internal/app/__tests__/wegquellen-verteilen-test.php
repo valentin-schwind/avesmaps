@@ -71,6 +71,9 @@ $welt = static function (): PDO {
     // Ohne Namen -- bildet keine Gruppe.
     $weg->execute(['n-1', '', 'Pfad', 1, '{}']);
     $weg->execute(['n-2', '', 'Pfad', 1, '{}']);
+    // Ein Weg, dessen erster Abschnitt eine PUBLIKATION und eine echte Quelle traegt.
+    $weg->execute(['p-1', 'Sichelstieg', 'Gebirgspass', 1, $mitKey('sichelstieg')]);
+    $weg->execute(['p-2', 'Sichelstieg', 'Gebirgspass', 1, $mitKey('sichelstieg')]);
 
     $pdo->exec("INSERT INTO sources (id, url, url_hash, label, source_type, is_official)
         VALUES (1, 'https://a/1', 'h1', 'Herzogtum Weiden', 'briefspiel', 0),
@@ -82,6 +85,8 @@ $welt = static function (): PDO {
     $fs->execute(['w-5', 2, 'suppressed', 'wiki_publication', 'ergaenzend', null, null]);  // Grabstein
     $fs->execute(['x-1', 1, 'approved', 'manual', null, null, null]);
     $fs->execute(['e-1', 1, 'approved', 'manual', null, null, null]);
+    $fs->execute(['p-1', 2, 'approved', 'wiki_publication', 'ausfuehrlich', 'S. 9', null]);  // Publikation
+    $fs->execute(['p-1', 1, 'approved', 'manual', null, null, null]);                        // echte Quelle
 
     return $pdo;
 };
@@ -103,15 +108,15 @@ $pruefe((int) $pdo->query('SELECT COUNT(*) FROM feature_sources')->fetchColumn()
     'der Trockenlauf schreibt KEINE Zeile');
 $pruefe($GLOBALS['avesmapsTestRevisionBumps'] === 0, 'und stempelt die Karte nicht');
 // w-2 und w-3 fehlt Quelle 1 -> 2 Verknuepfungen. Der Hagweg: w-5 hat einen Grabstein, also nichts.
-$pruefe($trocken['verknuepfungen_neu'] === 2,
-    'gezaehlt werden genau die zwei fehlenden Verknuepfungen des Yasamirer Stiegs');
+$pruefe($trocken['verknuepfungen_neu'] === 3,
+    'gezaehlt werden die zwei des Yasamirer Stiegs und die EINE echte Quelle des Sichelstiegs');
 $pruefe($trocken['uebersprungen_uneindeutig'] === 1,
     'die Namensgruppe mit zwei wiki_keys wird uebersprungen');
 
 // ---- 2. Der SCHARFE Lauf verteilt ------------------------------------------------------------
 $pdo = $welt();
 $scharf = avesmapsFeatureSourcesVerteileWegQuellen($pdo, 9, false, 500);
-$pruefe($scharf['verknuepfungen_neu'] === 2, 'scharf entstehen dieselben zwei Verknuepfungen');
+$pruefe($scharf['verknuepfungen_neu'] === 3, 'scharf entstehen dieselben drei Verknuepfungen');
 $pruefe(count($zeilen($pdo, 'w-2')) === 1 && count($zeilen($pdo, 'w-3')) === 1,
     'beide Abschnitte tragen die Quelle ihres Wegs jetzt auch');
 $pruefe($GLOBALS['avesmapsTestRevisionBumps'] === 1,
@@ -142,6 +147,23 @@ $pruefe($zeilen($pdo, 'n-1') === [] && $zeilen($pdo, 'n-2') === [],
 // ⚠️ Der INAKTIVE Abschnitt bekommt nichts: er liegt nicht auf der Karte.
 $pruefe($zeilen($pdo, 't-1') === [], 'ein geloeschter Abschnitt wird nicht bedient');
 
+// ---- 5b. PUBLIKATIONEN WERDEN NICHT VERTEILT --------------------------------------------------
+// 🔴 Owner 08.09.2026: „publikationen sind übrigens nicht wichtig - die werden einfach gelistet."
+// 💣 UND SIE GEHOEREN DEM WIKI-ABGLEICH. Der haengt sie an jedes ZUGEWIESENE Segment und raeumt
+// sie wieder ab, wenn sie aus dem Artikel verschwinden -- ueber `properties_json LIKE
+// '%"wiki_path"%'`. Ein Segment OHNE Zuweisung findet er nie: dorthin kopierte Publikationen
+// waeren Waisen, die niemand mehr aufraeumt.
+// 🚩 GEMESSEN, NICHT GESCHAETZT: der erste Trockenlauf gegen die Live-Datenbank meldete 1070
+// fehlende Verknuepfungen -- davon **1035 Publikationen** und 35 echte Quellen. Der Sichelstieg
+// allein haette 285 Publikationszeilen bekommen. Ohne diesen Filter waere der Lauf ein
+// Massenschreiben in eine Tabelle, die einem anderen Erzeuger gehoert.
+$sichel = $zeilen($pdo, 'p-2');
+$pruefe(count($sichel) === 1, 'am zweiten Abschnitt steht genau EINE neue Zeile');
+$pruefe((int) $sichel[0]['source_id'] === 1 && $sichel[0]['reference_kind'] === null,
+    'und zwar die echte Quelle -- die Publikation daneben bleibt, wo sie ist');
+// ⚠️ Die Gegenprobe: der Ursprungsabschnitt behaelt beide.
+$pruefe(count($zeilen($pdo, 'p-1')) === 2, 'der Ursprungsabschnitt bleibt unveraendert');
+
 // ---- 6. WIEDERHOLBAR --------------------------------------------------------------------------
 $GLOBALS['avesmapsTestRevisionBumps'] = 0;
 $zweiter = avesmapsFeatureSourcesVerteileWegQuellen($pdo, 9, false, 500);
@@ -153,7 +175,7 @@ $pdo = $welt();
 $gedeckelt = avesmapsFeatureSourcesVerteileWegQuellen($pdo, 9, false, 1);
 $pruefe($gedeckelt['verknuepfungen_neu'] === 1, 'der Deckel greift');
 $pruefe($gedeckelt['offen'] >= 1, 'und meldet, was liegen bleibt');
-$pruefe((int) $pdo->query('SELECT COUNT(*) FROM feature_sources')->fetchColumn() === 6,
+$pruefe((int) $pdo->query('SELECT COUNT(*) FROM feature_sources')->fetchColumn() === 8,
     'genau eine Zeile ist dazugekommen');
 
 // ---- 8. DIE VERDRAHTUNG -----------------------------------------------------------------------
