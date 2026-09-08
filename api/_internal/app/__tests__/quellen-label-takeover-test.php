@@ -115,7 +115,22 @@ assert(str_contains($arm, "avesmapsUserCan(\$user, 'admin')") && str_contains($a
 $zaehl();
 assert(str_contains($arm, "(\$payload['apply'] ?? false) === true") && str_contains($arm, 'avesmapsFeatureSourcesTakeoverLabelSources($pdo, $userId, !$scharf,'), 'scharf nur mit apply: true, Vorgabe Trockenlauf');
 $zaehl();
-assert(str_contains($endpunkt, "'takeover_other_sources', 'takeover_label_sources'], true)"), 'die Aktion fragt nach allen Objekten und steht ohne entity_public_id da');
+// 🪤 NICHT DIE EXAKTE ZEICHENFOLGE DER LISTE PRUEFEN. Hier stand
+// `"'takeover_other_sources', 'takeover_label_sources'], true)"` -- und diese Zusicherung fiel am
+// 08.09.2026 um, als die Liste einen DRITTEN Eintrag bekam (`verteile_wegquellen`). An der Sache
+// war nichts falsch: die Aktion stand weiterhin drin. Ein fremder Test, der eine Aufzaehlung
+// woertlich festnagelt, bricht bei jeder Erweiterung -- gefragt ist, ob DIESE Aktion in DIESER
+// Liste steht.
+// 🪤 DIE LISTE ABLESEN, NICHT IHRE EXAKTE ZEICHENFOLGE PRUEFEN. Hier stand die Aufzaehlung
+// woertlich -- und die Zusicherung fiel um, als sie einen dritten Eintrag bekam
+// (`verteile_wegquellen`, 08.09.2026), obwohl an der Sache nichts falsch war. Ein Test, der eine
+// Aufzaehlung festnagelt, bricht bei jeder Erweiterung.
+// ⚠️ Ohne Regex: der erste Anlauf schrieb sie per Skript in die Datei und machte aus `\x27` ein
+// echtes Anfuehrungszeichen -- die Datei war danach nicht mehr parsebar.
+$liste = strstr($endpunkt, 'in_array($action, [');
+$liste = $liste === false ? '' : substr($liste, 0, (int) strpos($liste, ']'));
+assert(str_contains($liste, "'takeover_label_sources'"),
+    'die Aktion fragt nach allen Objekten und steht ohne entity_public_id da');
 $zaehl();
 
 echo "quellen-label-takeover: {$pruefungen} Pruefungen bestanden\n";

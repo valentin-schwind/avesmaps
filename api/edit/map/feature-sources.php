@@ -85,7 +85,7 @@ try {
     // niemand zaehlt nach (AGENTS.md §11). Die Liste steht deshalb in der Bedingung selbst; wer
     // eine Aktion ergaenzt, ergaenzt sie DORT.
     // ⚠️ Die Faehigkeit `edit` ist oben laengst geprueft; `inspect_url` bleibt ohnehin lesend.
-    if ($entityPublicId === '' && !in_array($action, ['inspect_url', 'save_corpus', 'corpus_titles_probe', 'corpus_titles_apply', 'takeover_other_sources', 'takeover_label_sources'], true)) {
+    if ($entityPublicId === '' && !in_array($action, ['inspect_url', 'save_corpus', 'corpus_titles_probe', 'corpus_titles_apply', 'takeover_other_sources', 'takeover_label_sources', 'verteile_wegquellen'], true)) {
         avesmapsErrorResponse(400, 'invalid_request', 'entity_public_id ist erforderlich.');
     }
 
@@ -308,6 +308,21 @@ try {
             $limit = (int) ($payload['limit'] ?? 200);
 
             return avesmapsFeatureSourcesTakeoverLabelSources($pdo, $userId, !$scharf, $limit > 0 ? $limit : 200);
+        })(),
+        // DER NACHZIEHER FUER DIE WEGE (08.09.2026): die Quellen eines Wegs gehoeren allen seinen
+        // Abschnitten. Owner: „Quellen wirklich verteilen -> das wollen wir." Dieselbe Bauform wie
+        // die zwei Laeufe darueber: nur Admin, ohne entity_public_id, Trockenlauf als Vorgabe.
+        // ⚠️ Er FUEGT NUR HINZU und fasst keine vorhandene Zeile an -- auch keinen Grabstein. Ein
+        // Abgleich muesste entscheiden, welche von zwei Seitenangaben gilt, und das gehoert einem
+        // Menschen. Damit ist der Lauf wiederholbar: ein zweiter findet nichts mehr.
+        'verteile_wegquellen' => (static function () use ($pdo, $payload, $user, $userId): array {
+            if (!avesmapsUserCan($user, 'admin')) {
+                avesmapsErrorResponse(403, 'forbidden', 'Das Verteilen der Wegquellen ist Admins vorbehalten.');
+            }
+            $scharf = ($payload['apply'] ?? false) === true;
+            $limit = (int) ($payload['limit'] ?? 500);
+
+            return avesmapsFeatureSourcesVerteileWegQuellen($pdo, $userId, !$scharf, $limit > 0 ? $limit : 500);
         })(),
         'remove' => (static function () use ($pdo, $entityType, $entityPublicId, $entityPublicIds, $payload, $userId): array {
             $sourceId = (int) ($payload['source_id'] ?? 0);

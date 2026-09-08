@@ -3532,3 +3532,220 @@ function avesmapsFeatureSourcesDeriveKanon(array $catalog, array $refs, array $w
 
     return $out;
 }
+
+/**
+ * DIE QUELLEN EINES WEGS GEHOEREN ALLEN SEINEN ABSCHNITTEN -- der Nachziehlauf.
+ * ---------------------------------------------------------------------------
+ * 🔴 Owner 08.09.2026: „Quellen wirklich verteilen -> das wollen wir." Vorausgegangen war die
+ * Meldung am Pergelbach (derselbe Fluss stand einmal offiziell und zweimal inoffiziell da) und
+ * die Frage, ob der Kopf die Quellen der Nachbarabschnitte bloss MITLESEN soll. Nein: dann
+ * truege Abschnitt 5 ein „INOFFIZIELL │ Briefspiel", waehrend sein Quellenkasten leer ist -- ein
+ * Etikett, das die Liste darunter nicht deckt. Verteilt werden die Quellzeilen selbst.
+ *
+ * ⭐ DAS IST KEIN NEUER MECHANISMUS, sondern ein Nachzieher. Die Eingabezeile des Quellen-Editors
+ * verteilt seit dem 03.09.2026 per VORGABE an „alle N Abschnitte dieses Weges" (2.347 von 2.511
+ * Wegquellen haengen dadurch schon an allen). Nur der Altbestand hat das nie gesehen.
+ *
+ * 🔴 DIE GRUPPE IST DER NAME (Wegart + Name), NICHT DER `wiki_key` -- dieselbe Regel wie bei
+ * avesmapsMapFeaturesWegGruppeErbtZuweisung, und aus demselben Grund: ein unzugewiesenes Segment
+ * hat keinen Schluessel und faellt aus jeder Schluesselgruppe heraus, obwohl es gerade IHN
+ * erreichen muss. Am Dump vom 08.09.2026 sind 16 von 350 mehrteiligen Wegen nur teilweise
+ * zugewiesen.
+ * 💣 UND DESHALB DER RIEGEL: eine Namensgruppe mit MEHREREN verschiedenen `wiki_key` ist NICHT
+ * ein Weg, sondern zwei gleichnamige -- sie wird uebersprungen. Ohne diesen Riegel wanderten die
+ * Quellen des einen Wegs an den anderen, und das faellt niemandem auf, weil beide gleich heissen.
+ *
+ * 💣 GESCHRIEBEN WIRD NUR, WAS FEHLT. Eine vorhandene Zeile wird NIE angefasst -- auch keine
+ * `suppressed` (der Grabstein einer bewusst entfernten Quelle) und keine mit abweichenden
+ * Seitenangaben. Der Lauf fuegt hinzu, er gleicht nicht ab. Ein Abgleich muesste entscheiden,
+ * welche von zwei Seitenangaben gilt, und diese Entscheidung gehoert einem Menschen.
+ * ⚠️ Damit ist er auch WIEDERHOLBAR: ein zweiter Lauf findet nichts mehr zu tun.
+ *
+ * 💣 KEIN UPSERT. `avesmapsFeatureSourceLink` ist ein MySQL-`ON DUPLICATE KEY UPDATE` und laeuft
+ * auf SQLite nicht -- ein Test koennte den Schreibweg dann nur lesen statt fahren (AGENTS.md).
+ * Hier wird geprueft und eingefuegt, portabel auf beiden.
+ *
+ * 🔴 Trockenlauf ist die Vorgabe, wie bei jedem Sammellauf des Hauses. Scharf nur mit
+ * `apply: true`, gedeckelt, und je Gruppe eine eigene Transaktion -- ein Fehler nimmt nicht den
+ * ganzen Lauf mit.
+ * ⚠️ `avesmapsEnsureFeatureSourceTables` laeuft VOR der ersten Transaktion: DDL committet in
+ * MySQL implizit, und innerhalb der Transaktion gerufen beendet es sie lautlos (die Falle, die
+ * Schritt 5 des Quellen-Umbaus 489 falsche Fehlermeldungen gekostet hat).
+ *
+ * @param bool $trocken true = nur zaehlen, nichts schreiben
+ * @param int  $limit   Hoechstzahl NEUER Verknuepfungen je Lauf
+ * @return array{ok:bool, gruppen_geprueft:int, gruppen_betroffen:int, verknuepfungen_neu:int,
+ *                uebersprungen_uneindeutig:int, offen:int, trocken:bool, stichprobe:list<string>}
+ */
+function avesmapsFeatureSourcesVerteileWegQuellen(
+    PDO $pdo,
+    int $userId,
+    bool $trocken = true,
+    int $limit = 500
+): array {
+    avesmapsEnsureFeatureSourceTables($pdo);
+
+    // 1. Die Abschnitte. `properties_json` nur wegen des `wiki_key` -- er entscheidet den Riegel.
+    $segmente = [];
+    $statement = $pdo->query(
+        "SELECT public_id, name, feature_subtype, properties_json
+           FROM map_features
+          WHERE is_active = 1 AND feature_type = 'path'"
+    );
+    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+        $name = trim((string) ($row['name'] ?? ''));
+        $publicId = trim((string) ($row['public_id'] ?? ''));
+        if ($name === '' || $publicId === '') {
+            continue; // ohne Namen keine Gruppe -- 101 solcher Stuecke im Bestand
+        }
+        $props = json_decode((string) ($row['properties_json'] ?? ''), true);
+        $props = is_array($props) ? $props : [];
+        $wikiKey = '';
+        if (is_array($props['wiki_path'] ?? null)) {
+            $wikiKey = trim((string) ($props['wiki_path']['wiki_key'] ?? ''));
+        }
+        $gruppe = trim((string) ($row['feature_subtype'] ?? '')) . '|' . $name;
+        $segmente[$gruppe][] = ['public_id' => $publicId, 'wiki_key' => $wikiKey];
+    }
+
+    // 2. Die vorhandenen Verknuepfungen. ALLE Zustaende, nicht nur `approved`: ein Grabstein ist
+    //    ein Beleg dafuer, dass diese Quelle an diesem Abschnitt NICHT stehen soll.
+    $vorhanden = [];
+    $vorlage = [];
+    $statement = $pdo->query(
+        "SELECT id, entity_public_id, source_id, status, origin, reference_kind, pages, note
+           FROM feature_sources
+          WHERE entity_type = 'path'
+          ORDER BY id ASC"
+    );
+    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+        $pid = (string) $row['entity_public_id'];
+        $sid = (int) $row['source_id'];
+        $vorhanden[$pid][$sid] = (string) $row['status'];
+        // Die aelteste `approved`-Zeile je (Gruppe kommt spaeter) Quelle ist die Vorlage.
+        if ((string) $row['status'] === 'approved' && !isset($vorlage[$pid . '|' . $sid])) {
+            $vorlage[$pid . '|' . $sid] = $row;
+        }
+    }
+
+    $gruppenGeprueft = 0;
+    $gruppenBetroffen = 0;
+    $neu = 0;
+    $uneindeutig = 0;
+    $offen = 0;
+    $stichprobe = [];
+
+    $einfuegen = $pdo->prepare(
+        'INSERT INTO feature_sources
+            (entity_type, entity_public_id, source_id, status, origin, reference_kind, pages, note, created_by)
+         VALUES (:t, :pid, :sid, :st, :og, :rk, :pg, :nt, :by)'
+    );
+
+    foreach ($segmente as $gruppe => $liste) {
+        if (count($liste) < 2) {
+            continue; // ein einteiliger Weg hat nichts zu verteilen
+        }
+        $gruppenGeprueft++;
+
+        // 💣 DER RIEGEL: zwei verschiedene wiki_key in einer Namensgruppe sind zwei Wege.
+        $keys = [];
+        foreach ($liste as $s) {
+            if ($s['wiki_key'] !== '') {
+                $keys[$s['wiki_key']] = true;
+            }
+        }
+        if (count($keys) > 1) {
+            $uneindeutig++;
+            continue;
+        }
+
+        // Die Vereinigung: jede `approved` Quelle, die IRGENDEIN Abschnitt dieser Gruppe traegt.
+        $quellen = [];
+        foreach ($liste as $s) {
+            foreach ($vorhanden[$s['public_id']] ?? [] as $sid => $status) {
+                if ($status === 'approved' && !isset($quellen[$sid])) {
+                    $quellen[$sid] = $vorlage[$s['public_id'] . '|' . $sid] ?? null;
+                }
+            }
+        }
+        if ($quellen === []) {
+            continue;
+        }
+
+        $fehlend = [];
+        foreach ($liste as $s) {
+            foreach ($quellen as $sid => $row) {
+                if ($row === null || isset($vorhanden[$s['public_id']][$sid])) {
+                    continue; // schon da -- in JEDEM Zustand, auch als Grabstein
+                }
+                $fehlend[] = ['pid' => $s['public_id'], 'sid' => (int) $sid, 'row' => $row];
+            }
+        }
+        if ($fehlend === []) {
+            continue;
+        }
+        $gruppenBetroffen++;
+        if (count($stichprobe) < 12) {
+            $stichprobe[] = str_replace('|', ' · ', (string) $gruppe)
+                . ': ' . count($fehlend) . ' Verknuepfung(en) fehlen';
+        }
+
+        if ($neu >= $limit) {
+            $offen += count($fehlend);
+            continue;
+        }
+
+        if ($trocken) {
+            $neu += count($fehlend);
+            continue;
+        }
+
+        $pdo->beginTransaction();
+        try {
+            foreach ($fehlend as $f) {
+                if ($neu >= $limit) {
+                    $offen++;
+                    continue;
+                }
+                $einfuegen->execute([
+                    't' => 'path',
+                    'pid' => $f['pid'],
+                    'sid' => $f['sid'],
+                    'st' => 'approved',
+                    'og' => (string) ($f['row']['origin'] ?? 'manual'),
+                    'rk' => ($f['row']['reference_kind'] ?? null) ?: null,
+                    'pg' => ($f['row']['pages'] ?? null) ?: null,
+                    'nt' => ($f['row']['note'] ?? null) ?: null,
+                    'by' => $userId > 0 ? $userId : null,
+                ]);
+                $neu++;
+            }
+            $pdo->commit();
+        } catch (Throwable $fehler) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            // ⚠️ Gemeldet, nicht geschluckt: ein stiller Fehlschlag saehe aus wie „nichts zu tun".
+            $stichprobe[] = 'FEHLER in ' . str_replace('|', ' · ', (string) $gruppe)
+                . ': ' . $fehler->getMessage();
+        }
+    }
+
+    // 🔴 DER STEMPEL. Quellen reisen in der Kartennutzlast, deren ETag an `map_revision` haengt --
+    // ohne Bump bekaeme jeder warme Browser sein 304 und saehe die alte Verteilung unbegrenzt
+    // lange weiter. Dieselbe Regel wie beim Publikations-Abgleich.
+    if (!$trocken && $neu > 0) {
+        avesmapsNextMapRevision($pdo);
+    }
+
+    return [
+        'ok' => true,
+        'trocken' => $trocken,
+        'gruppen_geprueft' => $gruppenGeprueft,
+        'gruppen_betroffen' => $gruppenBetroffen,
+        'verknuepfungen_neu' => $neu,
+        'uebersprungen_uneindeutig' => $uneindeutig,
+        'offen' => $offen,
+        'stichprobe' => $stichprobe,
+    ];
+}
