@@ -3577,6 +3577,15 @@
 			}
 			return;
 		}
+		// 🔴 DIE INNERORTS-WAHL BAUT DIE SPALTE NEU, wie die Zielwahl darunter -- sie entscheidet,
+		// ob der Kasten überhaupt noch von einem Kartenobjekt spricht (der Satz unter dem Feld) und
+		// welche Stadt im Knopf „Innerorts einfügen (X)" steht.
+		if (feld === "innerorts") {
+			const key = String(objekt.key || "");
+			if (key !== "") { _garetienInnerortsWahl[key] = String(ziel.value || ""); }
+			garetienDetailRendern(objekte || zustand.objekte || []);
+			return;
+		}
 		if (feld === "zielForm" || feld === "zielArt") {
 			const wahl = garetienZielWahlZu(objekt);
 			if (feld === "zielForm") {
@@ -3673,6 +3682,21 @@
 	function garetienEingabenFuerServer(objekt) {
 		// 🔴 DIE GEWÄHLTE Form entscheidet, WELCHE Felder mitreisen -- ein zum Gipfel gewechselter
 		// Sumpf schickt die Label-Felder, nicht die der Fläche.
+		// 🔴 EINE GEWÄHLTE STADT SCHLÄGT ALLES ANDERE -- und deshalb steht sie VOR der Zielwahl.
+		// Ein innerorts eingefügtes Objekt entsteht auf der Karte gar nicht; Form, Art, Nodix und
+		// Strömung beschreiben ein Kartenobjekt, das es nicht geben wird.
+		// 💣 UND ES REIST KEIN `ziel` MIT. `avesmapsGaretienZielUebersteuern` läuft serverseitig VOR
+		// der Innerorts-Weiche (garetien-uebernahme.php) und formte die Geometrie für ein Ziel um,
+		// das nie gebaut wird -- dieselbe Begründung, aus der der Einzelknopf „Innerorts einfügen"
+		// den Kasten „Eingefügt wird" ebenfalls nicht mitschickt.
+		// ⭐ HIERDURCH WIRKT INNERORTS ÜBER DIE STAGE. `garetienStageEinstellungenJeItem` heftet
+		// genau diesen Rumpf an die 'new'-Items, und `avesmapsGaretienInnerortsGewuenscht` liest ihn
+		// -- bis zum 07.09.2026 legte „Stage importieren" nie eine Stätte an, und der Einzelknopf
+		// war der einzige Weg dorthin.
+		const innerorts = garetienInnerortsWahlZu(objekt);
+		if (innerorts !== "") {
+			return { innerorts: true, innerorts_public_id: innerorts };
+		}
 		const wahl = garetienZielWahlZu(objekt);
 		const ziel = String(wahl.ziel || "");
 		// 💣 UND DIE WAHL SELBST REIST IMMER MIT, auch wenn sie dem Vorschlag entspricht: der Server
@@ -4330,6 +4354,150 @@
 	// wird bei jedem Listen-Refetch neu gebaut, eine Wahl am `<select>` wäre dabei verloren.
 	let _garetienZielWahl = {};
 
+	/*
+	 * Die Innerorts-WAHL je Objekt: die `public_id` der Stadt, oder "" für „auf die Karte".
+	 *
+	 * 💣 DIE VORGABE IST LEER, UND DAS IST DIE TRAGENDE ZEILE DIESES UMBAUS. Seit dem 07.09.2026
+	 * steht der Innerorts-Vorschlag an rund 350 statt an 11 Objekten (siehe
+	 * AVESMAPS_GARETIEN_INNERORTS_MEILEN serverseitig). Wäre die Vorauswahl des Servers zugleich die
+	 * Vorbelegung dieses Feldes, legte „Stage importieren" für dreihundert Objekte stillschweigend
+	 * Stätten an, statt Kartenpunkte -- und ein falsch einsortiertes Objekt ist von aussen nicht von
+	 * einem fehlenden zu unterscheiden (Entwurf §5: „Keine Automatik. Der Importer schlägt vor, er
+	 * entscheidet nicht.").
+	 * ⚠️ Der SERVER-Vorschlag geht dabei nicht verloren: er steht als vorgeschlagene Zeile im
+	 * Auswahlfeld und im Knopf „Innerorts einfügen (X)" -- beide nennen ihn, keiner wählt ihn.
+	 *
+	 * 💣 UND DER ZUSTAND LIEGT NEBEN DEM DOM, aus demselben Grund wie `_garetienZielWahl` daneben:
+	 * die Detailspalte wird bei jedem Listen-Refetch neu gebaut.
+	 */
+	let _garetienInnerortsWahl = {};
+
+	function garetienInnerortsWahlVergessen() { _garetienInnerortsWahl = {}; }
+
+	/*
+	 * REIN: die gewählte Stadt dieses Objekts -- "" heisst „auf die Karte".
+	 *
+	 * ⚠️ Eine Wahl, die in den Kandidaten NICHT (mehr) steht, zählt nicht. Das kann passieren: der
+	 * frische Nachschlag ersetzt die Liste, während eine Wahl daneben liegt (eine Stadt wird im
+	 * Nachbartab zurückgenommen). Serverseitig fängt derselbe Riegel den Fall noch einmal
+	 * (avesmapsGaretienInnerortsAusVorschlag) -- hier steht er, damit das Feld nicht eine Stadt
+	 * anzeigt, die es nicht mehr anbietet.
+	 */
+	function garetienInnerortsWahlZu(objekt) {
+		const key = String((objekt && objekt.key) || "");
+		if (key === "") { return ""; }
+		const wahl = String(_garetienInnerortsWahl[key] || "");
+		if (wahl === "") { return ""; }
+		return garetienInnerortsKandidatenVon(objekt).some(function (k) {
+			return String(k.public_id || "") === wahl;
+		}) ? wahl : "";
+	}
+
+	/*
+	 * REIN: die Kandidatenliste dieses Objekts -- nach Entfernung sortiert, wie sie der Server
+	 * liefert.
+	 *
+	 * 🔴 GELESEN, NICHT GERECHNET, und nicht sortiert: die Reihenfolge IST die Antwort des Servers
+	 * (avesmapsGaretienInnerortsKandidaten). Der Browser kennt die Ortschaften der Karte gar nicht
+	 * alle -- was geladen ist, hängt an Zoom und Ansicht, und eine hier gerechnete Liste flackerte
+	 * mit dem Kartenausschnitt. Dieselbe Begründung wie bei `garetienInnerortsOrt`.
+	 *
+	 * ⚠️ Der frische Nachschlag (`garetienInnerortsFrischeListe`) schlägt den Befund des Laufs, wenn
+	 * er da ist -- er kennt die Städte, die dieser Lauf selbst angelegt hat.
+	 * ⚠️ Ein Lauf vor dem 07.09.2026 trägt gar keine `kandidaten`; dann steht die Vorauswahl allein
+	 * da, und das Feld bietet genau sie an.
+	 */
+	function garetienInnerortsKandidatenVon(objekt) {
+		const frisch = garetienInnerortsFrischeListe(objekt);
+		if (frisch !== null) { return frisch; }
+		const befund = (objekt && objekt.innerorts) || null;
+		if (!befund || typeof befund !== "object") { return []; }
+		const liste = Array.isArray(befund.kandidaten) ? befund.kandidaten : [];
+		if (liste.length > 0) { return liste; }
+		// Der Rückfall für einen alten Lauf: die Vorauswahl ist die einzige Stadt, die er kennt.
+		const name = String(befund.name || "").trim();
+		const publicId = String(befund.public_id || "").trim();
+		return (name !== "" && publicId !== "")
+			? [{ public_id: publicId, name: name, meilen: Number(befund.meilen) || 0, nennt_name: false }]
+			: [];
+	}
+
+	/*
+	 * REIN: die Zeile eines Kandidaten im Auswahlfeld.
+	 *
+	 * 🔴 DREI ANGABEN, UND JEDE BEANTWORTET EINE FRAGE: der Name („welche Stadt?"), die Entfernung
+	 * („wie plausibel?") und die Marke („trägt das Objekt ihren Namen?"). Die Marke ist das einzige
+	 * gemessene Signal (68-fache Anreicherung, Entwurf §2d) -- ohne sie sähe der Editor in einer
+	 * nach blosser Nähe sortierten Liste nicht, warum die zweite Zeile die richtige ist.
+	 */
+	function garetienInnerortsKandidatText(kandidat) {
+		const k = kandidat || {};
+		const meilen = Number(k.meilen);
+		return String(k.name || "")
+			+ (Number.isFinite(meilen) ? " · " + garetienZahlText(meilen) + " Meilen" : "")
+			+ (k.nennt_name === true ? " · Name passt" : "");
+	}
+
+	/*
+	 * REIN: die Stadt, die eine Innerorts-Übernahme JETZT träfe -- die gewählte, sonst die
+	 * Vorauswahl des Servers. `""`, wenn es gar keinen Befund gibt.
+	 *
+	 * 💣 EIN Leser für Knopfbeschriftung, Hilfetext und Anfragerumpf. Stünde die Auflösung an jeder
+	 * dieser Stellen einzeln, sagte der Knopf „Innerorts einfügen (Wandleth)", während die Anfrage
+	 * „Aue" mitschickt -- und das ist genau die Verwechslung, gegen die der Ortsname überhaupt IM
+	 * Knopf steht (Entwurf §4: „wenn der Ort falsch ist, sieht er es, bevor er drückt").
+	 */
+	function garetienInnerortsZiel(objekt) {
+		const wahl = garetienInnerortsWahlZu(objekt);
+		if (wahl !== "") {
+			const treffer = garetienInnerortsKandidatenVon(objekt).filter(function (k) {
+				return String(k.public_id || "") === wahl;
+			})[0];
+			if (treffer) { return { public_id: wahl, name: String(treffer.name || "") }; }
+		}
+		const befund = (objekt && objekt.innerorts) || null;
+		const name = befund && typeof befund === "object" ? String(befund.name || "").trim() : "";
+		return name === ""
+			? { public_id: "", name: "" }
+			: { public_id: String(befund.public_id || ""), name: name };
+	}
+
+	/*
+	 * REIN: die Zeile „Innerorts" im Kasten „Eingefügt wird" -- oder "", wenn keine Stadt in
+	 * Reichweite liegt.
+	 *
+	 * 🔴 DER ERSTE EINTRAG IST „auf die Karte", UND ER IST VORAUSGEWÄHLT. Die Begründung steht an
+	 * `_garetienInnerortsWahl`: eine vorbelegte Stadt legte beim nächsten „Stage importieren" für
+	 * dreihundert Objekte stillschweigend Stätten an.
+	 * ⚠️ Der Vorschlag des Servers geht damit nicht verloren -- er steht in der Liste, und der Knopf
+	 * „Innerorts einfügen (X)" nennt ihn beim Namen.
+	 *
+	 * 🔴 IST EINE STADT GEWÄHLT, SAGT DIE ZEILE DARUNTER, WAS DAS HEISST: kein Kartenpunkt, und Form
+	 * und Art gelten nicht mehr. Ohne den Satz behauptet der Kasten weiter „Form: Ort · Art:
+	 * Bauwerk" für ein Objekt, das auf der Karte gar nicht entsteht -- der Widerspruch, den Entwurf
+	 * §4 mit dem Abblenden beim Überfahren des Knopfes meint, nur dass die Wahl hier BLEIBT.
+	 */
+	function garetienInnerortsZeileMarkup(objekt, deaktiviert) {
+		const kandidaten = garetienInnerortsKandidatenVon(objekt);
+		if (kandidaten.length === 0) { return ""; }
+		const wahl = garetienInnerortsWahlZu(objekt);
+		const optionen = ['<option value=""' + (wahl === "" ? " selected" : "") + '>— auf die Karte —</option>']
+			.concat(kandidaten.map(function (k) {
+				const pid = String(k.public_id || "");
+				return '<option value="' + avesmapsGaretienEscape(pid) + '"'
+					+ (pid === wahl ? " selected" : "") + ">"
+					+ avesmapsGaretienEscape(garetienInnerortsKandidatText(k)) + "</option>";
+			}));
+		return '<p class="gi-insert__row">Innerorts <span class="gi-insert__val">'
+			+ '<select class="gi-insert__select" data-gi-feld="innerorts" id="'
+			+ garetienEingabeId(objekt, "innerorts") + '"' + (deaktiviert ? " disabled" : "") + ">"
+			+ optionen.join("") + "</select></span></p>"
+			+ (wahl === "" ? "" : '<p class="gi-insert__row"><span class="gi-insert__hint">'
+				+ "Wird als Stätte in „" + avesmapsGaretienEscape(garetienInnerortsZiel(objekt).name)
+				+ "“ angelegt — OHNE Position auf der Karte. Form und Art gelten dafür nicht."
+				+ "</span></p>");
+	}
+
 	function garetienZielWahlZu(objekt) {
 		const key = String((objekt && objekt.key) || "");
 		// 💣 OHNE SCHLUESSEL WIRD NICHT ZWISCHENGESPEICHERT. Sonst teilten sich ALLE schluessellosen
@@ -4437,7 +4605,13 @@
 		let markup = '<p class="gi-sec">Eingefügt wird</p>'
 			+ '<p class="gi-why gi-insert__kopf">' + avesmapsGaretienEscape(garetienTypText(objekt)) + "</p>"
 			+ garetienEingefuegtWirdUebernommenHinweis(objekt)
-			+ garetienZielWahlMarkup(objekt, uebernommen);
+			+ garetienZielWahlMarkup(objekt, uebernommen)
+			// 🔴 DIREKT UNTER FORM UND ART, weil sie dieselbe Frage beantwortet („was entsteht?")
+			// und die zwei darüber überstimmt, sobald eine Stadt gewählt ist. Weiter unten, zwischen
+			// den Feldern der Form, wäre sie eine Eigenschaft des Kartenobjekts -- und genau das ist
+			// sie nicht (Owner 07.09.2026: „nicht zwischen die felder reinpfrimeln", zur selben
+			// Frage bei den Quellen).
+			+ garetienInnerortsZeileMarkup(objekt, uebernommen);
 		if (ziel === "region") {
 			markup += garetienEingefuegtWirdFlaecheMarkup(objekt, uebernommen);
 			markup += garetienEingefuegtWirdBeschriftungMarkup(objekt, subtyp, true, uebernommen);
@@ -4764,6 +4938,11 @@
 	// dieselbe Spalte danach sofort neu -- eine Funktion, die immer nur den Platzhalter zöge, ließe
 	// den gerade benutzten Knopf im selben Klick wieder auf "wird ermittelt" zurückfallen.
 	let _garetienNaeheLetzterKey = null;
+
+	// Die FRISCH nachgeschlagene Innerorts-Kandidatenliste, je Objektschlüssel -- `undefined` heisst
+	// „noch nicht gefragt", ein Array heisst „das ist die Antwort" (auch ein leeres).
+	let _garetienInnerortsFrisch = {};
+	let _garetienInnerortsLetzterKey = null;
 	let _garetienNaeheGefunden = null;
 	// Aufgabe 13: die WAHL im Typenfilter -- NEBEN dem DOM, wie das Feld darüber (Brief: „Der
 	// Zustand der Wahl steht NEBEN dem DOM ... die Detailspalte wird bei jedem Listenabruf neu
@@ -4857,6 +5036,54 @@
 	// -- für die Meldung nach dem Klick, aus demselben Leser wie die Menge selbst.
 	function garetienNaeheFremdAnzahl(objekt) {
 		return garetienNaeheStandZu(objekt).fremd;
+	}
+
+	/*
+	 * REIN: die frisch nachgeschlagene Kandidatenliste dieses Objekts -- oder `null`, solange keine
+	 * Antwort da ist (dann gilt der Befund des Laufs).
+	 */
+	function garetienInnerortsFrischeListe(objekt) {
+		const key = String((objekt && objekt.key) || "");
+		const liste = key === "" ? null : _garetienInnerortsFrisch[key];
+		return Array.isArray(liste) ? liste : null;
+	}
+
+	/*
+	 * Fragt die Innerorts-Kandidaten des GERADE GEÖFFNETEN Objekts frisch ab.
+	 *
+	 * 🔴 DAS IST DIE HÄLFTE DES OWNER-SATZES, DIE DER PLANBAU NICHT KANN: „einer bestehenden oder
+	 * ANDEREN IMPORTIERTEN Siedlung" (07.09.2026). Der Befund im Vorschlag entsteht beim „Holen &
+	 * Rechnen" -- eine Stadt, die dieser Lauf gerade erst angelegt hat, steht nicht darin. Ohne
+	 * diesen Abruf müsste der Editor neu rechnen lassen, nur um die Stadt zu sehen, die er vor zwei
+	 * Minuten selbst importiert hat.
+	 *
+	 * ⚠️ EIN Abruf je geöffneter Zeile, mit eigenem Riegel gegen Wiederholungen -- dieselbe Bauform
+	 * wie `garetienNaeheBeiBedarfLaden` daneben.
+	 * 🔴 GEFRAGT WIRD NUR, WENN DER LAUF SCHON ETWAS GEFUNDEN HAT. Ein Objekt ohne jeden Befund ist
+	 * kein Bauwerk oder liegt im Nirgendwo; für dreihundert solcher Zeilen je Klick eine
+	 * Umkreissuche zu fahren wäre die Last, die diesen Nachschlag aus dem Lesepfad der Liste
+	 * heraushält (serverseitig begründet an avesmapsGaretienInnerortsKandidatenFrisch).
+	 * ⚠️ Fällt still aus: ohne Antwort bleibt der Befund des Laufs stehen, und der ist nie falsch --
+	 * nur älter.
+	 */
+	function garetienInnerortsFrischLaden(objekt) {
+		if (!objekt || garetienInnerortsOrt(objekt) === "") { return; }
+		const schluessel = String(objekt.key || "");
+		if (schluessel === "" || schluessel === _garetienInnerortsLetzterKey) { return; }
+		_garetienInnerortsLetzterKey = schluessel;
+		if (!hasDocument || typeof fetch !== "function") { return; }
+		avesmapsGaretienRufe(GARETIEN_ENDPUNKT, {
+			action: "innerorts_kandidaten",
+			run_id: zustand.importRunId,
+			ziel: schluessel,
+		}).then(function (antwort) {
+			// ⚠️ Gegen den EIGENEN Schlüssel geprüft, nicht gegen `zustand.detailKey` -- dieselbe
+			// Wache wie beim Umkreis: eine überholte Antwort verwirft sich selbst.
+			if (schluessel !== _garetienInnerortsLetzterKey) { return; }
+			if (!Array.isArray(antwort.kandidaten)) { return; }
+			_garetienInnerortsFrisch[schluessel] = antwort.kandidaten;
+			if (zustand.detailKey === schluessel) { garetienDetailRendern(zustand.objekte); }
+		}).catch(function () { /* still: der Befund des Laufs bleibt stehen */ });
 	}
 
 	// Fragt bei Bedarf den Umkreis für das GERADE GEÖFFNETE Objekt ab -- über denselben Sender wie
@@ -5412,7 +5639,7 @@
 			return "Nimmt " + benannt + " wieder von der Stage — es wird dann nicht mehr "
 				+ "vorgeschaut und von „Stage importieren\" nicht angelegt. Der Vorschlag bleibt.";
 		case "innerorts":
-			return "Legt " + benannt + " als besondere Stätte in „" + garetienInnerortsOrt(o)
+			return "Legt " + benannt + " als besondere Stätte in „" + garetienInnerortsZiel(o).name
 				+ "\" an — OHNE Position auf der Karte. Es erscheint dort in der Infobox der Stadt "
 				+ "und in der Suche, nicht als eigener Punkt.";
 		case "quelle":
@@ -5504,7 +5731,7 @@
 		// nicht „innerorts ja/nein", sondern „innerorts IN WANDLETH" -- und wenn die Stadt falsch
 		// ist, sieht er es, bevor er drückt. Das ist der einzige Riegel, den diese Handlung hat.
 		if (name === "innerorts") {
-			beschriftung += " (" + garetienInnerortsOrt(objekt) + ")";
+			beschriftung += " (" + garetienInnerortsZiel(objekt).name + ")";
 		}
 		if (zielText !== "") {
 			// „Bei „Rakula" Quelle + Artikel einfügen" -- der Owner-Wortlaut. Das „Bei …" steht
@@ -6050,6 +6277,9 @@
 		// Owner-Auftrag A: „Imports in der Nähe anzeigen" -- derselbe Zug, eigener Riegel gegen
 		// doppelte Abrufe desselben Objekts (`_garetienNaeheLetzterKey`).
 		garetienNaeheBeiBedarfLaden(gewaehlt);
+		// „Eingefügt wird" > „Innerorts" -- die Kandidaten frisch, damit eine eben importierte Stadt
+		// zur Wahl steht (Owner 07.09.2026). Eigener Riegel, wie die zwei Abrufe darüber.
+		garetienInnerortsFrischLaden(gewaehlt);
 		// Dreiwertig ist eine EIGENSCHAFT, kein Attribut -- erst nach dem Einfügen einlösen, genau
 		// wie in avesmapsGaretienListeRendern.
 		Array.prototype.forEach.call(spalte.querySelectorAll("input[data-part]"), function (feld) {
@@ -6645,8 +6875,11 @@
 		// entstünde (Form, Art, Farbe, Strömung); ein innerorts eingefügtes Objekt entsteht dort
 		// nicht. Mitgeschickt würde die Zielwahl serverseitig noch einmal auf die Geometrie
 		// angewandt -- eine Umformung für ein Objekt, das keine Geometrie bekommt.
+		// 🔴 UND ER NENNT DIE STADT, DIE IM KNOPF STEHT. `garetienInnerortsZiel` ist derselbe Leser,
+		// aus dem die Beschriftung kommt -- ohne ihn schickte der Knopf „Innerorts einfügen
+		// (Wandleth)" die Vorauswahl mit, während der Editor im Feld darüber „Aue" gewählt hat.
 		const einstellungen = handlung === "innerorts"
-			? { innerorts: true }
+			? { innerorts: true, innerorts_public_id: garetienInnerortsZiel(objekt).public_id }
 			: garetienEingabenFuerServer(objekt);
 
 		// `rumpf.ids` ist bereits der VOLLE Umfang (garetienHandlungsRumpf/garetienHandlungBauen
@@ -8443,6 +8676,12 @@
 			garetienHandlungen,
 			garetienHandlungsRumpf,
 			garetienHandlungsMarkup,
+			garetienInnerortsKandidatenVon,
+			garetienInnerortsKandidatText,
+			garetienInnerortsWahlZu,
+			garetienInnerortsWahlVergessen,
+			garetienInnerortsZeileMarkup,
+			garetienInnerortsZiel,
 			garetienHakenItems,
 			garetienHakenPlan,
 			// Fixrunde 1 (07.09.2026, B3): was die STAGE uebernimmt -- die eine Weiche, die Anzeige

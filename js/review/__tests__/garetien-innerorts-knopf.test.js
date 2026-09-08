@@ -30,6 +30,9 @@ function tief(ist, soll, warum) {
 
 ["garetienInnerortsOrt", "garetienHandlungen", "garetienHandlungTitel", "garetienNeuKlick",
 	"garetienStageVorhaben", "garetienZeileMarkup", "garetienEingefuegtWirdUebernommenHinweis",
+	"garetienInnerortsKandidatenVon", "garetienInnerortsKandidatText", "garetienInnerortsWahlZu",
+	"garetienInnerortsWahlVergessen", "garetienInnerortsZeileMarkup", "garetienInnerortsZiel",
+	"garetienEingabenFuerServer", "garetienEingabenAendern", "garetienDetailWaehlen",
 ].forEach((name) => wahr(typeof mod[name] === "function", name + " fehlt im Export"));
 
 const namen = (objekt) => mod.garetienHandlungen(objekt).map((k) => k.name);
@@ -164,8 +167,12 @@ async function pruefeKlick() {
 			"derselbe Ablauf wie „Neu einfuegen\": anhaken, uebernehmen, Liste (die Stage ist leer, "
 			+ "der Stage-Nachlauf bleibt aus)");
 		tief(gestellt[0].rumpf.ids, [41], "mit dem new-Item");
-		tief(gestellt[1].rumpf.einstellungen, { innerorts: true },
-			"🔴 GENAU EIN anderer Wert: die Handeingabe ist `{innerorts:true}` -- nicht der Kasten „Eingefuegt wird\"");
+		tief(gestellt[1].rumpf.einstellungen,
+			{ innerorts: true, innerorts_public_id: "stadt-wandleth" },
+			"🔴 GENAU ZWEI Werte: „ja, innerorts\" und WELCHE Stadt -- nicht der Kasten „Eingefuegt wird\". "
+			+ "Die public_id kommt aus demselben Leser wie die Beschriftung des Knopfes "
+			+ "(garetienInnerortsZiel); ohne sie schickte der Knopf „(Wandleth)\" die Vorauswahl, "
+			+ "waehrend im Feld darueber eine andere Stadt steht.");
 		gleich(gefragt.length, 0, "und KEINE Rueckfrage");
 
 		// Die Rueckfrage vor „trotzdem neu anlegen" gilt NUR „neu": eine Staette kollidiert mit keinem
@@ -237,8 +244,117 @@ function pruefeUebernommen() {
 	wahr(hinweisStaette.includes("Zurücknehmen"), "und die Ruecknahme wird weiter angeboten");
 }
 
+// =================================================================================================
+// E. Das Auswahlfeld (Owner 07.09.2026) -- „sind in der Naehe mehrere soll ein dropdown Menue
+//    sortiert nach entfernung zur auswahl stehen, fuer welches man sich innerorts entscheiden
+//    moechte."
+// =================================================================================================
+// Derselbe Tempel, aber aus einem Lauf NACH dem 07.09.2026: der Befund traegt seine Kandidaten mit.
+const mitListe = Object.assign({}, mitBefund, {
+	key: "ggp:Bauwerke:Tempel:Garetien:Mit Liste", name: "Wandlether Rondratempel",
+	ziel: "location", subtyp: "gebaeude", geometrie: [[100, 100]],
+	innerorts: {
+		public_id: "stadt-wandleth", name: "Wandleth", meilen: 0.09,
+		kandidaten: [
+			{ public_id: "dorf-aue", name: "Aue", meilen: 0.03, nennt_name: false },
+			{ public_id: "stadt-wandleth", name: "Wandleth", meilen: 0.09, nennt_name: true },
+		],
+	},
+});
+
+function pruefeAuswahlfeld() {
+	mod.garetienInnerortsWahlVergessen();
+
+	// --- Die Liste -------------------------------------------------------------------------
+	tief(mod.garetienInnerortsKandidatenVon(mitListe).map((k) => k.name), ["Aue", "Wandleth"],
+		"🔴 GELESEN, NICHT SORTIERT: die Reihenfolge IST die Antwort des Servers (nach Entfernung). "
+		+ "Im Browser nachzusortieren waere eine zweite Wahrheit -- und er kennt die Ortschaften der "
+		+ "Karte gar nicht alle (Zoom und Ansicht entscheiden, was geladen ist)");
+	tief(mod.garetienInnerortsKandidatenVon(mitBefund).map((k) => k.public_id), ["stadt-wandleth"],
+		"🪤 ein Lauf VOR dem 07.09.2026 traegt keine `kandidaten` -- dann ist die Vorauswahl die "
+		+ "einzige Stadt, die er kennt, und genau sie steht zur Wahl");
+	tief(mod.garetienInnerortsKandidatenVon(ohneBefund), [], "ohne Befund keine Kandidaten");
+	tief(mod.garetienInnerortsKandidatenVon(altLauf), [], "ein Lauf ohne das Feld: auch keine");
+
+	// --- Die Zeile eines Kandidaten --------------------------------------------------------
+	gleich(mod.garetienInnerortsKandidatText({ name: "Aue", meilen: 0.03, nennt_name: false }),
+		"Aue · 0,03 Meilen", "Name und Entfernung, in der Hausform mit Komma");
+	gleich(mod.garetienInnerortsKandidatText({ name: "Wandleth", meilen: 0.09, nennt_name: true }),
+		"Wandleth · 0,09 Meilen · Name passt",
+		"💣 die MARKE steht an der Zeile -- ohne sie saehe der Editor in einer nach blosser Naehe "
+		+ "sortierten Liste nicht, warum die zweite Zeile die richtige ist");
+
+	// --- Das Markup ------------------------------------------------------------------------
+	gleich(mod.garetienInnerortsZeileMarkup(ohneBefund, false), "",
+		"🔴 ohne Kandidaten steht die Zeile GAR NICHT da -- kein dauerhaft leeres Auswahlfeld");
+	const zeile = mod.garetienInnerortsZeileMarkup(mitListe, false);
+	wahr(zeile.includes('data-gi-feld="innerorts"'), "das Feld traegt seinen Namen: " + zeile);
+	wahr(zeile.indexOf("— auf die Karte —") !== -1, "der erste Eintrag ist „auf die Karte\"");
+	wahr(/<option value=""[^>]* selected/.test(zeile),
+		"💣 UND ER IST VORAUSGEWAEHLT. Eine vorbelegte Stadt legte beim naechsten „Stage importieren\" "
+		+ "fuer dreihundert Objekte stillschweigend Staetten an, statt Kartenpunkte: " + zeile);
+	wahr(zeile.indexOf("Aue · 0,03 Meilen") < zeile.indexOf("Wandleth · 0,09 Meilen"),
+		"beide Staedte stehen drin, in der Reihenfolge des Servers");
+	wahr(!zeile.includes("Wird als Stätte in"),
+		"...und solange nichts gewaehlt ist, behauptet nichts eine Staette");
+	wahr(mod.garetienInnerortsZeileMarkup(mitListe, true).includes(" disabled"),
+		"an einem uebernommenen Objekt ist das Feld gesperrt, wie jedes andere des Kastens");
+
+	// --- Ohne Wahl: alles bleibt, wie es war -----------------------------------------------
+	gleich(mod.garetienInnerortsWahlZu(mitListe), "", "die Vorgabe ist LEER");
+	gleich(mod.garetienInnerortsZiel(mitListe).name, "Wandleth",
+		"...der Knopf nennt trotzdem die Vorauswahl des Servers -- der Vorschlag geht nicht verloren");
+	const ohneWahl = mod.garetienEingabenFuerServer(mitListe);
+	wahr(!("innerorts" in ohneWahl),
+		"💣 UND DER STAGE-RUMPF SAGT NICHTS VON INNERORTS. Ohne diese Zeile legte „Stage importieren\" "
+		+ "fuer jedes Objekt mit Befund eine Staette an: " + JSON.stringify(ohneWahl));
+	gleich(ohneWahl.ziel, "location", "er beschreibt weiter das Kartenobjekt");
+
+	// --- Mit Wahl: der ECHTE Weg, ueber garetienEingabenAendern ----------------------------
+	// 🔴 AUSGEFUEHRT, NICHT GELESEN: ein Regex auf den Quelltext kennt keinen Geltungsbereich, und
+	// genau daran ist am 03.09.2026 eine Regression zwei Stunden lang unbemerkt live gestanden
+	// (AGENTS.md §11, „Die Landschaft traegt die Quellen").
+	mod.garetienDetailWaehlen(mitListe.key, [mitListe]);
+	mod.garetienEingabenAendern({
+		target: {
+			getAttribute: (name) => (name === "data-gi-feld" ? "innerorts" : null),
+			hasAttribute: (name) => name === "data-gi-feld",
+			value: "dorf-aue",
+		},
+	}, [mitListe]);
+	gleich(mod.garetienInnerortsWahlZu(mitListe), "dorf-aue", "die Wahl liegt neben dem DOM und haelt");
+	gleich(mod.garetienInnerortsZiel(mitListe).name, "Aue",
+		"🔴 und der Knopf nennt jetzt SIE, nicht mehr die Vorauswahl");
+	const mitWahl = mod.garetienEingabenFuerServer(mitListe);
+	tief(mitWahl, { innerorts: true, innerorts_public_id: "dorf-aue" },
+		"⭐ DADURCH WIRKT INNERORTS UEBER DIE STAGE -- bis zum 07.09.2026 legte „Stage importieren\" "
+		+ "nie eine Staette an, und der Einzelknopf war der einzige Weg dorthin");
+	wahr(!("ziel" in mitWahl),
+		"💣 UND KEIN `ziel`: avesmapsGaretienZielUebersteuern laeuft serverseitig VOR der "
+		+ "Innerorts-Weiche und formte die Geometrie fuer ein Ziel um, das nie gebaut wird");
+	wahr(mod.garetienInnerortsZeileMarkup(mitListe, false).includes("OHNE Position auf der Karte"),
+		"und die Zeile darunter sagt, was das heisst -- sonst behauptet der Kasten weiter „Form: Ort\"");
+
+	// --- Eine Wahl, die es nicht (mehr) gibt -----------------------------------------------
+	mod.garetienEingabenAendern({
+		target: {
+			getAttribute: (name) => (name === "data-gi-feld" ? "innerorts" : null),
+			hasAttribute: (name) => name === "data-gi-feld",
+			value: "stadt-erfunden",
+		},
+	}, [mitListe]);
+	gleich(mod.garetienInnerortsWahlZu(mitListe), "",
+		"💣 eine Stadt, die NICHT in den Kandidaten steht, zaehlt nicht -- der frische Nachschlag "
+		+ "kann die Liste unter einer stehenden Wahl austauschen. Serverseitig faengt derselbe "
+		+ "Riegel den Fall noch einmal (avesmapsGaretienInnerortsAusVorschlag)");
+	gleich(mod.garetienInnerortsZiel(mitListe).name, "Wandleth", "...und der Knopf faellt auf die Vorauswahl zurueck");
+	mod.garetienDetailWaehlen(null, []);
+	mod.garetienInnerortsWahlVergessen();
+}
+
 pruefeKlick().then(() => {
 	pruefeUebernommen();
+	pruefeAuswahlfeld();
 	console.log("OK: " + checks + " Pruefungen");
 }).catch((fehler) => {
 	console.error(fehler);
