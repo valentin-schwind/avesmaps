@@ -192,4 +192,38 @@ assert(!in_array($gardelSchluessel, array_column($ergebnisPdo['gefunden'], 'key'
     'auch ueber den PDO-Weg ist der Gardel nicht sein eigener Nachbar');
 $pruefungen += 3;
 
+// =================================================================================================
+// Der Umkreis-Spinner (Owner 08.09.2026) -- er steuert den ZUSCHLAG, in MEILEN
+// =================================================================================================
+// 🔴 DER SPINNER STEUERT DEN ZUSCHLAG, NICHT DEN GANZEN RADIUS. Als ganzer Radius gelesen fände
+// eine grosse Fläche mit 3 Meilen gar nichts mehr -- ihre eigene Ausdehnung ist grösser als die
+// Zahl im Feld, und der Knopf sagte „kein Fund" für Nachbarn, die sie berühren.
+$spinnerObjekte = [
+    's:ziel' => ['key' => 's:ziel', 'name' => 'Ziel', 'geometrie' => [[100.0, 100.0]]],
+    // 6 Meilen entfernt = 2 Karteneinheiten. Mit der Vorgabe (1 Einheit = 3 Meilen) draussen.
+    's:sechs' => ['key' => 's:sechs', 'name' => 'Sechs Meilen', 'geometrie' => [[102.0, 100.0]]],
+];
+$mitVorgabe = avesmapsGaretienNaeheAusObjekten($spinnerObjekte, 's:ziel');
+assert($mitVorgabe['gefunden'] === [], 'mit der Vorgabe (3 Meilen) liegt ein Nachbar in 6 Meilen draussen');
+assert(abs($mitVorgabe['radius'] - AVESMAPS_GARETIEN_NAEHE_ZUSCHLAG) < 1e-9,
+    'und der Radius ist der Zuschlag selbst -- ein Punkt hat keine eigene Ausdehnung');
+$mitZwoelf = avesmapsGaretienNaeheAusObjekten($spinnerObjekte, 's:ziel', 12.0);
+assert(count($mitZwoelf['gefunden']) === 1,
+    '🔴 mit 12 Meilen aus dem Spinner steht er drin: ' . json_encode(array_column($mitZwoelf['gefunden'], 'key')));
+assert(abs($mitZwoelf['radius'] - 4.0) < 1e-9,
+    '💣 UND DER RADIUS IST IN KARTENEINHEITEN: 12 Meilen / 3 = 4. Der Spinner rechnet in MEILEN, die '
+    . 'Konstante bleibt in Karteneinheiten -- umgerechnet wird genau einmal, beim Eintritt: ' . $mitZwoelf['radius']);
+assert(avesmapsGaretienNaeheAusObjekten($spinnerObjekte, 's:ziel', 0.0)['gefunden'] === [],
+    '⚠️ mit 0 findet ein Punkt nur, was ihn beruehrt -- die 0 ist ein gueltiger Wert, kein „nimm die Vorgabe"');
+// Und die Flaeche behaelt ihre eigene Ausdehnung: der Zuschlag kommt OBENDRAUF.
+$flaecheSpinner = [
+    'g:ziel' => ['key' => 'g:ziel', 'geometrie' => [[0.0, 0.0], [10.0, 0.0], [10.0, 10.0], [0.0, 10.0]]],
+];
+$rGross = avesmapsGaretienNaeheAusObjekten($flaecheSpinner, 'g:ziel', 3.0)['radius'];
+$rKlein = avesmapsGaretienNaeheAusObjekten($flaecheSpinner, 'g:ziel', 0.0)['radius'];
+assert($rKlein > 5.0 && abs(($rGross - $rKlein) - 1.0) < 1e-9,
+    '💣 die eigene Ausdehnung BLEIBT (>5 Einheiten), der Spinner legt nur 3 Meilen = 1 Einheit drauf: '
+    . $rKlein . ' -> ' . $rGross);
+$pruefungen += 6;
+
 echo "OK: {$pruefungen} Pruefungen (garetien-naehe-test)\n";

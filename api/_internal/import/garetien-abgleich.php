@@ -1402,6 +1402,54 @@ const AVESMAPS_GARETIEN_INNERORTS_MEILEN = 5.0;
 const AVESMAPS_GARETIEN_INNERORTS_KANDIDATEN = 8;
 
 /**
+ * Die Grenzen des Umkreis-Spinners (Owner 08.09.2026: „einen numerischen spinner … der zwischen
+ * 0 - 20 die meilen eingrenzt"). Sie gelten BEIDEN Umkreisen des Importers -- der Innerorts-Suche
+ * und „Imports in der Naehe".
+ *
+ * 💣 GEPRUEFT WIRD SERVERSEITIG, NICHT AM `<input>`. Ein `max="20"` im Markup ist eine Bitte an den
+ * Browser: die Zahl kommt aus einem Anfragerumpf, und eine Umkreissuche mit 10.000 Meilen laeuft
+ * gegen den GANZEN Ortsbestand -- bei 2900 Ortschaften und bis zu 10.000 Objekten je Lauf ist das
+ * genau die Schleife, die am 02.09.2026 eine 502 erzeugt hat. Der Riegel gehoert dorthin, wo er
+ * nicht umgangen werden kann.
+ * 🔴 UND ES IST EIN Pruefer fuer beide Spinner, keine zwei: eine Regel, die einen von zwei
+ * Erzeugern bindet, ist keine Regel -- dieselbe Lehre wie bei der Verkehrsmittel-Sperre (§11).
+ *
+ * ⚠️ NULL IST ERLAUBT und heisst nicht „Vorgabe", sondern „nur was mich beruehrt" -- der Owner hat
+ * die 0 ausdruecklich in den Bereich genommen. „Keine Angabe" ist `null`, und das ist etwas anderes.
+ */
+const AVESMAPS_GARETIEN_UMKREIS_MIN_MEILEN = 0.0;
+const AVESMAPS_GARETIEN_UMKREIS_MAX_MEILEN = 20.0;
+
+/**
+ * PURE: eine Umkreisangabe aus einem Anfragerumpf -- geklemmt auf 0..20 Meilen, oder die Vorgabe.
+ *
+ * 🔴 „NICHT GENANNT" UND „0" SIND VERSCHIEDENE ANTWORTEN. `null`/fehlend/leer/kein Zahlwert faellt
+ * auf $vorgabe zurueck (ein alter Client, der den Spinner nicht kennt, verhaelt sich wie vorher);
+ * eine ausdrueckliche 0 gilt. Ohne diese Trennung koennte man den Umkreis nie auf 0 stellen, oder
+ * ein alter Client suchte ploetzlich mit 0 -- beides still.
+ *
+ * ⚠️ Geklemmt, nicht abgelehnt: ein Wert daneben ist kein Angriff, sondern ein Tippfehler oder ein
+ * Browser ohne `max`. Eine 400 dafuer haette den Editor mitten in der Arbeit ausgebremst.
+ *
+ * ⭐ DIE VORGABE IST `null`, UND DAS IST DER GANZE TRICK: „nicht genannt" reist als `null` weiter,
+ * und dann nimmt die AUFGERUFENE Funktion ihre eigene Vorgabe (5 Meilen bei Innerorts, ein
+ * Karteneinheit-Zuschlag bei der Naehe). So kennt jede Vorgabe genau EINE Stelle -- stuende sie
+ * zusaetzlich im Endpunkt, gaebe es zwei, und die zweite veraltet.
+ */
+function avesmapsGaretienUmkreisMeilen(mixed $roh, ?float $vorgabe = null): ?float
+{
+    if ($roh === null || $roh === '' || !is_numeric($roh)) {
+        return $vorgabe;
+    }
+    $wert = (float) $roh;
+    if (!is_finite($wert)) {
+        return $vorgabe;
+    }
+
+    return max(AVESMAPS_GARETIEN_UMKREIS_MIN_MEILEN, min(AVESMAPS_GARETIEN_UMKREIS_MAX_MEILEN, $wert));
+}
+
+/**
  * PURE: einen Namen fuer den Innerorts-Vergleich falten.
  *
  * 🔴 DAS IST KEINE SCHLUESSELBILDUNG. `avesmapsFoldToAscii` (api/_internal/text/ascii-fold.php)
@@ -1514,14 +1562,18 @@ function avesmapsGaretienSiedlungsFamilie(): array
  *
  * @param list<array{0:float,1:float}> $punkte                die Punkte IHRES Objekts
  * @param list<array{public_id:string,name:string,punkte:list<array{0:float,1:float}>}> $ortschaften
+ * @param float|null $meilen Reichweite in Meilen; `null` nimmt AVESMAPS_GARETIEN_INNERORTS_MEILEN.
+ *                           Der Spinner des Fensters reicht sie herein (Owner 08.09.2026), geklemmt
+ *                           von avesmapsGaretienUmkreisMeilen -- HIER wird nicht mehr geprueft, und
+ *                           das ist Absicht: zwei Pruefer laufen beim ersten Zweifel auseinander.
  * @return list<array{public_id:string, name:string, abstand:float, nennt_name:bool}>
  */
-function avesmapsGaretienInnerortsKandidaten(array $punkte, string $objektName, array $ortschaften): array
+function avesmapsGaretienInnerortsKandidaten(array $punkte, string $objektName, array $ortschaften, ?float $meilen = null): array
 {
     if ($punkte === []) {
         return [];
     }
-    $schwelle = AVESMAPS_GARETIEN_INNERORTS_MEILEN / AVESMAPS_TERRAIN_MEILEN_PER_MAPUNIT;
+    $schwelle = ($meilen ?? AVESMAPS_GARETIEN_INNERORTS_MEILEN) / AVESMAPS_TERRAIN_MEILEN_PER_MAPUNIT;
     // ⭐ Quadriert vergleichen: die Wurzel kostet und aendert an der Ordnung nichts. Sie wird
     // genau einmal je Kandidat gezogen, erst wenn er in der Liste steht.
     $schwelleQ = $schwelle * $schwelle;
@@ -1654,7 +1706,7 @@ function avesmapsGaretienInnerortsListeInMeilen(array $kandidaten): array
  *
  * @return array{public_id:string, name:string, meilen:float, kandidaten:list<array{public_id:string, name:string, meilen:float, nennt_name:bool}>}|null
  */
-function avesmapsGaretienInnerortsBefund(PDO $pdo, array $zeile, ?array $ziel): ?array
+function avesmapsGaretienInnerortsBefund(PDO $pdo, array $zeile, ?array $ziel, ?float $meilen = null): ?array
 {
     if (!is_array($ziel) || ($ziel['ziel'] ?? '') !== 'location'
         || !avesmapsIstBauwerksklasse((string) ($ziel['subtyp'] ?? ''))) {
@@ -1677,7 +1729,7 @@ function avesmapsGaretienInnerortsBefund(PDO $pdo, array $zeile, ?array $ziel): 
         'suchen' => avesmapsGaretienSiedlungsFamilie(),
     ]);
 
-    $kandidaten = avesmapsGaretienInnerortsKandidaten($punkte, $objektName, $ortschaften);
+    $kandidaten = avesmapsGaretienInnerortsKandidaten($punkte, $objektName, $ortschaften, $meilen);
     if ($kandidaten === []) {
         return null;
     }

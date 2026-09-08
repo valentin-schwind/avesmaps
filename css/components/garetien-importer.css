@@ -1387,6 +1387,33 @@ html.avesmaps-planner-collapsed .gi-win {
 	cursor: pointer;
 }
 
+/* Der Umkreis-Spinner (Owner 08.09.2026: „einen numerischen spinner … der zwischen 0 - 20 die
+   meilen eingrenzt"). EINE Rezeptur für beide Umkreise -- die Innerorts-Suche im Kasten
+   „Eingefügt wird" und „Imports in der Nähe" im Fuß der Spalte.
+
+   🔴 DAS FELD IST `.gi-insert__input`, die Hausform. Hier stehen nur Anordnung und Beschriftung;
+   Höhe, Rahmen, Radius und der gesperrte Zustand kommen von dort. Eine eigene Feldrezeptur wäre
+   die Divergenz, die AGENTS.md §11 für die Listenzeilen (sieben Fassungen) beschreibt.
+   ⚠️ Die Einheit steht als eigenes Element daneben, nicht im `value`: „5 Meilen" in einem
+   `type="number"` ist kein gültiger Zahlwert, die Pfeile hörten damit auf zu funktionieren. */
+.gi-umkreis {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-2);
+	font-size: var(--font-size-caption);
+	color: var(--color-text-muted);
+}
+
+/* Schmaler als das Zahlenfeld des Kastens: hier stehen höchstens zwei Ziffern (0-20), und die
+   4,5em von `.gi-insert__input` liessen die Zeile unnötig breit werden. */
+.gi-umkreis__feld {
+	width: 4em;
+}
+
+.gi-umkreis__einheit {
+	white-space: nowrap;
+}
+
 /* Der Handlungs-Link der Statuszeile („Rückgängig", „Zur Zeile"). Ein LINK, kein Knopf: er ist
    der Nebenausgang einer Meldung, nicht ihre Handlung — dieselbe Rangfolge wie überall in diesem
    Fenster (AGENTS.md §12: die eine gefüllte Handlung steht im Fuß). */
