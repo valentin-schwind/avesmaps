@@ -1486,6 +1486,11 @@ if (typeof window !== "undefined") {
 		WAY_COLORS: SVGX_WAY_COLORS,
 		WAY_SUBTYPES: SVGX_WAY_SUBTYPES,
 		ABZUG_EINSTELLUNGEN: SVGX_ABZUG_EINSTELLUNGEN,
+		// 🔴 BEIDE Fassungen, seit 08.09.2026. Bis dahin kannte der Browser nur die rohe -- und
+		// damit konnte der Knopf „Abzug hinterlegen" die geglaettete gar nicht bauen: sie entstand
+		// ausschliesslich im naechtlichen Lauf. Wer den Knopf drueckte, erneuerte die rohe Schublade
+		// und liess die glatte auf altem Stand stehen, ohne dass die Erfolgsmeldung das sagte.
+		ABZUG_EINSTELLUNGEN_GLATT: SVGX_ABZUG_EINSTELLUNGEN_GLATT,
 	};
 }
 

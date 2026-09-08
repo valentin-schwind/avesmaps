@@ -272,7 +272,7 @@
 	// ⭐ Gleiche Einstellungen, gleiche Daten, gleicher Bauer: der Handabzug ist damit
 	// byte-identisch mit dem der Nacht. `X-Avesmaps-Quelle` sagt nur noch, WER ihn ausgeloest
 	// hat -- nicht mehr, dass er anders aussieht.
-	async function baueApiAbzug() {
+	async function baueApiAbzuege() {
 		const E = window.AvesmapsSvgExport;
 		const F = window.AvesmapsSvgExportFarben;
 
@@ -299,70 +299,120 @@
 		const exportiertAm = new Date().toISOString();
 		const farben = F.vorgabeFarben(oekosysteme, tokenLeser(),
 			E.WAY_SUBTYPES, E.PLACE_KINDS, E.WAY_COLORS, E.PLACE_COLOR);
-		const ergebnis = E.build(Object.assign({}, E.ABZUG_EINSTELLUNGEN, {
-			mapFeatures: mapFeatures,
-			territories: territories,
-			ecosystems: oekosysteme,
-			ecoRevision: ecoRevision,
-			exportedAt: exportiertAm,
-		}, farben));
-
 		const kartenfassung = String((mapFeatures && mapFeatures.revision) || "");
-		return {
-			blob: new Blob(ergebnis.parts, { type: "image/svg+xml;charset=utf-8" }),
-			dateiname: `avesmaps-karte-${heute()}-r${kartenfassung}-${E.ABZUG_EINSTELLUNGEN.dialect}.svg`,
-			dialekt: E.ABZUG_EINSTELLUNGEN.dialect,
-			kartenfassung: kartenfassung,
-			landschaftsfassung: ecoRevision,
-			exportiert: exportiertAm,
-			stats: ergebnis.stats,
-		};
+
+		// 🔴 ZWEI FASSUNGEN AUS EINEM DATENABRUF -- dieselbe Liste wie im naechtlichen Lauf
+		// (tools/svg-export/abzug-bauen.js): roh und geglaettet, mit demselben Namenszusatz.
+		// 💣 Die ~20 MB werden EINMAL geladen. Zwei Durchgaenge mit je eigenem Abruf waeren die
+		// Last, vor der CLAUDE.md warnt -- und die drei Endpunkte sind bekannte Perf-Brennpunkte.
+		const varianten = [
+			{ einstellungen: E.ABZUG_EINSTELLUNGEN, namensZusatz: "" },
+			{ einstellungen: E.ABZUG_EINSTELLUNGEN_GLATT, namensZusatz: "-glatt" },
+		];
+
+		return varianten.map((variante) => {
+			const ergebnis = E.build(Object.assign({}, variante.einstellungen, {
+				mapFeatures: mapFeatures,
+				territories: territories,
+				ecosystems: oekosysteme,
+				ecoRevision: ecoRevision,
+				exportedAt: exportiertAm,
+			}, farben));
+			return {
+				blob: new Blob(ergebnis.parts, { type: "image/svg+xml;charset=utf-8" }),
+				dateiname: `avesmaps-karte-${heute()}-r${kartenfassung}`
+					+ `-${variante.einstellungen.dialect}${variante.namensZusatz}.svg`,
+				dialekt: variante.einstellungen.dialect,
+				kartenfassung: kartenfassung,
+				landschaftsfassung: ecoRevision,
+				exportiert: exportiertAm,
+				stats: ergebnis.stats,
+				glatt: variante.namensZusatz !== "",
+			};
+		});
 	}
 
+	// Eine Fassung hochladen: oeffnen, stueckeln, uebernehmen. 🔴 In WELCHE Schublade sie
+	// gehoert, entscheidet der Server am Wurzelattribut `avm:geglaettet` der Datei selbst --
+	// nie ein Feld im Rumpf (api/_internal/app/svg-export-ablage.php). Hier ist deshalb nichts
+	// mitzuteilen; es genuegt, die richtige Datei zu schicken.
+	async function hinterlegeEine(abzug, sagen) {
+		sagen("Ablage wird geöffnet …");
+		const start = await hinterlegeRuf(`${HINTERLEGEN_URL}?action=start`, { method: "POST" });
+		const id = start.upload_id;
+
+		const gesamt = abzug.blob.size;
+		for (let ab = 0; ab < gesamt; ab += HINTERLEGEN_STUECK) {
+			const stueck = abzug.blob.slice(ab, Math.min(ab + HINTERLEGEN_STUECK, gesamt));
+			sagen(`Wird hochgeladen … ${Math.round((ab / gesamt) * 100)} %`);
+			await hinterlegeRuf(
+				`${HINTERLEGEN_URL}?action=chunk&upload_id=${encodeURIComponent(id)}`,
+				{ method: "POST", body: stueck,
+					headers: { "Content-Type": "application/octet-stream" } }
+			);
+		}
+
+		sagen("Wird übernommen …");
+		// 🔴 `quelle` steht bewusst NICHT hier: die bestimmt der Server aus dem Riegel.
+		// Mitgeschickt könnte ein Handabzug sich als Routine ausgeben -- und genau diese
+		// Angabe soll die beiden ja auseinanderhalten.
+		return hinterlegeRuf(
+			`${HINTERLEGEN_URL}?action=finish&upload_id=${encodeURIComponent(id)}`,
+			{ method: "POST", headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					dateiname: abzug.dateiname,
+					dialekt: abzug.dialekt,
+					kartenfassung: abzug.kartenfassung,
+					landschaftsfassung: abzug.landschaftsfassung,
+					exportiert: abzug.exportiert,
+				}) }
+		);
+	}
+
+	// 🔴 BEIDE FASSUNGEN, roh UND geglaettet (Owner 08.09.2026: „ich hab aber ‚geglättet‘
+	// angehäkelt"). Bis dahin hinterlegte dieser Knopf NUR die rohe -- die geglaettete entstand
+	// ausschliesslich im naechtlichen Lauf um 03:17 UTC. Wer den Knopf drueckte, erneuerte die
+	// eine Schublade und liess die andere auf altem Stand stehen; die Erfolgsmeldung sagte
+	// „Die API liefert ab sofort diese Datei aus" und meinte damit nur die Haelfte.
+	// 🚩 Live aufgefallen an `?smooth=1`: geliefert r117439 mit 17,16 MB, waehrend die rohe
+	// Schublade laengst r117906 trug.
+	//
+	// ⚠️ DIE HAEKCHEN BLEIBEN AUSSEN VOR, das ist unveraendert (Owner 23.08.2026: „die häkchen
+	// soll nur für den SVG export sein, der abzug für die API soll automatisch immer alles
+	// speichern"). „Alles speichern" heisst seither BEIDE Fassungen -- nicht die eine, die
+	// gerade angehakt ist. Der Knopf baut weiterhin feste Einstellungen, nur eben zwei Saetze.
 	async function hinterlegen() {
 		const knopf = el("svgx-deposit");
 		if (knopf) { knopf.disabled = true; }
 
 		try {
-			const letzterAbzug = await baueApiAbzug();
-			hinterlegeStatus("Ablage wird geöffnet …");
-			const start = await hinterlegeRuf(`${HINTERLEGEN_URL}?action=start`, { method: "POST" });
-			const id = start.upload_id;
+			const abzuege = await baueApiAbzuege();
+			const meldungen = [];
+			let aufgeraeumt = 0;
 
-			const gesamt = letzterAbzug.blob.size;
-			for (let ab = 0; ab < gesamt; ab += HINTERLEGEN_STUECK) {
-				const stueck = letzterAbzug.blob.slice(ab, Math.min(ab + HINTERLEGEN_STUECK, gesamt));
-				hinterlegeStatus(`Wird hochgeladen … ${Math.round((ab / gesamt) * 100)} %`);
-				await hinterlegeRuf(
-					`${HINTERLEGEN_URL}?action=chunk&upload_id=${encodeURIComponent(id)}`,
-					{ method: "POST", body: stueck,
-						headers: { "Content-Type": "application/octet-stream" } }
-				);
+			// 💣 NACHEINANDER, nicht parallel: die Ablage vergibt eine `upload_id` je Vorgang, und
+			// zwei gleichzeitige Stueckel-Laeufe auf STRATO sind genau die Last, die dieses Projekt
+			// schon einmal fuer einen Datenbankausfall gehalten hat.
+			for (let i = 0; i < abzuege.length; i++) {
+				const abzug = abzuege[i];
+				const name = abzug.glatt ? "geglättet" : "roh";
+				const fertig = await hinterlegeEine(abzug, (text) =>
+					hinterlegeStatus(`${name} (${i + 1} von ${abzuege.length}): ${text}`));
+				meldungen.push(`${name} ${(fertig.bytes / (1024 * 1024)).toFixed(1)} MB`);
+				aufgeraeumt += (fertig.aufgeraeumt || []).length;
+				if (i === abzuege.length - 1) {
+					hinterlegeStatus(`Hinterlegt — ${meldungen.join(", ")}, `
+						+ `Kartenfassung ${fertig.kartenfassung || "—"}`
+						+ (aufgeraeumt ? `, ${aufgeraeumt} alte(r) Abzug entfernt` : "")
+						+ ". Die API liefert ab sofort beide Fassungen aus.");
+				}
 			}
-
-			hinterlegeStatus("Wird übernommen …");
-			// 🔴 `quelle` steht bewusst NICHT hier: die bestimmt der Server aus dem Riegel.
-			// Mitgeschickt könnte ein Handabzug sich als Routine ausgeben -- und genau diese
-			// Angabe soll die beiden ja auseinanderhalten.
-			const fertig = await hinterlegeRuf(
-				`${HINTERLEGEN_URL}?action=finish&upload_id=${encodeURIComponent(id)}`,
-				{ method: "POST", headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({
-						dateiname: letzterAbzug.dateiname,
-						dialekt: letzterAbzug.dialekt,
-						kartenfassung: letzterAbzug.kartenfassung,
-						landschaftsfassung: letzterAbzug.landschaftsfassung,
-						exportiert: letzterAbzug.exportiert,
-					}) }
-			);
-
-			const weg = (fertig.aufgeraeumt || []).length;
-			hinterlegeStatus(`Hinterlegt — ${(fertig.bytes / (1024 * 1024)).toFixed(1)} MB, `
-				+ `Kartenfassung ${fertig.kartenfassung || "—"}`
-				+ (weg ? `, ${weg} alte(r) Abzug entfernt` : "")
-				+ ". Die API liefert ab sofort diese Datei aus.");
 		} catch (fehler) {
-			hinterlegeStatus(`Hinterlegen fehlgeschlagen: ${fehler && fehler.message ? fehler.message : fehler}`, true);
+			// ⚠️ Beim Namen nennen, WAS schon liegt: bricht die zweite Fassung ab, ist die erste
+			// bereits uebernommen -- ein blosses „fehlgeschlagen" liesse den Eindruck, es sei
+			// nichts passiert, und genau diese Halbheit war der Fehler, den dieser Umbau behebt.
+			hinterlegeStatus(`Hinterlegen fehlgeschlagen: ${fehler && fehler.message ? fehler.message : fehler}`
+				+ " — bereits übernommene Fassungen bleiben liegen; der Knopf lässt sich erneut drücken.", true);
 		} finally {
 			if (knopf) { knopf.disabled = false; }
 		}

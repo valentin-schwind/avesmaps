@@ -663,9 +663,9 @@ $renderNode = static function (array $node, string $parentPath, int $depth) use 
              GETEILTEN Regel (avesmapsPowerlineCurvedPoints) -- dieselbe, die die Karte fährt.
              Fehlt sie, wirft der Abzug laut, statt die Linien still gerade zu zeichnen. -->
         <script src="../js/map-features/powerline-topology.js?v=20260831-svgexport-21"></script>
-        <script src="../js/pages/svg-export-build.js?v=20260908-svgexport-24"></script>
-        <script src="../js/pages/svg-export-farben.js?v=20260908-svgexport-24"></script>
-        <script src="../js/pages/svg-export-page.js?v=20260908-svgexport-24"></script>
+        <script src="../js/pages/svg-export-build.js?v=20260908-svgexport-25"></script>
+        <script src="../js/pages/svg-export-farben.js?v=20260908-svgexport-25"></script>
+        <script src="../js/pages/svg-export-page.js?v=20260908-svgexport-25"></script>
     <?php endif; ?>
 </body>
 

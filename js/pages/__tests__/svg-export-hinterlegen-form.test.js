@@ -65,7 +65,11 @@ assert.ok(hinterlegenBlock.includes("F.vorgabeFarben("),
 		assert.ok(!hinterlegenBlock.includes(fn + "("),
 			`der API-Abzug liest die ${was} NICHT (${fn})`);
 	});
-assert.ok(hinterlegenBlock.includes("letzterAbzug.blob.slice"),
+// ⚠️ Hiess bis zum 08.09.2026 `letzterAbzug`. Seit der Knopf BEIDE Fassungen hinterlegt
+// (roh und geglaettet, siehe abzug-hinterlegt-beide-fassungen.test.js), stueckelt eine
+// eigene Funktion je Fassung -- die Zusicherung selbst ist unveraendert: gestueckelt wird
+// der eben GEBAUTE Blob, nicht irgendeiner.
+assert.ok(hinterlegenBlock.includes("abzug.blob.slice"),
 	"und schneidet den eben gebauten Blob in Stücke");
 // 🔴 Und die kanonische Schreibweise ist wirklich inkscape -- der Dialekt, den die Seite
 // NICHT vorangehäkelt hat.
