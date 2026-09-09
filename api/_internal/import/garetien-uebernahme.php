@@ -587,6 +587,76 @@ function avesmapsGaretienOrtUebersteuerung(?array $einstellungen): array
     return $raus;
 }
 /**
+ * Der Vermerk eines uebernommenen Verbund-Fragments.
+ *
+ * 🔴 ER IST DIE WAHRHEIT, NICHT DIE NAMENSREGEL. Wuerde der Reiter „Uebernommen" die Verbuende
+ * beim Anzeigen neu ausrechnen, zeigte er nach jeder Aenderung der Erkennungsregel eine andere
+ * Gruppierung als die, die tatsaechlich geschrieben wurde.
+ */
+function avesmapsGaretienVerbundVermerk(string $areaPublicId, string $regionPublicId, string $verbund): string
+{
+    return 'area:' . $areaPublicId . ' | region:' . $regionPublicId . ' | verbund:' . $verbund;
+}
+
+/**
+ * Die Umkehrung.
+ *
+ * 💣 EIN ALTER VERMERK IST EINE NACKTE public_id. Jedes vor diesem Umbau importierte Objekt
+ * traegt sie so, und die Ruecknahme liest genau dieses Feld -- ohne den Rueckfall verloere sie
+ * ihr Ziel und boete eine Loeschung an, die nur noch scheitern kann.
+ *
+ * @return array{area:string,region:string,verbund:string}
+ */
+function avesmapsGaretienVermerkLesen(string $note): array
+{
+    $raus = ['area' => '', 'region' => '', 'verbund' => ''];
+    $n = trim($note);
+    if ($n === '') {
+        return $raus;
+    }
+    if (!str_contains($n, ':')) {
+        $raus['region'] = $n;   // der alte Vermerk
+        return $raus;
+    }
+    foreach (explode('|', $n) as $stueck) {
+        $stueck = trim($stueck);
+        $pos = strpos($stueck, ':');
+        if ($pos === false) {
+            continue;
+        }
+        $feld = substr($stueck, 0, $pos);
+        if (array_key_exists($feld, $raus)) {
+            $raus[$feld] = trim(substr($stueck, $pos + 1));
+        }
+    }
+
+    return $raus;
+}
+
+/**
+ * Hat dieser Verbund in diesem Lauf schon eine Region? Dann ist ihr Anfuehrer schon durch.
+ *
+ * ⚠️ Gefragt wird `sync_plan_item`, nicht ein zweiter Merker: die Uebernahme laeuft gestueckelt
+ * (`$budget`), und ein Nachzuegler im naechsten Haeppchen muss den Anfuehrer wiederfinden.
+ */
+function avesmapsGaretienVerbundRegion(PDO $pdo, string $verbund, int $runId): ?string
+{
+    $stmt = $pdo->prepare(
+        "SELECT apply_note FROM sync_plan_item
+          WHERE run_id = :r AND apply_state = 'done' AND apply_note LIKE :muster
+          ORDER BY id ASC LIMIT 1"
+    );
+    $stmt->execute([':r' => $runId, ':muster' => '%verbund:' . $verbund]);
+    $note = (string) ($stmt->fetchColumn() ?: '');
+    if ($note === '') {
+        return null;
+    }
+    $region = avesmapsGaretienVermerkLesen($note)['region'];
+
+    return $region === '' ? null : $region;
+}
+
+/**
  * Eine Flaeche anlegen: LABEL (Punkt) + ecosystem_region + ecosystem_area.
  *
  * 💣 DAS LABEL IST DAS TRAGENDE OBJEKT. Ein Label ist bei uns ein PUNKT, die Flaeche liegt in
@@ -597,11 +667,38 @@ function avesmapsGaretienOrtUebersteuerung(?array $einstellungen): array
  * @param ?array $einstellungen Handeingabe des Kastens „Eingefügt wird" (Owner 30.08.2026), oder
  *     null (keine -- z.B. „Alle angezeigten einfügen"). Siehe avesmapsGaretienLabelUebersteuerung
  *     / …RegionUebersteuerung.
- * @return array{public_id:string, entity_type:string, label_public_id:string}
+ * @param ?string $anRegionPublicId Nur bei einem VERBUND-Fragment gesetzt: die Region des schon
+ *     angelegten Anfuehrers. Ist sie gesetzt, legt diese Funktion NUR eine weitere Flaeche an --
+ *     Label und Region gehoeren dem Anfuehrer, siehe die Begruendung im Funktionsrumpf.
+ * @return array{public_id:string, entity_type:string, label_public_id:string, area_public_id:string}
  */
-function avesmapsGaretienFlaecheAnlegen(PDO $pdo, array $nach, array $user, int $userId, ?array $einstellungen = null): array
-{
+function avesmapsGaretienFlaecheAnlegen(
+    PDO $pdo,
+    array $nach,
+    array $user,
+    int $userId,
+    ?array $einstellungen = null,
+    ?string $anRegionPublicId = null
+): array {
     $ring = $nach['geometry']['coordinates'][0] ?? [];
+
+    // 🔴 EIN TEIL EINES VERBUNDS LEGT NUR SEINE FLAECHE AN. Label und Region gehoeren dem
+    // Anfuehrer; ein zweites Label waere ein zweiter Anker derselben Kaskade, und die Karte
+    // zeigte den Namen doppelt.
+    if ($anRegionPublicId !== null && $anRegionPublicId !== '') {
+        $flaeche = avesmapsCreateEcosystemArea($pdo, [
+            'region_public_id' => $anRegionPublicId,
+            'geometry' => $nach['geometry'],
+        ], $userId);
+
+        return [
+            'public_id' => $anRegionPublicId,
+            'entity_type' => 'region',
+            'label_public_id' => '',
+            'area_public_id' => avesmapsGaretienPublicIdAus($flaeche, 'Die Flaeche des Verbunds'),
+        ];
+    }
+
     [$lx, $ly] = avesmapsGaretienRingMittelpunkt($ring);
 
     // 1. Das Label -- ein Punkt, und der Anker der ganzen Kaskade.
@@ -659,12 +756,17 @@ function avesmapsGaretienFlaecheAnlegen(PDO $pdo, array $nach, array $user, int 
         'label_public_id' => $labelId,
     ], avesmapsGaretienRegionUebersteuerung($einstellungen)), $userId);
     $regionId = avesmapsGaretienPublicIdAus($region, 'Die Region');
-    avesmapsCreateEcosystemArea($pdo, [
+    $flaeche = avesmapsCreateEcosystemArea($pdo, [
         'region_public_id' => $regionId,
         'geometry' => $nach['geometry'],
     ], $userId);
 
-    return ['public_id' => $regionId, 'entity_type' => 'region', 'label_public_id' => $labelId];
+    return [
+        'public_id' => $regionId,
+        'entity_type' => 'region',
+        'label_public_id' => $labelId,
+        'area_public_id' => avesmapsGaretienPublicIdAus($flaeche, 'Die Flaeche'),
+    ];
 }
 
 /**
@@ -1633,6 +1735,11 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
 
         try {
             $ziel = (string) ($nach['ziel'] ?? '');
+            // 🔴 DER VERMERK DIESES ITEMS -- Vorgabe die schlichte public_id, wie eh und je. NUR
+            // der Flaechen-Zweig (ganz unten) setzt ihn auf den strukturierten Verbund-Vermerk
+            // um; jeder andere Zweig laesst diese Vorgabe stehen. Frisch je Durchlauf, damit kein
+            // Wert der VORIGEN Schleifenrunde stehenbleibt.
+            $vermerk = null;
             // 🔴 „INNERORTS EINFUEGEN" IST EINE EIGENE HANDLUNG, kein anderes Kartenziel. Sie legt
             // eine STAETTE an (settlement_place) und ruehrt `map_features` nicht an -- ein Objekt
             // ohne Weltkarten-Position kann dort nicht liegen, die Geometrie ist Pflicht.
@@ -1780,7 +1887,16 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
                 [$entityType, $quellePublicId] = avesmapsGaretienQuellenZiel('label', $publicId);
                 $jeForm['label']++;
             } else {
-                $ergebnis = avesmapsGaretienFlaecheAnlegen($pdo, $nach, $user, $userId, $rumpfDesItems);
+                // 🔴 DER SERVER GRUPPIERT UEBER DEN STAMM, NICHT DEN CLIENT-SCHLUESSEL --
+                // `garetienVerbundSchluessel` (js/review/review-garetien-importer.js) haengt
+                // Ebene und Typ an, um zwei gleichnamige Verbuende unterschiedlicher Art
+                // auseinanderzuhalten; hier reicht der Stamm allein, weil `avesmapsGaretienVerbuende`
+                // (garetien-verbund.php) beides schon VOR der Gruppierung geprueft hat.
+                $verbund = trim((string) ($rumpfDesItems['verbund'] ?? ''));
+                $anRegion = $verbund === ''
+                    ? null
+                    : avesmapsGaretienVerbundRegion($pdo, $verbund, $runId);
+                $ergebnis = avesmapsGaretienFlaecheAnlegen($pdo, $nach, $user, $userId, $rumpfDesItems, $anRegion);
                 $publicId = $ergebnis['public_id'];
                 // 🔴 SEIT SCHRITT 5 DES QUELLEN-UMBAUS (03.09.2026) TRAEGT DIE FLAECHE IHRE
                 // QUELLEN SELBST -- $publicId ist die REGION, und genau das ist die id, unter der
@@ -1792,6 +1908,15 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
                 // -- die Beschriftung LIEST die Quellen der Flaeche, sie traegt sie nicht.
                 [$entityType, $quellePublicId] = avesmapsGaretienQuellenZiel('region', $publicId);
                 $jeForm['region']++;
+                // 🔴 DER VERMERK TRAEGT AB HIER FLAECHE, REGION UND VERBUND -- auch OHNE Verbund
+                // (dann bleibt der dritte Teil leer). Aufgabe 7 liest daran ab, ob die Ruecknahme
+                // nur DIESE Flaeche oder die ganze Region wegnehmen darf; ein Fragment, dessen
+                // Ruecknahme die Region loescht, risse die Geschwister-Flaechen mit.
+                $vermerk = avesmapsGaretienVerbundVermerk(
+                    (string) ($ergebnis['area_public_id'] ?? ''),
+                    (string) $publicId,
+                    $verbund
+                );
             }
             $angelegt++;
             $neueQuellen = avesmapsGaretienQuellenAnlegen(
@@ -1804,7 +1929,7 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
                     'public_id' => $quellePublicId,
                 ];
             }
-            avesmapsGaretienItemAbschliessen($pdo, (int) $item['id'], 'done', $publicId, $userId);
+            avesmapsGaretienItemAbschliessen($pdo, (int) $item['id'], 'done', $vermerk ?? $publicId, $userId);
         } catch (Throwable $abbruch) {
             // 🔴 Ein Fehlschlag bei EINEM Objekt haelt die uebrigen nicht auf, aber er wird
             // benannt. Ein stiller Ueberspringer waere von "wurde angelegt" nicht zu

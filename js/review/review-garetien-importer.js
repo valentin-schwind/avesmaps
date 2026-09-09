@@ -4082,18 +4082,29 @@
 	// Handeingabe" -- der einzige Wert, den die Massenübernahme je sieht (sie ruft diese Funktion
 	// nicht, aber ein `null` ist trotzdem die korrekte Antwort für ein Ziel ohne diese Felder).
 	/*
-	 * Der Anfragerumpf EINES Objekts -- samt dem von Hand geaenderten Namen.
+	 * Der Anfragerumpf EINES Objekts -- samt dem von Hand geaenderten Namen UND, bei einem
+	 * zusammengelegten Verbund, seinem Stamm (Aufgabe 6).
 	 *
 	 * 💣 DER NAME HAENGT SICH HIER AN, NICHT IN DEN RUMPF-BAUER: der hat mehrere Ausgaenge
 	 * (innerorts, Ort, Label, Flaeche, Weg), und ein Feld in jedem einzelnen waere beim naechsten
 	 * Ausgang vergessen. Genau diese Falle beschreibt der Bauer selbst fuer `ziel`.
 	 * ⚠️ Auch wenn der Bauer `null` liefert: eine reine Namensaenderung ist eine Handeingabe.
+	 * ⚠️ Der Verbund haengt sich AN DEN FERTIGEN RUMPF, nicht in den Namens-Zweig: ein
+	 * zusammengelegtes Fragment mit UND ohne Handeingabe braucht ihn gleichermassen, sonst
+	 * faende der Server (`avesmapsGaretienVerbundRegion`) den Anfuehrer eines Verbunds nur dann,
+	 * wenn zufaellig auch der Name geaendert wurde.
 	 */
 	function garetienEingabenFuerServer(objekt) {
 		const rumpf = garetienEingabenFuerServerOhneName(objekt);
 		const name = garetienNameWahlZu(objekt);
-		if (name === "") { return rumpf; }
-		return Object.assign({}, rumpf || {}, { name: name });
+		const mitName = name === "" ? rumpf : Object.assign({}, rumpf || {}, { name: name });
+		const verbund = garetienVerbundSchluessel(objekt);
+		if (verbund !== "" && garetienVerbundIstZusammen(verbund)) {
+			// Der Server braucht den STAMM, nicht den Client-Schluessel: er gruppiert ueber
+			// `apply_note LIKE '%verbund:<stamm>'`, und Ebene und Typ stehen dort nicht.
+			return Object.assign({}, mitName || {}, { verbund: String((objekt || {}).verbund_stamm || "") });
+		}
+		return mitName;
 	}
 
 	function garetienEingabenFuerServerOhneName(objekt) {
