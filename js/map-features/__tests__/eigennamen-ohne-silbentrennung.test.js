@@ -67,20 +67,38 @@ const regeln = (css) => Array.from(ohneKommentare(css).matchAll(/([^{}]+)\{([^}]
 		"hyphens: auto ist genau der gemeldete Fehler -- es darf hier nicht zurueckkommen.");
 }
 
-// ---- 2. Die geteilte Fliesstext-Regel bleibt unangetastet ------------------------------------
-// Sie ist der GRUND, aus dem die Ausnahme oben noetig ist. Faellt sie weg, ist die Ausnahme
-// wirkungslos geworden, ohne dass es jemandem auffiele -- und die naechste Sitzung raeumt sie
-// als „ueberfluessig" weg.
+// ---- 2. Die Zeile darueber trennt Namen ebenfalls nicht --------------------------------------
+// 🔴 GEAENDERT AM 09.09.2026 ABENDS, und die alte Fassung steht hier als Begruendung: sie
+//    verlangte woertlich `hyphens: auto` an `.region-info-box__row dd` -- „die geteilte Regel
+//    soll Fliesstext weiterhin trennen". Das war richtig gedacht und an der Wirklichkeit
+//    falsch: dieselbe `dd`-Zelle traegt AUCH „Fuehrt durch", „Was ist hier?", die Kraftlinien
+//    und den Reiseplan, und das sind alles Namen. Der zweite Melder desselben Tages (Martin Wr:
+//    „Blu-totter, Boron-säffchen") stand genau dort. Also ist aus der Ausnahme die Regel
+//    geworden -- und dieser Abschnitt prueft seither die AUSSAGE („an einem Namen wird nicht
+//    getrennt"), nicht mehr den Zustand von heute Vormittag.
+// ⚠️ Die Zeile in lore.css BLEIBT damit trotzdem noetig: sie traegt `overflow-wrap: anywhere`,
+//    das die Regel darueber nicht setzt -- deshalb misst Abschnitt 1 weiter beide zusammen.
 {
 	const popups = regeln(lies("css/features/location-popups-markers.css"));
 	const geteilt = popups.find((r) => /\.region-info-box__row dd\b/.test(r.sel)
 		&& /hyphens:/.test(r.rumpf));
 	assert.ok(geteilt,
-		"Die geteilte Regel `.region-info-box__row dd { hyphens: auto }` ist weg. Dann ist "
-		+ "`hyphens: manual` in lore.css keine Ausnahme mehr, sondern eine Zeile ohne Gegenstand "
-		+ "-- beide gehoeren gemeinsam geprueft.");
-	assert.match(geteilt.rumpf, /hyphens:\s*auto\s*;/,
-		"Die geteilte Regel soll Fliesstext weiterhin trennen -- nur Eigennamen nicht.");
+		"Die geteilte Regel um `.region-info-box__row dd` sagt nichts mehr ueber `hyphens`. "
+		+ "Dann erbt die Zelle wieder, was ihr Elternteil gerade fuehrt -- und niemand sieht es.");
+	assert.doesNotMatch(geteilt.rumpf, /hyphens:\s*auto/,
+		"`.region-info-box__row dd` traegt die Namen der Infobox (Vorkommen, Fuehrt durch, "
+		+ "Was ist hier?, Kraftlinien, Reiseplan) -- dort wird nicht getrennt (Fall #119).");
+	assert.match(geteilt.rumpf, /(^|[^-])hyphens:\s*manual\s*;/,
+		"`manual` steht dort ausgeschrieben, damit die naechste Aenderung sieht, dass hier "
+		+ "entschieden wurde und nichts fehlt.");
+
+	// ⭐ Und der Fliesstext trennt weiter -- die Beschreibung eines Ortes ist der einzige echte
+	//    auf dieser Flaeche. Ohne diese Zusicherung faellt beim naechsten Aufraeumen still auch
+	//    sie weg, und niemand haette das je entschieden.
+	const beschreibung = popups.find((r) => /\.location-popup__description\b/.test(r.sel)
+		&& /hyphens:/.test(r.rumpf));
+	assert.ok(beschreibung && /hyphens:\s*auto\s*;/.test(beschreibung.rumpf),
+		"Die Beschreibung ist Fliesstext und soll weiter trennen -- nur Namen nicht.");
 }
 
 // ---- 3. Jeder Name geht wirklich durch .avesmaps-lore__names ---------------------------------

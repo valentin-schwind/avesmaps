@@ -131,9 +131,12 @@ details.avesmaps-lore__gruppe[open] > .avesmaps-lore__gruppe-kopf::after {
 	line-height: 1.45;
 }
 
-/* 💣 KEIN WÖRTERBUCH AUF EIGENNAMEN. Diese Zeile erbt `hyphens: auto` aus
-   `.region-info-box__row dd` (location-popups-markers.css) -- dort ist es für FLIESSTEXT
-   gedacht und dort richtig. Hier stehen aventurische Eigennamen, und an denen RÄT die
+/* 💣 KEIN WÖRTERBUCH AUF EIGENNAMEN. Diese Zeile erbte `hyphens: auto` aus
+   `.region-info-box__row dd` (location-popups-markers.css). 🔴 Seit dem 09.09.2026 abends
+   trennt jene Zeile selbst nicht mehr -- derselbe Fehler stand eine Zeile weiter in „Führt
+   durch" und in „Was ist hier?", also ist aus der Ausnahme die Regel geworden. Diese Zeile
+   BLEIBT trotzdem: sie trägt zusätzlich `overflow-wrap: anywhere` (unten begründet), und sie
+   ist die Stelle, an der die Messung steht. Hier stehen aventurische Eigennamen, und an denen RÄT die
    deutsche Trennhilfe. Live in Chrome gemessen (09.09.2026, „Was ist hier?“ auf Maraskan
    und die Infobox Gareths): „Totenko-pfäffchen“ (richtig wäre Totenkopf-äffchen),
    „Maraskant-arantel“, „Regenbogenan-beter“, „Tuz-aker“, „Ku-ckucks-Otter“, dazu

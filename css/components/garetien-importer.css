@@ -536,10 +536,15 @@ html.avesmaps-planner-collapsed .gi-win {
       ZWEI Zeilen, nichts ausserhalb, Ueberlauf 0.
    🪤 Und es faellt nicht auf, weil dasselbe Wort in einem NICHT-Flex-Kasten einwandfrei bricht --
       eine Probe an einem MEHRWORTnamen (der ohnehin am Leerzeichen bricht) sieht deshalb heil aus.
-   ⚠️ `hyphens: auto` bleibt stehen, taeuscht aber nicht darueber hinweg: es wirkt hier NICHT.
-      Gemessen bei `lang="de"` -- Hoehe mit und ohne exakt gleich (36,78px); dieses Chrome trennt
-      Deutsch nicht. In Browsern mit Trennwoerterbuch verbessert es den Umbruch; TRAGEN tut ihn
-      die Zeile `min-width: 0`. */
+   💣 `hyphens: auto` IST HIER GEFALLEN (09.09.2026, Fall #119): dieser Kasten zeigt einen
+      NAMEN, und ein Trennwoerterbuch kennt die Fuge eines erfundenen Kompositums nicht -- es
+      trennt nach deutschen Mustern und macht aus „Blutotter" ein „Blu-totter". Die alte Zeile
+      hier las sich harmlos, weil dieses Chrome Deutsch gar nicht trennt (gemessen bei
+      `lang="de"`: Hoehe mit und ohne exakt gleich, 36,78px) -- in einem Browser MIT Woerterbuch
+      haette sie an jedem Wiki-Namen geraten. Dieselbe Regel wie an der Infobox
+      (css/features/location-popups-markers.css): Trennung gehoert dem Fliesstext, nie einem
+      Namen.
+   ⚠️ Getragen hat den Umbruch ohnehin `min-width: 0`, nicht die Trennung. */
 .gi-detail__name {
 	margin: 0;
 	min-width: 0;
@@ -547,7 +552,7 @@ html.avesmaps-planner-collapsed .gi-win {
 	line-height: var(--leading-tight);
 	font-weight: var(--font-weight-bold);
 	color: var(--color-text-strong);
-	hyphens: auto;
+	hyphens: manual;
 	overflow-wrap: break-word;
 }
 

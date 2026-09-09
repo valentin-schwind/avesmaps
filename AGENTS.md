@@ -897,6 +897,45 @@ hex values across 38 CSS files).
   kleinere Hälfte und baut die Divergenz in die größere ein.
 - **Links** use `--color-link` (gold-brown), never blue; **external links**
   (off-site) always get a trailing `↗`.
+- 💣 **`hyphens: auto` gehört dem FLIESSTEXT, nie einem NAMEN — und diese Karte besteht aus
+  Namen.** Fall #119 an EINEM Tag von zwei Meldern aus zwei Richtungen (09.09.2026): Nottel
+  („Fehlerhafte Silbentrennung im Kasten Fauna. **Andere Kästen auch prüfen.**") und Martin Wr,
+  mit Bild („mit der deutschen Rechtschreibung (Trennungen) haben´s die Herrschaften nicht so,
+  oder? 🙂 (Blu-totter, Boron-säffchen, etc)"). 🔴 **Der Browser trennt nach MUSTERN, nicht nach
+  Wortbildung:**
+  „Blutotter" ist Blut+Otter und wurde „Blu-totter", „Boronsäffchen" ist Borons+Äffchen und wurde
+  „Boron-säffchen". Beides sind erfundene Komposita — kein Trennwörterbuch kennt ihre Fuge, also
+  ist **jede** Trennung an einem Aventurien-Namen geraten; `lang="de"` (überall gesetzt) macht sie
+  nicht richtiger, sondern erst möglich. ⚠️ **Und ein falscher Strich in einem Namen ist keine
+  Schönheitsfrage — er macht daraus ein anderes Wort.** Im Fließtext wäre er hässlich, am Namen ist
+  er falsche Information. **Die Grenze verläuft damit am INHALT, nicht am Kasten.**
+  💣 **Und genau daran ist der erste Anlauf desselben Tages zu kurz geraten:** `72028e8` legte
+  `.avesmaps-lore__names` (`css/features/lore.css`) einzeln stumm — richtig gemessen (168 getrennte
+  Namen allein in Gareths Stätten-Deckel), aber eine Zeile weiter stand derselbe Fehler in „Führt
+  durch" und in „Was ist hier?": `.region-info-box__row dd` ist das Hausformat JEDER
+  Infobox-Wertzeile (Vorkommen, „Führt durch", Kraftlinien, „Was ist hier?", Reiseplan). **Aus der
+  Ausnahme ist deshalb die Regel geworden** — die Zeile in lore.css bleibt trotzdem stehen, weil sie
+  zusätzlich `overflow-wrap: anywhere` trägt. Dazu Name, Typzeile, Herrschaftskette und die zwei
+  Kopfzeilen der Box sowie `.gi-detail__name` im Garetien-Importer, der den Wiki-Seitennamen zeigt
+  (eine Regel, die einen von zwei Erzeugern bindet, ist keine Regel). ⚠️ **Die BESCHREIBUNG eines
+  Ortes trennt weiter** (eigene Regel) — sie ist der einzige echte Fließtext dieser Fläche, und der
+  Entscheid dazu stammt aus `72028e8` und ist übernommen.
+  ⭐ **`overflow-wrap: break-word` BLEIBT** und ist das Netz, das schon vorher trug: es bricht nur
+  ein Wort, das breiter ist als sein Kasten, und setzt dabei **keinen Strich** — es behauptet also
+  nie eine Silbengrenze. 🔴 Erlaubt bleibt die Trennung dort, wo **unsere eigenen deutschen Sätze**
+  stehen (Fenster „Neuigkeiten", die Erklärzeilen der Landschafts-Dialoge) — gewöhnliches Deutsch,
+  das ein Wörterbuch kann. 🪤 **Auf diesem Rechner nicht messbar:** das hiesige Chrome bringt kein
+  deutsches Trennwörterbuch mit — gemessen 09.09.2026, „Blutotter"/„Boronsäffchen" in einem
+  182px-Kasten sind mit `hyphens: auto` **zeichengleich** zu `manual` (Höhe 60px, kein Überlauf).
+  Ein Ablauf im Browser kann den Fall hier also gar nicht zeigen; deshalb steht die Regel als
+  Zusicherung am Blatt. Test: `js/ui/__tests__/keine-auto-silbentrennung.test.js` — er zählt
+  `hyphens: auto` **repoweit** und hält den Fund gegen eine ausgeschriebene Liste, fängt also nicht
+  diesen Fall, sondern den nächsten (8 Mutationen gefahren, alle gefangen); dazu
+  `js/map-features/__tests__/eigennamen-ohne-silbentrennung.test.js` aus `72028e8`, dessen
+  Zusicherung „die geteilte Regel trägt `auto`" **umgedreht** werden musste — sie nagelte den Zustand
+  vom Vormittag fest, und der war für die Namenszeilen genau der gemeldete Fehler. ⚠️ Er entfernt
+  **Kommentare, bevor er sucht** — die zwei reparierten Blätter schreiben `hyphens: auto` im
+  Klartext in ihre eigene Warnung.
 - 💣 **Ein Fenster ist entweder ein WERKZEUGFENSTER oder ein BLATT, und die Regel entscheidet,
   nicht der Geschmack** (Owner 04.09.2026, Mockup `docs/fensterformen-mockup.html`, Regelwerk
   `docs/design-language.md` §Fenster). *Werkzeugfenster* = bleibt offen, während man daneben

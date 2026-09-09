@@ -539,17 +539,60 @@
 	margin-top: 1px;
 }
 
-/* Long German words hyphenate instead of hard-breaking mid-word — flowing text + names
-   across the floating popup, infopanel and slim box (shared classes, kept in sync).
-   hyphens:auto needs <html lang="de"> (set); overflow-wrap:break-word is the fallback
-   where the browser ships no hyphenation dictionary (Electron / in-app webviews) → clean
-   hard break as before, never worse. Prose/names only — not buttons, pills, numbers, or
-   codes; dt labels stay whole.
-   🔴 EINE Ausnahme, und sie steht in `css/features/lore.css`: die Namenslisten der
-   Vorkommen und der Besonderen Stätten (`.avesmaps-lore__names`) setzen `hyphens: manual`.
-   Aventurische Eigennamen sind keine Wörter, die ein deutsches Wörterbuch kennt -- es
-   trennte sie live als „Totenko-pfäffchen“ und „Maraskant-arantel“ (Discord-Fall #119).
-   Wer diese Regel hier erweitert, prüft, ob das nächste Ziel Fließtext ist oder ein Name. */
+/* 💣 SILBENTRENNUNG GEHOERT DEM FLIESSTEXT, NIE EINEM NAMEN -- und diese Flaeche zeigt beides.
+   Fall #119, an EINEM Tag von zwei Meldern aus zwei Richtungen: Nottel („Fehlerhafte
+   Silbentrennung im Kasten Fauna. Andere Kaesten auch pruefen.") und Martin Wr („mit der
+   deutschen Rechtschreibung (Trennungen) haben´s die Herrschaften nicht so, oder?
+   (Blu-totter, Boron-säffchen, etc)").
+   🔴 DER BROWSER TRENNT NACH MUSTERN, NICHT NACH WORTBILDUNG. „Blutotter" ist Blut+Otter und
+      wurde „Blu-totter", „Boronsäffchen" ist Borons+Äffchen und wurde „Boron-säffchen", dazu
+      live gemessen „Totenko-pfaeffchen" und „Maraskant-arantel". Erfundene Komposita stehen in
+      keinem Trennwoerterbuch, also ist JEDE Trennung an einem Aventurien-Namen geraten --
+      `lang="de"` macht sie nicht richtiger, sondern erst moeglich.
+   ⚠️ UND EIN FALSCHER STRICH IN EINEM NAMEN IST KEINE SCHOENHEITSFRAGE: er macht daraus ein
+      anderes Wort. Im Fliesstext ist er haesslich, an einem Namen ist er falsche Information.
+      Genau daran verlaeuft die Grenze dieser Regel -- nicht am Kasten, sondern am INHALT.
+   🔴 DESHALB TRENNEN DIE NAMENSTRAGENDEN ZEILEN GAR NICHT MEHR. `.region-info-box__row dd` ist
+      das Hausformat JEDER Infobox-Wertzeile (Vorkommen, „Fuehrt durch", Kraftlinien, „Was ist
+      hier?", Reiseplan), und Name, Typzeile, Herrschaftskette und die zwei Kopfzeilen der Box
+      tragen ebenfalls nur Namen. `72028e8` hatte am selben Tag `.avesmaps-lore__names`
+      (css/features/lore.css) einzeln stillgelegt -- richtig, aber eine Zeile weiter unten stand
+      derselbe Fehler in „Fuehrt durch" und in „Was ist hier?". Die Ausnahme ist damit die Regel
+      geworden; die Zeile in lore.css BLEIBT, weil sie zusaetzlich `overflow-wrap: anywhere`
+      traegt und ihre eigene Messung nennt.
+   ⚠️ Die BESCHREIBUNG trennt weiter (eigene Regel darunter) -- sie ist der einzige echte
+      Fliesstext dieser Flaeche.
+   ⭐ `overflow-wrap: break-word` BLEIBT und ist das Netz, das schon vorher trug: es bricht nur
+      ein Wort, das breiter ist als sein Kasten, und setzt dabei KEINEN Strich -- es behauptet
+      also nie eine Silbengrenze. Ein Wort, das in die Zeile passt, rutscht wie ueberall sonst
+      als Ganzes in die naechste.
+   🪤 HIER NICHT MESSBAR: dieses Chrome bringt kein deutsches Trennwoerterbuch mit. Gemessen
+      09.09.2026 an „Blutotter"/„Boronsäffchen" in einem 182px-Kasten mit `lang="de"` -- die
+      Umbrueche sind mit `hyphens: auto` zeichengleich mit denen unter `hyphens: manual`. Wer
+      den Fall nachstellen will, braucht einen Browser MIT Woerterbuch; dieselbe Messfalle steht
+      am Namen des Garetien-Importers (css/components/garetien-importer.css).
+   🔴 `manual` steht ausgeschrieben, statt die Zeile nur zu loeschen: `hyphens` VERERBT sich, und
+      der geschriebene Wert sagt der naechsten Aenderung, dass hier nichts fehlt, sondern etwas
+      entschieden wurde. Gewacht von js/ui/__tests__/keine-auto-silbentrennung.test.js und
+      js/map-features/__tests__/eigennamen-ohne-silbentrennung.test.js. */
+.location-popup__name,
+.location-popup__type,
+.location-popup__breadcrumb-link,
+.region-info-box__title,
+.region-info-box__subtitle,
+.region-info-box__row dd {
+	overflow-wrap: break-word;
+	-webkit-hyphens: manual;
+	hyphens: manual;
+}
+/* Der einzige echte Fliesstext der Flaeche: die Beschreibung eines Ortes. Lange deutsche
+   Woerter trennen hier statt mitten im Wort hart zu brechen; `overflow-wrap: break-word` ist
+   der Rueckfall, wo der Browser kein Trennwoerterbuch mitbringt (Electron / In-App-Webviews). */
+.location-popup__description {
+	overflow-wrap: break-word;
+	-webkit-hyphens: auto;
+	hyphens: auto;
+}
 .location-popup__name,
 .location-popup__type,
 .location-popup__description,
@@ -558,8 +601,8 @@
 .region-info-box__subtitle,
 .region-info-box__row dd {
 	overflow-wrap: break-word;
-	-webkit-hyphens: auto;
-	hyphens: auto;
+	-webkit-hyphens: manual;
+	hyphens: manual;
 }
 /* Breadcrumb realm names: prevent a lone word orphaned on the last line ("… Greifenthron zu" / "Gareth")
    WITHOUT under-filling the first line. text-wrap:pretty keeps line 1 as full as normal wrapping and just
