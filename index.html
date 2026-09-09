@@ -4180,6 +4180,15 @@
 		     (js/app/session.js) fuer den Rechte-Riegel, sonst an nichts -- die Ladereihenfolge hier ist
 		     deshalb unkritisch, weil der Riegel lazy ueber .load() geht und bis dahin geschlossen bleibt.
 		     🔴 Diese Datei verschwindet beim Abbau des Importers restlos (Auftrag §5.5). -->
+		<!-- Die reine Regel der Beschriftungs-VORSCHAU (Owner 09.09.2026): was auf der Stage liegt,
+		     zeigt schon seinen kuenftigen Namen. VOR review-garetien-importer.js, weil jener sie beim
+		     Stempeln ruft (garetienVorschauLabelStempeln) -- gefragt wird zwar defensiv per
+		     `typeof`, aber der Stempel laeuft bei JEDEM Kartenlauf, also auch beim ersten.
+		     ⚠️ Sie enthaelt KEIN DOM und KEIN Leaflet; die Bauer der echten Karte
+		     (map-features-labels.js, map-features-location-name-labels.js) ruft der ZEICHNER darunter,
+		     und der steht ohnehin weit hinter ihnen.
+		     🔴 Auch diese Datei verschwindet beim Abbau des Importers restlos (Auftrag §5.5). -->
+		<script src="js/review/review-garetien-label-vorschau.js"></script>
 		<script src="js/review/review-garetien-importer.js"></script>
 		<!-- Der goldgelbe Schein des Importers auf der Karte (Aufgabe 14): was angehakt ist, leuchtet.
 		     Die Ladereihenfolge zu review-garetien-importer.js ist unkritisch -- jenes fragt bei JEDEM

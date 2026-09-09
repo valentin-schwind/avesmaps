@@ -125,6 +125,49 @@
 	var AVESMAPS_GARETIEN_UNSERE_PANE = "garetienImportUnserePane";
 	var AVESMAPS_GARETIEN_UNSERE_PANE_Z = 462;
 
+	/*
+	 * Die Pane der Beschriftungs-VORSCHAU (Owner 09.09.2026) -- ganz oben, und das ist der
+	 * Owner-Entscheid zur Kollision.
+	 *
+	 * 🔴 655: ÜBER den echten Beschriftungen (`labelsPane`, 650), UNTER der Markierung von „Was ist
+	 * hier?" (`sharePinPane`, 700) und dem Tooltip (875). Die Vorschau liegt oben DRAUF und schiebt
+	 * keinen echten Namen weg -- so bestellt („Vorschau liegt oben drauf"). Sie nimmt deshalb auch
+	 * NICHT am Kollisionslöser teil.
+	 * ⚠️ Der Preis, und er ist gewollt: liegt eine Vorschau genau auf einem echten Namen, sieht man
+	 * eine Überlappung, die es nach dem Import nicht gäbe -- dort hätte der Löser die zwei getrennt.
+	 * 💣 EIGENE Pane und nicht `AVESMAPS_GARETIEN_IHRE_PANE` (465): jene liegt UNTER den echten
+	 * Beschriftungen, ein Name der Vorschau verschwände dort hinter jedem Kartennamen.
+	 * ⚠️ Die Marken liegen trotzdem in DERSELBEN Ebenengruppe wie alles andere hier -- damit räumt
+	 * `clearLayers()` sie mit ab, genau wie die Strömungsdreiecke daneben. Die Pane bestimmt die
+	 * Höhe, die Gruppe den Lebenszyklus.
+	 */
+	var AVESMAPS_GARETIEN_LABEL_PANE = "garetienImportLabelPane";
+	var AVESMAPS_GARETIEN_LABEL_PANE_Z = 655;
+
+	/*
+	 * Die zwei Klassen der Vorschau-Beschriftung -- Owner 09.09.2026: „die labels können auch den
+	 * gelben rand der fläche + weiß wenn aktiv bekommen."
+	 *
+	 * 🔴 SIE TRAGEN DIE PARTEIFARBEN ALS CSS-FILTER, nicht als Glut im Bild. Die Glut-Stelle beider
+	 * Bauer (`glow`/`glowBlurRatio`/`glowPasses`/`strokeRatio`) ist schon vergeben -- beim freien
+	 * Label an den Prüfhaken „Keine Wiki-Zuweisung", beim Ortsnamen an den schwarzen Halo. Und weil
+	 * `glow` EINE Eigenschaft ist, ließen sich Gold und Weiß dort ohnehin nicht übereinanderlegen.
+	 * ⭐ Als `filter: drop-shadow(…)` geht genau das: zwei verkettete Schatten in EINER Deklaration
+	 * -- dieselbe Rezeptur, mit der der Kollisions-Hof sein Rot AUSSEN um das Gold legt.
+	 * ⚠️ Der rote Schein des Prüfhakens bleibt IM Bild und liegt damit innen, die Parteifarben außen:
+	 * verschiedene Radien, sie löschen einander nicht.
+	 */
+	var AVESMAPS_GARETIEN_KLASSE_LABEL_VORSCHAU = "gi-label-vorschau";
+	var AVESMAPS_GARETIEN_KLASSE_LABEL_AKTIV = "gi-label-vorschau--aktiv";
+
+	/*
+	 * 💣 GEKOPPELTER WERT IN ZWEI DATEIEN, wie die vier Felder weiter unten und aus demselben Grund:
+	 * gesetzt in review-garetien-importer.js (garetienVorschauLabelStempeln), gelesen hier. Er trägt
+	 * eine REINE Beschreibung -- der Zeichner erfährt aus ihr Text, Art, Lage, Größe, Priorität,
+	 * Zoomband und ob die Zeile offen ist, und weiß weiterhin nichts über den Zustand des Fensters.
+	 */
+	var AVESMAPS_GARETIEN_FELD_VORSCHAU_LABEL = "vorschauLabel";
+
 	// ---- Die Masse ----------------------------------------------------------------------------
 	//
 	// Aus dem freigegebenen Mockup (docs/garetien-importer-mockup.html §2, dort als SVG in
@@ -1242,7 +1285,191 @@
 			});
 		});
 
+		// 🔴 UND ZULETZT DIE BESCHRIFTUNGEN (Owner 09.09.2026) -- in ihrer EIGENEN Pane, also über
+		// allem hier und über den echten Kartennamen. Sie liegen trotzdem in dieser Gruppe, damit
+		// `clearLayers()` sie mit abräumt: die Pane bestimmt die Höhe, die Gruppe den Lebenszyklus.
+		garetienVorschauBeschriftungen(l, k, liste).forEach(function (marke) {
+			gruppe.addLayer(marke);
+		});
+
 		return gruppe;
+	}
+
+	/*
+	 * Die Beschriftungs-VORSCHAU: was auf der Stage liegt, zeigt schon seinen künftigen Namen.
+	 *
+	 * Owner 09.09.2026 (ein alter, nie umgesetzter Wunsch): „labels von flächen siedlungen etc, die
+	 * im importer auf der stage eingestellt werden können, sollen so erscheinen, wie sie im
+	 * endprodukt (nach Stage importieren) sichtbar sein wird."
+	 *
+	 * 🔴 MIT DEN BAUERN DER ECHTEN KARTE, NICHT MIT EINER ZWEITEN REZEPTUR. `createLabelIcon`
+	 * (map-features-labels.js) und `createLocationNameLabelIcon` (map-features-location-name-labels.js)
+	 * tragen Schriftart, Farbe je Art, Versalien, Sperrung, Zoomskalierung, Halo und -- beim Ortsnamen
+	 * -- den Versatz zum Punkt. Sie nachzubauen wäre die zweite Wahrheit über das Aussehen der Karte
+	 * (AGENTS.md §5), und „so wie im Endprodukt" wäre dann eine Behauptung statt einer Messung.
+	 * ⚠️ Beide bleiben UNVERÄNDERT: die Parteifarben kommen als Klasse an das fertige Icon, nicht als
+	 * neuer Parameter. Ein Bauer, den die Vorschau umbaut, ist ein Bauer, den die Vorschau brechen
+	 * kann -- und er zeichnet die Karte jedes Besuchers.
+	 *
+	 * 💣 NICHTS WIRD IN `labelMarkers` ODER `locationNameLabels` EINGETRAGEN. Die erste Liste liest
+	 * der Spotlight -- eine Vorschau wäre dort SUCHBAR, ein Ort, den es nicht gibt. Die zweite liest
+	 * der Kollisionslöser, und die Teilnahme daran ist ausdrücklich nicht bestellt. Die Vorschau ist
+	 * ein Bild in einer Pane und sonst nichts.
+	 *
+	 * 💣 GEBAUT WIRD NUR, WAS IM AUSSCHNITT LIEGT UND IM BAND -- die Prüfung steht VOR dem Bauer.
+	 * Das ist keine Optimierung, sondern die Bedingung, unter der das Fenster benutzbar bleibt: für
+	 * die Stage gibt es keinen Deckel, „Alle markieren" fasst bis zu 1000 Zeilen, und die
+	 * Vorgeschichte dieses Fensters heißt „ich hatte plötzlich 3000 labels da stehen". Jede
+	 * Beschriftung ist ein Canvas plus ein synchrones `toDataURL` -- die echte Ortsnamen-Kette ist
+	 * genau deswegen lazy geworden (vorher ein einzelner ~5-s-Longtask beim Start).
+	 *
+	 * ⚠️ EINE GEMESSENE NEBENWIRKUNG, benannt statt verschwiegen: `createLabelIcon` zählt jede
+	 * Rasterung in die Bilanz von `?labelbedarf=1` (js/map-features/label-bedarf.js). Die Vorschau
+	 * erscheint dort also mit. Das ist richtig -- sie IST eine Rasterung --, aber wer mit dem
+	 * Schalter den Startaufwand der echten Karte misst, schließt das Importer-Fenster vorher. Ein
+	 * Budget oder eine Zusicherung hängt an der Zahl nicht.
+	 *
+	 * ⚠️ ALLES FÄLLT OFFEN AUS: fehlt ein Bauer, eine Zoomband-Regel oder die Ausschnittsprüfung
+	 * (der Zeichner wird im Test ALLEIN geladen), entsteht keine Beschriftung -- nie ein Wurf. Eine
+	 * fehlende Vorschau ist der bisherige Zustand; ein Wurf hier nähme die ganze Karte mit.
+	 */
+	/*
+	 * Die Zoomstufe der Karte -- fuer das FENSTER, das seinen Hinweis am Zoomband daran haengt.
+	 *
+	 * 🔴 EINE FRAGE AN DEN ZEICHNER, KEIN ZWEITER ZUGRIFF AUF DIE KARTE. Der Importer redet mit der
+	 * Karte ausschliesslich ueber die Fenster-Haken dieses Moduls (`avesmapsGaretienKarteZeigen` &co.)
+	 * und liest nirgends selbst `map` -- genau das haelt ihn abbaubar und ohne Ladereihenfolge-Zusage.
+	 * Ein `map.getZoom()` dort waere die erste Ausnahme davon, und die naechste faellt leichter.
+	 * ⚠️ `null`, wenn es (noch) keine Karte gibt: das Fenster laesst den Hinweis dann weg, statt eine
+	 * Zoomstufe zu behaupten.
+	 */
+	function avesmapsGaretienKarteZoom(karte) {
+		var k = garetienKarte(karte);
+		if (!k || typeof k.getZoom !== "function") { return null; }
+		var zoom = Number(k.getZoom());
+		return isFinite(zoom) ? zoom : null;
+	}
+
+	function garetienVorschauBeschriftungen(l, k, liste) {
+		var raus = [];
+		if (!l || typeof l.marker !== "function") { return raus; }
+		if (garetienPaneSicherstellen(k, AVESMAPS_GARETIEN_LABEL_PANE, AVESMAPS_GARETIEN_LABEL_PANE_Z) === null) {
+			return raus;
+		}
+		var zoom = (k && typeof k.getZoom === "function") ? Number(k.getZoom()) : NaN;
+		if (!isFinite(zoom)) { return raus; }
+		// EINMAL je Durchgang gelesen, nicht je Beschriftung -- bei 1000 Objekten wäre das
+		// 1000-mal `getBoundingClientRect` über dieselbe Karte.
+		var ausschnitt = (typeof getMapRenderBounds === "function") ? getMapRenderBounds() : null;
+
+		(liste || []).forEach(function (objekt) {
+			var v = objekt ? objekt[AVESMAPS_GARETIEN_FELD_VORSCHAU_LABEL] : null;
+			if (!v || !v.punkt) { return; }
+			// 💣 [x, y] -> [lat, lng] = [y, x]. Die Falle aus AGENTS.md §5, und sie hat in diesem
+			// Vorhaben schon einmal jeden importierten Weg gespiegelt.
+			var stelle = [Number(v.punkt[1]), Number(v.punkt[0])];
+			if (!isFinite(stelle[0]) || !isFinite(stelle[1])) { return; }
+			if (ausschnitt !== null && typeof isLatLngInRenderBounds === "function"
+					&& !isLatLngInRenderBounds(stelle, ausschnitt)) {
+				return;
+			}
+			var icon = (v.art === "ort")
+				? garetienVorschauOrtsnameIcon(v, zoom)
+				: garetienVorschauFreiesIcon(v, zoom);
+			if (icon === null) { return; }
+			raus.push(l.marker(stelle, {
+				icon: icon,
+				pane: AVESMAPS_GARETIEN_LABEL_PANE,
+				// ⚠️ Wie das Strömungsdreieck und der Kreuzungsring: der Klick gehört der FORM
+				// darunter, nicht ihrer Beschriftung. Ein anklickbarer Name fing genau die Klicks
+				// ab, mit denen ein Editor seine Fläche öffnet.
+				interactive: false,
+				keyboard: false,
+			}));
+		});
+		return raus;
+	}
+
+	/*
+	 * Das Icon eines freien Kartennamens (Fläche, freies Label) -- `createLabelIcon` der echten Karte.
+	 *
+	 * 🔴 DAS ZOOMBAND IST DIE REGEL DER ECHTEN KARTE (`avesmapsLabelImBand`), nicht eine eigene: sie
+	 * kennt „eigenes Band" und „Vorgabe der Darstellungstafel" und die Falle, dass `Number(null)` 0
+	 * ist. Eine zweite Fassung liefe beim ersten Umbau der Tafel auseinander.
+	 * ⚠️ Die Beschriftung verschwindet dadurch bei einer Zoomstufe außerhalb des eingestellten Bandes
+	 * -- gewollt: genau das passiert nach dem Import auch. Der Kasten sagt es zusätzlich in Worten,
+	 * damit „nichts erscheint" nicht wie ein kaputter Haken aussieht.
+	 */
+	function garetienVorschauFreiesIcon(v, zoom) {
+		if (typeof createLabelIcon !== "function") { return null; }
+		// Die Form, die die echte Karte für eine Beschriftung benutzt. `undefined` heißt „der Bauer
+		// nimmt seine eigene Vorgabe" -- so, wie eine Beschriftung ohne eigenen Wert auf die
+		// Darstellungstafel fällt.
+		var label = {
+			text: v.text,
+			labelType: v.subtyp,
+			size: v.size,
+			priority: v.priority,
+			minZoom: v.minZoom,
+			maxZoom: v.maxZoom,
+			// 🔴 KEINE DREHUNG und KEIN Regionszeiger. Der Import legt beides nicht an: er schreibt
+			// weder `rotation` noch eine Kurve, und die Region entsteht erst mit dem Label. Ein
+			// gesetzter Zeiger würde `createLabelIcon` außerdem die Drehung nehmen lassen -- eine
+			// Weiche, die hier nichts zu entscheiden hat.
+			rotation: 0,
+			ecosystemRegionPublicId: "",
+		};
+		if (typeof avesmapsLabelImBand === "function" && !avesmapsLabelImBand(label, zoom)) {
+			return null;
+		}
+		return garetienVorschauKlasseAnhaengen(createLabelIcon(label), v);
+	}
+
+	/*
+	 * Das Icon eines ORTSNAMENS -- `createLocationNameLabelIcon` der echten Karte.
+	 *
+	 * 🔴 EINE ATTRAPPE, KEIN EINTRAG. Der Bauer greift auf keine Registry zu; er liest `entry.name`,
+	 * `entry.locationType` und `entry.location.isRuined` und holt Größe und Versatz aus dem Zoomband.
+	 * Damit genügt ein Objekt in dieser Form -- und die Vorschau bleibt aus `locationNameLabels`
+	 * heraus, wo der Kollisionslöser sie fände.
+	 * 🔴 DIE ERSCHEINUNGSREGEL IST DER ZOOMBAND-WERT, nicht `shouldShowLocationNameLabel`. Jene
+	 * Funktion hält den Ort gegen Editor-Filter, Prüfhaken und `#toggleHidden` und braucht dafür eine
+	 * echte `publicId` -- für ein Objekt, das es noch nicht gibt, beantwortet sie eine andere Frage.
+	 * ⚠️ `null` im Band heißt „auf dieser Stufe gibt es den Namen nicht" (so steht es in der Tafel),
+	 * und genau das ist hier die Antwort.
+	 * ⚠️ Der Ort hat KEINEN Haken „Auf Karte anzeigen" -- es gibt ihn im ganzen Haus nur für Wege und
+	 * Kraftlinien. Sein Name folgt allein der Stage und diesem Band.
+	 */
+	function garetienVorschauOrtsnameIcon(v, zoom) {
+		if (typeof createLocationNameLabelIcon !== "function") { return null; }
+		if (typeof avesmapsLocationZoomBandValue !== "function") { return null; }
+		if (avesmapsLocationZoomBandValue("label", v.subtyp, zoom) === null) { return null; }
+		var entry = {
+			name: v.text,
+			locationType: v.subtyp,
+			// 🔴 LEER, und das ist Absicht: der Ort hat noch keine. Ein erfundener Wert könnte in
+			// einem Prüfhaken oder einem Index landen, der ihn für echt hält.
+			publicId: "",
+			location: { isRuined: false, isHidden: false },
+		};
+		return garetienVorschauKlasseAnhaengen(createLocationNameLabelIcon(entry, zoom), v);
+	}
+
+	/*
+	 * Gold, und Weiß dazu, wenn die Zeile offen ist -- Owner 09.09.2026.
+	 *
+	 * 🔴 AN DER `className` DES FERTIGEN ICONS, nicht im Bauer. Ein `divIcon` ist ein gewöhnliches
+	 * Optionsobjekt; hier eine Klasse anzuhängen kostet keine Zeile in einer Kartendatei und keine
+	 * neue Signatur. Der Ton selbst steht im Blatt (css/components/garetien-importer.css), weil nur
+	 * dort die Tokens benutzbar sind -- dieselbe Aufteilung wie beim goldenen Hof der Geometrie.
+	 * ⚠️ Fällt das Icon aus (ein Bauer, der `null` liefert), fällt auch die Klasse aus -- kein Wurf.
+	 */
+	function garetienVorschauKlasseAnhaengen(icon, v) {
+		if (!icon || !icon.options) { return null; }
+		var klassen = String(icon.options.className || "") + " " + AVESMAPS_GARETIEN_KLASSE_LABEL_VORSCHAU;
+		if (v && v.gewaehlt === true) { klassen += " " + AVESMAPS_GARETIEN_KLASSE_LABEL_AKTIV; }
+		icon.options.className = klassen;
+		return icon;
 	}
 
 	/*
@@ -1619,6 +1846,8 @@
 		window.avesmapsGaretienKarteAus = avesmapsGaretienKarteAus;
 		window.avesmapsGaretienKarteSicht = avesmapsGaretienKarteSicht;
 		window.avesmapsGaretienKarteUmschalten = avesmapsGaretienKarteUmschalten;
+		// Fuer den Hinweis am Zoomband im Kasten „Eingefuegt wird" (09.09.2026).
+		window.avesmapsGaretienKarteZoom = avesmapsGaretienKarteZoom;
 		window.avesmapsGaretienUnsereIds = avesmapsGaretienUnsereIds;
 		// Aufgabe 3: die Sicht-Tafel -- review-garetien-importer.js liest sie fuer die
 		// Neutral-Meldung der Bilanzzeile (Schritt 5), ohne diese Datei vorauszusetzen.
@@ -1648,6 +1877,7 @@
 			avesmapsGaretienKarteSicht,
 			avesmapsGaretienKarteUmschalten,
 			avesmapsGaretienKarteAus,
+			avesmapsGaretienKarteZoom,
 			AVESMAPS_GARETIEN_IHRE_PANE,
 			AVESMAPS_GARETIEN_IHRE_PANE_Z,
 			AVESMAPS_GARETIEN_UNSERE_PANE,
@@ -1661,6 +1891,13 @@
 			AVESMAPS_GARETIEN_SCHEIN_BREITE,
 			garetienAuswahlRingAmPunkt,
 			AVESMAPS_GARETIEN_PUNKT_RADIUS,
+			// Die Beschriftungs-Vorschau (Owner 09.09.2026)
+			AVESMAPS_GARETIEN_LABEL_PANE,
+			AVESMAPS_GARETIEN_LABEL_PANE_Z,
+			AVESMAPS_GARETIEN_KLASSE_LABEL_VORSCHAU,
+			AVESMAPS_GARETIEN_KLASSE_LABEL_AKTIV,
+			AVESMAPS_GARETIEN_FELD_VORSCHAU_LABEL,
+			garetienVorschauBeschriftungen,
 			AVESMAPS_GARETIEN_PARTEI_IHRE,
 			AVESMAPS_GARETIEN_PARTEI_UNSERE,
 			AVESMAPS_GARETIEN_FELD_NUR_IHRE,

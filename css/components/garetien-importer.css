@@ -714,6 +714,36 @@ html.avesmaps-planner-collapsed .gi-win {
    verschwaende es im goldenen Hof, der direkt darueber liegt. */
 .gi-map-auswahl { filter: drop-shadow(0 0 22px var(--color-garetien-auswahl)); }
 
+/* Die BESCHRIFTUNGS-VORSCHAU (Owner 09.09.2026: „labels von flaechen siedlungen etc … sollen so
+   erscheinen, wie sie im endprodukt … sichtbar sein wird" und „die labels koennen auch den gelben
+   rand der flaeche + weiss wenn aktiv bekommen").
+   🔴 GOLD IST DIESELBE AUSSAGE WIE DER HOF IHRER GEOMETRIE: „das ist ihre Fassung, sie steht noch
+   nicht bei uns". Deshalb dasselbe Token (--color-marker-active) und kein zweiter Ton -- ein eigenes
+   Gold fuer den Namen liefe beim ersten Umton auseinander.
+   💣 ALS FILTER UND NICHT ALS GLUT IM BILD. Die Glut-Stelle der zwei Bauer
+   (glow/glowBlurRatio/glowPasses/strokeRatio) ist schon vergeben -- beim freien Label an den
+   Pruefhaken „Keine Wiki-Zuweisung", beim Ortsnamen an den schwarzen Halo --, und `glow` ist EINE
+   Eigenschaft: Gold und Weiss liessen sich dort nicht uebereinanderlegen. `drop-shadow` folgt dem
+   Alphakanal, faellt also um die Buchstaben und nicht um den Bildkasten.
+   ⚠️ Der rote Schein des Pruefhakens bleibt IM Bild und liegt damit innen, dieses Gold aussen:
+   verschiedene Radien, sie loeschen einander nicht. Ein frisch importiertes Label ohne
+   Wiki-Zuweisung ist genau das, was der Haken meldet.
+   ⚠️ 8px, nicht die 14px des Hofes: ein Buchstabe ist 1-2px breit, wo eine Linie 3px hat -- derselbe
+   Radius verschmierte den Namen zu einem goldenen Fleck. Am Verhaeltnis gewaehlt, nicht abgeschrieben. */
+.gi-label-vorschau { filter: drop-shadow(0 0 8px var(--color-marker-active)); }
+
+/* 💣 EINE KOMBINIERTE REGEL, KEINE ZWEITE DANEBEN -- `filter` ist eine einzige Eigenschaft, und ein
+   `.gi-label-vorschau--aktiv { filter: … }` neben der Regel darueber LOESCHTE deren Gold statt es zu
+   ergaenzen. Genau diese Falle steht ein paar Zeilen weiter unten am Kollisions-Hof ausgeschrieben;
+   sie ist hier dieselbe, und die Verkettung ist dieselbe Antwort.
+   🔴 Weiss ist dasselbe Token wie die Auswahlkontur der Geometrie (--color-garetien-auswahl,
+   08.09.2026): EIN Vokabular fuer Form und Name -- „diese Zeile ist offen".
+   ⚠️ Der weisse Radius ist GROESSER als der goldene, damit er aussen darum liegt statt darin zu
+   verschwinden -- dieselbe Ordnung wie Kontur (21) ueber Hof (13) bei der Geometrie. */
+.gi-label-vorschau.gi-label-vorschau--aktiv {
+	filter: drop-shadow(0 0 8px var(--color-marker-active)) drop-shadow(0 0 14px var(--color-garetien-auswahl));
+}
+
 /* 🔴 DIE KOLLISION -- ein ZWEITER, roter Hof AUSSEN um den ersten (Entwurf §4.2, Owner
    29.08.2026: „Kollisionen (oder Ergaenzungsfragen) mit bestehenden koennen durch rotes gluehen
    ergänzt werden"). Der Fall, den der Owner nannte: der Kraehensee liegt im Import UND bei uns,
