@@ -566,10 +566,20 @@ function formatEcosystemAreaTooltip(area) {
 // schlechtere traf den weitaus grösseren Anfasser: eine Fläche ist tausendmal grösser als ihr Schriftzug.
 // Entwurf: docs/superpowers/specs/2026-08-12-landschaften-flaechenklick-infopanel-design.md
 //
-// 🔴 EINE FRAGE FÜR LEUCHTEN UND PANEL (§5.2). Beide sind die Antwort auf DIESELBE Geste; an zwei
-// getrennten Bedingungen hängend liessen sie sich auseinander pflegen, und der Klick täte danach die
-// Hälfte. Der Editor beantwortet denselben Klick mit „daran arbeite ich" -- Auswahl, Griffe, Ziel der
-// Werkzeuge -- und bekommt deshalb keins von beidem.
+// 🔴 DIESE FRAGE GILT DEM LEUCHTEN, NICHT MEHR DEM PANEL (umgedreht am 09.09.2026, Owner: „der
+// linksklick auf ein gebirge löst im editor nicht die infobox aus"). Bis dahin hingen beide hier, mit
+// der Begründung, es sei DIESELBE Geste. Fürs Leuchten stimmt das -- eine Hervorhebung und die weisse
+// Auswahlkontur auf derselben Fläche bedeuten Verschiedenes und sagen übereinander nichts mehr. Fürs
+// Panel nicht: es liegt rechts, ist keine Kontur und nimmt der Arbeit nichts weg.
+//
+// 💣 UND DIE ALTE REGEL WAR IM EDITOR OHNEHIN NUR HALB WAHR. Der Klick auf das LABEL füllt das Panel
+// dort seit jeher (`popupopen` -> avesmapsShowInfopanel, map-features-labels.js) und ist ÄLTER als der
+// Entscheid vom 12.08.2026 -- dasselbe Gebirge gab die Auskunft also über einen Weg und über den
+// anderen nicht. Gemessen am Dump vom 08.09.2026: von 71 aktiven Gebirgsflächen tragen 47 einen Namen,
+// der als KURVE gemalt wird, und ein Kurvenname hat im Bearbeiten-Modus weder Marker (Kurvenriegel in
+// shouldShowLabelMarker) noch Klick-Schiedsrichter (der steigt bei IS_EDIT_MODE aus, damit der Klick
+// die FLÄCHE darunter trifft); zwei weitere haben gar keinen Namen. Für 49 von 71 Gebirgen gab es im
+// Editor damit KEINEN Linksklick, der die Infobox öffnet.
 //
 // ⚠️ Wortgleich zur Bedingung, die die Hervorhebung seit 2026-08-04 trägt, inklusive ihrer Lesart bei
 // fehlendem Nachbarn (dann passiert nichts). Hier steht sie nur EINMAL statt zweimal ausgeschrieben.
@@ -681,11 +691,13 @@ function ecosystemAreaInfoMarkup(source) {
 // was er ohnehin vor sich hat, und ein Sprung unter dem Zeiger ist Lärm. Der Unterschied ist gewollt
 // und darf nicht „vereinheitlicht" werden (§5.1).
 function showEcosystemAreaInfopanel(area) {
-	if (!isEcosystemReaderClick()) {
-		return false;
-	}
+	// 🔴 HIER STAND EIN `if (!isEcosystemReaderClick()) return false;` -- gefallen am 09.09.2026. Die
+	// Begründung steht an isEcosystemReaderClick: das Panel ist eine AUSKUNFT und keine Kontur, es
+	// gehört dem Editor genauso wie dem Leser. Wer ihn zurückholt, nimmt 49 von 71 Gebirgen ihren
+	// einzigen Linksklick-Weg zur Infobox; `ecosystem-area-infopanel.test.js` fällt dann.
+	//
 	// Ohne Panel-Modus gibt es kein Ziel, und dann bleibt alles wie zuvor -- so hält es der Label-Klick
-	// auch (map-features-labels.js).
+	// auch (map-features-labels.js). Das ist der EINZIGE Riegel, der geblieben ist.
 	if (typeof IS_INFOPANEL_MODE === "undefined" || !IS_INFOPANEL_MODE
 		|| typeof window === "undefined" || typeof window.avesmapsShowInfopanel !== "function") {
 		return false;
@@ -1047,19 +1059,19 @@ function buildEcosystemAreaLayer(area) {
 		//
 		// 🔴 UND SEIT 2026-08-12 GEHT DABEI DAS INFOPANEL AUF -- dieselbe Auskunft, die ein Klick auf
 		// das Label schon immer gab (Owner: „ein Klick auf die Regionen soll auch das Infopanel
-		// öffnen"). 💣 An DERSELBEN Frage wie das Leuchten (`isEcosystemReaderClick`), nicht an einer
-		// zweiten daneben: es ist EINE Geste, und zwei Bedingungen liessen sich auseinander pflegen --
-		// danach täte der Klick die Hälfte.
-		let zeigtPanel = false;
-		if (isEcosystemReaderClick()) {
-			if (typeof setHighlightedEcosystemRegion === "function") {
-				setHighlightedEcosystemRegion(area.region_public_id || "");
-			}
-			zeigtPanel = showEcosystemAreaInfopanel(area);
+		// öffnen"). 🔴 SEIT DEM 09.09.2026 AUCH IM EDITOR (Owner: „der linksklick auf ein gebirge löst
+		// im editor nicht die infobox aus"): das LEUCHTEN bleibt dem Leser -- zwei Konturen mit
+		// verschiedener Bedeutung auf einer Fläche sagen nichts mehr --, die AUSKUNFT gilt beiden. Die
+		// Begründung samt Messung steht an `isEcosystemReaderClick`.
+		if (isEcosystemReaderClick() && typeof setHighlightedEcosystemRegion === "function") {
+			setHighlightedEcosystemRegion(area.region_public_id || "");
 		}
+		const zeigtPanel = showEcosystemAreaInfopanel(area);
 		setSelectedEcosystemArea(area.public_id);
 		// Der Schwebezettel nur noch dort, wo KEIN Panel aufgeht: er sagt denselben Satz, den das Panel
-		// als Überschrift trägt. Im Editor bleibt er stehen -- dort ist er die einzige Rückmeldung.
+		// als Überschrift trägt. ⚠️ Seit dem 09.09.2026 fällt er damit auch im Editor weg, denn dort geht
+		// das Panel jetzt ebenfalls auf; er bleibt für die Fälle ohne Panel (kein Panel-Modus, kein
+		// Markup) -- und die Regel dafür stand schon da, es ist dieselbe Bedingung wie vorher.
 		if (!zeigtPanel && typeof showFeedbackToast === "function") {
 			showFeedbackToast(formatEcosystemAreaTooltip(area));
 		}

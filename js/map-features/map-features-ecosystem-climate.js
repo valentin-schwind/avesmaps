@@ -380,7 +380,8 @@ function drawClimateZoneNames() {
 				// Ohne diese Zeile wäre der Name das einzige Ding, das WENIGER tut als die Fläche unter
 				// ihm -- und er ist gerade als ihr Griff gedacht.
 				// ⚠️ Er kennt seine Fläche schon (`area`), also derselbe Aufruf; die Frage, ob überhaupt
-				// (Leser oder Editor), steckt in showEcosystemAreaInfopanel.
+				// (Panel-Modus, Markup vorhanden), steckt in showEcosystemAreaInfopanel. Seit dem
+				// 09.09.2026 fragt die NICHT mehr nach Leser oder Editor -- das Panel gehört beiden.
 				if (typeof showEcosystemAreaInfopanel === "function") {
 					showEcosystemAreaInfopanel(area);
 				}
