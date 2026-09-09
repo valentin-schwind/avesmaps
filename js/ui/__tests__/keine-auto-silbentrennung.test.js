@@ -84,8 +84,6 @@ const ERLAUBT = new Map([
 		+ "Entscheid von `72028e8` am selben Tag, hier uebernommen."],
 	[".changelog-entry__text",
 		"„Neuigkeiten\": unsere eigenen Meilenstein-Saetze. Gewoehnliches Deutsch, kein Bestiarium."],
-	[".ecosystem-intro-dialog__note",
-		"Einleitungstext des Landschaften-Werkzeugs, im Markup fest verdrahtet (index.html)."],
 	[".ecosystem-transfer-dialog__source",
 		"Erklaerzeile im Uebertragen-Dialog (Editor)."],
 	[".ecosystem-transfer-dialog__note",

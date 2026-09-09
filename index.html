@@ -948,33 +948,6 @@
 			<!-- #ecosystem-controls-note ist am 2026-08-01 mit dem Totmannschalter entfallen: er meldete
 			     nur, dass app_setting['ecosystem_enabled'] auf '0' stand. Den Zustand gibt es nicht mehr. -->
 		</div>
-		<!-- V3.5: der einmalige Hinweis beim ERSTEN Betreten der Landschaften-Ebene. Er nennt konkrete
-		     Schritte, statt um Vorsicht zu bitten -- eine Warnung ohne Konsequenz wird weggeklickt.
-		     Gemerkt in localStorage (map-features-ecosystem-intro.js). Die Overlay-Huelle (Position,
-		     Scrim, z-index) kommt aus css/components/dialog-overlays.css, wo die ID in allen DREI
-		     Selektorlisten steht -- ein neues Overlay-<div> erbt sonst NICHTS. -->
-		<div id="ecosystem-intro-overlay" hidden>
-			<div id="ecosystem-intro-dialog" class="ecosystem-intro-dialog avm-fenster avm-fenster--blatt" role="dialog" aria-modal="true" aria-labelledby="ecosystem-intro-title" aria-describedby="ecosystem-intro-body" tabindex="-1">
-				<div class="ecosystem-intro-dialog__header avm-fenster__kopf">
-					<span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>
-					<h2 class="avm-fenster__titel" id="ecosystem-intro-title" data-i18n="ecosystem.intro.title">Landschaften</h2>
-					<button id="ecosystem-intro-close" class="avm-fenster__knopf avm-fenster__knopf--nackt" type="button" aria-label="Hinweis schließen" data-i18n-aria-label="ecosystem.intro.closeAria">×</button>
-				</div>
-				<div id="ecosystem-intro-body" class="ecosystem-intro-dialog__body">
-					<p class="ecosystem-intro-dialog__lead" data-i18n="ecosystem.intro.lead">Fang mit einem einzigen Durchgang an:</p>
-					<ol class="ecosystem-intro-dialog__steps">
-						<li data-i18n="ecosystem.intro.step1">Zeichne eine einzige Fläche.</li>
-						<li data-i18n="ecosystem.intro.step2">Verschiebe die Karte.</li>
-						<li data-i18n="ecosystem.intro.step3">Lade die Seite neu.</li>
-					</ol>
-					<p class="ecosystem-intro-dialog__check" data-i18n="ecosystem.intro.check">Ist sie noch da?</p>
-					<p class="ecosystem-intro-dialog__note" data-i18n="ecosystem.intro.note">Erst wenn das sitzt, die zweite. Bitte noch keine Serie — das Werkzeug ist neu, und was jetzt entsteht, kann sich noch als falsch erweisen.</p>
-				</div>
-				<div class="ecosystem-intro-dialog__actions">
-					<button id="ecosystem-intro-confirm" class="ecosystem-intro-dialog__button ecosystem-intro-dialog__button--primary" type="button" data-i18n="ecosystem.intro.confirm">Verstanden</button>
-				</div>
-			</div>
-		</div>
 		<!-- V3.6: "Kopieren ..." -- dieselbe Flaeche noch einmal, in einer anderen Ebene ODER in der
 		     eigenen (seit 2026-08-06), als KOPIE mit eigener public_id. Ein Eintrag, EIN Dialog: die
 		     Zielebene steht hier drin statt in einem Untermenue, weil die Zielregion ohnehin gefragt
@@ -3995,7 +3968,6 @@
 		<script src="js/map-features/map-features-ecosystem-climate.js"></script>
 		<script src="js/map-features/map-features-ecosystem-visibility.js"></script>
 		<script src="js/map-features/map-features-ecosystem-context-action.js"></script>
-		<script src="js/map-features/map-features-ecosystem-intro.js"></script>
 		<script src="js/map-features/map-features-ecosystem-transfer.js"></script>
 		<!-- V6b: „Eigenschaften …" auf der Fläche. Haengt sich per AvesmapsEcosystemAreaMenu.addEntry an,
 		     steht deshalb NACH map-features-ecosystem-context-action.js -- wie transfer.js daneben. -->
