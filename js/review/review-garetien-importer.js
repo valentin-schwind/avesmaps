@@ -6155,7 +6155,12 @@
 	 * 🔴 „Neu einfügen" zieht die Quelle mit (Owner: „importiert dabei immer die quelle mit").
 	 */
 	function garetienEinfuegeWahl(objekt) {
-		const key = String((objekt && objekt.key) || "");
+		// 🔴 Fixrunde 1 (Pruefbefund an Aufgabe 5): der Schluessel gehoert jetzt dem Verbund, wenn
+		// zusammengelegt (Aufgabe-5-Helfer eine Bildschirmseite weiter oben). `neuGeht`/`quelleGeht`
+		// bleiben bewusst am OBJEKT geklemmt: die Moeglichkeit ist eine Eigenschaft SEINER Items,
+		// nicht des Verbunds -- ein Fragment ohne Quellen-Item bekommt den Haken auch mit geteilter
+		// Wahl nicht.
+		const key = garetienEinstellungsSchluessel(objekt);
 		const neuGeht = garetienNeuMoeglich(objekt);
 		const quelleGeht = garetienQuelleMoeglich(objekt);
 		const gespeichert = key !== "" ? _garetienEinfuegeWahl[key] : null;
@@ -6180,7 +6185,7 @@
 
 	/* Eine Häkchen-Wahl setzen. „Neu einfügen" bindet die Quelle -- siehe garetienEinfuegeWahl. */
 	function garetienEinfuegeWahlSetzen(objekt, feld, wert) {
-		const key = String((objekt && objekt.key) || "");
+		const key = garetienEinstellungsSchluessel(objekt);
 		if (key === "") { return; }
 		const jetzt = garetienEinfuegeWahl(objekt);
 		const naechste = { quelle: jetzt.quelle, neu: jetzt.neu };
