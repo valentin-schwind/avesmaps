@@ -131,9 +131,26 @@ details.avesmaps-lore__gruppe[open] > .avesmaps-lore__gruppe-kopf::after {
 	line-height: 1.45;
 }
 
+/* 💣 KEIN WÖRTERBUCH AUF EIGENNAMEN. Diese Zeile erbt `hyphens: auto` aus
+   `.region-info-box__row dd` (location-popups-markers.css) -- dort ist es für FLIESSTEXT
+   gedacht und dort richtig. Hier stehen aventurische Eigennamen, und an denen RÄT die
+   deutsche Trennhilfe. Live in Chrome gemessen (09.09.2026, „Was ist hier?“ auf Maraskan
+   und die Infobox Gareths): „Totenko-pfäffchen“ (richtig wäre Totenkopf-äffchen),
+   „Maraskant-arantel“, „Regenbogenan-beter“, „Tuz-aker“, „Ku-ckucks-Otter“, dazu
+   Trennungen nach zwei Buchstaben („Ma-raskanfeder“) -- in Gareths Stätten-Deckel allein
+   168 getrennte Namen. Gemeldet als Discord-Fall #119.
+   ⚠️ `overflow-wrap: anywhere` BLEIBT stehen, und es ist der Grund, warum das gefahrlos
+   ist: es fängt die Namen, die auch ungetrennt breiter sind als die gemessenen 91px der
+   Namensspalte (Khoramsflederechse, Maraskankakerlake). Live gegengemessen: NULL
+   waagerechter Überlauf, Spaltenzahl in allen 60 Deckeln unverändert, die beiden längsten
+   rund 18 % höher -- das ist der Preis, und er ist bezahlt.
+   ⚠️ `manual`, nicht `none`: an einem echten Bindestrich („Amdeggyn-Springsalamander“)
+   und am Leerzeichen wird weiter umbrochen. Das war nie das Problem. */
 .avesmaps-lore__names {
 	display: block;
 	overflow-wrap: anywhere;
+	-webkit-hyphens: manual;
+	hyphens: manual;
 }
 
 .avesmaps-lore__name {

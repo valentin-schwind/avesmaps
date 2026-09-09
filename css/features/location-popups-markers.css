@@ -544,7 +544,12 @@
    hyphens:auto needs <html lang="de"> (set); overflow-wrap:break-word is the fallback
    where the browser ships no hyphenation dictionary (Electron / in-app webviews) → clean
    hard break as before, never worse. Prose/names only — not buttons, pills, numbers, or
-   codes; dt labels stay whole. */
+   codes; dt labels stay whole.
+   🔴 EINE Ausnahme, und sie steht in `css/features/lore.css`: die Namenslisten der
+   Vorkommen und der Besonderen Stätten (`.avesmaps-lore__names`) setzen `hyphens: manual`.
+   Aventurische Eigennamen sind keine Wörter, die ein deutsches Wörterbuch kennt -- es
+   trennte sie live als „Totenko-pfäffchen“ und „Maraskant-arantel“ (Discord-Fall #119).
+   Wer diese Regel hier erweitert, prüft, ob das nächste Ziel Fließtext ist oder ein Name. */
 .location-popup__name,
 .location-popup__type,
 .location-popup__description,
