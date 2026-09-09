@@ -463,10 +463,43 @@
 	 * (siehe `zustand.auswahl`). Fehlt es ausnahmsweise, steht `null` in der Map: die Zählung
 	 * überspringt solche Einträge, statt sie mitzuzählen und dann nichts zu tun.
 	 */
+	/*
+	 * Die Auswahlleiste an den Stand der Auswahl anpassen.
+	 *
+	 * 💣 SIE HING BIS ZUM 09.09.2026 NUR AM LISTENLAUF. Ein Haekchen aendert die Auswahl, aber
+	 * nicht die Liste (das waere ein Neuaufbau unter dem Zeiger) -- die Leiste blieb also stehen,
+	 * wie sie war, und erschien erst beim naechsten Reiter-, Filter- oder Fensterwechsel. Owner
+	 * 09.09.2026: „die optionen aus 'offen' stehen mir in 'stage' nicht zur verfuegung" und „aber
+	 * auch bei 'offen' kommt das nur manchmal (wenn ich den importer neu oeffne)".
+	 *
+	 * 🔴 GERUFEN WIRD SIE VON DEN ZUSTANDSAENDERERN, nicht von den Klickwegen. Die Auswahl aendert
+	 * sich an genau drei Stellen (umschalten, alle waehlen, aufheben); die KLICKWEGE dorthin sind
+	 * vier und werden mehr -- „Imports in der Naehe waehlen" ist der jueengste. Eine Regel, die einen
+	 * von vier Erzeugern bindet, ist keine (AGENTS.md §11).
+	 *
+	 * ⚠️ Liest den Modulzustand, weil die Aenderer ihn ohnehin schreiben. garetienAuswahlleisteSetzen
+	 * faellt ohne DOM sauber aus (`hasDocument`), die reinen Aenderer bleiben also unter Node fahrbar.
+	 */
+	function garetienAuswahlleisteAuffrischen() {
+		garetienAuswahlleisteSetzen(
+			zustand.auswahl.size,
+			avesmapsGaretienAuswahlObjekte(zustand.objekte),
+			zustand.stand
+		);
+	}
+
 	function avesmapsGaretienAuswahlUmschalten(schluessel, objekt) {
+
 		const s = String(schluessel);
-		if (zustand.auswahl.has(s)) { zustand.auswahl.delete(s); return false; }
+		if (zustand.auswahl.has(s)) {
+			zustand.auswahl.delete(s);
+			garetienAuswahlleisteAuffrischen();
+			return false;
+		}
 		zustand.auswahl.set(s, objekt || null);
+		// ⚠️ BEIDE Ausgaenge: das Abwaehlen des letzten Haekchens muss die Leiste ebenso
+		// verschwinden lassen, wie das erste sie holt.
+		garetienAuswahlleisteAuffrischen();
 		return true;
 	}
 
@@ -527,6 +560,9 @@
 	// die neue (immer leere) Groesse, nicht die vorherige.
 	function avesmapsGaretienAuswahlAufheben() {
 		zustand.auswahl.clear();
+		// ⚠️ Der DRITTE Zustandsaenderer -- auch er nimmt die Leiste mit, sonst bliebe sie mit
+		// ihren alten Zahlen ueber einer leeren Auswahl stehen.
+		garetienAuswahlleisteAuffrischen();
 		return zustand.auswahl.size;
 	}
 
@@ -561,6 +597,7 @@
 			if (!zustand.auswahl.has(s)) { gewaehlt++; }
 			zustand.auswahl.set(s, o);
 		});
+		garetienAuswahlleisteAuffrischen();
 		return gewaehlt;
 	}
 
