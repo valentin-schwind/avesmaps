@@ -357,6 +357,11 @@ td.num { text-align: right; font-variant-numeric: tabular-nums; }
    gruppiert wird ueber Trennlinie und Ueberschrift, nicht ueber Rahmen). */
 .gi-block { margin-top: var(--space-10); padding-top: var(--space-6); border-top: 1px solid var(--color-divider); }
 .gi-block:first-of-type { margin-top: 0; padding-top: 0; border-top: 0; }
+/* 💣 DER BLOCK BESITZT DIE EINRUECKUNG, und `.gi-acts` bringt eine eigene mit
+   (--avm-ribbon-pad, 14 px waagerecht). Als Block gemessen sass sein Kopf dadurch 14 px
+   weiter rechts als die uebrigen sechs (569 gegen 555) -- eine Gliederung, deren
+   Ueberschriften nicht fluchten, liest sich wie zwei Gliederungen. */
+.gi-block.gi-acts { padding-left: 0; padding-right: 0; }
 .gi-block__kopf { display: flex; align-items: baseline; gap: var(--space-6); margin: 0 0 var(--space-4);
 	font-size: var(--font-size-caption); letter-spacing: .06em; text-transform: uppercase;
 	color: var(--color-accent-brown); font-weight: var(--font-weight-bold); }
