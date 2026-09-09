@@ -1476,6 +1476,24 @@
 		return _garetienVerbundZusammen.delete(String(schluessel || ""));
 	}
 
+	/*
+	 * Aufgabe 5: „Die Einstellungen gehoeren dem Verbund".
+	 *
+	 * Unter WELCHEM Schluessel liegen die Einstellungen dieses Objekts?
+	 *
+	 * 🔴 EIN ZUSAMMENGELEGTER VERBUND HAT GENAU EINEN SATZ. Es gibt eine Beschriftung und eine
+	 * Region, also eine Groesse, ein Zoomband, ein „fuer Klicks gesperrt". Laege jeder Satz am
+	 * Fragment, haetten vier Fragmente vier -- drei davon wuerden beim Import verworfen, und
+	 * welcher gewinnt, haenge an der Reihenfolge der Items.
+	 * ⚠️ NUR wenn der Verbund auch wirklich zusammengelegt IST. Wer die vier Fragmente einzeln
+	 * auf die Stage legt, bekommt vier Objekte -- und vier Saetze.
+	 */
+	function garetienEinstellungsSchluessel(objekt) {
+		const verbund = garetienVerbundSchluessel(objekt);
+		if (verbund !== "" && garetienVerbundIstZusammen(verbund)) { return verbund; }
+		return String((objekt || {}).key || "");
+	}
+
 	// 🔴 Aufgabe 2 (Entwurf §3.2): das Haekchen ist ein reiner MARKER und zeigt `zustand.auswahl`,
 	// nicht mehr den Item-Zustand -- „Markieren aendert nichts" (Owner 29.08.2026). Es gibt darum
 	// auch KEIN `disabled` mehr: ein Objekt OHNE jedes Item (7930 von 8213) muss sich genauso
@@ -3592,7 +3610,7 @@
 	// Listen-Refetch) eine bereits getippte Handeingabe nicht verwirft. Derselbe Bau wie
 	// garetienWikiSucheZustandZu daneben.
 	function garetienEingabenZustandZu(objekt) {
-		const key = String((objekt && objekt.key) || "");
+		const key = garetienEinstellungsSchluessel(objekt);
 		if (!_garetienEingabenZustand[key]) {
 			_garetienEingabenZustand[key] = garetienEingabenGrundwerte(objekt);
 		}
@@ -4787,14 +4805,14 @@
 
 	/* REIN: der von Hand gesetzte Name dieses Objekts -- "" heisst „unveraendert". */
 	function garetienNameWahlZu(objekt) {
-		const key = String((objekt && objekt.key) || "");
+		const key = garetienEinstellungsSchluessel(objekt);
 		return key === "" ? "" : String(_garetienNameWahl[key] || "").trim();
 	}
 
 	/* REIN genug: nur der eine Speicher. Der Vergleich mit dem Vorschlagsnamen faellt hier weg --
 	   ein zeichengleicher Wert schadet nichts, der Server vergleicht ohnehin. */
 	function garetienNameWahlSetzen(objekt, name) {
-		const key = String((objekt && objekt.key) || "");
+		const key = garetienEinstellungsSchluessel(objekt);
 		if (key !== "") { _garetienNameWahl[key] = String(name || "").trim(); }
 	}
 
@@ -5054,7 +5072,7 @@
 	}
 
 	function garetienZielWahlZu(objekt) {
-		const key = String((objekt && objekt.key) || "");
+		const key = garetienEinstellungsSchluessel(objekt);
 		// 💣 OHNE SCHLUESSEL WIRD NICHT ZWISCHENGESPEICHERT. Sonst teilten sich ALLE schluessellosen
 		// Objekte den Eintrag unter "" -- die Wahl des ersten gaelte fuer jedes weitere. Das trifft
 		// nicht nur Testattrappen: `garetienTypText` wird auch mit blossen {typ, subtyp}-Objekten
