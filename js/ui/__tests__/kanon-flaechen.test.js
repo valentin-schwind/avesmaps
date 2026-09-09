@@ -65,6 +65,11 @@ function baueKontext(kanonKarte, refsKarte) {
 	const kanonTeil = ausschnitt(popups, "function resolveFeatureKanon", popups.slice(exportIdx, exportIdx + 40), "popups.js");
 	vm.runInContext(kanonTeil, context);
 
+	// 🔴 Die EINE Weiche der Beschriftungen -- der Suchtreffer ruft sie seit dem 09.09.2026, statt
+	// `region:<label>` festzuschreiben. Ohne sie im Kontext greift dort der Rueckfall, und der Test
+	// misst das Verhalten VOR dem Umbau (im Browser laedt index.html sie vor spotlight-search.js).
+	vm.runInContext(lies("js", "map-features", "label-quellen-schluessel.js"), context);
+
 	// Die zwei Flaechen-Uebersetzer.
 	const spotlight = lies("js", "ui", "spotlight-search.js");
 	vm.runInContext(ausschnitt(spotlight, "function spotlightEntryKanonRef", "function spotlightResultMarkup", "spotlight-search.js"), context);
@@ -122,8 +127,16 @@ pruefe(ctx.renderFeatureKanonBadge("settlement", "p-gareth").includes("fs-kanon-
 // ---- C. Der Suchtreffer: seine drei Objektarten, jede mit IHRER Kennung -----------------------
 pruefe(JSON.stringify(ctx.spotlightEntryKanonRef({ kind: "location", publicIds: ["p-brief"] }))
 	=== JSON.stringify(["settlement", "p-brief"]), "location -> settlement");
-pruefe(JSON.stringify(ctx.spotlightEntryKanonRef({ kind: "label", publicIds: ["l-moor"] }))
-	=== JSON.stringify(["region", "l-moor"]), "label -> region");
+pruefe(JSON.stringify(ctx.spotlightEntryKanonRef({
+	kind: "label", publicIds: ["l-moor"], labelEntry: { label: { publicId: "l-moor" } },
+})) === JSON.stringify(["region", "l-moor"]), "label (frei) -> region");
+// 🔴 Eine GEBUNDENE Beschriftung liest seit dem 09.09.2026 ihre FLAECHE: seit Schritt 5 des
+// Quellen-Umbaus (03.09.2026) traegt die Flaeche die Quellen, nicht das Schild. Der feste
+// Schluessel hier war die vierte Lesart derselben Frage -- und die falsche.
+pruefe(JSON.stringify(ctx.spotlightEntryKanonRef({
+	kind: "label", publicIds: ["l-moor"],
+	labelEntry: { label: { publicId: "l-moor", ecosystemRegionPublicId: "f-moor" } },
+})) === JSON.stringify(["ecosystem", "f-moor"]), "label (gebunden) -> ecosystem");
 // 💣 Das Herrschaftsgebiet traegt ZWEI public_id, und die Quellen haengen an der ZWEITEN.
 // `publicIds[0]` ist die der gezeichneten Flaeche und faende nichts.
 pruefe(JSON.stringify(ctx.spotlightEntryKanonRef({
@@ -131,11 +144,23 @@ pruefe(JSON.stringify(ctx.spotlightEntryKanonRef({
 })) === JSON.stringify(["territory", "t-mark"]), "region -> territory, ueber territoryPublicId");
 pruefe(ctx.spotlightEntryKanonRef({ kind: "region", publicIds: ["r-flaeche"], regionEntry: {} }) === null,
 	"ohne Territoriums-Kennung lieber gar kein Etikett als eines am falschen Schluessel");
-// ⚠️ Wege und Kraftlinien fehlen mit Absicht: ein Treffer buendelt ihre SEGMENTE, der Kanon
-// haengt je Segment. Ein Etikett aus dem erstbesten waere eine ungeprueftе Aussage ueber alle.
-pruefe(ctx.spotlightEntryKanonRef({ kind: "path", publicIds: ["w-1"] }) === null, "Wege bleiben aussen vor");
-pruefe(ctx.spotlightEntryKanonRef({ kind: "powerline", publicIds: ["k-1"] }) === null, "Kraftlinien ebenso");
-for (const kind of ["citymap", "adventure", "lore", "offmap", "in_settlement"]) {
+// 🚩 Wege und Kraftlinien standen hier bis zum 09.09.2026 ausdruecklich DRAUSSEN, weil ein Treffer
+// ihre SEGMENTE buendelt und der Kanon je Segment haengt. Owner-Meldung mit Bild („Weisswasser"
+// zeigt sein INOFFIZIELL in der Infobox und nicht in der Suche), und die Begruendung ist seit dem
+// Wegquellen-Verteiler gemessen ueberholt: 346 von 350 mehrteiligen Wegen sind einig.
+// 🔴 Die PRUEFUNG bleibt: uneinige Segmente ergeben weiterhin kein Etikett. Ausfuehrlich in
+// spotlight-kanon-alle-arten.test.js; hier nur die zwei Enden.
+pruefe(JSON.stringify(ctx.spotlightEntryKanonRef({ kind: "path", publicIds: ["w-1"] }))
+	=== JSON.stringify(["path", "w-1"]), "ein einiger Weg traegt sein Etikett");
+// `w-2` gibt es weder im Kanon noch in den Verweisen: „hat ein Etikett" gegen „hat keins" ist
+// bereits uneinig -- der haeufigste Fall, wenn ein Segment noch keine Quelle traegt.
+pruefe(ctx.spotlightEntryKanonRef({ kind: "path", publicIds: ["w-1", "w-2"] }) === null,
+	"uneinige Segmente ergeben KEINES -- eine ungepruefte Aussage ueber den ganzen Weg waere schlimmer");
+pruefe(JSON.stringify(ctx.spotlightEntryKanonRef({ kind: "citymap", publicIds: ["c-1"] }))
+	=== JSON.stringify(["citymap", "c-1"]), "die Stadtkarte traegt ihren eigenen Schluessel");
+// ⚠️ Diese vier kennt der Kanon-Leser nicht; ein Schluessel waere eine Aussage, die der Server
+// nie beantwortet.
+for (const kind of ["adventure", "lore", "offmap", "in_settlement"]) {
 	pruefe(ctx.spotlightEntryKanonRef({ kind, publicIds: ["x"] }) === null, `${kind} traegt kein Kanon-Etikett`);
 }
 pruefe(ctx.spotlightEntryKanonRef({ kind: "location", publicIds: [] }) === null, "ohne public_id kein Schluessel");

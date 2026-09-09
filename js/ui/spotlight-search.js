@@ -940,18 +940,43 @@ function spotlightLocationStateHint(location) {
  * gemeinsamen Modul. Geteilt sind der Aufloeser (`resolveFeatureKanon`) und der Renderer, also
  * das, was wirklich dieselbe Frage beantwortet.
  *
- * ⚠️ WEGE UND KRAFTLINIEN FEHLEN, und das ist Absicht: ein Suchtreffer buendelt ihre SEGMENTE
- * („Reichsstrasse 2" sind 57), waehrend Quellen und Kanon je Segment haengen -- bei der
- * Kraftlinie sogar am kleinsten Segment der Namensgruppe. Ein Etikett aus dem erstbesten
- * Segment waere eine Aussage ueber den ganzen Weg, die niemand geprueft hat.
+ * 🚩 WEGE UND KRAFTLINIEN STANDEN HIER BIS ZUM 09.09.2026 AUSDRUECKLICH DRAUSSEN, mit dieser
+ * Begruendung: ein Suchtreffer buendelt ihre SEGMENTE („Reichsstrasse 2" sind 57), waehrend
+ * Quellen und Kanon je Segment haengen -- ein Etikett aus dem erstbesten waere eine Aussage ueber
+ * den ganzen Weg, die niemand geprueft hat. Owner-Meldung mit Bild: der Flussweg „Weisswasser"
+ * trug in seiner Infobox „INOFFIZIELL │ Briefspiel" und in der Suchliste nichts.
+ * ⭐ Die Begruendung ist seit dem Wegquellen-Verteiler (08.09.2026) UEBERHOLT, und zwar gemessen:
+ * von 350 mehrteiligen Wegen mit echtem Namen sind **346 einig**, und die vier uebrigen
+ * unterscheiden nur den ausdruecklichen Leer-Eintrag vom fehlenden -- sichtbar tragen beide
+ * nichts. Kraftlinien: 32 mehrteilig, **0 uneinig**. Sichtbar werden dadurch 150 inoffizielle
+ * Wege (und 40 Landschaftsflaechen, siehe unten).
+ * 🔴 DIE PRUEFUNG BLEIBT TROTZDEM (spotlightEinigerKanonRef): uneinig heisst KEIN Etikett. Die
+ * Messung ist ein Stichtag, die Regel ist dauerhaft -- dieselbe Haltung wie bei
+ * avesmapsMapFeaturesWegGruppeErbtZuweisung, wo eine uneinige Gruppe ebenfalls nichts erbt.
+ *
+ * 💣 UND DIE BESCHRIFTUNG FRAGT DIE EINE WEICHE, statt ihren eigenen Schluessel zu setzen. Seit
+ * Schritt 5 des Quellen-Umbaus (03.09.2026) traegt die FLAECHE die Quellen einer gebundenen
+ * Beschriftung (`ecosystem:<region_public_id>`), nicht mehr das Schild. Diese Stelle las bis zum
+ * 09.09.2026 fest `region:<label>` und war damit die vierte Lesart derselben Frage -- die
+ * falsche: 40 inoffizielle Landschaftsflaechen blieben in der Suche unbeschriftet, waehrend ihre
+ * Infobox das Etikett zeigte.
  */
 function spotlightEntryKanonRef(entry) {
 	const ersteId = String((entry.publicIds || [])[0] || "");
 	if (entry.kind === "location" && ersteId) {
 		return ["settlement", ersteId];
 	}
-	if (entry.kind === "label" && ersteId) {
-		return ["region", ersteId];
+	if (entry.kind === "label") {
+		// 🔴 avesmapsLabelQuellenSchluessel ist die EINZIGE Stelle, die „unter welchem Schluessel
+		// liegen die Quellen einer Beschriftung" beantwortet (js/map-features/label-quellen-schluessel.js,
+		// von index.html geladen). Ein Nachbau hier waere genau die Divergenz, die sie beseitigt.
+		// ⚠️ Der Rueckfall auf die eigene Kennung gilt nur, wenn die Weiche fehlt -- eine Seite ohne
+		// jenes Skript verhaelt sich dann wie vor dem 09.09.2026, statt gar kein Etikett zu zeigen.
+		if (typeof avesmapsLabelQuellenSchluessel === "function") {
+			const schluessel = avesmapsLabelQuellenSchluessel(entry.labelEntry?.label || {});
+			return schluessel && schluessel.id ? [schluessel.type, schluessel.id] : null;
+		}
+		return ersteId ? ["region", ersteId] : null;
 	}
 	if (entry.kind === "region") {
 		// 💣 Das Herrschaftsgebiet traegt ZWEI public_id (siehe spotlightEntryLookupPublicIds):
@@ -960,8 +985,49 @@ function spotlightEntryKanonRef(entry) {
 		const territoryPublicId = String(entry.regionEntry?.territoryPublicId || "");
 		return territoryPublicId ? ["territory", territoryPublicId] : null;
 	}
-
+	if (entry.kind === "citymap" && ersteId) {
+		return ["citymap", ersteId];
+	}
+	if (entry.kind === "path" || entry.kind === "powerline") {
+		return spotlightEinigerKanonRef(entry.kind, entry.publicIds);
+	}
+	// ⚠️ Literatur, Vorkommen und Off-Map-Treffer haben keinen Kanon-Leser
+	// (AVESMAPS_MAP_FEATURES_KANON_ENTITY_TYPE_BY_FEATURE_TYPE kennt sie nicht); ein Schluessel
+	// fuer sie waere eine Aussage, die der Server nie beantwortet.
 	return null;
+}
+
+/**
+ * Der Kanon-Schluessel einer SEGMENTGRUPPE -- `null`, sobald ihre Segmente uneinig sind.
+ *
+ * 💣 DAS IST DER RIEGEL, ohne den Wege hier nicht stehen duerften. Ein Treffer buendelt die
+ * Segmente eines Wegs; Quellen und Kanon haengen je Segment. Sagen sie Verschiedenes, gibt es
+ * keine Aussage ueber den Weg -- und keine ist besser als eine geratene. Gepruefte werden
+ * Zustand UND Bezeichner: „inoffiziell │ Briefspiel" und „inoffiziell │ Regionalspielhilfe" sind
+ * zwei Aussagen, nicht eine.
+ *
+ * ⚠️ Einig OHNE Etikett gibt trotzdem den Schluessel zurueck: was zu zeigen ist, entscheidet der
+ * Renderer (featureKanonListBadge), nicht diese Weiche.
+ */
+function spotlightEinigerKanonRef(entityType, publicIds) {
+	const ids = (publicIds || []).filter(Boolean).map(String);
+	if (ids.length === 0 || typeof resolveFeatureKanon !== "function") {
+		return null;
+	}
+	let signatur = null;
+	for (const id of ids) {
+		const kanon = resolveFeatureKanon(entityType, id);
+		const eigen = kanon
+			? `${kanon.kanon || ""}|${kanon.bezeichner_type || ""}|${kanon.bezeichner_label || ""}`
+			: "";
+		if (signatur === null) {
+			signatur = eigen;
+		} else if (eigen !== signatur) {
+			return null;
+		}
+	}
+
+	return [entityType, ids[0]];
 }
 
 function spotlightResultMarkup(entry, index) {
