@@ -33,8 +33,10 @@ argumentiert aus ihm, beide werden zusammen gelesen.
 - **Ein neuer Test zählt erst als Beleg, wenn er gegen Mutationen gefahren wurde.** Jede Aufgabe
   nennt ihre Mutationen. Nach jeder Mutation die Byte-Gegenprobe: die Datei muss wirklich wieder im
   Ausgangszustand sein.
-- **Sichtbare Änderungen gehen EINZELN live.** Dieser Plan hat drei Push-Punkte: nach Aufgabe 1,
-  nach Aufgabe 2, nach Aufgabe 7. Dazwischen wird committet, **nicht gepusht**.
+- **Sichtbare Änderungen gehen EINZELN live.** Dieser Plan hat vier Push-Punkte: nach Aufgabe 1
+  (Wasserton), nach Aufgabe 2 (Anzeigeprofil), nach Aufgabe 3 (nur das Mockup) und nach Aufgabe 8
+  (der Fächer als Ganzes). Dazwischen wird committet, **nicht gepusht** — die Aufgaben 4–7 bauen
+  EIN Menü, und ein halb gebautes Menü ist kaputt.
 - **Der Wasserton ist `#4c89c6`.** Meer `#2d5f8a`, Küste `#3f9e9a`, Seeweg `#2f7dd3` bleiben.
 
 ---
@@ -49,15 +51,18 @@ argumentiert aus ihm, beide werden zusammen gelesen.
 | `js/pages/svg-export-build.js` | `SVGX_WAY_COLORS` (Rückfall folgt der Karte) | 1 |
 | `js/pages/svg-export-farben.js` | Kommentar richtigstellen | 1 |
 | **neu** `js/map-features/__tests__/wasserton.test.js` | vier Schreibstellen gegen den Token | 1 |
-| `js/ui/map-layer-picker.js` | `OVERLAYS` um vier Vektoren; `macheStufe`; Stufe 2 pro Ansicht; Stufe 3 | 2–6 |
-| `tools/bau-ansicht-untergrund-mockup.js` | Quelle des Mockups | 2, 6 |
-| `docs/ansicht-untergrund-mockup.html` | **Build-Produkt**, nur erzeugt | 2, 6 |
-| **neu** `tools/__tests__/ansicht-untergrund-mockup.test.js` | Mockup == Generatorausgabe | 2 |
-| `css/components/map-layer-picker.css` | Staffelung auf 5 Zellen, Stufe-3-Regeln | 4, 6 |
-| **neu** `js/ui/__tests__/landschaften-untermenue.test.js` | Ebenenzustand, drei Stufen | 4–6 |
-| `js/ui/__tests__/map-layer-picker.test.js` | erweitert | 3–6 |
-| `js/map-features/map-features-ecosystem-layer-switch.js` | Leiste verstecken, Untergrund 0 % | 7 |
-| `js/map-features/__tests__/ecosystem-frontend-profil.test.js` | erweitert | 7 |
+| `js/ui/map-layer-picker.js` | `OVERLAYS` um vier Vektoren; `macheStufe`; Stufe 2 pro Ansicht; Stufe 3 | 3–7 |
+| `tools/bau-ansicht-untergrund-mockup.js` | Quelle des Mockups | 3, 7, 8 |
+| `docs/ansicht-untergrund-mockup.html` | **Build-Produkt**, nur erzeugt | 3, 7, 8 |
+| **neu** `tools/__tests__/ansicht-untergrund-mockup.test.js` | Mockup == Generatorausgabe | 3 |
+| `css/components/map-layer-picker.css` | Staffelung auf 5 Zellen, Stufe-3-Regeln | 5, 7 |
+| **neu** `js/ui/__tests__/landschaften-untermenue.test.js` | Ebenenzustand, drei Stufen | 5–7 |
+| `js/ui/__tests__/map-layer-picker.test.js` | erweitert | 4–7 |
+| `js/map-features/map-features-ecosystem-layer-switch.js` | ein Profil, Soll, Merker, die drei Appliers; später Leiste verstecken | 2, 8 |
+| **neu** `js/map-features/__tests__/anzeigewahl-schlaegt-vorgabe.test.js` | Vorgabe vs. Nutzerwahl, ausgeführt | 2 |
+| `js/map-features/__tests__/ecosystem-frontend-profil.test.js` | erweitert | 2, 8 |
+| `js/map-features/__tests__/ecosystem-access.test.js` | nachgezogen (stand auf dem alten Profil-Tisch) | 2 |
+| `js/review/__tests__/garetien-import-sicht.test.js` | nachgezogen (nagelt das Ausleihen fest) | 2 |
 | `AGENTS.md` | §11-Eintrag „Der Kartenfächer" nachziehen | 7 |
 
 ---
@@ -76,7 +81,7 @@ argumentiert aus ihm, beide werden zusammen gelesen.
 
 **Schnittstellen:**
 - Liefert: den Token `--color-water` in `css/base/tokens.css`. Jede spätere Aufgabe, die Wasser
-  färbt (Aufgabe 2, der Topographie-Vektor), liest **diesen** Wert, nie `#6ec6ff`.
+  färbt (Aufgabe 3, der Topographie-Vektor), liest **diesen** Wert, nie `#6ec6ff`.
 
 - [ ] **Schritt 1: Den fehlschlagenden Test schreiben**
 
@@ -297,7 +302,416 @@ jeden Besucher der Standardansicht. Erst weiter, wenn er sie gesehen hat.
 
 ---
 
-## Aufgabe 2: Die vier neuen Vektoren, sichtbar im Mockup
+## Aufgabe 2: Ein Anzeigeprofil — alles an, und die Wahl des Nutzers schlägt es
+
+**Dateien:**
+- Ändern: `js/map-features/map-features-ecosystem-layer-switch.js` (Profil, Soll, Merker,
+  die drei Appliers)
+- Test: **neu** `js/map-features/__tests__/anzeigewahl-schlaegt-vorgabe.test.js`
+- Test: `js/map-features/__tests__/ecosystem-frontend-profil.test.js` (erweitert)
+
+**Schnittstellen:**
+- Liefert: `ecosystemAnzeigeSoll()` → `{orte: {…6 Klassen…}, wege, labels, grenzen, fluesse,
+  untergrund}` oder `null`. Aufgabe 8 liest daraus nur noch `untergrund`.
+
+🔴 **Diese Aufgabe ist vom Fächer völlig unabhängig** und geht für sich live. Sie ist auch die
+sichtbarste des ganzen Umbaus: die vier ruhigen Ebenen bekommen zum ersten Mal Orte, Wege, Labels,
+Grenzen und Gewässer.
+
+- [ ] **Schritt 1: Den fehlschlagenden Test schreiben**
+
+`js/map-features/__tests__/anzeigewahl-schlaegt-vorgabe.test.js` — das Modul wird **ausgeführt**,
+nicht gelesen. 🪤 Attrappen **ohne Proxy**: ein Proxy, der jeden Bezeichner beantwortet, verschluckt
+genau den Fehler, den dieser Test finden soll (die Lehre vom 03.09.2026, zwei Stunden ohne
+Beschriftungen auf der Live-Karte).
+
+```js
+// „Alles an in den Landschaften -- ausser der Nutzer will es anders" (Owner 09.09.2026).
+//
+//   node js/map-features/__tests__/anzeigewahl-schlaegt-vorgabe.test.js
+
+const assert = require("assert");
+const fs = require("fs");
+const path = require("path");
+const vm = require("vm");
+
+const ROOT = path.join(__dirname, "..", "..", "..");
+const quelle = fs.readFileSync(
+	path.join(ROOT, "js/map-features/map-features-ecosystem-layer-switch.js"), "utf8");
+
+const ORTSKLASSEN = ["metropole", "grossstadt", "stadt", "kleinstadt", "dorf", "gebaeude"];
+const HAKEN_IDS = ["togglePaths", "toggleMapLabels", "toggleTerritoryBorders", "toggleRivers"];
+
+/** Eine Welt, in der das Modul wirklich laeuft -- Attrappen mit genau den Namen, die es ruft. */
+function welt({ editor = false, ebene = "vegetation", drin = true } = {}) {
+	const haken = {};
+	const zuhoerer = {};
+	HAKEN_IDS.forEach((id) => {
+		haken[id] = {
+			id, checked: false, _hoerer: [],
+			addEventListener(art, fn) { if (art === "change") { this._hoerer.push(fn); } },
+			dispatchEvent(ereignis) { this._hoerer.forEach((fn) => fn(ereignis)); return true; }
+		};
+	});
+	const klassen = {};
+	ORTSKLASSEN.forEach((typ) => { klassen[typ] = false; });
+
+	const kontext = {
+		console,
+		document: {
+			getElementById: (id) => haken[id] || null,
+			addEventListener: (art, fn) => { (zuhoerer[art] = zuhoerer[art] || []).push(fn); },
+			querySelector: () => null,
+			documentElement: {}
+		},
+		window: { localStorage: { getItem: () => null, setItem: () => {} } },
+		Event: function (art, o) { this.type = art; this.bubbles = Boolean(o && o.bubbles); this.isTrusted = false; },
+		LOCATION_TYPE_VISIBILITY_ORDER: ORTSKLASSEN,
+		getLocationToggleButton: (typ) => ({
+			hasClass: () => klassen[typ] === true,
+			removeClass: () => { klassen[typ] = false; },
+			toggleClass: (_k, an) => { klassen[typ] = an === true; }
+		}),
+		syncLocationMarkerVisibility: () => {},
+		syncLocationToggleButtons: () => {},
+		syncPathVisibility: () => {},
+		isEcosystemLayerModeActive: () => drin,
+		canOperateEcosystemLayers: () => editor,
+		isEcosystemShowAllLayers: () => ebene === "alle",
+		getActiveEcosystemLayerKind: () => ebene,
+		map: null, baseTileLayer: null
+	};
+	kontext.globalThis = kontext;
+	vm.createContext(kontext);
+	vm.runInContext(quelle, kontext);
+	return { kontext, haken, klassen, zuhoerer };
+}
+
+// ---- 1. Ein Profil, und es steht auf ALLES AN ----------------------------------------------------
+const besucher = welt();
+const soll = besucher.kontext.ecosystemAnzeigeSoll();
+assert.ok(soll, "der Besucher bekommt ein Soll");
+assert.strictEqual(soll.wege, true, "Wege an");
+assert.strictEqual(soll.labels, true, "Labels an");
+assert.strictEqual(soll.grenzen, true, "Grenzen an");
+assert.strictEqual(soll.fluesse, true, "Fluesse und Seen an");
+assert.strictEqual(soll.untergrund, 0, "Untergrund aus");
+ORTSKLASSEN.forEach((typ) => {
+	assert.strictEqual(soll.orte[typ], true, "Ortsklasse " + typ + " an -- bis hinunter zu"
+		+ " „Besondere Bauwerke/Staetten" (gebaeude), das ist die letzte der sechs.");
+});
+
+// ---- 2. Und zwar in JEDER Ebene -- die „ruhige Zeichenflaeche" ist gefallen -----------------------
+["alle", "derographisch", "vegetation", "topographie", "klima"].forEach((ebene) => {
+	const s = welt({ ebene }).kontext.ecosystemAnzeigeSoll();
+	assert.strictEqual(s.wege, true, "auch in " + ebene + " sind die Wege an");
+	assert.strictEqual(s.untergrund, 0, "und der Untergrund aus");
+});
+
+// ---- 3. Der Editor bekommt KEIN Profil -----------------------------------------------------------
+assert.strictEqual(welt({ editor: true }).kontext.ecosystemAnzeigeSoll(), null,
+	"der Editor behaelt seine leere Zeichenflaeche und seine Haken (Owner 09.09.2026)");
+assert.strictEqual(welt({ drin: false }).kontext.ecosystemAnzeigeSoll(), null,
+	"und ausserhalb der Landschaften wird gar nichts angefasst");
+
+// ---- 4. DIE TRAGENDE ZUSICHERUNG: unser eigenes Setzen ist KEINE Nutzerwahl -----------------------
+// 💣 Ohne sie schreibt das Anwenden der Vorgabe die Vorgabe als „Wahl" fest, und das Profil ist fuer
+// den Rest des Besuchs wirkungslos -- waehrend die Karte genau das zeigt, was die Vorgabe wollte.
+{
+	const w = welt();
+	w.kontext.syncEcosystemFrontendFeatures();
+	assert.strictEqual(w.kontext.ecosystemAnzeigeWahlGesetzt(), false,
+		"nach dem Anwenden der Vorgabe gibt es KEINE Nutzerwahl -- unsere eigenen Ereignisse"
+		+ " tragen isTrusted === false.");
+}
+
+// ---- 5. Eine echte Hand schon -- und sie schlaegt die Vorgabe ------------------------------------
+{
+	const w = welt();
+	w.kontext.syncEcosystemFrontendFeatures();
+	assert.strictEqual(w.haken.togglePaths.checked, true, "die Vorgabe hat die Wege angeschaltet");
+	w.haken.togglePaths.checked = false;
+	w.haken.togglePaths.dispatchEvent({ type: "change", isTrusted: true });
+	assert.strictEqual(w.kontext.ecosystemAnzeigeWahlGesetzt(), true, "jetzt gibt es eine Wahl");
+	assert.strictEqual(w.kontext.ecosystemAnzeigeSoll().wege, false, "und sie sagt: Wege aus");
+
+	// ...und ein Ebenenwechsel macht sie NICHT platt. Er wendet das Soll erneut an -- das IST
+	// seine Wahl, also ein Leerlauf.
+	w.kontext.syncEcosystemFrontendFeatures();
+	assert.strictEqual(w.haken.togglePaths.checked, false,
+		"der Ebenenwechsel laesst die Wege aus -- genau das war der Auftrag");
+}
+
+console.log("anzeigewahl-schlaegt-vorgabe.test.js: alle Zusicherungen gruen");
+```
+
+⚠️ `ecosystemAnzeigeWahlGesetzt()` ist ein winziger Leser (`() => ecosystemAnzeigeWahl !== null`),
+den das Modul nach `globalThis` gibt — **nicht** die Wahl selbst: ein Test, der den Merker direkt
+setzen könnte, prüft den Weg nicht mehr, der ihn setzen soll.
+
+- [ ] **Schritt 2: Test fahren, Fehlschlag sehen**
+
+Ausführen: `node js/map-features/__tests__/anzeigewahl-schlaegt-vorgabe.test.js`
+Erwartet: FAIL — `ecosystemAnzeigeSoll is not a function`.
+
+⚠️ Läuft das Modul im `vm`-Kontext gar nicht erst durch (fehlender globaler Name), **fehlt eine
+Attrappe** — sie wird ergänzt, und zwar mit dem echten Namen. Keine Proxy-Abkürzung.
+
+- [ ] **Schritt 3: Der Tisch fällt, ein Profil bleibt**
+
+Ersetzt `ECOSYSTEM_FRONTEND_PROFILE_RUHIG`, `ECOSYSTEM_FRONTEND_PROFILES` und `ECOSYSTEM_RIVER_KINDS`:
+
+```js
+// ---- Das Anzeigeprofil der Landschaften (Owner 09.09.2026) ----------------------------------------
+//
+// 🔴 EIN PROFIL FUER ALLE FUENF EBENEN. Owner: „auch die sollen in allen landschaftsansichten
+// default aktiviert und sichtbar sein". Damit faellt die „ruhige Zeichenflaeche", die vier der fuenf
+// Ebenen seit dem 05.08.2026 waren, und mit ihr DREI Tabellen: ECOSYSTEM_FRONTEND_PROFILES,
+// ECOSYSTEM_FRONTEND_PROFILE_RUHIG und ECOSYSTEM_RIVER_KINDS. Sie beantworteten alle dieselbe Frage
+// („was zeigt DIESE Ebene"), und die gibt es nicht mehr.
+// 💣 Eine Tabelle mit fuenf gleichen Zeilen waere schlimmer als keine: sie liest sich wie eine
+// getroffene Entscheidung und laedt zum Differenzieren ein, das hier ausdruecklich nicht gewollt ist.
+//
+// 🔴 NUR DER BESUCHER. Der Editor bekommt weiterhin GAR KEIN Profil -- er hat seine Haken und seinen
+// Untergrund-Regler gleich daneben, und ein Profil legte sich ueber seine eigene Wahl.
+const ECOSYSTEM_FRONTEND_PROFIL = Object.freeze({
+	orte: true, wege: true, labels: true, grenzen: true, fluesse: true, untergrund: 0,
+});
+
+function ecosystemFrontendProfile() {
+	if (typeof isEcosystemLayerModeActive !== "function" || !isEcosystemLayerModeActive()) {
+		return null;
+	}
+	if (canOperateEcosystemLayers()) {
+		return null;
+	}
+	return ECOSYSTEM_FRONTEND_PROFIL;
+}
+```
+
+- [ ] **Schritt 4: Soll, Leser und Merker**
+
+```js
+// Die zehn Schalter, um die es geht: die vier Zeilen der Gruppe „Ebenen" im Anzeige-Menue und die
+// sechs Ortsklassen. 🔴 Die Ortsklassen kommen aus LOCATION_TYPE_VISIBILITY_ORDER, nie abgeschrieben
+// -- die letzte heisst `gebaeude` und traegt im Menue die Beschriftung „Besondere Bauwerke/Staetten".
+const ECOSYSTEM_ANZEIGE_HAKEN = Object.freeze({
+	wege: "togglePaths",
+	labels: "toggleMapLabels",
+	grenzen: "toggleTerritoryBorders",
+	fluesse: "toggleRivers",
+});
+
+// Die Lage, die der Besucher INNERHALB der Landschaften selbst hergestellt hat. `null` = er hat noch
+// keine getroffen.
+// 🔴 SIE GILT FUER DEN GANZEN BESUCH (Owner 09.09.2026) -- ueber Ebenenwechsel UND ueber das
+// Verlassen und Wiederbetreten der Landschaften hinweg. Kein localStorage: ein Neuladen faengt
+// wieder mit der Vorgabe an, sonst bekaeme jemand, der einmal etwas abschaltet, es nie wieder zu
+// sehen, ohne es selbst zu suchen.
+// 💣 SIE IST NICHT DAS AUSLEIH-GEDAECHTNIS. ecosystemSettlementMemory und ecosystemRiverMemory
+// beantworten „was hatte er VOR den Landschaften" und geben es beim Verlassen zurueck; diese hier
+// beantwortet „was will er IN den Landschaften". Zwei Fragen, zwei Merker -- zusammengelegt faellt
+// eine von beiden Antworten weg.
+let ecosystemAnzeigeWahl = null;
+
+function ecosystemAnzeigeLesen() {
+	const stand = { orte: {}, untergrund: 0 };
+	Object.keys(ECOSYSTEM_ANZEIGE_HAKEN).forEach((feld) => {
+		const haken = document.getElementById(ECOSYSTEM_ANZEIGE_HAKEN[feld]);
+		stand[feld] = Boolean(haken && haken.checked);
+	});
+	LOCATION_TYPE_VISIBILITY_ORDER.forEach((typ) => {
+		stand.orte[typ] = getLocationToggleButton(typ).hasClass("is-active") === true;
+	});
+	return stand;
+}
+
+/**
+ * Was JETZT gelten soll: die Wahl des Besuchers, sobald er eine getroffen hat -- sonst die Vorgabe.
+ *
+ * ⭐ Und genau deshalb braucht es kein „nur beim Betreten anwenden". Die Appliers haengen an
+ * syncEcosystemPaneStates und laufen bei jedem Ebenenwechsel; frueher haetten sie damit die Wahl
+ * des Nutzers plattgemacht. Jetzt schreiben sie SEINE Lage zurueck -- ein Leerlauf, denn jeder
+ * Applier steigt bei `checked === soll` aus, ohne ein Ereignis zu feuern.
+ */
+function ecosystemAnzeigeSoll() {
+	const profil = ecosystemFrontendProfile();
+	if (!profil) {
+		return null;
+	}
+	if (ecosystemAnzeigeWahl) {
+		return ecosystemAnzeigeWahl;
+	}
+	// Die Vorgabe in DIE Form bringen, in der auch die Nutzerwahl steht -- eine Form, ein Leser.
+	const orte = {};
+	LOCATION_TYPE_VISIBILITY_ORDER.forEach((typ) => { orte[typ] = profil.orte === true; });
+	return {
+		orte, wege: profil.wege, labels: profil.labels, grenzen: profil.grenzen,
+		fluesse: profil.fluesse, untergrund: profil.untergrund
+	};
+}
+
+/** Nur fuer den Test: gibt es eine Wahl? (Die Wahl selbst bleibt drinnen -- ein Test, der sie
+ *  setzen koennte, prueft den Weg nicht mehr, der sie setzen soll.) */
+function ecosystemAnzeigeWahlGesetzt() {
+	return ecosystemAnzeigeWahl !== null;
+}
+
+/**
+ * 💣 NUR EINE ECHTE HAND ZAEHLT. `dispatchEvent` liefert `isTrusted === false` -- und genau so setzt
+ * diese Datei ihre Haken selbst (das Ereignis ist Pflicht, die Zeichner haengen daran). Ohne diese
+ * Frage schriebe das Anwenden der Vorgabe die Vorgabe als „Nutzerwahl" fest; ab da waere das Profil
+ * fuer den Rest des Besuchs wirkungslos, UND ES SAEHE RICHTIG AUS -- die Karte zeigt ja genau, was
+ * die Vorgabe wollte. Auffallen wuerde es erst beim zweiten Betreten.
+ * ⚠️ Der Zuhoerer haengt per addEventListener dran, NICHT per jQuery: nur so ist `isTrusted` das
+ * native Feld und nicht das, was eine Normalisierungsschicht daraus macht.
+ * ⚠️ Er haelt auch gegen die anderen programmatischen Schreiber dieser Haken (URL-Persistenz
+ * ?togglePaths=0, applyFrontendLayerModeDefaults) -- die sind ebenfalls keine Hand.
+ */
+function ecosystemAnzeigeWahlMerken(ereignis) {
+	if (!ereignis || ereignis.isTrusted !== true) {
+		return;
+	}
+	if (typeof isEcosystemLayerModeActive !== "function" || !isEcosystemLayerModeActive()) {
+		return;
+	}
+	if (canOperateEcosystemLayers()) {
+		return;   // die Wahl gehoert dem Besucher; der Editor hat seine eigenen Haken
+	}
+	ecosystemAnzeigeWahl = ecosystemAnzeigeLesen();
+}
+
+function bindEcosystemAnzeigeWahl() {
+	Object.keys(ECOSYSTEM_ANZEIGE_HAKEN).forEach((feld) => {
+		const haken = document.getElementById(ECOSYSTEM_ANZEIGE_HAKEN[feld]);
+		if (haken) {
+			haken.addEventListener("change", ecosystemAnzeigeWahlMerken);
+		}
+	});
+	// ⚠️ Die Ortsklassen sind KEINE Checkboxen, sondern jQuery-Knoepfe mit `is-active` -- ein
+	// programmatisches toggleClass feuert dort ohnehin nichts. Gehorcht wird deshalb dem Klick.
+	// ⚠️ Und im naechsten Takt gelesen: der eigene Handler des Knopfes setzt die Klasse erst.
+	document.addEventListener("click", (ereignis) => {
+		const knopf = ereignis.target && ereignis.target.closest
+			? ereignis.target.closest(".location-toggle") : null;
+		if (!knopf) {
+			return;
+		}
+		const vertrauenswuerdig = ereignis.isTrusted === true;
+		setTimeout(() => ecosystemAnzeigeWahlMerken({ isTrusted: vertrauenswuerdig }), 0);
+	});
+}
+```
+
+`bindEcosystemAnzeigeWahl()` wird dort gerufen, wo heute `bindEcosystemLayerSwitch()` steht
+(`syncEcosystemControlsVisibility`) — beide sind idempotent zu halten.
+
+- [ ] **Schritt 5: Die drei Appliers auf das Soll umstellen**
+
+`syncEcosystemFrontendFeatures()` — liest `ecosystemAnzeigeSoll()` statt `ecosystemFrontendProfile()`
+und bekommt `labels` dazu:
+
+```js
+	const soll = ecosystemAnzeigeSoll();
+	if (!soll) {
+		return;
+	}
+	const wege = ecosystemSetzeAnzeigeHaken("togglePaths", soll.wege);
+	ecosystemSetzeAnzeigeHaken("toggleMapLabels", soll.labels);
+	ecosystemSetzeAnzeigeHaken("toggleTerritoryBorders", soll.grenzen);
+	if (wege && typeof syncPathVisibility === "function") {
+		syncPathVisibility();
+	}
+```
+
+`syncEcosystemSettlementVisibility(inLayer)` — bekommt den dritten Zustand „leihen **und setzen**":
+
+```js
+	// 🔴 SEIT 09.09.2026 WERDEN DIE ORTE AKTIV EINGESCHALTET, nicht nur „nicht weggenommen". Bis
+	// dahin fragte diese Funktion allein, ob sie ZURUECKTRETEN sollen -- fuer „Alle" tat sie schlicht
+	// nichts, und der Besucher sah dort, was er ohnehin eingestellt hatte. Fuer „default aktiviert
+	// und sichtbar" (Owner) reicht das nicht.
+	const soll = Boolean(inLayer) ? ecosystemAnzeigeSoll() : null;
+	if (soll) {
+		// Nur beim EINTRETEN merken -- diese Funktion laeuft auch mitten im Modus (etwa wenn die
+		// Rechteauskunft eintrifft), und ein zweites Merken schriebe die bereits gesetzte Lage fest.
+		if (ecosystemSettlementMemory === null) {
+			ecosystemSettlementMemory = LOCATION_TYPE_VISIBILITY_ORDER.map(
+				(typ) => getLocationToggleButton(typ).hasClass("is-active")
+			);
+		}
+		LOCATION_TYPE_VISIBILITY_ORDER.forEach((typ) => {
+			getLocationToggleButton(typ).toggleClass("is-active", soll.orte[typ] === true);
+		});
+	} else {
+		if (ecosystemSettlementMemory === null) {
+			return;   // nichts geliehen -- dann gibt es auch nichts zurueckzugeben
+		}
+		LOCATION_TYPE_VISIBILITY_ORDER.forEach((typ, index) => {
+			getLocationToggleButton(typ).toggleClass("is-active", ecosystemSettlementMemory[index] === true);
+		});
+		ecosystemSettlementMemory = null;
+	}
+```
+
+⚠️ Der **Editor** fällt hier jetzt in den `else`-Zweig (`ecosystemAnzeigeSoll()` gibt ihm `null`) und
+bekommt damit seine Haken zurück, statt die leere Fläche zu behalten. **Das ist ein Verhaltenswechsel
+und nicht bestellt** — der Editor-Zweig muss erhalten bleiben: `soll === null && inLayer && Editor`
+heißt weiterhin „zurücktreten". Bau die Bedingung so, dass die drei Fälle getrennt bleiben
+(Besucher-drin / Editor-drin / draußen), und belege alle drei im Test.
+
+`syncEcosystemRiverVisibility()` — `soll` kommt aus `ecosystemAnzeigeSoll().fluesse` statt aus
+`ECOSYSTEM_RIVER_KINDS`; Ausleihen und Rückgabe bleiben Wort für Wort.
+
+`applyEcosystemUndergroundOpacity(active)` — liest `ecosystemAnzeigeSoll()?.untergrund`.
+
+- [ ] **Schritt 6: Tests fahren**
+
+```bash
+node js/map-features/__tests__/anzeigewahl-schlaegt-vorgabe.test.js
+node js/map-features/__tests__/ecosystem-frontend-profil.test.js
+node js/map-features/__tests__/ecosystem-access.test.js
+node js/review/__tests__/garetien-import-sicht.test.js
+```
+
+⚠️ Die letzten drei sind **fremde** Tests, die auf dem alten Profil-Tisch stehen
+(`ecosystemFrontendProfile()` mit `orte: false`, das Ausleih-Gedächtnis). Sie werden **nachgezogen,
+nicht gelöscht** — ihre Begründungen bleiben wörtlich stehen, nur die erwarteten Werte wandern.
+
+- [ ] **Schritt 7: Gegen Mutationen fahren**
+
+1. `ereignis.isTrusted !== true` → `false` (Zusicherung 4 muss fangen).
+2. `orte: true` → `false` im Profil.
+3. `labels: true` aus dem Profil entfernen.
+4. `ecosystemAnzeigeWahl` in `ecosystemAnzeigeSoll()` ignorieren (Zusicherung 5).
+5. Im Editor-Zweig `canOperateEcosystemLayers()` streichen (Zusicherung 3).
+6. `toggleClass("is-active", soll.orte[typ] === true)` → `removeClass("is-active")` (Zusicherung 1
+   über den ausgeführten Applier — fängt sie es nicht, fehlt dem Test ein Fall).
+
+- [ ] **Schritt 8: Im Browser messen, was nicht behauptet werden darf**
+
+🪤 **`isTrusted` bei einem Klick auf die `<label>`-Zeile wird GEMESSEN, nicht angenommen.** Auf der
+Live-Seite (oder lokal) in der Konsole:
+
+```js
+document.getElementById("togglePaths").addEventListener("change", (e) => console.log("isTrusted", e.isTrusted));
+```
+
+Dann (a) die Label-Zeile im Anzeige-Menü anklicken, (b) mit der Tastatur umschalten, (c)
+`document.getElementById("togglePaths").dispatchEvent(new Event("change"))`.
+Erwartet: `true`, `true`, `false`. **Kommt bei (a) `false`, fällt `isTrusted` als Weiche aus** —
+dann ein Riegel um das eigene Schreiben (`ecosystemAnzeigeSchreibtSelbst`), und an ihn gehört der
+Kommentar, warum nicht `isTrusted`.
+
+- [ ] **Schritt 9: Ganzes Testfeld, commit + push, Owner-Blick**
+
+Betreff: `ui(landschaften): Orte, Wege, Labels, Grenzen und Gewaesser sind in allen Ebenen an`.
+
+**Owner-Blick.** Die vier ruhigen Ebenen sehen zum ersten Mal völlig anders aus.
+
+---
+
+## Aufgabe 3: Die vier neuen Vektoren, sichtbar im Mockup
 
 **Dateien:**
 - Ändern: `js/ui/map-layer-picker.js` (`OVERLAYS` bekommt vier Einträge)
@@ -308,7 +722,7 @@ jeden Besucher der Standardansicht. Erst weiter, wenn er sie gesehen hat.
 **Schnittstellen:**
 - Liefert: `OVERLAYS.eco_derographisch`, `OVERLAYS.eco_vegetation`, `OVERLAYS.eco_topographie`,
   `OVERLAYS.eco_klima` — Strings mit SVG-Inhalt ohne `<svg>`-Hülle, wie die bestehenden Einträge.
-  Aufgabe 4 liest sie über `ebenenVektor(kind)`.
+  Aufgabe 5 liest sie über `ebenenVektor(kind)`.
 - Verbraucht: `--color-water` aus Aufgabe 1 (der Topographie-Vektor führt `#4c89c6`).
 
 🔴 **„Alle" bekommt KEINEN eigenen Vektor** (Owner 09.09.2026) — es nimmt `OVERLAYS.ecosystem`.
@@ -522,7 +936,7 @@ Betreff: `ui(kartenfaecher): vier Vektoren fuer die Landschafts-Ebenen -- im Moc
 
 ---
 
-## Aufgabe 3: Die Stufe wird ein Bauteil (reiner Innenumbau)
+## Aufgabe 4: Die Stufe wird ein Bauteil (reiner Innenumbau)
 
 **Dateien:**
 - Ändern: `js/ui/map-layer-picker.js` (`start()`)
@@ -530,7 +944,7 @@ Betreff: `ui(kartenfaecher): vier Vektoren fuer die Landschafts-Ebenen -- im Moc
 
 **Schnittstellen:**
 - Liefert: `macheStufe(einstellungen) -> { element, zeigeFuer, schliesse, spaeterSchliessen, istOffen, quelleWert }`
-  — Aufgabe 5 montiert damit die dritte Stufe.
+  — Aufgabe 6 montiert damit die dritte Stufe.
   - `einstellungen.klasse` (String) — zusätzliche CSS-Klasse der Reihe
   - `einstellungen.ariaLabel` (String)
   - `einstellungen.quelleContainer` (Element **oder** `() => Element`) — worin die Quellzelle liegt
@@ -620,7 +1034,7 @@ In `js/ui/__tests__/map-layer-picker.test.js`:
 
 ```js
 // ---- Die Stufe ist ein Bauteil, keine Abschrift (09.09.2026) --------------------------------------
-// 💣 Sie wird ZWEIMAL montiert (Untergrund, und ab Aufgabe 5 die Ebenen). Eine zweite, abgeschriebene
+// 💣 Sie wird ZWEIMAL montiert (Untergrund, und ab Aufgabe 6 die Ebenen). Eine zweite, abgeschriebene
 // Instanz waere die siebte Listenzeilen-Rezeptur dieses Hauses -- derselbe Fehler, den AGENTS.md §11
 // fuer die Listenzeilen und die Wiki-Zuweisung zweimal protokolliert.
 assert.ok(/function\s+macheStufe\s*\(/.test(js),
@@ -648,7 +1062,7 @@ Betreff: `refactor(kartenfaecher): die Untermenue-Stufe wird ein Bauteil -- Verh
 
 ---
 
-## Aufgabe 4: Stufe 2 zeigt bei „Landschaften" die fünf Ebenen
+## Aufgabe 5: Stufe 2 zeigt bei „Landschaften" die fünf Ebenen
 
 **Dateien:**
 - Ändern: `js/ui/map-layer-picker.js`
@@ -656,10 +1070,10 @@ Betreff: `refactor(kartenfaecher): die Untermenue-Stufe wird ein Bauteil -- Verh
 - Test: **neu** `js/ui/__tests__/landschaften-untermenue.test.js`
 
 **Schnittstellen:**
-- Verbraucht: `macheStufe` (Aufgabe 3), `OVERLAYS.eco_*` (Aufgabe 2)
+- Verbraucht: `macheStufe` (Aufgabe 4), `OVERLAYS.eco_*` (Aufgabe 3)
 - Liefert: `ebenen()` → `[{wert,name,gesperrt}]` mit `wert` ∈
   `alle|derographisch|vegetation|topographie|klima`; `aktiveEbene()`; `waehleEbene(wert)`.
-  Aufgabe 5 hängt die dritte Stufe unter diese Zellen.
+  Aufgabe 6 hängt die dritte Stufe unter diese Zellen.
 
 🔴 **Der Zustand bleibt die Reiterleiste.** `ebenen()` liest die Reiter
 `#ecosystem-layer-switch [data-ecosystem-kind]` und `[data-ecosystem-show-all]` — genau wie
@@ -743,7 +1157,7 @@ In `js/ui/map-layer-picker.js`:
 	 * Reiterleiste `#ecosystem-layer-switch`. Sie IST der Zustand -- setActiveEcosystemLayerKind
 	 * schreibt ihn, das localStorage merkt ihn, syncEcosystemLayerSwitchControls stempelt die
 	 * aria-Zustaende. Eine zweite Liste hier liefe beim naechsten Ebenentyp auseinander.
-	 * 🔴 Die Leiste bleibt im DOM, auch wenn der Besucher sie nicht sieht (Aufgabe 7). Wer sie fuer
+	 * 🔴 Die Leiste bleibt im DOM, auch wenn der Besucher sie nicht sieht (Aufgabe 8). Wer sie fuer
 	 * ihn aus dem Markup naehme, muesste den ganzen Ebenenzustand ein zweites Mal bauen.
 	 */
 	function ebenenReiter() {
@@ -886,14 +1300,14 @@ Betreff: `feat(kartenfaecher): die zweite Stufe zeigt bei Landschaften die fuenf
 
 ---
 
-## Aufgabe 5: Die zweite Zeile der Kachel und der Zuhörer dahinter
+## Aufgabe 6: Die zweite Zeile der Kachel und der Zuhörer dahinter
 
 **Dateien:**
 - Ändern: `js/ui/map-layer-picker.js` (`zelle()`, Zuhörer am Ende von `start()`)
 - Test: `js/ui/__tests__/landschaften-untermenue.test.js` (erweitert)
 
 **Schnittstellen:**
-- Verbraucht: `aktiveEbene()`, `stufeZuAnsicht()` aus Aufgabe 4.
+- Verbraucht: `aktiveEbene()`, `stufeZuAnsicht()` aus Aufgabe 5.
 
 💣 **DIESE AUFGABE IST DIE, DIE MAN VERGISST.** Der Fächer zeichnet sich neu, wenn die Ansicht
 wechselt (MutationObserver auf `#mapLayerModeLabel`) **und** wenn der Untergrund wechselt (`change`
@@ -976,7 +1390,7 @@ Betreff: `feat(kartenfaecher): die Kachel nennt bei Landschaften die Ebene statt
 
 ---
 
-## Aufgabe 6: Die dritte Stufe — der Untergrund für Editoren
+## Aufgabe 7: Die dritte Stufe — der Untergrund für Editoren
 
 **Dateien:**
 - Ändern: `js/ui/map-layer-picker.js`
@@ -985,7 +1399,7 @@ Betreff: `feat(kartenfaecher): die Kachel nennt bei Landschaften die Ebene statt
 - Test: `js/ui/__tests__/landschaften-untermenue.test.js` (erweitert)
 
 **Schnittstellen:**
-- Verbraucht: `macheStufe` (Aufgabe 3), `stufeEbenen` (Aufgabe 4)
+- Verbraucht: `macheStufe` (Aufgabe 4), `stufeEbenen` (Aufgabe 5)
 
 🔴 **Nur im Bearbeiten-Modus**, und der Riegel fällt **geschlossen** aus: ohne die Auskunft keine
 dritte Stufe. Der Untergrund steht für Besucher auf 0 %; ein Menü, das etwas Unsichtbares wählt,
@@ -1089,28 +1503,24 @@ Betreff: `feat(kartenfaecher): dritte Stufe -- der Untergrund unter einer Landsc
 
 ---
 
-## Aufgabe 7: Die Leiste verschwindet für Besucher, der Untergrund fällt auf 0 %
+## Aufgabe 8: Die Leiste verschwindet für Besucher
 
 **Dateien:**
-- Ändern: `js/map-features/map-features-ecosystem-layer-switch.js` (`ECOSYSTEM_FRONTEND_PROFILE_RUHIG`, `syncEcosystemControlsVisibility`)
+- Ändern: `js/map-features/map-features-ecosystem-layer-switch.js` (`syncEcosystemControlsVisibility`)
 - Ändern: `js/ui/map-layer-picker.js` (`GRUND_DECKKRAFT.ecosystem`)
 - Ändern: `tools/bau-ansicht-untergrund-mockup.js` + Mockup neu erzeugen
 - Test: `js/map-features/__tests__/ecosystem-frontend-profil.test.js` (erweitert)
 - Ändern: `AGENTS.md` (§11-Eintrag „Der Kartenfächer")
+
+⭐ Der Untergrund steht seit **Aufgabe 2** auf 0 % (er ist Teil des einen Profils) — hier fällt nur
+noch die Vorschau im Fächer nach und die Leiste geht für Besucher weg.
 
 - [ ] **Schritt 1: Die fehlschlagenden Zusicherungen ergänzen**
 
 In `js/map-features/__tests__/ecosystem-frontend-profil.test.js`:
 
 ```js
-// ---- Alle fuenf Ebenen ohne Untergrund (Owner 09.09.2026) ----------------------------------------
-// 🔴 „Der Wechsel des Untergrunds soll keine Rolle mehr spielen, weil der Untergrund mit 0 %
-// Sichtbarkeit ausgeblendet werden soll." Bis hierher galt 0 % nur fuer „Alle"; die vier anderen
-// standen auf 25 % -- damit blieb der Untergrund fuer den Besucher sichtbar wirksam.
-assert.ok(/ECOSYSTEM_FRONTEND_PROFILE_RUHIG\s*=\s*Object\.freeze\(\{[^}]*untergrund:\s*0/.test(quelle),
-	"die ruhigen Ebenen tragen 0 % Untergrund");
-
-// ⚠️ Und die Kacheln werden dabei ABGEHAENGT, nicht nur ausgeblendet -- Leaflet fordert sonst
+// ⚠️ Die Kacheln werden bei 0 % ABGEHAENGT, nicht nur ausgeblendet -- Leaflet fordert sonst
 // Bilder an, die niemand sieht.
 assert.ok(/syncEcosystemBaseTiles\(!\(active && percent <= 0\)\)/.test(quelle),
 	"bei 0 % gar nicht erst laden");
@@ -1126,23 +1536,12 @@ assert.ok(/controlsElement\.hidden\s*=\s*!shouldShow/.test(quelle),
 
 - [ ] **Schritt 2: Test fahren, Fehlschlag sehen**
 
-- [ ] **Schritt 3: Die drei Werte umstellen**
-
-```js
-const ECOSYSTEM_FRONTEND_PROFILE_RUHIG = Object.freeze({
-	// 🔴 UNTERGRUND 0 % IN ALLEN FUENF EBENEN (Owner 09.09.2026). Bis dahin trugen die vier ruhigen
-	// Ebenen 25 % -- damit war der Untergrund fuer den Besucher sichtbar wirksam, und die Wahl
-	// zwischen Original und Modern haette weiter etwas bedeutet. Seit die Ebenen im Kartenfaecher
-	// stehen, gibt es diese Wahl dort nicht mehr; 0 % ist die einzige Lesart, in der das stimmt.
-	// ⭐ Nebenbei: die Kachelebene wird abgehaengt, es faellt also ein Abruf je Zoomschritt weg.
-	orte: false, wege: false, grenzen: false, untergrund: 0,
-});
-```
+- [ ] **Schritt 3: Die zwei Werte umstellen**
 
 ⚠️ `ECOSYSTEM_UNDERGROUND_FRONTEND = 25` **prüfen, nicht blind löschen**: erst alle Leser suchen
 (`grep -n ECOSYSTEM_UNDERGROUND_FRONTEND`). Bleibt sie der Rückfall in
-`applyEcosystemUndergroundOpacity`, bleibt sie stehen — dann aber mit einem Kommentar, der sagt,
-dass sie nur noch den Fall „kein Profil" bedient.
+`applyEcosystemUndergroundOpacity` für den Fall „kein Soll", bleibt sie stehen — dann aber mit einem
+Kommentar, der genau das sagt.
 
 In `syncEcosystemControlsVisibility`, neben dem Untergrund-Regler:
 
@@ -1182,9 +1581,9 @@ node js/map-features/__tests__/ecosystem-frontend-profil.test.js && node js/ui/_
 
 - [ ] **Schritt 5: Gegen Mutationen fahren**
 
-1. `untergrund: 0` → `untergrund: 25`.
-2. `layerRow.hidden = !operable` → `= !shouldShow`.
-3. `controlsElement.hidden = !shouldShow` → `= !operable` (nimmt die Abschalt-Meldung mit).
+1. `layerRow.hidden = !operable` → `= !shouldShow`.
+2. `controlsElement.hidden = !shouldShow` → `= !operable` (nimmt die Abschalt-Meldung mit).
+3. `GRUND_DECKKRAFT.ecosystem` zurück auf `0.25` (die Vorschau lügt dann über die Karte).
 
 - [ ] **Schritt 6: AGENTS.md nachziehen**
 
@@ -1237,8 +1636,9 @@ es schlimmer (steht als Warnung in genau dieser Datei, `map-layer-picker.js`, zw
 
 ## Selbstprüfung des Plans
 
-**Entwurfsabdeckung:** §1 Stufen → Aufgaben 3–6 · §1 zweite Zeile → Aufgabe 5 · §2 Zustand →
-Aufgabe 4 · §3 Untergrund 0 % → Aufgabe 7 · §4 Vektoren → Aufgabe 2 · §5 Wasserton → Aufgabe 1 ·
+**Entwurfsabdeckung:** §1 Stufen → Aufgaben 4–7 · §1 zweite Zeile → Aufgabe 6 · §2 Zustand →
+Aufgabe 5 · §3.1 alles an + §3.2 Untergrund 0 % + §3.3 Nutzerwahl → Aufgabe 2 · §3.2 Vorschau im
+Fächer + Leiste verstecken → Aufgabe 8 · §4 Vektoren → Aufgabe 3 · §5 Wasserton → Aufgabe 1 ·
 §6 „nicht dazu" → nirgends gebaut · §7 Tests → je Aufgabe · §8 offene Punkte → bleiben offen.
 
 **Namensgleichheit:** `macheStufe` (3) wird in 4 und 6 mit derselben Signatur gerufen;
@@ -1246,5 +1646,5 @@ Aufgabe 4 · §3 Untergrund 0 % → Aufgabe 7 · §4 Vektoren → Aufgabe 2 · �
 `stufeEbenen`/`stufeUntergrund` heißen durchgehend so; `--color-water` (1) wird in 2 gelesen.
 
 **Offen, bewusst:** ob die fünf Ebenenzellen am Telefon in eine oder zwei Reihen gehören,
-entscheidet der Blick am Gerät (Aufgabe 6, Schritt 6) — die Media Query ist vorbereitet, die Wahl
+entscheidet der Blick am Gerät (Aufgabe 7, Schritt 6) — die Media Query ist vorbereitet, die Wahl
 nicht getroffen.

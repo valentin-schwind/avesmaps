@@ -6,19 +6,31 @@ Vegetation · Topographie · Klimazonen") verschwindet für Besucher und wird zu
 Landschaften ohnehin auf 0 % steht. Editoren behalten die Leiste **und** bekommen den erweiterten
 Fächer. Dazu: Flüsse und Seen tragen denselben Wasserton, den der SVG-Abzug längst führt.
 
+**Nachtrag vom selben Tag:** Orte, Wege, Labels, Grenzen und Gewässer sind in allen fünf Ebenen
+an — und die eigene Wahl des Besuchers schlägt diese Vorgabe (§3). Damit fällt die „ruhige
+Zeichenfläche", die vier der fünf Ebenen seit dem 05.08.2026 waren.
+
 Vorgänger-Entwürfe, die dieser hier fortschreibt (nicht ersetzt):
 `2026-08-11-ansichts-kacheln-design.md` (die Kachel) und
 `2026-08-26-ansicht-untergrund-kreuzen-design.md` (die zweite Stufe).
 Mockup: `docs/ansicht-untergrund-mockup.html` — **Build-Produkt** aus
 `tools/bau-ansicht-untergrund-mockup.js`, wird erweitert, nicht durch ein zweites ersetzt.
 
-## 0 · Die vier Owner-Entscheide dieses Tages
+## 0 · Die Owner-Entscheide dieses Tages
 
 1. Untergrund im Frontend: **alle fünf Ebenen auf 0 %** (heute nur „Alle"; die vier anderen 25 %).
 2. Der Untergrund bleibt für Editoren erreichbar — als **dritte Stufe** im Fächer.
 3. Der Wasserton **#4c89c6 gilt in allen Ansichten**, nicht nur in den Landschaften.
 4. „Fluss als Kontur" heißt: **#4c89c6 ist die Linienfarbe des Flusses**; die weiße Umrandung
    bleibt im Bearbeiten-Modus zusätzlich darum, samt Strömungspfeilen.
+5. **Das Meer bleibt anders** — es bekommt den Wasserton ausdrücklich nicht (§5).
+6. **Orte, Wege, Labels, Grenzen und Gewässer sind in allen fünf Ebenen an** (§3) —
+7. **…und die eigene Wahl des Besuchers schlägt diese Vorgabe, für den ganzen Besuch** (§3.3).
+8. Der **Editor** behält in den Landschaften seine leere Zeichenfläche (§3.3).
+
+⚠️ Hier steht bewusst keine Zahl im Titel. Die Liste ist an einem Tag von vier auf acht gewachsen,
+und eine Zahl in einer Überschrift liest sich wie eine vollständige Liste — dieses Repo protokolliert
+mehrfach, was das kostet.
 
 ## 1 · Drei Stufen, eine Regel
 
@@ -112,18 +124,112 @@ wie den Editor. Der Untergrund-Regler und der Stapel-Knopf darin sind bereits ed
 Bewegung für eine Kombination. Steht die Karte noch nicht auf „Landschaften", geht der Weg über
 `#mapLayerModeSelect` (`change`), nicht über einen eigenen Aufruf.
 
-## 3 · Untergrund 0 % in allen fünf Ebenen
+## 3 · Die Landschaftsansicht zeigt alles — und die Wahl des Nutzers schlägt die Vorgabe
 
-`ECOSYSTEM_FRONTEND_PROFILE_RUHIG.untergrund` fällt von 25 auf 0. Damit gilt für den Besucher in
-jeder Landschaftsansicht, was heute nur „Alle" gilt: die Kachelebene wird **abgehängt**, nicht nur
-ausgeblendet (`syncEcosystemBaseTiles`) — Leaflet fordert sonst Bilder an, die niemand sieht.
-⭐ Nebenbei ein Wegfall von Kachelabrufen in vier von fünf Ebenen.
+**Owner-Nachtrag vom 09.09.2026:** „auch die sollen in allen landschaftsansichten default aktiviert
+und sichtbar sein - aber ausgeblendet werden, wenn der front-end nutzer aktiv was anderes tut
+(anzeige)."
 
-Übrig bleibt `--color-ecosystem-underground` (#d3cec2), darauf die Flächen.
+### 3.1 Was beim Betreten an ist
 
-🔴 **Der Editor behält Regler und Kacheln.** `ecosystemFrontendProfile()` gibt für ihn weiterhin
-`null` zurück — „hier wird nichts angefasst". Diese Unterscheidung ist die Begründung der ganzen
-Tabelle und bleibt unberührt.
+Genau die zehn Schalter des Anzeige-Menüs, die der Owner aufgezählt hat — die sechs Ortsklassen und
+die vier Zeilen der Gruppe „Ebenen":
+
+| | Schalter |
+|---|---|
+| Orte | `metropole` · `grossstadt` · `stadt` · `kleinstadt` · `dorf` · `gebaeude` |
+| Ebenen | `togglePaths` · `toggleMapLabels` · `toggleTerritoryBorders` · `toggleRivers` |
+
+⭐ **„bis zu besondere Bauwerke/Stätten" ist keine eigene Objektart**, sondern die Beschriftung der
+letzten Ortsklasse `gebaeude` (`index.html`, `data-location-type="gebaeude"`). Es sind also alle
+sechs, und die Liste ist `LOCATION_TYPE_VISIBILITY_ORDER` — nicht abgeschrieben.
+
+🔴 **Damit stirbt die „ruhige Zeichenfläche".** Bis heute galt sie für vier der fünf Ebenen
+(`ECOSYSTEM_FRONTEND_PROFILE_RUHIG`: Orte, Wege und Grenzen ausdrücklich aus, Untergrund 25 %) und
+nur „Alle" zeigte die volle Karte. Der Nachtrag hebt den Unterschied auf: **alle fünf Ebenen
+bekommen dasselbe Profil.**
+
+💣 **Und dann fällt der Tisch, statt mit fünf gleichen Zeilen stehenzubleiben.**
+`ECOSYSTEM_FRONTEND_PROFILES` + `ECOSYSTEM_FRONTEND_PROFILE_RUHIG` + `ECOSYSTEM_RIVER_KINDS` waren
+drei Tabellen für die Frage „was zeigt DIESE Ebene". Die Frage gibt es nicht mehr. Eine Tabelle mit
+überall gleichen Werten liest sich wie eine Entscheidung, die jemand getroffen hat, und lädt zum
+Differenzieren ein, das hier ausdrücklich nicht gewollt ist. Übrig bleibt **ein** Profil:
+
+```js
+{ orte: true, wege: true, labels: true, grenzen: true, fluesse: true, untergrund: 0 }
+```
+
+### 3.2 Untergrund 0 % in allen fünf Ebenen
+
+Die Kachelebene wird **abgehängt**, nicht nur ausgeblendet (`syncEcosystemBaseTiles`) — Leaflet
+fordert sonst Bilder an, die niemand sieht. ⭐ Nebenbei ein Wegfall von Kachelabrufen in vier von
+fünf Ebenen. Übrig bleibt `--color-ecosystem-underground` (#d3cec2), darauf die Flächen.
+
+### 3.3 Die Wahl des Nutzers gilt für den ganzen Besuch
+
+🔴 **Owner-Entscheid: für den ganzen Besuch, nicht nur bis zum Verlassen.** Sobald der Besucher
+INNERHALB der Landschaften einen der zehn Schalter selbst anfasst, gilt seine Lage — auch beim
+Wechsel der Ebene und beim Wiederbetreten der Landschaften. Die Vorgabe greift genau einmal je
+Besuch: beim ersten Betreten.
+
+⭐ Das ist keine neue Denkweise, sondern die Ausweitung einer, die schon dasteht. Am Fluss-Haken
+steht seit dem 23.08.2026: „Der Haken bleibt dabei benutzbar (Owner-Entscheid): der Wechsel setzt
+ihn, die nächste eigene Entscheidung sticht ihn — bis zum nächsten Wechsel." Genau dieses „bis zum
+nächsten Wechsel" fällt weg.
+
+💣 **DIE TRAGENDE FALLE: unser eigenes Setzen darf nicht als Nutzerwahl zählen.** Das Profil setzt
+`checked` und feuert `change` von Hand — daran hängen die Zeichner (`syncPathVisibility`, die
+Grenz-Leinwand). Ein Zuhörer, der jedes `change` als „der Nutzer hat gewählt" verbucht, schriebe im
+selben Zug die Vorgabe als Nutzerwahl fest; ab da wäre das Profil für den Rest des Besuchs
+wirkungslos, **und es sähe völlig richtig aus** — die Karte zeigt ja genau, was die Vorgabe wollte.
+Auffallen würde es erst beim zweiten Betreten, und niemand brächte es damit in Verbindung.
+
+🔴 **Die Weiche ist `event.isTrusted`** — `false` für alles, was `dispatchEvent` erzeugt, `true` nur
+für eine echte Hand. Kein Merker, der über eine asynchrone Grenze auslaufen kann, und er hält auch
+gegen die anderen programmatischen Schreiber dieser Haken (URL-Persistenz `?togglePaths=0`,
+`applyFrontendLayerModeDefaults`). ⚠️ Dass ein Klick auf die `<label>`-Zeile wirklich ein
+vertrauenswürdiges `change` am `<input>` erzeugt, wird **im Browser gemessen**, nicht angenommen;
+hält es nicht, ist der Rückfall ein Riegel um das eigene Schreiben (`schreibtSelbst`), und dann
+gehört an ihn der Kommentar, warum nicht `isTrusted`.
+
+⚠️ **Die Ortsklassen sind keine Checkboxen**, sondern jQuery-Knöpfe mit `is-active`; ein
+programmatisches `toggleClass` feuert dort ohnehin nichts. Für sie hört der Zuhörer auf den
+`click` der `.location-toggle`-Knöpfe — und auch das ist eine echte Hand oder gar nichts.
+
+⭐ **Ein „nur beim Betreten anwenden" braucht es NICHT — und das ist die eigentliche Vereinfachung.**
+Der naheliegende Weg wäre gewesen, das Anwenden am Ebenenwechsel zu unterdrücken (es hängt an
+`syncEcosystemPaneStates` und läuft heute bei jedem). Nötig ist das nicht: die Appliers fragen nicht
+mehr die Vorgabe, sondern **das Soll** — und das IST ab der ersten eigenen Entscheidung die Wahl des
+Nutzers. Ein erneutes Anwenden schreibt dann seine eigene Lage zurück und ist ein Leerlauf
+(`haken.checked === soll` steigt aus, ohne ein Ereignis zu feuern). Damit fällt ein Mechanismus weg
+statt dazuzukommen:
+
+```js
+function ecosystemAnzeigeSoll() {
+	const profil = ecosystemFrontendProfile();      // null = Editor oder andere Ansicht
+	return profil ? (ecosystemAnzeigeWahl || profil) : null;
+}
+```
+
+💣 **Die Ortsklassen werden dabei aktiv EINGESCHALTET, nicht bloß „nicht weggenommen".** Heute
+fragt `syncEcosystemSettlementVisibility` nur, ob sie *zurücktreten* sollen (`nimmtOrte`); für
+„Alle" tut sie schlicht nichts, und der Besucher sieht dort, was er ohnehin eingestellt hatte. Für
+„default aktiviert und sichtbar" reicht das nicht — die Funktion bekommt den dritten Zustand
+„leihen **und setzen**".
+
+⚠️ **Das Ausleihen und Zurückgeben bleibt unberührt.** Beim Verlassen bekommt der Besucher seinen
+Stand von VOR den Landschaften zurück (`ecosystemSettlementMemory`, `ecosystemRiverMemory`) — sonst
+säße er in „Standard" mit einer Lage, die er nie gewählt hat. Die Wahl aus den Landschaften lebt
+daneben und kommt beim nächsten Betreten zum Zug. **Zwei Gedächtnisse mit zwei verschiedenen
+Fragen** („was hatte er vorher" / „was will er in den Landschaften"), und sie dürfen nicht
+zusammengelegt werden.
+🪤 `js/review/__tests__/garetien-import-sicht.test.js` nagelt das Ausleihen fest — ein fremder Test,
+der beim Zusammenlegen umfiele.
+
+🔴 **Der Editor behält die leere Zeichenfläche** (Owner-Entscheid 09.09.2026).
+`ecosystemFrontendProfile()` gibt für ihn weiterhin `null` zurück — „hier wird nichts angefasst";
+er hat seine Schalter und seinen Regler gleich daneben. Diese Unterscheidung ist die Begründung des
+ganzen Profils und bleibt.
 
 ⚠️ `GRUND_DECKKRAFT.ecosystem` im Fächer (heute 0,25) fällt auf 0: die Landschaften-Kachel und die
 fünf Ebenenzellen zeigen den Pergamentgrund, kein Kachelbild. Ein Vorschaubild, das etwas anderes
@@ -225,8 +331,15 @@ dass die beiden Blau **verschieden** sind.
   Variable; „Alle" geht über `[data-ecosystem-show-all]`, nicht über einen `kind`.
 - **Neu** `js/map-features/__tests__/wasserton.test.js` — die vier Schreibstellen gegen
   `--color-water` aus `tokens.css`, gelesen, nicht abgeschrieben.
-- `js/map-features/__tests__/ecosystem-frontend-profil.test.js` — erweitert: alle fünf Ebenen auf
-  0 %, Kacheln abgehängt, Editor unberührt.
+- `js/map-features/__tests__/ecosystem-frontend-profil.test.js` — erweitert: **ein** Profil statt
+  zweier, alle zehn Schalter an, Untergrund 0 %, Kacheln abgehängt, Editor unberührt.
+- **Neu** `js/map-features/__tests__/anzeigewahl-schlaegt-vorgabe.test.js` — der Kern von §3.3,
+  wirklich ausgeführt statt gelesen: ein `change` mit `isTrusted: false` verbucht **keine**
+  Nutzerwahl, eines mit `isTrusted: true` schon; ein Ebenenwechsel wendet die Vorgabe **nicht**
+  erneut an; das Verlassen gibt den Stand von vor den Landschaften zurück, während die
+  Landschafts-Wahl daneben stehen bleibt; das zweite Betreten nimmt sie und nicht die Vorgabe.
+  🪤 Attrappen ohne Proxy — ein Proxy, der jeden Bezeichner beantwortet, verschluckt genau den
+  Fehler, den dieser Test finden soll (die Lehre vom 03.09.2026).
 - `js/pages/__tests__/svg-export-farben.test.js` / `…/svg-export-build.test.js` — nachgezogen.
 - **Neu** `tools/__tests__/ansicht-untergrund-mockup.test.js` — das ausgelieferte Mockup ist
   zeichengleich mit der Ausgabe seines Generators. So einen Wächter gibt es für das gescopte
