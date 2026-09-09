@@ -760,7 +760,17 @@ function avesmapsGaretienArbeitslisteObjekte(PDO $pdo, int $importRunId): array
                 'declined' => $item['declined'],
                 'applied' => $item['applied'] ?? false,
             ], $items)),
-        ];
+            // 🔴 DURCHGEREICHT, NICHT HERGELEITET: `after.verbund_stamm`/`after.verbund_n`
+            // entstehen EINMAL je Planlauf in avesmapsGaretienVerbuende (garetien-plan.php) --
+            // eine zweite Gruppierung im Lesepfad liefe ueber alle Zeilen des Laufs. Objekte OHNE
+            // Verbund tragen die Schluessel GAR NICHT, wie am Plan-Eintrag selbst
+            // (avesmapsGaretienPlanEintrag), nicht mit leerem Wert -- sonst muesste die Marke in
+            // der Listenzeile zwischen "kein Verbund" und "Verbund mit leerem Namen" unterscheiden,
+            // wo es nur den einen Fall gibt.
+        ] + (isset($erstesAfter['verbund_stamm']) ? [
+            'verbund_stamm' => (string) $erstesAfter['verbund_stamm'],
+            'verbund_n' => (int) ($erstesAfter['verbund_n'] ?? 0),
+        ] : []);
     }
 
     // 5. Was jetzt noch in $zeilenNachSchluessel steht, hat KEIN Item -- die Zeilen, um die es in
