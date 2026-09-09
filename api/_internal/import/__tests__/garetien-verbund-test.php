@@ -4,10 +4,16 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../garetien-verbund.php';
 
-/** Kleine Hilfe: eine Zeile, wie sie aus garetien_import_row kommt. */
-function verbundZeile(string $ebene, string $typ, string $anzeige, string $urteil = 'neu'): array
+/**
+ * Kleine Hilfe: eine Zeile, wie sie aus garetien_import_row kommt.
+ *
+ * ⚠️ Kein `urteil`-Feld mehr -- der Filter fragt avesmapsGaretienUeberspringGrund() und liest
+ * dieses Feld nicht (siehe Fall G). Ohne `geo_art`/`geo` gilt eine Zeile als platziert
+ * (avesmapsGaretienZeilePunkte liefert dann [], und [] gilt als "auf der Karte").
+ */
+function verbundZeile(string $ebene, string $typ, string $anzeige): array
 {
-    return ['ebene' => $ebene, 'typ' => $typ, 'anzeige' => $anzeige, 'artikel' => '', 'urteil' => $urteil];
+    return ['ebene' => $ebene, 'typ' => $typ, 'anzeige' => $anzeige, 'artikel' => ''];
 }
 
 // --- A. Der Stamm ---
@@ -64,11 +70,28 @@ $zeilen = [
 assert(avesmapsGaretienVerbuende($zeilen) === [], 'ein Berggipfel ist ein Punkt');
 
 // --- G. Uebersprungene Zeilen zaehlen nicht mit ---
+// 💣 Gefragt wird avesmapsGaretienUeberspringGrund() -- NICHT das Feld `urteil`. An der echten
+// Aufrufstelle (avesmapsGaretienBaueSyncPlan, garetien-plan.php) liest der SELECT nur
+// lodmin/lodmax/extra/geo_art/geo, nie `urteil` -- dieser Schluessel existiert dort gar nicht,
+// ein Filter darauf war an genau dieser Stelle tot.
 $zeilen = [
-    verbundZeile('Waelder', 'Wald', 'Testwald 1', 'uebersprungen'),
+    verbundZeile('Waelder', 'UnbekannterTyp', 'Testwald 1'),
     verbundZeile('Waelder', 'Wald', 'Testwald 2'),
 ];
-assert(avesmapsGaretienVerbuende($zeilen) === [], 'eine uebersprungene Zeile bildet keinen Verbund');
+assert(avesmapsGaretienVerbuende($zeilen) === [], 'eine Zeile mit unbekanntem Typ bildet keinen Verbund');
+
+// --- G2. "Keine Position" ist derselbe Grund -- und fiel bisher durch ---
+// 🔴 Von den vier Gruenden aus avesmapsGaretienUeberspringGrund() fing der alte Filter drei
+// zufaellig woanders ab (leerer Stamm, avesmapsGaretienMappeTyp() === null fuer die beiden
+// Typ-Gruende) -- "Keine Position" nicht. Eine Zeile mit Namen und gueltigem Typ, aber der
+// Marke "noch nicht auf der Karte" (2000000 2000000, siehe garetien-abgleich-test.php),
+// waere mit ihrem numerierten Geschwister in einen Verbund gezaehlt worden.
+$zeileOhnePosition = ['ebene' => 'Waelder', 'typ' => 'Wald', 'anzeige' => 'Silker Hain 3',
+    'artikel' => '', 'geo_art' => 'koordinaten', 'geo' => '2000000 2000000'];
+$zeileMitPosition = ['ebene' => 'Waelder', 'typ' => 'Wald', 'anzeige' => 'Silker Hain 4',
+    'artikel' => '', 'geo_art' => 'koordinaten', 'geo' => '12618 32842, 12700 32900'];
+assert(avesmapsGaretienVerbuende([$zeileOhnePosition, $zeileMitPosition]) === [],
+    'zwei Zeilen desselben Stamms bilden keinen Verbund, wenn eine davon keine Position hat');
 
 // --- H. Der Planbau reicht Stamm und Anzahl durch ---
 require_once __DIR__ . '/../garetien-plan.php';

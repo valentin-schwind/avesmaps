@@ -104,7 +104,13 @@ function avesmapsGaretienVerbuende(array $zeilen): array
 {
     $gruppen = [];
     foreach ($zeilen as $i => $zeile) {
-        if ((string) ($zeile['urteil'] ?? '') === 'uebersprungen') {
+        // 💣 NICHT ueber `$zeile['urteil']` filtern -- an der echten Aufrufstelle
+        // (avesmapsGaretienBaueSyncPlan, garetien-plan.php) liest der SELECT nur
+        // lodmin/lodmax/extra/geo_art/geo, NIE `urteil`. Dieser Schluessel steht dort also nie,
+        // und der Filter war an genau dieser Stelle tot. Gefragt wird stattdessen dieselbe EINE
+        // Instanz, die auch der Hauptlauf fragt (avesmapsGaretienUeberspringen) -- eine zweite
+        // Wahrheit ueber „wird uebersprungen" liefe beim naechsten Uebersprung-Grund auseinander.
+        if (avesmapsGaretienUeberspringGrund($zeile) !== null) {
             continue;
         }
         $zuordnung = avesmapsGaretienMappeTyp((string) ($zeile['typ'] ?? ''));
