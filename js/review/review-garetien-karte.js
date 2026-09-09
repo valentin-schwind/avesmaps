@@ -161,6 +161,15 @@
 	var AVESMAPS_GARETIEN_KLASSE_LABEL_AKTIV = "gi-label-vorschau--aktiv";
 
 	/*
+	 * Die Klasse, die die Vorschau NICHT tragen darf -- sie kommt aus einer FREMDEN Datei
+	 * (`ecosystemLabelMutedClass`, js/map-features/map-features-ecosystem-layer-switch.js) und wird
+	 * hier wieder abgenommen. Die Begruendung steht an garetienVorschauKlasseAnhaengen.
+	 * ⚠️ Ein gekoppelter Wert ueber eine Modulgrenze, und zwar in die unangenehme Richtung: aendert
+	 * jene Datei ihren Namen, wird die Vorschau lautlos blass. Ein Test haelt beide gegeneinander.
+	 */
+	var AVESMAPS_GARETIEN_FREMDKLASSE_ECO_BLASS = "map-label--eco-muted";
+
+	/*
 	 * 💣 GEKOPPELTER WERT IN ZWEI DATEIEN, wie die vier Felder weiter unten und aus demselben Grund:
 	 * gesetzt in review-garetien-importer.js (garetienVorschauLabelStempeln), gelesen hier. Er trägt
 	 * eine REINE Beschreibung -- der Zeichner erfährt aus ihr Text, Art, Lage, Größe, Priorität,
@@ -1329,9 +1338,20 @@
 	 * Schalter den Startaufwand der echten Karte misst, schließt das Importer-Fenster vorher. Ein
 	 * Budget oder eine Zusicherung hängt an der Zahl nicht.
 	 *
-	 * ⚠️ ALLES FÄLLT OFFEN AUS: fehlt ein Bauer, eine Zoomband-Regel oder die Ausschnittsprüfung
-	 * (der Zeichner wird im Test ALLEIN geladen), entsteht keine Beschriftung -- nie ein Wurf. Eine
-	 * fehlende Vorschau ist der bisherige Zustand; ein Wurf hier nähme die ganze Karte mit.
+	 * ⚠️ NICHTS WIRFT -- aber „offen" heißt hier NICHT überall dasselbe, und der erste Kommentar an
+	 * dieser Stelle hat genau das behauptet („entsteht keine Beschriftung"). Er war für zwei von drei
+	 * Fällen falsch, und ein Prüfagent hat ihn dabei erwischt; eine Dokumentation, die über ihr
+	 * eigenes Ausfallverhalten lügt, wird beim nächsten Umbau als Wahrheit gelesen. Die drei einzeln:
+	 *   · fehlt ein BAUER (`createLabelIcon` / `createLocationNameLabelIcon`) → keine Beschriftung.
+	 *     Anders geht es nicht, es gibt niemanden, der das Bild machen könnte.
+	 *   · fehlt die ZOOMBAND-Regel → es wird GEZEICHNET. Dieselbe Richtung, die `avesmapsLabelImBand`
+	 *     selbst für ein Label ohne Tafel nimmt („lieber ein Name zur falschen Zoomstufe als gar
+	 *     keiner"); ein stummes Fenster sähe wie ein kaputter Haken aus.
+	 *   · fehlt die AUSSCHNITTS-Prüfung → es wird GEZEICHNET, und das ist der einzige Fall, der etwas
+	 *     kostet: der Riegel ist die Perf-Bremse (siehe darüber). Er fällt trotzdem offen, weil
+	 *     „nichts zeigen" die schlechtere Antwort ist; im Browser sind beide Helfer immer da, im
+	 *     Prüfstand ist der teure Fall gestellt.
+	 * ⚠️ Eine fehlende Vorschau ist der bisherige Zustand; ein Wurf hier nähme die ganze Karte mit.
 	 */
 	/*
 	 * Die Zoomstufe der Karte -- fuer das FENSTER, das seinen Hinweis am Zoomband daran haengt.
@@ -1466,7 +1486,27 @@
 	 */
 	function garetienVorschauKlasseAnhaengen(icon, v) {
 		if (!icon || !icon.options) { return null; }
-		var klassen = String(icon.options.className || "") + " " + AVESMAPS_GARETIEN_KLASSE_LABEL_VORSCHAU;
+		var klassen = String(icon.options.className || "");
+		/*
+		 * 💣 UND EINE KLASSE MUSS WEG: `map-label--eco-muted` (50 % Deckkraft).
+		 *
+		 * `createLabelIcon` haengt sie ueber `ecosystemLabelMutedClass` an JEDES Label ohne
+		 * `publicId`, sobald im Landschaften-Editor eine EINZELNE Unterebene aktiv ist -- eine
+		 * Vorschau hat noch keine Kennung, also trifft es sie immer. Ihre Aussage ist „gehoert
+		 * gerade nicht hierher" (Owner 28.07.2026), und ueber die Vorschau ist das genau falsch: sie
+		 * gehoert zu dem, was der Editor in diesem Moment ansieht. Ein halbdurchsichtiger Name waere
+		 * ausserdem nicht der Abnahmepunkt „ihr Name steht auf der Karte, in der Farbe ihrer Art".
+		 * ⚠️ Gefunden hat das ein Pruefagent, nicht ein Test -- die Klasse entsteht tief im geteilten
+		 * Bauer, und im Pruefstand gibt es keine aktive Landschaftsebene.
+		 * 🔴 ENTFERNT WIRD SIE HIER, NICHT IM BAUER. Dort ist sie richtig; sie gilt nur fuer die
+		 * Vorschau nicht, und eine Weiche im Bauer waere eine Aenderung an der Karte jedes Besuchers.
+		 * ⚠️ Als WORT entfernt, nicht per `replace` der Zeichenkette: `map-label--eco-muted` ist
+		 * Praefix von nichts, aber die naechste Klasse dieser Familie koennte es sein.
+		 */
+		klassen = klassen.split(/\s+/).filter(function (name) {
+			return name !== "" && name !== AVESMAPS_GARETIEN_FREMDKLASSE_ECO_BLASS;
+		}).join(" ");
+		klassen += " " + AVESMAPS_GARETIEN_KLASSE_LABEL_VORSCHAU;
 		if (v && v.gewaehlt === true) { klassen += " " + AVESMAPS_GARETIEN_KLASSE_LABEL_AKTIV; }
 		icon.options.className = klassen;
 		return icon;
@@ -1896,6 +1936,7 @@
 			AVESMAPS_GARETIEN_LABEL_PANE_Z,
 			AVESMAPS_GARETIEN_KLASSE_LABEL_VORSCHAU,
 			AVESMAPS_GARETIEN_KLASSE_LABEL_AKTIV,
+			AVESMAPS_GARETIEN_FREMDKLASSE_ECO_BLASS,
 			AVESMAPS_GARETIEN_FELD_VORSCHAU_LABEL,
 			garetienVorschauBeschriftungen,
 			AVESMAPS_GARETIEN_PARTEI_IHRE,
