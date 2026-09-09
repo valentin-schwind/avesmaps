@@ -8388,6 +8388,36 @@
 	// Ergaenzung (eine Quelle an ein BESTEHENDES Objekt, der Fall „Eupelmunder Moor") verschwaenden
 	// sonst dessen andere Quellen von der Stage -- derselbe Fehler wie der gemeldete, nur
 	// andersherum.
+	/*
+	 * Die frisch angelegten LANDSCHAFTSFLAECHEN in die geladene Karte nachtragen.
+	 *
+	 * Owner-Meldung 09.09.2026: „wenn ich eine flaeche importiere ist sie zunaechst weg und
+	 * verschwindet, erst F5 bringt sie zurueck. das label dagegen ist von anfang an da."
+	 *
+	 * 🔴 UND GENAU DIESER UNTERSCHIED IST DIE URSACHE. Das LABEL einer Landschaft ist ein
+	 * `map_features`-Eintrag und reist im Live-Delta mit (pollLiveMapUpdates liest `data.features`).
+	 * Die FLAECHE steht in `ecosystem_region`/`ecosystem_area` und kommt aus einem EIGENEN Abruf
+	 * (api/app/ecosystem-areas.php) -- in der Kartennutzlast gibt es gar keinen Block dafuer.
+	 * Sie konnte also nie nachkommen; die Import-Vorschau verschwand, und darunter war ein Loch.
+	 *
+	 * ⭐ Das Werkzeug gibt es laengst: `loadEcosystemAreas` -- der Landschaften-Editor ruft es nach
+	 * jeder Aenderung (map-features-ecosystem-draw.js, -brush.js). Hier fehlte nur der Aufruf.
+	 *
+	 * ⚠️ EINMAL AM ENDE DES LAUFS, nicht je Haeppchen: der Abruf holt alle Flaechen, und ein Lauf
+	 * mit 300 Objekten braeuchte ihn sonst mehrfach fuer dasselbe Ergebnis.
+	 * ⚠️ Nur wenn wirklich eine Flaeche entstanden ist (`angelegt_je_form.region`) -- ein Import
+	 * aus lauter Orten und Wegen zahlt den Abruf nicht.
+	 * 🪴 Kein stiller Rueckfall und kein Wurf: fehlt die Funktion, bleibt es beim alten Zustand
+	 * (F5 hilft), und der Import selbst darf daran nicht scheitern.
+	 */
+	function garetienFlaechenNachladen(summe) {
+		if (!Number(((summe || {}).angelegt_je_form || {}).region || 0)) { return false; }
+		const laden = (typeof window !== "undefined") ? window.loadEcosystemAreas : null;
+		if (typeof laden !== "function") { return false; }
+		void laden();
+		return true;
+	}
+
 	function garetienQuellenNachtragen(antwort) {
 		const liste = (antwort && antwort.quellen_neu) || [];
 		if (!Array.isArray(liste) || liste.length === 0) { return 0; }
@@ -8571,7 +8601,11 @@
 				}
 				return schritt();
 			});
-		}).then(function () { return summe; });
+		}).then(function () {
+			// 🔴 HIER, nicht im Haeppchen-Trichter darueber: EIN Abruf je Lauf reicht.
+			garetienFlaechenNachladen(summe);
+			return summe;
+		});
 	}
 
 	// Der Fußknopf: dieselbe Funktion, mit der Stage als Item-Quelle (Aufgabe 5 lieferte
@@ -9059,6 +9093,7 @@
 			garetienFensterEingeklappt,
 			// Owner-Meldung 31.08.2026: die mitgereiste Quelle ohne Neuladen sichtbar machen.
 			garetienQuellenNachtragen,
+			garetienFlaechenNachladen,
 			// Owner 31.08.2026: „Ablehnen" neben „Zuruecknehmen" am uebernommenen Objekt.
 			garetienRuecknahmeAblehnenBauen,
 			// Owner 31.08.2026: „Uebernommen" zurueck nach „Offen" verschieben.
