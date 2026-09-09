@@ -1532,7 +1532,7 @@ EOF
 
 **Schnittstellen:**
 - Verbraucht: `avesmapsGaretienStageHat(key)`.
-- Liefert: `garetienBlockMarkup(titel, inhalt, notiz): string`.
+- Liefert: `garetienBlockMarkup(buchstabe, titel, inhalt, notiz): string`.
 
 - [ ] **Schritt 1: Den fehlschlagenden Test schreiben**
 
@@ -1781,11 +1781,23 @@ EOF
 
 **Deckt Spec §9 ab.** Sichtbare Änderung — einzeln live, mit Blick des Owners.
 
-🔧 **Vor dieser Aufgabe eine Owner-Entscheidung einholen:** Sollen die Buchstaben A–G in den
-Kreisen bleiben (wie im Mockup) oder reichen die Überschriften? Der Plan baut sie **ohne**
-Buchstaben — sie kosten Platz und sagen einem Editor nichts, der die Blöcke ohnehin sieht. Werden
-sie gewünscht, kommt `<span class="gi-block__zahl">A</span>` in den Kopf und die Regel aus dem
-Mockup ins Blatt.
+🔴 **Die Buchstaben A–G BLEIBEN** (Owner-Entscheid 09.09.2026: „bleiben — mach sie nur
+einheitlich"). Jeder Blockkopf trägt `<span class="gi-block__zahl">A</span>`.
+
+💣 **UND SIE MÜSSEN FLUCHTEN — daran ist es im Mockup schon einmal gescheitert.** Der Block
+besitzt die Einrückung; `.gi-acts` bringt aber eine eigene mit (`--avm-ribbon-pad`, 14 px
+waagerecht). Als Block gemessen saß der Kopf von **F** dadurch 14 px weiter rechts als die
+übrigen sechs — **569 gegen 555** —, und eine Gliederung, deren Überschriften nicht fluchten,
+liest sich wie zwei Gliederungen. Die Regel dagegen ist eine Zeile:
+
+```css
+/* 💣 DER BLOCK BESITZT DIE EINRUECKUNG. `.gi-acts` bringt eine eigene mit
+   (--avm-ribbon-pad); als Block gemessen sass sein Kopf 14 px weiter rechts. */
+.gi-block.gi-acts { padding-left: 0; padding-right: 0; }
+```
+
+⚠️ Dieselbe Frage stellt sich bei **jedem** Wirt, der zugleich `.gi-block` und ein Bauteil mit
+eigenem Polster ist. Der Test unten misst deshalb **alle** Blockköpfe gegeneinander, nicht nur F.
 
 **Dateien:**
 - Ändern: `js/review/review-garetien-importer.js` (`garetienDetailMarkup`)
@@ -1793,7 +1805,7 @@ Mockup ins Blatt.
 - Test: `js/review/__tests__/garetien-detailspalte-reihenfolge.test.js` (erweitern)
 
 **Schnittstellen:**
-- Liefert: `garetienBlockMarkup(titel, inhalt, notiz): string`.
+- Liefert: `garetienBlockMarkup(buchstabe, titel, inhalt, notiz): string`.
 
 - [ ] **Schritt 1: Den fehlschlagenden Test anhängen**
 
@@ -1822,6 +1834,20 @@ const block = css.slice(css.indexOf(".gi-block {"), css.indexOf("}", css.indexOf
 assert.ok(block.indexOf("border-top") > -1, "dem Block fehlt die Trennlinie");
 assert.ok(block.indexOf("border:") === -1 && block.indexOf("border-radius") === -1,
     "der Block ist ein Rahmen statt einer Gliederung");
+
+// --- Die Buchstaben, und dass sie fluchten (Owner 09.09.2026) ---
+// 💣 `.gi-acts` bringt ein eigenes waagerechtes Polster mit (--avm-ribbon-pad). Ohne die
+// Gegenregel sass der Kopf von Block F 14 px weiter rechts als die uebrigen sechs -- eine
+// Gliederung, deren Ueberschriften nicht fluchten, liest sich wie zwei Gliederungen.
+assert.ok(css.indexOf(".gi-block.gi-acts") > -1,
+    "dem Block-in-.gi-acts fehlt die Polster-Gegenregel -- sein Kopf rueckt 14 px ein");
+reihenfolge.forEach(function (titel, i) {
+    const buchstabe = "ABCDEFG"[i];
+    const stelle = detail.indexOf('"' + titel + '"');
+    const umfeld = detail.slice(Math.max(0, stelle - 400), stelle + 200);
+    assert.ok(umfeld.indexOf('gi-block__zahl') > -1,
+        "Block " + buchstabe + " (" + titel + ") traegt keinen Buchstaben");
+});
 ```
 
 - [ ] **Schritt 2: Den Test fahren und den Fehlschlag sehen**
@@ -1843,11 +1869,12 @@ Erwartet: `AssertionError: Block fehlt: Auf der Karte`
 	 * ⚠️ Ein Block ohne Inhalt entfaellt ganz -- eine Ueberschrift, unter der nichts steht,
 	 * behauptet einen Abschnitt, den es nicht gibt.
 	 */
-	function garetienBlockMarkup(titel, inhalt, notiz) {
+	function garetienBlockMarkup(buchstabe, titel, inhalt, notiz) {
 		if (String(inhalt || "") === "") { return ""; }
 		const zusatz = String(notiz || "") === "" ? ""
 			: '<span class="gi-block__note">' + avesmapsGaretienEscape(notiz) + "</span>";
 		return '<div class="gi-block"><p class="gi-block__kopf">'
+			+ '<span class="gi-block__zahl">' + avesmapsGaretienEscape(buchstabe) + "</span>"
 			+ avesmapsGaretienEscape(titel) + zusatz + "</p>" + inhalt + "</div>";
 	}
 ```
