@@ -170,16 +170,14 @@ const AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED = [
     // back to the layer's base tone -- which is the mountain brown-grey, so all 251 islands would
     // render as mountains.
     ['topographie', 'insel', 'Insel', 120],
-    // Owner 01.09.2026, Editorenwunsch. Zwischen Gebirge und Huegelland und keins von beiden:
-    // das Gebirge ist die hohe Kette, das Huegelland die flache Decke davor -- das
-    // Vor-/Mittelgebirge ist der Uebergang, den man weder als das eine noch als das andere
-    // zeichnen will. Dieselbe Unterscheidung, die Hochebene und Tiefebene rechtfertigt: nicht
-    // OB eben, sondern WIE hoch.
-    // 💣 Es BRAUCHT --color-ecosystem-topographie-vorgebirge_mittelgebirge. Ohne das
-    // Token faellt ecosystemAreaColor() auf den Grundton der Ebene zurueck -- das ist das
-    // Gebirgs-Braungrau, und dann saehe jedes Mittelgebirge wie ein Gebirge aus (dieselbe
-    // Falle, die bei `insel` ausgeschrieben danebensteht).
-    ['topographie', 'vorgebirge_mittelgebirge', 'Vor-/Mittelgebirge', 130],
+    // 🔴 SORTIERPLATZ 130 IST FREI UND BLEIBT ES VORERST. Dort stand vom 01.09. bis zum 09.09.2026
+    // `vorgebirge_mittelgebirge` („Vor-/Mittelgebirge"), gestrichen auf Owner-Entscheid — als
+    // Flaechenart UND als Beschriftungsart. Der Grund steht im Kopf von
+    // avesmapsEcosystemRetireVorgebirge() weiter unten; wer die Art zurueckholen will, liest ihn
+    // ZUERST. Die Abstufung, die sie liefern sollte, liefert die HOEHENSTUFE einer Gebirgsflaeche
+    // feiner: `vorgebirge` 800 und `mittelgebirge` 1500 stehen dort GETRENNT
+    // (ECOSYSTEM_HYDRO_HOEHENSTUFEN, js/map-features/map-features-ecosystem-hydrologie.js) und
+    // bleiben ausdruecklich erhalten.
 
     ['vegetation', 'wald', 'Wald', 10],
     // Owner 2026-08-29 (Garetien-Import, Entwurf §3.4): ein Urwald ist NICHT dasselbe wie ein
@@ -1089,6 +1087,8 @@ function avesmapsEcosystemMigrateTables(PDO $pdo): void
 
     avesmapsEcosystemMoveIslandsToTopographie($pdo);
 
+    avesmapsEcosystemRetireVorgebirge($pdo);
+
     // ---- 2026-08-14: der Bodenfaktor der GA, als eigene Spalte an der Art ------------------------
     //
     // `terrain_speed_factor` sagt, wie schnell man auf DIESER Landschaft querfeldein vorankommt --
@@ -1177,6 +1177,62 @@ function avesmapsEcosystemMoveIslandsToTopographie(PDO $pdo): void
     avesmapsNextEcosystemRevision($pdo);
 }
 
+// ---- 09.09.2026: „Vor-/Mittelgebirge" wird stillgelegt ---------------------------------------------
+//
+// Owner-Entscheid, woertlich: „vorgebirge_mittelgebirge als Flaechenart und als Beschriftungsart
+// streichen / vorgebirge/mittelgebirge als preset im gebirge lassen."
+//
+// 🔴 DIE ABSTUFUNG BLEIBT, NUR NICHT ALS ART. `ECOSYSTEM_HYDRO_HOEHENSTUFEN`
+// (js/map-features/map-features-ecosystem-hydrologie.js) fuehrt `vorgebirge` 800 und `mittelgebirge`
+// 1500 GETRENNT und mit Zahlen; die Art warf beide in einen Sammelbegriff. Wer diese Migration je
+// rueckgaengig macht, holt genau diese Doppelung zurueck -- und die Presets sind die feinere Haelfte.
+//
+// 💣 SIE WAR VERKEHRT HERUM PARAMETRIERT, und das ist der zweite Grund. Am Livebestand vom
+// 08.09.2026 gemessen: Maximalhoehe 2500 gegen 2000 des Gebirges, Durchschnittshoehe 1500 gegen 500 --
+// das „Vor-/Mittelgebirge" war also hoeher und dreimal massiger als das Gebirge, bei exakt gleichem
+// Reisefaktor (0,20) und gleichem Querfeldein-Aufschlag (2,20). Die 1500 ist die Zahl der HOEHENSTUFE
+// „Mittelgebirge", wo sie ein Gipfel-MAXIMUM ist; hier war sie als DURCHSCHNITT gelandet.
+//
+// ⭐ Und sie war folgenlos: 0 Flaechen, 0 Beschriftungen (ganze Tabellen gezaehlt, Dump 08.09.2026),
+// kein Eingang aus dem Wiki-Sync (avesmapsWikiRegionArtLookupTable kennt weder „Vorgebirge" noch
+// „Mittelgebirge"). Deshalb braucht es KEINE Datenmigration -- es gibt nichts umzuhaengen.
+//
+// 🔴 STILLGELEGT STATT GELOESCHT, Zeile fuer Zeile nach avesmapsEcosystemMoveIslandsToTopographie()
+// darueber: die Zeile kann in der Historie referenziert sein, `is_active` ist das Idiom DIESER Tabelle
+// fuer „wird nicht mehr angeboten", und aus dem Seed allein zu streichen genuegt NICHT -- INSERT IGNORE
+// legte sie auf einer frischen Installation wieder an, aktiv.
+//
+// ⭐ Der Riegel ist die FRAGE SELBST („steht die Zeile noch aktiv da?"), kein gespeicherter Merker:
+// damit ist der Schritt idempotent, schaltet sich nach dem ersten Lauf selbst ab, und es gibt keine
+// zweite Wahrheit darueber, ob er gelaufen ist. Zurueckwachsen kann die Art nicht --
+// avesmapsEcosystemAssertRegionType() verlangt eine AKTIVE Zeile, eine neue Flaeche mit dieser Art
+// bekommt also 400.
+//
+// 💣 KEIN DDL hier. Ein ALTER committete die umgebende Transaktion still, und diese Funktion wird von
+// Schreibwegen mitten in einer Transaktion gerufen. Alles unten ist DML.
+function avesmapsEcosystemRetireVorgebirge(PDO $pdo): void
+{
+    $pending = $pdo->query(
+        "SELECT 1 FROM ecosystem_region_type
+          WHERE kind = 'topographie' AND type_key = 'vorgebirge_mittelgebirge'
+            AND is_active = 1 LIMIT 1"
+    );
+    if ($pending === false || $pending->fetchColumn() === false) {
+        return;
+    }
+
+    $pdo->exec(
+        "UPDATE ecosystem_region_type SET is_active = 0
+          WHERE kind = 'topographie' AND type_key = 'vorgebirge_mittelgebirge'"
+    );
+
+    // 🔴 DER ZAEHLER MUSS HIER WEITER, aus demselben Grund wie eine Funktion darueber: die Nutzlast
+    // der Landschaften haengt am ETag aus ecosystem_revision, und ohne diese Zeile bekaeme jeder warme
+    // Client sein 304 und boete die Art im Auswahlfeld weiter an, bis irgendeine fremde Aenderung den
+    // Zaehler bewegt.
+    avesmapsNextEcosystemRevision($pdo);
+}
+
 // ⚠️ INSERT IGNORE, NOT "ON DUPLICATE KEY UPDATE". The table has is_active, and the repo's most common
 // upsert shape (app-setting.php:41-42 among others) would silently undo a deactivation on the next
 // endpoint call -- the owner switches a type off, the next request switches it back on, and nobody can
@@ -1194,29 +1250,28 @@ function avesmapsEcosystemMoveIslandsToTopographie(PDO $pdo): void
  * ohne `IS NULL` einbaut, setzt bei jedem Seitenaufruf die Einstellungen des Fensters zurueck --
  * genau davor warnt der Kommentar an den Bloecken oben.
  * ⚠️ Der Preis: eine ABSICHTLICH auf NULL zurueckgesetzte Art wird wieder gefuellt. Das ist
- * heute folgenlos (die Tabelle unten nennt nur eine Art, die noch niemand angefasst hat) und
- * waere der Tag, an dem ein Merker daraus wird.
+ * heute folgenlos (die Tafel ist leer) und waere der Tag, an dem ein Merker daraus wird.
+ *
+ * 🔴 DIE TAFEL IST SEIT DEM 09.09.2026 LEER, und die Funktion bleibt trotzdem stehen. Ihr einziger
+ * Eintrag war `vorgebirge_mittelgebirge`, gestrichen auf Owner-Entscheid (siehe
+ * avesmapsEcosystemRetireVorgebirge). Sie ist der EINZIGE Weg, auf dem eine spaeter dazugekommene Art
+ * ihre Startwerte bekommt -- genau die Luecke, in die das Vor-/Mittelgebirge selbst gelaufen ist. Wer
+ * sie „als tot" entfernt, laesst die naechste neue Art wieder still auf die Modulvorgaben fallen.
+ *
+ * ⭐ `$startwerte` ist ein PARAMETER mit der Modultafel als Vorgabe -- damit der Test die Funktion mit
+ * einer eigenen, erfundenen Art WIRKLICH fahren kann, statt nur ihren Quelltext zu lesen. Ohne das
+ * haette das Streichen der Art die Abdeckung des NULL-Riegels mitgenommen, den sie traegt.
+ *
+ * @param list<array{0:string,1:string,2:float,3:int,4:float,5:float,6:float,7:float}>|null $startwerte
+ *        je Zeile [kind, type_key, grain, levels, maximalhoehe, durchschnittshoehe, tempofaktor, offroad]
  */
-function avesmapsEcosystemFillMissingTypeDefaults(PDO $pdo): void
+function avesmapsEcosystemFillMissingTypeDefaults(PDO $pdo, ?array $startwerte = null): void
 {
-    // 🔴 Owner 01.09.2026: „mach im Fenster tempowerte die werte fuer Vor-/Mittelgebirge, du
-    // kannst dieselben werte wie fuer gebirge nehmen, kannst du die Durchschnittshoehe auf 1.500
-    // Meter setzen (berggipfel ausgeschlossen)".
-    //
-    // 💣 DIE MAXIMALHOEHE IST *NICHT* die des Gebirges (2000), und das ist keine Freiheit,
-    // die ich mir genommen habe, sondern eine Kopplung: das Hoehenfeld klemmt den Durchschnitt bei
-    // rund 0,67 x Maximalhoehe (map-features-ecosystem-height-field.js). Mit 2000 waere die
-    // bestellte 1500 STILL auf 1340 gerutscht -- eine Einstellung, die dasteht und nicht gilt.
-    // 2500 traegt sie mit Luft (1500/2500 = 0,60).
-    //
-    // ⚠️ `terrain_speed_factor` 0,20 ist die Zahl des Gebirges, aber sie steht hier als
-    // OWNER-Entscheidung und NICHT in der GA-Tabelle (`avesmapsTravelValuesSource`, „GA S. 120-123"):
-    // ein Vor-/Mittelgebirge kommt in der Quelle nicht vor, und eine erfundene Zeile in einer
-    // Zitattabelle waere eine Falschangabe ueber das Regelwerk.
-    $startwerte = [
-        // [kind, type_key, grain, levels, maximalhoehe, durchschnittshoehe, tempofaktor, offroad]
-        ['topographie', 'vorgebirge_mittelgebirge', 3.2, 3, 2500, 1500, 0.20, 2.20],
-    ];
+    // Die Tafel: [kind, type_key, grain, levels, maximalhoehe, durchschnittshoehe, tempofaktor, offroad].
+    // Heute leer -- siehe den Block darueber. Sie steht INLINE und nicht als Konstante auf Dateiebene:
+    // PHP hoistet Funktionen, aber keine `const` (const-vor-benutzung-test.php), und diese Funktion wird
+    // weit oben gerufen.
+    $startwerte ??= [];
 
     foreach ($startwerte as [$kind, $typeKey, $grain, $levels, $max, $mean, $tempo, $offroad]) {
         foreach ([

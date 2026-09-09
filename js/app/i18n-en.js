@@ -822,7 +822,6 @@ window.AVESMAPS_I18N_EN = {
 	"spotlight.labelType.bergkette": "Mountain/Hill Range",
 	"spotlight.labelType.felsformation": "Rock Formation",
 	"spotlight.labelType.huegel": "Hill",
-	"spotlight.labelType.vorgebirge_mittelgebirge": "Foothills/Low Mountains",
 	"spotlight.labelType.vulkan": "Volcano",
 	"spotlight.labelType.wald": "Forest",
 	"spotlight.labelType.urwald": "Primeval Forest",

@@ -313,7 +313,11 @@ ecosystemTestThrows(static fn() => avesmapsEcosystemReadKind('wetter'), 'an unkn
 // 36 seit 2026-08-29: „Urwald" als zwoelfte Vegetationsart (Garetien-Import, Entwurf §3.4).
 // 37 seit 2026-09-01: „Vor-/Mittelgebirge“ als dreizehnte topographische Art
 // (Editorenwunsch ueber den Owner).
-assert(count(AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED) === 37, 'the seed is 37 rows');
+// 36 seit 2026-09-09: dieselbe Art wieder gestrichen, auf Owner-Entscheid und als Flaechenart WIE
+// als Beschriftungsart (Begruendung im Kopf von avesmapsEcosystemRetireVorgebirge). Die Zahl geht
+// damit als einzige dieser Reihe wieder ZURUECK -- wer sie liest, soll den Sprung sehen und nicht
+// eine der Zeilen darueber fuer falsch halten.
+assert(count(AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED) === 36, 'the seed is 36 rows');
 
 $byKind = [];
 foreach (AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED as [$kind, $typeKey, $label, $sortOrder]) {
@@ -322,7 +326,8 @@ foreach (AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED as [$kind, $typeKey, $label, $sortO
     $byKind[$kind][] = $typeKey;
 }
 assert(count($byKind['derographisch']) === 4, 'derographisch: 4');
-assert(count($byKind['topographie']) === 13, 'topographie: 13');
+// 12 wieder seit dem 09.09.2026 (Vor-/Mittelgebirge gestrichen, siehe unten).
+assert(count($byKind['topographie']) === 12, 'topographie: 12');
 assert(count($byKind['vegetation']) === 12, 'vegetation: 12');
 assert(count($byKind['klima']) === 8, 'klima: 8 -- and the dividers are always one fewer');
 
@@ -358,13 +363,20 @@ assert(in_array('urwald', $byKind['vegetation'], true), 'urwald is a vegetation 
 assert(in_array('dschungel', $byKind['vegetation'], true), 'and dschungel stays a distinct one');
 assert(!in_array('urwald', $byKind['topographie'], true), 'urwald is not a landform');
 
-// 🔴 2026-09-01: das Vor-/Mittelgebirge ist eine FORM und gehoert damit zur
-// Topographie -- wie Gebirge und Huegelland, zwischen denen es steht. Es ist weder eine
-// Decke (Vegetation) noch der Name einer Gegend (derographisch). Die Zahlen oben koennen
-// den Griff in die falsche Ebene nicht fangen; deshalb steht es hier beim Namen.
-assert(in_array('vorgebirge_mittelgebirge', $byKind['topographie'], true),
-    'vorgebirge_mittelgebirge is a landform');
-assert(in_array('gebirge', $byKind['topographie'], true), 'and gebirge stays a distinct one');
+// 🔴 2026-09-09: DAS VOR-/MITTELGEBIRGE IST GESTRICHEN, und diese Zusicherung ist der Waechter
+// dagegen, dass es unbemerkt zurueckkommt. Hier stand bis dahin das Gegenteil („is a landform",
+// seit 01.09.2026). Owner-Entscheid, woertlich: „vorgebirge_mittelgebirge als Flaechenart und als
+// Beschriftungsart streichen / vorgebirge/mittelgebirge als preset im gebirge lassen."
+//
+// Die zwei Gruende stehen ausgeschrieben im Kopf von avesmapsEcosystemRetireVorgebirge
+// (api/_internal/app/ecosystem.php) -- kurz: die Abstufung liefert die HOEHENSTUFE einer
+// Gebirgsflaeche feiner (`vorgebirge` 800 und `mittelgebirge` 1500 stehen dort GETRENNT), und die
+// Art war verkehrt herum parametriert (hoeher und massiger als das Gebirge, bei gleichem
+// Reisefaktor). Wer sie zurueckholen will, liest zuerst dort nach.
+assert(!in_array('vorgebirge_mittelgebirge', $byKind['topographie'] ?? [], true),
+    '🔴 `vorgebirge_mittelgebirge` ist gestrichen -- die Abstufung gehoert der Hoehenstufe, '
+    . 'nicht einer eigenen Art. Begruendung: avesmapsEcosystemRetireVorgebirge.');
+assert(in_array('gebirge', $byKind['topographie'], true), 'gebirge stays');
 assert(in_array('huegelland', $byKind['topographie'], true), 'huegelland likewise');
 
 // The PRIMARY KEY is (kind, type_key): a duplicate would be swallowed by INSERT IGNORE and the count

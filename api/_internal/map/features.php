@@ -1005,10 +1005,13 @@ function avesmapsReadLabelSubtype(mixed $value): string {
     $allowedSubtypes = ['region', 'fluss', 'meer', 'gebirge', 'berggipfel', 'wald', 'urwald', 'steppe', 'huegelland', 'tundra', 'kueste', 'ebene', 'graslandschaft', 'auenlandschaft', 'flussland_flusstal', 'dschungel', 'wuestenoase', 'wadi', 'schlucht', 'hochebene', 'tiefebene', 'tal', 'flussdelta', 'kulturlandschaft', 'vulkan', 'kontinent', 'wueste', 'suempfe_moore', 'see', 'insel', 'inselgruppe', 'sonstiges',
         // 🔴 01.09.2026 (Editorenwunsch): drei FREIE Label-Arten in der Familie von
         // Berggipfel und Vulkan -- sie haben KEIN Flaechen-Gegenstueck und stehen deshalb
-        // nur hier, nicht im Seed. Dazu 'vorgebirge_mittelgebirge', das SEHR WOHL eine
-        // Flaechenart ist (topographie) -- dort waere sein Fehlen hier ein 400 auf jedes
-        // Label, dessen Flaeche die Art laengst traegt.
-        'felsformation', 'bergkette', 'huegel', 'vorgebirge_mittelgebirge'];
+        // nur hier, nicht im Seed.
+        // 🔴 'vorgebirge_mittelgebirge' stand hier bis zum 09.09.2026 daneben und ist auf
+        // Owner-Entscheid gestrichen -- als Flaechenart UND als Beschriftungsart (Begruendung im Kopf
+        // von avesmapsEcosystemRetireVorgebirge, api/_internal/app/ecosystem.php). Gefahrlos, weil
+        // KEINE Beschriftung sie trug (ganze Tabelle gezaehlt, Dump 08.09.2026); haette eine sie
+        // getragen, waere ihr Fehlen hier ein 400 auf jedes Speichern dieser Beschriftung.
+        'felsformation', 'bergkette', 'huegel'];
     if (!in_array($subtype, $allowedSubtypes, true)) {
         throw new InvalidArgumentException('Die Label-Kategorie ist ungueltig.');
     }

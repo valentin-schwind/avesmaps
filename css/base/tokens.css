@@ -450,9 +450,10 @@
 	   in warm brown would be unreadable to every editor who has ever seen a map. */
 	--color-ecosystem-topographie-gebirge: #7a6c5e;         /* mountains, brown-grey */
 	--color-ecosystem-topographie-huegelland: #7d8f6e;      /* hills, grey-green */
-	/* Vor-/Mittelgebirge: zwischen dem Gebirgs-Braungrau (#7a6c5e) und dem Huegel-Graugruen
-	   (#7d8f6e) -- es ist der Uebergang zwischen beiden, und der Ton sagt das. */
-	--color-ecosystem-topographie-vorgebirge_mittelgebirge: #7c7b66;
+	/* 🔴 Hier stand bis zum 09.09.2026 --color-ecosystem-topographie-vorgebirge_mittelgebirge (#7c7b66,
+	   zwischen den beiden Toenen darueber). Die Art ist auf Owner-Entscheid gestrichen; der Token faellt
+	   MIT ihr, sonst bleibt ein Ton stehen, den nichts mehr anfordert. Begruendung im Kopf von
+	   avesmapsEcosystemRetireVorgebirge (api/_internal/app/ecosystem.php). */
 	/* 🔴 DER SEE TRAEGT DIE FARBE DES FLUSSES (Owner 07.09.2026: „Kannst du Seen dieselbe Fuellung
 	   geben wie die Farbe der Fluesse"). Der Wert ist KEIN eigener Ton, sondern der der Flusslinie --
 	   `centerColors.Flussweg` in getPathStyleColors (js/map-features/map-features.js), gemessen als

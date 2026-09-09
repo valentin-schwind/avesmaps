@@ -604,13 +604,13 @@ function avesmapsLabelSearchTypeLabel(string $subtype): string {
         'gebirge' => 'Gebirge',
         'berggipfel' => 'Berggipfel',
         'vulkan' => 'Vulkan',
-        // 01.09.2026: die vier neuen Arten. ⚠️ Diese Tabelle ist die EINZIGE, die
+        // 01.09.2026: drei der damals vier neuen Arten -- `vorgebirge_mittelgebirge` ist am
+        // 09.09.2026 auf Owner-Entscheid gestrichen. ⚠️ Diese Tabelle ist die EINZIGE, die
         // js/ui/label-arten.js nicht lesen kann (PHP gegen JS) -- sie faellt fuer 18 weitere
         // Arten bis heute auf „Label“ zurueck. Die Neuen verbreitern die Luecke nicht.
         'bergkette' => 'Berg-/Hügelkette',
         'felsformation' => 'Felsformation',
         'huegel' => 'Hügel',
-        'vorgebirge_mittelgebirge' => 'Vor-/Mittelgebirge',
         'wald' => 'Wald',
         'tal' => 'Tal',
         'kontinent' => 'Kontinent',

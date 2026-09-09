@@ -59,7 +59,6 @@ const AVESMAPS_LABEL_ART_NAMEN = {
 	tiefebene: "Tiefebene",
 	tundra: "Tundra",
 	urwald: "Urwald",
-	vorgebirge_mittelgebirge: "Vor-/Mittelgebirge",
 	vulkan: "Vulkan",
 	wadi: "Wadi",
 	wald: "Wald",
