@@ -1172,7 +1172,7 @@ function avesmapsGaretienFindeBestand(PDO $pdo, array $zeile, ?array $ziel): arr
     if ($bester !== null && $besterAbstand <= avesmapsGaretienTrefferSchwelle($ziel)) {
         // 3. Der Name -- NUR als Zusatz zur Meldung, nie als Entscheidung.
         // 🔴 Bauwerk gegen Siedlung: nur der GANZE Name -- siehe avesmapsGaretienTrefferNameGleich.
-        $gleicherName = avesmapsGaretienTrefferNameGleich($ziel, $bester, (string) ($zeile['anzeige'] ?? ''));
+        $gleicherName = avesmapsGaretienTrefferNameGleich($ziel, $bester, avesmapsGaretienNameDerZeile($zeile));
 
         // 🔴 BEI EINEM PUNKT ENTSCHEIDET DER NAME (Owner 31.08.2026). Ihre „Burg Gryffenwacht"
         // lag 1,90 Einheiten neben unserem Dorf „Valpolust" und galt als dasselbe Objekt. Gemessen
@@ -1317,6 +1317,177 @@ function avesmapsGaretienNamenGleich(string $a, string $b): bool
     $a = avesmapsGaretienNamenNormalisiert($a);
 
     return $a !== '' && $a === avesmapsGaretienNamenNormalisiert($b);
+}
+
+// =================================================================================================
+// DER NAME EINES OBJEKTS -- Artikel oder Anzeige (Fall #118, 09.09.2026)
+// =================================================================================================
+// garetien.de liefert je Objekt ZWEI Namen: `artikel!anzeige` in der Rohzeile
+// (avesmapsGaretienParseZeile). Der `artikel` ist der Wiki-Seitenname, die `anzeige` das Label,
+// das ihre Karte an die Stelle schreibt. Bis zum 09.09.2026 las der Importer durchgehend die
+// ANZEIGE -- und die ist bei 2954 von 8349 Zeilen (35,4 %, Lauf 20) eine andere.
+//
+// 🔴 OWNER 09.09.2026, woertlich: „die Burg heisst auch Burg - verändere nicht die Namen, was soll
+// der blödsinn." Der Artikelname ist der Name.
+//
+// 💣 ABER NICHT IMMER, UND DAS IST DER GANZE INHALT DIESER REGEL. Ein Artikel kann MEHRERE Objekte
+// tragen -- „Nachbarprovinzen" 49 (Ochsenwasser, Neunaugensee, Oberer Yaquir …), „Raschtulswall"
+// 29, „Huegel und Berge in Hartsteen" 14. Dort ist die Anzeige der EINZIGE Name, den ein Objekt
+// hat; ein blindes „nimm den Artikel" haette 174 Zeilen gleich benannt. Live gemessen am
+// Bestand vom 08.09.2026: 2780 der 2954 abweichenden Zeilen sind 1:1, 174 sind Sammelartikel.
+//
+// 🔴 DIE UNTERSCHEIDUNG IST EINE ZAEHLUNG, KEINE TEXTHEURISTIK. „Steckt die Anzeige im Artikel?"
+// haette 2527 der 2780 richtig getroffen und die uebrigen 253 verfehlt („Suempfe von Altgob" ->
+// „Altgob-Suempfe", „Rabenkamm" -> „Rabenklamm"); die Frage ist nicht, wie zwei Namen aussehen,
+// sondern ob der Artikel EIN Objekt beschreibt oder viele.
+//
+// ⚠️ Ein Sammelartikel, von dem ein Lauf nur EIN Objekt liefert, ist per Konstruktion nicht
+// erkennbar und bekommt den Sammelnamen. Der Fall ist sichtbar (der Name steht in der Liste, bevor
+// jemand uebernimmt) und die sichere Richtung: ein Name zu allgemein, nie ein Objekt zu wenig.
+
+/**
+ * PURE: der Schluessel eines Artikels in der Sammelartikel-Menge.
+ *
+ * 💣 Zaehler und Leser MUESSEN dieselbe Faltung benutzen. Sie steht deshalb hier und wird von
+ * beiden gerufen -- laufen die zwei Schreibweisen auseinander, greift die Regel lautlos nie, und
+ * der Fehler sieht aus wie „der Sammelartikel wurde nicht erkannt".
+ */
+function avesmapsGaretienArtikelSchluessel(string $artikel): string
+{
+    return mb_strtolower(trim($artikel), 'UTF-8');
+}
+
+/**
+ * PURE: Wie heisst dieses Objekt?
+ *
+ * @param array<string,mixed>   $zeile         eine Staging-Zeile (braucht `artikel` und `anzeige`)
+ * @param array<string,true>    $sammelartikel aus avesmapsGaretienSammelartikel(), gefaltete Schluessel
+ */
+function avesmapsGaretienObjektName(array $zeile, array $sammelartikel): string
+{
+    $artikel = trim((string) ($zeile['artikel'] ?? ''));
+    $anzeige = trim((string) ($zeile['anzeige'] ?? ''));
+    if ($artikel === '') {
+        return $anzeige;
+    }
+    if ($anzeige === '') {
+        return $artikel;
+    }
+
+    return isset($sammelartikel[avesmapsGaretienArtikelSchluessel($artikel)]) ? $anzeige : $artikel;
+}
+
+/**
+ * PURE: der Name einer BEREITS BENANNTEN Zeile.
+ *
+ * 🔴 JEDER Namensleser geht durch diese Funktion -- Abgleich, Innerorts-Befund, Planbau und
+ * Arbeitsliste. Vorher stand `trim((string) ($zeile['anzeige'] ?? ''))` an acht Stellen; wer den
+ * Namen einmal aendert, haette sieben davon vergessen (Fall #118 ist genau das Muster).
+ *
+ * ⚠️ Der Rueckfall auf `anzeige` ist ein SICHERHEITSNETZ, kein Weg: die zwei Lesestellen, die
+ * Staging-Zeilen aus der Datenbank holen, benennen sie ueber avesmapsGaretienZeilenBenennen, und
+ * `garetien-objektname-verdrahtung-test.php` nagelt beide fest. Ohne den Rueckfall traege eine
+ * Zeile aus einem Altpfad einen LEEREN Namen -- und ein leerer Name ist schlimmer als ein
+ * ungenauer.
+ */
+function avesmapsGaretienNameDerZeile(array $zeile): string
+{
+    $name = trim((string) ($zeile['name'] ?? ''));
+
+    return $name !== '' ? $name : trim((string) ($zeile['anzeige'] ?? ''));
+}
+
+/**
+ * Die Zeilen EINES Laufs benennen -- setzt je Zeile `name`.
+ *
+ * ⚠️ Erwartet die Zeilen, wie sie aus der Datenbank kommen; die Sammelartikel-Zaehlung holt sich
+ * ihren eigenen Blick auf den GANZEN Lauf und haengt nicht daran, welche Zeilen hier ankommen.
+ *
+ * @param list<array<string,mixed>> $zeilen
+ * @return list<array<string,mixed>>
+ */
+function avesmapsGaretienZeilenBenennen(PDO $pdo, int $runId, array $zeilen): array
+{
+    $sammel = avesmapsGaretienSammelartikel($pdo, $runId);
+    foreach ($zeilen as $i => $zeile) {
+        $zeilen[$i]['name'] = avesmapsGaretienObjektName($zeile, $sammel);
+    }
+
+    return $zeilen;
+}
+
+/** @return array<int,array<string,true>> Speicher je Lauf */
+function &avesmapsGaretienSammelartikelSpeicher(): array
+{
+    static $zwischenspeicher = [];
+
+    return $zwischenspeicher;
+}
+
+/**
+ * Den Sammelartikel-Speicher leeren.
+ *
+ * 🪤 Wie avesmapsGaretienKandidatenVergessen kein Test-Zucker: ein zweiter Abruf desselben Laufs
+ * im selben Prozess (Holen & Rechnen laeuft beides hintereinander) bekaeme sonst die Zaehlung von
+ * VOR dem Nachlegen der Zeilen.
+ */
+function avesmapsGaretienSammelartikelVergessen(): void
+{
+    $speicher = &avesmapsGaretienSammelartikelSpeicher();
+    $speicher = [];
+}
+
+/**
+ * Welche Artikel dieses Laufs tragen MEHR ALS EIN Objekt?
+ *
+ * ⚠️ Gezaehlt wird ueber den GANZEN Lauf, nie ueber eine gefilterte Auswahl: eine Liste, die nur
+ * einen Teil zeigt, saehe einen Sammelartikel mit einem sichtbaren Objekt als 1:1 -- und dann
+ * haette dieselbe Zeile in der Liste einen anderen Namen als im Plan.
+ *
+ * ⚠️ Gefaltet und gezaehlt wird in PHP, nicht per `GROUP BY LOWER(...)`: die Faltung von Umlauten
+ * ist in MySQL und SQLite verschieden, und ein Test gegen SQLite saehe die MySQL-Abweichung nie
+ * (AGENTS.md §9). `DISTINCT` darf SQL machen -- es aendert an der Menge nichts.
+ *
+ * 🪤 FAELLT OFFEN AUS. Ohne Tabelle oder bei einem Abfragefehler gibt es „kein Sammelartikel
+ * bekannt" zurueck statt zu werfen: der Preis ist ein zu allgemeiner Name an wenigen Zeilen, der
+ * eines werfenden Zaehlers waere ein angehaltener Planbau.
+ *
+ * @return array<string,true> gefalteter Artikelname => true
+ */
+function avesmapsGaretienSammelartikel(PDO $pdo, int $runId): array
+{
+    $speicher = &avesmapsGaretienSammelartikelSpeicher();
+    if (isset($speicher[$runId])) {
+        return $speicher[$runId];
+    }
+    $namenJeArtikel = [];
+    try {
+        $stmt = $pdo->prepare(
+            'SELECT DISTINCT artikel, anzeige FROM garetien_import_row WHERE run_id = :run'
+        );
+        $stmt->execute(['run' => $runId]);
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) ?: [] as $zeile) {
+            $artikel = avesmapsGaretienArtikelSchluessel((string) ($zeile['artikel'] ?? ''));
+            $anzeige = trim((string) ($zeile['anzeige'] ?? ''));
+            if ($artikel === '' || $anzeige === '') {
+                continue;
+            }
+            $namenJeArtikel[$artikel][$anzeige] = true;
+        }
+    } catch (Throwable) {
+        $speicher[$runId] = [];
+
+        return [];
+    }
+    $sammel = [];
+    foreach ($namenJeArtikel as $artikel => $namen) {
+        if (count($namen) > 1) {
+            $sammel[$artikel] = true;
+        }
+    }
+    $speicher[$runId] = $sammel;
+
+    return $sammel;
 }
 
 /**
@@ -1712,7 +1883,7 @@ function avesmapsGaretienInnerortsBefund(PDO $pdo, array $zeile, ?array $ziel, ?
         || !avesmapsIstBauwerksklasse((string) ($ziel['subtyp'] ?? ''))) {
         return null;
     }
-    $objektName = trim((string) ($zeile['anzeige'] ?? ''));
+    $objektName = avesmapsGaretienNameDerZeile($zeile);
     if ($objektName === '') {
         return null;
     }

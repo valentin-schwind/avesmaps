@@ -63,7 +63,7 @@ $namen = $pdo->query('SELECT label FROM sync_plan_item ORDER BY id')->fetchAll(P
 // abgeschaltet. ⚠️ Die Alke ist damit NICHT verschwunden -- sie steht weiter da, aber nur noch
 // mit dem Ausgang „trotzdem neu anlegen". Das ist die ganze Aussage von „neu oder nix".
 assert($namen === ['Alke → Alke · Quelle',
-    'Alke (Bach) · trotz Nähe zu "Alke" zusätzlich anlegen', 'Gardel (Fluss)', 'Mühlsee (See)',
+    'Alke (Bach) · trotz Nähe zu "Alke" zusätzlich anlegen', 'Gardel (Fluss)', 'Muehlsee (See)',
     'Llavari (Fluss)', 'Seitenarm der Alke (Bach) · liegt auf "Alke"'],
     'die richtigen sechs: ' . implode(' | ', $namen));
 // 💣 UND KEIN EINZIGES ITEM SCHREIBT MEHR AN EINEM BESTEHENDEN OBJEKT. Das ist die

@@ -356,7 +356,7 @@ $muehlsee = null;
 $seitenarm = null;
 foreach ($items as $i) {
     if (str_starts_with((string) $i['label'], 'Gardel')) { $gardel = (int) $i['id']; }
-    if (str_starts_with((string) $i['label'], 'Mühlsee')) { $muehlsee = (int) $i['id']; }
+    if (str_starts_with((string) $i['label'], 'Muehlsee')) { $muehlsee = (int) $i['id']; }
     if (str_starts_with((string) $i['label'], 'Seitenarm')) { $seitenarm = (int) $i['id']; }
 }
 assert($gardel !== null && $muehlsee !== null && $seitenarm !== null, 'der Pruefstand hat die drei Vorschlaege');
@@ -544,10 +544,10 @@ $pruefungen += 2;
 // 🔴 AUFGABE 29 (Owner-Entscheid 30.08.2026): "Mühlsee" traegt hier eine Wiki-Landschaft mit
 // PASSENDER Art (See) -- die Flaeche muss beim Anlegen den Schluessel zugewiesen bekommen, ohne
 // dass Name oder Art des Imports sich aendern.
-avesmapsGaretienUebernahmeWikiRegionZeile($pdo, 'Mühlsee', 'See', 'wiki:muehlsee');
+avesmapsGaretienUebernahmeWikiRegionZeile($pdo, 'Muehlsee', 'See', 'wiki:muehlsee');
 $e3 = avesmapsGaretienUebernehmen($pdo, $lauf, [$muehlsee], ['id' => 7]);
 assert($e3['angelegt'] === 1, 'die Seeflaeche wurde angelegt: ' . json_encode($e3['fehler'], JSON_UNESCAPED_UNICODE));
-$region = $pdo->query("SELECT * FROM ecosystem_region WHERE name = 'Mühlsee'")->fetch(PDO::FETCH_ASSOC);
+$region = $pdo->query("SELECT * FROM ecosystem_region WHERE name = 'Muehlsee'")->fetch(PDO::FETCH_ASSOC);
 assert($region !== false, 'die Region steht da');
 assert($region['kind'] === 'topographie' && $region['region_type'] === 'see');
 assert((string) $region['label_public_id'] !== '', 'sie haengt an einem Label');
@@ -588,7 +588,7 @@ $pruefungen += 2;
 // Subtyp der Flaeche/des Labels sind unveraendert die des Garetien-Imports, nicht die des Wikis.
 assert(($muehlseeLabelProps['wiki_region']['wiki_key'] ?? '') === 'wiki:muehlsee',
     'die Flaeche traegt den gefundenen Wiki-Schluessel: ' . json_encode($muehlseeLabelProps));
-assert($label['name'] === 'Mühlsee', 'der NAME bleibt der des Imports, nicht der des Wikis: ' . $label['name']);
+assert($label['name'] === 'Muehlsee', 'der NAME bleibt der des Imports, nicht der des Wikis: ' . $label['name']);
 assert($region['region_type'] === 'see', 'und die ART bleibt ebenfalls die des Imports: ' . $region['region_type']);
 $pruefungen += 3;
 

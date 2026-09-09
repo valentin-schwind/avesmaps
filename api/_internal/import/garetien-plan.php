@@ -603,7 +603,7 @@ function avesmapsGaretienPlanEintrag(array $zeile, array $ziel, array $urteil, ?
         // Schreibzugriff auf ihn.
         'entity_public_id' => $zufluss ? null : $urteil['treffer_public_id'],
         'change_type' => $istNeu ? 'new' : 'changed',
-        'label' => trim((string) ($zeile['anzeige'] ?? '')) . ' (' . $zeile['typ'] . ')' . $nachbar,
+        'label' => avesmapsGaretienNameDerZeile($zeile) . ' (' . $zeile['typ'] . ')' . $nachbar,
         'before' => ($zufluss || $urteil['treffer_public_id'] === null) ? [] : [
             'public_id' => $urteil['treffer_public_id'],
             'name' => $urteil['treffer_name'],
@@ -621,7 +621,7 @@ function avesmapsGaretienPlanEintrag(array $zeile, array $ziel, array $urteil, ?
             // 🔴 NUR WENN GESETZT -- die Abwesenheit ist die Aussage „kein Bach". Ein
             // `is_bach: false` an jedem Strom und Fluss waere eine Behauptung in jeder Planzeile.
             ...(!empty($ziel['is_bach']) ? ['is_bach' => true] : []),
-            'name' => trim((string) ($zeile['anzeige'] ?? '')),
+            'name' => avesmapsGaretienNameDerZeile($zeile),
             // 🔴 Seit 29.08.2026 DREI Geometrieformen, nicht mehr zwei (Entwurf §3.1/§3.4): ein
             // Ort ('location') oder ein Berggipfel-Label ('label') ist bei uns ein PUNKT, keine
             // Flaeche und keine Linie -- der einzige Punkt der Quellzeile.
@@ -910,7 +910,7 @@ function avesmapsGaretienErgaenzungsEintraege(array $zeile, array $ziel, array $
     if ($abschnitte === []) {
         return [];
     }
-    $ihrName = trim((string) ($zeile['anzeige'] ?? ''));
+    $ihrName = avesmapsGaretienNameDerZeile($zeile);
     $einObjekt = avesmapsGaretienEinObjekt($abschnitte);
     $wiki = (string) ($zeile['wiki'] ?? 'ggp');
     // 🔴 KEIN ERSETZEN MEHR (Owner 31.08.2026). Umbenennung und Geometrie-Ersatz schreiben an
@@ -1550,7 +1550,11 @@ function avesmapsGaretienBaueSyncPlan(PDO $pdo, int $importRunId, int $userId = 
 
     $anzahl = 0;
     $uebersprungen = [];
-    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $zeile) {
+    // 🔴 FALL #118: hier bekommt jede Zeile ihren NAMEN -- den Wiki-Seitennamen, nicht das
+    // Kartenlabel (avesmapsGaretienObjektName). Alles dahinter liest ihn ueber
+    // avesmapsGaretienNameDerZeile: der Abgleich, der Innerorts-Befund, `after.name` und die
+    // Beschriftung. Der Sammelartikel-Zaehler laeuft dabei EINMAL je Lauf.
+    foreach (avesmapsGaretienZeilenBenennen($pdo, $importRunId, $stmt->fetchAll(PDO::FETCH_ASSOC)) as $zeile) {
         $grund = avesmapsGaretienUeberspringGrund($zeile);
         if ($grund !== null) {
             $uebersprungen[$grund] = ($uebersprungen[$grund] ?? 0) + 1;
@@ -1584,7 +1588,7 @@ function avesmapsGaretienBaueSyncPlan(PDO $pdo, int $importRunId, int $userId = 
             $pdo, $importRunId, (string) $zeile['wiki'], (string) $zeile['ebene'], (int) $zeile['zeile_nr'],
             $urteil['status'], $urteil['grund'],
             $nenntTreffer ? avesmapsGaretienAbschnitteMitNamensbefund(
-                (array) ($urteil['abschnitte'] ?? []), trim((string) ($zeile['anzeige'] ?? ''))
+                (array) ($urteil['abschnitte'] ?? []), avesmapsGaretienNameDerZeile($zeile)
             ) : [],
             $nenntTreffer && $urteil['abstand'] !== null ? (float) $urteil['abstand'] : null
         );
@@ -1686,6 +1690,15 @@ function avesmapsGaretienPlanTestPdo(): PDO
         ['ggp', 'Gewaesser', 3, 'See', 'Garetien', 'Muehlsee', 'Mühlsee', 'koordinaten', '1000 -12000, 1800 -12700, 1200 -13400, 1000 -12000'],
         // uebersprungen: Sammelartikel
         ['ggp', 'Gewaesser', 4, 'Fluss', '', 'Nachbarprovinzen', 'Llavari', 'koordinaten', '1 2, 3 4'],
+        // 🔴 DIE ZWEITE ZEILE UNTER DEMSELBEN ARTIKEL IST TRAGEND, NICHT DEKORATION (Fall #118,
+        // 09.09.2026). Ein SAMMELARTIKEL ist per Definition einer, der MEHRERE Objekte traegt --
+        // live sind es unter „Nachbarprovinzen" 49 (Ochsenwasser, Neunaugensee, Oberer Yaquir …).
+        // avesmapsGaretienSammelartikel zaehlt genau das; mit nur einer Zeile saehe der Artikel wie
+        // ein gewoehnlicher Wiki-Seitenname aus, und die Llavari hiesse in diesem Pruefstand
+        // „Nachbarprovinzen" -- ein Name, den es live nie gaebe.
+        // ⚠️ Sie traegt die Marke `2000000 2000000` („keine Position") und wird deshalb
+        // UEBERSPRUNGEN: sie macht den Artikel zaehlbar, ohne ein siebtes Item zu erzeugen.
+        ['ggp', 'Gewaesser', 7, 'Fluss', '', 'Nachbarprovinzen', 'Ochsenwasser', 'koordinaten', '2000000 2000000, 2000001 2000001'],
         // uebersprungen: Typ ohne Gegenstueck. 🔴 Review C1: zeile_nr=1 ist ABSICHT, nicht Zufall
         // -- sie kollidiert mit der Alke (Zeile darueber, ebenfalls zeile_nr=1) ueber ein ANDERES
         // wiki. Genau das tut die Produktion: avesmapsGaretienStageSeite() startet zeile_nr fuer

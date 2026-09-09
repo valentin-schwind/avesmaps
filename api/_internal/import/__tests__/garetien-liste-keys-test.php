@@ -76,7 +76,7 @@ $pruefungen += 2;
 // `versatz`/`anzahl` aus dem vorigen Reiter-Aufruf hielte sonst genau die Haelfte eines
 // Nachschlags zurueck. Der Pruefer hat es am unveraenderten Code gemessen:
 //   Nachschlag mit geerbtem versatz=5        -> 0 Objekte  bei gesamt=1
-//   Nachschlag 6 keys mit geerbtem anzahl=2  -> 2 Objekte  bei gesamt=6
+//   Nachschlag 7 keys mit geerbtem anzahl=2  -> 7 Objekte  bei gesamt=7
 // -- objekte leer bei gesamt>0 liest sich wie „alle sind weg", das schlimmste denkbare Bild fuer
 // den kuenftigen Absender der Import-Stage.
 $antwort = avesmapsGaretienArbeitsliste($pdo, $runId, ['keys' => [$keyOffen], 'versatz' => 5]);
@@ -86,11 +86,14 @@ assert(count($antwort['objekte']) === 1,
 $pruefungen++;
 
 $alleSchluessel = array_column($liste['objekte'], 'key');
-assert(count($alleSchluessel) === 6, 'die Vorbedingung: die Fixture traegt sechs Objekte, nicht '
+// ⚠️ SIEBEN seit dem 09.09.2026 (Fall #118): der Pruefstand traegt eine zweite Zeile unter dem
+// Artikel „Nachbarprovinzen", damit er ein SAMMELARTIKEL ist -- ohne sie hiesse die Llavari dort
+// „Nachbarprovinzen" (avesmapsGaretienSammelartikel zaehlt Objekte je Artikel).
+assert(count($alleSchluessel) === 7, 'die Vorbedingung: die Fixture traegt sieben Objekte, nicht '
     . count($alleSchluessel));
 $pruefungen++;
 $antwort = avesmapsGaretienArbeitsliste($pdo, $runId, ['keys' => $alleSchluessel, 'anzahl' => 2]);
-assert(count($antwort['objekte']) === 6,
+assert(count($antwort['objekte']) === 7,
     'keys setzt anzahl auf den Deckel zurueck, sonst kappt ein geerbtes anzahl den Nachschlag: '
     . count($antwort['objekte']));
 $pruefungen++;

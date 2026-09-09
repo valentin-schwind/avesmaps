@@ -554,7 +554,11 @@ function avesmapsGaretienArbeitslisteObjekte(PDO $pdo, int $importRunId): array
         $zeilenStmt = $lies($spalten);
     }
     $zeilenNachSchluessel = [];
-    foreach ($zeilenStmt->fetchAll(PDO::FETCH_ASSOC) as $zeile) {
+    // 🔴 FALL #118: dieselbe Benennung wie im Planbau. Sie MUSS hier stehen und nicht nur dort --
+    // die Liste zeigt auch Zeilen OHNE Item („deckt sich" ohne Ergaenzung, „uebersprungen"), und
+    // die kaemen sonst mit dem Kartenlabel statt ihrem Namen daher. Dieselbe Zwei-Erzeuger-Falle
+    // wie beim Urteil ein paar Zeilen weiter unten.
+    foreach (avesmapsGaretienZeilenBenennen($pdo, $importRunId, $zeilenStmt->fetchAll(PDO::FETCH_ASSOC)) as $zeile) {
         // 💣 Derselbe Schluessel wie in garetien-plan.php -- eine zweite Formel liefe beim ersten
         // Sonderzeichen auseinander und stuende dasselbe Objekt zweimal in der Liste.
         $zeilenNachSchluessel[avesmapsGaretienObjektSchluesselAusZeile($zeile)] = $zeile;
@@ -585,7 +589,7 @@ function avesmapsGaretienArbeitslisteObjekte(PDO $pdo, int $importRunId): array
             }
         }
         if ($name === '' && $zeile !== null) {
-            $name = trim((string) ($zeile['anzeige'] ?? ''));
+            $name = avesmapsGaretienNameDerZeile($zeile);
         }
 
         $ausItems = [];
@@ -768,7 +772,7 @@ function avesmapsGaretienArbeitslisteObjekte(PDO $pdo, int $importRunId): array
         $treffer = avesmapsGaretienListeTrefferAuskunft($zeile['abschnitte_json'] ?? null);
         $objekte[$key] = [
             'key' => $key,
-            'name' => trim((string) ($zeile['anzeige'] ?? '')),
+            'name' => avesmapsGaretienNameDerZeile($zeile),
             'typ' => (string) ($zeile['typ'] ?? ''),
             'wiki' => (string) ($zeile['wiki'] ?? ''),
             'ebene' => (string) ($zeile['ebene'] ?? ''),

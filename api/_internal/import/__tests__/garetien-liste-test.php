@@ -766,8 +766,8 @@ $pruefungen++;
 
 // ⚠️ Gegenprobe: ein Objekt OHNE Vermerk ist danach weiterhin offen. Ohne sie belegte die Zeile
 // darueber nur, dass nach einem Neurechnen alles „uebernommen" heisst.
-assert($standVon($pdoU, 'Mühlsee') === 'offen',
-    'ein Objekt ohne Vermerk bleibt offen: ' . $standVon($pdoU, 'Mühlsee'));
+assert($standVon($pdoU, 'Muehlsee') === 'offen',
+    'ein Objekt ohne Vermerk bleibt offen: ' . $standVon($pdoU, 'Muehlsee'));
 $pruefungen++;
 
 // --- 🔴 DER NACHZUG fuer alles, was VOR dem 30.08.2026 uebernommen wurde: dort gibt es keinen
