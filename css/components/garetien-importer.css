@@ -1359,6 +1359,22 @@ html.avesmaps-planner-collapsed .gi-win {
 	border-top: 0;
 }
 
+/* Die zwei Einfuege-Haekchen und die Knopfreihe darunter (Owner 09.09.2026: „Von der Stage
+   nehmen + Ablehnen soll in eine 2. Zeile unter die checkboxen").
+   🔴 `flex: 1 0 100%` wie beim Titel darueber -- .gi-acts ist eine flex-ZEILE, dort ist die
+   Basis die BREITE. (In einer flex-SPALTE waere dieselbe Zeile die Hoehe und wuerde den Kasten
+   aufblasen -- die Falle, die den Routenplaner am 05.09.2026 am Telefon zerlegt hat.)
+   💣 Die Knoepfe brauchen ihre EIGENE Huelle: als Geschwister der Haekchen-Absaetze zieht der
+   Umbruch der Leiste sie neben einen Haken, sobald einer kurz ist. */
+.gi-acts .gi-insert__row { flex: 1 0 100%; }
+
+.gi-acts__knoepfe {
+	flex: 1 0 100%;
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+}
+
 /* ---- Aufgabe 9+10 (07.09.2026): die Auswahlleiste --------------------------------------------- *
  *
  * 🔴 UNTER der Liste und AUSSERHALB ihres Rollkastens -- dieselbe Bauform und dieselbe Begruendung

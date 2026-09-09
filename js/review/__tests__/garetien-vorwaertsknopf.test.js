@@ -109,8 +109,14 @@ gleich(/\d/.test(knopf(wegObjekt, "stage").beschriftung), false,
 // 🔴 SEIT 09.09.2026 SAGT ES DER KASTEN, NICHT DER KNOPF (garetienEinfuegeHakenMarkup).
 // Der Satz durfte nicht ersatzlos fallen: ohne ihn sieht ein Objekt ohne Vorschlag aus wie eines
 // mit, nur ohne Haekchen -- und das liest sich wie ein Fehler.
+// 🔴 UND ERST AUF DER STAGE (Owner 09.09.2026). Davor steht im Kasten gar nichts: die Frage
+// „was soll eingefuegt werden" stellt sich erst, wenn das Objekt aufliegt.
+wahr(api.garetienEinfuegeHakenMarkup(offenOhneVorschlag) === "",
+	"vor der Stage zeigt der Kasten nichts");
+api.avesmapsGaretienStageHinzufuegen([offenOhneVorschlag]);
 wahr(api.garetienEinfuegeHakenMarkup(offenOhneVorschlag).includes("nur Ansicht"),
-	"ohne Vorschlag sagt der Kasten „nur Ansicht\"");
+	"auf der Stage sagt der Kasten „nur Ansicht\"");
+api.avesmapsGaretienStageLeeren();
 gleich(knopf(offenOhneVorschlag, "stage").disabled, false,
 	"…und der Knopf geht trotzdem: ansehen darf man alles");
 wahr(knopf(offenOhneVorschlag, "ablehnen").disabled,

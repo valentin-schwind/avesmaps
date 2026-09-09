@@ -6479,6 +6479,13 @@
 	function garetienEinfuegeHakenMarkup(objekt) {
 		const o = objekt || {};
 		if (String(o.stand || "") !== "offen") { return ""; }
+		// 🔴 ERST AUF DER STAGE (Owner 09.09.2026: „sollen erst kommen wenn es auf der stage
+		// ist"). Das ist die Reihenfolge seiner eigenen Begruendung -- „auf der stage ist auf der
+		// stage, ERST DANN entscheide ich, ob es nur die quelle ergaenzt". Davor waeren es zwei
+		// Entscheidungen nebeneinander, von denen die zweite noch gar nichts betrifft.
+		// ⚠️ Die WAHL ueberlebt das Herunternehmen (sie haengt am Objektschluessel, nicht am
+		// Markup): wer ein Objekt wieder auflegt, findet seine Haken so vor, wie er sie gesetzt hat.
+		if (!avesmapsGaretienStageHat(o.key)) { return ""; }
 		const wahl = garetienEinfuegeWahl(o);
 		const neuGeht = garetienNeuMoeglich(o);
 		const quelleGeht = garetienQuelleMoeglich(o);
@@ -6782,7 +6789,12 @@
 		// jeder Zeile laenger und in keiner klarer. Dieselbe Form wie „DER GRUND" und „WAS BEI UNS
 		// AN DERSELBEN STELLE LIEGT" darueber -- eine Zeile im Vokabular, das dort ohnehin steht.
 		return '<div class="gi-acts"><p class="gi-sec gi-acts__titel">Dieses Objekt</p>'
-			+ garetienEinfuegeHakenMarkup(objekt) + knopfMarkup + grundZeile + "</div>";
+			// 🔴 ZWEI ZEILEN, UND DIE HAEKCHEN STEHEN OBEN (Owner 09.09.2026: „Von der Stage
+			// nehmen + Ablehnen soll in eine 2. Zeile unter die checkboxen"). Die Knoepfe bekommen
+			// dafuer eine eigene Huelle -- ohne sie stehen sie als Geschwister der Haekchen-Absaetze
+			// da, und der Flex-Umbruch der Leiste kann sie neben einen Haken ziehen.
+			+ garetienEinfuegeHakenMarkup(objekt)
+			+ '<div class="gi-acts__knoepfe">' + knopfMarkup + "</div>" + grundZeile + "</div>";
 	}
 
 	// ---- Die Auswahl: die ZEILE öffnet die Ansicht, das HÄKCHEN nicht ------------------------------

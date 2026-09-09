@@ -138,27 +138,57 @@ pruefe(!stage.zeile2, "ohne Unterzeile -- die Häkchen sagen, was passiert: "
 	+ JSON.stringify(stage.zeile2));
 
 // =================================================================================================
-// F. Das Markup -- die Häkchen stehen wirklich da
+// F. Das Markup -- die Häkchen stehen wirklich da, aber erst auf der Stage
 // =================================================================================================
 // 💣 A bis E prüfen die REGELN. Ohne diesen Abschnitt könnten sie alle stimmen, während der Kasten
 // gar keine Häkchen zeigt -- der Editor sähe nur einen Knopf, der jetzt auch noch schweigt.
 api.garetienEinfuegeWahlVergessen();
-let mk = api.garetienEinfuegeHakenMarkup(objektErgaenzung());
-pruefe(mk.indexOf("Als Quelle einfügen") !== -1, "das Quellen-Häkchen steht da");
+api.avesmapsGaretienStageLeeren();
+
+// 🔴 VOR DER STAGE STEHT NICHTS DA (Owner 09.09.2026: „sollen erst kommen wenn es auf der stage
+// ist"). Das ist die Reihenfolge seiner eigenen Begründung: „auf der stage ist auf der stage, ERST
+// DANN entscheide ich, ob es nur die quelle ergänzt."
+pruefe(api.garetienEinfuegeHakenMarkup(objektErgaenzung()) === "",
+	"vor der Stage zeigt der Kasten keine Häkchen");
+
+const aufStage = objektErgaenzung();
+api.avesmapsGaretienStageHinzufuegen([aufStage]);
+let mk = api.garetienEinfuegeHakenMarkup(aufStage);
+pruefe(mk.indexOf("Als Quelle einfügen") !== -1, "auf der Stage: das Quellen-Häkchen steht da");
 pruefe(mk.indexOf("Neu einfügen") !== -1, "und „Neu einfügen“ daneben");
 pruefe(mk.indexOf('data-gi-feld="einfuegeQuelle"') !== -1, "mit dem Feldnamen, den der Handler liest");
 pruefe(mk.indexOf('data-gi-feld="einfuegeNeu"') !== -1, "beide");
 
 // 🔴 Innerorts: „Neu einfügen" FEHLT GANZ, nicht ausgegraut.
-api.garetienInnerortsWahlSetzen(innerorts, "stadt-1");
-mk = api.garetienEinfuegeHakenMarkup(Object.assign({ stand: "offen", urteil: "neu" }, innerorts));
+const innerortsAufStage = Object.assign({ stand: "offen", urteil: "neu" }, innerorts);
+api.avesmapsGaretienStageHinzufuegen([innerortsAufStage]);
+api.garetienInnerortsWahlSetzen(innerortsAufStage, "stadt-1");
+mk = api.garetienEinfuegeHakenMarkup(innerortsAufStage);
 pruefe(mk.indexOf("Neu einfügen") === -1,
 	"mit gewählter Stadt fehlt der Haken ganz -- kein ausgegrauter Rest: " + mk);
-api.garetienInnerortsWahlSetzen(innerorts, "");
+api.garetienInnerortsWahlSetzen(innerortsAufStage, "");
 
 // ⚠️ Ein übernommenes Objekt bekommt keine Häkchen -- dort gibt es nichts mehr zu entscheiden.
-pruefe(api.garetienEinfuegeHakenMarkup(
-	Object.assign(objektErgaenzung(), { stand: "uebernommen" })) === "",
+const uebernommen = Object.assign(objektErgaenzung(), { stand: "uebernommen" });
+api.avesmapsGaretienStageHinzufuegen([uebernommen]);
+pruefe(api.garetienEinfuegeHakenMarkup(uebernommen) === "",
 	"ein übernommenes Objekt zeigt keine Häkchen");
+
+// =================================================================================================
+// G. Die Knöpfe stehen in einer EIGENEN Zeile unter den Häkchen
+// =================================================================================================
+// 🔴 Owner 09.09.2026: „Von der Stage nehmen + Ablehnen soll in eine 2. Zeile unter die checkboxen".
+// 💣 Die eigene Hülle ist tragend: `.gi-acts` ist eine umbrechende Flex-Zeile, und ohne sie stehen
+// die Knöpfe als Geschwister der Häkchen-Absätze -- der Umbruch zieht sie dann neben einen Haken.
+api.garetienEinfuegeWahlVergessen();
+const leiste = api.garetienHandlungsMarkup(aufStage);
+const iHaken = leiste.indexOf('data-gi-feld="einfuegeQuelle"');
+const iKnoepfe = leiste.indexOf('gi-acts__knoepfe');
+pruefe(iHaken !== -1 && iKnoepfe !== -1, "beide stehen in der Leiste");
+pruefe(iHaken < iKnoepfe, "und die Häkchen ZUERST -- die Knöpfe darunter");
+pruefe(leiste.indexOf("Von der Stage nehmen") > iKnoepfe,
+	"„Von der Stage nehmen“ steht in der Knopfzeile");
+pruefe(leiste.indexOf("Ablehnen") > iKnoepfe, "„Ablehnen“ auch");
+api.avesmapsGaretienStageLeeren();
 
 console.log("OK -- " + n + " Zusicherungen");
