@@ -1410,6 +1410,65 @@
 			+ avesmapsGaretienEscape(String(n)) + " Fragmente</span>";
 	}
 
+	/*
+	 * Aufgabe 4: „Der Verbund auf der Stage" -- der Verbund einer Zeile und wer zu ihm gehoert.
+	 *
+	 * REIN: der Schluessel eines Verbunds -- "" fuer ein Einzelobjekt.
+	 *
+	 * 💣 EBENE UND TYP GEHOEREN HINEIN. Ein Wald und ein Huegel gleichen Stammes sind zwei
+	 * Verbuende; mit dem Stamm allein fielen sie zu einem zusammen, und beim Import bekaeme
+	 * der Huegel die Region des Waldes.
+	 * 🔴 Das Praefix `verbund:` haelt ihn vom Objektschluessel des Servers getrennt -- an dem
+	 * haengen `_garetienEingabenZustand` und `sync_decision`, und eine Kollision waere still.
+	 */
+	function garetienVerbundSchluessel(objekt) {
+		const o = objekt || {};
+		const stamm = String(o.verbund_stamm || "");
+		if (stamm === "" || !(Number(o.verbund_n || 0) >= 2)) { return ""; }
+		return "verbund:" + String(o.ebene || "") + "|" + String(o.typ || "") + "|" + stamm;
+	}
+
+	/* REIN: alle Objekte, die zu diesem Verbund gehoeren -- in der Reihenfolge der Liste. */
+	function garetienVerbundMitglieder(schluessel, objekte) {
+		const s = String(schluessel || "");
+		if (s === "") { return []; }
+		return (objekte || []).filter(function (o) {
+			return garetienVerbundSchluessel(o) === s;
+		});
+	}
+
+	// Welche Verbuende sind ZUSAMMENGELEGT? Ein Set von Verbundschluesseln.
+	// 🔴 Der Zustand ist die MENGE, nicht ein Feld am Objekt: die Liste wird nach jedem
+	// Schreibvorgang ersetzt (avesmapsGaretienStageAuffrischen), ein Feld waere still fort --
+	// dieselbe Begruendung wie bei `zustand.nurIhre`.
+	let _garetienVerbundZusammen = new Set();
+
+	// 🔧 UNGEWIRT: es gibt (Stand Aufgabe 4) keine Stelle im Produktivcode, die einen Laufwechsel
+	// meldet -- `garetienNameWahlVergessen` ist aus demselben Grund exportiert, aber ebenfalls
+	// nirgends verdrahtet (siehe deren Definition). Export hier aus Symmetrie, damit eine spaetere
+	// Aufgabe beide an derselben Stelle anschliessen kann.
+	function garetienVerbundVergessen() { _garetienVerbundZusammen = new Set(); }
+
+	function garetienVerbundIstZusammen(schluessel) {
+		return _garetienVerbundZusammen.has(String(schluessel || ""));
+	}
+
+	// „Verbund auf die Stage" -- legt ALLE Mitglieder des Verbunds auf die Stage und merkt sich
+	// den Verbund als zusammengelegt.
+	function garetienVerbundZusammenlegen(schluessel, objekte) {
+		const s = String(schluessel || "");
+		if (s === "") { return 0; }
+		const mitglieder = garetienVerbundMitglieder(s, objekte);
+		mitglieder.forEach(function (o) { zustand.stage.set(String(o.key), o); });
+		_garetienVerbundZusammen.add(s);
+		return mitglieder.length;
+	}
+
+	// „Verbund aufloesen" -- nimmt nur die MERKUNG zurueck, die Objekte bleiben auf der Stage.
+	function garetienVerbundAufloesen(schluessel) {
+		return _garetienVerbundZusammen.delete(String(schluessel || ""));
+	}
+
 	// 🔴 Aufgabe 2 (Entwurf §3.2): das Haekchen ist ein reiner MARKER und zeigt `zustand.auswahl`,
 	// nicht mehr den Item-Zustand -- „Markieren aendert nichts" (Owner 29.08.2026). Es gibt darum
 	// auch KEIN `disabled` mehr: ein Objekt OHNE jedes Item (7930 von 8213) muss sich genauso
@@ -9300,6 +9359,14 @@
 			garetienStageAntwortBauen,
 			// RULING R7 (Fix-Runde 1): Suche/Filtertrichter sperren + sichtbar begruenden
 			garetienStageFilterSperreSetzen,
+			// Aufgabe 4 (Fragmente-Verbund): der Verbund einer Zeile, seine Mitglieder und die
+			// Zustandsmenge „zusammengelegt" -- Grundlage fuer die Aufgaben 5, 6, 8 und 9.
+			garetienVerbundSchluessel,
+			garetienVerbundMitglieder,
+			garetienVerbundZusammenlegen,
+			garetienVerbundAufloesen,
+			garetienVerbundIstZusammen,
+			garetienVerbundVergessen,
 			// Aufgabe 11
 			garetienZeileMarkup,
 			avesmapsGaretienCheckboxZustand,
