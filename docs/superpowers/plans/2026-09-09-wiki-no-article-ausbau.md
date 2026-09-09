@@ -463,13 +463,62 @@ geschluckt, EIN Revisions-Bump am Ende. **Kein blindes `UPDATE`.**
   umgezogen war.
 
 **Schritte**
-- [ ] 4.1 Test gegen SQLite-Fixture: Trockenlauf zählt und schreibt nichts, scharf schreibt,
-      Archive bleiben unberührt, Deckel greift.
-- [ ] 4.2 Aktion bauen.
-- [ ] 4.3 Ganzes Testfeld.
+- [x] 4.1 Test gegen SQLite-Fixture: Trockenlauf zählt und schreibt nichts, scharf schreibt,
+      Archive bleiben unberührt, Deckel greift. **Gegen 14 Mutationen gefahren, alle gefangen.**
+- [x] 4.2 Aktion bauen — `api/_internal/map/wiki-merker-bereinigung.php` (Bibliothek) +
+      `api/edit/admin/wiki-merker-bereinigung.php` (Endpunkt, nur admin, Trockenlauf-Vorgabe).
+- [x] 4.3 Ganzes Testfeld: 400 PHP / 511 JS, rot nur der vorbestehende `link-url-test.php`.
 - [ ] 4.4 Agent widerlegt den Diff.
-- [ ] 4.5 🔧 **DU:** Trockenlauf fahren, Zahl gegen 10 halten, dann scharf.
+- [ ] 4.5 🔧 **DU:** Trockenlauf fahren, Zahl gegen **7** halten (2 Orte, 5 Kraftliniensegmente,
+      0 inaktive — live gezählt 09.09.2026, Revision 119767), dann scharf.
+      🪤 Hier stand **10** — die Zahl aus dem Dump vom Vortag. Vier Träger hatten ihren Merker
+      inzwischen durch eine Zuweisung verloren; ein Prüfagent hat es gefunden. ⭐ „Der Trockenlauf
+      ist die Messung" taugt nur, wenn die **Erwartung** frisch ist — gegen eine veraltete Zahl
+      gehalten hält der Owner an, wo nichts ist.
 - [ ] 4.6 Gegenprobe: 0 verbleibende Träger in `map_features`. Commit + Push.
+
+### 💣 Der Befund, der diesen Schritt beinahe zu einem Datenverlust gemacht hätte
+
+**`json_decode($s, true)` + `json_encode` ist KEIN Roundtrip**, und beide Abweichungen treffen genau
+diesen Lauf. Gemessen am 09.09.2026, nicht angenommen:
+
+| Gespeichert | Nach dem naiven Zyklus | |
+|---|---|---|
+| `{"a":{}}` | `{"a":[]}` | ein leeres Objekt kommt als leeres **Array** zurück |
+| `{"wiki_no_article":true}` | **`[]`** | 🔴 die Zeile, die NUR den Merker trägt |
+| `{"curve":26.0}` | `{"curve":26}` | die Nachkommastelle fällt, in **beiden** Dekodier-Formen |
+
+🔴 **Die zweite Zeile ist der Normalfall, nicht die Ausnahme.** Ein Träger ohne weitere
+Eigenschaften hätte nach der „Bereinigung" ein JSON-**Array** in `properties_json` gehabt, wo jeder
+Leser ein Objekt erwartet — und der Lauf hätte `done: 1` gemeldet. Kein Test des Hauses hätte das
+gesehen, der Trockenlauf schon gar nicht.
+
+⭐ **Behoben durch drei Dinge:** als **Objekt** dekodieren (nicht als Array), mit
+`JSON_PRESERVE_ZERO_FRACTION` kodieren, und — der eigentliche Riegel — **vor jedem Schreibvorgang
+prüfen, ob die ALTE Ablage einen Dekodier-Zyklus zeichengenau überlebt**. Tut sie es nicht, wird die
+Zeile gemeldet statt geschrieben. Das fängt auch, woran niemand gedacht hat: eine Ganzzahl jenseits
+von `PHP_INT_MAX` kommt als Gleitkommazahl zurück (in jeder Form) und wird deshalb übersprungen.
+
+⚠️ **Deshalb benutzt die Bibliothek NICHT `avesmapsEncodeJson()`**, obwohl das der Hausschreiber ist:
+ihm fehlt das Flag. Es ihm zu geben wäre ein Eingriff in jeden Schreibweg der Karte — unbestellt und
+ungemessen. Festgenagelt in Abschnitt 10/11 des Tests, gegen Mutationen gefahren.
+
+### Zwei Entscheidungen, die vom Plan abweichen
+
+🔴 **Der Revisions-Bump BLEIBT — anders als in Schritt 3, und aus gemessenem Grund.** Die
+Kartennutzlast reicht `properties` **durch**, sie projiziert nicht: am 09.09.2026 an der
+Live-Nutzlast gezählt (Revision 119767) tragen **7 der 12.318 Objekte** den Schlüssel sichtbar
+darin. Ihn zu entfernen ändert also Bytes, und ohne Bump behielte jeder warme Besucher über sein 304
+eine Nutzlast, die es so nicht mehr gibt. In Schritt 3 war dieselbe Messung **0 von 12.318** — dieselbe
+Frage, zweimal gemessen, zwei verschiedene Antworten.
+
+🔴 **Ohne `is_active`-Filter.** Eine weich gelöschte Zeile kann zurückgeholt werden und trüge dann
+einen Schlüssel, den niemand mehr liest; die Gegenprobe „0 verbleibende Träger" wäre sonst nur für
+die halbe Tabelle wahr. Der Bericht weist die inaktiven getrennt aus (`inactive`).
+
+⚠️ **Der Vorfilter ist ein `LIKE`, der Treffer ist `property_exists`.** Die Differenz steht als
+`like_treffer` gegen `total` im Bericht: sie sagt, wie viele Zeilen das Wort nur in einem TEXT
+tragen. Ohne diese Trennung räumte der Lauf einer Beschreibung ihren Inhalt weg.
 
 ---
 

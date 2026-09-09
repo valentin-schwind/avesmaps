@@ -237,15 +237,29 @@ foreach ($phpDateien as $datei) {
         $phpTreffer[] = substr($datei, strlen($wurzel) + 1);
     }
 }
-// 🔴 GENAU EINE, und sie ist namentlich benannt: der Uebersetzer historischer Protokollzeilen.
-// Eine blosse Obergrenze („hoechstens eine") liesse zu, dass diese eine verschwindet und eine
-// andere dazukommt -- und beide Haelften waeren falsch.
+// 🔴 GENAU DIESE ZWEI, NAMENTLICH -- keine Obergrenze. Eine blosse Obergrenze („hoechstens zwei")
+// liesse zu, dass eine davon verschwindet und eine fremde dazukommt, und beide Haelften waeren
+// falsch.
+//   1. `audit-detail.php` -- der Uebersetzer historischer Protokollzeilen. Er BLEIBT dauerhaft
+//      (Owner-Entscheid 09.09.2026, Abschnitt 4): ein Protokoll ist ein Archiv, sonst waere es keins.
+//   2. `map/wiki-merker-bereinigung.php` -- die einmalige Bestandsreparatur (Schritt 4). Sie ist der
+//      EINZIGE Grund, aus dem der Feldname ueberhaupt noch in lebendem Code stehen darf: sie raeumt
+//      ihn weg.
+// ⏳ NUMMER 2 IST BEFRISTET UND SOLL WIEDER VERSCHWINDEN. Ist der Bestand bereinigt und die
+// Gegenprobe bei `total: 0`, fallen Bibliothek und Endpunkt
+// (`api/edit/admin/wiki-merker-bereinigung.php`) -- und DIESE Liste wird wieder einelementig. Wer
+// den Lauf entfernt, kommt an dieser Zeile vorbei und weiss, was noch fehlt; wer ihn ewig stehen
+// laesst, hat ein Geruest ohne Bauwerk. Dieselbe Bauform wie der Abbau-Vertrag des
+// Garetien-Importers.
+// 💣 UND DIE REPARATUR IST DER GRUND, WARUM HIER EIN NAME STEHT UND KEINE ZAHL: waere die
+// Zusicherung „hoechstens zwei", koennte ein zurueckgekehrter LESER die Stelle der Reparatur
+// einnehmen, sobald die faellt -- und der Waechter bliebe gruen.
 assert(
-    $phpTreffer === ['api/_internal/audit-detail.php'],
+    $phpTreffer === ['api/_internal/audit-detail.php', 'api/_internal/map/wiki-merker-bereinigung.php'],
     "im api/-Baum steht wieder lebender Merker-Code (kommentarfrei gemessen):\n  "
     . implode("\n  ", $phpTreffer)
-    . "\n  Erwartet ist GENAU `api/_internal/audit-detail.php` -- der Uebersetzer fuer historische "
-    . 'Protokollzeilen, der laut Owner-Entscheid vom 09.09.2026 bleibt (Abschnitt 4).'
+    . "\n  Erwartet sind GENAU zwei: `api/_internal/audit-detail.php` (das Archiv, bleibt) und "
+    . '`api/_internal/map/wiki-merker-bereinigung.php` (die einmalige Bestandsreparatur, befristet).'
 );
 
 $browserBaum = static function (string $wurzelPfad): array {
