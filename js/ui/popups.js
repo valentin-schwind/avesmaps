@@ -237,6 +237,28 @@ function resolveFeatureKanon(entityType, entityPublicId) {
 	if (!Array.isArray(refs) || refs.length === 0) {
 		return null; // unbelegt -- die Vorgabe gilt fuer dieses Objekt nicht
 	}
+	// 💣 UND SIE GILT AUCH NICHT FUER EINEN NACHGETRAGENEN VERWEIS.
+	//
+	// 🚩 Owner-Meldung 09.09.2026, mit Bild: die Landschaftsflaeche „Schwanenbruch" trug am Kopf
+	// OFFIZIELL, waehrend darunter ihre einzige Quelle als „INOFFIZIELL │ Briefspiel" stand. Der
+	// Grund war nicht die Ableitung -- die war richtig --, sondern diese Zeile:
+	// syncFeatureSourcesToClientCache traegt nach einer Schreibaktion Verweise in die Tafel nach, und
+	// ein FEHLENDER Kanon-Eintrag hiess hier „offiziell". Ein frisch bequelltes Objekt kippte damit
+	// auf OFFIZIELL -- am schlimmsten genau dann, wenn die eingetragene Quelle INOFFIZIELL ist.
+	//
+	// 🔴 DER NACHTRAG LIEFERT SEIT DEM 09.09.2026 DAS ETIKETT MIT, und dann greift der Zweig oben.
+	// Diese Zeilen sind der Riegel FUER DEN FALL, DASS ER ES EINMAL NICHT TUT: „kein Etikett" statt
+	// eines falschen. Sie sind der Grund, warum derselbe Fehler nicht ein zweites Mal entstehen kann
+	// -- ein kuenftiger vierter Nachtragsweg erbt sie, ohne davon zu wissen.
+	//
+	// ⚠️ Die Vorgabe bleibt fuer alles gueltig, was aus der NUTZLAST kommt (dort haengen rund 5000
+	// Objekte daran, die deshalb keinen eigenen Eintrag brauchen). Der Unterschied ist die HERKUNFT
+	// des Verweises, nicht sein Inhalt. Und der Riegel faellt offen aus: ohne Marken-Tafel bleibt
+	// alles, wie es war.
+	const nachgetragen = typeof window !== "undefined" ? window.__featureSourceRefsNachgetragen : null;
+	if (nachgetragen && nachgetragen[key]) {
+		return null;
+	}
 	return kanon.vorgabe ? { kanon: kanon.vorgabe } : null;
 }
 
