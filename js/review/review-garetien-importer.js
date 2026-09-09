@@ -6496,9 +6496,18 @@
 			return '<p class="gi-acts__grund"><span>Nichts einzufügen — nur Ansicht.</span></p>';
 		}
 		let raus = "";
-		if (quelleGeht || wahl.neu) {
+		// 💣 DAS QUELLEN-HAEKCHEN VERSCHWINDET NIE, SOLANGE ES DAS ANDERE GIBT (Owner-Meldung
+		// 09.09.2026: „‚Neu einfügen‘ abhäkeln sorgt übrigens dafür, dass ‚Als Quelle einfügen‘
+		// verschwindet … das gibt keinen sinn“). Bei einem REINEN Neuzugang gibt es kein eigenes
+		// Quellen-Item -- die Quelle reist im `new`-Item mit --, also war `quelleGeht` dort false
+		// und die Zeile hing allein am gesetzten Haken. Sie fiel damit im selben Klick weg, der
+		// sie freigeben sollte.
+		// 🔴 SICHTBAR heisst nicht WAEHLBAR: gesperrt ist sie, solange „Neu einfügen“ steht (dann
+		// gilt sie zwingend) UND wenn es gar nichts zu ergänzen gibt (dann waere sie ein Haken ohne
+		// Wirkung). Ein Neuzugang ohne „Neu einfügen“ hat kein Ziel, an das eine Quelle könnte.
+		if (quelleGeht || neuGeht) {
 			raus += garetienEingefuegtWirdHakenZeile(o, "Als Quelle einfügen", "einfuegeQuelle",
-				wahl.quelle, wahl.neu);
+				wahl.quelle, wahl.neu || !quelleGeht);
 		}
 		if (neuGeht) {
 			raus += garetienEingefuegtWirdHakenZeile(o, "Neu einfügen", "einfuegeNeu", wahl.neu, false);

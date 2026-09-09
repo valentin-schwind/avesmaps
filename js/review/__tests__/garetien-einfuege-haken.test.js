@@ -191,4 +191,36 @@ pruefe(leiste.indexOf("Von der Stage nehmen") > iKnoepfe,
 pruefe(leiste.indexOf("Ablehnen") > iKnoepfe, "„Ablehnen“ auch");
 api.avesmapsGaretienStageLeeren();
 
+// =================================================================================================
+// H. Das Quellen-Häkchen verschwindet NIE beim Abhaken von „Neu einfügen"
+// =================================================================================================
+// Owner-Meldung 09.09.2026: „‚Neu einfügen‘ abhäkeln sorgt übrigens dafür, dass ‚Als Quelle
+// einfügen‘ verschwindet. […] das gibt keinen sinn."
+//
+// 💣 Der Fall ist der REINE NEUZUGANG: dort gibt es kein eigenes Quellen-Item (die Quelle reist im
+// `new`-Item mit), also war die Zeile nur sichtbar, SOLANGE der Haken stand -- und fiel im selben
+// Klick weg, der sie freigeben sollte.
+api.garetienEinfuegeWahlVergessen();
+api.avesmapsGaretienStageLeeren();
+const neuAufStage = objektNeu();
+neuAufStage.stand = "offen";
+neuAufStage.urteil = "neu";
+api.avesmapsGaretienStageHinzufuegen([neuAufStage]);
+
+let m = api.garetienEinfuegeHakenMarkup(neuAufStage);
+pruefe(m.indexOf("Als Quelle einfügen") !== -1, "mit „Neu einfügen“: das Quellen-Häkchen steht da");
+
+api.garetienEinfuegeWahlSetzen(neuAufStage, "neu", false);
+m = api.garetienEinfuegeHakenMarkup(neuAufStage);
+pruefe(m.indexOf("Als Quelle einfügen") !== -1,
+	"OHNE „Neu einfügen“ steht es IMMER NOCH da -- es verschwindet nicht: " + m);
+pruefe(m.indexOf("Neu einfügen") !== -1, "und „Neu einfügen“ selbst auch");
+
+// ⚠️ SICHTBAR heisst nicht WÄHLBAR: ein Neuzugang ohne „Neu einfügen“ hat kein Ziel, an das eine
+// Quelle könnte -- die Zeile bleibt gesperrt, statt einen Haken ohne Wirkung anzubieten.
+const zeileQuelle = m.slice(0, m.indexOf("Als Quelle einfügen"));
+pruefe(zeileQuelle.lastIndexOf("disabled") > zeileQuelle.lastIndexOf("<input"),
+	"und ist gesperrt, weil es nichts zu ergänzen gibt");
+api.avesmapsGaretienStageLeeren();
+
 console.log("OK -- " + n + " Zusicherungen");
