@@ -34,13 +34,22 @@ assert.strictEqual(F.svgxFarbeVorgabe("landschaften/topographie/gebirge", token,
 		`${art} ist ein Landweg`);
 });
 assert.strictEqual(F.svgxFarbeVorgabe("wege/Flussweg", token, B.SVGX_WAY_COLORS, ""), "#4c89c6");
+// 🔴 DIE VORGABE SCHLAEGT DEN RUECKFALL -- und das muss auch dann noch bewiesen sein, wenn
+// beide zufaellig denselben Wert tragen. Seit dem Wasserton-Umbau vom 09.09.2026 fuehrt
+// SVGX_WAY_COLORS.Flussweg dasselbe Blau wie die Vorgabe oben; die Zusicherung darueber allein
+// waere damit VAKUUM geworden -- sie bliebe gruen, auch wenn `svgxFarbeVorgabe` seinen
+// Vorrang verloere und nur noch den Rueckfall durchreichte. Bewiesen wird deshalb die
+// REIHENFOLGE, mit einem erfundenen, garantiert abweichenden Rueckfall:
+assert.strictEqual(F.svgxFarbeVorgabe("wege/Flussweg", token, { Flussweg: "#111111" }, ""),
+	"#4c89c6", "die Vorgabe schlaegt einen abweichenden Rueckfall, nicht nur den heutigen");
 // 🔴 DIE EIGENTLICHE ZUSICHERUNG: die drei Gewaesser sind EIN Ton. Gegeneinander gemessen,
 // nicht gegen eine abgeschriebene Zahl -- so faengt sie auch den Fall, dass jemand alle
 // drei umtoent und dabei einen vergisst.
 // 💣 Der Bach gehoert dazu: er ist ein Flussweg mit Haekchen und wird ueber die BREITE
-// unterschieden, nie ueber die Farbe. Ohne seine Vorgabe fiele er auf SVGX_WAY_COLORS.Bach
-// zurueck -- heute zufaellig ein anderes Blau (#6ec6ff, der Kartenton), und im Abzug waere
-// er der eine helle Strich im Gewaessernetz.
+// unterschieden, nie ueber die Farbe. Seit dem Wasserton-Umbau vom 09.09.2026 faehrt er
+// AUCH ohne seine Vorgabe denselben Ton -- SVGX_WAY_COLORS.Bach ist jetzt #4c89c6, nicht mehr
+// das fruehere #6ec6ff. Die Vorgabezeile bleibt trotzdem stehen: sie ist die Owner-Entscheidung
+// selbst, kein Zufallstreffer, der aus einem anderen Wert entstuende.
 const gewaesser = ["landschaften/topographie/see", "wege/Flussweg", "wege/Bach"]
 	.map((pfad) => F.svgxFarbeVorgabe(pfad, token, B.SVGX_WAY_COLORS, ""));
 assert.strictEqual(new Set(gewaesser).size, 1,

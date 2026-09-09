@@ -24,7 +24,9 @@
 // 🔴 SEIT 08.09.2026 TRÄGT DER SEE DIE FLUSSFARBE -- auch hier, aber mit dem Blau DIESES
 // Abzugs. Owner: „kannst du das auch im svg fixen", nachdem der See auf der Karte die
 // Flussfarbe bekommen hatte; auf die Frage, welches Blau, entschied er sich für „beide
-// #4c89c6" -- also die Flussvorgabe von oben, nicht das hellere #6ec6ff der Karte.
+// #4c89c6" -- also die Flussvorgabe von oben. Seit dem Wasserton-Umbau vom 09.09.2026 ist
+// das ohnehin dasselbe Blau wie auf der Karte (--color-water) -- kein Zufall mehr, sondern
+// derselbe Token, nur an dieser Stelle hartkodiert, weil die Datei kein DOM kennt.
 // ⭐ DER ABZUG IST EIN EIGENES GESTALTUNGSSTÜCK, und diese Zeile ist der Beleg dafür: er
 // übernimmt die REGEL der Karte („ein Gewässer, ein Ton"), nicht ihren Wert. Wer die drei
 // Wasserzeilen hier je entfernt, damit der Abzug „der Karte folgt", macht ihn heller, als

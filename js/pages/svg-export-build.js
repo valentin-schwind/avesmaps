@@ -92,10 +92,10 @@ const SVGX_WAY_COLORS = {
 	Pfad: "#9b755a",
 	Gebirgspass: "#a8695c",
 	Wuestenpfad: "#bea470",
-	Flussweg: "#6ec6ff",
+	Flussweg: "#4c89c6",
 	// Ein Bach ist Wasser wie der Fluss -- unterschieden wird er über die BREITE, nicht über
 	// die Farbe. Zwei Blautöne nebeneinander läsen sich als zwei Gewässerarten.
-	Bach: "#6ec6ff",
+	Bach: "#4c89c6",
 	Seeweg: "#2f7dd3",
 };
 

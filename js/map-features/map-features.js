@@ -399,7 +399,11 @@ function getPathStyleColors(path) {
 		Pfad: "#9b755a",
 		Gebirgspass: "#a8695c",
 		Wuestenpfad: "#bea470",
-		Flussweg: "#6ec6ff",
+		// 🔴 Der Wasserton, EINE Farbe fuer Flusslinie, Bach und Seeflaeche (Owner 09.09.2026).
+		// Die Wahrheit ist --color-water in css/base/tokens.css; hier steht sie hartkodiert, weil
+		// diese Tabelle je Weg und je Neuzeichnen gelesen wird und getComputedStyle dafuer zu
+		// teuer ist. Gehalten von js/map-features/__tests__/wasserton.test.js.
+		Flussweg: "#4c89c6",
 		Seeweg: "#2f7dd3",
 	};
 

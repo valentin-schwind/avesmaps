@@ -178,7 +178,7 @@ const OVERLAYS = {
 	//   Wald      --color-ecosystem-vegetation-wald      #3f6b2c
 	//   Grasland  --color-ecosystem-vegetation           #5f7d33
 	//   Steppe    --color-ecosystem-vegetation-steppe    #a8bd8a
-	//   See       --color-ecosystem-topographie-see      #6ec6ff  (= die Flussfarbe, Owner 07.09.2026)
+	//   See       --color-water                             #4c89c6  (= die Flussfarbe, Owner 09.09.2026)
 	//   Gebirge   --color-ecosystem-topographie-gebirge  #7a6c5e
 	//   Huegel    --color-ecosystem-topographie-huegelland #7d8f6e
 	// ⚠️ Die Waldflecken liegen dort, wo die Vorlagekachel ihre Waelder hat, und der See auf ihrem
@@ -196,7 +196,7 @@ const OVERLAYS = {
 		'<g fill="#7a6c5e" fill-opacity=".8">' +
 		'<path d="M0 44 C4 40 8 45 13 42 18 39 22 44 26 42 L28 48 H0 Z"/></g>' +
 		'<path d="M40 44 C43 41 46 44 48 42 V48 H38 Z" fill="#7d8f6e" fill-opacity=".78"/>' +
-		'<g fill="#6ec6ff" fill-opacity=".85">' +
+		'<g fill="#4c89c6" fill-opacity=".85">' +
 		'<path d="M0 13 C6 12 10 15 16 15 24 15 32 17 48 18 V21 C32 20 24 18 16 18 10 18 6 16 0 16 Z"/>' +
 		'<ellipse cx="20" cy="6" rx="3.4" ry="2"/><ellipse cx="27" cy="9" rx="2.6" ry="1.6"/></g>',
 

@@ -172,7 +172,7 @@ assert.deepStrictEqual(Object.keys(B.SVGX_WAY_COLORS).sort(), B.SVGX_WAY_SUBTYPE
 	"die Farbtafel muss genau die Wegarten der Artenliste führen");
 assert.deepStrictEqual(B.SVGX_WAY_COLORS, {
 	Reichsstrasse: "#ffffff", Strasse: "#8b8b8b", Weg: "#cec4ae", Pfad: "#9b755a",
-	Gebirgspass: "#a8695c", Wuestenpfad: "#bea470", Flussweg: "#6ec6ff", Bach: "#6ec6ff",
+	Gebirgspass: "#a8695c", Wuestenpfad: "#bea470", Flussweg: "#4c89c6", Bach: "#4c89c6",
 	Seeweg: "#2f7dd3",
 }, "Wegefarben abweichend von der Abschrift aus map-features.js");
 

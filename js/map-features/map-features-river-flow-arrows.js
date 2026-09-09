@@ -97,9 +97,9 @@
 			ctx.lineTo(-5 * massstab, -5.5 * massstab);
 			ctx.lineTo(-5 * massstab, 5.5 * massstab);
 			ctx.closePath();
-			// River blue (getPathStyleColors centerColors.Flussweg) with a white contour, so the
-			// arrows read as part of the river instead of floating on top of it.
-			ctx.fillStyle = "#6ec6ff";
+			// Der Wasserton (--color-water, siehe getPathStyleColors centerColors.Flussweg) mit
+			// weisser Kontur, damit die Pfeile als Teil des Flusses lesen statt darauf zu schweben.
+			ctx.fillStyle = "#4c89c6";
 			ctx.strokeStyle = "rgba(255, 255, 255, 0.95)";
 			ctx.lineWidth = 1.5 * massstab;
 			ctx.fill();

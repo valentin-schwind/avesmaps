@@ -399,6 +399,20 @@
 	   nächste Klick trifft (Owner 2026-07-27). Gepinnt, liegt auf hellen Kacheln. */
 	--color-edit-handle-muted: #0b2a80;
 
+	/* 🔴 EIN GEWAESSER, EIN TON (Owner 09.09.2026). Ihn tragen genau drei Dinge: die Flusslinie,
+	   der Bach und die Seeflaeche -- ein See ist derselbe Wasserkoerper wie der Fluss, der
+	   hineinlaeuft. Der Wert ist der des SVG-Abzugs (js/pages/svg-export-farben.js), damit Karte
+	   und Abzug endlich dasselbe Blau fuehren.
+	   💣 DAS MEER GEHOERT NICHT DAZU und behaelt --color-ecosystem-topographie-meer, die Kueste ihr
+	   Tuerkis, der Seeweg sein #2f7dd3 (Owner ausdruecklich: „achte darauf dass meere noch anders
+	   sind"). Das einzige ["see","meer","kueste","flussdelta"] im Haus steht in svg-export-build.js
+	   und regelt die ZEICHENREIHENFOLGE, nicht die Farbe -- wer die vier je zu einem Ton
+	   zusammenzieht, faerbt das Meer mit.
+	   💣 DREI STELLEN AUSSERHALB DIESER DATEI TRAGEN DEN WERT HARTKODIERT: die Wegfarben der Karte
+	   lesen kein CSS, und der SVG-Bauer hat kein DOM. Gehalten werden sie von
+	   js/map-features/__tests__/wasserton.test.js -- nicht von diesem Kommentar. */
+	--color-water: #4c89c6;
+
 	/* Landschaften (Erprobung), colours per Owner 2026-07-26. All three layers are on at once, so the
 	   tones must stay tellable apart -- but they are not three peers: the derographic layer draws
 	   administrative CONTAINERS (grey, and unfilled while it rests), topography draws relief, and only
@@ -455,18 +469,16 @@
 	   MIT ihr, sonst bleibt ein Ton stehen, den nichts mehr anfordert. Begruendung im Kopf von
 	   avesmapsEcosystemRetireVorgebirge (api/_internal/app/ecosystem.php). */
 	/* 🔴 DER SEE TRAEGT DIE FARBE DES FLUSSES (Owner 07.09.2026: „Kannst du Seen dieselbe Fuellung
-	   geben wie die Farbe der Fluesse"). Der Wert ist KEIN eigener Ton, sondern der der Flusslinie --
-	   `centerColors.Flussweg` in getPathStyleColors (js/map-features/map-features.js), gemessen als
-	   rgb(110,198,255). Ein See ist derselbe Wasserkoerper wie der Fluss, der hineinlaeuft; als
-	   mattes #4a86b8 neben dem hellen Flusscyan las sich das am Angbarer See wie zwei Gewaesser.
-	   💣 DIE ZWEI WERTE SIND EIN PAAR, UND DER ANDERE STEHT NICHT IN DIESER DATEI: die Wegfarben sind
-	   in getPathStyleColors hartkodiert und lesen kein Token. Wer den Fluss umtoent, zieht diese Zeile
-	   nach -- sonst faellt das Paar lautlos auseinander, und der Bruch sieht wieder wie Absicht aus.
+	   geben wie die Farbe der Fluesse"). Seit 09.09.2026 ist das kein abgeschriebener Wert mehr,
+	   sondern derselbe Token: --color-water, oben im Block definiert und von den Wegfarben der
+	   Karte (`centerColors.Flussweg` in getPathStyleColors, js/map-features/map-features.js) sowie
+	   dem SVG-Bauer hartkodiert nachgezogen, weil beide kein CSS lesen. Ein See ist derselbe
+	   Wasserkoerper wie der Fluss, der hineinlaeuft.
 	   ⚠️ Gleich ist der WERT, nicht das Bild: die Flaeche liegt mit der Deckkraft ihrer Ebene auf der
 	   Karte (live 0,5 aus der Tafel „Darstellung"), die Flusslinie deckt voll. Der See bleibt also
 	   etwas blasser -- gewollt, und der Grund, warum hier NICHT zusaetzlich an der Deckkraft gedreht
 	   wurde: die gehoert dem Editor und seiner Tafel, nicht diesem Ton. */
-	--color-ecosystem-topographie-see: #6ec6ff;             /* lake -- the river's blue, see above */
+	--color-ecosystem-topographie-see: var(--color-water); /* lake -- the river's blue, see above */
 	--color-ecosystem-topographie-meer: #2d5f8a;            /* sea, dark blue */
 	--color-ecosystem-topographie-kueste: #3f9e9a;          /* coast, turquoise */
 	--color-ecosystem-topographie-wadi: #9b8a5c;            /* wadi, sand with an olive cast -- a bed that is dry most of the time */
