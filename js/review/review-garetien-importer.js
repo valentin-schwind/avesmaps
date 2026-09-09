@@ -1455,11 +1455,18 @@
 
 	// „Verbund auf die Stage" -- legt ALLE Mitglieder des Verbunds auf die Stage und merkt sich
 	// den Verbund als zusammengelegt.
+	//
+	// 🔴 GEHT DURCH avesmapsGaretienStageHinzufuegen, SCHREIBT NIE SELBST AUF `zustand.stage`.
+	// Ein gewoehnlicher Weg in die Anzeige hebt dort die „nur ihre"-Marke auf (Kommentar an deren
+	// Definition) -- und "Verbund auf die Stage" IST so ein Weg, keine Ausnahme davon. Ein zweiter
+	// Schreibweg waere ein zweiter Erzeuger fuer „kommt auf die Stage" und liesse die Leerschluessel-
+	// Wache genau dort aus, wo sie gebraucht wird (AGENTS.md: „eine Regel, die einen von zwei
+	// Erzeugern bindet, ist keine Regel").
 	function garetienVerbundZusammenlegen(schluessel, objekte) {
 		const s = String(schluessel || "");
 		if (s === "") { return 0; }
 		const mitglieder = garetienVerbundMitglieder(s, objekte);
-		mitglieder.forEach(function (o) { zustand.stage.set(String(o.key), o); });
+		avesmapsGaretienStageHinzufuegen(mitglieder);
 		_garetienVerbundZusammen.add(s);
 		return mitglieder.length;
 	}

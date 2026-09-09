@@ -137,6 +137,38 @@ modul.garetienVerbundVergessen();
 gleich(modul.garetienVerbundIstZusammen(VERBUND), false, "…und nach Vergessen keiner der beiden mehr");
 gleich(modul.garetienVerbundIstZusammen(zweiterVerbund), false, "…auch der zweite nicht");
 
+// ---- 2g. Fixrunde 1 (Pruefbefund): der Schreibweg ist avesmapsGaretienStageHinzufuegen, -------
+//         nicht ein eigenes zustand.stage.set(...) -- ein Mitglied mit leerem Schluessel bleibt
+//         deshalb draussen.
+//
+// 🔴 Vor der Reparatur schrieb garetienVerbundZusammenlegen mit
+// `mitglieder.forEach(function (o) { zustand.stage.set(String(o.key), o); }); direkt auf die
+// Stage -- AN avesmapsGaretienStageHinzufuegen VORBEI. Deren Rumpf traegt die Hausregel als
+// 🔴-Kommentar ("EIN GEWOEHNLICHER WEG IN DIE ANZEIGE HEBT DIE 'nur ihre'-MARKE AUF"), und "Verbund
+// auf die Stage" IST so ein Weg -- keine Ausnahme davon. Der eigene Schreibweg liess ausserdem die
+// Leerschluessel-Wache aus (`o.key === undefined || null || ""`), die avesmapsGaretienStageHinzufuegen
+// traegt. Zwei Erzeuger fuer "kommt auf die Stage" sind genau die Klasse Fehler, die AGENTS.md
+// benennt: "eine Regel, die einen von zwei Erzeugern bindet, ist keine Regel".
+//
+// ⚠️ Geprueft wird hier die LEERSCHLUESSEL-WACHE, nicht die "nur ihre"-Marke selbst: `zustand.nurIhre`
+// ist von aussen nur ueber avesmapsGaretienAufDerKarte erreichbar, und die verkettet zusaetzlich
+// garetienGewaehltStempeln/garetienEndkreuzungStempeln/garetienVorschauLabelStempeln sowie
+// zustand.detailKey -- ein Umweg durch drei fremde Stempel-Funktionen fuer eine Zusicherung, die
+// hier nicht ihr Ziel ist (Verrenkung). Die Leerschluessel-Wache ist direkt messbar, gehoert
+// zum selben Schreibweg und zeigt denselben Befund: ein Aufruf, der an
+// avesmapsGaretienStageHinzufuegen vorbeigeht, gewaehrt der Stage etwas, das die Tuer verweigert.
+modul.avesmapsGaretienStageLeeren();
+const leererSchluessel = Object.assign({}, o1, { key: "" });
+const nLeer = modul.garetienVerbundZusammenlegen(VERBUND, [leererSchluessel, o2]);
+gleich(nLeer, 2,
+    "die Rueckgabe zaehlt MITGLIEDER (zwei), nicht Stage-Eintraege -- der Vertrag aus Aufgabe 4 "
+    + "bleibt bestehen, auch wenn ein Mitglied die Stage nicht erreicht");
+gleich(modul.avesmapsGaretienStageHat(""), false,
+    "ein Mitglied mit leerem Schluessel landet NICHT auf der Stage -- dieselbe Wache wie in "
+    + "avesmapsGaretienStageHinzufuegen");
+gleich(modul.avesmapsGaretienStageHat("b"), true,
+    "…das zweite, gueltige Mitglied liegt trotzdem auf der Stage");
+
 modul.avesmapsGaretienStageLeeren();
 
 console.log(`garetien-verbund-stage: ${checks} Pruefungen bestanden.`);
