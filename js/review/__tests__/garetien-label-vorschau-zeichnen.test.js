@@ -323,11 +323,17 @@ gleich(garetienVorschauBeschriftungen(gefaelschtesLeaflet(), gefaelschteKarte(Na
 const kartenCss = fs.readFileSync(
 	path.join(WURZEL, "css", "components", "garetien-importer.css"), "utf8"
 );
-const regelGold = (kartenCss.match(/\.gi-label-vorschau\s*\{[^}]*\}/) || [""])[0];
+// 🪤 DER SELEKTOR WIRD AUS DER KONSTANTE GEBAUT, nicht als Literal hingeschrieben. Ein Literal hier
+// hielte zwei ABSCHRIFTEN gegeneinander: wer die Konstante umbenennt und das Blatt vergisst, faende
+// die alte Regel unveraendert vor -- gruener Test, und am Icon haengt eine Klasse, die im Blatt nicht
+// steht. Der JS-Teil dieser Datei macht es oben schon richtig; der CSS-Teil tat es nicht.
+const K = AVESMAPS_GARETIEN_KLASSE_LABEL_VORSCHAU;
+const KA = AVESMAPS_GARETIEN_KLASSE_LABEL_AKTIV;
+const regelGold = (kartenCss.match(new RegExp("\\." + K + "\\s*\\{[^}]*\\}")) || [""])[0];
 wahr(regelGold !== "", "die Regel fuer .gi-label-vorschau fehlt -- der Name leuchtet dann nicht");
 wahr(/var\(--color-marker-active\)/.test(regelGold),
 	"🔴 dasselbe Gold wie der Hof ihrer Geometrie, aus dem Token: " + regelGold);
-const regelAktiv = (kartenCss.match(/\.gi-label-vorschau\.gi-label-vorschau--aktiv\s*\{[^}]*\}/) || [""])[0];
+const regelAktiv = (kartenCss.match(new RegExp("\\." + K + "\\." + KA + "\\s*\\{[^}]*\\}")) || [""])[0];
 wahr(regelAktiv !== "", "die kombinierte Regel fuer die aktive Fassung fehlt");
 // 💣 EINE Deklaration mit ZWEI verketteten Schatten. `filter` ist eine einzige Eigenschaft -- eine
 // zweite Regel daneben LOESCHTE das Gold statt es zu ergaenzen. Genau diese Falle steht am
@@ -347,10 +353,52 @@ gleich(radien.length, 2, "beide Radien muessen lesbar sein");
 wahr(radien[1] > radien[0],
 	"der weisse Radius (" + radien[1] + ") muss groesser sein als der goldene (" + radien[0]
 	+ ") -- dieselbe Ordnung wie Kontur ueber Hof bei der Geometrie");
+// 💣 UND DER GOLDENE RADIUS STEHT ZWEIMAL DA -- einmal allein, einmal als erster Schatten der
+// kombinierten Regel. Sie muessen GLEICH sein: laufen sie auseinander, wechselt der Name beim Oeffnen
+// der Zeile lautlos seinen Goldradius, und im Standbild sieht beides richtig aus. Die Zeile darueber
+// faengt das nicht -- sie vergleicht nur die zwei Radien INNERHALB der kombinierten Regel.
+const goldAllein = Number((regelGold.match(/drop-shadow\(\s*0\s+0\s+(\d+)px/) || [])[1]);
+gleich(radien[0], goldAllein,
+	"das Gold der kombinierten Regel (" + radien[0] + "px) muss dem der Einzelregel (" + goldAllein
+	+ "px) gleichen -- sonst springt der Ton beim Oeffnen der Zeile");
 wahr(!/#[0-9a-fA-F]{3,8}\b/.test(regelGold + regelAktiv) && !/\brgba?\(/.test(regelGold + regelAktiv),
 	"kein hartkodierter Farbwert in den zwei Regeln (AGENTS.md §12)");
 wahr(/#[0-9a-fA-F]{3,8}\b/.test(".x { color: #abcdef; }"),
 	"das Farbmuster findet nicht einmal eine echte Farbe -- dann ist die Zeile darueber Vakuum");
+
+// ---- 9b. Die Blass-Klasse der Landschaftsebene wird ABGENOMMEN --------------------------------
+//
+// 💣 `createLabelIcon` haengt `map-label--eco-muted` (50 % Deckkraft) an JEDES Label ohne `publicId`,
+// sobald im Landschaften-Editor eine einzelne Unterebene aktiv ist -- eine Vorschau hat keine
+// Kennung, also trifft es sie immer. Ihre Aussage ist „gehoert gerade nicht hierher", und ueber die
+// Vorschau ist das genau falsch: sie gehoert zu dem, was der Editor gerade ansieht.
+// ⚠️ Gefunden hat das ein Pruefagent, nicht ein Test -- die Klasse entsteht tief im geteilten Bauer,
+// und im Pruefstand gibt es keine aktive Landschaftsebene. Deshalb wird sie hier GESTELLT.
+const BLASS = karteMod.AVESMAPS_GARETIEN_FREMDKLASSE_ECO_BLASS;
+const bauerVorher = global.createLabelIcon;
+global.createLabelIcon = function (label) {
+	RUFE.frei.push(label);
+	return { options: { className: "map-label map-label--" + label.labelType + " " + BLASS } };
+};
+l = gefaelschtesLeaflet();
+marken = garetienVorschauBeschriftungen(l, gefaelschteKarte(4), [eintrag(beschreibung())]);
+const klassenBlass = String(marken[0].options.icon.options.className).split(/\s+/);
+wahr(klassenBlass.indexOf(BLASS) === -1,
+	"💣 die Blass-Klasse muss abgenommen werden: " + klassenBlass.join(" "));
+wahr(klassenBlass.indexOf("map-label--wald") !== -1
+	&& klassenBlass.indexOf(AVESMAPS_GARETIEN_KLASSE_LABEL_VORSCHAU) !== -1,
+	"⚠️ und NUR sie -- Art und Vorschau-Klasse bleiben stehen: " + klassenBlass.join(" "));
+global.createLabelIcon = bauerVorher;
+
+// 🔴 UND DER NAME KOMMT AUS EINER FREMDEN DATEI. Aendert `map-features-ecosystem-layer-switch.js` ihn,
+// wird die Vorschau lautlos blass -- ein gekoppelter Wert ueber eine Modulgrenze, in die unangenehme
+// Richtung (der Zeichner kann ihn nicht importieren, er darf jene Datei nicht voraussetzen).
+const ebenenQuelle = fs.readFileSync(
+	path.join(WURZEL, "js", "map-features", "map-features-ecosystem-layer-switch.js"), "utf8"
+);
+wahr(ebenenQuelle.indexOf('" ' + BLASS + '"') !== -1,
+	"🔴 `" + BLASS + "` steht so nicht mehr in map-features-ecosystem-layer-switch.js -- dann nimmt "
+	+ "der Zeichner eine Klasse ab, die es nicht gibt, und die echte bleibt stehen");
 
 // ---- 10. Die Verdrahtung im Importer ----------------------------------------------------------
 //

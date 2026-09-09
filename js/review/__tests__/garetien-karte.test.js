@@ -1223,10 +1223,21 @@ function pruefeVorschauKlasseInert(klasse) {
 		"die Vorschau-Marke muss `interactive: false` tragen, sonst faengt der Name die Klicks der "
 		+ "Flaeche darunter (" + klasse + ")");
 }
+// 🪤 GESAMMELT WIRD, WAS DER ZEICHNER VERGIBT -- und `AVESMAPS_GARETIEN_KLASSE_*` ist dafuer nur ein
+// STELLVERTRETER. Am 09.09.2026 kam eine Konstante dazu, die eine Klasse benennt, die der Zeichner
+// ABNIMMT (die Blass-Klasse der Landschaftsebene, aus einer fremden Datei) -- diese Probe verlangte
+// daraufhin, eine fremde Klasse in die Strichregel zu schreiben. Der Waechter hatte recht und seine
+// Praemisse nicht: sie heisst seither `AVESMAPS_GARETIEN_FREMDKLASSE_*` und faellt damit von selbst
+// heraus. Wer eine weitere fremde Klasse braucht, nennt sie so -- und nicht `…KLASSE_…`.
 const ZEICHNER_KLASSEN = Object.keys(mod)
 	.filter((name) => name.indexOf("AVESMAPS_GARETIEN_KLASSE_") === 0)
 	.map((name) => mod[name])
 	.filter((klasse) => typeof klasse === "string" && klasse !== "");
+// Gegenprobe, dass die Unterscheidung ueberhaupt greift: die fremde Klasse ist exportiert und darf
+// NICHT in der gesammelten Menge stehen. Ohne diese Zeile waere die Umbenennung eine stille Zusage.
+wahr(typeof mod.AVESMAPS_GARETIEN_FREMDKLASSE_ECO_BLASS === "string"
+	&& ZEICHNER_KLASSEN.indexOf(mod.AVESMAPS_GARETIEN_FREMDKLASSE_ECO_BLASS) === -1,
+	"eine FREMDKLASSE gehoert nicht in die Menge der vom Zeichner vergebenen Klassen");
 wahr(ZEICHNER_KLASSEN.length >= 5,
 	"der Zeichner vergibt weniger Klassen als erwartet -- dann misst diese Probe nichts: "
 	+ JSON.stringify(ZEICHNER_KLASSEN));
