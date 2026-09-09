@@ -211,6 +211,13 @@
 	// gelben rahmen), wenn die option aktiviert ist." Zusammengehalten von
 	// js/review/__tests__/garetien-endkreuzung-stroemung.test.js.
 	const AVESMAPS_GARETIEN_FELD_ENDKREUZUNGEN = "endkreuzungen";
+	// 🔴 GEKOPPELTER WERT IN ZWEI DATEIEN, genau wie die vier Felder darüber und aus demselben
+	// Grund. Owner 09.09.2026: „labels von flächen siedlungen etc, die im importer auf der stage
+	// eingestellt werden können, sollen so erscheinen, wie sie im endprodukt … sichtbar sein wird."
+	// Er trägt eine REINE Beschreibung (garetienVorschauLabelAus), kein Bedienelement und keinen
+	// Zustand -- der Zeichner baut daraus mit den Bauern der echten Karte ein Bild.
+	// Zusammengehalten von js/review/__tests__/garetien-label-vorschau-zeichnen.test.js.
+	const AVESMAPS_GARETIEN_FELD_VORSCHAU_LABEL = "vorschauLabel";
 
 	/*
 	 * Der Name des globalen Hakens, ueber den der ZEICHNER einen Klick auf eine Form hierher meldet
@@ -1898,7 +1905,11 @@
 		}
 		// ⚠️ `garetienGewaehltStempeln` gibt ohne offene Zeile unverändert zurück -- deshalb darf
 		// er hier bedingungslos stehen, und deshalb braucht es die alte Abkürzung nicht.
-		return garetienEndkreuzungStempeln(garetienGewaehltStempeln(liegt));
+		// 💣 DIE REIHENFOLGE IST TRAGEND: der Vorschau-Stempel liest `gewaehlt` (die weiße Fassung
+		// der Beschriftung) und muss deshalb NACH `garetienGewaehltStempeln` laufen.
+		return garetienVorschauLabelStempeln(
+			garetienEndkreuzungStempeln(garetienGewaehltStempeln(liegt))
+		);
 	}
 
 	/*
@@ -1969,6 +1980,50 @@
 			if (garetienEingabenZustandZu(o).endpointCrossings === false) { return o; }
 			const kopie = Object.assign({}, o);
 			kopie[AVESMAPS_GARETIEN_FELD_ENDKREUZUNGEN] = true;
+			return kopie;
+		});
+	}
+
+	/*
+	 * Die Beschreibung der Beschriftung, die dieses Objekt anlegen wird -- REIN. Owner 09.09.2026.
+	 *
+	 * 🔴 DIESELBE BAUFORM WIE DIE VIER STEMPEL DARÜBER, und aus demselben Grund: ENTSCHIEDEN WIRD IM
+	 * FENSTER, gezeichnet im Zeichner. Größe, Priorität, Zoomband und der Haken „Auf Karte anzeigen"
+	 * liegen in `_garetienEingabenZustand`, die gewählte Form in `_garetienZielWahl` -- der Zeichner
+	 * kommt an keines von beiden heran und soll es nicht.
+	 * 🔴 DIE REGEL SELBST STEHT IN review-garetien-label-vorschau.js und ist rein. Hier wird nur der
+	 * Zustand dieses Fensters hereingereicht; wer die Antwort HEREINREICHT, kann kein Feld
+	 * verwechseln (dieselbe Lehre wie beim Prüfhaken „Keine Wiki-Zuweisung", der `properties.name`
+	 * für den Wegnamen las und deshalb ALLE 6041 Wege für ungemeint erklärte -- bei zwei grünen
+	 * Tests).
+	 *
+	 * 💣 ER STEHT NACH `garetienGewaehltStempeln`, UND DAS IST TRAGEND. Die weiße Fassung der
+	 * Beschriftung hängt an `gewaehlt`; liefe dieser Stempel zuerst, läse er das Feld, bevor es
+	 * gesetzt ist -- die geöffnete Zeile bekäme ihren Namen dann golden statt weiß, und zwar STILL.
+	 * ⚠️ Und `garetienEingabenZustandZu` legt beim ersten Zugriff an -- deshalb wird er erst gefragt,
+	 * wenn die Form überhaupt eine Beschriftung erzeugt: sonst bekäme jedes angezeigte Objekt einen
+	 * Eingabenzustand, den niemand angefasst hat. Genau diese Reihenfolge steht am Nachbarn darüber.
+	 *
+	 * 🔴 GESTEMPELT WIRD EINE KOPIE -- der Satz steht in dieser Datei zum vierten Mal, weil der
+	 * Nur-ihre-Stempel beinahe daran gescheitert ist: Stage und `zustand.objekte` halten dieselbe
+	 * Referenz, ein Stempel am Original schriebe sich bis in die Listenzeile durch.
+	 */
+	function garetienVorschauLabelStempeln(objekte) {
+		if (typeof garetienVorschauLabelAus !== "function") { return objekte; }
+		return (objekte || []).map(function (o) {
+			if (!o) { return o; }
+			const wahl = garetienZielWahlZu(o);
+			// Die Formweiche VOR dem Eingabenzustand -- siehe oben. Die Tafel der Formen, die
+			// überhaupt eine Beschriftung erzeugen, gehört der reinen Regel; hier wird nur nicht
+			// vorschnell Zustand angelegt.
+			const artenTafel = (typeof AVESMAPS_GARETIEN_VORSCHAU_ARTEN !== "undefined")
+				? AVESMAPS_GARETIEN_VORSCHAU_ARTEN
+				: {};
+			if (!artenTafel[String((wahl && wahl.ziel) || "")]) { return o; }
+			const beschreibung = garetienVorschauLabelAus(o, wahl, garetienEingabenZustandZu(o));
+			if (beschreibung === null) { return o; }
+			const kopie = Object.assign({}, o);
+			kopie[AVESMAPS_GARETIEN_FELD_VORSCHAU_LABEL] = beschreibung;
 			return kopie;
 		});
 	}
@@ -3621,8 +3676,73 @@
 				+ garetienEingefuegtWirdBindungHinweis(eingaben.curveLabel);
 		}
 		markup += garetienEingefuegtWirdHakenZeile(objekt, "Auf Karte anzeigen", "showName", eingaben.showName,
-			deaktiviert);
+			deaktiviert)
+			+ garetienZoombandHinweis(eingaben);
 		return markup;
+	}
+
+	/*
+	 * „Bei dieser Zoomstufe unsichtbar" -- der Satz, ohne den die Vorschau wie ein kaputter Haken
+	 * aussieht (Owner 09.09.2026).
+	 *
+	 * 💣 SEIT DIE BESCHRIFTUNG WIRKLICH GEZEICHNET WIRD, IST „NICHTS ZU SEHEN" EINE AUSSAGE -- und
+	 * zwar eine, die drei verschiedene Ursachen haben kann: der Haken ist aus, das Zoomband schliesst
+	 * die aktuelle Stufe aus, oder das Objekt liegt ausserhalb des Kartenausschnitts. Die erste sieht
+	 * man am Haken, die dritte am Kartenbild -- die zweite an NICHTS. Ein Editor, der „Sichtbar ab
+	 * Zoom 6" einstellt und bei Zoom 4 steht, haelt die ganze Vorschau fuer kaputt.
+	 * 🔴 ER STEHT NUR DA, WENN ER ETWAS ZU SAGEN HAT: Haken an, Karte da, Stufe ausserhalb. Ein
+	 * Hinweis, der immer steht, wird nicht gelesen.
+	 * ⚠️ Gefragt wird der ZEICHNER (`window.avesmapsGaretienKarteZoom`), nicht `map` -- dieses Fenster
+	 * redet mit der Karte ausschliesslich ueber die Fenster-Haken und bleibt damit abbaubar.
+	 * ⚠️ Und die Bandregel wird hier NICHT nachgebaut: der Vergleich ist genau der, den
+	 * `avesmapsLabelImBand` fuer ein Label MIT eigenem Band zieht -- und ein eigenes Band hat hier
+	 * jedes Objekt, weil der Kasten die zwei Felder immer fuellt (garetienEingabenVorbelegung).
+	 */
+	function garetienZoombandHinweis(eingaben) {
+		if (!eingaben || eingaben.showName === false) { return ""; }
+		if (typeof window === "undefined" || typeof window.avesmapsGaretienKarteZoom !== "function") {
+			return "";
+		}
+		const zoom = window.avesmapsGaretienKarteZoom();
+		if (zoom === null) { return ""; }
+		const ab = Number(eingaben.minZoom);
+		const bis = Number(eingaben.maxZoom);
+		if (!isFinite(ab) || !isFinite(bis)) { return ""; }
+		if (zoom >= ab && zoom <= bis) { return ""; }
+		return '<p class="gi-insert__row"><span class="gi-insert__hint">Bei der aktuellen Zoomstufe '
+			+ avesmapsGaretienEscape(String(zoom)) + " liegt die Beschriftung außerhalb ihres Bandes ("
+			+ avesmapsGaretienEscape(String(ab)) + "–" + avesmapsGaretienEscape(String(bis))
+			+ ") und wird deshalb nicht gezeigt — nach dem Import genauso.</span></p>";
+	}
+
+	/*
+	 * Die Felder, deren Änderung die KARTE angeht -- weil sie die Beschriftungs-Vorschau bestimmen
+	 * (Owner 09.09.2026).
+	 *
+	 * 💣 OHNE DIESEN NACHLAUF TUT DER HAKEN GEFÜHLT NICHTS. `garetienEingabenAendern` rief die Karte
+	 * bisher NUR im `flowDir`-Zweig; Häkchen und Zahlen enden ohne. Die Vorschau erschiene damit erst
+	 * beim nächsten Neuzeichnen aus anderem Anlass (ein Filterklick, eine Serverantwort) -- und ein
+	 * Bedienelement, das erst später wirkt, ist von einem kaputten nicht zu unterscheiden.
+	 *
+	 * 🔴 EINE AUSDRÜCKLICHE LISTE, kein „alle Felder". Ein Kartenlauf zeichnet die ganze Menge neu;
+	 * ihn an JEDE Eingabe zu hängen (Ortsart tippen, Verkehrsmittel haken, Höhe schieben) wäre ein
+	 * Neuzeichnen je Tastendruck, und bei bis zu 1000 gestagten Objekten ist das kein Komfort mehr.
+	 * ⚠️ `curveLabel` steht NICHT darin: die Kurvenbeschriftung entsteht auf Canvas über
+	 * `labelMarkers` -- den Weg, den die Vorschau ausdrücklich meidet. Der Haken bleibt einstellbar,
+	 * seine Wirkung sieht man erst nach dem Import; das steht auch im Entwurf.
+	 * 🔧 `endpointCrossings` hat dieselbe Lücke (der gelbe Kreuzungsrahmen erscheint erst beim
+	 * nächsten Anlass) und bleibt hier unangetastet -- gemessen, gemeldet, aber nicht bestellt.
+	 */
+	const AVESMAPS_GARETIEN_VORSCHAU_FELDER = [
+		"showName", "size", "priority", "minZoom", "maxZoom", "zielForm", "zielArt",
+	];
+
+	function garetienVorschauNachziehen(feld) {
+		if (AVESMAPS_GARETIEN_VORSCHAU_FELDER.indexOf(String(feld || "")) === -1) { return; }
+		if (typeof window === "undefined" || typeof window.avesmapsGaretienKarteZeigen !== "function") {
+			return;
+		}
+		window.avesmapsGaretienKarteZeigen(avesmapsGaretienAufDerKarte());
 	}
 
 	// Ein Eingabefeld des Kastens hat sich geändert -- der Zustand liegt in
@@ -3719,6 +3839,7 @@
 				wahl.kind = gewaehlt ? String(gewaehlt.kind || "") : "";
 			}
 			garetienDetailRendern(objekte || zustand.objekte || []);
+			garetienVorschauNachziehen(feld);
 			return;
 		}
 		// 🔴 EIN VERKEHRSMITTEL IST KEIN JA/NEIN-FELD, sondern ein Eintrag in einer LISTE -- dieser
@@ -3747,6 +3868,7 @@
 				const maxFeld = document.getElementById(garetienEingabeId(objekt, "curveLabelMax"));
 				if (maxFeld) { maxFeld.disabled = !eingaben.curveLabel; }
 			}
+			garetienVorschauNachziehen(feld);
 			return;
 		}
 		// Ein FREITEXTFELD (heute nur die Ortsart) wird unverändert übernommen -- auch leer, denn
@@ -3791,6 +3913,9 @@
 			if (nummerFeld && nummerFeld !== ziel) { nummerFeld.value = String(zahl); }
 			if (reglerFeld && reglerFeld !== ziel) { reglerFeld.value = String(zahl); }
 		}
+		// ⚠️ NACH dem Spiegeln: die zwei Felder sollen stehen, bevor die Karte neu zeichnet -- sonst
+		// zeigte ein Reglerzug für einen Frame die alte Zahl neben der neuen Beschriftung.
+		garetienVorschauNachziehen(feld);
 	}
 
 	// REIN: was aus dem Kasten an den Server reist -- nur, was für DIESES Ziel wirklich gilt (ein
@@ -8776,6 +8901,10 @@
 			// 04.09.2026: die Endkreuzungs-Marke der Voransicht
 			AVESMAPS_GARETIEN_FELD_ENDKREUZUNGEN,
 			garetienEndkreuzungStempeln,
+			// 09.09.2026: die Beschriftungs-Vorschau
+			AVESMAPS_GARETIEN_FELD_VORSCHAU_LABEL,
+			garetienVorschauLabelStempeln,
+			AVESMAPS_GARETIEN_VORSCHAU_FELDER,
 			AVESMAPS_GARETIEN_HAKEN_KLICK,
 			// Owner 30.08.2026: Klick auf der Karte -> Einzelansicht. Waehlt AUS, haekelt NICHT an.
 			avesmapsGaretienKarteKlickBehandeln,

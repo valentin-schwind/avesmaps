@@ -1194,7 +1194,35 @@ const ZEIGER_AUSNAHMEN = {
 				+ "eigene: " + (eigen && eigen[0]));
 		},
 	},
+	// 🔴 Die zwei Klassen der Beschriftungs-Vorschau (09.09.2026) sind ebenfalls divIcons, aber ihr
+	// Beleg ist ein DRITTER: sie haben keine eigene pointer-events-Regel und brauchen keine -- sie
+	// erben die Untaetigkeit von ihrer PANE (garetienPaneSicherstellen setzt `pointerEvents = "none"`)
+	// und tragen `interactive: false`. Ein Name, der Klicks fing, nähme sie der Fläche darunter weg,
+	// die ein Editor damit öffnet.
+	// 🪤 Und genau diese Probe hat sie am Tag ihres Baus sofort verlangt -- der Wächter ist die
+	// Ableitung, nicht die Aufzählung, und das hat er hier bewiesen.
+	"gi-label-vorschau": {
+		grund: "divIcon-Beschriftung in einer Pane mit pointer-events: none",
+		beleg: pruefeVorschauKlasseInert,
+	},
+	"gi-label-vorschau--aktiv": {
+		grund: "dieselbe Beschriftung, nur die aktive Fassung",
+		beleg: pruefeVorschauKlasseInert,
+	},
 };
+
+// EIN Beleg fuer beide Vorschau-Klassen -- sie sind dasselbe Element in zwei Zustaenden, und zwei
+// Abschriften desselben Belegs waeren genau die Aufzaehlung, die dieser Waechter abgeschafft hat.
+function pruefeVorschauKlasseInert(klasse) {
+	wahr(/pane\.style\.pointerEvents\s*=\s*"none"/.test(quelle),
+		"die Pane der Vorschau muss untaetig bleiben -- garetienPaneSicherstellen setzt "
+		+ "pointer-events: none, und die Beschriftung erbt es (" + klasse + ")");
+	const zeichner = (quelle.match(/function garetienVorschauBeschriftungen[\s\S]*?\n\t\}/) || [""])[0];
+	wahr(zeichner !== "", "garetienVorschauBeschriftungen nicht gefunden -- der Beleg misst nichts");
+	wahr(/interactive:\s*false/.test(zeichner),
+		"die Vorschau-Marke muss `interactive: false` tragen, sonst faengt der Name die Klicks der "
+		+ "Flaeche darunter (" + klasse + ")");
+}
 const ZEICHNER_KLASSEN = Object.keys(mod)
 	.filter((name) => name.indexOf("AVESMAPS_GARETIEN_KLASSE_") === 0)
 	.map((name) => mod[name])
@@ -2366,5 +2394,35 @@ const kartKonturOhne = gefaelschteKarte();
 avesmapsGaretienKarteZeigen([natter, blutmoor], kartKonturOhne);
 gleich(nach(kartKonturOhne, AUSWAHL).length, 0,
     "ohne offene Zeile zeichnet keine Kontur");
+
+// =================================================================================================
+// DIE PANE DER BESCHRIFTUNGS-VORSCHAU (Owner 09.09.2026)
+// =================================================================================================
+// 🔴 Sie liegt UEBER den echten Kartennamen und UNTER der Markierung -- das ist der Owner-Entscheid
+// „Vorschau liegt oben drauf". Lag sie darunter, verschwaende ein Vorschau-Name hinter jedem
+// Kartennamen, und die ganze Aenderung waere an genau den Stellen unsichtbar, an denen es darauf
+// ankommt (dort, wo schon ein Name steht).
+// 💣 DIE ZWEI VERGLEICHSZAHLEN WERDEN AUS bootstrap.js GELESEN, NICHT ABGESCHRIEBEN. Eine erwartete
+// 650 hier waere beim naechsten Umbau der Kartenflaechen still falsch -- dieselbe Bauform wie beim
+// Test der Stroemungspfeile, der seine zwei Zahlen ebenfalls aus dem Code holt.
+const bootstrapQuelle = fs.readFileSync(path.join(WURZEL, "js", "app", "bootstrap.js"), "utf8");
+function paneZ(name) {
+	const treffer = bootstrapQuelle.match(
+		new RegExp('getPane\\("' + name + '"\\)\\.style\\.zIndex\\s*=\\s*(\\d+)')
+	);
+	return treffer === null ? null : Number(treffer[1]);
+}
+const zLabels = paneZ("labelsPane");
+const zPin = paneZ("sharePinPane");
+wahr(zLabels !== null && zPin !== null,
+	"die z-Werte der Kartenflaechen sind in bootstrap.js nicht zu finden -- die Probe misst nichts");
+wahr(mod.AVESMAPS_GARETIEN_LABEL_PANE_Z > zLabels,
+	"die Vorschau-Pane (" + mod.AVESMAPS_GARETIEN_LABEL_PANE_Z + ") muss ueber labelsPane ("
+	+ zLabels + ") liegen -- sonst verschwindet der Vorschau-Name hinter echten Namen");
+wahr(mod.AVESMAPS_GARETIEN_LABEL_PANE_Z < zPin,
+	"und unter sharePinPane (" + zPin + ") -- die Markierung von „Was ist hier?“ gehoert nach oben");
+// Und sie ist NICHT die Pane ihrer Geometrie: jene liegt unter den echten Beschriftungen.
+wahr(mod.AVESMAPS_GARETIEN_LABEL_PANE !== mod.AVESMAPS_GARETIEN_IHRE_PANE,
+	"die Vorschau braucht eine EIGENE Pane -- die ihrer Geometrie liegt unter den Kartennamen");
 
 console.log(`garetien-karte: ${checks} Pruefungen bestanden.`);
