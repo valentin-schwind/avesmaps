@@ -41,84 +41,84 @@ Stand der Erstfüllung: `1cb5e09bd` (05.09.2026), 30 Pakete. Verworfen/nachgezog
 
 ### P-001 · js/review/review-wiki-sync.js · Verfahren A
 - Status: offen
-- Stand: 62ef8c877 · Blob: ff8c689558e9944081089df5676aa9dbdb6bcce5
+- Stand: 17fe14a1f · Blob: 9ab01ea1d2d062864bca73e9a27f20b76a165d02
 - Block: „Dump-Bericht-Helfer“ — avesmapsDumpReportInjectStyles … avesmapsDumpReportRunSectionHtml (8 Funktionen, ~282 Zeilen ab Z. 1279)
 - Ziel: js/review/review-wiki-sync-dump-report.js, <script> direkt neben dem Original
 - Vorprüfung (05.09.2026): Ladezeit-Bezug 0 · Register 14 · Quelltext-Tests 0 (Blocknamen: 0) · vm-Bindung 0 · Konstanten fehlend 0 · Datei 4044 Zeilen, 174 Commits/180 d · heiß (1 d, wartet auf Abkühlung)
 - Fallen: `avesmapsOpenDumpReport` (trägt den `window`-Export) und der Zustand `let avesmapsDumpReportStylesInjected` BLEIBEN in der Originaldatei — der Lauf vom 01.09.2026 scheiterte, weil er den Export mitnahm. `avesmapsDumpReportInjectStyles` schreibt die globale `let`-Variable aus der Geschwisterdatei; das ist über Skriptgrenzen erlaubt (globaler lexikalischer Geltungsbereich klassischer Skripte). `lore-dialog-layout.test.js` lädt die Datei allein in einen vm-Kontext und ruft laut Vorprüfung keinen der acht Namen — nach dem Schnitt trotzdem den Test fahren.
-- Verlauf: 05.09.2026 angelegt (Analyse, Rangwert 703656) · 06.09.2026 nachgezogen: `2211f8d3e` hat drei Hunks bei Z. 843/2756/3959 -- alle ausserhalb des Blocks; Block an den Namen unveraendert zusammenhaengend und frei, nur um +5 Zeilen gewandert · 06.09.2026 nachgezogen: `289d0b2a9` haengt acht Zeilen bei Z. 2749 an -- weit ausserhalb des Blocks; Block an den Namen unveraendert zusammenhaengend und frei, Zeilennummer unveraendert
+- Verlauf: 05.09.2026 angelegt (Analyse, Rangwert 703656) · 06.09.2026 nachgezogen: `2211f8d3e` hat drei Hunks bei Z. 843/2756/3959 -- alle ausserhalb des Blocks; Block an den Namen unveraendert zusammenhaengend und frei, nur um +5 Zeilen gewandert · 06.09.2026 nachgezogen: `289d0b2a9` haengt acht Zeilen bei Z. 2749 an -- weit ausserhalb des Blocks; Block an den Namen unveraendert zusammenhaengend und frei, Zeilennummer unveraendert · 09.09.2026 nachgezogen: 80cb6bbeb (die Schreiber des Merkers fallen) hat die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei
 
 ### P-002 · js/review/review-wiki-sync.js · Verfahren A
 - Status: offen
-- Stand: 62ef8c877 · Blob: ff8c689558e9944081089df5676aa9dbdb6bcce5
+- Stand: 17fe14a1f · Blob: 9ab01ea1d2d062864bca73e9a27f20b76a165d02
 - Block: „Sync-Läufe je Objektart und Publikationen“ — setWikiSyncKindStatus … runWikiSyncPublicationsSyncLoop (6 Funktionen, ~281 Zeilen ab Z. 1726)
 - Ziel: js/review/review-wiki-sync-kind-loops.js, <script> direkt neben dem Original
 - Vorprüfung (05.09.2026): Ladezeit-Bezug 0 · Register 14 · Quelltext-Tests 0 (Blocknamen: 0) · vm-Bindung 0 · Konstanten fehlend 0 · Datei 4044 Zeilen, 174 Commits/180 d · heiß (1 d, wartet auf Abkühlung)
 - Fallen: Mehrere Register-Treffer auf den Zielpfad (die Vorprüfung zählt sie); `tools/paths/test-wiki-sync-panel-tab.mjs` führt die Dateiliste der Reiter-Lader von Hand (Lehre vom 02.09.2026) — steht einer dieser sechs Namen in seiner Lader-Tabelle, gehört die neue Datei in die Liste (eine Zeile, wie das `<script>`-Tag).
-- Verlauf: 05.09.2026 angelegt (Analyse, Rangwert 703656) · 06.09.2026 nachgezogen: `2211f8d3e` hat drei Hunks bei Z. 843/2756/3959 -- alle ausserhalb des Blocks; Block an den Namen unveraendert zusammenhaengend und frei, nur um +5 Zeilen gewandert · 06.09.2026 nachgezogen: `289d0b2a9` haengt acht Zeilen bei Z. 2749 an -- weit ausserhalb des Blocks; Block an den Namen unveraendert zusammenhaengend und frei, Zeilennummer unveraendert
+- Verlauf: 05.09.2026 angelegt (Analyse, Rangwert 703656) · 06.09.2026 nachgezogen: `2211f8d3e` hat drei Hunks bei Z. 843/2756/3959 -- alle ausserhalb des Blocks; Block an den Namen unveraendert zusammenhaengend und frei, nur um +5 Zeilen gewandert · 06.09.2026 nachgezogen: `289d0b2a9` haengt acht Zeilen bei Z. 2749 an -- weit ausserhalb des Blocks; Block an den Namen unveraendert zusammenhaengend und frei, Zeilennummer unveraendert · 09.09.2026 nachgezogen: 80cb6bbeb (die Schreiber des Merkers fallen) hat die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei
 
 ### P-003 · api/_internal/app/ecosystem.php · Verfahren C
 - Status: offen
-- Stand: 72b14bf8f · Blob: 2cd8daac848e9ffbcf5114b4dc5632ee0caaae80
+- Stand: 17fe14a1f · Blob: 51c2a0eb5433d8d99bf1310a56bd1b589dd53a37
 - Block: „Klimazonen“ — avesmapsEcosystemClimateZones … avesmapsEcosystemClimateReset (12 Funktionen, ~564 Zeilen ab Z. 5361)
 - Ziel: api/_internal/app/ecosystem-klima.php, require_once an der Blockstelle
 - Vorprüfung (05.09.2026): Ladezeit-Bezug 0 · Register 3 · Quelltext-Tests 0 (Blocknamen: 0) · vm-Bindung 0 · Konstanten fehlend 0 · Datei 5896 Zeilen, 91 Commits/180 d · heiß (1 d, wartet auf Abkühlung)
 - Fallen: `climate-insert-zone-test.php` und `climate-rename-test.php` requiren `ecosystem.php` (SQLite, transparent); `climate-membership-test.php` requiret nur `climate-membership.php`. `avesmapsClimateAssertNotDerived` (AGENTS §11: ein Band darf nie als Polygon bearbeitet werden) liegt in `api/_internal/app/climate-zones.php:529`, nicht hier. Kopfkommentar ENGLISCH wie der Dateikopf von `ecosystem.php` (Z. 5–10 nennt die Sprachregel „code/identifiers/messages EN“ ausdrücklich), auch wenn der Rumpf gemischt ist. ⚠️ `avesmapsEcosystemClimateZones` wird aus dem Verlauf-Block (`avesmapsListEcosystemChanges`, Z. 5047) gerufen — die zwei ecosystem.php-Pakete sind gekoppelt, jede Reihenfolge ist zulässig, aber keine Konstellation ohne beide Geschwisterdateien darf getestet werden, die es live nicht gibt.
-- Verlauf: 05.09.2026 angelegt (Analyse, Rangwert 536536) · 06.09.2026 nachgezogen: 980bc5b7f hat 12 Kommentarzeilen bei Z. 4762 ergänzt (außerhalb aller drei Blöcke); Block an den Namen unverändert zusammenhängend und frei · 08.09.2026 nachgezogen: 602637b0f (Sprungpunkt der Verlaufszeilen) hat die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei
+- Verlauf: 05.09.2026 angelegt (Analyse, Rangwert 536536) · 06.09.2026 nachgezogen: 980bc5b7f hat 12 Kommentarzeilen bei Z. 4762 ergänzt (außerhalb aller drei Blöcke); Block an den Namen unverändert zusammenhängend und frei · 08.09.2026 nachgezogen: 602637b0f (Sprungpunkt der Verlaufszeilen) hat die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei · 09.09.2026 nachgezogen: 80cb6bbeb (die Schreiber des Merkers fallen) hat die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei
 
 ### P-004 · api/_internal/app/ecosystem.php · Verfahren C
 - Status: offen
-- Stand: 72b14bf8f · Blob: 2cd8daac848e9ffbcf5114b4dc5632ee0caaae80
+- Stand: 17fe14a1f · Blob: 51c2a0eb5433d8d99bf1310a56bd1b589dd53a37
 - Block: „Änderungsverlauf und Rückgängig“ — avesmapsEcosystemCanUndoAction … avesmapsEcosystemRestoreRegionLabel (8 Funktionen, ~411 Zeilen ab Z. 4929)
 - Ziel: api/_internal/app/ecosystem-verlauf.php, require_once an der Blockstelle
 - Vorprüfung (05.09.2026): Ladezeit-Bezug 0 · Register 3 · Quelltext-Tests 0 (Blocknamen: 0) · vm-Bindung 0 · Konstanten fehlend 0 · Datei 5896 Zeilen, 91 Commits/180 d · heiß (1 d, wartet auf Abkühlung)
 - Fallen: Zwei Klima-Helfer (`avesmapsEcosystemClimateDividerName`, `…SouthKeyOfAudit`) liegen im Lauf, weil das Rückgängig sie für Audit-Zeilen der Trennlinien braucht — sie gehören zum Verlauf, nicht zum Klima-Paket. Kein Kartenstempel-Bump beim Umzug (nur Ort). ⚠️ Der Block ruft `avesmapsEcosystemClimateZones` (Z. 5047) aus dem Klimazonen-Paket derselben Datei — technisch unschädlich (require_once, Aufruf zur Laufzeit), aber die beiden Pakete sind gekoppelt: nach dem einen Schnitt den anderen im Kopf behalten (Skeptiker 05.09.2026).
-- Verlauf: 05.09.2026 angelegt (Analyse, Rangwert 536536) · 06.09.2026 nachgezogen: 980bc5b7f hat 12 Kommentarzeilen bei Z. 4762 ergänzt (außerhalb aller drei Blöcke); Block an den Namen unverändert zusammenhängend und frei · 08.09.2026 nachgezogen: 602637b0f (Sprungpunkt der Verlaufszeilen) hat die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei
+- Verlauf: 05.09.2026 angelegt (Analyse, Rangwert 536536) · 06.09.2026 nachgezogen: 980bc5b7f hat 12 Kommentarzeilen bei Z. 4762 ergänzt (außerhalb aller drei Blöcke); Block an den Namen unverändert zusammenhängend und frei · 08.09.2026 nachgezogen: 602637b0f (Sprungpunkt der Verlaufszeilen) hat die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei · 09.09.2026 nachgezogen: 80cb6bbeb (die Schreiber des Merkers fallen) hat die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei
 
 ### P-005 · api/_internal/app/ecosystem.php · Verfahren C
 - Status: offen
-- Stand: 72b14bf8f · Blob: 2cd8daac848e9ffbcf5114b4dc5632ee0caaae80
+- Stand: 17fe14a1f · Blob: 51c2a0eb5433d8d99bf1310a56bd1b589dd53a37
 - Block: „Regionen lesen und Wiki-Schlüssel“ — avesmapsEcosystemWikiSlug … avesmapsListEcosystemRegionsByWikiKey (7 Funktionen, ~268 Zeilen ab Z. 2331)
 - Ziel: api/_internal/app/ecosystem-regionen.php, require_once an der Blockstelle
 - Vorprüfung (05.09.2026): Ladezeit-Bezug 0 · Register 3 · Quelltext-Tests 0 (Blocknamen: 0) · vm-Bindung 0 · Konstanten fehlend 0 · Datei 5896 Zeilen, 91 Commits/180 d · heiß (1 d, wartet auf Abkühlung)
 - Fallen: Enger als der freie Block: `avesmapsEcosystemApplyRegionFieldOrigins` (curve-label-store-test liest den Quelltext) und `avesmapsAssignEcosystemWikiRegion`/`…AssignIsDryRun` (ecosystem-label-wiki-durchtrag-test) bleiben in `ecosystem.php`. Die Leser hier sind rein.
-- Verlauf: 05.09.2026 angelegt (Analyse, Rangwert 536536) · 06.09.2026 nachgezogen: 980bc5b7f hat 12 Kommentarzeilen bei Z. 4762 ergänzt (außerhalb aller drei Blöcke); Block an den Namen unverändert zusammenhängend und frei · 08.09.2026 nachgezogen: 602637b0f (Sprungpunkt der Verlaufszeilen) hat die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei
+- Verlauf: 05.09.2026 angelegt (Analyse, Rangwert 536536) · 06.09.2026 nachgezogen: 980bc5b7f hat 12 Kommentarzeilen bei Z. 4762 ergänzt (außerhalb aller drei Blöcke); Block an den Namen unverändert zusammenhängend und frei · 08.09.2026 nachgezogen: 602637b0f (Sprungpunkt der Verlaufszeilen) hat die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei · 09.09.2026 nachgezogen: 80cb6bbeb (die Schreiber des Merkers fallen) hat die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei
 
 ### P-006 · api/_internal/map/features.php · Verfahren C
 - Status: offen
-- Stand: 72b14bf8f · Blob: 66b8a68700e607b63c859c73d2c1fee558ba13ac
+- Stand: 17fe14a1f · Blob: c6d3cc555668a9dd8acb355eea2be21ab95e830c
 - Block: „Rückgängig der Audit-Einträge“ — avesmapsFetchTableColumnNames … avesmapsTableExistsForAudit (30 Funktionen, ~553 Zeilen ab Z. 390)
 - Ziel: api/_internal/map/features-undo.php, require_once an der Blockstelle
 - Vorprüfung (05.09.2026): Ladezeit-Bezug 0 · Register 1 · Quelltext-Tests 0 (Blocknamen: 0) · vm-Bindung 0 · Konstanten fehlend 0 · Datei 4277 Zeilen, 68 Commits/180 d · heiß (2 d, wartet auf Abkühlung)
 - Fallen: `avesmapsEnsureMapAuditUndoColumns` und `…Einmal` bleiben in `features.php`: `schema-ensure-once-test.php` sucht ihre Signatur dort im Quelltext (`str_contains($libFeatures, "function avesmapsEnsureMapAuditUndoColumnsEinmal(PDO \$pdo): void")`). Der Block beginnt deshalb erst bei `avesmapsFetchTableColumnNames`. Rund 550 Zeilen; Fingerabdruck beachten.
-- Verlauf: 05.09.2026 angelegt (Analyse, Rangwert 290836) · 08.09.2026 nachgezogen: 3b6439131 und 179c64277 (Kreuzungstyp) haben die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei
+- Verlauf: 05.09.2026 angelegt (Analyse, Rangwert 290836) · 08.09.2026 nachgezogen: 3b6439131 und 179c64277 (Kreuzungstyp) haben die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei · 09.09.2026 nachgezogen: 3b6439131 (Kreuzungstyp) und 80cb6bbeb (Merker) haben die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei
 
 ### P-007 · api/_internal/map/features.php · Verfahren C
 - Status: offen
-- Stand: 72b14bf8f · Blob: 66b8a68700e607b63c859c73d2c1fee558ba13ac
+- Stand: 17fe14a1f · Blob: c6d3cc555668a9dd8acb355eea2be21ab95e830c
 - Block: „Antwort-Bauer“ — avesmapsBuildPointFeatureResponse … avesmapsBuildRegionFeatureResponse (5 Funktionen, ~110 Zeilen ab Z. 4119)
 - Ziel: api/_internal/map/features-response.php, require_once an der Blockstelle
 - Vorprüfung (05.09.2026): Ladezeit-Bezug 0 · Register 1 · Quelltext-Tests 0 (Blocknamen: 0) · vm-Bindung 0 · Konstanten fehlend 0 · Datei 4277 Zeilen, 68 Commits/180 d · heiß (2 d, wartet auf Abkühlung)
 - Fallen: Enger als der freie Block: `avesmapsDecodeJsonColumnForEdit` (kraftlinie-kurve-schreiben-test liest den Quelltext) und `avesmapsUuidV4` (settlement-places-test nennt den Namen; die Funktion ist eine von drei gleichlautenden Fassungen unter drei Namen — features/territory/sync, Doppelungs-Paket) bleiben in `features.php`.
-- Verlauf: 05.09.2026 angelegt (Analyse, Rangwert 290836) · 08.09.2026 nachgezogen: 3b6439131 und 179c64277 (Kreuzungstyp) haben die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei
+- Verlauf: 05.09.2026 angelegt (Analyse, Rangwert 290836) · 08.09.2026 nachgezogen: 3b6439131 und 179c64277 (Kreuzungstyp) haben die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei · 09.09.2026 nachgezogen: 3b6439131 (Kreuzungstyp) und 80cb6bbeb (Merker) haben die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei
 
 ### P-008 · api/_internal/app/feature-sources.php · Verfahren C
 - Status: offen
-- Stand: 72b14bf8f · Blob: b204f9e26d9bb2985a252b8e2a6d67dfbe214a97
+- Stand: 17fe14a1f · Blob: 11acf6c4fb77250f2c6d69ff0f9dd9abe60fa849
 - Block: „Zusammenlegen und Katalogsuche“ — avesmapsMergeWinningLink … avesmapsSearchSourceCatalog (5 Funktionen, ~295 Zeilen ab Z. 2400)
 - Ziel: api/_internal/app/feature-sources-katalog.php, require_once an der Blockstelle
 - Vorprüfung (05.09.2026): Ladezeit-Bezug 0 · Register 2 · Quelltext-Tests 0 (Blocknamen: 0) · vm-Bindung 0 · Konstanten fehlend 0 · Datei 3320 Zeilen, 57 Commits/180 d · heiß (0 d, wartet auf Abkühlung)
 - Fallen: `avesmapsMergeSourceInto` trägt 8 Abfragen in Schleifen (Admin-Aktion, selten) — Perf-Geruch, kein Paket. `avesmapsEnsureSourceMergeLog`/`…SearchIndex` sind Ensure-Helfer im Block: Konstanten und Tabellennamen vor der Blockstelle prüfen (Vorprüfung zählt).
-- Verlauf: 05.09.2026 angelegt (Analyse, Rangwert 189240) · 08.09.2026 nachgezogen: sieben Commits des Kanon- und Quellen-Umbaus (651b53f53 bis f87bdccad) haben die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei
+- Verlauf: 05.09.2026 angelegt (Analyse, Rangwert 189240) · 08.09.2026 nachgezogen: sieben Commits des Kanon- und Quellen-Umbaus (651b53f53 bis f87bdccad) haben die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei · 09.09.2026 nachgezogen: fuenf Commits des Quellen- und Merker-Umbaus (75cc06da3 bis 80cb6bbeb) haben die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei
 
 ### P-009 · api/_internal/wiki/settlements.php · Verfahren C
 - Status: offen
-- Stand: 72b14bf8f · Blob: fb658aba262020471d00ce3915cc87dada47262a
+- Stand: 17fe14a1f · Blob: ee16cbec7ff26622dbaa97f9f192aa50c2bcff1f
 - Block: „Wappen aus dem Wiki“ — avesmapsWikiSettlementCoatStatus … avesmapsWikiSettlementClearCoat (8 Funktionen, ~250 Zeilen ab Z. 414)
 - Ziel: api/_internal/wiki/settlements-wappen.php, require_once an der Blockstelle
 - Vorprüfung (05.09.2026): Ladezeit-Bezug 0 · Register 0 · Quelltext-Tests 0 (Blocknamen: 0) · vm-Bindung 0 · Konstanten fehlend 0 · Datei 1997 Zeilen, 67 Commits/180 d · heiß (3 d, wartet auf Abkühlung)
 - Fallen: Wappen laufen NUR über `avesmapsResolveGatedCoatUrl` (AGENTS §11, `coat-url.php`) — hier liegt die Wiki-Seite (Status, Bulk-Record, Metadaten), nicht der Riegel. Datei ist heiß (67 Commits); abkühlen lassen.
-- Verlauf: 05.09.2026 angelegt (Analyse, Rangwert 133799) · 08.09.2026 nachgezogen: 3650115d0 (Wiki-Abruf wartet nicht auf die Drossel) hat die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei
+- Verlauf: 05.09.2026 angelegt (Analyse, Rangwert 133799) · 08.09.2026 nachgezogen: 3650115d0 (Wiki-Abruf wartet nicht auf die Drossel) hat die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei · 09.09.2026 nachgezogen: 80cb6bbeb (die Schreiber des Merkers fallen) hat die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei
 
 ### P-010 · api/_internal/routing/client-graph.php · Verfahren C
 - Status: verworfen (Fingerabdruck: Block zu klein)
@@ -184,13 +184,13 @@ Stand der Erstfüllung: `1cb5e09bd` (05.09.2026), 30 Pakete. Verworfen/nachgezog
 - Verlauf: 05.09.2026 angelegt (Analyse, Rangwert 28823)
 
 ### P-017 · js/map-features/map-features-waypoints.js · Verfahren A
-- Status: offen
+- Status: erledigt (75220d48c)
 - Stand: 1cb5e09bd · Blob: 48266533ba480fc589f74af7653a32fb82ed825d
 - Block: „Wegpunkt-Autovervollständigung“ — scrollWaypointInputIntoView … createWaypointMarkup (10 Funktionen, ~193 Zeilen ab Z. 271)
 - Ziel: js/map-features/map-features-waypoints-autocomplete.js, <script> direkt neben dem Original
 - Vorprüfung (05.09.2026): Ladezeit-Bezug 0 · Register 0 · Quelltext-Tests 0 (Blocknamen: 0) · vm-Bindung 0 · Konstanten fehlend 0 · Datei 616 Zeilen, 44 Commits/180 d
 - Fallen: `getWaypointAutocompleteEntries` (AGENTS §11: reicht `isHidden` mit) liegt NICHT im Block; `wegpunkt-versteckt-label.test.js` lädt die Datei per vm (Vorprüfung: Block frei).
-- Verlauf: 05.09.2026 angelegt (Analyse, Rangwert 27104)
+- Verlauf: 05.09.2026 angelegt (Analyse, Rangwert 27104) · 09.09.2026 erledigt als 75220d48c: zehn Funktionen / 193 Zeilen byte-gleich nach js/map-features/map-features-waypoints-autocomplete.js, 615 -> 421 Zeilen. Fingerabdruck 203/194 = 9 Zeilen / 4,4 %. Agenten: Widerleger und Testbindung kein Fund -- beide fanden aber unabhaengig denselben Aufrufer, den vorpruefung.mjs strukturell nicht sieht (keyboard-shortcuts.js loest scrollWaypointInputIntoView ueber window[name] auf; traegt, weil zur Aufrufzeit aufgeloest wird und beide Skripte denselben globalen Namensraum teilen). Behauptung zwei Funde an der Commit-Nachricht: die Zeilenzahl (616/422 aus rangliste.mjs -- Phantomzeile durch split("\n"), real 615/421, dieselbe Korrektur wie bei P-014) und ein Fingerabdruck, der ohne `git add -N` mit dem vorgeschriebenen Befehl 1/194 statt 203/194 meldet, weil `git diff` untracked Dateien nicht sieht. Beide vor dem Commit korrigiert
 
 ### P-018 · api/_internal/political/territories-derived-layer.php · Verfahren C
 - Status: offen
@@ -203,12 +203,12 @@ Stand der Erstfüllung: `1cb5e09bd` (05.09.2026), 30 Pakete. Verworfen/nachgezog
 
 ### P-019 · api/_internal/wiki/locations.php · Verfahren C
 - Status: offen
-- Stand: 72b14bf8f · Blob: 85ce922e71d3a28e43f7d80768d26e22a0b86416
+- Stand: 17fe14a1f · Blob: b5f9b1ef5283b2fccdb9cffe9137adbfe44fba23
 - Block: „Fälle und Auflösung der Orte“ — avesmapsWikiSyncListCases … avesmapsWikiSyncUpdateLocationFeature (5 Funktionen, ~293 Zeilen ab Z. 651)
 - Ziel: api/_internal/wiki/locations-faelle.php, require_once an der Blockstelle
 - Vorprüfung (05.09.2026): Ladezeit-Bezug 0 · Register 0 · Quelltext-Tests 0 (Blocknamen: 0) · vm-Bindung 0 · Konstanten fehlend 0 · Datei 1150 Zeilen, 15 Commits/180 d
 - Fallen: Enger als der freie Block: `avesmapsWikiSyncBuildLocationProperties` (wikisync-fall-no-article-test liest den Quelltext) und alles danach bleiben. `locations-helpers.php` liegt daneben — Namensform `locations-<thema>.php`. `api/wiki-sync.php` auf dem SERVER (nicht im Repo, AGENTS §10) ruft `avesmapsWikiSync*`-Namen — erreichbar, solange `locations.php` die Geschwisterdatei lädt. 🔴 Nach dem Deploy EINE Live-Anfrage gegen `https://avesmaps.de/api/wiki-sync.php` (erwartet HTTP 401 wie heute, nicht 500): diesen Aufrufer sieht kein Checkout und kein Test — die Vorprüfung hat hier eine blinde Stelle, die sie selbst nicht melden kann (Backend-Agent 05.09.2026).
-- Verlauf: 05.09.2026 angelegt (Analyse, Rangwert 17250) · 08.09.2026 nachgezogen: 4044c7e5d (die drei Wiki-Tafeln stehen nur noch einmal) hat die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei
+- Verlauf: 05.09.2026 angelegt (Analyse, Rangwert 17250) · 08.09.2026 nachgezogen: 4044c7e5d (die drei Wiki-Tafeln stehen nur noch einmal) hat die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei · 09.09.2026 nachgezogen: 80cb6bbeb (die Schreiber des Merkers fallen) hat die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei
 
 ### P-020 · api/app/ecosystem-areas.php · Verfahren D
 - Status: offen
@@ -242,7 +242,7 @@ Stand der Erstfüllung: `1cb5e09bd` (05.09.2026), 30 Pakete. Verworfen/nachgezog
 
 ### P-023 · api/_internal/wiki/regions.php · Verfahren C
 - Status: offen
-- Stand: 72b14bf8f · Blob: 3bb235b1d2f4b5f046340f7fd0bb7baee3b716c3
+- Stand: 17fe14a1f · Blob: d455b4da350c3e8235f8e51228613ff8ef2071fc
 - Block: „Doppelung: Kurzbeschreibung aus dem Wikitext“ — avesmapsWikiRegionExtractDescription … avesmapsWikiRegionExtractDescription (dreifach: `paths.php` `avesmapsWikiPathExtractDescription` Z. 551–589, `regions.php` Z. 619–660, `settlements.php` `avesmapsWikiSettlementExtractDescription` Z. 780–821)
 - Ziel: neue abhängigkeitsfreie Datei `api/_internal/wiki/wiki-text-extract.php` mit `avesmapsWikiExtractLeadDescription(string $wikitext, string $infoboxBlock): string`, `require_once` aus paths/regions/settlements (Vorbild: `path-naming.php`, „dependency-free, required by BOTH paths.php and powerlines.php“). Die drei alten Namen bleiben als Einzeiler-Weiterreicher, bis alle Aufrufer umgestellt sind.
 - Unterschied: keiner außer Namen und drei Leerzeilen (paths kompakter; regions ↔ settlements diff-Exit 0) — Regex, Grenzwerte 700/1200, Aufruf von `avesmapsWikiSyncCleanPoliticalTerritoryWikiValue` wortgleich.
@@ -250,7 +250,7 @@ Stand der Erstfüllung: `1cb5e09bd` (05.09.2026), 30 Pakete. Verworfen/nachgezog
 - Empfehlung: zusammenlegen — keine Verhaltensvereinigung nötig, die drei sind heute wortgleich; reine Deduplizierung plus drei `require_once`-Zeilen.
 - Beleg: `git blame -w -L 551,589 -- api/_internal/wiki/paths.php` → fdcbfe33af; `-L 619,660 -- regions.php` → cc29579ef4; `-L 779,821 -- settlements.php` → 3e9982813b; `grep -rln ExtractDescription` → nur die vier Dateien, kein Test.
 - Fallen: kein Test hält die drei gegeneinander — eine Änderung an einer Kopie (Grenzwert 1200) bliebe in den anderen stehen. Historiker-Lauf 05.09.2026.
-- Verlauf: 05.09.2026 angelegt (Doppelungs-Scan, gleichheit 1,00; Historiker) · 05.09.2026 GO Owner (zusammenlegen; alte Namen bleiben als Weiterreicher) · 06.09.2026 nachgezogen: `82f713e18` (P-024) hat das Enqueue bei Z. 261-263 auf einen Weiterreicher gekuerzt -- der Block wandert um rund -21 Zeilen und bleibt an den Namen frei · 08.09.2026 nachgezogen: 72ebea96b (die Regionen-Suche findet auch unter Titel, Synonym und Schluessel) hat die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei
+- Verlauf: 05.09.2026 angelegt (Doppelungs-Scan, gleichheit 1,00; Historiker) · 05.09.2026 GO Owner (zusammenlegen; alte Namen bleiben als Weiterreicher) · 06.09.2026 nachgezogen: `82f713e18` (P-024) hat das Enqueue bei Z. 261-263 auf einen Weiterreicher gekuerzt -- der Block wandert um rund -21 Zeilen und bleibt an den Namen frei · 08.09.2026 nachgezogen: 72ebea96b (die Regionen-Suche findet auch unter Titel, Synonym und Schluessel) hat die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei · 09.09.2026 nachgezogen: 80cb6bbeb (die Schreiber des Merkers fallen) hat die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei
 
 ### P-024 · api/_internal/wiki/sync-monitor.php · Verfahren C
 - Status: erledigt (82f713e18)
@@ -290,7 +290,7 @@ Stand der Erstfüllung: `1cb5e09bd` (05.09.2026), 30 Pakete. Verworfen/nachgezog
 
 ### P-027 · js/review/review-label-wiki.js · Verfahren A
 - Status: GO nötig
-- Stand: 1cb5e09bd · Blob: e85ff4458a78e679b67a867b386d0c573aeaaa30
+- Stand: 17fe14a1f · Blob: 860062c6082eda0ba9939fee7b854ededbc6a568
 - Block: „Doppelung: Wiki-Schnappschuss laden“ — ladeLabelWikiSchnappschuss … ladeLabelWikiSchnappschuss (Zwilling `ladeWikiSchnappschuss` in `js/map-features/map-features-ecosystem-properties.js` Z. 316–333, IIFE)
 - Ziel: als parametrisierte Funktion nach `js/ui/wiki-assign-landschaft.js` heben (dort liegt schon der geteilte Validator `avesmapsWikiAssignLandschaftAntwortPruefen`, den beide rufen, und beide Dokumente laden die Datei).
 - Unterschied: ausführbarer Code zeichengleich; nur Funktionsname und Konstantenname (`WIKI_API_URL`/`LABEL_WIKI_API_URL`, beide `/api/edit/wiki/regions.php`) und der Schlusskommentar.
@@ -298,11 +298,11 @@ Stand der Erstfüllung: `1cb5e09bd` (05.09.2026), 30 Pakete. Verworfen/nachgezog
 - Empfehlung: zusammenlegen (eine Funktion mit `wikiKey`, URL-Konstante als Parameter).
 - Beleg: `git blame -L316,333 js/map-features/map-features-ecosystem-properties.js` → bf2a745678; `-L180,196 js/review/review-label-wiki.js` → 374b82da8f; kein Test nennt einen der beiden Namen.
 - Fallen: `map-features-ecosystem-properties.js` ist ein IIFE-Modul (Nicht-Ziel der Routine) — die Zusammenlegung ändert dort eine Closure; Owner-Sache. Vorher prüfen, ob die zwei URL-Konstanten je auseinanderlaufen sollen (heute nicht).
-- Verlauf: 05.09.2026 angelegt (Doppelungs-Scan, gleichheit 1,00; Historiker) · 05.09.2026 GO Owner — aber die Zusammenlegung ändert eine Closure im IIFE-Modul map-features-ecosystem-properties.js (Nicht-Ziel der Routine, Owner-Entscheid 05.09.): bleibt GO nötig als Owner-Aufgabe, die Routine baut es nicht
+- Verlauf: 05.09.2026 angelegt (Doppelungs-Scan, gleichheit 1,00; Historiker) · 05.09.2026 GO Owner — aber die Zusammenlegung ändert eine Closure im IIFE-Modul map-features-ecosystem-properties.js (Nicht-Ziel der Routine, Owner-Entscheid 05.09.): bleibt GO nötig als Owner-Aufgabe, die Routine baut es nicht · 09.09.2026 nachgezogen: d071c4616 (der Transport des Merkers faellt) hat die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei
 
 ### P-028 · api/_internal/map/features.php · Verfahren C
 - Status: offen
-- Stand: 72b14bf8f · Blob: 66b8a68700e607b63c859c73d2c1fee558ba13ac
+- Stand: 17fe14a1f · Blob: c6d3cc555668a9dd8acb355eea2be21ab95e830c
 - Block: „Doppelung: UUID v4 und map_revision-Zähler“ — avesmapsUuidV4 … avesmapsUuidV4 (dreifach: `features.php` Z. 4251, `political/territory.php` `avesmapsPoliticalUuidV4` Z. 1082, `wiki/sync.php` `avesmapsWikiSyncUuidV4` Z. 104; dazu `avesmapsNextMapRevision` `features.php` Z. 4069 ~ `avesmapsWikiSyncNextMapRevision` `wiki/locations-helpers.php` Z. 149)
 - Ziel: neue abhängigkeitsfreie Datei `api/_internal/uuid.php` (nur die eine Funktion) und ein ebenso kleiner `map-revision.php`; die alten Namen bleiben als Weiterreicher. NICHT durch Requiren einer der drei Großdateien — Kommentare in `citymaps.php:902`, `ecosystem.php:70`, `game-literature.php:791`, `edit/reports/locations.php:8` begründen, warum niemand die 2700-Zeilen-Datei für einen 15-Zeilen-Helfer einbindet.
 - Unterschied: keiner außer Namen (UUID: Rumpf nach Namensersetzung byte-identisch, 15 Zeilen; NextMapRevision ×2 ebenso). ⚠️ `avesmapsNextEcosystemRevision` (ecosystem.php Z. 1258) ist KEINE Doppelung: eigene Tabelle `ecosystem_revision`, eigener Cache-Kreis (`956d53ee9e`, 26.07.2026, begründet in `ecosystem.php:12-16`).
@@ -310,7 +310,7 @@ Stand der Erstfüllung: `1cb5e09bd` (05.09.2026), 30 Pakete. Verworfen/nachgezog
 - Empfehlung: zusammenlegen in eine abhängigkeitsfreie Datei — erfüllt genau die im Code genannte Bedingung.
 - Beleg: `git blame -w -L 4251,4251 -- api/_internal/map/features.php` u. a.; Kommentare `api/_internal/app/citymaps.php:902-903`, `api/_internal/app/ecosystem.php:70-72`.
 - Fallen: `settlement-places-test.php` sucht `avesmapsUuidV4` im Quelltext von `features.php` (Prüfung 3b) — der Weiterreicher muss dort stehen bleiben oder der Test mitwandern.
-- Verlauf: 05.09.2026 angelegt (Doppelungs-Scan, gleichheit 1,00 / 0,91; Historiker) · 05.09.2026 GO Owner (zusammenlegen; alte Namen bleiben als Weiterreicher) · 08.09.2026 nachgezogen: 3b6439131 und 179c64277 (Kreuzungstyp) haben die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei
+- Verlauf: 05.09.2026 angelegt (Doppelungs-Scan, gleichheit 1,00 / 0,91; Historiker) · 05.09.2026 GO Owner (zusammenlegen; alte Namen bleiben als Weiterreicher) · 08.09.2026 nachgezogen: 3b6439131 und 179c64277 (Kreuzungstyp) haben die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei · 09.09.2026 nachgezogen: 3b6439131 (Kreuzungstyp) und 80cb6bbeb (Merker) haben die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei
 
 ### P-029 · api/_internal/wiki/lore-sync.php · Verfahren C
 - Status: offen
