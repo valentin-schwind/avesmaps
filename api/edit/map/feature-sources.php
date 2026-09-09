@@ -341,6 +341,31 @@ try {
         default => throw new InvalidArgumentException('Die Aktion ist unbekannt.'),
     };
 
+    // DAS KANON-ETIKETT DER BETROFFENEN OBJEKTE -- die zweite Haelfte des Client-Nachtrags.
+    //
+    // 🚩 Owner-Meldung 09.09.2026, mit Bild: die Landschaftsflaeche „Schwanenbruch" trug am Kopf
+    // OFFIZIELL und darunter ihre einzige Quelle als „INOFFIZIELL │ Briefspiel".
+    // syncFeatureSourcesToClientCache (js/review/review-feature-sources.js) schreibt die Verweise in
+    // den Kartenspeicher, und resolveFeatureKanon (js/ui/popups.js) liest „Verweise da + keine
+    // Abweichung" als Vorgabe „offiziell". Ohne diese Zeilen kippt jedes frisch bequellte Objekt auf
+    // OFFIZIELL, bis die Seite neu laedt -- am schlimmsten genau dann, wenn die eingetragene Quelle
+    // INOFFIZIELL ist.
+    //
+    // 🔴 AN DER EINEN ANTWORTSTELLE, nicht in den Aktions-Zweigen: dort waere der Anbau beim
+    // naechsten Zweig vergessen. Dieselbe Begruendung, aus der der Client-Nachtrag am Trichter
+    // haengt und nicht an den Klick-Handlern (und aus der renderLoreDetail einer ist, AGENTS.md §11).
+    //
+    // ⚠️ Die Sammellaeufe (die zwei Uebernahmen und der Wegquellen-Verteiler) nennen KEINE Kennung
+    // und bekommen deshalb nichts angehaengt -- sie beruehren Tausende Objekte, und der Browser, der
+    // sie ausloest, zeigt keines davon.
+    if (is_array($result) && $entityType !== '' && ($entityPublicIds !== [] || $entityPublicId !== '')) {
+        $result['kanon_je_kennung'] = avesmapsFeatureSourcesKanonFuerMehrere(
+            $pdo,
+            $entityType,
+            $entityPublicIds !== [] ? $entityPublicIds : [$entityPublicId]
+        );
+    }
+
     avesmapsJsonResponse(200, $result);
 } catch (InvalidArgumentException $exception) {
     avesmapsErrorResponse(400, 'invalid_request', $exception->getMessage());

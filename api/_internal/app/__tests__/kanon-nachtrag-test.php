@@ -233,4 +233,51 @@ assert($tafel['ort-haupt'] === null,
 $tafel = avesmapsFeatureSourcesKanonFuerMehrere($pdo, 'settlement', ['ort-haupt']);
 assert(($tafel['ort-haupt']['kanon'] ?? null) === 'offiziell', 'ohne Angabe gilt der gespeicherte Raum');
 
+// ---- 4. Die zwei Antwortwege liefern das Etikett mit -------------------------------------------
+// 💣 Am Quelltext geprueft, nicht am HTTP-Ablauf: der Endpunkt verlangt eine Sitzung mit Faehigkeit,
+// und die Uebernahme braucht die volle Import-Fixture. Gefragt ist hier die VERDRAHTUNG -- reist das
+// Feld ueberhaupt mit? Die Ableitung selbst steht in den Abschnitten darueber.
+// 🪤 Kommentare heraus, sonst schlaegt die Pruefung an der Warnung an, die vor dem Muster warnt.
+$nurCode = static function (string $pfad): string {
+    $roh = file_get_contents($pfad);
+    assert(is_string($roh), 'Datei lesbar: ' . $pfad);
+    $code = '';
+    foreach (token_get_all($roh) as $token) {
+        if (is_array($token) && in_array($token[0], [T_COMMENT, T_DOC_COMMENT], true)) {
+            continue;
+        }
+        $code .= is_array($token) ? $token[1] : $token;
+    }
+
+    return $code;
+};
+
+$endpunkt = $nurCode(__DIR__ . '/../../../edit/map/feature-sources.php');
+assert(preg_match_all('/avesmapsJsonResponse\(\s*200\s*,/', $endpunkt) === 1,
+    'der Endpunkt hat GENAU EINE Erfolgs-Antwortstelle -- an einer zweiten waere der Anbau beim '
+    . 'naechsten Aktions-Zweig vergessen (die Trichter-Regel, AGENTS.md §11)');
+assert(strpos($endpunkt, 'avesmapsFeatureSourcesKanonFuerMehrere') !== false,
+    'der Endpunkt fragt den Mehrfach-Rechner');
+assert(preg_match_all('/kanon_je_kennung/', $endpunkt) === 1,
+    'er haengt genau EIN Feld an, unter genau EINEM Namen');
+assert(strpos($endpunkt, 'kanon_je_kennung') < strrpos($endpunkt, 'avesmapsJsonResponse(200'),
+    'der Anbau steht VOR der Antwort -- danach waere er wirkungslos');
+assert(strpos($endpunkt, 'avesmapsFeatureSourcesKanonFuerEines') === false,
+    'der Einzelweg steht hier nicht: er laedt Katalog und Verweise je Aufruf vollstaendig und '
+    . 'gehoert nicht in einen Weg, der bis zu 250 Kennungen bedient');
+
+$uebernahme = $nurCode(__DIR__ . '/../../import/garetien-uebernahme.php');
+assert(strpos($uebernahme, "'quellen_neu'") !== false, 'der Bauer heisst weiterhin quellen_neu');
+assert(strpos($uebernahme, 'avesmapsFeatureSourcesKanonFuerMehrere') !== false,
+    'die Uebernahme fragt den Mehrfach-Rechner -- der Garetien-Import ist der Weg, ueber den der '
+    . 'gemeldete Fall lief');
+assert(preg_match_all('/\[\'kanon\'\]\s*=/', $uebernahme) === 1,
+    'jeder quellen_neu-Eintrag bekommt sein Kanon-Feld an GENAU EINER Stelle -- eine zweite waere '
+    . 'ein zweiter Erzeuger fuer denselben Wert');
+assert(strpos($uebernahme, "?? null;") !== false,
+    'und er wird AUSDRUECKLICH gesetzt, auch als null: ein fehlender Schluessel hiesse im Client '
+    . '„nicht gefragt" und liesse den alten Tafeleintrag stehen');
+assert(strpos($uebernahme, 'avesmapsFeatureSourcesKanonFuerEines') === false,
+    'der Einzelweg gehoert nicht in einen Massenlauf');
+
 echo "kanon-nachtrag-test: OK\n";

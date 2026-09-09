@@ -1852,6 +1852,36 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
         ];
     }
 
+    // DAS KANON-ETIKETT DER FRISCH BEQUELLTEN OBJEKTE -- die zweite Haelfte desselben Nachtrags.
+    //
+    // 🚩 Owner-Meldung 09.09.2026, mit Bild: eine importierte Landschaft trug am Kopf OFFIZIELL,
+    // waehrend darunter ihre einzige Quelle als „INOFFIZIELL │ Briefspiel" stand.
+    // `syncFeatureSourcesToClientCache` schreibt die VERWEISE in den Kartenspeicher; ohne das
+    // Etikett daneben faellt resolveFeatureKanon (js/ui/popups.js) auf die Vorgabe zurueck, und die
+    // heisst „offiziell". Der Import ist der Weg, ueber den der gemeldete Fall lief.
+    //
+    // 💣 GEBUENDELT JE OBJEKTART, nie je Eintrag: avesmapsFeatureSourcesKanonFuerEines laedt Katalog
+    // UND Verweise vollstaendig -- in der Schleife eines Massenlaufs waere das genau die Last, vor
+    // der CLAUDE.md warnt. Der Mehrfach-Rechner laedt einmal je Art.
+    $kennungenJeArt = [];
+    foreach ($quellenRueck as $eintrag) {
+        $art = (string) ($eintrag['entity_type'] ?? '');
+        $id = (string) ($eintrag['public_id'] ?? '');
+        if ($art !== '' && $id !== '') {
+            $kennungenJeArt[$art][] = $id;
+        }
+    }
+    $kanonJeArt = [];
+    foreach ($kennungenJeArt as $art => $kennungen) {
+        $kanonJeArt[$art] = avesmapsFeatureSourcesKanonFuerMehrere($pdo, $art, $kennungen);
+    }
+    foreach ($quellenRueck as $i => $eintrag) {
+        // 🔴 AUSDRUECKLICH gesetzt, auch als `null`: der Client loescht darauf seinen Tafeleintrag.
+        // Ein FEHLENDER Schluessel hiesse dort „nicht gefragt" und liesse den alten stehen.
+        $quellenRueck[$i]['kanon'] = $kanonJeArt[(string) ($eintrag['entity_type'] ?? '')]
+            [(string) ($eintrag['public_id'] ?? '')] ?? null;
+    }
+
     return [
         'angelegt' => $angelegt, 'quellen' => $quellen, 'fehler' => $fehler,
         'quellen_neu' => $quellenRueck, 'angelegt_je_form' => $jeForm,
