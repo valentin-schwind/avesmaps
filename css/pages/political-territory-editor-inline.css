@@ -2854,34 +2854,31 @@
 	color: var(--color-accent-strong);
 }
 #political-territory-editor-host .fs-src-tablewrap {
+	/* 💣 VOLLBREIT IM KASTEN, und die −8px sind dieselbe KEINE freie Zahl wie beim Trenner
+	   darueber: das Seitenpolster von `.fs-src--box`. Wer das Polster aendert, aendert beide
+	   Zahlen zugleich. Die Zellen holen die 8px als eigenes Polster zurueck, damit ihr Text auf
+	   derselben Kante steht wie „Quelle(n):" und „Publikationen:" (Owner 2026-08-12: „entweder wir
+	   machen die tabelle abstandsgleich mit dem text oder entfernen die corners").
+	   🔴 Und sie gilt BEIDEN Oberflaechen. Hier stand die Vollbreite frueher nur als
+	   `.avesmaps-infopanel`-Ausnahme mit `--infopanel-pad-x` (18px) -- gerechnet fuer eine Zeit,
+	   in der der Quellenblock KEIN gerahmter Kasten war und an der Sektionskante sass. Seit
+	   `.fs-src--box` traegt er 1px Rahmen und 8px Polster: die 18px zogen die Tabelle 9px je Seite
+	   AUS dem Kasten heraus, quer ueber dessen Rahmen (im Browser gemessen: Kasten 18..367,
+	   Tabelle 9..376). Ein Mass, das sich auf einen fremden Vorfahren bezieht, ueberlebt den
+	   naechsten Umbau seines Wirts nicht. */
 	margin-top: 9px;
+	margin-left: -8px;
+	margin-right: -8px;
 	max-height: 230px;
 	overflow-y: auto;
 	/* 🔴 KEIN Kasten mehr um die Tabelle. Die Designsprache gruppiert „per Trenner, nicht per
 	   gerahmten Boxen" (AGENTS.md §12) -- der Rahmen samt 7px-Ecken (ein Literal, kein Token)
 	   sass um eine Tabelle, deren Zellen ohnehin schon auf die Textkante gepolstert sind. Owner
 	   2026-08-12: „entweder wir machen die tabelle abstandsgleich mit dem text oder entfernen die
-	   corners" -- hier beides: der Rahmen faellt, die Zellen sitzen buendig (siehe die
-	   Panel-Regel weiter oben, deren -1px-Ausgleich fuer genau diesen Rahmen da war).
+	   corners" -- hier beides: der Rahmen faellt, die Zellen sitzen buendig auf der Textkante des
+	   Kastens (die -8px oben plus 8px Zellpolster).
 	   Der weiche Untergrund bleibt: er markiert den scrollbaren Bereich. */
 	background: var(--color-panel-soft);
-}
-/* Publikationen-Tabelle im rechten Panel nutzt die volle Infobox-Breite (Owner: nur die Breite der
-   Tabelle anpassen): der Wrapper laeuft randlos ueber das --infopanel-pad-x-Padding der Quellen-Sektion
-   -> die Seiten-Spalte bricht deutlich weniger um. NUR im Panel -- das schmale Karten-Popup und die
-   Offiziell/Erwaehnt-Umschalter bleiben unveraendert. */
-#political-territory-editor-host .avesmaps-infopanel .fs-src-tablewrap {
-	margin-left: calc(-1 * var(--infopanel-pad-x));
-	margin-right: calc(-1 * var(--infopanel-pad-x));
-}
-/* ... und die ZELLINHALTE auf denselben linken/rechten Texteinzug wie der uebrige Satz (Quelle/
-   Publikationen/Daten, alle bei --infopanel-pad-x). Der randlose Wrapper sitzt an der Sektionskante,
-   die Standard-9px-Zellpolster liessen den Tabellentext sonst 8px zu weit links stehen (Owner). Minus 1px
-   fuer den Wrapper-Rahmen -> 18px effektiver Einzug, exakt wie der Rest. Nur im Panel. */
-#political-territory-editor-host .avesmaps-infopanel .fs-src-table th,
-#political-territory-editor-host .avesmaps-infopanel .fs-src-table td {
-	padding-left: var(--infopanel-pad-x);
-	padding-right: var(--infopanel-pad-x);
 }
 #political-territory-editor-host .fs-src-table {
 	width: 100%;
@@ -2904,7 +2901,9 @@
 	letter-spacing: 0.02em;
 	color: var(--color-text-muted);
 	text-align: left;
-	padding: 5px 9px;
+	/* 8px = das Seitenpolster von `.fs-src--box`, das der Wrapper oben negativ herauszieht --
+	   so steht der Tabellentext auf der Textkante des Kastens. */
+	padding: 5px 8px;
 	border-bottom: 1px solid var(--color-divider);
 	position: sticky;
 	top: 0;
@@ -2914,7 +2913,7 @@
 	text-align: right;
 }
 #political-territory-editor-host .fs-src-table td {
-	padding: 6px 9px;
+	padding: 6px 8px;
 	vertical-align: top;
 	line-height: 1.4;
 	word-wrap: break-word;
