@@ -897,6 +897,33 @@ hex values across 38 CSS files).
   kleinere Hälfte und baut die Divergenz in die größere ein.
 - **Links** use `--color-link` (gold-brown), never blue; **external links**
   (off-site) always get a trailing `↗`.
+- 💣 **`hyphens: auto` gehört dem FLIESSTEXT, nie einem NAMEN — und diese Karte besteht aus
+  Namen.** Fall #119 (Discord, 09.09.2026, Martin Wr, mit Bild): „mit der deutschen
+  Rechtschreibung (Trennungen) haben´s die Herrschaften nicht so, oder? 🙂 (Blu-totter,
+  Boron-säffchen, etc)". 🔴 **Der Browser trennt nach MUSTERN, nicht nach Wortbildung:**
+  „Blutotter" ist Blut+Otter und wurde „Blu-totter", „Boronsäffchen" ist Borons+Äffchen und wurde
+  „Boron-säffchen". Beides sind erfundene Komposita — kein Trennwörterbuch kennt ihre Fuge, also
+  ist **jede** Trennung an einem Aventurien-Namen geraten; `lang="de"` (überall gesetzt) macht sie
+  nicht richtiger, sondern erst möglich. ⚠️ **Und ein falscher Strich in einem Namen ist keine
+  Schönheitsfrage — er macht daraus ein anderes Wort.** Im Fließtext wäre er hässlich, am Namen ist
+  er falsche Information. 💣 **Gefallen ist die Trennung deshalb für die GANZE Fläche, nicht für
+  die eine gemeldete Zeile:** `.region-info-box__row dd` ist das Hausformat JEDER Infobox-Wertzeile
+  (Vorkommen, „Führt durch", Kraftlinien, „Was ist hier?", Reiseplan), und die Beschreibung eines
+  Ortes besteht ebenso aus Aventurien-Namen — dazu `.gi-detail__name` im Garetien-Importer, der den
+  Wiki-Seitennamen zeigt (eine Regel, die einen von zwei Erzeugern bindet, ist keine Regel).
+  ⭐ **`overflow-wrap: break-word` BLEIBT** und ist das Netz, das schon vorher trug: es bricht nur
+  ein Wort, das breiter ist als sein Kasten, und setzt dabei **keinen Strich** — es behauptet also
+  nie eine Silbengrenze. 🔴 Erlaubt bleibt die Trennung dort, wo **unsere eigenen deutschen Sätze**
+  stehen (Fenster „Neuigkeiten", die Erklärzeilen der Landschafts-Dialoge) — gewöhnliches Deutsch,
+  das ein Wörterbuch kann. 🪤 **Auf diesem Rechner nicht messbar:** das hiesige Chrome bringt kein
+  deutsches Trennwörterbuch mit — gemessen 09.09.2026, „Blutotter"/„Boronsäffchen" in einem
+  182px-Kasten sind mit `hyphens: auto` **zeichengleich** zu `manual` (Höhe 60px, kein Überlauf).
+  Ein Ablauf im Browser kann den Fall hier also gar nicht zeigen; deshalb steht die Regel als
+  Zusicherung am Blatt. Test: `js/ui/__tests__/keine-auto-silbentrennung.test.js` — er zählt
+  `hyphens: auto` **repoweit** und hält den Fund gegen eine ausgeschriebene Liste, fängt also nicht
+  diesen Fall, sondern den nächsten (8 Mutationen gefahren, alle gefangen). ⚠️ Er entfernt
+  **Kommentare, bevor er sucht** — die zwei reparierten Blätter schreiben `hyphens: auto` im
+  Klartext in ihre eigene Warnung.
 - 💣 **Ein Fenster ist entweder ein WERKZEUGFENSTER oder ein BLATT, und die Regel entscheidet,
   nicht der Geschmack** (Owner 04.09.2026, Mockup `docs/fensterformen-mockup.html`, Regelwerk
   `docs/design-language.md` §Fenster). *Werkzeugfenster* = bleibt offen, während man daneben

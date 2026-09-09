@@ -65,6 +65,17 @@ Line-heights: `--leading-tight` 1.15 (titles/display), `--leading-snug` 1.25
 (controls/labels), `--leading-normal` 1.45 (reading). Nothing renders below 11px —
 the old 9–10.5px micro sizes come up to `--font-size-caption`.
 
+**Keine automatische Silbentrennung, wo Namen stehen.** `hyphens: auto` gehört dem
+Fließtext in *unseren eigenen* deutschen Sätzen — nie einer Fläche, die
+Aventurien-Namen zeigt. Der Browser trennt nach deutschen Mustern und kennt die Fuge
+eines erfundenen Kompositums nicht: aus „Blutotter" (Blut+Otter) wurde „Blu-totter",
+aus „Boronsäffchen" (Borons+Äffchen) „Boron-säffchen" (Fall #119, 09.09.2026). Ein
+falscher Strich im Fließtext ist hässlich, in einem Namen ist er falsche Information.
+`overflow-wrap: break-word` bleibt und trägt den Umbruch: es bricht nur ein Wort, das
+breiter ist als sein Kasten, und setzt dabei keinen Strich. Die volle Begründung samt
+Messung steht in AGENTS.md §12; gewacht von
+`js/ui/__tests__/keine-auto-silbentrennung.test.js`, der `hyphens: auto` repoweit zählt.
+
 ## Spacing & radius
 
 Spacing uses one value-named scale — **2 / 4 / 6 / 8 / 10 / 12 / 16 / 20 / 24**
