@@ -1779,7 +1779,7 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
     // ⚠️ NICHT im Anlege-Modus: der Puffer vergibt negative Platzhalter-Ids fuer ein Objekt, das es
     // serverseitig noch gar nicht gibt -- die im Kartenspeicher zeigten auf nichts.
     if (!pendingStore) {
-      syncFeatureSourcesToClientCache(entityType, publicId, data.sources, data.by_entity);
+      syncFeatureSourcesToClientCache(entityType, publicId, data.sources, data.by_entity, data.kanon_je_kennung);
       // Das offene Infopanel neu zeichnen -- dasselbe, was Kartensammlung, Literatur und Kraftlinien
       // nach einer Aenderung tun. ⚠️ Nur nach einem SCHREIBvorgang: beim blossen Auflisten hat sich
       // nichts geaendert, und ein Neuzeichnen waere Arbeit ohne Aussage.
@@ -3031,7 +3031,7 @@ async function linkCommunityReportSource(entityPublicId, suggestion) {
   // immediately, WITHOUT a full map-features reload. resolveFeatureSourceList (js/ui/popups.js) reads
   // window.__sourceCatalog / __featureSourceRefs, which are set only at map-features load -- the new
   // place was not in that payload, so without this its popup would show just the Wiki line until reload.
-  syncFeatureSourcesToClientCache("settlement", entityPublicId, data.sources);
+  syncFeatureSourcesToClientCache("settlement", entityPublicId, data.sources, null, data.kanon_je_kennung);
   return true;
 }
 
@@ -3070,7 +3070,23 @@ function featureSourceKartenfenster() {
  *   alle gehaengt (eine Quelle an 12 von 56 Abschnitten stuende sonst ploetzlich an allen 56). Ohne sie
  *   bekommt der Anker die Liste, wie bisher.
  */
-function syncFeatureSourcesToClientCache(entityType, entityPublicId, editorSources, byEntity) {
+/**
+ * @param {object} [kanonJeKennung]  Das KANON-ETIKETT je Kennung, wie es die Schreibaktion
+ *   zurueckgegeben hat: `{"<public_id>": {kanon:…}|null}`. Ein Objekt wird GESETZT (auch
+ *   `{kanon: ""}` -- „nachgesehen, kein Etikett"), `null` LOESCHT den Tafeleintrag, und ein
+ *   FEHLENDER Schluessel laesst ihn in Ruhe.
+ *
+ * 🚩 Owner-Meldung 09.09.2026, mit Bild: die Landschaftsflaeche „Schwanenbruch" trug am Kopf
+ * OFFIZIELL und darunter ihre einzige Quelle als „INOFFIZIELL │ Briefspiel". Diese Funktion schrieb
+ * bis dahin NUR die Verweise, und resolveFeatureKanon (js/ui/popups.js) liest „Verweise da + keine
+ * Abweichung" als Vorgabe „offiziell" -- jedes frisch bequellte Objekt kippte damit auf OFFIZIELL,
+ * bis die Seite neu lud, und am schlimmsten genau dann, wenn die eingetragene Quelle INOFFIZIELL ist.
+ *
+ * 🔴 Es ist dieselbe Klasse wie Lizenz, Namensnennung und Korpusschluessel darueber: wer dem
+ * Kartenspeicher ein Feld gibt, gibt es diesem Nachtrag mit. Das vierte Mal in dieser Funktion --
+ * und der Grund, warum daneben ein struktureller Riegel steht (die Marke unten).
+ */
+function syncFeatureSourcesToClientCache(entityType, entityPublicId, editorSources, byEntity, kanonJeKennung) {
   const ziel = featureSourceKartenfenster();
   if (!ziel || !Array.isArray(editorSources) || !entityPublicId) {
     return;
@@ -3121,15 +3137,52 @@ function syncFeatureSourcesToClientCache(entityType, entityPublicId, editorSourc
     };
     refs.push({ source_id: source.source_id, pages: source.pages || "", reference_kind: source.reference_kind || "" });
   }
+  // Die Kennungen, die dieser Aufruf wirklich anfasst -- einmal bestimmt, zweimal gebraucht.
+  // 💣 Hier stand bis zum 09.09.2026 ein `return` in der by_entity-Weiche. Er ist gefallen, weil der
+  // Tafel-Teil darunter BEIDE Wege erreichen muss: haengte die Marke nur am Anker-Weg, umginge
+  // ausgerechnet der Wege-Verteiler den Riegel in resolveFeatureKanon.
+  const kennungen = byEntity && typeof byEntity === "object" && !Array.isArray(byEntity)
+    ? Object.keys(byEntity)
+    : [entityPublicId];
+
   if (byEntity && typeof byEntity === "object" && !Array.isArray(byEntity)) {
     for (const [kennung, verweise] of Object.entries(byEntity)) {
       ziel.__featureSourceRefs[`${entityType}:${kennung}`] = (Array.isArray(verweise) ? verweise : [])
         .filter((v) => v && v.source_id !== undefined && v.source_id !== null)
         .map((v) => ({ source_id: v.source_id, pages: v.pages || "", reference_kind: v.reference_kind || "" }));
     }
-    return;
+  } else {
+    ziel.__featureSourceRefs[`${entityType}:${entityPublicId}`] = refs;
   }
-  ziel.__featureSourceRefs[`${entityType}:${entityPublicId}`] = refs;
+
+  ziel.__featureSourceRefsNachgetragen = ziel.__featureSourceRefsNachgetragen || {};
+  ziel.__featureKanon = ziel.__featureKanon || { vorgabe: "", abweichungen: {} };
+  ziel.__featureKanon.abweichungen = ziel.__featureKanon.abweichungen || {};
+
+  for (const kennung of kennungen) {
+    const schluessel = `${entityType}:${kennung}`;
+    // 💣 DIE MARKE IST DER RIEGEL, und sie wird IMMER gesetzt -- auch ohne mitgeliefertes Etikett.
+    // resolveFeatureKanon (js/ui/popups.js) laesst die Vorgabe „offiziell" fuer einen markierten
+    // Schluessel ohne ausdruecklichen Eintrag nicht mehr gelten. Ein kuenftiger Nachtragsweg, der
+    // das Etikett vergisst, bekommt damit „kein Etikett" statt eines falschen -- die sichere
+    // Richtung, strukturell statt per Vereinbarung.
+    ziel.__featureSourceRefsNachgetragen[schluessel] = true;
+    // ⚠️ Ein FEHLENDER Schluessel heisst „nicht gefragt" und laesst den alten Eintrag in Ruhe --
+    // nicht dasselbe wie `null`. Deshalb `in`, nicht ein Wahrheitswert.
+    if (!kanonJeKennung || typeof kanonJeKennung !== "object" || !(kennung in kanonJeKennung)) {
+      continue;
+    }
+    const etikett = kanonJeKennung[kennung];
+    if (etikett && typeof etikett === "object") {
+      // Setzt auch `{kanon: ""}` -- „nachgesehen, kein Etikett" ist eine Auskunft, kein Nichts.
+      ziel.__featureKanon.abweichungen[schluessel] = etikett;
+    } else {
+      // 🔴 LOESCHEN, nicht stehenlassen: ein liegengebliebenes Etikett behauptet etwas ueber
+      // Quellen, die es nicht mehr gibt. Dasselbe Paar aus Setzen und Loeschen wie in
+      // review-settlement-wiki.js, wo es seit dem 02.09.2026 fuer die Wiki-Zuweisung steht.
+      delete ziel.__featureKanon.abweichungen[schluessel];
+    }
+  }
 }
 
 if (typeof window !== "undefined") {

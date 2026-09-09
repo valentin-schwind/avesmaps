@@ -8222,7 +8222,12 @@
 		let getragen = 0;
 		liste.forEach(function (eintrag) {
 			if (!eintrag || !eintrag.entity_type || !eintrag.public_id) { return; }
-			abgleich(eintrag.entity_type, eintrag.public_id, eintrag.sources || []);
+			// 🔴 Das Kanon-Etikett reist je Eintrag mit (api/_internal/import/garetien-uebernahme.php).
+			// Ein Eintrag OHNE `kanon` faellt bewusst auf den Riegel in resolveFeatureKanon zurueck und
+			// zeigt gar keins -- nie ein falsches "offiziell" aus der Vorgabe.
+			abgleich(eintrag.entity_type, eintrag.public_id, eintrag.sources || [], null,
+				Object.prototype.hasOwnProperty.call(eintrag, "kanon")
+					? { [eintrag.public_id]: eintrag.kanon } : undefined);
 			getragen++;
 		});
 		return getragen;
