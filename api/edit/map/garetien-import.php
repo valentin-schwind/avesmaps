@@ -350,6 +350,9 @@ try {
             'ok' => true,
             'zurueckgenommen' => $ergebnis['zurueckgenommen'],
             'fehler' => $ergebnis['fehler'],
+            // 🔴 Der Quellen-Nachtrag fuer die offene Karte -- ohne ihn zeigt die Infobox die
+            // entfernten Quellen weiter, bis jemand neu laedt (Owner-Meldung 09.09.2026).
+            'quellen_neu' => $ergebnis['quellen_neu'] ?? [],
         ]);
     }
 

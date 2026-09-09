@@ -58,4 +58,29 @@ pruefe(quelle.includes("garetienFlaechenNachladen(summe);"),
 pruefe(quelle.split("garetienFlaechenNachladen(summe);").length - 1 === 1,
 	"genau ein Aufruf -- nicht je Häppchen");
 
-console.log("OK -- " + n + " Zusicherungen");
+
+// =================================================================================================
+// Die RUECKNAHME raeumt denselben Speicher auf
+// =================================================================================================
+// Owner-Meldung 09.09.2026 („Burg Mardershöh"): nach einer Rücknahme zeigte die Infobox die
+// entfernten Quellen weiter, bis er neu lud. Serverseitig war alles sauber (dreifach gemessen:
+// Editor-Endpunkt, öffentlicher Leser, Kartennutzlast) -- es fehlte die Gegenrichtung des
+// Nachtrags, den die Übernahme längst fährt.
+//
+// 🔴 DERSELBE SCHLÜSSEL, DERSELBE TRICHTER: die Rücknahme liefert ihre VERBLIEBENEN Quellen unter
+// `quellen_neu`, also braucht der Browser keinen zweiten Leser.
+const q = fs.readFileSync(require("path").join(__dirname, "..", "review-garetien-importer.js"), "utf8");
+pruefe(q.includes("garetienQuellenNachtragen(antwort);"),
+	"der Mengen-Sender trägt die Quellen nach -- über ihn läuft die Rücknahme");
+// ⚠️ Und die Fläche: eine zurückgenommene Landschaft muss auch von der Karte verschwinden.
+pruefe(q.includes("if (flaechenPruefen) {"),
+	"und zieht die Flächen nach, wenn wirklich etwas zurückgenommen wurde");
+
+const php = fs.readFileSync(require("path").join(__dirname, "..", "..", "..",
+	"api", "_internal", "import", "garetien-uebernahme.php"), "utf8");
+pruefe(php.includes("function avesmapsGaretienQuellenNachtrag("),
+	"der Nachtrags-Bauer ist herausgelöst -- EIN Bauer für Übernahme und Rücknahme");
+pruefe((php.split("avesmapsGaretienQuellenNachtrag(").length - 1) >= 3,
+	"und wird von beiden gerufen (Definition + zwei Aufrufer)");
+
+console.log("OK -- " + n + " Zusicherungen (mit Rücknahme)");

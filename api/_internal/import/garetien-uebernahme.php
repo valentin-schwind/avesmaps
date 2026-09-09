@@ -1848,48 +1848,7 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
     // `properties.other_source` in die geteilte Tabelle nach (avesmapsFeatureSourcesTakeoverOtherSource).
     // Das ist gewollt und dieselbe Haustuer, die der Quellen-Editor beim Oeffnen benutzt -- ein
     // frisch angelegtes Objekt hat das Feld nie, ein ergaenztes altes wird dabei aufgeraeumt.
-    $quellenRueck = [];
-    foreach ($quellenNeu as $eintrag) {
-        $quellenRueck[] = [
-            'entity_type' => $eintrag['entity_type'],
-            'public_id' => $eintrag['public_id'],
-            // ⚠️ NUR die Liste, nicht die ganze Huelle: avesmapsListFeatureSourcesForEdit
-            // liefert ['ok','sources','wiki_url','revision']. Der Browser erwartet die Liste.
-            'sources' => avesmapsListFeatureSourcesForEdit(
-                $pdo, $eintrag['entity_type'], $eintrag['public_id'], $userId
-            )['sources'] ?? [],
-        ];
-    }
-
-    // DAS KANON-ETIKETT DER FRISCH BEQUELLTEN OBJEKTE -- die zweite Haelfte desselben Nachtrags.
-    //
-    // 🚩 Owner-Meldung 09.09.2026, mit Bild: eine importierte Landschaft trug am Kopf OFFIZIELL,
-    // waehrend darunter ihre einzige Quelle als „INOFFIZIELL │ Briefspiel" stand.
-    // `syncFeatureSourcesToClientCache` schreibt die VERWEISE in den Kartenspeicher; ohne das
-    // Etikett daneben faellt resolveFeatureKanon (js/ui/popups.js) auf die Vorgabe zurueck, und die
-    // heisst „offiziell". Der Import ist der Weg, ueber den der gemeldete Fall lief.
-    //
-    // 💣 GEBUENDELT JE OBJEKTART, nie je Eintrag: avesmapsFeatureSourcesKanonFuerEines laedt Katalog
-    // UND Verweise vollstaendig -- in der Schleife eines Massenlaufs waere das genau die Last, vor
-    // der CLAUDE.md warnt. Der Mehrfach-Rechner laedt einmal je Art.
-    $kennungenJeArt = [];
-    foreach ($quellenRueck as $eintrag) {
-        $art = (string) ($eintrag['entity_type'] ?? '');
-        $id = (string) ($eintrag['public_id'] ?? '');
-        if ($art !== '' && $id !== '') {
-            $kennungenJeArt[$art][] = $id;
-        }
-    }
-    $kanonJeArt = [];
-    foreach ($kennungenJeArt as $art => $kennungen) {
-        $kanonJeArt[$art] = avesmapsFeatureSourcesKanonFuerMehrere($pdo, $art, $kennungen);
-    }
-    foreach ($quellenRueck as $i => $eintrag) {
-        // 🔴 AUSDRUECKLICH gesetzt, auch als `null`: der Client loescht darauf seinen Tafeleintrag.
-        // Ein FEHLENDER Schluessel hiesse dort „nicht gefragt" und liesse den alten stehen.
-        $quellenRueck[$i]['kanon'] = $kanonJeArt[(string) ($eintrag['entity_type'] ?? '')]
-            [(string) ($eintrag['public_id'] ?? '')] ?? null;
-    }
+    $quellenRueck = avesmapsGaretienQuellenNachtrag($pdo, $quellenNeu, $userId);
 
     return [
         'angelegt' => $angelegt, 'quellen' => $quellen, 'fehler' => $fehler,
@@ -2168,6 +2127,67 @@ function avesmapsGaretienZurueckAufOffen(PDO $pdo, int $runId, array $itemIds, a
 }
 
 /**
+ * Der Quellen-Nachtrag fuer den Browser: je beruehrter Entitaet die VOLLE Liste plus Etikett.
+ *
+ * 🔴 EIN BAUER FUER UEBERNAHME **UND** RUECKNAHME. Er stand bis zum 09.09.2026 als Rumpf in
+ * avesmapsGaretienUebernehmen, und genau deshalb raeumte die Ruecknahme den Kartenspeicher NICHT
+ * auf: der Owner nahm eine Uebernahme zurueck, und die Infobox zeigte die entfernten Quellen
+ * weiter, bis er neu lud (gemeldet 09.09.2026 an „Burg Mardershoeh“). Serverseitig war alles
+ * sauber -- es fehlte nur die Gegenrichtung dieses Nachtrags.
+ *
+ * 💣 DIE VOLLE LISTE, NICHT NUR UNSERE QUELLE. `syncFeatureSourcesToClientCache`
+ * UEBERSCHREIBT die Quellenliste einer Entitaet. Bei einem frisch angelegten Objekt ist unsere
+ * die einzige, da waere der Unterschied unsichtbar; bei einer ERGAENZUNG an einem BESTEHENDEN
+ * Objekt verschwaenden dessen andere Quellen aus der Anzeige. Nach einer RUECKNAHME gilt
+ * dasselbe andersherum: die Liste ist dann die VERBLIEBENE, oft leer.
+ *
+ * 💣 DAS KANON-ETIKETT GEHOERT DAZU (Owner-Meldung 09.09.2026, mit Bild: eine importierte
+ * Landschaft trug am Kopf OFFIZIELL, waehrend ihre einzige Quelle „INOFFIZIELL │ Briefspiel“ war).
+ * Ohne das Etikett faellt resolveFeatureKanon auf die Vorgabe „offiziell“ zurueck. Gebuendelt je
+ * Objektart, nie je Eintrag -- avesmapsFeatureSourcesKanonFuerEines laedt Katalog UND Verweise
+ * vollstaendig, in der Schleife eines Massenlaufs waere das genau die Last, vor der CLAUDE.md warnt.
+ *
+ * ⚠️ avesmapsListFeatureSourcesForEdit ist nicht rein: es holt unterwegs eine alte
+ * `properties.other_source` in die geteilte Tabelle nach. Das ist gewollt und dieselbe Haustuer,
+ * die der Quellen-Editor beim Oeffnen benutzt.
+ *
+ * @param list<array{entity_type:string, public_id:string}> $beruehrt entdoppelt vom Aufrufer
+ */
+function avesmapsGaretienQuellenNachtrag(PDO $pdo, array $beruehrt, int $userId): array
+{
+    $raus = [];
+    foreach ($beruehrt as $eintrag) {
+        $art = (string) ($eintrag['entity_type'] ?? '');
+        $id = (string) ($eintrag['public_id'] ?? '');
+        if ($art === '' || $id === '') {
+            continue;
+        }
+        $raus[] = [
+            'entity_type' => $art,
+            'public_id' => $id,
+            // ⚠️ NUR die Liste, nicht die ganze Huelle: avesmapsListFeatureSourcesForEdit
+            // liefert ['ok','sources','wiki_url','revision']. Der Browser erwartet die Liste.
+            'sources' => avesmapsListFeatureSourcesForEdit($pdo, $art, $id, $userId)['sources'] ?? [],
+        ];
+    }
+    $kennungenJeArt = [];
+    foreach ($raus as $eintrag) {
+        $kennungenJeArt[(string) $eintrag['entity_type']][] = (string) $eintrag['public_id'];
+    }
+    $kanonJeArt = [];
+    foreach ($kennungenJeArt as $art => $kennungen) {
+        $kanonJeArt[$art] = avesmapsFeatureSourcesKanonFuerMehrere($pdo, (string) $art, $kennungen);
+    }
+    foreach ($raus as $i => $eintrag) {
+        // 🔴 AUSDRUECKLICH gesetzt, auch als `null`: der Client loescht darauf seinen
+        // Tafeleintrag. Ein FEHLENDER Schluessel hiesse dort „nicht gefragt“.
+        $raus[$i]['kanon'] = $kanonJeArt[(string) $eintrag['entity_type']][(string) $eintrag['public_id']] ?? null;
+    }
+
+    return $raus;
+}
+
+/**
  * Die Ruecknahme: umkehren, was EINE Uebernahme angelegt hat -- das Item faellt zurueck auf
  * 'offen'. Aufgabe 9 (.superpowers/sdd/2026-08-29-garetien-importer-sichtwerkzeug/task-9-brief.md).
  *
@@ -2213,7 +2233,7 @@ function avesmapsGaretienZurueckAufOffen(PDO $pdo, int $runId, array $itemIds, a
 function avesmapsGaretienRuecknahmeAusfuehren(PDO $pdo, int $runId, array $itemIds, array $user): array
 {
     if ($itemIds === []) {
-        return ['zurueckgenommen' => 0, 'fehler' => []];
+        return ['zurueckgenommen' => 0, 'fehler' => [], 'quellen_neu' => []];
     }
     // ⚠️ avesmapsDeleteMapFeature fragt map_feature_locks direkt ab, ohne die Tabelle selbst
     // sicherzustellen (nur avesmapsAcquireMapFeatureLock tut das) -- und dieser Endpunkt laeuft
@@ -2237,6 +2257,11 @@ function avesmapsGaretienRuecknahmeAusfuehren(PDO $pdo, int $runId, array $itemI
     $entscheidungen = avesmapsSyncPlanDecisions($pdo, AVESMAPS_GARETIEN_PLAN_KIND);
 
     $zurueckgenommen = 0;
+    // 🔴 WAS DER BROWSER NACHTRAGEN MUSS. Ohne diese Liste bleiben die entfernten Quellen
+    // in der offenen Karte stehen (Owner-Meldung 09.09.2026) -- der Kartenspeicher ist eine
+    // EINMALIGE Aufnahme vom Seitenstart, und die Uebernahme pflegt ihn laengst.
+    // ⚠️ Entdoppelt ueber "<typ>:<id>": zwei Items koennen dasselbe Objekt beruehren.
+    $beruehrt = [];
     $fehler = [];
     $istUebernommen = static function (array $item) use ($entscheidungen): bool {
         if ((string) ($item['apply_state'] ?? '') === 'done') {
@@ -2284,6 +2309,7 @@ function avesmapsGaretienRuecknahmeAusfuehren(PDO $pdo, int $runId, array $itemI
                     throw new RuntimeException('keine Beschriftung fuer die Quellen-Verknuepfung gefunden');
                 }
                 avesmapsGaretienQuelleRuecknahmeLoesen($pdo, $entityType, $quellePublicId, (int) ($user['id'] ?? 0));
+                $beruehrt[$entityType . ':' . $quellePublicId] = ['entity_type' => $entityType, 'public_id' => $quellePublicId];
 
                 // Zurueck auf 'offen' -- derselbe Riegel wie im 'new'-Zweig unten (dieselbe
                 // Bedeutung von "Ruecknahme": zurueck in GENAU den Stand vor der Uebernahme).
@@ -2426,5 +2452,14 @@ function avesmapsGaretienRuecknahmeAusfuehren(PDO $pdo, int $runId, array $itemI
         }
     }
 
-    return ['zurueckgenommen' => $zurueckgenommen, 'fehler' => $fehler];
+    return [
+        'zurueckgenommen' => $zurueckgenommen,
+        'fehler' => $fehler,
+        // 🔴 DERSELBE SCHLUESSEL WIE BEI DER UEBERNAHME, und das ist Absicht: der Browser
+        // hat dafuer schon einen Trichter (garetienQuellenNachtragen). Ein eigener Name
+        // haette dort einen zweiten Leser gebraucht, der dasselbe tut.
+        'quellen_neu' => avesmapsGaretienQuellenNachtrag(
+            $pdo, array_values($beruehrt), (int) ($user['id'] ?? 0)
+        ),
+    ];
 }

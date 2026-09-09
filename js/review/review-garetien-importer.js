@@ -8029,9 +8029,31 @@
 			: function (r) { return avesmapsGaretienRufe(GARETIEN_PLAN_ENDPUNKT, r); };
 		const liste = typeof listeHolen === "function" ? listeHolen : avesmapsGaretienListeHolen;
 		const haeppchen = garetienIdsInHaeppchen((ids || []).slice());
+		// 🔴 DER NACHTRAG GILT AUCH RUECKWAERTS (Owner-Meldung 09.09.2026, „Burg Mardershoeh“):
+		// eine RUECKNAHME entfernt Quellen, und ohne diesen Aufruf zeigt die Infobox sie weiter, bis
+		// jemand neu laedt. Serverseitig war alles sauber -- es fehlte nur die Gegenrichtung.
+		// ⭐ DERSELBE Trichter wie bei der Uebernahme: die Ruecknahme liefert ihre verbliebenen
+		// Quellen unter demselben Schluessel `quellen_neu`, also braucht es hier keinen zweiten
+		// Leser. Eine Antwort ohne den Schluessel (ablehnen, wieder …) laesst ihn unberuehrt.
+		let flaechenPruefen = false;
 		return garetienKetteAbarbeiten(haeppchen, function (teil) {
-			return tuer(Object.assign({}, rumpf, { ids: teil }));
+			return tuer(Object.assign({}, rumpf, { ids: teil })).then(function (antwort) {
+				garetienQuellenNachtragen(antwort);
+				if (Number((antwort && antwort.zurueckgenommen) || 0) > 0) { flaechenPruefen = true; }
+				return antwort;
+			});
 		})
+			.then(function (letzte) {
+				// ⚠️ Eine zurueckgenommene LANDSCHAFT muss auch von der Karte verschwinden, und die
+				// Flaeche kommt aus dem eigenen Abruf (siehe garetienFlaechenNachladen). Anders als
+				// beim Import wird hier NICHT nach der Form gefragt: eine Ruecknahme ist eine
+				// bewusste Einzelhandlung, kein Massenlauf -- ein Abruf ist billiger als die
+				// Buchhaltung darueber, ob eine Flaeche dabei war.
+				if (flaechenPruefen) {
+					garetienFlaechenNachladen({ angelegt_je_form: { region: 1 } });
+				}
+				return letzte;
+			})
 			.then(function () { return liste(); })
 			.then(function () {
 				return String(meldung || "") === ""

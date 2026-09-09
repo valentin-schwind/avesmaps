@@ -126,8 +126,17 @@ const importerQuelle = ohneKommentare(lies("js", "review", "review-garetien-impo
 wahr(/\["applied", "deleted", "stale", "skipped", "declined"\][\s\S]{0,200}garetienQuellenNachtragen\(antwort\);/
 	.test(importerQuelle),
 	"der Nachtrag haengt an der Stelle, an der JEDE apply-Antwort ausgewertet wird");
-gleich((importerQuelle.match(/garetienQuellenNachtragen\(/g) || []).length, 2,
-	"und er wird genau EINMAL gerufen (plus die Definition) -- keine zweite Aufrufstelle");
+// 🔴 SEIT 09.09.2026 ZWEI AUFRUFSTELLEN -- EINE JE TUER, und die Zahl bleibt festgenagelt.
+// Die zweite ist der Mengen-Sender (garetienMengeSendenMitMeldung), ueber den die RUECKNAHME
+// laeuft: sie entfernt Quellen, und ohne Nachtrag zeigte die Infobox sie weiter, bis jemand neu
+// lud (Owner-Meldung 09.09.2026, „Burg Mardershoeh"). Das ist keine Aufweichung der Regel aus
+// Abschnitt 3, sondern ihre Anwendung auf die zweite Tuer: `apply` und `ruecknahme` gehen
+// bewusst durch verschiedene Endpunkte (siehe den Kopf von garetien-import.php), und jede
+// braucht ihren EIGENEN Trichter. Eine dritte Stelle waere wieder ein Klickverteiler.
+gleich((importerQuelle.match(/garetienQuellenNachtragen\(/g) || []).length, 3,
+	"genau zwei Aufrufe (plus die Definition) -- einer je Tuer, keiner an einem Klickverteiler");
+wahr(/tuer\(Object\.assign[\s\S]{0,160}garetienQuellenNachtragen\(antwort\);/.test(importerQuelle),
+	"der zweite haengt im Mengen-Sender, an dem JEDE Haeppchen-Antwort vorbeikommt");
 
 // =================================================================================================
 // 4. 🔴 DIE EINE ZEILE AM GETEILTEN ENDPUNKT
