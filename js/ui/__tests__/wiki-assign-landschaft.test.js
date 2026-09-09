@@ -1189,10 +1189,16 @@ function sandkastenBauen(dateien, felder, behaelterIds, fetchAntwort, zusatz) {
 	assert.notDeepStrictEqual(
 		AVESMAPS_WIKI_ASSIGN_LANDSCHAFTSLABEL_KARTENFELDER, AVESMAPS_WIKI_ASSIGN_LANDSCHAFT_KARTENFELDER,
 		"Label und Flaeche haben dieselben Kartenfelder -- dann waere es EINE Objektart");
-	// 🔴 Der Hinweis des Labels VERSPRICHT die Konfliktliste, und zu Recht: ein Label ist eine
-	// Konfliktpartei, eine ecosystem_region nicht. Genau umgekehrt zur Flaeche daneben.
-	assert.ok(/Konfliktliste/.test(String(labelErklaerung.extra.keinArtikelHinweis)),
-		"der Hinweis des Labels verschweigt die Konfliktliste, in der es wirklich steht");
+	// 🔴 DER DRITTE ZUSTAND IST GEFALLEN (Owner-Entscheid 09.09.2026). Hier stand: „Der Hinweis des
+	// Labels VERSPRICHT die Konfliktliste, und zu Recht: ein Label ist eine Konfliktpartei, eine
+	// ecosystem_region nicht." Beides stimmt weiterhin -- aber der Merker
+	// `properties.wiki_no_article`, um den es ging, ist global ausgebaut; sein Aequivalent ist die
+	// WIKI-ZUWEISUNG. Ein Label ohne Zuweisung steht seither wieder auf der Beobachtungsliste, statt
+	// sich per Haekchen davon auszunehmen -- der gesehene und gewollte Preis des Ausbaus.
+	assert.ok(!("keinArtikelHaken" in labelErklaerung.extra),
+		"🔴 das Landschaftslabel bietet den gefallenen dritten Zustand wieder an");
+	assert.ok(!("keinArtikelHinweis" in labelErklaerung.extra),
+		"🔴 und auch seinen Hinweistext nicht");
 	zaehl(); zaehl(); zaehl(); zaehl();
 
 	// ── Die Art-Ordnung auf dem LABEL-Vokabular ───────────────────────────────────────────────
@@ -1268,8 +1274,11 @@ function sandkastenBauen(dateien, felder, behaelterIds, fetchAntwort, zusatz) {
 	assert.ok(labelHost.innerHTML.indexOf("label-wiki-reference") !== -1 && labelHost.innerHTML.indexOf("dt-grp") === -1,
 		"der Label-Dialog mountet die falsche Huelle: " + labelHost.innerHTML);
 	assert.ok(labelHost.innerHTML.indexOf("— keine —") !== -1, labelHost.innerHTML);
-	assert.ok(labelHost.innerHTML.indexOf("Kein Wiki-Artikel vorhanden") !== -1,
-		"das Haekchen des dritten Zustands fehlt am Label: " + labelHost.innerHTML);
+	// 🔴 RUECKBAU-WAECHTER: der dritte Zustand ist am 09.09.2026 mit dem Merker
+	// `properties.wiki_no_article` gefallen (Owner-Entscheid). Er darf am Label nicht
+	// wieder erscheinen -- sein Aequivalent ist die WIKI-ZUWEISUNG.
+	assert.ok(labelHost.innerHTML.indexOf("Kein Wiki-Artikel vorhanden") === -1,
+		"🔴 das Haekchen des gefallenen dritten Zustands ist am Label zurueck: " + labelHost.innerHTML);
 	zaehl(); zaehl(); zaehl();
 
 	// Zuweisen: das Nest entsteht, die KATEGORIE folgt sofort (wie vor dem Umbau), der TEXT nicht.
@@ -1299,24 +1308,22 @@ function sandkastenBauen(dateien, felder, behaelterIds, fetchAntwort, zusatz) {
 		"der angehakte Name wurde nicht ins Formular uebernommen");
 	zaehl(); zaehl();
 
-	// 🔴 BEIDE RICHTUNGEN des dritten Zustands, je eigene Zusicherung.
-	assert.strictEqual(vm.runInContext("getLabelWikiNoArticlePayload()", kLabel.kasten), null,
-		"der Merker reist mit, obwohl niemand das Haekchen angefasst hat");
+	// 🔴 HIER STANDEN BEIDE RICHTUNGEN DES DRITTEN ZUSTANDS (Haekchen -> Speicherpfad,
+	// gesetzt wie entfernt, je eigene Zusicherung). Der Merker `properties.wiki_no_article` ist
+	// am 09.09.2026 global ausgebaut -- das Bedienelement gibt es nicht mehr, also kann es den
+	// Speicherpfad auch nicht mehr erreichen. Der TRANSPORT (`getLabelWikiNoArticlePayload`)
+	// faellt im naechsten Schritt; solange er steht, darf ihn nur niemand mehr ausloesen.
 	labelHost.feuere("click", scheinZiel("data-wa-aktion", "entfernen"));
 	await ruhe();
-	labelHost.feuere("change", scheinZiel("data-wa-kein-artikel", "", { checked: true }));
-	assert.strictEqual(vm.runInContext("getLabelWikiNoArticlePayload()", kLabel.kasten), true,
-		"das gesetzte Haekchen erreicht den Speicherpfad nicht");
-	labelHost.feuere("change", scheinZiel("data-wa-kein-artikel", "", { checked: false }));
-	assert.strictEqual(vm.runInContext("getLabelWikiNoArticlePayload()", kLabel.kasten), null,
-		"ein auf den GELADENEN Stand zurueckgestelltes Haekchen gilt als Aenderung");
-	// Und mit gesetztem GELADENEN Stand ist es genau umgekehrt -- das ist die zweite Richtung.
+	assert.ok(!/data-wa-kein-artikel/.test(labelHost.innerHTML),
+		"🔴 das Bedienelement des dritten Zustands ist zurueck: " + labelHost.innerHTML);
+	// ⚠️ Auch fuer ein Label, das den Merker aus dem ALTBESTAND noch traegt -- genau das ist
+	// der Zustand der 10 Traeger bis Schritt 4.
 	vm.runInContext("setLabelWikiRegion(null, true);", kLabel.kasten);
 	await ruhe();
-	labelHost.feuere("change", scheinZiel("data-wa-kein-artikel", "", { checked: false }));
-	assert.strictEqual(vm.runInContext("getLabelWikiNoArticlePayload()", kLabel.kasten), false,
-		"ein bewusst ENTFERNTES Haekchen kommt nicht durch -- der Merker liesse sich nie wieder loswerden");
-	zaehl(); zaehl(); zaehl(); zaehl();
+	assert.ok(!/data-wa-kein-artikel/.test(labelHost.innerHTML),
+		"🔴 ein Altbestand-Traeger holt das Bedienelement zurueck: " + labelHost.innerHTML);
+	zaehl(); zaehl();
 
 	console.log("wiki-assign-landschaft: " + checks + " Zusicherungen erfuellt");
 })().catch((fehler) => {

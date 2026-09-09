@@ -169,7 +169,11 @@ assert.ok(!ganzerText(beide).includes("Schritt"), "ohne Höhe steht dort nichts:
 // 💣 DIE VERBEN DER ARTIKEL-REGEL GEHÖREN HIER NICHT HIN. „Trennen" nimmt der Beschriftung nur den
 // Wiki-Link — der Name stünde danach immer noch zweimal auf der Karte. Der Fall sähe erledigt aus
 // und wäre es nicht.
-["Trennen", "Kein Wiki-Eintrag", "Behält den Link", "Artikel übernehmen"].forEach((verb) => {
+// ⚠️ „Kein Wiki-Eintrag" stand hier bis zum 09.09.2026 mit in der Liste. Das Verb ist seither
+// GANZ gefallen (mit dem Merker `properties.wiki_no_article`) -- die Zusicherung waere damit ein
+// Vakuum: sie kann gar nicht mehr anschlagen, egal was dieser Code tut. Dass es nirgends mehr
+// auftaucht, sichert der Rueckbau-Waechter in conflict-rules-test.php.
+["Trennen", "Behält den Link", "Artikel übernehmen"].forEach((verb) => {
 	assert.ok(!knoepfeBeide.includes(verb), "„" + verb + "\" darf an einer Dublette nicht stehen");
 });
 

@@ -858,8 +858,10 @@ function buildLocationEditPayload(formElement) {
 	// dessen Häkchen „Kein Wiki-Artikel vorhanden". `null` heißt „das Bauteil ist nicht bereit" (ein
 	// Blindgänger nach einem Deploy-Fehlschlag, siehe js/ui/wiki-assign.js): dann wird der Schlüssel
 	// weggelassen und der Server lässt den gespeicherten Merker in Ruhe. Ein `false` an dieser Stelle
-	// wäre eine Löschung, die niemand angeordnet hat -- die Entscheidung stammt oft aus dem
-	// Konfliktzentrum, nicht aus diesem Dialog.
+	// wäre eine Löschung, die niemand angeordnet hat.
+	// 🔴 Hier stand „die Entscheidung stammt oft aus dem Konfliktzentrum, nicht aus diesem Dialog".
+	// Seit dem 09.09.2026 gibt es dort keine Entscheidung mehr: der Knopf „Kein Wiki-Eintrag" ist
+	// mit dem Merker gefallen, und diese Zeilen sind toter Transport, der in Schritt 2 folgt.
 	const keinArtikel = typeof settlementWikiKeinArtikelFuerPayload === "function"
 		? settlementWikiKeinArtikelFuerPayload()
 		: null;

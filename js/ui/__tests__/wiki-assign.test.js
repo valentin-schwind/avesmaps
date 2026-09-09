@@ -189,53 +189,36 @@ checks += 3;
 assert.strictEqual(avesmapsWikiAssignSkin("dt-neu"), null);
 checks++;
 
-// ── 6) DER DRITTE ZUSTAND ─────────────────────────────────────────────────────────────────────
-// 🔴 SEIT DEM 16.08.2026 IST DIE KRAFTLINIE HIER DAS FALSCHE VORBILD -- ihr Haekchen ist gefallen
-// (Owner-Entscheid, vier Oberflaechen: Regionen, Wege, Kraftlinien, Karten). Die MECHANIK des
-// Bauteils gibt es weiter, und sie wird an einer Objektart geprueft, die den Haken noch fuehrt:
-// `ort` (die Loeschung festhalten, Discord #38) und `landschaftslabel` (ein Label IST
-// Konfliktpartei). Der Test ist damit gewandert, nicht gefallen -- das Bauteil kennt nach wie vor
-// keine Objektart, und genau das misst er.
-const mitHaken = AVESMAPS_WIKI_ASSIGN_REGISTRY.ort;
-const hakenOffen = avesmapsWikiAssignModell(mitHaken, { artikel: null }, {});
-assert.ok(hakenOffen.haken && hakenOffen.haken.text === "Kein Wiki-Artikel vorhanden");
-assert.strictEqual(hakenOffen.haken.gesetzt, false);
-const gehakt = avesmapsWikiAssignModell(mitHaken, { artikel: null, keinArtikel: true }, {});
-assert.strictEqual(gehakt.haken.gesetzt, true);
-// 🔴 Der zweite Halbsatz des Hinweises ist tragend: der Merker ist NICHT endgueltig -- ohne ihn
-// liest er sich als endgueltig, und die Wiedervorlage wirkt wie ein Fehler.
-assert.ok(/bis im Wiki einer auftaucht/.test(hakenOffen.hinweis), hakenOffen.hinweis);
-// Eine Erklaerung OHNE den Haken zeigt auch keinen.
-assert.strictEqual(avesmapsWikiAssignModell(mitSync, { artikel: null }, {}).haken, null);
-// 🔴 Neben einer ZUWEISUNG steht er nicht (Mockup, Karte 1 gegen Karte 3): "es gibt keinen" und
-// "hier ist er" schliessen einander aus.
-assert.strictEqual(
-	avesmapsWikiAssignModell(mitHaken, { artikel: { name: "Havena", wiki_url: "https://w/wiki/H", wiki_key: "k", werte: {} } }, {}).haken,
-	null, "der dritte Zustand steht neben einer Zuweisung");
-assert.strictEqual(
-	avesmapsWikiAssignModell(mitHaken, { artikel: null }, { modus: "suche", suchtext: "hav", treffer: [] }).haken,
-	null, "der dritte Zustand steht mitten in der Suche");
-// 💣 Die eine Ausnahme ist der AUSWEG: ist der Merker gesetzt UND ein Artikel zugewiesen (ein
-// widerspruechlicher Zustand), muss er sichtbar bleiben -- sonst kommt niemand mehr heraus, und
-// weil das Speichern beide Werte schickt, lehnte der Server danach JEDE Aenderung ab.
-const widerspruch = avesmapsWikiAssignModell(mitHaken,
-	{ artikel: { name: "Havena", wiki_url: "https://de.wiki-aventurica.de/wiki/Havena", wiki_key: "k", werte: {} }, keinArtikel: true }, {});
-assert.ok(widerspruch.haken && widerspruch.haken.gesetzt === true,
-	"der gesetzte Merker ist neben einer Zuweisung unsichtbar -- der Ausweg fehlt");
-checks += 9;
-
-// 💣 UND DIE GEGENPROBE ZUR OWNER-ENTSCHEIDUNG: die vier Objektarten, die das Bedienelement am
-// 16.08.2026 verloren haben, zeigen es in KEINEM Zustand -- auch nicht, wenn der Merker GESETZT ist.
-// 🔴 Das ist die schaerfere Haelfte: `hakenZeigen` im Bauteil kennt eine Ausnahme fuer den gesetzten
-// Merker (der „Ausweg" zwei Zeilen weiter oben), und die haengt NUR an `extra.keinArtikelHaken`.
-// Eine Probe, die bloss den offenen Zustand ansaehe, uebersaehe genau diesen Zweig -- und ein
-// Objekt, dem das Konfliktzentrum den Merker gesetzt hat, ist der Normalfall, nicht der Sonderfall.
-["kraftlinie", "weg", "landschaft", "karte"].forEach((art) => {
+// ── 6) DER DRITTE ZUSTAND IST GEFALLEN ────────────────────────────────────────────────────────
+// 🔴 OWNER-ENTSCHEID 09.09.2026: `properties.wiki_no_article` ist global ausgebaut, samt Feld und
+// Bestandsdaten. Bis dahin fuehrten `ort` und `landschaftslabel` das Haekchen noch, und dieser
+// Abschnitt prueft die MECHANIK des Bauteils an ihnen. Es gibt jetzt keine Objektart mehr, die sie
+// traegt -- also wird die Gegenprobe zur Regel: KEINE zeigt das Haekchen, in KEINEM Zustand.
+//
+// 💣 WARUM ES DEN MERKER GAB -- damit ihn niemand wieder einfuehrt: er war der Notausgang gegen das
+// Namensraten der Kartennutzlast (Discord #38). `avesmapsEnrichMapFeatureWikiUrl` riet eine
+// geloeschte Adresse aus dem NAMEN zurueck, 》Entfernen《 hielt also nicht, und es brauchte eine
+// zweite, NEGATIVE Aussage. Der Rateweg ist mit `420f12cfc` (08.09.2026) zurueckgebaut. Sein
+// Aequivalent ist die WIKI-ZUWEISUNG.
+//
+// ⚠️ DIE MECHANIK IM BAUTEIL STEHT NOCH (`extra.keinArtikelHaken`, `hakenZeigen`, `daten.keinArtikel`)
+// und faellt im naechsten Schritt. Solange sie steht, darf sie nur niemand mehr erreichen -- und
+// genau das misst dieser Abschnitt.
+//
+// 🔴 GEPRUEFT WIRD JEDE OBJEKTART, NICHT EINE LISTE VON VIEREN. Hier standen vier Namen; wer eine
+// neunte Objektart anlegt, soll nicht selbst daran denken muessen, sie hier einzutragen.
+// 💣 UND DER GESETZTE MERKER IST DER SCHAERFERE FALL: `hakenZeigen` kennt eine Ausnahme fuer ihn
+// (frueher der „Ausweg" aus dem Widerspruch), und die haengt allein an `extra.keinArtikelHaken`.
+// Eine Probe, die bloss den offenen Zustand ansaehe, uebersaehe genau diesen Zweig.
+const ALLE_ARTEN = Object.keys(AVESMAPS_WIKI_ASSIGN_REGISTRY);
+assert.ok(ALLE_ARTEN.length >= 8, "das Register kennt weniger Objektarten als erwartet: " + ALLE_ARTEN.length);
+checks++;
+ALLE_ARTEN.forEach((art) => {
 	const erklaerung = AVESMAPS_WIKI_ASSIGN_REGISTRY[art];
-	assert.strictEqual(erklaerung.extra.keinArtikelHaken, false,
-		art + ': das Haekchen „Kein Wiki-Artikel vorhanden" ist zurueck -- der Owner hat es am '
-		+ "16.08.2026 abgewaehlt, weil die Entscheidung ins Konfliktzentrum gehoert. Die Begruendung "
-		+ "steht im Feldregister; wer es wieder einbaut, braucht einen neuen Entscheid.");
+	assert.ok(!erklaerung.extra || erklaerung.extra.keinArtikelHaken !== true,
+		art + ': das Haekchen „Kein Wiki-Artikel vorhanden" ist zurueck -- der Merker ist am 09.09.2026 '
+		+ "global ausgebaut worden (Owner-Entscheid). Sein Aequivalent ist die Wiki-Zuweisung; wer das "
+		+ "Haekchen wieder einbaut, braucht zuerst wieder ein Feld, das es schreibt.");
 	[{ artikel: null, keinArtikel: false }, { artikel: null, keinArtikel: true },
 		{ artikel: { name: "X", wiki_url: "https://w/wiki/X", wiki_key: "k", werte: {} }, keinArtikel: true },
 	].forEach((daten, i) => {
@@ -252,6 +235,7 @@ checks += 9;
 	});
 	checks++;
 });
+
 
 // ── 7) DIE SYNC-VORSCHAU ──────────────────────────────────────────────────────────────────────
 // 💣 Sind alle Angaben gleich, kommt EIN Satz -- keine leere Haekchenliste.
@@ -282,13 +266,11 @@ assert.ok(/gespeichert wird mit/.test(syncMarkup));
 // gedrückt“): er sagt, was die Liste darunter ueberhaupt ist. Unter den Knoepfen kaeme er zu spaet.
 assert.ok(syncMarkup.indexOf("würden sich ändern") < syncMarkup.indexOf("dt-sync-rows"),
 	"der Hinweis der Sync-Vorschau steht unter der Liste statt darueber");
-// In den uebrigen Zustaenden steht er weiterhin UNTEN (Mockup, Karte 1 und 2).
-// ⚠️ Am ORT gemessen, nicht mehr an der Kraftlinie: nur eine Objektart mit Haekchen kann diese
-// Reihenfolge ueberhaupt zeigen (16.08.2026, siehe Abschnitt 6).
-const offenMarkup = avesmapsWikiAssignMarkup(hakenOffen, dt);
-assert.ok(offenMarkup.indexOf("Konfliktliste") > offenMarkup.indexOf("data-wa-kein-artikel"),
-	"der Hinweis des dritten Zustands steht ueber seinem Haekchen");
-checks += 8;
+// 🔴 HIER STAND DIE GEGENPROBE „im offenen Zustand steht der Hinweis UNTEN": sie brauchte eine
+// Objektart MIT Haekchen, um die Reihenfolge Hinweis/Haekchen ueberhaupt zeigen zu koennen. Seit
+// dem Ausbau des Merkers am 09.09.2026 gibt es keine mehr -- die Zusicherung ist damit nicht
+// „vergessen", sondern unbaubar geworden. Die Reihenfolge der Sync-Vorschau prueft die Zeile darueber.
+checks += 7;
 
 // 💣 Der Nenner zaehlt nur Felder MIT Kartenziel -- eine Anzeige-Zeile kann sich nie aendern.
 const mitAnzeigeFeld = Object.assign({}, mitSync, { felder: mitSync.felder.concat([{ wiki: "deko", karte: "", label: "Deko" }]) });

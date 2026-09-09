@@ -65,8 +65,7 @@ const AVESMAPS_WIKI_MASSENLAUF = {
 			return "Alle " + wikiZahl + " passenden Wiki-Wege mit ihren Karten-Abschnitten verknüpfen?"
 				+ "\n\nGeschrieben werden " + zahl + " Abschnitte — alle, deren Name zu einem Wiki-Weg passt."
 				+ " Bereits verknüpfte sind mitgezählt: ihre Angaben werden aufgefrischt, und eine"
-				+ " abweichende Zuordnung wird überschrieben — auch eine von Hand gesetzte."
-				+ "\n\nEin Weg mit dem Merker „kein Wiki-Artikel“ wird dabei mitverknüpft und verliert ihn.";
+				+ " abweichende Zuordnung wird überschrieben — auch eine von Hand gesetzte.";
 		},
 	},
 	landschaft: {
@@ -85,8 +84,7 @@ const AVESMAPS_WIKI_MASSENLAUF = {
 				+ "\n\nGeschrieben werden " + zahl + " Label. Bereits richtig Verbundene sind NICHT"
 				+ " mitgezählt und bleiben unberührt; eine abweichende Zuordnung wird überschrieben —"
 				+ " auch eine von Hand gesetzte. Passt die Wiki-Art nicht zum Label-Typ, wird"
-				+ " übersprungen."
-				+ "\n\nEin Label mit dem Merker „kein Wiki-Artikel“ wird dabei mitverknüpft und verliert ihn.";
+				+ " übersprungen.";
 		},
 	},
 	// 🔴 DIE DRITTE ART VERHÄLT SICH ANDERS ALS DIE ZWEI ÜBER IHR, UND DAS MUSS DASTEHEN.

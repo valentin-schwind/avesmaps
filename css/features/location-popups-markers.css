@@ -959,15 +959,10 @@
 		0 0 0 calc(2px + var(--marker-check-ring-width)) rgba(0, 0, 0, 0.35);
 }
 
-/* „Nachgesehen, es gibt keinen Artikel" -- derselbe Ring, nur blass. Live sind das 6 Orte.
-   ⚠️ Der aeussere Schattenring faellt hier weg: er ist die Abgrenzung gegen helle Kacheln, und
-   unter einem halbdurchsichtigen Ring saehe man ihn DURCH, was den blassen Ton wieder verdunkelt --
-   also genau die Unterscheidung wegnimmt, um die es geht. */
-.location-visual-marker__shape--no-wiki-checked {
-	box-shadow:
-		0 0 0 1px rgba(0, 0, 0, 0.55),
-		0 0 0 calc(1px + var(--marker-check-ring-width)) var(--color-check-no-wiki-checked);
-}
+/* 🔴 HIER STAND `--no-wiki-checked` („nachgesehen, es gibt keinen Artikel" -- derselbe Ring, nur
+   blass, live 6 Orte). Gefallen am 09.09.2026 mit dem Merker `properties.wiki_no_article`: sein
+   Aequivalent ist die WIKI-ZUWEISUNG, und die kennt nur zugewiesen oder offen. Die 6 tragen jetzt
+   den vollen Ring darueber -- sie sind nicht neu, sie sind nur nicht mehr unterschieden. */
 
 /* Discord #43 -- "trennt ab": solange Strg beim Ziehen gedrueckt ist, traegt der gerade bearbeitete
    Marker einen Goldring. Man sieht VOR dem Loslassen, dass die angeschlossenen Wege liegenbleiben.

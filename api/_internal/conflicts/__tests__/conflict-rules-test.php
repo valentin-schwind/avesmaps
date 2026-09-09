@@ -172,23 +172,24 @@ $oddName = avesmapsConflictRuleMissingKey([
 ]);
 assert(count($oddName) === 1);
 
-// ---- rule 2: "kein Wiki-Artikel" verstummt (Discord-Fall #71) -----------------------------------
-// Der Merker wird vom Konfliktzentrum selbst geschrieben (Knopf "Kein Wiki-Eintrag",
-// AVESMAPS_CONFLICT_NO_ARTICLE_FLAG in repair.php) -- und von dieser Regel bis 15.08.2026 fuer
-// KEINE Objektart gelesen. Live trug eine Kraftlinie ihn bereits und stand trotzdem auf der
-// Beobachtungsliste: jemand hatte sie stillgelegt, und sie kam zurueck.
+// ---- rule 2: der Merker verstummt NICHT mehr -- er ist ausgebaut (Owner 09.09.2026) -------------
+// 🔴 BIS ZUM 09.09.2026 NAHM `no_article` EINE ZEILE VON DER BEOBACHTUNGSLISTE. Der Merker
+// `properties.wiki_no_article` war die Antwort auf „kein Wiki-Schluessel": nachgesehen, es gibt
+// keinen. Er ist global gefallen, sein Aequivalent ist die WIKI-ZUWEISUNG -- und die ist hier eine
+// Zeile weiter oben schon gefragt (`wiki_url` leer). Damit gibt es keine Ausnahme mehr.
+// ⚠️ DAS IST DER GEMESSENE PREIS DES AUSBAUS, kein Fehler: die 10 Traeger kommen zurueck auf die
+// Liste. Der Owner hat sie durchgesehen und das so entschieden.
 $noArticleRows = [
     ['type' => 'location', 'id' => 'n1', 'label' => 'Handgemacht', 'subtype' => 'dorf', 'wiki_url' => '', 'no_article' => true],
     ['type' => 'powerline', 'id' => 'n2', 'label' => 'Drachenblick', 'subtype' => '', 'wiki_url' => '', 'no_article' => true],
     ['type' => 'location', 'id' => 'n3', 'label' => 'Noch offen', 'subtype' => 'dorf', 'wiki_url' => ''],
 ];
 $noArticle = avesmapsConflictRuleMissingKey($noArticleRows);
-assert(count($noArticle) === 1);
-assert($noArticle[0]['title'] === 'Noch offen');
-// Fehlt der Schluessel ganz (Altbestand), aendert sich nichts -- er ist kein Pflichtfeld.
+assert(count($noArticle) === 3, 'ein Altbestand-Merker nimmt keine Zeile mehr von der Liste');
+// ⚠️ Und ein Objekt MIT Zuweisung faellt weiterhin heraus -- daran hat sich nichts geaendert.
 assert(count(avesmapsConflictRuleMissingKey([
-    ['type' => 'location', 'id' => 'n4', 'label' => 'Ohne Schluessel', 'subtype' => 'dorf', 'wiki_url' => ''],
-])) === 1);
+    ['type' => 'location', 'id' => 'n4', 'label' => 'Zugewiesen', 'subtype' => 'dorf', 'wiki_url' => 'https://w/wiki/X', 'no_article' => true],
+])) === 0, 'die Zuweisung ist das Aequivalent -- sie entscheidet, und sonst nichts');
 
 // ---- avesmapsConflictBuildMapRow(): reiner Zeilenbau, ohne PDO erreichbar ------------------------
 // avesmapsConflictLoadMapRows() selbst kommt an dieser Grenze nicht vorbei -- die Funktion braucht
@@ -201,13 +202,18 @@ $rawWithFlag = [
 ];
 $builtFlag = avesmapsConflictBuildMapRow($rawWithFlag);
 assert($builtFlag !== null);
-assert($builtFlag['no_article'] === true);              // toetet die Mutation "no_article immer false"
+// 🔴 DIE ZEILE TRAEGT DEN SCHLUESSEL GAR NICHT MEHR (09.09.2026). Ihn auf `false` zu setzen waere
+// die halbe Loesung: ein Feld, das immer denselben Wert hat, liest sich wie eine lebende Aussage,
+// und der naechste Leser baut wieder eine Verzweigung darauf.
+assert(!array_key_exists('no_article', $builtFlag), 'der Merker reist nicht mehr in der Konfliktzeile');
+// ⚠️ Und das Objekt bleibt eine gueltige Konfliktpartei -- der Merker hat es nie disqualifiziert.
+assert($builtFlag['wiki_url'] === '', 'ohne Adresse bleibt die Zeile ohne Adresse');
 
 $rawWithoutFlag = $rawWithFlag;
 $rawWithoutFlag['properties_json'] = json_encode(['wiki_url' => 'https://w/wiki/Satteldorf']);
 $builtNoFlag = avesmapsConflictBuildMapRow($rawWithoutFlag);
 assert($builtNoFlag !== null);
-assert($builtNoFlag['no_article'] === false);           // toetet die Mutation "no_article immer true"
+assert(!array_key_exists('no_article', $builtNoFlag), 'auch ohne Merker im JSON entsteht kein Schluessel');
 
 // Unbekannter feature_type -> keine Konfliktpartei (Kreuzungen tragen keine Wiki-Identitaet).
 // Der Name darf hier auf KEINEN Fall mit "Kreuzung" beginnen -- sonst greift schon der Namensfilter
@@ -239,7 +245,7 @@ $builtBroken = avesmapsConflictBuildMapRow([
 assert($builtBroken !== null);
 assert($builtBroken['wiki_url'] === '');
 assert($builtBroken['claim_source'] === '');
-assert($builtBroken['no_article'] === false);
+assert(!array_key_exists('no_article', $builtBroken));
 
 // ---- fingerprints are stable across runs and distinct per case ----------------------------------
 $again = avesmapsConflictRuleSharedArticle($rows);
@@ -280,8 +286,10 @@ foreach ($catalog as $rule) {
     }
 }
 
-// Die drei Knoepfe am geteilten Artikel -- alle drei schreiben, alle drei fassen die Linie.
-foreach (['Behält den Link', 'Trennen', 'Kein Wiki-Eintrag'] as $verbLabel) {
+// 🔴 ES SIND ZWEI KNOEPFE, NICHT DREI. 》Kein Wiki-Eintrag《 (Aktion `no_wiki`) ist am 09.09.2026
+// mit dem Merker `properties.wiki_no_article` gefallen -- er schrieb ihn, und niemand liest ihn
+// mehr. Ein Knopf, der ein totes Feld schreibt, ist eine Falle, deshalb fiel er im selben Commit.
+foreach (['Behält den Link', 'Trennen'] as $verbLabel) {
     $effect = $verbsById['wiki.shared_article'][$verbLabel] ?? '';
     assert($effect !== '', 'Verb "' . $verbLabel . '" ist beschrieben');
     foreach ($segmentedLabels as $segmentedType => $typeLabel) {
@@ -290,6 +298,27 @@ foreach (['Behält den Link', 'Trennen', 'Kein Wiki-Eintrag'] as $verbLabel) {
             'Verb "' . $verbLabel . '" nennt "' . $typeLabel . '" (' . $segmentedType . ')'
         );
     }
+}
+
+// 🔴 RUECKBAU-WAECHTER: das Verb ist weg und bleibt weg. Kein Katalogeintrag darf es je wieder
+// nennen -- weder unter 》Mehrere Objekte beanspruchen denselben Wiki-Artikel《 noch anderswo.
+foreach ($catalog as $rule) {
+    foreach ($rule['verbs'] ?? [] as $verb) {
+        assert(
+            !str_contains((string) $verb['label'], 'Kein Wiki-Eintrag'),
+            'das Verb "Kein Wiki-Eintrag" ist am 09.09.2026 mit dem Merker gefallen (Regel ' . $rule['id'] . ')'
+        );
+    }
+    // 🪤 DIESE ZEILE BELEGT NICHTS UEBER DEN UMBAU, und das steht hier, damit niemand sie dafuer
+    // haelt: `no_wiki` stand NIE in `actions` -- der Knopf loeste den Modus direkt aus, an der
+    // Liste vorbei. Sie war schon vor dem 09.09.2026 gruen. Sie bleibt als VORWAERTS-Riegel: wer
+    // den Modus je zurueckholt, wird ihn in die Liste eintragen wollen. Was den gefallenen Knopf
+    // wirklich bewacht, ist die Verb-Schleife darueber und
+    // api/_internal/conflicts/__tests__/kein-wiki-eintrag-ist-weg-test.php.
+    assert(
+        !in_array('no_wiki', $rule['actions'] ?? [], true),
+        'und die Aktion `no_wiki` ebenso (Regel ' . $rule['id'] . ')'
+    );
 }
 
 // 💣 Der Satz, der falsch wurde. Er darf nicht zurueckkehren.

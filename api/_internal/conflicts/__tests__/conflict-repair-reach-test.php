@@ -177,7 +177,7 @@ $seed($pdo, [
     'pl-5' => ['wiki_url' => $HEXENBAND_URL],
     'pl-6' => ['wiki_url' => $HEXENBAND_URL],
 ]);
-$unlinkPartial = avesmapsConflictUnlinkFeature($pdo, 'pl-1', $HEXENBAND_URL, false, 7);
+$unlinkPartial = avesmapsConflictUnlinkFeature($pdo, 'pl-1', $HEXENBAND_URL, 7);
 assert($unlinkPartial['ok'] === true);
 assert($unlinkPartial['written'] === 5, 'fuenf getrennt, das Nest-Segment nicht');
 assert(count($unlinkPartial['skipped']) === 1, 'und genau das steht in der Antwort');
@@ -213,24 +213,46 @@ $single = avesmapsConflictLinkFeature($pdo, 'loc-1', $wikiTitles, 7);
 assert($single['written'] === 1, 'ein Ort ist eine Zeile');
 assert($claimOf($pdo, 'loc-2') === '', 'das gleichnamige Nachbardorf bleibt unberuehrt');
 
-// === 6) "Kein Wiki-Eintrag" fasst die Linie ebenso -- der Ausloeser des ganzen Umbaus ==========
+// === 6) 》Trennen《 fasst die Linie -- und RAEUMT den Altbestand-Merker weg =====================
+// 🔴 HIER STAND 》Kein Wiki-Eintrag《 (Modus `no_wiki`), der Ausloeser des Reichweiten-Umbaus. Das
+// Verb ist am 09.09.2026 mit dem Merker `properties.wiki_no_article` gefallen: es setzte ihn,
+// damit 》Trennen《 haelt -- und seit dem Rueckbau des Ratewegs (`420f12cfc`) haelt 》Trennen《 von
+// allein. Die REICHWEITE bleibt geprueft, sie war nie an das Verb gebunden.
 $seed($pdo);
 avesmapsConflictLinkFeature($pdo, 'pl-1', $wikiTitles, 7);
-$marked = avesmapsConflictUnlinkFeature($pdo, 'pl-4', $HEXENBAND_URL, true, 7);
+// Ein Segment traegt den Merker noch aus alter Zeit -- genau der Bestand, den Schritt 4 raeumt.
+$pdo->exec("UPDATE map_features SET properties_json = '{\"wiki_no_article\":true}' WHERE public_id = 'pl-4'");
+assert($hasNoArticleFlag($pdo, 'pl-4') === true, 'Vorbedingung: der Altbestand-Merker liegt da');
+$marked = avesmapsConflictUnlinkFeature($pdo, 'pl-4', $HEXENBAND_URL, 7);
 assert($marked['ok'] === true);
-assert($marked['written'] === 6, 'der Merker gilt der Linie, nicht dem Segment');
+assert($marked['written'] === 6, 'das Trennen gilt der Linie, nicht dem Segment');
 for ($i = 1; $i <= 6; $i++) {
     assert($claimOf($pdo, 'pl-' . $i) === '', 'Segment pl-' . $i . ' ist geloest');
-    assert($hasNoArticleFlag($pdo, 'pl-' . $i) === true, 'Segment pl-' . $i . ' traegt den Merker');
+    // ⚠️ Und KEINES traegt den Merker -- weder das praeparierte noch ein neu geschriebenes.
+    assert($hasNoArticleFlag($pdo, 'pl-' . $i) === false, 'Segment pl-' . $i . ' traegt keinen Merker mehr');
 }
-assert($hasNoArticleFlag($pdo, 'bl-1') === false, 'die andere Linie bekommt keinen Merker');
-assert($auditCount($pdo, 'conflict_no_article') === 6);
+// 🔴 RUECKBAU-WAECHTER: die Aktion darf gar nicht mehr entstehen. Historische Zeilen bleiben im
+// Protokoll stehen (ein Protokoll ist ein Archiv) -- aber neu geschrieben wird nur `conflict_unlink`.
+assert($auditCount($pdo, 'conflict_no_article') === 0, 'die Aktion `conflict_no_article` entsteht nicht mehr');
+assert($auditCount($pdo, 'conflict_unlink') === 6, 'stattdessen sechs gewoehnliche Trenn-Eintraege');
+// Und der Modus selbst wird serverseitig abgewiesen, auch wenn eine gecachte Editorseite ihn schickt.
+$modusAbgewiesen = false;
+try {
+    avesmapsConflictResolve($pdo, [
+        'mode' => 'no_wiki', 'wiki_url' => $HEXENBAND_URL,
+        'targets' => [['type' => 'powerline', 'id' => 'pl-1']],
+        'keep' => null, 'subject_type' => 'powerline', 'subject_id' => 'pl-1',
+    ], 7);
+} catch (RuntimeException $e) {
+    $modusAbgewiesen = str_contains($e->getMessage(), 'Unbekannter Reparatur-Modus');
+}
+assert($modusAbgewiesen, 'der Modus `no_wiki` wird abgewiesen, nicht lautlos als Trennen ausgefuehrt');
 
 // === 7) Und auch beim Trennen bleibt ein Ort eine Zeile ========================================
 $seed($pdo);
 avesmapsConflictLinkFeature($pdo, 'loc-1', $wikiTitles, 7);
 avesmapsConflictLinkFeature($pdo, 'loc-2', $wikiTitles, 7);
-$unlinkedOne = avesmapsConflictUnlinkFeature($pdo, 'loc-1', '', false, 7);
+$unlinkedOne = avesmapsConflictUnlinkFeature($pdo, 'loc-1', '', 7);
 assert($unlinkedOne['written'] === 1);
 assert($claimOf($pdo, 'loc-2') !== '', 'das gleichnamige Nachbardorf behaelt seinen Link');
 

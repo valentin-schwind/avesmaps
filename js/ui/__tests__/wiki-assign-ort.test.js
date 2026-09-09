@@ -288,11 +288,16 @@ assert.deepStrictEqual(
 	assert.strictEqual(zeile.karte, "", wikiFeld + " hat ploetzlich ein Kartenziel -- gibt es das Feld wirklich?");
 	zaehl();
 });
-// 🔴 DER DRITTE ZUSTAND wird angeboten. Ohne diese Zeile zeichnet das Bauteil das Haekchen gar nicht
-// (avesmapsWikiAssignModell prueft `extra.keinArtikelHaken === true`) -- und „Entfernen" hielte beim
-// Ort weiterhin nicht ueber ein Neuladen der Karte hinweg (Discord #38).
-assert.strictEqual(ort.extra.keinArtikelHaken, true, "der Ort bietet den dritten Zustand nicht an");
-assert.ok(String(ort.extra.keinArtikelHinweis || "").trim() !== "", "der Hinweis zum dritten Zustand fehlt");
+// 🔴 DER DRITTE ZUSTAND IST GEFALLEN (Owner-Entscheid 09.09.2026), und beim Ort war seine
+// Begruendung die staerkste von allen: „ohne ihn haelt 》Entfernen《 nicht ueber ein Neuladen der
+// Karte hinweg (Discord #38)". Genau der Rateweg, der das verursachte
+// (`avesmapsEnrichMapFeatureWikiUrl`), ist mit `420f12cfc` am 08.09.2026 zurueckgebaut -- 》Entfernen《
+// haelt seither von allein, und der Merker `properties.wiki_no_article` hatte keinen Gegenstand mehr.
+// ⚠️ ES FAELLT DIESMAL AUCH DAS FELD, nicht nur das Bedienelement wie bei den sechs anderen
+// Objektarten. Das Aequivalent ist die WIKI-ZUWEISUNG -- das Nest `wiki_settlement`, das dieser
+// Kasten ohnehin schreibt.
+assert.ok(!("keinArtikelHaken" in ort.extra), "der Ort bietet den gefallenen dritten Zustand wieder an");
+assert.ok(!("keinArtikelHinweis" in ort.extra), "und auch seinen Hinweistext nicht");
 zaehl(); zaehl(); zaehl(); zaehl(); zaehl(); zaehl();
 
 // ── Die Diff-Rechnung auf der ECHTEN Erklaerung ───────────────────────────────────────────────
@@ -1067,14 +1072,24 @@ function skripteAus(htmlDatei, muster) {
 	vm.runInContext("avesmapsWikiAssignOrtZustand = echterOrtZustandE;", e.kasten);
 	zaehl();
 
-	// ══ TEIL 5: DER DRITTE ZUSTAND („Kein Wiki-Artikel vorhanden", Aufgabe 5b) ════════════════
-	// 🔴 Er ist beim Ort nicht bloss ein Ordnungsmerkmal wie bei den Kraftlinien, sondern die
-	// REPARATUR von Discord #38: ohne ihn raet avesmapsEnrichMapFeatureWikiUrl beim naechsten
-	// Kartenladen eine Adresse aus dem Ortsnamen zurueck, und ein „Entfernen" haelt nicht.
-	// ⚠️ Gefahren wird der ganze Weg -- Marker-Eintrag → Kasten → Haekchen → Payload --, nicht der
-	// Bauer allein. Genau daran ist in den Aufgaben 3-5 acht Mal eine Zusicherung vorbeigelaufen.
+	// ══ TEIL 5: DER DRITTE ZUSTAND IST GEFALLEN ═══════════════════════════════════════════════
+	// 🔴 HIER STANDEN 285 ZEILEN, die den ganzen Weg des Merkers `properties.wiki_no_article` fuhren:
+	// Marker-Eintrag → Kasten → Haekchen → Payload, in BEIDEN Oberflaechen und in beide Richtungen.
+	// Der Merker ist am 09.09.2026 auf Owner-Entscheid global ausgebaut; sein Aequivalent ist die
+	// WIKI-ZUWEISUNG (das Nest `wiki_settlement`, das dieser Kasten ohnehin schreibt).
+	//
+	// 💣 WARUM ES IHN GAB -- damit ihn niemand wieder einfuehrt: er war die REPARATUR von Discord #38.
+	// `avesmapsEnrichMapFeatureWikiUrl` riet eine geloeschte Adresse aus dem ORTSNAMEN zurueck, 》Entfernen《
+	// hielt also nicht ueber ein Neuladen der Karte hinweg, und es brauchte eine zweite, NEGATIVE
+	// Aussage. Der Rateweg ist mit `420f12cfc` (08.09.2026) zurueckgebaut -- 》Entfernen《 haelt von
+	// allein, und die Reparatur hat den Schaden verloren, den sie reparierte.
+	//
+	// ⚠️ GEBLIEBEN IST DER WAECHTER AN DER OBERFLAECHE: das Haekchen darf in KEINER der beiden
+	// Oberflaechen wieder erscheinen, auch nicht fuer ein Objekt, das den Merker aus dem Altbestand
+	// noch traegt. Der TRANSPORT (`data-wa-kein-artikel`, `settlementWikiKeinArtikelFuerPayload`) faellt
+	// im naechsten Schritt; solange er steht, darf ihn nur niemand mehr erreichen.
 
-	/** Ein Kartendialog-Sandkasten mit gewaehltem Merker-Stand. */
+	/** Ein Kartendialog-Sandkasten mit einem Objekt, das den Altbestand-Merker noch traegt. */
 	function merkerDialog(wikiNoArticle, wikiUrlWert) {
 		const eigeneFelder = {
 			"location-edit-name": scheinFeld("Havena"),
@@ -1092,64 +1107,39 @@ function skripteAus(htmlDatei, muster) {
 		return kasten;
 	}
 
-	// ---- Der gespeicherte Merker erreicht das Häkchen -----------------------------------------
 	const kGesetzt = merkerDialog(true, "");
 	const hostGesetzt = kGesetzt.elemente["settlement-wiki-assign-host"];
 	vm.runInContext("renderSettlementWikiReference();", kGesetzt.kasten);
 	await ruhe();
-	assert.ok(hostGesetzt.innerHTML.indexOf("Kein Wiki-Artikel vorhanden") !== -1,
-		"der Kartendialog zeigt den dritten Zustand gar nicht: " + hostGesetzt.innerHTML);
-	// 💣 Und zwar ANGEHAKT. Ohne den Weg properties → Payload → prepareLocationData →
-	// settlementWikiZustand startete das Häkchen immer leer, und das naechste beliebige Speichern
-	// naehme eine Entscheidung zurueck, die oft im Konfliktzentrum getroffen wurde.
-	assert.ok(/data-wa-kein-artikel checked/.test(hostGesetzt.innerHTML),
-		"der gespeicherte Merker erreicht das Haekchen nicht -- es startet leer: " + hostGesetzt.innerHTML);
-	// 🔴 UND ER REIST NICHT MIT, SOLANGE NIEMAND IHN ANFASST (Owner-Entscheid 16.08.2026 anstelle
-	// eines `expected_revision`). Hier stand `true` -- die Zusicherung ist mitgewandert, und sie ist
-	// die halbe Regel: ein frisch geladener, unangetasteter Dialog darf den Merker eines zweiten
-	// Editors nicht mitschreiben. Die andere Haelfte (bewusst umgelegt ⇒ reist mit) steht darunter.
-	assert.strictEqual(vm.runInContext("settlementWikiKeinArtikelFuerPayload()", kGesetzt.kasten), null,
-		"ein unangetastetes Haekchen reist mit -- damit koennte ein alter Dialog eine fremde Entscheidung ueberschreiben");
-	// 🔴 UND DAS BEWUSSTE ENTFERNEN KOMMT TROTZDEM DURCH: `false`, nicht `null`. Haenge der Riegel an
-	// „gesetzt" statt an „veraendert", wuerde man den Merker nie wieder los.
-	hostGesetzt.feuere("change", scheinZiel("data-wa-kein-artikel", "", { checked: false }));
-	await ruhe();
-	assert.strictEqual(vm.runInContext("settlementWikiKeinArtikelFuerPayload()", kGesetzt.kasten), false,
-		"ein bewusst ENTFERNTES Haekchen wird verschluckt -- der Merker liesse sich nie wieder loeschen");
-	// Und zurueck auf den geladenen Wert heisst wieder „nichts zu schicken".
-	hostGesetzt.feuere("change", scheinZiel("data-wa-kein-artikel", "", { checked: true }));
-	await ruhe();
-	assert.strictEqual(vm.runInContext("settlementWikiKeinArtikelFuerPayload()", kGesetzt.kasten), null,
-		"ein auf seinen geladenen Wert zurueckgelegtes Haekchen reist mit");
-	zaehl(); zaehl(); zaehl(); zaehl(); zaehl();
+	assert.ok(hostGesetzt.innerHTML.indexOf("Kein Wiki-Artikel vorhanden") === -1,
+		"🔴 der Kartendialog zeigt den gefallenen dritten Zustand wieder: " + hostGesetzt.innerHTML);
+	assert.ok(!/data-wa-kein-artikel/.test(hostGesetzt.innerHTML),
+		"🔴 und sein Bedienelement ist zurueck: " + hostGesetzt.innerHTML);
+	zaehl(); zaehl();
 
-	// ---- Setzen leert das flache Adressfeld ---------------------------------------------------
-	// 💣 `update_point` LEHNT „Adresse UND kein Artikel" ab (avesmapsApplyPointWikiFields), und
-	// `#location-edit-wiki-url` ist in diesem Dialog `type="hidden"`: der Editor bekaeme eine Absage,
-	// deren Ursache er nirgends sieht. Also wird hier geleert, statt dort abzulehnen.
-	const kSetzen = merkerDialog(false, "https://de.wiki-aventurica.de/wiki/Havena");
-	const hostSetzen = kSetzen.elemente["settlement-wiki-assign-host"];
-	vm.runInContext("renderSettlementWikiReference();", kSetzen.kasten);
+	// Dieselbe Probe im ORTE-EDITOR -- zwei Oberflaechen, zwei Waechter. Genau hier ist am 16.08.2026
+	// schon einmal eine Richtung ungeprueft geblieben, weil nur der Kartendialog eine Gegenprobe hatte.
+	vm.runInContext("settlementDetailCache = { publicId: 'loc-1', detail: { public_id: 'loc-1',"
+		+ " name: 'Havena', feature_subtype: 'dorf', on_map: true,"
+		+ " properties: { wiki_no_article: true } } };"
+		+ "mountSettlementWikiAssign();", e.kasten);
 	await ruhe();
-	assert.ok(!/data-wa-kein-artikel checked/.test(hostSetzen.innerHTML),
-		"das Haekchen startet gesetzt, obwohl der Ort den Merker nicht traegt: " + hostSetzen.innerHTML);
-	// Unangetastet ⇒ nichts zu schicken (auch wenn der geladene Wert `false` ist).
-	assert.strictEqual(vm.runInContext("settlementWikiKeinArtikelFuerPayload()", kSetzen.kasten), null);
-	hostSetzen.feuere("change", scheinZiel("data-wa-kein-artikel", "", { checked: true }));
-	await ruhe();
-	assert.strictEqual(vm.runInContext("settlementWikiKeinArtikelFuerPayload()", kSetzen.kasten), true,
-		"das umgelegte Haekchen erreicht den Speicherweg nicht");
-	assert.strictEqual(kSetzen.elemente["location-edit-wiki-url"].value, "",
-		"das flache Adressfeld steht noch -- das naechste Speichern liefe in den Widerspruchs-Riegel des Servers");
-	zaehl(); zaehl(); zaehl(); zaehl();
+	assert.ok(eHost.innerHTML.indexOf("Kein Wiki-Artikel vorhanden") === -1,
+		"🔴 der Orte-Editor zeigt den gefallenen dritten Zustand wieder: " + eHost.innerHTML);
+	assert.ok(!/data-wa-kein-artikel/.test(eHost.innerHTML),
+		"🔴 und sein Bedienelement ist zurueck: " + eHost.innerHTML);
+	zaehl(); zaehl();
 
-	// ---- NUR EIN NEUES FELD ANGEHAKT -----------------------------------------------------------
-	// 🪤 DIESE PROBE FEHLTE, und die Mutation hat es gezeigt: die Leerpruefung „nichts angehakt"
-	// stand als `werte.name === null && werte.feature_subtype === null` da. Mit fuenf Zielen sagt sie
-	// dann bei einer ALLEIN angehakten Einwohnerzahl „nichts angehakt" -- die Oberflaeche wirft, das
-	// Bauteil liest die Ablehnung als „es ist nichts passiert", und der Haken bleibt wirkungslos
-	// stehen. Alle uebrigen Proben hatten immer auch Name oder Ortsgroesse angehakt und liefen gruen
-	// durch. Gefahren wird deshalb genau der Fall: vier Haken weg, einer bleibt.
+
+
+	// ── GERETTET AUS DEM ALTEN TEIL 5: was NICHTS mit dem Merker zu tun hatte ─────────────────
+	// 🪤 BEIM STREICHEN DES MERKER-BLOCKS WAERE DAS BEINAHE MITGEGANGEN. In denselben 285 Zeilen
+	// lagen Zusicherungen ueber die Sync-Einzeluebernahme und ueber `buildLocationEditPayload` --
+	// der EINZIGE Lauf des echten Payload-Bauers aus js/review/review-locations.js. Nach dem
+	// Streichen fand `git grep "buildLocationEditPayload()"` keine ausfuehrende Stelle mehr.
+	// ⭐ Die Lehre: wer einen Block loescht, zaehlt vorher, was darin NOCH gemessen wurde.
+
+	/** Genau EINEN Haken der Sync-Vorschau stehen lassen und uebernehmen. */
 	async function nurEinFeldUebernehmen(sandkasten, hostName, hakenIndex) {
 		const kastenHost = sandkasten.elemente[hostName];
 		kastenHost.feuere("click", scheinZiel("data-wa-aktion", "sync"));
@@ -1183,8 +1173,8 @@ function skripteAus(htmlDatei, muster) {
 
 	// ---- `buildLocationEditPayload`: die ECHTE Funktion, aus der ECHTEN Datei ------------------
 	// 🔴 NICHT der Bauer allein, sondern die VERDRAHTUNG: der Payload-Bauer wohnt in
-	// js/review/review-locations.js und muss den Merker aus dem Bauteil und die drei Textfelder aus
-	// dem Formular holen. Fehlte eines, loeschte der Server es beim naechsten Speichern -- lautlos.
+	// js/review/review-locations.js und muss die drei Textfelder aus dem Formular holen. Fehlte
+	// eines, loeschte der Server es beim naechsten Speichern -- lautlos.
 	// ⚠️ `FormData` ist im Sandkasten nachgebaut, und zwar mit der EINEN Eigenschaft, auf der die
 	// Regel steht: ein Feld, das es nicht gibt, liefert `null` (nicht "").
 	const payloadSkripte = skripteAus("index.html", /wiki-assign|review-settlement-wiki|review-locations/);
@@ -1202,7 +1192,7 @@ function skripteAus(htmlDatei, muster) {
 		},
 		["settlement-wiki-assign-host"],
 		() => ({ ok: true, query: "", rows: [] }));
-	vm.runInContext("locationEditMarkerEntry = { publicId: 'loc-merker', location: { wikiNoArticle: true } };"
+	vm.runInContext("locationEditMarkerEntry = { publicId: 'loc-merker', location: {} };"
 		+ "var locationEditPendingWikiSettlement = null;"
 		+ "function FormData(el) { this._w = (el && el.werte) || {}; }"
 		+ "FormData.prototype.get = function (n) {"
@@ -1214,62 +1204,16 @@ function skripteAus(htmlDatei, muster) {
 		wiki_url: "", place_kind: "", einwohner: "9.400", lage: "Albernia · Mittelreich",
 		oberhaupt: "Gräfin Yppolita",
 	};
-	const bauePayload = () => JSON.parse(vm.runInContext(
+	const gebaut = JSON.parse(vm.runInContext(
 		"JSON.stringify(buildLocationEditPayload({ werte: " + JSON.stringify(vollesFormular) + " }))",
 		kPayload.kasten));
-	const hostPayload = kPayload.elemente["settlement-wiki-assign-host"];
-	const gebaut = bauePayload();
 	assert.strictEqual(gebaut.einwohner, "9.400");
 	assert.strictEqual(gebaut.lage, "Albernia · Mittelreich");
 	assert.strictEqual(gebaut.oberhaupt, "Gräfin Yppolita");
-	// 🔴 DER MERKER REIST NUR MIT, WENN ER BEWUSST VERAENDERT WURDE (Owner-Entscheid 16.08.2026).
-	// Hier stand `wiki_no_article === true` fuer einen Dialog, den niemand angefasst hat -- genau der
-	// Fall, der die Entscheidung eines zweiten Editors ueberschreibt.
-	assert.ok(!("wiki_no_article" in gebaut),
-		"ein unangetastetes Haekchen steht im Speicher-Payload -- ein alter offener Dialog schriebe damit "
-		+ "die Entscheidung eines zweiten Editors zurueck");
-	// ---- BEIDE RICHTUNGEN, als Ablauf durch die echte Oberflaeche -----------------------------
-	// (1) gesetzt -> ENTFERNT: `false` muss ankommen, sonst wird man den Merker nie wieder los.
-	hostPayload.feuere("change", scheinZiel("data-wa-kein-artikel", "", { checked: false }));
-	await ruhe();
-	const nachEntfernen = bauePayload();
-	assert.strictEqual(nachEntfernen.wiki_no_article, false,
-		"ein bewusst ENTFERNTES Haekchen erreicht den Payload nicht -- der Merker liesse sich nie loeschen");
-	// (2) zurueck auf den geladenen Wert: wieder nichts zu schicken.
-	hostPayload.feuere("change", scheinZiel("data-wa-kein-artikel", "", { checked: true }));
-	await ruhe();
-	assert.ok(!("wiki_no_article" in bauePayload()),
-		"ein auf seinen geladenen Wert zurueckgelegtes Haekchen steht trotzdem im Payload");
-	zaehl(); zaehl(); zaehl(); zaehl(); zaehl(); zaehl();
+	zaehl(); zaehl(); zaehl(); zaehl();
 
-	// 💣 UND DER RIEGEL GEGEN DIE LADELUECKE: kennt das Formular ein Feld gar nicht (eine gecachte
-	// index.html nach einem Deploy, AGENTS.md §7), wird der Schluessel WEGGELASSEN statt als ""
-	// geschickt -- `update_point` fasst ihn dann nicht an. Ein "" waere eine Loeschung, die niemand
-	// angeordnet hat.
-	const altesFormular = JSON.parse(vm.runInContext(
-		"JSON.stringify(buildLocationEditPayload({ werte: "
-		+ JSON.stringify({ public_id: "loc-merker", name: "Havena", feature_subtype: "dorf", description: "", wiki_url: "", place_kind: "" })
-		+ " }))", kPayload.kasten));
-	["einwohner", "lage", "oberhaupt"].forEach((feld) => {
-		assert.ok(!(feld in altesFormular),
-			"ein Formular ohne „" + feld + "“ schickt den Schluessel trotzdem -- der Server loescht die Angabe");
-		zaehl();
-	});
-
-	// 💣 Und dasselbe fuer den Merker, wenn das Bauteil NICHT bereit ist (Blindgaenger). `false` waere
-	// hier eine Loeschung der Entscheidung des Konfliktzentrums.
-	vm.runInContext("settlementWikiAssign = null;", kPayload.kasten);
-	const ohneBauteil = JSON.parse(vm.runInContext(
-		"JSON.stringify(buildLocationEditPayload({ werte: " + JSON.stringify(vollesFormular) + " }))",
-		kPayload.kasten));
-	assert.ok(!("wiki_no_article" in ohneBauteil),
-		"ein nicht bereites Bauteil schickt trotzdem einen Merker-Wert -- ein Blindgaenger loeschte damit die Entscheidung");
-	assert.strictEqual(vm.runInContext("settlementWikiKeinArtikelFuerPayload()", kPayload.kasten), null);
-	zaehl(); zaehl();
-
-	// ---- Und dieselbe Einzelfeld-Probe im Orte-Editor -----------------------------------------
-	// 🔴 Wortgleich, weil die Leerpruefung dort eine ZWEITE Fassung ist: beide Oberflaechen muessen
-	// bei derselben Handlung dasselbe tun.
+	// ---- Der Orte-Editor: derselbe Weg, dieselbe Regel ----------------------------------------
+	// 🔴 Eine Regel, die einen von zwei Payload-Bauern bindet, ist keine Regel (AGENTS.md §11).
 	eFelder.dtEditName.value = "Havena (alt)";
 	eFelder.dtEditType.value = "dorf";
 	eFelder.dtEditEinwohner.value = "";
@@ -1284,73 +1228,14 @@ function skripteAus(htmlDatei, muster) {
 	assert.strictEqual(eFelder.dtEditEinwohner.value, "9.400",
 		"der Orte-Editor uebernimmt eine ALLEIN angehakte Einwohnerzahl nicht");
 	assert.strictEqual(eFelder.dtEditName.value, "Havena (alt)", "der abgehakte Name wurde trotzdem geschrieben");
-	zaehl(); zaehl();
-
-	// ---- Der Orte-Editor: derselbe Weg, dieselbe Regel ----------------------------------------
-	vm.runInContext("settlementDetailCache = { publicId: 'loc-1', detail: { public_id: 'loc-1',"
-		+ " name: 'Havena', feature_subtype: 'dorf', on_map: true,"
-		+ " properties: { wiki_no_article: true } } };"
-		+ "mountSettlementWikiAssign();", e.kasten);
-	await ruhe();
-	assert.ok(/data-wa-kein-artikel checked/.test(eHost.innerHTML),
-		"der Orte-Editor zeigt den gespeicherten Merker nicht: " + eHost.innerHTML);
-	eFelder.dtEditEinwohner.value = "9.400";
 	eFelder.dtEditLage.value = "Albernia · Mittelreich";
 	eFelder.dtEditOberhaupt.value = "Gräfin Yppolita";
-	const eBaue = () => JSON.parse(vm.runInContext("JSON.stringify(buildSettlementSavePayload())", e.kasten));
-	const eGebaut = eBaue();
+	const eGebaut = JSON.parse(vm.runInContext("JSON.stringify(buildSettlementSavePayload())", e.kasten));
 	assert.strictEqual(eGebaut.einwohner, "9.400");
 	assert.strictEqual(eGebaut.lage, "Albernia · Mittelreich");
 	assert.strictEqual(eGebaut.oberhaupt, "Gräfin Yppolita");
-	// 🔴 DIESELBE REGEL WIE IM KARTENDIALOG -- eine Regel, die einen von zwei Payload-Bauern bindet,
-	// ist keine Regel (AGENTS.md §11). Unangetastet ⇒ der Schluessel fehlt.
-	assert.ok(!("wiki_no_article" in eGebaut),
-		"der Orte-Editor schickt ein unangetastetes Haekchen mit -- damit ueberschriebe er eine fremde Entscheidung");
-	// (1) gesetzt -> ENTFERNT: `false` kommt an.
-	eHost.feuere("change", scheinZiel("data-wa-kein-artikel", "", { checked: false }));
-	await ruhe();
-	assert.strictEqual(eBaue().wiki_no_article, false,
-		"der Orte-Editor verschluckt ein bewusst ENTFERNTES Haekchen");
 	zaehl(); zaehl(); zaehl(); zaehl(); zaehl();
 
-	// Setzen leert auch hier die flache Adresse -- `#dtEditWikiUrl` steht sichtbar, aber readonly.
-	// ⚠️ Und der Weg zurueck (ungesetzt -> gesetzt) faehrt gleich mit: danach steht wieder `true` im
-	// Payload, obwohl das der GELADENE Wert ist -- der Bezugspunkt ist der Ladelauf, nicht der letzte
-	// Klick. ⚠️ Genau das ist gewollt: der Editor hat den Merker in diesem Dialog zweimal angefasst,
-	// und der Server bekommt den Stand, den der Editor jetzt sieht.
-	eFelder.dtEditWikiUrl.value = "https://de.wiki-aventurica.de/wiki/Havena";
-	eHost.feuere("change", scheinZiel("data-wa-kein-artikel", "", { checked: true }));
-	await ruhe();
-	assert.strictEqual(eFelder.dtEditWikiUrl.value, "",
-		"der Orte-Editor leert die flache Adresse nicht -- das Speichern liefe in den Widerspruchs-Riegel");
-	assert.ok(!("wiki_no_article" in eBaue()),
-		"ein auf den geladenen Wert zurueckgelegtes Haekchen steht trotzdem im Payload");
-	// ---- UND DIE RICHTUNG UNGESETZT → GESETZT, im Orte-Editor -----------------------------------
-	// 🪤 SIE WAR VON KEINEM TEST GEDECKT. Der Pruefer hat in
-	// html/wiki-sync-settlement-editor.html einen Riegel eingebaut, der `true` nie schickt -- das
-	// GANZE JS-Feld blieb gruen (157/157). Der Grund: die Fixture darueber startet MIT gesetztem
-	// Merker, es wird nur ab- und wieder angewaehlt, und beide Enden liegen bei `false` bzw.
-	// „Schluessel fehlt". Der Kartendialog hatte die Gegenprobe, der Orte-Editor nicht.
-	// 💣 Deshalb eine eigene Fixture, die OHNE Merker startet -- eine Probe, die nur eine Richtung
-	// faehrt, deckt auch nur eine Richtung.
-	vm.runInContext("settlementDetailCache = { publicId: 'loc-1', detail: { public_id: 'loc-1',"
-		+ " name: 'Havena', feature_subtype: 'dorf', on_map: true, properties: {} } };"
-		+ "mountSettlementWikiAssign();", e.kasten);
-	await ruhe();
-	assert.ok(!/data-wa-kein-artikel checked/.test(eHost.innerHTML),
-		"das Haekchen startet gesetzt, obwohl der Ort den Merker nicht traegt: " + eHost.innerHTML);
-	assert.ok(!("wiki_no_article" in eBaue()), "unangetastet, also nichts zu schicken");
-	eHost.feuere("change", scheinZiel("data-wa-kein-artikel", "", { checked: true }));
-	await ruhe();
-	assert.strictEqual(eBaue().wiki_no_article, true,
-		"der Orte-Editor schickt ein frisch GESETZTES Haekchen nicht mit -- der Merker kaeme nie beim Server an");
-	zaehl(); zaehl(); zaehl();
-
-	// Und der Blindgaenger-Fall: ohne bereites Bauteil steht kein Merker im Payload.
-	vm.runInContext("settlementWikiAssign = null;", e.kasten);
-	assert.ok(!("wiki_no_article" in JSON.parse(vm.runInContext("JSON.stringify(buildSettlementSavePayload())", e.kasten))),
-		"der Orte-Editor schickt bei nicht bereitem Bauteil einen Merker-Wert");
-	zaehl(); zaehl();
 
 	// ══ TEIL 6: DER WEG VOM PAYLOAD ZUM MARKER-EINTRAG ═══════════════════════════════════════
 	// 💣 Ohne dieses Stueck ist alles andere wirkungslos: der Kartendialog liest den Merker und die

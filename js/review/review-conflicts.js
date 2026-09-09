@@ -958,16 +958,18 @@ function createConflictPartyActions(conflict, party) {
 	unlink.type = "button";
 	unlink.className = "conflict-action";
 	unlink.textContent = "Trennen";
+	unlink.title = "Trennt dieses Objekt vom Artikel. Die Trennung hält — der Server schlägt von sich aus keinen Link mehr vor.";
 	unlink.addEventListener("click", () => run(unlink, "unlink", [party]));
 	bar.appendChild(unlink);
 
-	const none = document.createElement("button");
-	none.type = "button";
-	none.className = "conflict-action";
-	none.textContent = "Kein Wiki-Eintrag";
-	none.title = "Trennt und hält fest, dass es im Wiki nichts dazu gibt — sonst rät der Server den Link wieder herein.";
-	none.addEventListener("click", () => run(none, "no_wiki", [party]));
-	bar.appendChild(none);
+	// 🔴 HIER STAND EIN DRITTER KNOPF: „Kein Wiki-Eintrag" (Modus `no_wiki`). Gefallen am
+	// 09.09.2026 mit dem Merker `properties.wiki_no_article`, den er als einziges schrieb.
+	// Sein Sinn war „Trennt UND hält fest, dass es im Wiki nichts dazu gibt — sonst rät der Server
+	// den Link wieder herein". Genau dieses Raten ist mit `420f12cfc` (08.09.2026) zurückgebaut:
+	// 》Trennen《 hält von allein, der Knopf hatte keine Aufgabe mehr. Sein Titel oben hat die
+	// Zusage übernommen, damit sie nicht mit ihm verschwindet.
+	// ⚠️ Der Server weist `no_wiki` seither ab (repair.php) — eine gecachte Editorseite bekommt
+	// eine klare Absage statt eines lautlosen Trennens.
 
 	if (party.unlinkable === false) {
 		const hint = document.createElement("span");
@@ -1248,7 +1250,7 @@ function renderConflicts() {
 			group.appendChild(hint);
 		}
 		// What each button actually does. Spelled out at the group, not hidden in tooltips: the
-		// difference between "Trennen" and "Kein Wiki-Eintrag" decides whether the removal sticks.
+		// reach of a click (one row, or a whole line of segments) is the part nobody can guess.
 		if (Array.isArray(rule.verbs) && rule.verbs.length > 0) {
 			const legend = document.createElement("dl");
 			legend.className = "conflict-verbs";

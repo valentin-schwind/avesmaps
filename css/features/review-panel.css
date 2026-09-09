@@ -854,8 +854,12 @@
 }
 .conflict-group__hint { margin: 4px 0 10px; color: var(--color-text-muted); font-size: 13px; }
 /* Folgen-Legende je Regel: was jeder Knopf tatsaechlich tut. Steht sichtbar an der Gruppe statt
-   in Tooltips -- der Unterschied zwischen „Trennen“ und „Kein Wiki-Eintrag“ entscheidet, ob die
-   Trennung haelt, und das darf man nicht erst durch Hovern erfahren. */
+   in Tooltips -- die REICHWEITE eines Klicks (eine Zeile, oder eine ganze Linie aus Segmenten) ist
+   der Teil, den niemand erraten kann, und das darf man nicht erst durch Hovern erfahren.
+   🔴 Hier stand bis zum 09.09.2026 „der Unterschied zwischen 》Trennen《 und 》Kein Wiki-Eintrag《
+   entscheidet, ob die Trennung haelt". Der zweite Knopf ist mit dem Merker
+   `properties.wiki_no_article` gefallen; 》Trennen《 haelt seither von allein. Der JS-Zwilling dieses
+   Satzes steht in js/review/review-conflicts.js und ist im selben Commit mitgewandert. */
 .conflict-verbs {
 	margin: 0 0 10px;
 	padding: 8px 10px;

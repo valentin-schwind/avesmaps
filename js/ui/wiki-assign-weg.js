@@ -178,11 +178,13 @@ function avesmapsWikiAssignWegArtikel(wikiPath) {
  * Server antwortet nicht“, sondern „es ist gar kein Weg gewaehlt“, und der wird genauso behandelt:
  * geworfen, nicht beschoenigt.
  *
- * 🔴 DER DRITTE ZUSTAND REIST MIT (`kein_artikel`), seit 16.08.2026 auch beim Weg. Er ist NICHT aus
- * der Zuweisung ableitbar: „keine Zuweisung“ heisst „noch niemand hat nachgesehen“, der Merker
- * heisst „jemand HAT nachgesehen und es gibt keinen“. Genau diese negative Aussage nimmt den Weg aus
- * der Beobachtungsliste des Konfliktzentrums (api/_internal/conflicts/rules.php) und laesst die
- * Anreicherung das Adressraten bleiben (api/app/map-features.php).
+ * 🔴 DER DRITTE ZUSTAND IST GEFALLEN (Owner-Entscheid 09.09.2026) -- `kein_artikel` reist hier nur
+ * noch als toter Transport mit und faellt in Schritt 2. Hier stand die GEGENTHESE zur heutigen
+ * Regel: „Er ist NICHT aus der Zuweisung ableitbar … Genau diese negative Aussage nimmt den Weg aus
+ * der Beobachtungsliste des Konfliktzentrums und laesst die Anreicherung das Adressraten bleiben."
+ * ⚠️ Beide Wirkungen gibt es nicht mehr: die Ausnahme in `rules.php` ist gefallen, und das
+ * Adressraten hat `420f12cfc` (08.09.2026) zurueckgebaut. Seither IST die Zuweisung das
+ * Aequivalent. Wer den Satz oben wieder aufnimmt, nimmt den Merker wieder auf.
  *
  * @param {Object|null} quelle  { wiki_path, kein_artikel, feature_subtype }
  */

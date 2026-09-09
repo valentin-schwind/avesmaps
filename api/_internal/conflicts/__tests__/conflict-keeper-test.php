@@ -177,7 +177,7 @@ avesmapsConflictResolve($pdo, [
 assert($claimOf($pdo, 'pl-2') === '', 'das genannte Ziel wird getrennt');
 assert($segmentsWithClaim($pdo) === 5, 'aber NUR es -- ohne Behalter-Angabe keine Verbundschreibung');
 
-// === 5) "Trennen" und "Kein Wiki-Eintrag" fassen weiter die Linie ==============================
+// === 5) "Trennen" fasst weiter die Linie ======================================================
 // Dort steht die handelnde Partei SELBST unter den Zielen, es gibt also keinen Behalter -- die
 // Reichweite aus W1 bleibt unangetastet. Ohne diese Probe koennte der Riegel oben sie stillegen.
 $seed($pdo);
@@ -189,19 +189,29 @@ avesmapsConflictResolve($pdo, [
     'subject_id' => 'pl-3',
 ], 7);
 assert($segmentsWithClaim($pdo) === 0, '"Trennen" an einem Segment trennt die ganze Linie');
-
-$seed($pdo);
-avesmapsConflictResolve($pdo, [
-    'mode' => 'no_wiki',
-    'wiki_url' => $ARTIKEL,
-    'targets' => [$party('powerline', 'pl-3')],
-    'keep' => null,
-    'subject_type' => 'powerline',
-    'subject_id' => 'pl-3',
-], 7);
-assert($segmentsWithClaim($pdo) === 0, '"Kein Wiki-Eintrag" ebenso -- der Ausloeser der ganzen Reichweite');
-$stmt = $pdo->query("SELECT COUNT(*) FROM map_audit_log WHERE action = 'conflict_no_article'");
+$stmt = $pdo->query("SELECT COUNT(*) FROM map_audit_log WHERE action = 'conflict_unlink'");
 assert((int) $stmt->fetchColumn() === 6, 'und jede Zeile hat ihren Protokolleintrag');
+
+// 🔴 HIER STAND DIESELBE PROBE FUER 》Kein Wiki-Eintrag《 (Modus `no_wiki`). Das Verb ist am
+// 09.09.2026 mit dem Merker `properties.wiki_no_article` gefallen -- es setzte ihn, damit
+// 》Trennen《 haelt, und seit dem Rueckbau des Ratewegs haelt 》Trennen《 von allein. Der Modus wird
+// jetzt serverseitig abgewiesen, damit eine gecachte Editorseite nicht lautlos ein Trennen ausloest.
+$seed($pdo);
+$abgewiesen = false;
+try {
+    avesmapsConflictResolve($pdo, [
+        'mode' => 'no_wiki',
+        'wiki_url' => $ARTIKEL,
+        'targets' => [$party('powerline', 'pl-3')],
+        'keep' => null,
+        'subject_type' => 'powerline',
+        'subject_id' => 'pl-3',
+    ], 7);
+} catch (RuntimeException $e) {
+    $abgewiesen = str_contains($e->getMessage(), 'Unbekannter Reparatur-Modus');
+}
+assert($abgewiesen, 'der Modus `no_wiki` wird abgewiesen');
+assert($segmentsWithClaim($pdo) === 6, 'und er schreibt dabei GAR NICHTS -- die Linie bleibt verknuepft');
 
 // === 6) Die reine Haelfte: wer ist der Behalter? ===============================================
 $explicit = avesmapsConflictResolveKeeper(['keep' => ['type' => 'powerline', 'id' => 'pl-1'], 'subject_id' => 'pl-9'], ['pl-2']);

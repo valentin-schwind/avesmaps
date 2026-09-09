@@ -1088,8 +1088,10 @@ function buildLabelEditPayload(formElement) {
 	// `other_source` schon einmal hing (features.php:2266).
 	// 🔴 DER DRITTE ZUSTAND, und er reist NUR MIT, WENN DAS HÄKCHEN SEIT DEM LADEN UMGELEGT WURDE
 	// (Owner-Entscheid 16.08.2026, anstelle eines `expected_revision`). `update_label` liest einen
-	// FEHLENDEN Schlüssel als „nicht geändert" -- so nimmt ein alter, längst offener Dialog die
-	// Entscheidung eines zweiten Editors nicht beim nächsten beliebigen Speichern zurück.
+	// FEHLENDEN Schlüssel als „nicht geändert" -- so nimmt ein alter, längst offener Dialog eine
+	// fremde Angabe nicht beim nächsten beliebigen Speichern zurück.
+	// 🔴 Die „Entscheidung eines zweiten Editors" gibt es seit dem 09.09.2026 nicht mehr: der Merker
+	// ist ausgebaut, niemand setzt ihn. Diese Zeilen sind toter Transport und folgen in Schritt 2.
 	// 💣 GEPRÜFT WIRD VERÄNDERT, NICHT GESETZT: ein bewusst ENTFERNTES Häkchen schickt `false`.
 	const keinArtikel = typeof getLabelWikiNoArticlePayload === "function" ? getLabelWikiNoArticlePayload() : null;
 	if (keinArtikel !== null) {

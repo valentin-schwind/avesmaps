@@ -70,7 +70,7 @@ const AVESMAPS_CONFLICT_TYPE_LABELS = [
  * braucht und in den PHP-Tests hier nie erreicht wurde).
  *
  * @param array{public_id:mixed,name:mixed,feature_type:mixed,feature_subtype:mixed,properties_json:mixed,geometry_json:mixed} $dbRow
- * @return array{type:string,id:string,label:string,subtype:string,wiki_url:string,position:mixed,claim_source:string,no_article:bool}|null
+ * @return array{type:string,id:string,label:string,subtype:string,wiki_url:string,position:mixed,claim_source:string}|null
  */
 function avesmapsConflictBuildMapRow(array $dbRow): ?array {
     $type = AVESMAPS_CONFLICT_FEATURE_TYPES[(string) ($dbRow['feature_type'] ?? '')] ?? '';
@@ -99,11 +99,10 @@ function avesmapsConflictBuildMapRow(array $dbRow): ?array {
         'wiki_url' => $claim['wiki_url'],
         'position' => avesmapsConflictFirstPosition($dbRow['geometry_json'] ?? null),
         'claim_source' => $claim['claim_source'],
-        // Ein Editor hat evtl. festgehalten, dass es im Wiki nichts dazu gibt (Knopf "Kein
-        // Wiki-Eintrag", oder das Haekchen im Kraftlinien-Editor, AVESMAPS_CONFLICT_NO_ARTICLE_FLAG
-        // in repair.php). Der Feldname wird hier als Zeichenkette gelesen, nicht ueber die Konstante
-        // -- rules.php laedt repair.php nicht (umgekehrt), ein Require dorthin baute eine Ringabhaengigkeit.
-        'no_article' => !empty($properties['wiki_no_article']),
+        // 🔴 HIER STAND `no_article` (aus `properties.wiki_no_article`). Gefallen am 09.09.2026:
+        // der Merker ist global ausgebaut, sein Aequivalent ist die WIKI-ZUWEISUNG -- und die steht
+        // eine Zeile darueber als `wiki_url`. Ein Schluessel, der nur noch `false` sein kann, liest
+        // sich wie eine lebende Aussage; deshalb faellt er ganz statt auf einen festen Wert.
     ];
 }
 
@@ -633,13 +632,13 @@ function avesmapsConflictRuleMissingKey(array $rows, array $wikiTitles = []): ar
         if ($row['type'] === 'path' && avesmapsConflictPathNameIsAuto((string) $row['label'], AVESMAPS_CONFLICT_PATH_SUBTYPES)) {
             continue;
         }
-        // Ein Editor hat festgehalten, dass es im Wiki nichts dazu gibt (Knopf "Kein Wiki-Eintrag",
-        // oder das Haekchen im Kraftlinien-Editor). Das IST die Antwort auf "kein Wiki-Schluessel",
-        // also gehoert der Fall nicht mehr auf die Beobachtungsliste. Bis 15.08.2026 las diese
-        // Regel den Merker fuer KEINE Objektart -- eine stillgelegte Kraftlinie kam deshalb zurueck.
-        if (!empty($row['no_article'])) {
-            continue;
-        }
+        // 🔴 HIER STAND DIE AUSNAHME FUER `no_article` -- „ein Editor hat festgehalten, dass es im
+        // Wiki nichts dazu gibt". Gefallen am 09.09.2026 mit dem Merker
+        // `properties.wiki_no_article` (Owner-Entscheid nach Durchsicht aller 10 Traeger).
+        // ⚠️ SIE KOLLABIERTE NICHT, sie fiel: die Zuweisungsfrage steht zwar eine Zeile darueber
+        // (`wiki_url` leer), aber genau DANACH trennte der Merker „nie nachgesehen" von
+        // „nachgesehen, gibt es nicht". Die 10 Traeger kommen damit zurueck auf die Liste. Das ist
+        // der gemessene Preis des Ausbaus und ausdruecklich gewollt -- nicht zu reparieren.
         // The same evidence the shared-article rule shows, for the same reason: without it this is a
         // list of names nobody can act on. And the wiki lookup is what splits the watchlist into the
         // two halves §6b calls for -- "there IS a candidate" (actionable: link it) versus "there is
@@ -738,8 +737,12 @@ function avesmapsConflictRuleCatalog(): array {
             // Namensratens (avesmapsEnrichMapFeatureWikiUrl, api/app/map-features.php) stimmt das
             // nicht mehr: der Server schlaegt gar nichts mehr vor, 》Trennen《 haelt.
             // 💣 Wer der alten Anweisung weiter folgte, schrieb `wiki_no_article: true` auf Objekte,
-            // DIE EINEN ARTIKEL HABEN -- und den Merker lesen Statuskreis, Kanon-Etikett und die
+            // DIE EINEN ARTIKEL HABEN -- und den Merker lasen Statuskreis, Kanon-Etikett und die
             // Segment-Erbschaft. Das war Datenschaden, kein Anzeigefehler.
+            // 🔴 UND DESHALB IST DER DRITTE KNOPF AM 09.09.2026 GANZ GEFALLEN (》Kein Wiki-Eintrag《,
+            // Aktion `no_wiki`): sein einziger Zweck war, den Merker zu setzen, damit 》Trennen《
+            // haelt. Seit dem Rueckbau des Ratewegs haelt 》Trennen《 von allein -- der Knopf hatte
+            // keine Aufgabe mehr und schrieb nur noch ein Feld, das niemand liest.
             // 🔴 Die REICHWEITE gehört in jeden dieser Sätze (Owner 15.08.2026). Ein Weg und eine
             // Kraftlinie sind viele Zeilen mit einem Namen, und seit dem 15.08.2026 fasst jeder
             // dieser Knöpfe die ganze Linie — „Nur dieses Objekt“ war danach schlicht falsch. Wer
@@ -748,7 +751,6 @@ function avesmapsConflictRuleCatalog(): array {
             'verbs' => [
                 ['label' => 'Behält den Link', 'effect' => 'Dieses Objekt bleibt mit dem Artikel verknüpft, alle anderen in diesem Fall verlieren ihre Verknüpfung. Bei einem Weg oder einer Kraftlinie gilt beides für die ganze Linie: der Behalter behält sie mit allen seinen Segmenten, die anderen verlieren sie mit allen ihren.'],
                 ['label' => 'Trennen', 'effect' => 'Dieses Objekt verliert die Verknüpfung — bei einem Weg oder einer Kraftlinie die ganze Linie mit allen ihren Segmenten, bei Orten, Regionen und Territorien nur dieses eine Objekt. Die Trennung hält: der Server schlägt von sich aus keinen Link mehr vor. Stammt die Verknüpfung dagegen aus einer Wiki-Zuweisung, wird hier abgelehnt — an ihr hängt die ganze Infobox, sie wird im zuständigen Editor gelöst.'],
-                ['label' => 'Kein Wiki-Eintrag', 'effect' => 'Trennt UND hält fest, dass es im Wiki nichts dazu gibt — bei einem Weg oder einer Kraftlinie für die ganze Linie, sonst für dieses eine Objekt. Nimm das nur, wenn es wirklich keinen Artikel gibt: für eine bloße Trennung genügt „Trennen“.'],
                 ['label' => 'Genehmigt', 'effect' => 'Der Fund stimmt, die Lage ist aber richtig so — etwa ein Meer aus zwei Buchten, die beide beschriftet werden müssen. Ändert die Daten nicht und taucht nicht wieder unter „Wichtig“ auf.'],
                 ['label' => 'Zurückstellen / Archivieren', 'effect' => 'Ändern die Daten nicht. Zurückgestellt heißt „später“, archiviert heißt „bewusst so gelassen, aber weiterhin falsch“ — beides bleibt auffindbar und umkehrbar.'],
             ],

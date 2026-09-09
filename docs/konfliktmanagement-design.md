@@ -10,6 +10,25 @@
 > **Die zwei kräftigsten Negativaussagen des ersten Entwurfs waren beide falsch**
 > (`sync_type` „nie geschrieben", Regions-Typkonflikt „zeigt nirgends").
 
+> 🔴 **NACHTRAG 09.09.2026 — „Kein Wiki-Eintrag" gibt es nicht mehr.** Der Entwurf nennt das Verb
+> unten an sechs Stellen (§4 Vokabular, §5 Skizze, §101 `actions`, P2) und einmal als „den
+> wichtigsten Neuzugang". Es ist samt seinem Merker `properties.wiki_no_article` **global
+> ausgebaut** (Owner-Entscheid nach Durchsicht aller 10 Träger; Bauplan
+> `docs/superpowers/plans/2026-09-09-wiki-no-article-ausbau.md`).
+>
+> **Warum es das Verb gab — und warum es weg kann:** es war die Antwort auf genau den Auslöser
+> dieses Entwurfs. Discord #38 war der geratene Link: `avesmapsEnrichMapFeatureWikiUrl` füllte eine
+> geleerte Adresse aus dem NAMEN nach, „Trennen" hielt also nicht, und es brauchte eine zweite,
+> **negative** Aussage. Commit `420f12cfc` (08.09.2026) hat das Namensraten zurückgebaut — der
+> Server schlägt nichts mehr vor, „Trennen" hält von allein, und das Auffangnetz hat nichts mehr
+> aufzufangen. Das Äquivalent des Merkers ist seither die **Wiki-Zuweisung**.
+>
+> ⚠️ Der Text darunter bleibt **absichtlich unverändert**: er ist der Entwurfsstand vom 20.07.2026
+> und erklärt, warum das Verb einmal richtig war. Wer ihn liest, liest Geschichte, nicht den
+> heutigen Zustand — dieselbe Handhabung wie bei den drei gemessen falschen Stellen im Entwurf zur
+> Wiki-Zuweisung (AGENTS.md §11). Der Rückbau-Wächter, der die Wiedereinführung verhindert, steht
+> in `api/_internal/conflicts/__tests__/kein-wiki-eintrag-ist-weg-test.php`.
+
 ## 1. Warum
 
 Avesmaps führt Daten aus zwei Welten zusammen: die eigene Karte und das Wiki

@@ -271,10 +271,15 @@ function avesmapsWikiAssignOrtArtikel(wikiSettlement) {
  * der Editor Namensfeld und Groessenauswahl angefasst haben. Eingefroren verglichen boete die
  * Vorschau eine Aenderung an, die das Formular daneben laengst zeigt.
  *
- * 🔴 DER DRITTE ZUSTAND REIST MIT (`kein_artikel`). Er ist NICHT aus der Zuweisung ableitbar: „keine
- * Zuweisung" heisst „noch niemand hat nachgesehen", der Merker heisst „jemand HAT nachgesehen und es
- * gibt keinen". Genau diese negative Aussage fehlte dem Leseweg, weshalb ein entferntes
- * `properties.wiki_url` beim naechsten Kartenladen zurueckgeraten wurde (Discord #38).
+ * 🔴 DER DRITTE ZUSTAND IST GEFALLEN (Owner-Entscheid 09.09.2026) -- `kein_artikel` reist hier nur
+ * noch als toter Transport mit und faellt in Schritt 2. Hier stand die GEGENTHESE zur heutigen
+ * Regel: „Er ist NICHT aus der Zuweisung ableitbar: 》keine Zuweisung《 heisst 》noch niemand hat
+ * nachgesehen《, der Merker heisst 》jemand HAT nachgesehen und es gibt keinen《."
+ * ⚠️ Der Satz war richtig, SOLANGE der Leseweg riet: ein entferntes `properties.wiki_url` kam beim
+ * naechsten Kartenladen zurueck (Discord #38), also brauchte es die negative Aussage. Der Rateweg
+ * ist mit `420f12cfc` gefallen -- seither IST die Zuweisung das Aequivalent, und der Owner hat den
+ * Merker nach Durchsicht aller 10 Traeger abgeschafft. Wer den Satz oben wieder aufnimmt, nimmt
+ * den Merker wieder auf.
  *
  * @param {Object|null} quelle { wiki_settlement, kein_artikel, name, feature_subtype, einwohner,
  *   lage, oberhaupt } -- jedes Kartenfeld je Wert ODER Lesefunktion.

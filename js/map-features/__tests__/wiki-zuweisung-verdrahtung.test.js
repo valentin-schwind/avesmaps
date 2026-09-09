@@ -111,13 +111,19 @@ pruefe(tonWiki !== "", "--color-check-no-wiki ist gesetzt");
 pruefe(tonOffen !== "", "--color-path-open-end ist gesetzt");
 pruefe(tonWiki !== tonOffen,
 	"🔴 die beiden Rottoene sind VERSCHIEDEN -- sie treffen sich auf demselben Weg (Mitte + Saum)");
-pruefe(wert("--color-check-no-wiki-checked") !== "", "der blasse Ton ist gesetzt");
+// 🔴 DER BLASSE TON IST GEFALLEN (09.09.2026). Er gehoerte dem Merker `wiki_no_article`, und der
+// ist global ausgebaut -- sein Aequivalent ist die Wiki-Zuweisung. Ein Token, den niemand mehr
+// liest, ist keine harmlose Zeile: der naechste Leser haelt ihn fuer einen lebenden Zustand.
+pruefe(wert("--color-check-no-wiki-checked") === "",
+	"🔴 --color-check-no-wiki-checked ist gefallen und darf nicht zurueckkehren");
 
 // ---- F. Der Ring hat eine Regel, und er teilt die Breite der Nachbarn --------------------------
 const MARKER_CSS = lies("css", "features", "location-popups-markers.css");
-for (const klasse of ["--no-wiki", "--no-wiki-checked"]) {
-	pruefe(MARKER_CSS.includes(`.location-visual-marker__shape${klasse} {`), `Regel fuer ${klasse}`);
-}
+pruefe(MARKER_CSS.includes(".location-visual-marker__shape--no-wiki {"), "Regel fuer --no-wiki");
+// ⚠️ Und die zweite Stufe ist weg -- MIT dem Leerzeichen vor der Klammer gemessen, sonst traefe
+// `--no-wiki` auch `--no-wiki-checked` und die Zusicherung waere ein Vakuum.
+pruefe(!MARKER_CSS.includes(".location-visual-marker__shape--no-wiki-checked"),
+	"🔴 die Regel fuer --no-wiki-checked ist gefallen (der Merker ist ausgebaut)");
 // ⚠️ DIE VIER PRUEFRINGE SOLLEN GLEICH DICK SEIN UND SICH NUR IM TON UNTERSCHEIDEN -- und geprueft
 // wird das, indem die neue Regel gegen ihre NACHBARIN gestellt wird: nimmt man beiden ihren Farbton,
 // muessen sie zeichengleich sein. Ein blosses `includes("--marker-check-ring-width")` reichte NICHT:

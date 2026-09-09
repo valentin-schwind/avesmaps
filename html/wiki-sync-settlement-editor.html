@@ -2493,8 +2493,10 @@ function settlementWikiAssignZustand() {
  * (settlementWikiKeinArtikelFuerPayload, js/review/review-settlement-wiki.js):
  * 1. das Bauteil ist nicht bereit (Blindgänger, AGENTS.md §9);
  * 2. das Häkchen wurde seit dem Laden gar nicht angefasst (Owner-Entscheid 16.08.2026) -- wer es
- *    nicht anfasst, kann es auch nicht löschen, und ein alter offener Dialog nimmt sonst die
- *    Entscheidung eines zweiten Editors aus dem Konfliktzentrum zurück.
+ *    nicht anfasst, kann es auch nicht löschen.
+ *    🔴 Hier stand „... nimmt sonst die Entscheidung eines zweiten Editors aus dem Konfliktzentrum
+ *    zurück". Seit dem 09.09.2026 setzt dort niemand mehr etwas -- der Merker ist ausgebaut, und
+ *    diese Funktion ist toter Transport, der in Schritt 2 folgt.
  *
  * 💣 GEPRÜFT WIRD `kein_artikel_geaendert`, NICHT `kein_artikel`: *verändert seit dem Laden*, nicht
  * *gesetzt*. Ein bewusst ENTFERNTES Häkchen muss durchkommen, sonst wird man den Merker nie wieder los.

@@ -45,10 +45,11 @@ const AVESMAPS_WIKI_ASSIGN_REGISTRY = {
 			// 🔴 KEIN dritter Zustand IM EDITOR -- gefallen am 16.08.2026, Owner-Entscheid nach dem
 			// Durchklicken aller Oberflaechen („passt, aber ‚Kein Wiki-Artikel vorhanden‘ brauchen wir
 			// nicht explizit"). Das ist eine ENTSCHEIDUNG UEBER DEN ORT, nicht ueber den Merker:
-			// `properties.wiki_no_article` bleibt, wird weiter gelesen (avesmapsConflictRuleMissingKey,
-			// api/_internal/conflicts/rules.php) und weiter GESETZT -- nur eben im Konfliktzentrum
-			// (AVESMAPS_CONFLICT_NO_ARTICLE_FLAG, api/_internal/conflicts/repair.php). Dort steht der
-			// Fall samt Belegen beider Parteien; hier stand ein Haekchen ohne jeden Kontext.
+			// 🔴 UND SEIT DEM 09.09.2026 IST AUCH DAS FELD GEFALLEN. Hier stand: „`properties.wiki_no_article`
+			// bleibt, wird weiter gelesen (avesmapsConflictRuleMissingKey) und weiter GESETZT -- nur eben
+			// im Konfliktzentrum." Beide Haelften sind ueberholt: die Ausnahme in `rules.php` ist weg, und
+			// das Konfliktzentrum SETZT den Merker nicht mehr (der Knopf 》Kein Wiki-Eintrag《 ist gefallen,
+			// `repair.php` raeumt ihn nur noch weg). Sein Aequivalent ist die WIKI-ZUWEISUNG.
 			// ⚠️ Damit reist der Merker aus dieser Oberflaeche nur noch, wenn eine ZUWEISUNG ihn
 			// beantwortet hat -- saveLine schickt `wiki_no_article` ausschliesslich bei
 			// `kein_artikel_geaendert` (html/wiki-sync-powerline-editor.html), und der Schreibweg liest
@@ -113,11 +114,12 @@ const AVESMAPS_WIKI_ASSIGN_REGISTRY = {
 			// Reparatur-Verben des Konfliktzentrums (avesmapsConflictRepairSpansNameGroup), und das
 			// Haekchen konnte diese Reichweite nur NACHBAUEN. Zwei Knoepfe mit derselben Reichweite an
 			// zwei Orten sind eine Divergenz, die auf ihren ersten Unterschied wartet.
-			// ⚠️ WEG IST NUR DAS BEDIENELEMENT. `properties.wiki_no_article` bleibt: die Leseseite ehrt
-			// ihn vor jeder Typweiche (avesmapsEnrichMapFeatureWikiUrl, api/app/map-features.php), die
-			// Konfliktregel liest ihn fuer `path` (api/_internal/conflicts/rules.php), der Schreibweg
-			// avesmapsApplyPathWikiNoArticle samt Verbund-Reichweite steht unveraendert -- gesetzt wird
-			// er jetzt im Konfliktzentrum, wo der Fall samt Belegen steht.
+			// 🔴 AM 09.09.2026 IST AUCH DAS FELD GEFALLEN. Hier stand „WEG IST NUR DAS BEDIENELEMENT" --
+			// die Leseseite ehre den Merker, die Konfliktregel lese ihn fuer `path`, gesetzt werde er im
+			// Konfliktzentrum. Keine der drei Aussagen gilt noch: die Ausnahme in `rules.php` ist weg, der
+			// Knopf ist weg, und der Riegel in `avesmapsEnrichMapFeatureWikiUrl` faellt in Schritt 3.
+			// Der SCHREIBWEG avesmapsApplyPathWikiNoArticle steht bis dahin noch -- er kann den Merker
+			// aber nur noch loeschen, weil kein Bedienelement ihn mehr setzt.
 			// 💣 UND KEINE DER BEIDEN OBERFLAECHEN SCHICKT IHN NOCH MIT (buildPathEditPayload in
 			// js/review/review-paths.js, saveDraft in js/pages/wege-editor.js). Das ist tragbar, WEIL
 			// avesmapsApplyPathWikiNoArticle einen fehlenden Schluessel als „nicht geaendert" liest und
@@ -209,17 +211,14 @@ const AVESMAPS_WIKI_ASSIGN_REGISTRY = {
 			// Orte-Sync laufen lassen.") und waere mit dem Umbau ersatzlos verschwunden -- „Keine
 			// Treffer" allein sagt nur, DASS nichts da ist, nicht, was zu tun ist.
 			keineTrefferHinweis: "Ggf. erst die Orte-Sync laufen lassen.",
-			// 🔴 DER DRITTE ZUSTAND, seit 16.08.2026 auch beim Ort -- und hier ist er nicht bloss ein
-			// Ordnungsmerkmal wie bei den Kraftlinien, sondern die REPARATUR: ohne ihn raet
-			// avesmapsEnrichMapFeatureWikiUrl (api/app/map-features.php:983) beim naechsten
-			// Kartenladen eine Adresse aus dem Ortsnamen zurueck, „geloescht" und „nie gesetzt" sind
-			// fuer sie dasselbe, und ein entfernter Wiki-Link kehrt wieder. Das IST Discord #38.
-			// Geschrieben wird der Merker von `update_point` (avesmapsApplyPointWikiFields).
-			keinArtikelHaken: true,
-			// ⚠️ Der zweite Halbsatz ist tragend (wie bei den Kraftlinien): der Merker ist NICHT
-			// endgueltig -- taucht im Wiki ein Artikel auf, kommt der Fall von selbst zurueck. Ohne
-			// ihn liest er sich als „nie wieder" und die Wiedervorlage wirkt wie ein Fehler.
-			keinArtikelHinweis: "Hält die Löschung — und nimmt den Ort aus der Konfliktliste, bis im Wiki einer auftaucht.",
+			// 🔴 DER DRITTE ZUSTAND IST GEFALLEN (Owner-Entscheid 09.09.2026) -- und diesmal MIT dem
+			// Feld, nicht nur das Bedienelement. Hier stand die staerkste Begruendung von allen: „ohne
+			// ihn raet avesmapsEnrichMapFeatureWikiUrl beim naechsten Kartenladen eine Adresse aus dem
+			// Ortsnamen zurueck ... Das IST Discord #38." Genau dieser Rateweg ist mit `420f12cfc`
+			// (08.09.2026) zurueckgebaut: der Server schlaegt nichts mehr vor, 》Trennen《 haelt von
+			// allein -- die Reparatur hat ihren Schaden verloren, den sie reparierte.
+			// ⚠️ Das Aequivalent ist die WIKI-ZUWEISUNG: wer wissen will, ob hier etwas offen ist,
+			// fragt das Nest `wiki_settlement`, das dieser Kasten ohnehin schreibt.
 		},
 	},
 	landschaft: {
@@ -290,12 +289,11 @@ const AVESMAPS_WIKI_ASSIGN_REGISTRY = {
 			// KEINER Konfliktliste (avesmapsConflictLoadMapRows liest ausschliesslich `map_features` --
 			// location|path|label|powerline). Der Merker hielt hier die ENTSCHEIDUNG fest und sonst
 			// nichts, und genau deshalb versprach sein Hinweis als einziger keine Konfliktliste.
-			// 🔧 DARAUS FOLGT EINE OFFENE FRAGE, UND SIE STEHT HIER, DAMIT SIE NICHT STILL BLEIBT: bei
-			// Ort, Weg und Karte wandert die Entscheidung ins Konfliktzentrum, wo der Fall samt Belegen
-			// steht -- die Flaeche erreicht es nie, hier kann sie also NIEMAND mehr setzen. Fuer die
-			// `ecosystem_region` ist die Spalte damit faktisch tot. Das ist die ehrliche Folge des
-			// Entscheids, kein Versehen; wer sie wiederbeleben will, macht die Flaeche zur
-			// Konfliktpartei (avesmapsConflictLoadMapRows) -- nicht dieses Haekchen wieder auf.
+			// ✅ DIE OFFENE FRAGE VON DAMALS HAT SICH AM 09.09.2026 ERLEDIGT. Hier stand, die Entscheidung
+			// wandere bei Ort, Weg und Karte ins Konfliktzentrum, die Flaeche erreiche es nie, ihre Spalte
+			// sei damit faktisch tot. Jetzt ist der Merker UEBERALL gefallen -- es gibt kein
+			// Konfliktzentrum-Verb mehr, das ihn setzt, und keinen Leser, der ihn liest. Was fuer die
+			// Flaeche schon galt, gilt seither fuer alle acht Objektarten.
 			// ⚠️ WEG IST NUR DAS BEDIENELEMENT. Die Spalte `ecosystem_region.properties_json`, der
 			// Leseweg (`list_regions`) und der Schreibweg (`update_region`,
 			// avesmapsEcosystemApplyRegionNoArticle) bleiben unveraendert.
@@ -356,13 +354,11 @@ const AVESMAPS_WIKI_ASSIGN_REGISTRY = {
 		// und `buildLabelEditPayload` nimmt die Zuweisung beim Speichern mit.
 		schreibt: "speichern",
 		extra: {
-			// 🔴 UND HIER VERSPRICHT DER HINWEIS DIE KONFLIKTLISTE ZU RECHT -- anders als bei der
-			// Flaeche daneben. Ein Label IST eine Konfliktpartei (`feature_type='label'` -> Typ
-			// „Region/Landschaft", api/_internal/conflicts/rules.php), und die Regel `wiki.missing_key`
-			// liest `properties.wiki_no_article` seit dem 15.08.2026. Es fehlte nur der Schreibweg;
-			// den traegt seit dem 16.08.2026 `update_label`.
-			keinArtikelHaken: true,
-			keinArtikelHinweis: "Nimmt das Label aus der Konfliktliste — bis im Wiki einer auftaucht.",
+			// 🔴 DER DRITTE ZUSTAND IST GEFALLEN (Owner-Entscheid 09.09.2026), hier wie beim Ort.
+			// Hier stand: „ein Label IST eine Konfliktpartei ... und die Regel `wiki.missing_key`
+			// liest `properties.wiki_no_article` seit dem 15.08.2026." Diese Ausnahme in der Regel ist
+			// mit dem Merker gefallen -- ein Label ohne Zuweisung steht seither wieder auf der
+			// Beobachtungsliste, und das ist der gesehene und gewollte Preis des Ausbaus.
 		},
 	},
 	territorium: {

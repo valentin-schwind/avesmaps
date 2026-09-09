@@ -162,23 +162,21 @@ foreach ([
         "\"$wo\" haengt wieder einen Rueckruf fuer das Haekchen ein"
     );
 }
-// 🔴 UND DIE ERKLAERUNG SAGT ES AUCH, samt Begruendung -- sonst liesse sich das Haekchen wieder
-// einschalten, ohne dass etwas rot wird (der Server ist ja tolerant).
-// ⚠️ `landschaftslabel` ist NICHT betroffen und behaelt es: ein Label IST Konfliktpartei
-// (`feature_type='label'`), eine `ecosystem_region` steht in keiner Konfliktliste.
+// 🔴 UND SEIT DEM 09.09.2026 GILT DAS FUER JEDE OBJEKTART. Hier stand die Ausnahme: „`landschaftslabel`
+// ist NICHT betroffen und behaelt es: ein Label IST Konfliktpartei (`feature_type='label'`), eine
+// `ecosystem_region` steht in keiner Konfliktliste." Beides stimmt weiterhin -- aber der Merker
+// `properties.wiki_no_article` selbst ist auf Owner-Entscheid global ausgebaut, samt Feld und
+// Bestandsdaten. Sein Aequivalent ist die WIKI-ZUWEISUNG.
+// 💣 KEINE der acht Erklaerungen darf `keinArtikelHaken: true` fuehren -- gezaehlt wird ueber das
+// GANZE Register, nicht ueber eine Liste von Namen: wer eine neunte Objektart anlegt, soll nicht
+// selbst daran denken muessen, sie hier einzutragen.
 $register = file_get_contents(__DIR__ . '/../../../../js/ui/wiki-assign-registry.js');
 assert(is_string($register));
 assert(
-    preg_match('/\n\tlandschaft:\s*\{.*?keinArtikelHaken:\s*(true|false)/s', $register, $flaeche) === 1,
-    'die Erklaerung `landschaft` fuehrt `keinArtikelHaken` gar nicht mehr -- dann fehlt auch ihre Begruendung'
-);
-assert($flaeche[1] === 'false', 'die Erklaerung `landschaft` bietet das Haekchen wieder an -- '
-    . 'der Owner hat es am 16.08.2026 abgewaehlt; wer es zurueckholt, braucht einen neuen Entscheid');
-assert(
-    preg_match('/\n\tlandschaftslabel:\s*\{.*?keinArtikelHaken:\s*(true|false)/s', $register, $label) === 1
-        && $label[1] === 'true',
-    'dem LABEL ist das Haekchen mit abgeraeumt worden -- es ist eine eigene Objektart, ein Label steht '
-    . 'wirklich in der Konfliktliste, und der Owner hat den Label-Dialog nicht genannt'
+    preg_match('/keinArtikelHaken:\s*true/', $register) !== 1,
+    'eine Erklaerung bietet das Haekchen „Kein Wiki-Artikel vorhanden" wieder an -- der Merker ist am '
+    . '09.09.2026 global ausgebaut worden (Owner-Entscheid nach Durchsicht aller 10 Traeger). Wer es '
+    . 'zurueckholt, braucht zuerst wieder ein Feld, das es schreibt, und einen neuen Entscheid.'
 );
 
 echo "ecosystem-wiki-no-article: alle Zusicherungen erfuellt\n";

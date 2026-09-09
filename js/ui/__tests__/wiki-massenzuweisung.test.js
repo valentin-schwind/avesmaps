@@ -186,14 +186,16 @@ const KACHEL_ZEICHEN = 34;
 	assert.ok(/NICHT\s+mitgezählt/.test(landFrage), "die Landschafts-Rueckfrage verschweigt, dass Verbundene aussen vor bleiben: " + landFrage);
 	assert.ok(/überschrieben/.test(landFrage), "die Landschafts-Rueckfrage verschweigt das Ueberschreiben: " + landFrage);
 
-	// 🔴 UND BEIDE NENNEN DEN MERKER. Gemessen: weder `avesmapsWikiPathAssignAll` noch
-	// `avesmapsWikiRegionAssignAll` ueberspringt ein Objekt mit `properties.wiki_no_article` -- beide
-	// loeschen den Merker beim Schreiben (erzwungen von label-wiki-no-article-test.php und
-	// weg-wiki-no-article-test.php). Seit dem 16.08.2026 setzt ihn nur noch das Konfliktzentrum,
-	// also ist er eine ENTSCHEIDUNG eines Editors, und ein Massenlauf raeumt sie ab. Solange das so
-	// ist, muss es wenigstens DASTEHEN.
-	assert.ok(/kein Wiki-Artikel/.test(wegFrage), "die Wege-Rueckfrage verschweigt den Merker: " + wegFrage);
-	assert.ok(/kein Wiki-Artikel/.test(landFrage), "die Landschafts-Rueckfrage verschweigt den Merker: " + landFrage);
+	// 🔴 UND KEINE VON BEIDEN NENNT DEN MERKER MEHR. Hier stand die Gegenrichtung: „beide NENNEN
+	// den Merker ... er ist eine ENTSCHEIDUNG eines Editors, und ein Massenlauf raeumt sie ab.
+	// Solange das so ist, muss es wenigstens DASTEHEN." Der Merker `properties.wiki_no_article` ist
+	// am 09.09.2026 global gefallen (Owner-Entscheid) -- es gibt keine Entscheidung mehr, die ein
+	// Massenlauf abraeumen koennte, und ein Satz ueber ein Feld, das kein Editor mehr kennt, ist
+	// keine Aufklaerung, sondern eine Ruecksprache ueber ein Phantom.
+	// ⚠️ Die Rueckfrage der KARTE nennt weiterhin „Kein Wiki-Artikel vorhanden" -- das ist die
+	// eigene Spalte `citymap.no_article`, eine andere Ablage, und sie bleibt (Owner 09.09.2026).
+	assert.ok(!/kein Wiki-Artikel/i.test(wegFrage), "die Wege-Rueckfrage nennt den gefallenen Merker: " + wegFrage);
+	assert.ok(!/kein Wiki-Artikel/i.test(landFrage), "die Landschafts-Rueckfrage nennt ihn: " + landFrage);
 }
 
 // ── 9b) DIE KARTE: DIE DRITTE ART, UND SIE VERSPRICHT DAS GEGENTEIL DER ZWEI ANDEREN ─────────

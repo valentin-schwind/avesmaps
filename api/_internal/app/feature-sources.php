@@ -3066,15 +3066,21 @@ function avesmapsMapFeaturesWikiNamespaces(array $features): array
  * erreichen. Gruppiert wird deshalb wie in `wpGroupKeyOf` (js/pages/wege-editor-model.js) auf
  * seiner Namensseite: Wegart + Name.
  *
- * 💣 DREI RIEGEL, JEDER EINZELN BEGRUENDET:
- *   1. `wiki_no_article` erbt NIE. Ein Editor hat dort ausdruecklich gesagt, dass es keinen
- *      Artikel gibt -- eine geerbte Zuweisung waere die Discord-#38-Falle, in der ein geratener
- *      Link zu Daten wird. Eine bewusste Leere ist Information.
- *   2. UNEINIGE Gruppen erben nichts. Tragen die zugewiesenen Segmente verschiedene Namensraeume,
- *      ist nicht entscheidbar, welcher gilt -- und „im Zweifel offiziell" waere die unsichere
- *      Richtung. Lieber kein Etikett als ein erfundenes.
- *   3. Ein Segment, das SELBST schon eine Aussage hat, wird nie ueberschrieben. Der Rueckfall fuer
- *      unzugewiesene ns-222-Objekte eine Funktion weiter oben ist eine solche Aussage.
+ * 💣 ZWEI RIEGEL, JEDER EINZELN BEGRUENDET -- und hier steht bewusst KEINE Zahl mehr im Fliesstext
+ * darunter, weil eine Zahl sich wie eine vollstaendige Liste liest:
+ *   - UNEINIGE Gruppen erben nichts. Tragen die zugewiesenen Segmente verschiedene Namensraeume,
+ *     ist nicht entscheidbar, welcher gilt -- und „im Zweifel offiziell" waere die unsichere
+ *     Richtung. Lieber kein Etikett als ein erfundenes.
+ *   - Ein Segment, das SELBST schon eine Aussage hat, wird nie ueberschrieben. Der Rueckfall fuer
+ *     unzugewiesene ns-222-Objekte eine Funktion weiter oben ist eine solche Aussage.
+ *
+ * 🔴 EIN DRITTER RIEGEL IST AM 09.09.2026 GEFALLEN: `wiki_no_article` erbte NIE. Der Merker ist
+ * global ausgebaut (Owner-Entscheid), sein Aequivalent ist die WIKI-ZUWEISUNG -- und die fragt der
+ * Riegel daneben schon ab. Er kollabierte also NICHT, er fiel.
+ * ⚠️ Wirkung am Bestand: KEINE. Diese Erbschaft gilt nur Wegen, und von den 10 Traegern des Merkers
+ * ist keiner ein Weg (6 Orte, 5 Kraftliniensegmente) -- am Dump vom 08.09.2026 nachgezaehlt. Wer die
+ * Begruendung von damals nachlesen will: sie war die Discord-#38-Falle, in der ein geratener Link zu
+ * Daten wird; der Rateweg selbst ist mit `420f12cfc` gefallen.
  *
  * ⚠️ NUR WEGE. Orte und Beschriftungen liegen einmal auf der Karte; zwei gleichnamige Doerfer sind
  * zwei Doerfer, keine zwei Haelften desselben. Genau deshalb steht hier `path` und keine Liste.
@@ -3102,13 +3108,12 @@ function avesmapsMapFeaturesWegGruppeErbtZuweisung(array $features, array $names
         $gruppe = ((string) ($properties['feature_subtype'] ?? '')) . '|' . $name;
         $schluessel = 'path:' . $publicId;
         if (array_key_exists($schluessel, $namespaces)) {
-            // Riegel 3: eine eigene Aussage gewinnt -- gesammelt wird sie als Vorlage der Gruppe.
+            // Eine eigene Aussage gewinnt -- gesammelt wird sie als Vorlage der Gruppe.
             $gruppen[$gruppe]['raeume'][$namespaces[$schluessel]] = true;
             continue;
         }
-        if (!empty($properties['wiki_no_article'])) {
-            continue; // Riegel 1
-        }
+        // 🔴 HIER STAND DER `wiki_no_article`-RIEGEL. Gefallen am 09.09.2026 mit dem Merker; siehe
+        // die Begruendung im Kopf dieser Funktion.
         $gruppen[$gruppe]['offen'][] = $schluessel;
     }
 
@@ -3116,7 +3121,7 @@ function avesmapsMapFeaturesWegGruppeErbtZuweisung(array $features, array $names
         $raeume = array_keys($gruppe['raeume'] ?? []);
         $offen = $gruppe['offen'] ?? [];
         if ($offen === [] || count($raeume) !== 1) {
-            continue; // nichts zu erben, oder Riegel 2
+            continue; // nichts zu erben, oder die Gruppe ist uneinig
         }
         foreach ($offen as $schluessel) {
             $namespaces[$schluessel] = (int) $raeume[0];

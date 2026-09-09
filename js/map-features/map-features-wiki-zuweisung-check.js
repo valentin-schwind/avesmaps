@@ -25,16 +25,18 @@
 (function () {
 	"use strict";
 
-	// Der Zustand -> die Klassen-/Modifikator-Endung. Zwei Stufen, ein Ton (tokens.css):
-	// „offen" laut, „geprüft" derselbe Ton blass. Live sind es 2501 offene und 6 nachgesehene.
+	// Der Zustand -> die Klassen-/Modifikator-Endung. EINE Stufe, ein Ton (tokens.css).
+	// 🔴 BIS ZUM 09.09.2026 WAREN ES ZWEI: „offen" laut und „geprüft" derselbe Ton blass. Die zweite
+	// Stufe kam aus `properties.wiki_no_article`, und dieser Merker ist auf Owner-Entscheid global
+	// ausgebaut -- sein Äquivalent ist die WIKI-ZUWEISUNG. Die 6 Orte, die blass markiert waren,
+	// tragen jetzt den vollen Ring; sie sind nicht neu, sie sind nur nicht mehr unterschieden.
 	const MARKE_OFFEN = "no-wiki";
-	const MARKE_GEPRUEFT = "no-wiki-checked";
 
 	function markeFuerZustand(zustand) {
 		if (typeof avesmapsWikiZuweisungMarkiert !== "function" || !avesmapsWikiZuweisungMarkiert(zustand)) {
 			return "";
 		}
-		return zustand === AVESMAPS_WIKI_ZUWEISUNG_GEPRUEFT ? MARKE_GEPRUEFT : MARKE_OFFEN;
+		return MARKE_OFFEN;
 	}
 
 	function istVerfuegbar() {
@@ -55,12 +57,18 @@
 	// `var()` nicht auf, die Linie bliebe schwarz bzw. unsichtbar. Hausmuster, siehe
 	// avesmapsOpenPathEndStyle. Einmal gelesen und behalten: der Wert ist in tokens.css gepinnt (kein
 	// Dark-Override, er liegt auf den immer hellen Kartenkacheln).
+	// ⚠️ DER PARAMETER IST GEFALLEN, DIE VIER AUFRUFSTELLEN REICHEN IHN WEITER (map-features.js,
+	// map-features-labels.js, …-ecosystem-rendering.js, …-path-label-canvas-overlay.js). Das ist
+	// Absicht und kein vergessener Rest: sie uebergeben dort das Ergebnis von markeFuerZustand(),
+	// und JS verwirft ein zuviel uebergebenes Argument. Sie einzeln nachzuziehen waere ein Diff an
+	// vier Zeichenflaechen fuer null Wirkung -- der Merker faellt in vier Schritten, und diese
+	// Stellen fasst der naechste ohnehin an. Es gibt seit dem 09.09.2026 nur noch EINEN Ton.
 	const farben = {};
-	window.avesmapsWikiZuweisungFarbe = function avesmapsWikiZuweisungFarbe(marke) {
-		const merkmal = marke === MARKE_GEPRUEFT ? "--color-check-no-wiki-checked" : "--color-check-no-wiki";
+	window.avesmapsWikiZuweisungFarbe = function avesmapsWikiZuweisungFarbe() {
+		const merkmal = "--color-check-no-wiki";
 		if (!farben[merkmal]) {
 			farben[merkmal] = getComputedStyle(document.documentElement).getPropertyValue(merkmal).trim()
-				|| (marke === MARKE_GEPRUEFT ? "rgba(160, 16, 41, 0.42)" : "#a01029");
+				|| "#a01029";
 		}
 		return farben[merkmal];
 	};

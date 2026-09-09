@@ -28,11 +28,17 @@ require_once __DIR__ . '/rules.php';
 const AVESMAPS_CONFLICT_CLAIM_FIELD = 'wiki_url';
 
 /**
- * Mark "this object has no wiki article" -- the negative assertion Discord #38 was missing.
+ * 🔴 DER MERKER IST AUSGEBAUT (Owner-Entscheid 09.09.2026). Hier stand: „Mark 'this object has no
+ * wiki article' -- the negative assertion Discord #38 was missing."
  *
- * Clearing a link is not enough on its own: the map-features enrichment cannot tell "deliberately
- * emptied" from "never set" and simply guesses a link back in. This flag is what makes a removal
- * stick, and avesmapsEnrichMapFeatureWikiUrl() honours it.
+ * Er war noetig, solange `avesmapsEnrichMapFeatureWikiUrl` eine geloeschte Adresse per NAMEN wieder
+ * herbeiriet: 》Trennen《 allein hielt dann nicht, es brauchte eine zweite, NEGATIVE Aussage. Der
+ * Rateweg ist mit `420f12cfc` (08.09.2026) gefallen, 》Trennen《 haelt seither von allein -- und
+ * damit hatte der Merker keinen Gegenstand mehr. Sein Aequivalent ist die WIKI-ZUWEISUNG.
+ *
+ * ⚠️ Die Konstante steht noch, weil dieser Reparaturweg den Merker beim Trennen WEGRAEUMT (siehe
+ * unten). Sie faellt mit den uebrigen Schreibern; bis dahin heilt jedes 》Trennen《 einen Traeger
+ * nebenbei mit.
  */
 const AVESMAPS_CONFLICT_NO_ARTICLE_FLAG = 'wiki_no_article';
 
@@ -50,8 +56,9 @@ const AVESMAPS_CONFLICT_NO_ARTICLE_FLAG = 'wiki_no_article';
  * Schreibpfad suchen muss. Die Liste selbst steht in core.php und NUR dort
  * (AVESMAPS_CONFLICT_SEGMENTED_TYPES).
  *
- * 💣 Sie heisst `Repair`, nicht `Unlink`: sie bedient BEIDE Knoepfe am selben Fall -- "Trennen" /
- * "Kein Wiki-Eintrag" und "Artikel uebernehmen". Zwei Knoepfe am selben Fall, die verschieden weit
+ * 💣 Sie heisst `Repair`, nicht `Unlink`: sie bedient BEIDE Knoepfe am selben Fall -- "Trennen"
+ * und "Artikel uebernehmen". (Bis zum 09.09.2026 war "Trennen" ihrer zwei: daneben stand
+ * "Kein Wiki-Eintrag", gefallen mit dem Merker.) Zwei Knoepfe am selben Fall, die verschieden weit
  * reichen, sind schlimmer als zwei getrennte Fehler: eine Linie liesse sich ganz loesen, aber nur
  * zu einem Sechstel verknuepfen, und das saehe aus wie "der Link hat nicht gegriffen"
  * (Owner-Entscheid 15.08.2026).
@@ -122,7 +129,7 @@ function avesmapsConflictResolveKeeper(array $input, array $targetPublicIds): ar
     }
 
     // Steht die handelnde Partei selbst unter den Zielen, ist sie kein Behalter, sondern das Opfer
-    // des Klicks ("Trennen" / "Kein Wiki-Eintrag"). Dann gibt es keinen zu schuetzen.
+    // des Klicks ("Trennen"; bis 09.09.2026 auch "Kein Wiki-Eintrag"). Dann gibt es keinen zu schuetzen.
     return ['keeper' => in_array($subject, $targetPublicIds, true) ? '' : $subject, 'known' => true];
 }
 
@@ -224,7 +231,6 @@ function avesmapsConflictUnlinkFeature(
     PDO $pdo,
     string $publicId,
     string $expectedUrl,
-    bool $markNoArticle,
     int $userId,
     array &$handledGroups = [],
     array $protectedRowIds = [],
@@ -324,11 +330,10 @@ function avesmapsConflictUnlinkFeature(
         $before = json_encode($properties, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
         unset($properties[AVESMAPS_CONFLICT_CLAIM_FIELD]);
-        if ($markNoArticle) {
-            $properties[AVESMAPS_CONFLICT_NO_ARTICLE_FLAG] = true;
-        } else {
-            unset($properties[AVESMAPS_CONFLICT_NO_ARTICLE_FLAG]);
-        }
+        // 🔴 HIER STAND DIE WEICHE `$markNoArticle` -- 》Kein Wiki-Eintrag《 setzte den Merker,
+        // 》Trennen《 raeumte ihn weg. Der Knopf ist am 09.09.2026 gefallen; geblieben ist das
+        // Wegraeumen, damit jedes Trennen einen Altbestand-Traeger nebenbei heilt.
+        unset($properties[AVESMAPS_CONFLICT_NO_ARTICLE_FLAG]);
 
         $update->execute([
             'pj' => json_encode($properties, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
@@ -341,7 +346,10 @@ function avesmapsConflictUnlinkFeature(
         avesmapsWriteMapAuditLog(
             $pdo,
             (int) $row['id'],
-            $markNoArticle ? 'conflict_no_article' : 'conflict_unlink',
+            // ⚠️ Nur noch EINE Aktion. Historische Zeilen `conflict_no_article` bleiben im Protokoll
+            // stehen -- ein Protokoll ist ein Archiv; `api/_internal/audit-detail.php` uebersetzt sie
+            // weiterhin (Owner-Entscheid 09.09.2026).
+            'conflict_unlink',
             $userId,
             (string) $before,
             (string) json_encode($properties, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
@@ -389,7 +397,8 @@ function avesmapsConflictLinkRowRefusal(array $properties): string {
  * Namens -- dieselbe Weiche und dieselbe Gruppenabfrage wie beim Trennen
  * (avesmapsConflictRepairSpansNameGroup). 🔴 Owner-Entscheid 15.08.2026, und der Grund ist die
  * ASYMMETRIE: "Artikel uebernehmen" steht an denselben nach Namen zusammengefassten
- * wiki.missing_key-Faellen wie "Kein Wiki-Eintrag". Reichte der eine Knopf ueber die Linie und der
+ * wiki.missing_key-Faellen wie das Trennen (bis 09.09.2026 stand dort auch "Kein Wiki-Eintrag").
+ * Reichte der eine Knopf ueber die Linie und der
  * andere ueber ein Segment, liesse sich eine Linie ganz loesen, aber nur zu einem Sechstel
  * verknuepfen -- und das saehe aus wie "der Link hat nicht gegriffen".
  *
@@ -483,6 +492,8 @@ function avesmapsConflictLinkFeature(PDO $pdo, string $publicId, array $wikiTitl
 
         $properties[AVESMAPS_CONFLICT_CLAIM_FIELD] = $wikiUrl;
         // Eine Verknüpfung widerlegt die Aussage "hat keinen Artikel" -- sonst blieben beide stehen.
+        // ⚠️ Der Zwilling dieser Zeile steht in avesmapsConflictUnlinkFeature. Seit dem Ausbau des
+        // Merkers (09.09.2026) raeumen BEIDE nur noch Altbestand weg; gesetzt wird er nirgends mehr.
         unset($properties[AVESMAPS_CONFLICT_NO_ARTICLE_FLAG]);
 
         $update->execute([
@@ -757,7 +768,6 @@ function avesmapsConflictDeleteLabel(PDO $pdo, string $publicId, int $userId): a
  * Apply one resolution across a conflict's parties, in a transaction.
  *
  * mode 'unlink'   -- drop the claim on every target
- * mode 'no_wiki'  -- drop it AND record that there is no article (makes the removal stick)
  * mode 'link'     -- attach the article carrying the object's exact name (looked up server-side)
  * mode 'delete_label' -- eine ueberzaehlige Beschriftung von der Karte nehmen (Discord #83)
  *
@@ -775,7 +785,12 @@ function avesmapsConflictDeleteLabel(PDO $pdo, string $publicId, int $userId): a
  */
 function avesmapsConflictResolve(PDO $pdo, array $input, int $userId): array {
     $mode = trim((string) ($input['mode'] ?? ''));
-    if (!in_array($mode, ['unlink', 'no_wiki', 'link', 'delete_label'], true)) {
+    // 🔴 `no_wiki` IST AM 09.09.2026 AUS DIESER LISTE GEFALLEN, und der Riegel steht hier
+    // absichtlich serverseitig: eine gecachte Editorseite kann den Modus noch schicken, und dann
+    // soll sie eine klare Absage bekommen statt lautlos ein 》Trennen《 auszuloesen. Der Merker
+    // `properties.wiki_no_article`, den der Modus schrieb, ist global ausgebaut -- sein
+    // Aequivalent ist die WIKI-ZUWEISUNG.
+    if (!in_array($mode, ['unlink', 'link', 'delete_label'], true)) {
         throw new RuntimeException('Unbekannter Reparatur-Modus.');
     }
     $targets = is_array($input['targets'] ?? null) ? $input['targets'] : [];
@@ -846,7 +861,6 @@ function avesmapsConflictResolve(PDO $pdo, array $input, int $userId): array {
                     $pdo,
                     $publicId,
                     $expectedUrl,
-                    $mode === 'no_wiki',
                     $userId,
                     $handledGroups,
                     $protectedRowIds,

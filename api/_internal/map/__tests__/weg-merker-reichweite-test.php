@@ -314,10 +314,28 @@ assert(
 avesmapsUpdatePathFeatureDetails($pdo, $rumpf(true), $user);
 $nachZentrum = $konfliktZeilen($pdo);
 $agueraDanach = array_values(array_filter($nachZentrum, static fn (array $f): bool => $f['title'] === 'Aguera'));
+// 🔴 UMGEDREHT AM 09.09.2026. Hier stand: „der Fall steht nach dem Haekchen weiter im Zentrum --
+// der Hinweistext 》nimmt ihn aus der Konfliktliste《 waere eine Luege." Genau dieser Hinweistext ist
+// mit dem Haekchen gefallen: der Merker `properties.wiki_no_article` ist global ausgebaut
+// (Owner-Entscheid), sein Aequivalent ist die WIKI-ZUWEISUNG -- und die hat dieser Weg nicht.
+// ⚠️ DAS IST DER GEMESSENE PREIS DES AUSBAUS: die Traeger kommen zurueck auf die Beobachtungsliste.
+// Der Owner hat alle 10 durchgesehen und es so entschieden -- kein Fehler, nicht zu reparieren.
+// 💣 WAS DIESER ABSCHNITT NOCH BELEGT -- und was NICHT. Er belegt genau eines: der Schreibvorgang
+// laesst die Liste UNVERAENDERT. Das ist der Riegel gegen ein Wiederauftauchen der Ausnahme in
+// `avesmapsConflictRuleMissingKey` -- wer sie zurueckbaut, bekommt hier 0 Zeilen statt 1.
+// 🪤 ER BELEGT NICHTS UEBER DIE REICHWEITE. `avesmapsConflictCollapseSegmentsByName` gruppiert nach
+// `rule_id|label` und hat den Merker nie gelesen; die drei Segmente stehen als EINE Zeile da, egal
+// ob der Schreibvorgang eines oder alle drei angefasst hat. Ein „also" zwischen beidem waere ein
+// Fehlschluss. Die Reichweite selbst misst dieser Test weiter oben (Abschnitte davor) und in
+// Abschnitt 7 am Protokoll -- dort wird sie an den GESCHRIEBENEN Zeilen gemessen, nicht an der Liste.
 assert(
-    $agueraDanach === [],
-    'der Fall steht nach dem Haekchen weiter im Zentrum (' . (($agueraDanach[0]['segments'] ?? 0)) . ' Segmente) -- '
-    . 'der Hinweistext „nimmt ihn aus der Konfliktliste" waere eine Luege'
+    $nachZentrum == $vorZentrum,
+    'der Schreibvorgang hat die Beobachtungsliste veraendert -- die Ausnahme fuer den Merker ist zurueck'
+);
+assert(
+    count($agueraDanach) === 1 && ($agueraDanach[0]['segments'] ?? 0) === 3,
+    'die drei Segmente stehen nach dem Schreibvorgang nicht mehr als EINE Zeile mit drei Segmenten da: '
+    . var_export(array_map(static fn (array $f): mixed => $f['segments'] ?? null, $agueraDanach), true)
 );
 // Gegenprobe, dass das Zentrum ueberhaupt noch etwas meldet: der fremde Weg steht weiter da.
 assert(

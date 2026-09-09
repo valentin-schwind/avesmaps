@@ -3,17 +3,19 @@
 // markieren", egal ob Ort, Flaeche oder Weg).
 //
 // 🔴 SIE IST REIN: kein DOM, kein `fetch`, kein Modulzustand. Jeder Zeichner reicht sein Objekt
-// herein und bekommt einen von vier Zustaenden zurueck. Die FELDER holt jede Objektart selbst --
+// herein und bekommt einen von drei Zustaenden zurueck. Die FELDER holt jede Objektart selbst --
 // die vier Zeichner bekommen verschiedene Formen aus verschiedenen Endpunkten --, aber die REGEL
 // steht nur hier. Dasselbe Muster wie js/ui/listen-statuskreis.js, aus demselben Grund.
 //
 // ═══════════════════════════════════════════════════════════════════════════════════════════════
 // 💣 GEMESSEN WIRD DAS ZUWEISUNGSFELD, NIE DAS DANEBENSTEHENDE `wiki_url`
 // ═══════════════════════════════════════════════════════════════════════════════════════════════
-// `properties.wiki_url` wird vom Lesepfad bei Leere per NAMEN nachgeraten
-// (avesmapsEnrichMapFeatureWikiUrl, api/app/map-features.php) -- am Livebestand gemessen 99
-// Phantome bei den Orten und 12 bei den Wegen. Ein Haken, der es liest, faerbt zugewiesene
-// Objekte gruen, die niemand zugewiesen hat. Die Zuweisung ist das NEST:
+// `properties.wiki_url` ist eine ABGELEITETE Adresse, keine Zuweisung. Bis zum 08.09.2026 riet der
+// Lesepfad sie bei Leere sogar aus dem NAMEN nach (99 Phantome bei den Orten, 12 bei den Wegen);
+// dieser Rateweg ist mit `420f12cfc` gefallen, aber `avesmapsEnrichMapFeatureWikiUrl` liefert
+// weiterhin ein GESPEICHERTES flaches Feld als Rueckfall fuer Objekte OHNE Zuweisung -- ein Haken,
+// der es liest, faerbt also weiter Objekte gruen, die niemand zugewiesen hat. Die Zuweisung ist das
+// NEST:
 //     Ort           location.wikiSettlement.wiki_key   (payload: properties.wiki_settlement)
 //     Weg           properties.wiki_path.wiki_key      (Name ueber getPathTitleName, s. u.)
 //     Beschriftung  label.wikiRegion.wiki_key          (payload: properties.wiki_region)
@@ -21,27 +23,50 @@
 // Es sind dieselben vier Familien, die auch der Statuskreis vergleicht (AGENTS.md §11).
 // ═══════════════════════════════════════════════════════════════════════════════════════════════
 // Am Livebestand vom 01.09.2026 gemessen -- was dieser Haken faerbt:
-//     Orte           982 offen,  6 geprueft,  1923 zugewiesen   (+ 2079 Kreuzungen = ausserhalb)
-//     Wege           268 offen,  0 geprueft,  1975 zugewiesen   (3798 ohne Menschennamen = ausserhalb)
-//     Flaechen       889 offen,             426 zugewiesen      (8 Klimabaender = ausserhalb)
-//     Beschriftungen 361 offen,  0 geprueft,   616 zugewiesen
-// Zusammen 2500 offene und 6 nachgesehene Objekte.
+//     Orte           988 offen,  1923 zugewiesen   (+ 2079 Kreuzungen = ausserhalb)
+//     Wege           268 offen,  1975 zugewiesen   (3798 ohne Menschennamen = ausserhalb)
+//     Flaechen       889 offen,   426 zugewiesen   (8 Klimabaender = ausserhalb)
+//     Beschriftungen 361 offen,   616 zugewiesen
+// Zusammen 2506 offene Objekte.
+// ⚠️ Die 6 Orte, die bis zum 09.09.2026 als „nachgesehen" blass markiert waren, stehen seit dem
+// Ausbau des Merkers in dieser Spalte mit -- 982 + 6. Sie sind nicht neu, sie sind nur nicht mehr
+// unterschieden.
 // ⚠️ IM BROWSER GEZAEHLT, nicht in der rohen Nutzlast -- die beiden weichen ab, und der Browser hat
 // recht: er erkennt eine Kreuzung zusaetzlich am Namen (isCrossingName, letzter Rueckfall), und er
 // schreibt die Wegenamen beim Laden um. Wer diese Zahlen an der Nutzlast nachrechnet, bekommt 983
 // Orte und alle 6041 Wege als „ohne Namen".
 // 💣 DAS IST DER GRUND, WARUM DIESER HAKEN NICHTS EINBLENDET. Die drei Pruefhaken neben ihm tun das
 // (resolveLocationCheckFinding, „ein Pruefhaken ZEIGT seine Funde“, Owner 14.08.2026) -- richtig fuer
-// eine Handvoll Anbindungsluecken, die man sonst wegzoomt. 982 Orte sind aber ein DRITTEL aller 2911
+// eine Handvoll Anbindungsluecken, die man sonst wegzoomt. 988 Orte sind aber ein DRITTEL aller 2911
 // Orte: eingeblendet waere das keine Fundstelle mehr, sondern eine zweite Ortsebene. Und der Owner
 // hat „markieren“ gesagt, nicht „einblenden“. Naeheres am Riegel in
 // map-features-location-marker-rendering.js.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════
 
-// Die vier Zustaende. "" heisst „nicht im Umfang" und ist KEIN Befund -- ein Objekt, das gar
+// ═══════════════════════════════════════════════════════════════════════════════════════════════
+// 🔴 ES GIBT DREI ZUSTAENDE -- „nachgesehen, es gibt keinen Artikel" IST GEFALLEN (09.09.2026)
+// ═══════════════════════════════════════════════════════════════════════════════════════════════
+// Der vierte Zustand kam aus `properties.wiki_no_article`, und dieser Merker ist auf Owner-Entscheid
+// global ausgebaut. Sein Aequivalent ist die ZUWEISUNG selbst: wer sich frueher des Merkers
+// bediente, fragt das Nest ab.
+//
+// 💣 WARUM ES IHN GAB -- damit ihn niemand wieder einfuehrt: er war der Notausgang gegen das
+// Namensraten der Kartennutzlast (Discord #38). Bis zum 08.09.2026 fuellte
+// `avesmapsEnrichMapFeatureWikiUrl` (api/app/map-features.php) die Adresse aus dem NAMEN des
+// Objekts; eine geloeste Zuweisung kam beim naechsten Lesen zurueck, also brauchte es eine zweite,
+// NEGATIVE Aussage, damit 》Trennen《 ueberhaupt halten konnte. Commit `420f12cfc` hat den Rateweg
+// zurueckgebaut -- der Server schlaegt nichts mehr vor, 》Trennen《 haelt von allein, und der Merker
+// hat keinen Gegenstand mehr.
+//
+// ⚠️ DER PREIS IST BENANNT UND GEWOLLT: die Unterscheidung „nachgesehen, es gibt nichts" gegen „hat
+// noch niemand angesehen" gibt es nicht mehr. Die 10 Traeger waren ohnehin markiert, nur blasser;
+// vollstaendig ausgenommen waren sie allein in der Konfliktliste. Wer die Unterscheidung vermisst,
+// hat KEINEN Fehler gefunden -- er sieht die Entscheidung.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════
+
+// Die drei Zustaende. "" heisst „nicht im Umfang" und ist KEIN Befund -- ein Objekt, das gar
 // keinen Artikel haben kann, ist nicht offen, sondern gar nicht gemeint.
 const AVESMAPS_WIKI_ZUWEISUNG_ZUGEWIESEN = "zugewiesen";
-const AVESMAPS_WIKI_ZUWEISUNG_GEPRUEFT = "geprueft";   // „nachgesehen, es gibt keinen Artikel"
 const AVESMAPS_WIKI_ZUWEISUNG_OFFEN = "offen";         // der eigentliche Befund
 const AVESMAPS_WIKI_ZUWEISUNG_AUSSERHALB = "";
 
@@ -64,11 +89,10 @@ function avesmapsWikiZuweisungOrt(location, locationType) {
 	const kreuzung = typeof CROSSING_LOCATION_TYPE !== "undefined" ? CROSSING_LOCATION_TYPE : "crossing";
 	if (typ === kreuzung) { return AVESMAPS_WIKI_ZUWEISUNG_AUSSERHALB; }
 	const ort = location || {};
-	if (avesmapsWikiZuweisungText(ort.wikiSettlement && ort.wikiSettlement.wiki_key) !== "") {
-		return AVESMAPS_WIKI_ZUWEISUNG_ZUGEWIESEN;
-	}
 
-	return ort.wikiNoArticle ? AVESMAPS_WIKI_ZUWEISUNG_GEPRUEFT : AVESMAPS_WIKI_ZUWEISUNG_OFFEN;
+	return avesmapsWikiZuweisungText(ort.wikiSettlement && ort.wikiSettlement.wiki_key) !== ""
+		? AVESMAPS_WIKI_ZUWEISUNG_ZUGEWIESEN
+		: AVESMAPS_WIKI_ZUWEISUNG_OFFEN;
 }
 
 /**
@@ -105,11 +129,10 @@ function avesmapsWikiZuweisungWeg(properties, hatEchtenNamen) {
 		return AVESMAPS_WIKI_ZUWEISUNG_AUSSERHALB;
 	}
 	const p = properties || {};
-	if (avesmapsWikiZuweisungText(p.wiki_path && p.wiki_path.wiki_key) !== "") {
-		return AVESMAPS_WIKI_ZUWEISUNG_ZUGEWIESEN;
-	}
 
-	return p.wiki_no_article ? AVESMAPS_WIKI_ZUWEISUNG_GEPRUEFT : AVESMAPS_WIKI_ZUWEISUNG_OFFEN;
+	return avesmapsWikiZuweisungText(p.wiki_path && p.wiki_path.wiki_key) !== ""
+		? AVESMAPS_WIKI_ZUWEISUNG_ZUGEWIESEN
+		: AVESMAPS_WIKI_ZUWEISUNG_OFFEN;
 }
 
 /**
@@ -120,21 +143,20 @@ function avesmapsWikiZuweisungWeg(properties, hatEchtenNamen) {
  */
 function avesmapsWikiZuweisungBeschriftung(label) {
 	const l = label || {};
-	if (avesmapsWikiZuweisungText(l.wikiRegion && l.wikiRegion.wiki_key) !== "") {
-		return AVESMAPS_WIKI_ZUWEISUNG_ZUGEWIESEN;
-	}
 
-	return l.keinArtikel ? AVESMAPS_WIKI_ZUWEISUNG_GEPRUEFT : AVESMAPS_WIKI_ZUWEISUNG_OFFEN;
+	return avesmapsWikiZuweisungText(l.wikiRegion && l.wikiRegion.wiki_key) !== ""
+		? AVESMAPS_WIKI_ZUWEISUNG_ZUGEWIESEN
+		: AVESMAPS_WIKI_ZUWEISUNG_OFFEN;
 }
 
 /**
  * Der Zuweisungszustand einer LANDSCHAFTSFLAECHE.
  * ⚠️ KLIMABAENDER sind ausserhalb: sie sind ABGELEITET (aus den Trennlinien gerechnet, nicht
  * gezeichnet) und haben nie einen Wiki-Artikel. Live sind es 8.
- * ⚠️ KEIN dritter Zustand: `wiki_no_article` ist bei den Landschaftsflaechen am 16.08.2026 mit
- * dem Haekchen gefallen (Owner-Entscheid, map-features-ecosystem-properties.js), und die Nutzlast
- * von api/app/ecosystem-areas.php fuehrt das Feld nicht. „geprueft" kann hier also nicht
- * entstehen -- nicht vergessen, sondern nicht vorhanden.
+ * ⭐ SIE WAR DIE VORLAGE. Der vierte Zustand war bei den Landschaftsflaechen schon am 16.08.2026
+ * mit ihrem Haekchen gefallen; seit dem 09.09.2026 sehen alle vier Pruefer so aus wie dieser hier.
+ * Wer einer Objektart wieder eine Sonderform gibt, baut die Divergenz zurueck, die der Ausbau
+ * beseitigt hat.
  */
 function avesmapsWikiZuweisungFlaeche(area) {
 	const a = area || {};
@@ -145,15 +167,20 @@ function avesmapsWikiZuweisungFlaeche(area) {
 		: AVESMAPS_WIKI_ZUWEISUNG_OFFEN;
 }
 
-/** Traegt dieser Zustand eine Markierung? „zugewiesen" und „ausserhalb" bleiben unberuehrt. */
+/**
+ * Traegt dieser Zustand eine Markierung? „zugewiesen" und „ausserhalb" bleiben unberuehrt.
+ * 💣 GENAU EIN Zustand wird markiert, und die Pruefung ist deshalb eine GLEICHHEIT, keine Liste.
+ * Bis zum 09.09.2026 standen hier zwei Zustaende mit `||`; waere nur ihr Erzeuger gefallen und die
+ * Verzweigung geblieben, haette sie fuer einen Wert `true` geliefert, den niemand mehr erzeugt --
+ * eine tote Verzweigung, die der naechste Leser fuer lebende Regel haelt.
+ */
 function avesmapsWikiZuweisungMarkiert(zustand) {
-	return zustand === AVESMAPS_WIKI_ZUWEISUNG_OFFEN || zustand === AVESMAPS_WIKI_ZUWEISUNG_GEPRUEFT;
+	return zustand === AVESMAPS_WIKI_ZUWEISUNG_OFFEN;
 }
 
 if (typeof module !== "undefined" && module.exports) {
 	module.exports = {
 		AVESMAPS_WIKI_ZUWEISUNG_ZUGEWIESEN,
-		AVESMAPS_WIKI_ZUWEISUNG_GEPRUEFT,
 		AVESMAPS_WIKI_ZUWEISUNG_OFFEN,
 		AVESMAPS_WIKI_ZUWEISUNG_AUSSERHALB,
 		avesmapsWikiZuweisungOrt,

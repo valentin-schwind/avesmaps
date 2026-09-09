@@ -416,16 +416,20 @@ $fluss = avesmapsMapFeaturesWikiNamespaces([
 assert($fluss === ['path:w-1' => 0, 'path:w-2' => 0, 'path:w-3' => 0],
     'alle Abschnitte desselben Flusses erben die Zuweisung -- sonst steht er dreimal verschieden da');
 
-// 💣 RIEGEL 1: ein ausdrueckliches „kein Wiki-Eintrag" erbt NIE. Sonst waere die Erbschaft die
-// Discord-#38-Falle, in der ein geratener Link zu Daten wird -- eine bewusste Leere ist Information.
+// 🔴 DER MERKER-RIEGEL IST GEFALLEN (09.09.2026). Hier stand „RIEGEL 1: ein ausdrueckliches
+// 》kein Wiki-Eintrag《 erbt NIE" -- er las `properties.wiki_no_article`, und der Merker ist global
+// ausgebaut (Owner-Entscheid); sein Aequivalent ist die WIKI-ZUWEISUNG, und die fragt der Riegel
+// darueber schon ab. Ein Altbestand-Traeger erbt seither wie jedes andere unzugewiesene Segment.
+// ⚠️ Am Bestand aendert das NICHTS: von den 10 Traegern ist keiner ein Weg (6 Orte, 5
+// Kraftliniensegmente, am Dump vom 08.09.2026 nachgezaehlt), und die Erbschaft gilt nur Wegen.
 $mitMerker = avesmapsMapFeaturesWikiNamespaces([
     $segment('w-a', 'Hagweg', 'Weg', $zugewiesen($WA . 'Hagweg')),
     $segment('w-b', 'Hagweg', 'Weg', ['wiki_no_article' => true]),
 ]);
-assert($mitMerker === ['path:w-a' => 0],
-    'ein Segment mit „kein Wiki-Eintrag" bleibt unberuehrt');
+assert($mitMerker === ['path:w-a' => 0, 'path:w-b' => 0],
+    'ein Altbestand-Merker haelt die Erbschaft nicht mehr auf');
 
-// 💣 RIEGEL 2: eine UNEINIGE Gruppe erbt nichts -- welcher Raum sollte auch gelten?
+// 💣 EINE UNEINIGE Gruppe erbt nichts -- welcher Raum sollte auch gelten?
 $uneinig = avesmapsMapFeaturesWikiNamespaces([
     $segment('w-x', 'Zweistieg', 'Pfad', $zugewiesen($WA . 'Zweistieg')),
     $segment('w-y', 'Zweistieg', 'Pfad', $zugewiesen($WA . 'Inoffiziell:Zweistieg')),
