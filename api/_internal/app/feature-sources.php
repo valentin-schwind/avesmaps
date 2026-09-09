@@ -3328,34 +3328,254 @@ function avesmapsFeatureSourcesKanonFuerEines(
     if ($entityType === '' || $publicId === '') {
         return null;
     }
-    $key = $entityType . ':' . $publicId;
 
-    $raeume = [];
-    // 🔴 MIT Hauptraum: der Aufrufer hat gerade eine Zuweisung GESCHRIEBEN, die Adresse ist also
-    // per Konstruktion eine echte -- und eine Hauptraum-Zuweisung macht seit dem 08.09.2026
-    // offiziell. Ohne diesen Leser saehe der Editor sein eigenes Ergebnis erst nach F5 anders.
-    $ns = avesmapsWikiNamespaceFromWikiUrlMitHauptraum(trim($wikiUrl));
-    if ($ns !== null) {
-        $raeume[$key] = $ns;
+    // 💣 KEINE ZWEITE ABLEITUNG. Diese Funktion ist seit dem 09.09.2026 ein duenner Aufruf des
+    // Mehrfach-Rechners darunter; ihre eigene Fassung stand ab dem 02.09.2026 daneben, und genau
+    // deshalb wurde der QUELLEN-Weg uebersehen, als er dieselbe Auskunft brauchte.
+    $tafel = avesmapsFeatureSourcesKanonFuerMehrere($pdo, $entityType, [$publicId], [$publicId => $wikiUrl]);
+
+    return $tafel[$publicId] ?? null;
+}
+
+/**
+ * DER WIKI-NAMENSRAUM EINZELNER OBJEKTE -- aus der Datenbank statt aus der fertigen Nutzlast.
+ *
+ * 🔴 SIE LEITET NICHTS SELBST AB. Sie holt die Rohzeilen, bringt sie in die Form, die
+ * avesmapsMapFeaturesWikiNamespaces erwartet, und laesst DIESE Funktion entscheiden -- dieselbe,
+ * die auch die Kartennutzlast fuellt. Eine zweite Lesart des Zuweisungsnests waere genau die
+ * Divergenz, an der die Rangfolge zwischen ns 222 und Quellzeile schon einmal auseinandergelaufen
+ * ist (31.08.-02.09.2026).
+ *
+ * 🔴 WOFUER: der Quellen-Endpunkt kennt die Wiki-Adresse NICHT -- anders als der Zuweisungsweg, der
+ * sie gerade geschrieben hat. Ohne diesen Leser verloere ein ZUGEWIESENES Objekt sein „offiziell",
+ * sobald ihm jemand eine inoffizielle Quelle eintraegt: eine neue Regression, schlimmer als die,
+ * gegen die der Nachtrag gebaut wurde.
+ *
+ * ⚠️ AUS DER ROHZEILE, und das traegt: die Ableitung liest das ZUWEISUNGSNEST
+ * (`properties.wiki_settlement` und Geschwister), nie die angereicherte `properties.wiki_url` --
+ * und das Nest steht unveraendert im gespeicherten `properties_json`. Ein bloss GERATENER
+ * `wiki_url` kommt hier deshalb nie an (99 Orte und 12 Wege tragen einen).
+ *
+ * ⚠️ Territorien haben kein `map_features`-Gegenstueck; fuer sie gilt der vorhandene Leser
+ * avesmapsPoliticalTerritoryWikiNamespaces, aus dem hier nur die gefragten Kennungen genommen
+ * werden. Er liest die ganze Tabelle -- derselbe Preis, den auch der Mehrfach-Rechner zahlt, und
+ * aus demselben Grund vertretbar: die Aufrufer sind EDITOR-Schreibaktionen, nicht der oeffentliche
+ * Lesepfad, den CLAUDE.md schuetzt.
+ *
+ * @param list<string> $publicIds
+ * @return array<string, int> "<entityType>:<public_id>" => Namensraum
+ */
+function avesmapsFeatureSourcesWikiNamespacesFuerKennungen(
+    PDO $pdo,
+    string $entityType,
+    array $publicIds
+): array {
+    $entityType = trim($entityType);
+    $ids = avesmapsFeatureSourcesKanonKennungen($publicIds);
+    if ($entityType === '' || $ids === []) {
+        return [];
     }
 
-    $refs = avesmapsLoadFeatureSourceRefs($pdo);
-    $kanon = avesmapsFeatureSourcesDeriveKanon(
+    if ($entityType === 'territory') {
+        $alle = avesmapsPoliticalTerritoryWikiNamespaces($pdo);
+        $out = [];
+        foreach ($ids as $id) {
+            $key = 'territory:' . $id;
+            if (isset($alle[$key])) {
+                $out[$key] = $alle[$key];
+            }
+        }
+
+        return $out;
+    }
+
+    // Der Feature-Typ zu dieser Objektart -- dieselbe Tafel, nur andersherum gelesen.
+    $featureType = array_search($entityType, AVESMAPS_MAP_FEATURES_KANON_ENTITY_TYPE_BY_FEATURE_TYPE, true);
+    if ($featureType === false) {
+        // ⚠️ ecosystem, citymap, lore: fuer sie kennt der Kanon-Leser kein Zuweisungsnest. Kein
+        // Namensraum heisst „keine Aussage" -- dort entscheiden die Quellen allein, wie bisher.
+        return [];
+    }
+
+    $platzhalter = implode(', ', array_fill(0, count($ids), '?'));
+    try {
+        $statement = $pdo->prepare(
+            "SELECT public_id, feature_type, properties_json
+               FROM map_features
+              WHERE is_active = 1 AND feature_type = ? AND public_id IN ($platzhalter)"
+        );
+        $statement->execute(array_merge([$featureType], $ids));
+        $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Throwable $fehler) {
+        // ⚠️ Protokolliert, nicht geschluckt: ein SQL-Fehler saehe sonst exakt aus wie „kein Objekt
+        // ist zugewiesen" -- die HY093-Falle von „Was ist hier?" (AGENTS.md §11).
+        error_log('avesmapsFeatureSourcesWikiNamespacesFuerKennungen: ' . $fehler->getMessage());
+
+        return [];
+    }
+
+    $features = [];
+    foreach ($rows as $row) {
+        $properties = json_decode((string) ($row['properties_json'] ?? ''), true);
+        if (!is_array($properties)) {
+            $properties = [];
+        }
+        // Die zwei Felder, an denen der geteilte Rechner das Objekt erkennt -- eine gespeicherte
+        // Zeile fuehrt sie nicht zwingend im JSON.
+        $properties['feature_type'] = (string) ($row['feature_type'] ?? '');
+        $properties['public_id'] = (string) ($row['public_id'] ?? '');
+        $features[] = ['properties' => $properties];
+    }
+
+    return avesmapsMapFeaturesWikiNamespaces($features);
+}
+
+/**
+ * Die gefragten Kennungen, geputzt: getrimmt, ohne Leere, ohne Dubletten, Reihenfolge erhalten.
+ *
+ * ⚠️ Eine leere Kennung erzeugte sonst den Schluessel „path:" und damit eine Antwort ueber ein
+ * Objekt, das es nicht gibt.
+ *
+ * @param list<mixed> $publicIds
+ * @return list<string>
+ */
+function avesmapsFeatureSourcesKanonKennungen(array $publicIds): array
+{
+    $ids = [];
+    foreach ($publicIds as $wert) {
+        if (!is_string($wert) && !is_int($wert)) {
+            continue;
+        }
+        $id = trim((string) $wert);
+        if ($id !== '' && !in_array($id, $ids, true)) {
+            $ids[] = $id;
+        }
+    }
+
+    return $ids;
+}
+
+/**
+ * DER REINE KERN DER KANON-AUSKUNFT -- ohne PDO, ohne Laden, ohne Datenbank.
+ *
+ * 💣 ER IST GESCHNITTEN, WEIL DIE FIXTURE ES SONST NICHT ZEIGEN KANN. Ein Test, der Katalog und
+ * Verweise in SQLite aufbaut und den PDO-Weg ruft, ist WIRKUNGSLOS: avesmapsLoadFeatureSourceRefs
+ * und avesmapsLoadFeatureSourceCatalog tragen beide avesmapsFeatureSourceLiveEntityClause mit
+ * `COLLATE utf8mb4_unicode_ci`, das SQLite nicht kennt -- und fangen die Ausnahme ab. Gemessen am
+ * 09.09.2026: beide geben dort still `[]` zurueck. Jede Zusicherung ueber ein abgeleitetes Etikett
+ * liefe gegen eine leere Eingabe. Dasselbe Muster wie avesmapsEcosystemReadChangeLog (AGENTS.md §11).
+ *
+ * 🔴 JEDE ANGEFRAGTE KENNUNG STEHT IN DER TAFEL, und die zwei Antworten sind NICHT dasselbe:
+ * `['kanon' => '']` heisst „nachgesehen, kein Etikett" und wird vom Client GESETZT; `null` heisst
+ * „unbelegt" und LOESCHT seinen Eintrag. Ein FEHLENDER Schluessel hiesse „nicht gefragt". Genau an
+ * dieser Unterscheidung haengt der Fehler vom 09.09.2026.
+ *
+ * @param list<string> $publicIds
+ * @param array<int|string, array<string, mixed>> $catalog
+ * @param array<string, list<array<string, mixed>>> $refs "typ:public_id" => Verweise
+ * @param array<string, int> $wikiNamespaces "typ:public_id" => Namensraum
+ * @return array<string, array{kanon:string, bezeichner_label?:string, bezeichner_type?:string, bezeichner_count?:int}|null>
+ */
+function avesmapsFeatureSourcesKanonAusEingaben(
+    string $entityType,
+    array $publicIds,
+    array $catalog,
+    array $refs,
+    array $wikiNamespaces
+): array {
+    $entityType = trim($entityType);
+    $ids = avesmapsFeatureSourcesKanonKennungen($publicIds);
+    if ($entityType === '' || $ids === []) {
+        return [];
+    }
+
+    // Nur die gefragten Kennungen. ⚠️ Das ist eine LAST-Massnahme, kein Korrektheitsriegel: die
+    // Ausgabeschleife unten laeuft ohnehin nur ueber `$ids`, eine Mutation zu `$refs` ist an der
+    // Antwort nicht messbar (nachgemessen 09.09.2026). Der Grund ist die Groesse -- der Vorrat
+    // traegt rund 5000 Schluessel, gefragt sind hoechstens AVESMAPS_PATH_GROUP_MAX_SEGMENTS.
+    $eigene = [];
+    foreach ($ids as $id) {
+        $key = $entityType . ':' . $id;
+        if (isset($refs[$key])) {
+            $eigene[$key] = $refs[$key];
+        }
+    }
+
+    $kanon = avesmapsFeatureSourcesDeriveKanon($catalog, $eigene, $wikiNamespaces);
+
+    $out = [];
+    foreach ($ids as $id) {
+        $key = $entityType . ':' . $id;
+        if (isset($kanon[$key])) {
+            $out[$id] = $kanon[$key];
+            continue;
+        }
+        // 💣 „KEIN ETIKETT" WIRD AUSDRUECKLICH GEMELDET, wenn das Objekt Verweise hat -- sonst
+        // loescht der Aufrufer seinen Abweichungseintrag und der Browser faellt auf die Vorgabe
+        // „offiziell" zurueck. Dieselbe Falle wie in der Nutzlast (api/app/map-features.php), nur
+        // eine Schreibaktion spaeter: wer eine Wiki-Zuweisung ENTFERNT, saehe sein Objekt sonst
+        // weiterhin als offiziell, bis er die Seite neu laedt.
+        $out[$id] = (isset($eigene[$key]) && $eigene[$key] !== []) ? ['kanon' => ''] : null;
+    }
+
+    return $out;
+}
+
+/**
+ * DAS KANON-ETIKETT VIELER OBJEKTE -- fuer die Antwort einer Quellen-Schreibaktion.
+ *
+ * 🚩 Owner-Meldung 09.09.2026, mit Bild: die Landschaftsflaeche „Schwanenbruch" trug am Kopf
+ * OFFIZIELL und darunter ihre einzige Quelle als „INOFFIZIELL │ Briefspiel". Der Client-Nachtrag
+ * (syncFeatureSourcesToClientCache) schreibt die Verweise in den Kartenspeicher, und
+ * resolveFeatureKanon (js/ui/popups.js) liest „Verweise da + keine Abweichung" als Vorgabe
+ * „offiziell". Diese Funktion liefert die fehlende Haelfte.
+ *
+ * 💣 EIN RECHNER FUER VIELE KENNUNGEN, weil der Wege-Verteiler bis zu
+ * AVESMAPS_PATH_GROUP_MAX_SEGMENTS Kennungen in EINER Anfrage schickt und der Garetien-Import viele
+ * Objekte je Lauf anlegt. Katalog und Verweise werden EINMAL geladen. avesmapsFeatureSourcesKanonFuerEines
+ * in eine Schleife zu stellen waere genau die Last, vor der CLAUDE.md warnt -- ihr eigener Docblock
+ * sagt es, und seit heute ruft sie ohnehin hier herein.
+ *
+ * @param list<string> $publicIds
+ * @param array<string, string> $wikiUrlJeKennung  Adressen, die der Aufrufer GERADE geschrieben hat.
+ *        Sie schlagen die gespeicherten -- er kennt sie genauer als ein zweiter Lesevorgang, der mit
+ *        ihm um die Reihenfolge konkurrierte. Eine ausdruecklich LEERE nimmt den gespeicherten Raum
+ *        zurueck, sonst saehe der Editor sein eigenes Entfernen einer Zuweisung nicht.
+ * @return array<string, array{kanon:string, bezeichner_label?:string, bezeichner_type?:string, bezeichner_count?:int}|null>
+ */
+function avesmapsFeatureSourcesKanonFuerMehrere(
+    PDO $pdo,
+    string $entityType,
+    array $publicIds,
+    array $wikiUrlJeKennung = []
+): array {
+    $entityType = trim($entityType);
+    $ids = avesmapsFeatureSourcesKanonKennungen($publicIds);
+    if ($entityType === '' || $ids === []) {
+        return [];
+    }
+
+    $raeume = avesmapsFeatureSourcesWikiNamespacesFuerKennungen($pdo, $entityType, $ids);
+    foreach ($wikiUrlJeKennung as $id => $wikiUrl) {
+        $key = $entityType . ':' . trim((string) $id);
+        // 🔴 MIT Hauptraum: der Aufrufer hat gerade eine Zuweisung GESCHRIEBEN, die Adresse ist also
+        // per Konstruktion eine echte -- und eine Hauptraum-Zuweisung macht seit dem 08.09.2026
+        // offiziell.
+        $ns = avesmapsWikiNamespaceFromWikiUrlMitHauptraum(trim((string) $wikiUrl));
+        if ($ns !== null) {
+            $raeume[$key] = $ns;
+        } else {
+            unset($raeume[$key]);
+        }
+    }
+
+    return avesmapsFeatureSourcesKanonAusEingaben(
+        $entityType,
+        $ids,
         avesmapsLoadFeatureSourceCatalog($pdo),
-        isset($refs[$key]) ? [$key => $refs[$key]] : [],
+        avesmapsLoadFeatureSourceRefs($pdo),
         $raeume
     );
-
-    // 💣 „KEIN ETIKETT" WIRD AUSDRUECKLICH GEMELDET, wenn das Objekt Verweise hat -- sonst
-    // loescht der Aufrufer seinen Abweichungseintrag und der Browser faellt auf die Vorgabe
-    // „offiziell" zurueck. Dieselbe Falle wie in der Nutzlast (api/app/map-features.php), nur
-    // eine Schreibaktion spaeter: wer eine Wiki-Zuweisung ENTFERNT, saehe sein Objekt sonst
-    // weiterhin als offiziell, bis er die Seite neu laedt.
-    if (isset($kanon[$key])) {
-        return $kanon[$key];
-    }
-
-    return isset($refs[$key]) && $refs[$key] !== [] ? ['kanon' => ''] : null;
 }
 
 /**

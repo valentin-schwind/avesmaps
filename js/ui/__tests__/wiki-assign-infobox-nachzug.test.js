@@ -96,7 +96,14 @@ pruefe(LIB.includes("function avesmapsFeatureSourcesKanonFuerEines("), "die Einz
 const ab = LIB.indexOf("function avesmapsFeatureSourcesKanonFuerEines(");
 const bis = LIB.indexOf("\nfunction ", ab + 1);
 const block = bis === -1 ? LIB.slice(ab) : LIB.slice(ab, bis);
-pruefe(block.includes("avesmapsFeatureSourcesDeriveKanon("),
+// 🪤 Bis zum 09.09.2026 stand hier der Wortlaut `avesmapsFeatureSourcesDeriveKanon(` -- und er
+// verbot eine Umbauform, die die Absicht dieser Zusicherung STRENGER erfüllt: seit dem
+// Quellen-Nachtrag geht der Einzelweg durch `avesmapsFeatureSourcesKanonFuerMehrere`, das seinerseits
+// den geteilten Kern ruft. Geprüft wird deshalb die Aussage, nicht die Buchstabenfolge: sie reicht
+// weiter, statt selbst zu rechnen. Der zweite Halbsatz unten (sie kennt keinen Etikettenwert) ist
+// der eigentliche Riegel und bleibt Zeichen für Zeichen stehen.
+pruefe(block.includes("avesmapsFeatureSourcesDeriveKanon(")
+	|| block.includes("avesmapsFeatureSourcesKanonFuerMehrere("),
 	"🔴 sie ruft die GETEILTE Ableitung -- keine zweite Rechnung für denselben Wert");
 pruefe(!/Wiki Aventurica/.test(block) && !/'inoffiziell'/.test(block),
 	"und sie kennt selbst keinen einzigen Etikettenwert");
