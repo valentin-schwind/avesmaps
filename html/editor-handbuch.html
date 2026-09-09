@@ -202,7 +202,7 @@
 <body>
 	<div class="hb-topbar">
 		<span class="hb-topbar__title">Avesmaps · Editor-Handbuch</span>
-		<span class="hb-topbar__meta">Stand: 09.09.2026</span>
+		<span class="hb-topbar__meta">Stand: 10.09.2026</span>
 		<div class="hb-topbar__actions">
 			<button type="button" class="theme-toggle-btn" aria-label="Auf dunkles Design umschalten" title="Design umschalten (hell/dunkel)">
 				<svg class="theme-toggle-ico theme-toggle-ico--sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2" /><g stroke-width="1.9" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="4.4" /><line x1="12" y1="19.6" x2="12" y2="22" /><line x1="2" y1="12" x2="4.4" y2="12" /><line x1="19.6" y1="12" x2="22" y2="12" /><line x1="4.9" y1="4.9" x2="6.6" y2="6.6" /><line x1="17.4" y1="17.4" x2="19.1" y2="19.1" /><line x1="4.9" y1="19.1" x2="6.6" y2="17.4" /><line x1="17.4" y1="6.6" x2="19.1" y2="4.9" /></g></svg>
@@ -1211,17 +1211,18 @@
 				<p>Pflanzen, Tiere, Spezies und Handelswaren aus dem Wiki — was wo wächst, lebt und gehandelt wird. Ein Vorkommen bekommt <strong>keinen eigenen Punkt auf der Karte</strong>. Es erscheint in der Infobox der Orte, Regionen, Wege und Gebiete, zu denen es gehört — bei Wegen und Routen-Etappen über die Landschaften, durch die sie führen. Eine <a href="#lebensraum-regeln">Lebensraum-Regel</a> wirkt auf alle diese Stellen.</p>
 				<p>Unter der Auswahl steht <em>ein</em> Knopf: <strong>„Vorkommen bearbeiten"</strong>. Er öffnet das Fenster und startet nichts. Das Datum des letzten Syncs steht in der Auswahlzeile selbst — oder „nie", solange der Bestand leer ist.</p>
 				<div class="hb-note hb-tip"><strong>Der Sync steht nicht im Reiter, sondern im Fenster</strong> — als 🚨-Kachel <strong>„Vorkommen syncen"</strong> in dessen Menüband. Er braucht mehrere Minuten. Manuelle und unterdrückte Einträge bleiben unangetastet.</div>
-				<p>Über der Liste stehen die Arten als Reiter: <strong>Alle · Fauna · Flora · Waren · Spezies</strong>. Alle vier Arten sind gleichberechtigt; <strong>Spezies</strong> erscheint in der Infobox als vierte Zeile unter Flora.</p>
+				<p>Die Arten stehen als Reiter über der Liste. Alle vier sind gleichberechtigt; <strong>Spezies</strong> erscheint in der Infobox als vierte Zeile unter Flora.</p>
 
 				<h5>Das Fenster</h5>
 				<p>Oben das <a href="#n-editoren">Menüband</a> mit vier Kacheln:</p>
-				<ul>
-					<li><strong>🚨 Vorkommen syncen</strong> — liest den Wiki-Dump und vergleicht. Siehe <em>Der Sync</em> unten.</li>
-					<li><strong>Fauna · Flora · Waren · Spezies</strong> — vier Schalter für die <em>öffentliche Anzeige</em>. Die Daten bleiben liegen und sind beim Zurückschalten sofort wieder da.</li>
-					<li><strong>Zugehörigkeit rechnen</strong> — öffnet den <a href="#landschaften">Landschaften</a>-Editor, wo du rechnest.</li>
-					<li><strong>Regeln ableiten</strong> — baut Regeln aus den Wiki-Feldern. Siehe <a href="#lebensraum-regeln">Lebensraum-Regeln</a>.</li>
-				</ul>
-				<div class="hb-note hb-warn"><strong>Eine Regel trifft nichts, solange die Flächen nicht gerechnet sind.</strong> Das „innerhalb von" einer <a href="#lebensraum-regeln">Lebensraum-Regel</a> liest die Zuordnung, die <strong>„Zugehörigkeit rechnen"</strong> anlegt — eine danach neu gezeichnete Fläche hat dort keine Zeile und ist für Regeln stumm, ohne Fehlermeldung. Die Kachel nennt in ihrer Unterzeile, wie viele Flächen offen sind, und öffnet den <a href="#landschaften">Landschaften</a>-Editor: gerechnet wird dort unter <em>„Rechnen ▾"</em>, von Hand, nie automatisch.</div>
+				<table class="hb-table">
+					<tr><th>Kachel</th><th>Was sie tut</th></tr>
+					<tr><td><strong>🚨 Vorkommen syncen</strong></td><td>Liest den Wiki-Dump und vergleicht. Siehe <em>Der Sync</em> unten.</td></tr>
+					<tr><td><strong>Fauna · Flora · Waren · Spezies</strong></td><td>Vier Schalter für die <em>öffentliche Anzeige</em>. Die Daten bleiben liegen und sind beim Zurückschalten sofort wieder da.</td></tr>
+					<tr><td><strong>Zugehörigkeit rechnen</strong></td><td>Öffnet den <a href="#landschaften">Landschaften</a>-Editor, wo du rechnest.</td></tr>
+					<tr><td><strong>Regeln ableiten</strong></td><td>Baut Regeln aus den Wiki-Feldern. Siehe <a href="#lebensraum-regeln">Lebensraum-Regeln</a>.</td></tr>
+				</table>
+				<div class="hb-note hb-warn"><strong>Eine Regel trifft nichts, solange die Flächen nicht gerechnet sind.</strong> Eine neu gezeichnete Fläche ist für <a href="#lebensraum-regeln">Regeln</a> stumm — ohne Fehlermeldung. Die Kachel nennt, wie viele offen sind; gerechnet wird im <a href="#landschaften">Landschaften</a>-Editor unter <em>„Rechnen ▾"</em>.</div>
 				<p>Darunter die Reiter <strong>Alle / Fauna / Flora / Waren / Spezies</strong> mit der jeweiligen Anzahl. <strong>„Alle"</strong> steht voran; dort nennt jede Zeile ihre Art dazu, damit sich „Bräubier" (Ware) und „Bräuwurm" (Fauna) auseinanderhalten lassen.</p>
 				<p>Das Fenster ist <strong>dreispaltig</strong> wie die anderen Editoren:</p>
 				<ul>
@@ -1229,7 +1230,6 @@
 					<li><strong>Mitte:</strong> „Stammdaten".</li>
 					<li><strong>Rechts:</strong> „Vorkommen".</li>
 				</ul>
-				<p>Über den beiden rechten Spalten steht Name und Art des gewählten Eintrags. Jede Spalte scrollt für sich, die drei Titel bleiben stehen.</p>
 				<h5>Der Trichter „Filter ▾"</h5>
 				<table class="hb-table">
 					<tr><th>Abschnitt</th><th>Wonach er auswählt</th></tr>
@@ -1242,7 +1242,7 @@
 				</table>
 				<p>Den Trichter gibt es in beiden Listen, im Reiter wie im Fenster. Gefiltert wird auf dem Server — die Auswahl greift auf den ganzen Bestand, nicht nur auf die geladenen Zeilen.</p>
 				<div class="hb-note hb-tip"><strong>„Kontinent" steht schon auf <em>Aventurien</em>.</strong> Diese Vorgabe markiert den Knopf nicht. Suchst du etwas aus Myranor oder Uthuria und findest es nicht, steht sie noch.</div>
-				<p><strong>Ein Klick auf eine Listenzeile öffnet den Editor</strong> für diesen Eintrag; er füllt die beiden rechten Spalten. Ein Klick auf eine andere Zeile wechselt direkt dorthin — <strong>„← Zurück zur Liste"</strong> brauchst du nur, um die beiden rechten Spalten zu leeren. Das Fenster bleibt dabei offen, und deine Änderungen gehen nicht verloren: Felder speichern beim Fokusverlust. Ein Klick in der Liste im Reiter dahinter öffnet das Fenster gleich mit dem passenden Eintrag.</p>
+				<p><strong>Ein Klick auf eine Listenzeile öffnet den Editor</strong> und füllt die beiden rechten Spalten. Ein Klick auf eine andere Zeile wechselt direkt dorthin; <strong>„← Zurück zur Liste"</strong> leert die Spalten nur. Nichts geht dabei verloren — Felder speichern beim Fokusverlust.</p>
 
 				<h5>Einen Eintrag bearbeiten</h5>
 				<p>Überschreibbar sind:</p>
@@ -1256,8 +1256,7 @@
 				<p><strong>Es gibt keinen Speichern-Knopf.</strong> Ein Feld wird gespeichert, sobald es den Fokus verliert, und trägt danach die Marke <strong>„von Hand"</strong>.</p>
 				<p>Darunter steht <strong>„Vorkommen"</strong> mit einer Zahl in Klammern — sie zählt die Ortszeilen <em>und</em> die Regelkarten darunter zusammen. Einen neuen Ort trägst du unten ins Feld <em>„Ort, Region oder Gebiet …"</em> und drückst <strong>„+ Ort"</strong>; das <strong>„×"</strong> am Ende einer Zeile nimmt einen wieder weg. Daneben sitzt <strong>„+ Regel"</strong> — siehe <a href="#lebensraum-regeln">Lebensraum-Regeln</a>.</p>
 				<p>Unter den Stammdaten stehen die <strong>Quellen</strong> — <strong>dieselbe Quellenverwaltung wie beim Ort, der Region, dem Weg und dem Gebiet</strong>: hinzufügen mit Titel, Link, Art und Seitenzahl, entfernen, und eine Vorschlagsliste über den geteilten Quellenkatalog. Was aus dem Publikationsteil des Wiki-Artikels stammt, steht unter <strong>„automatisch"</strong> — was du selbst einträgst, darunter.</p>
-				<div class="hb-note hb-tip"><strong>Nimm eine Quelle aus der Vorschlagsliste, wenn sie dort auftaucht.</strong> Dann hängt dein Eintrag an <em>demselben</em> Buch wie alle anderen, statt eine zweite Zeile für dasselbe Werk anzulegen. Der Katalog ist projektweit — ein Titel, den du hier sauber verknüpfst, ist überall sauber.</div>
-				<div class="hb-note hb-tip"><strong>Beim Ortsfeld gibt es keine Vorschlagsliste.</strong> Anders als die Quellen darüber und anders als beim Literatur-Editor ist es ein reines Textfeld — der Name muss also stimmen. Schau im Zweifel vorher nach, wie der Ort auf der Karte heißt.</div>
+				<div class="hb-note hb-tip"><strong>Zwei Felder, zwei Regeln.</strong> Bei den <strong>Quellen</strong> nimm den Vorschlag aus der Liste — dann hängt dein Eintrag am selben Buch wie alle anderen. Beim <strong>Ortsfeld</strong> gibt es keine Vorschläge: es ist ein reines Textfeld, der Name muss stimmen.</div>
 				<div class="hb-note hb-warn"><strong>Was du von Hand tust, überlebt jeden weiteren Sync.</strong> Überschriebene Felder bleiben stehen. Ein entfernter Wiki-Ort wandert unter <strong>„Entfernte Wiki-Orte"</strong> und kommt nicht zurück, auch wenn das Wiki ihn weiter nennt — mit <strong>„wieder aufnehmen"</strong> holst du ihn selbst zurück. Dasselbe gilt für Quellen: eine entfernte Wiki-Quelle bleibt entfernt, eine selbst eingetragene bleibt stehen. Und ein Feld, das du wieder <em>leerst</em>, gibst du damit ans Wiki zurück: Beim nächsten Sync steht dort erneut der Wiki-Wert.</div>
 
 				<h5 id="lebensraum-regeln">Lebensraum-Regeln — statt hundert Orte einzeln</h5>
@@ -1272,7 +1271,7 @@
 				<div class="hb-note hb-tip"><strong>Ohne Landschaftsart meint das Feld die Fläche <em>selbst</em>.</strong> „Almada" allein trifft genau diese eine Fläche, nicht die vierzehn Wälder darin — ein Ort, keine Auswahl. Welche der beiden Lesarten gerade gilt, sagt dir der ausgeschriebene Satz.</div>
 				<p>Unten steht <strong>„Was die Regel trifft"</strong> — wie viele Flächen und Orte gerade zutreffen, mit dem Rechenweg je Bedingung. Die Zahl wird kurz nach jeder Änderung neu geholt; <em>„wird berechnet …"</em> ist also kein Fehler. <strong>„Regel übernehmen"</strong> speichert, <strong>„Regel löschen"</strong> nimmt sie wieder weg, <strong>„Abbrechen"</strong> verwirft.</p>
 				<div class="hb-note hb-warn"><strong>Jede einzelne Bedingung muss etwas einschränken.</strong> Nicht nur die Regel als Ganzes: Bleiben in <em>einer</em> Bedingung alle drei Felder leer, träfe die Regel alles, und gespeichert wird sie nicht. Der Editor sagt vorher, welche gemeint ist — <em>„Bedingung 2 schränkt nichts ein"</em> —, und die Trefferanzeige bleibt so lange auf <em>„Noch keine Einschränkung"</em> stehen. Entweder du füllst die Bedingung, oder du nimmst sie heraus.</div>
-				<div class="hb-note hb-tip"><strong>Regelkarten stehen hinter den Orten in derselben Liste und tragen die Marke „von Hand".</strong> Eine Regel legst immer du an, nie der Wiki-Abgleich — sie überlebt jeden Sync. Die Trefferzahl siehst du nur im geöffneten Regeleditor.</div>
+				<p>Regelkarten stehen hinter den Orten in derselben Liste und tragen die Marke <strong>„von Hand"</strong>. Eine Regel legst immer du an, nie der Wiki-Abgleich — sie überlebt jeden Sync. Die Trefferzahl siehst du nur im geöffneten Regeleditor.</p>
 
 				<h5>Der Sync</h5>
 				<p>Ein Klick auf die 🚨-Kachel erledigt beides hintereinander: erst den Dump lesen, dann vergleichen. Der Fortschritt läuft in der Kachel selbst mit („Dump lesen … 12.000 Seiten · 900 Einträge", dann „vergleichen … 300/5100"), damit darunter nichts verspringt. <strong>Geschrieben wird dabei nichts.</strong> Am Ende steht, was der Lauf gefunden hat („17 Unterschiede — Vorschau offen: 4 neu, 11 geändert, 2 stillzulegen"), und die <a href="#uebernahme">Übernahme-Vorschau</a> geht auf. Erst dein <strong>„Übernehmen"</strong> darin schreibt. Das Datum in „zuletzt gesynct" rückt dagegen mit <em>jedem</em> Lauf vor — auch wenn es nichts zu übernehmen gab.</p>
@@ -1389,13 +1388,21 @@
 				<table class="hb-table">
 					<tr><th>Knopf</th><th>Was er tut</th></tr>
 					<tr><td><strong>Auf die Stage</strong></td><td>Legt das Objekt zur Ansicht auf die Karte. Schreibt nichts.</td></tr>
-					<tr><td><strong>Von der Stage nehmen</strong></td><td>Nimmt es wieder herunter. Derselbe Fleck, sobald es oben liegt.</td></tr>
+					<tr><td><strong>Von der Stage nehmen</strong></td><td>Nimmt es wieder herunter — in der Knopfzeile unter den Häkchen.</td></tr>
 					<tr><td><strong>Innerorts einfügen (Stadt)</strong></td><td>Schnellweg: legt es <strong>sofort</strong> als Stätte <em>in</em> der Stadt an, die im Knopf steht — ohne eigene Kartenposition.</td></tr>
 					<tr><td><strong>Ablehnen</strong></td><td>Verwirft das Objekt. Als einziger <strong>rot</strong>.</td></tr>
 					<tr><td><strong>Wieder vorschlagen</strong></td><td>Holt ein abgelehntes Objekt zurück nach <em>Offen</em>.</td></tr>
 				</table>
-				<div class="hb-note hb-tip"><strong>Die zweite Zeile von „Auf die Stage" sagt, was der Import wirklich tut.</strong> <em>„als Fluss"</em> legt ein neues Objekt an. <em>„ergänzt nur die Quelle"</em> hängt Quelle und Artikel an ein bestehendes. <em>„nur Ansicht"</em> heißt: hier gibt es nichts zu importieren, du siehst es nur. <em>„zusätzlich als …"</em> heißt: der Abgleich hat etwas Ähnliches gefunden, das Objekt kommt trotzdem als eigenes dazu — dafür kommt eine Rückfrage.</div>
 				<p>Ein <strong>übernommenes</strong> Objekt zeigt statt dieser Knöpfe drei andere: <strong>„Zurücknehmen"</strong> holt es von der Karte zurück, <strong>„Ablehnen"</strong> nimmt es zurück <em>und</em> legt es nach <em>Abgelehnt</em>, <strong>„Zurück nach Offen"</strong> stellt es wieder zur Entscheidung.</p>
+				<h4>Was eingefügt wird: die zwei Häkchen</h4>
+				<p>Sie stehen <strong>erst, wenn das Objekt auf der Stage liegt</strong> — vorher gibt es nichts zu entscheiden. Darüber das Feld <strong>Name</strong>: es sagt, <em>was</em> angelegt wird, die Häkchen sagen <em>wie</em>. Leer heißt „unverändert".</p>
+				<table class="hb-table">
+					<tr><th>Häkchen</th><th>Was es bewirkt</th></tr>
+					<tr><td><strong>Als Quelle einfügen</strong></td><td>Hängt Quelle und Artikel an ein <em>bestehendes</em> Objekt.</td></tr>
+					<tr><td><strong>Neu einfügen</strong></td><td>Legt ein neues Objekt an. Die Quelle kommt dabei immer mit.</td></tr>
+				</table>
+				<p>Deine Wahl bleibt am Objekt hängen: nimmst du es von der Stage und legst es wieder auf, stehen die Häkchen so, wie du sie gesetzt hast.</p>
+				<div class="hb-note hb-tip"><strong>Steht <em>„Nichts einzufügen — nur Ansicht."</em>, ist das kein Fehler.</strong> Dieses Objekt hat nichts anzulegen; du siehst es nur. Und ist im Feld <strong>„Innerorts"</strong> eine Stadt gewählt, fällt <em>„Neu einfügen"</em> ganz weg — die Stadt <em>ist</em> dann der Zielort.</div>
 				<div class="hb-note hb-warn"><strong>Bei der Lage gewinnt die Karte.</strong> Steht der Ort schon auf ihr, verschieb ihn nicht — auch wenn die Quelle ihn zehn Meilen weiter setzt. Warum, und die eine Ausnahme: <a href="#v-karte">Die Originalkarte ist unsere Datengrundlage</a>.</div>
 				<h4>Innerorts statt auf die Karte</h4>
 				<p>Ein Bauwerk kann als <strong>Stätte in einer Stadt</strong> landen statt als eigener Punkt. Im Kasten <strong>„Eingefügt wird"</strong> steht dafür die Zeile <strong>„Innerorts"</strong> mit allen Städten in Reichweite, nach Entfernung sortiert. Vorgewählt ist <strong>„— auf die Karte —"</strong>; wählst du eine Stadt, sagt die Zeile darunter, was das heißt — kein Kartenpunkt, und Form und Art gelten dafür nicht.</p>
@@ -1791,7 +1798,7 @@
 					<tr><td><strong>Ortsgröße</strong></td><td>Dorf · Kleinstadt · Stadt · Großstadt · Metropole · Besondere Bauwerke/Stätten · Stadtviertel</td></tr>
 					<tr><td><strong>Wegtyp</strong></td><td>Reichsstraße · Straße · Weg · Pfad · Gebirgspass · Wüstenpfad · Flussweg · Seeweg</td></tr>
 					<tr><td><strong>Transportmittel</strong></td><td>Karawane · Reisegruppe zu Fuß · Zu Fuß · Kutsche · Reisegruppe beritten · Reiter · Flusssegler · Flusskahn · Lastensegler · Schnellsegler · Galeere</td></tr>
-					<tr><td><strong>Region: Art</strong></td><td><em>alphabetisch, wie im Feld:</em> Auenlandschaft · Berggipfel · Berg-/Hügelkette · Dschungel · Ebene · Felsformation · Fluss · Flussdelta · Flussland/Flusstal · Gebirge · Graslandschaft · Hochebene · Hügel · Hügelland · Insel · Inselgruppe · Kontinent · Kulturlandschaft · Küste · Meer · Region · Schlucht · See · Sonstiges · Steppe · Sümpfe &amp; Moore · Tal · Tiefebene · Tundra · Urwald · Vor-/Mittelgebirge · Vulkan · Wadi · Wald · Wüste · Wüstenoase. Vorausgewählt ist <strong>Region</strong>, nicht der erste Eintrag.</td></tr>
+					<tr><td><strong>Region: Art</strong></td><td><em>alphabetisch, wie im Feld:</em> Auenlandschaft · Berggipfel · Berg-/Hügelkette · Dschungel · Ebene · Felsformation · Fluss · Flussdelta · Flussland/Flusstal · Gebirge · Graslandschaft · Hochebene · Hügel · Hügelland · Insel · Inselgruppe · Kontinent · Kulturlandschaft · Küste · Meer · Region · Schlucht · See · Sonstiges · Steppe · Sümpfe &amp; Moore · Tal · Tiefebene · Tundra · Urwald · Vulkan · Wadi · Wald · Wüste · Wüstenoase. Vorausgewählt ist <strong>Region</strong>, nicht der erste Eintrag.</td></tr>
 					<tr><td><strong>Quellentyp</strong></td><td>Regionalspielhilfe · Abenteuer · Aventurischer Bote · Quellenband · Roman · Briefspiel · Regelbuch · Sonstiges</td></tr>
 				</table>
 
