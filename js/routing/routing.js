@@ -180,7 +180,6 @@ const prepareLocationData = (data) => {
 				// nachgesehen") -- und ohne ihn im Marker-Eintrag startet das Häkchen im Dialog
 				// „Ort bearbeiten" immer leer, ein beliebiges Speichern nähme die Entscheidung
 				// zurück, und der Leseweg riete die Adresse wieder her (Discord #38).
-				wikiNoArticle: Boolean(feature.properties.wiki_no_article),
 				// 🔴 Die FELDHERKUNFT: welcher der fünf Wiki-Werte kam aus dem Wiki, welchen haben
 				// WIR gesetzt (Entwurf 2026-08-17-wiki-override-fuer-alle-design.md). Sie muss hier
 				// stehen, weil die Nutzlast FLACH projiziert wird -- ein `location.properties` gibt

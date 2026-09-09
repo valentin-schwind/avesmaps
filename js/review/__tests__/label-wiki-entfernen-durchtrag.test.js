@@ -45,7 +45,7 @@ vm.runInContext(lies("js/review/review-label-wiki.js"), wiki, { filename: "revie
 
 const nest = { wiki_key: "lawaral-r", name: "Lawaralîr", art: "Wald", wiki_url: "https://de.wiki-aventurica.de/wiki/Lawaral%C3%AEr" };
 
-wiki.setLabelWikiRegion(nest, false, null);
+wiki.setLabelWikiRegion(nest, null);
 assert.strictEqual(wiki.getLabelWikiRegionGeaendert(), false, "geladen und nicht angefasst: nichts geaendert"); checks++;
 
 wiki.labelWikiAssignLoesen();
@@ -62,7 +62,7 @@ vm.runInContext('currentLabelWikiRegion = Object.assign({}, currentLabelWikiRegi
 assert.strictEqual(wiki.getLabelWikiRegionGeaendert(), true, "ein aufgefrischtes Nest mit demselben Schluessel ist eine Aenderung"); checks++;
 
 // Ohne Zuweisung geladen und ohne Zuweisung gelassen: nichts.
-wiki.setLabelWikiRegion(null, false, null);
+wiki.setLabelWikiRegion(null, null);
 assert.strictEqual(wiki.getLabelWikiRegionGeaendert(), false, "leer geladen, leer gelassen"); checks++;
 wiki.labelWikiAssignLoesen();
 assert.strictEqual(wiki.getLabelWikiRegionGeaendert(), false, "Entfernen ohne Zuweisung aendert nichts"); checks++;
@@ -117,6 +117,28 @@ rumpf = baueRumpfSandkasten({ getLabelWikiRegionPayload: () => null, getLabelWik
 	.buildLabelEditPayload(formular("lbl-1"));
 assert.ok(Object.prototype.hasOwnProperty.call(rumpf, "wiki_region") && rumpf.wiki_region === null,
 	"geloest: `wiki_region: null` steht ausdruecklich im Rumpf"); checks++;
+
+// 🔴 UND DER MERKER STEHT IN KEINEM DIESER RUEMPFE. `properties.wiki_no_article` ist am
+// 09.09.2026 global ausgebaut (Owner-Entscheid); der Label-Rumpf schickte ihn bis dahin ueber
+// `getLabelWikiNoArticlePayload`, und diese Funktion ist mitgefallen.
+// 💣 DIESE ZUSICHERUNG FEHLTE, UND DAS IST DIE WIEDERHOLUNG EINES FEHLERS AUS SCHRITT 1:
+// fuer die zwei ORT-Bauer gibt es einen Waechter (ort-wiki-no-article-test.php), fuer
+// `update_region` gleich vier, fuer `saveLine` einen -- fuer den LABEL-Rumpf gab es keinen.
+// Eine Rueckkehr des Transports haette hier niemand gefangen. Gefunden von einem Pruefagenten.
+// ⭐ Gemessen wird der AUSGEFUEHRTE Rumpf, nicht der Quelltext: ein Regex kennt keinen
+// Geltungsbereich, ein ausgefuehrter Bauer schon.
+[
+	{ getLabelWikiRegionPayload: () => nest, getLabelWikiRegionGeaendert: () => false },
+	{ getLabelWikiRegionPayload: () => nest, getLabelWikiRegionGeaendert: () => true },
+	{ getLabelWikiRegionPayload: () => null, getLabelWikiRegionGeaendert: () => true },
+].forEach((haken, i) => {
+	["lbl-1", ""].forEach((id) => {
+		const gebaut = baueRumpfSandkasten(haken).buildLabelEditPayload(formular(id));
+		assert.ok(!Object.prototype.hasOwnProperty.call(gebaut, "wiki_no_article"),
+			"Fall " + i + "/" + (id || "create") + ": der gefallene Merker steht wieder im Label-Rumpf");
+		checks++;
+	});
+});
 
 // (d) create -> immer, es gibt keinen geladenen Stand.
 rumpf = baueRumpfSandkasten({ getLabelWikiRegionPayload: () => nest, getLabelWikiRegionGeaendert: () => false })

@@ -65,13 +65,6 @@ function normalizeLabelFeature(feature) {
 		showName: (properties.show_name ?? feature.show_name) !== false,
 		revision: Number(properties.revision ?? feature.revision) || null,
 		wikiRegion: properties.wiki_region && typeof properties.wiki_region === "object" ? properties.wiki_region : null,
-		// 🔴 DER DRITTE ZUSTAND („Kein Wiki-Artikel vorhanden"), seit 16.08.2026 auch am Label. Er ist
-		// NICHT aus `wikiRegion` ableitbar: „keine Zuweisung" heisst „noch niemand hat nachgesehen",
-		// der Merker heisst „jemand HAT nachgesehen und es gibt keinen". Genau diese negative Aussage
-		// nimmt das Label aus der Beobachtungsliste des Konfliktzentrums
-		// (api/_internal/conflicts/rules.php liest denselben Schlüssel serverseitig).
-		// ⚠️ Nur ein ausdrückliches `true` setzt ihn -- als `false` wird er nirgends abgelegt.
-		keinArtikel: properties.wiki_no_article === true,
 		// 🔴 Die FELDHERKUNFT (`{text|feature_subtype: "manual"|"wiki"}`). Sie steht seit dem
 		// 18.08.2026 in der Ablage und reist im Kartenpayload ohnehin mit (`properties` geht dort
 		// unverändert heraus, nur `svg_id` fällt) -- gefehlt hat nur diese Zeile. Ohne sie wüsste

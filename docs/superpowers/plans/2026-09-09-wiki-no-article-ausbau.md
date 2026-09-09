@@ -252,13 +252,31 @@ geladenes Editor-Blatt dabei ist (AGENTS.md §7).
 `grep -n '?v=' <die .php-Seite, die deine Datei lädt>`.
 
 **Schritte**
-- [ ] 2.1 Tests umschreiben → ROT.
-- [ ] 2.2 Transport entfernen, Kopf-Vertrag von `wiki-assign.js` nachziehen.
-- [ ] 2.3 `ASSET_VERSION` / `?v=` prüfen.
-- [ ] 2.4 Ganzes Testfeld.
-- [ ] 2.5 Agent widerlegt den Diff.
-- [ ] 2.6 `usability-konsistenz` (Editorfenster verlieren eine Zeile).
-- [ ] 2.7 Owner → Commit + Push.
+- [x] 2.1 Tests umschreiben → ROT.
+- [x] 2.2 Transport entfernen, Kopf-Vertrag von `wiki-assign.js` nachziehen.
+- [x] 2.3 `ASSET_VERSION` / `?v=` geprüft — **kein Bump nötig** (alle geänderten Dateien werden vom
+      Deploy automatisch gestempelt; keine ist Quelle des gescopten Bauprodukts).
+- [x] 2.4 Ganzes Testfeld.
+- [x] 2.5 Agent widerlegt den Diff.
+- [ ] 2.6 Owner → Commit + Push.
+
+### Was der Prüfagent gefunden hat (elf Befunde, alle behoben)
+
+| Befund | Behoben durch |
+|---|---|
+| 💣 **Die Karten-Bedingung war NICHT äquivalent.** `citymap.no_article` ist eine eigene Spalte und bleibt; bis hierher löschte eine Zuweisung sie über `kein_artikel_geaendert`. Mein Ersatz fragte nur „steht ein Artikel da" — das hätte bei **jedem** Speichern einer Karte mit Artikel UND Merker die Spalte mitgeschickt, also dort, wo vorher nie etwas mitreiste | zweiter Bezugspunkt `ceWikiZugewiesen`, gesetzt im `zuweisen:`-Rückruf; Bedingung ist jetzt „trug die Spalte UND wurde in dieser Sitzung zugewiesen". Der fehlende Testfall ist ergänzt und **gegen die falsche Bedingung gefahren: er wird rot** |
+| 🪤 **Die tragende Begründung war falsch.** Drei Stellen begründeten die Zurückhaltung mit „die Entscheidung des Konfliktzentrums" — das fasst `citymap.no_article` **nie** an (`grep citymap repair.php` → 0). Seit dem 16.08.2026 setzt die Spalte überhaupt niemand mehr auf 1 | Begründung in Editor und Test korrigiert; die Zurückhaltung bleibt, ihr Grund ist ein anderer |
+| **`zeichneSchreibzustand` hatte keinen Aufrufer mehr** — der teilweise Zeichenweg existierte nur für das Häkchen | gefallen, mit einer Notiz, was ein künftiger zweiter Auslöser wieder braucht |
+| **Zwei Tests riefen `setLabelWikiRegion` mit alter Arität** — folgenlos, aber der falsche Vertrag | mitgezogen |
+| **VAKUUM in `wiki-assign-landschaft.test.js`** — das `true` landete seit der Signaturänderung als `fieldOrigins` und wurde verworfen; die Zeile maß denselben Fall wie die drei darüber | gestrichen, mit der Begründung an ihrer Stelle |
+| 💣 **Kein ausführender Wächter für `buildLabelEditPayload`** — für Ort, Region und Kraftlinie gab es je einen, für den Label-Rumpf keinen. **Das ist die Wiederholung des Schritt-1-Fehlers** | sechs ausgeführte Zusicherungen ergänzt (drei Hakenlagen × update/create) |
+| **Umgedrehte PHP-Zusicherung las Kommentare mit** — als „steht drin" egal, als „steht NICHT drin" wird jeder künftige Kommentar zum falschen Roten | Kommentarfilter ergänzt, wie ihn der Nachbartest längst hat |
+| **Sieben verwaiste Kommentarblöcke**, die sich nach dem Löschen an die nächste Zeile gehängt hatten (zweimal stand „ein WERT, keine Lesefunktion" unmittelbar über „eine LESEFUNKTION, kein Wert" — beide über demselben Feld) | alle aufgelöst |
+| **Weitere tote Begründungen** in nicht geänderten Dateien | die im Umfang liegenden korrigiert |
+| **Tote dritte Spalte** in `MARKER_ERZEUGER` | entfernt |
+| **Weichere JS-Zusicherung als die PHP-Wächter** (`!== true` gegen „Schlüssel ganz verboten") | angeglichen |
+
+**Messung Schritt 2:** JS 0 rot · PHP 1 rot (`link-url-test.php`, vorbestehender DNS-Abruf).
 
 ---
 

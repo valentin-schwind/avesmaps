@@ -256,7 +256,8 @@ function avesmapsWikiAssignLiteraturZustand(quelle) {
 		// 🪤 KEIN dritter Zustand -- die Literatur kann den Merker nicht tragen. Die Messung samt den
 		// drei Gruenden steht im Register (js/ui/wiki-assign-registry.js, Objektart `literatur`); hier
 		// steht er ausdruecklich auf `false`, damit niemand ihn fuer vergessen haelt.
-		keinArtikel: false,
+		// 🔴 HIER STAND `keinArtikel: false` -- der dritte Zustand, gefallen am 09.09.2026 mit dem
+		// Merker `properties.wiki_no_article` (Owner-Entscheid). Aequivalent ist die Zuweisung.
 		kartenwerte: avesmapsWikiAssignLiteraturKartenwerte(quelle, AVESMAPS_WIKI_ASSIGN_LITERATUR_KARTENFELDER),
 		// ⭐ DIE EINZIGE OBJEKTART MIT ECHTER FELDHERKUNFT (siehe Kopf, Punkt 4).
 		herkunft: avesmapsWikiAssignLiteraturHerkunft(quelle.field_origins),

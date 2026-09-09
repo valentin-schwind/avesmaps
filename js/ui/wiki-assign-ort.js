@@ -23,13 +23,13 @@
 //     Zuweisung.
 //   · `properties.wiki_url`         -- ein FLACHES Feld daneben, das jedes Speichern des Ortes
 //     mitschickt (buildLocationEditPayload, js/review/review-locations.js; buildSettlementSavePayload,
-//     html/wiki-sync-settlement-editor.html) und das der Leseweg bei Leere per Namensraten wieder
-//     fuellt (avesmapsEnrichMapFeatureWikiUrl, api/app/map-features.php). Es ist NICHT die Zuweisung,
+//     html/wiki-sync-settlement-editor.html) und das `avesmapsEnrichMapFeatureWikiUrl`
+//     (api/app/map-features.php) bei Leere aus der ZUWEISUNG ableitet. Es ist NICHT die Zuweisung,
 //     es haengt nur daran.
-//   · `properties.wiki_no_article` -- der DRITTE Zustand, seit 16.08.2026 auch vom Ort schreibbar
-//     (avesmapsApplyPointWikiFields, api/_internal/map/features.php). Er sagt „ein Editor hat
-//     nachgesehen, es gibt keinen Artikel", und genau diese negative Aussage laesst den Leseweg das
-//     Raten unterlassen. Ohne ihn hielt kein „Entfernen" ueber ein Neuladen der Karte (Discord #38).
+//     🔴 Bis zum 08.09.2026 riet der Leseweg es aus dem NAMEN nach; `420f12cfc` hat das
+//     zurueckgebaut. DESHALB ist der dritte Zustand gefallen: `properties.wiki_no_article` war die
+//     negative Aussage, die das Raten unterband („ein Editor hat nachgesehen, es gibt keinen"), und
+//     ohne Raten braucht es sie nicht mehr. Global ausgebaut am 09.09.2026, Owner-Entscheid.
 //
 // 🔴 Dieselbe Verwechslungsklasse wie bei den Stadtplaenen (`wiki_key` gegen `wiki_url`, Entwurf §8).
 // Wer hier `wiki_url` liest, wo `wiki_settlement` gemeint ist, baut die Falle nach.
@@ -281,7 +281,7 @@ function avesmapsWikiAssignOrtArtikel(wikiSettlement) {
  * Merker nach Durchsicht aller 10 Traeger abgeschafft. Wer den Satz oben wieder aufnimmt, nimmt
  * den Merker wieder auf.
  *
- * @param {Object|null} quelle { wiki_settlement, kein_artikel, name, feature_subtype, einwohner,
+ * @param {Object|null} quelle { wiki_settlement, name, feature_subtype, einwohner,
  *   lage, oberhaupt } -- jedes Kartenfeld je Wert ODER Lesefunktion.
  */
 function avesmapsWikiAssignOrtZustand(quelle) {
@@ -301,7 +301,8 @@ function avesmapsWikiAssignOrtZustand(quelle) {
 	});
 	return {
 		artikel: avesmapsWikiAssignOrtArtikel(quelle.wiki_settlement),
-		keinArtikel: quelle.kein_artikel === true,
+		// 🔴 HIER STAND `keinArtikel` -- der dritte Zustand, gefallen am 09.09.2026 mit dem
+		// Merker `properties.wiki_no_article` (Owner-Entscheid). Aequivalent ist die Zuweisung.
 		kartenwerte: kartenwerte,
 		herkunft: avesmapsWikiAssignOrtHerkunft(quelle.field_origins),
 	};

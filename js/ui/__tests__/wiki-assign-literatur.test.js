@@ -183,7 +183,9 @@ const ZUSTAND = avesmapsWikiAssignLiteraturZustand({
 	title: () => getippterTitel, product_type: "gruppenabenteuer", edition: "", genre: "Krimi",
 	complexity_gm: "", complexity_pl: "", authors: "", series: "", fshop_code: "", isbn: "",
 });
-assert.strictEqual(ZUSTAND.keinArtikel, false, "die Literatur kann den dritten Zustand nicht tragen");
+// 🔴 DER DRITTE ZUSTAND IST GEFALLEN (Owner-Entscheid 09.09.2026) -- der Zustand traegt
+// `keinArtikel` nicht mehr. Ein Altbestand-Merker in der Quelle darf NICHTS mehr erzeugen.
+assert.ok(!("keinArtikel" in ZUSTAND), "die Literatur traegt den gefallenen dritten Zustand wieder");
 assert.deepStrictEqual(ZUSTAND.herkunft, { genre: "manual" });
 // 💣 LESEFUNKTIONEN, NICHT WERTE: `laden` läuft EINMAL, die Vorschau entsteht erst beim Druck auf
 // „Sync" -- dazwischen kann getippt worden sein.
@@ -643,8 +645,10 @@ function standardAntwort(adresse, rumpf) {
 	zaehl(); zaehl();
 
 	// ── H) 🔴 KEIN DRITTER ZUSTAND -- IM GEZEICHNETEN KASTEN, NICHT NUR IM REGISTER ──────────
-	assert.strictEqual(avesmapsWikiAssignSubject("literatur").extra.keinArtikelHaken, false,
-		"die Erklaerung bietet den dritten Zustand an");
+	// 🔴 Der SCHLUESSEL ist am 09.09.2026 ganz gefallen, nicht nur sein Wert -- der Merker
+	// `properties.wiki_no_article` ist global ausgebaut (Owner-Entscheid).
+	assert.ok(!("keinArtikelHaken" in (avesmapsWikiAssignSubject("literatur").extra || {})),
+		"die Erklaerung fuehrt den gefallenen dritten Zustand wieder");
 	assert.ok(!/data-wa-kein-artikel/.test(frischHost.innerHTML),
 		"das Haekchen „Kein Wiki-Artikel vorhanden“ steht im Kasten, obwohl die Literatur es nicht tragen kann");
 	zaehl(); zaehl();

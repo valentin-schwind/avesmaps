@@ -56,7 +56,6 @@ const AVESMAPS_WIKI_ASSIGN_REGISTRY = {
 			// einen fehlenden Schluessel seit dem 16.08.2026 als „nicht geaendert"
 			// (avesmapsUpdatePowerlineLine). Beide Haelften gehoeren zusammen: mit dem alten
 			// `?? false` haette JEDES Speichern die Entscheidung des Konfliktzentrums geloescht.
-			keinArtikelHaken: false,
 		},
 	},
 	weg: {
@@ -129,7 +128,6 @@ const AVESMAPS_WIKI_ASSIGN_REGISTRY = {
 			// (Owner-Entscheid 16.08.2026, ausgeschrieben an der Schreibstelle). Das ist KEINE Regel des
 			// Haekchens gewesen, sondern eine des Merkers -- sie gilt jetzt fuer die Reparatur des
 			// Konfliktzentrums genauso und bleibt deshalb unangetastet.
-			keinArtikelHaken: false,
 		},
 	},
 	ort: {
@@ -302,7 +300,6 @@ const AVESMAPS_WIKI_ASSIGN_REGISTRY = {
 			// fehlender Schluessel heisst „nicht geaendert", und eine ZUWEISUNG beantwortet den Merker
 			// von selbst (`if (!$gefordert && $noArticle && $effectiveWikiUrl !== '')`). Der Server
 			// braucht dafuer keine Zeile Aenderung -- gemessen, nicht angenommen.
-			keinArtikelHaken: false,
 		},
 	},
 	// 🔴 DIE ZWEITE HAELFTE DER LANDSCHAFT -- und eine EIGENE Objektart, gemessen, nicht angenommen.
@@ -477,7 +474,6 @@ const AVESMAPS_WIKI_ASSIGN_REGISTRY = {
 			// 🔧 Der ehrliche Weg waere eine Spalte an `political_territory` plus ein Schreibweg in
 			// `update_territory` plus die zwei Zeilen in der Konfliktregel -- eine Owner-Entscheidung,
 			// kein Nachtrag. Hier nichts erfinden.
-			keinArtikelHaken: false,
 		},
 	},
 	literatur: {
@@ -583,7 +579,6 @@ const AVESMAPS_WIKI_ASSIGN_REGISTRY = {
 			// 🔧 Der ehrliche Weg waere eine Spalte an `adventure`, ein Schreibweg in
 			// `upsert_adventure`, der Riegel in der Adoption und zwei Zeilen in der Konfliktregel --
 			// eine Owner-Entscheidung, kein Nachtrag. Hier nichts erfinden.
-			keinArtikelHaken: false,
 		},
 	},
 	karte: {
@@ -684,7 +679,6 @@ const AVESMAPS_WIKI_ASSIGN_REGISTRY = {
 			// Haekchen, sondern an der ZUWEISUNG: `kein_artikel_geaendert` kann jetzt nur noch wahr
 			// werden, wenn `trefferWaehlen` den Merker beantwortet hat. Sie zu loeschen liesse eine
 			// Karte mit Artikel UND `no_article = 1` zurueck.
-			keinArtikelHaken: false,
 		},
 	},
 };

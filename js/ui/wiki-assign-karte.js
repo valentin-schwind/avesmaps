@@ -190,7 +190,8 @@ function avesmapsWikiAssignKarteZustand(quelle) {
 	}
 	return {
 		artikel: avesmapsWikiAssignKarteArtikel(quelle, quelle.kandidat || null),
-		keinArtikel: quelle.no_article === true,
+		// 🔴 HIER STAND `keinArtikel` -- der dritte Zustand, gefallen am 09.09.2026 mit dem
+		// Merker `properties.wiki_no_article` (Owner-Entscheid). Aequivalent ist die Zuweisung.
 	};
 }
 

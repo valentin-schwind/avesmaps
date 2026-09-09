@@ -101,12 +101,6 @@ function pathWikiZustand() {
 	}
 	return avesmapsWikiAssignWegZustand({
 		wiki_path: pathWikiCurrentAssignment(),
-		// 🔴 Der dritte Zustand kommt aus dem Kartenpayload: der reicht ALLE Eigenschaften des Features
-		// durch (api/app/map-features.php), und `update_path_details` schreibt den Merker seither in
-		// genau dieses Feld zurueck (applyPathFeatureResponse mischt die Antwort hinein).
-		// ⚠️ Ein WERT, keine Lesefunktion -- anders als der Wegtyp darunter. Das Haekchen wohnt IM
-		// Bauteil; ausserhalb gibt es nichts, was sich zwischendurch aendern koennte.
-		kein_artikel: pathEditFeature.properties.wiki_no_article === true,
 		// 💣 Eine LESEFUNKTION, kein Wert: der Wegtyp steht im Formular gleich ueber dem Kasten und
 		// kann sich zwischen `laden` und dem Druck auf „Sync" geaendert haben. Eingefroren boete die
 		// Vorschau dann einen Wechsel an, den die Auswahl daneben laengst zeigt.

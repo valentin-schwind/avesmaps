@@ -107,24 +107,14 @@ assert.strictEqual(ohne.artikel, null);
 assert.strictEqual(ohne.kartenwerte.feature_subtype, "Strasse");
 zaehl(); zaehl();
 
-// ── 3b) DER DRITTE ZUSTAND REIST IM ZUSTAND MIT (Aufgabe 5c) ──────────────────────────────────
-// 🔴 Er ist NICHT aus der Zuweisung ableitbar: „keine Zuweisung" heisst „noch niemand hat
-// nachgesehen", der Merker heisst „jemand HAT nachgesehen und es gibt keinen". Ohne ihn hatte der
-// Weg zwei Leser (Anreicherung + Konfliktregel) und keinen Schreiber -- gemessen in Aufgabe 5b.
-assert.strictEqual(ohne.keinArtikel, false,
-	"ohne Merker meldet der Zustand den dritten Zustand als gesetzt");
-assert.strictEqual(
-	avesmapsWikiAssignWegZustand({ wiki_path: null, kein_artikel: true, feature_subtype: "Strasse" }).keinArtikel,
-	true,
-	"der gespeicherte Merker erreicht den Zustand nicht -- das Haekchen startete immer leer");
-// ⚠️ Nur ein echtes `true`. Beide Oberflaechen liefern einen Boolean; ein weicher Vergleich machte
-// aus einem versehentlichen `"false"` (String) ein gesetztes Haekchen. Dieselbe Strenge wie beim Ort.
-[1, "1", "true", "on", {}].forEach((weich) => {
-	assert.strictEqual(
-		avesmapsWikiAssignWegZustand({ wiki_path: null, kein_artikel: weich }).keinArtikel, false,
-		"ein weicher Wert (" + JSON.stringify(weich) + ") gilt als gesetzter Merker");
-	zaehl();
-});
+// ── 3b) DER DRITTE ZUSTAND IST GEFALLEN ───────────────────────────────────────────────────────
+// 🔴 Owner-Entscheid 09.09.2026: der Merker `properties.wiki_no_article` ist global ausgebaut.
+// Hier stand die Gegenthese zur heutigen Regel („NICHT aus der Zuweisung ableitbar"); sie galt,
+// solange der Leseweg Adressen aus dem NAMEN riet (Discord #38). `420f12cfc` hat das zurueckgebaut.
+assert.ok(!("keinArtikel" in ohne), "der Zustand traegt den gefallenen dritten Zustand wieder");
+assert.ok(!("keinArtikel" in avesmapsWikiAssignWegZustand(
+	{ wiki_path: null, kein_artikel: true, feature_subtype: "Strasse" })),
+	"ein Altbestand-Merker erzeugt wieder einen dritten Zustand");
 zaehl(); zaehl();
 
 // ── 4) DIE HTTP-ANTWORT: WIRFT BEI JEDEM NEIN ─────────────────────────────────────────────────
@@ -211,9 +201,10 @@ zaehl();
 // des Konfliktzentrums (avesmapsConflictRepairSpansNameGroup). Das Haekchen konnte diese Reichweite
 // nur NACHBAUEN; zwei Knoepfe mit derselben Reichweite an zwei Orten warten auf ihren ersten
 // Unterschied. Der MERKER, sein Schreibweg und die Verbund-Reichweite bleiben unangetastet.
-assert.strictEqual(weg.extra && weg.extra.keinArtikelHaken, false,
-	"das Haekchen ist zurueck -- der Owner hat es am 16.08.2026 abgewaehlt, die Begruendung steht im "
-	+ "Feldregister. Wer es wieder einbaut, braucht einen neuen Entscheid.");
+// 🔴 Seit dem 09.09.2026 ist der SCHLUESSEL gefallen, nicht nur sein Wert.
+assert.ok(!("keinArtikelHaken" in (weg.extra || {})),
+	"das Haekchen ist zurueck -- es ist mit dem Merker gefallen. Wer es wieder einbaut, braucht "
+	+ "zuerst wieder ein Feld, das es schreibt, und einen neuen Entscheid.");
 // 🪤 UND DER HINWEISTEXT IST MITGEFALLEN: ohne Haekchen liest das Bauteil `keinArtikelHinweis` nie,
 // und ein Text, den niemand sieht, kann nur veralten. Er nannte die Verbund-Reichweite („Gilt fuer
 // alle Abschnitte dieses Wegs") -- die steht jetzt im Register, wo sie gebraucht wird.
@@ -406,17 +397,14 @@ Object.keys(AVESMAPS_WIKI_ASSIGN_SKINS).forEach((huelle) => {
 // zwei Huellen hatten es bis zum 16.08.2026 verschieden: `label-wiki` accent seit Aufgabe 4, `dt`
 // browserblau. Aufgabe 5c hat den Haken in der `dt`-Huelle erst sichtbar gemacht -- also gehoert
 // die Zusicherung hierher.
-// ⚠️ Gesucht wird die Regel des BAUTEILS, nicht irgendeine Fundstelle von `accent-color`: der
-// Selektor muss den Haken dieser Huelle nennen und der Wert ein Token sein.
-[
-	["label-wiki", "\\.label-wiki-reference__check\\s+input\\s*\\{[^}]*accent-color:\\s*var\\(--"],
-	["dt", "\\.avm-wiki-assign\\s+\\.dt-check\\s+input\\s*\\{[^}]*accent-color:\\s*var\\(--"],
-].forEach(([huelle, muster]) => {
-	assert.ok(new RegExp(muster).test(allesCss),
-		"Huelle „" + huelle + "“: das Kaestchen „Kein Wiki-Artikel vorhanden“ hat keine token-basierte "
-		+ "`accent-color` -- der Browser faerbt es dann selbst, unter Windows BLAU (AGENTS.md §12)");
-	zaehl();
-});
+// 🔴 HIER STAND DIE PROBE, dass das Kaestchen „Kein Wiki-Artikel vorhanden" in BEIDEN Huellen
+// eine token-basierte `accent-color` traegt (sonst faerbt der Browser es unter Windows BLAU,
+// AGENTS.md §12). Das Kaestchen ist am 09.09.2026 mit dem Merker `properties.wiki_no_article`
+// gefallen (Owner-Entscheid), und mit ihm seine zwei CSS-Regeln.
+// ⚠️ DIE LUECKE, DIE SIE NEBENBEI BENANNTE, BESTEHT WEITER: das ALLGEMEINE `.dt-check input`
+// ist unveraendert browserblau und traegt „Auto-Name" und „Name auf der Karte anzeigen" im
+// Wege-Editor. Sie war nie an den Merker gebunden -- wer sie schliesst, tut es in einem
+// eigenen Gang (AGENTS.md §9).
 
 // ── 8c) DIE ROLLE OHNE KLASSE — GENAU DIE, DIE DIE PROBE AUS 8) UEBERSPRINGT ──────────────────
 // 💣 `skin.knopf` ist in der Huelle `dt` die LEERE Zeichenkette, und die Rollenprobe oben steigt

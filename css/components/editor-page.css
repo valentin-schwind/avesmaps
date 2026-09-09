@@ -796,30 +796,10 @@ body.avm-editor-body {
 	background: var(--color-button-hover);
 }
 
-/* Das Kaestchen des dritten Zustands („Kein Wiki-Artikel vorhanden").
-   ⚠️ Ohne `accent-color` faerbt der Browser es in seiner Standardfarbe -- unter Windows BLAU, und
-      Blau ist in der Bedienoberflaeche verboten (AGENTS.md §12). Gegenstueck:
-      `.label-wiki-reference__check input` (css/components/region-sync.css), die es seit Aufgabe 4
-      richtig macht -- die zwei Huellen desselben Bauteils sahen sonst verschieden aus.
-   🔴 SIE TRIFFT DREI OBERFLAECHEN, nicht eine -- jede, die das Bauteil in dieser Huelle traegt und
-      dieses Stylesheet laedt: den Kraftlinien-Editor (html/wiki-sync-powerline-editor.html), den
-      ORTE-Editor (html/wiki-sync-settlement-editor.html, dritter Zustand seit Aufgabe 5b) und den
-      Wege-Editor (Aufgabe 5c). In den ersten beiden war das Kaestchen browserblau und ist es seit
-      dem 16.08.2026 nicht mehr. 🪤 Hier stand zuerst nur der Kraftlinien-Editor -- eine Aufzaehlung
-      liest sich als vollstaendig, auch wenn sie es nicht ist (AGENTS.md §11). Nachgemessen:
-      `skin: "dt"` plus `editor-page.css` plus keine eigene `.dt-check`-Regel.
-   💣 Es ist DIESELBE Luecke, die `.dt-check input` weiter oben hat, und sie wird hier NICHT
-      allgemein geschlossen: `.dt-check` traegt auch „Auto-Name" und „Name auf der Karte anzeigen"
-      im Wege-Editor und den Auto-Namen des Landschaften-Editors. Die einzeln umzufaerben ist eine
-      sichtbare Aenderung an fremden Bedienelementen und gehoert in einen eigenen Gang (AGENTS.md
-      §9). Eingeengt auf .avm-wiki-assign trifft die Regel nur das Bauteil selbst -- dieselbe
-      Einengung und derselbe Grund wie bei `button.primary` darueber.
-   ⭐ Derselbe Token wie die Haken der Sync-Vorschau nebenan (`.dt-sync-row input`); innerhalb EINES
-      Kastens zwei verschiedene Haken-Farben waere genau die Divergenz, gegen die das Bauteil
-      gebaut wurde. */
-.avm-wiki-assign .dt-check input {
-	accent-color: var(--color-accent);
-}
+/* 🔴 HIER STAND `.avm-wiki-assign .dt-check input` (accent-color gegen das Browserblau des
+   dritten Zustands). Gefallen am 09.09.2026 mit dem Merker `properties.wiki_no_article`:
+   das Bauteil zeichnet kein Haekchen mehr. ⚠️ `.dt-check` bleibt -- es traegt auch
+   „Auto-Name" und „Name auf der Karte anzeigen"; deren Luecke ist unveraendert offen. */
 
 /* ---- Trefferliste ---------------------------------------------------------------------------
    Massgabe ist .label-wiki-picker-list in region-sync.css: dieselbe Rolle, dieselbe Hoehe,

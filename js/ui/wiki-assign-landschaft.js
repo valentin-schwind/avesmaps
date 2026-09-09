@@ -314,7 +314,7 @@ function avesmapsWikiAssignLandschaftArtikel(gespeichert, schnappschuss, arten) 
  * derselbe Grund wie bei Weg und Ort: `laden` laeuft EINMAL, die Sync-Vorschau entsteht erst beim
  * Druck auf „Sync", und dazwischen kann der Editor Namensfeld und Artauswahl angefasst haben.
  *
- * @param {Object|null} quelle { wiki_key, wiki_url, wiki_name, schnappschuss, arten, kein_artikel,
+ * @param {Object|null} quelle { wiki_key, wiki_url, wiki_name, schnappschuss, arten,
  *   name, region_type } -- die zwei Kartenfelder je Wert ODER Lesefunktion.
  */
 function avesmapsWikiAssignLandschaftKartenwerte(quelle, felder) {
@@ -344,7 +344,8 @@ function avesmapsWikiAssignLandschaftZustand(quelle) {
 			quelle.schnappschuss || null,
 			arten
 		),
-		keinArtikel: quelle.kein_artikel === true,
+		// 🔴 HIER STAND `keinArtikel` -- der dritte Zustand, gefallen am 09.09.2026 mit dem
+		// Merker `properties.wiki_no_article` (Owner-Entscheid). Aequivalent ist die Zuweisung.
 		kartenwerte: kartenwerte,
 		herkunft: avesmapsWikiAssignLandschaftHerkunft(quelle.field_origins, AVESMAPS_WIKI_ASSIGN_LANDSCHAFT_KARTENFELDER),
 		// 🔴 Die Klimazone ist ABGELEITET: ihre Art sagt, WELCHE der Zonen das ist, und daran haengt,
@@ -370,7 +371,7 @@ function avesmapsWikiAssignLandschaftZustand(quelle) {
  * ⚠️ Faellt der Schnappschuss aus (verwaister Schluessel), traegt das NEST den Kasten -- deshalb
  * steht es als Rueckfall dahinter und nicht bloss `null`.
  *
- * @param {Object|null} quelle { wiki_region (das Nest), schnappschuss, arten, kein_artikel,
+ * @param {Object|null} quelle { wiki_region (das Nest), schnappschuss, arten,
  *   text, feature_subtype } -- die zwei Kartenfelder je Wert ODER Lesefunktion.
  */
 /**
@@ -406,7 +407,8 @@ function avesmapsWikiAssignLandschaftslabelZustand(quelle) {
 			quelle.schnappschuss || nest,
 			arten
 		),
-		keinArtikel: quelle.kein_artikel === true,
+		// 🔴 HIER STAND `keinArtikel` -- der dritte Zustand, gefallen am 09.09.2026 mit dem
+		// Merker `properties.wiki_no_article` (Owner-Entscheid). Aequivalent ist die Zuweisung.
 		kartenwerte: avesmapsWikiAssignLandschaftKartenwerte(quelle, AVESMAPS_WIKI_ASSIGN_LANDSCHAFTSLABEL_KARTENFELDER),
 		herkunft: avesmapsWikiAssignLandschaftHerkunft(quelle.field_origins, AVESMAPS_WIKI_ASSIGN_LANDSCHAFTSLABEL_KARTENFELDER),
 		// Ein Label kennt keine abgeleitete Ebene -- es gibt hier nichts zu sperren.

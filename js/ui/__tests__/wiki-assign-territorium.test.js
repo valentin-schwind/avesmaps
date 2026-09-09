@@ -215,7 +215,9 @@ assert.deepStrictEqual(ZUSTAND.gesperrt, { eltern: AVESMAPS_WIKI_ASSIGN_TERRITOR
 	"der Zustand traegt die Sperre nicht an die Feldzeile");
 // 🔴 NUR `eltern` -- kein anderes Kartenfeld ist mitgesperrt.
 assert.deepStrictEqual(Object.keys(ZUSTAND.gesperrt), ["eltern"]);
-assert.strictEqual(ZUSTAND.keinArtikel, false, "das Gebiet kann den dritten Zustand nicht tragen");
+// 🔴 DER DRITTE ZUSTAND IST GEFALLEN (Owner-Entscheid 09.09.2026) -- der Zustand traegt
+// `keinArtikel` nicht mehr. Ein Altbestand-Merker in der Quelle darf NICHTS mehr erzeugen.
+assert.ok(!("keinArtikel" in ZUSTAND), "das Gebiet traegt den gefallenen dritten Zustand wieder");
 // 🔴 Die Kandidaten reisen FERTIG AUFBEREITET mit: die Listen-Suche reicht den Eintrag unveraendert
 // als Treffer weiter -- eine rohe Zeile haette kein `werte`.
 assert.strictEqual(ZUSTAND.listen.territorien.length, 2);

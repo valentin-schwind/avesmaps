@@ -209,7 +209,20 @@ foreach ($bauer as $wo => [$datei, $muster]) {
             "der Payload-Bauer \"$wo\" schickt das Feld \"$feld\" nicht"
         );
     }
-    assert(str_contains($rumpfTreffer[0], 'wiki_no_article'), "der Payload-Bauer \"$wo\" schickt den Merker nicht");
+    // 🔴 UMGEDREHT AM 09.09.2026: der Merker ist global ausgebaut, KEIN Payload-Bauer schickt
+    // ihn mehr. Die drei Textfelder darueber bleiben -- an ihnen haengt der eigentliche Befund.
+    // 🪤 GEMESSEN WIRD DER RUMPF OHNE KOMMENTARE. Solange die Zusicherung „steht drin" hiess,
+    // war das egal; als „steht NICHT drin" wird jeder kuenftige Kommentar mit dem Wort zum
+    // falschen Roten -- und direkt ueber dem Bauer steht einer. Der Nachbartest hat den Filter
+    // laengst (avesmapsWegTestRumpfOhneKommentare); hier fehlte er.
+    $ohneKommentare = implode("\n", array_filter(
+        preg_split('/\r?\n/', preg_replace('#/\*.*?\*/#s', '', $rumpfTreffer[0]) ?? $rumpfTreffer[0]) ?: [],
+        static fn (string $zeile): bool => !str_starts_with(ltrim($zeile), '//')
+    ));
+    assert(
+        !str_contains($ohneKommentare, 'wiki_no_article'),
+        "der Payload-Bauer \"$wo\" schickt den gefallenen Merker wieder"
+    );
 }
 
 // ── 8) DIE VERDRAHTUNG FORMULARFELD ↔ PAYLOAD-BAUER ───────────────────────────────────────────

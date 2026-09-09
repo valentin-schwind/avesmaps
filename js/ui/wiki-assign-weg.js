@@ -186,7 +186,7 @@ function avesmapsWikiAssignWegArtikel(wikiPath) {
  * Adressraten hat `420f12cfc` (08.09.2026) zurueckgebaut. Seither IST die Zuweisung das
  * Aequivalent. Wer den Satz oben wieder aufnimmt, nimmt den Merker wieder auf.
  *
- * @param {Object|null} quelle  { wiki_path, kein_artikel, feature_subtype }
+ * @param {Object|null} quelle  { wiki_path, feature_subtype }
  */
 function avesmapsWikiAssignWegZustand(quelle) {
 	if (!quelle || typeof quelle !== "object" || Array.isArray(quelle)) {
@@ -214,7 +214,8 @@ function avesmapsWikiAssignWegZustand(quelle) {
 	}
 	return {
 		artikel: avesmapsWikiAssignWegArtikel(quelle.wiki_path),
-		keinArtikel: quelle.kein_artikel === true,
+		// 🔴 HIER STAND `keinArtikel` -- der dritte Zustand, gefallen am 09.09.2026 mit dem
+		// Merker `properties.wiki_no_article` (Owner-Entscheid). Aequivalent ist die Zuweisung.
 		kartenwerte: kartenwerte,
 		herkunft: avesmapsWikiAssignWegHerkunft(quelle.field_origins),
 	};

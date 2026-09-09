@@ -68,10 +68,6 @@ function labelWikiRegionFromRow(row) {
 	};
 }
 
-// Der GELADENE Stand des dritten Zustands -- der Bezugspunkt, gegen den das Bauteil „seit dem Laden
-// verändert" rechnet. 🔴 Er kommt mit dem Label (`properties.wiki_no_article`) und wird hier NICHT
-// gepflegt: das Häkchen wohnt im Bauteil, bis „Speichern" es abholt.
-let labelWikiKeinArtikelGeladen = false;
 // 🔴 DER GELADENE STAND DER ZUWEISUNG -- der Bezugspunkt für „Abbrechen" (labelWikiAssignVerwerfen).
 // Ohne ihn könnte der Rückweg nur „auf leer" heißen, und ein Abbrechen NACH einem „Lösen" bestätigte
 // die Löschung, statt sie zurückzunehmen.
@@ -93,11 +89,10 @@ let labelWikiUebernommen = new Set();
 let letzterLabelWikiArtikel = null;
 
 /** Der Stand, den ein Label lädt. Ruft das Bauteil neu auf, damit der Kasten dem Label folgt. */
-function setLabelWikiRegion(wiki, keinArtikel, fieldOrigins) {
+function setLabelWikiRegion(wiki, fieldOrigins) {
 	currentLabelWikiRegion = wiki && wiki.wiki_key ? wiki : null;
 	labelWikiRegionGeladen = currentLabelWikiRegion;
 	labelWikiSchnappschuss = null;
-	labelWikiKeinArtikelGeladen = keinArtikel === true;
 	// ⚠️ DRITTER Parameter, und er ist optional: `assignLabelWikiRegionToForm` (der WikiSync-Weg von
 	// aussen) ruft dieselbe Funktion mit zwei Argumenten. `undefined` heisst dort „nicht bekannt",
 	// und das ist richtig -- ein frisch angelegtes Label hat noch keine Herkunft.
@@ -114,7 +109,7 @@ function setLabelWikiRegion(wiki, keinArtikel, fieldOrigins) {
  * still auf `setLabelWikiRegion` zurück -- dann bliebe die Kategorie ungesetzt, und niemand sähe es.
  */
 function assignLabelWikiRegionToForm(wiki) {
-	setLabelWikiRegion(wiki, false);
+	setLabelWikiRegion(wiki);
 	labelWikiKategorieAusArt(wiki && wiki.art);
 }
 
@@ -122,7 +117,6 @@ function resetLabelWikiState() {
 	currentLabelWikiRegion = null;
 	labelWikiRegionGeladen = null;
 	labelWikiSchnappschuss = null;
-	labelWikiKeinArtikelGeladen = false;
 	labelWikiFieldOrigins = null;
 	labelWikiUebernommen = new Set();
 	letzterLabelWikiArtikel = null;
@@ -155,21 +149,9 @@ function getLabelWikiRegionGeaendert() {
 	return JSON.stringify(currentLabelWikiRegion || null) !== JSON.stringify(labelWikiRegionGeladen || null);
 }
 
-/**
- * 🔴 DER DRITTE ZUSTAND, und er reist NUR MIT, WENN DAS HÄKCHEN SEIT DEM LADEN UMGELEGT WURDE
- * (Owner-Entscheid 16.08.2026, anstelle eines `expected_revision`). `null` heisst „nicht schicken";
- * `update_label` liest einen FEHLENDEN Schlüssel als „nicht geändert"
- * (api/_internal/map/features.php).
- * 💣 GEPRÜFT WIRD VERÄNDERT, NICHT GESETZT: ein bewusst ENTFERNTES Häkchen schickt `false` und
- * löscht den Merker -- hinge der Riegel an „gesetzt", würde man ihn nie wieder los.
- */
-function getLabelWikiNoArticlePayload() {
-	if (!labelWikiAssign || !labelWikiAssign.bereit) {
-		return null;
-	}
-	const stand = labelWikiAssign.lies();
-	return stand && stand.kein_artikel_geaendert === true ? stand.kein_artikel === true : null;
-}
+// 🔴 HIER STAND `getLabelWikiNoArticlePayload` -- der Rueckkanal des dritten Zustands in den
+// Speicher-Rumpf des Labels. Gefallen am 09.09.2026 mit dem Merker `properties.wiki_no_article`
+// (Owner-Entscheid); sein Aequivalent ist die WIKI-ZUWEISUNG.
 
 /**
  * 💣 WIRFT, statt einen Rückfall zu liefern -- der Vertrag aus dem Kopf von js/ui/wiki-assign.js.
@@ -231,7 +213,6 @@ async function labelWikiAssignZustand() {
 		wiki_region: currentLabelWikiRegion,
 		schnappschuss: labelWikiSchnappschuss,
 		arten: labelWikiArten(),
-		kein_artikel: labelWikiKeinArtikelGeladen,
 		field_origins: labelWikiFieldOrigins,
 		// 💣 Lesefunktionen, nicht Werte: `laden` läuft einmal, die Sync-Vorschau entsteht erst beim
 		// Druck auf „Sync" -- dazwischen kann im Formular getippt worden sein.
@@ -353,7 +334,6 @@ function labelWikiAssignZuweisen(treffer) {
 		wiki_region: currentLabelWikiRegion,
 		schnappschuss: roh,
 		arten: labelWikiArten(),
-		kein_artikel: labelWikiKeinArtikelGeladen,
 		field_origins: labelWikiFieldOrigins,
 		text: () => String(labelWikiElement("label-edit-text")?.value || ""),
 		feature_subtype: () => String(labelWikiElement("label-edit-type")?.value || ""),
@@ -472,6 +452,5 @@ window.getLabelWikiUebernommenPayload = getLabelWikiUebernommenPayload;
 window.resetLabelWikiState = resetLabelWikiState;
 window.getLabelWikiRegionPayload = getLabelWikiRegionPayload;
 window.getLabelWikiRegionGeaendert = getLabelWikiRegionGeaendert;
-window.getLabelWikiNoArticlePayload = getLabelWikiNoArticlePayload;
 window.labelWikiRegionFromRow = labelWikiRegionFromRow;
 window.assignLabelWikiRegionToForm = assignLabelWikiRegionToForm;

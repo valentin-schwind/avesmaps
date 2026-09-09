@@ -21,7 +21,6 @@
 //       loesen:          () => {},           // Wert ODER Promise
 //       verwerfen:       () => {},           // PFLICHT bei schreibt: "speichern" — siehe unten
 //       syncUebernehmen: (zeilen) => {},     // NUR die angehakten Diff-Zeilen (Aufgabe 2)
-//       keinArtikelGeaendert: (wert) => {},  // OPTIONAL — nur, wer sofort schreibt, braucht ihn
 //       trefferAufbereiten: (zeile) => {},   // OPTIONAL — nur bei suche.art === "server"
 //       schreibt:        "sofort"|"speichern", // OPTIONAL — siehe die 🪤 in `mount`; EIN Aufrufer
 //   });
@@ -92,7 +91,6 @@
 // ZUSTAND (die Rueckgabe von `laden`), jede Angabe optional:
 //   {
 //     artikel:     { name, wiki_url, wiki_key, werte: {<wikiFeld>: wert} } | null,
-//     keinArtikel: false,                     // der dritte Zustand (Entwurf §2.7)
 //     kartenwerte: { <kartenFeld>: wert },    // heutiger Stand auf der Karte — fuer die Vorschau
 //     herkunft:    { "<kartenFeld>": "manual"|"wiki" }, // die gespeicherte Feldherkunft
 //                                             // "manual" -> gelistet, NIE gehakt
@@ -112,19 +110,15 @@
 // nachbauen: eine erfundene Belegt-Anzeige, die manchmal stimmt, ist schlimmer als keine.
 //
 // RUECKGABE von `mount`:
-//   lies()      -> { name, wiki_url, wiki_key, kein_artikel, kein_artikel_geaendert } — der Stand,
-//                  den ein „Speichern“ schreiben soll. Fuer Oberflaechen, die NICHT sofort schreiben
-//                  (Kraftlinien: das Formular wird als Ganzes gespeichert), ist das der einzige
-//                  Rueckkanal.
-//                  🔴 `kein_artikel_geaendert` sagt, ob das Haekchen SEIT DEM LADEN bewusst umgelegt
-//                  wurde (Owner-Entscheid 16.08.2026, anstelle eines `expected_revision`). Wer den
-//                  Merker gar nicht anfasst, soll ihn auch nicht loeschen koennen -- sonst nimmt ein
-//                  alter offener Dialog beim naechsten beliebigen Speichern die Entscheidung eines
-//                  zweiten Editors zurueck. Ein Schreibweg, dessen Server ein FEHLENDES Feld als
-//                  „nicht geaendert" liest (`update_point`, avesmapsApplyPointWikiFields), laesst den
-//                  Schluessel dann weg. ⚠️ Wer das Feld ignoriert und `kein_artikel` bedingungslos
-//                  schickt, hat das alte Verhalten -- so tut es der Kraftlinien-Editor, dessen
-//                  „Speichern" ohnehin die ganze Linie schreibt.
+//   lies()      -> { name, wiki_url, wiki_key } — der Stand, den ein „Speichern“ schreiben soll.
+//                  Fuer Oberflaechen, die NICHT sofort schreiben (Kraftlinien: das Formular wird als
+//                  Ganzes gespeichert), ist das der einzige Rueckkanal.
+//                  🔴 HIER STANDEN `kein_artikel` UND `kein_artikel_geaendert`, der dritte Zustand.
+//                  Gefallen am 09.09.2026 mit dem Merker `properties.wiki_no_article`
+//                  (Owner-Entscheid); sein Aequivalent ist die WIKI-ZUWEISUNG, also `wiki_key`
+//                  direkt darueber. Ein Schreibweg, der die zwei Schluessel noch liest, bekommt sie
+//                  nicht mehr -- und weil jeder von ihnen ein FEHLENDES Feld als „nicht geaendert"
+//                  liest, ist das die sichere Richtung: er schreibt dann gar nichts.
 //   neuLaden()  -> ruft `laden` erneut und zeichnet neu.
 //   zerstoeren()-> nimmt die Zuhoerer ab und leert den Behaelter.
 //
@@ -159,7 +153,7 @@ const AVESMAPS_WIKI_ASSIGN_TREFFER_LIMIT = 40;
 const AVESMAPS_WIKI_ASSIGN_TIPP_PAUSE_MS = 180;
 
 // Alle sichtbaren Woerter an EINER Stelle. Was objektart-abhaengig ist, steht nicht hier, sondern
-// in der Erklaerung (`label`, `art`, `extra.keinArtikelHinweis`).
+// in der Erklaerung (`label`, `art`, `extra.keineTrefferHinweis`).
 /**
  * Ab wann eine misslungene Zuweisung ihre DAUER mitnennt (Millisekunden).
  *
@@ -196,8 +190,6 @@ const AVESMAPS_WIKI_ASSIGN_TEXTE = {
 	sync: "Sync",
 	entfernen: "Entfernen",
 	abbrechen: "Abbrechen",
-	keinArtikel: "Kein Wiki-Artikel vorhanden",
-	keinArtikelHinweis: "Nimmt das Objekt aus der Konfliktliste — bis im Wiki einer auftaucht.",
 	suchPlatzhalter: "Artikel suchen …",
 	suchHinweis: "↑ ↓ wählen · Enter zuweisen · Esc schließt",
 	// 🔴 Die WENDUNG, ohne Satzzeichen -- sie steht an zwei Stellen (im Leerkasten der Liste und im
@@ -286,7 +278,6 @@ const AVESMAPS_WIKI_ASSIGN_SKINS = {
 		wertTag: "div",
 		wertKlasse: "",
 		link: "dt-link",
-		haken: "dt-check",
 		hinweis: "dt-hint",
 		// Die Schreibzeile ist eine EIGENE Rolle, nicht `hinweis`: jene traegt schon den Zaehlsatz
 		// der Suche, den Rat des Leerzustands und die Erklaerung des dritten Zustands -- sie waeren
@@ -326,7 +317,6 @@ const AVESMAPS_WIKI_ASSIGN_SKINS = {
 		wertTag: "dd",
 		wertKlasse: "",
 		link: "label-wiki-reference__link",
-		haken: "label-wiki-reference__check",
 		hinweis: "label-wiki-reference__hint",
 		schreibZeile: "label-wiki-reference__schreibzeile",
 		schreibZeileOffen: "is-ungespeichert",
@@ -446,7 +436,6 @@ function avesmapsWikiAssignModell(erklaerung, daten, ui) {
 		treffer: [],
 		trefferLeerText: "",
 		hinweis: "",
-		haken: null,
 		schreibZeile: null,
 		syncZeilen: [],
 		syncAktionen: [],
@@ -603,27 +592,17 @@ function avesmapsWikiAssignModell(erklaerung, daten, ui) {
 		}];
 	}
 
-	// Der dritte Zustand gilt fuer ALLE Objektarten (Entwurf §2.7) — aber nur die, deren Erklaerung
-	// ihn fuehrt, zeigen ihn heute schon.
-	//
-	// 🔴 Er steht im ZUSTAND „offen“, nicht neben einer Zuweisung (Mockup, Karte 1 gegen Karte 3):
-	// „es gibt keinen Artikel“ und „hier ist er“ schliessen einander aus, und der Server lehnt das
-	// Speichern beider Werte zugleich ohnehin ab.
-	// 💣 Die eine Ausnahme ist der Ausweg: ist der Merker GESETZT, wird er auch neben einer
-	// Zuweisung gezeigt. Sonst kaeme man aus einem widerspruechlichen Zustand nicht mehr heraus --
-	// das Speichern schickt immer BEIDE Werte, der Server lehnte danach jede Aenderung an diesem
-	// Objekt ab, auch eine reine Beschreibungsaenderung. Genau davor warnte der Kommentar, der bis
-	// 16.08.2026 in html/wiki-sync-powerline-editor.html stand.
-	const extra = e.extra || {};
-	const hakenZeigen = modus === "offen" || d.keinArtikel === true;
-	if (extra.keinArtikelHaken === true && hakenZeigen) {
-		modell.haken = {
-			text: AVESMAPS_WIKI_ASSIGN_TEXTE.keinArtikel,
-			gesetzt: d.keinArtikel === true,
-		};
-		modell.hinweis = avesmapsWikiAssignText(extra.keinArtikelHinweis)
-			|| AVESMAPS_WIKI_ASSIGN_TEXTE.keinArtikelHinweis;
-	}
+	// 🔴 HIER STAND DER DRITTE ZUSTAND („Kein Wiki-Artikel vorhanden", `extra.keinArtikelHaken`).
+	// Gefallen am 09.09.2026 mit dem Merker `properties.wiki_no_article`, Owner-Entscheid nach
+	// Durchsicht aller 10 Traeger. Sein Aequivalent ist die WIKI-ZUWEISUNG, die dieser Kasten
+	// ohnehin schreibt.
+	// 💣 WARUM ES IHN GAB, damit ihn niemand wieder einfuehrt: er war der Notausgang gegen das
+	// Namensraten der Kartennutzlast (Discord #38). `avesmapsEnrichMapFeatureWikiUrl` riet eine
+	// geloeschte Adresse aus dem NAMEN zurueck, 》Entfernen《 hielt also nicht, und es brauchte eine
+	// zweite, NEGATIVE Aussage. Commit `420f12cfc` (08.09.2026) hat den Rateweg zurueckgebaut.
+	// ⚠️ Mit ihm faellt die AUSNAHME, die er brauchte: das Haekchen wurde auch neben einer Zuweisung
+	// gezeigt, damit man aus dem widerspruechlichen Zustand „Adresse UND kein Artikel" wieder
+	// herauskam. Ohne den Merker kann dieser Zustand nicht mehr entstehen.
 
 	// ── Die Schreibzeile und ihr „Abbrechen“ ──────────────────────────────────────────────────
 	// 🔴 NUR in den Ruhezustaenden („offen“/„zugewiesen“). Die Suche ist fluechtig, und die
@@ -839,11 +818,6 @@ function avesmapsWikiAssignMarkup(modell, skin) {
 			+ "</div>");
 	}
 
-	if (modell.haken) {
-		teile.push("<label" + avesmapsWikiAssignKlasse(skin.haken) + ">"
-			+ '<input type="checkbox" data-wa-kein-artikel' + (modell.haken.gesetzt ? " checked" : "") + ">"
-			+ "<span>" + avesmapsWikiAssignEsc(modell.haken.text) + "</span></label>");
-	}
 
 	if (modell.syncAktionen.length > 0) {
 		teile.push("<div" + avesmapsWikiAssignKlasse(skin.aktionen) + ">"
@@ -1079,7 +1053,7 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 	}
 
 	const listenId = "avm-wiki-assign-" + (++avesmapsWikiAssignZaehler);
-	let daten = { artikel: null, keinArtikel: false, kartenwerte: {}, herkunft: {}, gesperrt: {}, listen: {} };
+	let daten = { artikel: null, kartenwerte: {}, herkunft: {}, gesperrt: {}, listen: {} };
 	let ui = { modus: "offen", suchtext: "", treffer: [], aktiv: 0, syncZeilen: [], suchFehler: "", listenId: listenId };
 	let tippUhr = null;
 	let laufendeSuche = 0;
@@ -1087,8 +1061,6 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 	// Schreibwert. Startet auf false -- zwischen `mount` und der ersten Antwort von `laden` (bei
 	// einem Server-`laden` sind das echte Millisekunden) darf niemand speichern.
 	let geladen = false;
-	// Der Stand des dritten Zustands, wie er GELADEN wurde. Siehe `kein_artikel_geaendert` in `lies()`.
-	let geladenerKeinArtikel = false;
 	// 🔴 STEHT ETWAS AUS? Ausserhalb von `ui`, weil `ui` bei jedem Moduswechsel neu entsteht
 	// (`neuerZustand`) -- der ungespeicherte Zustand ueberlebt das Oeffnen der Suche und der
 	// Sync-Vorschau, denn er beschreibt die DATEN, nicht die gerade sichtbare Ansicht.
@@ -1194,48 +1166,25 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 		}
 	}
 
-	/**
-	 * 🔴 NUR die Schreibzeile und die Knopfreihe -- dieselbe Regel wie bei `zeichneTreffer`: das
-	 * Haekchen „Kein Wiki-Artikel vorhanden“ loest diesen Weg aus, und ein volles `innerHTML`
-	 * naehme ihm den Fokus mitten in einer Tastaturbedienung.
-	 * ⚠️ Faellt auf das volle Zeichnen zurueck, wenn eines der beiden Stuecke (noch) nicht dasteht --
-	 * ein halbes Bild waere schlimmer als ein volles.
-	 */
-	function zeichneSchreibzustand() {
-		const modell = modellJetzt();
-		const zeile = behaelter.querySelector("[data-wa-schreibzeile]");
-		const kopf = behaelter.querySelector("[data-wa-knoepfe]");
-		if (!zeile || !kopf || !modell.schreibZeile) {
-			zeichne();
-			return;
-		}
-		zeile.textContent = modell.schreibZeile.text;
-		// 💣 Die Zustandsklasse wird GESETZT UND GENOMMEN, nicht nur gesetzt.
-		// 🪤 EHRLICH GEMESSEN (17.08.2026): der NEHMEN-Zweig ist heute nicht erreichbar. Der einzige
-		// Aufrufer dieser Funktion ist das Haekchen, und das setzt den Merker immer auf `true` --
-		// zurueck geht es nur ueber „Abbrechen“ oder ein Neuladen, und beide zeichnen den ganzen
-		// Kasten. Eine Mutationsprobe kann ihn deshalb nicht zum Fallen bringen; er steht hier als
-		// die allgemeine Form, damit ein ZWEITER Aufrufer nicht die halbe Regel erbt.
-		zeile.className = [skin.schreibZeile, modell.schreibZeile.ungespeichert ? skin.schreibZeileOffen : ""]
-			.filter((klasse) => avesmapsWikiAssignText(klasse) !== "").join(" ");
-		kopf.innerHTML = modell.knoepfe.map((knopf) => avesmapsWikiAssignKnopfMarkup(skin, knopf)).join("");
-	}
+	// 🔴 HIER STAND `zeichneSchreibzustand` -- der TEILWEISE Zeichenweg (nur Schreibzeile und
+	// Knopfreihe, ohne volles `innerHTML`). Sein EINZIGER Ausloeser war das Haekchen
+	// „Kein Wiki-Artikel vorhanden": ein volles Neuzeichnen haette ihm den Fokus mitten in einer
+	// Tastaturbedienung genommen. Das Haekchen ist am 09.09.2026 mit dem Merker
+	// `properties.wiki_no_article` gefallen (Owner-Entscheid), und damit hatte der Weg keinen
+	// Aufrufer mehr. Toter Code, gefunden von einem Pruefagenten.
+	// ⚠️ Wer je einen zweiten Ausloeser aus einem `change` baut, braucht ihn wieder -- und dann
+	// auch seinen Riegel: faellt eines der beiden Stuecke, wird VOLL gezeichnet, denn ein halbes
+	// Bild ist schlimmer als ein volles.
 
 	function zustandUebernehmen(roh) {
 		const r = roh || {};
 		daten = {
 			artikel: r.artikel || null,
-			keinArtikel: r.keinArtikel === true,
 			kartenwerte: r.kartenwerte || {},
 			herkunft: r.herkunft && typeof r.herkunft === "object" && !Array.isArray(r.herkunft) ? r.herkunft : {},
 			gesperrt: r.gesperrt || {},
 			listen: r.listen || {},
 		};
-		// 🔴 DER GELADENE STAND DES DRITTEN ZUSTANDS -- der Bezugspunkt fuer `kein_artikel_geaendert`
-		// unten. Er wird bei JEDEM geglueckten Ladelauf neu gesetzt, auch beim `neuLaden()`: danach
-		// gilt der frische Serverstand als „nicht geaendert", und das ist richtig -- was der Editor
-		// vorher angehakt hatte, ist mit dem Neuladen ohnehin vom Bildschirm.
-		geladenerKeinArtikel = daten.keinArtikel;
 		// 🔴 UND AUS DEMSELBEN GRUND FAELLT DER MERKER „steht etwas aus?" -- was gerade GELADEN wurde,
 		// IST der gespeicherte Stand. Das gilt fuer den ersten Ladelauf wie fuer jedes `neuLaden()`,
 		// und es ist genau der Weg, auf dem ein „Speichern" der Oberflaeche die Zeile zuruecksetzt:
@@ -1422,8 +1371,6 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 				wiki_key: avesmapsWikiAssignText(treffer.wiki_key),
 				werte: treffer.werte || {},
 			};
-			// Ein zugewiesener Artikel und „es gibt keinen“ schliessen einander aus.
-			daten.keinArtikel = false;
 			ungespeichert = true;
 			infoboxNachziehen();
 			ui = neuerZustand("zugewiesen");
@@ -1596,20 +1543,6 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 		if (!ziel || !ziel.hasAttribute) {
 			return;
 		}
-		if (ziel.hasAttribute("data-wa-kein-artikel")) {
-			daten.keinArtikel = !!ziel.checked;
-			// 🔴 AUCH DAS HAEKCHEN IST EINE UNGESPEICHERTE AENDERUNG. Es reist ueber `lies()` mit dem
-			// „Speichern" der Oberflaeche -- ohne diese Zeile saehe der Editor genau die Handlung
-			// NICHT als ausstehend, die er sonst nirgends bestaetigt bekommt.
-			ungespeichert = true;
-			if (typeof opt.keinArtikelGeaendert === "function") {
-				opt.keinArtikelGeaendert(daten.keinArtikel);
-			}
-			// 💣 NACHZIEHEN, sonst haengt die Schreibzeile eine Handlung hinterher: bis zum
-			// 17.08.2026 endete dieser Zweig ohne Bild, weil das Haekchen sein eigener Zustand war.
-			zeichneSchreibzustand();
-			return;
-		}
 		if (ziel.hasAttribute("data-wa-sync-haken")) {
 			const index = parseInt(ziel.getAttribute("data-wa-sync-haken"), 10);
 			if (ui.syncZeilen[index]) {
@@ -1685,19 +1618,6 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 				name: daten.artikel ? avesmapsWikiAssignText(daten.artikel.name) : "",
 				wiki_url: daten.artikel ? avesmapsWikiAssignText(daten.artikel.wiki_url) : "",
 				wiki_key: daten.artikel ? avesmapsWikiAssignText(daten.artikel.wiki_key) : "",
-				kein_artikel: daten.keinArtikel === true,
-				// 🔴 WURDE DER DRITTE ZUSTAND SEIT DEM LADEN BEWUSST VERAENDERT? (Owner-Entscheid
-				// 16.08.2026, anstelle eines `expected_revision`.) Wer das Haekchen nicht anfasst,
-				// soll es auch nicht loeschen koennen: ein zweiter Editor, der den Merker im
-				// Konfliktzentrum setzt, wird sonst von einem alten, laengst offenen Dialog
-				// ueberschrieben, sobald dort irgendetwas anderes gespeichert wird.
-				// 💣 Der Unterschied ist VERAENDERT, nicht GESETZT -- ein bewusst ENTFERNTES Haekchen
-				// muss genauso durchkommen wie ein gesetztes, sonst liesse sich der Merker nie wieder
-				// loswerden.
-				// ⚠️ Eine geglueckte Zuweisung zaehlt dazu: `trefferWaehlen` setzt `keinArtikel` auf
-				// false, und war er vorher gesetzt, IST das eine Aenderung -- der Server tut beim
-				// Zuweisen ohnehin dasselbe (assign_to), das Mitschicken bestaetigt es nur.
-				kein_artikel_geaendert: (daten.keinArtikel === true) !== (geladenerKeinArtikel === true),
 			};
 		},
 		neuLaden: neuLaden,

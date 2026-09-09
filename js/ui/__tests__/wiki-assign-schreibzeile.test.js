@@ -205,9 +205,11 @@ zaehl();
 // Geklickt wird ueber die Zuhoerer, die `mount` selbst angehaengt hat -- kein nachgebauter Ablauf.
 
 /**
- * Behaelter-Attrappe MIT `querySelector`. 🔴 Sie ist noetig, weil das Umlegen des Haekchens den
- * TEILWEISEN Weg nimmt (`zeichneSchreibzustand`): eine Attrappe, die immer `null` liefert, faellt
- * auf das volle Zeichnen zurueck -- der Test praefte dann genau den Zweig NICHT, um den es geht.
+ * Behaelter-Attrappe MIT `querySelector`.
+ * 🔴 SIE BEGRUENDETE SICH MIT DEM TEILWEISEN ZEICHENWEG (`zeichneSchreibzustand`), den das Umlegen
+ * des Haekchens nahm. Haekchen und Weg sind am 09.09.2026 mit dem Merker gefallen; die Attrappe
+ * bleibt, weil die uebrigen Bloecke ihre `schreibzeile`/`knopfreihe` lesen -- sie ist jetzt
+ * gewoehnliches Ruestzeug, kein Riegel gegen einen bestimmten Zweig.
  */
 function behaelterAttrappe() {
 	const zuhoerer = {};
@@ -391,37 +393,15 @@ const ruhe = () => new Promise((fertig) => setTimeout(fertig, 0));
 		zaehl(); zaehl();
 	}
 
-	// ---- (14) Das HAEKCHEN stellt etwas aus, und zwar OHNE den Kasten neu zu bauen --------------
-	// 💣 Es ist der einzige Ausloeser, der aus einem `change` kommt: ein volles `innerHTML` naehme dem
-	// Kaestchen den Fokus mitten in einer Tastaturbedienung. Gemessen wird deshalb am TEILWEISEN Weg
-	// (die Attrappe liefert die zwei Knoten, die `zeichneSchreibzustand` sucht).
-	{
-		const b = behaelterAttrappe();
-		avesmapsWikiAssignMount(b, {
-			subject: "ort", skin: "dt",
-			laden: () => ({ artikel: null, keinArtikel: false }),
-			verwerfen: () => {},
-			// 🔴 Die Objektart „ort“ schreibt SOFORT -- fuer diesen Fall wird sie uebersteuert, weil
-			// genau das der Anlegefall des Kartendialogs tut. Zwei Fliegen: der Uebersteuerungsweg
-			// wird mitgefahren, und das Haekchen gibt es nur bei „ort“ und „landschaftslabel“.
-			schreibt: "speichern",
-		});
-		await ruhe();
-		const vorher = b.innerHTML;
-		const haken = ziel("data-wa-kein-artikel", "");
-		haken.checked = true;
-		b.feuere("change", haken);
-		await ruhe();
-		assert.strictEqual(b.innerHTML, vorher,
-			"das Umlegen des Haekchens hat den ganzen Kasten neu gebaut -- der Fokus ist weg");
-		assert.strictEqual(b.schreibzeile.textContent, AVESMAPS_WIKI_ASSIGN_TEXTE.schreibtOffen,
-			"die Schreibzeile wurde nicht nachgezogen: " + JSON.stringify(b.schreibzeile.textContent));
-		assert.ok(/is-ungespeichert/.test(b.schreibzeile.className),
-			"die Zustandsklasse fehlt: " + b.schreibzeile.className);
-		assert.ok(b.knopfreihe.innerHTML.indexOf('data-wa-aktion="verwerfen"') !== -1,
-			"der Verwerfen-Knopf wurde nicht nachgezogen: " + b.knopfreihe.innerHTML);
-		zaehl(); zaehl(); zaehl(); zaehl();
-	}
+	// ---- (14) ENTFALLEN ------------------------------------------------------------------
+	// 🔴 HIER STAND: „Das HAEKCHEN stellt etwas aus, und zwar OHNE den Kasten neu zu bauen".
+	// Es war der EINZIGE Ausloeser, der aus einem `change` kam -- ein volles `innerHTML` haette
+	// dem Kaestchen den Fokus mitten in einer Tastaturbedienung genommen. Das Haekchen ist am
+	// 09.09.2026 mit dem Merker `properties.wiki_no_article` gefallen (Owner-Entscheid), und
+	// damit hat der teilweise Zeichenweg keinen Ausloeser mehr.
+	// ⚠️ Der Block liess sich nicht retten, sondern nur streichen: ohne Ausloeser gibt es nichts
+	// zu messen. Was er nebenbei mitpruefte -- dass eine ausstehende Aenderung den
+	// Verwerfen-Knopf zeigt --, steht in Block (13) darueber und wird dort wirklich gefahren.
 
 	// ---- (15) Die UEBERSTEUERUNG wirkt und laesst das Register in Ruhe ---------------------------
 	// 🪤 Sie hat genau EINEN Aufrufer (den Anlegefall des Ortsdialogs). `Object.assign` auf eine

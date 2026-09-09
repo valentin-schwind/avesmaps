@@ -41,10 +41,8 @@
 	// Die Staging-Zeile zur gerade gezeigten Zuweisung. Die Region speichert nur Adresse und Schluessel;
 	// Art, Lage und Staat muessen dazugeholt werden (avesmapsWikiAssignLandschaftArtikel sagt, warum).
 	let wikiSchnappschuss = null;
-	// Der dritte Zustand, wie `list_regions` ihn geliefert hat.
-	let regionKeinArtikel = false;
 	// 🔴 Die Feldherkunft der Region -- `{name|region_type: "manual"|"wiki"}`. Sie kommt aus
-	// DERSELBEN `list_regions`-Antwort wie der dritte Zustand; ein zweiter Abruf nur dafuer waere
+	// der `list_regions`-Antwort; ein zweiter Abruf nur dafuer waere
 	// eine Anfrage zu viel. Ein Feld OHNE Eintrag heisst „nicht bekannt", nie „vom Wiki".
 	let regionFieldOrigins = null;
 	// 🔴 WELCHE FELDER SEIT DEM ÖFFNEN AUS DEM WIKI KAMEN -- die Merkliste DIESES Dialogs. Der Server
@@ -238,7 +236,6 @@
 		propertiesSourcePublicId = "";
 		pendingWikiRegion = undefined;
 		wikiSchnappschuss = null;
-		regionKeinArtikel = false;
 		regionFieldOrigins = null;
 		wikiUebernommen = new Set();
 		// 🔴 Zuhoerer abnehmen und den Behaelter leeren, nicht bloss die Steuerung vergessen: das Bauteil
@@ -367,7 +364,6 @@
 			schnappschuss: wikiSchnappschuss,
 			arten: regionTypesForKind,
 			kind: area.kind,
-			kein_artikel: regionKeinArtikel,
 			field_origins: regionFieldOrigins,
 			name: () => String(propertiesElement("name")?.value || ""),
 			region_type: () => String(propertiesElement("type")?.value || ""),
@@ -832,7 +828,6 @@
 		}
 		pendingWikiRegion = undefined;
 		wikiSchnappschuss = null;
-		regionKeinArtikel = false;
 		regionFieldOrigins = null;
 		wikiUebernommen = new Set();
 		if (wikiAssign) {
@@ -941,7 +936,6 @@
 			// Der dritte Zustand kommt aus DERSELBEN Antwort -- `list_regions` ist der einzige Leseweg,
 			// der ihn herausgibt (avesmapsListEcosystemRegions). Die Flächenzeile aus dem Kartenpayload
 			// trägt ihn nicht, und ein zweiter Abruf nur für ein Häkchen wäre eine Anfrage zu viel.
-			regionKeinArtikel = mine?.wiki_no_article === true;
 			// Aus derselben Antwort, aus demselben Grund. 🪤 Sie steht dort erst seit dem 22.08.2026:
 			// der Server stempelte seit dem 18.08., aber `list_regions` gab die Ablage bewusst nicht
 			// heraus -- es gab fuer die Stempel schlicht keinen Leser

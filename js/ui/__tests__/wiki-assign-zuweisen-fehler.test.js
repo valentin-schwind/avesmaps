@@ -105,7 +105,8 @@ pruefe(!/ui\.treffer\s*=\s*\[\]/.test(BLOCK), "die Trefferliste wird NICHT gelee
 
 // ---- E. Die Gegenprobe: der Erfolgszweig ist unberuehrt -------------------------------------------
 pruefe(BLOCK.includes('neuerZustand("zugewiesen")'), "der Erfolgszweig uebernimmt weiterhin");
-pruefe(BLOCK.includes("daten.keinArtikel = false"), "und loescht weiterhin den Merker");
+// 🔴 Hier stand zusaetzlich „und loescht weiterhin den Merker" (`daten.keinArtikel = false`).
+// Der Merker ist am 09.09.2026 gefallen -- eine Zuweisung hat nichts mehr zu widerlegen.
 
 // ---- F. Der Hinweis wird ueberhaupt gezeichnet ----------------------------------------------------
 // 🪤 `zeichneTreffer` muss den Hinweis wirklich anfassen -- sonst setzt der Zweig oben eine Meldung,

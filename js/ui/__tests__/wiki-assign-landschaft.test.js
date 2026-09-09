@@ -250,18 +250,13 @@ const ohne = avesmapsWikiAssignLandschaftZustand({ arten: VEGETATION, name: "Wal
 assert.strictEqual(ohne.artikel, null);
 assert.strictEqual(ohne.kartenwerte.name, "Wald-001");
 assert.strictEqual(ohne.kartenwerte.region_type, "wald");
-assert.strictEqual(ohne.keinArtikel, false);
 assert.deepStrictEqual(ohne.gesperrt, {}, "eine gewoehnliche Ebene hat keine gesperrte Zeile");
 zaehl(); zaehl(); zaehl(); zaehl(); zaehl();
 
-// 🔴 DER DRITTE ZUSTAND IST NICHT AUS DER ZUWEISUNG ABLEITBAR, und nur ein ausdrueckliches `true`
-// setzt ihn.
-assert.strictEqual(avesmapsWikiAssignLandschaftZustand({ kein_artikel: true }).keinArtikel, true);
-["", 0, "true", null, undefined].forEach((weich) => {
-	assert.strictEqual(avesmapsWikiAssignLandschaftZustand({ kein_artikel: weich }).keinArtikel, false,
-		"ein weicher Wert (" + JSON.stringify(weich) + ") setzt den Merker");
-	zaehl();
-});
+// 🔴 DER DRITTE ZUSTAND IST GEFALLEN (Owner-Entscheid 09.09.2026) -- der Zustand traegt
+// `keinArtikel` nicht mehr. Ein Altbestand-Merker in der Quelle darf NICHTS mehr erzeugen.
+assert.ok(!("keinArtikel" in avesmapsWikiAssignLandschaftZustand({ kein_artikel: true })),
+	"ein Altbestand-Merker erzeugt wieder einen dritten Zustand");
 zaehl();
 
 // 🔴 DIE KLIMAZONE: ihre ART steht fest, ihr NAME nicht. Der Riegel gehoert an die ZEILE, nicht an
@@ -340,9 +335,11 @@ assert.deepStrictEqual(
 // Regionen-Editor genannt; das Haekchen steht in EINER Erklaerung, also gibt es keine Halbierung.
 // ⚠️ Der Label-Dialog ist NICHT betroffen -- das ist die eigene Erklaerung `landschaftslabel`, und
 // dass sie ihn behaelt, ist weiter unten eigens festgenagelt.
-assert.strictEqual(landschaft.extra.keinArtikelHaken, false,
-	"das Haekchen ist zurueck -- der Owner hat es am 16.08.2026 abgewaehlt, die Begruendung steht im "
-	+ "Feldregister. Wer es wieder einbaut, braucht einen neuen Entscheid.");
+// 🔴 Seit dem 09.09.2026 ist der SCHLUESSEL gefallen, nicht nur sein Wert: der Merker
+// `properties.wiki_no_article` ist global ausgebaut (Owner-Entscheid).
+assert.ok(!("keinArtikelHaken" in (landschaft.extra || {})),
+	"das Haekchen ist zurueck -- es ist mit dem Merker gefallen. Wer es wieder einbaut, braucht "
+	+ "zuerst wieder ein Feld, das es schreibt, und einen neuen Entscheid.");
 // 🪤 UND DER HINWEISTEXT IST MITGEFALLEN. Hier stand einmal, er duerfe „keine Konfliktliste
 // versprechen" -- eine `ecosystem_region` steht in keiner (avesmapsConflictLoadMapRows liest nur
 // `map_features`). Der Befund bleibt wahr; ohne Haekchen liest das Bauteil `keinArtikelHinweis` gar
@@ -1317,13 +1314,13 @@ function sandkastenBauen(dateien, felder, behaelterIds, fetchAntwort, zusatz) {
 	await ruhe();
 	assert.ok(!/data-wa-kein-artikel/.test(labelHost.innerHTML),
 		"🔴 das Bedienelement des dritten Zustands ist zurueck: " + labelHost.innerHTML);
-	// ⚠️ Auch fuer ein Label, das den Merker aus dem ALTBESTAND noch traegt -- genau das ist
-	// der Zustand der 10 Traeger bis Schritt 4.
-	vm.runInContext("setLabelWikiRegion(null, true);", kLabel.kasten);
-	await ruhe();
-	assert.ok(!/data-wa-kein-artikel/.test(labelHost.innerHTML),
-		"🔴 ein Altbestand-Traeger holt das Bedienelement zurueck: " + labelHost.innerHTML);
-	zaehl(); zaehl();
+	// 🪤 HIER STAND EINE ZWEITE PROBE „auch fuer ein Label mit Altbestand-Merker", und sie war ein
+	// VAKUUM: seit `setLabelWikiRegion` seinen mittleren Parameter verloren hat, landete das `true`
+	// als `fieldOrigins` und wurde verworfen -- es gab gar keinen Traeger, und die Zeile mass
+	// denselben Fall wie die drei darueber. Gefunden von einem Pruefagenten.
+	// ⭐ Was sie messen SOLLTE, misst der Server-Test: ein Altbestand-Merker erreicht das Bauteil
+	// gar nicht mehr, weil kein Datenweg ihn noch projiziert (`quelle.kein_artikel` ist ueberall weg).
+	zaehl();
 
 	console.log("wiki-assign-landschaft: " + checks + " Zusicherungen erfuellt");
 })().catch((fehler) => {

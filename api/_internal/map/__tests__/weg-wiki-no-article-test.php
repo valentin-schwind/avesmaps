@@ -205,19 +205,16 @@ assert(
     'der Wege-Editor haengt wieder einen Rueckruf fuer das Haekchen ein'
 );
 
-// 🔴 UND DIE ERKLAERUNG SAGT ES AUCH, samt Begruendung. Ohne diese Zusicherung liesse sich das
-// Haekchen wieder einschalten, ohne dass etwas rot wird -- der Server ist ja tolerant.
+// 🔴 HIER STAND, die Erklaerung `weg` fuehre `keinArtikelHaken: false` samt Begruendung.
+// Der SCHLUESSEL ist am 09.09.2026 ganz gefallen -- der Merker `properties.wiki_no_article` ist
+// global ausgebaut (Owner-Entscheid), und das Bauteil liest `extra.keinArtikelHaken` nicht mehr.
+// 💣 Gezaehlt wird ueber das GANZE Register, nicht ueber die Zeile der Wege: wer eine neunte
+// Objektart anlegt, soll nicht selbst daran denken muessen.
 $register = file_get_contents(__DIR__ . '/../../../../js/ui/wiki-assign-registry.js');
 assert(is_string($register));
 assert(
-    preg_match('/\n\tweg:\s*\{.*?keinArtikelHaken:\s*(true|false)/s', $register, $hakenTreffer) === 1,
-    'die Erklaerung `weg` fuehrt `keinArtikelHaken` gar nicht mehr -- dann fehlt auch ihre Begruendung'
-);
-assert(
-    $hakenTreffer[1] === 'false',
-    'die Erklaerung `weg` bietet das Haekchen wieder an -- der Owner hat es am 16.08.2026 abgewaehlt, '
-    . 'weil die Entscheidung beim Weg ueber den ganzen Namensverbund wirkt und damit ins '
-    . 'Konfliktzentrum gehoert. Wer es zurueckholt, braucht einen neuen Entscheid.'
+    preg_match('/keinArtikelHaken/', $register) !== 1,
+    'das Feldregister fuehrt `keinArtikelHaken` wieder -- es ist mit dem Merker gefallen'
 );
 
 // ── 7) JEDE ZUWEISUNG LOESCHT DEN MERKER -- UND DIE LISTE DER ZUWEISER WIRD GEZAEHLT ──────────

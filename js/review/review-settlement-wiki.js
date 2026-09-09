@@ -73,13 +73,9 @@ function settlementWikiZustand() {
 	return avesmapsWikiAssignOrtZustand({
 		wiki_settlement: settlementWikiCurrentAssignment() || settlementWikiPendingAssignment(),
 		// Die gespeicherte Feldherkunft -- sie entscheidet in der Sync-Vorschau, welche Zeile
-		// vorangehakt startet. ⚠️ Sie kommt aus dem MARKER-EINTRAG wie der dritte Zustand darunter;
-		// im Anlege-Fall gibt es keinen, und dann ist sie von Natur aus leer (= nichts bekannt).
+		// vorangehakt startet. ⚠️ Sie kommt aus dem MARKER-EINTRAG; im Anlege-Fall gibt es keinen,
+		// und dann ist sie von Natur aus leer (= nichts bekannt).
 		field_origins: settlementWikiCurrentMarkerEntry()?.location?.fieldOrigins || null,
-		// 🔴 Der dritte Zustand kommt aus dem MARKER-EINTRAG, nicht aus einem Formularfeld: er steht
-		// im `properties_json` und reist im Kartenpayload mit (prepareLocationData, js/routing/
-		// routing.js). Im Anlege-Fall gibt es keinen Marker -- dort ist er von Natur aus falsch.
-		kein_artikel: Boolean(settlementWikiCurrentMarkerEntry()?.location?.wikiNoArticle),
 		// 💣 LESEFUNKTIONEN, keine Werte: Namensfeld und Groessenauswahl stehen im selben Formular
 		// ueber dem Kasten. `laden` laeuft einmal, die Sync-Vorschau entsteht erst beim Druck auf
 		// „Sync" -- eingefroren boete sie eine Aenderung an, die das Formular daneben laengst zeigt.
@@ -93,36 +89,9 @@ function settlementWikiZustand() {
 	});
 }
 
-/**
- * Der Stand des Häkchens „Kein Wiki-Artikel vorhanden", wie ihn `buildLocationEditPayload` braucht.
- *
- * 🔴 `null` HEISST „NICHT SCHICKEN", und es gibt dafür ZWEI Gründe:
- *
- * 1. **Das Bauteil ist nicht bereit** (Blindgänger -- nach einem Deploy-Fehlschlag nicht
- *    hypothetisch, AGENTS.md §9). Ein `false` wäre hier eine Löschung, die niemand angeordnet hat.
- * 2. **Das Häkchen wurde seit dem Laden gar nicht angefasst** (Owner-Entscheid 16.08.2026, anstelle
- *    eines `expected_revision`): wer es nicht anfasst, kann es auch nicht löschen. Ohne diesen
- *    Riegel nimmt ein alter, längst offener Dialog beim nächsten beliebigen Speichern die
- *    Entscheidung eines zweiten Editors zurück, der den Merker inzwischen im Konfliktzentrum gesetzt
- *    hat -- und der Erste merkt davon nichts.
- *
- * 💣 GEPRÜFT WIRD `kein_artikel_geaendert`, NICHT `kein_artikel`. Der Unterschied ist *verändert seit
- * dem Laden*, nicht *gesetzt*: ein bewusst ENTFERNTES Häkchen muss genauso durchkommen wie ein
- * gesetztes, sonst liesse sich der Merker nie wieder loswerden.
- *
- * ⚠️ Der Riegel ist ENG gemeint -- er gilt NUR dem Merker. Kein `expected_revision`, keine neuen
- * Absagen für Editoren, keine Behandlung der übrigen Felder.
- */
-function settlementWikiKeinArtikelFuerPayload() {
-	if (!settlementWikiAssign || !settlementWikiAssign.bereit) {
-		return null;
-	}
-	const stand = settlementWikiAssign.lies();
-	if (!stand || stand.kein_artikel_geaendert !== true) {
-		return null;
-	}
-	return stand.kein_artikel === true;
-}
+// 🔴 HIER STAND `settlementWikiKeinArtikelFuerPayload` -- der Rueckkanal des dritten Zustands
+// in den Speicher-Rumpf. Gefallen am 09.09.2026 mit dem Merker `properties.wiki_no_article`
+// (Owner-Entscheid); sein Aequivalent ist die WIKI-ZUWEISUNG.
 
 // Derive the wiki page title from a /wiki/<Title> URL (decodes %xx + underscores). "" if none.
 function settlementWikiTitleFromUrl(wikiUrl) {
@@ -665,35 +634,11 @@ function renderSettlementWikiReference() {
 		zuweisen: (treffer) => selectSettlementWikiResult(avesmapsWikiAssignOrtTitel(treffer), treffer),
 		loesen: removeSettlementWiki,
 		syncUebernehmen: settlementWikiSyncUebernehmen,
-		keinArtikelGeaendert: settlementWikiKeinArtikelGeaendert,
 	});
 }
 
-/**
- * Das Häkchen „Kein Wiki-Artikel vorhanden" wurde umgelegt.
- *
- * 🔴 GESPEICHERT WIRD ERST MIT „Speichern" -- dieser Dialog schreibt keine Einzelfelder. Der Wert
- * selbst hält das Bauteil; `buildLocationEditPayload` holt ihn über
- * `settlementWikiKeinArtikelFuerPayload()`.
- *
- * 💣 GESETZT HEISST: DAS FLACHE ADRESSFELD WIRD GELEERT. `update_point` LEHNT den Widerspruch
- * „Adresse UND kein Artikel" ab (avesmapsApplyPointWikiFields) -- und `#location-edit-wiki-url` ist
- * in diesem Dialog `type="hidden"`: der Editor bekäme eine Absage, deren Ursache er nirgends sieht
- * und deren Rat („die Zuweisung entfernen") auf ein leeres Feld zeigt. Also wird hier geleert, statt
- * dort abzulehnen. ⚠️ Beim ABwählen wird NICHTS zurückgeholt: eine gelöschte Adresse zu erraten wäre
- * genau der Fehler, den der Merker beseitigt.
- */
-function settlementWikiKeinArtikelGeaendert(gesetzt) {
-	if (gesetzt === true) {
-		const wikiUrlField = settlementWikiElement("location-edit-wiki-url");
-		if (wikiUrlField) {
-			wikiUrlField.value = "";
-		}
-	}
-	showFeedbackToast?.(gesetzt
-		? "„Kein Wiki-Artikel vorhanden“ gesetzt — noch nicht gespeichert."
-		: "„Kein Wiki-Artikel vorhanden“ entfernt — noch nicht gespeichert.", "info");
-}
+// 🔴 HIER STAND `settlementWikiKeinArtikelGeaendert` -- der Sofort-Rueckruf des Haekchens, der
+// beim Setzen das flache Adressfeld leerte. Gefallen am 09.09.2026 mit dem Merker.
 
 // Holt die aktuelle Zuordnung frisch vom Server (DB-Wahrheit), falls der Browser-Marker stale ist
 // (z. B. nach Bulk-Verbinden). Aktualisiert Marker + Zuweisungskasten + Karten-Popup.

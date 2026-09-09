@@ -167,19 +167,14 @@ const ohne = avesmapsWikiAssignOrtZustand({ wiki_settlement: null, name: "Havena
 assert.strictEqual(ohne.artikel, null);
 assert.strictEqual(ohne.kartenwerte.name, "Havena");
 assert.strictEqual(ohne.kartenwerte.feature_subtype, "dorf");
-// 🔴 DER DRITTE ZUSTAND IST NICHT AUS DER ZUWEISUNG ABLEITBAR: „keine Zuweisung" heisst „noch
-// niemand hat nachgesehen", der Merker heisst „jemand HAT nachgesehen und es gibt keinen". Ohne
-// Angabe ist er falsch, und nur ein ausdrueckliches `true` setzt ihn.
-assert.strictEqual(ohne.keinArtikel, false);
-assert.strictEqual(
-	avesmapsWikiAssignOrtZustand({ wiki_settlement: null, kein_artikel: true }).keinArtikel, true,
-	"der Merker „kein Wiki-Artikel“ erreicht den Zustand nicht -- das Haekchen startet dann immer leer"
-);
-["", 0, "true", null, undefined].forEach((weich) => {
-	assert.strictEqual(avesmapsWikiAssignOrtZustand({ kein_artikel: weich }).keinArtikel, false,
-		"ein weicher Wert (" + JSON.stringify(weich) + ") setzt den Merker");
-	zaehl();
-});
+// 🔴 DER DRITTE ZUSTAND IST GEFALLEN (Owner-Entscheid 09.09.2026) -- der Zustand traegt
+// `keinArtikel` nicht mehr. Ein Altbestand-Merker in der Quelle darf NICHTS mehr erzeugen.
+// ⚠️ Hier stand die Gegenthese zur heutigen Regel: „NICHT aus der Zuweisung ableitbar". Sie galt,
+// solange der Leseweg Adressen aus dem NAMEN riet (Discord #38); `420f12cfc` hat das zurueckgebaut.
+assert.ok(!("keinArtikel" in ohne), "der Zustand traegt den gefallenen dritten Zustand wieder");
+assert.ok(!("keinArtikel" in avesmapsWikiAssignOrtZustand({ wiki_settlement: null, kein_artikel: true })),
+	"ein Altbestand-Merker erzeugt wieder einen dritten Zustand");
+zaehl();
 // Und die drei neuen Kartenfelder kommen mit -- sonst vergliche die Sync-Vorschau gegen Leerwerte
 // und boete jedes Mal eine Aenderung an, die das Formular daneben laengst zeigt.
 const mitFeldern = avesmapsWikiAssignOrtZustand({
@@ -1297,11 +1292,14 @@ function skripteAus(htmlDatei, muster) {
 			.filter((zeile) => zeile.trim().indexOf("//") !== 0)
 			.join("\n");
 	}
-	MARKER_ERZEUGER.forEach(([datei, funktion, merkerName]) => {
+	MARKER_ERZEUGER.forEach(([datei, funktion]) => {
 		const quelle = fs.readFileSync(path.join(wurzel, datei), "utf8");
 		const rumpf = rumpfOhneKommentare(quelle, funktion);
 		assert.ok(rumpf !== null, "der Erzeuger „" + funktion + "“ steht nicht in " + datei);
-		[merkerName, "einwohner", "lage", "oberhaupt"].forEach((feld) => {
+		// 🔴 `merkerName` ist am 09.09.2026 aus dieser Liste gefallen: die Erzeuger tragen den Merker
+		// nicht mehr in den Marker-Eintrag. Die DREI Textfelder bleiben -- an ihnen haengt der
+		// eigentliche Befund dieser Probe.
+		["einwohner", "lage", "oberhaupt"].forEach((feld) => {
 			// Wortgrenze davor, Doppelpunkt dahinter: „village" faellt heraus, „einwohner:" nicht.
 			const zuweisung = new RegExp("(^|[^A-Za-z0-9_$])" + feld + "\\s*:");
 			assert.ok(zuweisung.test(rumpf),

@@ -687,10 +687,6 @@
 		if (!state.draft) { throw new Error("Kein Weg gewählt."); }
 		return avesmapsWikiAssignWegZustand({
 			wiki_path: state.draft.wiki_path,
-			// ⚠️ Ein WERT, keine Lesefunktion -- anders als der Wegtyp darunter. Das Haekchen wohnt
-			// IM Bauteil; im Entwurf steht nur der GELADENE Stand, und der aendert sich zwischen
-			// `laden` und dem Speichern nicht.
-			kein_artikel: state.draft.wiki_no_article === true,
 			// 💣 Eine LESEFUNKTION, kein Wert: die Wegtyp-Auswahl steht in derselben Spalte und
 			// schreibt seit dem 16.08.2026 in den Entwurf, OHNE die Spalte neu zu bauen. Eingefroren
 			// verglichen boete die Sync-Vorschau einen Wechsel an, den die Auswahl daneben schon zeigt.
@@ -1689,8 +1685,6 @@
 			// Der dritte Zustand („dieser Weg hat KEINEN Wiki-Artikel"). 💣 Er kommt aus der
 			// Listenantwort, und die ist eine WEISSE LISTE (api/edit/map/paths-editor.php) -- fehlt
 			// dort die Zeile, staende das Haekchen bei jedem Weg leer da, auch bei einem, fuer den
-			// laengst jemand entschieden hat.
-			wiki_no_article: source.wiki_no_article === true,
 			// Die FELDHERKUNFT -- aus derselben weissen Liste und aus demselben Grund. Fehlt sie hier,
 			// bleibt die Beschriftung fuer immer grau, obwohl der Server sie pflegt: `undefined` liest
 			// sich ueberall wie „nicht bekannt", und genau so verhaelt sich die Oberflaeche dann auch.

@@ -246,33 +246,14 @@
 	color: var(--color-warning-soft-text);
 }
 
-/* Der dritte Zustand („Kein Wiki-Artikel vorhanden"). Gegenstueck: .dt-check. */
-.label-wiki-reference__check {
-	display: flex;
-	align-items: center;
-	gap: var(--space-4);
-	padding: var(--space-2) 0;
-	font-size: var(--font-size-body);
-	color: var(--color-text-muted);
-}
-
-.label-wiki-reference__check input {
-	cursor: pointer;
-	/* ⚠️ Ohne diese Zeile faerbt der Browser das Kaestchen in seiner Standardfarbe -- unter Windows
-	   BLAU, und Blau ist in der Bedienoberflaeche verboten (AGENTS.md §12).
-	   ✅ SEIT DEM 16.08.2026 IST SIE NICHT MEHR STUMM: der Weg traegt den dritten Zustand (Aufgabe
-	   5c, `extra.keinArtikelHaken` in js/ui/wiki-assign-registry.js), und der Kartendialog „Weg
-	   bearbeiten" zeichnet dieses Kaestchen. Hier stand bis dahin, sie sei noch ohne Wirkung.
-	   ✅ `.avm-wiki-assign .dt-check input` (css/components/editor-page.css) hat dieselbe Regel seit
-	   dem 16.08.2026 -- die zweite Huelle desselben Bauteils, eingeengt auf das Bauteil. Sie faerbt
-	   das Kaestchen in DREI Editorfenstern um (Kraftlinien-, Orte- und Wege-Editor); die ersten zwei
-	   trugen es vorher browserblau.
-	   🔧 Das ALLGEMEINE `.dt-check input` hat die Luecke weiterhin: „Auto-Name" und „Name auf der
-	   Karte anzeigen" im Wege-Editor und der Auto-Name des Landschaften-Editors sind blau. Nicht
-	   mitgeaendert -- eine sichtbare Aenderung an fremden Bedienelementen gehoert in einen eigenen
-	   Gang (AGENTS.md §9). */
-	accent-color: var(--color-accent);
-}
+/* 🔴 HIER STANDEN `.label-wiki-reference__check` UND `… input` -- die Huelle des dritten
+   Zustands („Kein Wiki-Artikel vorhanden") im Kartendialog. Gefallen am 09.09.2026 mit dem
+   Merker `properties.wiki_no_article` (Owner-Entscheid); das Bauteil zeichnet kein Haekchen
+   mehr, die Regeln hatten kein Ziel mehr. Gegenstueck war `.avm-wiki-assign .dt-check input`
+   in css/components/editor-page.css, im selben Zug gefallen.
+   ⚠️ `.dt-check` SELBST bleibt: es traegt auch „Auto-Name" und „Name auf der Karte anzeigen".
+   Die dort benannte Luecke (das ALLGEMEINE `.dt-check input` ist browserblau) besteht
+   unveraendert weiter -- sie war nie an den Merker gebunden. */
 
 /* 🔴 Ein Treffer sagt IM Treffer, wenn er schon woanders haengt -- vor dem Klick, nicht danach
    (Entwurf §5). Gegenstueck: .dt-picker-list__warn. */

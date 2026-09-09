@@ -272,7 +272,6 @@ function applyFeatureResponseToMarker(markerEntry, feature) {
 		// IMMER (avesmapsBuildPointFeatureResponse), also dürfen sie hier bedingungslos gewinnen --
 		// sonst liesse sich ein einmal gesetzter Merker am Marker nie wieder loswerden, genau wie
 		// eine Zeile weiter unten bei der Ortsart begründet.
-		wikiNoArticle: Boolean(feature.wiki_no_article),
 		einwohner: String(feature.einwohner || ""),
 		lage: String(feature.lage || ""),
 		oberhaupt: String(feature.oberhaupt || ""),
@@ -385,7 +384,6 @@ function addCreatedLocationMarker(feature, { openPopup = true } = {}) {
 		wikiUrl: feature.wiki_url || "",
 		otherSource: feature.other_source || null,
 		wikiSettlement: feature.wiki_settlement || null,
-		wikiNoArticle: Boolean(feature.wiki_no_article),
 		einwohner: String(feature.einwohner || ""),
 		lage: String(feature.lage || ""),
 		oberhaupt: String(feature.oberhaupt || ""),
@@ -432,9 +430,6 @@ function applyLiveLocationFeature(feature) {
 		// Umschlag, den die zwei Marker-Erzeuger sonst von `update_point` bekommen -- fehlt einer,
 		// setzt die Live-Synchronisierung eines FREMDEN Editors den Merker auf meinem Marker still
 		// zurueck, und mein naechstes Speichern loescht damit die Entscheidung des Konfliktzentrums.
-		// ⚠️ Die Namen wechseln hier von der Payload-Form (`wiki_no_article`) in die Antwort-Form
-		// derselben Sache; die Marker-Erzeuger lesen die Antwort-Form.
-		wiki_no_article: Boolean(properties.wiki_no_article),
 		einwohner: String(properties.einwohner || ""),
 		lage: String(properties.lage || ""),
 		oberhaupt: String(properties.oberhaupt || ""),

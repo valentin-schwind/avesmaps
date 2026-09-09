@@ -2409,11 +2409,6 @@ function buildSettlementSavePayload() {
 	// dasselbe wie ein fehlender Schluessel: „nichts kam aus dem Wiki", also alles von uns.
 	payload.wiki_uebernommen = Array.from(settlementWikiUebernommen);
 
-	const keinArtikel = settlementWikiAssignKeinArtikelFuerPayload();
-	if (keinArtikel !== null) {
-		payload.wiki_no_article = keinArtikel;
-	}
-
 	return payload;
 }
 
@@ -2472,9 +2467,6 @@ function settlementWikiAssignZustand() {
 	const props = settlementDetailCache.detail.properties || {};
 	return avesmapsWikiAssignOrtZustand({
 		wiki_settlement: props.wiki_settlement || null,
-		// 🔴 Der dritte Zustand kommt aus den ROHEN Eigenschaften -- `settlement_detail` reicht
-		// `properties_json` unveraendert durch (avesmapsWikiSettlementDetail, settlements.php:1681).
-		kein_artikel: Boolean(props.wiki_no_article),
 		// 💣 LESEFUNKTIONEN, keine Werte: Namensfeld und Typ-Auswahl stehen in derselben Spalte.
 		// `laden` laeuft einmal, die Sync-Vorschau entsteht erst beim Druck auf „Sync" -- eingefroren
 		// boete sie eine Aenderung an, die das Formular darueber laengst zeigt.
@@ -2486,51 +2478,12 @@ function settlementWikiAssignZustand() {
 	});
 }
 
-/**
- * Der Stand des Häkchens „Kein Wiki-Artikel vorhanden" für `buildSettlementSavePayload`.
- *
- * 🔴 `null` HEISST „NICHT SCHICKEN", aus ZWEI Gründen -- wortgleich zum Zwilling
- * (settlementWikiKeinArtikelFuerPayload, js/review/review-settlement-wiki.js):
- * 1. das Bauteil ist nicht bereit (Blindgänger, AGENTS.md §9);
- * 2. das Häkchen wurde seit dem Laden gar nicht angefasst (Owner-Entscheid 16.08.2026) -- wer es
- *    nicht anfasst, kann es auch nicht löschen.
- *    🔴 Hier stand „... nimmt sonst die Entscheidung eines zweiten Editors aus dem Konfliktzentrum
- *    zurück". Seit dem 09.09.2026 setzt dort niemand mehr etwas -- der Merker ist ausgebaut, und
- *    diese Funktion ist toter Transport, der in Schritt 2 folgt.
- *
- * 💣 GEPRÜFT WIRD `kein_artikel_geaendert`, NICHT `kein_artikel`: *verändert seit dem Laden*, nicht
- * *gesetzt*. Ein bewusst ENTFERNTES Häkchen muss durchkommen, sonst wird man den Merker nie wieder los.
- * ⚠️ Beide Ort-Oberflächen tragen die Regel -- eine Regel, die einen von zwei Payload-Bauern bindet,
- * ist keine Regel (AGENTS.md §11).
- */
-function settlementWikiAssignKeinArtikelFuerPayload() {
-	if (!settlementWikiAssign || !settlementWikiAssign.bereit) {
-		return null;
-	}
-	const stand = settlementWikiAssign.lies();
-	if (!stand || stand.kein_artikel_geaendert !== true) {
-		return null;
-	}
-	return stand.kein_artikel === true;
-}
+// 🔴 HIER STAND `settlementWikiAssignKeinArtikelFuerPayload` -- der Rueckkanal des dritten
+// Zustands. Gefallen am 09.09.2026 mit dem Merker `properties.wiki_no_article`
+// (Owner-Entscheid); sein Aequivalent ist die WIKI-ZUWEISUNG.
 
-/**
- * Das Häkchen wurde umgelegt. 🔴 Gespeichert wird erst mit „Speichern".
- *
- * 💣 GESETZT HEISST: DAS FLACHE ADRESSFELD WIRD GELEERT. `update_point` LEHNT den Widerspruch
- * „Adresse UND kein Artikel" ab (avesmapsApplyPointWikiFields); `#dtEditWikiUrl` steht hier zwar
- * sichtbar, ist aber readonly -- der Editor bekäme eine Absage, die er nicht befolgen kann.
- * ⚠️ Beim ABwählen wird nichts zurückgeholt: eine gelöschte Adresse zu erraten ist genau der Fehler,
- * den der Merker beseitigt.
- */
-function settlementWikiAssignKeinArtikelGeaendert(gesetzt) {
-	if (gesetzt === true) {
-		settlementWikiSetzeFlacheAdresse("");
-	}
-	setSettlementEditMsg(gesetzt
-		? "„Kein Wiki-Artikel vorhanden“ gesetzt — noch nicht gespeichert."
-		: "„Kein Wiki-Artikel vorhanden“ entfernt — noch nicht gespeichert.", "");
-}
+// 🔴 HIER STAND `settlementWikiAssignKeinArtikelGeaendert` -- der Rueckruf des Haekchens.
+// Gefallen am 09.09.2026 mit dem Merker.
 
 /**
  * 🔴 WIRFT BEI JEDEM NEIN -- settlementDetailPost tut das schon selbst (HTTP-Status UND `ok`), die
@@ -2755,7 +2708,6 @@ function mountSettlementWikiAssign() {
 		zuweisen: settlementWikiAssignZuweisen,
 		loesen: settlementWikiAssignLoesen,
 		syncUebernehmen: settlementWikiAssignSyncUebernehmen,
-		keinArtikelGeaendert: settlementWikiAssignKeinArtikelGeaendert,
 	});
 }
 

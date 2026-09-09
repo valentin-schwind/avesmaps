@@ -204,7 +204,7 @@ function populateLabelEditForm({ labelEntry = null, latlng = null } = {}) {
 		// ⚠️ DREI Angaben, nicht zwei: dazu die Feldherkunft. Sie ist so wenig aus dem Nest ableitbar
 		// wie der Merker daneben -- ohne sie stünde jede Zeile auf „Herkunft unbekannt", und das
 		// Vorhäkeln der Sync-Vorschau verhielte sich, als hätte niemand je etwas von Hand gesetzt.
-		setLabelWikiRegion(label.wikiRegion || null, label.keinArtikel === true, label.fieldOrigins || null);
+		setLabelWikiRegion(label.wikiRegion || null, label.fieldOrigins || null);
 	}
 	// 🪤 ZWEISTUFIG. Der Titel nennt die Ebene des Labels („Vegetations-Label bearbeiten"), aber die
 	// Ebene steht erst fest, wenn die Region aufgelöst ist -- und das ist ein asynchroner Schritt
@@ -1069,7 +1069,7 @@ function buildLabelEditPayload(formElement) {
 
 	// 🔴 DIE WIKI-ZUWEISUNG REIST NUR MIT, WENN SIE SEIT DEM LADEN ANGEFASST WURDE -- oder beim Anlegen,
 	// wo es keinen geladenen Stand gibt. `update_label` liest einen FEHLENDEN Schlüssel als „nicht
-	// geändert" (dieselbe Regel wie bei `wiki_no_article` darunter).
+	// geändert" -- dieselbe Regel, die bis zum 09.09.2026 auch der Merker `wiki_no_article` trug.
 	// 💣 Bis zum 03.09.2026 stand sie in JEDEM Rumpf. Im vereinigten Fenster ist der Kasten der
 	// Beschriftung verborgen, sobald eine Fläche da ist („es gewinnt die Fläche") -- ihr Formular
 	// schickte trotzdem das GELADENE Nest mit und schrieb damit zurück, was die Fläche im selben
@@ -1091,12 +1091,7 @@ function buildLabelEditPayload(formElement) {
 	// FEHLENDEN Schlüssel als „nicht geändert" -- so nimmt ein alter, längst offener Dialog eine
 	// fremde Angabe nicht beim nächsten beliebigen Speichern zurück.
 	// 🔴 Die „Entscheidung eines zweiten Editors" gibt es seit dem 09.09.2026 nicht mehr: der Merker
-	// ist ausgebaut, niemand setzt ihn. Diese Zeilen sind toter Transport und folgen in Schritt 2.
-	// 💣 GEPRÜFT WIRD VERÄNDERT, NICHT GESETZT: ein bewusst ENTFERNTES Häkchen schickt `false`.
-	const keinArtikel = typeof getLabelWikiNoArticlePayload === "function" ? getLabelWikiNoArticlePayload() : null;
-	if (keinArtikel !== null) {
-		payload.wiki_no_article = keinArtikel;
-	}
+	// ist ausgebaut, niemand setzt ihn -- der Transport ist am 09.09.2026 mitgefallen.
 
 	const regionSection = document.getElementById("label-edit-region-section");
 	const regionSelect = document.getElementById("label-edit-region");

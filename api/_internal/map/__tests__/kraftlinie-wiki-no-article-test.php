@@ -170,43 +170,36 @@ assert(
 // 💣 GEPRUEFT WIRD DIE FORM, NICHT DAS WORT: der Merker darf NUR in dieser einen Bedingung
 // geschrieben werden. Ein blosses „irgendwo steht kein_artikel_geaendert" liesse eine zweite,
 // bedingungslose Schreibstelle daneben durchgehen.
+// 🔴 HIER STAND, saveLine schicke den Merker genau unter der Bedingung *seit dem Laden
+// veraendert*. Der Merker `properties.wiki_no_article` ist am 09.09.2026 global gefallen
+// (Owner-Entscheid), und mit ihm der bedingte Versand -- saveLine schickt ihn GAR NICHT mehr.
+// ⚠️ Das ist die sichere Richtung: avesmapsUpdatePowerlineLine liest einen FEHLENDEN Schluessel
+// als *nicht geaendert* und schreibt dann nichts.
 assert(
-    preg_match(
-        '/if \(zuweisung\.kein_artikel_geaendert === true\) \{\s*\n\s*rumpf\.wiki_no_article = /',
-        $editorCode
-    ) === 1,
-    'saveLine schickt den Merker nicht mehr genau unter der Bedingung „seit dem Laden veraendert" -- '
-    . 'bedingungslos gesendet naehme ein Speichern der Beschreibung die Entscheidung des '
-    . 'Konfliktzentrums zurueck'
+    preg_match('/rumpf\.wiki_no_article\s*=/', $editorCode) !== 1,
+    'saveLine schickt den Merker wieder -- er ist am 09.09.2026 ausgebaut worden'
 );
-// 🪤 GEZAEHLT WIRD DER SCHREIBVORGANG, NICHT DAS WORT. Ein erster Entwurf dieser Zusicherung
-// verlangte „`wiki_no_article` steht genau einmal da" und war rot bei korrektem Code: die Datei nennt
-// den Merker auch in einer Feldliste am Zeilenende (die das Kommentar-Filter nicht sieht, weil sie
-// hinter Code steht) und LIEST ihn in wikiAssignZustand -- beides muss bleiben, das Lesen traegt den
-// geladenen Stand, ohne den eine Zuweisung den Merker nicht beantworten koennte.
+// 🪤 HIER STAND EINE ZAEHLUNG: `rumpf.wiki_no_article` genau EINMAL. Sie ist mit dem
+// Schreibvorgang gefallen -- die Zusicherung darueber sagt jetzt NULL statt EINS.
+// ⚠️ Ihre Lehre bleibt gueltig und steht deshalb hier: gezaehlt wird der SCHREIBVORGANG,
+// nicht das Wort. Die Datei nennt den Merker weiterhin in einer Feldliste am Zeilenende,
+// und die reist bis Schritt 3 vom Server mit.
+// 🔴 UND DER LESEWEG IST MITGEFALLEN. Hier stand, er muesse bleiben, damit eine Zuweisung den
+// Merker beantworten kann. Ohne Merker gibt es nichts mehr zu beantworten -- der Editor liest
+// `s.wiki_no_article` nicht mehr.
 assert(
-    substr_count($editorCode, 'rumpf.wiki_no_article') === 1,
-    'der Kraftlinien-Editor schreibt `wiki_no_article` an mehr als einer Stelle in den Rumpf: '
-    . substr_count($editorCode, 'rumpf.wiki_no_article') . ' Fundstellen -- eine zweite, '
-    . 'bedingungslose Schreibstelle neben der Bedingung waere genau der stille Verlust'
+    !str_contains($editorCode, 's.wiki_no_article === true'),
+    'der Kraftlinien-Editor liest den gefallenen Merker wieder'
 );
-// ⚠️ Und der LESEweg bleibt: ohne ihn kennt das Bauteil den geladenen Stand nicht, und eine Zuweisung
-// koennte den Merker nicht mehr beantworten (`kein_artikel_geaendert` waere immer false).
-assert(
-    str_contains($editorCode, 's.wiki_no_article === true'),
-    'der Kraftlinien-Editor liest den gespeicherten Merker nicht mehr -- dann kann eine Zuweisung ihn '
-    . 'auch nicht mehr beantworten, und die Linie stuende mit Artikel UND Merker da'
-);
+// 🔴 DER SCHLUESSEL `keinArtikelHaken` IST AM 09.09.2026 GANZ GEFALLEN, nicht nur sein Wert:
+// der Merker `properties.wiki_no_article` ist global ausgebaut (Owner-Entscheid), und das
+// Bauteil liest `extra.keinArtikelHaken` nicht mehr.
+// 💣 Gezaehlt wird ueber das GANZE Register, nicht ueber die Zeile der Kraftlinien.
 $register = file_get_contents(__DIR__ . '/../../../../js/ui/wiki-assign-registry.js');
 assert(is_string($register));
 assert(
-    preg_match('/kraftlinie:\s*\{.*?keinArtikelHaken:\s*(true|false)/s', $register, $hakenTreffer) === 1,
-    'die Erklaerung `kraftlinie` fuehrt `keinArtikelHaken` gar nicht mehr -- dann fehlt auch ihre Begruendung'
-);
-assert(
-    $hakenTreffer[1] === 'false',
-    'die Erklaerung `kraftlinie` bietet das Haekchen wieder an -- der Owner hat es am 16.08.2026 '
-    . 'abgewaehlt; wer es zurueckholt, braucht einen neuen Entscheid UND das `?? false` zurueck'
+    preg_match('/keinArtikelHaken/', $register) !== 1,
+    'das Feldregister fuehrt `keinArtikelHaken` wieder -- es ist mit dem Merker gefallen'
 );
 
 fwrite(STDOUT, "kraftlinie-wiki-no-article-test: alle Zusicherungen erfuellt\n");

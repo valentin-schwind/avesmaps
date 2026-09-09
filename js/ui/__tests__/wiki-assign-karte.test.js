@@ -143,9 +143,13 @@ const ZUSTAND = avesmapsWikiAssignKarteZustand({
 	no_article: false, kandidat: SEITE_GARETH,
 });
 assert.strictEqual(ZUSTAND.artikel.name, "Gareth");
-assert.strictEqual(ZUSTAND.keinArtikel, false);
-// 🔴 DER DRITTE ZUSTAND WIRD GETRAGEN -- anders als bei Territorium und Literatur.
-assert.strictEqual(avesmapsWikiAssignKarteZustand({ no_article: true }).keinArtikel, true);
+// 🔴 DER DRITTE ZUSTAND IST GEFALLEN (Owner-Entscheid 09.09.2026) -- der Zustand traegt
+// `keinArtikel` nicht mehr. Ein Altbestand-Merker in der Quelle darf NICHTS mehr erzeugen.
+// ⚠️ Die SPALTE `citymap.no_article` bleibt (Owner 09.09.2026) -- sie ist eine eigene Ablage der
+// Kartensammlung. Nur der Weg ueber das Zuweisungs-Bauteil ist gefallen.
+assert.ok(!("keinArtikel" in ZUSTAND), "der Zustand traegt den gefallenen dritten Zustand wieder");
+assert.ok(!("keinArtikel" in avesmapsWikiAssignKarteZustand({ no_article: true })),
+	"ein `no_article: true` erzeugt wieder einen dritten Zustand");
 // ⚠️ Und NUR ein echtes `true` -- das ist eine KOPPLUNG an den Leseweg, keine Pedanterie:
 // avesmapsCitymapDetailForEdit gibt `(int) … === 1` heraus, also einen echten Wahrheitswert, und das
 // Bauteil prüft seinerseits `=== true` (js/ui/wiki-assign.js). Ein nachgiebiges `!!` hier machte aus
@@ -153,12 +157,14 @@ assert.strictEqual(avesmapsWikiAssignKarteZustand({ no_article: true }).keinArti
 // hier auf und nicht erst daran, dass der Merker im Kasten stumm verschwindet.
 // 💣 Die Zahl 1 gehört zu dieser Zusicherung dazu: mit nur der 0 blieb die Mutation „=== true" ->
 // „!!" grün (gemessen 16.08.2026), weil beide Formen für 0 dasselbe sagen.
-assert.strictEqual(avesmapsWikiAssignKarteZustand({ no_article: 0 }).keinArtikel, false);
-assert.strictEqual(avesmapsWikiAssignKarteZustand({ no_article: 1 }).keinArtikel, false,
-	"eine Zahl gilt als gesetzter Merker -- der Leseweg liefert einen Wahrheitswert, und nur der zaehlt");
-assert.strictEqual(avesmapsWikiAssignKarteZustand({ no_article: "0" }).keinArtikel, false,
-	"die Zeichenkette \"0\" gilt als gesetzter Merker");
-zaehl(); zaehl(); zaehl(); zaehl(); zaehl(); zaehl();
+// 🔴 HIER STANDEN DREI STRENGE-PROBEN auf `keinArtikel` (0 / 1 / "0"). Sie galten dem gefallenen
+// dritten Zustand; kein Wert der Quelle erzeugt ihn mehr.
+["0", 0, 1, true, "1"].forEach((weich) => {
+	assert.ok(!("keinArtikel" in avesmapsWikiAssignKarteZustand({ no_article: weich })),
+		"ein `no_article: " + JSON.stringify(weich) + "` erzeugt wieder einen dritten Zustand");
+	zaehl();
+});
+zaehl(); zaehl(); zaehl();
 
 // ── 5) DIE GEGENPROBE ZUM FELDREGISTER ────────────────────────────────────────────────────────
 // 🔴 KEIN Kartenziel, also KEIN Sync-Knopf. Die beiden hängen zusammen und werden hier gemeinsam
@@ -178,7 +184,7 @@ assert.strictEqual(KARTE.sync, false, "die Erklaerung `karte` bietet einen Sync-
 // Durchklicken: „passt, aber ‚Kein Wiki-Artikel vorhanden‘ brauchen wir nicht explizit"). Hier stand
 // bis dahin `true` mit Entwurf §2.5 als Beleg; derselbe Owner, späterer Blick auf die gebaute
 // Oberfläche. Die SPALTE `citymap.no_article` bleibt -- entschieden wird im Konfliktzentrum.
-assert.strictEqual(KARTE.extra.keinArtikelHaken, false,
+assert.ok(!("keinArtikelHaken" in (KARTE.extra || {})),
 	"das Haekchen ist zurueck -- der Owner hat es am 16.08.2026 abgewaehlt, die Begruendung steht "
 	+ "im Feldregister. Wer es wieder einbaut, braucht einen neuen Entscheid.");
 zaehl(); zaehl(); zaehl();
@@ -443,11 +449,35 @@ function standardAntwort(detail) {
 
 	// ── C) 🔴 DER MERKER REIST GAR NICHT MEHR MIT ───────────────────────────────────────────
 	// 💣 UNANGETASTET heißt WEGGELASSEN. `avesmapsUpsertCitymap` fasst nur mitgeschickte Felder an;
-	// ein bedingungslos gesendetes `no_article: 0` nähme einem zweiten Editor die Entscheidung ab,
-	// die er im Konfliktzentrum gerade getroffen hat.
+	// ein bedingungslos gesendetes `no_article: 0` nähme eine fremde Entscheidung mit.
+	// 🪤 HIER STAND „die er im Konfliktzentrum gerade getroffen hat". Nachgemessen falsch: das
+	// Konfliktzentrum fasst `citymap.no_article` NIE an -- sein Merker ist
+	// `properties.wiki_no_article` auf `map_features` (`grep citymap repair.php` → 0 Treffer).
+	// Seit dem Wegfall des Häkchens am 16.08.2026 gibt es überhaupt keinen Schreiber mehr, der
+	// die Spalte auf 1 setzt. Die Zurückhaltung bleibt trotzdem richtig -- nur ihr Grund ist ein
+	// anderer: was diese Oberfläche nicht angefasst hat, schickt sie nicht.
 	assert.strictEqual(gespeichert.rumpf.citymap.no_article, undefined,
 		"der Merker reist mit, obwohl niemand die Zuweisung angefasst hat");
 	zaehl();
+
+	// 🔴 UND DER FALL, DER DEM ERSTEN ANLAUF DURCHGERUTSCHT IST: Artikel UND Merker zugleich,
+	// niemand fasst etwas an. `upsert_citymap` verbietet den Zustand nicht, er ist also erzeugbar.
+	// Eine Bedingung, die nur `citymap.article_url !== ""` fragt, schickt hier bei JEDEM Speichern
+	// `no_article: 0` -- also genau dort, wo vorher nie etwas mitreiste. Gefunden hat das ein
+	// Prüfagent, kein Test; deshalb steht der Fall jetzt hier.
+	{
+		const widerspruch = sandkastenBauen({ antwort: standardAntwort(detailAntwort({ no_article: true })) });
+		await vm.runInContext('selectCitymap("C-GARETH")', widerspruch.kasten);
+		await ruhe();
+		widerspruch.gesendet.length = 0;
+		await vm.runInContext("saveStamm()", widerspruch.kasten);
+		await ruhe();
+		const ohneHandgriff = widerspruch.gesendet.filter((a) => a.aktion === "upsert_citymap")[0];
+		assert.ok(ohneHandgriff, "das Speichern hat nichts geschickt");
+		assert.strictEqual(ohneHandgriff.rumpf.citymap.no_article, undefined,
+			"eine Karte mit Artikel UND Merker schickt `no_article`, ohne dass jemand zugewiesen hat");
+		zaehl();
+	}
 
 	// 🔴 UND DAS BEDIENELEMENT IST WEG (16.08.2026). Hier stand bis dahin ein `feuere("change", …)`
 	// auf `data-wa-kein-artikel` samt der Gegenprobe „abhaken schickt 0". Beide sind gefallen, weil

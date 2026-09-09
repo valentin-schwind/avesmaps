@@ -97,8 +97,10 @@ assert.ok(/setLabelWikiRegion\(\s*label\.wikiRegion[^)]*label\.fieldOrigins/.tes
 checks++;
 
 const wiki = lies("js/review/review-label-wiki.js");
-assert.ok(/function setLabelWikiRegion\(wiki, keinArtikel, fieldOrigins\)/.test(wiki),
-	"setLabelWikiRegion nimmt keinen dritten Parameter entgegen");
+// 🔴 ZWEI Parameter seit dem 09.09.2026: der mittlere (`keinArtikel`) ist mit dem Merker
+// `properties.wiki_no_article` gefallen. Die HERKUNFT muss weiter durchkommen -- darum geht es hier.
+assert.ok(/function setLabelWikiRegion\(wiki, fieldOrigins\)/.test(wiki),
+	"setLabelWikiRegion nimmt die Feldherkunft nicht mehr entgegen");
 checks++;
 // 🪤 Geprueft wird der LADELAUF, nicht die Datei: `field_origins: labelWikiFieldOrigins` steht an
 // ZWEI Stellen (im Ladelauf und im Zuweisen-Zweig), und eine Zusicherung ueber die ganze Datei war

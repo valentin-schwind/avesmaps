@@ -862,12 +862,6 @@ function buildLocationEditPayload(formElement) {
 	// 🔴 Hier stand „die Entscheidung stammt oft aus dem Konfliktzentrum, nicht aus diesem Dialog".
 	// Seit dem 09.09.2026 gibt es dort keine Entscheidung mehr: der Knopf „Kein Wiki-Eintrag" ist
 	// mit dem Merker gefallen, und diese Zeilen sind toter Transport, der in Schritt 2 folgt.
-	const keinArtikel = typeof settlementWikiKeinArtikelFuerPayload === "function"
-		? settlementWikiKeinArtikelFuerPayload()
-		: null;
-	if (keinArtikel !== null) {
-		payload.wiki_no_article = keinArtikel;
-	}
 
 	if (action === "create_point") {
 		payload.lat = Number.parseFloat(String(formData.get("lat") || ""));

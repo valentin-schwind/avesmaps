@@ -307,7 +307,8 @@ function avesmapsWikiAssignTerritoriumZustand(quelle) {
 		// 🪤 KEIN dritter Zustand -- das Gebiet kann den Merker nicht tragen. Die Messung samt den drei
 		// Gruenden steht im Register (js/ui/wiki-assign-registry.js, Objektart `territorium`); hier
 		// steht er ausdruecklich auf `false`, damit niemand ihn fuer vergessen haelt.
-		keinArtikel: false,
+		// 🔴 HIER STAND `keinArtikel` -- der dritte Zustand, gefallen am 09.09.2026 mit dem
+		// Merker `properties.wiki_no_article` (Owner-Entscheid). Aequivalent ist die Zuweisung.
 		kartenwerte: avesmapsWikiAssignTerritoriumKartenwerte(quelle, AVESMAPS_WIKI_ASSIGN_TERRITORIUM_KARTENFELDER),
 		// 🔴 DER RIEGEL AN DER FELDZEILE (Entwurf §7). Nur `eltern` -- Name, Staatsform und Wappen
 		// bleiben bedienbar, auch bei gesperrter Hierarchie.

@@ -1259,6 +1259,17 @@
   // der einzige Rückkanal, genauso wie beim Kraftlinien- und beim Literatur-Editor. Der Riegel dazu
   // steht in saveStamm und heißt `bereit`, nicht „ist das Objekt da".
   let ceWikiAssign = null;
+  // Der GELADENE Stand der Spalte `citymap.no_article`. 🔴 Er ersetzt den Bezugspunkt, den bis
+  // zum 09.09.2026 das Bauteil fuehrte (`kein_artikel_geaendert`): der Merker
+  // `properties.wiki_no_article` ist gefallen, die SPALTE bleibt (Owner-Entscheid), und ohne
+  // einen Bezugspunkt liesse sich 》hat die Zuweisung sie beantwortet?《 nicht mehr beantworten.
+  let ceWikiNoArticleGeladen = false;
+  // 💣 UND OB IN DIESER SITZUNG ZUGEWIESEN WURDE. Ohne diesen zweiten Bezugspunkt feuerte die
+  // Bedingung unten bei JEDEM Speichern einer Karte, die Artikel UND Merker traegt -- also
+  // genau dort, wo niemand etwas angefasst hat. Der alte Weg konnte das nicht: nach dem
+  // Wegfall des Haekchens (16.08.2026) wurde `kein_artikel_geaendert` nur noch von
+  // `trefferWaehlen` wahr, also ausschliesslich durch eine Zuweisung.
+  let ceWikiZugewiesen = false;
 
   /**
    * Der Registry-Satz zu einem bekannten Artikelnamen.
@@ -1292,6 +1303,8 @@
   /** Der Zustand, den das Bauteil lädt. Lehnt AB, wenn der Registry-Satz nicht zu holen war. */
   function ceWikiZustand(v) {
     const gespeichert = v || {};
+    ceWikiNoArticleGeladen = gespeichert.no_article === true;
+    ceWikiZugewiesen = false;
     return ceWikiEntry(gespeichert.article_title).then((kandidat) => avesmapsWikiAssignKarteZustand({
       article_url: gespeichert.article_url || "",
       article_key: gespeichert.article_key || "",
@@ -1299,7 +1312,6 @@
       // 🔴 Die HERKUNFT muss mitreisen, sonst zeigt der Kasten die Publikation stillschweigend als
       // eigenen Artikel der Karte an — genau die Verwechslung, die diesen Strang gekostet hat.
       article_origin: gespeichert.article_origin || "",
-      no_article: gespeichert.no_article === true,
       kandidat: kandidat,
     }));
   }
@@ -1340,7 +1352,8 @@
       subject: "karte",
       skin: "dt",
       laden: () => ceWikiZustand(v),
-      zuweisen: ceWikiUngespeichert,
+      // 🔴 Der Rueckruf merkt sich die Zuweisung -- an ihr haengt, ob `no_article` mitreist.
+      zuweisen: () => { ceWikiZugewiesen = true; ceWikiUngespeichert(); },
       loesen: ceWikiUngespeichert,
       verwerfen: ceWikiVerwerfen,
       // ⚠️ Kein `syncUebernehmen`: die Erklärung `karte` hat kein einziges Kartenziel (`sync: false`),
@@ -1419,18 +1432,30 @@
         // Der Anzeigename des Artikels. Er wird KOPIERT statt nachgeschlagen, damit der Kasten auch
         // dann noch einen Namen zeigt, wenn ein späterer Dump die Seite aus der Registry nimmt.
         citymap.article_title = wikiGelesen.name || "";
-        // 🔴 DIESE DREI ZEILEN HÄNGEN SEIT DEM 16.08.2026 NICHT MEHR AM HÄKCHEN, SONDERN AN DER
-        // ZUWEISUNG — und deshalb sind sie beim Wegfall des Häkchens ausdrücklich STEHENGEBLIEBEN,
-        // als einzige der vier Oberflächen. `kein_artikel_geaendert` kann jetzt nur noch wahr
-        // werden, wenn `trefferWaehlen` den Merker beantwortet hat (es setzt `keinArtikel = false`).
-        // 💣 GEMESSEN, WARUM SIE HIER GEBRAUCHT WERDEN UND BEI WEG UND LANDSCHAFT NICHT: dort
-        // beantwortet der SERVER den Merker bei einer Zuweisung (`assign_to` bzw.
-        // avesmapsEcosystemApplyRegionNoArticle), `upsert_citymap` hat weder diese Regel noch einen
-        // Widerspruchsriegel. Ohne sie stünde eine Karte mit `article_url` UND `no_article = 1` da.
-        // ⚠️ Die andere Hälfte bleibt ebenfalls gültig: wer nichts anfasst, schickt nichts, und die
-        // Entscheidung des Konfliktzentrums überlebt jedes Speichern aus diesem Fenster.
-        if (wikiGelesen.kein_artikel_geaendert) {
-          citymap.no_article = wikiGelesen.kein_artikel ? 1 : 0;
+        // 🔴 DIE SPALTE `citymap.no_article` IST NICHT DER MERKER `properties.wiki_no_article` --
+        // sie ist eine eigene Ablage der Kartensammlung und BLEIBT (Owner-Entscheid 09.09.2026).
+        // Beantwortet wird sie seither aus der ZUWEISUNG SELBST statt aus dem gefallenen Haekchen.
+        //
+        // 💣 DIESE ZEILE IST KEIN AUFRAEUMEN, SIE TRAEGT VERHALTEN. Bis zum 09.09.2026 stand hier
+        // `if (wikiGelesen.kein_artikel_geaendert) { … }` -- der Zweig feuerte, weil `trefferWaehlen`
+        // den Merker beim Zuweisen auf `false` setzte. Ersatzlos gestrichen stuende eine Karte mit
+        // `article_url` UND `no_article = 1` da. Gefunden hat das der Test, nicht der Autor.
+        // ⚠️ GEMESSEN, WARUM ES DIE KARTE BRAUCHT UND WEG/LANDSCHAFT NICHT: dort beantwortet der
+        // SERVER den Merker bei einer Zuweisung (`assign_to`, avesmapsEcosystemApplyRegionNoArticle);
+        // `upsert_citymap` hat weder diese Regel noch einen Widerspruchsriegel.
+        // 🔴 NUR BEI EINER ECHTEN ZUWEISUNG. Ein 》Entfernen《 (leere Adresse) laesst die Spalte in
+        // Ruhe: 》es gibt keinen Artikel《 ist eine eigene Aussage, und die trifft im Konfliktzentrum
+        // jemand anders. Wer hier `= 0` bedingungslos schriebe, naehme sie bei jedem Speichern weg.
+        // 🔴 UNANGETASTET HEISST WEGGELASSEN. `avesmapsUpsertCitymap` fasst nur mitgeschickte
+        // Felder an; ein bedingungslos gesendetes `no_article: 0` naehme eine fremde Entscheidung
+        // mit, ohne dass jemand hier etwas angefasst hat.
+        // 💣 DESHALB ZWEI BEZUGSPUNKTE, UND DER ZWEITE IST DER TRAGENDE: die Karte trug die Spalte,
+        // UND in DIESER Sitzung wurde zugewiesen. Ein erster Anlauf fragte nur
+        // `citymap.article_url !== ""` -- das feuerte bei jedem Speichern einer Karte, die Artikel
+        // und Merker zugleich traegt (ein Zustand, den `upsert_citymap` nicht verbietet), und
+        // schickte die Spalte, wo sie vorher nie mitreiste. Gefunden hat das ein Pruefagent.
+        if (ceWikiNoArticleGeladen && ceWikiZugewiesen) {
+          citymap.no_article = 0;
         }
       }
       const saved = await citymapPost({ action: "upsert_citymap", citymap });
