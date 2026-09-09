@@ -3,18 +3,25 @@
 declare(strict_types=1);
 
 /**
- * Der DRITTE ZUSTAND eines Ortes („es gibt keinen Wiki-Artikel") und seine drei Wiki-Textfelder.
- * Lauf (aus dem Repo-Wurzelverzeichnis):
+ * Die drei Wiki-Textfelder eines Ortes (Einwohner · Lage · Oberhaupt) und ihre vier Kopplungen --
+ * Wiki-Nest, Server, zwei Formulare. Lauf (aus dem Repo-Wurzelverzeichnis):
  *   php -d zend.assertions=1 -d assert.exception=1 -d extension=php_mbstring.dll \
  *       api/_internal/map/__tests__/ort-wiki-no-article-test.php
  *
- * 🔴 WARUM ES DIESEN MERKER GIBT (Discord #38): `avesmapsEnrichMapFeatureWikiUrl`
- * (api/app/map-features.php) raet die Wiki-Adresse eines Ortes aus seinem NAMEN, sobald
- * `properties.wiki_url` leer ist. „Geloescht" und „nie gesetzt" sind fuer sie dasselbe -- ein
- * entfernter Wiki-Link kehrt beim naechsten Kartenladen zurueck und wird beim naechsten Speichern zu
- * echten Daten. Nur eine NEGATIVE Aussage bricht das, und die ist `properties.wiki_no_article`.
- * Bis zum 16.08.2026 konnte sie nur das Konfliktzentrum setzen; seither auch die zwei
- * Ort-Oberflaechen, ueber avesmapsApplyPointWikiFields.
+ * 🔴 DER DRITTE ZUSTAND, DER DIESER DATEI IHREN NAMEN GAB, IST AUSGEBAUT (Owner-Entscheid
+ * 09.09.2026, nach Durchsicht aller 10 Traeger). Warum es ihn gab -- damit ihn niemand aus
+ * Versehen wieder einfuehrt: `avesmapsEnrichMapFeatureWikiUrl` (api/app/map-features.php) RIET die
+ * Wiki-Adresse eines Ortes aus seinem NAMEN, sobald `properties.wiki_url` leer war. „Geloescht" und
+ * „nie gesetzt" waren fuer sie dasselbe -- ein entfernter Wiki-Link kehrte beim naechsten
+ * Kartenladen zurueck (Discord #38). Nur eine NEGATIVE Aussage brach das, und die war
+ * `properties.wiki_no_article`.
+ * ⭐ Commit `420f12cfc` hat das Raten zurueckgebaut: der Server schlaegt nichts mehr vor, 》Trennen《
+ * haelt von allein, und der Merker hatte keinen Gegenstand mehr. Sein Aequivalent ist die
+ * WIKI-ZUWEISUNG -- das Nest `wiki_settlement`, NIE `properties.wiki_url`.
+ * ⚠️ DER DATEINAME BLEIBT. Die Zusicherungen unten sind die Rueckbau-Waechter des Merkers, und wer
+ * in einem Jahr `git log --follow` auf ihn ansetzt, findet ihn nur unter diesem Namen. Der
+ * ausfuehrliche Waechter mit dem Owner-Wortlaut steht in
+ * api/_internal/conflicts/__tests__/kein-wiki-eintrag-ist-weg-test.php.
  */
 if (ini_get('zend.assertions') !== '1') {
     fwrite(STDERR, "FATAL: zend.assertions ist nicht '1' -- assert() waere wirkungslos.\n");
@@ -23,62 +30,38 @@ if (ini_get('zend.assertions') !== '1') {
 
 require __DIR__ . '/../features.php';
 
-// ── 1) ABWESEND HEISST „NICHT GEAENDERT" ──────────────────────────────────────────────────────
-// 💣 DIE tragende Zusicherung. Der Kraftlinien-Schreibweg daneben liest `?? false`, und das ist dort
-// richtig -- er hat EINEN Schreiber. `update_point` hat zwei plus die Ladeluecke eines Deploys: eine
-// gecachte index.html ohne das Feld (AGENTS.md §7) naehme sonst bei JEDEM Speichern die Entscheidung
-// des Konfliktzentrums zurueck, ohne dass jemand etwas anklickt.
+// ── 1) 🔴 DER RECHNER FASST DEN MERKER NICHT MEHR AN -- IN KEINE RICHTUNG ─────────────────────
+// Hier standen drei Abschnitte: „abwesend heisst nicht geaendert" (die tragende Zusicherung, gegen
+// die Ladeluecke eines Deploys -- eine gecachte index.html ohne das Feld haette sonst bei JEDEM
+// Speichern die Entscheidung des Konfliktzentrums zurueckgenommen), „ausdruecklich gesetzt und
+// ausdruecklich entfernt" samt der Formen von avesmapsReadBoolean, und der WIDERSPRUCHS-RIEGEL
+// (Adresse UND „kein Artikel" zugleich wurde ABGELEHNT, nie still aufgeloest -- er prueft gegen den
+// GESPEICHERTEN Merker, nicht nur gegen den gesendeten).
+// Alle drei sind am 09.09.2026 mit dem Merker gefallen; der Riegel hatte danach keinen verbotenen
+// Zustand mehr zu bewachen, weil eine der beiden Aussagen nicht mehr existiert.
+// 💣 WAS BLEIBT, IST DIE ZUSICHERUNG IN BEIDE RICHTUNGEN, und beide werden gebraucht: der Rechner
+// darf einen Altbestand-Schluessel weder WEGRAEUMEN (das gehoert der einmaligen Bestandsreparatur,
+// Schritt 4 -- ein Schreibpfad, der nebenbei aufraeumt, veraendert die Bestandszahl bei jedem
+// Speichern) noch ANLEGEN (das waere der Merker durch die Hintertuer zurueck).
 $bestand = ['name' => 'Havena', 'wiki_no_article' => true];
 $unberuehrt = avesmapsApplyPointWikiFields($bestand, ['name' => 'Havena'], '');
-assert(($unberuehrt['wiki_no_article'] ?? null) === true, 'ein Payload ohne den Schluessel loescht den Merker');
-
-// ── 2) AUSDRUECKLICH GESETZT UND AUSDRUECKLICH ENTFERNT ───────────────────────────────────────
-$gesetzt = avesmapsApplyPointWikiFields([], ['wiki_no_article' => true], '');
-assert(($gesetzt['wiki_no_article'] ?? null) === true);
-// ⚠️ Als `false` wird der Merker NIRGENDS abgelegt -- der Schluessel verschwindet. Ein gespeichertes
-// `false` liesse sich spaeter nicht von „nie entschieden" unterscheiden (dieselbe Regel wie bei den
-// Kraftlinien, avesmapsPowerlineInheritedLineFields).
-$entfernt = avesmapsApplyPointWikiFields(['wiki_no_article' => true], ['wiki_no_article' => false], '');
-assert(!array_key_exists('wiki_no_article', $entfernt), 'ein abgewaehltes Haekchen hinterlaesst `false` statt nichts');
-// Die Formen, die ein JSON-Rumpf wirklich liefert (avesmapsReadBoolean).
-foreach ([true, 'true', 1, '1', 'on'] as $wahr) {
-    assert((avesmapsApplyPointWikiFields([], ['wiki_no_article' => $wahr], '')['wiki_no_article'] ?? null) === true);
+assert(($unberuehrt['wiki_no_article'] ?? null) === true,
+    'der Rechner raeumt den Altbestand-Merker weg -- das gehoert der einmaligen Bestandsreparatur');
+foreach ([true, 'true', 1, '1', 'on', false, '0', null] as $wert) {
+    assert(
+        !array_key_exists('wiki_no_article', avesmapsApplyPointWikiFields([], ['wiki_no_article' => $wert], '')),
+        'ein Rumpf legt den ausgebauten Merker wieder an: ' . var_export($wert, true)
+    );
 }
-foreach ([false, 'false', 0, '0', '', null, 'vielleicht'] as $falsch) {
-    assert(!array_key_exists('wiki_no_article', avesmapsApplyPointWikiFields(['wiki_no_article' => true], ['wiki_no_article' => $falsch], '')));
-}
-
-// ── 3) DER WIDERSPRUCH WIRD ABGELEHNT, NICHT AUFGELOEST ───────────────────────────────────────
-// 🔴 Ein stummer Vorrang waere eine Regel, die niemand kennt, und der Merker wird an drei Stellen
-// gelesen (Editor, Konfliktzentrum, Anreicherung). Vorbild und gemeinsame Formulierung:
-// avesmapsAssertWikiClaimNotContradictory.
-$geworfen = false;
-try {
-    avesmapsApplyPointWikiFields([], ['wiki_no_article' => true], 'https://de.wiki-aventurica.de/wiki/Havena');
-} catch (InvalidArgumentException $exception) {
-    $geworfen = true;
-    // ⚠️ Der Satz muss den AUSWEG nennen, den es in DIESER Oberflaeche gibt: das flache Adressfeld ist
-    // im Kartendialog versteckt -- „den Link leeren" (der Wortlaut der Kraftlinie) zeigte auf ein
-    // Feld, das der Editor nirgends sieht.
-    assert(str_contains($exception->getMessage(), 'Zuweisung entfernen'), $exception->getMessage());
-    assert(str_contains($exception->getMessage(), 'Ort'), $exception->getMessage());
-}
-assert($geworfen, 'Adresse UND kein Artikel wird stillschweigend gespeichert');
-
-// 💣 UND ER PRUEFT GEGEN DEN GESPEICHERTEN MERKER, wenn der Payload keinen mitbringt. Ohne das
-// waere der verbotene Zustand ueber jeden alten Schreiber herstellbar -- genau die Luecke, die der
-// zweite Kraftlinien-Schreibweg hatte, bis sie 2026 geschlossen wurde.
-$geworfenStill = false;
-try {
-    avesmapsApplyPointWikiFields(['wiki_no_article' => true], ['name' => 'Havena'], 'https://de.wiki-aventurica.de/wiki/Havena');
-} catch (InvalidArgumentException) {
-    $geworfenStill = true;
-}
-assert($geworfenStill, 'ein Payload ohne Merker umgeht den Widerspruchs-Riegel');
-
-// Und die erlaubten Kombinationen bleiben erlaubt.
-assert(avesmapsApplyPointWikiFields([], ['wiki_no_article' => false], 'https://de.wiki-aventurica.de/wiki/Havena') !== null);
-assert(avesmapsApplyPointWikiFields([], ['wiki_no_article' => true], '') !== null);
+// ⚠️ UND DER VERBOTENE ZUSTAND IST KEINER MEHR -- eine Adresse neben einem Altbestand-Schluessel
+// laeuft heute durch. Das ist die Folge des Ausbaus, kein uebersehener Riegel: „es gibt keinen
+// Artikel" ist keine Aussage des Systems mehr, also kann ihr auch nichts widersprechen.
+$mitBeidem = avesmapsApplyPointWikiFields(
+    ['wiki_no_article' => true],
+    ['name' => 'Havena'],
+    'https://de.wiki-aventurica.de/wiki/Havena'
+);
+assert(is_array($mitBeidem), 'der gefallene Widerspruchs-Riegel wirft wieder');
 
 // ── 4) DIE DREI TEXTFELDER ────────────────────────────────────────────────────────────────────
 // Abwesend = nicht geaendert, leer = loeschen, Wert = beschnitten gespeichert.
@@ -119,23 +102,27 @@ foreach (AVESMAPS_POINT_WIKI_TEXT_FIELDS as $feld => $laenge) {
     );
 }
 
-// ── 5) DIE ANTWORT TRAEGT ALLE VIER ───────────────────────────────────────────────────────────
+// ── 5) DIE ANTWORT TRAEGT ALLE DREI ───────────────────────────────────────────────────────────
 // 💣 Der Kartendialog baut seinen Marker-Eintrag aus GENAU dieser Antwort neu
 // (updateLocationMarkerFromFeature, js/map-features/map-features-location-editing.js). Fehlte eines
-// der vier, saehe der Dialog beim naechsten Oeffnen einen Stand als „nicht gesetzt", den er selbst
+// der drei, saehe der Dialog beim naechsten Oeffnen einen Stand als „nicht gesetzt", den er selbst
 // gerade gespeichert hat -- und das naechste Speichern schriebe die Leere fest.
+// 🔴 ES WAREN VIER: `wiki_no_article` reiste mit, damit das Haekchen nach dem Speichern nicht leer
+// zurueckkam. Gefallen am 09.09.2026 mit dem Merker -- und die Gegenprobe steht darunter, weil eine
+// Antwort, die ihn wieder mitschickt, im Browser ein Feld wiederbelebte, das keine Oberflaeche mehr
+// anzeigt und kein Schreibweg mehr speichert.
 $antwort = avesmapsBuildPointFeatureResponse('loc-1', 'Havena', 'grossstadt', 12.0, 34.0, [
     'wiki_no_article' => true,
     'einwohner' => '9.400',
     'lage' => 'Albernia · Mittelreich',
     'oberhaupt' => 'Gräfin Yppolita',
 ], 4711);
-assert($antwort['wiki_no_article'] === true, 'die Antwort verschweigt den Merker');
+assert(!array_key_exists('wiki_no_article', $antwort), 'die Antwort traegt den ausgebauten Merker wieder');
 assert($antwort['einwohner'] === '9.400');
 assert($antwort['lage'] === 'Albernia · Mittelreich');
 assert($antwort['oberhaupt'] === 'Gräfin Yppolita');
 $leereAntwort = avesmapsBuildPointFeatureResponse('loc-2', 'Ort', 'dorf', 1.0, 2.0, [], 1);
-assert($leereAntwort['wiki_no_article'] === false && $leereAntwort['einwohner'] === '');
+assert($leereAntwort['einwohner'] === '');
 
 // ── 6) DIE VERDRAHTUNG ────────────────────────────────────────────────────────────────────────
 // ⚠️ EINE TEXTPROBE, und sie ist als solche benannt: die zwei Schreibwege brauchen eine PDO-
@@ -156,10 +143,13 @@ foreach (['avesmapsUpdatePointFeatureDetails', 'avesmapsCreatePointFeature'] as 
         str_contains($rumpf[0], 'avesmapsApplyPointWikiFields('),
         "der Schreibweg \"$funktion\" fragt den gemeinsamen Rechner nicht"
     );
-    assert(
-        !str_contains($rumpf[0], "\$properties['wiki_no_article']"),
-        "der Schreibweg \"$funktion\" schreibt den Merker an dem Rechner vorbei"
-    );
+    // 🪤 HIER STAND EINE ZUSICHERUNG, DIE NIE ETWAS MESSEN KONNTE: „der Schreibweg schreibt den
+    // Merker an dem Rechner vorbei" (`!str_contains($rumpf[0], "\$properties['wiki_no_article']")`).
+    // Gemessen am 09.09.2026 gegen HEAD: das Wort stand in KEINEM der beiden Rumpfe -- der Merker
+    // lebte vollstaendig in `avesmapsApplyPointWikiFields`. Die Zusicherung war in beiden Baeumen
+    // gruen und beschrieb einen Zustand, den es nie gab. Gefunden hat sie ein Pruefagent.
+    // ⭐ Was BLEIBT, ist die Zusicherung darueber -- „ruft der Schreibweg den gemeinsamen Rechner?"
+    // --, und die ist echt: sie faellt, sobald jemand die drei Textfelder an ihm vorbei schreibt.
 }
 
 // ── 7) DIE KOPPLUNG UEBER DIE SPRACHGRENZE ────────────────────────────────────────────────────
@@ -272,26 +262,31 @@ foreach ($markupQuellen as $wo => [$inhalt, $muster]) {
     }
 }
 
-// 🔴 UND: EINE ZUWEISUNG LOESCHT DEN MERKER. Beides zugleich ist der verbotene Zustand -- und wer
-// gerade einen Artikel zuweist, hat die frueheren „es gibt keinen" widerlegt. Wortgleiches Vorbild:
-// der Kraftlinien-Abgleich (api/_internal/wiki/powerlines.php).
-// ⚠️ Ebenfalls Textprobe, aus demselben Grund (avesmapsWikiSettlementAssignTo braucht eine PDO).
-assert(
-    preg_match('/function avesmapsWikiSettlementAssignTo\(.*?\n\}/s', $nest, $assign) === 1,
-    'avesmapsWikiSettlementAssignTo laesst sich isolieren'
-);
-assert(
-    str_contains($assign[0], "unset(\$props['wiki_no_article'])"),
-    'eine Zuweisung laesst den Merker stehen -- der Ort behauptete dann beides zugleich'
-);
-// Und `clear_assign` gerade NICHT: eine Verbindung zu loesen heisst nicht, dass es keinen Artikel gibt.
-assert(
-    preg_match('/function avesmapsWikiSettlementClearAssign\(.*?\n\}/s', $nest, $clear) === 1,
-    'avesmapsWikiSettlementClearAssign laesst sich isolieren'
-);
-assert(
-    !str_contains($clear[0], 'wiki_no_article'),
-    'das Loesen fasst den Merker an -- „diese Verbindung war falsch" ist nicht „es gibt keinen Artikel"'
-);
+// 🔴 UND KEINER DER ZWEI WIKI-SCHREIBWEGE FASST DEN MERKER MEHR AN.
+// Hier stand: „eine Zuweisung LOESCHT den Merker" (beides zugleich war der verbotene Zustand, und
+// wer einen Artikel zuweist, hat das fruehere „es gibt keinen" widerlegt) -- und `clear_assign`
+// gerade NICHT, denn eine Verbindung zu loesen heisst nicht, dass es keinen Artikel gibt. Diese
+// Unterscheidung war die feinste des ganzen Merkers; sie ist am 09.09.2026 mit ihm gefallen.
+// ⚠️ Ebenfalls Textprobe, aus demselben Grund (beide brauchen eine PDO). Gemessen wird der
+// kommentarfreie Rumpf: die Begruendung oben nennt das Wort, das unten nicht vorkommen darf.
+// ⚠️ VON DEN ZWEI IST NUR EINE EIN MUTATIONSTOETER, und das steht hier, damit niemand die Schleife
+// fuer doppelt so scharf haelt, wie sie ist: gegen HEAD gemessen (09.09.2026) trug
+// `avesmapsWikiSettlementAssignTo` das Wort und faellt bei einem Rueckbau, `…ClearAssign` trug es
+// NIE -- dass das Loesen den Merker nicht anfasst, war der Entscheid, nicht eine Aenderung. Ihre
+// Haelfte der Schleife ist ein reiner Waechter gegen einen kuenftigen Erzeuger.
+foreach (['avesmapsWikiSettlementAssignTo', 'avesmapsWikiSettlementClearAssign'] as $funktion) {
+    assert(
+        preg_match('/function ' . $funktion . '\(.*?\n\}/s', $nest, $rumpfTreffer) === 1,
+        "$funktion laesst sich isolieren"
+    );
+    $ohneKommentare = implode("\n", array_filter(
+        preg_split('/\r?\n/', preg_replace('#/\*.*?\*/#s', '', $rumpfTreffer[0]) ?? $rumpfTreffer[0]) ?: [],
+        static fn (string $zeile): bool => !str_starts_with(ltrim($zeile), '//')
+    ));
+    assert(
+        !str_contains($ohneKommentare, 'wiki_no_article'),
+        "$funktion fasst den ausgebauten Merker wieder an -- er ist am 09.09.2026 global gefallen"
+    );
+}
 
 fwrite(STDOUT, "ort-wiki-no-article-test: alle Zusicherungen erfuellt\n");

@@ -181,4 +181,143 @@ assert(
     . '(Owner 09.09.2026): andere Ablage, andere Objektart, eigener Schreibweg.'
 );
 
-echo "kein-wiki-eintrag-ist-weg: alle Zusicherungen erfuellt\n";
+// ── 6) UND IM GANZEN HAUS STEHT KEINE LEBENDE ZEILE MEHR ────────────────────────────────────
+// 🔴 DIE STAERKSTE ZUSICHERUNG DIESER DATEI, und sie ist bewusst die letzte: die fuenf darueber
+// nennen einzelne Stellen beim Namen (das Verb, das Haekchen, der dritte Zustand, das Archiv, die
+// Kartenspalte). Diese hier fragt nicht nach Namen, sondern zaehlt -- ueber den GANZEN Baum.
+// 💣 EINE LISTE IST EINE ZAHL MIT ANDEREM AUSSEHEN. Genau daran ist der Vorgaenger gescheitert:
+// `label-wiki-no-article-test.php` lief ueber eine fest verdrahtete Zwei-Datei-Liste und meldete
+// „5 Zuweiser geprueft, alle in Ordnung", waehrend ein sechster in `conflicts/repair.php` ungesehen
+// durchlief -- EXIT 0, ganzes Feld gruen. Seine Baum-Bauform ist hier geerbt; sein Gegenstand (der
+// Merker am Label) ist mit dem Merker gefallen, seine Datei am 09.09.2026 mit ihm.
+// ⚠️ Vier Stellen aus den Einzeltests gehen darin auf, ohne dass sie jemand eintragen muss: der
+// Landschaften-Editor, der Flaechen-Dialog auf der Karte, der Kraftlinien-Editor und die
+// Antwort-Projektion des Kraftlinien-Endpunkts. Wer eine FUENFTE Oberflaeche baut, ist gedeckt.
+//
+// 🚩 AM 09.09.2026 GEMESSEN, und die Erwartung stand vor dem Lauf da:
+//    PHP unter api/ (ohne Tests):        348 Dateien, GENAU 1 Fundstelle -- `_internal/audit-detail.php`
+//    js/ + html/ + css/ (ohne Tests):    405 Dateien, NULL Fundstellen
+$phpBaum = static function (string $verzeichnis): array {
+    $treffer = [];
+    $lauf = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($verzeichnis, FilesystemIterator::SKIP_DOTS)
+    );
+    foreach ($lauf as $eintrag) {
+        $pfad = strtr((string) $eintrag, DIRECTORY_SEPARATOR, '/');
+        if (substr($pfad, -4) !== '.php' || str_contains($pfad, '/__tests__/')) {
+            continue;
+        }
+        $treffer[] = $pfad;
+    }
+    sort($treffer);
+
+    return $treffer;
+};
+
+$phpDateien = $phpBaum($wurzel . '/api');
+// ⚠️ Die Gegenprobe gegen einen Lauf, der gar nichts findet: eine leere Liste erfuellt jede
+// „kommt nicht vor"-Zusicherung. Dieselbe Falle wie das viel zu kleine `find`-Ergebnis des
+// Deploy-Tors (AGENTS.md §9) -- eine Zahl, die zu klein ist, sieht wie ein gruenes Feld aus.
+assert(count($phpDateien) > 100, 'der api/-Baum wurde nicht gefunden -- nur ' . count($phpDateien) . ' Dateien');
+
+$phpTreffer = [];
+foreach ($phpDateien as $datei) {
+    $code = '';
+    foreach (token_get_all((string) file_get_contents($datei)) as $stueck) {
+        if (is_array($stueck)) {
+            if ($stueck[0] === T_COMMENT || $stueck[0] === T_DOC_COMMENT) {
+                continue;
+            }
+            $code .= $stueck[1];
+            continue;
+        }
+        $code .= $stueck;
+    }
+    if (strpos($code, 'wiki_no_article') !== false) {
+        $phpTreffer[] = substr($datei, strlen($wurzel) + 1);
+    }
+}
+// 🔴 GENAU EINE, und sie ist namentlich benannt: der Uebersetzer historischer Protokollzeilen.
+// Eine blosse Obergrenze („hoechstens eine") liesse zu, dass diese eine verschwindet und eine
+// andere dazukommt -- und beide Haelften waeren falsch.
+assert(
+    $phpTreffer === ['api/_internal/audit-detail.php'],
+    "im api/-Baum steht wieder lebender Merker-Code (kommentarfrei gemessen):\n  "
+    . implode("\n  ", $phpTreffer)
+    . "\n  Erwartet ist GENAU `api/_internal/audit-detail.php` -- der Uebersetzer fuer historische "
+    . 'Protokollzeilen, der laut Owner-Entscheid vom 09.09.2026 bleibt (Abschnitt 4).'
+);
+
+$browserBaum = static function (string $wurzelPfad): array {
+    $treffer = [];
+    foreach (['js', 'html', 'css'] as $zweig) {
+        $ordner = $wurzelPfad . '/' . $zweig;
+        if (!is_dir($ordner)) {
+            continue;
+        }
+        $lauf = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($ordner, FilesystemIterator::SKIP_DOTS)
+        );
+        foreach ($lauf as $eintrag) {
+            $pfad = strtr((string) $eintrag, DIRECTORY_SEPARATOR, '/');
+            // ⚠️ `third-party/` bleibt draussen: Leaflet und jQuery gehoeren uns nicht, und ein
+            // zufaelliges Wort in einer Fremdbibliothek waere ein Fehlschlag ohne Handlung.
+            if (preg_match('/\.(js|html|css)$/', $pfad) !== 1
+                || str_contains($pfad, '/__tests__/')
+                || str_contains($pfad, '/third-party/')) {
+                continue;
+            }
+            $treffer[] = $pfad;
+        }
+    }
+    sort($treffer);
+
+    return $treffer;
+};
+
+$browserDateien = $browserBaum($wurzel);
+assert(count($browserDateien) > 100, 'der Browser-Baum wurde nicht gefunden -- nur ' . count($browserDateien) . ' Dateien');
+
+// 💣 DER SELBSTTEST DES LESERS, und ohne ihn ist der ganze Abschnitt ein VAKUUM. Auf der
+// Browser-Seite gibt es -- anders als bei PHP -- keine erlaubte Fundstelle mehr, die beweist, dass
+// der Kommentar-Entferner ueberhaupt noch etwas durchlaesst. Ein kaputtes `preg_replace` gaebe
+// hier NULL fuer jede Datei und saehe wie ein perfekt aufgeraeumtes Haus aus.
+$kommentarfrei = static function (string $inhalt): string {
+    $ohneBlock = preg_replace('~/\*.*?\*/~s', '', $inhalt);
+    assert(is_string($ohneBlock), 'Blockkommentare nicht entfernbar');
+    $zeilen = preg_split('/\R/', $ohneBlock) ?: [];
+
+    return implode("\n", array_filter($zeilen, static function (string $zeile): bool {
+        $t = ltrim($zeile);
+
+        return $t !== '' && strncmp($t, '//', 2) !== 0 && strncmp($t, '*', 1) !== 0;
+    }));
+};
+$probe = "// wiki_no_article steht hier nur als Erklaerung\n/* und keinArtikelHaken auch */\n"
+    . "const x = { wiki_no_article: true };\n";
+$geprobt = $kommentarfrei($probe);
+assert(str_contains($geprobt, 'wiki_no_article: true'), 'der Leser verschluckt echten Code');
+assert(substr_count($geprobt, 'wiki_no_article') === 1, 'der Leser laesst Kommentare durch');
+assert(!str_contains($geprobt, 'keinArtikelHaken'), 'der Leser laesst Blockkommentare durch');
+
+$browserTreffer = [];
+foreach ($browserDateien as $datei) {
+    $code = $kommentarfrei((string) file_get_contents($datei));
+    // ⚠️ BEIDE Vokabeln: der Server nennt das Feld `wiki_no_article`, das Bauteil und seine
+    // Erklaerungen nannten es `keinArtikelHaken` / `keinArtikelGeaendert` / `keinArtikel`. Wer nur
+    // eine sucht, findet die Haelfte -- und die Haelfte, die er findet, ist die unwichtigere.
+    if (strpos($code, 'wiki_no_article') !== false || strpos($code, 'keinArtikel') !== false) {
+        $browserTreffer[] = substr($datei, strlen($wurzel) + 1);
+    }
+}
+assert(
+    $browserTreffer === [],
+    "im Browser-Baum steht wieder lebender Merker-Code (kommentarfrei gemessen):\n  "
+    . implode("\n  ", $browserTreffer)
+    . "\n  Der Merker `properties.wiki_no_article` ist am 09.09.2026 global ausgebaut worden "
+    . '(Owner-Entscheid); sein Aequivalent ist die WIKI-ZUWEISUNG.'
+);
+
+echo 'kein-wiki-eintrag-ist-weg: alle Zusicherungen erfuellt (' . count($phpDateien) . ' PHP-, '
+    . count($browserDateien) . " Browser-Dateien im Baumlauf)\n";
+

@@ -2707,15 +2707,17 @@
 		// -- eine falsche „Wiki“-Angabe liesse einen späteren Abgleich eine Handarbeit überschreiben,
 		// eine falsche „von uns“-Angabe schützt nur zu viel.
 		payload.wiki_uebernommen = Array.from(wikiUebernommen);
-		// 🔴 KEIN `wiki_no_article` MEHR -- gefallen am 16.08.2026 mit dem Häkchen (Owner-Entscheid).
-		// 💣 TRAGBAR IST DAS, WEIL avesmapsEcosystemApplyRegionNoArticle BEIDE HÄLFTEN SCHON KANN: ein
-		// FEHLENDER Schlüssel heißt „nicht geändert" (die Entscheidung des Konfliktzentrums überlebt
-		// jedes Speichern), und eine ZUWEISUNG beantwortet den Merker serverseitig von selbst
-		// (`if (!$gefordert && $noArticle && $effectiveWikiUrl !== '')`). Am Server war dafür keine
-		// Zeile zu ändern -- gemessen, nicht angenommen.
-		// ⚠️ Und der Zwilling schickt ihn ebenfalls nicht mehr (html/landschaften-editor.html): die zwei
-		// gehören zusammen, aber in DIESE Richtung ist ein Alleingang harmlos -- gefährlich wäre nur,
-		// einen von beiden wieder senden zu lassen (AGENTS.md §11).
+		// 🔴 KEIN `wiki_no_article` MEHR. Zwei Stufen: am 16.08.2026 fiel das HÄKCHEN (Owner-Entscheid,
+		// die Entscheidung gehört ins Konfliktzentrum) -- tragbar war das, weil der Server damals beide
+		// Hälften schon konnte: ein FEHLENDER Schlüssel hieß „nicht geändert", und eine ZUWEISUNG
+		// beantwortete den Merker von selbst. Am 09.09.2026 ist der MERKER SELBST global ausgebaut
+		// (Owner-Entscheid nach Durchsicht aller 10 Träger); sein Äquivalent ist die WIKI-ZUWEISUNG.
+		// 💣 DAMIT IST DIE ALTE BEGRÜNDUNG HINFÄLLIG, DIE ZEILE ABER NICHT: es gibt serverseitig nichts
+		// mehr, was einen mitgeschickten Schlüssel läse -- er wäre ein Schreiber ohne Leser und legte
+		// Bestand an, den die einmalige Reparatur gerade weggeräumt hat.
+		// ⚠️ Und der Zwilling schickt ihn ebenfalls nicht (html/landschaften-editor.html). Bewacht wird
+		// das seit dem 09.09.2026 nicht mehr je Oberfläche, sondern über den ganzen Baum:
+		// api/_internal/conflicts/__tests__/kein-wiki-eintrag-ist-weg-test.php, Abschnitt 6.
 
 		propertiesBusy = true;
 		setPropertiesError("");

@@ -27,20 +27,10 @@ require_once __DIR__ . '/rules.php';
 // Where a party's wiki claim is stored. Only the plain field is safely removable (rule 1 above).
 const AVESMAPS_CONFLICT_CLAIM_FIELD = 'wiki_url';
 
-/**
- * 🔴 DER MERKER IST AUSGEBAUT (Owner-Entscheid 09.09.2026). Hier stand: „Mark 'this object has no
- * wiki article' -- the negative assertion Discord #38 was missing."
- *
- * Er war noetig, solange `avesmapsEnrichMapFeatureWikiUrl` eine geloeschte Adresse per NAMEN wieder
- * herbeiriet: 》Trennen《 allein hielt dann nicht, es brauchte eine zweite, NEGATIVE Aussage. Der
- * Rateweg ist mit `420f12cfc` (08.09.2026) gefallen, 》Trennen《 haelt seither von allein -- und
- * damit hatte der Merker keinen Gegenstand mehr. Sein Aequivalent ist die WIKI-ZUWEISUNG.
- *
- * ⚠️ Die Konstante steht noch, weil dieser Reparaturweg den Merker beim Trennen WEGRAEUMT (siehe
- * unten). Sie faellt mit den uebrigen Schreibern; bis dahin heilt jedes 》Trennen《 einen Traeger
- * nebenbei mit.
- */
-const AVESMAPS_CONFLICT_NO_ARTICLE_FLAG = 'wiki_no_article';
+// 🔴 HIER STAND `AVESMAPS_CONFLICT_NO_ARTICLE_FLAG` -- der Feldname des Merkers
+// `properties.wiki_no_article`. Er ist am 09.09.2026 global ausgebaut (Owner-Entscheid);
+// sein Aequivalent ist die WIKI-ZUWEISUNG. Das Konfliktzentrum hat ihn zuletzt nur noch
+// WEGGERAEUMT -- diese Aufgabe uebernimmt jetzt die einmalige Bestandsreparatur (Schritt 4).
 
 /**
  * REIN: Wirkt ein Reparatur-Schreibvorgang auf den ganzen NAMENSVERBUND oder nur auf die eine Zeile?
@@ -331,9 +321,8 @@ function avesmapsConflictUnlinkFeature(
 
         unset($properties[AVESMAPS_CONFLICT_CLAIM_FIELD]);
         // 🔴 HIER STAND DIE WEICHE `$markNoArticle` -- 》Kein Wiki-Eintrag《 setzte den Merker,
-        // 》Trennen《 raeumte ihn weg. Der Knopf ist am 09.09.2026 gefallen; geblieben ist das
-        // Wegraeumen, damit jedes Trennen einen Altbestand-Traeger nebenbei heilt.
-        unset($properties[AVESMAPS_CONFLICT_NO_ARTICLE_FLAG]);
+        // 》Trennen《 raeumte ihn weg. Knopf und Merker sind am 09.09.2026 gefallen; den Altbestand
+        // raeumt die einmalige Bestandsreparatur (Schritt 4), nicht mehr jedes Trennen.
 
         $update->execute([
             'pj' => json_encode($properties, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
@@ -491,10 +480,8 @@ function avesmapsConflictLinkFeature(PDO $pdo, string $publicId, array $wikiTitl
         $before = json_encode($properties, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
         $properties[AVESMAPS_CONFLICT_CLAIM_FIELD] = $wikiUrl;
-        // Eine Verknüpfung widerlegt die Aussage "hat keinen Artikel" -- sonst blieben beide stehen.
-        // ⚠️ Der Zwilling dieser Zeile steht in avesmapsConflictUnlinkFeature. Seit dem Ausbau des
-        // Merkers (09.09.2026) raeumen BEIDE nur noch Altbestand weg; gesetzt wird er nirgends mehr.
-        unset($properties[AVESMAPS_CONFLICT_NO_ARTICLE_FLAG]);
+        // 🔴 HIER RAEUMTE EINE VERKNUEPFUNG DEN MERKER WEG („eine Verknuepfung widerlegt die Aussage
+        // 》hat keinen Artikel《"). Gefallen am 09.09.2026 mit `properties.wiki_no_article`.
 
         $update->execute([
             'pj' => json_encode($properties, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),

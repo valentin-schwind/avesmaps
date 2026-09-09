@@ -215,9 +215,11 @@ assert.ok(ALLE_ARTEN.length >= 8, "das Register kennt weniger Objektarten als er
 checks++;
 ALLE_ARTEN.forEach((art) => {
 	const erklaerung = AVESMAPS_WIKI_ASSIGN_REGISTRY[art];
-	// 🔴 DER SCHLUESSEL GANZ, nicht nur sein Wert -- gleichlautend zu den zwei PHP-Waechtern
-	// (kraftlinie-/weg-wiki-no-article-test.php). Ein wiedereingefuehrtes `keinArtikelHaken: false`
-	// bliebe sonst hier gruen und dort rot.
+	// 🔴 DER SCHLUESSEL GANZ, nicht nur sein Wert: ein wiedereingefuehrtes `keinArtikelHaken: false`
+	// bliebe sonst hier gruen. ⚠️ Gleichlautend waren einmal zwei PHP-Waechter
+	// (kraftlinie-/weg-wiki-no-article-test.php); beide sind am 09.09.2026 mit dem Merker gefallen.
+	// An ihre Stelle ist der Baumlauf getreten, der die Gegenrichtung zaehlt --
+	// api/_internal/conflicts/__tests__/kein-wiki-eintrag-ist-weg-test.php, Abschnitt 6.
 	assert.ok(!erklaerung.extra || !("keinArtikelHaken" in erklaerung.extra),
 		art + ': das Haekchen „Kein Wiki-Artikel vorhanden" ist zurueck -- der Merker ist am 09.09.2026 '
 		+ "global ausgebaut worden (Owner-Entscheid). Sein Aequivalent ist die Wiki-Zuweisung; wer das "

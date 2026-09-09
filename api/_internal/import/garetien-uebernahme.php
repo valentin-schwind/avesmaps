@@ -623,14 +623,19 @@ function avesmapsGaretienFlaecheAnlegen(PDO $pdo, array $nach, array $user, int 
     // zweiten, spaeteren Handgriff im Editor. Name und Art bleiben die des Imports; nur der
     // Schluessel kommt vom Wiki. Ohne sichere Zuordnung bleibt das Feld schlicht WEG (kein
     // erfundener Schluessel).
-    // ⚠️ `array_merge` mit einem dritten, bedingt LEEREN Array haengt den Schluessel an --
-    // absichtlich KEINE Feldzuweisung auf einer eigenen Zeile hier: label-wiki-no-article-test.php
-    // scannt den GANZEN api/-Baum nach genau dieser Schreibweise und verlangt daneben ein Loeschen
-    // des Merkers "kein Wiki-Artikel" (AGENTS.md §11: "FUENF Schreiber von properties.wiki_region,
-    // jeder loescht den Merker"). Hier gibt es diesen Merker nicht zu loeschen: das Ergebnis dieser
-    // Suche ist die EINGABE fuer avesmapsCreateLabelFeature() an einem noch gar nicht existierenden
-    // Label, kein direkter Schreibzugriff auf eine bestehende Feature-Zeile -- die Loeschung
-    // passiert bereits DORT (features.php, im selben Atemzug wie die eigentliche Zuweisung).
+    // ⚠️ `array_merge` mit einem dritten, bedingt LEEREN Array haengt den Schluessel an, statt ihn
+    // auf einer eigenen Zeile zuzuweisen.
+    // 🔴 DIESE SCHREIBWEISE WAR EINMAL ERZWUNGEN, UND SIE IST ES SEIT DEM 09.09.2026 NICHT MEHR.
+    // `label-wiki-no-article-test.php` scannte den GANZEN api/-Baum nach der Form
+    // `$x['wiki_region'] = …` und verlangte daneben ein Loeschen des Merkers „kein Wiki-Artikel".
+    // Hier gab es nichts zu loeschen -- das Ergebnis dieser Suche ist die EINGABE fuer
+    // `avesmapsCreateLabelFeature()` an einem noch gar nicht existierenden Label, kein Schreibzugriff
+    // auf eine bestehende Zeile --, also wich die Form dem Scanner aus. Der Merker ist global
+    // ausgebaut (Owner-Entscheid), Scanner und Test sind gefallen.
+    // ⚠️ DIE FORM BLEIBT TROTZDEM STEHEN: sie ist an dieser Stelle die passende (ein bedingtes Feld
+    // an einem Aufrufargument), und sie umzuschreiben waere unbestellter Umbau. Wer sie kuenftig
+    // „aufraeumt", nimmt damit KEINEN Riegel mehr mit -- das ist der Unterschied zu vorher, und
+    // deshalb steht es hier.
     $wikiZuweisung = avesmapsGaretienWikiLandschaftZuweisung($pdo, (string) $nach['name'], (string) $nach['subtyp']);
     $label = avesmapsCreateLabelFeature($pdo, array_merge(
         ['text' => (string) $nach['name'], 'feature_subtype' => (string) $nach['subtyp'], 'lng' => $lx, 'lat' => $ly],
@@ -770,9 +775,13 @@ function avesmapsGaretienErgaenzungAnwenden(PDO $pdo, array $nach, string $publi
         // is_hidden/place_kind/description/wiki_url/other_source werden UNBEDINGT aus dem
         // Rumpf gelesen (`?? false`/`?? ''`/`?? null`) und wuerden ohne den vollstaendigen
         // aktuellen Bestand lautlos geloescht -- genau die Falle, deren Beleg oben schon steht.
-        // Die drei Wiki-Textfelder (einwohner/lage/oberhaupt) und `wiki_no_article` bleiben
-        // dagegen unangetastet, wenn sie im Rumpf FEHLEN (avesmapsApplyPointWikiFields prueft
-        // `array_key_exists`) -- sie werden deshalb bewusst NICHT mitgeschickt.
+        // Die drei Wiki-Textfelder (einwohner/lage/oberhaupt) bleiben dagegen unangetastet, wenn
+        // sie im Rumpf FEHLEN (avesmapsApplyPointWikiFields prueft `array_key_exists`) -- sie
+        // werden deshalb bewusst NICHT mitgeschickt.
+        // ⚠️ `wiki_no_article` stand hier als vierter Fall derselben Regel. Der Merker ist am
+        // 09.09.2026 global ausgebaut (Owner-Entscheid); der Rechner liest ihn nicht mehr, ein
+        // Altbestand-Schluessel bleibt trotzdem unangetastet liegen -- geraeumt wird er einmalig
+        // per Admin-Aktion, nicht von einem Import.
         $zeile = $pdo->prepare('SELECT name, feature_subtype, properties_json FROM map_features WHERE public_id = :p');
         $zeile->execute([':p' => $publicId]);
         $vorher = $zeile->fetch(PDO::FETCH_ASSOC);
@@ -1749,10 +1758,10 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
                 // avesmapsGaretienWikiLandschaftZuweisung) -- "Landschaft" meint hier BEIDE Formen,
                 // Flaeche UND Berggipfel (AVESMAPS_WIKI_REGION_ART_TO_SUBTYPE kennt 'Berggipfel'
                 // gleichberechtigt neben 'See'/'Wald'/…). Name und Art bleiben die des Imports.
-                // ⚠️ `array_merge` mit bedingt leerem drittem Array, absichtlich keine Feldzuweisung
-                // auf einer eigenen Zeile -- siehe die ausfuehrliche Begruendung an
-                // avesmapsGaretienFlaecheAnlegen oben (label-wiki-no-article-test.php scannt genau
-                // diese Schreibweise repoweit).
+                // ⚠️ `array_merge` mit bedingt leerem drittem Array statt einer Feldzuweisung auf
+                // eigener Zeile -- siehe die ausfuehrliche Begruendung an
+                // avesmapsGaretienFlaecheAnlegen oben. Der Scanner, der diese Form einmal erzwang,
+                // ist am 09.09.2026 mit dem Merker gefallen; die Form bleibt, der Zwang nicht.
                 $wikiZuweisung = avesmapsGaretienWikiLandschaftZuweisung($pdo, (string) $nach['name'], (string) $nach['subtyp']);
                 $feature = avesmapsCreateLabelFeature($pdo, array_merge(
                     ['text' => (string) $nach['name'], 'feature_subtype' => (string) $nach['subtyp'],

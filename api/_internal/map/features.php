@@ -20,7 +20,6 @@ require_once __DIR__ . '/../wiki/place-kinds.php';
 require_once __DIR__ . '/../routing/transport-season.php';
 // Der Widerspruchsriegel des dritten Zustands. Eigene Datei, weil die Landschaft ihn ebenfalls
 // braucht und diese hier nicht mitnehmen kann -- die Begruendung steht im Kopf jener Datei.
-require_once __DIR__ . '/wiki-claim.php';
 require_once __DIR__ . '/field-origins.php';
 require_once __DIR__ . '/../audit-prune.php';
 require_once __DIR__ . '/../schema-ensure-once.php';
@@ -1494,20 +1493,9 @@ const AVESMAPS_PATH_WIKI_ORIGIN_FIELDS = ['feature_subtype'];
  * @param string $wikiUrl   die flache Adresse, wie sie gleich gespeichert wird ('' = keine)
  */
 function avesmapsApplyPointWikiFields(array $properties, array $payload, string $wikiUrl): array {
-    $noArticle = array_key_exists('wiki_no_article', $payload)
-        ? avesmapsReadBoolean($payload['wiki_no_article'])
-        : !empty($properties['wiki_no_article']);
-    avesmapsAssertWikiClaimNotContradictory(
-        $wikiUrl,
-        $noArticle,
-        'Ein Ort',
-        'Bitte die Wiki-Zuweisung entfernen oder das Häkchen „Kein Wiki-Artikel vorhanden“ abwählen.'
-    );
-    if ($noArticle) {
-        $properties['wiki_no_article'] = true;
-    } else {
-        unset($properties['wiki_no_article']);
-    }
+    // 🔴 HIER STAND DER MERKER `wiki_no_article` samt seinem Widerspruchsriegel. Gefallen am
+    // 09.09.2026 (Owner-Entscheid): sein Aequivalent ist die WIKI-ZUWEISUNG. Der Riegel ist mit ihm
+    // gegenstandslos -- „Adresse UND kein Artikel" kann nicht mehr entstehen.
 
     foreach (AVESMAPS_POINT_WIKI_TEXT_FIELDS as $feld => $laenge) {
         if (!array_key_exists($feld, $payload)) {
@@ -2079,56 +2067,12 @@ function avesmapsCreatePowerlineFeature(PDO $pdo, array $payload, array $user): 
     }
 }
 
-// 💣 Der Widerspruch "Zuweisung UND kein Wiki-Artikel" steht seit dem 16.08.2026 in einer EIGENEN
-// Datei -- api/_internal/map/wiki-claim.php, oben mit require_once eingebunden. Der Grund steht
-// dort: die Landschaft braucht denselben Riegel, liegt aber hinter dem oeffentlichen Leseweg der
-// Karte, und diese 3.471 Zeilen gehoeren dort nicht hin. Die Regel ist unveraendert.
-function avesmapsAssertPowerlineWikiClaimNotContradictory(string $wikiUrl, bool $noArticle): void {
-    avesmapsAssertWikiClaimNotContradictory(
-        $wikiUrl,
-        $noArticle,
-        'Eine Kraftlinie',
-        'Bitte den Link leeren oder das Häkchen entfernen.'
-    );
-}
-
-/**
- * REIN: den Merker „kein Wiki-Artikel" auf EIN Kraftlinien-Segment schreiben. Wirft, wenn Merker und
- * Adresse einander widersprechen.
- *
- * 💣 ABWESENHEIT HEISST „NICHT GEAENDERT", LEER HEISST „LOESCHEN" -- dieselbe Regel wie bei
- * avesmapsApplyPointWikiFields, avesmapsApplyPathWikiNoArticle und
- * avesmapsEcosystemApplyRegionNoArticle. 🪤 Sie galt hier bis zum 16.08.2026 NICHT: der Linien-
- * Schreibweg las `$payload['wiki_no_article'] ?? false`, und daneben stand die Begruendung dafuer --
- * „die Kraftlinie hat EINEN Schreiber, und der schickt den Merker seit jeher". Der Satz war wahr und
- * ist es nicht mehr: mit dem Wegfall des Haekchens „Kein Wiki-Artikel vorhanden" (Owner-Entscheid
- * 16.08.2026) schickt der Editor den Schluessel nur noch, wenn eine ZUWEISUNG den Merker beantwortet
- * hat. Unveraendert weitergelesen haette `?? false` bei JEDEM Speichern einer Linie die Entscheidung
- * des Konfliktzentrums geloescht -- lautlos, und hinterher nicht von „nie entschieden" zu
- * unterscheiden (AGENTS.md §10).
- *
- * ⚠️ Der Merker steht nur drin, wenn er WAHR ist -- als `false` wird er nirgends abgelegt.
- *
- * 🔴 EIGENE FUNKTION, weil der Linien-Schreibweg sie je Segment braucht und sie sonst nur INNERHALB
- * einer Transaktion messbar waere. Dieselbe Form wie die drei Vorbilder oben, aus demselben Grund.
- *
- * @param array  $properties der bereits dekodierte Bestand DIESES Segments
- * @param array  $payload    die Anfrage
- * @param string $wikiUrl    die Adresse, wie sie gleich gespeichert wird ('' = keine)
- */
-function avesmapsApplyPowerlineWikiNoArticle(array $properties, array $payload, string $wikiUrl): array {
-    $noArticle = array_key_exists('wiki_no_article', $payload)
-        ? avesmapsReadBoolean($payload['wiki_no_article'])
-        : !empty($properties['wiki_no_article']);
-    avesmapsAssertPowerlineWikiClaimNotContradictory($wikiUrl, $noArticle);
-    if ($noArticle) {
-        $properties['wiki_no_article'] = true;
-    } else {
-        unset($properties['wiki_no_article']);
-    }
-
-    return $properties;
-}
+// 🔴 HIER STANDEN `avesmapsAssertPowerlineWikiClaimNotContradictory` UND
+// `avesmapsApplyPowerlineWikiNoArticle` -- der eigene Widerspruchsriegel der Kraftlinien und
+// der Schreiber des Merkers je Segment. Beide sind am 09.09.2026 mit
+// `properties.wiki_no_article` gefallen (Owner-Entscheid); sein Aequivalent ist die
+// WIKI-ZUWEISUNG. Mit ihnen faellt api/_internal/map/wiki-claim.php, die den geteilten Riegel
+// trug.
 
 /**
  * REIN: Was erbt ein NEU entstehendes Segment von seiner Linie?
@@ -2216,9 +2160,8 @@ function avesmapsPowerlineInheritedLineFields(?array $lineProperties): array {
         // gebogenen -- die Kurve ist eine Eigenschaft der LINIE, nicht des einzelnen Stuecks.
         'curve' => avesmapsReadPowerlineCurve($source['curve'] ?? 0),
     ];
-    if (!empty($source['wiki_no_article'])) {
-        $inherited['wiki_no_article'] = true;
-    }
+    // 🔴 HIER ERBTE DER MERKER auf jedes neu angehaengte Segment -- der LETZTE Erzeuger von `true`
+    // im ganzen Haus. Gefallen am 09.09.2026 mit `properties.wiki_no_article` (Owner-Entscheid).
 
     return $inherited;
 }
@@ -2237,11 +2180,9 @@ function avesmapsUpdatePowerlineFeatureDetails(PDO $pdo, array $payload, array $
         $feature = avesmapsFetchEditableLineStringFeature($pdo, $publicId);
         avesmapsAssertFeatureCanBeEdited($pdo, $payload, $feature, $user);
         $properties = avesmapsDecodeJsonColumnForEdit($feature['properties_json'] ?? null);
-        // Derselbe Riegel wie im Linien-Schreibweg. Dieser zweite Weg kannte ihn nicht, der
-        // verbotene Zustand war ueber ihn also herstellbar. Geprueft wird gegen den Merker, wie er
-        // in den properties DIESES Segments steht: diese Aktion schreibt ihn nicht, sie kann ihn
-        // nur vorfinden -- deshalb steht die Pruefung nach dem Lesen und nicht vor der Transaktion.
-        avesmapsAssertPowerlineWikiClaimNotContradictory($wikiUrl, !empty($properties['wiki_no_article']));
+        // 🔴 HIER STAND DER WIDERSPRUCHSRIEGEL („Adresse UND kein Wiki-Artikel"). Gefallen am
+        // 09.09.2026 mit dem Merker `properties.wiki_no_article` -- der verbotene Zustand kann
+        // nicht mehr entstehen, weil ihn niemand mehr schreibt.
         $properties['name'] = $name;
         $properties['feature_type'] = 'powerline';
         $properties['feature_subtype'] = 'powerline';
@@ -2304,29 +2245,6 @@ function avesmapsUpdatePowerlineLine(PDO $pdo, array $payload, array $user): arr
     $showLabel = avesmapsReadBoolean($payload['show_label'] ?? false);
     $description = trim((string) ($payload['description'] ?? ''));
     $wikiUrl = trim((string) ($payload['wiki_url'] ?? ''));
-    // 🔴 Die Kurve wird NICHT mehr hier gelesen. Sie ist seit dem 29.08.2026 je Segment
-    // einstellbar, und welcher Wert auf welches Segment kommt, entscheidet die reine Regel
-    // avesmapsApplyPowerlineCurve -- inklusive „nichts gesagt heisst nichts geaendert".
-    // 🔴 ABWESENHEIT HEISST „NICHT GEAENDERT" -- seit dem 16.08.2026, und die Zeile ist der Grund,
-    // warum das Haekchen „Kein Wiki-Artikel vorhanden" im Kraftlinien-Editor ueberhaupt fallen DURFTE.
-    // 🪤 Hier stand `?? false`, und daneben stand die Begruendung dafuer: „die Kraftlinie hat EINEN
-    // Schreiber, und der schickt den Merker seit jeher" (avesmapsApplyPointWikiFields, oben). Der Satz
-    // war wahr und traegt nicht mehr: mit dem Wegfall des Haekchens schickt saveLine den Schluessel nur
-    // noch, wenn eine ZUWEISUNG den Merker beantwortet hat. Unveraendert weitergelesen haette `?? false`
-    // damit bei JEDEM Speichern einer Linie die Entscheidung des Konfliktzentrums geloescht -- lautlos,
-    // und von „nie entschieden" hinterher nicht zu unterscheiden (AGENTS.md §10).
-    // ⚠️ Die zwei Haelften gehoeren zusammen und duerfen nicht einzeln zurueckgedreht werden: wer hier
-    // `?? false` wiederherstellt, braucht im selben Zug ein Bedienelement, das den Merker setzen kann.
-    $noArticleGesendet = array_key_exists('wiki_no_article', $payload);
-    $noArticle = $noArticleGesendet ? avesmapsReadBoolean($payload['wiki_no_article']) : false;
-    // 💣 Abgelehnt, nicht aufgeloest -- Begruendung und Wortlaut stehen an der gemeinsamen Stelle
-    // (avesmapsAssertPowerlineWikiClaimNotContradictory), damit der zweite Schreibweg nicht wieder
-    // ohne Riegel oder mit einer anderen Begruendung dastehen kann.
-    // ⚠️ Vor der Transaktion nur, was der Rumpf AUSDRUECKLICH behauptet. Der gespeicherte Merker steht
-    // je Segment in dessen Eigenschaften und wird deshalb unten, nach dem Lesen, noch einmal geprueft.
-    if ($noArticleGesendet) {
-        avesmapsAssertPowerlineWikiClaimNotContradictory($wikiUrl, $noArticle);
-    }
 
     $pdo->beginTransaction();
     try {
@@ -2358,11 +2276,6 @@ function avesmapsUpdatePowerlineLine(PDO $pdo, array $payload, array $user): arr
             $properties['description'] = $description;
             $properties['wiki_url'] = $wikiUrl;
             $properties = avesmapsApplyPowerlineCurve($properties, $payload, (string) $row['public_id']);
-            // Ohne ausdruecklichen Schluessel gilt, was auf DIESEM Segment steht -- die reine Regel
-            // steht in avesmapsApplyPowerlineWikiNoArticle, weil sie hier in einer Transaktion
-            // saesse und dort messbar ist.
-            $properties = avesmapsApplyPowerlineWikiNoArticle($properties, $payload, $wikiUrl);
-            $merker = !empty($properties['wiki_no_article']);
             $update->execute([
                 'id' => (int) $row['id'],
                 'name' => $newName,
@@ -2383,7 +2296,6 @@ function avesmapsUpdatePowerlineLine(PDO $pdo, array $payload, array $user): arr
                     'description' => $description,
                     'wiki_url' => $wikiUrl,
                     'curve' => $properties['curve'] ?? 0.0,
-                    'wiki_no_article' => $merker,
                     'properties_json' => $properties,
                     'revision' => $revision,
                 ])
@@ -2843,157 +2755,24 @@ function avesmapsApplyTransportSeasonsToWikiSiblings(
     return $written;
 }
 
-/**
- * REIN: der DRITTE ZUSTAND eines Weges („dieser Weg hat KEINEN Wiki-Artikel") in seinen
- * Eigenschaften. Vorbild und Zwilling: avesmapsApplyPointWikiFields (Ort) und der Linien-Schreibweg
- * der Kraftlinien -- es gibt KEINEN zweiten Mechanismus, nur diesen Merker `wiki_no_article`.
- *
- * 💣 ABWESENHEIT HEISST „NICHT GEAENDERT", und zwar aus demselben Grund wie beim Ort:
- * `update_path_details` hat ZWEI Schreiber (buildPathEditPayload in js/review/review-paths.js und
- * saveDraft in js/pages/wege-editor.js) und dazu die Ladeluecke eines Deploys (AGENTS.md §7). Eine
- * gecachte Oberflaeche, die das Feld noch nicht kennt, wuerde mit `?? false` bei JEDEM Speichern die
- * Entscheidung des Konfliktzentrums stillschweigend zuruecknehmen. Ein Schreiber, der ein Feld nicht
- * kennt, darf es nicht loeschen.
- *
- * ⚠️ Der Merker steht nur drin, wenn er WAHR ist -- als `false` wird er nirgends abgelegt, sonst
- * liesse er sich spaeter nicht von „nie entschieden" unterscheiden (dieselbe Regel wie bei
- * avesmapsPowerlineInheritedLineFields und avesmapsApplyPointWikiFields).
- *
- * 🔴 DAS ANHAKEN LEERT EINE GESPEICHERTE FLACHE ADRESSE (Owner-Entscheid 16.08.2026). Die Begruendung
- * steht hier, damit sie niemand zurueckdreht: das Haekchen sagt „es gibt keinen Artikel", eine
- * gespeicherte Adresse widerspricht dem, und der Ort macht es seit dem 16.08.2026 genauso
- * (settlementWikiKeinArtikelGeaendert leert dort das Feld schon im Browser). Die Alternative -- der
- * Server VERWEIGERT das Haekchen -- waere beim Weg eine Absage ohne Ausweg: er hat in KEINER seiner
- * zwei Oberflaechen ein Adressfeld, und `update_path_details` schickt `wiki_url` gar nicht mit; der
- * Editor bekaeme eine Absage, deren Ursache er nirgends sieht und nirgends beheben kann.
- * ⚠️ Beim ABwaehlen wird nichts zurueckgeholt: eine geloeschte Adresse zu erraten ist genau der
- * Fehler, den der Merker beseitigt.
- *
- * 🔴 DER WIDERSPRUCHS-RIEGEL STEHT DESHALB NACH DEM LEEREN und kann heute nicht zuschlagen. Er ist
- * trotzdem kein toter Code, sondern die Wache ueber genau die Zeile darueber: nimmt jemand das
- * `unset` heraus, wird aus einem still gespeicherten Widerspruch eine laute Absage. Die Formulierung
- * ist die GETEILTE (avesmapsAssertWikiClaimNotContradictory) -- Ort, Weg und Kraftlinie begruenden
- * denselben Widerspruch nicht dreimal verschieden.
- */
-function avesmapsApplyPathWikiNoArticle(array $properties, array $payload): array {
-    $noArticle = array_key_exists('wiki_no_article', $payload)
-        ? avesmapsReadBoolean($payload['wiki_no_article'])
-        : !empty($properties['wiki_no_article']);
-    if ($noArticle) {
-        $properties['wiki_no_article'] = true;
-        unset($properties['wiki_url']);
-    } else {
-        unset($properties['wiki_no_article']);
-    }
-    avesmapsAssertWikiClaimNotContradictory(
-        (string) ($properties['wiki_url'] ?? ''),
-        $noArticle,
-        'Ein Weg',
-        'Bitte das Häkchen „Kein Wiki-Artikel vorhanden“ abwählen.'
-    );
+// 🔴 HIER STAND `avesmapsApplyPathWikiNoArticle` -- der Schreiber des Merkers am WEG, samt
+// seinem Widerspruchsriegel. Gefallen am 09.09.2026 mit `properties.wiki_no_article`
+// (Owner-Entscheid); sein Aequivalent ist die WIKI-ZUWEISUNG.
+// ⚠️ Er leerte beim Setzen auch die flache `wiki_url` -- ohne Merker gibt es dafuer keinen
+// Anlass mehr, und die Adresse gehoert ohnehin der Zuweisung.
 
-    return $properties;
-}
 
-/**
- * Traegt den dritten Zustand auf den NAMENSVERBUND des Weges -- alle aktiven Wegstuecke desselben
- * Namens, nicht nur das bearbeitete. Gibt zurueck, wie viele GESCHWISTER geschrieben wurden.
- *
- * 🔴 DIE REICHWEITE IST NICHT NEU ERFUNDEN, SIE IST DIE DES KONFLIKTZENTRUMS
- * (avesmapsConflictRepairSpansNameGroup, api/_internal/conflicts/repair.php, Owner-Entscheid
- * 15.08.2026). Fuer GENAU DIESEN Merker steht die Begruendung dort schon wortwoertlich: ein Fall im
- * Konfliktzentrum ist bei einer segmentierten Art eine LINIE, kein Segment -- am Knopf steht
- * „6 Segmente". Traefe der Schreibvorgang nur eines davon, bliebe der Fall mit 5 Segmenten stehen.
- * 💣 Und die zweite Haelfte derselben Begruendung gilt hier unmittelbar: im Zuweisungskasten stehen
- * das Haekchen und „Zuweisen" NEBENEINANDER, und `assign_to` fasst seit jeher alle gleichnamigen
- * Segmente (avesmapsWikiPathAssignTo). Zwei Knoepfe am selben Kasten, die verschieden weit reichen,
- * sind schlimmer als zwei getrennte Fehler.
- *
- * 🔴 KEIN ZWEITER MECHANISMUS: gefragt wird die Weiche des Konfliktzentrums, und geschrieben wird
- * mit demselben reinen Rechner wie die Zielzeile (avesmapsApplyPathWikiNoArticle) -- ein Geschwister
- * bekommt also auch das Leeren seiner flachen `wiki_url`, sonst traege es den verbotenen Zustand.
- *
- * ⚠️ NUR WENN DER RUMPF DEN MERKER MITBRINGT -- und das ist ein KOSTEN-Riegel, kein Richtigkeits-
- * Riegel: ohne ihn liefe die Verbund-Abfrage bei JEDEM Speichern eines Weges, schriebe aber nichts
- * (der Rechner unten laesst einen abwesenden Schluessel in Ruhe). Der Unterschied ist eine Abfrage
- * ueber alle gleichnamigen Segmente je Speichern -- auf STRATO ist das der Grund (AGENTS.md §10).
- * ⚠️ Genau deshalb zaehlt der Test die Abfragen mit: eine Zusicherung ueber die gespeicherten Werte
- * kann diesen Riegel nicht sehen (gemessen -- die Mutation lief zuerst gruen durch).
- * ⚠️ UND NUR, WAS SICH WIRKLICH AENDERT: eine Zeile ohne Unterschied wird uebersprungen. Sonst hebt
- * ein Speichern ohne Aenderung die Revision jedes Segments und schickt jedem warmen Client die halbe
- * Karte neu -- dieselbe Regel wie in avesmapsApplyTransportSeasonsToWikiSiblings daneben.
- *
- * ⚠️ `require_once` IM RUMPF, nicht im Dateikopf, und das ist Absicht: repair.php zieht core.php,
- * rules.php und -- seit dem 20.08.2026 fuer den Landschafts-Riegel -- app/ecosystem.php nach
- * (zusammen rund 2.100 Zeilen bzw. rund 650 KB Quelltext, gemessen 20.08.2026), und
- * features.php haengt an rund zwanzig Endpunkten,
- * darunter oeffentliche Leser -- im Kopf wuerde jeder davon sie mitparsen (STRATO, AGENTS.md §10).
- * Dazu laedt repair.php seinerseits features.php: im Kopf waere das ein Zyklus. Hausform:
- * api/_internal/routing/travel-values.php:481, api/_internal/app/citymaps.php:2109 u. a.
- */
-function avesmapsApplyPathWikiNoArticleToNameGroup(
-    PDO $pdo,
-    string $name,
-    array $payload,
-    int $ownFeatureId,
-    int $revision,
-    int $userId
-): int {
-    if (!array_key_exists('wiki_no_article', $payload)) {
-        return 0;
-    }
-    require_once __DIR__ . '/../conflicts/repair.php';
-    if (!avesmapsConflictRepairSpansNameGroup('path', $name)) {
-        return 0;
-    }
+// 🔴 HIER STAND `avesmapsApplyPathWikiNoArticleToNameGroup` -- der Merker wurde auf den
+// ganzen NAMENSVERBUND eines Weges geschrieben, so weit wie die Reparatur-Verben des
+// Konfliktzentrums reichen. Gefallen am 09.09.2026 mit `properties.wiki_no_article`.
+// ⚠️ DIE REICHWEITE SELBST IST NICHT GEFALLEN, nur dieser eine Nutzer: sie ist die Regel des
+// Konfliktzentrums (avesmapsConflictRepairSpansNameGroup) und gilt dort unveraendert. Wer je
+// wieder ein Feld ueber den Namensverbund schreibt, fragt dieselbe Weiche -- und beachtet die
+// zwei Riegel, die hier standen: nur bei ausdruecklichem Schluessel (ein KOSTEN-Riegel gegen
+// eine Verbund-Abfrage je Speichern) und nur, was sich wirklich aendert (sonst hebt ein
+// Speichern ohne Aenderung die Revision jedes Segments und schickt jedem warmen Client die
+// halbe Karte neu).
 
-    // Dieselbe Abfrage wie im Konfliktzentrum (avesmapsConflictUnlinkFeature): gleiche Art, gleicher
-    // Name, aktiv. Die eigene Zeile ist ausgenommen -- der Aufrufer hat sie gerade selbst geschrieben.
-    $select = $pdo->prepare(
-        "SELECT id, public_id, name, properties_json FROM map_features
-          WHERE feature_type = 'path' AND name = :n AND is_active = 1 AND id <> :own"
-    );
-    $select->execute(['n' => $name, 'own' => $ownFeatureId]);
-    $siblings = $select->fetchAll(PDO::FETCH_ASSOC);
-    if ($siblings === []) {
-        return 0;
-    }
-
-    $update = $pdo->prepare(
-        'UPDATE map_features SET properties_json = :properties_json, revision = :revision,
-                updated_by = :updated_by
-          WHERE id = :id'
-    );
-
-    $written = 0;
-    foreach ($siblings as $sibling) {
-        $properties = avesmapsDecodeJsonColumnForEdit($sibling['properties_json'] ?? null);
-        $neu = avesmapsApplyPathWikiNoArticle($properties, $payload);
-        if ($neu == $properties) {
-            continue;
-        }
-
-        $before = avesmapsEncodeAuditJson($sibling);
-        $update->execute([
-            'id' => (int) $sibling['id'],
-            'properties_json' => avesmapsEncodeJson($neu),
-            'revision' => $revision,
-            'updated_by' => $userId,
-        ]);
-        avesmapsWriteMapAuditLog($pdo, (int) $sibling['id'], 'update_path_details', $userId, $before, avesmapsEncodeAuditJson([
-            'public_id' => (string) $sibling['public_id'],
-            'feature_type' => 'path',
-            'name' => (string) $sibling['name'],
-            'wiki_no_article' => !empty($neu['wiki_no_article']),
-            'properties_json' => $neu,
-            'revision' => $revision,
-            'via_name_group' => $name,
-        ]));
-        $written++;
-    }
-
-    return $written;
-}
 
 function avesmapsUpdatePathFeatureDetails(PDO $pdo, array $payload, array $user): array {
     $publicId = avesmapsReadMapFeaturePublicId($payload['public_id'] ?? '');
@@ -3041,10 +2820,6 @@ function avesmapsUpdatePathFeatureDetails(PDO $pdo, array $payload, array $user)
         } else {
             $properties['transport_seasons'] = $transportSeasons;
         }
-        // Der dritte Zustand („dieser Weg hat KEINEN Wiki-Artikel"). 💣 Die ganze Entscheidung steht
-        // in avesmapsApplyPathWikiNoArticle, nicht hier: sie ist rein und damit ohne Datenbank
-        // pruefbar -- und sie ist die EINZIGE Stelle, an der der Merker eines Weges entsteht.
-        $properties = avesmapsApplyPathWikiNoArticle($properties, $payload);
         // Die Feldherkunft fortschreiben: hat sich der Wegtyp geaendert, und kam er aus dem Wiki?
         // 💣 EINER VON ZWEI SCHREIBWEGEN. Der andere ist avesmapsUpdatePathGroupDetails (die
         // Weg-Ebene, 19.08.2026), und der schreibt `feature_subtype` in einer Schleife ueber ALLE
@@ -3110,15 +2885,6 @@ function avesmapsUpdatePathFeatureDetails(PDO $pdo, array $payload, array $user)
         // Die Zeitfenster gehoeren dem WIKI-WEG, nicht dem Segment (siehe Funktionskopf oben).
         avesmapsApplyTransportSeasonsToWikiSiblings(
             $pdo, $properties, $transportSeasons, (int) $feature['id'], $revision, (int) $user['id']
-        );
-        // 🔴 Der Merker „kein Wiki-Artikel" gehoert dem WEG, nicht dem Wegstueck -- dieselbe
-        // Reichweite wie „Zuweisen" im selben Kasten und wie die Reparatur-Verben des
-        // Konfliktzentrums (Owner-Entscheid 15.08.2026, hier nachgezogen am 16.08.2026).
-        // ⚠️ Der NAME ist der WIRKSAME (nach avesmapsWikiPathEffectiveEditName), also genau der,
-        // der eine Zeile drueber in die Zeile geschrieben wurde -- sonst suchte der Verbund unter
-        // einem Namen, den dieses Segment gar nicht mehr traegt.
-        avesmapsApplyPathWikiNoArticleToNameGroup(
-            $pdo, $name, $payload, (int) $feature['id'], $revision, (int) $user['id']
         );
         $pdo->commit();
 
@@ -3496,10 +3262,6 @@ function avesmapsCreateLabelFeature(PDO $pdo, array $payload, array $user): arra
         $wikiRegion = avesmapsReadLabelWikiRegion($payload['wiki_region']);
         if ($wikiRegion !== null) {
             $properties['wiki_region'] = $wikiRegion;
-            // ⚠️ An einem FRISCHEN Label kann der Merker gar nicht stehen -- die Zeile ist trotzdem da,
-            // damit die Regel „jeder Zuweiser loescht ihn" ohne Ausnahme gilt und der zaehlende Test
-            // (label-wiki-no-article-test.php) keinen Sonderfall zu erklaeren hat.
-            unset($properties['wiki_no_article']);
         }
     }
     // A peak may arrive with its height already known -- "Hoehenpunkt setzen" in the topography
@@ -3649,41 +3411,13 @@ function avesmapsUpdateLabelFeature(PDO $pdo, array $payload, array $user): arra
             $wikiRegion = avesmapsReadLabelWikiRegion($payload['wiki_region']);
             if ($wikiRegion !== null) {
                 $properties['wiki_region'] = $wikiRegion;
-                // 🔴 EINE ZUWEISUNG BEANTWORTET DEN DRITTEN ZUSTAND -- „es gibt keinen Artikel" und
-                // „hier ist er" schliessen einander aus. Es gibt FUENF Schreiber von
-                // `properties.wiki_region` (hier, avesmapsCreateLabelFeature, und drei in
-                // api/_internal/wiki/regions.php); jeder einzelne loescht den Merker, und der Test
-                // label-wiki-no-article-test.php zaehlt sie nach, statt sich auf eine ZAHL in diesem
-                // Kommentar zu verlassen (die Falle aus AGENTS.md §11).
-                unset($properties['wiki_no_article']);
             } else {
                 unset($properties['wiki_region']);
             }
         }
-        // 🔴 DER DRITTE ZUSTAND AM LABEL, seit 16.08.2026 (Aufgabe 6). Anders als bei der
-        // Landschaftsflaeche hat er hier einen echten VERBRAUCHER: ein Label ist eine Konfliktpartei
-        // (`feature_type='label'`, api/_internal/conflicts/rules.php), und die Regel `wiki.missing_key`
-        // liest den Merker seit dem 15.08.2026 -- es fehlte nur der Schreibweg.
-        // 💣 array_key_exists, nicht ?? -- wie beim Nodix und beim Versteckt darueber: diese Funktion
-        // schreibt nur, was der Aufrufer wirklich mitschickt. Ein `?? false` naehme die Entscheidung
-        // eines zweiten Editors bei jedem unbeteiligten Speichern still zurueck.
-        if (array_key_exists('wiki_no_article', $payload)) {
-            if (avesmapsReadBoolean($payload['wiki_no_article'])) {
-                $properties['wiki_no_article'] = true;
-            } else {
-                // Entfernt, nicht auf `false`: als `false` liesse sich „entschieden, es gibt keinen"
-                // spaeter nicht von „nie entschieden" unterscheiden (dieselbe Regel wie ueberall sonst).
-                unset($properties['wiki_no_article']);
-            }
-        }
-        // Der GETEILTE Riegel (api/_internal/map/wiki-claim.php): beides zugleich wird ABGELEHNT, nicht
-        // still nach einer Vorrangregel aufgeloest.
-        avesmapsAssertWikiClaimNotContradictory(
-            isset($properties['wiki_region']) ? 'wiki:gesetzt' : '',
-            !empty($properties['wiki_no_article']),
-            'Ein Label',
-            'Bitte die Zuweisung entfernen oder das Häkchen abwählen.'
-        );
+        // 🔴 HIER STAND DER DRITTE ZUSTAND AM LABEL samt dem geteilten Widerspruchsriegel. Gefallen
+        // am 09.09.2026 mit `properties.wiki_no_article` (Owner-Entscheid); sein Aequivalent ist die
+        // WIKI-ZUWEISUNG, die eine Zeile darueber geschrieben wird.
         // 💣 Only when the caller sends the key -- the rule `other_source` carried here until 03.09.2026, for the
         // same reason. A save that does not mention the height must not erase it, and the height is
         // edited from TWO surfaces (the label dialog and the landscape panel); each of them omits
@@ -4250,16 +3984,20 @@ function avesmapsBuildPointFeatureResponse(string $publicId, string $name, strin
         'is_hidden' => !empty($properties['is_hidden']),
         // Ortsart -- der Editor liest sie hier zurueck, um das Feld beim Oeffnen zu fuellen.
         'place_kind' => (string) ($properties['place_kind'] ?? ''),
-        // 🔴 Der dritte Zustand und die drei Wiki-Textfelder MUESSEN hier stehen. Der Kartendialog
-        // baut seinen Marker-Eintrag aus genau dieser Antwort neu (updateLocationMarkerFromFeature,
-        // js/map-features/map-features-location-editing.js) -- fehlte eines der vier, saehe der
-        // Dialog beim naechsten Oeffnen einen Stand, den er selbst gerade gespeichert hat, als
-        // „nicht gesetzt", und das naechste Speichern schriebe die Leere fest.
-        'wiki_no_article' => !empty($properties['wiki_no_article']),
+        // 🔴 Die DREI Wiki-Textfelder MUESSEN hier stehen. Der Kartendialog baut seinen
+        // Marker-Eintrag aus genau dieser Antwort neu (updateLocationMarkerFromFeature,
+        // js/map-features/map-features-location-editing.js) -- fehlte eines, saehe der Dialog beim
+        // naechsten Oeffnen einen Stand, den er selbst gerade gespeichert hat, als „nicht gesetzt",
+        // und das naechste Speichern schriebe die Leere fest.
+        // 🪤 ES WAREN VIER: der dritte Zustand `wiki_no_article` reiste als erster mit, aus genau
+        // diesem Grund. Er ist am 09.09.2026 global ausgebaut (Owner-Entscheid nach Durchsicht aller
+        // 10 Traeger); sein Aequivalent ist die WIKI-ZUWEISUNG. Wer die Zahl hier wieder auf vier
+        // zaehlt, hat den Merker zurueckgebaut -- und die Zahl stand nach seinem Wegfall einen Tag
+        // lang falsch da, gefunden von einem Pruefagenten, nicht von einem Test.
         'einwohner' => (string) ($properties['einwohner'] ?? ''),
         'lage' => (string) ($properties['lage'] ?? ''),
         'oberhaupt' => (string) ($properties['oberhaupt'] ?? ''),
-        // 🔴 Die FELDHERKUNFT, aus demselben Grund wie die vier darueber: der Kartendialog baut
+        // 🔴 Die FELDHERKUNFT, aus demselben Grund wie die drei darueber: der Kartendialog baut
         // seinen Marker-Eintrag aus genau dieser Antwort neu. Fehlte sie, zeigte der Dialog nach dem
         // Speichern „Herkunft unbekannt" fuer ein Feld, dessen Herkunft der Server soeben selbst
         // gestempelt hat -- und die Sync-Vorschau daneben haekelte wieder nichts vor.
@@ -4290,15 +4028,16 @@ function avesmapsBuildLineStringFeatureResponse(string $publicId, string $name, 
     $properties['feature_type'] = 'path';
     $properties['feature_subtype'] = $subtype;
     $properties['revision'] = $revision;
-    // 🔴 DER DRITTE ZUSTAND STEHT AUSDRUECKLICH DRIN, AUCH ALS `false` -- anders als im
-    // properties_json, wo ein `false` nie abgelegt wird.
-    // 💣 Der Grund ist der Leser: applyPathFeatureResponse (js/map-features/map-features-path-
-    // lifecycle.js) MISCHT die Antwort in die vorhandenen Eigenschaften (`{...alt, ...neu}`). Ein
-    // WEGGELASSENER Schluessel loescht dort nichts, er laesst den alten stehen -- ein gerade
-    // abgewaehltes Haekchen saehe beim naechsten Oeffnen des Dialogs wieder gesetzt aus, obwohl der
-    // Server es geloescht hat, und der Editor haette keine Erklaerung dafuer. Dieselbe Pflicht und
-    // derselbe Grund wie bei avesmapsBuildPointFeatureResponse.
-    $properties['wiki_no_article'] = !empty($properties['wiki_no_article']);
+    // 🔴 HIER STAND DER DRITTE ZUSTAND, AUSDRUECKLICH AUCH ALS `false` -- anders als im
+    // properties_json, wo ein `false` nie abgelegt wurde. Gefallen am 09.09.2026 mit
+    // `properties.wiki_no_article` (Owner-Entscheid).
+    // 💣 SEIN GRUND GILT WEITER FUER JEDES FELD, DAS HIER JE HINZUKOMMT, und deshalb steht er:
+    // applyPathFeatureResponse (js/map-features/map-features-path-lifecycle.js) MISCHT die Antwort
+    // in die vorhandenen Eigenschaften (`{...alt, ...neu}`). Ein WEGGELASSENER Schluessel loescht
+    // dort nichts, er laesst den alten stehen -- ein gerade geleertes Feld saehe beim naechsten
+    // Oeffnen des Dialogs wieder gefuellt aus, obwohl der Server es geloescht hat, und der Editor
+    // haette keine Erklaerung dafuer. Wer hier ein loeschbares Feld ergaenzt, schickt es
+    // AUSDRUECKLICH mit, auch leer. Derselbe Grund wie bei avesmapsBuildPointFeatureResponse.
 
     return [
         'type' => 'Feature',

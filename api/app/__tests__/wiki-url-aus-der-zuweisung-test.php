@@ -29,10 +29,17 @@ declare(strict_types=1);
  * `properties.wiki_url` gilt (Kraftlinien speichern sie dort), sonst die Adresse aus dem
  * Zuweisungs-Nest, sonst NICHTS.
  *
- * ⚠️ `wiki_no_article` wird weiter geehrt, obwohl es nach diesem Umbau nichts mehr abzuwehren hat:
- * der Merker ist eine ausdrueckliche Editor-Aussage („dieses Objekt hat keinen Artikel") und wird
- * an anderer Stelle gelesen. Wer ihn hier streicht, streicht keine tote Zeile, sondern die
- * Zusicherung, dass ein kuenftiger Erzeuger ihn nicht uebergeht.
+ * 🔴 `wiki_no_article` WURDE HIER BIS ZUM 09.09.2026 GEEHRT, und der Satz an dieser Stelle lautete:
+ * „Wer ihn hier streicht, streicht keine tote Zeile, sondern die Zusicherung, dass ein kuenftiger
+ * Erzeuger ihn nicht uebergeht." Er stimmte -- solange der Merker anderswo gelesen wurde. Genau das
+ * ist mit dem Ausbau entfallen (Owner-Entscheid nach Durchsicht aller 10 Traeger), und damit war der
+ * Riegel wirklich tot.
+ * ⚠️ GEMESSEN, DASS DIE NUTZLAST SICH DABEI NICHT AENDERT -- an der LIVE-Nutzlast, nicht am Dump:
+ * solange der Riegel stand, war ein Traeger genau ein Objekt, dessen ZUWEISUNGSNEST eine Adresse
+ * trug, waehrend die flache `wiki_url` leer blieb. Am 09.09.2026 gezaehlt (Revision 119767):
+ * **0 von 12.318 Objekten.** Deshalb blieb `AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION` stehen; ein Bump
+ * kostete jeden warmen Besucher rund 3 MB fuer dieselben Bytes. Die ausfuehrliche Begruendung samt
+ * der Falle, die dabei aufflog, steht im Kopf von api/app/map-features.php.
  *
  * Kein HTTP, keine Datenbank: `map-features.php` fuehrt beim Laden seine Arbeit aus (Top-Level
  * `try`) und laesst sich nicht requiren. Die Funktion wird deshalb per TOKENIZER ausgeschnitten
@@ -315,8 +322,12 @@ $pruefe(
 );
 
 // ---------------------------------------------------------------------------
-// 6) `wiki_no_article` bleibt geehrt -- siehe Kopf: ausdrueckliche Editor-Aussage.
+// 6) DER MERKER SCHWEIGT NICHT MEHR -- er ist ausgebaut (Owner-Entscheid 09.09.2026).
 // ---------------------------------------------------------------------------
+// 🔴 UMGEDREHT: hier stand „`wiki_no_article` schweigt, auch gegen eine Zuweisung". Ein
+// Altbestand-Traeger, der zugleich eine ZUWEISUNG hat, bekommt seither ihre Adresse -- der Merker
+// entscheidet nichts mehr. Genau dieser Fall (Altenau) war der EINZIGE im ganzen Bestand, an dem
+// der Wegfall des Riegels ueberhaupt sichtbar wurde; er ist am 09.09.2026 korrigiert worden.
 $keinArtikel = ruf(
     [
         'name' => 'Falkenforst',
@@ -327,8 +338,18 @@ $keinArtikel = ruf(
     ['name' => 'Falkenforst', 'feature_type' => 'label']
 );
 $pruefe(
-    'wiki_no_article schweigt, auch gegen eine Zuweisung',
-    trim((string) ($keinArtikel['wiki_url'] ?? '')) === ''
+    'ein Altbestand-Merker haelt die Zuweisung nicht mehr auf',
+    trim((string) ($keinArtikel['wiki_url'] ?? '')) === 'https://de.wiki-aventurica.de/wiki/Falkenforst'
+);
+// ⚠️ Und OHNE Zuweisung bleibt es bei nichts -- der Merker erzeugt keine Adresse, er verhindert
+// auch keine. Er ist schlicht kein Eingang mehr.
+$nurMerker = ruf(
+    ['name' => 'Falkenforst', 'feature_type' => 'label', 'wiki_no_article' => true],
+    ['name' => 'Falkenforst', 'feature_type' => 'label']
+);
+$pruefe(
+    'ohne Zuweisung entsteht weiterhin keine Adresse',
+    trim((string) ($nurMerker['wiki_url'] ?? '')) === ''
 );
 
 // ---------------------------------------------------------------------------

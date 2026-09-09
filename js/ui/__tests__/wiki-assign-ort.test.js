@@ -1260,14 +1260,20 @@ function skripteAus(htmlDatei, muster) {
 	// im PHP-Test nebenan bereits geschlossen war -- hier nicht. Deshalb jetzt: Kommentarzeilen raus,
 	// und gesucht wird die ZUWEISUNG `<feld>:` an einer Wortgrenze, nicht der blosse Name.
 	//
-	// ⚠️ Der Merker heisst je nach Stufe anders: im Marker-Eintrag `wikiNoArticle`, im flachen
-	// Umschlag der Antwort `wiki_no_article`. Die Probe traegt deshalb je Erzeuger IHREN Namen --
-	// ein gemeinsamer waere bei drei von vier zufaellig richtig und bei einem blind.
+	// 🔴 DIE DRITTE SPALTE IST AM 09.09.2026 GEFALLEN, nicht nur ihr Gebrauch. Sie trug den Namen
+	// des Merkers je Erzeuger -- im Marker-Eintrag `wikiNoArticle`, im flachen Umschlag der Antwort
+	// `wiki_no_article`; ein gemeinsamer Name waere bei drei von vier zufaellig richtig und bei
+	// einem blind gewesen. Mit `properties.wiki_no_article` (Owner-Entscheid) hat sie keinen
+	// Gegenstand mehr.
+	// 🪤 SIE STAND EINEN TAG LANG UNBENUTZT DA, waehrend der Kommentar sie in Praesens erklaerte und
+	// der Bauplan sie als „entfernt" fuehrte -- gefunden von einem Pruefagenten, nicht von einem
+	// Test. Eine tote Spalte in einer Tafel ist schlimmer als eine geloeschte: sie sieht wie eine
+	// Zusicherung aus.
 	const MARKER_ERZEUGER = [
-		["js/routing/routing.js", "prepareLocationData", "wikiNoArticle"],
-		["js/map-features/map-features-location-editing.js", "applyFeatureResponseToMarker", "wikiNoArticle"],
-		["js/map-features/map-features-location-editing.js", "addCreatedLocationMarker", "wikiNoArticle"],
-		["js/map-features/map-features-location-editing.js", "applyLiveLocationFeature", "wiki_no_article"],
+		["js/routing/routing.js", "prepareLocationData"],
+		["js/map-features/map-features-location-editing.js", "applyFeatureResponseToMarker"],
+		["js/map-features/map-features-location-editing.js", "addCreatedLocationMarker"],
+		["js/map-features/map-features-location-editing.js", "applyLiveLocationFeature"],
 	];
 	/**
 	 * Der Rumpf OHNE Kommentare -- die Probe soll Code messen, nicht Prosa.
@@ -1296,9 +1302,9 @@ function skripteAus(htmlDatei, muster) {
 		const quelle = fs.readFileSync(path.join(wurzel, datei), "utf8");
 		const rumpf = rumpfOhneKommentare(quelle, funktion);
 		assert.ok(rumpf !== null, "der Erzeuger „" + funktion + "“ steht nicht in " + datei);
-		// 🔴 `merkerName` ist am 09.09.2026 aus dieser Liste gefallen: die Erzeuger tragen den Merker
-		// nicht mehr in den Marker-Eintrag. Die DREI Textfelder bleiben -- an ihnen haengt der
-		// eigentliche Befund dieser Probe.
+		// 🔴 Der Merker ist am 09.09.2026 aus dieser Probe gefallen: die Erzeuger tragen ihn nicht
+		// mehr in den Marker-Eintrag, und das Feld gibt es nicht mehr. Die DREI Textfelder bleiben --
+		// an ihnen haengt der eigentliche Befund dieser Probe.
 		["einwohner", "lage", "oberhaupt"].forEach((feld) => {
 			// Wortgrenze davor, Doppelpunkt dahinter: „village" faellt heraus, „einwohner:" nicht.
 			const zuweisung = new RegExp("(^|[^A-Za-z0-9_$])" + feld + "\\s*:");

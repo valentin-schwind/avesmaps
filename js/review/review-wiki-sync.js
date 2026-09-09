@@ -2092,14 +2092,10 @@ async function startWikiSyncPowerlines() {
 		if (cleared > 0) {
 			parts.push(`${cleared} gelöst`);
 		}
-		// Die zwei Meldungen aus Entwurf §4. Sie stehen HIER, weil eine Zahl, die nur in der Antwort
-		// steht, dasselbe ist wie keine Zahl -- und ein Lauf, der einen Merker wieder aufmacht,
-		// meldete sonst gar nichts. Beide sind je LINIE gezählt, nicht je Segment (§4/W2).
-		const reopened = Array.isArray(result.no_article_reopened) ? result.no_article_reopened : [];
-		if (reopened.length > 0) {
-			const shownReopened = reopened.slice(0, 6).join(", ");
-			parts.push(`im Wiki aufgetaucht, Markierung „kein Artikel“ aufgehoben: ${shownReopened}${reopened.length > 6 ? " …" : ""}`);
-		}
+		// 🔴 HIER STAND DIE MELDUNG „im Wiki aufgetaucht, Markierung 》kein Artikel《 aufgehoben".
+		// Sie gehoerte dem Merker `properties.wiki_no_article`, der am 09.09.2026 global gefallen
+		// ist (Owner-Entscheid). Die Meldung daneben („zugewiesener Artikel verschwunden") bleibt --
+		// sie ist eine ganz andere Aussage und war nie an den Merker gebunden.
 		// Zugewiesen, aber der Artikel ist aus dem Dump verschwunden: das Nest wurde zurückgezogen,
 		// die Zuweisung NICHT -- sie ist die Entscheidung eines Menschen und wird nicht kassiert.
 		const orphaned = Array.isArray(result.claims_orphaned) ? result.claims_orphaned : [];

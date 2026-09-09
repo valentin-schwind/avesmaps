@@ -1440,9 +1440,19 @@
         // `if (wikiGelesen.kein_artikel_geaendert) { … }` -- der Zweig feuerte, weil `trefferWaehlen`
         // den Merker beim Zuweisen auf `false` setzte. Ersatzlos gestrichen stuende eine Karte mit
         // `article_url` UND `no_article = 1` da. Gefunden hat das der Test, nicht der Autor.
-        // ⚠️ GEMESSEN, WARUM ES DIE KARTE BRAUCHT UND WEG/LANDSCHAFT NICHT: dort beantwortet der
-        // SERVER den Merker bei einer Zuweisung (`assign_to`, avesmapsEcosystemApplyRegionNoArticle);
-        // `upsert_citymap` hat weder diese Regel noch einen Widerspruchsriegel.
+        // ⚠️ GEMESSEN, WARUM ES DIE KARTE BRAUCHT UND WEG/LANDSCHAFT NICHT -- und die Begruendung
+        // hat sich am 09.09.2026 GEAENDERT, ohne dass die Zeile sich aendert. Sie lautete: „dort
+        // beantwortet der SERVER den Merker bei einer Zuweisung (`assign_to`,
+        // avesmapsEcosystemApplyRegionNoArticle); `upsert_citymap` hat weder diese Regel noch einen
+        // Widerspruchsriegel." Heute lautet sie: Weg und Landschaft haben ueberhaupt keinen Merker
+        // mehr -- `properties.wiki_no_article` ist global ausgebaut (Owner-Entscheid nach Durchsicht
+        // aller 10 Traeger), ihr Aequivalent ist die WIKI-ZUWEISUNG.
+        // 🪤 `citymap.no_article` IST NICHT DASSELBE FELD und war vom Ausbau ausdruecklich
+        // AUSGENOMMEN: eine eigene Datenbankspalte der Kartensammlung mit eigenem Schreibweg, nicht
+        // `properties.wiki_no_article`. Sie heisst nur fast gleich. Wer sie beim naechsten
+        // „Vollstaendigkeitsschub" mitnimmt, nimmt dem Karten-Artikelabgleich seinen Riegel --
+        // deshalb steht sie ausdruecklich in
+        // api/_internal/conflicts/__tests__/kein-wiki-eintrag-ist-weg-test.php, Abschnitt 5.
         // 🔴 NUR BEI EINER ECHTEN ZUWEISUNG. Ein 》Entfernen《 (leere Adresse) laesst die Spalte in
         // Ruhe: 》es gibt keinen Artikel《 ist eine eigene Aussage, und die trifft im Konfliktzentrum
         // jemand anders. Wer hier `= 0` bedingungslos schriebe, naehme sie bei jedem Speichern weg.

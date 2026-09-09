@@ -97,8 +97,14 @@ const AVESMAPS_WIKI_MASSENLAUF = {
 	// 123 gemischt mit dem Literaturwerk, das denselben Artikel traegt).
 	//
 	// 💣 UND ER ERGAENZT NUR, ER ERSETZT NICHT -- anders als der Wege-Nachbar ganz oben, der bereits
-	// Verknuepftes unbesehen neu schreibt. Karten mit vorhandener Zuweisung und Karten mit dem
-	// Merker „Kein Wiki-Artikel vorhanden" bleiben unberuehrt. Der Server prueft das je ZEILE in
+	// Verknuepftes unbesehen neu schreibt. Karten mit vorhandener Zuweisung und Karten mit gesetztem
+	// `citymap.no_article` bleiben unberuehrt.
+	// 🪤 DAS FELD HIESS HIER FRUEHER NACH DEM HAEKCHEN „Kein Wiki-Artikel vorhanden". Das Haekchen
+	// gibt es nicht mehr, und `properties.wiki_no_article` auch nicht (global ausgebaut am
+	// 09.09.2026, Owner-Entscheid). `citymap.no_article` IST ETWAS ANDERES -- eine eigene
+	// Datenbankspalte der Kartensammlung mit eigenem Schreibweg -- und war vom Ausbau ausdruecklich
+	// ausgenommen. Sie heisst nur fast gleich, und genau deshalb steht hier jetzt der Spaltenname.
+	// Der Server prueft das je ZEILE in
 	// seiner WHERE-Klausel, nicht gegen eine Zahl von vorhin: zwischen Vorschau und Klick liegt eine
 	// Rueckfrage, und in der Zeit kann ein zweiter Editor dieselbe Karte zuweisen. Owner-Regel vom
 	// 16.08.2026: vorangehakt ist nur das Fuellen einer LUECKE.

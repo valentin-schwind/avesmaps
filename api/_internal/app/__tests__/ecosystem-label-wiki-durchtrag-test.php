@@ -215,18 +215,32 @@ assert($ergebnis['applied'] === 0, 'derselbe Schlüssel wird nicht neu geschrieb
 assert($ergebnis['revision'] === null, 'und bumpt damit auch keine Revision');
 assert((int) $pdo->query('SELECT COUNT(*) FROM map_audit_log')->fetchColumn() === 0, 'und schreibt keine Protokollzeile');
 
-// ---- 4. Der Merker „Kein Wiki-Artikel vorhanden" fällt --------------------------------------------
-// 🔴 „Es gibt keinen Artikel" und „hier ist er" schliessen einander aus. Jeder Schreiber von
-// properties.wiki_region löscht den Merker; label-wiki-no-article-test.php zählt sie über den
-// GANZEN api/-Baum nach -- dieser hier ist einer davon, ohne dass ihn jemand eintragen muss.
+// ---- 4. 🔴 DER MERKER IST AUSGEBAUT -- der Durchtrag raeumt ihn NICHT mehr weg ------------------
+// Hier stand: „Der Merker ‚Kein Wiki-Artikel vorhanden' fällt -- jeder Schreiber von
+// properties.wiki_region löscht ihn." Das galt, solange es ihn gab: „es gibt keinen Artikel" und
+// „hier ist er" schlossen einander aus, und `label-wiki-no-article-test.php` zählte die Löscher
+// über den ganzen api/-Baum nach (diese Datei ist mit dem Merker gefallen; an ihre Stelle ist der
+// Baumlauf in `kein-wiki-eintrag-ist-weg-test.php` §6 getreten, der die Gegenrichtung zählt).
+// `properties.wiki_no_article` ist am 09.09.2026 global ausgebaut
+// (Owner-Entscheid nach Durchsicht aller 10 Träger); sein Äquivalent ist die WIKI-ZUWEISUNG.
+// ⚠️ DAMIT ÜBERLEBT EIN ALTBESTAND-MERKER DEN DURCHTRAG, und das ist gewollt: ein Schreibpfad, der
+// nebenbei ein fremdes Feld wegräumt, ist kein Ausbau, sondern eine zweite, verstreute Reparatur --
+// und er hätte die Bestandszahl bei jedem Speichern still verändert, während die einmalige
+// Reparatur (Schritt 4, Admin-Aktion mit Trockenlauf-Vorgabe) sie messen soll.
+// 🚩 Der Preis ist eine Handvoll toter Schlüssel in `properties_json`, bis die Reparatur läuft --
+// niemand liest sie. Die Zusicherung steht hier, damit ein späterer Leser den Unterschied zwischen
+// „vergessen" und „absichtlich stehengelassen" nicht raten muss.
 $pdo = durchtragFixture([['l-kurve', 'r-nordwalser', null]], 'l-kurve');
 $pdo->prepare('UPDATE map_features SET properties_json = :j WHERE public_id = ' . "'l-kurve'")->execute([
     'j' => json_encode(['text' => 'Nordwalser Höhen', 'ecosystem_region_public_id' => 'r-nordwalser', 'wiki_no_article' => true], JSON_UNESCAPED_UNICODE),
 ]);
 avesmapsEcosystemPushWikiRegionToLabels($pdo, 'r-nordwalser', 'l-kurve', 'nordwalser-h-hen', $url, 7);
 $props = labelProperties($pdo, 'l-kurve');
-assert(($props['wiki_region']['wiki_key'] ?? '') === 'nordwalser-h-hen');
-assert(!array_key_exists('wiki_no_article', $props), 'eine Zuweisung beantwortet den dritten Zustand');
+assert(($props['wiki_region']['wiki_key'] ?? '') === 'nordwalser-h-hen',
+    'die Zuweisung erreicht eine Beschriftung mit Altbestand-Merker nicht');
+assert(($props['wiki_no_article'] ?? null) === true,
+    'der Durchtrag raeumt den Altbestand-Merker weg -- das gehoert der einmaligen Bestandsreparatur, '
+    . 'nicht jedem Speichern einer Region');
 
 // ---- 5. ALLE Beschriftungen der Region, nicht nur die primäre -------------------------------------
 // Fläche↔Beschriftung ist 1:N (13 von 1026 Flächen tragen zwei oder drei, AGENTS.md §11). Ein

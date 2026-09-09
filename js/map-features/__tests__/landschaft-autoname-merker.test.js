@@ -67,13 +67,27 @@ assert.ok(/function avesmapsEcosystemRegionAutoName\(/.test(php),
 	"der Server liest den Merker"); checks++;
 assert.ok(/function avesmapsEcosystemApplyRegionAutoName\(/.test(php),
 	"…und schreibt ihn in properties_json"); checks++;
-// 💣 `properties_json` hat ZWEI Schreiber (dieser und `wiki_no_article`). Der zweite liest, was der
-// erste in `$fields` gelegt hat -- läuft meiner DANACH, wirft er dessen Ergebnis weg.
+// 💣 `properties_json` hat MEHRERE Schreiber in einer Kette. Jeder liest, was der vorige in
+// `$fields` gelegt hat -- läuft meiner DANACH, wirft er dessen Ergebnis weg.
+// 🔴 DER ZWEITE HIESS BIS ZUM 09.09.2026 `avesmapsEcosystemApplyRegionNoArticle`. Der Merker
+// `properties.wiki_no_article` ist an dem Tag global ausgebaut worden (Owner-Entscheid nach
+// Durchsicht aller 10 Träger); sein Äquivalent ist die WIKI-ZUWEISUNG. Die REGEL ist davon
+// unberührt: an seine Stelle ist die FELDHERKUNFT getreten, und die Kette ist dieselbe Falle
+// geblieben. Deshalb wird hier der Name nachgezogen und die Zusicherung nicht gestrichen — sie hat
+// den Ausbau überlebt, weil sie nie den Merker gemessen hat, sondern die Reihenfolge.
 const posAuto = php.indexOf("avesmapsEcosystemApplyRegionAutoName($before");
-const posNoArt = php.indexOf("avesmapsEcosystemApplyRegionNoArticle($before");
-assert.ok(posAuto > 0 && posNoArt > 0, "beide Merker werden angewandt"); checks++;
-assert.ok(posAuto < posNoArt,
+const posHerkunft = php.indexOf("avesmapsEcosystemApplyRegionFieldOrigins($before");
+assert.ok(posAuto > 0 && posHerkunft > 0, "beide Schreiber werden angewandt"); checks++;
+assert.ok(posAuto < posHerkunft,
 	"…und der Auto-Name ZUERST, damit der zweite Schreiber sein Ergebnis weiterträgt"); checks++;
+// ⚠️ Und der gefallene Schreiber darf nicht zurückkommen — sonst stünde die Kette wieder zu dritt
+// da, mit einem Glied, dessen Feld niemand mehr liest.
+// 🪤 KOMMENTARFREI GEMESSEN, und das ist hier tragend: über der gefallenen Zeile steht in
+// `ecosystem.php` die Begründung, warum sie fiel — und die nennt den Namen. Roh gelesen schlägt die
+// Zusicherung an genau der Warnung an, die sie schützen soll. Der Helfer dafür steht im Kopf dieser
+// Datei und war beim ersten Anlauf schlicht nicht benutzt.
+assert.ok(!/avesmapsEcosystemApplyRegionNoArticle/.test(ohneKommentare(php)),
+	"der ausgebaute Merker-Schreiber ist zurück in der properties_json-Kette"); checks++;
 // ⚠️ Herausgegeben wird die ANTWORT, nie die Ablage -- wie bei `wiki_no_article` daneben.
 assert.ok(/'auto_name' => avesmapsEcosystemRegionAutoName\(/.test(php),
 	"list_regions gibt die Antwort heraus"); checks++;

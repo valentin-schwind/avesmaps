@@ -9,16 +9,25 @@ declare(strict_types=1);
  *       -d extension=php_pdo_sqlite.dll \
  *       api/_internal/wiki/__tests__/wikisync-fall-no-article-test.php
  *
- * 🔴 WARUM ES DIESEN TEST GIBT. `update_point` und `assign_to` kennen den Merker seit dem
- * 16.08.2026; `avesmapsWikiSyncUpdateLocationFeature` (gerufen aus `avesmapsWikiSyncResolveCase`,
- * verdrahtet in js/review/review-wiki-sync-resolve.js) kannte ihn NULL Mal und schrieb `wiki_url`
- * trotzdem. Ein Ort, den jemand ausdruecklich als „kein Wiki-Artikel" markiert hat, bekam ueber den
- * Fall eine echte Adresse, waehrend der Merker stehenblieb.
+ * 🔴 WARUM ES DIESEN TEST GIBT -- und warum er den Ausbau des Merkers UEBERLEBT HAT, waehrend drei
+ * seiner Geschwister gefallen sind: er ist die EINZIGE ausfuehrende Abdeckung von
+ * `avesmapsWikiSyncUpdateLocationFeature` (nachgezaehlt am 09.09.2026: zwei Fundstellen im
+ * api/-Baum, eine davon diese Datei). Wer ihn mit dem Merker weggeworfen haette, haette den dritten
+ * Schreiber von `properties.wiki_url` ungeprueft zurueckgelassen.
  *
- * 💣 DER SCHADEN IST NICHT KOSMETISCH: `update_point` lehnt danach JEDES Speichern dieses Ortes ab
- * („kann nicht gleichzeitig einen Wiki-Artikel haben und keinen", avesmapsApplyPointWikiFields), und
- * die Ursache steckt in einem versteckten Formularfeld -- der Ort waere blockiert, bis jemand das
- * Haekchen aus- und wieder einschaltet. Genau diesen Kreis faehrt die letzte Zusicherung unten ab.
+ * 🔴 SEIN URSPRUNGSBEFUND, damit ihn niemand wieder herstellt: `update_point` und `assign_to`
+ * kannten den Merker seit dem 16.08.2026; dieser Schreibweg (gerufen aus
+ * `avesmapsWikiSyncResolveCase`, verdrahtet in js/review/review-wiki-sync-resolve.js) kannte ihn
+ * NULL Mal und schrieb `wiki_url` trotzdem. Ein Ort, den jemand ausdruecklich als „kein
+ * Wiki-Artikel" markiert hatte, bekam ueber den Fall eine echte Adresse, waehrend der Merker
+ * stehenblieb -- und `update_point` lehnte danach JEDES Speichern dieses Ortes ab („kann nicht
+ * gleichzeitig einen Wiki-Artikel haben und keinen"), mit einer Ursache in einem versteckten
+ * Formularfeld.
+ * ⭐ `properties.wiki_no_article` ist am 09.09.2026 global ausgebaut (Owner-Entscheid nach
+ * Durchsicht aller 10 Traeger); sein Aequivalent ist die WIKI-ZUWEISUNG. Damit gibt es den
+ * verbotenen Zustand nicht mehr -- eine der beiden Aussagen existiert nicht. Die Zusicherungen
+ * unten messen seither den SCHREIBWEG (schreiben, leeren, nichts zu tun) und halten daneben fest,
+ * dass der Merker nicht zurueckkommt.
  *
  * ⚠️ ABLAUF, NICHT BAUER: gefahren wird `avesmapsWikiSyncUpdateLocationFeature` selbst, an einer
  * echten (SQLite-)Karte -- eine Probe an `avesmapsWikiSyncBuildLocationProperties` allein saehe
@@ -107,42 +116,50 @@ $props = static function (PDO $pdo): array {
 };
 $user = ['id' => 3, 'username' => 'pruefer'];
 
-// ── 1) DER FALL WEIST ZU -- UND DER MERKER FAELLT ─────────────────────────────────────────────
-// Der Ausgangszustand ist genau der aus dem Befund: ein Editor hat „kein Wiki-Artikel" gesetzt,
-// danach loest jemand einen WikiSync-Fall, der diesem Ort eine Adresse gibt.
+// ── 1) DER FALL WEIST ZU ──────────────────────────────────────────────────────────────────────
+// Der Ausgangszustand ist der aus dem Befund: ein Editor hatte „kein Wiki-Artikel" gesetzt, danach
+// loest jemand einen WikiSync-Fall, der diesem Ort eine Adresse gibt.
 $seed($pdo, ['name' => 'Havena', 'wiki_no_article' => true]);
 avesmapsWikiSyncUpdateLocationFeature(
     $pdo, [], $user, 'loc-1', 'Havena', 'dorf', '', AVESMAPS_TEST_HAVENA_URL, false, false
 );
 $nachher = $props($pdo);
 assert(($nachher['wiki_url'] ?? '') === AVESMAPS_TEST_HAVENA_URL, 'der Fall hat die Adresse gar nicht geschrieben');
+// 🔴 UMGEDREHT AM 09.09.2026: hier stand „der Merker FAELLT". Der Schreibweg raeumt ihn seither
+// nicht mehr weg -- das gehoert der einmaligen Bestandsreparatur (Schritt 4 des Ausbaus), nicht
+// jedem geloesten Fall: ein Schreibpfad, der nebenbei aufraeumt, veraendert die Bestandszahl,
+// waehrend die Reparatur sie messen soll.
 assert(
-    !array_key_exists('wiki_no_article', $nachher),
-    'der WikiSync-Fall laesst den Merker stehen -- der Ort traegt danach Adresse UND „kein Artikel"'
+    ($nachher['wiki_no_article'] ?? null) === true,
+    'der WikiSync-Fall raeumt den Altbestand-Merker weg -- das gehoert der Bestandsreparatur'
 );
 
-// ── 2) UND DAS IST DER EIGENTLICHE SCHADEN: DER ORT WAERE UNSPEICHERBAR ────────────────────────
-// 💣 Die Probe faehrt den Riegel des ANDEREN Schreibwegs mit dem Ergebnis dieses hier. Ohne die
-// Reparatur wirft sie -- und live hiesse das: jedes „Speichern" im Ortsdialog wird abgelehnt, mit
-// einer Begruendung, deren Ursache in einem versteckten Feld steckt.
-avesmapsApplyPointWikiFields($nachher, ['name' => 'Havena'], (string) ($nachher['wiki_url'] ?? ''));
+// ── 2) UND DER ORT BLEIBT SPEICHERBAR -- DAS IST DER GEWINN DES AUSBAUS ───────────────────────
+// 💣 Die Probe faehrt den ANDEREN Schreibweg mit dem Ergebnis dieses hier. Bis zum 09.09.2026 warf
+// sie an genau dieser Stelle: der Ort trug Adresse UND „kein Artikel", `avesmapsApplyPointWikiFields`
+// lehnte JEDES weitere Speichern ab, und die Ursache steckte in einem versteckten Formularfeld --
+// der Ort war blockiert, bis jemand das Haekchen aus- und wieder einschaltete.
+// 🔴 MIT DEM MERKER IST DER VERBOTENE ZUSTAND WEG, nicht nur der Riegel: es gibt keine zweite,
+// negative Aussage mehr, der eine Adresse widersprechen koennte. Genau dieser Kreis war einer der
+// Gruende fuer den Owner-Entscheid, und deshalb steht er hier weiter -- jetzt als Zusicherung, dass
+// er sich NICHT schliesst.
+$weiterSpeicherbar = avesmapsApplyPointWikiFields(
+    $nachher,
+    ['name' => 'Havena'],
+    (string) ($nachher['wiki_url'] ?? '')
+);
+assert(is_array($weiterSpeicherbar), 'ein geloester Fall macht den Ort wieder unspeicherbar');
+// ⚠️ Und die Gegenprobe, dass die Probe darueber ueberhaupt etwas beruehrt: der Rechner laeuft mit
+// genau dem Zustand, der frueher geworfen hat -- Altbestand-Merker UND frische Adresse.
+assert(($nachher['wiki_no_article'] ?? null) === true && ($nachher['wiki_url'] ?? '') !== '',
+    'die Probe faehrt gar nicht den frueher verbotenen Zustand -- sie beweist dann nichts');
 
-// Gegenprobe, dass dieser Riegel ueberhaupt scharf ist -- sonst waere Zusicherung 2 wertlos.
-$riegelBeisst = false;
-try {
-    avesmapsApplyPointWikiFields(
-        ['wiki_no_article' => true, 'wiki_url' => AVESMAPS_TEST_HAVENA_URL],
-        ['name' => 'Havena'],
-        AVESMAPS_TEST_HAVENA_URL
-    );
-} catch (InvalidArgumentException) {
-    $riegelBeisst = true;
-}
-assert($riegelBeisst, 'der Widerspruchs-Riegel ist stumpf -- die Probe darueber beweist dann nichts');
-
-// ── 3) EIN LEERER `wiki_url` FASST DEN MERKER NICHT AN ────────────────────────────────────────
-// ⚠️ „Diese Verbindung war falsch" ist nicht „es gibt keinen Artikel" -- dieselbe Trennung wie bei
-// `clear_assign`. Ein Fall, der die Adresse LEERT, darf die Aussage des Editors nicht mitnehmen.
+// ── 3) EIN LEERER `wiki_url` LEERT DIE ADRESSE UND SONST NICHTS ───────────────────────────────
+// ⚠️ Hier stand die feinste Unterscheidung des ganzen Merkers: „diese Verbindung war falsch" ist
+// nicht „es gibt keinen Artikel" -- ein Fall, der die Adresse LEERT, durfte die Aussage des Editors
+// nicht mitnehmen (dieselbe Trennung wie bei `clear_assign`). Sie ist mit dem Merker gefallen; was
+// bleibt, ist die Zusicherung ueber die ADRESSE, und daneben der Waechter, dass der Schreibweg auch
+// beim Leeren keinen fremden Schluessel anfasst.
 $seed($pdo, ['name' => 'Havena', 'wiki_no_article' => true, 'wiki_url' => 'https://alt.example/wiki/X']);
 avesmapsWikiSyncUpdateLocationFeature($pdo, [], $user, 'loc-1', 'Havena', 'dorf', '', '', false, false);
 $geleert = $props($pdo);
@@ -152,56 +169,52 @@ assert(
     'das Leeren der Adresse hat den Merker mitgenommen -- „Verbindung falsch" ist nicht „kein Artikel"'
 );
 
-// ── 4) DIE HEILUNG EINES BEREITS VERGIFTETEN ORTES ────────────────────────────────────────────
-// 💣 Hier sass die zweite Haelfte des Fehlers, und sie ist ohne ABLAUF unsichtbar: traegt der Ort die
-// zuzuweisende Adresse BEREITS und daneben den Merker, meldete `…LocationFeatureNeedsUpdate`
-// „nichts zu tun" und der Schreibweg kehrte um, BEVOR der Bauer je lief. Der Widerspruch waere also
-// entstanden und haette sich nicht mehr aufloesen lassen -- der Ort blieb gesperrt.
+// ── 4) „NICHTS ZU TUN" LAESST DIE ADRESSE STEHEN ──────────────────────────────────────────────
+// 💣 Hier sass die zweite Haelfte des Ursprungsfehlers, und sie war ohne ABLAUF unsichtbar: trug der
+// Ort die zuzuweisende Adresse BEREITS und daneben den Merker, meldete
+// `avesmapsWikiSyncLocationFeatureNeedsUpdate` „nichts zu tun", und der Schreibweg kehrte um, BEVOR
+// der Bauer je lief -- der Widerspruch war entstanden und liess sich nicht mehr aufloesen. Eine
+// Probe am Bauer allein haette das nie gesehen; deshalb faehrt diese Datei den ABLAUF.
+// ⚠️ Der Kurzschluss ist unveraendert richtig und wird hier weiter gemessen: dieselbe Adresse
+// zweimal geschrieben darf keine Revision heben und die gespeicherte Adresse nicht verlieren.
 $seed($pdo, ['name' => 'Havena', 'wiki_no_article' => true, 'wiki_url' => AVESMAPS_TEST_HAVENA_URL]);
 avesmapsWikiSyncUpdateLocationFeature(
     $pdo, [], $user, 'loc-1', 'Havena', 'dorf', '', AVESMAPS_TEST_HAVENA_URL, false, false
 );
-$geheilt = $props($pdo);
-assert(
-    !array_key_exists('wiki_no_article', $geheilt),
-    'ein bereits widerspruechlicher Ort wird vom Auflösen nicht geheilt -- er bliebe unspeicherbar'
-);
-assert(($geheilt['wiki_url'] ?? '') === AVESMAPS_TEST_HAVENA_URL, 'die Heilung hat die Adresse verloren');
+$unveraendert = $props($pdo);
+assert(($unveraendert['wiki_url'] ?? '') === AVESMAPS_TEST_HAVENA_URL, 'der Kurzschluss hat die Adresse verloren');
+assert((int) $pdo->query("SELECT revision FROM map_features WHERE public_id = 'loc-1'")->fetchColumn() === 7,
+    'ein Lauf ohne Unterschied hebt die Revision -- das machte die ~21 MB Kartennutzlast umsonst ungueltig');
 
-// ── 5) DIE FALL-LISTE WIRD NICHT GEFILTERT ────────────────────────────────────────────────────
-// 🔴 Ausdruecklicher Entscheid: ein Ort mit Merker soll WEITER in den Faellen auftauchen. Im Wiki
-// kann inzwischen ein Artikel entstanden sein, und das ist Information, keine Stoerung -- nur das
-// AUFLOESEN raeumt den Widerspruch weg. Waere die Liste gefiltert, verschwaende der Fall lautlos und
-// niemand erfuehre je von dem neuen Artikel.
-// ⚠️ Textprobe, und sie ist als solche benannt: die Listenabfrage braucht die WikiSync-Staging-
-// Tabellen. Sie beantwortet genau eine Frage -- taucht der Merker in der Fall-Auswahl auf? --, und
-// die Antwort muss NEIN lauten.
-$listenQuelle = file_get_contents(__DIR__ . '/../locations.php');
-assert(is_string($listenQuelle));
-assert(
-    preg_match('/function avesmapsWikiSyncBuildLocationProperties\(.*?\n\}/s', $listenQuelle, $bauer) === 1
-    && str_contains($bauer[0], "unset(\$properties['wiki_no_article'])"),
-    'der Bauer loescht den Merker nicht mehr'
-);
-// 🔴 Gezaehlt wird nicht „wie oft", sondern „WO": der Merker darf in dieser Datei NUR in den zwei
-// Funktionen des Schreibwegs vorkommen. Steht er irgendwo sonst -- in einer Listenabfrage, einem
-// `WHERE`, einem Fall-Filter --, verschwaenden markierte Orte lautlos aus den Faellen.
-// ⚠️ Eine reine Zahl waere hier die falsche Probe gewesen: sie muesste bei jeder neuen (richtigen)
-// Fundstelle nachgezogen werden und saehe trotzdem nicht, ob die neue Stelle eine Abfrage ist.
-$ohneSchreibweg = $listenQuelle;
-foreach (['avesmapsWikiSyncBuildLocationProperties', 'avesmapsWikiSyncLocationFeatureNeedsUpdate'] as $erlaubt) {
-    assert(
-        preg_match('/function ' . $erlaubt . '\(.*?\n\}/s', $ohneSchreibweg, $treffer) === 1,
-        // ⚠️ Geschweifte Klammern: PHP zieht das typografische Anfuehrungszeichen sonst in den
-        // Variablennamen und meldet „Undefined variable $erlaubt“".
-        "„{$erlaubt}“ laesst sich nicht isolieren -- der Rest-Vergleich waere blind"
-    );
-    $ohneSchreibweg = str_replace($treffer[0], '', $ohneSchreibweg);
+// ── 5) RUECKBAU-WAECHTER: `locations.php` KENNT DEN MERKER GAR NICHT MEHR ─────────────────────
+// 🔴 Hier stand eine feinere Probe: der Merker durfte in dieser Datei NUR in den zwei Funktionen des
+// Schreibwegs vorkommen -- stuende er in einer Listenabfrage, einem `WHERE` oder einem Fall-Filter,
+// verschwaenden markierte Orte lautlos aus den Faellen (ausdruecklicher Entscheid: ein Ort mit
+// Merker sollte WEITER auftauchen, denn im Wiki kann inzwischen ein Artikel entstanden sein, und
+// das ist Information, keine Stoerung).
+// ⚠️ Mit dem Ausbau ist aus „nur an zwei Stellen" ein „an keiner" geworden, und das ist die
+// einfachere und schaerfere Zusicherung. Gemessen wird der KOMMENTARFREIE Quelltext ueber den
+// Tokenizer -- die Begruendung hier oben nennt das Wort, das unten nicht vorkommen darf, und ein
+// Test, der Fliesstext misst, schlaegt an seiner eigenen Warnung an (AGENTS.md §11).
+$listenCode = '';
+foreach (token_get_all((string) file_get_contents(__DIR__ . '/../locations.php')) as $stueck) {
+    if (is_array($stueck)) {
+        if ($stueck[0] === T_COMMENT || $stueck[0] === T_DOC_COMMENT) {
+            continue;
+        }
+        $listenCode .= $stueck[1];
+        continue;
+    }
+    $listenCode .= $stueck;
 }
+// ⚠️ Die Gegenprobe gegen einen leeren Leser: eine leere Zeichenkette erfuellt jedes „kommt nicht
+// vor". Der Name der gemessenen Funktion MUSS darin stehen.
+assert(str_contains($listenCode, 'avesmapsWikiSyncBuildLocationProperties'),
+    'der Tokenizer liefert keinen Quelltext -- die Zusicherung darunter waere ein Vakuum');
 assert(
-    !str_contains($ohneSchreibweg, 'wiki_no_article'),
-    'wiki_no_article steht in locations.php ausserhalb des Schreibwegs -- steht es in einer Listen- '
-    . 'oder Filterabfrage, verschwinden markierte Orte aus den Faellen'
+    !str_contains($listenCode, 'wiki_no_article'),
+    'locations.php fasst den ausgebauten Merker wieder an -- er ist am 09.09.2026 global gefallen '
+    . '(Owner-Entscheid); sein Aequivalent ist die WIKI-ZUWEISUNG.'
 );
 
 fwrite(STDOUT, "wikisync-fall-no-article-test: alle Zusicherungen erfuellt\n");

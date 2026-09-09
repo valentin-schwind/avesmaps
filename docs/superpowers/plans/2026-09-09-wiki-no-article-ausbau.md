@@ -273,7 +273,7 @@ geladenes Editor-Blatt dabei ist (AGENTS.md §7).
 | **Umgedrehte PHP-Zusicherung las Kommentare mit** — als „steht drin" egal, als „steht NICHT drin" wird jeder künftige Kommentar zum falschen Roten | Kommentarfilter ergänzt, wie ihn der Nachbartest längst hat |
 | **Sieben verwaiste Kommentarblöcke**, die sich nach dem Löschen an die nächste Zeile gehängt hatten (zweimal stand „ein WERT, keine Lesefunktion" unmittelbar über „eine LESEFUNKTION, kein Wert" — beide über demselben Feld) | alle aufgelöst |
 | **Weitere tote Begründungen** in nicht geänderten Dateien | die im Umfang liegenden korrigiert |
-| **Tote dritte Spalte** in `MARKER_ERZEUGER` | entfernt |
+| **Tote dritte Spalte** in `MARKER_ERZEUGER` | 🪤 **stand als „entfernt" hier und war es NICHT** — nur ihr Gebrauch war weg, die Spalte blieb samt erklärendem Kommentar stehen. Gefunden vom Prüfagenten nach Schritt 3, dort wirklich entfernt. ⭐ Ein Häkchen im Plan ist keine Messung: eine tote Spalte in einer Tafel sieht wie eine Zusicherung aus. |
 | **Weichere JS-Zusicherung als die PHP-Wächter** (`!== true` gegen „Schlüssel ganz verboten") | angeglichen |
 
 **Messung Schritt 2:** JS 0 rot · PHP 1 rot (`link-url-test.php`, vorbestehender DNS-Abruf).
@@ -313,12 +313,126 @@ die Nutzlast vorher/nachher vergleichen. Ändert sie sich nicht, den Bump **begr
 statt jedem warmen Besucher 3 MB aufzuerlegen; ändert sie sich, bumpen.
 
 **Schritte**
-- [ ] 3.1 Tests umschreiben → ROT.
-- [ ] 3.2 Schreiber entfernen, `wiki-claim.php` löschen, beide Asserts abbauen.
-- [ ] 3.3 Nutzlast vorher/nachher vergleichen, Bump-Entscheidung schriftlich begründen.
-- [ ] 3.4 Ganzes Testfeld.
-- [ ] 3.5 Agent widerlegt den Diff.
+- [x] 3.1 Tests umschreiben → ROT (13 rot: 12 Merker-Tests + der vorbestehende DNS-Test).
+- [x] 3.2 Schreiber entfernen, `wiki-claim.php` löschen, beide Asserts abbauen.
+- [x] 3.3 Nutzlast vorher/nachher vergleichen, Bump-Entscheidung schriftlich begründen → **kein Bump**.
+- [x] 3.4 Ganzes Testfeld: **399 PHP / 511 JS, nur der vorbestehende `link-url-test.php` rot.**
+- [x] 3.5 Agent widerlegt den Diff — **zwei Agenten, und sie haben geliefert** (siehe unten).
 - [ ] 3.6 Owner → Commit + Push.
+
+### 💣 Was die Prüfagenten gefunden haben — nachdem das Testfeld grün war
+
+⭐ **Die Lehre über allem: ein grünes Testfeld sagt nichts über KOMMENTARE.** Von den Befunden war
+keiner ein roter Test. Zusammen waren es rund **zwei Dutzend** Stellen.
+
+🔴 **Der schwerste: ein Kommentar, der den Merker ZURÜCKBESTELLT.** In `ecosystem.php` stand ein
+18-Zeilen-Abschnittskopf „Der dritte Zustand", darin wörtlich: *„Wer die Landschaften ins
+Konfliktzentrum aufnimmt, findet ihn bereits geschrieben vor — er muss nur gelesen werden."* Das ist
+keine tote Zeile, das ist eine **Bauanweisung an den nächsten Leser**, genau das Feld wieder
+anzuschließen, das dieser Umbau entfernt. Ein Kommentar, der eine Funktion verspricht, ist teurer als
+toter Code — er überlebt jeden Testlauf.
+
+💣 **Zwei Stellen, an denen der CODE eine Form trägt, weil ein Test sie erzwang.**
+`garetien-uebernahme.php` schreibt an zwei Stellen absichtlich `array_merge(…, bedingt-leer)` statt
+einer Feldzuweisung, *„weil `label-wiki-no-article-test.php` den GANZEN api/-Baum nach genau dieser
+Schreibweise scannt"*. Diesen Scanner habe ich in diesem Schritt gelöscht. Wer das liest, glaubt an
+einen Riegel, den es nicht gibt; wer die Form „aufräumt", weiß nicht, warum sie so war. ⭐ Die Form
+bleibt (unbestellter Umbau), der Zwang ist benannt als weggefallen.
+
+💣 **VIER Vakuum-Zusicherungen — sie waren auch gegen HEAD grün.** Selbst nachgemessen, nicht dem
+Agenten geglaubt:
+- `weg-merker-reichweite-test.php` §8 suchte `avesmapsConflictRepairSpansNameGroup(` im Rumpf des
+  Schreibwegs. Den rief er **nie selbst** — er rief `avesmapsApplyPathWikiNoArticleToNameGroup(`, und
+  *die* fragte die Weiche. ⭐ Repariert auf `NameGroup(`, gegengemessen: gegen HEAD **rot**, jetzt grün.
+- §4b schickte dem Spion **seinen eigenen Suchstring** als Gegenprobe und belegte damit nur, dass
+  `str_contains` funktioniert. Der Zähler fängt nur noch einen byte-genauen Revert — das steht jetzt
+  dort, statt ihn als „früheste Stelle" auszugeben.
+- `ort-wiki-no-article-test.php` prüfte zweimal auf einen Zustand, den es nie gab (der Merker lebte
+  vollständig in `avesmapsApplyPointWikiFields`, nie in den Rümpfen der Schreibwege).
+
+💣 **Und die Fehlerklasse ein ZWEITES Mal:** `avesmapsBuildLineStringFeatureResponse` hatte seine
+einzigen direkten Läufe im gelöschten `weg-wiki-no-article-test.php` — danach **null** Test-Aufrufer,
+obwohl der Kartendialog die Antwort per `{...alt, ...neu}` einmischt. Ich hatte nach dem MERKER
+gezählt, nicht nach dem BAUER. Nachgeholt als Abschnitt 9.
+
+🔴 **Die Bump-Entscheidung stand auf dem DUMP, während dieser Plan für Schritt 4 ausdrücklich eine
+LIVE-Messung vorschreibt — derselbe doppelte Maßstab, den er anderswo anprangert.** Behoben, siehe
+oben: 0 von 12.318, live gezählt.
+
+🪤 **Ein Häkchen in diesem Plan war eine Behauptung, keine Messung:** die tote dritte Spalte in
+`MARKER_ERZEUGER` stand als „entfernt" da und war es nicht.
+
+⚠️ **Für den Commit-Betreff (AGENTS.md §9):** `js/review/review-wiki-sync.js` verliert eine
+**editor-sichtbare** Meldezeile des Kraftlinien-Syncs („im Wiki aufgetaucht, Markierung ‚kein
+Artikel' aufgehoben"). Der Betreff muss diese Wirkung benennen, nicht nur „Schreiber entfernt".
+
+### Was Schritt 3 gekostet hat, und was dabei herauskam
+
+🔴 **Der PAYLOAD_VERSION-Bump ist WEGGEBLIEBEN, und zwar LIVE gemessen.** Erst lief der echte
+Anreicherungs-Code mit und ohne Riegel gegen alle 11 Merker-Träger des Dumps vom 08.09.2026:
+`Traeger geprueft: 11 / davon Nutzlast VERSCHIEDEN: 1 → Altenau`.
+🪤 **Das war die richtige Rechnung an der falschen Grundlage, und ein Prüfagent hat den doppelten
+Maßstab gefunden:** dieser Plan schreibt für die Bestandsreparatur ausdrücklich eine LIVE-Messung vor
+(„nie gegen den Dump"), während die Bump-Entscheidung auf einem Dump vom Vortag stand — zwischen
+Dump und dem Fall des Häkchens konnte jeder Editor weitere Träger anlegen.
+⭐ **Die Live-Messung braucht keine Datenbank und genau EINE Anfrage.** Solange der Riegel steht, ist
+ein Träger exakt ein Objekt, dessen ZUWEISUNGSNEST eine Adresse trägt, während die flache `wiki_url`
+leer bleibt — nichts anderes kann das verhindern. Das ist die vollständige Menge derer, deren
+Nutzlast sich ändern würde. Gemessen am 09.09.2026 an der Live-Nutzlast, Revision 119767:
+**0 von 12.318 Objekten.** Die Nutzlast ist Byte für Byte dieselbe → ein Bump hätte jedem warmen
+Besucher rund 3 MB für nichts gekostet. Die Begründung steht im Kopf von `api/app/map-features.php`.
+
+💣 **VIER TESTDATEIEN SIND GEFALLEN, und die Begründung ist nicht „sie waren rot".** Gemessen wurde
+je Datei, welche PRODUKTIVFUNKTION sie noch AUSFÜHRT (eine Textprobe zählt nicht als Abdeckung):
+`ecosystem-wiki-no-article-test.php` · `label-wiki-no-article-test.php` ·
+`kraftlinie-wiki-no-article-test.php` · `weg-wiki-no-article-test.php` — alle vier führten
+ausschließlich Funktionen aus, die es nicht mehr gibt.
+🔴 **Und ZWEI sind ausdrücklich stehengeblieben, obwohl ihr Name den Merker trägt**, weil sie die
+EINZIGE ausführende Abdeckung eines Schreibwegs sind (nachgezählt):
+`wikisync-fall-no-article-test.php` → `avesmapsWikiSyncUpdateLocationFeature` (der dritte Schreiber
+von `properties.wiki_url`) · `weg-merker-reichweite-test.php` → `avesmapsUpdatePathFeatureDetails`.
+Beide sind auf das umgeschrieben, was sie ohne den Merker noch messen. **Die Dateinamen bleiben** —
+`git log --follow` findet den Merker sonst nie wieder.
+
+⭐ **Der Rückbau-Wächter hat einen BAUMLAUF bekommen, und der ersetzt die Namensliste.** Statt vier
+Oberflächen aufzuzählen, zählt `kein-wiki-eintrag-ist-weg-test.php` §6 jetzt über den ganzen Baum:
+PHP unter `api/` (ohne Tests) **genau 1** Fundstelle im kommentarfreien Quelltext —
+`api/_internal/audit-detail.php`, der Übersetzer historischer Protokollzeilen, der bleibt —, und
+`js/` + `html/` + `css/` **null**. Gemessen 09.09.2026: 348 bzw. 405 Dateien. Die Bauform ist von
+`label-wiki-no-article-test.php` geerbt, das genau daran einmal gescheitert war (feste Zwei-Datei-
+Liste, ein sechster Zuweiser lief ungesehen durch, EXIT 0). 💣 Der Selbsttest des Kommentar-Entferners
+steht daneben: auf der Browser-Seite gibt es keine erlaubte Fundstelle mehr, die beweist, dass er
+überhaupt noch etwas durchlässt — ohne ihn wäre der ganze Abschnitt ein Vakuum.
+
+🪤 **Fünf Stellen, die der Diff selbst nicht gezeigt hat und die einzeln gesucht werden mussten:**
+- `api/edit/map/powerlines.php:68` — ein Kommentar „Der dritte Zustand MUSS hier stehen" stand nach
+  dem Wegfall der Projektion über `wiki_powerline` und beschrieb damit die falsche Zeile.
+- `api/_internal/wiki/powerlines.php` — `$forceWrite` war eine tote Variable, ihre zweite
+  Schreibbedingung damit ein toter Zweig; `$counts[...]` hing an einer Bedingung, die nie mehr
+  falsch werden kann. Beides zusammengezogen, die Signaturzeilen (`clear_no_article`,
+  `no_article_reopened`) nachgezogen.
+- `js/map-features/__tests__/landschaft-autoname-merker.test.js` — ein **FREMDER** Test nagelte die
+  REIHENFOLGE zweier `properties_json`-Schreiber fest, und einer davon war der Merker. Die Regel
+  lebt weiter (an seine Stelle ist die Feldherkunft getreten), also wurde der Name nachgezogen und
+  die Zusicherung nicht gestrichen. 🪤 Ihr Rückbau-Zusatz war beim ersten Anlauf rot, weil er
+  Fließtext las und an der Begründung über der gefallenen Zeile anschlug — der Helfer dagegen stand
+  im Kopf derselben Datei und war nicht benutzt.
+- `api/_internal/map/__tests__/weg-merker-reichweite-test.php` — `features.php` band
+  `conflicts/repair.php` früher selbst ein, **für den Verbund-Schreiber des Merkers**. Mit ihm fiel
+  die Einbindung, und der Test stand vor einer undefinierten Funktion. Er holt sie sich jetzt selbst.
+- Zwei Zusicherungen waren an einer ANNAHME gebaut statt an einer Messung und wurden erst rot, dann
+  gemessen: `map_revision` ist ein GLOBALER Kartenstempel (der Seed setzt 7, der erste Schreibvorgang
+  vergibt die 2 — eine `>`-Probe ist dort falsch), und im Kraftlinien-Entscheider wird sehr wohl
+  geschrieben, nur aus einem anderen Grund (`cleared`, weil der Name nicht trifft).
+
+🔴 **DIE FEINSTE REGEL DES SCHRITTS, an vier Stellen einzeln festgenagelt: kein Schreibpfad räumt
+den Altbestand-Merker nebenbei weg.** Zwischen Schritt 1 und Schritt 3 tat 》Trennen《 das noch — als
+Rest der alten Weiche, „damit jedes Trennen einen Träger nebenbei heilt". Das ist zurückgenommen:
+ein Schreibpfad, der nebenbei aufräumt, macht aus dem Ausbau eine verstreute zweite Reparatur und
+verändert die Bestandszahl bei jedem Klick, während **Schritt 4 sie messen soll**. Zugesichert ist
+es jetzt in BEIDE Richtungen (weder wegräumen noch anlegen) in `conflict-repair-reach-test.php` §6,
+`ort-wiki-no-article-test.php` §1, `wikisync-fall-no-article-test.php` §1 und
+`powerline-claim-test.php`.
 
 ---
 

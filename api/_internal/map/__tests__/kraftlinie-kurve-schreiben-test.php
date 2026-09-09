@@ -114,8 +114,10 @@ assert(preg_match('/function avesmapsUpdatePowerlineLine\(.*?\n\}/s', (string) $
     'avesmapsUpdatePowerlineLine laesst sich nicht isolieren');
 $rumpf = $treffer[0];
 // 🔴 Der Schreibweg geht durch die REINE Regel oben, statt selbst zu entscheiden -- sonst saesse
-// sie in einer Transaktion und waere nicht messbar (dasselbe Verhaeltnis wie bei
-// avesmapsApplyPowerlineWikiNoArticle daneben).
+// sie in einer Transaktion und waere nicht messbar.
+// ⚠️ Das Vorbild dieser Zweiteilung hiess `avesmapsApplyPowerlineWikiNoArticle` und stand direkt
+// daneben. Es ist am 09.09.2026 mit dem Merker `properties.wiki_no_article` gefallen
+// (Owner-Entscheid); die Bauform bleibt die richtige und traegt hier die Kurvenform.
 // 🪤 Und zwar MIT der public_id des Segments, nicht bloss mit dem Funktionsnamen: eine
 // Zusicherung, die beim Komma endet, trifft auch `..., '')` -- dann wirkte kein einziger
 // Segmentwert, und die Kartenangabe waere stumm wirkungslos. Am 29.08.2026 per Mutationsprobe

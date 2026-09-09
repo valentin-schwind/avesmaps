@@ -2969,10 +2969,14 @@ const AVESMAPS_MAP_FEATURES_KANON_WIKI_NEST_BY_FEATURE_TYPE = [
  * geworfen: „kein Etikett" ist ein gueltiger Zustand, also war der ganze ns-222-Rang wortlos tot.
  * Der Schluesseltausch allein haette es NICHT geheilt -- zwei weitere Gruende zwingen hierher:
  *
- * ⚠️ 1. DIE ADRESSE ENTSTEHT ERST SPAETER. `avesmapsEnrichMapFeatureWikiUrl` FUELLT `wiki_url`
- * ueberhaupt erst per Namensabgleich gegen `wiki_sync_pages`, wenn die gespeicherte leer ist, und
- * achtet dabei auf `wiki_no_article` und den Kraftlinien-Riegel. Aus der Rohzeile gelesen haette
- * das Etikett an einem ANDEREN Artikel gehangen als der Link daneben im selben Kasten.
+ * ⚠️ 1. DIE ADRESSE ENTSTEHT ERST SPAETER. `avesmapsEnrichMapFeatureWikiUrl` fuellt `wiki_url`
+ * aus dem ZUWEISUNGSNEST, wenn die gespeicherte leer ist. Aus der Rohzeile gelesen haette das
+ * Etikett an einem ANDEREN Artikel gehangen als der Link daneben im selben Kasten.
+ * 🔴 ZWEI HALBSAETZE DIESER BEGRUENDUNG SIND UEBERHOLT, und beide in dieselbe Richtung: die
+ * Anreicherung fuellte die Adresse einmal „per Namensabgleich gegen `wiki_sync_pages`" (das RATEN,
+ * zurueckgebaut mit `420f12cfc` am 08.09.2026) und achtete dabei „auf `wiki_no_article` und den
+ * Kraftlinien-Riegel" (beide gefallen am 09.09.2026 mit dem Merker, Owner-Entscheid). Der Grund,
+ * hierher zu gehen statt in die Rohzeile, ist unveraendert richtig -- nur schmaler geworden.
  * ⚠️ 2. GRABSTEINE. Bei gesetztem `since_revision` laesst avesmapsBuildMapFeaturesQuery
  * `is_active = 1` fallen; geloeschte Objekte reisen als Grabstein mit. Deren GeoJSON traegt nur
  * `deleted`/`revision` und nie eine `wiki_url` -- der Riegel unten faellt hier von selbst, statt

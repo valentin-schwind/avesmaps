@@ -786,18 +786,22 @@ try {
                 // Wiki lines with no segment on our map. Reported, not an error: nobody may have
                 // drawn them yet, or our spelling differs ("Bruecke nach/von Akrabaal").
                 'unmatched_names' => array_values((array) ($powerlineResult['unmatched_names'] ?? [])),
-                // 💣 Diese Antwort ist eine ALLOWLIST -- was hier nicht steht, wirft sie weg. Die drei
-                // Meldungen aus avesmapsWikiPowerlineReconcile muessen deshalb einzeln aufgefuehrt sein:
+                // 💣 Diese Antwort ist eine ALLOWLIST -- was hier nicht steht, wirft sie weg. Jede
+                // Meldung aus avesmapsWikiPowerlineReconcile muss deshalb einzeln aufgefuehrt sein:
                 //   claims_unresolved   -- Zuweisungen, die auf keinen gestagten Artikel zeigen. Die Zahl
                 //                          liest js/review/review-wiki-sync.js und reicht sie in den
                 //                          Editor; fehlte sie, staende dort still eine konstante 0.
                 //   claims_orphaned     -- zugewiesen, Artikel aus dem Dump verschwunden (Nest zurueck-
                 //                          gezogen, Zuweisung behalten).
-                //   no_article_reopened -- Linien, deren Merker "kein Wiki-Artikel" der Lauf wieder
-                //                          aufgemacht hat. Ohne sie meldete genau dieser Lauf GAR NICHTS.
+                // 🔴 HIER STAND EINE DRITTE, `no_article_reopened` -- Linien, deren Merker „kein
+                // Wiki-Artikel" der Lauf wieder aufgemacht hat. Gefallen am 09.09.2026 mit
+                // `properties.wiki_no_article` (Owner-Entscheid); sein Aequivalent ist die
+                // WIKI-ZUWEISUNG.
+                // 🪤 UND DIE ZAHL IM SATZ DARUEBER IST DESHALB WEG. Sie lautete „die drei Meldungen"
+                // und war mit dieser Streichung falsch -- eine Zahl liest sich wie eine
+                // vollstaendige Liste, und niemand zaehlt nach (AGENTS.md §11, zweimal bezahlt).
                 'claims_unresolved' => (int) ($powerlineResult['claims_unresolved'] ?? 0),
                 'claims_orphaned' => array_values((array) ($powerlineResult['claims_orphaned'] ?? [])),
-                'no_article_reopened' => array_values((array) ($powerlineResult['no_article_reopened'] ?? [])),
                 // Diagnostics: which layer is empty (see avesmapsWikiPowerlineReconcile).
                 'sandbox_rows' => (int) ($powerlineResult['sandbox_rows'] ?? 0),
                 'run_id' => (int) ($powerlineResult['run_id'] ?? 0),

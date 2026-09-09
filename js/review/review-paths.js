@@ -202,13 +202,14 @@ function buildPathEditPayload(formElement) {
 			? String(formData.get("name") || "").trim()
 			: getPathDisplayNameOrGenerated(formData.get("name"), featureSubtype, { excludePath: pathEditFeature }));
 	const allowedTransports = Array.from(formElement.querySelectorAll('input[name="allowed_transport"]:checked')).map((input) => input.value);
-	// 🔴 KEIN `wiki_no_article` MEHR -- gefallen am 16.08.2026 mit dem Häkchen (Owner-Entscheid).
-	// Der Merker selbst bleibt; gesetzt wird er im Konfliktzentrum, wo die Entscheidung hingehört (beim
-	// Weg wirkt sie über den ganzen Namensverbund, und das konnte das Häkchen nur nachbauen).
-	// 💣 TRAGBAR IST DAS NUR, WEIL avesmapsApplyPathWikiNoArticle EINEN FEHLENDEN SCHLÜSSEL ALS
-	// „NICHT GEÄNDERT“ LIEST. Wer hier je wieder ein `payload.wiki_no_article = …` einbaut, prüft
-	// zuerst, ob der Zwilling in js/pages/wege-editor.js dasselbe tut -- einer allein löschte den
-	// Merker beim Speichern der anderen Oberfläche still wieder (AGENTS.md §11).
+	// 🔴 KEIN `wiki_no_article` MEHR. Am 16.08.2026 fiel das HÄKCHEN (Owner-Entscheid): gesetzt wurde
+	// der Merker seither nur noch im Konfliktzentrum, wo die Entscheidung hingehört -- beim Weg wirkt
+	// sie über den ganzen Namensverbund, und das konnte das Häkchen nur nachbauen. Am 09.09.2026 ist
+	// der MERKER SELBST global ausgebaut (Owner-Entscheid); sein Äquivalent ist die WIKI-ZUWEISUNG.
+	// 💣 Die alte Begründung („tragbar nur, weil avesmapsApplyPathWikiNoArticle einen fehlenden
+	// Schlüssel als 》nicht geändert《 liest") ist mit dem Rechner gefallen -- ein wieder eingebautes
+	// `payload.wiki_no_article` wäre heute ein Schreiber OHNE Leser. Bewacht über den ganzen Baum:
+	// api/_internal/conflicts/__tests__/kein-wiki-eintrag-ist-weg-test.php, Abschnitt 6.
 	const payload = {
 		action: "update_path_details",
 		public_id: String(formData.get("public_id") || "").trim(),

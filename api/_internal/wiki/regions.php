@@ -841,11 +841,12 @@ function avesmapsWikiRegionAssign(PDO $pdo, string $wikiKey, bool $dryRun, int $
             $auditBefore = avesmapsWikiSyncFetchAuditRow($pdo, (int) $l['id']);
             $revision ??= avesmapsWikiSyncNextMapRevision($pdo);
             $props = avesmapsWikiSyncDecodeJson($l['properties_json'] ?? null);
-            // 🔴 Eine Zuweisung beantwortet den dritten Zustand -- „kein Artikel" und „hier ist er"
-            // schliessen einander aus. FUENF Schreiber von `properties.wiki_region`, jeder loescht
-            // den Merker; gezaehlt wird in api/_internal/map/__tests__/label-wiki-no-article-test.php.
+            // 🔴 HIER LOESCHTE EINE ZUWEISUNG DEN DRITTEN ZUSTAND („kein Artikel" und „hier ist er"
+            // schlossen einander aus). Es waren FUENF Schreiber von `properties.wiki_region`, jeder
+            // mit dieser Zeile, gezaehlt ueber den ganzen api/-Baum. Der Merker
+            // `properties.wiki_no_article` ist am 09.09.2026 global ausgebaut (Owner-Entscheid),
+            // die Zaehlung damit gegenstandslos und ihr Test gefallen.
             $props['wiki_region'] = $assignObject;
-            unset($props['wiki_no_article']);
             $update = $pdo->prepare('UPDATE map_features SET properties_json = :pj, revision = :rev WHERE id = :id');
             $update->execute(['pj' => avesmapsWikiSyncEncodeJson($props), 'rev' => $revision, 'id' => (int) $l['id']]);
             avesmapsWikiSyncAuditFeaturePropsChange($pdo, $auditBefore, $props, $revision, $userId);
@@ -1003,11 +1004,12 @@ function avesmapsWikiRegionAssignLabels(PDO $pdo, array $payload, int $userId = 
             // map-features-Payload, und N Bumps wuerden ihn N-mal fuer jeden Besucher entwerten.
             $revision ??= avesmapsWikiSyncNextMapRevision($pdo);
             $props = avesmapsWikiSyncDecodeJson($labelRow['properties_json'] ?? null);
-            // 🔴 Eine Zuweisung beantwortet den dritten Zustand -- „kein Artikel" und „hier ist er"
-            // schliessen einander aus. FUENF Schreiber von `properties.wiki_region`, jeder loescht
-            // den Merker; gezaehlt wird in api/_internal/map/__tests__/label-wiki-no-article-test.php.
+            // 🔴 HIER LOESCHTE EINE ZUWEISUNG DEN DRITTEN ZUSTAND („kein Artikel" und „hier ist er"
+            // schlossen einander aus). Es waren FUENF Schreiber von `properties.wiki_region`, jeder
+            // mit dieser Zeile, gezaehlt ueber den ganzen api/-Baum. Der Merker
+            // `properties.wiki_no_article` ist am 09.09.2026 global ausgebaut (Owner-Entscheid),
+            // die Zaehlung damit gegenstandslos und ihr Test gefallen.
             $props['wiki_region'] = $assignObject;
-            unset($props['wiki_no_article']);
             $update->execute(['pj' => avesmapsWikiSyncEncodeJson($props), 'rev' => $revision, 'id' => $featureId]);
             avesmapsWikiSyncAuditFeaturePropsChange($pdo, $auditBefore, $props, $revision, $userId);
             $assigned++;
@@ -1077,11 +1079,12 @@ function avesmapsWikiRegionAssignAll(PDO $pdo, string $continentFilter, bool $dr
         $linked[$obj['wiki_key']] = true;
         if (!$dryRun) {
             $revision ??= avesmapsWikiSyncNextMapRevision($pdo);
-            // 🔴 Eine Zuweisung beantwortet den dritten Zustand -- „kein Artikel" und „hier ist er"
-            // schliessen einander aus. FUENF Schreiber von `properties.wiki_region`, jeder loescht
-            // den Merker; gezaehlt wird in api/_internal/map/__tests__/label-wiki-no-article-test.php.
+            // 🔴 HIER LOESCHTE EINE ZUWEISUNG DEN DRITTEN ZUSTAND („kein Artikel" und „hier ist er"
+            // schlossen einander aus). Es waren FUENF Schreiber von `properties.wiki_region`, jeder
+            // mit dieser Zeile, gezaehlt ueber den ganzen api/-Baum. Der Merker
+            // `properties.wiki_no_article` ist am 09.09.2026 global ausgebaut (Owner-Entscheid),
+            // die Zaehlung damit gegenstandslos und ihr Test gefallen.
             $props['wiki_region'] = $obj;
-            unset($props['wiki_no_article']);
             $update->execute(['pj' => avesmapsWikiSyncEncodeJson($props), 'rev' => $revision, 'id' => (int) $l['id']]);
         }
     }

@@ -220,13 +220,17 @@ function pathWikiFeldZuruecksetzen(wikiWert) {
 // am 16.08.2026 mit dem Haekchen „Kein Wiki-Artikel vorhanden“ (Owner-Entscheid, vier Oberflaechen).
 // Sie waren AUSSCHLIESSLICH sein Zubehoer: die eine hob seinen Stand fuer buildPathEditPayload ab,
 // die andere meldete „noch nicht gespeichert“, wenn jemand es anklickte.
-// 💣 DAMIT SCHICKT DER KARTENDIALOG `wiki_no_article` GAR NICHT MEHR, und das ist die sichere Seite,
-// nicht die nachlaessige: avesmapsApplyPathWikiNoArticle (api/_internal/map/features.php) liest
-// einen FEHLENDEN Schluessel als „nicht geaendert“ und laesst den gespeicherten Merker in Ruhe --
-// die Entscheidung des Konfliktzentrums ueberlebt jedes Speichern aus diesem Dialog.
-// ⚠️ Und sie geht auch nicht andersherum verloren: JEDER Zuweiser des Wegs loescht den Merker beim
-// Zuweisen (serverseitig, in `assign_to` -- gezaehlt in weg-wiki-no-article-test.php, nicht
-// aufgezaehlt). Ein Weg mit Artikel UND Merker ist von hier aus unerreichbar.
+// 💣 DAMIT SCHICKTE DER KARTENDIALOG `wiki_no_article` GAR NICHT MEHR, und das war die sichere
+// Seite: avesmapsApplyPathWikiNoArticle las einen FEHLENDEN Schluessel als „nicht geaendert“ und
+// liess den gespeicherten Merker in Ruhe -- die Entscheidung des Konfliktzentrums ueberlebte jedes
+// Speichern aus diesem Dialog. Und sie ging auch nicht andersherum verloren: JEDER Zuweiser des
+// Wegs loeschte den Merker beim Zuweisen (serverseitig, in `assign_to`).
+// 🔴 SEIT DEM 09.09.2026 IST DAS ALLES GEGENSTANDSLOS: `properties.wiki_no_article` ist global
+// ausgebaut (Owner-Entscheid nach Durchsicht aller 10 Traeger), sein Aequivalent ist die
+// WIKI-ZUWEISUNG -- das Nest `wiki_path`, nie `properties.wiki_url`. Es gibt weder den Rechner noch
+// die Zuweiser-Zeile noch `weg-wiki-no-article-test.php`, wo die Zaehlung stand; gezaehlt wird
+// seither ueber den ganzen Baum in
+// api/_internal/conflicts/__tests__/kein-wiki-eintrag-ist-weg-test.php, Abschnitt 6.
 
 // Was neben dem Zuweisungskasten am Zustand haengt: die Namenssperre (R1) und die Zeile „Weg
 // anzeigen" (Way-Labels beschriften zugewiesene Wege selbst).

@@ -1199,8 +1199,11 @@ const trefferProbe = avesmapsWikiAssignWegTreffer(zeile);
 	// Was bleibt, ist der EINE Ablauf, auf dem diese Aenderung Daten zerstoeren koennte: ein Weg, dem
 	// das Konfliktzentrum `wiki_no_article` gesetzt hat, wird in einem Editor geoeffnet und
 	// gespeichert -- der Schluessel darf im Rumpf NICHT auftauchen, denn jeder Wert dort (auch `true`)
-	// waere ein Schreibvorgang auf eine fremde Entscheidung. Nur die ABWESENHEIT laesst sie stehen
-	// (avesmapsApplyPathWikiNoArticle liest sie als „nicht geaendert").
+	// waere ein Schreibvorgang auf eine fremde Entscheidung. Nur die ABWESENHEIT liess sie stehen --
+	// avesmapsApplyPathWikiNoArticle las sie als „nicht geaendert".
+	// ⚠️ Diesen Rechner gibt es seit dem 09.09.2026 nicht mehr: `properties.wiki_no_article` ist
+	// global ausgebaut (Owner-Entscheid). Die Zusicherung bleibt als Rueckbau-Waechter -- ein wieder
+	// mitgeschickter Schluessel waere heute ein Schreiber OHNE Leser.
 	//
 	// 🪤 DIE LEHRE AUS 5b GILT WEITER, nur andersherum: eine Fixture OHNE Merker kann diesen Ablauf
 	// gar nicht pruefen -- dort ist „nicht geschrieben" von „es war ohnehin false" nicht zu

@@ -42,9 +42,11 @@ declare(strict_types=1);
 // nachzubauen waere die zweite Wahrheit, die AGENTS.md §5 verbietet. Der Client entscheidet also
 // das WAS, dieser Rechner das OB.
 //
-// ⚠️ EIN FELD OHNE EINTRAG HEISST „NICHT BEKANNT", nie „vom Wiki" -- dieselbe Regel wie beim Merker
-// `wiki_no_article`, der ebenfalls nur abgelegt wird, wenn er etwas aussagt. Am ersten Tag traegt
-// deshalb kein Feld eine Herkunft, und alles verhaelt sich wie bisher.
+// ⚠️ EIN FELD OHNE EINTRAG HEISST „NICHT BEKANNT", nie „vom Wiki" -- abgelegt wird nur, was etwas
+// aussagt. Am ersten Tag traegt deshalb kein Feld eine Herkunft, und alles verhaelt sich wie bisher.
+// 🪤 Das Vorbild dieser Regel war der Merker `wiki_no_article`, der genauso gebaut war. Er ist am
+// 09.09.2026 global ausgebaut (Owner-Entscheid nach Durchsicht aller 10 Traeger) -- die Regel gilt
+// unveraendert weiter, nur ihr Vorbild steht nicht mehr daneben.
 
 // Die einzigen beiden Herkuenfte. 🔴 Die Werte sind ENGLISCH und heissen wie im Haus
 // (`adventure.field_origins_json`, `lore_entry.field_origins_json`, `feature_sources.origin`) --

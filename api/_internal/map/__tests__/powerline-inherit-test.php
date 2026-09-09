@@ -11,9 +11,15 @@ declare(strict_types=1);
  * 💣 Diese Liste stand ZWEIMAL abgeschrieben nebeneinander -- einmal in
  * avesmapsCreatePowerlineFeature ("Nodix anhaengen"), einmal in avesmapsReorderPowerlineLine
  * ("Umsortieren") -- und in beiden fehlte `wiki_no_article`. Ein frisch entstandenes Segment ohne
- * den Merker bringt den Fall im Konfliktzentrum mit segments = 1 zurueck, obwohl niemand etwas
- * entschieden hat. Seit 15.08.2026 gibt es nur noch EINE Liste, und dieser Test ist der Grund,
+ * den Merker brachte den Fall im Konfliktzentrum mit segments = 1 zurueck, obwohl niemand etwas
+ * entschieden hatte. Seit 15.08.2026 gibt es nur noch EINE Liste, und dieser Test ist der Grund,
  * warum sie eine bleibt.
+ * 🔴 DER ANLASS IST AM 09.09.2026 WEGGEFALLEN, DIE LEHRE NICHT: `properties.wiki_no_article` ist
+ * global ausgebaut (Owner-Entscheid nach Durchsicht aller 10 Traeger), sein Aequivalent ist die
+ * WIKI-ZUWEISUNG. Die Erbliste bleibt EINE -- sie traegt inzwischen `curve`, und die naechste
+ * Eigenschaft der LINIE kommt bestimmt. Der Merker steht unten nur noch als Rueckbau-Waechter:
+ * er darf nicht mehr mitwandern, denn ein geerbter Schluessel legte Bestand an, den die einmalige
+ * Reparatur (Schritt 4) gerade weggeraeumt hat.
  */
 if (ini_get('zend.assertions') !== '1') {
     fwrite(STDERR, "FATAL: zend.assertions ist nicht '1' -- assert() waere wirkungslos.\n");
@@ -39,8 +45,11 @@ $voll = avesmapsPowerlineInheritedLineFields([
 assert($voll['show_label'] === true);
 assert($voll['description'] === 'Die alte Ader.');
 assert($voll['wiki_url'] === 'https://de.wiki-aventurica.de/wiki/Hexenband');
-// 💣 Der Mutationstoeter: genau dieses Feld fehlte in beiden Abschriften.
-assert(($voll['wiki_no_article'] ?? null) === true, 'der Merker wandert mit');
+// 🔴 UMGEDREHT AM 09.09.2026: hier stand „der Merker wandert mit" -- er war der Mutationstoeter
+// dieser Datei, genau dieses Feld hatte in beiden Abschriften gefehlt. Mit dem Ausbau des Merkers
+// wandert er NICHT mehr mit; die Zeile bleibt als Waechter stehen, weil eine Erbliste, die ihn
+// zurueckholt, an jedem neuen Segment Bestand anlegte, den niemand mehr liest.
+assert(!array_key_exists('wiki_no_article', $voll), 'der ausgebaute Merker wandert wieder mit');
 // Die Kurvenform (29.08.2026) -- eine Eigenschaft der LINIE, nicht des einzelnen Stuecks. Ohne sie
 // laege ein spaeter angehaengtes Segment kerzengerade zwischen zwei gebogenen.
 assert($voll['curve'] === 26.0, 'die Kurvenform gehoert in die EINE Erb-Liste');

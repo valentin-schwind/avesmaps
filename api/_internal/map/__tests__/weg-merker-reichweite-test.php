@@ -3,8 +3,8 @@
 declare(strict_types=1);
 
 /**
- * Die REICHWEITE des Merkers „kein Wiki-Artikel" beim WEG, an einer echten Datenbank. Lauf (aus dem
- * Repo-Wurzelverzeichnis):
+ * Die REICHWEITE eines Weg-Schreibvorgangs, an einer echten Datenbank -- wie viele Segmente EIN
+ * Speichern anfasst, und welche es nicht anfassen darf. Lauf (aus dem Repo-Wurzelverzeichnis):
  *   php -d zend.assertions=1 -d assert.exception=1 -d extension=php_mbstring.dll \
  *       -d extension=php_pdo_sqlite.dll \
  *       api/_internal/map/__tests__/weg-merker-reichweite-test.php
@@ -22,9 +22,32 @@ declare(strict_types=1);
  * „Zwei Knoepfe am selben Fall, die verschieden weit reichen, sind schlimmer als zwei getrennte
  * Fehler" (Owner-Entscheid 15.08.2026, wortgleich im Kopf von repair.php).
  *
+ * 🔴 UND AM 09.09.2026 IST DER GEGENSTAND WEGGEFALLEN: `properties.wiki_no_article` ist global
+ * ausgebaut (Owner-Entscheid nach Durchsicht aller 10 Traeger), sein Aequivalent ist die
+ * WIKI-ZUWEISUNG. Damit hat `avesmapsUpdatePathFeatureDetails` keinen Verbund-Schreiber mehr: ein
+ * Speichern fasst GENAU EIN Wegstueck an. Die Zusicherungen unten messen seither das -- und sie
+ * sind damit die Gegenprobe zum Ausbau, nicht sein Rest: ein wiederkehrender Verbund-Schreiber
+ * faellt hier sofort auf.
+ * ⚠️ Die Reichweite des KONFLIKTZENTRUMS ist unberuehrt. `avesmapsConflictRepairSpansNameGroup`
+ * traegt sie weiter, und 》Trennen《 fasst weiter die ganze Linie (conflict-repair-reach-test.php).
+ * Was gefallen ist, ist der zweite Knopf daneben -- also genau der Widerspruch, gegen den dieser
+ * Test einmal gebaut wurde. Er ist nicht behoben worden, sondern hat sich aufgeloest.
+ *
+ * 🔴 WARUM DIE DATEI TROTZDEM STEHT, waehrend drei ihrer Geschwister mit dem Merker gefallen sind:
+ * sie ist die einzige Abdeckung, die `avesmapsUpdatePathFeatureDetails` GEZIELT faehrt und seine
+ * Wirkung an der Karte misst. Wer sie mit ihrem Gegenstand weggeworfen haette, haette den
+ * Weg-Schreibweg ohne eigene Probe zurueckgelassen.
+ * 🪤 HIER STAND „die EINZIGE ausfuehrende Abdeckung … die zwei anderen Nenner im api/-Baum lesen
+ * nur Quelltext". Das ist FALSCH und wurde am 09.09.2026 von einem Pruefagenten widerlegt:
+ * `api/_internal/import/__tests__/garetien-uebernahme-test.php` faehrt `avesmapsGaretienApplyStep`,
+ * und das ruft den Schreibweg wirklich auf (garetien-uebernahme.php). Nur `weg-feld-herkunft-test.php`
+ * liest bloss Quelltext. Die Entscheidung, diese Datei zu behalten, bleibt richtig -- die
+ * Begruendung war es nicht, und eine falsche Begruendung im Kopf einer Datei ueberlebt jeden
+ * Testlauf.
+ *
  * ⚠️ ABLAUF, NICHT BAUER: gefahren wird `avesmapsUpdatePathFeatureDetails` selbst, an einer echten
- * (SQLite-)Karte. Eine Probe an `avesmapsApplyPathWikiNoArticleToNameGroup` allein saehe nicht, ob
- * der Schreibweg sie ueberhaupt erreicht -- und schon gar nicht, mit WELCHEM Namen. Hausform:
+ * (SQLite-)Karte. Eine Probe an einem reinen Rechner allein saehe nicht, ob der Schreibweg ihn
+ * ueberhaupt erreicht -- und schon gar nicht, mit WELCHEM Namen. Hausform:
  * api/_internal/conflicts/__tests__/conflict-repair-reach-test.php.
  *
  * ⚠️ GRENZE WIE BEIM NACHBARTEST: SQLite vergleicht `name` BINAER, MySQL live in utf8mb4_unicode_ci.
@@ -43,6 +66,11 @@ if (ini_get('zend.assertions') !== '1') {
 require __DIR__ . '/../../bootstrap.php';
 require __DIR__ . '/../features.php';
 require __DIR__ . '/../../conflicts/rules.php';
+// 🔴 SEIT DEM 09.09.2026 AUSDRUECKLICH: `features.php` band `conflicts/repair.php` frueher selbst
+// ein -- fuer den Verbund-Schreiber des Merkers. Der ist mit ihm gefallen, die Einbindung damit
+// auch, und Abschnitt 8 stand ohne sie vor einer undefinierten Funktion. Hier gehoert sie hin:
+// dieser Test misst die geteilte Reichweiten-Weiche, also holt er sie sich.
+require __DIR__ . '/../../conflicts/repair.php';
 
 /**
  * Die MySQL-eigenen Anweisungen im Schreibpfad, an der TREIBER-Naht uebersetzt statt die Funktionen
@@ -54,11 +82,15 @@ require __DIR__ . '/../../conflicts/rules.php';
 final class AvesmapsWegReichweiteTestPdo extends PDO
 {
     /**
-     * ⭐ Wie oft die VERBUND-Abfrage gestellt wurde. Sie ist der einzige Weg, den Kosten-Riegel
-     * („nur wenn der Rumpf den Merker mitbringt") ueberhaupt zu messen: ohne ihn laeuft die Abfrage
-     * bei jedem Speichern und schreibt trotzdem nichts -- an den gespeicherten Werten ist das nicht
-     * zu sehen, und die Mutation lief zuerst gruen durch. Hausform: der Spion-Test des
-     * Kreuzungs-Pruefhakens (AGENTS.md §11).
+     * ⭐ Wie oft die VERBUND-Abfrage gestellt wurde -- die Abfrage ueber ALLE gleichnamigen
+     * Wegstuecke. Sie war der einzige Weg, den Kosten-Riegel des Merkers („nur wenn der Rumpf ihn
+     * mitbringt") ueberhaupt zu messen: ohne ihn lief sie bei jedem Speichern und schrieb trotzdem
+     * nichts -- an den gespeicherten Werten war das nicht zu sehen, und die Mutation lief zuerst
+     * gruen durch. Hausform: der Spion-Test des Kreuzungs-Pruefhakens (AGENTS.md §11).
+     * 🔴 SEIT DEM AUSBAU DES MERKERS (09.09.2026) MUSS SIE NULL SEIN. Der Zaehler bleibt genau
+     * deshalb stehen: er ist die einzige Stelle, an der ein zurueckkehrender Verbund-Schreiber
+     * auffiele, BEVOR er Daten anfasst -- an den gespeicherten Werten saehe man ihn erst, wenn er
+     * schon geschrieben hat.
      */
     public int $verbundAbfragen = 0;
 
@@ -185,96 +217,155 @@ $rumpf = static function (?bool $merker): array {
     return $payload;
 };
 
-// ── 1) DAS HAEKCHEN GILT FUER DEN GANZEN NAMENSVERBUND ────────────────────────────────────────
-// 🔴 DIE Zusicherung dieser Nachbesserung. Vorher: 1 Zeile. Jetzt: alle drei aktiven „Aguera".
+// ── 1) EIN SPEICHERN FASST GENAU EIN WEGSTUECK AN ─────────────────────────────────────────────
+// 🔴 UMGEDREHT AM 09.09.2026, und diese Umkehrung IST der Ausbau. Hier stand „das Haekchen gilt fuer
+// den ganzen Namensverbund -- vorher 1 Zeile, jetzt alle drei aktiven 》Aguera《". Mit dem Merker ist
+// der einzige Verbund-Schreiber dieses Schreibwegs gefallen; ein Speichern schreibt wieder EINE
+// Zeile.
+// 💣 DAS IST KEIN RUECKSCHRITT ZUM ZUSTAND VON VOR DEM 15.08.2026, und der Unterschied ist genau
+// der Punkt: damals reichte das HAEKCHEN eng, waehrend 》Zuweisen《 im selben Kasten alle
+// gleichnamigen fasste -- zwei Knoepfe an einem Fall mit verschiedener Reichweite. Heute gibt es
+// den zweiten Knopf nicht mehr. Die Reichweite des Konfliktzentrums ist unveraendert weit
+// (conflict-repair-reach-test.php); der Widerspruch ist verschwunden, nicht die Regel.
+// ⚠️ WAS DIESER ABSCHNITT ALLEIN NICHT FAENGT: einen Verbund-Schreiber, der -- wie der alte -- nur
+// bei VORHANDENEM Schluessel feuert. Er faehrt mit `$rumpf(null)` und war deshalb auch gegen HEAD
+// gruen (nachgemessen 09.09.2026). Diese Luecke schliesst Abschnitt 3, der beide alten Rumpfformen
+// durchprobiert und die Revisionen der Geschwister mitmisst. Ein „also" zwischen Abschnitt 1 und
+// „ein Rueckbau faellt hier auf" waere ein Fehlschluss.
 $seed($pdo);
 $vorher = $karte($pdo);
-foreach ([AVESMAPS_WEG_TEST_IDS['path-1'], AVESMAPS_WEG_TEST_IDS['path-2'], AVESMAPS_WEG_TEST_IDS['path-3']] as $id) {
-    assert($vorher[$id]['merker'] === false, "die Fixture startet mit gesetztem Merker auf $id");
-}
-avesmapsUpdatePathFeatureDetails($pdo, $rumpf(true), $user);
+avesmapsUpdatePathFeatureDetails($pdo, $rumpf(null), $user);
 $nachher = $karte($pdo);
-foreach ([AVESMAPS_WEG_TEST_IDS['path-1'], AVESMAPS_WEG_TEST_IDS['path-2'], AVESMAPS_WEG_TEST_IDS['path-3']] as $id) {
+// ⚠️ Das bearbeitete Wegstueck wurde wirklich geschrieben -- ohne diese Zeile beweist der Rest der
+// Datei nur, dass ein Aufruf ohne Wirkung nichts kaputtmacht.
+// 🪤 GEPRUEFT WIRD 》ANDERS《, NICHT 》GROESSER《: `revision` ist der GLOBALE Kartenstempel aus
+// `map_revision`, keine Erhoehung je Zeile. Der Seed setzt 7 von Hand, `map_revision` ist danach
+// leer, und der erste Schreibvorgang vergibt darum die 2 -- eine `>`-Probe waere hier rot, ohne
+// dass irgendetwas falsch ist. Gemessen, nicht angenommen.
+assert(
+    $nachher[AVESMAPS_WEG_TEST_IDS['path-1']]['revision'] !== $vorher[AVESMAPS_WEG_TEST_IDS['path-1']]['revision'],
+    'das bearbeitete Wegstueck wurde gar nicht geschrieben -- die Probe misst nichts'
+);
+foreach ([AVESMAPS_WEG_TEST_IDS['path-2'], AVESMAPS_WEG_TEST_IDS['path-3']] as $id) {
     assert(
-        $nachher[$id]['merker'] === true,
-        "\"$id\" traegt den Merker nicht -- das Haekchen reicht nur ueber das bearbeitete Wegstueck, "
-        . 'waehrend „Zuweisen" im selben Kasten alle gleichnamigen fasst'
+        $nachher[$id]['revision'] === $vorher[$id]['revision'],
+        "\"$id\" wurde mitgeschrieben -- der Schreibweg hat wieder einen Verbund-Schreiber, und jeder "
+        . 'warme Client laedt die gleichnamigen Segmente dann bei jedem fremden Speichern neu'
     );
 }
-// 💣 Und die flache Adresse des Geschwisters ist mitgefallen -- sonst stuende es im verbotenen
-// Zustand und jedes weitere Speichern dieses Wegstuecks liefe in den Widerspruchs-Riegel.
+// 💣 Und die flache Adresse des Geschwisters steht unberuehrt. Sie fiel frueher MIT dem Haekchen,
+// weil das Geschwister sonst im verbotenen Zustand („Adresse UND kein Artikel") gestanden haette.
+// Den Zustand gibt es nicht mehr -- also darf ein fremdes Speichern die Adresse auch nicht anfassen.
 assert(
-    $nachher[AVESMAPS_WEG_TEST_IDS['path-2']]['wiki_url'] === '',
-    'die gespeicherte Adresse des Geschwisters steht noch -- es traegt jetzt Adresse UND Merker'
+    $nachher[AVESMAPS_WEG_TEST_IDS['path-2']]['wiki_url'] === 'https://de.wiki-aventurica.de/wiki/Aguera',
+    'das Speichern eines Geschwisters leert die gespeicherte Adresse -- das war die Folge des Merkers '
+    . 'und ist mit ihm gefallen'
 );
 
 // ── 2) UND NICHT WEITER ───────────────────────────────────────────────────────────────────────
 // Ein fremder Name und ein GESTRICHENES Segment bleiben unberuehrt -- beide waeren ein stiller
 // Uebergriff, und beim gestrichenen saehe ihn niemand.
-assert($nachher[AVESMAPS_WEG_TEST_IDS['path-fremd']]['merker'] === false, 'der Verbund greift ueber den Namen hinaus');
-assert($nachher[AVESMAPS_WEG_TEST_IDS['path-alt']]['merker'] === false, 'der Verbund greift auf gestrichene Segmente');
-assert(
-    $nachher[AVESMAPS_WEG_TEST_IDS['path-fremd']]['revision'] === $vorher[AVESMAPS_WEG_TEST_IDS['path-fremd']]['revision'],
-    'ein fremder Weg bekommt eine neue Revision -- jeder warme Client laedt ihn dann neu'
-);
-
-// ── 3) DAS ABWAEHLEN REICHT GENAUSO WEIT ──────────────────────────────────────────────────────
-// 💣 Sonst liesse sich der Merker setzen, aber nur zu einem Drittel wieder loswerden -- genau die
-// Halbheit, gegen die die Reichweite ueberhaupt gebaut wurde.
-avesmapsUpdatePathFeatureDetails($pdo, $rumpf(false), $user);
-$geloescht = $karte($pdo);
-foreach ([AVESMAPS_WEG_TEST_IDS['path-1'], AVESMAPS_WEG_TEST_IDS['path-2'], AVESMAPS_WEG_TEST_IDS['path-3']] as $id) {
-    assert($geloescht[$id]['merker'] === false, "\"$id\" behaelt den Merker nach dem Abwaehlen");
+foreach ([AVESMAPS_WEG_TEST_IDS['path-fremd'], AVESMAPS_WEG_TEST_IDS['path-alt']] as $id) {
+    assert(
+        $nachher[$id]['revision'] === $vorher[$id]['revision'],
+        "\"$id\" bekommt eine neue Revision -- jeder warme Client laedt ihn dann neu"
+    );
 }
 
-// ── 4) OHNE DEN SCHLUESSEL WIRD NICHTS ANGEFASST ──────────────────────────────────────────────
-// ⚠️ Und zwar auch keine REVISION. Ein Speichern ohne Entscheidung, das jedem Segment eine neue
-// Revision gibt, schickt jedem warmen Client die halbe Karte neu -- dieselbe Regel wie in
-// avesmapsApplyTransportSeasonsToWikiSiblings.
+// ── 3) RUECKBAU-WAECHTER: EIN RUMPF MIT DEM GEFALLENEN SCHLUESSEL AENDERT NICHTS ──────────────
+// 🔴 Hier stand „das Abwaehlen reicht genauso weit" -- sonst liesse sich der Merker setzen, aber nur
+// zu einem Drittel wieder loswerden. Beide Richtungen sind gefallen; was bleibt, ist die Frage, was
+// eine ALTE, gecachte Editorseite anrichtet, die den Schluessel noch mitschickt (AGENTS.md §7 --
+// eine gecachte index.html ueberlebt einen Deploy). Antwort: nichts, in beide Richtungen.
+foreach ([true, false] as $alterWert) {
+    $seed($pdo);
+    $davor = $karte($pdo);
+    avesmapsUpdatePathFeatureDetails($pdo, $rumpf($alterWert), $user);
+    $danach = $karte($pdo);
+    foreach (array_keys($danach) as $id) {
+        assert(
+            $danach[$id]['merker'] === false,
+            "ein alter Rumpf mit wiki_no_article=" . var_export($alterWert, true) . " legt den Merker "
+            . "auf \"$id\" wieder an -- er ist am 09.09.2026 global ausgebaut"
+        );
+    }
+    foreach ([AVESMAPS_WEG_TEST_IDS['path-2'], AVESMAPS_WEG_TEST_IDS['path-3']] as $id) {
+        assert($danach[$id]['revision'] === $davor[$id]['revision'],
+            "ein alter Rumpf schreibt \"$id\" mit");
+    }
+}
+
+// ── 4) EIN ALTBESTAND-MERKER UEBERLEBT DEN SCHREIBVORGANG ─────────────────────────────────────
+// 🔴 Der Schreibweg raeumt ihn NICHT weg. Das Aufraeumen gehoert der einmaligen Bestandsreparatur
+// (Schritt 4 des Ausbaus, Admin-Aktion mit Trockenlauf-Vorgabe): ein Schreibpfad, der nebenbei ein
+// fremdes Feld wegraeumt, veraendert die Bestandszahl bei jedem Klick, waehrend die Reparatur sie
+// messen soll -- und er waere eine zweite, verstreute Reparatur neben der einen.
+// ⚠️ Und er darf dabei auch keine REVISION heben. Ein Speichern, das jedem Segment eine neue gibt,
+// schickt jedem warmen Client die halbe Karte neu (dieselbe Regel wie in
+// avesmapsApplyTransportSeasonsToWikiSiblings).
 $seed($pdo);
-avesmapsUpdatePathFeatureDetails($pdo, $rumpf(true), $user);
+$pdo->prepare('UPDATE map_features SET properties_json = :pj WHERE public_id = :p')->execute([
+    'pj' => '{"name":"Aguera","wiki_no_article":true}',
+    'p' => AVESMAPS_WEG_TEST_IDS['path-1'],
+]);
 $standA = $karte($pdo);
+assert($standA[AVESMAPS_WEG_TEST_IDS['path-1']]['merker'] === true, 'Vorbedingung: der Altbestand-Merker liegt da');
 avesmapsUpdatePathFeatureDetails($pdo, $rumpf(null), $user);
 $standB = $karte($pdo);
+assert(
+    $standB[AVESMAPS_WEG_TEST_IDS['path-1']]['merker'] === true,
+    'der Schreibweg raeumt den Altbestand-Merker weg -- das gehoert der Bestandsreparatur'
+);
 foreach ([AVESMAPS_WEG_TEST_IDS['path-2'], AVESMAPS_WEG_TEST_IDS['path-3']] as $id) {
-    assert($standB[$id]['merker'] === true, "\"$id\" verliert den Merker bei einem Speichern ohne Entscheidung");
     assert(
         $standB[$id]['revision'] === $standA[$id]['revision'],
         "\"$id\" bekommt eine neue Revision, obwohl sich an ihm nichts geaendert hat"
     );
 }
 
-// ── 4b) UND DIE VERBUND-ABFRAGE WIRD GAR NICHT ERST GESTELLT ──────────────────────────────────
-// 🪤 DIESE ZUSICHERUNG FEHLTE, und die Mutation hat es gezeigt: nimmt man den `array_key_exists`-
-// Riegel heraus, laeuft die Abfrage bei JEDEM Speichern eines Weges -- und schreibt trotzdem nichts,
-// weil der Rechner einen abwesenden Schluessel in Ruhe laesst. An den gespeicherten Werten ist das
-// NICHT zu sehen; Abschnitt 4 blieb gruen. Es ist ein KOSTEN-Riegel, und Kosten misst man, indem man
-// zaehlt (STRATO, AGENTS.md §10).
-$pdo->verbundAbfragen = 0;
-avesmapsUpdatePathFeatureDetails($pdo, $rumpf(null), $user);
-assert(
-    $pdo->verbundAbfragen === 0,
-    'ein Speichern OHNE Entscheidung stellt die Verbund-Abfrage trotzdem (' . $pdo->verbundAbfragen
-    . ' Mal) -- das waere eine Abfrage ueber alle gleichnamigen Segmente bei JEDEM Speichern eines Weges'
-);
-// Gegenprobe, dass der Zaehler ueberhaupt zaehlt: MIT Entscheidung wird sie genau einmal gestellt.
-// ⚠️ Mit DEMSELBEN Wert, der schon steht -- sonst veraendert die Gegenprobe den Stand, auf dem die
-// naechsten Abschnitte messen.
-$pdo->verbundAbfragen = 0;
-avesmapsUpdatePathFeatureDetails($pdo, $rumpf(true), $user);
-assert(
-    $pdo->verbundAbfragen === 1,
-    'die Verbund-Abfrage wird bei einer Entscheidung nicht genau einmal gestellt: ' . $pdo->verbundAbfragen
-);
+// ── 4b) UND DIE VERBUND-ABFRAGE WIRD GAR NICHT MEHR GESTELLT ─────────────────────────────────
+// 🪤 DIESE ZUSICHERUNG FEHLTE EINMAL, und die Mutation hat es gezeigt: nahm man den
+// `array_key_exists`-Riegel des Merkers heraus, lief die Abfrage bei JEDEM Speichern eines Weges --
+// und schrieb trotzdem nichts, weil der Rechner einen abwesenden Schluessel in Ruhe liess. An den
+// gespeicherten Werten war das NICHT zu sehen; Abschnitt 4 blieb gruen. Es war ein KOSTEN-Riegel,
+// und Kosten misst man, indem man zaehlt (STRATO, AGENTS.md §10).
+// 🔴 SEIT DEM AUSBAU MUSS DIE ZAHL BEI JEDEM RUMPF NULL SEIN -- mit Schluessel wie ohne. Das ist die
+// frueheste Stelle, an der ein zurueckkehrender Verbund-Schreiber auffiele: an den gespeicherten
+// Werten saehe man ihn erst, wenn er schon geschrieben hat.
+foreach ([null, true, false] as $variante) {
+    $pdo->verbundAbfragen = 0;
+    avesmapsUpdatePathFeatureDetails($pdo, $rumpf($variante), $user);
+    assert(
+        $pdo->verbundAbfragen === 0,
+        'ein Speichern (Rumpf: ' . var_export($variante, true) . ') stellt die Verbund-Abfrage ('
+        . $pdo->verbundAbfragen . ' Mal) -- eine Abfrage ueber alle gleichnamigen Segmente bei JEDEM '
+        . 'Speichern eines Weges, und ein Schreiber dahinter'
+    );
+}
+// 💣 UND HIER STEHT, WAS DIESER ZAEHLER SEIT DEM AUSBAU NOCH WERT IST -- weniger, als er aussieht.
+// Frueher lieferte der Merker selbst die Gegenprobe („mit Entscheidung genau einmal"); seit er weg
+// ist, stellt KEIN produktiver Erzeuger die Abfrage mehr, und das Muster des Spions passt auf nichts
+// im ganzen api/-Baum (nachgemessen 09.09.2026: HEAD 1 Treffer, jetzt 0).
+// 🪤 EINE GEGENPROBE, DIE DEM SPION SEINEN EIGENEN SUCHSTRING SCHICKT, BELEGT NUR, DASS
+// `str_contains` FUNKTIONIERT. Genau so stand sie hier einen Tag lang; ein Pruefagent hat es
+// gemessen. Sie ist deshalb weg, und stattdessen steht die Reichweite ausgeschrieben:
+// ⚠️ Die drei Nullen darueber fangen einen BYTE-GENAUEN Revert der alten Abfrage. Einen
+// Verbund-Schreiber mit anderer SQL-Formatierung fangen sie NICHT. Der scharfe Waechter dagegen ist
+// Abschnitt 8 (`NameGroup(` im Rumpf des Schreibwegs, am Quelltext) und Abschnitt 3 (die Revisionen
+// der Geschwister, an den Daten) -- dieser Zaehler ist die billige dritte Reihe, kein Ersatz.
 
-// ── 5) UND EIN ZWEITES MAL DASSELBE HAEKCHEN HEBT KEINE REVISION ──────────────────────────────
+// ── 5) UND EIN ZWEITES MAL DASSELBE HEBT KEINE REVISION ───────────────────────────────────────
+// ⚠️ Nah an Abschnitt 1, aber nicht dasselbe: dort wird EINMAL geschrieben und gemessen, wen es
+// nicht trifft; hier wird ZWEIMAL hintereinander derselbe Rumpf geschickt und gemessen, dass der
+// zweite Lauf gar nichts mehr tut. Das ist die Revisions-Sparsamkeit des Schreibwegs, und an der
+// haengt die ~21 MB grosse Kartennutzlast jedes warmen Besuchers.
 $standC = $karte($pdo);
-avesmapsUpdatePathFeatureDetails($pdo, $rumpf(true), $user);
+avesmapsUpdatePathFeatureDetails($pdo, $rumpf(null), $user);
 $standD = $karte($pdo);
 foreach ([AVESMAPS_WEG_TEST_IDS['path-2'], AVESMAPS_WEG_TEST_IDS['path-3']] as $id) {
     assert(
         $standD[$id]['revision'] === $standC[$id]['revision'],
-        "\"$id\" wird neu geschrieben, obwohl der Merker schon so stand"
+        "\"$id\" wird neu geschrieben, obwohl sich nichts geaendert hat"
     );
 }
 
@@ -311,7 +402,7 @@ assert(
     'die zusammengefasste Zeile zaehlt nicht drei Segmente: ' . var_export($aguera[0]['segments'] ?? null, true)
 );
 
-avesmapsUpdatePathFeatureDetails($pdo, $rumpf(true), $user);
+avesmapsUpdatePathFeatureDetails($pdo, $rumpf(null), $user);
 $nachZentrum = $konfliktZeilen($pdo);
 $agueraDanach = array_values(array_filter($nachZentrum, static fn (array $f): bool => $f['title'] === 'Aguera'));
 // 🔴 UMGEDREHT AM 09.09.2026. Hier stand: „der Fall steht nach dem Haekchen weiter im Zentrum --
@@ -343,39 +434,91 @@ assert(
     'auch der fremde Weg ist verschwunden -- die Probe misst nichts mehr'
 );
 
-// ── 7) JEDE GESCHRIEBENE ZEILE HAT IHREN PROTOKOLLEINTRAG ─────────────────────────────────────
-// ⚠️ Ohne ihn waere ein Verbund-Schreiben im Aenderungsverlauf unsichtbar: der Editor saehe eine
-// Zeile („Weg geändert") und wuesste nicht, dass drei Segmente betroffen sind.
+// ── 7) JEDE GESCHRIEBENE ZEILE HAT IHREN PROTOKOLLEINTRAG -- UND NUR SIE ──────────────────────
+// ⚠️ Die Zahl war DREI, solange der Merker den Verbund schrieb: ohne einen Eintrag je Zeile waere
+// ein Verbund-Schreiben im Aenderungsverlauf unsichtbar gewesen -- der Editor saehe eine Zeile
+// („Weg geändert") und wuesste nicht, dass drei Segmente betroffen sind. Sie ist jetzt EINS, und
+// das ist dieselbe Zusicherung von der anderen Seite: geschrieben wird eine Zeile, protokolliert
+// wird eine Zeile. Ein Protokolleintrag mehr hiesse ein geschriebenes Segment mehr.
 $seed($pdo);
 $pdo->exec('DELETE FROM map_audit_log');
-avesmapsUpdatePathFeatureDetails($pdo, $rumpf(true), $user);
+avesmapsUpdatePathFeatureDetails($pdo, $rumpf(null), $user);
 $protokoll = $pdo->query("SELECT feature_id FROM map_audit_log WHERE action = 'update_path_details'")->fetchAll(PDO::FETCH_COLUMN);
 assert(
-    count($protokoll) === 3,
-    'nicht jede geschriebene Zeile hat einen Protokolleintrag: ' . count($protokoll) . ' statt 3'
+    count($protokoll) === 1,
+    'der Schreibvorgang hat nicht genau eine Zeile protokolliert: ' . count($protokoll) . ' statt 1'
 );
 
-// ── 8) DIE REICHWEITE IST DIE GETEILTE, KEINE ZWEITE ──────────────────────────────────────────
-// 🔴 Der Schreibweg fragt avesmapsConflictRepairSpansNameGroup -- dieselbe Weiche, die alle
-// Reparatur-Verben des Konfliktzentrums fragen. Ein `false` dort muss AUCH hier eng ziehen, sonst
-// gibt es zwei Stellen, an denen die Reichweite haengt.
+// ── 8) DIE GETEILTE REICHWEITEN-WEICHE STEHT UNVERAENDERT ─────────────────────────────────────
+// 🔴 `avesmapsConflictRepairSpansNameGroup` ist die EINE Weiche, die alle Reparatur-Verben des
+// Konfliktzentrums fragen -- ein Fall ist bei einer segmentierten Art eine LINIE, kein Segment. Sie
+// ist vom Ausbau des Merkers UNBERUEHRT; was gefallen ist, ist ihr zweiter Frager, der Weg-
+// Schreibweg. Die drei Zeilen bleiben hier stehen, weil sie die Bedingung nennen, unter der ein
+// kuenftiger zweiter Frager ueberhaupt richtig waere.
 assert(avesmapsConflictRepairSpansNameGroup('path', 'Aguera') === true);
 assert(avesmapsConflictRepairSpansNameGroup('path', '') === false, 'ein namenloser Weg bekaeme einen Verbund');
 assert(avesmapsConflictRepairSpansNameGroup('location', 'Havena') === false, 'ein ORT ist nicht segmentiert');
-$quelleSchreibweg = file_get_contents(__DIR__ . '/../features.php');
-assert(is_string($quelleSchreibweg));
+// 🔴 UND DER SCHREIBWEG FRAGT SIE NICHT MEHR -- die Gegenprobe zu Abschnitt 1 am Quelltext, damit
+// ein Verbund-Schreiber schon beim Lesen des Diffs auffaellt und nicht erst an einer Revision.
+// ⚠️ Kommentarfrei ueber den Tokenizer: die Begruendung hier oben nennt den Namen, der im Rumpf
+// nicht vorkommen darf (AGENTS.md §11).
+$schreibwegCode = '';
+foreach (token_get_all((string) file_get_contents(__DIR__ . '/../features.php')) as $stueck) {
+    if (is_array($stueck)) {
+        if ($stueck[0] === T_COMMENT || $stueck[0] === T_DOC_COMMENT) {
+            continue;
+        }
+        $schreibwegCode .= $stueck[1];
+        continue;
+    }
+    $schreibwegCode .= $stueck;
+}
 assert(
-    preg_match('/function avesmapsApplyPathWikiNoArticleToNameGroup\(.*?\n\}/s', $quelleSchreibweg, $rumpfGruppe) === 1,
-    'avesmapsApplyPathWikiNoArticleToNameGroup laesst sich isolieren'
+    preg_match('/function avesmapsUpdatePathFeatureDetails\(.*?\n\}/s', $schreibwegCode, $rumpfSchreibweg) === 1,
+    'avesmapsUpdatePathFeatureDetails laesst sich nicht isolieren -- die Zusicherung waere blind'
 );
+// 💣 GESUCHT WIRD `NameGroup(`, NICHT DER VOLLE NAME DER WEICHE -- und das ist der Unterschied
+// zwischen einer Zusicherung und einem Vakuum. Der Schreibweg fragte
+// `avesmapsConflictRepairSpansNameGroup` naemlich NIE selbst: er rief
+// `avesmapsApplyPathWikiNoArticleToNameGroup(…)`, und ERST DIE fragte die Weiche. Eine Probe auf
+// den vollen Namen war deshalb auch gegen HEAD gruen -- gemessen am 09.09.2026, gefunden von einem
+// Pruefagenten, nachdem sie hier einen Tag lang als Waechter dastand.
+// ⭐ `NameGroup(` faengt beide Formen: den direkten Frager wie den Helfer davor.
 assert(
-    str_contains($rumpfGruppe[0], 'avesmapsConflictRepairSpansNameGroup('),
-    'die Reichweite wird hier zum zweiten Mal formuliert, statt die geteilte Weiche zu fragen'
+    preg_match('/NameGroup\(/', $rumpfSchreibweg[0]) !== 1,
+    'der Weg-Schreibweg reicht wieder ueber den Namensverbund -- dann schreibt ein Speichern erneut '
+    . 'alle gleichnamigen Segmente, und Abschnitt 1 misst den Schaden erst hinterher'
 );
-assert(
-    str_contains($rumpfGruppe[0], 'avesmapsApplyPathWikiNoArticle('),
-    'ein Geschwister wird an dem gemeinsamen Rechner vorbei geschrieben -- das Leeren der flachen '
-    . 'Adresse fiele dort weg'
-);
+
+// ── 9) DIE ANTWORT DES SCHREIBWEGS -- der Bauer, dessen Abdeckung beim Ausbau fast verlorenging ─
+// 🔴 `avesmapsBuildLineStringFeatureResponse` hatte seine einzigen direkten Laeufe in
+// `weg-wiki-no-article-test.php`. Der ist am 09.09.2026 gefallen (er mass ausschliesslich den
+// ausgebauten Merker), und damit stand der Bauer ohne jede Zusicherung da -- nachgemessen: NULL
+// Aufrufer in Tests. Gefunden hat das ein Pruefagent, nicht der Autor: gezaehlt worden war nach dem
+// MERKER, nicht nach dem BAUER. Das ist die Fehlerklasse „ein geloeschter Block nimmt fremde
+// Abdeckung mit", und sie ist hier ein zweites Mal aufgetreten.
+// ⚠️ Er wird zwar weiter AUSGEFUEHRT (der Schreibweg oben gibt ihn zurueck), aber sein Ergebnis
+// wurde verworfen -- kein Test prueft einen einzigen Schluessel. Deshalb steht er jetzt hier, in
+// der Datei, die den Weg-Schreibweg ohnehin faehrt.
+$antwortGeometrie = ['type' => 'LineString', 'coordinates' => [[1.0, 2.0], [3.0, 4.0]]];
+$antwort = avesmapsBuildLineStringFeatureResponse('pfad-1', 'Aguera', 'Flussweg', $antwortGeometrie, [
+    'show_label' => true,
+    'wiki_path' => ['wiki_key' => 'aguera', 'wiki_url' => 'https://de.wiki-aventurica.de/wiki/Aguera'],
+], 12);
+assert($antwort['type'] === 'Feature' && $antwort['id'] === 'pfad-1', 'die Huelle stimmt nicht');
+assert($antwort['geometry'] === $antwortGeometrie, 'die Geometrie reist nicht unveraendert mit');
+$eigenschaften = $antwort['properties'];
+assert($eigenschaften['public_id'] === 'pfad-1');
+assert($eigenschaften['feature_type'] === 'path', 'die Objektart fehlt -- der Kartendialog sortiert danach');
+assert($eigenschaften['feature_subtype'] === 'Flussweg');
+assert($eigenschaften['revision'] === 12, 'die Revision fehlt -- der Live-Abgleich braucht sie');
+// 💣 DER MITGEGEBENE ZUSTAND UEBERLEBT. `applyPathFeatureResponse` MISCHT diese Antwort in die
+// vorhandenen Eigenschaften (`{...alt, ...neu}`) -- ein Bauer, der ein uebergebenes Feld
+// verschluckt, laesst dort still den alten Wert stehen.
+assert($eigenschaften['show_label'] === true, 'ein uebergebenes Feld wird verschluckt');
+assert(($eigenschaften['wiki_path']['wiki_key'] ?? '') === 'aguera', 'das Zuweisungsnest reist nicht mit');
+// 🔴 UND DER AUSGEBAUTE MERKER REIST NICHT MIT -- auch nicht als `false`. Genau das tat er bis zum
+// 09.09.2026 ausdruecklich, weil ein weggelassener Schluessel beim Mischen nichts loescht.
+assert(!array_key_exists('wiki_no_article', $eigenschaften), 'die Weg-Antwort traegt den Merker wieder');
 
 fwrite(STDOUT, "weg-merker-reichweite-test: alle Zusicherungen erfuellt\n");

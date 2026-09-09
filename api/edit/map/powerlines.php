@@ -58,19 +58,22 @@ try {
             'from_public_id' => $from,
             'to_public_id' => $to,
             'show_label' => (bool) ($properties['show_label'] ?? false),
-            // ⚠️ AUSDRUECKLICH, wie show_label darueber und wiki_no_article darunter. Fehlt die
+            // ⚠️ AUSDRUECKLICH, wie show_label darueber. Fehlt die
             // Zeile, saehe der Editor immer 0; und weil das Speichern den Wert IMMER mitschickt,
             // loeschte der NAECHSTE Speichervorgang die Kurve -- auch eine reine
             // Beschreibungsaenderung.
             'curve' => avesmapsReadPowerlineCurve($properties['curve'] ?? 0),
             'description' => (string) ($properties['description'] ?? ''),
             'wiki_url' => (string) ($properties['wiki_url'] ?? ''),
-            // 💣 Der dritte Zustand MUSS hier stehen. Diese Projektion ist ausdruecklich, und der
-            // Editor liest den Merker genau von hier (renderDetail: segments.some(s.wiki_no_article)).
-            // Fehlte er, saehe der Editor immer `false`: das Haekchen kaeme nach dem Neuladen leer
-            // zurueck, und weil das Speichern immer beide Werte schickt, loeschte der naechste
-            // Speichervorgang den Merker -- auch eine reine Beschreibungsaenderung.
-            'wiki_no_article' => (bool) ($properties['wiki_no_article'] ?? false),
+            // 🔴 HIER STAND DIE PROJEKTION DES DRITTEN ZUSTANDS (`wiki_no_article`). Der Editor
+            // las den Merker genau von hier (renderDetail: `segments.some(s.wiki_no_article)`);
+            // fehlte die Zeile, sah er immer `false`, und weil das Speichern beide Werte immer
+            // mitschickte, loeschte der naechste Speichervorgang den Merker -- auch eine reine
+            // Beschreibungsaenderung. Gefallen am 09.09.2026 mit `properties.wiki_no_article`
+            // (Owner-Entscheid); sein Aequivalent ist die WIKI-ZUWEISUNG, und die reist eine Zeile
+            // tiefer als `wiki_powerline`.
+            // ⚠️ DIE LEHRE GILT WEITER FUER JEDES FELD DIESER LISTE: sie ist AUSDRUECKLICH, ein
+            // fehlender Schluessel ist hier nicht „unveraendert", sondern „leer".
             'wiki_powerline' => is_array($wikiPowerline) ? $wikiPowerline : null,
             'revision' => (int) ($row['revision'] ?? 0),
         ];

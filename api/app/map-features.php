@@ -1328,11 +1328,28 @@ function avesmapsResolveSettlementPolitical(string $settlementName, array $prope
  * Rateweg haengte sie an beide -- auch an den, der gar nicht gemeint war.
  *
  * 🔴 DIE RANGFOLGE (Owner 08.09.2026: „also zuweisung im wiki gewinnt"):
- *   1. `wiki_no_article` -- die ausdrueckliche Editor-Aussage „dieses Objekt hat keinen Artikel".
- *   2. die Adresse aus dem ZUWEISUNGS-NEST.
- *   3. eine gespeicherte flache `properties.wiki_url` -- nur noch als Rueckfall fuer Objekte OHNE
+ *   1. die Adresse aus dem ZUWEISUNGS-NEST.
+ *   2. eine gespeicherte flache `properties.wiki_url` -- nur noch als Rueckfall fuer Objekte OHNE
  *      Zuweisung.
  *   sonst: nichts.
+ *
+ * 🔴 DAVOR STAND `wiki_no_article` ALS PUNKT 1 -- der Notausgang, den Discord #38 bekam. Er ist am
+ * 09.09.2026 global ausgebaut (Owner-Entscheid nach Durchsicht aller 10 Traeger), und mit dem
+ * Rueckbau des Ratewegs hatte er ohnehin keinen Gegenstand mehr: was er verhinderte, kann seither
+ * gar nicht mehr entstehen.
+ * ⚠️ DESHALB STEIGT `AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION` HIER NICHT -- und das ist gemessen,
+ * nicht geschlossen. Ein Bump kostete jeden warmen Besucher rund 3 MB fuer eine Nutzlast, die Byte
+ * fuer Byte dieselbe ist.
+ * 🔴 GEMESSEN AN DER LIVE-NUTZLAST, nicht am Dump. Solange der Riegel steht, ist ein Traeger genau
+ * ein Objekt, dessen ZUWEISUNGSNEST eine Adresse traegt, waehrend die flache `wiki_url` leer bleibt
+ * -- nichts anderes kann das verhindern. Das ist die VOLLSTAENDIGE Menge derer, deren Nutzlast sich
+ * durch den Wegfall aendern wuerde, und sie laesst sich mit EINEM Abruf zaehlen (STRATO: eine
+ * Anfrage, kein Lauf). Ergebnis 09.09.2026, Revision 119767: **0 von 12.318 Objekten.**
+ * 🪤 DIE ERSTE FASSUNG DIESER BEGRUENDUNG STAND AUF DEM DUMP VOM 08.09.2026 („von den 11 Traegern
+ * haette GENAU EINER, Altenau, eine Adresse bekommen"). Das war die richtige Rechnung an der
+ * falschen Grundlage: zwischen Dump und dem Fall des Haekchens konnte jeder Editor weitere Traeger
+ * anlegen, die dieser Dump nie gesehen hat -- und der Bauplan schreibt fuer die Bestandsreparatur
+ * genau deshalb eine LIVE-Messung vor. Ein Pruefagent hat den doppelten Massstab gefunden.
  *
  * 💣 PUNKT 2 VOR PUNKT 3 IST DIE ENTSCHEIDUNG, NICHT EIN DETAIL. Bis zum 08.09.2026 gewann das
  * flache Feld, und 43 Objekte trugen dort einen ANDEREN Artikel als in ihrer Zuweisung -- teils grob
@@ -1365,10 +1382,6 @@ function avesmapsResolveSettlementPolitical(string $settlementName, array $prope
  * Test: api/app/__tests__/wiki-url-aus-der-zuweisung-test.php
  */
 function avesmapsEnrichMapFeatureWikiUrl(array $properties): array {
-    if (!empty($properties['wiki_no_article'])) {
-        return $properties;
-    }
-
     // 🔴 DIE ZUWEISUNG SCHLAEGT DAS GESPEICHERTE FELD (Owner 08.09.2026: „also zuweisung im wiki
     // gewinnt"). Am Livebestand gemessen: 43 Objekte nennen in beiden Feldern verschiedene Artikel,
     // und in JEDEM Fall ist die Zuweisung die richtige -- teils grob falsch („Alfwalden" zeigte auf

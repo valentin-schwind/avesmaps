@@ -60,7 +60,6 @@ require_once __DIR__ . '/../text/ascii-fold.php';
 // (api/app/ecosystem-areas.php), und 3.471 Zeilen dorthin zu ziehen waere genau die Zusatzlast, die
 // AGENTS.md §10 als Bremse fuehrt. Geteilt wird die REGEL, nicht die Bibliothek -- eine zweite
 // Formulierung waere die Bauform, in der die Schreibwege auseinanderlaufen.
-require_once __DIR__ . '/../map/wiki-claim.php';
 
 // Klimazonen: die reine Geometrie (Trennlinie normalisieren, Reihenfolge pruefen, Band ableiten) und
 // der Riegel gegen das Bearbeiten einer abgeleiteten Flaeche. Eigene Datei, weil sie ohne Datenbank
@@ -2064,24 +2063,24 @@ function avesmapsEcosystemReadRegionFields(array $payload, ?string $currentKind)
     return $fields;
 }
 
-// ---- Der dritte Zustand: „Kein Wiki-Artikel vorhanden" ------------------------------------------------
-// 🔴 DER MERKER LIEGT IN `properties_json`, NICHT IN EINER EIGENEN SPALTE -- genau wie `is_hidden`,
-// `is_nodix` und `wiki_no_article` bei den map_features (AGENTS.md §11). Es gibt keine DDL und keine
-// Migration; die Spalte steht seit V2.3 da und war bis zum 16.08.2026 von KEINEM Client beschrieben und
-// von KEINEM Leseweg herausgegeben.
+// ---- 🔴 HIER STAND DER DRITTE ZUSTAND: „Kein Wiki-Artikel vorhanden" ---------------------------------
+// GEFALLEN AM 09.09.2026 mit `properties.wiki_no_article`, global (Owner-Entscheid nach Durchsicht
+// aller 10 Traeger). Sein Aequivalent ist die WIKI-ZUWEISUNG -- bei der Landschaft
+// `ecosystem_region.wiki_region_key` bzw. das Nest `wiki_region` an der Beschriftung.
 //
-// 🔧 OFFEN, UND DESHALB STEHT ES AN DER SCHREIBSTELLE: dieser Merker hat hier bis heute KEINEN
-// Verbraucher. Wer die Landschaften ins Konfliktzentrum aufnimmt, findet ihn bereits geschrieben vor
-// -- er muss nur gelesen werden (api/_internal/conflicts/rules.php). Bis dahin haelt er die
-// Entscheidung fest und sonst nichts, und der Hinweistext im Editor verspricht auch nicht mehr
-// (js/ui/wiki-assign-registry.js, Eintrag `landschaft`).
+// 💣 WAS HIER STAND, WAR EINE BAUANWEISUNG AN DEN NAECHSTEN LESER, und deshalb steht der Wortlaut
+// hier: „🔧 OFFEN … dieser Merker hat hier bis heute KEINEN Verbraucher. Wer die Landschaften ins
+// Konfliktzentrum aufnimmt, findet ihn bereits geschrieben vor -- er muss nur gelesen werden."
+// Genau das darf niemand mehr tun. Es gibt nichts mehr zu lesen: das Feld wird von keiner
+// Oberflaeche geschrieben, von keinem Endpunkt herausgegeben und von keiner Regel ausgewertet, und
+// der Altbestand wird einmalig per Admin-Aktion geraeumt.
+// ⚠️ Ein Kommentar, der eine Funktion verspricht, ist teurer als toter Code: er ueberlebt jeden
+// Testlauf. Gefunden hat diesen hier ein Pruefagent, kein Test.
 //
-// 🪤 UND WAS ER HIER (NOCH) NICHT TUT, steht hier, damit es niemand versehentlich verspricht: eine
-// `ecosystem_region` steht in KEINER Konfliktliste -- avesmapsConflictLoadMapRows liest ausschliesslich
-// `map_features` (location|path|label|powerline), und avesmapsEnrichMapFeatureWikiUrl raet ebenfalls nur
-// dort Adressen zusammen. Bei Ort, Weg und Kraftlinie ist der Merker deshalb eine REPARATUR; hier haelt
-// er vorerst nur die Entscheidung fest. Wer die Landschaften in das Konfliktzentrum aufnimmt, findet den
-// Merker also bereits vor.
+// 🪤 EINE AUSSAGE DES ALTEN BLOCKS WAR SCHON VORHER FALSCH und soll nicht mit ihm verschwinden: er
+// behauptete, `avesmapsEnrichMapFeatureWikiUrl` „raet Adressen zusammen". Das RATEN ist seit
+// `420f12cfc` (08.09.2026) zurueckgebaut -- die Anreicherung liest seither ausschliesslich das
+// Zuweisungsnest. Es war der Wegfall dieses Ratens, der dem Merker den Gegenstand nahm.
 
 // Transkription von avesmapsReadBoolean (api/_internal/map/features.php:203) -- zwei Zeilen, und
 // bewusst kein Aufruf: dieselbe Begruendung wie beim Slug oben, diese Datei zieht features.php nicht.
@@ -2096,10 +2095,13 @@ function avesmapsEcosystemReadBoolean(mixed $value): bool
  * 🔴 `null` heisst „nie angefasst" -- dann entscheidet im Browser der NAME (Altbestand und frisch
  * gezeichnete Flaechen). `true`/`false` sind ausdrueckliche Entscheidungen und schlagen den Namen.
  *
- * ⚠️ Deshalb wird hier -- anders als beim Nachbarn `wiki_no_article` -- auch `false` GESPEICHERT:
- * dort sind „entschieden: nein" und „nie entschieden" bedeutungsgleich, hier nicht. Eine Region,
- * die „Wald-001" heisst und deren Haken jemand bewusst entfernt hat, kaeme sonst beim naechsten
- * Oeffnen wieder angehakt zurueck.
+ * ⚠️ Deshalb wird hier auch `false` GESPEICHERT, statt den Schluessel zu entfernen: „entschieden:
+ * nein" und „nie entschieden" sind hier NICHT bedeutungsgleich. Eine Region, die „Wald-001" heisst
+ * und deren Haken jemand bewusst entfernt hat, kaeme sonst beim naechsten Oeffnen wieder angehakt
+ * zurueck.
+ * 🪤 Der Gegenpol dieser Regel war der Nachbar `wiki_no_article`, wo beide Faelle dasselbe hiessen
+ * und `false` deshalb geloescht wurde. Er ist am 09.09.2026 global ausgebaut (Owner-Entscheid) --
+ * die Regel HIER ist davon unberuehrt, nur ihr Gegenbeispiel steht nicht mehr daneben.
  */
 function avesmapsEcosystemRegionAutoName(mixed $propertiesJson): ?bool
 {
@@ -2152,13 +2154,10 @@ function avesmapsEcosystemApplyRegionAutoName(array $before, array $payload, arr
     ];
 }
 
-/** REIN: traegt diese Regionszeile den Merker? Eine kaputte oder fehlende Ablage heisst „nein". */
-function avesmapsEcosystemRegionNoArticle(mixed $propertiesJson): bool
-{
-    $properties = json_decode((string) ($propertiesJson ?? ''), true);
+// 🔴 HIER STAND `avesmapsEcosystemRegionNoArticle` -- der Leser des Merkers einer Landschaft.
+// Gefallen am 09.09.2026 mit `properties.wiki_no_article` (Owner-Entscheid); sein Aequivalent
+// ist die WIKI-ZUWEISUNG.
 
-    return is_array($properties) && !empty($properties['wiki_no_article']);
-}
 
 /**
  * REIN: die Feldherkunft dieser Regionszeile, gefiltert auf die zwei Wiki-Felder.
@@ -2202,72 +2201,12 @@ function avesmapsEcosystemRegionFieldOrigins(mixed $propertiesJson): array
     return $karte;
 }
 
-/**
- * REIN: was `update_region` am Merker zu tun hat. Leeres Ergebnis = nichts zu schreiben.
- *
- * 💣 FEHLT `wiki_no_article` IM RUMPF, BLEIBT DER MERKER UNANGETASTET -- dieselbe array_key_exists-Regel
- * wie bei avesmapsApplyPointWikiFields und avesmapsApplyPathWikiNoArticle. Der Grund ist der
- * Owner-Entscheid vom 16.08.2026 (anstelle eines `expected_revision`): ein alter, laengst offener Dialog
- * soll die Entscheidung eines zweiten Editors nicht beim naechsten beliebigen Speichern zuruecknehmen.
- * Beide Landschafts-Oberflaechen schicken den Schluessel deshalb nur, wenn das Haekchen SEIT DEM LADEN
- * umgelegt wurde (`kein_artikel_geaendert`, js/ui/wiki-assign.js).
- *
- * 🔴 EINE ZUWEISUNG LOESCHT DEN MERKER, und zwar ohne Rueckfrage: „es gibt keinen Artikel" und „hier ist
- * er" schliessen einander aus. Bei Ort, Weg und Kraftlinie tut das jeder Zuweiser einzeln -- hier gibt es
- * nur EINEN Schreibweg (`update_region`), also steht es einmal hier. ⚠️ Nur wenn der Rumpf NICHT
- * ausdruecklich etwas anderes sagt: wer Haekchen UND Adresse in einem Zug schickt, laeuft in den Riegel
- * darunter statt in eine stille Vorrangregel.
- *
- * ⚠️ Gerechnet wird auf den Eigenschaften, die der Rumpf mitbringt, sonst auf den GESPEICHERTEN -- sonst
- * loeschte ein `properties`-Rumpf den Merker still mit, und ein Merker-Rumpf die uebrigen Eigenschaften.
- *
- * @param array  $before            die Zeile vor dem Schreiben
- * @param array  $payload           der Rumpf
- * @param array  $fields            die schon gelesenen Felder (kann `properties_json` tragen)
- * @param string $effectiveWikiUrl  die Adresse NACH diesem Schreibvorgang
- * @return array<string,?string>    `['properties_json' => …]` oder `[]`
- */
-function avesmapsEcosystemApplyRegionNoArticle(array $before, array $payload, array $fields, string $effectiveWikiUrl): array
-{
-    $quelle = array_key_exists('properties_json', $fields)
-        ? $fields['properties_json']
-        : ($before['properties_json'] ?? null);
-    $properties = json_decode((string) ($quelle ?? ''), true);
-    if (!is_array($properties)) {
-        $properties = [];
-    }
-    $stored = !empty($properties['wiki_no_article']);
-    $gefordert = array_key_exists('wiki_no_article', $payload);
-    $noArticle = $gefordert ? avesmapsEcosystemReadBoolean($payload['wiki_no_article']) : $stored;
+// 🔴 HIER STAND `avesmapsEcosystemApplyRegionNoArticle` -- der Schreiber des Merkers einer
+// Landschaft samt dem geteilten Widerspruchsriegel. Gefallen am 09.09.2026 mit
+// `properties.wiki_no_article` (Owner-Entscheid).
+// ⚠️ Er kannte als einziger die Regel „eine ZUWEISUNG beantwortet den Merker" schon selbst --
+// genau die Regel, die der Ausbau jetzt ueberall zur einzigen macht.
 
-    if (!$gefordert && $noArticle && trim($effectiveWikiUrl) !== '') {
-        $noArticle = false;   // zugewiesen -> der Merker ist beantwortet
-    }
-    avesmapsAssertWikiClaimNotContradictory(
-        $effectiveWikiUrl,
-        $noArticle,
-        'Eine Landschaft',
-        'Bitte die Zuweisung entfernen oder das Häkchen abwählen.'
-    );
-
-    if ($noArticle === $stored && !array_key_exists('properties_json', $fields)) {
-        return [];
-    }
-    if ($noArticle) {
-        $properties['wiki_no_article'] = true;
-    } else {
-        // 🔴 Entfernt, nicht auf `false` gesetzt: als `false` liesse sich „entschieden, es gibt keinen"
-        // spaeter nicht mehr von „nie entschieden" unterscheiden (dieselbe Regel wie bei den
-        // Kraftlinien, api/_internal/map/features.php).
-        unset($properties['wiki_no_article']);
-    }
-
-    return [
-        'properties_json' => $properties === []
-            ? null
-            : json_encode($properties, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR),
-    ];
-}
 
 /**
  * REIN: die Feldherkunft einer Landschaft fortschreiben. Leeres Ergebnis = nichts zu schreiben.
@@ -2389,12 +2328,16 @@ function avesmapsListEcosystemRegions(PDO $pdo, array $payload): array
         // label_public_id reist mit, damit beide Dialoge die Kopplung ZEIGEN koennen: die Region sagt
         // "traegt 1 Flaeche und 1 Label", das Label sagt "wird von N Flaechen getragen" -- ohne je Dialog
         // eine eigene Abfrage. Es ist derselbe Zeiger, den createEcosystemRegionLabel schreibt.
-        // 🔴 `properties_json` reist seit dem 16.08.2026 mit, aber NICHT roh: heraus geht genau der
-        // eine Merker, den die Zuweisung braucht (`wiki_no_article`). Ohne diese Spalte gaebe es fuer
-        // den dritten Zustand keinen LESEWEG -- das Haekchen liesse sich setzen und stuende beim
-        // naechsten Oeffnen wieder leer da, ohne dass irgendwo etwas fehlschluege. `list_regions` ist
-        // die richtige Stelle, weil BEIDE Landschafts-Oberflaechen ohnehin von hier ihr Art-Vokabular
-        // ziehen (der Flaechen-Dialog sucht sich seine Zeile ueber `public_id` heraus).
+        // 🔴 `properties_json` reist seit dem 16.08.2026 mit, aber NIE roh: heraus gehen die
+        // ANTWORTEN, die die Dialoge brauchen (Auto-Name, Feldherkunft, Kurvenbeschriftung), nie die
+        // Ablage. `list_regions` ist die richtige Stelle, weil BEIDE Landschafts-Oberflaechen ohnehin
+        // von hier ihr Art-Vokabular ziehen (der Flaechen-Dialog sucht sich seine Zeile ueber
+        // `public_id` heraus).
+        // ⚠️ HEREINGEHOLT WURDE DIE SPALTE URSPRUENGLICH FUER `wiki_no_article` -- ohne sie gab es
+        // fuer den dritten Zustand keinen LESEWEG, das Haekchen liess sich setzen und stand beim
+        // naechsten Oeffnen wieder leer da, ohne dass irgendwo etwas fehlschlug. Der Merker ist am
+        // 09.09.2026 global ausgebaut (Owner-Entscheid); die Spalte BLEIBT und wird gebraucht, nur
+        // ihr erster Anlass ist weg.
         // 🔴 `stack_order`/`is_locked` und die Sortierung DANACH (19.08.2026): das Fenster
         // „Reihenfolge und Sperren" zeigt den Stapel, und oben liegt vorn. Der Regionen-Picker, der
         // dieselbe Liste zieht, bekommt damit ebenfalls die Stapelreihenfolge statt der
@@ -2454,7 +2397,6 @@ function avesmapsListEcosystemRegions(PDO $pdo, array $payload): array
             // Der dritte Zustand, als BOOLEAN und nicht als rohe Eigenschaftsablage: die Oberflaechen
             // brauchen die Antwort, nicht die Ablage, und ein `properties_json` auf der Leitung waere
             // die Einladung, dort noch etwas anderes hineinzuschreiben.
-            'wiki_no_article' => avesmapsEcosystemRegionNoArticle($row['properties_json'] ?? null),
             // 🔴 Die ANTWORT, nie die Ablage -- wie die Zeile darueber. `null` heisst „nie
             // angefasst", dann entscheidet im Browser der Name.
             'auto_name' => avesmapsEcosystemRegionAutoName($row['properties_json'] ?? null),
@@ -2465,8 +2407,9 @@ function avesmapsListEcosystemRegions(PDO $pdo, array $payload): array
             'field_origins' => avesmapsEcosystemRegionFieldOrigins($row['properties_json'] ?? null),
             // 🔴 Die Kurvenbeschriftung braucht denselben LESEWEG wie die zwei darueber. Ohne ihn
             // liesse sich der Haken setzen und stuende beim naechsten Oeffnen wieder leer da, ohne
-            // dass irgendwo etwas fehlschluege -- genau die Begruendung, mit der `wiki_no_article`
-            // hier gelandet ist. Beide Dialoge (Beschriftung und Flaeche) ziehen von hier.
+            // dass irgendwo etwas fehlschluege. Beide Dialoge (Beschriftung und Flaeche) ziehen von
+            // hier. ⚠️ Diese Begruendung stammt von `wiki_no_article`, der als erster so hereinkam;
+            // er ist am 09.09.2026 ausgebaut (Owner-Entscheid), die Begruendung gilt unveraendert.
             // ⭐ Heraus geht die ANTWORT (zwei flache Werte), nie die Ablage.
             'curve_label' => $kurve['enabled'],
             'curve_label_max' => $kurve['max_labels'],
@@ -3232,19 +3175,12 @@ function avesmapsUpdateEcosystemRegion(PDO $pdo, array $payload, int $userId): a
     $publicId = avesmapsEcosystemReadPublicId($payload['public_id'] ?? '', 'public_id');
     $before = avesmapsEcosystemRegionRow($pdo, $publicId);
     $fields = avesmapsEcosystemReadRegionFields($payload, (string) $before['kind']);
-    // 🔴 Der dritte Zustand VOR der Leer-Pruefung: ein Rumpf, der NUR das Haekchen umlegt, ist ein
-    // gueltiger Schreibvorgang. Danach zu pruefen hiesse, ihn mit „No updatable field was sent"
-    // abzulehnen -- und der Haken taete im Regionen-Editor nichts, ohne dass irgendwo etwas fehlschluege.
-    $effectiveWikiUrl = array_key_exists('wiki_url', $fields)
-        ? (string) ($fields['wiki_url'] ?? '')
-        : (string) ($before['wiki_url'] ?? '');
+    // 🔴 HIER STAND `$effectiveWikiUrl` -- die wirksame Adresse, gegen die der Widerspruchsriegel
+    // des dritten Zustands prueft. Mit dem Merker `properties.wiki_no_article` am 09.09.2026
+    // gefallen (Owner-Entscheid); niemand liest sie mehr.
     // 💣 DER AUTO-NAME-MERKER ZUERST. Beide Anwender schreiben `properties_json`, und der zweite
     // liest, was der erste in `$fields` gelegt hat -- andersherum wirft er dessen Ergebnis weg.
     $fields = array_merge($fields, avesmapsEcosystemApplyRegionAutoName($before, $payload, $fields));
-    $fields = array_merge(
-        $fields,
-        avesmapsEcosystemApplyRegionNoArticle($before, $payload, $fields, $effectiveWikiUrl)
-    );
     // Die Feldherkunft -- NACH dem Merker, weil beide in dasselbe `properties_json` schreiben.
     $fields = array_merge($fields, avesmapsEcosystemApplyRegionFieldOrigins($before, $payload, $fields));
     // Die Kurvenbeschriftung -- NACH den beiden darueber, weil alle drei in dasselbe
@@ -3827,9 +3763,12 @@ function avesmapsEcosystemPushWikiRegionToLabels(
         // 🔴 Eine Zuweisung beantwortet den dritten Zustand -- „kein Artikel" und „hier ist er"
         // schliessen einander aus. Jeder Schreiber von properties.wiki_region löscht den Merker;
         // gezählt wird über den ganzen api/-Baum in
-        // api/_internal/map/__tests__/label-wiki-no-article-test.php.
+        // 🔴 Gezaehlt wurde das bis zum 09.09.2026 in label-wiki-no-article-test.php ueber den
+        // ganzen api/-Baum. Der Merker ist an dem Tag global ausgebaut (Owner-Entscheid), die
+        // Zaehlung damit gegenstandslos und die Datei gefallen. Was an ihre Stelle getreten ist,
+        // zaehlt die Gegenrichtung: dass NIRGENDS mehr lebender Merker-Code steht
+        // (api/_internal/conflicts/__tests__/kein-wiki-eintrag-ist-weg-test.php, Abschnitt 6).
         $properties['wiki_region'] = $assignObject;
-        unset($properties['wiki_no_article']);
         $encoded = json_encode($properties, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         $propertiesJson = $encoded === false ? (string) $row['properties_json'] : $encoded;
         $update->execute([

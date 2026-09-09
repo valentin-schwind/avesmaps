@@ -926,13 +926,17 @@
 			// Handarbeit ueberschreiben, eine falsche „von uns"-Angabe schuetzt nur zu viel.
 			wiki_uebernommen: Array.from(wpWikiUebernommen)
 		};
-		// 🔴 KEIN `wiki_no_article` MEHR -- gefallen am 16.08.2026 mit dem Haekchen (Owner-Entscheid).
-		// Der Merker selbst bleibt; gesetzt wird er im Konfliktzentrum, wo die Entscheidung hingehoert
-		// (beim Weg wirkt sie ueber den ganzen Namensverbund, und das konnte das Haekchen nur nachbauen).
-		// 💣 TRAGBAR IST DAS NUR, WEIL avesmapsApplyPathWikiNoArticle EINEN FEHLENDEN SCHLUESSEL ALS
-		// „NICHT GEAENDERT" LIEST. Wer hier je wieder ein `rumpf.wiki_no_article = …` einbaut, prueft
-		// zuerst, ob der Zwilling in js/review/review-paths.js dasselbe tut -- einer allein loeschte den
-		// Merker beim Speichern der anderen Oberflaeche still wieder (AGENTS.md §11).
+		// 🔴 KEIN `wiki_no_article` MEHR. Am 16.08.2026 fiel das HAEKCHEN (Owner-Entscheid): gesetzt
+		// wurde der Merker seither nur noch im Konfliktzentrum, wo die Entscheidung hingehoert -- beim
+		// Weg wirkt sie ueber den ganzen Namensverbund, und das konnte das Haekchen nur nachbauen.
+		// Am 09.09.2026 ist der MERKER SELBST global ausgebaut (Owner-Entscheid nach Durchsicht aller
+		// 10 Traeger); sein Aequivalent ist die WIKI-ZUWEISUNG -- das Nest `wiki_path`, nie
+		// `properties.wiki_url`, die wird aus dem Namen abgeleitet.
+		// 💣 DIE BEGRUENDUNG WAR EINMAL EINE ANDERE: „tragbar nur, weil avesmapsApplyPathWikiNoArticle
+		// einen fehlenden Schluessel als 》nicht geaendert《 liest". Diesen Rechner gibt es nicht mehr --
+		// ein wieder eingebautes `rumpf.wiki_no_article` waere heute ein Schreiber OHNE Leser. Bewacht
+		// wird das ueber den ganzen Baum, nicht je Oberflaeche:
+		// api/_internal/conflicts/__tests__/kein-wiki-eintrag-ist-weg-test.php, Abschnitt 6.
 
 		postJson(FEATURES_URL, rumpf).then(function (response) {
 			if (!response || response.ok !== true) {

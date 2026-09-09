@@ -2254,11 +2254,12 @@ function wireEditBlocks(host) {
 			// sichere Richtung -- eine falsche „Wiki"-Angabe liesse einen späteren Abgleich eine
 			// Handarbeit überschreiben, eine falsche „von uns"-Angabe schützt nur zu viel.
 			payload.wiki_uebernommen = Array.from(wikiUebernommen);
-			// 🔴 KEIN `wiki_no_article` MEHR -- gefallen am 16.08.2026 mit dem Häkchen.
-			// 💣 TRAGBAR IST DAS, WEIL avesmapsEcosystemApplyRegionNoArticle BEIDE HÄLFTEN SCHON KANN:
-			// ein FEHLENDER Schlüssel heißt „nicht geändert" (die Entscheidung des Konfliktzentrums
-			// überlebt jedes Speichern hier), und eine ZUWEISUNG beantwortet den Merker serverseitig von
-			// selbst. Am Server war dafür keine Zeile zu ändern -- gemessen, nicht angenommen.
+			// 🔴 KEIN `wiki_no_article` MEHR. Zwei Stufen: am 16.08.2026 fiel das HÄKCHEN (die
+			// Entscheidung gehört ins Konfliktzentrum) -- tragbar, weil der Server damals beide Hälften
+			// schon konnte. Am 09.09.2026 ist der MERKER SELBST global ausgebaut (Owner-Entscheid); sein
+			// Äquivalent ist die WIKI-ZUWEISUNG, und es gibt serverseitig niemanden mehr, der einen
+			// mitgeschickten Schlüssel läse. Bewacht über den ganzen Baum:
+			// api/_internal/conflicts/__tests__/kein-wiki-eintrag-ist-weg-test.php, Abschnitt 6.
 			if (payload.name === "") {
 				message.textContent = "Ein Name ist Pflicht.";
 				message.className = "avm-savebar__msg bad";

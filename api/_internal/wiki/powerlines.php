@@ -170,12 +170,17 @@ function avesmapsWikiPowerlineDesiredNestsByMatchKey(array $sandboxRows): array
  * Linie als zugewiesen, sobald das Feld gefuellt ist -- ein Tippfehler nimmt sie also aus der
  * Beobachtungsliste, waehrend der Abgleich nichts holt. Sie saehe erledigt aus und waere es nicht.
  *
- * 💣 `clear_no_article` macht den Merker nur AUF, es weist nichts zu. Nach einem Namen zu raten und
- * daraus echte Daten zu machen ist die Fehlerklasse aus Discord #38.
+ * 🔴 HIER GAB ES EINEN VIERTEN RUECKGABEWERT, `clear_no_article`: er machte den Merker
+ * `properties.wiki_no_article` nur AUF und wies nichts zu -- nach einem Namen zu raten und daraus
+ * echte Daten zu machen ist die Fehlerklasse aus Discord #38. Der Merker ist am 09.09.2026 global
+ * ausgebaut (Owner-Entscheid nach Durchsicht aller 10 Traeger), sein Aequivalent ist die
+ * WIKI-ZUWEISUNG -- und die setzt dieser Lauf ohnehin.
+ * ⚠️ Die Warnung darueber gilt unveraendert fuer alles, was hier je hinzukommt: dieser Loeser
+ * ENTSCHEIDET, welcher Eintrag passt. Er darf aus einem Namenstreffer nie echte Daten machen.
  *
  * @param array<string, array{name:string, nest:array}> $stagedByMatchKey
  * @param array<string, array{name:string, nest:array}> $stagedByArticleKey
- * @return array{entry: ?array, source: string, claim_unresolved: bool, clear_no_article: bool}
+ * @return array{entry: ?array, source: string, claim_unresolved: bool}
  */
 function avesmapsWikiPowerlineResolveSegment(
     string $name,
@@ -192,9 +197,6 @@ function avesmapsWikiPowerlineResolveSegment(
                 'entry' => $stagedByArticleKey[$articleKey],
                 'source' => 'claim',
                 'claim_unresolved' => false,
-                // Zuweisung und Merker schliessen einander aus (der Schreibweg lehnt es ab);
-                // faende sich doch beides, gewinnt die Zuweisung und der Merker faellt.
-                'clear_no_article' => !empty($properties['wiki_no_article']),
             ];
         }
         $claimUnresolved = true;
@@ -207,7 +209,6 @@ function avesmapsWikiPowerlineResolveSegment(
         'entry' => $entry,
         'source' => $entry === null ? 'none' : 'name',
         'claim_unresolved' => $claimUnresolved,
-        'clear_no_article' => $entry !== null && !empty($properties['wiki_no_article']),
     ];
 }
 
@@ -215,10 +216,13 @@ function avesmapsWikiPowerlineResolveSegment(
  * REIN: Was ist mit diesen Segmenten zu tun? Kein PDO, kein Schreiben -- nur die Entscheidung.
  *
  * Genau der Teil von avesmapsWikiPowerlineReconcile, der bisher nur in der datenbankgebundenen
- * Schleife lebte und deshalb von keinem Test erreicht wurde -- exakt die zwei vom Aufgabenblatt
- * als 💣 markierten Stellen (Artikel- statt Linienschluessel in matched_keys; die eigene
- * Schreibbedingung fuer den reinen Merker-Fall) sassen darin ungeschuetzt. Hausform wie
- * api/_internal/conflicts/core.php: reiner Kern, duenne Datenbankschale.
+ * Schleife lebte und deshalb von keinem Test erreicht wurde -- die vom Aufgabenblatt als 💣
+ * markierten Stellen sassen darin ungeschuetzt. Hausform wie api/_internal/conflicts/core.php:
+ * reiner Kern, duenne Datenbankschale.
+ * ⚠️ Es waren ZWEI: der Artikel- statt Linienschluessel in `matched_keys` (steht weiter) und die
+ * eigene Schreibbedingung fuer den reinen Merker-Fall -- die ist am 09.09.2026 mit
+ * `properties.wiki_no_article` gefallen (Owner-Entscheid). Die Zahl steht deshalb nicht mehr im
+ * Satz: sie liest sich wie eine vollstaendige Liste, und niemand zaehlt nach (AGENTS.md §11).
  *
  * @param list<array{id:int, name:string, properties:array}> $segmentRows
  * @param array<string, array{name:string, nest:array}> $stagedByMatchKey
@@ -229,14 +233,13 @@ function avesmapsWikiPowerlineResolveSegment(
  *     matched_keys: array<string, bool>,
  *     claims_unresolved: int,
  *     claims_orphaned: list<array{name:string, wiki_url:string}>,
- *     no_article_reopened: string[]
  * }
  */
 function avesmapsWikiPowerlineDecideSegments(array $segmentRows, array $stagedByMatchKey, array $stagedByArticleKey): array
 {
     $counts = ['linked' => 0, 'updated' => 0, 'cleared' => 0, 'unchanged' => 0];
     $matchedKeys = [];
-    // 💣 Die drei Meldungen zaehlen je LINIE, nicht je Segment -- alles andere ist der Fehler aus
+    // 💣 Die Meldungen zaehlen je LINIE, nicht je Segment -- alles andere ist der Fehler aus
     // Discord #71 (erste Haelfte, "zaehlte je Segment statt je Linie") an neuer Stelle. Gemessen an
     // zwei Linien mit 6 und 2 Segmenten stand hier 8 statt 2, und dieselbe Linie sechsmal in der
     // Liste. Entdoppelt ueber den Namen -- er IST die Linie (Entwurf §2.1: der Name ist das Band,
@@ -247,7 +250,6 @@ function avesmapsWikiPowerlineDecideSegments(array $segmentRows, array $stagedBy
     // GESCHRIEBEN wird weiter je Segment: der Merker sitzt in jedem einzelnen properties-Nest.
     $claimsUnresolvedLines = [];
     $claimsOrphanedByLine = [];
-    $noArticleReopenedByLine = [];
     $writes = [];
 
     foreach ($segmentRows as $row) {
@@ -278,29 +280,23 @@ function avesmapsWikiPowerlineDecideSegments(array $segmentRows, array $stagedBy
             }
         }
 
-        $forceWrite = false;
-        if ($resolved['clear_no_article']) {
-            unset($properties['wiki_no_article']);
-            // Gemeldet je Linie, geschrieben je Segment: $forceWrite steht bewusst ausserhalb der
-            // Entdopplung, sonst bliebe der Merker auf fuenf von sechs Segmenten stehen.
-            $noArticleReopenedByLine[$lineKey] = $name;
-            $forceWrite = true;
-        }
-
+        // 🔴 HIER RAEUMTE DER ABGLEICH DEN MERKER WEG und meldete die Linie als
+        // `no_article_reopened`. Gefallen am 09.09.2026 mit `properties.wiki_no_article`
+        // (Owner-Entscheid); sein Aequivalent ist die WIKI-ZUWEISUNG, die dieser Lauf ohnehin setzt.
+        // 💣 MIT IHM FAELLT DIE ZWEITE SCHREIBBEDINGUNG, und das ist die eigentliche Vereinfachung:
+        // `$merged['changed']` konnte FALSCH sein, obwohl geschrieben werden musste -- fiel nur der
+        // Merker, blieb das Nest gleich (Falle 2 des Aufgabenblatts). Dafuer gab es ein
+        // `$forceWrite` neben der Bedingung. Beides ist weg: geschrieben wird jetzt genau dann,
+        // wenn sich das Nest wirklich aendert, und `$counts` folgt derselben einen Bedingung.
         $merged = avesmapsWikiPowerlineMergeProperties(
             $properties,
             $entry === null ? null : $entry['nest']
         );
-        if (!$merged['changed'] && !$forceWrite) {
+        if (!$merged['changed']) {
             $counts['unchanged']++;
             continue;
         }
-        // $merged['changed'] kann false sein, obwohl geschrieben werden muss: fiel nur der
-        // wiki_no_article-Merker, blieb das Nest gleich -- ohne diese eigene Schreibbedingung
-        // bliebe der Merker fuer immer stehen (Falle 2 aus dem Aufgabenblatt).
-        if ($merged['changed']) {
-            $counts[$merged['action']]++;
-        }
+        $counts[$merged['action']]++;
         $writes[] = [
             'id' => (int) ($row['id'] ?? 0),
             'properties' => $merged['properties'],
@@ -314,7 +310,6 @@ function avesmapsWikiPowerlineDecideSegments(array $segmentRows, array $stagedBy
         'matched_keys' => $matchedKeys,
         'claims_unresolved' => count($claimsUnresolvedLines),
         'claims_orphaned' => array_values($claimsOrphanedByLine),
-        'no_article_reopened' => array_values($noArticleReopenedByLine),
     ];
 }
 
@@ -331,7 +326,10 @@ function avesmapsWikiPowerlineDecideSegments(array $segmentRows, array $stagedBy
  * The join is the NAME (avesmapsWikiSyncCreateMatchKey), because a powerline is many segments
  * sharing one lore name -- the same 1-to-N shape roads have.
  *
- * @return array{linked:int, updated:int, cleared:int, unchanged:int, staged:int, matched_names:int, unmatched_names:string[], claims_unresolved:int, claims_orphaned:list<array{name:string,wiki_url:string}>, no_article_reopened:string[]}
+ * ⚠️ `no_article_reopened` stand hier bis zum 09.09.2026 mit in der Rueckgabe -- die Linien, deren
+ * Merker der Lauf aufgemacht hat. Gefallen mit `properties.wiki_no_article` (Owner-Entscheid).
+ *
+ * @return array{linked:int, updated:int, cleared:int, unchanged:int, staged:int, matched_names:int, unmatched_names:string[], claims_unresolved:int, claims_orphaned:list<array{name:string,wiki_url:string}>}
  */
 function avesmapsWikiPowerlineReconcile(PDO $pdo, int $userId): array
 {
@@ -377,7 +375,6 @@ function avesmapsWikiPowerlineReconcile(PDO $pdo, int $userId): array
     $matchedKeys = $decision['matched_keys'];
     $claimsUnresolved = $decision['claims_unresolved'];
     $claimsOrphaned = $decision['claims_orphaned'];
-    $noArticleReopened = $decision['no_article_reopened'];
 
     $update = $pdo->prepare(
         'UPDATE map_features SET properties_json = :props, revision = :revision, updated_by = :user WHERE id = :id'
@@ -453,7 +450,6 @@ function avesmapsWikiPowerlineReconcile(PDO $pdo, int $userId): array
         'unmatched_names' => $unmatched,
         'claims_unresolved' => $claimsUnresolved,
         'claims_orphaned' => $claimsOrphaned,
-        'no_article_reopened' => $noArticleReopened,
         'sandbox_rows' => count($sandboxRows),
         'run_id' => $runId,
         'run_completed_at' => (string) ($runRow['completed_at'] ?? ''),

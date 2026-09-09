@@ -947,21 +947,23 @@ function avesmapsWikiPathAssign(PDO $pdo, string $wikiKey, bool $dryRun, int $us
             $newName = $canonicalName !== '' ? $canonicalName : (string) $p['name'];
             $props = avesmapsWikiSyncDecodeJson($p['properties_json'] ?? null);
             $props['wiki_path'] = $assignObject;
-            // 🔴 EINE ZUWEISUNG LOESCHT DEN MERKER „kein Wiki-Artikel". Wer gerade einen Artikel
-            // zuweist, hat das fruehere „es gibt keinen" widerlegt -- beides zugleich ist der
-            // verbotene Zustand (avesmapsAssertWikiClaimNotContradictory). Wortgleiches Vorbild:
-            // der Ort (avesmapsWikiSettlementAssignTo) und der Kraftlinien-Abgleich
-            // (api/_internal/wiki/powerlines.php).
-            // 💣 UND DIE ZEILE MUSS IN JEDEM ZUWEISER STEHEN. Hier stand am 16.08.2026 „DER WEG HAT
-            // ZWEI ZUWEISER" samt Namen -- es sind DREI (avesmapsWikiPathAssignAll fehlte), und der
-            // Pruefer hat es gefunden, nicht ich. Genau die Falle aus AGENTS.md §11: eine ZAHL im
-            // Kommentar liest sich wie eine vollstaendige Liste, und niemand zaehlt nach. Deshalb
-            // steht hier keine mehr -- gezaehlt wird im Test (weg-wiki-no-article-test.php,
-            // Zusicherung 7): er sucht JEDE Funktion, die `$props['wiki_path'] = ` schreibt, und
-            // verlangt von jeder diese Zeile. Ein vierter Zuweiser faellt damit von selbst durch.
-            // ⚠️ `clear_assign` tut das ausdruecklich NICHT: „diese Verbindung war falsch" ist
-            // nicht „es gibt keinen Artikel".
-            unset($props['wiki_no_article']);
+            // 🔴 HIER LOESCHTE EINE ZUWEISUNG DEN MERKER „kein Wiki-Artikel": wer gerade einen
+            // Artikel zuweist, hat das fruehere „es gibt keinen" widerlegt, und beides zugleich war
+            // der verbotene Zustand (avesmapsAssertWikiClaimNotContradictory, der geteilte Riegel).
+            // Gefallen am 09.09.2026 mit `properties.wiki_no_article` (Owner-Entscheid nach
+            // Durchsicht aller 10 Traeger); sein Aequivalent ist die WIKI-ZUWEISUNG -- also genau
+            // das Nest, das diese Zeilen ohnehin setzen.
+            // 💣 DIE ZEILE MUSSTE IN JEDEM ZUWEISER STEHEN, und die Lehre daraus gilt weiter, auch
+            // wenn die Zeile weg ist: hier stand am 16.08.2026 „DER WEG HAT ZWEI ZUWEISER" samt
+            // Namen -- es sind DREI (avesmapsWikiPathAssignAll fehlte), und ein Pruefer hat es
+            // gefunden, nicht der Autor. Eine ZAHL im Kommentar liest sich wie eine vollstaendige
+            // Liste, und niemand zaehlt nach (AGENTS.md §11). Deshalb steht hier weiterhin keine.
+            // ⚠️ Gezaehlt wurde in weg-wiki-no-article-test.php (Zusicherung 7): er suchte JEDE
+            // Funktion, die `$props['wiki_path'] = ` schreibt, und verlangte von jeder das Loeschen
+            // des Merkers -- ein vierter Zuweiser fiel damit von selbst durch. Der Merker ist am
+            // 09.09.2026 global ausgebaut (Owner-Entscheid), die Zaehlung gegenstandslos, die Datei
+            // gefallen. 🔴 EIN VIERTER ZUWEISER FAELLT SEITHER NICHT MEHR VON SELBST DURCH -- wer
+            // einen anlegt, hat hier keinen Waechter mehr im Ruecken.
             $props['name'] = $newName;
             $props['display_name'] = $newName;
             $update->execute(['name' => $newName, 'pj' => avesmapsWikiSyncEncodeJson($props), 'rev' => $revision, 'id' => (int) $p['id']]);
@@ -1059,21 +1061,23 @@ function avesmapsWikiPathAssignTo(PDO $pdo, string $wikiKey, string $publicId, b
             $newName = $canonicalName !== '' ? $canonicalName : (string) $p['name'];
             $props = avesmapsWikiSyncDecodeJson($p['properties_json'] ?? null);
             $props['wiki_path'] = $assignObject;
-            // 🔴 EINE ZUWEISUNG LOESCHT DEN MERKER „kein Wiki-Artikel". Wer gerade einen Artikel
-            // zuweist, hat das fruehere „es gibt keinen" widerlegt -- beides zugleich ist der
-            // verbotene Zustand (avesmapsAssertWikiClaimNotContradictory). Wortgleiches Vorbild:
-            // der Ort (avesmapsWikiSettlementAssignTo) und der Kraftlinien-Abgleich
-            // (api/_internal/wiki/powerlines.php).
-            // 💣 UND DIE ZEILE MUSS IN JEDEM ZUWEISER STEHEN. Hier stand am 16.08.2026 „DER WEG HAT
-            // ZWEI ZUWEISER" samt Namen -- es sind DREI (avesmapsWikiPathAssignAll fehlte), und der
-            // Pruefer hat es gefunden, nicht ich. Genau die Falle aus AGENTS.md §11: eine ZAHL im
-            // Kommentar liest sich wie eine vollstaendige Liste, und niemand zaehlt nach. Deshalb
-            // steht hier keine mehr -- gezaehlt wird im Test (weg-wiki-no-article-test.php,
-            // Zusicherung 7): er sucht JEDE Funktion, die `$props['wiki_path'] = ` schreibt, und
-            // verlangt von jeder diese Zeile. Ein vierter Zuweiser faellt damit von selbst durch.
-            // ⚠️ `clear_assign` tut das ausdruecklich NICHT: „diese Verbindung war falsch" ist
-            // nicht „es gibt keinen Artikel".
-            unset($props['wiki_no_article']);
+            // 🔴 HIER LOESCHTE EINE ZUWEISUNG DEN MERKER „kein Wiki-Artikel": wer gerade einen
+            // Artikel zuweist, hat das fruehere „es gibt keinen" widerlegt, und beides zugleich war
+            // der verbotene Zustand (avesmapsAssertWikiClaimNotContradictory, der geteilte Riegel).
+            // Gefallen am 09.09.2026 mit `properties.wiki_no_article` (Owner-Entscheid nach
+            // Durchsicht aller 10 Traeger); sein Aequivalent ist die WIKI-ZUWEISUNG -- also genau
+            // das Nest, das diese Zeilen ohnehin setzen.
+            // 💣 DIE ZEILE MUSSTE IN JEDEM ZUWEISER STEHEN, und die Lehre daraus gilt weiter, auch
+            // wenn die Zeile weg ist: hier stand am 16.08.2026 „DER WEG HAT ZWEI ZUWEISER" samt
+            // Namen -- es sind DREI (avesmapsWikiPathAssignAll fehlte), und ein Pruefer hat es
+            // gefunden, nicht der Autor. Eine ZAHL im Kommentar liest sich wie eine vollstaendige
+            // Liste, und niemand zaehlt nach (AGENTS.md §11). Deshalb steht hier weiterhin keine.
+            // ⚠️ Gezaehlt wurde in weg-wiki-no-article-test.php (Zusicherung 7): er suchte JEDE
+            // Funktion, die `$props['wiki_path'] = ` schreibt, und verlangte von jeder das Loeschen
+            // des Merkers -- ein vierter Zuweiser fiel damit von selbst durch. Der Merker ist am
+            // 09.09.2026 global ausgebaut (Owner-Entscheid), die Zaehlung gegenstandslos, die Datei
+            // gefallen. 🔴 EIN VIERTER ZUWEISER FAELLT SEITHER NICHT MEHR VON SELBST DURCH -- wer
+            // einen anlegt, hat hier keinen Waechter mehr im Ruecken.
             $props['name'] = $newName;
             $props['display_name'] = $newName;
             $update = $pdo->prepare('UPDATE map_features SET name = :name, properties_json = :pj, revision = :rev WHERE id = :id');
@@ -1142,12 +1146,11 @@ function avesmapsWikiPathAssignAll(PDO $pdo, string $continentFilter, bool $dryR
             $revision ??= avesmapsWikiSyncNextMapRevision($pdo);
             $props = avesmapsWikiSyncDecodeJson($p['properties_json'] ?? null);
             $props['wiki_path'] = $byKey[$key];
-            // 🔴 EINE ZUWEISUNG LOESCHT DEN MERKER „kein Wiki-Artikel" -- derselbe Satz wie in den
-            // zwei Zuweisern darueber. Dieser dritte fehlte in der ersten Fassung von Aufgabe 5c:
-            // ein Weg, den der Massenlauf `assign_all` verknuepft, haette danach einen Artikel UND
-            // den Merker getragen und waere durch die Konfliktregel (conflicts/rules.php) still aus
-            // der Beobachtungsliste gefallen.
-            unset($props['wiki_no_article']);
+            // 🔴 HIER LOESCHTE DER DRITTE ZUWEISER DEN MERKER „kein Wiki-Artikel". Er fehlte in der
+            // ersten Fassung von Aufgabe 5c: ein Weg, den der Massenlauf `assign_all` verknuepft,
+            // haette danach einen Artikel UND den Merker getragen und waere durch die Konfliktregel
+            // still aus der Beobachtungsliste gefallen. Gefallen am 09.09.2026 mit
+            // `properties.wiki_no_article` (Owner-Entscheid).
             $update->execute(['pj' => avesmapsWikiSyncEncodeJson($props), 'rev' => $revision, 'id' => (int) $p['id']]);
         }
     }

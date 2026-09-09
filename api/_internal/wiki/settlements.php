@@ -1133,13 +1133,14 @@ function avesmapsWikiSettlementAssignTo(PDO $pdo, string $title, string $publicI
     $props = avesmapsWikiSyncDecodeJson($target['properties_json'] ?? null);
     $props['wiki_settlement'] = $settlement;
     unset($props['description']); // Beschreibung weg — Infobox ersetzt sie.
-    // 🔴 EINE ZUWEISUNG LÖSCHT DEN MERKER „kein Wiki-Artikel". Beides zugleich ist der verbotene
-    // Zustand, den `update_point` ablehnt (avesmapsApplyPointWikiFields) — und hier ist die Antwort
-    // eindeutig: wer gerade einen Artikel zuweist, hat die frühere Aussage „es gibt keinen"
-    // widerlegt. Wortgleiches Vorbild: der Kraftlinien-Abgleich, api/_internal/wiki/powerlines.php:283.
-    // ⚠️ `clear_assign` macht das NICHT rückgängig: eine Verbindung zu lösen heißt nicht, dass es
-    // keinen Artikel gibt.
-    unset($props['wiki_no_article']);
+    // 🔴 HIER LÖSCHTE EINE ZUWEISUNG DEN MERKER „kein Wiki-Artikel". Beides zugleich war der
+    // verbotene Zustand, den `update_point` ablehnte (avesmapsApplyPointWikiFields) — und die
+    // Antwort war eindeutig: wer gerade einen Artikel zuweist, hat die frühere Aussage „es gibt
+    // keinen" widerlegt. `clear_assign` machte das ausdrücklich NICHT rückgängig: eine Verbindung
+    // zu lösen heißt nicht, dass es keinen Artikel gibt — die feinste Unterscheidung des ganzen
+    // Merkers, und sie ist mit ihm gefallen (09.09.2026, Owner-Entscheid nach Durchsicht aller
+    // 10 Träger). Sein Äquivalent ist die WIKI-ZUWEISUNG, also genau das Nest, das die Zeile
+    // darüber setzt.
     $update = $pdo->prepare('UPDATE map_features SET properties_json = :pj, revision = :rev WHERE id = :id');
     $update->execute(['pj' => avesmapsWikiSyncEncodeJson($props), 'rev' => $revision, 'id' => (int) $target['id']]);
     avesmapsWikiSettlementAuditAssignment($pdo, $auditBefore, $props, $revision, $userId);

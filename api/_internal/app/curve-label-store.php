@@ -49,9 +49,12 @@ function avesmapsCurveLabelSettingsFromProperties(?array $properties): array
 // Fehler wie in avesmapsUpsertGameLiterature, das jedes MITGESCHICKTE Feld schrieb statt jedes
 // GEAENDERTEN (AGENTS.md §11, Wiki-Override).
 //
-// 🔴 „Aus“ ENTFERNT den Schluessel, statt `false` abzulegen -- dieselbe Regel wie beim Merker
-// wiki_no_article nebenan (avesmapsEcosystemApplyRegionNoArticle): der Leser oben haelt einen
-// fehlenden Schluessel ohnehin fuer „aus“, und ein `false` waere ein zweiter Weg, dasselbe zu sagen.
+// 🔴 „Aus“ ENTFERNT den Schluessel, statt `false` abzulegen: der Leser oben haelt einen fehlenden
+// Schluessel ohnehin fuer „aus“, und ein `false` waere ein zweiter Weg, dasselbe zu sagen.
+// ⚠️ Diese Regel stand hier als „dieselbe wie beim Merker wiki_no_article nebenan
+// (avesmapsEcosystemApplyRegionNoArticle)“. Der Merker ist am 09.09.2026 global ausgebaut
+// (Owner-Entscheid), die Funktion daneben gibt es nicht mehr -- die Regel gilt unveraendert und
+// steht seither ohne den Verweis da.
 //
 // ⚠️ Die Zahl laeuft durch avesmapsCurveClampMaxLabels -- den EINEN Deckel dieser Datei, nie
 // durch eine abgeschriebene 3.

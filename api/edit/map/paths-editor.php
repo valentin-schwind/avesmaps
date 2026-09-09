@@ -186,15 +186,16 @@ function avesmapsPathEditorList(PDO $pdo): array
             ],
             // Katalogquellen an diesem Abschnitt -- der Filter „Quelle" der Liste zaehlt sie.
             'source_count' => $sourceCounts[(string) $row['public_id']] ?? 0,
-            // Der dritte Zustand („dieser Weg hat KEINEN Wiki-Artikel"). Der Wege-Editor zeichnet
-            // damit sein Haekchen und weiss, ob ein Speichern den Merker aendert.
-            // 💣 DIESE LISTE IST EINE WEISSE LISTE -- was hier nicht steht, erreicht den Editor nie.
-            // Ohne diese Zeile staende das Haekchen bei JEDEM Weg leer da, auch bei einem, fuer den
-            // laengst jemand entschieden hat; der Kartendialog daneben bekaeme es (der Kartenpayload
-            // reicht alle Eigenschaften durch) und die zwei Oberflaechen zeigten Verschiedenes.
-            'wiki_no_article' => !empty($properties['wiki_no_article']),
-            // Die FELDHERKUNFT (`{feature_subtype: "manual"|"wiki"}`) -- und sie muss aus demselben
-            // Grund hier stehen wie der Merker darueber: die Liste ist eine WEISSE LISTE. Ohne diese
+            // 🔴 HIER STAND DER DRITTE ZUSTAND („dieser Weg hat KEINEN Wiki-Artikel"): der
+            // Wege-Editor zeichnete damit sein Haekchen und wusste, ob ein Speichern den Merker
+            // aendert. Gefallen am 09.09.2026 mit `properties.wiki_no_article` (Owner-Entscheid).
+            // 💣 SEINE BEGRUENDUNG GILT FUER JEDE ZEILE DIESER LISTE, und deshalb steht sie hier:
+            // DIE LISTE IST EINE WEISSE LISTE -- was hier nicht steht, erreicht den Editor nie. Ohne
+            // die Zeile stand das Haekchen bei JEDEM Weg leer da, auch bei einem, fuer den laengst
+            // jemand entschieden hatte; der Kartendialog daneben bekam es (der Kartenpayload reicht
+            // alle Eigenschaften durch), und die zwei Oberflaechen zeigten Verschiedenes.
+            // Die FELDHERKUNFT (`{feature_subtype: "manual"|"wiki"}`) muss aus genau diesem Grund
+            // hier stehen. Ohne diese
             // Zeile bliebe die Beschriftung im Editor fuer immer grau, obwohl der Server die Herkunft
             // pflegt, und das Vorhaekeln der Sync-Vorschau verhielte sich, als haette nie jemand
             // etwas von Hand gesetzt. Ein `(object)` waere hier falsch: der Browser prueft auf ein

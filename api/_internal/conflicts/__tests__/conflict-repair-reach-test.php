@@ -213,11 +213,16 @@ $single = avesmapsConflictLinkFeature($pdo, 'loc-1', $wikiTitles, 7);
 assert($single['written'] === 1, 'ein Ort ist eine Zeile');
 assert($claimOf($pdo, 'loc-2') === '', 'das gleichnamige Nachbardorf bleibt unberuehrt');
 
-// === 6) 》Trennen《 fasst die Linie -- und RAEUMT den Altbestand-Merker weg =====================
+// === 6) 》Trennen《 fasst die Linie -- und LAESST den Altbestand-Merker in Ruhe =================
 // 🔴 HIER STAND 》Kein Wiki-Eintrag《 (Modus `no_wiki`), der Ausloeser des Reichweiten-Umbaus. Das
 // Verb ist am 09.09.2026 mit dem Merker `properties.wiki_no_article` gefallen: es setzte ihn,
 // damit 》Trennen《 haelt -- und seit dem Rueckbau des Ratewegs (`420f12cfc`) haelt 》Trennen《 von
 // allein. Die REICHWEITE bleibt geprueft, sie war nie an das Verb gebunden.
+// ⚠️ UND 》Trennen《 RAEUMT DEN MERKER AUCH NICHT MEHR WEG. Zwischen Schritt 1 und Schritt 3 des
+// Ausbaus tat es das noch -- als Rest der alten Weiche, „damit jedes Trennen einen Traeger nebenbei
+// heilt". Das ist zurueckgenommen: ein Schreibpfad, der nebenbei ein fremdes Feld wegraeumt, macht
+// aus dem Ausbau eine verstreute zweite Reparatur und veraendert die Bestandszahl bei jedem Klick,
+// waehrend die einmalige Reparatur (Schritt 4, Admin-Aktion mit Trockenlauf-Vorgabe) sie messen soll.
 $seed($pdo);
 avesmapsConflictLinkFeature($pdo, 'pl-1', $wikiTitles, 7);
 // Ein Segment traegt den Merker noch aus alter Zeit -- genau der Bestand, den Schritt 4 raeumt.
@@ -228,8 +233,14 @@ assert($marked['ok'] === true);
 assert($marked['written'] === 6, 'das Trennen gilt der Linie, nicht dem Segment');
 for ($i = 1; $i <= 6; $i++) {
     assert($claimOf($pdo, 'pl-' . $i) === '', 'Segment pl-' . $i . ' ist geloest');
-    // ⚠️ Und KEINES traegt den Merker -- weder das praeparierte noch ein neu geschriebenes.
-    assert($hasNoArticleFlag($pdo, 'pl-' . $i) === false, 'Segment pl-' . $i . ' traegt keinen Merker mehr');
+}
+// 🚩 Der praeparierte Traeger behaelt seinen toten Schluessel -- niemand liest ihn, und Schritt 4
+// zaehlt ihn. ⚠️ Die Gegenprobe gehoert dazu: das Trennen LEGT auch keinen an, sonst waere aus dem
+// Wegraeumer lautlos wieder ein Schreiber geworden.
+assert($hasNoArticleFlag($pdo, 'pl-4') === true,
+    'das Trennen raeumt den Altbestand-Merker weg -- das gehoert der einmaligen Bestandsreparatur');
+foreach ([1, 2, 3, 5, 6] as $i) {
+    assert($hasNoArticleFlag($pdo, 'pl-' . $i) === false, 'Segment pl-' . $i . ' hat einen Merker BEKOMMEN');
 }
 // 🔴 RUECKBAU-WAECHTER: die Aktion darf gar nicht mehr entstehen. Historische Zeilen bleiben im
 // Protokoll stehen (ein Protokoll ist ein Archiv) -- aber neu geschrieben wird nur `conflict_unlink`.

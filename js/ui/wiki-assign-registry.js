@@ -113,21 +113,24 @@ const AVESMAPS_WIKI_ASSIGN_REGISTRY = {
 			// Reparatur-Verben des Konfliktzentrums (avesmapsConflictRepairSpansNameGroup), und das
 			// Haekchen konnte diese Reichweite nur NACHBAUEN. Zwei Knoepfe mit derselben Reichweite an
 			// zwei Orten sind eine Divergenz, die auf ihren ersten Unterschied wartet.
-			// 🔴 AM 09.09.2026 IST AUCH DAS FELD GEFALLEN. Hier stand „WEG IST NUR DAS BEDIENELEMENT" --
-			// die Leseseite ehre den Merker, die Konfliktregel lese ihn fuer `path`, gesetzt werde er im
-			// Konfliktzentrum. Keine der drei Aussagen gilt noch: die Ausnahme in `rules.php` ist weg, der
-			// Knopf ist weg, und der Riegel in `avesmapsEnrichMapFeatureWikiUrl` faellt in Schritt 3.
-			// Der SCHREIBWEG avesmapsApplyPathWikiNoArticle steht bis dahin noch -- er kann den Merker
-			// aber nur noch loeschen, weil kein Bedienelement ihn mehr setzt.
-			// 💣 UND KEINE DER BEIDEN OBERFLAECHEN SCHICKT IHN NOCH MIT (buildPathEditPayload in
-			// js/review/review-paths.js, saveDraft in js/pages/wege-editor.js). Das ist tragbar, WEIL
-			// avesmapsApplyPathWikiNoArticle einen fehlenden Schluessel als „nicht geaendert" liest und
-			// JEDER Zuweiser den Merker selbst loescht (drei -- gezaehlt im Test, nicht aufgezaehlt).
-			// Ohne die erste Haelfte loeschte jedes Speichern die Entscheidung des Konfliktzentrums.
-			// 🪤 UND DAS SETZEN LEERT WEITERHIN EINE GESPEICHERTE FLACHE `properties.wiki_url`
-			// (Owner-Entscheid 16.08.2026, ausgeschrieben an der Schreibstelle). Das ist KEINE Regel des
-			// Haekchens gewesen, sondern eine des Merkers -- sie gilt jetzt fuer die Reparatur des
-			// Konfliktzentrums genauso und bleibt deshalb unangetastet.
+			// 🔴 AM 09.09.2026 IST AUCH DAS FELD GEFALLEN, und zwar GANZ. Hier stand „WEG IST NUR DAS
+			// BEDIENELEMENT" -- die Leseseite ehre den Merker, die Konfliktregel lese ihn fuer `path`,
+			// gesetzt werde er im Konfliktzentrum. Keine der drei Aussagen gilt noch.
+			// ⚠️ UND DER ZWISCHENSTAND, DER HIER EINEN TAG LANG STAND, GILT EBENFALLS NICHT MEHR: er
+			// sagte, der Riegel in `avesmapsEnrichMapFeatureWikiUrl` falle „in Schritt 3" und der
+			// SCHREIBWEG avesmapsApplyPathWikiNoArticle stehe „bis dahin noch". Schritt 3 ist gefahren --
+			// beide sind weg, ebenso der Widerspruchsriegel und die drei Zuweiser-Zeilen. Es gibt
+			// serverseitig KEINEN Leser und KEINEN Schreiber mehr.
+			// 💣 DAMIT IST AUCH DIE ALTE BEGRUENDUNG HINFAELLIG, WARUM DIE ZWEI OBERFLAECHEN IHN
+			// WEGLASSEN DUERFEN („weil avesmapsApplyPathWikiNoArticle einen fehlenden Schluessel als
+			// 》nicht geaendert《 liest"). Heute waere ein mitgeschickter Schluessel schlicht ein Schreiber
+			// OHNE Leser. Bewacht wird das seither nicht mehr je Oberflaeche, sondern ueber den ganzen
+			// Baum: api/_internal/conflicts/__tests__/kein-wiki-eintrag-ist-weg-test.php, Abschnitt 6.
+			// 🪤 EINE REGEL HAT DEN MERKER UEBERLEBT, und sie gehoerte ihm nie: das Setzen LEERTE eine
+			// gespeicherte flache `properties.wiki_url` (Owner-Entscheid 16.08.2026). Das war eine Regel
+			// ueber die flache Adresse, nicht ueber das Haekchen -- und die flache Adresse ist seit
+			// `420f12cfc` ohnehin nur noch ein Rueckfall fuer Objekte OHNE Zuweisung. Gemessen wird die
+			// Zuweisung am NEST (`wiki_path`), nie an `properties.wiki_url`.
 		},
 	},
 	ort: {
@@ -292,14 +295,16 @@ const AVESMAPS_WIKI_ASSIGN_REGISTRY = {
 			// sei damit faktisch tot. Jetzt ist der Merker UEBERALL gefallen -- es gibt kein
 			// Konfliktzentrum-Verb mehr, das ihn setzt, und keinen Leser, der ihn liest. Was fuer die
 			// Flaeche schon galt, gilt seither fuer alle acht Objektarten.
-			// ⚠️ WEG IST NUR DAS BEDIENELEMENT. Die Spalte `ecosystem_region.properties_json`, der
-			// Leseweg (`list_regions`) und der Schreibweg (`update_region`,
-			// avesmapsEcosystemApplyRegionNoArticle) bleiben unveraendert.
-			// ⭐ BEIDE Oberflaechen schicken `wiki_no_article` ab jetzt GAR NICHT mehr, und das ist
-			// tragbar, weil avesmapsEcosystemApplyRegionNoArticle schon beide Haelften kann: ein
-			// fehlender Schluessel heisst „nicht geaendert", und eine ZUWEISUNG beantwortet den Merker
-			// von selbst (`if (!$gefordert && $noArticle && $effectiveWikiUrl !== '')`). Der Server
-			// braucht dafuer keine Zeile Aenderung -- gemessen, nicht angenommen.
+			// 🔴 UND SEIT DEM 09.09.2026 IST AUCH DER SERVERTEIL GEFALLEN. Hier stand: „WEG IST NUR DAS
+			// BEDIENELEMENT -- die Spalte `ecosystem_region.properties_json`, der Leseweg (`list_regions`)
+			// und der Schreibweg (`update_region`, avesmapsEcosystemApplyRegionNoArticle) bleiben
+			// unveraendert", und weiter: beide Oberflaechen duerften den Schluessel weglassen, weil jener
+			// Rechner beide Haelften schon konnte (ein fehlender Schluessel hiess „nicht geaendert", eine
+			// ZUWEISUNG beantwortete den Merker von selbst). Das stimmte -- am 16.08.2026.
+			// ⚠️ Heute gibt es die Funktion nicht mehr, und damit auch nicht die Begruendung: eine
+			// Oberflaeche, die `wiki_no_article` wieder schickte, waere ein Schreiber OHNE Leser. Die
+			// Ablage `properties_json` bleibt natuerlich, sie traegt ein Dutzend anderer Schluessel; nur
+			// dieser eine wird von niemandem mehr gelesen und einmalig per Admin-Aktion geraeumt.
 		},
 	},
 	// 🔴 DIE ZWEITE HAELFTE DER LANDSCHAFT -- und eine EIGENE Objektart, gemessen, nicht angenommen.
