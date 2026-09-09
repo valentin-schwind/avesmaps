@@ -14,6 +14,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/garetien-abgleich.php';
 require_once __DIR__ . '/garetien-abruf.php';
+require_once __DIR__ . '/garetien-verbund.php';
 require_once __DIR__ . '/../wiki/sync-plan.php';
 
 /** Die Art, unter der dieser Import in der Vorschau steht. */
@@ -590,9 +591,16 @@ function avesmapsGaretienArtikelQuelleAus(string $wiki, string $seite): ?array
  * Uebernehmen: Wagenhalt-Zahlen gehen bis in die Hunderttausende, unsere Karte ist 0..1024 --
  * eine ungewandelte Geometrie faellt nirgends auf, sie landet nur weit ausserhalb, und das
  * Objekt sieht danach niemand wieder.
+ *
+ * @param ?array{stamm:string,n:int} $verbund null = dieses Objekt gehoert zu keinem Verbund
  */
-function avesmapsGaretienPlanEintrag(array $zeile, array $ziel, array $urteil, ?array $innerorts = null): array
-{
+function avesmapsGaretienPlanEintrag(
+    array $zeile,
+    array $ziel,
+    array $urteil,
+    ?array $innerorts = null,
+    ?array $verbund = null
+): array {
     $punkte = avesmapsGaretienZeilePunkte($zeile);
     $wiki = (string) ($zeile['wiki'] ?? 'ggp');
 
@@ -700,7 +708,13 @@ function avesmapsGaretienPlanEintrag(array $zeile, array $ziel, array $urteil, ?
             // setzen" -- an einem 'changed' gibt es nichts anzulegen, unser Objekt liegt schon da.
             // Ein Angebot, das dort auftauchte, waere ein Knopf, der etwas Zweites erzeugt.
             ...($innerorts !== null && $istNeu ? ['innerorts' => $innerorts] : []),
-        ],
+            // 🔴 NUR WENN ES EINEN VERBUND GIBT. Ein leerer String hier waere eine Aussage
+            // („gehoert zu einem Verbund namens ''") und der Client muesste ihn wegfiltern --
+            // ein fehlender Schluessel ist die einzige Form, die „nein" bedeutet.
+        ] + ($verbund === null ? [] : [
+            'verbund_stamm' => (string) $verbund['stamm'],
+            'verbund_n' => (int) $verbund['n'],
+        ]),
         'override' => [],
         // 🔴 Ein Zufluss startet UNGEHAKT, mit dem Grund in der Beschriftung. Alles andere
         // folgt der Hausregel avesmapsSyncPlanDefaultSelected.
@@ -931,7 +945,7 @@ function avesmapsGaretienQuellenZiel(string $ziel, string $objektPublicId): arra
  * @param array<string,true> $quellen "<entity_type>|<entity_public_id>" => true
  * @return list<array>
  */
-function avesmapsGaretienErgaenzungsEintraege(array $zeile, array $ziel, array $urteil, array $quellen): array
+function avesmapsGaretienErgaenzungsEintraege(array $zeile, array $ziel, array $urteil, array $quellen, ?array $verbund = null): array
 {
     $abschnitte = $urteil['abschnitte'] ?? [];
     if ($abschnitte === []) {
@@ -949,7 +963,7 @@ function avesmapsGaretienErgaenzungsEintraege(array $zeile, array $ziel, array $
     $ersetzenErlaubt = AVESMAPS_GARETIEN_ERSETZEN_ERLAUBT;
     // Der gemeinsame Rumpf (Quelle, Wiki, Beschriftung) steht schon im Neu-Eintrag -- er wird
     // wiederverwendet und nicht abgeschrieben.
-    $vorlage = avesmapsGaretienPlanEintrag($zeile, $ziel, $urteil);
+    $vorlage = avesmapsGaretienPlanEintrag($zeile, $ziel, $urteil, null, $verbund);
     $eintraege = [];
     $abschnittAnzahl = count($abschnitte);
 
@@ -1149,19 +1163,25 @@ function avesmapsGaretienUeberVierterAusgang(array $urteil): bool
  *
  * REIN -- kein I/O. `$quellen` kommt aus avesmapsGaretienQuellenBestand.
  *
+ * 💣 `$verbund` reist an JEDEN der drei Ausgaenge (den vierten Ausgang selbst, seinen
+ * Widerspruchs-Rueckfall und die Ergaenzungseintraege/Zusatz-Item darunter) -- die Gruppe fragt
+ * nach der ZEILE, nicht danach, welchen Weg ihr Urteil nimmt. Ein Fragment, das ueber den
+ * vierten Ausgang laeuft, gehoert genauso zu seinem Verbund wie ein neues.
+ *
  * @param array<string,true> $quellen
+ * @param ?array{stamm:string,n:int} $verbund null = diese Zeile gehoert zu keinem Verbund
  * @return list<array>
  */
-function avesmapsGaretienEintraegeFuerUrteil(array $zeile, array $ziel, array $urteil, array $quellen, ?array $innerorts = null): array
+function avesmapsGaretienEintraegeFuerUrteil(array $zeile, array $ziel, array $urteil, array $quellen, ?array $innerorts = null, ?array $verbund = null): array
 {
     if (!avesmapsGaretienUeberVierterAusgang($urteil)) {
-        return [avesmapsGaretienPlanEintrag($zeile, $ziel, $urteil, $innerorts)];
+        return [avesmapsGaretienPlanEintrag($zeile, $ziel, $urteil, $innerorts, $verbund)];
     }
     // ⚠️ Die ERGAENZUNGEN bekommen ihn NICHT, und das ist keine Luecke: sie beschreiben ein Objekt,
     // das bei uns schon LIEGT (vierter Ausgang). „Innerorts einfuegen" hat dort nichts anzulegen.
-    $eintraege = avesmapsGaretienErgaenzungsEintraege($zeile, $ziel, $urteil, $quellen);
+    $eintraege = avesmapsGaretienErgaenzungsEintraege($zeile, $ziel, $urteil, $quellen, $verbund);
     if ($eintraege === [] && ($urteil['anlass'] ?? null) === 'artikel_widerspruch') {
-        return [avesmapsGaretienPlanEintrag($zeile, $ziel, $urteil, $innerorts)];
+        return [avesmapsGaretienPlanEintrag($zeile, $ziel, $urteil, $innerorts, $verbund)];
     }
 
     return $eintraege;
@@ -1575,13 +1595,19 @@ function avesmapsGaretienBaueSyncPlan(PDO $pdo, int $importRunId, int $userId = 
     );
     $stmt->execute([':r' => $importRunId]);
 
-    $anzahl = 0;
-    $uebersprungen = [];
     // 🔴 FALL #118: hier bekommt jede Zeile ihren NAMEN -- den Wiki-Seitennamen, nicht das
     // Kartenlabel (avesmapsGaretienObjektName). Alles dahinter liest ihn ueber
     // avesmapsGaretienNameDerZeile: der Abgleich, der Innerorts-Befund, `after.name` und die
     // Beschriftung. Der Sammelartikel-Zaehler laeuft dabei EINMAL je Lauf.
-    foreach (avesmapsGaretienZeilenBenennen($pdo, $importRunId, $stmt->fetchAll(PDO::FETCH_ASSOC)) as $zeile) {
+    $benannt = avesmapsGaretienZeilenBenennen($pdo, $importRunId, $stmt->fetchAll(PDO::FETCH_ASSOC));
+    // 🔴 EINMAL je Lauf ueber ALLE Zeilen -- die Gruppe entsteht nur im Ganzen, eine Zeile fuer
+    // sich kann nicht wissen, ob sie Geschwister hat.
+    $verbuende = avesmapsGaretienVerbuende($benannt);
+    $verbundGroesse = array_count_values($verbuende);
+
+    $anzahl = 0;
+    $uebersprungen = [];
+    foreach ($benannt as $index => $zeile) {
         $grund = avesmapsGaretienUeberspringGrund($zeile);
         if ($grund !== null) {
             $uebersprungen[$grund] = ($uebersprungen[$grund] ?? 0) + 1;
@@ -1631,9 +1657,13 @@ function avesmapsGaretienBaueSyncPlan(PDO $pdo, int $importRunId, int $userId = 
         // 🔴 DER INNERORTS-BEFUND ENTSTEHT HIER, EINMAL JE ZEILE. Ihn im Lesepfad zu rechnen waere
         // eine zweite Wahrheit ueber „gehoert das in eine Stadt?" -- und sie liefe je Zeile der
         // Arbeitsliste, ueber alle Ortschaften unseres Bestands.
+        $verbund = isset($verbuende[$index])
+            ? ['stamm' => $verbuende[$index], 'n' => $verbundGroesse[$verbuende[$index]]]
+            : null;
         $eintraege = avesmapsGaretienEintraegeFuerUrteil(
             $zeile, $ziel, $urteil, $quellenBestand,
-            avesmapsGaretienInnerortsBefund($pdo, $zeile, $ziel)
+            avesmapsGaretienInnerortsBefund($pdo, $zeile, $ziel),
+            $verbund
         );
         foreach ($eintraege as $eintrag) {
             // 🔴 Die Vorwahl kommt aus der HAUSREGEL, sie wird nicht nachgebaut: 'deleted' nie,
