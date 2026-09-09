@@ -1070,6 +1070,25 @@ html.avesmaps-planner-collapsed .gi-win {
 	contain-intrinsic-size: auto 41px;
 }
 
+/* ---- Die Fragment-Marke (Entwurf 2026-09-09 §3) --------------------------------------------
+ * Kein neuer Ton: die Pillenfarben des Hauses, wie jede andere Zaehlmarke.
+ * 💣 Sie ist ein Geschwister von `.avm-row__name`, kein Kind -- siehe garetienVerbundMarkeMarkup. */
+.gi-frag {
+	flex: none;
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-2);
+	padding: 0 var(--space-4);
+	border: 1px solid var(--color-pill-border);
+	border-radius: var(--radius-md);
+	background: var(--color-pill);
+	color: var(--color-pill-text);
+	font-size: var(--font-size-caption);
+	white-space: nowrap;
+}
+
+.gi-frag__zeichen { font-weight: var(--font-weight-bold); }
+
 .gi-insert__unit { color: var(--color-text-muted); }
 
 /* ---- Owner-Bestellung 30.08.2026 (wörtlich): „du kannst die slider bzw. abstände zwischen den
