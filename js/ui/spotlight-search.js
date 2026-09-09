@@ -998,16 +998,29 @@ function spotlightEntryKanonRef(entry) {
 }
 
 /**
- * Der Kanon-Schluessel einer SEGMENTGRUPPE -- `null`, sobald ihre Segmente uneinig sind.
+ * Der Kanon-Schluessel einer SEGMENTGRUPPE -- `null`, sobald ihre Segmente sich WIDERSPRECHEN.
  *
  * 💣 DAS IST DER RIEGEL, ohne den Wege hier nicht stehen duerften. Ein Treffer buendelt die
- * Segmente eines Wegs; Quellen und Kanon haengen je Segment. Sagen sie Verschiedenes, gibt es
- * keine Aussage ueber den Weg -- und keine ist besser als eine geratene. Gepruefte werden
+ * Segmente eines Wegs; Quellen und Kanon haengen je Segment. Sagen zwei davon Verschiedenes, gibt
+ * es keine Aussage ueber den Weg -- und keine ist besser als eine geratene. Verglichen werden
  * Zustand UND Bezeichner: „inoffiziell │ Briefspiel" und „inoffiziell │ Regionalspielhilfe" sind
  * zwei Aussagen, nicht eine.
  *
- * ⚠️ Einig OHNE Etikett gibt trotzdem den Schluessel zurueck: was zu zeigen ist, entscheidet der
- * Renderer (featureKanonListBadge), nicht diese Weiche.
+ * 💣 EIN SCHWEIGENDES SEGMENT WIDERSPRICHT NICHT -- und diese Unterscheidung ist der ganze
+ * Unterschied zwischen „wirkt" und „wirkt nie". Die erste Fassung (09.09.2026) verlangte, dass
+ * ALLE Segmente dasselbe sagen, und fiel am gemeldeten Fall selbst um: das Weisswasser hat
+ * VIERZEHN Segmente, zwoelf trugen die frisch eingetragene Quelle und zwei nicht -- Etikett weg.
+ * Wer eine Quelle eintraegt, erwischt fast nie jedes Segment, also waere die strenge Fassung
+ * ausgerechnet nach jeder Bearbeitung blind gewesen. „Kein Etikett" ist eine FEHLENDE Aussage,
+ * keine gegenteilige; gezaehlt wird nur, was spricht.
+ * 🚩 Am Livebestand gemessen (09.09.2026): 635 Namensgruppen, 550 mit Etikett nach der strengen
+ * Fassung, 551 nach dieser -- und **null echte Widersprueche**. Der Riegel kostet heute also
+ * nichts und bleibt trotzdem: die Messung ist ein Stichtag, die Regel ist dauerhaft.
+ *
+ * 🔴 ZURUECKGEGEBEN WIRD EIN SPRECHENDES SEGMENT, nie `ids[0]`. Schweigt das erste, loeste der
+ * Renderer an ihm auf und zeigte nichts -- der Riegel waere dann heil und das Ergebnis trotzdem
+ * falsch. ⚠️ Schweigen ALLE, gilt das erste: der Renderer zeigt dann ohnehin nichts, und ein
+ * `null` verschoebe die Entscheidung nur.
  */
 function spotlightEinigerKanonRef(entityType, publicIds) {
 	const ids = (publicIds || []).filter(Boolean).map(String);
@@ -1015,19 +1028,24 @@ function spotlightEinigerKanonRef(entityType, publicIds) {
 		return null;
 	}
 	let signatur = null;
+	let sprechendeId = "";
 	for (const id of ids) {
 		const kanon = resolveFeatureKanon(entityType, id);
-		const eigen = kanon
-			? `${kanon.kanon || ""}|${kanon.bezeichner_type || ""}|${kanon.bezeichner_label || ""}`
-			: "";
+		// „Keine Aussage" ist beides: gar kein Eintrag UND der ausdrueckliche Leer-Eintrag
+		// (`{kanon: ""}`, den der Server fuer „nachgesehen, kein Etikett" schickt).
+		if (!kanon || !kanon.kanon) {
+			continue;
+		}
+		const eigen = `${kanon.kanon}|${kanon.bezeichner_type || ""}|${kanon.bezeichner_label || ""}`;
 		if (signatur === null) {
 			signatur = eigen;
+			sprechendeId = id;
 		} else if (eigen !== signatur) {
 			return null;
 		}
 	}
 
-	return [entityType, ids[0]];
+	return [entityType, sprechendeId || ids[0]];
 }
 
 function spotlightResultMarkup(entry, index) {

@@ -87,6 +87,8 @@ const KANON = {
 		"region:l-moor": { kanon: "inoffiziell", bezeichner_type: "briefspiel", bezeichner_count: 2 },
 		"territory:t-mark": { kanon: "inoffiziell", bezeichner_label: "Briefspiel (Garetien)" },
 		"path:w-1": { kanon: "inoffiziell", bezeichner_label: "Briefspiel (Garetien)" },
+		// Ein Segment, das etwas ANDERES sagt -- fuer den Widerspruchs-Riegel unten.
+		"path:w-2": { kanon: "offiziell" },
 	},
 };
 // Objekte MIT Quellen -- die Vorgabe „offiziell" gilt nur fuer sie.
@@ -97,6 +99,7 @@ const REFS = {
 	"region:l-moor": [{ source_id: 2 }],
 	"territory:t-mark": [{ source_id: 2 }],
 	"path:w-1": [{ source_id: 2 }],
+	"path:w-2": [{ source_id: 1 }],
 	"settlement:p-unbelegt": [],
 };
 
@@ -152,10 +155,13 @@ pruefe(ctx.spotlightEntryKanonRef({ kind: "region", publicIds: ["r-flaeche"], re
 // spotlight-kanon-alle-arten.test.js; hier nur die zwei Enden.
 pruefe(JSON.stringify(ctx.spotlightEntryKanonRef({ kind: "path", publicIds: ["w-1"] }))
 	=== JSON.stringify(["path", "w-1"]), "ein einiger Weg traegt sein Etikett");
-// `w-2` gibt es weder im Kanon noch in den Verweisen: „hat ein Etikett" gegen „hat keins" ist
-// bereits uneinig -- der haeufigste Fall, wenn ein Segment noch keine Quelle traegt.
+// 💣 Zwei Segmente, die VERSCHIEDENES sagen -- das ist der Widerspruch, und der ergibt kein Etikett.
 pruefe(ctx.spotlightEntryKanonRef({ kind: "path", publicIds: ["w-1", "w-2"] }) === null,
-	"uneinige Segmente ergeben KEINES -- eine ungepruefte Aussage ueber den ganzen Weg waere schlimmer");
+	"widersprechende Segmente ergeben KEINES -- eine ungepruefte Aussage ueber den ganzen Weg waere schlimmer");
+// 🔴 Ein SCHWEIGENDES Segment widerspricht dagegen NICHT: wer eine Quelle eintraegt, erwischt fast
+// nie jedes Segment (das Weisswasser hatte 12 von 14). Ausfuehrlich in spotlight-kanon-alle-arten.
+pruefe(JSON.stringify(ctx.spotlightEntryKanonRef({ kind: "path", publicIds: ["w-1", "w-stumm"] }))
+	=== JSON.stringify(["path", "w-1"]), "ein schweigendes Segment nimmt dem Weg sein Etikett nicht");
 pruefe(JSON.stringify(ctx.spotlightEntryKanonRef({ kind: "citymap", publicIds: ["c-1"] }))
 	=== JSON.stringify(["citymap", "c-1"]), "die Stadtkarte traegt ihren eigenen Schluessel");
 // ⚠️ Diese vier kennt der Kanon-Leser nicht; ein Schluessel waere eine Aussage, die der Server

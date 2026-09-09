@@ -118,10 +118,30 @@ ref = fahre({
 pruefe(ref({ kind: "path", publicIds: ["weg-a", "weg-b"] }) === null,
 	"E: auch ein verschiedener BEZEICHNER macht uneinig -- nicht nur der Zustand");
 
-// ---- F: ein Segment MIT und eines OHNE Etikett ist uneinig ---------------------------------------
-ref = fahre({ "path:weg-a": { kanon: "inoffiziell" } });
-pruefe(ref({ kind: "path", publicIds: ["weg-a", "weg-b"] }) === null,
-	"F: 'hat eins' gegen 'hat keins' ist auch uneinig");
+// ---- F: ein SCHWEIGENDES Segment widerspricht NICHT -----------------------------------------------
+// 💣 Die erste Fassung vom 09.09.2026 verlangte, dass ALLE Segmente dasselbe sagen -- und fiel am
+// gemeldeten Fall selbst um: das Weisswasser hat 14 Segmente, zwoelf trugen die frisch eingetragene
+// Quelle und zwei nicht. Wer eine Quelle eintraegt, erwischt fast nie jedes Segment; die strenge
+// Fassung waere ausgerechnet nach jeder Bearbeitung blind gewesen.
+ref = fahre({ "path:weg-a": { kanon: "inoffiziell", bezeichner_type: "briefspiel" } });
+gleich(ref({ kind: "path", publicIds: ["weg-a", "weg-b"] }), ["path", "weg-a"],
+	"F: 'hat eins' gegen 'sagt nichts' ist KEIN Widerspruch -- der gemeldete Fall (12 von 14 "
+	+ "Segmenten trugen die Quelle)");
+
+// ---- F2: und zurueckgegeben wird ein SPRECHENDES Segment, nie das erste --------------------------
+// 🔴 Ohne das loeste der Renderer am schweigenden Segment auf und zeigte nichts -- der Riegel waere
+// heil und das Ergebnis trotzdem falsch.
+gleich(ref({ kind: "path", publicIds: ["weg-stumm", "weg-a"] }), ["path", "weg-a"],
+	"F2: schweigt das erste Segment, gilt das erste SPRECHENDE");
+
+// ---- F3: der ausdrueckliche Leer-Eintrag schweigt ebenfalls ---------------------------------------
+// Der Server schickt `{kanon: ""}` fuer „nachgesehen, kein Etikett" -- das ist keine Aussage.
+ref = fahre({
+	"path:weg-a": { kanon: "inoffiziell", bezeichner_type: "briefspiel" },
+	"path:weg-b": { kanon: "" },
+});
+gleich(ref({ kind: "path", publicIds: ["weg-b", "weg-a"] }), ["path", "weg-a"],
+	"F3: `{kanon: ''}` ist keine gegenteilige Aussage, sondern gar keine");
 
 // ---- G: gar kein Etikett an allen Segmenten -> der Schluessel darf trotzdem kommen ---------------
 // Der Renderer entscheidet dann selbst, dass nichts zu zeigen ist; hier ist die Frage nur, WELCHER
