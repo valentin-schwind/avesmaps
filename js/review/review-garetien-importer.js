@@ -3824,9 +3824,18 @@
 		// 🔴 DIE INNERORTS-WAHL BAUT DIE SPALTE NEU, wie die Zielwahl darunter -- sie entscheidet,
 		// ob der Kasten überhaupt noch von einem Kartenobjekt spricht (der Satz unter dem Feld) und
 		// welche Stadt im Knopf „Innerorts einfügen (X)" steht.
+		// 🔴 Die zwei Einfüge-Häkchen. Sie bauen die Spalte neu, weil sie einander bedingen:
+		// „Neu einfügen“ sperrt „Als Quelle einfügen“ (garetienEinfuegeWahl), und das sieht man nur
+		// am neu gezeichneten Kasten.
+		if (feld === "einfuegeQuelle" || feld === "einfuegeNeu") {
+			garetienEinfuegeWahlSetzen(objekt, feld === "einfuegeNeu" ? "neu" : "quelle",
+				Boolean(ziel.checked));
+			garetienDetailRendern(objekte || zustand.objekte || []);
+			return;
+		}
 		if (feld === "innerorts") {
 			const key = String(objekt.key || "");
-			if (key !== "") { _garetienInnerortsWahl[key] = String(ziel.value || ""); }
+			if (key !== "") { garetienInnerortsWahlSetzen(objekt, ziel.value); }
 			garetienDetailRendern(objekte || zustand.objekte || []);
 			return;
 		}
@@ -5882,14 +5891,120 @@
 		return ((objekt && objekt.items) || []).some(garetienItemIstZusatz) ? "zusatz" : "nichts";
 	}
 
-	// REIN: die Items, die die STAGE fuer dieses Objekt uebernimmt -- gebaut aus DERSELBEN Weiche,
-	// damit Anzeige und Schreibumfang nie auseinanderlaufen koennen.
-	// ⚠️ Das Geometrie-Item bleibt draussen (es hat seinen eigenen Knopf mit Rueckfrage) -- es
-	// kommt in keinem der vier Faelle vor.
+	// ---- Die zwei Häkchen: „Als Quelle einfügen" und „Neu einfügen" (Owner 09.09.2026) ------------
+	//
+	// Owner, wörtlich: „auf der stage ist auf der stage, erst dann entscheide ich ob es nur die
+	// quelle ergänzt […] man will unterscheiden als ‚Als Quelle einfügen' oder ‚Neu einfügen' und
+	// damit es keine verwirrtung mit dem button ‚Stage importieren' gibt, sollten das häkchen sein."
+	//
+	// 🔴 DIE STAGE IST DAMIT NEUTRAL. Bis hierher LEITETE `garetienStageVorhaben` ab, was beim
+	// Import passiert, und der Knopf trug die Ableitung als Unterzeile. Jetzt sagen es zwei Häkchen,
+	// und `garetienStageItems` folgt IHNEN. Die Ableitung bleibt -- als VORBELEGUNG, damit wer
+	// nichts anhakt genau das bekommt, was er vor dem 09.09.2026 bekommen hätte.
+
+	let _garetienEinfuegeWahl = {};
+
+	function garetienEinfuegeWahlVergessen() { _garetienEinfuegeWahl = {}; }
+
+	// REIN: die Items, die „Neu einfügen" schreibt -- alles mit `change_type: 'new'`, das
+	// Zusatz-Item eingeschlossen.
+	// 🔴 DAS ZUSATZ-ITEM IST HIER KEIN SONDERFALL MEHR, und das ist der Kern des Umbaus: „trotzdem
+	// neu anlegen" IST „Neu einfügen" an einem Objekt, das sich deckt. Sein alter Riegel („kommt nur
+	// mit, wenn das Objekt sonst nichts hat", Schadensfall 30.08.2026) lebt weiter -- aber als
+	// VORBELEGUNG (ungehakt), nicht als Zwang. Genau darum ging es dem Owner.
+	// ⚠️ Das Geometrie-Item bleibt draussen (eigener Knopf mit Rückfrage).
+	function garetienNeuItems(objekt) {
+		return ((objekt && objekt.items) || []).filter(function (item) {
+			return String((item && item.change_type) || "") === "new"
+				&& garetienItemAnlass(item) !== "geometrie";
+		});
+	}
+
+	// REIN: die Items, die „Als Quelle einfügen" schreibt -- die Ergänzung an einem BESTEHENDEN
+	// Objekt (AVESMAPS_GARETIEN_ERGAENZUNG_FELDER ist genau `['quelle']`).
+	function garetienQuelleItems(objekt) {
+		return garetienHakenItems(objekt).filter(function (item) {
+			return String((item && item.change_type) || "") !== "new";
+		});
+	}
+
+	/*
+	 * REIN: Kann dieses Objekt NEU angelegt werden?
+	 *
+	 * 🔴 EINE GEWÄHLTE STADT NIMMT DEN HAKEN WEG. `innerorts` und `neu` sind dieselbe Item-Menge,
+	 * nur ein anderer Zielort (AVESMAPS_GARETIEN_ITEMS_JE_HANDLUNG: „innerorts ist kein anderer
+	 * Vorschlag, sondern ein anderer ZIELORT für denselben"). Beides zugleich gibt es nicht -- der
+	 * Haken verschwindet, statt eine Wahl anzubieten, die es nicht gibt.
+	 */
+	function garetienNeuMoeglich(objekt) {
+		return garetienInnerortsWahlZu(objekt) === "" && garetienNeuItems(objekt).length > 0;
+	}
+
+	function garetienQuelleMoeglich(objekt) { return garetienQuelleItems(objekt).length > 0; }
+
+	/*
+	 * REIN: die Wahl dieses Objekts -- `{ quelle, neu }`.
+	 *
+	 * 💣 EIN UNMÖGLICHER HAKEN ZÄHLT NIE. Wer „Neu einfügen" setzt und danach eine Stadt wählt,
+	 * hätte sonst einen gesetzten Haken, den niemand mehr sieht -- und der Import legte doch ein
+	 * Kartenobjekt an. Deshalb wird die Möglichkeit HIER geprüft, nicht nur beim Zeichnen.
+	 * 🔴 „Neu einfügen" zieht die Quelle mit (Owner: „importiert dabei immer die quelle mit").
+	 */
+	function garetienEinfuegeWahl(objekt) {
+		const key = String((objekt && objekt.key) || "");
+		const neuGeht = garetienNeuMoeglich(objekt);
+		const quelleGeht = garetienQuelleMoeglich(objekt);
+		const gespeichert = key !== "" ? _garetienEinfuegeWahl[key] : null;
+		let neu;
+		let quelle;
+		if (gespeichert) {
+			neu = Boolean(gespeichert.neu);
+			quelle = Boolean(gespeichert.quelle);
+		} else {
+			// Die Vorbelegung IST das Verhalten von vor dem 09.09.2026.
+			const vorhaben = garetienStageVorhaben(objekt);
+			neu = vorhaben === "neu" || vorhaben === "zusatz";
+			quelle = neu || vorhaben === "ergaenzung";
+		}
+		neu = neu && neuGeht;
+		// 🔴 „Neu einfügen“ setzt die Quelle IMMER, auch ohne eigenes Quellen-Item: bei einem
+		// Neuzugang reist sie im `new`-Item selbst mit (`felder: ['quelle']`). Der Haken ist dann
+		// eine wahre Aussage über das, was passiert -- und gebunden, nicht abwählbar.
+		// ⚠️ Ohne „Neu einfügen“ gilt er nur, wenn es wirklich etwas zu ergänzen gibt.
+		return { neu: neu, quelle: neu || (quelle && quelleGeht) };
+	}
+
+	/* Eine Häkchen-Wahl setzen. „Neu einfügen" bindet die Quelle -- siehe garetienEinfuegeWahl. */
+	function garetienEinfuegeWahlSetzen(objekt, feld, wert) {
+		const key = String((objekt && objekt.key) || "");
+		if (key === "") { return; }
+		const jetzt = garetienEinfuegeWahl(objekt);
+		const naechste = { quelle: jetzt.quelle, neu: jetzt.neu };
+		naechste[feld === "neu" ? "neu" : "quelle"] = Boolean(wert);
+		if (naechste.neu) { naechste.quelle = true; }
+		_garetienEinfuegeWahl[key] = naechste;
+	}
+
+	/*
+	 * Die Innerorts-Wahl setzen -- der EINE Schreiber von `_garetienInnerortsWahl`.
+	 *
+	 * ⚠️ Er stand bis zum 09.09.2026 nur inline im `change`-Handler. Er bekommt einen Namen, weil
+	 * die Häkchen an ihm hängen (garetienNeuMoeglich): eine zweite Schreibstelle liesse den Haken
+	 * „Neu einfügen" stehen, während der Kasten längst eine Stadt nennt.
+	 */
+	function garetienInnerortsWahlSetzen(objekt, publicId) {
+		const key = String((objekt && objekt.key) || "");
+		if (key !== "") { _garetienInnerortsWahl[key] = String(publicId || ""); }
+	}
+
+	// REIN: die Items, die die STAGE fuer dieses Objekt uebernimmt -- jetzt aus den zwei Häkchen.
+	// 💣 SIE SIND DIE EINE QUELLE. Anzeige (die Häkchen) und Schreibumfang (diese Funktion) lesen
+	// dasselbe `garetienEinfuegeWahl` -- genau die Trennung, an der Befund B3 (07.09.2026)
+	// gescheitert war, als zwei Leser dieselbe Frage verschieden beantworteten.
 	function garetienStageItems(objekt) {
-		return garetienStageVorhaben(objekt) === "zusatz"
-			? ((objekt && objekt.items) || []).filter(garetienItemIstZusatz)
-			: garetienHakenItems(objekt);
+		const wahl = garetienEinfuegeWahl(objekt);
+		return (wahl.neu ? garetienNeuItems(objekt) : [])
+			.concat(wahl.quelle ? garetienQuelleItems(objekt) : []);
 	}
 
 	// Welche Items gehören zu welchem Knopf?
@@ -6345,6 +6460,45 @@
 		return (aufDerStage ? "liegt als " : "als ") + art;
 	}
 
+	/*
+	 * REIN: die zwei Häkchen über der Knopfleiste (Owner 09.09.2026).
+	 *
+	 * 🔴 SIE STEHEN ÜBER „Auf die Stage“, nicht darunter: sie entscheiden, WAS die Stage
+	 * mitnimmt, und werden deshalb vor ihr gelesen. Der Knopf selbst behauptet seit diesem Tag
+	 * nichts mehr (garetienStageKnopfBauen, `zeile2: ""`).
+	 *
+	 * ⚠️ Gebaut mit garetienEingefuegtWirdHakenZeile -- derselben Zeile wie die Häkchen im Kasten
+	 * „Eingefügt wird“ darüber. Eine zweite Bauform für dieselbe Sache wäre die Doppelung, vor der
+	 * AGENTS.md §11 bei den Listenzeilen warnt (dort waren es sieben Rezepturen).
+	 *
+	 * 🔴 „Neu einfügen“ FEHLT GANZ, wenn es nicht möglich ist -- ein ausgegrauter Haken für einen
+	 * Zielort, den es nicht gibt, wäre eine Frage ohne Antwort (Owner: „verschwindet und ist nicht
+	 * möglich, wenn der ort innerorts ist“). „Als Quelle einfügen“ ist gesperrt, solange „Neu
+	 * einfügen“ steht: es gilt dann zwingend.
+	 */
+	function garetienEinfuegeHakenMarkup(objekt) {
+		const o = objekt || {};
+		if (String(o.stand || "") !== "offen") { return ""; }
+		const wahl = garetienEinfuegeWahl(o);
+		const neuGeht = garetienNeuMoeglich(o);
+		const quelleGeht = garetienQuelleMoeglich(o);
+		// 🔴 „NUR ANSICHT“ BLEIBT GESAGT. Der Satz stand bis zum 09.09.2026 als zweite Zeile am
+		// Knopf; faellt er ersatzlos weg, sieht ein Objekt ohne Vorschlag genauso aus wie eines mit
+		// -- nur ohne Haekchen, und das liest sich wie ein Fehler. Er wandert also mit.
+		if (!neuGeht && !quelleGeht) {
+			return '<p class="gi-acts__grund"><span>Nichts einzufügen — nur Ansicht.</span></p>';
+		}
+		let raus = "";
+		if (quelleGeht || wahl.neu) {
+			raus += garetienEingefuegtWirdHakenZeile(o, "Als Quelle einfügen", "einfuegeQuelle",
+				wahl.quelle, wahl.neu);
+		}
+		if (neuGeht) {
+			raus += garetienEingefuegtWirdHakenZeile(o, "Neu einfügen", "einfuegeNeu", wahl.neu, false);
+		}
+		return raus;
+	}
+
 	function garetienStageKnopfBauen(objekt) {
 		const o = objekt || {};
 		const aufDerStage = avesmapsGaretienStageHat(o.key);
@@ -6352,7 +6506,11 @@
 		return {
 			name: name,
 			beschriftung: aufDerStage ? "Von der Stage nehmen" : "Auf die Stage",
-			zeile2: garetienStageZeile2(o, aufDerStage),
+			// 🔴 KEINE UNTERZEILE MEHR (Owner 09.09.2026): „auf der stage ist auf der stage, erst
+			// dann entscheide ich ob es nur die quelle ergänzt“. Sie behauptete, was der Import tun
+			// wird -- das sagen jetzt die zwei Häkchen darüber, und die SIND der Schreibumfang
+			// (garetienStageItems liest dasselbe garetienEinfuegeWahl).
+			zeile2: "",
 			// 🔴 AUS DER TAFEL, kein `if` — dieselbe Regel wie bei jedem anderen Knopf
 			// (AVESMAPS_GARETIEN_HANDLUNG_TON). „entstagen" steht dort nicht und ist damit neutral.
 			ton: AVESMAPS_GARETIEN_HANDLUNG_TON[name] || "",
@@ -6624,7 +6782,7 @@
 		// jeder Zeile laenger und in keiner klarer. Dieselbe Form wie „DER GRUND" und „WAS BEI UNS
 		// AN DERSELBEN STELLE LIEGT" darueber -- eine Zeile im Vokabular, das dort ohnehin steht.
 		return '<div class="gi-acts"><p class="gi-sec gi-acts__titel">Dieses Objekt</p>'
-			+ knopfMarkup + grundZeile + "</div>";
+			+ garetienEinfuegeHakenMarkup(objekt) + knopfMarkup + grundZeile + "</div>";
 	}
 
 	// ---- Die Auswahl: die ZEILE öffnet die Ansicht, das HÄKCHEN nicht ------------------------------
@@ -9093,6 +9251,16 @@
 			// Fixrunde 1 (07.09.2026, B3): was die STAGE uebernimmt -- die eine Weiche, die Anzeige
 			// und Schreibumfang gemeinsam lesen
 			garetienStageVorhaben,
+			garetienStageItems,
+			garetienEinfuegeWahl,
+			garetienEinfuegeWahlSetzen,
+			garetienEinfuegeWahlVergessen,
+			garetienNeuMoeglich,
+			garetienQuelleMoeglich,
+			garetienNeuItems,
+			garetienQuelleItems,
+			garetienInnerortsWahlSetzen,
+			garetienEinfuegeHakenMarkup,
 			garetienStageItems,
 			garetienStagePlan,
 			garetienHakenRumpf,

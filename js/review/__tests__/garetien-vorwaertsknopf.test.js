@@ -52,8 +52,13 @@ const ergaenzung = {
 	gleich(namen(o).includes("neu"), false, "kein „neu\" bei " + o.urteil);
 	gleich(ohneKommentare(garetienHandlungsMarkup(o)).includes('data-handlung="neu"'), false,
 		"kein neu-Knopf im Markup bei " + o.urteil);
-	gleich(ohneKommentare(garetienHandlungsMarkup(o)).includes("Neu einfügen"), false,
-		"und die Beschriftung steht auch nicht drin (" + o.urteil + ")");
+	// 🔴 SEIT 09.09.2026 STEHT „Neu einfügen“ WIEDER IM MARKUP -- aber als HAEKCHEN, nicht
+	// als Knopf (Owner: „sollten das häkchen sein“). Der Unterschied ist der ganze Grund, warum
+	// der Knopf am 07.09.2026 fiel: er legte SOFORT an und umging die Stage. Das Häkchen
+	// entscheidet nur, was die Stage mitnimmt -- der Weg ueber „Stage importieren“ bleibt
+	// erzwungen. ⚠️ Geprueft wird deshalb das HANDLUNGSATTRIBUT, nicht mehr die Zeichenkette.
+	gleich(ohneKommentare(garetienHandlungsMarkup(o)).includes('data-handlung="neu"'), false,
+		"und kein Knopf mit dieser Handlung (" + o.urteil + ")");
 });
 // Und die Tuer bleibt auch dann zu, wenn jemand den Namen von Hand schickt.
 gleich(garetienHandlungsRumpf("neu", offenMitVorschlag, 5), null,
@@ -95,12 +100,17 @@ const wegObjekt = {
 	ziel: "path", subtyp: "Flussweg", is_bach: true,
 	items: [{ id: 4, change_type: "new" }],
 };
-gleich(knopf(wegObjekt, "stage").zeile2, "als Flussweg (Bach)",
-	"die zweite Zeile nennt Form und Art");
+// 🔴 SEIT 09.09.2026 OHNE ZWEITE ZEILE. Form und Art stehen im Kasten „Eingefuegt wird“
+// darueber, und WAS der Import tut, sagen die zwei Haekchen -- der Knopf behauptet nichts mehr.
+gleich(knopf(wegObjekt, "stage").zeile2, "",
+	"der Knopf traegt keine zweite Zeile mehr");
 gleich(/\d/.test(knopf(wegObjekt, "stage").beschriftung), false,
 	"und die erste traegt keine Zahl");
-wahr(String(knopf(offenOhneVorschlag, "stage").zeile2).includes("nur Ansicht"),
-	"ohne Vorschlag sagt die zweite Zeile „nur Ansicht\"");
+// 🔴 SEIT 09.09.2026 SAGT ES DER KASTEN, NICHT DER KNOPF (garetienEinfuegeHakenMarkup).
+// Der Satz durfte nicht ersatzlos fallen: ohne ihn sieht ein Objekt ohne Vorschlag aus wie eines
+// mit, nur ohne Haekchen -- und das liest sich wie ein Fehler.
+wahr(api.garetienEinfuegeHakenMarkup(offenOhneVorschlag).includes("nur Ansicht"),
+	"ohne Vorschlag sagt der Kasten „nur Ansicht\"");
 gleich(knopf(offenOhneVorschlag, "stage").disabled, false,
 	"…und der Knopf geht trotzdem: ansehen darf man alles");
 wahr(knopf(offenOhneVorschlag, "ablehnen").disabled,
@@ -112,8 +122,11 @@ wahr(knopf(offenOhneVorschlag, "ablehnen").grund !== "", "und der Grund steht da
 // =================================================================================================
 api.avesmapsGaretienStageHinzufuegen([offenMitVorschlag]);
 tief(namen(offenMitVorschlag), ["entstagen", "ablehnen"], "auf der Stage: der Rueckweg");
-wahr(String(knopf(offenMitVorschlag, "entstagen").zeile2).includes("liegt"),
-	"die zweite Zeile sagt, wie es dort liegt");
+// ⚠️ AUCH HIER OHNE ZWEITE ZEILE (09.09.2026). „Von der Stage nehmen“ sagt schon alles; was
+// dort liegt, sagen die Haekchen darueber.
+gleich(knopf(offenMitVorschlag, "entstagen").beschriftung, "Von der Stage nehmen",
+	"auf der Stage kehrt sich der Knopf um");
+gleich(knopf(offenMitVorschlag, "entstagen").zeile2, "", "und traegt keine zweite Zeile");
 api.avesmapsGaretienStageLeeren();
 tief(namen(offenMitVorschlag), ["stage", "ablehnen"], "und wieder zurueck");
 

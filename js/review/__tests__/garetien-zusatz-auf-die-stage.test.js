@@ -139,8 +139,11 @@ gleich(garetienStageZeile2(gemischt, false), "ergänzt nur die Quelle",
 gleich(garetienStageZeile2(nurErgaenzung, false), "ergänzt nur die Quelle");
 gleich(garetienStageZeile2(nurErgaenzung, true), "liegt für die Quelle");
 gleich(garetienStageZeile2(ohneAlles, false), "nur Ansicht");
-gleich(garetienStageKnopfBauen(nurZusatz).zeile2, "zusätzlich als Flussweg",
-	"…und der Bauer reicht sie durch");
+// 🔴 SEIT 09.09.2026 REICHT DER BAUER SIE NICHT MEHR DURCH (Owner: „auf der stage ist auf
+// der stage, erst dann entscheide ich ob es nur die quelle ergaenzt“). Die Rechnung darueber
+// bleibt als Auskunft bestehen und ist hier weiter festgenagelt; der KNOPF behauptet nichts mehr.
+gleich(garetienStageKnopfBauen(nurZusatz).zeile2, "",
+	"…und der Bauer reicht sie NICHT mehr durch -- das sagen die Haekchen");
 
 // =================================================================================================
 // 4. DER FUSSKNOPF ZAEHLT DAS ZUSATZ-OBJEKT MIT -- sonst stuende „0 von 1" neben einem Knopf,

@@ -600,9 +600,14 @@ wahr(!/btn--done[^>]*data-handlung="ablehnen"|data-handlung="ablehnen"[^>]*btn--
 // 🔴 SEIT 07.09.2026 STEHT DER ZUSATZ IN ZEILE 2, NIE IM NAMEN (Owner-Entscheid 7: zweizeilige
 // Knoepfe, damit sie in EINE Reihe passen). Der Vorwaertsknopf heisst schlicht „Auf die Stage",
 // und was dort laege, sagt die zweite Zeile.
-wahr(leiste.indexOf('<span class="gi-act__t1">Auf die Stage</span>') !== -1,
+// 🔴 SEIT 09.09.2026 WIEDER EINZEILIG. Die zweite Zeile trug, was der Import tun wird --
+// das sagen jetzt die zwei Haekchen darueber (garetienEinfuegeHakenMarkup). Ohne `zeile2` baut
+// garetienHandlungsMarkup den Knopf ohne die zwei `<span>`, und das ist die schlichtere Form.
+wahr(leiste.indexOf('>Auf die Stage<') !== -1,
 	"Zeile 1 traegt den blossen Namen: " + leiste);
-wahr(leiste.indexOf('<span class="gi-act__t2">') !== -1, "und Zeile 2 den Zusatz");
+// ⚠️ UND KEINE ZWEITE ZEILE MEHR am Stage-Knopf. Der Zusatz stand dort bis zum 09.09.2026;
+// wer ihn zurueckholt, holt die Behauptung zurueck, die die Haekchen ersetzt haben.
+wahr(leiste.indexOf('<span class="gi-act__t2">') === -1, "und keine zweite Zeile mehr");
 
 // 🔴 Ein ausgegrauter Knopf traegt seinen Grund im title -- gemessen am Objekt OHNE Vorschlag,
 // dem einzigen, das noch einen gesperrten Knopf erzeugt („Ablehnen" ohne Item).
