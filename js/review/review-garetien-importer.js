@@ -1394,6 +1394,22 @@
 	// Haekchen mitzuschalten. Mit `<label>` koennte ein Editor keine Zeile ansehen, ohne sie im
 	// selben Klick anzuhaken. Wer das zum Mockup "korrigiert", bricht Aufgabe 13 im selben Zug.
 	//
+	/*
+	 * REIN: die Marke „⧉ n Fragmente" -- oder "" ohne Verbund.
+	 *
+	 * 💣 SIE STEHT NEBEN DEM NAMEN, NIE DARIN. `.avm-row__name` ellipsiert; ein Zusatz im Namen
+	 * verschwaende bei jedem laengeren Titel hinter den drei Punkten -- dieselbe Falle, an der
+	 * die Marke „12 von 56 Abschnitten" schon einmal unsichtbar war (AGENTS.md §11).
+	 * ⚠️ `n < 2` ist kein Verbund. Der Server schickt die Felder zwar nur bei einem echten
+	 * Verbund, aber ein alter, zwischengespeicherter Lauf kann alles enthalten.
+	 */
+	function garetienVerbundMarkeMarkup(objekt) {
+		const n = Number((objekt || {}).verbund_n || 0);
+		if (!(n >= 2)) { return ""; }
+		return '<span class="gi-frag"><span class="gi-frag__zeichen">⧉</span> '
+			+ avesmapsGaretienEscape(String(n)) + " Fragmente</span>";
+	}
+
 	// 🔴 Aufgabe 2 (Entwurf §3.2): das Haekchen ist ein reiner MARKER und zeigt `zustand.auswahl`,
 	// nicht mehr den Item-Zustand -- „Markieren aendert nichts" (Owner 29.08.2026). Es gibt darum
 	// auch KEIN `disabled` mehr: ein Objekt OHNE jedes Item (7930 von 8213) muss sich genauso
@@ -1426,6 +1442,7 @@
 			+ '<span class="avm-row__text">'
 			+ '<span class="avm-row__l1">'
 			+ '<span class="avm-row__name">' + name + "</span>"
+			+ garetienVerbundMarkeMarkup(o)
 			+ '<span class="avm-row__kind">' + avesmapsGaretienEscape(o.typ || "") + "</span>"
 			+ "</span>"
 			+ '<span class="avm-row__l2">' + l2 + "</span>"
