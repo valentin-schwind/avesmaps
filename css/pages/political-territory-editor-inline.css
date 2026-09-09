@@ -3273,8 +3273,15 @@
    naechsten Ueberschrift und las sich wie eine weitere Datenzeile -- obwohl er etwas anderes
    tut: er sagt, WOHER alles darueber stammt. */
 /* Owner 03.09.2026: schmaleres Polster (war 9px 11px 10px) und 10px Luft zur Tabelle darueber.
-   💣 Das SEITENpolster (8px) ist zugleich der Vollbreiten-Rand des Trenners (.fs-src-trenner,
-   margin: 0 -8px) -- wer hier dreht, dreht dort mit; der Test liest beide gegeneinander. */
+   💣 DAS SEITENPOLSTER (8px) HAT DREI MITLESER, und hier steht bewusst KEINE Zahl als Liste,
+   sondern jeder einzeln beim Namen -- wer hier dreht, dreht ueberall mit:
+     · der Trenner `.fs-src-trenner` (margin: 0 -8px),
+     · der Wrapper der Publikationstabelle `.fs-src-tablewrap` (margin-left/right: -8px),
+     · und deren Zellen `.fs-src-table th|td` (padding-inline: 8px), die es zurueckholen.
+   ⚠️ Der dritte kam am 09.09.2026 dazu: die Tabelle mass sich bis dahin am PANEL
+   (`--infopanel-pad-x`, 18px) und ragte deshalb 9px je Seite aus diesem Kasten heraus.
+   `js/ui/__tests__/publikationstabelle-im-kasten.test.js` liest alle gegeneinander -- er schreibt
+   die 8 nicht ab, sondern holt sie aus dieser Regel. */
 #political-territory-editor-host .fs-src--box {
 	border: 1px solid var(--color-border);
 	background: var(--color-panel-soft);
