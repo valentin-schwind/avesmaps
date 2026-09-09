@@ -822,4 +822,68 @@ assert(count(avesmapsGaretienArbeitsliste($pdo, 1, ['anzahl' => 999999])['objekt
     'ueber dem Server-Deckel gilt der Server-Deckel');
 $pruefungen += 3;
 
+// =================================================================================================
+// PRUEFBEFUND 1 (Korrektur 09.09.2026 zu Aufgabe 3): der Durchreicher fuer
+// `after.verbund_stamm`/`after.verbund_n` in avesmapsGaretienArbeitslisteObjekte (Commit
+// fde4e0741) hatte KEINEN Test, der die Funktion wirklich AUFRUFT und die zwei Felder im
+// Ergebnis prueft -- derselbe Kommentar an der Stelle selbst warnt am Beispiel von `applied`
+// (01.09.2026) vor genau dieser Fehlerklasse: ein Feld, das die Tuer nie verlaesst, waehrend der
+// Test gruen bleibt.
+//
+// ⚠️ Gerufen wird avesmapsGaretienArbeitslisteObjekte() DIREKT, nicht ueber den Filter-Wrapper
+// avesmapsGaretienArbeitsliste -- denselben Weg benutzt garetien-naehe-test.php fuer denselben
+// Zwilling ($basis = avesmapsGaretienArbeitslisteObjekte($pdo, 1)). Ihr Ergebnis ist assoziativ
+// (Objektschluessel => Objekt), nicht die durchnummerierte Liste des Wrappers.
+// =================================================================================================
+avesmapsSyncPlanAddItem($pdo, 1, [
+    'entity_key' => avesmapsGaretienObjektSchluesselAusZeile(['wiki' => 'ggp', 'ebene' => 'Ortschaften_1', 'typ' => 'Weiler', 'namensraum' => 'Garetien', 'artikel' => 'Silker Hain 1', 'anzeige' => 'Silker Hain 1', 'zeile_nr' => 0]),
+    'entity_public_id' => null,
+    'change_type' => 'new',
+    'label' => 'Silker Hain 1',
+    'after' => [
+        'typ' => 'Weiler', 'wiki' => 'ggp', 'ebene' => 'Ortschaften_1', 'name' => 'Silker Hain 1',
+        // Genau die Form, die avesmapsGaretienVerbuende (garetien-plan.php) fuer ein Fragment baut.
+        'verbund_stamm' => 'Silker Hain', 'verbund_n' => 4,
+    ],
+    'selected' => 1,
+]);
+avesmapsSyncPlanAddItem($pdo, 1, [
+    'entity_key' => avesmapsGaretienObjektSchluesselAusZeile(['wiki' => 'ggp', 'ebene' => 'Ortschaften_1', 'typ' => 'Weiler', 'namensraum' => 'Garetien', 'artikel' => 'Einzelhof', 'anzeige' => 'Einzelhof', 'zeile_nr' => 0]),
+    'entity_public_id' => null,
+    'change_type' => 'new',
+    'label' => 'Einzelhof',
+    // ⚠️ KEIN verbund_stamm/verbund_n -- die Vergleichsbasis: ein Objekt ganz ohne Verbund.
+    'after' => [
+        'typ' => 'Weiler', 'wiki' => 'ggp', 'ebene' => 'Ortschaften_1', 'name' => 'Einzelhof',
+    ],
+    'selected' => 1,
+]);
+
+$basisObjekte = avesmapsGaretienArbeitslisteObjekte($pdo, 1)['objekte'];
+$silkerHainKey = avesmapsGaretienObjektSchluesselAusZeile(['wiki' => 'ggp', 'ebene' => 'Ortschaften_1', 'typ' => 'Weiler', 'namensraum' => 'Garetien', 'artikel' => 'Silker Hain 1', 'anzeige' => 'Silker Hain 1', 'zeile_nr' => 0]);
+$einzelhofKey = avesmapsGaretienObjektSchluesselAusZeile(['wiki' => 'ggp', 'ebene' => 'Ortschaften_1', 'typ' => 'Weiler', 'namensraum' => 'Garetien', 'artikel' => 'Einzelhof', 'anzeige' => 'Einzelhof', 'zeile_nr' => 0]);
+assert(isset($basisObjekte[$silkerHainKey]), 'die Vorbedingung: Silker Hain 1 muss unter seinem Schluessel stehen');
+assert(isset($basisObjekte[$einzelhofKey]), 'die Vorbedingung: der Vergleichsfall Einzelhof muss ebenfalls stehen');
+$pruefungen += 2;
+
+// Mit Verbund: BEIDE Felder muessen ankommen, verbund_n als ZAHL -- nicht als Zeichenkette und
+// nicht als der leere Rueckfall eines fehlenden Schluessels.
+assert(($basisObjekte[$silkerHainKey]['verbund_stamm'] ?? null) === 'Silker Hain',
+    'verbund_stamm muss im Ergebnis stehen: ' . json_encode($basisObjekte[$silkerHainKey]['verbund_stamm'] ?? '(fehlt)'));
+assert(($basisObjekte[$silkerHainKey]['verbund_n'] ?? null) === 4,
+    'verbund_n muss als Zahl im Ergebnis stehen: ' . json_encode($basisObjekte[$silkerHainKey]['verbund_n'] ?? '(fehlt)'));
+$pruefungen += 2;
+
+// Ohne Verbund: die zwei Schluessel duerfen GAR NICHT stehen -- nicht leer, nicht null. Der Brief
+// verlangt woertlich "fehlt ganz"; array_key_exists misst genau das, nicht den `?? ''`-Rueckfall,
+// der auch bei einem faelschlich mitgeschickten Leerwert gruen bliebe.
+assert(!array_key_exists('verbund_stamm', $basisObjekte[$einzelhofKey]),
+    'ein Objekt ohne Verbund darf verbund_stamm GAR NICHT tragen: '
+    . json_encode($basisObjekte[$einzelhofKey]['verbund_stamm'] ?? '(war da)'));
+assert(!array_key_exists('verbund_n', $basisObjekte[$einzelhofKey]),
+    'und verbund_n ebenso wenig: '
+    . json_encode($basisObjekte[$einzelhofKey]['verbund_n'] ?? '(war da)'));
+$pruefungen += 2;
+
+
 echo "OK: {$pruefungen} Pruefungen\n";
