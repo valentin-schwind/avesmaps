@@ -106,8 +106,9 @@
 	 * @param wahl     `garetienZielWahlZu(objekt)` -- die GEWAEHLTE Form, nie der Server-Vorschlag
 	 * @param eingaben `garetienEingabenZustandZu(objekt)`, oder `null`, wenn der Aufrufer ihn (noch)
 	 *                 nicht anlegen darf -- dann gelten die Grundwerte des Kastens
+	 * @param gewaehlt ist die Zeile dieses Objekts offen? -- HEREINGEREICHT, nicht selbst gelesen
 	 */
-	function garetienVorschauLabelAus(objekt, wahl, eingaben) {
+	function garetienVorschauLabelAus(objekt, wahl, eingaben, gewaehlt) {
 		if (!objekt) { return null; }
 		var ziel = String((wahl && wahl.ziel) || "");
 		var art = AVESMAPS_GARETIEN_VORSCHAU_ARTEN[ziel] || "";
@@ -148,10 +149,26 @@
 			priority: e.priority,
 			minZoom: e.minZoom,
 			maxZoom: e.maxZoom,
-			// 🔴 Die weisse Fassung gehoert der GEOEFFNETEN Zeile -- dasselbe Feld, aus dem die
-			// Geometrie ihre helle Kontur bekommt (Owner 08.09.2026), und derselbe Gedanke: ein
-			// Vokabular fuer Form und Name.
-			gewaehlt: objekt.gewaehlt === true,
+			/*
+			 * 🔴 DAS WEISS DES LABELS WIRD GENAUSO GESCHALTET WIE DAS WEISS EINER FORM (Owner
+			 * 09.09.2026, woertlich: „das weiss beim label soll so geschalten werden wie das weiss
+			 * einer form oder markierung"). Ein Vokabular fuer Geometrie und Name.
+			 *
+			 * 💣 UND DESHALB WIRD ES HEREINGEREICHT, NICHT HIER GELESEN. Der erste Bau stand hier
+			 * `objekt.gewaehlt === true` -- ein hartkodierter Feldname, waehrend die Form ihr Weiss
+			 * ueber `objekt[AVESMAPS_GARETIEN_FELD_GEWAEHLT]` liest. Heute ist das dieselbe
+			 * Zeichenkette, aber es waren ZWEI Wege zu einem Wert: wer die Konstante umbenennt,
+			 * bekommt die Form nachgezogen und das Label bleibt still stehen. Der Owner hat genau
+			 * diesen Satz korrigiert.
+			 * ⭐ Wer die Antwort HEREINREICHT, kann kein Feld verwechseln -- dieselbe Lehre, die den
+			 * Pruefhaken „Keine Wiki-Zuweisung" am 01.09.2026 gekostet hat (er las
+			 * `properties.name` fuer den Wegnamen und erklaerte damit ALLE 6041 Wege fuer ungemeint,
+			 * bei zwei gruenen Tests). Diese Datei kennt den Feldnamen des Fensters nicht und soll
+			 * ihn nicht kennen.
+			 * ⚠️ Strikt gegen `true`: der Aufrufer reicht das Feld durch, und ein fehlendes Feld ist
+			 * `undefined`, nicht „offen".
+			 */
+			gewaehlt: gewaehlt === true,
 		};
 	}
 
