@@ -3406,6 +3406,21 @@ function avesmapsFeatureSourcesWikiNamespacesFuerKennungen(
         );
         $statement->execute(array_merge([$featureType], $ids));
         $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
+        // 💣 EIN WEG BRAUCHT SEINE GESCHWISTER, sonst erbt er nicht -- und das ist keine Feinheit,
+        // sondern eine gemeldete Fehlerklasse. avesmapsMapFeaturesWikiNamespaces ruft am Ende
+        // avesmapsMapFeaturesWegGruppeErbtZuweisung, und die kann eine Zuweisung nur weitergeben,
+        // wenn sie ALLE Segmente der Namensgruppe sieht. Mit nur der gefragten Zeile gibt es nie
+        // ein Geschwister, die Erbschaft faellt aus, und ein unzugewiesenes Segment mit einer
+        // inoffiziellen Quelle steht ploetzlich auf „inoffiziell │ Briefspiel", waehrend dasselbe
+        // Segment beim Seitenladen „offiziell" ist. Reproduziert am 09.09.2026: das blosse OEFFNEN
+        // des Quellenkastens eines Abschnitts im Wege-Editor kippte den Wert -- und weil der
+        // Client-Nachtrag ihn in die Kanon-Tafel schreibt, blieb er dort bis zum Neuladen stehen.
+        // Es ist der Pergelbach-Fehler („ein Weg, zwei Aussagen") in neuer Verkleidung.
+        // ⚠️ Nur fuer Wege: nur sie kennen diese Erbschaft (zwei gleichnamige Doerfer sind zwei
+        // Doerfer). Gruppiert wird nach feature_subtype + name -- dieselbe Regel wie dort.
+        if ($featureType === 'path' && $rows !== []) {
+            $rows = avesmapsFeatureSourcesWegGruppeNachladen($pdo, $rows);
+        }
     } catch (Throwable $fehler) {
         // ⚠️ Protokolliert, nicht geschluckt: ein SQL-Fehler saehe sonst exakt aus wie „kein Objekt
         // ist zugewiesen" -- die HY093-Falle von „Was ist hier?" (AGENTS.md §11).
@@ -3428,6 +3443,58 @@ function avesmapsFeatureSourcesWikiNamespacesFuerKennungen(
     }
 
     return avesmapsMapFeaturesWikiNamespaces($features);
+}
+
+/**
+ * Die GESCHWISTER-SEGMENTE der gefragten Wege dazuladen -- Voraussetzung der Zuweisungs-Erbschaft.
+ *
+ * 🔴 Gruppiert wird nach `feature_subtype` + `name`, weil genau danach auch
+ * avesmapsMapFeaturesWegGruppeErbtZuweisung gruppiert. Eine andere Gruppierung hier hiesse: die
+ * Erbschaft sieht eine andere Menge als die, fuer die sie gedacht ist.
+ * ⚠️ Ein Segment OHNE Namen kann weder erben noch vererben (die Erbschaft ueberspringt es) -- fuer
+ * das muss auch nichts nachgeladen werden.
+ * ⚠️ Die Zeilen kommen entdoppelt zurueck -- eine gefragte Kennung steht sonst zweimal darin.
+ * 🪤 Diese zwei Feinheiten sind SAUBERKEIT, kein Riegel, und das steht hier, damit sie niemand fuer
+ * tragend haelt: nachgemessen (09.09.2026, Mutationsprobe) ist die Erbschaft gegen Dubletten
+ * unempfindlich -- sie sammelt Raeume in einem Set und weist idempotent zu -- und ein leerer Name
+ * faende ohnehin nur namenlose Segmente, die nie erben. Eine Mutation an diesen beiden Zeilen laesst
+ * die Tests deshalb zu Recht gruen. Tragend ist allein, DASS nachgeladen wird.
+ *
+ * @param list<array<string, mixed>> $rows die schon geladenen Zeilen der gefragten Kennungen
+ * @return list<array<string, mixed>> dieselben Zeilen plus alle Geschwister ihrer Namensgruppen
+ */
+function avesmapsFeatureSourcesWegGruppeNachladen(PDO $pdo, array $rows): array
+{
+    $namen = [];
+    foreach ($rows as $row) {
+        $properties = json_decode((string) ($row['properties_json'] ?? ''), true);
+        $name = is_array($properties) ? trim((string) ($properties['name'] ?? '')) : '';
+        if ($name !== '') {
+            $namen[$name] = true;
+        }
+    }
+    if ($namen === []) {
+        return $rows;
+    }
+
+    // ⚠️ Gefiltert wird ueber den NAMEN (indiziert, schmal); die Wegart entscheidet erst die
+    // Erbschaft selbst. Ein Name trifft im Regelfall die Segmente EINES Wegs -- gemessen am
+    // Livebestand sind das im Median 1 und im Aeussersten 57 Zeilen.
+    $liste = array_keys($namen);
+    $platzhalter = implode(', ', array_fill(0, count($liste), '?'));
+    $statement = $pdo->prepare(
+        "SELECT public_id, feature_type, properties_json
+           FROM map_features
+          WHERE is_active = 1 AND feature_type = 'path' AND name IN ($platzhalter)"
+    );
+    $statement->execute($liste);
+
+    $out = [];
+    foreach (array_merge($rows, $statement->fetchAll(PDO::FETCH_ASSOC)) as $row) {
+        $out[(string) ($row['public_id'] ?? '')] = $row;
+    }
+
+    return array_values($out);
 }
 
 /**

@@ -3155,21 +3155,32 @@ function syncFeatureSourcesToClientCache(entityType, entityPublicId, editorSourc
     ziel.__featureSourceRefs[`${entityType}:${entityPublicId}`] = refs;
   }
 
+  // 🔴 OHNE MITGELIEFERTES WOERTERBUCH BLEIBT DIE KANON-TAFEL UNBERUEHRT -- Marke eingeschlossen.
+  // Der Endpunkt schickt `kanon_je_kennung` nur nach einem SCHREIBvorgang; ein `list` laeuft bei
+  // jedem Neuzeichnen des Editors und darf die zwei Voll-Ladungen nicht ausloesen. Setzte die Marke
+  // hier trotzdem, naehme ein blosses ANSEHEN dem Objekt sein Etikett: der Riegel in
+  // resolveFeatureKanon liesse die Vorgabe „offiziell" dann nicht mehr gelten, und niemand lieferte
+  // einen Ersatz. Ein Ansehen aendert nichts -- also aendert es auch hier nichts.
+  const hatKanon = kanonJeKennung && typeof kanonJeKennung === "object";
+  if (!hatKanon) {
+    return;
+  }
+
   ziel.__featureSourceRefsNachgetragen = ziel.__featureSourceRefsNachgetragen || {};
   ziel.__featureKanon = ziel.__featureKanon || { vorgabe: "", abweichungen: {} };
   ziel.__featureKanon.abweichungen = ziel.__featureKanon.abweichungen || {};
 
   for (const kennung of kennungen) {
     const schluessel = `${entityType}:${kennung}`;
-    // 💣 DIE MARKE IST DER RIEGEL, und sie wird IMMER gesetzt -- auch ohne mitgeliefertes Etikett.
-    // resolveFeatureKanon (js/ui/popups.js) laesst die Vorgabe „offiziell" fuer einen markierten
-    // Schluessel ohne ausdruecklichen Eintrag nicht mehr gelten. Ein kuenftiger Nachtragsweg, der
-    // das Etikett vergisst, bekommt damit „kein Etikett" statt eines falschen -- die sichere
-    // Richtung, strukturell statt per Vereinbarung.
+    // 💣 DIE MARKE IST DER RIEGEL, und sie wird fuer JEDE angefasste Kennung gesetzt -- auch fuer
+    // eine, die im Woerterbuch nicht vorkommt. resolveFeatureKanon (js/ui/popups.js) laesst die
+    // Vorgabe „offiziell" fuer einen markierten Schluessel ohne ausdruecklichen Eintrag nicht mehr
+    // gelten. Ein kuenftiger Nachtragsweg, der ein Etikett vergisst, bekommt damit „kein Etikett"
+    // statt eines falschen -- die sichere Richtung, strukturell statt per Vereinbarung.
     ziel.__featureSourceRefsNachgetragen[schluessel] = true;
     // ⚠️ Ein FEHLENDER Schluessel heisst „nicht gefragt" und laesst den alten Eintrag in Ruhe --
     // nicht dasselbe wie `null`. Deshalb `in`, nicht ein Wahrheitswert.
-    if (!kanonJeKennung || typeof kanonJeKennung !== "object" || !(kennung in kanonJeKennung)) {
+    if (!(kennung in kanonJeKennung)) {
       continue;
     }
     const etikett = kanonJeKennung[kennung];

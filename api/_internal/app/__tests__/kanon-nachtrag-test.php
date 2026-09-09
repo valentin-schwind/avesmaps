@@ -133,8 +133,8 @@ assert(count($tafel) === 1, 'H: Dubletten in der Anfrage werden zusammengefasst'
 
 $pdo = new PDO('sqlite::memory:', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
 $pdo->exec("CREATE TABLE map_features (
-    id INTEGER PRIMARY KEY, public_id TEXT, feature_type TEXT, properties_json TEXT,
-    is_active INTEGER DEFAULT 1
+    id INTEGER PRIMARY KEY, public_id TEXT, feature_type TEXT, name TEXT DEFAULT '',
+    properties_json TEXT, is_active INTEGER DEFAULT 1
 )");
 $pdo->exec("CREATE TABLE political_territory (
     id INTEGER PRIMARY KEY, public_id TEXT, wiki_key TEXT, wiki_url TEXT, is_active INTEGER DEFAULT 1
@@ -176,6 +176,46 @@ assert(!isset($raeume['settlement:ort-phantom']),
     'ein geratener wiki_url OHNE Zuweisungsnest ergibt KEINEN Namensraum (99 Phantome im Bestand)');
 assert(!isset($raeume['settlement:ort-tot']), 'eine inaktive Zeile zaehlt nicht');
 assert(!isset($raeume['settlement:ort-gibtsnicht']), 'eine unbekannte Kennung ergibt nichts');
+
+// 💣 EIN WEG BRAUCHT SEINE GESCHWISTER -- die Regression, die ein Pruefagent am 09.09.2026 fand.
+// avesmapsMapFeaturesWikiNamespaces ruft am Ende avesmapsMapFeaturesWegGruppeErbtZuweisung, und die
+// gibt eine Zuweisung nur weiter, wenn sie ALLE Segmente der Namensgruppe sieht. Wurde nur die
+// gefragte Zeile geladen, gab es nie ein Geschwister: das blosse OEFFNEN des Quellenkastens eines
+// Abschnitts kippte dessen Etikett von „offiziell" auf „inoffiziell │ Briefspiel" -- und der
+// Client-Nachtrag schrieb den falschen Wert in die Kanon-Tafel, wo er bis zum Neuladen stehenblieb.
+// Es ist der Pergelbach-Fehler („ein Weg, zwei Aussagen") in neuer Verkleidung.
+$pdo->exec("INSERT INTO map_features (public_id, feature_type, name, properties_json) VALUES
+    ('seg-A', 'path', 'Reichsstrasse 2', '" . json_encode([
+        'public_id' => 'seg-A', 'feature_type' => 'path', 'feature_subtype' => 'Reichsstrasse',
+        'name' => 'Reichsstrasse 2',
+        'wiki_path' => ['wiki_key' => 'wiki:rs2', 'wiki_url' => 'https://de.wiki-aventurica.de/wiki/Reichsstrasse'],
+    ]) . "')");
+$pdo->exec("INSERT INTO map_features (public_id, feature_type, name, properties_json) VALUES
+    ('seg-B', 'path', 'Reichsstrasse 2', '" . json_encode([
+        'public_id' => 'seg-B', 'feature_type' => 'path', 'feature_subtype' => 'Reichsstrasse',
+        'name' => 'Reichsstrasse 2',
+    ]) . "')");
+
+$nurB = avesmapsFeatureSourcesWikiNamespacesFuerKennungen($pdo, 'path', ['seg-B']);
+assert(($nurB['path:seg-B'] ?? null) === 0,
+    'seg-B erbt den Hauptraum seines Wegs, OBWOHL nur seg-B gefragt wurde -- ohne das Nachladen der '
+    . 'Geschwister faellt die Erbschaft aus, und ein blosses Ansehen kippt das Etikett');
+
+// Und das Etikett folgt: eine inoffizielle Quelle darf die geerbte Zuweisung NICHT schlagen.
+$tafelB = avesmapsFeatureSourcesKanonAusEingaben(
+    'path', ['seg-B'], $katalog, ['path:seg-B' => [['source_id' => 1]]], $nurB
+);
+assert(($tafelB['seg-B']['kanon'] ?? null) === 'offiziell',
+    'die geerbte Hauptraum-Zuweisung schlaegt die inoffizielle Quelle -- sonst stuende derselbe Weg '
+    . 'einmal offiziell und einmal inoffiziell da');
+
+// ⚠️ Ein Segment OHNE Namen kann weder erben noch vererben -- und darf nicht zum Nachladen fuehren.
+$pdo->exec("INSERT INTO map_features (public_id, feature_type, name, properties_json) VALUES
+    ('seg-namenlos', 'path', '', '" . json_encode([
+        'public_id' => 'seg-namenlos', 'feature_type' => 'path', 'feature_subtype' => 'Pfad',
+    ]) . "')");
+$namenlos = avesmapsFeatureSourcesWikiNamespacesFuerKennungen($pdo, 'path', ['seg-namenlos']);
+assert(!isset($namenlos['path:seg-namenlos']), 'ein namenloses Segment erbt nichts');
 
 // Territorien lesen aus ihrer eigenen Tabelle.
 $pdo->exec("INSERT INTO political_territory (public_id, wiki_key, wiki_url) VALUES
@@ -262,6 +302,15 @@ assert(preg_match_all('/kanon_je_kennung/', $endpunkt) === 1,
     'er haengt genau EIN Feld an, unter genau EINEM Namen');
 assert(strpos($endpunkt, 'kanon_je_kennung') < strrpos($endpunkt, 'avesmapsJsonResponse(200'),
     'der Anbau steht VOR der Antwort -- danach waere er wirkungslos');
+// 💣 UND NUR NACH EINEM SCHREIBVORGANG. `list` laeuft bei jedem Neuzeichnen des Editors -- an rund
+// zehn Montagestellen, im Wege-Editor bei jedem Klick auf einen Abschnitt. Der Mehrfach-Rechner
+// laedt Katalog UND Verweise vollstaendig; unbedingt angehaengt waeren das zwei Abfragen ueber den
+// ganzen Bestand je Klick, auf STRATO-Workern. Gefunden von einem Pruefagenten am 09.09.2026.
+// 🪤 EINFACHE Anfuehrungszeichen: in einem PHP-Doppelquote-String wird `\$` zum literalen `$`, und
+// das ist im Regex der ZEILENENDE-Anker -- das Muster traf dann nie und die Zusicherung war ein
+// Vakuum. Beim Bau am 09.09.2026 einmal zugeschlagen.
+assert(preg_match('/in_array\(\$action, \[\x27list\x27/', $endpunkt) === 1,
+    'list (und inspect_url) loesen den Kanon-Rechner NICHT aus');
 assert(strpos($endpunkt, 'avesmapsFeatureSourcesKanonFuerEines') === false,
     'der Einzelweg steht hier nicht: er laedt Katalog und Verweise je Aufruf vollstaendig und '
     . 'gehoert nicht in einen Weg, der bis zu 250 Kennungen bedient');

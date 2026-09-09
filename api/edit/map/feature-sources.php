@@ -358,7 +358,17 @@ try {
     // ⚠️ Die Sammellaeufe (die zwei Uebernahmen und der Wegquellen-Verteiler) nennen KEINE Kennung
     // und bekommen deshalb nichts angehaengt -- sie beruehren Tausende Objekte, und der Browser, der
     // sie ausloest, zeigt keines davon.
-    if (is_array($result) && $entityType !== '' && ($entityPublicIds !== [] || $entityPublicId !== '')) {
+    // 💣 NUR NACH EINEM SCHREIBVORGANG. `list` laeuft bei JEDEM Neuzeichnen des Quellen-Editors --
+    // an rund zehn Montagestellen, im Wege-Editor bei jedem Klick auf einen Abschnitt. Der
+    // Mehrfach-Rechner laedt Katalog UND Verweise vollstaendig; unbedingt angehaengt waere das zwei
+    // Abfragen ueber den ganzen Bestand je Klick, auf STRATO-PHP-Workern. Genau die Last, vor der
+    // CLAUDE.md warnt -- und sie waere sinnlos: `list` aendert nichts, das gespeicherte Etikett
+    // stimmt noch.
+    // 🔴 Der Client setzt seine Marke deshalb NUR, wenn dieses Feld wirklich mitkommt (siehe
+    // syncFeatureSourcesToClientCache) -- sonst naehme ein blosses Ansehen dem Objekt sein Etikett.
+    $schreibendeAktion = !in_array($action, ['list', 'inspect_url'], true);
+    if ($schreibendeAktion && is_array($result) && $entityType !== ''
+        && ($entityPublicIds !== [] || $entityPublicId !== '')) {
         $result['kanon_je_kennung'] = avesmapsFeatureSourcesKanonFuerMehrere(
             $pdo,
             $entityType,

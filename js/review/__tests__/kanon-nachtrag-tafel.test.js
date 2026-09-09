@@ -92,24 +92,42 @@ pruefe(Array.isArray(w.__featureSourceRefs["path:weg-2"]),
 pruefe(!("path:weg-1" in w.__featureSourceRefs) || w.__featureSourceRefs["path:weg-1"].length === 1,
 	"E: und der Anker bekommt nicht zusaetzlich die volle Liste");
 
-// ---- F: DIE MARKE, an der der Riegel in popups.js haengt ----------------------------------------
+// ---- F: OHNE WOERTERBUCH BLEIBT DIE TAFEL UNBERUEHRT -- Marke eingeschlossen --------------------
+// 💣 Ein Pruefagent fand am 09.09.2026: der Endpunkt schickt `kanon_je_kennung` nur nach einem
+// SCHREIBvorgang (ein `list` laeuft bei jedem Neuzeichnen des Editors und darf die zwei
+// Voll-Ladungen nicht ausloesen). Setzte der Nachtrag die Marke trotzdem, naehme ein blosses
+// ANSEHEN dem Objekt sein Etikett: der Riegel liesse die Vorgabe nicht mehr gelten, und niemand
+// lieferte einen Ersatz.
 w = frischesFenster();
+w.__featureKanon.abweichungen["ecosystem:eco-F"] = { kanon: "inoffiziell" };
 global.window = w;
 sync("ecosystem", "eco-F", [QUELLE_INOFF]);
-pruefe(w.__featureSourceRefsNachgetragen["ecosystem:eco-F"] === true,
-	"F: ein nachgetragener Schluessel ist markiert -- daran erkennt resolveFeatureKanon, dass die "
+pruefe(!w.__featureSourceRefsNachgetragen || !w.__featureSourceRefsNachgetragen["ecosystem:eco-F"],
+	"F: ohne Woerterbuch wird KEINE Marke gesetzt -- ein Ansehen aendert nichts");
+gleich(w.__featureKanon.abweichungen["ecosystem:eco-F"], { kanon: "inoffiziell" },
+	"F: und der bestehende Eintrag bleibt stehen");
+pruefe(w.__featureSourceRefs["ecosystem:eco-F"].length === 1,
+	"F: die VERWEISE werden trotzdem nachgezogen -- dafuer gibt es den Nachtrag");
+
+// ---- F1: MIT Woerterbuch wird die Marke gesetzt, auch fuer eine ungenannte Kennung ---------------
+w = frischesFenster();
+global.window = w;
+sync("ecosystem", "eco-F1", [QUELLE_INOFF], null, {});
+pruefe(w.__featureSourceRefsNachgetragen["ecosystem:eco-F1"] === true,
+	"F1: ein nachgetragener Schluessel ist markiert -- daran erkennt resolveFeatureKanon, dass die "
 	+ "Vorgabe 'offiziell' fuer ihn nicht gilt");
-pruefe(!("ecosystem:eco-F" in w.__featureKanon.abweichungen),
-	"F: ohne mitgeliefertes Etikett wird NICHTS in die Kanon-Tafel geschrieben");
+pruefe(!("ecosystem:eco-F1" in w.__featureKanon.abweichungen),
+	"F1: ohne Eintrag fuer diese Kennung wird nichts in die Kanon-Tafel geschrieben");
 
 // Und sie wird auch auf dem by_entity-Weg gesetzt -- sonst umginge genau der den Riegel.
 w = frischesFenster();
 global.window = w;
-sync("path", "weg-1", [QUELLE_INOFF], { "weg-1": [{ source_id: 1 }], "weg-2": [{ source_id: 1 }] });
+sync("path", "weg-1", [QUELLE_INOFF], { "weg-1": [{ source_id: 1 }], "weg-2": [{ source_id: 1 }] },
+	{ "weg-1": { kanon: "inoffiziell" } });
 pruefe(w.__featureSourceRefsNachgetragen["path:weg-1"] === true
 	&& w.__featureSourceRefsNachgetragen["path:weg-2"] === true,
-	"F: die Marke gilt BEIDEN Wegen -- der frueher hier stehende `return` der by_entity-Weiche "
-	+ "haette den Tafel-Teil sonst uebersprungen");
+	"F2: die Marke gilt BEIDEN Wegen -- der frueher hier stehende `return` der by_entity-Weiche "
+	+ "haette den Tafel-Teil sonst uebersprungen, und der Wege-Verteiler umginge den Riegel");
 
 // ---- G: ein Fenster ohne Kanon-Tafel bekommt eine, statt zu werfen -------------------------------
 w = { __sourceCatalog: {}, __sourceCorpora: {}, __featureSourceRefs: {} };
