@@ -989,10 +989,12 @@ html.avesmaps-planner-collapsed .gi-win {
  * wegzunehmen liesse die Spalte springen, und der Editor verlöre mitten in der Entscheidung den
  * Bezug; abgeblendet sagt er dasselbe und bleibt an seinem Platz.
  *
- * 💣 ÜBER DIE SPALTE, NICHT ÜBER EIN GESCHWISTER. Die Handlungsleiste steht NACH `.gi-detail`
- * (sie ist deren Geschwister, `.gi-win .avm-col > .gi-acts`) -- ein Kombinator kann von dort aus
- * nicht zurückgreifen. `:has()` am gemeinsamen Vorfahren ist der einzige Weg, der ohne einen
- * zweiten Zustand im JavaScript auskommt.
+ * 💣 ÜBER DEN GEMEINSAMEN VORFAHREN. Die Handlungsleiste steht VOR `.gi-insert`, und ein
+ * Kombinator kann von dort aus nicht nach hinten greifen; `:has()` am Vorfahren ist der einzige
+ * Weg, der ohne einen zweiten Zustand im JavaScript auskommt.
+ * 🪴 Hier stand bis zum 09.09.2026 die Begründung „sie ist deren Geschwister,
+ * `.gi-win .avm-col > .gi-acts`“. Seit die Leiste mitrollt (Owner: nicht mehr sticky), ist sie
+ * ein KIND von `.gi-detail` -- die Regel selbst trägt weiter, weil `.avm-col` beide enthält.
  *
  * ⚠️ `:focus-visible` steht daneben: wer mit der Tastatur bedient, überfährt nichts.
  * ⚠️ `opacity: .5` ist die Hausform (editor-page.css), keine neue Zahl. */
@@ -1211,9 +1213,15 @@ html.avesmaps-planner-collapsed .gi-win {
 	gap: var(--space-2);
 }
 
-.gi-win .avm-col > .gi-acts {
-	flex: none;
-	padding: var(--space-6) var(--space-12);
+/* 🔴 SEIT 09.09.2026 ROLLT SIE MIT, statt unten zu kleben (Owner: „dass dieser teil sticky
+   und nicht ueber ‚Eingefuegt wird‘ … steht“). Der Selektor traf ein DIREKTES Kind der Spalte;
+   die Leiste steht jetzt in `.gi-detail`, also greift er nicht mehr -- ohne diesen Umbau waere er
+   eine tote Regel.
+   ⚠️ Trennlinie und Polster bleiben: sie setzen den Kasten von der Begruendung darueber ab, und
+   genau das ist seine Aufgabe -- er ist die Stelle, an der man das Objekt einstellt. */
+.gi-detail > .gi-acts {
+	margin-top: var(--space-6);
+	padding-top: var(--space-6);
 	border-top: 1px solid var(--color-divider);
 }
 

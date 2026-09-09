@@ -626,15 +626,25 @@ wahr(garetienHandlungen(zufluss).every((k) => !k.disabled),
 wahr(!/gi-acts__grund/.test(garetienHandlungsMarkup(zufluss)),
 	"ohne ausgegrauten Knopf steht auch keine Grundzeile da (die DIFFERENZ, nicht nur das Vorhandensein)");
 
-// 🔴 DIE LEISTE IST EIN GESCHWISTER von .gi-detail, nicht ihr Kind: sie haengt als `flex: none` am
-// Fuss der Spalte, waehrend die Ansicht darueber rollt. Laege sie IM Rollkasten, stuende die
-// Entscheidung bei 13 Abschnitten hinter der Bildlaufleiste -- und bei kurzen Objekten faellt das
-// gar nicht auf.
+// 🔴 SEIT 09.09.2026 ROLLT DIE LEISTE MIT, UEBER „Eingefuegt wird“ (Owner: „was mich auch
+// stoert ist, dass dieser teil sticky und nicht ueber ‚Eingefuegt wird‘ … steht“).
+//
+// 🪴 HIER STAND DAS GEGENTEIL, und es war nicht falsch, sondern ueberholt: „sie haengt als
+// `flex: none` am Fuss der Spalte, waehrend die Ansicht darueber rollt. Laege sie IM Rollkasten,
+// stuende die Entscheidung bei 13 Abschnitten hinter der Bildlaufleiste.“ Das galt, solange die
+// Leiste NUR Knoepfe trug. Seit dem 09.09.2026 traegt sie den NAMEN und die zwei Haekchen -- sie
+// ist keine Fussleiste mehr, sondern der Kasten, in dem man das Objekt einstellt, und der gehoert
+// VOR die Feinheiten (Zoomband, Prioritaet, Wiki-Suche), nicht hinter sie.
 const spalte = garetienDetailMarkup(einer);
+// ⚠️ Die REIHENFOLGE gegen „Eingefügt wird“ steht nicht hier: `einer` traegt den Kasten gar
+// nicht (kein `new`-Item mit Ziel), ein indexOf-Vergleich liefe dort gegen -1 und waere gruen,
+// ohne etwas zu messen. Sie steht in garetien-detailspalte-reihenfolge.test.js.
 wahr(spalte.indexOf('<div class="gi-acts">') > spalte.indexOf('<div class="gi-detail">'),
-	"die Leiste steht NACH der Ansicht");
-wahr(/<\/div><div class="gi-acts">/.test(spalte),
-	"💣 und AUSSERHALB von ihr -- das schliessende </div> der .gi-detail steht davor");
+	'💣 und INNERHALB der rollenden Ansicht -- sonst klebt sie wieder am Fuss');
+// ⚠️ Das Kleben haengt am Selektor `.gi-win .avm-col > .gi-acts` (DIREKTES Kind der Spalte). Als
+// Kind von `.gi-detail` greift er nicht mehr; wer die Leiste je zurueckschoebe, holte es zurueck.
+wahr(!/<\/div><div class="gi-acts">/.test(spalte),
+	'und NICHT mehr als Geschwister hinter dem schliessenden div');
 // Ohne Auswahl gibt es auch keine Leiste (ein Knopf ohne Objekt ist ein Knopf ins Leere).
 wahr(!garetienDetailMarkup(null).includes("gi-acts"), "ohne Auswahl steht keine Knopfleiste da");
 
@@ -766,13 +776,19 @@ wahr(kontrast(hart.dunkel, grund.dunkel) < 4.5,
 	"die Gegenprobe: --color-danger faellt im dunklen Thema wirklich durch -- sonst misst die "
 	+ "Schranke darueber nichts");
 
-// 🔴 UND DIE REGEL, DIE DIE LEISTE TRAEGT: `flex: none` an `.avm-col > .gi-acts`. `.avm-col` ist
-// eine Flexspalte mit `overflow: hidden`, `.gi-detail` darin rollt (`flex: 1 1 auto`) -- ohne
-// `flex: none` an der Leiste schruempfte sie mit, statt fest zu stehen. Das ist die ganze
-// Anheftung; es gibt kein `position: sticky`, das man stattdessen suchen koennte.
-wahr(/\.gi-win\s+\.avm-col\s*>\s*\.gi-acts\s*\{[^}]*flex:\s*none/.test(acts),
-	"💣 die Handlungsleiste ist ANGEHEFTET (`flex: none` als Kind der Spalte) -- sonst laege die "
-	+ "Entscheidung bei 13 Abschnitten hinter der Bildlaufleiste");
+// 🪴 DIE ANHEFTUNG IST AM 09.09.2026 GEFALLEN (Owner: „was mich auch stoert ist, dass dieser
+// teil sticky und nicht ueber ‚Eingefuegt wird‘ … steht“). Hier stand die Zusicherung, dass
+// `.gi-win .avm-col > .gi-acts` ein `flex: none` traegt -- die Regel, die sie am Fuss der Spalte
+// festhielt. Die Leiste steht jetzt IN `.gi-detail` und rollt mit; der Selektor traf ein DIREKTES
+// Kind und greift damit gar nicht mehr.
+// 🔴 Geprueft wird stattdessen, dass die neue Regel den Kasten absetzt -- ohne Trennlinie
+// verschwaemme er mit der Begruendung darueber, und er ist die Stelle, an der man das Objekt
+// einstellt.
+wahr(/\.gi-detail\s*>\s*\.gi-acts\s*\{[^}]*border-top/.test(acts),
+	'die Handlungsleiste rollt mit und ist durch eine Trennlinie abgesetzt');
+wahr(!/\.avm-col\s*>\s*\.gi-acts/.test(acts),
+	'💣 und die alte Anheftungs-Regel ist WEG, nicht nur wirkungslos -- eine tote Regel liest der',
+	acts.slice(0, 0) + 'naechste als geltend');
 // Gegenprobe zum Muster darueber: an einer Regel, die es gibt und die KEIN `flex: none` traegt,
 // darf es nicht anschlagen -- sonst misst es nur „irgendwo steht ein geschweiftes Klammerpaar".
 wahr(!/\.gi-win\s+\.avm-col\s*>\s*\.gi-acts\s*\{[^}]*position:\s*sticky/.test(acts),

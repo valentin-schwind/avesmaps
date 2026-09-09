@@ -5701,13 +5701,22 @@
 		const warum = grund === "" ? "" : '<p class="gi-sec">Der Grund</p><p class="gi-why">'
 			+ avesmapsGaretienEscape(grund) + "</p>";
 
-		// 🔴 Die Handlungsleiste ist ein GESCHWISTER der rollenden Ansicht, kein Kind (Aufgabe 15,
-		// Mockup §3): `.avm-col` ist eine Flexspalte, `.gi-detail` rollt darin, und `.gi-acts`
-		// steht als `flex: none` darunter fest. Läge sie IM Rollkasten, stünde die Entscheidung bei
-		// 13 Abschnitten hinter der Bildlaufleiste.
+		// 🔴 DIE HANDLUNGSLEISTE ROLLT MIT, UEBER „Eingefuegt wird“ (Owner 09.09.2026: „was mich
+		// auch stoert ist, dass dieser teil sticky und nicht ueber ‚Eingefuegt wird‘ … steht“).
+		//
+		// 🪴 HIER STAND DAS GEGENTEIL, und die alte Begruendung war nicht falsch -- sie ist
+		// ueberholt: „.gi-acts steht als `flex: none` darunter fest. Laege sie IM Rollkasten,
+		// stuende die Entscheidung bei 13 Abschnitten hinter der Bildlaufleiste.“ Das galt, solange
+		// die Leiste NUR Knoepfe trug. Seit dem 09.09.2026 traegt sie den NAMEN und die zwei
+		// Haekchen -- sie ist keine Fussleiste mehr, sondern der Kasten, in dem man das Objekt
+		// einstellt, und der gehoert VOR die Feinheiten, nicht hinter sie.
+		// ⚠️ Damit faellt das Kleben von selbst: `.gi-win .avm-col > .gi-acts` greift nur auf ein
+		// DIREKTES Kind der Spalte, und ein Kind von `.gi-detail` ist keines mehr.
+		// ⚠️ `garetienNaeheMarkup` bleibt unten stehen -- es ist ein Werkzeug fuer die LISTE
+		// („Imports in der Naehe waehlen“), keine Einstellung dieses Objekts.
 		return '<div class="gi-detail">' + kopf + mitte + warum
-			+ garetienEingefuegtWirdMarkup(objekt) + "</div>"
 			+ garetienHandlungsMarkup(objekt)
+			+ garetienEingefuegtWirdMarkup(objekt) + "</div>"
 			+ garetienNaeheMarkup(objekt);
 	}
 
