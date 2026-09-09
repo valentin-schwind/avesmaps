@@ -150,12 +150,24 @@ const bGipfel = garetienVorschauLabelAus(huegel, { ziel: "label", subtyp: "bergg
 gleich(bGipfel.subtyp, "berggipfel", "die WAHL entscheidet die Art, nicht `objekt.subtyp`");
 wahr(huegel.subtyp === "huegel", "und der Vorschlag des Servers bleibt unberuehrt");
 
-// 🔴 Die weisse Fassung haengt an `gewaehlt` -- dasselbe Feld, aus dem die Geometrie ihre helle
-// Kontur bekommt (Owner 08.09.2026): EIN Vokabular fuer Form und Name.
-const bOffen = garetienVorschauLabelAus(
-	Object.assign({}, flaeche, { gewaehlt: true }), wahlFlaeche, eingabenVoll
-);
-gleich(bOffen.gewaehlt, true, "die geoeffnete Zeile traegt die Marke bis in die Beschreibung");
+// 🔴 DAS WEISS WIRD GESCHALTET WIE DAS WEISS EINER FORM (Owner 09.09.2026) -- und deshalb wird die
+// Antwort HEREINGEREICHT, nicht aus dem Objekt gelesen.
+// 💣 Der erste Bau las `objekt.gewaehlt` hier selbst, waehrend die Form ihr Weiss ueber die
+// Konstante `AVESMAPS_GARETIEN_FELD_GEWAEHLT` nimmt: zwei Wege zu einem Wert, heute gleich, beim
+// naechsten Umbenennen still auseinander. Diese Zeilen halten fest, dass die Regel den Feldnamen
+// NICHT mehr kennt.
+const bOffen = garetienVorschauLabelAus(flaeche, wahlFlaeche, eingabenVoll, true);
+gleich(bOffen.gewaehlt, true, "die offene Zeile traegt die Marke bis in die Beschreibung");
+gleich(garetienVorschauLabelAus(flaeche, wahlFlaeche, eingabenVoll, false).gewaehlt, false,
+	"und eine geschlossene nicht");
+// 💣 DIE GEGENPROBE, DIE DEN UMBAU FESTNAGELT: ein Objekt, das das Feld SELBST traegt, aendert
+// nichts -- die Regel liest es nicht mehr. Ohne diese Zeile waere „hereingereicht" nur eine
+// Behauptung, und ein Rueckbau auf `objekt.gewaehlt` bliebe unbemerkt.
+gleich(garetienVorschauLabelAus(Object.assign({}, flaeche, { gewaehlt: true }), wahlFlaeche,
+	eingabenVoll, false).gewaehlt, false,
+	"💣 ein Feld AM OBJEKT darf die Regel nicht mehr beeinflussen -- der Aufrufer entscheidet");
+gleich(garetienVorschauLabelAus(flaeche, wahlFlaeche, eingabenVoll).gewaehlt, false,
+	"⚠️ und ohne Angabe gilt „nicht offen\" -- strikt gegen `true`, nicht wahrheitswertig");
 
 // 💣 UND SIE VERAENDERT DAS OBJEKT NICHT. Die Beschreibung ist ein neues Objekt; schriebe die Regel
 // in ihr Eingabeobjekt, liefe das ueber `zustand.objekte` bis in die Listenzeile durch -- der Fehler,

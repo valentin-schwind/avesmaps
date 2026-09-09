@@ -2020,7 +2020,13 @@
 				? AVESMAPS_GARETIEN_VORSCHAU_ARTEN
 				: {};
 			if (!artenTafel[String((wahl && wahl.ziel) || "")]) { return o; }
-			const beschreibung = garetienVorschauLabelAus(o, wahl, garetienEingabenZustandZu(o));
+			// 🔴 DAS OFFEN-FELD WIRD UEBER DIE KONSTANTE GELESEN und hereingereicht -- genau die
+			// Quelle, aus der die FORM ihr Weiss nimmt (garetienGewaehltStempeln setzt es, der
+			// Zeichner liest es ebenso). Owner 09.09.2026: „das weiss beim label soll so geschalten
+			// werden wie das weiss einer form oder markierung." Ein hartkodiertes `objekt.gewaehlt`
+			// in der reinen Regel waere ein ZWEITER Weg zu demselben Wert.
+			const beschreibung = garetienVorschauLabelAus(o, wahl, garetienEingabenZustandZu(o),
+				o[AVESMAPS_GARETIEN_FELD_GEWAEHLT] === true);
 			if (beschreibung === null) { return o; }
 			const kopie = Object.assign({}, o);
 			kopie[AVESMAPS_GARETIEN_FELD_VORSCHAU_LABEL] = beschreibung;

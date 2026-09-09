@@ -1459,6 +1459,13 @@
 	 * und genau das ist hier die Antwort.
 	 * ⚠️ Der Ort hat KEINEN Haken „Auf Karte anzeigen" -- es gibt ihn im ganzen Haus nur für Wege und
 	 * Kraftlinien. Sein Name folgt allein der Stage und diesem Band.
+	 * 🔴 UND ER BRAUCHT KEINE KOLLISIONSERKENNUNG (Owner 09.09.2026, wörtlich: „ja aber er braucht
+	 * keine kollisionserkennung"). Das ist der Grund, warum die Vorschau nicht in `locationNameLabels`
+	 * eingetragen wird -- dort fände sie der Löser von selbst. Sein Versatz zum Punkt kommt trotzdem
+	 * aus dem echten Bauer: der steht als INLINE-Stil am Bild (`--location-label-offset-x`), nicht in
+	 * einer Regel, die an die Registry oder die `labelsPane` gebunden wäre. Deshalb sitzt er auch in
+	 * einer fremden Pane richtig, und `--label-offset-x` (das der Löser schreibt) fällt auf seinen
+	 * CSS-Vorgabewert 0 zurück -- genau der Zustand, den der Owner bestellt hat.
 	 */
 	function garetienVorschauOrtsnameIcon(v, zoom) {
 		if (typeof createLocationNameLabelIcon !== "function") { return null; }
