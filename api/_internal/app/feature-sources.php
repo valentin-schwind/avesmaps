@@ -3400,7 +3400,7 @@ function avesmapsFeatureSourcesWikiNamespacesFuerKennungen(
     $platzhalter = implode(', ', array_fill(0, count($ids), '?'));
     try {
         $statement = $pdo->prepare(
-            "SELECT public_id, feature_type, properties_json
+            "SELECT public_id, feature_type, name, properties_json
                FROM map_features
               WHERE is_active = 1 AND feature_type = ? AND public_id IN ($platzhalter)"
         );
@@ -3465,25 +3465,38 @@ function avesmapsFeatureSourcesWikiNamespacesFuerKennungen(
  */
 function avesmapsFeatureSourcesWegGruppeNachladen(PDO $pdo, array $rows): array
 {
+    // 💣 DER NAME WIRD AUS BEIDEN QUELLEN GESAMMELT -- Spalte UND `properties_json`. Gefiltert wird
+    // ueber die SPALTE (nur die ist indiziert), gruppiert spaeter ueber das JSON
+    // (avesmapsMapFeaturesWegGruppeErbtZuweisung liest `properties.name`). Laufen die beiden bei
+    // einer Zeile auseinander -- oder ist eine von beiden leer --, faende ein Filter aus nur einer
+    // Quelle die Geschwister nicht, und die Erbschaft fiele still wieder aus. Genau daran ist der
+    // erste Bau am 09.09.2026 in der eigenen Probe gescheitert.
     $namen = [];
     foreach ($rows as $row) {
         $properties = json_decode((string) ($row['properties_json'] ?? ''), true);
-        $name = is_array($properties) ? trim((string) ($properties['name'] ?? '')) : '';
-        if ($name !== '') {
-            $namen[$name] = true;
+        foreach ([
+            is_array($properties) ? ($properties['name'] ?? '') : '',
+            $row['name'] ?? '',
+        ] as $wert) {
+            $name = trim((string) $wert);
+            if ($name !== '') {
+                $namen[$name] = true;
+            }
         }
     }
     if ($namen === []) {
         return $rows;
     }
 
-    // ⚠️ Gefiltert wird ueber den NAMEN (indiziert, schmal); die Wegart entscheidet erst die
-    // Erbschaft selbst. Ein Name trifft im Regelfall die Segmente EINES Wegs -- gemessen am
-    // Livebestand sind das im Median 1 und im Aeussersten 57 Zeilen.
+    // ⚠️ Gefiltert wird ueber die SPALTE `name` -- nur sie ist indiziert; die Wegart entscheidet
+    // erst die Erbschaft selbst. Ein Name trifft im Regelfall die Segmente EINES Wegs.
+    // 🚩 Am Dump vom 08.09.2026 nachgezaehlt: **8360 von 8360** Wegen tragen die Spalte gefuellt,
+    // keiner leer. Das ist die Voraussetzung, unter der dieser Filter ueberhaupt wirkt -- eine
+    // Wegwerf-Probe mit leerer Spalte lief beim Bau ins Leere und sah wie ein kaputter Fix aus.
     $liste = array_keys($namen);
     $platzhalter = implode(', ', array_fill(0, count($liste), '?'));
     $statement = $pdo->prepare(
-        "SELECT public_id, feature_type, properties_json
+        "SELECT public_id, feature_type, name, properties_json
            FROM map_features
           WHERE is_active = 1 AND feature_type = 'path' AND name IN ($platzhalter)"
     );
