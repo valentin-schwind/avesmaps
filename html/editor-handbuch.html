@@ -232,12 +232,12 @@
 				<li><a href="#karten-features" data-keywords="wikisync dump syncen sorten übernahme vorschau häkchen anhäkeln neu geändert gelöscht stilllegen abgelehnte löschungen">Karten-Features</a>
 					<ul>
 						<li><a href="#kreise" data-keywords="kreis punkt icon symbol grün halb gefüllt leer abdeckung auf der karte legende">Der Kreis neben dem Namen</a></li>
+						<li><a href="#wege" data-keywords="straße strasse pfad fluss seeweg bach kreuzung verlauf geometrie strömung transportmittel gangbar einschränkungen kursiv gangbarkeit saisonal jahreszeit pass winter routing teilen lage innerorts außerorts filter wege-editor wege bearbeiten höhenprofil wegprofile abschnitte tempowerte reisezeit tagesleistung geländefaktor querfeldein aufschlag geographia aventurica">Wege</a></li>
 						<li><a href="#siedlungen" data-keywords="ort orte siedlung siedlungen stadt dorf metropole bauwerk art ortsart wappen bilder nodix ruine ortsgröße ortseditor siedlungseditor zuordnen verschieben ziehen strg offene wegenden ablösen ortsname eindeutig doppelter name klammern lage innerorts außerorts filter ki generiert prompt bild hochladen gemeinfrei beschreibung öffentlich verborgen versteckt unsichtbar optionen">Orte</a></li>
 						<li><a href="#territorien" data-keywords="gebiet herrschaftsgebiet reich grafschaft baronie grenzen hauptstadt zoom gültigkeit schraffur einrasten ring ecke kante gebündelt speichern strg schreibrecht gesperrt sperre blockiert erzwingen kontur zielgebiet">Territorien</a></li>
 						<li><a href="#regionen" data-keywords="label beschriftung landschaft kategorie art höhe schritt berggipfel kraftlinie wald gebirge meer vulkan tal label zuweisen regionen bearbeiten vorschau größe rotation priorität darstellung">Regionen</a></li>
 						<li><a href="#landschaften" data-keywords="landschaft landschaften fläche flaeche ökosystem ecosystem vegetation topographie derographie klimazonen wald gebirge wüste umriss ecken doppelklick zeichnen pinsel radiergummi malen radieren einrasten snap kopieren vereinigen ausschneiden schnittmenge zerschneiden unterfläche gelände erosion erhebungen trennlinie klimagrenze gebirgseinstellungen morphologie höhenstufe kammgebirge gratgebirge kettengebirge kuppengebirge massengebirge plateaugebirge rumpfgebirge schild inselberg karst massigkeit kammschärfe kammhöhe rinnennetz gebirgszug höhenfeld">Landschaften</a></li>
 						<li><a href="#kraftlinien" data-keywords="kraftlinie nodix madas haar ader sumus segment verbindet quellen wiki-artikel zuweisen zuordnung löschen abschnitt lösen">Kraftlinien</a></li>
-						<li><a href="#wege" data-keywords="straße strasse pfad fluss seeweg bach kreuzung verlauf geometrie strömung transportmittel gangbar einschränkungen kursiv gangbarkeit saisonal jahreszeit pass winter routing teilen lage innerorts außerorts filter wege-editor wege bearbeiten höhenprofil wegprofile abschnitte tempowerte reisezeit tagesleistung geländefaktor querfeldein aufschlag geographia aventurica">Wege</a></li>
 						<li><a href="#abenteuer" data-keywords="literatur abenteuer roman kurzgeschichte regionalspielhilfe spielhilfe cover spoiler shop edition schauplatz produkte publikationen materialien">Literatur</a></li>
 						<li><a href="#kartensammlungen" data-keywords="stadtplan karte vorschau fundort maßstab verlag kostenpflichtig produkte publikationen materialien lizenz hochladen upload webp eigene kreation neu anlegen neue karte titel doppelt autoget genehmigung erteilt orte zuordnen breite höhe pixel">Kartensammlungen</a></li>
 						<li><a href="#natur-waren" data-keywords="vorkommen natur waren flora fauna spezies handelswaren lore pflanzen tiere lebensraum gruppe verbreitung materialien filter trichter kontinent aventurien myranor herkunft ortsangabe quelle regel bedingung klimazone klimaspanne landschaftsart fläche und oder trefferzahl">Vorkommen</a></li>
@@ -263,6 +263,7 @@
 				</li>
 				<li><a href="#verstehen" data-keywords="konzepte hintergrund warum">Verstehen</a>
 					<ul>
+						<li><a href="#v-karte" data-keywords="originalkarte karte lage position datengrundlage verschieben meilen garetien importer punkt aufgelöst markt burg kloster konflikt">Die Originalkarte ist unsere Datengrundlage</a></li>
 						<li><a href="#v-wiki" data-keywords="aventurica verknüpfen zuweisen datengrundlage zuweisungskasten artikel suchen sync entfernen ändern kein wiki-artikel vorhanden">Das Wiki als Datengrundlage</a></li>
 						<li><a href="#v-live" data-keywords="speichern entwurf veröffentlichen sofort">Alles ist sofort live</a></li>
 						<li><a href="#v-graph" data-keywords="kreuzung unverbunden querfeldein routing knoten wegzeichnung">Das Wegenetz ist ein Graph</a></li>
@@ -444,7 +445,7 @@
 			<!-- ============================= 2. KARTEN-FEATURES ============================= -->
 			<section id="karten-features" class="hb-section">
 				<h2>Karten-Features</h2>
-				<p class="hb-lead">Die fünf Sorten Inhalt, die wir pflegen. Sie tragen dieselben Namen wie die Reiter unter <strong>Editor → WikiSync</strong>, denn dort liegt zu jeder Sorte die Abgleichsliste gegen das Wiki.</p>
+				<p class="hb-lead">Die sechs Sorten Inhalt, die wir pflegen. Sie tragen dieselben Namen wie die Reiter unter <strong>Editor → WikiSync</strong>, denn dort liegt zu jeder Sorte die Abgleichsliste gegen das Wiki.</p>
 
 				<h3>Zwei Knöpfe, die überall gleich funktionieren</h3>
 				<p>Im Reiter <strong>WikiSync</strong> stehen über den Sorten-Reitern zwei Aktionen, die für alle Sorten dasselbe bedeuten:</p>
@@ -518,396 +519,6 @@
 				</table>
 				<div class="hb-note hb-tip"><strong>Bei Territorien zählt der ganze Ast.</strong> Ein Gebiet wird erst voll, wenn auch jedes Untergebiet vollständig ist — und deren Untergebiete ebenso, bis nach unten. Ein Kaiserreich mit einer einzigen fehlenden Baronie bleibt darum halb gefüllt. Das ist kein Fehler, sondern der Hinweis, wo noch Arbeit liegt: Klapp den Ast auf und folge den halben Kreisen nach unten.</div>
 				<div class="hb-note hb-tip"><strong>Im Territorien-Baum</strong> kannst du mit der Maus über dem Kreis stehen bleiben, dann erscheint die Bedeutung im Klartext. In den übrigen Listen gibt es diesen Hinweis nicht — dafür ist diese Tabelle da.</div>
-
-				<h3 id="siedlungen" class="hb-sub">Orte</h3>
-				<p class="hb-path"><strong>Auf der Karte:</strong> Linksklick → Infopanel → „Bearbeiten" &nbsp;·&nbsp; <strong>Anlegen:</strong> Rechtsklick → „Hier hinzufügen" → „Neuer Ort" &nbsp;·&nbsp; <strong>Liste:</strong> Editor → WikiSync → Orte</p>
-				<p>Orte sind Dörfer, Städte, Metropolen und besondere Bauwerke. Sie sind der häufigste Bearbeitungsfall.</p>
-				<div class="hb-note hb-tip"><strong>Ortsnamen müssen eindeutig bleiben.</strong> Legst du einen zweiten Ort mit einem schon vergebenen Namen an, nennt dir der Editor den blockierenden Ort; <strong>„Ort anzeigen"</strong> springt hin, dein Formular bleibt stehen. Der Ausweg ist der des Wikis: ein <strong>Zusatz in Klammern</strong>, also <em>„Ortsname (Region)"</em>. Grund: die Reiseplanung führt ihre Orte über den Namen — zwei gleiche fallen darin zu einem Punkt zusammen.</div>
-
-				<h4>Der Dialog „Ort bearbeiten"</h4>
-				<ul class="hb-steps">
-					<li><strong>Position</strong> — die Koordinaten, nur zur Anzeige. Verschieben tust du den Ort, indem du ihn auf der Karte ziehst.</li>
-					<li><strong>Identität</strong> — <em>Ortsname</em>, <em>Ortsgröße</em>, <em>Art</em> und die drei Wiki-Angaben <em>Einwohner</em>, <em>Lage</em> und <em>Herrscher</em>; die drei darfst du auch von Hand überschreiben. Wiki-Werte holt <strong>„Sync"</strong> im <a href="#v-wiki">Zuweisungskasten</a>, mit Vorschau.</li>
-					<li><strong>Beschreibung</strong> — ein Textfeld, beschriftet <em>„Beschreibung — öffentlich sichtbar"</em>. Was hier steht, erscheint in der Infobox; bis 1.200 Zeichen.</li>
-					<li><strong>Optionen</strong> — „Ort ist ein Nodix", „Ruine/zerstört", „Verborgen".</li>
-					<li><strong>Wiki-Ort</strong> — der <a href="#v-wiki">Zuweisungskasten</a>, hier <em>mit</em> dem Häkchen „Kein Wiki-Artikel vorhanden".</li>
-					<li><strong>Quellen</strong> — womit dieser Ort belegt ist. Mehrere Einträge sind normal; siehe <a href="#v-quellen">Quellen</a>.</li>
-					<li><strong>Wappen</strong> — <strong>„Ersetzen / hochladen"</strong> (Datei oder Bild-Adresse, bis 5&nbsp;MB, SVG erlaubt) und <strong>„Entfernen"</strong>; ein Klick auf das Bild selbst tut dasselbe wie der erste. Daneben steht, woher das gezeigte Wappen stammt. Erscheint erst, <em>nachdem</em> der Ort einmal gespeichert wurde. Beim Hochladen fragt der Dialog <em>Lizenz</em>, <em>Urheber</em> und <em>Kommentar</em> — siehe <a href="#v-lizenzen">Bilder &amp; Lizenzen</a>.</li>
-				</ul>
-				<div class="hb-note hb-tip"><strong>„Ortsgröße" und „Art" beantworten zwei verschiedene Fragen.</strong> Die <em>Ortsgröße</em> entscheidet, <strong>wie</strong> der Punkt gezeichnet wird — Symbol, Größe, ab welchem Zoom sein Name erscheint. Die <em>Art</em> sagt, <strong>was</strong> er ist: Brücke, Festung, Turm, Kloster … Sie ändert an der Karte nichts, sondern ersetzt nur die Typzeile in der Infobox. Tipp einfach los, der Editor schlägt aus dem Wiki-Katalog vor („brü" findet „Brücke"); <strong>leer lassen ist erlaubt</strong>, wenn du es nicht sicher weißt.</div>
-				<div class="hb-note hb-tip"><strong>„Art" ist grau? Dann steht die Ortsgröße nicht auf „Besondere Bauwerke/Stätten".</strong> Nur dort ist das Feld freigeschaltet — ein Dorf ist eben ein Dorf, da gibt es keine zweite Art. Stellst du die Ortsgröße wieder auf eine Siedlungsstufe zurück, wird die Art <em>geleert</em>, nicht bloß gesperrt: Gespeichert würde sie ohnehin nicht mehr, und ein stehengebliebener Text behauptete etwas Falsches.</div>
-				<div class="hb-note hb-warn"><strong>Ein Wappen ohne freie Lizenz bleibt unsichtbar</strong> — kein Fehler, sondern Absicht. Welche der sieben Einstufungen öffentlich erscheinen, steht unter <a href="#v-lizenzen">Bilder &amp; Lizenzen</a>.</div>
-				<div class="hb-note hb-warn"><strong>Die Karte holt kein Bild vom Wiki.</strong> Gezeigt wird nur, was auf unserem Server liegt — sonst bleibt das Feld leer, auch wenn der Editor daneben <em>„Wiki-Wappen vorhanden, aber nicht übernommen"</em> schreibt. Brauchst du das Wappen, lade es über <strong>„Ersetzen / hochladen"</strong> als Bild-Adresse hoch.</div>
-				<h4>„Verborgen" — ein Ort ohne Punkt auf der Karte</h4>
-				<ul class="hb-steps">
-					<li>Er bekommt <strong>weder Markierung noch Namen</strong>.</li>
-					<li>Die Reiseplanung wählt ihn <strong>nicht von sich aus</strong> als Ziel oder Zwischenstation. Liegt er an einer Straße, fährt eine Route hindurch — sie nennt ihn nur nicht in der Etappenliste.</li>
-					<li><strong>Wer den Namen kennt, findet ihn:</strong> über die Suche und über die Wegpunktsuche, wo er als <em>„Verborgen"</em> gekennzeichnet ist. Er bleibt dann für <em>diesen Besuch</em> sichtbar.</li>
-					<li>Alle verborgenen Orte holst du über <strong>„Verborgene Orte"</strong> im <a href="#n-haekchen">Anzeige-Menü</a> aufs Bild.</li>
-				</ul>
-
-				<h4>Einen Ort verschieben — und die Wege dabei liegen lassen</h4>
-				<p>Ziehst du einen Ort (oder eine Kreuzung) auf der Karte, <strong>wandern alle angeschlossenen Wegenden mit</strong>. Das ist der Normalfall und hält das Wegenetz dicht. Bei einem weiten Zug ist es aber genau das Falsche: Die Straßen werden quer über die Karte gedehnt, oder ein Ende landet an etwas, mit dem es nichts zu tun hat.</p>
-				<p><strong>Hältst du beim Ziehen Strg</strong> (auf dem Mac Cmd), bleiben die Wege liegen, wo sie sind — der Ort löst sich von ihnen. Damit dieser Zustand nicht untergeht, sagt die Karte ihn dir laufend an:</p>
-				<ul class="hb-steps">
-					<li>Jedes zurückgelassene Wegende bekommt einen <strong>Ring</strong> auf der Karte. Ein <strong>Klick darauf öffnet den Verlauf dieses Weges</strong>, damit du das Ende wieder auf den Ort ziehen kannst.</li>
-					<li>Oben sitzt ein Zähler — <em>„2 offene Wegenden — noch nicht wieder angeschlossen"</em> — mit dem Knopf <strong>„Zum nächsten"</strong>. Er springt der Reihe nach alle offenen Enden an.</li>
-					<li>Der Zähler <strong>überlebt das Neuladen</strong> und verschwindet erst, wenn das letzte Ende wieder hängt.</li>
-				</ul>
-				<div class="hb-note hb-warn"><strong>Strg trennt — es ist kein „vorsichtigeres Ziehen".</strong> Ein offenes Wegende ist genau der Fehler aus <a href="#wege">Regel 4</a>: Der Weg endet neben dem Ort statt auf ihm, und die Reiseplanung kommt dort nicht mehr durch. Der Griff ist für einen <em>Moment</em> gedacht, in dem du den Ort freistellst — schließ die Lücken, bevor du weitermachst. Ohne Strg ändert sich nichts am gewohnten Verhalten.</div>
-
-				<h4>Der Ortseditor</h4>
-				<p class="hb-path"><strong>Editor → WikiSync → Orte → „Orte bearbeiten"</strong></p>
-				<p>Für alles, was über einen einzelnen Ort hinausgeht, gibt es ein eigenes Fenster mit drei Spalten: links der <strong>Territorienbaum</strong>, in der Mitte die <strong>Ortsliste</strong>, rechts <strong>„Eigenschaften &amp; Overrides"</strong>. Oben das Menüband:</p>
-				<figure class="hb-shot">
-					<img src="screenshots/11-siedlungseditor.png" alt="Der Siedlungseditor mit Menueband, links der Territorienbaum, in der Mitte die Siedlungsliste mit den Reitern Alle, Platziert und Fehlt, rechts die Spalte Eigenschaften und Overrides" />
-					<figcaption>Der Ortseditor: links der <strong>Territorienbaum</strong>, in der Mitte die <strong>Ortsliste</strong> mit „Alle / Platziert / Fehlt", rechts <strong>„Eigenschaften &amp; Overrides"</strong>. Oben das Menüband.</figcaption>
-				</figure>
-				<table class="hb-table">
-					<tr><th>Kachel</th><th>Was sie tut</th></tr>
-					<tr><td><strong>🚨 Syncen</strong></td><td>Holt die Orte aus dem Dump. <em>Betreiber-Aktion.</em></td></tr>
-					<tr><td><strong>Orte zuordnen</strong></td><td>Ordnet in einem Rutsch allen Orten ihr Herrschaftsgebiet zu. Zeigt vorher eine Vorschau.</td></tr>
-					<tr><td><strong>Nur Auswahl anzeigen</strong></td><td>Blendet auf der Karte alles aus, was nicht in deiner aktuellen Auswahl liegt.</td></tr>
-					<tr><td><strong>Wappen &amp; Bilder ▾</strong></td><td>Vier Einträge. Drei Notaus-Schalter fürs öffentliche Frontend — <strong>„Lokale Wappen"</strong> (eigene Uploads), <strong>„Wiki-Wappen"</strong> und <strong>„Ortsbilder"</strong>; gelöscht wird nichts, im Editor bleibt alles sichtbar. Wie alle drei stehen, sagt die Unterzeile des Knopfes (<em>„lokal an · Wiki aus · Bilder an"</em>) — ohne Aufklappen. Dazu <strong>„Hole Wiki-Wappen"</strong>, eine <em>Betreiber-Aktion</em>; an ihrem Ende prüft sie die Wappenfelder mit und fragt nach, wenn sie etwas findet. <strong>Der Territorien-Monitor trägt dasselbe Menü</strong> — dort ohne „Ortsbilder", das Feld gibt es nur bei Orten — und die zwei Wappen-Schalter gelten beiden Seiten gemeinsam.</td></tr>
-					<tr><td><strong>🔗 Links prüfen</strong></td><td>Prüft die hinterlegten Quellen-Links auf Erreichbarkeit.</td></tr><tr><td><strong>Darstellung</strong></td><td>Ab welcher Zoomstufe eine Ortsklasse überhaupt erscheint, wie groß dort ihr Punkt und ihr Name sind. Ansehen darf jeder Editor, <em>einstellen nur Admins.</em></td></tr>
-				</table>
-				<h4>„Darstellung" — Zoomstufen, Größen, Abstände</h4>
-				<p>Zwei Kurventafeln für die sechs Ortsklassen über neun Zoomstufen: <em>Marker</em> in px und <em>Label</em> in pt. Darunter fünf Regler:</p>
-				<ul class="hb-steps">
-					<li><strong>Konturbreite</strong> — wie dick der weiße Ring um den roten Kern ist, in Prozent des Kerns. Bei 0 % gibt es keinen.</li>
-					<li><strong>Spalt</strong> — Abstand vom Punkt zu seinem Namen.</li>
-					<li><strong>Repel</strong> — Luft um jeden Namen, bevor geprüft wird, ob zwei sich überlappen.</li>
-					<li><strong>Versatz</strong> — wie weit ein Name ausweicht, wenn sein Platz belegt ist.</li>
-					<li><strong>Max. Drift</strong> — wie weit er sich dabei höchstens von seinem Punkt entfernen darf. Bleibt darunter nichts frei, fällt er weg.</li>
-				</ul>
-				<p>Eine <strong>Vorschau</strong> mit absichtlich gedrängten Orten zeigt sofort, was die Regler bewirken. <strong>„Alles zurücksetzen"</strong> holt die Vorgabe zurück. <strong>„Speichern" schließt das Fenster</strong> — bleibt es offen, steht der Grund darin. Ohne Admin-Recht steht statt der Knöpfe ein Satz; das ist kein Fehler.</p>
-				<div class="hb-note hb-warn"><strong>Das wirkt auf die ganze Karte, nicht auf deine Auswahl.</strong> Die erste gefüllte Stelle einer Klasse <em>ist</em> ihre Erscheinungsstufe: nimmst du sie weg, verschwindet die Klasse dort für alle Besucher. Unter <a href="#landschaften">Landschaften</a> gibt es eine zweite Kachel gleichen Namens — die gilt den Flächen und ihren Namen.</div>
-				<h4>Die Liste finden lernen</h4>
-				<p>Die mittlere Spalte hat oben <strong>„Alle"</strong>, <strong>„Platziert"</strong> und <strong>„Fehlt"</strong>, daneben das Suchfeld <em>„Name suchen…"</em> und ein Dropdown <strong>„Filter ▾"</strong> mit sieben Abschnitten: <strong>Zuordnung</strong> („Alle" / „Zugeordnet" / „Nicht zugeordnet"), <strong>Typ</strong>, darunter eingerückt <strong>„↳ Lage (nur Bauwerke)"</strong> („außerorts" / „innerorts" / „unklar"), <strong>Kontinent</strong> (voreingestellt auf Aventurien), <strong>Quelle</strong> („Wiki" / „Andere" / „Keine"), <strong>Wappen</strong> und <strong>Bilder</strong>. Sind Filter aktiv, zeigt der Knopf ihre Anzahl.</p>
-				<div class="hb-note hb-tip"><strong>„Lage" steht von vornherein auf „außerorts" und „unklar".</strong> Bauwerke <em>innerhalb</em> einer Stadt — Gassen, Tempel, Stadthäuser — sind damit von Anfang an aus der Liste; sie gehören nur selten in die Arbeitsliste. Suchst du eines davon und findest es nicht, hak zusätzlich <strong>„innerorts"</strong> an. Verschwiegen wird die Vorbelegung nicht: der Knopf zählt sie als gesetzten Filter mit. Und sie wirkt <em>nur</em> auf Bauwerke — Dörfer und Städte lässt sie unangetastet, auch wenn du sie zusammen mit Bauwerken anzeigst.</div>
-				<div class="hb-note hb-tip"><strong>Die Zähler in den Reitern zählen anders, als du denkst.</strong> Sie beziehen sich nur auf den gewählten Kontinent — Suche, Typ und die übrigen Filter gehen <em>nicht</em> ein. „Platziert (312)" bleibt also stehen, während die Liste darunter drei Zeilen zeigt. Das ist kein Fehler.</div>
-				<p>Im Abschnitt <strong>„Zuordnung"</strong> des Filters zeigt <strong>„Nicht zugeordnet"</strong> die platzierten Siedlungen ohne Territorium — deine Arbeitsliste für die Zuordnung —, <strong>„Zugeordnet"</strong> die mit Territorium. Solange „Nicht zugeordnet" aktiv ist, wird die Baum-Auswahl links ausgeblendet.</p>
-
-				<h4>Der Territorienbaum links</h4>
-				<p>Er dient <em>nur zum Filtern</em>, nicht zum Zuordnen. Jeder Knoten hat ein Kästchen mit drei Zuständen: <strong>angehakt</strong> (dieses Gebiet und alles darunter), <strong>Querbalken</strong> (nicht selbst gewählt, aber etwas darunter schon) und <strong>leer</strong>. Ohne jedes Häkchen siehst du alles.</p>
-
-				<h4>„Orte zuordnen"</h4>
-				<p>Der Knopf ordnet jedem Ort per Ray-Cast sein Herrschaftsgebiet zu. Zuerst kommt eine Vorschau mit vier Zahlen — <strong>Zugeordnet</strong>, <strong>Geändert</strong>, <strong>Nicht zugeordnet</strong>, <strong>Übersprungen (manuell)</strong> — und einer Beispielliste <em>Name → Zielterritorium</em>. Erst <strong>„Übernehmen"</strong> schreibt.</p>
-				<figure class="hb-shot">
-					<img src="screenshots/12-siedlungen-zuordnen.png" alt="Vorschau des Dialogs Siedlungen zuordnen mit den vier Zaehlern Zugeordnet, Geaendert, Nicht zugeordnet und Uebersprungen sowie einer Beispielliste Name zu Zielterritorium" />
-					<figcaption>Die Vorschau von <strong>„Orte zuordnen"</strong>: vier Zähler und eine Beispielliste <em>Name → Zielterritorium</em>. Geschrieben wird erst mit <strong>„Übernehmen"</strong>.</figcaption>
-				</figure>
-				<div class="hb-note hb-warn"><strong>Der Lauf ist immer global — Filter und Baum-Auswahl ändern daran nichts.</strong> Das ist die gefährlichste Eigenschaft dieses Knopfes: Man hat die Liste auf eine Handvoll Orte eingegrenzt, drückt ihn und trifft trotzdem <em>alle</em>. Willst du nur ein Gebiet bearbeiten, nimm <strong>„Orte hier zuordnen"</strong> im Rechtsklick-Menü des Gebiets.</div>
-				<p>Was der Lauf beachtet, ohne dass du es siehst:</p>
-				<ul class="hb-steps">
-					<li>Nur <strong>platzierte</strong> Orte. Reine Wiki-Orte haben keine Koordinate und bleiben unberührt.</li>
-					<li>Von Hand gesetzte Zuordnungen werden <strong>nie</strong> überschrieben — sie erscheinen als „Übersprungen (manuell)".</li>
-					<li>Gewinner ist die <strong>tiefste</strong> Ebene: liegt ein Ort in Grafschaft <em>und</em> Baronie, bekommt er die Baronie. Bei Gleichstand die kleinere Fläche.</li>
-					<li>Findet sich kein Gebiet, bleibt die Zuordnung leer. Es wird nichts geraten.</li>
-				</ul>
-				<div class="hb-note hb-tip"><strong>Auch die Variante fürs einzelne Gebiet ordnet in die Tiefe zu.</strong> Klickst du eine Grafschaft an, können ihre Orte trotzdem bei den darunterliegenden Baronien landen — die Regel „tiefste Ebene gewinnt" gilt weiter. Ausgewählt wird nur, <em>welche</em> Orte geprüft werden, nicht, wohin sie kommen.</div>
-
-				<h4>Die rechte Spalte</h4>
-				<p>Sie ist geordnet wie jedes Editorfenster: <strong>„Identität"</strong> (Name, Typ, Einwohner, Lage, Herrscher, Beschreibung), <strong>„Eigenschaften"</strong> (die Häkchen „Ort ist ein Nodix", „Ruine / zerstört", „Verborgen"), der <a href="#v-wiki">Zuweisungskasten</a>, die <strong>Quellen</strong> — dann die Speicherleiste. <em>Region</em> und <em>Staat</em> zeigt der Zuweisungskasten.</p>
-				<p>Unter <strong>„Lage &amp; Zugehörigkeit"</strong> — als einzigem Abschnitt <em>unterhalb</em> der Speicherleiste — sitzt das einzige echte Override: das <strong>Territorium</strong>. Daneben steht, woher es stammt — <em>„manuell"</em> oder <em>„Ray-Cast · tiefste Ebene"</em>. Mit <strong>„ändern"</strong> setzt du es selbst; ab dann ist es manuell und kein Massenlauf fasst es mehr an.</p>
-				<div class="hb-note hb-tip"><strong>Zeilen aus dem Reiter „Fehlt" kannst du hier nicht bearbeiten.</strong> Sie stehen nur im Wiki und haben noch keinen Punkt auf der Karte, also auch nichts zu bearbeiten. Der Editor sagt es selbst: „Zum Bearbeiten zuerst auf der Karte platzieren."</div>
-
-				<h4>Bilder</h4>
-				<p>Unter dem Wappen liegt die Galerie: <strong>bis zu zehn Bilder</strong> je Siedlung. Über die Kachel <strong>„＋ Bild hochladen"</strong> kannst du mehrere auf einmal auswählen, sie werden nacheinander hochgeladen. Die Reihenfolge änderst du, indem du die <em>Vorschaubilder</em> ziehst.</p>
-				<div class="hb-note hb-tip"><strong>Ziehen sortiert nur — hochladen kannst du damit nicht.</strong> Eine Datei ins Fenster zu ziehen bewirkt nichts; es geht ausschließlich über die Kachel.</div>
-				<p>Jedes Bild hat ein Lizenzfeld mit vier Werten. Drei davon werden öffentlich ausgeliefert: <strong>„Public Domain"</strong>, <strong>„CC0"</strong> und <strong>„Von uns KI-generiert"</strong>. Der vierte, <strong>„Unbekannt/CC/Sonstiges (nicht öffentlich)"</strong>, wird es nicht.</p>
-				<figure class="hb-shot">
-					<img src="screenshots/13-bilder-lizenz.png" alt="Die Bildergalerie mit aufgeklapptem Lizenzfeld und den vier Werten Public Domain, CC0, Von uns KI-generiert und Unbekannt CC Sonstiges nicht oeffentlich" />
-					<figcaption>Das Lizenzfeld eines Bildes, aufgeklappt. Voreingestellt ist <strong>„Von uns KI-generiert"</strong> — die drei oberen Werte werden öffentlich ausgeliefert, der vierte nicht.</figcaption>
-				</figure>
-				<div class="hb-note hb-warn"><strong>Voreingestellt ist „Von uns KI-generiert" — und das ist eine Aussage.</strong> Wer ein fremdes Bild hochlädt und das Feld nicht anfasst, behauptet damit, wir hätten es selbst erzeugt, und veröffentlicht es. Erlaubt sind nur KI-generierte und zweifelsfrei gemeinfreie Bilder; alles unter CC, GNU oder mit Namensnennung gehört nicht hierher. Im Zweifel „Unbekannt/CC/Sonstiges" wählen — dann bleibt es intern.</div>
-				<h4>Eigene Bilder erzeugen</h4>
-				<p>KI-generierte Bilder sind ausdrücklich erwünscht — lad sie gerne hoch. Fehlt einem Ort ein Bild, erzeug selbst eines: genau dafür ist der Wert <strong>„Von uns KI-generiert"</strong> da, und er ist deshalb die Voreinstellung. Mit dem Hochladen erklärst du dich einverstanden, dass das Bild <strong>gemeinfrei</strong> wird — es erscheint öffentlich in der Infobox.</p>
-				<p>Ein bewährter Grundbaustein für den Auftrag (erprobt mit ChatGPT, dürfte mit anderen Werkzeugen genauso funktionieren):</p>
-				<code class="hb-block">Consistent style in the following session. Middle Ages. Oil painting. Art work for a pen'n'paper RPG. 16:9. Village with a mill and fields, grassland landscape.</code>
-				<p>Der erste Satz hält den Stil über eine ganze Sitzung zusammen — so passen mehrere Bilder zueinander, statt jedes für sich auszusehen. Den letzten Satz tauschst du gegen das, was dein Ort zeigen soll.</p>
-
-				<h4>„Nur Auswahl anzeigen"</h4>
-				<p>Zeigt auf der <em>Karte</em> nur die Orte, die die mittlere Liste gerade anzeigt — mit allen Filtern, dem Reiter und der Baum-Auswahl zusammen. Solange das aktiv ist, sitzt oben rechts auf der Karte der Hinweis <strong>„Gefilterte Ansicht aktiv ✕"</strong>; ein Klick darauf stellt die volle Ansicht wieder her.</p>
-				<div class="hb-note hb-tip"><strong>Wenn die Karte plötzlich fast leer ist,</strong> such zuerst diesen Chip oben rechts. Er überlebt das Schließen des Editors — die Karte bleibt gefiltert, bis du ihn wegklickst.</div>
-
-				<h3 id="territorien" class="hb-sub">Territorien</h3>
-				<p class="hb-path"><strong>Auf der Karte:</strong> Rechtsklick auf ein Gebiet → eigenes Menü &nbsp;·&nbsp; <strong>Liste:</strong> Editor → WikiSync → Territorien</p>
-				<p>Herrschaftsgebiete — Kaiserreiche, Königreiche, Grafschaften, Baronien — liegen als Flächen über der Karte und sind die einzige Sorte mit einem <em>eigenen</em> Rechtsklick-Menü.</p>
-				<ul class="hb-steps">
-					<li><strong>„Territoriumseditor öffnen"</strong> — Eigenschaften und Hierarchie.</li>
-					<li><strong>„Grenzen bearbeiten"</strong> — nur die Geometrie.</li>
-					<li><strong>„Grenzen berechnen"</strong> — errechnet die Außengrenze aus den Kindern (nur bei reinen Container-Gebieten sinnvoll).</li>
-					<li><strong>„Orte hier zuordnen"</strong> — ordnet die Orte innerhalb dieses einen Gebiets zu.</li>
-					<li>Dazu die Formwerkzeuge: <strong>Verschieben</strong>, <strong>Gebiet zerschneiden</strong>, <strong>Mit anderem vereinigen</strong>, <strong>Von anderem ausschneiden</strong>, <strong>Neues Gebiet herauslösen</strong>, <strong>Löschen</strong> — und <strong>„Infobox anzeigen"</strong>.</li>
-				</ul>
-				<figure class="hb-shot">
-					<img src="screenshots/07-gebiet-menu.png" alt="Gebiets-Kontextmenue mit Grenzen bearbeiten, Territoriumseditor oeffnen, Grenzen berechnen, Verschieben, Gebiet zerschneiden, vereinigen, ausschneiden, herausloesen, Loeschen" />
-					<figcaption>Das Rechtsklick-Menü eines Gebiets. Je nach Gebiet erscheinen zusätzliche Einträge.</figcaption>
-				</figure>
-
-				<div class="hb-note hb-warn"><strong>An den Territorien arbeitet immer nur einer.</strong> Anders als überall sonst im Editor sind Herrschaftsgebiete <em>einfach vergeben</em>: Wer zuerst da ist, bekommt das Schreibrecht — und behält es, bis er rund drei Minuten lang nichts mehr gemeldet hat. „Zuerst da" gilt dabei über <em>beide</em> Wege: der Territoriumseditor und der Kartenmodus <strong>„Politische Karte"</strong> sind zwei Türen in denselben Raum und teilen sich dasselbe Recht.</div>
-				<p>Bist du der Zweite, ändert sich am <em>Ansehen</em> nichts — du bekommst den ganzen Baum, alle Geometrien und den Verlauf. Nur das Speichern fällt weg, und das sagt dir die Oberfläche an drei Stellen:</p>
-				<ul class="hb-steps">
-					<li>Im <strong>Territoriumseditor</strong> steht oben ein Hinweisband: <em>„… bearbeitet gerade die Territorien (seit 14:20 Uhr). Du kannst alles ansehen, aber nicht speichern."</em> Der Speichern-Knopf ist ausgegraut. Die <strong>Uhrzeit steht bewusst dabei</strong> — an ihr erkennst du, ob dort jemand arbeitet oder nur ein Tab offen liegt.</li>
-					<li>Auf der <strong>politischen Karte</strong> gibt es kein Band; dort antwortet jeder verändernde Eintrag des Rechtsklick-Menüs mit <em>„Bearbeiten blockiert – … ist im politischen Modus."</em>. <strong>„Infobox anzeigen"</strong> bleibt offen.</li>
-					<li>Wird das Recht frei, meldet sich die Karte von selbst: <em>„Die Territorien sind jetzt frei — du kannst speichern."</em></li>
-				</ul>
-				<p>Wer es gerade hält, steht im Reiter <a href="#status">Status</a> → <strong>Editoren</strong>: Hinter seinem Namen sitzt ein <strong>*</strong>. Admins finden dort außerdem <strong>„Bearbeiten erzwingen"</strong> — den Notausgang für den Tab, der niemandem mehr gehört.</p>
-
-				<h4>Grenzen bearbeiten</h4>
-				<p><strong>„Grenzen bearbeiten"</strong> zeigt jede Ecke des Gebiets als Griff. <strong>Ziehen</strong> verschiebt sie, <strong>Doppelklick auf einen Griff</strong> löscht sie.</p>
-				<p>Beim Loslassen passieren zwei Dinge: Der Punkt <strong>rastet ein</strong>, wenn ein <em>Nachbargebiet</em> dort eine Ecke oder Kante hat — und <strong>jedes Nachbargebiet, das genau diesen Punkt teilt, wird mitgezogen und mitgespeichert</strong>. So bleiben aneinandergrenzende Gebiete lückenlos, ohne dass du jede Grenze zweimal ziehst.</p>
-				<p><strong>Das Einrasten kündigt sich an.</strong> Während du ziehst, erscheint ein <strong>Ring</strong> genau dort, wohin der Punkt beim Loslassen springen wird: <em>durchgezogen</em> über einer Ecke, <em>gestrichelt</em> über einem Punkt auf einer Kante. Eine Ecke hat dabei Vorrang, auch wenn die Kante näher liegt. Kein Ring heißt: Hier rastet nichts ein, der Punkt bleibt, wo du loslässt. Das Mitziehen der Nachbarn sieht man dagegen erst am Ergebnis.</p>
-				<p><strong>Die Strg-Taste ist der Umschalter dafür.</strong> Gedrückt gehalten gilt beides nicht — sie regelt den Umgang mit Punkten und Linien:</p>
-				<table class="hb-table">
-					<tr><th>Strg&nbsp;+</th><th>Was passiert</th></tr>
-					<tr><td><strong>einen Punkt ziehen</strong></td><td><strong>Löst ihn heraus.</strong> Kein Einrasten — darum erscheint auch kein Ring —, und die Nachbarn bleiben liegen: die gemeinsame Grenze trennt sich an dieser Stelle auf. Der Punkt bleibt genau dort, wo du loslässt.</td></tr>
-					<tr><td><strong>über eine Linie fahren</strong></td><td>Hebt die Kante unter dem Zeiger hervor — die, die der nächste Klick trifft.</td></tr>
-					<tr><td><strong>auf die Linie klicken</strong></td><td>Setzt <strong>vier</strong> gleichmäßig verteilte Punkte hinein; aus einer Kante werden fünf Abschnitte. So bekommst du Material zum Formen, wo vorher eine gerade Strecke war.</td></tr>
-				</table>
-				<div class="hb-note hb-warn"><strong>Ohne Strg bearbeitest du unter Umständen mehrere Gebiete gleichzeitig.</strong> Das ist so gewollt — es hält Grenzen dicht —, aber es heißt auch: Ein Zug an der falschen Ecke verschiebt die Grenze des Nachbarn mit, und beide werden gespeichert. Willst du <em>nur</em> dein Gebiet bewegen, halte Strg.</div>
-				<div class="hb-note hb-tip"><strong>Strg+Z nimmt den letzten Schritt zurück</strong>, solange „Grenzen bearbeiten" offen ist — bis zu 20 Schritte weit. Zurückgenommen wird, was der Schritt <em>wirklich</em> angefasst hat: also auch jedes Nachbargebiet, das beim Ziehen mitgewandert ist. Alle betroffenen Gebiete werden dabei erneut gespeichert. Ist nichts mehr da, sagt es dir das. Die Zwischenschritte stehen <em>nicht</em> im Reiter <a href="#aenderungen">Änderungen</a> — dort landet nur das Ergebnis, genau wie bei einem gewöhnlichen Zug.</div>
-				<div class="hb-note hb-tip"><strong>Gespeichert wird gebündelt.</strong> Nicht jeder einzelne Eckzug geht als eigener Schreibvorgang hinaus: Eine knappe Sekunde nach dem <em>letzten</em> Loslassen wird <strong>je betroffenem Gebiet einmal</strong> gespeichert. Zehn Ecken an einer gemeinsamen Grenze ergeben darum <em>einen</em> Eintrag für dein Gebiet und einen für den Nachbarn im Reiter <a href="#aenderungen">Änderungen</a> — nicht zwanzig. Schließt du „Grenzen bearbeiten", geht das Ausstehende sofort hinaus; verlieren kannst du dabei nichts. <strong>Verschieben</strong>, <strong>Zerschneiden</strong> und <strong>Herauslösen</strong> speichern weiterhin unmittelbar — das sind einzelne, bewusste Gesten, an denen es nichts zu bündeln gibt.</div>
-				<div class="hb-note hb-tip"><strong>Abgeleitete Außengrenzen ziehen nie mit.</strong> Sie sind berechnet, nicht gezeichnet, und kommen über <strong>„Grenzen berechnen"</strong> nach.</div>
-
-				<h4>Die Formwerkzeuge</h4>
-				<p>Alle vier arbeiten gleich: Du startest sie auf dem Gebiet, das du angeklickt hast, dann wählst du ein <strong>Zielgebiet</strong> — oben erscheint dazu der Hinweis <em>„Kontur des Zielgebiets anklicken."</em>. Was danach passiert, unterscheidet sich in einem Punkt, den man den Namen nicht ansieht:</p>
-				<table class="hb-table">
-					<tr><th>Werkzeug</th><th>Dein Gebiet bekommt …</th><th>Das Zielgebiet</th></tr>
-					<tr><td><strong>Mit anderem vereinigen</strong></td><td>beide Flächen zusammen</td><td><strong>wird aufgezehrt</strong></td></tr>
-					<tr><td><strong>Von anderem ausschneiden</strong></td><td>seine Fläche <em>minus</em> der des Ziels</td><td><strong>wird aufgezehrt</strong></td></tr>
-					<tr><td><strong>Von anderem ausschneiden und anderes beibehalten</strong></td><td>dasselbe</td><td>bleibt stehen</td></tr>
-					<tr><td><strong>Neues von anderem ausschneiden</strong></td><td>nur die <em>Überlappung</em> beider</td><td>bleibt stehen</td></tr>
-				</table>
-				<div class="hb-note hb-tip"><strong>Beim Zielgebiet zählt der Rand, nicht die Fläche.</strong> Solange eine der vier Operationen auf ihr Ziel wartet, nimmt nur noch die <em>Kontur</em> eines Gebiets den Klick an — die Ränder werden dafür sichtbar dicker, das ist der Hinweis darauf. Dein Ausgangsgebiet ist ganz aus dem Spiel und lässt sich gar nicht mehr treffen. Der Grund: Lag es <em>über</em> dem gewünschten Ziel, fing früher seine eigene Fläche jeden Klick ab, und an das Gebiet darunter kam man mit der Maus nicht heran. Bei <strong>Verschieben</strong> und <strong>Gebiet zerschneiden</strong> gilt das nicht — die brauchen die Fläche.</div>
-				<div class="hb-note hb-warn"><strong>Die ersten beiden verbrauchen das Gebiet, das du anklickst.</strong> Hat es keine Fläche mehr übrig, ist es weg. Der lange Name „…&nbsp;und anderes beibehalten" ist genau dafür da — er ist nicht die umständliche Variante, sondern die vorsichtige. Im Zweifel nimm sie: Was zu viel stehen bleibt, kannst du danach immer noch löschen; was verbraucht wurde, holst du nur über den Reiter <a href="#aenderungen">Änderungen</a> zurück.</div>
-
-				<h4>Im Territoriumseditor</h4>
-				<ul class="hb-steps">
-					<li><strong>Wiki-Herrschaftsgebiet</strong> — der <a href="#v-wiki">Zuweisungskasten</a>; gesucht wird darin.</li>
-					<li><strong>Hierarchie</strong> — den Baum durchsuchen und das Gebiet per Ziehen einordnen; „Zuweisung aufheben" löst sie wieder.</li>
-					<li><strong>Name</strong> und <strong>Kurzname</strong> — auf der Karte wird der Kurzname bevorzugt gezeigt.</li>
-					<li><strong>Zoom-Bänder</strong> („Sichtbar ab Zoom"), <strong>Hauptstadt</strong> und <strong>Gültigkeit</strong> in BF-Jahren (<code>9999</code> = bis heute offen).</li>
-				<li><strong>Quellen</strong> — ganz unten, derselbe Block wie bei Orten, Wegen und Landschaften. Auch ein von Hand angelegter Knoten trägt sie.</li>
-				</ul>
-				<figure class="hb-shot">
-					<img src="screenshots/06-territoriumseditor.png" alt="Der Territoriumseditor mit Hierarchiebaum der Herrschaftsgebiete, Wiki-Verknuepfungen, Gueltigkeit und Breadcrumb-Darstellung" />
-					<figcaption>Der Territoriumseditor: Hierarchie-Baum, Wiki-Verknüpfungen und Breadcrumb.</figcaption>
-				</figure>
-				<p>Den großen Abgleich gegen das Wiki macht der eigene Editor hinter <strong>„Syncen"</strong> — mit Hierarchiemodell, Unterschieden und Lückenliste. Der Knopf <em>öffnet</em> diesen Editor; die scharfe Übernahme löst du darin bewusst aus, sie läuft nicht schon beim Klick. Wie die Hierarchie gedacht ist, steht unter <a href="#v-hierarchie">Die Gebiets-Hierarchie</a>.</p>
-				<figure class="hb-shot">
-					<img src="screenshots/09-herrschaftsgebieteeditor.png" alt="Territorien-Sync-Editor mit Syncen, Hierarchiemodell, Lueckenliste und Wiki-Overrides" />
-					<figcaption>Der Territorien-Editor: Syncen, Hierarchiemodell, Lücken und Wiki-Overrides.</figcaption>
-				</figure>
-
-				<h3 id="regionen" class="hb-sub">Regionen</h3>
-				<p class="hb-path"><strong>Auf der Karte:</strong> Linksklick auf die Beschriftung → „Bearbeiten" &nbsp;·&nbsp; <strong>Anlegen:</strong> Rechtsklick → „Hier hinzufügen" → „Neues Label" &nbsp;·&nbsp; <strong>Liste:</strong> Editor → WikiSync → Regionen</p>
-				<p>„Regionen" sind die <strong>Landschaftsnamen auf der Karte</strong> — das Svellttal, der Farindelwald, das Meer der Sieben Winde. Technisch sind es Beschriftungen, keine Flächen. Liegt eine <a href="#landschaften">Fläche</a> darunter, bearbeitest du beide im selben Fenster; liegt keine darunter, heißt es <em>„Freies Label bearbeiten"</em>.</p>
-				<ul class="hb-steps">
-					<li><strong>Kopf</strong> — <em>Name</em> und <em>Art</em>, beide mit <strong>↻</strong> zum Übernehmen aus dem Wiki. Die Art ist nicht auf „Region" beschränkt — die vollständige Liste steht unter <a href="#n-listen">Die Auswahllisten</a>. Der Haken <em>Nodix</em> steht im Reiter <em>Beschriftung</em>.</li>
-					<li><strong>Höhe (Schritt)</strong> — steht unten im selben Block und erscheint nur, wenn die Art <em>Berggipfel</em> oder <em>Vulkan</em> ist: ein Zahlenfeld mit Schieberegler (0–20.000). Ein leeres Feld füllt sich dabei mit <strong>5.000</strong> — der Wert, mit dem die Karte für einen Gipfel ohne erfasste Höhe ohnehin rechnet. Eine <em>bereits erfasste</em> Höhe bleibt unangetastet, auch wenn du den Dialog nur öffnest.</li>
-					<li><strong>Darstellung</strong> — Größe, <em>Kurvenbeschriftung</em>, <em>Anzahl Kurvenlabel</em> (erscheint erst mit dem Haken), „Sichtbar ab/bis Zoom", Priorität. Damit steuerst du, wann und wie prominent die Beschriftung erscheint. An Größen- und Zoomreglern steht als Marke, was die Tafel <a href="#landschaften">„Darstellung"</a> für diese Art vorschlägt — du darfst davon abweichen. <strong>Größe und Priorität wirken sofort auf der Karte</strong>, während du am Regler ziehst. Schließt du den Dialog <em>ohne</em> zu speichern („Abbrechen", ×, ESC), geht die Beschriftung auf ihren alten Stand zurück. Bei einer <em>neuen</em> Beschriftung gibt es noch keinen Marker, an dem sich das zeigen könnte.</li>
-					<li><strong>Wiki-Landschaft</strong> — der <a href="#v-wiki">Zuweisungskasten</a>, hier <em>mit</em> dem Häkchen „Kein Wiki-Artikel vorhanden".</li>
-						<li><strong>Quellen</strong> — derselbe Block wie bei Orten und Wegen, über den gemeinsamen Quellenkatalog. <strong>Die Quellen gehören der Fläche</strong>, nicht der Beschriftung: liegt eine Fläche darunter, siehst und änderst du hier deren Liste. Eine eigene hat nur eine <em>freie</em> Beschriftung ohne Fläche.</li>
-				</ul>
-				<div class="hb-note hb-tip"><strong>Der Name läuft auf der Mittelachse seiner Fläche.</strong> Dafür gibt es zwei Bedienelemente: den Haken <em>Kurvenbeschriftung</em> und <em>Anzahl Kurvenlabel</em> (1–3), also wie viele Namen die Fläche tragen darf. Beide gehören der <strong>Region</strong>, nicht der einzelnen Beschriftung, und stehen genau einmal im Reiter <em>Beschriftung</em>. <strong>Ohne Fläche gibt es keine Mittelachse</strong>: bei Meeren, Inseln und Gipfeln stehen beide verriegelt da und nennen den Grund.</div>
-				<p>Im Reiter <strong>Editor → WikiSync → Regionen</strong> steht der Knopf <strong>„Landschaften bearbeiten"</strong>. Er öffnet ein eigenes Fenster — den siebten <a href="#n-editoren">Sync-Editor</a> — mit der Regionenliste links, den <em>Eigenschaften</em> in der Mitte und <em>„Vorschau &amp; Vorkommen"</em> rechts. Das <strong>„🚨 Syncen"</strong> steht im Menüband, genau wie bei Orten und Kraftlinien — nicht im Reiter. Daneben stehen drei Kacheln, alle für die <a href="#landschaften">Landschaften-Ebene</a>: <strong>„Rechnen ▾"</strong> mit den Läufen <em>Zugehörigkeit</em>, <em>Höhenraster</em>, <em>Wegprofile</em>, <em>Kurven</em> und <em>„Wiki &amp; Art"</em> — der letzte trägt Wiki-Landschaft und Art einer Fläche an ihre Beschriftungen nach; die Unterzeile des Knopfes sagt, welcher gerade läuft —, dazu <em>„Geländeabhängiges Reisen"</em> und <em>„Darstellung"</em>. Für die Beschriftungsarbeit brauchst du davon nur die letzte.</p>
-				<p>Für viele Beschriftungen auf einmal führt der Weg weiterhin über die Liste im Reiter: dort trägt jede Zeile den Knopf <strong>„Label zuweisen"</strong>. Er stellt <em>alle</em> Beschriftungen der Karte zur Auswahl — nicht nur die namensgleichen —, hakt die bereits verknüpften vor und sagt bei einer Beschriftung, die an einer <em>anderen</em> Wiki-Landschaft hängt, dazu, dass das Zuweisen sie umhängt. Erst <strong>„Vorschau"</strong> (ein Trockenlauf, der nichts schreibt), dann <strong>„Zuweisen"</strong>; änderst du zwischendurch die Auswahl, verfällt die Vorschau. <em>Lösen</em> lässt sich eine Verknüpfung hier nicht — das bleibt Sache des Label-Dialogs oben.</p>
-				<p>Der Linksklick auf eine Beschriftung bietet außerdem <strong>„Label verschieben"</strong>, <strong>„Position zurücksetzen"</strong>, <strong>„Label duplizieren"</strong> und <strong>„Label löschen"</strong> — sowie <strong>„Neue Kraftlinie"</strong>. <strong>„Position zurücksetzen"</strong> holt die Beschriftung auf den Punkt zurück, den das Anlegen einer Fläche vergibt, und steht nur dort, wo eine Fläche darunter liegt; trägt die Fläche mehrere Beschriftungen, fragt sie vorher nach. Kraftlinien sind ein eigener Objekttyp, unabhängig vom Wegenetz — siehe unten.</p>
-
-				<h3 id="landschaften" class="hb-sub">Landschaften</h3>
-				<p class="hb-path"><strong>Auf der Karte:</strong> Kartenmodus „Landschaften" wählen (Taste <kbd>L</kbd>) &nbsp;·&nbsp; <strong>Anlegen:</strong> Rechtsklick auf leere Karte → „Hier hinzufügen" → „Neue Vegetation" &nbsp;·&nbsp; <strong>Ecken bearbeiten:</strong> Rechtsklick auf die Fläche → „Fläche bearbeiten" &nbsp;·&nbsp; oder <strong>Doppelklick auf die Fläche</strong></p>
-				<p>Während eine <a href="#regionen">Region</a> nur ein <em>Name</em> auf der Karte ist, ist eine Landschaft eine <strong>Fläche</strong>: der Umriss des Farindelwaldes, die Ausdehnung des Raschtulswalls, der Rand der Khôm. Daraus rechnet die Karte später das Gelände und damit die Reisezeiten — eine sauber gezogene Fläche ist also keine Dekoration.</p>
-				<div class="hb-note hb-warn"><strong>Ein einfacher Klick wählt nur aus — die Ecken kommen erst auf Ansage.</strong> Dorthin führen zwei Wege, und beide tun genau dasselbe: <strong>Rechtsklick auf die Fläche → „Fläche bearbeiten"</strong> (der sichtbare) oder <strong>Doppelklick auf die Fläche</strong> (der schnelle). Danach ziehst du die Ecken ganz normal. Bei den <a href="#territorien">Territorien</a> ist das anders, dort genügt die Auswahl; wer von dort kommt, sucht hier zunächst vergeblich. Ein Doppelklick <em>neben</em> die Fläche beendet das Ecken-Bearbeiten wieder. Liegen die Ecken schon frei, sagt der Menüeintrag das und tut sonst nichts — so bleibt dir <kbd>Strg</kbd>+<kbd>Z</kbd> erhalten.</div>
-				<h5>Die vier Ebenen</h5>
-				<p>Oben auf der Karte steht der Ebenen-Schalter: <strong>Alle · Derographie · Vegetation · Topographie · Klimazonen</strong>. Immer nur <em>eine</em> Ebene nimmt Klicks entgegen — die, die dort ausgewählt ist. <strong>In „Alle" kannst du nicht bearbeiten.</strong> Wähl erst eine Ebene. Anklicken und Auswählen gehen dort, aber Flächenmenü, Ecken-Editor, „Neue Fläche" und <kbd>Strg</kbd>+<kbd>Z</kbd> fallen weg. Umschalten lädt nichts neu und wirft nichts weg.</p>
-				<div class="hb-note hb-tip"><strong>„Alle" zeigt nicht alles.</strong> Die <strong>Klimazonen</strong> bleiben dort ganz aus — ihre kartenbreiten Bänder legten sich sonst über alles andere. Die <strong>Derographie</strong> liegt ohne Füllung obenauf und nimmt keine Klicks; anfassbar ist dort nur ihr <em>Name</em>, der ihre Fläche zeigt. So kommst du an Wald und Gebirge darunter heran.</div>
-				<table class="hb-table">
-					<tr><th>Ebene</th><th>Was hineingehört</th></tr>
-					<tr><td><strong>Vegetation</strong></td><td>Wälder, Steppen, Sümpfe, Wüsten — der Bewuchs. Hier liegt die meiste Arbeit, deshalb ist sie vorausgewählt.</td></tr>
-					<tr><td><strong>Topographie</strong></td><td>Das Relief: Gebirge, Hügelland, Ebenen, Gewässer.</td></tr>
-					<tr><td><strong>Derographie</strong></td><td>Die großen erdkundlichen Räume darüber.</td></tr>
-					<tr><td><strong>Klimazonen</strong></td><td><strong>Sonderfall — wird nicht gezeichnet, sondern gerechnet.</strong> Siehe unten.</td></tr>
-				</table>
-				<div class="hb-note hb-tip"><strong>Dieselbe Landschaft gehört oft in zwei Ebenen.</strong> Der Farindel ist Wald (Vegetation) <em>und</em> Relief (Topographie) — rund die Hälfte aller Flächen sind solche Zwillinge. Zeichne sie nicht zweimal: <strong>„Kopieren …"</strong> im Flächenmenü legt denselben Umriss in der anderen Ebene noch einmal an. Es ist eine echte Kopie, keine Verknüpfung — verschiebst du später eine Ecke, bewegt sich nur die eine Fläche.</div>
-				<h5>Eine neue Fläche zeichnen</h5>
-				<ol class="hb-steps">
-					<li><strong>Rechtsklick auf die leere Karte</strong> → „Hier hinzufügen" → <strong>„Neue Vegetation"</strong>, <strong>„Neue Topographie"</strong> oder <strong>„Neue Derographische Region"</strong>. Der Eintrag schaltet zugleich auf die passende Ebene.</li>
-					<li><strong>Klicken setzt Punkt für Punkt</strong> den Umriss; eine Linie läuft mit dem Zeiger mit und zeigt ab dem zweiten Punkt auch schon den Schluss zurück zum Anfang.</li>
-					<li><strong>Doppelklick oder <kbd>Enter</kbd></strong> schließt die Fläche ab, <strong><kbd>Esc</kbd></strong> bricht ab.</li>
-					<li>Erst beim Abschließen entsteht etwas — danach geht das <a href="#landschaften">Bearbeiten-Fenster</a> auf. Es heißt nach seiner Ebene: <em>„Vegetation bearbeiten"</em>, <em>„Topographie bearbeiten"</em> oder <em>„Derographie bearbeiten"</em>.</li>
-				</ol>
-				<div class="hb-note hb-tip"><strong>Vor dem Abschluss ist nichts geschrieben.</strong> Ein Abbruch mit <kbd>Esc</kbd> kostet also gar nichts und hinterlässt keine halbe Fläche. Mit dem Schließen des Umrisses bekommt die Fläche <em>ihre eigene</em> Region.</div>
-				<h5>Eine Fläche aus Territoriengrenzen</h5>
-				<p>Wo eine Landschaft ohnehin einem Herrschaftsgebiet folgt, musst du sie nicht nachzeichnen. <strong>Rechtsklick → „Hier hinzufügen" → „Grenzen aus Territorien importieren"</strong> öffnet den Dialog <em>„Grenze aus Territorien"</em>: Du wählst oben die <strong>Ebene der neuen Fläche</strong> (vorausgewählt <em>Derographische Region</em> — politische Grenzen folgen am ehesten der Landgliederung), dann die Gebiete, und <strong>„Einfügen"</strong> legt ihre Vereinigung als <em>eine</em> Fläche an. Danach geht von selbst <em>„Fläche vereinfachen"</em> darüber auf, denn Territoriengrenzen bringen sehr viele Ecken mit.</p>
-				<p>Gewählt wird auf <strong>zwei</strong> Wegen, und sie ergänzen sich:</p>
-				<ul class="hb-steps">
-					<li><strong>Auf der Karte.</strong> Zeig auf ein Gebiet — es leuchtet auf und nennt seinen Namen; <strong>Klick nimmt es dazu, ein zweiter Klick wieder weg</strong>. Hast du den Dialog per Rechtsklick <em>auf</em> einem Gebiet geöffnet, ist dieses schon gewählt.</li>
-					<li><strong>Im Baum.</strong> Das Suchfeld <em>„Gebiet suchen"</em> und die Hierarchie darunter — hier nimmt ein Häkchen <strong>seinen ganzen Teilbaum</strong> mit.</li>
-				</ul>
-				<p>Was zusammengekommen ist, steht als <strong>„Gewählt (N)"</strong> darüber dem Knopf, jedes Gebiet mit einem <strong>„×"</strong>, dazu <strong>„Leeren"</strong>. Ohne diesen Korb wären Klicks in einem Baum aus über neunhundert Zeilen nicht wiederzufinden.</p>
-				<div class="hb-note hb-warn"><strong>Der Kartenklick nimmt <em>ein</em> Gebiet, das Häkchen einen Teilbaum.</strong> Unter dem Zeiger liegt immer das <strong>tiefste</strong> Gebiet — klickst du auf eine Baronie, bekommst du die Baronie, nicht ihr Reich. Willst du das Reich mit allem darin, nimm sein <em>Häkchen</em> im Baum. Der Schwebe-Umriss zeigt dir vor dem Klick, was du triffst.</div>
-				<div class="hb-note hb-tip"><strong>Es ist eine Kopie, keine Verknüpfung.</strong> Die eingefügte Fläche merkt sich nicht, aus welchen Territorien sie entstand, und sie folgt ihnen später auch nicht — verschiebt jemand eine Gebietsgrenze, bleibt deine Landschaft, wo sie ist. Und stehen nicht alle Grenzen zum Anklicken bereit, sagt die Hinweiszeile das: dann näher heranzoomen, gezeichnet wird nur, was auf den Schirm passt.</div>
-
-				<h5>Ecken ziehen — nach dem Doppelklick</h5>
-				<table class="hb-table">
-					<tr><th>Geste</th><th>Wirkung</th></tr>
-					<tr><td><strong>Ecke ziehen</strong></td><td>Verschiebt sie. Gespeichert wird gebündelt, kurz nachdem du loslässt — nicht bei jeder einzelnen Ecke.</td></tr>
-					<tr><td><strong>Doppelklick auf eine Ecke</strong></td><td>Löscht sie.</td></tr>
-					<tr><td><strong>Doppelklick auf eine Kante</strong></td><td>Setzt <em>genau eine</em> neue Ecke, dort wo du gezielt hast.</td></tr>
-					<tr><td><strong><kbd>Strg</kbd>+Klick auf eine Kante</strong></td><td>Setzt <strong>vier</strong> Ecken auf einmal, gleichmäßig verteilt — zum Verfeinern eines langen, geraden Stücks.</td></tr>
-					<tr><td><strong><kbd>Strg</kbd>+<kbd>Z</kbd></strong></td><td>Nimmt Eckenbewegungen zurück, bis zu 20 Schritte.</td></tr>
-					<tr><td><strong>Doppelklick daneben</strong></td><td>Beendet das Bearbeiten.</td></tr>
-				</table>
-				<div class="hb-note hb-tip"><strong>Ecken rasten an Nachbarflächen ein.</strong> Lässt du eine Ecke näher als etwa zehn Bildschirmpunkte an der Ecke oder Kante einer anderen Fläche los, springt sie genau dorthin — so stoßen Wald und Gebirge lückenlos aneinander. Eingerastet wird nur an <em>sichtbaren</em> Ebenen; über den Ebenen-Schalter bestimmst du also selbst, woran es fassen darf. <strong>Willst du zwei Flächen bewusst auseinanderhalten</strong>, halte beim Ziehen <kbd>Strg</kbd> — dann rastet nichts ein. Und es rastet nur <em>diese</em> Ecke ein: die Nachbarfläche wird nie mitverändert.</div>
-				<h5>Pinsel und Radiergummi</h5>
-				<p>Für die häufigste Arbeit — „der Wald geht hier noch zwanzig Meilen weiter" — ist Ecke für Ecke das falsche Werkzeug. Im Flächenmenü stehen dafür <strong>„Fläche malen"</strong> und <strong>„Fläche radieren"</strong>: ziehen malt Fläche dazu bzw. nimmt weg, immer auf der <em>ausgewählten</em> Fläche und ohne je eine neue anzulegen.</p>
-				<ul class="hb-steps">
-					<li><strong><kbd>Strg</kbd>+Mausrad</strong> ändert die Größe des Pinsels.</li>
-					<li><strong><kbd>Leertaste</kbd> gedrückt halten</strong> gibt dir solange das Verschieben der Karte zurück — sonst schiebt der erste Strich die Karte unter dem Pinsel weg.</li>
-					<li><strong><kbd>Esc</kbd></strong> beendet das Werkzeug. Gespeichert wird einmal je Strich, nicht je Mausbewegung.</li>
-				</ul>
-				<h5>Das Flächenmenü</h5>
-				<p>Ein <strong>Rechtsklick auf eine Fläche</strong> öffnet ihr eigenes Menü; ein <kbd>Strg</kbd>+Rechtsklick holt statt dessen das normale Kartenmenü. Von oben:</p>
-				<ul class="hb-steps">
-					<li><em>„Neue Fläche ▸"</em>, dann <strong>„Fläche bearbeiten"</strong> — der Weg zu den Ecken.</li>
-					<li><em>„Form ändern ▸"</em> (Verschieben, Zerschneiden, Malen, Radieren, Vereinfachen, Labelkurve aktualisieren), <em>„Mit anderer Fläche ▸"</em> (die fünf Verrechnungen), <em>„Unterflächen ▸"</em> und <em>„Reihenfolge und Sperren ▸"</em>.</li>
-					<li><em>„Eigenschaften …"</em> — öffnet das <a href="#landschaften">Bearbeiten-Fenster</a>, <em>nicht</em> die Ecken. Dazu <em>„Kopieren …"</em> und rot <em>„Fläche löschen"</em>.</li>
-				</ul>
-				<figure class="hb-shot">
-					<img src="screenshots/20-flaechenmenue.png" width="260" alt="Das Flaechenmenue einer Landschaftsflaeche mit Neue Flaeche, Flaeche bearbeiten, Beschriftung bearbeiten, den vier Untermenues Form aendern, Mit anderer Flaeche, Unterflaechen und Reihenfolge und Sperren, dazu Eigenschaften, Kopieren und Flaeche loeschen" />
-					<figcaption>Das Flächenmenü. Ganz unten steht, wie du an das normale Kartenmenü kommst.</figcaption>
-				</figure>
-				<p>Was die Einträge tun:</p>
-				<table class="hb-table">
-					<tr><th>Eintrag</th><th>Was er tut</th></tr>
-					<tr><td><strong>Verschieben</strong></td><td>Die ganze Fläche folgt der Maus; ein Klick speichert, <kbd>Esc</kbd> bricht ab.</td></tr>
-					<tr><td><strong>Fläche zerschneiden</strong></td><td>Zwei Punkte setzen — die Fläche zerfällt entlang der Linie.</td></tr>
-					<tr><td><strong>Mit anderer vereinigen</strong></td><td>Verschmilzt beide. Die zweite Fläche geht dabei auf.</td></tr>
-					<tr><td><strong>Mit anderer vereinigen und andere beibehalten</strong></td><td>Dasselbe, aber die zweite bleibt stehen — sie ist Schablone, nicht Rohstoff.</td></tr>
-					<tr><td><strong>Von anderer ausschneiden</strong></td><td>Zieht die zweite ab; die zweite wird verbraucht (sie ist die Schablone).</td></tr>
-					<tr><td><strong>Von anderer ausschneiden und andere beibehalten</strong></td><td>Dasselbe, aber die Schablone bleibt stehen — der See, aus dem der Wald geschnitten wurde.</td></tr>
-					<tr><td><strong>Neue von anderer ausschneiden</strong></td><td>Übrig bleibt nur, was beide gemeinsam haben.</td></tr>
-					<tr><td><strong>Fläche löschen</strong></td><td>Rot. Weg ist weg.</td></tr>
-				</table>
-				<p>Bei den fünf Operationen mit zwei Beteiligten klickst du nach dem Menüeintrag die <strong>zweite Fläche</strong> an. <strong>Vier davon dürfen die Ebene wechseln</strong> — ein See darf aus einem Wald geschnitten werden. Nur <em>„Mit anderer vereinigen"</em> verlangt dieselbe Ebene, weil es die zweite Fläche aufzehrt; die beibehaltende Fassung daneben darf wechseln. <kbd>Esc</kbd> bricht ab. Zerfällt eine Fläche dabei in mehrere Teile, ist das erlaubt und kein Fehler; für die Teile gibt es im Untermenü <em>„Unterflächen"</em> dann <em>„Alle Unterflächen vereinigen"</em>, <em>„Unterfläche herauslösen"</em> und — ebenfalls rot — <em>„Unterfläche löschen"</em>.</p>
-				<div class="hb-note hb-tip"><strong>Beim Ziel zählt der Rand, nicht die Fläche</strong> — genau wie bei den <a href="#territorien">Territorien</a>. Solange eine der fünf Operationen auf ihr Ziel wartet, nimmt nur noch die <em>Kontur</em> einer Fläche den Klick an; welche du gerade erwischst, sagt dir die goldene Kontur unter dem Zeiger. Über den Rand erreichst du auch eine vollständig überdeckte Fläche. Außerhalb der Zielwahl trifft der Klick wie gewohnt in die Mitte.</div>
-				<div class="hb-note hb-warn"><strong>Fläche und Beschriftung sind ein Ding.</strong> Löschst du die letzte Fläche einer Region, verschwindet die Region mit ihren Beschriftungen. Die Rückfrage sagt das vorher — lies sie.</div>
-				<h5>Reihenfolge und Sperren</h5>
-				<p>Flächen liegen übereinander, und wer oben liegt, bekommt den Klick. Beides regelst du hier: die <strong>Reihenfolge</strong> innerhalb einer Ebene und die <strong>Sperre</strong>, die eine Fläche für Klicks durchlässig macht. Es sind echte Karteneigenschaften — sie gelten für alle und bleiben nach dem Neuladen.</p>
-				<p>Für die Fläche unter dem Zeiger führt das Untermenü <em>„Reihenfolge und Sperren ▸"</em> des Flächenmenüs: <strong>„Region in den Vordergrund"</strong>, <strong>„Region in den Hintergrund"</strong> (immer <em>ganz</em>, nicht eine Stufe), der Umschalter <strong>„Region sperren"</strong>/<strong>„Region entsperren"</strong> und <strong>„Alle Regionen …"</strong>, das Fenster. Denselben Haken trägt das <a href="#landschaften">Bearbeiten-Fenster</a> als <em>Für Klicks gesperrt</em>.</p>
-				<p>Das Fenster <strong>„Reihenfolge und Sperren"</strong> öffnest du auch über den Knopf <strong>rechts neben den Ebenen-Reitern</strong>. Oben wählst du die Ebene — <em>Derographie · Vegetation · Topographie</em>, Klimazonen haben keine Reihenfolge —, darunter steht die Stapelliste, oben die vorderste. Jede Zeile trägt ihren Platz, den Namen und sechs Werkzeuge:</p>
-				<table class="hb-table">
-					<tr><th>Zeichen</th><th>Was es tut</th></tr>
-					<tr><td><strong>⤒ / ⤓</strong></td><td>Ganz nach vorn bzw. ganz nach hinten.</td></tr>
-					<tr><td><strong>⚙</strong></td><td>Öffnet das Bearbeiten-Fenster der Region. Hat sie keine Fläche, bleibt es stehen und ist ausgegraut — der Zettel sagt, warum.</td></tr>
-					<tr><td><strong>🔓 / 🔒</strong></td><td>Sperren bzw. entsperren. Eine gesperrte Zeile trägt zusätzlich die Marke <em>gesperrt</em>.</td></tr>
-					<tr><td><strong>👁</strong></td><td><em>„Nur diese Region zeigen"</em> — blendet für den Moment alles andere aus. Derselbe Knopf noch einmal holt alles zurück.</td></tr>
-					<tr><td><strong>🗑</strong></td><td>Rot: löscht die Region. Es ist dieselbe Rückfrage wie im Bearbeiten-Fenster — sie sagt, wie viele Flächen mitgehen.</td></tr>
-				</table>
-				<p>Dazu: <strong>Doppelklick auf eine Zeile</strong> zoomt zur Region und hebt sie hervor — auch wenn sie gerade gar nicht im Bild liegt. <strong>Ziehen am Greifer ⠿</strong> legt die Reihenfolge von Hand. Das Suchfeld <em>„Region suchen"</em> filtert die Liste; <strong>solange gefiltert wird, ist das Ziehen aus</strong> und der Greifer verschwindet — man würde sonst eine Reihenfolge verschieben, von der man nur drei Zeilen sieht.</p>
-				<div class="hb-note hb-warn"><strong>Eine gesperrte Fläche sieht unverändert aus — sie nimmt nur keine Klicks mehr an.</strong> Sie reicht sie an das durch, was darunter liegt; ihr Schwebezettel bleibt. Genau deshalb wirkt sie wie ein Fehler („ich komme an den Wald nicht mehr heran"), und der <strong>Zähler am Knopf</strong> ist der einzige Ort, an dem eine Sperre sichtbar wird. Findest du eine Fläche nicht mehr, sieh zuerst dort nach. Nicht zu verwechseln mit der befristeten Bearbeitungssperre, die greift, wenn jemand anderes gerade an einem Objekt arbeitet.</div>
-				<div class="hb-note hb-tip"><strong>Das Auge ist nur eine Ansicht, die Sperre eine Eigenschaft.</strong> Was 👁 ausblendet, ist niemandem sonst weggenommen und mit dem nächsten Neuladen wieder da. Ein Streifen in der Landschaften-Leiste nennt die isolierte Region und trägt den Ausweg <strong>„Alle zeigen"</strong> — auch dann, wenn du das Fenster längst geschlossen hast.</div>
-				<h5>Das Bearbeiten-Fenster</h5>
-				<p>Fläche und Beschriftung stehen in <strong>einem</strong> Fenster. Sein Titel nennt die Ebene: <em>„Vegetation bearbeiten"</em>, <em>„Topographie bearbeiten"</em>, <em>„Derographie bearbeiten"</em>. Oben stehen <em>Name</em>, <em>Art</em> (aus der Vokabelliste genau dieser Ebene) und der Haken <em>Auto-Name</em> — sie gelten beiden Hälften. Darunter drei Reiter:</p>
-				<table class="hb-table">
-					<tr><th>Reiter</th><th>Was darin steht</th></tr>
-					<tr><td><strong>Fläche</strong></td><td>Das <strong>Gelände</strong> (siehe unten), die Höhenskala und die Haken <em>Auf der Karte anzeigen</em> und <em>Für Klicks gesperrt</em> (siehe <a href="#landschaften">Reihenfolge und Sperren</a>).</td></tr>
-					<tr><td><strong>Beschriftung</strong></td><td><em>Höhe (Schritt)</em>, <em>Nodix</em>, <em>Größe</em>, <em>Priorität</em>, „Sichtbar ab/bis Zoom" sowie <em>Kurvenbeschriftung</em> und <em>Anzahl Kurvenlabel</em> (siehe <a href="#regionen">Regionen</a>).</td></tr>
-					<tr><td><strong>Wiki &amp; Quellen</strong></td><td>Der <a href="#v-wiki">Zuweisungskasten</a> und die <strong>Quellen</strong>. Quellen wirken <strong>sofort</strong> — sie brauchen kein „Speichern".</td></tr>
-				</table>
-								<figure class="hb-shot">
-					<img src="screenshots/18-landschaft-wiki-quellen.png" width="420" alt="Das Fenster Vegetation bearbeiten fuer das Lilienmoor mit den drei Reitern Flaeche, Beschriftung und Wiki und Quellen; im offenen dritten Reiter der Kasten Wiki-Landschaft ohne Zuordnung und darunter der Kasten Quellen mit einer Quelle des Garetien-Wikis" />
-					<figcaption>Der Reiter <strong>„Wiki &amp; Quellen"</strong>. Oben die Zuweisung, darunter die Quellen — und der Hinweis, dass sie <em>sofort</em> wirken.</figcaption>
-				</figure>
-<div class="hb-note hb-tip"><strong>Die Quellen gehören der Fläche.</strong> Liegt unter einer Beschriftung eine Fläche, zeigt der Reiter deren Quellen — eintragen und löschen gilt dann für beide. Eine eigene Liste hat nur eine <em>freie</em> Beschriftung ohne Fläche.</div>
-				<p>Womit du das Fenster öffnest, bestimmt den offenen Reiter: über die Fläche (<em>„Eigenschaften …"</em>) der Reiter <em>Fläche</em>, über die Beschriftung der Reiter <em>Beschriftung</em>. <strong>„Speichern" schreibt beide Hälften.</strong> Der Löschknopf trifft nur die, deren Reiter offen ist — er heißt darum <strong>„Fläche löschen"</strong> oder <strong>„Beschriftung löschen"</strong> und verschwindet, wo es nichts zu löschen gibt.</p>
-				<p>Fehlt eine Hälfte, sagt ihr Reiter das: <em>„Diese Fläche trägt keine Beschriftung."</em> samt Knopf <strong>„Beschriftung anlegen"</strong>, oder <em>„Diese Beschriftung liegt auf keiner Fläche."</em>. Trägt eine Fläche mehrere Beschriftungen, wählst du oben im Reiter aus, welche.</p>
-				<div class="hb-note hb-warn"><strong>„Auto-Name" anhaken entfernt die Beschriftungen dieser Fläche.</strong> Ein Auto-Name ist interne Buchführung und gehört nicht auf die Karte. Das Fenster sagt es am Haken an, bevor du speicherst. Solange der Haken sitzt, ist „Beschriftung anlegen" gesperrt und nennt den Grund. Eine frisch gezeichnete Fläche bekommt aus demselben Grund keine Beschriftung — leg sie an, wenn der Name steht.</div>
-				<p>Der Reiter <em>Fläche</em> trägt darunter die <strong>Gebirgseinstellungen</strong>. Ihre Werte formen, wie sich die Landschaft anfühlt — und damit, wie lange man hindurch braucht. Offen stehen nur zwei Auswahlfelder; alles Übrige ist Feineinstellung und liegt in der Falte darunter.</p>
-				<ul class="hb-steps">
-					<li><strong>Morphologie</strong> — die <em>Form</em> des Gebirges. Zehn Vorlagen der geomorphologischen Systematik, vom <em>Kammgebirge</em> bis zum <em>Inselberg</em>, dazu der <em>Karst</em>; sie setzen alle elf Regler auf einmal. Jede trägt ihren Fachnamen — wer wissen will, wie sie gemeint ist, findet unter dem Namen ein Musterbeispiel: <em>Kammgebirge</em> das Riesengebirge, <em>Kettengebirge</em> die Alpen, <em>Massengebirge</em> den Harz, <em>Plateaugebirge</em> die Schwäbische Alb, <em>Inselberg</em> den Uluru.</li>
-					<li><strong>Höhenstufe</strong> — <em>Tiefland</em> bis <em>Hochgebirge</em>. Sie setzt nur die Kammhöhe und fasst keine Formregler an, die beiden Felder sind also in beliebiger Reihenfolge bedienbar.</li>
-					<li>In der Falte <strong>„Erosion und Feinabstimmung"</strong> stehen die elf Einzelregler, je ein Schieber mit <strong>Zahlenfeld</strong>: ziehen oder eintippen. Ihr Titel nennt die zuletzt angewandte Vorlage.</li>
-					<li>Sie stehen in drei Gruppen: <strong>Kamm und Form</strong>, <strong>Grundrauschen</strong>, <strong>Wasser und Täler</strong>. Innerhalb einer Gruppe ist die Reihenfolge die der <em>Rechnung</em> — stell von oben nach unten ein, dann überschreibt dir kein späterer Regler das Ergebnis eines vorherigen.</li>
-					<li>Unter jedem Schieber steht ein <strong>Dreieck</strong> — die Vorgabe dieser Vorlage. Weicht der Wert davon ab, erscheint rechts ein <strong>↺</strong>, das genau diesen einen Regler zurücksetzt.</li>
-					<li><strong>„Höhenfeld erzeugen"</strong> speichert die Werte <em>und</em> rechnet das Raster dieser Fläche neu, mit dem später die Routenplanung arbeitet. <strong>„Auf Automatik zurück"</strong> nimmt alle eigenen Werte weg.</li>
-				</ul>
-				<p>Ein <strong>grauer Regler ist nicht kaputt</strong> — er kann gerade nichts bewirken, und sein Titel nennt den Grund. Einstellen und speichern kannst du ihn trotzdem: Der Wert gilt, sobald seine Bedingung erfüllt ist.</p>
-				<table class="hb-table">
-					<tr><th>Wenn …</th><th>… sind grau</th></tr>
-					<tr><td><strong>„Stärke des Rauschens"</strong> steht auf 0</td><td>Zahl der Erhebungen · Feinheit des Rauschens</td></tr>
-					<tr><td>kein Fluss und kein See berührt die Fläche</td><td>Talbreite · Taltiefe</td></tr>
-					<tr><td>die Fläche hat keinen Gipfel</td><td>Ausstrahlung der Gipfel · Durchhang zwischen den Gipfeln</td></tr>
-				</table>
-				<figure class="hb-shot">
-					<img src="screenshots/20-morphologien.png" width="620" alt="Zehn Reliefbilder derselben Flaeche nebeneinander, jedes mit einer anderen Morphologie gerechnet: von einem durchgehenden Hauptkamm ueber verzweigte Grate und breite Massive bis zu einer fast ebenen Schildflaeche, aus der nur noch einzelne Restberge aufragen" />
-					<figcaption>Die zehn <strong>Morphologien</strong> auf <em>derselben</em> Fläche mit <em>denselben</em> sieben Gipfeln — nur die Vorlage ist verschieden.<br />
-					Obere Reihe: <em>Kammgebirge</em> · <em>Gratgebirge</em> · <em>Kettengebirge</em> · <em>Kuppengebirge</em> · <em>Massengebirge</em>.<br />
-					Untere Reihe: <em>Plateaugebirge</em> · <em>Rumpfgebirge</em> · <em>Schild</em> · <em>Inselberg</em> · <em>Karst</em>.<br />
-					Die Reihenfolge ist die des Auswahlfeldes: erst die fünf Formen <em>mit</em> Relief, dann die drei abgetragenen, dann der Einzelberg und der Sonderfall.</figcaption>
-				</figure>
-				<div class="hb-note hb-tip"><strong>Eine Vorlage ist ein Ausgangspunkt, keine Bindung.</strong> Sie schreibt ihre Werte in die Regler und ist damit erledigt — gespeichert werden die <em>Zahlen</em>. Ihr Name bleibt nur als Herkunftsangabe im Titel der Falte stehen und sagt den ↺-Knöpfen, wohin sie zurücksetzen. Änderst du danach einen Regler, bleibt die Vorlage stehen und das Dreieck zeigt, wovon du dich entfernt hast.</div>
-				<div class="hb-note hb-warn"><strong>Kein Gipfel und keine Kammlinie? Dann hat das Gelände keinen Anhaltspunkt.</strong> Die Regler bewegen dann fast nichts, weil die Fläche nichts hat, dem sie folgen könnte. In diesem Fall steht über den Knöpfen <strong>„Gebirgszug ermitteln"</strong> — er rechnet die Mittelachse der Fläche als Kammlinie. Das ist <em>nicht</em> dasselbe wie die Kurvenbeschriftung und schaltet sie auch nicht ein.</div>
-				<p>Bei einer <strong>Gebirgs</strong>fläche folgt die <strong>Höhenskala</strong>: ein Graubalken mit Achse in Schritt und den Gipfeln dieser Fläche an ihrer Stelle — die Ablesehilfe zu „hell ist hoch, dunkel ist niedrig". Sie ändert nichts an der Karte. <strong>Ihr hellster Ton ist der höchste Gipfel aller gerade geladenen Gebirgsflächen</strong>: dieselbe Fläche wirkt dunkler, sobald ein höherer Nachbar im Bild ist. Darunter steht die <strong>Durchschnittshöhe</strong> dieser Fläche als Zahl, und ein senkrechter Strich zeigt sie auf dem Balken — die Zahl, die im Wiki steht, lässt sich damit direkt vergleichen.</p>
-				<div class="hb-note hb-tip"><strong>Eine frisch eingeschaltete Kurve ist erst nach dem Rechnen zu sehen.</strong> Der gebogene Name liegt in einem Zwischenspeicher. Für <em>eine</em> Fläche füllt ihn <strong>„Labelkurve aktualisieren"</strong> im Untermenü <em>„Form ändern ▸"</em> — das darf jeder Editor, und der Eintrag erscheint nur dort, wo die Region die Kurvenbeschriftung anhat. Für den ganzen Bestand gibt es <strong>„Kurven"</strong> im Sammelmenü <em>„Rechnen ▾"</em> des Landschaften-Editors — auch das darf jeder Editor, und es dauert rund zwanzig Sekunden. Änderst du die Form einer Fläche, rechnet sich ihre Kurve beim Speichern selbst nach. Nur wenn <em>viele</em> Flächen auf einmal gewandert sind — nach einem Sammellauf oder einem Import —, bleibt der Rest liegen, bis jemand „Kurven" drückt.</div>
-				<div class="hb-note hb-tip"><strong>Die Ränder siehst du nur beim Bearbeiten.</strong> Eine Kontur wird nur gezeichnet, solange <em>eine</em> Ebene im Editiermodus offen ist — nicht in „Alle" und nicht für Besucher. „Im Frontend fehlen die Ränder" ist also die Regel, kein Fehler.</div>
-				<h5>Klimazonen: die Ausnahme</h5>
-				<p>Die vierte Ebene zeichnest du <strong>nicht</strong>. Ihre Bänder — Polar bis Tropisch, von Nord nach Süd — sind <em>abgeleitet</em>: du ziehst nur die <strong>Trennlinien</strong> dazwischen, und die Bänder werden bei jedem Speichern neu gerechnet. Deshalb kann es zwischen zwei Zonen weder Lücke noch Überlappung geben — ein Band <em>ist</em> der Raum zwischen zwei Linien.</p>
-				<ul class="hb-steps">
-					<li><strong>Griff ziehen</strong> verschiebt einen Punkt der Trennlinie.</li>
-					<li><strong>Klick auf die Linie</strong> setzt dort einen neuen Punkt — hier also der einfache Klick, nicht <kbd>Strg</kbd> und nicht der Doppelklick wie bei den Flächen.</li>
-					<li><strong>Doppelklick auf einen Griff</strong> löscht ihn. Die beiden <em>äußersten</em> Griffe am Kartenrand lassen sich nicht löschen — an ihnen hängt, dass die Bänder lückenlos aneinanderstoßen.</li>
-				</ul>
-				<div class="hb-note hb-tip"><strong>Eine Linie darf zurücklaufen, sich aber nicht selbst schneiden.</strong> Eine Klimagrenze darf also eine Blase um die Khôm schlagen. Folgt ein Griff deiner Maus plötzlich nicht mehr, ist das kein Hänger: er bleibt am letzten gültigen Punkt stehen, weil der nächste Schritt die Linie mit sich selbst oder mit der Nachbarlinie kreuzen würde. Ein Band selbst lässt sich nicht als Fläche bearbeiten — Löschen, Ziehen und Pinsel verweigern dort den Dienst, und die <strong>Art</strong> steht im Dialog gesperrt da und nennt den Grund.</div>
-				<h5>„Darstellung" — wie Flächen und Namen aussehen</h5>
-				<p>Die Kachel <strong>„Darstellung"</strong> im Menüband des Landschaften-Editors öffnet eine Tafel für die ganze Karte. Oben wählst du die Ebene — <em>Derographie</em>, <em>Vegetation</em>, <em>Topographie</em>, <em>Klimazonen</em> —, darunter stehen sechs Abschnitte:</p>
-				<ul class="hb-steps">
-					<li><strong>Flächen und Namen</strong> — je Art <em>Ton</em> und <em>Deckkraft</em> der Fläche, <em>Schriftfarbe</em> ihrer Namen.</li>
-					<li><strong>Zoomband je Art</strong> — ein Klick zieht das nähere Ende; <em>„aus"</em> heißt „trägt nirgends einen Namen".</li>
-					<li><strong>Schriftgröße in pt</strong> — eine Kurve über neun Zoomstufen; erst die Art wählen, dann den Punkt ziehen.</li>
-					<li><strong>Abstände</strong> — wie Namen einander ausweichen. Wer innerhalb von <em>Drift</em> keinen Platz findet, wird ausgeblendet.</li>
-					<li><strong>Kollision</strong> — zwei Häkchen je Art. Das rechte hält einen Namen auf seinem Punkt; Berggipfel und Vulkane stehen so.</li>
-					<li><strong>Kurvenfeinheiten</strong> — wie ein Name auf die gerechnete Kurve seiner Fläche eingepasst wird, mit Vorschau.</li>
-				</ul>
-				<p><strong>Ansehen darf jeder Editor, speichern nur ein Administrator</strong>, und die Karte zeigt eine Änderung erst nach dem nächsten Laden.</p>
-				<figure class="hb-shot">
-					<img src="screenshots/19-namen-kollision.png" alt="Der Abschnitt Namen und Kollision mit zwei Haekchen je Namensart; Berggipfel und Vulkan tragen das rechte Haekchen und die Zeile Steht fest, andere Namen weichen ihm aus" />
-					<figcaption><strong>„Namen — Kollision"</strong>: zwei Häkchen je Art. Rechts gesetzt heißt <em>„Steht fest"</em> — so stehen Berggipfel und Vulkane auf ihrem Punkt.</figcaption>
-				</figure>
-				<div class="hb-note hb-tip"><strong>Was hier steht, ist eine <em>Vorgabe</em> — keine Festlegung.</strong> Zoomband und Schriftgröße erscheinen den Editoren als Marke an ihrem Regler im <a href="#regionen">Beschriftungsdialog</a>; wer dort abweicht, behält seinen Wert. Der Knopf am Zoomband <strong>misst nur</strong>, worauf der Bestand tatsächlich steht („z2–z6 · 100 %" heißt: so stehen alle) — geschrieben wird erst mit <strong>„Alle übernehmen"</strong>. <strong>„Auf Vorgabe zurücksetzen"</strong> löscht die eigene Tafel wieder ganz. <strong>Klimazonen</strong> tragen weder Zoomband noch Größenkurve — ihre Bänder sind abgeleitet.</div>
-
-				<h3 id="kraftlinien" class="hb-sub">Kraftlinien</h3>
-				<p class="hb-path"><strong>Auf der Karte:</strong> Kartenmodus „Kraftlinien" wählen → Linksklick auf die Linie → „Bearbeiten" / „Kraftlinie löschen" &nbsp;·&nbsp; <strong>Anlegen:</strong> Linksklick auf einen Nodix-Ort → „Neue Kraftlinie" → zweiten Nodix anklicken &nbsp;·&nbsp; <strong>Liste:</strong> Editor → WikiSync → Kraftlinien → „Bearbeiten"</p>
-				<p>Eine Kraftlinie verbindet immer zwei <strong>Nodix</strong>-Punkte. <strong>„Bearbeiten"</strong> öffnet den eigenen <strong>Kraftlinien-Editor</strong> mit drei Spalten — der Liste, den <em>Eigenschaften</em> (<strong>Name</strong>, <strong>„Name auf der Karte anzeigen"</strong>, <strong>Wiki-Artikel</strong>, <strong>Beschreibung</strong>, <strong>Quellen</strong>) und den <em>Nodices</em>, wo die Knotenpunkte der Linie stehen; bei einem durchgehenden Strang sortierst du sie dort mit <strong>▲▼</strong> um und stellst rechts an jeder Kante die <a href="#kraftlinien-kurve">Kurvenform</a> ein.</p>
-				<ul>
-					<li><strong>Wiki-Artikel</strong> — der <a href="#v-wiki">Zuweisungskasten</a>, ohne „Sync": eine Kraftlinien-Infobox füllt kein Kartenfeld. Er wird <em>ausdrücklich</em> gesetzt; anders als bei Orten rät die Karte hier nichts, leer bleibt leer. Das ist Absicht — eine Kraftlinie, die zufällig wie eine Siedlung heißt, soll nicht deren Artikel erben.</li>
-					<li><strong>Quellen</strong> — derselbe Quellen-Block wie bei Orten und Wegen, mit Autocomplete über den gemeinsamen Quellenkatalog.</li>
-				</ul>
-				<h4 id="kraftlinien-kurve" class="hb-sub2">Die Kurvenform</h4>
-				<p>Ein Segment muss nicht gerade laufen. Die Kurve gehört <strong>dem einzelnen Segment</strong>: Der Wert ist ein Prozentsatz der Sehne, <strong>0</strong> ist gerade, das Vorzeichen bestimmt die Seite. Einen Regler für die ganze Linie gibt es nicht — eine Linie aus sechzehn Segmenten stellst du Kante für Kante ein.</p>
-				<p>Zwei Wege führen hin:</p>
-				<ul class="hb-steps">
-					<li><strong>Im Editor</strong> — der kleine Regler rechts an jeder Kante in der Spalte <em>Nodices</em>.</li>
-					<li><strong>Auf der Karte</strong> — der Knopf <strong>„Kurve auf der Karte einstellen"</strong>. Der Editor blendet sich weg, die Karte schaltet auf die Ansicht <em>Kraftlinien</em>, und ein Schieber legt sich darüber. <strong>Ein Klick auf die Karte wählt das Segment</strong>, das du gerade einstellst. <strong>„Fertig"</strong> holt Editor und vorherige Ansicht zurück.</li>
-				</ul>
-				<div class="hb-note hb-warn"><strong>Die Kurve ist erst nach „Speichern" gespeichert.</strong> Was du beim Ziehen auf der Karte siehst, ist eine Vorschau. Schließt du den Editor vorher, ist sie weg.</div>
-				<div class="hb-note hb-tip"><strong>Dieser Editor verdeckt die Karte nicht.</strong> Anders als die übrigen steht er durchsichtig davor — die Karte bleibt daneben sichtbar und bedienbar. Geschlossen wird er über das <strong>✕</strong> im Kopf; ein Klick daneben trifft die Karte.</div>
-				<div class="hb-note hb-tip"><strong>Eine Kraftlinie besteht aus vielen Segmenten.</strong> Was auf der Karte wie <em>eine</em> Linie aussieht, sind in Wirklichkeit viele kurze Stücke von Nodix zu Nodix — die Basiliuslinie etwa aus vierzehn. Zusammengehalten werden sie <strong>allein durch den Namen</strong>. In der Infobox steht deshalb unter „Verbindet" die Spanne der <em>ganzen</em> Linie, nicht die des angeklickten Stücks; reine Kreuzungen an den Enden werden übersprungen.</div>
-				<div class="hb-note hb-warn"><strong>Einen Nodix-Ort, an dem eine Kraftlinie hängt, kannst du nicht löschen.</strong> Der Versuch wird abgelehnt, nicht bloß nachgefragt — die Meldung nennt die Zahl der Abschnitte und die Linien beim Namen (<em>„… trägt noch 3 Kraftlinien-Abschnitte (Konzilslinie, Nelkra-Linie). Bitte zuerst die Kraftlinie lösen."</em>). Das gilt genauso für Kreuzungen. Lös also erst die Kraftlinie, dann den Punkt.</div>
-				<div class="hb-note hb-tip"><strong>Schreibweise zählt doppelt.</strong> Weil der Name das einzige Band ist, zerlegt ein Tippfehler eine Linie in zwei: „Elementare Hexagramm" neben „Elementares Hexagramm" ergibt zwei getrennte Ketten und zwei falsche Angaben — und der Wiki-Abgleich unten findet den Artikel dann nur für die richtig geschriebene Hälfte. Beim Umbenennen also alle Segmente derselben Linie gleich schreiben.</div>
-				<p>Nicht jede Kraftlinie ist ein durchgehender Strang — manche verzweigen sich, eine ist ein geschlossener Ring. Die Infobox zeigt deshalb je nach Form <strong>„Verbindet"</strong> (die Enden), <strong>„Verläuft über"</strong> (die benannten Punkte dazwischen) und <strong>„Abschnitte"</strong>.</p>
-
-				<h4 class="hb-sub2">Angaben aus dem Wiki holen</h4>
-				<p class="hb-path"><strong>Editor → WikiSync → Kraftlinien → „Bearbeiten" → im Editor „⚡ Kraftlinien syncen"</strong></p>
-				<p>Wiki Aventurica beschreibt 23 Kraftlinien mit einer eigenen Infobox. Der Knopf überträgt deren <strong>Stärke</strong>, <strong>Affinität</strong>, <strong>Länge</strong>, <strong>Regionen</strong> und <strong>Verlauf</strong> auf die Kraftlinien der Karte und zeigt sie in der Infobox an. <strong>Zugeordnet wird zuerst über den zugewiesenen Wiki-Artikel</strong> — nur wo keiner steht, entscheidet der <strong>Name</strong>. Damit hält eine Zuweisung auch dann, wenn Linie und Artikel verschieden heißen.</p>
-				<ul>
-					<li><strong>Vorher „📥 Dump holen"</strong> — der Sync liest nur, was der Dump-Lauf vorher gesammelt hat. Ohne das meldet er es im Klartext, statt still nichts zu tun.</li>
-					<li><strong>Deine Eingaben bleiben.</strong> Ein von Hand gesetzter Wiki-Link und eine selbst geschriebene Beschreibung werden vom Sync <em>nie</em> überschrieben — sie haben in der Anzeige sogar Vorrang vor den Wiki-Werten.</li>
-					<li><strong>Nicht zugeordnete Artikel</strong> stehen nach dem Lauf unter <strong>„Wiki-Linien ohne Kartenlinie"</strong> im Editor, beim Namen genannt. Meist steckt eine abweichende Schreibweise dahinter („Brücke nach" gegenüber „Brücke von Akrabaal") — das ist eine Aufgabe für dich, kein Fehler: Weis der Kartenlinie den Artikel von Hand zu, dann greift sie beim nächsten Lauf.</li>
-					<li>Nach dem Lauf die <strong>Seite neu laden</strong>, damit die neuen Zeilen in der Infobox erscheinen.</li>
-				</ul>
 
 				<h3 id="wege" class="hb-sub">Wege</h3>
 				<p class="hb-path"><strong>Auf der Karte:</strong> Linksklick auf den Weg → „Bearbeiten" / „Verlauf bearbeiten" &nbsp;·&nbsp; <strong>Anlegen:</strong> Rechtsklick → „Hier hinzufügen" → „Neuer Weg" &nbsp;·&nbsp; <strong>Liste:</strong> Editor → WikiSync → Wege &nbsp;·&nbsp; <strong>Editor:</strong> ebendort → „Wege bearbeiten"</p>
@@ -1144,6 +755,396 @@
 					<li><strong>Der Wegtyp ist Fließtext.</strong> Er ist kein Schlüssel, an dem etwas hängt, sondern nur die Beschriftung darunter — dass die Suche gröber einteilt als der Editor, ist Absicht und kein Widerspruch.</li>
 				</ul>
 
+				<h3 id="siedlungen" class="hb-sub">Orte</h3>
+				<p class="hb-path"><strong>Auf der Karte:</strong> Linksklick → Infopanel → „Bearbeiten" &nbsp;·&nbsp; <strong>Anlegen:</strong> Rechtsklick → „Hier hinzufügen" → „Neuer Ort" &nbsp;·&nbsp; <strong>Liste:</strong> Editor → WikiSync → Orte</p>
+				<p>Orte sind Dörfer, Städte, Metropolen und besondere Bauwerke. Sie sind der häufigste Bearbeitungsfall.</p>
+				<div class="hb-note hb-tip"><strong>Ortsnamen müssen eindeutig bleiben.</strong> Legst du einen zweiten Ort mit einem schon vergebenen Namen an, nennt dir der Editor den blockierenden Ort; <strong>„Ort anzeigen"</strong> springt hin, dein Formular bleibt stehen. Der Ausweg ist der des Wikis: ein <strong>Zusatz in Klammern</strong>, also <em>„Ortsname (Region)"</em>. Grund: die Reiseplanung führt ihre Orte über den Namen — zwei gleiche fallen darin zu einem Punkt zusammen.</div>
+
+				<h4>Der Dialog „Ort bearbeiten"</h4>
+				<ul class="hb-steps">
+					<li><strong>Position</strong> — die Koordinaten, nur zur Anzeige. Verschieben tust du den Ort, indem du ihn auf der Karte ziehst.</li>
+					<li><strong>Identität</strong> — <em>Ortsname</em>, <em>Ortsgröße</em>, <em>Art</em> und die drei Wiki-Angaben <em>Einwohner</em>, <em>Lage</em> und <em>Herrscher</em>; die drei darfst du auch von Hand überschreiben. Wiki-Werte holt <strong>„Sync"</strong> im <a href="#v-wiki">Zuweisungskasten</a>, mit Vorschau.</li>
+					<li><strong>Beschreibung</strong> — ein Textfeld, beschriftet <em>„Beschreibung — öffentlich sichtbar"</em>. Was hier steht, erscheint in der Infobox; bis 1.200 Zeichen.</li>
+					<li><strong>Optionen</strong> — „Ort ist ein Nodix", „Ruine/zerstört", „Verborgen".</li>
+					<li><strong>Wiki-Ort</strong> — der <a href="#v-wiki">Zuweisungskasten</a>.</li>
+					<li><strong>Quellen</strong> — womit dieser Ort belegt ist. Mehrere Einträge sind normal; siehe <a href="#v-quellen">Quellen</a>.</li>
+					<li><strong>Wappen</strong> — <strong>„Ersetzen / hochladen"</strong> (Datei oder Bild-Adresse, bis 5&nbsp;MB, SVG erlaubt) und <strong>„Entfernen"</strong>; ein Klick auf das Bild selbst tut dasselbe wie der erste. Daneben steht, woher das gezeigte Wappen stammt. Erscheint erst, <em>nachdem</em> der Ort einmal gespeichert wurde. Beim Hochladen fragt der Dialog <em>Lizenz</em>, <em>Urheber</em> und <em>Kommentar</em> — siehe <a href="#v-lizenzen">Bilder &amp; Lizenzen</a>.</li>
+				</ul>
+				<div class="hb-note hb-tip"><strong>„Ortsgröße" und „Art" beantworten zwei verschiedene Fragen.</strong> Die <em>Ortsgröße</em> entscheidet, <strong>wie</strong> der Punkt gezeichnet wird — Symbol, Größe, ab welchem Zoom sein Name erscheint. Die <em>Art</em> sagt, <strong>was</strong> er ist: Brücke, Festung, Turm, Kloster … Sie ändert an der Karte nichts, sondern ersetzt nur die Typzeile in der Infobox. Tipp einfach los, der Editor schlägt aus dem Wiki-Katalog vor („brü" findet „Brücke"); <strong>leer lassen ist erlaubt</strong>, wenn du es nicht sicher weißt.</div>
+				<div class="hb-note hb-tip"><strong>„Art" ist grau? Dann steht die Ortsgröße nicht auf „Besondere Bauwerke/Stätten".</strong> Nur dort ist das Feld freigeschaltet — ein Dorf ist eben ein Dorf, da gibt es keine zweite Art. Stellst du die Ortsgröße wieder auf eine Siedlungsstufe zurück, wird die Art <em>geleert</em>, nicht bloß gesperrt: Gespeichert würde sie ohnehin nicht mehr, und ein stehengebliebener Text behauptete etwas Falsches.</div>
+				<div class="hb-note hb-warn"><strong>Ein Wappen ohne freie Lizenz bleibt unsichtbar</strong> — kein Fehler, sondern Absicht. Welche der sieben Einstufungen öffentlich erscheinen, steht unter <a href="#v-lizenzen">Bilder &amp; Lizenzen</a>.</div>
+				<div class="hb-note hb-warn"><strong>Die Karte holt kein Bild vom Wiki.</strong> Gezeigt wird nur, was auf unserem Server liegt — sonst bleibt das Feld leer, auch wenn der Editor daneben <em>„Wiki-Wappen vorhanden, aber nicht übernommen"</em> schreibt. Brauchst du das Wappen, lade es über <strong>„Ersetzen / hochladen"</strong> als Bild-Adresse hoch.</div>
+				<h4>„Verborgen" — ein Ort ohne Punkt auf der Karte</h4>
+				<ul class="hb-steps">
+					<li>Er bekommt <strong>weder Markierung noch Namen</strong>.</li>
+					<li>Die Reiseplanung wählt ihn <strong>nicht von sich aus</strong> als Ziel oder Zwischenstation. Liegt er an einer Straße, fährt eine Route hindurch — sie nennt ihn nur nicht in der Etappenliste.</li>
+					<li><strong>Wer den Namen kennt, findet ihn:</strong> über die Suche und über die Wegpunktsuche, wo er als <em>„Verborgen"</em> gekennzeichnet ist. Er bleibt dann für <em>diesen Besuch</em> sichtbar.</li>
+					<li>Alle verborgenen Orte holst du über <strong>„Verborgene Orte"</strong> im <a href="#n-haekchen">Anzeige-Menü</a> aufs Bild.</li>
+				</ul>
+
+				<h4>Einen Ort verschieben — und die Wege dabei liegen lassen</h4>
+				<p>Ziehst du einen Ort (oder eine Kreuzung) auf der Karte, <strong>wandern alle angeschlossenen Wegenden mit</strong>. Das ist der Normalfall und hält das Wegenetz dicht. Bei einem weiten Zug ist es aber genau das Falsche: Die Straßen werden quer über die Karte gedehnt, oder ein Ende landet an etwas, mit dem es nichts zu tun hat.</p>
+				<p><strong>Hältst du beim Ziehen Strg</strong> (auf dem Mac Cmd), bleiben die Wege liegen, wo sie sind — der Ort löst sich von ihnen. Damit dieser Zustand nicht untergeht, sagt die Karte ihn dir laufend an:</p>
+				<ul class="hb-steps">
+					<li>Jedes zurückgelassene Wegende bekommt einen <strong>Ring</strong> auf der Karte. Ein <strong>Klick darauf öffnet den Verlauf dieses Weges</strong>, damit du das Ende wieder auf den Ort ziehen kannst.</li>
+					<li>Oben sitzt ein Zähler — <em>„2 offene Wegenden — noch nicht wieder angeschlossen"</em> — mit dem Knopf <strong>„Zum nächsten"</strong>. Er springt der Reihe nach alle offenen Enden an.</li>
+					<li>Der Zähler <strong>überlebt das Neuladen</strong> und verschwindet erst, wenn das letzte Ende wieder hängt.</li>
+				</ul>
+				<div class="hb-note hb-warn"><strong>Strg trennt — es ist kein „vorsichtigeres Ziehen".</strong> Ein offenes Wegende ist genau der Fehler aus <a href="#wege">Regel 4</a>: Der Weg endet neben dem Ort statt auf ihm, und die Reiseplanung kommt dort nicht mehr durch. Der Griff ist für einen <em>Moment</em> gedacht, in dem du den Ort freistellst — schließ die Lücken, bevor du weitermachst. Ohne Strg ändert sich nichts am gewohnten Verhalten.</div>
+
+				<h4>Der Ortseditor</h4>
+				<p class="hb-path"><strong>Editor → WikiSync → Orte → „Orte bearbeiten"</strong></p>
+				<p>Für alles, was über einen einzelnen Ort hinausgeht, gibt es ein eigenes Fenster mit drei Spalten: links der <strong>Territorienbaum</strong>, in der Mitte die <strong>Ortsliste</strong>, rechts <strong>„Eigenschaften &amp; Overrides"</strong>. Oben das Menüband:</p>
+				<figure class="hb-shot">
+					<img src="screenshots/11-siedlungseditor.png" alt="Der Siedlungseditor mit Menueband, links der Territorienbaum, in der Mitte die Siedlungsliste mit den Reitern Alle, Platziert und Fehlt, rechts die Spalte Eigenschaften und Overrides" />
+					<figcaption>Der Ortseditor: links der <strong>Territorienbaum</strong>, in der Mitte die <strong>Ortsliste</strong> mit „Alle / Platziert / Fehlt", rechts <strong>„Eigenschaften &amp; Overrides"</strong>. Oben das Menüband.</figcaption>
+				</figure>
+				<table class="hb-table">
+					<tr><th>Kachel</th><th>Was sie tut</th></tr>
+					<tr><td><strong>🚨 Syncen</strong></td><td>Holt die Orte aus dem Dump. <em>Betreiber-Aktion.</em></td></tr>
+					<tr><td><strong>Orte zuordnen</strong></td><td>Ordnet in einem Rutsch allen Orten ihr Herrschaftsgebiet zu. Zeigt vorher eine Vorschau.</td></tr>
+					<tr><td><strong>Nur Auswahl anzeigen</strong></td><td>Blendet auf der Karte alles aus, was nicht in deiner aktuellen Auswahl liegt.</td></tr>
+					<tr><td><strong>Wappen &amp; Bilder ▾</strong></td><td>Vier Einträge. Drei Notaus-Schalter fürs öffentliche Frontend — <strong>„Lokale Wappen"</strong> (eigene Uploads), <strong>„Wiki-Wappen"</strong> und <strong>„Ortsbilder"</strong>; gelöscht wird nichts, im Editor bleibt alles sichtbar. Wie alle drei stehen, sagt die Unterzeile des Knopfes (<em>„lokal an · Wiki aus · Bilder an"</em>) — ohne Aufklappen. Dazu <strong>„Hole Wiki-Wappen"</strong>, eine <em>Betreiber-Aktion</em>; an ihrem Ende prüft sie die Wappenfelder mit und fragt nach, wenn sie etwas findet. <strong>Der Territorien-Monitor trägt dasselbe Menü</strong> — dort ohne „Ortsbilder", das Feld gibt es nur bei Orten — und die zwei Wappen-Schalter gelten beiden Seiten gemeinsam.</td></tr>
+					<tr><td><strong>🔗 Links prüfen</strong></td><td>Prüft die hinterlegten Quellen-Links auf Erreichbarkeit.</td></tr><tr><td><strong>Darstellung</strong></td><td>Ab welcher Zoomstufe eine Ortsklasse überhaupt erscheint, wie groß dort ihr Punkt und ihr Name sind. Ansehen darf jeder Editor, <em>einstellen nur Admins.</em></td></tr>
+				</table>
+				<h4>„Darstellung" — Zoomstufen, Größen, Abstände</h4>
+				<p>Zwei Kurventafeln für die sechs Ortsklassen über neun Zoomstufen: <em>Marker</em> in px und <em>Label</em> in pt. Darunter fünf Regler:</p>
+				<ul class="hb-steps">
+					<li><strong>Konturbreite</strong> — wie dick der weiße Ring um den roten Kern ist, in Prozent des Kerns. Bei 0 % gibt es keinen.</li>
+					<li><strong>Spalt</strong> — Abstand vom Punkt zu seinem Namen.</li>
+					<li><strong>Repel</strong> — Luft um jeden Namen, bevor geprüft wird, ob zwei sich überlappen.</li>
+					<li><strong>Versatz</strong> — wie weit ein Name ausweicht, wenn sein Platz belegt ist.</li>
+					<li><strong>Max. Drift</strong> — wie weit er sich dabei höchstens von seinem Punkt entfernen darf. Bleibt darunter nichts frei, fällt er weg.</li>
+				</ul>
+				<p>Eine <strong>Vorschau</strong> mit absichtlich gedrängten Orten zeigt sofort, was die Regler bewirken. <strong>„Alles zurücksetzen"</strong> holt die Vorgabe zurück. <strong>„Speichern" schließt das Fenster</strong> — bleibt es offen, steht der Grund darin. Ohne Admin-Recht steht statt der Knöpfe ein Satz; das ist kein Fehler.</p>
+				<div class="hb-note hb-warn"><strong>Das wirkt auf die ganze Karte, nicht auf deine Auswahl.</strong> Die erste gefüllte Stelle einer Klasse <em>ist</em> ihre Erscheinungsstufe: nimmst du sie weg, verschwindet die Klasse dort für alle Besucher. Unter <a href="#landschaften">Landschaften</a> gibt es eine zweite Kachel gleichen Namens — die gilt den Flächen und ihren Namen.</div>
+				<h4>Die Liste finden lernen</h4>
+				<p>Die mittlere Spalte hat oben <strong>„Alle"</strong>, <strong>„Platziert"</strong> und <strong>„Fehlt"</strong>, daneben das Suchfeld <em>„Name suchen…"</em> und ein Dropdown <strong>„Filter ▾"</strong> mit sieben Abschnitten: <strong>Zuordnung</strong> („Alle" / „Zugeordnet" / „Nicht zugeordnet"), <strong>Typ</strong>, darunter eingerückt <strong>„↳ Lage (nur Bauwerke)"</strong> („außerorts" / „innerorts" / „unklar"), <strong>Kontinent</strong> (voreingestellt auf Aventurien), <strong>Quelle</strong> („Wiki" / „Andere" / „Keine"), <strong>Wappen</strong> und <strong>Bilder</strong>. Sind Filter aktiv, zeigt der Knopf ihre Anzahl.</p>
+				<div class="hb-note hb-tip"><strong>„Lage" steht von vornherein auf „außerorts" und „unklar".</strong> Bauwerke <em>innerhalb</em> einer Stadt — Gassen, Tempel, Stadthäuser — sind damit von Anfang an aus der Liste; sie gehören nur selten in die Arbeitsliste. Suchst du eines davon und findest es nicht, hak zusätzlich <strong>„innerorts"</strong> an. Verschwiegen wird die Vorbelegung nicht: der Knopf zählt sie als gesetzten Filter mit. Und sie wirkt <em>nur</em> auf Bauwerke — Dörfer und Städte lässt sie unangetastet, auch wenn du sie zusammen mit Bauwerken anzeigst.</div>
+				<div class="hb-note hb-tip"><strong>Die Zähler in den Reitern zählen anders, als du denkst.</strong> Sie beziehen sich nur auf den gewählten Kontinent — Suche, Typ und die übrigen Filter gehen <em>nicht</em> ein. „Platziert (312)" bleibt also stehen, während die Liste darunter drei Zeilen zeigt. Das ist kein Fehler.</div>
+				<p>Im Abschnitt <strong>„Zuordnung"</strong> des Filters zeigt <strong>„Nicht zugeordnet"</strong> die platzierten Siedlungen ohne Territorium — deine Arbeitsliste für die Zuordnung —, <strong>„Zugeordnet"</strong> die mit Territorium. Solange „Nicht zugeordnet" aktiv ist, wird die Baum-Auswahl links ausgeblendet.</p>
+
+				<h4>Der Territorienbaum links</h4>
+				<p>Er dient <em>nur zum Filtern</em>, nicht zum Zuordnen. Jeder Knoten hat ein Kästchen mit drei Zuständen: <strong>angehakt</strong> (dieses Gebiet und alles darunter), <strong>Querbalken</strong> (nicht selbst gewählt, aber etwas darunter schon) und <strong>leer</strong>. Ohne jedes Häkchen siehst du alles.</p>
+
+				<h4>„Orte zuordnen"</h4>
+				<p>Der Knopf ordnet jedem Ort per Ray-Cast sein Herrschaftsgebiet zu. Zuerst kommt eine Vorschau mit vier Zahlen — <strong>Zugeordnet</strong>, <strong>Geändert</strong>, <strong>Nicht zugeordnet</strong>, <strong>Übersprungen (manuell)</strong> — und einer Beispielliste <em>Name → Zielterritorium</em>. Erst <strong>„Übernehmen"</strong> schreibt.</p>
+				<figure class="hb-shot">
+					<img src="screenshots/12-siedlungen-zuordnen.png" alt="Vorschau des Dialogs Siedlungen zuordnen mit den vier Zaehlern Zugeordnet, Geaendert, Nicht zugeordnet und Uebersprungen sowie einer Beispielliste Name zu Zielterritorium" />
+					<figcaption>Die Vorschau von <strong>„Orte zuordnen"</strong>: vier Zähler und eine Beispielliste <em>Name → Zielterritorium</em>. Geschrieben wird erst mit <strong>„Übernehmen"</strong>.</figcaption>
+				</figure>
+				<div class="hb-note hb-warn"><strong>Der Lauf ist immer global — Filter und Baum-Auswahl ändern daran nichts.</strong> Das ist die gefährlichste Eigenschaft dieses Knopfes: Man hat die Liste auf eine Handvoll Orte eingegrenzt, drückt ihn und trifft trotzdem <em>alle</em>. Willst du nur ein Gebiet bearbeiten, nimm <strong>„Orte hier zuordnen"</strong> im Rechtsklick-Menü des Gebiets.</div>
+				<p>Was der Lauf beachtet, ohne dass du es siehst:</p>
+				<ul class="hb-steps">
+					<li>Nur <strong>platzierte</strong> Orte. Reine Wiki-Orte haben keine Koordinate und bleiben unberührt.</li>
+					<li>Von Hand gesetzte Zuordnungen werden <strong>nie</strong> überschrieben — sie erscheinen als „Übersprungen (manuell)".</li>
+					<li>Gewinner ist die <strong>tiefste</strong> Ebene: liegt ein Ort in Grafschaft <em>und</em> Baronie, bekommt er die Baronie. Bei Gleichstand die kleinere Fläche.</li>
+					<li>Findet sich kein Gebiet, bleibt die Zuordnung leer. Es wird nichts geraten.</li>
+				</ul>
+				<div class="hb-note hb-tip"><strong>Auch die Variante fürs einzelne Gebiet ordnet in die Tiefe zu.</strong> Klickst du eine Grafschaft an, können ihre Orte trotzdem bei den darunterliegenden Baronien landen — die Regel „tiefste Ebene gewinnt" gilt weiter. Ausgewählt wird nur, <em>welche</em> Orte geprüft werden, nicht, wohin sie kommen.</div>
+
+				<h4>Die rechte Spalte</h4>
+				<p>Sie ist geordnet wie jedes Editorfenster: <strong>„Identität"</strong> (Name, Typ, Einwohner, Lage, Herrscher, Beschreibung), <strong>„Eigenschaften"</strong> (die Häkchen „Ort ist ein Nodix", „Ruine / zerstört", „Verborgen"), der <a href="#v-wiki">Zuweisungskasten</a>, die <strong>Quellen</strong> — dann die Speicherleiste. <em>Region</em> und <em>Staat</em> zeigt der Zuweisungskasten.</p>
+				<p>Unter <strong>„Lage &amp; Zugehörigkeit"</strong> — als einzigem Abschnitt <em>unterhalb</em> der Speicherleiste — sitzt das einzige echte Override: das <strong>Territorium</strong>. Daneben steht, woher es stammt — <em>„manuell"</em> oder <em>„Ray-Cast · tiefste Ebene"</em>. Mit <strong>„ändern"</strong> setzt du es selbst; ab dann ist es manuell und kein Massenlauf fasst es mehr an.</p>
+				<div class="hb-note hb-tip"><strong>Zeilen aus dem Reiter „Fehlt" kannst du hier nicht bearbeiten.</strong> Sie stehen nur im Wiki und haben noch keinen Punkt auf der Karte, also auch nichts zu bearbeiten. Der Editor sagt es selbst: „Zum Bearbeiten zuerst auf der Karte platzieren."</div>
+
+				<h4>Bilder</h4>
+				<p>Unter dem Wappen liegt die Galerie: <strong>bis zu zehn Bilder</strong> je Siedlung. Über die Kachel <strong>„＋ Bild hochladen"</strong> kannst du mehrere auf einmal auswählen, sie werden nacheinander hochgeladen. Die Reihenfolge änderst du, indem du die <em>Vorschaubilder</em> ziehst.</p>
+				<div class="hb-note hb-tip"><strong>Ziehen sortiert nur — hochladen kannst du damit nicht.</strong> Eine Datei ins Fenster zu ziehen bewirkt nichts; es geht ausschließlich über die Kachel.</div>
+				<p>Jedes Bild hat ein Lizenzfeld mit vier Werten. Drei davon werden öffentlich ausgeliefert: <strong>„Public Domain"</strong>, <strong>„CC0"</strong> und <strong>„Von uns KI-generiert"</strong>. Der vierte, <strong>„Unbekannt/CC/Sonstiges (nicht öffentlich)"</strong>, wird es nicht.</p>
+				<figure class="hb-shot">
+					<img src="screenshots/13-bilder-lizenz.png" alt="Die Bildergalerie mit aufgeklapptem Lizenzfeld und den vier Werten Public Domain, CC0, Von uns KI-generiert und Unbekannt CC Sonstiges nicht oeffentlich" />
+					<figcaption>Das Lizenzfeld eines Bildes, aufgeklappt. Voreingestellt ist <strong>„Von uns KI-generiert"</strong> — die drei oberen Werte werden öffentlich ausgeliefert, der vierte nicht.</figcaption>
+				</figure>
+				<div class="hb-note hb-warn"><strong>Voreingestellt ist „Von uns KI-generiert" — und das ist eine Aussage.</strong> Wer ein fremdes Bild hochlädt und das Feld nicht anfasst, behauptet damit, wir hätten es selbst erzeugt, und veröffentlicht es. Erlaubt sind nur KI-generierte und zweifelsfrei gemeinfreie Bilder; alles unter CC, GNU oder mit Namensnennung gehört nicht hierher. Im Zweifel „Unbekannt/CC/Sonstiges" wählen — dann bleibt es intern.</div>
+				<h4>Eigene Bilder erzeugen</h4>
+				<p>KI-generierte Bilder sind ausdrücklich erwünscht — lad sie gerne hoch. Fehlt einem Ort ein Bild, erzeug selbst eines: genau dafür ist der Wert <strong>„Von uns KI-generiert"</strong> da, und er ist deshalb die Voreinstellung. Mit dem Hochladen erklärst du dich einverstanden, dass das Bild <strong>gemeinfrei</strong> wird — es erscheint öffentlich in der Infobox.</p>
+				<p>Ein bewährter Grundbaustein für den Auftrag (erprobt mit ChatGPT, dürfte mit anderen Werkzeugen genauso funktionieren):</p>
+				<code class="hb-block">Consistent style in the following session. Middle Ages. Oil painting. Art work for a pen'n'paper RPG. 16:9. Village with a mill and fields, grassland landscape.</code>
+				<p>Der erste Satz hält den Stil über eine ganze Sitzung zusammen — so passen mehrere Bilder zueinander, statt jedes für sich auszusehen. Den letzten Satz tauschst du gegen das, was dein Ort zeigen soll.</p>
+
+				<h4>„Nur Auswahl anzeigen"</h4>
+				<p>Zeigt auf der <em>Karte</em> nur die Orte, die die mittlere Liste gerade anzeigt — mit allen Filtern, dem Reiter und der Baum-Auswahl zusammen. Solange das aktiv ist, sitzt oben rechts auf der Karte der Hinweis <strong>„Gefilterte Ansicht aktiv ✕"</strong>; ein Klick darauf stellt die volle Ansicht wieder her.</p>
+				<div class="hb-note hb-tip"><strong>Wenn die Karte plötzlich fast leer ist,</strong> such zuerst diesen Chip oben rechts. Er überlebt das Schließen des Editors — die Karte bleibt gefiltert, bis du ihn wegklickst.</div>
+
+				<h3 id="territorien" class="hb-sub">Territorien</h3>
+				<p class="hb-path"><strong>Auf der Karte:</strong> Rechtsklick auf ein Gebiet → eigenes Menü &nbsp;·&nbsp; <strong>Liste:</strong> Editor → WikiSync → Territorien</p>
+				<p>Herrschaftsgebiete — Kaiserreiche, Königreiche, Grafschaften, Baronien — liegen als Flächen über der Karte und sind die einzige Sorte mit einem <em>eigenen</em> Rechtsklick-Menü.</p>
+				<ul class="hb-steps">
+					<li><strong>„Territoriumseditor öffnen"</strong> — Eigenschaften und Hierarchie.</li>
+					<li><strong>„Grenzen bearbeiten"</strong> — nur die Geometrie.</li>
+					<li><strong>„Grenzen berechnen"</strong> — errechnet die Außengrenze aus den Kindern (nur bei reinen Container-Gebieten sinnvoll).</li>
+					<li><strong>„Orte hier zuordnen"</strong> — ordnet die Orte innerhalb dieses einen Gebiets zu.</li>
+					<li>Dazu die Formwerkzeuge: <strong>Verschieben</strong>, <strong>Gebiet zerschneiden</strong>, <strong>Mit anderem vereinigen</strong>, <strong>Von anderem ausschneiden</strong>, <strong>Neues Gebiet herauslösen</strong>, <strong>Löschen</strong> — und <strong>„Infobox anzeigen"</strong>.</li>
+				</ul>
+				<figure class="hb-shot">
+					<img src="screenshots/07-gebiet-menu.png" alt="Gebiets-Kontextmenue mit Grenzen bearbeiten, Territoriumseditor oeffnen, Grenzen berechnen, Verschieben, Gebiet zerschneiden, vereinigen, ausschneiden, herausloesen, Loeschen" />
+					<figcaption>Das Rechtsklick-Menü eines Gebiets. Je nach Gebiet erscheinen zusätzliche Einträge.</figcaption>
+				</figure>
+
+				<div class="hb-note hb-warn"><strong>An den Territorien arbeitet immer nur einer.</strong> Anders als überall sonst im Editor sind Herrschaftsgebiete <em>einfach vergeben</em>: Wer zuerst da ist, bekommt das Schreibrecht — und behält es, bis er rund drei Minuten lang nichts mehr gemeldet hat. „Zuerst da" gilt dabei über <em>beide</em> Wege: der Territoriumseditor und der Kartenmodus <strong>„Politische Karte"</strong> sind zwei Türen in denselben Raum und teilen sich dasselbe Recht.</div>
+				<p>Bist du der Zweite, ändert sich am <em>Ansehen</em> nichts — du bekommst den ganzen Baum, alle Geometrien und den Verlauf. Nur das Speichern fällt weg, und das sagt dir die Oberfläche an drei Stellen:</p>
+				<ul class="hb-steps">
+					<li>Im <strong>Territoriumseditor</strong> steht oben ein Hinweisband: <em>„… bearbeitet gerade die Territorien (seit 14:20 Uhr). Du kannst alles ansehen, aber nicht speichern."</em> Der Speichern-Knopf ist ausgegraut. Die <strong>Uhrzeit steht bewusst dabei</strong> — an ihr erkennst du, ob dort jemand arbeitet oder nur ein Tab offen liegt.</li>
+					<li>Auf der <strong>politischen Karte</strong> gibt es kein Band; dort antwortet jeder verändernde Eintrag des Rechtsklick-Menüs mit <em>„Bearbeiten blockiert – … ist im politischen Modus."</em>. <strong>„Infobox anzeigen"</strong> bleibt offen.</li>
+					<li>Wird das Recht frei, meldet sich die Karte von selbst: <em>„Die Territorien sind jetzt frei — du kannst speichern."</em></li>
+				</ul>
+				<p>Wer es gerade hält, steht im Reiter <a href="#status">Status</a> → <strong>Editoren</strong>: Hinter seinem Namen sitzt ein <strong>*</strong>. Admins finden dort außerdem <strong>„Bearbeiten erzwingen"</strong> — den Notausgang für den Tab, der niemandem mehr gehört.</p>
+
+				<h4>Grenzen bearbeiten</h4>
+				<p><strong>„Grenzen bearbeiten"</strong> zeigt jede Ecke des Gebiets als Griff. <strong>Ziehen</strong> verschiebt sie, <strong>Doppelklick auf einen Griff</strong> löscht sie.</p>
+				<p>Beim Loslassen passieren zwei Dinge: Der Punkt <strong>rastet ein</strong>, wenn ein <em>Nachbargebiet</em> dort eine Ecke oder Kante hat — und <strong>jedes Nachbargebiet, das genau diesen Punkt teilt, wird mitgezogen und mitgespeichert</strong>. So bleiben aneinandergrenzende Gebiete lückenlos, ohne dass du jede Grenze zweimal ziehst.</p>
+				<p><strong>Das Einrasten kündigt sich an.</strong> Während du ziehst, erscheint ein <strong>Ring</strong> genau dort, wohin der Punkt beim Loslassen springen wird: <em>durchgezogen</em> über einer Ecke, <em>gestrichelt</em> über einem Punkt auf einer Kante. Eine Ecke hat dabei Vorrang, auch wenn die Kante näher liegt. Kein Ring heißt: Hier rastet nichts ein, der Punkt bleibt, wo du loslässt. Das Mitziehen der Nachbarn sieht man dagegen erst am Ergebnis.</p>
+				<p><strong>Die Strg-Taste ist der Umschalter dafür.</strong> Gedrückt gehalten gilt beides nicht — sie regelt den Umgang mit Punkten und Linien:</p>
+				<table class="hb-table">
+					<tr><th>Strg&nbsp;+</th><th>Was passiert</th></tr>
+					<tr><td><strong>einen Punkt ziehen</strong></td><td><strong>Löst ihn heraus.</strong> Kein Einrasten — darum erscheint auch kein Ring —, und die Nachbarn bleiben liegen: die gemeinsame Grenze trennt sich an dieser Stelle auf. Der Punkt bleibt genau dort, wo du loslässt.</td></tr>
+					<tr><td><strong>über eine Linie fahren</strong></td><td>Hebt die Kante unter dem Zeiger hervor — die, die der nächste Klick trifft.</td></tr>
+					<tr><td><strong>auf die Linie klicken</strong></td><td>Setzt <strong>vier</strong> gleichmäßig verteilte Punkte hinein; aus einer Kante werden fünf Abschnitte. So bekommst du Material zum Formen, wo vorher eine gerade Strecke war.</td></tr>
+				</table>
+				<div class="hb-note hb-warn"><strong>Ohne Strg bearbeitest du unter Umständen mehrere Gebiete gleichzeitig.</strong> Das ist so gewollt — es hält Grenzen dicht —, aber es heißt auch: Ein Zug an der falschen Ecke verschiebt die Grenze des Nachbarn mit, und beide werden gespeichert. Willst du <em>nur</em> dein Gebiet bewegen, halte Strg.</div>
+				<div class="hb-note hb-tip"><strong>Strg+Z nimmt den letzten Schritt zurück</strong>, solange „Grenzen bearbeiten" offen ist — bis zu 20 Schritte weit. Zurückgenommen wird, was der Schritt <em>wirklich</em> angefasst hat: also auch jedes Nachbargebiet, das beim Ziehen mitgewandert ist. Alle betroffenen Gebiete werden dabei erneut gespeichert. Ist nichts mehr da, sagt es dir das. Die Zwischenschritte stehen <em>nicht</em> im Reiter <a href="#aenderungen">Änderungen</a> — dort landet nur das Ergebnis, genau wie bei einem gewöhnlichen Zug.</div>
+				<div class="hb-note hb-tip"><strong>Gespeichert wird gebündelt.</strong> Nicht jeder einzelne Eckzug geht als eigener Schreibvorgang hinaus: Eine knappe Sekunde nach dem <em>letzten</em> Loslassen wird <strong>je betroffenem Gebiet einmal</strong> gespeichert. Zehn Ecken an einer gemeinsamen Grenze ergeben darum <em>einen</em> Eintrag für dein Gebiet und einen für den Nachbarn im Reiter <a href="#aenderungen">Änderungen</a> — nicht zwanzig. Schließt du „Grenzen bearbeiten", geht das Ausstehende sofort hinaus; verlieren kannst du dabei nichts. <strong>Verschieben</strong>, <strong>Zerschneiden</strong> und <strong>Herauslösen</strong> speichern weiterhin unmittelbar — das sind einzelne, bewusste Gesten, an denen es nichts zu bündeln gibt.</div>
+				<div class="hb-note hb-tip"><strong>Abgeleitete Außengrenzen ziehen nie mit.</strong> Sie sind berechnet, nicht gezeichnet, und kommen über <strong>„Grenzen berechnen"</strong> nach.</div>
+
+				<h4>Die Formwerkzeuge</h4>
+				<p>Alle vier arbeiten gleich: Du startest sie auf dem Gebiet, das du angeklickt hast, dann wählst du ein <strong>Zielgebiet</strong> — oben erscheint dazu der Hinweis <em>„Kontur des Zielgebiets anklicken."</em>. Was danach passiert, unterscheidet sich in einem Punkt, den man den Namen nicht ansieht:</p>
+				<table class="hb-table">
+					<tr><th>Werkzeug</th><th>Dein Gebiet bekommt …</th><th>Das Zielgebiet</th></tr>
+					<tr><td><strong>Mit anderem vereinigen</strong></td><td>beide Flächen zusammen</td><td><strong>wird aufgezehrt</strong></td></tr>
+					<tr><td><strong>Von anderem ausschneiden</strong></td><td>seine Fläche <em>minus</em> der des Ziels</td><td><strong>wird aufgezehrt</strong></td></tr>
+					<tr><td><strong>Von anderem ausschneiden und anderes beibehalten</strong></td><td>dasselbe</td><td>bleibt stehen</td></tr>
+					<tr><td><strong>Neues von anderem ausschneiden</strong></td><td>nur die <em>Überlappung</em> beider</td><td>bleibt stehen</td></tr>
+				</table>
+				<div class="hb-note hb-tip"><strong>Beim Zielgebiet zählt der Rand, nicht die Fläche.</strong> Solange eine der vier Operationen auf ihr Ziel wartet, nimmt nur noch die <em>Kontur</em> eines Gebiets den Klick an — die Ränder werden dafür sichtbar dicker, das ist der Hinweis darauf. Dein Ausgangsgebiet ist ganz aus dem Spiel und lässt sich gar nicht mehr treffen. Der Grund: Lag es <em>über</em> dem gewünschten Ziel, fing früher seine eigene Fläche jeden Klick ab, und an das Gebiet darunter kam man mit der Maus nicht heran. Bei <strong>Verschieben</strong> und <strong>Gebiet zerschneiden</strong> gilt das nicht — die brauchen die Fläche.</div>
+				<div class="hb-note hb-warn"><strong>Die ersten beiden verbrauchen das Gebiet, das du anklickst.</strong> Hat es keine Fläche mehr übrig, ist es weg. Der lange Name „…&nbsp;und anderes beibehalten" ist genau dafür da — er ist nicht die umständliche Variante, sondern die vorsichtige. Im Zweifel nimm sie: Was zu viel stehen bleibt, kannst du danach immer noch löschen; was verbraucht wurde, holst du nur über den Reiter <a href="#aenderungen">Änderungen</a> zurück.</div>
+
+				<h4>Im Territoriumseditor</h4>
+				<ul class="hb-steps">
+					<li><strong>Wiki-Herrschaftsgebiet</strong> — der <a href="#v-wiki">Zuweisungskasten</a>; gesucht wird darin.</li>
+					<li><strong>Hierarchie</strong> — den Baum durchsuchen und das Gebiet per Ziehen einordnen; „Zuweisung aufheben" löst sie wieder.</li>
+					<li><strong>Name</strong> und <strong>Kurzname</strong> — auf der Karte wird der Kurzname bevorzugt gezeigt.</li>
+					<li><strong>Zoom-Bänder</strong> („Sichtbar ab Zoom"), <strong>Hauptstadt</strong> und <strong>Gültigkeit</strong> in BF-Jahren (<code>9999</code> = bis heute offen).</li>
+				<li><strong>Quellen</strong> — ganz unten, derselbe Block wie bei Orten, Wegen und Landschaften. Auch ein von Hand angelegter Knoten trägt sie.</li>
+				</ul>
+				<figure class="hb-shot">
+					<img src="screenshots/06-territoriumseditor.png" alt="Der Territoriumseditor mit Hierarchiebaum der Herrschaftsgebiete, Wiki-Verknuepfungen, Gueltigkeit und Breadcrumb-Darstellung" />
+					<figcaption>Der Territoriumseditor: Hierarchie-Baum, Wiki-Verknüpfungen und Breadcrumb.</figcaption>
+				</figure>
+				<p>Den großen Abgleich gegen das Wiki macht der eigene Editor hinter <strong>„Syncen"</strong> — mit Hierarchiemodell, Unterschieden und Lückenliste. Der Knopf <em>öffnet</em> diesen Editor; die scharfe Übernahme löst du darin bewusst aus, sie läuft nicht schon beim Klick. Wie die Hierarchie gedacht ist, steht unter <a href="#v-hierarchie">Die Gebiets-Hierarchie</a>.</p>
+				<figure class="hb-shot">
+					<img src="screenshots/09-herrschaftsgebieteeditor.png" alt="Territorien-Sync-Editor mit Syncen, Hierarchiemodell, Lueckenliste und Wiki-Overrides" />
+					<figcaption>Der Territorien-Editor: Syncen, Hierarchiemodell, Lücken und Wiki-Overrides.</figcaption>
+				</figure>
+
+				<h3 id="regionen" class="hb-sub">Regionen</h3>
+				<p class="hb-path"><strong>Auf der Karte:</strong> Linksklick auf die Beschriftung → „Bearbeiten" &nbsp;·&nbsp; <strong>Anlegen:</strong> Rechtsklick → „Hier hinzufügen" → „Neues Label" &nbsp;·&nbsp; <strong>Liste:</strong> Editor → WikiSync → Regionen</p>
+				<p>„Regionen" sind die <strong>Landschaftsnamen auf der Karte</strong> — das Svellttal, der Farindelwald, das Meer der Sieben Winde. Technisch sind es Beschriftungen, keine Flächen. Liegt eine <a href="#landschaften">Fläche</a> darunter, bearbeitest du beide im selben Fenster; liegt keine darunter, heißt es <em>„Freies Label bearbeiten"</em>.</p>
+				<ul class="hb-steps">
+					<li><strong>Kopf</strong> — <em>Name</em> und <em>Art</em>, beide mit <strong>↻</strong> zum Übernehmen aus dem Wiki. Die Art ist nicht auf „Region" beschränkt — die vollständige Liste steht unter <a href="#n-listen">Die Auswahllisten</a>. Der Haken <em>Nodix</em> steht im Reiter <em>Beschriftung</em>.</li>
+					<li><strong>Höhe (Schritt)</strong> — steht unten im selben Block und erscheint nur, wenn die Art <em>Berggipfel</em> oder <em>Vulkan</em> ist: ein Zahlenfeld mit Schieberegler (0–20.000). Ein leeres Feld füllt sich dabei mit <strong>5.000</strong> — der Wert, mit dem die Karte für einen Gipfel ohne erfasste Höhe ohnehin rechnet. Eine <em>bereits erfasste</em> Höhe bleibt unangetastet, auch wenn du den Dialog nur öffnest.</li>
+					<li><strong>Darstellung</strong> — Größe, <em>Kurvenbeschriftung</em>, <em>Anzahl Kurvenlabel</em> (erscheint erst mit dem Haken), „Sichtbar ab/bis Zoom", Priorität. Damit steuerst du, wann und wie prominent die Beschriftung erscheint. An Größen- und Zoomreglern steht als Marke, was die Tafel <a href="#landschaften">„Darstellung"</a> für diese Art vorschlägt — du darfst davon abweichen. <strong>Größe und Priorität wirken sofort auf der Karte</strong>, während du am Regler ziehst. Schließt du den Dialog <em>ohne</em> zu speichern („Abbrechen", ×, ESC), geht die Beschriftung auf ihren alten Stand zurück. Bei einer <em>neuen</em> Beschriftung gibt es noch keinen Marker, an dem sich das zeigen könnte.</li>
+					<li><strong>Wiki-Landschaft</strong> — der <a href="#v-wiki">Zuweisungskasten</a>.</li>
+						<li><strong>Quellen</strong> — derselbe Block wie bei Orten und Wegen, über den gemeinsamen Quellenkatalog. <strong>Die Quellen gehören der Fläche</strong>, nicht der Beschriftung: liegt eine Fläche darunter, siehst und änderst du hier deren Liste. Eine eigene hat nur eine <em>freie</em> Beschriftung ohne Fläche.</li>
+				</ul>
+				<div class="hb-note hb-tip"><strong>Der Name läuft auf der Mittelachse seiner Fläche.</strong> Dafür gibt es zwei Bedienelemente: den Haken <em>Kurvenbeschriftung</em> und <em>Anzahl Kurvenlabel</em> (1–3), also wie viele Namen die Fläche tragen darf. Beide gehören der <strong>Region</strong>, nicht der einzelnen Beschriftung, und stehen genau einmal im Reiter <em>Beschriftung</em>. <strong>Ohne Fläche gibt es keine Mittelachse</strong>: bei Meeren, Inseln und Gipfeln stehen beide verriegelt da und nennen den Grund.</div>
+				<p>Im Reiter <strong>Editor → WikiSync → Regionen</strong> steht der Knopf <strong>„Landschaften bearbeiten"</strong>. Er öffnet ein eigenes Fenster — den siebten <a href="#n-editoren">Sync-Editor</a> — mit der Regionenliste links, den <em>Eigenschaften</em> in der Mitte und <em>„Vorschau &amp; Vorkommen"</em> rechts. Das <strong>„🚨 Syncen"</strong> steht im Menüband, genau wie bei Orten und Kraftlinien — nicht im Reiter. Daneben stehen drei Kacheln, alle für die <a href="#landschaften">Landschaften-Ebene</a>: <strong>„Rechnen ▾"</strong> mit den Läufen <em>Zugehörigkeit</em>, <em>Höhenraster</em>, <em>Wegprofile</em>, <em>Kurven</em> und <em>„Wiki &amp; Art"</em> — der letzte trägt Wiki-Landschaft und Art einer Fläche an ihre Beschriftungen nach; die Unterzeile des Knopfes sagt, welcher gerade läuft —, dazu <em>„Geländeabhängiges Reisen"</em> und <em>„Darstellung"</em>. Für die Beschriftungsarbeit brauchst du davon nur die letzte.</p>
+				<p>Für viele Beschriftungen auf einmal führt der Weg weiterhin über die Liste im Reiter: dort trägt jede Zeile den Knopf <strong>„Label zuweisen"</strong>. Er stellt <em>alle</em> Beschriftungen der Karte zur Auswahl — nicht nur die namensgleichen —, hakt die bereits verknüpften vor und sagt bei einer Beschriftung, die an einer <em>anderen</em> Wiki-Landschaft hängt, dazu, dass das Zuweisen sie umhängt. Erst <strong>„Vorschau"</strong> (ein Trockenlauf, der nichts schreibt), dann <strong>„Zuweisen"</strong>; änderst du zwischendurch die Auswahl, verfällt die Vorschau. <em>Lösen</em> lässt sich eine Verknüpfung hier nicht — das bleibt Sache des Label-Dialogs oben.</p>
+				<p>Der Linksklick auf eine Beschriftung bietet außerdem <strong>„Label verschieben"</strong>, <strong>„Position zurücksetzen"</strong>, <strong>„Label duplizieren"</strong> und <strong>„Label löschen"</strong> — sowie <strong>„Neue Kraftlinie"</strong>. <strong>„Position zurücksetzen"</strong> holt die Beschriftung auf den Punkt zurück, den das Anlegen einer Fläche vergibt, und steht nur dort, wo eine Fläche darunter liegt; trägt die Fläche mehrere Beschriftungen, fragt sie vorher nach. Kraftlinien sind ein eigener Objekttyp, unabhängig vom Wegenetz — siehe unten.</p>
+
+				<h3 id="landschaften" class="hb-sub">Landschaften</h3>
+				<p class="hb-path"><strong>Auf der Karte:</strong> Kartenmodus „Landschaften" wählen (Taste <kbd>L</kbd>) &nbsp;·&nbsp; <strong>Anlegen:</strong> Rechtsklick auf leere Karte → „Hier hinzufügen" → „Neue Vegetation" &nbsp;·&nbsp; <strong>Ecken bearbeiten:</strong> Rechtsklick auf die Fläche → „Fläche bearbeiten" &nbsp;·&nbsp; oder <strong>Doppelklick auf die Fläche</strong></p>
+				<p>Während eine <a href="#regionen">Region</a> nur ein <em>Name</em> auf der Karte ist, ist eine Landschaft eine <strong>Fläche</strong>: der Umriss des Farindelwaldes, die Ausdehnung des Raschtulswalls, der Rand der Khôm. Daraus rechnet die Karte später das Gelände und damit die Reisezeiten — eine sauber gezogene Fläche ist also keine Dekoration.</p>
+				<div class="hb-note hb-warn"><strong>Ein einfacher Klick wählt nur aus — die Ecken kommen erst auf Ansage.</strong> Dorthin führen zwei Wege, und beide tun genau dasselbe: <strong>Rechtsklick auf die Fläche → „Fläche bearbeiten"</strong> (der sichtbare) oder <strong>Doppelklick auf die Fläche</strong> (der schnelle). Danach ziehst du die Ecken ganz normal. Bei den <a href="#territorien">Territorien</a> ist das anders, dort genügt die Auswahl; wer von dort kommt, sucht hier zunächst vergeblich. Ein Doppelklick <em>neben</em> die Fläche beendet das Ecken-Bearbeiten wieder. Liegen die Ecken schon frei, sagt der Menüeintrag das und tut sonst nichts — so bleibt dir <kbd>Strg</kbd>+<kbd>Z</kbd> erhalten.</div>
+				<h5>Die vier Ebenen</h5>
+				<p>Oben auf der Karte steht der Ebenen-Schalter: <strong>Alle · Derographie · Vegetation · Topographie · Klimazonen</strong>. Immer nur <em>eine</em> Ebene nimmt Klicks entgegen — die, die dort ausgewählt ist. <strong>In „Alle" kannst du nicht bearbeiten.</strong> Wähl erst eine Ebene. Anklicken und Auswählen gehen dort, aber Flächenmenü, Ecken-Editor, „Neue Fläche" und <kbd>Strg</kbd>+<kbd>Z</kbd> fallen weg. Umschalten lädt nichts neu und wirft nichts weg.</p>
+				<div class="hb-note hb-tip"><strong>„Alle" zeigt nicht alles.</strong> Die <strong>Klimazonen</strong> bleiben dort ganz aus — ihre kartenbreiten Bänder legten sich sonst über alles andere. Die <strong>Derographie</strong> liegt ohne Füllung obenauf und nimmt keine Klicks; anfassbar ist dort nur ihr <em>Name</em>, der ihre Fläche zeigt. So kommst du an Wald und Gebirge darunter heran.</div>
+				<table class="hb-table">
+					<tr><th>Ebene</th><th>Was hineingehört</th></tr>
+					<tr><td><strong>Vegetation</strong></td><td>Wälder, Steppen, Sümpfe, Wüsten — der Bewuchs. Hier liegt die meiste Arbeit, deshalb ist sie vorausgewählt.</td></tr>
+					<tr><td><strong>Topographie</strong></td><td>Das Relief: Gebirge, Hügelland, Ebenen, Gewässer.</td></tr>
+					<tr><td><strong>Derographie</strong></td><td>Die großen erdkundlichen Räume darüber.</td></tr>
+					<tr><td><strong>Klimazonen</strong></td><td><strong>Sonderfall — wird nicht gezeichnet, sondern gerechnet.</strong> Siehe unten.</td></tr>
+				</table>
+				<div class="hb-note hb-tip"><strong>Dieselbe Landschaft gehört oft in zwei Ebenen.</strong> Der Farindel ist Wald (Vegetation) <em>und</em> Relief (Topographie) — rund die Hälfte aller Flächen sind solche Zwillinge. Zeichne sie nicht zweimal: <strong>„Kopieren …"</strong> im Flächenmenü legt denselben Umriss in der anderen Ebene noch einmal an. Es ist eine echte Kopie, keine Verknüpfung — verschiebst du später eine Ecke, bewegt sich nur die eine Fläche.</div>
+				<h5>Eine neue Fläche zeichnen</h5>
+				<ol class="hb-steps">
+					<li><strong>Rechtsklick auf die leere Karte</strong> → „Hier hinzufügen" → <strong>„Neue Vegetation"</strong>, <strong>„Neue Topographie"</strong> oder <strong>„Neue Derographische Region"</strong>. Der Eintrag schaltet zugleich auf die passende Ebene.</li>
+					<li><strong>Klicken setzt Punkt für Punkt</strong> den Umriss; eine Linie läuft mit dem Zeiger mit und zeigt ab dem zweiten Punkt auch schon den Schluss zurück zum Anfang.</li>
+					<li><strong>Doppelklick oder <kbd>Enter</kbd></strong> schließt die Fläche ab, <strong><kbd>Esc</kbd></strong> bricht ab.</li>
+					<li>Erst beim Abschließen entsteht etwas — danach geht das <a href="#landschaften">Bearbeiten-Fenster</a> auf. Es heißt nach seiner Ebene: <em>„Vegetation bearbeiten"</em>, <em>„Topographie bearbeiten"</em> oder <em>„Derographie bearbeiten"</em>.</li>
+				</ol>
+				<div class="hb-note hb-tip"><strong>Vor dem Abschluss ist nichts geschrieben.</strong> Ein Abbruch mit <kbd>Esc</kbd> kostet also gar nichts und hinterlässt keine halbe Fläche. Mit dem Schließen des Umrisses bekommt die Fläche <em>ihre eigene</em> Region.</div>
+				<h5>Eine Fläche aus Territoriengrenzen</h5>
+				<p>Wo eine Landschaft ohnehin einem Herrschaftsgebiet folgt, musst du sie nicht nachzeichnen. <strong>Rechtsklick → „Hier hinzufügen" → „Grenzen aus Territorien importieren"</strong> öffnet den Dialog <em>„Grenze aus Territorien"</em>: Du wählst oben die <strong>Ebene der neuen Fläche</strong> (vorausgewählt <em>Derographische Region</em> — politische Grenzen folgen am ehesten der Landgliederung), dann die Gebiete, und <strong>„Einfügen"</strong> legt ihre Vereinigung als <em>eine</em> Fläche an. Danach geht von selbst <em>„Fläche vereinfachen"</em> darüber auf, denn Territoriengrenzen bringen sehr viele Ecken mit.</p>
+				<p>Gewählt wird auf <strong>zwei</strong> Wegen, und sie ergänzen sich:</p>
+				<ul class="hb-steps">
+					<li><strong>Auf der Karte.</strong> Zeig auf ein Gebiet — es leuchtet auf und nennt seinen Namen; <strong>Klick nimmt es dazu, ein zweiter Klick wieder weg</strong>. Hast du den Dialog per Rechtsklick <em>auf</em> einem Gebiet geöffnet, ist dieses schon gewählt.</li>
+					<li><strong>Im Baum.</strong> Das Suchfeld <em>„Gebiet suchen"</em> und die Hierarchie darunter — hier nimmt ein Häkchen <strong>seinen ganzen Teilbaum</strong> mit.</li>
+				</ul>
+				<p>Was zusammengekommen ist, steht als <strong>„Gewählt (N)"</strong> darüber dem Knopf, jedes Gebiet mit einem <strong>„×"</strong>, dazu <strong>„Leeren"</strong>. Ohne diesen Korb wären Klicks in einem Baum aus über neunhundert Zeilen nicht wiederzufinden.</p>
+				<div class="hb-note hb-warn"><strong>Der Kartenklick nimmt <em>ein</em> Gebiet, das Häkchen einen Teilbaum.</strong> Unter dem Zeiger liegt immer das <strong>tiefste</strong> Gebiet — klickst du auf eine Baronie, bekommst du die Baronie, nicht ihr Reich. Willst du das Reich mit allem darin, nimm sein <em>Häkchen</em> im Baum. Der Schwebe-Umriss zeigt dir vor dem Klick, was du triffst.</div>
+				<div class="hb-note hb-tip"><strong>Es ist eine Kopie, keine Verknüpfung.</strong> Die eingefügte Fläche merkt sich nicht, aus welchen Territorien sie entstand, und sie folgt ihnen später auch nicht — verschiebt jemand eine Gebietsgrenze, bleibt deine Landschaft, wo sie ist. Und stehen nicht alle Grenzen zum Anklicken bereit, sagt die Hinweiszeile das: dann näher heranzoomen, gezeichnet wird nur, was auf den Schirm passt.</div>
+
+				<h5>Ecken ziehen — nach dem Doppelklick</h5>
+				<table class="hb-table">
+					<tr><th>Geste</th><th>Wirkung</th></tr>
+					<tr><td><strong>Ecke ziehen</strong></td><td>Verschiebt sie. Gespeichert wird gebündelt, kurz nachdem du loslässt — nicht bei jeder einzelnen Ecke.</td></tr>
+					<tr><td><strong>Doppelklick auf eine Ecke</strong></td><td>Löscht sie.</td></tr>
+					<tr><td><strong>Doppelklick auf eine Kante</strong></td><td>Setzt <em>genau eine</em> neue Ecke, dort wo du gezielt hast.</td></tr>
+					<tr><td><strong><kbd>Strg</kbd>+Klick auf eine Kante</strong></td><td>Setzt <strong>vier</strong> Ecken auf einmal, gleichmäßig verteilt — zum Verfeinern eines langen, geraden Stücks.</td></tr>
+					<tr><td><strong><kbd>Strg</kbd>+<kbd>Z</kbd></strong></td><td>Nimmt Eckenbewegungen zurück, bis zu 20 Schritte.</td></tr>
+					<tr><td><strong>Doppelklick daneben</strong></td><td>Beendet das Bearbeiten.</td></tr>
+				</table>
+				<div class="hb-note hb-tip"><strong>Ecken rasten an Nachbarflächen ein.</strong> Lässt du eine Ecke näher als etwa zehn Bildschirmpunkte an der Ecke oder Kante einer anderen Fläche los, springt sie genau dorthin — so stoßen Wald und Gebirge lückenlos aneinander. Eingerastet wird nur an <em>sichtbaren</em> Ebenen; über den Ebenen-Schalter bestimmst du also selbst, woran es fassen darf. <strong>Willst du zwei Flächen bewusst auseinanderhalten</strong>, halte beim Ziehen <kbd>Strg</kbd> — dann rastet nichts ein. Und es rastet nur <em>diese</em> Ecke ein: die Nachbarfläche wird nie mitverändert.</div>
+				<h5>Pinsel und Radiergummi</h5>
+				<p>Für die häufigste Arbeit — „der Wald geht hier noch zwanzig Meilen weiter" — ist Ecke für Ecke das falsche Werkzeug. Im Flächenmenü stehen dafür <strong>„Fläche malen"</strong> und <strong>„Fläche radieren"</strong>: ziehen malt Fläche dazu bzw. nimmt weg, immer auf der <em>ausgewählten</em> Fläche und ohne je eine neue anzulegen.</p>
+				<ul class="hb-steps">
+					<li><strong><kbd>Strg</kbd>+Mausrad</strong> ändert die Größe des Pinsels.</li>
+					<li><strong><kbd>Leertaste</kbd> gedrückt halten</strong> gibt dir solange das Verschieben der Karte zurück — sonst schiebt der erste Strich die Karte unter dem Pinsel weg.</li>
+					<li><strong><kbd>Esc</kbd></strong> beendet das Werkzeug. Gespeichert wird einmal je Strich, nicht je Mausbewegung.</li>
+				</ul>
+				<h5>Das Flächenmenü</h5>
+				<p>Ein <strong>Rechtsklick auf eine Fläche</strong> öffnet ihr eigenes Menü; ein <kbd>Strg</kbd>+Rechtsklick holt statt dessen das normale Kartenmenü. Von oben:</p>
+				<ul class="hb-steps">
+					<li><em>„Neue Fläche ▸"</em>, dann <strong>„Fläche bearbeiten"</strong> — der Weg zu den Ecken.</li>
+					<li><em>„Form ändern ▸"</em> (Verschieben, Zerschneiden, Malen, Radieren, Vereinfachen, Labelkurve aktualisieren), <em>„Mit anderer Fläche ▸"</em> (die fünf Verrechnungen), <em>„Unterflächen ▸"</em> und <em>„Reihenfolge und Sperren ▸"</em>.</li>
+					<li><em>„Eigenschaften …"</em> — öffnet das <a href="#landschaften">Bearbeiten-Fenster</a>, <em>nicht</em> die Ecken. Dazu <em>„Kopieren …"</em> und rot <em>„Fläche löschen"</em>.</li>
+				</ul>
+				<figure class="hb-shot">
+					<img src="screenshots/20-flaechenmenue.png" width="260" alt="Das Flaechenmenue einer Landschaftsflaeche mit Neue Flaeche, Flaeche bearbeiten, Beschriftung bearbeiten, den vier Untermenues Form aendern, Mit anderer Flaeche, Unterflaechen und Reihenfolge und Sperren, dazu Eigenschaften, Kopieren und Flaeche loeschen" />
+					<figcaption>Das Flächenmenü. Ganz unten steht, wie du an das normale Kartenmenü kommst.</figcaption>
+				</figure>
+				<p>Was die Einträge tun:</p>
+				<table class="hb-table">
+					<tr><th>Eintrag</th><th>Was er tut</th></tr>
+					<tr><td><strong>Verschieben</strong></td><td>Die ganze Fläche folgt der Maus; ein Klick speichert, <kbd>Esc</kbd> bricht ab.</td></tr>
+					<tr><td><strong>Fläche zerschneiden</strong></td><td>Zwei Punkte setzen — die Fläche zerfällt entlang der Linie.</td></tr>
+					<tr><td><strong>Mit anderer vereinigen</strong></td><td>Verschmilzt beide. Die zweite Fläche geht dabei auf.</td></tr>
+					<tr><td><strong>Mit anderer vereinigen und andere beibehalten</strong></td><td>Dasselbe, aber die zweite bleibt stehen — sie ist Schablone, nicht Rohstoff.</td></tr>
+					<tr><td><strong>Von anderer ausschneiden</strong></td><td>Zieht die zweite ab; die zweite wird verbraucht (sie ist die Schablone).</td></tr>
+					<tr><td><strong>Von anderer ausschneiden und andere beibehalten</strong></td><td>Dasselbe, aber die Schablone bleibt stehen — der See, aus dem der Wald geschnitten wurde.</td></tr>
+					<tr><td><strong>Neue von anderer ausschneiden</strong></td><td>Übrig bleibt nur, was beide gemeinsam haben.</td></tr>
+					<tr><td><strong>Fläche löschen</strong></td><td>Rot. Weg ist weg.</td></tr>
+				</table>
+				<p>Bei den fünf Operationen mit zwei Beteiligten klickst du nach dem Menüeintrag die <strong>zweite Fläche</strong> an. <strong>Vier davon dürfen die Ebene wechseln</strong> — ein See darf aus einem Wald geschnitten werden. Nur <em>„Mit anderer vereinigen"</em> verlangt dieselbe Ebene, weil es die zweite Fläche aufzehrt; die beibehaltende Fassung daneben darf wechseln. <kbd>Esc</kbd> bricht ab. Zerfällt eine Fläche dabei in mehrere Teile, ist das erlaubt und kein Fehler; für die Teile gibt es im Untermenü <em>„Unterflächen"</em> dann <em>„Alle Unterflächen vereinigen"</em>, <em>„Unterfläche herauslösen"</em> und — ebenfalls rot — <em>„Unterfläche löschen"</em>.</p>
+				<div class="hb-note hb-tip"><strong>Beim Ziel zählt der Rand, nicht die Fläche</strong> — genau wie bei den <a href="#territorien">Territorien</a>. Solange eine der fünf Operationen auf ihr Ziel wartet, nimmt nur noch die <em>Kontur</em> einer Fläche den Klick an; welche du gerade erwischst, sagt dir die goldene Kontur unter dem Zeiger. Über den Rand erreichst du auch eine vollständig überdeckte Fläche. Außerhalb der Zielwahl trifft der Klick wie gewohnt in die Mitte.</div>
+				<div class="hb-note hb-warn"><strong>Fläche und Beschriftung sind ein Ding.</strong> Löschst du die letzte Fläche einer Region, verschwindet die Region mit ihren Beschriftungen. Die Rückfrage sagt das vorher — lies sie.</div>
+				<h5>Reihenfolge und Sperren</h5>
+				<p>Flächen liegen übereinander, und wer oben liegt, bekommt den Klick. Beides regelst du hier: die <strong>Reihenfolge</strong> innerhalb einer Ebene und die <strong>Sperre</strong>, die eine Fläche für Klicks durchlässig macht. Es sind echte Karteneigenschaften — sie gelten für alle und bleiben nach dem Neuladen.</p>
+				<p>Für die Fläche unter dem Zeiger führt das Untermenü <em>„Reihenfolge und Sperren ▸"</em> des Flächenmenüs: <strong>„Region in den Vordergrund"</strong>, <strong>„Region in den Hintergrund"</strong> (immer <em>ganz</em>, nicht eine Stufe), der Umschalter <strong>„Region sperren"</strong>/<strong>„Region entsperren"</strong> und <strong>„Alle Regionen …"</strong>, das Fenster. Denselben Haken trägt das <a href="#landschaften">Bearbeiten-Fenster</a> als <em>Für Klicks gesperrt</em>.</p>
+				<p>Das Fenster <strong>„Reihenfolge und Sperren"</strong> öffnest du auch über den Knopf <strong>rechts neben den Ebenen-Reitern</strong>. Oben wählst du die Ebene — <em>Derographie · Vegetation · Topographie</em>, Klimazonen haben keine Reihenfolge —, darunter steht die Stapelliste, oben die vorderste. Jede Zeile trägt ihren Platz, den Namen und sechs Werkzeuge:</p>
+				<table class="hb-table">
+					<tr><th>Zeichen</th><th>Was es tut</th></tr>
+					<tr><td><strong>⤒ / ⤓</strong></td><td>Ganz nach vorn bzw. ganz nach hinten.</td></tr>
+					<tr><td><strong>⚙</strong></td><td>Öffnet das Bearbeiten-Fenster der Region. Hat sie keine Fläche, bleibt es stehen und ist ausgegraut — der Zettel sagt, warum.</td></tr>
+					<tr><td><strong>🔓 / 🔒</strong></td><td>Sperren bzw. entsperren. Eine gesperrte Zeile trägt zusätzlich die Marke <em>gesperrt</em>.</td></tr>
+					<tr><td><strong>👁</strong></td><td><em>„Nur diese Region zeigen"</em> — blendet für den Moment alles andere aus. Derselbe Knopf noch einmal holt alles zurück.</td></tr>
+					<tr><td><strong>🗑</strong></td><td>Rot: löscht die Region. Es ist dieselbe Rückfrage wie im Bearbeiten-Fenster — sie sagt, wie viele Flächen mitgehen.</td></tr>
+				</table>
+				<p>Dazu: <strong>Doppelklick auf eine Zeile</strong> zoomt zur Region und hebt sie hervor — auch wenn sie gerade gar nicht im Bild liegt. <strong>Ziehen am Greifer ⠿</strong> legt die Reihenfolge von Hand. Das Suchfeld <em>„Region suchen"</em> filtert die Liste; <strong>solange gefiltert wird, ist das Ziehen aus</strong> und der Greifer verschwindet — man würde sonst eine Reihenfolge verschieben, von der man nur drei Zeilen sieht.</p>
+				<div class="hb-note hb-warn"><strong>Eine gesperrte Fläche sieht unverändert aus — sie nimmt nur keine Klicks mehr an.</strong> Sie reicht sie an das durch, was darunter liegt; ihr Schwebezettel bleibt. Genau deshalb wirkt sie wie ein Fehler („ich komme an den Wald nicht mehr heran"), und der <strong>Zähler am Knopf</strong> ist der einzige Ort, an dem eine Sperre sichtbar wird. Findest du eine Fläche nicht mehr, sieh zuerst dort nach. Nicht zu verwechseln mit der befristeten Bearbeitungssperre, die greift, wenn jemand anderes gerade an einem Objekt arbeitet.</div>
+				<div class="hb-note hb-tip"><strong>Das Auge ist nur eine Ansicht, die Sperre eine Eigenschaft.</strong> Was 👁 ausblendet, ist niemandem sonst weggenommen und mit dem nächsten Neuladen wieder da. Ein Streifen in der Landschaften-Leiste nennt die isolierte Region und trägt den Ausweg <strong>„Alle zeigen"</strong> — auch dann, wenn du das Fenster längst geschlossen hast.</div>
+				<h5>Das Bearbeiten-Fenster</h5>
+				<p>Fläche und Beschriftung stehen in <strong>einem</strong> Fenster. Sein Titel nennt die Ebene: <em>„Vegetation bearbeiten"</em>, <em>„Topographie bearbeiten"</em>, <em>„Derographie bearbeiten"</em>. Oben stehen <em>Name</em>, <em>Art</em> (aus der Vokabelliste genau dieser Ebene) und der Haken <em>Auto-Name</em> — sie gelten beiden Hälften. Darunter drei Reiter:</p>
+				<table class="hb-table">
+					<tr><th>Reiter</th><th>Was darin steht</th></tr>
+					<tr><td><strong>Fläche</strong></td><td>Das <strong>Gelände</strong> (siehe unten), die Höhenskala und die Haken <em>Auf der Karte anzeigen</em> und <em>Für Klicks gesperrt</em> (siehe <a href="#landschaften">Reihenfolge und Sperren</a>).</td></tr>
+					<tr><td><strong>Beschriftung</strong></td><td><em>Höhe (Schritt)</em>, <em>Nodix</em>, <em>Größe</em>, <em>Priorität</em>, „Sichtbar ab/bis Zoom" sowie <em>Kurvenbeschriftung</em> und <em>Anzahl Kurvenlabel</em> (siehe <a href="#regionen">Regionen</a>).</td></tr>
+					<tr><td><strong>Wiki &amp; Quellen</strong></td><td>Der <a href="#v-wiki">Zuweisungskasten</a> und die <strong>Quellen</strong>. Quellen wirken <strong>sofort</strong> — sie brauchen kein „Speichern".</td></tr>
+				</table>
+								<figure class="hb-shot">
+					<img src="screenshots/18-landschaft-wiki-quellen.png" width="420" alt="Das Fenster Vegetation bearbeiten fuer das Lilienmoor mit den drei Reitern Flaeche, Beschriftung und Wiki und Quellen; im offenen dritten Reiter der Kasten Wiki-Landschaft ohne Zuordnung und darunter der Kasten Quellen mit einer Quelle des Garetien-Wikis" />
+					<figcaption>Der Reiter <strong>„Wiki &amp; Quellen"</strong>. Oben die Zuweisung, darunter die Quellen — und der Hinweis, dass sie <em>sofort</em> wirken.</figcaption>
+				</figure>
+<div class="hb-note hb-tip"><strong>Die Quellen gehören der Fläche.</strong> Liegt unter einer Beschriftung eine Fläche, zeigt der Reiter deren Quellen — eintragen und löschen gilt dann für beide. Eine eigene Liste hat nur eine <em>freie</em> Beschriftung ohne Fläche.</div>
+				<p>Womit du das Fenster öffnest, bestimmt den offenen Reiter: über die Fläche (<em>„Eigenschaften …"</em>) der Reiter <em>Fläche</em>, über die Beschriftung der Reiter <em>Beschriftung</em>. <strong>„Speichern" schreibt beide Hälften.</strong> Der Löschknopf trifft nur die, deren Reiter offen ist — er heißt darum <strong>„Fläche löschen"</strong> oder <strong>„Beschriftung löschen"</strong> und verschwindet, wo es nichts zu löschen gibt.</p>
+				<p>Fehlt eine Hälfte, sagt ihr Reiter das: <em>„Diese Fläche trägt keine Beschriftung."</em> samt Knopf <strong>„Beschriftung anlegen"</strong>, oder <em>„Diese Beschriftung liegt auf keiner Fläche."</em>. Trägt eine Fläche mehrere Beschriftungen, wählst du oben im Reiter aus, welche.</p>
+				<div class="hb-note hb-warn"><strong>„Auto-Name" anhaken entfernt die Beschriftungen dieser Fläche.</strong> Ein Auto-Name ist interne Buchführung und gehört nicht auf die Karte. Das Fenster sagt es am Haken an, bevor du speicherst. Solange der Haken sitzt, ist „Beschriftung anlegen" gesperrt und nennt den Grund. Eine frisch gezeichnete Fläche bekommt aus demselben Grund keine Beschriftung — leg sie an, wenn der Name steht.</div>
+				<p>Der Reiter <em>Fläche</em> trägt darunter die <strong>Gebirgseinstellungen</strong>. Ihre Werte formen, wie sich die Landschaft anfühlt — und damit, wie lange man hindurch braucht. Offen stehen nur zwei Auswahlfelder; alles Übrige ist Feineinstellung und liegt in der Falte darunter.</p>
+				<ul class="hb-steps">
+					<li><strong>Morphologie</strong> — die <em>Form</em> des Gebirges. Zehn Vorlagen der geomorphologischen Systematik, vom <em>Kammgebirge</em> bis zum <em>Inselberg</em>, dazu der <em>Karst</em>; sie setzen alle elf Regler auf einmal. Jede trägt ihren Fachnamen — wer wissen will, wie sie gemeint ist, findet unter dem Namen ein Musterbeispiel: <em>Kammgebirge</em> das Riesengebirge, <em>Kettengebirge</em> die Alpen, <em>Massengebirge</em> den Harz, <em>Plateaugebirge</em> die Schwäbische Alb, <em>Inselberg</em> den Uluru.</li>
+					<li><strong>Höhenstufe</strong> — <em>Tiefland</em> bis <em>Hochgebirge</em>. Sie setzt nur die Kammhöhe und fasst keine Formregler an, die beiden Felder sind also in beliebiger Reihenfolge bedienbar.</li>
+					<li>In der Falte <strong>„Erosion und Feinabstimmung"</strong> stehen die elf Einzelregler, je ein Schieber mit <strong>Zahlenfeld</strong>: ziehen oder eintippen. Ihr Titel nennt die zuletzt angewandte Vorlage.</li>
+					<li>Sie stehen in drei Gruppen: <strong>Kamm und Form</strong>, <strong>Grundrauschen</strong>, <strong>Wasser und Täler</strong>. Innerhalb einer Gruppe ist die Reihenfolge die der <em>Rechnung</em> — stell von oben nach unten ein, dann überschreibt dir kein späterer Regler das Ergebnis eines vorherigen.</li>
+					<li>Unter jedem Schieber steht ein <strong>Dreieck</strong> — die Vorgabe dieser Vorlage. Weicht der Wert davon ab, erscheint rechts ein <strong>↺</strong>, das genau diesen einen Regler zurücksetzt.</li>
+					<li><strong>„Höhenfeld erzeugen"</strong> speichert die Werte <em>und</em> rechnet das Raster dieser Fläche neu, mit dem später die Routenplanung arbeitet. <strong>„Auf Automatik zurück"</strong> nimmt alle eigenen Werte weg.</li>
+				</ul>
+				<p>Ein <strong>grauer Regler ist nicht kaputt</strong> — er kann gerade nichts bewirken, und sein Titel nennt den Grund. Einstellen und speichern kannst du ihn trotzdem: Der Wert gilt, sobald seine Bedingung erfüllt ist.</p>
+				<table class="hb-table">
+					<tr><th>Wenn …</th><th>… sind grau</th></tr>
+					<tr><td><strong>„Stärke des Rauschens"</strong> steht auf 0</td><td>Zahl der Erhebungen · Feinheit des Rauschens</td></tr>
+					<tr><td>kein Fluss und kein See berührt die Fläche</td><td>Talbreite · Taltiefe</td></tr>
+					<tr><td>die Fläche hat keinen Gipfel</td><td>Ausstrahlung der Gipfel · Durchhang zwischen den Gipfeln</td></tr>
+				</table>
+				<figure class="hb-shot">
+					<img src="screenshots/20-morphologien.png" width="620" alt="Zehn Reliefbilder derselben Flaeche nebeneinander, jedes mit einer anderen Morphologie gerechnet: von einem durchgehenden Hauptkamm ueber verzweigte Grate und breite Massive bis zu einer fast ebenen Schildflaeche, aus der nur noch einzelne Restberge aufragen" />
+					<figcaption>Die zehn <strong>Morphologien</strong> auf <em>derselben</em> Fläche mit <em>denselben</em> sieben Gipfeln — nur die Vorlage ist verschieden.<br />
+					Obere Reihe: <em>Kammgebirge</em> · <em>Gratgebirge</em> · <em>Kettengebirge</em> · <em>Kuppengebirge</em> · <em>Massengebirge</em>.<br />
+					Untere Reihe: <em>Plateaugebirge</em> · <em>Rumpfgebirge</em> · <em>Schild</em> · <em>Inselberg</em> · <em>Karst</em>.<br />
+					Die Reihenfolge ist die des Auswahlfeldes: erst die fünf Formen <em>mit</em> Relief, dann die drei abgetragenen, dann der Einzelberg und der Sonderfall.</figcaption>
+				</figure>
+				<div class="hb-note hb-tip"><strong>Eine Vorlage ist ein Ausgangspunkt, keine Bindung.</strong> Sie schreibt ihre Werte in die Regler und ist damit erledigt — gespeichert werden die <em>Zahlen</em>. Ihr Name bleibt nur als Herkunftsangabe im Titel der Falte stehen und sagt den ↺-Knöpfen, wohin sie zurücksetzen. Änderst du danach einen Regler, bleibt die Vorlage stehen und das Dreieck zeigt, wovon du dich entfernt hast.</div>
+				<div class="hb-note hb-warn"><strong>Kein Gipfel und keine Kammlinie? Dann hat das Gelände keinen Anhaltspunkt.</strong> Die Regler bewegen dann fast nichts, weil die Fläche nichts hat, dem sie folgen könnte. In diesem Fall steht über den Knöpfen <strong>„Gebirgszug ermitteln"</strong> — er rechnet die Mittelachse der Fläche als Kammlinie. Das ist <em>nicht</em> dasselbe wie die Kurvenbeschriftung und schaltet sie auch nicht ein.</div>
+				<p>Bei einer <strong>Gebirgs</strong>fläche folgt die <strong>Höhenskala</strong>: ein Graubalken mit Achse in Schritt und den Gipfeln dieser Fläche an ihrer Stelle — die Ablesehilfe zu „hell ist hoch, dunkel ist niedrig". Sie ändert nichts an der Karte. <strong>Ihr hellster Ton ist der höchste Gipfel aller gerade geladenen Gebirgsflächen</strong>: dieselbe Fläche wirkt dunkler, sobald ein höherer Nachbar im Bild ist. Darunter steht die <strong>Durchschnittshöhe</strong> dieser Fläche als Zahl, und ein senkrechter Strich zeigt sie auf dem Balken — die Zahl, die im Wiki steht, lässt sich damit direkt vergleichen.</p>
+				<div class="hb-note hb-tip"><strong>Eine frisch eingeschaltete Kurve ist erst nach dem Rechnen zu sehen.</strong> Der gebogene Name liegt in einem Zwischenspeicher. Für <em>eine</em> Fläche füllt ihn <strong>„Labelkurve aktualisieren"</strong> im Untermenü <em>„Form ändern ▸"</em> — das darf jeder Editor, und der Eintrag erscheint nur dort, wo die Region die Kurvenbeschriftung anhat. Für den ganzen Bestand gibt es <strong>„Kurven"</strong> im Sammelmenü <em>„Rechnen ▾"</em> des Landschaften-Editors — auch das darf jeder Editor, und es dauert rund zwanzig Sekunden. Änderst du die Form einer Fläche, rechnet sich ihre Kurve beim Speichern selbst nach. Nur wenn <em>viele</em> Flächen auf einmal gewandert sind — nach einem Sammellauf oder einem Import —, bleibt der Rest liegen, bis jemand „Kurven" drückt.</div>
+				<div class="hb-note hb-tip"><strong>Die Ränder siehst du nur beim Bearbeiten.</strong> Eine Kontur wird nur gezeichnet, solange <em>eine</em> Ebene im Editiermodus offen ist — nicht in „Alle" und nicht für Besucher. „Im Frontend fehlen die Ränder" ist also die Regel, kein Fehler.</div>
+				<h5>Klimazonen: die Ausnahme</h5>
+				<p>Die vierte Ebene zeichnest du <strong>nicht</strong>. Ihre Bänder — Polar bis Tropisch, von Nord nach Süd — sind <em>abgeleitet</em>: du ziehst nur die <strong>Trennlinien</strong> dazwischen, und die Bänder werden bei jedem Speichern neu gerechnet. Deshalb kann es zwischen zwei Zonen weder Lücke noch Überlappung geben — ein Band <em>ist</em> der Raum zwischen zwei Linien.</p>
+				<ul class="hb-steps">
+					<li><strong>Griff ziehen</strong> verschiebt einen Punkt der Trennlinie.</li>
+					<li><strong>Klick auf die Linie</strong> setzt dort einen neuen Punkt — hier also der einfache Klick, nicht <kbd>Strg</kbd> und nicht der Doppelklick wie bei den Flächen.</li>
+					<li><strong>Doppelklick auf einen Griff</strong> löscht ihn. Die beiden <em>äußersten</em> Griffe am Kartenrand lassen sich nicht löschen — an ihnen hängt, dass die Bänder lückenlos aneinanderstoßen.</li>
+				</ul>
+				<div class="hb-note hb-tip"><strong>Eine Linie darf zurücklaufen, sich aber nicht selbst schneiden.</strong> Eine Klimagrenze darf also eine Blase um die Khôm schlagen. Folgt ein Griff deiner Maus plötzlich nicht mehr, ist das kein Hänger: er bleibt am letzten gültigen Punkt stehen, weil der nächste Schritt die Linie mit sich selbst oder mit der Nachbarlinie kreuzen würde. Ein Band selbst lässt sich nicht als Fläche bearbeiten — Löschen, Ziehen und Pinsel verweigern dort den Dienst, und die <strong>Art</strong> steht im Dialog gesperrt da und nennt den Grund.</div>
+				<h5>„Darstellung" — wie Flächen und Namen aussehen</h5>
+				<p>Die Kachel <strong>„Darstellung"</strong> im Menüband des Landschaften-Editors öffnet eine Tafel für die ganze Karte. Oben wählst du die Ebene — <em>Derographie</em>, <em>Vegetation</em>, <em>Topographie</em>, <em>Klimazonen</em> —, darunter stehen sechs Abschnitte:</p>
+				<ul class="hb-steps">
+					<li><strong>Flächen und Namen</strong> — je Art <em>Ton</em> und <em>Deckkraft</em> der Fläche, <em>Schriftfarbe</em> ihrer Namen.</li>
+					<li><strong>Zoomband je Art</strong> — ein Klick zieht das nähere Ende; <em>„aus"</em> heißt „trägt nirgends einen Namen".</li>
+					<li><strong>Schriftgröße in pt</strong> — eine Kurve über neun Zoomstufen; erst die Art wählen, dann den Punkt ziehen.</li>
+					<li><strong>Abstände</strong> — wie Namen einander ausweichen. Wer innerhalb von <em>Drift</em> keinen Platz findet, wird ausgeblendet.</li>
+					<li><strong>Kollision</strong> — zwei Häkchen je Art. Das rechte hält einen Namen auf seinem Punkt; Berggipfel und Vulkane stehen so.</li>
+					<li><strong>Kurvenfeinheiten</strong> — wie ein Name auf die gerechnete Kurve seiner Fläche eingepasst wird, mit Vorschau.</li>
+				</ul>
+				<p><strong>Ansehen darf jeder Editor, speichern nur ein Administrator</strong>, und die Karte zeigt eine Änderung erst nach dem nächsten Laden.</p>
+				<figure class="hb-shot">
+					<img src="screenshots/19-namen-kollision.png" alt="Der Abschnitt Namen und Kollision mit zwei Haekchen je Namensart; Berggipfel und Vulkan tragen das rechte Haekchen und die Zeile Steht fest, andere Namen weichen ihm aus" />
+					<figcaption><strong>„Namen — Kollision"</strong>: zwei Häkchen je Art. Rechts gesetzt heißt <em>„Steht fest"</em> — so stehen Berggipfel und Vulkane auf ihrem Punkt.</figcaption>
+				</figure>
+				<div class="hb-note hb-tip"><strong>Was hier steht, ist eine <em>Vorgabe</em> — keine Festlegung.</strong> Zoomband und Schriftgröße erscheinen den Editoren als Marke an ihrem Regler im <a href="#regionen">Beschriftungsdialog</a>; wer dort abweicht, behält seinen Wert. Der Knopf am Zoomband <strong>misst nur</strong>, worauf der Bestand tatsächlich steht („z2–z6 · 100 %" heißt: so stehen alle) — geschrieben wird erst mit <strong>„Alle übernehmen"</strong>. <strong>„Auf Vorgabe zurücksetzen"</strong> löscht die eigene Tafel wieder ganz. <strong>Klimazonen</strong> tragen weder Zoomband noch Größenkurve — ihre Bänder sind abgeleitet.</div>
+
+				<h3 id="kraftlinien" class="hb-sub">Kraftlinien</h3>
+				<p class="hb-path"><strong>Auf der Karte:</strong> Kartenmodus „Kraftlinien" wählen → Linksklick auf die Linie → „Bearbeiten" / „Kraftlinie löschen" &nbsp;·&nbsp; <strong>Anlegen:</strong> Linksklick auf einen Nodix-Ort → „Neue Kraftlinie" → zweiten Nodix anklicken &nbsp;·&nbsp; <strong>Liste:</strong> Editor → WikiSync → Kraftlinien → „Bearbeiten"</p>
+				<p>Eine Kraftlinie verbindet immer zwei <strong>Nodix</strong>-Punkte. <strong>„Bearbeiten"</strong> öffnet den eigenen <strong>Kraftlinien-Editor</strong> mit drei Spalten — der Liste, den <em>Eigenschaften</em> (<strong>Name</strong>, <strong>„Name auf der Karte anzeigen"</strong>, <strong>Wiki-Artikel</strong>, <strong>Beschreibung</strong>, <strong>Quellen</strong>) und den <em>Nodices</em>, wo die Knotenpunkte der Linie stehen; bei einem durchgehenden Strang sortierst du sie dort mit <strong>▲▼</strong> um und stellst rechts an jeder Kante die <a href="#kraftlinien-kurve">Kurvenform</a> ein.</p>
+				<ul>
+					<li><strong>Wiki-Artikel</strong> — der <a href="#v-wiki">Zuweisungskasten</a>, ohne „Sync": eine Kraftlinien-Infobox füllt kein Kartenfeld. Er wird <em>ausdrücklich</em> gesetzt; anders als bei Orten rät die Karte hier nichts, leer bleibt leer. Das ist Absicht — eine Kraftlinie, die zufällig wie eine Siedlung heißt, soll nicht deren Artikel erben.</li>
+					<li><strong>Quellen</strong> — derselbe Quellen-Block wie bei Orten und Wegen, mit Autocomplete über den gemeinsamen Quellenkatalog.</li>
+				</ul>
+				<h4 id="kraftlinien-kurve" class="hb-sub2">Die Kurvenform</h4>
+				<p>Ein Segment muss nicht gerade laufen. Die Kurve gehört <strong>dem einzelnen Segment</strong>: Der Wert ist ein Prozentsatz der Sehne, <strong>0</strong> ist gerade, das Vorzeichen bestimmt die Seite. Einen Regler für die ganze Linie gibt es nicht — eine Linie aus sechzehn Segmenten stellst du Kante für Kante ein.</p>
+				<p>Zwei Wege führen hin:</p>
+				<ul class="hb-steps">
+					<li><strong>Im Editor</strong> — der kleine Regler rechts an jeder Kante in der Spalte <em>Nodices</em>.</li>
+					<li><strong>Auf der Karte</strong> — der Knopf <strong>„Kurve auf der Karte einstellen"</strong>. Der Editor blendet sich weg, die Karte schaltet auf die Ansicht <em>Kraftlinien</em>, und ein Schieber legt sich darüber. <strong>Ein Klick auf die Karte wählt das Segment</strong>, das du gerade einstellst. <strong>„Fertig"</strong> holt Editor und vorherige Ansicht zurück.</li>
+				</ul>
+				<div class="hb-note hb-warn"><strong>Die Kurve ist erst nach „Speichern" gespeichert.</strong> Was du beim Ziehen auf der Karte siehst, ist eine Vorschau. Schließt du den Editor vorher, ist sie weg.</div>
+				<div class="hb-note hb-tip"><strong>Dieser Editor verdeckt die Karte nicht.</strong> Anders als die übrigen steht er durchsichtig davor — die Karte bleibt daneben sichtbar und bedienbar. Geschlossen wird er über das <strong>✕</strong> im Kopf; ein Klick daneben trifft die Karte.</div>
+				<div class="hb-note hb-tip"><strong>Eine Kraftlinie besteht aus vielen Segmenten.</strong> Was auf der Karte wie <em>eine</em> Linie aussieht, sind in Wirklichkeit viele kurze Stücke von Nodix zu Nodix — die Basiliuslinie etwa aus vierzehn. Zusammengehalten werden sie <strong>allein durch den Namen</strong>. In der Infobox steht deshalb unter „Verbindet" die Spanne der <em>ganzen</em> Linie, nicht die des angeklickten Stücks; reine Kreuzungen an den Enden werden übersprungen.</div>
+				<div class="hb-note hb-warn"><strong>Einen Nodix-Ort, an dem eine Kraftlinie hängt, kannst du nicht löschen.</strong> Der Versuch wird abgelehnt, nicht bloß nachgefragt — die Meldung nennt die Zahl der Abschnitte und die Linien beim Namen (<em>„… trägt noch 3 Kraftlinien-Abschnitte (Konzilslinie, Nelkra-Linie). Bitte zuerst die Kraftlinie lösen."</em>). Das gilt genauso für Kreuzungen. Lös also erst die Kraftlinie, dann den Punkt.</div>
+				<div class="hb-note hb-tip"><strong>Schreibweise zählt doppelt.</strong> Weil der Name das einzige Band ist, zerlegt ein Tippfehler eine Linie in zwei: „Elementare Hexagramm" neben „Elementares Hexagramm" ergibt zwei getrennte Ketten und zwei falsche Angaben — und der Wiki-Abgleich unten findet den Artikel dann nur für die richtig geschriebene Hälfte. Beim Umbenennen also alle Segmente derselben Linie gleich schreiben.</div>
+				<p>Nicht jede Kraftlinie ist ein durchgehender Strang — manche verzweigen sich, eine ist ein geschlossener Ring. Die Infobox zeigt deshalb je nach Form <strong>„Verbindet"</strong> (die Enden), <strong>„Verläuft über"</strong> (die benannten Punkte dazwischen) und <strong>„Abschnitte"</strong>.</p>
+
+				<h4 class="hb-sub2">Angaben aus dem Wiki holen</h4>
+				<p class="hb-path"><strong>Editor → WikiSync → Kraftlinien → „Bearbeiten" → im Editor „⚡ Kraftlinien syncen"</strong></p>
+				<p>Wiki Aventurica beschreibt 23 Kraftlinien mit einer eigenen Infobox. Der Knopf überträgt deren <strong>Stärke</strong>, <strong>Affinität</strong>, <strong>Länge</strong>, <strong>Regionen</strong> und <strong>Verlauf</strong> auf die Kraftlinien der Karte und zeigt sie in der Infobox an. <strong>Zugeordnet wird zuerst über den zugewiesenen Wiki-Artikel</strong> — nur wo keiner steht, entscheidet der <strong>Name</strong>. Damit hält eine Zuweisung auch dann, wenn Linie und Artikel verschieden heißen.</p>
+				<ul>
+					<li><strong>Vorher „📥 Dump holen"</strong> — der Sync liest nur, was der Dump-Lauf vorher gesammelt hat. Ohne das meldet er es im Klartext, statt still nichts zu tun.</li>
+					<li><strong>Deine Eingaben bleiben.</strong> Ein von Hand gesetzter Wiki-Link und eine selbst geschriebene Beschreibung werden vom Sync <em>nie</em> überschrieben — sie haben in der Anzeige sogar Vorrang vor den Wiki-Werten.</li>
+					<li><strong>Nicht zugeordnete Artikel</strong> stehen nach dem Lauf unter <strong>„Wiki-Linien ohne Kartenlinie"</strong> im Editor, beim Namen genannt. Meist steckt eine abweichende Schreibweise dahinter („Brücke nach" gegenüber „Brücke von Akrabaal") — das ist eine Aufgabe für dich, kein Fehler: Weis der Kartenlinie den Artikel von Hand zu, dann greift sie beim nächsten Lauf.</li>
+					<li>Nach dem Lauf die <strong>Seite neu laden</strong>, damit die neuen Zeilen in der Infobox erscheinen.</li>
+				</ul>
+
 				<h3 id="materialien" class="hb-sub">Literatur, Karten und Vorkommen</h3>
 				<p class="hb-path"><strong>Editor → WikiSync → Literatur</strong> &nbsp;·&nbsp; <strong>→ Karten</strong> &nbsp;·&nbsp; <strong>→ Vorkommen</strong></p>
 				<p>Diese drei sind, was <em>über</em> die Karte gelegt wird statt auf ihr zu liegen: veröffentlichte Werke, veröffentlichte Karten und das Weltwissen aus dem Wiki — Pflanzen, Tiere, Spezies und Handelswaren. Jedes hat einen eigenen Editor, den du über den Knopf <strong>„… bearbeiten"</strong> unter der Auswahl erreichst; bei Literatur und Karten zusätzlich per <strong>Doppelklick</strong> auf einen Eintrag der Liste.</p>
@@ -1325,13 +1326,12 @@
 					<tr><th>Knopf</th><th>Was passiert</th></tr>
 					<tr><td><strong>Behält den Link</strong></td><td>Dieses Objekt bleibt verknüpft, <em>alle anderen im Fall</em> verlieren ihre Verknüpfung.</td></tr>
 					<tr><td><strong>Trennen</strong></td><td>Dieses Objekt verliert die Verknüpfung. <strong>Hält nicht dauerhaft:</strong> passt der Name zu einem Artikel, kann der Server ihn später wieder vorschlagen.</td></tr>
-					<tr><td><strong>Kein Wiki-Eintrag</strong></td><td>Trennt <em>und</em> hält fest, dass es im Wiki nichts dazu gibt. <strong>Nur so bleibt es weg.</strong></td></tr>
 					<tr><td><strong>Artikel übernehmen</strong></td><td>Nur bei „Kein Wiki-Schlüssel", und nur wenn ein Vorschlag dasteht: verknüpft das Objekt mit dem gefundenen Artikel. Teile, die schon eine Verknüpfung tragen, bleiben unangetastet und werden dir hinterher genannt.</td></tr>
 					<tr><td><strong>Genehmigt</strong></td><td>Fund richtig, Lage richtig. Ändert keine Daten.</td></tr>
 					<tr><td><strong>Beschriftung löschen</strong></td><td>Nur bei <em>„Dieselbe Beschriftung zweimal"</em>: nimmt <strong>genau diese eine</strong> Beschriftung von der Karte. Die anderen des Falls bleiben, die letzte verbleibende lässt sich nicht löschen. Umkehrbar über den Änderungs-Log, wie jedes Löschen im Editor.</td></tr>
 					<tr><td><strong>Zurückstellen</strong> / <strong>Archivieren</strong></td><td>Ändern keine Daten.</td></tr>
 				</table>
-				<div class="hb-note hb-warn"><strong>Der wichtigste Unterschied im ganzen Fenster:</strong> „Trennen" allein kann rückgängig gemacht werden, ohne dass es jemand merkt — der Server darf bei passendem Namen erneut verknüpfen. Wenn du <em>weißt</em>, dass es im Wiki nichts gibt, nimm <strong>„Kein Wiki-Eintrag"</strong>. Das ist die Angabe, die hält.</div>
+				<div class="hb-note hb-tip"><strong>„Trennen" hält.</strong> Der Server schlägt den Link von sich aus nicht wieder vor. Taucht im Wiki später doch ein passender Artikel auf, macht der nächste Abgleich den Fall wieder auf — das ist gewollt.</div>
 				<div class="hb-note hb-warn"><strong>Bei einem Weg und bei einer Kraftlinie fasst jeder dieser Knöpfe die <em>ganze Linie</em></strong> — alle Abschnitte, nicht nur den, den du ansiehst; das gilt für alle vier Knöpfe oben. Bei <strong>Ort, Region und Territorium</strong> trifft der Klick genau das eine Objekt. Der Knopf nennt die Reichweite vorher, und die Zahl daneben („6 Segmente") ist wörtlich gemeint.</div>
 				<p>Manche Objekte tragen den Hinweis <em>„aus der Wiki-Zuordnung"</em>. Bei ihnen hängt die Verknüpfung an der ganzen Infobox — Einwohner, Region, Wappen. Sie werden hier bewusst nicht angefasst; das gehört in den jeweiligen Sync-Editor.</p>
 				<h4>Wann ein Fall wiederkommt</h4>
@@ -1396,6 +1396,7 @@
 				</table>
 				<div class="hb-note hb-tip"><strong>Die zweite Zeile von „Auf die Stage" sagt, was der Import wirklich tut.</strong> <em>„als Fluss"</em> legt ein neues Objekt an. <em>„ergänzt nur die Quelle"</em> hängt Quelle und Artikel an ein bestehendes. <em>„nur Ansicht"</em> heißt: hier gibt es nichts zu importieren, du siehst es nur. <em>„zusätzlich als …"</em> heißt: der Abgleich hat etwas Ähnliches gefunden, das Objekt kommt trotzdem als eigenes dazu — dafür kommt eine Rückfrage.</div>
 				<p>Ein <strong>übernommenes</strong> Objekt zeigt statt dieser Knöpfe drei andere: <strong>„Zurücknehmen"</strong> holt es von der Karte zurück, <strong>„Ablehnen"</strong> nimmt es zurück <em>und</em> legt es nach <em>Abgelehnt</em>, <strong>„Zurück nach Offen"</strong> stellt es wieder zur Entscheidung.</p>
+				<div class="hb-note hb-warn"><strong>Bei der Lage gewinnt die Karte.</strong> Steht der Ort schon auf ihr, verschieb ihn nicht — auch wenn die Quelle ihn zehn Meilen weiter setzt. Warum, und die eine Ausnahme: <a href="#v-karte">Die Originalkarte ist unsere Datengrundlage</a>.</div>
 				<h4>Innerorts statt auf die Karte</h4>
 				<p>Ein Bauwerk kann als <strong>Stätte in einer Stadt</strong> landen statt als eigener Punkt. Im Kasten <strong>„Eingefügt wird"</strong> steht dafür die Zeile <strong>„Innerorts"</strong> mit allen Städten in Reichweite, nach Entfernung sortiert. Vorgewählt ist <strong>„— auf die Karte —"</strong>; wählst du eine Stadt, sagt die Zeile darunter, was das heißt — kein Kartenpunkt, und Form und Art gelten dafür nicht.</p>
 				<p>Die Wahl gilt für <strong>beide Wege</strong>: für „Stage importieren" ebenso wie für den Schnellknopf, der die gewählte Stadt beim Namen nennt. Der <strong>Umkreis</strong> darunter steuert, wie weit gesucht wird — <strong>0 bis 20 Meilen</strong>, Vorgabe 5. Er steht auch da, wenn nichts gefunden wurde; dann dreh ihn hoch.</p>
@@ -1554,7 +1555,18 @@
 			<!-- ============================= 4. VERSTEHEN ============================= -->
 			<section id="verstehen" class="hb-section">
 				<h2>Verstehen</h2>
-				<p class="hb-lead">Das Wenige, das du wirklich verstanden haben solltest. Wer diese acht Punkte kennt, kann sich den Rest herleiten — und erkennt vor allem, wann etwas <em>nicht</em> kaputt ist, sondern so gedacht.</p>
+				<p class="hb-lead">Das Wenige, das du wirklich verstanden haben solltest. Wer diese neun Punkte kennt, kann sich den Rest herleiten — und erkennt vor allem, wann etwas <em>nicht</em> kaputt ist, sondern so gedacht.</p>
+
+				<h3 id="v-karte" class="hb-sub">Die Originalkarte ist unsere Datengrundlage</h3>
+				<p>Für die <strong>Lage</strong> eines Objekts gilt die Originalkarte — nicht das Wiki und keine fremde Quelle. Sie ist der Untergrund, auf dem alles andere liegt.</p>
+				<p>Am häufigsten begegnet dir das im <a href="#garetien-importer">Garetien Importer</a>: eine fremde Quelle setzt denselben Ort zehn Meilen weiter. Die Entscheidung ist im Einzelfall schwer, die Regel ist kurz.</p>
+				<table class="hb-table">
+					<tr><th>Lage</th><th>Was gilt</th></tr>
+					<tr><td><strong>Der Punkt steht schon auf der Karte</strong></td><td><strong>Die Karte gewinnt.</strong> Verschieb ihn nicht.</td></tr>
+					<tr><td><strong>Der Punkt ist neu</strong></td><td>Nimm die Lage aus der Quelle.</td></tr>
+					<tr><td><strong>Ein Punkt wird feiner aufgelöst</strong></td><td>Aus einem Dorf werden Markt, Burg und Kloster. Die dürfen sich um den alten Punkt verteilen — die einzige Ausnahme.</td></tr>
+				</table>
+				<div class="hb-note hb-tip"><strong>Frag zuerst, ob der Ort schon verzeichnet ist.</strong> Nur wenn nicht, entscheidet die Quelle über die Lage. Alles andere — Name, Art, Einwohner — folgt dieser Frage nicht.</div>
 
 				<h3 id="v-wiki" class="hb-sub">Das Wiki als Datengrundlage</h3>
 				<p>Avesmaps erfindet keine Inhalte. Was auf der Karte steht, soll sich im <strong>Wiki Aventurica</strong> wiederfinden — daher die vielen „Zuweisen"-Knöpfe und das ↻ neben den Feldern. An der Verknüpfung hängen Suche, Deep-Links, „Link teilen" und der ganze Abgleich: Ein Objekt ohne sie ist für vieles davon unsichtbar.</p>
@@ -1563,20 +1575,19 @@
 				<p><strong>„Sync"</strong> holt die Werte aus der Wiki-Infobox — und zeigt sie erst: eine Zeile je Angabe, alt neben neu, <strong>angehakt wird übernommen</strong>. Vorgehakt ist, was bei uns noch leer ist; deine eigenen Werte hakst du selbst an, wenn du sie ersetzen willst.</p>
 				<p>Was der Kasten je Objektart kann:</p>
 				<table class="hb-table">
-					<tr><th>Objektart</th><th>„Sync"</th><th>Zuweisen wirkt</th><th>„Kein Wiki-Artikel vorhanden"</th></tr>
-					<tr><td><a href="#siedlungen">Ort</a></td><td>ja</td><td>sofort</td><td>ja</td></tr>
-					<tr><td><a href="#wege">Weg</a></td><td>ja</td><td>sofort</td><td>—</td></tr>
-					<tr><td><a href="#landschaften">Landschaft</a></td><td>ja</td><td>mit „Speichern"</td><td>—</td></tr>
-					<tr><td>Landschafts-Label</td><td>ja</td><td>mit „Speichern"</td><td>ja</td></tr>
-					<tr><td><a href="#territorien">Herrschaftsgebiet</a></td><td>ja</td><td>mit „Speichern"</td><td>—</td></tr>
-					<tr><td><a href="#abenteuer">Literatur</a></td><td>ja</td><td>mit „Speichern"</td><td>—</td></tr>
-					<tr><td><a href="#kartensammlungen">Karte</a></td><td>—</td><td>mit „Speichern"</td><td>—</td></tr>
-					<tr><td><a href="#kraftlinien">Kraftlinie</a></td><td>—</td><td>mit „Speichern"</td><td>—</td></tr>
+					<tr><th>Objektart</th><th>„Sync"</th><th>Zuweisen wirkt</th></tr>
+					<tr><td><a href="#siedlungen">Ort</a></td><td>ja</td><td>sofort</td></tr>
+					<tr><td><a href="#wege">Weg</a></td><td>ja</td><td>sofort</td></tr>
+					<tr><td><a href="#landschaften">Landschaft</a></td><td>ja</td><td>mit „Speichern"</td></tr>
+					<tr><td>Landschafts-Label</td><td>ja</td><td>mit „Speichern"</td></tr>
+					<tr><td><a href="#territorien">Herrschaftsgebiet</a></td><td>ja</td><td>mit „Speichern"</td></tr>
+					<tr><td><a href="#abenteuer">Literatur</a></td><td>ja</td><td>mit „Speichern"</td></tr>
+					<tr><td><a href="#kartensammlungen">Karte</a></td><td>—</td><td>mit „Speichern"</td></tr>
+					<tr><td><a href="#kraftlinien">Kraftlinie</a></td><td>—</td><td>mit „Speichern"</td></tr>
 				</table>
 				<p><strong>Karte</strong> und <strong>Kraftlinie</strong> haben kein „Sync", weil deren Infobox kein Kartenfeld füllt. Wo <em>mit „Speichern"</em> steht und etwas aussteht, sagt die Zeile das und stellt <strong>„Abbrechen"</strong> daneben, das die noch ungespeicherte Zuweisung zurücknimmt.</p>
 				<div class="hb-note hb-tip"><strong>Eine Adresse von Hand einzutippen gibt es nicht.</strong> Gewählt wird nur aus den Treffern. Steht ein brandneuer Artikel noch in keinem Dump, findet ihn die Suche noch nicht; dann hilft nur „📥 Dump holen" oder Warten.</div>
-				<div class="hb-note hb-tip"><strong>Wo das Häkchen „Kein Wiki-Artikel vorhanden" fehlt</strong>, setzt du die Angabe in <a href="#konflikte">⚖️ Konflikte</a> mit <strong>„Kein Wiki-Eintrag"</strong>, wo der Fall samt Belegen beider Seiten steht. <strong>Endgültig ist sie nirgends:</strong> Taucht im Wiki doch ein passender Artikel auf, macht der nächste Abgleich den Fall von selbst wieder auf.</div>
-
+				
 				<h4>Wenn ein Feld vom Wiki abweicht</h4>
 				<p>Steht in einem Feld etwas anderes als im Wiki, zeigt die Zeile den <strong>Wiki-Stand durchgestrichen</strong> daneben und ein <strong>↺</strong>, das genau dieses eine Feld auf den Wiki-Wert zurückholt. Ist die <strong>Beschriftung braun</strong>, hat nachweislich einer von uns den Wert gesetzt; bleibt sie normal, weicht er ab, ohne dass festgehalten wurde, von wem. Das gibt es bei <a href="#territorien">Herrschaftsgebiet</a>, <a href="#siedlungen">Ort</a>, <a href="#abenteuer">Literatur</a>, <a href="#landschaften">Landschaft</a>, Landschafts-Label und <a href="#wege">Weg</a> — im Kartendialog wie im Editorfenster. <a href="#kraftlinien">Kraftlinien</a> und <a href="#kartensammlungen">Karten</a> haben es nicht: dort landet kein Wiki-Wert auf einem Kartenfeld.</p>
 				<div class="hb-note hb-warn"><strong>Der Wiki-Wert ist nicht immer der bessere.</strong> Lies den durchgestrichenen Wert, bevor du ↺ drückst — er kommt aus dem Infobox-Parser, nicht aus einer geprüften Angabe.</div>
