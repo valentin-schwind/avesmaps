@@ -240,6 +240,33 @@ function avesmapsGaretienRingMittelpunkt(array $ring): array
  *
  * @param ?array $einstellungen Rumpf aus dem Kasten; `ziel`/`subtyp` sind die zwei Auswahlfelder.
  */
+/**
+ * Der von Hand geaenderte NAME eines Vorschlags (Owner 09.09.2026: „erlaube, dass der Name
+ * veraendert werden kann (nur auf der Stage und Achte darauf, dass das label aktualisiert)").
+ *
+ * 🔴 ER WIRKT AUF `$nach['name']`, UND DAMIT AUF ALLES. Jeder Anleger dieses Moduls liest den
+ * Namen von dort -- die Flaeche, ihr LABEL, der Ort, der Weg, der Berggipfel. Ein Feld daneben
+ * durchzureichen hiesse, jeden dieser Leser zu aendern, und der naechste vergaesse ihn (dieselbe
+ * Begruendung, die an avesmapsGaretienZielUebersteuern steht). Die Bitte des Owners, „dass das
+ * label aktualisiert", ist damit kein eigener Handgriff, sondern faellt hier ab.
+ *
+ * ⚠️ EIGENE FUNKTION, nicht ein Zweig in avesmapsGaretienZielUebersteuern: jene kehrt frueh zurueck,
+ * wenn keine ZIELwahl vorliegt (der Normalfall) -- der Name ginge dort in genau dem Fall verloren,
+ * fuer den er gedacht ist.
+ * ⚠️ Leer heisst „nicht geaendert", nie „loesche den Namen": ein namenloses Kartenobjekt waere im
+ * Editor nicht wiederzufinden.
+ */
+function avesmapsGaretienNameUebersteuern(array $nach, ?array $einstellungen): array
+{
+    $name = avesmapsNormalizeSingleLine((string) ($einstellungen['name'] ?? ''), 190);
+    if ($name === '') {
+        return $nach;
+    }
+    $nach['name'] = $name;
+
+    return $nach;
+}
+
 function avesmapsGaretienZielUebersteuern(array $nach, ?array $einstellungen): array
 {
     $ziel = trim((string) ($einstellungen['ziel'] ?? ''));

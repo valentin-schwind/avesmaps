@@ -1525,6 +1525,11 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
         if (is_array($nach) && ($nach['herkunft'] ?? '') === 'garetien') {
             try {
                 $nach = avesmapsGaretienZielUebersteuern($nach, $rumpfDesItems);
+                // 🔴 DERSELBE EINE ORT (Owner 09.09.2026). Der Name legt sich hier auf den
+                // Vorschlag, und jeder Anleger weiter unten liest ihn aus `$nach['name']` --
+                // die Flaeche UND ihr Label. Ein zweiter Weg waere die Divergenz, vor der der
+                // Absatz darueber warnt.
+                $nach = avesmapsGaretienNameUebersteuern($nach, $rumpfDesItems);
             } catch (Throwable $abbruch) {
                 // ⚠️ LAUT, nicht still: eine verworfene Zielwahl waere von „hat funktioniert"
                 // nicht zu unterscheiden, und das Objekt laege danach in der falschen Form auf der

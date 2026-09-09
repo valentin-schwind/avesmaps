@@ -3827,6 +3827,12 @@
 		// 🔴 Die zwei Einfüge-Häkchen. Sie bauen die Spalte neu, weil sie einander bedingen:
 		// „Neu einfügen“ sperrt „Als Quelle einfügen“ (garetienEinfuegeWahl), und das sieht man nur
 		// am neu gezeichneten Kasten.
+		// Der von Hand geaenderte Name. ⚠️ KEIN Neuzeichnen: der Kasten wuerde beim Tippen unter dem
+		// Zeiger neu gebaut und der Fokus waere nach dem ersten Buchstaben weg.
+		if (feld === "einfuegeName") {
+			garetienNameWahlSetzen(objekt, ziel.value);
+			return;
+		}
 		if (feld === "einfuegeQuelle" || feld === "einfuegeNeu") {
 			garetienEinfuegeWahlSetzen(objekt, feld === "einfuegeNeu" ? "neu" : "quelle",
 				Boolean(ziel.checked));
@@ -3937,7 +3943,23 @@
 	// Ort/Weg speichert keines dieser Felder, siehe die Recherche am Auftrag). `null` heißt „keine
 	// Handeingabe" -- der einzige Wert, den die Massenübernahme je sieht (sie ruft diese Funktion
 	// nicht, aber ein `null` ist trotzdem die korrekte Antwort für ein Ziel ohne diese Felder).
+	/*
+	 * Der Anfragerumpf EINES Objekts -- samt dem von Hand geaenderten Namen.
+	 *
+	 * 💣 DER NAME HAENGT SICH HIER AN, NICHT IN DEN RUMPF-BAUER: der hat mehrere Ausgaenge
+	 * (innerorts, Ort, Label, Flaeche, Weg), und ein Feld in jedem einzelnen waere beim naechsten
+	 * Ausgang vergessen. Genau diese Falle beschreibt der Bauer selbst fuer `ziel`.
+	 * ⚠️ Auch wenn der Bauer `null` liefert: eine reine Namensaenderung ist eine Handeingabe.
+	 */
 	function garetienEingabenFuerServer(objekt) {
+		const rumpf = garetienEingabenFuerServerOhneName(objekt);
+		const name = garetienNameWahlZu(objekt);
+		if (name === "") { return rumpf; }
+		return Object.assign({}, rumpf || {}, { name: name });
+	}
+
+	function garetienEingabenFuerServerOhneName(objekt) {
+
 		// 🔴 DIE GEWÄHLTE Form entscheidet, WELCHE Felder mitreisen -- ein zum Gipfel gewechselter
 		// Sumpf schickt die Label-Felder, nicht die der Fläche.
 		// 🔴 EINE GEWÄHLTE STADT SCHLÄGT ALLES ANDERE -- und deshalb steht sie VOR der Zielwahl.
@@ -4628,7 +4650,42 @@
 	 * 💣 UND DER ZUSTAND LIEGT NEBEN DEM DOM, aus demselben Grund wie `_garetienZielWahl` daneben:
 	 * die Detailspalte wird bei jedem Listen-Refetch neu gebaut.
 	 */
+	// ---- Der von Hand geaenderte NAME (Owner 09.09.2026) ---------------------------------------
+	//
+	// Owner: „erlaube, dass der Name veraendert werden kann (nur auf der Stage und Achte darauf,
+	// dass das label aktualisiert)".
+	//
+	// 🔴 NUR AUF DER STAGE, wie die zwei Haekchen daneben -- und aus demselben Grund: die Frage
+	// „wie soll das Ding heissen" stellt sich, wenn man es einfuegen will, nicht beim Durchsehen.
+	// 🔴 DIE AENDERUNG WIRKT SERVERSEITIG AUF `after.name`, und damit auf die Flaeche UND ihr
+	// LABEL (avesmapsGaretienNameUebersteuern). Die Bitte „achte darauf, dass das label
+	// aktualisiert" ist deshalb kein eigener Handgriff -- sie faellt dort ab.
+	// ⚠️ Leer heisst „nicht geaendert", nie „loesche den Namen".
+	let _garetienNameWahl = {};
+
+	function garetienNameWahlVergessen() { _garetienNameWahl = {}; }
+
+	/* REIN: der von Hand gesetzte Name dieses Objekts -- "" heisst „unveraendert". */
+	function garetienNameWahlZu(objekt) {
+		const key = String((objekt && objekt.key) || "");
+		return key === "" ? "" : String(_garetienNameWahl[key] || "").trim();
+	}
+
+	/* REIN genug: nur der eine Speicher. Der Vergleich mit dem Vorschlagsnamen faellt hier weg --
+	   ein zeichengleicher Wert schadet nichts, der Server vergleicht ohnehin. */
+	function garetienNameWahlSetzen(objekt, name) {
+		const key = String((objekt && objekt.key) || "");
+		if (key !== "") { _garetienNameWahl[key] = String(name || "").trim(); }
+	}
+
+	/* REIN: der Name, den dieses Objekt beim Import bekommt -- Handeingabe, sonst der Vorschlag. */
+	function garetienNameFuerImport(objekt) {
+		const eigen = garetienNameWahlZu(objekt);
+		return eigen !== "" ? eigen : String((objekt && objekt.name) || "");
+	}
+
 	let _garetienInnerortsWahl = {};
+
 
 	function garetienInnerortsWahlVergessen() { _garetienInnerortsWahl = {}; }
 
@@ -6488,6 +6545,17 @@
 		if (!avesmapsGaretienStageHat(o.key)) { return ""; }
 		const wahl = garetienEinfuegeWahl(o);
 		const neuGeht = garetienNeuMoeglich(o);
+		// 🔴 DAS NAMENSFELD STEHT OBEN, vor den Haekchen: es sagt, WAS eingefuegt wird, die Haekchen
+		// sagen WIE. Und nur, wenn ueberhaupt etwas ANGELEGT werden kann -- an einer reinen
+		// Quellen-Ergaenzung gibt es kein eigenes Objekt, dessen Name zu aendern waere.
+		// ⭐ Die BESTEHENDE Textzeile des Kastens „Eingefügt wird“ (garetienEingefuegtWirdTextZeile),
+		// nicht eine eigene Bauform: dieselbe Begründung wie bei den Häkchen darunter. Eine eigene
+		// Klasse wäre hier zusätzlich TOT gewesen -- `gi-insert__text` steht in keinem Blatt.
+		const namensfeld = neuGeht
+			? garetienEingefuegtWirdTextZeile(o, "Name", "einfuegeName",
+				garetienNameFuerImport(o), "", false)
+			: "";
+
 		const quelleGeht = garetienQuelleMoeglich(o);
 		// 🔴 „NUR ANSICHT“ BLEIBT GESAGT. Der Satz stand bis zum 09.09.2026 als zweite Zeile am
 		// Knopf; faellt er ersatzlos weg, sieht ein Objekt ohne Vorschlag genauso aus wie eines mit
@@ -6495,7 +6563,7 @@
 		if (!neuGeht && !quelleGeht) {
 			return '<p class="gi-acts__grund"><span>Nichts einzufügen — nur Ansicht.</span></p>';
 		}
-		let raus = "";
+		let raus = namensfeld;
 		// 💣 DAS QUELLEN-HAEKCHEN VERSCHWINDET NIE, SOLANGE ES DAS ANDERE GIBT (Owner-Meldung
 		// 09.09.2026: „‚Neu einfügen‘ abhäkeln sorgt übrigens dafür, dass ‚Als Quelle einfügen‘
 		// verschwindet … das gibt keinen sinn“). Bei einem REINEN Neuzugang gibt es kein eigenes
@@ -9339,6 +9407,11 @@
 			garetienQuelleItems,
 			garetienInnerortsWahlSetzen,
 			garetienEinfuegeHakenMarkup,
+			garetienNameWahlZu,
+			garetienNameWahlSetzen,
+			garetienNameWahlVergessen,
+			garetienNameFuerImport,
+			garetienEingabenFuerServer,
 			garetienStageItems,
 			garetienStagePlan,
 			garetienHakenRumpf,
