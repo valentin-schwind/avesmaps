@@ -945,11 +945,20 @@ function spotlightLocationStateHint(location) {
  * Quellen und Kanon je Segment haengen -- ein Etikett aus dem erstbesten waere eine Aussage ueber
  * den ganzen Weg, die niemand geprueft hat. Owner-Meldung mit Bild: der Flussweg „Weisswasser"
  * trug in seiner Infobox „INOFFIZIELL │ Briefspiel" und in der Suchliste nichts.
- * ⭐ Die Begruendung ist seit dem Wegquellen-Verteiler (08.09.2026) UEBERHOLT, und zwar gemessen:
- * von 350 mehrteiligen Wegen mit echtem Namen sind **346 einig**, und die vier uebrigen
- * unterscheiden nur den ausdruecklichen Leer-Eintrag vom fehlenden -- sichtbar tragen beide
- * nichts. Kraftlinien: 32 mehrteilig, **0 uneinig**. Sichtbar werden dadurch 150 inoffizielle
- * Wege (und 40 Landschaftsflaechen, siehe unten).
+ * ⭐ Die Begruendung ist seit dem Wegquellen-Verteiler (08.09.2026) UEBERHOLT, und zwar gemessen
+ * an der Gruppierung, die dieses Suchfenster WIRKLICH benutzt (getSpotlightPathGroupKeyForPath:
+ * `wiki_path.wiki_key` zuerst, sonst Name + Wegart): 557 Wege-Sucheintraege, davon 322 mehrteilig,
+ * und **null echte Widersprueche** -- kein einziger Weg, dessen Segmente sich uneinig sind.
+ * Sichtbar werden dadurch **44 Wege** und **38 Landschaftsflaechen** (siehe unten), dazu 2
+ * Stadtkarten.
+ * 🪤 HIER STANDEN BIS ZUR PRUEFUNG AM 09.09.2026 „346 von 350" UND „150 inoffizielle Wege", und
+ * beide Zahlen waren an der FALSCHEN MENGE gemessen: nach Name + Wegart gruppiert (das ist die
+ * Regel der Zuweisungs-ERBSCHAFT, avesmapsMapFeaturesWegGruppeErbtZuweisung) statt nach der des
+ * Suchfensters -- und die 150 zaehlte sogar SEGMENTE (162) statt Sucheintraege. Ein Weg mit zwoelf
+ * inoffiziellen Abschnitten ist EIN Treffer, nicht zwoelf. Der Faktor lag bei 3,4.
+ * ⚠️ Die beiden Gruppierungen sind verschieden, und das ist richtig so: die Erbschaft muss ein
+ * unzugewiesenes Segment erreichen, das per Definition keinen `wiki_key` hat. Wer hier misst, misst
+ * mit DIESER Funktion.
  * 🔴 DIE PRUEFUNG BLEIBT TROTZDEM (spotlightEinigerKanonRef): uneinig heisst KEIN Etikett. Die
  * Messung ist ein Stichtag, die Regel ist dauerhaft -- dieselbe Haltung wie bei
  * avesmapsMapFeaturesWegGruppeErbtZuweisung, wo eine uneinige Gruppe ebenfalls nichts erbt.
@@ -1013,9 +1022,11 @@ function spotlightEntryKanonRef(entry) {
  * Wer eine Quelle eintraegt, erwischt fast nie jedes Segment, also waere die strenge Fassung
  * ausgerechnet nach jeder Bearbeitung blind gewesen. „Kein Etikett" ist eine FEHLENDE Aussage,
  * keine gegenteilige; gezaehlt wird nur, was spricht.
- * 🚩 Am Livebestand gemessen (09.09.2026): 635 Namensgruppen, 550 mit Etikett nach der strengen
- * Fassung, 551 nach dieser -- und **null echte Widersprueche**. Der Riegel kostet heute also
+ * 🚩 Am Livebestand gemessen (09.09.2026, mit der Gruppierung dieses Suchfensters): 557
+ * Wege-Sucheintraege, 322 mehrteilig, **null echte Widersprueche** -- der Riegel kostet heute also
  * nichts und bleibt trotzdem: die Messung ist ein Stichtag, die Regel ist dauerhaft.
+ * 🪤 Eine frueher hier stehende Zahlenreihe („635 Namensgruppen, 550/551") war nach Name + Wegart
+ * gemessen und damit an der falschen Menge -- siehe den Hinweis bei spotlightEntryKanonRef.
  *
  * 🔴 ZURUECKGEGEBEN WIRD EIN SPRECHENDES SEGMENT, nie `ids[0]`. Schweigt das erste, loeste der
  * Renderer an ihm auf und zeigte nichts -- der Riegel waere dann heil und das Ergebnis trotzdem

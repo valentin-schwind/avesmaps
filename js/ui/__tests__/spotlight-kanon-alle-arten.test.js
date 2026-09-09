@@ -9,18 +9,24 @@
 //   (a) WEGE fehlten mit BEGRUENDUNG: ein Treffer buendelt die Segmente eines Wegs, Quellen und
 //       Kanon haengen je Segment, und ein Etikett aus dem erstbesten waere eine ungepruefte Aussage
 //       ueber den ganzen Weg. Die Begruendung ist seit dem Wegquellen-Verteiler (08.09.2026)
-//       ueberholt: von 350 mehrteiligen Wegen mit echtem Namen sind 346 EINIG, und die vier
-//       "uneinigen" unterscheiden nur (leer) von (kein) -- sichtbar tragen beide nichts.
-//       Kraftlinien: 32 mehrteilig, 0 uneinig. Die Pruefung bleibt trotzdem im Code: uneinig heisst
-//       KEIN Etikett, dieselbe Regel wie bei avesmapsMapFeaturesWegGruppeErbtZuweisung.
+//       ueberholt: gemessen an der Gruppierung, die das Suchfenster WIRKLICH benutzt
+//       (getSpotlightPathGroupKeyForPath: wiki_key zuerst, sonst Name + Wegart), sind es 557
+//       Wege-Sucheintraege, 322 mehrteilig, und NULL echte Widersprueche. Die Pruefung bleibt
+//       trotzdem im Code: uneinig heisst KEIN Etikett, dieselbe Haltung wie bei
+//       avesmapsMapFeaturesWegGruppeErbtZuweisung. Die Messung ist ein Stichtag, die Regel dauerhaft.
 //   (b) LANDSCHAFTEN lasen den FALSCHEN SCHLUESSEL. Seit Schritt 5 des Quellen-Umbaus (03.09.2026)
 //       traegt die FLAECHE die Quellen einer gebundenen Beschriftung (`ecosystem:<region>`), nicht
 //       mehr das Schild (`region:<label>`). Das Spotlight war damit die vierte Lesart neben
 //       avesmapsLabelQuellenSchluessel -- und die falsche: 40 inoffizielle Landschaftsflaechen
 //       blieben unsichtbar.
 //
-// Zahlen der Wirkung (Live-Nutzlast 09.09.2026, inoffizielle Objekte je Art):
-//   settlement 434 (wurde gezeigt) | path 150 | ecosystem 40 | citymap 2 | powerline 0
+// Zahlen der Wirkung (Live-Nutzlast 09.09.2026) -- gezaehlt werden SUCHEINTRAEGE, nicht Objekte:
+//   Siedlungen 434 (wurden schon gezeigt) | Wege 44 | Landschaftsflaechen 38 | Stadtkarten 2 |
+//   Kraftlinien 0 (keine ist inoffiziell).
+// 🪤 Hier stand „path 150 | ecosystem 40". Die 150 zaehlte SEGMENTE (162 roh), nicht Treffer -- ein
+// Weg mit zwoelf inoffiziellen Abschnitten ist EIN Sucheintrag. Und von 42 inoffiziellen
+// Landschaftsflaechen sind nur 38 ueber eine Beschriftung ueberhaupt auffindbar. Gefunden von einem
+// Pruefagenten; die Lehre steht in AGENTS.md §9: eine Zahl im Kommentar sieht geprueft aus.
 
 const assert = require("node:assert");
 const fs = require("node:fs");
