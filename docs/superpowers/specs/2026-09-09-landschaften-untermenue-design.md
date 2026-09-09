@@ -180,9 +180,17 @@ weiter, wer sie sieht (Editor, oder jede Ansicht außerhalb der Landschaften) �
 `outlineOpacity = 0`-Zeile steht weiterhin **vor** dem Prüfhaken „Offene Wegenden", sonst löschte
 sie dessen Befund für jeden Fluss.
 
-**Unberührt:** Seeweg `#2f7dd3` (eine Schiffsroute, kein Fluss), Meer `#2d5f8a`, und die
-Wegearten-Farben der Editorliste (`--color-path-flussweg`, `--color-path-bach`) — die kodieren
-Daten in einer Liste, mit gemessenen Abständen zu ihren Nachbarn.
+🔴 **DAS MEER BLEIBT ANDERS** (Owner 09.09.2026, ausdrücklich: „achte darauf dass meere noch anders
+sind"). `--color-ecosystem-topographie-meer` behält `#2d5f8a`, die Küste ihr Türkis `#3f9e9a`, der
+Seeweg sein `#2f7dd3`. Den neuen Ton tragen genau **drei** Dinge: die Flusslinie, der Bach und die
+Seefläche. Nachgemessen, dass das Meer nirgends am See hängt: es hat in jeder Tafel seinen eigenen
+Token, und das einzige `["see","meer",…]` im Haus steht in `svg-export-build.js` — es regelt die
+ZEICHENREIHENFOLGE (Wasser zuletzt), nicht die Farbe. Wer die vier je zu einem `waterKeys`-Ton
+zusammenzieht, färbt das Meer mit.
+
+**Unberührt außerdem:** die Wegearten-Farben der Editorliste (`--color-path-flussweg`,
+`--color-path-bach`) — die kodieren Daten in einer Liste, mit gemessenen Abständen zu ihren
+Nachbarn.
 
 **Der Bach folgt von selbst:** er ist ein Flussweg mit Häkchen und liest denselben `centerColor`;
 schmaler gezeichnet wird er, nicht anders gefärbt.
