@@ -90,4 +90,60 @@ assert.ok(/avesmapsRefreshEcosystemDisplay/.test(config), "und zieht die Flaeche
 assert.ok(/function avesmapsRefreshEcosystemDisplay/.test(rendering),
 	"den Nachzieher gibt es auch wirklich");
 
+// ---- F. Die Deckkraft JE ART: der See ist deckend, seine Ebene nicht -------------------------
+// Owner 09.09.2026: „fluesse und seen haben nicht diesselbe farbe". Beide lesen --color-water
+// (#4c89c6); der Fluss zeichnet als LINIE mit stroke-opacity 1, die Seeflaeche mit der Fuellung
+// ihrer Ebene -- live gemessen 0,5, ueber dem Pergament #d3cec2 also #90acc4. Die Deckkraft ist
+// der EINZIGE Hebel: es gibt keine Fuellfarbe, die bei 0,5 zu #4c89c6 aufmischt (ein Kanal
+// muesste negativ sein, 2*76 - 211 = -59), und die Flusslinie auszubleichen traefe ALLE Ansichten.
+avesmapsEcosystemDisplayInstall(null);
+assert.strictEqual(avesmapsEcosystemDisplayDeckkraft("topographie", "see"), 1,
+	"der See der Topographie traegt die Vorgabe-Deckkraft 1 und damit wirklich den Wasserton");
+
+// 💣 DIE ZWEITE HAELFTE IST DIE WICHTIGERE: es ist eine Vorgabe JE ART, nicht je EBENE. Ohne sie
+// kippt beim naechsten Anfassen die ganze Topographie auf 1 -- Gebirge, Huegelland, Tal und Meer
+// mit --, und niemand merkt es, weil der gemeldete Fall dann trotzdem stimmt.
+assert.strictEqual(avesmapsEcosystemDisplayDeckkraft("topographie", "gebirge"), 0.72,
+	"das Gebirge derselben Ebene bleibt bei der Zahl seiner Ebene");
+assert.strictEqual(avesmapsEcosystemDisplayDeckkraft("topographie", "meer"), 0.72,
+	"und das Meer ebenso -- gefragt war nach Fluessen und Seen");
+
+// ⚠️ Der Schluessel traegt die EBENE, nicht nur die Art. `insel` kommt in zweien vor; eine Tafel
+// nach blosser Art haengte den Wert der einen an die andere.
+assert.ok(Object.keys(AVESMAPS_ECOSYSTEM_DISPLAY_DECKKRAFT_JE_ART).length > 0,
+	"die Tafel je Art ist nicht leer");
+assert.ok(Object.keys(AVESMAPS_ECOSYSTEM_DISPLAY_DECKKRAFT_JE_ART).every((k) => k.includes(":")),
+	"und jeder ihrer Schluessel nennt Ebene UND Art");
+
+// 🔴 VORGABE, KEIN RIEGEL -- beide gespeicherten Stufen schlagen sie, in dieser Reihenfolge. Wer
+// die Vorgabe je Art ueber den globalen Wert zoege, machte aus einer Owner-Zahl einen Riegel;
+// genau das ist bei `berggipfel` am 02.09.2026 zurueckgenommen worden.
+avesmapsEcosystemDisplayInstall({ deckkraft: { "topographie:see": 0.4 } });
+assert.strictEqual(avesmapsEcosystemDisplayDeckkraft("topographie", "see"), 0.4,
+	"eine im Fenster gespeicherte Deckkraft dieser Art schlaegt die Vorgabe");
+avesmapsEcosystemDisplayInstall({ global: { topographie: { an: true, wert: 0.5 } } });
+assert.strictEqual(avesmapsEcosystemDisplayDeckkraft("topographie", "see"), 0.5,
+	"und der globale Wert der Ebene schlaegt auch sie");
+avesmapsEcosystemDisplayInstall(null);
+
+// ⚠️ Mit LEERER Art bleibt es die Zahl der Ebene -- das Fenster „Darstellung" beschriftet damit
+// seine Zeile „Vorgabe-Deckkraft dieser Ebene" und den globalen Regler.
+assert.strictEqual(avesmapsEcosystemDisplayDeckkraft("topographie", ""), 0.72,
+	"die Vorgabe der EBENE ist unberuehrt");
+
+// 💣 UND SIE MUSS BEIDE WEGE ERREICHEN. Die Karte geht ueber applyEcosystemAreaDeckkraft
+// (Abschnitt B/C); das Fenster „Darstellung" liest denselben Vorgabengeber, statt eine eigene Zahl
+// zu fuehren -- sonst zeigte sein Regler 72 %, waehrend die Karte 100 % zeichnet.
+// ⚠️ Zeilenendenneutral gesucht: hier ist CRLF, im Deploy-Tor LF (AGENTS.md §9).
+const LF = String.fromCharCode(10);
+const fenster = fs
+	.readFileSync(path.join(__dirname, "../../../html/landschaften-editor.html"), "utf8")
+	.split(String.fromCharCode(13))
+	.join("");
+const vonZeile = fenster.indexOf("function ecoDisplayDeckZeile(");
+assert.ok(vonZeile >= 0, "das Fenster hat einen Leser fuer den Zeilenwert");
+const rumpfZeile = fenster.slice(vonZeile, fenster.indexOf(LF + "}", vonZeile));
+assert.ok(rumpfZeile.includes("avesmapsEcosystemDisplayDeckkraft(kind, art)"),
+	"und er faellt auf die geteilte Vorgabe zurueck, MIT der Art -- nicht auf eine eigene Zahl");
+
 console.log("ecosystem-display-flaeche: alle Zusicherungen gruen");

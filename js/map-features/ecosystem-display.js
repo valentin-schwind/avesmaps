@@ -28,6 +28,31 @@ const AVESMAPS_ECOSYSTEM_DISPLAY_DECKKRAFT = {
 	klima: 0.30,
 };
 
+// ---- Die Deckkraft je ART --------------------------------------------------------------------
+// Die Ausnahme von der Zahl je Ebene. Der Schluessel ist `<Ebene>:<Art>` -- dieselbe Form, die
+// avesmapsEcosystemDisplayFlaechenKey baut, weil `insel` in zwei Ebenen vorkommt.
+//
+// 🔴 SIE IST EINE VORGABE, KEIN RIEGEL. Dieselbe Bauart wie
+// AVESMAPS_ECOSYSTEM_DISPLAY_VORGABE_JE_ART weiter unten: sie ueberlebt ein „Auf Vorgabe
+// zuruecksetzen" im Fenster „Darstellung" und gilt ohne gespeicherte Datenbankzeile fuer jeden --
+// aber eine dort GESPEICHERTE Deckkraft dieser Art schlaegt sie, und der globale Wert der Ebene
+// schlaegt beide. Wer sie ueber den globalen Wert zoege, machte aus einer Owner-Zahl einen Riegel;
+// genau das ist bei `berggipfel` am 02.09.2026 zurueckgenommen worden.
+//
+// `topographie:see` -- Owner 09.09.2026: „fluesse und seen haben nicht diesselbe farbe".
+// 💣 SIE HABEN DENSELBEN TON, UND DIE DECKKRAFT IST DER EINZIGE HEBEL. Beide lesen `--color-water`
+// (#4c89c6, css/base/tokens.css): der Fluss zeichnet als LINIE mit stroke-opacity 1, die Seeflaeche
+// mit der Fuellung ihrer Ebene -- live gemessen 0,5, was ueber dem Pergament #d3cec2 als #90acc4
+// herauskommt. Es gibt KEINE Fuellfarbe, die bei 0,5 zu #4c89c6 aufmischt: ein Kanal muesste
+// negativ sein (2*76 - 211 = -59). Und die Gegenrichtung -- die Flusslinie auf #90acc4 ziehen --
+// bleicht Fluesse in ALLEN Ansichten aus, nicht nur in der Topographie.
+// ⚠️ DAS MEER BLEIBT BEI DER ZAHL SEINER EBENE. Gefragt war nach Fluessen und Seen; das Meer traegt
+// seinen eigenen Ton (--color-ecosystem-topographie-meer) und hat keinen Zwilling, mit dem es sich
+// beissen koennte.
+const AVESMAPS_ECOSYSTEM_DISPLAY_DECKKRAFT_JE_ART = {
+	"topographie:see": 1,
+};
+
 // ---- Die Schriftgroesse ----------------------------------------------------------------------
 // 🔴 GERECHNET, NICHT ABGESCHRIEBEN: dieselbe Formel wie getScaledLabelSize in
 // map-features-labels.js, mit der Grundgroesse 18 aus index.html.
@@ -390,6 +415,11 @@ function avesmapsEcosystemDisplayFarbe(subtype, tokenTon) {
  * 💣 Der globale Wert einer Ebene ueberschreibt den Zeilenwert, er LOESCHT ihn nicht. Ein Haekchen
  * ist keine Datenaenderung -- wer es abnimmt, bekommt seine Arbeit zurueck (Entwurf §5.2).
  * 🔴 „Global" heisst FUER DIESE EBENE, nie fuer alle vier.
+ *
+ * 🔴 VIER STUFEN, in dieser Reihenfolge: der globale Wert der Ebene · die gespeicherte Deckkraft
+ * dieser Art · die Vorgabe dieser Art (AVESMAPS_ECOSYSTEM_DISPLAY_DECKKRAFT_JE_ART) · die Vorgabe
+ * der Ebene. Die dritte Stufe ist die neue; sie steht UNTER den zwei gespeicherten, weil eine
+ * Vorgabe nie eine ausdrueckliche Einstellung schlagen darf.
  */
 function avesmapsEcosystemDisplayDeckkraft(kind, typeKey) {
 	const global = avesmapsEcosystemDisplayTeil("global")[String(kind || "")];
@@ -399,6 +429,14 @@ function avesmapsEcosystemDisplayDeckkraft(kind, typeKey) {
 	const eigen = avesmapsEcosystemDisplayTeil("deckkraft")[avesmapsEcosystemDisplayFlaechenKey(kind, typeKey)];
 	if (typeof eigen === "number") {
 		return eigen;
+	}
+	// Die Vorgabe JE ART vor der Vorgabe je Ebene -- dieselbe Staffelung wie in
+	// avesmapsEcosystemDisplayVorgabe: uebersteuert, dann die Vorgabe dieser Art, dann der Grundwert.
+	const jeArt = AVESMAPS_ECOSYSTEM_DISPLAY_DECKKRAFT_JE_ART[
+		avesmapsEcosystemDisplayFlaechenKey(kind, typeKey)
+	];
+	if (typeof jeArt === "number") {
+		return jeArt;
 	}
 	const vorgabe = AVESMAPS_ECOSYSTEM_DISPLAY_DECKKRAFT[String(kind || "")];
 	return typeof vorgabe === "number" ? vorgabe : 0.72;
@@ -541,6 +579,7 @@ function avesmapsLoadEcosystemDisplay() {
 // Begruendung wie in location-zoom-bands.js.
 if (typeof globalThis !== "undefined") {
 	globalThis.AVESMAPS_ECOSYSTEM_DISPLAY_DECKKRAFT = AVESMAPS_ECOSYSTEM_DISPLAY_DECKKRAFT;
+	globalThis.AVESMAPS_ECOSYSTEM_DISPLAY_DECKKRAFT_JE_ART = AVESMAPS_ECOSYSTEM_DISPLAY_DECKKRAFT_JE_ART;
 	globalThis.AVESMAPS_ECOSYSTEM_DISPLAY_VORGABE = AVESMAPS_ECOSYSTEM_DISPLAY_VORGABE;
 	globalThis.AVESMAPS_ECOSYSTEM_DISPLAY_VORGABE_JE_ART = AVESMAPS_ECOSYSTEM_DISPLAY_VORGABE_JE_ART;
 	globalThis.AVESMAPS_ECOSYSTEM_DISPLAY_BAND_MAX = AVESMAPS_ECOSYSTEM_DISPLAY_BAND_MAX;
