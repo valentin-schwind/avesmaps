@@ -5224,13 +5224,27 @@
 		let markup = '<p class="gi-sec">Eingefügt wird</p>'
 			+ '<p class="gi-why gi-insert__kopf">' + avesmapsGaretienEscape(garetienTypText(objekt)) + "</p>"
 			+ garetienEingefuegtWirdUebernommenHinweis(objekt)
-			+ garetienZielWahlMarkup(objekt, uebernommen)
-			// 🔴 DIREKT UNTER FORM UND ART, weil sie dieselbe Frage beantwortet („was entsteht?")
-			// und die zwei darüber überstimmt, sobald eine Stadt gewählt ist. Weiter unten, zwischen
-			// den Feldern der Form, wäre sie eine Eigenschaft des Kartenobjekts -- und genau das ist
-			// sie nicht (Owner 07.09.2026: „nicht zwischen die felder reinpfrimeln", zur selben
-			// Frage bei den Quellen).
-			+ garetienInnerortsZeileMarkup(objekt, uebernommen);
+			+ garetienZielWahlMarkup(objekt, uebernommen);
+		// 🔴 SOLANGE „OFFEN", BLEIBEN DARSTELLUNG UND WIKI & QUELLEN AUSGEBLENDET (Owner
+		// 09.09.2026: „die sind alle auf der stage erst wichtig"). Auf dem Reiter Offen
+		// entscheidet ein Editor zwei Dinge -- ueberhaupt? und als was? Groesse, Prioritaet,
+		// Zoomband, Kurvenbeschreibung, „fuer Klicks gesperrt", Wiki und Quellen beantworten
+		// keine davon; sie stehen dort nur im Weg, bei jeder der 8237 Zeilen.
+		// ⭐ Dieselbe Regel gilt schon fuer Name und die zwei Haekchen
+		// (garetienEinfuegeHakenMarkup) -- aus der Ausnahme wird hier die Regel.
+		// ⚠️ Form und Art bleiben: sie sind die Antwort auf „als was?" und gehoeren damit zur
+		// Entscheidung, nicht zur Einstellung.
+		if (!avesmapsGaretienStageHat(objekt.key)) {
+			return '<div class="gi-insert">' + markup
+				+ '<p class="gi-why">Darstellung sowie Wiki &amp; Quellen erscheinen, sobald das'
+				+ " Objekt auf der Stage liegt.</p></div>";
+		}
+		// 🔴 DIREKT UNTER FORM UND ART, weil sie dieselbe Frage beantwortet („was entsteht?")
+		// und die zwei darüber überstimmt, sobald eine Stadt gewählt ist. Weiter unten, zwischen
+		// den Feldern der Form, wäre sie eine Eigenschaft des Kartenobjekts -- und genau das ist
+		// sie nicht (Owner 07.09.2026: „nicht zwischen die felder reinpfrimeln", zur selben
+		// Frage bei den Quellen).
+		markup += garetienInnerortsZeileMarkup(objekt, uebernommen);
 		if (ziel === "region") {
 			markup += garetienEingefuegtWirdFlaecheMarkup(objekt, uebernommen);
 			markup += garetienEingefuegtWirdBeschriftungMarkup(objekt, subtyp, true, uebernommen);
