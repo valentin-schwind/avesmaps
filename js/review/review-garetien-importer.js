@@ -1921,6 +1921,26 @@
 			+ avesmapsGaretienEscape(ebenen.join(", ")) + " hat keine Sicht-Regel</span>";
 	}
 
+	/*
+	 * Aufgabe 10 (Fragmente-Verbund, Entwurf §7): auf dem Reiter „Uebernommen" steht ein Verbund
+	 * als EINE Zeile.
+	 *
+	 * 🔴 Gruppiert wird ueber `verbund_angelegt` aus dem VERMERK (garetien-liste.php,
+	 * avesmapsGaretienVerbundAngelegt), NIE ueber die Namensregel: sonst zeigte der Reiter nach
+	 * jeder Aenderung der Erkennungsregel eine andere Gruppierung als die, die tatsaechlich
+	 * geschrieben wurde. REIN -- kein DOM, kein Modulzustand.
+	 */
+	function garetienUebernommenFalten(objekte) {
+		const gesehen = new Set();
+		return (objekte || []).filter(function (o) {
+			const stamm = String((o && o.verbund_angelegt) || "");
+			if (stamm === "") { return true; }
+			if (gesehen.has(stamm)) { return false; }
+			gesehen.add(stamm);
+			return true;
+		});
+	}
+
 	// Schreibt Liste, (Filter-)Bilanz, Reiterzahlen und Fusszeile aus einer frischen
 	// action:'liste'-Antwort. 🔴 Rechnet nichts nach -- Urteil/Grund/Geometrie stehen schon fertig
 	// in der Antwort.
@@ -1957,8 +1977,13 @@
 
 		const listeEl = document.getElementById("garetien-list");
 		if (listeEl) {
-			listeEl.innerHTML = objekte.length
-				? objekte.map(function (o) {
+			// Aufgabe 10: nur auf "Uebernommen" wird gefaltet -- die uebrigen Reiter (offen,
+			// abgelehnt, Anzeigen) zeigen weiterhin jedes Fragment einzeln.
+			const zeilenObjekte = zustand.stand === "uebernommen"
+				? garetienUebernommenFalten(objekte)
+				: objekte;
+			listeEl.innerHTML = zeilenObjekte.length
+				? zeilenObjekte.map(function (o) {
 					return garetienZeileMarkup(o, avesmapsGaretienAuswahlHat(o && o.key));
 				}).join("")
 				: '<p class="avm-empty">Keine Objekte in dieser Ansicht.</p>';
@@ -9613,6 +9638,9 @@
 			avesmapsGaretienListeHolen,
 			avesmapsGaretienListeRendern,
 			garetienListeSkelettMarkup,
+			// Aufgabe 10 (Fragmente-Verbund, Entwurf §7): "Uebernommen" zeigt einen Verbund als
+			// EINE Zeile.
+			garetienUebernommenFalten,
 			// Aufgabe 3 (Sicht-Tafel): die Neutral-Meldung der Bilanzzeile
 			garetienNeutraleObjekte,
 			garetienNeutralHinweisMarkup,

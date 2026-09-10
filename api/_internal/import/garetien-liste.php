@@ -19,6 +19,9 @@ require_once __DIR__ . '/../app/ecosystem.php';
 // Fuer avesmapsSettlementPlacePublicIds: „uebernommen · innerorts" (Entwurf 2026-09-02 §4) liest
 // die TABELLE der Staetten, nie einen zweiten Vermerk am Item -- dieselbe Regel wie die Ruecknahme.
 require_once __DIR__ . '/../app/settlement-places.php';
+// Fuer avesmapsGaretienVermerkLesen -- „Uebernommen" zeigt einen Verbund als EINE Zeile (Entwurf
+// §7), gespeist aus dem VERMERK, den avesmapsGaretienUebernehmen beim Schreiben hinterlaesst.
+require_once __DIR__ . '/garetien-uebernahme.php';
 
 /**
  * So viele Objekte je Antwort -- der Rest blaettert ueber `versatz`.
@@ -388,6 +391,29 @@ function avesmapsGaretienListeObjektStand(array $items): string
     // („14 vorgemerkt · 3 abgelehnt · 0 uebernommen"). Sie ist kein Stand mehr, aber sie ist wahr.
 
     return 'offen';
+}
+
+/**
+ * Zu welchem angelegten Verbund gehoert dieses Item? "" = zu keinem.
+ *
+ * Entwurf §7: der Reiter „Uebernommen" zeigt einen Verbund als EINE Zeile -- der Editor hat eine
+ * Entscheidung getroffen, also sieht er eine. Gruppiert wird ueber den VERMERK
+ * (avesmapsGaretienVerbundVermerk, garetien-uebernahme.php), NIE ueber die Namensregel: sonst
+ * zeigte der Reiter nach jeder Aenderung der Erkennungsregel eine andere Gruppierung als die,
+ * die tatsaechlich geschrieben wurde.
+ *
+ * ⚠️ NUR bei `apply_state = 'done'`. Ein geplantes Item traegt seinen Vermerk noch nicht, und
+ * ein Verbund, der noch gar nicht geschrieben wurde, darf im Reiter „Uebernommen" nicht stehen.
+ *
+ * @param array<string,mixed> $item
+ */
+function avesmapsGaretienVerbundAngelegt(array $item): string
+{
+    if ((string) ($item['apply_state'] ?? '') !== 'done') {
+        return '';
+    }
+
+    return avesmapsGaretienVermerkLesen((string) ($item['apply_note'] ?? ''))['verbund'];
 }
 
 /**
@@ -798,6 +824,18 @@ function avesmapsGaretienArbeitslisteObjekte(PDO $pdo, int $importRunId): array
                 'declined' => $item['declined'],
                 'applied' => $item['applied'] ?? false,
             ], $items)),
+            // Entwurf §7: „Uebernommen" zeigt einen Verbund als EINE Zeile. Der ERSTE Vermerk
+            // gewinnt -- alle Fragmente eines Verbunds tragen denselben Stamm, und der Reiter
+            // braucht nur einen.
+            'verbund_angelegt' => (static function (array $items): string {
+                foreach ($items as $i) {
+                    $stamm = avesmapsGaretienVerbundAngelegt($i);
+                    if ($stamm !== '') {
+                        return $stamm;
+                    }
+                }
+                return '';
+            })($items),
             // 🔴 DURCHGEREICHT, NICHT HERGELEITET: `after.verbund_stamm`/`after.verbund_n`
             // entstehen EINMAL je Planlauf in avesmapsGaretienVerbuende (garetien-plan.php) --
             // eine zweite Gruppierung im Lesepfad liefe ueber alle Zeilen des Laufs. Objekte OHNE
@@ -867,6 +905,9 @@ function avesmapsGaretienArbeitslisteObjekte(PDO $pdo, int $importRunId): array
             'extra' => (string) ($zeile['extra'] ?? ''),
             'items' => [],
             'stand' => 'offen',
+            // Ohne Item kein Vermerk, also kein angelegter Verbund -- und das Feld steht trotzdem
+            // da (zweiter Erzeuger, siehe innerorts_uebernommen oben).
+            'verbund_angelegt' => '',
         ];
     }
 
