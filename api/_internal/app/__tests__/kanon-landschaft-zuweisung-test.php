@@ -149,6 +149,47 @@ assert(($kanonLeer['ecosystem:eco-leer']['kanon'] ?? null) === 'inoffiziell'
     '4: ohne Zuweisung UND nur mit externen Quellen bleibt es „inoffiziell │ Art" -- die zweite '
     . 'Haelfte der Owner-Regel vom 10.09.2026 darf der Fix nicht mitnehmen');
 
+// ---- 4b. DER DOMMEL-FALL, EINE OBJEKTART WEITER (Owner 10.09.2026: „fix dommel fall nach") ------
+//
+// 🔴 RANG 5: keine Zuweisung, keine verwertbare Quelle -- kein Etikett. Eine Flaeche, deren
+// Verweise ausschliesslich PUBLIKATIONEN sind, hat niemanden, der etwas ueber ihren Kanon sagt.
+// Ohne den ausdruecklichen Leer-Eintrag faellt resolveFeatureKanon (js/ui/popups.js) fuer sie auf
+// die Vorgabe „offiziell" zurueck -- ein FEHLENDER Eintrag heisst dort „offiziell", nicht „nichts".
+//
+// 💣 UND ES HEILT EINEN WIDERSPRUCH, DEN NIEMAND GEMELDET HAT: die zweite Tuer
+// (avesmapsFeatureSourcesKanonAusEingaben) meldet `['kanon' => '']` seit jeher TYPUNABHAENGIG.
+// Dasselbe Objekt sagte also „offiziell", solange man nur die Seite lud, und verlor sein Etikett in
+// dem Moment, in dem jemand eine Quelle speicherte. Der Fall unten haelt beide Tueren gegeneinander.
+
+$nurPublikation = ['ecosystem:eco-leer' => [['source_id' => 2, 'reference_kind' => 'beschrieben']]];
+$kanonPub = avesmapsFeatureSourcesDeriveKanon($katalog, $nurPublikation, $raeume);
+assert(!isset($kanonPub['ecosystem:eco-leer']),
+    '4b-1: eine Publikation macht keinen Kanon -- die Ableitung schweigt (Owner 08.09.2026)');
+
+$leerEintraege = avesmapsFeatureSourcesKanonLeerEintraege($nurPublikation, $kanonPub);
+assert(($leerEintraege['ecosystem:eco-leer']['kanon'] ?? null) === '',
+    '4b-2: DER DOMMEL-FALL -- das Schweigen muss AUSDRUECKLICH gesagt werden, sonst gilt im Browser '
+    . 'die Vorgabe „offiziell". `ecosystem` gehoert dafuer in $bedient');
+
+// ⚠️ Und der Riegel dagegen, dass der Leer-Eintrag zu weit greift: eine Flaeche, ueber die etwas
+// GESAGT ist, kommt dort gar nicht an -- weder die zugewiesene noch die mit echter Quelle.
+$mitAussage = ['ecosystem:eco-haupt' => [['source_id' => 1]], 'ecosystem:eco-leer' => [['source_id' => 1]]];
+$leerZwei = avesmapsFeatureSourcesKanonLeerEintraege(
+    $mitAussage,
+    avesmapsFeatureSourcesDeriveKanon($katalog, $mitAussage, $raeume)
+);
+assert($leerZwei === [],
+    '4b-3: was ein Etikett hat (Rang 1-4), bekommt keinen Leer-Eintrag -- sonst loeschte er es');
+
+// 💣 DIE ZWEI TUEREN MUESSEN DASSELBE SAGEN. Genau daran hing der Widerspruch: der Lesepfad
+// schwieg (und der Browser sagte „offiziell"), der Schreibpfad meldete „kein Etikett".
+$schreibpfad = avesmapsFeatureSourcesKanonAusEingaben('ecosystem', ['eco-leer'], $katalog, $nurPublikation, $raeume);
+assert(($schreibpfad['eco-leer']['kanon'] ?? null) === '',
+    '4b-4: der Schreibpfad sagte das schon immer');
+assert(($schreibpfad['eco-leer']['kanon'] ?? null) === ($leerEintraege['ecosystem:eco-leer']['kanon'] ?? null),
+    '4b-5: und der Lesepfad sagt jetzt DASSELBE -- ein Objekt darf nicht davon abhaengen, ob gerade '
+    . 'jemand gespeichert hat');
+
 // ---- 5. DIE ZWEITE TUER: der Nachtrag nach einer Schreibaktion ----------------------------------
 //
 // 💣 EINE REGEL, DIE EINEN VON ZWEI ERZEUGERN BINDET, IST KEINE REGEL. Der Lesepfad (die
@@ -209,9 +250,10 @@ assert(str_contains($lib, "'ecosystem' => 'avesmapsEcosystemRegionWikiNamespaces
 // ⚠️ Gemessen wird „hat diese Aenderung ueberholt", nicht der genaue Wert -- die Zahl steigt auch
 // aus fremden Gruenden, und ein fester Wert waere beim naechsten Bump einer anderen Sitzung rot.
 preg_match('/AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = (\\d+);/', $nutzlast, $fassung);
-assert(isset($fassung[1]) && (int) $fassung[1] >= 24,
-    '7a: die Nutzlastversion muss mit dieser Aenderung gestiegen sein (>= 24)');
-assert(str_contains((string) file_get_contents(__DIR__ . '/../../../app/map-features.php'), '// 24 (10.09.2026)'),
-    '7b: und traegt ihren Grund in der Liste ueber der Konstante');
+assert(isset($fassung[1]) && (int) $fassung[1] >= 25,
+    '7a: die Nutzlastversion muss mit dieser Aenderung gestiegen sein (>= 25) -- der Fix aendert den\n    INHALT der Antwort, ohne ein Kartenobjekt anzufassen');
+assert(str_contains((string) file_get_contents(__DIR__ . '/../../../app/map-features.php'), '// 24 (10.09.2026)')
+    && str_contains((string) file_get_contents(__DIR__ . '/../../../app/map-features.php'), '// 25 (10.09.2026)'),
+    '7b: und BEIDE Schritte tragen ihren Grund in der Liste ueber der Konstante -- der Altenforst-Fix\n    und der Dommel-Nachtrag gehen einzeln live und haben deshalb je einen eigenen Eintrag');
 
 echo "OK: kanon-landschaft-zuweisung-test.php\n";

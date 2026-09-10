@@ -521,8 +521,20 @@ assert(strpos($endpunkt, 'avesmapsFeatureSourcesKanonLeerEintraege($featureSourc
 
 // 💣 UND NUR FUER DIE BEDIENTEN OBJEKTARTEN. Der erste Anlauf schrieb den Leer-Eintrag fuer jeden
 // Schluessel aus `feature_sources` -- und nahm damit **447 Landschaftsflaechen** ihr „offiziell",
-// um die es nie ging: der Kanon-Leser kennt `ecosystem` gar nicht, sie koennen per Konstruktion
-// nie ein Etikett bekommen. Live gemessen 08.09.2026: 591 Eintraege, davon 447 ecosystem.
+// um die es damals nicht ging. Live gemessen 08.09.2026: 591 Eintraege, davon 447 ecosystem.
+//
+// 🔴 DIE BEGRUENDUNG VON DAMALS IST AM 10.09.2026 GEFALLEN, DIE REGEL NICHT. Hier stand, der
+// Kanon-Leser kenne `ecosystem` gar nicht und eine Flaeche koenne „per Konstruktion nie ein Etikett
+// bekommen". Das galt nur fuer die RAENGE 1 UND 2 (die Wiki-Zuweisung); die Raenge 3 und 4 liefen
+// fuer sie seit jeher, weil avesmapsFeatureSourcesDeriveKanon ueber `array_keys($refs)` laeuft und
+// keine Objektart ausnimmt. Genau dieser Satz hat den Altenforst-Fehler gedeckt (Owner-Meldung
+// 10.09.2026): er las sich wie „hier ist nichts zu holen", und deshalb hat niemand nachgezaehlt,
+// dass die Haelfte der Regel dort fehlt. Seither ist `ecosystem` ueber
+// avesmapsEcosystemRegionWikiNamespaces angeschlossen UND steht deshalb hier mit dabei -- der
+// Docblock der Funktion sagte immer schon, dass beides zusammengehoert.
+// ⚠️ `citymap` und `lore` bleiben draussen, und DAS ist der Gegenstand dieser Zusicherung: eine
+// Objektart ohne Namensraum-Eingang wuerde hier ihr „offiziell" verlieren, ohne je eines verdienen
+// zu koennen. Wer eine von beiden anschliesst, ergaenzt sie DORT und hier -- nie nur hier.
 $leer = avesmapsFeatureSourcesKanonLeerEintraege([
     'settlement:p-dommel' => [['source_id' => 1, 'reference_kind' => 'ausfuehrlich']],
     'path:w-1' => [['source_id' => 1]],
@@ -532,8 +544,9 @@ $leer = avesmapsFeatureSourcesKanonLeerEintraege([
     'lore:l-1' => [['source_id' => 1]],
     'settlement:p-hat-etikett' => [['source_id' => 2]],
 ], ['settlement:p-hat-etikett' => ['kanon' => 'inoffiziell']]);
-assert(array_keys($leer) === ['settlement:p-dommel', 'path:w-1', 'territory:T-1'],
-    'nur die Objektarten, die der Kanon-Leser bedient, bekommen „kein Etikett" gesagt');
+assert(array_keys($leer) === ['settlement:p-dommel', 'path:w-1', 'territory:T-1', 'ecosystem:e-1'],
+    'nur die Objektarten, die der Kanon-Leser bedient, bekommen „kein Etikett" gesagt -- '
+    . 'seit dem 10.09.2026 gehoert `ecosystem` dazu, `citymap` und `lore` weiterhin nicht');
 assert($leer['settlement:p-dommel'] === ['kanon' => ''], 'und zwar als leerer Zustand');
 // ⚠️ Ein Objekt, das ein Etikett HAT, bekommt keinen zweiten Eintrag -- sonst uebermalte der
 // Leer-Eintrag die echte Aussage.
