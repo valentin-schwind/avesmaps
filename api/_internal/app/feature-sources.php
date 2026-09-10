@@ -3781,12 +3781,24 @@ function avesmapsFeatureSourcesKanonFuerMehrere(
  * dieser Satz hat den Altenforst-Fehler (10.09.2026) gedeckt: er las sich wie „hier ist nichts zu
  * holen", und deshalb hat niemand nachgezaehlt, dass die Haelfte der Regel dort fehlt.
  * ⭐ Seit dem 10.09.2026 ist `ecosystem` ueber avesmapsEcosystemRegionWikiNamespaces angeschlossen.
- * 🔧 OFFEN und BEWUSST NICHT MITGEZOGEN: `ecosystem` steht weiterhin NICHT in `$bedient`. Eine
- * Flaeche ohne Zuweisung, deren Verweise ausschliesslich PUBLIKATIONEN sind, behaelt damit ihr
- * „offiziell" aus der Vorgabe -- das ist der Dommel-Fall vom 08.09.2026, eine Objektart weiter,
- * und er ist aelter als der Altenforst-Fix. Ihn hier mitzunehmen ist eine SICHTBARE Aenderung an
- * potenziell hunderten Flaechen (§9: einzeln live, und der Owner sieht jede) und braucht die
- * Messung am Livebestand, die diese Zeile bisher zweimal ersetzt hat.
+ * ✅ **UND SEIT DEMSELBEN TAG STEHT SIE DESHALB IN `$bedient`** (Owner: „fix dommel fall nach").
+ * Eine Landschaftsflaeche OHNE Zuweisung, deren Verweise ausschliesslich PUBLIKATIONEN sind, bekommt
+ * damit KEIN Etikett mehr statt des geerbten „offiziell" -- Rang 5 der Regel, und derselbe Entscheid,
+ * den Dommel am 08.09.2026 fuer die uebrigen Objektarten ausgeloest hat.
+ * 💣 UND ES HEILT EINEN WIDERSPRUCH, DEN NIEMAND GEMELDET HAT: die zweite Tuer
+ * (avesmapsFeatureSourcesKanonAusEingaben, die Antwort einer Schreibaktion) meldet `['kanon' => '']`
+ * seit jeher TYPUNABHAENGIG -- also auch fuer `ecosystem`. Dasselbe Objekt sagte deshalb „offiziell",
+ * solange man nur die Seite lud, und verlor sein Etikett in dem Moment, in dem jemand eine Quelle
+ * speicherte. Zwei Antworten auf dieselbe Frage, je nachdem, ob gerade geschrieben wurde.
+ * ⚠️ WAS SICH DABEI NICHT AENDERT: eine Flaeche MIT Zuweisung (Rang 1/2) und eine mit einer echten
+ * Quelle (Rang 3/4) bekommen ihr Etikett aus der Ableitung und kommen hier gar nicht an. Betroffen
+ * ist ausschliesslich „nichts gesagt, nur gelistet".
+ * 🔧 OFFEN, und die Richtung ist die sichere: traegt die FLAECHE keine Adresse, waehrend eine ihrer
+ * Beschriftungen eine hat (moeglich fuer Zeilen aus der Zeit vor dem Durchtrag vom 01.09.2026),
+ * bekommt sie hier „kein Etikett" statt des Etiketts ihrer Zuweisung. Sie behauptet dann zu wenig,
+ * nie zu viel -- und der ns-222-Fall, der heute faelschlich „offiziell" sagt, wird dabei still statt
+ * falsch. Geheilt wird das durch den Durchtrag selbst („Wiki & Art" im Landschaften-Editor), nicht
+ * durch eine zweite Lesart hier.
  * ⚠️ Wer `citymap` oder `lore` je an den Kanon anschliesst, ergaenzt sie DORT und bekommt den
  * Leer-Eintrag von hier geschenkt -- nicht umgekehrt.
  *
@@ -3796,9 +3808,14 @@ function avesmapsFeatureSourcesKanonFuerMehrere(
  */
 function avesmapsFeatureSourcesKanonLeerEintraege(array $refs, array $kanon): array
 {
+    // ⚠️ `territory` und `ecosystem` stehen hier von Hand, weil beide keine `map_features`-Zeile
+    // haben und damit in der Tafel darueber nicht vorkommen koennen -- dieselben zwei, die auch
+    // avesmapsFeatureSourcesWikiNamespacesFuerKennungen eigens auffuehrt. Die zwei Listen gehoeren
+    // zusammen: eine Objektart, die ihren Namensraum aus einer eigenen Tabelle bekommt, braucht
+    // hier den Leer-Eintrag, sonst faellt genau sie auf die Vorgabe „offiziell" zurueck.
     $bedient = array_flip(array_merge(
         array_values(AVESMAPS_MAP_FEATURES_KANON_ENTITY_TYPE_BY_FEATURE_TYPE),
-        ['territory']
+        ['territory', 'ecosystem']
     ));
 
     $out = [];

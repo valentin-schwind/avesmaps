@@ -162,7 +162,13 @@ require_once __DIR__ . '/../_internal/app/map-features-cache.php';
 //    nicht, das ETag bliebe Zeichen fuer Zeichen dasselbe, und js/app/kartendaten-speicher.js
 //    liefert die alte Nutzlast aus IndexedDB. Die Frage aus Eintrag 23 hat hier gegriffen: der Fix
 //    aendert den INHALT dieser Antwort, ohne ein Kartenobjekt anzufassen.
-const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 24;
+// 25 (10.09.2026): der Dommel-Fall fuer die Landschaften -- `ecosystem` steht jetzt in `$bedient`
+//    von avesmapsFeatureSourcesKanonLeerEintraege. Eine Flaeche ohne Zuweisung, deren Verweise
+//    ausschliesslich Publikationen sind, schickt seither `{kanon: ''}` statt gar nichts und verliert
+//    damit das „offiziell", das sie nur aus der Vorgabe hatte. Wieder ein reiner Inhaltswechsel in
+//    `feature_kanon.abweichungen` -- und ein EIGENER Bump neben 24, weil sichtbare Aenderungen
+//    einzeln live gehen (AGENTS.md §9) und der zweite sonst hinter dem ETag des ersten verschwaende.
+const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 25;
 
 // 🔴 avesmapsMapFeaturesWikiNamespaces() UND die zugehoerige Typ-Zuordnung stehen NICHT hier,
 // sondern in api/_internal/app/feature-sources.php, direkt neben avesmapsFeatureSourcesDeriveKanon,
