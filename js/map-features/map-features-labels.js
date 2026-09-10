@@ -2178,6 +2178,18 @@ async function duplicateLabelEntry(entry) {
 	}
 	const quellRegionZeile = typeof ecosystemRegionOfLabel === "function" ? ecosystemRegionOfLabel(entry.label) : null;
 	const quellRegion = String(quellRegionZeile?.public_id || "");
+	// 🔴 DIE ART KOMMT VON DER FLAECHE, NICHT VOM ORIGINAL (Owner 10.09.2026: „wenn man ein Label einer
+	// Flaeche dupliziert wird das Style/Theme aus der Kategorie nicht mit uebernommen"). Der Subtyp IST
+	// der Art-Schluessel der Region, und die Flaeche ist die Wahrheit dafuer (Owner 02.09.2026, siehe
+	// avesmapsEcosystemPushRegionTypeToLabels). Haengt das Original der Flaeche hinterher -- live am
+	// 10.09.2026 fuenf Beschriftungen, „Ogerbusch" trug `region` auf einer `wald`-Flaeche --, erbte die
+	// Kopie den Fehler und stand weiss auf gruenem Grund. Geheilt hat das erst ein Speichern der
+	// Flaeche, und genau das meinte „erst wenn ich die Flaechenkategorie 2x aender".
+	// 💣 NUR DIE ART. Groesse, Drehung und Zoomband bleiben die des Originals -- ein zweites Label
+	// existiert gerade deshalb, weil es anders stehen soll (map-features-ecosystem-label-writeback.js).
+	// 💣 EINE LEERE FLAECHENART IST KEINE AUSSAGE, sondern „keine Art" (am Label heisst dasselbe
+	// `region`). Sie durchzureichen naehme der Kopie einer noch untypisierten Flaeche ihre Art.
+	const quellRegionArt = String(quellRegionZeile?.region_type || "");
 
 	// 🪤 Der Wiki-Eintrag steht oft NICHT am Label, sondern an seiner Region -- die Infobox zeigt ihn
 	// trotzdem, weil sie ihn von dort holt. Ein Klon, der nur `label.wikiRegion` kopiert, kommt deshalb
@@ -2191,7 +2203,7 @@ async function duplicateLabelEntry(entry) {
 		const result = await submitMapFeatureEdit({
 			action: "create_label",
 			text: entry.label.text,
-			feature_subtype: entry.label.labelType || "region",
+			feature_subtype: quellRegionArt || entry.label.labelType || "region",
 			size: Number(entry.label.size) || 18,
 			rotation: Number(entry.label.rotation) || 0,
 			min_zoom: Number(entry.label.minZoom) || 0,
