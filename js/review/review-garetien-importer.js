@@ -504,6 +504,34 @@
 	}
 
 	/*
+	 * Fixrunde 1 zu Aufgabe 10 (Befund 1): das Haekchen einer GEFALTETEN Zeile (Reiter
+	 * „Uebernommen") vertritt ihren ganzen Verbund, statt nur den Repraesentanten zu treffen,
+	 * dessen Schluessel die Zeile traegt. Sind schon ALLE Mitglieder gewaehlt, waehlt der Klick
+	 * alle ab; sonst waehlt er ALLE an (auch die schon gewaehlten) -- dieselbe An/Ab-Logik wie ein
+	 * „Alle waehlen"-Knopf ueber genau diese kleine Menge, nur am Zeilenhaekchen selbst.
+	 *
+	 * 🔴 KEIN ZWEITER AUSWAHLZUSTAND: sie schreibt auf DIESELBE `zustand.auswahl`-Map wie
+	 * avesmapsGaretienAuswahlUmschalten und frischt DIESELBE Auswahlleiste auf -- „Markieren
+	 * aendert nichts" (Owner 29.08.2026) gilt unveraendert, nur je Klick jetzt fuer mehrere
+	 * Schluessel zugleich. Damit erfuellt sie Entwurf §8 ("Ganzen Verbund zuruecknehmen — alle auf
+	 * einmal") OHNE einen zweiten Knopf und ohne Verstoss gegen §10 ("Der Verbund fuegt EINEN
+	 * Knopf hinzu") -- der Handgriff IST die vorhandene Mehrfachauswahl.
+	 */
+	function garetienUebernommenAuswahlUmschalten(mitglieder) {
+		const liste = (mitglieder || []).filter(function (o) {
+			return o && o.key !== undefined && o.key !== null && o.key !== "";
+		});
+		if (liste.length === 0) { return false; }
+		const alleGewaehlt = liste.every(function (o) { return zustand.auswahl.has(String(o.key)); });
+		liste.forEach(function (o) {
+			const s = String(o.key);
+			if (alleGewaehlt) { zustand.auswahl.delete(s); } else { zustand.auswahl.set(s, o); }
+		});
+		garetienAuswahlleisteAuffrischen();
+		return !alleGewaehlt;
+	}
+
+	/*
 	 * REIN gelesen: die gewählten OBJEKTE -- ALLE, auch die, deren Zeile ein Filter gerade ausblendet
 	 * oder die auf einem anderen Reiter liegen.
 	 *
@@ -1941,6 +1969,34 @@
 		});
 	}
 
+	/*
+	 * Fixrunde 1 zu Aufgabe 10 (Befund 1, Pruefer opus 10.09.2026): ALLE Mitglieder der gefalteten
+	 * Zeile -- nicht nur ihr Repraesentant. Die gefaltete Zeile traegt den `data-key` NUR des
+	 * ERSTEN Fragments (garetienUebernommenFalten); ohne diese Funktion faende ihr Haekchen nie die
+	 * Geschwister.
+	 *
+	 * 🔴 GRUPPIERT WIRD UEBER DENSELBEN SCHLUESSEL WIE garetienUebernommenFalten
+	 * (`verbund_angelegt`, aus dem VERMERK) -- eine zweite Gruppierungsregel liefe bei der naechsten
+	 * Aenderung auseinander (AGENTS.md §11).
+	 *
+	 * REIN: kein DOM, kein Modulzustand. `objekte` ist die UNGEFALTETE Menge (die Serverantwort der
+	 * aktuellen Ansicht, `zustand.objekte`) -- die gefaltete Liste selbst traegt die Geschwister
+	 * nicht mehr.
+	 *
+	 * ⚠️ Ohne Verbund (leerer Stamm) ist das Objekt sein eigenes einziges Mitglied -- dieselbe Regel
+	 * wie bei einem Einzelobjekt in garetienUebernommenFalten. Das ist zugleich der Normalfall auf
+	 * jedem anderen Reiter: dort ist `verbund_angelegt` nie gesetzt, also bleibt jedes Objekt sein
+	 * eigenes Mitglied und diese Funktion bleibt folgenlos.
+	 */
+	function garetienUebernommenMitglieder(objekt, objekte) {
+		if (!objekt) { return []; }
+		const stamm = String(objekt.verbund_angelegt || "");
+		if (stamm === "") { return [objekt]; }
+		return (objekte || []).filter(function (o) {
+			return String((o && o.verbund_angelegt) || "") === stamm;
+		});
+	}
+
 	// Schreibt Liste, (Filter-)Bilanz, Reiterzahlen und Fusszeile aus einer frischen
 	// action:'liste'-Antwort. 🔴 Rechnet nichts nach -- Urteil/Grund/Geometrie stehen schon fertig
 	// in der Antwort.
@@ -1984,7 +2040,24 @@
 				: objekte;
 			listeEl.innerHTML = zeilenObjekte.length
 				? zeilenObjekte.map(function (o) {
-					return garetienZeileMarkup(o, avesmapsGaretienAuswahlHat(o && o.key));
+					// Fixrunde 1 zu Aufgabe 10 (Befund 1+2): eine gefaltete Zeile VERTRITT ihren
+					// Verbund. Ihr Haekchen zeigt sich nur gesetzt, wenn ALLE Mitglieder gewaehlt
+					// sind (nicht nur der Repraesentant, dessen Schluessel die Zeile traegt) -- und
+					// auf „Uebernommen" zaehlt ihre Marke die TATSAECHLICH gefalteten Mitglieder,
+					// nie den Plan-Wert `verbund_n` (zwei Quellen fuer dieselbe Aussage waeren
+					// genau der Auseinanderlauf, gegen den Entwurf §7 argumentiert).
+					// 🔴 Die Zahl reist dafuer HEREIN -- ueber denselben Kanal (`verbund_n`), den
+					// garetienVerbundMarkeMarkup ohnehin liest. Der Bauer selbst kennt weiterhin
+					// nur EINE Quelle; auf jedem anderen Reiter bleibt `verbund_n` unangetastet
+					// richtig, weil dort nichts gefaltet ist.
+					const mitglieder = garetienUebernommenMitglieder(o, objekte);
+					const alleGewaehlt = mitglieder.length > 0 && mitglieder.every(function (m) {
+						return avesmapsGaretienAuswahlHat(m && m.key);
+					});
+					const zeileObjekt = zustand.stand === "uebernommen"
+						? Object.assign({}, o, { verbund_n: mitglieder.length })
+						: o;
+					return garetienZeileMarkup(zeileObjekt, alleGewaehlt);
 				}).join("")
 				: '<p class="avm-empty">Keine Objekte in dieser Ansicht.</p>';
 			// Dreiwertig ist eine EIGENSCHAFT, kein Attribut -- erst jetzt, nach dem Einfuegen ins
@@ -8375,9 +8448,17 @@
 		}
 		const schluessel = traeger.getAttribute("data-key");
 		if (!schluessel) { return null; }
+		const objekt = garetienObjektNach(schluessel, objekte);
+		// Fixrunde 1 zu Aufgabe 10 (Befund 1): eine GEFALTETE Zeile (Reiter „Uebernommen") traegt
+		// als `data-key` nur den Schluessel ihres ERSTEN Fragments, vertritt aber den ganzen
+		// Verbund -- ihr Haekchen darf deshalb nicht nur dieses eine Fragment treffen.
+		const mitglieder = garetienUebernommenMitglieder(objekt, objekte);
+		if (mitglieder.length > 1) {
+			return garetienUebernommenAuswahlUmschalten(mitglieder);
+		}
 		// ⚠️ Das OBJEKT wird mitgegeben, nicht nur sein Schlüssel -- die Auswahl merkt es sich, damit
 		// eine Handlung es später nicht in einer womöglich gefilterten Liste suchen muss.
-		return avesmapsGaretienAuswahlUmschalten(schluessel, garetienObjektNach(schluessel, objekte));
+		return avesmapsGaretienAuswahlUmschalten(schluessel, objekt);
 	}
 
 	// Der EINE Weg hinaus für jede Handlung: durch die Übernahme-Tür, danach die Liste NEU HOLEN.
@@ -9626,6 +9707,10 @@
 			// Aufgabe 10 (Fragmente-Verbund, Entwurf §7): "Uebernommen" zeigt einen Verbund als
 			// EINE Zeile.
 			garetienUebernommenFalten,
+			// Fixrunde 1 zu Aufgabe 10 (Befund 1): alle Mitglieder der gefalteten Zeile, und die
+			// Auswahl-Umschaltung ueber genau diese Menge.
+			garetienUebernommenMitglieder,
+			garetienUebernommenAuswahlUmschalten,
 			// Aufgabe 3 (Sicht-Tafel): die Neutral-Meldung der Bilanzzeile
 			garetienNeutraleObjekte,
 			garetienNeutralHinweisMarkup,
