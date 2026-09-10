@@ -211,6 +211,9 @@ function avesmapsGaretienVerbundUebernahmeTestPdo(): PDO
         before_json TEXT, after_json TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP,
         undone_at TEXT NULL, undone_by INTEGER NULL, undone_by_log_id INTEGER NULL, operation_id TEXT NULL, operation_label TEXT NULL)');
     $pdo->exec("INSERT INTO ecosystem_region_type (kind, type_key, label) VALUES ('vegetation', 'wald', 'Wald')");
+    // Fixrunde 2, Abschnitt I (Befund E): eine ZWEITE Art fuer den Kind/Art-Kollisionsfall --
+    // ein Verbund gleichen Stamms, aber Huegelland statt Wald.
+    $pdo->exec("INSERT INTO ecosystem_region_type (kind, type_key, label) VALUES ('topographie', 'huegelland', 'Huegelland')");
     $pdo->exec('CREATE TABLE app_setting (setting_key TEXT PRIMARY KEY, setting_value TEXT)');
     // Nur die LEEREN Tabellen: avesmapsGaretienQuellenZiel('region', ...) fragt
     // avesmapsEcosystemLabelSourceTarget, und die schlaegt in feature_sources nach, auch wenn
@@ -244,8 +247,15 @@ function avesmapsGaretienVerbundTestRing(float $ox, float $oy): array
  * beitragen -- ein Test, der mehr Infrastruktur aufbaut als er braucht, verschleiert im
  * Fehlerfall, welche Zusicherung wirklich etwas ueber den Verbund aussagt.
  */
-function avesmapsGaretienVerbundTestFragment(PDO $pdo, int $runId, string $label, int $nr, array $ring): int
-{
+function avesmapsGaretienVerbundTestFragment(
+    PDO $pdo,
+    int $runId,
+    string $label,
+    int $nr,
+    array $ring,
+    string $kind = 'vegetation',
+    string $subtyp = 'wald'
+): int {
     $pdo->prepare("INSERT INTO sync_plan_item (run_id, entity_key, entity_public_id, change_type, label, before_json, after_json, override_json, selected)
                    VALUES (?, ?, NULL, 'new', ?, NULL, ?, NULL, 1)")
         ->execute([
@@ -253,7 +263,7 @@ function avesmapsGaretienVerbundTestFragment(PDO $pdo, int $runId, string $label
             'ggp:Waelder:Wald:#' . $nr,
             $label,
             json_encode([
-                'herkunft' => 'garetien', 'ziel' => 'region', 'kind' => 'vegetation', 'subtyp' => 'wald',
+                'herkunft' => 'garetien', 'ziel' => 'region', 'kind' => $kind, 'subtyp' => $subtyp,
                 'name' => $label, 'geometry' => ['type' => 'Polygon', 'coordinates' => [$ring]],
             ], JSON_UNESCAPED_UNICODE),
         ]);
@@ -443,3 +453,126 @@ assert((int) ($flaechenJeRegionG['A_wald 1'] ?? -1) === 2,
     . ($flaechenJeRegionG['A_wald 1'] ?? 'FEHLT'));
 
 echo "OK -- garetien-verbund-like-maskierung (Kleinigkeit)\n";
+
+// =================================================================================================
+// H. FIXRUNDE 2, BEFUND D (wichtig) -- die Anfuehrer-Suche prueft, ob die gefundene Region noch
+//    AKTIV ist, statt den ersten Treffer blind zu uebernehmen.
+// =================================================================================================
+//
+// Fragment 1 legt die Region an. Ein Editor loescht sie danach von Hand im Landschaften-Editor --
+// das setzt NUR `ecosystem_region.is_active = 0`, der Vermerk in `sync_plan_item.apply_note` bleibt
+// unveraendert stehen (eine manuelle Loeschung ist NICHT die Ruecknahme, die `apply_note` auf NULL
+// zuruecksetzt). Fragment 2 desselben Verbunds darf die tote Region nicht als Anfuehrer uebernehmen
+// -- es muss selbst zum neuen Anfuehrer werden.
+$pdoH = avesmapsGaretienVerbundUebernahmeTestPdo();
+$runH1 = avesmapsSyncPlanStartRun($pdoH, AVESMAPS_GARETIEN_PLAN_KIND, 7, 'lauf-h1');
+$itemH1 = avesmapsGaretienVerbundTestFragment($pdoH, $runH1, 'Marschwald 1', 1, avesmapsGaretienVerbundTestRing(100, 500));
+$ergebnisH1 = avesmapsGaretienUebernehmen($pdoH, $runH1, [$itemH1], ['id' => 7], null, [
+    $itemH1 => ['verbund' => 'Marschwald'],
+]);
+assert($ergebnisH1['fehler'] === [], 'H: Fragment 1 legt an, keine Fehler: ' . json_encode($ergebnisH1['fehler'], JSON_UNESCAPED_UNICODE));
+
+$regionHAlt = $pdoH->query('SELECT public_id FROM ecosystem_region')->fetchColumn();
+assert(is_string($regionHAlt) && $regionHAlt !== '', 'H (Testaufbau): die erste Region wurde wirklich angelegt');
+
+// Manuelle Loeschung im Landschaften-Editor -- NICHT die Ruecknahme.
+$pdoH->prepare('UPDATE ecosystem_region SET is_active = 0 WHERE public_id = ?')->execute([$regionHAlt]);
+
+$runH2 = avesmapsSyncPlanStartRun($pdoH, AVESMAPS_GARETIEN_PLAN_KIND, 7, 'lauf-h2');
+$itemH2 = avesmapsGaretienVerbundTestFragment($pdoH, $runH2, 'Marschwald 2', 2, avesmapsGaretienVerbundTestRing(200, 600));
+$ergebnisH2 = avesmapsGaretienUebernehmen($pdoH, $runH2, [$itemH2], ['id' => 7], null, [
+    $itemH2 => ['verbund' => 'Marschwald'],
+]);
+assert($ergebnisH2['fehler'] === [],
+    'H: Fragment 2 legt trotz toter Vorgaenger-Region an, keine Fehler: ' . json_encode($ergebnisH2['fehler'], JSON_UNESCAPED_UNICODE));
+
+$regionenH = $pdoH->query('SELECT public_id, is_active FROM ecosystem_region ORDER BY id')->fetchAll(PDO::FETCH_ASSOC);
+assert(count($regionenH) === 2,
+    'H: ZWEI Regionen -- die tote bleibt stehen, Fragment 2 legt eine EIGENE neue an, bekommen: ' . count($regionenH));
+assert((int) $regionenH[0]['is_active'] === 0, 'H: die erste (geloeschte) Region bleibt inaktiv');
+assert((int) $regionenH[1]['is_active'] === 1, 'H: die zweite (neu angelegte) Region ist aktiv');
+assert($regionenH[1]['public_id'] !== $regionHAlt,
+    'H: Fragment 2 haengt NICHT an der toten Region, sondern an einer neuen');
+
+$flaechenH = $pdoH->query('SELECT region_id FROM ecosystem_area')->fetchAll(PDO::FETCH_COLUMN);
+assert(count($flaechenH) === 2, 'H: BEIDE Flaechen existieren -- die tote Region verliert ihre Flaeche nicht');
+assert(count(array_unique($flaechenH)) === 2,
+    'H: die zwei Flaechen haengen an ZWEI verschiedenen Regionen (keine Zusammenfuehrung mit der toten)');
+
+$itemsH2 = $pdoH->query('SELECT apply_note FROM sync_plan_item WHERE id = ' . (int) $itemH2)->fetchAll(PDO::FETCH_ASSOC);
+$noteH2 = avesmapsGaretienVermerkLesen((string) $itemsH2[0]['apply_note']);
+assert($noteH2['region'] === $regionenH[1]['public_id'],
+    'H: der Vermerk von Fragment 2 nennt die NEUE Region, nicht die tote');
+
+echo "OK -- garetien-verbund-tote-region (Befund D)\n";
+
+// =================================================================================================
+// I. FIXRUNDE 2, BEFUND E (wichtig) -- gruppiert wird auch ueber die ART (kind + region_type),
+//    nicht nur ueber den Stamm -- zwei gleichnamige Verbuende verschiedener Art aus ZWEI Laeufen
+//    duerfen sich keine Region teilen.
+// =================================================================================================
+//
+// Lauf A legt "Silker Hain" als WALD an (vegetation/wald). Lauf B bringt einen Verbund mit
+// IDENTISCHEM Stamm "Silker Hain", aber als HUEGELLAND (topographie/huegelland) -- derselbe Name,
+// eine andere Art, aus einem zweiten, spaeteren "Holen & Rechnen"-Lauf. Vor dieser Fixrunde haette
+// die Anfuehrer-Suche (nur `LIKE '%verbund:Silker Hain'`) den Wald-Anfuehrer gefunden und dem
+// Huegelland-Fragment dessen Region untergeschoben -- die Flaeche waere dann eine Huegelland-Flaeche
+// in einer Wald-Region. Ein DRITTES Fragment in Lauf C, wieder WALD, muss dagegen weiterhin an die
+// ECHTE Wald-Region andocken -- die Art-Pruefung darf nicht ueberkorrigieren.
+$pdoI = avesmapsGaretienVerbundUebernahmeTestPdo();
+$runIA = avesmapsSyncPlanStartRun($pdoI, AVESMAPS_GARETIEN_PLAN_KIND, 7, 'lauf-i-a');
+$itemIA = avesmapsGaretienVerbundTestFragment(
+    $pdoI, $runIA, 'Silker Hain Wald', 1, avesmapsGaretienVerbundTestRing(100, 900), 'vegetation', 'wald'
+);
+$ergebnisIA = avesmapsGaretienUebernehmen($pdoI, $runIA, [$itemIA], ['id' => 7], null, [
+    $itemIA => ['verbund' => 'Silker Hain'],
+]);
+assert($ergebnisIA['fehler'] === [], 'I: Lauf A (Wald) legt an, keine Fehler: ' . json_encode($ergebnisIA['fehler'], JSON_UNESCAPED_UNICODE));
+
+$runIB = avesmapsSyncPlanStartRun($pdoI, AVESMAPS_GARETIEN_PLAN_KIND, 7, 'lauf-i-b');
+$itemIB = avesmapsGaretienVerbundTestFragment(
+    $pdoI, $runIB, 'Silker Hain Huegel', 2, avesmapsGaretienVerbundTestRing(200, 950), 'topographie', 'huegelland'
+);
+$ergebnisIB = avesmapsGaretienUebernehmen($pdoI, $runIB, [$itemIB], ['id' => 7], null, [
+    $itemIB => ['verbund' => 'Silker Hain'],
+]);
+assert($ergebnisIB['fehler'] === [], 'I: Lauf B (Huegelland) legt an, keine Fehler: ' . json_encode($ergebnisIB['fehler'], JSON_UNESCAPED_UNICODE));
+
+$regionenNachBI = $pdoI->query("SELECT public_id, kind, region_type FROM ecosystem_region ORDER BY id")->fetchAll(PDO::FETCH_ASSOC);
+assert(count($regionenNachBI) === 2,
+    'I: ZWEI Regionen nach Lauf A+B -- Wald und Huegelland teilen sich KEINE, bekommen: ' . count($regionenNachBI));
+assert($regionenNachBI[0]['region_type'] === 'wald' && $regionenNachBI[1]['region_type'] === 'huegelland',
+    'I: die erste Region ist Wald, die zweite Huegelland -- bekommen: '
+    . $regionenNachBI[0]['region_type'] . ' / ' . $regionenNachBI[1]['region_type']);
+
+// Lauf C: ein DRITTES Fragment, wieder Wald -- muss die ECHTE Wald-Region finden, trotz des
+// Huegelland-Zwischenfalls mit demselben Stamm.
+$runIC = avesmapsSyncPlanStartRun($pdoI, AVESMAPS_GARETIEN_PLAN_KIND, 7, 'lauf-i-c');
+$itemIC = avesmapsGaretienVerbundTestFragment(
+    $pdoI, $runIC, 'Silker Hain Wald 2', 3, avesmapsGaretienVerbundTestRing(300, 950), 'vegetation', 'wald'
+);
+$ergebnisIC = avesmapsGaretienUebernehmen($pdoI, $runIC, [$itemIC], ['id' => 7], null, [
+    $itemIC => ['verbund' => 'Silker Hain'],
+]);
+assert($ergebnisIC['fehler'] === [], 'I: Lauf C (Wald) legt an, keine Fehler: ' . json_encode($ergebnisIC['fehler'], JSON_UNESCAPED_UNICODE));
+
+$regionenNachCI = $pdoI->query("SELECT public_id, region_type FROM ecosystem_region ORDER BY id")->fetchAll(PDO::FETCH_ASSOC);
+assert(count($regionenNachCI) === 2,
+    'I: WEITERHIN nur ZWEI Regionen -- Lauf C haengt sich an die vorhandene Wald-Region, bekommen: '
+    . count($regionenNachCI));
+
+$flaechenJeRegionI = $pdoI->query(
+    "SELECT er.region_type AS art, COUNT(ea.id) AS n
+       FROM ecosystem_region er LEFT JOIN ecosystem_area ea ON ea.region_id = er.id
+      GROUP BY er.id"
+)->fetchAll(PDO::FETCH_ASSOC);
+$flaechenWaldI = 0;
+$flaechenHuegelI = 0;
+foreach ($flaechenJeRegionI as $zeile) {
+    if ($zeile['art'] === 'wald') { $flaechenWaldI = (int) $zeile['n']; }
+    if ($zeile['art'] === 'huegelland') { $flaechenHuegelI = (int) $zeile['n']; }
+}
+assert($flaechenWaldI === 2, 'I: die Wald-Region traegt BEIDE Wald-Flaechen (Lauf A + Lauf C), bekommen: ' . $flaechenWaldI);
+assert($flaechenHuegelI === 1, 'I: die Huegelland-Region bleibt bei IHRER EINEN Flaeche, bekommen: ' . $flaechenHuegelI);
+
+echo "OK -- garetien-verbund-art-kollision (Befund E)\n";
