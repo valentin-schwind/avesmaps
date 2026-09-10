@@ -224,6 +224,70 @@
 			'<path d="M0 13 C6 12 10 15 16 15 24 15 32 17 48 18 V21 C32 20 24 18 16 18 10 18 6 16 0 16 Z"/>' +
 			'<ellipse cx="20" cy="6" rx="3.4" ry="2"/><ellipse cx="27" cy="9" rx="2.6" ry="1.6"/></g>',
 
+		// ---- Die fuenf Ebenen als zweite Stufe (09.09.2026) ---------------------------------------
+		// 🔴 „Alle" hat KEINEN eigenen Vektor -- es nimmt `ecosystem` oben. „Alle" ist alle Ebenen
+		// uebereinander; zwei getrennte Zeichnungen liefen beim naechsten Umton auseinander.
+		// 💣 Die Farben sind die ECHTEN aus css/base/tokens.css, jede aus der Stelle, die sie auf
+		// der Karte zeichnet. Wer sie „aufraeumt", macht die Zelle zu einem Symbol, das etwas
+		// anderes ankuendigt als die Karte zeigt.
+		// ⚠️ KEIN Kachelbild darunter: der Untergrund steht in den Landschaften auf 0 %, und der
+		// Grund ist --color-ecosystem-underground (#d3cec2).
+
+		// 🔴 UNGEFUELLT, und das ist Information: die derographische Ebene zeichnet BEHAELTER
+		// (Regionen, Inseln, Kontinente) und ruht ungefuellt auf der Karte
+		// (--color-ecosystem-derographisch, „grey, and unfilled while it rests"). Eine gefuellte
+		// graue Flaeche waere huebscher und falsch.
+		// ⚠️ Die kleine gefuellte Ellipse ist eine INSEL -- das eine derographische Objekt, das
+		// gefuellt liegt; ohne sie liest sich die Zelle als leeres Gitter.
+		eco_derographisch:
+			'<g fill="none" stroke="#2e2e2e" stroke-opacity=".8" stroke-linecap="round" stroke-linejoin="round">' +
+			'<path d="M-2 9 C6 6.5 12 10.5 18 9.5 26 8 32 12.5 38 10.5 43 9 46 11.5 50 9.5" stroke-width="1.7"/>' +
+			'<path d="M18 9.5 C17.2 17 20.4 22.5 18.6 29.5 16.8 36.5 19.6 42 17.8 50" stroke-width="1.7"/>' +
+			'<path d="M18.6 29.5 C25 27.5 31 31.5 38 29.5 43 28 46 30.5 50 28.5" stroke-width="1.5"/>' +
+			'<path d="M33 -2 C32 3 35 6 34 10.5" stroke-width="1.2" stroke-opacity=".55"/>' +
+			'</g>' +
+			'<g fill="#575757" fill-opacity=".2" stroke="#2e2e2e" stroke-opacity=".7" stroke-width="1.2">' +
+			'<ellipse cx="9" cy="41" rx="5.2" ry="3.4"/></g>',
+
+		// Grasland, Steppe, Wuestenfleck, Waldflecken.
+		eco_vegetation:
+			'<path d="M0 24 C7 19 12 25 18 21 26 16 33 22 40 17 44 14 46 18 48 16 V33 C43 36 38 30 31 34 24 38 18 32 11 36 6 39 3 34 0 37 Z" fill="#8fbf6a" fill-opacity=".85"/>' +
+			'<path d="M0 37 C3 34 6 39 11 36 18 32 24 38 31 34 38 30 43 36 48 33 V44 C42 47 37 42 30 45 23 48 17 43 10 46 5 48 3 45 0 47 Z" fill="#a8bd8a" fill-opacity=".8"/>' +
+			'<path d="M31 -2 C37 1 43 -1 50 1 V13 C43 11 37 14.5 31 12 27 10.5 25.5 6.5 27 3.5 28 1.5 29.5 -0.6 31 -2 Z" fill="#e0c74e" fill-opacity=".78"/>' +
+			'<g fill="#3f6b2c" fill-opacity=".88">' +
+			'<path d="M2 4 C6 1 11 2 13 5 15 9 11 12 7 11 3 10 0 7 2 4 Z"/>' +
+			'<path d="M14 26 C18 24 22 26 22 29 22 32 18 33 16 31 13 29 12 27 14 26 Z"/>' +
+			'<path d="M37 22 C42 20 47 23 47 27 47 31 42 32 39 29 36 27 34 24 37 22 Z"/>' +
+			'<path d="M23 42 C28 40 33 42 33 46 33 49 28 49 25 48 22 46 21 43 23 42 Z"/></g>',
+
+		// Gebirge, Huegel, See, Meer.
+		// Der See traegt --color-water (#4c89c6), das Meer sein eigenes Dunkelblau -- die beiden
+		// sind auf der Karte verschieden und in der Zelle auch (Owner 09.09.2026).
+		// ⚠️ Die zwei hellen Dreiecke sind SCHNEEKAPPEN und tragen keinen eigenen Token -- sie sind
+		// Zeichnung, kein Kartenwert; deshalb ein neutrales Elfenbein und keine erfundene
+		// Farbvariable.
+		eco_topographie:
+			'<path d="M0 34 C5 30 9 35 14 32 20 28.5 25 34 31 30 36 26.5 42 32 48 28 V40 C42 43 36 38 30 41 23 44.5 17 39 10 42.5 5 45 3 41.5 0 44 Z" fill="#7d8f6e" fill-opacity=".8"/>' +
+			'<g fill="#7a6c5e" fill-opacity=".88">' +
+			'<path d="M-2 26 L7 10 L13 19 L19 6 L27 22 L33 15 L40 27 L46 19 L50 27 V30 C42 33 36 28 30 31 23 34.5 17 29 10 32.5 5 35 2 31.5 -2 33 Z"/></g>' +
+			'<g fill="#efe9dc" fill-opacity=".85">' +
+			'<path d="M19 6 L22.6 13 L15.4 13 Z"/><path d="M7 10 L9.8 15 L4.2 15 Z"/></g>' +
+			'<ellipse cx="15" cy="38" rx="6.6" ry="3.6" fill="#4c89c6" fill-opacity=".9"/>' +
+			'<path d="M0 45 C8 43.5 16 46 24 44.5 32 43 40 45.5 48 44 V50 H0 Z" fill="#2d5f8a" fill-opacity=".88"/>',
+
+		// 🔴 ACHT Baender, die echten Toene der Temperaturskala. Die Ebene wird nicht gezeichnet,
+		// sondern aus Trennlinien ABGELEITET -- deshalb sind die Kanten hier leicht bewegt und
+		// nicht schnurgerade: so liegen sie auf der Karte.
+		eco_klima:
+			'<path d="M0 0 H48 V6 C36 7.4 24 4.8 12 6.2 8 6.7 4 6 0 6.6 Z" fill="#cfe0eb" fill-opacity=".9"/>' +
+			'<path d="M0 6.6 C4 6 8 6.7 12 6.2 24 4.8 36 7.4 48 6 V12 C36 13.6 24 10.8 12 12.4 8 12.9 4 12.2 0 12.8 Z" fill="#a2c3d1" fill-opacity=".9"/>' +
+			'<path d="M0 12.8 C4 12.2 8 12.9 12 12.4 24 10.8 36 13.6 48 12 V18.4 C36 19.6 24 17.2 12 18.6 8 19 4 18.4 0 19 Z" fill="#7aada9" fill-opacity=".9"/>' +
+			'<path d="M0 19 C4 18.4 8 19 12 18.6 24 17.2 36 19.6 48 18.4 V24.6 C36 26 24 23.4 12 24.8 8 25.2 4 24.6 0 25.2 Z" fill="#bfc888" fill-opacity=".9"/>' +
+			'<path d="M0 25.2 C4 24.6 8 25.2 12 24.8 24 23.4 36 26 48 24.6 V31 C36 32.4 24 29.8 12 31.2 8 31.6 4 31 0 31.6 Z" fill="#dcb857" fill-opacity=".9"/>' +
+			'<path d="M0 31.6 C4 31 8 31.6 12 31.2 24 29.8 36 32.4 48 31 V37.2 C36 38.6 24 36 12 37.4 8 37.8 4 37.2 0 37.8 Z" fill="#cdb083" fill-opacity=".9"/>' +
+			'<path d="M0 37.8 C4 37.2 8 37.8 12 37.4 24 36 36 38.6 48 37.2 V43.4 C36 44.8 24 42.2 12 43.6 8 44 4 43.4 0 44 Z" fill="#d98f3c" fill-opacity=".9"/>' +
+			'<path d="M0 44 C4 43.4 8 44 12 43.6 24 42.2 36 44.8 48 43.4 V48 H0 Z" fill="#c65e2e" fill-opacity=".9"/>',
+
 		// „Nur Karte" ist LEER, und das ist die Aussage: hier liegt nichts ueber dem Untergrund.
 		none: ""
 	};
