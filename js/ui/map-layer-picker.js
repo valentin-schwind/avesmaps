@@ -233,20 +233,28 @@
 		// ⚠️ KEIN Kachelbild darunter: der Untergrund steht in den Landschaften auf 0 %, und der
 		// Grund ist --color-ecosystem-underground (#d3cec2).
 
-		// 🔴 UNGEFUELLT, und das ist Information: die derographische Ebene zeichnet BEHAELTER
-		// (Regionen, Inseln, Kontinente) und ruht ungefuellt auf der Karte
-		// (--color-ecosystem-derographisch, „grey, and unfilled while it rests"). Eine gefuellte
-		// graue Flaeche waere huebscher und falsch.
+		// 🔴 GESTRICHELT, weil die KARTE sie gestrichelt zeichnet (Owner 26.07.2026, Begruendung in
+		// css/features/ecosystem-layer.css): eine derographische Flaeche ist ein Verwaltungsbehaelter,
+		// und „a container's edge is a convention, not a thing you could walk up to like a forest edge
+		// or a ridge" -- die Strichelung gehoert zur ART der Ebene, nicht zu einem Zustand, und bleibt
+		// darum in jedem Zustand gestrichelt. Der gebaute Vektor zog sie zuvor DURCHGEHEND -- falsch.
+		// ⚠️ Die drei zarten Fuellungen machen den Behaelter auf 48 px erst LESBAR (ungefuellt las sich
+		// die Zelle als „nicht geladen"), ohne die Zelle zu einer Landschaftsebene zu machen -- die
+		// Flaeche selbst bleibt auf der Karte ungefuellt.
 		// ⚠️ Die kleine gefuellte Ellipse ist eine INSEL -- das eine derographische Objekt, das
 		// gefuellt liegt; ohne sie liest sich die Zelle als leeres Gitter.
 		eco_derographisch:
-			'<g fill="none" stroke="#2e2e2e" stroke-opacity=".8" stroke-linecap="round" stroke-linejoin="round">' +
+			'<g fill="#575757" fill-opacity=".13">' +
+			'<path d="M-2 9 C6 6.5 12 10.5 18 9.5 17.2 17 20.4 22.5 18.6 29.5 16.8 36.5 19.6 42 17.8 50 H-2 Z"/>' +
+			'<path d="M18 9.5 C26 8 32 12.5 38 10.5 43 9 46 11.5 50 9.5 V28.5 C46 30.5 43 28 38 29.5 31 31.5 25 27.5 18.6 29.5 20.4 22.5 17.2 17 18 9.5 Z" fill-opacity=".2"/>' +
+			'<path d="M18.6 29.5 C25 27.5 31 31.5 38 29.5 43 28 46 30.5 50 28.5 V50 H17.8 C19.6 42 16.8 36.5 18.6 29.5 Z" fill-opacity=".09"/>' +
+			'</g>' +
+			'<g fill="none" stroke="#2e2e2e" stroke-opacity=".85" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="3.4 2.6">' +
 			'<path d="M-2 9 C6 6.5 12 10.5 18 9.5 26 8 32 12.5 38 10.5 43 9 46 11.5 50 9.5" stroke-width="1.7"/>' +
 			'<path d="M18 9.5 C17.2 17 20.4 22.5 18.6 29.5 16.8 36.5 19.6 42 17.8 50" stroke-width="1.7"/>' +
 			'<path d="M18.6 29.5 C25 27.5 31 31.5 38 29.5 43 28 46 30.5 50 28.5" stroke-width="1.5"/>' +
-			'<path d="M33 -2 C32 3 35 6 34 10.5" stroke-width="1.2" stroke-opacity=".55"/>' +
 			'</g>' +
-			'<g fill="#575757" fill-opacity=".2" stroke="#2e2e2e" stroke-opacity=".7" stroke-width="1.2">' +
+			'<g fill="#575757" fill-opacity=".22" stroke="#2e2e2e" stroke-opacity=".75" stroke-width="1.2" stroke-dasharray="2.6 2">' +
 			'<ellipse cx="9" cy="41" rx="5.2" ry="3.4"/></g>',
 
 		// Grasland, Steppe, Wuestenfleck, Waldflecken.
