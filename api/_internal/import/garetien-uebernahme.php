@@ -634,8 +634,21 @@ function avesmapsGaretienVermerkLesen(string $note): array
 }
 
 /**
- * Hat dieser Verbund schon eine Region -- in DIESEM oder einem FRUEHEREN Lauf? Dann ist ihr
- * Anfuehrer schon durch.
+ * Wie viele Kandidaten-Vermerke prueft die Anfuehrer-Suche hoechstens, bevor sie aufgibt?
+ *
+ * ⭐ KEINE OFFENE MENGE. Im Regelfall traegt praktisch jeder Vermerk desselben Verbund-Stamms
+ * dieselbe Region -- alle Geschwister eines gesunden Verbunds fanden beim eigenen Import denselben
+ * Anfuehrer und schrieben ihn unveraendert weiter. Mehrere VERSCHIEDENE Regionen fuer einen Stamm
+ * entstehen nur in den zwei Fehlerfaellen, die diese Funktion abfaengt: eine von Hand geloeschte
+ * Region (Befund D) oder ein Art-Wechsel zwischen zwei Laeufen (Befund E) -- beides seltene,
+ * einstellige Vorkommnisse je Verbund, kein wiederkehrendes Muster. 20 deckt jeden bisher
+ * beobachteten Fall um ein Vielfaches ab, ohne die `LIKE`-Ergebnisliste unbegrenzt abzuklappern.
+ */
+const AVESMAPS_GARETIEN_VERBUND_KANDIDATEN_DECKEL = 20;
+
+/**
+ * Hat dieser Verbund schon eine Region -- in DIESEM oder einem FRUEHEREN Lauf, noch AKTIV, und von
+ * DERSELBEN ART wie das, was dieses Fragment anlegen wuerde? Dann ist ihr Anfuehrer schon durch.
  *
  * 🔴 LAUFUEBERGREIFEND, NICHT `run_id`-GEBUNDEN (Entwurf §6: "derselbe Weg, den die
  * laufuebergreifende Ruecknahme heute schon geht" -- avesmapsGaretienRuecknahmeAusfuehren sucht
@@ -645,13 +658,46 @@ function avesmapsGaretienVermerkLesen(string $note): array
  * einem Neu-Rechnen in Lauf B), faenden ihren Anfuehrer sonst nie und legten eine ZWEITE Region
  * gleichen Namens an -- ohne jede Meldung.
  *
- * ⚠️ Von mehreren Treffern gilt die JUENGSTE (`ORDER BY id DESC`) -- dieselbe Regel, aus
- * demselben Grund wie bei der Ruecknahme ("Von mehreren gilt die JUENGSTE").
+ * 🔴 FIXRUNDE 2, BEFUND D (wichtig): der ERSTE Treffer allein reicht nicht mehr -- eine von Hand im
+ * Landschaften-Editor GELOESCHTE Region setzt nur `ecosystem_region.is_active = 0`; die Ruecknahme
+ * (die den Vermerk auf NULL zuruecksetzt) ist ein ANDERER Pfad und wird davon nicht beruehrt. Ein
+ * Nachzuegler faende sonst eine tote `region_public_id` und scheiterte an
+ * `avesmapsCreateEcosystemArea` mit "The ecosystem region was not found." -- deshalb werden bis zu
+ * `AVESMAPS_GARETIEN_VERBUND_KANDIDATEN_DECKEL` Vermerke (juengste zuerst) geprueft, bis einer
+ * traegt; bleibt keiner uebrig, gibt es `null` zurueck und DIESES Fragment wird selbst zum neuen
+ * Anfuehrer (siehe avesmapsGaretienFlaecheAnlegen).
+ *
+ * 🔴 FIXRUNDE 2, BEFUND E (wichtig): "passt zur Art" wird gegen die GESPEICHERTEN Spalten
+ * `ecosystem_region.kind`/`region_type` der Kandidaten-Region gemessen -- dieselben zwei Spalten,
+ * die `avesmapsGaretienFlaecheAnlegen` beim Anlegen aus `$nach['kind']`/`$nach['subtyp']` setzt.
+ * Der Vermerk selbst traegt keine Art (nur Flaeche/Region/Verbund) und wird dafuer NICHT erweitert:
+ * `avesmapsGaretienVermerkLesen` hat mit dem alten, nackten Vermerk und drei laufenden Lesern
+ * (Ruecknahme, Artikel-Quellen-Nachtrag, diese Funktion) schon genug Formate zu tragen, und die
+ * Art steht bereits verlaesslich in der Datenbank -- ein zweiter Ablageort waere die zweite
+ * Wahrheit, vor der AGENTS.md §5 warnt. Zwei gleichnamige Verbuende verschiedener Art aus ZWEI
+ * Laeufen (derselbe Stamm, z.B. "Silker Hain" einmal als Wald, einmal als Huegelland) duerfen sich
+ * sonst dieselbe Region teilen -- die eine Haelfte bekaeme die Art der anderen. Der Kommentar am
+ * Aufrufer behauptete bis zu diesem Fix, `avesmapsGaretienVerbuende` (garetien-verbund.php) habe
+ * Ebene und Typ schon VOR der Gruppierung geprueft -- das stimmt nur INNERHALB eines einzelnen
+ * Laufs (dort gruppiert `$schluessel = ebene|typ|stamm`); die laufuebergreifende Suche hier kennt
+ * diese Gruppierung nicht und braucht deshalb ihre eigene Art-Pruefung.
+ *
+ * ⚠️ Von mehreren TRAGENDEN Treffern gilt die JUENGSTE (`ORDER BY i.id DESC`) -- dieselbe Regel,
+ * aus demselben Grund wie bei der Ruecknahme ("Von mehreren gilt die JUENGSTE"). Weder ASC noch
+ * DESC allein loesen Befund D/E; das tut erst die Existenz- und Art-Pruefung je Kandidat.
  *
  * ⚠️ Gefragt wird `sync_plan_item`, nicht ein zweiter Merker: die Uebernahme laeuft gestueckelt
  * (`$budget`), und ein Nachzuegler im naechsten Haeppchen muss den Anfuehrer wiederfinden.
+ *
+ * ⚠️ KEIN zweiter Index, keine zweite Abfrage fuer die LAUFZEIT der `LIKE`-Suche selbst -- das ist
+ * gemessen und angenommen (hoechstens 115 Aufrufe je Vollimport). Die zusaetzliche Pruefung hier
+ * ist ein `public_id`-Nachschlag ueber `uq_ecosystem_region_public_id` (bereits indiziert) je
+ * Kandidat, gedeckelt auf `AVESMAPS_GARETIEN_VERBUND_KANDIDATEN_DECKEL` -- keine offene Schleife.
+ *
+ * @param string $kind Die Art-Familie, die DIESES Fragment anlegen wuerde ($nach['kind']).
+ * @param string $regionType Der Art-Schluessel, den DIESES Fragment anlegen wuerde ($nach['subtyp']).
  */
-function avesmapsGaretienVerbundRegion(PDO $pdo, string $verbund): ?string
+function avesmapsGaretienVerbundRegion(PDO $pdo, string $verbund, string $kind, string $regionType): ?string
 {
     // 💣 EIN VERBUND-STAMM IST FREIER TEXT, KEIN SQL-MUSTER -- ein "%" oder "_" darin (ein
     // Wiki-Artikelname kann beides tragen) waere sonst ein LIKE-Metazeichen, das den Anfuehrer
@@ -662,16 +708,38 @@ function avesmapsGaretienVerbundRegion(PDO $pdo, string $verbund): ?string
         "SELECT i.apply_note FROM sync_plan_item i"
         . " JOIN sync_plan_run r ON r.id = i.run_id"
         . " WHERE r.kind = :k AND i.apply_state = 'done' AND i.apply_note LIKE :muster ESCAPE '\\\\'"
-        . " ORDER BY i.id DESC LIMIT 1"
+        . " ORDER BY i.id DESC LIMIT " . AVESMAPS_GARETIEN_VERBUND_KANDIDATEN_DECKEL
     );
     $stmt->execute([':k' => AVESMAPS_GARETIEN_PLAN_KIND, ':muster' => '%verbund:' . $maskiert]);
-    $note = (string) ($stmt->fetchColumn() ?: '');
-    if ($note === '') {
+    $notizen = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    if ($notizen === false || $notizen === []) {
         return null;
     }
-    $region = avesmapsGaretienVermerkLesen($note)['region'];
 
-    return $region === '' ? null : $region;
+    $regionStmt = $pdo->prepare(
+        'SELECT is_active, kind, region_type FROM ecosystem_region WHERE public_id = :p LIMIT 1'
+    );
+    $schonGeprueft = [];
+    foreach ($notizen as $note) {
+        $region = avesmapsGaretienVermerkLesen((string) $note)['region'];
+        if ($region === '' || isset($schonGeprueft[$region])) {
+            continue;
+        }
+        $schonGeprueft[$region] = true;
+
+        $regionStmt->execute([':p' => $region]);
+        $zeile = $regionStmt->fetch(PDO::FETCH_ASSOC);
+        if ($zeile === false || (int) $zeile['is_active'] !== 1) {
+            continue;   // Befund D: nicht (mehr) da -- geloescht oder nie angelegt.
+        }
+        if ((string) $zeile['kind'] !== $kind || (string) ($zeile['region_type'] ?? '') !== $regionType) {
+            continue;   // Befund E: gleicher Stamm, andere Art -- kein Anfuehrer fuer DIESES Fragment.
+        }
+
+        return $region;
+    }
+
+    return null;
 }
 
 /**
@@ -1922,15 +1990,20 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
                 [$entityType, $quellePublicId] = avesmapsGaretienQuellenZiel('label', $publicId);
                 $jeForm['label']++;
             } else {
-                // 🔴 DER SERVER GRUPPIERT UEBER DEN STAMM, NICHT DEN CLIENT-SCHLUESSEL --
-                // `garetienVerbundSchluessel` (js/review/review-garetien-importer.js) haengt
-                // Ebene und Typ an, um zwei gleichnamige Verbuende unterschiedlicher Art
-                // auseinanderzuhalten; hier reicht der Stamm allein, weil `avesmapsGaretienVerbuende`
-                // (garetien-verbund.php) beides schon VOR der Gruppierung geprueft hat.
+                // 🔴 DER SERVER GRUPPIERT UEBER STAMM **UND ART**, NICHT NUR DEN CLIENT-SCHLUESSEL
+                // -- `garetienVerbundSchluessel` (js/review/review-garetien-importer.js) haengt
+                // Ebene und Typ an, um zwei gleichnamige Verbuende unterschiedlicher Art INNERHALB
+                // EINES LAUFS auseinanderzuhalten (`avesmapsGaretienVerbuende`, garetien-verbund.php,
+                // prueft das schon VOR der Gruppierung). Das gilt nur laufINTERN: die Anfuehrer-Suche
+                // hier ist laufUEBERGREIFEND (Befund C) und kennt jene Gruppierung nicht -- sie
+                // prueft deshalb selbst, ob eine gefundene Region noch aktiv UND von derselben Art
+                // ist (`kind`/`region_type`), sonst koennten zwei gleichnamige Verbuende
+                // verschiedener Art aus ZWEI Laeufen sich faelschlich dieselbe Region teilen
+                // (Fixrunde 2, Befund E).
                 $verbund = trim((string) ($rumpfDesItems['verbund'] ?? ''));
                 $anRegion = $verbund === ''
                     ? null
-                    : avesmapsGaretienVerbundRegion($pdo, $verbund);
+                    : avesmapsGaretienVerbundRegion($pdo, $verbund, (string) $nach['kind'], (string) $nach['subtyp']);
                 $ergebnis = avesmapsGaretienFlaecheAnlegen($pdo, $nach, $user, $userId, $rumpfDesItems, $anRegion);
                 $publicId = $ergebnis['public_id'];
                 // 🔴 SEIT SCHRITT 5 DES QUELLEN-UMBAUS (03.09.2026) TRAEGT DIE FLAECHE IHRE
