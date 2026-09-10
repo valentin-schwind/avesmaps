@@ -382,17 +382,54 @@ const IS_EDIT_MODE = INITIAL_SEARCH_PARAMS.get("edit") === "1";
 // werden von applyEcosystemAccess() nachgezogen.
 let IS_ECOSYSTEM_ENABLED = false;
 
+// 🔴 „NEIN" UND „WEISS ICH NOCH NICHT" SIND ZWEI ZUSTÄNDE -- UND SIE WAREN EINER. Das ist der Merker,
+// der sie trennt: `false` heisst „die Sitzungsantwort ist noch unterwegs", `true` heisst „sie ist da,
+// und IS_ECOSYSTEM_ENABLED darüber ist ihre Antwort".
+//
+// 💣 DER ANLASS (10.09.2026). Für den RIEGEL ist die Unterscheidung belanglos -- er fällt geschlossen
+// aus, solange nichts da ist, und das ist richtig. Für das ANZEIGEPROFIL der Landschaften ist sie
+// tragend: ein Editor, der mit `mapLayerMode=ecosystem` aus dem localStorage hereinkommt
+// (applyPlannerStateFromUrl, map-features-layer-state.js), stand in der Ebene, BEVOR seine Rechte da
+// waren. `canOperateEcosystemLayers()` sagte damit „nein", der BESUCHER-Zweig lief, lieh sich die
+// Ortsklassen und schaltete alle sechs AN -- und als die Auskunft eintraf, stieg der Editor-Zweig an
+// seinem eigenen „nur beim Eintreten leihen" aus und nahm nichts mehr zurück. Der Editor verlor seine
+// leere Zeichenfläche, ohne dass etwas kaputt aussah.
+//
+// 🔴 Solange dieser Merker `false` ist, fasst die Landschaften-Anzeige NICHTS an -- weder geliehen
+// noch gesetzt (siehe ecosystemAnzeigeAuskunftDa in map-features-ecosystem-layer-switch.js). Der Preis
+// ist ein kurzer Moment mit unprofilierter Karte; der Gegenwert ist, dass keine Rolle die Arbeit der
+// anderen überschreibt.
+let AVESMAPS_ECOSYSTEM_ACCESS_BEKANNT = false;
+
+function avesmapsEcosystemAccessBekannt() {
+	return AVESMAPS_ECOSYSTEM_ACCESS_BEKANNT === true;
+}
+
 // Wird von der Sitzungsantwort aufgerufen, sobald sie da ist. Idempotent und einbahnig.
+//
+// 💣 DER MERKER FLIEGT VOR JEDEM AUSSTIEG HOCH, AUCH BEI `granted === false`. „Du darfst nicht" IST
+// die Auskunft -- und sie ist die häufigste: jeder anonyme Besucher bekommt sie. Stünde die Zuweisung
+// hinter dem alten `if (granted !== true) return;`, flöge der Merker für ihn NIE hoch, und das
+// Anzeigeprofil, das nur ihm gilt, käme nie zur Anwendung.
 function applyEcosystemAccess(granted) {
-	if (granted !== true || IS_ECOSYSTEM_ENABLED) { return; }
-	IS_ECOSYSTEM_ENABLED = true;
+	const erstmals = !AVESMAPS_ECOSYSTEM_ACCESS_BEKANNT;
+	AVESMAPS_ECOSYSTEM_ACCESS_BEKANNT = true;
+	const freigeschaltet = granted === true && !IS_ECOSYSTEM_ENABLED;
+	if (freigeschaltet) {
+		IS_ECOSYSTEM_ENABLED = true;
+	}
+	// Ein zweiter Aufruf mit derselben Antwort hat nichts zu tun -- einbahnig wie bisher.
+	if (!erstmals && !freigeschaltet) { return; }
 	// 🔴 Die Oberfläche NACHZIEHEN. Seit 2026-08-04 darf jeder die Ebene ansehen, und ein Editor kann
 	// deshalb längst darin stehen, wenn die Rechteauskunft eintrifft (ein geteilter Link, der letzte
 	// Zustand). Ohne diesen Aufruf bliebe sein Bedienfeld verborgen, bis er den Modus einmal
 	// wechselt -- sichtbar als „bei mir fehlen die Ebenen-Kacheln".
+	// 🔴 UND SEIT 10.09.2026 AUCH FÜR DEN BESUCHER, dessen Antwort „nein" lautet: erst dieser Durchlauf
+	// wendet sein Anzeigeprofil an, weil vorher absichtlich nichts angefasst wurde.
 	if (typeof syncEcosystemControlsVisibility === "function") {
 		syncEcosystemControlsVisibility();
 	}
+	if (!freigeschaltet) { return; }
 	// 🪤 Der Beschriftungsfilter „nur mit Region" ergibt ohne Landschaftsmodul keinen Sinn: er würde
 	// jede Beschriftung verbergen (siehe bootstrap.js). Nur im Edit-Modus überhaupt vorhanden.
 	if (IS_EDIT_MODE) {
@@ -412,6 +449,12 @@ if (window.AvesmapsSession && typeof window.AvesmapsSession.load === "function")
 		// geblieben. Eine Regel, ein Ort.
 		applyEcosystemAccess(window.AvesmapsSession.grantsEcosystem());
 	});
+} else {
+	// 💣 OHNE DEN KANAL IST DIE AUSKUNFT TROTZDEM DA, und sie lautet „anonym". Ohne diese Zeile bliebe
+	// AVESMAPS_ECOSYSTEM_ACCESS_BEKANNT für immer `false` -- und „ein kurzer Moment mit unprofilierter
+	// Karte" wäre der Dauerzustand: der Besucher sähe in den Landschaften nie sein Profil. Am Riegel
+	// ändert der Aufruf nichts (`false` schaltet nichts frei).
+	applyEcosystemAccess(false);
 }
 // Die Zoombänder sofort losschicken, wie die Sitzungsabfrage darüber: wenige hundert Byte,
 // ETag-gecacht, und die Antwort ist lange vor der Kartennutzlast da -- Marker werden erst nach

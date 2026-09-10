@@ -286,11 +286,30 @@
 
 	// Der n-te der sechs Ortsklassen-Knöpfe, per echtem Klick: so laufen Filterreset, URL-Abgleich
 	// und Stufenlogik durch dieselbe Stelle wie beim Anklicken und können nicht auseinanderlaufen.
+	//
+	// 💣 UND DANACH: „HIER WAR DER BENUTZER" AUSDRÜCKLICH SAGEN. `button.click()` ist ein SYNTHETISCHER
+	// Klick und trägt `isTrusted: false` -- das Anzeigeprofil der Landschaften unterscheidet daran
+	// „echte Hand" von „unser eigenes Setzen" (ecosystemAnzeigeWahlMerken,
+	// map-features-ecosystem-layer-switch.js), und eine gedrückte Ziffer wäre damit keine Wahl gewesen:
+	// der nächste Ebenenwechsel hätte die Vorgabe darübergeschrieben, und die Taste sähe wirkungslos aus.
+	// 🔴 Eine gedrückte Taste IST die Hand des Benutzers -- die Frage lautet nicht „kam das Ereignis vom
+	// Browser", sondern „war das der Benutzer". Deshalb der zweite, benannte Weg statt einer Lockerung von
+	// `isTrusted`: alle programmatischen Schreiber zählen zu lassen würde auch die MODUS-Vorgaben
+	// (applyFrontendLayerModeDefaults) als Wahl verbuchen und das Profil sofort töten.
+	// 🔴 GENAU EIN AUFRUF, und er steht hier: SHORTCUTS ist die einzige Quelle der Tastentabelle, und
+	// `locationTier` ist die einzige ihrer Zeilen, die an einem dieser Schalter dreht (die Ansichten gehen
+	// über das `<select>`, die Route über Radios). Wer eine weitere Zeile dazu baut, prüft das hier.
+	// ⚠️ SYNCHRON nach `click()`, ohne setTimeout: `click()` kehrt erst zurück, wenn alle Zuhörer gelaufen
+	// sind -- die Klasse `is-active` steht dann schon. (Der setTimeout im Modul hat einen anderen Grund:
+	// dort lauscht es am Dokument und ist VOR dem eigenen Handler des Knopfes dran.)
 	function toggleLocationTier(tier) {
 		var buttons = document.querySelectorAll(".location-toggle");
 		var button = buttons[tier - 1];
 		if (button && tier >= 1 && tier <= LOCATION_TIER_COUNT) {
 			button.click();
+			if (typeof ecosystemAnzeigeNutzerhand === "function") {
+				ecosystemAnzeigeNutzerhand();
+			}
 		}
 	}
 

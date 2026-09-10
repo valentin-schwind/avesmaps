@@ -200,9 +200,14 @@ function syncEcosystemPaneStates() {
 	syncEcosystemFrontendFeatures();
 	syncEcosystemSettlementVisibility(isEcosystemLayerModeActive());
 	// 🔴 UND DER UNTERGRUND SAMT KACHELN. Er hing bis 23.08.2026 allein am MODUS-Wechsel
-	// (syncEcosystemControlsVisibility) -- ein Wechsel der EBENE liess ihn stehen. Das fiel erst auf,
-	// als der Wert je Ebene verschieden wurde: von „Alle“ nach Vegetation blieb er auf 0 und die
-	// Kacheln abgehängt, obwohl diese Ebene 25 % vorschreibt. Im Browser gemessen, nicht hergeleitet.
+	// (syncEcosystemControlsVisibility) -- ein Wechsel der EBENE liess ihn stehen. Aufgefallen ist das
+	// damals, weil der Wert je Ebene verschieden war: von „Alle“ nach Vegetation blieb er auf 0 und die
+	// Kacheln abgehängt, obwohl jene Ebene 25 % vorschrieb. Im Browser gemessen, nicht hergeleitet.
+	// ⚠️ Seit 09.09.2026 tragen alle fünf Ebenen denselben Wert (0 %), der ANLASS dieser Aufrufstelle ist
+	// also weg -- sie bleibt trotzdem, und zwar nicht aus Vorsicht: der Besucher kann seinen Untergrund
+	// nicht wählen, der Editor aber seinen Regler ziehen, und BEIDE Rollen laufen bei einem Ebenenwechsel
+	// genau hier vorbei. Die Stelle zu streichen, weil fünf gleiche Zahlen dastehen, hiesse sie beim
+	// ersten je-Ebene-Wert von Aufgabe 8 neu zu finden.
 	applyEcosystemUndergroundOpacity(isEcosystemLayerModeActive());
 }
 
@@ -433,6 +438,32 @@ const ECOSYSTEM_FRONTEND_PROFIL = Object.freeze({
 	orte: true, wege: true, labels: true, grenzen: true, fluesse: true, untergrund: 0,
 });
 
+// 🔴 IST DIE RECHTEAUSKUNFT DA? „Besucher" und „Rechte noch unbekannt" sind ZWEI Zustände, und bis
+// zum 10.09.2026 waren sie einer -- `canOperateEcosystemLayers()` antwortet auf beides „nein".
+//
+// 💣 DER FALL, DER DAS GEKOSTET HAT. Ein Editor kommt mit `mapLayerMode=ecosystem` aus dem
+// localStorage herein (applyPlannerStateFromUrl, map-features-layer-state.js) -- er steht also in der
+// Ebene, BEVOR seine Sitzungsantwort eintrifft. Der Besucher-Zweig von
+// syncEcosystemSettlementVisibility lief daraufhin für ihn, lieh sich seine Ortsklassen und schaltete
+// alle sechs AN; als die Auskunft dann kam, stieg der Editor-Zweig an seinem eigenen „nur beim
+// Eintreten leihen" aus (`ecosystemSettlementMemory !== null`) und nahm nichts mehr zurück. Seine
+// leere Zeichenfläche war weg, und nichts daran sah kaputt aus.
+//
+// 🔴 DIE REGEL: solange die Auskunft fehlt, wird NICHTS angefasst -- weder geliehen noch gesetzt.
+// Sobald sie da ist, wird angewendet (applyEcosystemAccess ruft dafür syncEcosystemControlsVisibility,
+// js/config.js). Der Preis ist ein kurzer Moment, in dem die Karte unprofiliert dasteht; die
+// Gegenrichtung kostet einem Editor seine Arbeitsfläche.
+//
+// ⚠️ FÄLLT OFFEN AUS. Ohne js/config.js (ein Testaufbau, eine Seite ohne Konfiguration) gilt
+// „bekannt" -- dasselbe Muster wie bei IS_ECOSYSTEM_ENABLED daneben: eine fehlende fremde Globale
+// heisst hier „verhalte dich wie bisher", nicht „halt für immer still".
+// 💣 DREI LESER, und jeder steht dort, wo sonst etwas angefasst würde: dieses Profil (und über
+// ecosystemAnzeigeSoll damit die Haken, die Ortsklassen und die Nutzerwahl), der Fluss-Haken und der
+// Untergrund. syncEcosystemSettlementVisibility braucht keinen eigenen -- siehe die Begründung dort.
+function ecosystemAnzeigeAuskunftDa() {
+	return typeof avesmapsEcosystemAccessBekannt !== "function" || avesmapsEcosystemAccessBekannt();
+}
+
 // Das Profil des GERADE zusehenden Besuchers -- oder `null` für „hier wird nichts angefasst“.
 //
 // 💣 `null` ist kein Rückfall auf eine ruhigere Fassung, sondern eine eigene Aussage: der Editor und
@@ -440,6 +471,10 @@ const ECOSYSTEM_FRONTEND_PROFIL = Object.freeze({
 // seine Haken oder greift in „Politisch“ hinein.
 function ecosystemFrontendProfile() {
 	if (typeof isEcosystemLayerModeActive !== "function" || !isEcosystemLayerModeActive()) {
+		return null;
+	}
+	// 🔴 VOR der Rechtefrage, nicht danach: „noch nicht beantwortet" ist kein „nein" (siehe oben).
+	if (!ecosystemAnzeigeAuskunftDa()) {
 		return null;
 	}
 	if (canOperateEcosystemLayers()) {
@@ -478,8 +513,14 @@ let ecosystemAnzeigeWahlGebunden = false;
 // Richtung: eine Wahl mit LEERER Ortstafel saehe aus wie „der Nutzer will keine Orte sehen" und
 // schaltete ihm ab dem naechsten Ebenenwechsel alle sechs Klassen aus. Ein lauter Fehlschlag in einem
 // Ereignis-Zuhoerer ist dagegen folgenlos.
+// 💣 UND OHNE `untergrund`. Der Besucher hat den Regler nicht -- er KANN den Untergrund also gar nicht
+// wählen, und was er nicht wählen kann, gehört nicht in den Satz „das hat er gewählt". Bis zum
+// 10.09.2026 stand hier ein abgeschriebenes `untergrund: 0` neben dem `untergrund: 0` des Profils:
+// derselbe Wert, zwei Schreiber, von keinem Test gehalten. Ab der ersten echten Hand hätte ein
+// künftiger Profilwert damit still auf 0 gefallen -- und genau dieses Feld liest Aufgabe 8. Gefüllt
+// wird es jetzt an EINER Stelle, in ecosystemAnzeigeSoll, und immer aus dem Profil.
 function ecosystemAnzeigeLesen() {
-	const stand = { orte: {}, untergrund: 0 };
+	const stand = { orte: {} };
 	Object.keys(ECOSYSTEM_ANZEIGE_HAKEN).forEach((feld) => {
 		const haken = document.getElementById(ECOSYSTEM_ANZEIGE_HAKEN[feld]);
 		stand[feld] = Boolean(haken && haken.checked);
@@ -504,7 +545,11 @@ function ecosystemAnzeigeSoll() {
 		return null;
 	}
 	if (ecosystemAnzeigeWahl) {
-		return ecosystemAnzeigeWahl;
+		// 🔴 DER UNTERGRUND KOMMT AUCH HIER AUS DEM PROFIL, nie aus der Wahl. Er ist das einzige Feld des
+		// Solls, für das es im Anzeige-Menü des Besuchers kein Bedienelement gibt (der Regler gehört dem
+		// Editor) -- er kann ihn also nicht gewählt haben. Ein zweiter Schreiber dafür wäre ein gekoppelter
+		// Wert an zwei Stellen, und Aufgabe 8 liest genau dieses Feld.
+		return Object.assign({}, ecosystemAnzeigeWahl, { untergrund: profil.untergrund });
 	}
 	// Die Vorgabe in DIE Form bringen, in der auch die Nutzerwahl steht -- eine Form, ein Leser.
 	// ⚠️ MIT DERSELBEN WACHE WIE syncEcosystemSettlementVisibility DARUNTER. Die Liste kommt aus
@@ -560,11 +605,34 @@ function ecosystemAnzeigeWahlMerken(ereignis) {
 	if (!ereignis || ereignis.isTrusted !== true) {
 		return;
 	}
-	if (typeof isEcosystemLayerModeActive !== "function" || !isEcosystemLayerModeActive()) {
+	ecosystemAnzeigeNutzerhand();
+}
+
+/**
+ * „HIER WAR DER BENUTZER." Der ZWEITE Weg, und er ist ausdrücklich statt gemessen.
+ *
+ * 🔴 ES GIBT ZWEI WEGE, WEIL DIE FRAGE NICHT „kam das Ereignis vom Browser" LAUTET, SONDERN „war das
+ * der Benutzer". Für Maus und Label-Klick beantwortet `isTrusted` das richtig. Für die TASTATUR nicht:
+ * die Tastenkürzel 1–6 legen eine Ortsklasse über `button.click()` um (SHORTCUTS-Zeile `locationTier`,
+ * js/app/keyboard-shortcuts.js), und ein synthetischer Klick trägt `isTrusted: false`. Ohne diesen
+ * zweiten Weg wäre eine gedrückte Taste keine Wahl -- der nächste Ebenenwechsel schriebe die Vorgabe
+ * darüber, und der Benutzer sähe seine Ziffer wirkungslos werden.
+ *
+ * 💣 DIE GEGENRICHTUNG IST VERWORFEN: alle programmatischen Schreiber als Wahl zu zählen und nur die
+ * eigenen auszuklammern. Dann verbuchte `applyFrontendLayerModeDefaults` beim Moduswechsel die
+ * MODUS-Vorgaben als Wahl, und das Profil wäre sofort tot. Darum bleibt `isTrusted` die Regel und
+ * diese Funktion die benannte Ausnahme -- mit genau EINEM Aufrufer von aussen.
+ *
+ * ⚠️ Wer einen weiteren Bedienweg baut, der ohne echtes Ereignis an diesen Schaltern dreht, ruft sie
+ * hier -- nicht einen dritten Merker daneben.
+ */
+function ecosystemAnzeigeNutzerhand() {
+	// 🔴 EINE Regel, EIN Ort: „gibt es hier überhaupt eine Besucherwahl zu merken" beantwortet
+	// ecosystemFrontendProfile -- Landschaftsmodus, Rechteauskunft da, und kein Editor (die Wahl gehört
+	// dem Besucher; der Editor hat seine eigenen Haken). Bis zum 10.09.2026 standen zwei dieser drei
+	// Fragen hier noch einmal abgeschrieben, und die dritte fehlte dadurch.
+	if (!ecosystemFrontendProfile()) {
 		return;
-	}
-	if (canOperateEcosystemLayers()) {
-		return;   // die Wahl gehört dem Besucher; der Editor hat seine eigenen Haken
 	}
 	ecosystemAnzeigeWahl = ecosystemAnzeigeLesen();
 }
@@ -621,10 +689,15 @@ function ecosystemSetzeAnzeigeHaken(id, soll) {
 // Beschriftungen gar nicht an -- die vier ruhigen Ebenen waren ohnehin leer, und in „Alle" stand der
 // Haken meist schon richtig. Mit „alles an in allen Ebenen" ist er ein Schalter wie die anderen drei.
 //
-// ⚠️ Straßen und Grenzen brauchen hier KEINE Erinnerung: beide werden bei jedem Kartenmodus-Wechsel
-// ohnehin neu gesetzt -- die Wege und die Grenzen beide in `setSelectedMapLayerMode`
-// (map-features-display-mode.js). Das Verlassen des Modus stellt sie also von selbst richtig, und eine
-// zweite Erinnerung daneben liefe genau dort auseinander, wo es niemandem auffiele.
+// ⚠️ ALLE DREI brauchen hier KEINE Erinnerung -- Straßen, Grenzen UND Beschriftungen: jeder der drei
+// Haken wird bei jedem Kartenmodus-Wechsel ohnehin neu gesetzt, alle aus `setSelectedMapLayerMode`
+// (map-features-display-mode.js). Die Wege und die Grenzen dort direkt, `#toggleMapLabels` über
+// `syncEditorDisplayTogglesToMode` gegen `MAP_LABEL_MODES` (js/config.js: `deregraphic` und
+// `ecosystem`). Das Verlassen des Modus stellt sie also von selbst richtig, und eine zweite Erinnerung
+// daneben liefe genau dort auseinander, wo es niemandem auffiele.
+// 💣 Bis 10.09.2026 nannte dieser Absatz nur Wege und Grenzen, obwohl die Beschriftungen am Tag davor
+// dazugekommen waren -- der dritte Haken stand ohne Begründung da, und wer sie gesucht hätte, hätte
+// sie an der falschen Stelle (bei `setSelectedMapLayerMode` selbst) nicht gefunden.
 // 💣 Bis 26.08.2026 stand hier „die Wege von applyFrontendLayerModeDefaults" -- und DIE laeuft nur aus
 // dem Umschalter und aus restorePlannerState, im Editor gar nicht bis zu den Wegen. Die Zusicherung
 // galt damit fuer jeden anderen Weg in die Standardansicht nicht: wer aus den Landschaften heraus den
@@ -677,6 +750,18 @@ function syncEcosystemBaseTiles(sichtbar) {
 
 function applyEcosystemUndergroundOpacity(active) {
 	if (typeof map === "undefined" || !map || typeof map.getPane !== "function") {
+		return;
+	}
+
+	// 🔴 SOLANGE DIE RECHTEAUSKUNFT FEHLT, WIRD NICHTS ANGEFASST. Ohne Soll faellt der Wert unten auf
+	// ECOSYSTEM_UNDERGROUND_FRONTEND (25 %) -- und bei 0 % nimmt diese Funktion sogar die Kachelebene von
+	// der Karte. Wer gleich als Editor erkannt wird, saehe seinen Untergrund also erst auf 25 springen und
+	// dann auf seinen Reglerwert; wer Besucher ist, saehe ihn auf 25 und dann auf 0 samt verschwindenden
+	// Kacheln. Der kurze Moment mit vollem Untergrund ist die ruhigere Haelfte.
+	// ⚠️ NUR mit `active`. Das Verlassen des Modus (`active === false`) setzt auf 100 % zurueck und muss
+	// immer laufen -- ein halb ausgeblasster Untergrund in „Politisch" saehe wie ein kaputter Kachelserver
+	// aus, und genau dagegen steht dieser Pfad seit 2026-07-26.
+	if (active && !ecosystemAnzeigeAuskunftDa()) {
 		return;
 	}
 
@@ -746,6 +831,17 @@ function syncEcosystemSettlementVisibility(inLayer) {
 	// Rückgabe-Zweig fallen, und er bekäme mitten in der Ebene seine Ortsknöpfe zurück. Das wäre ein
 	// Verhaltenswechsel, den niemand bestellt hat; deshalb steht `canOperateEcosystemLayers()` hier
 	// ausdrücklich noch einmal und nicht nur in ecosystemFrontendProfile.
+	//
+	// 🔴 UND EIN VIERTER ZUSTAND, DER KEINEN EIGENEN RIEGEL BRAUCHT: die Rechteauskunft ist noch nicht da
+	// (10.09.2026, ecosystemAnzeigeAuskunftDa). Dann fassen alle drei Zweige von selbst nichts an --
+	// (A) fällt weg, weil `ecosystemAnzeigeSoll()` ohne Auskunft `null` gibt; (B) fällt weg, weil
+	// `canOperateEcosystemLayers()` ohne Auskunft „nein" sagt; (C) kehrt an `ecosystemSettlementMemory
+	// === null` zurück, denn vorher kann nichts geliehen worden sein. Ein zusätzlicher `return` hier wäre
+	// dieselbe Aussage ein viertes Mal.
+	// 💣 WER DARAN DREHT, MUSS DIESE KETTE NACHRECHNEN. Genau sie war am 10.09.2026 gebrochen: (A) lief
+	// für einen Editor, weil „unbekannt" wie „Besucher" aussah, lieh sich seine Ortsklassen und schaltete
+	// sie an -- und (B) stieg danach an seinem eigenen „nur beim Eintreten leihen" aus. Festgenagelt ist
+	// das als ROLLENUMSCHLAG in js/map-features/__tests__/anzeigewahl-schlaegt-vorgabe.test.js.
 	const drin = Boolean(inLayer);
 	const soll = drin ? ecosystemAnzeigeSoll() : null;
 	const editorDrin = drin && !soll && canOperateEcosystemLayers();
@@ -831,6 +927,18 @@ function syncEcosystemRiverVisibility() {
 	// ruft es auf BEIDEN Wegen. Ohne diese Frage naehme die Landschaften-Ebene den Fluss-Haken der
 	// ganzen Karte in Beschlag, und „Standard" haette danach keine Fluesse mehr.
 	const drin = typeof isEcosystemLayerModeActive === "function" && isEcosystemLayerModeActive();
+
+	// 🔴 SOLANGE DIE RECHTEAUSKUNFT FEHLT, WIRD NICHTS ANGEFASST -- UND „NICHTS" HEISST AUCH: NICHT
+	// GELIEHEN. Diese Funktion braucht den Riegel ausdruecklich, anders als ihre Nachbarn: ohne Soll
+	// faellt sie auf die EDITOR-Tabelle zurueck, und bei unbekannten Rechten hat sie gar kein Soll. Sie
+	// wuerde also einem Besucher die Ebenenregel des Editors aufdruecken -- und dabei seinen Hakenstand
+	// in einem Moment leihen, in dem applyPlannerStateFromUrl ihn vielleicht noch gar nicht gesetzt hat.
+	// Beides heilt die Auskunft danach nicht mehr, weil das Leihen nur EINMAL geschieht.
+	// ⚠️ Nur im DRIN-Fall. Der Rueckgabe-Zweig darunter muss laufen duerfen: er gibt zurueck, was diese
+	// Ebene sich geliehen hat, und das kann nur passiert sein, als die Auskunft schon da war.
+	if (drin && !ecosystemAnzeigeAuskunftDa()) {
+		return;
+	}
 
 	let soll;
 	if (drin) {
@@ -1177,7 +1285,12 @@ function syncEcosystemControlsVisibility() {
 	controlsElement.hidden = !shouldShow;
 	// 🪤 DER UNTERGRUND-REGLER BLEIBT DEM EDITOR. Er ist eine Zeichenhilfe („die gemalte Landschaft soll
 	// die gezogene nicht überstimmen"), und wer ihn bekommt, muss auch etwas zu zeichnen haben. Der
-	// Besucher sieht den ausgeblassten Untergrund trotzdem -- nur mit festem Wert (25 %).
+	// Besucher bekommt den festen Wert seines Anzeigeprofils -- seit 09.09.2026 0 %, und bei 0 % wird die
+	// Kachelebene sogar von der Karte genommen (syncEcosystemBaseTiles). Er sieht unter den
+	// Landschaftsflächen also gar keinen Untergrund mehr, nicht einen ausgeblassten.
+	// 💣 Bis 10.09.2026 stand hier „nur mit festem Wert (25 %)" -- das war bis zum 23.08.2026 richtig, dann
+	// hing der Wert an der Ebene, und seit dem 09.09.2026 ist er 0. Wer nach „warum sind die Kacheln weg"
+	// suchte, las hier, sie seien da.
 	const undergroundElement = controlsElement.querySelector(".ecosystem-underground");
 	if (undergroundElement) {
 		undergroundElement.hidden = !operable;
@@ -1189,12 +1302,15 @@ function syncEcosystemControlsVisibility() {
 	// 🔴 Der ausgeblasste Untergrund gehört zur ANSICHT, nicht zum Werkzeug (Owner 2026-08-04). Er
 	// nimmt die gemalte Karte zurück, damit die Landschaftsflächen überhaupt zu lesen sind -- das gilt
 	// für den Besucher genauso wie für den, der darauf zeichnet. Nur der WERT unterscheidet sich: der
-	// Editor bekommt seinen Regler, der Besucher den Wert seiner EBENE (ecosystemFrontendProfile).
+	// Editor bekommt seinen Regler, der Besucher den seines Anzeigeprofils -- seit 09.09.2026 in allen
+	// fünf Ebenen dieselben 0 % (ECOSYSTEM_FRONTEND_PROFIL, ecosystemAnzeigeSoll).
 	//
 	// 🪤 GESETZT WIRD ER IN syncEcosystemPaneStates, NICHT HIER. Diese Funktion läuft nur beim
-	// MODUS-Wechsel; seit der Wert je Ebene verschieden ist, muss er auch dem EBENEN-Wechsel folgen --
-	// und der kommt nur dort vorbei. Beide Wege dieser Funktion enden auf syncEcosystemPaneStates, das
-	// Verlassen des Modus ist damit abgedeckt.
+	// MODUS-Wechsel, der Wert muss aber auch dem EBENEN-Wechsel folgen -- und der kommt nur dort vorbei.
+	// Beide Wege dieser Funktion enden auf syncEcosystemPaneStates, das Verlassen des Modus ist damit
+	// abgedeckt. ⚠️ Bis 10.09.2026 begründete diese Zeile das mit „seit der Wert je Ebene verschieden ist";
+	// das galt vom 23.08. bis 09.09.2026 und stimmt seither nicht mehr. Der Grund, der bleibt, ist der
+	// Regler des Editors: den kann er in jeder Ebene ziehen.
 	// Die Orte treten für JEDEN zurück, der die Ebene ansieht -- nicht nur für den, der sie bedienen
 	// darf. Deshalb `shouldShow` und nicht `operable`: es ist eine Eigenschaft der Ansicht, keine
 	// Zeichenhilfe. Steht wie die Zeile darüber VOR dem frühen Ausstieg, damit das Verlassen des Modus

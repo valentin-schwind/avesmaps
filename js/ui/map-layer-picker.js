@@ -237,11 +237,18 @@
 		powerlines: "saturate(0.1) brightness(0.6)"
 	};
 
-	// 🔴 Die Landschaften-Ansicht BLENDET den Untergrund ab (Owner 26.08.2026). Der echte Wert fuer
-	// Besucher ist ECOSYSTEM_UNDERGROUND_FRONTEND = 25 (%), nicht 50 -- Editoren haben dafuer einen
-	// Regler. Ausgeblendet wird gegen --color-ecosystem-underground (#d3cec2), NICHT gegen Weiss:
-	// deshalb steht hinter dem Bild eine Flaeche in genau diesem Ton, sonst schiene das Panel durch
-	// und der Farbeindruck waere ein anderer als auf der Karte.
+	// 🔴 Die Landschaften-Ansicht BLENDET den Untergrund ab (Owner 26.08.2026). Ausgeblendet wird gegen
+	// --color-ecosystem-underground (#d3cec2), NICHT gegen Weiss: deshalb steht hinter dem Bild eine
+	// Flaeche in genau diesem Ton, sonst schiene das Panel durch und der Farbeindruck waere ein anderer
+	// als auf der Karte.
+	//
+	// ⚠️ DIE 0.25 SIND SEIT DEM 09.09.2026 NICHT MEHR DER ECHTE WERT. Bis 10.09.2026 stand hier, der
+	// Besucher sehe ECOSYSTEM_UNDERGROUND_FRONTEND = 25 (%) -- das galt bis zum 23.08.2026 und danach nur
+	// noch fuer „Alle"; seit dem 09.09.2026 schreibt das Anzeigeprofil allen fuenf Ebenen 0 % vor
+	// (ECOSYSTEM_FRONTEND_PROFIL in js/map-features/map-features-ecosystem-layer-switch.js), und bei 0 %
+	// nimmt syncEcosystemBaseTiles die Kachelebene ganz von der Karte. Die Kachel zeigt also einen
+	// Untergrund, den es auf der Karte nicht mehr gibt. 🔧 Die ZAHL hier aendert Aufgabe 8 des Umbaus --
+	// absichtlich nicht hier, damit eine Kommentarkorrektur nicht nebenbei das Bild umstellt.
 	const GRUND_DECKKRAFT = {
 		ecosystem: 0.25
 	};
