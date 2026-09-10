@@ -1209,6 +1209,44 @@ function locationPopupMarkup({
 // Klicken wissen muss: welches Label das ist, woran es haengt, und was er damit tun kann.
 function labelPopupMarkup(entry) {
 	const region = typeof ecosystemRegionOfLabel === "function" ? ecosystemRegionOfLabel(entry.label) : null;
+
+	return locationPopupMarkup({
+		name: entry.label.text || tr("popup.labelNameFallback", "Label"),
+		locationTypeLabel: labelPopupSubtitle(entry.label, region),
+		showHeaderIcon: false,
+		compact: true,
+		showType: true,
+		showDescription: false,
+		showWikiLink: false,
+		actionsMarkup: labelEditorBandMarkup(entry.label),
+	});
+}
+
+// Der Editor-Kasten einer Beschriftung -- EIN Bauer fuer die ZWEI Flaechen, auf denen ein Editor eine
+// Beschriftung antrifft: das schwebende Menue an der Karte (labelPopupMarkup, direkt darueber) UND die
+// Infobox im rechten Panel (buildRegionLabelViewPopupHtml, map-features-labels.js).
+//
+// 💣 BIS ZUM 10.09.2026 HATTE IHN NUR DIE ERSTE. Die Infobox zeigte einem angemeldeten Admin die
+// BESUCHER-Kacheln („Link teilen", „Aenderungen vorschlagen") und sonst nichts -- am Zeiger faellt das
+// kaum auf, weil das schwebende Menue daneben auf der Karte liegt. AM TELEFON DECKT DAS PANEL DIE
+// KARTE: das Menue ist dort unerreichbar, und damit kam ein Editor an seine eigene Flaeche gar nicht
+// mehr heran. Owner 10.09.2026 mit Bild (Moosgrunder Tann, als „valentin | admin"): „ich kann
+// Moosgrunder Tann ueberhaupt nicht bearbeiten - die symbole fehlen", und auf die Rueckfrage: „nein
+// ich will ueber die infobox rein editieren".
+//
+// 🔴 DER RIEGEL BLEIBT, WO ER STEHT: `labelActionsMarkup` steigt bei `!IS_EDIT_MODE` selbst aus. Dieser
+// Bauer kann an einer Besucherflaeche deshalb nichts ausrichten -- er gibt dort "" zurueck, und die
+// Infobox eines Besuchers ist Zeichen fuer Zeichen die von vorher. Eine zweite Rechteabfrage HIER waere
+// die zweite Wahrheit, die auseinanderlaeuft.
+//
+// ⭐ UND DIE KACHELN WIRKEN IM PANEL OHNE EINE ZEILE VERDRAHTUNG -- nachgemessen, nicht angenommen:
+// ihr Klick haengt an `$(document).on("click", ".location-popup__action-button", ...)`
+// (js/routing/routing.js), also am DOKUMENT und nicht am Karten-Popup. Ebenso das Aussehen: das Blatt
+// traegt `.avesmaps-infopanel .location-popup__editor-band > .location-popup__actions` und sogar eine
+// Regel fuer „Besucherzeile GEFOLGT von Editor-Kasten" seit jeher -- die Ortschaften nutzen beides im
+// Panel laengst, die Landschaften haben es nie bekommen.
+function labelEditorBandMarkup(label) {
+	const region = typeof ecosystemRegionOfLabel === "function" ? ecosystemRegionOfLabel(label) : null;
 	const regionPublicId = String(region?.public_id || "");
 
 	// 🔴 Die Warnung NUR bei den alten -- Labels ohne Landschaftsflaeche. Ein Label mit Flaeche ist
@@ -1227,21 +1265,12 @@ function labelPopupMarkup(entry) {
 	// darunter sagt dasselbe in der Form des Hauses (Überschrift + Pille), und zwei Vokabeln für eine
 	// Aussage sind genau das, was diese Reihe von Änderungen abschafft. Übrig bleibt die Aufforderung
 	// selbst -- sie ist der Inhalt, „nur für Editoren" war nur die Adresse.
-	const istGipfel = typeof isEcosystemPeakSubtype === "function" && isEcosystemPeakSubtype(entry.label?.labelType);
+	const istGipfel = typeof isEcosystemPeakSubtype === "function" && isEcosystemPeakSubtype(label?.labelType);
 	const warnung = regionPublicId === "" && !istGipfel
 		? '<p class="location-popup__editor-warning">Durch Fläche ersetzen</p>'
 		: "";
 
-	return locationPopupMarkup({
-		name: entry.label.text || tr("popup.labelNameFallback", "Label"),
-		locationTypeLabel: labelPopupSubtitle(entry.label, region),
-		showHeaderIcon: false,
-		compact: true,
-		showType: true,
-		showDescription: false,
-		showWikiLink: false,
-		actionsMarkup: labelActionsMarkup(entry.label.publicId, warnung, { hatFlaeche: regionPublicId !== "" }),
-	});
+	return labelActionsMarkup(label?.publicId, warnung, { hatFlaeche: regionPublicId !== "" });
 }
 
 // Untertitel: Kategorie, und -- wenn das Label an einer Flaeche haengt -- woraus die Region besteht.

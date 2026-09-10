@@ -692,6 +692,16 @@ function buildRegionLabelViewPopupHtml(label) {
 		// "Link teilen" (Owner) direkt unter dem Kopf, die Landschafts-Infobox (Lage/Staat/Beschreibung +
 		// Quelle) darunter -- gleiche Anordnung wie Siedlung/Territorium/Weg.
 		actionsMarkup: locationPopupActionsMarkup([sharePlaceActionButtonMarkup(label.publicId, { wikiUrl: (label.wikiRegion && label.wikiRegion.wiki_url) || "", wikiParam: "region" }), (function () { var s = typeof buildSuggestChangeButtonSpec === "function" ? buildSuggestChangeButtonSpec({ entityType: "region", entityId: label.publicId, name: labelName, reportType: "region", lat: (label.coordinates && label.coordinates[0]), lng: (label.coordinates && label.coordinates[1]), label: tr("popup.suggestChange", "Änderungen vorschlagen") }) : null; return s ? popupActionButtonMarkup(s) : ""; })()].filter(Boolean))
+			// 💣 DER EDITOR-KASTEN STEHT ZWISCHEN KACHELZEILE UND WIKI-INFOBOX, nicht am Ende. Das Blatt
+			// traegt dafuer seit jeher eine eigene Regel („.location-popup__actions:has(+ .location-popup__
+			// editor-band)", css/features/infopanel.css) -- die Ortschaften nutzen sie im Panel laengst.
+			// Unten waere er hinter „Quelle:" gelandet und damit hinter der Owner-Regel „Quellen immer
+			// unten" (§11), die dort das letzte Wort haben soll.
+			// 🔴 Der typeof-Riegel ist der Hausstil der Nachbarzeile und hier die SICHERE Richtung: faellt
+			// js/ui/popups.js einmal aus, fehlt dem Editor sein Kasten -- ein nackter Aufruf risse mit einem
+			// ReferenceError den ganzen Bauer mit, und dann sieht JEDER Besucher keine Beschriftungen mehr
+			// (die Regression vom 03.09.2026, AGENTS.md §11).
+			+ (typeof labelEditorBandMarkup === "function" ? labelEditorBandMarkup(label) : "")
 			+ labelWikiInfoboxMarkup(label, { headless: true }),
 	}) + (typeof buildRegionCityMapsMarkup === "function" ? buildRegionCityMapsMarkup(label) : "")
 		+ (typeof buildRegionGameLiteratureMarkup === "function" ? buildRegionGameLiteratureMarkup(label) : "");
