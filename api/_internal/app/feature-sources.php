@@ -3210,6 +3210,83 @@ function avesmapsPoliticalTerritoryWikiNamespaces(PDO $pdo): array
 }
 
 /**
+ * DER FUENFTE EINGANG: DIE LANDSCHAFTSFLAECHE.
+ *
+ * 🚩 Owner-Meldung 10.09.2026 am Urwald „Altenforst", mit Bild: Kopf INOFFIZIELL │ Briefspiel,
+ * darunter die Wiki-Zeile INOFFIZIELL │ Wiki-Artikel -- waehrend die Zuweisung stimmt und in den
+ * HAUPTRAUM zeigt. „das ging mal alles richtig. jetzt ist es wieder kaputt sowas darf nicht
+ * passieren."
+ *
+ * 💣 DIE ZUWEISUNG WURDE GELESEN UND UNTER EINEM SCHLUESSEL ABGELEGT, DEN NIEMAND FRAGT. Seit
+ * Schritt 5 des Quellen-Umbaus (03.09.2026) traegt die FLAECHE die Quellen einer gebundenen
+ * Beschriftung; `avesmapsLabelQuellenSchluessel` liefert dafuer `ecosystem:<region_public_id>`,
+ * und derselbe Schluessel holt das Kanon-Etikett (map-features-labels.js). Der Namensraum
+ * dagegen entsteht in avesmapsMapFeaturesWikiNamespaces als `region:<label_public_id>` -- richtig
+ * gerechnet, nur am falschen Haken. Nachgestellt und gemessen:
+ *
+ *   dieselbe Beschriftung FREI     -> region:…    ns 0 -> „offiziell"       ✅
+ *   dieselbe Beschriftung GEBUNDEN -> ecosystem:… kein ns -> Quellen allein -> „inoffiziell │ briefspiel"
+ *
+ * 🔴 UND ES GING IN BEIDE RICHTUNGEN FALSCH, die zweite ist die schlimmere: eine Flaeche aus
+ * ns 222 MIT einer offiziellen Quelle stand als „offiziell" da -- Fanmaterial mit Kanon-Anspruch.
+ * Rang 1 (ns 222 schlaegt die Quellenlage) war fuer sie genauso unerreichbar wie Rang 2.
+ *
+ * 💣 SICHTBAR WURDE ES ERST DURCH DIE QUELLEN, NICHT DURCH DEN UMBAU. Ohne Verweis gibt es gar
+ * kein Etikett, mit Verweisen ohne Ableitung gilt die Vorgabe „offiziell" -- eine Flaeche sah also
+ * so lange richtig aus, bis ihr jemand die erste INOFFIZIELLE Quelle eintrug. Genau das tut der
+ * Garetien-Importer dieser Tage reihenweise.
+ *
+ * 🔴 HIER IST DIE ADRESSE DIE ZUWEISUNG -- wie bei `political_territory.wiki_url` und aus
+ * demselben Grund: `ecosystem_region.wiki_url` fuellt nur ein Schreibvorgang, es wird nichts
+ * geraten. `wiki_region_key` wird ausschliesslich DARAUS abgeleitet (avesmapsEcosystemReadRegionFields:
+ * „the two must never drift apart"), die Spalte ist also da, wo eine Zuweisung ist.
+ * ⚠️ Nur aktive Flaechen -- eine Zeile im Papierkorb beschriftet nichts mehr.
+ *
+ * ⚠️ DIE FLAECHE ENTSCHEIDET, NICHT DAS SCHILD. Die Beschriftung traegt eine KOPIE
+ * (avesmapsEcosystemPushWikiRegionToLabels, Owner 01.09.2026); die Flaeche ist das Original und
+ * bleibt es auch dann, wenn mehrere Beschriftungen an ihr haengen (1:N, 13 von 1026 Flaechen).
+ * Ueber die Kopien gelesen braeuchte es eine Uneinigkeitsregel wie bei den Wegsegmenten -- ueber
+ * das Original gibt es nichts zu entscheiden.
+ * 🔧 OFFEN, dieselbe Luecke wie beim Territorium daneben: `assign_wiki_region` stoesst
+ * `map_revision` nur an, wenn dabei wirklich eine Beschriftung nachgezogen wird. Traegt eine
+ * Beschriftung die Adresse schon und bekommt die Flaeche sie erst jetzt, behaelt ein WARMER
+ * Browser sein altes Etikett bis zum naechsten Kartenschreiber. Selten und kurzlebig -- aber eine
+ * Luecke und keine Zusage.
+ *
+ * @return array<string, int> "ecosystem:public_id" => Namensraum
+ */
+function avesmapsEcosystemRegionWikiNamespaces(PDO $pdo): array
+{
+    try {
+        $rows = $pdo->query(
+            "SELECT public_id, wiki_url FROM ecosystem_region WHERE is_active = 1"
+        )->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Throwable $fehler) {
+        // ⚠️ Protokolliert, nicht geschluckt -- ein SQL-Fehler saehe sonst exakt aus wie „keine
+        // Flaeche ist zugewiesen" (die HY093-Falle von „Was ist hier?", AGENTS.md §11). Die
+        // Kartennutzlast darf er nicht mitreissen: „kein Etikett" ist ein gueltiger Zustand.
+        error_log('avesmapsEcosystemRegionWikiNamespaces: ' . $fehler->getMessage());
+
+        return [];
+    }
+
+    $out = [];
+    foreach ($rows as $row) {
+        $publicId = (string) ($row['public_id'] ?? '');
+        $wikiUrl = trim((string) ($row['wiki_url'] ?? ''));
+        if ($publicId === '' || $wikiUrl === '') {
+            continue;
+        }
+        $ns = avesmapsWikiNamespaceFromWikiUrlMitHauptraum($wikiUrl);
+        if ($ns !== null) {
+            $out['ecosystem:' . $publicId] = $ns;
+        }
+    }
+
+    return $out;
+}
+
+/**
  * DAS KANON-ETIKETT JE OBJEKT -- abgeleitet, nie getippt.
  * ---------------------------------------------------------------------------
  * Entwurf: docs/superpowers/specs/2026-08-27-kanon-etikett-design.md
@@ -3270,11 +3347,19 @@ function avesmapsPoliticalTerritoryWikiNamespaces(PDO $pdo): array
  * davor -- die Altquellen wurden dort erst in Katalog und Verweise gefaltet. Der Erzeuger ist mit Schritt 4
  * des Quellen-Umbaus gefallen; die Reihenfolgefalle bleibt fuer die uebrigen Anreicherungen lehrreich.)
  *
- * 🔴 DREI EINGAENGE, EINE ANTWORT. Der dritte ist der Wiki-Namensraum des Objekts: ein aus
+ * 🔴 DREI EINGAENGE, EINE ANTWORT (der dritte hat inzwischen DREI LESER, siehe unten). Der dritte
+ * ist der Wiki-Namensraum des Objekts: ein aus
  * ns 222 uebernommenes Objekt traegt keine eigene Katalogquelle -- sein Artikel steckt in
  * `properties.wiki_url` und wird vom Kasten als erste Zeile gerendert. Eine zusaetzliche
  * `sources`-Zeile dafuer anzulegen war der urspruengliche Plan und haette denselben Artikel
  * ZWEIMAL in den Kasten gestellt.
+ *
+ * ✅ **DER FUENFTE LESER IST SEIT DEM 10.09.2026 GEBAUT, UND ER GILT DEN LANDSCHAFTSFLAECHEN**
+ * (avesmapsEcosystemRegionWikiNamespaces). Eine an eine Flaeche gebundene Beschriftung fragt ihr
+ * Etikett unter `ecosystem:<region>` ab -- dort liegen seit Schritt 5 des Quellen-Umbaus ihre
+ * Quellen --, waehrend ihr Namensraum als `region:<label>` entstand. Die Zuweisung war also da,
+ * gerechnet und richtig, nur unter einem Schluessel abgelegt, den niemand fragt. Siehe die
+ * Begruendung an der Funktion selbst.
  *
  * ✅ **DER VIERTE EINGANG IST SEIT DEM 02.09.2026 GEBAUT, UND ER GILT DEN TERRITORIEN.**
  * Hier stand „NUR OBJEKTE MIT KARTENZEILE ERREICHEN DEN DRITTEN EINGANG" -- richtig gemessen,
@@ -3380,11 +3465,22 @@ function avesmapsFeatureSourcesWikiNamespacesFuerKennungen(
         return [];
     }
 
-    if ($entityType === 'territory') {
-        $alle = avesmapsPoliticalTerritoryWikiNamespaces($pdo);
+    // 💣 ZWEI OBJEKTARTEN OHNE `map_features`-ZEILE, UND BEIDE MUESSEN HIER STEHEN. Territorien
+    // haben nie eine; eine Landschaftsflaeche auch nicht -- ihre Zuweisung steht in
+    // `ecosystem_region.wiki_url`. Fehlte eine von beiden, kippte das Etikett im Moment des
+    // Speicherns: der Server rechnet richtig, die ANTWORT der Schreibaktion traegt aber kein
+    // Etikett, der Client-Nachtrag schreibt es in die Kanon-Tafel, und es bleibt dort bis zum
+    // Neuladen stehen. Genau dieser Fehler wurde am 09.09.2026 am „Schwanenbruch" gemeldet und
+    // eine Objektart weiter (Wege) am selben Tag noch einmal.
+    $tabellenLeser = [
+        'territory' => 'avesmapsPoliticalTerritoryWikiNamespaces',
+        'ecosystem' => 'avesmapsEcosystemRegionWikiNamespaces',
+    ];
+    if (isset($tabellenLeser[$entityType])) {
+        $alle = $tabellenLeser[$entityType]($pdo);
         $out = [];
         foreach ($ids as $id) {
-            $key = 'territory:' . $id;
+            $key = $entityType . ':' . $id;
             if (isset($alle[$key])) {
                 $out[$key] = $alle[$key];
             }
@@ -3396,8 +3492,9 @@ function avesmapsFeatureSourcesWikiNamespacesFuerKennungen(
     // Der Feature-Typ zu dieser Objektart -- dieselbe Tafel, nur andersherum gelesen.
     $featureType = array_search($entityType, AVESMAPS_MAP_FEATURES_KANON_ENTITY_TYPE_BY_FEATURE_TYPE, true);
     if ($featureType === false) {
-        // ⚠️ ecosystem, citymap, lore: fuer sie kennt der Kanon-Leser kein Zuweisungsnest. Kein
-        // Namensraum heisst „keine Aussage" -- dort entscheiden die Quellen allein, wie bisher.
+        // ⚠️ citymap und lore: fuer sie kennt der Kanon-Leser kein Zuweisungsnest. Kein Namensraum
+        // heisst „keine Aussage" -- dort entscheiden die Quellen allein, wie bisher. `ecosystem`
+        // stand hier bis zum 10.09.2026 mit dabei und ist jetzt eine Zeile weiter oben zu Hause.
         return [];
     }
 
@@ -3672,13 +3769,26 @@ function avesmapsFeatureSourcesKanonFuerMehrere(
  *
  * 💣 UND SIE GILT NUR DEN BEDIENTEN OBJEKTARTEN. Der erste Anlauf schrieb den Leer-Eintrag fuer
  * JEDEN Schluessel aus `feature_sources` -- und traf damit **447 Landschaftsflaechen**
- * (`ecosystem`), um die es nie ging: der Kanon-Leser kennt sie gar nicht
- * (AVESMAPS_MAP_FEATURES_KANON_ENTITY_TYPE_BY_FEATURE_TYPE), sie koennen also per Konstruktion
- * nie ein Etikett bekommen -- und verloren so ihr bisheriges „offiziell" aus der Vorgabe.
- * Live gemessen am 08.09.2026: 591 Leer-Eintraege, davon 447 ecosystem, 107 path, 23 settlement,
- * 14 territory. Gemeint waren die 130 der letzten drei.
- * ⚠️ Wer `ecosystem` (oder `citymap`, `lore`) je an den Kanon anschliesst, ergaenzt sie DORT und
- * bekommt den Leer-Eintrag von hier geschenkt -- nicht umgekehrt.
+ * (`ecosystem`), um die es damals nicht ging; sie verloren so ihr bisheriges „offiziell" aus der
+ * Vorgabe. Live gemessen am 08.09.2026: 591 Leer-Eintraege, davon 447 ecosystem, 107 path,
+ * 23 settlement, 14 territory. Gemeint waren die 130 der letzten drei.
+ *
+ * 🔴 DIE BEGRUENDUNG VON DAMALS WAR FALSCH, UND ZWAR NACHWEISLICH. Hier stand, der Kanon-Leser
+ * kenne `ecosystem` gar nicht, sie koennten „per Konstruktion nie ein Etikett bekommen". Das galt
+ * nur fuer die RAENGE 1 UND 2 (die Wiki-Zuweisung); die Raenge 3 und 4 liefen fuer sie seit jeher,
+ * weil avesmapsFeatureSourcesDeriveKanon ueber `array_keys($refs)` laeuft und keine Objektart
+ * ausnimmt -- gemessen am 09.09.2026 waren es 40 Landschaftsflaechen mit „inoffiziell". Genau
+ * dieser Satz hat den Altenforst-Fehler (10.09.2026) gedeckt: er las sich wie „hier ist nichts zu
+ * holen", und deshalb hat niemand nachgezaehlt, dass die Haelfte der Regel dort fehlt.
+ * ⭐ Seit dem 10.09.2026 ist `ecosystem` ueber avesmapsEcosystemRegionWikiNamespaces angeschlossen.
+ * 🔧 OFFEN und BEWUSST NICHT MITGEZOGEN: `ecosystem` steht weiterhin NICHT in `$bedient`. Eine
+ * Flaeche ohne Zuweisung, deren Verweise ausschliesslich PUBLIKATIONEN sind, behaelt damit ihr
+ * „offiziell" aus der Vorgabe -- das ist der Dommel-Fall vom 08.09.2026, eine Objektart weiter,
+ * und er ist aelter als der Altenforst-Fix. Ihn hier mitzunehmen ist eine SICHTBARE Aenderung an
+ * potenziell hunderten Flaechen (§9: einzeln live, und der Owner sieht jede) und braucht die
+ * Messung am Livebestand, die diese Zeile bisher zweimal ersetzt hat.
+ * ⚠️ Wer `citymap` oder `lore` je an den Kanon anschliesst, ergaenzt sie DORT und bekommt den
+ * Leer-Eintrag von hier geschenkt -- nicht umgekehrt.
  *
  * @param array<string, list<array<string, mixed>>> $refs   "typ:public_id" => Verweise
  * @param array<string, array<string, mixed>> $kanon        was die Ableitung gefunden hat
