@@ -1,8 +1,13 @@
-// Die neun `OVERLAYS`-Eintraege des Kartenfaechers (deregraphic/political/powerlines/ecosystem/
-// none, dazu die vier Landschafts-Icons eco_derographisch/eco_vegetation/eco_topographie/
-// eco_klima) stehen zweimal im Haus: als `OVERLAYS` in js/ui/map-layer-picker.js -- dem Bauteil,
-// das wirklich auf der Karte erscheint -- und als Zwilling derselben Tabelle in
+// Die `OVERLAYS`-Eintraege des Kartenfaechers -- die Ansichten (deregraphic/political/powerlines/
+// ecosystem/none) und die Landschafts-Icons (eco_derographisch/eco_vegetation/eco_topographie/
+// eco_klima) -- stehen zweimal im Haus: als `OVERLAYS` in js/ui/map-layer-picker.js, dem Bauteil,
+// das wirklich auf der Karte erscheint, und als Zwilling derselben Tabelle in
 // tools/bau-ansicht-untergrund-mockup.js, dem Generator von docs/ansicht-untergrund-mockup.html.
+//
+// 🔴 HIER STAND "die NEUN Eintraege" -- in genau der Datei, die eine solche Zahl dreissig Zeilen
+// weiter unten verbietet und die Menge zur Laufzeit selbst zaehlt. Ein zehntes Overlay haette die
+// erste Zeile lautlos falsch gemacht. Deshalb keine Zahl mehr; wer sie wissen will, liest die
+// Schlusszeile des Laufs.
 //
 // Der Zwilling ist kein Versehen: der Generator ist ABHAENGIGKEITSFREI und laeuft unter Node
 // (`node tools/bau-ansicht-untergrund-mockup.js`, siehe dessen Dateikopf). Der Picker dagegen ist
@@ -43,21 +48,33 @@ const lies = (...teile) => fs.readFileSync(path.join(WURZEL, ...teile), "utf8");
 
 /**
  * Schneidet ein Objekt-Literal `name = { ... }` aus Quelltext aus -- durch Klammertiefe, nicht
- * durch ein gieriges Regex bis zum naechsten `};`. Zeilen- und Blockkommentare werden dabei
- * uebersprungen, BEVOR Anfuehrungszeichen gezaehlt werden: ein Apostroph mitten in einem
- * deutschen Kommentar ("...die Karte sie...") wuerde sonst die Zeichenketten-Erkennung aus dem
- * Tritt bringen und die Suche liefe bis zum Dateiende, ohne je die schliessende Klammer zu sehen.
- * Das ist keine graue Theorie -- die erste Fassung dieses Helfers ist genau daran gescheitert.
+ * durch ein gieriges Regex bis zum naechsten `};`.
+ *
+ * 💣 EIN EINZIGER DURCHGANG, UND ER SUCHT AUCH DEN ANKER NUR AUSSERHALB VON KOMMENTAR UND
+ * ZEICHENKETTE. Die Vorgaengerfassung uebersprang Kommentare beim ZAEHLEN, setzte ihren Anker aber
+ * mit einem blanken `anker.exec(quelle)` auf das erste TEXTUELLE `name = {` -- auch auf eines in
+ * einem Kommentar oder in einer Zeichenkette. Das ist hier nicht graue Theorie: die
+ * Kommentarbloecke ueber `eco_derographisch` sind in Picker und Generator nahezu wortgleiche
+ * Zwillinge, ein erklaerendes Beispiel landet also in BEIDEN -- dieser Test haette dann zwei
+ * KOMMENTARE miteinander verglichen, waere GRUEN geblieben und haette die Vektoren auseinander-
+ * laufen lassen. Genau das, was er verhindern soll. Festgenagelt von der Selbstprobe unten.
+ *
+ * ⚠️ Die Reihenfolge im Rumpf ist tragend: erst `inString`, dann die Kommentar-Erkennung, dann der
+ * BEGINN einer Zeichenkette. Umgekehrt brachte ein Apostroph in einem deutschen Kommentar
+ * ("...die Karte sie...") die Zeichenketten-Erkennung aus dem Tritt, und die Suche lief bis zum
+ * Dateiende, ohne je die schliessende Klammer zu sehen -- daran ist die allererste Fassung
+ * gescheitert.
  */
 function schneideObjektLiteralAus(quelle, name) {
-	const anker = new RegExp("\\b" + name + "\\s*=\\s*\\{");
-	const treffer = anker.exec(quelle);
-	assert.ok(treffer, "Anker `" + name + " = {` nicht gefunden");
-	let i = treffer.index + treffer[0].length - 1; // Position der oeffnenden Klammer
-	const anfang = i;
+	// Sticky (`y`): trifft nur, wenn das Muster GENAU an `lastIndex` beginnt. So laesst sich der
+	// Anker Position fuer Position pruefen, ohne je vorwaerts in einen Kommentar zu springen --
+	// ein `g`-Regex oder ein blankes `exec` tut genau das. `\b` sieht dabei weiterhin das Zeichen
+	// VOR lastIndex, `XOVERLAYS = {` ist also kein Treffer (Selbstprobe unten).
+	const anker = new RegExp("\\b" + name + "\\s*=\\s*\\{", "y");
+	let anfang = -1; // Index der oeffnenden Klammer des gesuchten Literals
 	let tiefe = 0;
 	let inString = null;
-	for (; i < quelle.length; i++) {
+	for (let i = 0; i < quelle.length; i++) {
 		const c = quelle[i];
 		if (inString) {
 			if (c === "\\") { i++; continue; } // Escape ueberspringen, z.B. \' oder \"
@@ -74,7 +91,17 @@ function schneideObjektLiteralAus(quelle, name) {
 			i = blockende === -1 ? quelle.length : blockende + 1;
 			continue;
 		}
-		if (c === "'" || c === '"') { inString = c; continue; }
+		// Der Backtick zaehlt mit: beide Dateien tragen Template-Strings, und der Generator baut
+		// sein ganzes Mockup in EINEM -- ein `name = {` darin ist Text, kein Literal.
+		if (c === "'" || c === '"' || c === "`") { inString = c; continue; }
+		if (anfang === -1) {
+			if (c !== name[0]) { continue; }
+			anker.lastIndex = i;
+			if (!anker.exec(quelle)) { continue; }
+			anfang = anker.lastIndex - 1; // die oeffnende Klammer ist das letzte Zeichen des Ankers
+			i = anfang - 1;               // sie selbst zaehlt die Schleife im naechsten Schritt
+			continue;
+		}
 		if (c === "{") { tiefe++; continue; }
 		if (c === "}") {
 			tiefe--;
@@ -83,6 +110,8 @@ function schneideObjektLiteralAus(quelle, name) {
 			}
 		}
 	}
+	assert.ok(anfang !== -1, "Anker `" + name + " = {` nicht gefunden -- ein Treffer in einem"
+		+ " Kommentar oder in einer Zeichenkette zaehlt bewusst nicht.");
 	throw new Error("`" + name + "`: keine schliessende Klammer gefunden");
 }
 
@@ -91,6 +120,67 @@ function alsObjekt(literalText) {
 	return vm.runInNewContext("(" + literalText + ")", {}, { timeout: 2000 });
 }
 
+// ---- Selbstprobe des Ausschneiders ---------------------------------------------------------------
+// 🔴 OHNE DIESEN BLOCK IST DER GANZE TEST EINE BEHAUPTUNG. Er faehrt genau die Eingaben, an denen
+// die Vorgaengerfassung STILL das Falsche verglichen hat -- ein Muster im Kommentar oder in einer
+// Zeichenkette muss uebergangen werden, nie uebernommen. Die vier Faelle darunter sind die, an
+// denen die allererste Fassung des Zaehlers gescheitert ist; sie bleiben mitgeprueft, damit eine
+// Reparatur der einen Haelfte nicht die andere aufgibt.
+// ⚠️ `Object.assign({}, …)` ist Pflicht: ein Objekt aus einem `vm`-Kontext traegt einen FREMDEN
+// Object.prototype, und `deepStrictEqual` vergleicht den mit -- es faellt sonst bei inhaltlich
+// gleichem Ergebnis (Hausfalle, AGENTS.md §11).
+const SELBSTPROBEN = [
+	["Kommentarbeispiel (Zeile) VOR dem echten Literal",
+		"// Beispiel: OVERLAYS = { demo: 'x' }\nconst OVERLAYS = { echt: 'ja' };",
+		{ echt: "ja" }],
+	// 💣 DIESER FALL UNTERSCHEIDET sticky VON global, und er ist der Grund fuer das "y": ein
+	// Bezeichner, der mit demselben Buchstaben beginnt, bringt den Scanner an eine Stelle, an der
+	// das Muster NICHT steht. Ein "g"-Regex springt von dort VORWAERTS -- und landet im Kommentar.
+	// Ohne diesen Fall ueberlebt die Ein-Zeichen-Mutation y -> g (nachgemessen 10.09.2026).
+	["Bezeichner mit demselben Anfangsbuchstaben vor einem Kommentarbeispiel",
+		"Object.keys(x);\n// Beispiel: OVERLAYS = { demo: 'x' }\nconst OVERLAYS = { echt: 'ja' };",
+		{ echt: "ja" }],
+	["Kommentarbeispiel (Block) VOR dem echten Literal",
+		"/* so nicht: OVERLAYS = { demo: 'x' } */\nconst OVERLAYS = { echt: 'ja' };",
+		{ echt: "ja" }],
+	["Beispiel in einer Zeichenkette VOR dem echten Literal",
+		"var hinweis = \"OVERLAYS = { demo: 1 }\";\nconst OVERLAYS = { echt: 'ja' };",
+		{ echt: "ja" }],
+	["Beispiel in einem Template-String VOR dem echten Literal",
+		"var t = `OVERLAYS = { demo: 1 }`;\nconst OVERLAYS = { echt: 'ja' };",
+		{ echt: "ja" }],
+	["Apostroph in einem deutschen Kommentar",
+		"// ...wie die Karte sie zeichnet, d'accord\nconst OVERLAYS = { a: 'x' };",
+		{ a: "x" }],
+	["geschweifte Klammer in einer Zeichenkette",
+		"const OVERLAYS = { a: '</g>}{' };",
+		{ a: "</g>}{" }],
+	["doppeltes Anfuehrungszeichen in einfachen Anfuehrungszeichen",
+		"const OVERLAYS = { a: '<path d=\"M0 0\"/>' };",
+		{ a: "<path d=\"M0 0\"/>" }],
+	["zwei Schraegstriche in einer Zeichenkette",
+		"const OVERLAYS = { a: 'http://x/y' };",
+		{ a: "http://x/y" }],
+	["Kommentar mit Backtick INNERHALB des Literals",
+		"const OVERLAYS = {\n\t// es nimmt `ecosystem` oben\n\ta: 'x'\n};",
+		{ a: "x" }],
+];
+for (const [was, quelle, erwartet] of SELBSTPROBEN) {
+	const geschnitten = schneideObjektLiteralAus(quelle, "OVERLAYS");
+	assert.deepStrictEqual(Object.assign({}, alsObjekt(geschnitten)), erwartet,
+		"Selbstprobe des Ausschneiders -- " + was + ": ausgeschnitten wurde " + geschnitten);
+}
+
+// 💣 UND DER FALL, DER NIEMALS STILL DURCHGEHEN DARF: steht das Muster NUR in einem Kommentar,
+// muss der Ausschneider WERFEN -- nie das Kommentarbeispiel zurueckgeben.
+assert.throws(() => schneideObjektLiteralAus("// Beispiel: OVERLAYS = { demo: 'x' }\n", "OVERLAYS"),
+	/nicht gefunden/, "Selbstprobe: ein Treffer allein im Kommentar ist kein Literal");
+assert.throws(() => schneideObjektLiteralAus("var t = \"OVERLAYS = { demo: 1 }\";\n", "OVERLAYS"),
+	/nicht gefunden/, "Selbstprobe: ein Treffer allein in einer Zeichenkette ist kein Literal");
+assert.throws(() => schneideObjektLiteralAus("const XOVERLAYS = { a: 1 };", "OVERLAYS"),
+	/nicht gefunden/, "Selbstprobe: ein angeklebter Bezeichner ist kein Anker");
+
+// ---- Die beiden echten Tabellen ------------------------------------------------------------------
 const pickerQuelle = lies("js", "ui", "map-layer-picker.js");
 const generatorQuelle = lies("tools", "bau-ansicht-untergrund-mockup.js");
 
@@ -144,4 +234,5 @@ for (const schluessel of alleSchluessel) {
 console.log(
 	"ansicht-untergrund-vektoren-zwilling.test.js: " + alleSchluessel.length
 	+ " OVERLAYS-Schluessel zeichengleich (" + alleSchluessel.join(", ") + ")"
+	+ ", " + (SELBSTPROBEN.length + 3) + " Selbstproben des Ausschneiders bestanden"
 );

@@ -283,9 +283,15 @@
 			'<ellipse cx="15" cy="38" rx="6.6" ry="3.6" fill="#4c89c6" fill-opacity=".9"/>' +
 			'<path d="M0 45 C8 43.5 16 46 24 44.5 32 43 40 45.5 48 44 V50 H0 Z" fill="#2d5f8a" fill-opacity=".88"/>',
 
-		// 🔴 ACHT Baender, die echten Toene der Temperaturskala. Die Ebene wird nicht gezeichnet,
-		// sondern aus Trennlinien ABGELEITET -- deshalb sind die Kanten hier leicht bewegt und
-		// nicht schnurgerade: so liegen sie auf der Karte.
+		// 🔴 Die echten Toene der Temperaturskala, kalt oben nach warm unten. Die Ebene wird nicht
+		// gezeichnet, sondern aus Trennlinien ABGELEITET -- deshalb sind die Kanten hier leicht
+		// bewegt und nicht schnurgerade: so liegen sie auf der Karte.
+		// 🔴 HIER STAND EINE ZAHL ("ACHT Baender"). Eine Zahl liest sich wie eine vollstaendige
+		// Liste, und niemand zaehlt nach (AGENTS.md §11): die Zonen sind DATEN
+		// (AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED in api/_internal/app/ecosystem.php), und die Zelle
+		// zeichnet eine Staffel, keine Zaehlung. Die Veralterung ist daneben schon eingetreten --
+		// css/base/tokens.css spricht bei derselben Skala von „Sieben Bändern … aus sechs
+		// Trennlinien" und fuehrt acht Toene (fremder Umfang, hier bewusst nicht angefasst).
 		eco_klima:
 			'<path d="M0 0 H48 V6 C36 7.4 24 4.8 12 6.2 8 6.7 4 6 0 6.6 Z" fill="#cfe0eb" fill-opacity=".9"/>' +
 			'<path d="M0 6.6 C4 6 8 6.7 12 6.2 24 4.8 36 7.4 48 6 V12 C36 13.6 24 10.8 12 12.4 8 12.9 4 12.2 0 12.8 Z" fill="#a2c3d1" fill-opacity=".9"/>' +

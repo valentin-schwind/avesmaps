@@ -21,14 +21,20 @@
 // Anfuehrungszeichen.
 // 🔴 HIER STAND EINE ZAHL -- "grep -c muss 5 ergeben" -- UND SIE WAR FALSCH. Zweifach: grep -c
 // zaehlt ZEILEN, nicht Backticks, und seit dem Eintrag waren weitere Kommentarzeilen mit
-// Backtick dazugekommen. Hier steht deshalb bewusst KEINE neue Zahl: die erste war beim
-// Aufschreiben richtig und beim naechsten Kommentar falsch, und eine Zahl liest sich wie eine
-// vollstaendige Liste, die niemand nachzaehlt (AGENTS.md §11). Als Gegenprobe taugt sie nicht --
-// der Beweis dafuer ist, dass die korrigierte Fassung dieses Absatzes die Zahl schon wieder
-// veraendert hat.
-// ⭐ Gemeint war und ist: ZWISCHEN der Zeile mit const html = und ihrer schliessenden Zeile steht
-// kein einziger Backtick; die beiden Grenzen selbst sind die einzigen erlaubten. Gegenprobe ohne
-// Zahl: node --check auf diese Datei faellt um, sobald es anders ist.
+// Backtick dazugekommen. Eine Zahl liest sich wie eine vollstaendige Liste, die niemand
+// nachzaehlt (AGENTS.md §11) -- als Gegenprobe taugt sie nicht.
+// 🪤 DANACH STAND HIER NUR PROSA: "node --check auf diese Datei faellt um, sobald es anders
+// ist." Auch das ist keine Zusicherung, und der Satz ist sogar falsch: ein EINZELNER Backtick
+// bricht den Parser, ein PAAR um etwas Operator-artiges parst anstandslos durch. Nachgemessen
+// am 10.09.2026 mit einem eingesetzten Paar um einen gleichwertigen String-Ausdruck:
+// node --check GRUEN, Ausgabe zeichengleich -- weder der Parser noch der Gleichheits-Waechter
+// haette etwas gesehen.
+// ⭐ Geprueft wird deshalb die Sache selbst, mechanisch und ohne Zahl, in
+// tools/__tests__/ansicht-untergrund-mockup.test.js (erste Zusicherung, noch VOR dem
+// Generatorlauf): ZWISCHEN der Zeile mit dem oeffnenden Template-Backtick und ihrer
+// schliessenden Zeile steht kein einziger Backtick; die beiden Grenzen selbst sind die einzigen
+// erlaubten. 💣 Die Grenzen sucht sie ZEILENVERANKERT -- ein blankes indexOf("const html =")
+// trifft genau DIESEN Absatz, der ueber die Regel spricht.
 const fs = require("fs");
 const path = require("path");
 
@@ -268,9 +274,15 @@ const OVERLAYS = {
 		'<ellipse cx="15" cy="38" rx="6.6" ry="3.6" fill="#4c89c6" fill-opacity=".9"/>' +
 		'<path d="M0 45 C8 43.5 16 46 24 44.5 32 43 40 45.5 48 44 V50 H0 Z" fill="#2d5f8a" fill-opacity=".88"/>',
 
-	// 🔴 ACHT Baender, die echten Toene der Temperaturskala. Die Ebene wird nicht gezeichnet,
-	// sondern aus Trennlinien ABGELEITET -- deshalb sind die Kanten hier leicht bewegt und
-	// nicht schnurgerade: so liegen sie auf der Karte.
+	// 🔴 Die echten Toene der Temperaturskala, kalt oben nach warm unten. Die Ebene wird nicht
+	// gezeichnet, sondern aus Trennlinien ABGELEITET -- deshalb sind die Kanten hier leicht
+	// bewegt und nicht schnurgerade: so liegen sie auf der Karte.
+	// 🔴 HIER STAND EINE ZAHL ("ACHT Baender"). Eine Zahl liest sich wie eine vollstaendige
+	// Liste, und niemand zaehlt nach (AGENTS.md §11): die Zonen sind DATEN
+	// (AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED in api/_internal/app/ecosystem.php), und die Zelle
+	// zeichnet eine Staffel, keine Zaehlung. Die Veralterung ist daneben schon eingetreten --
+	// css/base/tokens.css spricht bei derselben Skala von „Sieben Bändern … aus sechs
+	// Trennlinien" und fuehrt acht Toene (fremder Umfang, hier bewusst nicht angefasst).
 	eco_klima:
 		'<path d="M0 0 H48 V6 C36 7.4 24 4.8 12 6.2 8 6.7 4 6 0 6.6 Z" fill="#cfe0eb" fill-opacity=".9"/>' +
 		'<path d="M0 6.6 C4 6 8 6.7 12 6.2 24 4.8 36 7.4 48 6 V12 C36 13.6 24 10.8 12 12.4 8 12.9 4 12.2 0 12.8 Z" fill="#a2c3d1" fill-opacity=".9"/>' +
@@ -294,11 +306,21 @@ const GRUND_FILTER = {
 	powerlines: "saturate(0.1) brightness(0.6)"
 };
 
-// 🔴 Die Landschaften-Ansicht BLENDET den Untergrund ab (Owner 26.08.2026). Der echte Wert fuer
-// Besucher ist ECOSYSTEM_UNDERGROUND_FRONTEND = 25 (%), nicht 50 -- Editoren haben dafuer einen
-// Regler. Ausgeblendet wird gegen --color-ecosystem-underground (#d3cec2), NICHT gegen Weiss:
-// deshalb steht hinter dem Bild eine Flaeche in genau diesem Ton, sonst schiene das Panel durch
-// und der Farbeindruck waere ein anderer als auf der Karte.
+// 🔴 Die Landschaften-Ansicht BLENDET den Untergrund ab (Owner 26.08.2026). Ausgeblendet wird
+// gegen --color-ecosystem-underground (#d3cec2), NICHT gegen Weiss: deshalb steht hinter dem Bild
+// eine Flaeche in genau diesem Ton, sonst schiene das Panel durch und der Farbeindruck waere ein
+// anderer als auf der Karte.
+//
+// ⚠️ DIE 0.25 SIND SEIT DEM 09.09.2026 NICHT MEHR DER ECHTE WERT. Bis 10.09.2026 stand hier, der
+// Besucher sehe ECOSYSTEM_UNDERGROUND_FRONTEND = 25 (%) -- das galt bis zum 23.08.2026 und danach
+// nur noch fuer „Alle"; seit dem 09.09.2026 schreibt das Anzeigeprofil allen fuenf Ebenen 0 % vor
+// (ECOSYSTEM_FRONTEND_PROFIL in js/map-features/map-features-ecosystem-layer-switch.js), und bei
+// 0 % nimmt syncEcosystemBaseTiles die Kachelebene ganz von der Karte. Die Kachel zeigt also einen
+// Untergrund, den es auf der Karte nicht mehr gibt. 🔧 Die ZAHL hier aendert Aufgabe 8 des Umbaus
+// -- absichtlich nicht hier, damit eine Kommentarkorrektur nicht nebenbei das Bild umstellt.
+// ⚠️ Derselbe Absatz steht im Picker (js/ui/map-layer-picker.js). Er stand dort seit dem
+// 10.09.2026 richtig und HIER noch falsch: ein Zwilling wird an BEIDEN Haelften nachgezogen,
+// sonst liest der naechste die Haelfte, die ihm zuerst unterkommt.
 const GRUND_DECKKRAFT = {
 	ecosystem: 0.25
 };
@@ -660,7 +682,12 @@ h2 { font-size: var(--font-size-subhead); margin: 0 0 4px; }
 		<b>„Alle“ hat keinen eigenen Vektor</b>: es nimmt den der Ansicht, denn „Alle“ <i>ist</i> alle
 		Ebenen übereinander — zwei getrennte Zeichnungen liefen beim nächsten Umton auseinander.</p>
 		<div class="mk-ebenen" id="mk-ebenen"></div>
-		<p class="mk-gut">Derographie ruht <b>ungefüllt</b>: sie zeichnet Behälter, nicht Flächen.</p>
+		<p class="mk-gut">Derographie zieht eine <b>gestrichelte</b> Kontur — genau so zeichnet die
+		Karte sie: die Kante eines Behälters ist eine Konvention, kein Waldrand zum Anfassen.</p>
+		<p class="mk-gut">Ihre drei Füllungen bleiben <b>zart</b>. Sie machen den Behälter auf 48 px
+		erst lesbar — ungefüllt las sich die Zelle als „nicht geladen“ —, ohne die Zelle zu einer
+		Landschaftsebene zu machen; auf der Karte bleibt die Fläche ungefüllt. Die kleine gefüllte
+		Ellipse ist eine Insel, das eine derographische Objekt, das gefüllt liegt.</p>
 		<p class="mk-gut">Der See trägt den Wasserton, das Meer sein eigenes Dunkelblau — auf der Karte
 		sind die beiden verschieden, in der Zelle auch.</p>
 		<p class="mk-gut">Die Klimazonen haben bewegte Kanten: die Ebene wird aus Trennlinien abgeleitet,
