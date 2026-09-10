@@ -387,6 +387,23 @@
 	 */
 	function wikiAssignZuweisen(treffer) {
 		const roh = (treffer && treffer.roh) || {};
+		// 💣 EIN TREFFER OHNE ADRESSE DARF NICHT ZUGEWIESEN WERDEN -- er waere beim Speichern eine
+		// LOESCHUNG. `payload.wiki_url = pendingWikiRegion?.wiki_url || ""` unten schickt fuer einen
+		// solchen Treffer den leeren String, und `avesmapsEcosystemReadRegionFields` liest den als
+		// „Zuweisung entfernen": der Kasten meldet „gewaehlt", das Speichern meldet Erfolg, und
+		// zugewiesen ist nichts. Von aussen ist das nicht von „das Formular ignoriert meine Wahl" zu
+		// unterscheiden -- gemeldet am 10.09.2026 („weigert sich zu speichern", bei Dirak „erst beim
+		// 3.-4. Mal", also je nachdem, welcher Treffer erwischt wurde).
+		// 🔴 KEINE Adresse aus dem Schluessel BAUEN: `wiki_region_key` wird serverseitig aus der
+		// Adresse abgeleitet (AGENTS.md §5), die Gegenrichtung waere eine zweite Ableitung und braeche
+		// jeden Join. Der Treffer wird abgelehnt, laut und sichtbar.
+		if (String(roh.wiki_url || "").trim() === "") {
+			setPropertiesError(
+				"Dieser Treffer trägt keine Wiki-Adresse und kann deshalb nicht zugewiesen werden. "
+				+ "Bitte einen anderen Treffer wählen — oder die Wiki-Seite erst syncen."
+			);
+			return;
+		}
 		// 🔴 Es reist die URL, NICHT der Schlüssel: wiki_region_key leitet der Server aus wiki_url ab
 		// (AGENTS.md §5). Ein hier gebauter Schlüssel wäre eine zweite Ableitung und bräche jeden Join.
 		pendingWikiRegion = {
@@ -2699,8 +2716,17 @@
 		// Nur mitschicken, wenn wirklich daran gedreht wurde: update_region schreibt ausschliesslich die
 		// Felder, die IM Payload stehen (avesmapsEcosystemReadRegionFields), und ein mitgeschicktes
 		// wiki_url='' würde eine bestehende Zuweisung stillschweigend löschen.
-		if (pendingWikiRegion !== undefined) {
-			payload.wiki_url = pendingWikiRegion?.wiki_url || "";
+		// 💣 DER ZWEITE RIEGEL, und er ist der tragende: `null` heisst „ausdruecklich entfernt", eine
+		// leere ADRESSE an einem gewaehlten Treffer heisst gar nichts -- und beide saehen hier
+		// gleich aus. Ohne die Unterscheidung macht ein adressloser Treffer aus einem Zuweisen eine
+		// Loeschung; der Riegel in `wikiAssignZuweisen` faengt das schon am Eingang ab, aber dieser
+		// hier ist der, an dem es nicht mehr schiefgehen KANN (ein alter, zwischengespeicherter
+		// Stand kommt nicht daran vorbei).
+		if (pendingWikiRegion === null) {
+			payload.wiki_url = "";
+		} else if (pendingWikiRegion !== undefined
+			&& String(pendingWikiRegion.wiki_url || "").trim() !== "") {
+			payload.wiki_url = String(pendingWikiRegion.wiki_url).trim();
 		}
 		// 🔴 Die Merkliste reist IMMER mit, auch leer: eine leere Liste ist dasselbe wie ein fehlender
 		// Schlüssel („nichts kam aus dem Wiki, also alles von uns“), und das ist die sichere Richtung
