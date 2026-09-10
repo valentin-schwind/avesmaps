@@ -65,6 +65,9 @@ const {
 	garetienWikiLandschaftBeiBedarfLaden,
 	garetienEingefuegtWirdMarkup,
 	garetienWikiLandschaftPlatzhalterId,
+	// Aufgabe 9 (09.09.2026, geteilter Baum): Darstellung sowie Wiki & Quellen -- und mit ihnen
+	// der versteckte Suche-Host -- erscheinen erst auf der Stage.
+	avesmapsGaretienStageHinzufuegen,
 } = mod;
 
 wahr(typeof garetienWikiSucheHostId === "function", "garetienWikiSucheHostId fehlt im Export");
@@ -79,6 +82,7 @@ const huegel = {
 	abschnitte: [],
 	items: [{ id: 1, change_type: "new", anlass: null }],
 };
+avesmapsGaretienStageHinzufuegen([huegel]);
 
 // =================================================================================================
 // A. garetienWikiSucheHostId -- die Id, eine reine Funktion
@@ -102,6 +106,7 @@ const gipfel = {
 	subtyp: "berggipfel", kind: "", ziel: "label", wiki: "ggp", abschnitte: [],
 	items: [{ id: 2, change_type: "new" }],
 };
+avesmapsGaretienStageHinzufuegen([gipfel]);
 wahr(!garetienEingefuegtWirdMarkup(gipfel).includes("gi-wiki-suche-"),
 	"ein Berggipfel bekommt keinen Suche-Host -- er bekam auch die automatische Zeile nie "
 	+ "(garetien-eingefuegt-wird.test.js, Abschnitt D)");

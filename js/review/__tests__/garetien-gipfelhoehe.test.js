@@ -44,12 +44,18 @@ vm.runInThisContext(lies("js", "map-features", "map-features-ecosystem-height-fi
 	.concat("function isEcosystemPeakSubtype(subtype) {\n\treturn ECOSYSTEM_PEAK_SUBTYPES.includes(String(subtype || \"\"));\n}"));
 
 const mod = require(path.resolve(__dirname, "..", "review-garetien-importer.js"));
-const { garetienEingefuegtWirdMarkup, garetienEingabenZustandZu, garetienEingabenFuerServer } = mod;
+const {
+	garetienEingefuegtWirdMarkup, garetienEingabenZustandZu, garetienEingabenFuerServer,
+	// Aufgabe 9 (09.09.2026): Darstellung (und damit die Hoehenzeile) erscheint erst auf der
+	// Stage -- ohne das bliebe die ganze Zeile 1 ein Vakuum-Beweis.
+	avesmapsGaretienStageHinzufuegen,
+} = mod;
 
 const gipfel = {
 	key: "ggp:Berge:Berg:Garetien:Hutter Berge", name: "Hutter Berge", typ: "Berg",
 	subtyp: "berggipfel", ziel: "label", abschnitte: [], items: [{ id: 1, change_type: "new" }],
 };
+avesmapsGaretienStageHinzufuegen([gipfel]);
 
 // =================================================================================================
 // 1. Der Gipfel bekommt die Zeile -- und sie ist LEER
@@ -91,6 +97,7 @@ wahr(!("height_schritt" in garetienEingabenFuerServer(gipfel)),
 const seeLabel = Object.assign({}, gipfel, {
 	key: "ggp:Gewaesser:See:Garetien:Muehlsee", subtyp: "see", ziel: "region",
 });
+avesmapsGaretienStageHinzufuegen([seeLabel]);
 wahr(!/data-gi-feld="hoehe"/.test(garetienEingefuegtWirdMarkup(seeLabel)),
 	"die Beschriftung einer Flaeche bekommt KEINE Hoehe -- sie ist kein Stuetzpunkt des Hoehenfelds");
 

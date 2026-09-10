@@ -63,7 +63,11 @@ const pfad = (key) => Object.assign({}, fluss(key), { typ: "Pfad", subtyp: "Pfad
 // 🔴 Ohne Endknoten hängt ein importierter Weg im Routennetz an nichts: der Graphbau verwirft jeden
 // Weg, dessen Endpunkt auf keinem bekannten Ort und keiner Kreuzung liegt — gezeichnet und
 // trotzdem unbefahrbar. Deshalb ist die Vorgabe AN und nicht aus.
-const mPfad = fenster.garetienEingefuegtWirdMarkup(pfad("p1"));
+// Aufgabe 9 (09.09.2026): Darstellung sowie Wiki & Quellen -- und mit ihnen dieser ganze
+// Weg-Kasten -- erscheinen erst auf der Stage.
+const wegP1 = pfad("p1");
+fenster.avesmapsGaretienStageHinzufuegen([wegP1]);
+const mPfad = fenster.garetienEingefuegtWirdMarkup(wegP1);
 wahr(mPfad.includes("Kreuzung an Anfang und Ende"), "das Häkchen steht im Weg-Kasten: " + mPfad);
 wahr(/data-gi-feld="endpointCrossings"[^>]*checked/.test(mPfad)
 	|| /checked[^>]*data-gi-feld="endpointCrossings"/.test(mPfad),
@@ -84,7 +88,9 @@ gleich(fenster.garetienEingabenFuerServer(abgehakt).endpoint_crossings, false,
 // =================================================================================================
 // B. DIE STRÖMUNGSRICHTUNG — nur ein Flussweg
 // =================================================================================================
-const mFluss = fenster.garetienEingefuegtWirdMarkup(fluss("f1"));
+const wegF1 = fluss("f1");
+fenster.avesmapsGaretienStageHinzufuegen([wegF1]);
+const mFluss = fenster.garetienEingefuegtWirdMarkup(wegF1);
 wahr(mFluss.includes("Strömung"), "die Zeile steht im Kasten eines Flusses");
 wahr(mFluss.includes('data-gi-feld="flowDir"'), "und trägt ihren Feldnamen: " + mFluss);
 // ⚠️ Der Knopf zeigt den JETZIGEN Zustand und trägt den NÄCHSTEN — so können Beschriftung und

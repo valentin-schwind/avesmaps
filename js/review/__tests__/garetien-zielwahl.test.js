@@ -57,6 +57,9 @@ const {
 	garetienZielVorbelegung, garetienZielWahlZu, garetienZielWahlVergessen,
 	garetienMoeglicheFormen, garetienArtenFuerForm, garetienFlaecheMeilen2,
 	garetienZielWahlMarkup, garetienEingefuegtWirdMarkup, garetienEingabenFuerServer,
+	// Aufgabe 9 (09.09.2026, geteilter Baum): Darstellung -- und mit ihr das Flächenfeld, an dem
+	// dieser Abschnitt misst, ob der Kasten der Wahl folgt -- erscheint erst auf der Stage.
+	avesmapsGaretienStageHinzufuegen,
 } = mod;
 
 let checks = 0;
@@ -158,6 +161,7 @@ const flaeche = {
 	ziel: "region", subtyp: "suempfe_moore", kind: "vegetation", wiki: "ggp",
 	geometrie: quadrat(4), abschnitte: [], items: [{ id: 1, change_type: "new", anlass: null }],
 };
+avesmapsGaretienStageHinzufuegen([flaeche]);
 garetienZielWahlVergessen();
 const mWahl = garetienZielWahlMarkup(flaeche, false);
 wahr(mWahl.includes('data-gi-feld="zielForm"') && mWahl.includes('data-gi-feld="zielArt"'),

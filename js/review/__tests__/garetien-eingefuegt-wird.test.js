@@ -144,6 +144,9 @@ const {
 	garetienEingabenFuerServer,
 	garetienEingabeId,
 	garetienSliderMarkePosition,
+	// Aufgabe 9 (09.09.2026): Darstellung sowie Wiki & Quellen erscheinen erst auf der Stage --
+	// jede Fixture unten, die diese Abschnitte prueft, muss sich also selbst hinlegen.
+	avesmapsGaretienStageHinzufuegen,
 } = mod;
 
 wahr(typeof garetienEingefuegtWirdHatVorschlag === "function", "garetienEingefuegtWirdHatVorschlag fehlt im Export");
@@ -219,6 +222,9 @@ const huegel = {
 	abschnitte: [],
 	items: [{ id: 1, change_type: "new", anlass: null }],
 };
+// Aufgabe 9: Darstellung/Wiki & Quellen zeigen sich nur auf der Stage -- dieser ganze Abschnitt
+// prueft genau diese Felder, also muss huegel dort liegen.
+avesmapsGaretienStageHinzufuegen([huegel]);
 const mHuegel = garetienEingefuegtWirdMarkup(huegel);
 
 wahr(mHuegel.includes("Eingefügt wird"), "die Ueberschrift fehlt");
@@ -332,6 +338,7 @@ gleich(istAngehakt(mHuegel, idAnzeigen), true, "vorbelegt ANGEHAKT (Grundwert 'a
 // wirklich angeschlossen, sondern eine feste Zeichenkette). 'see' empfiehlt ab=4, nicht 0/3.
 const see = Object.assign({}, huegel, { key: "ggp:Gewaesser:See:Garetien:Testsee",
 	subtyp: "see", kind: "topographie", typ: "See" });
+avesmapsGaretienStageHinzufuegen([see]);
 const mSee = garetienEingefuegtWirdMarkup(see);
 gleich(eingabeWert(mSee, garetienEingabeId(see, "minZoom")), "4",
 	"'see' hat eine ANDERE Vorbelegung (4) als 'huegelland' (3), sonst waere es Vakuum");
@@ -365,6 +372,7 @@ const gipfel = {
 	subtyp: "berggipfel", kind: "", ziel: "label", wiki: "ggp", abschnitte: [],
 	items: [{ id: 2, change_type: "new" }],
 };
+avesmapsGaretienStageHinzufuegen([gipfel]);
 const mGipfel = garetienEingefuegtWirdMarkup(gipfel);
 wahr(!mGipfel.includes("Fläche"), "ein Berggipfel ist keine Region -- kein Klick-Sperr-Abschnitt");
 wahr(mGipfel.includes("Beschriftung"), "ein Berggipfel IST ein Label -- die Beschriftungszeilen gelten");
@@ -408,6 +416,7 @@ const ort = {
 	subtyp: "dorf", kind: "", ziel: "location", wiki: "ggp", abschnitte: [],
 	items: [{ id: 3, change_type: "new" }],
 };
+avesmapsGaretienStageHinzufuegen([ort]);
 const mOrt = garetienEingefuegtWirdMarkup(ort);
 wahr(!mOrt.includes("Fläche") && !mOrt.includes("class=\"gi-insert__sub\">Beschriftung<") && !mOrt.includes("Weg anzeigen"),
 	"ein Ort hat weder Flaechen- noch Beschriftungs- noch Weg-Einstellwerte");
@@ -471,6 +480,7 @@ wahr(!/data-gi-feld="(einwohner|lage|oberhaupt|minZoom)"/.test(mOrt),
 // ---- DIFFERENZIELL: eine ANDERE Ortsklasse zeigt eine ANDERE Zoomstufe. 'stadt': [1.33, ...] --
 // die erste gefuellte Zelle ist Index 0.
 const stadt = Object.assign({}, ort, { key: "ggp:Sonstiges:Stadt:Garetien:Teststadt", subtyp: "stadt" });
+avesmapsGaretienStageHinzufuegen([stadt]);
 wahr(garetienEingefuegtWirdMarkup(stadt).includes("erscheint ab Zoom 0"),
 	"'stadt' erscheint ab Zoom 0 -- eine andere Zahl als 'dorf' (2), sonst waere es Vakuum");
 
@@ -478,6 +488,7 @@ wahr(garetienEingefuegtWirdMarkup(stadt).includes("erscheint ab Zoom 0"),
 const ortUebernommen = Object.assign({}, ort, {
 	key: "ggp:Sonstiges:Dorf:Garetien:Testdorf-uebernommen", stand: "uebernommen",
 });
+avesmapsGaretienStageHinzufuegen([ortUebernommen]);
 const mOrtUeb = garetienEingefuegtWirdMarkup(ortUebernommen);
 // 🔴 SEIT 01.09.2026 SECHS: die vier Bedienelemente des Ortes UND die zwei Auswahlfelder der
 // Zielwahl. Ein bereits angelegtes Objekt hat nichts mehr zu entscheiden -- auch nicht, was es
@@ -507,6 +518,7 @@ const weg = {
 	quelle: { label: "Briefspiel (Garetien)" },
 	items: [{ id: 4, change_type: "new" }],
 };
+avesmapsGaretienStageHinzufuegen([weg]);
 const mWeg = garetienEingefuegtWirdMarkup(weg);
 wahr(!mWeg.includes("Fläche") && !mWeg.includes("class=\"gi-insert__sub\">Beschriftung<")
 	&& !mWeg.includes('class="gi-insert__sub">Ort<'),
@@ -536,6 +548,7 @@ gleich(vmFluss.gehakt, getDefaultAllowedTransportsForPathSubtype("Flussweg").len
 	"vorgehakt ist die Vorauswahl der Wegart (2 von 2)");
 
 const pfad = Object.assign({}, weg, { key: "ggp:Wege:Pfad:Garetien:Testpfad", subtyp: "Pfad", typ: "Pfad" });
+avesmapsGaretienStageHinzufuegen([pfad]);
 const mPfad = garetienEingefuegtWirdMarkup(pfad);
 const vmPfad = vmZaehlen(mPfad);
 gleich(vmPfad.haken, 6, "der Pfad BIETET sechs Verkehrsmittel an -- eine andere Zahl als der Flussweg");
@@ -544,6 +557,7 @@ wahr(/data-gi-transport="horseCarriage"(?! checked)/.test(mPfad),
 	"und zwar GENAU die Kutsche ist die ungehakte -- sonst waere die Zahl 5 zufaellig richtig: " + mPfad);
 
 const strasse = Object.assign({}, weg, { key: "ggp:Wege:Strasse:Garetien:Teststrasse", subtyp: "Strasse", typ: "Strasse" });
+avesmapsGaretienStageHinzufuegen([strasse]);
 const mStrasse = garetienEingefuegtWirdMarkup(strasse);
 gleich(vmZaehlen(mStrasse).gehakt, 6, "die Strasse erlaubt alle sechs Land-Verkehrsmittel -- eine DRITTE Zahl");
 
@@ -603,6 +617,7 @@ wahr(!mPfad.includes("Strömung") && !mStrasse.includes("Strömung"),
 const wegUebernommen = Object.assign({}, weg, {
 	key: "ggp:Gewaesser:Fluss:Garetien:Testfluss-uebernommen", stand: "uebernommen",
 });
+avesmapsGaretienStageHinzufuegen([wegUebernommen]);
 // 🔴 SEIT 01.09.2026 FUENF: Anzeige-Haken, beide Verkehrsmittel UND die zwei Auswahlfelder der
 // Zielwahl -- an einem angelegten Objekt ist auch die Form nicht mehr zu entscheiden.
 // 🔴 SEIT 02.09.2026 SIEBEN: dazu das Häkchen „Kreuzung an Anfang und Ende" und der
@@ -624,6 +639,7 @@ gleich((garetienEingefuegtWirdMarkup(wegUebernommen).match(/disabled/g) || []).l
 const importBach = Object.assign({}, weg, {
 	key: "ggp:Gewaesser:Bach:Garetien:Probebach", name: "Probebach", typ: "Bach", is_bach: true,
 });
+avesmapsGaretienStageHinzufuegen([importBach]);
 const mBach = garetienEingefuegtWirdMarkup(importBach);
 const vmBach = vmZaehlen(mBach);
 gleich(vmBach.gehakt, 0, "an einem Bach ist KEIN Verkehrsmittel vorgehakt: " + mBach);
@@ -680,6 +696,7 @@ avesmapsEcosystemDisplayInstall({
 // diesen bereits BESTEHENDEN Zustand liefern, nicht neu vorbelegen (das ist die Regel, die
 // Abschnitt I unten prueft) -- und diese Zeile prüfte dann fälschlich nichts über die Tafel.
 const huegelUebersteuert = Object.assign({}, huegel, { key: "ggp:Berge:Huegel:Garetien:Testhuegel-2" });
+avesmapsGaretienStageHinzufuegen([huegelUebersteuert]);
 const mHuegelUebersteuert = garetienEingefuegtWirdMarkup(huegelUebersteuert);
 gleich(eingabeWert(mHuegelUebersteuert, garetienEingabeId(huegelUebersteuert, "size")), "25",
 	"die Uebersteuerung setzt die Vorbelegung der Groesse auf ihren z5-Wert 25: " + mHuegelUebersteuert);
@@ -694,6 +711,7 @@ gleich(eingabeWert(mHuegelUebersteuert, garetienEingabeId(huegelUebersteuert, "m
 // Ohne diese Zeile prüfte G2.1 nicht, ob die Uebersteuerung wirklich an der ART haengt, statt den
 // Grundwert global zu veraendern.
 const seeOhneUebersteuerung = Object.assign({}, see, { key: "ggp:Gewaesser:See:Garetien:Testsee-2" });
+avesmapsGaretienStageHinzufuegen([seeOhneUebersteuerung]);
 const mSeeOhneUebersteuerung = garetienEingefuegtWirdMarkup(seeOhneUebersteuerung);
 gleich(eingabeWert(mSeeOhneUebersteuerung, garetienEingabeId(seeOhneUebersteuerung, "size")), "18",
 	"'see' traegt keine eigene Uebersteuerung -- die Vorbelegung der Groesse bleibt beim Grundwert 18");
@@ -706,6 +724,7 @@ avesmapsEcosystemDisplayInstall({
 	groesse: { berggipfel: [4, 4, 4, 4, 4, 4, 4, 4, 4] },
 });
 const gipfelUngueltig = Object.assign({}, gipfel, { key: "ggp:Berge:Berg:Garetien:Testgipfel-2" });
+avesmapsGaretienStageHinzufuegen([gipfelUngueltig]);
 const mGipfelUngueltig = garetienEingefuegtWirdMarkup(gipfelUngueltig);
 gleich(eingabeWert(mGipfelUngueltig, garetienEingabeId(gipfelUngueltig, "minZoom")), "0",
 	"ein umgekehrtes Zoomband faellt auf den Grundwert 0 zurueck: " + mGipfelUngueltig);
@@ -1070,6 +1089,7 @@ async function pruefeWikiLandschaftVerdrahtung() {
 	const nochNichtGefragt = Object.assign({}, huegel, {
 		key: "ggp:Berge:Huegel:Garetien:Testhuegel-noch-nicht-gefragt",
 	});
+	avesmapsGaretienStageHinzufuegen([nochNichtGefragt]);
 	const f4 = machFetch(function () { return { ok: true, wiki_landschaft: {} }; });
 	global.fetch = f4.fn;
 	garetienDetailWaehlen(nochNichtGefragt.key, [nochNichtGefragt]);
@@ -1095,6 +1115,7 @@ async function pruefeWikiLandschaftVerdrahtung() {
 	const ohneTreffer = Object.assign({}, huegel, {
 		key: "ggp:Berge:Huegel:Garetien:Testhuegel-ohne-treffer",
 	});
+	avesmapsGaretienStageHinzufuegen([ohneTreffer]);
 	const suchHost = macheElement(garetienWikiSucheHostId(ohneTreffer));
 	suchHost.hidden = true;
 	ELEMENTE[suchHost.id] = suchHost;
@@ -1127,6 +1148,7 @@ async function pruefeWikiLandschaftVerdrahtung() {
 	const mitTreffer = Object.assign({}, huegel, {
 		key: "ggp:Berge:Huegel:Garetien:Testhuegel-mit-treffer",
 	});
+	avesmapsGaretienStageHinzufuegen([mitTreffer]);
 	const suchHost2 = macheElement(garetienWikiSucheHostId(mitTreffer));
 	ELEMENTE[suchHost2.id] = suchHost2;
 	ELEMENTE[garetienWikiLandschaftPlatzhalterId(mitTreffer)] =
@@ -1158,6 +1180,7 @@ const huegelUebernommenFaehig = Object.assign({}, huegel, {
 	// als bedienbar einstuft (garetien-handlungen.test.js, Abschnitt N.1, wegUebernommen).
 	items: [{ id: 901, change_type: "new", anlass: null, apply_state: "done" }],
 });
+avesmapsGaretienStageHinzufuegen([huegelUebernommenFaehig]);
 const mHuegelFaehig = garetienEingefuegtWirdMarkup(huegelUebernommenFaehig);
 
 // ---- 6a: der Kasten zeigt weiterhin die ECHTEN Steuerelemente -- nur DEAKTIVIERT, nicht entfernt
@@ -1180,6 +1203,7 @@ wahr(mHuegelFaehig.includes('type="checkbox"') && mHuegelFaehig.includes('type="
 // ---- DIE DIFFERENZ, ohne die die Zusicherungen oben Vakuum waeren: DASSELBE Objekt, NICHT
 // übernommen, hat dieselben Felder BEDIENBAR.
 const huegelOffen = Object.assign({}, huegel, { key: "ggp:Berge:Huegel:Garetien:Testhuegel-offen" });
+avesmapsGaretienStageHinzufuegen([huegelOffen]);
 const mHuegelOffen = garetienEingefuegtWirdMarkup(huegelOffen);
 gleich(istDeaktiviert(mHuegelOffen, garetienEingabeId(huegelOffen, "isLocked")), false,
 	"ohne 'uebernommen' bleibt dasselbe Häkchen bedienbar -- die Zusicherungen oben prüfen wirklich etwas");
@@ -1209,6 +1233,7 @@ const huegelUebernommenUnfaehig = Object.assign({}, huegel, {
 		{ id: 903, change_type: "new", anlass: "zusatz", apply_state: "offen" },
 	],
 });
+avesmapsGaretienStageHinzufuegen([huegelUebernommenUnfaehig]);
 const mHuegelUnfaehig = garetienEingefuegtWirdMarkup(huegelUebernommenUnfaehig);
 wahr(mHuegelUnfaehig.includes("Liegt bereits auf der Karte."),
 	"auch hier steht, dass es schon auf der Karte liegt");

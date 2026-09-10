@@ -346,6 +346,11 @@ const voll = {
 		{ id: 12, anlass: "zusatz", change_type: "new", selected: 0 },
 	],
 };
+// Aufgabe 9 (09.09.2026, geteilter Baum): Darstellung sowie Wiki & Quellen -- und mit ihnen der
+// ganze Kasten "Eingefügt wird", den dieser Abschnitt prueft -- erscheinen erst auf der Stage.
+// `voll` traegt ein 'new'-Zusatz-Item und muss deshalb dort liegen; die Fixture bedient
+// `avesmapsGaretienStageHat`, statt die neue Bedingung zu unterlaufen.
+mod.avesmapsGaretienStageHinzufuegen([voll]);
 const mv = garetienDetailMarkup(voll);
 
 // 1. Der Kopf sagt, als WAS wir es anlegen wuerden -- UND wessen Vokabular welche Seite spricht
