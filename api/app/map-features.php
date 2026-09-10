@@ -168,7 +168,13 @@ require_once __DIR__ . '/../_internal/app/map-features-cache.php';
 //    damit das „offiziell", das sie nur aus der Vorgabe hatte. Wieder ein reiner Inhaltswechsel in
 //    `feature_kanon.abweichungen` -- und ein EIGENER Bump neben 24, weil sichtbare Aenderungen
 //    einzeln live gehen (AGENTS.md §9) und der zweite sonst hinter dem ETag des ersten verschwaende.
-const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 25;
+// 26 (10.09.2026): schweigt eine Landschaftsflaeche, gilt der Wiki-Artikel ihrer BESCHRIFTUNG
+//    (avesmapsEcosystemNamespacesAusBeschriftungen). Am Bestand gemessen: von den 9 Flaechen, die
+//    Version 25 stumm gestellt hat, tragen SECHS einen Hauptraum-Artikel am Schild und sagen
+//    seither wieder „offiziell". Dritter Inhaltswechsel in `feature_kanon.abweichungen` an diesem
+//    Tag, und wieder ein eigener Bump: er repariert eine Regression von 25 und muss die warmen
+//    Browser genauso erreichen wie sie.
+const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 26;
 
 // 🔴 avesmapsMapFeaturesWikiNamespaces() UND die zugehoerige Typ-Zuordnung stehen NICHT hier,
 // sondern in api/_internal/app/feature-sources.php, direkt neben avesmapsFeatureSourcesDeriveKanon,
@@ -413,18 +419,33 @@ try {
     // ⚠️ `+` behaelt bei gleichem Schluessel den LINKEN Wert; die drei Schluesselraeume sind
     // disjunkt (`territory:`, `ecosystem:` gegen settlement/region/path/powerline), es kann also
     // nichts kollidieren.
-    $featureKanon = $mapFeaturesIstDelta ? [] : avesmapsFeatureSourcesDeriveKanon(
-        $sourceCatalog,
-        $featureSourceRefs,
+    // 🔴 DIE BINDUNG LABEL→FLAECHE WIRD HIER SCHON GEBRAUCHT und steht deshalb VOR der
+    // Kanon-Rechnung; angewendet auf die Objekte wird sie unveraendert weiter unten. Sie ist ein
+    // reiner Lesevorgang und haengt an nichts, was hier oben passiert.
+    $labelRegions = avesmapsEcosystemReadLabelRegionMap($pdo);
+    $kanonRaeume = $mapFeaturesIstDelta ? [] : (
         avesmapsMapFeaturesWikiNamespaces($features)
             + avesmapsPoliticalTerritoryWikiNamespaces($pdo)
             + avesmapsEcosystemRegionWikiNamespaces($pdo)
+    );
+    // 💣 DER RUECKFALL LIEST DIE SCHON GEFUNDENEN RAEUME und steht deshalb NACH ihnen: er
+    // uebersetzt `region:<label>` nach `ecosystem:<region>`, wo die Flaeche selbst schweigt.
+    // `+=` behaelt den LINKEN Wert -- die Flaeche gewinnt also auch hier, und auf einem
+    // Delta-Abruf laeuft er ueber eine leere Karte und kostet nichts.
+    // 🪤 Die Zeile darunter sah eine Fassung lang anders aus (eine IIFE um beide Schritte), und
+    // ZWEI FREMDE Tests fielen um: kanon-etikett-test.php und map-features-delta-schlank-test.php
+    // nageln ihren Wortlaut fest -- der eine fuer die Reihenfolge nach dem Objektbau, der andere
+    // fuer die Delta-Weiche. Beide Absichten sind richtig; die Form bleibt deshalb, wie sie war.
+    $kanonRaeume += avesmapsEcosystemNamespacesAusBeschriftungen($kanonRaeume, $labelRegions['by_label']);
+    $featureKanon = $mapFeaturesIstDelta ? [] : avesmapsFeatureSourcesDeriveKanon(
+        $sourceCatalog,
+        $featureSourceRefs,
+        $kanonRaeume
     );
     // Landscape membership: fill properties.ecosystem_region_public_id on every label that belongs to a
     // region, resolved from BOTH stored directions. Applied here rather than inside the row builder
     // because it needs a relation the builder has no business knowing about -- same shape as the
     // legacy-other-source merge above.
-    $labelRegions = avesmapsEcosystemReadLabelRegionMap($pdo);
     avesmapsEcosystemApplyLabelRegionsToFeatures($features, $labelRegions['by_label'], $labelRegions['kind_by_region'] ?? []);
     // Die Beschriftungskurve. 🔴 STRIKT NACH der Zeile darueber: sie haengt an
     // properties.ecosystem_region_public_id, und fuer ~137 Labels ist das genau der Zeiger, den die
