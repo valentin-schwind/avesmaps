@@ -58,6 +58,17 @@ assert($nurLeerraum === ['area' => '', 'region' => '', 'verbund' => ''],
 // in garetien-uebernahme-test.php, hier auf das Notwendigste gekuerzt.
 final class AvesmapsGaretienVerbundUebernahmeTestPdo extends PDO
 {
+    /**
+     * FIXRUNDE 1, BEFUND 2: zaehlt, wie oft die Existenzabfrage von
+     * avesmapsSettlementPlaceExists() vorbereitet wird -- unabhaengig davon, ob die Tabelle
+     * ueberhaupt existiert (dieses Fixture legt sie bewusst nicht an, siehe die AUTO_INCREMENT/
+     * ENGINE=InnoDB-Kurzschluesse in exec() unten; avesmapsSettlementPlaceExists() faengt die
+     * daraus folgende PDOException selbst ab und liefert false). Der Zaehler misst NUR, ob die
+     * Abfrage ueberhaupt VERSUCHT wird -- genau das unterscheidet den gebundenen Riegel
+     * (`$ziel !== 'region' && ...`) vom ungebundenen Aufruf davor.
+     */
+    public static int $settlementPlaceExistsAbfragen = 0;
+
     public function exec(string $statement): int|false
     {
         foreach (['map_revision', 'ecosystem_revision'] as $tabelle) {
@@ -87,6 +98,9 @@ final class AvesmapsGaretienVerbundUebernahmeTestPdo extends PDO
 
     public function prepare(string $query, array $options = []): PDOStatement|false
     {
+        if (trim($query) === 'SELECT 1 FROM settlement_place WHERE public_id = :pid LIMIT 1') {
+            self::$settlementPlaceExistsAbfragen++;
+        }
         if (str_contains($query, 'information_schema')) {
             preg_match_all('~:[a-zA-Z_][a-zA-Z0-9_]*~', $query, $treffer);
             $namen = array_unique($treffer[0]);
@@ -600,6 +614,28 @@ assert(avesmapsGaretienRuecknahmeWeg('') === ['region', ''], 'J: ein leerer Verm
 
 echo "OK -- garetien-ruecknahme-weg (Aufgabe 7, Schritt 1)\n";
 
+// =================================================================================================
+// J2. FIXRUNDE 1, BEFUND 1 (wichtig) -- ein Verbund-Vermerk OHNE Flaeche wirft, statt sich still
+//     auf den breiten Regionsweg zurueckzuziehen.
+// =================================================================================================
+//
+// "Heute unerreichbar" (der Schreiber fuellt Flaeche, Region und Verbund immer gemeinsam) ist auf
+// einem LOESCHWEG kein Argument. Der Rueckfall muss in die SICHERE Richtung zeigen: ein Vermerk mit
+// gesetztem Verbund, aber leerer Flaeche, wird ABGELEHNT -- nicht stillschweigend als "kein
+// Verbund" gelesen, was Region samt allen Geschwister-Flaechen mitreissen wuerde.
+$vermerkJ2 = avesmapsGaretienVerbundVermerk('', 'r1', 'Silker Hain');
+$geworfenJ2 = null;
+try {
+    avesmapsGaretienRuecknahmeWeg($vermerkJ2);
+} catch (Throwable $e) {
+    $geworfenJ2 = $e;
+}
+assert($geworfenJ2 instanceof RuntimeException,
+    'J2: ein Verbund-Vermerk OHNE Flaeche muss werfen, statt den breiten Regionsweg zu waehlen'
+    . ' (sonst rissen Geschwister-Flaechen eines Verbunds mit)');
+
+echo "OK -- garetien-ruecknahme-weg-verbund-ohne-flaeche (Fixrunde 1, Befund 1)\n";
+
 /**
  * Ein 'region'-Item VOLLSTAENDIG uebernehmen lassen und den Item-Datensatz zurueckgeben --
  * gebuendelt, weil Abschnitt K/L/M denselben Ablauf mehrfach braucht (anlegen, Vermerk lesen,
@@ -630,6 +666,28 @@ function avesmapsGaretienRuecknahmeTestVerbundAnlegen(PDO $pdo, int $userId): ar
     ];
 }
 
+// =================================================================================================
+// J3. FIXRUNDE 1, BEFUND 2 (Kleinigkeit) -- avesmapsSettlementPlaceExists() wird fuer ein
+//     'region'-Item GAR NICHT ERST AUFGERUFEN. Seit Aufgabe 6/7 traegt $publicId bei einem
+//     'region'-Item den strukturierten Verbund-Vermerk, nicht mehr eine nackte public_id -- eine
+//     Staette wird aber NIE unter `ziel = 'region'` angelegt (Innerorts ist eine eigene Abzweigung
+//     VOR der ziel-Weiche, ihr Objekt traegt immer `ziel = 'location'`). Der Aufruf traefe also
+//     ohnehin nie, aber er wuerde etwas nachschlagen, das strukturell nie eine public_id war.
+// =================================================================================================
+$pdoJ3 = avesmapsGaretienVerbundUebernahmeTestPdo();
+$verbundJ3 = avesmapsGaretienRuecknahmeTestVerbundAnlegen($pdoJ3, 7);
+
+AvesmapsGaretienVerbundUebernahmeTestPdo::$settlementPlaceExistsAbfragen = 0;
+$rJ3 = avesmapsGaretienRuecknahmeAusfuehren($pdoJ3, $verbundJ3['run_id'], [$verbundJ3['item2']], ['id' => 7]);
+assert($rJ3['fehler'] === [], 'J3: keine Fehler erwartet: ' . json_encode($rJ3['fehler'], JSON_UNESCAPED_UNICODE));
+assert($rJ3['zurueckgenommen'] === 1, 'J3: die Ruecknahme muss trotzdem zaehlen');
+assert(AvesmapsGaretienVerbundUebernahmeTestPdo::$settlementPlaceExistsAbfragen === 0,
+    'J3: die Staetten-Existenzabfrage darf fuer ein "region"-Item GAR NICHT erst vorbereitet werden'
+    . ' -- $publicId ist dort der Verbund-Vermerk, keine public_id, bekommen: '
+    . AvesmapsGaretienVerbundUebernahmeTestPdo::$settlementPlaceExistsAbfragen . ' Aufrufe');
+
+echo "OK -- garetien-ruecknahme-keine-staetten-abfrage-bei-region (Fixrunde 1, Befund 2)\n";
+
 // --- K. Die Ruecknahme EINES (nicht des letzten) Fragments nimmt nur DESSEN Flaeche ---
 //
 // Fragment 2 wird zurueckgenommen, waehrend Fragment 1 noch steht -- Region, Label und die
@@ -656,7 +714,14 @@ $regionAktivK = (int) $pdoK->query(
 )->fetchColumn();
 assert($regionAktivK === 1, 'K: die Region bleibt aktiv, solange Fragment 1 noch eine Flaeche traegt');
 
-$labelAktivK = (int) $pdoK->query("SELECT is_active FROM map_features WHERE feature_type = 'label'")->fetchColumn();
+// 🔴 FIXRUNDE 1, BEFUND 3: AN DIE REGION GEBUNDEN, NICHT "irgendeine Zeile mit feature_type =
+// 'label'". Ohne Bindung und ohne LIMIT misst diese Abfrage heute nur, weil die Fixture GENAU EIN
+// Label kennt -- Abschnitt N unten belegt woertlich, dass sie mit einem zweiten Label das FALSCHE
+// misst.
+$labelAktivK = (int) $pdoK->query(
+    "SELECT is_active FROM map_features WHERE public_id ="
+    . " (SELECT label_public_id FROM ecosystem_region WHERE public_id = '" . $verbundK['vermerk1']['region'] . "')"
+)->fetchColumn();
 assert($labelAktivK === 1, 'K: die Beschriftung bleibt stehen, solange die Region noch eine Flaeche traegt');
 
 $itemK2 = $pdoK->query('SELECT apply_state, apply_note, selected FROM sync_plan_item WHERE id = ' . $verbundK['item2'])
@@ -685,7 +750,11 @@ $regionAktivL = (int) $pdoK->query(
 )->fetchColumn();
 assert($regionAktivL === 0, 'L: OHNE eine einzige verbliebene Flaeche geht die Region automatisch mit (Kaskade in avesmapsDeleteEcosystemArea)');
 
-$labelAktivL = (int) $pdoK->query("SELECT is_active FROM map_features WHERE feature_type = 'label'")->fetchColumn();
+// 🔴 FIXRUNDE 1, BEFUND 3: dieselbe Bindung wie bei K -- siehe die Begruendung dort.
+$labelAktivL = (int) $pdoK->query(
+    "SELECT is_active FROM map_features WHERE public_id ="
+    . " (SELECT label_public_id FROM ecosystem_region WHERE public_id = '" . $verbundK['vermerk1']['region'] . "')"
+)->fetchColumn();
 assert($labelAktivL === 0, 'L: und die Beschriftung ebenso -- kein Geist, der eine leere Region benennt');
 
 // 🔴 KEIN ANFUEHRER-SONDERFALL, GEPRUEFT AM PROTOKOLL: die Region muss ueber die KASKADE in
@@ -780,3 +849,54 @@ assert($altZeileM['apply_state'] === null && $altZeileM['apply_note'] === null,
     'M: die urspruengliche Zeile aus Lauf A faellt mit auf "Offen" zurueck');
 
 echo "OK -- garetien-ruecknahme-laufuebergreifender-vermerk (Aufgabe 7, Zusatzanforderung)\n";
+
+// =================================================================================================
+// N. FIXRUNDE 1, BEFUND 3 (Kleinigkeit) -- die Beschriftungs-Abfrage in K/L bindet an ihre EIGENE
+//    Region. Ohne Bindung und ohne LIMIT (die Fassung vor dieser Fixrunde) misst
+//    "SELECT is_active FROM map_features WHERE feature_type = 'label'" nur deshalb richtig, weil
+//    die K/L-Fixture GENAU EIN Label kennt -- mit einem zweiten Label liefert sie das FALSCHE,
+//    ohne jede Fehlermeldung.
+// =================================================================================================
+//
+// Aufbau: ein FREMDER Verbund wird ZUERST angelegt und komplett zurueckgenommen -- sein Label ist
+// danach inaktiv und traegt (weil zuerst angelegt) die niedrigere id. Erst danach entsteht der
+// GEPRUEFTE Verbund mit seinem aktiven Label. `fetchColumn()` ohne ORDER BY und ohne LIMIT liefert
+// bei einem einfachen Tabellenscan die erste Zeile in ROWID-Reihenfolge -- also das FREMDE,
+// laengst inaktive Label, nicht das aktive Label des gepruedften Verbunds.
+$pdoN = avesmapsGaretienVerbundUebernahmeTestPdo();
+
+$verbundNFremd = avesmapsGaretienRuecknahmeTestVerbundAnlegen($pdoN, 7);
+$rNFremd = avesmapsGaretienRuecknahmeAusfuehren(
+    $pdoN, $verbundNFremd['run_id'], [$verbundNFremd['item1'], $verbundNFremd['item2']], ['id' => 7]
+);
+assert($rNFremd['fehler'] === [] && $rNFremd['zurueckgenommen'] === 2,
+    'N (Testaufbau): der fremde Verbund wird VOLLSTAENDIG zurueckgenommen, sein Label also inaktiv: '
+    . json_encode($rNFremd['fehler'], JSON_UNESCAPED_UNICODE));
+
+$verbundN = avesmapsGaretienRuecknahmeTestVerbundAnlegen($pdoN, 7);
+
+$labelnN = $pdoN->query("SELECT id, is_active FROM map_features WHERE feature_type = 'label' ORDER BY id")
+    ->fetchAll(PDO::FETCH_ASSOC);
+assert(count($labelnN) === 2, 'N (Testaufbau): GENAU ZWEI Label-Zeilen, bekommen: ' . count($labelnN));
+assert((int) $labelnN[0]['is_active'] === 0 && (int) $labelnN[1]['is_active'] === 1,
+    'N (Testaufbau): das FREMDE Label (niedrigere id) ist inaktiv, das GEPRUEFTE (hoehere id) aktiv');
+
+// 🪤 DIE UNGEBUNDENE FORM -- woertlich die Abfrage aus K/L vor dieser Fixrunde. Mit zwei Labeln in
+// der Fixture liefert sie das FALSCHE (fremde, laengst inaktive) Label, nicht das aktive Label des
+// gerade gepruedften Verbunds -- genau der Befund, hier woertlich belegt statt nur behauptet.
+$labelUngebundenN = (int) $pdoN->query("SELECT is_active FROM map_features WHERE feature_type = 'label'")->fetchColumn();
+assert($labelUngebundenN === 0,
+    'N: OHNE Bindung an die Region liefert die Abfrage das FALSCHE Label (0 statt 1) -- mit einem'
+    . ' zweiten Label bricht sie still, bekommen: ' . $labelUngebundenN);
+
+// Die REPARATUR (auch in K/L angewendet): an die eigene Region gebunden, trifft die Abfrage das
+// RICHTIGE Label -- unabhaengig davon, wie viele weitere Label-Zeilen daneben liegen.
+$labelGebundenN = (int) $pdoN->query(
+    "SELECT is_active FROM map_features WHERE public_id ="
+    . " (SELECT label_public_id FROM ecosystem_region WHERE public_id = '" . $verbundN['vermerk1']['region'] . "')"
+)->fetchColumn();
+assert($labelGebundenN === 1,
+    'N: an die eigene Region gebunden liefert die Abfrage das RICHTIGE (aktive) Label, bekommen: '
+    . $labelGebundenN);
+
+echo "OK -- garetien-ruecknahme-label-abfrage-gebunden (Fixrunde 1, Befund 3)\n";
