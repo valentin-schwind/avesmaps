@@ -24,8 +24,20 @@ assert($alt['region'] === '11112222-3333-4444-5555-666677778888', 'der alte Verm
 assert($alt['verbund'] === '');
 
 // --- C. Ein leerer Vermerk ist kein Absturz ---
+//
+// 🔴 FIXRUNDE 1 (Kleinigkeit): die urspruengliche Fassung dieser Zusicherung
+// (`avesmapsGaretienVermerkLesen('')` allein) war VAKUUM -- eine Mutationsprobe, die den
+// Fruehausstieg `if ($n === '') { return $raus; }` entfernt, liess sie GRUEN: fuer `$n = ''` ist
+// `str_contains('', ':')` ebenfalls `false`, der Rueckfallzweig "alter Vermerk" darunter setzt
+// `$raus['region'] = '';` -- also dasselbe Ergebnis, mit oder ohne den Fruehausstieg. Scharf
+// gemacht durch einen zweiten Fall, den NUR `trim($note)` unschaedlich macht: ein Vermerk aus
+// reinem Leerraum (kein `:` darin) muesste ohne `trim()` als "alter Vermerk" MIT dem Leerraum
+// selbst als Region durchgehen.
 $leer = avesmapsGaretienVermerkLesen('');
-assert($leer === ['area' => '', 'region' => '', 'verbund' => '']);
+assert($leer === ['area' => '', 'region' => '', 'verbund' => ''], 'C: leerer Vermerk -> alle drei Felder leer');
+$nurLeerraum = avesmapsGaretienVermerkLesen("   \t  ");
+assert($nurLeerraum === ['area' => '', 'region' => '', 'verbund' => ''],
+    'C: ein Vermerk aus REINEM Leerraum ist getrimmt leer, nicht "alter Vermerk mit Leerraum als Region"');
 
 // =================================================================================================
 // D. DER EIGENTLICHE IMPORT -- zwei Fragmente werden zu EINER Region mit ZWEI Flaechen.
@@ -86,12 +98,81 @@ final class AvesmapsGaretienVerbundUebernahmeTestPdo extends PDO
         $query = str_replace('FOR UPDATE', '', $query);
         $query = str_replace('NOW(3)', "datetime('now')", $query);
         $query = str_replace('INSERT IGNORE INTO', 'INSERT OR IGNORE INTO', $query);
+        // 🪤 SQLite verlangt fuer ESCAPE GENAU EIN Zeichen; MySQL interpretiert `'\\'` (zwei
+        // Backslash-Zeichen im SQL-Text) selbst als EIN maskiertes Backslash-Zeichen -- derselbe
+        // Dialekt-Unterschied wie CRLF/LF (AGENTS.md §9), nur eine Ebene tiefer. Ungeuebersetzt
+        // wirft SQLite "ESCAPE expression must be a single character" -- ein Fehler, der wie ein
+        // kaputtes Muster aussieht und keiner ist.
+        $query = str_replace("ESCAPE '\\\\'", "ESCAPE '\\'", $query);
         if (str_contains($query, 'INSERT INTO app_setting') && str_contains($query, 'ON DUPLICATE KEY UPDATE')) {
             $query = 'INSERT INTO app_setting (setting_key, setting_value) VALUES (:k, :v)
                       ON CONFLICT(setting_key) DO UPDATE SET setting_value = excluded.setting_value';
         }
+        // 🔴 FIXRUNDE 1, BEFUND A: der neue Abschnitt E faehrt avesmapsGaretienQuellenAnlegen
+        // wirklich aus (avesmapsFeatureSourceUpsert / …Link, api/_internal/app/feature-sources.php)
+        // -- beide MySQL-eigen (`ON DUPLICATE KEY UPDATE` + `IF(...)`/`VALUES(...)`). Uebersetzt
+        // wie in garetien-uebernahme-test.php (dieselbe Naht, hier auf die zwei Tabellen
+        // gekuerzt, die dieser Ablauf wirklich anfasst) statt den Produktivcode zu verbiegen.
+        if (str_contains($query, 'ON DUPLICATE KEY UPDATE')
+            && (str_contains($query, 'INTO sources') || str_contains($query, 'INTO feature_sources'))) {
+            $query = self::mysqlUpsertNachSqlite($query);
+        }
 
         return parent::prepare($query, $options);
+    }
+
+    /**
+     * MySQLs `INSERT ... ON DUPLICATE KEY UPDATE` in SQLites `ON CONFLICT ... DO UPDATE` --
+     * Uebersetzung uebernommen aus garetien-uebernahme-test.php (dieselbe Naht, dort ausfuehrlich
+     * begruendet: der Schluessel muss bei SQLite genannt werden, `VALUES(x)` heisst `excluded.x`,
+     * `IF(a, b, c)` heisst `CASE WHEN a THEN b ELSE c END`, klammerweise zerlegt statt per Regex,
+     * weil `avesmapsSourceUpsertOnDuplicateSql` ein Komma INNERHALB eines Literals traegt
+     * (`own_fields NOT LIKE '%,is_official,%'`).
+     */
+    private static function mysqlUpsertNachSqlite(string $query): string
+    {
+        $schluessel = str_contains($query, 'INTO sources')
+            ? '(url_hash)'
+            : '(entity_type, entity_public_id, source_id)';
+        $query = str_replace('ON DUPLICATE KEY UPDATE', 'ON CONFLICT ' . $schluessel . ' DO UPDATE SET', $query);
+        $tabelle = str_contains($query, 'INTO sources') ? 'sources' : 'feature_sources';
+        $query = preg_replace('~VALUES\(([a-z_]+)\)~i', 'excluded.$1', $query) ?? $query;
+
+        while (($ab = strpos($query, 'IF(')) !== false) {
+            $tiefe = 0;
+            $inText = false;
+            $teile = [];
+            $stueck = '';
+            for ($i = $ab + 3, $n = strlen($query); $i < $n; $i++) {
+                $z = $query[$i];
+                if ($z === "'") { $inText = !$inText; }
+                if (!$inText) {
+                    if ($z === '(') { $tiefe++; }
+                    if ($z === ')') {
+                        if ($tiefe === 0) { $teile[] = $stueck; break; }
+                        $tiefe--;
+                    }
+                    if ($z === ',' && $tiefe === 0) { $teile[] = $stueck; $stueck = ''; continue; }
+                }
+                $stueck .= $z;
+            }
+            if (count($teile) !== 3) { break; }
+            $ersatz = 'CASE WHEN ' . trim($teile[0]) . ' THEN ' . trim($teile[1]) . ' ELSE ' . trim($teile[2]) . ' END';
+            $query = substr($query, 0, $ab) . $ersatz . substr($query, $i + 1);
+        }
+        if (str_contains($query, 'IF(')) {
+            throw new RuntimeException('Die Uebersetzung nach SQLite hat ein IF( stehen lassen: ' . $query);
+        }
+
+        $teile = explode('DO UPDATE SET', $query, 2);
+        if (count($teile) === 2) {
+            $teile[1] = preg_replace('~(?<![.\w])(label|is_official|wiki_key|license|attribution|origin|status)(?![\w.])~',
+                $tabelle . '.$1', $teile[1]) ?? $teile[1];
+            $teile[1] = preg_replace('~' . $tabelle . '\.([a-z_]+)(\s*=)~', '$1$2', $teile[1]) ?? $teile[1];
+            $query = $teile[0] . 'DO UPDATE SET' . $teile[1];
+        }
+
+        return $query;
     }
 }
 
@@ -218,3 +299,147 @@ assert($noteD1['area'] !== '' && $noteD2['area'] !== '' && $noteD1['area'] !== $
     'D: BEIDE Vermerke nennen verschiedene, nicht-leere Flaechen');
 
 echo "OK -- garetien-verbund-uebernahme\n";
+
+// =================================================================================================
+// E. FIXRUNDE 1, BEFUND A (kritisch) -- avesmapsGaretienArtikelQuellenNachtragen liest die
+//    REGION aus dem strukturierten Vermerk, nicht den GANZEN Vermerk als nackte public_id.
+// =================================================================================================
+//
+// Seit Aufgabe 6 traegt JEDE 'region'-Zeile den strukturierten Vermerk
+// ("area:<a> | region:<r> | verbund:<v>"), auch OHNE Verbund (dann bleibt das dritte Feld leer --
+// wie hier). Vor dieser Fixrunde las der Nachtrag bei einem 'new'-Item ohne entity_public_id
+// weiterhin `trim($zeile['apply_note'])` -- den GANZEN Vermerk -- und reichte ihn als "die
+// Region" an avesmapsGaretienQuellenZiel('region', ...) weiter. Die Weiche dahinter
+// (avesmapsEcosystemLabelSourceTarget) ist REIN und wirft NIE: sie liefert klaglos
+// ['ecosystem', '<der ganze Vermerk>'] zurueck, und der Nachtrag haengt die Quelle an genau
+// diese unsinnige Kennung -- eine feature_sources-Zeile, die kein Leser je findet, plus ein
+// Revisions-Bump fuer NICHTS.
+$pdoE = avesmapsGaretienVerbundUebernahmeTestPdo();
+$runIdE = avesmapsSyncPlanStartRun($pdoE, AVESMAPS_GARETIEN_PLAN_KIND, 7, 'test-artikel-nachtrag');
+$vermerkE = avesmapsGaretienVerbundVermerk('area-XYZ', 'region-XYZ', '');
+$pdoE->prepare(
+    "INSERT INTO sync_plan_item (run_id, entity_key, entity_public_id, change_type, label, before_json, after_json, override_json, selected, apply_state, apply_note)
+     VALUES (?, ?, NULL, 'new', ?, NULL, ?, NULL, 1, 'done', ?)"
+)->execute([
+    $runIdE,
+    'ggp:Waelder:Wald:#99',
+    'Testwald',
+    json_encode([
+        'herkunft' => 'garetien', 'ziel' => 'region',
+        // `artikel_quelle` direkt gesetzt -- so entfaellt der Umweg ueber den Schluessel
+        // (avesmapsGaretienArtikelNameAusSchluessel), der fuer DIESE Zusicherung nichts beitraegt.
+        'artikel_quelle' => [
+            'url' => 'https://www.garetien.de/index.php/Testwald',
+            'label' => 'Testwald auf garetien.de',
+            'source_type' => 'briefspiel',
+            'origin' => 'garetien',
+            'license' => 'cc-by-nc-sa-3.0',
+            'attribution' => 'VolkoV / garetien.de',
+        ],
+    ], JSON_UNESCAPED_UNICODE),
+    $vermerkE,
+]);
+
+$ergebnisE = avesmapsGaretienArtikelQuellenNachtragen($pdoE);
+assert($ergebnisE['geprueft'] === 1, 'E: genau ein Item mit Artikel geprueft, bekommen: ' . $ergebnisE['geprueft']);
+assert($ergebnisE['geschrieben'] === 1, 'E: genau eine Verknuepfung geschrieben, bekommen: ' . $ergebnisE['geschrieben']);
+
+$verknuepfungenE = $pdoE->query('SELECT entity_type, entity_public_id FROM feature_sources')->fetchAll(PDO::FETCH_ASSOC);
+assert(count($verknuepfungenE) === 1, 'E: GENAU EINE Verknuepfung, bekommen: ' . count($verknuepfungenE));
+assert($verknuepfungenE[0]['entity_type'] === 'ecosystem',
+    'E: die Landschaftsflaeche traegt ihre Quellen als "ecosystem", bekommen: ' . $verknuepfungenE[0]['entity_type']);
+assert($verknuepfungenE[0]['entity_public_id'] === 'region-XYZ',
+    'E: die Verknuepfung zeigt auf die REGION, nicht auf den ganzen Vermerk -- bekommen: "'
+    . $verknuepfungenE[0]['entity_public_id'] . '"');
+
+echo "OK -- garetien-artikelquellen-nachtragen (Befund A)\n";
+
+// =================================================================================================
+// F. FIXRUNDE 1, BEFUND C (wichtig) -- die Anfuehrer-Suche geht LAUFUEBERGREIFEND, wie die
+//    laufuebergreifende Ruecknahme (Entwurf §6).
+// =================================================================================================
+//
+// Fragment 1 kommt in Lauf A an und wird uebernommen. Danach laeuft "Holen & Rechnen" -- das
+// setzt Lauf A auf 'superseded', loescht ihn aber NICHT (AGENTS.md §10, Server<->Repo-Drift-
+// Analogon fuer sync_plan_run). Fragment 2 desselben Verbunds kommt in Lauf B an. Vor dieser
+// Fixrunde filterte die Anfuehrer-Suche nach `run_id = Lauf B` und faende Fragment 1 (das in
+// Lauf A liegt) NIE -- Lauf B legte eine ZWEITE Region desselben Namens an, ohne jede Meldung.
+$pdoF = avesmapsGaretienVerbundUebernahmeTestPdo();
+$runFA = avesmapsSyncPlanStartRun($pdoF, AVESMAPS_GARETIEN_PLAN_KIND, 7, 'lauf-a');
+$itemF1 = avesmapsGaretienVerbundTestFragment($pdoF, $runFA, 'Grenzwald 1', 1, avesmapsGaretienVerbundTestRing(300, 300));
+$ergebnisF1 = avesmapsGaretienUebernehmen($pdoF, $runFA, [$itemF1], ['id' => 7], null, [
+    $itemF1 => ['verbund' => 'Grenzwald'],
+]);
+assert($ergebnisF1['fehler'] === [], 'F: Fragment 1 (Lauf A) legt an, keine Fehler: ' . json_encode($ergebnisF1['fehler'], JSON_UNESCAPED_UNICODE));
+
+// "Holen & Rechnen": ein neuer Lauf derselben Art -- Lauf A wird 'superseded', NICHT geloescht.
+$runFB = avesmapsSyncPlanStartRun($pdoF, AVESMAPS_GARETIEN_PLAN_KIND, 7, 'lauf-b');
+$laufAState = $pdoF->query('SELECT state FROM sync_plan_run WHERE id = ' . $runFA)->fetchColumn();
+assert($laufAState === 'superseded', 'F (Testaufbau): Lauf A steht auf superseded, nicht geloescht -- bekommen: ' . $laufAState);
+
+$itemF2 = avesmapsGaretienVerbundTestFragment($pdoF, $runFB, 'Grenzwald 2', 2, avesmapsGaretienVerbundTestRing(400, 400));
+$ergebnisF2 = avesmapsGaretienUebernehmen($pdoF, $runFB, [$itemF2], ['id' => 7], null, [
+    $itemF2 => ['verbund' => 'Grenzwald'],
+]);
+assert($ergebnisF2['fehler'] === [], 'F: Fragment 2 (Lauf B) legt an, keine Fehler: ' . json_encode($ergebnisF2['fehler'], JSON_UNESCAPED_UNICODE));
+
+$regionenF = $pdoF->query('SELECT id, public_id FROM ecosystem_region')->fetchAll(PDO::FETCH_ASSOC);
+assert(count($regionenF) === 1,
+    'F: GENAU EINE Region ueber ZWEI Laeufe hinweg, bekommen: ' . count($regionenF));
+
+$flaechenF = $pdoF->query('SELECT region_id FROM ecosystem_area')->fetchAll(PDO::FETCH_ASSOC);
+assert(count($flaechenF) === 2, 'F: GENAU ZWEI Flaechen, bekommen: ' . count($flaechenF));
+assert((int) $flaechenF[0]['region_id'] === (int) $regionenF[0]['id']
+    && (int) $flaechenF[1]['region_id'] === (int) $regionenF[0]['id'],
+    'F: BEIDE Flaechen (aus BEIDEN Laeufen) haengen an DERSELBEN Region');
+
+echo "OK -- garetien-verbund-laufuebergreifend (Befund C)\n";
+
+// =================================================================================================
+// G. FIXRUNDE 1, KLEINIGKEIT -- das LIKE-Muster maskiert "%"/"_" im Verbund-Stamm.
+// =================================================================================================
+//
+// Ein Verbund-Stamm ist freier Text; ein "_" darin ist in einem Wiki-Artikelnamen plausibel. Ohne
+// Maskierung ist "_" ein LIKE-Metazeichen ("ein beliebiges Zeichen") -- die Suche nach dem
+// Verbund "A_wald" faende dann FAELSCHLICH den voellig anderen, bereits angelegten Verbund
+// "AXwald" (ein "_" passt auf jedes einzelne Zeichen, auch ein "X").
+$pdoG = avesmapsGaretienVerbundUebernahmeTestPdo();
+$runG = avesmapsSyncPlanStartRun($pdoG, AVESMAPS_GARETIEN_PLAN_KIND, 7, 'lauf-g');
+
+// Ein FREMDER, unverwandter Verbund, dessen Name zufaellig auf das ungeschuetzte Muster passt.
+$itemGFremd = avesmapsGaretienVerbundTestFragment($pdoG, $runG, 'AXwald 1', 90, avesmapsGaretienVerbundTestRing(600, 600));
+$ergebnisGFremd = avesmapsGaretienUebernehmen($pdoG, $runG, [$itemGFremd], ['id' => 7], null, [
+    $itemGFremd => ['verbund' => 'AXwald'],
+]);
+assert($ergebnisGFremd['fehler'] === [], 'G: der fremde Verbund legt an, keine Fehler');
+
+// Der GESUCHTE Verbund, dessen Name ein echtes "_" traegt -- zwei Fragmente.
+$itemG1 = avesmapsGaretienVerbundTestFragment($pdoG, $runG, 'A_wald 1', 91, avesmapsGaretienVerbundTestRing(700, 700));
+$ergebnisG1 = avesmapsGaretienUebernehmen($pdoG, $runG, [$itemG1], ['id' => 7], null, [
+    $itemG1 => ['verbund' => 'A_wald'],
+]);
+assert($ergebnisG1['fehler'] === [], 'G: A_wald Fragment 1 legt an, keine Fehler');
+
+$itemG2 = avesmapsGaretienVerbundTestFragment($pdoG, $runG, 'A_wald 2', 92, avesmapsGaretienVerbundTestRing(800, 800));
+$ergebnisG2 = avesmapsGaretienUebernehmen($pdoG, $runG, [$itemG2], ['id' => 7], null, [
+    $itemG2 => ['verbund' => 'A_wald'],
+]);
+assert($ergebnisG2['fehler'] === [], 'G: A_wald Fragment 2 legt an, keine Fehler');
+
+$regionenG = $pdoG->query('SELECT id, public_id FROM ecosystem_region')->fetchAll(PDO::FETCH_ASSOC);
+assert(count($regionenG) === 2,
+    'G: ZWEI Regionen -- "AXwald" und "A_wald" bleiben GETRENNT, bekommen: ' . count($regionenG));
+
+$flaechenJeRegionG = $pdoG->query(
+    "SELECT er.name AS leader_name, COUNT(ea.id) AS n
+       FROM ecosystem_region er LEFT JOIN ecosystem_area ea ON ea.region_id = er.id
+      GROUP BY er.id"
+)->fetchAll(PDO::FETCH_KEY_PAIR);
+assert((int) ($flaechenJeRegionG['AXwald 1'] ?? -1) === 1,
+    'G: "AXwald" bleibt bei EINER Flaeche (nicht faelschlich mit A_wald verschmolzen), bekommen: '
+    . ($flaechenJeRegionG['AXwald 1'] ?? 'FEHLT'));
+assert((int) ($flaechenJeRegionG['A_wald 1'] ?? -1) === 2,
+    'G: "A_wald" hat BEIDE eigenen Fragmente zusammengefuehrt, bekommen: '
+    . ($flaechenJeRegionG['A_wald 1'] ?? 'FEHLT'));
+
+echo "OK -- garetien-verbund-like-maskierung (Kleinigkeit)\n";

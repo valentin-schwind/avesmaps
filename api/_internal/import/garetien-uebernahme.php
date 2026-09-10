@@ -634,19 +634,37 @@ function avesmapsGaretienVermerkLesen(string $note): array
 }
 
 /**
- * Hat dieser Verbund in diesem Lauf schon eine Region? Dann ist ihr Anfuehrer schon durch.
+ * Hat dieser Verbund schon eine Region -- in DIESEM oder einem FRUEHEREN Lauf? Dann ist ihr
+ * Anfuehrer schon durch.
+ *
+ * 🔴 LAUFUEBERGREIFEND, NICHT `run_id`-GEBUNDEN (Entwurf §6: "derselbe Weg, den die
+ * laufuebergreifende Ruecknahme heute schon geht" -- avesmapsGaretienRuecknahmeAusfuehren sucht
+ * bei fehlendem Vermerk ueber `r.kind`, nie ueber `run_id`). Ein "Holen & Rechnen" setzt den
+ * alten Lauf nur auf `superseded`, loescht ihn aber NIE (avesmapsSyncPlanStartRun). Fragmente
+ * desselben Verbunds, die in verschiedenen Laeufen ankommen (Item 1-2 in Lauf A, Item 3-4 nach
+ * einem Neu-Rechnen in Lauf B), faenden ihren Anfuehrer sonst nie und legten eine ZWEITE Region
+ * gleichen Namens an -- ohne jede Meldung.
+ *
+ * ⚠️ Von mehreren Treffern gilt die JUENGSTE (`ORDER BY id DESC`) -- dieselbe Regel, aus
+ * demselben Grund wie bei der Ruecknahme ("Von mehreren gilt die JUENGSTE").
  *
  * ⚠️ Gefragt wird `sync_plan_item`, nicht ein zweiter Merker: die Uebernahme laeuft gestueckelt
  * (`$budget`), und ein Nachzuegler im naechsten Haeppchen muss den Anfuehrer wiederfinden.
  */
-function avesmapsGaretienVerbundRegion(PDO $pdo, string $verbund, int $runId): ?string
+function avesmapsGaretienVerbundRegion(PDO $pdo, string $verbund): ?string
 {
+    // 💣 EIN VERBUND-STAMM IST FREIER TEXT, KEIN SQL-MUSTER -- ein "%" oder "_" darin (ein
+    // Wiki-Artikelname kann beides tragen) waere sonst ein LIKE-Metazeichen, das den Anfuehrer
+    // einer VOELLIG ANDEREN Gruppe trifft ("A_wald" faende ohne Maskierung "AXwald").
+    // Dieselbe Maskierung wie avesmapsSearchSourceCatalog (api/_internal/app/feature-sources.php).
+    $maskiert = str_replace(['\\', '%', '_'], ['\\\\', '\%', '\_'], $verbund);
     $stmt = $pdo->prepare(
-        "SELECT apply_note FROM sync_plan_item
-          WHERE run_id = :r AND apply_state = 'done' AND apply_note LIKE :muster
-          ORDER BY id ASC LIMIT 1"
+        "SELECT i.apply_note FROM sync_plan_item i"
+        . " JOIN sync_plan_run r ON r.id = i.run_id"
+        . " WHERE r.kind = :k AND i.apply_state = 'done' AND i.apply_note LIKE :muster ESCAPE '\\\\'"
+        . " ORDER BY i.id DESC LIMIT 1"
     );
-    $stmt->execute([':r' => $runId, ':muster' => '%verbund:' . $verbund]);
+    $stmt->execute([':k' => AVESMAPS_GARETIEN_PLAN_KIND, ':muster' => '%verbund:' . $maskiert]);
     $note = (string) ($stmt->fetchColumn() ?: '');
     if ($note === '') {
         return null;
@@ -1408,7 +1426,24 @@ function avesmapsGaretienArtikelQuellenNachtragen(PDO $pdo): array
         // andere Haelfte faellt still durch, weil eine leere id einfach uebersprungen wird.
         $objektId = trim((string) ($zeile['entity_public_id'] ?? ''));
         if ($objektId === '') {
-            $objektId = trim((string) ($zeile['apply_note'] ?? ''));
+            // 🔴 FIXRUNDE 1, BEFUND A: seit Aufgabe 6 traegt JEDE 'region'-Zeile den
+            // strukturierten Vermerk ("area:<a> | region:<r> | verbund:<v>"), auch OHNE Verbund
+            // (dann bleibt das dritte Feld leer) -- nicht mehr die nackte public_id. Ein alter
+            // Vermerk (vor Aufgabe 6 geschrieben) hat kein ':' und laeuft durch
+            // avesmapsGaretienVermerkLesen unveraendert in den "alter Vermerk"-Zweig, der ihn
+            // 1:1 als 'region' zurueckgibt -- diese eine Zeile deckt also BEIDE Formen ab, ohne
+            // den `ziel`-Wert dieses Items selbst zu pruefen.
+            //
+            // 🔴 GEBRAUCHT WIRD DIE REGION, NICHT DIE FLAECHE: avesmapsGaretienQuellenZiel
+            // erwartet laut seinem Docblock "bei 'region' die [public_id] der REGION, nicht die
+            // ihrer Beschriftung" -- seit Schritt 5 des Quellen-Umbaus (03.09.2026) traegt die
+            // FLAECHE ihre Quellen unter `ecosystem:<region_public_id>`, keine eigene Kennung.
+            //
+            // 💣 OHNE DIESE ZEILE bekommt avesmapsEcosystemLabelSourceTarget (rein, wirft nie)
+            // den GANZEN Vermerk-String als "Region" und liefert klaglos
+            // ['ecosystem', '<der ganze Vermerk>'] zurueck -- eine feature_sources-Zeile, die
+            // kein Leser je findet, plus ein Revisions-Bump fuer NICHTS.
+            $objektId = avesmapsGaretienVermerkLesen((string) ($zeile['apply_note'] ?? ''))['region'];
         }
         if ($objektId === '') {
             continue;
@@ -1895,7 +1930,7 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
                 $verbund = trim((string) ($rumpfDesItems['verbund'] ?? ''));
                 $anRegion = $verbund === ''
                     ? null
-                    : avesmapsGaretienVerbundRegion($pdo, $verbund, $runId);
+                    : avesmapsGaretienVerbundRegion($pdo, $verbund);
                 $ergebnis = avesmapsGaretienFlaecheAnlegen($pdo, $nach, $user, $userId, $rumpfDesItems, $anRegion);
                 $publicId = $ergebnis['public_id'];
                 // 🔴 SEIT SCHRITT 5 DES QUELLEN-UMBAUS (03.09.2026) TRAEGT DIE FLAECHE IHRE
