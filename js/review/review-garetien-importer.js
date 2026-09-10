@@ -1494,6 +1494,34 @@
 		return String((objekt || {}).key || "");
 	}
 
+	/*
+	 * Aufgabe 8: der Block „Verbund" in der Einzelansicht -- die Fragmente mit je einem ✕. "" ohne
+	 * Verbund.
+	 *
+	 * 💣 DIE PUNKTZAHL STEHT IM NAMEN. `.gi-seg` ist ein Raster aus DREI Spalten
+	 * (16px | 1fr | max-content); eine vierte Zelle schiebt den Knopf in eine zweite Reihe und
+	 * macht die Zeile doppelt so hoch -- gemessen 46 statt 28 px.
+	 * ⚠️ `< 2` Mitglieder sind kein Verbund mehr (dieselbe Regel wie bei garetienVerbundMarkeMarkup):
+	 * wer alle bis auf eines herausnimmt, sieht keinen Block mehr, sondern ein gewoehnliches Objekt.
+	 */
+	function garetienVerbundBlockMarkup(objekt, objekte) {
+		const schluessel = garetienVerbundSchluessel(objekt);
+		if (schluessel === "") { return ""; }
+		const mitglieder = garetienVerbundMitglieder(schluessel, objekte || []);
+		if (mitglieder.length < 2) { return ""; }
+		const zeilen = mitglieder.map(function (m) {
+			return '<div class="gi-seg"><span></span>'
+				+ '<span class="gi-seg__name">' + avesmapsGaretienEscape(m.name || "")
+				+ '<span class="gi-seg__zahl">' + ((m.geometrie || []).length) + " Punkte</span></span>"
+				+ '<button class="btn gi-seg__weg" type="button" data-verbund-weg="'
+				+ avesmapsGaretienEscape(m.key || "") + '" title="Aus dem Verbund nehmen">✕</button>'
+				+ "</div>";
+		}).join("");
+
+		return '<p class="gi-sec">Verbund<span class="gi-sec__note">'
+			+ mitglieder.length + " Fragmente</span></p>" + zeilen;
+	}
+
 	// 🔴 Aufgabe 2 (Entwurf §3.2): das Haekchen ist ein reiner MARKER und zeigt `zustand.auswahl`,
 	// nicht mehr den Item-Zustand -- „Markieren aendert nichts" (Owner 29.08.2026). Es gibt darum
 	// auch KEIN `disabled` mehr: ein Objekt OHNE jedes Item (7930 von 8213) muss sich genauso
@@ -5785,6 +5813,11 @@
 				: unsereVorhanden, abschnitte.length === 0);
 		}
 
+		// Aufgabe 8: der Block „Verbund" -- "" ohne Verbund, unabhaengig von der Geometrie des
+		// angezeigten Fragments (ein Verbund-Fragment ohne eigene Geometrie bleibt trotzdem
+		// Mitglied und muss den Block trotzdem zeigen koennen).
+		const verbundBlock = garetienVerbundBlockMarkup(objekt, zustand.objekte || []);
+
 		let notiz = garetienAnzahlText(abschnitte.length, "Abschnitt", "Abschnitte");
 		if (gruppen.gesamt >= 2) {
 			notiz += " · " + gruppen.gesamt + " verschiedene Objekte";
@@ -5826,7 +5859,7 @@
 		// DIREKTES Kind der Spalte, und ein Kind von `.gi-detail` ist keines mehr.
 		// ⚠️ `garetienNaeheMarkup` bleibt unten stehen -- es ist ein Werkzeug fuer die LISTE
 		// („Imports in der Naehe waehlen“), keine Einstellung dieses Objekts.
-		return '<div class="gi-detail">' + kopf + mitte + warum
+		return '<div class="gi-detail">' + kopf + verbundBlock + mitte + warum
 			+ garetienHandlungsMarkup(objekt)
 			+ garetienEingefuegtWirdMarkup(objekt) + "</div>"
 			+ garetienNaeheMarkup(objekt);
@@ -6810,12 +6843,38 @@
 		if (stadt !== "" && stelle !== -1) {
 			namen.splice(stelle + 1, 0, "innerorts");
 		}
-		return namen.map(function (name) {
+		const knoepfe = namen.map(function (name) {
 			// 🔴 Der Vorwärtsknopf hat seinen EIGENEN Bauer: er trägt keine Items, keinen Rumpf und
 			// keine Zahl -- durch `garetienHandlungBauen` gereicht bekäme er einen leeren
 			// Items-Filter und würde sich mit „kein Vorschlag" ausgrauen.
 			return name === "stage" ? garetienStageKnopfBauen(o) : garetienHandlungBauen(name, o);
 		});
+
+		// Aufgabe 8: der EINE Knopf, den der Verbund der Oberflaeche hinzufuegt.
+		// 🔴 Ton `accent`, nicht gefuellt: die eine gefuellte Handlung dieses Fensters ist
+		// „Stage importieren" (AGENTS.md §12), und gefuellt-gruen waere von `.btn--done`
+		// („alles vorgemerkt") nicht zu unterscheiden.
+		// 🔴 `ids` bleibt leer und der Knopf hat KEINEN Rumpf (garetienHandlungsRumpf schliesst
+		// „verbund" aus, wie „stage"/„entstagen" -- er geht durch die EIGENE Tuer
+		// garetienVerbundKlick, nie durch die geteilte Uebernahme-Vorschau).
+		const verbundSchluessel = garetienVerbundSchluessel(o);
+		if (verbundSchluessel !== "") {
+			const n = garetienVerbundMitglieder(verbundSchluessel, zustand.objekte || []).length;
+			const zusammen = garetienVerbundIstZusammen(verbundSchluessel);
+			knoepfe.push({
+				name: "verbund",
+				beschriftung: (zusammen ? "Verbund auflösen (" : "Verbund auf die Stage (") + n + ")",
+				zeile2: "",
+				ton: "accent",
+				ids: [],
+				angehakt: 0,
+				gesamt: 0,
+				erledigt: false,
+				disabled: n < 2,
+				grund: n < 2 ? "Von diesem Verbund liegt nur ein Fragment in der Liste." : "",
+			});
+		}
+		return knoepfe;
 	}
 
 	// REIN: die Rückfrage vor „Ausgewählte Segmente ersetzen" -- sie NENNT DIE FOLGE BEIM NAMEN,
@@ -6885,8 +6944,11 @@
 		// still ein `select` an die geteilte Tuer. Festgenagelt wird sie am Quelltext, nicht am
 		// Ergebnis -- eine Zusicherung ueber ein Verhalten, das es heute gar nicht geben kann,
 		// waere Vakuum.
+		// 🔴 Aufgabe 8: „verbund" steht aus demselben Grund daneben. Er ist eine reine
+		// Client-Handlung (Zusammenlegen/Aufloesen ueber garetienVerbundKlick) -- dieselbe
+		// Begruendung wie beim Vorwaertsknopf, nur fuer den Verbund-Knopf statt fuer die Stage.
 		if (name === "ruecknahme" || name === "ruecknahme_ablehnen" || name === "zurueck_offen"
-			|| name === "stage" || name === "entstagen") {
+			|| name === "stage" || name === "entstagen" || name === "verbund") {
 			return null;
 		}
 		const knopf = garetienHandlungen(objekt).filter(function (h) { return h.name === name; })[0];
@@ -7367,6 +7429,36 @@
 		}
 		avesmapsGaretienStageHinzufuegen([objekt]);
 		return { handlung: "stage", objekt: objekt, groesse: zustand.stage.size };
+	}
+
+	/*
+	 * Aufgabe 8: DER KLICK-VERTEILER DES VERBUND-KNOPFS -- „Verbund auf die Stage" /
+	 * „Verbund auflösen".
+	 *
+	 * 🔴 EIGENE TÜR, wie „stage"/„entstagen" daneben: der Knopf ist eine reine CLIENT-Handlung
+	 * (Zusammenlegen/Aufloesen des Merkers -- garetienVerbundZusammenlegen/-Aufloesen schreiben
+	 * nichts an die geteilte Übernahme-Vorschau). Fände er hier keinen eigenen Verteiler, fiele der
+	 * Klick zu `garetienHandlungKlick` durch, das aber KEINEN Rumpf für „verbund" kennt
+	 * (garetienHandlungsRumpf schließt ihn ausdrücklich aus) -- der Klick bliebe wortlos.
+	 * ⚠️ Steht deshalb VOR `garetienHandlungKlick` in der Verdrahtung, wie `garetienStageKlick`.
+	 * ⚠️ Ereignis UND Objektliste kommen HEREIN -- dieselbe Bauform wie die Verteiler daneben,
+	 * damit sich am ERGEBNIS messen lässt, welcher Verbund wirklich zusammengelegt/aufgelöst wurde.
+	 */
+	function garetienVerbundKlick(ereignis, objekte) {
+		const ziel = ereignis && ereignis.target;
+		if (!ziel || typeof ziel.closest !== "function") { return null; }
+		const knopf = ziel.closest('[data-handlung="verbund"]');
+		if (!knopf || knopf.disabled) { return null; }
+		const objekt = garetienObjektNach(knopf.getAttribute("data-key"), objekte);
+		if (!objekt) { return null; }
+		const schluessel = garetienVerbundSchluessel(objekt);
+		if (schluessel === "") { return null; }
+		if (garetienVerbundIstZusammen(schluessel)) {
+			garetienVerbundAufloesen(schluessel);
+			return { handlung: "verbund_aufgeloest", schluessel: schluessel };
+		}
+		const n = garetienVerbundZusammenlegen(schluessel, objekte || []);
+		return { handlung: "verbund_zusammengelegt", schluessel: schluessel, anzahl: n };
 	}
 
 	/*
@@ -9137,6 +9229,16 @@
 					garetienDetailRendern(zustand.objekte);
 					return;
 				}
+				// Aufgabe 8: „Verbund auf die Stage“/„Verbund auflösen“ -- derselbe Zug wie der
+				// Vorwärtsknopf darüber: eigene Tür, schreibt nichts, danach nur neu gezeichnet. Die
+				// Liste (Reitertitel „Stage (n)“, Verbund-Marke der Zeile) und die Einzelansicht
+				// (der Knopf selbst wechselt seine Beschriftung/seinen Stand) müssen beide neu
+				// entstehen.
+				if (garetienVerbundKlick(ereignis, zustand.objekte)) {
+					garetienStageNeuZeichnen();
+					garetienDetailRendern(zustand.objekte);
+					return;
+				}
 				// Aufgabe 9: „Zurücknehmen“ -- derselbe Zug wie „Neu einfügen“ darüber, nur über die
 				// EIGENE Tür dieses Fensters statt der geteilten Übernahme-Vorschau (siehe die
 				// Begründung an garetienRuecknahmeSenden).
@@ -9659,6 +9761,8 @@
 			garetienStageKnopfBauen,
 			garetienStageZeile2,
 			garetienStageKlick,
+			// Aufgabe 8: der Verbund-Block der Einzelansicht und sein Klick-Verteiler
+			garetienVerbundKlick,
 			garetienStillerAusgangText,
 			garetienAuswahlStillerAusgangText,
 			avesmapsGaretienMengeSenden,

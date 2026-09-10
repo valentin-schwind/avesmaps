@@ -896,6 +896,34 @@ html.avesmaps-planner-collapsed .gi-win {
    startet ungehakt. Das ist der Unterschied zwischen Luecke fuellen und ersetzen. */
 .gi-seg.is-overwrite .gi-seg__gap { color: var(--color-warning); }
 
+/* Aufgabe 8 (Verbund-Block): die Punktzahl im Namen der Segmentzeile -- KEINE vierte Rasterzelle
+   (siehe garetienVerbundBlockMarkup). Eine eigene Rasterspalte schoebe den ✕-Knopf in eine zweite
+   Reihe und wuerde die Zeile doppelt so hoch machen. */
+.gi-seg__zahl {
+	margin-left: var(--space-4);
+	font-weight: var(--font-weight-regular);
+	font-size: var(--font-size-caption);
+	color: var(--color-text-muted);
+}
+
+/* Der ✕ einer Fragmentzeile -- 20 px wie die Symbolknoepfe der Quellenzeile (`.fs-row__remove` in
+   feature-sources.css), nicht 32.
+   💣 `min-height: 0` ist TRAGEND und faellt im Brief-Entwurf unter den Tisch: `.gi-win .btn`
+   (weiter oben in dieser Datei) setzt `min-height: var(--avm-control-h)` (32px), und diese
+   Eigenschaft nennt die Regel hier NICHT -- eine Eigenschaft, die eine spaetere/spezifischere
+   Regel nicht deklariert, faellt auf die naechste Regel durch, die sie deklariert, egal wie viel
+   niedriger deren Spezifitaet ist (dieselbe Lehre wie in editor-page.css bei
+   `.avm-savebar__msg-link`). Ohne die Zeile waere der Knopf 32px hoch statt 20 -- genau das
+   Gegenteil dessen, was dieser Kommentar seit jeher verspricht. */
+.gi-seg__weg {
+	grid-column: 3;
+	width: 20px;
+	height: 20px;
+	min-height: 0;
+	padding: 0;
+	line-height: 1;
+}
+
 /* 💣 `anywhere` -- dieselbe Falle wie eine Etage tiefer bei `.gi-seg__name`/`.gi-seg__id`, nur
    spaeter aufgetreten: seit dem 28.08.2026 steht hier auch die NAMENSNENNUNG der Quelle, und die
    ist ein Datenwert (`sources.attribution`), kein Satz. Live gemessen mit einer 83 Zeichen langen
