@@ -2718,6 +2718,14 @@ function avesmapsAssignEcosystemWikiRegion(PDO $pdo, array $payload, int $userId
                 : avesmapsEcosystemPushWikiRegionToLabels($pdo, (string) $publicId, $primaerLabel, $wikiKey, $wikiUrl, $userId);
             $labelDurchtrag += $durchtrag['applied'];
             $labelFeatures = array_merge($labelFeatures, $durchtrag['features']);
+            // 💣 Derselbe Bump wie in `update_region`, aus demselben Grund: ohne ihn erfaehrt die
+            // Kartennutzlast von einer Zuweisung nichts, deren Beschriftung die Adresse schon traegt.
+            avesmapsEcosystemBumpMapRevisionBeiWikiWechsel(
+                $pdo,
+                $before,
+                $after,
+                $durchtrag['revision'] ?? null
+            );
             $assigned++;
         }
         $revision = avesmapsNextEcosystemRevision($pdo);
@@ -2730,6 +2738,15 @@ function avesmapsAssignEcosystemWikiRegion(PDO $pdo, array $payload, int $userId
     return [
         'dry_run' => false,
         'assigned' => $assigned,
+        // 🔴 Dasselbe Etikett wie in `update_region`, aus demselben Grund. Bei MEHREREN Zielen
+        // traegt die Antwort sie alle -- der Browser setzt je Kennung.
+        'kanon_je_kennung' => array_reduce(
+            array_keys($targets),
+            static function (array $tafel, $zielId) use ($pdo, $wikiUrl): array {
+                return $tafel + avesmapsEcosystemKanonFuerAntwort($pdo, (string) $zielId, $wikiUrl);
+            },
+            []
+        ),
         'labels_assigned' => $labelDurchtrag,
         // Die nachgezogenen Beschriftungen selbst, in der Form von `update_label` -- siehe update_region.
         'labels' => $labelFeatures,
@@ -3223,6 +3240,87 @@ function avesmapsEcosystemReorderRegions(PDO $pdo, array $payload, int $userId):
     return ['kind' => $kind, 'count' => count($publicIds), 'revision' => $revision];
 }
 
+/**
+ * EIN WECHSEL DER WIKI-ZUWEISUNG IST EINE KARTENAENDERUNG -- und sonst nichts an einer Flaeche.
+ *
+ * 🔴 DIE GRUNDREGEL DIESER DATEI BLEIBT (Kopf, Zeile 12): ein Flaechen-Save ruft
+ * `avesmapsNextMapRevision` NICHT. Sie steht dort wegen der ZEICHENKAMPAGNE -- ~2.000 Speicherungen,
+ * und jede einzelne wuerde die 29-MB-Nutzlast fuer jeden Besucher entwerten. Eine Wiki-Zuweisung ist
+ * keine davon: sie ist selten, sie aendert die Nutzlast nachweislich (seit dem 10.09.2026 haengt das
+ * Kanon-Etikett an `ecosystem_region.wiki_url`), und der Durchtrag daneben bumpt aus genau demselben
+ * Grund schon immer.
+ *
+ * 💣 GEBUMPT WIRD NUR, WENN DER DURCHTRAG ES NICHT SCHON TAT. Er schreibt nur Beschriftungen, deren
+ * Schluessel ABWEICHT -- traegt das Schild die Adresse schon, schreibt er nichts und bumpt nicht.
+ * Das ist der Fall JEDER Reparatur einer Flaeche, deren Schild laengst zugewiesen ist, und damit der
+ * gemeldete: die Flaeche war geschrieben, die Karte erfuhr es nie, und es sah aus, als speichere sie
+ * nicht (Owner 10.09.2026, „erst nach F5").
+ *
+ * ⚠️ Verglichen wird der SCHLUESSEL, nicht die Adresse: `wiki_region_key` wird aus `wiki_url`
+ * abgeleitet, und zwei Adressen desselben Artikels (mit und ohne Unterstrich) ergeben denselben
+ * Schluessel. Ein Bump fuer eine Schreibweise waere Arbeit ohne Aussage.
+ *
+ * @param int|null $schonGebumpt die Revision, die der Durchtrag schon gezogen hat (oder null)
+ * @return int|null die gezogene Revision, oder was schon dastand
+ */
+function avesmapsEcosystemBumpMapRevisionBeiWikiWechsel(
+    PDO $pdo,
+    array $before,
+    array $after,
+    ?int $schonGebumpt
+): ?int {
+    if ($schonGebumpt !== null) {
+        return $schonGebumpt;
+    }
+    $vorher = trim((string) ($before['wiki_region_key'] ?? ''));
+    $nachher = trim((string) ($after['wiki_region_key'] ?? ''));
+    if ($vorher === $nachher) {
+        return null;
+    }
+
+    return avesmapsNextMapRevision($pdo);
+}
+
+/**
+ * DAS KANON-ETIKETT DIESER FLAECHE FUER DIE ANTWORT -- damit der Editor es SOFORT sieht.
+ *
+ * 🔴 Owner 10.09.2026: „aktualisierungen sollen gleich sichtbar sein - ohne dass der browser neu
+ * geladen werden muss", „so wie normale mapaenderungen auch". Der Bump daneben sorgt dafuer, dass
+ * ALLE ANDEREN es erfahren; er allein reicht dem Speichernden aber nicht: der Live-Abgleich holt ein
+ * DELTA, und ein Delta traegt seit dem 03.09.2026 keinen Kanon (avesmapsMapFeaturesIstDeltaAbruf).
+ * Das Etikett reist deshalb in der Antwort mit -- dieselbe Bauform, in der diese Funktion schon die
+ * Kurve und die nachgezogenen Beschriftungen zurueckgibt.
+ *
+ * 💣 NICHT GERECHNET, SONDERN UEBERNOMMEN: es kommt aus avesmapsFeatureSourcesKanonFuerMehrere, also
+ * aus DERSELBEN Ableitung, die die Nutzlast fuellt. Eine zweite Rechnung im Browser waere die
+ * Divergenz, an der die Rangfolge im August schon einmal auseinanderlief.
+ *
+ * ⚠️ NACH dem Commit rufen: der Rechner laedt Katalog und Verweise vollstaendig und faehrt einen
+ * `Ensure`-Helfer -- DDL committet in MySQL implizit und beendete eine offene Transaktion
+ * (AGENTS.md §11, die Falle des Landschafts-Umzugs).
+ * ⚠️ Faellt LEISE aus: die Flaeche IST gespeichert, das ist die Hauptsache. Ohne Etikett bleibt die
+ * Tafel im Browser unberuehrt, und ein Neuladen holt den richtigen Stand.
+ *
+ * @return array<string, array<string, mixed>|null> Kennung => Etikett (oder null)
+ */
+function avesmapsEcosystemKanonFuerAntwort(PDO $pdo, string $publicId, string $wikiUrl): array
+{
+    try {
+        require_once __DIR__ . '/feature-sources.php';
+
+        return avesmapsFeatureSourcesKanonFuerMehrere(
+            $pdo,
+            'ecosystem',
+            [$publicId],
+            [$publicId => $wikiUrl]
+        );
+    } catch (Throwable $exception) {
+        error_log('avesmapsEcosystemKanonFuerAntwort: ' . $exception->getMessage());
+
+        return [];
+    }
+}
+
 function avesmapsUpdateEcosystemRegion(PDO $pdo, array $payload, int $userId): array
 {
     avesmapsEcosystemEnsureTables($pdo);
@@ -3355,6 +3453,25 @@ function avesmapsUpdateEcosystemRegion(PDO $pdo, array $payload, int $userId): a
             avesmapsEcosystemRegionSnapshot($before),
             avesmapsEcosystemRegionSnapshot($after)
         );
+        // 💣 EIN WECHSEL DER WIKI-ZUWEISUNG IST EINE KARTENAENDERUNG -- seit dem 10.09.2026 haengt
+        // das Kanon-Etikett der Nutzlast an `ecosystem_region.wiki_url`
+        // (avesmapsEcosystemRegionWikiNamespaces). Bis dahin bumpte NUR der Durchtrag, und der
+        // steigt aus, wenn die Beschriftung die Adresse schon traegt -- genau der Fall bei jeder
+        // Reparatur einer Flaeche, deren Schild laengst zugewiesen ist. Ergebnis: die Flaeche war
+        // geschrieben, die Karte erfuhr es nie, und es sah aus, als speichere sie nicht
+        // (Owner-Meldung 10.09.2026, „erst nach F5").
+        // 🔴 UND NUR DANN. Die Grundregel dieser Datei (Kopf, Zeile 12) haelt: ein Flaechen-Save
+        // ruft `avesmapsNextMapRevision` NICHT -- die Zeichenkampagne sind ~2.000 Speicherungen,
+        // und jede wuerde 29 MB fuer jeden Besucher entwerten. Eine Wiki-Zuweisung ist keine davon:
+        // sie ist selten, und sie aendert die Nutzlast nachweislich.
+        // ⚠️ Der Rueckgabewert wird hier NICHT gebraucht -- `$revision` unten ist die
+        // ECOSYSTEM-Revision, die die Antwort traegt. Die Kartenrevision interessiert nur die Karte.
+        avesmapsEcosystemBumpMapRevisionBeiWikiWechsel(
+            $pdo,
+            $before,
+            $after,
+            $labelDurchtrag['revision'] ?? null
+        );
         $revision = avesmapsNextEcosystemRevision($pdo);
         $pdo->commit();
     } catch (Throwable $exception) {
@@ -3399,8 +3516,19 @@ function avesmapsUpdateEcosystemRegion(PDO $pdo, array $payload, int $userId): a
     // 🔴 `labels`: die Beschriftungen, die dieses Speichern nachgezogen hat (Durchtrag ODER Ruecknahme),
     // in der Form von `update_label` -- der Browser wendet sie sofort an (applyLabelFeaturesLocally).
     // Leer, wenn nichts geschrieben wurde; dann zeichnet er auch nichts neu.
-    return ['region' => avesmapsEcosystemRegionSnapshot($after), 'revision' => $revision, 'labels' => $labelDurchtrag['features']]
-        + avesmapsCurveAntwortAnteil($kurve);
+    // 🔴 `kanon_je_kennung`: das Etikett dieser Flaeche, damit der Editor es SOFORT sieht (Owner
+    // 10.09.2026). NACH dem Commit gerechnet -- der Rechner faehrt einen `Ensure`-Helfer, und DDL
+    // committet in MySQL implizit (AGENTS.md §11).
+    return [
+        'region' => avesmapsEcosystemRegionSnapshot($after),
+        'revision' => $revision,
+        'labels' => $labelDurchtrag['features'],
+        'kanon_je_kennung' => avesmapsEcosystemKanonFuerAntwort(
+            $pdo,
+            $publicId,
+            (string) ($after['wiki_url'] ?? '')
+        ),
+    ] + avesmapsCurveAntwortAnteil($kurve);
 }
 
 /**
