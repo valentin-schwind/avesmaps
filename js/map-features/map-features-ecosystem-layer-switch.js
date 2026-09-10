@@ -423,11 +423,12 @@ function storeEcosystemUndergroundOpacity(percent) {
 // 🔴 NUR DER BESUCHER. Der Editor bekommt weiterhin GAR KEIN Profil -- er hat seine Haken und seinen
 // Untergrund-Regler gleich daneben, und ein Profil legte sich über seine eigene Wahl.
 //
-// ⚠️ DIE FLÜSSE STEHEN JETZT MIT DRIN, und das ist kein Widerspruch zu dem, was hier bis zum
-// 09.09.2026 stand („die Flüsse gehören nicht in diese Tabelle, ihre Regel gilt für BEIDE Rollen").
-// Die Reichweite ist unverändert: syncEcosystemRiverVisibility setzt den Haken weiterhin für BEIDE
-// Rollen und fällt für den Editor ausdrücklich auf DIESE Vorgabe zurück. Was hier steht, ist der
-// WERT -- und der ist seit heute für alle fünf Ebenen derselbe.
+// ⚠️ DIE FLÜSSE STEHEN MIT DRIN -- ABER NUR FÜR DEN BESUCHER. Ein erster Entwurf liess den Editor bei
+// fehlendem Profil auf GENAU DIESEN Wert zurückfallen und gab ihm die Flüsse dadurch in jeder Ebene,
+// obwohl seine eigene Ebenenregel (an syncEcosystemRiverVisibility) das nie vorsah -- eine Lücke im
+// Entwurf, keine gewollte Ausweitung. syncEcosystemRiverVisibility liest `fluesse` deshalb nur für
+// den Besucher aus diesem Profil; der Editor behält seine eigene, unveränderte Ebenentabelle (siehe
+// dort).
 const ECOSYSTEM_FRONTEND_PROFIL = Object.freeze({
 	orte: true, wege: true, labels: true, grenzen: true, fluesse: true, untergrund: 0,
 });
@@ -789,18 +790,18 @@ function syncEcosystemSettlementVisibility(inLayer) {
 	syncLocationMarkerVisibility();
 }
 
-// ---- Die Fluesse: sie stehen in JEDER Ebene (Owner 09.09.2026) ------------------------------------
+// ---- Die Fluesse: der Besucher sieht sie ueberall, der Editor nur nach Ebene ----------------------
 //
-// 🔴 DIE TABELLE ECOSYSTEM_RIVER_KINDS IST GEFALLEN. Bis zum 09.09.2026 zeigten nur „Alle" und
-// „Topographie" die Gewaesser; jetzt zeigen sie alle fuenf Ebenen („auch die sollen in allen
-// landschaftsansichten default aktiviert und sichtbar sein"). Der WERT steht in
-// ECOSYSTEM_FRONTEND_PROFIL und sonst nirgends.
+// 🔴 SEIT DEM 09.09.2026 GILT „UEBERALL" NUR FUER DEN BESUCHER. Sein Wert steht in
+// ECOSYSTEM_FRONTEND_PROFIL und sonst nirgends -- „auch die sollen in allen landschaftsansichten
+// default aktiviert und sichtbar sein" (Owner) meinte den Besucher, nicht die Werkstatt.
 //
-// 🔴 DIE REICHWEITE IST UNVERAENDERT: die Regel gilt BEIDEN Rollen (Owner-Entscheid 23.08.2026, und
-// dieser Nachtrag hebt ihn nicht auf). Der BESUCHER liest sein Soll -- und damit ab der ersten eigenen
-// Entscheidung seine Wahl. Der EDITOR hat kein Profil (`ecosystemAnzeigeSoll()` ist fuer ihn `null`)
-// und faellt ausdruecklich auf die Vorgabe zurueck; sonst schriebe ein `undefined` seinen Haken bei
-// jedem Ebenenwechsel auf aus, und das haette niemand bestellt.
+// 🔴 DER EDITOR TRAEGT SEINE EIGENE TABELLE WEITER, UND DAS IST KEIN VERSEHEN. Der Nachtrag vom
+// 09.09.2026 schob `fluesse` in ein Profil, das der Editor per Definition nie bekommt
+// (`ecosystemAnzeigeSoll()` ist fuer ihn `null`) -- ohne einen eigenen Rueckfall waere sein Haken damit
+// in jeder Ebene an gewesen, nicht nur in denen, fuer die der Owner das am 23.08.2026 entschieden hat.
+// Die Tabelle darunter ist deshalb keine Kopie von damals, sondern die einzige Stelle, die die alte
+// Entscheidung noch kennt.
 //
 // 🔴 DIE EBENE LEIHT SICH DEN HAKEN UND GIBT IHN ZURUECK -- dieselbe Bauart wie
 // syncEcosystemSettlementVisibility darueber, und aus demselben Grund: `#toggleRivers` gehoert dem
@@ -810,7 +811,9 @@ function syncEcosystemSettlementVisibility(inLayer) {
 // ⚠️ Der Haken bleibt dabei benutzbar (Owner-Entscheid): der Wechsel setzt ihn, die naechste eigene
 // Entscheidung sticht ihn. 🔴 Fuer den BESUCHER faellt das „bis zum naechsten Wechsel" seit dem
 // 09.09.2026 weg -- seine Entscheidung steht im Soll und wird beim Wechsel zurueckgeschrieben, nicht
-// ueberschrieben. Fuer den Editor gilt der Satz weiter.
+// ueberschrieben. Fuer den Editor gilt der Satz weiter, denn fuer ihn gibt es diese eigene Wahl gar
+// nicht -- er hat nur seine Ebenentabelle.
+const ECOSYSTEM_EDITOR_RIVER_KINDS = new Set(["alle", "topographie"]);
 
 let ecosystemRiverMemory = null;   // die Hakenlage VOR dem Modus, oder null = nicht im Modus
 
@@ -837,8 +840,12 @@ function syncEcosystemRiverVisibility() {
 		if (ecosystemRiverMemory === null) {
 			ecosystemRiverMemory = haken.checked === true;
 		}
+		// Besucher: sein Soll (die Vorgabe, oder ab der ersten eigenen Entscheidung seine Wahl). Editor:
+		// kein Soll, also die Ebenentabelle -- unveraendert seit dem 23.08.2026.
 		const anzeigeSoll = ecosystemAnzeigeSoll();
-		soll = anzeigeSoll ? anzeigeSoll.fluesse === true : ECOSYSTEM_FRONTEND_PROFIL.fluesse;
+		soll = anzeigeSoll
+			? anzeigeSoll.fluesse === true
+			: ECOSYSTEM_EDITOR_RIVER_KINDS.has(isEcosystemShowAllLayers() ? "alle" : getActiveEcosystemLayerKind());
 	} else {
 		if (ecosystemRiverMemory === null) {
 			return;   // war gar nicht im Modus -- dann gibt es auch nichts zurueckzugeben

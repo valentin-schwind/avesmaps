@@ -1,14 +1,15 @@
-// Welche Landschafts-Ebene zeigt die Fluesse? Seit dem 09.09.2026: ALLE.
+// Welche Landschafts-Ebene zeigt die Fluesse? Seit dem 09.09.2026: dem BESUCHER alle, dem EDITOR nur
+// „Alle" und „Topographie" wie zuvor.
 //
-// 🔴 DIE TABELLE ECOSYSTEM_RIVER_KINDS IST GEFALLEN. Vom 23.08.2026 an zeigten nur „Alle" und
-// „Topographie" die Gewaesser (Owner damals: „du kannst die Fluesse bei Alle und topographie auch
-// einschalten."); seit dem 09.09.2026 zeigen sie alle fuenf Ebenen -- „auch die sollen in allen
-// landschaftsansichten default aktiviert und sichtbar sein" (Owner). Der WERT steht seither in
-// ECOSYSTEM_FRONTEND_PROFIL und sonst nirgends.
+// 🔴 VOM 23.08.2026 AN ZEIGTEN NUR „ALLE" UND „TOPOGRAPHIE" DIE GEWAESSER (Owner damals: „du kannst die
+// Fluesse bei Alle und topographie auch einschalten."). Seit dem 09.09.2026 gilt das nur noch fuer den
+// EDITOR -- der BESUCHER sieht sie in allen fuenf Ebenen („auch die sollen in allen landschaftsansichten
+// default aktiviert und sichtbar sein", Owner). Sein Wert steht seither in ECOSYSTEM_FRONTEND_PROFIL,
+// der Editor haelt seine alte Ebenentabelle (ECOSYSTEM_EDITOR_RIVER_KINDS).
 //
-// 🔴 DIE REICHWEITE IST UNVERAENDERT: die Regel gilt BEIDEN Rollen (Owner-Entscheid 23.08.2026). Der
-// BESUCHER liest sein Soll -- und damit ab seiner ersten eigenen Entscheidung SEINE Wahl. Der EDITOR
-// hat kein Profil und faellt ausdruecklich auf die Vorgabe zurueck. Diese Datei misst beide.
+// 🔴 EIN ERSTER ENTWURF DES NACHTRAGS LIESS DEN EDITOR AUF DEN BESUCHERWERT ZURUECKFALLEN und gab ihm
+// die Fluesse dadurch in JEDER Ebene -- eine Luecke im Entwurf, keine gewollte Ausweitung. Diese Datei
+// misst BEIDE Rollen einzeln, gerade weil sie seither unterschiedliche Antworten geben.
 //
 // 🔴 DIE EBENE LEIHT SICH DEN HAKEN UND GIBT IHN ZURUECK -- dieselbe Bauart wie
 // syncEcosystemSettlementVisibility nebenan, und aus demselben Grund: `#toggleRivers` gehoert dem
@@ -78,40 +79,52 @@ function welt({ modus = "ecosystem", gemerktAlle = "0", ebene = "vegetation", ha
 	return { context, haken, geschehen, buehne };
 }
 
-// ---- 1. Welche Ebene zeigt sie: alle fuenf -----------------------------------------------------
+// ---- 1. Welche Ebene zeigt sie: dem BESUCHER alle fuenf, dem EDITOR nur zwei -------------------
 //
 // 🔴 Bis zum 09.09.2026 standen hier drei Zeilen auf AUS („ueber den Vegetationsflaechen waeren es nur
-// Linien"). Der Owner hat das umgedreht; die Zeilen bleiben stehen, damit erkennbar ist, WAS sich
-// geaendert hat -- nur ihre Erwartung ist gewandert.
+// Linien"). Der Owner hat das fuer den BESUCHER umgedreht; die Zeilen bleiben stehen, damit erkennbar
+// ist, WAS sich geaendert hat -- nur seine Erwartung ist gewandert.
+//
+// 🔴 DER EDITOR IST NICHT MITGEWANDERT. Ein erster Entwurf des Nachtrags liess ihn beim fehlenden
+// Profil auf denselben Wert zurueckfallen wie den Besucher und gab ihm die Fluesse dadurch in JEDER
+// Ebene -- eine Luecke im Entwurf. Er behaelt die Regel vom 23.08.2026: nur „Alle" und „Topographie"
+// zeigen sie ihm, die drei uebrigen nicht. Die mittlere Zeile der zweiten Liste ist die eigentliche
+// Zusicherung dieses Abschnitts -- ohne sie kippt das beim naechsten Anfassen lautlos zurueck.
 
 [
-	["alle", { gemerktAlle: "1" }],
-	["topographie", { ebene: "topographie" }],
-	["vegetation", { ebene: "vegetation" }],
-	["derographisch", { ebene: "derographisch" }],
-	["klima", { ebene: "klima" }],
+	["alle", { gemerktAlle: "1", editor: false }],
+	["topographie", { ebene: "topographie", editor: false }],
+	["vegetation", { ebene: "vegetation", editor: false }],
+	["derographisch", { ebene: "derographisch", editor: false }],
+	["klima", { ebene: "klima", editor: false }],
 ].forEach(([name, lage]) => {
 	const { context, haken } = welt(lage);
 	context.syncEcosystemRiverVisibility();
 	assert.strictEqual(haken.checked, true,
-		`Ebene „${name}": die Fluesse sind an -- in allen fuenf Ebenen (Owner 09.09.2026)`);
+		`Besucher, Ebene „${name}": die Fluesse sind an -- in allen fuenf Ebenen (Owner 09.09.2026)`);
 });
 
-// ⚠️ Und das gilt fuer BEIDE Rollen. Der Editor hat kein Profil; ohne den ausdruecklichen Rueckfall auf
-// die Vorgabe schriebe ein `undefined` seinen Haken bei jedem Ebenenwechsel auf AUS.
-[true, false].forEach((editor) => {
-	const { context, haken } = welt({ ebene: "vegetation", editor });
+[
+	["alle", { gemerktAlle: "1", editor: true }, true],
+	["topographie", { ebene: "topographie", editor: true }, true],
+	["vegetation", { ebene: "vegetation", editor: true }, false],
+	["derographisch", { ebene: "derographisch", editor: true }, false],
+	["klima", { ebene: "klima", editor: true }, false],
+].forEach(([name, lage, erwartet]) => {
+	const { context, haken } = welt(lage);
 	context.syncEcosystemRiverVisibility();
-	assert.strictEqual(haken.checked, true,
-		(editor ? "der Editor" : "der Besucher") + " bekommt die Fluesse in der Vegetationsebene");
+	assert.strictEqual(haken.checked, erwartet,
+		`Editor, Ebene „${name}": die Fluesse sind ${erwartet ? "an" : "aus"} -- seine eigene Tabelle`
+		+ " ist vom Nachtrag vom 09.09.2026 unberuehrt geblieben");
 });
 
-// ---- 2. Der Ebenenwechsel laesst sie an --------------------------------------------------------
+// ---- 2. Der Ebenenwechsel laesst sie beim BESUCHER an ------------------------------------------
 //
-// 🔴 Vor dem 09.09.2026 LEGTE der Wechsel den Haken um (Vegetation aus, Topographie an). Das ist der
-// eigentliche Unterschied dieses Umbaus: die Ebene entscheidet nicht mehr mit.
+// 🔴 Vor dem 09.09.2026 legte der Wechsel den Haken auch beim Besucher um (Vegetation aus, Topographie
+// an). Das ist der eigentliche Unterschied dieses Umbaus: fuer ihn entscheidet die Ebene nicht mehr
+// mit -- fuer den Editor unveraendert schon (siehe Abschnitt 1).
 
-const wechsel = welt({ ebene: "vegetation" });
+const wechsel = welt({ ebene: "vegetation", editor: false });
 wechsel.context.syncEcosystemRiverVisibility();
 assert.strictEqual(wechsel.haken.checked, true, "Vorbedingung: in Vegetation sind sie an");
 
@@ -122,6 +135,20 @@ assert.strictEqual(wechsel.haken.checked, true, "der Wechsel nach Topographie la
 wechsel.context.activeEcosystemLayerKind = "klima";
 wechsel.context.syncEcosystemRiverVisibility();
 assert.strictEqual(wechsel.haken.checked, true, "und der Wechsel in die Klimazonen ebenso");
+
+// ⚠️ Der EDITOR dagegen wechselt WIRKLICH mit -- seine Tabelle entscheidet je Ebene neu, bei jedem
+// Betreten oder Ebenenwechsel.
+const editorWechsel = welt({ ebene: "vegetation", editor: true });
+editorWechsel.context.syncEcosystemRiverVisibility();
+assert.strictEqual(editorWechsel.haken.checked, false, "Editor in Vegetation: aus");
+
+editorWechsel.context.activeEcosystemLayerKind = "topographie";
+editorWechsel.context.syncEcosystemRiverVisibility();
+assert.strictEqual(editorWechsel.haken.checked, true, "Editor, Wechsel nach Topographie: an");
+
+editorWechsel.context.activeEcosystemLayerKind = "klima";
+editorWechsel.context.syncEcosystemRiverVisibility();
+assert.strictEqual(editorWechsel.haken.checked, false, "Editor, Wechsel in die Klimazonen: wieder aus");
 
 // ---- 2b. Die WAHL des Besuchers schlaegt die Vorgabe -- die des Editors nicht -------------------
 //
@@ -164,7 +191,9 @@ geliehen.context.syncEcosystemRiverVisibility();
 assert.strictEqual(geliehen.haken.checked, false, "💣 und beim Verlassen zurueck auf AUS");
 
 // Umgekehrt genauso: wer sie selbst an hatte, behaelt sie -- hier ohne jede Aenderung dazwischen.
-const eigene = welt({ ebene: "vegetation", hakenVorher: true });
+// ⚠️ editor: false, denn in der Vegetation ist „an" seit dem 09.09.2026 nur noch die Vorgabe des
+// Besuchers -- der Editor waere hier von Anfang an auf AUS und diese Zeile pruefte dann etwas anderes.
+const eigene = welt({ ebene: "vegetation", hakenVorher: true, editor: false });
 eigene.context.syncEcosystemRiverVisibility();
 assert.strictEqual(eigene.haken.checked, true, "in der Vegetation bleiben sie jetzt an");
 eigene.buehne.modus = "political";
