@@ -410,35 +410,33 @@ function storeEcosystemUndergroundOpacity(percent) {
 
 // `active` false restores the map completely: this must never leak into the other view modes, where a
 // half-faded base map would look like a broken tile server.
-// ---- Das Ansichtsprofil je Ebene (Owner 23.08.2026) ------------------------------------------------
+// ---- Das Anzeigeprofil der Landschaften (Owner 09.09.2026) ----------------------------------------
 //
-// 🔴 „Alle“ IST IM FRONTEND DIE VOLLE KARTE OHNE KACHELN. Owner wörtlich: „in ‚Alle‘ im frontend können
-// siedlungen normal angezeigt werden, strassen normal angezeigt werden, grenzen normal angezeigt
-// werden, die transparenz für den untergrund kann auf 0 -- sprich du brauchst auch keine tiles
-// nachladen (aber nur im frontend modus)“. Übrig bleibt der Pergamentton, darauf die Landschafts-
-// flächen und die drei gewohnten Ebenen darüber. Die anderen Landschafts-Ebenen bleiben die ruhige
-// Zeichenfläche, die sie seit dem 2026-08-05 sind.
+// 🔴 EIN PROFIL FÜR ALLE FÜNF EBENEN. Owner: „auch die sollen in allen landschaftsansichten default
+// aktiviert und sichtbar sein". Damit fällt die „ruhige Zeichenfläche", die vier der fünf Ebenen seit
+// dem 05.08.2026 waren, und mit ihr DREI Tabellen: ECOSYSTEM_FRONTEND_PROFILES,
+// ECOSYSTEM_FRONTEND_PROFILE_RUHIG und ECOSYSTEM_RIVER_KINDS. Sie beantworteten alle dieselbe Frage
+// („was zeigt DIESE Ebene"), und die gibt es nicht mehr.
+// 💣 Eine Tabelle mit fünf gleichen Zeilen wäre schlimmer als keine: sie liest sich wie eine getroffene
+// Entscheidung und lädt zum Differenzieren ein, das hier ausdrücklich nicht gewollt ist.
 //
-// 🔴 NUR DER BESUCHER. Der Editor behält in JEDER Ebene seine Haken und seinen Untergrund-Regler --
-// dort ist die Ansicht ein Arbeitsplatz, und ein Profil, das ihm Straßen und Grenzen einschaltet, legte
-// sich über seine eigene Wahl.
+// 🔴 NUR DER BESUCHER. Der Editor bekommt weiterhin GAR KEIN Profil -- er hat seine Haken und seinen
+// Untergrund-Regler gleich daneben, und ein Profil legte sich über seine eigene Wahl.
 //
-// ⚠️ DIE FLÜSSE GEHÖREN NICHT IN DIESE TABELLE. Ihre Regel gilt für BEIDE Rollen (Owner-Entscheid vom
-// selben Tag, syncEcosystemRiverVisibility) -- eine Zeile hier wäre für die Hälfte der Leser falsch.
-// Dieselbe Überlegung wie bei `transport_seasons` im Wege-Editor: zwei Reichweiten auf demselben Feld
-// sind eine Divergenz, auch wenn sie sich zusammenlegen liessen.
-const ECOSYSTEM_FRONTEND_PROFILE_RUHIG = Object.freeze({
-	orte: false, wege: false, grenzen: false, untergrund: ECOSYSTEM_UNDERGROUND_FRONTEND,
+// ⚠️ DIE FLÜSSE STEHEN JETZT MIT DRIN, und das ist kein Widerspruch zu dem, was hier bis zum
+// 09.09.2026 stand („die Flüsse gehören nicht in diese Tabelle, ihre Regel gilt für BEIDE Rollen").
+// Die Reichweite ist unverändert: syncEcosystemRiverVisibility setzt den Haken weiterhin für BEIDE
+// Rollen und fällt für den Editor ausdrücklich auf DIESE Vorgabe zurück. Was hier steht, ist der
+// WERT -- und der ist seit heute für alle fünf Ebenen derselbe.
+const ECOSYSTEM_FRONTEND_PROFIL = Object.freeze({
+	orte: true, wege: true, labels: true, grenzen: true, fluesse: true, untergrund: 0,
 });
-const ECOSYSTEM_FRONTEND_PROFILES = {
-	alle: Object.freeze({ orte: true, wege: true, grenzen: true, untergrund: 0 }),
-};
 
-// Das Profil der GERADE gezeigten Ebene -- oder `null` für „hier wird nichts angefasst“.
+// Das Profil des GERADE zusehenden Besuchers -- oder `null` für „hier wird nichts angefasst“.
 //
-// 💣 `null` ist kein Rückfall auf die ruhige Tabelle, sondern eine eigene Aussage: der Editor und jede
-// andere Kartenansicht bekommen GAR KEIN Profil. Wer die beiden zusammenzieht, nimmt dem Editor seine
-// Haken oder greift in „Politisch“ hinein.
+// 💣 `null` ist kein Rückfall auf eine ruhigere Fassung, sondern eine eigene Aussage: der Editor und
+// jede andere Kartenansicht bekommen GAR KEIN Profil. Wer die beiden zusammenzieht, nimmt dem Editor
+// seine Haken oder greift in „Politisch“ hinein.
 function ecosystemFrontendProfile() {
 	if (typeof isEcosystemLayerModeActive !== "function" || !isEcosystemLayerModeActive()) {
 		return null;
@@ -446,8 +444,154 @@ function ecosystemFrontendProfile() {
 	if (canOperateEcosystemLayers()) {
 		return null;
 	}
-	const ebene = isEcosystemShowAllLayers() ? "alle" : getActiveEcosystemLayerKind();
-	return ECOSYSTEM_FRONTEND_PROFILES[ebene] || ECOSYSTEM_FRONTEND_PROFILE_RUHIG;
+	return ECOSYSTEM_FRONTEND_PROFIL;
+}
+
+// Die zehn Schalter, um die es geht: die vier Zeilen der Gruppe „Ebenen" im Anzeige-Menü und die sechs
+// Ortsklassen. 🔴 Die Ortsklassen kommen aus LOCATION_TYPE_VISIBILITY_ORDER, nie abgeschrieben -- die
+// letzte heisst `gebaeude` und trägt im Menü die Beschriftung „Besondere Bauwerke/Stätten".
+const ECOSYSTEM_ANZEIGE_HAKEN = Object.freeze({
+	wege: "togglePaths",
+	labels: "toggleMapLabels",
+	grenzen: "toggleTerritoryBorders",
+	fluesse: "toggleRivers",
+});
+
+// Die Lage, die der Besucher INNERHALB der Landschaften selbst hergestellt hat. `null` = er hat noch
+// keine getroffen.
+// 🔴 SIE GILT FÜR DEN GANZEN BESUCH (Owner 09.09.2026) -- über Ebenenwechsel UND über das Verlassen und
+// Wiederbetreten der Landschaften hinweg. Kein localStorage: ein Neuladen fängt wieder mit der Vorgabe
+// an, sonst bekäme jemand, der einmal etwas abschaltet, es nie wieder zu sehen, ohne es selbst zu
+// suchen.
+// 💣 SIE IST NICHT DAS AUSLEIH-GEDÄCHTNIS. ecosystemSettlementMemory und ecosystemRiverMemory
+// beantworten „was hatte er VOR den Landschaften" und geben es beim Verlassen zurück; diese hier
+// beantwortet „was will er IN den Landschaften". Zwei Fragen, zwei Merker -- zusammengelegt fällt eine
+// von beiden Antworten weg.
+let ecosystemAnzeigeWahl = null;
+
+let ecosystemAnzeigeWahlGebunden = false;
+
+// 💣 UND HIER STEHT ABSICHTLICH KEINE WACHE UM LOCATION_TYPE_VISIBILITY_ORDER, anders als in
+// ecosystemAnzeigeSoll darunter. Faellt die Liste hier aus, wirft diese Funktion -- und dann bleibt
+// `ecosystemAnzeigeWahl` unangetastet, weil die Zuweisung nie stattfindet. Genau das ist die sichere
+// Richtung: eine Wahl mit LEERER Ortstafel saehe aus wie „der Nutzer will keine Orte sehen" und
+// schaltete ihm ab dem naechsten Ebenenwechsel alle sechs Klassen aus. Ein lauter Fehlschlag in einem
+// Ereignis-Zuhoerer ist dagegen folgenlos.
+function ecosystemAnzeigeLesen() {
+	const stand = { orte: {}, untergrund: 0 };
+	Object.keys(ECOSYSTEM_ANZEIGE_HAKEN).forEach((feld) => {
+		const haken = document.getElementById(ECOSYSTEM_ANZEIGE_HAKEN[feld]);
+		stand[feld] = Boolean(haken && haken.checked);
+	});
+	LOCATION_TYPE_VISIBILITY_ORDER.forEach((typ) => {
+		stand.orte[typ] = getLocationToggleButton(typ).hasClass("is-active") === true;
+	});
+	return stand;
+}
+
+/**
+ * Was JETZT gelten soll: die Wahl des Besuchers, sobald er eine getroffen hat -- sonst die Vorgabe.
+ *
+ * ⭐ Und genau deshalb braucht es kein „nur beim Betreten anwenden". Die Appliers hängen an
+ * syncEcosystemPaneStates und laufen bei jedem Ebenenwechsel; früher hätten sie damit die Wahl des
+ * Nutzers plattgemacht. Jetzt schreiben sie SEINE Lage zurück -- ein Leerlauf, denn jeder Applier
+ * steigt bei `checked === soll` aus, ohne ein Ereignis zu feuern.
+ */
+function ecosystemAnzeigeSoll() {
+	const profil = ecosystemFrontendProfile();
+	if (!profil) {
+		return null;
+	}
+	if (ecosystemAnzeigeWahl) {
+		return ecosystemAnzeigeWahl;
+	}
+	// Die Vorgabe in DIE Form bringen, in der auch die Nutzerwahl steht -- eine Form, ein Leser.
+	// ⚠️ MIT DERSELBEN WACHE WIE syncEcosystemSettlementVisibility DARUNTER. Die Liste kommt aus
+	// js/config.js, also aus einer fremden Datei; dieses Modul erklärt sie seit jeher für möglicherweise
+	// abwesend. Neu ist, dass auch der Untergrund und die Flüsse durch dieses Soll gehen -- an denen
+	// hing vor dem 09.09.2026 gar keine Ortsliste, und ein ReferenceError liefe dort bei JEDEM
+	// Moduswechsel und nähme die Kachelebene mit. Ohne Liste bleibt `orte` leer; der Applier der
+	// Ortsklassen steigt an seiner eigenen Wache ohnehin aus.
+	const orte = {};
+	if (typeof LOCATION_TYPE_VISIBILITY_ORDER !== "undefined") {
+		LOCATION_TYPE_VISIBILITY_ORDER.forEach((typ) => { orte[typ] = profil.orte === true; });
+	}
+	return {
+		orte, wege: profil.wege, labels: profil.labels, grenzen: profil.grenzen,
+		fluesse: profil.fluesse, untergrund: profil.untergrund
+	};
+}
+
+/** Nur für den Test: gibt es eine Wahl? (Die Wahl selbst bleibt drinnen -- ein Test, der sie setzen
+ *  könnte, prüft den Weg nicht mehr, der sie setzen soll.) */
+function ecosystemAnzeigeWahlGesetzt() {
+	return ecosystemAnzeigeWahl !== null;
+}
+
+/**
+ * 💣 NUR EINE ECHTE HAND ZÄHLT. `dispatchEvent` liefert `isTrusted === false` -- und genau so setzt
+ * diese Datei ihre Haken selbst (das Ereignis ist Pflicht, die Zeichner hängen daran). Ohne diese Frage
+ * schriebe das Anwenden der Vorgabe die Vorgabe als „Nutzerwahl" fest; ab da wäre das Profil für den
+ * Rest des Besuchs wirkungslos, UND ES SÄHE RICHTIG AUS -- die Karte zeigt ja genau, was die Vorgabe
+ * wollte. Auffallen würde es erst beim zweiten Betreten.
+ * ⚠️ Der Zuhörer hängt per addEventListener dran, NICHT per jQuery: nur so ist `isTrusted` das native
+ * Feld und nicht das, was eine Normalisierungsschicht daraus macht.
+ * ⚠️ Er hält auch gegen die anderen programmatischen Schreiber dieser Haken (URL-Persistenz
+ * ?togglePaths=0, applyFrontendLayerModeDefaults) -- die sind ebenfalls keine Hand. Nachgezählt am
+ * 10.09.2026: ALLE schreiben mit `$(…).prop("checked", …)`, und das feuert überhaupt kein Ereignis;
+ * keiner von ihnen ruft `.click()` oder `.trigger("change")` auf einem der vier.
+ *
+ * 🪤 UND GENAU DAS IST DIE BEDINGUNG, DIE HIER GEMESSEN WURDE UND NICHT ANGENOMMEN WERDEN DARF.
+ * Live gegengemessen (avesmaps.de, 10.09.2026):
+ *   - Klick auf die `<label>`-Zeile („Wege", weit weg vom 1px breiten `<input>`)  → isTrusted TRUE
+ *   - `i.dispatchEvent(new Event("change"))`, also unser eigener Weg                → isTrusted FALSE
+ *   - 💣 `labelZeile.click()` aus einem Skript                                      → isTrusted TRUE
+ * Der dritte ist der Haken an der Sache: ein synthetischer `click()` trägt selbst `isTrusted: false`,
+ * aber das ANKREUZEN erledigt danach der Browser, und SEIN `change` ist vertrauenswürdig. Wer also je
+ * einen dieser Haken per `.click()` umlegt, schreibt damit eine „Nutzerwahl" fest, ohne dass ein
+ * Mensch etwas angefasst hat -- und das Profil wäre für den Rest des Besuchs wirkungslos. Heute tut
+ * das niemand (nachgezählt, siehe oben); wer es einführt, muss diesen Riegel mitdenken.
+ * ⚠️ Die Tastatur-Gegenprobe (Leertaste auf dem fokussierten Haken) liess sich mit der Browser-Pane
+ * NICHT fahren -- ihre Tasteneingabe erreicht den Haken mit leerem `key` und löst das Ankreuzen des
+ * Browsers gar nicht erst aus. Das ist eine Werkzeuggrenze, keine Aussage über die Seite.
+ */
+function ecosystemAnzeigeWahlMerken(ereignis) {
+	if (!ereignis || ereignis.isTrusted !== true) {
+		return;
+	}
+	if (typeof isEcosystemLayerModeActive !== "function" || !isEcosystemLayerModeActive()) {
+		return;
+	}
+	if (canOperateEcosystemLayers()) {
+		return;   // die Wahl gehört dem Besucher; der Editor hat seine eigenen Haken
+	}
+	ecosystemAnzeigeWahl = ecosystemAnzeigeLesen();
+}
+
+function bindEcosystemAnzeigeWahl() {
+	if (ecosystemAnzeigeWahlGebunden) {
+		return;
+	}
+	const haken = Object.keys(ECOSYSTEM_ANZEIGE_HAKEN)
+		.map((feld) => document.getElementById(ECOSYSTEM_ANZEIGE_HAKEN[feld]))
+		.filter(Boolean);
+	if (!haken.length) {
+		return;   // das Anzeige-Menü steht noch nicht -- der nächste Aufruf holt es nach
+	}
+	ecosystemAnzeigeWahlGebunden = true;
+	haken.forEach((element) => element.addEventListener("change", ecosystemAnzeigeWahlMerken));
+	// ⚠️ Die Ortsklassen sind KEINE Checkboxen, sondern jQuery-Knöpfe mit `is-active` -- ein
+	// programmatisches toggleClass feuert dort ohnehin nichts. Gehorcht wird deshalb dem Klick.
+	// ⚠️ Und im nächsten Takt gelesen: der eigene Handler des Knopfes setzt die Klasse erst.
+	document.addEventListener("click", (ereignis) => {
+		const knopf = ereignis.target && ereignis.target.closest
+			? ereignis.target.closest(".location-toggle") : null;
+		if (!knopf) {
+			return;
+		}
+		const vertrauenswuerdig = ereignis.isTrusted === true;
+		setTimeout(() => ecosystemAnzeigeWahlMerken({ isTrusted: vertrauenswuerdig }), 0);
+	});
 }
 
 // Setzt einen Haken des Anzeige-Menüs und meldet, ob sich dabei etwas geändert hat.
@@ -467,9 +611,14 @@ function ecosystemSetzeAnzeigeHaken(id, soll) {
 	return true;
 }
 
-// Straßen und Grenzen nach dem Profil. Die Ortsklassen laufen über syncEcosystemSettlementVisibility
-// (sie werden GELIEHEN und beim Verlassen zurückgegeben), der Untergrund über
+// Straßen, Beschriftungen und Grenzen nach dem SOLL (der Wahl des Besuchers, sonst der Vorgabe). Die
+// Ortsklassen laufen über syncEcosystemSettlementVisibility (sie werden GELIEHEN und beim Verlassen
+// zurückgegeben), die Flüsse über syncEcosystemRiverVisibility (dito), der Untergrund über
 // applyEcosystemUndergroundOpacity.
+//
+// 🔴 `toggleMapLabels` STEHT SEIT DEM 09.09.2026 MIT DRIN. Bis dahin fasste diese Funktion die
+// Beschriftungen gar nicht an -- die vier ruhigen Ebenen waren ohnehin leer, und in „Alle" stand der
+// Haken meist schon richtig. Mit „alles an in allen Ebenen" ist er ein Schalter wie die anderen drei.
 //
 // ⚠️ Straßen und Grenzen brauchen hier KEINE Erinnerung: beide werden bei jedem Kartenmodus-Wechsel
 // ohnehin neu gesetzt -- die Wege und die Grenzen beide in `setSelectedMapLayerMode`
@@ -480,12 +629,13 @@ function ecosystemSetzeAnzeigeHaken(id, soll) {
 // galt damit fuer jeden anderen Weg in die Standardansicht nicht: wer aus den Landschaften heraus den
 // Spotlight, den Routenplaner oder eine Editorliste benutzte, stand in „Standard" ohne Wege.
 function syncEcosystemFrontendFeatures() {
-	const profil = ecosystemFrontendProfile();
-	if (!profil) {
+	const soll = ecosystemAnzeigeSoll();
+	if (!soll) {
 		return;
 	}
-	const wege = ecosystemSetzeAnzeigeHaken("togglePaths", profil.wege);
-	ecosystemSetzeAnzeigeHaken("toggleTerritoryBorders", profil.grenzen);
+	const wege = ecosystemSetzeAnzeigeHaken("togglePaths", soll.wege);
+	ecosystemSetzeAnzeigeHaken("toggleMapLabels", soll.labels);
+	ecosystemSetzeAnzeigeHaken("toggleTerritoryBorders", soll.grenzen);
 	// Die Grenzen zeichnet ihr eigener `change`-Zuhörer; die Wege brauchen den direkten Anstoss, weil
 	// diese Datei vor map-features.js lädt und ihr Zuhörer beim ersten Aufruf noch fehlen kann.
 	if (wege && typeof syncPathVisibility === "function") {
@@ -531,13 +681,16 @@ function applyEcosystemUndergroundOpacity(active) {
 
 	const tilePane = map.getPane("tilePane");
 	const container = typeof map.getContainer === "function" ? map.getContainer() : null;
-	// Wer den Regler hat, bekommt seinen Wert; wer ihn nicht hat, den Wert seiner EBENE (23.08.2026 --
-	// vorher waren es für den Besucher überall dieselben 25 %).
-	const profil = ecosystemFrontendProfile();
+	// Wer den Regler hat, bekommt seinen Wert; wer ihn nicht hat, den seines SOLLS -- seit 09.09.2026 in
+	// allen fünf Ebenen 0 % (Owner). Vom 23.08. bis dahin hing der Wert an der EBENE, davor waren es für
+	// den Besucher überall dieselben 25 %.
+	// ⚠️ ECOSYSTEM_UNDERGROUND_FRONTEND ist damit nur noch der Rückfall für den Fall, dass `active`
+	// wahr ist, der Modus aber schon nicht mehr -- die sichere Richtung, unverändert seit 23.08.2026.
+	const soll = ecosystemAnzeigeSoll();
 	const percent = active
 		? (canOperateEcosystemLayers()
 			? readStoredEcosystemUndergroundOpacity()
-			: (profil ? profil.untergrund : ECOSYSTEM_UNDERGROUND_FRONTEND))
+			: (soll ? soll.untergrund : ECOSYSTEM_UNDERGROUND_FRONTEND))
 		: 100;
 	// 🔴 Bei 0 % gar nicht erst laden. Steht VOR dem Setzen der Deckkraft, damit ein laufender
 	// Kachel-Abruf so früh wie möglich abbricht.
@@ -579,16 +732,37 @@ function syncEcosystemSettlementVisibility(inLayer) {
 		return;
 	}
 
-	// 🔴 SEIT 23.08.2026 ENTSCHEIDET DIE EBENE, NICHT DER MODUS. „Alle“ zeigt dem Besucher die Orte wie
-	// jede andere Ansicht (Owner); die ruhigen Ebenen nehmen sie weiter zurück, und der Editor bekommt
-	// überall die leere Zeichenfläche (kein Profil ⇒ zurücktreten). Der Weg des Zurückgebens ist
-	// derselbe wie beim Verlassen des Modus -- deshalb steht hier eine Bedingung und kein zweiter Zweig.
-	const nimmtOrte = Boolean(inLayer) && !(ecosystemFrontendProfile()?.orte === true);
+	// 🔴 SEIT 09.09.2026 WERDEN DIE ORTE AKTIV EINGESCHALTET, nicht nur „nicht weggenommen". Bis dahin
+	// fragte diese Funktion allein, ob sie ZURÜCKTRETEN sollen -- für „Alle" tat sie schlicht nichts,
+	// und der Besucher sah dort, was er ohnehin eingestellt hatte. Für „default aktiviert und sichtbar"
+	// (Owner) reicht das nicht.
+	//
+	// 💣 DREI FÄLLE, UND DER MITTLERE IST DER, DEN MAN BEIM UMBAU VERLIERT:
+	//   (A) Besucher DRIN   -> leihen und nach dem Soll SETZEN
+	//   (B) Editor   DRIN   -> leihen und WEGNEHMEN (die leere Zeichenfläche, Owner 04.08.2026)
+	//   (C) draussen        -> zurückgeben
+	// `ecosystemAnzeigeSoll()` gibt dem Editor `null` -- wer nur danach fragt, lässt ihn in den
+	// Rückgabe-Zweig fallen, und er bekäme mitten in der Ebene seine Ortsknöpfe zurück. Das wäre ein
+	// Verhaltenswechsel, den niemand bestellt hat; deshalb steht `canOperateEcosystemLayers()` hier
+	// ausdrücklich noch einmal und nicht nur in ecosystemFrontendProfile.
+	const drin = Boolean(inLayer);
+	const soll = drin ? ecosystemAnzeigeSoll() : null;
+	const editorDrin = drin && !soll && canOperateEcosystemLayers();
 
-	if (nimmtOrte) {
-		// Nur beim EINTRETEN merken. syncEcosystemControlsVisibility läuft auch mitten im Modus (etwa
-		// wenn die Rechteauskunft eintrifft) -- ein zweites Merken schriebe die bereits leere Lage fest
-		// und gäbe dem Nutzer seine Orte nie wieder.
+	if (soll) {
+		// Nur beim EINTRETEN merken -- diese Funktion läuft auch mitten im Modus (etwa wenn die
+		// Rechteauskunft eintrifft), und ein zweites Merken schriebe die bereits gesetzte Lage fest.
+		if (ecosystemSettlementMemory === null) {
+			ecosystemSettlementMemory = LOCATION_TYPE_VISIBILITY_ORDER.map(
+				(locationType) => getLocationToggleButton(locationType).hasClass("is-active")
+			);
+		}
+		LOCATION_TYPE_VISIBILITY_ORDER.forEach((locationType) => {
+			getLocationToggleButton(locationType).toggleClass("is-active", soll.orte[locationType] === true);
+		});
+	} else if (editorDrin) {
+		// Wort für Wort der Zweig von 2026-08-04: nur beim EINTRETEN merken, sonst schriebe ein zweiter
+		// Durchlauf mitten im Modus die bereits leere Lage fest und gäbe ihm seine Orte nie wieder.
 		if (ecosystemSettlementMemory !== null) {
 			return;
 		}
@@ -615,11 +789,18 @@ function syncEcosystemSettlementVisibility(inLayer) {
 	syncLocationMarkerVisibility();
 }
 
-// ---- Die Fluesse: welche Ebene zeigt sie (Owner 23.08.2026) ---------------------------------------
+// ---- Die Fluesse: sie stehen in JEDER Ebene (Owner 09.09.2026) ------------------------------------
 //
-// 🔴 „Alle“ und „Topographie“ zeigen sie, die uebrigen nicht. Die Uebersicht will die Gewaesser, und
-// ein Gebirge ohne seine Fluesse ist ein halbes Relief; ueber den Vegetations- und Derographieflaechen
-// waeren es nur Linien.
+// 🔴 DIE TABELLE ECOSYSTEM_RIVER_KINDS IST GEFALLEN. Bis zum 09.09.2026 zeigten nur „Alle" und
+// „Topographie" die Gewaesser; jetzt zeigen sie alle fuenf Ebenen („auch die sollen in allen
+// landschaftsansichten default aktiviert und sichtbar sein"). Der WERT steht in
+// ECOSYSTEM_FRONTEND_PROFIL und sonst nirgends.
+//
+// 🔴 DIE REICHWEITE IST UNVERAENDERT: die Regel gilt BEIDEN Rollen (Owner-Entscheid 23.08.2026, und
+// dieser Nachtrag hebt ihn nicht auf). Der BESUCHER liest sein Soll -- und damit ab der ersten eigenen
+// Entscheidung seine Wahl. Der EDITOR hat kein Profil (`ecosystemAnzeigeSoll()` ist fuer ihn `null`)
+// und faellt ausdruecklich auf die Vorgabe zurueck; sonst schriebe ein `undefined` seinen Haken bei
+// jedem Ebenenwechsel auf aus, und das haette niemand bestellt.
 //
 // 🔴 DIE EBENE LEIHT SICH DEN HAKEN UND GIBT IHN ZURUECK -- dieselbe Bauart wie
 // syncEcosystemSettlementVisibility darueber, und aus demselben Grund: `#toggleRivers` gehoert dem
@@ -627,8 +808,9 @@ function syncEcosystemSettlementVisibility(inLayer) {
 // „Standard“ mit einer Fluss-Lage, die er nie gewaehlt hat.
 //
 // ⚠️ Der Haken bleibt dabei benutzbar (Owner-Entscheid): der Wechsel setzt ihn, die naechste eigene
-// Entscheidung sticht ihn -- bis zum naechsten Wechsel.
-const ECOSYSTEM_RIVER_KINDS = new Set(["alle", "topographie"]);
+// Entscheidung sticht ihn. 🔴 Fuer den BESUCHER faellt das „bis zum naechsten Wechsel" seit dem
+// 09.09.2026 weg -- seine Entscheidung steht im Soll und wird beim Wechsel zurueckgeschrieben, nicht
+// ueberschrieben. Fuer den Editor gilt der Satz weiter.
 
 let ecosystemRiverMemory = null;   // die Hakenlage VOR dem Modus, oder null = nicht im Modus
 
@@ -655,7 +837,8 @@ function syncEcosystemRiverVisibility() {
 		if (ecosystemRiverMemory === null) {
 			ecosystemRiverMemory = haken.checked === true;
 		}
-		soll = ECOSYSTEM_RIVER_KINDS.has(isEcosystemShowAllLayers() ? "alle" : getActiveEcosystemLayerKind());
+		const anzeigeSoll = ecosystemAnzeigeSoll();
+		soll = anzeigeSoll ? anzeigeSoll.fluesse === true : ECOSYSTEM_FRONTEND_PROFIL.fluesse;
 	} else {
 		if (ecosystemRiverMemory === null) {
 			return;   // war gar nicht im Modus -- dann gibt es auch nichts zurueckzugeben
@@ -976,6 +1159,9 @@ function syncEcosystemControlsVisibility() {
 	}
 
 	bindEcosystemLayerSwitch();
+	// ⚠️ Der Nachzieher: stand das Anzeige-Menü beim Laden dieser Datei noch nicht im Dokument, ist
+	// unten nichts gebunden worden. Beide Aufrufe teilen sich denselben Riegel.
+	bindEcosystemAnzeigeWahl();
 	const shouldShow = isEcosystemLayerModeActive();
 	const operable = shouldShow && canOperateEcosystemLayers();
 	// 🔴 DIE EBENEN-KACHELN GEHÖREN JEDEM, DER DIE LANDSCHAFTEN ANSIEHT (Owner 2026-08-04: „einfach die
@@ -1031,4 +1217,15 @@ function syncEcosystemControlsVisibility() {
 	if (typeof syncEcosystemRegionCache === "function") {
 		syncEcosystemRegionCache({ refresh: true });
 	}
+}
+
+// 🔴 GEBUNDEN WIRD BEIM LADEN, nicht erst beim ersten Moduswechsel. Diese Datei steht in index.html
+// NACH dem Anzeige-Menü (die vier Haken um Zeile 3030, das Skript um 3924), die Elemente sind also da
+// -- und damit hängt der Zuhörer an ihnen, ohne dass irgendein anderer Weg vorher gelaufen sein muss.
+// Ein Zustand, der von der Reihenfolge zweier Verdrahtungen abhängt, ist genau die Art Falle, die
+// dieses Modul an anderer Stelle schon zweimal bezahlt hat.
+// ⚠️ Fällt offen aus und ist idempotent: ohne Dokument oder ohne Anzeige-Menü passiert nichts, und
+// syncEcosystemControlsVisibility holt es beim nächsten Moduswechsel nach.
+if (typeof document !== "undefined" && document && typeof document.getElementById === "function") {
+	bindEcosystemAnzeigeWahl();
 }

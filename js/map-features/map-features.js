@@ -371,9 +371,10 @@ const normalizeNodeName = (name) => {
 // stillschweigend (festgenagelt in flusskontur-landschaften.test.js, Abschnitt E).
 //
 // ⚠️ REICHWEITE: der ganze Landschaftsmodus, nicht nur der Reiter „Topographie". Flüsse erscheinen
-// dort ohnehin nur in „Alle" und „Topographie" (ECOSYSTEM_RIVER_KINDS) -- beide zeigen sie über
-// demselben ausgeblassten Untergrund, auf dem die weisse Hülle als dicker Wurm liest. Eine Regel,
-// die nur eine der beiden Ansichten träfe, wäre ein Unterschied, den niemand erklären kann.
+// dort seit dem 09.09.2026 in ALLEN fünf Ebenen (die Tabelle ECOSYSTEM_RIVER_KINDS ist gefallen, der
+// Wert steht in ECOSYSTEM_FRONTEND_PROFIL) -- und alle fünf zeigen sie über demselben ausgeblassten
+// Untergrund, auf dem die weisse Hülle als dicker Wurm liest. Eine Regel, die nur einzelne Ebenen
+// träfe, wäre ein Unterschied, den niemand erklären kann; das galt schon, als es zwei waren.
 // 🪤 Die gewöhnliche Karte bleibt unberührt: dort ist die weisse Kontur das gewohnte Kartenbild.
 function avesmapsFlussKonturSichtbar() {
 	const imLandschaftsmodus = typeof isEcosystemLayerModeActive === "function"

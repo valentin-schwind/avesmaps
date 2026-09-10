@@ -250,10 +250,13 @@ const ohneHoehenmodul = labelWelt({ recht: true, editor: true, gemerktAlle: "0",
 assert(!ohneHoehenmodul.isLabelOfActiveEcosystemLayer({ labelType: "berggipfel" }),
 	"ohne Hoehenmodul faellt die Ausnahme still aus, statt zu werfen");
 
-// ---- der Untergrund: 25 % fuer den Besucher, sein Regler fuer den Editor ----------------------------
+// ---- der Untergrund: ein fester Wert fuer den Besucher, sein Regler fuer den Editor ---------------
 // 💣 Der Besucher bekommt einen FESTEN Wert, nicht den gespeicherten. Der liegt je Browser, und wer
 // irgendwann einmal auf 0 gezogen hat, saehe eine leere weisse Karte -- ohne Regler, mit dem er wieder
 // herauskaeme. Ein fester Wert ist hier das Gegenteil einer Einschraenkung.
+// 🔴 DER WERT IST SEIT DEM 09.09.2026 IN ALLEN FUENF EBENEN 0 (Owner). Bis zum 23.08.2026 waren es
+// ueberall 25 %, danach hing er an der EBENE („Alle" 0, die uebrigen 25). Die Zusicherung dieser Datei
+// ist unveraendert die daneben: FEST, nicht gespeichert -- nur die Zahl ist gewandert.
 function untergrundWelt({ recht, editor, gespeichert }) {
 	const pane = { style: {} };
 	const container = { style: {} };
@@ -267,8 +270,9 @@ function untergrundWelt({ recht, editor, gespeichert }) {
 		getSelectedMapLayerMode: () => "ecosystem",
 		IS_ECOSYSTEM_ENABLED: recht,
 		IS_EDIT_MODE: editor,
-		// Seit 23.08.2026 haengt der Untergrund des Besuchers an seiner EBENE (ecosystemFrontendProfile),
-		// nicht mehr an einer festen Zahl -- deshalb braucht diese Welt jetzt eine Ebene.
+		// Der Untergrund des Besuchers laeuft seit 23.08.2026 ueber ecosystemFrontendProfile, und das
+		// fragt die Ebene -- seit dem 09.09.2026 gibt es dort zwar nur noch EIN Profil, die Welt braucht
+		// die Ebene aber weiterhin, weil andere Wege des Moduls sie lesen.
 		// 🪤 `gespeichert` beantwortet hier JEDEN localStorage-Schluessel, auch den fuer „Alle": "0" heisst
 		// also zugleich „nicht Alle", und das ist der Fall, den die Zusicherungen unten meinen.
 		isKnownEcosystemKind: () => true,
@@ -283,11 +287,13 @@ function untergrundWelt({ recht, editor, gespeichert }) {
 
 const besucherUntergrund = untergrundWelt({ recht: false, editor: false, gespeichert: "0" });
 besucherUntergrund.context.applyEcosystemUndergroundOpacity(true);
-assert(besucherUntergrund.pane.style.opacity === "0.25",
-	"💣 der Besucher bekommt in einer GEWAEHLTEN Ebene die festen 25 % -- nicht die 0, die in seinem "
-		+ "Browser steht: " + besucherUntergrund.pane.style.opacity);
-// 🔴 In „Alle" sind es seit 23.08.2026 0 % samt abgehaengter Kacheln; das prueft
-// js/map-features/__tests__/ecosystem-frontend-profil.test.js mit der noetigen Buehne.
+assert(besucherUntergrund.pane.style.opacity === "0",
+	"💣 der Besucher bekommt in einer GEWAEHLTEN Ebene den festen Wert des Profils -- nicht den, der in "
+		+ "seinem Browser steht (hier stuende sonst dieselbe 0 aus einem ganz anderen Grund, deshalb "
+		+ "misst der Editor-Fall darunter die Gegenprobe): " + besucherUntergrund.pane.style.opacity);
+// 🔴 Samt abgehaengter Kachelebene, und das in allen fuenf Ebenen (seit 09.09.2026; vom 23.08. an nur
+// in „Alle"); das prueft js/map-features/__tests__/ecosystem-frontend-profil.test.js mit der noetigen
+// Buehne.
 
 const editorUntergrund = untergrundWelt({ recht: true, editor: true, gespeichert: "40" });
 editorUntergrund.context.applyEcosystemUndergroundOpacity(true);
@@ -317,7 +323,9 @@ function schalterWelt() {
 		getSelectedMapLayerMode: () => "ecosystem",
 		IS_ECOSYSTEM_ENABLED: false,
 		IS_EDIT_MODE: false,
-		// Seit 23.08.2026 entscheidet die EBENE, ob die Orte zuruecktreten (ecosystemFrontendProfile).
+		// Vom 23.08. bis zum 09.09.2026 entschied die EBENE, ob die Orte zuruecktreten; seither bekommt
+		// der Besucher sie in JEDER Ebene aktiv eingeschaltet (ecosystemAnzeigeSoll). Was diese Datei
+		// misst, ist unveraendert das AUSLEIHEN: was er vorher hatte, steht beim Verlassen wieder da.
 		// 🪤 localStorage antwortet hier auf JEDEN Schluessel mit "0" -- also auch „nicht Alle", und das
 		// ist genau der Fall, den die Zusicherungen unten meinen. Den Fall „Alle" prueft
 		// js/map-features/__tests__/ecosystem-frontend-profil.test.js.
@@ -339,7 +347,9 @@ const sichtbareOrte = () => Object.values(s.zustand).filter(Boolean).length;
 assert(sichtbareOrte() === 2, "vorher stehen zwei Ortsstufen auf sichtbar");
 
 s.context.syncEcosystemSettlementVisibility(true);
-assert(sichtbareOrte() === 0, "im Landschaftsmodus treten sie zurück");
+assert(sichtbareOrte() === 6,
+	"🔴 im Landschaftsmodus stehen sie seit dem 09.09.2026 ALLE SECHS auf sichtbar (Owner: „default "
+		+ "aktiviert und sichtbar\"); bis dahin traten sie hier zurueck: " + sichtbareOrte());
 
 // 💣 Ein zweiter Durchlauf MITTEN im Modus (die Rechteauskunft trifft ein, der Nutzer wechselt die
 // Ebene) darf die inzwischen leere Lage nicht als „das war schon immer so" festschreiben.

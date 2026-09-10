@@ -1,15 +1,21 @@
-// Das Ansichtsprofil je Landschafts-Ebene (Owner 23.08.2026).
+// Das Anzeigeprofil der Landschaften (Owner 09.09.2026).
 //
-// 🔴 „Alle" IST IM FRONTEND DIE VOLLE KARTE OHNE KACHELN. Owner woertlich: „in ‚Alle' im frontend
-// koennen siedlungen normal angezeigt werden, strassen normal angezeigt werden, grenzen normal
-// angezeigt werden, die transparenz fuer den untergrund kann auf 0 -- sprich du brauchst auch keine
-// tiles nachladen (aber nur im frontend modus)."
+// 🔴 EIN PROFIL FUER ALLE FUENF EBENEN. Owner: „auch die sollen in allen landschaftsansichten default
+// aktiviert und sichtbar sein." Bis dahin stand hier die Ordnung vom 23.08.2026: „Alle" war die volle
+// Karte ohne Kacheln, die vier uebrigen Ebenen waren die „ruhige Zeichenflaeche" (Orte, Wege und
+// Grenzen ausdruecklich aus, Untergrund 25 %). Der Unterschied ist aufgehoben -- und mit ihm sind die
+// drei Tabellen gefallen, die ihn trugen (ECOSYSTEM_FRONTEND_PROFILES, …_PROFILE_RUHIG,
+// ECOSYSTEM_RIVER_KINDS). Was bleibt, prueft diese Datei.
 //
 // 🔴 NUR DER BESUCHER. Der Editor behaelt in JEDER Ebene seine Haken und seinen Untergrund-Regler --
-// dort ist die Ansicht ein Arbeitsplatz.
-// ⚠️ Die FLUESSE gehoeren NICHT in dieses Profil: ihre Regel gilt fuer beide Rollen (Owner-Entscheid
-// vom selben Tag, syncEcosystemRiverVisibility). Zwei Reichweiten in einer Tabelle waeren eine Zeile,
-// die fuer die Haelfte der Leser falsch ist.
+// dort ist die Ansicht ein Arbeitsplatz. Diese Unterscheidung ist die Begruendung des ganzen Profils
+// und bleibt.
+// ⚠️ Die FLUESSE stehen seit dem 09.09.2026 MIT im Profil, ihre Reichweite ist aber unveraendert: den
+// Haken setzt syncEcosystemRiverVisibility weiterhin fuer BEIDE Rollen (Owner-Entscheid 23.08.2026).
+// Was der Umbau geaendert hat, ist der WERT, nicht der Geltungsbereich -- gemessen in
+// js/map-features/__tests__/ecosystem-fluesse.test.js.
+// ⚠️ Dass die WAHL des Besuchers dieses Profil schlaegt, misst
+// js/map-features/__tests__/anzeigewahl-schlaegt-vorgabe.test.js.
 
 const assert = require("node:assert");
 const fs = require("node:fs");
@@ -22,15 +28,17 @@ const quelle = fs.readFileSync(
 const ORTSKLASSEN = ["metropole", "grossstadt", "stadt", "kleinstadt", "dorf", "gebaeude"];
 
 function welt({ editor = false, gemerktAlle = "0", ebene = "vegetation", modus = "ecosystem",
-	wegeVorher = false, grenzenVorher = false, orteVorher = true, kachelnDa = true } = {}) {
+	wegeVorher = false, labelsVorher = false, grenzenVorher = false, orteVorher = true,
+	kachelnDa = true } = {}) {
 	const geschehen = [];
 	const haken = {};
-	["togglePaths", "toggleTerritoryBorders", "toggleRivers"].forEach((id) => {
+	["togglePaths", "toggleMapLabels", "toggleTerritoryBorders", "toggleRivers"].forEach((id) => {
 		haken[id] = { id, checked: false, listener: [],
 			addEventListener(typ, fn) { if (typ === "change") { this.listener.push(fn); } },
-			dispatchEvent() { this.listener.forEach((fn) => fn()); geschehen.push("change:" + id); return true; } };
+			dispatchEvent(ereignis) { this.listener.forEach((fn) => fn(ereignis)); geschehen.push("change:" + id); return true; } };
 	});
 	haken.togglePaths.checked = wegeVorher;
+	haken.toggleMapLabels.checked = labelsVorher;
 	haken.toggleTerritoryBorders.checked = grenzenVorher;
 
 	const ortsKnoepfe = {};
@@ -99,19 +107,20 @@ function welt({ editor = false, gemerktAlle = "0", ebene = "vegetation", modus =
 // 🪤 Ausgebreitet verglichen: ein Objekt aus der vm-Sandkiste traegt deren Object.prototype, und
 // deepStrictEqual vergleicht den mit. Gleiche Werte, fremder Prototyp -- der Fehler liest sich dann wie
 // ein echter Unterschied (die beiden Seiten stehen identisch untereinander).
+const DAS_PROFIL = { orte: true, wege: true, labels: true, grenzen: true, fluesse: true, untergrund: 0 };
+
 const besucherAlle = welt({ gemerktAlle: "1" });
-assert.deepStrictEqual({ ...besucherAlle.context.ecosystemFrontendProfile() },
-	{ orte: true, wege: true, grenzen: true, untergrund: 0 },
-	'🔴 „Alle" im Frontend: Siedlungen, Strassen und Grenzen an, Untergrund auf 0');
+assert.deepStrictEqual({ ...besucherAlle.context.ecosystemFrontendProfile() }, DAS_PROFIL,
+	'🔴 „Alle" im Frontend: alles an, Untergrund auf 0');
 
 const besucherVegetation = welt({ gemerktAlle: "0", ebene: "vegetation" });
-assert.deepStrictEqual({ ...besucherVegetation.context.ecosystemFrontendProfile() },
-	{ orte: false, wege: false, grenzen: false, untergrund: 25 },
-	"die uebrigen Ebenen bleiben die ruhige Zeichenflaeche");
+assert.deepStrictEqual({ ...besucherVegetation.context.ecosystemFrontendProfile() }, DAS_PROFIL,
+	"🔴 und die frueher ruhigen Ebenen bekommen seit dem 09.09.2026 GENAU DASSELBE -- der Unterschied"
+	+ " ist aufgehoben, nicht bloss angeglichen (es gibt nur noch ein Profil)");
 
 ["derographisch", "topographie", "klima"].forEach((ebene) => {
-	assert.strictEqual(welt({ ebene }).context.ecosystemFrontendProfile().orte, false,
-		`Ebene ${ebene} zeigt keine Ortsklassen`);
+	assert.strictEqual(welt({ ebene }).context.ecosystemFrontendProfile().orte, true,
+		`Ebene ${ebene} zeigt ihre Ortsklassen`);
 });
 
 const imEditor = welt({ editor: true, gemerktAlle: "1" });
@@ -122,21 +131,27 @@ const woanders = welt({ modus: "deregraphic", gemerktAlle: "1" });
 assert.strictEqual(woanders.context.ecosystemFrontendProfile(), null,
 	"💣 ausserhalb des Landschaftsmodus gibt es kein Profil -- sonst griffe es in fremde Ansichten");
 
-// ---- 2. Strassen und Grenzen -------------------------------------------------------------------
+// ---- 2. Strassen, Beschriftungen und Grenzen ---------------------------------------------------
 
-const anschalten = welt({ gemerktAlle: "1", wegeVorher: false, grenzenVorher: false });
+const anschalten = welt({ gemerktAlle: "1", wegeVorher: false, labelsVorher: false, grenzenVorher: false });
 anschalten.context.syncEcosystemFrontendFeatures();
 assert.strictEqual(anschalten.haken.togglePaths.checked, true, '„Alle" schaltet die Strassen an');
+assert.strictEqual(anschalten.haken.toggleMapLabels.checked, true,
+	"🔴 und die Beschriftungen -- der Haken, der bis zum 09.09.2026 gar nicht im Profil stand");
 assert.strictEqual(anschalten.haken.toggleTerritoryBorders.checked, true, "und die Grenzen");
 assert.ok(anschalten.geschehen.includes("change:togglePaths"),
 	"💣 als `change` gemeldet -- ein gesetztes `checked` feuert von selbst keines, und daran haengen "
 		+ "die Zeichner (syncPathVisibility, die Grenz-Leinwand)");
+assert.ok(anschalten.geschehen.includes("change:toggleMapLabels"), "dito fuer die Beschriftungen");
 assert.ok(anschalten.geschehen.includes("change:toggleTerritoryBorders"), "dito fuer die Grenzen");
 
-const ruhig = welt({ gemerktAlle: "0", ebene: "vegetation", wegeVorher: true, grenzenVorher: true });
-ruhig.context.syncEcosystemFrontendFeatures();
-assert.strictEqual(ruhig.haken.togglePaths.checked, false, "eine ruhige Ebene nimmt die Strassen weg");
-assert.strictEqual(ruhig.haken.toggleTerritoryBorders.checked, false, "und die Grenzen");
+// 🔴 Und zwar auch in einer der vier Ebenen, die bis zum 09.09.2026 die „ruhige Zeichenflaeche" waren.
+// Bis dahin stand hier die Gegenprobe: `ruhig` nahm die Strassen WEG.
+const ehemalsRuhig = welt({ gemerktAlle: "0", ebene: "vegetation", wegeVorher: false, grenzenVorher: false });
+ehemalsRuhig.context.syncEcosystemFrontendFeatures();
+assert.strictEqual(ehemalsRuhig.haken.togglePaths.checked, true,
+	"🔴 auch die Vegetationsebene schaltet die Strassen AN -- die ruhige Zeichenflaeche ist gefallen");
+assert.strictEqual(ehemalsRuhig.haken.toggleTerritoryBorders.checked, true, "und die Grenzen");
 
 const editorUnberuehrt = welt({ editor: true, gemerktAlle: "1", wegeVorher: false, grenzenVorher: false });
 editorUnberuehrt.context.syncEcosystemFrontendFeatures();
@@ -146,7 +161,7 @@ assert.deepStrictEqual(editorUnberuehrt.geschehen, [], "und auch nichts gemeldet
 
 // ⚠️ Stimmt die Lage schon, passiert nichts -- diese Funktion laeuft bei jedem Ebenenwechsel, und ein
 // blindes Setzen zeichnete jedes Mal ~6000 Wege neu.
-const schonRichtig = welt({ gemerktAlle: "1", wegeVorher: true, grenzenVorher: true });
+const schonRichtig = welt({ gemerktAlle: "1", wegeVorher: true, labelsVorher: true, grenzenVorher: true });
 schonRichtig.context.syncEcosystemFrontendFeatures();
 assert.deepStrictEqual(schonRichtig.geschehen, [],
 	"⚠️ eine Lage, die schon stimmt, loest kein Neuzeichnen aus");
@@ -154,25 +169,30 @@ assert.deepStrictEqual(schonRichtig.geschehen, [],
 // ---- 3. Die Ortsklassen ------------------------------------------------------------------------
 //
 // Sie werden seit dem 2026-08-04 GELIEHEN (syncEcosystemSettlementVisibility) und beim Verlassen
-// zurueckgegeben. Neu ist nur: in „Alle" gibt die Ebene sie schon INNERHALB des Modus zurueck.
+// zurueckgegeben. 🔴 Seit dem 09.09.2026 werden sie zusaetzlich aktiv EINGESCHALTET, statt bloss „nicht
+// weggenommen" -- fuer „default aktiviert und sichtbar" (Owner) reicht das Nichtstun nicht.
 
 const orteInAlle = welt({ gemerktAlle: "1", orteVorher: true });
 orteInAlle.context.syncEcosystemSettlementVisibility(true);
 assert.ok(ORTSKLASSEN.every((art) => orteInAlle.ortsKnoepfe[art].istAn()),
 	'🔴 in „Alle" bleiben die Ortsklassen an');
 
-const orteInVegetation = welt({ gemerktAlle: "0", ebene: "vegetation", orteVorher: true });
+const orteInVegetation = welt({ gemerktAlle: "0", ebene: "vegetation", orteVorher: false });
 orteInVegetation.context.syncEcosystemSettlementVisibility(true);
-assert.ok(ORTSKLASSEN.every((art) => !orteInVegetation.ortsKnoepfe[art].istAn()),
-	"in einer ruhigen Ebene treten sie zurueck");
-orteInVegetation.context.syncEcosystemSettlementVisibility(false);
 assert.ok(ORTSKLASSEN.every((art) => orteInVegetation.ortsKnoepfe[art].istAn()),
-	"💣 und beim Verlassen kommen sie zurueck -- das ist die Erinnerung von 2026-08-04");
+	"🔴 und in der Vegetationsebene werden sie EINGESCHALTET -- vor dem 09.09.2026 traten sie hier"
+	+ " zurueck, und ein blosses „nicht wegnehmen\" haette sie hier gar nicht erst gezeigt");
+orteInVegetation.context.syncEcosystemSettlementVisibility(false);
+assert.ok(ORTSKLASSEN.every((art) => !orteInVegetation.ortsKnoepfe[art].istAn()),
+	"💣 und beim Verlassen steht wieder da, was VORHER war -- das ist die Erinnerung von 2026-08-04,"
+	+ " und sie ist von der Wahl in den Landschaften unberuehrt");
 
 const orteImEditor = welt({ editor: true, gemerktAlle: "1", orteVorher: true });
 orteImEditor.context.syncEcosystemSettlementVisibility(true);
 assert.ok(ORTSKLASSEN.every((art) => !orteImEditor.ortsKnoepfe[art].istAn()),
-	'🔴 der Editor bekommt auch in „Alle" die ruhige Zeichenflaeche');
+	'🔴 der Editor bekommt auch in „Alle" die ruhige Zeichenflaeche -- der Zweig, den der Umbau vom'
+	+ " 09.09.2026 beinahe verloren haette (kein Profil heisst fuer ihn WEITER „zuruecktreten\","
+	+ " nicht „zurueckgeben\")");
 
 // ---- 4. Der Untergrund und die Kacheln ---------------------------------------------------------
 
@@ -182,10 +202,13 @@ assert.strictEqual(ohneKacheln.tilePane.style.opacity, "0", '„Alle" blendet de
 assert.strictEqual(ohneKacheln.kachelEbene.istAufKarte, false,
 	"💣 und die Kachel-Ebene wird von der Karte GENOMMEN -- sonst holt der Browser Bilder, die niemand sieht");
 
-const mitKacheln = welt({ gemerktAlle: "0", ebene: "vegetation" });
-mitKacheln.context.applyEcosystemUndergroundOpacity(true);
-assert.strictEqual(mitKacheln.tilePane.style.opacity, "0.25", "die ruhigen Ebenen behalten ihre 25 %");
-assert.strictEqual(mitKacheln.kachelEbene.istAufKarte, true, "und ihre Kacheln");
+// 🔴 Seit dem 09.09.2026 gilt das in ALLEN fuenf Ebenen; bis dahin behielten die vier ruhigen ihre 25 %
+// und ihre Kacheln. ⭐ Nebenbei ein Wegfall von Kachelabrufen in vier von fuenf Ebenen.
+const ehemals25 = welt({ gemerktAlle: "0", ebene: "vegetation" });
+ehemals25.context.applyEcosystemUndergroundOpacity(true);
+assert.strictEqual(ehemals25.tilePane.style.opacity, "0",
+	"🔴 auch die Vegetationsebene blendet den Untergrund ganz aus");
+assert.strictEqual(ehemals25.kachelEbene.istAufKarte, false, "und haengt ihre Kacheln ab");
 
 // Der Weg zurueck: erst weg, dann wieder da.
 const zurueck = welt({ gemerktAlle: "1" });
@@ -216,27 +239,39 @@ assert.strictEqual(editorUntergrund.kachelEbene.istAufKarte, true,
 // ---- 5. Und der EBENENWECHSEL zieht das alles nach ----------------------------------------------
 //
 // 💣 DIE VERDRAHTUNG, NICHT NUR DIE REGEL. Der Untergrund hing bis 23.08.2026 allein am MODUS-Wechsel
-// (syncEcosystemControlsVisibility) -- ein Wechsel der EBENE liess ihn stehen. Im Browser gemessen:
-// von „Alle" nach Vegetation blieb der Untergrund auf 0 und die Kacheln abgehaengt, obwohl das Profil
-// dieser Ebene 25 % vorschreibt. Die Zusicherungen oben waren dabei alle gruen -- sie rufen die
-// Funktion selbst auf. Deshalb geht dieser Fall durch syncEcosystemPaneStates, den einen Weg, den
-// Eintreten, Ebenenwechsel und Verlassen gemeinsam nehmen.
+// (syncEcosystemControlsVisibility) -- ein Wechsel der EBENE liess ihn stehen. Die Zusicherungen oben
+// waren dabei alle gruen -- sie rufen die Funktion selbst auf. Deshalb geht dieser Fall durch
+// syncEcosystemPaneStates, den einen Weg, den Eintreten, Ebenenwechsel und Verlassen gemeinsam nehmen.
+//
+// 🔴 Gemessen wird das seit dem 09.09.2026 an den SCHALTERN und nicht mehr am Untergrund: der ist in
+// allen fuenf Ebenen 0 und kann einen Unterschied gar nicht mehr zeigen. Die Frage ist dieselbe --
+// kommt beim Ebenenwechsel wirklich das ganze Profil an?
 
-const wechsel = welt({ gemerktAlle: "1" });
+const wechsel = welt({ gemerktAlle: "1", wegeVorher: false, labelsVorher: false, grenzenVorher: false,
+	orteVorher: false });
 wechsel.context.syncEcosystemPaneStates();
 assert.strictEqual(wechsel.tilePane.style.opacity, "0", 'Vorbedingung: „Alle" blendet den Untergrund aus');
 assert.strictEqual(wechsel.kachelEbene.istAufKarte, false, "Vorbedingung: Kacheln abgehaengt");
+assert.strictEqual(wechsel.haken.togglePaths.checked, true, "Vorbedingung: die Wege sind an");
 
-// Jetzt auf eine ruhige Ebene -- so wie es die Ebenen-Kachel tut.
+// Jetzt auf eine ehemals ruhige Ebene -- so wie es die Ebenen-Kachel tut. Frueher nahm sie hier alles
+// weg; heute bleibt alles stehen, und der Untergrund bleibt bei 0.
 wechsel.context.setEcosystemShowAllLayers(false);
-assert.strictEqual(wechsel.tilePane.style.opacity, "0.25",
-	"💣 der Ebenenwechsel muss den Untergrund nachziehen -- sonst bleibt die ruhige Ebene ohne Grund leer");
-assert.strictEqual(wechsel.kachelEbene.istAufKarte, true,
-	"💣 und die Kacheln zurueckholen");
+assert.strictEqual(wechsel.tilePane.style.opacity, "0",
+	"🔴 der Ebenenwechsel laesst den Untergrund bei 0 -- alle fuenf Ebenen tragen denselben Wert");
+assert.strictEqual(wechsel.kachelEbene.istAufKarte, false, "und die Kacheln bleiben abgehaengt");
+assert.strictEqual(wechsel.haken.togglePaths.checked, true, "die Wege bleiben an");
+assert.strictEqual(wechsel.haken.toggleMapLabels.checked, true, "die Beschriftungen auch");
+assert.strictEqual(wechsel.haken.toggleTerritoryBorders.checked, true, "die Grenzen auch");
+assert.strictEqual(wechsel.haken.toggleRivers.checked, true,
+	"🔴 und die Fluesse -- in der Vegetationsebene, in der sie bis zum 09.09.2026 ausgeschaltet wurden");
+assert.ok(ORTSKLASSEN.every((art) => wechsel.ortsKnoepfe[art].istAn()),
+	"💣 und die sechs Ortsklassen kommen ueber DENSELBEN Trichter mit -- ohne ihn stuenden sie nach"
+	+ " einem Ebenenwechsel auf dem Stand von vorher");
 
-// Und wieder zurueck.
+// Und wieder zurueck: derselbe Zustand, kein Flackern.
 wechsel.context.setEcosystemShowAllLayers(true);
-assert.strictEqual(wechsel.tilePane.style.opacity, "0", 'zurueck in „Alle": Untergrund wieder aus');
-assert.strictEqual(wechsel.kachelEbene.istAufKarte, false, "und die Kacheln wieder abgehaengt");
+assert.strictEqual(wechsel.tilePane.style.opacity, "0", 'zurueck in „Alle": Untergrund weiter aus');
+assert.strictEqual(wechsel.haken.togglePaths.checked, true, "und die Wege weiter an");
 
 console.log("ok - ecosystem-frontend-profil");

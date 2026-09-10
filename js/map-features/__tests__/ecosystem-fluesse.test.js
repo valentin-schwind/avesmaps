@@ -1,5 +1,14 @@
-// Welche Landschafts-Ebene zeigt die Fluesse? (Owner 23.08.2026: „du kannst die Fluesse bei Alle und
-// topographie auch einschalten.")
+// Welche Landschafts-Ebene zeigt die Fluesse? Seit dem 09.09.2026: ALLE.
+//
+// 🔴 DIE TABELLE ECOSYSTEM_RIVER_KINDS IST GEFALLEN. Vom 23.08.2026 an zeigten nur „Alle" und
+// „Topographie" die Gewaesser (Owner damals: „du kannst die Fluesse bei Alle und topographie auch
+// einschalten."); seit dem 09.09.2026 zeigen sie alle fuenf Ebenen -- „auch die sollen in allen
+// landschaftsansichten default aktiviert und sichtbar sein" (Owner). Der WERT steht seither in
+// ECOSYSTEM_FRONTEND_PROFIL und sonst nirgends.
+//
+// 🔴 DIE REICHWEITE IST UNVERAENDERT: die Regel gilt BEIDEN Rollen (Owner-Entscheid 23.08.2026). Der
+// BESUCHER liest sein Soll -- und damit ab seiner ersten eigenen Entscheidung SEINE Wahl. Der EDITOR
+// hat kein Profil und faellt ausdruecklich auf die Vorgabe zurueck. Diese Datei misst beide.
 //
 // 🔴 DIE EBENE LEIHT SICH DEN HAKEN UND GIBT IHN ZURUECK -- dieselbe Bauart wie
 // syncEcosystemSettlementVisibility nebenan, und aus demselben Grund: `#toggleRivers` gehoert dem
@@ -20,13 +29,21 @@ const vm = require("node:vm");
 const quelle = fs.readFileSync(
 	path.join(__dirname, "..", "map-features-ecosystem-layer-switch.js"), "utf8");
 
-function welt({ modus = "ecosystem", gemerktAlle = "0", ebene = "vegetation", hakenVorher = false } = {}) {
+const ORTSKLASSEN = ["metropole", "grossstadt", "stadt", "kleinstadt", "dorf", "gebaeude"];
+
+function welt({ modus = "ecosystem", gemerktAlle = "0", ebene = "vegetation", hakenVorher = false,
+	editor = true } = {}) {
 	const haken = { id: "toggleRivers", checked: hakenVorher, listener: [],
 		addEventListener(typ, fn) { if (typ === "change") { this.listener.push(fn); } },
 		dispatchEvent(ereignis) { this.listener.forEach((fn) => fn(ereignis)); return true; } };
 	const geschehen = [];
 	const felder = { toggleRivers: haken };
 	const buehne = { modus };
+	// ⚠️ Die Ortsklassen stehen hier, seit die Fluesse durch `ecosystemAnzeigeSoll` gehen: dessen
+	// Leser (ecosystemAnzeigeLesen) nimmt die Lage ALLER zehn Schalter auf, wenn der Besucher einen
+	// davon anfasst. Ohne sie waere die Wahl unten nicht messbar.
+	const klassen = {};
+	ORTSKLASSEN.forEach((art) => { klassen[art] = false; });
 	const context = {
 		console,
 		Set,
@@ -34,6 +51,7 @@ function welt({ modus = "ecosystem", gemerktAlle = "0", ebene = "vegetation", ha
 		String,
 		Number,
 		Math,
+		Object,
 		Event: class { constructor(typ) { this.type = typ; } },
 		window: { localStorage: { getItem: () => gemerktAlle, setItem: () => {} } },
 		document: {
@@ -42,10 +60,16 @@ function welt({ modus = "ecosystem", gemerktAlle = "0", ebene = "vegetation", ha
 			addEventListener: () => {},
 		},
 		getSelectedMapLayerMode: () => buehne.modus,
-		IS_ECOSYSTEM_ENABLED: true,
-		IS_EDIT_MODE: true,
+		IS_ECOSYSTEM_ENABLED: editor,
+		IS_EDIT_MODE: editor,
 		isKnownEcosystemKind: () => true,
 		activeEcosystemLayerKind: ebene,
+		LOCATION_TYPE_VISIBILITY_ORDER: ORTSKLASSEN,
+		getLocationToggleButton: (art) => ({
+			hasClass: () => klassen[art] === true,
+			removeClass: () => { klassen[art] = false; },
+			toggleClass: (_k, an) => { klassen[art] = an === true; },
+		}),
 		syncPathVisibility: () => geschehen.push("wege-neu-gezeichnet"),
 	};
 	context.globalThis = context;
@@ -54,43 +78,83 @@ function welt({ modus = "ecosystem", gemerktAlle = "0", ebene = "vegetation", ha
 	return { context, haken, geschehen, buehne };
 }
 
-// ---- 1. Welche Ebene zeigt sie -----------------------------------------------------------------
+// ---- 1. Welche Ebene zeigt sie: alle fuenf -----------------------------------------------------
+//
+// 🔴 Bis zum 09.09.2026 standen hier drei Zeilen auf AUS („ueber den Vegetationsflaechen waeren es nur
+// Linien"). Der Owner hat das umgedreht; die Zeilen bleiben stehen, damit erkennbar ist, WAS sich
+// geaendert hat -- nur ihre Erwartung ist gewandert.
 
 [
-	["alle", { gemerktAlle: "1" }, true, "die Uebersicht will die Gewaesser"],
-	["topographie", { ebene: "topographie" }, true, "ein Gebirge ohne seine Fluesse ist ein halbes Relief"],
-	["vegetation", { ebene: "vegetation" }, false, "ueber den Vegetationsflaechen waeren es nur Linien"],
-	["derographisch", { ebene: "derographisch" }, false, "dito"],
-	["klima", { ebene: "klima" }, false, "die Klimabaender sind Flaechen wie die anderen auch"],
-].forEach(([name, lage, soll, warum]) => {
+	["alle", { gemerktAlle: "1" }],
+	["topographie", { ebene: "topographie" }],
+	["vegetation", { ebene: "vegetation" }],
+	["derographisch", { ebene: "derographisch" }],
+	["klima", { ebene: "klima" }],
+].forEach(([name, lage]) => {
 	const { context, haken } = welt(lage);
 	context.syncEcosystemRiverVisibility();
-	assert.strictEqual(haken.checked, soll,
-		`Ebene „${name}": Fluesse sollten ${soll ? "AN" : "AUS"} sein -- ${warum}`);
+	assert.strictEqual(haken.checked, true,
+		`Ebene „${name}": die Fluesse sind an -- in allen fuenf Ebenen (Owner 09.09.2026)`);
 });
 
-// ---- 2. Der Wechsel legt ihn um ----------------------------------------------------------------
+// ⚠️ Und das gilt fuer BEIDE Rollen. Der Editor hat kein Profil; ohne den ausdruecklichen Rueckfall auf
+// die Vorgabe schriebe ein `undefined` seinen Haken bei jedem Ebenenwechsel auf AUS.
+[true, false].forEach((editor) => {
+	const { context, haken } = welt({ ebene: "vegetation", editor });
+	context.syncEcosystemRiverVisibility();
+	assert.strictEqual(haken.checked, true,
+		(editor ? "der Editor" : "der Besucher") + " bekommt die Fluesse in der Vegetationsebene");
+});
+
+// ---- 2. Der Ebenenwechsel laesst sie an --------------------------------------------------------
 //
-// 🔴 Owner-Entscheid: der Ebenenwechsel setzt den Haken, im Editor wie im Frontend. Der Haken bleibt
-// benutzbar -- bis zum naechsten Wechsel.
+// 🔴 Vor dem 09.09.2026 LEGTE der Wechsel den Haken um (Vegetation aus, Topographie an). Das ist der
+// eigentliche Unterschied dieses Umbaus: die Ebene entscheidet nicht mehr mit.
 
 const wechsel = welt({ ebene: "vegetation" });
 wechsel.context.syncEcosystemRiverVisibility();
-assert.strictEqual(wechsel.haken.checked, false, "Vorbedingung: in Vegetation sind sie aus");
+assert.strictEqual(wechsel.haken.checked, true, "Vorbedingung: in Vegetation sind sie an");
 
 wechsel.context.activeEcosystemLayerKind = "topographie";
 wechsel.context.syncEcosystemRiverVisibility();
-assert.strictEqual(wechsel.haken.checked, true, "der Wechsel nach Topographie schaltet sie an");
+assert.strictEqual(wechsel.haken.checked, true, "der Wechsel nach Topographie laesst sie an");
 
-wechsel.context.activeEcosystemLayerKind = "vegetation";
+wechsel.context.activeEcosystemLayerKind = "klima";
 wechsel.context.syncEcosystemRiverVisibility();
-assert.strictEqual(wechsel.haken.checked, false, "und der Wechsel zurueck wieder aus");
+assert.strictEqual(wechsel.haken.checked, true, "und der Wechsel in die Klimazonen ebenso");
+
+// ---- 2b. Die WAHL des Besuchers schlaegt die Vorgabe -- die des Editors nicht -------------------
+//
+// 🔴 „Der Haken bleibt dabei benutzbar: der Wechsel setzt ihn, die naechste eigene Entscheidung sticht
+// ihn -- bis zum naechsten Wechsel" (Owner 23.08.2026). Fuer den BESUCHER faellt das „bis zum naechsten
+// Wechsel" seit dem 09.09.2026 weg: seine Entscheidung steht im Soll und wird beim Wechsel
+// zurueckgeschrieben, nicht ueberschrieben. Fuer den EDITOR gilt der Satz weiter -- er hat kein Profil,
+// also auch keine Wahl darin.
+
+const besucherWahl = welt({ ebene: "vegetation", editor: false });
+besucherWahl.context.syncEcosystemRiverVisibility();
+assert.strictEqual(besucherWahl.haken.checked, true, "Vorbedingung: die Vorgabe hat sie angeschaltet");
+besucherWahl.haken.checked = false;
+besucherWahl.haken.dispatchEvent({ type: "change", isTrusted: true });
+besucherWahl.context.activeEcosystemLayerKind = "topographie";
+besucherWahl.context.syncEcosystemRiverVisibility();
+assert.strictEqual(besucherWahl.haken.checked, false,
+	"🔴 der Besucher hat sie ausgeschaltet, und der Ebenenwechsel respektiert das");
+
+const editorWahl = welt({ ebene: "vegetation", editor: true });
+editorWahl.context.syncEcosystemRiverVisibility();
+editorWahl.haken.checked = false;
+editorWahl.haken.dispatchEvent({ type: "change", isTrusted: true });
+editorWahl.context.activeEcosystemLayerKind = "topographie";
+editorWahl.context.syncEcosystemRiverVisibility();
+assert.strictEqual(editorWahl.haken.checked, true,
+	"⚠️ beim Editor sticht die eigene Entscheidung nur bis zum naechsten Wechsel -- unveraendert seit"
+	+ " dem 23.08.2026, denn eine Besucherwahl entsteht fuer ihn gar nicht");
 
 // ---- 3. Beim Verlassen bekommt der Benutzer SEINE Lage zurueck ---------------------------------
 //
-// 💣 Der Fall, der ohne Gedaechtnis danebengeht: wer mit AUSgeschalteten Fluessen in die Ebene geht,
-// dort Topographie waehlt und wieder herausgeht, saesse danach in „Standard" mit Fluessen, die er nie
-// eingeschaltet hat.
+// 💣 Der Fall, der ohne Gedaechtnis danebengeht: wer mit AUSgeschalteten Fluessen in die Ebene geht und
+// wieder herausgeht, saesse danach in „Standard" mit Fluessen, die er nie eingeschaltet hat.
 
 const geliehen = welt({ ebene: "topographie", hakenVorher: false });
 geliehen.context.syncEcosystemRiverVisibility();
@@ -99,10 +163,10 @@ geliehen.buehne.modus = "deregraphic";
 geliehen.context.syncEcosystemRiverVisibility();
 assert.strictEqual(geliehen.haken.checked, false, "💣 und beim Verlassen zurueck auf AUS");
 
-// Umgekehrt genauso: wer sie selbst an hatte, behaelt sie.
+// Umgekehrt genauso: wer sie selbst an hatte, behaelt sie -- hier ohne jede Aenderung dazwischen.
 const eigene = welt({ ebene: "vegetation", hakenVorher: true });
 eigene.context.syncEcosystemRiverVisibility();
-assert.strictEqual(eigene.haken.checked, false, "in der Vegetation nimmt die Ebene sie weg");
+assert.strictEqual(eigene.haken.checked, true, "in der Vegetation bleiben sie jetzt an");
 eigene.buehne.modus = "political";
 eigene.context.syncEcosystemRiverVisibility();
 assert.strictEqual(eigene.haken.checked, true, "🔴 beim Verlassen bekommt er seine eigene Lage zurueck");
@@ -162,7 +226,7 @@ assert.strictEqual(woanders.haken.checked, true,
 // die bereits geleerte Lage und gab beim Verlassen „aus" zurueck, auch dem, der die Fluesse selbst
 // angehabt hatte. Es ist derselbe Fehler, an dem am 2026-08-05 an derselben Stelle schon
 // setAllLocationTypesVisible(false) gescheitert ist -- die Begruendung steht dort im Code und sagte
-// woertlich „fuer Wege/Fluesse gibt es keine Erinnerung". Seit heute gibt es eine.
+// woertlich „fuer Wege/Fluesse gibt es keine Erinnerung". Seit dem 23.08.2026 gibt es eine.
 // ⚠️ Ausnahmsweise am Quelltext geprueft: die Frage ist, ob eine ANDERE Datei diesen Schalter noch
 // anfasst, und das laesst sich hier nicht ausfuehren (der Moduswechsel braucht jQuery, die Karte und
 // zwei Dutzend Globals). Was die Erinnerung TUT, messen die Faelle darueber.
@@ -180,7 +244,7 @@ assert.ok(ecoAnfang > 0 && ecoBlock.length > 100,
 const ecoCode = ecoBlock.split(String.fromCharCode(10)).filter((zeile) => !zeile.trim().startsWith("//")).join(String.fromCharCode(10));
 assert.ok(!ecoCode.includes('$("#toggleRivers")'),
 	"💣 der Moduswechsel darf `#toggleRivers` nicht mehr selbst leeren -- er laeuft VOR der Ebene, und "
-		+ "die merkt sich dann die geleerte Lage. Das Ausschalten in Vegetation/Derographie macht "
-		+ "syncEcosystemRiverVisibility, und nur die nimmt es beim Verlassen auch wieder zurueck.");
+		+ "die merkt sich dann die geleerte Lage. Das Einschalten macht syncEcosystemRiverVisibility, "
+		+ "und nur die nimmt es beim Verlassen auch wieder zurueck.");
 
 console.log("ok - ecosystem-fluesse");
