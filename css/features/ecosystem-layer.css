@@ -1724,7 +1724,12 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
    Messung sagt „die Uebersteuerung wirkt nicht", obwohl sie wirkt. Am 24.08.2026 hat genau das eine
    halbe Stunde Fehlersuche an der falschen Stelle gekostet. Mit `transition: none` gemessen:
    ohne Flaechenwert 0 / 0,72 / 0,16 / 0,30 (das heutige Bild), mit Flaechenwert gewinnt die
-   Flaeche -- und ruhend bleibt 0. */
+   Flaeche -- und ruhend bleibt 0.
+
+   ⚠️ UND ZWEI KLASSEN SIND WENIG: jeder Zustand weiter unten (Hervorhebung, Zielwahl) setzt
+   `fill-opacity` direkt und schlaegt diese Regel damit. Fuer die WASSERFLAECHEN ist das seit dem
+   10.09.2026 zurueckgedreht -- die Regel dazu steht bei `.ecosystem-area--wasser` hinter der
+   Hervorhebung und begruendet dort, warum sie sechs Klassen braucht. */
 .ecosystem-pane--active > svg path.leaflet-interactive {
 	fill-opacity: var(--eco-fill-art, var(--eco-fill));
 }
@@ -1965,6 +1970,62 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
    beim nächsten Verschieben eines Blocks. */
 .leaflet-pane.ecosystem-pane.ecosystem-pane--klima.ecosystem-pane--active > svg path.leaflet-interactive.ecosystem-area--highlight {
 	fill-opacity: 0.6;
+}
+
+/* ---- Eine WASSERFLÄCHE behält ihre Deckkraft, auch unter dem Zeiger (Owner 09.09.2026) -----------
+   Owner, nach den zwei ersten Anläufen: „mit der deckkraft ist immer noch was falsch, sie ändert sich
+   sogar, wenn ich draufklick. und selbst wenn ich draufklick ist sie noch falsch."
+
+   🔴 DER GRUND IST DERSELBE WIE BEI DER DECKKRAFT SELBST, und er ist gerechnet, nicht gewählt: es gibt
+   keine Füllfarbe, die bei einer Deckkraft unter 1 über dem Pergament #d3cec2 zu #4c89c6 aufmischt --
+   ein Kanal müsste negativ sein (2*76 - 211 = -59). Eine durchscheinende Wasserfläche ist also nicht
+   „etwas blasser" als die Flusslinie daneben, sie ist ein ANDERER Ton. Die Zusage heißt „Fluss und See
+   sind ein Gewässer, ein Ton" (Owner 07.09. und 09.09.2026); ein Zustand, der 0,8 oder 0,42 erzwingt,
+   nimmt sie für die Dauer einer Mausbewegung zurück.
+
+   💣 DIE ZUSTÄNDE SETZEN `fill-opacity` DIREKT, nicht über `--eco-fill` -- genau deshalb schlagen sie
+   den Wert je Fläche (`--eco-fill-art`, zwei Klassen, weiter oben). Die Hervorhebung hat fünf Klassen
+   (0,5,2) und trägt 0,8, die Zielwahl vier bzw. fünf und trägt 0,42. Ohne diese Regel hier sprang der
+   See beim Überfahren und beim Anklicken auf 0,8.
+
+   💣 SECHS KLASSEN -- darum steht `.ecosystem-area--wasser` ZWEIMAL da. Es ist die Klasse, die ohnehin
+   gemeint ist, ein zweites Mal genannt: mit fünf stünde die Regel mit der Hervorhebung Kopf an Kopf,
+   und dann entschiede die Reihenfolge im Blatt, die beim nächsten Verschieben eines Blocks kippt.
+   🪤 Die naheliegende Alternative wäre `.ecosystem-pane--topographie` als sechste gewesen -- und die
+   wäre teurer: welche Flächen Wasser sind, sagt AVESMAPS_ECOSYSTEM_DISPLAY_WASSERFLAECHEN
+   (js/map-features/ecosystem-display.js) und sonst nichts. Eine Ebene im Selektor wäre dieselbe Liste
+   ein zweites Mal, hier als CSS -- und sie liefe beim nächsten Zuwachs lautlos auseinander.
+   ⚠️ Gleich stark ist allein die Klima-Regel darüber (0,6,2); beide können nie auf denselben <path>
+   passen, weil ein Pfad in genau EINER Pane liegt und `klima` keine Wasserfläche kennt.
+
+   🔴 `--active` IST TRAGEND, aus demselben Grund wie bei `--eco-fill-art` weiter oben: stünde die Regel
+   ohne sie, trüge eine RUHENDE Wasserfläche ihre Deckkraft mit -- und „ruhend = unsichtbar" wäre weg.
+   Ein Topographie-See stünde dann in der Vegetationsansicht und über „Alle" läge wieder das Farbnetz,
+   das AGENTS.md §12 abgeschafft hat.
+
+   🔴 `var(--eco-fill-art, 1)` UND NICHT `1`: die im Fenster „Darstellung" GESPEICHERTE Deckkraft dieser
+   Art steht in der Rangfolge vor jeder Vorgabe und muss auch hier gewinnen (sie kommt als
+   `--eco-fill-art` am <path> an). Mit festem `1` wäre der Regler des Owners für genau diese Fläche tot
+   -- und ein Regler, dessen Wert nirgends gilt, ist von einem kaputten Formular nicht zu unterscheiden
+   (AGENTS.md §11). Die 1 im Rückfall gilt nur, wenn ecosystem-display.js fehlt; dann setzt auch niemand
+   die Klasse, die Regel passt also nie.
+
+   ⚠️ NUR DIE DECKKRAFT, NICHT DIE FARBE UND NICHT DIE KONTUR. Die Zielwahl färbt weiter golden um und
+   behält ihren Schein und ihr Trefferband, die Auswahl ihre weiße Kontur, der Prüfhaken sein Rot.
+   ⚠️ UND DAS IST DER PREIS, er steht hier und wird nicht verschwiegen: Überfahren und Anklicken ändern
+   an einer Wasserfläche die FÜLLUNG nicht mehr -- die angeklickte ist allein über ihre KONTUR zu
+   erkennen (`--selected` weiß, `--picked` aufgedeckt). Das ist derselbe Handel, den der Owner am
+   11.08.2026 schon einmal bestellt hat („diese sollte bleiben"), hier für die eine Art, deren Ton eine
+   Zusage ist.
+
+   🪤 WER DAS NACHMISST, SCHALTET ZUERST DIE ÜBERBLENDUNG AB -- die Warnung an `--eco-fill-art` gilt
+   hier genauso: die Grundregel trägt `transition: fill-opacity 0.15s`, und `getComputedStyle` liefert
+   während einer Überblendung den LAUFENDEN Wert. Außerhalb eines echten Leaflet-Kontexts wird nie
+   gemalt, die Überblendung läuft also nie weiter, und die Messung sagt „wirkt nicht", obwohl sie wirkt.
+   Mit `transition: none` gemessen: Wasser + `--highlight` = 1, Gebirge + `--highlight` = 0,8, Wasser in
+   ruhender Pane = 0, Wasser mit gespeicherten 0,4 + `--highlight` = 0,4. */
+.leaflet-pane.ecosystem-pane.ecosystem-pane--active > svg path.leaflet-interactive.ecosystem-area--wasser.ecosystem-area--wasser {
+	fill-opacity: var(--eco-fill-art, 1);
 }
 
 /* ---- Die ANGEKLICKTE Zone bekommt zusätzlich eine Kontur (Owner 2026-08-04) ----------------------

@@ -157,6 +157,33 @@ function avesmapsRefreshEcosystemDisplay() {
 // 🔴 Die ZUSTANDSLOGIK bleibt an der Pane (ruhend = 0, Kontur nur im Bearbeiten-Modus, „Alle").
 // Hier kommt nur der AKTIVE Fuellwert je Art dazu; ohne eigenen Wert erbt die Flaeche weiter den
 // Panewert, und „ruhend = unsichtbar" ist unberuehrt.
+//
+// ---- UND SEIT 10.09.2026 DIE KLASSE, DIE SAGT, WER DIESE DECKKRAFT UEBERSTIMMEN DARF -------------
+// Owner 09.09.2026, nach den zwei ersten Anlaeufen: „mit der deckkraft ist immer noch was falsch, sie
+// aendert sich sogar, wenn ich draufklick. und selbst wenn ich draufklick ist sie noch falsch."
+//
+// 💣 DIE ZUSTAENDE HABEN EIGENE ZAHLEN, UND SIE SCHLAGEN DIESE VARIABLE. `--eco-fill-art` kommt ueber
+// eine Regel mit zwei Klassen zur Wirkung; die Hervorhebung (`--highlight`, fuenf Klassen) setzt
+// `fill-opacity: 0.8` DIREKT, die Zielwahl (`--target`) 0,42. Beim Ueberfahren und Anklicken sprang der
+// See darum auf 0,8 -- und 0,8 ist nicht 1, also trug er den Wasserton in KEINEM der beiden Zustaende.
+// Das war der sichtbare Rest des gemeldeten Falls.
+//
+// 🔴 DIE ZUGEHOERIGKEIT KOMMT AUS DER GETEILTEN LISTE, nie aus einem `region_type === "see"` hier:
+// avesmapsEcosystemDisplayGlobaleDeckkraftGilt ist die EINE Stelle, an der steht, welche Flaechen
+// Wasser sind (AVESMAPS_ECOSYSTEM_DISPLAY_WASSERFLAECHEN, ecosystem-display.js). Eine zweite Liste
+// liefe beim naechsten Zuwachs auseinander -- die Karte naehme eine Flaeche aus, das Fenster
+// „Darstellung" eine andere.
+//
+// 🔴 UND SIE GEHOERT HIERHER, NICHT ZU applyEcosystemHighlightClass. Sie ist kein Zustand: sie haengt
+// an der ART der Flaeche, und die aendert sich genau dann, wenn sich auch ihre Deckkraft aendert. Diese
+// Funktion laeuft an exakt diesen drei Stellen -- frischer Aufbau nach addTo(map), Umtypisieren einer
+// vorhandenen Flaeche (beide im Loader) und das Nachziehen einer geladenen Tafel
+// (avesmapsRefreshEcosystemDisplay). Eine vierte Verdrahtung waere genau die Falle, die dieses Haus
+// schon mehrfach bezahlt hat: eine Regel, die einen von vier Erzeugern bindet, ist keine Regel.
+//
+// ⚠️ Fehlt das Modul, wird WEDER die Variable NOCH die Klasse gesetzt -- beides faellt gemeinsam auf
+// den Panewert zurueck, also auf das Bild von vor diesem Umbau. Eine Klasse ohne ihre Variable waere
+// die Haelfte einer Regel.
 function applyEcosystemAreaDeckkraft(layer) {
 	const element = typeof layer?.getElement === "function" ? layer.getElement() : null;
 	const area = layer?._ecosystemArea;
@@ -164,6 +191,10 @@ function applyEcosystemAreaDeckkraft(layer) {
 		return;
 	}
 	element.style.setProperty("--eco-fill-art", String(avesmapsEcosystemDisplayDeckkraft(area.kind, area.region_type)));
+	if (typeof avesmapsEcosystemDisplayGlobaleDeckkraftGilt === "function") {
+		element.classList.toggle("ecosystem-area--wasser",
+			!avesmapsEcosystemDisplayGlobaleDeckkraftGilt(area.kind, area.region_type));
+	}
 }
 
 // GeoJSON Polygon | MultiPolygon -> Leaflet latlngs, [x, y] -> [y, x]. A Polygon becomes a

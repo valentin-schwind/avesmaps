@@ -182,9 +182,31 @@ const klassen = (selektor) => (selektor.match(/\.[a-zA-Z][\w-]*/g) || []).length
 // gezaehlt wird JE Selektor, nicht ueber die ganze Kommaliste -- sonst blaeht eine Regel mit zwei
 // Selektoren ihre eigene Staerke auf und der Vergleich misst Unsinn.
 const staerkeVon = (selektor) => Math.max(...selektor.split(",").map(klassen));
+// 🔴 UND SEIT 10.09.2026 STEHT HIER EINE ZWEITE AUSNAHME, die der Satz darueber ausdruecklich
+// vorhergesagt hat („wer hier wieder eine fill-opacity mit mehr Klassen einfuehrt, macht die
+// Hervorhebung erneut wirkungslos"). Genau das tut `.ecosystem-area--wasser` -- aber bestellt,
+// begruendet und auf EINE Art begrenzt: eine Wasserflaeche kann ihren Ton nur bei Deckkraft 1
+// tragen (Owner 07.09. und 09.09.2026, „fluss und see sind ein gewaesser, ein ton"; es gibt keine
+// Fuellfarbe, die bei 0,42 zu #4c89c6 aufmischt -- ein Kanal muesste negativ sein).
+// 💣 DIE AUSNAHME WIRD GEMESSEN, NICHT ZUGESAGT. Ein nacktes Wort in einer Ausnahmeliste
+// entschuldigt die ganze KLASSE, und aus der Vollstaendigkeitsregel wuerde eine Wortliste: also
+// muss die ausgenommene Regel GENAU EINE sein, und sie muss die Klasse am PFAD verlangen -- damit
+// kann sie ein Gebirge, einen Wald oder ein Klimaband nie erreichen.
+const wasserRegeln = rules("path.leaflet-interactive")
+	.filter((rule) => /ecosystem-area--wasser/.test(rule.selector));
+assert.strictEqual(wasserRegeln.length, 1,
+	`Es gibt ${wasserRegeln.length} Regeln fuer die Wasserflaechen -- erwartet: genau eine. Zwei waeren`
+	+ " zwei Wahrheiten ueber dieselbe Deckkraft, und die Ausnahme hier deckte beide.");
+assert.ok(/path\.leaflet-interactive[\w.-]*\.ecosystem-area--wasser/.test(wasserRegeln[0].selector),
+	"Die ausgenommene Regel verlangt `.ecosystem-area--wasser` nicht am PFAD. Dann gilt sie weiteren"
+	+ " Flaechen als den Wasserflaechen, und die Zielwahl waere dort lautlos wirkungslos."
+	+ " Selektor: " + wasserRegeln[0].selector);
+// ⚠️ Die Zusicherung, dass sie fuer Wasser wirklich gewinnt und fuer alles andere wirklich NICHT,
+// steht in Abschnitt H von ecosystem-display-flaeche.test.js -- dort wird die Kaskade aufgeloest.
 const fuellungsRegeln = rules("path.leaflet-interactive")
 	.filter((rule) => /(^|[;\s])fill-opacity\s*:/.test(rule.body)
-		&& !/ecosystem-area--(target|highlight|selected)/.test(rule.selector));
+		&& !/ecosystem-area--(target|highlight|selected)/.test(rule.selector)
+		&& !/ecosystem-area--wasser/.test(rule.selector));
 assert.ok(fuellungsRegeln.length > 0, "Es gibt keine Ebenen-Fuellungsregel auf einem Pfad mehr -- die"
 	+ " Zusicherung darunter haette dann keinen Gegner mehr und waere still wertlos.");
 

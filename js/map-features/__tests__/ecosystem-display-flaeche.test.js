@@ -273,4 +273,288 @@ assert.ok(/\.fl-ausnahme\b/.test(cssEditor), "und das Blatt des Fensters kennt i
 assert.ok(rumpfTab.includes("ecoDisplayGlobalOhne(kind).length"),
 	"die Fussnote nennt die Ausnahme nur auf einer Ebene, die eine hat");
 
+
+// ---- H. Die ZUSTAENDE duerfen die Deckkraft des Wassers nicht uebersteuern ---------------------
+// Owner 09.09.2026, nach den zwei ersten Anlaeufen: „mit der deckkraft ist immer noch was falsch, sie
+// aendert sich sogar, wenn ich draufklick. und selbst wenn ich draufklick ist sie noch falsch."
+//
+// 💣 DIE URSACHE WAR DIE KASKADE, NICHT DIE TAFEL. `--eco-fill-art` kommt ueber eine Regel mit ZWEI
+// Klassen zur Wirkung; die Hervorhebung (`--highlight`, fuenf Klassen) setzt `fill-opacity: 0.8`
+// DIREKT, die Zielwahl 0,42. Beim Ueberfahren und Anklicken sprang der See darum auf 0,8 -- und 0,8
+// ist nicht 1, also trug er den Wasserton in keinem der beiden Zustaende.
+//
+// ⭐ WAS HIER GERECHNET WIRD UND WAS NICHT: node hat kein `getComputedStyle`. Dieser Abschnitt LOEST
+// die Kaskade des echten Blattes selbst auf -- Regeln parsen, Spezifitaet zaehlen, den Gewinner je
+// Elementzustand bestimmen -- und beantwortet damit dieselbe Frage wie eine Messung: WELCHE Regel
+// gewinnt. Im Browser gegengemessen wurde zusaetzlich, mit `transition: none` (die Messfalle steht an
+// `--eco-fill-art` im Blatt); die vier Zahlen unten sind dort Ziffer fuer Ziffer dieselben.
+
+const klassenIn = (teil) => (teil.match(/\.[a-zA-Z][\w-]*/g) || []).map((k) => k.slice(1));
+const nichtKlassenIn = (teil) => (teil.match(/:not\(\s*\.[a-zA-Z][\w-]*\s*\)/g) || [])
+	.map((k) => k.replace(/^:not\(\s*\./, "").replace(/\s*\)$/, ""));
+const ohneNot = (teil) => teil.replace(/:not\([^)]*\)/g, "");
+
+// Ein Selektor der Form `<Pane-Teil> (>|Leerzeichen) svg path<Pfad-Teil>` -- die Bauform, in der
+// dieses Blatt jede Flaechenregel schreibt. Alles andere ist eine PANE-Regel (sie setzt Variablen).
+function zerlegePfadSelektor(sel) {
+	const m = sel.match(/^([\s\S]+?)\s*>\s*svg\s+path([\s\S]*)$/)
+		|| sel.match(/^([\s\S]+?)\s+svg\s+path([\s\S]*)$/);
+	if (!m) { return null; }
+	const paneTeil = m[1];
+	const pfadTeil = m[2];
+	return {
+		// 💣 Die :not()-Klassen muessen aus der Positivliste heraus, sonst gilt eine ausgeschlossene
+		// Klasse als verlangt und die Regel passt nie.
+		paneHat: klassenIn(ohneNot(paneTeil)),
+		paneHatNicht: nichtKlassenIn(paneTeil),
+		pfadHat: klassenIn(ohneNot(pfadTeil)),
+		pfadHatNicht: nichtKlassenIn(pfadTeil),
+		// Spezifitaet: die Klassenzahl ueber BEIDE Teile -- :not() zaehlt mit seinem Argument mit.
+		gewicht: klassenIn(paneTeil).length + klassenIn(pfadTeil).length,
+	};
+}
+
+const cssOhneKommentare = css.replace(/\/\*[\s\S]*?\*\//g, "");
+const alleRegeln = [];
+{
+	const re = /([^{}]+)\{([^{}]*)\}/g;
+	let m;
+	let nr = 0;
+	while ((m = re.exec(cssOhneKommentare)) !== null) {
+		const body = m[2];
+		m[1].split(",").forEach((sel) => {
+			alleRegeln.push({ sel: sel.trim(), body, nr: nr += 1 });
+		});
+	}
+}
+assert.ok(alleRegeln.length > 50, "der Parser findet das Blatt (" + alleRegeln.length + " Regeln)");
+
+/** Der zuletzt gewinnende Wert einer Eigenschaft INNERHALB eines Rumpfes. */
+function letzteDeklaration(body, prop) {
+	const re = new RegExp("(?:^|[;{\\s])" + prop.replace(/-/g, "\\-") + "\\s*:\\s*([^;]+)", "g");
+	let treffer = null;
+	let m;
+	while ((m = re.exec(body)) !== null) { treffer = m[1].trim(); }
+	return treffer;
+}
+
+/** Passt dieser Selektor auf die PANE (eine Regel ohne `svg path`)? Gewicht oder null. */
+function passtPane(regel, paneKlassen) {
+	if (zerlegePfadSelektor(regel.sel)) { return null; }
+	const blank = ohneNot(regel.sel).trim();
+	if (/[>+~\s]/.test(blank)) { return null; }
+	if (!klassenIn(blank).every((k) => paneKlassen.has(k))) { return null; }
+	if (nichtKlassenIn(regel.sel).some((k) => paneKlassen.has(k))) { return null; }
+	return klassenIn(regel.sel).length;
+}
+
+/** `--eco-fill` der Pane: dieselbe Kaskade, eine Etage hoeher. */
+function ecoFillDerPane(paneKlassen) {
+	let best = null;
+	alleRegeln.forEach((regel) => {
+		const gewicht = passtPane(regel, paneKlassen);
+		if (gewicht === null) { return; }
+		const wert = letzteDeklaration(regel.body, "--eco-fill");
+		if (wert === null) { return; }
+		if (!best || gewicht > best.gewicht || (gewicht === best.gewicht && regel.nr > best.nr)) {
+			best = { gewicht, nr: regel.nr, wert };
+		}
+	});
+	return best ? best.wert : null;
+}
+
+/** Alle Regeln, die `fill-opacity` fuer diesen <path> setzen -- staerkste zuerst. */
+function fillOpacityKandidaten(paneKlassen, pfadKlassen) {
+	const kandidaten = [];
+	alleRegeln.forEach((regel) => {
+		const z = zerlegePfadSelektor(regel.sel);
+		if (!z) { return; }
+		if (!z.paneHat.every((k) => paneKlassen.has(k))) { return; }
+		if (z.paneHatNicht.some((k) => paneKlassen.has(k))) { return; }
+		if (!z.pfadHat.every((k) => pfadKlassen.has(k))) { return; }
+		if (z.pfadHatNicht.some((k) => pfadKlassen.has(k))) { return; }
+		const wert = letzteDeklaration(regel.body, "fill-opacity");
+		if (wert === null) { return; }
+		kandidaten.push({ sel: regel.sel, gewicht: z.gewicht, nr: regel.nr, wert });
+	});
+	// Bei Gleichstand gewinnt die SPAETERE im Blatt -- genau die Abhaengigkeit, die dieses Blatt
+	// vermeiden will; Abschnitt H1 haelt fest, dass es hier keinen Gleichstand gibt.
+	kandidaten.sort((a, b) => (b.gewicht - a.gewicht) || (b.nr - a.nr));
+	return kandidaten;
+}
+
+/** `var(--eco-fill-art, X)` / `var(--eco-fill)` aufloesen und als Zahl zurueckgeben. */
+function aufgeloest(wert, variablen) {
+	let v = String(wert === null || wert === undefined ? "" : wert).trim();
+	for (let runde = 0; runde < 5 && /^var\(/.test(v); runde += 1) {
+		const m = v.match(/^var\(\s*(--[\w-]+)\s*(?:,([\s\S]*))?\)$/);
+		if (!m) { break; }
+		v = (Object.prototype.hasOwnProperty.call(variablen, m[1])
+			? String(variablen[m[1]])
+			: String(m[2] || "")).trim();
+	}
+	return Number(v);
+}
+
+const PANE_AKTIV = new Set([
+	"leaflet-pane", "ecosystem-pane", "ecosystem-pane--topographie", "ecosystem-pane--active",
+]);
+const PANE_RUHEND = new Set([
+	"leaflet-pane", "ecosystem-pane", "ecosystem-pane--topographie", "ecosystem-pane--resting",
+]);
+const pfad = (...extra) => new Set(["leaflet-interactive"].concat(extra));
+
+// 💣 Der Loeser muss das HEUTIGE Bild erst einmal reproduzieren, sonst messen alle Zusicherungen
+// darunter nur seine eigenen Fehler.
+{
+	const ohneZustand = fillOpacityKandidaten(PANE_AKTIV, pfad());
+	assert.ok(ohneZustand.length > 0, "der Loeser findet ueberhaupt eine Fuellungsregel");
+	assert.strictEqual(aufgeloest(ohneZustand[0].wert, { "--eco-fill-art": 0.72 }), 0.72,
+		"ohne Zustand gewinnt der Wert je Flaeche");
+	const ruhend = fillOpacityKandidaten(PANE_RUHEND, pfad());
+	assert.strictEqual(
+		aufgeloest(ruhend[0].wert, { "--eco-fill": Number(ecoFillDerPane(PANE_RUHEND)) }), 0,
+		"und eine ruhende Flaeche ist unsichtbar -- das heutige Bild, und der Loeser sieht es");
+}
+
+// ---- H1. DIE EIGENTLICHE ZUSICHERUNG: Wasser unter dem Zeiger traegt 1, nicht 0,8 --------------
+const wasserHervor = fillOpacityKandidaten(PANE_AKTIV,
+	pfad("ecosystem-area--wasser", "ecosystem-area--highlight"));
+assert.strictEqual(aufgeloest(wasserHervor[0].wert, { "--eco-fill-art": 1 }), 1,
+	"🔴 Eine WASSERFLAECHE behaelt beim Ueberfahren und Anklicken ihre Deckkraft 1 -- gewonnen hat aber: "
+	+ wasserHervor[0].sel);
+assert.ok(/ecosystem-area--wasser/.test(wasserHervor[0].sel),
+	"und zwar ueber die Wasser-Regel, nicht zufaellig ueber eine andere");
+
+// 💣 KEIN GLEICHSTAND. Bei gleicher Staerke entschiede die Reihenfolge im Blatt, und die kippt beim
+// naechsten Verschieben eines Blocks -- genau die Abhaengigkeit, die dieses Blatt an drei Stellen
+// ausdruecklich vermeidet.
+assert.ok(wasserHervor.length > 1,
+	"es gibt ueberhaupt eine Verfolgerin -- sonst prueft der Vergleich darunter nichts");
+assert.ok(wasserHervor[0].gewicht > wasserHervor[1].gewicht,
+	`Die Wasser-Regel hat ${wasserHervor[0].gewicht} Klassen, ihre staerkste Verfolgerin`
+	+ ` ${wasserHervor[1].gewicht} (${wasserHervor[1].sel}). Bei Gleichstand entschiede die Reihenfolge im Blatt.`);
+
+// Und dasselbe fuer die ZIELWAHL einer booleschen Operation (`--target`, eigene Zahl 0,42).
+const wasserZiel = fillOpacityKandidaten(PANE_AKTIV,
+	pfad("ecosystem-area--wasser", "ecosystem-area--selected", "ecosystem-area--target"));
+assert.strictEqual(aufgeloest(wasserZiel[0].wert, { "--eco-fill-art": 1 }), 1,
+	"auch die Zielwahl nimmt dem Wasser seine Deckkraft nicht -- gewonnen hat: " + wasserZiel[0].sel);
+
+// ---- H2. DIE GEGENPROBE IST DIE WICHTIGERE: ausgenommen ist das WASSER, nicht der Zustand ------
+// Ohne sie verlieren Hervorhebung und Zielwahl ihre Wirkung auf ALLEN Flaechen, und niemand merkt es,
+// weil der gemeldete Fall dann trotzdem stimmt.
+const gebirgeHervor = fillOpacityKandidaten(PANE_AKTIV, pfad("ecosystem-area--highlight"));
+assert.strictEqual(aufgeloest(gebirgeHervor[0].wert, { "--eco-fill-art": 0.72 }), 0.8,
+	"ein Gebirge unter dem Zeiger leuchtet weiterhin auf 0,8 -- gewonnen hat: " + gebirgeHervor[0].sel);
+const gebirgeZiel = fillOpacityKandidaten(PANE_AKTIV, pfad("ecosystem-area--target"));
+assert.strictEqual(aufgeloest(gebirgeZiel[0].wert, { "--eco-fill-art": 0.72 }), 0.42,
+	"und die Zielwahl faerbt es weiter auf 0,42 -- gewonnen hat: " + gebirgeZiel[0].sel);
+
+// ---- H3. 🔴 RUHEND BLEIBT UNSICHTBAR -- `--active` ist tragend ---------------------------------
+// Ohne die Klasse im Selektor truege eine ruhende Wasserflaeche ihre Deckkraft mit, und ein
+// Topographie-See stuende in der Vegetationsansicht. Ueber „Alle" laege wieder das Farbnetz, das
+// AGENTS.md §12 abgeschafft hat.
+const wasserRuhend = fillOpacityKandidaten(PANE_RUHEND, pfad("ecosystem-area--wasser"));
+assert.strictEqual(
+	aufgeloest(wasserRuhend[0].wert,
+		{ "--eco-fill-art": 1, "--eco-fill": Number(ecoFillDerPane(PANE_RUHEND)) }), 0,
+	"🔴 Eine ruhende Wasserflaeche bleibt unsichtbar -- gewonnen hat: " + wasserRuhend[0].sel);
+
+// ---- H4. 🔴 DIE WAHL DES OWNERS GEWINNT AUCH HIER ---------------------------------------------
+// `var(--eco-fill-art, 1)` und nicht `1`: mit festem 1 waere sein Regler fuer diese Flaeche tot, und
+// ein Regler, dessen Wert nirgends gilt, ist von einem kaputten Formular nicht zu unterscheiden
+// (AGENTS.md §11).
+assert.strictEqual(aufgeloest(wasserHervor[0].wert, { "--eco-fill-art": 0.4 }), 0.4,
+	"eine im Fenster gespeicherte Deckkraft von 0,4 gilt auch unter dem Zeiger");
+// ⚠️ Der Rueckfall ist die 1, nicht der Panewert: ohne ecosystem-display.js setzt niemand die Klasse,
+// die Regel passt dann nie -- aber wenn doch, soll der See deckend sein und nicht ruhend.
+assert.strictEqual(aufgeloest(wasserHervor[0].wert, {}), 1,
+	"ohne eigenen Wert faellt die Wasser-Regel auf 1 zurueck");
+
+// ---- H5. Nur die DECKKRAFT -- Farbe und Kontur der Zustaende bleiben --------------------------
+// ⚠️ Die Zielwahl faerbt weiter golden um und behaelt Schein und Trefferband, die Auswahl ihre weisse
+// Kontur. Die Wasser-Regel nimmt den Zustaenden nur die ZAHL.
+const wasserRegeln = alleRegeln.filter((r) => /ecosystem-area--wasser/.test(r.sel));
+assert.strictEqual(wasserRegeln.length, 1,
+	"es gibt GENAU eine Wasser-Regel -- zwei waeren zwei Wahrheiten ueber dieselbe Deckkraft");
+assert.ok(/^\s*fill-opacity\s*:[^;]+;?\s*$/.test(wasserRegeln[0].body),
+	"sie setzt AUSSCHLIESSLICH fill-opacity -- Rumpf: " + JSON.stringify(wasserRegeln[0].body.trim()));
+assert.ok(alleRegeln.filter((r) => /ecosystem-area--target/.test(r.sel))
+	.some((r) => /(^|[;\s])fill\s*:/.test(r.body)),
+	"und die Zielwahl faerbt weiterhin um");
+
+// ---- H6. Die Klasse kommt aus der GETEILTEN Liste, und sie wird wirklich gesetzt --------------
+// ⭐ AUSGEFUEHRT, nicht gelesen: ein Regex kennt keinen Geltungsbereich, und eine Zusicherung, die nur
+// den Quelltext sieht, bleibt gruen, wenn der Aufruf in einer anderen Funktion landet.
+// ⚠️ Zeilenendenneutral geschnitten -- hier ist CRLF, im Deploy-Tor LF (AGENTS.md §9).
+const renderingLF = rendering.split(String.fromCharCode(13)).join("");
+const vonDeck = renderingLF.indexOf("function applyEcosystemAreaDeckkraft(");
+assert.ok(vonDeck >= 0, "die Funktion, die die Deckkraft an den Pfad haengt");
+const rumpfDeck = renderingLF.slice(vonDeck, renderingLF.indexOf(LF + "}", vonDeck) + 2);
+assert.ok(rumpfDeck.endsWith("}"), "und ihr Rumpf ist vollstaendig ausgeschnitten");
+
+// 💣 SIE NENNT KEINE ART. Welche Flaechen Wasser sind, sagt AVESMAPS_ECOSYSTEM_DISPLAY_WASSERFLAECHEN
+// und sonst nichts -- eine zweite Liste liefe beim naechsten Zuwachs auseinander.
+assert.ok(/avesmapsEcosystemDisplayGlobaleDeckkraftGilt/.test(rumpfDeck), "sie fragt die geteilte Regel");
+assert.ok(!/"see"|'see'|WASSERFLAECHEN/.test(rumpfDeck),
+	"und nennt selbst keine Art und keine zweite Liste");
+
+function fahreDeckkraft(area, tafel) {
+	avesmapsEcosystemDisplayInstall(tafel || null);
+	const klassen = new Set();
+	const element = {
+		style: { props: {}, setProperty(n, v) { this.props[n] = v; } },
+		classList: { toggle(name, an) { if (an) { klassen.add(name); } else { klassen.delete(name); } } },
+	};
+	vm.runInNewContext(
+		rumpfDeck + LF + "applyEcosystemAreaDeckkraft(_layer);",
+		{
+			_layer: { getElement: () => element, _ecosystemArea: area },
+			avesmapsEcosystemDisplayDeckkraft,
+			avesmapsEcosystemDisplayGlobaleDeckkraftGilt,
+		},
+		{ filename: "applyEcosystemAreaDeckkraft (ausgeschnitten)" }
+	);
+	return { klassen, props: element.style.props };
+}
+
+const see = fahreDeckkraft({ kind: "topographie", region_type: "see" });
+assert.ok(see.klassen.has("ecosystem-area--wasser"),
+	"🔴 Die Seeflaeche bekommt die Klasse, mit der sie ihre Deckkraft gegen die Zustaende haelt");
+assert.strictEqual(see.props["--eco-fill-art"], "1", "und ihren Wert dazu");
+
+assert.ok(!fahreDeckkraft({ kind: "topographie", region_type: "gebirge" })
+	.klassen.has("ecosystem-area--wasser"),
+	"💣 Das Gebirge derselben Ebene bekommt sie NICHT -- sonst verloeren die Zustaende ueberall ihre Wirkung");
+assert.ok(!fahreDeckkraft({ kind: "topographie", region_type: "meer" })
+	.klassen.has("ecosystem-area--wasser"),
+	"und das Meer ebenso: die Liste sagt, was Wasser ist, nicht der Name");
+
+// ⚠️ Auch mit gespeichertem eigenem Wert bleibt die Klasse -- sie entscheidet, WER uebersteuern darf,
+// nicht WELCHE Zahl gilt. Ohne sie fiele der durchscheinende See unter dem Zeiger wieder auf 0,8.
+const seeGestellt = fahreDeckkraft({ kind: "topographie", region_type: "see" },
+	{ deckkraft: { "topographie:see": 0.4 } });
+assert.ok(seeGestellt.klassen.has("ecosystem-area--wasser"),
+	"die Klasse haengt an der ART, nicht an der Zahl");
+assert.strictEqual(seeGestellt.props["--eco-fill-art"], "0.4", "und der gestellte Wert reist mit");
+avesmapsEcosystemDisplayInstall(null);
+
+// ---- H7. Nachgezogen wird sie an ALLEN Stellen, ohne eine eigene Verdrahtung ------------------
+// 💣 Die Klasse haengt an der ART und sitzt deshalb IN applyEcosystemAreaDeckkraft -- damit laeuft sie
+// beim frischen Aufbau und beim Umtypisieren (beide in Abschnitt C festgenagelt) und beim Nachziehen
+// einer geladenen Tafel. Eine vierte Verdrahtung waere die Falle, die dieses Haus schon mehrfach
+// bezahlt hat: eine Regel, die einen von vier Erzeugern bindet, ist keine Regel.
+const vonRefresh = renderingLF.indexOf("function avesmapsRefreshEcosystemDisplay(");
+assert.ok(vonRefresh >= 0, "den Nachzieher gibt es");
+assert.ok(/applyEcosystemAreaDeckkraft\(/.test(
+	renderingLF.slice(vonRefresh, renderingLF.indexOf(LF + "}", vonRefresh) + 2)),
+	"und er geht durch dieselbe Funktion -- die Klasse kommt damit ohne eigene Zeile mit");
+// 🪤 Und NICHT in applyEcosystemHighlightClass: dort waere sie ein Zustand, und ein Zustand, der die
+// ART beschreibt, laeuft beim ersten Umtypisieren auseinander.
+const vonHervor = renderingLF.indexOf("function applyEcosystemHighlightClass(");
+assert.ok(!/ecosystem-area--wasser/.test(
+	renderingLF.slice(vonHervor, renderingLF.indexOf(LF + "}", vonHervor) + 2)),
+	"🪤 die Hervorhebung setzt sie nicht -- sie ist keine Zustandsklasse");
+
 console.log("ecosystem-display-flaeche: alle Zusicherungen gruen");
