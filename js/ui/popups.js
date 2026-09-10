@@ -415,8 +415,56 @@ function featureKanonListBadge(entityType, entityPublicId) {
 	}
 	return featureKanonBadge(entityType, entityPublicId, { nurZustand: true });
 }
+/**
+ * DAS ETIKETT EINER KENNUNG IN DER TAFEL NACHTRAGEN -- EIN Bauer, drei Aufrufer.
+ *
+ * 🔴 Owner 10.09.2026: „aktualisierungen sollen gleich sichtbar sein - ohne dass der browser neu
+ * geladen werden muss", „so wie normale mapaenderungen auch". Eine normale Kartenaenderung reist
+ * ueber den Live-Abgleich -- der holt aber ein DELTA, und ein Delta traegt seit dem 03.09.2026
+ * keinen Kanon. Das Etikett kommt deshalb in der Antwort des Schreibvorgangs mit, und hier landet es.
+ *
+ * 💣 DREI SCHREIBER, EINE REGEL. Dieselben drei Zeilen standen am 02.09.2026 in
+ * review-settlement-wiki.js (Wiki-Zuweisung eines Ortes) und am 09.09.2026 in
+ * review-feature-sources.js (Quellen-Schreibaktion); die Landschaftsflaeche waere die dritte
+ * Abschrift gewesen. Eine Regel, die zwei von drei Erzeugern bindet, ist keine Regel -- dieselbe
+ * Lehre wie bei der Listenzeile, der Wiki-Zuweisung und der Verkehrsmittel-Sperre.
+ *
+ * 🔴 DREI ZUSTAENDE, und ihre Unterscheidung ist der ganze Inhalt:
+ *   - ein OBJEKT setzt (auch `{kanon: ""}` -- „nachgesehen, kein Etikett" ist eine Auskunft),
+ *   - `null` LOESCHT (ein liegengebliebenes Etikett behauptet etwas, das nicht mehr gilt),
+ *   - ein FEHLENDER Schluessel laesst in Ruhe („nicht gefragt" ist nicht „ausdruecklich keins").
+ * Deshalb `in`, nie ein Wahrheitswert.
+ *
+ * ⚠️ Faellt offen aus: ohne Tafel im Fenster passiert nichts. Sie entsteht beim Laden der Karte
+ * (routing.js); eine Seite ohne Kartendaten hat nichts nachzutragen.
+ */
+function avesmapsKanonTafelNachtragen(entityType, kanonJeKennung, ziel) {
+	const welt = ziel || (typeof window !== "undefined" ? window : null);
+	if (!welt || !kanonJeKennung || typeof kanonJeKennung !== "object") {
+		return 0;
+	}
+	welt.__featureKanon = welt.__featureKanon || { vorgabe: "", abweichungen: {} };
+	welt.__featureKanon.abweichungen = welt.__featureKanon.abweichungen || {};
+	let gesetzt = 0;
+	for (const kennung of Object.keys(kanonJeKennung)) {
+		if (!(kennung in kanonJeKennung)) {
+			continue;
+		}
+		const schluessel = `${entityType}:${kennung}`;
+		const etikett = kanonJeKennung[kennung];
+		if (etikett && typeof etikett === "object") {
+			welt.__featureKanon.abweichungen[schluessel] = etikett;
+		} else {
+			delete welt.__featureKanon.abweichungen[schluessel];
+		}
+		gesetzt += 1;
+	}
+	return gesetzt;
+}
+
 if (typeof window !== "undefined") {
 	window.resolveFeatureSourceList = resolveFeatureSourceList;
+	window.avesmapsKanonTafelNachtragen = avesmapsKanonTafelNachtragen;
 	window.renderFeatureSourceLine = renderFeatureSourceLine;
 	window.resolveFeatureKanon = resolveFeatureKanon;
 	window.renderFeatureKanonBadge = renderFeatureKanonBadge;

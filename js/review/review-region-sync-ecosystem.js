@@ -297,6 +297,12 @@ async function submitEcosystemAssignDialog(event) {
 			dry_run: false,
 			confirm: "apply",
 		});
+		// 🔴 Das Kanon-Etikett der zugewiesenen Flaechen sofort in die Tafel -- derselbe Bauer wie im
+		// Flaechendialog und aus demselben Grund (Owner 10.09.2026: ohne Neuladen sichtbar). Der
+		// Live-Abgleich holt ein Delta, und ein Delta traegt keinen Kanon.
+		if (typeof avesmapsKanonTafelNachtragen === "function") {
+			avesmapsKanonTafelNachtragen("ecosystem", result?.kanon_je_kennung);
+		}
 		closeEcosystemAssignDialog();
 		// Die Beschriftungen, die der Server nachgezogen hat (geerbt oder -- bei leerer Adresse -- die
 		// Kopie genommen), sofort auf die Karte: der Kartenpayload wird nach einem Schreibvorgang nicht

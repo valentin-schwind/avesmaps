@@ -2764,6 +2764,19 @@
 			if (typeof applyLabelFeaturesLocally === "function") {
 				applyLabelFeaturesLocally(antwort?.labels);
 			}
+			// 🔴 UND DAS KANON-ETIKETT DIESER FLAECHE (Owner 10.09.2026: „aktualisierungen sollen
+			// gleich sichtbar sein - ohne dass der browser neu geladen werden muss"). Der Server
+			// bumpt seit demselben Tag `map_revision`, wenn die Zuweisung wirklich wechselt -- damit
+			// erfahren es ALLE ANDEREN wie bei jeder Kartenaenderung. Dem Speichernden reicht das
+			// nicht: der Live-Abgleich holt ein DELTA, und ein Delta traegt keinen Kanon
+			// (avesmapsMapFeaturesIstDeltaAbruf, 03.09.2026). Deshalb reist das Etikett in der
+			// Antwort mit -- wie die Kurve und die Beschriftungen zwei Zeilen darueber.
+			// 💣 EIN Bauer fuer alle drei Nachtragswege (js/ui/popups.js); die zwei aelteren stehen in
+			// review-settlement-wiki.js und review-feature-sources.js. Eine dritte Abschrift derselben
+			// drei Zeilen waere die Divergenz, die dieses Repo bei der Listenzeile siebenmal bezahlt hat.
+			if (typeof avesmapsKanonTafelNachtragen === "function") {
+				avesmapsKanonTafelNachtragen("ecosystem", antwort?.kanon_je_kennung);
+			}
 			// Dieselbe Sofort-Anwendung wie im Beschriftungsdialog (map-features-ecosystem-label-writeback.js):
 			// der Kartenpayload wird nach einem Speichern nicht neu geholt, ohne das aendert sich am Bild
 			// nichts.
