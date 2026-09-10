@@ -924,6 +924,18 @@ html.avesmaps-planner-collapsed .gi-win {
 	line-height: 1;
 }
 
+/* Fixrunde 1 (Befund F2): das Wurzelelement einer Verbund-Zeile ist ein `<div>`, kein `<label>`
+   wie bei der Abschnittszeile daneben -- nur der ✕ trägt eine Handlung, die Zeile selbst keine.
+   💣 DIE GETEILTE `.gi-seg`-REGEL BLEIBT UNANGETASTET (sie trägt weiterhin die Abschnittszeile,
+   an der die ganze Zeile wirklich klickbar ist) -- ein Modifikator ist der Weg. Ohne ihn erbt
+   die Verbund-Zeile Zeiger UND Hover-Grund von `.gi-seg` und sieht klickbar aus, ist es aber
+   nicht: ein Bedienelement, das nichts tut, ist von einem kaputten Klick nicht zu unterscheiden.
+   ⚠️ Der ✕ selbst behält seinen eigenen Zeiger -- `cursor` wird zwar vererbt, aber `.gi-win .btn`
+   setzt ihn am Knopf ausdrücklich auf `pointer`, und eine deklarierte Regel schlägt an ihrem
+   eigenen Element immer die geerbte, unabhängig von der Spezifität des Elternteils. */
+.gi-seg--verbund { cursor: default; }
+.gi-seg--verbund:hover { background: none; }
+
 /* 💣 `anywhere` -- dieselbe Falle wie eine Etage tiefer bei `.gi-seg__name`/`.gi-seg__id`, nur
    spaeter aufgetreten: seit dem 28.08.2026 steht hier auch die NAMENSNENNUNG der Quelle, und die
    ist ein Datenwert (`sources.attribution`), kein Satz. Live gemessen mit einer 83 Zeichen langen
