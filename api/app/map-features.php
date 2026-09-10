@@ -151,7 +151,18 @@ require_once __DIR__ . '/../_internal/app/map-features-cache.php';
 //    weil der Umbau sich wie ein Bugfix anfuehlte und nicht wie eine Nutzlast-Aenderung.
 //    ⭐ Die Frage, die das faengt: aendert mein Fix den INHALT dieser Antwort, ohne ein Kartenobjekt
 //    anzufassen? Dann gehoert der Bump dazu -- unabhaengig davon, ob ein Feld dazukommt.
-const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 23;
+// 24 (10.09.2026): eine an eine Landschaftsflaeche GEBUNDENE Beschriftung holt ihr Kanon-Etikett
+//    unter `ecosystem:<region>` -- dort hatte die Ableitung aber nie einen Namensraum, also
+//    entschieden fuer sie IMMER die Quellen (avesmapsEcosystemRegionWikiNamespaces). Wieder ein
+//    reiner WERTwechsel in `feature_kanon.abweichungen`, kein neues Feld: die betroffenen Flaechen
+//    wechseln von „inoffiziell │ Art" auf „offiziell" bzw. von „offiziell" auf
+//    „inoffiziell │ Wiki Aventurica" (ns 222).
+//    💣 OHNE DEN BUMP WAERE DER FIX FUER JEDEN WARMEN BROWSER UNSICHTBAR -- also fuer genau den
+//    Besucher, der die Meldung ausgeloest hat. `map_revision` bewegt sich von einer Code-Aenderung
+//    nicht, das ETag bliebe Zeichen fuer Zeichen dasselbe, und js/app/kartendaten-speicher.js
+//    liefert die alte Nutzlast aus IndexedDB. Die Frage aus Eintrag 23 hat hier gegriffen: der Fix
+//    aendert den INHALT dieser Antwort, ohne ein Kartenobjekt anzufassen.
+const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 24;
 
 // 🔴 avesmapsMapFeaturesWikiNamespaces() UND die zugehoerige Typ-Zuordnung stehen NICHT hier,
 // sondern in api/_internal/app/feature-sources.php, direkt neben avesmapsFeatureSourcesDeriveKanon,
@@ -387,13 +398,21 @@ try {
     // (avesmapsPoliticalTerritoryWikiNamespaces). Ohne sie blieb ein rein aus ns 222 stammendes
     // Gebiet unbeschriftet, obwohl sein Kopf die Kanonzeile rendert -- 69 von 302 ns-222-Objekten,
     // gemessen am Dump vom 01.09.2026. Owner 02.09.2026.
-    // ⚠️ `+` behaelt bei gleichem Schluessel den LINKEN Wert; die beiden Schluesselraeume sind
-    // disjunkt (`territory:` gegen settlement/region/path/powerline), es kann also nichts kollidieren.
+    // 🔴 UND EIN DRITTER FUER DIE LANDSCHAFTSFLAECHEN (10.09.2026, Owner-Meldung am „Altenforst").
+    // Eine an eine Flaeche GEBUNDENE Beschriftung holt ihr Etikett unter `ecosystem:<region>` --
+    // dort liegen seit Schritt 5 des Quellen-Umbaus ihre Quellen. Ihr Namensraum entstand aber als
+    // `region:<label>` und wurde damit nie gefragt: die Flaeche konnte ueber ihre Zuweisung weder
+    // offiziell werden noch als ns-222-Fanmaterial erkannt werden, es entschieden immer die
+    // Quellen. Siehe avesmapsEcosystemRegionWikiNamespaces.
+    // ⚠️ `+` behaelt bei gleichem Schluessel den LINKEN Wert; die drei Schluesselraeume sind
+    // disjunkt (`territory:`, `ecosystem:` gegen settlement/region/path/powerline), es kann also
+    // nichts kollidieren.
     $featureKanon = $mapFeaturesIstDelta ? [] : avesmapsFeatureSourcesDeriveKanon(
         $sourceCatalog,
         $featureSourceRefs,
         avesmapsMapFeaturesWikiNamespaces($features)
             + avesmapsPoliticalTerritoryWikiNamespaces($pdo)
+            + avesmapsEcosystemRegionWikiNamespaces($pdo)
     );
     // Landscape membership: fill properties.ecosystem_region_public_id on every label that belongs to a
     // region, resolved from BOTH stored directions. Applied here rather than inside the row builder
