@@ -426,7 +426,34 @@ function applyEcosystemAccess(granted) {
 	// wechselt -- sichtbar als „bei mir fehlen die Ebenen-Kacheln".
 	// 🔴 UND SEIT 10.09.2026 AUCH FÜR DEN BESUCHER, dessen Antwort „nein" lautet: erst dieser Durchlauf
 	// wendet sein Anzeigeprofil an, weil vorher absichtlich nichts angefasst wurde.
-	if (typeof syncEcosystemControlsVisibility === "function") {
+	// 💣 ABER NUR, WENN DIE LANDSCHAFTEN GERADE AKTIV SIND -- sonst zahlt JEDER anonyme Seitenstart,
+	// in JEDEM Modus, einen vollen Sichtbarkeits-Pass (syncEcosystemPaneStates, syncLabelVisibility,
+	// HeightRender.redraw) umsonst -- dieselbe Warnung wie bei den Zoombändern weiter unten
+	// ("ein bedingungsloser Durchlauf kostet bei jedem Seitenstart einen vollen Sichtbarkeits-Pass
+	// umsonst").
+	// ⚠️ UND DER AUFRUF BLEIBT STEHEN, WENN DIE LANDSCHAFTEN AKTIV SIND -- er ist genau der Nachzieher,
+	// der das Anzeigeprofil anwendet, sobald die Auskunft eintrifft (der Editor-Fall zwei Absätze
+	// darüber: `mapLayerMode=ecosystem` aus dem localStorage, vor der eigenen Sitzungsantwort).
+	// 💣 UND `typeof isEcosystemLayerModeActive === "function"` DAVOR, GEPRÜFT UND GEFUNDEN, NICHT
+	// GERATEN. Auf index.html allein wäre die nackte Funktion sicher: js/config.js lädt dort immer
+	// NACH js/app/session.js, der synchrone Zweig ohne AvesmapsSession (unten im `else`) läuft also
+	// nie, und der asynchrone Zweig (das `.then()` unten) feuert erst nach dem echten
+	// Netzwerk-Roundtrip von `session.js` -- lange nachdem ecosystem-layer-switch.js weiter unten im
+	// Dokument durchgelaufen ist. ABER: mehrere Node-Tests laden js/config.js GENAU SO, wie es die
+	// „drei verify-Prüfseiten" oben tun -- ohne map-features-ecosystem-layer-switch.js im Kontext --
+	// und lösen dabei den synchronen `else`-Zweig aus (kein `window.AvesmapsSession` in ihrer
+	// Attrappe). Ohne den Riegel: `ReferenceError: isEcosystemLayerModeActive is not defined`, und
+	// zwar nicht abgefangen, sondern mitten im Laden von js/config.js selbst -- der ganze Rest der
+	// Datei (und jeder Test, der sie danach braucht) reisst ab. Live gemessen beim Bau dieser Zeile:
+	// bach-darstellung.test.js, kraftlinie-kurve-alle-erzeuger.test.js,
+	// location-at-path-endpoint.test.js, location-type-classifier.test.js,
+	// powerline-connected-endpoints.test.js, powerline-span.test.js,
+	// path-transport-options.test.js, create-graph-connectivity.test.js,
+	// location-connectivity-index.test.js und vier garetien-*.test.js -- 13 Dateien, die js/config.js
+	// standalone laden. Derselbe Riegel wie bei `syncEcosystemControlsVisibility` daneben, aus
+	// demselben Grund.
+	if (typeof isEcosystemLayerModeActive === "function" && isEcosystemLayerModeActive()
+		&& typeof syncEcosystemControlsVisibility === "function") {
 		syncEcosystemControlsVisibility();
 	}
 	if (!freigeschaltet) { return; }

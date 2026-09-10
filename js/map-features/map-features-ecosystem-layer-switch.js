@@ -691,10 +691,14 @@ function ecosystemSetzeAnzeigeHaken(id, soll) {
 //
 // ⚠️ ALLE DREI brauchen hier KEINE Erinnerung -- Straßen, Grenzen UND Beschriftungen: jeder der drei
 // Haken wird bei jedem Kartenmodus-Wechsel ohnehin neu gesetzt, alle aus `setSelectedMapLayerMode`
-// (map-features-display-mode.js). Die Wege und die Grenzen dort direkt, `#toggleMapLabels` über
-// `syncEditorDisplayTogglesToMode` gegen `MAP_LABEL_MODES` (js/config.js: `deregraphic` und
-// `ecosystem`). Das Verlassen des Modus stellt sie also von selbst richtig, und eine zweite Erinnerung
-// daneben liefe genau dort auseinander, wo es niemandem auffiele.
+// (map-features-display-mode.js). `#toggleTerritoryBorders` läuft dort GENAUSO wie `#toggleMapLabels`
+// über `syncEditorDisplayTogglesToMode` gegen `BOUNDARY_OVERLAY_MODES`/`MAP_LABEL_MODES` (js/config.js:
+// `deregraphic` und `ecosystem`) -- „direkt" gesetzt wird dort nur `#togglePaths`, und auch das nur
+// EINSEITIG: der Block setzt es auf `true`, wenn `FRONTEND_LAYER_MODE_DEFAULTS[mode]?.wege === true`
+// ist, aber nie auf `false` -- das besorgt erst `applyFrontendLayerModeDefaults` (Umschalter und
+// restorePlannerState, siehe deren Kommentar dort; im Editor läuft sie gar nicht). Das Verlassen des
+// Modus stellt Grenzen und Beschriftungen also von selbst richtig, und eine zweite Erinnerung daneben
+// liefe genau dort auseinander, wo es niemandem auffiele.
 // 💣 Bis 10.09.2026 nannte dieser Absatz nur Wege und Grenzen, obwohl die Beschriftungen am Tag davor
 // dazugekommen waren -- der dritte Haken stand ohne Begründung da, und wer sie gesucht hätte, hätte
 // sie an der falschen Stelle (bei `setSelectedMapLayerMode` selbst) nicht gefunden.

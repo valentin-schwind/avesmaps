@@ -459,34 +459,77 @@ assert.ok(new RegExp("function\\s+" + MERKER_LESER + "\\s*\\(").test(configQuell
 	assert.ok(rumpf.includes("applyEcosystemAccess") && rumpf.length > 200,
 		"der ausgeschnittene Block traegt wirklich die Funktion (" + rumpf.length + " Zeichen)");
 
-	const welt2 = {
-		console,
-		IS_EDIT_MODE: false,
-		// ⚠️ Der Riegel selbst steht ueber dem ausgeschnittenen Block (`let IS_ECOSYSTEM_ENABLED` ist die
-		// Zeile davor) und wird deshalb hier gestellt -- mit dem echten Startwert.
-		IS_ECOSYSTEM_ENABLED: false,
-		document: { getElementById: () => null },
-		_nachgezogen: 0,
-		syncEcosystemControlsVisibility: function () { welt2._nachgezogen += 1; }
-	};
-	welt2.globalThis = welt2;
-	vm.createContext(welt2);
-	vm.runInContext(rumpf + "\nglobalThis.merker = () => AVESMAPS_ECOSYSTEM_ACCESS_BEKANNT;", welt2);
+	// Baut je Fall eine FRISCHE Sandbox aus demselben ausgeschnittenen Rumpf -- getrennte Zustaende,
+	// damit „ohne aktive Landschaften" und „mit aktiven Landschaften" sich nicht gegenseitig die
+	// Zaehler verschieben.
+	function baueWelt2(landschaftenAktiv) {
+		const welt2 = {
+			console,
+			IS_EDIT_MODE: false,
+			// ⚠️ Der Riegel selbst steht ueber dem ausgeschnittenen Block (`let IS_ECOSYSTEM_ENABLED` ist die
+			// Zeile davor) und wird deshalb hier gestellt -- mit dem echten Startwert.
+			IS_ECOSYSTEM_ENABLED: false,
+			document: { getElementById: () => null },
+			_nachgezogen: 0,
+			// 🔴 10.09.2026: der Nachzieher darf NUR laufen, wenn die Landschaften aktiv sind -- sonst
+			// zahlt jeder anonyme Seitenstart, in jedem Modus, einen vollen Sichtbarkeits-Pass umsonst
+			// (js/config.js, Kommentar an derselben Stelle).
+			isEcosystemLayerModeActive: function () { return landschaftenAktiv === true; },
+			syncEcosystemControlsVisibility: function () { welt2._nachgezogen += 1; }
+		};
+		welt2.globalThis = welt2;
+		vm.createContext(welt2);
+		vm.runInContext(rumpf + "\nglobalThis.merker = () => AVESMAPS_ECOSYSTEM_ACCESS_BEKANNT;", welt2);
+		return welt2;
+	}
 
-	assert.strictEqual(welt2.merker(), false, "Vorbedingung: die Auskunft ist noch unterwegs");
-	welt2.applyEcosystemAccess(false);
-	assert.strictEqual(welt2.merker(), true,
-		"💣 „nein“ IST die Auskunft -- der Merker fliegt auch ohne Freischaltung hoch");
-	assert.strictEqual(welt2.IS_ECOSYSTEM_ENABLED, false, "freigeschaltet wird dabei nichts");
-	assert.strictEqual(welt2._nachgezogen, 1,
-		"🔴 und die Oberflaeche wird nachgezogen -- erst dieser Durchlauf wendet das Besucherprofil an");
+	// (I) AUSSERHALB DER LANDSCHAFTEN -- der Regelfall bei jedem anonymen Seitenstart, der nie in
+	// „Alle" oder eine der vier Ebenen wechselt. Der Merker fliegt trotzdem hoch (er ist unabhaengig
+	// vom Ort), der Nachzieher bleibt aber aus.
+	{
+		const ohneLandschaften = baueWelt2(false);
+		assert.strictEqual(ohneLandschaften.merker(), false, "Vorbedingung: die Auskunft ist noch unterwegs");
+		ohneLandschaften.applyEcosystemAccess(false);
+		assert.strictEqual(ohneLandschaften.merker(), true,
+			"💣 „nein“ IST die Auskunft -- der Merker fliegt auch ohne Freischaltung hoch");
+		assert.strictEqual(ohneLandschaften.IS_ECOSYSTEM_ENABLED, false, "freigeschaltet wird dabei nichts");
+		assert.strictEqual(ohneLandschaften._nachgezogen, 0,
+			"🔴 OHNE aktive Landschaften bleibt der Nachzieher aus -- sonst zahlt jeder anonyme"
+			+ " Seitenstart einen vollen Sichtbarkeits-Pass umsonst, obwohl es nichts nachzuziehen gibt");
 
-	welt2.applyEcosystemAccess(false);
-	assert.strictEqual(welt2._nachgezogen, 1,
-		"ein zweiter Aufruf mit derselben Antwort hat nichts zu tun -- einbahnig wie bisher");
-	welt2.applyEcosystemAccess(true);
-	assert.strictEqual(welt2.IS_ECOSYSTEM_ENABLED, true, "und eine spaetere Freischaltung greift noch");
-	assert.strictEqual(welt2._nachgezogen, 2, "samt Nachziehen der Oberflaeche");
+		ohneLandschaften.applyEcosystemAccess(false);
+		assert.strictEqual(ohneLandschaften._nachgezogen, 0,
+			"ein zweiter Aufruf mit derselben Antwort hat weiterhin nichts zu tun -- einbahnig wie bisher");
+		ohneLandschaften.applyEcosystemAccess(true);
+		assert.strictEqual(ohneLandschaften.IS_ECOSYSTEM_ENABLED, true,
+			"eine spaetere Freischaltung greift noch -- IS_ECOSYSTEM_ENABLED ist vom Ort unabhaengig");
+		assert.strictEqual(ohneLandschaften._nachgezogen, 0,
+			"💣 UND SELBST DIE FREISCHALTUNG ZIEHT NICHTS NACH, solange die Landschaften nicht aktiv sind");
+	}
+
+	// (II) MIT AKTIVEN LANDSCHAFTEN -- der Editor-Fall von weiter oben: `mapLayerMode=ecosystem` steht
+	// schon, bevor die eigene Sitzungsantwort da ist. Derselbe Ablauf wie in (I), aber diesmal MUSS
+	// jeder Durchlauf, der etwas aendert, nachziehen.
+	{
+		const mitLandschaften = baueWelt2(true);
+		assert.strictEqual(mitLandschaften.merker(), false, "Vorbedingung: die Auskunft ist noch unterwegs");
+		mitLandschaften.applyEcosystemAccess(false);
+		assert.strictEqual(mitLandschaften.merker(), true,
+			"💣 „nein“ IST die Auskunft -- der Merker fliegt auch ohne Freischaltung hoch");
+		assert.strictEqual(mitLandschaften.IS_ECOSYSTEM_ENABLED, false, "freigeschaltet wird dabei nichts");
+		assert.strictEqual(mitLandschaften._nachgezogen, 1,
+			"🔴 MIT aktiven Landschaften zieht auch die Antwort „nein“ nach -- erst dieser Durchlauf"
+			+ " wendet das Besucherprofil an");
+
+		mitLandschaften.applyEcosystemAccess(false);
+		assert.strictEqual(mitLandschaften._nachgezogen, 1,
+			"ein zweiter Aufruf mit derselben Antwort hat nichts zu tun -- einbahnig wie bisher");
+		mitLandschaften.applyEcosystemAccess(true);
+		assert.strictEqual(mitLandschaften.IS_ECOSYSTEM_ENABLED, true, "und eine spaetere Freischaltung greift noch");
+		assert.strictEqual(mitLandschaften._nachgezogen, 2,
+			"samt Nachziehen der Oberflaeche -- der kritische Fall aus der letzten Runde (Editor verliert"
+			+ " seine leere Zeichenflaeche) haengt genau daran");
+	}
 }
 
 // ---- 11. VERDRAHTUNG: die Tastatur ruft den benannten Weg WIRKLICH -------------------------------
