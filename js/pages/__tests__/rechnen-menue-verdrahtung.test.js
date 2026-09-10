@@ -136,6 +136,88 @@ for (const id of ["ecoRaycast", "ecoHeightmap", "ecoProfiles", "ecoCurves"]) {
 	pruefe(new RegExp('\\["' + id + '",').test(HTML), `${id} fehlt in RECHNEN_LAEUFE`);
 }
 
+// ---- 5b. UND SIE WIRD GEFAHREN, NICHT GELESEN -------------------------------------------------
+// 💣 Alle Zusicherungen von Teil 5 sind Regex auf dem Quelltext -- und sie waren GRÜN, während die
+// Unterzeile sechs Tage lang für jeden Lauf „Höhenraster rechnet …" behauptete. Ursache:
+// `c28642664` (04.09.2026) gab dem Höhenraster-Knopf ein statisches `disabled` („stillgelegt"),
+// und `zeigeRechnenStand` liest `disabled` als „läuft gerade". Damit trug dasselbe Attribut ZWEI
+// Bedeutungen; `find` nimmt den ersten Treffer, und Höhenraster steht an zweiter Stelle -- er
+// verdeckte Wegprofile, Kurven und Wiki & Art (die drei langen) und dazu jedes „zuletzt: …".
+// ⭐ Die Zeile ist laut ihrem eigenen Kommentar die BEDINGUNG dafür, dass die Läufe überhaupt in
+// ein Menü dürfen -- also wird der Block ausgeschnitten und ausgeführt. Ein Regex kennt keinen
+// Zustand, und er hätte diesen Ausfall auch beim nächsten Mal nicht gesehen.
+{
+	const von = HTML.indexOf("const RECHNEN_LAEUFE");
+	const bis = HTML.indexOf("function verdrahteRechnenStand");
+	pruefe(von > -1 && bis > von, "der Zustandsblock ist ausschneidbar");
+	const BLOCK = HTML.slice(von, bis);
+
+	// Die Knöpfe kommen aus dem ECHTEN Markup samt ihrer Attribute. Eine erfundene Tafel hätte den
+	// stillgelegten Knopf gar nicht gehabt -- also genau den Fall nicht gesehen, um den es geht.
+	const knoepfe = {};
+	for (const treffer of BAND.matchAll(/<button[^>]*class="rb-menu__sw"[^>]*>/g)) {
+		const roh = treffer[0];
+		const id = (roh.match(/id="([^"]+)"/) || [])[1];
+		if (!id) continue;
+		knoepfe[id] = {
+			disabled: /\sdisabled(\s|=|>)/.test(roh),
+			hasAttribute: (name) => {
+				// ⚠️ Regex-LITERAL statt `new RegExp("\\s" + name)`: beim Schreiben dieser Datei ging
+				// dort eine Escape-Ebene verloren (`\s` wurde zu `s`), die Attrappe fand das Attribut nie
+				// -- und der Test blieb rot, obwohl der Fix laengst stand. Ein unbekannter Name wirft, statt
+				// still `false` zu liefern: sonst faellt die Zusicherung lautlos aus, sobald der
+				// Produktivcode nach einem anderen Attribut fragt.
+				const muster = { "data-stillgelegt": /\sdata-stillgelegt(\s|=|>)/ }[name];
+				if (!muster) throw new Error("die Attrappe kennt „" + name + "“ nicht");
+				return muster.test(roh);
+			},
+		};
+	}
+	const ids = Object.keys(knoepfe);
+	pruefe(ids.length === 5, `der Ausschnitt fand ${ids.length} Zeilenknöpfe, erwartet 5`);
+
+	const zeile = { textContent: "" };
+	const lauf = new Function("$", BLOCK
+		+ "\nreturn { zeigeRechnenStand, merke: (wert) => { rechnenZuletzt = wert; } };")(
+		(id) => (id === "ecoRunMenuState" ? zeile : knoepfe[id] || null));
+
+	// A -- Ruhe. Genau hier stand „Höhenraster rechnet …", ohne dass irgendetwas lief.
+	lauf.zeigeRechnenStand();
+	pruefe(!/rechnet/.test(zeile.textContent),
+		`DER KERN VON TEIL 5b: im Ruhezustand behauptet die Zeile „${zeile.textContent}"`);
+
+	// B -- der 20-Sekunden-Lauf muss sich selbst nennen; er ist der Grund für diese ganze Zeile.
+	knoepfe.ecoCurves.disabled = true;
+	lauf.zeigeRechnenStand();
+	pruefe(/^Kurven rechnet/.test(zeile.textContent),
+		`DER KERN VON TEIL 5b: während „Kurven" läuft, sagt die Zeile „${zeile.textContent}"`);
+	knoepfe.ecoCurves.disabled = false;
+
+	// C -- Gegenprobe, dass der Mechanismus überhaupt greift. „Zugehörigkeit" steht in der Liste
+	// VOR dem stillgelegten Knopf und war deshalb der einzige, der immer richtig angezeigt wurde.
+	knoepfe.ecoRaycast.disabled = true;
+	lauf.zeigeRechnenStand();
+	pruefe(/^Zugehörigkeit rechnet/.test(zeile.textContent),
+		`ein laufender Lauf wird nicht mehr genannt: „${zeile.textContent}"`);
+	knoepfe.ecoRaycast.disabled = false;
+
+	// D -- „zuletzt: …" ist unerreichbar, solange ein stillgelegter Knopf als laufend zählt.
+	lauf.merke("Kurven");
+	lauf.zeigeRechnenStand();
+	pruefe(zeile.textContent === "zuletzt: Kurven",
+		`nach einem Lauf steht „${zeile.textContent}" statt „zuletzt: Kurven"`);
+
+	// 🔴 Und die Wiederinbetriebnahme muss an EINER Stelle passieren: der Marker steht AM KNOPF,
+	// neben seinem `disabled`. Stünde die Ausnahme stattdessen im JS (den Knopf aus
+	// RECHNEN_LAEUFE nehmen), wären es zwei Stellen -- und die zweite vergisst man beim Scharfstellen.
+	// ⚠️ Bedingt: heute trägt genau einer das dauerhafte `disabled`; sind es null, ist nichts zu
+	// prüfen und A–D tragen die Aussage allein.
+	for (const id of ids.filter((eintrag) => knoepfe[eintrag].disabled)) {
+		pruefe(knoepfe[id].hasAttribute("data-stillgelegt"),
+			`${id} ist dauerhaft disabled, sagt es aber nicht -- er zählt sonst als laufender Lauf`);
+	}
+}
+
 // ---- 6. Das Bauteil ist geladen, und zwar VOR seinem Aufruf -----------------------------------
 // 💣 Ein `avesmapsRibbonMenuAttachById(...)` ohne das <script>-Tag ist ein ReferenceError beim
 // Laden, der die GANZE Seite mitnimmt -- nicht nur das Menü.

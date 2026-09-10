@@ -84,7 +84,7 @@
         </div>
         <div class="rb-menu__row">
           <div class="rb-menu__txt"><b>Höhenraster</b><span id="ecoHeightmapInfo">im Flächendialog speichern</span></div>
-          <button type="button" class="rb-menu__sw" id="ecoHeightmap" disabled title="Stillgelegt seit dem 04.09.2026: dieser Sammellauf rechnet noch die alte Bergsumme und würde jedes Höhenfeld der lokalen Gebirgssimulation damit überschreiben. Ein Gebirge bekommt sein Raster, wenn man es im Flächendialog speichert.">stillgelegt</button>
+          <button type="button" class="rb-menu__sw" id="ecoHeightmap" disabled data-stillgelegt title="Stillgelegt seit dem 04.09.2026: dieser Sammellauf rechnet noch die alte Bergsumme und würde jedes Höhenfeld der lokalen Gebirgssimulation damit überschreiben. Ein Gebirge bekommt sein Raster, wenn man es im Flächendialog speichert.">stillgelegt</button>
         </div>
         <div class="rb-menu__row">
           <div class="rb-menu__txt"><b>Wegprofile</b><span id="ecoProfilesInfo">noch nicht gerechnet</span></div>
@@ -2658,7 +2658,7 @@ function wireRibbon() {
 // diesen Satz sieht ein Editor eine tote Seite"). Zugeklappt wäre die Rückmeldung weg -- also trägt
 // der Sammelknopf sie. Dieselbe Regel wie beim Wappen-Menü, wo die Unterzeile den Notaus-Stand nennt.
 //
-// ⭐ Gelesen wird `disabled` der vier Knöpfe, nicht ein eigener Zustand: die vier Lauf-Funktionen
+// ⭐ Gelesen wird `disabled` der Knöpfe, nicht ein eigener Zustand: die vier Lauf-Funktionen
 // setzen es ohnehin (`tile.disabled = true` beim Start, `false` im `finally`), und ein zweiter
 // Zustand daneben liefe beim ersten `return` im Fehlerpfad auseinander. Ein `MutationObserver` ist
 // hier das genaue Werkzeug -- er beobachtet die WAHRHEIT statt sie nachzubauen.
@@ -2679,7 +2679,16 @@ let rechnenZuletzt = "";
 function zeigeRechnenStand() {
 	const zeile = $("ecoRunMenuState");
 	if (!zeile) return;
-	const laeuft = RECHNEN_LAEUFE.find(([id]) => $(id)?.disabled === true);
+	const laeuft = RECHNEN_LAEUFE.find(([id]) => {
+		const knopf = $(id);
+		// 💣 `disabled` heisst an diesen Knoepfen ZWEIERLEI, seit ein Lauf stillgelegt werden kann:
+		// „laeuft gerade" (das setzen die Lauf-Funktionen) und „dauerhaft aus" (das steht im Markup).
+		// Ohne diese Zeile meldet der erste dauerhaft gesperrte Knopf fuer immer „rechnet …" und
+		// verdeckt jeden Lauf, der in RECHNEN_LAEUFE hinter ihm steht -- seit c28642664 (04.09.2026)
+		// genau so live, gemeldet vom Owner am 10.09.2026: die Zeile sagte „Hoehenraster rechnet …",
+		// waehrend Wegprofile, Kurven und Wiki & Art unbemerkt liefen.
+		return knopf?.disabled === true && !knopf.hasAttribute("data-stillgelegt");
+	});
 	if (laeuft) { zeile.textContent = laeuft[1] + " rechnet …"; return; }
 	zeile.textContent = rechnenZuletzt ? "zuletzt: " + rechnenZuletzt : "fünf Läufe";
 }
