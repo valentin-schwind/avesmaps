@@ -1503,6 +1503,13 @@
 	 * macht die Zeile doppelt so hoch -- gemessen 46 statt 28 px.
 	 * ⚠️ `< 2` Mitglieder sind kein Verbund mehr (dieselbe Regel wie bei garetienVerbundMarkeMarkup):
 	 * wer alle bis auf eines herausnimmt, sieht keinen Block mehr, sondern ein gewoehnliches Objekt.
+	 *
+	 * 💣 FIXRUNDE 1 (Befund F2): DIE ZEILE TRAEGT `gi-seg--verbund`. `.gi-seg` ist auch die
+	 * Abschnittszeile daneben (garetienAbschnittMarkup), deren GANZE Zeile den Haken auslöst --
+	 * ihr Zeiger und ihr Hover-Grund gehören zu DIESER Bedienung. Hier ist die Wurzel ein `<div>`
+	 * ohne Zeilenhandlung, nur der ✕ tut etwas; ohne den Modifikator sähe die ganze Zeile trotzdem
+	 * klickbar aus (geerbter `cursor: pointer` + Hover-Wäsche) -- ein Bedienelement, das nichts
+	 * tut, ist von einem kaputten Klick nicht zu unterscheiden.
 	 */
 	function garetienVerbundBlockMarkup(objekt, objekte) {
 		const schluessel = garetienVerbundSchluessel(objekt);
@@ -1510,7 +1517,7 @@
 		const mitglieder = garetienVerbundMitglieder(schluessel, objekte || []);
 		if (mitglieder.length < 2) { return ""; }
 		const zeilen = mitglieder.map(function (m) {
-			return '<div class="gi-seg"><span></span>'
+			return '<div class="gi-seg gi-seg--verbund"><span></span>'
 				+ '<span class="gi-seg__name">' + avesmapsGaretienEscape(m.name || "")
 				+ '<span class="gi-seg__zahl">' + ((m.geometrie || []).length) + " Punkte</span></span>"
 				+ '<button class="btn gi-seg__weg" type="button" data-verbund-weg="'
@@ -7462,6 +7469,51 @@
 	}
 
 	/*
+	 * Fixrunde 1 (Befund F1): DER ✕ EINER EINZELNEN FRAGMENTZEILE IM VERBUND-BLOCK -- „Aus dem
+	 * Verbund nehmen".
+	 *
+	 * 🔴 EIGENE TÜR, wie die drei Verteiler daneben: der Knopf trägt `data-verbund-weg`, kein
+	 * `data-handlung` -- er fällt also nie zu `garetienHandlungKlick` durch und braucht deshalb
+	 * auch keinen Ausschluss in `garetienHandlungsRumpf` (anders als „stage"/„entstagen"/„verbund").
+	 *
+	 * Nimmt GENAU DIESES EINE Fragment von der Stage -- `avesmapsGaretienStageEntfernen` ist das
+	 * exakte Gegenstück zu `avesmapsGaretienStageHinzufuegen`, mit dem `garetienVerbundZusammenlegen`
+	 * die Mitglieder überhaupt erst hinaufgelegt hat. Der Knopf „Verbund auflösen" bleibt daneben
+	 * stehen und trifft den GANZEN Verbund (nur die Merkung); dieser Knopf trifft nur EIN Mitglied
+	 * (die Stage selbst).
+	 *
+	 * 🔴 BLEIBEN DANACH WENIGER ALS ZWEI MITGLIEDER AUF DER STAGE, FÄLLT DIE MERKUNG MIT
+	 * (`garetienVerbundAufloesen`): ein Verbund aus einem Stück ist keiner mehr -- dieselbe Regel
+	 * wie bei `garetienVerbundMarkeMarkup`/`garetienVerbundBlockMarkup` (`n < 2`). Ohne das bliebe
+	 * `_garetienVerbundZusammen` für einen Schlüssel gesetzt, dessen letztes verbliebenes Mitglied
+	 * `garetienEinstellungsSchluessel` dann fälschlich weiter auf den VERBUND-Schlüssel zeigen
+	 * ließe statt auf sein eigenes.
+	 * ⚠️ Gezählt wird über die STAGE (`avesmapsGaretienStageHat` je Mitglied), NICHT über die Länge
+	 * von `garetienVerbundMitglieder`: die volle Gruppe aus `objekte` schrumpft durch dieses
+	 * Herausnehmen nicht (sie kommt vom Server bzw. vom aktuellen Reiter) -- nur die Stage tut es.
+	 */
+	function garetienVerbundWegKlick(ereignis, objekte) {
+		const ziel = ereignis && ereignis.target;
+		if (!ziel || typeof ziel.closest !== "function") { return null; }
+		const knopf = ziel.closest("[data-verbund-weg]");
+		if (!knopf || knopf.disabled) { return null; }
+		const schluesselFragment = String(knopf.getAttribute("data-verbund-weg") || "");
+		if (schluesselFragment === "") { return null; }
+		const objekt = garetienObjektNach(schluesselFragment, objekte);
+		const verbund = objekt ? garetienVerbundSchluessel(objekt) : "";
+		avesmapsGaretienStageEntfernen([schluesselFragment]);
+		let aufgeloest = false;
+		if (verbund !== "") {
+			const verbleibend = garetienVerbundMitglieder(verbund, objekte || []).filter(function (m) {
+				return avesmapsGaretienStageHat(m.key);
+			}).length;
+			if (verbleibend < 2) { aufgeloest = garetienVerbundAufloesen(verbund); }
+		}
+		return { handlung: "verbund_fragment_entfernt", key: schluesselFragment, verbund: verbund,
+			aufgeloest: aufgeloest };
+	}
+
+	/*
 	 * REIN: was die Statuszeile sagt, wenn ein Knopf nichts hinausschickt -- oder "".
 	 *
 	 * ⚠️ Der Name des Objekts steht darin, nicht nur der Grund: die Meldung beantwortet die Frage
@@ -9254,6 +9306,15 @@
 					garetienDetailRendern(zustand.objekte);
 					return;
 				}
+				// Fixrunde 1 (Befund F1): der ✕ EINER FRAGMENTZEILE -- derselbe Zug wie der
+				// Verbund-Knopf darüber, nur auf EIN Mitglied verengt. Steht danach, weil beide
+				// Selektoren (`[data-handlung="verbund"]` gegen `[data-verbund-weg]`) sich nie
+				// überschneiden -- die Reihenfolge ist hier keine Prioritätsfrage.
+				if (garetienVerbundWegKlick(ereignis, zustand.objekte)) {
+					garetienStageNeuZeichnen();
+					garetienDetailRendern(zustand.objekte);
+					return;
+				}
 				// Aufgabe 9: „Zurücknehmen“ -- derselbe Zug wie „Neu einfügen“ darüber, nur über die
 				// EIGENE Tür dieses Fensters statt der geteilten Übernahme-Vorschau (siehe die
 				// Begründung an garetienRuecknahmeSenden).
@@ -9778,6 +9839,8 @@
 			garetienStageKlick,
 			// Aufgabe 8: der Verbund-Block der Einzelansicht und sein Klick-Verteiler
 			garetienVerbundKlick,
+			// Fixrunde 1 (Befund F1): der ✕ je Fragmentzeile im Verbund-Block
+			garetienVerbundWegKlick,
 			garetienStillerAusgangText,
 			garetienAuswahlStillerAusgangText,
 			avesmapsGaretienMengeSenden,
