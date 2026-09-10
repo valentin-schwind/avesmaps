@@ -2447,12 +2447,31 @@ function avesmapsGaretienQuellenNachtrag(PDO $pdo, array $beruehrt, int $userId)
  * leeren Vermerk, `avesmapsGaretienVermerkLesen('')` liefert ueberall '', und die Weiche wirft
  * "kein Loeschziel im Vermerk" fuer einen Fall, der ohne Verbuende laengst funktionierte.
  *
+ * 💣 FIXRUNDE 1, BEFUND 1: EIN VERBUND OHNE FLAECHE WIRFT, ER FAELLT NICHT AUF DEN REGIONSWEG
+ * ZURUECK. `avesmapsGaretienVerbundVermerk` schreibt Flaeche, Region UND Verbund immer gemeinsam
+ * -- ein Vermerk mit gesetztem `verbund`, aber leerem `area` ist heute unerreichbar (der Schreiber
+ * bei avesmapsGaretienUebernehmen nutzt zwar `?? ''` ueber `$ergebnis['area_public_id']`, aber
+ * `avesmapsGaretienFlaecheAnlegen` wirft vorher ueber das werfende `avesmapsGaretienPublicIdAus`,
+ * statt eine leere id durchzureichen). "Heute unerreichbar" ist auf einem LOESCHWEG kein
+ * Argument -- es ist die Beschreibung eines Riegels, den vorher niemand gebaut hatte. Ein
+ * stummes Zurueckfallen auf `['region', $teile['region']]` waere GENAU der breite Loeschweg, den
+ * dieser ganze Umbau vermeiden soll: Region, Beschriftung und ALLE Geschwister-Flaechen, obwohl
+ * der Vermerk ausdruecklich einen Verbund nennt. Im Zweifel wird geworfen, nicht geraten.
+ *
  * @return array{0:string,1:string} ['flaeche'|'region', public_id]
+ * @throws RuntimeException wenn der Vermerk einen Verbund nennt, aber keine Flaeche
  */
 function avesmapsGaretienRuecknahmeWeg(string $applyNote): array
 {
     $teile = avesmapsGaretienVermerkLesen($applyNote);
-    if ($teile['verbund'] !== '' && $teile['area'] !== '') {
+    if ($teile['verbund'] !== '') {
+        if ($teile['area'] === '') {
+            throw new RuntimeException(
+                'Verbund-Vermerk ohne Flaeche -- Ruecknahme abgebrochen, statt versehentlich die'
+                . ' ganze Region samt allen Geschwister-Flaechen zu loeschen'
+            );
+        }
+
         return ['flaeche', $teile['area']];
     }
 
@@ -2676,7 +2695,17 @@ function avesmapsGaretienRuecknahmeAusfuehren(PDO $pdo, int $runId, array $itemI
             // genau die, die dieses Modul beim Uebernahme-Vermerk ausdruecklich vermeidet.
             // ⚠️ WEICH: `is_active = 0`, kein DELETE. Ein erneutes „Innerorts einfuegen" belebt
             // dieselbe Zeile wieder (avesmapsSettlementPlaceAdd), samt ihrer Quellenverknuepfung.
-            if (avesmapsSettlementPlaceExists($pdo, $publicId)) {
+            //
+            // 🔴 FIXRUNDE 1, BEFUND 2: `$ziel !== 'region'` IST HIER PFLICHT. Seit Aufgabe 6/7
+            // traegt $publicId bei `ziel = 'region'` keine nackte public_id mehr, sondern den
+            // strukturierten Verbund-Vermerk ("area:<a> | region:<r> | verbund:<v>") -- eine
+            // Staette wird aber NIE unter `ziel = 'region'` angelegt (die Innerorts-Handlung ist
+            // eine eigene Abzweigung VOR der ziel-Weiche, ihr Objekt traegt immer `ziel =
+            // 'location'`). Ohne den Riegel bekaeme avesmapsSettlementPlaceExists() fuer jedes
+            // 'region'-Item den ganzen Vermerkstring als vermeintliche public_id -- er trifft nie
+            // (kein Staetten-Datensatz traegt Pipe- und Doppelpunkt-Zeichen als id), aber die
+            // Abfrage misst dann etwas, das nie eine public_id war.
+            if ($ziel !== 'region' && avesmapsSettlementPlaceExists($pdo, $publicId)) {
                 avesmapsSettlementPlaceDeactivate($pdo, $publicId, (int) ($user['id'] ?? 0));
             } elseif ($ziel === 'path' || $ziel === 'location' || $ziel === 'label') {
                 // Strom/Fluss/Bach, Reichsstrasse/Strasse/Weg/Pfad, Ortschaften, Berggipfel: je
