@@ -2968,9 +2968,31 @@ function ecoDisplayGlobalWert(kind) {
 	return avesmapsEcosystemDisplayDeckkraft(kind, "");
 }
 
-/** Die Deckkraft, die WIRKT. 💣 Global ueberschreibt den Zeilenwert, es LOESCHT ihn nicht. */
+/* Der Satz, mit dem die Ausnahme BESCHRIFTET wird -- einmal geschrieben, von Haekchen-Beschriftung,
+   Zeilenmarke und Fussnote gemeinsam gelesen. Eine Erklaerung, die dreimal dasteht, laeuft beim
+   naechsten Umformulieren auseinander. */
+const ECO_DISPLAY_GLOBAL_OHNE_SATZ =
+	"Wasser ist kein Gelände: die globale Deckkraft gilt ihm nicht, sonst trägt die Fläche nicht "
+	+ "denselben Ton wie der gleichnamige Fluss. Ein hier von Hand gestellter Wert gilt trotzdem.";
+
+/* Die Arten DIESER Ebene, denen die globale Deckkraft nicht gilt.
+   🔴 Gefragt wird die geteilte Regel aus js/map-features/ecosystem-display.js, nie eine eigene
+   Liste -- sonst stuende die Ausnahme zweimal im Haus und die Beschriftung nennte beim naechsten
+   Zuwachs eine Art, die die Karte gar nicht ausnimmt (oder umgekehrt). */
+function ecoDisplayGlobalOhne(kind) {
+	return ecoDisplayZeilen(kind)
+		.filter((z) => !avesmapsEcosystemDisplayGlobaleDeckkraftGilt(kind, z.key));
+}
+
+/** Die Deckkraft, die WIRKT. 💣 Global ueberschreibt den Zeilenwert, es LOESCHT ihn nicht.
+ * 💣 ZWEITER ERZEUGER DERSELBEN FRAGE -- die Karte rechnet sie in
+ * avesmapsEcosystemDisplayDeckkraft, dieses Fenster hier fuer seine Vorschau. Die Ausnahme muss
+ * BEIDE erreichen, sonst zeigt der Vorschaustreifen halbe Deckkraft, waehrend die Karte deckend
+ * zeichnet. */
 function ecoDisplayDeckWirkt(kind, art) {
-	if (ecoDisplayGlobalAn(kind)) { return ecoDisplayGlobalWert(kind); }
+	if (ecoDisplayGlobalAn(kind) && avesmapsEcosystemDisplayGlobaleDeckkraftGilt(kind, art)) {
+		return ecoDisplayGlobalWert(kind);
+	}
 	const eigen = ecoDisplayTeil("deckkraft")[ecoDisplayKeyFl(kind, art)];
 	return typeof eigen === "number" ? eigen : avesmapsEcosystemDisplayDeckkraft(kind, art);
 }
@@ -3085,7 +3107,16 @@ function ecoDisplayZeichneGlobal() {
 	const cb = document.createElement("input");
 	cb.type = "checkbox";
 	cb.disabled = !ecoDisplayDarfSpeichern;
-	lab.append(cb, document.createTextNode("Eine Deckkraft für die ganze Ebene"));
+	// 🔴 WER EINEN WERT IRGENDWO UEBERSTEUERT, BESCHRIFTET DAS BEDIENELEMENT (AGENTS.md §11, der
+	// Entscheid „Owner-Zahl ist Vorgabe, kein Riegel"): ein Haekchen, das fuer eine der Zeilen
+	// darunter nichts tut, ist von einem kaputten Formular nicht zu unterscheiden. Die Namen kommen
+	// aus der geteilten Regel, nicht aus einer Liste hier.
+	const ohne = ecoDisplayGlobalOhne(kind);
+	lab.append(cb, document.createTextNode(
+		"Eine Deckkraft für die ganze Ebene"
+		+ (ohne.length ? " — ohne " + ohne.map((z) => z.label).join(", ") : "")
+	));
+	if (ohne.length) { lab.title = ECO_DISPLAY_GLOBAL_OHNE_SATZ; }
 
 	const rng = document.createElement("input");
 	rng.type = "range"; rng.className = "fl-range";
@@ -3222,9 +3253,20 @@ function ecoDisplayZeichneTabelle() {
 		fill.className = "fl-prev__fill";
 		prev.appendChild(fill);
 
+		// 🔴 Die Marke steht SICHTBAR in der Zeile, nicht nur im Tooltip: ein Regler, dessen Wert
+		// teils nicht gilt, muss das sagen, ohne dass jemand mit der Maus darauf wartet. Sie entsteht
+		// nur, wo es etwas zu sagen gibt -- eine Marke an jeder Zeile waere Rauschen.
+		const globalGiltHier = avesmapsEcosystemDisplayGlobaleDeckkraftGilt(kind, z.key);
 		const tdSw = document.createElement("td"); tdSw.className = "dt-sep"; tdSw.appendChild(sw);
 		const tdHex = document.createElement("td"); tdHex.appendChild(hex);
 		const tdDeck = document.createElement("td"); tdDeck.append(rng, pct);
+		if (!globalGiltHier) {
+			const marke = document.createElement("span");
+			marke.className = "fl-ausnahme";
+			marke.textContent = "vom Häkchen oben ausgenommen";
+			marke.title = ECO_DISPLAY_GLOBAL_OHNE_SATZ;
+			tdDeck.appendChild(marke);
+		}
 		const tdPrev = document.createElement("td"); tdPrev.appendChild(prev);
 		row.append(tdSw, tdHex, tdDeck, tdPrev);
 
@@ -3272,7 +3314,10 @@ function ecoDisplayZeichneTabelle() {
 			fill.style.opacity = String(wirkt);
 			rng.value = String(Math.round(zeile * 100));
 			pct.value = Math.round(zeile * 100);
-			const stumm = ecoDisplayGlobalAn(kind);
+			// 🔴 Die Zeile einer ausgenommenen Art wird NICHT stumm -- ihr gilt das Haekchen oben nicht,
+			// also stellt sie sich weiter selbst. Genau das ist die Zusage, ohne die die Ausnahme dem
+			// Owner seinen Regler nehmen wuerde.
+			const stumm = ecoDisplayGlobalAn(kind) && globalGiltHier;
 			row.classList.toggle("is-stumm", stumm);
 			rng.disabled = stumm || !ecoDisplayDarfSpeichern;
 			pct.disabled = rng.disabled;
@@ -3280,7 +3325,7 @@ function ecoDisplayZeichneTabelle() {
 			hex.disabled = !ecoDisplayDarfSpeichern;
 			rng.title = stumm
 				? "Die Deckkraft ist gerade global — Häkchen oben abnehmen, um je Art zu stellen."
-				: "";
+				: (globalGiltHier ? "" : ECO_DISPLAY_GLOBAL_OHNE_SATZ);
 			pct.title = rng.title;
 			if (z.hatName) {
 				const nton = ecoDisplayNaTon(z.key);
@@ -3351,7 +3396,10 @@ function ecoDisplayZeichneTabelle() {
 	$("ecoDisplayFlNote").textContent =
 		"Das Häkchen oben ist der heutige Zustand: die Karte hat EINE Deckkraft je Ebene. Abnehmen "
 		+ "öffnet die Werte je Art; anhaken macht sie stumm, löscht sie aber nicht. „Ruhend = "
-		+ "unsichtbar“ bleibt unangetastet — gestellt wird nur die AKTIVE Ebene.";
+		+ "unsichtbar“ bleibt unangetastet — gestellt wird nur die AKTIVE Ebene."
+		// ⚠️ Nur wo es die Ausnahme wirklich gibt -- ein Satz über eine Ausnahme, die diese Ebene
+		// nicht kennt, liest sich wie eine Einschränkung, die niemand findet.
+		+ (ecoDisplayGlobalOhne(kind).length ? " " + ECO_DISPLAY_GLOBAL_OHNE_SATZ : "");
 	$("ecoDisplayFoot").innerHTML =
 		"Noch nicht hier einstellbar: <strong>Fluss, Berggipfel, Vulkan, Ebene</strong> — "
 		+ "Namensarten ohne gleichnamige Flächenart. Ihre Farbe kommt weiter aus dem Stylesheet.";

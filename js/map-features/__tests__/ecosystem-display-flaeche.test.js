@@ -115,15 +115,14 @@ assert.ok(Object.keys(AVESMAPS_ECOSYSTEM_DISPLAY_DECKKRAFT_JE_ART).length > 0,
 assert.ok(Object.keys(AVESMAPS_ECOSYSTEM_DISPLAY_DECKKRAFT_JE_ART).every((k) => k.includes(":")),
 	"und jeder ihrer Schluessel nennt Ebene UND Art");
 
-// 🔴 VORGABE, KEIN RIEGEL -- beide gespeicherten Stufen schlagen sie, in dieser Reihenfolge. Wer
-// die Vorgabe je Art ueber den globalen Wert zoege, machte aus einer Owner-Zahl einen Riegel;
-// genau das ist bei `berggipfel` am 02.09.2026 zurueckgenommen worden.
+// 🔴 VORGABE, KEIN RIEGEL -- die GESPEICHERTE Deckkraft dieser Art schlaegt sie. Wer die Vorgabe je
+// Art ueber eine ausdrueckliche Einstellung zoege, machte aus einer Owner-Zahl einen Riegel; genau
+// das ist bei `berggipfel` am 02.09.2026 zurueckgenommen worden.
+// ⚠️ Was der GLOBALE Wert der Ebene mit ihr macht, steht in Abschnitt G -- dort stand bis zum
+// 10.09.2026 „er schlaegt auch sie", und genau daran war die Vorgabe live wirkungslos.
 avesmapsEcosystemDisplayInstall({ deckkraft: { "topographie:see": 0.4 } });
 assert.strictEqual(avesmapsEcosystemDisplayDeckkraft("topographie", "see"), 0.4,
 	"eine im Fenster gespeicherte Deckkraft dieser Art schlaegt die Vorgabe");
-avesmapsEcosystemDisplayInstall({ global: { topographie: { an: true, wert: 0.5 } } });
-assert.strictEqual(avesmapsEcosystemDisplayDeckkraft("topographie", "see"), 0.5,
-	"und der globale Wert der Ebene schlaegt auch sie");
 avesmapsEcosystemDisplayInstall(null);
 
 // ⚠️ Mit LEERER Art bleibt es die Zahl der Ebene -- das Fenster „Darstellung" beschriftet damit
@@ -145,5 +144,133 @@ assert.ok(vonZeile >= 0, "das Fenster hat einen Leser fuer den Zeilenwert");
 const rumpfZeile = fenster.slice(vonZeile, fenster.indexOf(LF + "}", vonZeile));
 assert.ok(rumpfZeile.includes("avesmapsEcosystemDisplayDeckkraft(kind, art)"),
 	"und er faellt auf die geteilte Vorgabe zurueck, MIT der Art -- nicht auf eine eigene Zahl");
+
+// ---- G. Wasser ist kein Gelaende: die GLOBALE Deckkraft gilt ihm nicht ------------------------
+// Owner 09.09.2026: „dann mach die seeflaechen auch 1 opacity". Fuer die Topographie steht live
+// {an:true, wert:0.5} gespeichert -- das ist die ERSTE Stufe, und damit war die Vorgabe aus
+// Abschnitt F auf der Karte wirkungslos: der See zeichnete weiter #90acc4 statt #4c89c6.
+// 🔴 Die globale Deckkraft laesst das gemalte GELAENDE durchscheinen. Wasser ist kein Gelaende, und
+// sein Ton ist keine Geschmacksfrage, sondern eine Zusage -- „Fluss und See sind ein Gewaesser, ein
+// Ton". Bei jeder Deckkraft unter 1 kann die Flaeche ihn nicht tragen (2*76 - 211 = -59).
+avesmapsEcosystemDisplayInstall({ global: { topographie: { an: true, wert: 0.5 } } });
+assert.strictEqual(avesmapsEcosystemDisplayDeckkraft("topographie", "see"), 1,
+	"der See zeichnet deckend, auch wenn die Ebene global auf 50 % steht");
+
+// 💣 DIE GEGENPROBE IST DIE EIGENTLICHE ZUSICHERUNG: ausgenommen ist das WASSER, nicht die EBENE.
+// Ohne sie kippt beim naechsten Anfassen die ganze Topographie aus der globalen Regel heraus -- von
+// 0,5 auf 0,72 --, und niemand merkt es, weil der gemeldete Fall dann trotzdem stimmt.
+assert.strictEqual(avesmapsEcosystemDisplayDeckkraft("topographie", "gebirge"), 0.5,
+	"das Gebirge derselben Ebene folgt dem globalen Wert weiter");
+assert.strictEqual(avesmapsEcosystemDisplayDeckkraft("topographie", "meer"), 0.5,
+	"und das Meer ebenso -- es traegt seinen eigenen Ton und hat keinen Zwilling");
+
+// ⚠️ UND DIE WAHL DES OWNERS STICHT AUCH DIE AUSNAHME. Sonst waere sein Regler fuer diese Flaeche
+// tot -- und ein Regler, dessen Wert nirgends gilt, ist von einem kaputten Formular nicht zu
+// unterscheiden (AGENTS.md §11). Der durchscheinende See bleibt einstellbar.
+avesmapsEcosystemDisplayInstall({
+	global: { topographie: { an: true, wert: 0.5 } },
+	deckkraft: { "topographie:see": 0.4 },
+});
+assert.strictEqual(avesmapsEcosystemDisplayDeckkraft("topographie", "see"), 0.4,
+	"ein gespeicherter eigener Wert gewinnt auch gegen die Ausnahme");
+assert.strictEqual(avesmapsEcosystemDisplayDeckkraft("topographie", "gebirge"), 0.5,
+	"und nimmt der Ebene ihren globalen Wert nicht");
+avesmapsEcosystemDisplayInstall(null);
+
+// Die Ausnahme selbst -- EIN benannter Satz, und er kennt keine Art: er fragt die Liste.
+assert.strictEqual(avesmapsEcosystemDisplayGlobaleDeckkraftGilt("topographie", "see"), false,
+	"dem See gilt die globale Deckkraft nicht");
+assert.strictEqual(avesmapsEcosystemDisplayGlobaleDeckkraftGilt("topographie", "gebirge"), true,
+	"dem Gebirge schon");
+// ⚠️ Mit LEERER Art gilt sie -- so fragt das Fenster nach der Zahl der EBENE („Vorgabe-Deckkraft
+// dieser Ebene", der globale Regler). Eine Ausnahme, die dort zuschluege, verstellte seine Anzeige.
+assert.strictEqual(avesmapsEcosystemDisplayGlobaleDeckkraftGilt("topographie", ""), true,
+	"und fuer die Ebene als ganze ebenfalls");
+
+// 💣 DIE ZWEI TAFELN MUESSEN SICH DECKEN. Eine ausgenommene Flaeche OHNE eigene Vorgabe fiele auf
+// die Zahl ihrer Ebene (0,72) zurueck und traege den Ton genauso wenig -- die Ausnahme waere dann
+// die Haelfte einer Regel, und das Ergebnis saehe nach „fast richtig" aus.
+assert.ok(AVESMAPS_ECOSYSTEM_DISPLAY_WASSERFLAECHEN.size > 0, "die Liste der Ausnahmen ist nicht leer");
+AVESMAPS_ECOSYSTEM_DISPLAY_WASSERFLAECHEN.forEach((k) => {
+	assert.ok(k.includes(":"), "der Schluessel " + k + " nennt Ebene UND Art");
+	assert.strictEqual(AVESMAPS_ECOSYSTEM_DISPLAY_DECKKRAFT_JE_ART[k], 1,
+		k + " ist von der globalen Deckkraft ausgenommen und muss deshalb die Vorgabe 1 tragen");
+});
+
+// ---- G2. Das Fenster „Darstellung" ist der ZWEITE Erzeuger ------------------------------------
+// 💣 Eine Regel, die einen von zwei Erzeugern bindet, ist keine Regel: der Vorschaustreifen des
+// Fensters zeigte sonst 50 %, waehrend die Karte deckend zeichnet.
+// ⭐ AUSGEFUEHRT, nicht gelesen -- ein Regex kennt keinen Geltungsbereich (die Lehre vom
+// 03.09.2026, als ein gesuchter Aufruf in einer anderen Funktion stand).
+const vonWirkt = fenster.indexOf("function ecoDisplayDeckWirkt(");
+assert.ok(vonWirkt >= 0, "das Fenster hat einen Leser fuer den WIRKENDEN Wert");
+const rumpfWirkt = fenster.slice(vonWirkt, fenster.indexOf(LF + "}", vonWirkt) + 2);
+assert.ok(rumpfWirkt.endsWith("}"), "und sein Rumpf ist vollstaendig ausgeschnitten");
+vm.runInNewContext(
+	[
+		'const ecoDisplayKeyFl = (kind, art) => kind + ":" + art;',
+		'function ecoDisplayGlobalAn(kind) { const g = _global[kind]; return (g && typeof g.an === "boolean") ? g.an : true; }',
+		'function ecoDisplayGlobalWert(kind) { const g = _global[kind];'
+			+ ' return (g && typeof g.wert === "number") ? g.wert : avesmapsEcosystemDisplayDeckkraft(kind, ""); }',
+		'function ecoDisplayTeil(teil) { return teil === "deckkraft" ? _deck : {}; }',
+		rumpfWirkt,
+		'_global = { topographie: { an: true, wert: 0.5 } };',
+		'assert.strictEqual(ecoDisplayDeckWirkt("topographie", "see"), 1,',
+		'	"die Vorschau des Fensters zeigt den See deckend");',
+		'assert.strictEqual(ecoDisplayDeckWirkt("topographie", "gebirge"), 0.5,',
+		'	"und das Gebirge auf dem globalen Wert seiner Ebene");',
+		'_deck = { "topographie:see": 0.4 };',
+		'assert.strictEqual(ecoDisplayDeckWirkt("topographie", "see"), 0.4,',
+		'	"ein gespeicherter eigener Wert gewinnt auch in der Vorschau");',
+	].join(LF),
+	{
+		_global: {},
+		_deck: {},
+		assert,
+		avesmapsEcosystemDisplayDeckkraft,
+		avesmapsEcosystemDisplayGlobaleDeckkraftGilt,
+	},
+	{ filename: "ecoDisplayDeckWirkt (ausgeschnitten)" }
+);
+
+// 💣 Und die Liste der Ausnahmen kommt aus der GETEILTEN Regel, nicht aus einer zweiten Tafel im
+// Fenster -- sonst nennte die Beschriftung beim naechsten Zuwachs eine andere Menge als die Karte.
+const vonOhne = fenster.indexOf("function ecoDisplayGlobalOhne(");
+assert.ok(vonOhne >= 0, "das Fenster hat einen Leser fuer die ausgenommenen Arten");
+const rumpfOhne = fenster.slice(vonOhne, fenster.indexOf(LF + "}", vonOhne) + 2);
+assert.ok(rumpfOhne.includes("avesmapsEcosystemDisplayGlobaleDeckkraftGilt"),
+	"und er fragt die geteilte Regel");
+assert.ok(!/WASSERFLAECHEN|"see"/.test(rumpfOhne), "und nennt selbst keine Art");
+
+// ---- G3. 🔴 DAS BEDIENELEMENT IST BESCHRIFTET -------------------------------------------------
+// AGENTS.md §11: „wer einen Wert doch irgendwo uebersteuert, beschriftet das Bedienelement -- ein
+// Regler, dessen Wert stillschweigend nirgends gilt, ist von einem kaputten Formular nicht zu
+// unterscheiden." Ohne diesen Abschnitt ist der ganze Umbau die Falle, die das Haus am 02.09.2026
+// mit 76 Gipfeln bezahlt hat.
+const vonGlobal = fenster.indexOf("function ecoDisplayZeichneGlobal(");
+assert.ok(vonGlobal >= 0, "das Fenster zeichnet den globalen Regler");
+const rumpfGlobal = fenster.slice(vonGlobal, fenster.indexOf(LF + "}", vonGlobal) + 2);
+assert.ok(rumpfGlobal.includes("ecoDisplayGlobalOhne(kind)"),
+	"die Beschriftung des Haekchens fragt, welche Arten ausgenommen sind");
+assert.ok(rumpfGlobal.includes("ECO_DISPLAY_GLOBAL_OHNE_SATZ"),
+	"und nennt den Grund, nicht nur die Tatsache");
+
+// ⚠️ Die Zeile einer ausgenommenen Art bleibt BEDIENBAR und sagt sichtbar, warum -- sonst waere die
+// Ausnahme genau der stille Riegel, den sie verhindern soll.
+const vonTab = fenster.indexOf("function ecoDisplayZeichneTabelle(");
+assert.ok(vonTab >= 0, "das Fenster zeichnet die Tabelle");
+const rumpfTab = fenster.slice(vonTab, fenster.indexOf(LF + "}", vonTab) + 2);
+assert.ok(rumpfTab.includes("const stumm = ecoDisplayGlobalAn(kind) && globalGiltHier;"),
+	"eine ausgenommene Zeile wird NICHT stumm");
+assert.ok(rumpfTab.includes("fl-ausnahme") && rumpfTab.includes("vom Häkchen oben ausgenommen"),
+	"und traegt eine sichtbare Marke, nicht nur einen Tooltip");
+assert.ok(rumpfTab.includes("ECO_DISPLAY_GLOBAL_OHNE_SATZ"), "mit demselben Grund dahinter");
+// 💣 Eine Marke ohne Stil ist eine Marke, die niemand als solche liest.
+const cssEditor = fs.readFileSync(path.join(__dirname, "../../../css/pages/landschaften-editor.css"), "utf8");
+assert.ok(/\.fl-ausnahme\b/.test(cssEditor), "und das Blatt des Fensters kennt ihre Klasse");
+// ⚠️ Ein Satz UEBER die Ausnahme taucht nur auf, wo es sie gibt -- sonst liest er sich wie eine
+// Einschraenkung, die auf dieser Ebene niemand findet.
+assert.ok(rumpfTab.includes("ecoDisplayGlobalOhne(kind).length"),
+	"die Fussnote nennt die Ausnahme nur auf einer Ebene, die eine hat");
 
 console.log("ecosystem-display-flaeche: alle Zusicherungen gruen");

@@ -53,6 +53,31 @@ const AVESMAPS_ECOSYSTEM_DISPLAY_DECKKRAFT_JE_ART = {
 	"topographie:see": 1,
 };
 
+// ---- Wasser ist kein Gelaende -----------------------------------------------------------------
+// Die Flaechen, denen die GLOBALE Deckkraft ihrer Ebene nicht gilt. Der Schluessel ist derselbe
+// `<Ebene>:<Art>` wie oben.
+//
+// 🔴 DER GRUND, UND ER IST KEINE GESCHMACKSFRAGE. Die globale Deckkraft ist dafuer da, das gemalte
+// GELAENDE durchscheinen zu lassen -- ein derographischer Behaelter, ein Gebirge, ein Klimaband
+// liegen UEBER der Karte und sollen sie nicht zudecken. Wasser ist kein Gelaende: es zeichnet an
+// seiner Stelle die Karte selbst, und sein Ton ist eine ZUSAGE -- „Fluss und See sind ein
+// Gewaesser, ein Ton" (Owner 07.09. und 09.09.2026, zweimal gemeldet).
+// 💣 BEI JEDER DECKKRAFT UNTER 1 KANN DIE FLAECHE DEN TON NICHT TRAGEN, und das ist gerechnet,
+// nicht gewaehlt: es gibt keine Fuellfarbe, die bei halber Deckkraft ueber dem Pergament #d3cec2
+// zu #4c89c6 aufmischt -- ein Kanal muesste negativ sein (2*76 - 211 = -59). Eine durchscheinende
+// Wasserflaeche ist also nicht „etwas blasser" als der Fluss daneben, sie ist ein ANDERER Ton.
+// 🔴 AUSGENOMMEN IST NUR DIE GLOBALE REGEL, NIE DIE WAHL DES OWNERS. Wer die Zeile dieser Art im
+// Fenster „Darstellung" von Hand stellt, bekommt seinen durchscheinenden See -- die GESPEICHERTE
+// Deckkraft steht in der Rangfolge vor der Vorgabe und damit auch vor dieser Ausnahme. Ein Regler,
+// dessen Wert nirgends gilt, waere von einem kaputten Formular nicht zu unterscheiden; deshalb
+// beschriftet das Fenster die Ausnahme auch sichtbar (ecoDisplayGlobalOhne).
+// ⚠️ WELCHE FLAECHEN DAS SIND, SAGT DIESE LISTE UND NICHTS SONST. Das Meer zum Beispiel steht
+// nicht darin: es traegt seinen eigenen Ton und hat keinen Zwilling, mit dem es sich beissen
+// koennte.
+const AVESMAPS_ECOSYSTEM_DISPLAY_WASSERFLAECHEN = new Set([
+	"topographie:see",
+]);
+
 // ---- Die Schriftgroesse ----------------------------------------------------------------------
 // 🔴 GERECHNET, NICHT ABGESCHRIEBEN: dieselbe Formel wie getScaledLabelSize in
 // map-features-labels.js, mit der Grundgroesse 18 aus index.html.
@@ -410,6 +435,23 @@ function avesmapsEcosystemDisplayFarbe(subtype, tokenTon) {
 }
 
 /**
+ * Gilt die GLOBALE Deckkraft dieser Ebene auch DIESER Flaeche?
+ *
+ * 🔴 DIE EINE STELLE, AN DER DIE AUSNAHME STEHT -- kein `typeKey === "see"` irgendwo sonst. Wer
+ * eine Flaeche ausnehmen will, schreibt sie in AVESMAPS_ECOSYSTEM_DISPLAY_WASSERFLAECHEN und fragt
+ * hier; die Begruendung steht dort.
+ * 💣 ZWEI ERZEUGER FRAGEN SIE: die Karte ueber avesmapsEcosystemDisplayDeckkraft und das Fenster
+ * „Darstellung" ueber ecoDisplayDeckWirkt (html/landschaften-editor.html). Eine Regel, die einen
+ * von zwei Erzeugern bindet, ist keine Regel -- sonst zeigt die Vorschau das eine und die Karte
+ * zeichnet das andere.
+ */
+function avesmapsEcosystemDisplayGlobaleDeckkraftGilt(kind, typeKey) {
+	return !AVESMAPS_ECOSYSTEM_DISPLAY_WASSERFLAECHEN.has(
+		avesmapsEcosystemDisplayFlaechenKey(kind, typeKey)
+	);
+}
+
+/**
  * Die Deckkraft, die WIRKT.
  *
  * 💣 Der globale Wert einer Ebene ueberschreibt den Zeilenwert, er LOESCHT ihn nicht. Ein Haekchen
@@ -418,12 +460,16 @@ function avesmapsEcosystemDisplayFarbe(subtype, tokenTon) {
  *
  * 🔴 VIER STUFEN, in dieser Reihenfolge: der globale Wert der Ebene · die gespeicherte Deckkraft
  * dieser Art · die Vorgabe dieser Art (AVESMAPS_ECOSYSTEM_DISPLAY_DECKKRAFT_JE_ART) · die Vorgabe
- * der Ebene. Die dritte Stufe ist die neue; sie steht UNTER den zwei gespeicherten, weil eine
- * Vorgabe nie eine ausdrueckliche Einstellung schlagen darf.
+ * der Ebene. Die dritte Stufe steht UNTER den zwei gespeicherten, weil eine Vorgabe nie eine
+ * ausdrueckliche Einstellung schlagen darf.
+ * 🔴 UND DIE ERSTE STUFE ENTFAELLT FUER DIE FLAECHEN, DENEN SIE NICHT GILT
+ * (avesmapsEcosystemDisplayGlobaleDeckkraftGilt): fuer sie lautet die Rangfolge gespeicherter
+ * eigener Wert · Vorgabe dieser Art. Die globale Regel ueberspringt sie, ihre eigene Wahl nicht.
  */
 function avesmapsEcosystemDisplayDeckkraft(kind, typeKey) {
 	const global = avesmapsEcosystemDisplayTeil("global")[String(kind || "")];
-	if (global && global.an === true && typeof global.wert === "number") {
+	if (global && global.an === true && typeof global.wert === "number"
+		&& avesmapsEcosystemDisplayGlobaleDeckkraftGilt(kind, typeKey)) {
 		return global.wert;
 	}
 	const eigen = avesmapsEcosystemDisplayTeil("deckkraft")[avesmapsEcosystemDisplayFlaechenKey(kind, typeKey)];
@@ -580,6 +626,7 @@ function avesmapsLoadEcosystemDisplay() {
 if (typeof globalThis !== "undefined") {
 	globalThis.AVESMAPS_ECOSYSTEM_DISPLAY_DECKKRAFT = AVESMAPS_ECOSYSTEM_DISPLAY_DECKKRAFT;
 	globalThis.AVESMAPS_ECOSYSTEM_DISPLAY_DECKKRAFT_JE_ART = AVESMAPS_ECOSYSTEM_DISPLAY_DECKKRAFT_JE_ART;
+	globalThis.AVESMAPS_ECOSYSTEM_DISPLAY_WASSERFLAECHEN = AVESMAPS_ECOSYSTEM_DISPLAY_WASSERFLAECHEN;
 	globalThis.AVESMAPS_ECOSYSTEM_DISPLAY_VORGABE = AVESMAPS_ECOSYSTEM_DISPLAY_VORGABE;
 	globalThis.AVESMAPS_ECOSYSTEM_DISPLAY_VORGABE_JE_ART = AVESMAPS_ECOSYSTEM_DISPLAY_VORGABE_JE_ART;
 	globalThis.AVESMAPS_ECOSYSTEM_DISPLAY_BAND_MAX = AVESMAPS_ECOSYSTEM_DISPLAY_BAND_MAX;

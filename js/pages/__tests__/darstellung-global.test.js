@@ -1,6 +1,7 @@
 const assert = require("assert");
 const fs = require("fs");
 const path = require("path");
+const vm = require("vm");
 
 // Die globale Deckkraft im Fenster „Darstellung" (Entwurf §5.3).
 //
@@ -32,8 +33,25 @@ const ecoDisplayKeyFl = (kind, art) => kind + ":" + art;
 const VORGABE = { derographisch: 0.16, vegetation: 0.72, topographie: 0.72, klima: 0.3 };
 const avesmapsEcosystemDisplayDeckkraft = (kind) => VORGABE[kind];
 
+// 🔴 SEIT 10.09.2026 FRAGT DIE REGEL EINE AUSNAHME (Wasser ist kein Gelaende). Sie kommt ECHT aus
+// js/map-features/ecosystem-display.js herein -- ein `() => true` als Attrappe haette den Schnitt
+// wieder gruen gemacht und dabei genau die Aussage verloren, um die es hier geht: dieses Fenster
+// und die Karte muessen die Ausnahme GLEICH beantworten.
+vm.runInThisContext(
+	fs.readFileSync(path.join(wurzel, "js/map-features/ecosystem-display.js"), "utf8"),
+	{ filename: "ecosystem-display.js" }
+);
+const gilt = globalThis.avesmapsEcosystemDisplayGlobaleDeckkraftGilt;
+assert.strictEqual(typeof gilt, "function", "die geteilte Ausnahme ist ladbar");
+// ⚠️ Die ausgenommene Art wird NICHT abgeschrieben -- eine zweite Liste hier liefe beim naechsten
+// Zuwachs gegen die der Karte.
+const WASSER = Array.from(globalThis.AVESMAPS_ECOSYSTEM_DISPLAY_WASSERFLAECHEN);
+assert.ok(WASSER.length > 0, "es gibt mindestens eine ausgenommene Flaeche");
+const [wasserKind, wasserArt] = WASSER[0].split(":");
+
 const gebaut = new Function(
 	"ecoDisplayTeil", "ecoDisplayKeyFl", "avesmapsEcosystemDisplayDeckkraft",
+	"avesmapsEcosystemDisplayGlobaleDeckkraftGilt",
 	[
 		schneide("ecoDisplayGlobalAn"),
 		schneide("ecoDisplayGlobalWert"),
@@ -41,7 +59,7 @@ const gebaut = new Function(
 		schneide("ecoDisplayDeckZeile"),
 		"return { ecoDisplayGlobalAn, ecoDisplayGlobalWert, ecoDisplayDeckWirkt, ecoDisplayDeckZeile };"
 	].join("\n")
-)(ecoDisplayTeil, ecoDisplayKeyFl, avesmapsEcosystemDisplayDeckkraft);
+)(ecoDisplayTeil, ecoDisplayKeyFl, avesmapsEcosystemDisplayDeckkraft, gilt);
 
 // ---- A. Ohne alles gilt die Vorgabe DER EBENE --------------------------------------------------
 zustand = {};
@@ -60,6 +78,25 @@ assert.strictEqual(gebaut.ecoDisplayDeckWirkt("vegetation", "wald"), 0.9, "globa
 // 💣 ...und der Zeilenwert steht die ganze Zeit unveraendert daneben.
 assert.strictEqual(gebaut.ecoDisplayDeckZeile("vegetation", "wald"), 0.15,
 	"die Zeile traegt ihre 15 %, auch waehrend global wirkt");
+
+// ---- C2. ...aber nicht bei einer Flaeche, der die globale Regel nicht gilt ---------------------
+// 🔴 Wasser ist kein Gelaende: die globale Deckkraft laesst GELAENDE durchscheinen, und der Ton
+// eines Gewaessers ist eine Zusage („Fluss und See sind ein Gewaesser, ein Ton", Owner 09.09.2026).
+// Fuer diese Art gilt weiter ihr ZEILENwert -- sonst waere der Regler des Owners dort tot.
+zustand = {
+	global: { [wasserKind]: { an: true, wert: 0.9 } },
+	deckkraft: { [wasserKind + ":" + wasserArt]: 0.15, [wasserKind + ":gebirge"]: 0.15 },
+};
+assert.strictEqual(gebaut.ecoDisplayDeckWirkt(wasserKind, wasserArt), 0.15,
+	wasserArt + ": der Zeilenwert gilt weiter, obwohl die Ebene global auf 90 % steht");
+// 💣 DIE GEGENPROBE: ausgenommen ist die ART, nicht die EBENE. Ohne sie faellt die ganze Ebene aus
+// der globalen Regel, und der gemeldete Fall stimmt trotzdem. (`gebirge` muss dafuer nur eine Art
+// DERSELBEN Ebene sein, die nicht in der Liste steht.)
+assert.strictEqual(gebaut.ecoDisplayDeckWirkt(wasserKind, "gebirge"), 0.9,
+	"das Gebirge derselben Ebene folgt dem globalen Wert weiter");
+// ⚠️ Und der Zustand aus Abschnitt C wird wiederhergestellt: D haengt an ihm und haette sonst kein
+// `global.vegetation` mehr, an dem es das Haekchen abnehmen koennte.
+zustand = { global: { vegetation: { an: true, wert: 0.9 } }, deckkraft: { "vegetation:wald": 0.15 } };
 
 // ---- D. Abgehakt kommt der Zeilenwert UNVERAENDERT zurueck --------------------------------------
 zustand.global.vegetation.an = false;

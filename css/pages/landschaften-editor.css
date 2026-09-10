@@ -243,6 +243,19 @@
 .dt tr.is-stumm .fl-range,
 .dt tr.is-stumm .fl-pctnum { opacity: 0.4; }
 
+/* Die Marke einer Art, der das Haekchen oben NICHT gilt -- sie steht in der Zelle unter Regler und
+   Prozentfeld, weil sie eine Aussage ueber GENAU DIESEN Regler ist.
+   ⚠️ Gestrichelte Unterlinie plus Hilfezeiger, weil sie ein `title` traegt: ohne dieses Zeichen
+   liest sich die kurze Marke wie die ganze Auskunft (dieselbe Regel wie bei den Quellenzeilen). */
+.dt td .fl-ausnahme {
+	display: block;
+	color: var(--color-accent-brown);
+	font-size: 11px;
+	text-decoration: underline dotted;
+	text-underline-offset: 2px;
+	cursor: help;
+}
+
 /* ── „Namen — Kollision": zwei Häkchen je Namensart (Owner 02.09.2026) ─────────────────────────
    Prototyp docs/label-kollision-matrix-mockup.html. Sie liegt in derselben .dt-Tabelle wie oben --
    keine zweite Tabellenbauform (dieselbe Regel wie bei den Listenzeilen, AGENTS.md §11).
