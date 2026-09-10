@@ -8,8 +8,10 @@
 // „“ existierte die ganze Zeit
 // (AVESMAPS_GARETIEN_AUSWAHL_KNOEPFE_JE_REITER.stage), er wurde nur nie gezeichnet.
 //
-// 🔴 ANGESCHLOSSEN SIND DIE DREI ZUSTANDSÄNDERER, nicht die Klickwege: umschalten, alle wählen,
-// aufheben. Die Klickwege dorthin sind vier und werden mehr.
+// 🔴 ANGESCHLOSSEN SIND DIE ZUSTANDSÄNDERER, nicht die Klickwege: umschalten, alle wählen,
+// aufheben -- und seit Fixrunde 1 zu Aufgabe 10 (Befund 1, Garetien-Fragmente-Verbund) auch der
+// Verbund-Umschalter der gefalteten Zeile (garetienUebernommenAuswahlUmschalten). Die Klickwege
+// dorthin werden mehr, wie der Kommentar hier von Anfang an vorhersagt.
 //
 // Ausführen: node js/review/__tests__/garetien-auswahlleiste-folgt.test.js
 
@@ -64,12 +66,17 @@ pruefe(namen.indexOf("auswahl_entstagen") !== -1,
 	"und trägt „“: " + namen.join(", "));
 pruefe(namen.indexOf("auswahl_aufheben") !== -1, "sowie „“");
 
-// --- 6. Die Naht: alle drei Änderer rufen wirklich auf --------------------------------------------
-// 💣 1 bis 5 könnten grün sein, während ein vierter Änderer dazukommt und es niemand merkt. Gezählt
+// --- 6. Die Naht: alle Änderer rufen wirklich auf --------------------------------------------
+// 💣 1 bis 5 könnten grün sein, während ein weiterer Änderer dazukommt und es niemand merkt. Gezählt
 // wird deshalb der AUFRUF, nicht die Definition.
+// 🔴 5, seit Fixrunde 1 zu Aufgabe 10 (Befund 1): der Verbund-Umschalter der gefalteten Zeile
+// (garetienUebernommenAuswahlUmschalten) mutiert `zustand.auswahl` genauso wie die drei
+// ursprünglichen Änderer und muss darum ebenso die Leiste auffrischen -- vorher zwei Ausgänge des
+// Umschalters + „alle wählen" + „aufheben".
 const fs = require("fs");
 const quelle = fs.readFileSync(require("path").join(__dirname, "..", "review-garetien-importer.js"), "utf8");
 const rufe = (quelle.match(/garetienAuswahlleisteAuffrischen\(\);/g) || []).length;
-pruefe(rufe === 4, "vier Aufrufe -- zwei Ausgänge des Umschalters, alle wählen, aufheben: " + rufe);
+pruefe(rufe === 5,
+	"fünf Aufrufe -- zwei Ausgänge des Umschalters, alle wählen, aufheben, Verbund-Umschalter: " + rufe);
 
 console.log("OK -- " + n + " Zusicherungen");
