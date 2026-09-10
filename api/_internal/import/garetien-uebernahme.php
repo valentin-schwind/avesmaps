@@ -2426,6 +2426,40 @@ function avesmapsGaretienQuellenNachtrag(PDO $pdo, array $beruehrt, int $userId)
 }
 
 /**
+ * Welchen Loeschweg nimmt die Ruecknahme eines 'region'-Items?
+ *
+ * 🔴 EIN VERBUND-FRAGMENT GEHT UEBER SEINE FLAECHE. avesmapsDeleteEcosystemArea (api/_internal/
+ * app/ecosystem.php) traegt die Kaskade schon in sich: nimmt eine Flaeche die LETZTE einer
+ * Region, gehen Region und Beschriftung von selbst mit ("Was that the region's last area? Then
+ * the region and its labels go with it."). Damit gibt es KEINEN Anfuehrer-Sonderfall -- das
+ * letzte Fragment nimmt Region und Beschriftung von selbst mit, egal welches es ist (Entwurf §8).
+ * ⚠️ OHNE VERBUND (drittes Feld leer) bleibt alles wie bisher: der ganze Regionsweg, wie vor
+ * diesem Umbau.
+ *
+ * ⚠️ DER PARAMETER MUSS DER AUFGELOESTE VERMERK SEIN, NICHT `$item['apply_note']` ROH.
+ * `avesmapsGaretienRuecknahmeAusfuehren` fuellt `$publicId` schon vor diesem Aufruf mit dem
+ * RICHTIGEN Wert -- entweder dem Vermerk des aktuellen Items, oder, wenn der leer ist (ein
+ * frisches Item nach einem erneuten „Holen & Rechnen", das den Vorlauf nur auf `superseded`
+ * setzt, siehe avesmapsSyncPlanStartRun), dem Vermerk der AELTEREN Zeile ueber denselben
+ * laufuebergreifenden Rueckfall (Suche ueber `entity_key` + `change_type = 'new'`), der auch das
+ * `'path'/'location'/'label'`-Ziel schon bedient. Wer hier stattdessen `$item['apply_note']`
+ * neu einliest, ignoriert genau diesen Rueckfall: das frische Item traegt dort IMMER einen
+ * leeren Vermerk, `avesmapsGaretienVermerkLesen('')` liefert ueberall '', und die Weiche wirft
+ * "kein Loeschziel im Vermerk" fuer einen Fall, der ohne Verbuende laengst funktionierte.
+ *
+ * @return array{0:string,1:string} ['flaeche'|'region', public_id]
+ */
+function avesmapsGaretienRuecknahmeWeg(string $applyNote): array
+{
+    $teile = avesmapsGaretienVermerkLesen($applyNote);
+    if ($teile['verbund'] !== '' && $teile['area'] !== '') {
+        return ['flaeche', $teile['area']];
+    }
+
+    return ['region', $teile['region']];
+}
+
+/**
  * Die Ruecknahme: umkehren, was EINE Uebernahme angelegt hat -- das Item faellt zurueck auf
  * 'offen'. Aufgabe 9 (.superpowers/sdd/2026-08-29-garetien-importer-sichtwerkzeug/task-9-brief.md).
  *
@@ -2652,15 +2686,58 @@ function avesmapsGaretienRuecknahmeAusfuehren(PDO $pdo, int $runId, array $itemI
                 // avesmapsGaretienUebernehmen legt ihn nie als `label_public_id` einer Flaeche an).
                 avesmapsDeleteMapFeature($pdo, ['public_id' => $publicId], $user);
             } elseif ($ziel === 'region') {
-                // See/Meer/Sumpf: Label + Region + Flaeche (avesmapsGaretienFlaecheAnlegen oben,
-                // in genau dieser Reihenfolge angelegt). avesmapsDeleteEcosystemRegion (api/_internal/
-                // app/ecosystem.php) nimmt die Flaeche(n) UND alle Labels der Region in EINER
-                // Transaktion mit -- das ist die UMGEKEHRTE Reihenfolge in EINER Funktion, nicht der
-                // allgemeine Feature-Loeschweg mit seinem `refuse_ecosystem_cascade`-Riegel: der ist
-                // gebaut, um die Kaskade beim Loeschen EINER Beschriftung zu VERHINDERN (AGENTS.md
-                // §11, Konfliktzentrum, Regel label.duplicate); hier wird sie gewollt und
-                // vollstaendig ausgefuehrt.
-                avesmapsDeleteEcosystemRegion($pdo, ['public_id' => $publicId], (int) ($user['id'] ?? 0));
+                // 🔴 AUFGABE 7: $publicId TRAEGT HIER KEINE NACKTE public_id MEHR, SONDERN DEN
+                // STRUKTURIERTEN VERMERK ("area:<a> | region:<r> | verbund:<v>") -- seit Aufgabe 6
+                // schreibt jedes 'region'-Item ihn, auch OHNE Verbund (dann bleibt das dritte
+                // Feld leer). Dieselbe Variable traegt oben fuer path/location/label weiterhin
+                // eine nackte id; nur hier ist sie ein Vermerk zum Zerlegen.
+                //
+                // ⚠️ GELESEN WIRD $publicId, NICHT NOCH EINMAL `$item['apply_note']`: $publicId
+                // ist zu diesem Zeitpunkt schon der RICHTIGE Wert -- entweder aus der aktuellen
+                // Zeile, oder (bei einer frischen Zeile nach einem erneuten „Holen & Rechnen")
+                // aus dem laufuebergreifenden Rueckfall wenige Zeilen weiter oben. Ein erneutes
+                // `$item['apply_note']` uebersaehe genau diesen Rueckfall.
+                [$loeschweg, $zielId] = avesmapsGaretienRuecknahmeWeg($publicId);
+                if ($zielId === '') {
+                    throw new RuntimeException('kein Loeschziel im Vermerk');
+                }
+                if ($loeschweg === 'flaeche') {
+                    // Nur DIESE Flaeche eines Verbunds. avesmapsDeleteEcosystemArea traegt die
+                    // Kaskade schon in sich: nimmt eine Flaeche die letzte einer Region, gehen
+                    // Region und Beschriftung von selbst mit (Entwurf §8) -- kein
+                    // Anfuehrer-Sonderfall noetig.
+                    //
+                    // 💣 `expected_revision` ist bei dieser Funktion PFLICHT (anders als bei
+                    // avesmapsDeleteMapFeature, wo es optional ist) -- ohne sie wirft
+                    // avesmapsEcosystemReadExpectedRevision sofort. Es ist keine
+                    // Nebenlaeufigkeitspruefung wie im Editor (dort liest der Client seinen
+                    // zuletzt gesehenen Stand); hier gibt es keinen Client -- gelesen wird der
+                    // AKTUELLE Stand direkt vor dem Loeschen.
+                    $revisionStmt = $pdo->prepare(
+                        'SELECT geometry_revision FROM ecosystem_area WHERE public_id = :p AND is_active = 1 LIMIT 1'
+                    );
+                    $revisionStmt->execute([':p' => $zielId]);
+                    $geometryRevision = $revisionStmt->fetchColumn();
+                    if ($geometryRevision === false) {
+                        throw new RuntimeException('Die Flaeche ' . $zielId . ' existiert nicht mehr.');
+                    }
+                    avesmapsDeleteEcosystemArea(
+                        $pdo,
+                        ['public_id' => $zielId, 'expected_revision' => (int) $geometryRevision],
+                        (int) ($user['id'] ?? 0)
+                    );
+                } else {
+                    // See/Meer/Sumpf ohne Verbund: Label + Region + Flaeche (avesmapsGaretien
+                    // FlaecheAnlegen oben, in genau dieser Reihenfolge angelegt).
+                    // avesmapsDeleteEcosystemRegion (api/_internal/app/ecosystem.php) nimmt die
+                    // Flaeche(n) UND alle Labels der Region in EINER Transaktion mit -- das ist
+                    // die UMGEKEHRTE Reihenfolge in EINER Funktion, nicht der allgemeine
+                    // Feature-Loeschweg mit seinem `refuse_ecosystem_cascade`-Riegel: der ist
+                    // gebaut, um die Kaskade beim Loeschen EINER Beschriftung zu VERHINDERN
+                    // (AGENTS.md §11, Konfliktzentrum, Regel label.duplicate); hier wird sie
+                    // gewollt und vollstaendig ausgefuehrt.
+                    avesmapsDeleteEcosystemRegion($pdo, ['public_id' => $zielId], (int) ($user['id'] ?? 0));
+                }
             } else {
                 throw new RuntimeException('unbekanntes Ziel "' . $ziel . '" -- keine Ruecknahme moeglich');
             }

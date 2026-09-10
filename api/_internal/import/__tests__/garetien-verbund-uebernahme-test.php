@@ -576,3 +576,207 @@ assert($flaechenWaldI === 2, 'I: die Wald-Region traegt BEIDE Wald-Flaechen (Lau
 assert($flaechenHuegelI === 1, 'I: die Huegelland-Region bleibt bei IHRER EINEN Flaeche, bekommen: ' . $flaechenHuegelI);
 
 echo "OK -- garetien-verbund-art-kollision (Befund E)\n";
+
+// =================================================================================================
+// AUFGABE 7 -- DIE FRAGMENTWEISE RUECKNAHME.
+// =================================================================================================
+//
+// 💣 DER HEUTIGE WEG WUERDE BEI EINEM VERBUND ALLES MITREISSEN: avesmapsDeleteEcosystemRegion
+// nimmt Beschriftung + Region + ALLE Flaechen mit. Vier Fragmente in einer Region: die
+// Ruecknahme EINES loeschte alle vier -- mit gueltiger Antwort und ohne Fehlermeldung
+// (Entwurf §8).
+
+// --- J. Die reine Weiche: welchen Loeschweg waehlt ein Vermerk? ---
+assert(avesmapsGaretienRuecknahmeWeg(avesmapsGaretienVerbundVermerk('a1', 'r1', 'Silker Hain'))
+    === ['flaeche', 'a1'], 'J: ein Verbund-Fragment muss ueber die FLAECHE zurueckgenommen werden');
+assert(avesmapsGaretienRuecknahmeWeg(avesmapsGaretienVerbundVermerk('a1', 'r1', ''))
+    === ['region', 'r1'], 'J: ohne Verbund bleibt der Regionsweg');
+assert(avesmapsGaretienRuecknahmeWeg('11112222-3333-4444-5555-666677778888')
+    === ['region', '11112222-3333-4444-5555-666677778888'], 'J: der alte Vermerk bleibt der Regionsweg');
+// Ein leerer Vermerk (das Fehlerszenario aus K unten, wenn NICHTS ihn ausfuellt) darf kein
+// stilles Regionsziel "" erfinden -- die Weiche liefert dann ein LEERES Ziel, und der Aufrufer
+// muss das selbst als Fehler behandeln (siehe die 'kein Loeschziel im Vermerk'-Zusicherung in M).
+assert(avesmapsGaretienRuecknahmeWeg('') === ['region', ''], 'J: ein leerer Vermerk liefert ein leeres Regionsziel, keinen Fehler');
+
+echo "OK -- garetien-ruecknahme-weg (Aufgabe 7, Schritt 1)\n";
+
+/**
+ * Ein 'region'-Item VOLLSTAENDIG uebernehmen lassen und den Item-Datensatz zurueckgeben --
+ * gebuendelt, weil Abschnitt K/L/M denselben Ablauf mehrfach braucht (anlegen, Vermerk lesen,
+ * die echten Flaechen-/Region-/Label-ids einsammeln).
+ */
+function avesmapsGaretienRuecknahmeTestVerbundAnlegen(PDO $pdo, int $userId): array
+{
+    $runId = avesmapsSyncPlanStartRun($pdo, AVESMAPS_GARETIEN_PLAN_KIND, $userId, 'test-ruecknahme-verbund');
+    $item1 = avesmapsGaretienVerbundTestFragment($pdo, $runId, 'Silker Hain 1', 1, avesmapsGaretienVerbundTestRing(100, 100));
+    $item2 = avesmapsGaretienVerbundTestFragment($pdo, $runId, 'Silker Hain 2', 2, avesmapsGaretienVerbundTestRing(200, 200));
+    $ergebnis = avesmapsGaretienUebernehmen($pdo, $runId, [$item1, $item2], ['id' => $userId], null, [
+        $item1 => ['verbund' => 'Silker Hain'],
+        $item2 => ['verbund' => 'Silker Hain'],
+    ]);
+    if ($ergebnis['fehler'] !== []) {
+        throw new RuntimeException('Testaufbau gescheitert: ' . json_encode($ergebnis['fehler'], JSON_UNESCAPED_UNICODE));
+    }
+
+    $noten = $pdo->query('SELECT id, apply_note FROM sync_plan_item WHERE id IN (' . $item1 . ',' . $item2 . ') ORDER BY id')
+        ->fetchAll(PDO::FETCH_KEY_PAIR);
+
+    return [
+        'run_id' => $runId,
+        'item1' => $item1,
+        'item2' => $item2,
+        'vermerk1' => avesmapsGaretienVermerkLesen((string) $noten[$item1]),
+        'vermerk2' => avesmapsGaretienVermerkLesen((string) $noten[$item2]),
+    ];
+}
+
+// --- K. Die Ruecknahme EINES (nicht des letzten) Fragments nimmt nur DESSEN Flaeche ---
+//
+// Fragment 2 wird zurueckgenommen, waehrend Fragment 1 noch steht -- Region, Label und die
+// Flaeche von Fragment 1 duerfen davon UNBERUEHRT bleiben. Genau das ist die Zusicherung, die
+// vor Aufgabe 7 fehlte: der alte Weg haette hier die GANZE Region samt Fragment 1 mitgerissen.
+$pdoK = avesmapsGaretienVerbundUebernahmeTestPdo();
+$verbundK = avesmapsGaretienRuecknahmeTestVerbundAnlegen($pdoK, 7);
+
+$rK = avesmapsGaretienRuecknahmeAusfuehren($pdoK, $verbundK['run_id'], [$verbundK['item2']], ['id' => 7]);
+assert($rK['zurueckgenommen'] === 1, 'K: Fragment 2 muss zurueckgenommen werden: ' . json_encode($rK['fehler'], JSON_UNESCAPED_UNICODE));
+assert($rK['fehler'] === [], 'K: keine Fehler erwartet: ' . json_encode($rK['fehler'], JSON_UNESCAPED_UNICODE));
+
+$flaeche1AktivK = (int) $pdoK->query(
+    "SELECT is_active FROM ecosystem_area WHERE public_id = '" . $verbundK['vermerk1']['area'] . "'"
+)->fetchColumn();
+$flaeche2AktivK = (int) $pdoK->query(
+    "SELECT is_active FROM ecosystem_area WHERE public_id = '" . $verbundK['vermerk2']['area'] . "'"
+)->fetchColumn();
+assert($flaeche1AktivK === 1, 'K: Fragment 1s Flaeche bleibt aktiv -- die Ruecknahme darf nicht die ganze Region reissen');
+assert($flaeche2AktivK === 0, 'K: NUR Fragment 2s Flaeche wird inaktiv');
+
+$regionAktivK = (int) $pdoK->query(
+    "SELECT is_active FROM ecosystem_region WHERE public_id = '" . $verbundK['vermerk1']['region'] . "'"
+)->fetchColumn();
+assert($regionAktivK === 1, 'K: die Region bleibt aktiv, solange Fragment 1 noch eine Flaeche traegt');
+
+$labelAktivK = (int) $pdoK->query("SELECT is_active FROM map_features WHERE feature_type = 'label'")->fetchColumn();
+assert($labelAktivK === 1, 'K: die Beschriftung bleibt stehen, solange die Region noch eine Flaeche traegt');
+
+$itemK2 = $pdoK->query('SELECT apply_state, apply_note, selected FROM sync_plan_item WHERE id = ' . $verbundK['item2'])
+    ->fetch(PDO::FETCH_ASSOC);
+assert($itemK2['apply_state'] === null && $itemK2['apply_note'] === null, 'K: Fragment 2 faellt zurueck auf "Offen"');
+assert((int) $itemK2['selected'] === 1, 'K: Fragment 2 ist wieder angehakt');
+
+echo "OK -- garetien-ruecknahme-einzelfragment (Aufgabe 7, Schritt K)\n";
+
+// --- L. Die Ruecknahme des LETZTEN verbliebenen Fragments nimmt Region UND Beschriftung mit ---
+//
+// Fortsetzung von K: jetzt auch Fragment 1 zurueck (den ANFUEHRER -- der die Region angelegt
+// hat). Es ist jetzt das LETZTE verbliebene Fragment der Region -- avesmapsDeleteEcosystemArea
+// muss die Kaskade selbst ausloesen, OHNE dass diese Funktion einen Anfuehrer-Sonderfall kennt.
+$rL = avesmapsGaretienRuecknahmeAusfuehren($pdoK, $verbundK['run_id'], [$verbundK['item1']], ['id' => 7]);
+assert($rL['zurueckgenommen'] === 1, 'L: Fragment 1 (der Anfuehrer) muss zurueckgenommen werden: ' . json_encode($rL['fehler'], JSON_UNESCAPED_UNICODE));
+assert($rL['fehler'] === [], 'L: keine Fehler erwartet: ' . json_encode($rL['fehler'], JSON_UNESCAPED_UNICODE));
+
+$flaeche1AktivL = (int) $pdoK->query(
+    "SELECT is_active FROM ecosystem_area WHERE public_id = '" . $verbundK['vermerk1']['area'] . "'"
+)->fetchColumn();
+assert($flaeche1AktivL === 0, 'L: Fragment 1s Flaeche wird jetzt auch inaktiv');
+
+$regionAktivL = (int) $pdoK->query(
+    "SELECT is_active FROM ecosystem_region WHERE public_id = '" . $verbundK['vermerk1']['region'] . "'"
+)->fetchColumn();
+assert($regionAktivL === 0, 'L: OHNE eine einzige verbliebene Flaeche geht die Region automatisch mit (Kaskade in avesmapsDeleteEcosystemArea)');
+
+$labelAktivL = (int) $pdoK->query("SELECT is_active FROM map_features WHERE feature_type = 'label'")->fetchColumn();
+assert($labelAktivL === 0, 'L: und die Beschriftung ebenso -- kein Geist, der eine leere Region benennt');
+
+// 🔴 KEIN ANFUEHRER-SONDERFALL, GEPRUEFT AM PROTOKOLL: die Region muss ueber die KASKADE in
+// avesmapsDeleteEcosystemArea verschwinden ('delete_region_cascade'), nicht ueber einen
+// EXPLIZITEN Aufruf von avesmapsDeleteEcosystemRegion ('delete_region'). Am reinen Ergebnis
+// (is_active = 0 ueberall) sind beide Wege nicht zu unterscheiden -- nur das Protokoll verraet,
+// ob die Weiche wirklich ueber die Flaeche gegangen ist, wie Entwurf §8 verlangt.
+$protokollAktionL = $pdoK->query(
+    "SELECT action FROM ecosystem_geometry_audit_log WHERE region_public_id = '" . $verbundK['vermerk1']['region']
+    . "' AND action LIKE 'delete_region%' ORDER BY id DESC LIMIT 1"
+)->fetchColumn();
+assert($protokollAktionL === 'delete_region_cascade',
+    'L: die Region muss ueber die Flaechen-Kaskade verschwinden (delete_region_cascade), nicht ueber '
+    . 'einen expliziten Regions-Loeschweg -- kein Anfuehrer-Sonderfall, bekommen: ' . $protokollAktionL);
+
+echo "OK -- garetien-ruecknahme-letztes-fragment (Aufgabe 7, Schritt L)\n";
+
+// =================================================================================================
+// M. ZUSATZANFORDERUNG DES KOORDINATORS (Pruefbefund B, Aufgabe 6) -- der laufuebergreifende
+//    Rueckfall MUSS durch DIESELBE Vermerk-Zerlegung wie der Hauptweg.
+// =================================================================================================
+//
+// Fehlerszenario: "Holen & Rechnen" legt einen NEUEN Lauf an (der alte wird 'superseded', aber
+// nie geloescht -- avesmapsSyncPlanStartRun). Das FRISCHE Item hat ein LEERES apply_note; der
+// laufuebergreifende Rueckfall (weiter oben in avesmapsGaretienRuecknahmeAusfuehren, "gesucht
+// wird ueber (kind, entity_key, change_type)") findet die AELTERE Zeile und liest DEREN Vermerk
+// in $publicId. Eine Weiche, die stattdessen `$item['apply_note']` NEU einliest, sieht davon
+// nichts -- sie bekommt fuer das frische Item IMMER '', und mit dem neuen Verbund-Format ergibt
+// avesmapsGaretienRuecknahmeWeg('') ein LEERES Loeschziel: 'kein Loeschziel im Vermerk'. Dieser
+// Pfad (ein zweites "Holen & Rechnen" vor der Ruecknahme) funktioniert schon lange (siehe
+// Abschnitt F oben) und darf durch Aufgabe 7 NICHT brechen.
+$pdoM = avesmapsGaretienVerbundUebernahmeTestPdo();
+$runMA = avesmapsSyncPlanStartRun($pdoM, AVESMAPS_GARETIEN_PLAN_KIND, 7, 'lauf-m-a');
+$itemMA1 = avesmapsGaretienVerbundTestFragment($pdoM, $runMA, 'Silker Hain 1', 1, avesmapsGaretienVerbundTestRing(300, 700));
+$itemMA2 = avesmapsGaretienVerbundTestFragment($pdoM, $runMA, 'Silker Hain 2', 2, avesmapsGaretienVerbundTestRing(400, 700));
+$ergebnisMA = avesmapsGaretienUebernehmen($pdoM, $runMA, [$itemMA1, $itemMA2], ['id' => 7], null, [
+    $itemMA1 => ['verbund' => 'Silker Hain'],
+    $itemMA2 => ['verbund' => 'Silker Hain'],
+]);
+assert($ergebnisMA['fehler'] === [], 'M (Testaufbau): Lauf A legt den Verbund an, keine Fehler: '
+    . json_encode($ergebnisMA['fehler'], JSON_UNESCAPED_UNICODE));
+
+$vermerkMA1 = avesmapsGaretienVermerkLesen(
+    (string) $pdoM->query('SELECT apply_note FROM sync_plan_item WHERE id = ' . $itemMA1)->fetchColumn()
+);
+assert($vermerkMA1['verbund'] === 'Silker Hain' && $vermerkMA1['area'] !== '',
+    'M (Testaufbau): Fragment 1 traegt den strukturierten Verbund-Vermerk');
+
+// "Holen & Rechnen": Lauf B derselben Art -- Lauf A wird 'superseded', NICHT geloescht.
+$runMB = avesmapsSyncPlanStartRun($pdoM, AVESMAPS_GARETIEN_PLAN_KIND, 7, 'lauf-m-b');
+$laufMAState = $pdoM->query('SELECT state FROM sync_plan_run WHERE id = ' . $runMA)->fetchColumn();
+assert($laufMAState === 'superseded', 'M (Testaufbau): Lauf A steht auf superseded, nicht geloescht -- bekommen: ' . $laufMAState);
+
+// Dieselbe Zeile (Fragment 1, entity_key "ggp:Waelder:Wald:#1") kommt im neuen Lauf FRISCH an:
+// apply_state und apply_note sind NULL, wie bei jedem frisch eingelesenen Vorschlag.
+$itemMB1 = avesmapsGaretienVerbundTestFragment($pdoM, $runMB, 'Silker Hain 1', 1, avesmapsGaretienVerbundTestRing(300, 700));
+$frischMB1 = $pdoM->query('SELECT apply_state, apply_note FROM sync_plan_item WHERE id = ' . $itemMB1)->fetch(PDO::FETCH_ASSOC);
+assert($frischMB1['apply_state'] === null && $frischMB1['apply_note'] === null,
+    'M (Testaufbau): das frische Item in Lauf B hat wirklich noch KEINEN eigenen Vermerk');
+
+// Die Ruecknahme laeuft auf dem FRISCHEN Item in Lauf B -- nicht auf dem alten aus Lauf A.
+$rM = avesmapsGaretienRuecknahmeAusfuehren($pdoM, $runMB, [$itemMB1], ['id' => 7]);
+assert($rM['fehler'] === [],
+    'M: der laufuebergreifende Rueckfall muss die Flaeche finden, kein "kein Loeschziel im Vermerk": '
+    . json_encode($rM['fehler'], JSON_UNESCAPED_UNICODE));
+assert($rM['zurueckgenommen'] === 1, 'M: die Ruecknahme ueber den Rueckfall muss zaehlen');
+
+$flaeche1AktivM = (int) $pdoM->query(
+    "SELECT is_active FROM ecosystem_area WHERE public_id = '" . $vermerkMA1['area'] . "'"
+)->fetchColumn();
+assert($flaeche1AktivM === 0, 'M: GENAU Fragment 1s Flaeche (aus dem Vermerk der ALTEN Zeile) wird inaktiv');
+
+$flaeche2AktivM = (int) $pdoM->query(
+    "SELECT is_active FROM ecosystem_area WHERE public_id = '" . avesmapsGaretienVermerkLesen(
+        (string) $pdoM->query('SELECT apply_note FROM sync_plan_item WHERE id = ' . $itemMA2)->fetchColumn()
+    )['area'] . "'"
+)->fetchColumn();
+assert($flaeche2AktivM === 1,
+    'M: Fragment 2s Flaeche bleibt aktiv -- der Rueckfall darf NICHT die ganze Region treffen');
+
+$regionAktivM = (int) $pdoM->query(
+    "SELECT is_active FROM ecosystem_region WHERE public_id = '" . $vermerkMA1['region'] . "'"
+)->fetchColumn();
+assert($regionAktivM === 1, 'M: die Region bleibt aktiv -- Fragment 2 traegt sie weiter');
+
+// ⚠️ UND DIE ALTE ZEILE (Lauf A, Fragment 1) FAELLT MIT AUF "Offen" ZURUECK -- sonst faende die
+// naechste Ruecknahme/Anfuehrer-Suche denselben Vermerk wieder, der jetzt auf eine geloeschte
+// Flaeche zeigt (derselbe Riegel wie beim path/location/label-Weg, siehe die Kommentare oben an
+// `$altItemId`).
+$altZeileM = $pdoM->query('SELECT apply_state, apply_note FROM sync_plan_item WHERE id = ' . $itemMA1)->fetch(PDO::FETCH_ASSOC);
+assert($altZeileM['apply_state'] === null && $altZeileM['apply_note'] === null,
+    'M: die urspruengliche Zeile aus Lauf A faellt mit auf "Offen" zurueck');
+
+echo "OK -- garetien-ruecknahme-laufuebergreifender-vermerk (Aufgabe 7, Zusatzanforderung)\n";
