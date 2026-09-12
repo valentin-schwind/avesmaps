@@ -75,6 +75,44 @@ function avesmapsGaretienListePunkteRunden(array $punkte): array
     return $raus;
 }
 
+/**
+ * PURE: die Geometrie, die das Fenster fuer EIN Objekt der Liste bekommt.
+ *
+ * 🔴 EINE STELLE FUER BEIDE ERZEUGER von `objekt.geometrie` -- den Item-Pfad und den Pfad der
+ * Zeilen ohne Vorschlag. Genau hier ist der Fehler vom 29.08.2026 schon einmal passiert (siehe
+ * den Kommentar an `urteil` im zweiten Erzeuger): gebunden war nur einer, und der Fehler blieb
+ * fuer die Objekte OHNE Item stehen -- also fuer die, um die es ging.
+ *
+ * 💣 EINE POSITION, DIE NICHT AUF DER KARTE LIEGT, IST KEINE POSITION -- sie wird verschwiegen,
+ * nicht weitergegeben. Die Quelle setzt fuer "das Objekt gibt es, auf der Karte liegt es noch
+ * nicht" die Marke `2000000 2000000`, und der Umrechner macht daraus (1222,0 / -115,6): rechts
+ * neben dem rechten Rand, unter dem unteren. Gereicht hat der Server sie trotzdem, und damit
+ * stand an der Zeile ein Knopf "Zentrieren", der die Ansicht in die UNTERE RECHTE ECKE der Karte
+ * flog -- gemeldet am 11.09.2026 (Fall #126, Angenbrueck): "Wenn die Marke 'noch nicht auf der
+ * Karte' gesetzt ist, sollte der 'Zentrieren'-Knopf ohne Funktion bleiben."
+ *
+ * 🔴 GEFRAGT WIRD `avesmapsGaretienLiegtAufDerKarte`, DIESELBE Funktion, die den Uebersprung-
+ * Riegel stellt (avesmapsGaretienUeberspringGrund). Eine eigene Rechnung hier -- oder, schlimmer,
+ * im Browser -- waere ihre zweite Fassung und liefe beim naechsten Randwert auseinander.
+ * ⚠️ Der Riegel ist bewusst mild: er verwirft nur, wenn KEIN einziger Punkt auch nur in die Naehe
+ * der Karte faellt (64 Einheiten Rand). Ein Fluss, der ueber den Kartenrand hinauslaeuft, behaelt
+ * seine Geometrie vollstaendig.
+ * ⚠️ Und `[]` ist im Browser ein LANGE BEKANNTER Zustand, kein neuer: Verweis-Objekte (Flaechen
+ * aus Grenzzuegen) haben von Anfang an keine eigenen Koordinaten. Das Markup laesst Knopf und
+ * Sicht-Leiste dann weg (garetienDetailMarkup), die Umkreissuche schweigt, und
+ * `avesmapsGaretienKarteFliegen` faellt auf seine Meldung zurueck.
+ * ⭐ Damit hoert auch "Alle zentrieren" auf, die Ecke in seinen gemeinsamen Kasten zu nehmen --
+ * sie zog ihn bisher ueber die halbe Karte auf.
+ */
+function avesmapsGaretienListeObjektGeometrie(array $punkte): array
+{
+    if (!avesmapsGaretienLiegtAufDerKarte($punkte)) {
+        return [];
+    }
+
+    return avesmapsGaretienListePunkteRunden($punkte);
+}
+
 // 🔴 `avesmapsGaretienObjektSchluessel` ist am 31.08.2026 nach garetien-plan.php gewandert --
 // neben `avesmapsGaretienObjektSchluesselAusZeile`, das den Schluessel BAUT. Sie ist seine
 // Umkehrung, und die Uebernahme braucht sie seither ebenfalls (garetien-uebernahme.php sieht
@@ -629,7 +667,7 @@ function avesmapsGaretienArbeitslisteObjekte(PDO $pdo, int $importRunId): array
             'urteil' => avesmapsGaretienListeObjektUrteil($urteilEingaben, (string) ($zeile['urteil'] ?? '')),
             'grund' => (string) ($zeile['grund'] ?? ($erstesAfter['urteil'] ?? '')),
             'abschnitte' => $abschnitte,
-            'geometrie' => avesmapsGaretienListePunkteRunden(
+            'geometrie' => avesmapsGaretienListeObjektGeometrie(
                 avesmapsGaretienListeGeometriePunkte((array) ($erstesAfter['geometry'] ?? []))
             ),
             // 🔴 IST IHR OBJEKT EINE FLAECHE ODER EINE LINIE? Der Browser kann das sonst nicht
@@ -785,7 +823,7 @@ function avesmapsGaretienArbeitslisteObjekte(PDO $pdo, int $importRunId): array
             'urteil' => avesmapsGaretienListeObjektUrteil([], (string) ($zeile['urteil'] ?? '')),
             'grund' => (string) ($zeile['grund'] ?? ''),
             'abschnitte' => $treffer['abschnitte'],
-            'geometrie' => avesmapsGaretienListePunkteRunden(avesmapsGaretienZeilePunkte($zeile)),
+            'geometrie' => avesmapsGaretienListeObjektGeometrie(avesmapsGaretienZeilePunkte($zeile)),
             // ⚠️ LEER, und das ist richtig: diese Zeilen haben KEIN Item, also kein `after` und
             // damit keine Auskunft ueber die Form. Gezeichnet werden sie nie -- die Karte zeigt
             // nur, was ein Haekchen traegt, und ohne Item gibt es keins. Der Browser faellt bei
