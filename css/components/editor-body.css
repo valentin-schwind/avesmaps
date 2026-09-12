@@ -210,6 +210,54 @@
 	border-bottom-color: var(--color-text-strong);
 }
 
+/* ---- Aus Spalten werden Reiter, sobald das Fenster schmal ist ------------------------------
+ * Die Leiste baut `js/ui/editor-spalten-reiter.js` (Entwurf
+ * docs/superpowers/specs/2026-09-12-sync-monitor-am-telefon-design.md). Sie trägt `.avm-tabs`
+ * daneben und ist damit Zeile für Zeile die Reiterzeile darüber -- hier steht NUR, wann sie
+ * sichtbar ist und was mit den abgewählten Spalten passiert.
+ *
+ * 💣 DIE REIHENFOLGE DIESER ZWEI BLÖCKE IST TRAGEND. `.avm-tabs` (0,1,0, oben) und
+ *    `.avm-spalten-reiter` (0,1,0, hier) liegen auf DEMSELBEN Element; bei gleicher Spezifität
+ *    entscheidet, was später steht. Deshalb stehen sie in derselben Datei untereinander und nicht
+ *    in zwei Blättern, deren Ladereihenfolge jemand umstellen kann -- „eine Regel, die nur über
+ *    die Ladereihenfolge gilt, ist keine Regel" (css/components/political-territory-editor-
+ *    overlay.css, wo genau das einmal passiert ist).
+ *
+ * 🔴 680px ist DIE Schwelle dieses Fensters, keine zweite Zahl:
+ *    css/components/political-territory-editor-overlay.css führt sie schon dafür, dass das Fenster
+ *    den Bildschirm füllt. Gemessen bricht die Listenzeile des Monitors bei ~607px (der Kommentar
+ *    an `.row .nm` in html/wiki-sync-monitor.html rechnet es vor) -- 680 hat eine Stufe Luft.
+ * ⚠️ Gemessen wird das DOKUMENT, also im iframe die Fensterbreite und nicht der Bildschirm. Genau
+ *    darauf kommt es an: die Frage ist, ob die Spalten Platz haben. */
+/* 💣 KEIN `gap` und kein `border-bottom` hier -- die bringt `.avm-tabs` mit. Eine zweite Fassung
+ *    desselben Werts ist genau die Divergenz, die §12 verbietet.
+ * 💣 UND DER SEITENEINZUG IST `--space-12`, NICHT `--avm-col-pad`: jenes Token ist ein ZWEIwert
+ *    (`var(--space-6) var(--space-12)` = 8px 14px), und `padding: 0 var(--avm-col-pad)` ergibt daraus
+ *    die drei Werte `0 8px 14px` -- also oben 0, rechts/links 8 und unten 14, statt der gemeinten
+ *    Kante. Die Leiste stand damit 6px links von den Spaltentiteln, und unten hing ein Polster, das
+ *    niemand bestellt hatte. Gefunden beim Nachrechnen, nicht im Browser: es sieht nach einem
+ *    Versehen im Abstand aus, nicht nach einem falschen Token.
+ *    🔴 14 ist „der Seiteneinzug ist überall 14" (css/base/tokens.css) -- dieselbe Kante, an der
+ *       die Spalten mit ihrem `--avm-col-pad` stehen. */
+.avm-spalten-reiter {
+	display: none;
+	flex: 0 0 auto;
+	padding: 0 var(--space-12);
+}
+
+@media (max-width: 680px) {
+	.avm-spalten-reiter {
+		display: flex;
+	}
+
+	/* 💣 Hier und NUR hier -- die Klasse setzt das JS in jeder Breite, wirken darf sie nur in
+	 *    dieser. Über der Schwelle stehen damit alle Spalten da, ohne dass ein `resize`-Zuhörer
+	 *    einen Zustand nachziehen muss, der sonst auseinanderläuft. */
+	.avm-spalte-aus {
+		display: none;
+	}
+}
+
 /* ---- Row badges -----------------------------------------------------------------------------
  * Spec §3.1b: emphasise the EXCEPTION, not the classification. A classification stays quiet grey;
  * a real open point gets the warning tone (never --color-danger; red stays with actual errors).

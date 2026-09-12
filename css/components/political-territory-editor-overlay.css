@@ -44,13 +44,47 @@
 	-webkit-overflow-scrolling: touch;
 }
 
+/* 🔴 DAS MASS DES SYNC-EDITORS („Territorien bearbeiten", html/wiki-sync-monitor.html im iframe).
+   Es stand bis zum 12.09.2026 als Inline-Style in `openAvesmapsSyncEditorOverlay`
+   (js/review/review-wiki-sync.js) -- und ein Inline-Style ist die eine Form, gegen die eine
+   Media-Query nicht gewinnt: die 680px-Regel darunter war fuer genau dieses Fenster wirkungslos.
+   💣 Die Spezifitaet traegt: `#…-overlay .…-dialog` ist (1,1,0) und schlaegt die (0,1,0) darueber,
+      unabhaengig von der Reihenfolge -- sonst waere die breite Fassung dieses einen Fensters vom
+      Grundmass des Gebietsdialogs abhaengig, das ueber ihm steht. */
+#avesmaps-sync-editor-overlay .political-territory-editor-dialog {
+	width: min(1400px, calc(100vw - 24px));
+	height: min(880px, calc(100vh - 24px));
+}
+
+/* 🔴 Am schmalen Fenster fuellt das Fenster den Bildschirm. Dieselbe Schwelle fuehren
+   css/components/editor-body.css (Spalten werden Reiter) und der <style>-Block von
+   html/wiki-sync-monitor.html -- EINE Zahl fuer dieselbe Frage.
+   ⚠️ Hier misst sie den BILDSCHIRM, dort (im iframe) den Fensterinhalt: zwischen ~680 und ~704px
+   sind die Reiter drinnen schon an, waehrend das Fenster hier noch seinen Rand hat. Gewollt -- die
+   Reiter folgen dem Platz IM Fenster, dieses Mass dem Bildschirm. */
 @media (max-width: 680px) {
 	.political-territory-editor-overlay {
-		padding: 8px;
+		/* Kein Rand mehr, und keine 8px: bei 366px Bildschirmbreite ist jeder Pixel Inhalt. Der
+		   Schleier bleibt sichtbar -- er liegt jetzt vollstaendig hinter dem Fenster. */
+		padding: 0;
 	}
 
-	.political-territory-editor-dialog {
-		width: calc(100vw - 16px);
-		height: calc(100vh - 16px);
+	/* 💣 `100%`, NICHT `100vh`: `100vh` ist auf einem Telefon die Hoehe OHNE Abzug der
+	   Adressleiste -- das Fenster raegte unten hinaus, und dort sitzt bei jedem dieser Fenster die
+	   Fussleiste mit „Speichern". Der Schleier ist `position:fixed; inset:0` und hat jetzt kein
+	   Polster mehr; `100%` folgt ihm genau und fuehrt kein zweites Mass ein. */
+	.political-territory-editor-dialog,
+	#avesmaps-sync-editor-overlay .political-territory-editor-dialog {
+		width: 100%;
+		height: 100%;
+		/* ⚠️ Ohne das bleibt der Radius des Bauteils (css/components/fenster.css) an einem Fenster
+		   stehen, das keine Ecke mehr frei hat -- vier angeknabberte Ecken auf dem Schleier. */
+		border-radius: 0;
+		border: 0;
 	}
 }
+
+/* ⚠️ Am TOUCH-Geraet nimmt das Fenster-Bauteil den Zieh-Griff ab (css/components/fenster.css);
+   ein Klick auf den Hintergrund bleibt der Weg hinaus -- und wenn das Fenster den Bildschirm
+   fuellt, bleibt dafuer NUR das ✕ im Kopf. Das ist der Grund, warum es dort gefasst und 32px
+   gross ist und bleibt. */
