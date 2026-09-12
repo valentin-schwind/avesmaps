@@ -1491,6 +1491,81 @@ function featureSourceOwnFieldsFromPanel(panel) {
   return { liste, geaendert };
 }
 
+/**
+ * ══ DER RIEGEL AM FREMDEN FORMULAR ══════════════════════════════════════════════════════════
+ *
+ * 💣 DER QUELLENKASTEN LIEGT IN VIER KARTENDIALOGEN IM `<form>` DES DIALOGS -- gemessen an
+ * index.html: `location-edit-form` (Ort, Z1348-1511), `path-edit-form` (Weg), `powerline-edit-form`
+ * (Kraftlinie) und `region-edit-form` (Herrschaftsgebiet), jedes mit eigenem
+ * `<button type="submit">Speichern</button>`. Nur der Beschriftungsdialog liegt ausserhalb.
+ *
+ * Damit gibt es in EINEM Fenster zwei Knoepfe „Speichern": den des Kastens (in der zugeklappten
+ * Falte „Neue Quelle einfuegen", `type="button"`) und den grossen des Dialogs. Gemessen: der grosse
+ * schickt aus dem Kasten NULL Anfragen, und danach raeumt `setLocationEditDialogOpen(false,
+ * { resetForm: true })` die Eingabezeile ab -- eine vollstaendig ausgefuellte Quelle war wortlos
+ * weg. Dazu sendet Enter in Titel, Seite(n) oder Namensnennung das Formular ab (implicit
+ * submission); abgefangen war es nur am Adressfeld, mit dem Kommentar „die Zeile steht in keinem
+ * `<form>`" -- fuer diese vier Dialoge war das nie wahr.
+ *
+ * 🔴 DER RIEGEL GEHOERT INS BAUTEIL, nicht in die vier Dialoge. Es ist das Einzige, das weiss, ob
+ * in ihm etwas Ungespeichertes steht; vier Abschriften in vier Speicherwegen waeren vier
+ * Gelegenheiten, es beim fuenften Dialog zu vergessen (AGENTS.md §11).
+ *
+ * 💣 GEHAENGT WIRD AN DEN VORFAHREN DES FORMULARS, IN DER FANGPHASE -- nicht ans Formular selbst.
+ * Der Speicherweg des Dialogs haengt am FORMULAR und wurde beim Seitenstart gebunden
+ * (js/app/bootstrap.js), das Bauteil montiert erst beim Oeffnen. Am selben Element laufen
+ * Zuhoerer in ANMELDEreihenfolge -- ein `preventDefault()` von hier kaeme also zu spaet, und
+ * `handleLocationEditFormSubmit` speicherte trotzdem. In der Fangphase eines Vorfahren laeuft der
+ * Riegel davor, und `stopPropagation()` laesst den Speicherweg gar nicht erst anlaufen.
+ *
+ * 💣 EIN Zuhoerer je Formular, aber IMMER DIE AKTUELLE MONTAGE. Der Kartendialog tauscht seinen
+ * Behaelter bei jedem Oeffnen aus (`mountLocationEditFeatureSources` klont ihn); der Zuhoerer ruft
+ * deshalb, was am Formular vermerkt ist, und jede Montage vermerkt sich dort neu. Ohne das
+ * schriebe die Meldung nach dem zweiten Oeffnen in einen abgehaengten Knoten -- unsichtbar, und
+ * der Riegel haette wieder das alte Formular im Blick.
+ */
+function featureSourceFormRiegel(containerEl, pruefer) {
+  const form = containerEl && typeof containerEl.closest === "function" ? containerEl.closest("form") : null;
+  const wirt = form && form.parentNode && typeof form.parentNode.addEventListener === "function"
+    ? form.parentNode
+    : null;
+  if (!form || !wirt) {
+    return null; // die drei Editorseiten montieren ausserhalb jedes Formulars -- dort gibt es nichts zu riegeln
+  }
+  form.__fsRiegel = pruefer;
+  if (form.dataset && form.dataset.fsRiegel === "1") {
+    return form; // der Zuhoerer haengt schon, nur der Pruefer ist neu
+  }
+  if (form.dataset) {
+    form.dataset.fsRiegel = "1";
+  }
+  wirt.addEventListener("submit", (event) => {
+    if (event.target !== form) {
+      return; // ein anderes Formular unter demselben Vorfahren geht uns nichts an
+    }
+    const p = form.__fsRiegel;
+    if (typeof p === "function" && p() === true) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  }, true);
+  // Enter in der Eingabezeile darf das Formular des Dialogs nicht absenden. ⚠️ NUR in Feldern:
+  // ein Knopf, eine Falte oder ein Link brauchen Enter fuer ihre eigene Handlung.
+  wirt.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" || !event.target || typeof event.target.closest !== "function") {
+      return;
+    }
+    if (!form.contains(event.target) || !event.target.closest("[data-fs-add], [data-fs-edit-panel]")) {
+      return;
+    }
+    const art = String(event.target.tagName || "").toUpperCase();
+    if (art === "INPUT" || art === "SELECT") {
+      event.preventDefault();
+    }
+  }, true);
+  return form;
+}
+
 // POST helper: returns the parsed JSON body, or null on any transport/parse failure so the
 // mount handler can guard non-ok responses without ever throwing into the click handler.
 async function featureSourceFetch(body) {
@@ -2721,8 +2796,11 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
     });
     urlInput.addEventListener("keydown", (event) => {
       if (event.key === "Enter") {
-        // ⚠️ Enter war hier bisher wirkungslos (die Zeile steht in keinem <form>); abgefangen wird
-        // es trotzdem, damit eine umgebende Seite es nicht als Absenden liest.
+        // 🔴 Enter prueft hier die ADRESSE. Abgefangen wird es ohnehin, damit es das Formular eines
+        // umgebenden Dialogs nicht absendet -- und dass das kein Theoriefall ist, steht bei
+        // `featureSourceFormRiegel`: in VIER Kartendialogen liegt diese Zeile in deren `<form>`.
+        // 🪤 Hier stand bis zum 12.09.2026 „die Zeile steht in keinem <form>". Der Satz war nie
+        // wahr, und weil er so allgemein dastand, hat niemand die Nachbarfelder nachgezogen.
         event.preventDefault();
         pruefeAdresse();
       }
@@ -3091,6 +3169,46 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
     }
   });
 
+  /**
+   * Steht in diesem Kasten etwas, das ein „Speichern" des DIALOGS wortlos wegwerfen wuerde?
+   *
+   * 🔴 Gefragt wird die Eingabezeile (Adresse oder Titel getippt) und der offene ✎-Kasten -- der
+   * ueber `featureSourceChangedFields`, also ueber DIESELBE Regel, an der auch sein Speichern
+   * entscheidet, was es schickt. Ein blosses Aufklappen des ✎ ist damit kein Grund: wer nur
+   * hinsieht, wird nicht aufgehalten.
+   *
+   * 🔴 DIE MELDUNGS-WARTESCHLANGE IST AUSGENOMMEN, und das ist kein Schlupfloch. Dort hat NICHT
+   * der Editor getippt -- die Zeile ist aus der Gemeinschaftsmeldung vorbelegt, und „Ueberspringen"
+   * ist der vorgesehene Weg an ihr vorbei. Es geht dabei auch nichts verloren: die Quelle steht
+   * weiter in der Meldung. Wer hier riegelte, koennte eine Meldung nicht mehr annehmen, ohne jede
+   * mitgelieferte Quelle einzeln abzuarbeiten. Dasselbe gilt fuer die schreibgeschuetzte Vorschau.
+   *
+   * ⚠️ Sie SAGT es auch -- ein Speichern, das wortlos nichts tut, waere von einem kaputten Knopf
+   * nicht zu unterscheiden (die Lehre aus #105).
+   */
+  function offeneEingabe() {
+    if (meldung) {
+      return false;
+    }
+    const url = containerEl.querySelector(".fs-add-url");
+    const titel = containerEl.querySelector(".fs-add-label");
+    const getippt = String((url && url.value) || "").trim() !== ""
+      || String((titel && titel.value) || "").trim() !== "";
+    if (getippt) {
+      showAddRowNote(tr("sources.guard.add",
+        "Im Kasten „Quellen“ steht eine Quelle, die noch nicht eingetragen ist. Trag sie mit „Speichern“ im Kasten ein — oder leer die Zeile mit „Abbrechen“."), "bad");
+      return true;
+    }
+    const panel = containerEl.querySelector("[data-fs-edit-panel]");
+    if (panel && Object.keys(featureSourceChangedFields(panel)).length > 0) {
+      zeigeKastenMeldung(panel, tr("sources.guard.edit",
+        "Diese Quellenzeile ist geändert und noch nicht gespeichert. Speichern oder abbrechen, dann geht es weiter."));
+      return true;
+    }
+    return false;
+  }
+  featureSourceFormRiegel(containerEl, offeneEingabe);
+
   return renderFromServer("list");
 }
 
@@ -3368,6 +3486,8 @@ if (typeof module !== "undefined" && module.exports) {
     featureSourceLinkedMessage,
     // Quelle oder Publikation -- die Regel, ihre Hinweiszeile, das Nachziehen und der Satz nach
     // dem Speichern (Fall #122). Rein bzw. an einem uebergebenen Knoten, also unter Node fahrbar.
+    // Der Riegel am fremden Formular (Kartendialoge) -- an uebergebenen Knoten gefahren.
+    featureSourceFormRiegel,
     featureSourceKindZiel, featureSourceKindZielMarkup, featureSourceKindZielNachziehen,
     featureSourceKindZielBestaetigung, featureSourceReferenceKindLabel,
     // Die Adressauskunft der Eingabezeile: rein, damit „Zustand → was der Editor sieht" prüfbar
