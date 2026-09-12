@@ -54,6 +54,121 @@ function featureSourceReferenceKindLabel(kind) {
   return FEATURE_SOURCE_REFERENCE_KIND_LABELS[kind || ""] || FEATURE_SOURCE_REFERENCE_KIND_LABELS[""];
 }
 
+/**
+ * WAS AUS DER EINGABE WIRD: eine QUELLE oder eine PUBLIKATION.
+ *
+ * 🔴 Die Abdeckung heisst im Formular wie eine Eigenschaft der Quelle und ist in Wahrheit der
+ * Schalter zwischen zwei Dingen. Er wirkt an DREI Stellen, alle an derselben Bedingung
+ * `reference_kind !== ''`: die Anzeige nimmt die Zeile aus „Quelle(n):" und stellt sie in die
+ * Publikationstabelle (`buildSourceListMarkup`, js/ui/feature-source-markup.js) · der Kanon
+ * ueberspringt sie (`avesmapsFeatureSourcesDeriveKanon`, „eine Publikation macht weder offiziell
+ * noch inoffiziell") · der Wegquellen-Verteiler laesst sie stehen, weil der Wiki-Abgleich ihr
+ * Eigentuemer ist.
+ *
+ * 💣 GENAU DAS WAR FALL #122 (Owner 10.09.2026, Salthel): „Fuegt man eine externe Quelle manuell
+ * hinzu und will die Abdeckung … aendert, z.B. von ‚Standardquelle‘ auf ‚Ausfuehrlich‘, wird die
+ * Quelle beim Speichern nicht hinzugefuegt." Gespeichert wurde sie IMMER -- sie war ab diesem
+ * Moment nur keine Quelle mehr, und nichts sagte es. Owner-Entscheid 12.09.2026: „ich find das
+ * vorgehen macht sinn, kann man das kommunizieren" -- das Verhalten bleibt, es muss sich erklaeren.
+ *
+ * ⚠️ ZWEI Folgen stehen im Satz, nicht drei. Die dritte trifft nur den Sammellauf eines Admins
+ * ueber mehrteilige Wege (`avesmapsFeatureSourcesVerteileWegQuellen`); an einem Ort, einer Region
+ * oder einer Landschaft waere sie schlicht Laerm. Wer sie dazunimmt, nimmt sie fuer ALLE dazu.
+ *
+ * Rein, DOM-frei, ohne Modulzustand -- damit ein Test sie AUSFUEHRT statt ihren Quelltext zu lesen.
+ */
+function featureSourceKindZiel(kind, tr) {
+  const t = typeof tr === "function" ? tr : featureSourceDefaultTr;
+  // 🔴 GEMESSEN AN DER WEISSEN LISTE, nicht an „nicht leer". Der Server nimmt genau die drei
+  // (`$allowedKinds` in avesmapsAddFeatureSource) und macht aus allem anderen `null` -- also eine
+  // QUELLE. Wer hier auf „nicht leer" pruefte, behauptete fuer einen unbekannten Wert eine
+  // Publikation, die der Server nie anlegt: eine Auskunft, die der Ablage widerspricht.
+  const publikation = String(kind || "") !== "" && FEATURE_SOURCE_REFERENCE_KINDS.indexOf(String(kind)) !== -1;
+  return {
+    publikation: publikation,
+    wort: publikation
+      ? t("sources.kind.wordPublication", "Publikation")
+      : t("sources.kind.wordSource", "Quelle"),
+    satz: publikation
+      ? t("sources.kind.explainPublication",
+        "— sie steht in der Publikationstabelle statt in „Quelle(n)“ und entscheidet nicht über offiziell/inoffiziell.")
+      : t("sources.kind.explainSource",
+        "— sie steht in der Zeile „Quelle(n)“ und entscheidet über offiziell/inoffiziell."),
+  };
+}
+
+/**
+ * Die Hinweiszeile unter der Abdeckung -- in BEIDEN Formularen dieselbe.
+ *
+ * 💣 EIN Bauer, zwei Erzeuger (Eingabezeile und ✎). Eine Regel, die einen von zwei Erzeugern
+ * bindet, ist keine Regel (AGENTS.md §11), und die Abdeckung steht in beiden Formularen.
+ * ⚠️ Wort und Satz sind EIGENE Knoten (`data-fs-kind-wort` / `data-fs-kind-satz`): der
+ * Zustandswechsel setzt sie per `textContent`. Ein `innerHTML` daneben waere der zweite Erzeuger
+ * desselben Markups -- dieselbe Falle, die dieser Bauer gerade beseitigt.
+ */
+function featureSourceKindZielMarkup(kind, escape, tr) {
+  const esc = escape || featureSourceDefaultEscape;
+  const t = typeof tr === "function" ? tr : featureSourceDefaultTr;
+  const z = featureSourceKindZiel(kind, tr);
+  return '<p class="fs-kind-ziel' + (z.publikation ? " fs-kind-ziel--publikation" : "")
+    + '" data-fs-kind-ziel>'
+    + esc(t("sources.kind.leadIn", "Wird geführt als")) + " "
+    + "<strong data-fs-kind-wort>" + esc(z.wort) + "</strong> "
+    + "<span data-fs-kind-satz>" + esc(z.satz) + "</span></p>";
+}
+
+/**
+ * Die Hinweiszeile nachziehen, nachdem jemand die Abdeckung gewaehlt hat.
+ *
+ * 🔴 Gesucht wird VOM FELD AUS (`closest(".fs-scope")`), nie ueber den ganzen Behaelter: steht der
+ * ✎-Kasten offen, gibt es ZWEI Abdeckungen im selben Behaelter, und ein Treffer auf die erstbeste
+ * Zeile schriebe die Auskunft ans falsche Formular.
+ * ⚠️ Gibt das Ziel zurueck, statt es nur zu setzen -- so kann ein Test das Ergebnis lesen, ohne
+ * das DOM danach abzufragen.
+ */
+function featureSourceKindZielNachziehen(feld, tr) {
+  if (!feld || typeof feld.closest !== "function") {
+    return null;
+  }
+  const rahmen = feld.closest(".fs-scope");
+  const zeile = rahmen ? rahmen.querySelector("[data-fs-kind-ziel]") : null;
+  if (!zeile) {
+    return null;
+  }
+  const z = featureSourceKindZiel(feld.value, tr);
+  const wort = zeile.querySelector("[data-fs-kind-wort]");
+  const satz = zeile.querySelector("[data-fs-kind-satz]");
+  if (wort) {
+    wort.textContent = z.wort;
+  }
+  if (satz) {
+    satz.textContent = z.satz;
+  }
+  zeile.classList.toggle("fs-kind-ziel--publikation", z.publikation);
+  return z;
+}
+
+/**
+ * Der Satz, der nach dem Speichern sagt, WAS eingetragen wurde.
+ *
+ * 🔴 Er nennt beide Faelle, und das ist der Unterschied zu `retyped`/`linked` daneben: dort ist
+ * Schweigen der erwartete Weg. Hier ist die Umwidmung selbst der Vorgang, um den es geht -- der
+ * Aufrufer entscheidet, wann er ihn zeigt (die Eingabezeile nur bei einer Publikation, der ✎ bei
+ * jeder Aenderung, denn dort ist auch der Weg zurueck eine Aussage).
+ */
+function featureSourceKindZielBestaetigung(kind, tr) {
+  const t = typeof tr === "function" ? tr : featureSourceDefaultTr;
+  // 💣 GEFRAGT WIRD DIE REGEL, nicht „nicht leer" noch einmal. Eine zweite Fassung derselben
+  // Frage lief hier bereits auseinander: fuer einen unbekannten Wert haette dieser Satz
+  // „Als Publikation gefuehrt (Standardquelle)" behauptet, waehrend die Hinweiszeile daneben
+  // richtig „Quelle" sagte und der Server eine Quelle anlegt. Drei Antworten auf eine Frage.
+  return featureSourceKindZiel(kind, tr).publikation
+    ? t("sources.kind.asPublication",
+      "Als Publikation geführt ({art}) — sie steht in der Publikationstabelle, nicht in „Quelle(n)“.")
+      .replace("{art}", featureSourceReferenceKindLabel(kind))
+    : t("sources.kind.asSource", "Als Quelle geführt — sie steht in der Zeile „Quelle(n)“.");
+}
+
 // Ab wie vielen zitierenden Objekten eine Katalogaenderung nachgefragt wird.
 // 💣 SPIEGEL von AVESMAPS_FEATURE_SOURCE_CONFIRM_THRESHOLD (api/_internal/app/feature-sources.php).
 // Zwei Zahlen fuer eine Regel -- der Server ist der Riegel, dieser hier ist die Frage davor. Laufen
@@ -502,6 +617,10 @@ function renderFeatureSourceEditPanel(source, escape, tr, wegGruppe) {
       feld("pages", tr("sources.colPages", "Seite(n)"), text("pages", String(source.pages || ""), "", false))
       + feld("reference_kind", tr("sources.colKind", "Abdeckung"),
         auswahl("reference_kind", String(source.reference_kind || ""), kindEintraege, false))
+      // 🔴 UND DIE ZEILE SAGT, WAS DARAUS WIRD (Fall #122). Gezeichnet aus dem GESPEICHERTEN
+      // Stand, nicht aus einer Vorgabe: der ✎ zeigt eine bestehende Zeile, und die ist bereits
+      // das eine oder das andere.
+      + featureSourceKindZielMarkup(String(source.reference_kind || ""), escape, tr)
       // 🔴 DIE ABWEICHUNG — dasselbe Bauteil wie in der Eingabezeile, nur mit Werten.
       // ⚠️ Vorbelegt wird NUR, was diese Quelle wirklich besitzt (`own_fields`). Ein Feld, das
       // erbt, startet leer — leer heisst „wie der Korpus".
@@ -956,6 +1075,9 @@ function renderFeatureSourceAddRow(escape, tr, wegGruppe) {
       + escape(tr("sources.add.kind",
         "Abdeckung: Ausführlich/Ergänzend → Offiziell-Tab, Erwähnung → Erwähnt-Tab, sonst normale Quellenzeile"))
       + '">' + kindOptions + "</select></label>"
+      // 🔴 DIE ZEILE, DIE FALL #122 BEANTWORTET: was aus der Eingabe wird, steht da, BEVOR jemand
+      // speichert. Sie startet auf „Quelle", weil die Eingabezeile leer startet.
+      + featureSourceKindZielMarkup("", escape, tr)
       + featureSourceAbweichungsBlock(escape, tr, {}),
   });
 
@@ -1367,6 +1489,81 @@ function featureSourceOwnFieldsFromPanel(panel) {
     }
   });
   return { liste, geaendert };
+}
+
+/**
+ * ══ DER RIEGEL AM FREMDEN FORMULAR ══════════════════════════════════════════════════════════
+ *
+ * 💣 DER QUELLENKASTEN LIEGT IN VIER KARTENDIALOGEN IM `<form>` DES DIALOGS -- gemessen an
+ * index.html: `location-edit-form` (Ort, Z1348-1511), `path-edit-form` (Weg), `powerline-edit-form`
+ * (Kraftlinie) und `region-edit-form` (Herrschaftsgebiet), jedes mit eigenem
+ * `<button type="submit">Speichern</button>`. Nur der Beschriftungsdialog liegt ausserhalb.
+ *
+ * Damit gibt es in EINEM Fenster zwei Knoepfe „Speichern": den des Kastens (in der zugeklappten
+ * Falte „Neue Quelle einfuegen", `type="button"`) und den grossen des Dialogs. Gemessen: der grosse
+ * schickt aus dem Kasten NULL Anfragen, und danach raeumt `setLocationEditDialogOpen(false,
+ * { resetForm: true })` die Eingabezeile ab -- eine vollstaendig ausgefuellte Quelle war wortlos
+ * weg. Dazu sendet Enter in Titel, Seite(n) oder Namensnennung das Formular ab (implicit
+ * submission); abgefangen war es nur am Adressfeld, mit dem Kommentar „die Zeile steht in keinem
+ * `<form>`" -- fuer diese vier Dialoge war das nie wahr.
+ *
+ * 🔴 DER RIEGEL GEHOERT INS BAUTEIL, nicht in die vier Dialoge. Es ist das Einzige, das weiss, ob
+ * in ihm etwas Ungespeichertes steht; vier Abschriften in vier Speicherwegen waeren vier
+ * Gelegenheiten, es beim fuenften Dialog zu vergessen (AGENTS.md §11).
+ *
+ * 💣 GEHAENGT WIRD AN DEN VORFAHREN DES FORMULARS, IN DER FANGPHASE -- nicht ans Formular selbst.
+ * Der Speicherweg des Dialogs haengt am FORMULAR und wurde beim Seitenstart gebunden
+ * (js/app/bootstrap.js), das Bauteil montiert erst beim Oeffnen. Am selben Element laufen
+ * Zuhoerer in ANMELDEreihenfolge -- ein `preventDefault()` von hier kaeme also zu spaet, und
+ * `handleLocationEditFormSubmit` speicherte trotzdem. In der Fangphase eines Vorfahren laeuft der
+ * Riegel davor, und `stopPropagation()` laesst den Speicherweg gar nicht erst anlaufen.
+ *
+ * 💣 EIN Zuhoerer je Formular, aber IMMER DIE AKTUELLE MONTAGE. Der Kartendialog tauscht seinen
+ * Behaelter bei jedem Oeffnen aus (`mountLocationEditFeatureSources` klont ihn); der Zuhoerer ruft
+ * deshalb, was am Formular vermerkt ist, und jede Montage vermerkt sich dort neu. Ohne das
+ * schriebe die Meldung nach dem zweiten Oeffnen in einen abgehaengten Knoten -- unsichtbar, und
+ * der Riegel haette wieder das alte Formular im Blick.
+ */
+function featureSourceFormRiegel(containerEl, pruefer) {
+  const form = containerEl && typeof containerEl.closest === "function" ? containerEl.closest("form") : null;
+  const wirt = form && form.parentNode && typeof form.parentNode.addEventListener === "function"
+    ? form.parentNode
+    : null;
+  if (!form || !wirt) {
+    return null; // die drei Editorseiten montieren ausserhalb jedes Formulars -- dort gibt es nichts zu riegeln
+  }
+  form.__fsRiegel = pruefer;
+  if (form.dataset && form.dataset.fsRiegel === "1") {
+    return form; // der Zuhoerer haengt schon, nur der Pruefer ist neu
+  }
+  if (form.dataset) {
+    form.dataset.fsRiegel = "1";
+  }
+  wirt.addEventListener("submit", (event) => {
+    if (event.target !== form) {
+      return; // ein anderes Formular unter demselben Vorfahren geht uns nichts an
+    }
+    const p = form.__fsRiegel;
+    if (typeof p === "function" && p() === true) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  }, true);
+  // Enter in der Eingabezeile darf das Formular des Dialogs nicht absenden. ⚠️ NUR in Feldern:
+  // ein Knopf, eine Falte oder ein Link brauchen Enter fuer ihre eigene Handlung.
+  wirt.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" || !event.target || typeof event.target.closest !== "function") {
+      return;
+    }
+    if (!form.contains(event.target) || !event.target.closest("[data-fs-add], [data-fs-edit-panel]")) {
+      return;
+    }
+    const art = String(event.target.tagName || "").toUpperCase();
+    if (art === "INPUT" || art === "SELECT") {
+      event.preventDefault();
+    }
+  }, true);
+  return form;
 }
 
 // POST helper: returns the parsed JSON body, or null on any transport/parse failure so the
@@ -1848,7 +2045,13 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
       : tr("sources.add.addedPlain", "Hinzugefügt.");
     // 🔴 ALLE Zusaetze in DIESER Reihenfolge: was geschah (Erfolg), was am geteilten Katalog
     // dabei anders wurde (Umtypung), womit verknuepft wurde. Jeder darf fehlen.
-    const zusaetze = [umtypungsText(daten), featureSourceLinkedMessage(linked, tr)];
+    // 🔴 ZUERST, WAS EINGETRAGEN WURDE -- Quelle oder Publikation (Fall #122). Auf dem
+    // ERWARTETEN Weg (keine Abdeckung) bleibt es still, wie bei `retyped` und `linked`: eine
+    // Quelle, die als Quelle steht, ist keine Nachricht.
+    const zielSatz = String((values && values.reference_kind) || "") !== ""
+      ? featureSourceKindZielBestaetigung(values.reference_kind, tr)
+      : "";
+    const zusaetze = [zielSatz, umtypungsText(daten), featureSourceLinkedMessage(linked, tr)];
     // 🔴 GRUEN, auch beim Verknuepfen: es ist ein Erfolg, kein Einwand. Bis zum 03.09.2026 stand
     // dort nur der Verknuepfungssatz, neutral gefaerbt, nachdem das Formular schon geleert war --
     // und las sich wie eine Beschwerde ueber eine leere Maske.
@@ -2593,8 +2796,11 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
     });
     urlInput.addEventListener("keydown", (event) => {
       if (event.key === "Enter") {
-        // ⚠️ Enter war hier bisher wirkungslos (die Zeile steht in keinem <form>); abgefangen wird
-        // es trotzdem, damit eine umgebende Seite es nicht als Absenden liest.
+        // 🔴 Enter prueft hier die ADRESSE. Abgefangen wird es ohnehin, damit es das Formular eines
+        // umgebenden Dialogs nicht absendet -- und dass das kein Theoriefall ist, steht bei
+        // `featureSourceFormRiegel`: in VIER Kartendialogen liegt diese Zeile in deren `<form>`.
+        // 🪤 Hier stand bis zum 12.09.2026 „die Zeile steht in keinem <form>". Der Satz war nie
+        // wahr, und weil er so allgemein dastand, hat niemand die Nachbarfelder nachgezogen.
         event.preventDefault();
         pruefeAdresse();
       }
@@ -2774,6 +2980,12 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
     // Beleg dieses Wirts getroffen -- nicht nur die eine Zeile, die der Editor vor sich hatte.
     // Eine stille Änderung mit dieser Reichweite ist dieselbe Falle wie die stille
     // Nicht-Änderung, aus der Meldung #105 entstand.
+    // 🔴 DIE UMWIDMUNG WIRD BENANNT, in beide Richtungen. Wer hier die Abdeckung setzt, macht aus
+    // einer Quelle eine Publikation -- und wer sie leert, macht den Weg zurueck; beides ist die
+    // stille Aenderung, aus der Fall #122 entstand, nur auf dem zweiten Schreibweg.
+    if (Object.prototype.hasOwnProperty.call(felder, "reference_kind")) {
+      showAddRowNote(featureSourceKindZielBestaetigung(felder.reference_kind, tr), "ok");
+    }
     const korpus = daten.corpus_applied;
     if (korpus) {
       showAddRowNote(tr("sources.edit.corpusApplied",
@@ -2802,6 +3014,14 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
     const ziel = event && event.target;
     if (ziel && typeof ziel.matches === "function" && ziel.matches(".fs-add-official") && ziel.dataset) {
       ziel.dataset.fsChosen = "1";
+    }
+    // 🔴 DIE ABDECKUNG SAGT SOFORT, WAS AUS DER EINGABE WIRD -- in BEIDEN Formularen:
+    // `.fs-add-kind` gehoert der Eingabezeile, `[data-fs-field="reference_kind"]` dem ✎. Sie
+    // haengt HIER am vorhandenen Zuhoerer und nicht an einem eigenen: die Zeile wird nach jedem
+    // Schreibvorgang neu gebaut, ein direkt gebundener Zuhoerer waere danach weg.
+    if (ziel && typeof ziel.matches === "function"
+      && (ziel.matches(".fs-add-kind") || ziel.matches('[data-fs-field="reference_kind"]'))) {
+      featureSourceKindZielNachziehen(ziel, tr);
     }
   });
   containerEl.addEventListener("click", async (event) => {
@@ -2948,6 +3168,46 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
       }
     }
   });
+
+  /**
+   * Steht in diesem Kasten etwas, das ein „Speichern" des DIALOGS wortlos wegwerfen wuerde?
+   *
+   * 🔴 Gefragt wird die Eingabezeile (Adresse oder Titel getippt) und der offene ✎-Kasten -- der
+   * ueber `featureSourceChangedFields`, also ueber DIESELBE Regel, an der auch sein Speichern
+   * entscheidet, was es schickt. Ein blosses Aufklappen des ✎ ist damit kein Grund: wer nur
+   * hinsieht, wird nicht aufgehalten.
+   *
+   * 🔴 DIE MELDUNGS-WARTESCHLANGE IST AUSGENOMMEN, und das ist kein Schlupfloch. Dort hat NICHT
+   * der Editor getippt -- die Zeile ist aus der Gemeinschaftsmeldung vorbelegt, und „Ueberspringen"
+   * ist der vorgesehene Weg an ihr vorbei. Es geht dabei auch nichts verloren: die Quelle steht
+   * weiter in der Meldung. Wer hier riegelte, koennte eine Meldung nicht mehr annehmen, ohne jede
+   * mitgelieferte Quelle einzeln abzuarbeiten. Dasselbe gilt fuer die schreibgeschuetzte Vorschau.
+   *
+   * ⚠️ Sie SAGT es auch -- ein Speichern, das wortlos nichts tut, waere von einem kaputten Knopf
+   * nicht zu unterscheiden (die Lehre aus #105).
+   */
+  function offeneEingabe() {
+    if (meldung) {
+      return false;
+    }
+    const url = containerEl.querySelector(".fs-add-url");
+    const titel = containerEl.querySelector(".fs-add-label");
+    const getippt = String((url && url.value) || "").trim() !== ""
+      || String((titel && titel.value) || "").trim() !== "";
+    if (getippt) {
+      showAddRowNote(tr("sources.guard.add",
+        "Im Kasten „Quellen“ steht eine Quelle, die noch nicht eingetragen ist. Trag sie mit „Speichern“ im Kasten ein — oder leer die Zeile mit „Abbrechen“."), "bad");
+      return true;
+    }
+    const panel = containerEl.querySelector("[data-fs-edit-panel]");
+    if (panel && Object.keys(featureSourceChangedFields(panel)).length > 0) {
+      zeigeKastenMeldung(panel, tr("sources.guard.edit",
+        "Diese Quellenzeile ist geändert und noch nicht gespeichert. Speichern oder abbrechen, dann geht es weiter."));
+      return true;
+    }
+    return false;
+  }
+  featureSourceFormRiegel(containerEl, offeneEingabe);
 
   return renderFromServer("list");
 }
@@ -3224,6 +3484,12 @@ if (typeof module !== "undefined" && module.exports) {
     // Die Abweichung: welche Korpusfelder gehören dieser Zeile selbst -- rein, ohne DOM-Zustand.
     featureSourceOwnFieldsFromPanel, featureSourceUrlLooksValid,
     featureSourceLinkedMessage,
+    // Quelle oder Publikation -- die Regel, ihre Hinweiszeile, das Nachziehen und der Satz nach
+    // dem Speichern (Fall #122). Rein bzw. an einem uebergebenen Knoten, also unter Node fahrbar.
+    // Der Riegel am fremden Formular (Kartendialoge) -- an uebergebenen Knoten gefahren.
+    featureSourceFormRiegel,
+    featureSourceKindZiel, featureSourceKindZielMarkup, featureSourceKindZielNachziehen,
+    featureSourceKindZielBestaetigung, featureSourceReferenceKindLabel,
     // Die Adressauskunft der Eingabezeile: rein, damit „Zustand → was der Editor sieht" prüfbar
     // ist, statt nur im Browser zu gelten.
     featureSourceInspectView,

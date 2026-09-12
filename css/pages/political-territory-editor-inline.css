@@ -2422,6 +2422,54 @@
 #political-territory-editor-host .fs-scope__choice input[type="radio"] {
   accent-color: var(--color-accent-brown);
 }
+
+/* WAS AUS DER EINGABE WIRD: eine QUELLE oder eine PUBLIKATION -- die Zeile unter der Abdeckung.
+   🔴 Die Abdeckung darueber heisst wie eine Eigenschaft der Quelle und ist in Wahrheit der
+   Schalter zwischen zwei Dingen (Fall #122, Owner 10.09.2026: „bei standardquelle speichert er
+   es, nur bei den andern nicht" -- gespeichert wurde immer, es war nur ab da keine Quelle mehr).
+   Owner-Entscheid 12.09.2026: das Verhalten bleibt, es muss sich erklaeren.
+   💣 VOLLE BREITE wie die Wahl darueber (`flex: 1 1 100%`): der Rahmen ist ein Flex-Umbruch, und
+   ohne diese Zeile setzte sich der Satz neben das 130px schmale Feld und braeche auf fuenf Zeilen.
+   ⚠️ 11px ist die Untergrenze dieses Hauses (AGENTS.md §12) -- der Satz ist ein Hinweis, kein
+   Kleingedrucktes, und 10px waere derselbe Fehler wie bei `.se-row-type`. */
+/* 💣 EINE Erklaerzeile, ZWEI Wirte -- die Typografie wird GETEILT, nicht abgeschrieben. `.abw__t`
+   („Abweichend vom Korpus — …") stand mit denselben drei Werten zwanzig Zeilen tiefer; eine vierte
+   Abschrift neben `.fs-scope__hint` und `.fs-url__sagt` waere der Anfang derselben Streuung, die
+   dieses Haus bei den Listenzeilen schon einmal mit sieben Rezepturen bezahlt hat (AGENTS.md §11).
+   ⚠️ Die zwei uebrigen bleiben stehen -- sie hier mitzunehmen waere unbestellter Umbau; wer eine
+   davon anfasst, holt sie hierher. */
+#political-territory-editor-host .abw__t,
+#political-territory-editor-host .fs-kind-ziel {
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--color-text-muted);
+}
+/* Nur die neue Zeile liegt im Flex-Umbruch von `.fs-scope__fields` und braucht die volle Breite;
+   `.abw__t` sitzt in ihrem eigenen Block. */
+#political-territory-editor-host .fs-kind-ziel {
+  flex: 1 1 100%;
+  margin: 0;
+}
+/* 🔴 DIE MARKE SITZT AM WORT, NICHT AM SATZ -- und nur im UEBERRASCHENDEN Zustand. Der erste Bau
+   machte es andersherum (gedaempfter Satz → volle Textfarbe bei einer Publikation) und kehrte damit
+   die eigene Rangfolge um: gemessen stand der unbetonte Nebensatz dann auf 13,67:1 und das fette
+   Signalwort daneben auf 5,81:1 -- lauter war die Erklaerung, nicht das Wort, um das es geht
+   (Befund des Design-Pruefagenten, 12.09.2026).
+   ⭐ Gewaehlt ist die Form, die dieses Blatt fuer „hier weicht etwas ab" schon fuehrt:
+   `--color-accent-brown` PLUS `font-weight: 600` (`.fs-field--abw > span` daneben, samt der
+   Messung im 💣-Kommentar darunter -- Farbe allein traegt es im hellen Thema nicht, #7a5a3a und
+   #706557 sind dort fast dasselbe Braun).
+   🔴 `--color-accent-brown`, NICHT `--color-accent-brown-text`: das ist im hellen Thema #fff und
+   waere weisse Schrift auf hellem Grund (AGENTS.md §11).
+   ⚠️ Im erwarteten Fall („Quelle") bleibt das Wort gedaempft und traegt nur sein Gewicht -- eine
+   Vorgabe, die niemanden ueberrascht, braucht keine Marke. Dieselbe Rangfolge wie bei `retyped`
+   und `linked`: Schweigen auf dem erwarteten Weg. */
+#political-territory-editor-host .fs-kind-ziel strong {
+  font-weight: 600;
+}
+#political-territory-editor-host .fs-kind-ziel--publikation strong {
+  color: var(--color-accent-brown);
+}
 /* Die Marke „12 von 56 Abschnitten“ hinter dem Quellentitel -- nur bei einer Teilmenge. Sie steht IM
    Titel-Feld, keine achte Rasterspalte; deshalb white-space: nowrap, damit sie nicht in der Mitte
    bricht, und die gedaempfte Farbe, damit sie den Titel nicht ueberstimmt. */
@@ -2487,7 +2535,6 @@
    erbt wieder. Damit gibt es keinen zweiten Zustand neben dem Wert, der auseinanderlaufen kann. */
 #political-territory-editor-host .abw { flex: 1 1 100%; margin-top: 8px; padding-top: 8px;
        border-top: 1px solid var(--color-divider); }
-#political-territory-editor-host .abw__t { font-size: 11px; color: var(--color-text-muted); line-height: 1.45; }
 #political-territory-editor-host .abw__f { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; margin-top: 8px; }
 #political-territory-editor-host .fs-field--abw > span { color: var(--color-accent-brown); font-weight: 600; }
 #political-territory-editor-host .fs-field--abw input, #political-territory-editor-host .fs-field--abw select { border-color: var(--color-accent-brown); }
