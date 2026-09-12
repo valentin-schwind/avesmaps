@@ -223,10 +223,23 @@ function createRegionWikiInfoBoxMarkup(regionEntry) {
 function collectRegionContestedClaimants(regionEntry) {
 	const out = [];
 	const seen = new Set();
-	const ownName = normalizeRegionParentheticalSpacing(String((regionEntry && (regionEntry.displayName || regionEntry.name)) || "")).trim().toLowerCase();
-	if (ownName) {
-		seen.add(ownName); // das Gebiet selbst (Besitzer) nie als Anspruchsteller listen
-	}
+	// 💣 Das Gebiet selbst wird unter BEIDEN Namen unterdrueckt -- Anzeigename UND kanonischer Name.
+	// Die Parteien baut der Server aus `political_territory.name` (territories-layer.php), also KANONISCH;
+	// `displayName`/`name` tragen seit Fall #123 den Editor-Override. Nur den Anzeigenamen zu sperren
+	// liess ein umbenanntes Konfliktgebiet SICH SELBST als Anspruchsteller auftauchen (gemessen
+	// 12.09.2026: ohne Override [], mit Override ["Nordhjaldor"]).
+	// 🪤 Der naheliegende Einzeiler -- "nimm statt displayName einfach name" -- haette NICHT geholfen:
+	// getRegionFeatureName liest `display_name` ZUERST, `regionEntry.name` IST also der Override.
+	// Deshalb der eigene kanonische Schluessel aus der Normalisierung.
+	[
+		regionEntry && (regionEntry.displayName || regionEntry.name),
+		regionEntry && regionEntry.canonicalName,
+	].forEach((kandidat) => {
+		const schluessel = normalizeRegionParentheticalSpacing(String(kandidat || "")).trim().toLowerCase();
+		if (schluessel) {
+			seen.add(schluessel);
+		}
+	});
 	const addParties = (parties) => {
 		if (!Array.isArray(parties) || parties.length < 2) {
 			return;

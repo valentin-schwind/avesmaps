@@ -22,6 +22,12 @@ function normalizeRegionFeature(feature) {
 		source: properties.source || (properties.feature_type === "political_territory" ? "political_territory" : "map_feature"),
 		name: normalizeRegionParentheticalSpacing(getRegionFeatureName(properties)),
 		displayName: normalizeRegionParentheticalSpacing(properties.display_name || properties.name || ""),
+		// 🔴 Der KANONISCHE Name (political_territory.name), NICHT der Anzeigename. Seit dem Fix zu
+		// Fall #123 tragen `name` und `displayName` beide den Editor-Override -- `getRegionFeatureName`
+		// liest `display_name` zuerst. Damit gab es clientseitig keinen kanonischen Namen mehr, und die
+		// Server bauen ihre Konfliktparteien kanonisch (territories-layer.php). Wer beides vergleicht,
+		// braucht diese Zeile.
+		canonicalName: normalizeRegionParentheticalSpacing(properties.name || ""),
 		shortName: properties.short_name || "",
 		type: normalizeRegionParentheticalSpacing(properties.territory_type || properties.feature_subtype || ""),
 		color: fillColor,
