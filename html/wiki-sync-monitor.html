@@ -40,6 +40,14 @@
      genau der Zustand, den editor-page.css beendet hat: derselbe Wert an vier Stellen laeuft
      auseinander. NICHT editor-shell.css, das ist die App-Huelle drumherum. -->
 <link rel="stylesheet" href="/css/components/editor-page.css">
+<!-- Das Blatt zu js/ui/editor-spalten-reiter.js (Reiter statt drei Spalten am schmalen Fenster).
+     💣 EIGENES <link>, NICHT ueber den @import von editor-page.css: dort standen die Regeln zuerst,
+        und live wirkte am 13.09.2026 das JavaScript (Leiste gebaut, Sprung auf „Details") waehrend
+        die geaenderte Datei hinter der Kette alt blieb -- die NEUE Datei desselben Deploys lief
+        sofort. Ein Verweis weniger ist eine Gelegenheit weniger.
+     ⚠️ Die Reihenfolge zu editor-page.css ist gleichgueltig: die Leiste gewinnt ueber Spezifitaet
+        (.avm-tabs.avm-spalten-reiter, 0,2,0), nicht ueber die Ladereihenfolge. -->
+<link rel="stylesheet" href="/css/components/editor-spalten-reiter.css">
 <!-- Die Uebernahme-Vorschau: ein Bauteil fuer jeden Wiki-Abgleich (Entwurf 2026-08-06). Der Deploy
      stempelt beide Verweise mit einem Inhaltshash, weil sie von einer html/*.html-Seite aus
      erreichbar sind -- hier steht deshalb KEIN ?v= von Hand (AGENTS.md §7). -->
