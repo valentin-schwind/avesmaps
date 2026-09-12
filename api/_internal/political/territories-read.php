@@ -1092,6 +1092,49 @@ function avesmapsPoliticalFindAssignmentDisplayForTerritory(array $style, string
     return null;
 }
 
+// Der ANZEIGENAME eines Knotens aus den gespeicherten assignmentDisplays -- und NUR der Name.
+//
+// 💣 Bewusst NICHT avesmapsPoliticalFindAssignmentDisplayForTerritory(): jene filtert auf
+// `localOverride`, und diesen Schluessel schreibt im ganzen Repo NIEMAND (Fall #123, nachgezaehlt
+// 12.09.2026: die einzigen drei Stellen, die ihn setzen, sind der Parser darueber, der ihn
+// zurueckgibt, und die Diagnoseausgabe). Sie liefert damit ausnahmslos null, und der im Editor
+// gespeicherte Name erreichte das Kartenlabel nie.
+//
+// 💣 Und sie darf hier auch nicht einfach entfiltert werden: ihr Rueckgabewert speist in
+// territories-layer.php ZUSAETZLICH Farbe und Deckkraft (avesmapsPoliticalResolveLayerDisplayColor
+// nimmt $assignmentDisplay['color'] als ERSTEN Kandidaten, $displayOpacity liest ['opacity']).
+// Ein entfilterter Sucher haette also mit dem Namen still auch die Farbe jedes umbenannten Gebiets
+// umgestellt -- eine sichtbare Aenderung, die niemand bestellt hat. Deshalb ein eigener Leser, der
+// GENAU eine Frage beantwortet.
+//
+// 🔴 Nur `displayName`, nie `originalName`: der Schreiber
+// (avesmapsPoliticalBuildStoredAssignmentDisplay) leert displayName, sobald er dem Originalnamen
+// gleicht -- ein nicht-leerer Wert IST damit schon die Aussage "hier weicht jemand bewusst ab".
+// `originalName` ist der Stand VOR der Umbenennung; liesse man ihn gewinnen, naegelte ein alter
+// Eintrag nach einer Wiki-Umbenennung den veralteten Namen fest -- genau dieser Fehler noch einmal.
+function avesmapsPoliticalFindAssignmentDisplayNameForTerritory(array $style, string $territoryPublicId, string $nodeKey = ''): string {
+    $territoryPublicId = trim($territoryPublicId);
+    $nodeKey = trim($nodeKey);
+
+    foreach (avesmapsPoliticalReadAssignmentDisplaysFromStyle($style) as $display) {
+        $displayTerritoryPublicId = trim((string) ($display['territoryPublicId'] ?? $display['territory_public_id'] ?? ''));
+        $displayNodeKey = trim((string) ($display['nodeKey'] ?? $display['node_key'] ?? ''));
+
+        $matches = ($territoryPublicId !== '' && $displayTerritoryPublicId === $territoryPublicId)
+            || ($nodeKey !== '' && $displayNodeKey === $nodeKey);
+        if (!$matches) {
+            continue;
+        }
+
+        $displayName = trim((string) ($display['displayName'] ?? $display['display_name'] ?? ''));
+        if ($displayName !== '' && !avesmapsPoliticalIsGenericHierarchyRootName($displayName)) {
+            return $displayName;
+        }
+    }
+
+    return '';
+}
+
 function avesmapsPoliticalResolveAssignmentDisplayName(?array $display, string $fallbackName): string {
     if ($display === null) {
         return trim($fallbackName);

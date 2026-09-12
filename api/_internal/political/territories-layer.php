@@ -820,6 +820,25 @@ function avesmapsPoliticalLayerRowToFeature(array $row, int $yearBf, int $zoom):
         ? $territoryName
         : ($customName !== '' ? $customName : 'Freie Geometrie');
 
+    // Fall #123 ("Territorien aendern Ihre Namen nicht"): der im Editor gespeicherte Anzeigename
+    // erreichte das Kartenlabel nie. Zwei unabhaengige Bruecke, und jeder allein repariert nichts --
+    // der Sucher fand den Eintrag gar nicht (siehe avesmapsPoliticalFindAssignmentDisplayNameForTerritory),
+    // und hier gewann der Gebietsname ausnahmslos, weil ein Wiki-Sync-Territorium IMMER einen hat.
+    // Der Override griff damit nur bei einer namenlosen "Freien Geometrie".
+    //
+    // 🔴 Der Override geht auf die BESCHRIFTUNG, nie auf `name`. `name` ist der kanonische Name und
+    // wird als MATCHING-Schluessel gelesen: avesmapsPoliticalFindInnerBoundaryFeaturesInLayer
+    // (territories-derived-layer.php) haelt ihn gegen die Zugehoerigkeits-Prosa der Basisflaechen und
+    // entscheidet daran, welche Innengrenzen verborgen werden. Wer ihn umbenennt, verschiebt still
+    // mit, welche Grenzen die Karte zeichnet -- dieselbe Trennung wie ueberall im Haus: die Kennung
+    // bleibt, die Beschriftung wandert.
+    $overrideName = avesmapsPoliticalFindAssignmentDisplayNameForTerritory($style, $territoryPublicId, $nodeKey);
+    if ($overrideName === '') {
+        $overrideName = avesmapsPoliticalFindAssignmentDisplayNameForTerritory($geometryStyle, $territoryPublicId, $nodeKey);
+    }
+
+    $labelName = $overrideName !== '' ? $overrideName : $visibleName;
+
     // Coat of arms: an UPLOADED override decides the coat, exactly like territory-detail.php (infobox) and
     // the settlement breadcrumb -- so the label shows the SAME coat as the infobox (Discord #32: Grafschaft
     // Ferdok showed the wiki coat here while the infobox showed the upload, because the override used to be
@@ -911,10 +930,10 @@ function avesmapsPoliticalLayerRowToFeature(array $row, int $yearBf, int $zoom):
         'territory_public_id' => $territoryPublicId,
         'territory_id' => (int) $row['territory_id'],
         'name' => $visibleName,
-        'display_name' => $visibleName,
+        'display_name' => $labelName,
         'short_name' => trim((string) ($row['short_name'] ?? '')),
-        'label_name' => $visibleName,
-        'label_display_name' => $visibleName,
+        'label_name' => $labelName,
+        'label_display_name' => $labelName,
         'label_coat_of_arms_url' => $visibleCoatOfArmsUrl,
         'feature_type' => 'political_territory',
         'feature_subtype' => $resolvedType,
