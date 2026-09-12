@@ -326,6 +326,93 @@
      Identitäts-Vorschau, die die anderen .ident-*-Regeln brauchte, ist mit der Übernahme-Vorschau
      (sync-plan-sheet.js) abgelöst. Kein max-height mehr: der Rumpf des Fensters scrollt (oben). */
   .ident-table { border:1px solid var(--line); border-radius:6px; }
+
+  /* ==== Am schmalen Fenster ====================================================================
+     Entwurf: docs/superpowers/specs/2026-09-12-sync-monitor-am-telefon-design.md
+     Owner 12.09.2026, mit Bild vom Telefon: „kannst du den editor halbwegs so machen dass ich ihn
+     aufm handy irgendwie benutzen kann".
+
+     🔴 DIESE SEITE HATTE BIS DAHIN KEINE EINZIGE MEDIA-QUERY -- es fehlte keine Feinjustierung,
+        es fehlte die Regel ueberhaupt. (Gemessen 12.09.2026: von zwoelf Editorseiten hatte keine
+        eine.) Aus den drei Spalten macht js/ui/editor-spalten-reiter.js Reiter; was HIER steht,
+        ist alles, was daneben noch aus dem Fenster laeuft.
+
+     🔴 680px ist DIE Schwelle dieses Fensters -- dieselbe Zahl wie in
+        css/components/political-territory-editor-overlay.css (dort: Fenster fuellt den Bildschirm)
+        und in css/components/editor-body.css (dort: Spalten werden Reiter). EINE Zahl fuer
+        dieselbe Frage; drei eigene liefen beim ersten Nachjustieren auseinander.
+     ⚠️ Gemessen wird das DOKUMENT, im iframe also die Fensterbreite -- genau richtig, denn die
+        Frage ist, ob der Inhalt Platz hat, nicht welches Geraet davorsitzt. */
+  @media (max-width: 680px) {
+    /* 💣 Das Menueband erzwang fuenf Kacheln in EINER Rasterzeile (`grid-auto-flow:column`), und
+       `.btn2 .t1` kuerzt mit Ellipsis: am Bild stand „1 · 🚨 …", „2 · Hi…", „3 · Ü…", „Wap…",
+       „🔗 Li…" -- fuenf Knoepfe, von denen keiner sagt, was er tut. Die Ellipsis war fuer acht
+       Kacheln NEBENEINANDER gedacht (der Kommentar an `.btn2 .t1` sagt das); nebeneinander stehen
+       sie hier nicht mehr, also darf die Beschriftung umbrechen. Lesbar schlaegt gleich hoch. */
+    .controls { grid-auto-flow:row; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); }
+    .btn2 { min-height:var(--avm-touch-h); }
+    .btn2 .t1, .btn2 .t2 { white-space:normal; overflow:visible; }
+
+    /* Die Statuszeile trug `white-space:nowrap` und schob den Kontinent-Trichter aus dem Fenster. */
+    #status { white-space:normal; flex-wrap:wrap; min-height:0; gap:var(--space-4) var(--space-8); }
+    #statusText { white-space:normal; overflow:visible; flex:1 1 100%; }
+    #contDD { align-self:flex-start; }
+
+    /* 💣 DIE TOTE TRENNLINIE. `.col + .col { border-left }` ist ein GESCHWISTER-Selektor und liest
+       den DOM-Baum, nicht die Sichtbarkeit: ein `display:none` an der Spalte davor nimmt sie nicht
+       zurueck. Auf den Reitern „Modell" und „Details" blieb damit ein 1px-Strich am linken Rand der
+       einzigen sichtbaren Spalte -- und seit das Fenster randlos ist, liegt er sichtbar am
+       Bildschirmrand. Den Einzelspalten-Zustand erzeugt erst dieser Umbau; die Regel selbst ist
+       aelter. Gefunden von der Designpruefung. */
+    .col + .col { border-left:0; }
+
+    /* 💣 Die Filterzeile bricht um, statt drei Bedienelemente in 338px zu quetschen. Und
+       `select#filter` bekommt dasselbe `min-width:0`, das die Regel oben seinem Nachbarn
+       `input[type=search]` schon gibt -- mit derselben Begruendung, die dort ausgeschrieben steht:
+       ein Flex-Kind mit `min-width:auto` schrumpft NICHT unter seine Inhaltsbreite und drueckt den
+       Nachbarn hinaus. „🗑 Papierkorb (aussortiert)" ist die laengste seiner zehn Optionen. */
+    .bar { flex-wrap:wrap; }
+    .bar select { min-width:0; flex:1 1 auto; }
+
+    /* Dieselbe Behandlung wie das Menueband darueber -- „lesbar schlaegt gleich hoch": drei
+       Knoepfe zu je ~100px zerlegten „🔗 Namensgleiche vorschlagen" in vier Zeilen. */
+    .colfoot { flex-wrap:wrap; }
+    .colfoot .btn { flex:1 1 150px; }
+  }
+
+  /* ==== Am TOUCH-Geraet =========================================================================
+     🔴 EIGENER RIEGEL, und er misst das GERAET, nicht die Breite -- dieselbe Bedingung, mit der
+        css/components/fenster.css den Zieh-Griff abnimmt, und aus dem dort ausgeschriebenen Grund:
+        „ein Tablet ist breit UND tastbedient; der Griff waere dort eine Behauptung, die niemand
+        einloest." Genau das sind die zwei Drop-Zonen hier.
+     💣 Diese Seite fährt HTML5-Drag'n'drop (`dragstart`/`dragover`/`drop`), und das kennt KEIN
+        Touch. Die zwei gestrichelten Kaesten („✕ Hierher ziehen = aussortieren", „▶ Hierher ziehen
+        = zur Wurzel machen") nahmen am Bild vier bis fuenf Zeilen je Spalte ein und konnten dort
+        nie etwas tun. Mit ihnen faellt `cursor:grab` an `.row`/`.node` -- dieselbe Behauptung, eine
+        Etage kleiner.
+     ⚠️ Das nimmt KEINE Funktion weg, die es dort gab: aussortieren und „zur Wurzel machen" waren
+        am Telefon nie ausfuehrbar. Ein Tipp-Weg dafuer ist ein eigenes Stueck Arbeit (Entwurf §4),
+        keine Media-Query. */
+  @media (hover: none) and (pointer: coarse) {
+    #dropRoot, #dropExclude { display:none; }
+    .row, .node { cursor:default; }
+    /* 🔴 TREFFBAR HEISST `--avm-touch-h`, NICHT „etwas mehr Polster". Der erste Bau gab `.row` und
+       `.node` nur 8px bzw. 6px Polster -- gerechnet mit 13px Schrift und `--leading-normal` ergibt
+       das ~35px und ~31px, also unter dem 44er-Ziel, das derselbe Umbau eine Etage darueber fuer
+       die Menuebandkacheln fordert. Zwei Maesse fuer dieselbe Frage im selben Commit; gefunden von
+       der Designpruefung. Die Zeilen sind die eigentliche Bedienflaeche dieser Seite.
+       ⚠️ `.node` ist `inline-flex` (es sitzt IM Baum neben seinem Aufklapp-Dreieck) -- eine
+          Mindesthoehe allein zentriert dort nichts, deshalb `align-items:center` daneben. */
+    .row, .node { min-height:var(--avm-touch-h); align-items:center; }
+    .row { padding:var(--space-4) var(--space-8); }
+    .node { padding:var(--space-2) var(--space-8); }
+    /* Das Aufklapp-Dreieck des Baums ist 12px breit und damit selbst kein Touch-Ziel. Es ist
+       erstes Kind der `.node` -- `align-self:stretch` gibt ihm deren ganze (jetzt 44px) Hoehe,
+       statt eine zweite Hoehenzahl daneben zu setzen. 18 statt 44 in der Breite ist Absicht: ein
+       44px breites Dreieck nimmt dem Namen ein Viertel der Spalte. */
+    .twist { min-width:var(--space-16); align-self:stretch; display:inline-flex; align-items:center; justify-content:center; }
+    ul.tree li { margin:var(--space-2) 0; }
+  }
 </style>
 </head>
 <body>
@@ -368,8 +455,12 @@
     <div class="dd-menu" id="contMenu" hidden></div>
   </div>
 </div>
+<!-- 🔴 `data-reiter` sind die KURZNAMEN der Reiterleiste, die js/ui/editor-spalten-reiter.js am
+     schmalen Fenster ueber diesen Wirt baut. Die vollen Ueberschriften bleiben in der Spalte
+     stehen -- „Noch nicht modellierte Herrschaftsgebiete" als Reiter waere so abgeschnitten wie
+     die Spalte selbst, und genau darum geht es hier. -->
 <div class="cols">
-  <div class="col" id="left">
+  <div class="col" id="left" data-reiter="Lücken">
     <div class="colhead">
       <h2 class="listhead">Noch nicht modellierte Herrschaftsgebiete</h2>
       <div class="listsub" id="attn"></div>
@@ -401,7 +492,7 @@
       <button type="button" id="bindung-sammellauf" class="btn" title="Sucht zu jedem eigenen Knoten einen namensgleichen Wiki-Artikel und schlägt die Bindung vor. Vorangehakt sind nur eindeutige Treffer.">🔗 Namensgleiche vorschlagen</button>
     </div>
   </div>
-  <div class="col" id="right">
+  <div class="col" id="right" data-reiter="Modell">
     <div class="colhead">
       <h2 class="listhead">Hierarchiemodell der Herrschaftsgebiete</h2>
       <div class="listsub" id="treeCount"></div>
@@ -413,7 +504,7 @@
     </div>
     <div id="tree"></div>
   </div>
-  <div class="col" id="detail">
+  <div class="col" id="detail" data-reiter="Details">
     <div class="colhead"><h2 class="listhead">Wiki-Daten und Eigene Overrides</h2></div>
     <div id="detailBody"><div class="dt-empty">Links oder im Baum ein Herrschaftsgebiet anklicken, um die gecrawlten Wiki-Details zu sehen.</div></div>
   </div>
@@ -512,6 +603,11 @@
 <script src="/js/ui/filter-menu.js"></script>
 <!-- Das Sammelmenue im Menueband (Wappen-Knopf) -- abhaengigkeitsfrei wie der Trichter daneben. -->
 <script src="/js/ui/ribbon-menu.js"></script>
+<!-- Aus den drei Spalten werden am schmalen Fenster Reiter (Entwurf
+     docs/superpowers/specs/2026-09-12-sync-monitor-am-telefon-design.md). Abhaengigkeitsfrei wie die
+     zwei Bauteile darueber; die Form kommt aus .avm-tabs/.avm-tab (css/components/editor-body.css,
+     ueber den @import in editor-page.css). -->
+<script src="/js/ui/editor-spalten-reiter.js"></script>
 <!-- Verschiebbare Fenster: greift die Kopfzeile (.avm-fenster__kopf) der drei Fenster dieser Seite.
      Die Fenster der Hauptseite bedient dieselbe Datei dort; ein iframe braucht seine eigene Kopie,
      sein Dokument ist ein anderes. -->
@@ -755,6 +851,20 @@ avesmapsRibbonMenuAttachById('btnCoatsMenu', 'btnCoatsMenuPanel');
 $('btnCoatsLocal')?.addEventListener('click', toggleCoatSwitch);
 $('btnCoatsWiki')?.addEventListener('click', toggleCoatSwitch);
 
+// ---- Aus den drei Spalten werden am schmalen Fenster Reiter ---------------------------------
+// 🔴 Das geteilte Bauteil (js/ui/editor-spalten-reiter.js), nicht eine eigene Fassung: die
+//    Kurznamen stehen als `data-reiter` am `.col`, die Form ist .avm-tabs/.avm-tab, und WANN die
+//    Leiste wirkt, entscheidet allein die Media-Query in css/components/editor-body.css.
+// ⚠️ Fällt offen aus: ohne das Skript (alter Cache, Ladefehler) bleiben die drei Spalten stehen,
+//    wie sie es bis zum 12.09.2026 immer taten -- der schlechteste Fall ist der Zustand von vorher.
+// 🔴 Das Ergebnis wird NICHT in eine Variable gelegt: `selectKey` weiter unten schlägt die
+//    Steuerung bei jedem Klick über `avesmapsSpaltenReiter('.cols')` nach. Eine `const` hier und
+//    ein Zugriff dort hinge an der Reihenfolge zweier Blöcke derselben Datei (temporale Todeszone),
+//    und ein ReferenceError beim ersten Klick sieht wie ein kaputtes Bauteil aus.
+if (typeof avesmapsSpaltenReiterAttach === 'function') {
+  avesmapsSpaltenReiterAttach(document.querySelector('.cols'));
+}
+
 // Zaehlt die noch hotlinkenden gemeinfreien Wappen und spiegelt sie in den Button-Untertitel.
 async function refreshLocalizeCount(){
   try{
@@ -915,12 +1025,21 @@ async function restoreCoat(k){
   } catch(e){ setStatus('Fehler: '+e.message); }
   busy(false);
 }
+// 💣 DER TRICHTER. Alle fuenf Aufrufer gehen hier durch (Klick in Liste und Baum, die Bindung
+// eines eigenen Knotens, der Sprung aus der Trefferliste, der Geometrie-Dialog) -- deshalb steht
+// der Reiter-Sprung HIER und nicht an den Aufrufstellen, wo ihn der sechste vergessen wuerde.
+// 🔴 Am schmalen Fenster ist die Detailspalte ein REITER: ohne den Sprung fuellt sich eine
+// unsichtbare Spalte, und der Klick sieht verschluckt aus. `zeige()` tut von sich aus nichts,
+// solange die Reiter nicht wirken -- am breiten Fenster ist ohnehin alles sichtbar.
 function selectKey(k){
   if(k!==selectedKey){ editMode=false; pendingCapital=undefined; capResults=[]; }
   selectedKey = k;
   document.querySelectorAll('.row.sel, .node.sel').forEach(el=>el.classList.remove('sel'));
   try { document.querySelectorAll(`[data-key="${CSS.escape(k)}"]`).forEach(el=>el.classList.add('sel')); } catch(e){}
   renderDetail();
+  if (typeof avesmapsSpaltenReiter === 'function') {
+    avesmapsSpaltenReiter('.cols')?.zeige($('detail'));
+  }
 }
 function periodText(n){ return (periodLabel(n)||'').replace(/^.*?· /,'').replace(/<[^>]*>/g,'').trim(); }
 // --- Wiki-Details: Anzeige + manuelles Editieren ---------------------------------
