@@ -406,4 +406,76 @@ $ohneKennung = ['assignmentDisplays' => [[
 $p = avesmapsPoliticalLayerRowToFeature(anzeigenameTestZeile($ohneKennung), 1049, 3)['properties'];
 assert($p['label_name'] === 'Nordhjaldor', 'L3: ein Eintrag ohne Kennung greift nichts');
 
+// ---- M. DIE SPALTE AM TERRITORIUM schlaegt die alte Ablage -- und traegt Aggregat UND Huelle -------
+// 🔴 Das ist der Umbau, den Fall #123 ausgeloest hat: der Anzeigename gehoert dem TERRITORIUM.
+// An einer Geometrie-Ablage war er fuer eine Aussenhuelle (keine Stilspalte) und fuer ein Aggregat
+// (Ablage des Kindes) strukturell unerreichbar.
+$mitSpalte = anzeigenameTestZeile([], ['display_name' => 'Jarltum Nordhjaldor']);
+$p = avesmapsPoliticalLayerRowToFeature($mitSpalte, 1049, 3)['properties'];
+assert($p['label_name'] === 'Jarltum Nordhjaldor', 'M1: die Spalte traegt das Label');
+assert($p['name'] === 'Nordhjaldor', 'M2: `name` bleibt auch hier die Kennung');
+
+// Die Spalte schlaegt einen abweichenden Alteintrag in style_json.
+$alt = ['assignmentDisplays' => [[
+    'territoryPublicId' => 'terr-nordhjaldor',
+    'nodeKey' => 'wiki:nordhjaldor',
+    'displayName' => 'Alter Eintrag',
+]]];
+$p = avesmapsPoliticalLayerRowToFeature(
+    anzeigenameTestZeile($alt, ['display_name' => 'Jarltum Nordhjaldor']),
+    1049,
+    3
+)['properties'];
+assert($p['label_name'] === 'Jarltum Nordhjaldor', 'M3: die Spalte schlaegt die alte Ablage');
+
+// 💣 Und beim AGGREGAT traegt sie jetzt -- anders als die alte Ablage, die dort reihenfolge-
+// abhaengig war (§J). BuildAggregateLayerRow merged die Felder des ANZEIGE-Territoriums herein.
+$ausAggregat = avesmapsPoliticalLayerRowToFeature(
+    avesmapsPoliticalBuildAggregateLayerRow(
+        ['territory_id' => 99, 'territory_public_id' => 'terr-thorwal', 'slug' => 'thorwal',
+         'name' => 'Thorwal', 'display_name' => 'Freies Thorwal'],
+        ['geometry_public_id' => 'geo-a', 'geometry_id' => 11, 'geometry_geojson' => null,
+         'geometry_valid_from_bf' => null, 'geometry_valid_to_bf' => null, 'updated_at' => '',
+         'style_json' => null],
+        ['territory_id' => 5, 'territory_public_id' => 'terr-kind', 'name' => 'Ein Kind']
+    ),
+    1049,
+    3
+)['properties'];
+assert($ausAggregat['label_name'] === 'Freies Thorwal', 'M4: das Aggregat traegt die Spalte des Anzeige-Territoriums');
+assert($ausAggregat['name'] === 'Thorwal', 'M5: und `name` bleibt kanonisch');
+
+// ⚠️ Der Platzhalter-Riegel gilt auch der Spalte -- die Migration koennte einen aus style_json mitbringen.
+$p = avesmapsPoliticalLayerRowToFeature(
+    anzeigenameTestZeile([], ['display_name' => 'Unabhängig']),
+    1049,
+    3
+)['properties'];
+assert($p['label_name'] === 'Nordhjaldor', 'M6: ein Platzhalter in der Spalte wird nicht zum Label');
+
+// ---- N. DER SCHREIBER LOESCHT NICHT, WAS ER NICHT GENANNT BEKOMMT -----------------------------------
+// 💣 Die Falle, an der die alte Ablage gestorben ist: `short_name` daneben wird unbedingt aus dem
+// Rumpf gesetzt, ein Aufrufer ohne das Feld LOESCHT es. Fuer den Anzeigenamen entscheidet deshalb
+// array_key_exists, nicht der Wahrheitswert.
+assert(
+    avesmapsPoliticalDisplayNameForWrite([], 'Jarltum Nordhjaldor', 'Nordhjaldor') === 'Jarltum Nordhjaldor',
+    'N1: ein Rumpf OHNE das Feld laesst den Bestand stehen'
+);
+assert(
+    avesmapsPoliticalDisplayNameForWrite(['display_name' => ''], 'Jarltum Nordhjaldor', 'Nordhjaldor') === null,
+    'N2: ein ausdruecklich leeres Feld nimmt den Override zurueck'
+);
+assert(
+    avesmapsPoliticalDisplayNameForWrite(['displayName' => 'Jarltum Nordhjaldor'], null, 'Nordhjaldor') === 'Jarltum Nordhjaldor',
+    'N3: camelCase wird ebenso gelesen (der Editor schickt display.displayName)'
+);
+assert(
+    avesmapsPoliticalDisplayNameForWrite(['display_name' => 'Nordhjaldor'], 'Alt', 'Nordhjaldor') === null,
+    'N4: gleich dem kanonischen Namen heisst "keine Abweichung"'
+);
+assert(
+    avesmapsPoliticalDisplayNameForWrite(['display_name' => '  Jarltum   Nordhjaldor '], null, 'Nordhjaldor') === 'Jarltum Nordhjaldor',
+    'N5: normalisiert wie jeder andere einzeilige Text'
+);
+
 fwrite(STDOUT, "OK: anzeigename-am-label-test.php -- alle Zusicherungen gehalten.\n");

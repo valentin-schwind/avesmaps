@@ -9,6 +9,43 @@ declare(strict_types=1);
 // liegen jetzt in territories-read.php, da der Layer-/Lesepfad sie braucht
 // und nicht vom Schreib-Modul abhaengen darf.
 
+/**
+ * Der ANZEIGENAME eines Gebiets fuer einen Schreibvorgang -- oder der BESTAND, wenn der Rumpf ihn
+ * nicht nennt. Leer bzw. gleich dem kanonischen Namen heisst "keine Abweichung" und wird NULL.
+ *
+ * 💣 DIE TRAGENDE REGEL IST DAS NICHT-SCHREIBEN. `short_name` daneben wird unbedingt aus dem Rumpf
+ * gesetzt -- ein Aufrufer, der das Feld nicht mitschickt, LOESCHT es. Genau diese Bauform hat beim
+ * alten Ablageort (style_json) dafuer gesorgt, dass jede Speicherung ohne `displayName` einen
+ * vorhandenen Override wegwischte (gemessen 12.09.2026). Hier entscheidet deshalb
+ * array_key_exists, nicht der Wahrheitswert: ein ausdruecklich leer geschicktes Feld nimmt den
+ * Override zurueck, ein GAR NICHT genanntes laesst ihn stehen.
+ *
+ * 🔴 Gleich dem kanonischen Namen -> NULL, dieselbe Regel, die
+ * avesmapsPoliticalBuildStoredAssignmentDisplay seit jeher fuer displayName traegt: gespeichert wird
+ * die ABWEICHUNG, nie eine Kopie des Namens. Sonst zoege eine spaetere Wiki-Umbenennung den alten
+ * Namen als "Override" hinter sich her.
+ */
+function avesmapsPoliticalDisplayNameForWrite(array $quelle, ?string $bestand, string $kanonischerName): ?string {
+    $genannt = null;
+    foreach (['display_name', 'displayName'] as $schluessel) {
+        if (array_key_exists($schluessel, $quelle)) {
+            $genannt = (string) $quelle[$schluessel];
+            break;
+        }
+    }
+
+    if ($genannt === null) {
+        return avesmapsPoliticalNullableString(trim((string) $bestand));
+    }
+
+    $wert = avesmapsNormalizeSingleLine($genannt, 255);
+    if ($wert === '' || $wert === trim($kanonischerName)) {
+        return null;
+    }
+
+    return $wert;
+}
+
 function avesmapsPoliticalBuildStoredAssignmentDisplay(array $territory, array $display, int $depth): array {
     $originalName = trim((string) ($territory['wiki_name'] ?? ''))
         ?: trim((string) ($territory['name'] ?? ''));
@@ -260,6 +297,7 @@ function avesmapsPoliticalUpdateTerritory(PDO $pdo, array $payload, array $user)
             wiki_id = :wiki_id,
             wiki_key = :wiki_key,
             short_name = :short_name,
+            display_name = :display_name,
             type = :type,
             parent_id = :parent_id,
             status = :status,
@@ -283,6 +321,7 @@ function avesmapsPoliticalUpdateTerritory(PDO $pdo, array $payload, array $user)
         'wiki_id' => $wikiId,
         'wiki_key' => $wikiKey,
         'short_name' => avesmapsPoliticalNullableString(avesmapsNormalizeSingleLine((string) ($payload['short_name'] ?? ''), 160)),
+        'display_name' => avesmapsPoliticalDisplayNameForWrite($payload, $territory['display_name'] ?? null, $name),
         'type' => avesmapsPoliticalNullableString(avesmapsPoliticalNormalizeParentheticalSpacing(avesmapsNormalizeSingleLine((string) ($payload['type'] ?? ''), 160))),
         'parent_id' => $parentId,
         'status' => avesmapsPoliticalNullableString(avesmapsNormalizeSingleLine((string) ($payload['status'] ?? ''), 255)),
@@ -347,8 +386,14 @@ function avesmapsPoliticalSaveWikiNodeSettings(PDO $pdo, array $payload, array $
         // is_active=1: Speichern reaktiviert IMMER (siehe avesmapsPoliticalUpdateTerritory) --
         // der Editor speichert Knoten-Eigenschaften ueber DIESEN Pfad, nicht ueber update_territory.
         $statement = $pdo->prepare(
+            // 🔴 `display_name` gehoert hierher, und sein Fehlen WAR ein eigener Fehler (Fall #123,
+            // Befund 2): der Editor schickt den Anzeigenamen als `display.displayName`, dieser Pfad
+            // schrieb ihn nirgends hin und meldete trotzdem "Eigenschaften gespeichert." Betroffen ist
+            // genau die Knotenklasse OHNE eigene Geometrie -- also die, die keine Geometrie-Ablage hat,
+            // in der er frueher haette landen koennen. Fuer sie war Umbenennen komplett unmoeglich.
             'UPDATE political_territory
             SET color = :color,
+                display_name = :display_name,
                 opacity = :opacity,
                 coat_of_arms_url = :coat_of_arms_url,
                 min_zoom = :min_zoom,
@@ -361,6 +406,11 @@ function avesmapsPoliticalSaveWikiNodeSettings(PDO $pdo, array $payload, array $
         $statement->execute([
             'id' => (int) $territory['id'],
             'color' => $color,
+            'display_name' => avesmapsPoliticalDisplayNameForWrite(
+                $display,
+                $territory['display_name'] ?? null,
+                (string) ($territory['name'] ?? '')
+            ),
             'opacity' => $opacity,
             'coat_of_arms_url' => avesmapsPoliticalNullableString($coatOfArmsUrl),
             'min_zoom' => $minZoom,

@@ -272,6 +272,7 @@ CREATE TABLE IF NOT EXISTS political_territory (
     slug VARCHAR(180) NOT NULL,
     name VARCHAR(255) NOT NULL,
     short_name VARCHAR(160) NULL,
+    display_name VARCHAR(255) NULL,   -- ALTER-added by PHP if missing; leer = heisst wie `name` (Fall #123)
     type VARCHAR(160) NULL,
     parent_id BIGINT UNSIGNED NULL,
     continent VARCHAR(120) NOT NULL DEFAULT 'Aventurien',

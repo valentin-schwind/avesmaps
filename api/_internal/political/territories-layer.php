@@ -71,6 +71,7 @@ function avesmapsPoliticalReadLayer(PDO $pdo, array $query): array {
             territory.slug,
             territory.name,
             territory.short_name,
+            territory.display_name,
             territory.type,
             territory.status,
             territory.color,
@@ -179,6 +180,7 @@ function avesmapsPoliticalReadEditorLayer(PDO $pdo, int $yearBf, int $zoom, ?arr
             territory.slug,
             territory.name,
             territory.short_name,
+            territory.display_name,
             territory.type,
             territory.status,
             territory.color,
@@ -462,6 +464,7 @@ function avesmapsPoliticalFetchLayerTerritories(PDO $pdo, int $yearBf): array {
             territory.slug,
             territory.name,
             territory.short_name,
+            territory.display_name,
             territory.type,
             territory.status,
             territory.color,
@@ -833,21 +836,29 @@ function avesmapsPoliticalLayerRowToFeature(array $row, int $yearBf, int $zoom):
     // mit, welche Grenzen die Karte zeichnet -- dieselbe Trennung wie ueberall im Haus: die Kennung
     // bleibt, die Beschriftung wandert.
     //
-    // 💣 BEIM AGGREGAT WIRD KEIN OVERRIDE GELESEN -- und das ist die tragende Zeile.
-    // avesmapsPoliticalBuildAggregateLayerRow nullt `style_json` und legt die Ablage des KINDES nach
-    // `geometry_style_json`, setzt aber territory_public_id/slug des ELTERNTEILS. Eine Geometrie-Ablage
-    // traegt die GANZE Vorfahrenkette -- der Rueckfall haette also den Namen des Elternteils aus der
-    // KOPIE in einem beliebigen Kind gelesen, und welches Kind gewinnt, entscheidet das ORDER BY der
-    // Abfrage. Ein umbenanntes oder umsortiertes Kind haette damit den Namen des Elterngebiets
-    // gekippt, ohne dass jemand das Gebiet angefasst hat -- auf dem OEFFENTLICHEN Pfad, denn Aggregate
-    // sind genau das, was ein Besucher bei niedrigem Zoom sieht.
-    // 🔴 $customName direkt darueber traegt aus demselben Grund seit jeher `$isAggregate ? '' : ...`.
-    $overrideName = '';
-    if (!$isAggregate) {
+    // 1. DIE SPALTE AM TERRITORIUM gewinnt. Sie ist eindeutig, einwertig und reist mit JEDER Zeile,
+    //    die political_territory joint -- also auch mit dem AGGREGAT (BuildAggregateLayerRow merged
+    //    die Felder des Anzeige-Territoriums herein) und mit der ABGELEITETEN AUSSENHUELLE, die gar
+    //    keine Stilablage hat und trotzdem das Label traegt. Genau daran ist die alte Ablage
+    //    gescheitert.
+    $overrideName = trim((string) ($row['display_name'] ?? ''));
+
+    // 2. Rueckfall auf die ALTE Ablage in style_json, solange die Migration nicht gelaufen ist.
+    // 💣 Fuer ein AGGREGAT nicht: dort nullt BuildAggregateLayerRow `style_json` und legt die Ablage
+    // des KINDES nach `geometry_style_json`, waehrend die Kennung schon dem ELTERNTEIL gehoert. Der
+    // Rueckfall haette den Namen des Elternteils aus der Kopie in einem beliebigen Kind gelesen --
+    // welches gewinnt, entschied das ORDER BY. Fuer die Spalte gilt das NICHT, sie ist einwertig.
+    if ($overrideName === '' && !$isAggregate) {
         $overrideName = avesmapsPoliticalFindAssignmentDisplayNameForTerritory($style, $territoryPublicId, $nodeKey);
         if ($overrideName === '') {
             $overrideName = avesmapsPoliticalFindAssignmentDisplayNameForTerritory($geometryStyle, $territoryPublicId, $nodeKey);
         }
+    }
+
+    // ⚠️ Der Platzhalter-Riegel gilt BEIDEN Quellen. Der Leser der alten Ablage bringt ihn selbst mit;
+    // die Spalte braucht ihn hier, weil die Migration Platzhalter aus style_json mitbringen koennte.
+    if ($overrideName !== '' && avesmapsPoliticalIsGenericHierarchyRootName($overrideName)) {
+        $overrideName = '';
     }
 
     $labelName = $overrideName !== '' ? $overrideName : $visibleName;

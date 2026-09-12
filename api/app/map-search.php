@@ -168,10 +168,14 @@ function avesmapsFetchMapSearchRows(PDO $pdo): array {
 // reine Aggregat-Knoten (ohne eigene Geometrie) bekommen die korrekte Huelle. Geometrielose
 // Gebiete (auch ohne Nachfahren-Geometrie) fallen raus (nichts zum Anspringen). Felder so geformt,
 // dass avesmapsBuildSearchResult sie wie eine Region behandelt.
-function avesmapsFetchPoliticalTerritorySearchRows(PDO $pdo): array {
-    try {
-        $statement = $pdo->query(
-            'WITH RECURSIVE subtree AS (
+function avesmapsPoliticalTerritorySearchSql(bool $mitAnzeigename): string {
+    // ⚠️ `g` sind die Geometrien des GANZEN Unterbaums (fuer die bbox-Aggregation), nicht die eigenen
+    // des Gebiets -- deshalb kommt der Anzeigename aus der SPALTE am Territorium und nicht aus
+    // `g.style_json`: aus einem GROUP BY ueber Nachfahren-Blobs gaebe es keine Regel, welcher gewinnt.
+    $anzeigename = $mitAnzeigename ? "                   t.display_name,\n" : '';
+    $gruppe = $mitAnzeigename ? ', t.display_name' : '';
+
+    return 'WITH RECURSIVE subtree AS (
                 SELECT id AS root_id, id AS node_id FROM political_territory WHERE is_active = 1
                 UNION ALL
                 SELECT st.root_id, c.id
@@ -180,7 +184,7 @@ function avesmapsFetchPoliticalTerritorySearchRows(PDO $pdo): array {
             )
             SELECT t.public_id,
                    t.name,
-                   t.wiki_url,
+' . $anzeigename . '                   t.wiki_url,
                    t.min_zoom,
                    t.max_zoom,
                    MIN(g.min_x) AS min_x,
@@ -191,13 +195,27 @@ function avesmapsFetchPoliticalTerritorySearchRows(PDO $pdo): array {
             JOIN subtree st ON st.root_id = t.id
             JOIN political_territory_geometry g ON g.territory_id = st.node_id AND g.is_active = 1
             WHERE t.is_active = 1 AND t.name IS NOT NULL AND t.name <> \'\'
-            GROUP BY t.id, t.public_id, t.name, t.wiki_url, t.min_zoom, t.max_zoom'
-        );
-    } catch (Throwable $exception) {
-        return [];
+            GROUP BY t.id, t.public_id, t.name, t.wiki_url, t.min_zoom, t.max_zoom' . $gruppe;
+}
+
+function avesmapsFetchPoliticalTerritorySearchRows(PDO $pdo): array {
+    // 💣 ZWEISTUFIG, und das ist tragend. `political_territory.display_name` entsteht selbstheilend in
+    // avesmapsPoliticalEnsureTables -- also erst, wenn ein EDITOR-Pfad laeuft. Im Fenster zwischen
+    // Deploy und erster Editor-Aktion gaebe es die Spalte nicht, die Abfrage wuerfe "Unknown column",
+    // und der catch unten machte daraus eine LEERE Liste: die gesamte Gebietssuche waere still tot --
+    // nicht nur der neue Name. Deshalb der Rueckfall auf die Abfrage OHNE die Spalte, statt DDL auf
+    // diesen oeffentlichen Lesepfad zu legen (CLAUDE.md: keine schweren Endpunkte auf STRATO).
+    foreach ([true, false] as $mitAnzeigename) {
+        try {
+            $statement = $pdo->query(avesmapsPoliticalTerritorySearchSql($mitAnzeigename));
+        } catch (Throwable) {
+            continue;
+        }
+
+        return $statement !== false ? $statement->fetchAll(PDO::FETCH_ASSOC) : [];
     }
 
-    return $statement !== false ? $statement->fetchAll(PDO::FETCH_ASSOC) : [];
+    return [];
 }
 
 function avesmapsBuildMapSearchResults(
@@ -262,15 +280,24 @@ function avesmapsBuildMapSearchResults(
         if ($name === '') {
             continue;
         }
+        // 🔴 GEZEIGT wird der Anzeigename, GEFUNDEN wird unter BEIDEN (Owner 12.09.2026: "ich will
+        // dass auch die suche 'jarltum xyz' anzeigt"). Wer den kanonischen Namen tippt, muss das
+        // Gebiet weiter finden -- er steht in der Wiki-Welt, in Links und in jeder aelteren Notiz.
+        // ⚠️ Leer heisst "heisst wie `name`"; die Spalte traegt nur die ABWEICHUNG.
+        $anzeigename = trim((string) ($politicalRow['display_name'] ?? '')) ?: $name;
         $regionFields = [
             'kind' => 'region',
-            'name' => $name,
+            'name' => $anzeigename,
             'type_label' => 'Herrschaftsgebiet',
             'feature_subtype' => 'political_territory',
             // Wie bei map_features (s. u.): die gespeicherte Wiki-Seite zaehlt als Suchtext, damit
             // Deep-Links (?staat=<Seitenname>) auch dann treffen, wenn der DB-Name vom Seitentitel
             // abweicht (z. B. "Ochsenblut" vs. Wiki-Seite "Baronie_Ochsenblut").
-            'search_texts' => array_values(array_filter([$name, (string) ($politicalRow['wiki_url'] ?? '')])),
+            'search_texts' => array_values(array_unique(array_filter([
+                $anzeigename,
+                $name,
+                (string) ($politicalRow['wiki_url'] ?? ''),
+            ]))),
         ];
         if (($politicalRow['min_zoom'] ?? null) !== null) {
             $regionFields['min_zoom'] = (int) $politicalRow['min_zoom'];
