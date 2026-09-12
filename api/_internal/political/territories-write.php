@@ -46,6 +46,118 @@ function avesmapsPoliticalDisplayNameForWrite(array $quelle, ?string $bestand, s
     return $wert;
 }
 
+/**
+ * Die Altbestaende aus style_json in political_territory.display_name holen (Fall #123).
+ *
+ * 🔴 Trockenlauf ist die VORGABE -- scharf erst mit $trockenlauf = false. Dieselbe Bauform wie
+ * repair_geometry_bounds und takeover_other_sources.
+ *
+ * ⭐ Gelesen wird mit avesmapsPoliticalFindAssignmentDisplayNameForTerritory, also mit DEMSELBEN
+ * Leser, den der Layer-Rueckfall benutzt. Damit holt die Migration exakt das in die Spalte, was die
+ * Karte heute zeigt -- keine zweite Auslegung derselben Daten.
+ *
+ * 💣 SIE FUELLT NUR LUECKEN. Eine Zeile mit gesetzter Spalte bleibt unberuehrt: dort hat jemand
+ * bewusst geschrieben, und ein Altbestand aus einem Geometrie-Blob darf das nie ueberschreiben.
+ * Damit ist der Lauf wiederholbar.
+ *
+ * ⚠️ Platzhalter der Hierarchie ("Unabhaengig", "Umstritten") kommen hier GAR NICHT AN -- der
+ * geteilte Leser weist sie selbst ab. Eine zweite Pruefung an dieser Stelle waere eine Kopie
+ * derselben Regel, und die zwei laufen irgendwann auseinander; sie zaehlen als "kein Eintrag".
+ *
+ * 💣 BEI UNEINIGKEIT WIRD NICHT GERATEN. Ein Gebiet kann mehrere Geometrien haben, und jede traegt
+ * ihre eigene Kopie der Kette -- genau daran ist die alte Ablage gescheitert. Nennen zwei
+ * Geometrien VERSCHIEDENE Namen, wird die Zeile gemeldet und uebersprungen, nie gewuerfelt.
+ *
+ * @return array{geprueft:int,uebernommen:int,uneinig:int,ohne_eintrag:int,
+ *               trockenlauf:bool,stichprobe:list<array<string,string>>,konflikte:list<array<string,mixed>>}
+ */
+function avesmapsPoliticalMigrateDisplayNamesFromStyle(PDO $pdo, bool $trockenlauf = true, int $limit = 500): array {
+    $limit = max(1, $limit);
+    $geprueft = 0;
+    $uebernommen = 0;
+    $uneinig = 0;
+    $ohneEintrag = 0;
+    $stichprobe = [];
+    $konflikte = [];
+
+    // EIN Durchgang: Gebiete mit ihren EIGENEN Geometrien (nicht denen des Unterbaums).
+    $zeilen = $pdo->query(
+        "SELECT t.id, t.public_id, t.slug, t.name, t.display_name, g.style_json
+         FROM political_territory t
+         LEFT JOIN political_territory_geometry g ON g.territory_id = t.id AND g.is_active = 1
+         WHERE t.is_active = 1 AND (t.display_name IS NULL OR t.display_name = '')
+         ORDER BY t.id ASC, g.id ASC"
+    )->fetchAll(PDO::FETCH_ASSOC);
+
+    $proGebiet = [];
+    foreach ($zeilen as $zeile) {
+        $id = (int) $zeile['id'];
+        if (!isset($proGebiet[$id])) {
+            $proGebiet[$id] = ['zeile' => $zeile, 'namen' => []];
+        }
+        $style = avesmapsPoliticalDecodeJson($zeile['style_json'] ?? null);
+        if (!is_array($style)) {
+            continue;
+        }
+        $name = avesmapsPoliticalFindAssignmentDisplayNameForTerritory(
+            $style,
+            (string) $zeile['public_id'],
+            (string) ($zeile['slug'] ?? '')
+        );
+        if ($name !== '') {
+            $proGebiet[$id]['namen'][$name] = true;
+        }
+    }
+
+    $schreiben = $pdo->prepare('UPDATE political_territory SET display_name = :display_name WHERE id = :id');
+
+    foreach ($proGebiet as $id => $eintrag) {
+        if ($uebernommen >= $limit) {
+            break;
+        }
+        $geprueft++;
+        $zeile = $eintrag['zeile'];
+        $kanonisch = trim((string) $zeile['name']);
+        $namen = array_keys($eintrag['namen']);
+
+        if ($namen === []) {
+            $ohneEintrag++;
+            continue;
+        }
+        if (count($namen) > 1) {
+            $uneinig++;
+            if (count($konflikte) < 20) {
+                $konflikte[] = ['public_id' => (string) $zeile['public_id'], 'name' => $kanonisch, 'kandidaten' => $namen];
+            }
+            continue;
+        }
+
+        $name = $namen[0];
+        if ($name === $kanonisch) {
+            $ohneEintrag++;
+            continue;
+        }
+        $uebernommen++;
+        if (count($stichprobe) < 20) {
+            $stichprobe[] = ['public_id' => (string) $zeile['public_id'], 'von' => $kanonisch, 'nach' => $name];
+        }
+        if (!$trockenlauf) {
+            $schreiben->execute(['id' => $id, 'display_name' => $name]);
+        }
+    }
+
+    return [
+        'ok' => true,
+        'trockenlauf' => $trockenlauf,
+        'geprueft' => $geprueft,
+        'uebernommen' => $uebernommen,
+        'uneinig' => $uneinig,
+        'ohne_eintrag' => $ohneEintrag,
+        'stichprobe' => $stichprobe,
+        'konflikte' => $konflikte,
+    ];
+}
+
 function avesmapsPoliticalBuildStoredAssignmentDisplay(array $territory, array $display, int $depth): array {
     $originalName = trim((string) ($territory['wiki_name'] ?? ''))
         ?: trim((string) ($territory['name'] ?? ''));
