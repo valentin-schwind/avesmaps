@@ -64,12 +64,21 @@ function anzeigenameTestTerritorium(): array
 /** Die Geometriezeile, wie der Layer sie liest. */
 function anzeigenameTestZeile(array $style, array $ueberschreibungen = []): array
 {
+    // 🪤 PRODUKTIONSFORM, und das ist tragend. Die erste Fassung dieses Tests setzte
+    // `slug => 'wiki:nordhjaldor'` -- eine Form, die es live NICHT gibt: `political_territory.slug`
+    // ist NAMENSabgeleitet (avesmapsPoliticalSlug), der `wiki_key` ist 'wiki:' davor. Und `wiki_name`
+    // fehlte ganz, obwohl die Layer-Abfrage `wiki.name AS wiki_name` joint und eine Wiki-Sync-Zeile
+    // ihn IMMER traegt. Beides zusammen machte mehrere Zusicherungen zum Vakuum -- eine Mutationsprobe
+    // fand einen Riegel `nur wenn wiki_name === ''`, der den Fix fuer genau die GEMELDETE
+    // Gebietsklasse abgeschaltet haette und trotzdem gruen blieb (gefunden 12.09.2026).
     return array_merge([
         'geometry_public_id' => 'geo-1',
         'geometry_id' => 1,
         'territory_id' => 4711,
         'territory_public_id' => 'terr-nordhjaldor',
-        'slug' => 'wiki:nordhjaldor',
+        'slug' => 'nordhjaldor',
+        'wiki_key' => 'wiki:nordhjaldor',
+        'wiki_name' => 'Nordhjaldor',
         'name' => 'Nordhjaldor',
         'style_json' => json_encode($style, JSON_THROW_ON_ERROR),
     ], $ueberschreibungen);
@@ -122,7 +131,7 @@ foreach ([
 // Ein umbenanntes `name` verschoebe also still das Grenzbild der Karte -- eine Aenderung, die niemand
 // bestellt hat und die man am Label nicht sieht.
 assert($eigenschaften['name'] === 'Nordhjaldor', 'C1: name bleibt der kanonische Gebietsname');
-assert($eigenschaften['wiki_name'] === '' || $eigenschaften['wiki_name'] === 'Nordhjaldor', 'C2: wiki_name unberuehrt');
+assert($eigenschaften['wiki_name'] === 'Nordhjaldor', 'C2: wiki_name traegt weiter den Wiki-Namen, nicht den Override');
 
 // ---- D. Nur `displayName` gewinnt, nie `originalName` ------------------------------------------------
 // 🔴 originalName ist der Stand VOR der Umbenennung. Liesse man ihn gewinnen, naegelte ein alter
@@ -219,24 +228,97 @@ $p = avesmapsPoliticalLayerRowToFeature(
 )['properties'];
 assert($p['label_name'] === 'Jarltum Nordhjaldor', 'H1: auch aus geometry_style_json');
 
-// ---- I. Rueckbau-Waechter ---------------------------------------------------------------------------
-// 🔴 Der Leser darf NICHT wieder auf avesmapsPoliticalFindAssignmentDisplayForTerritory umgestellt
-// werden -- jene filtert auf einen Schluessel ohne Schreiber, und der Fall waere sofort zurueck.
-$leserQuelle = (string) file_get_contents(__DIR__ . '/../territories-read.php');
-$leserQuelle = (string) preg_replace('!/\*.*?\*/!su', '', $leserQuelle);
-$leserQuelle = (string) preg_replace('!^\s*//.*$!m', '', $leserQuelle);
+// ---- I. Rueckbau-Waechter, am TOKENIZER gemessen ---------------------------------------------------
+// 🪤 Die erste Fassung schnitt den Quelltext mit zwei preg_replace und suchte die Zeichenkette
+// "localOverride". Ein Pruefagent hat sie zweifach widerlegt (12.09.2026): sie blieb gruen, waehrend
+// der Leser den ALTEN, gefilterten Sucher aufrief (den sie eigentlich verbieten soll), und ein
+// Blockkommentar-Entferner, der vor dem Zeilen-Entferner laeuft, schnitt den Ausschnitt an einem
+// streunenden "*/" in einem Regex-Literal von 1008 auf 409 Bytes zusammen -- die in AGENTS.md §11
+// beschriebene sync-monitor.php-Falle, hier scharf. Deshalb: PHPs Tokenizer, der Kommentare und
+// Zeichenketten von Code UNTERSCHEIDET, statt sie wegzuraten.
+/** Die Aufrufe (T_STRING vor "(") im Rumpf einer Funktion -- Kommentare und Strings zaehlen nicht. */
+function anzeigenameTestAufrufeIn(string $datei, string $funktion): array
+{
+    $tokens = token_get_all((string) file_get_contents($datei));
+    $anzahl = count($tokens);
+
+    $start = null;
+    for ($i = 0; $i < $anzahl; $i++) {
+        $t = $tokens[$i];
+        if (is_array($t) && $t[0] === T_FUNCTION) {
+            for ($j = $i + 1; $j < $anzahl; $j++) {
+                if (is_array($tokens[$j]) && in_array($tokens[$j][0], [T_WHITESPACE, T_COMMENT, T_DOC_COMMENT], true)) {
+                    continue;
+                }
+                if (is_array($tokens[$j]) && $tokens[$j][0] === T_STRING && $tokens[$j][1] === $funktion) {
+                    $start = $j;
+                }
+                break;
+            }
+        }
+        if ($start !== null) {
+            break;
+        }
+    }
+    assert($start !== null, "Funktion {$funktion} nicht gefunden");
+
+    // Bis zur oeffnenden Klammer des RUMPFES, dann Klammern zaehlen.
+    $tiefe = 0;
+    $imRumpf = false;
+    $aufrufe = [];
+    for ($i = $start; $i < $anzahl; $i++) {
+        $t = $tokens[$i];
+        if ($t === '{') {
+            $tiefe++;
+            $imRumpf = true;
+            continue;
+        }
+        if ($t === '}') {
+            $tiefe--;
+            if ($imRumpf && $tiefe === 0) {
+                break;
+            }
+            continue;
+        }
+        if (!$imRumpf || !is_array($t) || $t[0] !== T_STRING) {
+            continue;
+        }
+        for ($j = $i + 1; $j < $anzahl; $j++) {
+            if (is_array($tokens[$j]) && $tokens[$j][0] === T_WHITESPACE) {
+                continue;
+            }
+            if ($tokens[$j] === '(') {
+                $aufrufe[] = $t[1];
+            }
+            break;
+        }
+    }
+
+    return $aufrufe;
+}
+
+$leserDatei = __DIR__ . '/../territories-read.php';
+$layerDatei = __DIR__ . '/../territories-layer.php';
+
+// I1: Der neue Leser darf den GEFILTERTEN Sucher nicht aufrufen -- das ist die benannte Gefahr,
+// nicht die blosse Zeichenkette "localOverride".
+$imLeser = anzeigenameTestAufrufeIn($leserDatei, 'avesmapsPoliticalFindAssignmentDisplayNameForTerritory');
+assert($imLeser !== [], 'I1a: der Ausschnitt ist nicht leer (sonst misst der Waechter nichts)');
 assert(
-    strpos($leserQuelle, 'function avesmapsPoliticalFindAssignmentDisplayNameForTerritory') !== false,
-    'I1: der eigene Namensleser existiert noch'
+    !in_array('avesmapsPoliticalFindAssignmentDisplayForTerritory', $imLeser, true),
+    'I1: der Namensleser delegiert NICHT an den localOverride-gefilterten Sucher (sonst ist Fall #123 zurueck)'
 );
-// Der Namensleser selbst darf nicht auf localOverride filtern.
-$ab = (int) strpos($leserQuelle, 'function avesmapsPoliticalFindAssignmentDisplayNameForTerritory');
-$rumpf = substr($leserQuelle, $ab);
-$ende = strpos($rumpf, "\n}\n");
-$rumpf = $ende === false ? $rumpf : substr($rumpf, 0, $ende);
 assert(
-    strpos($rumpf, 'localOverride') === false && strpos($rumpf, 'local_override') === false,
-    'I3: der Namensleser filtert NICHT auf localOverride (sonst ist Fall #123 zurueck)'
+    in_array('avesmapsPoliticalReadAssignmentDisplaysFromStyle', $imLeser, true),
+    'I2: er liest die Eintraege ueber den geteilten Parser'
+);
+
+// I3: Und der Layer muss den neuen Leser ueberhaupt noch RUFEN. Am Tokenizer, nicht per strpos --
+// territories-layer.php nennt den Funktionsnamen auch im KOMMENTAR, ein strpos traefe die Erklaerung.
+$imLayer = anzeigenameTestAufrufeIn($layerDatei, 'avesmapsPoliticalLayerRowToFeature');
+assert(
+    in_array('avesmapsPoliticalFindAssignmentDisplayNameForTerritory', $imLayer, true),
+    'I3: avesmapsPoliticalLayerRowToFeature ruft den neuen Leser noch auf'
 );
 
 // ---- J. Das AGGREGAT liest KEINEN Override -- und ist nicht reihenfolgeabhaengig -----------------
@@ -289,5 +371,39 @@ $ausB = avesmapsPoliticalLayerRowToFeature(
 assert($ausA['label_name'] === 'Thorwal', 'J1: das Aggregat zeigt den Namen des Elterngebiets, nicht die Kopie aus Kind A');
 assert($ausA['label_name'] === $ausB['label_name'], 'J2: das Aggregat-Label haengt NICHT davon ab, welches Kind zuerst kommt');
 assert($ausA['display_name'] === 'Thorwal', 'J3: auch display_name bleibt der Elternname');
+
+// ---- L. WAS DEN TREFFER WIRKLICH TRAEGT -- gemessen, nicht angenommen ------------------------------
+// 🪤 Der Leser matcht auf territoryPublicId ODER nodeKey. Gemessen (12.09.2026): in Produktion traegt
+// NUR territoryPublicId. `political_territory.slug` ist namensabgeleitet ('nordhjaldor'), der
+// gespeicherte nodeKey ist `territory.wiki_key` ('wiki:nordhjaldor') -- die zwei koennen nie gleich
+// sein. Diese Zusicherung haelt das FEST, damit der naechste Leser den nodeKey-Zweig nicht fuer eine
+// funktionierende Absicherung haelt: faellt territoryPublicId weg, ist der Override WEG.
+$nurPublicId = ['assignmentDisplays' => [[
+    'territoryPublicId' => 'terr-nordhjaldor',
+    'nodeKey' => '',
+    'displayName' => 'Jarltum Nordhjaldor',
+]]];
+$p = avesmapsPoliticalLayerRowToFeature(anzeigenameTestZeile($nurPublicId), 1049, 3)['properties'];
+assert($p['label_name'] === 'Jarltum Nordhjaldor', 'L1: territoryPublicId allein traegt den Treffer');
+
+$nurNodeKey = ['assignmentDisplays' => [[
+    'territoryPublicId' => '',
+    'nodeKey' => 'wiki:nordhjaldor',
+    'displayName' => 'Jarltum Nordhjaldor',
+]]];
+$p = avesmapsPoliticalLayerRowToFeature(anzeigenameTestZeile($nurNodeKey), 1049, 3)['properties'];
+assert(
+    $p['label_name'] === 'Nordhjaldor',
+    'L2: der nodeKey-Zweig trifft in Produktionsform NICHT (slug != wiki_key) -- dokumentierte Luecke, kein Schutz'
+);
+
+// ⚠️ Ein Eintrag OHNE beide Kennungen darf keine fremde Zeile greifen.
+$ohneKennung = ['assignmentDisplays' => [[
+    'territoryPublicId' => '',
+    'nodeKey' => '',
+    'displayName' => 'Fremder Name',
+]]];
+$p = avesmapsPoliticalLayerRowToFeature(anzeigenameTestZeile($ohneKennung), 1049, 3)['properties'];
+assert($p['label_name'] === 'Nordhjaldor', 'L3: ein Eintrag ohne Kennung greift nichts');
 
 fwrite(STDOUT, "OK: anzeigename-am-label-test.php -- alle Zusicherungen gehalten.\n");
