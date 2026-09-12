@@ -297,13 +297,41 @@ function macheBehaelter() {
   // und eine, die nur im Bauprodukt steht, stirbt beim naechsten Lauf des Werkzeugs.
   const blatt = lies("css", "features", "feature-sources.css");
   const produkt = lies("css", "pages", "political-territory-editor-inline.css");
-  [".fs-kind-ziel {", ".fs-kind-ziel--publikation {"].forEach((regel) => {
-    pruefe(blatt.indexOf(regel) !== -1, "das Quellblatt traegt " + regel);
-    pruefe(produkt.indexOf(regel.slice(1, -2)) !== -1, "und das gescopte Bauprodukt kennt " + regel.slice(0, -2));
+  const regel = (blattText, selektor) => {
+    const i = blattText.indexOf(selektor + " {");
+    return i === -1 ? null : blattText.slice(i, blattText.indexOf("}", i));
+  };
+
+  // 💣 KEINE VIERTE ABSCHRIFT. „11px, 1.45, gedaempft" stand in diesem Blatt schon dreimal
+  // (`.fs-scope__hint`, `.fs-url__sagt`, `.abw__t`); die neue Zeile TEILT sie mit `.abw__t`, statt
+  // sie ein viertes Mal hinzuschreiben -- sonst beginnt dieselbe Streuung, die bei den
+  // Listenzeilen sieben Rezepturen gekostet hat (AGENTS.md §11).
+  const geteilt = regel(blatt, ".abw__t,\n.fs-kind-ziel");
+  pruefe(geteilt !== null, "Erklaerzeile und Abweichungstext teilen EINE Typografie-Regel");
+  pruefe(geteilt !== null && /font-size:\s*11px/.test(geteilt),
+    "und sie steht auf 11px, nicht darunter -- die Untergrenze aus AGENTS.md §12");
+  pruefe(geteilt !== null && /--color-text-muted/.test(geteilt), "und auf dem gedaempften Token");
+
+  // 🔴 DIE MARKE SITZT AM WORT, NICHT AM SATZ. Der erste Bau faerbte im Publikationsfall den ganzen
+  // SATZ voll aus und liess das Wort auf dem gedaempften Akzent stehen -- gemessen 13,67:1 fuer die
+  // Erklaerung gegen 5,81:1 fuer das Signalwort: lauter war der Nebensatz. Diese Zusicherung ist
+  // der Riegel dagegen.
+  pruefe(regel(blatt, ".fs-kind-ziel--publikation strong") !== null,
+    "der Publikationsfall markiert das WORT");
+  pruefe(/--color-accent-brown/.test(regel(blatt, ".fs-kind-ziel--publikation strong") || ""),
+    "und zwar mit der Marke, die dieses Blatt fuer „hier weicht etwas ab“ schon fuehrt");
+  gleich(regel(blatt, ".fs-kind-ziel--publikation"), null,
+    "und NICHT den ganzen Satz -- sonst ueberstimmt die Erklaerung ihr eigenes Signalwort");
+  // ⚠️ Farbe allein traegt es im hellen Thema nicht (#7a5a3a gegen #706557 ist fast dasselbe
+  // Braun -- gemessen, steht im Blatt daneben). Das Gewicht gehoert dazu.
+  pruefe(/font-weight:\s*600/.test(regel(blatt, ".fs-kind-ziel strong") || ""),
+    "das Wort traegt zusaetzlich sein Gewicht -- Farbe allein traegt es nicht");
+
+  // Und alles davon steht auch im gescopten Bauprodukt.
+  [".abw__t", ".fs-kind-ziel", ".fs-kind-ziel--publikation strong"].forEach((sel) => {
+    pruefe(produkt.indexOf("#political-territory-editor-host " + sel) !== -1,
+      "das gescopte Bauprodukt kennt " + sel);
   });
-  // ⚠️ 11px ist die Untergrenze dieses Hauses (§12) -- 10px war schon einmal der Fehler.
-  const block = /\.fs-kind-ziel \{([\s\S]*?)\}/.exec(blatt);
-  pruefe(block && /font-size:\s*11px/.test(block[1]), "und sie steht auf 11px, nicht darunter");
 
   console.log("quellen-abdeckung-ziel: " + n + " Zusicherungen erfuellt");
 })().catch((e) => { console.error(e); process.exit(1); });
