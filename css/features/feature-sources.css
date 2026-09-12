@@ -299,6 +299,34 @@
 .fs-scope__choice input[type="radio"] {
   accent-color: var(--color-accent-brown);
 }
+
+/* WAS AUS DER EINGABE WIRD: eine QUELLE oder eine PUBLIKATION -- die Zeile unter der Abdeckung.
+   🔴 Die Abdeckung darueber heisst wie eine Eigenschaft der Quelle und ist in Wahrheit der
+   Schalter zwischen zwei Dingen (Fall #122, Owner 10.09.2026: „bei standardquelle speichert er
+   es, nur bei den andern nicht" -- gespeichert wurde immer, es war nur ab da keine Quelle mehr).
+   Owner-Entscheid 12.09.2026: das Verhalten bleibt, es muss sich erklaeren.
+   💣 VOLLE BREITE wie die Wahl darueber (`flex: 1 1 100%`): der Rahmen ist ein Flex-Umbruch, und
+   ohne diese Zeile setzte sich der Satz neben das 130px schmale Feld und braeche auf fuenf Zeilen.
+   ⚠️ 11px ist die Untergrenze dieses Hauses (AGENTS.md §12) -- der Satz ist ein Hinweis, kein
+   Kleingedrucktes, und 10px waere derselbe Fehler wie bei `.se-row-type`. */
+.fs-kind-ziel {
+  flex: 1 1 100%;
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--color-text-muted);
+}
+/* Das Wort, um das es geht. 🔴 `--color-accent-brown`, NICHT `--color-accent-brown-text`: das ist
+   im hellen Thema #fff und waere weisse Schrift auf hellem Grund (AGENTS.md §11). */
+.fs-kind-ziel strong {
+  color: var(--color-accent-brown);
+}
+/* 🔴 Der UEBERRASCHENDE Zustand spricht lauter: eine Publikation ist nicht das, was der Editor im
+   Quellen-Formular erwartet, also steht ihr Satz in der vollen Textfarbe statt gedaempft. Der
+   erwartete Fall („Quelle") bleibt still -- dieselbe Rangfolge wie bei `retyped` und `linked`. */
+.fs-kind-ziel--publikation {
+  color: var(--color-text);
+}
 /* Die Marke „12 von 56 Abschnitten“ hinter dem Quellentitel -- nur bei einer Teilmenge. Sie steht IM
    Titel-Feld, keine achte Rasterspalte; deshalb white-space: nowrap, damit sie nicht in der Mitte
    bricht, und die gedaempfte Farbe, damit sie den Titel nicht ueberstimmt. */
