@@ -206,8 +206,9 @@ $p = avesmapsPoliticalLayerRowToFeature(anzeigenameTestZeile($kette), 1049, 3)['
 assert($p['label_name'] === 'Jarltum Nordhjaldor', 'G1: der eigene Knoten der Kette gewinnt');
 
 // ---- H. Der Eintrag darf auch im geometry_style_json liegen ------------------------------------------
-// ⚠️ Beim Aggregat nullt avesmapsPoliticalBuildAggregateLayerRow style_json und legt den Stil der
-// Geometrie nach geometry_style_json -- der Leser muss beide Seiten fragen, wie der alte Weg auch.
+// ⚠️ Eine freie Geometrie traegt ihren Stil unter BEIDEN Schluesseln (territories-geometry.php) --
+// der Leser muss beide Seiten fragen, wie der alte Weg auch. Fuer das AGGREGAT gilt das AUSDRUECKLICH
+// NICHT: siehe §J.
 $p = avesmapsPoliticalLayerRowToFeature(
     anzeigenameTestZeile([], [
         'style_json' => null,
@@ -237,5 +238,56 @@ assert(
     strpos($rumpf, 'localOverride') === false && strpos($rumpf, 'local_override') === false,
     'I3: der Namensleser filtert NICHT auf localOverride (sonst ist Fall #123 zurueck)'
 );
+
+// ---- J. Das AGGREGAT liest KEINEN Override -- und ist nicht reihenfolgeabhaengig -----------------
+// 💣 Der Regressionsriegel gegen die eigene erste Fassung dieses Fixes (gefunden von einem Pruefagenten,
+// 12.09.2026): avesmapsPoliticalBuildAggregateLayerRow nullt style_json und legt die Ablage des KINDES
+// nach geometry_style_json, setzt aber territory_public_id/slug des ELTERNTEILS. Eine Geometrie-Ablage
+// traegt die GANZE Vorfahrenkette (§G) -- der Rueckfall las damit den Namen des Elternteils aus der
+// KOPIE in einem beliebigen Kind, und welches Kind gewinnt, entscheidet das ORDER BY der Abfrage.
+// Ein umbenanntes Kind haette den Namen des ELTERNGEBIETS gekippt, auf dem oeffentlichen Pfad.
+$elternteil = [
+    'territory_id' => 99,
+    'territory_public_id' => 'terr-thorwal',
+    'slug' => 'wiki:thorwal',
+    'name' => 'Thorwal',
+];
+
+// Kind A traegt in SEINER Ablage einen Eintrag fuer den ELTERN-Knoten, Kind B nicht.
+$kindA = [
+    'geometry_public_id' => 'geo-a',
+    'geometry_id' => 11,
+    'geometry_geojson' => null,
+    'geometry_valid_from_bf' => null,
+    'geometry_valid_to_bf' => null,
+    'updated_at' => '',
+    'style_json' => json_encode(['assignmentDisplays' => [[
+        'territoryPublicId' => 'terr-thorwal',
+        'nodeKey' => 'wiki:thorwal',
+        'displayName' => 'Thorwal (aus Kind A)',
+    ]]], JSON_THROW_ON_ERROR),
+];
+$kindB = array_merge($kindA, [
+    'geometry_public_id' => 'geo-b',
+    'geometry_id' => 12,
+    'style_json' => null,
+]);
+
+$quelle = ['territory_id' => 5, 'territory_public_id' => 'terr-kind', 'name' => 'Ein Kind'];
+
+$ausA = avesmapsPoliticalLayerRowToFeature(
+    avesmapsPoliticalBuildAggregateLayerRow($elternteil, $kindA, $quelle),
+    1049,
+    3
+)['properties'];
+$ausB = avesmapsPoliticalLayerRowToFeature(
+    avesmapsPoliticalBuildAggregateLayerRow($elternteil, $kindB, $quelle),
+    1049,
+    3
+)['properties'];
+
+assert($ausA['label_name'] === 'Thorwal', 'J1: das Aggregat zeigt den Namen des Elterngebiets, nicht die Kopie aus Kind A');
+assert($ausA['label_name'] === $ausB['label_name'], 'J2: das Aggregat-Label haengt NICHT davon ab, welches Kind zuerst kommt');
+assert($ausA['display_name'] === 'Thorwal', 'J3: auch display_name bleibt der Elternname');
 
 fwrite(STDOUT, "OK: anzeigename-am-label-test.php -- alle Zusicherungen gehalten.\n");

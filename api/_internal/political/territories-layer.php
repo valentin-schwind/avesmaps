@@ -832,9 +832,22 @@ function avesmapsPoliticalLayerRowToFeature(array $row, int $yearBf, int $zoom):
     // entscheidet daran, welche Innengrenzen verborgen werden. Wer ihn umbenennt, verschiebt still
     // mit, welche Grenzen die Karte zeichnet -- dieselbe Trennung wie ueberall im Haus: die Kennung
     // bleibt, die Beschriftung wandert.
-    $overrideName = avesmapsPoliticalFindAssignmentDisplayNameForTerritory($style, $territoryPublicId, $nodeKey);
-    if ($overrideName === '') {
-        $overrideName = avesmapsPoliticalFindAssignmentDisplayNameForTerritory($geometryStyle, $territoryPublicId, $nodeKey);
+    //
+    // 💣 BEIM AGGREGAT WIRD KEIN OVERRIDE GELESEN -- und das ist die tragende Zeile.
+    // avesmapsPoliticalBuildAggregateLayerRow nullt `style_json` und legt die Ablage des KINDES nach
+    // `geometry_style_json`, setzt aber territory_public_id/slug des ELTERNTEILS. Eine Geometrie-Ablage
+    // traegt die GANZE Vorfahrenkette -- der Rueckfall haette also den Namen des Elternteils aus der
+    // KOPIE in einem beliebigen Kind gelesen, und welches Kind gewinnt, entscheidet das ORDER BY der
+    // Abfrage. Ein umbenanntes oder umsortiertes Kind haette damit den Namen des Elterngebiets
+    // gekippt, ohne dass jemand das Gebiet angefasst hat -- auf dem OEFFENTLICHEN Pfad, denn Aggregate
+    // sind genau das, was ein Besucher bei niedrigem Zoom sieht.
+    // 🔴 $customName direkt darueber traegt aus demselben Grund seit jeher `$isAggregate ? '' : ...`.
+    $overrideName = '';
+    if (!$isAggregate) {
+        $overrideName = avesmapsPoliticalFindAssignmentDisplayNameForTerritory($style, $territoryPublicId, $nodeKey);
+        if ($overrideName === '') {
+            $overrideName = avesmapsPoliticalFindAssignmentDisplayNameForTerritory($geometryStyle, $territoryPublicId, $nodeKey);
+        }
     }
 
     $labelName = $overrideName !== '' ? $overrideName : $visibleName;
