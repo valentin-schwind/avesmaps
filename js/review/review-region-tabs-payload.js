@@ -102,8 +102,12 @@ function regionEditPayloadToRegion(payload, fallback = {}) {
 		geometryPublicId: payload.geometry_public_id || fallback.geometryPublicId || "",
 		territoryPublicId: payload.territory_public_id || fallback.territoryPublicId || "",
 		wikiId: payload.wiki_id || fallback.wikiId || null,
-		name: payload.name || fallback.name || "",
-		displayName: payload.name || fallback.displayName || fallback.name || "",
+		// 🔴 Das Formularfeld traegt den KANONISCHEN Namen (siehe review-region-dialog-population.js).
+		name: payload.name || fallback.canonicalName || fallback.name || "",
+		canonicalName: payload.name || fallback.canonicalName || fallback.name || "",
+		// 💣 Der Anzeigename kommt NICHT aus dem Formular -- dieser Dialog hat kein Feld dafuer. Er reist
+		// nur mit, damit die Registerkarte ihn anzeigen kann, und wird NIE zurueckgeschrieben.
+		displayName: fallback.displayName || "",
 		shortName: payload.short_name || "",
 		type: payload.type || "",
 		parentPublicId: payload.parent_public_id || "",
@@ -133,7 +137,8 @@ function regionEditPayloadToPayload(region) {
 		geometry_public_id: region.geometryPublicId || "",
 		territory_public_id: region.territoryPublicId || region.publicId || "",
 		wiki_id: region.wikiId || "",
-		name: region.displayName || region.name || "",
+		// 💣 NIE region.displayName: das schriebe den Anzeigenamen als kanonischen `name` fort.
+		name: region.canonicalName || region.name || "",
 		short_name: region.shortName || "",
 		type: region.type || "",
 		parent_public_id: region.parentPublicId || "",

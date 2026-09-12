@@ -17,7 +17,13 @@ function populateRegionEditForm(entry, { preserveTabs = false } = {}) {
 	if (source !== "political_territory") {
 		void acquireFeatureSoftLock(region.publicId || "");
 	}
-	document.getElementById("region-edit-name").value = normalizeParentheticalSpacing(region.displayName || region.name || "");
+	// 💣 DER KANONISCHE Name, nie der Anzeigename. Dieses Feld schreibt `political_territory.name`;
+	// stuende der Override darin, machte ein blosses Oeffnen-und-Speichern aus "Nordhjaldor"
+	// dauerhaft "Jarltum Nordhjaldor" -- samt neu abgeleitetem Slug (die Waldmenschen-Dublettenfalle,
+	// begruendet in avesmapsPoliticalUpdateTerritory) -- und der Anzeigename kollabierte danach in
+	// den Namen, weil er ihm dann gleicht. Der Anzeigename wird im Territoriumseditor gesetzt,
+	// nicht hier; dieser Dialog fasst ihn gar nicht an.
+	document.getElementById("region-edit-name").value = normalizeParentheticalSpacing(region.canonicalName || region.name || "");
 	document.getElementById("region-edit-short-name").value = region.shortName || "";
 	document.getElementById("region-edit-color").value = region.color || "#888888";
 	document.getElementById("region-edit-opacity").value = Math.round((region.opacity ?? 0.33) * 100);
