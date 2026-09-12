@@ -20,17 +20,35 @@ const path = require("path");
 const vm = require("vm");
 
 const WURZEL = path.join(__dirname, "..", "..", "..");
-const quelle = fs.readFileSync(path.join(WURZEL, "js", "ui", "popups.js"), "utf8");
+// 💣 ZEILENENDENNEUTRAL, und das ist hier tragend (AGENTS.md §9): die Arbeitskopie traegt CRLF,
+// `actions/checkout` legt LF hin. Gesucht wird unten nach `\n}\n` -- in einer CRLF-Datei steht dort
+// `\r\n}\r\n`, der Anker wird NIE gefunden, und `-1 + 3` ist **2**: `slice(25200, 2)` ergibt die
+// LEERE Zeichenkette, das vm fuehrt nichts aus, und der Test fiel mit „nachtragen is not a
+// function" um -- auf jedem Windows-Checkout rot, in der CI gruen. Das ist die Spiegelform der
+// Falle, die §9 beschreibt, und sie kostet dieselbe Zeit: wer das Feld rot sieht, haelt es fuer
+// kaputt oder sich selbst fuer den Verursacher. Gemessen 12.09.2026: popups.js 1376 CRLF, 0 nackte
+// LF. Normalisiert wird die ganze Quelle, nicht der Anker -- ein Anker, der beide Formen kennen
+// muss, ist die naechste Abschrift dieser Falle.
+const quelle = fs.readFileSync(path.join(WURZEL, "js", "ui", "popups.js"), "utf8")
+	.replace(/\r\n/g, "\n");
 
 // Nur den Bauer ausschneiden und WIRKLICH fahren -- ein Regex kennt keinen Geltungsbereich
 // (die Lehre vom 03.09.2026, als ein ReferenceError zwei Stunden lang die Beschriftungen nahm).
 const anfang = quelle.indexOf("function avesmapsKanonTafelNachtragen(");
 assert.ok(anfang > 0, "0: der Bauer muss in js/ui/popups.js stehen");
 const ende = quelle.indexOf("\n}\n", anfang);
+// 💣 UND DER FEHLENDE ANKER WIRD AUSGESPROCHEN, nie gerechnet. `-1` ueberlebt jede Addition ab +1
+// als gueltig aussehende Zahl (§9, wo derselbe Fehler ueber `||` gebaut war und zwei Deploys
+// kostete) -- ohne diese Zeile misst der Test bei jedem kuenftigen Ankerbruch wieder NICHTS und
+// meldet den Bauer als fehlend, statt den Anker.
+assert.ok(ende > anfang, "0b: das Ende des Bauers muss gefunden werden -- sonst faehrt der Test nichts");
 const kontext = { console };
 vm.createContext(kontext);
-vm.runInContext(quelle.slice(anfang, ende + 3), kontext);
+const ausschnitt = quelle.slice(anfang, ende + 3);
+assert.ok(ausschnitt.length > 100, "0c: der Ausschnitt muss den ganzen Bauer tragen, nicht zwei Zeichen");
+vm.runInContext(ausschnitt, kontext);
 const nachtragen = kontext.avesmapsKanonTafelNachtragen;
+assert.strictEqual(typeof nachtragen, "function", "0d: der ausgeschnittene Bauer muss wirklich laufen");
 
 // ---- 1. Die drei Zustaende ---------------------------------------------------------------------
 
