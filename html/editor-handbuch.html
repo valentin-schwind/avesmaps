@@ -202,7 +202,7 @@
 <body>
 	<div class="hb-topbar">
 		<span class="hb-topbar__title">Avesmaps · Editor-Handbuch</span>
-		<span class="hb-topbar__meta">Stand: 10.09.2026</span>
+		<span class="hb-topbar__meta">Stand: 13.09.2026</span>
 		<div class="hb-topbar__actions">
 			<button type="button" class="theme-toggle-btn" aria-label="Auf dunkles Design umschalten" title="Design umschalten (hell/dunkel)">
 				<svg class="theme-toggle-ico theme-toggle-ico--sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2" /><g stroke-width="1.9" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="4.4" /><line x1="12" y1="19.6" x2="12" y2="22" /><line x1="2" y1="12" x2="4.4" y2="12" /><line x1="19.6" y1="12" x2="22" y2="12" /><line x1="4.9" y1="4.9" x2="6.6" y2="6.6" /><line x1="17.4" y1="17.4" x2="19.1" y2="19.1" /><line x1="4.9" y1="19.1" x2="6.6" y2="17.4" /><line x1="17.4" y1="6.6" x2="19.1" y2="4.9" /></g></svg>
@@ -923,8 +923,8 @@
 				<ul class="hb-steps">
 					<li><strong>Wiki-Herrschaftsgebiet</strong> — der <a href="#v-wiki">Zuweisungskasten</a>; gesucht wird darin.</li>
 					<li><strong>Hierarchie</strong> — den Baum durchsuchen und das Gebiet per Ziehen einordnen; „Zuweisung aufheben" löst sie wieder.</li>
-					<li><strong>Name</strong> und <strong>Kurzname</strong> — auf der Karte wird der Kurzname bevorzugt gezeigt.</li>
-					<li><strong>Zoom-Bänder</strong> („Sichtbar ab Zoom"), <strong>Hauptstadt</strong> und <strong>Gültigkeit</strong> in BF-Jahren (<code>9999</code> = bis heute offen).</li>
+					<li><strong>Name, Wappen, Hauptstadt und Gültigkeit</strong> stehen hier nur zum Lesen. Du änderst sie über <strong>„Im Wiki-Sync bearbeiten"</strong>.</li>
+					<li><strong>Kartensichtbarkeit</strong> („Zoom von" / „Zoom bis"), <strong>Farbe</strong> und <strong>Transparenz</strong>.</li>
 				<li><strong>Quellen</strong> — ganz unten, derselbe Block wie bei Orten, Wegen und Landschaften. Auch ein von Hand angelegter Knoten trägt sie.</li>
 				</ul>
 				<figure class="hb-shot">
@@ -1492,46 +1492,62 @@
 
 				<h3 id="social" class="hb-sub">Social Media</h3>
 				<p class="hb-path"><strong>Editor → Community → Social Media</strong></p>
-				<p>Von hier aus spricht das Projekt nach draußen: ein Text, Hashtags und ein Bild gehen in einem Zug an mehrere Netze. Der Knopf <strong>„✎ Social Media Hub öffnen"</strong> öffnet das Fenster, darunter steht die Liste der bisherigen Beiträge.</p>
-				<div class="hb-note hb-warn"><strong>Editoren und Admins sehen diesen Reiter, Reviewer nicht.</strong> Wer die Karte nur prüft, spricht damit noch nicht für das Projekt. Die Karte zu pflegen und öffentlich unter dem Namen des Projekts zu sprechen bleiben getrennte Rechte (siehe <a href="#rollen">Rollen &amp; Rechte</a>). Gepostet wird immer das <em>Konto des Projekts</em>, nie dein persönliches; wer gedrückt hat, steht nur intern. Und es lässt sich nicht zurückholen — <strong>keine Scans aus DSA-Publikationen, keine Ulisses-Artworks</strong>, das Projekt läuft unter den Fan-Richtlinien.</div>
+				<p>Von hier aus spricht das Projekt nach draußen: Text, Hashtags und ein Bild gehen in einem Zug an mehrere Netze. <strong>„✎ Social Media Hub öffnen"</strong> öffnet das Fenster. Darunter stehen die Beiträge und Entwürfe.</p>
+				<p>Den Reiter sehen Editoren und Admins, Reviewer nicht (siehe <a href="#rollen">Rollen &amp; Rechte</a>).</p>
+				<div class="hb-note hb-warn"><strong>Ein Beitrag lässt sich nicht zurückholen.</strong> Er erscheint unter dem Konto des Projekts, nie unter deinem. Keine Scans aus DSA-Publikationen, keine Ulisses-Artworks.</div>
+
+				<h4>Einen Beitrag schreiben</h4>
+				<ol class="hb-steps">
+					<li><strong>Text</strong> und <strong>Hashtags</strong> eintragen. Die <strong>Titelzeile</strong> gilt nur für „Neuigkeiten".</li>
+					<li>Ein <strong>Bild</strong> anhängen: <strong>„⬆ Eigene Datei"</strong> oder <strong>„🗺 Kartenausschnitt"</strong>.</li>
+					<li>Hängt ein Bild dran, die <strong>Bildbeschreibung</strong> schreiben. Beschreibe das <em>Bild</em>, nicht den Beitrag.</li>
+					<li><strong>Herkunft und Rechte</strong> wählen: <em>Eigenes Werk / Avesmaps-Karte</em> oder <em>Freie Lizenz</em> mit Quelle.</li>
+					<li><strong>„Mit KI erstellt"</strong> prüfen. Es ist vorangehakt. Nimm es weg, wenn weder Text noch Bild von einer KI stammen.</li>
+					<li>Rechts die <strong>Kanäle</strong> anhaken. Vorangehakt ist die <strong>Probe</strong>.</li>
+					<li><strong>„Veröffentlichen"</strong> — oder <strong>„Als Entwurf speichern"</strong>.</li>
+				</ol>
+				<p><strong>Kartenausschnitt:</strong> Der Hub blendet sich weg. Zieh einen Rahmen auf der Karte und klick <strong>„✓ Aufnehmen"</strong>. <kbd>Esc</kbd> oder „Abbrechen" holt den Hub ohne Bild zurück. Popups und Schwebezettel kommen nicht mit ins Bild.</p>
 
 				<h4>Die Kanäle</h4>
-				<p>Rechts im Fenster hakst du an, wohin der Beitrag geht. Jeder Kanal hat eigene Grenzen, und <strong>die Hashtags zählen zum Zeichenlimit</strong>. Die Zählung unter dem Textfeld weist sie getrennt aus und nennt, wogegen sie misst: <em>„168 + 24 Hashtags = 192 von 500 Zeichen (engster Kanal: Probe)"</em>. Häkelst du einen strengeren Kanal dazu, sinkt die Grenze.</p>
+				<p><strong>Hashtags zählen zum Zeichenlimit.</strong> Die Zählung unter dem Textfeld misst gegen den engsten angehakten Kanal: <em>„168 + 24 Hashtags = 192 von 500 Zeichen (engster Kanal: Probe)"</em>.</p>
 				<table class="hb-table">
-					<tr><th>Kanal</th><th>Wohin</th><th>Zeichen</th><th>Hashtags</th></tr>
-					<tr><td><strong>Probe</strong></td><td>nirgends — legt nur ab, was sie gesendet hätte</td><td>500</td><td>2</td></tr>
-					<tr><td><strong>Neuigkeiten</strong></td><td>das Fenster „Neuigkeiten" auf avesmaps.de</td><td>2.000</td><td>keine</td></tr>
-					<tr><td><strong>Instagram</strong></td><td>@avesmaps</td><td>2.200</td><td>frei</td></tr>
-					<tr><td><strong>Facebook</strong></td><td>die Seite Avesmaps</td><td>63.206</td><td>2</td></tr>
-					<tr><td><strong>Mastodon</strong></td><td>@Avesmaps@rollenspiel.social — <strong>Versand über GitHub, bis zu 30 Min.</strong></td><td>500</td><td>4</td></tr>
+					<tr><th>Kanal</th><th>Wohin</th><th>Grenzen</th><th>Beachte</th></tr>
+					<tr><td><strong>Probe</strong></td><td>nirgends</td><td>500 Zeichen · 2 Hashtags</td><td>Legt ab, was sie gesendet hätte — in der Liste unter <em>„Probe: Was gesendet worden wäre"</em>. Ihre Grenzen sind die strengsten.</td></tr>
+					<tr><td><strong>Neuigkeiten</strong></td><td>das Fenster „Neuigkeiten" auf avesmaps.de</td><td>2.000 Zeichen · keine Hashtags</td><td>Nutzt die Titelzeile. Ein Bild wird nicht übernommen.</td></tr>
+					<tr><td><strong>Instagram</strong></td><td>@avesmaps</td><td>2.200 Zeichen · alle Hashtags</td><td>Nur mit Bild. Setzt die KI-Kennzeichnung selbst.</td></tr>
+					<tr><td><strong>Facebook</strong></td><td>die Seite Avesmaps</td><td>63.206 Zeichen · 2 Hashtags</td><td>KI-Kennzeichnung nach dem Veröffentlichen von Hand am Beitrag nachtragen.</td></tr>
+					<tr><td><strong>Mastodon</strong></td><td>@Avesmaps@rollenspiel.social</td><td>500 Zeichen · 4 Hashtags</td><td>Versand über GitHub, meist sofort. Ein Link zählt 23 Zeichen.</td></tr>
 				</table>
-				<div class="hb-note hb-tip"><strong>Fang mit der Probe an — sie ist vorangehakt.</strong> Sie läuft die <em>ganze</em> Kette durch — Rechteprüfung, Bildwandlung, Zuschnitt, Textbau je Kanal — und legt am Ende ab, was sie gesendet hätte. In der Liste klappst du das unter <em>„Probe: Was gesendet worden wäre"</em> auf. Ihre Grenzen sind die strengsten — was die Probe besteht, besteht überall.</div>
-				<div class="hb-note hb-tip"><strong>Ein Kanal ohne Zugang ist ausgegraut</strong> und trägt statt des Kontos den Vermerk <em>„noch nicht eingerichtet"</em>; steht der Zugang, zeigt die Zeile, <strong>wann er abläuft</strong>. Einrichten kannst du ihn in der Zeile des Kanals selbst — <strong>„🔑 Zugang zu &lt;Kanal&gt; einrichten"</strong>; steht schon einer, heißt derselbe Knopf <strong>„… erneuern"</strong>. Du fügst dort nur den kurzlebigen Token ein, alles Weitere macht der Server, und er legt nur ab, was nachweislich nie abläuft. <strong>Probe</strong> und <strong>Neuigkeiten</strong> brauchen nie einen Zugang.</div>
-				<div class="hb-note hb-tip"><strong>Wo kam der Token noch mal her?</strong> Unter dem zugeklappten <strong>„Konten, Kennungen und Konsolen"</strong> steht je Kanal alles beisammen: die Kennungen zum Abschreiben und die Verweise auf Profil, Token-Konsole und Freigaben. Zugeklappt findet <kbd>Strg</kbd>+<kbd>F</kbd> den Text trotzdem.</div>
-				<div class="hb-note hb-warn"><strong>Instagram ohne Bild bleibt gesperrt</strong> — dort geht kein reiner Text. Umgekehrt gilt für <strong>Neuigkeiten</strong>: nur dieser Kanal nutzt die <strong>Titelzeile</strong> (die Netze kennen keine Überschrift), und ein Bild übernimmt er nicht.</div>
-				<div class="hb-note hb-tip"><strong>„🗺 Kartenausschnitt" nimmt das Bild direkt von der Karte.</strong> Der Hub blendet sich weg, du ziehst einen Rahmen auf, <strong>„Übernehmen"</strong> hängt die Aufnahme an den Beitrag. <kbd>Esc</kbd> oder „Abbrechen" bricht ab und holt den Hub zurück. Was Bedienung ist, kommt nicht mit ins Bild: Popups, Schwebezettel, die Markierung aus „Was ist hier?" und das Messwerkzeug bleiben draußen. <strong>„🎬 Video" daneben ist abgeschaltet.</strong></div>
-				<div class="hb-note hb-tip"><strong>Hängt ein Bild dran, schreib die <em>Bildbeschreibung</em> dazu.</strong> Das Feld darunter geht als Bildbeschreibung an <strong>Mastodon</strong> und wird Screenreadern vorgelesen. Beschreibe das <em>Bild</em>, nicht den Beitrag — „Kartenausschnitt des Bornlands mit den neuen Reichsstraßen" statt „Neue Wege".</div>
 
-				<div class="hb-note hb-warn"><strong>„Mit KI erstellt" ist vorangehakt.</strong> Lass das Häkchen stehen, wenn Text oder Bild von einer KI stammen, und nimm es weg, wenn nicht. Selbst anbringen kann die Erklärung derzeit nur <strong>Instagram</strong>. <strong>Facebook</strong> hat zwar ein solches Feld, lässt uns aber nicht heran — dort <strong>trägst du die Kennzeichnung nach dem Veröffentlichen von Hand am Beitrag nach</strong>. Beim Anhaken sagt dir das Fenster, welche Kanäle diesen Handgriff brauchen; die übrigen kennen gar kein solches Feld. Gesperrt wird nichts.</div>
+				<h4>Zugang einrichten</h4>
+				<p>Ein Kanal ohne Zugang ist ausgegraut und trägt <em>„noch nicht eingerichtet"</em>. Probe und Neuigkeiten brauchen keinen.</p>
+				<ol class="hb-steps">
+					<li>In der Zeile des Kanals <strong>„🔑 Zugang zu … einrichten"</strong> klicken. Steht schon einer, heißt der Knopf <strong>„… erneuern"</strong>.</li>
+					<li>Den kurzlebigen <strong>Token</strong> einfügen und <strong>„Verbinden"</strong> klicken. Den Rest macht der Server.</li>
+				</ol>
+				<p>Steht der Zugang, nennt die Zeile, wann er abläuft. Woher der Token kommt, steht unter <strong>„Konten, Kennungen und Konsolen"</strong>: je Kanal die Kennungen und die passenden Links.</p>
 
-				<h4>Der Status gehört dem Kanal, nicht dem Beitrag</h4>
-				<p>Ein Beitrag geht an mehrere Netze, und jedes kann für sich scheitern. Jede Zeile der Liste trägt darum <em>eine Marke je Kanal</em>:</p>
+				<h4>Der Status je Kanal</h4>
+				<p>Jedes Netz kann für sich scheitern. Darum trägt jede Zeile der Liste <em>eine Marke je Kanal</em>:</p>
 				<table class="hb-table">
 					<tr><th>Marke</th><th>Was sie heißt</th></tr>
-					<tr><td><strong>… ✓</strong></td><td>Steht draußen. Mit <strong>↗</strong> ist die Marke der Link zum Beitrag; ohne kam nur keine Adresse zurück.</td></tr>
-					<tr><td><strong>… — wartet</strong></td><td>Noch nicht draußen. Auch alles Unklare steht hier — nie unter ✓.</td></tr>
+					<tr><td><strong>… ✓</strong></td><td>Steht draußen. Mit <strong>↗</strong> ist die Marke der Link zum Beitrag.</td></tr>
+					<tr><td><strong>… — wartet</strong></td><td>Noch nicht draußen. Auch alles Unklare steht hier.</td></tr>
 					<tr><td><strong>… — geplant</strong></td><td>Eingereiht, geht später hinaus.</td></tr>
-					<tr><td><strong>… — wartet auf Versand</strong></td><td>Nur <strong>Mastodon</strong>: Der Beitrag liegt in der Warteschlange und geht binnen 30 Minuten hinaus. Die Marke nennt die bisherige Wartezeit, kurz vor dem Absenden steht dort <em>„wird gesendet"</em>. <strong>Das ist kein Fehler</strong> — erst wenn die Marke selbst nachfragt <em>(„läuft der Workflow?")</em>, stimmt etwas nicht.</td></tr>
-					<tr><td><strong>… — Fehler</strong></td><td>Gescheitert; der Fehlertext steht im Schwebezettel. Nur diese Marke bekommt <strong>„Erneut"</strong>.</td></tr>
+					<tr><td><strong>… — wartet auf Versand</strong></td><td>Nur Mastodon: Der Beitrag liegt in der Warteschlange und geht meist sofort hinaus. Kurz davor steht dort <em>„wird gesendet"</em>. Erst <em>„wartet seit … (läuft der Workflow?)"</em> heißt: Da stimmt etwas nicht.</td></tr>
+					<tr><td><strong>… — Fehler</strong></td><td>Gescheitert. Der Fehlertext steht im Schwebezettel. Nur diese Marke bekommt <strong>„Erneut"</strong>, und es wiederholt genau diesen einen Kanal.</td></tr>
 				</table>
-				<p><strong>„Erneut" wiederholt genau diesen einen Kanal</strong> — ein bereits gesendeter wäre auf Instagram ein Doppelbeitrag.</p>
 
-				<h4>Entwürfe und die Vorschläge der Routine</h4>
-				<p><strong>„Als Entwurf speichern"</strong> legt einen Beitrag in dieselbe Liste, ohne zu senden — darüber steht <em>„Entwurf — noch nicht veröffentlicht."</em>. Das Fenster bleibt offen, der Knopf meldet kurz <strong>„Gespeichert ✓"</strong>, und jedes weitere Speichern ändert denselben Entwurf. Dort landen auch die Vorschläge der <strong>Routine</strong>: Verfasser <strong>„Automatisch"</strong>, dazu <em>„Vorschlag der Routine — wartet auf Freigabe."</em>.</p>
-				<p>Beide warten auf einen Menschen und haben dieselben drei Knöpfe: <strong>„Freigeben und veröffentlichen"</strong>, <strong>„Bearbeiten"</strong> (öffnet das Hub-Fenster zum Überarbeiten) und <strong>„Verwerfen"</strong>. <strong>Nichts geht automatisch raus</strong> — auch was die Routine schreibt, steht erst draußen, wenn jemand freigegeben hat.</p>
-				<p>Dieselben Entwürfe stehen auch <em>im Fenster selbst</em>, in der dritten Spalte <strong>„Entwürfe"</strong> neben den Kanälen — mit denselben Handgriffen (dort heißt der erste schlicht <strong>„Veröffentlichen"</strong>). So siehst du beim Schreiben, was noch offen ist, ohne das Fenster zu schließen.</p>
-				<div class="hb-note hb-warn"><strong>Ein Entwurf geht an die Kanäle, die beim <em>Anlegen</em> angehakt waren</strong> — nicht an die, die gerade in der Spalte daneben stehen. Willst du das ändern, nimm <strong>„Bearbeiten"</strong>: das holt den Entwurf vollständig ins Formular zurück, samt Kanälen, Bild, Bildbeschreibung und Lizenzangabe. <strong>„Verwerfen"</strong> fragt nicht nach und ist endgültig — einen verworfenen Vorschlag der Routine bringt der nächste Lauf <em>nicht</em> wieder.</div>
-
+				<h4>Entwürfe und Vorschläge der Routine</h4>
+				<p><strong>„Als Entwurf speichern"</strong> legt den Beitrag in die Liste, ohne zu senden. Das Fenster bleibt offen, und jedes weitere Speichern ändert denselben Entwurf. Auch die <strong>Routine</strong> legt dort Vorschläge ab, Verfasser <em>„Automatisch"</em>.</p>
+				<p><strong>Nichts geht automatisch raus.</strong> Entwürfe und Vorschläge stehen in der Liste und in der Spalte <strong>„Entwürfe"</strong> des Fensters, mit drei Knöpfen:</p>
+				<table class="hb-table">
+					<tr><th>Knopf</th><th>Was er tut</th></tr>
+					<tr><td><strong>„Freigeben und veröffentlichen"</strong></td><td>Sendet den Beitrag. In der Spalte „Entwürfe" heißt der Knopf „Veröffentlichen".</td></tr>
+					<tr><td><strong>„Bearbeiten"</strong></td><td>Holt den Entwurf ins Formular zurück, samt Kanälen, Bild, Bildbeschreibung und Lizenzangabe.</td></tr>
+					<tr><td><strong>„Verwerfen"</strong></td><td>Fragt nicht nach. Einen verworfenen Vorschlag bringt die Routine nicht wieder.</td></tr>
+				</table>
+				<div class="hb-note hb-warn"><strong>Ein Entwurf geht an die Kanäle, die beim Anlegen angehakt waren</strong> — nicht an die, die gerade daneben stehen. Zum Ändern nimm „Bearbeiten".</div>
 				<h3 id="aenderungen" class="hb-sub">Änderungen</h3>
 				<p class="hb-path"><strong>Editor → Änderungen</strong></p>
 				<p>Das Protokoll aller Editor-Änderungen: wer, was, wann. Deine erste Anlaufstelle, um eine Änderung nachzuvollziehen <em>oder rückgängig zu machen</em>. Aufgeräumt wird <em>je Person</em>: jeder behält seine letzten <strong>200</strong> Einträge.</p>
@@ -1722,7 +1738,13 @@
 					<img src="screenshots/21-quellen-editor.png" width="460" alt="Der Bereich Quellen: oben die bestehende Quelle mit Typ-Schild und Namensnennung, darunter die aufgeklappte Eingabezeile mit den drei Bloecken Gilt fuer alle Objekte, Gilt fuer den ganzen Korpus und Nur an diesem Objekt" />
 					<figcaption>Der Bereich <strong>„Quellen"</strong>: oben die bestehende Quelle mit <em>Typ</em> und Namensnennung, darunter die aufgeklappte Eingabezeile — sie ist nach den <strong>drei Reichweiten</strong> geordnet.</figcaption>
 				</figure>
-				<p>Die Eingabezeile ist nach denselben drei Stufen geordnet. Oben die <strong>Adresse</strong> — die Seite über <em>dieses</em> Objekt, nicht die Startseite; der Knopf <strong>⟳</strong> prüft sie und holt den <strong>Titel</strong>. Darunter <em>„Gilt nur für diesen Eintrag"</em> mit <strong>Seite(n)</strong> und <strong>Abdeckung</strong>, dann <em>„Gilt für den ganzen Korpus"</em> mit <strong>Name des Korpus</strong>, <strong>Art</strong>, <strong>Lizenz</strong>, <strong>Namensnennung</strong> und <strong>offiziell</strong>. Dann <strong>„Hinzufügen"</strong>. In den Titel gehört der <em>Veröffentlichungstitel</em>, nicht eine Umschreibung.</p>
+				<p>Eine neue Quelle trägst du unter der zugeklappten Falte <strong>„Neue Quelle einfügen"</strong> ein. Die Eingabezeile hat dieselben drei Stufen wie das ✎ darunter, von weit nach eng:</p>
+				<ol class="hb-steps">
+					<li><strong>Adresse</strong> einfügen — die Seite über <em>dieses</em> Objekt, nicht die Startseite. Der Knopf <strong>⟳</strong> prüft sie und holt den <strong>Titel</strong>. In den Titel gehört der <em>Veröffentlichungstitel</em>, keine Umschreibung.</li>
+					<li><strong>„Gilt für den ganzen Korpus"</strong> — Name des Korpus, Art, Lizenz, Namensnennung und offiziell.</li>
+					<li><strong>„Nur an diesem Objekt"</strong> — Seite(n) und Abdeckung.</li>
+					<li><strong>„Speichern"</strong> trägt die Quelle ein, <strong>„Abbrechen"</strong> leert die Zeile.</li>
+				</ol>
 				<p><strong>Lizenz</strong> und <strong>Namensnennung</strong> sind zwei getrennte Angaben: was gilt, und wen man nennen muss. Zur Auswahl stehen CC BY-SA 3.0, CC BY-NC-SA 3.0, CC BY 4.0, CC BY-SA 4.0, CC0 1.0, <em>Gemeinfrei</em> und <em>Keine freie Lizenz</em>. In die Namensnennung kommt, wen die Lizenz zu nennen verlangt — etwa <em>VolkoV / garetien.de</em>. Beide stehen beim Leser an der Quelle in der Infobox.</p>
 				<div class="hb-note hb-tip"><strong>Leer heißt „nicht erfasst", nicht „keine Lizenz".</strong> <em>Art</em> und <em>Lizenz</em> stehen anfangs auf keinem Wert, und ein leeres Feld behauptet nichts. Wer sagen will, dass eine Quelle unfrei ist, wählt <em>Keine freie Lizenz</em>.</div>
 				<h4>Korrigieren: das <span aria-hidden="true">✎</span> in der Quellenzeile</h4>
@@ -1770,11 +1792,15 @@
 				<div class="hb-note hb-warn"><strong>„Das Bild wird nicht angezeigt" ist meistens kein Fehler.</strong> Es ist fast immer die Lizenz — oder ein Schalter (siehe unten). Bevor du einen Bug meldest, schau in beides.</div>
 
 				<h3 id="v-spoiler" class="hb-sub">Spoiler</h3>
-				<p>Bei Literatur und Karten verraten manche Angaben die Handlung. Verschleiert wird nur, wo ein Werk <em>spielt</em>. Ein Werk, das seine Orte nur <em>beschreibt</em> (Regionalspielhilfe, Spielhilfe), steht immer offen da.</p>
-				<p>Wir <strong>verschleiern statt zu verstecken</strong>: Der Eintrag steht sichtbar an seiner Stelle, aber verdeckt. Ein Klick hebt diesen einen Schleier, ein Sammelschalter hebt alle.</p>
+				<p>Manche Angaben verraten die Handlung. Wir <strong>verschleiern statt zu verstecken</strong>: Der Eintrag steht an seiner Stelle, aber verdeckt. Ein Klick hebt diesen einen Schleier, ein Sammelschalter hebt alle.</p>
+				<table class="hb-table">
+					<tr><th>Bei</th><th>Verschleiert, wenn …</th></tr>
+					<tr><td><strong>Literatur</strong></td><td>das Werk an diesem Ort <em>spielt</em>. Ein <a href="#abenteuer">Startort</a> steht offen da, ebenso ein Werk, das seine Orte nur beschreibt (Regionalspielhilfe, Spielhilfe).</td></tr>
+					<tr><td><strong>Karten</strong></td><td>das Feld <em>„Spoiler (Spielinhalte)"</em> auf <em>ja</em> steht.</td></tr>
+				</table>
 
 				<h3 id="v-schalter" class="hb-sub">Die Schalter des Betreibers</h3>
-				<p>Mehrere Bereiche lassen sich im Ganzen ein- und ausschalten. Jeder Schalter sitzt im Menüband seines Editors. Er wirkt nur auf die <em>öffentliche</em> Seite; im Editor siehst du weiter alles.</p>
+				<p>Mehrere Bereiche lassen sich im Ganzen ein- und ausschalten. Jeder Schalter sitzt im Menüband seines Editors. Er wirkt nur auf die <em>öffentliche</em> Seite. Im Editor siehst du alles.</p>
 				<table class="hb-table">
 					<tr><th>Editor</th><th>Schalter</th></tr>
 					<tr><td><strong>Literatur</strong></td><td>„Literatur" · „Vorschauen" (die Cover)</td></tr>
@@ -1783,8 +1809,8 @@
 					<tr><td><strong>Territorien</strong></td><td>im Menü <strong>„Wappen ▾"</strong>: „Lokale Wappen" · „Wiki-Wappen"</td></tr>
 					<tr><td><strong>Vorkommen</strong></td><td>„Fauna" · „Flora" · „Waren" · „Spezies"</td></tr>
 				</table>
-				<div class="hb-note hb-tip"><strong>Gleichnamige Schalter sind wirklich getrennt.</strong> „Vorschauen" gibt es zweimal: für die Cover der Literatur und für die Kartenvorschauen. „Lokale Wappen" und „Wiki-Wappen" gibt es je einmal bei den Orten und einmal bei den Territorien — vier Schalter, nicht zwei. Eine Bilderlaubnis gilt bis auf Widerruf und muss einzeln zurücknehmbar sein.</div>
-				<div class="hb-note hb-tip"><strong>Wenn ein ganzer Bereich „weg" ist,</strong> ist meistens nur so ein Schalter aus. Das ist die erste Sache, die du prüfst, bevor du irgendetwas anderes vermutest.</div>
+				<div class="hb-note hb-tip"><strong>Gleichnamige Schalter sind getrennt.</strong> „Vorschauen" gibt es bei Literatur und bei Karten. „Lokale Wappen" und „Wiki-Wappen" gibt es bei Orten und bei Territorien — vier Schalter, nicht zwei.</div>
+				<div class="hb-note hb-tip"><strong>Ist ein ganzer Bereich „weg"?</strong> Meist ist nur sein Schalter aus. Prüf das zuerst.</div>
 			</section>
 
 			<!-- ============================= 5. NACHSCHLAGEN ============================= -->
