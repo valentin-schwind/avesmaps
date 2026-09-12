@@ -1,0 +1,90 @@
+/* Aus den Spalten einer Editorseite werden am schmalen Fenster REITER.
+ *
+ * Das Blatt zu `js/ui/editor-spalten-reiter.js` -- Bauteil und Stil unter demselben Namen, wie
+ * `karten-abzug.js`/`karten-abzug.css` und `map-status-circle.css` daneben. Die FORM kommt aus
+ * `.avm-tabs`/`.avm-tab` (css/components/editor-body.css); hier steht nur, WANN die Leiste sichtbar
+ * ist und was mit den abgewählten Spalten passiert.
+ * Entwurf: docs/superpowers/specs/2026-09-12-sync-monitor-am-telefon-design.md
+ *
+ * 💣 WARUM ES DIESE DATEI GIBT, UND ZWAR ALS EIGENE. Die Regeln standen zuerst in
+ *    `editor-body.css`, die eine Editorseite nur über `editor-page.css` und dessen `@import`
+ *    erreicht. Live gemessen am 13.09.2026 (Owner-Bild, 01:31): die Reiterleiste war GEBAUT und der
+ *    Sprung auf „Details" lief -- also das ganze JavaScript --, aber `.avm-spalten-reiter` und
+ *    `.avm-spalte-aus` wirkten nicht, während der `<style>`-Block derselben Seite wirkte. Die
+ *    Signatur einer alten Datei hinter einer Kette.
+ *    🔴 Der Unterschied, der es zeigt: die NEUE Datei `editor-spalten-reiter.js` lief sofort, die
+ *       GEÄNDERTE `editor-body.css` nicht. Eine neue Datei KANN nicht gecacht sein -- eine geänderte
+ *       hinter `@import` schon. Deshalb hängt dieses Blatt mit einem eigenen `<link>` direkt an der
+ *       Seite: ein Verweis weniger, und beim ersten Ausliefern garantiert frisch.
+ *    ⚠️ Der Stempel selbst war nachgemessen KORREKT (editor-page.css 07d930d904 → bcd87a48f8,
+ *       editor-body.css cda4ab0cb4 → 2f5b79a268) und die Datei stand in der Änderungsliste des
+ *       Deploys. Die Kette ist also nicht kaputt -- sie ist nur eine Gelegenheit mehr, und dieses
+ *       Haus hat „live steht die alte Fassung, während index.html die neue anfordert" schon
+ *       zweimal bezahlt (AGENTS.md §9).
+ *
+ * 💣 DIE LEISTE GEWINNT ÜBER SPEZIFITÄT, NICHT ÜBER DIE LADEREIHENFOLGE. `.avm-tabs` setzt
+ *    `display: flex` (0,1,0); eine einklassige `.avm-spalten-reiter`-Regel läge gleichauf, und dann
+ *    entschiede, welches Blatt später lädt -- „eine Regel, die nur über die Ladereihenfolge gilt,
+ *    ist keine Regel" (css/components/political-territory-editor-overlay.css, wo genau das einmal
+ *    passiert ist). Mit ZWEI Klassen (0,2,0) ist das Blatt davon unabhängig und darf überall
+ *    hängen. Dieselbe Hausform wie `.modal-box.wide` und `.modal-box--geom` im Monitor.
+ *
+ * 🔴 680px ist DIE Schwelle dieses Fensters -- dieselbe Zahl wie in
+ *    css/components/political-territory-editor-overlay.css (Fenster füllt den Bildschirm),
+ *    css/components/sync-plan-sheet.css (Übernahme-Vorschau) und im <style>-Block von
+ *    html/wiki-sync-monitor.html. EINE Zahl für dieselbe Frage.
+ * ⚠️ Gemessen wird das DOKUMENT, im iframe also die Fensterbreite und nicht der Bildschirm -- genau
+ *    darauf kommt es an: die Frage ist, ob die Spalten Platz haben, nicht welches Gerät davorsitzt.
+ */
+
+/* 💣 DER SEITENEINZUG IST `--space-10`, NICHT `--avm-col-pad`, und beides war einmal falsch:
+ *    (1) `--avm-col-pad` ist ein ZWEIwert -- `padding: 0 var(--avm-col-pad)` ergibt daraus die DREI
+ *        Werte `0 8px 12px` (oben 0, seitlich 8, UNTEN 12), nicht die gemeinte Kante.
+ *    (2) 🪤 Die Korrektur schrieb `--space-12` (14px) hin, begründet mit „der Seiteneinzug ist
+ *        überall 14". Der GLOBALE Token steht auf `var(--space-6) var(--space-10)`, seitlich also
+ *        ZWOELF px; die 14px-Fassungen sind Überschreibungen an Fensterhüllen im ELTERNdokument, und
+ *        Custom Properties kreuzen keine iframe-Grenze. Die Leiste stand 2px neben den
+ *        Spaltentiteln -- das Gegenteil der Garantie, die der Kommentar behauptete.
+ *    🔴 Ein Test rechnet die Seitenkomponente aus tokens.css und hält sie dagegen; zieht der globale
+ *       Token je auf 14 nach, zieht diese Zeile mit.
+ * 💣 KEIN `gap` und kein `border-bottom` hier -- die bringt `.avm-tabs` mit. */
+.avm-tabs.avm-spalten-reiter {
+	display: none;
+	flex: 0 0 auto;
+	padding: 0 var(--space-10);
+}
+
+@media (max-width: 680px) {
+	.avm-tabs.avm-spalten-reiter {
+		display: flex;
+	}
+
+	/* 💣 Hier und NUR hier -- die Klasse setzt das JS in jeder Breite, wirken darf sie nur in
+	 *    dieser. Über der Schwelle stehen damit alle Spalten da, ohne dass ein `resize`-Zuhörer
+	 *    einen Zustand nachziehen muss, der sonst auseinanderläuft.
+	 * 💣 Und deshalb NIE `hidden`: `[hidden] { display: none !important }` gilt in JEDER Breite, und
+	 *    ein `!important` nimmt keine Media-Query zurück -- die zwei anderen Spalten wären auch am
+	 *    1400px-Fenster weg. */
+	.avm-spalte-aus {
+		display: none;
+	}
+}
+
+/* 🔴 AM TASTBEDIENTEN GERÄT IST DIESER REITER DER EINZIGE WEG ZWISCHEN DEN SPALTEN -- also trägt er
+ *    ein Touch-Ziel. `.avm-tab` ist für einen Zeiger gebaut (`padding: var(--space-4) 1px`,
+ *    `min-height: 0`, gemessen ~27px hoch bei 1px seitlichem Polster); am Telefon war er damit
+ *    KLEINER als die Zeilen, die er erschließt. Gefunden von der Designprüfung, und der Befund wog
+ *    doppelt: derselbe Umbau fordert für die Menüband-Kacheln daneben ausdrücklich 44px.
+ * 💣 Der Selektor nennt die Leiste (0,3,0), NICHT `.avm-tab` allein: jene Klasse trägt die
+ *    Reiterzeilen von elf anderen Oberflächen, und die am Telefon mitzuvergrößern wäre ein
+ *    unbestellter Umbau an elf Stellen, die niemand geprüft hat.
+ * ⚠️ `align-items: center` ist tragend: mit einer Mindesthöhe allein klebt die Beschriftung am
+ *    oberen Rand und der Unterstrich sitzt 17px unter dem Wort. */
+@media (hover: none) and (pointer: coarse) {
+	.avm-tabs.avm-spalten-reiter .avm-tab {
+		display: inline-flex;
+		align-items: center;
+		min-height: var(--avm-touch-h);
+		padding: 0 var(--space-6);
+	}
+}

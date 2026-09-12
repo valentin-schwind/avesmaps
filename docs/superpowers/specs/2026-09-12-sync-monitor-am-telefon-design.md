@@ -220,6 +220,51 @@ Befunde; **die zwei schwersten hat kein Test und kein eigener Blick gesehen**:
   `editor-page.css` nie einbindet). `ASSET_VERSION` in `territory-editor-inline-host.js` ebenso
   nicht: dessen Asset-Liste enthält keine davon.
 
+## 3d. 🔴 Der Befund aus der Live-Abnahme: das Blatt gehört NEBEN sein Bauteil, nicht hinter eine Kette
+
+Owner-Bilder vom 13.09.2026, 01:13 und 01:31, nach dem Deploy. Sie zeigen einen Zustand, der mit
+der neuen `editor-body.css` **in keiner Fensterbreite möglich** ist:
+
+- Die Reiterleiste ist **gebaut**, „Lücken" ist als aktiver Reiter markiert — und im zweiten Bild
+  springt sie nach „Aus dem Editor geöffnet: „Nordhjaldor"" selbst auf **„Details"**. Das ganze
+  JavaScript samt `selectKey`-Trichter läuft also.
+- Aber die Leiste liegt **über** der Statuszeile statt darüber im Fluss, und **alle drei Spalten**
+  stehen weiter da.
+
+Über 680px wäre die Leiste unsichtbar (`display: none`), unter 680px stünde eine Spalte. Sichtbare
+Leiste *plus* drei Spalten gibt es nur, wenn `.avm-spalten-reiter` und `.avm-spalte-aus` in der
+geladenen Datei **fehlen** — und dann trägt `.avm-tabs` allein, ohne `flex: 0 0 auto`, also
+schrumpft die Leiste in der `height: 100vh`-Spalte auf null und ihr Inhalt überlappt. Genau das Bild.
+
+**Drei Verdächtige geprüft, alle drei entlastet:**
+- Die Stempel-Kette ist korrekt: `editor-page.css` ging von `07d930d904` auf `bcd87a48f8`,
+  `editor-body.css` von `cda4ab0cb4` auf `2f5b79a268` (Stamper lokal gegen beide Stände gefahren).
+  `verify-stamped-chain.py` bestätigt sie.
+- Die Datei stand in der Änderungsliste des Deploys (`git diff --name-only --diff-filter=ACMRT
+  a99564b 211e1dc`), `css` ist in der Allowlist → sie war im Paket.
+- Keine konkurrierende `.avm-tabs`-Regel in einem der Blätter, die der Monitor lädt.
+
+🔴 **Der Unterschied, der es zeigt, steht im selben Deploy:** die **neue** Datei
+`editor-spalten-reiter.js` lief sofort, die **geänderte** `editor-body.css` nicht. Eine neue Datei
+KANN nicht gecacht sein — eine geänderte hinter einem `@import` schon. Der Monitor erreicht
+`editor-body.css` nur über `editor-page.css` und dessen `@import`: ein Verweis mehr, und damit eine
+Gelegenheit mehr.
+
+⭐ **Die Regeln stehen deshalb jetzt in `css/components/editor-spalten-reiter.css`, mit eigenem
+`<link>` an der Seite** — Bauteil und Blatt unter demselben Namen, wie `karten-abzug.js` +
+`karten-abzug.css`. Das war ohnehin die Hausform; die Ablage in `editor-body.css` hatte nur das
+schwächere Argument („die Reihenfolge zu `.avm-tabs` muss nachlesbar sein").
+
+💣 **Und damit trägt die Spezifität, nicht die Ladereihenfolge:** `.avm-tabs.avm-spalten-reiter`
+(0,2,0) schlägt `.avm-tabs` (0,1,0) unabhängig davon, welches Blatt später lädt. Einklassig läge sie
+gleichauf — „eine Regel, die nur über die Ladereihenfolge gilt, ist keine Regel". Dieselbe Hausform
+wie `.modal-box.wide` im Monitor. Der Test prüft beide Klassen und verbietet den Rückfall nach
+`editor-body.css` ausdrücklich.
+
+⚠️ **Ob die alte Fassung noch aus dem Browser-Cache kam oder vom Server, ist nicht geklärt** — von
+dieser Sitzung ist avesmaps.de nicht erreichbar (Egress-Policy). Die neue Ablage macht die Frage
+gegenstandslos: ein Pfad, den es vorher nicht gab, kann nicht alt sein.
+
 ## 4. Offen
 
 - 🔧 **Aussortieren und „zur Wurzel machen" gehen am Telefon weiterhin nicht** — sie hängen an

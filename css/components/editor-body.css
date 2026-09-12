@@ -210,81 +210,17 @@
 	border-bottom-color: var(--color-text-strong);
 }
 
-/* ---- Aus Spalten werden Reiter, sobald das Fenster schmal ist ------------------------------
- * Die Leiste baut `js/ui/editor-spalten-reiter.js` (Entwurf
- * docs/superpowers/specs/2026-09-12-sync-monitor-am-telefon-design.md). Sie trägt `.avm-tabs`
- * daneben und ist damit Zeile für Zeile die Reiterzeile darüber -- hier steht NUR, wann sie
- * sichtbar ist und was mit den abgewählten Spalten passiert.
- *
- * 💣 DIE REIHENFOLGE DIESER ZWEI BLÖCKE IST TRAGEND. `.avm-tabs` (0,1,0, oben) und
- *    `.avm-spalten-reiter` (0,1,0, hier) liegen auf DEMSELBEN Element; bei gleicher Spezifität
- *    entscheidet, was später steht. Deshalb stehen sie in derselben Datei untereinander und nicht
- *    in zwei Blättern, deren Ladereihenfolge jemand umstellen kann -- „eine Regel, die nur über
- *    die Ladereihenfolge gilt, ist keine Regel" (css/components/political-territory-editor-
- *    overlay.css, wo genau das einmal passiert ist).
- *
- * 🔴 680px ist DIE Schwelle dieses Fensters, keine zweite Zahl:
- *    css/components/political-territory-editor-overlay.css führt sie schon dafür, dass das Fenster
- *    den Bildschirm füllt. Gemessen bricht die Listenzeile des Monitors bei ~607px (der Kommentar
- *    an `.row .nm` in html/wiki-sync-monitor.html rechnet es vor) -- 680 hat eine Stufe Luft.
- * ⚠️ Gemessen wird das DOKUMENT, also im iframe die Fensterbreite und nicht der Bildschirm. Genau
- *    darauf kommt es an: die Frage ist, ob die Spalten Platz haben. */
-/* 💣 KEIN `gap` und kein `border-bottom` hier -- die bringt `.avm-tabs` mit. Eine zweite Fassung
- *    desselben Werts ist genau die Divergenz, die §12 verbietet.
- *
- * 💣 DER SEITENEINZUG IST `--space-10`, NICHT `--avm-col-pad` -- und der Wert dahinter ist die
- *    Falle, die diesen Kommentar zweimal falsch gemacht hat:
- *    (1) `--avm-col-pad` ist ein ZWEIwert. `padding: 0 var(--avm-col-pad)` ergibt daraus DREI
- *        Werte (`0 8px 12px`): oben 0, seitlich 8, UNTEN 12. Nicht die gemeinte Kante, und unten
- *        ein Polster, das niemand bestellt hat.
- *    (2) 🪤 Der erste Bau schrieb daraufhin `--space-12` (14px) hin und begründete es mit „der
- *        Seiteneinzug ist überall 14". DAS GILT HIER NICHT: der globale Token steht auf
- *        `var(--space-6) var(--space-10)`, seitlich also ZWOELF px (css/base/tokens.css). Die 14px-
- *        Fassungen sind Überschreibungen AN FENSTERHÜLLEN IM ELTERNDOKUMENT
- *        (political-territory-editor-overlay.css und sechs Geschwister). **Custom Properties
- *        kreuzen keine iframe-Grenze** -- eine Editorseite im iframe liest den globalen Wert. Die
- *        Leiste stand damit 2px neben den Spaltentiteln, also genau das Gegenteil der Garantie,
- *        die hier behauptet wurde. Gefunden von der Konsistenzprüfung, nicht im Browser.
- *    🔴 Also: dieselbe Sprosse, die `--avm-col-pad` seitlich führt (`--space-10`), und ein Test
- *       hält die zwei gegeneinander -- eine abgeschriebene Zahl überlebt den Wechsel ihres
- *       Gegenstands nicht. Zieht der globale Token je auf 14 nach, zieht diese Zeile mit. */
-.avm-spalten-reiter {
-	display: none;
-	flex: 0 0 auto;
-	padding: 0 var(--space-10);
-}
-
-@media (max-width: 680px) {
-	.avm-spalten-reiter {
-		display: flex;
-	}
-
-	/* 💣 Hier und NUR hier -- die Klasse setzt das JS in jeder Breite, wirken darf sie nur in
-	 *    dieser. Über der Schwelle stehen damit alle Spalten da, ohne dass ein `resize`-Zuhörer
-	 *    einen Zustand nachziehen muss, der sonst auseinanderläuft. */
-	.avm-spalte-aus {
-		display: none;
-	}
-}
-
-/* 🔴 AM TASTBEDIENTEN GERÄT IST DIESER REITER DER EINZIGE WEG ZWISCHEN DEN SPALTEN -- also trägt
- *    er ein Touch-Ziel. `.avm-tab` ist für einen Zeiger gebaut (`padding: var(--space-4) 1px`,
- *    `min-height: 0`, gemessen ~27px hoch bei 1px seitlichem Polster); am Telefon war er damit
- *    KLEINER als die Zeilen, die er erschließt. Gefunden von der Designprüfung, und der Befund
- *    wog doppelt: derselbe Umbau fordert für die Menüband-Kacheln daneben ausdrücklich 44px.
- * 💣 Der Selektor ist `.avm-spalten-reiter .avm-tab` (0,2,0), NICHT `.avm-tab`: jene Klasse trägt
- *    die Reiterzeilen von elf anderen Oberflächen, und die am Telefon mitzuvergrößern wäre ein
- *    unbestellter Umbau an elf Stellen, die niemand geprüft hat.
- * ⚠️ `align-items: center` ist tragend: mit einer Mindesthöhe allein klebt die Beschriftung am
- *    oberen Rand und der Unterstrich sitzt 17px unter dem Wort. */
-@media (hover: none) and (pointer: coarse) {
-	.avm-spalten-reiter .avm-tab {
-		display: inline-flex;
-		align-items: center;
-		min-height: var(--avm-touch-h);
-		padding: 0 var(--space-6);
-	}
-}
+/* ---- Aus Spalten werden Reiter -------------------------------------------------------------
+ * 🔴 Die Regeln dazu stehen in `css/components/editor-spalten-reiter.css`, dem Blatt zu
+ *    `js/ui/editor-spalten-reiter.js` -- Bauteil und Stil unter demselben Namen.
+ * 💣 SIE STANDEN HIER, UND DAS WAR DER FEHLER. Eine Editorseite erreicht diese Datei nur über
+ *    `editor-page.css` und dessen `@import`; live gemessen am 13.09.2026 wirkte das JavaScript
+ *    (Leiste gebaut, Sprung auf „Details" lief) und die geaenderte CSS-Regel nicht, waehrend eine
+ *    NEUE Datei im selben Deploy sofort lief. Das eigene Blatt haengt mit einem eigenen `<link>`
+ *    direkt an der Seite. Wer die Regeln hierher zurueckholt, holt die Kette mit.
+ * ⚠️ `.avm-tabs` unten BLEIBT die Form der Leiste -- das Bauteil setzt beide Klassen. Seine eigene
+ *    Regel gewinnt ueber Spezifitaet (`.avm-tabs.avm-spalten-reiter`, 0,2,0), nicht ueber die
+ *    Ladereihenfolge; darum darf jenes Blatt vor oder nach diesem haengen. */
 
 /* ---- Row badges -----------------------------------------------------------------------------
  * Spec §3.1b: emphasise the EXCEPTION, not the classification. A classification stays quiet grey;

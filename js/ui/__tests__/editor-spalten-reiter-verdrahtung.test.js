@@ -30,6 +30,7 @@ const lies = (...teile) => fs.readFileSync(path.join(WURZEL, ...teile), "utf8");
 
 const monitor = lies("html", "wiki-sync-monitor.html");
 const editorBody = lies("css", "components", "editor-body.css");
+const reiterBlatt = lies("css", "components", "editor-spalten-reiter.css");
 const overlay = lies("css", "components", "political-territory-editor-overlay.css");
 const wikiSync = lies("js", "review", "review-wiki-sync.js");
 
@@ -49,6 +50,7 @@ function ohneKommentare(quelle) {
 
 const monitorRein = ohneKommentare(monitor);
 const editorBodyRein = ohneKommentare(editorBody);
+const reiterRein = ohneKommentare(reiterBlatt);
 const overlayRein = ohneKommentare(overlay);
 const wikiSyncRein = ohneKommentare(wikiSync);
 
@@ -147,33 +149,33 @@ const wikiSyncRein = ohneKommentare(wikiSync);
 // 4. A2/A6: die CSS-Seite. Die Klasse wirkt NUR in der Media-Query.
 // -----------------------------------------------------------------------------------------------
 {
-	pruefe(editorBodyRein.includes(".avm-spalten-reiter"), "A2: .avm-spalten-reiter steht in editor-body.css");
+	pruefe(reiterRein.includes(".avm-spalten-reiter"), "A2: .avm-spalten-reiter steht im eigenen Blatt");
 
 	// Der Block der Media-Query herausschneiden und gegen den Rest halten.
-	const abBeginn = editorBodyRein.indexOf("@media (max-width: 680px)");
-	pruefe(abBeginn > 0, "A2: die 680px-Query steht in editor-body.css");
+	const abBeginn = reiterRein.indexOf("@media (max-width: 680px)");
+	pruefe(abBeginn > 0, "A2: die 680px-Query steht im Blatt des Bauteils");
 	if (abBeginn > 0) {
 		// Klammern zählen, ab der ersten öffnenden nach dem @media.
-		const ab = editorBodyRein.indexOf("{", abBeginn);
+		const ab = reiterRein.indexOf("{", abBeginn);
 		let tiefe = 0, ende = ab;
-		for (let i = ab; i < editorBodyRein.length; i += 1) {
-			if (editorBodyRein[i] === "{") tiefe += 1;
-			else if (editorBodyRein[i] === "}") { tiefe -= 1; if (tiefe === 0) { ende = i + 1; break; } }
+		for (let i = ab; i < reiterRein.length; i += 1) {
+			if (reiterRein[i] === "{") tiefe += 1;
+			else if (reiterRein[i] === "}") { tiefe -= 1; if (tiefe === 0) { ende = i + 1; break; } }
 		}
-		const inQuery = editorBodyRein.slice(ab, ende);
-		const ausserhalb = editorBodyRein.slice(0, abBeginn) + editorBodyRein.slice(ende);
+		const inQuery = reiterRein.slice(ab, ende);
+		const ausserhalb = reiterRein.slice(0, abBeginn) + reiterRein.slice(ende);
 
 		pruefe(/\.avm-spalte-aus\s*\{/.test(inQuery), "A6: `.avm-spalte-aus` wird IN der Query versteckt");
 		pruefe(!/\.avm-spalte-aus\s*\{/.test(ausserhalb),
 			"A6: und NIRGENDS ausserhalb — sonst wären die Spalten in JEDER Breite weg");
-		pruefe(/\.avm-spalten-reiter\s*\{[^}]*display:\s*flex/.test(inQuery),
+		pruefe(/\.avm-tabs\.avm-spalten-reiter\s*\{[^}]*display:\s*flex/.test(inQuery),
 			"A2: die Leiste wird erst IN der Query sichtbar");
-		pruefe(/\.avm-spalten-reiter\s*\{[^}]*display:\s*none/.test(ausserhalb),
+		pruefe(/\.avm-tabs\.avm-spalten-reiter\s*\{[^}]*display:\s*none/.test(ausserhalb),
 			"A2: und steht ausserhalb auf display:none — über 680px gibt es keine Reiter");
 
 		// 💣 `--avm-col-pad` ist ein ZWEIwert. In `padding: 0 var(--avm-col-pad)` wird daraus
 		//    `0 8px 12px` — oben 0, seitlich 8, UNTEN 12. Der erste Bau stand genau so da.
-		const leisteRegel = (ausserhalb.match(/\.avm-spalten-reiter\s*\{[^}]*\}/) || [""])[0];
+		const leisteRegel = (ausserhalb.match(/\.avm-tabs\.avm-spalten-reiter\s*\{[^}]*\}/) || [""])[0];
 		pruefe(!/padding:[^;]*--avm-col-pad/.test(leisteRegel),
 			"A2: die Leiste polstert NICHT mit dem Zweiwert-Token --avm-col-pad");
 		// Und sie holt Abstand und Trennlinie von `.avm-tabs`, statt sie ein zweites Mal zu setzen.
@@ -198,8 +200,8 @@ const wikiSyncRein = ohneKommentare(wikiSync);
 			`A2: die Leiste trägt DIESELBE Kante wie die Spalten (Leiste „${leistePad.trim()}“ gegen Spalte „${seiteVonColPad}“)`);
 		// 🪤 Und kein Override in den Editorseiten, das die Rechnung oben ungültig machen würde.
 		const editorPage = ohneKommentare(lies("css", "components", "editor-page.css"));
-		pruefe(!/--avm-col-pad:/.test(editorPage) && !/--avm-col-pad:/.test(editorBodyRein),
-			"A2: kein --avm-col-pad-Override in editor-page.css/editor-body.css — sonst gilt die Rechnung nicht");
+		pruefe(!/--avm-col-pad:/.test(editorPage) && !/--avm-col-pad:/.test(reiterRein),
+			"A2: kein --avm-col-pad-Override in editor-page.css/dem Blatt — sonst gilt die Rechnung nicht");
 	}
 }
 
@@ -213,9 +215,9 @@ const wikiSyncRein = ohneKommentare(wikiSync);
 	pruefe(/--avm-touch-h:\s*44px/.test(tokens),
 		"A10: der Token --avm-touch-h steht in tokens.css (44px war vorher viermal als eigene Zahl da)");
 
-	const ab = editorBodyRein.indexOf("@media (hover: none) and (pointer: coarse)");
-	pruefe(ab > 0, "A10: editor-body.css hat einen Touch-Riegel für die Reiterleiste");
-	const touchBody = ab > 0 ? editorBodyRein.slice(ab) : "";
+	const ab = reiterRein.indexOf("@media (hover: none) and (pointer: coarse)");
+	pruefe(ab > 0, "A10: das Blatt hat einen Touch-Riegel für die Reiterleiste");
+	const touchBody = ab > 0 ? reiterRein.slice(ab) : "";
 	pruefe(/\.avm-spalten-reiter \.avm-tab\s*\{[^}]*min-height:\s*var\(--avm-touch-h\)/.test(touchBody),
 		"A10: der Reiter bekommt dort das Touch-Ziel aus dem Token");
 	// 💣 NUR die Reiter dieses Bauteils, nicht `.avm-tab` überall: jene Klasse trägt die
@@ -303,22 +305,37 @@ const wikiSyncRein = ohneKommentare(wikiSync);
 }
 
 // -----------------------------------------------------------------------------------------------
-// 4f. Die Reihenfolge der zwei spezifitätsgleichen Regeln.
-//     💣 `.avm-tabs` (display:flex) und `.avm-spalten-reiter` (display:none) liegen beide auf
-//        (0,1,0) am DEMSELBEN Element — es entscheidet, was später steht.
-//     🪤 UND HIER SASS DIE `-1`-FALLE AUS AGENTS.md §9, gefunden von der Mutationsprobe: ein
-//        blosses `indexOf(A) < indexOf(B)` ist auch dann WAHR, wenn A gar nicht mehr da ist
-//        (`-1 < irgendwas`). Die Zusicherung blieb grün, als `.avm-tabs` umbenannt wurde — also
-//        genau in dem Fall, in dem die Leiste ihre Form verliert. Erst die Stellen prüfen, dann
-//        vergleichen.
+// 4f. 🔴 DIE LEISTE GEWINNT ÜBER SPEZIFITÄT, NICHT ÜBER DIE LADEREIHENFOLGE.
+//     💣 `.avm-tabs` setzt `display: flex` (0,1,0). Eine einklassige `.avm-spalten-reiter`-Regel
+//        läge gleichauf, und dann entschiede, welches Blatt später lädt — „eine Regel, die nur über
+//        die Ladereihenfolge gilt, ist keine Regel". Mit zwei Klassen (0,2,0) darf das Blatt
+//        überall hängen, und genau darauf beruht der eigene `<link>`.
+//     🪤 Die alte Fassung dieses Blocks verglich `indexOf(A) < indexOf(B)` in EINER Datei und saß
+//        damit auf der `-1`-Falle aus AGENTS.md §9 (`-1 < irgendwas` ist wahr, auch wenn A fehlt).
+//        Mit der Spezifität gibt es nichts mehr zu vergleichen.
 // -----------------------------------------------------------------------------------------------
 {
-	const stelleTabs = editorBodyRein.indexOf(".avm-tabs {");
-	const stelleReiter = editorBodyRein.indexOf(".avm-spalten-reiter {");
-	pruefe(stelleTabs >= 0, "A2: `.avm-tabs {` steht in editor-body.css (die FORM der Leiste)");
-	pruefe(stelleReiter >= 0, "A2: `.avm-spalten-reiter {` steht dort ebenfalls");
-	pruefe(stelleTabs >= 0 && stelleReiter >= 0 && stelleTabs < stelleReiter,
-		"A2: `.avm-spalten-reiter` steht NACH `.avm-tabs` — bei gleicher Spezifität entscheidet die Reihenfolge");
+	pruefe(/\.avm-tabs\.avm-spalten-reiter\s*\{/.test(reiterRein),
+		"A2: die Leiste wird über ZWEI Klassen adressiert (0,2,0) — unabhängig von der Ladereihenfolge");
+	pruefe(!/^\.avm-spalten-reiter\s*\{/m.test(reiterRein),
+		"A2: und NICHT einklassig — das läge mit .avm-tabs gleichauf");
+	pruefe(/\.avm-tabs \{/.test(editorBodyRein),
+		"A2: `.avm-tabs` (die FORM) steht weiter in editor-body.css");
+
+	// 💣 DER RÜCKFALL, DEN DAS LIVE-BILD VOM 13.09.2026 GEKOSTET HAT: die Regeln standen in
+	//    editor-body.css, die eine Editorseite nur über den @import von editor-page.css erreicht.
+	//    Das JavaScript lief, die geänderte Datei hinter der Kette nicht.
+	pruefe(!/avm-spalte-aus\s*\{/.test(editorBodyRein),
+		"A2: `.avm-spalte-aus` steht NICHT mehr in editor-body.css (hinter der @import-Kette)");
+	pruefe(!/\.avm-spalten-reiter[^}]*\{[^}]*display/.test(editorBodyRein),
+		"A2: und auch keine Sichtbarkeitsregel der Leiste");
+
+	// Das Blatt hängt mit EIGENEM <link> an der Seite, nicht über den @import.
+	pruefe(monitorRein.includes('href="/css/components/editor-spalten-reiter.css"'),
+		"A2: die Seite lädt das Blatt mit einem eigenen <link>");
+	const editorPageQuelle = ohneKommentare(lies("css", "components", "editor-page.css"));
+	pruefe(!/@import[^;]*editor-spalten-reiter/.test(editorPageQuelle),
+		"A2: und NICHT über einen @import in editor-page.css");
 }
 
 // -----------------------------------------------------------------------------------------------
