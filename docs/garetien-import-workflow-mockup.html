@@ -1,0 +1,788 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ein Weg auf die Karte — Mockup</title>
+<!-- Mockup zum Entwurf des Import-Workflows (12.09.2026).
+     Entwurf:  superpowers/specs/2026-09-12-garetien-import-workflow-design.md
+     Befunde:  superpowers/plans/2026-09-12-garetien-importer-befunde.md
+     Uebergabe: superpowers/plans/2026-09-12-garetien-importer-UEBERGABE.md
+     Gebaut ist nichts; das Mockup traegt deshalb bewusst KEINE Vertrag-Marken. -->
+<style>
+html{color-scheme:light dark}
+body{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+</style>
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --grund:#f2ebdd; --blatt:#fffdf9; --weich:#faf6ee; --vertieft:#f1ece1; --aktiv:#e7ddc9;
+  --text:#2e271e; --stark:#3c3327; --leise:#6d6253;
+  --linie:rgba(125,115,96,.30); --linie2:rgba(125,115,96,.55);
+  --gold:#79611b; --braun:#7a5a3a;
+  --knopf:#5b5548; --knopf-rand:#635b4d; --knopf-text:#f6efe1;
+  --weichknopf:#efe9db; --weichknopf-text:#564b3b; --weichknopf-rand:#cdbda0;
+  --gruen:#4f6134; --gruen-grund:rgba(101,124,66,.13);
+  --rot:#8d3a2c; --rot-grund:rgba(141,58,44,.10);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --grund:#1f1b16; --blatt:#2a251f; --weich:#2f2a23; --vertieft:#353028; --aktiv:#3d3730;
+  --text:#ece3d4; --stark:#f6efe1; --leise:#a49984;
+  --linie:rgba(196,182,155,.22); --linie2:rgba(196,182,155,.44);
+  --gold:#cfae63; --braun:#c39a6f;
+  --knopf:#6a6353; --knopf-rand:#7b7362; --knopf-text:#f6efe1;
+  --weichknopf:#3a352d; --weichknopf-text:#e3d9c6; --weichknopf-rand:#5a5245;
+  --gruen:#a3ba73; --gruen-grund:rgba(163,186,115,.14);
+  --rot:#d98b7a; --rot-grund:rgba(217,139,122,.12);
+}}
+:root[data-theme="dark"]{
+  --grund:#1f1b16; --blatt:#2a251f; --weich:#2f2a23; --vertieft:#353028; --aktiv:#3d3730;
+  --text:#ece3d4; --stark:#f6efe1; --leise:#a49984;
+  --linie:rgba(196,182,155,.22); --linie2:rgba(196,182,155,.44);
+  --gold:#cfae63; --braun:#c39a6f;
+  --knopf:#6a6353; --knopf-rand:#7b7362; --knopf-text:#f6efe1;
+  --weichknopf:#3a352d; --weichknopf-text:#e3d9c6; --weichknopf-rand:#5a5245;
+  --gruen:#a3ba73; --gruen-grund:rgba(163,186,115,.14);
+  --rot:#d98b7a; --rot-grund:rgba(217,139,122,.12);
+}
+*{box-sizing:border-box}
+body{background:var(--grund);color:var(--text);
+  font-family:"IBM Plex Sans",system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.55;
+  padding-block:28px 64px;padding-left:16px;padding-right:16px;-webkit-text-size-adjust:100%}
+.bahn{max-width:880px;margin:0 auto;display:flex;flex-direction:column;gap:34px}
+.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:11.5px;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--braun)}
+h1{font-family:Spectral,Georgia,serif;font-weight:600;font-size:clamp(26px,6vw,36px);
+  line-height:1.15;margin:0;color:var(--stark);text-wrap:balance}
+h2{font-family:Spectral,Georgia,serif;font-weight:600;font-size:21px;margin:0;color:var(--stark)}
+h3{font-weight:600;font-size:14.5px;margin:0;color:var(--stark)}
+p{margin:0}
+header{display:flex;flex-direction:column;gap:11px}
+.lead{color:var(--leise);max-width:62ch}
+section{display:flex;flex-direction:column;gap:13px}
+.kopf{display:flex;align-items:baseline;gap:10px}
+.kopf .nr{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--braun);flex:none;padding-top:3px}
+.kopf p{font-size:13.5px;color:var(--leise);margin-top:3px}
+code{font-family:"IBM Plex Mono",monospace;font-size:.87em;background:var(--vertieft);
+  padding:1px 4px;border-radius:3px;overflow-wrap:anywhere}
+.regel{border-left:3px solid var(--braun);background:var(--weich);padding:11px 14px;
+  border-radius:0 6px 6px 0;display:flex;flex-direction:column;gap:7px;font-size:14px}
+.regel b{color:var(--stark)}
+.regel--rot{border-left-color:var(--rot);background:var(--rot-grund)}
+.marke{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--braun)}
+.regel--rot .marke{color:var(--rot)}
+.tab-huelle{overflow-x:auto;border:1px solid var(--linie);border-radius:7px;background:var(--blatt)}
+table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:460px}
+th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--linie);vertical-align:top}
+th{font-size:11.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--leise);font-weight:600;
+  background:var(--weich)}
+tr:last-child td{border-bottom:0}
+td.mono{font-family:"IBM Plex Mono",monospace;font-size:12.5px}
+
+/* Fenster */
+.fenster{border:1px solid var(--linie2);border-radius:9px;background:var(--blatt);
+  overflow:hidden;box-shadow:0 2px 10px rgba(60,51,39,.09)}
+.f-kopf{display:flex;align-items:center;gap:9px;padding:7px 14px;border-bottom:1px solid var(--linie);
+  background:var(--weich)}
+.f-kopf .griff{color:var(--leise);font-size:13px;letter-spacing:-2px}
+.f-titel{font-family:Spectral,serif;font-weight:600;font-size:15px;color:var(--stark)}
+.f-zusatz{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--leise);margin-left:auto}
+.f-status{padding:6px 14px;border-bottom:1px solid var(--linie);background:var(--vertieft);
+  font-size:12.5px;color:var(--leise);font-family:"IBM Plex Mono",monospace}
+.f-koerper{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr)}
+.f-links{border-right:1px solid var(--linie);display:flex;flex-direction:column;min-width:0}
+.f-rechts{display:flex;flex-direction:column;gap:11px;padding:12px 14px;min-width:0}
+@media (max-width:620px){.f-koerper{grid-template-columns:1fr}
+  .f-links{border-right:0;border-bottom:1px solid var(--linie)}}
+.reiter{display:flex;gap:2px;padding:8px 10px 0;border-bottom:1px solid var(--linie);flex-wrap:wrap}
+.reiter button{font:inherit;font-size:12.5px;font-weight:500;background:none;border:0;
+  border-bottom:2px solid transparent;color:var(--leise);padding:6px 9px;cursor:default}
+.reiter .an{color:var(--stark);border-bottom-color:var(--braun)}
+.reiter .zahl{font-family:"IBM Plex Mono",monospace;font-size:11px;opacity:.75;margin-left:3px}
+.suchzeile{display:flex;gap:6px;padding:8px 12px;border-bottom:1px solid var(--linie)}
+.suchzeile .feld{flex:1 1 auto;border:1px solid var(--linie);border-radius:5px;background:var(--blatt);
+  padding:5px 9px;font-size:12.5px;color:var(--leise)}
+.suchzeile .fbtn{border:1px solid var(--weichknopf-rand);background:var(--weichknopf);
+  color:var(--weichknopf-text);border-radius:5px;padding:5px 10px;font-size:12.5px}
+.listkopf{display:flex;align-items:center;gap:8px;padding:7px 12px;background:var(--weich);
+  border-bottom:1px solid var(--linie);font-size:12px;color:var(--leise)}
+.listkopf .rechts{margin-left:auto;font-family:"IBM Plex Mono",monospace;font-size:11.5px}
+.kasten{flex:none;width:13px;height:13px;border:1.5px solid var(--linie2);border-radius:3px;
+  display:inline-block;background:var(--blatt)}
+.zeile{display:flex;align-items:flex-start;gap:9px;padding:9px 12px;border-bottom:1px solid var(--linie);
+  font-size:13.5px}
+.zeile:last-child{border-bottom:0}
+.zeile.gewaehlt{background:var(--aktiv)}
+.zeile .haken{flex:none;width:14px;height:14px;border:1.5px solid var(--linie2);border-radius:3px;
+  margin-top:2px;background:var(--blatt)}
+.zeile .haken.an{background:var(--braun);border-color:var(--braun);position:relative}
+.zeile .haken.an::after{content:"✓";position:absolute;inset:-3px 0 0 1px;color:#fff;font-size:11px}
+.zeile .txt{min-width:0;display:flex;flex-direction:column;gap:2px}
+.zeile .nm{font-weight:500;color:var(--stark);overflow-wrap:anywhere}
+.zeile .sub{font-size:11.5px;color:var(--leise);font-family:"IBM Plex Mono",monospace}
+.stagemarke{margin-left:auto;flex:none;font-size:11px;font-family:"IBM Plex Mono",monospace;
+  color:var(--braun);background:var(--vertieft);border-radius:4px;padding:2px 6px;white-space:nowrap}
+.stagemarke--aus{color:var(--leise)}
+.vorschlagszeile{display:flex;align-items:flex-start;gap:9px;padding:9px 12px;
+  border-bottom:1px solid var(--linie);background:var(--gruen-grund);font-size:13px}
+.vorschlagszeile .txt{min-width:0;display:flex;flex-direction:column;gap:3px}
+.vorschlagszeile b{color:var(--stark)}
+.minibtn{border:1px solid var(--weichknopf-rand);background:var(--weichknopf);
+  color:var(--weichknopf-text);border-radius:5px;padding:3px 9px;font-size:11.5px;white-space:nowrap}
+.teilliste{list-style:none;margin:3px 0 0;padding:0;display:flex;flex-direction:column;gap:2px}
+.teilliste li{font-size:11.5px;color:var(--leise);font-family:"IBM Plex Mono",monospace}
+.leiste{display:flex;gap:6px;padding:9px 12px;border-top:1px solid var(--linie);background:var(--weich)}
+.kachel{flex:1 1 0;min-width:0;border:1px solid var(--weichknopf-rand);background:var(--weichknopf);
+  color:var(--weichknopf-text);border-radius:6px;padding:6px 8px;display:flex;flex-direction:column;
+  gap:1px;align-items:center;text-align:center}
+.kachel .t1{font-size:12.5px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  max-width:100%}
+.kachel .t2{font-size:10.5px;opacity:.72;font-family:"IBM Plex Mono",monospace}
+.kachel--haupt{background:var(--knopf);border-color:var(--knopf-rand);color:var(--knopf-text)}
+.kachel--rot{color:var(--rot);border-color:var(--rot)}
+.f-fuss{border-top:1px solid var(--linie2)}
+.r-kopf{display:flex;flex-direction:column;gap:2px}
+.r-name{font-family:Spectral,serif;font-weight:600;font-size:17px;color:var(--stark)}
+.r-meta{font-size:11.5px;color:var(--leise);font-family:"IBM Plex Mono",monospace}
+.r-abschnitt{display:flex;flex-direction:column;gap:6px}
+.r-titel{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--braun);font-weight:600}
+.r-text{font-size:13px;color:var(--leise)}
+.punktliste{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;
+  border:1px solid var(--linie);border-radius:7px;overflow:hidden;background:var(--weich)}
+.punktliste li{display:flex;align-items:baseline;gap:10px;padding:7px 11px;font-size:13px;
+  border-bottom:1px solid var(--linie)}
+.punktliste li:last-child{border-bottom:0}
+.punktliste .k{color:var(--leise);flex:none;min-width:92px}
+.punktliste .v{color:var(--stark);font-weight:500;overflow-wrap:anywhere}
+.punktliste .v em{font-style:normal;color:var(--leise);font-weight:400}
+.punktliste .stell{margin-left:auto;flex:none;font-size:11px;color:var(--gold);
+  border:1px solid var(--linie);border-radius:4px;padding:1px 6px;background:var(--blatt)}
+.gesperrt{background:var(--vertieft);opacity:.72}
+.hinweis{font-size:12px;color:var(--leise);font-style:italic}
+/* Zielwahl */
+.zielwahl{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;
+  border:1px solid var(--linie);border-radius:7px;overflow:hidden}
+.zielwahl li{display:flex;align-items:flex-start;gap:9px;padding:8px 11px;font-size:13px;
+  border-bottom:1px solid var(--linie);background:var(--blatt)}
+.zielwahl li:last-child{border-bottom:0}
+.zielwahl li.an{background:var(--gruen-grund)}
+.punkt-radio{flex:none;width:13px;height:13px;border:1.5px solid var(--linie2);border-radius:50%;
+  margin-top:3px;background:var(--blatt)}
+.zielwahl li.an .punkt-radio{border-color:var(--gruen);border-width:4px}
+.zielwahl .zt{display:flex;flex-direction:column;gap:1px;min-width:0}
+.zielwahl .zt b{color:var(--stark);font-weight:500}
+.zielwahl .zt span{font-size:11.5px;color:var(--leise)}
+.zielwahl li.warn .zt b{color:var(--rot)}
+.spinnerzeile{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--leise);
+  padding:7px 11px;border:1px solid var(--linie);border-top:0;border-radius:0 0 7px 7px;
+  background:var(--weich);flex-wrap:wrap}
+.spinnerfeld{font-family:"IBM Plex Mono",monospace;border:1px solid var(--linie2);border-radius:4px;
+  padding:2px 8px;background:var(--blatt);color:var(--stark)}
+/* Befunde */
+.befundliste{display:flex;flex-direction:column;gap:9px}
+.befund{border:1px solid var(--linie);border-radius:7px;padding:10px 12px;background:var(--blatt);
+  display:flex;flex-direction:column;gap:4px}
+.befund .b-kopf{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.befund .b-rolle{font-family:"IBM Plex Mono",monospace;font-size:10.5px;text-transform:uppercase;
+  letter-spacing:.07em;color:var(--braun);border:1px solid var(--linie);border-radius:4px;
+  padding:1px 6px;flex:none}
+.befund .b-titel{font-weight:600;color:var(--stark);font-size:14px}
+.befund p{font-size:13px;color:var(--leise)}
+.befund .b-ort{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--leise);opacity:.8;
+  overflow-wrap:anywhere}
+.schwer{border-left:3px solid var(--rot)}
+.frage{border:1px solid var(--linie);border-left:3px solid var(--gold);border-radius:0 7px 7px 0;
+  padding:11px 13px;background:var(--blatt);display:flex;flex-direction:column;gap:5px}
+.frage--klar{border-left-color:var(--gruen);background:var(--gruen-grund)}
+.frage .q{font-weight:600;color:var(--stark);font-size:14.5px}
+.frage--klar .q::before{content:"Geklärt · ";color:var(--gruen);font-family:"IBM Plex Mono",monospace;
+  font-size:11px;letter-spacing:.07em;text-transform:uppercase}
+.frage .a{font-size:13.5px;color:var(--leise)}
+.frage .a b{color:var(--text);font-weight:500}
+footer{border-top:1px solid var(--linie);padding-top:14px;font-size:12.5px;color:var(--leise);
+  display:flex;flex-direction:column;gap:5px}
+</style>
+
+</head>
+<body>
+<div class="bahn">
+<header>
+  <div class="eyebrow">Garetien-Importer · Entwurf 12.09.2026</div>
+  <h1>Ein Weg auf die Karte</h1>
+  <p class="lead">Der Import-Workflow, neu geschnitten: <b>ansehen auf „Offen", einstellen auf der
+  Stage, schreiben nur durch die Fußleiste.</b> Dazu die Zielwahl statt der drei Knöpfe, und
+  gleichnamige Flächen werden auf Vorschlag eine Region. Gebaut aus deinen Ansagen und drei
+  Prüfläufen am Code — neuer Editor, Vielimporteur, Datenpflege.</p>
+  <div class="regel regel--rot">
+    <span class="marke">Der Befund, der alles andere überlagert</span>
+    <p><b>Es gibt heute einen Knopf, der sofort in die Karte schreibt</b> — „Innerorts einfügen
+    (Wandleth)", direkt neben „Auf die Stage", neutral gefärbt, <b>ohne jede Rückfrage</b>, und er
+    steht schon auf „Offen". Während der Tooltip am Öffnungsknopf verspricht: <em>„Es wird nichts
+    geschrieben, bis du ‚Stage importieren' drückst."</em> Dein eigener Satz steht als Kommentar
+    daneben: <em>„es macht doch keinen sinn, dass sachen eingefügt werden können, wenn es noch
+    nicht auf der stage liegt."</em></p>
+    <p><b>Und wer stattdessen im Kasten die Stadt wählt, macht das Objekt unimportierbar:</b>
+    der Fußknopf springt auf <code>Stage importieren (0 von 1)</code> und sperrt, mit der
+    Begründung „der Abgleich hat nichts gefunden" — obwohl der Abgleich unschuldig ist.
+    <code>{innerorts:true}</code> erreicht den Server über die Stage nie. Beides gemessen, nicht
+    gelesen.</p>
+  </div>
+</header>
+
+<!-- 01 Der Weg -->
+<section>
+  <div class="kopf"><span class="nr">01</span><div>
+    <h2>Ein Vorwärtsknopf, ein Schreibknopf</h2>
+    <p>Die Regel, aus der alles Übrige folgt.</p>
+  </div></div>
+  <div class="tab-huelle"><table>
+    <thead><tr><th>Station</th><th>was man dort tut</th><th>was geschrieben wird</th></tr></thead>
+    <tbody>
+      <tr><td><b>Offen</b></td><td>ansehen, vergleichen, auf die Stage legen oder ablehnen</td>
+        <td>nichts</td></tr>
+      <tr><td><b>Stage</b></td><td>Ziel wählen, Name, Art, Beschriftung, Zoomband einstellen;
+        Vorschau auf der Karte</td><td>nichts</td></tr>
+      <tr><td><b>Import</b></td><td>ein Knopf in der Fußleiste, eine Rückfrage</td>
+        <td><b>alles auf einmal</b></td></tr>
+    </tbody>
+  </table></div>
+  <div class="regel">
+    <span class="marke">Was dafür fällt</span>
+    <p>Der Knopf <b>„Innerorts einfügen (X)"</b> und jeder andere Einzel-Schreibweg aus der
+    Objektleiste. Was sie konnten, kann die Zielwahl auf der Stage — und dann zählt es der
+    Fußknopf mit, statt daran vorbeizulaufen.</p>
+    <p>Die zwei Häkchen <b>„Neu einfügen"</b> und <b>„Als Quelle einfügen"</b> fallen als Häkchen:
+    sie werden Werte <em>einer</em> Zielwahl. Zwei unabhängige Häkchen konnten sich widersprechen,
+    und genau daraus entstand der Fall unten in §05.</p>
+  </div>
+</section>
+
+<!-- 02 Offen -->
+<section>
+  <div class="kopf"><span class="nr">02</span><div>
+    <h2>Auf „Offen" wird nichts eingestellt</h2>
+    <p>Die Form ist sichtbar — als Vorschlag, nicht als Formular.</p>
+  </div></div>
+
+  <div class="fenster">
+    <div class="f-kopf"><span class="griff">⁝⁝</span><span class="f-titel">Garetien-Import</span>
+      <span class="f-zusatz">Lauf 12.09. 04:12 · 8 213 Objekte</span></div>
+    <div class="f-status">2 431 offen · 7 auf der Stage · 512 übernommen</div>
+    <div class="f-koerper">
+      <div class="f-links">
+        <div class="reiter"><button class="an">Offen<span class="zahl">2431</span></button>
+          <button>Stage<span class="zahl">7</span></button>
+          <button>Übernommen<span class="zahl">512</span></button>
+          <button>Abgelehnt<span class="zahl">64</span></button></div>
+        <div class="suchzeile"><span class="feld">Suche …</span><span class="fbtn">Filter ▾</span></div>
+        <div class="listkopf"><span class="kasten"></span><span>alle 40</span>
+          <span class="rechts">40 von 2 431</span></div>
+        <div class="zeile gewaehlt"><span class="haken"></span><span class="txt">
+          <span class="nm">Burg Finster</span><span class="sub">Detail_1 · ggp · Punkt</span>
+        </span><span class="stagemarke stagemarke--aus">nicht auf der Stage</span></div>
+        <div class="zeile"><span class="haken"></span><span class="txt">
+          <span class="nm">Silber Hain 1</span><span class="sub">Waelder · ggp · Polygon</span>
+        </span><span class="stagemarke">liegt auf der Stage</span></div>
+        <div class="zeile"><span class="haken"></span><span class="txt">
+          <span class="nm">Natterbach</span><span class="sub">Gewaesser · ggp · Linie</span></span></div>
+        <div class="leiste">
+          <span class="kachel"><span class="t1">Auf die Stage</span><span class="t2">1 gewählt</span></span>
+          <span class="kachel kachel--rot"><span class="t1">Ablehnen</span><span class="t2">1</span></span>
+          <span class="kachel"><span class="t1">Auswahl aufheben</span><span class="t2">&nbsp;</span></span>
+        </div>
+      </div>
+      <div class="f-rechts">
+        <div class="r-kopf"><span class="r-name">Burg Finster</span>
+          <span class="r-meta">Detail_1 · ggp · Punkt · Bauwerk</span></div>
+        <div class="r-abschnitt"><span class="r-titel">Was bei uns an derselben Stelle liegt</span>
+          <p class="r-text">Nichts. Nächster Ort: <b>Wandleth</b>, 0,8 Meilen.</p></div>
+        <div class="r-abschnitt"><span class="r-titel">Der Grund</span>
+          <p class="r-text">Kein Namenstreffer, keine Deckung über 0,3.</p></div>
+        <div class="r-abschnitt">
+          <span class="r-titel">Vorschlag</span>
+          <ul class="punktliste gesperrt">
+            <li><span class="k">Ziel</span><span class="v">Stätte in „Wandleth" <em>— 0,8 Meilen, Name passt nicht</em></span></li>
+            <li><span class="k">Form</span><span class="v">Punkt · Gebäude</span></li>
+            <li><span class="k">Name</span><span class="v">Burg Finster</span></li>
+          </ul>
+          <p class="hinweis">Erst auf der Stage einstellbar. Hier gibt es genau zwei Antworten:
+          mitnehmen oder ablehnen.</p>
+        </div>
+      </div>
+    </div>
+    <div class="leiste f-fuss">
+      <span class="kachel"><span class="t1">Stage leeren</span><span class="t2">7</span></span>
+      <span class="kachel"><span class="t1">Alle zentrieren</span><span class="t2">&nbsp;</span></span>
+      <span class="kachel kachel--haupt"><span class="t1">Stage importieren</span><span class="t2">5 von 7</span></span>
+    </div>
+  </div>
+
+  <div class="regel">
+    <span class="marke">Vertrag</span>
+    <p>Auf „Offen" trägt die rechte Spalte <b>kein bedienbares Feld</b> — heute sind es
+    <b>16</b> (2 Auswahllisten, 14 Eingaben), und die Karte zeigt sogar die Namensvorschau dazu,
+    obwohl beim Import nichts davon ankommt.</p>
+    <p><b>Die Zeile sagt, ob sie schon auf der Stage liegt.</b> Der Bauer dafür existiert
+    (<code>garetienStageZeile2</code>) und hat heute keinen einzigen Aufrufer.</p>
+    <p><b>„alle n" ist ein Häkchen im Listenkopf</b>, kein Knopf in der Fußleiste — die Fußleiste
+    gehört ausnahmslos der ganzen Stage.</p>
+  </div>
+</section>
+
+<!-- 03 Stage -->
+<section>
+  <div class="kopf"><span class="nr">03</span><div>
+    <h2>Auf der Stage steht die Zielwahl</h2>
+    <p>Eine Liste, eine Wahl. „Auf die Karte" steht immer darin und verschwindet nie.</p>
+  </div></div>
+
+  <div class="fenster">
+    <div class="f-kopf"><span class="griff">⁝⁝</span><span class="f-titel">Garetien-Import</span>
+      <span class="f-zusatz">Lauf 12.09. 04:12 · 8 213 Objekte</span></div>
+    <div class="f-status">Burg Finster → Stätte in „Wandleth"</div>
+    <div class="f-koerper">
+      <div class="f-links">
+        <div class="reiter"><button>Offen<span class="zahl">2430</span></button>
+          <button class="an">Stage<span class="zahl">8</span></button>
+          <button>Übernommen<span class="zahl">512</span></button>
+          <button>Abgelehnt<span class="zahl">64</span></button></div>
+        <div class="suchzeile"><span class="feld">Suche …</span><span class="fbtn">Objekttyp ▾</span></div>
+        <div class="listkopf"><span class="kasten"></span><span>alle 8</span>
+          <span class="rechts">8 auf der Stage · 6 mit Ziel</span></div>
+        <div class="zeile gewaehlt"><span class="haken an"></span><span class="txt">
+          <span class="nm">Burg Finster</span><span class="sub">Detail_1 · Punkt</span>
+        </span><span class="stagemarke">→ Stätte in „Wandleth"</span></div>
+        <div class="zeile"><span class="haken"></span><span class="txt">
+          <span class="nm">Natterbach</span><span class="sub">Gewaesser · Linie</span>
+        </span><span class="stagemarke">→ Weg · Bach</span></div>
+        <div class="zeile"><span class="haken"></span><span class="txt">
+          <span class="nm">Rakula</span><span class="sub">Gewaesser · Linie · deckt sich</span>
+        </span><span class="stagemarke">→ Quelle an 6 Abschnitte</span></div>
+        <div class="leiste">
+          <span class="kachel"><span class="t1">Von der Stage nehmen</span><span class="t2">1</span></span>
+          <span class="kachel kachel--rot"><span class="t1">Ablehnen</span><span class="t2">1</span></span>
+          <span class="kachel"><span class="t1">Auswahl aufheben</span><span class="t2">&nbsp;</span></span>
+        </div>
+      </div>
+      <div class="f-rechts">
+        <div class="r-kopf"><span class="r-name">Burg Finster</span>
+          <span class="r-meta">Detail_1 · Punkt · Bauwerk</span></div>
+        <div class="r-abschnitt">
+          <span class="r-titel">Was daraus wird</span>
+          <ul class="zielwahl">
+            <li><span class="punkt-radio"></span><span class="zt"><b>Auf die Karte</b>
+              <span>Ein eigener Punkt an dieser Stelle.</span></span></li>
+            <li class="an"><span class="punkt-radio"></span><span class="zt">
+              <b>Stätte in „Wandleth"</b>
+              <span>0,8 Meilen · nicht auf der Karte, gelistet in der Infobox des Ortes.</span></span></li>
+            <li><span class="punkt-radio"></span><span class="zt">
+              <b>Nur Quelle an „Wandleth"</b>
+              <span>Kein Objekt. Garetien-Quelle und Artikel an den bestehenden Ort.</span></span></li>
+            <li><span class="punkt-radio"></span><span class="zt">
+              <b>Nichts — nur ansehen</b>
+              <span>Bleibt auf der Stage, wird nicht importiert.</span></span></li>
+          </ul>
+          <div class="spinnerzeile">Städte im Umkreis von
+            <span class="spinnerfeld">5 ▾</span> Meilen · 3 gefunden
+            <span style="opacity:.75">— die Zeile kommt bei jedem Bauwerk, auch wenn keine Stadt
+            gefunden wurde</span>
+          </div>
+        </div>
+        <div class="r-abschnitt">
+          <span class="r-titel">Einstellungen</span>
+          <ul class="punktliste">
+            <li><span class="k">Name</span><span class="v">Burg Finster</span><span class="stell">ändern</span></li>
+            <li><span class="k">Art</span><span class="v">Gebäude</span><span class="stell">ändern</span></li>
+            <li class="gesperrt"><span class="k">Form</span><span class="v">Punkt <em>— gilt nicht für eine Stätte</em></span></li>
+            <li class="gesperrt"><span class="k">Beschriftung</span><span class="v"><em>— eine Stätte steht nicht auf der Karte</em></span></li>
+            <li><span class="k">Wiki</span><span class="v">Burg Finster <em>— Artikel gefunden</em></span><span class="stell">ändern</span></li>
+            <li><span class="k">Quelle</span><span class="v">VolkoV / garetien.de <em>— CC BY-NC-SA 3.0</em></span></li>
+          </ul>
+          <p class="hinweis">Was das gewählte Ziel nicht braucht, wird abgeblendet — nicht
+          ausgeblendet, sonst springt die Spalte bei jedem Wechsel.</p>
+        </div>
+      </div>
+    </div>
+    <div class="leiste f-fuss">
+      <span class="kachel"><span class="t1">Stage leeren</span><span class="t2">8</span></span>
+      <span class="kachel"><span class="t1">Alle zentrieren</span><span class="t2">&nbsp;</span></span>
+      <span class="kachel kachel--haupt"><span class="t1">Stage importieren</span><span class="t2">6 von 8</span></span>
+    </div>
+  </div>
+
+  <div class="regel">
+    <span class="marke">Vertrag</span>
+    <p><b>Suche und der Filter „Objekttyp" wirken auf der Stage.</b> Sie sind heute hart gesperrt,
+    und die Stage hat keinen Deckel — wer eine Ebene auflegt, sucht in mehreren tausend Zeilen von
+    Hand nach dem einen Objekt, das der nächste Klick schreibt.</p>
+    <p><b>Ein Ziel gewählt heißt: der Fußknopf zählt es.</b> Nie wieder „0 von 1", weil eine
+    Einstellung den Weg zum Server nicht findet.</p>
+    <p><b>„Nur Quelle an X" nennt das Ziel und die Zahl</b> — bei der Rakula „an 6 Abschnitte".
+    Heute heißt das Häkchen „Als Quelle einfügen", nennt weder wen noch wie viele, und die
+    Rückfrage sagt „1 Objekt", während sechs fremde Objekte angefasst werden.</p>
+  </div>
+</section>
+
+<!-- 04 Merge -->
+<section>
+  <div class="kopf"><span class="nr">04</span><div>
+    <h2>„Silber Hain 1–4" wird ein Vorschlag</h2>
+    <p>Die Teile bleiben sichtbar. Zusammengefasst wird erst auf deinen Klick.</p>
+  </div></div>
+
+  <div class="fenster">
+    <div class="f-kopf"><span class="griff">⁝⁝</span><span class="f-titel">Garetien-Import</span>
+      <span class="f-zusatz">Lauf 12.09. 04:12</span></div>
+    <div class="f-status">17 Gruppen vorgeschlagen · 0 bestätigt</div>
+    <div class="f-koerper">
+      <div class="f-links">
+        <div class="reiter"><button>Offen<span class="zahl">2430</span></button>
+          <button class="an">Stage<span class="zahl">8</span></button>
+          <button>Übernommen<span class="zahl">512</span></button>
+          <button>Abgelehnt<span class="zahl">64</span></button></div>
+        <div class="suchzeile"><span class="feld">silber</span><span class="fbtn">Objekttyp ▾</span></div>
+        <div class="vorschlagszeile"><span class="txt">
+          <b>4 Teile gehören zusammen: „Silber Hain"</b>
+          <span style="font-size:11.5px;color:var(--leise)">gleicher Stamm · gleiche Art (Wald) ·
+          gleiche Ebene — sie werden <b>eine Region mit vier Flächen</b> und einer Beschriftung.</span>
+          <ul class="teilliste">
+            <li>Silber Hain 1 · 412 Punkte</li><li>Silber Hain 2 · 96 Punkte</li>
+            <li>Silber Hain 3 · 233 Punkte</li><li>Silber Hain 4 · 58 Punkte</li>
+          </ul>
+        </span><span class="minibtn">Zusammenfassen</span></div>
+        <div class="zeile"><span class="haken an"></span><span class="txt">
+          <span class="nm">Silber Hain 1</span><span class="sub">Waelder · Polygon</span>
+        </span><span class="stagemarke">→ Fläche · Wald</span></div>
+        <div class="zeile"><span class="haken an"></span><span class="txt">
+          <span class="nm">Silber Hain 2</span><span class="sub">Waelder · Polygon</span>
+        </span><span class="stagemarke">→ Fläche · Wald</span></div>
+        <div class="zeile"><span class="haken an"></span><span class="txt">
+          <span class="nm">Silber Hain 3</span><span class="sub">Waelder · Polygon</span>
+        </span><span class="stagemarke">→ Fläche · Wald</span></div>
+        <div class="zeile"><span class="haken an"></span><span class="txt">
+          <span class="nm">Silber Hain 4</span><span class="sub">Waelder · Polygon</span>
+        </span><span class="stagemarke">→ Fläche · Wald</span></div>
+      </div>
+      <div class="f-rechts">
+        <div class="r-kopf"><span class="r-name">Silber Hain</span>
+          <span class="r-meta">Vorschlag · 4 Teile · Waelder · ggp</span></div>
+        <div class="r-abschnitt">
+          <span class="r-titel">Wenn du zusammenfasst</span>
+          <ul class="punktliste">
+            <li><span class="k">wird</span><span class="v">eine Region „Silber Hain"</span></li>
+            <li><span class="k">mit</span><span class="v">4 losen Flächen <em>— getrennt auf der Karte, einzeln bearbeitbar, einzeln löschbar</em></span></li>
+            <li><span class="k">Beschriftung</span><span class="v">eine, an der Region</span></li>
+            <li><span class="k">Wiki</span><span class="v">„Silber Hain" <em>— der Stamm findet den Artikel, „Silber Hain 1" nicht</em></span></li>
+            <li><span class="k">Quelle</span><span class="v">an der Region</span></li>
+          </ul>
+        </div>
+        <div class="r-abschnitt">
+          <span class="r-titel">Erkannte Suffixe</span>
+          <p class="r-text"><b>Zahl</b> — „Silber Hain 1 … 4" · <b>Himmelsrichtung</b> —
+          „WaldZX O · W · N · S", auch „NO · SW". Zusammengefasst wird nur bei gleichem Stamm,
+          mindestens zwei Teilen, gleicher Art und gleicher Ebene; ein Stamm, der dabei leer würde,
+          zählt nicht. <b>Berühren müssen sich die Teile nicht</b> — es sind lose Flächen,
+          <b>und trotzdem Flächen EINER Region</b> (Owner 12.09.2026). Getrennt liegende Stücke
+          sind der Normalfall, nicht die Ausnahme; eine Abstandsprüfung würde genau die Fälle
+          verwerfen, für die die Regel gemacht ist.</p>
+        </div>
+      </div>
+    </div>
+    <div class="leiste f-fuss">
+      <span class="kachel"><span class="t1">Stage leeren</span><span class="t2">8</span></span>
+      <span class="kachel"><span class="t1">Alle zentrieren</span><span class="t2">&nbsp;</span></span>
+      <span class="kachel kachel--haupt"><span class="t1">Stage importieren</span><span class="t2">6 von 8</span></span>
+    </div>
+  </div>
+
+  <div class="regel regel--rot">
+    <span class="marke">Der Teil, der serverseitig entschieden wird</span>
+    <p><b>Das Zusammenfassen passiert im Plan, nicht im Browser.</b> Dein Klick bestellt es; der
+    Server macht daraus <b>ein</b> Objekt mit <b>einem</b> Schlüssel, in dem die vier Quellzeilen
+    aufgeführt sind. Baut man die Gruppe im Client, zählt der Fußknopf vier und legt eines an, eine
+    Auswahl von gestern lässt sich nicht mehr auflösen, und die Rücknahme versucht dieselbe Fläche
+    viermal zu löschen.</p>
+    <p><b>Und die Rücknahme muss auf der Fläche sitzen, nicht auf der Region.</b> Heute würde
+    „Silber Hain 3 zurücknehmen" die ganze Region löschen — alle vier Flächen und alle Labels.
+    Die Region fällt erst, wenn die letzte Fläche fällt.</p>
+  </div>
+</section>
+
+<!-- 05 Der Zusatz-Fall -->
+<section>
+  <div class="kopf"><span class="nr">05</span><div>
+    <h2>Der Fall, der die Karte zerstört hat</h2>
+    <p>Er steht wieder offen — als Häkchen, ohne Rückfrage, an 334 Objekten.</p>
+  </div></div>
+
+  <div class="regel regel--rot">
+    <span class="marke">Heute</span>
+    <p>Bei einem Objekt, das sich mit einem unserer deckt, erzwingt „Neu einfügen" intern
+    <code>quelle = true</code>. Ein Klick legt also die <b>Dublette</b> an <b>und</b> hängt
+    garetien.de als Quelle an <b>unser bestehendes Objekt</b> — also genau die Aussage, die der
+    Editor mit „trotzdem neu anlegen" gerade bestreitet. Am Dump gezählt: <b>334 Objekte</b> dieser
+    Bauart. Die Rückfrage, die es beim Auflegen gäbe, fehlt am Häkchen. Serverseitig gibt es keinen
+    Riegel — er lebt nur als Vorbelegung im Browser.</p>
+  </div>
+
+  <div class="r-abschnitt" style="max-width:520px">
+    <span class="r-titel">So sieht die Zielwahl dann aus</span>
+    <ul class="zielwahl">
+      <li class="an"><span class="punkt-radio"></span><span class="zt">
+        <b>Quelle an „Natter" ergänzen</b>
+        <span>Unser Objekt bleibt, wie es ist — nur die Quellenangabe kommt dazu.</span></span></li>
+      <li><span class="punkt-radio"></span><span class="zt"><b>Auf die Karte</b>
+        <span>Statt der Ergänzung: ein eigenes neues Objekt, „Natter" bleibt unberührt.</span></span></li>
+      <li class="warn"><span class="punkt-radio"></span><span class="zt">
+        <b>Auf die Karte — zusätzlich zu „Natter"</b>
+        <span>Beides: neues Objekt <em>und</em> Quelle an „Natter". Nur wählen, wenn es wirklich
+        zwei Dinge sind — mit Rückfrage.</span></span></li>
+    </ul>
+  </div>
+
+  <div class="regel">
+    <span class="marke">Vertrag</span>
+    <p>Die drei schließen einander aus, und <b>„beides" ist eine eigene, benannte Wahl mit
+    Rückfrage</b> — nie die stille Folge eines Häkchens. Der Riegel gehört zusätzlich in den
+    Server: ein <code>apply</code> mit zwei Items desselben Objekts wird abgewiesen.</p>
+  </div>
+</section>
+
+<!-- 06 Belege -->
+<section>
+  <div class="kopf"><span class="nr">06</span><div>
+    <h2>Woher jede Änderung kommt</h2>
+    <p>Die Befunde der drei Prüfläufe, die dieses Mockup erzwingen. Alle am Code belegt.</p>
+  </div></div>
+
+  <div class="befundliste">
+    <div class="befund schwer"><div class="b-kopf"><span class="b-rolle">Neuer Editor</span>
+      <span class="b-titel">„Innerorts einfügen" schreibt sofort, ohne Rückfrage</span></div>
+      <p>Der einzige schreibende Knopf ohne Bestätigung — und der unauffälligste der drei in seiner
+      Reihe. Steht auf „Offen", neben „Auf die Stage".</p>
+      <div class="b-ort">review-garetien-importer.js:6694 · :7545 <code>void fragen;</code> · Tooltip index.html:587</div></div>
+
+    <div class="befund schwer"><div class="b-kopf"><span class="b-rolle">Neuer Editor</span>
+      <span class="b-titel">Stadt gewählt = Objekt unimportierbar</span></div>
+      <p>Fußknopf „0 von 1", gesperrt, mit einer Begründung, die auf den Abgleich zeigt statt auf
+      die eigene Einstellung. Vier Aussagen auf einem Bildschirm widersprechen einander.</p>
+      <div class="b-ort">garetienNeuMoeglich:6042 → garetienStageItems:6107 → :8236 · Kommentare :4009 gegen :6681</div></div>
+
+    <div class="befund schwer"><div class="b-kopf"><span class="b-rolle">Vielimporteur</span>
+      <span class="b-titel">„Neu einfügen" ohne Rückfrage an 334 Objekten</span></div>
+      <p>Der Schadensfall vom 30.08.2026, wiedereröffnet („hat unsere ganze karte zerstoert").
+      Das Häkchen fragt nicht, was der Knopf fragte.</p>
+      <div class="b-ort">garetienStageVorhaben:5987 · garetienNeuItems:6019 · Handler :3873</div></div>
+
+    <div class="befund"><div class="b-kopf"><span class="b-rolle">Neuer Editor</span>
+      <span class="b-titel">16 Einstellfelder auf „Offen", mit Kartenvorschau</span></div>
+      <p>Die Karte folgt jeder Änderung, der Import nimmt nichts davon mit. Gesperrt wird erst im
+      Zustand „übernommen".</p>
+      <div class="b-ort">garetienEingefuegtWirdMarkup:5064, Sperre erst :5075</div></div>
+
+    <div class="befund"><div class="b-kopf"><span class="b-rolle">Vielimporteur</span>
+      <span class="b-titel">Stage ohne Deckel, Suche und Filter gesperrt</span></div>
+      <p>Mehrere tausend Zeilen ohne Suchmöglichkeit — und genau darauf steht, was der nächste
+      Klick schreibt.</p>
+      <div class="b-ort">garetienStageFilterSperreSetzen:1721 · Entwurf §4 verlangt das Gegenteil</div></div>
+
+    <div class="befund"><div class="b-kopf"><span class="b-rolle">Vielimporteur</span>
+      <span class="b-titel">Die Ziel-Marke ist gebaut und wird nie gerufen</span></div>
+      <p>Eine Zeile Arbeit. Ohne sie sieht man der Liste nicht an, was gleich passiert.</p>
+      <div class="b-ort">garetienStageZeile2:6542 — kein Aufrufer außer dem Test</div></div>
+
+    <div class="befund"><div class="b-kopf"><span class="b-rolle">Vielimporteur</span>
+      <span class="b-titel">Abgebrochener Massenimport meldet „die Liste ist unverändert"</span></div>
+      <p>1000 Objekte sind 30 Schreibanfragen. Bricht die 20. ab, liegen ~600 auf der Karte, das
+      Fenster sagt das Gegenteil, und der „Rückgängig"-Link entsteht nie.</p>
+      <div class="b-ort">garetienEinfuegenAusfuehren:8665 · catch :8876 · garetienListeFehlerZeigen:1018</div></div>
+
+    <div class="befund"><div class="b-kopf"><span class="b-rolle">Neuer Editor</span>
+      <span class="b-titel">Das Abschnittshäkchen wird beim Import wieder angehakt</span></div>
+      <p>Jeder Klick ist eine Serverrunde plus voller Listenabruf — und „Stage importieren" hebt
+      die Abwahl auf.</p>
+      <div class="b-ort">garetienHakenKlick:8067 · garetienPlanAusItems:6815 <code>selected: !liste.every(...)</code></div></div>
+
+    <div class="befund"><div class="b-kopf"><span class="b-rolle">Datenpflege</span>
+      <span class="b-titel">Die Lizenz einer Stätte steht auf keiner Seite</span></div>
+      <p><code>settlement_place</code> fehlt in der Liste, die Quellen in die Kartennutzlast
+      mitnimmt, und eine Stätte hat keinen Quellenkasten. CC BY-NC-SA verlangt die Nennung an der
+      Stelle der Nutzung.</p>
+      <div class="b-ort">garetien-uebernahme.php:1686 · AVESMAPS_MAP_FEATURES_SOURCE_ENTITY_TYPES</div></div>
+
+    <div class="befund"><div class="b-kopf"><span class="b-rolle">Datenpflege</span>
+      <span class="b-titel">Endkreuzungen bleiben bei der Rücknahme liegen</span></div>
+      <p>Je zurückgenommenem Weg zwei Geisterknoten ohne Weg, ohne Quelle, ohne Spur zum Import.
+      Der nächste Import legt zwei weitere auf dieselbe Koordinate.</p>
+      <div class="b-ort">garetien-uebernahme.php:1722 (Rückgabewert verworfen) · :2420</div></div>
+
+    <div class="befund"><div class="b-kopf"><span class="b-rolle">Datenpflege</span>
+      <span class="b-titel">Der Wiki-Schlüssel landet am Schild statt an der Fläche</span></div>
+      <p>Jede importierte Landschaft ist für den Prüfhaken „Keine Wiki-Zuweisung" rot, obwohl ihr
+      Schild zugewiesen ist. Eine Zeile fehlt beim Anlegen der Region.</p>
+      <div class="b-ort">garetien-uebernahme.php:602–670</div></div>
+
+    <div class="befund"><div class="b-kopf"><span class="b-rolle">Neuer Editor</span>
+      <span class="b-titel">Die Rückfrage warnt vor etwas, das es nicht mehr gibt</span></div>
+      <p>„Für Änderungen an bestehenden Objekten gibt es keinen Rückweg" — seit „es gibt kein
+      ersetzen" bleiben nur Quellen-Items, und die sind rücknehmbar. Eine falsche Warnung entwertet
+      jede echte.</p>
+      <div class="b-ort">garetienEinfuegenRueckfrageText:8794 · AVESMAPS_GARETIEN_ERSETZEN_ERLAUBT = false</div></div>
+  </div>
+</section>
+
+<!-- 07 Offen -->
+<section>
+  <div class="kopf"><span class="nr">07</span><div>
+    <h2>Geklärt und offen</h2>
+    <p>Drei Punkte sind geklärt, einer bleibt offen.</p>
+  </div></div>
+
+  <div class="frage frage--klar"><span class="q">Quelle an ein bestehendes Objekt — kann das Datenmodell das?</span>
+    <span class="a"><b>Ja, und es ist gebaut.</b> Es heißt intern <em>Ergänzungs-Item</em>:
+    <code>AVESMAPS_GARETIEN_ERGAENZUNG_FELDER = ['quelle']</code>, und
+    <code>AVESMAPS_GARETIEN_ERSETZEN_ERLAUBT = false</code> sorgt dafür, dass wirklich nur die
+    Quellenangabe dazukommt — Geometrie, Name und alles andere bleiben unberührt. Der Server weist
+    alles Weitergehende ab. Es fehlt also nichts am Modell, nur die Benennung in der Oberfläche:
+    heute heißt es „Als Quelle einfügen" und sagt weder an wen noch an wie viele.</span></div>
+
+  <div class="frage frage--klar"><span class="q">Hängt Innerorts an derselben Erkennung wie die Gebäude?</span>
+    <span class="a"><b>Ja.</b> Die Innerorts-Zeile hängt an <code>avesmapsIstBauwerksklasse</code> —
+    dem geteilten Merkmal, nicht am Stadt-Treffer. Jedes Bauwerk bekommt die Zeile samt Spinner,
+    auch wenn im Umkreis nichts liegt; erst die <em>Wahl</em> einer Stadt braucht einen Treffer.
+    Das ist genau richtig so, denn sonst fehlte das Feld, mit dem man die Reichweite von 5 auf 12
+    stellt, ausgerechnet dann, wenn man es braucht.</span></div>
+
+  <div class="frage frage--klar"><span class="q">Müssen die Teile einer Gruppe aneinandergrenzen?</span>
+    <span class="a"><b>Nein</b> — „das können lose flächen sein <b>aber teil einer region</b>"
+    (Owner 12.09.2026). Der Name genügt, Abstand und Berührung werden nicht geprüft. Die vier
+    Stücke liegen getrennt auf der Karte und gehören derselben Region an — genau das, wofür
+    <code>ecosystem_region</code> mit N Flächen gebaut ist.</span></div>
+
+  <div class="frage"><span class="q">Ausgeschriebene Himmelsrichtungen?</span>
+    <span class="a">„Farindel Nord" neben „WaldZX N" — <b>ungemessen</b>. Von hier ist
+    <code>garetien.de</code> gesperrt; die Zahlen müssten aus einem Lauf am PC kommen: wie viele
+    Namen auf Zahl, auf ein bis zwei Großbuchstaben, auf ein ausgeschriebenes Wort enden.</span></div>
+</section>
+
+
+<!-- 08 Was noch zu beachten ist -->
+<section>
+  <div class="kopf"><span class="nr">08</span><div>
+    <h2>Was beim Bauen sonst noch zu beachten ist</h2>
+    <p>Die übrigen Befunde der drei Prüfläufe. Sie ändern das Bild oben nicht, aber wer sie beim
+    Bauen übersieht, baut sie ein.</p>
+  </div></div>
+
+  <div class="regel regel--rot">
+    <span class="marke">Das Größte zuerst</span>
+    <p><b>Die Identität eines Objekts ohne Wiki-Artikel ist die Zeilennummer im Export.</b> Schiebt
+    VolkoV eine Zeile in die Mitte einer Ebene, verschiebt sich die Nummer für alles dahinter — und
+    damit gelten Ablehnungen nicht mehr, und bereits importierte Objekte bieten sich ein zweites Mal
+    an. Ein Code-Kommentar versichert ausdrücklich das Gegenteil („keine Zeilen-ID darin").
+    <b>Für die Merge-Gruppe zählt das doppelt:</b> sie bekommt einen neuen, fünften Schlüssel, und
+    ohne eine Wanderung verlieren alle vier Teile ihre Entscheidungen. Das ist der Hauptaufwand der
+    Merge-Regel, nicht das Zusammenfassen selbst.</p>
+  </div>
+
+  <div class="befundliste">
+    <div class="befund"><div class="b-kopf"><span class="b-rolle">Datenpflege</span>
+      <span class="b-titel">Dem fertigen Objekt sieht man den Import nicht an</span></div>
+      <p><code>origin = 'garetien'</code> steht im ganzen Modul genau einmal — an der Stätte.
+      Kartenobjekte bekommen keinen Marker, kein <code>field_origins</code>. Entfernt ein Editor die
+      Quelle, sieht es aus wie Handarbeit, und „was kam eigentlich aus Garetien?" ist in einem
+      halben Jahr nicht mehr beantwortbar. Ein Feld genügt: <code>properties.import_origin</code>.</p></div>
+
+    <div class="befund"><div class="b-kopf"><span class="b-rolle">Vielimporteur</span>
+      <span class="b-titel">Die Auswahl meldet Erfolg, wo nichts passiert ist</span></div>
+      <p>Nach „Holen &amp; Rechnen" zeigen die Item-Nummern der Auswahl ins Leere. „Auswahl ablehnen"
+      trifft dann 0 Zeilen — und die Statuszeile meldet trotzdem <b>„40 Objekte abgelehnt"</b>, weil
+      die Zahl im Browser gerechnet und die Serverantwort nie gelesen wird. Man hakt sie ab und
+      findet sie morgen wieder.</p></div>
+
+    <div class="befund"><div class="b-kopf"><span class="b-rolle">Neuer Editor</span>
+      <span class="b-titel">„Rückgängig" stirbt beim nächsten Klick</span></div>
+      <p>Der Link nach einem Import hängt an der Statuszeile, und die wird vom nächsten „Auf die
+      Stage" zurückgesetzt. Der natürliche Rhythmus — importieren, weitermachen — tötet also den
+      Rückweg, bevor man den Fehler auf der Karte bemerkt.</p></div>
+
+    <div class="befund"><div class="b-kopf"><span class="b-rolle">Neuer Editor</span>
+      <span class="b-titel">Die Karte zeigt nicht, ob ein Objekt auf der Stage liegt</span></div>
+      <p>Ein geöffnetes Objekt wird gezeichnet, ob es auf der Stage liegt oder nicht — gleiche
+      Farbe, gleiche Kontur, gleiche Namensvorschau. Die einzige Antwort steht in der Beschriftung
+      eines Knopfes. Man hält seine Vorschau für seine Arbeitsmenge.</p></div>
+
+    <div class="befund"><div class="b-kopf"><span class="b-rolle">Vielimporteur</span>
+      <span class="b-titel">Für die 350 Innerorts-Fälle gibt es keinen Mengenweg</span></div>
+      <p>Die Stadtwahl steht nur in der Einzelansicht, es gibt keinen Filter „hat Innerorts-Befund"
+      und keinen Mengenknopf. Das sind rund <b>1 050 Interaktionen</b> — und man muss raten, welche
+      Zeilen es betrifft, weil die Liste es nicht zeigt.</p></div>
+
+    <div class="befund"><div class="b-kopf"><span class="b-rolle">Datenpflege</span>
+      <span class="b-titel">Die Rücknahme lässt Quellen stehen — und nimmt anderswo zu viel</span></div>
+      <p>Beim Zurücknehmen eines <em>neuen</em> Objekts wird keine einzige Quellenverknüpfung
+      gelöst; der Zähler der Katalogzeile „garetien.de" zählt ohne <code>is_active</code> und geht
+      deshalb nie zurück. Umgekehrt löst die Rücknahme eines <em>Quellen</em>-Items <b>alle</b>
+      Garetien-Quellen des Objekts, auch die eines anderen Items.</p></div>
+
+    <div class="befund"><div class="b-kopf"><span class="b-rolle">Datenpflege</span>
+      <span class="b-titel">Ein Fehlschlag mitten im Objekt hinterlässt ein halbes</span></div>
+      <p>Eine Fläche entsteht in drei Schritten mit je eigener Transaktion. Bricht der dritte ab,
+      steht das Item auf „nicht importiert", während Label und Region auf der Karte liegen — die
+      Rücknahme erreicht sie nicht, weil sie „done" verlangt.</p></div>
+
+    <div class="befund"><div class="b-kopf"><span class="b-rolle">Vielimporteur</span>
+      <span class="b-titel">Eine veraltete Formwahl formt die frische Geometrie um</span></div>
+      <p>Die Handeingaben je Objekt werden beim ersten Kontakt gefüllt und nie wieder abgeglichen —
+      über Läufe, über „Stage leeren", über Importe hinweg. Zeichnet VolkoV eine Fläche neu und der
+      Vorschlag ändert sich, gilt trotzdem die alte Form, und der Server formt danach um. Still.</p></div>
+
+    <div class="befund"><div class="b-kopf"><span class="b-rolle">Vielimporteur</span>
+      <span class="b-titel">Der Stage-Nachschlag kostet 1,9 Sekunden Rechenzeit</span></div>
+      <p>Eine Schlüsselliste wird je Objekt des Laufs neu aufgebaut — bei voller Stage gemessene
+      1,94 s reine Rechenzeit, auf STRATO ein Vielfaches, nach <em>jedem</em> „Holen &amp; Rechnen"
+      und <em>jedem</em> Import. Die Abhilfe ist eine Zeile.</p></div>
+
+    <div class="befund"><div class="b-kopf"><span class="b-rolle">Datenpflege</span>
+      <span class="b-titel">Der Quellen-Nachzug schreibt an gelöschte Objekte</span></div>
+      <p>Löscht ein Editor ein importiertes Objekt im normalen Karteneditor, bleibt sein Item auf
+      „done" — und der nächste Import legt dessen Quellenverknüpfung neu an, samt Revisionssprung
+      und ~3 MB Revalidierung für jeden Besucher, für ein Objekt, das es nicht gibt.</p></div>
+
+    <div class="befund"><div class="b-kopf"><span class="b-rolle">Neuer Editor</span>
+      <span class="b-titel">Gesperrte Häkchen ohne Grund</span></div>
+      <p>„Als Quelle einfügen" steht mal grau-angehakt, mal grau-leer da, und beides erklärt nichts.
+      Die zwei Nachbarleisten machen es richtig: sie schreiben ihren Grund als Satz darunter, weil
+      ein gesperrtes Bedienelement in Chrome keine Zeigerereignisse bekommt — ein Tooltip hilft
+      also nicht.</p></div>
+
+    <div class="befund"><div class="b-kopf"><span class="b-rolle">Datenpflege</span>
+      <span class="b-titel">Eine von Hand angelegte Stätte wird vom Import übernommen</span></div>
+      <p><code>avesmapsSettlementPlaceAdd</code> überschreibt bei Namensgleichheit auch
+      <code>origin</code> — heute harmlos (nur der Importer schreibt), ab dem ersten Editor, der
+      eine Stätte selbst anlegt, eine stille Enteignung.</p></div>
+  </div>
+
+  <div class="regel">
+    <span class="marke">Und was ich nicht prüfen konnte</span>
+    <p>Keiner der drei Prüfläufe hatte eine <b>angemeldete Sitzung</b> — alles ist am Code gemessen,
+    kein Handgriff lief gegen die echte Datenbank. Dieselbe Lücke steht seit dem 27.08. in jeder
+    Übergabe dieses Werkzeugs. Und <code>garetien.de</code> ist von hier gesperrt, die Suffix-Zahlen
+    fehlen deshalb weiterhin.</p>
+  </div>
+</section>
+
+<footer>
+  <span>Gebaut am 12.09.2026 aus deinen Ansagen und drei Prüfläufen am Code (Stand
+  <code>c434928</code>): neuer Editor, Vielimporteur, Datenpflege — 35 Befunde, davon 24 hier.</span>
+  <span>Nichts davon ist gebaut. Wenn der Schnitt stimmt, wandert er als Entwurf plus Mockup ins
+  Repo und wird in Aufgaben geschnitten.</span>
+</footer>
+</div>
+
+</body>
+</html>
