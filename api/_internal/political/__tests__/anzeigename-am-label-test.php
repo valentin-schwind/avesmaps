@@ -143,8 +143,11 @@ $veraltet = ['assignmentDisplays' => [[
     'originalName' => 'Nordhjaldor',
     'displayName' => '',
 ]]];
+// ⚠️ wiki_name hier ausdruecklich LEER: seit §P ist der Wiki-Name die Vorgabe der Beschriftung und
+// wuerde den Gebietsnamen schlagen. Gegenstand von §D ist der Rueckfall auf den GEBIETSNAMEN, also
+// muss die Stufe darueber aus dem Weg.
 $p = avesmapsPoliticalLayerRowToFeature(
-    anzeigenameTestZeile($veraltet, ['name' => 'Neu-Nordhjaldor']),
+    anzeigenameTestZeile($veraltet, ['name' => 'Neu-Nordhjaldor', 'wiki_name' => '']),
     1049,
     3
 )['properties'];
@@ -477,5 +480,139 @@ assert(
     avesmapsPoliticalDisplayNameForWrite(['display_name' => '  Jarltum   Nordhjaldor '], null, 'Nordhjaldor') === 'Jarltum Nordhjaldor',
     'N5: normalisiert wie jeder andere einzeilige Text'
 );
+
+// ---- O. DER FALL DES OWNERS: der Wiki-Name IST der Anzeigename -------------------------------------
+// 💣 Hieran ist Fall #123 am Ende gescheitert, nachdem der Lesepfad laengst repariert war.
+// avesmapsPoliticalBuildStoredAssignmentDisplay leert `displayName`, wenn er "keine Abweichung"
+// bedeutet -- und verglich dafuer gegen `wiki_name ?: name`. Fallen die beiden auseinander, verwirft
+// das GENAU den Wert, den ein Editor am ehesten eintippt: den Wiki-Namen.
+//
+// Der echte Fall, am 12.09.2026 mit den Werten aus den Screenshots des Owners nachgefahren:
+//   political_territory.name      = "Nordhjaldor"          <- das zeichnet die Karte
+//   political_territory_wiki.name = "Jarltum Nordhjaldor"  <- das zeigt der Editor
+// Der Owner tippte "Jarltum Nordhjaldor" -> gleich dem wiki_name -> geleert -> NICHTS gespeichert.
+// Der Editor zeigte den Namen trotzdem ueberall (er liest den WIKI-Datensatz, keinen Override), die
+// Karte blieb bei "Nordhjaldor". Dreimal gespeichert, dreimal "gespeichert" gemeldet, dreimal weg.
+$owner = [
+    'public_id' => 'terr-nordhjaldor',
+    'id' => 763,
+    'wiki_key' => 'wiki:jarltum-nordhjaldor',
+    'slug' => 'nordhjaldor',
+    'wiki_name' => 'Jarltum Nordhjaldor',
+    'name' => 'Nordhjaldor',
+    'color' => '#88aa66',
+    'opacity' => 0.5,
+    'valid_to_bf' => 9999,
+];
+
+$eintrag = avesmapsPoliticalBuildStoredAssignmentDisplay($owner, ['displayName' => 'Jarltum Nordhjaldor'], 0);
+assert(
+    $eintrag['displayName'] === 'Jarltum Nordhjaldor',
+    'O1: der Wiki-Name wird als Anzeigename GESPEICHERT (er weicht vom Gebietsnamen ab)'
+);
+
+$p = avesmapsPoliticalLayerRowToFeature(
+    anzeigenameTestZeile(
+        ['assignmentDisplays' => [$eintrag]],
+        ['name' => 'Nordhjaldor', 'wiki_name' => 'Jarltum Nordhjaldor', 'slug' => 'nordhjaldor']
+    ),
+    1049,
+    4
+)['properties'];
+assert($p['label_name'] === 'Jarltum Nordhjaldor', 'O2: und steht am Kartenlabel');
+assert($p['name'] === 'Nordhjaldor', 'O3: der kanonische Name bleibt, was er ist');
+
+// ⚠️ Die Leer-Regel selbst bleibt: gleich dem GEBIETSNAMEN heisst weiterhin "keine Abweichung".
+$gleich = avesmapsPoliticalBuildStoredAssignmentDisplay($owner, ['displayName' => 'Nordhjaldor'], 0);
+assert($gleich['displayName'] === '', 'O4: gleich dem Gebietsnamen -> weiterhin geleert');
+
+// 🔴 Und `originalName` bleibt die HERKUNFTSANGABE (wiki_name zuerst) -- nur der Massstab der
+// Leer-Entscheidung hat gewechselt, nicht das, was abgelegt wird.
+assert($eintrag['originalName'] === 'Jarltum Nordhjaldor', 'O5: originalName unveraendert (wiki_name zuerst)');
+assert($gleich['originalName'] === 'Jarltum Nordhjaldor', 'O6: auch im Leer-Fall');
+
+// ⚠️ Ohne wiki_name aendert sich gar nichts -- der haeufige Fall.
+$ohneWiki = ['public_id' => 'terr-x', 'id' => 9, 'slug' => 'x', 'name' => 'Kosch', 'valid_to_bf' => 9999];
+assert(
+    avesmapsPoliticalBuildStoredAssignmentDisplay($ohneWiki, ['displayName' => 'Kosch'], 0)['displayName'] === '',
+    'O7: ohne wiki_name bleibt es beim Gebietsnamen als Massstab'
+);
+
+// ⚠️ Und ohne GEBIETSNAMEN faellt der Massstab auf die Herkunftsangabe zurueck -- sonst waere er die
+// leere Zeichenkette, die niemals gleich ist, und JEDE Eingabe kaeme als "Abweichung" durch. Das
+// betrifft Zeilen ohne eigenen Namen (frisch aus dem Wiki angelegt, bevor der Name steht).
+$ohneName = ['public_id' => 'terr-y', 'id' => 10, 'slug' => 'y', 'name' => '', 'wiki_name' => 'Wiki-Name', 'valid_to_bf' => 9999];
+assert(
+    avesmapsPoliticalBuildStoredAssignmentDisplay($ohneName, ['displayName' => 'Wiki-Name'], 0)['displayName'] === '',
+    'O8: ohne Gebietsnamen gilt die Herkunftsangabe als Massstab (Rueckfall)'
+);
+assert(
+    avesmapsPoliticalBuildStoredAssignmentDisplay($ohneName, ['displayName' => 'Etwas anderes'], 0)['displayName'] === 'Etwas anderes',
+    'O9: und eine echte Abweichung kommt dort trotzdem durch'
+);
+
+// ---- P. DIE RANGFOLGE DER BESCHRIFTUNG: Override > WIKI-NAME > Gebietsname ---------------------------
+// 🔴 Owner 12.09.2026, woertlich: "Jarltum Nordhjaldor heisst es im Wiki. Also will ich dass es
+// Jarltum Nordhjaldor heisst. es sei denn jemand ueberschreibt den Namen."
+// Damit ist der WIKI-NAME die Vorgabe der Beschriftung -- ohne dass jemand irgendwo etwas eintippt.
+
+// P1: der Normalfall. KEIN Override, wiki_name gesetzt -> der Wiki-Name steht auf der Karte.
+$p = avesmapsPoliticalLayerRowToFeature(
+    anzeigenameTestZeile([], ['name' => 'Nordhjaldor', 'wiki_name' => 'Jarltum Nordhjaldor']),
+    1049,
+    4
+)['properties'];
+assert($p['label_name'] === 'Jarltum Nordhjaldor', 'P1: ohne Override gewinnt der WIKI-Name');
+assert($p['display_name'] === 'Jarltum Nordhjaldor', 'P2: und die Infobox zieht mit');
+assert($p['name'] === 'Nordhjaldor', 'P3: `name` bleibt der kanonische Gebietsname (Matching-Schluessel)');
+
+// P4: ein ausdruecklicher Anzeigename SCHLAEGT den Wiki-Namen -- "es sei denn jemand ueberschreibt".
+$p = avesmapsPoliticalLayerRowToFeature(
+    anzeigenameTestZeile([], [
+        'name' => 'Nordhjaldor',
+        'wiki_name' => 'Jarltum Nordhjaldor',
+        'display_name' => 'Das Nordjarltum',
+    ]),
+    1049,
+    4
+)['properties'];
+assert($p['label_name'] === 'Das Nordjarltum', 'P4: der Override schlaegt den Wiki-Namen');
+
+// P5: auch der Override aus der ALTEN Ablage schlaegt ihn (bis die Migration gelaufen ist).
+$p = avesmapsPoliticalLayerRowToFeature(
+    anzeigenameTestZeile(
+        ['assignmentDisplays' => [[
+            'territoryPublicId' => 'terr-nordhjaldor',
+            'nodeKey' => 'nordhjaldor',
+            'displayName' => 'Das Nordjarltum',
+        ]]],
+        ['name' => 'Nordhjaldor', 'wiki_name' => 'Jarltum Nordhjaldor']
+    ),
+    1049,
+    4
+)['properties'];
+assert($p['label_name'] === 'Das Nordjarltum', 'P5: auch aus der alten Ablage');
+
+// P6: ohne Wiki-Namen bleibt der Gebietsname -- der Rueckfall.
+$p = avesmapsPoliticalLayerRowToFeature(
+    anzeigenameTestZeile([], ['name' => 'Nordhjaldor', 'wiki_name' => '']),
+    1049,
+    4
+)['properties'];
+assert($p['label_name'] === 'Nordhjaldor', 'P6: ohne Wiki-Namen der Gebietsname');
+
+// P7: 💣 Und die ABGELEITETE AUSSENHUELLE traegt ihn ebenso -- sie hat keine Stilablage, aber ihre
+// Abfrage joint political_territory_wiki genauso. Ohne das saehe ein Gebiet MIT Huelle (die
+// Elterngebiete, ~131 Stueck) weiterhin die Kurzform, und genau die traegt bei Tiefzoom das Label.
+$p = avesmapsPoliticalLayerRowToFeature(
+    anzeigenameTestZeile([], [
+        'style_json' => null,
+        'name' => 'Thorwal',
+        'wiki_name' => 'Freies Thorwal',
+    ]),
+    1049,
+    2
+)['properties'];
+assert($p['label_name'] === 'Freies Thorwal', 'P7: auch ohne jede Stilablage (Huellen-Form)');
 
 fwrite(STDOUT, "OK: anzeigename-am-label-test.php -- alle Zusicherungen gehalten.\n");

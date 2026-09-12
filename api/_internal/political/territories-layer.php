@@ -861,7 +861,25 @@ function avesmapsPoliticalLayerRowToFeature(array $row, int $yearBf, int $zoom):
         $overrideName = '';
     }
 
-    $labelName = $overrideName !== '' ? $overrideName : $visibleName;
+    // 🔴 DIE RANGFOLGE DER BESCHRIFTUNG (Owner 12.09.2026: "ich will dass standardmaessig der
+    // wikiname als anzeigename verwendet wird ansonsten der override"):
+    //   1. der ausdrueckliche Anzeigename (Spalte, sonst die alte Ablage)
+    //   2. der WIKI-NAME  -- die Vorgabe, damit ein Gebiet heisst wie sein Artikel
+    //   3. der Gebietsname (political_territory.name)
+    //
+    // Der Anlass: `political_territory.name` traegt bei vielen Gebieten die Kurzform ("Nordhjaldor"),
+    // waehrend der Wiki-Artikel die volle traegt ("Jarltum Nordhjaldor") -- und der Editor zeigt
+    // ueberall den Wiki-Namen. Die Karte war der einzige Leser, der die Kurzform zeichnete. Sie ab
+    // jetzt aus dem Wiki zu nehmen ist genau die Regel, nach der der Bestand ohnehin gepflegt wird.
+    //
+    // ⚠️ `name` bleibt davon UNBERUEHRT: es ist der kanonische Name und Matching-Schluessel in
+    // avesmapsPoliticalFindInnerBoundaryFeaturesInLayer, die daran entscheidet, welche Innengrenzen
+    // verborgen werden. Kennung bleibt, Beschriftung wandert -- wie ueberall im Haus.
+    $wikiName = trim((string) ($row['wiki_name'] ?? ''));
+
+    $labelName = $overrideName !== ''
+        ? $overrideName
+        : ($wikiName !== '' ? $wikiName : $visibleName);
 
     // Coat of arms: an UPLOADED override decides the coat, exactly like territory-detail.php (infobox) and
     // the settlement breadcrumb -- so the label shows the SAME coat as the infobox (Discord #32: Grafschaft

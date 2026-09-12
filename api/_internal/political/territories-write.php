@@ -159,12 +159,31 @@ function avesmapsPoliticalMigrateDisplayNamesFromStyle(PDO $pdo, bool $trockenla
 }
 
 function avesmapsPoliticalBuildStoredAssignmentDisplay(array $territory, array $display, int $depth): array {
+    // Herkunftsangabe des Eintrags -- sie wird unten so ABGELEGT und bleibt, was sie war.
     $originalName = trim((string) ($territory['wiki_name'] ?? ''))
         ?: trim((string) ($territory['name'] ?? ''));
 
     $displayName = trim((string) ($display['displayName'] ?? $display['name'] ?? ''));
 
-    if ($displayName === $originalName) {
+    // 💣 GELEERT WIRD GEGEN DEN NAMEN DES GEBIETS, NICHT GEGEN DEN WIKI-NAMEN.
+    //
+    // Gespeichert wird die ABWEICHUNG von dem, was die Karte zeichnet -- und die Karte zeichnet
+    // political_territory.name. Verglichen wurde bis zum 12.09.2026 gegen `$originalName`, also gegen
+    // `wiki_name ?: name`. Fallen die beiden auseinander, verwirft das ausgerechnet den Wert, den ein
+    // Editor am ehesten eintippt: den WIKI-NAMEN.
+    //
+    // Genau daran ist Fall #123 am Ende gescheitert, nachdem der Lesepfad laengst repariert war.
+    // Gemessen am echten Fall: political_territory.name = "Nordhjaldor",
+    // political_territory_wiki.name = "Jarltum Nordhjaldor". Der Owner tippte "Jarltum Nordhjaldor"
+    // ins Feld "Anzeigename" -- gleich dem wiki_name, also geleert, NICHTS gespeichert. Der Editor
+    // zeigte den Namen trotzdem ueberall, weil er den WIKI-Datensatz liest und keinen Override; die
+    // Karte blieb bei "Nordhjaldor". Dreimal gespeichert, dreimal "gespeichert" gemeldet, dreimal weg.
+    //
+    // ⚠️ `$originalName` selbst bleibt unangetastet: er reist als Herkunftsangabe mit und sagt, WIE
+    // der Knoten hiess, als der Eintrag entstand. Nur die Leer-Entscheidung wechselt ihren Massstab.
+    $kartenName = trim((string) ($territory['name'] ?? '')) ?: $originalName;
+
+    if ($displayName === $kartenName) {
         $displayName = '';
     }
 
