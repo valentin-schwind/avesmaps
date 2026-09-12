@@ -122,25 +122,93 @@ eine Media-Query nicht gewinnt — genau daran ist dieses Fenster gescheitert.
 | A11 | Das Fenster füllt am Telefon den Bildschirm (keine Inline-Maße mehr) | ✅ Verdrahtungstest 6 |
 | A12 | Das ganze Testfeld grün (Muster des Workflows) | ✅ 544 JS / 410 PHP, null rot |
 
-⭐ **24 Mutationen gefahren, alle gefangen.** Zwei entkamen zunächst und haben je eine echte Lücke
-gezeigt:
+| A13 | Der Reiter trägt ein Touch-Ziel — der einzige Weg zwischen den Spalten | ✅ Verdrahtungstest 4b |
+| A14 | Die 680px-Regel der Fensterhülle gilt NUR dem Sync-Fenster (drei andere unberührt) | ✅ Verdrahtungstest 4e |
+
+⭐ **38 Mutationen gefahren, alle gefangen** (24 im ersten Durchgang, 14 auf die Agentenbefunde).
+Zwei entkamen zunächst und haben je eine echte Lücke gezeigt:
 - `.avm-tabs {` umbenannt blieb grün, weil die Reihenfolge-Zusicherung ein blankes
   `indexOf(A) < indexOf(B)` war — und `-1 < irgendwas` ist wahr. **Die `-1`-Falle aus AGENTS.md §9**,
   eine Etage weiter: erst die Stellen prüfen, dann vergleichen.
 - Die zweite Mutation (attach-Ergebnis in eine `const`) hatte gar nicht gegriffen; von Hand
   angewandt wird sie gefangen.
 
-## 3a. Zwei Fallen beim Bau, beide vor dem ersten Browser gefunden
+## 3a. Fallen beim Bau
 
-- 💣 **`--avm-col-pad` ist ein ZWEIwert** (`var(--space-6) var(--space-12)` = 8px 14px). Der erste
-  Bau polsterte die Leiste mit `padding: 0 var(--avm-col-pad)` — daraus wird `0 8px 14px`, also
-  oben 0, seitlich 8 und **unten 14**. Die Leiste stand 6px links von den Spaltentiteln und trug
-  ein Polster, das niemand bestellt hatte. Es sieht nach einem Versehen im Abstand aus, nicht nach
-  einem falschen Token, und ein Browser hätte es kaum verraten. Richtig ist `--space-12`, der
-  Seiteneinzug dieses Hauses, und der ist ein EINwert.
+- 💣 **`--avm-col-pad` ist ein ZWEIwert**, und dieser Punkt war **zweimal falsch** — das zweite Mal
+  gefunden von der Konsistenzprüfung, nachdem der erste Fund schon als behoben galt:
+  1. Der erste Bau polsterte die Leiste mit `padding: 0 var(--avm-col-pad)`. Daraus werden DREI
+     Werte (`0 8px 12px`): oben 0, seitlich 8, **unten 12**. Nicht die gemeinte Kante, und unten
+     ein Polster, das niemand bestellt hat.
+  2. 🪤 Die Korrektur schrieb daraufhin `--space-12` (14px) hin, begründet mit „der Seiteneinzug ist
+     überall 14" — **und das gilt hier nicht.** Der globale Token steht auf
+     `var(--space-6) var(--space-10)` = 8px/**12**px; die 14px-Fassungen sind Überschreibungen an
+     **Fensterhüllen im ELTERNdokument** (`political-territory-editor-overlay.css` und sechs
+     Geschwister). **Custom Properties kreuzen keine iframe-Grenze** — eine Editorseite im iframe
+     liest den globalen Wert. Die Leiste stand damit 2px neben den Spaltentiteln, also genau das
+     Gegenteil der Garantie, die der Kommentar behauptete. ⭐ Die Lehre: eine Zahl, die man aus
+     einem Token **rechnen** kann, wird nicht abgeschrieben — der Test liest die Seitenkomponente
+     von `--avm-col-pad` aus `tokens.css` und hält das Polster der Leiste dagegen.
 - ⚠️ Beim PHP-Testlauf zuerst **30 statt 410 Dateien** gefahren und „null rot" gemeldet — genau die
   Klammer-Falle, die AGENTS.md §9 ausschreibt (`find A -o \( B \) -print0` bindet `-print0` nur an
   die zweite Gruppe). Die Gegenprobe ist die Dateizahl, und nur sie.
+- 🪤 **Ein Markdown-Reflex im CSS-Kommentar hat einen FREMDEN Test rot gemacht.** Die Betonung
+  `8px/**12**px` enthält `/*` — `js/app/__tests__/css-comment-balance.test.js` zählt Öffnungen
+  gegen Schließungen und meldete „nicht geschlossener Kommentar" am Dateiende von
+  `editor-body.css`. Genau der Fall aus AGENTS.md §9: „Wer nur seine eigenen Tests laufen lässt,
+  sieht so etwas nie: die Datei, die bricht, gehört jemand anderem." ⭐ In einem CSS-Kommentar wird
+  betont, indem man das Wort ausschreibt — und der Deploy ist ein Tor, ein roter Test lädt nichts
+  hoch.
+
+## 3c. Was die zwei Prüfagenten gefunden haben (alles nachgebaut)
+
+`usability-konsistenz` und `usability-design`, gefahren vor dem Push (AGENTS.md §9). Sieben echte
+Befunde; **die zwei schwersten hat kein Test und kein eigener Blick gesehen**:
+
+1. 🔴 **Die zwei Klassen der Fensterhülle tragen VIER Fenster, nicht eines.**
+   `.political-territory-editor-overlay` / `.political-territory-editor-dialog` stehen wortgleich am
+   Gebietsdialog (`index.html:438`), an „Literatur bearbeiten" und „Karten bearbeiten"
+   (`review-settlement-list.js:852/925`) und am Sync-Editor. Die erste Fassung der 680px-Regel war
+   klassenweit — sie hätte den Gebietsdialog umgestellt, **den der Entwurf in §1 ausdrücklich
+   ausnimmt**, und den zwei anderen Rand und Radius genommen, während ihre Inline-Maße blieben:
+   ein randloses Fenster mit 12px Luft. ⭐ Jetzt ist die Regel auf `#avesmaps-sync-editor-overlay`
+   gescopt, und das Grundmaß der drei anderen steht unverändert daneben. **Einengen, nicht
+   mitziehen:** bildschirmfüllend wäre für sie eine halbe Verbesserung — außen randlos, innen
+   unverändert eng, weil ihre Seiten wie alle zwölf Editorseiten keine Media-Query haben.
+2. 🔴 **Der Reiter war kleiner als die Zeilen, die er erschließt.** `.avm-tab` ist für einen Zeiger
+   gebaut (`padding: var(--space-4) 1px`, `min-height: 0` → ~27px bei 1px seitlichem Polster), und
+   am Telefon ist er der **einzige** Weg zwischen den Spalten. Der Befund wog doppelt: derselbe
+   Umbau forderte für die Menübandkacheln daneben ausdrücklich 44px — zwei Maße für dieselbe Frage
+   in einem Commit. Ebenso `.row`/`.node`: gerechnet ~35px bzw. ~31px statt 44.
+   ⭐ Daraus ist der Token **`--avm-touch-h: 44px`** entstanden: die 44 stand im Haus schon an
+   **vier** Stellen als eigene Zahl (`media-license-fields.css`, `review-panel.css`,
+   `place-extras.css` zweimal); eine fünfte wäre die Divergenz, die §12 verbietet. Die vier
+   Altstellen sind bewusst nicht nachgezogen (unbestellter Umbau) — wer eine anfasst, holt sie her.
+   💣 Der Selektor ist `.avm-spalten-reiter .avm-tab` (0,2,0), nie `.avm-tab`: jene Klasse trägt die
+   Reiterzeilen von elf anderen Oberflächen.
+3. 💣 **`.col + .col` hinterließ eine tote Trennlinie.** Ein Geschwister-Selektor liest den
+   DOM-Baum, nicht die Sichtbarkeit: `display: none` an der Spalte davor nimmt die Linie nicht
+   zurück. Auf „Modell" und „Details" blieb ein 1px-Strich am linken Rand der einzigen sichtbaren
+   Spalte — und seit das Fenster randlos ist, sichtbar am Bildschirmrand. Den
+   Einzelspalten-Zustand erzeugt erst dieser Umbau; die Regel selbst ist älter.
+4. 💣 **Die Übernahme-Vorschau hat VIER verschachtelte Polster, und das äußere allein löst
+   nichts.** Der erste Bau verkleinerte nur `.sync-plan-host` (18 → 8) — und tat das im
+   `<style>`-Block der Seite, also als lautlose Überstimmung eines geteilten Bauteils, **wovor
+   dieselbe Seite 20 Zeilen darüber ausdrücklich warnt**. Übrig blieben drei innere 18er
+   (`summary`, `.rows`, `.gate`): effektiv 8+18 = 26px je Seite, von 366px Breite 14 %. ⭐ Die
+   Regel steht jetzt im Blatt des Bauteils (`sync-plan-sheet.css`) — keine Überstimmung, sondern
+   seine eigene Regel, und alle vier Polster zusammen, weil sie EINE Kante bilden.
+5. ⚠️ **`select#filter` fehlte das `min-width: 0`, das sein Nachbar seit jeher hat** — mit
+   derselben Begründung, die eine Zeile darüber ausgeschrieben steht („der Filter-Trichter wird aus
+   der schmalen Spalte hinausgedrückt, gemessen 50px"). Ein Flex-Kind mit `min-width: auto`
+   schrumpft nicht unter seine Inhaltsbreite, und „🗑 Papierkorb (aussortiert)" ist die längste
+   seiner zehn Optionen. Die Filterzeile bricht jetzt zusätzlich um.
+6. ⚠️ **`.colfoot` bekam nicht die Behandlung, die derselbe Umbau dem Menüband gibt** — drei
+   Knöpfe zu je ~100px zerlegten „🔗 Namensgleiche vorschlagen" in vier Zeilen. „Lesbar schlägt
+   gleich hoch" gilt auch dort.
+7. 🔧 **Zwei Geschwister-Overlays tragen dieselbe Inline-Style-Falle weiter**
+   (`review-settlement-list.js:861/934`). Nicht behoben — siehe Befund 1 und §4: ihr Inneres ist
+   nicht umgebaut, also wäre nur die Hülle richtig. Notiert, damit der nächste Schritt dort anfängt.
 
 ## 3b. Gemessen (gerechnet, nicht im Browser)
 

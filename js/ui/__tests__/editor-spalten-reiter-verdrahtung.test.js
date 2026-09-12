@@ -171,32 +171,154 @@ const wikiSyncRein = ohneKommentare(wikiSync);
 		pruefe(/\.avm-spalten-reiter\s*\{[^}]*display:\s*none/.test(ausserhalb),
 			"A2: und steht ausserhalb auf display:none — über 680px gibt es keine Reiter");
 
-		// 💣 `--avm-col-pad` ist ein ZWEIwert (8px 14px). In `padding: 0 var(--avm-col-pad)` wird
-		//    daraus `0 8px 14px` — oben 0, seitlich 8, UNTEN 14. Der erste Bau stand genau so da.
-		//    Der Seiteneinzug dieses Hauses ist `--space-12`, und er ist ein EINwert.
+		// 💣 `--avm-col-pad` ist ein ZWEIwert. In `padding: 0 var(--avm-col-pad)` wird daraus
+		//    `0 8px 12px` — oben 0, seitlich 8, UNTEN 12. Der erste Bau stand genau so da.
 		const leisteRegel = (ausserhalb.match(/\.avm-spalten-reiter\s*\{[^}]*\}/) || [""])[0];
 		pruefe(!/padding:[^;]*--avm-col-pad/.test(leisteRegel),
 			"A2: die Leiste polstert NICHT mit dem Zweiwert-Token --avm-col-pad");
-		pruefe(/padding:\s*0 var\(--space-12\)/.test(leisteRegel),
-			"A2: sondern mit dem Seiteneinzug --space-12 — dieselbe Kante wie die Spalten");
 		// Und sie holt Abstand und Trennlinie von `.avm-tabs`, statt sie ein zweites Mal zu setzen.
 		pruefe(!/gap:/.test(leisteRegel), "A2: kein eigenes `gap` — das bringt .avm-tabs mit");
 		pruefe(!/border-bottom/.test(leisteRegel), "A2: und keine eigene Trennlinie");
 
-		// 💣 Die Reihenfolge trägt: `.avm-tabs` (display:flex) und `.avm-spalten-reiter`
-		//    (display:none) liegen beide auf (0,1,0) am DEMSELBEN Element.
-		// 🪤 UND HIER SASS DIE `-1`-FALLE AUS AGENTS.md §9, gefunden von der Mutationsprobe: ein
-		//    blosser `indexOf(A) < indexOf(B)` ist auch dann WAHR, wenn A gar nicht mehr da ist
-		//    (`-1 < irgendwas`). Die Zusicherung blieb grün, als `.avm-tabs` umbenannt wurde — also
-		//    genau in dem Fall, in dem die Leiste ihre Form verliert. Erst die Stellen prüfen,
-		//    dann vergleichen.
-		const stelleTabs = editorBodyRein.indexOf(".avm-tabs {");
-		const stelleReiter = editorBodyRein.indexOf(".avm-spalten-reiter {");
-		pruefe(stelleTabs >= 0, "A2: `.avm-tabs {` steht in editor-body.css (die FORM der Leiste)");
-		pruefe(stelleReiter >= 0, "A2: `.avm-spalten-reiter {` steht dort ebenfalls");
-		pruefe(stelleTabs >= 0 && stelleReiter >= 0 && stelleTabs < stelleReiter,
-			"A2: `.avm-spalten-reiter` steht NACH `.avm-tabs` — bei gleicher Spezifität entscheidet die Reihenfolge");
+		// 🪤 UND HIER DIE ZWEITE HÄLFTE DERSELBEN FALLE, gefunden von der Konsistenzprüfung: der
+		//    erste Bau schrieb `--space-12` (14px) hin und begründete es mit „der Seiteneinzug ist
+		//    überall 14". Der GLOBALE Token steht aber auf `--space-10` (12px); die 14px-Fassungen
+		//    sind Überschreibungen an Fensterhüllen im ELTERNdokument, und Custom Properties
+		//    kreuzen keine iframe-Grenze. Die Leiste stand damit 2px neben den Spaltentiteln —
+		//    das Gegenteil der Garantie, die der Kommentar behauptete.
+		// 🔴 Also wird die Kante GERECHNET, nicht abgeschrieben: die Seitenkomponente von
+		//    `--avm-col-pad` aus tokens.css gegen das Polster der Leiste.
+		const tokens = ohneKommentare(lies("css", "base", "tokens.css"));
+		const colPad = (tokens.match(/--avm-col-pad:\s*([^;]+);/) || [])[1] || "";
+		const seiteVonColPad = (colPad.trim().split(/\s+/)[1] || "").trim();
+		pruefe(seiteVonColPad === "var(--space-10)",
+			`A2: --avm-col-pad führt seitlich var(--space-10) (gelesen: „${seiteVonColPad}“)`);
+		const leistePad = (leisteRegel.match(/padding:\s*0\s+([^;]+);/) || [])[1] || "";
+		pruefe(leistePad.trim() === seiteVonColPad,
+			`A2: die Leiste trägt DIESELBE Kante wie die Spalten (Leiste „${leistePad.trim()}“ gegen Spalte „${seiteVonColPad}“)`);
+		// 🪤 Und kein Override in den Editorseiten, das die Rechnung oben ungültig machen würde.
+		const editorPage = ohneKommentare(lies("css", "components", "editor-page.css"));
+		pruefe(!/--avm-col-pad:/.test(editorPage) && !/--avm-col-pad:/.test(editorBodyRein),
+			"A2: kein --avm-col-pad-Override in editor-page.css/editor-body.css — sonst gilt die Rechnung nicht");
 	}
+}
+
+// -----------------------------------------------------------------------------------------------
+// 4b. Die Touch-Ziele. 🔴 Der Reiter ist am Telefon der EINZIGE Weg zwischen den Spalten und war
+//     im ersten Bau ~27px hoch — kleiner als die Zeilen, die er erschließt, und kleiner als die
+//     44px, die derselbe Umbau für die Menübandkacheln fordert. Zwei Maße für dieselbe Frage.
+// -----------------------------------------------------------------------------------------------
+{
+	const tokens = ohneKommentare(lies("css", "base", "tokens.css"));
+	pruefe(/--avm-touch-h:\s*44px/.test(tokens),
+		"A10: der Token --avm-touch-h steht in tokens.css (44px war vorher viermal als eigene Zahl da)");
+
+	const ab = editorBodyRein.indexOf("@media (hover: none) and (pointer: coarse)");
+	pruefe(ab > 0, "A10: editor-body.css hat einen Touch-Riegel für die Reiterleiste");
+	const touchBody = ab > 0 ? editorBodyRein.slice(ab) : "";
+	pruefe(/\.avm-spalten-reiter \.avm-tab\s*\{[^}]*min-height:\s*var\(--avm-touch-h\)/.test(touchBody),
+		"A10: der Reiter bekommt dort das Touch-Ziel aus dem Token");
+	// 💣 NUR die Reiter dieses Bauteils, nicht `.avm-tab` überall: jene Klasse trägt die
+	//    Reiterzeilen von elf anderen Oberflächen, und die mitzuvergrößern wäre unbestellt.
+	pruefe(!/^\s*\.avm-tab\s*\{/m.test(touchBody),
+		"A10: und zwar über `.avm-spalten-reiter .avm-tab`, NICHT über `.avm-tab` allein");
+
+	// Die Seite selbst: Kacheln, Zeilen und Baumknoten lesen denselben Token.
+	const touchSeite = monitorRein.slice(monitorRein.indexOf("@media (hover: none) and (pointer: coarse)"));
+	const telefonSeite = monitorRein.slice(monitorRein.indexOf("@media (max-width: 680px)"),
+		monitorRein.indexOf("@media (hover: none) and (pointer: coarse)"));
+	pruefe(/\.btn2\s*\{[^}]*min-height:\s*var\(--avm-touch-h\)/.test(telefonSeite),
+		"A10: die Menübandkachel liest den Token statt einer eigenen 44");
+	pruefe(/\.row, \.node\s*\{[^}]*min-height:\s*var\(--avm-touch-h\)/.test(touchSeite),
+		"A10: Listenzeile und Baumknoten bekommen dasselbe Touch-Ziel");
+	pruefe(!/min-height:\s*44px/.test(telefonSeite) && !/min-height:\s*44px/.test(touchSeite),
+		"A10: und NIRGENDS eine abgeschriebene 44 — das wäre die fünfte Fassung derselben Zahl");
+}
+
+// -----------------------------------------------------------------------------------------------
+// 4c. Die tote Trennlinie und die zwei gequetschten Zeilen (Befunde der Designprüfung).
+// -----------------------------------------------------------------------------------------------
+{
+	const telefon = monitorRein.slice(monitorRein.indexOf("@media (max-width: 680px)"),
+		monitorRein.indexOf("@media (hover: none) and (pointer: coarse)"));
+
+	// 💣 `.col + .col` ist ein GESCHWISTER-Selektor: `display:none` an der Spalte davor nimmt die
+	//    Linie nicht zurück. Auf „Modell"/„Details" blieb ein 1px-Strich am Bildschirmrand.
+	pruefe(/\.col \+ \.col\s*\{[^}]*border-left:\s*0/.test(telefon),
+		"Designprüfung: die tote Trennlinie der abgewählten Spalte fällt");
+
+	// `select#filter` bekommt dasselbe min-width:0, das die Regel darüber seinem Nachbarn gibt.
+	pruefe(/\.bar\s*\{[^}]*flex-wrap:\s*wrap/.test(telefon), "Designprüfung: die Filterzeile bricht um");
+	pruefe(/\.bar select\s*\{[^}]*min-width:\s*0/.test(telefon),
+		"Designprüfung: das Auswahlfeld kann schrumpfen (wie input[type=search] seit jeher)");
+	pruefe(/\.colfoot\s*\{[^}]*flex-wrap:\s*wrap/.test(telefon),
+		"Designprüfung: die drei Fußknöpfe brechen um statt auf ~100px zu schrumpfen");
+}
+
+// -----------------------------------------------------------------------------------------------
+// 4d. Die Übernahme-Vorschau: VIER verschachtelte Polster, und die Regel gehört ins BAUTEIL.
+//     💣 Der erste Bau verkleinerte nur die äußerste Hülle — und tat das im <style>-Block der
+//        Seite, also als lautlose Überstimmung eines geteilten Bauteils, wovor dieselbe Seite
+//        ausdrücklich warnt. Übrig blieben drei innere 18er: 8+18 = 26px je Seite.
+// -----------------------------------------------------------------------------------------------
+{
+	const planSheet = ohneKommentare(lies("css", "components", "sync-plan-sheet.css"));
+	const ab = planSheet.indexOf("@media (max-width: 680px)");
+	pruefe(ab > 0, "Designprüfung: die Schwelle steht im Blatt des Bauteils, nicht im <style> der Seite");
+	const inQuery = ab > 0 ? planSheet.slice(ab) : "";
+	pruefe(/\.sync-plan-host\s*\{[^}]*padding:\s*var\(--space-6\)/.test(inQuery), "Designprüfung: die äußere Hülle");
+	pruefe(/summary,\s*\n?\s*\.sync-plan-host \.gate\s*\{[^}]*padding:\s*11px var\(--space-8\)/.test(inQuery),
+		"Designprüfung: und die zwei inneren 18er an summary und .gate");
+	pruefe(/\.rows\s*\{[^}]*padding:\s*2px var\(--space-8\) 14px/.test(inQuery),
+		"Designprüfung: und das dritte an .rows");
+	// 🔴 Keine Überstimmung mehr aus dem <style>-Block der Seite.
+	pruefe(!/\.sync-plan-host\s*\{/.test(monitorRein),
+		"Designprüfung: die Seite überstimmt `.sync-plan-host` NICHT mehr aus ihrem <style>-Block");
+}
+
+// -----------------------------------------------------------------------------------------------
+// 4e. Fund der Konsistenzprüfung: die zwei Klassen tragen VIER Fenster. Nur das Sync-Fenster
+//     füllt den Bildschirm; die drei anderen behalten ihr Grundmaß unverändert.
+// -----------------------------------------------------------------------------------------------
+{
+	const ab = overlayRein.indexOf("@media (max-width: 680px)");
+	const inQuery = ab > 0 ? overlayRein.slice(ab) : "";
+
+	// Das Grundmaß der drei anderen steht unverändert da.
+	pruefe(/\.political-territory-editor-overlay\s*\{[^}]*padding:\s*8px/.test(inQuery),
+		"Konsistenz: die drei anderen Fenster dieser Hülle behalten ihr 8px-Schleierpolster");
+	pruefe(/^\s*\.political-territory-editor-dialog\s*\{[^}]*width:\s*calc\(100vw - 16px\)/m.test(inQuery),
+		"Konsistenz: und ihr Grundmaß calc(100vw - 16px)");
+
+	// Bildschirmfüllend ist AUSSCHLIESSLICH das Sync-Fenster.
+	pruefe(/#avesmaps-sync-editor-overlay\s*\{[^}]*padding:\s*0/.test(inQuery),
+		"Konsistenz: nur beim Sync-Fenster fällt das Schleierpolster");
+	const fuellRegel = (inQuery.match(/\{[^{}]*width:\s*100%;[^{}]*\}/) || [""])[0];
+	const fuellSelektor = (inQuery.match(/([^{}]*)\{[^{}]*width:\s*100%;/) || ["", ""])[1];
+	pruefe(fuellSelektor.includes("#avesmaps-sync-editor-overlay"),
+		"Konsistenz: die 100%-Regel ist auf #avesmaps-sync-editor-overlay gescopt");
+	pruefe(!/^\s*\.political-territory-editor-dialog,/m.test(inQuery),
+		"Konsistenz: sie zieht NICHT die klassenweite Fassung mit — die trägt vier Fenster");
+	pruefe(/border-radius:\s*0/.test(fuellRegel), "Konsistenz: und nimmt dort den Radius mit");
+}
+
+// -----------------------------------------------------------------------------------------------
+// 4f. Die Reihenfolge der zwei spezifitätsgleichen Regeln.
+//     💣 `.avm-tabs` (display:flex) und `.avm-spalten-reiter` (display:none) liegen beide auf
+//        (0,1,0) am DEMSELBEN Element — es entscheidet, was später steht.
+//     🪤 UND HIER SASS DIE `-1`-FALLE AUS AGENTS.md §9, gefunden von der Mutationsprobe: ein
+//        blosses `indexOf(A) < indexOf(B)` ist auch dann WAHR, wenn A gar nicht mehr da ist
+//        (`-1 < irgendwas`). Die Zusicherung blieb grün, als `.avm-tabs` umbenannt wurde — also
+//        genau in dem Fall, in dem die Leiste ihre Form verliert. Erst die Stellen prüfen, dann
+//        vergleichen.
+// -----------------------------------------------------------------------------------------------
+{
+	const stelleTabs = editorBodyRein.indexOf(".avm-tabs {");
+	const stelleReiter = editorBodyRein.indexOf(".avm-spalten-reiter {");
+	pruefe(stelleTabs >= 0, "A2: `.avm-tabs {` steht in editor-body.css (die FORM der Leiste)");
+	pruefe(stelleReiter >= 0, "A2: `.avm-spalten-reiter {` steht dort ebenfalls");
+	pruefe(stelleTabs >= 0 && stelleReiter >= 0 && stelleTabs < stelleReiter,
+		"A2: `.avm-spalten-reiter` steht NACH `.avm-tabs` — bei gleicher Spezifität entscheidet die Reihenfolge");
 }
 
 // -----------------------------------------------------------------------------------------------

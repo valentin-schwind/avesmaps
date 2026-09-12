@@ -231,18 +231,27 @@
  *    darauf kommt es an: die Frage ist, ob die Spalten Platz haben. */
 /* 💣 KEIN `gap` und kein `border-bottom` hier -- die bringt `.avm-tabs` mit. Eine zweite Fassung
  *    desselben Werts ist genau die Divergenz, die §12 verbietet.
- * 💣 UND DER SEITENEINZUG IST `--space-12`, NICHT `--avm-col-pad`: jenes Token ist ein ZWEIwert
- *    (`var(--space-6) var(--space-12)` = 8px 14px), und `padding: 0 var(--avm-col-pad)` ergibt daraus
- *    die drei Werte `0 8px 14px` -- also oben 0, rechts/links 8 und unten 14, statt der gemeinten
- *    Kante. Die Leiste stand damit 6px links von den Spaltentiteln, und unten hing ein Polster, das
- *    niemand bestellt hatte. Gefunden beim Nachrechnen, nicht im Browser: es sieht nach einem
- *    Versehen im Abstand aus, nicht nach einem falschen Token.
- *    🔴 14 ist „der Seiteneinzug ist überall 14" (css/base/tokens.css) -- dieselbe Kante, an der
- *       die Spalten mit ihrem `--avm-col-pad` stehen. */
+ *
+ * 💣 DER SEITENEINZUG IST `--space-10`, NICHT `--avm-col-pad` -- und der Wert dahinter ist die
+ *    Falle, die diesen Kommentar zweimal falsch gemacht hat:
+ *    (1) `--avm-col-pad` ist ein ZWEIwert. `padding: 0 var(--avm-col-pad)` ergibt daraus DREI
+ *        Werte (`0 8px 12px`): oben 0, seitlich 8, UNTEN 12. Nicht die gemeinte Kante, und unten
+ *        ein Polster, das niemand bestellt hat.
+ *    (2) 🪤 Der erste Bau schrieb daraufhin `--space-12` (14px) hin und begründete es mit „der
+ *        Seiteneinzug ist überall 14". DAS GILT HIER NICHT: der globale Token steht auf
+ *        `var(--space-6) var(--space-10)`, seitlich also ZWOELF px (css/base/tokens.css). Die 14px-
+ *        Fassungen sind Überschreibungen AN FENSTERHÜLLEN IM ELTERNDOKUMENT
+ *        (political-territory-editor-overlay.css und sechs Geschwister). **Custom Properties
+ *        kreuzen keine iframe-Grenze** -- eine Editorseite im iframe liest den globalen Wert. Die
+ *        Leiste stand damit 2px neben den Spaltentiteln, also genau das Gegenteil der Garantie,
+ *        die hier behauptet wurde. Gefunden von der Konsistenzprüfung, nicht im Browser.
+ *    🔴 Also: dieselbe Sprosse, die `--avm-col-pad` seitlich führt (`--space-10`), und ein Test
+ *       hält die zwei gegeneinander -- eine abgeschriebene Zahl überlebt den Wechsel ihres
+ *       Gegenstands nicht. Zieht der globale Token je auf 14 nach, zieht diese Zeile mit. */
 .avm-spalten-reiter {
 	display: none;
 	flex: 0 0 auto;
-	padding: 0 var(--space-12);
+	padding: 0 var(--space-10);
 }
 
 @media (max-width: 680px) {
@@ -255,6 +264,25 @@
 	 *    einen Zustand nachziehen muss, der sonst auseinanderläuft. */
 	.avm-spalte-aus {
 		display: none;
+	}
+}
+
+/* 🔴 AM TASTBEDIENTEN GERÄT IST DIESER REITER DER EINZIGE WEG ZWISCHEN DEN SPALTEN -- also trägt
+ *    er ein Touch-Ziel. `.avm-tab` ist für einen Zeiger gebaut (`padding: var(--space-4) 1px`,
+ *    `min-height: 0`, gemessen ~27px hoch bei 1px seitlichem Polster); am Telefon war er damit
+ *    KLEINER als die Zeilen, die er erschließt. Gefunden von der Designprüfung, und der Befund
+ *    wog doppelt: derselbe Umbau fordert für die Menüband-Kacheln daneben ausdrücklich 44px.
+ * 💣 Der Selektor ist `.avm-spalten-reiter .avm-tab` (0,2,0), NICHT `.avm-tab`: jene Klasse trägt
+ *    die Reiterzeilen von elf anderen Oberflächen, und die am Telefon mitzuvergrößern wäre ein
+ *    unbestellter Umbau an elf Stellen, die niemand geprüft hat.
+ * ⚠️ `align-items: center` ist tragend: mit einer Mindesthöhe allein klebt die Beschriftung am
+ *    oberen Rand und der Unterstrich sitzt 17px unter dem Wort. */
+@media (hover: none) and (pointer: coarse) {
+	.avm-spalten-reiter .avm-tab {
+		display: inline-flex;
+		align-items: center;
+		min-height: var(--avm-touch-h);
+		padding: 0 var(--space-6);
 	}
 }
 

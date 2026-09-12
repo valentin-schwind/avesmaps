@@ -63,17 +63,40 @@
    sind die Reiter drinnen schon an, waehrend das Fenster hier noch seinen Rand hat. Gewollt -- die
    Reiter folgen dem Platz IM Fenster, dieses Mass dem Bildschirm. */
 @media (max-width: 680px) {
+	/* 💣 DIESE ZWEI KLASSEN TRAGEN VIER FENSTER, NICHT EINES -- nachgezaehlt am 12.09.2026, weil
+	   der erste Bau sie fuer das Sync-Fenster allein hielt: der Gebietsdialog (index.html:438),
+	   „Literatur bearbeiten" und „Karten bearbeiten" (js/review/review-settlement-list.js:852/925)
+	   und der Sync-Editor. `dialog.className = "political-territory-editor-dialog …"` steht
+	   wortgleich an allen vier Stellen. Was hier ohne ID-Scope steht, gilt allen vier.
+	   🔴 Deshalb bleibt dieses Grundmass unveraendert stehen. Es gehoert den drei anderen. */
 	.political-territory-editor-overlay {
-		/* Kein Rand mehr, und keine 8px: bei 366px Bildschirmbreite ist jeder Pixel Inhalt. Der
-		   Schleier bleibt sichtbar -- er liegt jetzt vollstaendig hinter dem Fenster. */
+		padding: 8px;
+	}
+
+	.political-territory-editor-dialog {
+		width: calc(100vw - 16px);
+		height: calc(100vh - 16px);
+	}
+
+	/* 🔴 NUR DER SYNC-EDITOR fuellt den Bildschirm -- und nur er, weil nur bei ihm der Inhalt
+	   dafuer umgebaut ist (Reiter statt drei Spalten, umbrechendes Menueband).
+	   ⚠️ Die drei anderen bildschirmfuellend zu machen waere eine halbe Verbesserung: aussen
+	      randlos, innen unveraendert eng -- „Literatur bearbeiten" und „Karten bearbeiten" haben
+	      wie alle zwoelf Editorseiten KEINE Media-Query, und der Gebietsdialog bringt seine eigenen
+	      seit jeher mit (der Entwurf nimmt ihn ausdruecklich aus). Das ist ein eigener Schritt,
+	      zusammen mit den Reitern fuer jene Seiten (§4 des Entwurfs).
+	   💣 `#…-overlay` (1,0,0) und `#…-overlay .…-dialog` (1,1,0) schlagen die zwei Grundregeln
+	      darueber unabhaengig von der Reihenfolge -- und Letzteres auch das `border-radius` des
+	      Fenster-Bauteils (0,1,0 in fenster.css), das sonst gewinnt, weil sein @import in
+	      styles.css spaeter steht. */
+	#avesmaps-sync-editor-overlay {
 		padding: 0;
 	}
 
 	/* 💣 `100%`, NICHT `100vh`: `100vh` ist auf einem Telefon die Hoehe OHNE Abzug der
 	   Adressleiste -- das Fenster raegte unten hinaus, und dort sitzt bei jedem dieser Fenster die
-	   Fussleiste mit „Speichern". Der Schleier ist `position:fixed; inset:0` und hat jetzt kein
-	   Polster mehr; `100%` folgt ihm genau und fuehrt kein zweites Mass ein. */
-	.political-territory-editor-dialog,
+	   Fussleiste mit „Speichern". Der Schleier ist `position:fixed; inset:0` und hat fuer dieses
+	   Fenster kein Polster mehr; `100%` folgt ihm genau und fuehrt kein zweites Mass ein. */
 	#avesmaps-sync-editor-overlay .political-territory-editor-dialog {
 		width: 100%;
 		height: 100%;

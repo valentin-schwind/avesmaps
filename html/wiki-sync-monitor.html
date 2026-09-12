@@ -350,7 +350,7 @@
        Kacheln NEBENEINANDER gedacht (der Kommentar an `.btn2 .t1` sagt das); nebeneinander stehen
        sie hier nicht mehr, also darf die Beschriftung umbrechen. Lesbar schlaegt gleich hoch. */
     .controls { grid-auto-flow:row; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); }
-    .btn2 { min-height:44px; }
+    .btn2 { min-height:var(--avm-touch-h); }
     .btn2 .t1, .btn2 .t2 { white-space:normal; overflow:visible; }
 
     /* Die Statuszeile trug `white-space:nowrap` und schob den Kontinent-Trichter aus dem Fenster. */
@@ -358,8 +358,26 @@
     #statusText { white-space:normal; overflow:visible; flex:1 1 100%; }
     #contDD { align-self:flex-start; }
 
-    /* Die Uebernahme-Vorschau (#planSheet) stand mit 18px Polster in einem 366px breiten Fenster. */
-    .sync-plan-host { padding:var(--space-6); }
+    /* 💣 DIE TOTE TRENNLINIE. `.col + .col { border-left }` ist ein GESCHWISTER-Selektor und liest
+       den DOM-Baum, nicht die Sichtbarkeit: ein `display:none` an der Spalte davor nimmt sie nicht
+       zurueck. Auf den Reitern „Modell" und „Details" blieb damit ein 1px-Strich am linken Rand der
+       einzigen sichtbaren Spalte -- und seit das Fenster randlos ist, liegt er sichtbar am
+       Bildschirmrand. Den Einzelspalten-Zustand erzeugt erst dieser Umbau; die Regel selbst ist
+       aelter. Gefunden von der Designpruefung. */
+    .col + .col { border-left:0; }
+
+    /* 💣 Die Filterzeile bricht um, statt drei Bedienelemente in 338px zu quetschen. Und
+       `select#filter` bekommt dasselbe `min-width:0`, das die Regel oben seinem Nachbarn
+       `input[type=search]` schon gibt -- mit derselben Begruendung, die dort ausgeschrieben steht:
+       ein Flex-Kind mit `min-width:auto` schrumpft NICHT unter seine Inhaltsbreite und drueckt den
+       Nachbarn hinaus. „🗑 Papierkorb (aussortiert)" ist die laengste seiner zehn Optionen. */
+    .bar { flex-wrap:wrap; }
+    .bar select { min-width:0; flex:1 1 auto; }
+
+    /* Dieselbe Behandlung wie das Menueband darueber -- „lesbar schlaegt gleich hoch": drei
+       Knoepfe zu je ~100px zerlegten „🔗 Namensgleiche vorschlagen" in vier Zeilen. */
+    .colfoot { flex-wrap:wrap; }
+    .colfoot .btn { flex:1 1 150px; }
   }
 
   /* ==== Am TOUCH-Geraet =========================================================================
@@ -378,9 +396,21 @@
   @media (hover: none) and (pointer: coarse) {
     #dropRoot, #dropExclude { display:none; }
     .row, .node { cursor:default; }
-    /* Treffbar statt 4px hoch. Die Zeilen sind die eigentliche Bedienflaeche dieser Seite. */
-    .row { padding:var(--space-6) var(--space-8); }
-    .node { padding:var(--space-4) var(--space-8); }
+    /* 🔴 TREFFBAR HEISST `--avm-touch-h`, NICHT „etwas mehr Polster". Der erste Bau gab `.row` und
+       `.node` nur 8px bzw. 6px Polster -- gerechnet mit 13px Schrift und `--leading-normal` ergibt
+       das ~35px und ~31px, also unter dem 44er-Ziel, das derselbe Umbau eine Etage darueber fuer
+       die Menuebandkacheln fordert. Zwei Maesse fuer dieselbe Frage im selben Commit; gefunden von
+       der Designpruefung. Die Zeilen sind die eigentliche Bedienflaeche dieser Seite.
+       ⚠️ `.node` ist `inline-flex` (es sitzt IM Baum neben seinem Aufklapp-Dreieck) -- eine
+          Mindesthoehe allein zentriert dort nichts, deshalb `align-items:center` daneben. */
+    .row, .node { min-height:var(--avm-touch-h); align-items:center; }
+    .row { padding:var(--space-4) var(--space-8); }
+    .node { padding:var(--space-2) var(--space-8); }
+    /* Das Aufklapp-Dreieck des Baums ist 12px breit und damit selbst kein Touch-Ziel. Es ist
+       erstes Kind der `.node` -- `align-self:stretch` gibt ihm deren ganze (jetzt 44px) Hoehe,
+       statt eine zweite Hoehenzahl daneben zu setzen. 18 statt 44 in der Breite ist Absicht: ein
+       44px breites Dreieck nimmt dem Namen ein Viertel der Spalte. */
+    .twist { min-width:var(--space-16); align-self:stretch; display:inline-flex; align-items:center; justify-content:center; }
     ul.tree li { margin:var(--space-2) 0; }
   }
 </style>

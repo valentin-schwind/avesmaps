@@ -440,3 +440,32 @@
 .sync-plan-host .sheet__declined[hidden] {
 	display: none;
 }
+
+/* ---- Am schmalen Fenster ---------------------------------------------------------------------
+ * Entwurf: docs/superpowers/specs/2026-09-12-sync-monitor-am-telefon-design.md
+ *
+ * 💣 DIE VIER POLSTER SIND VERSCHACHTELT, UND DAS AEUSSERE ALLEIN LOEST NICHTS. Der erste Bau
+ *    verkleinerte nur `.sync-plan-host` (18 -> 8) -- im <style>-Block der Editorseite, also als
+ *    lautlose Ueberstimmung eines geteilten Bauteils, wovor dieselbe Seite 20 Zeilen darueber
+ *    ausdruecklich warnt. Uebrig blieben dabei DREI innere 18er (`summary`, `.rows`, `.gate`):
+ *    effektiver Seiteneinzug 8+18 = 26px je Seite, von einem 366px breiten Fenster 14 %. Gefunden
+ *    von der Designpruefung, die nachgezaehlt hat, was der Kommentar nur behauptete.
+ * 🔴 Also hier, im Blatt des Bauteils: keine Ueberstimmung, sondern seine eigene Regel -- und alle
+ *    vier zusammen, weil sie EINE Kante bilden.
+ * ⚠️ Die Schwelle ist die dieses Umbaus (680px, siehe editor-body.css). Das Bauteil lebt auch in
+ *    index.html; dort trifft die Regel ein Telefon, und genau dort ist sie ebenso richtig.
+ * ⚠️ Senkrecht bleibt alles, wie es ist -- eng wird es in der BREITE, nicht in der Hoehe. */
+@media (max-width: 680px) {
+	.sync-plan-host {
+		padding: var(--space-6);
+	}
+
+	.sync-plan-host .grp > summary,
+	.sync-plan-host .gate {
+		padding: 11px var(--space-8);
+	}
+
+	.sync-plan-host .rows {
+		padding: 2px var(--space-8) 14px;
+	}
+}
