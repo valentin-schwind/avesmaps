@@ -264,17 +264,6 @@ try {
 
             return avesmapsPoliticalRepairGeometryBounds($pdo, !$scharf, $limit > 0 ? $limit : 1000);
         })(),
-        // Die Altbestaende des Anzeigenamens aus style_json in political_territory.display_name holen
-        // (Fall #123). NUR Admins; Trockenlauf ist die Vorgabe, scharf erst mit `apply: true`.
-        'migrate_display_names' => (static function () use ($pdo, $payload, $user): array {
-            if (!avesmapsUserCan($user, 'admin')) {
-                avesmapsErrorResponse(403, 'forbidden', 'Das Nachziehen der Anzeigenamen ist Admins vorbehalten.');
-            }
-            $scharf = ($payload['apply'] ?? false) === true;
-            $limit = (int) ($payload['limit'] ?? 500);
-
-            return avesmapsPoliticalMigrateDisplayNamesFromStyle($pdo, !$scharf, $limit > 0 ? $limit : 500);
-        })(),
         'geometry_operation' => avesmapsPoliticalApplyGeometryOperationResult($pdo, $payload, $user),
         'geometry_operation_debug' => avesmapsPoliticalDebugGeometryOperation($payload),
         'undo_audit_change' => avesmapsPoliticalUndoAuditChange($pdo, $payload, $user),

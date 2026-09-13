@@ -9,155 +9,6 @@ declare(strict_types=1);
 // liegen jetzt in territories-read.php, da der Layer-/Lesepfad sie braucht
 // und nicht vom Schreib-Modul abhaengen darf.
 
-/**
- * Der ANZEIGENAME eines Gebiets fuer einen Schreibvorgang -- oder der BESTAND, wenn der Rumpf ihn
- * nicht nennt. Leer bzw. gleich dem kanonischen Namen heisst "keine Abweichung" und wird NULL.
- *
- * 💣 DIE TRAGENDE REGEL IST DAS NICHT-SCHREIBEN. `short_name` daneben wird unbedingt aus dem Rumpf
- * gesetzt -- ein Aufrufer, der das Feld nicht mitschickt, LOESCHT es. Genau diese Bauform hat beim
- * alten Ablageort (style_json) dafuer gesorgt, dass jede Speicherung ohne `displayName` einen
- * vorhandenen Override wegwischte (gemessen 12.09.2026). Hier entscheidet deshalb
- * array_key_exists, nicht der Wahrheitswert: ein ausdruecklich leer geschicktes Feld nimmt den
- * Override zurueck, ein GAR NICHT genanntes laesst ihn stehen.
- *
- * 🔴 Gleich dem kanonischen Namen -> NULL, dieselbe Regel, die
- * avesmapsPoliticalBuildStoredAssignmentDisplay seit jeher fuer displayName traegt: gespeichert wird
- * die ABWEICHUNG, nie eine Kopie des Namens. Sonst zoege eine spaetere Wiki-Umbenennung den alten
- * Namen als "Override" hinter sich her.
- */
-function avesmapsPoliticalDisplayNameForWrite(array $quelle, ?string $bestand, string $kanonischerName): ?string {
-    $genannt = null;
-    foreach (['display_name', 'displayName'] as $schluessel) {
-        if (array_key_exists($schluessel, $quelle)) {
-            $genannt = (string) $quelle[$schluessel];
-            break;
-        }
-    }
-
-    if ($genannt === null) {
-        return avesmapsPoliticalNullableString(trim((string) $bestand));
-    }
-
-    $wert = avesmapsNormalizeSingleLine($genannt, 255);
-    if ($wert === '' || $wert === trim($kanonischerName)) {
-        return null;
-    }
-
-    return $wert;
-}
-
-/**
- * Die Altbestaende aus style_json in political_territory.display_name holen (Fall #123).
- *
- * 🔴 Trockenlauf ist die VORGABE -- scharf erst mit $trockenlauf = false. Dieselbe Bauform wie
- * repair_geometry_bounds und takeover_other_sources.
- *
- * ⭐ Gelesen wird mit avesmapsPoliticalFindAssignmentDisplayNameForTerritory, also mit DEMSELBEN
- * Leser, den der Layer-Rueckfall benutzt. Damit holt die Migration exakt das in die Spalte, was die
- * Karte heute zeigt -- keine zweite Auslegung derselben Daten.
- *
- * 💣 SIE FUELLT NUR LUECKEN. Eine Zeile mit gesetzter Spalte bleibt unberuehrt: dort hat jemand
- * bewusst geschrieben, und ein Altbestand aus einem Geometrie-Blob darf das nie ueberschreiben.
- * Damit ist der Lauf wiederholbar.
- *
- * ⚠️ Platzhalter der Hierarchie ("Unabhaengig", "Umstritten") kommen hier GAR NICHT AN -- der
- * geteilte Leser weist sie selbst ab. Eine zweite Pruefung an dieser Stelle waere eine Kopie
- * derselben Regel, und die zwei laufen irgendwann auseinander; sie zaehlen als "kein Eintrag".
- *
- * 💣 BEI UNEINIGKEIT WIRD NICHT GERATEN. Ein Gebiet kann mehrere Geometrien haben, und jede traegt
- * ihre eigene Kopie der Kette -- genau daran ist die alte Ablage gescheitert. Nennen zwei
- * Geometrien VERSCHIEDENE Namen, wird die Zeile gemeldet und uebersprungen, nie gewuerfelt.
- *
- * @return array{geprueft:int,uebernommen:int,uneinig:int,ohne_eintrag:int,
- *               trockenlauf:bool,stichprobe:list<array<string,string>>,konflikte:list<array<string,mixed>>}
- */
-function avesmapsPoliticalMigrateDisplayNamesFromStyle(PDO $pdo, bool $trockenlauf = true, int $limit = 500): array {
-    $limit = max(1, $limit);
-    $geprueft = 0;
-    $uebernommen = 0;
-    $uneinig = 0;
-    $ohneEintrag = 0;
-    $stichprobe = [];
-    $konflikte = [];
-
-    // EIN Durchgang: Gebiete mit ihren EIGENEN Geometrien (nicht denen des Unterbaums).
-    $zeilen = $pdo->query(
-        "SELECT t.id, t.public_id, t.slug, t.name, t.display_name, g.style_json
-         FROM political_territory t
-         LEFT JOIN political_territory_geometry g ON g.territory_id = t.id AND g.is_active = 1
-         WHERE t.is_active = 1 AND (t.display_name IS NULL OR t.display_name = '')
-         ORDER BY t.id ASC, g.id ASC"
-    )->fetchAll(PDO::FETCH_ASSOC);
-
-    $proGebiet = [];
-    foreach ($zeilen as $zeile) {
-        $id = (int) $zeile['id'];
-        if (!isset($proGebiet[$id])) {
-            $proGebiet[$id] = ['zeile' => $zeile, 'namen' => []];
-        }
-        $style = avesmapsPoliticalDecodeJson($zeile['style_json'] ?? null);
-        if (!is_array($style)) {
-            continue;
-        }
-        $name = avesmapsPoliticalFindAssignmentDisplayNameForTerritory(
-            $style,
-            (string) $zeile['public_id'],
-            (string) ($zeile['slug'] ?? '')
-        );
-        if ($name !== '') {
-            $proGebiet[$id]['namen'][$name] = true;
-        }
-    }
-
-    $schreiben = $pdo->prepare('UPDATE political_territory SET display_name = :display_name WHERE id = :id');
-
-    foreach ($proGebiet as $id => $eintrag) {
-        if ($uebernommen >= $limit) {
-            break;
-        }
-        $geprueft++;
-        $zeile = $eintrag['zeile'];
-        $kanonisch = trim((string) $zeile['name']);
-        $namen = array_keys($eintrag['namen']);
-
-        if ($namen === []) {
-            $ohneEintrag++;
-            continue;
-        }
-        if (count($namen) > 1) {
-            $uneinig++;
-            if (count($konflikte) < 20) {
-                $konflikte[] = ['public_id' => (string) $zeile['public_id'], 'name' => $kanonisch, 'kandidaten' => $namen];
-            }
-            continue;
-        }
-
-        $name = $namen[0];
-        if ($name === $kanonisch) {
-            $ohneEintrag++;
-            continue;
-        }
-        $uebernommen++;
-        if (count($stichprobe) < 20) {
-            $stichprobe[] = ['public_id' => (string) $zeile['public_id'], 'von' => $kanonisch, 'nach' => $name];
-        }
-        if (!$trockenlauf) {
-            $schreiben->execute(['id' => $id, 'display_name' => $name]);
-        }
-    }
-
-    return [
-        'ok' => true,
-        'trockenlauf' => $trockenlauf,
-        'geprueft' => $geprueft,
-        'uebernommen' => $uebernommen,
-        'uneinig' => $uneinig,
-        'ohne_eintrag' => $ohneEintrag,
-        'stichprobe' => $stichprobe,
-        'konflikte' => $konflikte,
-    ];
-}
-
 function avesmapsPoliticalBuildStoredAssignmentDisplay(array $territory, array $display, int $depth): array {
     // Herkunftsangabe des Eintrags -- sie wird unten so ABGELEGT und bleibt, was sie war.
     $originalName = trim((string) ($territory['wiki_name'] ?? ''))
@@ -428,7 +279,6 @@ function avesmapsPoliticalUpdateTerritory(PDO $pdo, array $payload, array $user)
             wiki_id = :wiki_id,
             wiki_key = :wiki_key,
             short_name = :short_name,
-            display_name = :display_name,
             type = :type,
             parent_id = :parent_id,
             status = :status,
@@ -452,7 +302,6 @@ function avesmapsPoliticalUpdateTerritory(PDO $pdo, array $payload, array $user)
         'wiki_id' => $wikiId,
         'wiki_key' => $wikiKey,
         'short_name' => avesmapsPoliticalNullableString(avesmapsNormalizeSingleLine((string) ($payload['short_name'] ?? ''), 160)),
-        'display_name' => avesmapsPoliticalDisplayNameForWrite($payload, $territory['display_name'] ?? null, $name),
         'type' => avesmapsPoliticalNullableString(avesmapsPoliticalNormalizeParentheticalSpacing(avesmapsNormalizeSingleLine((string) ($payload['type'] ?? ''), 160))),
         'parent_id' => $parentId,
         'status' => avesmapsPoliticalNullableString(avesmapsNormalizeSingleLine((string) ($payload['status'] ?? ''), 255)),
@@ -517,14 +366,8 @@ function avesmapsPoliticalSaveWikiNodeSettings(PDO $pdo, array $payload, array $
         // is_active=1: Speichern reaktiviert IMMER (siehe avesmapsPoliticalUpdateTerritory) --
         // der Editor speichert Knoten-Eigenschaften ueber DIESEN Pfad, nicht ueber update_territory.
         $statement = $pdo->prepare(
-            // 🔴 `display_name` gehoert hierher, und sein Fehlen WAR ein eigener Fehler (Fall #123,
-            // Befund 2): der Editor schickt den Anzeigenamen als `display.displayName`, dieser Pfad
-            // schrieb ihn nirgends hin und meldete trotzdem "Eigenschaften gespeichert." Betroffen ist
-            // genau die Knotenklasse OHNE eigene Geometrie -- also die, die keine Geometrie-Ablage hat,
-            // in der er frueher haette landen koennen. Fuer sie war Umbenennen komplett unmoeglich.
             'UPDATE political_territory
             SET color = :color,
-                display_name = :display_name,
                 opacity = :opacity,
                 coat_of_arms_url = :coat_of_arms_url,
                 min_zoom = :min_zoom,
@@ -537,11 +380,6 @@ function avesmapsPoliticalSaveWikiNodeSettings(PDO $pdo, array $payload, array $
         $statement->execute([
             'id' => (int) $territory['id'],
             'color' => $color,
-            'display_name' => avesmapsPoliticalDisplayNameForWrite(
-                $display,
-                $territory['display_name'] ?? null,
-                (string) ($territory['name'] ?? '')
-            ),
             'opacity' => $opacity,
             'coat_of_arms_url' => avesmapsPoliticalNullableString($coatOfArmsUrl),
             'min_zoom' => $minZoom,

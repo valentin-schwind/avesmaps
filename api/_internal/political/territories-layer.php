@@ -71,7 +71,6 @@ function avesmapsPoliticalReadLayer(PDO $pdo, array $query): array {
             territory.slug,
             territory.name,
             territory.short_name,
-            territory.display_name,
             territory.type,
             territory.status,
             territory.color,
@@ -180,7 +179,6 @@ function avesmapsPoliticalReadEditorLayer(PDO $pdo, int $yearBf, int $zoom, ?arr
             territory.slug,
             territory.name,
             territory.short_name,
-            territory.display_name,
             territory.type,
             territory.status,
             territory.color,
@@ -464,7 +462,6 @@ function avesmapsPoliticalFetchLayerTerritories(PDO $pdo, int $yearBf): array {
             territory.slug,
             territory.name,
             territory.short_name,
-            territory.display_name,
             territory.type,
             territory.status,
             territory.color,
@@ -836,34 +833,25 @@ function avesmapsPoliticalLayerRowToFeature(array $row, int $yearBf, int $zoom):
     // mit, welche Grenzen die Karte zeichnet -- dieselbe Trennung wie ueberall im Haus: die Kennung
     // bleibt, die Beschriftung wandert.
     //
-    // 1. DIE SPALTE AM TERRITORIUM gewinnt. Sie ist eindeutig, einwertig und reist mit JEDER Zeile,
-    //    die political_territory joint -- also auch mit dem AGGREGAT (BuildAggregateLayerRow merged
-    //    die Felder des Anzeige-Territoriums herein) und mit der ABGELEITETEN AUSSENHUELLE, die gar
-    //    keine Stilablage hat und trotzdem das Label traegt. Genau daran ist die alte Ablage
-    //    gescheitert.
-    $overrideName = trim((string) ($row['display_name'] ?? ''));
-
-    // 2. Rueckfall auf die ALTE Ablage in style_json, solange die Migration nicht gelaufen ist.
-    // 💣 Fuer ein AGGREGAT nicht: dort nullt BuildAggregateLayerRow `style_json` und legt die Ablage
-    // des KINDES nach `geometry_style_json`, waehrend die Kennung schon dem ELTERNTEIL gehoert. Der
-    // Rueckfall haette den Namen des Elternteils aus der Kopie in einem beliebigen Kind gelesen --
-    // welches gewinnt, entschied das ORDER BY. Fuer die Spalte gilt das NICHT, sie ist einwertig.
-    if ($overrideName === '' && !$isAggregate) {
+    // Der ausdrueckliche Anzeigename liegt als `style_json.assignmentDisplays[].displayName` an der
+    // Geometriezeile. Gelesen wird er mit dem NUR-NAMEN-Sucher, nie mit
+    // avesmapsPoliticalFindAssignmentDisplayForTerritory: dessen Rueckgabe speist auch Farbe und
+    // Deckkraft, und ein `localOverride`-Riegel davor haette beide mitverbogen.
+    // 💣 Fuer ein AGGREGAT gar nicht: dort nullt BuildAggregateLayerRow `style_json` und legt die
+    // Ablage des KINDES nach `geometry_style_json`, waehrend die Kennung schon dem ELTERNTEIL
+    // gehoert. Der Rueckfall haette den Namen des Elternteils aus der Kopie in einem beliebigen Kind
+    // gelesen -- welches gewinnt, entschied das ORDER BY.
+    $overrideName = '';
+    if (!$isAggregate) {
         $overrideName = avesmapsPoliticalFindAssignmentDisplayNameForTerritory($style, $territoryPublicId, $nodeKey);
         if ($overrideName === '') {
             $overrideName = avesmapsPoliticalFindAssignmentDisplayNameForTerritory($geometryStyle, $territoryPublicId, $nodeKey);
         }
     }
 
-    // ⚠️ Der Platzhalter-Riegel gilt BEIDEN Quellen. Der Leser der alten Ablage bringt ihn selbst mit;
-    // die Spalte braucht ihn hier, weil die Migration Platzhalter aus style_json mitbringen koennte.
-    if ($overrideName !== '' && avesmapsPoliticalIsGenericHierarchyRootName($overrideName)) {
-        $overrideName = '';
-    }
-
     // 🔴 DIE RANGFOLGE DER BESCHRIFTUNG (Owner 12.09.2026: "ich will dass standardmaessig der
     // wikiname als anzeigename verwendet wird ansonsten der override"):
-    //   1. der ausdrueckliche Anzeigename (Spalte, sonst die alte Ablage)
+    //   1. der ausdrueckliche Anzeigename (style_json.assignmentDisplays[].displayName)
     //   2. der WIKI-NAME  -- die Vorgabe, damit ein Gebiet heisst wie sein Artikel
     //   3. der Gebietsname (political_territory.name)
     //

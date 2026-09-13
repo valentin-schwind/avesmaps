@@ -147,21 +147,6 @@ function avesmapsPoliticalEnsureTables(PDO $pdo): void {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     );
 
-    // Der ANZEIGENAME eines Gebiets (Fall #123). Leer/NULL heisst "heisst wie `name`".
-    //
-    // 🔴 Er gehoert dem TERRITORIUM, nicht einer Geometrie. Vorher lag er als
-    // `style_json.assignmentDisplays[].displayName` an je einer Geometriezeile -- und daran ist er
-    // gescheitert: eine abgeleitete Aussenhuelle hat gar keine Stilablage (und SIE traegt das Label),
-    // ein Aggregat haette in der Ablage eines beliebigen KINDES nachsehen muessen (reihenfolge-
-    // abhaengig), Geschwister konnten sich widersprechen, ein Knoten ohne eigene Geometrie konnte
-    // nichts speichern, und die Suche kann einen JSON-Klumpen nicht indizieren.
-    // ⚠️ VARCHAR(255) wie `name`, NICHT wie `short_name` (160): ein Anzeigename ist typischerweise
-    // LAENGER als der kanonische ("Nordhjaldor" -> "Jarltum Nordhjaldor"), das ist sein Zweck.
-    $displayNameColumn = $pdo->query("SHOW COLUMNS FROM political_territory LIKE 'display_name'")->fetch(PDO::FETCH_ASSOC);
-    if (!is_array($displayNameColumn)) {
-        $pdo->exec('ALTER TABLE political_territory ADD COLUMN display_name VARCHAR(255) NULL AFTER short_name');
-    }
-
     $wikiKeyColumn = $pdo->query("SHOW COLUMNS FROM political_territory LIKE 'wiki_key'")->fetch(PDO::FETCH_ASSOC);
     if (!is_array($wikiKeyColumn)) {
         $pdo->exec('ALTER TABLE political_territory ADD COLUMN wiki_key VARCHAR(255) NULL AFTER wiki_id, ADD KEY idx_political_territory_wiki_key (wiki_key)');

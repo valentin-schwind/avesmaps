@@ -239,7 +239,6 @@ function avesmapsPoliticalReadDerivedLayerFeatures(PDO $pdo, int $yearBf, int $z
             territory.slug,
             territory.name,
             territory.short_name,
-            territory.display_name,
             territory.type,
             territory.status,
             territory.color,
