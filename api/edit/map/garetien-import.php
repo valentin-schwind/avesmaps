@@ -20,6 +20,7 @@ require_once __DIR__ . '/../../_internal/import/garetien-abruf.php';
 require_once __DIR__ . '/../../_internal/import/garetien-uebernahme.php';
 require_once __DIR__ . '/../../_internal/import/garetien-liste.php';
 require_once __DIR__ . '/../../_internal/import/garetien-wiki-landschaft.php';
+require_once __DIR__ . '/../../_internal/import/garetien-passpunkte-lesen.php';
 
 /** Eine Ebene der festen Liste anhand von wiki+ebene finden. */
 function avesmapsGaretienEndpunktEbene(string $wiki, string $ebene): ?array
@@ -117,6 +118,51 @@ try {
     // kapselt sie, und die liegt im Importer (Auftrag §5.5: nichts ausserhalb darf sie kennen).
     if ($action === 'runs') {
         avesmapsJsonResponse(200, ['ok' => true, 'runs' => avesmapsGaretienListeLaeufe($pdo)]);
+    }
+
+    // --- PASSPUNKTE: die Messung, ob sich der Import ueberhaupt nachkorrigieren laesst.
+    //
+    // 🔴 REIN LESEND. Diese Aktion schreibt in KEINE Tabelle, legt keinen Lauf an und ruehrt
+    // die Matrix nicht an -- sie rechnet nur nach, was die ausgelieferte Matrix an Orten tut,
+    // die es auf BEIDEN Karten gibt. Entwurf:
+    // docs/superpowers/specs/2026-09-13-garetien-passpunkte-design.md
+    //
+    // ⚠️ Sie ist teuer: ein Durchgang ueber alle aktiven Ortspunkte plus die Staging-Zeilen des
+    // Laufs. Deshalb steht sie NICHT im Takt des Fensters und wird von Hand ausgeloest --
+    // CLAUDE.md: auf STRATO nie einen schweren Endpunkt in der Schleife fahren.
+    //
+    // 💣 DIE SELBSTPRUEFUNG REIST MIT UND WIRD NICHT VERSCHWIEGEN. Eine vertauschte Achse oder
+    // ein falscher Lauf sieht in diesen Zahlen wie ein gewaltiger, wunderbar zusammenhaengender
+    // Versatz aus -- also genau wie das Ergebnis, das jemanden dazu braechte, eine
+    // Korrekturmatrix zu bauen. Der Median MUSS in der Groessenordnung aus Entwurf §2.1 liegen
+    // (1,24 Meilen); tut er es nicht, steht die Warnung in der Antwort.
+    if ($action === 'passpunkte') {
+        $gelesen = avesmapsGaretienPasspunkteLesen(
+            $pdo,
+            isset($payload['run_id']) ? (int) $payload['run_id'] : null
+        );
+        $paare    = $gelesen['paare'];
+        $residuen = avesmapsGaretienPasspunktResiduen($paare);
+
+        avesmapsJsonResponse(200, [
+            'ok'              => true,
+            'bericht'         => $gelesen['bericht'],
+            'selbstpruefung'  => avesmapsGaretienPasspunkteSelbstpruefung($paare),
+            'passpunkte'      => $paare,
+            'residuen'        => $residuen,
+            // Die Nachbarprobe fuer mehrere k -- der Owner soll sehen, ob das Ergebnis
+            // von der Zahl der Nachbarn abhaengt oder stabil ist.
+            'nachbarprobe'    => array_map(
+                static function (int $k) use ($residuen): array {
+                    $p = avesmapsGaretienPasspunktNachbarprobe($residuen, $k);
+                    unset($p['punkte']);   // die Einzelpunkte stehen schon in `residuen`
+                    return $p;
+                },
+                [3, 5, 8]
+            ),
+            'globaler_versatz' => avesmapsGaretienPasspunktGlobalerVersatz($residuen),
+            'west_sued_trend'  => avesmapsGaretienPasspunktWestSuedTrend($residuen),
+        ]);
     }
 
     // --- Die Einzelansicht: passt eine Wiki-Landschaft nach Namen + Typ? REIN LESEND, EIN
