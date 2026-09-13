@@ -5,11 +5,18 @@ declare(strict_types=1);
 // Wagenhalt-Koordinaten -> Avesmaps-Karteneinheiten.
 //
 // 🔴 AFFIN, NICHT GEWARPT. Thin-Plate-Spline wurde am 26.08.2026 in 5-facher
-// Kreuzvalidierung gemessen und ist SCHLECHTER: 2,30 gegen 1,24 Meilen Median. Der Grund
-// steht in den Residuen -- sie korrelieren null mit der Position (0,014 / 0,003 / -0,003 /
-// -0,001), es gibt also keine systematische Verzerrung, die man geradebiegen koennte. Der
-// Rest ist echte Zeichendifferenz zwischen zwei von Hand gemalten Fankarten, und daran passt
-// sich ein Spline an, statt sie zu heilen.
+// Kreuzvalidierung gemessen und ist SCHLECHTER: 2,30 gegen 1,24 Meilen Median. Der Rest ist
+// echte Zeichendifferenz zwischen zwei von Hand gemalten Fankarten, und daran passt sich ein
+// Spline an, statt sie zu heilen.
+//
+// 🔴 HIER STAND BIS ZUM 13.09.2026 EIN ZWEITER GRUND, DER KEINER WAR: "die Residuen
+// korrelieren null mit der Position (0,014 / 0,003 / -0,003 / -0,001), es gibt also keine
+// systematische Verzerrung". Diese vier Zahlen sind eine ALGEBRAISCHE IDENTITAET -- Residuen
+// kleinster Quadrate stehen auf jeder Spalte ihrer Entwurfsmatrix senkrecht, und die Spalten
+// SIND gx, gy und die Eins. Eine eingebaute Verzerrung von 36 Meilen Amplitude ergibt
+// dieselben vier Nullen (garetien-passpunkte-test.php §D). Die Kreuzvalidierung oben traegt
+// den Satz allein; ob es eine systematische Verzerrung gibt, misst die NACHBARPROBE in
+// garetien-passpunkte.php -- und diese Messung steht noch aus.
 //
 // Lauf: php -d zend.assertions=1 -d assert.exception=1 \
 //           api/_internal/import/__tests__/garetien-koordinaten-test.php

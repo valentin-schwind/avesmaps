@@ -123,11 +123,22 @@ nur Verschieben-und-Skalieren.
 ### 2.2 💣 Nicht warpen
 
 Thin-Plate-Spline wurde gemessen und ist **schlechter**: 2,30 Meilen Median gegen 1,24 bei
-affin, gleiche Kreuzvalidierung. Der Grund steht in den Residuen — sie korrelieren **null**
-mit der Position (0,014 / 0,003 / −0,003 / −0,001). Es gibt keine systematische Verzerrung,
-die man geradebiegen könnte; der Rest ist echte Zeichendifferenz zwischen zwei von Hand
+affin, gleiche Kreuzvalidierung. Der Rest ist echte Zeichendifferenz zwischen zwei von Hand
 gemalten Fankarten. Warping zieht die Geometrie dann an Rauschen. **Wer später doch warpt,
 muss diese Messung zuerst widerlegen.**
+
+🔴 **Und hier stand bis zum 13.09.2026 ein ZWEITER Beleg, der keiner war.** Der Satz lautete:
+„Der Grund steht in den Residuen — sie korrelieren **null** mit der Position (0,014 / 0,003 /
+−0,003 / −0,001). Es gibt keine systematische Verzerrung, die man geradebiegen könnte." Diese
+vier Zahlen sind eine **algebraische Identität**: die Residuen einer Kleinste-Quadrate-Anpassung
+stehen auf jeder Spalte ihrer Entwurfsmatrix senkrecht, und die Spalten *sind* `gx`, `gy` und
+die Eins. Sie müssen null sein, sonst hat der Löser nicht konvergiert. Nachgemessen: eine
+absichtlich eingebaute quadratische Verzerrung von **36 Meilen Amplitude** ergibt dieselben vier
+Nullen, auf fünf Stellen (`garetien-passpunkte-test.php` §D). Der Test konnte nie etwas finden.
+⚠️ Die Kreuzvalidierung oben bleibt davon unberührt — sie ist out-of-sample und trägt den Satz
+allein. Aber „es gibt keine systematische Verzerrung" ist **nicht belegt**, und die Frage der
+Editoren nach einer Nachkorrektur ist damit offen, nicht beantwortet. Gemessen wird sie mit der
+**Nachbarprobe**: `docs/superpowers/specs/2026-09-13-garetien-passpunkte-design.md`.
 
 ### 2.3 💣 Y wird gespiegelt
 
