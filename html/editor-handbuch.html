@@ -202,7 +202,7 @@
 <body>
 	<div class="hb-topbar">
 		<span class="hb-topbar__title">Avesmaps · Editor-Handbuch</span>
-		<span class="hb-topbar__meta">Stand: 13.09.2026</span>
+		<span class="hb-topbar__meta">Stand: 14.09.2026</span>
 		<div class="hb-topbar__actions">
 			<button type="button" class="theme-toggle-btn" aria-label="Auf dunkles Design umschalten" title="Design umschalten (hell/dunkel)">
 				<svg class="theme-toggle-ico theme-toggle-ico--sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2" /><g stroke-width="1.9" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="4.4" /><line x1="12" y1="19.6" x2="12" y2="22" /><line x1="2" y1="12" x2="4.4" y2="12" /><line x1="19.6" y1="12" x2="22" y2="12" /><line x1="4.9" y1="4.9" x2="6.6" y2="6.6" /><line x1="17.4" y1="17.4" x2="19.1" y2="19.1" /><line x1="4.9" y1="19.1" x2="6.6" y2="17.4" /><line x1="17.4" y1="6.6" x2="19.1" y2="4.9" /></g></svg>
@@ -959,6 +959,7 @@
 				<h5>Die vier Ebenen</h5>
 				<p>Oben auf der Karte steht der Ebenen-Schalter: <strong>Alle · Derographie · Vegetation · Topographie · Klimazonen</strong>. Immer nur <em>eine</em> Ebene nimmt Klicks entgegen — die, die dort ausgewählt ist. <strong>In „Alle" kannst du nicht bearbeiten.</strong> Wähl erst eine Ebene. Anklicken und Auswählen gehen dort, aber Flächenmenü, Ecken-Editor, „Neue Fläche" und <kbd>Strg</kbd>+<kbd>Z</kbd> fallen weg. Umschalten lädt nichts neu und wirft nichts weg.</p>
 				<div class="hb-note hb-tip"><strong>„Alle" zeigt nicht alles.</strong> Die <strong>Klimazonen</strong> bleiben dort ganz aus — ihre kartenbreiten Bänder legten sich sonst über alles andere. Die <strong>Derographie</strong> liegt ohne Füllung obenauf und nimmt keine Klicks; anfassbar ist dort nur ihr <em>Name</em>, der ihre Fläche zeigt. So kommst du an Wald und Gebirge darunter heran.</div>
+					<div class="hb-note hb-tip"><strong>Konturen siehst du nur beim Bearbeiten.</strong> Die Karte zeichnet die Kante einer Fläche nur, solange <em>eine</em> Ebene im Editiermodus offen ist. In „Alle" und für Besucher gibt es keine Kontur.</div>
 				<table class="hb-table">
 					<tr><th>Ebene</th><th>Was hineingehört</th></tr>
 					<tr><td><strong>Vegetation</strong></td><td>Wälder, Steppen, Sümpfe, Wüsten — der Bewuchs. Hier liegt die meiste Arbeit, deshalb ist sie vorausgewählt.</td></tr>
@@ -1045,50 +1046,86 @@
 				<p>Dazu: <strong>Doppelklick auf eine Zeile</strong> zoomt zur Region und hebt sie hervor — auch wenn sie gerade gar nicht im Bild liegt. <strong>Ziehen am Greifer ⠿</strong> legt die Reihenfolge von Hand. Das Suchfeld <em>„Region suchen"</em> filtert die Liste; <strong>solange gefiltert wird, ist das Ziehen aus</strong> und der Greifer verschwindet — man würde sonst eine Reihenfolge verschieben, von der man nur drei Zeilen sieht.</p>
 				<div class="hb-note hb-warn"><strong>Eine gesperrte Fläche sieht unverändert aus — sie nimmt nur keine Klicks mehr an.</strong> Sie reicht sie an das durch, was darunter liegt; ihr Schwebezettel bleibt. Genau deshalb wirkt sie wie ein Fehler („ich komme an den Wald nicht mehr heran"), und der <strong>Zähler am Knopf</strong> ist der einzige Ort, an dem eine Sperre sichtbar wird. Findest du eine Fläche nicht mehr, sieh zuerst dort nach. Nicht zu verwechseln mit der befristeten Bearbeitungssperre, die greift, wenn jemand anderes gerade an einem Objekt arbeitet.</div>
 				<div class="hb-note hb-tip"><strong>Das Auge ist nur eine Ansicht, die Sperre eine Eigenschaft.</strong> Was 👁 ausblendet, ist niemandem sonst weggenommen und mit dem nächsten Neuladen wieder da. Ein Streifen in der Landschaften-Leiste nennt die isolierte Region und trägt den Ausweg <strong>„Alle zeigen"</strong> — auch dann, wenn du das Fenster längst geschlossen hast.</div>
-				<h5>Das Bearbeiten-Fenster</h5>
-				<p>Fläche und Beschriftung stehen in <strong>einem</strong> Fenster. Sein Titel nennt die Ebene: <em>„Vegetation bearbeiten"</em>, <em>„Topographie bearbeiten"</em>, <em>„Derographie bearbeiten"</em>. Oben stehen <em>Name</em>, <em>Art</em> (aus der Vokabelliste genau dieser Ebene) und der Haken <em>Auto-Name</em> — sie gelten beiden Hälften. Darunter drei Reiter:</p>
-				<table class="hb-table">
-					<tr><th>Reiter</th><th>Was darin steht</th></tr>
-					<tr><td><strong>Fläche</strong></td><td>Das <strong>Gelände</strong> (siehe unten), die Höhenskala und die Haken <em>Auf der Karte anzeigen</em> und <em>Für Klicks gesperrt</em> (siehe <a href="#landschaften">Reihenfolge und Sperren</a>).</td></tr>
-					<tr><td><strong>Beschriftung</strong></td><td><em>Höhe (Schritt)</em>, <em>Nodix</em>, <em>Größe</em>, <em>Priorität</em>, „Sichtbar ab/bis Zoom" sowie <em>Kurvenbeschriftung</em> und <em>Anzahl Kurvenlabel</em> (siehe <a href="#regionen">Regionen</a>).</td></tr>
-					<tr><td><strong>Wiki &amp; Quellen</strong></td><td>Der <a href="#v-wiki">Zuweisungskasten</a> und die <strong>Quellen</strong>. Quellen wirken <strong>sofort</strong> — sie brauchen kein „Speichern".</td></tr>
-				</table>
-								<figure class="hb-shot">
-					<img src="screenshots/18-landschaft-wiki-quellen.png" width="420" alt="Das Fenster Vegetation bearbeiten fuer das Lilienmoor mit den drei Reitern Flaeche, Beschriftung und Wiki und Quellen; im offenen dritten Reiter der Kasten Wiki-Landschaft ohne Zuordnung und darunter der Kasten Quellen mit einer Quelle des Garetien-Wikis" />
-					<figcaption>Der Reiter <strong>„Wiki &amp; Quellen"</strong>. Oben die Zuweisung, darunter die Quellen — und der Hinweis, dass sie <em>sofort</em> wirken.</figcaption>
-				</figure>
-<div class="hb-note hb-tip"><strong>Die Quellen gehören der Fläche.</strong> Liegt unter einer Beschriftung eine Fläche, zeigt der Reiter deren Quellen — eintragen und löschen gilt dann für beide. Eine eigene Liste hat nur eine <em>freie</em> Beschriftung ohne Fläche.</div>
-				<p>Womit du das Fenster öffnest, bestimmt den offenen Reiter: über die Fläche (<em>„Eigenschaften …"</em>) der Reiter <em>Fläche</em>, über die Beschriftung der Reiter <em>Beschriftung</em>. <strong>„Speichern" schreibt beide Hälften.</strong> Der Löschknopf trifft nur die, deren Reiter offen ist — er heißt darum <strong>„Fläche löschen"</strong> oder <strong>„Beschriftung löschen"</strong> und verschwindet, wo es nichts zu löschen gibt.</p>
-				<p>Fehlt eine Hälfte, sagt ihr Reiter das: <em>„Diese Fläche trägt keine Beschriftung."</em> samt Knopf <strong>„Beschriftung anlegen"</strong>, oder <em>„Diese Beschriftung liegt auf keiner Fläche."</em>. Trägt eine Fläche mehrere Beschriftungen, wählst du oben im Reiter aus, welche.</p>
-				<div class="hb-note hb-warn"><strong>„Auto-Name" anhaken entfernt die Beschriftungen dieser Fläche.</strong> Ein Auto-Name ist interne Buchführung und gehört nicht auf die Karte. Das Fenster sagt es am Haken an, bevor du speicherst. Solange der Haken sitzt, ist „Beschriftung anlegen" gesperrt und nennt den Grund. Eine frisch gezeichnete Fläche bekommt aus demselben Grund keine Beschriftung — leg sie an, wenn der Name steht.</div>
-				<p>Der Reiter <em>Fläche</em> trägt darunter die <strong>Gebirgseinstellungen</strong>. Ihre Werte formen, wie sich die Landschaft anfühlt — und damit, wie lange man hindurch braucht. Offen stehen nur zwei Auswahlfelder; alles Übrige ist Feineinstellung und liegt in der Falte darunter.</p>
-				<ul class="hb-steps">
-					<li><strong>Morphologie</strong> — die <em>Form</em> des Gebirges. Zehn Vorlagen der geomorphologischen Systematik, vom <em>Kammgebirge</em> bis zum <em>Inselberg</em>, dazu der <em>Karst</em>; sie setzen alle elf Regler auf einmal. Jede trägt ihren Fachnamen — wer wissen will, wie sie gemeint ist, findet unter dem Namen ein Musterbeispiel: <em>Kammgebirge</em> das Riesengebirge, <em>Kettengebirge</em> die Alpen, <em>Massengebirge</em> den Harz, <em>Plateaugebirge</em> die Schwäbische Alb, <em>Inselberg</em> den Uluru.</li>
-					<li><strong>Höhenstufe</strong> — <em>Tiefland</em> bis <em>Hochgebirge</em>. Sie setzt nur die Kammhöhe und fasst keine Formregler an, die beiden Felder sind also in beliebiger Reihenfolge bedienbar.</li>
-					<li>In der Falte <strong>„Erosion und Feinabstimmung"</strong> stehen die elf Einzelregler, je ein Schieber mit <strong>Zahlenfeld</strong>: ziehen oder eintippen. Ihr Titel nennt die zuletzt angewandte Vorlage.</li>
-					<li>Sie stehen in drei Gruppen: <strong>Kamm und Form</strong>, <strong>Grundrauschen</strong>, <strong>Wasser und Täler</strong>. Innerhalb einer Gruppe ist die Reihenfolge die der <em>Rechnung</em> — stell von oben nach unten ein, dann überschreibt dir kein späterer Regler das Ergebnis eines vorherigen.</li>
-					<li>Unter jedem Schieber steht ein <strong>Dreieck</strong> — die Vorgabe dieser Vorlage. Weicht der Wert davon ab, erscheint rechts ein <strong>↺</strong>, das genau diesen einen Regler zurücksetzt.</li>
-					<li><strong>„Höhenfeld erzeugen"</strong> speichert die Werte <em>und</em> rechnet das Raster dieser Fläche neu, mit dem später die Routenplanung arbeitet. <strong>„Auf Automatik zurück"</strong> nimmt alle eigenen Werte weg.</li>
-				</ul>
-				<p>Ein <strong>grauer Regler ist nicht kaputt</strong> — er kann gerade nichts bewirken, und sein Titel nennt den Grund. Einstellen und speichern kannst du ihn trotzdem: Der Wert gilt, sobald seine Bedingung erfüllt ist.</p>
-				<table class="hb-table">
-					<tr><th>Wenn …</th><th>… sind grau</th></tr>
-					<tr><td><strong>„Stärke des Rauschens"</strong> steht auf 0</td><td>Zahl der Erhebungen · Feinheit des Rauschens</td></tr>
-					<tr><td>kein Fluss und kein See berührt die Fläche</td><td>Talbreite · Taltiefe</td></tr>
-					<tr><td>die Fläche hat keinen Gipfel</td><td>Ausstrahlung der Gipfel · Durchhang zwischen den Gipfeln</td></tr>
-				</table>
-				<figure class="hb-shot">
-					<img src="screenshots/20-morphologien.png" width="620" alt="Zehn Reliefbilder derselben Flaeche nebeneinander, jedes mit einer anderen Morphologie gerechnet: von einem durchgehenden Hauptkamm ueber verzweigte Grate und breite Massive bis zu einer fast ebenen Schildflaeche, aus der nur noch einzelne Restberge aufragen" />
-					<figcaption>Die zehn <strong>Morphologien</strong> auf <em>derselben</em> Fläche mit <em>denselben</em> sieben Gipfeln — nur die Vorlage ist verschieden.<br />
-					Obere Reihe: <em>Kammgebirge</em> · <em>Gratgebirge</em> · <em>Kettengebirge</em> · <em>Kuppengebirge</em> · <em>Massengebirge</em>.<br />
-					Untere Reihe: <em>Plateaugebirge</em> · <em>Rumpfgebirge</em> · <em>Schild</em> · <em>Inselberg</em> · <em>Karst</em>.<br />
-					Die Reihenfolge ist die des Auswahlfeldes: erst die fünf Formen <em>mit</em> Relief, dann die drei abgetragenen, dann der Einzelberg und der Sonderfall.</figcaption>
-				</figure>
-				<div class="hb-note hb-tip"><strong>Eine Vorlage ist ein Ausgangspunkt, keine Bindung.</strong> Sie schreibt ihre Werte in die Regler und ist damit erledigt — gespeichert werden die <em>Zahlen</em>. Ihr Name bleibt nur als Herkunftsangabe im Titel der Falte stehen und sagt den ↺-Knöpfen, wohin sie zurücksetzen. Änderst du danach einen Regler, bleibt die Vorlage stehen und das Dreieck zeigt, wovon du dich entfernt hast.</div>
-				<div class="hb-note hb-warn"><strong>Kein Gipfel und keine Kammlinie? Dann hat das Gelände keinen Anhaltspunkt.</strong> Die Regler bewegen dann fast nichts, weil die Fläche nichts hat, dem sie folgen könnte. In diesem Fall steht über den Knöpfen <strong>„Gebirgszug ermitteln"</strong> — er rechnet die Mittelachse der Fläche als Kammlinie. Das ist <em>nicht</em> dasselbe wie die Kurvenbeschriftung und schaltet sie auch nicht ein.</div>
-				<p>Bei einer <strong>Gebirgs</strong>fläche folgt die <strong>Höhenskala</strong>: ein Graubalken mit Achse in Schritt und den Gipfeln dieser Fläche an ihrer Stelle — die Ablesehilfe zu „hell ist hoch, dunkel ist niedrig". Sie ändert nichts an der Karte. <strong>Ihr hellster Ton ist der höchste Gipfel aller gerade geladenen Gebirgsflächen</strong>: dieselbe Fläche wirkt dunkler, sobald ein höherer Nachbar im Bild ist. Darunter steht die <strong>Durchschnittshöhe</strong> dieser Fläche als Zahl, und ein senkrechter Strich zeigt sie auf dem Balken — die Zahl, die im Wiki steht, lässt sich damit direkt vergleichen.</p>
-				<div class="hb-note hb-tip"><strong>Eine frisch eingeschaltete Kurve ist erst nach dem Rechnen zu sehen.</strong> Der gebogene Name liegt in einem Zwischenspeicher. Für <em>eine</em> Fläche füllt ihn <strong>„Labelkurve aktualisieren"</strong> im Untermenü <em>„Form ändern ▸"</em> — das darf jeder Editor, und der Eintrag erscheint nur dort, wo die Region die Kurvenbeschriftung anhat. Für den ganzen Bestand gibt es <strong>„Kurven"</strong> im Sammelmenü <em>„Rechnen ▾"</em> des Landschaften-Editors — auch das darf jeder Editor, und es dauert rund zwanzig Sekunden. Änderst du die Form einer Fläche, rechnet sich ihre Kurve beim Speichern selbst nach. Nur wenn <em>viele</em> Flächen auf einmal gewandert sind — nach einem Sammellauf oder einem Import —, bleibt der Rest liegen, bis jemand „Kurven" drückt.</div>
-				<div class="hb-note hb-tip"><strong>Die Ränder siehst du nur beim Bearbeiten.</strong> Eine Kontur wird nur gezeichnet, solange <em>eine</em> Ebene im Editiermodus offen ist — nicht in „Alle" und nicht für Besucher. „Im Frontend fehlen die Ränder" ist also die Regel, kein Fehler.</div>
+					<h5>Das Bearbeiten-Fenster</h5>
+					<p>Fläche und Beschriftung stehen in <strong>einem</strong> Fenster. Sein Titel nennt die Ebene, etwa <em>„Vegetation bearbeiten"</em>. Oben stehen <em>Name</em>, <em>Art</em> und der Haken <em>Auto-Name</em>. Sie gelten für beide Hälften. Darunter liegen drei Reiter:</p>
+					<table class="hb-table">
+						<tr><th>Reiter</th><th>Was darin steht</th></tr>
+						<tr><td><strong>Fläche</strong></td><td>Die <strong>Gebirgseinstellungen</strong> und die <strong>Höhenskala</strong> (siehe unten), dazu die Haken <em>Auf der Karte anzeigen</em> und <em>Für Klicks gesperrt</em> (siehe <a href="#landschaften">Reihenfolge und Sperren</a>).</td></tr>
+						<tr><td><strong>Beschriftung</strong></td><td><em>Höhe (Schritt)</em>, <em>Nodix</em>, <em>Größe</em>, <em>Priorität</em>, „Sichtbar ab/bis Zoom", <em>Kurvenbeschriftung</em> und <em>Anzahl Kurvenlabel</em> (siehe <a href="#regionen">Regionen</a>). Trägt die Fläche mehrere Beschriftungen, wählst du oben im Reiter, welche.</td></tr>
+						<tr><td><strong>Wiki &amp; Quellen</strong></td><td>Der <a href="#v-wiki">Zuweisungskasten</a> und die <strong>Quellen</strong>. Quellen wirken <strong>sofort</strong>, ohne „Speichern". Sie gehören der Fläche: Liegt eine Fläche unter der Beschriftung, gilt die Liste für beide.</td></tr>
+					</table>
+					<figure class="hb-shot">
+						<img src="screenshots/18-landschaft-wiki-quellen.png" width="420" alt="Das Fenster Vegetation bearbeiten fuer das Lilienmoor mit den drei Reitern Flaeche, Beschriftung und Wiki und Quellen; im offenen dritten Reiter der Kasten Wiki-Landschaft ohne Zuordnung und darunter der Kasten Quellen mit einer Quelle des Garetien-Wikis" />
+						<figcaption>Der Reiter <strong>„Wiki &amp; Quellen"</strong>. Oben die Zuweisung, darunter die Quellen — und der Hinweis, dass sie <em>sofort</em> wirken.</figcaption>
+					</figure>
+					<ul class="hb-steps">
+						<li><strong>Der Einstieg wählt den Reiter.</strong> <em>„Eigenschaften …"</em> im Flächenmenü öffnet <em>Fläche</em>, die Beschriftung öffnet <em>Beschriftung</em>.</li>
+						<li><strong>„Speichern"</strong> schreibt Fläche und Beschriftung.</li>
+						<li><strong>Der Löschknopf</strong> trifft nur den offenen Reiter. Er heißt <em>„Fläche löschen"</em> oder <em>„Beschriftung löschen"</em>.</li>
+						<li><strong>Fehlt eine Hälfte</strong>, sagt es ihr Reiter. Unter <em>Beschriftung</em> steht dann der Knopf <strong>„Beschriftung anlegen"</strong>.</li>
+						<li><strong>Eine neue Fläche hat keine Beschriftung.</strong> Leg sie an, wenn der Name steht.</li>
+					</ul>
+					<div class="hb-note hb-warn"><strong>„Auto-Name" entfernt beim Speichern alle Beschriftungen der Fläche.</strong> Das Fenster sagt es vorher am Haken an. Solange er sitzt, ist „Beschriftung anlegen" gesperrt.</div>
+					<h5>Gebirgseinstellungen</h5>
+					<p>Sie stehen im Reiter <em>Fläche</em>. Sie formen das Gelände und damit, wie lange man hindurch braucht. Offen stehen zwei Auswahlfelder:</p>
+					<ul class="hb-steps">
+						<li><strong>Morphologie</strong> — die Form des Gebirges. Zehn Vorlagen, vom <em>Kammgebirge</em> bis zum <em>Karst</em>. Eine Vorlage setzt alle elf Regler auf einmal. Zur Orientierung: <em>Kammgebirge</em> wie das Riesengebirge, <em>Kettengebirge</em> wie die Alpen, <em>Massengebirge</em> wie der Harz, <em>Plateaugebirge</em> wie die Schwäbische Alb, <em>Inselberg</em> wie der Uluru.</li>
+						<li><strong>Höhenstufe</strong> — <em>Tiefland</em> bis <em>Hochgebirge</em>. Sie setzt nur die Kammhöhe, nie die Form. Die Reihenfolge der beiden Felder ist egal.</li>
+					</ul>
+					<figure class="hb-shot">
+						<img src="screenshots/20-morphologien.png" width="620" alt="Zehn Reliefbilder derselben Flaeche nebeneinander, jedes mit einer anderen Morphologie gerechnet: von einem durchgehenden Hauptkamm ueber verzweigte Grate und breite Massive bis zu einer fast ebenen Schildflaeche, aus der nur noch einzelne Restberge aufragen" />
+						<figcaption>Die zehn <strong>Morphologien</strong> auf <em>derselben</em> Fläche mit <em>denselben</em> sieben Gipfeln, in der Reihenfolge des Auswahlfeldes.<br />
+						Oben: <em>Kammgebirge</em> · <em>Gratgebirge</em> · <em>Kettengebirge</em> · <em>Kuppengebirge</em> · <em>Massengebirge</em>.<br />
+						Unten: <em>Plateaugebirge</em> · <em>Rumpfgebirge</em> · <em>Schild</em> · <em>Inselberg</em> · <em>Karst</em>.</figcaption>
+					</figure>
+					<p>Die elf Regler liegen in der Falte <strong>„Erosion und Feinabstimmung"</strong>. Jeder hat einen Schieber und ein Zahlenfeld. Der Titel der Falte nennt die zuletzt gewählte Vorlage.</p>
+					<table class="hb-table">
+						<tr><th>Gruppe</th><th>Regler</th></tr>
+						<tr><td><strong>Kamm und Form</strong></td><td>Durchhang zwischen den Gipfeln · Kammhöhe (ohne Einzelgipfel) · Kammschärfe · Ausstrahlung der Gipfel · Massigkeit</td></tr>
+						<tr><td><strong>Grundrauschen</strong></td><td>Stärke des Rauschens · Zahl der Erhebungen · Feinheit des Rauschens</td></tr>
+						<tr><td><strong>Wasser und Täler</strong></td><td>Talbreite · Taltiefe · Rinnennetz</td></tr>
+					</table>
+					<ul class="hb-steps">
+						<li><strong>Stell von oben nach unten ein.</strong> Innerhalb einer Gruppe ist die Reihenfolge die der Rechnung. So überschreibt kein späterer Regler einen früheren.</li>
+						<li><strong>Das Dreieck</strong> unter dem Schieber zeigt die Vorgabe der Vorlage. Weichst du ab, setzt <strong>↺</strong> diesen einen Regler zurück.</li>
+						<li><strong>Gespeichert werden die Zahlen</strong>, nicht die Vorlage. Jeden Regler darfst du danach frei verstellen.</li>
+					</ul>
+					<table class="hb-table">
+						<tr><th>Knopf</th><th>Was er tut</th></tr>
+						<tr><td><strong>Höhenfeld erzeugen</strong></td><td>Speichert die Werte und rechnet das Höhenraster dieser Fläche neu. Mit diesem Raster arbeitet die Routenplanung.</td></tr>
+						<tr><td><strong>Auf Automatik zurück</strong></td><td>Nimmt alle eigenen Werte weg.</td></tr>
+						<tr><td><strong>Graustufen</strong></td><td>Zeigt das unbeleuchtete Höhenbild.</td></tr>
+						<tr><td><strong>Gebirgszug ermitteln</strong></td><td>Erscheint nur, wenn die Fläche weder Gipfel noch Kammlinie hat. Rechnet ihre Kammlinie. Die Kurvenbeschriftung bleibt davon unberührt.</td></tr>
+					</table>
+					<p>Ein <strong>grauer Regler</strong> wirkt gerade nicht. Sein Titel nennt den Grund. Speichern kannst du ihn trotzdem: Der Wert gilt, sobald die Bedingung erfüllt ist.</p>
+					<table class="hb-table">
+						<tr><th>Wenn …</th><th>… sind grau</th></tr>
+						<tr><td><strong>„Stärke des Rauschens"</strong> steht auf 0</td><td>Zahl der Erhebungen · Feinheit des Rauschens</td></tr>
+						<tr><td>kein Fluss und kein See berührt die Fläche</td><td>Talbreite · Taltiefe</td></tr>
+						<tr><td>die Fläche hat keinen Gipfel</td><td>Ausstrahlung der Gipfel · Durchhang zwischen den Gipfeln</td></tr>
+					</table>
+					<p>Über den Knöpfen erscheint bei Bedarf ein Hinweis:</p>
+					<table class="hb-table">
+						<tr><th>Hinweis</th><th>Was du tust</th></tr>
+						<tr><td><em>„… weder einen Gipfel noch eine Kammlinie"</em></td><td><strong>„Gebirgszug ermitteln"</strong> drücken. Bis dahin nutzt das Gelände die Mittelachse der Fläche.</td></tr>
+						<tr><td><em>„… keinen Gipfel und keine Kammhöhe — sie bleibt flach"</em></td><td>Eine Höhenstufe wählen oder eine Kammhöhe eintragen. Sonst bewegen die Regler nichts.</td></tr>
+					</table>
+					<h5>Höhenskala</h5>
+					<p>Bei einer <strong>Gebirgs</strong>fläche steht unter den Knöpfen die Höhenskala: ein Graubalken in Schritt, darauf die Gipfel der Fläche. Hell ist hoch, dunkel ist niedrig. Die Skala ändert nichts an der Karte.</p>
+					<ul class="hb-steps">
+						<li><strong>Der hellste Ton</strong> ist der höchste Gipfel aller geladenen Gebirgsflächen. Ein höherer Nachbar im Bild macht die Fläche dunkler.</li>
+						<li><strong>Die Durchschnittshöhe</strong> steht als Zahl darunter und als Strich auf dem Balken. So vergleichst du sie mit dem Wiki.</li>
+					</ul>
+					<h5>Die gebogene Beschriftung</h5>
+					<p>Den Haken <em>Kurvenbeschriftung</em> setzt du im Reiter <em>Beschriftung</em>. Zu sehen ist die Kurve erst, wenn sie gerechnet ist:</p>
+					<table class="hb-table">
+						<tr><th>Fall</th><th>So kommt die Kurve</th></tr>
+						<tr><td>Haken gesetzt</td><td><strong>„Speichern"</strong> im Bearbeiten-Fenster rechnet die Kurve dieser Region mit.</td></tr>
+						<tr><td>Ecken oder Umriss geändert</td><td>Flächenmenü → <em>„Form ändern ▸"</em> → <strong>„Labelkurve aktualisieren"</strong>. Der Eintrag steht nur bei eingeschalteter Kurvenbeschriftung.</td></tr>
+						<tr><td>Viele Flächen auf einmal, etwa nach einem Import</td><td>Landschaften-Editor → <em>„Rechnen ▾"</em> → <strong>„Kurven"</strong>. Das dauert einige Sekunden.</td></tr>
+					</table>
+					<p>Beides darf jeder Editor.</p>
+
 				<h5>Klimazonen: die Ausnahme</h5>
 				<p>Die vierte Ebene zeichnest du <strong>nicht</strong>. Ihre Bänder — Polar bis Tropisch, von Nord nach Süd — sind <em>abgeleitet</em>: du ziehst nur die <strong>Trennlinien</strong> dazwischen, und die Bänder werden bei jedem Speichern neu gerechnet. Deshalb kann es zwischen zwei Zonen weder Lücke noch Überlappung geben — ein Band <em>ist</em> der Raum zwischen zwei Linien.</p>
 				<ul class="hb-steps">
@@ -1879,12 +1916,12 @@
 				<div class="hb-note hb-tip"><strong>Einen Ort aus dem Wiki legst du mit <em>„Neuer Ort"</em> an.</strong> Fang an, den Namen zu tippen: Der Editor schlägt passende Wiki-Siedlungen vor und sagt bei jeder, ob sie schon mit einem Ort auf der Karte verbunden ist. Wählst du einen Vorschlag, ist die Wiki-Verknüpfung gleich gesetzt.</div>
 				<figure class="hb-shot">
 					<img src="screenshots/03-hinzufuegen.png" alt="Rechtsklick-Menue Hier hinzufuegen mit Untermenue Neuer Ort, Neue Kreuzung, Neuer Weg, Neues Label, Neues Herrschaftsgebiet" />
-					<figcaption>Rechtsklick → „Hier hinzufügen" mit den Anlege-Optionen. <em>(Die Aufnahme ist älter — sie zeigt noch den entfallenen Eintrag „Neuer Ort aus dem Wiki".)</em></figcaption>
+					<figcaption>Rechtsklick → „Hier hinzufügen" mit den Anlege-Optionen. <em>(Die Aufnahme ist veraltet: Einen Eintrag „Neuer Ort aus dem Wiki" gibt es nicht.)</em></figcaption>
 				</figure>
 				<h4>Das Gebiets-Menü</h4>
 				<p>Rechtsklick auf ein Herrschaftsgebiet, nur im Bearbeiten-Modus: Grenzen bearbeiten · Territoriumseditor öffnen · Grenzen berechnen · Orte hier zuordnen · Infobox anzeigen · <em>„Form ändern ▸"</em> (Verschieben, Gebiet zerschneiden) · <em>„Mit anderem Gebiet ▸"</em> (vereinigen, ausschneiden in drei Varianten) · Neues Gebiet herauslösen · Löschen. Die beiden Untermenüs heißen und wirken wie die des <a href="#landschaften">Flächenmenüs</a>.</p>
-				<div class="hb-note hb-tip"><strong>Stehen nur <em>drei</em> Einträge da, hast du eine verwaiste Außenhülle erwischt</strong> — eine berechnete Außengrenze, deren Quellflächen es nicht mehr gibt. Übrig bleiben <em>Territoriumseditor öffnen</em>, <em>Infobox anzeigen</em> und unten <strong>„Außenhülle löschen"</strong>; alles andere arbeitet auf einer Quellfläche und hätte hier nichts zu fassen. Ein Linksklick sagt es auch. Gesammelt stehen sie im Territorieneditor unter <strong>„🗑 Nicht zugewiesene Geometrie"</strong>.</div>
-				<div class="hb-note hb-tip"><strong><kbd>Strg</kbd>+Rechtsklick holt statt dessen das Karten-Menü</strong> — am Fuß des Gebiets-Menüs steht der Hinweis darauf. Wo die Karte flächendeckend mit Gebieten belegt ist, gäbe es sonst keine freie Stelle mehr, an der „Hierher reisen", „Entfernung messen", „Suchen" oder „Hier melden" noch zu erreichen wären. Bei den <a href="#landschaften">Landschaften</a> gibt es denselben Griff schon länger, und er tut dort dasselbe.</div>
+				<div class="hb-note hb-tip"><strong>Stehen nur <em>drei</em> Einträge da, hast du eine verwaiste Außenhülle erwischt</strong> — eine berechnete Außengrenze, deren Quellflächen es nicht mehr gibt. Übrig bleiben <em>Territoriumseditor öffnen</em>, <em>Infobox anzeigen</em> und unten <strong>„Außenhülle löschen"</strong>; alles andere arbeitet auf einer Quellfläche und hätte hier nichts zu fassen. Ein Linksklick sagt es auch. Gesammelt stehen sie im Fenster „Territorien bearbeiten" unter <strong>„🗑 Nicht zugewiesene Geometrie"</strong>.</div>
+				<div class="hb-note hb-tip"><strong><kbd>Strg</kbd>+Rechtsklick holt statt dessen das Karten-Menü.</strong> Am Fuß des Gebiets-Menüs steht der Hinweis darauf. So erreichst du „Hierher reisen", „Entfernung messen", „Auf Karte suchen" und „Hier etwas melden" auch dort, wo Gebiete die Karte ganz bedecken. Im Flächenmenü der <a href="#landschaften">Landschaften</a> wirkt derselbe Griff.</div>
 
 				<h3 id="n-kopfmenue" class="hb-sub">Das <span aria-hidden="true">☰</span>-Menü der Kopfzeile</h3>
 				<p>Oben rechts in der Editor-Hülle.</p>
@@ -1898,14 +1935,14 @@
 				</table>
 
 				<h4>Karte herunterladen</h4>
-				<p>Jeder Editor darf das. Die Seite baut eine <strong>bearbeitbare</strong> Vektordatei — jede Ebene eine Gruppe, jedes Element benannt — für Illustrator, Inkscape oder Affinity. Fünf Blöcke stellst du vorher ein:</p>
+				<p>Jeder Editor darf das. Die Seite baut eine <strong>bearbeitbare</strong> Vektordatei — jede Ebene eine Gruppe, jedes Element benannt — für Illustrator, Inkscape oder Affinity. Die Seite hat fünf Blöcke. Die ersten vier stellen deine Datei ein, <strong>„SVG erzeugen"</strong> baut sie:</p>
 				<table class="hb-table">
 					<tr><th>Block</th><th>Was du einstellst</th></tr>
 					<tr><td><strong>Für welches Programm?</strong></td><td>Illustrator liest Namen aus der <code>id</code>, Inkscape aus <code>inkscape:label</code> — eine Datei kann nur eines von beidem.</td></tr>
 					<tr><td><strong>Wie groß?</strong></td><td>Kantenlänge und Linienstärke. Dazu <em>Semantische Metadaten</em> (vorangehakt) und <em>Passmarken</em> für Photoshop.</td></tr>
 					<tr><td><strong>Glätten?</strong></td><td>Echte Kurven statt Polygonzug, getrennt für Linien und Flächen. Herrschaftsgebiete bleiben immer eckig.</td></tr>
 					<tr><td><strong>Welche Ebenen?</strong></td><td>Häkchen bis hinunter zu den Unterarten, jeweils mit der Zahl der Objekte, dazu Farbe und Kontur je Eintrag.</td></tr>
-					<tr><td><strong>Für die API hinterlegen</strong></td><td>Legt einen Abzug für die Schnittstelle auf dem Server ab. <strong>Deine Einstellungen gelten dafür nicht</strong> — der API-Abzug kommt immer gleich.</td></tr>
+					<tr><td><strong>Für die API hinterlegen</strong></td><td><strong>„Vollständigen Abzug hinterlegen"</strong> legt einen Abzug für die Schnittstelle auf dem Server ab. <strong>Deine Einstellungen gelten dafür nicht</strong> — der API-Abzug kommt immer gleich.</td></tr>
 				</table>
 				<div class="hb-note hb-tip"><strong>Die Datei baut dein Browser, nicht der Server.</strong> Rund 20&nbsp;MB Kartendaten wollen geladen werden — <strong>lass den Tab offen</strong>. Wer eine kleinere Datei will, hakt Ebenen ab: an der Kantenlänge liegt es nicht, eine Vektordatei speichert Formen und keine Bildpunkte.</div>
 
@@ -1921,7 +1958,7 @@
 				<div class="hb-note hb-warn"><strong>Editoren sehen den Link nicht.</strong> Ein voller Abzug enthält Passwort-Hashes, alle Teilen-Links und alle Meldungen.</div>
 
 				<h3 id="n-editoren" class="hb-sub">Die acht Sync-Editoren</h3>
-				<p>Alle acht öffnen sich aus dem Reiter <strong>WikiSync</strong> und sehen gleich aus: oben ein Menüband aus Kacheln, darunter Liste und Details. Die erste Kachel ist immer die scharfe Aktion und mit <strong>🚨</strong> markiert (beim Kraftlinien-Editor mit <strong>⚡</strong>).</p>
+				<p>Alle acht öffnen sich aus dem Reiter <strong>WikiSync</strong> und sehen gleich aus: oben ein Menüband aus Kacheln, darunter Liste und Details. Die erste Kachel ist die scharfe Aktion, markiert mit <strong>🚨</strong> (Kraftlinien: <strong>⚡</strong>). Ausnahme <strong>Vorkommen</strong>: Dort steht <strong>„🚨 Vorkommen syncen"</strong> im Reiter, nicht im Fenster.</p>
 				<figure class="hb-shot">
 					<img src="screenshots/16-menueband.png" alt="Das Menueband eines Sync-Editors mit Kacheln, jede mit Titel und Unterzeile, darunter die Syncen-Kachel und ein AN-AUS-Schalter" />
 					<figcaption>Ein <strong>Menüband</strong>: Kacheln mit Titel und erklärender Unterzeile. Links die <strong>🚨-Kachel</strong> (Betreiber-Aktion), rechts davon Werkzeuge und AN/AUS-Schalter.</figcaption>
@@ -1935,7 +1972,7 @@
 					<tr><td><strong>Vorkommen</strong></td><td>WikiSync → Vorkommen → „Vorkommen bearbeiten" oder <em>einfacher</em> Klick auf eine Zeile</td></tr>
 				</table>
 				<p><strong>Die Detailspalte steht überall in derselben Ordnung:</strong> Bild/Wappen/Cover · Identität · Eigenschaften · Wiki-Zuweisung · Quellen · <em>Speicherleiste</em> · Lage &amp; Zugehörigkeit. Die <strong>Speicherleiste ist dabei die Trennlinie</strong> — alles darüber bearbeitest du, alles darunter ist abgeleitet. Sie sieht überall gleich aus: Meldung links (<em>„Keine ungespeicherten Änderungen."</em>), Knöpfe rechts, der gefüllte zuletzt.</p>
-				<p>Wiederkehrende Kacheln: <strong>🔗 Links prüfen</strong> (prüft die Quellen-Links des jeweiligen Reiters), <strong>Vorschauen holen</strong> (holt Bilder nach, läuft in Etappen), das Wappen-Menü (bei Orten <strong>„Wappen &amp; Bilder ▾"</strong>, bei Territorien <strong>„Wappen ▾"</strong>) und die <strong>AN/AUS</strong>-Schalter fürs Frontend.</p>
+				<p>Wiederkehrende Kacheln: <strong>Links prüfen</strong> (prüft die Quellen-Links des jeweiligen Reiters), <strong>Vorschauen holen</strong> (holt Bilder nach, läuft in Etappen), das Wappen-Menü (bei Orten <strong>„Wappen &amp; Bilder ▾"</strong>, bei Territorien <strong>„Wappen ▾"</strong>) und die <strong>AN/AUS</strong>-Schalter fürs Frontend.</p>
 				<div class="hb-note hb-warn"><strong>Massenläufe nicht in Schleife anstoßen.</strong> „Vorschauen holen" und die Sync-Läufe arbeiten in Etappen und lassen jeweils nur <em>einen</em> Lauf gleichzeitig zu. Ein zweiter Klick bringt nichts außer Last auf dem Server — und der ist geteilt.</div>
 
 				<h3 id="n-glossar" class="hb-sub">Glossar</h3>
