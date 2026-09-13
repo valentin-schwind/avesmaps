@@ -413,7 +413,7 @@ jobs:
           # in Unterordner). Im Repo existieren sie nicht und keine Seite referenziert sie mehr.
           # Chirurgisches, idempotentes rm -f statt eines gefaehrlichen globalen --delete.
           echo "Retiring orphaned remote files:"
-          printf '  %s\n' "css/leaflet.css" "css/political-territory-wiki-tree.css" "icons/small_webp/ (retired: flattened into icons/)" "js/map-features/map-features-questroute.js (retired: adventures questroute dropped)" "css/features/questroute.css (retired: adventures questroute dropped)" "api/discord/sapi-probe.php (retired: temporaere Messung zur aufgeschobenen Antwort, 24.08.2026)"
+          printf '  %s\n' "css/leaflet.css" "css/political-territory-wiki-tree.css" "icons/small_webp/ (retired: flattened into icons/)" "js/map-features/map-features-questroute.js (retired: adventures questroute dropped)" "css/features/questroute.css (retired: adventures questroute dropped)" "api/discord/sapi-probe.php (retired: temporaere Messung zur aufgeschobenen Antwort, 24.08.2026)" "css/components/editor-spalten-reiter.css (retired: Telefon-Reiter des Territorien-Editors, zurueckgebaut 13.09.2026)" "js/ui/editor-spalten-reiter.js (retired: dito)"
 
           lftp -u "$AVESMAPS_USER","$AVESMAPS_PASSWORD" -p "$AVESMAPS_PORT" "sftp://$AVESMAPS_HOST" <<EOF || echo "Retire: some files already gone (non-fatal)."
           set sftp:auto-confirm yes
@@ -426,6 +426,8 @@ jobs:
           rm -f "js/map-features/map-features-questroute.js"
           rm -f "css/features/questroute.css"
           rm -f "api/discord/sapi-probe.php"
+          rm -f "css/components/editor-spalten-reiter.css"
+          rm -f "js/ui/editor-spalten-reiter.js"
           bye
           EOF
 
