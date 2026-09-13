@@ -210,18 +210,6 @@
 	border-bottom-color: var(--color-text-strong);
 }
 
-/* ---- Aus Spalten werden Reiter -------------------------------------------------------------
- * 🔴 Die Regeln dazu stehen in `css/components/editor-spalten-reiter.css`, dem Blatt zu
- *    `js/ui/editor-spalten-reiter.js` -- Bauteil und Stil unter demselben Namen.
- * 💣 SIE STANDEN HIER, UND DAS WAR DER FEHLER. Eine Editorseite erreicht diese Datei nur über
- *    `editor-page.css` und dessen `@import`; live gemessen am 13.09.2026 wirkte das JavaScript
- *    (Leiste gebaut, Sprung auf „Details" lief) und die geaenderte CSS-Regel nicht, waehrend eine
- *    NEUE Datei im selben Deploy sofort lief. Das eigene Blatt haengt mit einem eigenen `<link>`
- *    direkt an der Seite. Wer die Regeln hierher zurueckholt, holt die Kette mit.
- * ⚠️ `.avm-tabs` unten BLEIBT die Form der Leiste -- das Bauteil setzt beide Klassen. Seine eigene
- *    Regel gewinnt ueber Spezifitaet (`.avm-tabs.avm-spalten-reiter`, 0,2,0), nicht ueber die
- *    Ladereihenfolge; darum darf jenes Blatt vor oder nach diesem haengen. */
-
 /* ---- Row badges -----------------------------------------------------------------------------
  * Spec §3.1b: emphasise the EXCEPTION, not the classification. A classification stays quiet grey;
  * a real open point gets the warning tone (never --color-danger; red stays with actual errors).

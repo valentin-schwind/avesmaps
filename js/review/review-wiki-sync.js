@@ -3951,12 +3951,8 @@ window.openAvesmapsSyncEditorOverlay = window.openAvesmapsSyncEditorOverlay || f
 	// 💣 NICHT zusaetzlich avesmapsEditorDialogZiehbar rufen: das Fenster zoege dann doppelt so
 	//    weit wie der Zeiger (dieselbe Doppelanmeldung wie beim Sammelmenue im Menueband).
 	dialog.setAttribute("role", "dialog");
-	// 💣 DAS MASS STEHT IM CSS, NICHT HIER. Es stand bis zum 12.09.2026 als `dialog.style.width/
-	//    height` da -- und ein Inline-Style ist die eine Form, gegen die eine Media-Query nicht
-	//    gewinnt: css/components/political-territory-editor-overlay.css fuehrt fuer ≤680px seit
-	//    jeher „Fenster fuellt den Bildschirm", und fuer DIESES Fenster war die Regel deshalb
-	//    wirkungslos. Am Telefon blieb ein 24px-Rand um einen Inhalt, der jeden Pixel braucht.
-	//    Die Masse liegen jetzt unter `#avesmaps-sync-editor-overlay` in jener Datei.
+	dialog.style.width = "min(1400px, calc(100vw - 24px))";
+	dialog.style.height = "min(880px, calc(100vh - 24px))";
 	// 🔴 EIN Bauteil fuer alle sieben Fenster-Koepfe (js/ui/fenster-kopf.js). Hier stand bis zum
 	// 04.09.2026 eine von sieben Abschriften desselben Blocks.
 	// ⚠️ OHNE Handler: `closeOverlay` entsteht erst darunter, der Listener bleibt deshalb, wo er ist.

@@ -815,16 +815,6 @@
 	   dreimal verschieden), also stehen sie hier: tokens.css laden BEIDE Welten. Der Name ist
 	   die Stufe, nicht die Pixelzahl — --space-* trägt global +2px. */
 	--avm-control-h: 32px;                              /* Suchfeld, Eingabe, Auswahl, Knopf */
-	/* 🔴 DIE BEDIENHÖHE AM TASTBEDIENTEN GERÄT. 32px sind für einen Zeiger gedacht; ein Finger
-	   braucht 44 — und genau diese 44 standen am 12.09.2026 bereits an VIER Stellen im Haus,
-	   jede als eigene Zahl (css/components/media-license-fields.css, css/features/review-panel.css,
-	   css/features/place-extras.css zweimal). Eine fünfte wäre die Divergenz, die §12 verbietet.
-	   ⚠️ Sie gilt NUR unter `@media (hover: none) and (pointer: coarse)` — dieselbe Bedingung, mit
-	      der css/components/fenster.css den Zieh-Griff abnimmt. An einem Zeigergerät bleibt
-	      --avm-control-h die Höhe; 44px überall wäre ein anderes Produkt, nicht eine Verbesserung.
-	   ⚠️ Die vier Altstellen sind NICHT nachgezogen (unbestellter Umbau). Wer eine davon anfasst,
-	      holt sie hierher. */
-	--avm-touch-h: 44px;                                /* Touch-Ziel: Reiter, Kachel, Listenzeile */
 	/* 🔴 DER SEITENEINZUG IST ÜBERALL 14 (--space-12) — daran hängt die EINE Kante, durch die
 	   Kopfleiste, Menüband, Rumpf und Fußleiste eines Fensters senkrecht fluchten
 	   (docs/design-language.md §Fenster, Mockup docs/fensterformen-mockup.html).
