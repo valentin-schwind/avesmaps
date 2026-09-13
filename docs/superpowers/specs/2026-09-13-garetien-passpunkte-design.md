@@ -140,6 +140,7 @@ herbeimitteln, eine gemeinsame Richtung nicht.
 | `api/edit/map/garetien-import.php` → `action=passpunkte` | Der Messlauf. **Rein lesend**, außerhalb der Admin-Liste. |
 | `docs/garetien-passpunkte-mockup.html` | Das Bild samt zwei Vergleichsmaßstäben. |
 | `tools/garetien/passpunkte-mockup-daten.php` | Erzeugt die Mockup-Daten mit der echten Bibliothek. |
+| `tools/garetien/passpunkte-messen.js` | Der Messlauf zum Einfügen in die Browserkonsole. Gegen fünf Antwortformen im Browser gefahren. |
 
 🔴 **Der Abgleich wird nicht nachgebaut** — Namensnormalisierung und Typtabelle kommen aus
 `garetien-abgleich.php`.
@@ -163,21 +164,32 @@ es nicht, reist die Warnung in der Antwort mit.
 
 1. Im Garetien-Importer muss ein **Lauf im Staging liegen** („Dump holen" bzw. „Holen &
    Rechnen"). Gemessen wird ohne Angabe der jüngste.
-2. Als angemeldeter Editor gegen die Live-Seite:
+2. Auf avesmaps.de **als angemeldeter Editor** die Konsole öffnen (F12) und
+   **`tools/garetien/passpunkte-messen.js` ganz hineinkopieren**. Das Skript fährt den einen
+   Aufruf, liest die Antwort vor und legt sie in die Zwischenablage.
 
+   Wer es lieber von Hand tut:
    ```js
    await (await fetch("/api/edit/map/garetien-import.php", {
-     method: "POST",
-     headers: { "Content-Type": "application/json" },
+     method: "POST", headers: { "Content-Type": "application/json" },
      body: JSON.stringify({ action: "passpunkte" })
    })).json()
    ```
 3. **Zuerst `selbstpruefung` lesen.** Steht dort eine Warnung, ist die Lesart verdächtig und
-   nicht die Karte — dann nichts deuten, sondern §5 prüfen.
+   nicht die Karte — dann nichts deuten, sondern §5 prüfen. 💣 Das Skript **hält das Urteil in
+   diesem Fall zurück**: die erste Fassung warnte oben und setzte darunter trotzdem ein
+   sattgrünes „TRÄGT", und ein Banner schlägt eine Warnzeile drei Zeilen höher. Genau so
+   entstünde der Fehler, gegen den die Selbstprüfung gebaut ist.
 4. `bericht` sagt, wie viele Paare zustande kamen und wie viele Namen als mehrdeutig gefallen
    sind. Unter 20 Paaren gibt es kein Urteil.
 5. Die Antwort in `docs/garetien-passpunkte-mockup.html` unten einfügen → das Bild erscheint
    neben den zwei Vergleichsmaßstäben.
+
+⚠️ **Wenn nichts kommt, ist der Rohtext die Auskunft, nicht der JSON-Fehler.** Ein PHP-Fatal
+antwortet mit HTTP 200 und leerem Rumpf; `response.json()` wirft dann „Unexpected end of JSON
+input", und das liest sich wie ein Netzfehler. Das Skript zeigt deshalb immer erst den Rohtext.
+Der Zweig selbst wird von `garetien-passpunkte-endpunkt-test.php` wirklich ausgeführt (gegen
+eine SQLite-Attrappe), damit dieser Fall gar nicht erst eintritt.
 
 ⚠️ **Der Lauf ist teuer** (ein Durchgang über alle aktiven Ortspunkte). CLAUDE.md: auf STRATO
 nie einen schweren Endpunkt in der Schleife fahren — eine Anfrage, dann lesen.
@@ -202,7 +214,12 @@ nie einen schweren Endpunkt in der Schleife fahren — eine Anfrage, dann lesen.
 
 - **Die Messung selbst ist nicht gelaufen.** Diese Sitzung hatte keinen Zugang zu avesmaps.de
   (Netzregel der Umgebung: `CONNECT` auf `avesmaps.de:443` wird mit 403 abgewiesen) und auch
-  nicht zu garetien.de/koschwiki.de. Alles in §5 ist gegen SQLite-Attrappen und im Browser
+  nicht zu garetien.de/koschwiki.de — am 13.09.2026 zweimal nachgemessen, über HTTP wie über
+  HTTPS; selbst `www.google.com` wird abgewiesen, es ist also die Umgebung und nicht die Seite.
+  ⚠️ Und selbst mit Netz fehlte die **Sitzung**: der Endpunkt verlangt `edit`, und
+  `api/config.local.php` ist gitignored. Ein GitHub-Actions-Lauf käme zwar ans Netz, hätte aber
+  dasselbe Problem — für ihn bräuchte es erst einen eigenen Token wie bei `svg_export.token`.
+  Deshalb der Handgriff in §6: der Browser des Owners **hat** die Sitzung bereits. Alles in §5 ist gegen SQLite-Attrappen und im Browser
   gefahren, nichts gegen die echte Datenbank. **Die Zahlen in §3 stammen aus fünf Fixtures im
   Repo, sonst nichts.**
 - **Neun der elf gemeldeten Orte lassen sich hier gar nicht nachrechnen** — Hesindelburg,
