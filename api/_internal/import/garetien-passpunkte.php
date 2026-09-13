@@ -518,3 +518,74 @@ function avesmapsGaretienPasspunktGlobalerVersatz(array $residuen): array
         'n'              => $n,
     ];
 }
+
+// ---------------------------------------------------------------------------------------------
+// DAS URTEIL
+// ---------------------------------------------------------------------------------------------
+
+/** Unter so vielen Passpunkten wird gar nicht erst geurteilt. */
+const AVESMAPS_GARETIEN_PASSPUNKT_MINDESTZAHL = 20;
+
+/**
+ * Traegt eine Korrektur aus Fixpunkten -- ja oder nein?
+ *
+ * 🔴 DIE REGEL STEHT HIER UND NICHT IM MOCKUP. Sie ist eine Entscheidung, keine Darstellung:
+ * wer sie in JavaScript nachbaut, hat zwei Antworten auf dieselbe Frage, und die zweite
+ * pruefte niemand. Das Mockup zeichnet den Satz, den diese Funktion liefert.
+ *
+ * Zwei Schranken, und BEIDE muessen fallen:
+ *   - der Gewinn traegt mindestens ein Viertel des Ausgangsfehlers. Weniger lohnt das Risiko
+ *     nicht: eine Korrektur verschiebt auch die Orte, die heute richtig liegen.
+ *   - die Nachbarn sind sich ueber die RICHTUNG einig (Kosinus > 0,4). Ohne das ist ein
+ *     Gewinn Zufall -- man hat Rauschen gegen Rauschen gemittelt und einmal Glueck gehabt.
+ *
+ * ⚠️ Die zweite Schranke ist die wichtigere. Ein Gewinn allein laesst sich mit genuegend
+ * Nachbarn fast immer herbeimitteln; eine gemeinsame Richtung nicht.
+ *
+ * @return array{stufe:string,satz:string}
+ */
+function avesmapsGaretienPasspunktUrteil(array $probe, int $anzahl): array
+{
+    if ($anzahl < AVESMAPS_GARETIEN_PASSPUNKT_MINDESTZAHL) {
+        return [
+            'stufe' => 'zu_wenig',
+            'satz'  => sprintf(
+                '%d Passpunkte sind zu wenig fuer eine Aussage -- gebraucht werden mindestens %d.',
+                $anzahl,
+                AVESMAPS_GARETIEN_PASSPUNKT_MINDESTZAHL
+            ),
+        ];
+    }
+
+    $vorher = (float) ($probe['vorher_median'] ?? 0.0);
+    $gewinn = (float) ($probe['gewinn_median'] ?? 0.0);
+    $einig  = (float) ($probe['uebereinstimmung'] ?? 0.0);
+
+    if ($vorher > 0.0 && $gewinn > 0.25 * $vorher && $einig > 0.4) {
+        return [
+            'stufe' => 'traegt',
+            'satz'  => sprintf(
+                'Eine Korrektur aus Fixpunkten TRAEGT: sie senkt den Fehler an Orten, die gar '
+                . 'nicht gemessen wurden, von %.2f auf %.2f Meilen, und die Nachbarn sind sich '
+                . 'ueber die Richtung einig (%.2f).',
+                $vorher,
+                (float) $probe['nachher_median'],
+                $einig
+            ),
+        ];
+    }
+
+    return [
+        'stufe' => 'traegt_nicht',
+        'satz'  => sprintf(
+            'Eine Korrektur aus Fixpunkten TRAEGT NICHT: an ungemessenen Orten geht der Fehler '
+            . 'von %.2f nur auf %.2f Meilen, und die Nachbarn sind sich ueber die Richtung %s '
+            . '(%.2f). Der Versatz ist dann Zeichendifferenz zweier von Hand gemalter Karten -- '
+            . 'wer ihn wegrechnet, verschiebt die Orte, die heute richtig liegen.',
+            $vorher,
+            (float) ($probe['nachher_median'] ?? 0.0),
+            $einig > 0.4 ? 'zwar einig' : 'NICHT einig',
+            $einig
+        ),
+    ];
+}

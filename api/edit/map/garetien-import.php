@@ -160,6 +160,12 @@ try {
                 },
                 [3, 5, 8]
             ),
+            // 🔴 Das Urteil kommt aus der Bibliothek, nicht aus dem Browser -- die Regel,
+            // ab wann eine Korrektur traegt, ist eine Entscheidung und gehoert an EINE Stelle.
+            'urteil'           => avesmapsGaretienPasspunktUrteil(
+                avesmapsGaretienPasspunktNachbarprobe($residuen, 5),
+                count($residuen)
+            ),
             'globaler_versatz' => avesmapsGaretienPasspunktGlobalerVersatz($residuen),
             'west_sued_trend'  => avesmapsGaretienPasspunktWestSuedTrend($residuen),
         ]);

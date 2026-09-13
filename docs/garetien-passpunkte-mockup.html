@@ -1,0 +1,2947 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — Passpunkte: traegt eine Korrektur aus Fixpunkten?</title>
+<style>
+/* Farben, Grade, Abstände und Radien stammen 1:1 aus css/base/tokens.css (helles Thema).
+   ⚠️ Dieses Mockup ist ein MESSWERKZEUG zur Abnahme (13.09.2026) und trägt bewusst KEINE
+      bindende VERTRAG-Marke -- es soll eine Frage beantworten, nicht eine Oberfläche festlegen.
+   🔴 Blau kommt nur dort vor, wo es DATEN kodiert (die Vergleichsbilder), nie im Chrome.
+   🔴 ES RECHNET NICHTS. Jede Zahl unten kommt aus api/_internal/import/garetien-passpunkte.php,
+      ausgerechnet von tools/garetien/passpunkte-mockup-daten.php. Eine zweite Fassung der
+      Rechnung in JavaScript wäre die zweite Wahrheit aus AGENTS.md §5. */
+@font-face { font-family: "Faculty Glyphic"; src: url("../fonts/FacultyGlyphic-Regular.woff2") format("woff2"); font-display: swap; }
+:root {
+	--font-ui: "Faculty Glyphic", "Arial", sans-serif;
+	--font-size-caption: 11px; --font-size-small: 12px; --font-size-body: 13px;
+	--font-size-reading: 14px; --font-size-subhead: 16px; --font-size-title: 20px;
+	--leading-snug: 1.25; --leading-normal: 1.45;
+	--font-weight-regular: 400; --font-weight-bold: 700;
+	--color-page-bg: #f3f0e8; --color-panel: #fffdf9; --color-panel-soft: #faf6ee;
+	--color-panel-muted: #f1ece1;
+	--color-text: #2e271e; --color-text-strong: #3c3327; --color-text-muted: #706557;
+	--color-border: #ddd3c3; --color-border-strong: #cdbfa8; --color-divider: rgba(125,115,96,.30);
+	--color-button: #5b5548; --color-button-border: #635b4d; --color-button-text: #f6efe1;
+	--color-button-soft: #efe9db; --color-button-soft-text: #564b3b; --color-button-soft-border: #cdbda0;
+	--color-button-soft-hover: #e7ddc9;
+	--color-accent: #bfa03a; --color-accent-strong: #9c7f22; --color-accent-brown: #7a5a2c;
+	--color-link: #8f7326;
+	--color-pill: #f3ecd9; --color-pill-border: #d7c7a2; --color-pill-text: #675024;
+	--color-danger: #9d3a2e; --color-danger-soft: #fbeae6; --color-danger-soft-border: #d3a79c; --color-danger-soft-text: #7f2e24;
+	--color-success: #2f7d3a; --color-success-soft: #eef6e2; --color-success-soft-border: #a9c07f; --color-success-soft-text: #3c5a1c;
+	--color-warning: #b8860b; --color-warning-soft: #faeeda; --color-warning-soft-border: #ef9f27; --color-warning-soft-text: #854f0b;
+	--color-map-ground: #ece4d2; --color-garetien-unsere: #b8367a;
+	--radius-sm: 4px; --radius-md: 6px; --radius-lg: 10px;
+	--space-2: 4px; --space-4: 6px; --space-6: 8px; --space-8: 10px; --space-10: 12px;
+	--space-12: 14px; --space-16: 18px; --space-20: 22px; --space-24: 26px;
+}
+* { box-sizing: border-box; }
+body { margin: 0; padding: var(--space-16); background: var(--color-page-bg);
+	color: var(--color-text); font: var(--font-weight-regular) var(--font-size-body)/var(--leading-normal) var(--font-ui); }
+.wrap { max-width: 1180px; margin: 0 auto; }
+h1 { font-size: var(--font-size-title); margin: 0 0 var(--space-4); color: var(--color-text-strong); }
+h2 { font-size: var(--font-size-subhead); margin: 0 0 var(--space-8); color: var(--color-text-strong); }
+.sub { color: var(--color-text-muted); margin: 0 0 var(--space-16); font-size: var(--font-size-reading); }
+.karte-panel, .panel { background: var(--color-panel); border: 1px solid var(--color-border);
+	border-radius: var(--radius-lg); padding: var(--space-12); margin-bottom: var(--space-12); }
+.hinweis { border-left: 3px solid var(--color-warning-soft-border); background: var(--color-warning-soft);
+	color: var(--color-warning-soft-text); padding: var(--space-8) var(--space-10);
+	border-radius: var(--radius-sm); font-size: var(--font-size-small); margin-bottom: var(--space-12); }
+.hinweis b { color: inherit; }
+.reihe { display: flex; flex-wrap: wrap; gap: var(--space-6); margin-bottom: var(--space-12); }
+button { font: inherit; cursor: pointer; border-radius: var(--radius-md); padding: 0 var(--space-12);
+	height: 32px; background: var(--color-button-soft); color: var(--color-button-soft-text);
+	border: 1px solid var(--color-button-soft-border); }
+button:hover { background: var(--color-button-soft-hover); }
+button[aria-pressed="true"] { background: var(--color-button); color: var(--color-button-text);
+	border-color: var(--color-button-border); }
+.gitter { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: var(--space-12); }
+@media (max-width: 900px) { .gitter { grid-template-columns: minmax(0, 1fr); } }
+svg.karte { width: 100%; height: auto; display: block; background: var(--color-map-ground);
+	border-radius: var(--radius-md); border: 1px solid var(--color-border-strong); }
+.urteil { border-radius: var(--radius-md); padding: var(--space-10) var(--space-12);
+	font-size: var(--font-size-reading); line-height: var(--leading-normal); margin-bottom: var(--space-10); }
+.urteil--traegt { background: var(--color-success-soft); border: 1px solid var(--color-success-soft-border); color: var(--color-success-soft-text); }
+.urteil--traegt_nicht { background: var(--color-danger-soft); border: 1px solid var(--color-danger-soft-border); color: var(--color-danger-soft-text); }
+.urteil--zu_wenig { background: var(--color-panel-muted); border: 1px solid var(--color-border-strong); color: var(--color-text-muted); }
+.urteil b { display: block; font-size: var(--font-size-small); text-transform: uppercase;
+	letter-spacing: .04em; margin-bottom: var(--space-2); }
+table { width: 100%; border-collapse: collapse; font-size: var(--font-size-small); }
+th, td { text-align: left; padding: var(--space-4) var(--space-6); border-bottom: 1px solid var(--color-divider); }
+th { color: var(--color-text-muted); font-weight: var(--font-weight-regular); font-size: var(--font-size-caption);
+	text-transform: uppercase; letter-spacing: .04em; }
+td.zahl, th.zahl { text-align: right; font-variant-numeric: tabular-nums; }
+.pille { display: inline-block; background: var(--color-pill); border: 1px solid var(--color-pill-border);
+	color: var(--color-pill-text); border-radius: 999px; padding: 1px var(--space-6); font-size: var(--font-size-caption); }
+.erklaerung { color: var(--color-text-muted); font-size: var(--font-size-small); margin: 0 0 var(--space-10); }
+.echt-marke { background: var(--color-accent); color: #2e271e; border-radius: var(--radius-sm);
+	padding: 1px var(--space-4); font-size: var(--font-size-caption); font-weight: var(--font-weight-bold); }
+.regler { display: flex; align-items: center; gap: var(--space-8); font-size: var(--font-size-small);
+	color: var(--color-text-muted); margin-top: var(--space-8); }
+.regler input { flex: 1 1 auto; accent-color: var(--color-accent-strong); }
+textarea { width: 100%; min-height: 90px; font: var(--font-size-caption)/1.4 ui-monospace, monospace;
+	border: 1px solid var(--color-border-strong); border-radius: var(--radius-sm); padding: var(--space-6);
+	background: var(--color-panel-soft); color: var(--color-text); resize: vertical; }
+.fehler { color: var(--color-danger); font-size: var(--font-size-small); margin-top: var(--space-4); min-height: 1.2em; }
+.legende { display: flex; flex-wrap: wrap; gap: var(--space-12); font-size: var(--font-size-caption);
+	color: var(--color-text-muted); margin-top: var(--space-8); }
+.legende span { display: inline-flex; align-items: center; gap: var(--space-4); }
+.swatch { width: 22px; height: 3px; border-radius: 2px; display: inline-block; }
+code { background: var(--color-panel-muted); border-radius: var(--radius-sm); padding: 0 3px;
+	font-family: ui-monospace, monospace; font-size: .95em; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Passpunkte — trägt eine Korrektur aus Fixpunkten?</h1>
+<p class="sub">Die Editoren melden Versätze an einzelnen Orten und wollen daraus eine Korrekturmatrix
+bauen. Die Frage davor lautet: trägt so eine Korrektur auch dorthin, wo <em>kein</em> Fixpunkt liegt?
+Diese Seite zeigt, wie die Antwort aussieht — und woran man sie erkennt.</p>
+
+<div class="hinweis" id="echtheit"></div>
+
+<div class="reihe" id="schalter" role="group" aria-label="Datensatz"></div>
+
+<div class="gitter">
+	<div class="karte-panel">
+		<h2>Die Versätze auf der Karte</h2>
+		<p class="erklaerung" id="karte-erklaerung"></p>
+		<svg class="karte" id="karte" viewBox="0 0 640 420" role="img" aria-label="Passpunkte mit Versatzpfeilen"></svg>
+		<div class="regler">
+			<label for="lupe">Pfeile überhöht</label>
+			<input type="range" id="lupe" min="1" max="40" value="12">
+			<span id="lupe-wert" class="pille">12×</span>
+		</div>
+		<div class="legende">
+			<span><span class="swatch" style="background:var(--color-garetien-unsere)"></span> gemessener Versatz</span>
+			<span><span class="swatch" style="background:var(--color-accent-strong)"></span> aus den Nachbarn geschätzt</span>
+			<span>⚠️ y wächst bei uns nach <b>Norden</b> und im Bild nach unten — die Karte ist gespiegelt gezeichnet.</span>
+		</div>
+	</div>
+
+	<div>
+		<div class="panel">
+			<h2>Das Urteil</h2>
+			<div class="urteil" id="urteil"></div>
+			<table>
+				<thead><tr><th>Nachbarn</th><th class="zahl">vorher</th><th class="zahl">nachher</th>
+					<th class="zahl">besser</th><th class="zahl">Einigkeit</th></tr></thead>
+				<tbody id="probe-tabelle"></tbody>
+			</table>
+			<p class="erklaerung" style="margin-top:var(--space-8)">
+				<b>vorher / nachher</b> = Median des Fehlers in Meilen, bevor und nachdem jeder Ort
+				aus <em>seinen Nachbarn</em> korrigiert wurde — er selbst zählt dabei nie mit.
+				<b>Einigkeit</b> = zeigen die Nachbarn in dieselbe Richtung (1 = ja, 0 = gar nicht)?
+			</p>
+		</div>
+
+		<div class="panel">
+			<h2>Die Behauptung „je weiter Westen, desto weiter Süden“</h2>
+			<div id="trend"></div>
+		</div>
+
+		<div class="panel">
+			<h2>Eigene Messung einsetzen</h2>
+			<p class="erklaerung">Die Antwort von
+				<code>POST /api/edit/map/garetien-import.php</code> mit
+				<code>{"action":"passpunkte"}</code> hier einfügen — sie enthält alles, was diese
+				Seite zeichnet.</p>
+			<textarea id="einfuegen" placeholder='{"ok":true,"residuen":[…],"nachbarprobe":[…],"urteil":{…}}'></textarea>
+			<div class="reihe" style="margin:var(--space-6) 0 0">
+				<button type="button" id="einlesen">Einlesen</button>
+			</div>
+			<div class="fehler" id="einlesen-fehler"></div>
+		</div>
+	</div>
+</div>
+
+<div class="panel">
+	<h2>Die gemeldeten Orte</h2>
+	<p class="erklaerung">Was die Editoren am 13.09.2026 im Gespräch genannt haben, und was davon
+		sich im Repo nachrechnen ließ. <span class="echt-marke">gemessen</span> heißt: die Zahl
+		steht daneben, weil der Ort einer der fünf Passpunkte ist, die dieses Repo kennt.</p>
+	<table>
+		<thead><tr><th>Ort</th><th>gemeldet</th><th>nachgerechnet</th><th class="zahl">Betrag</th></tr></thead>
+		<tbody id="meldungen"></tbody>
+	</table>
+</div>
+
+<script>
+"use strict";
+
+/* 🔴 HIER WIRD NICHT GERECHNET. Die Daten kommen aus tools/garetien/passpunkte-mockup-daten.php,
+   das die echte Bibliothek api/_internal/import/garetien-passpunkte.php fährt. Wer hier eine
+   Formel ergänzt, baut die zweite Wahrheit aus AGENTS.md §5 -- sie liefe beim ersten Nachbessern
+   auseinander, und niemand sähe es. */
+
+/* ══ DATEN-ANFANG (erzeugt, nicht von Hand geschrieben) ══ */
+const DATEN = [
+    {
+        "schluessel": "echt",
+        "titel": "Die fuenf echten Passpunkte",
+        "erklaerung": "Alles, was dieses Repo an echten Ortspaaren kennt. Fuer eine Aussage ueber die Karte sind fuenf Punkte zu wenig -- sie stehen hier, weil Greifenfurt genau die Richtung zeigt, die ein Editor gemeldet hat.",
+        "echt": true,
+        "residuen": [
+            {
+                "name": "Ferdok",
+                "ax": 492.9689,
+                "ay": 524.6855,
+                "dx": -0.0547,
+                "dy": -0.9001,
+                "betrag": 0.9018,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Rommilys",
+                "ax": 597.0851,
+                "ay": 536.792,
+                "dx": 0.0228,
+                "dy": -0.5552,
+                "betrag": 0.5557,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Zwerch",
+                "ax": 589.1852,
+                "ay": 542.4375,
+                "dx": 0.357,
+                "dy": -0.2763,
+                "betrag": 0.4514,
+                "richtung": "kein"
+            },
+            {
+                "name": "Beilunk",
+                "ax": 678.0139,
+                "ay": 534.8756,
+                "dx": -0.725,
+                "dy": -3.0839,
+                "betrag": 3.168,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Greifenfurt",
+                "ax": 507.5221,
+                "ay": 584.8536,
+                "dx": 1.3166,
+                "dy": -1.0624,
+                "betrag": 1.6918,
+                "richtung": "SuedOst"
+            }
+        ],
+        "nachbarprobe": [
+            {
+                "k": 3,
+                "vorher_median": 0.9017562591914725,
+                "nachher_median": 0.7795661503213124,
+                "vorher_p90": 2.5775077707973635,
+                "nachher_p90": 2.18787913810535,
+                "gewinn_median": 0.12219010887016013,
+                "anteil_besser": 0.8,
+                "uebereinstimmung": 0.7243393313334838
+            },
+            {
+                "k": 4,
+                "vorher_median": 0.9017562591914725,
+                "nachher_median": 0.6303296163049034,
+                "vorher_p90": 2.5775077707973635,
+                "nachher_p90": 2.1551180760281996,
+                "gewinn_median": 0.27142664288656915,
+                "anteil_besser": 0.8,
+                "uebereinstimmung": 0.761218808581817
+            },
+            {
+                "k": 4,
+                "vorher_median": 0.9017562591914725,
+                "nachher_median": 0.6303296163049034,
+                "vorher_p90": 2.5775077707973635,
+                "nachher_p90": 2.1551180760281996,
+                "gewinn_median": 0.27142664288656915,
+                "anteil_besser": 0.8,
+                "uebereinstimmung": 0.761218808581817
+            }
+        ],
+        "schaetzung": [
+            {
+                "sx": 0.5137,
+                "sy": -1.0148
+            },
+            {
+                "sx": 0.2987,
+                "sy": -0.6353
+            },
+            {
+                "sx": 0.0589,
+                "sy": -0.8317
+            },
+            {
+                "sx": 0.3296,
+                "sy": -0.6011
+            },
+            {
+                "sx": -0.0202,
+                "sy": -0.95
+            }
+        ],
+        "urteil": {
+            "stufe": "zu_wenig",
+            "satz": "5 Passpunkte sind zu wenig fuer eine Aussage -- gebraucht werden mindestens 20."
+        },
+        "globaler_versatz": {
+            "vorher_median": 0.9017562591914725,
+            "nachher_median": 1.1448917115377386,
+            "gewinn_median": -0.2431354523462661,
+            "versatz_dx": 0.18335593298927505,
+            "versatz_dy": -1.175592253014679,
+            "n": 5
+        },
+        "west_sued_trend": {
+            "steigung_je_100_meilen": -0.29601959749661266,
+            "sued_je_100_west": -0.29601959749661266,
+            "p_wert": 0.3241689577605599,
+            "n": 5,
+            "ost_west_spanne_meilen": 555.1349400000001
+        }
+    },
+    {
+        "schluessel": "rauschen",
+        "titel": "Vergleichsbild: Zeichenrauschen",
+        "erklaerung": "Erfundene Daten. Jeder Ort weicht zufaellig ab, unabhaengig von seinem Nachbarn -- so sieht es aus, wenn zwei Karten von Hand gemalt wurden und KEINE Korrektur hilft.",
+        "echt": false,
+        "residuen": [
+            {
+                "name": "Ort 1",
+                "ax": 472.585,
+                "ay": 508.184,
+                "dx": -1.8337,
+                "dy": -0.6127,
+                "betrag": 1.9333,
+                "richtung": "West"
+            },
+            {
+                "name": "Ort 2",
+                "ax": 473.26,
+                "ay": 520.275,
+                "dx": 0.0354,
+                "dy": 0.3569,
+                "betrag": 0.3586,
+                "richtung": "kein"
+            },
+            {
+                "name": "Ort 3",
+                "ax": 475.996,
+                "ay": 529.02,
+                "dx": -1.7236,
+                "dy": 0.7108,
+                "betrag": 1.8644,
+                "richtung": "NordWest"
+            },
+            {
+                "name": "Ort 4",
+                "ax": 468.796,
+                "ay": 541.524,
+                "dx": -0.66,
+                "dy": 0.6325,
+                "betrag": 0.9142,
+                "richtung": "NordWest"
+            },
+            {
+                "name": "Ort 5",
+                "ax": 471.982,
+                "ay": 555.351,
+                "dx": -1.4575,
+                "dy": 0.4343,
+                "betrag": 1.5208,
+                "richtung": "West"
+            },
+            {
+                "name": "Ort 6",
+                "ax": 467.77,
+                "ay": 568.961,
+                "dx": 1.6672,
+                "dy": 1.2095,
+                "betrag": 2.0597,
+                "richtung": "NordOst"
+            },
+            {
+                "name": "Ort 7",
+                "ax": 469.021,
+                "ay": 576.621,
+                "dx": 0.8831,
+                "dy": -0.2497,
+                "betrag": 0.9177,
+                "richtung": "Ost"
+            },
+            {
+                "name": "Ort 8",
+                "ax": 473.674,
+                "ay": 589.916,
+                "dx": 1.8546,
+                "dy": -0.5778,
+                "betrag": 1.9425,
+                "richtung": "Ost"
+            },
+            {
+                "name": "Ort 9",
+                "ax": 485.653,
+                "ay": 507.351,
+                "dx": 0.5166,
+                "dy": 0.4292,
+                "betrag": 0.6716,
+                "richtung": "NordOst"
+            },
+            {
+                "name": "Ort 10",
+                "ax": 487.561,
+                "ay": 515.816,
+                "dx": -0.254,
+                "dy": -1.4657,
+                "betrag": 1.4875,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 11",
+                "ax": 486.58,
+                "ay": 529.167,
+                "dx": 0.5942,
+                "dy": -1.455,
+                "betrag": 1.5717,
+                "richtung": "SuedOst"
+            },
+            {
+                "name": "Ort 12",
+                "ax": 487.642,
+                "ay": 545.017,
+                "dx": 1.2253,
+                "dy": -0.7,
+                "betrag": 1.4111,
+                "richtung": "SuedOst"
+            },
+            {
+                "name": "Ort 13",
+                "ax": 488.902,
+                "ay": 555.89,
+                "dx": -1.7316,
+                "dy": 1.2742,
+                "betrag": 2.1499,
+                "richtung": "NordWest"
+            },
+            {
+                "name": "Ort 14",
+                "ax": 489.415,
+                "ay": 566.077,
+                "dx": 1.0514,
+                "dy": 0.5491,
+                "betrag": 1.1861,
+                "richtung": "NordOst"
+            },
+            {
+                "name": "Ort 15",
+                "ax": 487.03,
+                "ay": 575.921,
+                "dx": 0.4466,
+                "dy": 0.919,
+                "betrag": 1.0218,
+                "richtung": "NordOst"
+            },
+            {
+                "name": "Ort 16",
+                "ax": 489.343,
+                "ay": 588.18,
+                "dx": -1.7483,
+                "dy": 0.2426,
+                "betrag": 1.765,
+                "richtung": "West"
+            },
+            {
+                "name": "Ort 17",
+                "ax": 505.93,
+                "ay": 504.901,
+                "dx": -0.0587,
+                "dy": -0.2424,
+                "betrag": 0.2495,
+                "richtung": "kein"
+            },
+            {
+                "name": "Ort 18",
+                "ax": 503.689,
+                "ay": 518.336,
+                "dx": 0.8095,
+                "dy": -0.2568,
+                "betrag": 0.8493,
+                "richtung": "Ost"
+            },
+            {
+                "name": "Ort 19",
+                "ax": 503.905,
+                "ay": 529.608,
+                "dx": -1.3907,
+                "dy": -1.231,
+                "betrag": 1.8573,
+                "richtung": "SuedWest"
+            },
+            {
+                "name": "Ort 20",
+                "ax": 503.995,
+                "ay": 538.913,
+                "dx": -1.8136,
+                "dy": -0.1137,
+                "betrag": 1.8172,
+                "richtung": "West"
+            },
+            {
+                "name": "Ort 21",
+                "ax": 511.573,
+                "ay": 553.79,
+                "dx": 1.5091,
+                "dy": 0.3702,
+                "betrag": 1.5538,
+                "richtung": "Ost"
+            },
+            {
+                "name": "Ort 22",
+                "ax": 504.472,
+                "ay": 568.149,
+                "dx": -1.7164,
+                "dy": 1.8876,
+                "betrag": 2.5513,
+                "richtung": "NordWest"
+            },
+            {
+                "name": "Ort 23",
+                "ax": 509.8,
+                "ay": 576.782,
+                "dx": -1.7923,
+                "dy": 0.8286,
+                "betrag": 1.9745,
+                "richtung": "NordWest"
+            },
+            {
+                "name": "Ort 24",
+                "ax": 511.438,
+                "ay": 593.465,
+                "dx": 1.5152,
+                "dy": 0.8676,
+                "betrag": 1.746,
+                "richtung": "NordOst"
+            },
+            {
+                "name": "Ort 25",
+                "ax": 524.236,
+                "ay": 506.35,
+                "dx": 1.2436,
+                "dy": -0.2393,
+                "betrag": 1.2664,
+                "richtung": "Ost"
+            },
+            {
+                "name": "Ort 26",
+                "ax": 524.83,
+                "ay": 520.17,
+                "dx": -1.1244,
+                "dy": -0.3821,
+                "betrag": 1.1876,
+                "richtung": "West"
+            },
+            {
+                "name": "Ort 27",
+                "ax": 521.968,
+                "ay": 529.286,
+                "dx": 0.0665,
+                "dy": -1.2614,
+                "betrag": 1.2631,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 28",
+                "ax": 522.355,
+                "ay": 538.766,
+                "dx": 0.0042,
+                "dy": 0.0603,
+                "betrag": 0.0604,
+                "richtung": "kein"
+            },
+            {
+                "name": "Ort 29",
+                "ax": 526.54,
+                "ay": 551.459,
+                "dx": -1.4182,
+                "dy": 0.3009,
+                "betrag": 1.4497,
+                "richtung": "West"
+            },
+            {
+                "name": "Ort 30",
+                "ax": 521.509,
+                "ay": 566.378,
+                "dx": 0.0817,
+                "dy": 1.7247,
+                "betrag": 1.7267,
+                "richtung": "Nord"
+            },
+            {
+                "name": "Ort 31",
+                "ax": 525.739,
+                "ay": 580.513,
+                "dx": -1.0351,
+                "dy": 0.6579,
+                "betrag": 1.2265,
+                "richtung": "NordWest"
+            },
+            {
+                "name": "Ort 32",
+                "ax": 526.441,
+                "ay": 587.291,
+                "dx": -1.1192,
+                "dy": -0.6072,
+                "betrag": 1.2733,
+                "richtung": "SuedWest"
+            },
+            {
+                "name": "Ort 33",
+                "ax": 543.334,
+                "ay": 504.082,
+                "dx": 0.4165,
+                "dy": -0.2041,
+                "betrag": 0.4638,
+                "richtung": "kein"
+            },
+            {
+                "name": "Ort 34",
+                "ax": 543.019,
+                "ay": 518.448,
+                "dx": 0.4347,
+                "dy": 1.7149,
+                "betrag": 1.7691,
+                "richtung": "Nord"
+            },
+            {
+                "name": "Ort 35",
+                "ax": 542.308,
+                "ay": 526.955,
+                "dx": 0.5976,
+                "dy": 0.5236,
+                "betrag": 0.7946,
+                "richtung": "NordOst"
+            },
+            {
+                "name": "Ort 36",
+                "ax": 546.133,
+                "ay": 540.726,
+                "dx": -0.1522,
+                "dy": -1.7849,
+                "betrag": 1.7914,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 37",
+                "ax": 539.815,
+                "ay": 552.796,
+                "dx": 1.4491,
+                "dy": 0.2055,
+                "betrag": 1.4636,
+                "richtung": "Ost"
+            },
+            {
+                "name": "Ort 38",
+                "ax": 545.242,
+                "ay": 564.096,
+                "dx": -0.5253,
+                "dy": 0.5297,
+                "betrag": 0.746,
+                "richtung": "NordWest"
+            },
+            {
+                "name": "Ort 39",
+                "ax": 547.438,
+                "ay": 575.102,
+                "dx": 1.0298,
+                "dy": 0.5883,
+                "betrag": 1.186,
+                "richtung": "NordOst"
+            },
+            {
+                "name": "Ort 40",
+                "ax": 541.021,
+                "ay": 587.305,
+                "dx": 1.5626,
+                "dy": -1.4418,
+                "betrag": 2.1262,
+                "richtung": "SuedOst"
+            },
+            {
+                "name": "Ort 41",
+                "ax": 564.691,
+                "ay": 508.499,
+                "dx": 1.4486,
+                "dy": -1.0197,
+                "betrag": 1.7715,
+                "richtung": "SuedOst"
+            },
+            {
+                "name": "Ort 42",
+                "ax": 561.685,
+                "ay": 520.142,
+                "dx": -1.7649,
+                "dy": 1.5564,
+                "betrag": 2.3531,
+                "richtung": "NordWest"
+            },
+            {
+                "name": "Ort 43",
+                "ax": 561.541,
+                "ay": 527.13,
+                "dx": -1.0555,
+                "dy": 0.7572,
+                "betrag": 1.299,
+                "richtung": "NordWest"
+            },
+            {
+                "name": "Ort 44",
+                "ax": 560.488,
+                "ay": 539.648,
+                "dx": -1.148,
+                "dy": -0.4429,
+                "betrag": 1.2305,
+                "richtung": "West"
+            },
+            {
+                "name": "Ort 45",
+                "ax": 559.471,
+                "ay": 551.438,
+                "dx": -1.7109,
+                "dy": 1.4035,
+                "betrag": 2.2129,
+                "richtung": "NordWest"
+            },
+            {
+                "name": "Ort 46",
+                "ax": 565.051,
+                "ay": 562.941,
+                "dx": -1.372,
+                "dy": -1.2356,
+                "betrag": 1.8463,
+                "richtung": "SuedWest"
+            },
+            {
+                "name": "Ort 47",
+                "ax": 564.187,
+                "ay": 579.323,
+                "dx": -0.7084,
+                "dy": 0.4109,
+                "betrag": 0.819,
+                "richtung": "NordWest"
+            },
+            {
+                "name": "Ort 48",
+                "ax": 560.335,
+                "ay": 593.346,
+                "dx": -1.303,
+                "dy": 0.6881,
+                "betrag": 1.4736,
+                "richtung": "NordWest"
+            },
+            {
+                "name": "Ort 49",
+                "ax": 578.92,
+                "ay": 507.547,
+                "dx": -1.6461,
+                "dy": -1.0171,
+                "betrag": 1.9349,
+                "richtung": "SuedWest"
+            },
+            {
+                "name": "Ort 50",
+                "ax": 581.035,
+                "ay": 519.274,
+                "dx": -1.5038,
+                "dy": -1.0873,
+                "betrag": 1.8557,
+                "richtung": "SuedWest"
+            },
+            {
+                "name": "Ort 51",
+                "ax": 581.062,
+                "ay": 532.282,
+                "dx": -1.7208,
+                "dy": -1.2706,
+                "betrag": 2.1391,
+                "richtung": "SuedWest"
+            },
+            {
+                "name": "Ort 52",
+                "ax": 578.164,
+                "ay": 538.675,
+                "dx": 0.3526,
+                "dy": 1.431,
+                "betrag": 1.4738,
+                "richtung": "Nord"
+            },
+            {
+                "name": "Ort 53",
+                "ax": 580.378,
+                "ay": 553.972,
+                "dx": -0.9327,
+                "dy": 1.2264,
+                "betrag": 1.5408,
+                "richtung": "NordWest"
+            },
+            {
+                "name": "Ort 54",
+                "ax": 578.893,
+                "ay": 567.344,
+                "dx": 1.3272,
+                "dy": 1.157,
+                "betrag": 1.7607,
+                "richtung": "NordOst"
+            },
+            {
+                "name": "Ort 55",
+                "ax": 576.184,
+                "ay": 580.87,
+                "dx": -1.4872,
+                "dy": 1.5113,
+                "betrag": 2.1203,
+                "richtung": "NordWest"
+            },
+            {
+                "name": "Ort 56",
+                "ax": 583.618,
+                "ay": 586.892,
+                "dx": -0.1848,
+                "dy": -0.8467,
+                "betrag": 0.8666,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 57",
+                "ax": 597.838,
+                "ay": 502.563,
+                "dx": 0.2074,
+                "dy": 1.6446,
+                "betrag": 1.6577,
+                "richtung": "Nord"
+            },
+            {
+                "name": "Ort 58",
+                "ax": 597.649,
+                "ay": 521.36,
+                "dx": 0.8518,
+                "dy": -0.5412,
+                "betrag": 1.0092,
+                "richtung": "SuedOst"
+            },
+            {
+                "name": "Ort 59",
+                "ax": 599.251,
+                "ay": 533.451,
+                "dx": -0.2522,
+                "dy": 1.43,
+                "betrag": 1.4521,
+                "richtung": "Nord"
+            },
+            {
+                "name": "Ort 60",
+                "ax": 594.517,
+                "ay": 542.476,
+                "dx": 0.0428,
+                "dy": 0.7541,
+                "betrag": 0.7553,
+                "richtung": "Nord"
+            },
+            {
+                "name": "Ort 61",
+                "ax": 596.866,
+                "ay": 553.916,
+                "dx": -1.2265,
+                "dy": 0.6631,
+                "betrag": 1.3942,
+                "richtung": "NordWest"
+            },
+            {
+                "name": "Ort 62",
+                "ax": 600.466,
+                "ay": 565.839,
+                "dx": 0.2469,
+                "dy": 0.7124,
+                "betrag": 0.754,
+                "richtung": "Nord"
+            },
+            {
+                "name": "Ort 63",
+                "ax": 598.792,
+                "ay": 574.612,
+                "dx": -0.7177,
+                "dy": -1.5123,
+                "betrag": 1.674,
+                "richtung": "SuedWest"
+            },
+            {
+                "name": "Ort 64",
+                "ax": 594.445,
+                "ay": 587.697,
+                "dx": 1.3167,
+                "dy": 0.347,
+                "betrag": 1.3617,
+                "richtung": "Ost"
+            },
+            {
+                "name": "Ort 65",
+                "ax": 618.763,
+                "ay": 504.418,
+                "dx": 0.6403,
+                "dy": -0.7088,
+                "betrag": 0.9552,
+                "richtung": "SuedOst"
+            },
+            {
+                "name": "Ort 66",
+                "ax": 620.329,
+                "ay": 517.034,
+                "dx": 0.6851,
+                "dy": -0.1622,
+                "betrag": 0.7041,
+                "richtung": "Ost"
+            },
+            {
+                "name": "Ort 67",
+                "ax": 618.088,
+                "ay": 531.393,
+                "dx": 1.7087,
+                "dy": 0.6938,
+                "betrag": 1.8441,
+                "richtung": "NordOst"
+            },
+            {
+                "name": "Ort 68",
+                "ax": 618.034,
+                "ay": 544.618,
+                "dx": -1.0349,
+                "dy": 0.8903,
+                "betrag": 1.3652,
+                "richtung": "NordWest"
+            },
+            {
+                "name": "Ort 69",
+                "ax": 612.553,
+                "ay": 557.052,
+                "dx": -0.265,
+                "dy": 0.661,
+                "betrag": 0.7121,
+                "richtung": "NordWest"
+            },
+            {
+                "name": "Ort 70",
+                "ax": 612.886,
+                "ay": 566.868,
+                "dx": -1.2884,
+                "dy": 0.3856,
+                "betrag": 1.3449,
+                "richtung": "West"
+            },
+            {
+                "name": "Ort 71",
+                "ax": 613.858,
+                "ay": 581.059,
+                "dx": -0.0265,
+                "dy": -0.5694,
+                "betrag": 0.57,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 72",
+                "ax": 618.565,
+                "ay": 591.4,
+                "dx": -0.881,
+                "dy": 1.353,
+                "betrag": 1.6146,
+                "richtung": "NordWest"
+            },
+            {
+                "name": "Ort 73",
+                "ax": 635.827,
+                "ay": 505.356,
+                "dx": 1.2346,
+                "dy": -1.5875,
+                "betrag": 2.0111,
+                "richtung": "SuedOst"
+            },
+            {
+                "name": "Ort 74",
+                "ax": 630.886,
+                "ay": 516.194,
+                "dx": 0.0979,
+                "dy": 1.5641,
+                "betrag": 1.5672,
+                "richtung": "Nord"
+            },
+            {
+                "name": "Ort 75",
+                "ax": 636.484,
+                "ay": 531.736,
+                "dx": 0.1698,
+                "dy": 0.0445,
+                "betrag": 0.1756,
+                "richtung": "kein"
+            },
+            {
+                "name": "Ort 76",
+                "ax": 631.156,
+                "ay": 540.544,
+                "dx": 0.4939,
+                "dy": 1.4268,
+                "betrag": 1.5099,
+                "richtung": "Nord"
+            },
+            {
+                "name": "Ort 77",
+                "ax": 633.703,
+                "ay": 556.569,
+                "dx": -0.4654,
+                "dy": 1.3725,
+                "betrag": 1.4493,
+                "richtung": "Nord"
+            },
+            {
+                "name": "Ort 78",
+                "ax": 637.24,
+                "ay": 567.127,
+                "dx": -0.1381,
+                "dy": 0.0672,
+                "betrag": 0.1536,
+                "richtung": "kein"
+            },
+            {
+                "name": "Ort 79",
+                "ax": 637.942,
+                "ay": 579.148,
+                "dx": -1.6893,
+                "dy": -1.5664,
+                "betrag": 2.3037,
+                "richtung": "SuedWest"
+            },
+            {
+                "name": "Ort 80",
+                "ax": 630.148,
+                "ay": 593.241,
+                "dx": -1.4791,
+                "dy": 1.594,
+                "betrag": 2.1746,
+                "richtung": "NordWest"
+            },
+            {
+                "name": "Ort 81",
+                "ax": 647.608,
+                "ay": 504.138,
+                "dx": -0.0808,
+                "dy": -1.3997,
+                "betrag": 1.402,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 82",
+                "ax": 648.598,
+                "ay": 520.212,
+                "dx": 0.3547,
+                "dy": -0.9132,
+                "betrag": 0.9797,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 83",
+                "ax": 655.969,
+                "ay": 527.207,
+                "dx": 1.1604,
+                "dy": 0.4408,
+                "betrag": 1.2414,
+                "richtung": "Ost"
+            },
+            {
+                "name": "Ort 84",
+                "ax": 653.224,
+                "ay": 539.445,
+                "dx": -1.1893,
+                "dy": 0.0323,
+                "betrag": 1.1898,
+                "richtung": "West"
+            },
+            {
+                "name": "Ort 85",
+                "ax": 650.182,
+                "ay": 557.024,
+                "dx": 0.0543,
+                "dy": 0.3978,
+                "betrag": 0.4015,
+                "richtung": "kein"
+            },
+            {
+                "name": "Ort 86",
+                "ax": 648.58,
+                "ay": 569.297,
+                "dx": -1.6525,
+                "dy": -1.6217,
+                "betrag": 2.3153,
+                "richtung": "SuedWest"
+            },
+            {
+                "name": "Ort 87",
+                "ax": 654.997,
+                "ay": 580.492,
+                "dx": 0.6622,
+                "dy": -1.0219,
+                "betrag": 1.2177,
+                "richtung": "SuedOst"
+            },
+            {
+                "name": "Ort 88",
+                "ax": 652.972,
+                "ay": 589.923,
+                "dx": 0.4778,
+                "dy": 0.5746,
+                "betrag": 0.7473,
+                "richtung": "NordOst"
+            }
+        ],
+        "nachbarprobe": [
+            {
+                "k": 3,
+                "vorher_median": 1.4495105723783934,
+                "nachher_median": 1.6129672437934373,
+                "vorher_p90": 2.122060562085874,
+                "nachher_p90": 2.4315230947442923,
+                "gewinn_median": -0.16345667141504383,
+                "anteil_besser": 0.42045454545454547,
+                "uebereinstimmung": 0.04798697647408772
+            },
+            {
+                "k": 5,
+                "vorher_median": 1.4495105723783934,
+                "nachher_median": 1.4838002776657615,
+                "vorher_p90": 2.122060562085874,
+                "nachher_p90": 2.3841281825301524,
+                "gewinn_median": -0.03428970528736808,
+                "anteil_besser": 0.45454545454545453,
+                "uebereinstimmung": 0.09377940231726435
+            },
+            {
+                "k": 8,
+                "vorher_median": 1.4495105723783934,
+                "nachher_median": 1.4005341251044636,
+                "vorher_p90": 2.122060562085874,
+                "nachher_p90": 2.294011409238649,
+                "gewinn_median": 0.0489764472739298,
+                "anteil_besser": 0.45454545454545453,
+                "uebereinstimmung": 0.1011662342698954
+            }
+        ],
+        "schaetzung": [
+            {
+                "sx": -0.1009,
+                "sy": -0.1603
+            },
+            {
+                "sx": -0.7711,
+                "sy": -0.3656
+            },
+            {
+                "sx": 0.1622,
+                "sy": -0.4562
+            },
+            {
+                "sx": -0.4545,
+                "sy": -0.0261
+            },
+            {
+                "sx": 0.2812,
+                "sy": 0.6435
+            },
+            {
+                "sx": 0.4906,
+                "sy": 0.1231
+            },
+            {
+                "sx": 1.0108,
+                "sy": 0.6078
+            },
+            {
+                "sx": 0.3305,
+                "sy": 0.4491
+            },
+            {
+                "sx": -0.3836,
+                "sy": -0.6394
+            },
+            {
+                "sx": 0.124,
+                "sy": -0.2321
+            },
+            {
+                "sx": -0.5187,
+                "sy": -0.3836
+            },
+            {
+                "sx": -1.0623,
+                "sy": 0.2348
+            },
+            {
+                "sx": 0.185,
+                "sy": 0.4488
+            },
+            {
+                "sx": -0.702,
+                "sy": 0.9142
+            },
+            {
+                "sx": 0.0551,
+                "sy": 0.3805
+            },
+            {
+                "sx": 1.1083,
+                "sy": 0.3242
+            },
+            {
+                "sx": 0.3561,
+                "sy": -0.3595
+            },
+            {
+                "sx": -0.6286,
+                "sy": -0.9154
+            },
+            {
+                "sx": -0.2374,
+                "sy": -0.5195
+            },
+            {
+                "sx": 0.1249,
+                "sy": -0.6678
+            },
+            {
+                "sx": -0.9977,
+                "sy": 0.793
+            },
+            {
+                "sx": 0.0441,
+                "sy": 0.8584
+            },
+            {
+                "sx": -0.5799,
+                "sy": 1.0698
+            },
+            {
+                "sx": -1.4571,
+                "sy": 0.5041
+            },
+            {
+                "sx": -0.1517,
+                "sy": -0.1102
+            },
+            {
+                "sx": 0.4515,
+                "sy": -0.0719
+            },
+            {
+                "sx": -0.6991,
+                "sy": -0.2251
+            },
+            {
+                "sx": -0.5151,
+                "sy": -0.342
+            },
+            {
+                "sx": 0.6385,
+                "sy": 0.2283
+            },
+            {
+                "sx": -0.8888,
+                "sy": 0.7911
+            },
+            {
+                "sx": -0.2485,
+                "sy": 0.096
+            },
+            {
+                "sx": -0.1031,
+                "sy": 0.4635
+            },
+            {
+                "sx": 0.4564,
+                "sy": 0.5824
+            },
+            {
+                "sx": -0.3152,
+                "sy": 0.4256
+            },
+            {
+                "sx": -0.209,
+                "sy": 0.0978
+            },
+            {
+                "sx": -0.2592,
+                "sy": 0.4371
+            },
+            {
+                "sx": -0.7604,
+                "sy": 0.0238
+            },
+            {
+                "sx": -0.0457,
+                "sy": 0.296
+            },
+            {
+                "sx": -0.3116,
+                "sy": -0.1946
+            },
+            {
+                "sx": -0.5146,
+                "sy": 0.3308
+            },
+            {
+                "sx": -1.2396,
+                "sy": 0.1098
+            },
+            {
+                "sx": -0.3759,
+                "sy": 0.0948
+            },
+            {
+                "sx": -0.8522,
+                "sy": 0.2592
+            },
+            {
+                "sx": -0.9072,
+                "sy": 0.6311
+            },
+            {
+                "sx": -0.5155,
+                "sy": -0.617
+            },
+            {
+                "sx": -0.5231,
+                "sy": 0.9857
+            },
+            {
+                "sx": -0.5157,
+                "sy": 0.5944
+            },
+            {
+                "sx": -0.0267,
+                "sy": 0.0915
+            },
+            {
+                "sx": -0.2037,
+                "sy": -0.0984
+            },
+            {
+                "sx": -0.7322,
+                "sy": -0.5788
+            },
+            {
+                "sx": -0.088,
+                "sy": 0.5632
+            },
+            {
+                "sx": -1.1878,
+                "sy": -0.3667
+            },
+            {
+                "sx": -0.0896,
+                "sy": 0.6131
+            },
+            {
+                "sx": -1.0001,
+                "sy": 0.2993
+            },
+            {
+                "sx": 0.059,
+                "sy": 0.2254
+            },
+            {
+                "sx": -0.1126,
+                "sy": 0.549
+            },
+            {
+                "sx": -0.1995,
+                "sy": -0.7191
+            },
+            {
+                "sx": -0.6303,
+                "sy": 0.3805
+            },
+            {
+                "sx": 0.0305,
+                "sy": 0.0854
+            },
+            {
+                "sx": -0.7327,
+                "sy": 0.7676
+            },
+            {
+                "sx": -0.3323,
+                "sy": 0.7588
+            },
+            {
+                "sx": -0.775,
+                "sy": -0.1775
+            },
+            {
+                "sx": 0.089,
+                "sy": 0.1415
+            },
+            {
+                "sx": -0.4397,
+                "sy": -0.3448
+            },
+            {
+                "sx": 0.73,
+                "sy": 0.3234
+            },
+            {
+                "sx": 0.7328,
+                "sy": 0.1766
+            },
+            {
+                "sx": -0.0135,
+                "sy": 0.7112
+            },
+            {
+                "sx": 0.3469,
+                "sy": 1.0676
+            },
+            {
+                "sx": -0.8222,
+                "sy": 0.735
+            },
+            {
+                "sx": -0.3118,
+                "sy": 0.0622
+            },
+            {
+                "sx": -0.8572,
+                "sy": 0.5268
+            },
+            {
+                "sx": -0.6699,
+                "sy": 0.158
+            },
+            {
+                "sx": 0.2801,
+                "sy": -0.2529
+            },
+            {
+                "sx": 0.6684,
+                "sy": -0.6743
+            },
+            {
+                "sx": 0.3172,
+                "sy": 0.6689
+            },
+            {
+                "sx": -0.1008,
+                "sy": 0.5852
+            },
+            {
+                "sx": -0.3682,
+                "sy": 0.2563
+            },
+            {
+                "sx": -0.7995,
+                "sy": -0.4626
+            },
+            {
+                "sx": -0.4676,
+                "sy": -0.1101
+            },
+            {
+                "sx": -0.5986,
+                "sy": 0.0632
+            },
+            {
+                "sx": 0.7414,
+                "sy": -0.4492
+            },
+            {
+                "sx": 0.5752,
+                "sy": -0.1096
+            },
+            {
+                "sx": -0.1675,
+                "sy": -0.2784
+            },
+            {
+                "sx": 0.5075,
+                "sy": 0.2738
+            },
+            {
+                "sx": -0.6969,
+                "sy": -0.2816
+            },
+            {
+                "sx": -0.2645,
+                "sy": -0.2169
+            },
+            {
+                "sx": -0.5553,
+                "sy": -0.423
+            },
+            {
+                "sx": -0.5979,
+                "sy": -0.6886
+            }
+        ],
+        "urteil": {
+            "stufe": "traegt_nicht",
+            "satz": "Eine Korrektur aus Fixpunkten TRAEGT NICHT: an ungemessenen Orten geht der Fehler von 1.45 nur auf 1.48 Meilen, und die Nachbarn sind sich ueber die Richtung NICHT einig (0.09). Der Versatz ist dann Zeichendifferenz zweier von Hand gemalter Karten -- wer ihn wegrechnet, verschiebt die Orte, die heute richtig liegen."
+        },
+        "globaler_versatz": {
+            "vorher_median": 1.4495105723783934,
+            "nachher_median": 1.4141590697182416,
+            "gewinn_median": 0.03535150266015186,
+            "versatz_dx": -0.20399544318180576,
+            "versatz_dy": 0.14613439772724943,
+            "n": 88
+        },
+        "west_sued_trend": {
+            "steigung_je_100_meilen": -0.014905481203114588,
+            "sued_je_100_west": -0.014905481203114588,
+            "p_wert": 0.8157960509872532,
+            "n": 88,
+            "ost_west_spanne_meilen": 564.5970000000002
+        }
+    },
+    {
+        "schluessel": "feld",
+        "titel": "Vergleichsbild: ein zusammenhaengendes Feld",
+        "erklaerung": "Erfundene Daten. Der Versatz wandert glatt ueber die Karte, genau wie der Editor es vermutet -- so sieht es aus, wenn eine Korrektur aus Fixpunkten WIRKLICH traegt.",
+        "echt": false,
+        "residuen": [
+            {
+                "name": "Ort 1",
+                "ax": 469.858,
+                "ay": 507.183,
+                "dx": 0.0032,
+                "dy": -20.4091,
+                "betrag": 20.4091,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 2",
+                "ax": 468.454,
+                "ay": 516.082,
+                "dx": -0.7485,
+                "dy": -20.6697,
+                "betrag": 20.6833,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 3",
+                "ax": 476.212,
+                "ay": 526.934,
+                "dx": 0.2504,
+                "dy": -18.8431,
+                "betrag": 18.8447,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 4",
+                "ax": 470.425,
+                "ay": 541.069,
+                "dx": 0.1552,
+                "dy": -19.2824,
+                "betrag": 19.2831,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 5",
+                "ax": 467.941,
+                "ay": 554.854,
+                "dx": 0.3107,
+                "dy": -20.2791,
+                "betrag": 20.2815,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 6",
+                "ax": 475.402,
+                "ay": 562.92,
+                "dx": 0.2768,
+                "dy": -19.6435,
+                "betrag": 19.6454,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 7",
+                "ax": 474.241,
+                "ay": 579.533,
+                "dx": -0.3495,
+                "dy": -19.8553,
+                "betrag": 19.8584,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 8",
+                "ax": 475.069,
+                "ay": 591.547,
+                "dx": -0.477,
+                "dy": -19.5723,
+                "betrag": 19.5781,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 9",
+                "ax": 489.307,
+                "ay": 504.369,
+                "dx": 0.44,
+                "dy": -17.7424,
+                "betrag": 17.7479,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 10",
+                "ax": 486.067,
+                "ay": 521.346,
+                "dx": -0.6962,
+                "dy": -18.2026,
+                "betrag": 18.2159,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 11",
+                "ax": 490.765,
+                "ay": 529.664,
+                "dx": 0.2452,
+                "dy": -18.281,
+                "betrag": 18.2827,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 12",
+                "ax": 489.109,
+                "ay": 540.705,
+                "dx": -0.5346,
+                "dy": -17.1756,
+                "betrag": 17.1839,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 13",
+                "ax": 488.713,
+                "ay": 552.215,
+                "dx": 0.097,
+                "dy": -17.7271,
+                "betrag": 17.7274,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 14",
+                "ax": 489.883,
+                "ay": 565.328,
+                "dx": 0.647,
+                "dy": -17.2717,
+                "betrag": 17.2838,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 15",
+                "ax": 489.145,
+                "ay": 579.848,
+                "dx": -0.6617,
+                "dy": -17.4198,
+                "betrag": 17.4323,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 16",
+                "ax": 490.495,
+                "ay": 590.091,
+                "dx": 0.2434,
+                "dy": -17.3018,
+                "betrag": 17.3035,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 17",
+                "ax": 507.712,
+                "ay": 503.256,
+                "dx": 0.0628,
+                "dy": -16.3239,
+                "betrag": 16.3241,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 18",
+                "ax": 507.406,
+                "ay": 519.799,
+                "dx": -0.4592,
+                "dy": -15.355,
+                "betrag": 15.3619,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 19",
+                "ax": 507.01,
+                "ay": 529.468,
+                "dx": 0.6578,
+                "dy": -15.7972,
+                "betrag": 15.8109,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 20",
+                "ax": 510.376,
+                "ay": 539.872,
+                "dx": 0.6012,
+                "dy": -15.1518,
+                "betrag": 15.1638,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 21",
+                "ax": 503.662,
+                "ay": 557.43,
+                "dx": 0.2273,
+                "dy": -15.7539,
+                "betrag": 15.7555,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 22",
+                "ax": 509.521,
+                "ay": 563.711,
+                "dx": 0.6421,
+                "dy": -16.2585,
+                "betrag": 16.2711,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 23",
+                "ax": 510.934,
+                "ay": 575.291,
+                "dx": 0.7071,
+                "dy": -15.3824,
+                "betrag": 15.3986,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 24",
+                "ax": 504.139,
+                "ay": 592.121,
+                "dx": -0.1837,
+                "dy": -17.0791,
+                "betrag": 17.0801,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 25",
+                "ax": 521.995,
+                "ay": 508.254,
+                "dx": 0.7317,
+                "dy": -14.931,
+                "betrag": 14.9489,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 26",
+                "ax": 527.377,
+                "ay": 519.211,
+                "dx": 0.0689,
+                "dy": -14.0769,
+                "betrag": 14.0771,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 27",
+                "ax": 526.477,
+                "ay": 529.566,
+                "dx": -0.7884,
+                "dy": -13.6498,
+                "betrag": 13.6725,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 28",
+                "ax": 528.934,
+                "ay": 539.333,
+                "dx": 0.3751,
+                "dy": -14.12,
+                "betrag": 14.125,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 29",
+                "ax": 526.108,
+                "ay": 550.535,
+                "dx": 0.6486,
+                "dy": -14.5899,
+                "betrag": 14.6043,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 30",
+                "ax": 528.133,
+                "ay": 565.608,
+                "dx": 0.1268,
+                "dy": -13.8733,
+                "betrag": 13.8739,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 31",
+                "ax": 528.637,
+                "ay": 578.651,
+                "dx": 0.7649,
+                "dy": -14.0256,
+                "betrag": 14.0464,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 32",
+                "ax": 523.354,
+                "ay": 588.138,
+                "dx": -0.2305,
+                "dy": -13.8855,
+                "betrag": 13.8874,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 33",
+                "ax": 542.425,
+                "ay": 507.036,
+                "dx": 0.5863,
+                "dy": -12.2111,
+                "betrag": 12.2252,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 34",
+                "ax": 548.32,
+                "ay": 515.312,
+                "dx": -0.4288,
+                "dy": -12.0875,
+                "betrag": 12.0951,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 35",
+                "ax": 546.583,
+                "ay": 528.152,
+                "dx": -0.5813,
+                "dy": -11.2941,
+                "betrag": 11.3091,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 36",
+                "ax": 543.469,
+                "ay": 540.397,
+                "dx": 0.3701,
+                "dy": -11.8783,
+                "betrag": 11.884,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 37",
+                "ax": 546.376,
+                "ay": 554.371,
+                "dx": -0.6959,
+                "dy": -12.3076,
+                "betrag": 12.3272,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 38",
+                "ax": 541.417,
+                "ay": 565.041,
+                "dx": -0.564,
+                "dy": -13.0205,
+                "betrag": 13.0327,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 39",
+                "ax": 542.623,
+                "ay": 575.914,
+                "dx": -0.5457,
+                "dy": -13.0264,
+                "betrag": 13.0378,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 40",
+                "ax": 544.117,
+                "ay": 587.172,
+                "dx": -0.5451,
+                "dy": -12.2857,
+                "betrag": 12.2978,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 41",
+                "ax": 562.585,
+                "ay": 504.271,
+                "dx": 0.5622,
+                "dy": -10.7237,
+                "betrag": 10.7384,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 42",
+                "ax": 559.75,
+                "ay": 516.341,
+                "dx": -0.3361,
+                "dy": -10.1941,
+                "betrag": 10.1996,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 43",
+                "ax": 558.598,
+                "ay": 528.397,
+                "dx": -0.6977,
+                "dy": -11.0186,
+                "betrag": 11.0406,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 44",
+                "ax": 558.274,
+                "ay": 545.038,
+                "dx": -0.4207,
+                "dy": -10.4516,
+                "betrag": 10.4601,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 45",
+                "ax": 561.991,
+                "ay": 554.119,
+                "dx": 0.7576,
+                "dy": -11.0346,
+                "betrag": 11.0606,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 46",
+                "ax": 565.366,
+                "ay": 566.35,
+                "dx": -0.5856,
+                "dy": -10.3405,
+                "betrag": 10.357,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 47",
+                "ax": 563.305,
+                "ay": 576.075,
+                "dx": -0.6464,
+                "dy": -9.5909,
+                "betrag": 9.6127,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 48",
+                "ax": 563.917,
+                "ay": 591.96,
+                "dx": -0.1036,
+                "dy": -10.7579,
+                "betrag": 10.7584,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 49",
+                "ax": 582.421,
+                "ay": 509.416,
+                "dx": -0.4551,
+                "dy": -8.2516,
+                "betrag": 8.2641,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 50",
+                "ax": 576.715,
+                "ay": 519.365,
+                "dx": 0.764,
+                "dy": -9.3064,
+                "betrag": 9.3377,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 51",
+                "ax": 584.347,
+                "ay": 528.894,
+                "dx": -0.4518,
+                "dy": -7.8973,
+                "betrag": 7.9102,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 52",
+                "ax": 583.528,
+                "ay": 538.542,
+                "dx": 0.6565,
+                "dy": -7.755,
+                "betrag": 7.7828,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 53",
+                "ax": 576.454,
+                "ay": 550.906,
+                "dx": -0.7178,
+                "dy": -9.0183,
+                "betrag": 9.0469,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 54",
+                "ax": 582.196,
+                "ay": 563.018,
+                "dx": 0.5143,
+                "dy": -8.5263,
+                "betrag": 8.5418,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 55",
+                "ax": 580.009,
+                "ay": 575.389,
+                "dx": -0.5721,
+                "dy": -8.4028,
+                "betrag": 8.4223,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 56",
+                "ax": 577.552,
+                "ay": 590.861,
+                "dx": 0.2455,
+                "dy": -8.1084,
+                "betrag": 8.1121,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 57",
+                "ax": 596.047,
+                "ay": 509.227,
+                "dx": -0.3471,
+                "dy": -6.4155,
+                "betrag": 6.4249,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 58",
+                "ax": 597.289,
+                "ay": 520.478,
+                "dx": 0.5439,
+                "dy": -6.5958,
+                "betrag": 6.6182,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 59",
+                "ax": 597.154,
+                "ay": 528.32,
+                "dx": 0.2509,
+                "dy": -6.9214,
+                "betrag": 6.9259,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 60",
+                "ax": 594.085,
+                "ay": 544.485,
+                "dx": -0.1267,
+                "dy": -6.1919,
+                "betrag": 6.1932,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 61",
+                "ax": 597.901,
+                "ay": 550.521,
+                "dx": 0.5044,
+                "dy": -6.1087,
+                "betrag": 6.1295,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 62",
+                "ax": 597.37,
+                "ay": 566.546,
+                "dx": -0.5256,
+                "dy": -6.9481,
+                "betrag": 6.9679,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 63",
+                "ax": 597.487,
+                "ay": 579.33,
+                "dx": -0.53,
+                "dy": -6.1732,
+                "betrag": 6.1959,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 64",
+                "ax": 601.411,
+                "ay": 588.971,
+                "dx": 0.0366,
+                "dy": -6.2179,
+                "betrag": 6.218,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 65",
+                "ax": 612.112,
+                "ay": 504.411,
+                "dx": 0.1859,
+                "dy": -4.4611,
+                "betrag": 4.465,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 66",
+                "ax": 620.221,
+                "ay": 519.54,
+                "dx": -0.0463,
+                "dy": -4.3001,
+                "betrag": 4.3004,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 67",
+                "ax": 615.739,
+                "ay": 532.94,
+                "dx": 0.7914,
+                "dy": -4.677,
+                "betrag": 4.7434,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 68",
+                "ax": 620.023,
+                "ay": 540.551,
+                "dx": 0.1465,
+                "dy": -4.8222,
+                "betrag": 4.8245,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 69",
+                "ax": 614.56,
+                "ay": 550.738,
+                "dx": -0.699,
+                "dy": -5.4376,
+                "betrag": 5.4824,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 70",
+                "ax": 616.666,
+                "ay": 562.913,
+                "dx": 0.0088,
+                "dy": -4.5493,
+                "betrag": 4.5493,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 71",
+                "ax": 618.907,
+                "ay": 580.835,
+                "dx": -0.2456,
+                "dy": -4.3161,
+                "betrag": 4.3231,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 72",
+                "ax": 616.225,
+                "ay": 592.695,
+                "dx": -0.6591,
+                "dy": -3.8148,
+                "betrag": 3.8713,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 73",
+                "ax": 634.603,
+                "ay": 509.15,
+                "dx": -0.7616,
+                "dy": -1.9081,
+                "betrag": 2.0544,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 74",
+                "ax": 634.342,
+                "ay": 519.253,
+                "dx": -0.3221,
+                "dy": -2.5578,
+                "betrag": 2.578,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 75",
+                "ax": 632.119,
+                "ay": 531.316,
+                "dx": 0.2922,
+                "dy": -2.2126,
+                "betrag": 2.2318,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 76",
+                "ax": 636.871,
+                "ay": 541.657,
+                "dx": -0.0879,
+                "dy": -2.3606,
+                "betrag": 2.3622,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 77",
+                "ax": 637.897,
+                "ay": 553.58,
+                "dx": 0.7197,
+                "dy": -2.3666,
+                "betrag": 2.4736,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 78",
+                "ax": 633.361,
+                "ay": 563.718,
+                "dx": -0.0489,
+                "dy": -3.0511,
+                "betrag": 3.0515,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 79",
+                "ax": 634.621,
+                "ay": 577.293,
+                "dx": -0.0352,
+                "dy": -2.2588,
+                "betrag": 2.2591,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 80",
+                "ax": 634.09,
+                "ay": 586.577,
+                "dx": 0.1029,
+                "dy": -2.5135,
+                "betrag": 2.5156,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 81",
+                "ax": 654.079,
+                "ay": 509.241,
+                "dx": -0.48,
+                "dy": -0.6642,
+                "betrag": 0.8195,
+                "richtung": "SuedWest"
+            },
+            {
+                "name": "Ort 82",
+                "ax": 651.658,
+                "ay": 520.632,
+                "dx": -0.6979,
+                "dy": -0.8217,
+                "betrag": 1.0781,
+                "richtung": "SuedWest"
+            },
+            {
+                "name": "Ort 83",
+                "ax": 655.726,
+                "ay": 526.843,
+                "dx": 0.5678,
+                "dy": -0.1347,
+                "betrag": 0.5836,
+                "richtung": "Ost"
+            },
+            {
+                "name": "Ort 84",
+                "ax": 654.484,
+                "ay": 543.666,
+                "dx": -0.1879,
+                "dy": -1.0332,
+                "betrag": 1.0502,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 85",
+                "ax": 648.634,
+                "ay": 555.344,
+                "dx": -0.5587,
+                "dy": -1.7074,
+                "betrag": 1.7965,
+                "richtung": "Sued"
+            },
+            {
+                "name": "Ort 86",
+                "ax": 656.041,
+                "ay": 563.165,
+                "dx": -0.4928,
+                "dy": 0.1041,
+                "betrag": 0.5037,
+                "richtung": "West"
+            },
+            {
+                "name": "Ort 87",
+                "ax": 649.246,
+                "ay": 580.821,
+                "dx": -0.6336,
+                "dy": -1.3578,
+                "betrag": 1.4983,
+                "richtung": "SuedWest"
+            },
+            {
+                "name": "Ort 88",
+                "ax": 654.538,
+                "ay": 589.615,
+                "dx": 0.0618,
+                "dy": -0.0894,
+                "betrag": 0.1087,
+                "richtung": "kein"
+            }
+        ],
+        "nachbarprobe": [
+            {
+                "k": 3,
+                "vorher_median": 10.599247238255536,
+                "nachher_median": 0.8695780000953711,
+                "vorher_p90": 18.235944597475054,
+                "nachher_p90": 1.3521453673818546,
+                "gewinn_median": 9.729669238160165,
+                "anteil_besser": 0.9659090909090909,
+                "uebereinstimmung": 0.9622697702701664
+            },
+            {
+                "k": 5,
+                "vorher_median": 10.599247238255536,
+                "nachher_median": 0.7781085652288805,
+                "vorher_p90": 18.235944597475054,
+                "nachher_p90": 1.3027647632674408,
+                "gewinn_median": 9.821138673026656,
+                "anteil_besser": 0.9659090909090909,
+                "uebereinstimmung": 0.9631044866172881
+            },
+            {
+                "k": 8,
+                "vorher_median": 10.599247238255536,
+                "nachher_median": 0.7159518620835348,
+                "vorher_p90": 18.235944597475054,
+                "nachher_p90": 1.1831778444817715,
+                "gewinn_median": 9.883295376172,
+                "anteil_besser": 0.9545454545454546,
+                "uebereinstimmung": 0.9637658841631019
+            }
+        ],
+        "schaetzung": [
+            {
+                "sx": -0.2524,
+                "sy": -19.1844
+            },
+            {
+                "sx": 0.0181,
+                "sy": -19.1862
+            },
+            {
+                "sx": -0.3412,
+                "sy": -18.7939
+            },
+            {
+                "sx": 0.0953,
+                "sy": -18.8321
+            },
+            {
+                "sx": 0.1601,
+                "sy": -18.5705
+            },
+            {
+                "sx": 0.0825,
+                "sy": -18.7004
+            },
+            {
+                "sx": -0.0783,
+                "sy": -18.3877
+            },
+            {
+                "sx": -0.1698,
+                "sy": -18.3795
+            },
+            {
+                "sx": -0.3537,
+                "sy": -18.1775
+            },
+            {
+                "sx": 0.0147,
+                "sy": -18.5392
+            },
+            {
+                "sx": -0.2323,
+                "sy": -17.2854
+            },
+            {
+                "sx": 0.0492,
+                "sy": -18.3747
+            },
+            {
+                "sx": 0.1448,
+                "sy": -17.8082
+            },
+            {
+                "sx": 0.0845,
+                "sy": -17.4534
+            },
+            {
+                "sx": 0.0268,
+                "sy": -18.1333
+            },
+            {
+                "sx": -0.3071,
+                "sy": -18.1377
+            },
+            {
+                "sx": 0.2797,
+                "sy": -15.6176
+            },
+            {
+                "sx": 0.3985,
+                "sy": -15.8835
+            },
+            {
+                "sx": -0.1216,
+                "sy": -15.8059
+            },
+            {
+                "sx": 0.2812,
+                "sy": -14.9123
+            },
+            {
+                "sx": 0.5474,
+                "sy": -16.4088
+            },
+            {
+                "sx": 0.4449,
+                "sy": -15.4419
+            },
+            {
+                "sx": 0.2836,
+                "sy": -15.477
+            },
+            {
+                "sx": 0.1431,
+                "sy": -15.8317
+            },
+            {
+                "sx": -0.0757,
+                "sy": -14.4358
+            },
+            {
+                "sx": 0.0303,
+                "sy": -14.0726
+            },
+            {
+                "sx": 0.3655,
+                "sy": -14.1909
+            },
+            {
+                "sx": 0.1091,
+                "sy": -13.8227
+            },
+            {
+                "sx": 0.1884,
+                "sy": -13.5879
+            },
+            {
+                "sx": 0.1908,
+                "sy": -14.101
+            },
+            {
+                "sx": -0.118,
+                "sy": -13.6898
+            },
+            {
+                "sx": 0.1736,
+                "sy": -14.3832
+            },
+            {
+                "sx": 0.0256,
+                "sy": -12.3498
+            },
+            {
+                "sx": -0.0719,
+                "sy": -11.1519
+            },
+            {
+                "sx": -0.3471,
+                "sy": -11.6969
+            },
+            {
+                "sx": -0.396,
+                "sy": -11.8818
+            },
+            {
+                "sx": 0.0903,
+                "sy": -12.1185
+            },
+            {
+                "sx": -0.0788,
+                "sy": -13.3958
+            },
+            {
+                "sx": -0.1976,
+                "sy": -12.7042
+            },
+            {
+                "sx": -0.1746,
+                "sy": -12.4393
+            },
+            {
+                "sx": -0.0259,
+                "sy": -10.4291
+            },
+            {
+                "sx": -0.1046,
+                "sy": -10.9791
+            },
+            {
+                "sx": -0.3198,
+                "sy": -11.1061
+            },
+            {
+                "sx": -0.0709,
+                "sy": -11.1275
+            },
+            {
+                "sx": -0.591,
+                "sy": -10.3795
+            },
+            {
+                "sx": -0.133,
+                "sy": -9.4548
+            },
+            {
+                "sx": -0.3561,
+                "sy": -10.1267
+            },
+            {
+                "sx": -0.363,
+                "sy": -9.5973
+            },
+            {
+                "sx": 0.238,
+                "sy": -8.1575
+            },
+            {
+                "sx": -0.3021,
+                "sy": -8.8534
+            },
+            {
+                "sx": 0.4663,
+                "sy": -7.4985
+            },
+            {
+                "sx": -0.1788,
+                "sy": -7.3135
+            },
+            {
+                "sx": 0.3081,
+                "sy": -8.7971
+            },
+            {
+                "sx": -0.4344,
+                "sy": -8.2533
+            },
+            {
+                "sx": -0.144,
+                "sy": -8.5613
+            },
+            {
+                "sx": -0.3584,
+                "sy": -8.5576
+            },
+            {
+                "sx": 0.2312,
+                "sy": -7.0197
+            },
+            {
+                "sx": -0.0402,
+                "sy": -7.4592
+            },
+            {
+                "sx": 0.124,
+                "sy": -6.9552
+            },
+            {
+                "sx": 0.1975,
+                "sy": -7.2279
+            },
+            {
+                "sx": -0.0869,
+                "sy": -6.7436
+            },
+            {
+                "sx": -0.0192,
+                "sy": -6.7554
+            },
+            {
+                "sx": -0.1803,
+                "sy": -6.8207
+            },
+            {
+                "sx": -0.4,
+                "sy": -5.7191
+            },
+            {
+                "sx": -0.1787,
+                "sy": -4.5532
+            },
+            {
+                "sx": 0.0587,
+                "sy": -3.2023
+            },
+            {
+                "sx": 0.0146,
+                "sy": -4.6772
+            },
+            {
+                "sx": 0.1122,
+                "sy": -4.0043
+            },
+            {
+                "sx": 0.2486,
+                "sy": -5.1582
+            },
+            {
+                "sx": -0.2656,
+                "sy": -5.1011
+            },
+            {
+                "sx": -0.1522,
+                "sy": -3.7779
+            },
+            {
+                "sx": -0.1289,
+                "sy": -4.4
+            },
+            {
+                "sx": -0.2664,
+                "sy": -2.2281
+            },
+            {
+                "sx": -0.3296,
+                "sy": -2.1212
+            },
+            {
+                "sx": 0.0589,
+                "sy": -3.5823
+            },
+            {
+                "sx": 0.1546,
+                "sy": -2.4255
+            },
+            {
+                "sx": -0.2646,
+                "sy": -1.8506
+            },
+            {
+                "sx": 0.0821,
+                "sy": -2.6265
+            },
+            {
+                "sx": -0.1403,
+                "sy": -2.9754
+            },
+            {
+                "sx": -0.2707,
+                "sy": -2.4052
+            },
+            {
+                "sx": -0.2659,
+                "sy": -1.3383
+            },
+            {
+                "sx": -0.0194,
+                "sy": -1.1155
+            },
+            {
+                "sx": -0.4465,
+                "sy": -1.2508
+            },
+            {
+                "sx": -0.0069,
+                "sy": -1.3181
+            },
+            {
+                "sx": -0.0045,
+                "sy": -1.5848
+            },
+            {
+                "sx": -0.2142,
+                "sy": -1.84
+            },
+            {
+                "sx": -0.0564,
+                "sy": -1.3667
+            },
+            {
+                "sx": -0.3058,
+                "sy": -1.7084
+            }
+        ],
+        "urteil": {
+            "stufe": "traegt",
+            "satz": "Eine Korrektur aus Fixpunkten TRAEGT: sie senkt den Fehler an Orten, die gar nicht gemessen wurden, von 10.60 auf 0.78 Meilen, und die Nachbarn sind sich ueber die Richtung einig (0.96)."
+        },
+        "globaler_versatz": {
+            "vorher_median": 10.599247238255536,
+            "nachher_median": 5.370259352370697,
+            "gewinn_median": 5.228987885884839,
+            "versatz_dx": -0.045574818181823934,
+            "versatz_dy": -10.253448431818182,
+            "n": 88
+        },
+        "west_sued_trend": {
+            "steigung_je_100_meilen": 3.509439234418071,
+            "sued_je_100_west": 3.509439234418071,
+            "p_wert": 0.00024993751562109475,
+            "n": 88,
+            "ost_west_spanne_meilen": 564.3000000000002
+        }
+    }
+];
+/* ══ DATEN-ENDE ══ */
+
+/* Was die Editoren gemeldet haben. Frei eingetippt aus dem Gespräch -- keine Messung. */
+const MELDUNGEN = [
+	["Hesindelburg", "nach Süden versetzt"],
+	["Waldrast", "nach Norden versetzt"],
+	["Koschtal", "kein nennenswerter Versatz"],
+	["Rockenwald", "kein Versatz"],
+	["Greifenfurt", "leichte Abweichung nach Südost"],
+	["Perricum", "leichte Abweichung nach Nordost"],
+	["Eslamsroden", "keine nennenswerte Abweichung"],
+	["Drift", "keine Abweichung"],
+	["Fürstenhort", "keine Abweichung"],
+	["Gareth", "nicht beurteilt"],
+	["Rhondur", "als Beispiel „links unten“ genannt"]
+];
+
+let aktiv = DATEN[0];
+let lupe = 12;
+
+const $ = (id) => document.getElementById(id);
+
+/* --- Der Datensatz-Schalter ------------------------------------------------------------- */
+const schalter = $("schalter");
+DATEN.forEach((satz) => {
+	const b = document.createElement("button");
+	b.type = "button";
+	b.textContent = satz.titel;
+	b.setAttribute("aria-pressed", String(satz === aktiv));
+	b.addEventListener("click", () => { aktiv = satz; zeichneAlles(); });
+	schalter.appendChild(b);
+});
+
+$("lupe").addEventListener("input", (e) => {
+	lupe = Number(e.target.value);
+	$("lupe-wert").textContent = lupe + "×";
+	zeichneKarte();
+});
+
+/* --- Eigene Messung einlesen ------------------------------------------------------------ */
+$("einlesen").addEventListener("click", () => {
+	const feld = $("einfuegen");
+	const fehler = $("einlesen-fehler");
+	fehler.textContent = "";
+	let roh;
+	try {
+		roh = JSON.parse(feld.value);
+	} catch (e) {
+		fehler.textContent = "Das ist kein gültiges JSON: " + e.message;
+		return;
+	}
+	if (!roh || !Array.isArray(roh.residuen) || !Array.isArray(roh.nachbarprobe)) {
+		fehler.textContent = "Darin fehlen `residuen` oder `nachbarprobe` — ist das die Antwort auf action=passpunkte?";
+		return;
+	}
+	/* ⚠️ Die Selbstprüfung des Servers wird DURCHGEREICHT, nicht verschluckt: eine vertauschte
+	   Achse sieht in diesen Zahlen wie ein gewaltiger, zusammenhängender Versatz aus. */
+	const warnung = roh.selbstpruefung && roh.selbstpruefung.warnung;
+	aktiv = {
+		schluessel: "eigen",
+		titel: "Eigene Messung",
+		erklaerung: (warnung ? "⚠️ " + warnung + " " : "")
+			+ "Eingesetzt aus der Antwort des Endpunkts.",
+		echt: true,
+		residuen: roh.residuen,
+		nachbarprobe: roh.nachbarprobe,
+		/* ⚠️ Der Endpunkt liefert die Einzelschätzungen nicht mit (sie stehen dort nur in
+		   `residuen`). Fehlen sie, bleibt der goldene Pfeil einfach weg -- die Legende
+		   erklärt ihn trotzdem, das ist der Preis dafür, dass sie fest im Markup steht. */
+		schaetzung: Array.isArray(roh.schaetzung) ? roh.schaetzung : [],
+		urteil: roh.urteil || { stufe: "zu_wenig", satz: "Kein Urteil in der Antwort." },
+		west_sued_trend: roh.west_sued_trend || null,
+		globaler_versatz: roh.globaler_versatz || null
+	};
+	Array.from(schalter.children).forEach((b) => b.setAttribute("aria-pressed", "false"));
+	zeichneAlles();
+});
+
+/* --- Die Karte -------------------------------------------------------------------------- */
+/* Ein fester Überhöhungsfaktor taugt nicht für beide Bilder: 1,4 Meilen Rauschen und
+   10,6 Meilen Feld unterscheiden sich um das Achtfache. Gewählt wird so, dass der MITTLERE
+   Pfeil rund 20 Bildpunkte lang wird -- dann ist in beiden Fällen die Richtung ablesbar und
+   nichts läuft aus dem Bild. Der Regler bleibt daneben, er verschiebt nur den Startwert. */
+function vorgeschlagenerMassstab(R, s) {
+	const betraege = R.map((r) => r.betrag).filter((b) => b > 0).sort((a, b) => a - b);
+	if (!betraege.length || !(s > 0)) { return 12; }
+	const mitte = betraege[Math.floor(betraege.length / 2)];
+	return Math.max(1, Math.min(40, Math.round(20 / ((mitte / 3) * s))));
+}
+
+function zeichneKarte() {
+	const svg = $("karte");
+	const R = aktiv.residuen;
+	svg.textContent = "";
+	if (!R.length) { return; }
+
+	const W = 640, H = 420, rand = 34;
+	const xs = R.map((r) => r.ax), ys = R.map((r) => r.ay);
+	const x0 = Math.min(...xs), x1 = Math.max(...xs);
+	const y0 = Math.min(...ys), y1 = Math.max(...ys);
+	/* Ein einzelner Punkt hätte eine Spanne von 0 -- dann teilt man durch null. */
+	const sx = (x1 - x0) > 1e-6 ? (W - 2 * rand) / (x1 - x0) : 1;
+	const sy = (y1 - y0) > 1e-6 ? (H - 2 * rand) / (y1 - y0) : 1;
+	const s = Math.min(sx, sy);
+	if (lupe === null) {
+		lupe = vorgeschlagenerMassstab(R, s);
+		$("lupe").value = String(lupe);
+		$("lupe-wert").textContent = lupe + "×";
+	}
+	/* 💣 y WIRD GESPIEGELT. Bei uns wächst y nach Norden, im SVG nach unten. Ohne diese
+	   Zeile stünde jeder Nord-Versatz als Süd-Versatz im Bild -- und weil die Pfeile dann
+	   immer noch ein hübsches Muster ergäben, fiele es niemandem auf. Dieselbe Falle wie
+	   das Vorzeichen in der Matrix selbst (Entwurf §2.3). */
+	const px = (ax) => rand + (ax - x0) * s;
+	const py = (ay) => H - rand - (ay - y0) * s;
+
+	/* Die Schätzung aus den Nachbarn -- sie steht nur für das mittlere k in den Daten. */
+	const S = Array.isArray(aktiv.schaetzung) ? aktiv.schaetzung : [];
+
+	const gemessen = [], geschaetzt = [], punkte = [];
+	R.forEach((r, i) => {
+		const x = px(r.ax), y = py(r.ay);
+		/* Der Versatz ist in MEILEN; 1 Karteneinheit = 3 Meilen, und `s` rechnet
+		   Karteneinheiten in Bildpunkte. */
+		const ex = x + (r.dx / 3) * s * lupe;
+		const ey = y - (r.dy / 3) * s * lupe;
+		/* ⚠️ Der Schätzpfeil wird ZUERST gezeichnet und liegt damit unter dem gemessenen.
+		   Deckt der gemessene ihn zu, sind sich Nachbarn und Ort einig -- genau das ist die
+		   Aussage des Bildes, und sie darf nicht von der Zeichenreihenfolge abhängen. */
+		if (S[i]) {
+			geschaetzt.push('<line x1="' + x.toFixed(1) + '" y1="' + y.toFixed(1) + '" x2="'
+				+ (x + (S[i].sx / 3) * s * lupe).toFixed(1) + '" y2="'
+				+ (y - (S[i].sy / 3) * s * lupe).toFixed(1)
+				+ '" stroke="var(--color-accent-strong)" stroke-width="3" opacity=".45"'
+				+ ' stroke-linecap="round"/>');
+		}
+		gemessen.push('<line x1="' + x.toFixed(1) + '" y1="' + y.toFixed(1) + '" x2="' + ex.toFixed(1)
+			+ '" y2="' + ey.toFixed(1) + '" stroke="var(--color-garetien-unsere)" stroke-width="1.6"'
+			+ ' marker-end="url(#spitze)" opacity=".9"><title>' + entschaerfe(r.name) + ': '
+			+ r.betrag.toFixed(2) + ' Meilen ' + entschaerfe(r.richtung) + '</title></line>');
+		punkte.push('<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="2.4"'
+			+ ' fill="var(--color-text-strong)"><title>' + entschaerfe(r.name) + '</title></circle>');
+	});
+	const zeichen = geschaetzt.concat(gemessen, punkte);
+
+	/* Bei wenigen Punkten den Namen dazuschreiben -- bei 88 wäre es Brei. */
+	if (R.length <= 12) {
+		R.forEach((r) => {
+			zeichen.push('<text x="' + (px(r.ax) + 6).toFixed(1) + '" y="' + (py(r.ay) - 6).toFixed(1)
+				+ '" font-size="11" fill="var(--color-text-strong)" font-family="var(--font-ui)">'
+				+ entschaerfe(r.name) + '</text>');
+		});
+	}
+
+	svg.innerHTML =
+		'<defs><marker id="spitze" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5"'
+		+ ' markerHeight="5" orient="auto-start-reverse">'
+		+ '<path d="M 0 0 L 10 5 L 0 10 z" fill="var(--color-garetien-unsere)"/></marker></defs>'
+		+ zeichen.join("");
+}
+
+/* Namen kommen aus der Datenbank und dürfen kein Markup einschleusen. */
+function entschaerfe(s) {
+	return String(s == null ? "" : s).replace(/[&<>"]/g, (c) =>
+		({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+}
+
+/* --- Urteil, Tabelle, Trend ------------------------------------------------------------- */
+function zeichneAlles() {
+	Array.from(schalter.children).forEach((b) =>
+		b.setAttribute("aria-pressed", String(b.textContent === aktiv.titel)));
+
+	$("echtheit").innerHTML = aktiv.echt
+		? "<b>Echte Zahlen.</b> Dieser Datensatz stammt aus dem Repo bzw. aus einer Messung — "
+			+ "die Versätze sind nachgerechnet, nicht gezeichnet."
+		: "<b>Erfundene Daten, absichtlich.</b> Dieses Bild steht hier als Vergleichsmaßstab: "
+			+ "so sieht der eine bzw. der andere Fall aus. Es sagt nichts über Aventurien.";
+
+	$("karte-erklaerung").textContent = aktiv.erklaerung;
+
+	const u = aktiv.urteil || { stufe: "zu_wenig", satz: "—" };
+	const kopf = { traegt: "Trägt", traegt_nicht: "Trägt nicht", zu_wenig: "Kein Urteil" }[u.stufe] || "—";
+	$("urteil").className = "urteil urteil--" + u.stufe;
+	$("urteil").innerHTML = "<b>" + entschaerfe(kopf) + "</b>" + entschaerfe(u.satz);
+
+	$("probe-tabelle").innerHTML = aktiv.nachbarprobe.map((p) =>
+		"<tr><td>" + p.k + "</td>"
+		+ '<td class="zahl">' + p.vorher_median.toFixed(2) + "</td>"
+		+ '<td class="zahl">' + p.nachher_median.toFixed(2) + "</td>"
+		+ '<td class="zahl">' + Math.round(p.anteil_besser * 100) + " %</td>"
+		+ '<td class="zahl">' + p.uebereinstimmung.toFixed(2) + "</td></tr>").join("");
+
+	const t = aktiv.west_sued_trend;
+	$("trend").innerHTML = t
+		? '<p class="erklaerung" style="margin:0">Gemessene Neigung: <b>'
+			+ t.sued_je_100_west.toFixed(2) + " Meilen</b> Süd-Versatz je 100 Meilen weiter Westen"
+			+ " — über eine Ost-West-Spanne von " + Math.round(t.ost_west_spanne_meilen) + " Meilen,"
+			+ " aus " + t.n + " Passpunkten.</p>"
+			+ '<p class="erklaerung" style="margin:var(--space-6) 0 0">Reiner Zufall ergäbe eine'
+			+ " mindestens so steile Gerade in <b>" + (t.p_wert * 100).toFixed(1) + " %</b> der Fälle"
+			+ (t.p_wert > 0.05
+				? " — das ist zu oft, um die Behauptung zu stützen."
+				: " — das ist selten genug, um sie ernst zu nehmen.") + "</p>"
+		: '<p class="erklaerung" style="margin:0">Keine Trendzahl in diesem Datensatz.</p>';
+
+	/* Der Maßstab hängt am Datensatz, nicht am zuletzt gezogenen Regler. */
+	lupe = null;
+	zeichneKarte();
+}
+
+/* --- Die Meldungen der Editoren --------------------------------------------------------- */
+$("meldungen").innerHTML = MELDUNGEN.map(([ort, gemeldet]) => {
+	/* Nur die fünf echten Passpunkte lassen sich nachrechnen -- alle anderen brauchen die
+	   Live-Datenbank. Das wird gesagt und nicht durch ein leeres Feld angedeutet. */
+	const treffer = (DATEN.find((d) => d.schluessel === "echt") || { residuen: [] })
+		.residuen.find((r) => r.name === ort);
+	return "<tr><td>" + entschaerfe(ort) + "</td><td>" + entschaerfe(gemeldet) + "</td>"
+		+ "<td>" + (treffer
+			? '<span class="echt-marke">gemessen</span> ' + entschaerfe(treffer.richtung)
+			: '<span style="color:var(--color-text-muted)">nicht im Repo — braucht die Live-Datenbank</span>')
+		+ "</td>"
+		+ '<td class="zahl">' + (treffer ? treffer.betrag.toFixed(2) + " mi" : "—") + "</td></tr>";
+}).join("");
+
+zeichneAlles();
+</script>
+</div>
+</body>
+</html>

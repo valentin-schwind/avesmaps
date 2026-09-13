@@ -455,4 +455,47 @@ pruefe($nahProbe['punkte'][0]['schaetzung_dx'] > 7.0,
 // geschaetzt ist sie etwas ganz anderes als aus 10.
 pruefe($nahProbe['punkte'][0]['nachbar_median'] > 0.0, 'der Nachbarabstand muss mitgeliefert werden');
 
+
+// =============================================================================================
+// §J  DAS URTEIL
+// =============================================================================================
+
+// --- J1: Das zusammenhaengende Feld aus §C bekommt ein "traegt".
+$uFeld = avesmapsGaretienPasspunktUrteil($feldProbe, count($feldRes));
+pruefe($uFeld['stufe'] === 'traegt', 'ein zusammenhaengendes Feld muss "traegt" bekommen: ' . $uFeld['stufe']);
+
+// --- J2: 💣 REINES RAUSCHEN BEKOMMT "TRAEGT NICHT".
+$uRausch = avesmapsGaretienPasspunktUrteil($rauschProbe, count($rauschRes));
+pruefe($uRausch['stufe'] === 'traegt_nicht', 'Rauschen muss abgelehnt werden: ' . $uRausch['stufe']);
+pruefe(str_contains($uRausch['satz'], 'verschiebt die Orte, die heute richtig liegen'),
+    'und der Satz muss den Preis benennen, nicht nur das Nein');
+
+// --- J3: 💣 EIN GEWINN OHNE EINIGKEIT REICHT NICHT.
+// Die wichtigere der beiden Schranken. Mit genuegend Nachbarn laesst sich fast immer etwas
+// herbeimitteln; eine gemeinsame Richtung laesst sich nicht herbeimitteln. Ohne diese
+// Zusicherung wuerde aus jedem glucklichen Mittelwert ein "traegt".
+$nurGewinn = ['vorher_median' => 4.0, 'nachher_median' => 1.0, 'gewinn_median' => 3.0,
+              'uebereinstimmung' => 0.1];
+pruefe(avesmapsGaretienPasspunktUrteil($nurGewinn, 50)['stufe'] === 'traegt_nicht',
+    'ein Gewinn ohne gemeinsame Richtung ist kein Beleg');
+
+// --- J4: 💣 UND EINIGKEIT OHNE GEWINN AUCH NICHT.
+$nurEinig = ['vorher_median' => 4.0, 'nachher_median' => 3.8, 'gewinn_median' => 0.2,
+             'uebereinstimmung' => 0.9];
+pruefe(avesmapsGaretienPasspunktUrteil($nurEinig, 50)['stufe'] === 'traegt_nicht',
+    'ein Viertel des Fehlers muss wirklich fallen');
+
+// --- J5: Zu wenige Punkte ergeben KEIN Urteil, weder so noch so.
+$wenig = avesmapsGaretienPasspunktUrteil($feldProbe, 19);
+pruefe($wenig['stufe'] === 'zu_wenig', '19 Punkte duerfen kein Urteil tragen');
+pruefe(str_contains($wenig['satz'], '19'), 'und die Zahl muss im Satz stehen');
+
+// --- J6: 🚩 DIE FUENF ECHTEN PASSPUNKTE BEKOMMEN DESHALB KEIN URTEIL.
+// Sie zeigen in dieselbe Richtung wie die Meldungen der Editoren -- das ist ein Hinweis und
+// wird als solcher gefuehrt. Ein Werkzeug, das aus fuenf Punkten ein "traegt" machte, waere
+// genau die Maschine, die jede Behauptung bestaetigt.
+$echtProbe = avesmapsGaretienPasspunktNachbarprobe($echtRes, 3);
+pruefe(avesmapsGaretienPasspunktUrteil($echtProbe, count($echtRes))['stufe'] === 'zu_wenig',
+    'aus fuenf echten Punkten darf kein Urteil werden');
+
 echo "OK: {$pruefungen} Pruefungen\n";
