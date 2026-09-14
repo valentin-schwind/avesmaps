@@ -150,7 +150,7 @@ function avesmapsPathEditorList(PDO $pdo): array
     // (Kopfkommentar dieser Datei); zwei JSON_EXTRACT liefern je Zeile nur Anfangs- und Endpunkt.
     // `[last]` kennt MariaDB seit 10.9 (live 11.8.8), MySQL seit 8.0.2.
     $statement = $pdo->query(
-        "SELECT id, public_id, name, feature_subtype, properties_json, revision,
+        "SELECT id, public_id, name, feature_subtype, properties_json, revision, geometry_type,
                 min_x, min_y, max_x, max_y,
                 JSON_EXTRACT(geometry_json, '$.coordinates[0]') AS ende_von,
                 JSON_EXTRACT(geometry_json, '$.coordinates[last]') AS ende_bis
@@ -168,6 +168,7 @@ function avesmapsPathEditorList(PDO $pdo): array
         $wikiPath = is_array($properties['wiki_path'] ?? null) ? $properties['wiki_path'] : null;
         $subtype = (string) $row['feature_subtype'];
         $bySubtype[$subtype] = ($bySubtype[$subtype] ?? 0) + 1;
+        $enden = avesmapsPathEditorListEnden($row, $ortIndex);
 
         $ways[] = [
             'public_id' => (string) $row['public_id'],
@@ -231,15 +232,8 @@ function avesmapsPathEditorList(PDO $pdo): array
                 (float) $row['max_x'], (float) $row['max_y'],
             ],
             // Entwurf 2026-09-14 §4: dieselbe Form wie `detail` (ends) und die Namen der Enden (enden).
-            'ends' => (static function () use ($row): ?array {
-                $von = json_decode((string) ($row['ende_von'] ?? 'null'), true);
-                $bis = json_decode((string) ($row['ende_bis'] ?? 'null'), true);
-                return is_array($von) && is_array($bis) ? ['from' => $von, 'to' => $bis] : null;
-            })(),
-            'enden' => ($row['ende_von'] ?? null) === null ? null : [
-                'von' => avesmapsWegEndeName(json_decode((string) $row['ende_von'], true), $ortIndex),
-                'bis' => avesmapsWegEndeName(json_decode((string) $row['ende_bis'], true), $ortIndex),
-            ],
+            'ends' => $enden['ends'],
+            'enden' => $enden['enden'],
         ];
     }
 
@@ -252,6 +246,31 @@ function avesmapsPathEditorList(PDO $pdo): array
             'by_subtype' => $bySubtype,
         ],
         'calibration' => avesmapsTerrainCalibrationRead($pdo),
+    ];
+}
+
+// Die ENDEN eines Abschnitts fuer die Liste: `ends` (Form wie `detail`) und ihre Namen (`enden`).
+function avesmapsPathEditorListEnden(array $row, array $ortIndex): array
+{
+    // Mehrfachlinien liefern bei `$.coordinates[0]` eine ganze Linie; dieselbe Wache wie in `avesmapsPathEditorDetail`.
+    if (($row['geometry_type'] ?? '') !== 'LineString') {
+        return ['ends' => null, 'enden' => null];
+    }
+    $punkt = static function (mixed $wert): ?array {
+        $dekodiert = json_decode((string) ($wert ?? 'null'), true);
+        return is_array($dekodiert) && count($dekodiert) >= 2
+            && is_numeric($dekodiert[0] ?? null) && is_numeric($dekodiert[1] ?? null)
+            ? array_map('floatval', array_slice($dekodiert, 0, 2))
+            : null;
+    };
+    $von = $punkt($row['ende_von'] ?? null);
+    $bis = $punkt($row['ende_bis'] ?? null);
+    if ($von === null || $bis === null) {
+        return ['ends' => null, 'enden' => null];
+    }
+    return [
+        'ends' => ['from' => $von, 'to' => $bis],
+        'enden' => ['von' => avesmapsWegEndeName($von, $ortIndex), 'bis' => avesmapsWegEndeName($bis, $ortIndex)],
     ];
 }
 

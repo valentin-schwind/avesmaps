@@ -47,4 +47,12 @@ assert.ok(
 	"die Liste liest die Geometrie nicht ganz"
 );
 
+// 🔴 Fund-Item der ersten Pruefrunde: eine Mehrfachlinie (MultiLineString/Polygon) liefert bei
+// `$.coordinates[0]` eine GANZE Linie statt eines Punkts -- dieselbe Wache wie in
+// avesmapsPathEditorDetail (`($geometry['type'] ?? '') === 'LineString'`) muss die Liste auch
+// haben. Die SELECT nennt dafuer geometry_type, und der Zeilenbauer vergleicht ihn.
+assert.ok(/SELECT[^;]*\bgeometry_type\b/.test(listRumpf), "die Liste selektiert geometry_type");
+const endenRumpf = rumpf(phpOhneKommentare, "function avesmapsPathEditorListEnden(array $row, array $ortIndex): array");
+assert.ok(endenRumpf.includes("!== 'LineString'"), "ends/enden entstehen nur fuer eine einfache Linie");
+
 console.log("wege-editor-abschnittsnamen.test.js: ok");
