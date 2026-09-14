@@ -423,6 +423,9 @@ jobs:
           #    als geschuetzter „frontend fallback" in AGENTS.md §10 -- kein Frontend rief ihn mehr, Owner-GO.
           #    Und keine Datei, die im Repo liegt -- sie fehlte nach dem Deploy auf dem Server.
           #    Gewacht von tools/__tests__/retire-liste-geschuetzt.test.js.
+          # ⚠️ Dieser Schritt faellt mit SKIP_DEPLOY aus: ein Commit, der nur diese Liste (oder .github/,
+          #    Doku, Tests) aendert, raeumt nichts. Geraeumt wird beim naechsten Push, der wirklich
+          #    etwas hochlaedt -- gemessen an api/wiki-sync.php, 14.09.2026.
           retire_nur_server_php=(
             "api/_internal/app/__tests__/adventure-cover-autoget-test.php"
             "api/_internal/app/__tests__/adventure-links-test.php"

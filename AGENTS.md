@@ -439,6 +439,11 @@ is the default, English is opt-in. Therefore:
   an ihnen hingen. 💣 Waechter der Liste:
   `tools/__tests__/retire-liste-geschuetzt.test.js` -- keine geschuetzte Datei, keine .htaccess und keine
   Datei, die im Repo liegt (der Retire-Schritt laeuft NACH dem Hochladen; sie fehlte danach live).
+  💣 **Und ein Commit, der NUR die Retire-Liste aendert, raeumt nichts.** Ohne auslieferbare Datei setzt der
+  Deploy `SKIP_DEPLOY=true`, und „Retire orphaned remote files" wird mit uebersprungen -- der Lauf ist gruen.
+  Geraeumt wird beim naechsten Push, der wirklich etwas hochlaedt (die Liste steht im Workflow des neuesten
+  Commits). Gemessen an `api/wiki-sync.php` am 14.09.2026. ⭐ Beleg ist der Schritt im Lauf
+  (`gh run view <id> --json jobs`) und die Adresse selbst mit `?cb=`, nie das gruene Haekchen.
 - **`territories-endpoint.php` runs DDL + metadata probes before its cache read**
   on every political-layer request; the derived layer has an N+1 over the full
   territory table. Both are perf hotspots (milestone M6).
