@@ -59,7 +59,8 @@
    eine Stufe UNTER der Abschnittsueberschrift (16px), eine ueber dem Tabellentext (11px). Die
    Leiter bleibt dreistufig -- h4 auf 16px zu setzen haette sie eingeebnet. */
 .wp-tempo__sec h4 {
-	margin: var(--space-10) 0 var(--space-3);
+	/* 14.09.2026: --space-3 gab es nie -- siehe css/pages/wege-editor.css an derselben Regel. */
+	margin: var(--space-10) 0 var(--space-4);
 	font-size: var(--font-size-reading);
 	font-weight: var(--font-weight-bold);
 	color: var(--color-text-strong);
@@ -68,7 +69,7 @@
    der Name gewinnt nichts. Eigene Zeile, damit lange Zusaetze den Kopf nicht auseinanderziehen. */
 .wp-tempo__sec h4 .wp-tempo__day {
 	display: block;
-	margin-top: var(--space-1);
+	margin-top: var(--space-2);
 	font-size: var(--font-size-caption);
 	font-weight: normal;
 	color: var(--color-text-muted);

@@ -15,12 +15,13 @@
 // ⚠️ Er liegt unter `tools/`, nicht unter `css/`: das Deploy-Tor liest `find js tools ...`, ein
 //    Test unter `css/__tests__/` liefe nie mit (.github/workflows/deploy-avesmaps-strato.yml).
 //
-// ⚠️ ZWEI ALTLASTEN sind namentlich zugelassen, und die Liste darf nur SCHRUMPFEN. Beide stehen
-//    in css/pages/wege-editor.css am selben Element und sind heute kaputt:
-//      .wp-tempo__sec h4                  margin: var(--space-10) 0 var(--space-3) -> Vorgabe
-//      .wp-tempo__sec h4 .wp-tempo__day   margin-top: var(--space-1)               -> 0
-//    Sie zu reparieren hiesse, zwei Werte zu RATEN, die der Autor gemeint hat -- das ist eine
-//    Entscheidung und kein Aufraeumen, deshalb bleiben sie stehen und sichtbar.
+// ✅ Die Altlasten-Liste ist LEER und bleibt es. Bis zum 14.09.2026 standen darin `--space-1` und
+//    `--space-3` (css/pages/wege-editor.css, Gruppenkopf im Fenster „Tempowerte“). Owner-Entscheid
+//    „fixen“; die Werte stehen mit Begruendung an der Regel selbst.
+// 🪤 Hier stand, die h4 falle auf die BROWSER-VORGABE zurueck. Gemessen am 14.09.2026: 0px oben
+//    und unten -- „invalid at computed-value time“ heisst `unset`, und das ist beim Rand der
+//    Anfangswert 0, nicht die Vorgabe des Browsers. Die Gruppen klebten also Tabelle an Kopf.
+//    Wer hier wieder einen Namen eintraegt, baut die naechste Deklaration ein, die nichts tut.
 //
 // Aus der Wurzel des Repos:  node tools/__tests__/tote-tokens.test.js
 
@@ -31,7 +32,7 @@ const fs = require("fs");
 const path = require("path");
 
 const WURZEL = path.join(__dirname, "..", "..");
-const ALTLASTEN = new Set(["--space-1", "--space-3"]);
+const ALTLASTEN = new Set([]);
 
 function blaetter(verzeichnis, gesammelt) {
 	fs.readdirSync(verzeichnis, { withFileTypes: true }).forEach((eintrag) => {

@@ -383,9 +383,15 @@
    fuer Etiketten und Meta. Damit war der Name des Reisemittels so gross wie die Zahlen darunter, und
    die Gruppe hatte keinen Kopf, sondern eine weitere Zeile (Owner 14.08.2026).
    ⚠️ --font-size-reading (14px) und nicht --font-size-subhead (16px): die Abschnittsueberschrift h3
-   steht auf 16, und h4 daneben zu setzen haette die Leiter eingeebnet. Drei Stufen: 16 / 14 / 11. */
+   steht auf 16, und h4 daneben zu setzen haette die Leiter eingeebnet. Drei Stufen: 16 / 14 / 11.
+   💣 Hier und an der GA-Zeile standen bis zum 14.09.2026 `--space-3` und `--space-1` -- zwei Tokens,
+   die es nicht gibt (die Skala beginnt bei --space-2 = 4px). Ein `var()` ohne Rueckfall auf etwas
+   Undeklariertes kippt die GANZE Deklaration auf `unset`: gemessen 0px oben und unten, die Tabelle
+   einer Gruppe stiess direkt an den Kopf der naechsten. Waechter: tools/__tests__/tote-tokens.test.js.
+   ⚠️ Unten --space-4 wie die h3 daneben, die GA-Zeile --space-2: sie gehoert zum Namen und steht ihm
+   deshalb naeher als der Tabelle darunter. */
 .wp-tempo__sec h4 {
-	margin: var(--space-10) 0 var(--space-3);
+	margin: var(--space-10) 0 var(--space-4);
 	font-size: var(--font-size-reading);
 	font-weight: var(--font-weight-bold);
 	color: var(--color-text-strong);
@@ -394,7 +400,7 @@
    Name gewinnt nichts. Eigene Zeile, damit lange Zusaetze den Kopf nicht auseinanderziehen. */
 .wp-tempo__sec h4 .wp-tempo__day {
 	display: block;
-	margin-top: var(--space-1);
+	margin-top: var(--space-2);
 	font-size: var(--font-size-caption);
 	font-weight: normal;
 	color: var(--color-text-muted);
