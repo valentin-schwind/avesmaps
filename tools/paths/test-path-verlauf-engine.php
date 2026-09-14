@@ -112,6 +112,17 @@ $case = avesmapsWikiPathVerlaufComputeCase($staging, $assignments4, $lookup, $ro
 check('foreign conflict', $case['flags']['conflicts'][0]['conflict'], 'foreign');
 check('foreign not added', in_array('s2', array_column($case['adds'], 'public_id'), true), false);
 
+// weitere Zuweisung: der Abschnitt traegt w1 zusaetzlich -- kein Fremdkonflikt, nicht hinzugefuegt,
+// NICHT in keeps (RestampKeeps schriebe sonst w1 als Hauptzuweisung darauf). Entwurf 2026-09-14 §2.4.
+$assignmentsW = $assignments;
+$assignmentsW['byPublicId']['s2'] = ['wiki_key' => 'OTHER', 'name' => 'Fremdweg', 'source' => 'editor', 'weitere' => ['w1']];
+$case = avesmapsWikiPathVerlaufComputeCase($staging, $assignmentsW, $lookup, $router);
+check('weitere: kein foreign-Konflikt', array_column($case['flags']['conflicts'], 'public_id'), []);
+check('weitere: nicht hinzugefuegt', in_array('s2', array_column($case['adds'], 'public_id'), true), false);
+check('weitere: nicht in keeps', in_array('s2', array_column($case['keeps'], 'public_id'), true), false);
+check('weitere: als Info vermerkt', $case['flags']['weitere'], ['s2']);
+check('weitere: der Fall bleibt sauber', $case['clean'], true);
+
 // missing station => flagged, chain shrinks
 $staging5 = $staging; $staging5['verlauf'] = 'Punin → Phantasia → Kuslik';
 $routes['Punin|Kuslik'] = ['found' => true, 'reason' => '', 'segments' => [['public_id' => 's1', 'name' => 'x']]];

@@ -513,10 +513,20 @@ function avesmapsWikiPathVerlaufReadAssignments(PDO $pdo): array {
             'course_hash' => $courseHash,
             'course_hops' => $courseHops,
         ];
+        // Entwurf 2026-09-14 §2.4: die WEITEREN Zuweisungen reisen mit. Bewusst inline statt ueber
+        // path-weitere.php -- diese Datei muss ohne Top-Level-require ladbar bleiben (Engine-Test).
+        $weitere = [];
+        foreach ((is_array($props['wiki_path_weitere'] ?? null) ? $props['wiki_path_weitere'] : []) as $eintrag) {
+            $weitererKey = is_array($eintrag) ? trim((string) ($eintrag['wiki_key'] ?? '')) : '';
+            if ($weitererKey !== '' && !in_array($weitererKey, $weitere, true)) {
+                $weitere[] = $weitererKey;
+            }
+        }
         $byPublicId[$publicId] = [
             'wiki_key' => $wikiKey,
             'name' => $name,
             'source' => $source,
+            'weitere' => $weitere,
         ];
     }
 
@@ -646,6 +656,9 @@ function avesmapsWikiPathVerlaufComputeCase(array $stagingRow, array $assignment
         // Info only (owner rule): towns the DRAWN line passes through on a traced hop belong
         // to the road even when the wiki box does not list them. Never affects clean.
         'passage_towns' => [],
+        // Info only (Entwurf 2026-09-14 §2.4): Soll-Abschnitte, die den Artikel als WEITERE Zuweisung
+        // tragen. Weder hinzugefuegt noch gehalten; never affects clean.
+        'weitere' => [],
         // Info only: removals rules 8/8b held back. Suppressed must not mean invisible -- the
         // editor needs to see WHY a way reports nothing to clear, and a scan needs to find these
         // again once the chain is repaired. Never affects clean (its causes already do).
@@ -820,6 +833,12 @@ function avesmapsWikiPathVerlaufComputeCase(array $stagingRow, array $assignment
         $inIst = isset($currentSegments[$publicId]);
         if ($inIst) {
             $keeps[] = ['public_id' => (string) $publicId, 'hops' => $hops];
+            continue;
+        }
+        if (in_array($wikiKey, (array) (($byPublicId[$publicId] ?? [])['weitere'] ?? []), true)) {
+            // 🔴 Er gehoert dazu -- aber NICHT in adds (das naehme der Strasse ihre Identitaet) und NICHT
+            // in keeps (avesmapsWikiPathVerlaufRestampKeeps schriebe diesen Artikel als wiki_path darauf).
+            $flags['weitere'][] = (string) $publicId;
             continue;
         }
         $foreign = $byPublicId[$publicId] ?? null;
