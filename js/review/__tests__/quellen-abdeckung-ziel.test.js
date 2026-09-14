@@ -21,7 +21,10 @@ const path = require("node:path");
 const vm = require("node:vm");
 
 const WURZEL = path.join(__dirname, "..", "..", "..");
-const lies = (...t) => fs.readFileSync(path.join(WURZEL, ...t), "utf8");
+// 💣 ZEILENENDENNEUTRAL gelesen (AGENTS.md §9): die Windows-Arbeitskopie traegt CRLF, das Tor LF.
+// Abschnitt 7 sucht einen Selektor ueber einen Zeilenumbruch hinweg (".abw__t,\n.fs-kind-ziel") --
+// ohne die Normalisierung ist er hier rot und in der CI gruen.
+const lies = (...t) => fs.readFileSync(path.join(WURZEL, ...t), "utf8").replace(/\r\n/g, "\n");
 const quelleJs = lies("js", "review", "review-feature-sources.js");
 const markupJs = lies("js", "ui", "feature-source-markup.js");
 
