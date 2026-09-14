@@ -424,6 +424,12 @@ is the default, English is opt-in. Therefore:
   are kept (clean-deploy safety; the `political-territory-lib`/`wiki-sync-lib` lib
   shims were removed in M3 step 4). Directory URLs return 404 on this server
   (listing off) — not a sign of deletion.
+  ⭐ **Welche PHP-Dateien der Server wirklich traegt, sagt seit 14.09.2026 der Workflow
+  `.github/workflows/server-php-inventar.yml`** (nur von Hand: Actions → Run workflow; nur lesend, ohne
+  tiles/, uploads/, admin/; Artefakt lebt einen Tag): Pfad, Groesse, Datum, im Repo ja/nein, und fuer jede
+  Nicht-Repo-Datei die Funktionen, die sie deklariert, ruft und einbindet — nie ihr Inhalt. 🔴 Vor dem
+  Loeschen einer „im Repo ungerufenen" PHP-Funktion ist DAS die Gegenprobe, nicht der Repo-Scan. Waechter:
+  `tools/server-inventar/__tests__/nur-lesend.test.js` (kein Schreib-, Loesch- oder Shellgriff).
 - **`territories-endpoint.php` runs DDL + metadata probes before its cache read**
   on every political-layer request; the derived layer has an N+1 over the full
   territory table. Both are perf hotspots (milestone M6).

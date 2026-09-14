@@ -1,0 +1,79 @@
+name: Server-PHP-Inventar (nur lesend)
+
+# 🔴 NUR LESEND. Listet die PHP-Dateien des Webroots (ohne tiles/, uploads/, admin/) samt Groesse und
+#    Datum und legt sie als Artefakt ab; fuer jede Datei, die NICHT im Repo steht, dazu die Funktionen,
+#    die sie deklariert, ruft und einbindet. Kein Loeschen, kein Hochladen, keine Shell auf dem Server.
+#
+# Wozu: der Deploy loescht nie (AGENTS.md §10), der Server traegt also Dateien, die das Repo nicht kennt.
+# „Im Repo nicht gerufen" ist bei PHP deshalb kein Beleg fuer „tot" -- erst diese Liste ist einer.
+# Geloescht wird auf dem Server weiterhin NUR ueber die Retire-Liste in deploy-avesmaps-strato.yml.
+#
+# 💣 Das Artefakt nennt Server-Pfade und ist bei einem oeffentlichen Repo fuer angemeldete Nutzer
+#    abrufbar -- daher ein Tag Aufbewahrung, und nie Datei-INHALTE (siehe php-inventar.py).
+# ⚠️ Ausgeloest wird nur von Hand (Actions → „Server-PHP-Inventar" → Run workflow). Kein push, kein
+#    Zeitplan: der Lauf geht per SFTP auf das Shared Hosting, und das soll niemand nebenbei tun.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: server-php-inventar
+  cancel-in-progress: false
+
+jobs:
+  inventar:
+    name: PHP-Dateien des Webroots auflisten
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    env:
+      AVESMAPS_HOST: ${{ secrets.AVESMAPS_HOST }}
+      AVESMAPS_PASSWORD: ${{ secrets.AVESMAPS_PASSWORD }}
+      AVESMAPS_PORT: ${{ secrets.AVESMAPS_PORT }}
+      AVESMAPS_REMOTE_PATH: ${{ secrets.AVESMAPS_REMOTE_PATH }}
+      AVESMAPS_USER: ${{ secrets.AVESMAPS_USER }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Validate secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=0
+          for secret_name in AVESMAPS_HOST AVESMAPS_PASSWORD AVESMAPS_PORT AVESMAPS_REMOTE_PATH AVESMAPS_USER; do
+            if [[ -z "${!secret_name:-}" ]]; then
+              echo "::error title=Missing secret::${secret_name} is not configured."
+              missing=1
+            fi
+          done
+          [[ "$missing" -eq 0 ]]
+
+      - name: Install SFTP library
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install --quiet "paramiko==3.5.1"
+          php -v | head -n 1
+
+      - name: Read server inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/venv/bin/python" tools/server-inventar/php-inventar.py \
+            --ausgabe "$RUNNER_TEMP/inventar" \
+            --holen "$RUNNER_TEMP/server-php"
+
+      - name: Upload inventory
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-php-inventar
+          path: ${{ runner.temp }}/inventar
+          retention-days: 1
+          if-no-files-found: error
