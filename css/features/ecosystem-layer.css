@@ -606,19 +606,27 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
    von ihnen im Formular liegt und dort nicht herausgeloest werden kann, ohne das Markup
    umzubauen -- dieselbe Antwort wie beim Meldeformular („Ort bearbeiten").
    ⚠️ Die negativen Aussenraender heben GENAU das Polster des Rumpfes auf (--space-16), damit
-      die Trennlinie randlos laeuft. Wer eines von beiden aendert, aendert beide. */
+      die Trennlinie randlos laeuft. Wer eines von beiden aendert, aendert beide.
+   💣 Und `bottom` ist der DRITTE Teil desselben Werts, nicht `0`: `sticky` richtet sich nach der
+      CONTENT-Box des Formulars, `bottom: 0` hielte die Leiste also um das Polster UEBER der
+      Unterkante fest, und im Streifen darunter scrollt Inhalt sichtbar durch (14.09.2026 im
+      Browser gemessen: 18px, darin „Originalflaeche loeschen"). Um das Polster tiefer sitzt sie
+      buendig und steht in jeder Scrollstellung still (0px Bewegung).
+      ⚠️ Die Warnung in location-report-dialog.css („NICHT ein negativer Wert") hat nur die
+         BEWEGUNG gemessen, nicht die Lage. Dort steht dieselbe Leiste mit derselben Luecke
+         (8px, am 14.09.2026 gemessen) -- noch nicht korrigiert, eigene Aufgabe.
    🪤 Und DASS es beim Intro-Blatt ueberhaupt klebt, hat einen subtileren Grund als die drei
       anderen: dort ist die Leiste ein GESCHWISTER des Rumpfes, kein Kind. `position: sticky`
       richtet sich aber nach dem naechsten Vorfahren mit `overflow != visible` -- und das ist
       hier die Huelle selbst (`overflow: hidden` aus dem Bauteil), nicht der Rumpf. Es
       funktioniert also, nur nicht aus dem Grund, den die Verschachtelung nahelegt. Von einem
       Pruefagenten im echten Browser vermessen, auch bei kuenstlich verengter Fensterhoehe:
-      kein Clipping, Polster 6/14, Knopf vollstaendig sichtbar.
+      kein Clipping, Polster 6/14, Knopf vollstaendig sichtbar. */
 .ecosystem-assign-dialog__actions,
 .label-assign-dialog__actions,
 .ecosystem-transfer-dialog__actions {
 	position: sticky;
-	bottom: 0;
+	bottom: calc(-1 * var(--space-16));
 	z-index: 1;
 	display: flex;
 	justify-content: flex-end;
