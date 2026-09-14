@@ -140,3 +140,23 @@
 .path-creation-cursor .leaflet-interactive {
 	cursor: crosshair !important;
 }
+
+/* Entwurf 2026-09-14 §3.5: der Dialog fuer die GANZE Strasse. Zeitfenster wirken ueber den Hauptschluessel ohnehin
+   fuer alle Abschnitte -- im Gruppenmodus gibt es sie hier nicht (review-paths.js, pathEditGruppenModus). */
+#path-edit-form.is-gruppe .path-season {
+	display: none;
+}
+
+/* „teils · 7 von 10": ein halber Haken ist ein eigener Wert, kein „aus" (Weg-Ebene des Wege-Editors). */
+.path-transport-teils {
+	color: var(--color-text-muted);
+	font-size: var(--font-size-caption);
+}
+
+/* Die Zeile oben im Dialog -- dieselbe wie in der Infobox (.info-header__markierung). */
+.path-edit-umfang {
+	margin: 0 0 var(--space-6);
+	color: var(--color-text);
+	font-size: var(--font-size-small);
+	line-height: var(--leading-snug);
+}

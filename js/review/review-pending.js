@@ -106,7 +106,8 @@ function setPathEditSubmitPending(isPending) {
 	}
 	const submitButtonElement = document.getElementById("path-edit-submit");
 	if (submitButtonElement) {
-		submitButtonElement.textContent = isPending ? "Speichert..." : "Speichern";
+		// Entwurf 2026-09-14 §3.5: fuer die ganze Strasse traegt der Knopf die Zahl der Abschnitte.
+		submitButtonElement.textContent = isPending ? "Speichert..." : (typeof pathEditSpeicherText === "function" ? pathEditSpeicherText() : "Speichern");
 		submitButtonElement.disabled = isPending;
 	}
 }

@@ -191,9 +191,14 @@ function schattenbachpass() {
 		+ "Feld jemand angefasst hat");
 	assert.ok(editor.includes("wpGroupChangedFields(state.groupStand, state.groupDraft)"),
 		"der Speicherweg fragt nicht, was sich geaendert hat -- er schriebe alle Felder");
-	assert.ok(editor.includes("wpGroupTransportDecisions(state.groupStand, state.groupDraft)"),
+	// Entwurf 2026-09-14 §3.5: der Rumpf entsteht im Modell (wpGroupRumpf), damit Wege-Editor und Kartendialog
+	// denselben schicken. Die Zusicherungen gelten deshalb dem Aufruf hier und dem Bauer dort.
+	assert.ok(editor.includes("wpGroupRumpf(state.groupStand, state.groupDraft,"),
+		"der Editor baut seinen Rumpf nicht mit dem geteilten Bauer");
+	const modellQuelle = lies("js", "pages", "wege-editor-model.js");
+	assert.ok(modellQuelle.includes("wpGroupTransportDecisions(stand, entwurf)"),
 		"die Fahrtypen reisen nicht als Entscheidungen -- ein halber Haken waere dann ein „aus“");
-	assert.ok(editor.includes("action: \"update_path_group_details\""),
+	assert.ok(modellQuelle.includes("action: \"update_path_group_details\""),
 		"der Sammel-Schreibweg wird nicht gerufen");
 
 	// 🔴 Zwei Gesten an einer Zeile: der Pfeil klappt auf und zu, die Zeile waehlt den Weg.

@@ -526,6 +526,30 @@ function wpGroupTransportDecisions(vorher, entwurf) {
 }
 
 /**
+ * REIN: der Rumpf fuer `update_path_group_details` -- oder null, wenn nichts angefasst wurde.
+ *
+ * 🔴 EIN Bauer fuer den Wege-Editor UND den Kartendialog „Weg bearbeiten" (Entwurf 2026-09-14 §3.5). Zwei
+ * Fassungen liefen beim naechsten Feld auseinander -- und der Fehler waere still: ein Feld, das nur einer
+ * mitschickt, wird beim anderen nie geschrieben.
+ */
+function wpGroupRumpf(stand, entwurf, publicIds) {
+	var felder = wpGroupChangedFields(stand, entwurf);
+	if (felder.length === 0) { return null; }
+	var rumpf = {
+		action: "update_path_group_details",
+		public_ids: (Array.isArray(publicIds) ? publicIds : []).slice(),
+		fields: felder
+	};
+	if (felder.indexOf("name") !== -1) { rumpf.name = entwurf.name; }
+	if (felder.indexOf("show_label") !== -1) { rumpf.show_label = entwurf.show_label === true; }
+	if (felder.indexOf("feature_subtype") !== -1) { rumpf.feature_subtype = entwurf.feature_subtype; }
+	if (felder.indexOf("allowed_transports") !== -1) {
+		rumpf.transport_decisions = wpGroupTransportDecisions(stand, entwurf);
+	}
+	return rumpf;
+}
+
+/**
  * REIN: ein Wegstueck GEDREHT -- gelesen von seinem anderen Ende her.
  *
  * 💣 DAS IST MEHR ALS EINE UMGEKEHRTE LISTE. Die vier Zahlen je Wegstueck sind
@@ -815,6 +839,7 @@ if (typeof module !== "undefined" && module.exports) {
 		wpGroupFieldStates: wpGroupFieldStates,
 		wpGroupChangedFields: wpGroupChangedFields,
 		wpGroupTransportDecisions: wpGroupTransportDecisions,
+		wpGroupRumpf: wpGroupRumpf,
 		wpReversePiece: wpReversePiece,
 		wpReverseProfile: wpReverseProfile,
 		wpChainSegments: wpChainSegments,

@@ -1454,17 +1454,8 @@
 		if (button) { button.disabled = true; }
 		if (message) { message.textContent = "Wird gespeichert…"; message.className = "avm-savebar__msg"; }
 
-		var rumpf = {
-			action: "update_path_group_details",
-			public_ids: gruppe.segments.map(function (s) { return s.public_id; }),
-			fields: felder
-		};
-		if (felder.indexOf("name") !== -1) { rumpf.name = state.groupDraft.name; }
-		if (felder.indexOf("show_label") !== -1) { rumpf.show_label = state.groupDraft.show_label === true; }
-		if (felder.indexOf("feature_subtype") !== -1) { rumpf.feature_subtype = state.groupDraft.feature_subtype; }
-		if (felder.indexOf("allowed_transports") !== -1) {
-			rumpf.transport_decisions = wpGroupTransportDecisions(state.groupStand, state.groupDraft);
-		}
+		// Entwurf 2026-09-14 §3.5: EIN Rumpf-Bauer fuer Wege-Editor und Kartendialog (wpGroupRumpf im Modell).
+		var rumpf = wpGroupRumpf(state.groupStand, state.groupDraft, gruppe.segments.map(function (s) { return s.public_id; }));
 
 		var key = state.selectedGroup;
 		postJson(FEATURES_URL, rumpf).then(function (response) {

@@ -151,6 +151,12 @@ async function handlePathEditFormSubmit(event) {
 		return;
 	}
 
+	// Entwurf 2026-09-14 §3.5: die ganze Strasse speichert ueber die Weg-Ebene, nicht ueber den Abschnitt.
+	if (typeof pathEditGruppe !== "undefined" && pathEditGruppe) {
+		await handlePathGroupEditSubmit();
+		return;
+	}
+
 	const payload = buildPathEditPayload(formElement);
 	const isAutoNameEnabled = formElement.querySelector("#path-edit-autoname")?.checked === true;
 	setPathEditStatus("Weg wird gespeichert...", "pending");
@@ -165,6 +171,35 @@ async function handlePathEditFormSubmit(event) {
 		setPathEditSubmitPending(false);
 		setPathEditDialogOpen(false, { resetForm: true });
 		showFeedbackToast("Weg gespeichert.", "success");
+	} catch (error) {
+		console.error("Weg konnte nicht gespeichert werden:", error);
+		setPathEditStatus(error.message || "Weg konnte nicht gespeichert werden.", "error");
+	} finally {
+		setPathEditSubmitPending(false);
+	}
+}
+
+async function handlePathGroupEditSubmit() {
+	const gruppe = pathEditGruppe;
+	const rumpf = wpGroupRumpf(gruppe.stand, readPathGruppeEntwurf(), gruppe.pfade.map((pfad) => getPathPublicId(pfad)));
+	if (!rumpf) {
+		setPathEditStatus("Nichts geändert.");
+		return;
+	}
+	setPathEditStatus(`Wird für ${gruppe.pfade.length} Abschnitte gespeichert …`, "pending");
+	setPathEditSubmitPending(true);
+	try {
+		const result = await submitMapFeatureEdit(rumpf);
+		// 💣 KEIN Revisions-Update aus der Antwort: die Antwort traegt keine Features. Hoebe sie den lokalen Stand
+		// an, faende der Live-Abgleich danach „nichts Neues", und die Karte zeigte die alten Abschnitte.
+		// ⚠️ Laeuft gerade ein Abgleich, kehrt dieser Aufruf sofort zurueck; der naechste Takt (15 s) holt es nach.
+		await pollLiveMapUpdates();
+		void loadChangeLog();
+		setPathEditSubmitPending(false);
+		setPathEditDialogOpen(false, { resetForm: true });
+		showFeedbackToast(Number(result.written) === 0
+			? "Nichts zu ändern — die Abschnitte standen schon so."
+			: `${result.written} von ${gruppe.pfade.length} Abschnitten gespeichert.`, "success");
 	} catch (error) {
 		console.error("Weg konnte nicht gespeichert werden:", error);
 		setPathEditStatus(error.message || "Weg konnte nicht gespeichert werden.", "error");

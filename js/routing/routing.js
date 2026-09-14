@@ -1281,7 +1281,11 @@ $(document).on("click", ".location-popup__action-button", function (event) {
 			return;
 		}
 
-		if (typeof openPathEditDialog === "function") openPathEditDialog(path);
+		// Entwurf 2026-09-14 §3.5: war die ganze Strasse markiert (Task 13), bearbeitet der Dialog alle ihre Abschnitte.
+		const gruppe = this.dataset.wegUmfang === "strasse" && typeof avesmapsWegAuswahlGruppenPfade === "function"
+			? avesmapsWegAuswahlGruppenPfade(path)
+			: null;
+		if (typeof openPathEditDialog === "function") openPathEditDialog(path, { gruppe });
 		return;
 	}
 

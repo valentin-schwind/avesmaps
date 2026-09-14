@@ -10,6 +10,11 @@ function resetPathEditForm() {
 	void releaseFeatureSoftLock(publicId);
 	syncPathAutoNameControls();
 	setPathEditStatus();
+	// Entwurf 2026-09-14 §3.5: der Gruppenmodus endet mit jedem Zuruecksetzen -- sonst oeffnete der naechste
+	// Abschnitt mit den Haken der vorigen Strasse.
+	if (typeof pathEditGruppenModusBeenden === "function") {
+		pathEditGruppenModusBeenden();
+	}
 }
 
 function resetPowerlineEditForm() {

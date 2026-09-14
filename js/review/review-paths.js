@@ -36,6 +36,9 @@ function populatePathEditForm(path) {
 		renderPathFlowSection();
 	}
 	mountPathEditFeatureSources(path);
+	// Entwurf 2026-09-14 §3.5: oben die Zeile „Abschnitt: A – B", unter der Wiki-Zuweisung die weiteren Zuweisungen.
+	pathEditUmfangZeigen(path, false);
+	mountPathWikiWeitere(path, [path], false);
 }
 
 /**
@@ -51,7 +54,7 @@ function populatePathEditForm(path) {
  * geloest -- sonst haetten zwei Mounts je einen Klick-Handler, und jeder Klick liefe doppelt (dieselbe
  * Bauform wie `mountRegionEditFeatureSources`).
  */
-function mountPathEditFeatureSources(path) {
+function mountPathEditFeatureSources(path, festeIds = null) {
 	const host = document.getElementById("path-edit-feature-sources");
 	if (!host || typeof mountFeatureSourceEditor !== "function") {
 		return;
@@ -64,25 +67,300 @@ function mountPathEditFeatureSources(path) {
 	const kennung = () => String(document.getElementById("path-edit-public-id")?.value || "").trim();
 	const schluesselVon = (p) => (typeof avesmapsWegGruppenSchluessel === "function" ? avesmapsWegGruppenSchluessel(p) : "");
 	const eigenerSchluessel = schluesselVon(path);
-	mountFeatureSourceEditor(frisch, "path", kennung, {
-		gruppe: {
-			publicIds: () => {
-				const eigene = kennung();
-				const ids = eigene ? [eigene] : [];
-				if (!eigenerSchluessel || !Array.isArray(typeof pathData !== "undefined" ? pathData : null)) {
-					return ids;
-				}
-				for (const anderer of pathData) {
-					const id = String(anderer?.properties?.public_id || "").trim();
-					if (id && !ids.includes(id) && schluesselVon(anderer) === eigenerSchluessel) {
-						ids.push(id);
-					}
-				}
+	const amAbschnitt = {
+		publicIds: () => {
+			const eigene = kennung();
+			const ids = eigene ? [eigene] : [];
+			if (!eigenerSchluessel || !Array.isArray(typeof pathData !== "undefined" ? pathData : null)) {
 				return ids;
-			},
-			fest: false,
+			}
+			for (const anderer of pathData) {
+				const id = String(anderer?.properties?.public_id || "").trim();
+				if (id && !ids.includes(id) && schluesselVon(anderer) === eigenerSchluessel) {
+					ids.push(id);
+				}
+			}
+			return ids;
+		},
+		fest: false,
+	};
+	mountFeatureSourceEditor(frisch, "path", kennung, {
+		// Entwurf 2026-09-14 §3.5: fuer die GANZE Strasse fest („An allen N Abschnitten"), wie die Weg-Ebene des
+		// Wege-Editors; der geklickte Abschnitt steht vorn und ist der Anker.
+		gruppe: Array.isArray(festeIds) && festeIds.length > 1
+			? { publicIds: () => festeIds.slice(), fest: true }
+			: amAbschnitt,
+	});
+}
+
+// ── Der Dialog fuer die GANZE Strasse (Entwurf 2026-09-14 §3.5) ─────────────────────────────────────────────────
+// Die Felder der Weg-Ebene des Wege-Editors ueber `update_path_group_details`: Wegname, „Weg anzeigen", Wegtyp,
+// Transportmittel. 💣 Geschrieben wird nur, was angefasst wurde (wpGroupRumpf); ein uneiniges Feld zeigt
+// „— gemischt lassen —" bzw. einen halben Haken. Bach und Stroemung bleiben am Abschnitt; Zeitfenster wirken ueber
+// den Hauptschluessel ohnehin fuer alle Abschnitte.
+let pathEditGruppe = null;          // { pfade: path[], stand } oder null (= Abschnitt, der Dialog wie bisher)
+let pathWikiWeitereKasten = null;   // der Kasten „Weitere Wiki-Zuweisungen" im Dialog
+let pathGruppeVerdrahtet = false;
+const PATH_GRUPPE_GEMISCHT = "— gemischt lassen —";
+
+function pathEditTransportSchluessel() {
+	return Array.from(document.querySelectorAll('#path-edit-transport-options input[name="allowed_transport"]')).map((input) => input.value);
+}
+
+function pathEditSpeicherText() {
+	return pathEditGruppe ? avesmapsPathGruppeKnopfText(pathEditGruppe.pfade.length) : "Speichern";
+}
+
+/** Die kurze Zeile oben im Dialog -- dieselbe wie in der Infobox (§3.5). */
+function pathEditUmfangZeigen(path, ganz) {
+	const zeile = document.getElementById("path-edit-umfang");
+	if (!zeile) {
+		return;
+	}
+	const strecke = ganz
+		? (typeof avesmapsWegGanzeStreckeAufKarte === "function" ? avesmapsWegGanzeStreckeAufKarte(path) : "")
+		: (typeof avesmapsWegStreckeAufKarte === "function" ? avesmapsWegStreckeAufKarte(path) : "");
+	const markup = typeof avesmapsWegMarkierungszeileMarkup === "function"
+		? avesmapsWegMarkierungszeileMarkup({ gruppe: "", publicId: ganz ? null : getPathPublicId(path) }, strecke)
+		: "";
+	zeile.innerHTML = markup;
+	zeile.hidden = markup === "";
+}
+
+/** Schaltet ab, was es fuer die ganze Strasse nicht gibt -- und beim Verlassen wieder an. */
+function pathEditGruppenModus(an) {
+	const form = getPathEditFormElement();
+	if (form) {
+		form.classList.toggle("is-gruppe", Boolean(an));
+	}
+	const autoname = document.getElementById("path-edit-autoname");
+	const autonameZeile = autoname ? autoname.closest("label") : null;
+	if (autonameZeile) {
+		autonameZeile.hidden = Boolean(an);
+	}
+	if (an) {
+		// Bach und Stroemung bleiben am Abschnitt. Beim Verlassen stellt populatePathEditForm beide selbst her.
+		const bach = document.getElementById("path-edit-is-bach-row");
+		if (bach) { bach.hidden = true; }
+		const stroemung = document.getElementById("path-flow-section");
+		if (stroemung) { stroemung.hidden = true; }
+	}
+	const name = document.getElementById("path-edit-name");
+	if (name) {
+		name.required = !an;
+		name.placeholder = an ? PATH_GRUPPE_GEMISCHT : "";
+	}
+	const typ = document.getElementById("path-edit-type");
+	if (typ) {
+		typ.required = !an;
+		const gemischt = typ.querySelector("option[data-gemischt]");
+		if (gemischt) { gemischt.remove(); }
+	}
+	const zeige = document.getElementById("path-edit-show-label");
+	if (zeige) {
+		zeige.indeterminate = false;
+	}
+	document.querySelectorAll("#path-edit-transport-options .path-transport-teils").forEach((hinweis) => hinweis.remove());
+	document.querySelectorAll('#path-edit-transport-options input[name="allowed_transport"]').forEach((input) => {
+		input.indeterminate = false;
+	});
+	const knopf = document.getElementById("path-edit-submit");
+	if (knopf) {
+		knopf.textContent = pathEditSpeicherText();
+	}
+}
+
+function populatePathEditFormGruppe(path, pfade) {
+	// Erst der Grundstand des geklickten Abschnitts: Sperre, Wiki-Zuweisung, Abweichungszeile. Dann ueberschreibt die
+	// ganze Strasse, was sie anders zeigt.
+	populatePathEditForm(path);
+	const stand = wpGroupFieldStates(avesmapsPathGruppeZeilen(pfade, {
+		name: getPathDisplayName,
+		zeigeName: shouldPathNameBeDisplayed,
+		transporte: getPathAllowedTransports,
+	}), pathEditTransportSchluessel());
+	pathEditGruppe = { pfade: pfade.slice(), stand };
+	pathEditGruppenModus(true);
+
+	const autoname = document.getElementById("path-edit-autoname");
+	if (autoname) {
+		autoname.checked = false;
+	}
+	const name = document.getElementById("path-edit-name");
+	if (name) {
+		name.value = stand.name.gleich ? stand.name.wert : "";
+	}
+	// R1: ein zugewiesener Wiki-Weg besitzt den Namen -- dieselbe Sperre wie am Abschnitt.
+	syncPathAutoNameControls();
+
+	const zeige = document.getElementById("path-edit-show-label");
+	if (zeige) {
+		zeige.checked = stand.show_label.gleich && stand.show_label.wert === true;
+		zeige.indeterminate = !stand.show_label.gleich;
+	}
+
+	const typ = document.getElementById("path-edit-type");
+	if (typ) {
+		if (stand.feature_subtype.gleich && stand.feature_subtype.wert) {
+			typ.value = stand.feature_subtype.wert;
+		} else {
+			const gemischt = document.createElement("option");
+			gemischt.value = "";
+			gemischt.textContent = PATH_GRUPPE_GEMISCHT;
+			gemischt.dataset.gemischt = "1";
+			typ.insertBefore(gemischt, typ.firstChild);
+			typ.value = "";
+		}
+	}
+
+	// Angeboten wird, was IRGENDEIN Wegtyp der Strasse anbietet; der Server filtert je Abschnitt gegen seinen Typ.
+	const angeboten = new Set();
+	stand.feature_subtype.verteilung.forEach((eintrag) => {
+		getTransportOptionsForPathSubtype(normalizePathSubtype(eintrag.wert)).forEach((schluessel) => angeboten.add(schluessel));
+	});
+	document.querySelectorAll('#path-edit-transport-options input[name="allowed_transport"]').forEach((input) => {
+		const zustand = stand.transports[input.value] || { zustand: "aus", an: 0, gesamt: pfade.length };
+		const zeile = input.closest(".path-transport-row");
+		if (zeile) {
+			zeile.hidden = !angeboten.has(input.value);
+		}
+		input.disabled = !angeboten.has(input.value);
+		input.checked = zustand.zustand === "an";
+		// 💣 Ein halber Haken ist ein EIGENER Wert, kein „aus" -- er wird nur geschrieben, wenn ihn jemand anklickt.
+		input.indeterminate = zustand.zustand === "teils";
+		if (zustand.zustand === "teils" && input.parentElement) {
+			const hinweis = document.createElement("span");
+			hinweis.className = "path-transport-teils";
+			hinweis.textContent = avesmapsPathGruppeTeilsText(zustand);
+			input.parentElement.appendChild(hinweis);
+		}
+	});
+	// ⚠️ EINMAL verdrahtet, nicht bei jedem Oeffnen: der Kasten steht fest in index.html.
+	if (!pathGruppeVerdrahtet) {
+		const kasten = document.getElementById("path-edit-transport-options");
+		if (kasten && typeof kasten.addEventListener === "function") {
+			kasten.addEventListener("change", pathGruppeHakenGeaendert);
+			pathGruppeVerdrahtet = true;
+		}
+	}
+
+	pathEditUmfangZeigen(path, true);
+	mountPathWikiWeitere(path, pfade, true);
+	const eigene = getPathPublicId(path);
+	mountPathEditFeatureSources(path, [eigene].concat(pfade.map((anderer) => getPathPublicId(anderer)).filter((id) => id !== eigene)));
+}
+
+// Ein Klick nimmt einem halben Haken seinen Zwischenzustand -- dann gilt „teils · 7 von 10" nicht mehr.
+function pathGruppeHakenGeaendert(ereignis) {
+	const input = ereignis && ereignis.target;
+	if (!input || input.name !== "allowed_transport" || input.indeterminate || !input.parentElement) {
+		return;
+	}
+	const hinweis = input.parentElement.querySelector(".path-transport-teils");
+	if (hinweis) {
+		hinweis.remove();
+	}
+}
+
+/** Was in der Maske steht, in der Form von wpGroupChangedFields: `null` heisst „gemischt lassen". */
+function readPathGruppeEntwurf() {
+	const name = document.getElementById("path-edit-name");
+	const zeige = document.getElementById("path-edit-show-label");
+	const typ = document.getElementById("path-edit-type");
+	const transports = {};
+	document.querySelectorAll('#path-edit-transport-options input[name="allowed_transport"]').forEach((input) => {
+		if (input.disabled) {
+			return;
+		}
+		transports[input.value] = input.indeterminate ? "teils" : (input.checked ? "an" : "aus");
+	});
+	const nameWert = name ? String(name.value || "").trim() : "";
+	return {
+		name: nameWert === "" ? null : nameWert,
+		show_label: zeige && !zeige.indeterminate ? zeige.checked === true : null,
+		feature_subtype: typ && typ.value !== "" ? typ.value : null,
+		transports,
+	};
+}
+
+/** Der Kasten „Weitere Wiki-Zuweisungen" im Dialog -- fuer den Abschnitt oder fuer die ganze Strasse (§3.5). */
+function mountPathWikiWeitere(path, pfade, ganz) {
+	if (pathWikiWeitereKasten) {
+		pathWikiWeitereKasten.zerstoeren();
+		pathWikiWeitereKasten = null;
+	}
+	const host = document.getElementById("path-wiki-weitere-host");
+	if (!host || typeof avesmapsWikiWeitereKastenMount !== "function") {
+		return;
+	}
+	const label = (pfad) => (typeof avesmapsWegAbschnittLabelAufKarte === "function" ? avesmapsWegAbschnittLabelAufKarte(pfad) : "");
+	pathWikiWeitereKasten = avesmapsWikiWeitereKastenMount(host, {
+		skin: "label-wiki",
+		hauptKey: () => String(path.properties?.wiki_path?.wiki_key || ""),
+		// Entwurf §3.5: die Liste nennt die Hauptzuweisung als erste Zeile (ohne ✕).
+		haupt: () => path.properties?.wiki_path || null,
+		// Bei JEDER Aktion frisch gelesen: nach einem Schreiben stehen die neuen Listen schon in den Kartendaten.
+		abschnitte: () => pfade.map((pfad) => ({
+			public_id: getPathPublicId(pfad),
+			label: label(pfad),
+			wiki_path_weitere: Array.isArray(pfad.properties?.wiki_path_weitere) ? pfad.properties.wiki_path_weitere : [],
+		})),
+		umfangText: () => (ganz ? "die ganze Straße" : (label(path) || "diesen Abschnitt")),
+		gesamtText: () => {
+			const strecke = typeof avesmapsWegGanzeStreckeAufKarte === "function" ? avesmapsWegGanzeStreckeAufKarte(path) : "";
+			return strecke ? "ganze Straße · " + strecke : "ganze Straße";
+		},
+		geschrieben: (daten) => {
+			pathWikiWeitereUebernehmen(daten);
+			// Der Server hat die Kartenrevision gehoben: der Live-Abgleich holt die Abschnitte und leert damit die
+			// Zwischenspeicher, die an der Revision haengen (Gruppen, Traeger-Index).
+			if (typeof pollLiveMapUpdates === "function") {
+				void pollLiveMapUpdates();
+			}
+			if (pathWikiWeitereKasten) {
+				pathWikiWeitereKasten.neuZeichnen();
+			}
 		},
 	});
+}
+
+// Die Antwort von add_weitere/remove_weitere traegt je Abschnitt die neue Liste (Task 3). Sie wird sofort in die
+// Kartendaten gelegt -- Kasten, Infobox und Suche lesen dort --, und der naechste Live-Abgleich bestaetigt sie.
+function pathWikiWeitereUebernehmen(daten) {
+	(Array.isArray(daten && daten.segments_updated) ? daten.segments_updated : []).forEach((eintrag) => {
+		const pfad = typeof findPathByPublicId === "function" ? findPathByPublicId(eintrag.public_id) : null;
+		if (!pfad || !pfad.properties) {
+			return;
+		}
+		if (Array.isArray(eintrag.wiki_path_weitere) && eintrag.wiki_path_weitere.length) {
+			pfad.properties.wiki_path_weitere = eintrag.wiki_path_weitere;
+		} else {
+			delete pfad.properties.wiki_path_weitere;
+		}
+		if (typeof refreshPathLayerPopup === "function") {
+			refreshPathLayerPopup(pfad);
+		}
+	});
+	if (typeof invalidateSpotlightSearchEntryCache === "function") {
+		invalidateSpotlightSearchEntryCache();
+	}
+	if (typeof window !== "undefined" && typeof window.avesmapsRefreshInfopanel === "function") {
+		window.avesmapsRefreshInfopanel();
+	}
+}
+
+function pathEditGruppenModusBeenden() {
+	pathEditGruppe = null;
+	pathEditGruppenModus(false);
+	const zeile = document.getElementById("path-edit-umfang");
+	if (zeile) {
+		zeile.hidden = true;
+		zeile.innerHTML = "";
+	}
+	if (pathWikiWeitereKasten) {
+		pathWikiWeitereKasten.zerstoeren();
+		pathWikiWeitereKasten = null;
+	}
 }
 
 function populatePathEditFormFromLastSettings(path) {
@@ -133,9 +411,12 @@ function populatePathEditFormFromLastSettings(path) {
 	mountPathEditFeatureSources(path);
 }
 
-function openPathEditDialog(path, { inheritLastSettings = false } = {}) {
+function openPathEditDialog(path, { inheritLastSettings = false, gruppe = null } = {}) {
 	resetPathEditForm();
-	if (inheritLastSettings && lastPathEditSettings) {
+	// Entwurf 2026-09-14 §3.5: ganze Strasse markiert -> alle Abschnitte. Ein einteiliger Weg behaelt die Abschnittsmaske.
+	if (Array.isArray(gruppe) && gruppe.length > 1) {
+		populatePathEditFormGruppe(path, gruppe);
+	} else if (inheritLastSettings && lastPathEditSettings) {
 		populatePathEditFormFromLastSettings(path);
 	} else {
 		populatePathEditForm(path);
@@ -277,6 +558,12 @@ function syncPathBachHaken({ path = null } = {}) {
 }
 
 function syncPathTransportOptions({ path = null, resetToDefault = false } = {}) {
+	// Entwurf 2026-09-14 §3.5: im Gruppenmodus gehoeren die Haken der ganzen Strasse. Ein Wegtyp-Wechsel
+	// (bootstrap.js ruft hier mit resetToDefault) darf die halben Haken nicht auf die Vorgabe eines Typs setzen --
+	// sie wuerden sonst als Entscheidung gespeichert. Der Server filtert je Abschnitt gegen seinen Typ.
+	if (pathEditGruppe) {
+		return;
+	}
 	const subtype = normalizePathSubtype(document.getElementById("path-edit-type")?.value || path?.properties?.feature_subtype || "Weg");
 	const offeredOptions = getTransportOptionsForPathSubtype(subtype);
 	// 🔴 EIN BACH IST NICHT BEFAHRBAR (Owner 30.08.2026). Der Haken wird hier MITGEZOGEN, damit
