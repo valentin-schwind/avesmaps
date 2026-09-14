@@ -52,6 +52,15 @@ Der Router nimmt deshalb die zehnfache Strecke — und die Etappenliste verschwe
 **Im Firun** wäre zusätzlich schon der erste Abschnitt zu Fuß gesperrt: Yrramis–Mühlingen gehört
 zum Saljethweg (befahrbar 15. Peraine – 30. Efferd).
 
+> 🔴 **Korrigiert nach dem Bau (Live-Probe 14.09.2026, API-Revision 16): die Kutsche bekommt KEINEN
+> Hinweis — und das ist richtig.** Der Schattenbachpass besteht aus Gebirgspass-Abschnitten (nur zu Fuß
+> = eine Reisemittel-Sperre) **und** aus Pfad-Abschnitten, und ein Pfad trägt die Kutsche von Hause aus
+> nicht (Wegart-Vorgabe, keine Sperre). Auch ohne die Sperre käme sie nicht durch: der Vergleichslauf lief
+> (`touched 1, compared 1`), fand aber keinen billigeren Weg. Der Satz oben „die Kutsche darf die
+> Gebirgspass-Abschnitte nicht befahren, deshalb die zehnfache Strecke" war damit nur halb wahr.
+> **Der echte Fall ist das Zeitfenster:** zu Fuß ab 3. Firun 330,7 statt 284,8 Meilen, 15,84 statt
+> 14,45 Tage, Bericht „Saljethweg, am 3. Firun gesperrt", Abzweig in Yrramis, Vergleich 3,1 ms.
+
 ---
 
 ## 2. Was gebaut wird — in drei Sätzen
@@ -307,10 +316,10 @@ Aufbruchstag gesetzt, Beweisbedingung §5.1 umgedreht, Wasser in die Hinweisrege
 Hinweis und Vermerk am Abzweig werden aus einer Antwort-Attrappe gebaut und stehen an der richtigen
 Etappe; Absage im Panel; beide Feldlisten tragen das Feld.
 
-**Abnahme (Ablauf, nicht Maß):** Yrramis → Greifenfurt mit Kutsche planen → Hinweis am Anfang und an
-der ersten Etappe, Link zoomt zum Schattenbachpass. Zu Fuß, Reisebeginn 3. Firun → Hinweis zum
-Saljethweg (oder Absage mit Grund). Reisebeginn 1. Praios → Route wie heute, kein Hinweis. In hell
-und dunkel angesehen.
+**Abnahme (Ablauf, nicht Maß):** Yrramis → Greifenfurt zu Fuß, Reisebeginn 3. Firun → Hinweis am
+Anfang („1,4 Tage länger") und an der ersten Etappe, Link zoomt zum Saljethweg. Reisebeginn 1. Praios →
+Route wie heute, kein Hinweis. Mit Kutsche → der große Umweg wie heute und **kein** Hinweis (siehe die
+Korrektur in §1.3). In hell und dunkel angesehen.
 
 ---
 
@@ -335,3 +344,37 @@ Die Uhr in §4.1 teilt heraus; ob `duration` es auch soll, ist ein eigener Befun
 Artikel hängt am Geschlecht des Namens („um die Eisenstraße", „um den Rabenpass"), und die Namen
 kommen aus den Daten — gebaut ist deshalb die artikelfreie Form **„Gesperrt: Saljethweg — am 3. Firun,
 befahrbar vom 15. Peraine bis zum 30. Efferd."**
+
+---
+
+## 13. Nachtrag: Reisebeginn unbekannt (Owner 14.09.2026, während des Baus)
+
+Owner, wörtlich: „wir müssen auch noch festlegen, dass bei ‚Unbekanntem' Reisebeginn keine Sperrungen
+passieren, aber ein Hinweis kommt, dass man die Reisezeit überprüfen sollte, sofern die Routenplanung
+feststellt, dass es Sperrungen geben könnte."
+
+1. 🔴 **Ohne `departure` wird kein Zeitfenster geprüft** — das stand schon so in §3/§4.1 und bleibt.
+   Die Reisemittel-Sperre wirkt weiter (sie hängt nicht am Datum) und meldet sich wie in §5.
+2. **Neu: `route.seasonal_ways`** — nur ohne `departure` und nur bei gefundener Route: die Wege **auf
+   der gefundenen Route**, deren Kanten ein Zeitfenster für das gewählte Reisemittel tragen. Je Weg
+   `path_name`, `public_ids`, `subtype`, `transport`, `from_node`, `open_from`, `open_to`
+   (`avesmapsRouteSeasonalWays`, `api/_internal/routing/closures.php`). Fehlt, wenn nichts da ist.
+   ⚠️ „Könnte gesperrt sein" heißt hier: die Route **benutzt** einen Weg mit Fenster. Ein Weg, den eine
+   andere Jahreszeit erst ins Spiel brächte, wird nicht gesucht — das wäre ein Vergleichslauf je
+   Jahreszeit, und die Frage an den Reisenden ist dieselbe.
+3. **Anzeige:** derselbe Kasten `.route-plan-sperrung` unter dem Reisetitel, keine neue CSS-Regel:
+   „Ohne Reisebeginn geplant — auf der Route liegen Sperrzeiten: *Saljethweg* (befahrbar vom
+   15. Peraine bis zum 30. Efferd). Bitte den Reisebeginn prüfen." Der Name ist derselbe zoombare Link.
+   Keine Etappe bekommt einen Vermerk — umgangen ist nichts. Mockup: Karte „Reisebeginn unbekannt".
+4. 💣 **Ein Wechsel von Monat oder Tag sucht die stehende Route NEU** (`refreshPlan` in
+   `js/map-features/map-features-waypoints.js` ruft `updateMapView`, sobald `currentRouteSegments`
+   gefüllt ist; ohne Route bleibt es beim Neuzeichnen). Dort stand „neu zeichnen, nicht neu suchen" —
+   richtig, solange das Datum nur die Anzeige trug. Seit dieser Umbau das Datum in die Routenwahl
+   nimmt, liesse bloßes Neuzeichnen den alten Hinweis und die alte Route stehen: wer auf den Hinweis hin
+   den Reisebeginn setzt, sähe ihn nie verschwinden.
+
+**Prüfen:** PHP §E in `sperrzeiten-routing-test.php` (mit Datum kein `seasonal_ways`, ohne Datum der
+Saljethweg, Route ohne Fenster leer); JS `sperrzeiten-anfrage.test.js` §6, `sperrzeiten-hinweis.test.js`
+Fall 10, `js/map-features/__tests__/reisebeginn-sucht-neu.test.js` (der echte `change`-Zuhörer).
+**Abnahme:** Yrramis → Greifenfurt zu Fuß ohne Reisebeginn → „Bitte den Reisebeginn prüfen"; dann
+3. Firun setzen → die Route wird neu gesucht und trägt den Sperrhinweis aus §12.

@@ -352,4 +352,34 @@ assert(preg_match('/\'closures\'\s*=>\s*\$sperrbericht\[\'reports\'\]/', $code) 
 assert(AVESMAPS_ROUTE_API_CODE_REVISION === 16, 'D7: API-Revision 16');
 echo "D. Bericht ok\n";
 
+// =====================================================================================================
+// E. Reisebeginn unbekannt: KEINE Sperre -- aber die Route nennt ihre Wege mit Sperrzeiten
+// =====================================================================================================
+// Owner 14.09.2026: „bei ‚Unbekanntem' Reisebeginn keine Sperrungen passieren, aber ein Hinweis kommt,
+// dass man die Reisezeit überprüfen sollte, sofern die Routenplanung feststellt, dass es Sperrungen
+// geben könnte."
+$ohneBeginn = avesmapsFindClientCompatibleRouteLegs($g, ['A', 'B'], $anfrage());
+$saisonal = avesmapsRouteSeasonalWays($ohneBeginn, $anfrage());
+assert($ohneBeginn['node_ids'] === ['A', 'B'], 'E: ohne Reisebeginn faehrt die Route ueber den Pass -- keine Sperre');
+assert(count($saisonal) === 1 && $saisonal[0]['path_name'] === 'Saljethweg', 'E: und nennt ihn: ' . json_encode($saisonal));
+assert($saisonal[0]['open_from'] === ['month' => 'praios', 'day' => 1] && $saisonal[0]['open_to'] === ['month' => 'efferd', 'day' => 30],
+    'E: mit seinem Fenster');
+assert($saisonal[0]['public_ids'] === ['pub-P'] && $saisonal[0]['transport'] === 'groupFoot' && $saisonal[0]['from_node'] === 'A',
+    'E: Abschnitt, Mittel, Ort in Reiserichtung');
+$sommerAnfrage = $anfrage('groupFoot', $tag('rondra', 5));
+assert(avesmapsRouteSeasonalWays(avesmapsFindClientCompatibleRouteLegs($g, ['A', 'B'], $sommerAnfrage), $sommerAnfrage) === [],
+    'E: mit Reisebeginn kein Hinweis -- dann ist geprueft');
+assert(avesmapsRouteSeasonalWays(avesmapsFindClientCompatibleRouteLegs($g, ['A', 'C'], $anfrage()), $anfrage()) === [],
+    'E: eine Route ohne Weg mit Sperrzeit bekommt keinen Hinweis');
+$zweiAbschnitte = avesmapsRouteSeasonalWays(avesmapsFindClientCompatibleRouteLegs($gZwei, ['A', 'B'], $anfrage()), $anfrage());
+assert(count($zweiAbschnitte) === 1 && $zweiAbschnitte[0]['public_ids'] === ['pub-P1', 'pub-P2'], 'E: zwei Abschnitte, EIN Weg: ' . json_encode($zweiAbschnitte));
+assert(avesmapsRouteSeasonalWays(avesmapsFindClientCompatibleRouteLegs($gNurPass, ['A', 'B'], $anfrage()), $anfrage()) !== [],
+    'E: auch ohne Umweg (nur der Pass) wird gewarnt');
+$ohneWege = avesmapsBuildMinimalRouteResponse(['seasonal_ways' => []] + $route, ['debug' => false]);
+assert(!array_key_exists('seasonal_ways', $ohneWege), 'E: eine leere Liste faellt aus der Antwort heraus');
+$mitWegen = avesmapsBuildMinimalRouteResponse(['seasonal_ways' => $saisonal] + $route, ['debug' => false]);
+assert(($mitWegen['seasonal_ways'] ?? null) === $saisonal, 'E: die Wege reisen in der Antwort');
+assert(preg_match('/\'seasonal_ways\'\s*=>\s*avesmapsRouteSeasonalWays\(/', $code) === 1, 'E: und sind in response.php verdrahtet');
+echo "E. Reisebeginn unbekannt ok\n";
+
 echo "ALL OK\n";

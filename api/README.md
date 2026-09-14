@@ -299,6 +299,26 @@ If a closure changed the route, the answer names it:
 - `diverges_at_edge_id` is the first edge of the actual route that differs from the unrestricted
   one — match it against `segments[].edge_id`.
 
+Without `departure` no window closes anything — but the answer lists the ways with a season window
+that the route **uses**, so a client can ask the traveller to check the date:
+
+```json
+"seasonal_ways": [
+  {
+    "path_name": "Saljethweg",
+    "public_ids": ["298d65bf-01a2-5ede-ade0-11ce11dd0d8f"],
+    "subtype": "Gebirgspass",
+    "transport": "groupFoot",
+    "from_node": "Yrramis",
+    "open_from": { "month": "peraine", "day": 15 },
+    "open_to": { "month": "efferd", "day": 30 }
+  }
+]
+```
+
+`seasonal_ways` is absent when a `departure` was sent (every window was then checked against its
+date) or when the route touches no such way.
+
 Supported methods:
 
 ```text

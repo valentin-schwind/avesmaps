@@ -484,6 +484,9 @@ function avesmapsBuildMinimalRouteResultFromRequest(array $request, array $confi
 			)),
 			// Entwurf 2026-09-14: die umgangenen Sperren je Etappe -- leer, wenn nichts umgangen wurde.
 			'closures' => $sperrbericht['reports'],
+			// Owner 14.09.2026: ohne Reisebeginn keine Sperre, aber die Wege mit Sperrzeit auf der Route --
+			// der Planer bittet dann, den Reisebeginn zu pruefen.
+			'seasonal_ways' => avesmapsRouteSeasonalWays($routeDijkstraResult, $request),
 			'debug_context' => [
 				'api_code_revision' => AVESMAPS_ROUTE_API_CODE_REVISION,
 				'map_revision' => (int) ($routeMapData['revision'] ?? 0),
@@ -693,6 +696,9 @@ function avesmapsBuildMinimalRouteResponse(array $route, array $request = []): a
 	}
 	if (is_array($route['closures'] ?? null) && $route['closures'] !== []) {
 		$response['closures'] = array_values($route['closures']);
+	}
+	if (is_array($route['seasonal_ways'] ?? null) && $route['seasonal_ways'] !== []) {
+		$response['seasonal_ways'] = array_values($route['seasonal_ways']);
 	}
 
 	if ($will('debug')) {

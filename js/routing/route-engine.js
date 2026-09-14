@@ -24,14 +24,14 @@ function getRouteServerEndpointUrl() {
 	return window.AVESMAPS_ROUTE_ENDPOINT || "api/route/";
 }
 
-function buildServerRouteProbeRequest(start, end, useShortest, clientRoute) {
+function buildServerRouteProbeRequest(start, end, useShortest, clientRoute, departure) {
 	const routeOptions = buildRouteOptionsFromPlannerControls();
 	const clientRouteSteps = Array.isArray(clientRoute) ? clientRoute.map((routeStep) => ({
 		from: String(routeStep?.from || ""),
 		to: String(routeStep?.to || ""),
 		connection_id: String(routeStep?.connectionId || ""),
 	})).filter((routeStep) => routeStep.from && routeStep.to && routeStep.connection_id) : [];
-	return {
+	const request = {
 		from: start,
 		to: end,
 		via: [],
@@ -56,6 +56,19 @@ function buildServerRouteProbeRequest(start, end, useShortest, clientRoute) {
 		},
 		client_route: clientRouteSteps,
 	};
+	// Entwurf 2026-09-14: der Reisebeginn -- nur wenn im Panel ein Monat gewaehlt ist. Ohne ihn fragt der
+	// Server kein Zeitfenster, und die Antwort ist die von heute.
+	// 💣 `elapsed_hours` traegt die Kalenderzeit der VORIGEN Wegpunktpaare: die Karte fragt je Paar, und
+	// ohne das begaenne jedes Paar am Aufbruchstag -- eine Reise ueber drei Wegpunkte haette dreimal den
+	// 3. Firun, und der Pass am Ende waere im Winter offen.
+	if (departure && departure.monthKey) {
+		request.departure = {
+			month: String(departure.monthKey),
+			day: Number(departure.day) || 1,
+			elapsed_hours: Math.max(0, Number(departure.elapsedHours) || 0),
+		};
+	}
+	return request;
 }
 
 async function calculateRouteServer(request) {
@@ -448,12 +461,21 @@ function probeServerRouteForClientSegment(start, end, useShortest, clientRoute) 
 async function buildRouteResultFromSelectedLocationsServer(useShortest) {
 	let routeNodeNames = [],
 		segments = [];
+	// Entwurf 2026-09-14: die Sperrberichte je Paar, mit dem Versatz ihrer Segmente in der GANZEN Route --
+	// die Etappenliste sucht die Abzweigkante in genau diesem Ausschnitt (route-closures.js).
+	const closures = [];
+	// Ohne Reisebeginn: die Wege mit Sperrzeit auf der Route (Owner 14.09.2026) -- der Plan bittet dann,
+	// den Reisebeginn zu pruefen.
+	const seasonalWays = [];
+	const departure = typeof routePlanDepartureFromPanel === "function" ? routePlanDepartureFromPanel() : null;
+	let elapsedHours = 0;
 
 	for (let index = 0; index < selectedLocations.length - 1; index += 1) {
 		const start = selectedLocations[index].name;
 		const end = selectedLocations[index + 1].name;
 		const clientRoute = shouldProbeServerRouting() ? calculateRouteClientLegacy(start, end, useShortest) : [];
-		const serverRouteRequest = buildServerRouteProbeRequest(start, end, useShortest, clientRoute);
+		const pairDeparture = departure ? { monthKey: departure.monthKey, day: departure.day, elapsedHours } : null;
+		const serverRouteRequest = buildServerRouteProbeRequest(start, end, useShortest, clientRoute, pairDeparture);
 		// „Hierher reisen": ist einer der beiden Enden ein angeklickter Kartenpunkt, reist seine
 		// KOORDINATE mit. `from`/`to` bleiben die Beschriftung -- der Server kennt keinen Ort dieses
 		// Namens und wuerde sonst `location_not_found` antworten.
@@ -462,8 +484,15 @@ async function buildRouteResultFromSelectedLocationsServer(useShortest) {
 		}
 		const serverRouteResult = await calculateRouteServer(serverRouteRequest);
 		logServerRouteProbeResult(start, end, clientRoute, serverRouteRequest, serverRouteResult);
+		const pairClosures = Array.isArray(serverRouteResult?.route?.closures) ? serverRouteResult.route.closures : [];
 
 		if (!serverRouteResult.found) {
+			// 🔴 NUR WEGEN EINER SPERRE KEINE ROUTE: die Absage steht mit Grund im Panel, nicht im Popup
+			// (Owner 14.09.2026). Jede andere Absage bleibt, wie sie ist.
+			const blocked = pairClosures.find((report) => report && report.blocked === true);
+			if (blocked) {
+				return { refusal: { start, end, report: blocked } };
+			}
 			alert(tr("routing.alert.noRouteFound", "Keine Route zwischen {start} und {end} gefunden.", { start, end }));
 			return null;
 		}
@@ -484,10 +513,19 @@ async function buildRouteResultFromSelectedLocationsServer(useShortest) {
 		} else {
 			routeNodeNames = [...routeNodeNames, ...serverDisplayRoute.routeNodeNames.slice(1)];
 		}
+		const segmentOffset = segments.length;
+		pairClosures.forEach((report) => {
+			closures.push({ ...report, segmentOffset, segmentCount: serverDisplayRoute.segments.length });
+		});
+		if (Array.isArray(serverRouteResult?.route?.seasonal_ways)) {
+			seasonalWays.push(...serverRouteResult.route.seasonal_ways);
+		}
 		segments = [...segments, ...serverDisplayRoute.segments];
+		// Dieselbe Uhr wie der Server: `duration.travel_days` sind Kalendertage (Reisestunden je Reisetag).
+		elapsedHours += (Number(serverRouteResult?.route?.duration?.travel_days) || 0) * 24;
 	}
 
-	return { routeNodeNames, segments };
+	return { routeNodeNames, segments, closures, seasonalWays };
 }
 
 function buildRouteResultFromSelectedLocations(useShortest) {
@@ -584,8 +622,22 @@ async function updateMapViewServerPrimary() {
 			$("#overview").text(tr("planner.overview.noRoute", "Keine Route gefunden"));
 			return;
 		}
+		if (routeResult.refusal) {
+			currentRouteClosures = [];
+			currentRouteSeasonalWays = [];
+			if (typeof showRouteClosureRefusal === "function") {
+				showRouteClosureRefusal(routeResult.refusal);
+			} else {
+				$("#overview").text(tr("planner.overview.noRoute", "Keine Route gefunden"));
+			}
+			return;
+		}
 
 		const { routeNodeNames, segments } = routeResult;
+		// VOR showRoutePlan: der Plan liest die Berichte beim Zeichnen -- und redrawRoutePlan (Reisebeginn,
+		// Unterbringung) liest sie spaeter wieder, ohne den Router zu fragen.
+		currentRouteClosures = Array.isArray(routeResult.closures) ? routeResult.closures : [];
+		currentRouteSeasonalWays = Array.isArray(routeResult.seasonalWays) ? routeResult.seasonalWays : [];
 		console.log("Komplette Route (Knoten):", routeNodeNames);
 		console.log("Routensegmente:", segments);
 		if (segments.length) {
@@ -606,6 +658,8 @@ async function updateMapViewServerPrimary() {
 				if (routeOptions.riverOption) { trackVisitorEvent("transport", String(routeOptions.riverOption)); }
 			}
 		} else {
+			currentRouteClosures = [];
+			currentRouteSeasonalWays = [];
 			alert(tr("routing.alert.noValidServerSegments", "Keine gültigen Server-Routensegmente gefunden."));
 			resetOverview();
 		}

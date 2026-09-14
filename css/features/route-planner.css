@@ -1708,3 +1708,78 @@ input.waypoint-input {
 	background-repeat: no-repeat;
 	background-position: right 9px center;
 }
+
+/* ═══ Der Sperrhinweis im Reiseplan (Entwurf 2026-09-14, Owner: Variante C und Absage im Panel) ═════════
+   Oben steht, DASS die Route wegen einer Sperrung anders laeuft und um wie viel laenger; am Abzweig,
+   WELCHER Weg gesperrt ist und WARUM (js/routing/route-closures.js). Die Warnfarben sind die „soft status
+   surface" aus tokens.css und in beiden Themen definiert.
+   🔴 Kein Rahmen um eine Gruppe (§12), sondern ein Hinweis, der VOR den Zahlen gelesen werden muss: ein
+   Umweg von Tagen ist ohne ihn von einem Rechenfehler nicht zu unterscheiden.
+   🪤 Der Wegname im Vermerk traegt eine GEPUNKTETE Unterlinie: die Schrift hat keinen fetten Schnitt, und
+   --color-link liegt in beiden Themen dicht am Warnton -- im ersten
+   Mockup-Abzug war er vom Satz nicht zu unterscheiden. Das weicht BEWUSST von .route-plan-entry__place ab
+   (dort Unterlinie nur beim Hover): der Ortsname steht in normaler Schrift, dieser in der Warnschrift.
+   ⚠️ `.route-plan-entry--umweg::before` hat dieselbe Spezifitaet wie die Perlenregel weiter oben und
+   gewinnt nur, weil sie DANACH steht -- nicht nach oben verschieben.
+   ══ VERTRAG von docs/sperrzeiten-routing-mockup.html -- zeichengleich halten. ══ */
+.route-plan-sperrung {
+	display: flex;
+	gap: 6px;
+	align-items: baseline;
+	margin: 0 0 8px;
+	padding: 5px 7px;
+	border: 1px solid var(--color-warning-soft-border);
+	border-radius: var(--radius-md);
+	background: var(--color-warning-soft);
+	color: var(--color-warning-soft-text);
+	font-size: 12px;
+	line-height: 1.32;
+}
+.route-plan-sperrung__zeichen {
+	flex: 0 0 auto;
+	font-weight: 700;
+}
+.route-plan-sperrung__text {
+	min-width: 0;
+}
+.route-plan-entry__sperrung {
+	display: block;
+	margin-top: 1px;
+	color: var(--color-warning-soft-text);
+	font-size: 11px;
+}
+.route-plan-sperrung__weg {
+	appearance: none;
+	border: none;
+	background: none;
+	padding: 0;
+	margin: 0;
+	font: inherit;
+	text-align: inherit;
+	color: var(--color-link);
+	cursor: pointer;
+	text-decoration: underline;
+	text-decoration-style: dotted;
+	text-underline-offset: 2px;
+}
+.route-plan-entry--umweg::before {
+	border-color: var(--color-warning);
+}
+.route-plan-absage {
+	font-size: 12px;
+	line-height: 1.4;
+}
+.route-plan-absage__titel {
+	font-weight: 700;
+	margin: 0 0 4px;
+}
+.route-plan-absage .route-plan-sperrung {
+	margin: 0;
+}
+/* ══ VERTRAG ENDE ══ Alles darunter ist frei — Zustaende, Hover. ══ */
+.route-plan-sperrung__weg:hover,
+.route-plan-sperrung__weg:focus-visible {
+	color: var(--color-link-hover);
+	text-decoration-style: solid;
+	outline: none;
+}

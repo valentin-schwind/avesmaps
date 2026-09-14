@@ -918,6 +918,12 @@ function showRoutePlan(routeNames, segments) {
 	// alle Etappen, und in der Schleife aufgerufen waere er das Quadrat. Null ohne Reisebeginn.
 	// Derselbe Faktor wie in der Zusammenfassung weiter unten -- Kalenderzeit, nicht Reisezeit.
 	const routeCalendar = routePlanCalendar(planEntries, totalTravelTime > 0 ? totalHours / totalTravelTime : 1);
+	// Entwurf 2026-09-14: die Vermerke am Abzweig, EINMAL je Plan zugeordnet (Etappe -> Saetze). Die
+	// Berichte liegen in currentRouteClosures -- gesetzt vor dem ersten Zeichnen, gelesen auch beim Neuzeichnen.
+	const routeClosures = typeof currentRouteClosures !== "undefined" && Array.isArray(currentRouteClosures) ? currentRouteClosures : [];
+	const routeClosureNotes = typeof routeClosureEntryNotes === "function"
+		? routeClosureEntryNotes(routeClosures, planEntries, segments)
+		: new Map();
 
 	planEntries.forEach((entry, entryIndex) => {
 		// Places as map links (openLocationPopupByName) instead of static <strong>, where a real
@@ -948,14 +954,14 @@ function showRoutePlan(routeNames, segments) {
 			: "";
 
 		$overview.append(`
-			<div role="button" tabindex="0" class="route-plan-entry route-plan-entry--chained" data-route-entry-index="${entryIndex}">
+			<div role="button" tabindex="0" class="route-plan-entry route-plan-entry--chained${routeClosureNotes.has(entryIndex) ? " route-plan-entry--umweg" : ""}" data-route-entry-index="${entryIndex}">
 			${assetIconMarkup(ROUTE_ICON_PATHS[entry.type] || ROUTE_ICON_PATHS["Weg"])} ${routeLegTypeLabel(entry.type)}${labelSuffix}${longOffroadHint}
 			(${formatDecimalNumber(entry.distance, 2)} ${tr("planner.unit.miles", "Meilen")}${flowWord})
 			${tr("planner.leg.from", "von")} ${startMarkup}
 			${tr("planner.leg.to", "bis")} ${endMarkup}
 			${tr("planner.leg.in", "in")} ${formatDecimalNumber(entry.travelTime, 1)} ${tr("planner.unit.hours", "Stunden")} (${formatDecimalNumber(entry.travelTime / 24, 2)} ${tr("planner.unit.days", "Tage")})
 			<span class="route-plan-entry__landscapes" data-route-landscapes-index="${entryIndex}"></span>${routeEntryTerrainNote(entry, segments)}
-			${routePlanCalendarLegMarkup(routeCalendar, entryIndex, entry)}
+			${routePlanCalendarLegMarkup(routeCalendar, entryIndex, entry)}${(routeClosureNotes.get(entryIndex) || []).map((note) => `<span class="route-plan-entry__sperrung">${note}</span>`).join("")}
 			</div>
 		`);
 	});
@@ -997,6 +1003,8 @@ function showRoutePlan(routeNames, segments) {
 			</button>
 			<button type="button" id="share-link-button" class="share-link-button share-link-button--icon" title="${tr("planner.shareRoute", "Link für diese Route kopieren")}" aria-label="${tr("planner.shareRoute", "Link für diese Route kopieren")}">🔗</button>
 		</div>
+		${typeof routeClosureHeadMarkup === "function" ? routeClosureHeadMarkup(routeClosures, $('input[name="pathType"]:checked').val() === "shortest" ? "shortest" : "fastest") : ""}
+		${typeof routeSeasonalWaysHeadMarkup === "function" ? routeSeasonalWaysHeadMarkup(typeof currentRouteSeasonalWays !== "undefined" ? currentRouteSeasonalWays : []) : ""}
 		<div class="route-plan-summary__time">
 			${routePlanCalendarSummaryMarkup(planEntries, totalTravelTime > 0 ? totalHours / totalTravelTime : 1)}
 			${routeSummaryRowMarkup(tr("planner.summary.distance", "Distanz"), `${formatDecimalNumber(totalDistance, 1)} ${tr("planner.unit.miles", "Meilen")}`, tr("planner.summary.legCount", "{n} Etappen", { n: planEntries.length }))}
@@ -1012,6 +1020,9 @@ function showRoutePlan(routeNames, segments) {
 		${planEntries.length ? `<div class="route-plan-legs__title">${tr("planner.legs.heading", "Reiseetappen")}</div>` : ""}
 	`);
 	$overview.find(".route-plan-summary").on("click", zoomToCurrentRoute);
+	if (typeof bindRouteClosureLinks === "function") {
+		bindRouteClosureLinks($overview);
+	}
 
 	// Die Reisekosten stehen GANZ UNTEN, nach den Etappen (Owner 2026-08-03). Sie sind ein Ergebnis
 	// der Reise, keine Option -- die beiden Eingaben dazu liegen oben in den Routenoptionen.
@@ -1110,6 +1121,16 @@ function renderRoutePlanTravelCosts() {
  * 💣 Tut nichts, solange keine Route steht. Der Ausloeser haengt am Panel und feuert auch, bevor
  * ueberhaupt eine Route gesucht wurde -- und beim Anwenden eines geteilten Links.
  */
+// Die Absage im Panel (Owner 14.09.2026): nur wenn eine Sperre die EINZIGE Route verstellt. Sie steht dort,
+// wo sonst „Keine Route gefunden" stuende, und sagt, welcher Weg zu ist -- statt eines Popups ohne Grund.
+function showRouteClosureRefusal(refusal) {
+	const $overview = $("#overview").empty();
+	$overview.append(routeClosureRefusalMarkup(refusal));
+	if (typeof bindRouteClosureLinks === "function") {
+		bindRouteClosureLinks($overview);
+	}
+}
+
 function redrawRoutePlan() {
 	if (!Array.isArray(currentRouteSegments) || !currentRouteSegments.length) {
 		return;

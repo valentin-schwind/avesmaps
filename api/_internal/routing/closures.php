@@ -92,6 +92,58 @@ function avesmapsRouteClosureReports(array $clientGraph, array $legsResult, arra
 }
 
 /**
+ * Reisebeginn UNBEKANNT: keine Sperre -- aber welche Wege MIT Sperrzeit liegen auf der gefundenen Route?
+ *
+ * Owner 14.09.2026: „bei ‚Unbekanntem' Reisebeginn keine Sperrungen passieren, aber ein Hinweis kommt,
+ * dass man die Reisezeit überprüfen sollte, sofern die Routenplanung feststellt, dass es Sperrungen
+ * geben könnte."
+ *
+ * ⚠️ NUR ohne `departure`: mit Reisebeginn ist jede Kante gegen ihr Datum geprueft -- ein zusaetzlicher
+ * Hinweis waere ein zweiter, schwaecherer Satz ueber dieselbe Frage. Und nur fuer eine GEFUNDENE Route.
+ * ⭐ Gruppiert wie der Sperrbericht (Weg + Reisemittel), damit zwei Abschnitte eines Passes EIN Hinweis sind.
+ *
+ * @param array $legsResult Rueckgabe von avesmapsFindClientCompatibleRouteLegs (mit `legs`)
+ */
+function avesmapsRouteSeasonalWays(array $legsResult, array $request): array {
+    if (is_array($request['departure'] ?? null) || empty($legsResult['found'])) {
+        return [];
+    }
+
+    $gruppen = [];
+    foreach (is_array($legsResult['legs'] ?? null) ? $legsResult['legs'] : [] as $leg) {
+        $ergebnis = is_array($leg['result'] ?? null) ? $leg['result'] : [];
+        $segments = array_values(is_array($ergebnis['segments'] ?? null) ? $ergebnis['segments'] : []);
+        $nodeIds = array_values(is_array($ergebnis['node_ids'] ?? null) ? $ergebnis['node_ids'] : []);
+        foreach ($segments as $index => $connection) {
+            if (!is_array($connection) || !is_array($connection['season_window'] ?? null)) {
+                continue;
+            }
+            $weg = is_array($connection['sperr_weg'] ?? null) ? $connection['sperr_weg'] : [];
+            $fenster = $connection['season_window'];
+            $transport = (string) ($connection['transport_option'] ?? '');
+            $schluessel = (string) ($weg['key'] ?? ('kante:' . ($connection['id'] ?? $index))) . '|' . $transport;
+            if (!isset($gruppen[$schluessel])) {
+                $gruppen[$schluessel] = [
+                    'path_name' => (string) ($weg['name'] ?? ''),
+                    'public_ids' => [],
+                    'subtype' => (string) ($weg['subtype'] ?? ($connection['route_type'] ?? '')),
+                    'transport' => $transport,
+                    'from_node' => (string) ($nodeIds[$index] ?? ($connection['from'] ?? '')),
+                    'open_from' => ['month' => (string) $fenster['from_month'], 'day' => (int) $fenster['from_day']],
+                    'open_to' => ['month' => (string) $fenster['to_month'], 'day' => (int) $fenster['to_day']],
+                ];
+            }
+            $publicId = (string) ($connection['public_id'] ?? '');
+            if ($publicId !== '' && !in_array($publicId, $gruppen[$schluessel]['public_ids'], true)) {
+                $gruppen[$schluessel]['public_ids'][] = $publicId;
+            }
+        }
+    }
+
+    return array_values($gruppen);
+}
+
+/**
  * Die gesperrten Wege, die die Vergleichsroute benutzt -- EIN Eintrag je Weg, nicht je Kante.
  *
  * 💣 DIE UHR LAEUFT HIER NOCH EINMAL ENTLANG DER VERGLEICHSROUTE, mit derselben Funktion wie im

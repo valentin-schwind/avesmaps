@@ -48,11 +48,21 @@ function enhanceRoutePlannerOptionPanel() {
 			const syncStartDayState = () => {
 				startDay.disabled = !startMonth.value;
 			};
-			// 💣 Der Reisebeginn aendert die ANZEIGE eines stehenden Plans, nicht die Route -- also neu
-			// ZEICHNEN, nicht neu suchen (redrawRoutePlan, js/routing/route-plan.js). Ohne diese Zeile
-			// waehlt jemand den Monat und es passiert sichtbar nichts: Etappendatum und Ankunft kamen
-			// erst, wenn die Route aus anderem Anlass neu gebaut wurde.
+			// 💣 SEIT 14.09.2026 AENDERT DER REISEBEGINN DIE ROUTE SELBST, nicht nur ihre Anzeige: der Server
+			// prueft die Zeitfenster der Wege gegen das Datum (Entwurf 2026-09-14). Steht eine Route, wird sie
+			// deshalb NEU GESUCHT -- sonst bliebe nach einem Monatswechsel die alte Route samt altem
+			// Sperrhinweis stehen, und im Firun fuehrte der Plan weiter ueber einen gesperrten Pass.
+			// Ohne stehende Route (etwa beim Anwenden eines geteilten Links, bevor sie gebaut ist) bleibt es
+			// beim Neuzeichnen, das dann von sich aus nichts tut.
+			// ⚠️ Vorher stand hier „neu ZEICHNEN, nicht neu suchen (redrawRoutePlan)" -- richtig, solange das
+			// Datum nur Etappendatum und Bodenabzug trug. Ohne jede Reaktion kam das Datum erst, wenn die Route
+			// aus anderem Anlass neu gebaut wurde; beides soll nicht zurueckkommen.
 			const refreshPlan = () => {
+				const routeSteht = typeof currentRouteSegments !== "undefined" && Array.isArray(currentRouteSegments) && currentRouteSegments.length > 0;
+				if (routeSteht && typeof updateMapView === "function") {
+					updateMapView();
+					return;
+				}
 				if (typeof redrawRoutePlan === "function") {
 					redrawRoutePlan();
 				}

@@ -104,6 +104,11 @@ let locationData = [],
 	// dem showRoutePlan() den Plan baut -- gecacht, damit eine reine ANZEIGE-Aenderung (der
 	// Reisebeginn) neu zeichnen kann, ohne den Router noch einmal laufen zu lassen.
 	currentRouteNames = [],
+	// Die Sperrberichte derselben Route (Entwurf 2026-09-14), je Wegpunktpaar mit dem Versatz seiner
+	// Segmente. Gesetzt in route-engine.js vor showRoutePlan, gelesen beim Zeichnen UND beim Neuzeichnen.
+	currentRouteClosures = [],
+	// Ohne Reisebeginn: die Wege mit Sperrzeit, ueber die die Route fuehrt (Owner 14.09.2026).
+	currentRouteSeasonalWays = [],
 	activeRoutePlanEntryIndex = null,
 	graphData = null,
 	locationConnectivityIndex = null,

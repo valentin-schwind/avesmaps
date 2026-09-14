@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title>Sperrungen in der Routenwahl – Mockup (Abstimmung, 2026-09-14)</title>
+<title>Sperrungen in der Routenwahl – Mockup (gebaut, 2026-09-14)</title>
 <script>
   /* Wie jede Editorseite: gespeicherte Wahl schlaegt OS-Schema, vor dem ersten Anstrich. */
   (function () {
@@ -21,10 +21,10 @@
     if (isDark()) { document.documentElement.setAttribute("data-theme", "dark"); }
   })();
 </script>
-<!-- 🔴 RELATIVE Pfade, Absicht: eine docs/-Datei, die per file:// geoeffnet wird. Geladen wird die
-     ECHTE CSS-Kette der Karte (styles.css mit allen @import) -- die Etappenzeilen, die Reiseuebersicht
-     und die Perlenkette unten sind also die Regeln, die live gelten, nicht nachgebaut.
-     Neu ist nur der markierte VORSCHLAG-Block im <style> darunter. -->
+<!-- 🔴 RELATIVE Pfade, Absicht: eine docs/-Datei, die per file:// oder einem lokalen Server geoeffnet
+     wird. Geladen wird die ECHTE CSS-Kette der Karte (styles.css mit allen @import) -- Etappenzeilen,
+     Reiseuebersicht und Perlenkette sind die Regeln, die live gelten. Der gebundene Block unten ist die
+     Zusage an css/features/route-planner.css; geaendert wird HIER, nie dort. -->
 <link rel="stylesheet" href="../css/styles.css">
 <style>
 /* ═══════════════════════════════════════════════════════════════════════════════════════════
@@ -67,7 +67,8 @@ body { background: var(--color-page-bg); color: var(--color-text); }
 .proto-card { border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-panel); padding: var(--space-12); }
 .proto-card > h3 { font-size: 14px; margin: 0 0 var(--space-4); }
 .proto-card > .proto-sub { font-size: 11px; color: var(--color-text-muted); margin: 0 0 var(--space-10); line-height: 1.45; }
-.proto-card--empfohlen { border-color: var(--color-accent-brown); box-shadow: inset 0 0 0 1px var(--color-accent-brown); }
+.proto-card--gewaehlt { border-color: var(--color-accent-brown); box-shadow: inset 0 0 0 1px var(--color-accent-brown); }
+.proto-card--verworfen { opacity: 0.62; }
 .proto-badge {
 	display: inline-block; font-size: 11px; line-height: 1.4; padding: 1px var(--space-8);
 	border-radius: var(--radius-md); border: 1px solid var(--color-accent-brown); color: var(--color-accent-brown);
@@ -75,8 +76,8 @@ body { background: var(--color-page-bg); color: var(--color-text); }
 }
 
 /* Die Uebersichtsbox der Karte ist `#overview` (css/features/route-overview.css). Eine ID gibt es
-   nur einmal je Seite; die fuenf Karten tragen deshalb dieselben fuenf Werte unter eigener Klasse --
-   gleiche Tokens, gleiche Zahlen, nichts dazu. Die Breite ist die des Planers am Zeiger. */
+   nur einmal je Seite; die Karten tragen deshalb dieselben Werte unter eigener Klasse -- gleiche
+   Tokens, gleiche Zahlen, nichts dazu. Die Breite ist die des Planers am Zeiger. */
 .proto-overview {
 	width: 350px; max-width: 100%;
 	padding: var(--space-10);
@@ -86,7 +87,6 @@ body { background: var(--color-page-bg); color: var(--color-text); }
 	box-sizing: border-box;
 	font-size: 10pt;
 }
-.proto-overview--leer { font-size: 12px; line-height: 1.32; }
 .proto-gekuerzt { font-size: 11px; color: var(--color-text-muted); padding: 2px 7px 4px 24px; }
 
 .proto-table { width: 100%; border-collapse: collapse; font-size: 12px; }
@@ -94,16 +94,8 @@ body { background: var(--color-page-bg); color: var(--color-text); }
 .proto-table th { color: var(--color-text-muted); font-weight: 400; font-size: 11px; }
 .proto-scroll { overflow-x: auto; }
 
-/* ═══════════════════════════════════════════════════════════════════════════════════════════
-   VORSCHLAG — wandert beim Bau nach css/features/route-planner.css (dann mit Bindungsmarken).
-   Nur Tokens. Die Warnfarben sind die vorhandene „soft status surface" (tokens.css), die in
-   beiden Themen definiert ist.
-   ═══════════════════════════════════════════════════════════════════════════════════════════ */
-
-/* Am Anfang: DASS die Route wegen einer Sperrung anders laeuft, und um wie viel laenger.
-   Kein Rahmen um eine Gruppe (§12), sondern ein Hinweis -- eine eigene Flaeche, weil er gelesen
-   werden MUSS, bevor die Zahlen darunter Sinn ergeben: 36 Tage fuer 200 Meilen Drachenflug sind ohne
-   ihn ein Raetsel. */
+/* ══ VERTRAG: css/features/route-planner.css ══ Der Sperrhinweis im Reiseplan, gebaut 14.09.2026.
+   Jede Eigenschaft zwischen diesen Marken steht dort zeichengleich (tools/mockup-vertrag). */
 .route-plan-sperrung {
 	display: flex;
 	gap: 6px;
@@ -117,37 +109,48 @@ body { background: var(--color-page-bg); color: var(--color-text); }
 	font-size: 12px;
 	line-height: 1.32;
 }
-.route-plan-sperrung__zeichen { flex: 0 0 auto; font-weight: 700; }
-.route-plan-sperrung__text { min-width: 0; }
-.route-plan-sperrung__text strong { font-weight: 700; }
-
-/* Am Abzweig: WELCHER Weg, WARUM, und WANN er offen ist. Dieselbe Bauform wie das Datum der Etappe
-   (.route-plan-entry__date: eigene Zeile, 11px) -- nur in der Warnschrift statt gedaempft. */
+.route-plan-sperrung__zeichen {
+	flex: 0 0 auto;
+	font-weight: 700;
+}
+.route-plan-sperrung__text {
+	min-width: 0;
+}
 .route-plan-entry__sperrung {
 	display: block;
 	margin-top: 1px;
 	color: var(--color-warning-soft-text);
 	font-size: 11px;
 }
-/* Der Wegname im Hinweis ist ein Link auf den gesperrten Weg -- goldbraun wie jeder Link des Plans.
-   🪤 Farbe allein traegt hier NICHT: --color-link und der Warnton liegen in beiden Themen dicht
-   beieinander, und die Schrift (Faculty Glyphic) hat keinen fetten Schnitt -- im ersten Abzug war der
-   Name vom Satz nicht zu unterscheiden. Die gepunktete Unterlinie haengt an keinem von beiden. */
-.route-plan-entry__sperrung .route-plan-entry__waylink,
-.route-plan-sperrung .route-plan-entry__waylink {
+.route-plan-sperrung__weg {
+	appearance: none;
+	border: none;
+	background: none;
+	padding: 0;
+	margin: 0;
+	font: inherit;
+	text-align: inherit;
+	color: var(--color-link);
+	cursor: pointer;
 	text-decoration: underline;
 	text-decoration-style: dotted;
 	text-underline-offset: 2px;
 }
-
-/* Die Perle der Etappe, an der die Route abzweigt, traegt die Warnfarbe -- so findet das Auge den
-   Punkt in einer langen Liste, ohne dass eine Zeile laut wird. */
-.route-plan-entry--umweg::before { border-color: var(--color-warning); }
-
-/* Die Absage: steht dort, wo heute „Keine Route gefunden" steht, statt eines Popups. */
-.route-plan-absage { font-size: 12px; line-height: 1.4; }
-.route-plan-absage__titel { font-weight: 700; margin: 0 0 4px; }
-.route-plan-absage .route-plan-sperrung { margin: 0; }
+.route-plan-entry--umweg::before {
+	border-color: var(--color-warning);
+}
+.route-plan-absage {
+	font-size: 12px;
+	line-height: 1.4;
+}
+.route-plan-absage__titel {
+	font-weight: 700;
+	margin: 0 0 4px;
+}
+.route-plan-absage .route-plan-sperrung {
+	margin: 0;
+}
+/* ══ VERTRAG ENDE ══ */
 </style>
 </head>
 <body>
@@ -159,206 +162,131 @@ body { background: var(--color-page-bg); color: var(--color-text); }
 </div>
 
 <p class="proto-note">
-	<strong>Worum es geht.</strong> Wege tragen Zeitfenster (Saljethweg: befahrbar 15. Peraine – 30. Efferd) und
-	Reisemittel-Sperren (Schattenbachpass: nur zu Fuß). Die Reisemittel-Sperre <strong>wirkt schon heute</strong>,
-	still; das Zeitfenster wirkt noch gar nicht. Künftig beachtet die Route beides und <strong>sagt es</strong>,
-	wenn sie deshalb anders läuft (Owner 14.09.2026).<br>
-	<strong>Echt:</strong> Kutsche Yrramis → Greifenfurt, Live-Probe 14.09.2026 — 2.942,8 Meilen, 375,4 Reisestunden,
-	36,4 Tage über Lowangen und die See; zu Fuß über den Schattenbachpass 284,8 Meilen, 14,5 Tage.
-	Drachenflug 199,7 Meilen. <strong>Geschätzt:</strong> die Stunden je Etappe und „rund 25 Tage länger" —
-	die Kutsche <em>über</em> den Pass lässt sich erst messen, wenn gebaut ist.
+	<strong>Gebaut 14.09.2026, Variante C</strong> (Owner: „go, C und Absage im Panel"). Die Route beachtet die
+	Zeitfenster der Wege gegen den Tag, an dem der Reisende dort ankommt, und sagt es, wenn sie deshalb anders
+	läuft: oben <em>dass</em> und <em>wie viel länger</em>, am Abzweig <em>welcher Weg</em> und <em>warum</em>.<br>
+	<strong>Echt:</strong> Yrramis → Greifenfurt zu Fuß, Reisebeginn 3. Firun, Live-Probe 14.09.2026 (API-Revision 16) —
+	330,7 Meilen und 15,84 Tage über Nôrrhöh und Kaltenbach; ohne Sperre 284,8 Meilen und 14,45 Tage über den Saljethweg.
+	<strong>Geschätzt:</strong> die Stunden je Etappe; Distanz, Tage, Abzweig und Wortlaut stammen aus der Antwort.
 </p>
 
-<h2>1 · Wo steht der Hinweis? <span class="proto-h2-hint">derselbe echte Fall, drei Platzierungen</span></h2>
+<h2>1 · Gebaut: Variante C <span class="proto-h2-hint">echter Fall, dazu die zwei verworfenen Platzierungen</span></h2>
 
 <div class="proto-cards">
 
-	<!-- ── A: nur am Anfang ─────────────────────────────────────────────────────────────── -->
-	<section class="proto-card">
-		<h3>A · Nur am Anfang</h3>
-		<p class="proto-sub">Alles in einer Zeile unter dem Reisetitel. Die Etappenliste bleibt wie heute — wo der Umweg beginnt, sucht man selbst.</p>
+	<!-- ── C: gebaut ─────────────────────────────────────────────────────────────────────── -->
+	<section class="proto-card proto-card--gewaehlt">
+		<h3>C · Beides, mit verteilten Rollen <span class="proto-badge">gebaut</span></h3>
+		<p class="proto-sub">Oben steht <em>dass</em> und <em>wie viel länger</em> — damit die Zahlen darunter lesbar sind. Am Abzweig steht <em>welcher Weg</em> und <em>warum</em>; der Name zoomt auf den Weg. Keine Aussage steht zweimal.</p>
 		<div class="proto-overview">
 			<div class="route-plan-legs__title">Reiseübersicht</div>
 			<div class="route-plan-summary__head">
 				<button type="button" class="route-plan-entry route-plan-summary">Die Reise von <strong>Yrramis</strong> nach <strong>Greifenfurt</strong></button>
 				<button type="button" class="share-link-button share-link-button--icon" title="Link für diese Route kopieren" aria-label="Link für diese Route kopieren">🔗</button>
 			</div>
-			<div class="route-plan-sperrung" role="note">
-				<span class="route-plan-sperrung__zeichen" aria-hidden="true">⚠&#xFE0E;</span>
-				<span class="route-plan-sperrung__text">Umweg um den <button type="button" class="route-plan-entry__waylink">Schattenbachpass</button>: mit Kutsche nicht befahrbar, nur zu Fuß · rund 25 Tage länger</span>
-			</div>
-			<div class="route-plan-summary__time">
-				<div class="route-plan-summary__row"><span class="route-plan-summary__label">Distanz</span><span class="route-plan-summary__value">2.942,8 Meilen</span><span class="route-plan-summary__note">31 Etappen</span></div>
-				<div class="route-plan-summary__row"><span class="route-plan-summary__label">Drachenflug</span><span class="route-plan-summary__value">199,7 Meilen</span><span class="route-plan-summary__note">2 Stationen</span></div>
-				<div class="route-plan-summary__row"><span class="route-plan-summary__label">Reisezeit</span><span class="route-plan-summary__value">375,4 Stunden</span><span class="route-plan-summary__note">15,6 Tage</span></div>
-				<div class="route-plan-summary__row"><span class="route-plan-summary__label">Rastzeit</span><span class="route-plan-summary__value">498,9 Stunden</span><span class="route-plan-summary__note">20,8 Tage</span></div>
-				<div class="route-plan-summary__rule"></div>
-				<div class="route-plan-summary__row route-plan-summary__row--total"><span class="route-plan-summary__label">Gesamte Reisezeit</span><span class="route-plan-summary__value">874,3 Stunden</span><span class="route-plan-summary__note">36,4 Tage</span></div>
-				<div class="route-plan-summary__rule"></div>
-			</div>
-			<div class="route-plan-legs__title">Reiseetappen</div>
-			<div role="button" tabindex="0" class="route-plan-entry route-plan-entry--chained">
-				<img class="route-overview-icon" src="../icons/Strasse.webp" alt=""> Straße (42,2 Meilen) von <button type="button" class="route-plan-entry__place">Yrramis</button> bis <button type="button" class="route-plan-entry__place">Lowangen</button> in 12,8 Stunden (0,53 Tage)
-			</div>
-			<div role="button" tabindex="0" class="route-plan-entry route-plan-entry--chained">
-				<img class="route-overview-icon" src="../icons/Strasse.webp" alt=""> Straße (34,9 Meilen) von <button type="button" class="route-plan-entry__place">Lowangen</button> bis <button type="button" class="route-plan-entry__place">Gut Handerthal</button> in 10,6 Stunden (0,44 Tage)
-			</div>
-			<div role="button" tabindex="0" class="route-plan-entry route-plan-entry--chained">
-				<img class="route-overview-icon" src="../icons/Strasse.webp" alt=""> Straße (60,6 Meilen) von <button type="button" class="route-plan-entry__place">Gut Handerthal</button> bis <button type="button" class="route-plan-entry__place">Ansvell</button> in 18,4 Stunden (0,77 Tage)
-			</div>
-			<div class="proto-gekuerzt">… 28 weitere Etappen, über See bis Nostria, dann Angbar</div>
-		</div>
-	</section>
-
-	<!-- ── B: nur am Abzweig ────────────────────────────────────────────────────────────── -->
-	<section class="proto-card">
-		<h3>B · Nur am Abzweig</h3>
-		<p class="proto-sub">Die Übersicht bleibt wie heute; der Grund steht an der Etappe, an der die Route den Pass verlässt. Wer nur die Zahlen oben liest, erfährt nichts.</p>
-		<div class="proto-overview">
-			<div class="route-plan-legs__title">Reiseübersicht</div>
-			<div class="route-plan-summary__head">
-				<button type="button" class="route-plan-entry route-plan-summary">Die Reise von <strong>Yrramis</strong> nach <strong>Greifenfurt</strong></button>
-				<button type="button" class="share-link-button share-link-button--icon" title="Link für diese Route kopieren" aria-label="Link für diese Route kopieren">🔗</button>
-			</div>
-			<div class="route-plan-summary__time">
-				<div class="route-plan-summary__row"><span class="route-plan-summary__label">Distanz</span><span class="route-plan-summary__value">2.942,8 Meilen</span><span class="route-plan-summary__note">31 Etappen</span></div>
-				<div class="route-plan-summary__row"><span class="route-plan-summary__label">Drachenflug</span><span class="route-plan-summary__value">199,7 Meilen</span><span class="route-plan-summary__note">2 Stationen</span></div>
-				<div class="route-plan-summary__row"><span class="route-plan-summary__label">Reisezeit</span><span class="route-plan-summary__value">375,4 Stunden</span><span class="route-plan-summary__note">15,6 Tage</span></div>
-				<div class="route-plan-summary__row"><span class="route-plan-summary__label">Rastzeit</span><span class="route-plan-summary__value">498,9 Stunden</span><span class="route-plan-summary__note">20,8 Tage</span></div>
-				<div class="route-plan-summary__rule"></div>
-				<div class="route-plan-summary__row route-plan-summary__row--total"><span class="route-plan-summary__label">Gesamte Reisezeit</span><span class="route-plan-summary__value">874,3 Stunden</span><span class="route-plan-summary__note">36,4 Tage</span></div>
-				<div class="route-plan-summary__rule"></div>
-			</div>
-			<div class="route-plan-legs__title">Reiseetappen</div>
-			<div role="button" tabindex="0" class="route-plan-entry route-plan-entry--chained route-plan-entry--umweg">
-				<img class="route-overview-icon" src="../icons/Strasse.webp" alt=""> Straße (42,2 Meilen) von <button type="button" class="route-plan-entry__place">Yrramis</button> bis <button type="button" class="route-plan-entry__place">Lowangen</button> in 12,8 Stunden (0,53 Tage)
-				<span class="route-plan-entry__sperrung">⚠&#xFE0E; Umweg um den <button type="button" class="route-plan-entry__waylink">Schattenbachpass</button>: mit Kutsche nicht befahrbar, nur zu Fuß · rund 25 Tage länger</span>
-			</div>
-			<div role="button" tabindex="0" class="route-plan-entry route-plan-entry--chained">
-				<img class="route-overview-icon" src="../icons/Strasse.webp" alt=""> Straße (34,9 Meilen) von <button type="button" class="route-plan-entry__place">Lowangen</button> bis <button type="button" class="route-plan-entry__place">Gut Handerthal</button> in 10,6 Stunden (0,44 Tage)
-			</div>
-			<div role="button" tabindex="0" class="route-plan-entry route-plan-entry--chained">
-				<img class="route-overview-icon" src="../icons/Strasse.webp" alt=""> Straße (60,6 Meilen) von <button type="button" class="route-plan-entry__place">Gut Handerthal</button> bis <button type="button" class="route-plan-entry__place">Ansvell</button> in 18,4 Stunden (0,77 Tage)
-			</div>
-			<div class="proto-gekuerzt">… 28 weitere Etappen, über See bis Nostria, dann Angbar</div>
-		</div>
-	</section>
-
-	<!-- ── C: beides, Rollen verteilt (Empfehlung) ───────────────────────────────────────── -->
-	<section class="proto-card proto-card--empfohlen">
-		<h3>C · Beides, mit verteilten Rollen <span class="proto-badge">Empfehlung</span></h3>
-		<p class="proto-sub">Oben steht <em>dass</em> und <em>wie viel länger</em> — damit die Zahlen darunter lesbar sind. Am Abzweig steht <em>welcher Weg</em> und <em>warum</em>. Keine Aussage steht zweimal.</p>
-		<div class="proto-overview">
-			<div class="route-plan-legs__title">Reiseübersicht</div>
-			<div class="route-plan-summary__head">
-				<button type="button" class="route-plan-entry route-plan-summary">Die Reise von <strong>Yrramis</strong> nach <strong>Greifenfurt</strong></button>
-				<button type="button" class="share-link-button share-link-button--icon" title="Link für diese Route kopieren" aria-label="Link für diese Route kopieren">🔗</button>
-			</div>
-			<div class="route-plan-sperrung" role="note">
-				<span class="route-plan-sperrung__zeichen" aria-hidden="true">⚠&#xFE0E;</span>
-				<span class="route-plan-sperrung__text">Wegen einer Sperrung anders geführt · rund 25 Tage länger</span>
-			</div>
-			<div class="route-plan-summary__time">
-				<div class="route-plan-summary__row"><span class="route-plan-summary__label">Distanz</span><span class="route-plan-summary__value">2.942,8 Meilen</span><span class="route-plan-summary__note">31 Etappen</span></div>
-				<div class="route-plan-summary__row"><span class="route-plan-summary__label">Drachenflug</span><span class="route-plan-summary__value">199,7 Meilen</span><span class="route-plan-summary__note">2 Stationen</span></div>
-				<div class="route-plan-summary__row"><span class="route-plan-summary__label">Reisezeit</span><span class="route-plan-summary__value">375,4 Stunden</span><span class="route-plan-summary__note">15,6 Tage</span></div>
-				<div class="route-plan-summary__row"><span class="route-plan-summary__label">Rastzeit</span><span class="route-plan-summary__value">498,9 Stunden</span><span class="route-plan-summary__note">20,8 Tage</span></div>
-				<div class="route-plan-summary__rule"></div>
-				<div class="route-plan-summary__row route-plan-summary__row--total"><span class="route-plan-summary__label">Gesamte Reisezeit</span><span class="route-plan-summary__value">874,3 Stunden</span><span class="route-plan-summary__note">36,4 Tage</span></div>
-				<div class="route-plan-summary__rule"></div>
-			</div>
-			<div class="route-plan-legs__title">Reiseetappen</div>
-			<div role="button" tabindex="0" class="route-plan-entry route-plan-entry--chained route-plan-entry--umweg">
-				<img class="route-overview-icon" src="../icons/Strasse.webp" alt=""> Straße (42,2 Meilen) von <button type="button" class="route-plan-entry__place">Yrramis</button> bis <button type="button" class="route-plan-entry__place">Lowangen</button> in 12,8 Stunden (0,53 Tage)
-				<span class="route-plan-entry__sperrung">Umweg um den <button type="button" class="route-plan-entry__waylink">Schattenbachpass</button>: mit Kutsche nicht befahrbar, nur zu Fuß.</span>
-			</div>
-			<div role="button" tabindex="0" class="route-plan-entry route-plan-entry--chained">
-				<img class="route-overview-icon" src="../icons/Strasse.webp" alt=""> Straße (34,9 Meilen) von <button type="button" class="route-plan-entry__place">Lowangen</button> bis <button type="button" class="route-plan-entry__place">Gut Handerthal</button> in 10,6 Stunden (0,44 Tage)
-			</div>
-			<div role="button" tabindex="0" class="route-plan-entry route-plan-entry--chained">
-				<img class="route-overview-icon" src="../icons/Strasse.webp" alt=""> Straße (60,6 Meilen) von <button type="button" class="route-plan-entry__place">Gut Handerthal</button> bis <button type="button" class="route-plan-entry__place">Ansvell</button> in 18,4 Stunden (0,77 Tage)
-			</div>
-			<div class="proto-gekuerzt">… 28 weitere Etappen, über See bis Nostria, dann Angbar</div>
-		</div>
-	</section>
-
-</div>
-
-<h2>2 · Zeitfenster und Absage <span class="proto-h2-hint">Variante C, mit Reisebeginn — Beispielwerte</span></h2>
-
-<div class="proto-cards">
-
-	<!-- ── Zeitfenster: Umweg ───────────────────────────────────────────────────────────── -->
-	<section class="proto-card">
-		<h3>Zeitfenster · Umweg</h3>
-		<p class="proto-sub">Zu Fuß, Reisebeginn 3. Firun. Yrramis–Mühlingen gehört zum Saljethweg (befahrbar 15. Peraine – 30. Efferd). Das Datum am Abzweig ist der Tag, an dem die Route <em>ohne</em> Sperre dort gewesen wäre. Die Etappen sind angenommen — die echte Umleitung rechnet erst der Bau.</p>
-		<div class="proto-overview">
-			<div class="route-plan-legs__title">Reiseübersicht</div>
-			<div class="route-plan-summary__head">
-				<button type="button" class="route-plan-entry route-plan-summary">Die Reise von <strong>Yrramis</strong> nach <strong>Greifenfurt</strong></button>
-				<button type="button" class="share-link-button share-link-button--icon" title="Link für diese Route kopieren" aria-label="Link für diese Route kopieren">🔗</button>
-			</div>
-			<div class="route-plan-sperrung" role="note">
-				<span class="route-plan-sperrung__zeichen" aria-hidden="true">⚠&#xFE0E;</span>
-				<span class="route-plan-sperrung__text">Wegen einer Sperrung anders geführt · 21,9 Tage länger</span>
-			</div>
+			<div class="route-plan-sperrung" role="note"><span class="route-plan-sperrung__zeichen" aria-hidden="true">⚠&#xFE0E;</span><span class="route-plan-sperrung__text">Wegen einer Sperrung anders geführt · 1,4 Tage länger</span></div>
 			<div class="route-plan-summary__time">
 				<div class="route-plan-summary__row"><span class="route-plan-summary__label">Abreise</span><span class="route-plan-summary__value">3. Firun</span><span class="route-plan-summary__note"></span></div>
-				<div class="route-plan-summary__row"><span class="route-plan-summary__label">Ankunft</span><span class="route-plan-summary__value">9. Phex</span><span class="route-plan-summary__note">Winter</span></div>
-				<div class="route-plan-summary__row"><span class="route-plan-summary__label">Distanz</span><span class="route-plan-summary__value">2.960,4 Meilen</span><span class="route-plan-summary__note">32 Etappen</span></div>
+				<div class="route-plan-summary__row"><span class="route-plan-summary__label">Ankunft</span><span class="route-plan-summary__value">18. Firun</span><span class="route-plan-summary__note">Winter</span></div>
+				<div class="route-plan-summary__row"><span class="route-plan-summary__label">Distanz</span><span class="route-plan-summary__value">330,7 Meilen</span><span class="route-plan-summary__note">10 Etappen</span></div>
+				<div class="route-plan-summary__row"><span class="route-plan-summary__label">Drachenflug</span><span class="route-plan-summary__value">199,7 Meilen</span><span class="route-plan-summary__note">2 Stationen</span></div>
+				<div class="route-plan-summary__row"><span class="route-plan-summary__label">Reisezeit</span><span class="route-plan-summary__value">126,7 Stunden</span><span class="route-plan-summary__note">5,3 Tage</span></div>
+				<div class="route-plan-summary__row"><span class="route-plan-summary__label">Rastzeit</span><span class="route-plan-summary__value">253,4 Stunden</span><span class="route-plan-summary__note">10,6 Tage</span></div>
 				<div class="route-plan-summary__rule"></div>
-				<div class="route-plan-summary__row route-plan-summary__row--total"><span class="route-plan-summary__label">Gesamte Reisezeit</span><span class="route-plan-summary__value">876,0 Stunden</span><span class="route-plan-summary__note">36,5 Tage</span></div>
+				<div class="route-plan-summary__row route-plan-summary__row--total"><span class="route-plan-summary__label">Gesamte Reisezeit</span><span class="route-plan-summary__value">380,1 Stunden</span><span class="route-plan-summary__note">15,8 Tage</span></div>
 				<div class="route-plan-summary__rule"></div>
 			</div>
 			<div class="route-plan-legs__title">Reiseetappen</div>
 			<div role="button" tabindex="0" class="route-plan-entry route-plan-entry--chained route-plan-entry--umweg">
-				<img class="route-overview-icon" src="../icons/Strasse.webp" alt=""> Straße (42,2 Meilen) von <button type="button" class="route-plan-entry__place">Yrramis</button> bis <button type="button" class="route-plan-entry__place">Lowangen</button> in 17,2 Stunden (0,72 Tage)
-				<span class="route-plan-entry__date">3.–5. Firun · leichter Schnee +14&nbsp;%</span>
-				<span class="route-plan-entry__sperrung">Umweg um den <button type="button" class="route-plan-entry__waylink">Saljethweg</button>: am 3. Firun gesperrt, befahrbar vom 15. Peraine bis zum 30. Efferd.</span>
+				<img class="route-overview-icon" src="../icons/Gebirgspfad.webp" alt=""> Gebirgspass (56,6 Meilen) von <button type="button" class="route-plan-entry__place">Yrramis</button> bis <button type="button" class="route-plan-entry__place">Nôrrhöh</button> in 25,5 Stunden (1,06 Tage)
+				<span class="route-plan-entry__date">3.–5. Firun · Tiefschnee +33&nbsp;%</span><span class="route-plan-entry__sperrung">Gesperrt: <button type="button" class="route-plan-sperrung__weg" data-public-ids="298d65bf-01a2-5ede-ade0-11ce11dd0d8f,557e225e-3bfe-5c02-ba14-c7eaad197e3d">Saljethweg</button> — am 3. Firun, befahrbar vom 15. Peraine bis zum 30. Efferd.</span>
 			</div>
 			<div role="button" tabindex="0" class="route-plan-entry route-plan-entry--chained">
-				<img class="route-overview-icon" src="../icons/Strasse.webp" alt=""> Straße (34,9 Meilen) von <button type="button" class="route-plan-entry__place">Lowangen</button> bis <button type="button" class="route-plan-entry__place">Gut Handerthal</button> in 14,2 Stunden (0,59 Tage)
-				<span class="route-plan-entry__date">5.–6. Firun · leichter Schnee +14&nbsp;%</span>
+				<img class="route-overview-icon" src="../icons/Gebirgspfad.webp" alt=""> Gebirgspass (48,5 Meilen) von <button type="button" class="route-plan-entry__place">Nôrrhöh</button> bis <button type="button" class="route-plan-entry__place">Kaltenbach</button> in 21,8 Stunden (0,91 Tage)
+				<span class="route-plan-entry__date">5.–7. Firun · Tiefschnee +33&nbsp;%</span>
 			</div>
-			<div class="proto-gekuerzt">… 30 weitere Etappen</div>
+			<div role="button" tabindex="0" class="route-plan-entry route-plan-entry--chained">
+				<img class="route-overview-icon" src="../icons/Gebirgspfad.webp" alt=""> Gebirgspass (18,2 Meilen) von <button type="button" class="route-plan-entry__place">Kaltenbach</button> bis <button type="button" class="route-plan-entry__place">Nordwall</button> in 8,1 Stunden (0,34 Tage)
+				<span class="route-plan-entry__date">7.–8. Firun</span>
+			</div>
+			<div class="proto-gekuerzt">… 7 weitere Etappen über Nordhag (Weiden), Radbruch, Aare und Waldrast</div>
 		</div>
 	</section>
 
-	<!-- ── Absage ───────────────────────────────────────────────────────────────────────── -->
-	<section class="proto-card">
-		<h3>Kein offener Weg · Absage mit Grund</h3>
-		<p class="proto-sub">Gibt es nur über eine gesperrte Strecke eine Route, steht der Grund im Panel — dort, wo heute „Keine Route gefunden" steht, und statt des Popups. Die übrigen Absagen bleiben wie heute. Beispiel: zu Fuß am 3. Firun, falls auch die Seewege im Winter ruhen.</p>
-		<div class="proto-overview proto-overview--leer">
-			<div class="route-plan-absage">
-				<p class="route-plan-absage__titel">Keine offene Route von Yrramis nach Greifenfurt</p>
-				<div class="route-plan-sperrung" role="note">
-					<span class="route-plan-sperrung__zeichen" aria-hidden="true">⚠&#xFE0E;</span>
-					<span class="route-plan-sperrung__text">Der <button type="button" class="route-plan-entry__waylink">Saljethweg</button> ist am 3. Firun gesperrt, befahrbar vom 15. Peraine bis zum 30. Efferd.</span>
-				</div>
+	<!-- ── Kein offener Weg ───────────────────────────────────────────────────────────────── -->
+	<section class="proto-card proto-card--gewaehlt">
+		<h3>Kein offener Weg · Absage im Panel <span class="proto-badge">gebaut</span></h3>
+		<p class="proto-sub">Gibt es nur über eine gesperrte Strecke eine Route, steht der Grund im Panel — dort, wo sonst „Keine Route gefunden" steht, und statt des Popups. Alle übrigen Absagen bleiben, wie sie sind. Beispiel mit angenommenen Orten.</p>
+		<div class="proto-overview">
+			<div class="route-plan-absage"><p class="route-plan-absage__titel">Keine offene Route von Yrramis nach Mühlingen</p><div class="route-plan-sperrung" role="note"><span class="route-plan-sperrung__zeichen" aria-hidden="true">⚠&#xFE0E;</span><span class="route-plan-sperrung__text">Gesperrt: <button type="button" class="route-plan-sperrung__weg" data-public-ids="298d65bf-01a2-5ede-ade0-11ce11dd0d8f">Saljethweg</button> — am 3. Firun, befahrbar vom 15. Peraine bis zum 30. Efferd.</span></div></div>
+		</div>
+	</section>
+
+	<!-- ── Reisebeginn unbekannt ──────────────────────────────────────────────────────────── -->
+	<section class="proto-card proto-card--gewaehlt">
+		<h3>Reisebeginn unbekannt · Bitte prüfen <span class="proto-badge">gebaut</span></h3>
+		<p class="proto-sub">Owner 14.09.2026: ohne Reisebeginn wird nichts gesperrt, aber führt die Route über einen Weg mit Sperrzeit, bittet der Plan, den Reisebeginn zu prüfen. Derselbe Kasten, derselbe zoombare Name; keine Etappe bekommt einen Vermerk, weil nichts umgangen ist. Ein Wechsel des Reisebeginns sucht die stehende Route neu.</p>
+		<div class="proto-overview">
+			<div class="route-plan-legs__title">Reiseübersicht</div>
+			<div class="route-plan-summary__head">
+				<button type="button" class="route-plan-entry route-plan-summary">Die Reise von <strong>Yrramis</strong> nach <strong>Greifenfurt</strong></button>
+				<button type="button" class="share-link-button share-link-button--icon" title="Link für diese Route kopieren" aria-label="Link für diese Route kopieren">🔗</button>
+			</div>
+			<div class="route-plan-sperrung" role="note"><span class="route-plan-sperrung__zeichen" aria-hidden="true">⚠&#xFE0E;</span><span class="route-plan-sperrung__text">Ohne Reisebeginn geplant — auf der Route liegen Sperrzeiten: <button type="button" class="route-plan-sperrung__weg" data-public-ids="298d65bf-01a2-5ede-ade0-11ce11dd0d8f">Saljethweg</button> (befahrbar vom 15. Peraine bis zum 30. Efferd). Bitte den Reisebeginn prüfen.</span></div>
+			<div class="route-plan-summary__time">
+				<div class="route-plan-summary__row"><span class="route-plan-summary__label">Distanz</span><span class="route-plan-summary__value">284,8 Meilen</span><span class="route-plan-summary__note">…</span></div>
 			</div>
 		</div>
+	</section>
+
+	<!-- ── Kutsche: kein Hinweis ──────────────────────────────────────────────────────────── -->
+	<section class="proto-card">
+		<h3>Kutsche · kein Hinweis, und das ist richtig</h3>
+		<p class="proto-sub">Mit Kutsche fährt Yrramis → Greifenfurt weiter 2.942,8 Meilen über die See. Der Entwurf nannte das einen Umweg „wegen der Sperre am Schattenbachpass" — die Live-Probe sagt: nur halb. Der Pass besteht auch aus <strong>Pfad</strong>-Abschnitten, und ein Pfad trägt die Kutsche von Hause aus nicht (Wegart-Vorgabe, keine Sperre). Auch ohne die Sperre käme sie nicht durch; der Vergleichslauf findet keinen billigeren Weg, also steht kein Hinweis da.</p>
 	</section>
 
 </div>
 
-<h2>3 · Wortlaut <span class="proto-h2-hint">Satzformen der Reisemittel und das Fenster kommen aus path-einschraenkung.js — dieselben wie in der Infobox des Weges</span></h2>
+<div class="proto-cards" style="margin-top: var(--space-16)">
+	<section class="proto-card proto-card--verworfen">
+		<h3>A · Nur am Anfang <span class="proto-badge">nicht gewählt</span></h3>
+		<p class="proto-sub">Alles in einer Zeile unter dem Reisetitel; wo der Umweg beginnt, sucht man selbst.</p>
+		<div class="proto-overview">
+			<div class="route-plan-sperrung" role="note"><span class="route-plan-sperrung__zeichen" aria-hidden="true">⚠&#xFE0E;</span><span class="route-plan-sperrung__text">Gesperrt: Saljethweg — am 3. Firun · 1,4 Tage länger</span></div>
+		</div>
+	</section>
+	<section class="proto-card proto-card--verworfen">
+		<h3>B · Nur am Abzweig <span class="proto-badge">nicht gewählt</span></h3>
+		<p class="proto-sub">Die Übersicht bliebe wie heute; wer nur die Zahlen oben liest, erführe nichts.</p>
+		<div class="proto-overview">
+			<div role="button" tabindex="0" class="route-plan-entry route-plan-entry--chained route-plan-entry--umweg">
+				<img class="route-overview-icon" src="../icons/Gebirgspfad.webp" alt=""> Gebirgspass (56,6 Meilen) von <button type="button" class="route-plan-entry__place">Yrramis</button> bis <button type="button" class="route-plan-entry__place">Nôrrhöh</button>
+				<span class="route-plan-entry__sperrung">Gesperrt: Saljethweg — am 3. Firun · 1,4 Tage länger</span>
+			</div>
+		</div>
+	</section>
+</div>
+
+<h2>2 · Wortlaut <span class="proto-h2-hint">Satzformen der Reisemittel aus path-einschraenkung.js, Monatsnamen aus dem Planer</span></h2>
 
 <div class="proto-scroll">
 <table class="proto-table">
 	<thead><tr><th>Fall</th><th>am Anfang</th><th>am Abzweig</th></tr></thead>
 	<tbody>
-		<tr><td>Zeitfenster</td><td>Wegen einer Sperrung anders geführt · 21,9 Tage länger</td><td>Umweg um den <strong>Saljethweg</strong>: am 3. Firun gesperrt, befahrbar vom 15. Peraine bis zum 30. Efferd.</td></tr>
-		<tr><td>Reisemittel</td><td>Wegen einer Sperrung anders geführt · rund 25 Tage länger</td><td>Umweg um den <strong>Schattenbachpass</strong>: mit Kutsche nicht befahrbar, nur zu Fuß.</td></tr>
-		<tr><td>Seeweg ohne Namen</td><td>Wegen einer Sperrung anders geführt · 6,2 Tage länger</td><td>Umweg: die Seefahrt ab <strong>Enqui</strong> ruht am 12. Hesinde, befahrbar vom 1. Peraine bis zum 30. Boron.</td></tr>
-		<tr><td>zwei Sperrungen</td><td>Wegen zweier Sperrungen anders geführt · 23,4 Tage länger</td><td>eine Zeile je Weg, an seinem eigenen Abzweig</td></tr>
-		<tr><td>„Kürzeste Route"</td><td>Wegen einer Sperrung anders geführt · 38,1 Meilen länger</td><td>wie oben</td></tr>
-		<tr><td>Absage</td><td colspan="2">Keine offene Route von A nach B — Der <strong>Saljethweg</strong> ist am 3. Firun gesperrt, befahrbar vom 15. Peraine bis zum 30. Efferd.</td></tr>
+		<tr><td>Zeitfenster</td><td>Wegen einer Sperrung anders geführt · 1,4 Tage länger</td><td>Gesperrt: <strong>Saljethweg</strong> — am 3. Firun, befahrbar vom 15. Peraine bis zum 30. Efferd.</td></tr>
+		<tr><td>Reisemittel (Land)</td><td>Wegen einer Sperrung anders geführt · 3,2 Tage länger</td><td>Gesperrt: <strong>Hahnentritt</strong> — mit Kutsche nicht befahrbar, nur zu Fuß und zu Pferd.</td></tr>
+		<tr><td>Weg ohne Namen</td><td>Wegen einer Sperrung anders geführt · 6,2 Tage länger</td><td>Gesperrt: <strong>Seeweg ab Enqui</strong> — am 12. Hesinde, befahrbar vom 1. Peraine bis zum 30. Boron.</td></tr>
+		<tr><td>zwei Sperrungen</td><td>Wegen zweier Sperrungen anders geführt · 7,6 Tage länger</td><td>ein Vermerk je Weg, an seinem eigenen Abzweig</td></tr>
+		<tr><td>„Kürzeste Route"</td><td>Wegen einer Sperrung anders geführt · 45,9 Meilen länger</td><td>wie oben</td></tr>
+		<tr><td>Absage</td><td colspan="2">Keine offene Route von A nach B — Gesperrt: <strong>Saljethweg</strong> — am 3. Firun, befahrbar vom 15. Peraine bis zum 30. Efferd.</td></tr>
 	</tbody>
 </table>
 </div>
 
 <p class="proto-note" style="margin-top: var(--space-16)">
-	<strong>Kein Hinweis</strong> gibt es, wenn die Sperre die Route nicht verändert hat (der Pass lag gar nicht auf dem besten Weg), ohne Reisebeginn für Zeitfenster, und für Reisemittel-Sperren auf Flüssen und Seen — dort ist die Sperre der Normalfall (600 Abschnitte). <strong>Wirken</strong> tun sie alle.
+	🪤 <strong>Artikelfrei, weil die Namen aus den Daten kommen:</strong> „Umweg um den Saljethweg" hinge am Geschlecht („um die Eisenstraße").
+	<strong>Kein Hinweis</strong> gibt es, wenn die Sperre die Route nicht verändert hat, ohne Reisebeginn für Zeitfenster, und für
+	Reisemittel-Sperren auf Flüssen und Seen — dort ist die Sperre der Normalfall (600 Abschnitte). <strong>Wirken</strong> tun sie alle.
 </p>
 
 </div>
