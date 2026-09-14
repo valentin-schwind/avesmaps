@@ -385,13 +385,13 @@ const ohneItem = { key: "ggp:Berge:7", items: [] };
 
 const knopfLeer = garetienUebernahmeKnopfZustand([ohneItem]);
 const knopfVoll = garetienUebernahmeKnopfZustand([mitItem, mitItem, ohneItem]);
-gleich(knopfVoll.beschriftung, "Stage importieren (2 von 3)",
-	"der Knopf traegt „n von m\" -- zwei der drei Angezeigten haben ein Item");
+gleich(knopfVoll.beschriftung, "Stage importieren · 2 Objekte",
+	"der Knopf zaehlt, was entsteht (Aufgabe 7) -- zwei der drei Objekte haben ein Item");
 gleich(knopfVoll.gesperrt, false, "und ist offen, solange mindestens ein Vorschlag angezeigt wird");
 gleich(knopfLeer.gesperrt, true,
 	"🔴 kein Vorschlag unter den Angezeigten ⇒ gesperrt. Ein Blatt mit null Zeilen ist eine "
 	+ "Sackgasse: das echte Blatt haette dort nicht einmal einen Uebernehmen-Knopf.");
-gleich(knopfLeer.beschriftung, "Stage importieren (0 von 1)", "und sagt die Null auch");
+gleich(knopfLeer.beschriftung, "Stage importieren · nichts zu importieren", "und sagt es auch");
 wahr(knopfLeer.hinweis.length > 0, "… und sagt WARUM");
 gleich(knopfVoll.hinweis, "",
 	"die Gegenprobe: bei mindestens einem Vorschlag steht KEIN Hinweis da -- sonst waere er "
@@ -407,8 +407,8 @@ gleich(blattLeer.closeLabel, "Schließen", "und sein anderer Knopf heisst dann �
 // Eine leere oder fehlende Anzeige faellt auf „0 von 0" -- die sichere Richtung.
 gleich(garetienUebernahmeKnopfZustand([]).gesperrt, true, "eine leere Anzeige sperrt");
 gleich(garetienUebernahmeKnopfZustand(undefined).anzahl, 0, "und eine fehlende ebenso");
-gleich(garetienUebernahmeKnopfZustand(undefined).beschriftung, "Stage importieren (0 von 0)",
-	"…und nennt zwei Nullen, keine Ausnahme");
+gleich(garetienUebernahmeKnopfZustand(undefined).beschriftung, "Stage importieren · nichts auf der Stage",
+	"und sagt es in Worten, keine Ausnahme");
 
 // Ohne `document` fasst die DOM-Haelfte nichts an und wirft nicht.
 gleich(garetienUebernahmeKnopfSetzen([mitItem]), null,

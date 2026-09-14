@@ -1,17 +1,16 @@
-// Aufgabe 8 des Garetien-Fragmente-Verbunds -- der Knopf „Verbund auf die Stage" / „Verbund
-// auflösen" in der Handlungsleiste, samt seinem EIGENEN Klick-Verteiler (garetienVerbundKlick).
+// Aufgabe 8 des Garetien-Fragmente-Verbunds -- der Verbund-Knopf, samt seinem EIGENEN
+// Klick-Verteiler (garetienVerbundKlick).
 // Brief:   .superpowers/sdd/2026-09-09-garetien-fragmente-verbund/task-8-brief.md
 //
-// 🔴 EIGENE ERGAENZUNG DIESER SITZUNG, NICHT WOERTLICH IM BRIEF. Der Brief nennt fuer die
-// Klick-Verdrahtung „garetienDetailKlick" und eine lokale Variable `handlung" -- beide gibt es an
-// dieser Stelle im echten Code nicht: `garetienDetailKlick` behandelt nur `[data-sicht]` und
-// `.gi-show`, und JEDES `data-handlung`-Ziel laeuft am Ende durch `garetienHandlungKlick`
-// (`.closest("[data-handlung]")`, keine Einschraenkung auf einen Wert). Ohne einen EIGENEN
-// Verteiler -- nach dem Vorbild von `garetienStageKlick` fuer "stage"/"entstagen" -- liefe ein
-// Klick auf den Verbund-Knopf am Ende durch `garetienHandlungKlick`, das aber `garetienHandlungsRumpf`
-// fragt; die schliesst "verbund" ausdruecklich aus (wie "stage"/"entstagen"), der Klick bliebe also
-// wortlos, ohne je zusammenzulegen oder aufzuloesen. Dieser Test faehrt deshalb GENAU DEN
-// Verteiler, den die Verdrahtung im Fenster wirklich zuerst ruft: `garetienVerbundKlick`.
+// 🔴 UMGEBAUT AM 14.09.2026 (Garetien-Importer vereint, Aufgaben 6 und 7): der Knopf heisst
+// „Zusammenlegen (n)" / „Verbund auflösen (n)", steht NICHT mehr in der Handlungsleiste, sondern in
+// Block B (garetienVerbundBlockMarkup), und erst, wenn mindestens zwei Fragmente auf der Stage liegen.
+// Zusammenlegen LEGT NICHT MEHR AUF -- es markiert die Stage-Eintraege.
+//
+// 🔴 EIGENE ERGAENZUNG DER URSPRUENGLICHEN SITZUNG: JEDES `data-handlung`-Ziel laeuft am Ende durch
+// `garetienHandlungKlick`; `garetienHandlungsRumpf` schliesst "verbund" ausdruecklich aus. Ohne den
+// EIGENEN Verteiler bliebe der Klick wortlos. Dieser Test faehrt deshalb GENAU DEN Verteiler, den die
+// Verdrahtung im Fenster zuerst ruft: `garetienVerbundKlick`.
 //
 // Ausfuehren, vom Repo-Wurzelverzeichnis: node js/review/__tests__/garetien-verbund-klick.test.js
 
@@ -26,9 +25,7 @@ function gleich(ist, soll, warum) { assert.strictEqual(ist, soll, warum || ""); 
 
 const { api } = ladeImporter();
 
-// Eine winzige DOM-Attrappe: `closest` sucht sich selbst gegen eine Liste von Selektoren, die der
-// Knoten "passt" -- dasselbe Prinzip wie in garetien-handlungen.test.js, nur auf das eine Ziel
-// dieses Knopfs verengt.
+// Eine winzige DOM-Attrappe: `closest` sucht sich selbst gegen den einen Selektor dieses Knopfs.
 function ziel(attribute, optionen) {
 	const knoten = Object.assign({
 		disabled: false,
@@ -45,21 +42,19 @@ function ziel(attribute, optionen) {
 }
 
 function fragmente(n) {
-	// Aufgabe 6 (14.09.2026): Zusammenlegen verlangt die Form Flaeche -- ohne `ziel` waere es gesperrt.
+	// Aufgabe 6: Zusammenlegen verlangt die Form Flaeche -- ohne `ziel` waere es gesperrt.
 	const basis = { ebene: "Waelder", typ: "Wald", verbund_stamm: "Silker Hain", verbund_n: n,
-		ziel: "region", subtyp: "wald" };
+		ziel: "region", subtyp: "wald", urteil: "neu", stand: "offen" };
 	return Array.from({ length: n }, (_, i) => Object.assign(
 		{ key: "ggp:silkerhain:" + i, name: "Silker Hain " + (i + 1) }, basis));
 }
 
 function zuruecksetzen() {
-	api.garetienVerbundVergessen();
 	api.avesmapsGaretienStageLeeren();
 }
 
-// REIN: `zustand.objekte` per die ECHTE Tuer setzen. Es gibt keinen Setter dafuer -- die Liste
-// entsteht ausschliesslich in `avesmapsGaretienListeHolen` (siehe garetien-auswahlleiste.test.js,
-// Abschnitt 14, derselbe Griff), also wird `global.fetch` einmal ersetzt und zurueckgesetzt.
+// REIN: `zustand.objekte` per die ECHTE Tuer setzen -- die Liste entsteht ausschliesslich in
+// `avesmapsGaretienListeHolen`, also wird `global.fetch` einmal ersetzt und zurueckgesetzt.
 async function mitObjekten(objekte, tun) {
 	const echterFetch = global.fetch;
 	global.fetch = function () {
@@ -74,41 +69,35 @@ async function mitObjekten(objekte, tun) {
 
 (async function () {
 	// =============================================================================================
-	// A. Der Knopf in garetienHandlungen -- Beschriftung, Ton, Sperre. Die Mitgliederzahl kommt
-	// aus `zustand.objekte`, nicht aus einem Parameter (dieselbe Weiche wie garetienEinstellungs-
-	// Schluessel) -- ohne die echte Tuer daruntergelegt zaehlte die Funktion an einer leeren Liste
-	// und der Knopf zeigte immer „(0)“.
+	// A. 🔴 Aufgabe 7: der Knopf steht NICHT in garetienHandlungen, sondern in Block B -- und erst mit
+	// zwei Fragmenten auf der Stage.
 	// =============================================================================================
-
 	zuruecksetzen();
 	const [m1, m2] = fragmente(2);
 	await mitObjekten([m1, m2], function () {
-		const knoepfe = api.garetienHandlungen(m1);
-		const knopf = knoepfe.filter((k) => k.name === "verbund")[0];
-		wahr(Boolean(knopf), "der Verbund-Knopf steht in der Leiste");
-		gleich(knopf.beschriftung, "Verbund auf die Stage (2)",
-			"unzusammengelegt: „Verbund auf die Stage (n)“");
-		gleich(knopf.ton, "accent", "🔴 Ton accent, nicht gefuellt -- die eine Fuellung ist der Fuss");
-		gleich(knopf.disabled, false, "zwei Mitglieder: nicht gesperrt");
-		gleich(knopf.ids.length, 0, "kein Rumpf -- die Handlung ist rein client-seitig");
+		gleich(api.garetienHandlungen(m1).filter((k) => k.name === "verbund").length, 0,
+			"die Handlungsleiste traegt keinen Verbund-Knopf mehr");
+		gleich(api.garetienVerbundBlockMarkup(m1, [m1, m2]).indexOf('data-handlung="verbund"'), -1,
+			"ohne Fragment auf der Stage steht auch in Block B keiner");
 
-		const schluessel = api.garetienVerbundSchluessel(m1);
-		// 🔴 Aufgabe 6: Zusammenlegen legt NICHT mehr auf -- erst auflegen, dann zusammenlegen.
 		api.avesmapsGaretienStageHinzufuegen([m1, m2]);
-		api.garetienVerbundZusammenlegen(schluessel, [m1, m2]);
-		const knopfDanach = api.garetienHandlungen(m1).filter((k) => k.name === "verbund")[0];
-		gleich(knopfDanach.beschriftung, "Verbund auflösen (2)",
+		const block = api.garetienVerbundBlockMarkup(m1, [m1, m2]);
+		wahr(block.indexOf('<button class="btn btn--accent" type="button" data-handlung="verbund" data-key="ggp:silkerhain:0">Zusammenlegen (2)</button>') !== -1,
+			"zwei auf der Stage: „Zusammenlegen (2)“, Akzentrahmen, bedienbar: " + block);
+
+		api.garetienVerbundZusammenlegen(api.garetienVerbundSchluessel(m1), [m1, m2]);
+		wahr(api.garetienVerbundBlockMarkup(m1, [m1, m2]).indexOf(">Verbund auflösen (2)</button>") !== -1,
 			"zusammengelegt: „Verbund auflösen (n)“");
 	});
 	zuruecksetzen();
 
-	// Ein Verbund mit nur EINEM verbliebenen Mitglied (die uebrigen bereits ✕ herausgenommen) zeigt
-	// den Knopf gesperrt, mit Grund -- „Verbund" ohne einen zweiten Partner ist keiner mehr.
-	const [nurEines] = fragmente(2);
-	await mitObjekten([nurEines], function () {
-		const knopf = api.garetienHandlungen(nurEines).filter((k) => k.name === "verbund")[0];
-		gleich(knopf.disabled, true, "ein einzelnes verbliebenes Mitglied sperrt den Knopf");
-		wahr(/nur ein Fragment/.test(knopf.grund), "und der Grund sagt, warum: " + knopf.grund);
+	// Ein Verbund mit nur EINEM Mitglied auf der Stage zeigt keinen Knopf -- „Zusammenlegen" ohne
+	// einen zweiten Partner ist keins.
+	const [nurEines, zweites] = fragmente(2);
+	await mitObjekten([nurEines, zweites], function () {
+		api.avesmapsGaretienStageHinzufuegen([nurEines]);
+		gleich(api.garetienVerbundBlockMarkup(nurEines, [nurEines, zweites]).indexOf('data-handlung="verbund"'), -1,
+			"ein einzelnes Fragment auf der Stage: kein Knopf");
 	});
 	zuruecksetzen();
 
@@ -118,6 +107,7 @@ async function mitObjekten(objekte, tun) {
 	await mitObjekten([einzeln], function () {
 		const namen = api.garetienHandlungen(einzeln).map((k) => k.name);
 		wahr(!namen.includes("verbund"), "kein Verbund -> kein Knopf: " + namen.join(", "));
+		gleich(api.garetienVerbundBlockMarkup(einzeln, [einzeln]), "", "und kein Block");
 	});
 	zuruecksetzen();
 
@@ -132,83 +122,60 @@ async function mitObjekten(objekte, tun) {
 	zuruecksetzen();
 
 	// =============================================================================================
-	// C. Der Klick-Verteiler garetienVerbundKlick -- gemessen am ERGEBNIS. Er bekommt die
-	// Objektliste als Parameter (wie garetienStageKlick daneben) -- `zustand.objekte` bleibt hier
-	// bewusst aussen vor, dieselbe Bauform wie die Verteiler in garetien-handlungen.test.js.
+	// C. Der Klick-Verteiler garetienVerbundKlick -- gemessen am ERGEBNIS.
 	// =============================================================================================
 
 	const [c1, c2] = fragmente(2);
 	const schluesselC = api.garetienVerbundSchluessel(c1);
 
-	// Ein Klick daneben tut nichts.
 	gleich(api.garetienVerbundKlick({ target: ziel({}) }, [c1, c2]), null,
 		"ein Klick neben den Knopf loest nichts aus");
 	gleich(api.garetienVerbundIstZusammen(schluesselC), false, "und aendert auch nichts");
 
-	// Ein Klick auf den GESPERRTEN Knopf (kommt hier ueber `disabled` am Element) tut nichts.
 	gleich(api.garetienVerbundKlick(
 		{ target: ziel({ "data-handlung": "verbund", "data-key": c1.key }, { disabled: true }) },
 		[c1, c2]), null, "ein gesperrtes Element schickt nichts -- die Anzeige-Sperre gilt auch hier");
 
-	// 🔴 Aufgabe 6 (14.09.2026): der Klick LEGT NICHT AUF. Mit nur einem Fragment auf der Stage ist
-	// nichts zusammenzulegen -- das „Nein" zaehlt als gefunden und nennt den Grund.
+	// 🔴 Aufgabe 6: der Klick LEGT NICHT AUF. Mit nur einem Fragment auf der Stage ist nichts
+	// zusammenzulegen -- das „Nein" zaehlt als gefunden und nennt den Grund.
 	api.avesmapsGaretienStageHinzufuegen([c1]);
 	const gesperrt = api.garetienVerbundKlick(
 		{ target: ziel({ "data-handlung": "verbund", "data-key": c1.key }) }, [c1, c2]);
 	gleich(gesperrt.handlung, "verbund_gesperrt", "ein Fragment auf der Stage: gesperrt, kein Auflegen");
 	gleich(api.avesmapsGaretienStageHat(c2.key), false, "💣 und das zweite Fragment bleibt, wo es war");
 
-	// Beide auf der Stage: der Klick legt zusammen.
 	api.avesmapsGaretienStageHinzufuegen([c2]);
 	const ergebnis1 = api.garetienVerbundKlick(
 		{ target: ziel({ "data-handlung": "verbund", "data-key": c1.key }) }, [c1, c2]);
-	wahr(Boolean(ergebnis1), "der erste Klick legt zusammen und meldet ein Ergebnis");
-	gleich(ergebnis1.handlung, "verbund_zusammengelegt", "und benennt die Richtung");
-	gleich(api.garetienVerbundIstZusammen(schluesselC), true,
-		"der Verbund gilt jetzt als zusammengelegt");
-	gleich(api.avesmapsGaretienStageHat(c1.key), true, "beide Mitglieder liegen weiter auf der Stage");
-	gleich(api.avesmapsGaretienStageHat(c2.key), true, "auch das zweite");
+	gleich(ergebnis1.handlung, "verbund_zusammengelegt", "der Klick legt zusammen und benennt die Richtung");
+	gleich(api.garetienVerbundIstZusammen(schluesselC), true, "der Verbund gilt jetzt als zusammengelegt");
 
-	// Ein zweiter Klick auf DENSELBEN Knopf (jetzt "Verbund auflösen"): loest die Merkung, laesst
-	// die Stage aber unberuehrt (garetienVerbundAufloesen nimmt NUR die Merkung zurueck).
 	const ergebnis2 = api.garetienVerbundKlick(
 		{ target: ziel({ "data-handlung": "verbund", "data-key": c1.key }) }, [c1, c2]);
 	gleich(ergebnis2.handlung, "verbund_aufgeloest", "der zweite Klick loest auf");
-	gleich(api.garetienVerbundIstZusammen(schluesselC), false, "die Merkung ist zurueckgenommen");
-	gleich(api.avesmapsGaretienStageHat(c1.key), true,
-		"💣 die Objekte bleiben auf der Stage -- „Aufloesen“ nimmt nur die Merkung, keinen Import "
-		+ "zurueck");
-	gleich(api.avesmapsGaretienStageHat(c2.key), true, "…beide weiterhin");
+	gleich(api.garetienVerbundIstZusammen(schluesselC), false, "die Entscheidung ist zurueckgenommen");
+	gleich(api.avesmapsGaretienStageHat(c1.key) && api.avesmapsGaretienStageHat(c2.key), true,
+		"💣 die Objekte bleiben auf der Stage -- „Aufloesen“ nimmt nur die Entscheidung");
 	zuruecksetzen();
 
-	// Ein unbekannter Schluessel (Objekt nicht in der hereingereichten Liste) schickt nichts.
 	const [d1, d2] = fragmente(2);
 	gleich(api.garetienVerbundKlick(
 		{ target: ziel({ "data-handlung": "verbund", "data-key": "gibtesnicht" }) }, [d1, d2]),
 		null, "ein unbekannter Schluessel trifft kein Objekt");
-	zuruecksetzen();
-
-	// Ein Ereignis ohne Ziel bzw. ohne `closest` tut ebenfalls nichts.
 	gleich(api.garetienVerbundKlick({}, []), null, "ein Ereignis ohne Ziel schickt nichts");
-	gleich(api.garetienVerbundKlick({ target: {} }, []), null,
-		"ein Ziel ohne `closest` schickt nichts");
+	gleich(api.garetienVerbundKlick({ target: {} }, []), null, "ein Ziel ohne `closest` schickt nichts");
 
 	// =============================================================================================
-	// D. Die VERDRAHTUNG in garetienDetailMarkup -- nicht nur der isolierte Bauer (den prueft
-	// garetien-verbund-detail.test.js per `vm`), sondern die ECHTE Spalte, wie sie ein Editor
-	// sieht: der Block steht drin, UND der Knopf „Verbund auf die Stage" liegt daneben in
-	// derselben Spalte (garetienHandlungsMarkup).
+	// D. Die VERDRAHTUNG in garetienDetailMarkup: Block und Knopf stehen in der echten Spalte.
 	// =============================================================================================
 
 	const [e1, e2] = fragmente(2);
 	await mitObjekten([e1, e2], function () {
+		api.avesmapsGaretienStageHinzufuegen([e1, e2]);
 		const spalte = api.garetienDetailMarkup(e1, null, false);
 		wahr(spalte.indexOf('<p class="gi-sec">Verbund') > -1,
 			"der Verbund-Block steht in der echten Detailspalte: " + spalte.slice(0, 400));
-		wahr(spalte.indexOf('data-handlung="verbund"') > -1,
-			"und der Knopf „Verbund auf die Stage“ auch");
-		// 🔴 Der Block steht ZWISCHEN Kopf und „Was bei uns an derselben Stelle liegt“ (Brief,
-		// Schritt 3: „im return zwischen kopf und mitte“).
+		wahr(spalte.indexOf('data-handlung="verbund"') > -1, "und der Knopf „Zusammenlegen“ darin");
 		const iVerbund = spalte.indexOf('<p class="gi-sec">Verbund');
 		const iWasBeiUns = spalte.indexOf("Was bei uns an derselben Stelle liegt");
 		wahr(iVerbund > -1 && iWasBeiUns > -1 && iVerbund < iWasBeiUns,
@@ -216,13 +183,11 @@ async function mitObjekten(objekte, tun) {
 	});
 	zuruecksetzen();
 
-	// Ohne Verbund bleibt die Spalte, wie sie war -- kein leerer Rest, kein leerer Block.
 	const solo = { key: "ggp:weidicht", ebene: "Waelder", typ: "Wald", urteil: "neu",
 		abschnitte: [], items: [] };
 	await mitObjekten([solo], function () {
 		const spalte = api.garetienDetailMarkup(solo, null, false);
-		wahr(spalte.indexOf('<p class="gi-sec">Verbund') === -1,
-			"ohne Verbund erscheint kein Verbund-Block");
+		wahr(spalte.indexOf('<p class="gi-sec">Verbund') === -1, "ohne Verbund erscheint kein Verbund-Block");
 	});
 	zuruecksetzen();
 
