@@ -415,6 +415,61 @@ jobs:
           echo "Retiring orphaned remote files:"
           printf '  %s\n' "css/leaflet.css" "css/political-territory-wiki-tree.css" "icons/small_webp/ (retired: flattened into icons/)" "js/map-features/map-features-questroute.js (retired: adventures questroute dropped)" "css/features/questroute.css (retired: adventures questroute dropped)" "api/discord/sapi-probe.php (retired: temporaere Messung zur aufgeschobenen Antwort, 24.08.2026)" "css/components/editor-spalten-reiter.css (retired: Telefon-Reiter des Territorien-Editors, zurueckgebaut 13.09.2026)" "js/ui/editor-spalten-reiter.js (retired: dito)" "api/edit/admin/wiki-merker-bereinigung.php (retired: einmalige Bestandsreparatur, gefahren 14.09.2026)" "api/_internal/map/wiki-merker-bereinigung.php (retired: dito)"
 
+          # 🔴 14.09.2026: die Nur-Server-PHP-Dateien aus dem ersten Server-Inventar
+          #    (.github/workflows/server-php-inventar.yml). Alt-Tests unter _internal/**/__tests__, die
+          #    Diagnose-Sonden, die Abenteuer-Endpunkte samt Bibliotheken und zurueckgebaute Laeufe --
+          #    keine ruft eine Funktion, die das Repo noch braucht (per Tokenizer gegengeprueft).
+          # 💣 NIE hierher: api/config.local.php (Zugangsdaten) und api/wiki-sync.php (AGENTS.md §10).
+          #    Und keine Datei, die im Repo liegt -- sie fehlte nach dem Deploy auf dem Server.
+          #    Gewacht von tools/__tests__/retire-liste-geschuetzt.test.js.
+          retire_nur_server_php=(
+            "api/_internal/app/__tests__/adventure-cover-autoget-test.php"
+            "api/_internal/app/__tests__/adventure-links-test.php"
+            "api/_internal/app/__tests__/adventure-resolve-candidates-test.php"
+            "api/_internal/app/__tests__/adventure-resolve-test.php"
+            "api/_internal/app/__tests__/adventure-search-test.php"
+            "api/_internal/app/__tests__/adventure-source-place-test.php"
+            "api/_internal/app/__tests__/curve-label-rollout-test.php"
+            "api/_internal/app/__tests__/ecosystem-conditional-before-ddl-test.php"
+            "api/_internal/app/__tests__/ecosystem-wiki-no-article-test.php"
+            "api/_internal/app/__tests__/place-target-revive-test.php"
+            "api/_internal/app/__tests__/suche-anzeigename-test.php"
+            "api/_internal/app/adventure-resolve.php"
+            "api/_internal/app/adventure-search.php"
+            "api/_internal/app/adventures.php"
+            "api/_internal/import/__tests__/garetien-quellen-abbau-test.php"
+            "api/_internal/import/garetien-quellen-abbau.php"
+            "api/_internal/map/__tests__/bach-domaene-test.php"
+            "api/_internal/map/__tests__/kraftlinie-wiki-no-article-test.php"
+            "api/_internal/map/__tests__/label-wiki-no-article-test.php"
+            "api/_internal/map/__tests__/weg-wiki-no-article-test.php"
+            "api/_internal/map/__tests__/wiki-merker-bereinigung-test.php"
+            "api/_internal/map/wiki-claim.php"
+            "api/_internal/political/__tests__/anzeigename-migration-test.php"
+            "api/_internal/routing/__tests__/bach-furt-stroemung-test.php"
+            "api/_internal/routing/__tests__/terrain-tobler-test.php"
+            "api/_internal/wiki/__tests__/adventure-plan-test.php"
+            "api/_internal/wiki/__tests__/adventure-sync-test.php"
+            "api/_internal/wiki/__tests__/bilder-lokalisieren-test.php"
+            "api/_internal/wiki/__tests__/listensymbol-orte-test.php"
+            "api/_internal/wiki/__tests__/lore-source-migration-test.php"
+            "api/_internal/wiki/__tests__/powerline-assign-test.php"
+            "api/_internal/wiki/adventure-plan-apply.php"
+            "api/_internal/wiki/adventure-sync.php"
+            "api/_internal/wiki/bilder-lokalisieren.php"
+            "api/_internal/wiki/lore-source-migration.php"
+            "api/_internal/wiki/powerline-assign.php"
+            "api/app/adventures.php"
+            "api/app/geo-probe.php"
+            "api/app/imap-probe.php"
+            "api/config.example.php"
+            "api/edit/map/adventure-cover-autoget.php"
+            "api/edit/map/adventure-cover.php"
+            "api/edit/map/adventures.php"
+            "api/edit/wiki/bilder-lokalisieren.php"
+          )
+          printf '  %s (retired: nur auf dem Server, Inventar 14.09.2026)\n' "${retire_nur_server_php[@]}"
+
           lftp -u "$AVESMAPS_USER","$AVESMAPS_PASSWORD" -p "$AVESMAPS_PORT" "sftp://$AVESMAPS_HOST" <<EOF || echo "Retire: some files already gone (non-fatal)."
           set sftp:auto-confirm yes
           set net:max-retries 2
@@ -430,6 +485,7 @@ jobs:
           rm -f "js/ui/editor-spalten-reiter.js"
           rm -f "api/edit/admin/wiki-merker-bereinigung.php"
           rm -f "api/_internal/map/wiki-merker-bereinigung.php"
+          $(printf 'rm -f "%s"\n' "${retire_nur_server_php[@]}")
           bye
           EOF
 
