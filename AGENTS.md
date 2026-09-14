@@ -11,14 +11,21 @@ Avesmaps is a **non-commercial fan project** for *Aventurien*, the world of the
 German pen-and-paper RPG *Das Schwarze Auge* (DSA / "The Dark Eye"). It is an
 interactive tile map **and an in-browser route planner**.
 
-- **Live:** https://avesmaps.de (full app, with PHP+MySQL backend).
+- **Live:** https://avesmaps.de (full app, with PHP + MariaDB backend).
 - **Frontend:** vanilla JavaScript, **no build step**, no bundler. `index.html`
   hand-includes ~117 `<script>`/`<link>` tags. Leaflet **1.9.4** with
   `L.CRS.Simple`, image bounds `0..1024`, zoom `0..5` (a marker tier exists up to 6).
-- **Backend:** PHP 8 (strict types) + MySQL via PDO, hosted on **STRATO shared
+- **Backend:** PHP 8 (strict types) + **MariaDB 11.8** via PDO (`pdo_mysql`), hosted on **STRATO shared
   hosting**. Optional in the sense that the static map renders without it, but
   the live site relies on it for features, search, territories, routing, reviews
   and the editor.
+  🔴 **The production database is MariaDB, not MySQL** — the header of the database dump from
+  2026-09-08 says `11.8.8-MariaDB-log` (written by `api/_internal/backup/db-dump.php` from
+  `PDO::ATTR_SERVER_VERSION`). Until 2026-09-14 this file said "MySQL" throughout, and a plan justified
+  `JSON_EXTRACT(… '$.coordinates[last]')` with "since MySQL 8.0.2". Where this file still says "MySQL",
+  read: the production server. A claim like "works since MySQL 8.x" is **no evidence** for it — check the
+  MariaDB documentation instead (JSON path `last` and negative indexes exist since 10.9; the same table as
+  target and in a subquery of `DELETE`/`UPDATE` is allowed, see the correction in §9).
 - **Routing:** Dijkstra over a weighted graph built from GeoJSON paths
   (min-heap priority queue); runs both client-side and via `POST /api/route/`.
 
@@ -408,6 +415,14 @@ is the default, English is opt-in. Therefore:
   auf beiden. ⚠️ Die Lehre ist grösser als 1093: wer die Produktionsform verbiegt, damit ein Test
   läuft, hat den Test gegen die Produktion gedreht. Geht beides nicht, gilt **MySQL** — und ein
   Kommentar an der Stelle sagt warum, sonst „vereinfacht" der nächste Leser sie zurück.
+  🔴 **Korrigiert 14.09.2026: live läuft MariaDB 11.8.8, nicht MySQL (§1) — und MariaDB erlaubt genau diese
+  Form.** Die DELETE- und UPDATE-Seiten der MariaDB-Dokumentation nennen dieselbe Tabelle als Ziel und in der
+  Unterabfrage ausdrücklich als zulässig (`DELETE FROM t1 WHERE c1 IN (SELECT b.c1 FROM t1 b …)`). Error 1093
+  wäre auf diesem Server also nicht gefallen; gemessen hat den Abbruch damals niemand, er stand nur als
+  Folgerung da. ⚠️ Die doppelte Ableitungstabelle bleibt trotzdem richtig — sie läuft auf beiden und kostet
+  nichts —, und die Lehre dieses Absatzes bleibt ganz: die Produktionsform wird nicht für SQLite verbogen.
+  „Gilt MySQL" heißt hier: es gilt der Produktionsserver, und dessen Verhalten wird nachgelesen, nicht
+  aus MySQL abgeleitet.
 - **Secrets:** `api/config.local.php` is gitignored and must never be committed.
   No production dumps, reports, audit logs, tokens or credentials in the repo.
 - **Legal:** DSA assets follow the Ulisses fan guidelines (see `NOTICE.md`).
