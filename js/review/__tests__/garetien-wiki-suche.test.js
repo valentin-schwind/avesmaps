@@ -296,8 +296,84 @@ async function pruefeIntegration() {
 	}
 }
 
+// =================================================================================================
+// F. SCHLUSSPRUEFUNG, BEFUND W3: die automatische Suche sucht mit dem STAMM eines
+//    zusammengelegten Verbunds, nicht mit dem Fragmentnamen (garetienNameFuerImport, wie das
+//    Namensfeld und der Server-Rumpf es auch tun) -- und der Cache-Schluessel traegt den Suchnamen
+//    mit, sonst bliebe nach dem Zusammenlegen/Aufloesen der alte Treffer unter demselben
+//    `objekt.key` stehen.
+// =================================================================================================
+
+async function pruefeVerbundStamm() {
+	const gesendet = [];
+	global.fetch = function (url, optionen) {
+		const rumpf = JSON.parse((optionen && optionen.body) || "{}");
+		gesendet.push(rumpf);
+		return Promise.resolve({
+			json: () => Promise.resolve({
+				ok: true,
+				wiki_landschaft: { status: "passt", name: rumpf.name, art: "Wald" },
+			}),
+		});
+	};
+	try {
+		const f1 = {
+			key: "ggp:Waelder:Wald:Silker-Hain-1", name: "Silker Hain 1", typ: "Wald",
+			ebene: "Waelder", subtyp: "wald", kind: "topographie", ziel: "region",
+			verbund_stamm: "Silker Hain", verbund_n: 2,
+			quelle: { label: "Briefspiel (Garetien)" },
+			abschnitte: [],
+			items: [{ id: 301, change_type: "new", anlass: null }],
+		};
+		const f2 = Object.assign({}, f1, {
+			key: "ggp:Waelder:Wald:Silker-Hain-2", name: "Silker Hain 2",
+			items: [{ id: 302, change_type: "new", anlass: null }],
+		});
+		const verbund = mod.garetienVerbundSchluessel(f1);
+
+		// ---- Unzusammengelegt: das Fragment sucht mit SEINEM EIGENEN Namen.
+		mod.avesmapsGaretienStageHinzufuegen([f1]);
+		garetienWikiLandschaftBeiBedarfLaden(f1);
+		await ruhe();
+		gleich(gesendet.length, 1, "vor dem Zusammenlegen genau eine Anfrage: " + JSON.stringify(gesendet));
+		gleich(gesendet[0].name, "Silker Hain 1",
+			"unzusammengelegt sucht das Fragment mit seinem eigenen Namen");
+
+		// ---- Zusammenlegen: beide Fragmente auf der Stage, als Verbund markiert.
+		mod.avesmapsGaretienStageHinzufuegen([f1, f2]);
+		mod.garetienVerbundZusammenlegen(verbund, [f1, f2]);
+		gleich(mod.garetienVerbundIstZusammen(verbund), true, "Vorbedingung: der Verbund ist zusammengelegt");
+
+		// ---- Derselbe Objektaufruf sucht jetzt mit dem STAMM -- UND weil sich der Suchname
+		// geaendert hat, muss der Cache-Schluessel mitwechseln und eine NEUE Anfrage ausloesen
+		// (bliebe der Schluessel beim blossen `objekt.key` stehen, griffe die Riegel-Zeile
+		// `schluessel === _garetienWikiLandschaftLetzterKey` und es wuerde gar nicht neu gefragt).
+		garetienWikiLandschaftBeiBedarfLaden(f1);
+		await ruhe();
+		gleich(gesendet.length, 2,
+			"🔴 nach dem Zusammenlegen wechselt der Suchname -> das muss eine neue Anfrage ausloesen: "
+			+ JSON.stringify(gesendet));
+		gleich(gesendet[1].name, "Silker Hain",
+			'🔴 W3: die Suche geht mit dem STAMM raus, nicht mit dem Fragmentnamen "Silker Hain 1": '
+			+ JSON.stringify(gesendet));
+
+		// ---- Aufloesen: der Cache-Schluessel wechselt zurueck, das Fragment sucht wieder mit
+		// seinem eigenen Namen -- derselbe Nachweis in die Gegenrichtung.
+		mod.garetienVerbundAufloesen(verbund);
+		garetienWikiLandschaftBeiBedarfLaden(f1);
+		await ruhe();
+		gleich(gesendet.length, 3, "nach dem Aufloesen wieder eine neue Anfrage: " + JSON.stringify(gesendet));
+		gleich(gesendet[2].name, "Silker Hain 1",
+			"nach dem Aufloesen sucht das Fragment wieder mit seinem eigenen Namen");
+		checks += 6;
+	} finally {
+		delete global.fetch;
+	}
+}
+
 pruefeSuche()
 	.then(pruefeIntegration)
+	.then(pruefeVerbundStamm)
 	.then(function () {
 		console.log("garetien-wiki-suche: " + checks + " Pruefungen bestanden.");
 	})
