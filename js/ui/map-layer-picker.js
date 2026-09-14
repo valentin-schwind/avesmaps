@@ -197,32 +197,32 @@
 			'<g fill="rgba(255,105,130,.9)"><circle cx="15" cy="17" r="3.6"/><circle cx="34" cy="31" r="3"/></g>' +
 			'<g fill="rgba(255,235,240,1)"><circle cx="15" cy="17" r="1.7"/><circle cx="34" cy="31" r="1.4"/></g>',
 
-		// 🔴 VIER FLAECHENARTEN, jede in ihrer echten Farbe (Owner 26.08.2026: "gruen fuer wald, blau
-		// fuer see, braun fuer gebirge"):
-		//   Wald      --color-ecosystem-vegetation-wald      #3f6b2c
-		//   Grasland  --color-ecosystem-vegetation           #5f7d33
-		//   Steppe    --color-ecosystem-vegetation-steppe    #a8bd8a
-		//   See       --color-water                             #4c89c6  (= die Flussfarbe, Owner 09.09.2026)
-		//   Gebirge   --color-ecosystem-topographie-gebirge  #7a6c5e
-		//   Huegel    --color-ecosystem-topographie-huegelland #7d8f6e
-		// ⚠️ Die Waldflecken liegen dort, wo die Vorlagekachel ihre Waelder hat, und der See auf ihrem
-		// Flusslauf -- dieselbe Regel wie bei den Strassen: nachgezeichnet, nicht danebengelegt.
-		// 💣 Ausgefranste Raender, keine Baender: so liegen die Flaechen auf der Karte.
+		// 🔴 „ALLE" IST DIE UEBERLAGERUNG DER DREI EBENEN-ICONS (Owner 14.09.2026, am gerenderten Bild
+		// abgenommen: „du musst dir fuer die icons merken"). Der Wert ist GENAU, in dieser Reihenfolge:
+		//   1. die Flaechengruppe aus eco_derographisch (die Gruppe mit fill #575757),
+		//   2. eco_vegetation,
+		//   3. eco_topographie,
+		//   4. die gestrichelte Grenzgruppe aus eco_derographisch.
+		// Die Grenzen liegen OBEN -- darunter verschwaenden sie unter Wald und Gebirge. Die Klimazonen
+		// gehoeren nicht hinein, und „Alle" traegt nichts Eigenes: kein eigenes Wasser, keinen eigenen Huegel.
+		// 💣 Die Teile stehen hier ein ZWEITES Mal, nicht als Verweis: nur dieses Literal laeuft im
+		// Zwillings-Test unter vm, eine Konstante davor waere dort unbekannt (ReferenceError). Wer eine
+		// der drei Ebenen aendert, aendert „Alle" mit -- der Zwillings-Test haelt die Summe fest und nennt
+		// den Teil, der abweicht: tools/__tests__/ansicht-untergrund-vektoren-zwilling.test.js
+		// ⚠️ Die zarten Derographie-Fuellungen reisen mit, obwohl die Karte in „Alle" ungefuellt zeichnet:
+		// das Icon ist die Summe der Ebenen-Icons, kein Abbild der Karte in dieser Ansicht.
+		// Dieselbe Zeichnung ist zugleich die Landschaften-Kachel der ersten Stufe.
 		ecosystem:
-			'<path d="M0 22 C7 17 12 23 18 19 26 14 33 20 40 15 44 12 46 16 48 14 V30 C43 33 38 27 31 31 24 35 18 29 11 33 6 36 3 31 0 34 Z" fill="#5f7d33" fill-opacity=".8"/>' +
-			'<path d="M0 34 C3 31 6 36 11 33 18 29 24 35 31 31 38 27 43 33 48 30 V40 C42 43 37 38 30 41 23 44 17 39 10 42 5 44 3 41 0 43 Z" fill="#a8bd8a" fill-opacity=".78"/>' +
-			'<g fill="#3f6b2c" fill-opacity=".85">' +
-			'<path d="M2 3 C6 0 11 1 13 4 15 8 11 11 7 10 3 9 0 6 2 3 Z"/>' +
-			'<path d="M30 2 C35 0 40 2 41 6 42 10 37 12 33 10 29 8 27 4 30 2 Z"/>' +
-			'<path d="M36 20 C41 18 46 21 46 25 46 29 41 30 38 27 35 25 33 22 36 20 Z"/>' +
-			'<path d="M13 24 C17 22 21 24 21 27 21 30 17 31 15 29 12 27 11 25 13 24 Z"/>' +
-			'<path d="M22 41 C27 39 32 41 32 45 32 48 27 48 24 47 21 45 20 42 22 41 Z"/></g>' +
-			'<g fill="#7a6c5e" fill-opacity=".8">' +
-			'<path d="M0 44 C4 40 8 45 13 42 18 39 22 44 26 42 L28 48 H0 Z"/></g>' +
-			'<path d="M40 44 C43 41 46 44 48 42 V48 H38 Z" fill="#7d8f6e" fill-opacity=".78"/>' +
-			'<g fill="#4c89c6" fill-opacity=".85">' +
-			'<path d="M0 13 C6 12 10 15 16 15 24 15 32 17 48 18 V21 C32 20 24 18 16 18 10 18 6 16 0 16 Z"/>' +
-			'<ellipse cx="20" cy="6" rx="3.4" ry="2"/><ellipse cx="27" cy="9" rx="2.6" ry="1.6"/></g>' +
+			'<g fill="#575757">' +
+			'<path d="M14 -2 C16.2 2.6 17.4 6.8 19.4 10 21.6 13.5 22.2 17.5 24 22 22.4 27 18.4 31 16.4 36 14.6 40.6 10.4 45 8 50 H-2 V-2 Z" fill-opacity=".13"/>' +
+			'<path d="M24 22 C22.2 17.5 21.6 13.5 19.4 10 17.4 6.8 16.2 2.6 14 -2 H50 V34 C45.5 32.6 41.5 28.8 37 27.8 32.5 26.8 28.5 23.2 24 22 Z" fill-opacity=".2"/>' +
+			'<path d="M24 22 C28.5 23.2 32.5 26.8 37 27.8 41.5 28.8 45.5 32.6 50 34 V50 H8 C10.4 45 14.6 40.6 16.4 36 18.4 31 22.4 27 24 22 Z" fill-opacity=".09"/></g>' +
+			'<path d="M-0.3 9L0 6.4L0.6 6L3 3.7L4.3 3L6 1.5L7.7 0L9 -0.1L12 -0.2L15 -0.2L18 -0.2L21 -0.1L24 0L24.2 0L27 2.3L27.3 3L29.2 6L30 7L33 9L32.3 12L30.1 15L30 15.1L27.5 18L27 21L24 18.8L22.3 21L21 23L20.5 24L21 25.3L21.9 27L22.7 30L24 30.8L27 30.4L27.3 30L27 29.4L26 27L27 25.9L28.6 24L27 21L30 19.9L33 20.6L34.8 21L36 21.4L39 21.9L42 23.2L42.9 24L42.2 27L45 28.9L48 29.5L48 30L48.2 33L48.2 36L48.2 39L48 42L48 42.3L45 42.1L44.9 42L43.2 39L43.2 36L42 34.1L41.2 33L39.1 30L39 29.9L38.1 30L36 30.2L33.3 33L33 33.5L32.5 36L32.3 39L30.7 42L30 42.9L29.1 45L28.6 48L27 48.2L24 48.2L21 48.2L18 48.1L16.9 48L15 45.8L12 45.2L11.3 45L12 42.9L12.7 42L15 41.3L17.3 39L17 36L15 35.4L12 33.3L11.8 33L9 30.1L7.3 30L6 30L5.9 30L3 31.2L2 33L1.8 36L1.8 39L1 42L0.7 45L0.8 48L0 48.1L-0.1 48L-0.1 45L-0.1 42L-0.2 39L-0.2 36L-0.2 33L-0.1 30L-0.2 27L-0.1 24L-0.3 21L-0.4 18L-0.4 15L-0.4 12ZM46.3 0L48 -0.2L48.2 0L48.2 3L48.1 6L48 9L48 9.9L47.6 9L47.1 6L46.4 3Z" fill="#5f7d33" fill-opacity=".62" fill-rule="evenodd"/>' +
+			'<path d="M0 9L0 8.6L3 7.7L5.5 9L4.8 12L3 13.1L1.7 15L0.9 18L3 20.8L6 20L8.5 18L9 16.9L11.6 15L9 13.1L7.7 12L6.9 9L9 8.3L12 7.9L14 6L14.3 3L15 1.9L18 3L18 3L20.5 6L21 6.1L24 6.3L27 6.9L28.7 9L28.8 12L27 13.7L24.7 15L24 15.5L21.4 15L21 14.9L18 14.6L16.9 15L15.6 18L15 21L18 23.7L18.1 24L18 24.5L16.4 27L15 29.4L12 28.5L9 28.4L6 28.1L3 27.7L1.9 27L1.4 24L0 21.3L0 21L-0.1 18L-0.1 15L-0.2 12ZM20.8 36L21 35.3L24 34.4L27 34.7L29.6 36L29.6 39L27.7 42L27.1 45L27 45.4L24 45.5L21 47L19.8 45L19.4 42L20.7 39Z" fill="#3f6b2c" fill-opacity=".72" fill-rule="evenodd"/>' +
+			'<g fill="#7a6c5e">' +
+			'<path d="M-0.1 0L0 -0.1L3 -0.1L6 -0.1L9 -0.1L12 0L15 0L18 -0.1L21 -0.1L24 -0.1L27 -0.1L30 -0.1L33 -0.1L36 -0.1L39 -0.1L42 -0.1L45 -0.1L48 -0.1L48.1 0L48 3L48.1 6L48 9L48.1 12L48 15L48 15.3L45 15L42 15L43.9 12L43 9L42 7.7L39 7.3L36 7.4L33 7.6L30 6.1L29.9 6L27 3.3L24 3.3L23.7 3L21 0.4L18 0.3L15 1.4L12 2.1L10.9 3L9 5.4L8.7 6L7.8 9L6 9.2L3 9.4L0 9.5L-0.1 9L-0.1 6L-0.1 3ZM30.4 42L33 40.3L36 40.4L39 41.1L40.5 42L42 42.9L43.9 42L42.3 39L42 38.3L41.2 36L40.2 33L40.8 30L42 27.9L43.3 27L45 25.6L45.9 24L48 23.8L48 24L48.1 27L48.1 30L48.1 33L48.1 36L48.1 39L48 42L48 45L48 47.5L47.7 48L45 48L42 48.1L39 48.1L36 48.1L35.6 48L33 45.4L32.6 45ZM-0.1 18L0 17.5L0.5 18L3 20.7L5.7 21L5.1 24L5.2 27L4 30L3.2 33L3.1 36L3 37.1L2.8 39L1.9 42L1.3 45L3 47.6L6 46.3L7.5 45L9 44L11.4 42L12 41.6L15 40.9L18 41.6L19 42L21 43.2L24 43.9L24.1 45L27 47.5L27.5 48L27 48.1L24 48.1L21 48.1L18 48.1L15 48.1L12 48.1L9 48.1L6 48L3 48L0 48L0 48L0 45L0 42L-0.1 39L-0.1 36L-0.1 33L-0.1 30L-0.1 27L-0.1 24L-0.1 21Z" fill-opacity=".62"/>' +
+			'<path d="M-0.1 0L0 -0.1L3 -0.1L6 0L9 0L12 0L12.5 0L12 0.1L9 2.2L8.3 3L7 6L6.3 9L6 9L3 9.2L0 9.4L-0.1 9L-0.1 6L-0.1 3ZM-0.1 18L0 17.6L0.4 18L3 20.9L4.1 21L3.4 24L3.2 27L3 27.6L2.5 30L2.2 33L2 36L1.4 39L0.3 42L0 42.9L0 42L0 39L-0.1 36L-0.1 33L-0.1 30L0 27L0 24L-0.1 21ZM6.8 48L9 46L10.1 45L12 43.4L15 42L18 43.2L21 44.8L21.7 45L24 45.4L27 47.7L27.3 48L27 48.1L24 48.1L21 48.1L18 48.1L15 48.1L12 48.1L9 48ZM15.9 0L18 0L21 0L24 -0.1L27 -0.1L30 0L33 0L36 0L39 -0.1L42 -0.1L45 0L48 0L48 0L48 3L48 6L48 9L48 12L48 15L48 15.1L46.9 15L46.5 12L46.2 9L45 7.1L44.2 6L42 4.6L39 5.2L36 5.1L33 4.6L30 4.8L27 3.1L24 3.1L23.9 3L21 0.2L18 0.1ZM32.9 42L33 42L35.9 42L36 42L39 43.9L41.8 45L42 45L44.6 48L42 48L39 48L36 48.1L35.7 48L33 45.2L32.8 45ZM42.6 30L45 28.2L46.1 27L47.8 24L48 24L48 24L48 27L48.1 30L48.1 33L48.1 36L48 39L48 42L48 42.9L47.3 42L45 39.2L44.8 39L43.2 36L42.6 33Z" fill-opacity=".55"/></g>' +
+			'<path d="M9.5 20.8L10 20.1L10.8 19.4L12.4 18.3L14.8 17.7L15.9 17.4L16.6 17L17.3 16.3L18 16L19.8 15.9L20.7 16.3L21.2 16.3L21.5 16.1L22.5 14.9L24 14.4L24.7 14.3L26.1 14.9L26.6 15.2L27.1 15.3L27.8 15.3L28.5 15.5L29.2 16.1L29.9 16.9L30.2 18L30.9 18.6L32.3 19.9L33.4 20.5L33.6 20.8L33.6 21.2L33.1 21.7L31.3 22.9L30.6 23.3L29.9 24.2L29.8 24.3L29.8 24.7L31.1 26.1L32.3 27.8L32.7 28.9L32.8 29.9L32.7 30.9L32.3 32L31.2 33.8L29.9 35.4L28.6 36.9L27.5 38.7L27.1 39.7L27.1 40.8L27.4 41.8L27.8 42.6L29.1 44.3L30.6 45.7L33.3 48.4L34.6 50.6L33.2 50.6L32.8 49.8L31.7 48.4L28.8 45.7L27.5 44.2L26.3 42.5L25.9 41.4L25.8 40.1L26.1 38.9L26.4 37.9L27.6 36.2L28.9 34.7L30.2 33.1L31.3 31.3L31.5 30.3L31.4 28.9L30.9 28L30.3 27.1L29.7 26.4L29.2 26.1L28.7 27.1L28.4 28.2L28.1 28.5L27.5 28.6L26.4 28.5L25.3 27.9L24.3 27.6L23.6 27.1L22.4 25.3L21.5 24.9L20.8 24.8L20.2 25L18.7 26.1L18 26.9L17.3 27.5L14.8 27.9L14.5 27.8L14.2 27.4L13.6 26.4L12.3 25L11.3 24L10.7 22.2L9.6 21.2Z" fill="#4c89c6" fill-opacity=".9"/>' +
 			'<g fill="none" stroke="#2e2e2e" stroke-opacity=".85" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="3.4 2.6">' +
 			'<path d="M24 22 C22.2 17.5 21.6 13.5 19.4 10 17.4 6.8 16.2 2.6 14 -2" stroke-width="1.7"/>' +
 			'<path d="M24 22 C28.5 23.2 32.5 26.8 37 27.8 41.5 28.8 45.5 32.6 50 34" stroke-width="1.7"/>' +
@@ -232,9 +232,8 @@
 		// ---- Die fuenf Ebenen als zweite Stufe (09.09.2026) ---------------------------------------
 		// 🔴 „Alle" hat KEINEN eigenen Vektor -- es nimmt `ecosystem` oben. „Alle" ist alle Ebenen
 		// uebereinander; zwei getrennte Zeichnungen liefen beim naechsten Umton auseinander.
-		// 🔴 Seit 14.09.2026 traegt `ecosystem` deshalb auch die drei gestrichelten Grenzlinien der
-		// Derographie-Ebene (dieselbe Gruppe wie unten in eco_derographisch): „Alle" zeigt alle Ebenen,
-		// also gehoeren auch die derographischen Grenzen hinein. Dieselbe Zeichnung bleibt zugleich die
+		// 🔴 Seit 14.09.2026 IST ecosystem die Ueberlagerung von Derographie, Vegetation und Topographie
+		// (Regel und Reihenfolge am Eintrag oben). Dieselbe Zeichnung bleibt zugleich die
 		// Landschaften-Kachel der ersten Stufe (Owner-Entscheid 09.09.2026, siehe oben).
 		// 💣 Die Farben sind die ECHTEN aus css/base/tokens.css, jede aus der Stelle, die sie auf
 		// der Karte zeichnet. Wer sie „aufraeumt", macht die Zelle zu einem Symbol, das etwas
@@ -267,31 +266,29 @@
 			'<path d="M24 22 C22.4 27 18.4 31 16.4 36 14.6 40.6 10.4 45 8 50" stroke-width="1.5"/>' +
 			'</g>',
 
-		// Grasland, Steppe, Wuestenfleck, Waldflecken.
+		// Grasland (--color-ecosystem-vegetation #5f7d33) und Wald (--color-ecosystem-vegetation-wald
+		// #3f6b2c), je EIN Pfad aus mehreren Teilflaechen (evenodd).
+		// 🔴 ZUFAELLIG-ECKIG, NICHT VON HAND GESETZT (Owner 14.09.2026): die Umrisse sind aus einem
+		// Rauschfeld mit festem Samen (101) ERZEUGT und vom Owner aus Vorschauen gewaehlt -- ein Ergebnis,
+		// keine Zeichnung. Wer hier einen Punkt „glaettet", liefert ein anderes Icon aus, als abgenommen
+		// wurde. Steppe, Wuestenfleck und die runden Waldflecken sind dabei gefallen.
 		eco_vegetation:
-			'<path d="M0 24 C7 19 12 25 18 21 26 16 33 22 40 17 44 14 46 18 48 16 V33 C43 36 38 30 31 34 24 38 18 32 11 36 6 39 3 34 0 37 Z" fill="#8fbf6a" fill-opacity=".85"/>' +
-			'<path d="M0 37 C3 34 6 39 11 36 18 32 24 38 31 34 38 30 43 36 48 33 V44 C42 47 37 42 30 45 23 48 17 43 10 46 5 48 3 45 0 47 Z" fill="#a8bd8a" fill-opacity=".8"/>' +
-			'<path d="M31 -2 C37 1 43 -1 50 1 V13 C43 11 37 14.5 31 12 27 10.5 25.5 6.5 27 3.5 28 1.5 29.5 -0.6 31 -2 Z" fill="#e0c74e" fill-opacity=".78"/>' +
-			'<g fill="#3f6b2c" fill-opacity=".88">' +
-			'<path d="M2 4 C6 1 11 2 13 5 15 9 11 12 7 11 3 10 0 7 2 4 Z"/>' +
-			'<path d="M14 26 C18 24 22 26 22 29 22 32 18 33 16 31 13 29 12 27 14 26 Z"/>' +
-			'<path d="M37 22 C42 20 47 23 47 27 47 31 42 32 39 29 36 27 34 24 37 22 Z"/>' +
-			'<path d="M23 42 C28 40 33 42 33 46 33 49 28 49 25 48 22 46 21 43 23 42 Z"/></g>',
+			'<path d="M-0.3 9L0 6.4L0.6 6L3 3.7L4.3 3L6 1.5L7.7 0L9 -0.1L12 -0.2L15 -0.2L18 -0.2L21 -0.1L24 0L24.2 0L27 2.3L27.3 3L29.2 6L30 7L33 9L32.3 12L30.1 15L30 15.1L27.5 18L27 21L24 18.8L22.3 21L21 23L20.5 24L21 25.3L21.9 27L22.7 30L24 30.8L27 30.4L27.3 30L27 29.4L26 27L27 25.9L28.6 24L27 21L30 19.9L33 20.6L34.8 21L36 21.4L39 21.9L42 23.2L42.9 24L42.2 27L45 28.9L48 29.5L48 30L48.2 33L48.2 36L48.2 39L48 42L48 42.3L45 42.1L44.9 42L43.2 39L43.2 36L42 34.1L41.2 33L39.1 30L39 29.9L38.1 30L36 30.2L33.3 33L33 33.5L32.5 36L32.3 39L30.7 42L30 42.9L29.1 45L28.6 48L27 48.2L24 48.2L21 48.2L18 48.1L16.9 48L15 45.8L12 45.2L11.3 45L12 42.9L12.7 42L15 41.3L17.3 39L17 36L15 35.4L12 33.3L11.8 33L9 30.1L7.3 30L6 30L5.9 30L3 31.2L2 33L1.8 36L1.8 39L1 42L0.7 45L0.8 48L0 48.1L-0.1 48L-0.1 45L-0.1 42L-0.2 39L-0.2 36L-0.2 33L-0.1 30L-0.2 27L-0.1 24L-0.3 21L-0.4 18L-0.4 15L-0.4 12ZM46.3 0L48 -0.2L48.2 0L48.2 3L48.1 6L48 9L48 9.9L47.6 9L47.1 6L46.4 3Z" fill="#5f7d33" fill-opacity=".62" fill-rule="evenodd"/>' +
+			'<path d="M0 9L0 8.6L3 7.7L5.5 9L4.8 12L3 13.1L1.7 15L0.9 18L3 20.8L6 20L8.5 18L9 16.9L11.6 15L9 13.1L7.7 12L6.9 9L9 8.3L12 7.9L14 6L14.3 3L15 1.9L18 3L18 3L20.5 6L21 6.1L24 6.3L27 6.9L28.7 9L28.8 12L27 13.7L24.7 15L24 15.5L21.4 15L21 14.9L18 14.6L16.9 15L15.6 18L15 21L18 23.7L18.1 24L18 24.5L16.4 27L15 29.4L12 28.5L9 28.4L6 28.1L3 27.7L1.9 27L1.4 24L0 21.3L0 21L-0.1 18L-0.1 15L-0.2 12ZM20.8 36L21 35.3L24 34.4L27 34.7L29.6 36L29.6 39L27.7 42L27.1 45L27 45.4L24 45.5L21 47L19.8 45L19.4 42L20.7 39Z" fill="#3f6b2c" fill-opacity=".72" fill-rule="evenodd"/>',
 
-		// Gebirge, Huegel, See, Meer.
-		// Der See traegt --color-water (#4c89c6), das Meer sein eigenes Dunkelblau -- die beiden
-		// sind auf der Karte verschieden und in der Zelle auch (Owner 09.09.2026).
-		// ⚠️ Die zwei hellen Dreiecke sind SCHNEEKAPPEN und tragen keinen eigenen Token -- sie sind
-		// Zeichnung, kein Kartenwert; deshalb ein neutrales Elfenbein und keine erfundene
-		// Farbvariable.
+		// Drei grosse Gebirgsflecken (--color-ecosystem-topographie-gebirge #7a6c5e, zwei Deckkraftlagen)
+		// ueber den Rand, in der Mitte ein unregelmaessiger See (--color-water #4c89c6) mit einem duennen,
+		// geschlaengelten Fluss, der unten aus der Kachel laeuft -- See und Fluss sind EIN Pfad.
+		// 🔴 Wie die Vegetation aus Rauschfeldern mit festem Samen ERZEUGT und vom Owner aus Vorschauen
+		// gewaehlt (14.09.2026) -- ein Ergebnis, nicht von Hand gesetzt.
+		// ⚠️ Gefallen sind Kamm, Schneekappen, die alte See-Ellipse, das Meer und das Huegelband. Das Meer
+		// bleibt auf der Karte anders als der See (--color-ecosystem-topographie-meer), steht aber nicht
+		// mehr in der Zelle.
 		eco_topographie:
-			'<path d="M0 34 C5 30 9 35 14 32 20 28.5 25 34 31 30 36 26.5 42 32 48 28 V40 C42 43 36 38 30 41 23 44.5 17 39 10 42.5 5 45 3 41.5 0 44 Z" fill="#7d8f6e" fill-opacity=".8"/>' +
-			'<g fill="#7a6c5e" fill-opacity=".88">' +
-			'<path d="M-2 26 L7 10 L13 19 L19 6 L27 22 L33 15 L40 27 L46 19 L50 27 V30 C42 33 36 28 30 31 23 34.5 17 29 10 32.5 5 35 2 31.5 -2 33 Z"/></g>' +
-			'<g fill="#efe9dc" fill-opacity=".85">' +
-			'<path d="M19 6 L22.6 13 L15.4 13 Z"/><path d="M7 10 L9.8 15 L4.2 15 Z"/></g>' +
-			'<ellipse cx="15" cy="38" rx="6.6" ry="3.6" fill="#4c89c6" fill-opacity=".9"/>' +
-			'<path d="M0 45 C8 43.5 16 46 24 44.5 32 43 40 45.5 48 44 V50 H0 Z" fill="#2d5f8a" fill-opacity=".88"/>',
+			'<g fill="#7a6c5e">' +
+			'<path d="M-0.1 0L0 -0.1L3 -0.1L6 -0.1L9 -0.1L12 0L15 0L18 -0.1L21 -0.1L24 -0.1L27 -0.1L30 -0.1L33 -0.1L36 -0.1L39 -0.1L42 -0.1L45 -0.1L48 -0.1L48.1 0L48 3L48.1 6L48 9L48.1 12L48 15L48 15.3L45 15L42 15L43.9 12L43 9L42 7.7L39 7.3L36 7.4L33 7.6L30 6.1L29.9 6L27 3.3L24 3.3L23.7 3L21 0.4L18 0.3L15 1.4L12 2.1L10.9 3L9 5.4L8.7 6L7.8 9L6 9.2L3 9.4L0 9.5L-0.1 9L-0.1 6L-0.1 3ZM30.4 42L33 40.3L36 40.4L39 41.1L40.5 42L42 42.9L43.9 42L42.3 39L42 38.3L41.2 36L40.2 33L40.8 30L42 27.9L43.3 27L45 25.6L45.9 24L48 23.8L48 24L48.1 27L48.1 30L48.1 33L48.1 36L48.1 39L48 42L48 45L48 47.5L47.7 48L45 48L42 48.1L39 48.1L36 48.1L35.6 48L33 45.4L32.6 45ZM-0.1 18L0 17.5L0.5 18L3 20.7L5.7 21L5.1 24L5.2 27L4 30L3.2 33L3.1 36L3 37.1L2.8 39L1.9 42L1.3 45L3 47.6L6 46.3L7.5 45L9 44L11.4 42L12 41.6L15 40.9L18 41.6L19 42L21 43.2L24 43.9L24.1 45L27 47.5L27.5 48L27 48.1L24 48.1L21 48.1L18 48.1L15 48.1L12 48.1L9 48.1L6 48L3 48L0 48L0 48L0 45L0 42L-0.1 39L-0.1 36L-0.1 33L-0.1 30L-0.1 27L-0.1 24L-0.1 21Z" fill-opacity=".62"/>' +
+			'<path d="M-0.1 0L0 -0.1L3 -0.1L6 0L9 0L12 0L12.5 0L12 0.1L9 2.2L8.3 3L7 6L6.3 9L6 9L3 9.2L0 9.4L-0.1 9L-0.1 6L-0.1 3ZM-0.1 18L0 17.6L0.4 18L3 20.9L4.1 21L3.4 24L3.2 27L3 27.6L2.5 30L2.2 33L2 36L1.4 39L0.3 42L0 42.9L0 42L0 39L-0.1 36L-0.1 33L-0.1 30L0 27L0 24L-0.1 21ZM6.8 48L9 46L10.1 45L12 43.4L15 42L18 43.2L21 44.8L21.7 45L24 45.4L27 47.7L27.3 48L27 48.1L24 48.1L21 48.1L18 48.1L15 48.1L12 48.1L9 48ZM15.9 0L18 0L21 0L24 -0.1L27 -0.1L30 0L33 0L36 0L39 -0.1L42 -0.1L45 0L48 0L48 0L48 3L48 6L48 9L48 12L48 15L48 15.1L46.9 15L46.5 12L46.2 9L45 7.1L44.2 6L42 4.6L39 5.2L36 5.1L33 4.6L30 4.8L27 3.1L24 3.1L23.9 3L21 0.2L18 0.1ZM32.9 42L33 42L35.9 42L36 42L39 43.9L41.8 45L42 45L44.6 48L42 48L39 48L36 48.1L35.7 48L33 45.2L32.8 45ZM42.6 30L45 28.2L46.1 27L47.8 24L48 24L48 24L48 27L48.1 30L48.1 33L48.1 36L48 39L48 42L48 42.9L47.3 42L45 39.2L44.8 39L43.2 36L42.6 33Z" fill-opacity=".55"/></g>' +
+			'<path d="M9.5 20.8L10 20.1L10.8 19.4L12.4 18.3L14.8 17.7L15.9 17.4L16.6 17L17.3 16.3L18 16L19.8 15.9L20.7 16.3L21.2 16.3L21.5 16.1L22.5 14.9L24 14.4L24.7 14.3L26.1 14.9L26.6 15.2L27.1 15.3L27.8 15.3L28.5 15.5L29.2 16.1L29.9 16.9L30.2 18L30.9 18.6L32.3 19.9L33.4 20.5L33.6 20.8L33.6 21.2L33.1 21.7L31.3 22.9L30.6 23.3L29.9 24.2L29.8 24.3L29.8 24.7L31.1 26.1L32.3 27.8L32.7 28.9L32.8 29.9L32.7 30.9L32.3 32L31.2 33.8L29.9 35.4L28.6 36.9L27.5 38.7L27.1 39.7L27.1 40.8L27.4 41.8L27.8 42.6L29.1 44.3L30.6 45.7L33.3 48.4L34.6 50.6L33.2 50.6L32.8 49.8L31.7 48.4L28.8 45.7L27.5 44.2L26.3 42.5L25.9 41.4L25.8 40.1L26.1 38.9L26.4 37.9L27.6 36.2L28.9 34.7L30.2 33.1L31.3 31.3L31.5 30.3L31.4 28.9L30.9 28L30.3 27.1L29.7 26.4L29.2 26.1L28.7 27.1L28.4 28.2L28.1 28.5L27.5 28.6L26.4 28.5L25.3 27.9L24.3 27.6L23.6 27.1L22.4 25.3L21.5 24.9L20.8 24.8L20.2 25L18.7 26.1L18 26.9L17.3 27.5L14.8 27.9L14.5 27.8L14.2 27.4L13.6 26.4L12.3 25L11.3 24L10.7 22.2L9.6 21.2Z" fill="#4c89c6" fill-opacity=".9"/>',
 
 		// 🔴 Die echten Toene der Temperaturskala, kalt oben nach warm unten. Die Ebene wird nicht
 		// gezeichnet, sondern aus Trennlinien ABGELEITET -- deshalb sind die Kanten hier leicht

@@ -329,9 +329,62 @@ assert.strictEqual(grenzeAusEcosystem, grenzeAusDerographisch,
 	+ " zeigen \"Alle\" und \"Derographie\" verschiedene Grenzen fuer dieselbe Ebene."
 	+ kurzerAusschnitt(grenzeAusEcosystem, grenzeAusDerographisch));
 
+// ---- "Alle" IST DIE UEBERLAGERUNG DER DREI EBENEN-ICONS ------------------------------------------
+// 🔴 Owner 14.09.2026, am gerenderten Bild abgenommen: „du musst dir fuer die icons merken".
+// OVERLAYS.ecosystem ist GENAU: die Flaechengruppe aus eco_derographisch + eco_vegetation +
+// eco_topographie + die gestrichelte Grenzgruppe aus eco_derographisch -- die Grenzen oben, damit
+// sie nicht unter Wald und Gebirge verschwinden. Die Teile stehen im Literal ein ZWEITES Mal (nur
+// das Literal laeuft hier unter vm, eine Konstante davor waere dort unbekannt). Aendert jemand eine
+// Ebene und vergisst "Alle", zeigt das aufgeklappte Menue zwei verschiedene Zeichnungen derselben
+// Ebene -- und die Wertgleichheitsschleife oben sieht das nie, weil sie nur Picker gegen Generator
+// vergleicht, und die Grenzgruppen-Zusicherung darueber nur die Grenzen.
+// Die beiden Derographie-Gruppen werden per ANKER geschnitten, nie per Zeichenfenster: ein fester
+// Ausschnitt maesse die Laenge des Textes, nicht die Gruppe.
+function schneideFlaechenGruppeAus(svg, woher) {
+	const anker = '<g fill="#575757">';
+	const start = svg.indexOf(anker);
+	assert.ok(start !== -1, "Flaechengruppe (fill \"#575757\") nicht gefunden in " + woher);
+	const ende = svg.indexOf("</g>", start);
+	assert.ok(ende !== -1, "Flaechengruppe in " + woher + ": keine schliessende </g> gefunden");
+	return svg.slice(start, ende + 4);
+}
+
+const alleTeile = [
+	["die Flaechengruppe aus eco_derographisch",
+		schneideFlaechenGruppeAus(picker.eco_derographisch, "OVERLAYS.eco_derographisch")],
+	["eco_vegetation", picker.eco_vegetation],
+	["eco_topographie", picker.eco_topographie],
+	["die Grenzgruppe aus eco_derographisch", grenzeAusDerographisch],
+];
+const alleErwartet = alleTeile.map((teil) => teil[1]).join("");
+
+// Praefix-Vergleich: der erste Teil, der an seiner Stelle nicht zeichengleich steht, ist der Befund.
+function ersterAbweichenderTeil(ist) {
+	let stelle = 0;
+	for (const [was, text] of alleTeile) {
+		if (ist.slice(stelle, stelle + text.length) !== text) {
+			let i = 0;
+			while (i < text.length && ist[stelle + i] === text[i]) { i++; }
+			return was + " (ab Zeichen " + i + " dieses Teils:"
+				+ "\n  in ecosystem: " + JSON.stringify(ist.slice(stelle + Math.max(0, i - 8), stelle + i + 24))
+				+ "\n  erwartet:     " + JSON.stringify(text.slice(Math.max(0, i - 8), i + 24)) + ")";
+		}
+		stelle += text.length;
+	}
+	return "keiner der vier Teile -- dahinter traegt ecosystem noch Text, der in keine Ebene gehoert: "
+		+ JSON.stringify(ist.slice(stelle, stelle + 40));
+}
+
+assert.ok(picker.ecosystem === alleErwartet,
+	"OVERLAYS.ecosystem (\"Alle\") ist nicht die Ueberlagerung der drei Ebenen-Icons. Owner"
+	+ " 14.09.2026: „du musst dir fuer die icons merken\" -- \"Alle\" ist GENAU Derographie-Flaechen"
+	+ " + eco_vegetation + eco_topographie + Derographie-Grenzen. Wer eine Ebene aendert, aendert"
+	+ " \"Alle\" in beiden Dateien mit.\n  Abweichend: " + ersterAbweichenderTeil(picker.ecosystem));
+
 console.log(
 	"ansicht-untergrund-vektoren-zwilling.test.js: " + alleSchluessel.length
 	+ " OVERLAYS-Schluessel zeichengleich (" + alleSchluessel.join(", ") + ")"
 	+ ", " + (SELBSTPROBEN.length + GRENZFAELLE.length) + " Selbstproben des Ausschneiders bestanden"
 	+ ", Grenzgruppe von ecosystem und eco_derographisch zeichengleich"
+	+ ", \"Alle\" = Derographie-Flaechen + Vegetation + Topographie + Grenzen"
 );

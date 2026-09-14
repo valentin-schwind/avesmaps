@@ -242,16 +242,25 @@ Ansicht, nicht seine persönliche Einstellung.
 Bauform wie die bestehenden `OVERLAYS`: 48×48, echte Farben aus `css/base/tokens.css`, ausgefranste
 Ränder, kein Kachelbild darunter.
 
-⭐ **„Alle" ist der vorhandene `ecosystem`-Vektor, unverändert wiederverwendet.** „Alle" *ist* alle
-Ebenen übereinander — es sind also vier neue statt fünf, und das Untermenü kann von der
-Landschaften-Kachel darüber nicht abdriften.
+⭐ **„Alle" ist der `ecosystem`-Vektor** — dieselbe Zeichnung wie die Landschaften-Kachel der ersten
+Stufe. Es sind also vier eigene Ebenen-Vektoren statt fünf, und das Untermenü kann von der Kachel
+darüber nicht abdriften.
+
+🔴 **„Alle" setzt sich aus „Derographie", „Vegetation" und „Topographie" zusammen** (Owner
+14.09.2026, am gerenderten Bild abgenommen: „du musst dir fuer die icons merken").
+`OVERLAYS.ecosystem` ist GENAU: die Flächengruppe aus `eco_derographisch` + `eco_vegetation` +
+`eco_topographie` + die gestrichelte Grenzgruppe aus `eco_derographisch` — die Grenzen zuoberst,
+sonst verschwinden sie unter Wald und Gebirge. Die Klimazonen gehören nicht hinein, und „Alle"
+trägt nichts Eigenes (kein eigenes Wasser, kein eigener Hügel). Wer eine Ebene ändert, ändert
+„Alle" mit — `tools/__tests__/ansicht-untergrund-vektoren-zwilling.test.js` hält die Summe fest
+und nennt den Teil, der abweicht.
 
 | Zelle | Was der Ausschnitt zeigt | Töne |
 |---|---|---|
-| Alle | = die Landschaften-Kachel — seit 14.09.2026 samt den drei gestrichelten Grenzlinien der Derographie-Ebene | (siehe Derographie) |
+| Alle | = die Landschaften-Kachel: Derographie-Flächen, Vegetation, Topographie, zuoberst die Derographie-Grenzen | die Töne der drei Ebenen |
 | Derographie | Drei Gebiete treffen sich in einem Punkt, Kontur gestrichelt als Konvention der Ebene, drei zarte Füllungen | `#575757`, Kontur `#2e2e2e` |
-| Vegetation | Wald, Grasland, Steppe, ein Fleck Wüste | `#3f6b2c` `#8fbf6a` `#a8bd8a` `#e0c74e` |
-| Topographie | Gebirge, Hügel, See, Meer | `#7a6c5e` `#7d8f6e` `#4c89c6` `#2d5f8a` |
+| Vegetation | Grasland und Wald, zufällig-eckig aus einem Rauschfeld (Samen 101), vom Owner aus Vorschauen gewählt | `#5f7d33` `#3f6b2c` |
+| Topographie | Drei große Gebirgsflecken über den Rand, ein unregelmäßiger See mit dünnem, geschlängeltem Fluss, der unten aus der Kachel läuft (See und Fluss ein Pfad) — aus Rauschfeldern erzeugt | `#7a6c5e` `#4c89c6` |
 | Klimazonen | waagerechte Bänder, kalt oben nach warm unten | `#cfe0eb` … `#c65e2e` |
 
 💣 **Die Farben sind die ECHTEN, jede aus der Stelle, die sie auf der Karte zeichnet** — dieselbe
