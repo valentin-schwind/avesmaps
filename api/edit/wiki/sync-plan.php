@@ -370,6 +370,13 @@ try {
                 // wie `apply_note`), bevor er ueberhaupt hierher gereicht wird.
                 'fehler' => is_array($step['fehler'] ?? null) ? $step['fehler'] : [],
                 'angelegt_je_form' => is_array($step['angelegt_je_form'] ?? null) ? $step['angelegt_je_form'] : [],
+                // 🔴 NACHBESSERUNG 1 (W1/G3-2, 14.09.2026): WIE `fehler` DARUEBER -- nur der
+                // Garetien-Import fuellt sie, die uebrigen sieben Zweige kennen den Schluessel
+                // nicht. Ein nicht-fataler Hinweis je Item ("Quelle an X war schon vorhanden"),
+                // damit `garetienImportMeldung` (js/review/review-garetien-importer.js) spaeter
+                // die Wahrheit sagen kann statt „N Quellen ergaenzt" fuer etwas zu behaupten, das
+                // nie neu entstand.
+                'hinweise' => is_array($step['hinweise'] ?? null) ? $step['hinweise'] : [],
             ]);
             // no break -- avesmapsJsonResponse exits.
 
