@@ -294,56 +294,33 @@ function avesmapsGaretienQuellenAnlegen(
 
 
 /**
- * Die Verknuepfung LOESEN, die avesmapsGaretienQuelleAnlegen fuer EIN Objekt angelegt hat --
- * das Gegenstueck zum Anlegen, fuer die Ruecknahme eines 'quelle'-Items.
+ * Alle Adressen, die dieser Import (`origin='garetien'`) GERADE an dieser Entitaet haengen hat.
+ * Ein Lesevorgang, keine Aenderung.
  *
- * 🔴 NUR feature_sources, NIE sources: eine geteilte Adresse darf durch die Ruecknahme
- * EINES Objekts nicht anderen Objekten ihre Quelle nehmen.
+ * 🔴 NACHBESSERUNG 3 (W1c). Der einzige verbleibende Rueckweg, der ALLE Adressen einer Entitaet
+ * auf einmal braucht, ist der Regions-Rueckweg beim Wegfall der LETZTEN Flaeche
+ * (avesmapsGaretienRuecknahmeAusfuehren, 'region'-Ziel): mehrere Fragment-Flaechen koennen ueber
+ * die Zeit unterschiedliche Adressen an dieselbe Region gehaengt haben. Die beiden anderen
+ * Rueckwege (Nur-Quelle, `changed`-Quelle) kennen immer nur die EINE Adresse, die SIE SELBST
+ * getragen haben (avesmapsGaretienQuellenAdressenAus), und brauchen diese Funktion nicht.
  *
- * ⭐ WIEDERVERWENDET avesmapsRemoveFeatureSource (api/_internal/app/feature-sources.php) statt
- * eines eigenen DELETE -- dieselbe Funktion, die der Quellen-Editor benutzt: sie bumpt
- * avesmapsNextMapRevision (die Karte liefert Quellen SYNCHRON mit der Nutzlast, AGENTS.md §5/§7)
- * und haengt am Grabstein-Riegel fuer origin='wiki_publication', der hier ohnehin nie greift
- * (eine garetien-Zeile traegt immer origin='garetien').
- *
- * ⚠️ ORIGIN WIRD VORHER GEPRUEFT, NICHT NACHHER VERTRAUT: geloescht werden nur die
- * source_id(s), deren FEATURE_SOURCES-ZEILE origin='garetien' traegt -- eine `manual`- oder
- * `wiki_publication`-Verknuepfung DERSELBEN oder einer ANDEREN Quelle am selben Objekt bleibt
- * unangetastet (eine der Zusicherungen des Auftrags).
- *
- * ⚠️ KEIN FEHLER, WENN NICHTS DA IST: eine bereits entfernte Verknuepfung macht die
- * Ruecknahme nicht ungueltig -- das Item faellt trotzdem zurueck nach 'offen'.
- *
- * 🔴 NACHBESSERUNG 2 (Ruling 5, repoweit gesucht -- `grep -rn avesmapsGaretienQuelleRuecknahmeLoesen`):
- * DER `changed`-QUELLE-RUECKWEG RUFT SIE NICHT MEHR (er loescht seither adressgenau ueber
- * avesmapsGaretienQuelleRuecknahmeLoesenFuerAdresse + avesmapsGaretienAndererTraegerVorhanden,
- * siehe dort). Der EINZIGE verbleibende Aufrufer ist der Flaechen-Zweig von
- * avesmapsGaretienRuecknahmeAusfuehren ('region'-Ziel, ~:3395): der loest an `entity_type='ecosystem'`
- * -- einem Zielraum, an dem NIEMALS eine „Nur Quelle"-Verknuepfung haengen kann (die bindet
- * ausschliesslich an `entity_type='settlement'`, avesmapsGaretienQuellenZiel). Eine fremde
- * Verknuepfung kann an dieser Stelle also nicht liegen; die eigene Absicherung dort
- * (avesmapsGaretienRegionAktiveFlaechen -- geloest wird erst, wenn keine Flaeche der Region mehr
- * aktiv ist) bleibt unveraendert und ausreichend fuer ihren eigenen Zweck.
- *
- * @return int Anzahl der geloesten Verknuepfungen (0 oder mehr).
+ * ⚠️ ERSETZT das fruehere avesmapsGaretienQuelleRuecknahmeLoesen (Nachbesserung 2 zog seinen
+ * einzigen verbliebenen Aufrufer -- den `changed`-Quelle-Rueckweg -- bereits ab; Nachbesserung 3
+ * entfernt die Funktion selbst, weil danach niemand mehr sie RUFT: repoweit gegengeprueft,
+ * `grep -rn avesmapsGaretienQuelleRuecknahmeLoesen` findet danach nur noch ERKLAERENDE Kommentare
+ * wie diesen -- keinen Aufruf mehr, keine Funktionsdefinition mehr.
  */
-function avesmapsGaretienQuelleRuecknahmeLoesen(PDO $pdo, string $entityType, string $entityPublicId, int $userId): int
+function avesmapsGaretienGaretienAdressenAn(PDO $pdo, string $entityType, string $entityPublicId): array
 {
     avesmapsEnsureFeatureSourceTables($pdo);
 
     $stmt = $pdo->prepare(
-        'SELECT source_id FROM feature_sources WHERE entity_type = :t AND entity_public_id = :id AND origin = :o'
+        'SELECT s.url FROM feature_sources fs JOIN sources s ON s.id = fs.source_id'
+        . ' WHERE fs.entity_type = :t AND fs.entity_public_id = :id AND fs.origin = :o'
     );
     $stmt->execute(['t' => $entityType, 'id' => $entityPublicId, 'o' => AVESMAPS_GARETIEN_SOURCE_ORIGIN]);
-    $sourceIds = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
-    $geloest = 0;
-    foreach ($sourceIds as $sourceId) {
-        avesmapsRemoveFeatureSource($pdo, $entityType, $entityPublicId, (int) $sourceId, $userId);
-        $geloest++;
-    }
-
-    return $geloest;
+    return array_map('strval', $stmt->fetchAll(PDO::FETCH_COLUMN));
 }
 
 /**
@@ -2592,7 +2569,16 @@ function avesmapsGaretienAndererTraegerVorhanden(PDO $pdo, string $entityType, s
         if (count($felder) !== 1 || $felder[0] !== 'quelle') {
             continue; // kein reines Quelle-Ergaenzungsitem -- betrifft diese Frage nicht
         }
-        [$rowEntityType] = avesmapsGaretienQuellenZiel((string) ($nach['ziel'] ?? ''), $entityPublicId);
+        // 🔴 NACHBESSERUNG 3 (G-a): avesmapsGaretienQuellenZiel WIRFT bei leerem/unbekanntem `ziel`
+        // (siehe dessen eigener Docblock, garetien-plan.php) -- eine FREMDE, kaputte Zeile liesse
+        // sonst die Ruecknahme eines voellig unbeteiligten Items scheitern. Dieselbe sichere
+        // Richtung wie „unbekannte Adresse = Traeger": ein unaufloesbares Ziel wird als Traeger
+        // gezaehlt, statt die Anfrage zu Fall zu bringen.
+        try {
+            [$rowEntityType] = avesmapsGaretienQuellenZiel((string) ($nach['ziel'] ?? ''), $entityPublicId);
+        } catch (Throwable) {
+            return true; // unbekannt -- sichere Richtung
+        }
         if ($rowEntityType !== $entityType) {
             continue; // Gleichstand der rohen id, aber ein anderer Zielraum -- kein echter Treffer
         }
@@ -2607,16 +2593,17 @@ function avesmapsGaretienAndererTraegerVorhanden(PDO $pdo, string $entityType, s
 /**
  * Die Garetien-Verknuepfung EINER Adresse an EINEM Objekt loesen -- nicht alle des Objekts.
  *
- * 🔴 AN EINER SIEDLUNG HAENGEN MEHRERE GARETIEN-QUELLEN: ihre eigene und die jedes Bauwerks, das
- * „Nur Quelle + Artikel" an sie gehaengt hat. avesmapsGaretienQuelleRuecknahmeLoesen loest ALLE mit
- * `origin = 'garetien'` -- die Ruecknahme EINES Tempels naehme der Stadt so ihre eigene Quelle und
- * die aller anderen Tempel (dieselbe Klasse wie Fehler 9 des Entwurfs vom 14.09.2026).
- * 🔴 NACHBESSERUNG 1: SIE WIRD NICHT MEHR FUER JEDE RUECKNAHME EINES „NUR QUELLE"-ITEMS GERUFEN --
- * der Aufrufer (avesmapsGaretienRuecknahmeAusfuehren) ruft sie nur noch, wenn das zurueckgenommene
- * Item selbst `angelegt:1` traegt UND kein anderes `done`-Geschwister derselben Gruppe (Siedlung +
- * Artikeladresse, avesmapsGaretienNurQuelleAndereDoneZeileVorhanden) mehr Anspruch auf die
- * Verknuepfung hat. Diese Funktion selbst bleibt EIN reiner Loeschweg fuer GENAU eine Adresse an
- * GENAU einem Objekt -- sie kennt die Gruppenregel nicht, das ist Absicht des Aufrufers.
+ * 🔴 AN EINER ENTITAET HAENGEN MEHRERE GARETIEN-QUELLEN: an einer Siedlung ihre eigene und die
+ * jedes Bauwerks, das „Nur Quelle + Artikel" an sie gehaengt hat; an einer Region die jedes
+ * Fragments UND die eines eigenstaendigen `changed`-Quelle-Items (Nachbesserung 3). Ein blindes
+ * „loesche alles mit `origin = 'garetien'`" (das fruehere avesmapsGaretienQuelleRuecknahmeLoesen,
+ * seit Nachbesserung 3 entfernt, weil niemand mehr rief) naehme der Entitaet so die Verknuepfungen
+ * ALLER anderen Traeger mit (dieselbe Klasse wie Fehler 9 des Entwurfs vom 14.09.2026).
+ * 🔴 SIE WIRD NUR NOCH GERUFEN, WENN KEIN ANDERER TRAEGER MEHR ANSPRUCH HAT -- alle drei
+ * Rueckwege (Nur-Quelle-Item, eigenstaendiges `changed`-Quelle-Item, letzte-Flaeche-einer-Region)
+ * fragen vorher dieselbe Traegerfunktion (avesmapsGaretienAndererTraegerVorhanden). Diese Funktion
+ * selbst bleibt EIN reiner Loeschweg fuer GENAU eine Adresse an GENAU einem Objekt -- sie kennt die
+ * Traegerregel nicht, das ist Absicht des jeweiligen Aufrufers.
  * ⚠️ Verglichen wird ueber `url_hash` (avesmapsFeatureSourceHash), dieselbe Kennung, unter der der
  * Katalog die Adresse beim Anlegen abgelegt hat. NUR die Verknuepfung faellt, nie die `sources`-Zeile.
  *
@@ -3165,9 +3152,11 @@ function avesmapsGaretienRuecknahmeWeg(string $applyNote): array
  * diesem Fall ausschliesslich avesmapsGaretienQuelleAnlegen, keinen einzigen Update-Aufruf an Name
  * oder Geometrie. Owner-Entscheid 1 bleibt fuer alles andere unveraendert (sobald 'name' oder
  * 'geometrie' mit in `felder` steht); der Riegel wird dadurch ENGER formuliert, nicht aufgehoben.
- * Die Ruecknahme entfernt hier NICHT das Objekt, sondern loest nur die feature_sources-Verknuepfung
- * mit origin='garetien' (avesmapsGaretienQuelleRuecknahmeLoesen) -- dieselbe enge Zielauflösung wie
- * beim Anlegen (avesmapsGaretienQuellenZiel), NIEMALS die geteilte `sources`-Zeile selbst.
+ * Die Ruecknahme entfernt hier NICHT das Objekt, sondern loest nur die EIGENE feature_sources-
+ * Verknuepfung dieses Items (avesmapsGaretienQuelleRuecknahmeLoesenFuerAdresse, seit Nachbesserung
+ * 2 adressgenau -- nie mehr blind alles mit origin='garetien', siehe
+ * avesmapsGaretienAndererTraegerVorhanden), ueber dieselbe enge Zielauflösung wie beim Anlegen
+ * (avesmapsGaretienQuellenZiel), NIEMALS die geteilte `sources`-Zeile selbst.
  *
  * 🔴 OWNER-ENTSCHEID 2 (29.08.2026): eine nachtraegliche Bearbeitung SPERRT die Ruecknahme NICHT --
  * kein Zeitstempel-Vergleich, keine neue Zustandshaltung. Die Rueckfrage im Fenster nennt das beim
@@ -3511,7 +3500,21 @@ function avesmapsGaretienRuecknahmeAusfuehren(PDO $pdo, int $runId, array $itemI
                 try {
                     if ($regionDerFlaeche !== '' && avesmapsGaretienRegionAktiveFlaechen($pdo, $regionDerFlaeche) === 0) {
                         [$quellArt, $quellId] = avesmapsGaretienQuellenZiel('region', $regionDerFlaeche);
-                        avesmapsGaretienQuelleRuecknahmeLoesen($pdo, $quellArt, $quellId, (int) ($user['id'] ?? 0));
+                        // 🔴 NACHBESSERUNG 3 (W1c, Ruling-Punkt 5): NICHT MEHR BLIND ALLES. Ein
+                        // EIGENSTAENDIGES `changed`-Quelle-Item DERSELBEN Region (Gruppe 2 von
+                        // avesmapsGaretienAndererTraegerVorhanden -- avesmapsGaretienErgaenzungsEintraege
+                        // bietet genau so ein Item fuer ziel='region' an, garetien-plan.php:1023) kann
+                        // dieselbe Adresse noch brauchen, auch wenn keine Fragment-Flaeche mehr aktiv
+                        // ist. Jede DERZEIT haengende Adresse wird einzeln geprueft und nur geloest,
+                        // wenn kein anderer `done`-Traeger sie noch haelt.
+                        foreach (avesmapsGaretienGaretienAdressenAn($pdo, $quellArt, $quellId) as $regionAdresse) {
+                            $andereTragenSieNoch = avesmapsGaretienAndererTraegerVorhanden(
+                                $pdo, $quellArt, $quellId, $regionAdresse, $itemIds
+                            );
+                            if (!$andereTragenSieNoch) {
+                                avesmapsGaretienQuelleRuecknahmeLoesenFuerAdresse($pdo, $quellArt, $quellId, $regionAdresse, (int) ($user['id'] ?? 0));
+                            }
+                        }
                         $beruehrt[$quellArt . ':' . $quellId] = ['entity_type' => $quellArt, 'public_id' => $quellId];
                     }
                 } catch (Throwable $quellFehler) {

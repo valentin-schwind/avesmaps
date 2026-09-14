@@ -105,8 +105,8 @@ assert($q['label'] === 'Stadt Praioslob auf garetien.de',
 assert($q['url'] === 'https://www.garetien.de/index.php/Garetien:Stadt_Praioslob', 'und die volle Adresse');
 assert($q['source_type'] === 'briefspiel', 'derselbe Typ wie die Sammelquelle');
 assert($q['origin'] === 'garetien',
-    'dieselbe Herkunft -- daran haengt die Ruecknahme (avesmapsGaretienQuelleRuecknahmeLoesen loest '
-    . 'ALLES mit origin=garetien) und die Wiedererkennung durch einen spaeteren Lauf');
+    'dieselbe Herkunft -- daran haengt die Ruecknahme (avesmapsGaretienQuelleRuecknahmeLoesenFuerAdresse '
+    . 'loest NUR, was origin=garetien traegt) und die Wiedererkennung durch einen spaeteren Lauf');
 assert($q['license'] === 'cc-by-nc-sa-3.0' && $q['attribution'] === 'VolkoV / garetien.de',
     'Lizenz und Namensnennung wie bei der Sammelquelle -- derselbe Wirt, derselbe Autor');
 $pruefungen += 6;
