@@ -22,6 +22,28 @@
 	transition: opacity 140ms ease, transform 140ms ease;
 }
 
+/* Am Telefon steht der Toast UEBER dem Knopfbund unten rechts (Owner 14.09.2026). Unten mittig
+   ueberdeckte er bei 375px mit einer zweizeiligen Meldung den Kartenfaecher und stiess an „Hinweise"
+   (gemessen: Toast x 94..282 / y 687..794, Bund ab x 185 / y 568) -- und seit die Meldungen des
+   Routenplaners als Toast kommen, ist das kein seltener Fall mehr.
+   💣 Die Hoehe wird GELESEN, nicht gewusst: --avesmaps-corner-stack misst syncMapCornerStack
+   (js/ui/ui-controls.js) aus dem echten Bund, dieselbe Zahl, ueber die sich der Zoom setzt
+   (css/features/infopanel.css). Eine eigene Pixelzahl laege beim naechsten Wachsen des Bundes daneben.
+   ⚠️ Der Rueckfall `0px` ist Absicht: eine tote Variable hiesse `unset`, und ein fixierter Kasten
+   ohne `bottom` landet an seiner Fliessposition statt am Rand.
+   🔴 An `html.avesmaps-phone`, nicht an einer Media-Query -- „Telefon" hat in diesem Haus EINE
+   Definition (js/app/runtime-state.js). Am Zeiger bleibt der Toast unten mittig: dort ist neben
+   dem Bund Platz.
+   💣 UND NUR, WENN DER BUND AUCH DA IST. Bei offenem Planer oder offener Infobox blendet ihn das Haus
+   am Telefon aus (css/layout/map-layout.css, css/features/infopanel.css) -- seine Hoehe bleibt aber
+   gemessen, und ohne die zwei Ausschluesse sprang der Toast grundlos mitten ins Panel: gemessen bei
+   offener Infobox y 496..562, genau auf „Reiseziel entfernen" und „Link teilen". Unten steht er dort
+   nur ueber Fliesstext. Die zwei Klassen hier und die zwei Ausblenderegeln sind EINE Aussage --
+   wer dort eine dazunimmt, nimmt sie hier mit (toast-ueber-knopfbund.test.js haelt beide gegeneinander). */
+html.avesmaps-phone:not(.avesmaps-planner-open):not(.avesmaps-any-panel-open) .feedback-toast {
+	bottom: calc(var(--avesmaps-edge-gap) + var(--avesmaps-corner-stack, 0px));
+}
+
 .feedback-toast.is-visible {
 	opacity: 1;
 	transform: translate(-50%, 0);
