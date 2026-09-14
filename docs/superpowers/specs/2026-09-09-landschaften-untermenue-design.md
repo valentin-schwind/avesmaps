@@ -250,11 +250,16 @@ der beim Zusammenlegen umfiele.
 er hat seine Schalter und seinen Regler gleich daneben. Diese Unterscheidung ist die Begründung des
 ganzen Profils und bleibt.
 
-⚠️ `GRUND_DECKKRAFT.ecosystem` im Fächer (heute 0,25) fällt auf 0: die Landschaften-Kachel und die
-fünf Ebenenzellen zeigen den Pergamentgrund, kein Kachelbild. Ein Vorschaubild, das etwas anderes
-ankündigt als die Karte zeigt, ist genau die Falle, vor der `tools/layer-tiles/capture.js` warnt.
-Für den Editor mit Regler auf 25 % weicht die Vorschau damit ab — gewollt: die Zelle zeigt die
-Ansicht, nicht seine persönliche Einstellung.
+🔴 **Korrigiert 14.09.2026: hier stand „`GRUND_DECKKRAFT.ecosystem` im Fächer (heute 0,25) fällt auf 0".**
+Das Ziel stimmte, der Weg nicht: `zelle()` fragte `if (GRUND_DECKKRAFT[…])`, und 0 ist falsy — die Deckkraft
+wäre gar nicht gesetzt worden, und das Kachelbild hätte mit VOLLER Deckkraft unter dem Vektor gestanden, das
+Gegenteil dessen, was dieser Absatz wollte. Es gilt (Aufgabe 6, `e91990d14`): unter der Landschaften-Kachel
+und den Ebenenzellen entsteht **kein `<img>`**, die Hülle trägt `--color-ecosystem-underground` (den
+Pergamentgrund), und die Tabelle `GRUND_DECKKRAFT` ist **entfernt, nicht genullt** — ein Eintrag auf 0 lädt
+den nächsten Leser ein, ihn für wirksam zu halten.
+⚠️ Die Begründung bleibt: ein Vorschaubild, das etwas anderes ankündigt als die Karte zeigt, ist genau die
+Falle, vor der `tools/layer-tiles/capture.js` warnt. Für den Editor mit Regler auf 25 % weicht die Vorschau
+damit ab — gewollt: die Zelle zeigt die Ansicht, nicht seine persönliche Einstellung.
 
 ## 4 · Fünf Vektoren, vier davon neu
 

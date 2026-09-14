@@ -461,8 +461,10 @@ function baueWelt(einstellungen) {
 		location: { search: "" }
 	};
 
-	// Die ECHTE Datei der Reiterleiste, beim Laden -- in index.html steht sie VOR dem Picker (Brief Aufgabe 6,
-	// Regel 5). Ihr Kontext traegt nur, was sie beim Laden lesen darf; jede Nebenwirkung, die dort nichts
+	// Die ECHTE Datei der Reiterleiste, beim Laden -- in index.html steht sie VOR dem Picker: die
+	// Landschaften-Zelle traegt die GEMERKTE Ebene auch ueber einer anderen Ansicht (Entwurf §1, Absatz „Und das BILD
+	// folgt ebenso"), und das kann sie nur, wenn die Leiste den gemerkten Stand schon beim Laden spiegelt (Abschnitt J).
+	// Ihr Kontext traegt nur, was sie beim Laden lesen darf; jede Nebenwirkung, die dort nichts
 	// verloren hat, hinterlaesst eine Spur in `schalterSpuren`.
 	const schalterSpuren = [];
 	/** Der vm-Kontext der Leiste -- fuer Abschnitt J4, der dort die Rechteauskunft eintreffen laesst. */
@@ -898,7 +900,7 @@ fuerBeideRollen((rolle) => {
 	});
 
 	REITER_WERTE.forEach((ebene) => {
-		// H3. Ueber einer ANDEREN Ansicht zeigt die Landschaften-Zelle, was ein Klick auf Landschaften bringt (Ruling 22).
+		// H3. Ueber einer ANDEREN Ansicht zeigt die Landschaften-Zelle, was ein Klick auf Landschaften bringt (Entwurf §1, Absatz „Und das BILD folgt ebenso").
 		const welt = baueWelt({ ansicht: "political", ebene, imEditor: rolle.imEditor });
 		welt.kachel.click();
 		const zelle = welt.zelleDerAnsicht("ecosystem");
@@ -976,7 +978,7 @@ fuerBeideRollen((rolle) => {
 }
 {
 	// I3. Der Faecher-Klick selbst loest den Beobachter aus. Sein Klick-Zuhoerer schliesst das Menue, BEVOR der Beobachter
-	// zu Wort kommt -- dann wird ganz gezeichnet, und die geklickte Zelle der zweiten Stufe bleibt stehen.
+	// zu Wort kommt -- gezeichnet wird trotzdem nur die Kachel (I4), und die geklickte Zelle der zweiten Stufe bleibt stehen.
 	const welt = baueWelt({ ansicht: "deregraphic", ebene: "vegetation" });
 	welt.kachel.click();
 	welt.zelleDerAnsicht("ecosystem").click();
@@ -990,7 +992,34 @@ fuerBeideRollen((rolle) => {
 	assert.strictEqual(zweiteZeile(kachel), REITER_NAMEN[REITER_WERTE.indexOf("derographisch")], "...mit dem Namen der gewaehlten Ebene");
 	assert.strictEqual(vektorVon(kachel), OVERLAYS.eco_derographisch, "...und ihrem Bild");
 	assert.ok(welt.stufen()[0].contains(geklickt),
-		"die geklickte Zelle der zweiten Stufe steht noch -- der Beobachter baut nur Kachel und erste Stufe");
+		"die geklickte Zelle der zweiten Stufe steht noch -- der Beobachter baut nur die Kachel");
+}
+{
+	// I4. Die Ebene wechselt, WAEHREND das Menue zuklappt: geschlossen, aber noch in seiner Blende. So kommt es beim
+	// Faecher-Klick selbst (I3) -- sein Zuhoerer schliesst das Menue, bevor der Beobachter zu Wort kommt.
+	// 💣 Ein Neubau hier baute die Zellen eines Menues neu, das gerade verschwindet. Das Menue holt den Stand beim
+	// naechsten Oeffnen nach -- oeffne() baut es ohnehin neu.
+	assert.ok(REITER_WERTE.includes("klima"), "die Leiste traegt einen Reiter klima (sonst prueft der Rest nichts)");
+	const welt = baueWelt({ ansicht: "ecosystem", ebene: "vegetation" });
+	welt.kachel.click();
+	welt.dokument.dispatchEvent(new Ereignis("click"));
+	assert.strictEqual(welt.kachel.getAttribute("aria-expanded"), "false", "das Menue ist zu (sonst prueft der Rest nichts)");
+	assert.ok(!welt.menue.hidden, "...aber noch in seiner Blende sichtbar (sonst prueft der Rest nichts)");
+	const zellenVorher = welt.menue.querySelectorAll(".map-layer-picker__cell");
+	assert.ok(zellenVorher.length > 0, "...und traegt noch seine Zellen (sonst prueft der Rest nichts)");
+	welt.leiste.querySelectorAll("[data-ecosystem-show-all], [data-ecosystem-kind]").forEach((reiter) => {
+		reiter.setAttribute("aria-selected", reiter.getAttribute("data-ecosystem-kind") === "klima" ? "true" : "false");
+	});
+	welt.mutationenZustellen();
+	const zellenNachher = welt.menue.querySelectorAll(".map-layer-picker__cell");
+	assert.ok(zellenNachher.length === zellenVorher.length && zellenNachher.every((z, i) => z === zellenVorher[i]),
+		"💣 bei GESCHLOSSENEM, noch ausblendendem Menue baut der Beobachter die Zellen NICHT neu -- dieselben Objekte");
+	assert.strictEqual(vektorVon(kachelZelle(welt)), OVERLAYS[VEKTOR_ERWARTET.klima],
+		"die Kachel ist trotzdem nachgezogen -- sie kommt nach der Blende mit dem Bild der neuen Ebene zurueck");
+	welt.zeitVergeht();
+	welt.kachel.click();
+	assert.strictEqual(vektorVon(welt.zelleDerAnsicht("ecosystem")), OVERLAYS[VEKTOR_ERWARTET.klima],
+		"...und beim naechsten Oeffnen traegt auch die Landschaften-Zelle das neue Bild -- das Menue holt es beim Oeffnen nach");
 }
 
 // ==== J. Die Leiste spiegelt den gemerkten Stand schon beim LADEN ==================================
@@ -1112,7 +1141,7 @@ assert.ok(/\.map-layer-picker__grund:not\(:has\(>\s*\.map-layer-picker__cell:nth
 assert.ok(/\.map-layer-picker__grund:has\(>\s*\.map-layer-picker__cell:nth-child\(4\)\)\s*\{[^}]*clip-path:\s*none/.test(telefon[1]),
 	"...und rollt nicht auf, sobald sie umbricht -- sonst gaebe der Wisch einen Streifen ueber beide Reihen frei");
 
-// S7. GRUND_DECKKRAFT ist WEG, nicht auf 0 gestellt (Brief Aufgabe 6, Regel 3).
+// S7. GRUND_DECKKRAFT ist WEG, nicht auf 0 gestellt (Entwurf §3.3, Korrektur vom 14.09.2026; Plan-Aufgabe 8, Schritt 3).
 // 💣 0 ist falsy: `if (GRUND_DECKKRAFT[…])` haette die Deckkraft gar nicht gesetzt, und das Bild stuende mit VOLLER
 // Deckkraft unter dem Vektor. Fuer Landschaften entsteht gar kein <img> mehr (Abschnitt H) -- und damit hat die Tabelle
 // keinen Eintrag, fuer den sie stehen bliebe.

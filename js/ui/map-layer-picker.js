@@ -326,7 +326,7 @@
 	};
 
 	// 🔴 UNTER DER LANDSCHAFTEN-ZELLE LIEGT KEIN UNTERGRUNDBILD (Owner 14.09.2026: in den Landschaften ist der
-	// Untergrund fuer Besucher ganz aus -- das Anzeigeprofil schreibt allen fuenf Ebenen 0 % vor, und bei 0 % nimmt
+	// Untergrund fuer Besucher ganz aus -- das Anzeigeprofil schreibt allen Ebenen 0 % vor, und bei 0 % nimmt
 	// syncEcosystemBaseTiles die Kachelebene ganz von der Karte). zelle() legt dort gar kein <img> an; die Huelle traegt
 	// --color-ecosystem-underground (#d3cec2), wie die Ebenenzellen der zweiten Stufe und das Mockup
 	// (`ohneUntergrund` in tools/bau-ansicht-untergrund-mockup.js).
@@ -728,7 +728,7 @@
 		/**
 		 * Zeichnet NUR die zugeklappte Kachel und gibt zurueck, was zeichne() fuer das Menue braucht -- `null`, wenn es
 		 * keine Ansicht gibt.
-		 * ⚠️ Eine eigene Funktion, weil der Beobachter der Reiterleiste bei OFFENEM Menue nur sie ruft (siehe dort).
+		 * ⚠️ Eine eigene Funktion, weil der Beobachter der Reiterleiste nur sie ruft -- das Menue baut oeffne() neu (siehe dort).
 		 */
 		function zeichneKachel() {
 			var aktiv = aktiveAnsicht();
@@ -1332,18 +1332,16 @@
 		// Pfeiltasten und den Klick auf eine Flaeche einer anderen Ebene (setActiveEcosystemLayerKind). Alle Wege enden in
 		// syncEcosystemLayerSwitchControls, und das stempelt `aria-selected` -- genau das, was aktiveEbene() liest. Kein
 		// zweiter Zustand, nur ein Zuhoerer an der Stelle, die sich ohnehin aendert.
-		// 💣 BEI OFFENEM MENUE NUR DIE KACHEL. zeichne() baut die Zellen der ersten Stufe neu, auch die unter dem Zeiger.
-		// Der Faecher-Klick selbst trifft das nie -- sein Zuhoerer schliesst das Menue, bevor der Beobachter am Ende der
-		// Aufgabe zu Wort kommt --, ein Wechsel ueber die Leiste bei offenem Menue schon. Das Menue holt den neuen Stand
-		// beim naechsten Oeffnen nach: oeffne() zeichnet ohnehin neu.
+		// 💣 NUR DIE KACHEL -- bei offenem wie bei geschlossenem Menue. Das Menue wird bei JEDEM Oeffnen neu gebaut (oeffne()
+		// ruft zeichne()) und holt den neuen Stand damit ohnehin nach; ein Neubau hier kann nur schaden. Bei offenem Menue
+		// risse er die Zelle unter dem Zeiger weg (ein Wechsel ueber die Leiste, ihre Pfeiltasten oder den Klick auf eine
+		// Flaeche einer anderen Ebene). Bei gerade geschlossenem baute er die Zellen WAEHREND der Blende (BLENDE_ZU_MS) neu --
+		// und genau so kommt es beim Faecher-Klick selbst: sein Zuhoerer schliesst das Menue, bevor der Beobachter am Ende
+		// der Aufgabe zu Wort kommt.
 		var ebenenLeiste = document.getElementById("ecosystem-layer-switch");
 		if (ebenenLeiste && typeof MutationObserver === "function") {
 			new MutationObserver(function () {
-				if (offen()) {
-					zeichneKachel();
-					return;
-				}
-				zeichne();
+				zeichneKachel();
 			}).observe(ebenenLeiste, { attributes: true, attributeFilter: ["aria-selected"], subtree: true });
 		}
 

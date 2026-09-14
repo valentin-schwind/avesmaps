@@ -1523,13 +1523,16 @@ Betreff: `feat(kartenfaecher): dritte Stufe -- der Untergrund unter einer Landsc
 
 **Dateien:**
 - Ändern: `js/map-features/map-features-ecosystem-layer-switch.js` (`syncEcosystemControlsVisibility`)
-- Ändern: `js/ui/map-layer-picker.js` (`GRUND_DECKKRAFT.ecosystem`)
-- Ändern: `tools/bau-ansicht-untergrund-mockup.js` + Mockup neu erzeugen
+- ~~Ändern: `js/ui/map-layer-picker.js` (`GRUND_DECKKRAFT.ecosystem`)~~ — 🔴 **überholt am 14.09.2026 (Aufgabe 6,
+  `e91990d14`):** die Tabelle ist entfernt, hier bleibt nichts zu ändern (Schritt 3).
+- Ändern: `tools/bau-ansicht-untergrund-mockup.js` + Mockup neu erzeugen — 🔴 sein Tabellenrest `GRUND_DECKKRAFT`
+  ist mit der Fix-Runde zu Aufgabe 6 gefallen (überholt am 14.09.2026).
 - Test: `js/map-features/__tests__/ecosystem-frontend-profil.test.js` (erweitert)
 - Ändern: `AGENTS.md` (§11-Eintrag „Der Kartenfächer")
 
-⭐ Der Untergrund steht seit **Aufgabe 2** auf 0 % (er ist Teil des einen Profils) — hier fällt nur
-noch die Vorschau im Fächer nach und die Leiste geht für Besucher weg.
+⭐ Der Untergrund steht seit **Aufgabe 2** auf 0 % (er ist Teil des einen Profils) — hier geht nur
+noch die Leiste für Besucher weg. 🔴 Die Vorschau im Fächer ist **überholt am 14.09.2026 (Aufgabe 6,
+`e91990d14`)** — sie ist dort schon nachgezogen (Schritt 3).
 
 - [ ] **Schritt 1: Die fehlschlagenden Zusicherungen ergänzen**
 
@@ -1552,7 +1555,8 @@ assert.ok(/controlsElement\.hidden\s*=\s*!shouldShow/.test(quelle),
 
 - [ ] **Schritt 2: Test fahren, Fehlschlag sehen**
 
-- [ ] **Schritt 3: Die zwei Werte umstellen**
+- [ ] **Schritt 3: Die Leiste umstellen** (🔴 hier stand bis 14.09.2026 „Die zwei Werte umstellen" — der zweite
+  Wert, `GRUND_DECKKRAFT.ecosystem`, ist überholt, siehe unten)
 
 ⚠️ `ECOSYSTEM_UNDERGROUND_FRONTEND = 25` **prüfen, nicht blind löschen**: erst alle Leser suchen
 (`grep -n ECOSYSTEM_UNDERGROUND_FRONTEND`). Bleibt sie der Rückfall in
@@ -1575,19 +1579,16 @@ In `syncEcosystemControlsVisibility`, neben dem Untergrund-Regler:
 	}
 ```
 
-In `js/ui/map-layer-picker.js`:
-
-```js
-	// 🔴 Die Landschaften-Ansicht zeigt seit dem 09.09.2026 GAR KEINEN Untergrund (Owner). Die
-	// Zelle zeigt deshalb den Pergamentgrund --color-ecosystem-underground (#d3cec2) und kein
-	// Kachelbild -- ein Vorschaubild, das etwas anderes ankuendigt als die Karte zeigt, ist genau
-	// die Falle, vor der tools/layer-tiles/capture.js warnt.
-	// ⚠️ Der Editor mit Regler auf 25 % sieht dadurch eine Vorschau, die von seiner Karte abweicht.
-	// Gewollt: die Zelle zeigt die ANSICHT, nicht seine persoenliche Einstellung.
-	const GRUND_DECKKRAFT = {
-		ecosystem: 0
-	};
-```
+In `js/ui/map-layer-picker.js`: 🔴 **überholt am 14.09.2026 (Aufgabe 6, `e91990d14`) — hier ist nichts mehr
+zu tun.** Hier stand ein Codeblock, der `const GRUND_DECKKRAFT = { ecosystem: 0 }` anlegt. Das wäre der falsche
+Weg gewesen: `zelle()` fragte `if (GRUND_DECKKRAFT[ansicht.wert])`, und 0 ist falsy — die Deckkraft wäre gar
+nicht gesetzt worden, und das Kachelbild hätte mit VOLLER Deckkraft unter dem Vektor gestanden, das Gegenteil
+des Gewollten. Gebaut ist stattdessen: für die Ansicht `ecosystem` entsteht **kein `<img>`**, die Hülle trägt
+`var(--color-ecosystem-underground)` (den Pergamentgrund), und die Tabelle `GRUND_DECKKRAFT` ist **entfernt,
+nicht genullt** — gewacht von `js/ui/__tests__/landschaften-untermenue.test.js` (Abschnitte H und S7). Der Rest
+im Mockup-Generator (`tools/bau-ansicht-untergrund-mockup.js`) ist mit der Fix-Runde zu Aufgabe 6 gefallen.
+⚠️ Die Begründung von damals bleibt richtig: für den Editor mit Regler auf 25 % weicht die Vorschau von seiner
+Karte ab — gewollt, die Zelle zeigt die ANSICHT, nicht seine persönliche Einstellung.
 
 - [ ] **Schritt 4: Tests fahren**
 
@@ -1599,7 +1600,9 @@ node js/map-features/__tests__/ecosystem-frontend-profil.test.js && node js/ui/_
 
 1. `layerRow.hidden = !operable` → `= !shouldShow`.
 2. `controlsElement.hidden = !shouldShow` → `= !operable` (nimmt die Abschalt-Meldung mit).
-3. `GRUND_DECKKRAFT.ecosystem` zurück auf `0.25` (die Vorschau lügt dann über die Karte).
+3. ~~`GRUND_DECKKRAFT.ecosystem` zurück auf `0.25`~~ — 🔴 **überholt am 14.09.2026 (Aufgabe 6, `e91990d14`):** die
+   Tabelle gibt es nicht mehr, die Mutation entfällt hier. Ein `<img>` unter der Landschaften-Zelle und eine
+   zurückgelegte Tabelle fangen die Abschnitte H und S7 in `js/ui/__tests__/landschaften-untermenue.test.js`.
 
 - [ ] **Schritt 6: AGENTS.md nachziehen**
 

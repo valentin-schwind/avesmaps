@@ -315,24 +315,13 @@ const GRUND_FILTER = {
 	powerlines: "saturate(0.1) brightness(0.6)"
 };
 
-// 🔴 Die Landschaften-Ansicht BLENDET den Untergrund ab (Owner 26.08.2026). Ausgeblendet wird
-// gegen --color-ecosystem-underground (#d3cec2), NICHT gegen Weiss: deshalb steht hinter dem Bild
-// eine Flaeche in genau diesem Ton, sonst schiene das Panel durch und der Farbeindruck waere ein
-// anderer als auf der Karte.
-//
-// ⚠️ DIE 0.25 SIND SEIT DEM 09.09.2026 NICHT MEHR DER ECHTE WERT. Bis 10.09.2026 stand hier, der
-// Besucher sehe ECOSYSTEM_UNDERGROUND_FRONTEND = 25 (%) -- das galt bis zum 23.08.2026 und danach
-// nur noch fuer „Alle"; seit dem 09.09.2026 schreibt das Anzeigeprofil allen fuenf Ebenen 0 % vor
-// (ECOSYSTEM_FRONTEND_PROFIL in js/map-features/map-features-ecosystem-layer-switch.js), und bei
-// 0 % nimmt syncEcosystemBaseTiles die Kachelebene ganz von der Karte. Die Kachel zeigt also einen
-// Untergrund, den es auf der Karte nicht mehr gibt. 🔧 Die ZAHL hier aendert Aufgabe 8 des Umbaus
-// -- absichtlich nicht hier, damit eine Kommentarkorrektur nicht nebenbei das Bild umstellt.
-// ⚠️ Derselbe Absatz steht im Picker (js/ui/map-layer-picker.js). Er stand dort seit dem
-// 10.09.2026 richtig und HIER noch falsch: ein Zwilling wird an BEIDEN Haelften nachgezogen,
-// sonst liest der naechste die Haelfte, die ihm zuerst unterkommt.
-const GRUND_DECKKRAFT = {
-	ecosystem: 0.25
-};
+// 🔴 HIER STAND BIS ZUM 14.09.2026 EINE TABELLE GRUND_DECKKRAFT (ecosystem: 0.25), als Zwilling der gleichnamigen
+// im Picker. Beide sind entfernt (Aufgabe 6, e91990d14): in den Landschaften ist der Untergrund fuer Besucher aus, die
+// Landschaften-Zelle traegt KEIN Kachelbild, nur den Ausblendton -- hier ohneUntergrund in baueFaecher, im Picker zelle().
+// 💣 Nicht mit ecosystem: 0 zurueckholen: zelle() fragt if (eintrag.grundDeckkraft), und 0 ist falsy -- das Bild
+// stuende mit VOLLER Deckkraft unter dem Vektor.
+// ⚠️ Die Abblendung vom 26.08.2026 lebt nur noch in den Demos E und A, die genau jenen Stand zeigen (stand2608 in
+// baueDemo) -- nicht in den Daten, damit sie niemand fuer den heutigen Stand haelt.
 
 // 🔴 DIE FUENF EBENEN DER ZWEITEN STUFE. Die vier Vektoren kommen aus OVERLAYS oben -- „Alle" hat
 // KEINEN eigenen: es nimmt den der Ansicht (OVERLAYS.ecosystem), denn „Alle" IST alle Ebenen
@@ -359,8 +348,7 @@ EBENEN.forEach((e) => {
 const daten = JSON.stringify({
 	ansichten: ANSICHTEN.map((a) => Object.assign({}, a, {
 		overlay: OVERLAYS[a.wert] || "",
-		grundFilter: GRUND_FILTER[a.wert] || "",
-		grundDeckkraft: GRUND_DECKKRAFT[a.wert] || 0
+		grundFilter: GRUND_FILTER[a.wert] || ""
 	})),
 	untergruende: UNTERGRUENDE,
 	ebenen: EBENEN,
@@ -778,6 +766,7 @@ function zelle(eintrag, aktiv, grundBild) {
 		// 💣 Abblenden heisst hier: durchscheinen lassen auf den Ausblendton der Ebene, nicht auf das
 		// Panel. Deshalb bekommt die Huelle den Ton als Hintergrund -- ohne ihn schiene die Panelfarbe
 		// durch und der Farbeindruck waere ein anderer als auf der Karte.
+		// ⚠️ Gesetzt wird grundDeckkraft nur noch von den Demos E und A (Stand 26.08.2026, stand2608 in baueDemo).
 		if (eintrag.grundDeckkraft) {
 			img.style.opacity = String(eintrag.grundDeckkraft);
 			huelle.style.background = "var(--color-ecosystem-underground)";
@@ -810,6 +799,12 @@ function baueDemo(art) {
 	const stand = document.querySelector('[data-stand="' + art + '"]');
 	const zustand = { ansicht: "deregraphic", grund: "stylized" };
 	let offen = false, festgehalten = false, schwebeTimer = null, blendeTimer = null, stufeTimer = null, stufeZwei = null;
+	// 🔴 DIE DEMOS E UND A ZEIGEN DEN STAND VOM 26.08.2026 -- die zwei Formen, zwischen denen damals gewaehlt wurde.
+	// Damals blendete die Landschaften-Ansicht ihren Untergrund auf 25 % ab, und ueber ihr fuhr wie ueber jeder Ansicht
+	// die Untergrund-Reihe heraus. Beides gilt seit dem 14.09.2026 nicht mehr (Karte L). Die Abblendung steht deshalb
+	// HIER und nicht in den Daten: der Picker kennt sie nicht mehr, und eine Tabelle neben OVERLAYS las sich wie sein
+	// Zwilling.
+	const stand2608 = (a) => (a.wert === "ecosystem" ? Object.assign({}, a, { grundDeckkraft: 0.25 }) : a);
 
 	const huelle = document.createElement("div");
 	huelle.className = "map-layer-picker";
@@ -842,7 +837,7 @@ function baueDemo(art) {
 		const a = DATEN.ansichten.find((x) => x.wert === zustand.ansicht);
 		const g = untergruende().find((x) => x.wert === zustand.grund) || untergruende()[0];
 		kachel.innerHTML = "";
-		const z = zelle(a, false, g.bild);
+		const z = zelle(stand2608(a), false, g.bild);
 		z.tabIndex = -1;
 		// 💣 "Standard · Modern" passt NIE in eine Zeile: die Zelle ist 66px breit, gebunden
 		// an das laengste Ansichtswort. Deshalb ZWEI Zeilen -- Ansicht oben, Untergrund darunter
@@ -871,7 +866,7 @@ function baueDemo(art) {
 		// Aufnahme nicht: sie trug ihren Untergrund eingebrannt.
 		const grund = untergruende().find((x) => x.wert === zustand.grund) || untergruende()[0];
 		aktivZuletzt(DATEN.ansichten, zustand.ansicht).forEach((a) => {
-			const k = zelle(a, a.wert === zustand.ansicht, grund.bild);
+			const k = zelle(stand2608(a), a.wert === zustand.ansicht, grund.bild);
 			// Die zweite Zeile tragen ALLE Zellen -- gefuellt nur die aktive, denn sie ist die Kachel
 			// und darf beim Aufklappen ihren Text nicht wechseln. Sichtbar ist sie ohnehin keine:
 			// das CSS blendet sie im offenen Menue aus (.map-layer-picker__menu.is-open).
@@ -1190,7 +1185,7 @@ function baueFaecher() {
 			// 🔴 Das Bild ist das der GEWAEHLTEN Ebene, nicht immer das von „Alle". Auch wenn gerade eine
 			// andere Ansicht gilt: die Zelle zeigt, was ein Klick auf Landschaften bringt -- die Ebene
 			// bleibt gemerkt.
-			return ohneUntergrund(zelle(Object.assign({}, a, { bild: "", grundDeckkraft: 0, overlay: ebeneJetzt().overlay }), aktiv, ""));
+			return ohneUntergrund(zelle(Object.assign({}, a, { bild: "", overlay: ebeneJetzt().overlay }), aktiv, ""));
 		}
 		return zelle(a, aktiv, grundJetzt().bild);
 	}
