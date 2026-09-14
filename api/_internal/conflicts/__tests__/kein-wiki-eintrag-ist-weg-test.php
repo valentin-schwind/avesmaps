@@ -237,29 +237,25 @@ foreach ($phpDateien as $datei) {
         $phpTreffer[] = substr($datei, strlen($wurzel) + 1);
     }
 }
-// 🔴 GENAU DIESE ZWEI, NAMENTLICH -- keine Obergrenze. Eine blosse Obergrenze („hoechstens zwei")
-// liesse zu, dass eine davon verschwindet und eine fremde dazukommt, und beide Haelften waeren
-// falsch.
-//   1. `audit-detail.php` -- der Uebersetzer historischer Protokollzeilen. Er BLEIBT dauerhaft
-//      (Owner-Entscheid 09.09.2026, Abschnitt 4): ein Protokoll ist ein Archiv, sonst waere es keins.
-//   2. `map/wiki-merker-bereinigung.php` -- die einmalige Bestandsreparatur (Schritt 4). Sie ist der
-//      EINZIGE Grund, aus dem der Feldname ueberhaupt noch in lebendem Code stehen darf: sie raeumt
-//      ihn weg.
-// ⏳ NUMMER 2 IST BEFRISTET UND SOLL WIEDER VERSCHWINDEN. Ist der Bestand bereinigt und die
-// Gegenprobe bei `total: 0`, fallen Bibliothek und Endpunkt
-// (`api/edit/admin/wiki-merker-bereinigung.php`) -- und DIESE Liste wird wieder einelementig. Wer
-// den Lauf entfernt, kommt an dieser Zeile vorbei und weiss, was noch fehlt; wer ihn ewig stehen
-// laesst, hat ein Geruest ohne Bauwerk. Dieselbe Bauform wie der Abbau-Vertrag des
-// Garetien-Importers.
-// 💣 UND DIE REPARATUR IST DER GRUND, WARUM HIER EIN NAME STEHT UND KEINE ZAHL: waere die
-// Zusicherung „hoechstens zwei", koennte ein zurueckgekehrter LESER die Stelle der Reparatur
-// einnehmen, sobald die faellt -- und der Waechter bliebe gruen.
+// 🔴 GENAU DIESE EINE, NAMENTLICH -- keine Obergrenze. Eine blosse Obergrenze („hoechstens eine")
+// liesse zu, dass sie verschwindet und eine fremde dazukommt, und beide Haelften waeren falsch.
+//   `audit-detail.php` -- der Uebersetzer historischer Protokollzeilen. Er BLEIBT dauerhaft
+//   (Owner-Entscheid 09.09.2026, Abschnitt 4): ein Protokoll ist ein Archiv, sonst waere es keins.
+// ✅ BIS ZUM 14.09.2026 STAND HIER EINE ZWEITE, BEFRISTETE: `map/wiki-merker-bereinigung.php`, die
+// einmalige Bestandsreparatur (Schritt 4), samt Endpunkt `api/edit/admin/wiki-merker-bereinigung.php`.
+// Der Owner hat sie am 14.09.2026 scharf gefahren -- 7 von 7, `remaining 0`, und die Live-Nutzlast
+// traegt den Feldnamen danach kein einziges Mal mehr --, und Bibliothek, Endpunkt und Test sind
+// gefallen. Taucht je wieder ein Traeger auf, kommt der Lauf aus der Historie zurueck (Commit
+// `7cb677464`) und steht dann HIER wieder, befristet -- nicht still daneben.
+// 💣 UND DARUM STEHT HIER EIN NAME UND KEINE ZAHL: waere die Zusicherung „hoechstens eine", koennte
+// ein zurueckgekehrter LESER die Stelle des Archivs einnehmen, sobald jemand es umbaut -- und der
+// Waechter bliebe gruen.
 assert(
-    $phpTreffer === ['api/_internal/audit-detail.php', 'api/_internal/map/wiki-merker-bereinigung.php'],
+    $phpTreffer === ['api/_internal/audit-detail.php'],
     "im api/-Baum steht wieder lebender Merker-Code (kommentarfrei gemessen):\n  "
     . implode("\n  ", $phpTreffer)
-    . "\n  Erwartet sind GENAU zwei: `api/_internal/audit-detail.php` (das Archiv, bleibt) und "
-    . '`api/_internal/map/wiki-merker-bereinigung.php` (die einmalige Bestandsreparatur, befristet).'
+    . "\n  Erwartet ist GENAU einer: `api/_internal/audit-detail.php` (das Archiv, bleibt). Die befristete "
+    . 'Bestandsreparatur ist am 14.09.2026 gefallen.'
 );
 
 $browserBaum = static function (string $wurzelPfad): array {

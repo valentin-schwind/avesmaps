@@ -469,13 +469,20 @@ geschluckt, EIN Revisions-Bump am Ende. **Kein blindes `UPDATE`.**
       `api/edit/admin/wiki-merker-bereinigung.php` (Endpunkt, nur admin, Trockenlauf-Vorgabe).
 - [x] 4.3 Ganzes Testfeld: 400 PHP / 511 JS, rot nur der vorbestehende `link-url-test.php`.
 - [ ] 4.4 Agent widerlegt den Diff.
-- [ ] 4.5 🔧 **DU:** Trockenlauf fahren, Zahl gegen **7** halten (2 Orte, 5 Kraftliniensegmente,
+- [x] 4.5 🔧 **DU:** Trockenlauf fahren, Zahl gegen **7** halten (2 Orte, 5 Kraftliniensegmente,
       0 inaktive — live gezählt 09.09.2026, Revision 119767), dann scharf.
       🪤 Hier stand **10** — die Zahl aus dem Dump vom Vortag. Vier Träger hatten ihren Merker
       inzwischen durch eine Zuweisung verloren; ein Prüfagent hat es gefunden. ⭐ „Der Trockenlauf
       ist die Messung" taugt nur, wenn die **Erwartung** frisch ist — gegen eine veraltete Zahl
       gehalten hält der Owner an, wo nichts ist.
-- [ ] 4.6 Gegenprobe: 0 verbleibende Träger in `map_features`. Commit + Push.
+- [x] 4.6 Gegenprobe: 0 verbleibende Träger in `map_features`. **Gefahren 14.09.2026** vom Owner
+      (scharf, Revision 126432): `total 7 · done 7 · failed [] · remaining 0`, per_type
+      `{powerline 5, location 2}`. Die Live-Nutzlast (Revision 126436) trägt `wiki_no_article`
+      danach **0-mal**.
+- [x] 4.7 Rückbau, 14.09.2026: Bibliothek, Endpunkt und ihr Test fallen; der Wächter in
+      `kein-wiki-eintrag-ist-weg-test.php` erwartet wieder genau **eine** Fundstelle
+      (`audit-detail.php`), und der Deploy räumt beide Dateien vom Server
+      („Retire orphaned remote files“ — ohne den Eintrag bliebe der Endpunkt dort erreichbar).
 
 ### 💣 Der Befund, der diesen Schritt beinahe zu einem Datenverlust gemacht hätte
 
