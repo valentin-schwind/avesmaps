@@ -151,6 +151,79 @@ function avesmapsOptionalUser(): ?array {
     return null;
 }
 
+/**
+ * The editor's view of a PUBLIC read path (`?edit_mode=1`) -- for signed-in editors only.
+ *
+ * 🔴 Three public endpoints hand out more with `edit_mode=1`: map-features.php and territory-detail.php
+ * lift the coat kill switch ("Wappen: Aus", NOTICE.md), the political layer serves the whole editor
+ * layer. Until 2026-09-14 the parameter alone did it, for anyone. The kill switch exists for legal
+ * reasons; a url parameter that lifts it is no kill switch.
+ *
+ * 💣 Call it ONCE, at the top of the handler, and assign the result back:
+ *     $_GET = avesmapsEditModeNurFuerEditoren($_GET);
+ * Both cached endpoints key their cache on edit_mode (map-features: ETag seed + body cache; political
+ * layer: the cache file it serves BEFORE the PDO). A check placed only where the payload is BUILT lets
+ * the fast path keep serving the editor variant to anyone asking for it, and lets the 304 check confirm
+ * an editor ETag. Filtering the request binds every reader -- ETag, cache key, fast path, build -- and
+ * the next one somebody adds. Guarded by api/_internal/__tests__/edit-mode-riegel-test.php.
+ *
+ * ⚠️ Anything other than absent / '' / '0' counts as a request -- `edit_mode=true` IS edit mode to the
+ * political reader (FILTER_VALIDATE_BOOLEAN). Only then is the user looked at: the visitor path (the
+ * political layer sends edit_mode=0 on every pan) never touches the session.
+ *
+ * ⚠️ Fails CLOSED: a reader that throws yields the visitor's view -- never the editor's, never a 500.
+ *
+ * @param callable|null $benutzerLesen returns the signed-in user or null; default: the real session.
+ */
+function avesmapsEditModeNurFuerEditoren(array $query, ?callable $benutzerLesen = null): array {
+    if (!array_key_exists('edit_mode', $query)) {
+        return $query;
+    }
+    if (is_string($query['edit_mode']) && in_array(trim($query['edit_mode']), ['', '0'], true)) {
+        return $query;
+    }
+
+    try {
+        $user = ($benutzerLesen ?? 'avesmapsEditModeSitzungsbenutzer')();
+    } catch (Throwable) {
+        $user = null;
+    }
+    if (is_array($user) && avesmapsUserCan($user, 'edit')) {
+        return $query;
+    }
+
+    unset($query['edit_mode']);
+    return $query;
+}
+
+/**
+ * The signed-in user for avesmapsEditModeNurFuerEditoren -- without opening a session that cannot hold one.
+ *
+ * ⚠️ No session cookie, no session: an anonymous `edit_mode=1` creates no session file and takes no
+ * session-file lock (the lock that wedged the FPM pool, see avesmapsCurrentUser).
+ *
+ * 💣 The cache limiter is off for the read and restored afterwards. session_start() would otherwise send
+ * its own Cache-Control/Pragma/Expires on endpoints that set their caching headers themselves (ETag +
+ * no-cache on map-features, private max-age on the political layer) and never opened a session before.
+ */
+function avesmapsEditModeSitzungsbenutzer(): ?array {
+    if (session_status() !== PHP_SESSION_ACTIVE) {
+        $cookie = $_COOKIE[session_name()] ?? null;
+        if (!is_string($cookie) || $cookie === '') {
+            return null;
+        }
+    }
+
+    $limiter = session_status() === PHP_SESSION_ACTIVE ? false : session_cache_limiter('');
+    try {
+        return avesmapsCurrentUser();
+    } finally {
+        if (is_string($limiter)) {
+            session_cache_limiter($limiter);
+        }
+    }
+}
+
 function avesmapsValidateRole(string $role): string {
     $normalizedRole = avesmapsNormalizeSingleLine($role, 20);
     if (!in_array($normalizedRole, AVESMAPS_AUTH_ROLES, true)) {

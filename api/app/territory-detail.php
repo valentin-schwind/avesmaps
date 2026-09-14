@@ -15,6 +15,8 @@ require __DIR__ . '/../_internal/bootstrap.php';
 require_once __DIR__ . '/../_internal/coat-url.php';
 require_once __DIR__ . '/../_internal/app/coat-display.php';
 require_once __DIR__ . '/../_internal/app/climate-membership.php';
+// For avesmapsEditModeNurFuerEditoren (the gate in front of the editor's view, top of the handler).
+require_once __DIR__ . '/../_internal/auth.php';
 
 const AVESMAPS_TERRITORY_DETAIL_STAGING_TABLE = 'political_territory_wiki_test';
 const AVESMAPS_TERRITORY_DETAIL_MODEL_TABLE = 'wiki_territory_model';
@@ -64,6 +66,11 @@ try {
     if ($requestMethod !== 'GET') {
         avesmapsErrorResponse(405, 'method_not_allowed', 'Nur GET-Anfragen sind erlaubt.');
     }
+
+    // 🔴 THE EDITOR'S VIEW IS FOR SIGNED-IN EDITORS ONLY. `edit_mode=1` lifts the coat kill switch below;
+    // until 2026-09-14 the parameter alone did that, for anyone (NOTICE.md). The request itself is
+    // filtered, so every reader below sees the same answer. Test: api/_internal/__tests__/edit-mode-riegel-test.php.
+    $_GET = avesmapsEditModeNurFuerEditoren($_GET);
 
     $publicId = trim((string) ($_GET['territory'] ?? ''));
     $wikiKeyParam = trim((string) ($_GET['wiki_key'] ?? ''));
@@ -175,7 +182,8 @@ try {
     // "Wappen: Aus" (global switch, territory editor): the placeholder takes the coat's place, and the
     // author/attribution travel with the real coat -- crediting the creator of a picture we are NOT
     // showing would be wrong. Edit mode (the embedded territory editor and the map's ?edit=1 infopanel
-    // pass edit_mode=1) keeps the real coat, so an editor still sees what they are editing.
+    // pass edit_mode=1) keeps the real coat, so an editor still sees what they are editing -- a SIGNED-IN
+    // editor: for everybody else edit_mode was already stripped from the request at the top.
     $coatsEnabled = trim((string) ($_GET['edit_mode'] ?? '')) === '1'
         || avesmapsCoatSwitchEnabledFast($pdo, AVESMAPS_TERRITORY_COATS_SETTING);
     $coat['url'] = avesmapsCoatDisplayUrl((string) $coat['url'], $coatsEnabled);

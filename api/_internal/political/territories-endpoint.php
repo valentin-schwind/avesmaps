@@ -39,6 +39,15 @@ try {
         avesmapsJsonResponse(204);
     }
 
+    // 🔴 THE EDITOR LAYER IS FOR SIGNED-IN EDITORS ONLY, and it is decided HERE, before the fast path.
+    // `edit_mode=1` selects avesmapsPoliticalReadEditorLayer and lifts the coat kill switch; until
+    // 2026-09-14 the parameter alone did both, for anyone (NOTICE.md). 💣 The cache file is keyed by
+    // edit_mode and served below BEFORE the PDO -- a check further down is never reached by a cache hit.
+    // Filtering the request binds cache key, TTL and build alike.
+    // ⚠️ The visitor path sends edit_mode=0 on every pan; that never looks at the session.
+    // Test: api/_internal/__tests__/edit-mode-riegel-test.php.
+    $_GET = avesmapsEditModeNurFuerEditoren($_GET);
+
     // Fast path (perf): a FRESH political-layer cache hit needs no DB connection and no
     // ensure-tables DDL. The layer is by far the hottest endpoint, and the ensure-tables
     // preamble (CREATE IF NOT EXISTS / SHOW COLUMNS / ALTER) ran on every request -- even
@@ -143,7 +152,8 @@ try {
             $response = avesmapsPoliticalReadLayerWithDerivedGeometry($pdo, $_GET);
             // "Wappen: Aus" (global switch, territory editor): swap every coat URL for the placeholder
             // BEFORE the payload is cached, so a cache hit serves the same thing a fresh build does.
-            // Edit mode keeps the real coats -- and the cache file is already keyed by edit_mode
+            // Edit mode keeps the real coats (a signed-in editor's: `edit_mode` is stripped for everyone
+            // else at the top) -- and the cache file is already keyed by edit_mode
             // (avesmapsPoliticalLayerCacheFile), so the two variants cannot overwrite each other.
             $response['features'] = avesmapsPoliticalApplyCoatDisplaySwitch(
                 (array) ($response['features'] ?? []),

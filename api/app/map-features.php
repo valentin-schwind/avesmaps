@@ -6,6 +6,10 @@ require __DIR__ . '/../_internal/bootstrap.php';
 require_once __DIR__ . '/../_internal/wiki/sync.php';
 require_once __DIR__ . '/../_internal/coat-url.php';
 require_once __DIR__ . '/../_internal/app/coat-display.php';
+// Fuer avesmapsEditModeNurFuerEditoren, den Riegel vor der Editor-Sicht (Rumpfanfang). bootstrap.php
+// laedt auth.php nicht selbst; deren eigenes require_once auf bootstrap.php ist nach dem blanken
+// `require` oben ein Leerlauf.
+require_once __DIR__ . '/../_internal/auth.php';
 // Fuer avesmapsMediaLicenseIsPublic() -- der EINE Lizenzkatalog (Phase 1). coat-display.php zieht sie
 // bereits mit, aber ein Gate auf diesem Pfad darf nicht vom Include eines Nachbarn abhaengen.
 require_once __DIR__ . '/../_internal/media-license.php';
@@ -290,6 +294,17 @@ try {
         avesmapsErrorResponse(405, 'method_not_allowed', 'Nur GET-Anfragen sind fuer Kartendaten erlaubt.');
     }
 
+    // 🔴 DIE EDITOR-SICHT GIBT ES NUR MIT ANMELDUNG, und entschieden wird HIER, vor allem anderen.
+    // `edit_mode=1` hebt weiter unten den Wappen-Notaus auf; bis zum 14.09.2026 tat es das fuer JEDEN,
+    // der den Parameter an die Adresse haengte -- und der Notaus besteht aus rechtlichen Gruenden
+    // (NOTICE.md). 💣 Der Parameter steckt im ETag-Keim und damit im Schluessel des Vorrats: eine
+    // Pruefung erst im Aufbau liesse den Schnellpfad einem anonymen Abruf weiter die Editor-Fassung
+    // reichen, und die 304-Pruefung bestaetigte ihm das Editor-ETag. Gefiltert wird deshalb die ANFRAGE
+    // selbst: ETag, Vorrat und Aufbau lesen danach dasselbe, und ein Abruf ohne Recht IST der
+    // Besucherabruf, samt ETag. Test: api/_internal/__tests__/edit-mode-riegel-test.php.
+    // ⚠️ Ohne edit_mode (der Besucherpfad) wird die Sitzung nicht einmal angesehen.
+    $_GET = avesmapsEditModeNurFuerEditoren($_GET);
+
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
     $revision = avesmapsFetchMapRevision($pdo);
 
@@ -349,7 +364,8 @@ try {
     // 🔴 SEIT 23.08.2026 ZWEI SCHALTER NACH HERKUNFT, nicht mehr zwei nach Objektart (Mockup
     // docs/wappen-verwaltung-mockup.html). Sie gelten Orten UND Territorien gemeinsam: ein Notaus
     // fuer rechtliche Fragen, der nur die Haelfte abschaltet, ist keiner.
-    // ⚠️ Der Editiermodus hebt beide auf -- ein Editor muss sehen, was er bearbeitet.
+    // ⚠️ Der Editiermodus hebt beide auf -- ein Editor muss sehen, was er bearbeitet. Und NUR ein
+    // angemeldeter: `edit_mode` ist am Rumpfanfang fuer alle anderen schon aus der Anfrage entfernt.
     $coatsLocalEnabled = $mapFeaturesEditMode || avesmapsCoatSchalterFast($pdo, AVESMAPS_COATS_LOCAL_SETTING);
     $coatsWikiEnabled = $mapFeaturesEditMode || avesmapsCoatSchalterFast($pdo, AVESMAPS_COATS_WIKI_SETTING);
     // Fuer die Stellen, die (noch) nur wissen wollen „darf ueberhaupt eines erscheinen".
@@ -692,6 +708,9 @@ function avesmapsFetchMapRevision(PDO $pdo): int {
 // request carries the real ones. Without it, a browser that cached one would be handed a 304 for the
 // other. The switch STATE needs no seed of its own -- flipping it bumps map_revision, exactly like
 // the settlement-image switch.
+// 🔴 `|e=1` gets only a SIGNED-IN editor: the endpoint strips edit_mode from every other request before
+// this seed is built (avesmapsEditModeNurFuerEditoren), so an anonymous `edit_mode=1` hashes to the
+// visitor's ETag and hits the visitor's cache entry.
 // 🪤 DIESER SATZ WAR VIER MONATE LANG UNWAHR, und er hat genau den Fehler gedeckt, den er
 // beschreibt: kein Schalter hob die Revision, alle drei schrieben nur ihre `app_setting`-Zeile.
 // Der Notaus wirkte also serverseitig -- gemessen 7350 Platzhalter --, aber jeder warme Browser
