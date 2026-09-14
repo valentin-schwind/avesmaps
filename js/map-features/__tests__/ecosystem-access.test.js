@@ -120,12 +120,15 @@ assert(eineEbene.isEcosystemKindVisible("vegetation"), "die gewaehlte Ebene ist 
 assert(!eineEbene.isEcosystemKindVisible("klima"), "die anderen nicht");
 
 // ---- was vom Bedienfeld wer zu sehen bekommt --------------------------------------------------------
-// 🔴 Owner 2026-08-04: „einfach die Toggle-Buttons anzeigen, die wir auch im Edit-Modus sehen." Die
-// Ebenen-Kacheln sind keine Werkzeuge, sondern die Frage „welche Ebene schaue ich an". Der
-// Untergrund-REGLER bleibt dagegen dem Editor -- er ist eine Zeichenhilfe.
+// 🔴 Reiterleiste UND Untergrund-Regler gehoeren seit dem 14.09.2026 dem Editor (bis dahin sah der
+// Besucher die Leiste, Owner 2026-08-04). Der Regler war schon immer seiner -- er ist eine Zeichenhilfe.
+// Die Attrappe traegt die echten Kinder des Bedienfelds (index.html): Zeile, Isolations-Streifen, Regler.
 function feldWelt({ recht, editor, modus = "ecosystem" }) {
+	const zeile = { hidden: false };
 	const untergrund = { hidden: false };
-	const felder = { "ecosystem-controls": { hidden: true, querySelector: () => untergrund } };
+	const selektoren = { ".ecosystem-layer-row": zeile, ".ecosystem-underground": untergrund };
+	const felder = { "ecosystem-controls": { hidden: true, children: [zeile, { hidden: true }, untergrund],
+		querySelector: (selektor) => selektoren[selektor] || null } };
 	const context = {
 		console,
 		window: { localStorage: { getItem: () => null, setItem: () => {} } },
@@ -144,15 +147,22 @@ function feldWelt({ recht, editor, modus = "ecosystem" }) {
 	vm.createContext(context);
 	vm.runInContext(source, context);
 	context.syncEcosystemControlsVisibility();
-	return { feld: felder["ecosystem-controls"], untergrund };
+	return { feld: felder["ecosystem-controls"], zeile, untergrund };
 }
 
+// 🔴 SEIT 14.09.2026 SIEHT DER BESUCHER DIE LEISTE NICHT MEHR (Owner-Auftrag 09.09.2026: „Das
+// Toggle-Button-Menue oben soll fuer regulaere Nutzer verschwinden und ins Faechermenue uebergehen").
+// Hier stand bis dahin „der Besucher SIEHT die Ebenen-Kacheln". Die WAHL der Ebene gehoert ihm
+// weiterhin -- sie steht jetzt im Kartenfaecher. Den Umbau misst ecosystem-frontend-profil.test.js,
+// Abschnitt 6; hier steht nur, was vom Bedienfeld wer zu sehen bekommt.
 const beimBesucher = feldWelt({ recht: false, editor: false });
-assert(beimBesucher.feld.hidden === false, "🔴 der Besucher SIEHT die Ebenen-Kacheln");
-assert(beimBesucher.untergrund.hidden === true, "🪤 aber nicht den Untergrund-Regler");
+assert(beimBesucher.zeile.hidden === true, "🔴 der Besucher sieht die Reiterleiste nicht mehr");
+assert(beimBesucher.feld.hidden === true, "💣 und auch kein leeres Bedienfeld");
+assert(beimBesucher.untergrund.hidden === true, "🪤 und den Untergrund-Regler weiterhin nicht");
 
 const beimEditor = feldWelt({ recht: true, editor: true });
 assert(beimEditor.feld.hidden === false, "der Editor sieht das Feld");
+assert(beimEditor.zeile.hidden === false, "mit seiner Reiterleiste");
 assert(beimEditor.untergrund.hidden === false, "und seinen Regler dazu");
 
 const daneben2 = feldWelt({ recht: true, editor: true, modus: "political" });

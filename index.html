@@ -873,12 +873,13 @@
 		<!-- Landschaften (Erprobung), V3.0: sitzt an DERSELBEN Stelle wie der politische Jahres-Schieber
 		     direkt darunter -- beide haengen an ihrem Modus, koennen also nie gleichzeitig da sein, und
 		     es gibt keinen Layoutsprung.
-		     🔴 SICHTBAR AB mapLayerMode=ecosystem -- EIN Tor, nicht drei. Hier stand bis zum 27.08.2026
-		     „UND ?edit=1 UND ?landschaften=1": das galt bis zum 04.08.2026, seither gehoeren die
-		     Ebenen-Kacheln jedem, der die Landschaften ansieht (syncEcosystemControlsVisibility --
-		     `hidden = !shouldShow`). Die drei Tore haelt nur noch der Untergrund-REGLER darin, und der
-		     tote Satz hier hat gekostet: er liess die Gipfel-Stoerung in der Topographie zuerst als
-		     reines Editor-Problem lesen. -->
+		     🔴 SICHTBAR AB mapLayerMode=ecosystem -- und nur, wenn darin etwas sichtbar ist. Hier stand bis
+		     zum 27.08.2026 „UND ?edit=1 UND ?landschaften=1"; vom 04.08. bis 14.09.2026 gehoerten die
+		     Ebenen-Kacheln jedem, der die Landschaften ansah. 🔴 Seit dem 14.09.2026 gehoert die Reiterleiste
+		     wieder dem Editor (wie der Untergrund-Regler) und bleibt fuer Besucher im DOM versteckt -- der
+		     Kartenfaecher klickt ihre Reiter an. Der Besucher sieht das Feld damit gar nicht mehr.
+		     Toter Satz, der hier schon einmal gekostet hat: er liess die Gipfel-Stoerung in der Topographie
+		     zuerst als reines Editor-Problem lesen. -->
 		<div id="ecosystem-controls" class="ecosystem-controls" hidden>
 			<!-- Ebenen-Reiter und der Knopf daneben in EINER Zeile. `#ecosystem-controls` ist ein Raster,
 			     in dem jedes Kind eine eigene Zeile bekommt -- ohne diese Hülle sass der Knopf allein
@@ -942,11 +943,12 @@
 			     Der Weg ist jetzt der von Territorien und Siedlungen: Rechtsklick -> „Neue Vegetation"
 			     usw., zeichnen, und beim Schliessen des Polygons entsteht eine EIGENE Region; der
 			     Eigenschaften-Dialog fragt danach den Steckbrief ab. -->
-			<!-- Nur sichtbar, wenn der SERVER die Ebene abgeschaltet meldet. Ohne diese Zeile sieht der
-			     Editor eine leere Karte und kann "noch keine Flaechen" nicht von "Totmannschalter aus"
-			     unterscheiden -- ?landschaften=1 sagt darueber naemlich nichts. -->
 			<!-- #ecosystem-controls-note ist am 2026-08-01 mit dem Totmannschalter entfallen: er meldete
-			     nur, dass app_setting['ecosystem_enabled'] auf '0' stand. Den Zustand gibt es nicht mehr. -->
+			     nur, dass app_setting['ecosystem_enabled'] auf '0' stand. Den Zustand gibt es nicht mehr.
+			     🔴 Sein Kommentar („Nur sichtbar, wenn der SERVER die Ebene abgeschaltet meldet") stand hier
+			     danach noch sechs Wochen -- und liess den Entwurf vom 09.09.2026 annehmen, die Meldung sitze
+			     weiter in diesem Feld und muesse fuer Besucher sichtbar bleiben. Seit dem 14.09.2026 verschwindet
+			     das Feld, sobald nichts darin sichtbar ist (syncEcosystemControlsVisibility). -->
 		</div>
 		<!-- V3.6: "Kopieren ..." -- dieselbe Flaeche noch einmal, in einer anderen Ebene ODER in der
 		     eigenen (seit 2026-08-06), als KOPIE mit eigener public_id. Ein Eintrag, EIN Dialog: die

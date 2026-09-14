@@ -1270,6 +1270,14 @@ function bindEcosystemLayerSwitch() {
 		?.addEventListener("input", (event) => setEcosystemUndergroundOpacity(event.target.value));
 }
 
+// Traegt #ecosystem-controls gerade etwas, das man sieht? Gelesen am `hidden` der direkten Kinder -- jedes
+// davon wird ueber `hidden` umgeschaltet (Reiterzeile, Isolations-Streifen, Untergrund-Regler), und
+// css/base/reset.css setzt `[hidden]` global auf `display: none !important`.
+// ⚠️ Ohne Kinderliste gilt „nichts sichtbar" -- die geschlossene Richtung; ein echtes Element hat immer eine.
+function ecosystemControlsHatSichtbarenInhalt(controlsElement) {
+	return Array.prototype.some.call(controlsElement.children || [], (kind) => kind.hidden !== true);
+}
+
 // Called by syncEcosystemVisibility on every mode change -- the one entry point this feature has.
 function syncEcosystemControlsVisibility() {
 	const controlsElement = document.getElementById("ecosystem-controls");
@@ -1283,10 +1291,21 @@ function syncEcosystemControlsVisibility() {
 	bindEcosystemAnzeigeWahl();
 	const shouldShow = isEcosystemLayerModeActive();
 	const operable = shouldShow && canOperateEcosystemLayers();
-	// 🔴 DIE EBENEN-KACHELN GEHÖREN JEDEM, DER DIE LANDSCHAFTEN ANSIEHT (Owner 2026-08-04: „einfach die
-	// Toggle-Buttons anzeigen, die wir auch im Edit-Modus sehen"). Sie sind keine Werkzeuge, sondern die
-	// Frage „welche Ebene schaue ich an" -- dieselbe Art Auswahl wie der Karten-Umschalter daneben.
-	controlsElement.hidden = !shouldShow;
+	// 🔴 DIE REITERLEISTE GEHOERT SEIT DEM 14.09.2026 DEM EDITOR (Owner-Auftrag 09.09.2026: „Das
+	// Toggle-Button-Menue oben soll fuer regulaere Nutzer verschwinden und ins Faechermenue uebergehen").
+	// Hier stand bis dahin „die Ebenen-Kacheln gehoeren jedem, der die Landschaften ansieht" (Owner
+	// 2026-08-04). Die FRAGE „welche Ebene schaue ich an" gehoert dem Besucher weiterhin -- sie steht jetzt
+	// als zweite Stufe ueber „Landschaften" im Kartenfaecher (js/ui/map-layer-picker.js).
+	// 🔴 Die Leiste bleibt im DOM: sie IST der Ebenenzustand, und der Faecher klickt ihre Reiter an. Aus dem
+	// Markup genommen, muesste er ihn ein zweites Mal bauen (Entwurf 2026-09-09 §2).
+	// ⚠️ „Editor" heisst `operable` -- dieselbe Bedingung wie beim Untergrund-Regler darunter und beim
+	// Stapel-Knopf in derselben Zeile (darfBedienen, map-features-ecosystem-stapel.js): Landschaften UND
+	// `?edit=1` UND das Recht (canOperateEcosystemLayers). 💣 NICHT canEditEcosystemOnMap: das sagt in
+	// „Alle" nein, und genau dort braucht der Editor die Leiste, um in seine Arbeitsebene zurueckzukommen.
+	const layerRow = controlsElement.querySelector(".ecosystem-layer-row");
+	if (layerRow) {
+		layerRow.hidden = !operable;
+	}
 	// 🪤 DER UNTERGRUND-REGLER BLEIBT DEM EDITOR. Er ist eine Zeichenhilfe („die gemalte Landschaft soll
 	// die gezogene nicht überstimmen"), und wer ihn bekommt, muss auch etwas zu zeichnen haben. Der
 	// Besucher bekommt den festen Wert seines Anzeigeprofils -- seit 09.09.2026 0 %, und bei 0 % wird die
@@ -1299,6 +1318,18 @@ function syncEcosystemControlsVisibility() {
 	if (undergroundElement) {
 		undergroundElement.hidden = !operable;
 	}
+	// 💣 UND DAS BEDIENFELD VERSCHWINDET, SOBALD NICHTS DARIN SICHTBAR IST. Der Entwurf (§2) wollte es fuer
+	// den Besucher stehen lassen -- wegen der Meldung „Ebene ist abgeschaltet". Die gibt es seit dem
+	// 01.08.2026 nicht mehr (606e40f9f, index.html traegt nur noch ihren Kommentar). Nur die Zeile
+	// versteckt, stand fuer jeden Besucher ein LEERER Kasten oben auf der Karte: 560 x 21 px, mit Grund,
+	// Rahmen und Schatten (live gemessen 14.09.2026).
+	// 🔴 Gefragt wird der INHALT, nicht die Rolle: kommt je wieder etwas hinein, das den Besucher angeht,
+	// traegt es das Feld von selbst -- ein `hidden = !operable` an dieser Stelle naehme es wortlos mit.
+	// 💣 Steht NACH den Kindern: davor gelesen, saehe die Frage noch die Zeile vom letzten Durchlauf.
+	// ⚠️ Der Isolations-Streifen wird ausserhalb dieser Funktion umgeschaltet (zeichneIsolationsStreifen,
+	// map-features-ecosystem-stapel.js) -- er gehoert aber dem Editor, dessen Feld ohnehin wegen der Leiste
+	// steht.
+	controlsElement.hidden = !shouldShow || !ecosystemControlsHatSichtbarenInhalt(controlsElement);
 
 	// Both effects are restored on the way OUT, before the early return: a half-faded base map or a
 	// dimmed label pane left behind in "Politisch" would read as a broken map, not as a setting.

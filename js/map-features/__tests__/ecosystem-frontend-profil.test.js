@@ -274,4 +274,109 @@ wechsel.context.setEcosystemShowAllLayers(true);
 assert.strictEqual(wechsel.tilePane.style.opacity, "0", 'zurueck in „Alle": Untergrund weiter aus');
 assert.strictEqual(wechsel.haken.togglePaths.checked, true, "und die Wege weiter an");
 
+// ---- 6. Die Reiterleiste gehoert dem Editor (14.09.2026) ----------------------------------------
+//
+// 🔴 Owner-Auftrag vom 09.09.2026: „Das Toggle-Button-Menue oben soll fuer regulaere Nutzer verschwinden
+// und ins Faechermenue uebergehen." Die Leiste bleibt im DOM -- sie IST der Ebenenzustand, den der
+// Kartenfaecher anklickt (Entwurf docs/superpowers/specs/2026-09-09-landschaften-untermenue-design.md §2).
+// ⚠️ AUSGEFUEHRT, nicht gelesen: syncEcosystemControlsVisibility laeuft gegen eine Attrappe des
+// Bedienfelds mit seinen echten Kindern aus index.html -- Zeile, Isolations-Streifen, Untergrund-Regler.
+
+// ⚠️ Die Kacheln werden bei 0 % ABGEHAENGT, nicht nur ausgeblendet -- Leaflet fordert sonst Bilder an,
+// die niemand sieht. (Die Wirkung misst Abschnitt 4; diese Zeile haelt den Aufruf VOR der Deckkraft.)
+assert.ok(/syncEcosystemBaseTiles\(!\(active && percent <= 0\)\)/.test(quelle),
+	"bei 0 % gar nicht erst laden");
+
+// Die Leiste steht weiterhin im Markup -- versteckt, nicht entfernt. Ohne sie gaebe es fuer den Faecher
+// nichts anzuklicken, und der Ebenenzustand muesste ein zweites Mal gebaut werden.
+const markup = fs.readFileSync(path.join(__dirname, "..", "..", "..", "index.html"), "utf8");
+const bedienfeldMarkup = markup.slice(markup.indexOf('id="ecosystem-controls"'),
+	markup.indexOf('id="ecosystem-transfer-overlay"'));
+assert.ok(bedienfeldMarkup.includes('class="ecosystem-layer-row"')
+	&& bedienfeldMarkup.includes('id="ecosystem-layer-switch"'),
+	"🔴 die Reiterleiste bleibt im DOM, im Bedienfeld");
+
+function bedienfeldWelt(optionen = {}, { isolationSichtbar = false } = {}) {
+	const w = welt(optionen);
+	// Startzustand wie im Markup: Zeile und Regler ohne `hidden`, der Streifen und der Behaelter mit.
+	const zeile = { hidden: false };
+	const isolation = { hidden: !isolationSichtbar };
+	const untergrund = { hidden: false };
+	const selektoren = { ".ecosystem-layer-row": zeile, ".ecosystem-underground": untergrund };
+	const bedienfeld = {
+		hidden: true,
+		children: [zeile, isolation, untergrund],
+		querySelector: (selektor) => selektoren[selektor] || null,
+	};
+	const bisher = w.context.document.getElementById;
+	w.context.document.getElementById = (id) => (id === "ecosystem-controls" ? bedienfeld : bisher(id));
+	return Object.assign(w, { bedienfeld, zeile, isolation, untergrund });
+}
+
+const besucherLeiste = bedienfeldWelt();
+besucherLeiste.context.syncEcosystemControlsVisibility();
+assert.strictEqual(besucherLeiste.zeile.hidden, true,
+	"🔴 der Besucher sieht die Reiterleiste nicht mehr -- die Ebenen stehen im Kartenfaecher");
+assert.strictEqual(besucherLeiste.untergrund.hidden, true, "und den Untergrund-Regler weiterhin nicht");
+assert.strictEqual(besucherLeiste.bedienfeld.hidden, true,
+	"💣 und der Behaelter geht mit: die Meldung „Ebene ist abgeschaltet\", deretwegen der Entwurf ihn"
+	+ " stehen lassen wollte, gibt es seit dem 01.08.2026 nicht mehr -- nur die Zeile versteckt, stand"
+	+ " ein LEERER Kasten oben auf der Karte (live gemessen 14.09.2026: 560 x 21 px)");
+
+const editorLeiste = bedienfeldWelt({ editor: true });
+editorLeiste.context.syncEcosystemControlsVisibility();
+assert.strictEqual(editorLeiste.zeile.hidden, false, "🔴 der Editor behaelt seine Reiterleiste");
+assert.strictEqual(editorLeiste.untergrund.hidden, false, "und seinen Regler");
+assert.strictEqual(editorLeiste.bedienfeld.hidden, false, "und damit das Bedienfeld");
+
+// 💣 „Editor" ist `operable`, NICHT canEditEcosystemOnMap. Das sagt in „Alle" nein -- und genau dort
+// braucht der Editor die Leiste, um in seine Arbeitsebene zurueckzukommen.
+const editorInAlle = bedienfeldWelt({ editor: true, gemerktAlle: "1" });
+editorInAlle.context.syncEcosystemControlsVisibility();
+assert.strictEqual(editorInAlle.context.canEditEcosystemOnMap(), false,
+	"Vorbedingung: in „Alle\" bearbeitet der Editor auf der Karte nichts");
+assert.strictEqual(editorInAlle.zeile.hidden, false, "💣 ...und behaelt die Leiste trotzdem");
+
+// 🪤 `?edit=1` ohne das Recht ist kein Editor -- der Parameter ist ungeprueft (js/config.js).
+const editOhneRecht = bedienfeldWelt({ editor: true });
+editOhneRecht.context.IS_ECOSYSTEM_ENABLED = false;
+editOhneRecht.context.syncEcosystemControlsVisibility();
+assert.strictEqual(editOhneRecht.zeile.hidden, true, "🪤 ?edit=1 allein zeigt keine Leiste");
+
+// 💣 Und das Recht ohne den Editor-Kontext auch nicht (Owner 2026-08-04, auf avesmaps.de: „die sollte
+// ausgeblendet sein, egal was ich da noch fuer ein Flag im Hintergrund hab").
+const rechtOhneEditor = bedienfeldWelt({ editor: false });
+rechtOhneEditor.context.IS_ECOSYSTEM_ENABLED = true;
+rechtOhneEditor.context.syncEcosystemControlsVisibility();
+assert.strictEqual(rechtOhneEditor.zeile.hidden, true, "💣 das Recht allein zeigt keine Leiste");
+assert.strictEqual(rechtOhneEditor.bedienfeld.hidden, true, "und keinen leeren Kasten");
+
+// 🔴 Solange die Rechteauskunft fehlt, bleibt die Leiste zu -- die sichere Richtung: ein Besucher sieht
+// sie nie aufblitzen, der Editor bekommt sie, sobald applyEcosystemAccess nachzieht (js/config.js).
+const vorDerAuskunft = bedienfeldWelt({ editor: true });
+vorDerAuskunft.context.IS_ECOSYSTEM_ENABLED = false;
+vorDerAuskunft.context.avesmapsEcosystemAccessBekannt = () => false;
+vorDerAuskunft.context.syncEcosystemControlsVisibility();
+assert.strictEqual(vorDerAuskunft.zeile.hidden, true, "vor der Rechteauskunft keine Leiste");
+assert.strictEqual(vorDerAuskunft.bedienfeld.hidden, true, "und kein leerer Kasten");
+vorDerAuskunft.context.IS_ECOSYSTEM_ENABLED = true;
+vorDerAuskunft.context.avesmapsEcosystemAccessBekannt = () => true;
+vorDerAuskunft.context.syncEcosystemControlsVisibility();
+assert.strictEqual(vorDerAuskunft.zeile.hidden, false, "nach der Auskunft ist sie da");
+assert.strictEqual(vorDerAuskunft.bedienfeld.hidden, false, "samt Bedienfeld");
+
+// 🔴 Gefragt wird am Behaelter der INHALT, nicht die Rolle: steht etwas Sichtbares darin, traegt es ihn.
+// (Heute gehoert der Isolations-Streifen dem Editor -- die Zusicherung haelt die REGEL, damit ein
+// `hidden = !operable` am Behaelter ein kuenftiges Kind fuer den Besucher nicht wortlos mitnimmt.)
+const mitSichtbaremKind = bedienfeldWelt({}, { isolationSichtbar: true });
+mitSichtbaremKind.context.syncEcosystemControlsVisibility();
+assert.strictEqual(mitSichtbaremKind.zeile.hidden, true, "Vorbedingung: die Leiste ist fuer ihn zu");
+assert.strictEqual(mitSichtbaremKind.bedienfeld.hidden, false,
+	"🔴 ein sichtbares Kind haelt das Bedienfeld offen");
+
+const woandersLeiste = bedienfeldWelt({ editor: true, modus: "political" });
+woandersLeiste.context.syncEcosystemControlsVisibility();
+assert.strictEqual(woandersLeiste.bedienfeld.hidden, true,
+	"ausserhalb der Landschaften kein Bedienfeld -- auch nicht fuer den Editor");
+
 console.log("ok - ecosystem-frontend-profil");
