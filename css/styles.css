@@ -50,6 +50,7 @@
    Kartendialogen der App UND den Editorfenstern. editor-page.css bindet dieselbe Datei fuer die
    sieben Editorseiten -- die Regel steht also genau einmal. */
 @import url("components/wiki-override.css");
+@import url("components/wiki-weitere-kasten.css");
 
 /* Der gemeinsame Editor-KOERPER (Menüband, Kacheln, Spalten, Reiter, Rollkasten). Dieselbe Reise
    wie die drei Zeilen darueber und aus demselben Grund: das Fenster „Garetien Importer" lebt in

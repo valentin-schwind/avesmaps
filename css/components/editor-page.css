@@ -53,6 +53,7 @@
    stehen. ⚠️ Weil die Datei damit GANZ OBEN steht, traegt .dt-grid--wiki dort den doppelten
    Klassennamen .dt-grid.dt-grid--wiki -- sonst gewaenne das spaetere .dt-grid. Begruendung dort. */
 @import url("wiki-override.css");
+@import url("wiki-weitere-kasten.css");
 
 /* 💣 Und der gemeinsame Editor-KOERPER -- Menüband, Kacheln, Spalten, Reiter, Rollkasten -- dieselbe
    Bauform, derselbe Grund. Die Regeln standen bis 2026-08-27 weiter unten in DIESER Datei; das

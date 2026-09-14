@@ -487,6 +487,7 @@
 		// sich in wireDetail() hinein (dort steht auch der Gruppenkopf-Hinweis dazu).
 		// ⚠️ Ein blankes div -- die Huelle erzeugt das Bauteil selbst.
 		html += '<div id="wpWikiAssign"></div>';
+		html += '<div id="wpWikiWeitere"></div>';
 
 		// 🔴 QUELLEN ALS LETZTER BLOCK (Owner 03.09.2026: „generell koennen quellen immer unten/als
 		// letztes in den listen auftauchen"). Das EINE Quellen-Bauteil haengt sich in wireDetail() an
@@ -659,6 +660,11 @@
 		if (save) { save.addEventListener("click", saveDraft); }
 
 		mountWikiAssign();
+		var eigenerWeg = null;
+		state.ways.forEach(function (w) { if (w.public_id === state.selected) { eigenerWeg = w; } });
+		if (eigenerWeg) {
+			mountWikiWeitere("wpWikiWeitere", [eigenerWeg], "diesen Abschnitt", function () { return selectWay(state.selected, true); });
+		}
 		// ⚠️ NACH dem Mounten: der Kasten und die Wegtyp-Zeile darueber sollen denselben Stand
 		// zeigen. Das Bauteil ruft `laden` selbst, aber sein Ergebnis erreicht diesen Zeichner nicht
 		// -- er liest die Zuweisung direkt aus dem Entwurf.
@@ -673,6 +679,7 @@
 	// „label-wiki"). Was beide brauchen, steht in js/ui/wiki-assign-weg.js.
 
 	var wpWikiAssign = null;
+	var wpWikiWeitere = null;
 	// 🔴 WELCHE FELDER SEIT DEM OEFFNEN AUS DEM WIKI KAMEN. Der Server stempelt daraus die
 	// Feldherkunft (avesmapsFieldOriginsStempeln), und nur fuer Felder, deren Wert sich wirklich
 	// aendert. Sagt diese Oberflaeche nichts, stempelt er ihre Uebernahmen als „von uns" -- die
@@ -895,6 +902,40 @@
 	// ✅ MIT IHM ERLEDIGT SICH DER 🪤-BEFUND, DER HIER STAND: ein noch nicht gespeichertes Haekchen
 	// ueberlebte keinen `renderDetail()`-Neuaufbau (erreichbar ueber einen Wegtyp-Wechsel Strasse ->
 	// Flussweg). Der Zustand, der verlorengehen konnte, existiert nicht mehr.
+
+	// Entwurf 2026-09-14 §2.3: die Abschnitte fuer den Kasten „Weitere Wiki-Zuweisungen". Die Nummer ist die
+	// im Weg -- gerechnet ueber ALLE Wege (state.ways), nicht ueber die gefilterte Liste (ein Filter darf
+	// die Nummer nicht verschieben).
+	function weitereAbschnitte(ways) {
+		var gruppen = {};
+		wpGroupWays(state.ways).forEach(function (gruppe) { gruppen[gruppe.key] = gruppe; });
+		return ways.map(function (way) {
+			var gruppe = gruppen[wpGroupKeyOf(way)];
+			var nummer = gruppe && gruppe.segments.length > 1 ? gruppe.segments.indexOf(way) + 1 : null;
+			return {
+				public_id: way.public_id,
+				label: nummer ? "Abschnitt " + nummer : "dieser Abschnitt",
+				wiki_path_weitere: way.wiki_path_weitere || []
+			};
+		});
+	}
+
+	function mountWikiWeitere(hostId, ways, umfang, nachSchreiben) {
+		var host = $(hostId);
+		if (wpWikiWeitere) { wpWikiWeitere.zerstoeren(); wpWikiWeitere = null; }
+		if (!host || typeof avesmapsWikiWeitereKastenMount !== "function") { return; }
+		wpWikiWeitere = avesmapsWikiWeitereKastenMount(host, {
+			skin: "dt",
+			hauptKey: function () { return ways[0] && ways[0].wiki_path ? String(ways[0].wiki_path.wiki_key || "") : ""; },
+			haupt: function () { return ways[0] && ways[0].wiki_path ? ways[0].wiki_path : null; },
+			abschnitte: function () { return weitereAbschnitte(ways); },
+			umfangText: function () { return umfang; },
+			geschrieben: function () {
+				setStatus("Weitere Wiki-Zuweisung gespeichert.", "ok");
+				return loadList().then(nachSchreiben);
+			}
+		});
+	}
 
 	function mountWikiAssign() {
 		var host = $("wpWikiAssign");
@@ -1273,6 +1314,8 @@
 				+ "Abschnitt — sie gilt dort ohnehin schon für den ganzen Wiki-Weg.</div>";
 		}
 
+		html += '<div id="wpGroupWikiWeitere"></div>';
+
 		// 🔴 QUELLEN ALS LETZTER BLOCK, auch auf der Weg-Ebene. Das Bauteil haengt sich in
 		// wireGroupDetail() an diesen Host -- FEST: alles gilt allen Abschnitten, und ✕ nimmt eine
 		// Quelle von allen. Die Marke „12 von 56 Abschnitten" sagt, wo eine nur teilweise haengt.
@@ -1347,6 +1390,13 @@
 					publicIds: function () { return gruppeQuellen.segments.map(function (s) { return s.public_id; }); },
 					fest: true
 				}
+			});
+		}
+
+		var gruppeWeitere = findGroup(state.selectedGroup);
+		if (gruppeWeitere) {
+			mountWikiWeitere("wpGroupWikiWeitere", gruppeWeitere.segments, "die ganze Straße", function () {
+				return selectGroup(gruppeWeitere.key, true);
 			});
 		}
 

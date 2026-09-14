@@ -1,0 +1,43 @@
+/* Der Kasten „Weitere Wiki-Zuweisungen" (js/ui/wiki-weitere-kasten.js).
+   Entwurf docs/superpowers/specs/2026-09-14-wege-mehrfachzuweisung-design.md §3.5,
+   Mockup docs/wege-mehrfachzuweisung-mockup.html. Nur Tokens (AGENTS.md §12). */
+.wiki-weitere {
+	width: 100%;
+	border-collapse: collapse;
+	margin: var(--space-4) 0 var(--space-6);
+	font-size: var(--font-size-small);
+}
+.wiki-weitere td {
+	padding: var(--space-4);
+	border-top: 1px solid var(--color-divider);
+	vertical-align: baseline;
+}
+.wiki-weitere tr:first-child td { border-top: 0; }
+.wiki-weitere__wo { width: 34%; color: var(--color-text-muted); }
+.wiki-weitere__schluessel { color: var(--color-text-muted); font-size: var(--font-size-caption); }
+.wiki-weitere__art {
+	width: 1%;
+	text-align: right;
+	white-space: nowrap;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-caption);
+}
+.wiki-weitere__haupt .wiki-weitere__art { color: var(--color-text); }
+.wiki-weitere__weg {
+	border: 0;
+	background: none;
+	color: var(--color-text-muted);
+	font: inherit;
+	cursor: pointer;
+	padding: 0 var(--space-2);
+}
+.wiki-weitere__weg:hover { color: var(--color-text); }
+.wiki-weitere__titel {
+	margin: var(--space-8) 0 var(--space-2);
+	font-size: var(--font-size-caption);
+	font-weight: var(--font-weight-bold);
+	letter-spacing: var(--letter-spacing-caps);
+	text-transform: uppercase;
+	color: var(--color-text-muted);
+}
+.wiki-weitere__suche { width: 100%; box-sizing: border-box; }
