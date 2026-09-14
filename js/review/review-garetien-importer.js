@@ -541,6 +541,9 @@
 			avesmapsGaretienAuswahlObjekte(zustand.objekte),
 			zustand.stand
 		);
+		// Aufgabe 12 (14.09.2026): das Haekchen „alle n" haengt an derselben Auswahl. Ohne diese Zeile
+		// stuende es nach einem einzelnen Zeilenhaken auf dem alten Stand, bis die Liste neu gezeichnet wird.
+		garetienAlleWaehlenKnopfSetzen(zustand.objekte, zustand.letzteAntwort ? zustand.letzteAntwort.reiter : null);
 	}
 
 	function avesmapsGaretienAuswahlUmschalten(schluessel, objekt) {
@@ -684,62 +687,131 @@
 		return gewaehlt;
 	}
 
-	// REIN: Beschriftung + Sperre des Knopfes „Alle markieren" -- er trägt die Zahl der GERENDERTEN
-	// Zeilen (Brief: „trägt seine Zahl, wie der Fußknopf sein 'n von m'"), nie die des ganzen Laufs.
-	//
-	// 🔴 DIE SPERRE AUF DEM REITER „Stage" IST AM 07.09.2026 GEFALLEN (Owner-Punkt 18: „alle wählen
-	// geht auch nicht auf der stage"). Hier stand „im Reiter „Anzeigen" ist er sinnlos (dort liegt
-	// ohnehin alles auf der Karte)" -- und das STIMMTE in der alten Welt, in der „Alle markieren"
-	// nur den einen Zweck hatte, Zeilen in die Anzeige zu schieben. Heute ist die Auswahl die
-	// EINGABE FUER HANDLUNGEN (Ablehnen, Von der Stage nehmen), und auf der Stage braucht man sie
-	// am dringendsten: dort steht genau die Menge, die gleich importiert wird.
-	// ⚠️ Gesperrt bleibt nur die LEERE Liste -- „alle von nichts" ist ein Klick fuer nichts.
-	// Wer die Reiter-Sperre zurueckbaut, nimmt der Auswahlleiste auf der Stage ihre Eingabe.
-	//
-	// 🔴 OHNE HINWEISTEXT, seit dem 30.08.2026 (Owner: „kannst du so kommentare wie … entfernen?
-	// verbraucht nur platz"). Beide Gründe, die hier standen, sagten nur „hier gibt es nichts zu
-	// tun" -- und das sagt der graue Knopf mitsamt seiner Zahl „(0)" bereits. Der Reiter „Anzeigen"
-	// trägt seinen eigenen Satz über der Liste.
-	// ⚠️ Ein `title` wäre KEIN Ersatz: ein deaktivierter Knopf bekommt keine Zeigerereignisse, sein
-	// Tooltip erscheint in Chrome also nie (gemessen, siehe der Kommentar an #garetien-apply-hint
-	// in index.html). Wo ein Grund wirklich nötig ist, bleibt er sichtbar -- das ist er am
-	// Hauptknopf und beim dritten Fall der Mengen-Rücknahme, die beide etwas Unerwartetes erklären.
-	function garetienAlleWaehlenZustand(objekte, stand) {
-		const liste = objekte || [];
-		// ⚠️ `stand` reist weiter mit, obwohl er heute nichts mehr sperrt: die DOM-Haelfte reicht
-		// ihn herein, und ein weggelassener Parameter waere beim naechsten reiterabhaengigen
-		// Gedanken still verschwunden. Er wird bewusst NICHT gelesen -- siehe der Block darueber.
+	// „alle n" im Listenkopf, das Gegenstueck: nimmt GENAU diese Zeilen wieder aus der Auswahl.
+	// 🔴 Ein Haekchen, das sich setzen, aber nicht loesen laesst, ist kein Haekchen. Geloest werden NUR
+	// die uebergebenen Zeilen, nie die ganze Auswahl: was ein Filter gerade ausblendet, bleibt gewaehlt --
+	// dieselbe Regel wie beim Waehlen (Owner 08.09.2026, siehe avesmapsGaretienAuswahlAufDieStage).
+	function avesmapsGaretienAlleAbwaehlen(objekte) {
+		let geloest = 0;
+		(objekte || []).forEach(function (o) {
+			if (!o || o.key === undefined || o.key === null || o.key === "") { return; }
+			if (zustand.auswahl.delete(String(o.key))) { geloest++; }
+		});
+		garetienAuswahlleisteAuffrischen();
+		return geloest;
+	}
+
+	/*
+	 * REIN: der Stand des Haekchens „alle n" im Listenkopf (Bauplan 2026-09-14, Aufgabe 12).
+	 *
+	 * 🔴 BIS ZUM 14.09.2026 WAR ES DER KNOPF „Alle wählen (n)" IM FUSS (Aufgabe 10, Owner 29.08.2026).
+	 * Er ist in den Listenkopf gewandert (Entwurf §7): die Fussleiste gehoert ausnahmslos der GANZEN
+	 * Stage, und „alle" meint die Zeilen DIESER Liste. Die Semantik je Reiter bleibt UNVERAENDERT
+	 * (Bestand, Owner 14.09.2026): gewaehlt wird, was avesmapsGaretienAlleWaehlen mit den gerenderten
+	 * Objekten waehlt -- auf „Übernommen" also auch die Mitglieder einer gefalteten Zeile.
+	 * ⚠️ `stand` reist weiter mit und wird bewusst NICHT gelesen: die Sperre auf dem Reiter „Stage" ist
+	 * am 07.09.2026 gefallen (Owner-Punkt 18: „alle wählen geht auch nicht auf der stage"). Gesperrt
+	 * bleibt nur die LEERE Liste -- „alle von nichts" ist ein Klick fuer nichts.
+	 * ⚠️ `istGewaehlt` (`(schluessel) => bool`) kommt HEREIN, damit die Funktion ohne Modulzustand
+	 * pruefbar bleibt. Ohne ihn gilt nichts als gewaehlt.
+	 * ⚠️ OHNE Hinweistext (Owner 30.08.2026: „verbraucht nur platz") -- das graue Haekchen mit „alle 0"
+	 * sagt es.
+	 */
+	function garetienAlleWaehlenZustand(objekte, stand, istGewaehlt) {
 		void stand;
+		const liste = (objekte || []).filter(function (o) {
+			return o && o.key !== undefined && o.key !== null && o.key !== "";
+		});
+		const hat = typeof istGewaehlt === "function" ? istGewaehlt : function () { return false; };
+		const gewaehlt = liste.filter(function (o) { return hat(String(o.key)); }).length;
 		return {
 			anzahl: liste.length,
-			beschriftung: "Alle wählen (" + liste.length + ")",
+			beschriftung: "alle " + liste.length,
 			gesperrt: liste.length === 0,
+			alleGewaehlt: liste.length > 0 && gewaehlt === liste.length,
+			teilweise: gewaehlt > 0 && gewaehlt < liste.length,
 		};
 	}
 
-	// Die DOM-Hälfte dazu -- dieselbe Aufteilung wie beim Fußknopf (garetienUebernahmeKnopfSetzen):
-	// Knopf und Hinweis werden an EINER Stelle gesetzt, damit sie nie auseinanderlaufen.
-	function garetienAlleWaehlenKnopfSetzen(objekte) {
+	/*
+	 * REIN: die Zahl rechts im Listenkopf.
+	 *
+	 * Auf den Server-Reitern „n von m": m ist die Zahl im Reitertitel, n die der gerenderten Zeilen
+	 * (Suche und „Angezeigte Zeilen" verkleinern sie). Auf der Stage „n auf der Stage · k Objekte": k aus
+	 * garetienStageZusammenfassung (Aufgabe 7), weil ein zusammengelegter Verbund EIN Objekt aus mehreren
+	 * Zeilen ist -- dieselbe Zaehlung wie im Fussknopf, nie eine zweite.
+	 * ⚠️ Ohne Zeilen und ohne Gesamtzahl steht nichts da -- „0 von 0" ist keine Auskunft.
+	 */
+	function garetienListkopfZahlText(anzahl, gesamt, stand, objektZahl) {
+		const n = Number(anzahl) || 0;
+		const m = Number(gesamt) || 0;
+		if (n === 0 && m === 0) { return ""; }
+		if (String(stand || "") === "stage") {
+			let text = (n === m ? String(m) : n + " von " + m) + " auf der Stage";
+			if (typeof objektZahl === "number" && isFinite(objektZahl)) {
+				text += " · " + garetienAnzahlText(objektZahl, "Objekt", "Objekte");
+			}
+			return text;
+		}
+		return n + " von " + Math.max(n, m);
+	}
+
+	// Die DOM-Haelfte dazu -- Haekchen, Text und Zahl an EINER Stelle, damit sie nie auseinanderlaufen.
+	// ⚠️ Der Name blieb, obwohl hier kein Knopf mehr steht: er hat drei Aufrufer, und ein zweiter Name fuer
+	// dieselbe Stelle waere die Doppelung, vor der AGENTS.md §11 warnt.
+	// 💣 `indeterminate` ist eine EIGENSCHAFT, kein Attribut (dieselbe Falle wie `data-part` an den Zeilen)
+	// -- sie wird hier direkt am Element gesetzt, bei jedem Aufruf neu.
+	function garetienAlleWaehlenKnopfSetzen(objekte, reiter) {
 		if (!hasDocument) { return null; }
-		const stand = garetienAlleWaehlenZustand(objekte, zustand.stand);
-		const knopf = document.getElementById("garetien-mark-all");
-		if (knopf) {
-			knopf.textContent = stand.beschriftung;
-			knopf.disabled = stand.gesperrt;
+		const stand = garetienAlleWaehlenZustand(objekte, zustand.stand, avesmapsGaretienAuswahlHat);
+		const haken = document.getElementById("garetien-alle");
+		if (haken) {
+			haken.checked = stand.alleGewaehlt;
+			haken.indeterminate = stand.teilweise;
+			haken.disabled = stand.gesperrt;
+		}
+		const text = document.getElementById("garetien-alle-text");
+		if (text) { text.textContent = stand.beschriftung; }
+		const zahl = document.getElementById("garetien-alle-zahl");
+		if (zahl) {
+			const aufDerStage = zustand.stand === "stage";
+			zahl.textContent = garetienListkopfZahlText(
+				stand.anzahl,
+				aufDerStage ? zustand.stage.size : Number((reiter || {})[zustand.stand] || 0),
+				zustand.stand,
+				aufDerStage ? garetienStageZusammenfassung(avesmapsGaretienStageListe()).objekte : undefined
+			);
 		}
 		return stand;
+	}
+
+	/*
+	 * Das Haekchen „alle n" wurde umgeschaltet -- gibt die Zahl der geaenderten Zeilen zurueck, oder
+	 * `null`, wenn das Haekchen fehlt oder gesperrt ist.
+	 * 🔴 Die Richtung kommt aus `checked`, das der Browser beim Klick schon gesetzt hat. Bei den
+	 * Item-Haken ist genau das verboten (garetienPlanAusItems: der SERVERSTAND entscheidet) -- hier
+	 * nicht: die Auswahl ist ein reiner Client-Zustand, es gibt keine zweite Buchhaltung.
+	 * ⚠️ Ein halb gesetztes Haekchen schaltet der Browser beim Klick auf „an": ein Klick auf „teilweise"
+	 * waehlt also alle, die aufbauende Richtung.
+	 */
+	function garetienListkopfAendern(feld, objekte) {
+		if (!feld || feld.disabled) { return null; }
+		return feld.checked
+			? avesmapsGaretienAlleWaehlen(objekte || [])
+			: avesmapsGaretienAlleAbwaehlen(objekte || []);
 	}
 
 	// ---- Owner-Auftrag B (30.08.2026): „Keines markieren" -- heute „Auswahl aufheben".
 	//
 	// 🔴 ER STEHT SEIT DEM 07.09.2026 NICHT MEHR IM FUSS, sondern in der AUSWAHLLEISTE (Fixrunde 1,
 	// D2): eine Handlung, die der AUSWAHL gilt, gehoert dorthin, wo die Auswahl ihre Zahl und ihren
-	// Kontext hat. Der Fuss behaelt, was der ganzen Stage gilt -- „Alle wählen", „Stage leeren",
+	// Kontext hat. Der Fuss behaelt, was der ganzen Stage gilt -- „Stage leeren",
 	// „Alle zentrieren", „Stage importieren". Der reine Zug `avesmapsGaretienAuswahlAufheben`
 	// (oben) ist unveraendert; Beschriftung und Sperre kommen jetzt aus
 	// `garetienAuswahlleisteZustand`.
-	// ⚠️ „Alle wählen" BLEIBT dagegen im Fuss: die Leiste erscheint erst, wenn schon etwas gewaehlt
-	// ist, und kann den Knopf, der die erste Auswahl macht, deshalb gar nicht tragen.
+	// 🔴 „Alle wählen" hat den Fuss am 14.09.2026 ebenfalls verlassen: es ist das Haekchen „alle n" im
+	// Listenkopf (Bauplan 2026-09-14, Aufgabe 12) -- dort steht es VOR der ersten Auswahl, was die
+	// Leiste nicht konnte.
 
 	/* ---- Aufgabe 9+10 (07.09.2026): DIE AUSWAHLLEISTE ------------------------------------------
 	 *
@@ -1940,13 +2012,30 @@
 		});
 	}
 
+	/*
+	 * REIN: die Ziel-Marke einer Listenzeile (Bauplan 2026-09-14, Aufgabe 12; Entwurf §7).
+	 *
+	 * Auf dem Reiter „Stage": was aus dem Objekt wird -- der Text von garetienStageZeile2 (Aufgabe 9),
+	 * der bis hierher keinen Aufrufer hatte. Auf „Offen": „auf der Stage", wenn es dort liegt. Auf den
+	 * uebrigen Reitern nichts -- dort gibt es keine Stage-Frage.
+	 * ⚠️ `aufDerStage` kommt HEREIN (avesmapsGaretienStageHat an der Aufrufstelle), damit die Funktion
+	 * ohne Modulzustand pruefbar bleibt.
+	 */
+	function garetienZeileZielMarke(objekt, stand, aufDerStage) {
+		if (!objekt) { return ""; }
+		const s = String(stand || "");
+		if (s === "stage") { return garetienStageZeile2(objekt, true); }
+		if (s === "offen" && aufDerStage === true) { return "auf der Stage"; }
+		return "";
+	}
+
 	// 🔴 Aufgabe 2 (Entwurf §3.2): das Haekchen ist ein reiner MARKER und zeigt `zustand.auswahl`,
 	// nicht mehr den Item-Zustand -- „Markieren aendert nichts" (Owner 29.08.2026). Es gibt darum
 	// auch KEIN `disabled` mehr: ein Objekt OHNE jedes Item (7930 von 8213) muss sich genauso
 	// markieren lassen wie eines mit Vorschlag, sonst waere „Markierte anzeigen" fuer sie tot.
 	// ⚠️ REIN: der Auswahlstand kommt als zweites Argument HEREIN, nicht aus dem Modulzustand
 	// -- sonst liesse sich diese Funktion nicht ohne DOM pruefen.
-	function garetienZeileMarkup(objekt, istAusgewaehlt) {
+	function garetienZeileMarkup(objekt, istAusgewaehlt, zielMarke) {
 		const o = objekt || {};
 		const urteilInfo = avesmapsGaretienUrteilInfo(o.urteil);
 
@@ -1965,6 +2054,15 @@
 		// ein Feld ohne Stand ist keine Aussage.
 		if (String(o.stand || "") === "uebernommen" && o.innerorts_uebernommen === true) {
 			l2 += " · innerorts";
+		}
+
+		// Aufgabe 12 (14.09.2026): die Ziel-Marke steht VORN in der zweiten Zeile (Entwurf §7) --
+		// garetienZeileZielMarke rechnet sie, diese Funktion bleibt rein und bekommt sie herein.
+		// ⚠️ NEBEN dem Urteil, nie im Namen: `.avm-row__name` ellipsiert, und eine Marke darin
+		// verschwaende hinter den drei Punkten (AGENTS.md §11).
+		const marke = String(zielMarke || "");
+		if (marke !== "") {
+			l2 = '<span class="gi-ziel-marke">' + avesmapsGaretienEscape(marke) + "</span> · " + l2;
 		}
 
 		return '<div class="avm-row" data-key="' + avesmapsGaretienEscape(o.key || "") + '">'
@@ -2097,6 +2195,15 @@
 			// EIGENEN, ehrlichen Namen -- dieselbe Hausform wie `garetien-anzeige-hinweis` darueber:
 			// startet `hidden`, damit ohne etwas zu melden kein leeres Element sichtbaren Platz zieht.
 			+ '<p class="gi-neutral-hinweis" id="garetien-neutral-hinweis" hidden></p>'
+			// Aufgabe 12 (14.09.2026): der LISTENKOPF -- „alle n" als Haekchen und die Zahl der Zeilen.
+			// 🔴 Er ersetzt den Knopf „Alle wählen" im Fuss (Entwurf §7: die Fussleiste gehoert der GANZEN
+			// Stage). Ein GESCHWISTER der Liste, kein Kind: im Rollkasten rollte er bei 500 Zeilen weg.
+			// ⚠️ Der Text steht in einem eigenen <span>: ein `textContent` am <label> loeschte das Haekchen mit.
+			+ '<div class="gi-listkopf" id="garetien-listkopf">'
+			+ '<label for="garetien-alle"><input type="checkbox" id="garetien-alle" disabled>'
+			+ '<span id="garetien-alle-text">alle 0</span></label>'
+			+ '<span class="gi-listkopf__zahl" id="garetien-alle-zahl"></span>'
+			+ "</div>"
 			+ '<div class="avm-scroll gi-list" id="garetien-list"></div>'
 			// Aufgabe 9+10 (07.09.2026): die Auswahlleiste -- UNTER der Liste, ausserhalb des
 			// Rollkastens. 🔴 Sie ist ein GESCHWISTER von `.gi-list`, kein Kind: laege sie darin,
@@ -2229,6 +2336,16 @@
 					|| ergebnis.handlung === "auswahl_aufheben") {
 					garetienStageNeuZeichnen();
 				}
+			});
+		}
+		// Aufgabe 12 (14.09.2026): „alle n" im Listenkopf. `change`, nicht `click`: auch die Leertaste
+		// schaltet ein Haekchen, und `change` kommt erst, wenn der Browser `checked` gesetzt hat.
+		// 🔴 Danach dasselbe Neuzeichnen wie beim Knopf, den es ersetzt (bis 14.09.2026 in bindFenster).
+		const alleEl = document.getElementById("garetien-alle");
+		if (alleEl) {
+			alleEl.addEventListener("change", function () {
+				if (garetienListkopfAendern(alleEl, zustand.objekte) === null) { return; }
+				garetienStageNeuZeichnen();
 			});
 		}
 		const sucheEl = document.getElementById("garetien-search");
@@ -2436,7 +2553,8 @@
 					const zeileObjekt = zustand.stand === "uebernommen"
 						? Object.assign({}, o, { verbund_n: mitglieder.length })
 						: o;
-					return garetienZeileMarkup(zeileObjekt, alleGewaehlt);
+					return garetienZeileMarkup(zeileObjekt, alleGewaehlt, garetienZeileZielMarke(
+						zeileObjekt, zustand.stand, avesmapsGaretienStageHat(zeileObjekt.key)));
 				}).join("")
 				: '<p class="avm-empty">' + avesmapsGaretienEscape(garetienLeereListeText(zustand.filter, a)) + "</p>";
 			// Dreiwertig ist eine EIGENSCHAFT, kein Attribut -- erst jetzt, nach dem Einfuegen ins
@@ -2480,7 +2598,7 @@
 		garetienUebernahmeKnopfSetzen(avesmapsGaretienStageListe());
 		// Aufgabe 10: „Alle markieren" traegt dagegen die Zahl der GERENDERTEN Zeilen -- `objekte`
 		// ist genau die aktuelle (gefilterte, gedeckelte) Ansicht, nicht die Stage.
-		garetienAlleWaehlenKnopfSetzen(objekte);
+		garetienAlleWaehlenKnopfSetzen(objekte, a.reiter);
 		// Aufgabe 9+10 (07.09.2026): die Auswahlleiste. ⚠️ Sie bekommt BEIDES -- die Groesse der
 		// Auswahl (fuer ihre Zahlen) und die GEWAEHLTEN Objekte der aktuellen Ansicht (fuer die
 		// Frage, ob ueberhaupt eines ein Item traegt). Die zwei koennen auseinanderlaufen, siehe
@@ -10527,17 +10645,9 @@
 		// Knopf, einmal beim Start -- dieselbe Begruendung wie beim Fussknopf gleich darunter: ein
 		// Element, das schon beim Laden im DOM steht, wird beim BOOT verdrahtet. Jeder Knopf ruft
 		// seinen reinen Zug, danach zeichnet garetienStageNeuZeichnen Liste und Karte neu.
-		// Aufgabe 10: „Alle markieren" -- derselbe Zug wie die zwei Knoepfe darunter (reine
-		// Markierung, danach garetienStageNeuZeichnen), aber mit den GERENDERTEN Zeilen
-		// (`zustand.objekte`) statt der Stage oder einer Item-Auswahl.
-		const markAlleBtn = hasDocument ? document.getElementById("garetien-mark-all") : null;
-		if (markAlleBtn) {
-			markAlleBtn.addEventListener("click", function () {
-				if (markAlleBtn.disabled) { return; }
-				avesmapsGaretienAlleWaehlen(zustand.objekte);
-				garetienStageNeuZeichnen();
-			});
-		}
+		// 🪴 „Alle wählen" (#garetien-mark-all) wurde bis zum 14.09.2026 hier verdrahtet. Es ist als
+		// Haekchen „alle n" in den Listenkopf gewandert und haengt seither am Skelett
+		// (garetienListeSkelettVerdrahten) -- der Listenkopf entsteht mit ihm, nicht beim Start.
 		// 🔴 Fixrunde 1 (D2), 07.09.2026: „Auswahl aufheben" (#garetien-mark-none) ist aus dem Fuss
 		// GEFALLEN und steht in der Auswahlleiste -- dort, wo die Auswahl ihre Zahl hat. Sein Zug
 		// (`avesmapsGaretienAuswahlAufheben`) ist unveraendert; verdrahtet wird er im Zuhoerer der
@@ -11016,6 +11126,10 @@
 			// Aufgabe 10: „Alle markieren"
 			avesmapsGaretienAlleWaehlen,
 			garetienAlleWaehlenZustand,
+			avesmapsGaretienAlleAbwaehlen,
+			garetienListkopfZahlText,
+			garetienListkopfAendern,
+			garetienZeileZielMarke,
 			garetienAlleWaehlenKnopfSetzen,
 			// Owner-Auftrag B (30.08.2026): „Keines markieren" -- der reine Zug; Beschriftung und
 			// Sperre kommen seit Fixrunde 1 (D2) aus garetienAuswahlleisteZustand.

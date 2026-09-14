@@ -561,7 +561,8 @@ async function pruefeFussknopfHaeppchen() {
 
 	// ---- Der Knopf-Zustand: Beschriftung traegt die Zahl der GERENDERTEN Zeilen -------------------
 	const standDrei = modul.garetienAlleWaehlenZustand([a, b, c], "offen");
-	gleich(standDrei.beschriftung, "Alle wählen (3)", "die Zahl der gerenderten Zeilen steht im Knopf");
+	// 🔴 Seit dem 14.09.2026 das Haekchen „alle n" im Listenkopf (Bauplan 2026-09-14, Aufgabe 12).
+	gleich(standDrei.beschriftung, "alle 3", "die Zahl der gerenderten Zeilen steht am Haekchen im Listenkopf");
 	gleich(standDrei.gesperrt, false, "auf dem Reiter „Offen\" ist er bedienbar");
 
 	// ---- 🔴 Im Reiter „Stage" ist er seit dem 07.09.2026 NICHT MEHR GESPERRT (Owner-Punkt 18:
@@ -578,7 +579,7 @@ async function pruefeFussknopfHaeppchen() {
 	// ---- Eine leere gerenderte Liste sperrt ihn ebenfalls ------------------------------------------
 	const standLeer = modul.garetienAlleWaehlenZustand([], "offen");
 	gleich(standLeer.gesperrt, true, "nichts in der Liste -- nichts zu markieren");
-	gleich(standLeer.beschriftung, "Alle wählen (0)",
+	gleich(standLeer.beschriftung, "alle 0",
 		"und die Zahl im Knopf sagt es -- sie ist seit dem 30.08.2026 der einzige Traeger dieser "
 		+ "Auskunft, der Hinweistext daneben ist weg");
 }

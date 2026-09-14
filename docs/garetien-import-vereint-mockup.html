@@ -395,13 +395,12 @@ td.num { text-align: right; font-variant-numeric: tabular-nums; }
 .baum__wurzel { font-weight: var(--font-weight-bold); color: var(--color-text-strong); }
 
 /* ══════════════════════════════════════════════════════════════════════════════════════════════
-   NEU IN DIESEM MOCKUP (14.09.2026) — alles darunter gibt es im Produktivcode NOCH NICHT.
-   Gegengeprüft am Zweig (df8d9ec4c): `.gi-block*`, `.gi-listkopf`, `.gi-ziel*`, `.gi-ziel-marke`,
-   `.gi-insert__row--aus` kommen in css/components/garetien-importer.css nicht vor. Die übrigen
-   Klassen oben stehen dort (bis auf die markierten Mockup-Hilfen) — Liste im Abschnitt 8.
-   🔴 Eine Vertragsmarke auf ungebautes CSS macht tools/mockup-vertrag im Deploy-Tor rot. Gebunden
-      wird deshalb im Commit, der die Regel baut: Aufgabe 9 die Zielwahl und die abgeblendete Zeile,
-      Aufgabe 11 die Blöcke, Aufgabe 12 Ziel-Marke und Listenkopf.
+   NEU IN DIESEM MOCKUP (14.09.2026) — die Regeln dieses Abschnitts sind gebaut; bindend sind die
+   Vertragsblöcke darunter (tools/mockup-vertrag, Deploy-Tor): Aufgabe 11 die Blöcke, Aufgabe 9 die
+   Zielwahl und die abgeblendete Zeile, Aufgabe 12 Ziel-Marke und Listenkopf. Jeder Block kam im
+   Commit, der seine Regeln gebaut hat; was außerhalb eines Blocks steht, bindet nichts (Mockup-Hilfen
+   und Nachbildungen vorhandener Regeln) — Übersicht im Abschnitt 8.
+   🔴 Geändert wird ein gebundener Wert HIER; die Produktionsdatei zieht nach, nie umgekehrt.
    ══════════════════════════════════════════════════════════════════════════════════════════════ */
 
 /* ══ VERTRAG: css/components/garetien-importer.css ══ Aufgabe 11 des Bauplans 2026-09-14 — die Blöcke A–G.
@@ -448,7 +447,9 @@ td.num { text-align: right; font-variant-numeric: tabular-nums; }
 
 /* ══ VERTRAG ENDE ══ */
 
-/* Das Ziel in der Listenzeile — der Text kommt aus garetienStageZeile2 (heute ohne Aufrufer). */
+/* ══ VERTRAG: css/components/garetien-importer.css ══ Aufgabe 12 des Bauplans 2026-09-14 — Ziel-Marke der
+   Listenzeile und Listenkopf „alle n". Geändert wird ein Wert HIER; der Produktivcode zieht nach, nie umgekehrt. */
+/* Das Ziel in der Listenzeile — der Text kommt aus garetienStageZeile2 (seit Aufgabe 12 mit Aufrufer). */
 .gi-ziel-marke { color: var(--color-accent-brown); font-weight: var(--font-weight-bold); }
 
 /* „alle n" als Häkchen im Listenkopf. */
@@ -456,6 +457,7 @@ td.num { text-align: right; font-variant-numeric: tabular-nums; }
 	font-size: var(--font-size-caption); color: var(--color-text-muted); border-bottom: 1px solid var(--color-divider); margin-bottom: var(--space-2); }
 .gi-listkopf label { display: inline-flex; align-items: center; gap: var(--space-4); }
 .gi-listkopf__zahl { margin-left: auto; }
+/* ══ VERTRAG ENDE ══ */
 
 /* Mockup-Hilfe, nicht Produktion: Klartext einer Rückfrage (window.confirm). */
 .gi-rueckfrage { max-width: 520px; margin: var(--space-8) 0; padding: var(--space-8) var(--space-10);
@@ -980,11 +982,11 @@ td.num { text-align: right; font-variant-numeric: tabular-nums; }
 	<thead><tr><th>Bauteil</th><th>Stand am Zweig</th></tr></thead>
 	<tbody>
 		<tr><td><code>.gi-frag</code> · <code>.gi-seg--verbund</code> · <code>.gi-auswahlleiste</code> · <code>.gi-insert__*</code> · <code>.gi-acts__knoepfe</code> · <code>.gi-anzeigehinweis</code> · <code>.gi-status__aktion</code> · <code>.btn--accent</code></td><td>vorhanden</td></tr>
-		<tr><td><code>.gi-block</code> · <code>.gi-block__kopf</code> · <code>.gi-block__zahl</code> · <code>.gi-block__note</code></td><td><span class="neu">NEU</span> — Aufgabe 11 des Verbund-Plans, nie gebaut; die Zahl hier auf 11 px statt 9</td></tr>
-		<tr><td><code>.gi-ziel</code> · <code>.gi-ziel__option</code> · <code>.gi-ziel__t1/t2</code> · <code>--warn</code></td><td><span class="neu">NEU</span> — die Zielwahl</td></tr>
-		<tr><td><code>.gi-ziel-marke</code></td><td><span class="neu">NEU</span> — das Ziel in der Zeile; Text aus <code>garetienStageZeile2</code></td></tr>
-		<tr><td><code>.gi-listkopf</code></td><td><span class="neu">NEU</span> — „alle n"</td></tr>
-		<tr><td><code>.gi-insert__row--aus</code></td><td><span class="neu">NEU</span> — abgeblendete Zeile</td></tr>
+		<tr><td><code>.gi-block</code> · <code>.gi-block__kopf</code> · <code>.gi-block__zahl</code> · <code>.gi-block__note</code></td><td>gebaut in Aufgabe 11 — die Zahl auf 11 px statt der 9 des Verbund-Mockups</td></tr>
+		<tr><td><code>.gi-ziel</code> · <code>.gi-ziel__option</code> · <code>.gi-ziel__t1/t2</code> · <code>--warn</code></td><td>gebaut in Aufgabe 9 — die Zielwahl</td></tr>
+		<tr><td><code>.gi-ziel-marke</code></td><td>gebaut in Aufgabe 12 — das Ziel in der Zeile; Text aus <code>garetienStageZeile2</code></td></tr>
+		<tr><td><code>.gi-listkopf</code></td><td>gebaut in Aufgabe 12 — „alle n"</td></tr>
+		<tr><td><code>.gi-insert__row--aus</code></td><td>gebaut in Aufgabe 9 — abgeblendete Zeile</td></tr>
 		<tr><td><code>.gi-rueckfrage</code> · <code>.spalte-karte</code> · <code>.neu</code> · <code>.gi-phase</code></td><td>nur Mockup</td></tr>
 	</tbody>
 </table>

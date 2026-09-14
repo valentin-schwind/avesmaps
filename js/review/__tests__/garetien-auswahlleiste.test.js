@@ -11,7 +11,7 @@
 const assert = require("assert");
 const { ladeImporter } = require("./helfer/garetien-testumgebung.js");
 
-const { api, dom } = ladeImporter(["garetien-auswahlleiste", "garetien-mark-all",
+const { api, dom } = ladeImporter(["garetien-auswahlleiste", "garetien-alle", "garetien-alle-text", "garetien-alle-zahl",
 	// 🔴 Fixrunde 1 (C3): fuer Abschnitt 13 wird die Liste WIRKLICH gezeichnet -- nur so
 	// entsteht der delegierte Zuhoerer auf der Leiste (garetienListeSkelettVerdrahten).
 	"garetien-listcol", "garetien-tabs", "garetien-search", "garetien-chips",
