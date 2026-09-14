@@ -16,18 +16,45 @@ require_once __DIR__ . '/../paths.php';
 require_once __DIR__ . '/../path-weitere.php';
 
 // Dieselbe Uebersetzung MySQL -> SQLite wie api/_internal/wiki/__tests__/wikisync-fall-no-article-test.php.
+// Zusaetzlich (Review-Fix Runde 1): avesmapsWikiPathEnsureTables() ruft reines MySQL-DDL
+// (CREATE TABLE IF NOT EXISTS/ALTER TABLE, information_schema-Sonden), das SQLite nicht kennt --
+// die Testtabellen stehen unten schon von Hand, das Ensure-DDL wird darum HIER geschluckt statt
+// nachgebaut. Dieselbe Rezeptur wie im geplanten Task-4-Test path-weitere-erhalten-test.php.
 final class AvesmapsWeitereTestPdo extends PDO {
+    private int $takt = 0;
+    public ?int $ensureAb = null;
+    public ?int $stagingSelectAb = null;
+
     public function prepare(string $query, array $options = []): PDOStatement|false {
+        $this->takt++;
+        if ($this->stagingSelectAb === null && str_contains($query, 'FROM wiki_path_staging') && str_contains($query, 'wiki_key')) {
+            $this->stagingSelectAb = $this->takt;
+        }
         $query = str_replace('FOR UPDATE', '', $query);
         $query = str_replace('NOW(3)', "datetime('now')", $query);
         return parent::prepare($query, $options);
     }
     public function exec(string $statement): int|false {
+        $this->takt++;
+        $getrimmt = ltrim($statement);
+        if (str_starts_with($getrimmt, 'CREATE TABLE IF NOT EXISTS') || str_starts_with($getrimmt, 'ALTER TABLE')) {
+            // MySQL-eigenes Ensure-DDL aus avesmapsWikiPathEnsureTables -- geschluckt, nur vermerkt.
+            $this->ensureAb ??= $this->takt;
+            return 0;
+        }
         if (str_contains($statement, 'ON DUPLICATE KEY UPDATE revision = revision + 1')) {
             $statement = 'INSERT INTO map_revision (id, revision) VALUES (1, 2)
                           ON CONFLICT(id) DO UPDATE SET revision = map_revision.revision + 1';
         }
         return parent::exec($statement);
+    }
+    public function query(string $query, ?int $fetchMode = null, mixed ...$fetchModeArgs): PDOStatement|false {
+        $this->takt++;
+        if (str_contains($query, 'information_schema')) {
+            $this->ensureAb ??= $this->takt;
+            return parent::query('SELECT 1');
+        }
+        return parent::query($query, $fetchMode, ...$fetchModeArgs);
     }
 }
 
@@ -67,6 +94,13 @@ $trocken = avesmapsWikiPathWeitereSchreiben($pdo, 'add', 'b-renpfad', ['rs-7'], 
 assert($trocken['dry_run'] === true && $trocken['applied'] === 1);
 assert(!array_key_exists('wiki_path_weitere', $props('rs-7')), 'ein Trockenlauf schreibt nichts');
 assert($audits() === 0);
+
+// 1b. avesmapsWikiPathEnsureTables() muss als ALLERERSTE Anweisung laufen -- VOR dem ersten
+// SELECT auf wiki_path_staging. Faellt diese Zusicherung, wurde der Ensure-Aufruf entfernt (er
+// schluckt sich sonst durch den obigen Aufruf still weg und die naechste Zeile bliebe gruen).
+assert($pdo->ensureAb !== null, 'avesmapsWikiPathEnsureTables() wurde nicht aufgerufen');
+assert($pdo->stagingSelectAb !== null, 'der Staging-SELECT wurde nicht gesehen');
+assert($pdo->ensureAb < $pdo->stagingSelectAb, 'das Ensure-DDL muss vor dem ersten SELECT auf wiki_path_staging laufen');
 
 // 2. Scharf: rs-6 und rs-7 bekommen ihn; ohne Hauptzuweisung und der Artikel selbst werden uebersprungen
 $echt = avesmapsWikiPathWeitereSchreiben($pdo, 'add', 'b-renpfad', ['rs-6', 'rs-7', 'ohne', 'bp-1', 'gibt-es-nicht'], false, 1);

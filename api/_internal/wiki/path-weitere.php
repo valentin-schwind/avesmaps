@@ -148,9 +148,14 @@ function avesmapsWikiPathWeitereIds(mixed $roh, int $deckel): array {
  * update_path_group_details -- eine zweite Fassung liefe beim ersten geaenderten Namen auseinander).
  * Geschrieben wird nur an Abschnitten, deren Liste sich wirklich aendert; je Abschnitt EIN Eintrag
  * im Aenderungsprotokoll (das Rueckgaengig arbeitet je Feature).
- * 💣 KEIN DDL HIER: die Funktion laeuft in einer Transaktion, und DDL committet in MySQL implizit.
+ * 💣 KEIN DDL HIER: die Funktion laeuft in einer Transaktion, und DDL committet in MySQL implizit --
+ * deshalb steht das selbstheilende `avesmapsWikiPathEnsureTables` als ALLERERSTE Anweisung, VOR
+ * der Transaktion, genau wie bei jedem Geschwister in dieser Datei (z. B. avesmapsWikiPathAssign).
+ * Ohne den Aufruf faellt der erste Lauf auf einer frischen Installation mit „table doesn't exist"
+ * statt sich die Staging-Tabelle selbst anzulegen.
  */
 function avesmapsWikiPathWeitereSchreiben(PDO $pdo, string $modus, string $wikiKey, mixed $publicIdsRoh, bool $dryRun, int $userId): array {
+    avesmapsWikiPathEnsureTables($pdo);
     if ($modus !== 'add' && $modus !== 'remove') {
         throw new RuntimeException('Unknown mode.');
     }
