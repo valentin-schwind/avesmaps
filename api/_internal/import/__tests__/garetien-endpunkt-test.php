@@ -176,7 +176,22 @@ assert(
 // Bestaetigung fuer Loeschungen, das Protokoll und der Fortschritt in Haeppchen. Eine zweite Tuer
 // auf denselben Schreibweg waere ein zweiter Erzeuger, und eine Regel, die einen von zweien
 // bindet, ist keine -- dieselbe Lehre wie bei der Verkehrsmittel-Sperre und der Ausstiegsregel.
-assert(!str_contains($quelle, "'apply'"), 'der Import-Endpunkt hat keine eigene Uebernahme-Tuer');
+// 🔴 PRAEZISIERT 14.09.2026 (Bauplan Aufgabe 13): die Zeile pruefte bis dahin das WORT `'apply'`,
+// gemeint war die TUER. Der Bestandslauf `wiki_nachzug` liest `$payload['apply']` als Schalter
+// „scharf" -- dieselbe Bauform wie repair_geometry_bounds, takeover_label_sources und
+// verteile_wegquellen; ein anderer Schaltername in EINEM von vier Bestandslaeufen waere die Falle beim
+// Tippen in der Konsole. Die Tuer bleibt verboten, und enger als vorher: keine Aktion `apply`, kein
+// Aufruf des Uebernahme-Schrittes, und `'apply'` steht GENAU EINMAL da -- im Zweig `wiki_nachzug`.
+assert(preg_match("~\\\$action\\s*===\\s*'apply'~", $quelle) !== 1, 'der Import-Endpunkt hat keine eigene Uebernahme-Tuer');
+assert(!str_contains($quelle, 'avesmapsGaretienApplyStep('), 'und ruft den Uebernahme-Schritt nicht selbst');
+assert(substr_count($quelle, "'apply'") === 1,
+    "'apply' steht genau EINMAL im Endpunkt, als Schalter des Bestandslaufs -- gezaehlt: " . substr_count($quelle, "'apply'"));
+$wikiNachzugAb = strpos($quelle, "\$action === 'wiki_nachzug'");
+$wikiNachzugBis = $wikiNachzugAb === false ? false : strpos($quelle, "\$action === ", $wikiNachzugAb + 20);
+$applyPos = strpos($quelle, "\$payload['apply']");
+assert($wikiNachzugAb !== false && $applyPos !== false && $applyPos > $wikiNachzugAb
+    && ($wikiNachzugBis === false || $applyPos < $wikiNachzugBis),
+    "... und zwar als \$payload['apply'] INNERHALB des Zweigs `wiki_nachzug`");
 assert(!str_contains($quelle, 'avesmapsGaretienUebernehmen'), 'und ruft den Schreibweg nicht selbst');
 
 // 🔴 Und die Vorschau kennt die Art WIRKLICH -- Whitelist, Verteiler-Zweig und das require dazu.
