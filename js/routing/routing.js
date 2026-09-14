@@ -607,6 +607,8 @@ routeDataRequest
 			window.avesmapsAutoOpenRouteInInfopanel();
 		}
 		startLiveMapUpdates(); applyPlaceFocusFromUrl(); applyWikiDeeplinkFromUrl(); map.on("zoomend", notifyEditorZoomLevel);
+		// Entwurf 2026-09-14 §3.1: ein Klick daneben hebt die Wege-Markierung auf (nur Bearbeiten-Modus).
+		if (typeof avesmapsWegAuswahlVerdrahten === "function") { avesmapsWegAuswahlVerdrahten(); }
 	})
 	.catch((err) => console.error("Fehler beim Laden der GeoJSON-Datei:", err))
 		// Signalisiert dem Lade-Balken (loading-bar.js), dass die Karte einsatzbereit ist -- egal ob der

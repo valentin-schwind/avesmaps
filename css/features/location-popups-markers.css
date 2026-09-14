@@ -178,6 +178,14 @@
 	font-size: 13px;
 	font-weight: 500;
 }
+/* Entwurf 2026-09-14 §3.4: was im Bearbeiten-Modus markiert ist -- ohne Kasten, direkt unter der Wegart.
+   Werte aus dem Mockup docs/wege-mehrfachzuweisung-mockup.html (.proto-markiert). */
+.info-header__markierung {
+	margin-top: 2px;
+	color: var(--color-text);
+	font-size: var(--font-size-small);
+	line-height: var(--leading-snug);
+}
 /* Lightbox-Navigation (Owner): eigene Bilder mit < > durchblaettern + Dots. Nur bei mehreren Bildern. */
 .info-header__nav {
 	position: absolute;

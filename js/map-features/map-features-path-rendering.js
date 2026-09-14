@@ -242,8 +242,17 @@ function createPathPopupMarkup(path) {
 	// Einmal gebaut, an zwei Stellen gereicht -- siehe map-features-location-marker-entry.js.
 	const pathKanon = typeof renderFeatureKanonBadge === "function"
 		? renderFeatureKanonBadge("path", getPathPublicId(path)) : "";
+	// Entwurf 2026-09-14 §3.4: im Bearbeiten-Modus sagt eine Zeile unter der Wegart, WAS markiert ist -- ohne
+	// Kasten, im Titelblock. Ohne Markierung (Besucher, Suche, Deeplink) keine Zeile.
+	const wegAuswahl = IS_EDIT_MODE && typeof avesmapsWegAuswahlFuerPfad === "function" ? avesmapsWegAuswahlFuerPfad(path) : null;
+	const markierungZeile = wegAuswahl && typeof avesmapsWegMarkierungszeileMarkup === "function"
+		? avesmapsWegMarkierungszeileMarkup(wegAuswahl, wegAuswahl.publicId === null
+			? avesmapsWegGanzeStreckeAufKarte(path)
+			: avesmapsWegStreckeAufKarte(path))
+		: "";
+	const markierungMarkup = markierungZeile ? `<div class="info-header__markierung">${markierungZeile}</div>` : "";
 	const headerImg = typeof infoHeaderImageMarkup === "function"
-		? infoHeaderImageMarkup(pathHeaderImageBasename(pathType), pathName, subtitle, "", [], "", pathKanon)
+		? infoHeaderImageMarkup(pathHeaderImageBasename(pathType), pathName, subtitle, "", [], "", markierungMarkup + pathKanon)
 		: "";
 	return locationPopupMarkup({
 		name: pathName,
@@ -312,20 +321,27 @@ function createPathPopupMarkup(path) {
 					attributes: {
 						"data-popup-action": "edit-path-details",
 						"data-public-id": getPathPublicId(path),
+						// Entwurf 2026-09-14 §3.5: „Bearbeiten" bearbeitet das Markierte (routing.js liest es).
+						"data-weg-umfang": wegAuswahl && wegAuswahl.publicId === null ? "strasse" : "abschnitt",
 					},
 				}));
-				editorButtons.push(popupActionButtonMarkup({
-					label: "Verlauf bearbeiten",
-					// Der Stift, nicht das Zahnrad: hier werden keine Eigenschaften geaendert, sondern
-					// die LINIE angefasst -- genau die Trennung, die das Kontextmenue zwischen
-					// „Grenzen bearbeiten" (✎) und „Territoriumseditor oeffnen" (⚙) macht. Die beiden
-					// Kacheln stehen nebeneinander und muessen sich auf einen Blick unterscheiden.
-					iconMarkup: popupActionGlyphMarkup("verlauf"),
-					attributes: {
-						"data-popup-action": "edit-path-geometry",
-						"data-public-id": getPathPublicId(path),
-					},
-				}));
+				// „Verlauf bearbeiten" nur am Abschnitt -- eine Linienaenderung ueber eine ganze Strasse gibt es nicht
+				// (Entwurf 2026-09-14 §3.4). Ohne Markierung (Suche, Deeplink) steht die Kachel wie bisher.
+				const verlaufErlaubt = typeof avesmapsWegVerlaufKachelErlaubt !== "function" || avesmapsWegVerlaufKachelErlaubt(wegAuswahl);
+				if (verlaufErlaubt) {
+					editorButtons.push(popupActionButtonMarkup({
+						label: "Verlauf bearbeiten",
+						// Der Stift, nicht das Zahnrad: hier werden keine Eigenschaften geaendert, sondern
+						// die LINIE angefasst -- genau die Trennung, die das Kontextmenue zwischen
+						// „Grenzen bearbeiten" (✎) und „Territoriumseditor oeffnen" (⚙) macht. Die beiden
+						// Kacheln stehen nebeneinander und muessen sich auf einen Blick unterscheiden.
+						iconMarkup: popupActionGlyphMarkup("verlauf"),
+						attributes: {
+							"data-popup-action": "edit-path-geometry",
+							"data-public-id": getPathPublicId(path),
+						},
+					}));
+				}
 				editorButtons.push(popupActionButtonMarkup({
 					label: "Weg löschen",
 					className: "location-popup__action-button--danger",
@@ -388,6 +404,10 @@ function updatePathLayerStyle(path) {
 	const colors = getPathStyleColors(path);
 	path._pathLines[0]?.setStyle({ color: colors.outline, weight: colors.outlineWeight, opacity: colors.outlineOpacity });
 	path._pathLines[1]?.setStyle({ color: colors.center, weight: colors.centerWeight });
+	// Entwurf 2026-09-14 §3.3: eine Markierung ueberlebt jedes Neufaerben (Live-Abgleich, Pruefhaken, Wegtyp).
+	if (typeof avesmapsWegAuswahlStilNachziehen === "function") {
+		avesmapsWegAuswahlStilNachziehen(path);
+	}
 	refreshPathLayerText(path);
 }
 
@@ -527,6 +547,12 @@ function createPathLayer(path) {
 					&& window.avesmapsTryOpenLocationAtContainerPoint(event.containerPoint)) {
 				L.DomEvent.stop(event);
 				return;
+			}
+			// Entwurf 2026-09-14 §3.1: im Bearbeiten-Modus markiert der Klick erst die ganze Strasse, dann den
+			// Abschnitt. NACH dem Schiedsrichter (ein Ort auf dem Weg gewinnt weiter) und VOR dem Anzeigen: die
+			// Infobox liest die Markierung aus dem Markup, das dieser Aufruf neu baut.
+			if (IS_EDIT_MODE && typeof avesmapsWegAuswahlKlick === "function") {
+				avesmapsWegAuswahlKlick(path);
 			}
 			// Infopanel (?infopanel=true): Weg-/Fluss-Info ins rechte Panel statt ins schwebende Popup.
 			if (typeof window.avesmapsShowPathInInfopanel === "function" && window.avesmapsShowPathInInfopanel(path)) {
