@@ -1702,13 +1702,17 @@
       // vertritt sie ihre Landschaft -- api/_internal/app/landscape-search.php, avesmapsLandscapeSearchLabelBindung).
       const r = await fetch("/api/app/map-search.php?edit_mode=1&limit=8&q=" + encodeURIComponent(q), { credentials: "same-origin", signal: acAbort.signal });
       const j = await r.json().catch(() => null);
-      acItems = (j && j.ok === true ? (j.results || []) : []).filter((x) => x.kind !== "powerline").slice(0, 8);
+      // Nur Treffer, die sich als Ort SPEICHERN lassen (mapSearchKind kennt ein Ziel) -- eine positive Liste:
+      // alles andere faellt heraus, heute unter anderem Landschaften, Innerorts, Kartensammlung, Literatur,
+      // Vorkommen, „nicht auf der Karte" und Kraftlinien. Gewaehlt wurden sie zur losen Namenszeile
+      // (js/pages/__tests__/editor-ortsvorschlaege-arten.test.js).
+      acItems = (j && j.ok === true ? (j.results || []) : []).filter((x) => mapSearchKind(x) !== "").slice(0, 8);
     } catch (e) { if (e && e.name === "AbortError") return; acItems = []; }
     acActive = acItems.length ? 0 : -1;
     renderAc();
   }
 
-  // Map a map-search hit to a citymap target_kind (powerlines are filtered out upstream).
+  // Map a map-search hit to a citymap target_kind ("" = no target; runAcSearch keeps such hits out of the list).
   // EVERY label subtype is a landscape ("region" here), not just the one literally named "region":
   // the subtype is the landscape category (gebirge, wald, kontinent, ... -- 19 of them), so pinning it
   // to "region" dropped Regengebirge and Aventurien back into the name-resolution fallback, where the
