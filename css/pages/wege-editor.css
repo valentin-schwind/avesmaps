@@ -584,3 +584,7 @@
 	cursor: pointer;
 }
 .wp-tempo__reset:hover { background: var(--color-button-soft-hover); }
+
+/* Die Zeile „Weitere Zuweisungen" unter einem Abschnitt (Entwurf 2026-09-14 §2.4). Der Name steht in
+   Textfarbe, das Etikett bleibt gedaempft wie der Rest von .avm-row__l2. */
+.wp-weitere b { font-weight: var(--font-weight-regular); color: var(--color-text); }

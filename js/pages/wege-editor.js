@@ -228,7 +228,8 @@
 			if (!state.profileFilter.has(key)) { return false; }
 		}
 		if (state.query !== "") {
-			if (String(way.name || "").toLowerCase().indexOf(state.query) === -1) { return false; }
+			// Entwurf 2026-09-14 §2.4: auch ueber die Namen der weiteren Wiki-Zuweisungen auffindbar.
+			if (!wpWegPasstZurSuche(way, state.query)) { return false; }
 		}
 		return true;
 	}
@@ -362,6 +363,12 @@
 		// sein Elternteil. Die Einrueckung von .wp-segment (Rand + Linie) kommt OBENDRAUF, nicht
 		// anstelle der Spalte.
 		var platzhalter = '<span class="wp-group__twist" aria-hidden="true"></span>';
+		// Entwurf 2026-09-14 §2.4: die weiteren Wiki-Zuweisungen stehen in einer eigenen Zeile. Einsortiert
+		// bleibt der Abschnitt unter seiner Hauptzuweisung.
+		var weitere = wpWeitereNamen(way);
+		var weitereZeile = weitere.length
+			? '<div class="avm-row__l2 wp-weitere">Weitere Zuweisungen: <b>' + escapeHtml(weitere.join(", ")) + "</b></div>"
+			: "";
 		// 🔴 `has-map-status` nur an der Zeile, die den Weg IST -- die geteilte Kreisregel hängt
 		// genau daran, und ein Abschnitt soll keinen Ring tragen (Begründung oben bei `title`).
 		return '<div class="avm-row' + (index === null ? " has-map-status" : " wp-segment")
@@ -371,6 +378,7 @@
 			+ '<div class="avm-row__text">'
 			+ '<div class="avm-row__l1">' + title + "</div>"
 			+ '<div class="avm-row__l2' + tone + '">' + escapeHtml(parts.join(" · ")) + "</div>"
+			+ weitereZeile
 			+ "</div></div>";
 	}
 

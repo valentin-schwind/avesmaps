@@ -213,6 +213,27 @@ function wpGroupKeyOf(way) {
 		: "name:" + (way ? way.feature_subtype : "") + ":" + (way ? way.name : "");
 }
 
+/** Sortierwert einer Huellbox-Koordinate: auf zwei Nachkommastellen gerundet (siehe wpGroupWays). */
+function wpSortWert(wert) {
+	return Math.round((Number(wert) || 0) * 100) / 100;
+}
+
+/** Die Namen der weiteren Wiki-Zuweisungen eines Abschnitts (Entwurf 2026-09-14 §2.4). */
+function wpWeitereNamen(way) {
+	var liste = way && Array.isArray(way.wiki_path_weitere) ? way.wiki_path_weitere : [];
+	return liste
+		.map(function (eintrag) { return eintrag ? String(eintrag.name || eintrag.wiki_key || "").trim() : ""; })
+		.filter(function (name) { return name !== ""; });
+}
+
+/** Trifft die Suche des Wege-Editors diesen Abschnitt? Wegname ODER ein weiterer Name. */
+function wpWegPasstZurSuche(way, query) {
+	var suche = String(query || "").trim().toLowerCase();
+	if (suche === "") { return true; }
+	if (String((way && way.name) || "").toLowerCase().indexOf(suche) !== -1) { return true; }
+	return wpWeitereNamen(way).some(function (name) { return name.toLowerCase().indexOf(suche) !== -1; });
+}
+
 function wpGroupWays(ways) {
 	var groups = [];
 	var byKey = {};
@@ -232,13 +253,20 @@ function wpGroupWays(ways) {
 		byKey[key].segments.push(way);
 	});
 	groups.forEach(function (group) {
+		// 🔴 GERUNDET, DANN DIE KENNUNG. Die Karte rechnet die Huellbox aus der Geometrie, der Wege-Editor
+		// liest die gespeicherten Spalten; beide stimmen auf 0,001 ueberein (Dump 08.09.2026, alle 6.065
+		// Wege), aber 4 von 477 Strassen sortierten trotzdem verschieden, weil Rauschen einen Gleichstand
+		// kippt. Entwurf 2026-09-14 §4: dieselbe Nummer muss auf Karte und im Editor denselben Abschnitt meinen.
 		group.segments.sort(function (a, b) {
-			var ax = a.bbox ? a.bbox[0] : 0;
-			var bx = b.bbox ? b.bbox[0] : 0;
+			var ax = wpSortWert(a.bbox ? a.bbox[0] : 0);
+			var bx = wpSortWert(b.bbox ? b.bbox[0] : 0);
 			if (ax !== bx) { return ax - bx; }
-			var ay = a.bbox ? a.bbox[1] : 0;
-			var by = b.bbox ? b.bbox[1] : 0;
-			return ay - by;
+			var ay = wpSortWert(a.bbox ? a.bbox[1] : 0);
+			var by = wpSortWert(b.bbox ? b.bbox[1] : 0);
+			if (ay !== by) { return ay - by; }
+			var pa = String(a.public_id || "");
+			var pb = String(b.public_id || "");
+			return pa < pb ? -1 : (pa > pb ? 1 : 0);
 		});
 	});
 	return groups;
@@ -781,6 +809,9 @@ if (typeof module !== "undefined" && module.exports) {
 		wpPieceLengths: wpPieceLengths,
 		wpGroupWays: wpGroupWays,
 		wpGroupKeyOf: wpGroupKeyOf,
+		wpSortWert: wpSortWert,
+		wpWeitereNamen: wpWeitereNamen,
+		wpWegPasstZurSuche: wpWegPasstZurSuche,
 		wpGroupFieldStates: wpGroupFieldStates,
 		wpGroupChangedFields: wpGroupChangedFields,
 		wpGroupTransportDecisions: wpGroupTransportDecisions,

@@ -8,6 +8,7 @@ require_once __DIR__ . '/../../_internal/map/features.php';
 require_once __DIR__ . '/../../_internal/routing/terrain-calibration.php';
 // V10's own landscape reader -- reused, never re-queried (Auftrag §2: „Nicht neu implementieren").
 require_once __DIR__ . '/../../_internal/app/path-landscapes.php';
+require_once __DIR__ . '/../../_internal/wiki/path-weitere.php';
 
 // Read-only feed for the Wege editor (html/wege-editor.html), the EIGHTH list editor.
 // Auftrag: docs/wege-editor-instruction.md. GET, capability `edit`.
@@ -184,6 +185,13 @@ function avesmapsPathEditorList(PDO $pdo): array
                 // taugt dafuer nicht (Raschtulsweg ist Strasse + Weg, Arvepass Strasse).
                 'art' => (string) ($wikiPath['art'] ?? ''),
             ],
+            // Entwurf 2026-09-14 §2.4: die weiteren Wiki-Zuweisungen -- dieselbe weisse Liste wie wiki_path.
+            'wiki_path_weitere' => array_map(static fn(array $eintrag): array => [
+                'wiki_key' => $eintrag['wiki_key'],
+                'wiki_url' => $eintrag['wiki_url'],
+                'name' => $eintrag['name'],
+                'art' => $eintrag['art'],
+            ], avesmapsWikiPathWeitereLesen($properties)),
             // Katalogquellen an diesem Abschnitt -- der Filter „Quelle" der Liste zaehlt sie.
             'source_count' => $sourceCounts[(string) $row['public_id']] ?? 0,
             // 🔴 HIER STAND DER DRITTE ZUSTAND („dieser Weg hat KEINEN Wiki-Artikel"): der
