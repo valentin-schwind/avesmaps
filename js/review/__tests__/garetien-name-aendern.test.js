@@ -29,12 +29,15 @@ api.avesmapsGaretienStageLeeren();
 
 // --- 1. NUR AUF DER STAGE -----------------------------------------------------------------------
 const o = objekt();
-// 🔴 Seit dem 14.09.2026 steht das Namensfeld unter der Zielwahl in der Handlungsleiste.
-pruefe(!api.garetienHandlungsMarkup(o).includes('data-gi-feld="einfuegeName"'), "vor der Stage kein Namensfeld");
+// 🔴 Seit dem 14.09.2026 steht das Namensfeld unter der Zielwahl in Block C „Ziel & Identität"
+// (garetienIdentitaetMarkup, Aufgabe 11) -- zwischen Aufgabe 9 und 11 stand es in der Handlungsleiste.
+pruefe(!api.garetienIdentitaetMarkup(o).includes('data-gi-feld="einfuegeName"'), "vor der Stage kein Namensfeld");
 api.avesmapsGaretienStageHinzufuegen([o]);
-let mk = api.garetienHandlungsMarkup(o);
+let mk = api.garetienIdentitaetMarkup(o);
 pruefe(mk.includes('data-gi-feld="einfuegeName"'), "auf der Stage steht das Namensfeld da");
 pruefe(mk.includes('value="Dunkelforst"'), "vorbelegt mit dem Namen des Vorschlags");
+pruefe(!api.garetienHandlungsMarkup(o).includes('data-gi-feld="einfuegeName"'),
+	"…und die Handlungsleiste traegt es nicht mehr -- zwei Felder truegen dieselbe id");
 
 // --- 2. Die Eingabe reist bis in den Anfragerumpf ------------------------------------------------
 // 💣 Das ist die NAHT. Feld, Zustand und Rumpf können je für sich stimmen, während der Wert

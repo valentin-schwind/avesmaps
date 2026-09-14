@@ -1,22 +1,18 @@
-// Aufgabe 9 des Bauplans „Garetien-Fragment-Verbund" (Commit e81a4bbb4): auf dem Reiter „Offen"
-// blendet garetienEingefuegtWirdMarkup Block D (Darstellung) und Block E (Wiki & Quellen) aus --
-// „Offen zeigt die Entscheidung, die Stage die Einstellungen" (Entwurf §9; Owner 09.09.2026:
-// "die sind alle auf der stage erst wichtig"). Ueberhaupt? und als was? bleiben auch auf „Offen"
-// stehen (Form/Art) -- alles danach ist Einstellung, nicht Entscheidung.
+// Die Bloecke C, D und E der Einzelansicht (Bauplan 2026-09-14, Aufgabe 11) -- was aus dem Objekt wird.
 //
-// 🔴 FIXRUNDE 1 (Pruefbefund): die urspruengliche Fassung dieses Tests las nur Quelltext
-// (`indexOf`) und fuehrte garetienEingefuegtWirdMarkup NIE aus. Der Pruefagent hat per Mutation
-// belegt, dass eine VOLLSTAENDIG umgekehrte Regel ("Offen zeigt alles, Stage zeigt weniger")
-// beide alten Zusicherungen gruen liess -- der Test massg nichts. Jetzt wird die Funktion
-// wirklich gerufen: einmal fuer ein Objekt NICHT auf der Stage, einmal fuer dasselbe Objekt AUF
-// der Stage, und geprueft wird das gebaute Markup.
+// 🔴 D (Darstellung) und E (Wiki & Quellen) gibt es nur auf der Stage (Owner 09.09.2026: „die sind
+// alle auf der stage erst wichtig"); auf „Offen" steht allein C, und zwar als Text.
+// 🔴 Ein uebernommenes Objekt bekommt KEINEN der drei Bloecke (Bestand, Owner 14.09.2026).
+//
+// 🔴 FIXRUNDE 1 (Pruefbefund vom 09.09.2026) gilt weiter: die Funktion wird WIRKLICH gerufen, und
+// geprueft wird das gebaute Markup. Eine Fassung, die nur Quelltext las, liess eine vollstaendig
+// umgekehrte Regel gruen.
 //
 // Ausfuehren, vom Repo-Wurzelverzeichnis:
 //   node js/review/__tests__/garetien-bloecke.test.js
 //
-// 💣 `hasDocument` wird beim LADEN von review-garetien-importer.js ausgewertet
-// (`typeof document !== "undefined"`) -- `global.document` muss deshalb VOR dem `require` stehen
-// (Vorbild: garetien-fussknopf-dom.test.js, garetien-eingefuegt-wird.test.js).
+// 💣 `hasDocument` wird beim LADEN von review-garetien-importer.js ausgewertet -- `global.document`
+// muss deshalb VOR dem `require` stehen.
 
 "use strict";
 
@@ -37,8 +33,6 @@ function gleich(ist, soll, warum) {
 	checks++;
 }
 
-// ---- Das gefaelschte `document`/`window` -- Vorbild garetien-eingefuegt-wird.test.js, dieselbe
-// Bauform (mager: nur die Elemente, die dieser Ablauf wirklich anfasst).
 function macheElement(id) {
 	return {
 		id: id, hidden: false, innerHTML: "", textContent: "",
@@ -63,9 +57,6 @@ global.document = {
 global.window = global.window || {};
 global.window.location = global.window.location || { search: "", hostname: "", protocol: "http:" };
 
-// ---- Die Vorgabetafeln, ECHT geladen (kein Abschreiben ihrer Zahlen), Ladereihenfolge exakt wie
-// garetien-eingefuegt-wird.test.js -- ohne sie klafft ecosystem-display.js/location-zoom-bands.js
-// als blanker Bezeichner, sobald garetienEingefuegtWirdMarkup wirklich laeuft.
 vm.runInThisContext(
 	fs.readFileSync(path.join(WURZEL, "js/map-features/ecosystem-display.js"), "utf8"),
 	{ filename: "ecosystem-display.js" }
@@ -80,23 +71,28 @@ global.avesmapsLabelArtName =
 const mod = require(path.resolve(__dirname, "..", "review-garetien-importer.js"));
 const {
 	garetienEingefuegtWirdMarkup,
+	garetienVorschlagMarkup,
 	avesmapsGaretienStageHinzufuegen,
 	avesmapsGaretienStageHat,
 } = mod;
 
 wahr(typeof garetienEingefuegtWirdMarkup === "function", "garetienEingefuegtWirdMarkup fehlt im Export");
-wahr(typeof avesmapsGaretienStageHinzufuegen === "function", "avesmapsGaretienStageHinzufuegen fehlt im Export");
-wahr(typeof avesmapsGaretienStageHat === "function", "avesmapsGaretienStageHat fehlt im Export");
+wahr(typeof garetienVorschlagMarkup === "function", "garetienVorschlagMarkup fehlt im Export (Aufgabe 10)");
+
+// Die Buchstaben eines gebauten Markups, in ihrer Reihenfolge.
+function buchstaben(markup) {
+	return (markup.match(/<span class="gi-block__zahl">([^<]*)<\/span>/g) || [])
+		.map((t) => t.replace(/<[^>]*>/g, "")).join("");
+}
 
 // =================================================================================================
-// Fixture: eine Flaeche (ziel='region'), Owner-Beispiel Huegel -> huegelland -- sie traegt sowohl
-// Block D (Flaeche + Beschriftung) als auch Block E (Wiki-Landschaft) und ist damit die schaerfste
-// Probe fuer die Stage-Weiche.
+// Fixture: eine Flaeche (ziel='region') -- sie traegt D (Flaeche + Beschriftung) und E (Wiki-Landschaft)
+// und ist damit die schaerfste Probe fuer die Stage-Weiche.
 // =================================================================================================
 
 const huegel = {
 	key: "ggp:Berge:Huegel:Garetien:Bloecketesthuegel", name: "Bloecketesthuegel", typ: "Huegel",
-	subtyp: "huegelland", kind: "topographie", ziel: "region", wiki: "ggp",
+	subtyp: "huegelland", kind: "topographie", ziel: "region", wiki: "ggp", stand: "offen",
 	quelle: { label: "Briefspiel (Garetien)", attribution: "VolkoV / garetien.de",
 		license: "cc-by-nc-sa-3.0", source_type: "briefspiel" },
 	abschnitte: [],
@@ -104,57 +100,49 @@ const huegel = {
 };
 
 gleich(avesmapsGaretienStageHat(huegel.key), false,
-	"Testvoraussetzung: das Fragment darf beim Start nicht auf der Stage liegen");
+	"Testvoraussetzung: das Objekt darf beim Start nicht auf der Stage liegen");
 
 // =================================================================================================
-// A. OFFEN (nicht auf der Stage) -- Bloecke D und E fehlen, der Hinweis steht, Form/Art bleiben.
+// A. OFFEN -- nur Block C, und C ist Text
 // =================================================================================================
 
 const mOffen = garetienEingefuegtWirdMarkup(huegel);
-
-wahr(mOffen.includes("Eingefügt wird"), "die Ueberschrift fehlt");
-// 🔴 SEIT DEM 14.09.2026 (Aufgabe 10, „Garetien-Importer vereint") stehen Form und Art auf „Offen" als
-// TEXT, nicht als Auswahl (Owner 12.09.2026: „der Vorschlag ist sichtbar, geändert wird er erst auf
-// der Stage").
-wahr(mOffen.includes('<span>Form</span><span class="gi-insert__val">Fläche</span>')
-	&& mOffen.includes('<span>Art</span><span class="gi-insert__val">'),
-	"Form und Art stehen auch auf 'Offen' -- sie beantworten 'ueberhaupt?' und 'als was?', als Text: "
-	+ mOffen);
-wahr(!/data-gi-feld=/.test(mOffen), "…und kein einziges Einstellfeld: " + mOffen);
-wahr(mOffen.includes("Erst auf der Stage einstellbar."),
-	"der erklaerende Satz steht auf 'Offen': " + mOffen);
-
-// Block D (Darstellung): die Flaechen-Unterueberschrift und ihr Haekchen duerfen nicht erscheinen.
-wahr(!mOffen.includes('class="gi-insert__sub">Fläche<'),
-	"Block D (Flaeche) darf auf 'Offen' nicht erscheinen: " + mOffen);
-wahr(!mOffen.includes("für Klicks gesperrt"),
-	"das Flaechen-Haekchen (Block D) darf auf 'Offen' nicht erscheinen: " + mOffen);
-wahr(!mOffen.includes("Größe") && !mOffen.includes("Sichtbar ab Zoom"),
-	"die Beschriftungsfelder (Block D) duerfen auf 'Offen' nicht erscheinen: " + mOffen);
-
-// Block E (Wiki & Quellen): weder die Unterueberschrift noch die Wiki-Landschaft-Zeile.
-wahr(!mOffen.includes("Wiki und Quellen"),
-	"die Ueberschrift von Block E (Wiki & Quellen) darf auf 'Offen' nicht erscheinen: " + mOffen);
-wahr(!mOffen.includes("Wiki-Landschaft"),
-	"Block E (Wiki-Landschaft) darf auf 'Offen' nicht erscheinen: " + mOffen);
+gleich(buchstaben(mOffen), "C", "auf „Offen\" steht allein Block C: " + mOffen);
+wahr(mOffen.includes('<span class="gi-block__zahl">C</span>Ziel &amp; Identität'), "Block C heisst „Ziel & Identität\"");
+wahr(mOffen.includes(garetienVorschlagMarkup(huegel)), "C traegt den Vorschlag als Text");
+wahr(!/data-gi-feld/.test(mOffen), "🔴 auf „Offen\" kein Einstellfeld: " + mOffen);
+wahr(!mOffen.includes("für Klicks gesperrt") && !mOffen.includes("Größe"),
+	"die Felder von Block D fehlen auf „Offen\"");
+wahr(!mOffen.includes("Wiki-Landschaft") && !mOffen.includes("Die Quelle, die mitreist"),
+	"Block E fehlt auf „Offen\"");
 
 // =================================================================================================
-// B. STAGE (dasselbe Objekt, jetzt hereingeholt) -- Bloecke D und E erscheinen, der Hinweis
-//    verschwindet, Form/Art bleiben unveraendert stehen.
+// B. STAGE -- C, D und E
 // =================================================================================================
 
 avesmapsGaretienStageHinzufuegen([huegel]);
-gleich(avesmapsGaretienStageHat(huegel.key), true, "das Fragment muss jetzt auf der Stage liegen");
+gleich(avesmapsGaretienStageHat(huegel.key), true, "das Objekt muss jetzt auf der Stage liegen");
 
 const mStage = garetienEingefuegtWirdMarkup(huegel);
-
+gleich(buchstaben(mStage), "CDE", "auf der Stage C, D und E: " + buchstaben(mStage));
 wahr(mStage.includes('data-gi-feld="zielForm"') && mStage.includes('data-gi-feld="zielArt"'),
-	"Form und Art bleiben stehen, wenn das Objekt auf die Stage kommt: " + mStage);
-wahr(!mStage.includes("Erst auf der Stage einstellbar."),
-	"der Satz darf auf der Stage nicht mehr stehen: " + mStage);
+	"Form und Art stehen in C: " + mStage);
 wahr(mStage.includes('class="gi-insert__sub">Fläche<') && mStage.includes("für Klicks gesperrt"),
-	"Block D (Flaeche) muss auf der Stage erscheinen: " + mStage);
-wahr(mStage.includes("Wiki und Quellen") && mStage.includes("Wiki-Landschaft"),
-	"Block E (Wiki & Quellen, samt Wiki-Landschaft) muss auf der Stage erscheinen: " + mStage);
+	"Block D (Flaeche) erscheint auf der Stage");
+wahr(mStage.includes('<span class="gi-block__zahl">E</span>Wiki &amp; Quellen') && mStage.includes("Wiki-Landschaft"),
+	"Block E (Wiki & Quellen, samt Wiki-Landschaft) erscheint auf der Stage");
+wahr(!mStage.includes("Erst auf der Stage einstellbar."), "der Vorschlags-Satz steht auf der Stage nicht mehr");
+
+// =================================================================================================
+// C. UEBERNOMMEN (Bestand) -- keiner der drei Bloecke, auch nicht auf der Stage
+// =================================================================================================
+
+const huegelUebernommen = Object.assign({}, huegel, {
+	key: "ggp:Berge:Huegel:Garetien:Bloecketesthuegel-uebernommen", stand: "uebernommen",
+	items: [{ id: 2, change_type: "new", anlass: null, apply_state: "done" }],
+});
+gleich(garetienEingefuegtWirdMarkup(huegelUebernommen), "", "uebernommen: kein Block C, D oder E");
+avesmapsGaretienStageHinzufuegen([huegelUebernommen]);
+gleich(garetienEingefuegtWirdMarkup(huegelUebernommen), "", "⚠️ auch wenn es noch auf der Stage liegt");
 
 console.log("OK -- garetien-bloecke (" + checks + " Zusicherungen)");

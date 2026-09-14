@@ -268,9 +268,11 @@ const boese = garetienDetailMarkup({
 wahr(!boese.includes("<img"), "der Name wird escaped");
 wahr(!boese.includes("<b>roh</b>"), "auch der Grund wird escaped");
 
-// Kein Abschnitt: die Ueberschrift steht trotzdem da und sagt, dass nichts da ist.
-wahr(boese.includes("Was bei uns an derselben Stelle liegt"),
-	"die Ueberschrift steht auch dann, wenn nichts getroffen wurde");
+// Kein Abschnitt: Block A steht trotzdem da und sagt, dass nichts da ist. Seit dem 14.09.2026 heisst
+// seine Ueberschrift „Auf der Karte", die Zahl steht in der Notiz (Bauplan 2026-09-14, Aufgabe 11).
+wahr(boese.includes('<span class="gi-block__zahl">A</span>Auf der Karte<span class="gi-block__note">0 Abschnitte</span>'),
+	"Block A steht auch dann, wenn nichts getroffen wurde");
+wahr(boese.includes("Zu diesem Objekt steht kein Abschnitt von uns im Vorschlag."), "und sagt, dass nichts da ist");
 wahr(!boese.includes("gi-seg"), "ohne getroffenen Abschnitt gibt es keine .gi-seg");
 
 // ---- Der Klickverteiler: die ZEILE waehlt aus, das HAEKCHEN nicht -------------------------------
@@ -567,9 +569,10 @@ wahr(/\.gi-seg\s*\{[^}]*display:\s*grid/.test(css),
 	"Die Abschnittszeile ist ein Raster, kein Flex -- ein border-box-Kind schrumpft nicht unter seine Polsterung.");
 
 // ⚠️ Die Trennlinien HIER laufen nicht vollflaechig: die Ansicht rollt, und ein negativer
-// Seitenrand liefe unter die Bildlaufleiste. `.gi-sec` darf deshalb keinen negativen Rand tragen.
-const secBlock = (css.match(/\.gi-sec\s*\{[^}]*\}/) || [""])[0];
-wahr(secBlock !== "", "der .gi-sec-Block fehlt -- die Gegenprobe misst sonst eine leere Zeichenkette");
+// Seitenrand liefe unter die Bildlaufleiste. Der Block (`.gi-block`, seit dem 14.09.2026 statt `.gi-sec`)
+// darf deshalb keinen negativen Rand tragen.
+const secBlock = (css.match(/\.gi-block\s*\{[^}]*\}/) || [""])[0];
+wahr(secBlock !== "", "der .gi-block-Block fehlt -- die Gegenprobe misst sonst eine leere Zeichenkette");
 wahr(/border-top:\s*1px solid var\(--color-divider\)/.test(secBlock),
 	"gruppiert wird durch TRENNLINIE + Ueberschrift, nicht durch Kaesten");
 // 🪤 Die Tokennamen zuerst wegnehmen: `var(--space-2)` traegt selbst zwei Bindestriche, und ein

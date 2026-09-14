@@ -551,7 +551,10 @@ gleich(mod.avesmapsGaretienAuswahlHat(einer.key), vorMarkierungEiner,
 // =================================================================================================
 
 const leiste = garetienHandlungsMarkup(strasse);
-wahr(/^<div class="gi-acts">/.test(leiste), "die Leiste ist ein .gi-acts");
+// 🔴 SEIT DEM 14.09.2026 IST DIE LEISTE BLOCK F „Handlung" (Bauplan 2026-09-14, Aufgabe 11) -- und traegt
+// `gi-acts` weiter am Block selbst.
+wahr(/^<div class="gi-block gi-acts"><p class="gi-block__kopf gi-acts__titel"><span class="gi-block__zahl">F<\/span>Handlung</.test(leiste),
+	"die Leiste ist Block F und traegt weiter .gi-acts: " + leiste.slice(0, 200));
 wahr(/data-handlung="stage"/.test(leiste) && /data-key="ggp:Wege:Reichsstrasse:Angbarer"/.test(leiste),
 	"jeder Knopf traegt seine Handlung UND seinen Schluessel selbst -- kein Modulzustand daneben");
 // 🔴 UND DIE VIER GEFALLENEN KNOEPFE STEHEN NICHT MEHR IM MARKUP. Das ist die Zusicherung an der
@@ -641,12 +644,15 @@ const spalte = garetienDetailMarkup(einer);
 // ⚠️ Die REIHENFOLGE gegen „Eingefügt wird“ steht nicht hier: `einer` traegt den Kasten gar
 // nicht (kein `new`-Item mit Ziel), ein indexOf-Vergleich liefe dort gegen -1 und waere gruen,
 // ohne etwas zu messen. Sie steht in garetien-detailspalte-reihenfolge.test.js.
-wahr(spalte.indexOf('<div class="gi-acts">') > spalte.indexOf('<div class="gi-detail">'),
+// 🔴 SEIT DEM 14.09.2026 IST SIE BLOCK F. Gemessen wird die TIEFE, nicht ein Nachbarzeichen: hinter dem
+// `</div>` des vorigen Blocks steht sie jetzt immer, und ein Muster wie `</div><div class="gi-…">` traefe
+// das zu Recht.
+const stelleF = spalte.indexOf('<div class="gi-block gi-acts">');
+const davorF = spalte.slice(0, stelleF);
+wahr(stelleF > spalte.indexOf('<div class="gi-detail">'),
 	'💣 und INNERHALB der rollenden Ansicht -- sonst klebt sie wieder am Fuss');
-// ⚠️ Das Kleben haengt am Selektor `.gi-win .avm-col > .gi-acts` (DIREKTES Kind der Spalte). Als
-// Kind von `.gi-detail` greift er nicht mehr; wer die Leiste je zurueckschoebe, holte es zurueck.
-wahr(!/<\/div><div class="gi-acts">/.test(spalte),
-	'und NICHT mehr als Geschwister hinter dem schliessenden div');
+gleich((davorF.match(/<div\b/g) || []).length - (davorF.match(/<\/div>/g) || []).length, 1,
+	'und als direktes Kind von .gi-detail, nicht als Geschwister dahinter');
 // Ohne Auswahl gibt es auch keine Leiste (ein Knopf ohne Objekt ist ein Knopf ins Leere).
 wahr(!garetienDetailMarkup(null).includes("gi-acts"), "ohne Auswahl steht keine Knopfleiste da");
 
@@ -787,8 +793,12 @@ wahr(kontrast(hart.dunkel, grund.dunkel) < 4.5,
 // 🔴 Geprueft wird stattdessen, dass die neue Regel den Kasten absetzt -- ohne Trennlinie
 // verschwaemme er mit der Begruendung darueber, und er ist die Stelle, an der man das Objekt
 // einstellt.
-wahr(/\.gi-detail\s*>\s*\.gi-acts\s*\{[^}]*border-top/.test(acts),
-	'die Handlungsleiste rollt mit und ist durch eine Trennlinie abgesetzt');
+// 🔴 SEIT DEM 14.09.2026 SETZT DER BLOCK SIE AB (`.gi-block`), nicht mehr eine eigene Regel:
+// `.gi-detail > .gi-acts` (0,2,0) schlug `.gi-block` (0,1,0) und gab F andere Abstaende als A bis E.
+// ⚠️ Gesucht wird in der GANZEN Datei: der Block-Abschnitt steht VOR diesem (er traegt Pixelmasse, die
+// der Mockup-Vertrag bindet, und fiele sonst unter die px-Probe darueber).
+wahr(/\.gi-block\s*\{[^}]*border-top/.test(css) && !/\.gi-detail\s*>\s*\.gi-acts\s*\{/.test(css),
+	'die Handlungsleiste ist Block F und durch dessen Trennlinie abgesetzt -- die eigene Regel ist weg');
 wahr(!/\.avm-col\s*>\s*\.gi-acts/.test(acts),
 	'💣 und die alte Anheftungs-Regel ist WEG, nicht nur wirkungslos -- eine tote Regel liest der',
 	acts.slice(0, 0) + 'naechste als geltend');

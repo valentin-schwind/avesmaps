@@ -1875,8 +1875,11 @@
 					+ "</span></p>");
 		}
 
-		return '<p class="gi-sec">Verbund<span class="gi-sec__note">'
-			+ (zusammen ? "zusammengelegt · " : "") + mitglieder.length + " Fragmente</span></p>" + zeilen + knopf;
+		// 🔴 SEIT DEM 14.09.2026 BLOCK B „Verbund" (Entwurf 2026-09-14 §3). Kein `erster`: vor ihm
+		// steht immer Block A. Was hinter der Ueberschrift verkettet wird -- die Zeilen, der Knopf und
+		// seine Grundzeile aus Aufgabe 7 --, ist sein Inhalt.
+		return garetienBlockMarkup("B", "Verbund", zeilen + knopf,
+			(zusammen ? "zusammengelegt · " : "") + mitglieder.length + " Fragmente", false);
 	}
 
 	/*
@@ -4052,7 +4055,9 @@
 		if (lizenz.text !== "") { teile.push(avesmapsGaretienEscape(lizenz.text)); }
 		// ⚠️ „die mitreisEN" im Plural -- hier stand „Die Quellen, die mitreist", seit der Artikel
 		// am 31.08.2026 als zweite Quelle dazukam und nur das Hauptwort ein „n" bekam.
-		return '<p class="gi-sec">'
+		// ⚠️ Eine Unterzeile, keine `.gi-sec` mehr: sie steht seit dem 14.09.2026 IN Block E, und eine
+		// zweite Trennlinie mitten im Block laese sich wie ein eigener Abschnitt.
+		return '<p class="gi-insert__sub">'
 			+ (artikelLabel !== "" ? "Die Quellen, die mitreisen" : "Die Quelle, die mitreist")
 			+ "</p>"
 			+ '<p class="gi-why">'
@@ -5930,65 +5935,82 @@
 		return raus + '<p class="gi-why">Erst auf der Stage einstellbar.</p>';
 	}
 
-	function garetienEingefuegtWirdMarkup(objekt) {
+	// REIN: blendet jede `.gi-insert__row` eines fertigen Markups ab (`.gi-insert__row--aus`) -- fuer
+	// Block D, dessen Felder aus vier Bauern kommen, die keinen Abblend-Parameter kennen.
+	// ⚠️ Der Vorausblick `(?=[\s"])` trifft die Grundklasse, nie ihre Modifikatoren: in
+	// `gi-insert__row gi-insert__row--edit` bekommt nur die erste den Zusatz.
+	// 💣 Die Felder selbst sperrt der AUFRUFER ueber das `deaktiviert` der Bauer -- diese Funktion
+	// faerbt nur. Ein grauer, aber bedienbarer Regler waere schlimmer als ein bunter.
+	function garetienZeilenAbblenden(markup) {
+		return String(markup || "").replace(/(class="[^"]*\bgi-insert__row)(?=[\s"])/g, "$1 gi-insert__row--aus");
+	}
+
+	/*
+	 * REIN: der INHALT von Block C „Ziel & Identität" (Entwurf 2026-09-14 §3).
+	 *
+	 * 🔴 AUF „OFFEN" UND „ABGELEHNT" NUR TEXT (Owner 12.09.2026: „der Vorschlag ist sichtbar,
+	 * geändert wird er erst auf der Stage"). garetienVorschlagMarkup (Aufgabe 10) traegt kein
+	 * einziges Einstellfeld.
+	 * 🔴 AUF DER STAGE: Zielwahl samt Siedlung und Umkreis · Name · Typzeile · Form · Art (Mockup §3–§5).
+	 * Zielwahl und Name standen von Aufgabe 9 bis hierher ueber der Knopfleiste (garetienHandlungsMarkup);
+	 * sie beantworten die Frage dieses Blocks („was entsteht?"), nicht die der Handlung.
+	 * 💣 JEDES FELD GENAU EINMAL. Zielwahl, Siedlung, Umkreis und Name tragen ids (garetienEingabeId);
+	 * stuenden sie auch in F, gaebe es zwei Elemente mit derselben id.
+	 * ⚠️ ABGEBLENDET WIRD IN DEN BAUERN VON AUFGABE 9, nicht hier: garetienZielNameZeile (Name),
+	 * garetienZielWahlMarkup mit `ausGrund` (Form und Art samt „gilt nicht für …"),
+	 * garetienInnerortsZeileMarkup (Siedlung). Eine zweite Regel an dieser Stelle liefe beim naechsten
+	 * Zielwert auseinander.
+	 * ⚠️ Fuer ein UEBERNOMMENES Objekt fragt diese Funktion niemand: garetienEingefuegtWirdMarkup
+	 * steigt vorher aus (Bestand, Owner 14.09.2026 -- C bis E fehlen).
+	 */
+	function garetienIdentitaetMarkup(objekt) {
 		if (!objekt) { return ""; }
-		// 🔴 NICHT AUF DER STAGE, NICHT ÜBERNOMMEN: DER VORSCHLAG ALS TEXT (Aufgabe 10, 14.09.2026). Und das
-		// auch für ein Objekt ohne Neu-Item -- eine Ergänzung („Quelle an X ergänzen") oder „Nichts" ist
-		// genauso eine Auskunft darüber, was nach „Auf die Stage" daraus würde.
-		if (String(objekt.stand || "") !== "uebernommen" && !avesmapsGaretienStageHat(objekt.key)) {
-			return '<div class="gi-insert"><p class="gi-sec">Eingefügt wird</p>' + garetienVorschlagMarkup(objekt) + "</div>";
+		const o = objekt;
+		if (!avesmapsGaretienStageHat(o.key)) {
+			return garetienVorschlagMarkup(o);
 		}
-		if (!garetienEingefuegtWirdHatVorschlag(objekt)) { return ""; }
-		// 🔴 SEIT 01.09.2026 ENTSCHEIDET DIE WAHL, NICHT DER VORSCHLAG. `garetienZielWahlZu` liefert
-		// den Vorschlag, solange niemand etwas anderes gewählt hat -- der Kasten darunter zeigt
-		// deshalb die Felder der GEWÄHLTEN Form (eine Fläche hat andere als ein Gipfel).
+		// Der Umkreis-Spinner steht bei jedem Bauwerk IN der Zielwahl (garetienInnerortsZeileMarkup) --
+		// hier kommt kein zweiter dazu.
+		let inhalt = garetienZielwahlMarkup(o) + garetienZielNameZeile(o);
+		if (!garetienEingefuegtWirdHatVorschlag(o)) { return inhalt; }
+		// ⚠️ Die Typzeile („Wald (garetien.de) → Wald (Avesmaps)") bleibt die EINZIGE Stelle, an der sie
+		// steht (Fuenf-Punkte-Brief 30.08.2026, Punkt 4) -- sie erklaert die zwei Felder darunter.
+		inhalt += '<p class="gi-why gi-insert__kopf">' + avesmapsGaretienEscape(garetienTypText(o)) + "</p>"
+			+ garetienZielWahlMarkup(o, false, garetienZielwahlAusGrund(o));
+		return inhalt;
+	}
+
+	// REIN: der INHALT von Block D „Darstellung" -- die Felder der GEWÄHLTEN Form (seit 01.09.2026
+	// entscheidet die Wahl, nicht der Vorschlag: eine Fläche hat andere Felder als ein Gipfel).
+	// ⚠️ `deaktiviert` sperrt jedes Feld; abgeblendet wird beim Aufrufer.
+	function garetienDarstellungMarkup(objekt, deaktiviert) {
 		const wahl = garetienZielWahlZu(objekt);
 		const ziel = String(wahl.ziel || "");
 		const subtyp = String(wahl.subtyp || "");
-		// 🔴 Punkt 6a: ein bereits UEBERNOMMENES Objekt ist angelegt -- hier gibt es nichts mehr zu
-		// entscheiden, und die Felder werden reine Anzeige (Owner: „die editoren sollen dann das
-		// objekt auf der karte editieren").
-		const uebernommen = String(objekt.stand || "") === "uebernommen";
-		// 🔴 AUF DER STAGE ENTSCHEIDET DIE ZIELWAHL, OB DIE FELDER GELTEN (14.09.2026). Eine Stätte, eine
-		// Ergänzung oder „Nichts" legt kein Kartenobjekt an -- Form, Art und Darstellung werden dann
-		// abgeblendet, nicht ausgeblendet. ⚠️ Ein übernommenes Objekt bleibt, wie es war: gesperrt, ohne
-		// Grund-Zeile (Bestand, Owner 14.09.2026).
-		const ausGrund = (!uebernommen && avesmapsGaretienStageHat(objekt.key)) ? garetienZielwahlAusGrund(objekt) : "";
-		const gesperrt = uebernommen || ausGrund !== "";
-		let markup = '<p class="gi-sec">Eingefügt wird</p>'
-			+ '<p class="gi-why gi-insert__kopf">' + avesmapsGaretienEscape(garetienTypText(objekt)) + "</p>"
-			+ garetienEingefuegtWirdUebernommenHinweis(objekt)
-			+ garetienZielWahlMarkup(objekt, uebernommen, ausGrund);
-		// 🔴 BIS HIERHER KOMMT EIN NICHT AUFGELEGTES OBJEKT NUR NOCH, WENN ES ÜBERNOMMEN IST (Aufgabe 10,
-		// 14.09.2026): „Offen" kehrt oben mit dem Vorschlag als Text zurück. Ein übernommenes Objekt zeigt
-		// weiter, was es vor dem Umbau zeigte -- Form und Art gesperrt, Darstellung sowie Wiki & Quellen
-		// ausgeblendet (Bestand, Owner 14.09.2026).
-		if (!avesmapsGaretienStageHat(objekt.key)) {
-			return '<div class="gi-insert">' + markup
-				+ '<p class="gi-why">Darstellung sowie Wiki &amp; Quellen erscheinen, sobald das'
-				+ " Objekt auf der Stage liegt.</p></div>";
-		}
-		// ⚠️ SIEDLUNG UND UMKREIS STEHEN SEIT DEM 14.09.2026 UNTER DER ZIELWAHL (garetienZielwahlMarkup),
-		// nicht mehr hier: sie geben „Stätte in X" ihr X, und zweimal gezeichnet trügen zwei Felder
-		// dieselbe `id`. An einem ÜBERNOMMENEN Bauwerk fällt die gesperrte Zeile ersatzlos weg -- wo es
-		// liegt, sagt weiter der Satz darüber (garetienEingefuegtWirdUebernommenHinweis).
 		if (ziel === "region") {
-			markup += garetienEingefuegtWirdFlaecheMarkup(objekt, gesperrt);
-			markup += garetienEingefuegtWirdBeschriftungMarkup(objekt, subtyp, true, gesperrt);
-		} else if (ziel === "label") {
-			markup += garetienEingefuegtWirdBeschriftungMarkup(objekt, subtyp, false, gesperrt);
-		} else if (ziel === "location") {
-			markup += garetienEingefuegtWirdOrtMarkup(objekt, subtyp, gesperrt);
-		} else if (ziel === "path") {
-			markup += garetienEingefuegtWirdWegMarkup(objekt, subtyp, gesperrt);
+			return garetienEingefuegtWirdFlaecheMarkup(objekt, deaktiviert)
+				+ garetienEingefuegtWirdBeschriftungMarkup(objekt, subtyp, true, deaktiviert);
 		}
-		markup += garetienEingefuegtWirdUeberschrift("Wiki und Quellen");
-		markup += garetienQuellenMarkup(objekt);
-		if (ziel === "region") {
-			// 🔴 DER STAND KOMMT AUS DEM SPEICHER, NICHT FEST AUS DEM WARTETEXT: dieses Markup wird
-			// bei jedem `garetienDetailRendern` neu gebaut, und der Lader feuert je Objekt nur
-			// einmal (siehe `_garetienWikiLandschaftErgebnis`). Fest gesetzt stand hier für immer
-			// „wird gesucht …".
+		if (ziel === "label") {
+			return garetienEingefuegtWirdBeschriftungMarkup(objekt, subtyp, false, deaktiviert);
+		}
+		if (ziel === "location") {
+			return garetienEingefuegtWirdOrtMarkup(objekt, subtyp, deaktiviert);
+		}
+		if (ziel === "path") {
+			return garetienEingefuegtWirdWegMarkup(objekt, subtyp, deaktiviert);
+		}
+		return "";
+	}
+
+	// REIN: der INHALT von Block E „Wiki & Quellen".
+	// 🔴 DER STAND DER WIKI-LANDSCHAFT KOMMT AUS DEM SPEICHER, NICHT FEST AUS DEM WARTETEXT: dieses
+	// Markup wird bei jedem `garetienDetailRendern` neu gebaut, und der Lader feuert je Objekt nur
+	// einmal (siehe `_garetienWikiLandschaftErgebnis`). Fest gesetzt stuende hier fuer immer
+	// „wird gesucht …".
+	function garetienWikiQuellenMarkup(objekt) {
+		let markup = garetienQuellenMarkup(objekt);
+		if (String(garetienZielWahlZu(objekt).ziel || "") === "region") {
 			const wikiLandschaftStand = garetienWikiLandschaftStand(objekt);
 			markup += '<p class="gi-insert__row" id="' + garetienWikiLandschaftPlatzhalterId(objekt) + '">'
 				+ 'Wiki-Landschaft <span class="gi-insert__val">'
@@ -5998,7 +6020,52 @@
 				// leer/mehrdeutig/fehlgeschlagen feststeht (garetienWikiSucheBeiBedarfZeigen).
 				+ '<div id="' + garetienWikiSucheHostId(objekt) + '" hidden></div>';
 		}
-		return '<div class="gi-insert">' + markup + "</div>";
+		return markup;
+	}
+
+	/*
+	 * Die Bloecke C, D und E -- was aus dem Objekt wird (Entwurf 2026-09-14 §3).
+	 *
+	 * 🔴 SOLANGE ES NICHT AUF DER STAGE LIEGT, GIBT ES NUR C (Owner 09.09.2026: „die sind alle auf der
+	 * stage erst wichtig"). Auf „Offen" entscheidet ein Editor zwei Dinge -- ueberhaupt? und als was?
+	 * Darstellung, Wiki und Quellen beantworten keine davon.
+	 * 🔴 EIN UEBERNOMMENES OBJEKT BEKOMMT KEINEN DER DREI (Bestand, Owner 14.09.2026; Mockup §6). Bis
+	 * dahin zeigte der Kasten dort alle Felder gesperrt (Punkt 6a vom 30.08.2026) -- sie liessen sich
+	 * nirgends mehr aendern, und geaendert wird ein angelegtes Objekt auf der Karte. Der Satz, wo es
+	 * liegt und ob es zurueckgeht, ist in Block A gewandert (garetienDetailMarkup).
+	 * ⚠️ Der Name der Funktion bleibt: vier Testdateien und der Wiki-Landschaft-Lader messen an ihr,
+	 * und „was eingefügt wird" ist genau das, was C bis E beschreiben.
+	 * 💣 D UND E TRAGEN `gi-insert` AM BLOCK. Die Reglerzeilen sind in garetien-importer.css unter
+	 * `.gi-insert` verengt (`.gi-insert .label-edit-sliderrow` …); ohne die Klasse bekaeme der Regler
+	 * die geteilte Polsterung aus location-report-dialog.css, und seine Vorgabemarke saesse neben der
+	 * Spur (garetienSliderMarkePosition rechnet mit 0 px Polster).
+	 * ⚠️ D BLEIBT IN VOLLER HOEHE STEHEN, grau und gesperrt, wenn das Ziel keine Darstellung braucht.
+	 * Das Mockup (§5, „Burg Finster") zeichnet dort eine einzige Zeile -- eine Zeile statt der Felder
+	 * liesse die Spalte bei jedem Wechsel der Zielwahl springen (Entwurf §3: abgeblendet, nicht
+	 * ausgeblendet).
+	 */
+	function garetienEingefuegtWirdMarkup(objekt) {
+		if (!objekt) { return ""; }
+		if (String(objekt.stand || "") === "uebernommen") { return ""; }
+		const aufDerStage = avesmapsGaretienStageHat(objekt.key);
+		const verbund = garetienVerbundSchluessel(objekt);
+		let notiz = "";
+		if (!aufDerStage) {
+			notiz = "Vorschlag";
+		} else if (verbund !== "" && garetienVerbundIstZusammen(verbund)) {
+			notiz = "gilt dem ganzen Verbund";
+		}
+		let markup = garetienBlockMarkup("C", "Ziel & Identität", garetienIdentitaetMarkup(objekt), notiz, false);
+		if (!aufDerStage || !garetienEingefuegtWirdHatVorschlag(objekt)) { return markup; }
+		// 🔴 DIESELBE WEICHE WIE FORM UND ART IN C (garetienZielwahlAusGrund, Aufgabe 9): "" heisst „gilt".
+		// Eine eigene Liste „welche Ziele brauchen eine Darstellung" waere die zweite Wahrheit.
+		const aus = garetienZielwahlAusGrund(objekt) !== "";
+		const darstellung = garetienDarstellungMarkup(objekt, aus);
+		markup += garetienBlockMarkup("D", "Darstellung",
+			aus ? garetienZeilenAbblenden(darstellung) : darstellung, "", false, { blockKlasse: "gi-insert" });
+		markup += garetienBlockMarkup("E", "Wiki & Quellen", garetienWikiQuellenMarkup(objekt), "", false,
+			{ blockKlasse: "gi-insert" });
+		return markup;
 	}
 
 	/*
@@ -6513,6 +6580,37 @@
 		return liste.length;
 	}
 
+	/*
+	 * REIN: EIN Block der Einzelansicht -- Buchstabe, Titel, optionale Notiz, Inhalt
+	 * (Entwurf 2026-09-14 §3, Mockup §2 bis §4).
+	 *
+	 * 🔴 DIE BUCHSTABEN BLEIBEN UND FLUCHTEN (Owner 09.09.2026: „bleiben — mach sie nur
+	 * einheitlich"). JEDER Blockkopf entsteht hier. Ein zweiter, handgeschriebener Kopf -- etwa fuer
+	 * die Handlungsleiste -- waere genau die Stelle, an der ein Buchstabe einrueckt, ohne dass es im
+	 * Quelltext auffaellt.
+	 * ⚠️ Gruppiert wird ueber Ueberschrift und TRENNLINIE, nie ueber einen Rahmen (AGENTS.md §12).
+	 * ⚠️ Ein Block ohne Inhalt entfaellt ganz -- eine Ueberschrift ueber nichts behauptet einen
+	 * Abschnitt, den es nicht gibt. Jeder Aufrufer darf seinen Inhalt deshalb ungeprueft hereinreichen.
+	 * 💣 `erster` statt `:first-of-type`: vor Block A stehen Name und Metazeile, und der Namenskopf
+	 * IST ein `<div>` -- `:first-of-type` traefe ihn und nie Block A.
+	 * ⭐ `zusatz` (optional) haengt Klassen an Block und Kopf: `gi-acts` an F (Flexreihe und
+	 * Grundzeile haengen daran), `gi-insert` an D und E (die Reglerzeilen sind in
+	 * garetien-importer.css unter `.gi-insert` verengt und verloeren ohne die Klasse ihre Polsterung).
+	 */
+	function garetienBlockMarkup(buchstabe, titel, inhalt, notiz, erster, zusatz) {
+		if (String(inhalt || "") === "") { return ""; }
+		const z = zusatz || {};
+		const blockKlasse = "gi-block" + (erster === true ? " gi-block--erster" : "")
+			+ (String(z.blockKlasse || "") === "" ? "" : " " + String(z.blockKlasse));
+		const kopfKlasse = "gi-block__kopf"
+			+ (String(z.kopfKlasse || "") === "" ? "" : " " + String(z.kopfKlasse));
+		const notizMarkup = String(notiz || "") === "" ? ""
+			: '<span class="gi-block__note">' + avesmapsGaretienEscape(notiz) + "</span>";
+		return '<div class="' + blockKlasse + '"><p class="' + kopfKlasse + '">'
+			+ '<span class="gi-block__zahl">' + avesmapsGaretienEscape(buchstabe) + "</span>"
+			+ avesmapsGaretienEscape(titel) + notizMarkup + "</p>" + inhalt + "</div>";
+	}
+
 	// REIN: die ganze rechte Spalte.
 	//
 	// 🔴 Der Knopf „✦ Zentrieren" (Aufgabe 14) trägt seinen `data-key` selbst. Er ist
@@ -6538,81 +6636,83 @@
 		const abschnitte = objekt.abschnitte || [];
 		const gruppen = garetienAbschnittsGruppen(abschnitte);
 
-		// 🔴 Fuenf-Punkte-Brief 30.08.2026, Punkt 4: die Typ-Zuordnung („Fluss (garetien.de) →
-		// Flussweg (Avesmaps)") steht seither NICHT mehr im Kopf -- sie steht weiterhin, wortgleich,
-		// im Kasten „Eingefügt wird" (garetienEingefuegtWirdMarkup), und dieselbe Angabe zweimal auf
-		// dem Bildschirm ist die Duplikation, vor der AGENTS.md §5 warnt. Der Kopf zeigt seither NUR
-		// den Namen.
-		let kopf = '<div class="gi-detail__head">'
+		// 🔴 Der Kopf ist KEIN Block. Er traegt keinen Buchstaben, weil er nichts gliedert: er nennt,
+		// WORUEBER die Bloecke darunter sprechen. Die Typ-Zuordnung steht nicht hier, sondern in
+		// Block C (Fuenf-Punkte-Brief 30.08.2026, Punkt 4 -- dieselbe Angabe zweimal auf dem
+		// Bildschirm waere die Duplikation aus AGENTS.md §5).
+		const kopf = '<div class="gi-detail__head">'
 			+ '<h4 class="gi-detail__name">' + avesmapsGaretienEscape(objekt.name || "") + "</h4>"
-			+ "</div>";
-		kopf += garetienDetailMetaMarkup(objekt);
-		// ⚠️ Ohne Geometrie gäbe es nichts anzufliegen -- dann steht der Knopf auch nicht da. Ein
-		// Knopf, der nichts tut, ist eine sichtbare Störung (dieselbe Begründung, aus der er bis
-		// Aufgabe 14 ganz fehlte).
-		// 🔴 Und die zwei Sicht-Knöpfe stehen unter DERSELBEN Bedingung: sie schalten, was auf der
-		// Karte liegt, und ohne Geometrie liegt von diesem Objekt nichts dort. Ein Bedienelement,
-		// das an der geöffneten Zeile nichts bewirkt, ist genau die sichtbare Störung, aus der der
-		// Knopf darüber schon einmal weggelassen wurde.
+			+ "</div>" + garetienDetailMetaMarkup(objekt);
+
+		// ---- A · Auf der Karte ---------------------------------------------------------------------
+		// ⚠️ Ohne Geometrie gaebe es nichts anzufliegen -- dann stehen weder „✦ Zentrieren" noch die
+		// zwei Sicht-Knoepfe da. Sie schalten, was auf der Karte liegt, und ein Bedienelement, das an
+		// der geoeffneten Zeile nichts bewirkt, ist eine sichtbare Stoerung.
+		let aufDerKarte = "";
 		if (Array.isArray(objekt.geometrie) && objekt.geometrie.length > 0) {
-			kopf += '<button class="gi-show" type="button" data-key="'
+			aufDerKarte += '<button class="gi-show" type="button" data-key="'
 				+ avesmapsGaretienEscape(objekt.key || "") + '">'
 				+ "✦ Zentrieren</button>";
-			kopf += garetienSichtLeisteMarkup(sicht, unsereVorhanden === undefined
+			aufDerKarte += garetienSichtLeisteMarkup(sicht, unsereVorhanden === undefined
 				? garetienUnsereVorhanden([objekt])
 				: unsereVorhanden, abschnitte.length === 0);
 		}
-
-		// Aufgabe 8: der Block „Verbund" -- "" ohne Verbund, unabhaengig von der Geometrie des
-		// angezeigten Fragments (ein Verbund-Fragment ohne eigene Geometrie bleibt trotzdem
-		// Mitglied und muss den Block trotzdem zeigen koennen).
-		const verbundBlock = garetienVerbundBlockMarkup(objekt, zustand.objekte || []);
-
+		// Die Notiz traegt, was bis zum 14.09.2026 unter „Was bei uns an derselben Stelle liegt" stand.
+		// 🔴 Der Deckungsgrad kommt vom SERVER: er IST das Ergebnis des Abgleichs, im Browser
+		// nachgerechnet waere er die zweite Wahrheit ueber „wie gut deckt sich das".
+		// ⚠️ `null` heisst „nicht gemessen" und ist nicht dasselbe wie 0 (= liegt genau darauf).
 		let notiz = garetienAnzahlText(abschnitte.length, "Abschnitt", "Abschnitte");
 		if (gruppen.gesamt >= 2) {
 			notiz += " · " + gruppen.gesamt + " verschiedene Objekte";
 		}
-		// Der Deckungsgrad -- die Zahl, an der ein Editor abliest, wie sicher der Treffer ist.
-		// 🔴 Er kommt vom SERVER: er IST das Ergebnis des Abgleichs (Median über die Probepunkte,
-		// gemessen gegen die Schwelle von 2,0 Karteneinheiten). Im Browser nachgerechnet wäre er
-		// die zweite Wahrheit über „wie gut deckt sich das".
-		// ⚠️ `null` heißt „nicht gemessen" und ist nicht dasselbe wie 0 (= liegt genau darauf) --
-		// deshalb ausdrücklich gegen `null` geprüft und nicht auf Wahrheitswert.
 		if (typeof objekt.deckung === "number" && isFinite(objekt.deckung)) {
 			notiz += " · Deckung Median " + garetienZahlText(objekt.deckung);
 		}
-		let mitte = '<p class="gi-sec">Was bei uns an derselben Stelle liegt'
-			+ '<span class="gi-sec__note">' + notiz + "</span></p>";
-		mitte += abschnitte.length === 0
+		aufDerKarte += abschnitte.length === 0
 			? '<p class="gi-why">Zu diesem Objekt steht kein Abschnitt von uns im Vorschlag.</p>'
 			: abschnitte.map(function (abschnitt) {
 				return garetienAbschnittMarkup(objekt, abschnitt);
 			}).join("");
-		mitte += garetienDetailBombeMarkup(objekt, gruppen);
-
-		// Der Grund kommt fertig vom Server (garetien-abgleich.php baut den Satz). Ohne Grund
-		// steht auch keine Überschrift da -- ein Abschnitt, der nur leer sein kann, lügt.
+		aufDerKarte += garetienDetailBombeMarkup(objekt, gruppen);
+		// Der Grund kommt fertig vom Server (garetien-abgleich.php baut den Satz). Ohne Grund steht
+		// auch das Wort nicht da -- ein Abschnitt, der nur leer sein kann, luegt.
+		// 💣 KEINE eigene Ueberschrift mehr: eine `.gi-sec` zoege eine zweite Trennlinie mitten in
+		// Block A, und eine Linie gliedert in dieser Spalte BLOECKE, nicht Saetze.
 		const grund = String(objekt.grund || "").trim();
-		const warum = grund === "" ? "" : '<p class="gi-sec">Der Grund</p><p class="gi-why">'
-			+ avesmapsGaretienEscape(grund) + "</p>";
+		if (grund !== "") {
+			aufDerKarte += '<p class="gi-why"><b>Der Grund:</b> ' + avesmapsGaretienEscape(grund) + "</p>";
+		}
+		// 🔴 EIN UEBERNOMMENES OBJEKT SAGT HIER, WO ES LIEGT UND OB ES ZURUECKGEHT (Punkt 6b, Owner
+		// 30.08.2026). Der Satz stand bis zum 14.09.2026 im Kasten „Eingefügt wird"; der faellt fuer ein
+		// uebernommenes Objekt ganz weg (Bestand, Owner 14.09.2026: C bis E fehlen), und „Auf der Karte"
+		// ist genau die Frage, die er beantwortet. Fuer jeden anderen Stand liefert er "".
+		aufDerKarte += garetienEingefuegtWirdUebernommenHinweis(objekt);
 
-		// 🔴 DIE HANDLUNGSLEISTE ROLLT MIT, UEBER „Eingefuegt wird“ (Owner 09.09.2026: „was mich
-		// auch stoert ist, dass dieser teil sticky und nicht ueber ‚Eingefuegt wird‘ … steht“).
-		//
-		// 🪴 HIER STAND DAS GEGENTEIL, und die alte Begruendung war nicht falsch -- sie ist
-		// ueberholt: „.gi-acts steht als `flex: none` darunter fest. Laege sie IM Rollkasten,
-		// stuende die Entscheidung bei 13 Abschnitten hinter der Bildlaufleiste.“ Das galt, solange
-		// die Leiste NUR Knoepfe trug. Seit dem 09.09.2026 traegt sie den NAMEN und die zwei
-		// Haekchen -- sie ist keine Fussleiste mehr, sondern der Kasten, in dem man das Objekt
-		// einstellt, und der gehoert VOR die Feinheiten, nicht hinter sie.
-		// ⚠️ Damit faellt das Kleben von selbst: `.gi-win .avm-col > .gi-acts` greift nur auf ein
-		// DIREKTES Kind der Spalte, und ein Kind von `.gi-detail` ist keines mehr.
-		// ⚠️ `garetienNaeheMarkup` bleibt unten stehen -- es ist ein Werkzeug fuer die LISTE
-		// („Imports in der Naehe waehlen“), keine Einstellung dieses Objekts.
-		return '<div class="gi-detail">' + kopf + verbundBlock + mitte + warum
+		// ---- G · Weiter importieren ----------------------------------------------------------------
+		// ⚠️ Ein Werkzeug fuer die LISTE („Imports in der Nähe wählen"), keine Einstellung dieses
+		// Objekts -- deshalb darf es als einziger Block auch auf „Offen" bedienbar sein (Entwurf §3).
+		// Ein uebernommenes Objekt bekommt es nicht: dort gibt es nichts mehr weiter zu importieren.
+		// 💣 G STEHT SEIT DEM 14.09.2026 IN `.gi-detail`, nicht mehr als Geschwister darunter. Als
+		// Geschwister lag sein Kopf ausserhalb der Bildlaufrinne (`scrollbar-gutter: stable
+		// both-edges`) und damit um die Rinnenbreite weiter links als A–F -- die Buchstaben fluchteten
+		// nicht. `.gi-win .avm-col > .gi-naehe` ist dafuer entfernt (eine tote Regel liest der naechste
+		// als geltend).
+		const weiter = String(objekt.stand || "") === "uebernommen"
+			? ""
+			: garetienBlockMarkup("G", "Weiter importieren", garetienNaeheMarkup(objekt), "", false);
+
+		// 🔴 DIE REIHENFOLGE IST DIE GLIEDERUNG (Entwurf 2026-09-14 §3): was da liegt (A, B), was
+		// daraus wird (C, D, E), was jetzt passiert (F, G). D und E gibt es nur auf der Stage -- das
+		// entscheidet garetienEingefuegtWirdMarkup, nicht diese Funktion.
+		// ⚠️ Der Verbund-Block fragt `zustand.objekte`: ein Fragment ohne eigene Geometrie bleibt
+		// Mitglied und muss B trotzdem zeigen koennen.
+		return '<div class="gi-detail">' + kopf
+			+ garetienBlockMarkup("A", "Auf der Karte", aufDerKarte, notiz, true)
+			+ garetienVerbundBlockMarkup(objekt, zustand.objekte || [])
+			+ garetienEingefuegtWirdMarkup(objekt)
 			+ garetienHandlungsMarkup(objekt)
-			+ garetienEingefuegtWirdMarkup(objekt) + "</div>"
-			+ garetienNaeheMarkup(objekt);
+			+ weiter
+			+ "</div>";
 	}
 
 	// ---- Aufgabe 15: die vier Handlungen ----------------------------------------------------------
@@ -7596,7 +7696,10 @@
 			+ garetienInnerortsZeileMarkup(o, false);
 	}
 
-	// REIN: das Namensfeld unter der Zielwahl -- oder "", wenn es gar nichts anzulegen gibt.
+	// REIN: das Namensfeld unter der Zielwahl in Block C -- oder "", wenn es gar nichts anzulegen gibt.
+	// 🔴 SEIN EINZIGER AUFRUFER IST garetienIdentitaetMarkup (seit Aufgabe 11, 14.09.2026; davor die
+	// Handlungsleiste). Er bleibt eine eigene Funktion, weil hier die Regel steht, welches Ziel einen
+	// Namen braucht -- in Block C nachgeschrieben, stuende sie zweimal.
 	// ⚠️ ABGEBLENDET, NICHT AUSGEBLENDET, wenn das gewählte Ziel keinen Namen braucht (eine Ergänzung,
 	// „Nur Quelle + Artikel", „Nichts"): so springt die Spalte beim Umschalten nicht (Mockup §5, Natter).
 	function garetienZielNameZeile(objekt) {
@@ -7910,18 +8013,18 @@
 		// 💣 DIE LEISTE SAGT, FUER WEN SIE GILT (Owner-Meldung 07.09.2026: „ablehnen geht generell
 		// nicht"). Sie gehoert dem Objekt der EINZELANSICHT, und ein Klick auf ein HAEKCHEN wechselt
 		// die nicht -- der Owner hakte „Gramfeldermoor" an, rechts stand „Briskenmoor", und
-		// abgelehnt wurde Briskenmoor. Der Knopf tat etwas, nur am falschen Objekt.
-		// ⭐ Die Unterscheidung wird STRUKTURELL getroffen (dieses Objekt ↔ die Auswahl darunter),
-		// nicht durch den Namen jedes einzelnen Knopfs: „Ablehnen von „Gramfeldermoor"" waere in
-		// jeder Zeile laenger und in keiner klarer. Dieselbe Form wie „DER GRUND" und „WAS BEI UNS
-		// AN DERSELBEN STELLE LIEGT" darueber -- eine Zeile im Vokabular, das dort ohnehin steht.
-		return '<div class="gi-acts"><p class="gi-sec gi-acts__titel">Dieses Objekt</p>'
-			// 🔴 ZWEI ZEILEN, UND DIE ZIELWAHL STEHT OBEN (Owner 09.09.2026: „Von der Stage nehmen +
-			// Ablehnen soll in eine 2. Zeile unter die checkboxen" -- die Häkchen sind seit dem 14.09.2026
-			// die Zielwahl). Die Knoepfe bekommen dafuer eine eigene Huelle -- ohne sie stuenden sie als
-			// Geschwister der Optionen da, und der Flex-Umbruch der Leiste zoege sie daneben.
-			+ garetienZielwahlMarkup(objekt) + garetienZielNameZeile(objekt)
-			+ '<div class="gi-acts__knoepfe">' + knopfMarkup + "</div>" + grundZeile + "</div>";
+		// abgelehnt wurde Briskenmoor. Die Unterscheidung wird STRUKTURELL getroffen (dieses Objekt ↔
+		// die Auswahlleiste links ↔ die Stage im Fuss), nicht durch den Namen jedes einzelnen Knopfs.
+		// 🔴 SEIT DEM 14.09.2026 IST SIE BLOCK F „Handlung" (Entwurf §3; hiess „Dieses Objekt", im
+		// Verbund-Entwurf „Einfügen"). Zielwahl und Namensfeld, die Aufgabe 9 hier ueber die Knoepfe
+		// gesetzt hatte, stehen seither in Block C (garetienIdentitaetMarkup): F traegt nur noch, was
+		// JETZT passiert. 💣 Hier ein zweites Mal gezeichnet, trueged zwei Felder dieselbe id.
+		// 💣 `gi-acts` SITZT AM BLOCK SELBST: die Flexreihe (Titel, Knoepfe, Grund je auf eigener
+		// Zeile) haengt an ihr. `.gi-block.gi-acts` nimmt ein Eigenpolster zurueck, das `.gi-acts`
+		// tragen kann (im Mockup `--avm-ribbon-pad`) -- sonst rueckte der Buchstabe F ein.
+		return garetienBlockMarkup("F", "Handlung",
+			'<div class="gi-acts__knoepfe">' + knopfMarkup + "</div>" + grundZeile, "", false,
+			{ blockKlasse: "gi-acts", kopfKlasse: "gi-acts__titel" });
 	}
 
 	// ---- Die Auswahl: die ZEILE öffnet die Ansicht, das HÄKCHEN nicht ------------------------------
@@ -8260,8 +8363,9 @@
 	}
 
 	/*
-	 * Aufgabe 8: DER KLICK-VERTEILER DES VERBUND-KNOPFS -- „Verbund auf die Stage" /
-	 * „Verbund auflösen".
+	 * Aufgabe 8: DER KLICK-VERTEILER DES VERBUND-KNOPFS -- „Zusammenlegen (n)" /
+	 * „Verbund auflösen (n)", seit Aufgabe 7 in Block B „Verbund" der Einzelansicht
+	 * (garetienVerbundBlockMarkup, seit Aufgabe 11 unter dem Blockkopf B).
 	 *
 	 * 🔴 EIGENE TÜR, wie „stage"/„entstagen" daneben: der Knopf ist eine reine CLIENT-Handlung
 	 * (Zusammenlegen/Aufloesen des Merkers -- garetienVerbundZusammenlegen/-Aufloesen schreiben
@@ -10485,6 +10589,12 @@
 			garetienListeFehlerZeigen,
 			// Aufgabe 13
 			garetienDetailMarkup,
+			// Aufgabe 11 (14.09.2026): die Bloecke der Einzelansicht
+			garetienBlockMarkup,
+			garetienZeilenAbblenden,
+			garetienIdentitaetMarkup,
+			garetienDarstellungMarkup,
+			garetienWikiQuellenMarkup,
 			// Aufgabe 13b
 			garetienTypText,
 			// Fuenf-Punkte-Brief 30.08.2026, Punkt 3: unsere Bezeichnung aufloesen

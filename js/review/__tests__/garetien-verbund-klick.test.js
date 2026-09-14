@@ -176,13 +176,15 @@ async function mitObjekten(objekte, tun) {
 	await mitObjekten([e1, e2], function () {
 		api.avesmapsGaretienStageHinzufuegen([e1, e2]);
 		const spalte = api.garetienDetailMarkup(e1, null, false);
-		wahr(spalte.indexOf('<p class="gi-sec">Verbund') > -1,
+		wahr(spalte.indexOf('<span class="gi-block__zahl">B</span>Verbund') > -1,
 			"der Verbund-Block steht in der echten Detailspalte: " + spalte.slice(0, 400));
 		wahr(spalte.indexOf('data-handlung="verbund"') > -1, "und der Knopf „Zusammenlegen“ darin");
-		const iVerbund = spalte.indexOf('<p class="gi-sec">Verbund');
-		const iWasBeiUns = spalte.indexOf("Was bei uns an derselben Stelle liegt");
-		wahr(iVerbund > -1 && iWasBeiUns > -1 && iVerbund < iWasBeiUns,
-			"der Verbund-Block steht VOR „Was bei uns an derselben Stelle liegt“");
+		// 🔴 SEIT DEM 14.09.2026 steht der Verbund als Block B HINTER Block A „Auf der Karte"
+		// (Bauplan 2026-09-14, Aufgabe 11): erst, was da liegt, dann, woraus es besteht.
+		const iVerbund = spalte.indexOf('<span class="gi-block__zahl">B</span>Verbund');
+		const iAufDerKarte = spalte.indexOf('<span class="gi-block__zahl">A</span>Auf der Karte');
+		wahr(iVerbund > -1 && iAufDerKarte > -1 && iAufDerKarte < iVerbund,
+			"der Verbund-Block steht HINTER Block A");
 	});
 	zuruecksetzen();
 
@@ -190,7 +192,7 @@ async function mitObjekten(objekte, tun) {
 		abschnitte: [], items: [] };
 	await mitObjekten([solo], function () {
 		const spalte = api.garetienDetailMarkup(solo, null, false);
-		wahr(spalte.indexOf('<p class="gi-sec">Verbund') === -1, "ohne Verbund erscheint kein Verbund-Block");
+		wahr(spalte.indexOf('<span class="gi-block__zahl">B</span>') === -1, "ohne Verbund erscheint kein Verbund-Block");
 	});
 	zuruecksetzen();
 
