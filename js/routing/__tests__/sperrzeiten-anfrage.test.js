@@ -12,12 +12,15 @@ const path = require("path");
 const vm = require("vm");
 
 // ---- Raender -----------------------------------------------------------------------------------------
+// Die Meldungen des Planers (seit 14.09.2026 ein Toast statt alert(), js/map-features/map-features.js).
+// Der Name `alerts` bleibt: gezaehlt wird dieselbe Meldung, nur ihr Bauteil hat gewechselt.
 const alerts = [];
 const refusals = [];
 let overviewText = null;
 let closuresBeimZeichnen = null;
 global.window = { location: { search: "" }, setTimeout: () => 0 };
-global.alert = (message) => alerts.push(String(message));
+global.showRouteNotice = (message) => alerts.push(String(message));
+global.alert = (message) => { throw new Error("natives alert() im Routenplaner: " + message); };
 global.tr = (key, fallback, vars) => String(fallback).replace(/\{(\w+)\}/g, (_, name) => (vars && vars[name] !== undefined ? vars[name] : ""));
 global.$ = (selector) => ({
 	is: () => false,

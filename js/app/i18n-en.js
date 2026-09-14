@@ -1317,9 +1317,6 @@ window.AVESMAPS_I18N_EN = {
 	"linkStatus.unknownWord": "status unknown",
 
 	// --- routing alerts ---
-	"routing.alert.unknownRequest": "unknown request",
-	"routing.alert.requestFailedGeneric": "XMLHttpRequest failed",
-	"routing.alert.requestFailed": "Error during request {url}: {error}",
 	"routing.alert.noRouteFound": "No route found between {start} and {end}.",
 	"routing.alert.serverRouteDisplayFailed": "The server route between {start} and {end} could not be displayed.",
 	"routing.alert.locationsNotFound": "Locations not found: {list}",

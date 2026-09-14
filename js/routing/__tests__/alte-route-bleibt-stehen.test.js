@@ -62,7 +62,9 @@ global.L = { layerGroup: () => new Gruppe(), polyline: (koordinaten, optionen) =
 const alerts = [];
 let overviewText = null;
 global.window = { location: { search: "" }, setTimeout: () => 0 };
-global.alert = (message) => alerts.push(String(message));
+// Die Meldungen des Planers kommen seit 14.09.2026 als Toast (showRouteNotice, map-features.js).
+global.showRouteNotice = (message) => alerts.push(String(message));
+global.alert = (message) => { throw new Error("natives alert() im Routenplaner: " + message); };
 global.tr = (key, fallback, vars) => String(fallback).replace(/\{(\w+)\}/g, (_, name) => (vars && vars[name] !== undefined ? vars[name] : ""));
 global.$ = (selector) => ({
 	is: () => false,

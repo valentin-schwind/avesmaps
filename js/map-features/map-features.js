@@ -335,7 +335,11 @@ function getFeedbackToastElement() {
 	return document.getElementById("copy-feedback-toast");
 }
 
-function showFeedbackToast(message, type = "info") {
+// Wie lange ein Toast steht. Die Vorgabe traegt rund 400 Aufrufe; laenger stehen nur Meldungen, die man
+// LESEN muss, bevor sie weg sind (showRouteNotice).
+const FEEDBACK_TOAST_DEFAULT_MS = 2200;
+
+function showFeedbackToast(message, type = "info", durationMs = FEEDBACK_TOAST_DEFAULT_MS) {
 	const toastElement = getFeedbackToastElement();
 	if (!toastElement) {
 		return;
@@ -355,7 +359,37 @@ function showFeedbackToast(message, type = "info") {
 		toastElement.classList.remove("is-visible");
 		toastElement.hidden = true;
 		feedbackToastTimeoutId = null;
-	}, 2200);
+	}, durationMs);
+}
+
+// Die Meldungen des Routenplaners -- „Keine Route gefunden", „Orte nicht gefunden: …", die Absage eines
+// Kartenpunkts. Bis zum 14.09.2026 kamen sie als natives alert(): ein Browserdialog, der die Seite
+// anhielt und nicht zur Designsprache gehoert (Paket 4 der Performance-Analyse). Jetzt der Toast des
+// Hauses, Tonfall „warning" wie die uebrigen Nicht-gefunden-Meldungen im Routing.
+// 🔴 5 s statt 2,2 s (Owner 14.09.2026): „Orte nicht gefunden: …" ist sonst weg, bevor man es gelesen
+// hat -- der alert() blieb stehen, bis man ihn wegklickte.
+// 💣 ZWEI Meldungen derselben Berechnung reihen sich, statt sich zu ersetzen: erst „Orte nicht gefunden",
+// dann „Keine Route" -- ein alert() zeigte beide nacheinander, ein Toast zeigte nur die zweite, und die
+// erste waere lautlos verloren. Angehaengt wird nur an die EIGENE, noch sichtbare Meldung, nie an einen
+// fremden Toast, der sie inzwischen ersetzt hat.
+const ROUTE_NOTICE_TOAST_MS = 5000;
+let routeNoticeText = "";
+
+function showRouteNotice(message) {
+	const text = String(message || "").trim();
+	if (!text) {
+		return;
+	}
+	const toastElement = getFeedbackToastElement();
+	const eigeneStehtNoch = Boolean(toastElement && !toastElement.hidden && routeNoticeText
+		&& toastElement.textContent === routeNoticeText);
+	if (!eigeneStehtNoch) {
+		routeNoticeText = text;
+	} else if (!routeNoticeText.split(" · ").includes(text)) {
+		routeNoticeText = `${routeNoticeText} · ${text}`;
+	}
+	// (Steht dieselbe Meldung schon da, bleibt der Text, wie er ist -- nur die Uhr beginnt neu.)
+	showFeedbackToast(routeNoticeText, "warning", ROUTE_NOTICE_TOAST_MS);
 }
 
 // Normalisiert den Knotennamen

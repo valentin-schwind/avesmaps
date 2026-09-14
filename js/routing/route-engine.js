@@ -493,7 +493,7 @@ async function buildRouteResultFromSelectedLocationsServer(useShortest) {
 			if (blocked) {
 				return { refusal: { start, end, report: blocked } };
 			}
-			alert(tr("routing.alert.noRouteFound", "Keine Route zwischen {start} und {end} gefunden.", { start, end }));
+			showRouteNotice(tr("routing.alert.noRouteFound", "Keine Route zwischen {start} und {end} gefunden.", { start, end }));
 			return null;
 		}
 
@@ -504,7 +504,7 @@ async function buildRouteResultFromSelectedLocationsServer(useShortest) {
 				routeNodeNames: serverDisplayRoute.routeNodeNames,
 				segments: serverDisplayRoute.segments,
 			});
-			alert(tr("routing.alert.serverRouteDisplayFailed", "Die Serverroute zwischen {start} und {end} konnte nicht angezeigt werden.", { start, end }));
+			showRouteNotice(tr("routing.alert.serverRouteDisplayFailed", "Die Serverroute zwischen {start} und {end} konnte nicht angezeigt werden.", { start, end }));
 			return null;
 		}
 
@@ -546,7 +546,7 @@ function buildRouteResultFromSelectedLocations(useShortest) {
 			});
 			segments = [...segments, ...getRouteSegments(route)];
 		} else {
-			alert(tr("routing.alert.noRouteFound", "Keine Route zwischen {start} und {end} gefunden.", { start, end }));
+			showRouteNotice(tr("routing.alert.noRouteFound", "Keine Route zwischen {start} und {end} gefunden.", { start, end }));
 			return null;
 		}
 	}
@@ -598,7 +598,7 @@ async function computeAndDrawServerPrimaryRoute(requestId, useShortest, routeOpt
 	if (selectedLocations.length < 2) {
 		focusMapOnActiveTargets();
 	}
-	if (invalidLocationInputs.length) alert(tr("routing.alert.locationsNotFound", "Orte nicht gefunden: {list}", { list: invalidLocationInputs.join(", ") }));
+	if (invalidLocationInputs.length) showRouteNotice(tr("routing.alert.locationsNotFound", "Orte nicht gefunden: {list}", { list: invalidLocationInputs.join(", ") }));
 
 	if (selectedLocations.length >= 2) {
 		$("#overview").text(tr("planner.overview.calculating", "Route wird berechnet..."));
@@ -623,7 +623,7 @@ async function computeAndDrawServerPrimaryRoute(requestId, useShortest, routeOpt
 			} else {
 				console.error("Serverroute konnte nicht berechnet werden:", error);
 			}
-			alert(isMapPointRefusal
+			showRouteNotice(isMapPointRefusal
 				? travelHereErrorMessage(error.code)
 				: (error.message || tr("routing.alert.serverRouteComputeFailed", "Serverroute konnte nicht berechnet werden.")));
 			resetOverview();
@@ -675,7 +675,7 @@ async function computeAndDrawServerPrimaryRoute(requestId, useShortest, routeOpt
 		} else {
 			currentRouteClosures = [];
 			currentRouteSeasonalWays = [];
-			alert(tr("routing.alert.noValidServerSegments", "Keine gültigen Server-Routensegmente gefunden."));
+			showRouteNotice(tr("routing.alert.noValidServerSegments", "Keine gültigen Server-Routensegmente gefunden."));
 			resetOverview();
 		}
 	}
@@ -697,7 +697,7 @@ function updateMapViewClientLegacy(useShortest, requestId) {
 	if (selectedLocations.length < 2) {
 		focusMapOnActiveTargets();
 	}
-	if (invalidLocationInputs.length) alert(tr("routing.alert.locationsNotFound", "Orte nicht gefunden: {list}", { list: invalidLocationInputs.join(", ") }));
+	if (invalidLocationInputs.length) showRouteNotice(tr("routing.alert.locationsNotFound", "Orte nicht gefunden: {list}", { list: invalidLocationInputs.join(", ") }));
 
 	if (selectedLocations.length >= 2) {
 		const routeResult = buildRouteResultFromSelectedLocations(useShortest);
@@ -726,7 +726,7 @@ function updateMapViewClientLegacy(useShortest, requestId) {
 				if (legacyRouteOptions.riverOption) { trackVisitorEvent("transport", String(legacyRouteOptions.riverOption)); }
 			}
 		} else {
-			alert(tr("routing.alert.noValidSegments", "Keine gültigen Routensegmente gefunden."));
+			showRouteNotice(tr("routing.alert.noValidSegments", "Keine gültigen Routensegmente gefunden."));
 		}
 	}
 }

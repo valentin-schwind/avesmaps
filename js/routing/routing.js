@@ -670,11 +670,6 @@ $("#search").on("change", "#travelHoursPerDay", function () {
 	// Erst JETZT neu rechnen -- mit dem geclampten Wert (die Reisestunden bestimmen die Etappen/Reisetage).
 	recomputeRouteAfterOptionChange();
 });
-$(document).ajaxError((event, jqXHR, settings, thrownError) => {
-	const requestUrl = settings?.url || tr("routing.alert.unknownRequest", "unbekannte Anfrage");
-	const requestError = thrownError || jqXHR?.statusText || tr("routing.alert.requestFailedGeneric", "XMLHttpRequest fehlgeschlagen");
-	alert(tr("routing.alert.requestFailed", "Fehler bei der Anfrage {url}: {error}", { url: requestUrl, error: requestError }));
-});
 
 $(document).on("click", (event) => {
 	const clickedElement = event.target instanceof Element ? event.target : null;
@@ -1687,7 +1682,7 @@ function updateMapView() {
 	console.log("Ungültige Eingaben:", invalidLocationInputs);
 
 	focusMapOnActiveTargets();
-	if (invalidLocationInputs.length) alert(tr("routing.alert.locationsNotFound", "Orte nicht gefunden: {list}", { list: invalidLocationInputs.join(", ") }));
+	if (invalidLocationInputs.length) showRouteNotice(tr("routing.alert.locationsNotFound", "Orte nicht gefunden: {list}", { list: invalidLocationInputs.join(", ") }));
 
 	if (selectedLocations.length >= 2) {
 		const routeResult = buildRouteResultFromSelectedLocations(useShortest);
@@ -1702,7 +1697,7 @@ function updateMapView() {
 			drawRoute(segments);
 			showRoutePlan(routeNodeNames, segments);
 		} else {
-			alert(tr("routing.alert.noValidSegments", "Keine gültigen Routensegmente gefunden."));
+			showRouteNotice(tr("routing.alert.noValidSegments", "Keine gültigen Routensegmente gefunden."));
 		}
 	}
 }
