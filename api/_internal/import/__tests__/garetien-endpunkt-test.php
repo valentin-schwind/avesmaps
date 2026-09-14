@@ -275,7 +275,10 @@ $gesendet = [];
 $pos = 0;
 $rumpfe = 0;
 while (($von = strpos($browser, 'action: "liste"', $pos)) !== false) {
-    $stueck = substr($browser, $von, 600);
+    // 🔴 900 STATT 600 (Aufgabe 5, 14.09.2026): mit `nur_verbuende` im Literal lag `rumpf.anzahl`
+    // 3 Bytes hinter dem alten Fenster -- der Waechter meldete „der Deckel reist nicht mit", obwohl
+    // er reiste. Das Fenster ist eine Messgrenze, keine Aussage ueber den Rumpf.
+    $stueck = substr($browser, $von, 900);
     // Bis zum Ende des Objektliterals: entweder `};` (die Variante mit Variablen) oder `})`
     // (die Variante, die direkt in den Aufruf geschrieben ist).
     $enden = array_filter([strpos($stueck, '};'), strpos($stueck, '})')], 'is_int');

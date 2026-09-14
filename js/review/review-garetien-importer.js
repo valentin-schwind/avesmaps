@@ -1694,20 +1694,13 @@
 			// ihr eigenes Markup -- niemand hat ihn GEPARST und die Kinder gezaehlt. Genau dafuer gibt
 			// es jetzt die Zusicherung in garetien-liste-zeile.test.js.
 			+ "</div>"   // .gi-searchrow
-			// RULING R7 (Fix-Runde 1): auf dem Reiter „Anzeigen" wirken Suche und Filtertrichter
-			// NICHT (Entwurf §3.1) -- das muss ERKENNBAR sein, nicht nur wahr. Steht standardmaessig
-			// `hidden`; garetienStageFilterSperreSetzen() schaltet Text UND die `disabled`-Sperre
-			// von Suchfeld/Filterknopf gemeinsam (siehe dort).
-			// 🔴 DER SATZ BESCHREIBT HEUTE, NICHT DEN ENTWURF (Fixrunde 2, C1). Bis dahin stand hier
-			// „— gefiltert wird nach Name und Typ." und damit das GEGENTEIL der drei Zeilen darueber:
-			// garetienStageFilterSperreSetzen() sperrt Suchfeld und Filterknopf auf genau diesem
-			// Reiter, der Editor las also ein Versprechen und sah daneben zwei ausgegraute
-			// Bedienelemente. Der Entwurf (§3.1) will dieses Filtern wirklich -- gebaut hat es keine
-			// Aufgabe dieses Plans; es kommt als eigene Aufgabe nach. Bis dahin sagt der Satz, was
-			// stimmt: ein Hinweis, der mehr verspricht als die Oberflaeche kann, ist schlimmer als
-			// keiner.
+			// 🔴 Aufgabe 5 (Entwurf 2026-09-14 §7): der Hinweis der Stage OHNE den Satz „Suche und
+			// Filter wirken hier nicht". Er stand da, solange RULING R7 Suchfeld und Filterknopf auf
+			// diesem Reiter sperrte -- mit der Sperre faellt der Satz, sonst behauptete er das
+			// Gegenteil dessen, was die Liste darunter tut (garetienStageFilterAnwenden).
+			// ⚠️ Startet `hidden`; garetienStageHinweisSetzen() blendet ihn auf dem Reiter „Stage" ein.
 			+ '<p class="gi-anzeigehinweis" id="garetien-anzeige-hinweis" hidden>Was hier steht, liegt auf '
-			+ 'der Karte und wird mit „Stage importieren" angelegt — Suche und Filter wirken hier nicht.</p>'
+			+ 'der Karte und wird mit „Stage importieren" angelegt.</p>'
 			// 🔴 Die zwei Stage-Knoepfe („Auf die Stage", „Stage leeren") stehen seit
 			// 29.08.2026 NICHT mehr hier -- Owner-Meldung: sie gehoeren in die Fusszeile, links von
 			// „Stage importieren". Sie stehen jetzt STATISCH in index.html (.gi-foot, vor
@@ -1872,32 +1865,19 @@
 		// wird beim BOOT verdrahtet, nicht bei jedem Aufbau dieser Spalte).
 	}
 
-	// RULING R7 (Fix-Runde 1): auf dem Reiter „Anzeigen" wirken Suche und Filtertrichter nicht
-	// (Entwurf §3.1) -- das muss ERKENNBAR sein. Gesperrt werden Suchfeld UND Filterknopf per
-	// `disabled` (nicht nur ein `title`: ein deaktiviertes Element bekommt in Chrome keine
-	// Zeigerereignisse und zeigt seinen `title` nie -- dasselbe Mittel wie beim gesperrten
-	// Fussknopf), der Grund steht SICHTBAR daneben (`.gi-anzeigehinweis`).
+	// 🔴 Aufgabe 5 (Entwurf 2026-09-14 §7, Widerspruch 7): HIER STAND BIS ZUM 14.09.2026
+	// `garetienStageFilterSperreSetzen` -- sie sperrte Suchfeld und Filterknopf auf dem Reiter
+	// „Stage" (RULING R7). Der Owner-Entscheid hat das umgedreht: Suche und Filter WIRKEN auf der
+	// Stage (garetienStageFilterAnwenden). Geblieben ist nur der Hinweis.
 	// ⚠️ Aufgerufen bei JEDEM Render, nicht nur beim Reiterwechsel: beide Renderwege (der echte
 	// Serverabruf UND der „Stage"-Zweig aus avesmapsGaretienListeHolen, RULING R5) muenden in
 	// avesmapsGaretienListeRendern -- eine Regel, die nur einen von beiden bindet, ist keine Regel.
-	// Damit ist auch der Rueckweg gesichert: ein Reiterwechsel ZURUECK auf einen Server-Reiter
-	// rendert erneut und gibt beide Elemente sicher wieder frei.
-	function garetienStageFilterSperreSetzen() {
+	// 💣 KEIN `disabled` MEHR, AUCH KEIN ZURUECKSETZEN: niemand setzt es noch. Ein `= false` hier
+	// waere ein zweiter Erzeuger fuer einen Zustand, den es nicht mehr gibt.
+	function garetienStageHinweisSetzen() {
 		if (!hasDocument) { return; }
-		const gesperrt = zustand.stand === "stage";
-		const sucheEl = document.getElementById("garetien-search");
-		if (sucheEl) { sucheEl.disabled = gesperrt; }
-		const filterToggleEl = document.getElementById("garetien-filter-toggle");
-		if (filterToggleEl) { filterToggleEl.disabled = gesperrt; }
-		// Der Zustand des Trichter-Panels ist ausschliesslich sein `hidden` (kein zweiter
-		// Modulzustand daneben, s.o. bei Aufgabe 12) -- ein zufaellig offenes Panel schliesst also
-		// mit, sobald gesperrt wird.
-		if (gesperrt) {
-			const filterMenuEl = document.getElementById("garetien-filter-menu");
-			if (filterMenuEl) { filterMenuEl.hidden = true; }
-		}
 		const hinweisEl = document.getElementById("garetien-anzeige-hinweis");
-		if (hinweisEl) { hinweisEl.hidden = !gesperrt; }
+		if (hinweisEl) { hinweisEl.hidden = zustand.stand !== "stage"; }
 	}
 
 	function garetienListeSkelettSicherstellen() {
@@ -2043,9 +2023,9 @@
 		const tabsEl = document.getElementById("garetien-tabs");
 		if (tabsEl) { tabsEl.innerHTML = avesmapsGaretienTabsMarkup(a.reiter, zustand.stand); }
 
-		// RULING R7: Suche/Filtertrichter sperren + sichtbar begruenden, wenn der Reiter
-		// „Anzeigen" aktiv ist -- und bei jedem anderen Reiter wieder freigeben.
-		garetienStageFilterSperreSetzen();
+		// Aufgabe 5 (2026-09-14): nur noch der Hinweis der Stage -- die Sperre von Suche und
+		// Filtertrichter ist gefallen, beide wirken auf jedem Reiter.
+		garetienStageHinweisSetzen();
 
 		const listeEl = document.getElementById("garetien-list");
 		if (listeEl) {
@@ -2075,7 +2055,7 @@
 						: o;
 					return garetienZeileMarkup(zeileObjekt, alleGewaehlt);
 				}).join("")
-				: '<p class="avm-empty">Keine Objekte in dieser Ansicht.</p>';
+				: '<p class="avm-empty">' + avesmapsGaretienEscape(garetienLeereListeText(zustand.filter, a)) + "</p>";
 			// Dreiwertig ist eine EIGENSCHAFT, kein Attribut -- erst jetzt, nach dem Einfuegen ins
 			// DOM, per el.indeterminate = true einloesen (der Marker data-part kam aus dem Markup).
 			Array.prototype.forEach.call(listeEl.querySelectorAll("input[data-part]"), function (feld) {
@@ -2349,33 +2329,87 @@
 		});
 	}
 
-	// 🔴 RULING R5 (Aufgabe 2, Luecke im Plan): der Reiter „Anzeigen" ist die CLIENT-Menge und wird
+	/*
+	 * REIN: Suche und Filter auf die Objekte der STAGE anwenden (Aufgabe 5, Entwurf 2026-09-14 §7).
+	 *
+	 * 💣 DIESELBE SEMANTIK WIE DER SERVER (avesmapsGaretienListeObjektPasstFilter, garetien-liste.php):
+	 * eine LEERE Liste heisst „kein Filter", die Suche ist ein getrimmter Teiltreffer im Namen,
+	 * Gross/klein egal. Die Stage-Antwort entsteht im Browser und fragt den Server nie
+	 * (RULING R5) -- ohne diese Regel waeren Suchfeld und Trichter bedienbar und wirkungslos.
+	 * 🔴 ALLE Abschnitte des Trichters wirken, nicht nur Suche und Objekttyp: ein sichtbarer Chip
+	 * „Urteil: neu", der auf der Stage nichts tut, waere derselbe Fehler wie die gefallene Sperre.
+	 * ⚠️ `nurVerbuende` heisst hier camelCase (so steht es in `zustand.filter`); am Server-Rumpf
+	 * reist es als `nur_verbuende: 1` (avesmapsGaretienListeHolen).
+	 * ⚠️ Gefiltert wird die LISTE, nie die Stage selbst und nie die Karte: Karte, Fussknopf und
+	 * „Alle zentrieren" lesen weiter avesmapsGaretienStageListe() -- importiert wird die ganze Stage.
+	 */
+	function garetienStageFilterAnwenden(objekte, filter) {
+		const f = filter || {};
+		const suche = String(f.suche || "").trim().toLowerCase();
+		const listenfelder = ["ebene", "typ", "urteil", "wiki"];
+		return (objekte || []).filter(function (o) {
+			if (!o) { return false; }
+			for (let i = 0; i < listenfelder.length; i++) {
+				const erlaubt = Array.isArray(f[listenfelder[i]]) ? f[listenfelder[i]].map(String) : [];
+				if (erlaubt.length > 0 && erlaubt.indexOf(String(o[listenfelder[i]] || "")) === -1) {
+					return false;
+				}
+			}
+			if (f.nur_mehrteilig === true && (o.abschnitte || []).length <= 1) { return false; }
+			if (f.nurVerbuende === true && !(Number(o.verbund_n || 0) >= 2)) { return false; }
+			if (suche !== "" && String(o.name || "").toLowerCase().indexOf(suche) === -1) { return false; }
+			return true;
+		});
+	}
+
+	/*
+	 * REIN: der Satz einer LEEREN Liste (Aufgabe 5, 14.09.2026, Owner-Nachtrag zum Bestand).
+	 *
+	 * 💣 „NUR VERBÜNDE" AUF EINEM ALTEN LAUF IST IMMER LEER, UND DAS IST KEIN FEHLER. Jeder Lauf,
+	 * der vor der Verbund-Erkennung gerechnet wurde, traegt in `after_json` weder `verbund_stamm`
+	 * noch `verbund_n` -- es gibt keine Migration (Vertrag, „Der Bestand"). Ohne diesen Satz stuende
+	 * dort „Keine Objekte in dieser Ansicht." und der Editor hielte den Filter fuer kaputt.
+	 * 🔴 DIE ZAHL KOMMT VOM SERVER (`verbund_objekte`, vor dem Filtern ueber den ganzen Lauf gezaehlt,
+	 * garetien-liste.php) -- im Browser liegt nur die gefilterte Seite, und aus der liesse sich
+	 * „der Lauf kennt keine" nicht von „die Filter blenden sie aus" unterscheiden.
+	 * ⚠️ Fehlt das Feld (eine Antwort von vor diesem Umbau), gilt 0 -- dieselbe Aussage wie ein alter Lauf.
+	 */
+	function garetienLeereListeText(filter, antwort) {
+		if (!(filter && filter.nurVerbuende === true)) { return "Keine Objekte in dieser Ansicht."; }
+		if (Number((antwort && antwort.verbund_objekte) || 0) === 0) {
+			return "In diesem Lauf ist kein Verbund erkannt. Verbünde erkennt „Holen & Rechnen“ — "
+				+ "ein Lauf, der vor dieser Erkennung gerechnet wurde, trägt noch keine.";
+		}
+		return "Kein Verbund in dieser Ansicht — ein anderer Filter oder der Reiter blendet sie aus.";
+	}
+
+	// 🔴 RULING R5 (Aufgabe 2, Luecke im Plan): der Reiter „Stage" ist die CLIENT-Menge und wird
 	// NIE beim Server erfragt -- `stand: "stage"` steht nicht in AVESMAPS_GARETIEN_SERVER_STAENDE,
 	// ein `stand: "stage"` im Rumpf waere ein Filter auf einen Wert, den
 	// `avesmapsGaretienListeObjektStand` nie liefert, und die Liste bliebe fuer immer leer.
-	// Diese reine Funktion baut die "Antwort" aus der Stage nach, damit
-	// avesmapsGaretienListeRendern denselben Weg nimmt wie nach einem echten Abruf -- kein
-	// zweiter Rendercode fuer einen vierten Reiter.
-	// 🔴 „Anzeigen" FILTERT NICHT (Entwurf §3.1): Suche und Filtertrichter wirken nur auf die drei
-	// Server-Reiter, sonst laeuft die Liste der Karte auseinander -- deshalb liest diese Funktion
-	// weder `zustand.filter` noch sonst einen Server-Wert.
-	// ⚠️ Die uebrigen drei Reiterzahlen (offen/abgelehnt/uebernommen) und die Bilanz des LAUFS
-	// kommen unveraendert aus der letzten echten Serverantwort -- „Anzeigen" hat davon keine
-	// eigene Fassung, sie ist die einzige Zahl, die hier ueberschrieben wird.
+	// Diese Funktion baut die "Antwort" aus der Stage nach, damit avesmapsGaretienListeRendern
+	// denselben Weg nimmt wie nach einem echten Abruf -- kein zweiter Rendercode fuer einen vierten Reiter.
+	// 🔴 SEIT AUFGABE 5 (14.09.2026) FILTERT SIE: Suche und Trichter wirken auch hier
+	// (garetienStageFilterAnwenden). Hier stand bis dahin „die Stage filtert nicht, sonst laeuft die
+	// Liste der Karte auseinander" -- die Karte liest weiterhin die GANZE Stage, nur die Liste folgt dem Filter.
+	// ⚠️ `reiter.stage` bleibt die Groesse der ganzen Stage -- die Reiterzahl nennt, was dort liegt,
+	// nicht, was der Filter gerade zeigt (avesmapsGaretienTabsMarkup liest ohnehin `zustand.stage.size`).
+	// ⚠️ Die uebrigen drei Reiterzahlen und die Bilanz des LAUFS kommen unveraendert aus der letzten
+	// echten Serverantwort.
 	function garetienStageAntwortBauen(letzteAntwort) {
-		const objekte = avesmapsGaretienStageListe();
+		const stage = avesmapsGaretienStageListe();
+		const objekte = garetienStageFilterAnwenden(stage, zustand.filter);
 		const vorher = letzteAntwort || {};
 		return {
 			objekte: objekte,
 			gesamt: objekte.length,
 			bilanz: vorher.bilanz || {},
-			// `stage` hier auf die eigene Groesse gesetzt -- die Stage filtert nicht, es gibt
-			// also kein "von M" zu nennen. ⚠️ Die Bilanzzeile, die diesen Unterschied einst zeigte
-			// (avesmapsGaretienBalanceZeileText), ist seit Punkt 1 des Fuenf-Punkte-Briefs
-			// 30.08.2026 entfernt; das Feld selbst bleibt Teil der "Antwort"-Form dieser Funktion.
-			reiter: Object.assign({}, vorher.reiter || {}, { stage: objekte.length }),
+			reiter: Object.assign({}, vorher.reiter || {}, { stage: stage.length }),
 			facetten: vorher.facetten || {},
 			angehakt: vorher.angehakt || {},
+			// Die Zahl des LAUFS, nicht der Stage -- sie beantwortet „kennt dieser Lauf Verbünde?"
+			// (garetienLeereListeText).
+			verbund_objekte: vorher.verbund_objekte,
 		};
 	}
 
@@ -2399,6 +2433,13 @@
 			return Promise.resolve(antwort);
 		}
 
+		// 🔴 Aufgabe 5 (2026-09-14): `nur_verbuende` reist als ZAHL (1/0); der Endpunkt wandelt
+		// ausdruecklich um (garetien-import.php).
+		// 💣 KEIN KOMMENTAR IM LITERAL DARUNTER, UND DER AUFRUFNAME NIE WOERTLICH IN DIESEM KOMMENTAR:
+		// garetien-endpunkt-test.php sucht die Listen-Rumpfe am woertlichen Aktionsnamen und liest ab
+		// dort ein festes Bytefenster -- Literal UND die dahinter angehaengten Felder (`anzahl`). Ein
+		// Kommentar im Literal schob `anzahl` aus dem Fenster, ein woertlicher Aktionsname hier
+		// zaehlte als dritter Rumpf. Beides am 14.09.2026 so gemessen.
 		const rumpf = {
 			action: "liste",
 			run_id: zustand.importRunId,
@@ -2408,6 +2449,7 @@
 			wiki: filter.wiki || [],
 			suche: filter.suche || "",
 			nur_mehrteilig: filter.nur_mehrteilig === true,
+			nur_verbuende: filter.nurVerbuende ? 1 : 0,
 			stand: stand,
 		};
 		// 🔴 NUR WENN GEDECKELT. Bei „alle" reist gar kein `anzahl` mit, und es gilt der
@@ -2489,7 +2531,11 @@
 	// haette also stillschweigend die Beschriftung des ersten getragen. Dieselbe Bauform wie
 	// garetienWikiLabel direkt darueber; heute hat der Abschnitt genau einen Wert, und das ist der
 	// Grund fuer die Tabelle, nicht dagegen.
-	const AVESMAPS_GARETIEN_NUR_LABEL = { mehrteilig: "nur mit mehreren Abschnitten" };
+	const AVESMAPS_GARETIEN_NUR_LABEL = {
+		mehrteilig: "nur mit mehreren Abschnitten",
+		// Aufgabe 5 (2026-09-14): zugleich der Trockenlauf der Verbund-Erkennung (Entwurf §6.6).
+		verbuende: "nur Verbünde",
+	};
 
 	function garetienNurZeigenLabel(wert) {
 		return AVESMAPS_GARETIEN_NUR_LABEL[wert] || wert;
@@ -2537,6 +2583,7 @@
 	function garetienNurZeigenOptionen() {
 		return [
 			{ value: "mehrteilig", label: garetienNurZeigenLabel("mehrteilig") },
+			{ value: "verbuende", label: garetienNurZeigenLabel("verbuende") },
 		];
 	}
 
@@ -2643,6 +2690,7 @@
 		zustand.filter.urteil = Array.from(garetienFilterState.urteil);
 		zustand.filter.wiki = Array.from(garetienFilterState.wiki);
 		zustand.filter.nur_mehrteilig = garetienFilterState.nur.has("mehrteilig");
+		zustand.filter.nurVerbuende = garetienFilterState.nur.has("verbuende");
 		garetienChipsRendern();
 		garetienFilterToggleAktivKlasse();
 		avesmapsGaretienListeHolen();
@@ -5407,8 +5455,10 @@
 	// desselben Typs gefunden wurde." -- der sichtbare Grund fuer den gesperrten Knopf. Sitzt neben
 	// dem Knopf (`.gi-sicht__grund`), nicht nur im `title`: ein `disabled`-Element bekommt in Chrome
 	// keine Zeigerereignisse mehr und zeigt seinen `title` deshalb nie -- dasselbe Mittel wie beim
-	// gesperrten Fussknopf (`garetienUebernahmeKnopfZustand`) und der Filtersperre im Reiter
-	// „Anzeigen" (`garetienStageFilterSperreSetzen`).
+	// gesperrten Fussknopf (`garetienUebernahmeKnopfZustand`).
+	// 🔴 Aufgabe 5 (2026-09-14): der zweite Beleg dieses Mittels war bis dahin die Filtersperre im
+	// Reiter „Stage" (`garetienStageFilterSperreSetzen`) -- sie ist gefallen, Suche und Filter
+	// sperren dort nichts mehr.
 	const AVESMAPS_GARETIEN_SICHT_GESPERRT_GRUND = "Hier liegt nichts von uns.";
 
 	/*
@@ -9712,8 +9762,10 @@
 			avesmapsGaretienAuswahlAufDieStage,
 			// RULING R5 (Aufgabe 2, Luecke im Plan): der Reiter „Anzeigen" baut seine Antwort selbst
 			garetienStageAntwortBauen,
-			// RULING R7 (Fix-Runde 1): Suche/Filtertrichter sperren + sichtbar begruenden
-			garetienStageFilterSperreSetzen,
+			// Aufgabe 5 (2026-09-14): Suche und Filter WIRKEN auf der Stage -- die Sperre (RULING R7) ist gefallen.
+			garetienStageHinweisSetzen,
+			garetienStageFilterAnwenden,
+			garetienLeereListeText,
 			// Aufgabe 4 (Fragmente-Verbund): der Verbund einer Zeile, seine Mitglieder und die
 			// Zustandsmenge „zusammengelegt" -- Grundlage fuer die Aufgaben 5, 6, 8 und 9.
 			garetienVerbundSchluessel,

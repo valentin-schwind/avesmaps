@@ -268,6 +268,10 @@ try {
             'suche' => avesmapsNormalizeSingleLine((string) ($payload['suche'] ?? ''), 120),
             'nur_ungehakt' => ($payload['nur_ungehakt'] ?? false) === true,
             'nur_mehrteilig' => ($payload['nur_mehrteilig'] ?? false) === true,
+            // 🔴 Aufgabe 5 (2026-09-14): der Browser schickt `nur_verbuende: 1` -- eine ZAHL. Ein
+            // `=== true` wie eine Zeile darueber verwuerfe sie still, und „nur Verbünde" taete auf
+            // den Server-Reitern nichts. Ausgefuehrt geprueft in garetien-liste-nur-verbuende-test.php.
+            'nur_verbuende' => in_array($payload['nur_verbuende'] ?? null, [1, '1', true], true),
             'stand' => avesmapsNormalizeSingleLine((string) ($payload['stand'] ?? 'offen'), 20),
             'versatz' => max(0, (int) ($payload['versatz'] ?? 0)),
             // 🔴 MELDUNG 31.08.2026 (Owner: „das mit dem markieren kann ja nicht stimmen wenn oben

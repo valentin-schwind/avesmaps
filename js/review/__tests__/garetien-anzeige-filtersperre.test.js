@@ -1,104 +1,46 @@
-// RULING R7 (Fix-Runde 1 zu Aufgabe 2 des Garetien Importers) -- Suche und Filtertrichter werden
-// auf dem Reiter „Anzeigen" GESPERRT und der Grund steht SICHTBAR daneben, weil dieser Reiter
-// nicht filtert (Entwurf §3.1: die Filterleiste „bleibt sichtbar, wirkt aber ERKENNBAR nur auf die
-// drei Server-Reiter").
-// Entwurf: docs/superpowers/specs/2026-08-29-garetien-importer-sichtwerkzeug-design.md §3.1
+// Aufgabe 5 (Garetien-Importer vereint, 14.09.2026): Suche und Filter WIRKEN auf der Stage.
+// Entwurf: docs/superpowers/specs/2026-09-14-garetien-import-vereint-design.md §1 Widerspruch 7, §7
 //
 // Ausfuehren, vom Repo-Wurzelverzeichnis: node js/review/__tests__/garetien-anzeige-filtersperre.test.js
 //
-// 🔴 WARUM ES DIESE DATEI GIBT: garetienStageFilterSperreSetzen ruehrt an DOM-Eigenschaften
-// (`disabled`, `hidden`), die kein reiner Test messen kann -- dasselbe Muster wie
-// garetien-fussknopf-dom.test.js daneben. Gemessen wird am ERGEBNIS in einem gefaelschten
-// `document`, UEBER DEN ECHTEN KLICKWEG (den Tab-Klick, nicht ein direkter Funktionsaufruf) --
-// nur so zeigt sich, dass ein Reiterwechsel die Sperre wirklich setzt UND wieder aufloest.
-// 💣 `hasDocument` wird beim LADEN ausgewertet (`typeof document !== "undefined"`), das
-// `document` muss also VOR dem `require` stehen.
+// 🔴 DIESE DATEI PRUEFTE BIS ZUM 14.09.2026 DAS GEGENTEIL: RULING R7 sperrte Suchfeld und
+// Filterknopf auf dem Reiter „Stage" und schrieb „Suche und Filter wirken hier nicht" daneben.
+// Der Owner-Entscheid (Workflow, Usability) hat das umgedreht; der Dateiname bleibt, damit die
+// Geschichte an EINER Stelle steht.
+// 💣 DIE SPERRE FALLEN ZU LASSEN GENUEGT NICHT (Entwurf §7): gefiltert wurde nur auf dem Server,
+// die Stage-Antwort entsteht im Browser (garetienStageAntwortBauen) und las keinen Filter. Ohne
+// Filter im Browser waeren Suchfeld und Knopf bedienbar und wirkungslos -- deshalb misst dieser
+// Test die gerenderten ZEILEN, nicht nur `disabled`.
+// ⚠️ Gefahren wird der ECHTE Weg: der Reiterklick, der `input`-Zuhoerer des Suchfelds und der
+// `applyFilter`-Ruf, den avmFilterMenuAttach bekommt -- nie ein direkter Aufruf der Renderfunktion.
 
 "use strict";
 
-const path = require("path");
 const assert = require("assert");
+const { ladeImporter } = require("./helfer/garetien-testumgebung.js");
 
 let checks = 0;
-function wahr(bedingung, warum) {
-	assert.ok(bedingung, warum || "");
-	checks++;
-}
-function gleich(ist, soll, warum) {
-	assert.strictEqual(ist, soll, warum || "");
-	checks++;
-}
+function wahr(bedingung, warum) { assert.ok(bedingung, warum || ""); checks++; }
+function gleich(ist, soll, warum) { assert.strictEqual(ist, soll, warum || ""); checks++; }
 
-// ---- Das gefaelschte `document` -----------------------------------------------------------------
-//
-// ⚠️ Absichtlich MAGER (wie im Vorbild): nur die Elemente, um die es hier geht.
-function macheElement(id) {
-	return {
-		id: id,
-		hidden: false,
-		disabled: false,
-		textContent: "",
-		innerHTML: "",
-		value: "",
-		dataset: {},
-		_hoerer: {},
-		addEventListener(art, fn) {
-			this._hoerer[art] = this._hoerer[art] || [];
-			this._hoerer[art].push(fn);
-		},
-		querySelectorAll() { return []; },
-		querySelector() { return null; },
-		getAttribute() { return null; },
-		classList: { toggle() {}, add() {}, remove() {}, contains() { return false; } },
-	};
-}
-
-const ELEMENTE = {};
-// 🔴 Fuenf-Punkte-Brief 30.08.2026, Punkt 1: `garetien-balance` heisst jetzt `garetien-neutral-
-// hinweis` -- die alte Bilanzzeile ist entfernt, das verbliebene Element traegt nur noch den
-// Neutral-Hinweis der Sicht-Tafel.
-// 🔴 Pruefrunde 06.09.2026, Befund 5: "garetien-runline" ist raus -- die stille Laufzeile gibt
-// es seit Aufgabe 1 (06.09.2026) nicht mehr im Markup, ihr Nachfolger ist die Statuszeile
-// (garetien-status-text/-aktion), die dieser Test hier nicht anfasst.
-["garetien-listcol", "garetien-tabs", "garetien-list", "garetien-search",
-	"garetien-filter-toggle", "garetien-filter-menu", "garetien-anzeige-hinweis",
-	"garetien-neutral-hinweis", "garetien-detailcol"]
-	.forEach((id) => { ELEMENTE[id] = macheElement(id); });
-
-global.document = {
-	documentElement: {},
-	readyState: "complete",
-	getElementById(id) { return ELEMENTE[id] || null; },
-	addEventListener() {},
-	querySelectorAll() { return []; },
+// Der geteilte Trichter (js/ui/filter-menu.js) laeuft unter Node nicht -- seine Attrappe merkt sich
+// genau das, was der Importer ihm uebergibt: die Abschnitte und den applyFilter-Ruf.
+let angemeldeterFilterRuf = null;
+let angemeldeteAbschnitte = null;
+global.avmFilterMenuAttach = function (toggleId, menuId, abschnitte, applyFilter) {
+	angemeldeteAbschnitte = abschnitte;
+	angemeldeterFilterRuf = applyFilter;
+	return function () {};
 };
-global.window = global.window || {};
 
-const mod = require(path.resolve(__dirname, "..", "review-garetien-importer.js"));
-const { avesmapsGaretienListeRendern, garetienStageFilterSperreSetzen, garetienListeSkelettMarkup }
-	= mod;
-
-wahr(typeof garetienStageFilterSperreSetzen === "function",
-	"garetienStageFilterSperreSetzen fehlt im Export");
-
-// Der sichtbare Hinweistext steht im statischen Skelett -- kein Test hier baut ihn nach.
-// 🔴 Aufgabe 8 (Fixrunde 2): der Wortlaut heisst seither „Was hier steht, liegt auf der Karte und
-// wird mit „Stage importieren" angelegt — Suche und Filter wirken hier nicht."
-// 💣 Er hiess einen Tag lang „… — gefiltert wird nach Name und Typ." und behauptete damit das
-// GEGENTEIL dessen, was diese Datei prueft: hier drunter wird zugesichert, dass Suchfeld und
-// Filterknopf auf diesem Reiter `disabled` sind. Diese Zusicherung ist deshalb kein Wortlaut-Pinsel,
-// sondern die Gegenprobe -- sie und die zwei `disabled`-Pruefungen darunter muessen zusammen
-// gelesen werden koennen, ohne sich zu widersprechen.
-wahr(garetienListeSkelettMarkup().includes(
-	"Was hier steht, liegt auf der Karte und wird mit „Stage importieren\" angelegt — Suche und "
-	+ "Filter wirken hier nicht."
-), "der Hinweistext fehlt im Skelett -- ohne ihn ist die Sperre nicht ERKENNBAR, nur wirksam");
-wahr(/id="garetien-anzeige-hinweis"[^>]*\bhidden\b/.test(garetienListeSkelettMarkup()),
-	"der Hinweis startet VERSTECKT -- auf dem Start-Reiter (ein Server-Reiter) wird ja gefiltert");
+const { api, dom, ELEMENTE } = ladeImporter([
+	"garetien-listcol", "garetien-tabs", "garetien-search", "garetien-filter-toggle",
+	"garetien-filter-menu", "garetien-anzeige-hinweis", "garetien-neutral-hinweis",
+	"garetien-detailcol", "garetien-chips",
+]);
 
 const SUCHE = ELEMENTE["garetien-search"];
 const FILTER_TOGGLE = ELEMENTE["garetien-filter-toggle"];
-const FILTER_MENU = ELEMENTE["garetien-filter-menu"];
 const HINWEIS = ELEMENTE["garetien-anzeige-hinweis"];
 const TABS = ELEMENTE["garetien-tabs"];
 
@@ -107,72 +49,123 @@ function klickTab(stand) {
 	const ziel = { closest: (sel) => (sel === ".avm-tab" ? knopf : null) };
 	(TABS._hoerer.click || []).forEach((fn) => fn({ target: ziel }));
 }
-
-// Eine Runde Microtasks (und danach eine Runde Macrotasks) abwarten -- die echte fetch-Kette in
-// avesmapsGaretienListeHolen() haengt mehrere `.then()` hintereinander.
-function tickAbwarten() {
-	return new Promise((resolve) => { setTimeout(resolve, 0); });
+function zeilenSchluessel() {
+	const treffer = dom.html("#garetien-list").match(/data-key="[^"]*"/g) || [];
+	return treffer.map((t) => t.slice('data-key="'.length, -1)).join(",");
 }
+function warten(ms) { return new Promise((r) => setTimeout(r, ms)); }
 
-async function hauptlauf() {
-	// ---- 1. Erster Aufbau (Reiter "offen", direkt gerendert): nichts gesperrt ------------------
-	avesmapsGaretienListeRendern({
-		objekte: [], reiter: { offen: 5, abgelehnt: 0, uebernommen: 0 }, bilanz: {}, gesamt: 5,
-	});
-	gleich(SUCHE.disabled, false, "auf einem Server-Reiter bleibt die Suche bedienbar");
+// =================================================================================================
+// A. Die REINE Regel -- dieselbe Semantik wie avesmapsGaretienListeObjektPasstFilter (Server).
+// =================================================================================================
+wahr(typeof api.garetienStageFilterAnwenden === "function", "garetienStageFilterAnwenden fehlt im Export");
+
+const hain1 = { key: "h1", name: "Silker Hain 1", typ: "Wald", ebene: "Waelder", urteil: "neu",
+	wiki: "ggp", abschnitte: [], verbund_stamm: "Silker Hain", verbund_n: 2 };
+const hain2 = { key: "h2", name: "Silker Hain 2", typ: "Wald", ebene: "Waelder", urteil: "widerspruch",
+	wiki: "ggp", abschnitte: [], verbund_stamm: "Silker Hain", verbund_n: 2 };
+const heide = { key: "hd", name: "Silker Heide", typ: "Heide", ebene: "Waelder", urteil: "neu",
+	wiki: "ggp", abschnitte: [{ public_id: "a" }, { public_id: "b" }] };
+const natter = { key: "n", name: "Natter", typ: "Fluss", ebene: "Gewaesser", urteil: "deckt_sich",
+	wiki: "kosch", abschnitte: [] };
+const alle = [hain1, hain2, heide, natter];
+const schluessel = (liste) => liste.map((o) => o.key).join(",");
+
+gleich(schluessel(api.garetienStageFilterAnwenden(alle, {})), "h1,h2,hd,n", "ohne Filter bleibt alles");
+gleich(schluessel(api.garetienStageFilterAnwenden(alle, { suche: "  HEIDE " })), "hd",
+	"Suche: Teiltreffer im Namen, Gross/klein egal, Leerraum getrimmt");
+gleich(schluessel(api.garetienStageFilterAnwenden(alle, { typ: ["Wald"] })), "h1,h2", "Objekttyp");
+gleich(schluessel(api.garetienStageFilterAnwenden(alle, { typ: [] })), "h1,h2,hd,n",
+	"eine LEERE Liste heisst „kein Filter\", nicht „nichts passt\" -- wie am Server");
+gleich(schluessel(api.garetienStageFilterAnwenden(alle, { nurVerbuende: true })), "h1,h2",
+	"nur Verbuende: verbund_n >= 2");
+gleich(schluessel(api.garetienStageFilterAnwenden(alle, { ebene: ["Gewaesser"] })), "n",
+	"🔴 auch Ebene wirkt -- ein sichtbarer Chip, der nichts tut, waere derselbe Fehler wie die Sperre");
+gleich(schluessel(api.garetienStageFilterAnwenden(alle, { urteil: ["widerspruch"] })), "h2", "Urteil");
+gleich(schluessel(api.garetienStageFilterAnwenden(alle, { wiki: ["kosch"] })), "n", "Wiki");
+gleich(schluessel(api.garetienStageFilterAnwenden(alle, { nur_mehrteilig: true })), "hd", "nur mehrteilig");
+gleich(schluessel(api.garetienStageFilterAnwenden(alle, { suche: "silker", typ: ["Wald"], nurVerbuende: true })),
+	"h1,h2", "die Bedingungen gelten zugleich");
+
+// =================================================================================================
+// B. Der echte Weg auf dem Reiter „Stage".
+// =================================================================================================
+(async function () {
+	// Erster Aufbau (Reiter „offen"): das Skelett wird verdrahtet, der Trichter angemeldet.
+	api.avesmapsGaretienListeRendern({ objekte: [], reiter: {}, bilanz: {}, gesamt: 0, facetten: {} });
+	wahr(typeof angemeldeterFilterRuf === "function", "der Filtertrichter wurde angemeldet");
+
+	api.avesmapsGaretienStageHinzufuegen(alle);
+	klickTab("stage");
+	gleich(SUCHE.disabled, false, "🔴 auf dem Reiter Stage ist die Suche bedienbar");
 	gleich(FILTER_TOGGLE.disabled, false, "und der Filterknopf ebenso");
-	gleich(HINWEIS.hidden, true, "der Hinweis bleibt versteckt, solange gefiltert werden kann");
+	gleich(zeilenSchluessel(), "h1,h2,hd,n", "ohne Filter stehen alle vier Stage-Objekte da");
+	wahr(!api.garetienListeSkelettMarkup().includes("wirken hier nicht"),
+		"der Satz „Suche und Filter wirken hier nicht\" ist gefallen");
+	gleich(HINWEIS.hidden, false, "der Hinweis der Stage steht weiter da -- nur ohne den falschen Satz");
 
-	// Ein zufaellig offen gelassenes Trichter-Panel, um die Schliess-Nebenwirkung zu pruefen.
-	FILTER_MENU.hidden = false;
+	// Die Suche: der ECHTE `input`-Zuhoerer, entprellt.
+	SUCHE.value = "hain";
+	(SUCHE._hoerer.input || []).forEach((fn) => fn());
+	await warten(300);
+	gleich(zeilenSchluessel(), "h1,h2", "💣 die Suche WIRKT auf der Stage -- nicht nur bedienbar");
+	gleich(api.avesmapsGaretienStageListe().length, 4, "und die Stage selbst bleibt unangetastet");
 
-	// ---- 2. Simulierter Tab-Klick auf "Stage" -- der ECHTE Klickweg ----------------------------
-	//
-	// garetienListeSkelettVerdrahten haengt seinen Listener beim ERSTEN Aufbau (oben) an
-	// `garetien-tabs`. RULING R5: der Reiter „Stage" fragt nie den Server, sein Zweig in
-	// avesmapsGaretienListeHolen() rendert SYNCHRON -- kein `fetch` noetig, keine Wartezeit.
-	let fetchAufrufe = 0;
-	global.fetch = () => {
-		fetchAufrufe++;
-		return Promise.resolve({
-			json: () => Promise.resolve({
-				ok: true, objekte: [], reiter: { offen: 5, abgelehnt: 1, uebernommen: 0 },
-				bilanz: {}, gesamt: 1, facetten: {}, angehakt: { new: 0, changed: 0 },
-			}),
-		});
+	// Objekttyp ueber den applyFilter-Ruf des Trichters.
+	SUCHE.value = "";
+	(SUCHE._hoerer.input || []).forEach((fn) => fn());
+	await warten(300);
+	api.garetienFilterState.typ.add("Heide");
+	angemeldeterFilterRuf();
+	gleich(zeilenSchluessel(), "hd", "der Objekttyp-Filter WIRKT auf der Stage");
+	api.garetienFilterState.typ.clear();
+
+	// „nur Verbuende": die Option steht im Abschnitt „Nur zeigen" und wirkt.
+	const nurAbschnitt = angemeldeteAbschnitte.filter((a) => a.menuId === "garetien-filter-nur-menu")[0];
+	const nurOptionen = nurAbschnitt.getOptions();
+	wahr(nurOptionen.some((o) => o.value === "verbuende" && o.label === "nur Verbünde"),
+		"„nur Verbünde\" steht unter „Nur zeigen\": " + JSON.stringify(nurOptionen));
+	api.garetienFilterState.nur.add("verbuende");
+	angemeldeterFilterRuf();
+	gleich(zeilenSchluessel(), "h1,h2", "„nur Verbünde\" wirkt auf der Stage");
+	wahr(api.garetienChipsMarkup(api.garetienFilterState).includes("nur Verbünde"),
+		"und der Chip nennt ihn beim Namen");
+
+	// Auf einem Server-Reiter reist er im Rumpf mit -- als `nur_verbuende: 1`.
+	let rumpf = null;
+	global.fetch = function (adresse, optionen) {
+		rumpf = JSON.parse(optionen.body);
+		return Promise.resolve({ json: () => Promise.resolve({ ok: true, objekte: [], reiter: {}, bilanz: {}, facetten: {} }) });
 	};
-
-	klickTab("stage");
-	gleich(fetchAufrufe, 0,
-		"der Reiter Stage fragt nie den Server (RULING R5) -- die Sperre steht schon, bevor "
-		+ "irgendein `fetch` noetig waere");
-	gleich(SUCHE.disabled, true, "auf dem Reiter Stage ist die Suche gesperrt");
-	gleich(FILTER_TOGGLE.disabled, true, "und der Filterknopf ebenso");
-	gleich(HINWEIS.hidden, false, "und der Grund steht SICHTBAR daneben");
-	gleich(FILTER_MENU.hidden, true,
-		"ein zufaellig offenes Trichter-Panel schliesst mit -- sein Zustand ist ausschliesslich "
-		+ "`hidden` (kein zweiter Modulzustand daneben)");
-
-	// ---- 3. Zurueck auf einen Server-Reiter: beide wieder frei ----------------------------------
-	klickTab("abgelehnt");
-	await tickAbwarten();
-	gleich(fetchAufrufe, 1, "ein Server-Reiter fragt wirklich den Server");
-	gleich(SUCHE.disabled, false, "die Suche ist nach dem Rueckwechsel wieder frei");
-	gleich(FILTER_TOGGLE.disabled, false, "der Filterknopf ebenso");
-	gleich(HINWEIS.hidden, true, "und der Hinweis verschwindet wieder");
-
-	// ---- 4. Und noch einmal hin und her, damit die Regel nicht nur EINMAL zufaellig stimmt ------
-	klickTab("stage");
-	gleich(SUCHE.disabled, true, "ein zweiter Wechsel auf den Reiter Stage sperrt erneut");
 	klickTab("offen");
-	await tickAbwarten();
-	gleich(SUCHE.disabled, false, "und ein zweiter Rueckwechsel gibt erneut frei");
-	gleich(HINWEIS.hidden, true, "der Hinweis bleibt konsistent an die Sperre gekoppelt");
+	await warten(0);
+	wahr(rumpf !== null, "der Server-Reiter fragt den Server");
+	gleich(rumpf.nur_verbuende, 1, "🔴 der liste-Rumpf traegt `nur_verbuende: 1`");
+
+	// 💣 BESTAND: ein Lauf von vor der Verbund-Erkennung traegt keine Verbund-Felder -- „nur Verbünde"
+	// ist dort IMMER leer. Der Editor muss lesen, warum, nicht „Keine Objekte in dieser Ansicht.".
+	// Die Antwort oben nennt `verbund_objekte` gar nicht (wie eine Antwort von vor diesem Umbau).
+	wahr(dom.html("#garetien-list").includes("In diesem Lauf ist kein Verbund erkannt."),
+		"leere „nur Verbünde\"-Liste auf einem Lauf ohne Verbuende sagt, dass erst „Holen & Rechnen\" sie erkennt: "
+		+ dom.html("#garetien-list"));
+	wahr(dom.html("#garetien-list").includes("Holen &amp; Rechnen"), "und nennt den Knopf beim Namen (escaped)");
+	global.fetch = function (adresse, optionen) {
+		rumpf = JSON.parse(optionen.body);
+		return Promise.resolve({ json: () => Promise.resolve({
+			ok: true, objekte: [], reiter: {}, bilanz: {}, facetten: {}, verbund_objekte: 3 }) });
+	};
+	angemeldeterFilterRuf();
+	await warten(0);
+	wahr(dom.html("#garetien-list").includes("Kein Verbund in dieser Ansicht"),
+		"kennt der Lauf Verbuende, sagt die leere Liste, dass ein Filter oder Reiter sie ausblendet: "
+		+ dom.html("#garetien-list"));
+
+	api.garetienFilterState.nur.clear();
+	angemeldeterFilterRuf();
+	await warten(0);
+	wahr(dom.html("#garetien-list").includes("Keine Objekte in dieser Ansicht."),
+		"ohne „nur Verbünde\" bleibt der gewohnte Satz");
+	gleich(rumpf.nur_verbuende, 0, "ohne den Haken reist `nur_verbuende: 0` -- der Endpunkt liest daraus „kein Filter\"");
 
 	console.log(`garetien-anzeige-filtersperre: ${checks} Pruefungen bestanden.`);
-}
-
-hauptlauf().catch((fehler) => {
-	console.error(fehler);
-	process.exitCode = 1;
-});
+})().catch((fehler) => { console.error(fehler); process.exitCode = 1; });

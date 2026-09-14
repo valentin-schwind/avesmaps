@@ -571,6 +571,13 @@ function avesmapsGaretienListeObjektPasstFilter(array $objekt, array $filter): b
     if (($filter['nur_mehrteilig'] ?? false) === true && count($objekt['abschnitte']) <= 1) {
         return false;
     }
+    // 🔴 Aufgabe 5 (2026-09-14): „nur Verbünde" -- zugleich der Trockenlauf der Erkennung, bevor die
+    // Wege-Verbünde live gehen (Entwurf §6.6). ⚠️ Ein Objekt OHNE Verbund traegt `verbund_n` gar
+    // nicht (avesmapsGaretienArbeitslisteObjekte haengt es nur an einen Verbund) -- das `?? 0` ist
+    // deshalb der Normalfall, kein Rueckfall fuer kaputte Daten.
+    if (($filter['nur_verbuende'] ?? false) === true && (int) ($objekt['verbund_n'] ?? 0) < 2) {
+        return false;
+    }
     // ⚠️ Review I3: EIN Objekt OHNE Items faellt hier immer heraus (der `foreach` findet nichts,
     // `$hatUngehaktes` bleibt `false`) -- vertretbar, weil ein Objekt ohne Item auch kein Haekchen
     // hat, das ein Editor setzen koennte (weder "deckt sich" ohne Ergaenzung noch "uebersprungen"
@@ -995,7 +1002,7 @@ function avesmapsGaretienArbeitslisteObjekte(PDO $pdo, int $importRunId): array
  * erzeugen (Aufgabe 6: "deckt sich" ohne Ergaenzung, "uebersprungen"), trotzdem sichtbar.
  *
  * @param array{ebene?:list<string>, typ?:list<string>, urteil?:list<string>, wiki?:list<string>,
- *              suche?:string, nur_ungehakt?:bool, nur_mehrteilig?:bool, stand?:string,
+ *              suche?:string, nur_ungehakt?:bool, nur_mehrteilig?:bool, nur_verbuende?:bool, stand?:string,
  *              versatz?:int, anzahl?:int} $filter
  */
 /**
@@ -1046,6 +1053,7 @@ function avesmapsGaretienArbeitsliste(PDO $pdo, int $importRunId, array $filter)
         'reiter' => ['offen' => 0, 'vorgemerkt' => 0, 'abgelehnt' => 0, 'uebernommen' => 0],
         'facetten' => ['ebene' => [], 'typ' => [], 'urteil' => [], 'wiki' => [], 'typ_kategorie' => []],
         'angehakt' => ['new' => 0, 'changed' => 0],
+        'verbund_objekte' => 0,
     ];
 
     $basis = avesmapsGaretienArbeitslisteObjekte($pdo, $importRunId);
@@ -1068,7 +1076,15 @@ function avesmapsGaretienArbeitsliste(PDO $pdo, int $importRunId, array $filter)
     $facetten = ['ebene' => [], 'typ' => [], 'urteil' => [], 'wiki' => [], 'typ_kategorie' => []];
     $bilanz = ['neu' => 0, 'ergaenzung' => 0, 'zweifel' => 0, 'widerspruch' => 0, 'deckt_sich' => 0, 'uebersprungen' => 0];
     $reiter = ['offen' => 0, 'vorgemerkt' => 0, 'abgelehnt' => 0, 'uebernommen' => 0];
+    // 🔴 Aufgabe 5 (2026-09-14): wie viele Objekte DIESES LAUFS gehoeren zu einem Verbund -- VOR dem
+    // Filtern gezaehlt, wie die Facetten. Der Browser braucht die Zahl fuer den Satz einer leeren
+    // „nur Verbünde"-Liste (garetienLeereListeText): 0 heisst „dieser Lauf kennt keine", und genau
+    // das ist jeder Lauf von vor der Verbund-Erkennung -- sein after_json traegt die Felder nicht.
+    $verbundObjekte = 0;
     foreach ($objekte as $objekt) {
+        if ((int) ($objekt['verbund_n'] ?? 0) >= 2) {
+            $verbundObjekte++;
+        }
         foreach (['ebene', 'typ', 'urteil', 'wiki'] as $feld) {
             $wert = (string) $objekt[$feld];
             $facetten[$feld][$wert] = ($facetten[$feld][$wert] ?? 0) + 1;
@@ -1133,6 +1149,7 @@ function avesmapsGaretienArbeitsliste(PDO $pdo, int $importRunId, array $filter)
         'reiter' => $reiter,
         'facetten' => $facetten,
         'angehakt' => ['new' => $angehaktNeu, 'changed' => $angehaktGeaendert],
+        'verbund_objekte' => $verbundObjekte,
     ];
 }
 
