@@ -455,6 +455,17 @@ function applyEcosystemAccess(granted) {
 	if (typeof isEcosystemLayerModeActive === "function" && isEcosystemLayerModeActive()
 		&& typeof syncEcosystemControlsVisibility === "function") {
 		syncEcosystemControlsVisibility();
+	} else if (typeof syncEcosystemLayerSwitchControls === "function") {
+		// 🔴 AUSSERHALB DER LANDSCHAFTEN NUR DIE REITERLEISTE NACHSTEMPELN -- KEIN SICHTBARKEITS-PASS (14.09.2026). Die
+		// Leiste spiegelt den gemerkten Stand seit diesem Tag schon beim Laden (Dateiende von
+		// map-features-ecosystem-layer-switch.js), und der Kartenfaecher zeigt ihn auch ueber einer anderen Ansicht. Fuer
+		// einen Editor OHNE eigene Wahl haengt die Vorgabe aber am Recht, das erst HIER bekannt wird: beim Laden stand er
+		// auf „Alle", danach gilt seine Arbeitsebene. Ohne diese Zeile kuendigte der Faecher ueber „Standard" das Bild von
+		// „Alle" an, und ein Klick auf Landschaften brachte „Vegetation" (gemessen,
+		// js/ui/__tests__/landschaften-untermenue.test.js, Abschnitt J4).
+		// ⚠️ Billig: Klassen, aria-selected und tabindex der Reiter, dazu der Zaehler des Stapels. Der Sichtbarkeits-Pass
+		// darueber bleibt, wo er hingehoert -- in den Landschaften.
+		syncEcosystemLayerSwitchControls();
 	}
 	if (!freigeschaltet) { return; }
 	// 🪤 Der Beschriftungsfilter „nur mit Region" ergibt ohne Landschaftsmodul keinen Sinn: er würde

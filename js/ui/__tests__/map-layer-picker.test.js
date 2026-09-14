@@ -121,7 +121,9 @@ assert.ok(/mapLayerModeSelect/.test(js) && /\.options/.test(js),
 // kennte sie gar nicht, und die Kachel bliebe leer.
 // 💣 Deshalb wird hier nicht die Tabelle verboten, sondern ihr blinder Gebrauch: jeder Zugriff
 // braucht einen Rueckfall.
-["OVERLAYS", "GRUND_FILTER", "GRUND_DECKKRAFT"].forEach((tabelle) => {
+// ⚠️ GRUND_DECKKRAFT stand hier bis zum 14.09.2026 als dritte Tabelle. Sie ist ENTFERNT: die Landschaften-Zelle traegt
+// gar kein Kachelbild mehr (js/ui/__tests__/landschaften-untermenue.test.js, Abschnitte H und S7).
+["OVERLAYS", "GRUND_FILTER"].forEach((tabelle) => {
 	assert.ok(js.includes(tabelle + "["), `${tabelle} wird ueberhaupt gelesen`);
 	assert.ok(js.includes("if (" + tabelle + "["),
 		`${tabelle} wird nur MIT Rueckfall gelesen -- eine Ansicht ohne Eintrag zeigt den blanken`

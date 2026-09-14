@@ -18,6 +18,7 @@
 const assert = require("assert");
 const fs = require("fs");
 const path = require("path");
+const vm = require("vm");
 
 const ROOT = path.join(__dirname, "..", "..", "..");
 const lies = (...teile) => fs.readFileSync(path.join(ROOT, ...teile), "utf8");
@@ -28,6 +29,7 @@ function ohneKommentare(quelle) {
 }
 
 const pickerQuelle = lies("js", "ui", "map-layer-picker.js");
+const schalterQuelle = lies("js", "map-features", "map-features-ecosystem-layer-switch.js");
 const js = ohneKommentare(pickerQuelle);
 const css = ohneKommentare(lies("css", "components", "map-layer-picker.css"));
 // ⚠️ Ohne HTML-Kommentare: die Reiterleiste traegt Prosa, die „data-ecosystem-kind" woertlich nennt.
@@ -89,6 +91,8 @@ const reiterWert = (attrs) => ("data-ecosystem-show-all" in attrs ? "alle" : att
 const REITER_WERTE = MARKUP.reiter.map((r) => reiterWert(r.attrs));
 const REITER_NAMEN = MARKUP.reiter.map((r) => r.text);
 const LEISTE_NAME = MARKUP.leiste["aria-label"];
+/** Die Ebenen, die die Leiste als data-ecosystem-kind kennt -- „Alle" ist keine (index.html erklaert es an der Leiste). */
+const EBENEN_ARTEN = REITER_WERTE.filter((wert) => wert !== "alle");
 
 // Die Vorbedingungen -- sonst prueft der Rest nichts.
 assert.deepStrictEqual(REITER_WERTE, ["alle", "derographisch", "vegetation", "topographie", "klima"],
@@ -246,7 +250,15 @@ class Knoten {
 	set className(wert) { this.attrs.set("class", String(wert)); }
 	get id() { return this.attrs.get("id") || ""; }
 	set id(wert) { this.attrs.set("id", String(wert)); }
-	setAttribute(name, wert) { this.attrs.set(String(name), String(wert)); }
+	setAttribute(name, wert) {
+		this.attrs.set(String(name), String(wert));
+		// Wie im Browser: jede Attributschreibung ist fuer einen MutationObserver ein Datensatz -- auch eine mit
+		// unveraendertem Wert. Zugestellt wird erst mit welt.mutationenZustellen().
+		const dokument = this.ownerDocument;
+		if (dokument && typeof dokument.attributGeschrieben === "function") {
+			dokument.attributGeschrieben(this, String(name));
+		}
+	}
 	getAttribute(name) { return this.attrs.has(name) ? this.attrs.get(name) : null; }
 	hasAttribute(name) { return this.attrs.has(name); }
 	removeAttribute(name) { this.attrs.delete(name); }
@@ -332,7 +344,9 @@ function baueWelt(einstellungen) {
 		untergruende: null,
 		reiter: MARKUP.reiter,
 		ohneLeiste: false,
-		imEditor: false
+		imEditor: false,
+		/** { speicher } -- laedt VOR dem Picker die ECHTE Datei der Reiterleiste mit diesem localStorage (Abschnitt J). */
+		schalter: null
 	}, einstellungen);
 
 	const dokument = new Knoten(null, "#document");
@@ -342,6 +356,37 @@ function baueWelt(einstellungen) {
 	dokument.createElement = (tag) => new Knoten(dokument, tag);
 	dokument.createElementNS = (_ns, tag) => new Knoten(dokument, tag);
 	dokument.getElementById = (id) => dokument.querySelector("#" + id);
+
+	// ---- Der MutationObserver der Attrappe (Abschnitt I) ----------------------------------------------
+	// ⭐ Er stellt zu, was ein Browser zustellt, und nichts sonst: Attributschreibungen am beobachteten Knoten,
+	// mit `subtree` auch darunter, gefiltert nach `attributeFilter`. Wer Filter oder `subtree` verstellt, bekommt
+	// hier dasselbe Schweigen wie im Browser.
+	// ⚠️ Zugestellt wird erst auf Zuruf (mutationenZustellen) -- im Browser am Ende der Aufgabe, also NACH dem
+	// Klick-Zuhoerer, der das Menue womoeglich schon geschlossen hat. Genau diese Reihenfolge prueft Abschnitt I.
+	const beobachtungen = [];
+	const alleBeobachter = [];
+	class Beobachter {
+		constructor(rueckruf) { this.rueckruf = rueckruf; this.warteschlange = []; alleBeobachter.push(this); }
+		observe(ziel, optionen) { beobachtungen.push({ beobachter: this, ziel, optionen: Object.assign({}, optionen) }); }
+		disconnect() {
+			for (let i = beobachtungen.length - 1; i >= 0; i -= 1) {
+				if (beobachtungen[i].beobachter === this) { beobachtungen.splice(i, 1); }
+			}
+		}
+		takeRecords() { const datensaetze = this.warteschlange; this.warteschlange = []; return datensaetze; }
+	}
+	dokument.attributGeschrieben = (knoten, name) => {
+		const schonGemeldet = new Set();
+		beobachtungen.forEach(({ beobachter, ziel, optionen }) => {
+			const attribute = optionen.attributes === true
+				|| (optionen.attributes === undefined && Array.isArray(optionen.attributeFilter));
+			if (!attribute || schonGemeldet.has(beobachter)) { return; }
+			if (knoten !== ziel && !(optionen.subtree === true && ziel.contains(knoten))) { return; }
+			if (Array.isArray(optionen.attributeFilter) && !optionen.attributeFilter.includes(name)) { return; }
+			schonGemeldet.add(beobachter);
+			beobachter.warteschlange.push({ type: "attributes", target: knoten, attributeName: name });
+		});
+	};
 	const neu = (tag, attrs, text) => {
 		const k = new Knoten(dokument, tag);
 		Object.entries(attrs || {}).forEach(([name, wert]) => k.setAttribute(name, wert));
@@ -416,15 +461,50 @@ function baueWelt(einstellungen) {
 		location: { search: "" }
 	};
 
+	// Die ECHTE Datei der Reiterleiste, beim Laden -- in index.html steht sie VOR dem Picker (Brief Aufgabe 6,
+	// Regel 5). Ihr Kontext traegt nur, was sie beim Laden lesen darf; jede Nebenwirkung, die dort nichts
+	// verloren hat, hinterlaesst eine Spur in `schalterSpuren`.
+	const schalterSpuren = [];
+	/** Der vm-Kontext der Leiste -- fuer Abschnitt J4, der dort die Rechteauskunft eintreffen laesst. */
+	let schalterKontext = null;
+	if (o.schalter) {
+		const speicher = Object.assign({}, o.schalter.speicher);
+		const kontext = {
+			console,
+			window: {
+				localStorage: {
+					getItem: (schluessel) => (Object.prototype.hasOwnProperty.call(speicher, schluessel) ? speicher[schluessel] : null),
+					setItem: (schluessel, wert) => schalterSpuren.push("speichert " + schluessel + "=" + wert)
+				}
+			},
+			document: dokument,
+			IS_EDIT_MODE: o.imEditor,
+			IS_ECOSYSTEM_ENABLED: false,
+			getSelectedMapLayerMode: () => select.value,
+			ECOSYSTEM_KINDS: EBENEN_ARTEN,
+			ECOSYSTEM_KIND_PANES: {},
+			isKnownEcosystemKind: (art) => EBENEN_ARTEN.includes(String(art || "")),
+			activeEcosystemLayerKind: "",
+			map: { getPane: () => { schalterSpuren.push("map.getPane"); return null; } },
+			closeAllEcosystemAreaTooltips: () => schalterSpuren.push("closeAllEcosystemAreaTooltips"),
+			setSelectedEcosystemArea: () => schalterSpuren.push("setSelectedEcosystemArea"),
+			syncEcosystemRegionCache: () => schalterSpuren.push("syncEcosystemRegionCache")
+		};
+		kontext.globalThis = kontext;
+		vm.createContext(kontext);
+		vm.runInContext(schalterQuelle, kontext);
+		schalterKontext = kontext;
+	}
+
 	const setzerRufe = [];
 	new Function("window", "document", "Event", "MAP_TILE_STYLES", "IS_EDIT_MODE", "MutationObserver",
 		"setActiveEcosystemLayerKind", "setEcosystemShowAllLayers", pickerQuelle)(
-		fenster, dokument, Ereignis, STIL_TABELLE, o.imEditor, undefined,
+		fenster, dokument, Ereignis, STIL_TABELLE, o.imEditor, Beobachter,
 		(...argumente) => setzerRufe.push(["setActiveEcosystemLayerKind"].concat(argumente)),
 		(...argumente) => setzerRufe.push(["setEcosystemShowAllLayers"].concat(argumente)));
 
 	return {
-		dokument, huelle, menue, kachel, select, grundSelect, leiste, protokoll, setzerRufe,
+		dokument, huelle, menue, kachel, select, grundSelect, leiste, protokoll, setzerRufe, beobachtungen, schalterSpuren, schalterKontext,
 		/** Alle Reihen der zweiten Stufe -- es darf nur EINE geben. */
 		stufen: () => huelle.querySelectorAll(".map-layer-picker__grund"),
 		stufenZellen: () => huelle.querySelectorAll(".map-layer-picker__grund .map-layer-picker__cell"),
@@ -438,7 +518,14 @@ function baueWelt(einstellungen) {
 			}
 		},
 		/** Die Wartezeiten der noch gestellten Wecker, in ms -- fuer „wartet das Ueberfahren?" (G3). */
-		wartendeWecker: () => Array.from(wecker.values()).map((w) => w.ms)
+		wartendeWecker: () => Array.from(wecker.values()).map((w) => w.ms),
+		/** Stellt die gesammelten Datensaetze zu -- im Browser geschieht das am Ende der Aufgabe. */
+		mutationenZustellen: () => {
+			alleBeobachter.forEach((beobachter) => {
+				const datensaetze = beobachter.takeRecords();
+				if (datensaetze.length) { beobachter.rueckruf(datensaetze, beobachter); }
+			});
+		}
 	};
 }
 
@@ -776,6 +863,202 @@ assert.ok(SCHWEBE_AUF_MS > 0, "SCHWEBE_AUF_MS ist im Picker auffindbar (sonst pr
 	assert.deepStrictEqual(welt.protokoll, [], "ihr Klick waehlt nichts -- weder die Ansicht noch den Reiter");
 }
 
+// ==== H. Die Kachel traegt Name UND Bild der gewaehlten Ebene =====================================
+// 🔴 Owner 14.09.2026: „wenn ich auf ein element draufklick z.B. derographie steht ‚Landschaften Derographie' dran,
+// aber nicht das icon (das ist von ‚alle')". Name und Bild kommen aus EINER Auskunft -- deshalb wird fuer JEDE Ebene
+// beides zugleich geprueft, an der zugeklappten Kachel UND an der Landschaften-Zelle der ersten Stufe.
+const kachelZelle = (welt) => welt.kachel.querySelector(".map-layer-picker__cell");
+const zweiteZeile = (zelle) => zelle.querySelector(".map-layer-picker__label--grund").textContent;
+const vektorVon = (zelle) => { const svg = zelle.querySelector("svg"); return svg ? svg.innerHTML : null; };
+/** Die leere zweite Zeile ist ein geschuetztes Leerzeichen -- sonst fiele die Zeile zusammen und die Kachel spraenge. */
+const LEER = "\u00a0";
+
+fuerBeideRollen((rolle) => {
+	REITER_WERTE.forEach((ebene, i) => {
+		// H1. Die zugeklappte Kachel ueber Landschaften.
+		const welt = baueWelt({ ansicht: "ecosystem", ebene, imEditor: rolle.imEditor });
+		const kachel = kachelZelle(welt);
+		assert.strictEqual(kachel.dataset.mode, "ecosystem", "die Kachel zeigt die Ansicht Landschaften (sonst prueft der Rest nichts)");
+		assert.strictEqual(vektorVon(kachel), OVERLAYS[VEKTOR_ERWARTET[ebene]],
+			ebene + ": die zugeklappte Kachel traegt das Bild DIESER Ebene (" + VEKTOR_ERWARTET[ebene] + ") -- nicht immer das von „Alle\"");
+		assert.strictEqual(zweiteZeile(kachel), REITER_NAMEN[i],
+			ebene + ": ...und darunter ihren Namen aus dem Reiter");
+		assert.strictEqual(kachel.querySelectorAll("img").length, 0,
+			ebene + ": KEIN Kachelbild unter der Landschaften-Kachel -- dort ist der Untergrund fuer Besucher aus (Owner 14.09.2026)");
+		assert.strictEqual(kachel.querySelector(".map-layer-picker__thumb").style.background, "var(--color-ecosystem-underground)",
+			ebene + ": ...stattdessen traegt die Huelle den Ausblendton (Token, keine Farbe)");
+
+		// H2. Aufgeklappt liegt die aktive Zelle auf dem Fleck der Kachel -- mit einem anderen Bild wechselte es dort sichtbar.
+		welt.kachel.click();
+		const imMenue = welt.zelleDerAnsicht("ecosystem");
+		assert.ok(imMenue.classList.contains("is-active"), "die Landschaften-Zelle ist im Menue die aktive (sonst prueft der Rest nichts)");
+		assert.strictEqual(vektorVon(imMenue), vektorVon(kachelZelle(welt)), ebene + ": die aktive Zelle traegt dasselbe Bild wie die Kachel");
+		assert.strictEqual(zweiteZeile(imMenue), REITER_NAMEN[i], ebene + ": ...und dieselbe zweite Zeile");
+		assert.strictEqual(imMenue.querySelectorAll("img").length, 0, ebene + ": ...und auch sie ohne Kachelbild");
+	});
+
+	REITER_WERTE.forEach((ebene) => {
+		// H3. Ueber einer ANDEREN Ansicht zeigt die Landschaften-Zelle, was ein Klick auf Landschaften bringt (Ruling 22).
+		const welt = baueWelt({ ansicht: "political", ebene, imEditor: rolle.imEditor });
+		welt.kachel.click();
+		const zelle = welt.zelleDerAnsicht("ecosystem");
+		assert.ok(!zelle.classList.contains("is-active"), "die Landschaften-Zelle ist hier NICHT die aktive (sonst prueft der Rest nichts)");
+		assert.strictEqual(vektorVon(zelle), OVERLAYS[VEKTOR_ERWARTET[ebene]],
+			ebene + ": ueber Politisch traegt die Landschaften-Zelle das Bild der GEMERKTEN Ebene " + VEKTOR_ERWARTET[ebene]);
+		assert.strictEqual(zelle.querySelectorAll("img").length, 0, ebene + ": ...ohne Kachelbild");
+		assert.strictEqual(zweiteZeile(zelle), LEER, ebene + ": ...und ohne zweite Zeile -- die bekommt im Menue nur die aktive Zelle");
+
+		// H4. Jede andere Ansicht bleibt, wie sie war: Untergrundbild, eigener Vektor, der Untergrund als zweite Zeile.
+		const kachel = kachelZelle(welt);
+		assert.strictEqual(kachel.querySelectorAll("img").length, 1, "Politisch traegt weiter sein Kachelbild");
+		assert.strictEqual(vektorVon(kachel), OVERLAYS.political, "...mit seinem eigenen Vektor -- die Ebene geht es nichts an");
+		assert.strictEqual(zweiteZeile(kachel), welt.grundSelect.options.find((opt) => opt.value === welt.grundSelect.value).textContent,
+			"...und nennt darunter den Untergrund");
+	});
+});
+
+// H5. Ohne Reiterleiste gibt es keine Ebene -- die Kachel steht dann nicht leer, sondern zeigt die Landschaften selbst.
+{
+	const welt = baueWelt({ ansicht: "ecosystem", ohneLeiste: true });
+	const kachel = kachelZelle(welt);
+	assert.strictEqual(vektorVon(kachel), OVERLAYS.ecosystem, "ohne Leiste traegt die Kachel das Bild der Landschaften");
+	assert.strictEqual(zweiteZeile(kachel), LEER, "...und nennt keine Ebene");
+	assert.strictEqual(kachel.querySelectorAll("img").length, 0, "...und auch dann kein Kachelbild");
+}
+
+// ==== I. Ein Wechsel ueber die Reiterleiste zieht Name UND Bild nach ==============================
+// 💣 Der Wortlaut des Fehlers vom 26.08.2026, eine Etage tiefer: der Beobachter der Ansichts-Beschriftung sieht einen
+// reinen Ebenenwechsel nicht. Die Leiste IST der Zustand -- also horcht der Picker an ihr.
+{
+	// I1. Die Ebene wechselt ueber die Leiste, das Menue ist zu.
+	const welt = baueWelt({ ansicht: "ecosystem", ebene: "vegetation" });
+	const name = (wert) => REITER_NAMEN[REITER_WERTE.indexOf(wert)];
+	assert.strictEqual(zweiteZeile(kachelZelle(welt)), name("vegetation"), "die Kachel nennt Vegetation (sonst prueft der Rest nichts)");
+	assert.strictEqual(welt.beobachtungen.filter((b) => b.ziel === welt.leiste).length, 1,
+		"der Picker beobachtet die Reiterleiste selbst -- genau einmal");
+	welt.leiste.querySelector("[data-ecosystem-kind=\"derographisch\"]").click();
+	assert.strictEqual(zweiteZeile(kachelZelle(welt)), name("vegetation"),
+		"vor der Zustellung steht die Kachel noch -- nachgezogen wird sie vom Beobachter, von nichts sonst");
+	welt.mutationenZustellen();
+	assert.strictEqual(zweiteZeile(kachelZelle(welt)), name("derographisch"), "nach dem Wechsel ueber die Leiste nennt die Kachel die neue Ebene");
+	assert.strictEqual(vektorVon(kachelZelle(welt)), OVERLAYS.eco_derographisch, "...und traegt ihr Bild -- Name UND Bild, nicht nur der Name");
+
+	welt.leiste.querySelector("[data-ecosystem-show-all]").click();
+	welt.mutationenZustellen();
+	assert.strictEqual(zweiteZeile(kachelZelle(welt)), name("alle"), "auch der Wechsel auf „Alle\" zieht den Namen nach");
+	assert.strictEqual(vektorVon(kachelZelle(welt)), OVERLAYS.ecosystem, "...und das Bild");
+}
+{
+	// I2. Die Ebene wechselt, WAEHREND das Menue offen ist -- ueber die Pfeiltasten der Leiste oder den Klick auf eine
+	// Flaeche einer anderen Ebene (setActiveEcosystemLayerKind). Kein Klick, der das Menue schliesst.
+	const welt = baueWelt({ ansicht: "ecosystem", ebene: "vegetation" });
+	welt.kachel.click();
+	assert.strictEqual(welt.kachel.getAttribute("aria-expanded"), "true", "das Menue ist offen (sonst prueft der Rest nichts)");
+	const zellenVorher = welt.menue.querySelectorAll(".map-layer-picker__cell");
+	welt.leiste.querySelectorAll("[data-ecosystem-show-all], [data-ecosystem-kind]").forEach((reiter) => {
+		reiter.setAttribute("aria-selected", reiter.getAttribute("data-ecosystem-kind") === "topographie" ? "true" : "false");
+	});
+	welt.mutationenZustellen();
+	const zellenNachher = welt.menue.querySelectorAll(".map-layer-picker__cell");
+	assert.ok(zellenNachher.length === zellenVorher.length && zellenNachher.every((z, i) => z === zellenVorher[i]),
+		"💣 bei OFFENEM Menue baut der Beobachter die Zellen NICHT neu -- sonst risse er die Zelle unter dem Zeiger weg");
+	assert.strictEqual(welt.kachel.getAttribute("aria-expanded"), "true", "...und das Menue bleibt offen");
+	assert.strictEqual(vektorVon(kachelZelle(welt)), OVERLAYS.eco_topographie,
+		"die (gerade verborgene) Kachel ist trotzdem nachgezogen -- sie kommt beim Zuklappen mit dem richtigen Bild zurueck");
+	assert.strictEqual(zweiteZeile(kachelZelle(welt)), REITER_NAMEN[REITER_WERTE.indexOf("topographie")], "...und dem richtigen Namen");
+
+	welt.dokument.dispatchEvent(new Ereignis("click"));
+	welt.zeitVergeht();
+	assert.ok(!welt.kachel.hidden, "zugeklappt steht die Kachel wieder da (sonst prueft der Rest nichts)");
+	welt.kachel.click();
+	assert.strictEqual(vektorVon(welt.zelleDerAnsicht("ecosystem")), OVERLAYS.eco_topographie,
+		"...und beim naechsten Oeffnen traegt auch die Landschaften-Zelle das neue Bild -- das Menue holt es beim Oeffnen nach");
+}
+{
+	// I3. Der Faecher-Klick selbst loest den Beobachter aus. Sein Klick-Zuhoerer schliesst das Menue, BEVOR der Beobachter
+	// zu Wort kommt -- dann wird ganz gezeichnet, und die geklickte Zelle der zweiten Stufe bleibt stehen.
+	const welt = baueWelt({ ansicht: "deregraphic", ebene: "vegetation" });
+	welt.kachel.click();
+	welt.zelleDerAnsicht("ecosystem").click();
+	welt.naechstesBild();
+	const geklickt = welt.stufenZellen()[REITER_WERTE.indexOf("derographisch")];
+	geklickt.click();
+	assert.strictEqual(welt.kachel.getAttribute("aria-expanded"), "false", "die Wahl schliesst das Menue (sonst prueft der Rest nichts)");
+	welt.mutationenZustellen();
+	const kachel = kachelZelle(welt);
+	assert.strictEqual(kachel.dataset.mode, "ecosystem", "die Kachel zeigt danach Landschaften");
+	assert.strictEqual(zweiteZeile(kachel), REITER_NAMEN[REITER_WERTE.indexOf("derographisch")], "...mit dem Namen der gewaehlten Ebene");
+	assert.strictEqual(vektorVon(kachel), OVERLAYS.eco_derographisch, "...und ihrem Bild");
+	assert.ok(welt.stufen()[0].contains(geklickt),
+		"die geklickte Zelle der zweiten Stufe steht noch -- der Beobachter baut nur Kachel und erste Stufe");
+}
+
+// ==== J. Die Leiste spiegelt den gemerkten Stand schon beim LADEN ==================================
+// 💣 Review Aufgabe 5: gebunden wird die Leiste erst beim Moduswechsel, und bis dahin trug sie das aria-selected aus dem
+// MARKUP („Vegetation"), nicht den gemerkten Stand. Die Landschaften-Zelle ueber „Standard" haette damit eine Ebene
+// angekuendigt, die ein Klick gar nicht bringt. Hier laeuft die ECHTE Datei der Leiste, wie in index.html VOR dem Picker.
+// ⚠️ Die Speicherschluessel kommen aus der Datei selbst -- abgeschrieben liefen sie beim naechsten Umbenennen auseinander.
+const speicherSchluessel = (konstante) => {
+	const treffer = schalterQuelle.match(new RegExp("const " + konstante + " = \"([^\"]+)\""));
+	assert.ok(treffer, konstante + " ist in der Datei der Reiterleiste auffindbar");
+	return treffer[1];
+};
+const SPEICHER_EBENE = speicherSchluessel("ECOSYSTEM_ACTIVE_KIND_STORAGE_KEY");
+const SPEICHER_ALLE = speicherSchluessel("ECOSYSTEM_SHOW_ALL_STORAGE_KEY");
+const gewaehlteReiter = (welt) => welt.leiste.querySelectorAll("[data-ecosystem-show-all], [data-ecosystem-kind]")
+	.filter((reiter) => reiter.getAttribute("aria-selected") === "true")
+	.map((reiter) => reiterWert(Object.fromEntries(reiter.attrs)));
+
+fuerBeideRollen((rolle) => {
+	// J1. Gemerkt ist „Topographie", die Karte steht auf „Standard".
+	const welt = baueWelt({ ansicht: "deregraphic", ebene: "vegetation", imEditor: rolle.imEditor,
+		schalter: { speicher: { [SPEICHER_EBENE]: "topographie", [SPEICHER_ALLE]: "0" } } });
+	assert.deepStrictEqual(gewaehlteReiter(welt), ["topographie"],
+		"die Leiste traegt nach dem Laden den GEMERKTEN Stand „Topographie\" -- nicht „Vegetation\" aus dem Markup");
+	welt.kachel.click();
+	assert.strictEqual(vektorVon(welt.zelleDerAnsicht("ecosystem")), OVERLAYS.eco_topographie,
+		"🔴 die Karte steht auf „Standard\", und die Landschaften-Zelle kuendigt die gemerkte Ebene an: Topographie");
+	assert.deepStrictEqual(welt.schalterSpuren, [],
+		"...und das Spiegeln beim Laden stoesst nichts an: kein syncEcosystemPaneStates, kein Speichern, keine Auswahl, kein Regionen-Abruf");
+	assert.deepStrictEqual(welt.protokoll, [], "...und waehlt weder Ansicht noch Untergrund noch Reiter");
+});
+{
+	// J2. Ein Besucher ohne eigene Wahl: die Vorgabe ist „Alle" -- und sie wird NICHT als Wahl gespeichert.
+	const welt = baueWelt({ ansicht: "deregraphic", ebene: "vegetation", schalter: { speicher: {} } });
+	assert.deepStrictEqual(gewaehlteReiter(welt), ["alle"],
+		"ohne eigene Wahl steht der Besucher auf „Alle\" -- das zeigt die Leiste schon beim Laden, nicht erst beim Betreten");
+	welt.kachel.click();
+	assert.strictEqual(vektorVon(welt.zelleDerAnsicht("ecosystem")), OVERLAYS.ecosystem, "...und die Landschaften-Zelle traegt das Bild von „Alle\"");
+	assert.deepStrictEqual(welt.schalterSpuren, [],
+		"💣 die Vorgabe landet NICHT im Speicher -- sonst entschiede ein Seitenstart, bevor die Rechteauskunft da ist");
+}
+{
+	// J3. Ohne Leiste laedt die Datei still.
+	const welt = baueWelt({ ansicht: "deregraphic", ohneLeiste: true,
+		schalter: { speicher: { [SPEICHER_EBENE]: "topographie", [SPEICHER_ALLE]: "0" } } });
+	assert.deepStrictEqual(welt.schalterSpuren, [], "ohne Leiste gibt es nichts zu spiegeln, und nichts wird angestossen");
+}
+
+{
+	// J4. Ein Editor (?edit=1) ohne eigene Wahl. Beim Laden ist die Rechteauskunft noch unterwegs, also steht er auf
+	// „Alle". Trifft sie AUSSERHALB der Landschaften ein, muss die Leiste nachziehen -- sonst kuendigte die
+	// Landschaften-Zelle „Alle" an, und der Klick braechte seine Arbeitsebene. Gefahren wird die ECHTE
+	// applyEcosystemAccess aus js/config.js im Kontext der Leiste.
+	const zugang = schneideBlock(konfig, konfig.indexOf("function applyEcosystemAccess("));
+	const welt = baueWelt({ ansicht: "deregraphic", ebene: "vegetation", imEditor: true, schalter: { speicher: {} } });
+	assert.deepStrictEqual(gewaehlteReiter(welt), ["alle"], "beim Laden, vor der Rechteauskunft: „Alle\" (sonst prueft der Rest nichts)");
+	vm.runInContext("var AVESMAPS_ECOSYSTEM_ACCESS_BEKANNT = false;\n" + zugang + "\napplyEcosystemAccess(true);", welt.schalterKontext);
+	assert.strictEqual(welt.schalterKontext.IS_ECOSYSTEM_ENABLED, true, "die Auskunft ist angekommen (sonst prueft der Rest nichts)");
+	assert.deepStrictEqual(gewaehlteReiter(welt), ["vegetation"],
+		"nach der Auskunft steht die Leiste auch ueber „Standard\" auf der Arbeitsebene des Editors -- nicht erst beim Betreten");
+	welt.mutationenZustellen();
+	welt.kachel.click();
+	assert.strictEqual(vektorVon(welt.zelleDerAnsicht("ecosystem")), OVERLAYS.eco_vegetation,
+		"...und die Landschaften-Zelle kuendigt an, was ein Klick bringt: Vegetation");
+	assert.deepStrictEqual(welt.schalterSpuren, [],
+		"...ohne Sichtbarkeits-Pass: ausserhalb der Landschaften wird nur gestempelt");
+}
+
 // ==== S. Was sich nur am Quelltext beantworten laesst ============================================
 
 // S1. Keine zweite Liste: die Namen der Ebenen stehen nicht als Zeichenkette im Picker.
@@ -828,5 +1111,16 @@ assert.ok(/\.map-layer-picker__grund:not\(:has\(>\s*\.map-layer-picker__cell:nth
 	"die zweite Stufe behaelt am Telefon ihre echte Spaltenzahl, solange sie hoechstens drei Zellen traegt");
 assert.ok(/\.map-layer-picker__grund:has\(>\s*\.map-layer-picker__cell:nth-child\(4\)\)\s*\{[^}]*clip-path:\s*none/.test(telefon[1]),
 	"...und rollt nicht auf, sobald sie umbricht -- sonst gaebe der Wisch einen Streifen ueber beide Reihen frei");
+
+// S7. GRUND_DECKKRAFT ist WEG, nicht auf 0 gestellt (Brief Aufgabe 6, Regel 3).
+// 💣 0 ist falsy: `if (GRUND_DECKKRAFT[…])` haette die Deckkraft gar nicht gesetzt, und das Bild stuende mit VOLLER
+// Deckkraft unter dem Vektor. Fuer Landschaften entsteht gar kein <img> mehr (Abschnitt H) -- und damit hat die Tabelle
+// keinen Eintrag, fuer den sie stehen bliebe.
+assert.ok(!/GRUND_DECKKRAFT/.test(js), "die Tabelle GRUND_DECKKRAFT ist entfernt -- kein Rest, den jemand wieder auf 0 stellt");
+
+// S8. Name und Bild aus EINER Auskunft: zelle() fragt aktiveEbene() genau einmal.
+const zellenRumpf = schneideBlock(js, js.indexOf("function zelle("));
+assert.strictEqual((zellenRumpf.match(/\baktiveEbene\(\)/g) || []).length, 1,
+	"zelle() liest aktiveEbene() genau EINMAL -- zwei Leser sind der gemeldete Fehler (Name der Ebene, Bild von „Alle\")");
 
 console.log("landschaften-untermenue.test.js: alle Zusicherungen gruen");

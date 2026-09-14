@@ -1355,4 +1355,19 @@ function syncEcosystemControlsVisibility() {
 // syncEcosystemControlsVisibility holt es beim nächsten Moduswechsel nach.
 if (typeof document !== "undefined" && document && typeof document.getElementById === "function") {
 	bindEcosystemAnzeigeWahl();
+	// 🔴 UND DIE REITERLEISTE SPIEGELT DEN GEMERKTEN STAND SCHON BEIM LADEN (14.09.2026, Umbau „Landschafts-Ebenen im
+	// Kartenfaecher", Aufgabe 6). Gestempelt wurde sie bis dahin erst beim ersten Moduswechsel
+	// (syncEcosystemControlsVisibility) und trug davor das aria-selected aus dem MARKUP („Vegetation"). Der Kartenfaecher
+	// (js/ui/map-layer-picker.js) liest aber genau diese Leiste und zeigt die gemerkte Ebene auch ueber einer anderen
+	// Ansicht -- ohne diese Zeile kuendigte er dort eine Ebene an, die ein Klick auf Landschaften gar nicht bringt.
+	// ⚠️ NUR STEMPELN, nichts anstossen: syncEcosystemLayerSwitchControls liest den gemerkten Stand
+	// (getActiveEcosystemLayerKind, isEcosystemShowAllLayers), setzt Klasse, aria-selected und tabindex der Reiter und
+	// ruft den Zaehler des Stapels -- dessen Datei laedt erst danach, der Aufruf laeuft beim Laden also ins Leere. Kein
+	// syncEcosystemPaneStates, kein Speichern, kein Binden der Leiste (das bleibt beim Moduswechsel).
+	// 💣 Die Vorgabe ohne eigene Wahl wird dabei NICHT festgeschrieben: isEcosystemShowAllLayers merkt sich nur „im
+	// Speicher nachgesehen, nichts da" und fragt das Recht bei jedem Aufruf neu.
+	// ⚠️ Ohne Leiste im Dokument nichts -- auch die Tests, die diese Datei mit leerer Dokument-Attrappe laden.
+	if (document.getElementById("ecosystem-layer-switch")) {
+		syncEcosystemLayerSwitchControls();
+	}
 }

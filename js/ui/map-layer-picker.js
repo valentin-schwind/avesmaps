@@ -211,7 +211,8 @@
 		// den Teil, der abweicht: tools/__tests__/ansicht-untergrund-vektoren-zwilling.test.js
 		// ⚠️ Die zarten Derographie-Fuellungen reisen mit, obwohl die Karte in „Alle" ungefuellt zeichnet:
 		// das Icon ist die Summe der Ebenen-Icons, kein Abbild der Karte in dieser Ansicht.
-		// Dieselbe Zeichnung ist zugleich die Landschaften-Kachel der ersten Stufe.
+		// Dieselbe Zeichnung traegt die Landschaften-Kachel der ersten Stufe -- aber nur, solange „Alle" gewaehlt ist;
+		// sonst traegt die Kachel seit dem 14.09.2026 den Vektor der gewaehlten Ebene (zelle()).
 		ecosystem:
 			'<g fill="#575757">' +
 			'<path d="M14 -2 C16.2 2.6 17.4 6.8 19.4 10 21.6 13.5 22.2 17.5 24 22 22.4 27 18.4 31 16.4 36 14.6 40.6 10.4 45 8 50 H-2 V-2 Z" fill-opacity=".13"/>' +
@@ -233,8 +234,8 @@
 		// 🔴 „Alle" hat KEINEN eigenen Vektor -- es nimmt `ecosystem` oben. „Alle" ist alle Ebenen
 		// uebereinander; zwei getrennte Zeichnungen liefen beim naechsten Umton auseinander.
 		// 🔴 Seit 14.09.2026 IST ecosystem die Ueberlagerung von Derographie, Vegetation und Topographie
-		// (Regel und Reihenfolge am Eintrag oben). Dieselbe Zeichnung bleibt zugleich die
-		// Landschaften-Kachel der ersten Stufe (Owner-Entscheid 09.09.2026, siehe oben).
+		// (Regel und Reihenfolge am Eintrag oben). Die Landschaften-Kachel der ersten Stufe traegt sie nur bei „Alle",
+		// sonst das Bild der gewaehlten Ebene (Owner 14.09.2026, zelle()).
 		// 💣 Die Farben sind die ECHTEN aus css/base/tokens.css, jede aus der Stelle, die sie auf
 		// der Karte zeichnet. Wer sie „aufraeumt", macht die Zelle zu einem Symbol, das etwas
 		// anderes ankuendigt als die Karte zeigt.
@@ -324,21 +325,15 @@
 		powerlines: "saturate(0.1) brightness(0.6)"
 	};
 
-	// 🔴 Die Landschaften-Ansicht BLENDET den Untergrund ab (Owner 26.08.2026). Ausgeblendet wird gegen
-	// --color-ecosystem-underground (#d3cec2), NICHT gegen Weiss: deshalb steht hinter dem Bild eine
-	// Flaeche in genau diesem Ton, sonst schiene das Panel durch und der Farbeindruck waere ein anderer
-	// als auf der Karte.
-	//
-	// ⚠️ DIE 0.25 SIND SEIT DEM 09.09.2026 NICHT MEHR DER ECHTE WERT. Bis 10.09.2026 stand hier, der
-	// Besucher sehe ECOSYSTEM_UNDERGROUND_FRONTEND = 25 (%) -- das galt bis zum 23.08.2026 und danach nur
-	// noch fuer „Alle"; seit dem 09.09.2026 schreibt das Anzeigeprofil allen fuenf Ebenen 0 % vor
-	// (ECOSYSTEM_FRONTEND_PROFIL in js/map-features/map-features-ecosystem-layer-switch.js), und bei 0 %
-	// nimmt syncEcosystemBaseTiles die Kachelebene ganz von der Karte. Die Kachel zeigt also einen
-	// Untergrund, den es auf der Karte nicht mehr gibt. 🔧 Die ZAHL hier aendert Aufgabe 8 des Umbaus --
-	// absichtlich nicht hier, damit eine Kommentarkorrektur nicht nebenbei das Bild umstellt.
-	const GRUND_DECKKRAFT = {
-		ecosystem: 0.25
-	};
+	// 🔴 UNTER DER LANDSCHAFTEN-ZELLE LIEGT KEIN UNTERGRUNDBILD (Owner 14.09.2026: in den Landschaften ist der
+	// Untergrund fuer Besucher ganz aus -- das Anzeigeprofil schreibt allen fuenf Ebenen 0 % vor, und bei 0 % nimmt
+	// syncEcosystemBaseTiles die Kachelebene ganz von der Karte). zelle() legt dort gar kein <img> an; die Huelle traegt
+	// --color-ecosystem-underground (#d3cec2), wie die Ebenenzellen der zweiten Stufe und das Mockup
+	// (`ohneUntergrund` in tools/bau-ansicht-untergrund-mockup.js).
+	// 💣 HIER STAND BIS DAHIN EINE TABELLE `GRUND_DECKKRAFT` mit `ecosystem: 0.25`, und die naheliegende Korrektur waere
+	// die falsche gewesen: auf 0 gestellt, ist der Wert FALSY -- die Abfrage `if (GRUND_DECKKRAFT[…])` haette die
+	// Deckkraft gar nicht gesetzt, und das Bild stuende mit VOLLER Deckkraft unter dem Vektor. Die Tabelle ist deshalb
+	// ENTFERNT, nicht genullt; einen zweiten Eintrag hatte sie nie.
 
 	/**
 	 * Welcher Vektor aus OVERLAYS zu welcher Landschafts-Ebene gehoert -- eine EIGENSCHAFTS-Tabelle, keine
@@ -468,7 +463,12 @@
 		});
 	}
 
-	/** Die Ebene, die die Leiste als gewaehlt stempelt -- "" ohne Leiste. */
+	/**
+	 * Die Ebene, die die Leiste als gewaehlt stempelt -- "" ohne Leiste.
+	 * 🔴 Auch AUSSERHALB der Landschaften der gemerkte Stand: die Leiste spiegelt ihn schon beim Laden
+	 * (js/map-features/map-features-ecosystem-layer-switch.js, am Dateiende). Bis zum 14.09.2026 trug sie bis zum
+	 * ersten Moduswechsel das aria-selected aus dem MARKUP. Kein zweiter Zustand hier.
+	 */
 	function aktiveEbene() {
 		var treffer = ebenenReiter().filter(function (reiter) {
 			return reiter.getAttribute("aria-selected") === "true";
@@ -544,31 +544,54 @@
 
 		var huelle = document.createElement("span");
 		huelle.className = "map-layer-picker__thumb";
-		var bild = document.createElement("img");
-		// 🔴 UNTER dem Vektor liegt der GEWAEHLTE Untergrund -- wechselt er, wechselt das Bild aller
-		// Ansichten mit. Genau das konnte die alte Aufnahme nicht: sie trug ihren Untergrund
-		// eingebrannt, und „Kraftlinien auf Original" zeigte deshalb Kraftlinien auf Stilisiert.
-		var grund = aktiverUntergrund();
-		bild.src = grund ? grundBildUrl(grund.wert) : "";
-		bild.alt = "";
-		bild.width = 48;
-		bild.height = 48;
-		bild.loading = "lazy";
-		// 💣 Was die ANSICHT mit dem Untergrund macht, gehoert auf das BILD, nicht auf die Zelle: an
-		// der Zelle entsaettigte der Filter den Vektor gleich mit, und die Kraftlinien waeren grau
-		// statt rosa -- also genau das Merkmal weg, das die Ansicht kenntlich macht.
-		if (GRUND_FILTER[ansicht.wert]) {
-			bild.style.filter = GRUND_FILTER[ansicht.wert];
-		}
-		// ⚠️ Abblenden heisst: auf den Ausblendton der Ebene durchscheinen lassen, nicht auf das
-		// Panel -- sonst saehe die Kachel heller aus als die Karte, die sie ankuendigt.
-		if (GRUND_DECKKRAFT[ansicht.wert]) {
-			bild.style.opacity = String(GRUND_DECKKRAFT[ansicht.wert]);
+		// 🔴 BEI LANDSCHAFTEN TRAEGT DIE ZELLE DIE GEWAEHLTE EBENE -- NAME UND BILD (Owner 14.09.2026: „wenn ich auf ein
+		// element draufklick z.B. derographie steht ‚Landschaften Derographie' dran, aber nicht das icon (das ist von
+		// ‚alle')"). Das gilt fuer die zugeklappte Kachel UND fuer die Landschaften-Zelle im Menue: die aktive Zelle liegt
+		// beim Aufklappen auf dem Fleck der Kachel, ein anderes Bild wechselte dort sichtbar. Ueber einer anderen Ansicht
+		// zeigt die Zelle, was ein Klick auf Landschaften bringt -- die Ebene bleibt gemerkt.
+		// 💣 NAME UND BILD KOMMEN AUS EINER AUSKUNFT: aktiveEbene() wird hier genau EINMAL gelesen. Zwei Leser sind genau
+		// der gemeldete Fehler -- „Derographie" als Name, das Bild von „Alle" daneben.
+		// 🔴 KEIN <img>: dort ist der Untergrund fuer Besucher aus, die Huelle traegt den Ausblendton wie jede Ebenenzelle
+		// der zweiten Stufe. Warum die alte Abblendung entfernt und nicht genullt ist, steht ueber EBENEN_VEKTOR.
+		// ⚠️ Ohne Leiste oder bei einer Ebene ohne eigenen Vektor faellt das Bild auf das der Landschaften selbst zurueck:
+		// die Zelle der ersten Stufe steht fuer die Ansicht und darf nicht leer dastehen.
+		var zweiteZeile = "";
+		var mitZweiterZeile = istAktiv || !imMenue;
+		if (ansicht.wert === EBENEN_ANSICHT) {
+			var ebene = aktiveEbene();
 			huelle.style.background = "var(--color-ecosystem-underground)";
-		}
-		huelle.appendChild(bild);
-		if (OVERLAYS[ansicht.wert]) {
-			huelle.appendChild(vektorSchicht(OVERLAYS[ansicht.wert]));
+			var ebenenBild = OVERLAYS[EBENEN_VEKTOR[ebene] || ansicht.wert];
+			if (ebenenBild) {
+				huelle.appendChild(vektorSchicht(ebenenBild));
+			}
+			if (mitZweiterZeile) {
+				var eintrag = ebenen().filter(function (e) { return e.wert === ebene; })[0];
+				zweiteZeile = eintrag ? eintrag.name : "";
+			}
+		} else {
+			var bild = document.createElement("img");
+			// 🔴 UNTER dem Vektor liegt der GEWAEHLTE Untergrund -- wechselt er, wechselt das Bild aller
+			// Ansichten mit. Genau das konnte die alte Aufnahme nicht: sie trug ihren Untergrund
+			// eingebrannt, und „Kraftlinien auf Original" zeigte deshalb Kraftlinien auf Stilisiert.
+			var grund = aktiverUntergrund();
+			bild.src = grund ? grundBildUrl(grund.wert) : "";
+			bild.alt = "";
+			bild.width = 48;
+			bild.height = 48;
+			bild.loading = "lazy";
+			// 💣 Was die ANSICHT mit dem Untergrund macht, gehoert auf das BILD, nicht auf die Zelle: an
+			// der Zelle entsaettigte der Filter den Vektor gleich mit, und die Kraftlinien waeren grau
+			// statt rosa -- also genau das Merkmal weg, das die Ansicht kenntlich macht.
+			if (GRUND_FILTER[ansicht.wert]) {
+				bild.style.filter = GRUND_FILTER[ansicht.wert];
+			}
+			huelle.appendChild(bild);
+			if (OVERLAYS[ansicht.wert]) {
+				huelle.appendChild(vektorSchicht(OVERLAYS[ansicht.wert]));
+			}
+			if (mitZweiterZeile) {
+				zweiteZeile = grund ? grund.name : "";
+			}
 		}
 
 		var name = document.createElement("span");
@@ -578,7 +601,9 @@
 		knopf.appendChild(huelle);
 		knopf.appendChild(name);
 
-		// 🔴 DIE ZWEITE ZEILE -- der Untergrund unter dem Ansichtsnamen (26.08.2026).
+		// 🔴 DIE ZWEITE ZEILE -- unter dem Ansichtsnamen der Untergrund (26.08.2026), bei Landschaften die Ebene
+		// (14.09.2026, Entwurf §1: sie nennt, was die zweite Stufe DIESER Ansicht waehlt; der Untergrund sagt dort
+		// nichts mehr aus).
 		// „Standard · Modern" passt NIE in eine Zeile: die Zelle ist 66px breit, gebunden an das
 		// laengste Ansichtswort. Deshalb zwei Zeilen statt eines Kuerzels.
 		// 💣 Sie bekommen ALLE Zellen, gefuellt nur die aktive -- nur so sind Kachel und aktive
@@ -588,11 +613,8 @@
 		// den Untergrund dann in der zweiten Stufe waehlt und die Auskunft veraltet waere.
 		var zweite = document.createElement("span");
 		zweite.className = "map-layer-picker__label map-layer-picker__label--grund";
-		var grund = istAktiv || !imMenue ? aktiverUntergrund() : null;
-		zweite.textContent = grund ? grund.name : "";
-		if (!zweite.textContent) {
-			zweite.textContent = " ";
-		}
+		// Leer bleibt sie ein geschuetztes Leerzeichen -- eine leere Zeile fiele zusammen, und die Kachel spraenge.
+		zweite.textContent = zweiteZeile || "\u00a0";
 		knopf.appendChild(zweite);
 		return knopf;
 	}
@@ -703,12 +725,17 @@
 		/** Die Art der offenen Reihe: "grund" oder "ebenen" -- "" solange sie zu ist. */
 		var stufeZweiArt = "";
 
-		function zeichne() {
+		/**
+		 * Zeichnet NUR die zugeklappte Kachel und gibt zurueck, was zeichne() fuer das Menue braucht -- `null`, wenn es
+		 * keine Ansicht gibt.
+		 * ⚠️ Eine eigene Funktion, weil der Beobachter der Reiterleiste bei OFFENEM Menue nur sie ruft (siehe dort).
+		 */
+		function zeichneKachel() {
 			var aktiv = aktiveAnsicht();
 			var alle = ansichten();
 			var aktuelle = alle.filter(function (a) { return a.wert === aktiv; })[0] || alle[0];
 			if (!aktuelle) {
-				return;
+				return null;
 			}
 
 			knopf.innerHTML = "";
@@ -726,6 +753,16 @@
 			knopf.title = uebersetze("view.tile.title", "Ansicht: {name}", { name: aktuelle.name });
 			knopf.setAttribute("aria-label",
 				uebersetze("view.tile.aria", "Ansicht wählen, aktuell {name}", { name: aktuelle.name }));
+			return { alle: alle, aktuelle: aktuelle };
+		}
+
+		function zeichne() {
+			var stand = zeichneKachel();
+			if (!stand) {
+				return;
+			}
+			var alle = stand.alle;
+			var aktuelle = stand.aktuelle;
 
 			// 💣 DIE AKTIVE ANSICHT STEHT ZULETZT. Nur dadurch faellt sie im Raster auf den Fleck
 			// der zugeklappten Kachel (beide haengen mit derselben Polsterung an derselben Ecke,
@@ -1286,6 +1323,28 @@
 			new MutationObserver(function () {
 				zeichne();
 			}).observe(beschriftung, { childList: true, characterData: true, subtree: true });
+		}
+
+		// 💣 UND DIE EBENE BRAUCHT IHREN EIGENEN ZUHOERER (14.09.2026) -- derselbe Fehler wie beim Untergrund am
+		// 26.08.2026, eine Etage tiefer: ein reiner Ebenenwechsel aendert die Beschriftung der Ansichts-Auswahlbox nicht,
+		// und die Kachel behielte Namen und Bild der alten Ebene.
+		// ⚠️ Beobachtet wird die LEISTE, nicht der Klick im Faecher: die Ebene wechselt auch ueber die Reiter selbst, ihre
+		// Pfeiltasten und den Klick auf eine Flaeche einer anderen Ebene (setActiveEcosystemLayerKind). Alle Wege enden in
+		// syncEcosystemLayerSwitchControls, und das stempelt `aria-selected` -- genau das, was aktiveEbene() liest. Kein
+		// zweiter Zustand, nur ein Zuhoerer an der Stelle, die sich ohnehin aendert.
+		// 💣 BEI OFFENEM MENUE NUR DIE KACHEL. zeichne() baut die Zellen der ersten Stufe neu, auch die unter dem Zeiger.
+		// Der Faecher-Klick selbst trifft das nie -- sein Zuhoerer schliesst das Menue, bevor der Beobachter am Ende der
+		// Aufgabe zu Wort kommt --, ein Wechsel ueber die Leiste bei offenem Menue schon. Das Menue holt den neuen Stand
+		// beim naechsten Oeffnen nach: oeffne() zeichnet ohnehin neu.
+		var ebenenLeiste = document.getElementById("ecosystem-layer-switch");
+		if (ebenenLeiste && typeof MutationObserver === "function") {
+			new MutationObserver(function () {
+				if (offen()) {
+					zeichneKachel();
+					return;
+				}
+				zeichne();
+			}).observe(ebenenLeiste, { attributes: true, attributeFilter: ["aria-selected"], subtree: true });
 		}
 
 		// Die Zeile „Derographie" im Routenplaner geht weg -- ein Bedienelement fuer eine Sache.
