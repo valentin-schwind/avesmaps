@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../bootstrap.php';
+require_once __DIR__ . '/../auth.php';
 require_once __DIR__ . '/wiki-browser-support.php';
 require_once __DIR__ . '/wiki-browser-normalize.php';
 require_once __DIR__ . '/wiki-browser-tree.php';
@@ -21,6 +22,14 @@ try {
     if ($requestMethod !== 'GET') {
         avesmapsErrorResponse(405, 'method_not_allowed', 'Nur GET ist erlaubt.');
     }
+
+    // 🔴 NUR FUER EDITOREN (14.09.2026, Owner-Entscheid `edit`), und entschieden VOR der Datenbank.
+    // Dieser Endpunkt gab jedem anonymen Aufrufer jede Wiki-Zeile samt roher Wappenadresse und `raw`
+    // heraus -- am Lizenz-Gate und am Wappen-Notaus vorbei (NOTICE.md). Die Karte ruft ihn nicht, die
+    // Editor-Baeume laden laengst api/edit/wiki/sync-monitor.php?action=model_tree.
+    // ⚠️ Das Handwerkzeug tools/wikidump/verify-live-key-parity.php braucht seither --file.
+    // Test: api/_internal/__tests__/politik-lesepfade-riegel-test.php.
+    avesmapsRequireUserWithCapabilityOhneNeueSitzung('edit');
 
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
 

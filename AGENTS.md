@@ -88,6 +88,8 @@ Backend lives under `api/`, tiered by audience:
 | `api/diagnostics/` | read-only diagnostics | mixed |
 | `api/_internal/{routing,wiki,political}/` | private PHP libraries (no direct public surface) | — |
 
+> 🔴 **„mostly public" heißt nicht „jede Aktion öffentlich".** `api/app/political-territories.php` beantwortet ohne Anmeldung nur `GET action=layer`; jede andere GET-Aktion verlangt `edit` (die drei Protokoll-Leser `change_log`/`geometry_inventory`/`geometry_collision` weiter `review`) — als **Positivliste** in `avesmapsPoliticalLeseStufe`, eine neue Aktion ist also ohne Zutun geschützt. `api/app/political-territory-wiki.php` verlangt `edit`. Beide gaben bis zum 14.09.2026 jedem rohe Wappenadressen am Lizenz-Gate und am Notaus vorbei heraus (live: 193 Stück). Wer eine Leseaktion öffentlich macht, prüft zuerst, ob ihre Antwort Wappen, `editor_notes` oder Wiki-Rohzeilen trägt. Test: `api/_internal/__tests__/politik-lesepfade-riegel-test.php`.
+
 **Stable contract = `POST /api/route/` and `GET /api/locations/`.** They define
 the canonical envelope every endpoint is being unified toward:
 

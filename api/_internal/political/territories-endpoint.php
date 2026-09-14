@@ -24,6 +24,7 @@ require_once __DIR__ . '/territories-audit.php';
 require_once __DIR__ . '/territories-debug.php';
 require_once __DIR__ . '/territories-geometry-inventory.php';
 require_once __DIR__ . '/territories-claims.php';
+require_once __DIR__ . '/territories-lese-riegel.php';
 require_once __DIR__ . '/../app/coat-display.php';
 require_once __DIR__ . '/../map/editor-activity.php';
 
@@ -74,6 +75,20 @@ try {
                 echo $layerFastCached;
                 exit;
             }
+        }
+    }
+
+    // 🔴 OHNE ANMELDUNG LESEN DARF MAN NUR DIE EBENE -- und entschieden wird HIER, vor der Datenbank.
+    // Bis zum 14.09.2026 gaben list/get/wiki_list/hierarchy/debug/geometry_assignment & Co. jedem
+    // anonymen Aufrufer rohe Wappenadressen, editor_notes und ganze Wiki-Zeilen heraus -- am Lizenz-Gate
+    // und am Wappen-Notaus vorbei (NOTICE.md). Owner-Entscheid: Stufe `edit`. Regel und Positivliste
+    // stehen in avesmapsPoliticalLeseStufe (territories-lese-riegel.php): eine neue GET-Aktion ist
+    // ohne Zutun geschuetzt. ⚠️ Anonym ohne Sitzungs-Cookie kostet die Absage weder Sitzung noch
+    // DB-Verbindung. Test: api/_internal/__tests__/politik-lesepfade-riegel-test.php.
+    if ($requestMethod === 'GET') {
+        $leseStufe = avesmapsPoliticalLeseStufe(avesmapsNormalizeSingleLine((string) ($_GET['action'] ?? 'layer'), 60));
+        if ($leseStufe !== null) {
+            avesmapsRequireUserWithCapabilityOhneNeueSitzung($leseStufe);
         }
     }
 

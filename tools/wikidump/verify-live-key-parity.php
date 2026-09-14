@@ -26,6 +26,10 @@ declare(strict_types=1);
  *    correlated subqueries per row; hammering it saturates the STRATO PHP
  *    workers and looks exactly like a database outage.
  *
+ * ⚠️ SINCE 2026-09-14 THE ENDPOINT NEEDS AN EDITOR SESSION -- it used to hand every row's raw
+ *    coat-of-arms URL to anyone. A direct fetch now ends in HTTP 401, i.e. exit 2. Open the endpoint
+ *    in a browser that is signed in to avesmaps.de, save the JSON, and pass it with --file=<path>.
+ *
  * HOW TO RUN
  *   php -d zend.assertions=1 -d assert.exception=1 -d extension=php_mbstring.dll \
  *       -d extension=php_curl.dll tools/wikidump/verify-live-key-parity.php
@@ -99,6 +103,12 @@ if ($corpusFile !== '') {
     curl_close($curl);
     if (!is_string($payload) || $status !== 200) {
         fwrite(STDERR, "FATAL: fetch failed (HTTP {$status}) {$curlError}\n");
+        if ($status === 401 || $status === 403) {
+            fwrite(STDERR, "\nThe endpoint needs an editor session since 2026-09-14. Open\n  " . AVESMAPS_PARITY_ENDPOINT
+                . "\nin a browser that is signed in to avesmaps.de, save the JSON and pass it in:\n");
+            fwrite(STDERR, '  php -d extension=php_mbstring.dll ' . basename(__FILE__) . " --file=corpus.json\n");
+            exit(2);
+        }
         // A CLI without a CA bundle is the common case here. Do NOT work around
         // it by disabling verification -- fetch the corpus separately instead.
         fwrite(STDERR, "\nFetch it with a tool that has a CA store and pass it in:\n");

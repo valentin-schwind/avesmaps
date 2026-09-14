@@ -143,6 +143,27 @@ function avesmapsRequireUserWithCapability(string $capability): array {
     return $user;
 }
 
+/**
+ * avesmapsRequireUserWithCapability fuer eine Lesetuer, die JEDER anfragen kann.
+ *
+ * ⚠️ Ohne Sitzungs-Cookie kommt die 401 sofort -- ohne session_start, also ohne neue Sitzungsdatei,
+ * ohne Set-Cookie und ohne den Sitzungsdatei-Lock (siehe avesmapsCurrentUser). Ein Aufruf ohne Cookie
+ * kann keinen Benutzer haben; eine Sitzung anzulegen, nur um das festzustellen, kostete auf dem
+ * Netzlaufwerk je Anfrage Plattenzugriffe. Dieselbe Keksfrage wie avesmapsEditModeSitzungsbenutzer.
+ * Mit Cookie laeuft alles unveraendert ueber avesmapsRequireUserWithCapability -- EINE Rechte-Regel.
+ * Test: api/_internal/__tests__/politik-lesepfade-riegel-test.php (zaehlt die geoeffneten Sitzungen).
+ */
+function avesmapsRequireUserWithCapabilityOhneNeueSitzung(string $capability): array {
+    if (session_status() !== PHP_SESSION_ACTIVE) {
+        $cookie = $_COOKIE[session_name()] ?? null;
+        if (!is_string($cookie) || $cookie === '') {
+            avesmapsErrorResponse(401, 'unauthenticated', 'Du bist fuer diese Aktion nicht angemeldet.');
+        }
+    }
+
+    return avesmapsRequireUserWithCapability($capability);
+}
+
 function avesmapsOptionalUser(): ?array {
     $user = avesmapsCurrentUser();
     if ($user !== null && avesmapsUserCan($user, 'edit')) {

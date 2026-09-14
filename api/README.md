@@ -498,6 +498,8 @@ The following endpoints are used by the Avesmaps app. They are reachable, but no
 /api/app/visitor-metrics.php
 ```
 
+**Two of them need a sign-in (since 2026-09-14).** `political-territories.php` answers `GET action=layer` for everyone; every other GET action needs an editor session (401 without a session, 403 for a reviewer), except `change_log`, `geometry_inventory` and `geometry_collision`, which stay at reviewer level. The public set is an allow-list, so a new GET action is protected by default. `political-territory-wiki.php` needs an editor session altogether. Both used to hand out raw coat-of-arms URLs past the licence gate and the coat kill switch.
+
 Legacy root wrappers such as /api/map-features.php, /api/map-search.php, /api/report-location.php and /api/wiki-proxy.php are no longer maintained as canonical paths.
 
 ## Machine access: the semantic SVG export
