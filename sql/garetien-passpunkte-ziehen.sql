@@ -1,7 +1,10 @@
 -- Die Ortspaare fuer die Passpunkt-Kalibrierung ziehen (14.09.2026).
 --
--- In phpMyAdmin -> Reiter "SQL" einfuegen, ausfuehren, das Ergebnis der LETZTEN Abfrage
--- kopieren. REINES LESEN, aendert nichts.
+-- In phpMyAdmin: LINKS DIE DATENBANK ANKLICKEN, dann Reiter "SQL" -- nicht den SQL-Reiter
+-- der Server-Ebene. Dort fehlt der Datenbank-Kontext, und MySQL antwortet mit
+-- "#1046 - No database selected" (am 14.09.2026 genau so passiert). Wer lieber auf der
+-- Server-Ebene bleibt, stellt `USE <datenbankname>;` voran.
+-- Dann ausfuehren und das Ergebnis der LETZTEN Abfrage kopieren. REINES LESEN, aendert nichts.
 --
 -- Hintergrund: docs/superpowers/specs/2026-09-13-garetien-passpunkte-design.md
 -- Gebraucht wird je Ort: unsere Lage (Karteneinheiten) und ihre (Wagenhalt-Einheiten).
@@ -41,8 +44,8 @@ FROM (
     SELECT m.name                                                       AS name,
            CONCAT_WS('|',
                m.name,
-               ROUND(JSON_EXTRACT(m.geometry_json, '$.coordinates[0]'), 5),
-               ROUND(JSON_EXTRACT(m.geometry_json, '$.coordinates[1]'), 5),
+               ROUND(JSON_EXTRACT(m.geometry_json, '$.coordinates[0]') + 0, 5),
+               ROUND(JSON_EXTRACT(m.geometry_json, '$.coordinates[1]') + 0, 5),
                m.feature_subtype,
                TRIM(g.geo)
            )                                                            AS zeile
@@ -51,7 +54,7 @@ FROM (
       ON LOWER(TRIM(g.anzeige)) = LOWER(TRIM(m.name))
     WHERE m.feature_type = 'location'
       AND m.is_active = 1
-      AND JSON_EXTRACT(m.geometry_json, '$.type') = 'Point'
+      AND JSON_UNQUOTE(JSON_EXTRACT(m.geometry_json, '$.type')) = 'Point'
       AND g.run_id   = (SELECT MAX(id) FROM garetien_import_run)
       AND g.geo_art  = 'koordinaten'
       AND g.geo NOT LIKE '%2000000%'
@@ -66,3 +69,25 @@ FROM (
                AND g2.geo_art = 'koordinaten'
              GROUP BY LOWER(TRIM(g2.anzeige)) HAVING COUNT(*) = 1)
 ) x;
+
+-- ---------------------------------------------------------------------------------------------
+-- 💣 ZWEI FALLEN, DIE BEIDE STILL SIND -- sie liefern NULL Zeilen statt eines Fehlers.
+--
+-- (1) `JSON_EXTRACT` gibt einen JSON-Wert zurueck, also '"Point"' MIT Anfuehrungszeichen.
+--     `JSON_EXTRACT(...) = 'Point'` ist deshalb NIE wahr, und die Abfrage kommt leer
+--     zurueck, als gaebe es keine Ortspunkte. Darum oben `JSON_UNQUOTE`. Bei den Zahlen
+--     erzwingt `+ 0` dasselbe.
+--
+-- (2) Kennt dieser MySQL/MariaDB die JSON-Funktionen nicht (MySQL < 5.7, MariaDB < 10.2.3),
+--     bricht die Abfrage mit "FUNCTION ... does not exist" ab. Dann DIESE Fassung nehmen --
+--     sie liest die Koordinaten als Text aus `{"type":"Point","coordinates":[x,y]}`:
+--
+--       SUBSTRING_INDEX(SUBSTRING_INDEX(m.geometry_json, '[', -1), ',',  1)  AS ax,
+--       SUBSTRING_INDEX(SUBSTRING_INDEX(m.geometry_json, ',', -1), ']',  1)  AS ay
+--
+--     und statt der Typ-Bedingung:  m.geometry_json LIKE '%"Point"%'
+--
+-- ⚠️ Kommt (2) leer zurueck, steht die Geometrie anders in der Spalte als angenommen. Dann
+--    EINE Zeile ansehen, bevor irgendetwas gedeutet wird:
+--       SELECT name, geometry_json FROM map_features
+--        WHERE feature_type = 'location' AND is_active = 1 LIMIT 1;
