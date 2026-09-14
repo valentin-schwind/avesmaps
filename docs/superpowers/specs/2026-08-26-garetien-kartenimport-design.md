@@ -140,6 +140,22 @@ allein. Aber „es gibt keine systematische Verzerrung" ist **nicht belegt**, un
 Editoren nach einer Nachkorrektur ist damit offen, nicht beantwortet. Gemessen wird sie mit der
 **Nachbarprobe**: `docs/superpowers/specs/2026-09-13-garetien-passpunkte-design.md`.
 
+✅ **Beantwortet am 14.09.2026 — keine Nachkorrektur, weder eine Matrix noch vier.** Gemessen an
+echten Ortspaaren aus der Live-Datenbank (Lauf 20): kalibriert an den 8 von den Editoren
+genannten Orten, geprüft an den 160 übrigen, **steigt** die Summe der Abstände mit einer affinen
+Abbildung um 19,5 %, mit vier Quadranten um 13,6 % (Varianz +3,4 / +4,0 %). Selbst an einer
+zufälligen Hälfte aller Paare kalibriert (~84 Orte) sinkt sie nicht, und ein robuster Fit über
+alle Paare — in-sample, also geschönt — bewegt den Median nur von 1,320 auf 1,297 Meilen.
+**Die Matrix aus §2.1 ist das affine Optimum dieser Daten**; übrig ist Einzelversatz ohne
+gemeinsame Richtung, und der gehört von Hand an die Karte. Schnitt, Tabellen und Gegenproben:
+Passpunkt-Entwurf §3.1.
+⚠️ Maßgeblich war die **Kalibrierprobe**, nicht die oben genannte Nachbarprobe — jene misst
+örtliche Verzerrung und ist für eine globale Matrix fast blind (sie trägt ebenfalls nicht:
+1,33 → 2,16 Meilen).
+💣 Und §2.4 hat sich wiederholt: **37 von 204** automatisch gepaarten Orten waren gleichnamige,
+aber verschiedene Orte. Ohne den Schnitt bei 25 Meilen meldete der Messlauf einen West-Süd-Trend
+bei p = 0,0005, den es nicht gibt.
+
 ### 2.3 💣 Y wird gespiegelt
 
 Bei ihnen wächst y nach **Süden**, bei uns nach **Norden** (Riva y=790, Al'Anfa y=152). Das
