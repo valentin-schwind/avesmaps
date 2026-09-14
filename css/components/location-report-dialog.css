@@ -489,19 +489,30 @@
       `--avm-col-pad`, also ist es genau dieser Wert und keine freie Zahl. */
 .location-report-form__actions {
 	position: sticky;
-	/* 💣 `bottom: 0`, NICHT ein negativer Wert. Mein erster Versuch stand auf
-	   `bottom: calc(-1 * var(--space-6))`, um das untere Rumpfpolster auszugleichen -- gemessen
-	   wanderte die Leiste beim Scrollen ans Ende dadurch 8px nach oben. Sie soll gar nicht
-	   wandern. Das Polster wird stattdessen per negativem AUSSENrand aufgehoben; damit liegt
-	   die Leiste buendig am Rumpfende und steht. Nachgemessen: 0px Bewegung. */
-	bottom: 0;
+	/* 💣 `bottom` ist der DRITTE Teil desselben Werts wie das untere Rumpfpolster und der untere
+	   Aussenrand (--space-6), NICHT `0`. `sticky` richtet sich nach der CONTENT-Box des Rumpfes;
+	   `bottom: 0` hielt die Leiste also um das Polster UEBER seiner Unterkante fest, in JEDER
+	   Scrollstellung, und im Streifen darunter scrollte Inhalt sichtbar durch. Am 14.09.2026 im
+	   Browser gemessen, acht Fenster, 900x340 und 375x812: 7,6 bis 8,4px Streifen, darin „Ich habe
+	   folgende Qu…" und „Wiki-Aventurica Link"; mit dem negativen Wert -0,4 bis 0,4px, auch am
+	   Scrollende.
+	   🪤 Hier stand bis dahin das Gegenteil („`bottom: 0`, NICHT ein negativer Wert … Nachgemessen:
+	      0px Bewegung"). Gemessen war die BEWEGUNG, nicht die LAGE -- eine Leiste, die 8px zu hoch
+	      steht, bewegt sich auch nicht. Die Bewegung des ersten Versuchs war echt, hatte aber einen
+	      anderen Grund: ihm fehlte der negative untere AUSSENrand, das Formular endete 8px vor der
+	      Unterkante, und am Scrollende rutschte die Leiste dorthin (nachgemessen: -0,4 / -0,4 /
+	      7,3px). Aussenrand UND `bottom` zusammen sind die Loesung -- jeder allein ist einer der
+	      beiden Fehler. Test: js/app/__tests__/knopfleiste-klebt-buendig.test.js.
+	   ⚠️ Im Landschaftsdialog bleibt am Scrollende trotzdem ein Streifen: dort folgt der Leiste
+	      noch #ecosystem-properties-status im selben Rumpf -- das Markup, nicht dieser Wert. */
+	bottom: calc(-1 * var(--space-6));
 	z-index: 1;
 	display: flex;
 	justify-content: flex-end;
 	gap: var(--space-8);
 	/* Seitlich und unten aus dem Rumpfpolster heraus, damit die Linie von Kante zu Kante laeuft.
 	   🔴 Die Werte sind die des Rumpfes (--avm-col-pad = --space-6 --space-12), keine freien
-	   Zahlen -- wer das Polster aendert, aendert sie hier mit. */
+	   Zahlen -- wer das Polster aendert, aendert sie hier mit, und `bottom` darueber ebenso. */
 	margin: 0 calc(-1 * var(--space-12)) calc(-1 * var(--space-6));
 	padding: var(--space-6) var(--space-12);
 	border-top: 1px solid var(--color-divider);

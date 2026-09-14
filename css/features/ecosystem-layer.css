@@ -612,9 +612,10 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
       Unterkante fest, und im Streifen darunter scrollt Inhalt sichtbar durch (14.09.2026 im
       Browser gemessen: 18px, darin „Originalflaeche loeschen"). Um das Polster tiefer sitzt sie
       buendig und steht in jeder Scrollstellung still (0px Bewegung).
-      ⚠️ Die Warnung in location-report-dialog.css („NICHT ein negativer Wert") hat nur die
-         BEWEGUNG gemessen, nicht die Lage. Dort steht dieselbe Leiste mit derselben Luecke
-         (8px, am 14.09.2026 gemessen) -- noch nicht korrigiert, eigene Aufgabe.
+      ⚠️ Die Warnung in location-report-dialog.css („NICHT ein negativer Wert") hatte nur die
+         BEWEGUNG gemessen, nicht die Lage; dort stand dieselbe Leiste mit derselben Luecke
+         (8px). Seit dem 14.09.2026 abends ebenso korrigiert, mit eigenem Test
+         (js/app/__tests__/knopfleiste-klebt-buendig.test.js).
    🪤 Und DASS es beim Intro-Blatt ueberhaupt klebt, hat einen subtileren Grund als die drei
       anderen: dort ist die Leiste ein GESCHWISTER des Rumpfes, kein Kind. `position: sticky`
       richtet sich aber nach dem naechsten Vorfahren mit `overflow != visible` -- und das ist
