@@ -21,6 +21,8 @@ require_once __DIR__ . '/../../_internal/import/garetien-uebernahme.php';
 require_once __DIR__ . '/../../_internal/import/garetien-liste.php';
 require_once __DIR__ . '/../../_internal/import/garetien-wiki-landschaft.php';
 require_once __DIR__ . '/../../_internal/import/garetien-passpunkte-lesen.php';
+// Aufgabe 13 (14.09.2026): der Bestandslauf `wiki_nachzug` -- nur Admins, siehe den Zweig unten.
+require_once __DIR__ . '/../../_internal/import/garetien-wiki-nachzug.php';
 
 /** Eine Ebene der festen Liste anhand von wiki+ebene finden. */
 function avesmapsGaretienEndpunktEbene(string $wiki, string $ebene): ?array
@@ -79,7 +81,10 @@ try {
     // Vorgriff hat die Oeffnung heute auf zwei Zeilen verkuerzt: waere er nicht dagewesen, haette
     // ein Editor mit dem Aufmachen des aeusseren Riegels den Abruf bei einem FREMDEN Server und das
     // Neurechnen des ganzen Bestandes mitbekommen.
-    if (in_array($action, ['ebenen', 'probe', 'fetch', 'upload', 'plan'], true)
+    // 🔴 `wiki_nachzug` (Aufgabe 13, 14.09.2026) gehoert dazu: er schreibt den Wiki-Schluessel an
+    // Regionen des ganzen Garetien-Bestands, die niemand gerade vor sich hat -- und schon sein
+    // Trockenlauf zeigt Befunde ueber den ganzen Bestand. Die Bibliothek prueft `admin` ein zweites Mal.
+    if (in_array($action, ['ebenen', 'probe', 'fetch', 'upload', 'plan', 'wiki_nachzug'], true)
         && !avesmapsUserCan($user, 'admin')) {
         avesmapsErrorResponse(403, 'forbidden', 'Diese Aktion ist Administratoren vorbehalten.');
     }
@@ -177,6 +182,27 @@ try {
             'globaler_versatz' => avesmapsGaretienPasspunktGlobalerVersatz($residuen),
             'west_sued_trend'  => avesmapsGaretienPasspunktWestSuedTrend($residuen),
         ]);
+    }
+
+    // --- Aufgabe 13 (Owner 14.09.2026: „ja, wiki-schluessel nachziehen mit trockenlauf"): DER BESTAND.
+    // Flaechen, die ein Import VOR Aufgabe 2 angelegt hat, tragen den Wiki-Treffer nur an der
+    // Beschriftung; dieser Lauf schreibt ihn ueber den Hausschreiber an die Region
+    // (avesmapsGaretienWikiNachzug, api/_internal/import/garetien-wiki-nachzug.php).
+    // 🔴 NUR ADMINS -- der enge Riegel oben nennt `wiki_nachzug`.
+    // 🔴 TROCKENLAUF IST DIE VORGABE; scharf NUR mit dem Boolean `apply: true` (dieselbe Bauform wie
+    // repair_geometry_bounds und takeover_label_sources -- der String "true" bleibt ein Trockenlauf).
+    // `limit` deckelt den Block (Vorgabe 200, hoechstens 1000), `ab_id` setzt hinter dem `cursor` der
+    // letzten Antwort fort.
+    // ⚠️ Keine Oberflaeche: gefahren wird aus der Browser-Konsole (Bauplan Aufgabe 13, Schritt 6).
+    if ($action === 'wiki_nachzug') {
+        $scharf = ($payload['apply'] ?? false) === true;
+        avesmapsJsonResponse(200, ['ok' => true] + avesmapsGaretienWikiNachzug(
+            $pdo,
+            $user,
+            !$scharf,
+            (int) ($payload['limit'] ?? AVESMAPS_GARETIEN_WIKI_NACHZUG_DECKEL),
+            (int) ($payload['ab_id'] ?? 0)
+        ));
     }
 
     // --- Die Einzelansicht: passt eine Wiki-Landschaft nach Namen + Typ? REIN LESEND, EIN
