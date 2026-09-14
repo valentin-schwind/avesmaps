@@ -162,6 +162,13 @@ es nicht, reist die Warnung in der Antwort mit.
 
 ## 6. Der Handgriff — so wird gemessen
 
+0. 💣 **Der Zweig muss AUSGELIEFERT sein.** Die Aktion `passpunkte` lebt auf dem Server, und
+   der Deploy läuft ausschließlich auf `master` (`deploy-avesmaps-strato.yml`) — ein
+   Feature-Branch ändert am Server nichts. Steht sie nicht live, antwortet der Endpunkt mit
+   **HTTP 400 `invalid_action` / „Unbekannte Aktion."**, und das sieht wie ein Tippfehler im
+   eigenen Aufruf aus. 🚩 Genau so am 14.09.2026 passiert: dieser Abschnitt nannte die
+   Voraussetzung nicht, der Owner hat den Handgriff gegen den alten Server gefahren. Das
+   Messskript sagt den Grund seither selbst.
 1. Im Garetien-Importer muss ein **Lauf im Staging liegen** („Dump holen" bzw. „Holen &
    Rechnen"). Gemessen wird ohne Angabe der jüngste.
 2. Auf avesmaps.de **als angemeldeter Editor** die Konsole öffnen (F12) und

@@ -32,9 +32,22 @@
 		return;
 	}
 	if (!d.ok) {
+		const grund = (d.error && d.error.code) || "";
 		console.error("Der Endpunkt lehnt ab (HTTP " + antwort.status + "):", d.error || d);
 		if (antwort.status === 401 || antwort.status === 403) {
 			console.error("→ Nicht angemeldet, oder die Fähigkeit `edit` fehlt.");
+		}
+		/* 💣 `invalid_action` heisst hier fast immer: der SERVER kennt die Aktion nicht, weil
+		   der Zweig noch nicht ausgeliefert ist. Der Deploy laeuft nur auf `master`
+		   (.github/workflows/deploy-avesmaps-strato.yml), ein Feature-Branch aendert am Server
+		   nichts. Ohne diesen Satz sucht man den Fehler bei sich -- am 14.09.2026 genau so
+		   passiert, und der Handgriff im Entwurf hatte die Voraussetzung nicht genannt. */
+		if (grund === "invalid_action") {
+			console.error("→ Der Server kennt die Aktion `passpunkte` nicht. Sie liegt auf dem"
+				+ " Zweig claude/garetien-coordinate-transformation-mt4ugk und ist NICHT"
+				+ " ausgeliefert — der Deploy läuft nur auf `master`.");
+			console.error("   Erst nach dem Deploy messen; vorher ändert kein Handgriff im"
+				+ " Browser etwas daran.");
 		}
 		return;
 	}
