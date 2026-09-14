@@ -311,4 +311,116 @@ assert(
     'ohne Landschaftstabellen keine Landschaft und kein Absturz'
 );
 
+// ===========================================================================
+// UNSICHTBARE BESCHRIFTUNGEN -- Frontend gegen Editormodus (Owner 14.09.2026, Variante B).
+// Im Frontend vertritt die Landschaft ihre unsichtbare Beschriftung; im Editormodus bleibt die
+// Beschriftung ein eigener Treffer, damit die Editoren „See-318" wiederfinden.
+// 🔴 EINE Fallliste fuer Server und Browser (js/ui/__tests__/spotlight-unsichtbare-beschriftung.test.js).
+// ===========================================================================
+
+$fallliste = json_decode(
+    (string) file_get_contents(__DIR__ . '/../../_internal/app/__tests__/fixtures/unsichtbare-beschriftungen.json'),
+    true,
+    512,
+    JSON_THROW_ON_ERROR
+)['faelle'];
+assert(count($fallliste) >= 5, 'die Fallliste ist leer oder nicht gelesen');
+
+$pdoU = new PDO('sqlite::memory:');
+$pdoU->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+$pdoU->exec('CREATE TABLE ecosystem_region (id INTEGER PRIMARY KEY, public_id TEXT, name TEXT, kind TEXT,
+    region_type TEXT, label_public_id TEXT, properties_json TEXT, is_active INTEGER)');
+$pdoU->exec('CREATE TABLE ecosystem_area (id INTEGER PRIMARY KEY, region_id INTEGER, min_x REAL, min_y REAL,
+    max_x REAL, max_y REAL, is_active INTEGER)');
+$pdoU->exec('CREATE TABLE ecosystem_region_type (kind TEXT, type_key TEXT, label TEXT, is_active INTEGER)');
+
+$kartenzeilenU = [];
+$typenU = [];
+$regionNr = 0;
+foreach ($fallliste as $fall) {
+    $eigenschaften = ['text' => $fall['text']];
+    if ($fall['show_name'] !== null) {
+        $eigenschaften['show_name'] = $fall['show_name'];
+    }
+    if ($fall['bindung'] === 'eigen') {
+        $eigenschaften['ecosystem_region_public_id'] = $fall['region']['public_id'];
+    }
+    $kartenzeilenU[] = [
+        'public_id' => $fall['public_id'], 'feature_type' => 'label', 'feature_subtype' => $fall['subtype'],
+        'name' => $fall['text'], 'geometry_type' => 'Point',
+        'properties_json' => json_encode($eigenschaften, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),
+        'min_x' => 500.0, 'min_y' => 500.0, 'max_x' => 500.0, 'max_y' => 500.0,
+    ];
+
+    if ($fall['region'] === null) {
+        continue;
+    }
+    $regionNr++;
+    $region = $fall['region'];
+    $pdoU->prepare('INSERT INTO ecosystem_region VALUES (?, ?, ?, ?, ?, ?, ?, 1)')->execute([
+        $regionNr, $region['public_id'], $region['name'], $region['kind'], $region['region_type'],
+        $fall['bindung'] === 'region' ? $fall['public_id'] : null, null,
+    ]);
+    $pdoU->prepare('INSERT INTO ecosystem_area (region_id, min_x, min_y, max_x, max_y, is_active) VALUES (?, ?, ?, ?, ?, 1)')
+        ->execute([$regionNr, 10.0 * $regionNr, 10.0, 10.0 * $regionNr + 2.0, 12.0]);
+    $typenU[$region['kind'] . '|' . $region['region_type']] = [$region['kind'], $region['region_type'], $region['type_label'], 1];
+}
+foreach ($typenU as $typ) {
+    $pdoU->prepare('INSERT INTO ecosystem_region_type VALUES (?, ?, ?, ?)')->execute($typ);
+}
+
+$hat = static fn(array $treffer, string $kind, string $name): bool => array_filter(
+    $treffer,
+    static fn(array $e): bool => ($e['kind'] ?? '') === $kind && ($e['name'] ?? '') === $name
+) !== [];
+
+// Die Liste muss den Unterschied ueberhaupt zeigen koennen -- sonst prueft der Modus nichts.
+assert(array_filter($fallliste, static fn(array $f): bool => !$f['beschriftung_im_frontend'] && $f['beschriftung_im_editor']) !== []);
+assert(array_filter($fallliste, static fn(array $f): bool => $f['landschaft_im_frontend']) !== [],
+    'die Liste braucht eine Landschaft, die ihre unsichtbare Beschriftung vertritt');
+
+foreach ($fallliste as $fall) {
+    // Ohne Modus-Argument: das FRONTEND (die sichere Richtung fuer einen Aufrufer, der den Modus vergisst).
+    $frontend = avesmapsBuildMapSearchResults($kartenzeilenU, [], $fall['text'], 20, [], $pdoU);
+    $editor = avesmapsBuildMapSearchResults($kartenzeilenU, [], $fall['text'], 20, [], $pdoU, imBearbeitenModus: true);
+
+    assert($hat($frontend, 'label', $fall['text']) === $fall['beschriftung_im_frontend'],
+        'Frontend, Beschriftung "' . $fall['text'] . '": ' . json_encode($frontend, JSON_UNESCAPED_UNICODE));
+    assert($hat($editor, 'label', $fall['text']) === $fall['beschriftung_im_editor'],
+        '💣 Editor, Beschriftung "' . $fall['text'] . '" -- die Editoren muessen sie wiederfinden');
+    assert($hat($frontend, 'landscape', $fall['text']) === $fall['landschaft_im_frontend'],
+        'Frontend, Landschaft "' . $fall['text'] . '" -- vertritt sie ihre unsichtbare Beschriftung?');
+    assert($hat($editor, 'landscape', $fall['text']) === $fall['landschaft_im_editor'],
+        '💣 Editor, Landschaft "' . $fall['text'] . '" -- Beschriftung UND Landschaft stuenden doppelt da');
+    assert(
+        avesmapsBuildMapSearchResults($kartenzeilenU, [], $fall['text'], 20, [], $pdoU, imBearbeitenModus: false) === $frontend,
+        'ausdruecklich Frontend ist dasselbe wie ohne Argument'
+    );
+}
+
+// ⚠️ Ohne Landschaftstabellen (die SQLite-Verbindung ganz oben hat keine) bleibt jede Beschriftung ein
+// Treffer: wo die Landschaft ausfaellt, kann sie nichts vertreten -- auch nicht die mit eigenem Zeiger.
+assert(
+    $hat(avesmapsBuildMapSearchResults($kartenzeilenU, [], 'Oase Tarfui', 20, [], $pdo), 'label', 'Oase Tarfui'),
+    '💣 ohne Regionen verschwindet die unsichtbare Beschriftung -- und nichts vertritt sie'
+);
+
+// Die Anfrage des Endpunkts liest den Modus und reicht ihn weiter. Gelesen ohne Kommentare (Tokenizer) --
+// ein Kommentar, der die Zeile beschreibt, darf die Zusicherung nicht erfuellen.
+$anfrageTeil = '';
+foreach (token_get_all('<?php ' . substr($quelle, $anfrageBeginn, $funktionenBeginn - $anfrageBeginn)) as $token) {
+    if (is_array($token) && in_array($token[0], [T_COMMENT, T_DOC_COMMENT], true)) {
+        continue;
+    }
+    $anfrageTeil .= is_array($token) ? $token[1] : $token;
+}
+assert(
+    preg_match('/\$(\w+)\s*=\s*trim\(\s*\(string\)\s*\(\s*\$_GET\[\'edit_mode\'\]/', $anfrageTeil, $modusVariable) === 1,
+    '💣 der Endpunkt liest edit_mode nicht -- der Editor saehe das Frontend'
+);
+assert(
+    preg_match('/avesmapsBuildMapSearchResults\([^;]*\bimBearbeitenModus:\s*\$' . preg_quote($modusVariable[1], '/') . '\b/s', $anfrageTeil) === 1,
+    '💣 der Endpunkt liest edit_mode, reicht es aber nicht an die Suche weiter'
+);
+
 echo "map-search-verdrahtung-test: OK\n";

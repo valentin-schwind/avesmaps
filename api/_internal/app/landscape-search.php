@@ -95,12 +95,40 @@ function avesmapsLandscapeSearchNameIsMachineGiven(string $name, ?bool $autoMerk
 }
 
 /**
- * PURE: region public_id => [normalisierter Name => true] ihrer EIGENEN Beschriftungen.
+ * PURE: ist diese Beschriftung auf der Karte UNSICHTBAR („Regionname anzeigen" aus)?
+ *
+ * 🔴 NUR EIN AUSDRUECKLICHES false. Genau so liest der Browser das Feld (normalizeLabelFeature,
+ * js/map-features/map-features-labels.js: `show_name !== false`) und zeichnet danach nicht -- ein fehlendes
+ * Feld heisst „anzeigen". Eine grosszuegigere Lesart hiesse: die Karte zeigt den Namen, die Suche nicht.
+ */
+function avesmapsLandscapeSearchLabelIsHidden(array $properties): bool
+{
+    return ($properties['show_name'] ?? null) === false;
+}
+
+/**
+ * PURE: die Bindung der Beschriftungen an ihre Landschaften -- EINMAL gerechnet fuer ZWEI Fragen.
+ *
+ *   eigene_namen  region public_id => [normalisierter Name => true] ihrer EIGENEN Beschriftungen. Steht der
+ *                 Name der Region darauf, ist die Beschriftung schon der Treffer.
+ *   vertreten     label public_id => true: Beschriftungen, die in DIESEM Modus kein eigener Treffer sind.
  *
  * 🔴 NACH IDENTITAET, NIE NACH NAMEN (Owner 14.09.2026). Ein gleichnamiges Label, das NICHT an der
  * Region haengt, nimmt ihr den Treffer nicht: „Ceälan" ist als Label ein Vulkan an anderer Stelle und
  * als Region eine Insel -- genau der Fall, der den Entwurf ausgeloest hat. Eine Namensregel haette
  * ausgerechnet ihn ausgeschlossen.
+ *
+ * 🔴 UNSICHTBARE BESCHRIFTUNGEN (Owner 14.09.2026, Variante B): im FRONTEND vertritt die Landschaft ihre
+ * unsichtbare Beschriftung. Die Beschriftung ist dann kein Treffer, UND ihr Name zaehlt nicht als eigene
+ * Beschriftung -- sonst verloere die Landschaft ihren Treffer gleich mit, und der Name waere nirgends mehr
+ * zu finden (live 27 echte Namen, „Oase Tarfui", „Tursolanisee"). Die 100 Auto-Namen („See-318")
+ * verschwinden ganz, weil der Auto-Namen-Riegel ihre Region verbirgt. Im EDITORMODUS bleibt es beim
+ * Bisherigen: die Editoren muessen „See-318" wiederfinden, und die Beschriftung stuende sonst neben ihrer
+ * Landschaft doppelt in der Liste.
+ * 💣 Der Browser sagt dasselbe (spotlightBeschriftungVonLandschaftVertreten, js/ui/spotlight-search.js), und
+ * EINE Fallliste haelt beide Seiten: __tests__/fixtures/unsichtbare-beschriftungen.json.
+ * ⚠️ Kann die Landschaft selbst kein Treffer werden (Klimazone, keine aktive Flaeche), ist ihre unsichtbare
+ * Beschriftung im Frontend nicht zu finden. Das ist die Regel und kein Versehen: die Suche folgt der Karte.
  *
  * 💣 Die Bindung kommt aus avesmapsEcosystemLabelRegionMap -- dem EINEN Leser beider Richtungen (Zeiger
  * an der Beschriftung, Zeiger an der Region). Er prueft jeden Zeiger gegen die aktiven Beschriftungen,
@@ -111,13 +139,15 @@ function avesmapsLandscapeSearchNameIsMachineGiven(string $name, ?bool $autoMerk
  * @param list<array<string, mixed>> $regionRows aktive Regionen mit public_id und label_public_id
  * @param callable(array<string, mixed>, array<string, mixed>): string $labelName der Name, unter dem die
  *        Suche eine Beschriftung fuehrt -- hereingereicht, damit es keine zweite Fassung davon gibt
- * @return array<string, array<string, true>>
+ * @param bool $imBearbeitenModus ohne Vorgabe: jeder Aufrufer entscheidet ausdruecklich
+ * @return array{eigene_namen: array<string, array<string, true>>, vertreten: array<string, true>}
  */
-function avesmapsLandscapeSearchOwnLabelNames(array $mapRows, array $regionRows, callable $labelName): array
+function avesmapsLandscapeSearchLabelBindung(array $mapRows, array $regionRows, callable $labelName, bool $imBearbeitenModus): array
 {
     $activeLabelIds = [];
     $pointerRows = [];
     $namesByLabel = [];
+    $unsichtbar = [];
     foreach ($mapRows as $row) {
         if ((string) ($row['feature_type'] ?? '') !== 'label') {
             continue;
@@ -137,18 +167,28 @@ function avesmapsLandscapeSearchOwnLabelNames(array $mapRows, array $regionRows,
             $pointerRows[] = ['public_id' => $labelId, 'region_public_id' => $regionId];
         }
         $namesByLabel[$labelId] = avesmapsNormalizeSearchText((string) $labelName($row, $properties));
+        if (avesmapsLandscapeSearchLabelIsHidden($properties)) {
+            $unsichtbar[$labelId] = true;
+        }
     }
 
     $binding = avesmapsEcosystemLabelRegionMap($regionRows, $pointerRows, $activeLabelIds);
     $names = [];
+    $vertreten = [];
     foreach ($binding['by_label'] as $labelId => $regionId) {
+        // Im Frontend vertritt die Landschaft ihre unsichtbare Beschriftung -- und dann darf deren Name die
+        // Landschaft nicht als „schon beschriftet" aus der Liste nehmen.
+        if (!$imBearbeitenModus && isset($unsichtbar[$labelId])) {
+            $vertreten[(string) $labelId] = true;
+            continue;
+        }
         $name = $namesByLabel[$labelId] ?? '';
         if ($name !== '') {
             $names[(string) $regionId][$name] = true;
         }
     }
 
-    return $names;
+    return ['eigene_namen' => $names, 'vertreten' => $vertreten];
 }
 
 /**
@@ -166,7 +206,7 @@ function avesmapsLandscapeSearchOwnLabelNames(array $mapRows, array $regionRows,
  * @param list<array<string, mixed>> $regionRows aus avesmapsFetchLandscapeSearchRows
  * @param array<string, string> $typeLabels "<kind>|<type_key>" => Bezeichnung (aktive Arten)
  * @param list<string> $namePrefixes alle Artbezeichnungen, auch stillgelegte
- * @param array<string, array<string, true>> $ownLabelNames aus avesmapsLandscapeSearchOwnLabelNames
+ * @param array<string, array<string, true>> $ownLabelNames `eigene_namen` aus avesmapsLandscapeSearchLabelBindung
  * @return list<array<string, mixed>>
  */
 function avesmapsBuildLandscapeSearchEntries(

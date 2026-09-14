@@ -120,7 +120,7 @@ $regionRowsFuerBindung = [
     ['public_id' => 'r-cealan', 'label_public_id' => 'l-geloescht'],
     ['public_id' => 'r-mistel', 'label_public_id' => null],
 ];
-$eigene = avesmapsLandscapeSearchOwnLabelNames($mapRows, $regionRowsFuerBindung, $labelName);
+$eigene = avesmapsLandscapeSearchLabelBindung($mapRows, $regionRowsFuerBindung, $labelName, true)['eigene_namen'];
 assert(isset($eigene['r-tann']['tannwald']), 'der Zeiger an der Beschriftung bindet');
 assert(isset($eigene['r-blent']['blentforst']), 'der Zeiger an der Region bindet');
 assert(!isset($eigene['r-cealan']), '💣 ein toter Zeiger und ein fremdes gleichnamiges Label sind KEINE eigene Beschriftung');
@@ -174,7 +174,7 @@ $eintraege = avesmapsBuildLandscapeSearchEntries(
     $regionRows,
     $aktiveArten,
     $griffe,
-    avesmapsLandscapeSearchOwnLabelNames($mapRows, $regionRows, $labelName)
+    avesmapsLandscapeSearchLabelBindung($mapRows, $regionRows, $labelName, true)['eigene_namen']
 );
 
 $namen = array_map(static fn(array $e): string => $e['name'], $eintraege);

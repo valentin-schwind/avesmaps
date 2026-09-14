@@ -283,6 +283,10 @@ function resolveWikiDeeplinkViaMapSearch(request) {
 	const queryName = spacedPageName.replace(/\s*\([^()]*\)\s*$/, "").trim() || spacedPageName;
 	searchUrl.searchParams.set("q", queryName);
 	searchUrl.searchParams.set("limit", "20");
+	// Der Editormodus reist mit (spotlightKartensucheModusSetzen, js/ui/spotlight-search.js).
+	if (typeof spotlightKartensucheModusSetzen === "function") {
+		spotlightKartensucheModusSetzen(searchUrl);
+	}
 	fetch(searchUrl.toString(), { headers: { Accept: "application/json" } })
 		.then((response) => (response.ok ? response.json() : null))
 		.then((payload) => {
@@ -330,6 +334,9 @@ function avesmapsFocusPoliticalTerritory(name, publicId) {
 	const searchUrl = new URL(endpoint, window.location.href);
 	searchUrl.searchParams.set("q", territoryName);
 	searchUrl.searchParams.set("limit", "20");
+	if (typeof spotlightKartensucheModusSetzen === "function") {
+		spotlightKartensucheModusSetzen(searchUrl);
+	}
 	fetch(searchUrl.toString(), { headers: { Accept: "application/json" } })
 		.then((response) => (response.ok ? response.json() : null))
 		.then((payload) => {

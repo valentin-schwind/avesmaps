@@ -635,6 +635,7 @@ $bekannteLeser = [
     'api/_internal/political/territories-endpoint.php' => 'Endpunkt -- Riegel vor dem Schnellpfad',
     'api/_internal/political/territories-layer.php' => 'Bibliothek, bekommt $_GET nur vom Endpunkt',
     'api/_internal/political/territories-derived-layer.php' => 'Bibliothek (Cache-Schluessel), bekommt $_GET nur vom Endpunkt',
+    'api/app/map-search.php' => 'Endpunkt -- Riegel am Rumpfanfang; der Modus haelt unsichtbare Landschafts-Beschriftungen als Treffer (14.09.2026)',
 ];
 $iterator = new RecursiveIteratorIterator(new RecursiveCallbackFilterIterator(
     new RecursiveDirectoryIterator($WURZEL, FilesystemIterator::SKIP_DOTS),
@@ -686,8 +687,8 @@ pruefe(in_array('api/_internal/political/territories-endpoint.php', $weiterreich
     && in_array('api/app/map-features.php', $weiterreicher, true),
     'Vorbedingung: die Bauer-Liste trifft die zwei heutigen Weiterreicher -- sonst ist sie veraltet und prueft nichts');
 
-// Und in jedem der drei Endpunkte steht der Riegel VOR dem ersten Zugriff auf $_GET.
-foreach (['api/app/map-features.php', 'api/app/territory-detail.php', 'api/_internal/political/territories-endpoint.php'] as $endpunkt) {
+// Und in jedem dieser Endpunkte steht der Riegel VOR dem ersten Zugriff auf $_GET.
+foreach (['api/app/map-features.php', 'api/app/territory-detail.php', 'api/_internal/political/territories-endpoint.php', 'api/app/map-search.php'] as $endpunkt) {
     $code = $nurCode((string) file_get_contents($WURZEL . '/' . $endpunkt));
     pruefe(substr_count($code, $riegel) === 1, "{$endpunkt}: der Riegel steht genau einmal da");
     pruefe(strpos($code, $riegel) !== false && strpos($code, '$_GET') === strpos($code, $riegel),

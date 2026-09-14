@@ -456,6 +456,7 @@ async function fetchBackendSpotlightResults(query) {
 	const searchUrl = new URL(MAP_SEARCH_API_URL, window.location.href);
 	searchUrl.searchParams.set("q", query);
 	searchUrl.searchParams.set("limit", String(SPOTLIGHT_SEARCH_MAX_RESULTS));
+	spotlightKartensucheModusSetzen(searchUrl);
 	const response = await fetch(searchUrl.toString(), {
 		headers: {
 			Accept: "application/json",
@@ -1401,9 +1402,41 @@ function buildSpotlightLocationEntries() {
 		}));
 }
 
+// Ist die Karte im Editormodus (`?edit=1`)? 🔴 Fehlt die Konstante, gilt das FRONTEND: fuer die Suche ist
+// „lieber verstecken" die sichere Richtung -- anders als beim Ebenen-Zwischenspeicher in api-client.js, der
+// im Zweifel den Editor annimmt, weil er dort Frisches verlangt.
+function spotlightImBearbeitenModus() {
+	return typeof IS_EDIT_MODE !== "undefined" && IS_EDIT_MODE === true;
+}
+
+// 🔴 Eine UNSICHTBARE Beschriftung einer Landschaft („Regionname anzeigen" aus) ist im FRONTEND kein eigener
+// Treffer -- die Landschaft vertritt sie (Owner 14.09.2026, Variante B). So verschwinden die 100 Auto-Namen
+// („See-318"), deren Region der Auto-Namen-Riegel des Servers verbirgt, und die echten Namen („Oase Tarfui")
+// kommen als Landschaft wieder, die auf ihre Flaeche fliegt statt auf einen unsichtbaren Punkt. Im EDITORMODUS
+// bleibt die Beschriftung ein Treffer: die Editoren muessen „See-318" wiederfinden.
+// 💣 Der Server sagt dasselbe (avesmapsLandscapeSearchLabelBindung, api/_internal/app/landscape-search.php), und
+// EINE Fallliste haelt beide Seiten: api/_internal/app/__tests__/fixtures/unsichtbare-beschriftungen.json.
+// Nur ein ausdrueckliches `showName === false` verbirgt -- genau der Zustand, in dem die Karte nicht zeichnet.
+function spotlightBeschriftungVonLandschaftVertreten(label) {
+	if (spotlightImBearbeitenModus()) {
+		return false;
+	}
+	return label?.showName === false && String(label?.ecosystemRegionPublicId || "").trim() !== "";
+}
+
+// Die Anfrage an die Serversuche traegt den Modus -- an JEDEM Aufrufer derselben Suche (hier und die zwei
+// Deeplinks in js/app/wiki-deeplink.js). Fehlt er einem, antwortet der Server im Editor wie im Frontend.
+function spotlightKartensucheModusSetzen(searchUrl) {
+	if (spotlightImBearbeitenModus()) {
+		searchUrl.searchParams.set("edit_mode", "1");
+	}
+	return searchUrl;
+}
+
 function buildSpotlightLabelEntries() {
 	return labelMarkers
 		.filter((entry) => String(entry?.label?.text || "").trim())
+		.filter((entry) => !spotlightBeschriftungVonLandschaftVertreten(entry.label))
 		.map((entry) => ({
 			id: `label:${entry.label.publicId || entry.label.text}:${entry.label.coordinates.join(",")}`,
 			kind: "label",

@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 require __DIR__ . '/../_internal/bootstrap.php';
+// Traegt avesmapsEditModeNurFuerEditoren -- der Riegel, hinter dem jeder Leser von edit_mode steht.
+require_once __DIR__ . '/../_internal/auth.php';
 require_once __DIR__ . '/../_internal/text/ascii-fold.php';
 require_once __DIR__ . '/../_internal/app/map-search-scoring.php';
 require_once __DIR__ . '/../_internal/app/search-section.php';
@@ -51,6 +53,14 @@ try {
     if ($requestMethod !== 'GET') {
         avesmapsErrorResponse(405, 'method_not_allowed', 'Nur GET-Anfragen sind fuer die Kartensuche erlaubt.');
     }
+
+    // 🔴 DIE EDITOR-SICHT GIBT ES NUR MIT ANMELDUNG (Hausregel fuer jeden Leser von edit_mode,
+    // avesmapsEditModeNurFuerEditoren in api/_internal/auth.php). Hier ordnet der Modus nur die Trefferliste --
+    // im Editor bleiben unsichtbare Landschafts-Beschriftungen („See-318") eigene Treffer --, aber ein
+    // Parameter, den jeder an die Adresse haengen kann, entscheidet in diesem Haus nichts. Gefiltert wird
+    // deshalb die ANFRAGE, vor jedem anderen Zugriff auf $_GET.
+    // ⚠️ Ohne edit_mode (jeder Besucher) wird die Sitzung nicht einmal angesehen.
+    $_GET = avesmapsEditModeNurFuerEditoren($_GET);
 
     $query = avesmapsReadMapSearchQuery($_GET['q'] ?? '');
     $limit = avesmapsReadMapSearchLimit($_GET['limit'] ?? AVESMAPS_MAP_SEARCH_MAX_LIMIT);
@@ -114,7 +124,12 @@ try {
     // outside towns). No kill switch -- unlike maps/adventures/occurrences these are not a
     // content collection that can be switched off, they are the map's own blind spots.
     $offmapRows = avesmapsFetchOffmapSearchRows($pdo);
-    $results = avesmapsBuildMapSearchResults($rows, $politicalRows, $query, $limit, $inSettlementRows, $pdo, $citymapRows, $gameLiteratureRows, $loreRows, $offmapRows);
+    // Editormodus (Owner 14.09.2026): dort bleiben unsichtbare Landschafts-Beschriftungen („See-318") eigene
+    // Treffer, im Frontend vertritt sie ihre Landschaft. Dieselbe Schreibweise wie die Kartennutzlast
+    // (api/app/map-features.php). ⚠️ Gelesen NACH dem Riegel oben: ohne Anmeldung als Editor ist edit_mode
+    // hier schon entfernt, und die Suche antwortet wie im Frontend.
+    $imBearbeitenModus = trim((string) ($_GET['edit_mode'] ?? '')) === '1';
+    $results = avesmapsBuildMapSearchResults($rows, $politicalRows, $query, $limit, $inSettlementRows, $pdo, $citymapRows, $gameLiteratureRows, $loreRows, $offmapRows, imBearbeitenModus: $imBearbeitenModus);
 
     avesmapsJsonResponse(200, [
         'ok' => true,
@@ -217,7 +232,11 @@ function avesmapsBuildMapSearchResults(
     // existing caller or test breaks. Reshaping this into an options array would touch every
     // caller and every test of this function -- out of scope here, noted so the next reader
     // knows it is a decision, not neglect.
-    array $offmapRows = []
+    array $offmapRows = [],
+    // 🔴 Der elfte, und er wird BENANNT uebergeben (`imBearbeitenModus: $x`) -- niemand soll zehn
+    // Positionen abzaehlen, um ihn zu setzen. Vorgabe ist das FRONTEND: ein Aufrufer, der den Modus
+    // vergisst, versteckt eher eine unsichtbare Beschriftung zu viel als eine zu wenig.
+    bool $imBearbeitenModus = false
 ): array {
     $normalizedQuery = avesmapsNormalizeSearchText($query);
     if ($normalizedQuery === '') {
@@ -226,6 +245,9 @@ function avesmapsBuildMapSearchResults(
 
     $results = [];
     $pathGroups = [];
+    // Beschriftungs-Treffer, die auf der Karte unsichtbar sind -- nur im Frontend gesammelt. Ob ihre
+    // Landschaft sie vertritt, entscheidet die Bindung weiter unten; die braucht die Regionen.
+    $unsichtbareLabelTreffer = [];
     foreach ($rows as $row) {
         $entry = avesmapsBuildSearchEntry($row);
         if ($entry === null) {
@@ -257,6 +279,11 @@ function avesmapsBuildMapSearchResults(
 
         $entry['score'] = $score;
         $results[] = $entry;
+
+        if (!$imBearbeitenModus && $entry['kind'] === 'label'
+            && avesmapsLandscapeSearchLabelIsHidden(avesmapsDecodeJsonColumnForSearch($row['properties_json'] ?? null))) {
+            $unsichtbareLabelTreffer[(string) $entry['public_id']] = true;
+        }
     }
 
     // Politische Herrschaftsgebiete als Region-Treffer (Label "Herrschaftsgebiet").
@@ -299,9 +326,15 @@ function avesmapsBuildMapSearchResults(
     // 💣 Welche Beschriftung zu welcher Region gehoert, kommt aus $rows: die map_features sind hier schon
     // geladen, und der Label-Name ist DERSELBE, unter dem die Suche die Beschriftung fuehrt.
     //
-    // ⭐ DIE BINDUNG KOMMT NUR, WENN ETWAS TRIFFT. Sie dekodiert alle Beschriftungen (gemessen 14.09.2026
-    // an den Live-Daten: 13,2 ms von 16 ms dieser Quelle) und kann Treffer nur WEGNEHMEN, nie hinzufuegen.
-    // Trifft schon ohne sie keine Landschaft, trifft mit ihr auch keine -- und das ist fast jede Anfrage.
+    // ⭐ DIE BINDUNG KOMMT NUR, WENN SIE GEBRAUCHT WIRD. Sie dekodiert alle Beschriftungen (gemessen 14.09.2026
+    // an den Live-Daten: 13,2 ms von 16 ms dieser Quelle) und beantwortet ZWEI Fragen
+    // (avesmapsLandscapeSearchLabelBindung): welche Landschaft ihre eigene Beschriftung schon als Treffer hat
+    // -- das kann Landschaften nur WEGNEHMEN, trifft ohne Bindung keine, trifft mit ihr auch keine --, und
+    // welche unsichtbare Beschriftung im Frontend von ihrer Landschaft vertreten wird (Owner 14.09.2026,
+    // Variante B). Trifft weder eine Landschaft noch eine unsichtbare Beschriftung, ist keine der beiden
+    // Fragen gestellt -- und das ist fast jede Anfrage.
+    // ⚠️ Ohne Regionen (Tabelle fehlt, Abfrage gescheitert) bleibt jede Beschriftung ein Treffer: wo die
+    // Landschaft ausfaellt, kann sie nichts vertreten.
     if ($pdo !== null) {
         $landscapeRows = avesmapsFetchLandscapeSearchRows($pdo);
         $landscapeCandidates = $landscapeRows['regions'] === [] ? [] : avesmapsBuildLandscapeSearchEntries(
@@ -314,12 +347,22 @@ function avesmapsBuildMapSearchResults(
             $landscapeCandidates,
             static fn(array $entry): bool => avesmapsCalculateSearchScore($entry, $normalizedQuery) !== null
         );
-        if ($landscapeMatches !== []) {
+        $bindung = $landscapeRows['regions'] !== [] && ($landscapeMatches !== [] || $unsichtbareLabelTreffer !== [])
+            ? avesmapsLandscapeSearchLabelBindung($rows, $landscapeRows['regions'], 'avesmapsGetSearchFeatureName', $imBearbeitenModus)
+            : null;
+        if ($bindung !== null && $bindung['vertreten'] !== []) {
+            $results = array_values(array_filter(
+                $results,
+                static fn(array $entry): bool => ($entry['kind'] ?? '') !== 'label'
+                    || !isset($bindung['vertreten'][(string) ($entry['public_id'] ?? '')])
+            ));
+        }
+        if ($landscapeMatches !== [] && $bindung !== null) {
             $landscapeEntries = avesmapsBuildLandscapeSearchEntries(
                 $landscapeRows['regions'],
                 $landscapeRows['type_labels'],
                 $landscapeRows['name_prefixes'],
-                avesmapsLandscapeSearchOwnLabelNames($rows, $landscapeRows['regions'], 'avesmapsGetSearchFeatureName')
+                $bindung['eigene_namen']
             );
             foreach ($landscapeEntries as $entry) {
                 $score = avesmapsCalculateSearchScore($entry, $normalizedQuery);

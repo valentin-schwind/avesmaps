@@ -263,3 +263,48 @@ Auf https://avesmaps.de als **Besucher** (kein `edit=1`), Konsole offen:
 5. Aus „Alle" nach „Mistelwald" suchen → bleibt „Alle".
 6. Suche „Wald-001" → keine Landschaftszeile. Suche „Polare Zone" → keine Landschaftszeile.
 7. Konsole ohne Fehler; Antwortzeit der Suche gegen die Basismessung vom 14.09. (1,67–1,82 s).
+
+---
+
+## 11. Nachtrag 14.09.2026: unsichtbare Beschriftungen im Frontend
+
+**Anlass (Owner):** Auto-Namen wie „See-318", „Wald-028", „Fläche-026" standen in der Suche. **Die Editoren:**
+im Editormodus sollen sie auffindbar bleiben.
+
+**Gemessen** (14.09.2026, je eine Anfrage an `map-features.php` und `ecosystem-areas.php`): 100 Beschriftungen
+mit Auto-Namen — **alle** `show_name: false` (auf der Karte längst unsichtbar), alle an ihrer Fläche, Text =
+Regionsname, jede die einzige Beschriftung ihrer Fläche. Insgesamt gibt es 127 unsichtbare Beschriftungen: die
+100 plus 27 echte Namen (Oase Tarfui, Tursolanisee, Der große Fluss, Südaventurien …), alle gebunden.
+
+**Entschieden: Variante B, nur Beschriftungen.** Im **Frontend** ist eine unsichtbare Beschriftung einer
+Landschaft kein eigener Treffer — die Landschaft vertritt sie. Die 100 Auto-Namen verschwinden ganz (ihre Region
+verbirgt §5), die 27 echten Namen kommen als Landschaftstreffer (§6) und fliegen auf die Fläche statt auf einen
+unsichtbaren Punkt. Im **Editormodus** bleibt alles wie vorher.
+
+Verworfen wurde **A** (die Beschriftung erbt das Auto-Namen-Urteil ihrer Region): der Browser kennt
+Regionsname, Haken und Artkatalog nicht, A hätte also ein neues Feld in der öffentlichen Kartennutzlast samt
+Versionssprung gebraucht — und eine zweite Stelle, die Auto-Namen erkennt. Ein Datenlauf taugt nicht: ein
+geleerter Text kommt beim nächsten Speichern der Fläche zurück, und „Auto-Name anhaken, speichern" löscht die
+Beschriftung.
+
+- 🔴 **„Unsichtbar" ist nur ein ausdrückliches `show_name === false`** — genau so liest die Karte das Feld.
+- 💣 **Im Frontend zählt der Name einer unsichtbaren Beschriftung NICHT als eigene Beschriftung (§4a)** — sonst
+  verlöre die Landschaft ihren Treffer gleich mit. `avesmapsLandscapeSearchLabelBindung` beantwortet beide Fragen
+  in einem Durchgang und läuft nur, wenn eine Landschaft oder eine unsichtbare Beschriftung trifft.
+- 💣 **Der Modus reist an JEDEM Aufrufer der Suche** als `edit_mode=1` (dieselbe Schreibweise wie die
+  Kartennutzlast): Spotlight und die zwei Deeplinks (`spotlightKartensucheModusSetzen`), dazu die drei
+  Ortsvorschlags-Abrufe der Editorseiten Kartensammlung und Literatur. Ohne Parameter gilt das Frontend.
+- 🔴 **Der Modus hängt an der ANMELDUNG, nicht am Parameter:** der Endpunkt filtert die Anfrage zuerst durch
+  `avesmapsEditModeNurFuerEditoren` — die Hausregel für jeden Leser von `edit_mode`, erzwungen von
+  `api/_internal/__tests__/edit-mode-riegel-test.php`. Ein Besucher mit `?edit_mode=1` bekommt das Frontend;
+  ohne `edit_mode` wird die Sitzung gar nicht angesehen.
+- ⚠️ Ohne Landschaftstabellen bleibt jede Beschriftung ein Treffer. Kann die Landschaft selbst kein Treffer sein
+  (Klimazone, keine aktive Fläche), ist ihre unsichtbare Beschriftung im Frontend nicht zu finden — die Suche
+  folgt der Karte.
+- ⭐ EINE Fallliste für Server und Browser: `api/_internal/app/__tests__/fixtures/unsichtbare-beschriftungen.json`.
+- 🚩 **Nebenbefund, eigener Schritt:** die Ortsvorschläge der Editorseiten Kartensammlung und Literatur kennen
+  `kind: "landscape"` nicht (`mapSearchKind` fällt auf den Namensweg zurück; im Literatur-Ortsfilter setzt ein
+  Landschaftstreffer eine Regions-ID, zu der kein Ort passt).
+
+**Abnahme:** als Besucher „See-318" → keine Zeile; „Oase Tarfui" → Landschaftszeile, keine Beschriftung; mit
+`?edit=1` „See-318" → Beschriftung, „Oase Tarfui" → Beschriftung ohne Landschaft daneben.

@@ -1858,7 +1858,9 @@
     if (fOrtAbort) fOrtAbort.abort();
     fOrtAbort = new AbortController();
     try {
-      const r = await fetch("/api/app/map-search.php?limit=8&q=" + encodeURIComponent(q), { credentials: "same-origin", signal: fOrtAbort.signal });
+      // edit_mode=1: unsichtbare Landschafts-Beschriftungen bleiben hier waehlbar (im Frontend vertritt sie
+      // ihre Landschaft -- api/_internal/app/landscape-search.php, avesmapsLandscapeSearchLabelBindung).
+      const r = await fetch("/api/app/map-search.php?edit_mode=1&limit=8&q=" + encodeURIComponent(q), { credentials: "same-origin", signal: fOrtAbort.signal });
       const j = await r.json().catch(() => null);
       fOrtItems = (j && j.ok === true ? (j.results || []) : []).filter((x) => x.kind !== "powerline" && x.public_id).slice(0, 8);
     } catch (e) { if (e && e.name === "AbortError") return; fOrtItems = []; }
@@ -1966,7 +1968,7 @@
     if (acAbort) acAbort.abort();
     acAbort = new AbortController();
     try {
-      const r = await fetch("/api/app/map-search.php?limit=8&q=" + encodeURIComponent(q), { credentials: "same-origin", signal: acAbort.signal });
+      const r = await fetch("/api/app/map-search.php?edit_mode=1&limit=8&q=" + encodeURIComponent(q), { credentials: "same-origin", signal: acAbort.signal });
       const j = await r.json().catch(() => null);
       acItems = (j && j.ok === true ? (j.results || []) : []).filter((x) => x.kind !== "powerline").slice(0, 8);
     } catch (e) { if (e && e.name === "AbortError") return; acItems = []; }

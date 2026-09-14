@@ -1,0 +1,35 @@
+{
+	"hinweis": "EINE Fallliste fuer ZWEI Seiten der Kartensuche (Owner 14.09.2026, Variante B): eine UNSICHTBARE Beschriftung (show_name false) einer Landschaft ist im Frontend kein eigener Treffer -- die Landschaft vertritt sie --, im Editormodus bleibt sie einer. api/app/__tests__/map-search-verdrahtung-test.php faehrt die Liste gegen den Endpunkt-Code, js/ui/__tests__/spotlight-unsichtbare-beschriftung.test.js gegen die Suche im Browser (dort zaehlen nur die beschriftung_*-Spalten; die landschaft_*-Spalten brauchen die Regionstabellen des Servers). show_name null = das Feld fehlt. bindung: eigen = Zeiger an der Beschriftung, region = Zeiger an der Region (label_public_id), null = freie Beschriftung.",
+	"faelle": [
+		{
+			"public_id": "l-see318", "text": "See-318", "subtype": "see", "show_name": false, "bindung": "region",
+			"region": { "public_id": "r-see318", "name": "See-318", "kind": "topographie", "region_type": "see", "type_label": "See" },
+			"beschriftung_im_frontend": false, "beschriftung_im_editor": true,
+			"landschaft_im_frontend": false, "landschaft_im_editor": false
+		},
+		{
+			"public_id": "l-tarfui", "text": "Oase Tarfui", "subtype": "wuestenoase", "show_name": false, "bindung": "eigen",
+			"region": { "public_id": "r-tarfui", "name": "Oase Tarfui", "kind": "vegetation", "region_type": "wuestenoase", "type_label": "Wüstenoase" },
+			"beschriftung_im_frontend": false, "beschriftung_im_editor": true,
+			"landschaft_im_frontend": true, "landschaft_im_editor": false
+		},
+		{
+			"public_id": "l-geister", "text": "Geisterschild", "subtype": "region", "show_name": false, "bindung": null,
+			"region": null,
+			"beschriftung_im_frontend": true, "beschriftung_im_editor": true,
+			"landschaft_im_frontend": false, "landschaft_im_editor": false
+		},
+		{
+			"public_id": "l-schilfau", "text": "Schilfau", "subtype": "wald", "show_name": true, "bindung": "eigen",
+			"region": { "public_id": "r-schilfau", "name": "Schilfau", "kind": "vegetation", "region_type": "wald", "type_label": "Wald" },
+			"beschriftung_im_frontend": true, "beschriftung_im_editor": true,
+			"landschaft_im_frontend": false, "landschaft_im_editor": false
+		},
+		{
+			"public_id": "l-nebelau", "text": "Nebelau", "subtype": "wald", "show_name": null, "bindung": "region",
+			"region": { "public_id": "r-nebelau", "name": "Nebelau", "kind": "vegetation", "region_type": "wald", "type_label": "Wald" },
+			"beschriftung_im_frontend": true, "beschriftung_im_editor": true,
+			"landschaft_im_frontend": false, "landschaft_im_editor": false
+		}
+	]
+}
