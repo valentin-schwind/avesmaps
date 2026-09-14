@@ -18,6 +18,8 @@ require_once __DIR__ . '/place-scope.php';
 // The shared "this watercourse is really a landform" rule (Wadi). Same reason path-naming.php is
 // its own file: regions.php needs the identical rule and neither library may depend on the other.
 require_once __DIR__ . '/watercourse-landform.php';
+// Weitere Wiki-Zuweisungen (Entwurf 2026-09-14): jeder Zuweiser raeumt den neuen Hauptartikel aus der Liste.
+require_once __DIR__ . '/path-weitere.php';
 
 const AVESMAPS_WIKI_PATH_STAGING_TABLE = 'wiki_path_staging';
 const AVESMAPS_WIKI_PATH_QUEUE_TABLE = 'wiki_path_queue';
@@ -947,6 +949,9 @@ function avesmapsWikiPathAssign(PDO $pdo, string $wikiKey, bool $dryRun, int $us
             $newName = $canonicalName !== '' ? $canonicalName : (string) $p['name'];
             $props = avesmapsWikiSyncDecodeJson($p['properties_json'] ?? null);
             $props['wiki_path'] = $assignObject;
+            // Entwurf 2026-09-14 §2.2: stand der neue Hauptartikel schon als WEITERE Zuweisung da,
+            // faellt er dort heraus -- sonst traege der Abschnitt denselben Artikel in zwei Rollen.
+            $props = avesmapsWikiPathWeitereOhneHaupt($props);
             // 🔴 HIER LOESCHTE EINE ZUWEISUNG DEN MERKER „kein Wiki-Artikel": wer gerade einen
             // Artikel zuweist, hat das fruehere „es gibt keinen" widerlegt, und beides zugleich war
             // der verbotene Zustand (avesmapsAssertWikiClaimNotContradictory, der geteilte Riegel).
@@ -1061,6 +1066,9 @@ function avesmapsWikiPathAssignTo(PDO $pdo, string $wikiKey, string $publicId, b
             $newName = $canonicalName !== '' ? $canonicalName : (string) $p['name'];
             $props = avesmapsWikiSyncDecodeJson($p['properties_json'] ?? null);
             $props['wiki_path'] = $assignObject;
+            // Entwurf 2026-09-14 §2.2: stand der neue Hauptartikel schon als WEITERE Zuweisung da,
+            // faellt er dort heraus -- sonst traege der Abschnitt denselben Artikel in zwei Rollen.
+            $props = avesmapsWikiPathWeitereOhneHaupt($props);
             // 🔴 HIER LOESCHTE EINE ZUWEISUNG DEN MERKER „kein Wiki-Artikel": wer gerade einen
             // Artikel zuweist, hat das fruehere „es gibt keinen" widerlegt, und beides zugleich war
             // der verbotene Zustand (avesmapsAssertWikiClaimNotContradictory, der geteilte Riegel).
@@ -1146,6 +1154,9 @@ function avesmapsWikiPathAssignAll(PDO $pdo, string $continentFilter, bool $dryR
             $revision ??= avesmapsWikiSyncNextMapRevision($pdo);
             $props = avesmapsWikiSyncDecodeJson($p['properties_json'] ?? null);
             $props['wiki_path'] = $byKey[$key];
+            // Entwurf 2026-09-14 §2.2: stand der neue Hauptartikel schon als WEITERE Zuweisung da,
+            // faellt er dort heraus -- sonst traege der Abschnitt denselben Artikel in zwei Rollen.
+            $props = avesmapsWikiPathWeitereOhneHaupt($props);
             // 🔴 HIER LOESCHTE DER DRITTE ZUWEISER DEN MERKER „kein Wiki-Artikel". Er fehlte in der
             // ersten Fassung von Aufgabe 5c: ein Weg, den der Massenlauf `assign_all` verknuepft,
             // haette danach einen Artikel UND den Merker getragen und waere durch die Konfliktregel
