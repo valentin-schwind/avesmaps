@@ -15,6 +15,7 @@ require_once __DIR__ . '/../../_internal/wiki/paths.php';
 require_once __DIR__ . '/../../_internal/wiki/path-verlauf.php';
 require_once __DIR__ . '/../../_internal/wiki/path-flow.php';
 require_once __DIR__ . '/../../_internal/wiki/path-outliers.php';
+require_once __DIR__ . '/../../_internal/wiki/path-weitere.php';
 
 try {
     $config = avesmapsLoadApiConfig(__DIR__);
@@ -183,11 +184,21 @@ try {
                 $pdo,
                 (string) ($payload['fingerprint'] ?? '')
             ),
+            // Weitere Wiki-Zuweisungen (Entwurf docs/superpowers/specs/2026-09-14-wege-mehrfachzuweisung-design.md §2.3):
+            // die Hauptzuweisung bleibt unberuehrt, der Name auch. Die Abschnitte nennt der Client.
+            'add_weitere', 'remove_weitere' => avesmapsWikiPathWeitereSchreiben(
+                $pdo,
+                $action === 'add_weitere' ? 'add' : 'remove',
+                (string) ($payload['wiki_key'] ?? ''),
+                $payload['public_ids'] ?? null,
+                !(($payload['dry_run'] ?? true) === false && (string) ($payload['confirm'] ?? '') === 'apply'),
+                (int) ($user['id'] ?? 0)
+            ),
             default => null,
         };
 
         // map_features-Cache invalidieren, wenn echt geschrieben wurde (Clients sehen die Zuordnung).
-        if (in_array($action, ['assign', 'clear_assign', 'assign_all', 'assign_to', 'backfill_verlauf_source', 'apply_verlauf_case', 'apply_verlauf_cases_clean', 'derive_flow', 'derive_flow_all', 'set_flow'], true) && is_array($response) && ($response['dry_run'] ?? true) === false) {
+        if (in_array($action, ['assign', 'clear_assign', 'assign_all', 'assign_to', 'backfill_verlauf_source', 'apply_verlauf_case', 'apply_verlauf_cases_clean', 'derive_flow', 'derive_flow_all', 'set_flow', 'add_weitere', 'remove_weitere'], true) && is_array($response) && ($response['dry_run'] ?? true) === false) {
             avesmapsWikiSyncNextMapRevision($pdo);
         }
 

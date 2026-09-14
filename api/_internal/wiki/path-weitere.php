@@ -140,3 +140,105 @@ function avesmapsWikiPathWeitereIds(mixed $roh, int $deckel): array {
     }
     return $ids;
 }
+
+/**
+ * Weitere Zuweisung an Abschnitte haengen oder von ihnen nehmen (Entwurf §2.3).
+ *
+ * 🔴 DIE ABSCHNITTE NENNT DER CLIENT; hier wird keine Gruppe nachgebildet (dieselbe Regel wie
+ * update_path_group_details -- eine zweite Fassung liefe beim ersten geaenderten Namen auseinander).
+ * Geschrieben wird nur an Abschnitten, deren Liste sich wirklich aendert; je Abschnitt EIN Eintrag
+ * im Aenderungsprotokoll (das Rueckgaengig arbeitet je Feature).
+ * 💣 KEIN DDL HIER: die Funktion laeuft in einer Transaktion, und DDL committet in MySQL implizit.
+ */
+function avesmapsWikiPathWeitereSchreiben(PDO $pdo, string $modus, string $wikiKey, mixed $publicIdsRoh, bool $dryRun, int $userId): array {
+    if ($modus !== 'add' && $modus !== 'remove') {
+        throw new RuntimeException('Unknown mode.');
+    }
+    $wikiKey = trim($wikiKey);
+    if ($wikiKey === '') {
+        throw new RuntimeException('wiki_key is required.');
+    }
+    $ids = avesmapsWikiPathWeitereIds($publicIdsRoh, AVESMAPS_WIKI_PATH_WEITERE_MAX_SEGMENTE);
+
+    $eintrag = null;
+    if ($modus === 'add') {
+        // Nur Artikel aus dem Wege-Katalog (§2.2 Nr. 3): wiki_path_staging haelt ausschliesslich Wege.
+        $statement = $pdo->prepare('SELECT * FROM ' . AVESMAPS_WIKI_PATH_STAGING_TABLE . ' WHERE wiki_key = :k LIMIT 1');
+        $statement->execute(['k' => $wikiKey]);
+        $stagingRow = $statement->fetch(PDO::FETCH_ASSOC);
+        if (!$stagingRow) {
+            throw new RuntimeException('Wiki-Weg nicht im Staging: ' . $wikiKey);
+        }
+        $eintrag = avesmapsWikiPathWeitereEintragAusStaging($stagingRow);
+    }
+
+    $platzhalter = implode(',', array_fill(0, count($ids), '?'));
+    $statement = $pdo->prepare(
+        "SELECT id, public_id, name, properties_json FROM map_features
+          WHERE feature_type = 'path' AND is_active = 1 AND public_id IN ($platzhalter)"
+    );
+    $statement->execute($ids);
+    $zeilen = [];
+    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $zeile) {
+        $zeilen[(string) $zeile['public_id']] = $zeile;
+    }
+
+    $skipped = [];
+    $plan = [];
+    foreach ($ids as $publicId) {
+        if (!isset($zeilen[$publicId])) {
+            $skipped[] = ['public_id' => $publicId, 'grund' => 'nicht_gefunden'];
+            continue;
+        }
+        $properties = avesmapsWikiSyncDecodeJson($zeilen[$publicId]['properties_json'] ?? null);
+        $ergebnis = $modus === 'add'
+            ? avesmapsWikiPathWeitereHinzufuegen($properties, $eintrag)
+            : avesmapsWikiPathWeitereEntfernen($properties, $wikiKey);
+        if (!$ergebnis['geaendert']) {
+            $skipped[] = ['public_id' => $publicId, 'grund' => $ergebnis['grund']];
+            continue;
+        }
+        $plan[] = ['zeile' => $zeilen[$publicId], 'properties' => $ergebnis['properties']];
+    }
+
+    $antwort = [
+        'ok' => true,
+        'dry_run' => $dryRun,
+        'action' => $modus === 'add' ? 'add_weitere' : 'remove_weitere',
+        'wiki_key' => $wikiKey,
+        'applied' => count($plan),
+        'skipped' => $skipped,
+        'segments_updated' => [],
+    ];
+    if ($dryRun || $plan === []) {
+        return $antwort;
+    }
+
+    $revision = avesmapsWikiSyncNextMapRevision($pdo);
+    $pdo->beginTransaction();
+    try {
+        $update = $pdo->prepare('UPDATE map_features SET properties_json = :pj, revision = :rev WHERE id = :id');
+        foreach ($plan as $schritt) {
+            $featureId = (int) $schritt['zeile']['id'];
+            $vorher = avesmapsWikiSyncFetchAuditRow($pdo, $featureId);
+            $update->execute([
+                'pj' => avesmapsWikiSyncEncodeJson($schritt['properties']),
+                'rev' => $revision,
+                'id' => $featureId,
+            ]);
+            avesmapsWikiSyncAuditFeaturePropsChange($pdo, $vorher, $schritt['properties'], $revision, $userId);
+            $antwort['segments_updated'][] = [
+                'public_id' => (string) $schritt['zeile']['public_id'],
+                'wiki_path_weitere' => avesmapsWikiPathWeitereLesen($schritt['properties']),
+            ];
+        }
+        $pdo->commit();
+    } catch (Throwable $fehler) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        throw $fehler;
+    }
+
+    return $antwort;
+}
