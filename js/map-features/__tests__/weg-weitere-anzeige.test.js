@@ -48,7 +48,11 @@ global.pathData = [
 ];
 const [rs6, rs7, bp1] = global.pathData;
 
-assert.ok(A.avesmapsWegWeitereZeilenMarkup(rs7, null).includes('data-station-ref="Baerenpfad">Bärenpfad</button>'), "der Abschnitt nennt seine weitere Zuweisung");
+const amAbschnitt = A.avesmapsWegWeitereZeilenMarkup(rs7, null);
+assert.ok(amAbschnitt.includes('data-station-ref="Baerenpfad">Bärenpfad</button>'), "der Abschnitt nennt seine weitere Zuweisung");
+// R27 (Task 11 Fix 2): am Abschnitt traegt IMMER er selbst den Artikel -- keine Klammer, die ihn (den
+// gerade geoeffneten Abschnitt) noch einmal nennt.
+assert.ok(!amAbschnitt.includes("(Abschnitt"), "am Abschnitt keine Klammer bei \"Auch Teil von\": " + amAbschnitt);
 assert.strictEqual(A.avesmapsWegWeitereZeilenMarkup(rs6, null), "", "ohne weitere Zuweisung und ohne Traeger keine Zeile");
 const vomBaerenpfad = A.avesmapsWegWeitereZeilenMarkup(bp1, null);
 assert.ok(vomBaerenpfad.includes("<dt>Verläuft auch über</dt>"), vomBaerenpfad);

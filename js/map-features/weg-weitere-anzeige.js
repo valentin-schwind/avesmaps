@@ -81,7 +81,9 @@ function avesmapsWegWeitereZeilenMarkup(path, auswahl) {
 		zusatz: gesamt && e.labels.length === gesamt ? "" : e.labels.filter(Boolean).join(", "),
 	}));
 	return avesmapsWegWeitereZeilen({
-		auchTeil: alsEintraege(auchTeil, ganz ? eigene.length : 0),
+		// R27 (Task 11 Fix 2): `eigene.length` gilt in BEIDEN Faellen -- am Abschnitt ist es 1 und der einzige
+		// Traeger deckt sie immer, die Klammer nennte sonst den eben geoeffneten Abschnitt noch einmal.
+		auchTeil: alsEintraege(auchTeil, eigene.length),
 		verlaeuftUeber: alsEintraege(ueber, 0),
 	}, pathItemStationLinkMarkup);
 }
