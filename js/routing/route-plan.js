@@ -961,7 +961,7 @@ function showRoutePlan(routeNames, segments) {
 			${tr("planner.leg.to", "bis")} ${endMarkup}
 			${tr("planner.leg.in", "in")} ${formatDecimalNumber(entry.travelTime, 1)} ${tr("planner.unit.hours", "Stunden")} (${formatDecimalNumber(entry.travelTime / 24, 2)} ${tr("planner.unit.days", "Tage")})
 			<span class="route-plan-entry__landscapes" data-route-landscapes-index="${entryIndex}"></span>${routeEntryTerrainNote(entry, segments)}
-			${routePlanCalendarLegMarkup(routeCalendar, entryIndex, entry)}${(routeClosureNotes.get(entryIndex) || []).map((note) => `<span class="route-plan-entry__sperrung">${note}</span>`).join("")}
+			${routePlanCalendarLegMarkup(routeCalendar, entryIndex, entry)}${(routeClosureNotes.get(entryIndex) || []).map((note) => `<span class="route-plan-sperrung route-plan-entry__sperrung" role="note"><span class="route-plan-sperrung__zeichen" aria-hidden="true">⚠&#xFE0E;</span><span class="route-plan-sperrung__text">${note}</span></span>`).join("")}
 			</div>
 		`);
 	});

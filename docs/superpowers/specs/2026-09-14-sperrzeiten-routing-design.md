@@ -345,6 +345,11 @@ Artikel hängt am Geschlecht des Namens („um die Eisenstraße", „um den Rabe
 kommen aus den Daten — gebaut ist deshalb die artikelfreie Form **„Gesperrt: Saljethweg — am 3. Firun,
 befahrbar vom 15. Peraine bis zum 30. Efferd."**
 
+⭐ **Nachgeschärft nach dem ersten Blick live (Owner 14.09.2026 abends):** „kannst du da die warnung in eine
+rote box tun wie oben" — der Vermerk am Abzweig steht seither im selben Warnkasten wie der Hinweis oben
+(`.route-plan-sperrung` samt Warnzeichen); `.route-plan-entry__sperrung` setzt nur Abstand und Schriftgröße.
+Die Rollen bleiben verteilt, nur die Form ist dieselbe.
+
 ---
 
 ## 13. Nachtrag: Reisebeginn unbekannt (Owner 14.09.2026, während des Baus)

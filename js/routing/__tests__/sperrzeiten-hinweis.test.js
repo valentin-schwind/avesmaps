@@ -131,6 +131,9 @@ const mitVermerk = mit.legs.map((markup) => markup.includes("route-plan-entry__s
 assert.deepStrictEqual(mitVermerk, [false, false, true, false], "der Vermerk steht in Etappe 3 (Segment e2)");
 assert.ok(mit.legs[2].includes("route-plan-entry--umweg"), "und ihre Perle traegt die Markierung");
 assert.ok(!mit.legs[1].includes("route-plan-entry--umweg"), "die anderen nicht");
+// Owner 14.09.2026 abends: „die warnung in eine rote box tun wie oben" -- derselbe Kasten, dasselbe Zeichen.
+assert.ok(mit.legs[2].includes('class="route-plan-sperrung route-plan-entry__sperrung" role="note"'), "der Vermerk steht im Warnkasten:\n" + mit.legs[2]);
+assert.ok(/route-plan-sperrung__zeichen[^>]*>⚠&#xFE0E;<\/span><span class="route-plan-sperrung__text">Gesperrt:/.test(mit.legs[2]), "mit Warnzeichen vor dem Satz");
 assert.ok(mit.legs[2].includes("Gesperrt:"), "artikelfrei: " + mit.legs[2]);
 assert.ok(mit.legs[2].includes(">Schattenbachpass</button>"), "der Wegname ist ein Knopf");
 assert.ok(mit.legs[2].includes('data-public-ids="pub-Q"'), "der auf den Weg zoomt");

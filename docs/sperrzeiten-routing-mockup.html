@@ -117,9 +117,7 @@ body { background: var(--color-page-bg); color: var(--color-text); }
 	min-width: 0;
 }
 .route-plan-entry__sperrung {
-	display: block;
-	margin-top: 1px;
-	color: var(--color-warning-soft-text);
+	margin: 4px 0 0;
 	font-size: 11px;
 }
 .route-plan-sperrung__weg {
@@ -177,7 +175,7 @@ body { background: var(--color-page-bg); color: var(--color-text); }
 	<!-- ── C: gebaut ─────────────────────────────────────────────────────────────────────── -->
 	<section class="proto-card proto-card--gewaehlt">
 		<h3>C · Beides, mit verteilten Rollen <span class="proto-badge">gebaut</span></h3>
-		<p class="proto-sub">Oben steht <em>dass</em> und <em>wie viel länger</em> — damit die Zahlen darunter lesbar sind. Am Abzweig steht <em>welcher Weg</em> und <em>warum</em>; der Name zoomt auf den Weg. Keine Aussage steht zweimal.</p>
+		<p class="proto-sub">Oben steht <em>dass</em> und <em>wie viel länger</em> — damit die Zahlen darunter lesbar sind. Am Abzweig steht <em>welcher Weg</em> und <em>warum</em>; der Name zoomt auf den Weg. Keine Aussage steht zweimal. Seit 14.09.2026 abends steht auch der Vermerk im selben Warnkasten (Owner: „die warnung in eine rote box tun wie oben").</p>
 		<div class="proto-overview">
 			<div class="route-plan-legs__title">Reiseübersicht</div>
 			<div class="route-plan-summary__head">
@@ -199,7 +197,7 @@ body { background: var(--color-page-bg); color: var(--color-text); }
 			<div class="route-plan-legs__title">Reiseetappen</div>
 			<div role="button" tabindex="0" class="route-plan-entry route-plan-entry--chained route-plan-entry--umweg">
 				<img class="route-overview-icon" src="../icons/Gebirgspfad.webp" alt=""> Gebirgspass (56,6 Meilen) von <button type="button" class="route-plan-entry__place">Yrramis</button> bis <button type="button" class="route-plan-entry__place">Nôrrhöh</button> in 25,5 Stunden (1,06 Tage)
-				<span class="route-plan-entry__date">3.–5. Firun · Tiefschnee +33&nbsp;%</span><span class="route-plan-entry__sperrung">Gesperrt: <button type="button" class="route-plan-sperrung__weg" data-public-ids="298d65bf-01a2-5ede-ade0-11ce11dd0d8f,557e225e-3bfe-5c02-ba14-c7eaad197e3d">Saljethweg</button> — am 3. Firun, befahrbar vom 15. Peraine bis zum 30. Efferd.</span>
+				<span class="route-plan-entry__date">3.–5. Firun · Tiefschnee +33&nbsp;%</span><span class="route-plan-sperrung route-plan-entry__sperrung" role="note"><span class="route-plan-sperrung__zeichen" aria-hidden="true">⚠&#xFE0E;</span><span class="route-plan-sperrung__text">Gesperrt: <button type="button" class="route-plan-sperrung__weg" data-public-ids="298d65bf-01a2-5ede-ade0-11ce11dd0d8f,557e225e-3bfe-5c02-ba14-c7eaad197e3d">Saljethweg</button> — am 3. Firun, befahrbar vom 15. Peraine bis zum 30. Efferd.</span></span>
 			</div>
 			<div role="button" tabindex="0" class="route-plan-entry route-plan-entry--chained">
 				<img class="route-overview-icon" src="../icons/Gebirgspfad.webp" alt=""> Gebirgspass (48,5 Meilen) von <button type="button" class="route-plan-entry__place">Nôrrhöh</button> bis <button type="button" class="route-plan-entry__place">Kaltenbach</button> in 21,8 Stunden (0,91 Tage)
@@ -261,7 +259,7 @@ body { background: var(--color-page-bg); color: var(--color-text); }
 		<div class="proto-overview">
 			<div role="button" tabindex="0" class="route-plan-entry route-plan-entry--chained route-plan-entry--umweg">
 				<img class="route-overview-icon" src="../icons/Gebirgspfad.webp" alt=""> Gebirgspass (56,6 Meilen) von <button type="button" class="route-plan-entry__place">Yrramis</button> bis <button type="button" class="route-plan-entry__place">Nôrrhöh</button>
-				<span class="route-plan-entry__sperrung">Gesperrt: Saljethweg — am 3. Firun · 1,4 Tage länger</span>
+				<span class="route-plan-sperrung route-plan-entry__sperrung" role="note"><span class="route-plan-sperrung__zeichen" aria-hidden="true">⚠&#xFE0E;</span><span class="route-plan-sperrung__text">Gesperrt: Saljethweg — am 3. Firun · 1,4 Tage länger</span></span>
 			</div>
 		</div>
 	</section>
