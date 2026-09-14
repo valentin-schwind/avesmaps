@@ -206,8 +206,17 @@ gleich(garetienEingefuegtWirdHatVorschlag({
 // =================================================================================================
 
 gleich(garetienEingefuegtWirdMarkup(null), "", "ohne Objekt gibt es keinen Kasten");
-gleich(garetienEingefuegtWirdMarkup({ items: [] }), "", "ohne Vorschlag gibt es keinen Kasten -- eine "
-	+ "Ueberschrift ueber nichts ist keine Auskunft (dieselbe Regel wie bei garetienQuellenMarkup)");
+// 🔴 SEIT DEM 14.09.2026 (Aufgabe 10, „Garetien-Importer vereint") STEHT AUF „OFFEN" AUCH OHNE
+// VORSCHLAG EIN KASTEN: der Vorschlag als Text („Nichts — nur ansehen"). Ob etwas anzulegen ist, IST dort
+// die Auskunft -- und ein Kasten ohne Einstellfeld.
+const ohneVorschlagOffen = garetienEingefuegtWirdMarkup({ key: "gi-ohne:1", items: [] });
+wahr(ohneVorschlagOffen.includes("Nichts — nur ansehen") && !/data-gi-feld=/.test(ohneVorschlagOffen),
+	"auf „Offen\": der Vorschlag als Text, kein Feld: " + ohneVorschlagOffen);
+// Auf der Stage bleibt die alte Regel.
+const ohneVorschlagStage = { key: "gi-ohne:2", items: [] };
+avesmapsGaretienStageHinzufuegen([ohneVorschlagStage]);
+gleich(garetienEingefuegtWirdMarkup(ohneVorschlagStage), "", "auf der Stage: ohne Vorschlag gibt es "
+	+ "keinen Kasten -- eine Ueberschrift ueber nichts ist keine Auskunft (dieselbe Regel wie bei garetienQuellenMarkup)");
 
 // =================================================================================================
 // C. Eine FLAECHE (ziel='region') -- Owner-Beispiel Huegel -> huegelland, ALLE SIEBEN Felder als
@@ -763,6 +772,9 @@ wahr(/calc\(/.test(garetienSliderMarkePosition(3, 3, 3)), "min === max liefert e
 // =================================================================================================
 
 const objektH2 = { key: "gi-spiegel:1", subtyp: "huegelland", ziel: "region" };
+// 🔴 Seit dem 14.09.2026 (Aufgabe 10) wird nur an einem AUFGELEGTEN Objekt eingestellt -- auf „Offen"
+// verwirft garetienEingabenAendern jedes Feld.
+avesmapsGaretienStageHinzufuegen([objektH2]);
 garetienDetailWaehlen(objektH2.key, [objektH2]);
 
 const idH2 = garetienEingabeId(objektH2, "size");
@@ -845,6 +857,9 @@ garetienEingabenAendern({ target: feldOhneOffen }, [objektJ]);
 gleich(garetienEingabenZustandZu(objektJ).size, 18,
 	"ohne ein geöffnetes Objekt (detailKey === null) bewegt eine Eingabe NICHTS");
 
+// 🔴 Aufgelegt, denn auf „Offen" wird seit dem 14.09.2026 nichts eingestellt (Aufgabe 10; der Riegel
+// selbst ist in garetien-offen-ohne-einstellfelder.test.js gefahren).
+avesmapsGaretienStageHinzufuegen([objektJ]);
 garetienDetailWaehlen(objektJ.key, [objektJ]);
 
 // Ein fremdes Ziel (kein data-gi-feld) wird ignoriert.

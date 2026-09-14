@@ -4536,8 +4536,16 @@
 			return o && String(o.key) === String(zustand.detailKey);
 		})[0] || null;
 		if (!objekt) { return; }
-		const eingaben = garetienEingabenZustandZu(objekt);
 		const feld = ziel.getAttribute("data-gi-feld");
+		// 🔴 AUF „OFFEN" WIRD NICHTS EINGESTELLT (Owner 12.09.2026: „bei ‚offen' sollten bspw keine
+		// einstellungen am label vorgenommen werden"). Der Riegel steht HIER, nicht nur im Markup: ein Feld,
+		// das noch im DOM steht (eine Einzelansicht, gezeichnet vor dem Herunternehmen), legte sonst einen
+		// Zustand an, der beim nächsten Auflegen gälte, und zöge die Vorschau auf der Karte nach.
+		// 💣 VOR `garetienEingabenZustandZu`: schon dessen erster Aufruf LEGT den Zustand an.
+		// ⚠️ NUR `data-gi-feld`: der Umkreis-Spinner (`data-gi-umkreis`) ist ein Auswahlwerkzeug für die
+		// LISTE, keine Eigenschaft des Objekts, und bleibt auch auf „Offen" bedienbar (Entwurf §3, Block G).
+		if (feld !== null && feld !== "" && !avesmapsGaretienStageHat(objekt.key)) { return; }
+		const eingaben = garetienEingabenZustandZu(objekt);
 		// 🔴 DIE ZIELWAHL STEHT VOR ALLEM ANDEREN -- sie ist kein Wert des Kastens, sie entscheidet,
 		// WELCHE Felder der Kasten überhaupt hat. Deshalb baut sie die Detailspalte neu, statt nur
 		// einen Wert abzulegen.
@@ -5884,8 +5892,53 @@
 			+ bauen("zielArt", artListe, wahl.subtyp) + "</span></p>";
 	}
 
+	/*
+	 * REIN: der Vorschlag eines NICHT aufgelegten Objekts -- Ziel · Form · Art als TEXT (Entwurf §3,
+	 * Block C; Mockup §2).
+	 *
+	 * 🔴 AUF „OFFEN" STEHT KEIN EINSTELLFELD (Owner 12.09.2026/1 und /2: „der Vorschlag ist sichtbar,
+	 * geändert wird er erst auf der Stage"). Bis hierher standen Form und Art dort als bedienbare
+	 * Auswahl -- und der Zustand, den sie anlegten, galt beim späteren Import (Befund „Auf „Offen" sind
+	 * 16 Einstellfelder bedienbar — und die Karte folgt").
+	 * ⚠️ Gelesen wird DIESELBE Weiche wie auf der Stage (garetienZielwahlZu, garetienZielWahlZu,
+	 * garetienUnserBeschriftung): was hier steht, ist genau das, was nach „Auf die Stage" vorbelegt ist.
+	 * ⚠️ Form und Art nur, wenn das Ziel ein Kartenobjekt baut -- bei einer Ergänzung oder „Nichts"
+	 * gäbe es keine Form, die gälte.
+	 */
+	function garetienVorschlagMarkup(objekt) {
+		const o = objekt || {};
+		const zielwahl = garetienZielwahlZu(o);
+		const zeile = function (beschriftung, wert, hinweis) {
+			return '<p class="gi-insert__row"><span>' + avesmapsGaretienEscape(beschriftung) + "</span>"
+				+ '<span class="gi-insert__val">' + avesmapsGaretienEscape(wert) + "</span>"
+				+ (hinweis !== "" ? ' <span class="gi-insert__hint">' + avesmapsGaretienEscape(hinweis) + "</span>" : "")
+				+ "</p>";
+		};
+		let raus = zeile("Ziel", garetienZielwahlTexte(o, zielwahl).t1, "");
+		if (zielwahl === "karte" || zielwahl === "zusaetzlich") {
+			const formKey = String(garetienZielWahlZu(o).ziel || "");
+			const form = (AVESMAPS_GARETIEN_FORMEN.filter(function (f) { return f.key === formKey; })[0] || {}).label || "";
+			if (form !== "") { raus += zeile("Form", form, ""); }
+			const art = garetienUnserBeschriftung(o);
+			if (art !== "") {
+				const ihr = String(o.typ || "").trim();
+				const quelle = garetienWikiLabel(String(o.wiki || ""));
+				raus += zeile("Art", art,
+					ihr === "" ? "" : "aus „" + ihr + "“" + (quelle !== "" ? " (" + quelle + ")" : ""));
+			}
+		}
+		return raus + '<p class="gi-why">Erst auf der Stage einstellbar.</p>';
+	}
+
 	function garetienEingefuegtWirdMarkup(objekt) {
-		if (!objekt || !garetienEingefuegtWirdHatVorschlag(objekt)) { return ""; }
+		if (!objekt) { return ""; }
+		// 🔴 NICHT AUF DER STAGE, NICHT ÜBERNOMMEN: DER VORSCHLAG ALS TEXT (Aufgabe 10, 14.09.2026). Und das
+		// auch für ein Objekt ohne Neu-Item -- eine Ergänzung („Quelle an X ergänzen") oder „Nichts" ist
+		// genauso eine Auskunft darüber, was nach „Auf die Stage" daraus würde.
+		if (String(objekt.stand || "") !== "uebernommen" && !avesmapsGaretienStageHat(objekt.key)) {
+			return '<div class="gi-insert"><p class="gi-sec">Eingefügt wird</p>' + garetienVorschlagMarkup(objekt) + "</div>";
+		}
+		if (!garetienEingefuegtWirdHatVorschlag(objekt)) { return ""; }
 		// 🔴 SEIT 01.09.2026 ENTSCHEIDET DIE WAHL, NICHT DER VORSCHLAG. `garetienZielWahlZu` liefert
 		// den Vorschlag, solange niemand etwas anderes gewählt hat -- der Kasten darunter zeigt
 		// deshalb die Felder der GEWÄHLTEN Form (eine Fläche hat andere als ein Gipfel).
@@ -5906,16 +5959,10 @@
 			+ '<p class="gi-why gi-insert__kopf">' + avesmapsGaretienEscape(garetienTypText(objekt)) + "</p>"
 			+ garetienEingefuegtWirdUebernommenHinweis(objekt)
 			+ garetienZielWahlMarkup(objekt, uebernommen, ausGrund);
-		// 🔴 SOLANGE „OFFEN", BLEIBEN DARSTELLUNG UND WIKI & QUELLEN AUSGEBLENDET (Owner
-		// 09.09.2026: „die sind alle auf der stage erst wichtig"). Auf dem Reiter Offen
-		// entscheidet ein Editor zwei Dinge -- ueberhaupt? und als was? Groesse, Prioritaet,
-		// Zoomband, Kurvenbeschreibung, „fuer Klicks gesperrt", Wiki und Quellen beantworten
-		// keine davon; sie stehen dort nur im Weg, bei jeder der 8237 Zeilen.
-		// ⭐ Dieselbe Regel gilt schon fuer Name und Zielwahl (Nachbesserung Runde 1, G1: bis zum
-		// 14.09.2026 standen hier die zwei Haekchen, garetienEinfuegeHakenMarkup; seither
-		// garetienZielwahlMarkup/garetienZielNameZeile) -- aus der Ausnahme wird hier die Regel.
-		// ⚠️ Form und Art bleiben: sie sind die Antwort auf „als was?" und gehoeren damit zur
-		// Entscheidung, nicht zur Einstellung.
+		// 🔴 BIS HIERHER KOMMT EIN NICHT AUFGELEGTES OBJEKT NUR NOCH, WENN ES ÜBERNOMMEN IST (Aufgabe 10,
+		// 14.09.2026): „Offen" kehrt oben mit dem Vorschlag als Text zurück. Ein übernommenes Objekt zeigt
+		// weiter, was es vor dem Umbau zeigte -- Form und Art gesperrt, Darstellung sowie Wiki & Quellen
+		// ausgeblendet (Bestand, Owner 14.09.2026).
 		if (!avesmapsGaretienStageHat(objekt.key)) {
 			return '<div class="gi-insert">' + markup
 				+ '<p class="gi-why">Darstellung sowie Wiki &amp; Quellen erscheinen, sobald das'
@@ -10447,6 +10494,8 @@
 			// Aufgabe „Eingefügt wird" (30.08.2026)
 			garetienEingefuegtWirdHatVorschlag,
 			garetienEingefuegtWirdMarkup,
+			// 14.09.2026 (Aufgabe 10): der Vorschlag als Text auf „Offen"
+			garetienVorschlagMarkup,
 			garetienZielVorbelegung,
 			garetienZielWahlZu,
 			garetienZielWahlVergessen,
