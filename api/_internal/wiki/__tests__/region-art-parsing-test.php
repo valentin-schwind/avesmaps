@@ -79,14 +79,17 @@ assert(avesmapsWikiRegionArtToSubtype('Berggipfel') === 'berggipfel', 'Berggipfe
 // category (74 pages): Schlucht 19, Talkessel 1, Klamm 1 -- 21 of 74 had no mapping at all, so the
 // editor's "adopt category from the wiki landscape" button could not categorise them and they
 // landed in the "region" catch-all. That is the very complaint Discord #51 raised for Tal.
-assert(avesmapsWikiRegionArtToSubtype('Schlucht') === 'tal', 'a Schlucht is a valley form');
-assert(avesmapsWikiRegionArtToSubtype('Klamm') === 'tal', 'a Klamm is a valley form');
-assert(avesmapsWikiRegionArtToSubtype('Talkessel') === 'tal', 'a Talkessel is a valley form');
+// 🔴 Seit 14.09.2026 sind Schlucht und Klamm eine EIGENE Art (Owner: „Schlucht bleibt") -- die
+// Flaechenart `schlucht` war juenger als diese Tafel und deshalb unerreichbar. Der Talkessel bleibt ein Tal.
+assert(avesmapsWikiRegionArtToSubtype('Schlucht') === 'schlucht', 'a Schlucht is its own subtype since 2026-09-14');
+assert(avesmapsWikiRegionArtToSubtype('Klamm') === 'schlucht', 'a Klamm goes with it -- the wiki files Klamm pages under Art=Schlucht');
+assert(avesmapsWikiRegionArtToSubtype('Talkessel') === 'tal', 'a Talkessel stays a valley form');
 
 // The type check has to follow the mapping, otherwise the two live offenders stay invisible.
 // Asbyrgi (Art=Schlucht) and Gespensterkessel (Art=Talkessel) both sit as "region" today.
-assert(avesmapsWikiRegionTypeConflict('region', 'Schlucht') === true, 'a Schlucht stored as region is a conflict now');
-assert(avesmapsWikiRegionTypeConflict('tal', 'Schlucht') === false, 'a Schlucht stored as tal is fine');
+assert(avesmapsWikiRegionTypeConflict('region', 'Schlucht') === true, 'a Schlucht stored as region is a conflict');
+assert(avesmapsWikiRegionTypeConflict('schlucht', 'Schlucht') === false, 'a Schlucht stored as schlucht is fine');
+assert(avesmapsWikiRegionTypeConflict('tal', 'Schlucht') === true, 'a Schlucht stored as tal is a conflict now -- the intended signal');
 assert(avesmapsWikiRegionTypeConflict('tal', 'Tal|Tal') === false, 'the mapping already split on the pipe -- keep it that way');
 
 // An Art we deliberately do NOT map must stay unmapped: an unknown art disables the type check

@@ -91,7 +91,15 @@ const AVESMAPS_WIKI_REGION_ART_TO_SUBTYPE = [
     // of all valleys had no expected subtype, so the "adopt from the wiki landscape" button could
     // not categorise them and they stayed in the 'region' catch-all. Krater (2 pages, both
     // off-continent) stays unmapped on purpose: a crater is not a valley.
-    'Schlucht' => 'tal', 'Klamm' => 'tal', 'Talkessel' => 'tal',
+    // 🔴 SCHLUCHT UND KLAMM SIND SEIT 14.09.2026 KEIN TAL MEHR, SONDERN `schlucht` (Owner: „Schlucht
+    // bleibt"). Die Flaechenart `schlucht` ist juenger als diese Tafel und war deshalb unerreichbar:
+    // 0 Flaechen, obwohl sie den zweitschaerfsten Reisefaktor der Topographie traegt. Die Klamm geht
+    // mit, weil das Wiki selbst so sortiert -- Greifenklamm, Lange Klamm, Hohe Klamm … tragen alle
+    // Art=Schlucht. Gemessen 14.09.2026 an der Regionen-Liste: 36 Artikel (34 Schlucht, 2 Klamm),
+    // 5 davon an einer Beschriftung; die zwei auf `tal` melden danach „Art weicht ab" -- gewollt.
+    // ⚠️ Der Talkessel bleibt ein Tal: er ist breit, nicht eng (siehe die Seed-Kommentare in
+    // api/_internal/app/ecosystem.php).
+    'Schlucht' => 'schlucht', 'Klamm' => 'schlucht', 'Talkessel' => 'tal',
     // steppe (trockenes Grasland)
     'Steppe' => 'steppe',
     // gras-/auenlandschaft (eigene Grüntöne)
