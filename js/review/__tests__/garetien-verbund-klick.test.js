@@ -45,7 +45,9 @@ function ziel(attribute, optionen) {
 }
 
 function fragmente(n) {
-	const basis = { ebene: "Waelder", typ: "Wald", verbund_stamm: "Silker Hain", verbund_n: n };
+	// Aufgabe 6 (14.09.2026): Zusammenlegen verlangt die Form Flaeche -- ohne `ziel` waere es gesperrt.
+	const basis = { ebene: "Waelder", typ: "Wald", verbund_stamm: "Silker Hain", verbund_n: n,
+		ziel: "region", subtyp: "wald" };
 	return Array.from({ length: n }, (_, i) => Object.assign(
 		{ key: "ggp:silkerhain:" + i, name: "Silker Hain " + (i + 1) }, basis));
 }
@@ -91,6 +93,8 @@ async function mitObjekten(objekte, tun) {
 		gleich(knopf.ids.length, 0, "kein Rumpf -- die Handlung ist rein client-seitig");
 
 		const schluessel = api.garetienVerbundSchluessel(m1);
+		// 🔴 Aufgabe 6: Zusammenlegen legt NICHT mehr auf -- erst auflegen, dann zusammenlegen.
+		api.avesmapsGaretienStageHinzufuegen([m1, m2]);
 		api.garetienVerbundZusammenlegen(schluessel, [m1, m2]);
 		const knopfDanach = api.garetienHandlungen(m1).filter((k) => k.name === "verbund")[0];
 		gleich(knopfDanach.beschriftung, "Verbund auflösen (2)",
@@ -146,15 +150,24 @@ async function mitObjekten(objekte, tun) {
 		{ target: ziel({ "data-handlung": "verbund", "data-key": c1.key }, { disabled: true }) },
 		[c1, c2]), null, "ein gesperrtes Element schickt nichts -- die Anzeige-Sperre gilt auch hier");
 
-	// Ein Klick auf den Knopf: legt zusammen.
+	// 🔴 Aufgabe 6 (14.09.2026): der Klick LEGT NICHT AUF. Mit nur einem Fragment auf der Stage ist
+	// nichts zusammenzulegen -- das „Nein" zaehlt als gefunden und nennt den Grund.
+	api.avesmapsGaretienStageHinzufuegen([c1]);
+	const gesperrt = api.garetienVerbundKlick(
+		{ target: ziel({ "data-handlung": "verbund", "data-key": c1.key }) }, [c1, c2]);
+	gleich(gesperrt.handlung, "verbund_gesperrt", "ein Fragment auf der Stage: gesperrt, kein Auflegen");
+	gleich(api.avesmapsGaretienStageHat(c2.key), false, "💣 und das zweite Fragment bleibt, wo es war");
+
+	// Beide auf der Stage: der Klick legt zusammen.
+	api.avesmapsGaretienStageHinzufuegen([c2]);
 	const ergebnis1 = api.garetienVerbundKlick(
 		{ target: ziel({ "data-handlung": "verbund", "data-key": c1.key }) }, [c1, c2]);
 	wahr(Boolean(ergebnis1), "der erste Klick legt zusammen und meldet ein Ergebnis");
 	gleich(ergebnis1.handlung, "verbund_zusammengelegt", "und benennt die Richtung");
 	gleich(api.garetienVerbundIstZusammen(schluesselC), true,
 		"der Verbund gilt jetzt als zusammengelegt");
-	gleich(api.avesmapsGaretienStageHat(c1.key), true, "und BEIDE Mitglieder liegen auf der Stage");
-	gleich(api.avesmapsGaretienStageHat(c2.key), true, "…auch das zweite, nicht nur das angeklickte");
+	gleich(api.avesmapsGaretienStageHat(c1.key), true, "beide Mitglieder liegen weiter auf der Stage");
+	gleich(api.avesmapsGaretienStageHat(c2.key), true, "auch das zweite");
 
 	// Ein zweiter Klick auf DENSELBEN Knopf (jetzt "Verbund auflösen"): loest die Merkung, laesst
 	// die Stage aber unberuehrt (garetienVerbundAufloesen nimmt NUR die Merkung zurueck).

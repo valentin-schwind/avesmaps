@@ -161,6 +161,13 @@
 		// aufloesbar.
 		// 🔴 Eine `Map` und nicht ein Objekt: sie haelt die Einfuegereihenfolge zu, und ein
 		// Objektschluessel wie „constructor" kann ihr nichts anhaben.
+		// 🔴 AUFGABE 6 (14.09.2026): JEDER WERT IST EIN EINTRAG `{ objekt, zusammen }`, nicht das Objekt
+		// selbst. `zusammen` ist die Entscheidung „dieser Verbund ist zusammengelegt" (Entwurf §6.4) --
+		// sie lebt und stirbt mit dem Eintrag. Ein Feld AM OBJEKT waere nach dem naechsten
+		// avesmapsGaretienStageAuffrischen still fort (die Stage bekommt dort die frische Serverfassung)
+		// und schriebe sich ueber die geteilte Referenz bis in `zustand.objekte` durch.
+		// ⚠️ Gelesen wird die Stage NUR ueber avesmapsGaretienStageListe/-Hat; wer `zustand.stage`
+		// direkt liest, bekommt Eintraege, keine Objekte.
 		stage: new Map(),
 		// 🔴 Aufgabe 2: die Auswahl ist CLIENT-SEITIG und schreibt nichts (Owner 29.08.2026:
 		// „Markieren aendert nichts"). Sie hat genau einen Zweck: der Knopf „Auf die Stage".
@@ -230,6 +237,19 @@
 	 */
 	const AVESMAPS_GARETIEN_HAKEN_KLICK = "avesmapsGaretienKarteKlick";
 
+	/*
+	 * Sind Wege-Verbuende freigegeben? (Aufgabe 6, Entwurf 2026-09-14 §6.6)
+	 *
+	 * 🔴 AB WERK NEIN. Zusammengelegte Wege-Abschnitte heissen nach dem Import wie ihr Stamm und
+	 * werden damit EIN Weg (`name:<Wegart>:<Stamm>`). Ob „X" und „X 2" bei Wegen wirklich derselbe
+	 * Weg sind, kann nur der Bestand sagen -- der Owner sieht die 19 Wege-Verbuende im Filter
+	 * „nur Verbünde", BEVOR das live geht. Die Freigabe ist GENAU DIESE EINE ZEILE.
+	 * ⚠️ Gelesen wird `_garetienVerbundWegeFrei` (darunter), damit ein Test beide Werte fahren kann,
+	 * ohne den Quelltext umzuschreiben -- der Setzer steht nur unter `__test`.
+	 */
+	const AVESMAPS_GARETIEN_VERBUND_WEGE_FREI = false;
+	let _garetienVerbundWegeFrei = AVESMAPS_GARETIEN_VERBUND_WEGE_FREI;
+
 	// ---- Die Stage --------------------------------------------------------------------------------
 	//
 	// 🔴 CLIENT-SEITIG, und das ist eine Bedingung, keine Bequemlichkeit: eine Server-Tabelle dafuer
@@ -242,9 +262,16 @@
 			if (!o || o.key === undefined || o.key === null || o.key === "") { return; }
 			// ⚠️ Ein bereits liegendes Objekt wird ERSETZT, nicht uebersprungen: die frischere
 			// Fassung kommt aus der letzten Serverantwort und kann ein geaendertes Urteil tragen.
-			// Die Reihenfolge bleibt trotzdem die des ERSTEN Einfuegens -- `Map.set` auf einen
-			// vorhandenen Schluessel sortiert nicht um.
-			zustand.stage.set(String(o.key), o);
+			// Die Reihenfolge bleibt trotzdem die des ERSTEN Einfuegens -- der Eintrag bleibt derselbe.
+			// 🔴 AUFGABE 6: EIN NEU AUFGELEGTER EINTRAG TRAEGT `zusammen = false`. Ein Fragment, das nach
+			// „Stage leeren" einzeln wieder aufgelegt wird, ist NICHT zusammengelegt (K1, Entwurf §6.4).
+			// Ein schon liegender Eintrag behaelt seine Entscheidung -- er wird nicht neu aufgelegt.
+			const eintrag = zustand.stage.get(String(o.key));
+			if (eintrag) {
+				eintrag.objekt = o;
+			} else {
+				zustand.stage.set(String(o.key), { objekt: o, zusammen: false });
+			}
 			// 🔴 EIN GEWOEHNLICHER WEG IN DIE ANZEIGE HEBT DIE „nur ihre"-MARKE AUF. Wer denselben
 			// Nachbarn ueber „Auf die Stage" oder einen Zeilenknopf hereinholt, will ihn ganz
 			// sehen -- und der Naehe-Klick setzt seine Marke NACH diesem Aufruf wieder.
@@ -267,6 +294,9 @@
 		// ⚠️ Die Marken gehen MIT. Sonst traegt ein spaeter wieder hereingeholtes Objekt eine
 		// Entscheidung aus einer Sitzung, an die sich niemand mehr erinnert.
 		zustand.nurIhre.clear();
+		// 🔴 AUFGABE 6 (Fehler 10): UND DIE EINSTELLUNGEN GEHEN MIT -- dieselbe Begruendung. Die
+		// Vergessen-Funktionen hatten bis zum 14.09.2026 keinen einzigen Produktivaufrufer.
+		garetienEinstellungenVergessen();
 		return zustand.stage.size;
 	}
 
@@ -276,18 +306,32 @@
 	// hereingeholtes Objekt eine Entscheidung, an die sich niemand mehr erinnert.
 	// ⚠️ Es kommen SCHLUESSEL herein, keine Objekte -- die Auswahl kennt nur Schluessel, und ein
 	// Objekt, das gerade aus der Liste gefiltert ist, laesst sich sonst nicht mehr herausnehmen.
+	// 🔴 AUFGABE 6 (Entwurf §6.3): BLEIBEN VON EINEM VERBUND WENIGER ALS ZWEI MITGLIEDER LIEGEN, IST ER
+	// AUFGELOEST -- samt seiner Einstellungen. Hier und nicht im ✕-Verteiler: auch „Von der Stage
+	// nehmen", die Auswahlleiste und der Nachschlag nach einem Lauf nehmen Eintraege herunter, und
+	// eine Regel, die einen von vier Erzeugern bindet, ist keine Regel.
 	function avesmapsGaretienStageEntfernen(schluessel) {
 		let entfernt = 0;
+		const betroffen = new Set();
 		(schluessel || []).forEach(function (s) {
 			const key = String(s);
-			if (zustand.stage.delete(key)) { entfernt++; }
+			const eintrag = zustand.stage.get(key);
+			if (eintrag) {
+				const verbund = garetienVerbundSchluessel(eintrag.objekt);
+				if (verbund !== "") { betroffen.add(verbund); }
+				zustand.stage.delete(key);
+				entfernt++;
+			}
 			zustand.nurIhre.delete(key);
+		});
+		betroffen.forEach(function (verbund) {
+			if (garetienVerbundStageEintraege(verbund).length < 2) { garetienVerbundAufloesen(verbund); }
 		});
 		return entfernt;
 	}
 
 	function avesmapsGaretienStageListe() {
-		return Array.from(zustand.stage.values());
+		return Array.from(zustand.stage.values(), function (eintrag) { return eintrag.objekt; });
 	}
 
 	function avesmapsGaretienStageHat(schluessel) {
@@ -316,7 +360,9 @@
 		(objekte || []).forEach(function (o) {
 			if (!o || o.key === undefined || o.key === null || o.key === "") { return; }
 			const schluessel = String(o.key);
-			if (zustand.stage.has(schluessel)) { zustand.stage.set(schluessel, o); }
+			// Aufgabe 6: der EINTRAG bleibt, nur sein Objekt wird frisch -- `zusammen` ueberlebt das.
+			const eintrag = zustand.stage.get(schluessel);
+			if (eintrag) { eintrag.objekt = o; }
 		});
 	}
 
@@ -371,22 +417,21 @@
 			schluessel.forEach(function (s) {
 				const o = frisch[s];
 				if (!o) {
-					zustand.stage.delete(s);
-					zustand.nurIhre.delete(s);
+					// Aufgabe 6: ueber die EINE Tuer -- sie loest einen Verbund auf, der dabei unter zwei faellt.
+					avesmapsGaretienStageEntfernen([s]);
 					verschwunden.push(s);
 					return;
 				}
 				if (GARETIEN_STAGE_FERTIGE_STAENDE.indexOf(String(o.stand || "")) !== -1) {
 					// 🔴 Uebernommen/abgelehnt: das Objekt gibt es noch, aber die Stage ist nicht
 					// mehr sein Platz -- es verlaesst sie, OHNE als "verschwunden" zu zaehlen.
-					zustand.stage.delete(s);
-					zustand.nurIhre.delete(s);
+					avesmapsGaretienStageEntfernen([s]);
 					fertig.push(s);
 					return;
 				}
 				// Offen, oder ein unbekannter Stand: liegen lassen, aber mit den frischen
 				// Item-Nummern -- das ist Zusicherung 3 (offen) und Zusicherung 4 (unbekannt).
-				zustand.stage.set(s, o);
+				zustand.stage.get(s).objekt = o;
 			});
 			return { gefunden: Object.keys(frisch).length, verschwunden: verschwunden, fertig: fertig };
 		}).catch(function () {
@@ -1465,43 +1510,165 @@
 		});
 	}
 
-	// Welche Verbuende sind ZUSAMMENGELEGT? Ein Set von Verbundschluesseln.
-	// 🔴 Der Zustand ist die MENGE, nicht ein Feld am Objekt: die Liste wird nach jedem
-	// Schreibvorgang ersetzt (avesmapsGaretienStageAuffrischen), ein Feld waere still fort --
-	// dieselbe Begruendung wie bei `zustand.nurIhre`.
-	let _garetienVerbundZusammen = new Set();
-
-	// 🔧 UNGEWIRT: es gibt (Stand Aufgabe 4) keine Stelle im Produktivcode, die einen Laufwechsel
-	// meldet -- `garetienNameWahlVergessen` ist aus demselben Grund exportiert, aber ebenfalls
-	// nirgends verdrahtet (siehe deren Definition). Export hier aus Symmetrie, damit eine spaetere
-	// Aufgabe beide an derselben Stelle anschliessen kann.
-	function garetienVerbundVergessen() { _garetienVerbundZusammen = new Set(); }
-
-	function garetienVerbundIstZusammen(schluessel) {
-		return _garetienVerbundZusammen.has(String(schluessel || ""));
-	}
-
-	// „Verbund auf die Stage" -- legt ALLE Mitglieder des Verbunds auf die Stage und merkt sich
-	// den Verbund als zusammengelegt.
+	// ---- Aufgabe 6 (Entwurf 2026-09-14 §6.3/§6.4): DER VERBUND LEBT AM STAGE-EINTRAG -----------------
 	//
-	// 🔴 GEHT DURCH avesmapsGaretienStageHinzufuegen, SCHREIBT NIE SELBST AUF `zustand.stage`.
-	// Ein gewoehnlicher Weg in die Anzeige hebt dort die „nur ihre"-Marke auf (Kommentar an deren
-	// Definition) -- und "Verbund auf die Stage" IST so ein Weg, keine Ausnahme davon. Ein zweiter
-	// Schreibweg waere ein zweiter Erzeuger fuer „kommt auf die Stage" und liesse die Leerschluessel-
-	// Wache genau dort aus, wo sie gebraucht wird (AGENTS.md: „eine Regel, die einen von zwei
-	// Erzeugern bindet, ist keine Regel").
-	function garetienVerbundZusammenlegen(schluessel, objekte) {
+	// 💣 HIER STAND BIS ZUM 14.09.2026 EIN LOSES `Set` VON VERBUNDSCHLUESSELN (K1). Es ueberlebte
+	// „Stage leeren" und neue Laeufe, verschmolz spaeter EINZELN aufgelegte Fragmente still und war
+	// nach F5 fort. Jetzt steht die Entscheidung am Eintrag (`zustand.stage`, `{ objekt, zusammen }`)
+	// und stirbt mit ihm.
+
+	/* Die Stage-Eintraege eines Verbunds, in der Reihenfolge der Stage. */
+	function garetienVerbundStageEintraege(schluessel) {
 		const s = String(schluessel || "");
-		if (s === "") { return 0; }
-		const mitglieder = garetienVerbundMitglieder(s, objekte);
-		avesmapsGaretienStageHinzufuegen(mitglieder);
-		_garetienVerbundZusammen.add(s);
-		return mitglieder.length;
+		if (s === "") { return []; }
+		return Array.from(zustand.stage.values()).filter(function (eintrag) {
+			return garetienVerbundSchluessel(eintrag.objekt) === s;
+		});
 	}
 
-	// „Verbund aufloesen" -- nimmt nur die MERKUNG zurueck, die Objekte bleiben auf der Stage.
+	/*
+	 * Zusammengelegt heisst: MINDESTENS ZWEI Mitglieder auf der Stage, und JEDES traegt `zusammen`.
+	 * 💣 „jedes", nicht „irgendeins": ein nach dem Zusammenlegen aufgelegtes Fragment traegt
+	 * `zusammen = false` und ist damit nicht still verschmolzen -- der Verbund muss neu gelegt werden.
+	 */
+	function garetienVerbundIstZusammen(schluessel) {
+		const eintraege = garetienVerbundStageEintraege(schluessel);
+		return eintraege.length >= 2 && eintraege.every(function (eintrag) { return eintrag.zusammen === true; });
+	}
+
+	/*
+	 * „Zusammenlegen (n)" -- markiert die Mitglieder, die AUF DER STAGE liegen. Rueckgabe: deren Zahl,
+	 * 0 bei weniger als zwei oder wenn der Verbund nicht zusammenlegbar ist.
+	 *
+	 * 🔴 ES LEGT NICHTS AUF (Owner 09.09./1 und 12.09./5: zusammengelegt wird auf der Stage, per
+	 * Klick). Die Mitglieder kommen aus der Stage selbst, nie aus `objekte`: die Stage ist filter-
+	 * und seitenunabhaengig, die Liste nicht. `objekte` bleibt Teil der Signatur und wird nicht gelesen.
+	 * 💣 DER RIEGEL STEHT HIER, NICHT NUR AM KNOPF: `disabled` ist die Anzeige, dies der Riegel.
+	 */
+	function garetienVerbundZusammenlegen(schluessel, objekte) {
+		const eintraege = garetienVerbundStageEintraege(schluessel);
+		if (eintraege.length < 2) { return 0; }
+		if (!garetienVerbundZusammenlegbar(eintraege[0].objekt).ok) { return 0; }
+		eintraege.forEach(function (eintrag) { eintrag.zusammen = true; });
+		return eintraege.length;
+	}
+
+	/*
+	 * „Verbund auflösen (n)" -- die Fragmente bleiben auf der Stage, die Entscheidung faellt.
+	 * 🔴 UND DIE EINSTELLUNGEN DES VERBUNDS FALLEN MIT (Fehler 10): wer danach wieder zusammenlegt,
+	 * faengt bei der Vorbelegung an, nicht bei einem Namen von vorhin.
+	 */
 	function garetienVerbundAufloesen(schluessel) {
-		return _garetienVerbundZusammen.delete(String(schluessel || ""));
+		garetienVerbundStageEintraege(schluessel).forEach(function (eintrag) { eintrag.zusammen = false; });
+		garetienVerbundEinstellungenVergessen(schluessel);
+	}
+
+	/*
+	 * Die Einstellungen EINES Verbunds vergessen -- alles, was unter seinem Schluessel liegt.
+	 * ⚠️ `_garetienInnerortsWahl` fehlt mit Absicht: sie liegt am Objektschluessel, nie am Verbund.
+	 */
+	function garetienVerbundEinstellungenVergessen(schluessel) {
+		const s = String(schluessel || "");
+		if (s === "") { return; }
+		[_garetienZielWahl, _garetienNameWahl, _garetienEingabenZustand, _garetienEinfuegeWahl].forEach(function (speicher) {
+			delete speicher[s];
+		});
+	}
+
+	/*
+	 * ALLE Verbund-Entscheidungen vergessen: jeder Eintrag verliert `zusammen`, und jede Einstellung
+	 * unter einem Verbundschluessel faellt. Einer der Vergessen-Aufrufe von garetienEinstellungenVergessen.
+	 * ⚠️ `_garetienEingabenZustand` hat keine eigene Vergessen-Funktion -- seine Verbund-Eintraege
+	 * raeumt DIESE Funktion, sonst kaeme eine Groesse eines laengst aufgeloesten Verbunds zurueck.
+	 */
+	function garetienVerbundVergessen() {
+		zustand.stage.forEach(function (eintrag) { eintrag.zusammen = false; });
+		[_garetienZielWahl, _garetienNameWahl, _garetienEingabenZustand, _garetienEinfuegeWahl].forEach(function (speicher) {
+			Object.keys(speicher).forEach(function (key) {
+				if (key.indexOf("verbund:") === 0) { delete speicher[key]; }
+			});
+		});
+	}
+
+	/*
+	 * „Stage leeren" und ein neuer Lauf: die Einstellungen AM OBJEKT vergessen (Entwurf §6.4, Fehler 10).
+	 * 🔴 ZWEI SORTEN SPEICHER, UND NUR EINE FAELLT HIER. Was an einem Objekt oder Verbund haengt (Name,
+	 * Form und Ziel, Eingaben, Einfuege- und Innerorts-Wahl, Verbund-Entscheidung) gehoert zu dem, was auf
+	 * der Stage lag, und geht mit ihr. Was dem FENSTER gehoert (`_garetienUmkreis`, die Typwahl der Naehe,
+	 * die Zeilengrenze) ueberlebt -- sonst stellte der Editor den Umkreis nach jedem Import neu ein
+	 * (Entscheid 14.09.2026 nach den Owner-Massstaeben „Einstellungsmoeglichkeiten, Usability").
+	 * ⭐ WER EINEN NEUEN SPEICHER BAUT, ORDNET IHN HIER EIN: haengt er am Einstellungs- oder Objektschluessel,
+	 * gehoert sein Vergessen-Aufruf in diese Liste -- und kann er am Verbundschluessel liegen, zusaetzlich in
+	 * die Speicherlisten von garetienVerbundVergessen und garetienVerbundEinstellungenVergessen. Gehoert er
+	 * dem Fenster, bleibt er draussen. Hier steht bewusst keine Zahl: eine Zahl liest sich wie eine
+	 * vollstaendige Liste, und niemand zaehlt nach (AGENTS.md §11).
+	 */
+	function garetienEinstellungenVergessen() {
+		garetienVerbundVergessen();
+		garetienNameWahlVergessen();
+		garetienInnerortsWahlVergessen();
+		garetienZielWahlVergessen();
+		garetienEinfuegeWahlVergessen();
+	}
+
+	/*
+	 * REIN: das groesste Mitglied eines Verbunds -- die meisten Punkte, bei Gleichstand der kleinste
+	 * Schluessel. `null` ohne Mitglieder.
+	 * 💣 FEHLER 6: bis zum 14.09.2026 bestimmte das ZUERST BERUEHRTE Fragment die Form fuer alle; war
+	 * es klein genug fuer einen Berggipfel, schickte der ganze Verbund `ziel: label`, und es entstand
+	 * gar kein Verbund.
+	 */
+	function garetienVerbundGroesstes(schluessel, objekte) {
+		let bestes = null;
+		let bestePunkte = -1;
+		garetienVerbundMitglieder(schluessel, objekte).forEach(function (m) {
+			const punkte = Array.isArray(m.geometrie) ? m.geometrie.length : 0;
+			if (punkte > bestePunkte || (punkte === bestePunkte && String(m.key) < String(bestes.key))) {
+				bestes = m;
+				bestePunkte = punkte;
+			}
+		});
+		return bestes;
+	}
+
+	/*
+	 * Aus WELCHEM Objekt wird die Vorbelegung eines Objekts gerechnet? Sein eigenes -- ausser es
+	 * gehoert zu einem zusammengelegten Verbund, dann das groesste Mitglied auf der Stage.
+	 * Leser: garetienZielWahlZu und garetienEingabenZustandZu (die zwei Vorbelegungen am
+	 * Einstellungsschluessel).
+	 */
+	function garetienEinstellungsVorlage(objekt) {
+		const verbund = garetienVerbundSchluessel(objekt);
+		if (verbund === "" || !garetienVerbundIstZusammen(verbund)) { return objekt; }
+		return garetienVerbundGroesstes(verbund, avesmapsGaretienStageListe()) || objekt;
+	}
+
+	/*
+	 * Laesst sich dieser Verbund zusammenlegen? `{ ok, grund }` -- der Grund steht sichtbar am Knopf.
+	 *
+	 * 🔴 NUR ALS FLAECHE ODER WEG (Entwurf §6.3): „Ein Verbund, der als Punkt ankommt, ist keiner."
+	 * 🔴 WEGE ERST NACH DER FREIGABE (AVESMAPS_GARETIEN_VERBUND_WEGE_FREI).
+	 * ⚠️ Massgeblich ist die Form, die der Verbund bekaeme: zusammengelegt die Wahl am
+	 * Verbundschluessel, sonst die des GROESSTEN Mitglieds auf der Stage -- aus ihm wird nach dem
+	 * Zusammenlegen vorbelegt (Fehler 6).
+	 * 🔧 BIS AUFGABE 9 gibt es keine Zielwahl „karte": geprueft wird die Form (`garetienZielWahlZu(massgeblich).ziel`).
+	 * Aufgabe 9 erweitert die Bedingung um `garetienZielwahlZu(objekt) === "karte"`.
+	 */
+	function garetienVerbundZusammenlegbar(objekt) {
+		const schluessel = garetienVerbundSchluessel(objekt);
+		if (schluessel === "") { return { ok: false, grund: "Dieses Objekt gehört zu keinem Verbund." }; }
+		const massgeblich = garetienVerbundIstZusammen(schluessel)
+			? objekt
+			: (garetienVerbundGroesstes(schluessel, avesmapsGaretienStageListe()) || objekt);
+		const form = String(garetienZielWahlZu(massgeblich).ziel || "");
+		if (form === "region") { return { ok: true, grund: "" }; }
+		if (form === "path") {
+			return _garetienVerbundWegeFrei
+				? { ok: true, grund: "" }
+				: { ok: false, grund: "Wege-Verbünde sind noch nicht freigegeben." };
+		}
+		const gewaehlt = garetienUnserBeschriftung(massgeblich) || form || "keine Form";
+		return { ok: false, grund: "Ein Verbund wird eine Fläche oder ein Weg — gewählt ist „" + gewaehlt + "“." };
 	}
 
 	/*
@@ -2275,10 +2442,45 @@
 	 * Nur-ihre-Stempel beinahe daran gescheitert ist: Stage und `zustand.objekte` halten dieselbe
 	 * Referenz, ein Stempel am Original schriebe sich bis in die Listenzeile durch.
 	 */
+	/*
+	 * Welches Mitglied eines zusammengelegten Verbunds legt beim Import Beschriftung und Region an?
+	 *
+	 * 🔴 DASSELBE WIE AM SERVER: das Item mit der KLEINSTEN sync_plan_item.id (Entwurf §6.6). apply arbeitet
+	 * die Items in id-Reihenfolge ab; das erste Fragment findet keine Region und legt Beschriftung und
+	 * Region an, alle weiteren haengen nur ihre Flaeche daran (avesmapsGaretienVerbundRegion). Die
+	 * Beschriftung sitzt deshalb auf dem Mittelpunkt DIESES Fragments (Entwurf §10), und die Vorschau zeigt
+	 * sie genau dort -- EINE, nicht eine je Fragment.
+	 * ⚠️ Gezaehlt werden die Neu-Items (garetienNeuItems); ein Mitglied ohne Item-Nummer kommt nach allen
+	 * anderen, bei Gleichstand entscheidet der kleinste Schluessel.
+	 */
+	function garetienVerbundAnfuehrer(schluessel) {
+		let bester = null;
+		let besteId = Infinity;
+		garetienVerbundStageEintraege(schluessel).forEach(function (eintrag) {
+			const ids = garetienNeuItems(eintrag.objekt).map(function (item) { return Number(item && item.id); })
+				.filter(function (id) { return id > 0; });
+			const id = ids.length > 0 ? Math.min.apply(null, ids) : Infinity;
+			if (bester === null || id < besteId
+				|| (id === besteId && String(eintrag.objekt.key) < String(bester.key))) {
+				bester = eintrag.objekt;
+				besteId = id;
+			}
+		});
+		return bester;
+	}
+
 	function garetienVorschauLabelStempeln(objekte) {
 		if (typeof garetienVorschauLabelAus !== "function") { return objekte; }
 		return (objekte || []).map(function (o) {
 			if (!o) { return o; }
+			// 🔴 Aufgabe 6: EIN zusammengelegter Verbund legt EINE Beschriftung an -- am Anfuehrer. Die
+			// uebrigen Fragmente bleiben als Flaeche gezeichnet, ohne eigenen Namen; vier Namen auf der
+			// Karte zeigten etwas anderes, als angelegt wird.
+			const verbund = garetienVerbundSchluessel(o);
+			if (verbund !== "" && garetienVerbundIstZusammen(verbund)
+				&& String(o.key) !== String((garetienVerbundAnfuehrer(verbund) || {}).key)) {
+				return o;
+			}
 			const wahl = garetienZielWahlZu(o);
 			// Die Formweiche VOR dem Eingabenzustand -- siehe oben. Die Tafel der Formen, die
 			// überhaupt eine Beschriftung erzeugen, gehört der reinen Regel; hier wird nur nicht
@@ -2292,8 +2494,11 @@
 			// Zeichner liest es ebenso). Owner 09.09.2026: „das weiss beim label soll so geschalten
 			// werden wie das weiss einer form oder markierung." Ein hartkodiertes `objekt.gewaehlt`
 			// in der reinen Regel waere ein ZWEITER Weg zu demselben Wert.
+			// 🔴 Aufgabe 6: der TEXT kommt aus DERSELBEN Quelle wie das Namensfeld (garetienNameFuerImport)
+			// -- Handname, bei einem zusammengelegten Verbund sonst der Stamm. Hereingereicht, keine zweite
+			// Rechnung in der Regel.
 			const beschreibung = garetienVorschauLabelAus(o, wahl, garetienEingabenZustandZu(o),
-				o[AVESMAPS_GARETIEN_FELD_GEWAEHLT] === true);
+				o[AVESMAPS_GARETIEN_FELD_GEWAEHLT] === true, garetienNameFuerImport(o));
 			if (beschreibung === null) { return o; }
 			const kopie = Object.assign({}, o);
 			kopie[AVESMAPS_GARETIEN_FELD_VORSCHAU_LABEL] = beschreibung;
@@ -3129,6 +3334,9 @@
 		// ⚠️ Er nimmt den Doppelklick-Riegel NICHT: es gibt nichts freizugeben.
 		if (!ebenen || ebenen.length === 0) { malen(); return Promise.resolve(null); }
 		garetienLaufLaeuft = true;
+		// 🔴 Aufgabe 6 (Entwurf §6.4): ein NEUER LAUF nimmt die Entscheidungen und Einstellungen mit.
+		// Die Stage selbst bleibt -- sie wird nach dem Rechnen nachgeschlagen (garetienStageNachschlagen).
+		garetienEinstellungenVergessen();
 		garetienLaufMeldung = "";
 		garetienEbenenFehler = [];
 		garetienRechenDauerMs = null;
@@ -3809,7 +4017,17 @@
 	function garetienEingabenZustandZu(objekt) {
 		const key = garetienEinstellungsSchluessel(objekt);
 		if (!_garetienEingabenZustand[key]) {
-			_garetienEingabenZustand[key] = garetienEingabenGrundwerte(objekt);
+			// Aufgabe 6 (Fehler 6): ein zusammengelegter Verbund belegt aus seinem GROESSTEN Mitglied vor.
+			const grundwerte = garetienEingabenGrundwerte(garetienEinstellungsVorlage(objekt));
+			// 🔴 Aufgabe 6 (Entwurf §6.6): die Kurvenbeschreibung eines ZUSAMMENGELEGTEN Verbunds startet AUS
+			// -- ueber vier Stuecke, die Meilen auseinanderliegen, hat noch niemand eine Kurve gesehen;
+			// eingeschaltet wird sie im Landschaften-Editor. Ein Haekchen des Editors gewinnt: es schreibt in
+			// genau diesen Zustand, und der wird nur beim ERSTEN Zugriff angelegt.
+			// ⚠️ Der Schluessel ist genau dann nicht der eigene, wenn der Verbund zusammengelegt ist.
+			// ⚠️ Heute ist die Grundvorgabe fuer JEDES Objekt aus (garetienEingabenGrundwerte); die Zeile
+			// haelt die Verbund-Regel fest, falls eine Art je eine Kurven-Vorgabe bekommt.
+			if (key !== String((objekt && objekt.key) || "")) { grundwerte.curveLabel = false; }
+			_garetienEingabenZustand[key] = grundwerte;
 		}
 		return _garetienEingabenZustand[key];
 	}
@@ -4076,7 +4294,11 @@
 	 */
 	const AVESMAPS_GARETIEN_VORSCHAU_FELDER = [
 		"showName", "size", "priority", "minZoom", "maxZoom", "zielForm", "zielArt",
+		// Aufgabe 6 (14.09.2026): der Name steht in der Beschriftung -- entprellt nachgezogen, siehe
+		// garetienEingabenAendern.
+		"einfuegeName",
 	];
+	let _garetienNameVorschauTimer = null;
 
 	function garetienVorschauNachziehen(feld) {
 		if (AVESMAPS_GARETIEN_VORSCHAU_FELDER.indexOf(String(feld || "")) === -1) { return; }
@@ -4166,6 +4388,14 @@
 		// Zeiger neu gebaut und der Fokus waere nach dem ersten Buchstaben weg.
 		if (feld === "einfuegeName") {
 			garetienNameWahlSetzen(objekt, ziel.value);
+			// 🔴 Aufgabe 6: die Beschriftungs-Vorschau zeigt den Namen und zieht nach -- ENTPRELLT, weil
+			// ein Kartenlauf die ganze Menge neu zeichnet und das hier je Tastendruck liefe (die Warnung
+			// an AVESMAPS_GARETIEN_VORSCHAU_FELDER). Dieselbe Frist wie das Suchfeld der Liste.
+			if (_garetienNameVorschauTimer) { clearTimeout(_garetienNameVorschauTimer); }
+			_garetienNameVorschauTimer = setTimeout(function () {
+				_garetienNameVorschauTimer = null;
+				garetienVorschauNachziehen(feld);
+			}, 250);
 			return;
 		}
 		if (feld === "einfuegeQuelle" || feld === "einfuegeNeu") {
@@ -5024,10 +5254,25 @@
 		if (key !== "") { _garetienNameWahl[key] = String(name || "").trim(); }
 	}
 
-	/* REIN: der Name, den dieses Objekt beim Import bekommt -- Handeingabe, sonst der Vorschlag. */
+	/*
+	 * REIN: der Name, den dieses Objekt beim Import bekommt -- Handeingabe, sonst die Vorgabe.
+	 *
+	 * 🔴 Aufgabe 6 (Entwurf §6.3, §6.6): DIE VORGABE EINES ZUSAMMENGELEGTEN VERBUNDS IST SEIN STAMM. Der
+	 * Server setzt den Stamm selbst, wenn der Rumpf einen Verbund und KEINEN Handnamen traegt (Aufgabe 2).
+	 * Zeigte das Namensfeld hier den Namen eines Fragments („Silker Hain 3"), sagte die Oberflaeche etwas
+	 * anderes, als angelegt wird.
+	 * 💣 DIE VORGABE REIST NIE ALS HANDNAME. garetienEingabenFuerServer haengt den Namen nur an, wenn
+	 * garetienNameWahlZu etwas liefert -- ein unveraendertes Feld schickt nichts, und der Server nimmt den
+	 * Stamm. Wer die Vorgabe in den Namensspeicher schriebe, naehme dem Server seine Stamm-Regel.
+	 * ⚠️ Nach „Verbund auflösen" faellt ein getippter Verbundname mit (garetienVerbundEinstellungenVergessen),
+	 * und jedes Fragment zeigt wieder seinen eigenen Namen.
+	 */
 	function garetienNameFuerImport(objekt) {
 		const eigen = garetienNameWahlZu(objekt);
-		return eigen !== "" ? eigen : String((objekt && objekt.name) || "");
+		if (eigen !== "") { return eigen; }
+		const verbund = garetienVerbundSchluessel(objekt);
+		if (verbund !== "" && garetienVerbundIstZusammen(verbund)) { return String(objekt.verbund_stamm || ""); }
+		return String((objekt && objekt.name) || "");
 	}
 
 	let _garetienInnerortsWahl = {};
@@ -5287,7 +5532,9 @@
 		// gerufen, und dann stuende im Kopf die Art eines ganz anderen Objekts.
 		if (key === "") { return garetienZielVorbelegung(objekt); }
 		if (!_garetienZielWahl[key]) {
-			_garetienZielWahl[key] = garetienZielVorbelegung(objekt);
+			// 💣 Aufgabe 6 (Fehler 6): ein zusammengelegter Verbund belegt aus seinem GROESSTEN Mitglied
+			// vor, nie aus dem zuerst beruehrten -- sonst macht ein kleines Fragment den Verbund zum Gipfel.
+			_garetienZielWahl[key] = garetienZielVorbelegung(garetienEinstellungsVorlage(objekt));
 		}
 		return _garetienZielWahl[key];
 	}
@@ -7642,7 +7889,16 @@
 			garetienVerbundAufloesen(schluessel);
 			return { handlung: "verbund_aufgeloest", schluessel: schluessel };
 		}
+		// 🔴 Aufgabe 6: Zusammenlegen LEGT NICHT AUF -- es markiert, was schon auf der Stage liegt.
 		const n = garetienVerbundZusammenlegen(schluessel, objekte || []);
+		if (n === 0) {
+			// 💣 Ein „Nein" zaehlt als GEFUNDEN (kein `null`) -- sonst fiele derselbe Klick weiter zu
+			// garetienHandlungKlick durch. Der Grund reist mit.
+			const grund = garetienVerbundStageEintraege(schluessel).length < 2
+				? "Von diesem Verbund liegen weniger als zwei Fragmente auf der Stage."
+				: garetienVerbundZusammenlegbar(objekt).grund;
+			return { handlung: "verbund_gesperrt", schluessel: schluessel, grund: grund };
+		}
 		return { handlung: "verbund_zusammengelegt", schluessel: schluessel, anzahl: n };
 	}
 
@@ -7654,21 +7910,15 @@
 	 * `data-handlung` -- er fällt also nie zu `garetienHandlungKlick` durch und braucht deshalb
 	 * auch keinen Ausschluss in `garetienHandlungsRumpf` (anders als „stage"/„entstagen"/„verbund").
 	 *
-	 * Nimmt GENAU DIESES EINE Fragment von der Stage -- `avesmapsGaretienStageEntfernen` ist das
-	 * exakte Gegenstück zu `avesmapsGaretienStageHinzufuegen`, mit dem `garetienVerbundZusammenlegen`
-	 * die Mitglieder überhaupt erst hinaufgelegt hat. Der Knopf „Verbund auflösen" bleibt daneben
-	 * stehen und trifft den GANZEN Verbund (nur die Merkung); dieser Knopf trifft nur EIN Mitglied
-	 * (die Stage selbst).
+	 * Nimmt GENAU DIESES EINE Fragment von der Stage -- ueber `avesmapsGaretienStageEntfernen`, die
+	 * EINE Tuer herunter. Der Knopf „Verbund auflösen" daneben trifft den GANZEN Verbund (nur die
+	 * Entscheidung); dieser Knopf trifft nur EIN Mitglied (die Stage selbst).
 	 *
-	 * 🔴 BLEIBEN DANACH WENIGER ALS ZWEI MITGLIEDER AUF DER STAGE, FÄLLT DIE MERKUNG MIT
-	 * (`garetienVerbundAufloesen`): ein Verbund aus einem Stück ist keiner mehr -- dieselbe Regel
-	 * wie bei `garetienVerbundMarkeMarkup`/`garetienVerbundBlockMarkup` (`n < 2`). Ohne das bliebe
-	 * `_garetienVerbundZusammen` für einen Schlüssel gesetzt, dessen letztes verbliebenes Mitglied
-	 * `garetienEinstellungsSchluessel` dann fälschlich weiter auf den VERBUND-Schlüssel zeigen
-	 * ließe statt auf sein eigenes.
-	 * ⚠️ Gezählt wird über die STAGE (`avesmapsGaretienStageHat` je Mitglied), NICHT über die Länge
-	 * von `garetienVerbundMitglieder`: die volle Gruppe aus `objekte` schrumpft durch dieses
-	 * Herausnehmen nicht (sie kommt vom Server bzw. vom aktuellen Reiter) -- nur die Stage tut es.
+	 * 🔴 AUFGABE 6: DAS AUFLOESEN UNTER ZWEI STEHT JETZT IN DER TUER (avesmapsGaretienStageEntfernen),
+	 * nicht mehr hier -- „Von der Stage nehmen", die Auswahlleiste und der Nachschlag nach einem Lauf
+	 * nehmen ebenfalls herunter. Hier wird nur noch gemeldet, ob die Entscheidung dabei gefallen ist.
+	 * ⚠️ Das Objekt wird zuerst in `objekte` gesucht, sonst am Stage-Eintrag: die Liste kann gefiltert
+	 * sein (Aufgabe 5), der ✕ steht trotzdem an einem Fragment, das auf der Stage liegt.
 	 */
 	function garetienVerbundWegKlick(ereignis, objekte) {
 		const ziel = ereignis && ereignis.target;
@@ -7677,18 +7927,13 @@
 		if (!knopf || knopf.disabled) { return null; }
 		const schluesselFragment = String(knopf.getAttribute("data-verbund-weg") || "");
 		if (schluesselFragment === "") { return null; }
-		const objekt = garetienObjektNach(schluesselFragment, objekte);
+		const eintrag = zustand.stage.get(schluesselFragment);
+		const objekt = garetienObjektNach(schluesselFragment, objekte) || (eintrag ? eintrag.objekt : null);
 		const verbund = objekt ? garetienVerbundSchluessel(objekt) : "";
+		const warZusammen = verbund !== "" && garetienVerbundIstZusammen(verbund);
 		avesmapsGaretienStageEntfernen([schluesselFragment]);
-		let aufgeloest = false;
-		if (verbund !== "") {
-			const verbleibend = garetienVerbundMitglieder(verbund, objekte || []).filter(function (m) {
-				return avesmapsGaretienStageHat(m.key);
-			}).length;
-			if (verbleibend < 2) { aufgeloest = garetienVerbundAufloesen(verbund); }
-		}
 		return { handlung: "verbund_fragment_entfernt", key: schluesselFragment, verbund: verbund,
-			aufgeloest: aufgeloest };
+			aufgeloest: warZusammen && !garetienVerbundIstZusammen(verbund) };
 	}
 
 	/*
@@ -9774,6 +10019,9 @@
 			garetienVerbundAufloesen,
 			garetienVerbundIstZusammen,
 			garetienVerbundVergessen,
+			// Aufgabe 6 (2026-09-14): der Verbund am Stage-Eintrag
+			garetienVerbundGroesstes,
+			garetienVerbundZusammenlegbar,
 			// Aufgabe 11
 			garetienZeileMarkup,
 			avesmapsGaretienCheckboxZustand,
@@ -10064,6 +10312,10 @@
 			// Vorher lagen zwei dieser Funktionen flach daneben; das Konsolidieren ist der ganze
 			// Unterschied, keine Funktion ist neu.
 			__test: {
+				// Aufgabe 6 (2026-09-14): die Freigabe der Wege-Verbuende -- die Konstante zum Vergleichen,
+				// der Setzer, damit ein Test beide Werte fahren kann, ohne den Quelltext umzuschreiben.
+				AVESMAPS_GARETIEN_VERBUND_WEGE_FREI,
+				garetienVerbundWegeFreiSetzen: function (wert) { _garetienVerbundWegeFrei = wert === true; },
 				garetienImportFormenText,
 				garetienImportMeldung,
 				garetienStageNeuIds,

@@ -34,7 +34,9 @@ function ziel(attribute, optionen) {
 }
 
 function fragmente(n) {
-	const basis = { ebene: "Waelder", typ: "Wald", verbund_stamm: "Silker Hain", verbund_n: n };
+	// Aufgabe 6 (14.09.2026): Zusammenlegen verlangt die Form Flaeche -- ohne `ziel` waere es gesperrt.
+	const basis = { ebene: "Waelder", typ: "Wald", verbund_stamm: "Silker Hain", verbund_n: n,
+		ziel: "region", subtyp: "wald" };
 	return Array.from({ length: n }, (_, i) => Object.assign(
 		{ key: "ggp:silkerhain:" + i, name: "Silker Hain " + (i + 1) }, basis));
 }
@@ -87,6 +89,8 @@ async function mitObjekten(objekte, tun) {
 	// =============================================================================================
 	const vier = fragmente(4);
 	const schluessel = api.garetienVerbundSchluessel(vier[0]);
+	// 🔴 Aufgabe 6: Zusammenlegen legt NICHT mehr auf -- erst auflegen, dann zusammenlegen.
+	api.avesmapsGaretienStageHinzufuegen(vier);
 	api.garetienVerbundZusammenlegen(schluessel, vier);
 	wahr(api.garetienVerbundIstZusammen(schluessel), "Vorbedingung: der Verbund liegt zusammen");
 	vier.forEach((f) => wahr(api.avesmapsGaretienStageHat(f.key), "Vorbedingung: " + f.key + " liegt auf der Stage"));
@@ -114,6 +118,7 @@ async function mitObjekten(objekte, tun) {
 	// =============================================================================================
 	const zwei = fragmente(2);
 	const schluesselZwei = api.garetienVerbundSchluessel(zwei[0]);
+	api.avesmapsGaretienStageHinzufuegen(zwei);
 	api.garetienVerbundZusammenlegen(schluesselZwei, zwei);
 	wahr(api.garetienVerbundIstZusammen(schluesselZwei), "Vorbedingung: zusammengelegt");
 
@@ -154,20 +159,23 @@ async function mitObjekten(objekte, tun) {
 	zuruecksetzen();
 
 	// =============================================================================================
-	// D. Der Null-Fragment-Fall: das letzte auf der Stage verbliebene Mitglied selbst wird
-	// entfernt -- auch dann faellt die Merkung, keine Ausnahme fuer "0 statt 1".
+	// D. 🔴 Aufgabe 6 (14.09.2026): das Aufloesen unter zwei steht in der TUER
+	// (avesmapsGaretienStageEntfernen), nicht im ✕ -- auch „Von der Stage nehmen" und der Nachschlag
+	// nach einem Lauf nehmen herunter. Faellt der Verbund dort, hat der spaetere ✕ nichts mehr aufzuloesen.
 	// =============================================================================================
 	const eins = fragmente(2);
 	const schluesselEins = api.garetienVerbundSchluessel(eins[0]);
+	api.avesmapsGaretienStageHinzufuegen(eins);
 	api.garetienVerbundZusammenlegen(schluesselEins, eins);
-	// Das zweite Mitglied vorab wieder von der Stage nehmen (simuliert: schon vorher entfernt).
 	api.avesmapsGaretienStageEntfernen([eins[1].key]);
-	wahr(api.avesmapsGaretienStageHat(eins[0].key), "Vorbedingung: genau ein Mitglied auf der Stage");
+	gleich(api.garetienVerbundIstZusammen(schluesselEins), false,
+		"„Von der Stage nehmen\" des vorletzten Fragments loest den Verbund schon in der Tuer auf");
+	wahr(api.avesmapsGaretienStageHat(eins[0].key), "das letzte Mitglied bleibt auf der Stage");
 
 	const ergebnisNull = api.garetienVerbundWegKlick(
 		{ target: ziel({ "data-verbund-weg": eins[0].key }) }, eins);
-	gleich(ergebnisNull.aufgeloest, true, "0 verbliebene Mitglieder loesen die Merkung ebenso auf");
-	gleich(api.garetienVerbundIstZusammen(schluesselEins), false, "die Merkung ist weg");
+	gleich(ergebnisNull.aufgeloest, false, "der ✕ danach hat nichts mehr aufzuloesen -- und meldet das ehrlich");
+	gleich(api.avesmapsGaretienStageHat(eins[0].key), false, "das Fragment ist trotzdem herunter");
 	zuruecksetzen();
 
 	// =============================================================================================
@@ -190,6 +198,7 @@ async function mitObjekten(objekte, tun) {
 	// =============================================================================================
 	const [g1, g2] = fragmente(2);
 	const schluesselG = api.garetienVerbundSchluessel(g1);
+	api.avesmapsGaretienStageHinzufuegen([g1, g2]);
 	api.garetienVerbundZusammenlegen(schluesselG, [g1, g2]);
 	await mitObjekten([g1, g2], function () {
 		const spalte = api.garetienDetailMarkup(g1, null, false);
