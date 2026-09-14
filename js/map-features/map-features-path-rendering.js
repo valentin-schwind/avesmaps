@@ -139,6 +139,14 @@ function pathShareButtonMarkup(path) {
 	return sharePlaceActionButtonMarkup(getPathPublicId(path), { wikiUrl: wiki.wiki_url, wikiParam });
 }
 
+// Wann ein Weg die Kacheln „Anzeigen" und „Weg als Route" traegt: verlinkter Wiki-Artikel, kein Seeweg.
+// 🔴 EINE Bedingung fuer beide (Entwurf 2026-09-14 §5.1) -- zwei Abschriften liefen beim ersten Sonderfall auseinander.
+function pathWegAktionErlaubt(path) {
+	const wiki = (path.properties && path.properties.wiki_path) || {};
+	const supported = typeof pathSupportsItemLinks === "function" && pathSupportsItemLinks(path);
+	return Boolean(wiki.wiki_url) && supported;
+}
+
 // "Anzeigen" (Owner 2026-07-17): highlights the WHOLE way and zooms to its full extent -- the same thing the
 // ?strasse=/?fluss= deep link does, through the same resolver. Filled (--accent) because it is the only tile
 // that acts on the MAP; the other two open dialogs. Gated like "Link teilen" on a linked wiki article (that
@@ -149,9 +157,7 @@ function pathShareButtonMarkup(path) {
 // (The route-waypoint box had the same tile until 2026-08-04; there a click on the disc opens the place
 // itself now, so the tile was dropped -- see buildRoutePopupHtml in js/routing/routing.js.)
 function pathShowActionButtonMarkup(path) {
-	const wiki = (path.properties && path.properties.wiki_path) || {};
-	const supported = typeof pathSupportsItemLinks === "function" && pathSupportsItemLinks(path);
-	if (!wiki.wiki_url || !supported) {
+	if (!pathWegAktionErlaubt(path)) {
 		return "";
 	}
 	return popupActionButtonMarkup({
@@ -160,6 +166,22 @@ function pathShowActionButtonMarkup(path) {
 		iconMarkup: '<img class="location-popup__action-img" src="icons/sextant.webp" alt="" width="20" height="20" />',
 		attributes: {
 			"data-popup-action": "show-whole-path",
+			"data-public-id": getPathPublicId(path),
+		},
+	});
+}
+
+// „Weg als Route" (Entwurf 2026-09-14 §5.1): setzt die Orte des Wegs der Reihe nach in den Routenplaner. Die
+// Ziel-Nadel des Routenplaners als Symbol; sichtbar, wo „Anzeigen" sichtbar ist.
+function pathAlsRouteKachelMarkup(path) {
+	if (!pathWegAktionErlaubt(path)) {
+		return "";
+	}
+	return popupActionButtonMarkup({
+		label: (typeof tr === "function" ? tr("popup.pathAsRoute", "Weg als Route") : "Weg als Route"),
+		iconMarkup: '<img class="location-popup__action-img" src="img/menu/waypoint-end.webp" alt="" width="20" height="20" />',
+		attributes: {
+			"data-popup-action": "path-as-route",
 			"data-public-id": getPathPublicId(path),
 		},
 	});
@@ -245,6 +267,9 @@ function createPathPopupMarkup(path) {
 			if (suggestSpec) {
 				buttons.push(popupActionButtonMarkup(suggestSpec));
 			}
+			// „Weg als Route" nach „Änderungen vorschlagen" (Entwurf 2026-09-14 §5.1).
+			const alsRoute = typeof pathAlsRouteKachelMarkup === "function" ? pathAlsRouteKachelMarkup(path) : "";
+			if (alsRoute) { buttons.push(alsRoute); }
 			// Ab hier, was nur ein Editor sieht -- eigene Liste, eigenes Band unter der Trennlinie
 			// (locationPopupEditorBandMarkup in js/ui/popups.js). Bis zum 13.08.2026 standen diese
 			// drei bis vier Kacheln ununterscheidbar neben "Link teilen".

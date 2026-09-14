@@ -609,6 +609,7 @@ window.AVESMAPS_I18N_EN = {
 	// keep them side by side so they cannot drift apart again.
 	"popup.showInPanel": "Show",
 	"popup.showWholePath": "Show",
+	"popup.pathAsRoute": "Way as route",
 	// Precise way type. ONE table for every surface: infobox subtitle, route leg, planner row -- and,
 	// since 01.09.2026, the search list too (Owner: „einfach wegarten anzeigen").
 	// 🔴 There WAS a second, coarse namespace `spotlight.pathType.*` for the list, collapsing
@@ -643,6 +644,7 @@ window.AVESMAPS_I18N_EN = {
 	"path.unnamed.Flussweg": "Unnamed river",
 	"path.unnamed.Bach": "Unnamed brook",
 	"toast.path.notFound": "The way could not be found.",
+	"toast.path.asRouteTooShort": "This way does not connect two places.",
 	"popup.labelTypeRegion": "Region",
 	"popup.labelNameFallback": "Label",
 	// Der Kasten sagt oben schon „Marked spot" (whatIsHere.title) -- die Entfernen-Kachel ist

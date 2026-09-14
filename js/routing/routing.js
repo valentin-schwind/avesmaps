@@ -1038,6 +1038,20 @@ $(document).on("click", ".location-popup__action-button", function (event) {
 		return;
 	}
 
+	// „Weg als Route" (Entwurf 2026-09-14 §5): die Orte des Wegs ERSETZEN die Wegpunkte, dann wird gerechnet.
+	// Mehrere Wegpunkte gehen gebuendelt als `via` (route-buendel.js) -- ohne das waere das eine Anfrage je Etappe.
+	if (action === "path-as-route") {
+		const path = typeof findPathByPublicId === "function" ? findPathByPublicId(this.dataset.publicId) : null;
+		const orte = path && typeof avesmapsWegAlsRouteFuerPfad === "function" ? avesmapsWegAlsRouteFuerPfad(path) : [];
+		if (orte.length < 2) {
+			showFeedbackToast(tr("toast.path.asRouteTooShort", "Dieser Weg verbindet keine zwei Orte."), "warning");
+			return;
+		}
+		resetWaypointInputs(orte);
+		updateMapView();
+		return;
+	}
+
 	if (action === "show-whole-powerline") {
 		const powerline = typeof findPowerlineByPublicId === "function" ? findPowerlineByPublicId(this.dataset.publicId) : null;
 		if (!powerline) {
