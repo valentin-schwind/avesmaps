@@ -1603,6 +1603,44 @@
 	}
 
 	/*
+	 * NACHBESSERUNG RUNDE 1 (W1/W2, 14.09.2026): EIN Helfer fuer jede Einstellung, die einem
+	 * ZUSAMMENGELEGTEN Verbund gelten kann -- Zielwahl (garetienZielwahlSetzen) UND Form/Art
+	 * (garetienEingabenAendern, Zweig zielForm/zielArt) rufen ihn, statt den Riegel wortgleich
+	 * zweimal zu tragen (W2: vorher standen dieselben vier Zeilen an beiden Stellen).
+	 *
+	 * 🔴 RULING (Koordinator, bindend): eine Einstellung, die an einem zusammengelegten Verbund
+	 * gesetzt wird, gilt dem GANZEN Verbund. Löst sie die Auflösung aus, ÜBERLEBT sie an JEDEM
+	 * Mitglied, das bis dahin zum Verbund gehörte -- der Editor hat den Wert fuer den Verbund
+	 * gewaehlt, nicht fuer ein Fragment.
+	 *
+	 * 💣 DER BEFUND (W1): vorher schrieb der Aufrufer unter dem GETEILTEN Schluessel und rief danach
+	 * `garetienVerbundAufloesen`, das genau diesen Eintrag loescht (garetienVerbundEinstellungenVergessen)
+	 * -- der Wert verschwand im selben Zug, in dem er gesetzt wurde, und jedes Mitglied fiel lautlos
+	 * auf seine Vorbelegung zurueck. Aus „Nichts" (nur ansehen) wurde so ein Import: `zusammen=false`,
+	 * beide Mitglieder wieder „karte", beide im Schreibumfang, der Fussknopf bedienbar.
+	 * ⭐ DIE ABHILFE: `schreiben` legt den (bereits entschiedenen) Wert unter EINEM Schluessel ab; wir
+	 * rufen sie zuerst unter dem noch geteilten Schluessel, pruefen danach den Riegel, und wenn er
+	 * jetzt scheitert: AUFLOESEN (das raeumt den geteilten Eintrag) und DANACH `schreiben` erneut fuer
+	 * jedes bisherige Mitglied -- nach dem Aufloesen zeigt `garetienEinstellungsSchluessel(m)` auf
+	 * `m`s EIGENEN Schluessel, und genau dort landet der Wert jetzt.
+	 * ⚠️ Die Mitgliederliste wird VOR dem Schreiben eingefroren (garetienVerbundStageEintraege liest
+	 * `zusammen`, das erst beim Aufloesen kippt) -- danach waere der Verbund schon aufgeloest und die
+	 * Liste leer.
+	 */
+	function garetienVerbundEinstellungSchreiben(objekt, schreiben) {
+		const verbund = garetienVerbundSchluessel(objekt);
+		const warZusammen = verbund !== "" && garetienVerbundIstZusammen(verbund);
+		const mitglieder = warZusammen
+			? garetienVerbundStageEintraege(verbund).map(function (eintrag) { return eintrag.objekt; })
+			: [];
+		schreiben(garetienEinstellungsSchluessel(objekt));
+		if (warZusammen && !garetienVerbundZusammenlegbar(objekt).ok) {
+			garetienVerbundAufloesen(verbund);
+			mitglieder.forEach(function (m) { schreiben(garetienEinstellungsSchluessel(m)); });
+		}
+	}
+
+	/*
 	 * Die Einstellungen EINES Verbunds vergessen -- alles, was unter seinem Schluessel liegt.
 	 * ⚠️ `_garetienInnerortsWahl` fehlt mit Absicht: sie liegt am Objektschluessel, nie am Verbund.
 	 */
@@ -4117,11 +4155,15 @@
 	// die Menge unten ist Modulzustand dieses FENSTERS, kein gespeicherter Zustand, kein
 	// `localStorage`. Ein neu geöffneter Importer-Lauf startet wieder bei der Vorgabe der Art.
 	//
-	// 🔴 „ALLE ANGEZEIGTEN EINFÜGEN" NIMMT DIE VORGABEN, NIE DIE HANDEINGABEN. Die Massenübernahme
-	// (garetienFussknopfKlick) ruft `garetienEingabenFuerServer` nirgends -- nur der Einzelknopf
-	// „Neu einfügen" (garetienNeuKlick) tut das. Eine Massenhandlung, die die Einstellung EINES
-	// zufällig zuletzt geöffneten Objekts auf alle übrigen anwendete, wäre genau die Falschaussage
-	// über die nächste Handlung, die dem Owner am 30.08.2026 schon einmal 3007 Objekte gekostet hat.
+	// 🔴 NACHBESSERUNG RUNDE 1 (G1, 14.09.2026): richtiggestellt -- der Einzelknopf „Neu einfügen"
+	// (`garetienNeuKlick`) ist mit Aufgabe 9 gefallen. „Stage importieren"
+	// (`garetienFussknopfKlick`/`garetienFussknopfEinfuegenKlick`) ist seither der EINE Weg, und
+	// `garetienStageEinstellungenJeItem` baut dabei JE OBJEKT seinen eigenen Rumpf aus
+	// `garetienEingabenFuerServer(objekt)` -- die Handeingabe eines Objekts reist nie auf ein
+	// anderes über, auch nicht innerhalb desselben Sammel-Imports. Eine Massenhandlung, die die
+	// Einstellung EINES zufällig zuletzt geöffneten Objekts auf alle übrigen anwendete, wäre genau
+	// die Falschaussage über die nächste Handlung, die dem Owner am 30.08.2026 schon einmal 3007
+	// Objekte gekostet hat.
 	let _garetienEingabenZustand = {};
 
 	// REIN: die Vorbelegung eines frisch geöffneten Objekts -- Vorgabe der Art (bzw. Grundwert) für
@@ -4578,32 +4620,38 @@
 			return;
 		}
 		if (feld === "zielForm" || feld === "zielArt") {
-			const wahl = garetienZielWahlZu(objekt);
+			// 🔴 NACHBESSERUNG RUNDE 1 (W1/W2, 14.09.2026): der neue Wert wird VOR dem Schreiben fertig
+			// ausgerechnet (in `neu`, einer eigenen Kopie) -- nicht mehr als Mutation des von
+			// `garetienZielWahlZu` gelieferten (bei einem zusammengelegten Verbund GETEILTEN) Objekts.
+			// So kann derselbe fertige Wert unveraendert MEHRFACH geschrieben werden (unten, je
+			// Mitglied), ohne dass ein zwischenzeitliches Aufloesen ihn mitreisst.
+			const bisherige = garetienZielWahlZu(objekt);
+			const neu = { ziel: bisherige.ziel, subtyp: bisherige.subtyp, kind: bisherige.kind };
 			if (feld === "zielForm") {
-				wahl.ziel = String(ziel.value || "");
-				const ersteArt = garetienArtenFuerForm(wahl.ziel)[0] || null;
-				wahl.subtyp = ersteArt ? ersteArt.key : "";
-				wahl.kind = ersteArt ? String(ersteArt.kind || "") : "";
+				neu.ziel = String(ziel.value || "");
+				const ersteArt = garetienArtenFuerForm(neu.ziel)[0] || null;
+				neu.subtyp = ersteArt ? ersteArt.key : "";
+				neu.kind = ersteArt ? String(ersteArt.kind || "") : "";
 			} else {
-				wahl.subtyp = String(ziel.value || "");
-				const gewaehlt = garetienArtenFuerForm(wahl.ziel).filter(function (a) {
-					return a.key === wahl.subtyp;
+				neu.subtyp = String(ziel.value || "");
+				const gewaehlt = garetienArtenFuerForm(neu.ziel).filter(function (a) {
+					return a.key === neu.subtyp;
 				})[0];
-				wahl.kind = gewaehlt ? String(gewaehlt.kind || "") : "";
+				neu.kind = gewaehlt ? String(gewaehlt.kind || "") : "";
 			}
-			// 🔴 NACHBESSERUNG RUNDE 1 (W2, Ruling Punkt 3): AENDERT SICH ZIEL ODER FORM EINES
-			// ZUSAMMENGELEGTEN VERBUNDS AUF ETWAS, DAS DEN RIEGEL NICHT MEHR BESTEHT, LOEST ER SICH
-			// AUF -- ueber DIESELBE Funktion wie der Knopf „Verbund auflösen", kein zweiter Weg. Ohne
-			// das traegt der Rumpf `verbund` weiter fuer eine Form, die am Server nie eine gemeinsame
-			// Region oder einen gemeinsamen Weg ergeben duerfte (Entwurf §6.3; Sonde probe-a6.js Teil 4).
-			// 🔴 DIES IST DIE EINE STELLE, AN DER ZIEL/FORM EINES VERBUNDS GESCHRIEBEN WIRD -- repoweit
-			// gemessen (`grep -n "wahl\.ziel\s*=\|wahl\.subtyp\s*="`): nur die drei Zeilen oben, alle in
+			// 🔴 AENDERT SICH ZIEL ODER FORM EINES ZUSAMMENGELEGTEN VERBUNDS AUF ETWAS, DAS DEN RIEGEL
+			// NICHT MEHR BESTEHT, LOEST ER SICH AUF -- ueber garetienVerbundEinstellungSchreiben, denselben
+			// Helfer wie die Zielwahl (W2), und die neue Form UEBERLEBT an jedem bisherigen Mitglied
+			// (W1: vorher verschwand sie im selben Zug, in dem sie gesetzt wurde -- Sonde des Pruefers:
+			// „ziel faellt auf region zurueck"). Ohne das traegt der Rumpf `verbund` weiter fuer eine
+			// Form, die am Server nie eine gemeinsame Region oder einen gemeinsamen Weg ergeben duerfte
+			// (Entwurf §6.3; Sonde probe-a6.js Teil 4).
+			// 🔴 DIES IST DIE EINE STELLE, AN DER ZIEL/FORM EINES OBJEKTS GESCHRIEBEN WIRD -- repoweit
+			// gemessen (`grep -n "neu\.ziel\s*=\|neu\.subtyp\s*="`): nur die zwei Zeilen oben, beide in
 			// diesem Zweig.
-			const geaenderterVerbund = garetienVerbundSchluessel(objekt);
-			if (geaenderterVerbund !== "" && garetienVerbundIstZusammen(geaenderterVerbund)
-				&& !garetienVerbundZusammenlegbar(objekt).ok) {
-				garetienVerbundAufloesen(geaenderterVerbund);
-			}
+			garetienVerbundEinstellungSchreiben(objekt, function (schluessel) {
+				_garetienZielWahl[schluessel] = Object.assign({}, neu);
+			});
 			garetienDetailRendern(objekte || zustand.objekte || []);
 			garetienVorschauNachziehen(feld);
 			return;
@@ -5863,8 +5911,9 @@
 		// entscheidet ein Editor zwei Dinge -- ueberhaupt? und als was? Groesse, Prioritaet,
 		// Zoomband, Kurvenbeschreibung, „fuer Klicks gesperrt", Wiki und Quellen beantworten
 		// keine davon; sie stehen dort nur im Weg, bei jeder der 8237 Zeilen.
-		// ⭐ Dieselbe Regel gilt schon fuer Name und die zwei Haekchen
-		// (garetienEinfuegeHakenMarkup) -- aus der Ausnahme wird hier die Regel.
+		// ⭐ Dieselbe Regel gilt schon fuer Name und Zielwahl (Nachbesserung Runde 1, G1: bis zum
+		// 14.09.2026 standen hier die zwei Haekchen, garetienEinfuegeHakenMarkup; seither
+		// garetienZielwahlMarkup/garetienZielNameZeile) -- aus der Ausnahme wird hier die Regel.
 		// ⚠️ Form und Art bleiben: sie sind die Antwort auf „als was?" und gehoeren damit zur
 		// Entscheidung, nicht zur Einstellung.
 		if (!avesmapsGaretienStageHat(objekt.key)) {
@@ -6907,20 +6956,19 @@
 	// Die Zielwahl setzen -- der EINE Schreiber von `_garetienZielwahl`. Ein unbekannter Wert wird
 	// verworfen, statt als Wahl liegenzubleiben.
 	// 🔴 RULING R-a (Koordinator, 14.09.2026): eine Zielwahl ungleich „karte" -- oder eine, an der
-	// der Riegel danach scheitert -- löst einen ZUSAMMENGELEGTEN Verbund auf. Dieselbe Funktion wie
-	// beim Umstellen von Ziel/Form (garetienEingabenAendern, Zweig zielForm/zielArt), kein zweiter
-	// Weg: ohne das trüge der Rumpf `verbund` weiter für eine Wahl, die am Server nie eine
-	// gemeinsame Region oder einen gemeinsamen Weg ergeben dürfte.
+	// der Riegel danach scheitert -- löst einen ZUSAMMENGELEGTEN Verbund auf, ÜBERLEBT dabei aber an
+	// jedem bisherigen Mitglied (Nachbesserung Runde 1, W1) -- über garetienVerbundEinstellungSchreiben,
+	// denselben Helfer wie beim Umstellen von Ziel/Form (garetienEingabenAendern, Zweig
+	// zielForm/zielArt, W2): ohne das trüge der Rumpf `verbund` weiter für eine Wahl, die am Server
+	// nie eine gemeinsame Region oder einen gemeinsamen Weg ergeben dürfte -- oder, schlimmer, die
+	// Wahl verschwände im selben Zug, in dem sie gesetzt wurde (W1).
 	function garetienZielwahlSetzen(objekt, wert) {
-		const key = garetienEinstellungsSchluessel(objekt);
 		const w = String(wert || "");
-		if (key === "" || AVESMAPS_GARETIEN_ZIELE.indexOf(w) === -1) { return; }
-		_garetienZielwahl[key] = w;
-		const geaenderterVerbund = garetienVerbundSchluessel(objekt);
-		if (geaenderterVerbund !== "" && garetienVerbundIstZusammen(geaenderterVerbund)
-			&& !garetienVerbundZusammenlegbar(objekt).ok) {
-			garetienVerbundAufloesen(geaenderterVerbund);
-		}
+		if (AVESMAPS_GARETIEN_ZIELE.indexOf(w) === -1) { return; }
+		if (garetienEinstellungsSchluessel(objekt) === "") { return; }
+		garetienVerbundEinstellungSchreiben(objekt, function (schluessel) {
+			_garetienZielwahl[schluessel] = w;
+		});
 	}
 
 	/*
@@ -8151,8 +8199,8 @@
 		}
 		// 💣 Ein „Nein" zaehlt trotzdem als GEFUNDEN (`handlung: "stage_abgelehnt"`, kein `null`) --
 		// sonst fiele derselbe Klick weiter zu `garetienHandlungKlick` durch und verschickte ein
-		// sinnloses `select` an die geteilte Tuer. Dieselbe Falle wie bei garetienNeuKlick und
-		// garetienRuecknahmeKlick.
+		// sinnloses `select` an die geteilte Tuer. Dieselbe Falle wie bei `garetienRuecknahmeKlick`
+		// -- und, bis Aufgabe 9, beim inzwischen gefallenen `garetienNeuKlick`.
 		if (garetienStageVorhaben(objekt) === "zusatz") {
 			const ok = typeof fragen === "function" ? fragen(garetienZusatzRueckfrageText(objekt)) : false;
 			if (!ok) { return { handlung: "stage_abgelehnt", objekt: objekt, groesse: zustand.stage.size }; }
@@ -8587,9 +8635,10 @@
 			: "Das Objekt fällt danach zurück nach „Offen“.";
 	}
 
-	// 🔴 Derselbe Bau wie garetienNeuKlick/garetienDetailKlick: Ereignis, Objektliste, Lauf-Nummer
-	// UND die Werkzeuge kommen HEREIN, damit sich am ERGEBNIS messen lässt, WAS hinausgeht und WANN
-	// gar nichts hinausgeht.
+	// 🔴 Derselbe Bau wie garetienFussknopfEinfuegenKlick/garetienDetailKlick (bis Aufgabe 9 auch
+	// wie das inzwischen gefallene garetienNeuKlick): Ereignis, Objektliste, Lauf-Nummer UND die
+	// Werkzeuge kommen HEREIN, damit sich am ERGEBNIS messen lässt, WAS hinausgeht und WANN gar
+	// nichts hinausgeht.
 	//
 	// 💣 OHNE BESTÄTIGUNG PASSIERT NICHTS (Brief) -- `fragen` liefert ohne `window.confirm` `false`
 	// (garetienFragen), das ist Absicht. Ein „Nein“ zählt trotzdem als GEFUNDEN: sonst fiele
@@ -9082,9 +9131,10 @@
 	// ---- Aufgabe 16: „Angehakte uebernehmen" -- durch das VORHANDENE Blatt -----------------------
 	//
 	// 🔴 SEIT AUFGABE 8 OEFFNET KEIN KNOPF DIESES FENSTERS DAS BLATT MEHR (Brief: „kommt eine neue
-	// seite, anstatt alle angezeigten einzufuegen" -- genau das war der Fehler). „Neu einfuegen"
-	// und der Fussknopf schreiben seither SELBST, ueber garetienNeuKlick/garetienFussknopfEinfuegenKlick
-	// und die gemeinsame garetienEinfuegenAusfuehren. Die Funktionen unten (garetienBlattSender,
+	// seite, anstatt alle angezeigten einzufuegen" -- genau das war der Fehler). Der Fussknopf
+	// schreibt seither SELBST, ueber garetienFussknopfEinfuegenKlick und die gemeinsame
+	// garetienEinfuegenAusfuehren (bis Aufgabe 9 galt dasselbe auch fuer den EINZELKNOPF „Neu
+	// einfuegen", ueber das inzwischen gefallene garetienNeuKlick). Die Funktionen unten (garetienBlattSender,
 	// garetienUebernahmeOeffnen) UND der Wirt #garetien-sheet bleiben unangetastet im Code stehen --
 	// Brief: „nicht loeschen, ohne dass jemand die Entscheidung dazu getroffen hat".
 	//
@@ -9853,8 +9903,9 @@
 					garetienStageNeuIds(stageObjekte), summe && summe.fehler
 				);
 				const aktion = garetienRueckgaengigNachEinfuegenAktion(neuIds, runId, fragen);
-				// Aufgabe 6: derselbe Nachlauf wie bei „Neu einfügen" -- die GANZE Stage am
-				// geltenden Lauf nachschlagen, statt nur den Reiter „uebernommen" abzufragen.
+				// Aufgabe 6: derselbe Nachlauf wie damals beim (mit Aufgabe 9 gefallenen) Einzelknopf
+				// „Neu einfügen" -- die GANZE Stage am geltenden Lauf nachschlagen, statt nur den
+				// Reiter „uebernommen" abzufragen.
 				return garetienStageNachschlagen(avesmapsGaretienRufe)
 					.then(function (nachschlag) {
 						return avesmapsGaretienListeHolen().then(function (ergebnis) {

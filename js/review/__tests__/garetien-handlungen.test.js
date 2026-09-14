@@ -600,13 +600,15 @@ wahr(!/btn--done[^>]*data-handlung="ablehnen"|data-handlung="ablehnen"[^>]*btn--
 // 🔴 SEIT 07.09.2026 STEHT DER ZUSATZ IN ZEILE 2, NIE IM NAMEN (Owner-Entscheid 7: zweizeilige
 // Knoepfe, damit sie in EINE Reihe passen). Der Vorwaertsknopf heisst schlicht „Auf die Stage",
 // und was dort laege, sagt die zweite Zeile.
-// 🔴 SEIT 09.09.2026 WIEDER EINZEILIG. Die zweite Zeile trug, was der Import tun wird --
-// das sagen jetzt die zwei Haekchen darueber (garetienEinfuegeHakenMarkup). Ohne `zeile2` baut
-// garetienHandlungsMarkup den Knopf ohne die zwei `<span>`, und das ist die schlichtere Form.
+// 🔴 SEIT 09.09.2026 WIEDER EINZEILIG. Die zweite Zeile trug, was der Import tun wird -- das
+// sagt seit dem 14.09.2026 die Zielwahl darueber (garetienZielwahlMarkup; bis dahin die zwei
+// Haekchen, garetienEinfuegeHakenMarkup). Ohne `zeile2` baut garetienHandlungsMarkup den Knopf
+// ohne die zwei `<span>`, und das ist die schlichtere Form.
 wahr(leiste.indexOf('>Auf die Stage<') !== -1,
 	"Zeile 1 traegt den blossen Namen: " + leiste);
 // ⚠️ UND KEINE ZWEITE ZEILE MEHR am Stage-Knopf. Der Zusatz stand dort bis zum 09.09.2026;
-// wer ihn zurueckholt, holt die Behauptung zurueck, die die Haekchen ersetzt haben.
+// wer ihn zurueckholt, holt die Behauptung zurueck, die zuerst die Haekchen und seit dem
+// 14.09.2026 die Zielwahl ersetzt haben.
 wahr(leiste.indexOf('<span class="gi-act__t2">') === -1, "und keine zweite Zeile mehr");
 
 // 🔴 Ein ausgegrauter Knopf traegt seinen Grund im title -- gemessen am Objekt OHNE Vorschlag,
@@ -683,11 +685,12 @@ wahr(quelle.includes("undecline"), "eine Ablehnung ohne Rueckweg ist ein schwarz
 // merkte sie nur vor -- „apply" kam erst durch das Uebernahme-Blatt (Aufgabe 16). Der Owner fand
 // genau das kaputt: „kommt eine neue seite, anstatt alle angezeigten einzufuegen" -- der Knopf
 // fuegte nicht ein. Seit Aufgabe 8
-// (.superpowers/sdd/2026-08-29-garetien-importer-sichtwerkzeug/task-8-brief.md) rufen „Neu
-// einfügen" (garetienNeuKlick) und der Fussknopf (garetienFussknopfEinfuegenKlick) selbst
-// `action: "apply"` -- ueber die gemeinsame garetienEinfuegenAusfuehren, NIE ueber einen zweiten
-// fetch( (siehe die Zusicherung oben: genau EIN fetch( in der ganzen Datei -- avesmapsGaretienRufe
-// bleibt die einzige Tuer, `apply` geht durch dieselbe Tuer wie alles andere).
+// (.superpowers/sdd/2026-08-29-garetien-importer-sichtwerkzeug/task-8-brief.md) ruft der
+// Fussknopf (garetienFussknopfEinfuegenKlick) selbst `action: "apply"` -- ueber die gemeinsame
+// garetienEinfuegenAusfuehren, NIE ueber einen zweiten fetch( (siehe die Zusicherung oben: genau
+// EIN fetch( in der ganzen Datei -- avesmapsGaretienRufe bleibt die einzige Tuer, `apply` geht
+// durch dieselbe Tuer wie alles andere). Bis Aufgabe 9 (14.09.2026) galt dasselbe auch fuer den
+// Einzelknopf „Neu einfügen" (garetienNeuKlick), der seither gefallen ist.
 // 🪤 Gesucht wird das blanke ZEICHENKETTEN-LITERAL: die Aktionen dieser Datei stehen teils in
 // einem Bedingungsausdruck (`name === "ablehnen" ? "decline" : "undecline"`), und ein Muster, das
 // ein `action:` davor verlangt, faende die nicht -- es waere fuer die falschen Gruende gruen.

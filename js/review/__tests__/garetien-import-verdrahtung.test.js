@@ -200,7 +200,9 @@ async function pruefeStaetteErfolg() {
 	tief(apply[0].rumpf.einstellungen_je_item, { "901": { innerorts: true, innerorts_public_id: "Ort-9" } },
 		"💣 „Stätte in X\" erreicht den Server -- bis zum 14.09.2026 sprang der Fußknopf hier auf „0 von 1\"");
 	const text1 = dom.text("#garetien-status-text");
-	wahr(text1.includes("importiert"), "die Stätte meldet über garetienImportMeldung: " + text1);
+	// 🔴 NACHBESSERUNG RUNDE 1 (W3): `includes("importiert")` traf auch den FEHLSCHLAG-Satz
+	// „✕ … nicht importiert" -- geschärft auf den echten Erfolgssatz.
+	wahr(text1.includes("✓ 1 Objekt importiert"), "die Stätte meldet über garetienImportMeldung: " + text1);
 	wahr(!text1.includes("mit Vorschlag"), "…und nicht die Ruhe-Bilanz: " + text1);
 	gleich(dom.text("#garetien-status-aktion"), "Rückgängig", "und bietet Rückgängig an");
 

@@ -76,11 +76,15 @@ function aufraeumen() {
 
 // ---- Zusammengelegt: die Wahl an EINEM Mitglied wirkt am GANZEN Verbund ------------------------
 // 🔴 Ruling R-a (Koordinator, Aufgabe 9, 14.09.2026): eine Zielwahl ungleich „karte" löst einen
-// zusammengelegten Verbund AKTIV auf (garetienZielwahlSetzen ruft garetienVerbundAufloesen).
-// „Geteilt" lässt sich seither nicht mehr als „dieselbe Wahl steht am Nachbarn" zeigen -- jede
-// Abweichung von „karte" löst sofort auf, bevor ein zweiter Lesezugriff sie beobachten könnte --,
-// sondern nur noch an der WIRKUNG: der Nachbar löst MIT auf, weil der Riegel (garetienVerbundZusammenlegbar)
-// jedes Mitglied über DENSELBEN Speicher (`garetienEinstellungsSchluessel`) liest.
+// zusammengelegten Verbund AKTIV auf (garetienZielwahlSetzen ruft garetienVerbundEinstellungSchreiben,
+// die bei Bedarf garetienVerbundAufloesen ruft, Nachbesserung Runde 1).
+// ⚠️ Dass Setzer UND Leser wirklich über DENSELBEN Speicher (`garetienEinstellungsSchluessel`) laufen,
+// sichert die QUELLTEXT-Prüfung weiter oben in dieser Datei (sie hält fest, dass beide Funktionen
+// `garetienEinstellungsSchluessel` im Rumpf tragen) -- das beweist DIESER Verhaltensblock nicht noch
+// einmal. Er prüft die Nachbesserung Runde 1 (Ruling, W1): die Wahl gilt dem GANZEN Verbund und
+// ÜBERLEBT dessen Auflösung an JEDEM bisherigen Mitglied, statt mit dem geteilten Speichereintrag zu
+// verschwinden (der Befund des Prüfers: vorher fiel „nichts" lautlos auf die Vorbelegung „karte"
+// zurück, und aus „nur ansehen" wurde ein Import).
 (function () {
     aufraeumen();
     const [m1, m2] = garetienZweiFragmente();
@@ -98,7 +102,11 @@ function aufraeumen() {
 
     api.garetienZielwahlSetzen(m1, "nichts");
     assert.strictEqual(api.garetienVerbundIstZusammen(schluessel), false,
-        "🔴 die Wahl an EINEM Fragment wirkt am GANZEN (geteilten) Verbund -- er löst sich auf (Ruling R-a)");
+        "die Wahl an EINEM Fragment wirkt am GANZEN (geteilten) Verbund -- er löst sich auf (Ruling R-a)");
+    assert.strictEqual(api.garetienZielwahlZu(m1), "nichts",
+        "🔴 Nachbesserung Runde 1 (W1): die Wahl ÜBERLEBT die Auflösung AM GESETZTEN Mitglied selbst");
+    assert.strictEqual(api.garetienZielwahlZu(m2), "nichts",
+        "🔴 …und ÜBERLEBT ebenso am ANDEREN Mitglied -- sie galt dem ganzen Verbund");
     assert.ok(!("verbund" in (api.garetienEingabenFuerServer(m2) || {})),
         "…und der Rumpf des ANDEREN Fragments trägt danach ebenfalls kein `verbund` mehr");
 })();
