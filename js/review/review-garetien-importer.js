@@ -1855,10 +1855,16 @@
 		// dieses Fragment. Kein neuer Klick-Handler: der bestehende Verteiler matcht die Attribute
 		// unabhaengig davon, wo der Knopf im Markup steht.
 		const objektIstUebernommen = String((objekt && objekt.stand) || "") === "uebernommen";
+		// 🔴 SCHLUSSPRÜFUNG, BEFUND G1: Block B ist auf „Offen" NUR Anzeige (Entwurf §3) -- das gilt
+		// fürs GANZE Objekt, nicht je Geschwister. Liegen zwei Geschwister schon auf der Stage,
+		// während das gerade angezeigte Objekt selbst dort NICHT liegt, ist die Ansicht trotzdem
+		// „Offen": weder das ✕ noch „Zusammenlegen (n)" dürfen dann erscheinen -- sonst böte die
+		// Zeile eine Handlung an, die zu einem Objekt gehört, das man sich gerade nur ANSIEHT.
+		const objektAufDerStage = avesmapsGaretienStageHat(String((objekt && objekt.key) || ""));
 		const zeilen = mitglieder.map(function (m) {
 			const liegt = avesmapsGaretienStageHat(m.key);
 			let rechts = "<span></span>";
-			if (liegt) {
+			if (objektAufDerStage && liegt) {
 				rechts = '<button class="btn gi-seg__weg" type="button" data-verbund-weg="'
 					+ avesmapsGaretienEscape(m.key || "") + '" title="Von der Stage nehmen">✕</button>';
 			} else if (objektIstUebernommen && garetienRuecknahmeItems(m).length > 0) {
@@ -1875,7 +1881,7 @@
 		const aufDerStage = mitglieder.filter(function (m) { return avesmapsGaretienStageHat(m.key); }).length;
 		const zusammen = garetienVerbundIstZusammen(schluessel);
 		let knopf = "";
-		if (aufDerStage >= 2) {
+		if (objektAufDerStage && aufDerStage >= 2) {
 			const pruefung = zusammen ? { ok: true, grund: "" } : garetienVerbundZusammenlegbar(objekt);
 			const beschriftung = (zusammen ? "Verbund auflösen (" : "Zusammenlegen (") + aufDerStage + ")";
 			knopf = '<div class="gi-acts__knoepfe"><button class="btn btn--accent" type="button"'
@@ -5177,13 +5183,27 @@
 	// beim nächsten Öffnen wird neu gefragt.
 	let _garetienWikiLandschaftErgebnis = {};
 
+	/*
+	 * REIN: der Cache-Schlüssel der Wiki-Landschaft-Suche -- trägt den SUCHNAMEN mit
+	 * (garetienNameFuerImport), nicht nur `objekt.key`.
+	 *
+	 * 🔴 SCHLUSSPRÜFUNG, BEFUND W3: der Suchname wechselt beim Zusammenlegen/Auflösen eines
+	 * Verbunds (Stamm ↔ Fragmentname, Aufgabe 6) -- ohne den Namen im Schlüssel bliebe der Treffer
+	 * des VORHER gesuchten Namens unter demselben `objekt.key` im Speicher stehen, und der Riegel
+	 * „ein Aufruf je Objektwechsel" (`_garetienWikiLandschaftLetzterKey`) verhinderte sogar die
+	 * neue Anfrage.
+	 */
+	function garetienWikiLandschaftCacheSchluessel(objekt) {
+		return String((objekt && objekt.key) || "") + "|" + garetienNameFuerImport(objekt);
+	}
+
 	// REIN: der Stand der Zeile „Wiki-Landschaft" -- `null` heißt „es läuft noch".
 	// ⚠️ Gemerkt wird BEIDES, der Anzeigetext UND der `status`: an letzterem hängt, ob die
 	// manuelle Suche darunter aufgeht (`garetienWikiSucheBeiBedarfZeigen`). Nur den Text zu
 	// merken hieße, dass die Suchbox beim nächsten Rendern wieder verschwindet -- derselbe
 	// Fehler eine Zeile tiefer.
 	function garetienWikiLandschaftStand(objekt) {
-		const key = String((objekt && objekt.key) || "");
+		const key = garetienWikiLandschaftCacheSchluessel(objekt);
 		return Object.prototype.hasOwnProperty.call(_garetienWikiLandschaftErgebnis, key)
 			? _garetienWikiLandschaftErgebnis[key]
 			: null;
@@ -5359,7 +5379,19 @@
 	// (avesmapsGaretienRufe, GARETIEN_ENDPUNKT) und dieselbe `.php`-Adresse, kein zweiter fetch(.
 	function garetienWikiLandschaftBeiBedarfLaden(objekt) {
 		if (!objekt) { _garetienWikiLandschaftLetzterKey = null; return; }
-		const schluessel = String(objekt.key || "");
+		// 🔴 SCHLUSSPRÜFUNG, BEFUND W3: gesucht wird mit demselben Namen, der auch angelegt würde
+		// (garetienNameFuerImport) -- bei einem zusammengelegten Verbund ist das der STAMM, nie der
+		// Name des gerade geöffneten Fragments. Der Cache-Schlüssel trägt diesen Suchnamen mit
+		// (garetienWikiLandschaftCacheSchluessel), sonst bliebe nach dem Zusammenlegen/Auflösen der
+		// Treffer des vorher gesuchten Namens unter demselben `objekt.key` stehen.
+		const suchname = garetienNameFuerImport(objekt);
+		const schluessel = garetienWikiLandschaftCacheSchluessel(objekt);
+		// ⚠️ `objektKey` bleibt der BLOSSE `objekt.key` -- gegen den vergleicht `zustand.detailKey`
+		// weiter (wie an jeder anderen Stelle dieser Datei), NICHT gegen den Cache-Schlüssel mit
+		// angehängtem Suchnamen. Verglichen würde sonst nie mehr etwas gleich, und das Ergebnis
+		// erreichte die Zeile nie (nur der Cache verlöre nie etwas, aber die Anzeige stünde für
+		// immer auf „wird gesucht …").
+		const objektKey = String(objekt.key || "");
 		// 💣 DER FRISCH GEBAUTE KASTEN WIRD ZUERST NACHGETRAGEN, AUCH WENN SCHON GEFRAGT WURDE.
 		// Diese Funktion läuft bei JEDEM `garetienDetailRendern`, das Markup ist also gerade neu
 		// -- die Zeile steht auf dem Wartetext und die manuelle Suche wieder auf `hidden`. Ohne
@@ -5375,7 +5407,7 @@
 		if (!hasDocument || typeof fetch !== "function") { return; }
 		avesmapsGaretienRufe(GARETIEN_ENDPUNKT, {
 			action: "wiki_landschaft",
-			name: String(objekt.name || ""),
+			name: suchname,
 			subtyp: String(objekt.subtyp || ""),
 		}).then(function (antwort) {
 			const urteil = antwort.wiki_landschaft || {};
@@ -5387,7 +5419,7 @@
 				text: garetienWikiLandschaftZeileText(urteil),
 				status: String(urteil.status || ""),
 			};
-			if (zustand.detailKey !== schluessel) { return; }
+			if (zustand.detailKey !== objektKey) { return; }
 			garetienWikiLandschaftZeileSchreiben(objekt);
 			garetienWikiSucheBeiBedarfZeigen(objekt, String(urteil.status || ""));
 		}).catch(function () {
@@ -5396,7 +5428,7 @@
 			_garetienWikiLandschaftErgebnis[schluessel] = {
 				text: "Suche fehlgeschlagen.", status: "kein_treffer",
 			};
-			if (zustand.detailKey !== schluessel) { return; }
+			if (zustand.detailKey !== objektKey) { return; }
 			garetienWikiLandschaftZeileSchreiben(objekt);
 			garetienWikiSucheBeiBedarfZeigen(objekt, "kein_treffer");
 		});
