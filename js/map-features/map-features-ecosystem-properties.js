@@ -943,6 +943,8 @@
 				return;                              // zwischenzeitlich geschlossen oder andere Fläche
 			}
 			regionTypesForKind = Array.isArray(result.region_types) ? result.region_types : [];
+			// Die Beispielgebirge im Feld „Morphologie" brauchen die Namen aus dieser Antwort (14.09.2026).
+			uebernimmGebirgsformNamen(result.regions, area);
 			const mine = (result.regions || []).find((region) => region.public_id === area.region_public_id);
 			regionAreaCount = Number(mine?.area_count || 0);
 			regionAreaCountLoaded = Boolean(mine);
@@ -1444,7 +1446,9 @@
 	// ⚠️ Immer mit „—" an erster Stelle und ausgewaehlt: eine Vorlage ist eine AKTION, kein Zustand.
 	// Die Flaeche speichert Zahlen, keinen Namen -- ein stehengebliebener Name waere eine Behauptung
 	// ueber etwas, das nirgends steht.
-	function fuelleVorlagenFeld(element, liste) {
+	// 🔴 `beschrifte` (14.09.2026) darf die ZEILE laenger machen als den Namen -- die Beispielgebirge der
+	// Morphologie. Der WERT bleibt der Schluessel der Vorlage, und nur ihn liest wendeVorlageAn.
+	function fuelleVorlagenFeld(element, liste, beschrifte) {
 		const feld = propertiesElement(element);
 		if (!feld) {
 			return;
@@ -1458,10 +1462,57 @@
 		eintraege.forEach((vorlage) => {
 			const option = document.createElement("option");
 			option.value = String(vorlage.key);
-			option.textContent = String(vorlage.name);
+			option.textContent = String(typeof beschrifte === "function" ? beschrifte(vorlage) : vorlage.name);
 			feld.appendChild(option);
 		});
 		feld.value = "";
+	}
+
+	// Die Namen der Regionen dieser Ebene, aus der `list_regions`-Antwort des Dialogs. null = noch nicht da.
+	// 🔴 Aus DERSELBEN Antwort, aus der Art-Vokabular und Flaechenzahl kommen -- ein zweiter Abruf nur
+	// fuer die Beispielnamen waere eine Anfrage zu viel. Bis sie ankommt, zeigt das Feld die blossen
+	// Formnamen; danach wird es einmal neu gefuellt.
+	let gebirgsformRegionNamen = null;
+
+	// Die Zeile einer Morphologie: der Formname samt den gepflegten Beispielgebirgen der Karte (Owner
+	// 14.09.2026: „keine Musterbeispiele sondern richtige Beispiele aus der karte").
+	// ⚠️ Ein Beispiel, dessen Region in der Liste nicht vorkommt (geloescht, oder die Liste ist noch
+	// unterwegs), faellt still weg -- ein Name ohne Gebirge dahinter waere eine Behauptung ueber nichts.
+	// 🔴 Die Regel (Reihenfolge, Deckel, alte Schluessel) steht in avesmapsGebirgsformBeispielIds
+	// (js/map-features/ecosystem-display.js) -- dieselbe, nach der das Fenster „Darstellung" pflegt.
+	function morphologieZeilentext(vorlage) {
+		const teil = typeof avesmapsEcosystemDisplayTeil === "function"
+			? avesmapsEcosystemDisplayTeil("gebirgsformen")
+			: {};
+		const uebersetze = typeof avesmapsHydroMorphSchluessel === "function" ? avesmapsHydroMorphSchluessel : null;
+		const ids = typeof avesmapsGebirgsformBeispielIds === "function"
+			? avesmapsGebirgsformBeispielIds(teil, vorlage.key, uebersetze)
+			: [];
+		const namen = gebirgsformRegionNamen
+			? ids.map((id) => gebirgsformRegionNamen.get(id)).filter(Boolean)
+			: [];
+		return typeof avesmapsGebirgsformZeilentext === "function"
+			? avesmapsGebirgsformZeilentext(vorlage.name, namen)
+			: String(vorlage.name);
+	}
+
+	// Nach `list_regions`: die Regionsnamen fuer die Beispielgebirge uebernehmen und das Feld
+	// „Morphologie" einmal neu fuellen. Neu gefuellt wird nur, wo es ueberhaupt steht (ein Gebirge der
+	// Topographie); es ist eine Aktion und steht danach wieder auf „—".
+	// ⚠️ `list_regions` liefert nur AKTIVE Regionen: ein geloeschtes Beispielgebirge fehlt in der Map und
+	// faellt in morphologieZeilentext still weg.
+	// 🪤 EIGENE FUNKTION, KEIN BLOCK IM OEFFNER. openEcosystemPropertiesDialog war schon 14.481 Zeichen
+	// lang, und landschaft-dialog-beide-haelften.test.js schneidet ihn unter 15.000 -- der erste Bau stand
+	// als Block darin und machte genau diesen fremden Test rot.
+	function uebernimmGebirgsformNamen(regionen, area) {
+		gebirgsformRegionNamen = new Map((Array.isArray(regionen) ? regionen : []).map((region) => [
+			String(region?.public_id || ""), String(region?.name || ""),
+		]));
+		if (String(area?.kind || "") === "topographie" && String(area?.region_type || "") === "gebirge") {
+			fuelleVorlagenFeld("morphologie", typeof ECOSYSTEM_HYDRO_MORPHOLOGIEN !== "undefined"
+				? ECOSYSTEM_HYDRO_MORPHOLOGIEN
+				: [], morphologieZeilentext);
+		}
 	}
 
 	// Eine Vorlage anwenden: die genannten Regler setzen, als „angefasst" merken, neu zeichnen.
@@ -1778,9 +1829,11 @@
 		// 🔴 Bei JEDEM Aufbau neu und auf „—": das Auswahlfeld ist eine AKTION. Was gemerkt wird,
 		// steht im Titel der Falte -- ein stehengebliebener Eintrag im Feld laese sich wie eine
 		// lebende Bindung.
+		// ⭐ Mit den Beispielgebirgen der Karte (14.09.2026). Beim ersten Aufbau fehlen ihre Namen noch --
+		// sie kommen mit `list_regions`, und dort wird das Feld noch einmal gefuellt.
 		fuelleVorlagenFeld("morphologie", typeof ECOSYSTEM_HYDRO_MORPHOLOGIEN !== "undefined"
 			? ECOSYSTEM_HYDRO_MORPHOLOGIEN
-			: []);
+			: [], morphologieZeilentext);
 		fuelleVorlagenFeld("hoehenstufe", typeof ECOSYSTEM_HYDRO_HOEHENSTUFEN !== "undefined"
 			? ECOSYSTEM_HYDRO_HOEHENSTUFEN
 			: []);
