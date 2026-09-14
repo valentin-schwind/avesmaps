@@ -3775,7 +3775,7 @@
 		     💣 Ohne ihn ist es kein stiller Fehler: `avesmapsFensterKopf is not defined` wirft beim
 		     ersten Klick auf einen Editor, und das Fenster geht gar nicht auf. -->
 		<script src="js/ui/fenster-kopf.js"></script>
-		<script src="js/review/review-feature-sources.js"></script>
+		<template data-nur-editor><script src="js/review/review-feature-sources.js"></script></template><script>avesmapsNurEditorSkripte()</script>
 		<script src="js/review/review-core.js"></script>
 		<script src="js/review/review-status.js"></script>
 		<!-- Der EINE Bilanzzeilen-Erzeuger fuer alle acht WikiSync-Listen (Entwurf
@@ -3815,27 +3815,31 @@
 		     erkennbaren Blindgaenger (bereit === false), aber ein Blindgaenger ist kein Ersatz.
 		     Danach der Datenweg des Wegs, den sich Kartendialog und Wege-Editor teilen; er haengt
 		     von keiner der drei ab und steht nur der Lesbarkeit halber hier. -->
-		<script src="js/ui/wiki-assign-registry.js"></script>
-		<script src="js/ui/wiki-assign-diff.js"></script>
+		<template data-nur-editor>
+			<script src="js/ui/wiki-assign-registry.js"></script>
+			<script src="js/ui/wiki-assign-diff.js"></script>
+		</template><script>avesmapsNurEditorSkripte()</script>
 		<!-- Der Wiki-Override an der Feldzeile: was weicht ab, und wer hat es gesetzt. Rein, kein
 		     DOM (Entwurf docs/superpowers/specs/2026-08-17-wiki-override-fuer-alle-design.md).
 		     ⚠️ Fehlt die Zeile, faellt der Kartendialog still auf „keine Abweichung" zurueck --
 		     ohne einen einzigen Fehler, und der ganze Umbau waere unsichtbar. -->
-		<script src="js/ui/wiki-feld-herkunft.js"></script>
-		<script src="js/ui/wiki-assign.js"></script>
-		<script src="js/ui/wiki-assign-weg.js"></script>
+		<template data-nur-editor>
+			<script src="js/ui/wiki-feld-herkunft.js"></script>
+			<script src="js/ui/wiki-assign.js"></script>
+			<script src="js/ui/wiki-assign-weg.js"></script>
+		</template><script>avesmapsNurEditorSkripte()</script>
 		<!-- Der Datenweg des Orts, den sich Kartendialog und Orte-Editor teilen (Aufgabe 5). Steht
 		     neben dem des Wegs und haengt ebenfalls nur an den drei Zeilen darueber. -->
-		<script src="js/ui/wiki-assign-ort.js"></script>
+		<template data-nur-editor><script src="js/ui/wiki-assign-ort.js"></script></template><script>avesmapsNurEditorSkripte()</script>
 		<!-- Der Datenweg der Landschaft, den sich der Flaechen-Dialog (map-features-ecosystem-
 		     properties.js) und der Regionen-Editor (html/landschaften-editor.html) teilen (Aufgabe 6).
 		     ⚠️ Er MUSS vor js/map-features/map-features-ecosystem-properties.js stehen -- jener Block
 		     laeuft in einer IIFE, die erst beim Oeffnen des Dialogs zugreift, aber die Ladeordnung von
 		     index.html ist Vertrag (AGENTS.md §3) und wird nicht dem Zufall ueberlassen. -->
-		<script src="js/ui/wiki-assign-landschaft.js"></script>
+		<template data-nur-editor><script src="js/ui/wiki-assign-landschaft.js"></script></template><script>avesmapsNurEditorSkripte()</script>
 		<!-- Der Datenweg des Herrschaftsgebiets (Aufgabe 7). Er MUSS vor
 		     js/review/review-region-wiki-picker.js stehen, das ihn ruft. -->
-		<script src="js/ui/wiki-assign-territorium.js"></script>
+		<template data-nur-editor><script src="js/ui/wiki-assign-territorium.js"></script></template><script>avesmapsNurEditorSkripte()</script>
 		<!-- Die DRITTE Oberflaeche derselben Wiki-Landschaft: der Label-Dialog. Sie heftet sie an ein
 		     map_features-Label statt an die gezeichnete Flaeche, hat deshalb eine eigene Erklaerung
 		     (`landschaftslabel`) -- und teilt sich den Datenweg mit der Zeile darueber.

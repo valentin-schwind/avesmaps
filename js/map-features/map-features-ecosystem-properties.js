@@ -542,9 +542,11 @@
 	let letzterWikiArtikel = null;
 
 	function ecosystemZeichneWikiAbweichungen() {
-		if (typeof avesmapsWikiFeldStand !== "function" || typeof avesmapsWikiAssignSubject !== "function") {
+		if (typeof avesmapsWikiFeldStand !== "function" || typeof avesmapsWikiAssignSubject !== "function"
+			|| typeof avesmapsWikiAssignLandschaftHerkunft !== "function" || typeof AVESMAPS_WIKI_ASSIGN_LANDSCHAFT_KARTENFELDER === "undefined") {
 			return;
 		}
+		const herkunft = avesmapsWikiAssignLandschaftHerkunft(regionFieldOrigins, AVESMAPS_WIKI_ASSIGN_LANDSCHAFT_KARTENFELDER);
 		const abgeleitet = istAbgeleiteteFlaeche(currentPropertiesArea());
 		const stand = avesmapsWikiFeldStand(
 			(avesmapsWikiAssignSubject("landschaft") || {}).felder || [],
@@ -553,7 +555,7 @@
 				region_type: String(propertiesElement("type")?.value || ""),
 			},
 			(letzterWikiArtikel && letzterWikiArtikel.werte) || {},
-			avesmapsWikiAssignLandschaftHerkunft(regionFieldOrigins, AVESMAPS_WIKI_ASSIGN_LANDSCHAFT_KARTENFELDER),
+			herkunft,
 			{ region_type: wikiArtBeschriftungen() }
 		);
 		document.querySelectorAll("#landschaft-dialog-overlay [data-eco-wiki-alt]").forEach((zelle) => {

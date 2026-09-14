@@ -161,6 +161,20 @@ const ERLAUBT = {
 		"startEditorPresenceHeartbeat", "startReviewReportsPolling", "refreshActiveEditorPanel",
 		"avesmapsForceTerritoryClaim", "setEditorPanelTab", "toggleReviewPanel",
 	],
+	// Das Eigenschaften-Fenster der Landschaften: es oeffnet nur ueber das Flaechenmenue, und das geht nur
+	// bei canEditEcosystemOnMap() auf (map-features-ecosystem-rendering.js) -- ein Besucher erreicht keine
+	// dieser Stellen. Die Zuweisung haengt am Mount (typeof-geschuetzt), die Quellen ebenso.
+	"js/map-features/map-features-ecosystem-properties.js": [
+		"avesmapsWikiAssignLandschaftAntwortPruefen", "avesmapsWikiAssignLandschaftZustand",
+		"avesmapsWikiAssignLandschaftArtikel", "avesmapsWikiAssignLandschaftSyncWerte",
+		"avesmapsWikiAssignLandschaftSyncLeer", "avesmapsWikiAssignMount", "avesmapsWikiAssignLandschaftTreffer",
+		"mountFeatureSourceEditor",
+		// ecosystemZeichneWikiAbweichungen steigt vorher per typeof auf beide aus (mehr als fuenf Zeilen darueber)
+		"avesmapsWikiFeldStand", "avesmapsWikiAssignSubject",
+	],
+	// Der Ortseditor (nicht das Meldeformular): der Quellenkasten wird dort erst nach einem
+	// typeof-Ausstieg gemountet, der mehr als fuenf Zeilen darueber steht.
+	"js/review/review-locations.js": ["mountFeatureSourceEditor"],
 	// Zuhoerer auf Knoepfen, die NUR die Seitenleiste erzeugt (Meldungskarten, Bewertungsliste,
 	// Aenderungsverlauf in review-panels.js / review-panels-change-log.js) -- ein Besucher hat sie nie im DOM.
 	"js/routing/routing.js": [
@@ -208,8 +222,14 @@ function jsDateien(verzeichnis, aus = []) {
 	return aus;
 }
 
-const quellen = jsDateien("js")
-	.filter((rel) => rel !== "js/app/nur-editor.js" && !nurEditor.includes(rel))
+// Geprueft wird, was index.html einem Besucher WIRKLICH laedt: die Skript-Tags ausserhalb der Vorlagen.
+// Dateien wie js/pages/wege-editor.js gehoeren zu eigenen Seiten unter html/, die ihre Wiki-Zuweisung selbst
+// einbinden -- sie koennen den Start von index.html nicht brechen und schluegen hier nur falsch an.
+const besucherSkripte = [...ausserhalb.matchAll(/<script[^>]*\ssrc="([^"?#]+)/g)].map((m) => m[1].replace(/^\//, ""));
+assert.ok(besucherSkripte.length > 100, "index.html nennt kaum Skripte ausserhalb der Vorlagen -- dann prueft Teil C nichts");
+const quellen = besucherSkripte
+	.filter((rel) => rel.startsWith("js/") && !rel.startsWith("js/third-party/") && rel !== "js/app/nur-editor.js" && !nurEditor.includes(rel))
+	.filter((rel) => fs.existsSync(path.join(WURZEL, rel)))
 	.map((rel) => [rel, ohneJsKommentare(lies(rel))]);
 quellen.push(["index.html", ausserhalb]);
 for (const pflicht of ["js/app/bootstrap.js", "js/map-features/map-features-powerlines.js", "js/routing/routing.js"]) {
