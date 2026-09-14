@@ -1523,8 +1523,59 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 		const treffer = ziel.closest("[data-wa-treffer]");
 		if (treffer && behaelter.contains(treffer)) {
 			ereignis.preventDefault();
+			// 🔴 EIN `click` VOM ZEIGER (`detail` >= 1) HAT SEINEN TREFFER SCHON BEIM DRUECKEN GEWAEHLT
+			// (`aufDruck` darunter) und waehlt hier NICHT ein zweites Mal. Der Riegel in `trefferWaehlen`
+			// faengt das nur, solange die Zuweisung laeuft -- sagt der Server SOFORT ab, ist er schon
+			// wieder offen, die Liste neu gezeichnet, und ein Browser, der den `click` dann auf die neue
+			// Zeile an derselben Stelle zustellt, schickte eine zweite Zuweisung ab.
+			// ⚠️ Ein `click` OHNE Zeiger bleibt ein Weg hinein: ein Screenreader oder `element.click()`
+			// loest ihn ohne `mousedown` aus, mit `detail === 0` (im Chrome gemessen, 14.09.2026).
+			if (ereignis.detail > 0) {
+				return;
+			}
 			trefferWaehlen(parseInt(treffer.getAttribute("data-wa-treffer"), 10));
 		}
+	}
+
+	/**
+	 * 💣 GEWAEHLT WIRD BEIM DRUECKEN, NICHT BEIM LOSLASSEN.
+	 *
+	 * Bis zum 14.09.2026 waehlte die Trefferliste auf `click` -- und ein `click` entsteht erst beim
+	 * LOSLASSEN, und nur, wenn Druecken und Loslassen dasselbe Element treffen. Gemeldet am 02.09.2026
+	 * als „es wird angezeigt aber ich kanns nicht anklicken", und im echten Chrome gemessen:
+	 *   - wird die Liste zwischen Druecken und Loslassen neu gezeichnet (eine Suchantwort, die genau
+	 *     dann eintrifft), kommt GAR KEIN `click` -- mousedown und mouseup lagen beide in derselben
+	 *     Zeile, der Zeiger hatte sie nicht verlassen, und `zuweisen` lief nie;
+	 *   - rutscht der Zeiger in den 3-px-Spalt zwischen zwei Zeilen, faellt der `click` auf die LISTE,
+	 *     und `closest("[data-wa-treffer]")` findet nichts.
+	 * Beides ist still: kein Fehler, keine Meldung, nur ein Klick, der nichts tut.
+	 *
+	 * ⭐ Das Haus hatte die Loesung zwei Zentimeter tiefer im selben Dialog: der Quellen-Autocompleter
+	 * (js/ui/source-autocomplete.js, `onBoxMouseDown`) waehlt auf `mousedown` mit `preventDefault()`.
+	 * `preventDefault` haelt dabei den Fokus im Suchfeld (gemessen: ohne ihn steht er beim `pointerup`
+	 * schon auf `body`) -- ↑ ↓ und Enter gehen nach einem Klick also weiter.
+	 *
+	 * 🔴 `mousedown`, NICHT `pointerdown`. Ein `pointerdown` feuert bei Beruehrung schon beim
+	 * AUFSETZEN des Fingers, bevor der Browser weiss, ob gewischt wird -- wer die 40 Treffer mit dem
+	 * Finger durchblaettert, wiese den ersten zu, auf dem er aufsetzt. Das `mousedown` einer Beruehrung
+	 * kommt erst mit dem Tippen selbst, zusammen mit `mouseup` und `click`.
+	 *
+	 * ⚠️ Nur die linke Taste, und nur auf einer ZEILE: ein Druck auf die Liste selbst ist ihre
+	 * Bildlaufleiste, einer ins Suchfeld setzt den Zeiger -- beides bleibt unverhindert.
+	 * 🔴 Durch `trefferWaehlen`, wie Enter und der `click` ohne Zeiger: EIN Pfad, EIN Index
+	 * (`data-wa-treffer`), EIN Riegel gegen die zweite Zuweisung.
+	 */
+	function aufDruck(ereignis) {
+		const ziel = ereignis.target;
+		if (ereignis.button !== 0 || !ziel || !ziel.closest) {
+			return;
+		}
+		const treffer = ziel.closest("[data-wa-treffer]");
+		if (!treffer || !behaelter.contains(treffer)) {
+			return;
+		}
+		ereignis.preventDefault();
+		trefferWaehlen(parseInt(treffer.getAttribute("data-wa-treffer"), 10));
 	}
 
 	function aufEingabe(ereignis) {
@@ -1582,6 +1633,7 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 	}
 
 	behaelter.addEventListener("click", aufKlick);
+	behaelter.addEventListener("mousedown", aufDruck);
 	behaelter.addEventListener("input", aufEingabe);
 	behaelter.addEventListener("change", aufAenderung);
 	behaelter.addEventListener("keydown", aufTaste);
@@ -1627,6 +1679,7 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 				tippUhr = null;
 			}
 			behaelter.removeEventListener("click", aufKlick);
+			behaelter.removeEventListener("mousedown", aufDruck);
 			behaelter.removeEventListener("input", aufEingabe);
 			behaelter.removeEventListener("change", aufAenderung);
 			behaelter.removeEventListener("keydown", aufTaste);
