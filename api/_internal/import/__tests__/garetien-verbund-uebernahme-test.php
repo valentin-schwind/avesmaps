@@ -459,12 +459,15 @@ $flaechenJeRegionG = $pdoG->query(
        FROM ecosystem_region er LEFT JOIN ecosystem_area ea ON ea.region_id = er.id
       GROUP BY er.id"
 )->fetchAll(PDO::FETCH_KEY_PAIR);
-assert((int) ($flaechenJeRegionG['AXwald 1'] ?? -1) === 1,
+// ⚠️ Seit dem 14.09.2026 heisst eine Verbund-Region wie ihr STAMM (garetien-plan.php,
+// avesmapsGaretienNameUebersteuern), nicht mehr wie ihr erstes Fragment -- die Schluessel dieser
+// Tafel sind deshalb „AXwald" und „A_wald", nicht „AXwald 1" und „A_wald 1".
+assert((int) ($flaechenJeRegionG['AXwald'] ?? -1) === 1,
     'G: "AXwald" bleibt bei EINER Flaeche (nicht faelschlich mit A_wald verschmolzen), bekommen: '
-    . ($flaechenJeRegionG['AXwald 1'] ?? 'FEHLT'));
-assert((int) ($flaechenJeRegionG['A_wald 1'] ?? -1) === 2,
+    . ($flaechenJeRegionG['AXwald'] ?? 'FEHLT'));
+assert((int) ($flaechenJeRegionG['A_wald'] ?? -1) === 2,
     'G: "A_wald" hat BEIDE eigenen Fragmente zusammengefuehrt, bekommen: '
-    . ($flaechenJeRegionG['A_wald 1'] ?? 'FEHLT'));
+    . ($flaechenJeRegionG['A_wald'] ?? 'FEHLT'));
 
 echo "OK -- garetien-verbund-like-maskierung (Kleinigkeit)\n";
 
@@ -900,3 +903,216 @@ assert($labelGebundenN === 1,
     . $labelGebundenN);
 
 echo "OK -- garetien-ruecknahme-label-abfrage-gebunden (Fixrunde 1, Befund 3)\n";
+
+// =================================================================================================
+// O. NAME = STAMM (Entwurf 14.09.2026, Fehler 1) -- Flaeche UND Weg, im SERVER gesetzt
+// =================================================================================================
+//
+// 💣 Der Verbund-Entwurf sagte „Name = Stamm" dreimal zu (§0.3, §3, §6), gebaut war es nie: die
+// Region hiess „Silker Hain 1", die Wiki-Suche fragte `silkerhain1`, und zwei Wegabschnitte
+// „Alkenstieg" + „Alkenstieg 2" blieben zwei Wege. Eine Sperre nur im Browser ist keine -- der
+// Server setzt den Stamm selbst, sobald `verbund` im Rumpf steht und kein Name gewaehlt ist.
+
+/** Ein 'new'-Weg-Item -- dieselbe Form wie avesmapsGaretienVerbundTestFragment, nur als Linie. */
+function avesmapsGaretienVerbundTestWeg(PDO $pdo, int $runId, string $label, int $nr, array $linie): int
+{
+    $pdo->prepare("INSERT INTO sync_plan_item (run_id, entity_key, entity_public_id, change_type, label, before_json, after_json, override_json, selected)
+                   VALUES (?, ?, NULL, 'new', ?, NULL, ?, NULL, 1)")
+        ->execute([
+            $runId,
+            'ggp:Wege:Weg:#' . $nr,
+            $label,
+            json_encode([
+                'herkunft' => 'garetien', 'ziel' => 'path', 'subtyp' => 'Weg', 'kind' => null,
+                'name' => $label, 'geometry' => ['type' => 'LineString', 'coordinates' => $linie],
+            ], JSON_UNESCAPED_UNICODE),
+        ]);
+
+    return (int) $pdo->lastInsertId();
+}
+
+// --- O1. Die Flaeche: Region UND Beschriftung heissen wie der Stamm.
+$pdoO = avesmapsGaretienVerbundUebernahmeTestPdo();
+$runO = avesmapsSyncPlanStartRun($pdoO, AVESMAPS_GARETIEN_PLAN_KIND, 7, 'lauf-o');
+$itemO1 = avesmapsGaretienVerbundTestFragment($pdoO, $runO, 'Silker Hain 1', 1, avesmapsGaretienVerbundTestRing(100, 100));
+$itemO2 = avesmapsGaretienVerbundTestFragment($pdoO, $runO, 'Silker Hain 2', 2, avesmapsGaretienVerbundTestRing(200, 200));
+$ergebnisO = avesmapsGaretienUebernehmen($pdoO, $runO, [$itemO1, $itemO2], ['id' => 7], null, [
+    $itemO1 => ['verbund' => 'Silker Hain'],
+    $itemO2 => ['verbund' => 'Silker Hain'],
+]);
+assert($ergebnisO['fehler'] === [], 'O1: keine Fehler: ' . json_encode($ergebnisO['fehler'], JSON_UNESCAPED_UNICODE));
+$regionNameO = $pdoO->query('SELECT name FROM ecosystem_region')->fetchAll(PDO::FETCH_COLUMN);
+assert($regionNameO === ['Silker Hain'], 'O1: die Region heisst wie der STAMM, nicht wie das erste Fragment: '
+    . json_encode($regionNameO, JSON_UNESCAPED_UNICODE));
+$labelNameO = $pdoO->query("SELECT name FROM map_features WHERE feature_type = 'label'")->fetchAll(PDO::FETCH_COLUMN);
+assert($labelNameO === ['Silker Hain'], 'O1: die Beschriftung ebenso: ' . json_encode($labelNameO, JSON_UNESCAPED_UNICODE));
+
+// --- O2. Ein von Hand gewaehlter Name schlaegt den Stamm.
+$pdoO2 = avesmapsGaretienVerbundUebernahmeTestPdo();
+$runO2 = avesmapsSyncPlanStartRun($pdoO2, AVESMAPS_GARETIEN_PLAN_KIND, 7, 'lauf-o2');
+$itemO21 = avesmapsGaretienVerbundTestFragment($pdoO2, $runO2, 'Silker Hain 1', 1, avesmapsGaretienVerbundTestRing(100, 100));
+$ergebnisO2 = avesmapsGaretienUebernehmen($pdoO2, $runO2, [$itemO21], ['id' => 7], null, [
+    $itemO21 => ['verbund' => 'Silker Hain', 'name' => 'Silberner Hain'],
+]);
+assert($ergebnisO2['fehler'] === [], 'O2: keine Fehler: ' . json_encode($ergebnisO2['fehler'], JSON_UNESCAPED_UNICODE));
+assert($pdoO2->query('SELECT name FROM ecosystem_region')->fetchColumn() === 'Silberner Hain',
+    'O2: der Handname gewinnt -- „Name danach aenderbar" (Verbund-Owner 09.09.2026/3)');
+
+// --- O3. Der Weg: beide Abschnitte heissen wie der Stamm, und damit ist es EIN Weg
+//         (`name:<Wegart>:<Stamm>`, wpGroupKeyOf). Ein Abschnitt OHNE Verbund behaelt seinen Namen.
+$pdoO3 = avesmapsGaretienVerbundUebernahmeTestPdo();
+$runO3 = avesmapsSyncPlanStartRun($pdoO3, AVESMAPS_GARETIEN_PLAN_KIND, 7, 'lauf-o3');
+$wegO1 = avesmapsGaretienVerbundTestWeg($pdoO3, $runO3, 'Alkenstieg', 11, [[100.0, 100.0], [120.0, 110.0]]);
+$wegO2 = avesmapsGaretienVerbundTestWeg($pdoO3, $runO3, 'Alkenstieg 2', 12, [[300.0, 300.0], [320.0, 310.0]]);
+$wegO3 = avesmapsGaretienVerbundTestWeg($pdoO3, $runO3, 'Bruchweg 2', 13, [[500.0, 500.0], [520.0, 510.0]]);
+$ergebnisO3 = avesmapsGaretienUebernehmen($pdoO3, $runO3, [$wegO1, $wegO2, $wegO3], ['id' => 7], null, [
+    $wegO1 => ['verbund' => 'Alkenstieg'],
+    $wegO2 => ['verbund' => 'Alkenstieg'],
+    $wegO3 => [],
+]);
+assert($ergebnisO3['fehler'] === [], 'O3: keine Fehler: ' . json_encode($ergebnisO3['fehler'], JSON_UNESCAPED_UNICODE));
+$wegNamenO3 = $pdoO3->query("SELECT name FROM map_features WHERE feature_type = 'path' ORDER BY id")->fetchAll(PDO::FETCH_COLUMN);
+assert($wegNamenO3 === ['Alkenstieg', 'Alkenstieg', 'Bruchweg 2'],
+    'O3: beide Verbund-Abschnitte tragen den Stamm, der dritte seinen eigenen Namen: '
+    . json_encode($wegNamenO3, JSON_UNESCAPED_UNICODE));
+
+// --- O4. Ein Punktziel bekommt den Stamm NIE -- ein Verbund wird eine Flaeche oder ein Weg.
+$nachPunkt = avesmapsGaretienNameUebersteuern(['ziel' => 'label', 'name' => 'Zwillingsgipfel 1'], ['verbund' => 'Zwillingsgipfel']);
+assert($nachPunkt['name'] === 'Zwillingsgipfel 1', 'O4: ein Berggipfel behaelt seinen Namen: ' . $nachPunkt['name']);
+$nachOrt = avesmapsGaretienNameUebersteuern(['ziel' => 'location', 'name' => 'Lilienhof 1'], ['verbund' => 'Lilienhof']);
+assert($nachOrt['name'] === 'Lilienhof 1', 'O4: ein Ort ebenso');
+$ohneRumpf = avesmapsGaretienNameUebersteuern(['ziel' => 'region', 'name' => 'Silker Hain 1'], null);
+assert($ohneRumpf['name'] === 'Silker Hain 1', 'O4: ohne Rumpf bleibt der Vorschlag');
+
+echo "OK -- garetien-verbund-name-stamm (Entwurf 14.09.2026, Fehler 1)\n";
+
+// =================================================================================================
+// P. DER WIKI-SCHLUESSEL LANDET AN DER REGION -- gesucht mit dem Stamm
+// =================================================================================================
+//
+// 🔴 Die Wiki-Zuweisung sucht mit `$nach['name']` -- also erst seit O mit dem Stamm. Bis dahin
+// fragte sie `silkerhain1`, fand nichts, und keiner der vier Teile bekam einen Artikel.
+// 💣 UND SIE HING NUR AM SCHILD. Die Region traegt bei einem Verbund vier Flaechen, an ihr haengen
+// Kanon und Statuskreis. ⚠️ avesmapsCreateEcosystemRegion liest keinen Schluessel, sondern leitet ihn
+// aus `wiki_url` ab (avesmapsEcosystemReadRegionFields) -- die Uebernahme reicht deshalb die ADRESSE
+// des Treffers weiter, nie einen selbst gebauten Schluessel.
+$pdoP = avesmapsGaretienVerbundUebernahmeTestPdo();
+// ⚠️ Nur die Spalten, die avesmapsGaretienWikiLandschaftVorschlag/-Zuweisung lesen
+// (`SELECT wiki_key, name, art ... WHERE match_key`, dann `SELECT *` fuer das Zuweisungsobjekt).
+$pdoP->exec('CREATE TABLE wiki_region_staging (wiki_key TEXT PRIMARY KEY, title TEXT, name TEXT, match_key TEXT,
+    art TEXT, wiki_url TEXT, continent TEXT, region_parent TEXT, synonyms_json TEXT, neighbors_json TEXT)');
+$wikiUrlP = 'https://de.wiki-aventurica.de/wiki/Silker_Hain';
+$pdoP->prepare('INSERT INTO wiki_region_staging (wiki_key, title, name, match_key, art, wiki_url) VALUES (?, ?, ?, ?, ?, ?)')
+    ->execute(['silker-hain', 'Silker Hain', 'Silker Hain', avesmapsWikiSyncCreateMatchKey('Silker Hain'), 'Wald', $wikiUrlP]);
+$runP = avesmapsSyncPlanStartRun($pdoP, AVESMAPS_GARETIEN_PLAN_KIND, 7, 'lauf-p');
+$itemP1 = avesmapsGaretienVerbundTestFragment($pdoP, $runP, 'Silker Hain 1', 1, avesmapsGaretienVerbundTestRing(100, 100));
+$itemP2 = avesmapsGaretienVerbundTestFragment($pdoP, $runP, 'Silker Hain 2', 2, avesmapsGaretienVerbundTestRing(200, 200));
+$ergebnisP = avesmapsGaretienUebernehmen($pdoP, $runP, [$itemP1, $itemP2], ['id' => 7], null, [
+    $itemP1 => ['verbund' => 'Silker Hain'],
+    $itemP2 => ['verbund' => 'Silker Hain'],
+]);
+assert($ergebnisP['fehler'] === [], 'P: keine Fehler: ' . json_encode($ergebnisP['fehler'], JSON_UNESCAPED_UNICODE));
+$regionP = $pdoP->query('SELECT wiki_url, wiki_region_key FROM ecosystem_region')->fetchAll(PDO::FETCH_ASSOC);
+assert(count($regionP) === 1, 'P (Testaufbau): genau eine Region');
+assert($regionP[0]['wiki_url'] === $wikiUrlP,
+    'P: die REGION traegt die Adresse des Treffers: ' . json_encode($regionP[0], JSON_UNESCAPED_UNICODE));
+assert($regionP[0]['wiki_region_key'] !== null
+    && $regionP[0]['wiki_region_key'] === avesmapsEcosystemWikiRegionKey($wikiUrlP),
+    'P: und den daraus ABGELEITETEN Schluessel -- dieselbe Faltung wie jeder andere Schreiber: '
+    . json_encode($regionP[0], JSON_UNESCAPED_UNICODE));
+$labelPropsP = json_decode((string) $pdoP->query("SELECT properties_json FROM map_features WHERE feature_type = 'label'")->fetchColumn(), true);
+assert(($labelPropsP['wiki_region']['wiki_key'] ?? null) === 'silker-hain',
+    'P: die Beschriftung behaelt ihre Zuweisung: ' . json_encode($labelPropsP['wiki_region'] ?? null, JSON_UNESCAPED_UNICODE));
+
+// --- P2. Ohne Treffer bleibt die Region ohne Artikel -- kein erfundener Schluessel.
+$pdoP2 = avesmapsGaretienVerbundUebernahmeTestPdo();
+$runP2 = avesmapsSyncPlanStartRun($pdoP2, AVESMAPS_GARETIEN_PLAN_KIND, 7, 'lauf-p2');
+$itemP21 = avesmapsGaretienVerbundTestFragment($pdoP2, $runP2, 'Nirgendwald 1', 1, avesmapsGaretienVerbundTestRing(100, 100));
+avesmapsGaretienUebernehmen($pdoP2, $runP2, [$itemP21], ['id' => 7], null, [$itemP21 => ['verbund' => 'Nirgendwald']]);
+$regionP2 = $pdoP2->query('SELECT wiki_url, wiki_region_key FROM ecosystem_region')->fetch(PDO::FETCH_ASSOC);
+assert($regionP2['wiki_url'] === null && $regionP2['wiki_region_key'] === null,
+    'P2: ohne Treffer weder Adresse noch Schluessel: ' . json_encode($regionP2));
+
+echo "OK -- garetien-verbund-wiki-an-der-region (Entwurf 14.09.2026, §6.6)\n";
+
+// =================================================================================================
+// S. DER BESTAND (Owner 14.09.2026) -- was vor diesem Deploy uebernommen oder abgelehnt wurde
+// =================================================================================================
+//
+// 🔴 Der Importer ist live, der Verbund-Zweig war es nie. Ein Item von dort traegt ein `after_json`
+// OHNE `verbund_stamm`/`verbund_n`, einen NACKTEN Vermerk (die public_id der Region) und keinen
+// `verbund` im Rumpf -- „Alle angezeigten einfuegen" schickte nie Einstellungen. Nichts davon wird
+// migriert; jeder Leser behandelt das Fehlende als „kein Verbund".
+// Der Leser des Reiters „Uebernommen" (avesmapsGaretienVerbundAngelegt) wohnt in der Arbeitsliste.
+require_once __DIR__ . '/../garetien-liste.php';
+
+/** Ein Flaechen-Fragment MIT eigenem Artikel -- damit avesmapsGaretienQuellenAnlegen wirklich verknuepft. */
+function avesmapsGaretienVerbundTestFragmentMitArtikel(PDO $pdo, int $runId, string $label, int $nr, array $ring, string $artikelUrl): int
+{
+    $pdo->prepare("INSERT INTO sync_plan_item (run_id, entity_key, entity_public_id, change_type, label, before_json, after_json, override_json, selected)
+                   VALUES (?, ?, NULL, 'new', ?, NULL, ?, NULL, 1)")
+        ->execute([
+            $runId,
+            'ggp:Waelder:Wald:#' . $nr,
+            $label,
+            json_encode([
+                'herkunft' => 'garetien', 'ziel' => 'region', 'kind' => 'vegetation', 'subtyp' => 'wald',
+                'name' => $label, 'geometry' => ['type' => 'Polygon', 'coordinates' => [$ring]],
+                'artikel_quelle' => [
+                    'url' => $artikelUrl, 'label' => $label . ' auf garetien.de', 'source_type' => 'briefspiel',
+                    'origin' => 'garetien', 'license' => 'cc-by-nc-sa-3.0', 'attribution' => 'VolkoV / garetien.de',
+                ],
+            ], JSON_UNESCAPED_UNICODE),
+        ]);
+
+    return (int) $pdo->lastInsertId();
+}
+
+// --- S1. Ein Einzelobjekt wie aus dem Bestand: der Name bleibt, und es bleibt zuruecknehmbar.
+$pdoS = avesmapsGaretienVerbundUebernahmeTestPdo();
+$runS = avesmapsSyncPlanStartRun($pdoS, AVESMAPS_GARETIEN_PLAN_KIND, 7, 'lauf-s');
+$itemS1 = avesmapsGaretienVerbundTestFragmentMitArtikel($pdoS, $runS, 'Muehlsee 2', 1, avesmapsGaretienVerbundTestRing(100, 100),
+    'https://www.garetien.de/index.php/Muehlsee');
+$abgelehntS = avesmapsGaretienVerbundTestFragment($pdoS, $runS, 'Schilfsee 2', 2, avesmapsGaretienVerbundTestRing(300, 300));
+// Die abgelehnte Zeile: so, wie die Tuer 'decline' sie hinterlaesst -- abgehakt, Entscheidung dauerhaft.
+$pdoS->prepare('UPDATE sync_plan_item SET selected = 0 WHERE id = ?')->execute([$abgelehntS]);
+$pdoS->prepare("INSERT INTO sync_decision (kind, entity_key, change_type, declined_at) VALUES (?, 'ggp:Waelder:Wald:#2', 'new', '2026-09-01 10:00:00')")
+    ->execute([AVESMAPS_GARETIEN_PLAN_KIND]);
+
+// Der Weg ueber die echte Tuer-Funktion, mit BEIDEN ids -- wie ein alter Client, der nur ids schickt.
+$schrittS = avesmapsGaretienApplyStep($pdoS, $runS, 7, ['id' => 7], null, [$itemS1, $abgelehntS], null, null);
+assert($schrittS['fehler'] === [] && $schrittS['applied'] === 1,
+    'S1: der Bestand-Weg (ohne Rumpf) legt genau das eine angehakte Objekt an: ' . json_encode($schrittS, JSON_UNESCAPED_UNICODE));
+assert($pdoS->query('SELECT name FROM ecosystem_region')->fetchAll(PDO::FETCH_COLUMN) === ['Muehlsee 2'],
+    'S1: ohne `verbund` im Rumpf bleibt der Name des Vorschlags -- kein Stamm, kein „Muehlsee"');
+$abgelehntZeileS = $pdoS->query('SELECT selected, apply_state FROM sync_plan_item WHERE id = ' . $abgelehntS)->fetch(PDO::FETCH_ASSOC);
+assert((int) $abgelehntZeileS['selected'] === 0 && $abgelehntZeileS['apply_state'] === null,
+    'S1: die ABGELEHNTE Zeile bleibt unberuehrt: ' . json_encode($abgelehntZeileS));
+assert($pdoS->query("SELECT declined_at FROM sync_decision WHERE entity_key = 'ggp:Waelder:Wald:#2'")->fetchColumn() === '2026-09-01 10:00:00',
+    'S1: und ihre Ablehnung steht');
+
+// Der Vermerk, wie der LIVE-Stand ihn schreibt: die nackte public_id der Region.
+$regionS = avesmapsGaretienVermerkLesen((string) $pdoS->query('SELECT apply_note FROM sync_plan_item WHERE id = ' . $itemS1)->fetchColumn())['region'];
+$pdoS->prepare('UPDATE sync_plan_item SET apply_note = ? WHERE id = ?')->execute([$regionS, $itemS1]);
+$zeileS1 = $pdoS->query('SELECT apply_state, apply_note FROM sync_plan_item WHERE id = ' . $itemS1)->fetch(PDO::FETCH_ASSOC);
+assert(avesmapsGaretienVerbundAngelegt($zeileS1) === '',
+    'S1: ANZEIGBAR -- der Reiter „Uebernommen" liest einen nackten Vermerk als „kein Verbund"');
+$rS1 = avesmapsGaretienRuecknahmeAusfuehren($pdoS, $runS, [$itemS1], ['id' => 7]);
+assert($rS1['fehler'] === [] && $rS1['zurueckgenommen'] === 1,
+    'S1: ZURUECKNEHMBAR wie vorher: ' . json_encode($rS1['fehler'], JSON_UNESCAPED_UNICODE));
+assert((int) $pdoS->query("SELECT is_active FROM ecosystem_region WHERE public_id = '" . $regionS . "'")->fetchColumn() === 0,
+    'S1: die Region ist weg');
+assert($pdoS->query("SELECT declined_at FROM sync_decision WHERE entity_key = 'ggp:Waelder:Wald:#2'")->fetchColumn() === '2026-09-01 10:00:00',
+    'S1: die Ablehnung ueberlebt auch die Ruecknahme des Nachbarn');
+
+// --- S2. Ein Vermerk „area:… | region:…" OHNE `verbund:` ist ein Einzelobjekt, kein Anfuehrer.
+$pdoS2 = avesmapsGaretienVerbundUebernahmeTestPdo();
+$runS2 = avesmapsSyncPlanStartRun($pdoS2, AVESMAPS_GARETIEN_PLAN_KIND, 7, 'lauf-s2');
+$itemS21 = avesmapsGaretienVerbundTestFragment($pdoS2, $runS2, 'Tannwald 1', 1, avesmapsGaretienVerbundTestRing(100, 100));
+avesmapsGaretienUebernehmen($pdoS2, $runS2, [$itemS21], ['id' => 7], null, [$itemS21 => []]);
+$itemS22 = avesmapsGaretienVerbundTestFragment($pdoS2, $runS2, 'Tannwald 2', 2, avesmapsGaretienVerbundTestRing(200, 200));
+avesmapsGaretienUebernehmen($pdoS2, $runS2, [$itemS22], ['id' => 7], null, [$itemS22 => ['verbund' => 'Tannwald']]);
+assert((int) $pdoS2->query('SELECT COUNT(*) FROM ecosystem_region WHERE is_active = 1')->fetchColumn() === 2,
+    'S2: ein Bestands-Objekt ohne `verbund:` im Vermerk wird nie Anfuehrer eines spaeteren Verbunds');
+
+echo "OK -- garetien-verbund-bestand (Owner 14.09.2026)\n";
