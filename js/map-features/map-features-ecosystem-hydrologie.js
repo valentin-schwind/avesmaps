@@ -47,8 +47,8 @@ const SCHRITT_JE_EINHEIT = 3000;
 // die Karte seit V8 rechnet (`ECOSYSTEM_HEIGHT_DEFAULT`), nicht eine neue.
 const ECOSYSTEM_HYDRO_STANDARDHOEHE = 5000;
 // Die Zellweite in KARTENeinheiten. 🔴 Sie ist AVESMAPS_TERRAIN_CELL_SIZE aus
-// api/_internal/app/terrain-store.php -- dieselbe Zahl, auf die `ecosystemHeightmapGrid` die
-// gespeicherten Raster legt. Feiner weist der Server ab; groeber waere Detailverlust.
+// api/_internal/app/terrain-store.php -- die Zellweite, die der Server fuer
+// gespeicherte Raster verlangt. Feiner weist der Server ab; groeber waere Detailverlust.
 // 💣 Wer sie hier aendert, muss sie DORT mitaendern -- sonst rechnet die Karte auf einem anderen
 // Gitter als der Speicher, und das faellt erst beim Hochladen auf.
 const ECOSYSTEM_HYDRO_ZELLWEITE = 0.25;
@@ -406,8 +406,8 @@ function avesmapsHydroVorlage(liste, key) {
 // Speichern und nicht beim Rechnen.
 //
 // ⭐ Und es loest den Owner-Auftrag mit: „das was ich seh soll das sein mit dem gerechnet wird."
-// Anzeige und Speicherung rechnen jetzt auf DEMSELBEN Gitter -- dasselbe, das
-// `ecosystemHeightmapGrid(bounds, 0.25)` aufspannt.
+// Anzeige und Speicherung rechnen jetzt auf DEMSELBEN Gitter -- mit der Zellweite, die der
+// Speicher verlangt.
 // ⚠️ `deckel` begrenzt die Zellzahl fuer die ANZEIGE (dort zaehlt Tempo, nicht Vergleichbarkeit);
 // der Speicherlauf laesst ihn weg und bekommt die volle Aufloesung.
 // 🔴 ZWEI MASKEN, UND DAS IST DER GANZE UNTERSCHIED (Owner 04.09.2026: „wenn zwei gebirge

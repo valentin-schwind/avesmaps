@@ -332,7 +332,7 @@ function zahl(v, n) { return Number(v).toLocaleString("de-DE", { maximumFraction
 // negatives y: `map_x_-y`). Ein Bild zeichnet Zeile 0 aber OBEN. Ohne die Spiegelung steht jede
 // Ansicht auf dem Kopf -- beim Bau genau so passiert und vom Owner gesehen, nicht von einem Test.
 // 🔴 Gespiegelt wird NUR BEIM MALEN. Das Raster behaelt seine Konvention (Zeile 0 = originY = min_y),
-// weil `ecosystemHeightmapGrid` und `avesmapsHeightmapSampleOne` sie teilen -- wer sie im Raster
+// weil der Leser `avesmapsHeightmapSampleOne` sie ebenso liest -- wer sie im Raster
 // dreht, dreht die gespeicherten Hoehenraster gegen ihren Leser.
 function malen(canvas, w, hh, farbe) {
 	canvas.width = w; canvas.height = hh;

@@ -171,8 +171,8 @@ pruefe("die Zellweite ist die des SPEICHERS, nicht die der Anzeige", async () =>
 });
 
 pruefe("der Ursprung ist der des GERECHNETEN Rasters, nicht der geschnappte des Gitterbauers", async () => {
-	// 💣 `ecosystemHeightmapGrid` schnappt den Ursprung auf ein Vielfaches der Zellweite
-	// (`Math.floor(min_x / cell) * cell`), `baueRaster` nimmt `bounds.min_x` roh. Beide liefern
+	// 💣 Ein geschnapptes Gitter legt den Ursprung auf ein Vielfaches der Zellweite (`Math.floor(min_x /
+	// cell) * cell`, so rechnete der alte Gitterbauer bis 14.09.2026), `baueRaster` nimmt `bounds.min_x` roh. Beide liefern
 	// dieselbe ZELLZAHL -- wer den falschen meldet, verschiebt das ganze Gebirge um bis zu eine Zelle
 	// gegen die Karte, und zwar lautlos.
 	const schraeg = Object.assign({}, FLAECHE, {

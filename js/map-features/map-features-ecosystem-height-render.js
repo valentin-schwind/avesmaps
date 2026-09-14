@@ -1043,9 +1043,10 @@
 				: (wert > 0 ? wert : 0);
 		}
 
-		// 🔴 URSPRUNG UND WEITE KOMMEN AUS DEM GERECHNETEN RASTER, nie aus `ecosystemHeightmapGrid`.
-		// Die beiden spannen NICHT dasselbe Gitter auf: jenes schnappt den Ursprung auf ein Vielfaches
-		// der Zellweite (`Math.floor(min_x / cell) * cell`), `baueRaster` nimmt `bounds.min_x` roh.
+		// 🔴 URSPRUNG UND WEITE KOMMEN AUS DEM GERECHNETEN RASTER, nie aus einem nachgerechneten Gitter.
+		// Ein am Zellraster geschnapptes Gitter (`Math.floor(min_x / cell) * cell` -- so rechnete der alte
+		// Gitterbauer `ecosystemHeightmapGrid`, gefallen am 14.09.2026) liegt woanders: `baueRaster` nimmt
+		// `bounds.min_x` roh.
 		// Wer hier das andere Gitter meldet, verschiebt das ganze Gebirge um bis zu eine Zelle gegen
 		// die Karte -- und zwar lautlos, weil beide Gitter dieselbe Zellzahl haben.
 		return postEcosystemEdit("heightmap_put", {

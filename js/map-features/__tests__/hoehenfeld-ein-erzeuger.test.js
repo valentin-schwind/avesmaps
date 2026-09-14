@@ -89,6 +89,30 @@ pruefe("der Knopf ist wieder scharf -- und sagt nicht mehr „stillgelegt“", (
 	assert.ok(!/>\s*stillgelegt\s*</.test(knopf), "der Knopf ist noch mit „stillgelegt“ beschriftet");
 });
 
+pruefe("der Editor lädt die alten Höhenmodule nicht mehr -- point-in-polygon.js aber weiter", () => {
+	// 🔴 Seit dem 14.09.2026 rechnet der Editor kein Höhenfeld. Die drei V11-Module luden nur noch für den
+	// alten Sammellauf mit; wer sie zurückholt, holt den Weg zum zweiten Erzeuger zurück.
+	// ⚠️ point-in-polygon.js stand im selben Kommentarblock und kam einst „für die Höhenmodule“ dazu --
+	// es BLEIBT: die Zugehörigkeit (inline) und map-features-settlement-territory-assign.js lesen
+	// `pointInGeometry`. Ein Aufräumen, das es mitnähme, bräche beide beim ersten Klick.
+	const tags = [...EDITOR.replace(/<!--[\s\S]*?-->/g, "").matchAll(/<script[^>]*\bsrc="([^"]+)"/g)].map((m) => m[1]);
+	for (const alt of ["ecosystem-height-field.js", "ecosystem-height-combine.js", "ecosystem-heightmap-raster.js"]) {
+		assert.ok(!tags.some((src) => src.includes(alt)), "der Editor lädt wieder " + alt);
+	}
+	assert.ok(tags.some((src) => src.includes("map-features-point-in-polygon.js")),
+		"point-in-polygon.js fehlt im Editor -- `pointInGeometry` wird dort weiter gebraucht");
+});
+
+pruefe("die Kodierdatei kodiert nur noch -- sie rastert nicht", () => {
+	const quelle = ohneKommentare(lies("js/map-features/map-features-ecosystem-heightmap-raster.js"));
+	for (const tot of ["rasterizeEcosystemHeightField", "ecosystemHeightmapGrid", "ECOSYSTEM_HEIGHTMAP_ROW_BAND"]) {
+		assert.ok(!quelle.includes(tot), "die Kodierdatei enthält wieder `" + tot + "`");
+	}
+	for (const bleibt of ["function ecosystemHeightmapToBase64", "const ECOSYSTEM_HEIGHTMAP_MAX_SCHRITT"]) {
+		assert.ok(quelle.includes(bleibt), "`" + bleibt + "` fehlt -- das ist die Kodierregel, die die Karte braucht");
+	}
+});
+
 /* ══════════════════════════════════════════════════════════════════════════════════════════════
    2. DER SAMMELLAUF -- ausgeschnitten und GEFAHREN, nicht gelesen
    ══════════════════════════════════════════════════════════════════════════════════════════════ */
