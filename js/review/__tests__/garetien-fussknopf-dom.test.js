@@ -114,9 +114,9 @@ const ohneVorschlag2    = { key: "ggp:Berge:8", items: [] };
 // =================================================================================================
 
 const stand3 = garetienUebernahmeKnopfSetzen([mitVorschlagOffen, ohneVorschlag, ohneVorschlag2]);
-gleich(KNOPF.textContent, "Stage importieren (1 von 3)",
-	"💣 der Knopf traegt „n von m\" -- nicht mehr nur EINE Zahl -- nur `mitVorschlagOffen` traegt "
-	+ "ein Item, die zwei anderen sind angezeigt, aber nicht einfuegbar");
+gleich(KNOPF.textContent, "Stage importieren · 1 Objekt",
+	"💣 der Knopf zaehlt, was ENTSTEHT (Aufgabe 7, 14.09.2026) -- nur `mitVorschlagOffen` traegt "
+	+ "ein Item, die zwei anderen liegen auf der Stage, entstehen aber nicht");
 gleich(KNOPF.disabled, false, "und er ist offen, weil n >= 1");
 gleich(HINWEIS.textContent, "", "der Grund steht nur da, wenn es einen gibt");
 gleich(HINWEIS.hidden, true,
@@ -129,8 +129,8 @@ gleich(stand3 && stand3.gesamt, 3, "…samt der Gesamtzahl der Anzeige, nicht nu
 // =================================================================================================
 
 garetienUebernahmeKnopfSetzen([ohneVorschlag]);
-gleich(KNOPF.textContent, "Stage importieren (0 von 1)",
-	"ein angezeigtes Objekt ohne Vorschlag zaehlt bei m mit, nie bei n");
+gleich(KNOPF.textContent, "Stage importieren · nichts zu importieren",
+	"ein Objekt ohne Vorschlag liegt auf der Stage, entsteht aber nicht");
 gleich(KNOPF.disabled, true,
 	"🔴 kein Vorschlag unter den Angezeigten ⇒ gesperrt. Das Blatt haette dort nichts zu zeigen.");
 gleich(HINWEIS.hidden, false,
@@ -143,7 +143,7 @@ wahr(HINWEIS.textContent.indexOf("Keines der Objekte auf der Stage") === 0,
 // muessen auseinanderfallen, sonst verwechselt ein Editor „nichts hingelegt" mit „nichts davon
 // einfuegbar".
 garetienUebernahmeKnopfSetzen([]);
-gleich(KNOPF.textContent, "Stage importieren (0 von 0)", "die leere Stage nennt zwei Nullen");
+gleich(KNOPF.textContent, "Stage importieren · nichts auf der Stage", "die leere Stage sagt es in Worten");
 gleich(HINWEIS.textContent, "Die Stage ist leer — leg links etwas darauf.",
 	"…mit einem ANDEREN Hinweistext als der Fall „auf der Stage, aber ohne Vorschlag\" oben");
 
@@ -158,14 +158,14 @@ gleich(HINWEIS.textContent, "Die Stage ist leer — leg links etwas darauf.",
 // gesperrt, und der Listenlauf muss ihn davon wegbewegen -- OHNE dass die Antwort selbst
 // irgendetwas ueber `angehakt` sagt (Aufgabe 5 hat diese Quelle ERSETZT, nicht ergaenzt).
 
-gleich(KNOPF.textContent, "Stage importieren (0 von 0)",
-	"die Gegenprobe zum Ausgangspunkt: der Knopf steht wirklich auf (0 von 0), bevor die Liste laeuft");
+gleich(KNOPF.textContent, "Stage importieren · nichts auf der Stage",
+	"die Gegenprobe zum Ausgangspunkt: der Knopf steht wirklich auf „nichts auf der Stage\", bevor die Liste laeuft");
 
 avesmapsGaretienStageLeeren();
 avesmapsGaretienStageHinzufuegen([mitVorschlagOffen, ohneVorschlag]);
 avesmapsGaretienListeRendern({ ok: true, objekte: [], gesamt: 0, bilanz: {}, reiter: {}, facetten: {} });
-gleich(KNOPF.textContent, "Stage importieren (1 von 2)",
-	"💣 der Listenlauf liest jetzt die ANZEIGE-MENGE -- 1 von 2, obwohl die Antwort selbst gar "
+gleich(KNOPF.textContent, "Stage importieren · 1 Objekt",
+	"💣 der Listenlauf liest jetzt die ANZEIGE-MENGE -- 1 Objekt, obwohl die Antwort selbst gar "
 	+ "keine `angehakt`-Angabe traegt");
 gleich(KNOPF.disabled, false, "und macht ihn auf");
 
@@ -174,7 +174,7 @@ gleich(KNOPF.disabled, false, "und macht ihn auf");
 // aufgeht und nie mehr zu.
 avesmapsGaretienStageLeeren();
 avesmapsGaretienListeRendern({ ok: true, objekte: [], gesamt: 0, bilanz: {}, reiter: {}, facetten: {} });
-gleich(KNOPF.textContent, "Stage importieren (0 von 0)", "und beim naechsten Lauf wieder zurueck");
+gleich(KNOPF.textContent, "Stage importieren · nichts auf der Stage", "und beim naechsten Lauf wieder zurueck");
 gleich(KNOPF.disabled, true, "samt Sperre");
 gleich(HINWEIS.hidden, false, "und samt Grund");
 
@@ -185,7 +185,7 @@ avesmapsGaretienListeRendern({
 	ok: true, objekte: [], gesamt: 0, bilanz: {}, reiter: {}, facetten: {},
 	angehakt: { new: 99, changed: 1 },
 });
-gleich(KNOPF.textContent, "Stage importieren (0 von 0)",
+gleich(KNOPF.textContent, "Stage importieren · nichts auf der Stage",
 	"`angehakt` aus der Antwort ist tot -- der Fussknopf zaehlt die ANZEIGE, und die ist hier leer");
 gleich(KNOPF.disabled, true, "…und bleibt deshalb gesperrt");
 

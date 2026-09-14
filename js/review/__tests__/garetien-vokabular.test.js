@@ -352,7 +352,7 @@ wahr(!/\bzustand\.markiert\b/i.test(quelle), "zustand.markiert darf nicht mehr v
 	let treffer = muster.exec(fuss);
 	while (treffer) { knopfTexte.push(treffer[1].trim()); treffer = muster.exec(fuss); }
 	assert.deepStrictEqual(knopfTexte,
-		["Alle wählen", "Stage leeren", "Alle zentrieren", "Stage importieren (0)"],
+		["Alle wählen", "Stage leeren", "Alle zentrieren", "Stage importieren · nichts auf der Stage"],
 		"der Fuss traegt genau die vier Knoepfe der GANZEN STAGE, in dieser Reihenfolge");
 	checks++;
 }

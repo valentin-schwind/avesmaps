@@ -1774,22 +1774,96 @@
 	 * klickbar aus (geerbter `cursor: pointer` + Hover-Wäsche) -- ein Bedienelement, das nichts
 	 * tut, ist von einem kaputten Klick nicht zu unterscheiden.
 	 */
+	/*
+	 * Aufgabe 7 (Entwurf 2026-09-14 §6.3): der KNOPF DES VERBUNDS STEHT HIER, in Block B -- und nur,
+	 * wenn mindestens zwei Fragmente auf der Stage liegen. Bis dahin stand „Verbund auf die Stage (n)"
+	 * in der Handlungsleiste auf „Offen" und legte in EINEM Klick auf UND verschmolz (Widerspruch 8).
+	 *
+	 * 🔴 DIE MITGLIEDER KOMMEN AUS DER LISTE UND DER STAGE (garetienVerbundPool): seit Aufgabe 5 kann die
+	 * Liste auf der Stage gefiltert sein -- ohne die Stage verschwaende der Block, sobald die Suche ein
+	 * Fragment ausblendet, obwohl es auf der Stage liegt.
+	 * 🔴 DER ✕ NUR AN EINEM FRAGMENT AUF DER STAGE. Er nimmt von der Stage; an einem Fragment, das dort
+	 * nicht liegt, taete er nichts, und auf „Offen" ist Block B reine Anzeige (Entwurf §3). Die dritte
+	 * Rasterzelle bleibt dann ein leeres `<span>` -- `.gi-seg` hat drei Spalten, und eine fehlende
+	 * Zelle zoege den naechsten Knoten hinein.
+	 * ⚠️ GESPERRT MIT GRUNDZEILE, nie nur mit `title`: ein `disabled`-Knopf bekommt in Chrome keine
+	 * Zeigerereignisse und zeigt seinen `title` nie (dieselbe Regel wie am Fussknopf).
+	 * ⚠️ „Verbund auflösen" ist nie gesperrt -- aufloesen geht immer, die Pruefung gilt dem Zusammenlegen.
+	 */
 	function garetienVerbundBlockMarkup(objekt, objekte) {
 		const schluessel = garetienVerbundSchluessel(objekt);
 		if (schluessel === "") { return ""; }
-		const mitglieder = garetienVerbundMitglieder(schluessel, objekte || []);
+		const mitglieder = garetienVerbundMitglieder(schluessel, garetienVerbundPool(objekte));
 		if (mitglieder.length < 2) { return ""; }
 		const zeilen = mitglieder.map(function (m) {
+			const liegt = avesmapsGaretienStageHat(m.key);
 			return '<div class="gi-seg gi-seg--verbund"><span></span>'
 				+ '<span class="gi-seg__name">' + avesmapsGaretienEscape(m.name || "")
 				+ '<span class="gi-seg__zahl">' + ((m.geometrie || []).length) + " Punkte</span></span>"
-				+ '<button class="btn gi-seg__weg" type="button" data-verbund-weg="'
-				+ avesmapsGaretienEscape(m.key || "") + '" title="Aus dem Verbund nehmen">✕</button>'
+				+ (liegt
+					? '<button class="btn gi-seg__weg" type="button" data-verbund-weg="'
+						+ avesmapsGaretienEscape(m.key || "") + '" title="Von der Stage nehmen">✕</button>'
+					: "<span></span>")
 				+ "</div>";
 		}).join("");
 
+		const aufDerStage = mitglieder.filter(function (m) { return avesmapsGaretienStageHat(m.key); }).length;
+		const zusammen = garetienVerbundIstZusammen(schluessel);
+		let knopf = "";
+		if (aufDerStage >= 2) {
+			const pruefung = zusammen ? { ok: true, grund: "" } : garetienVerbundZusammenlegbar(objekt);
+			const beschriftung = (zusammen ? "Verbund auflösen (" : "Zusammenlegen (") + aufDerStage + ")";
+			knopf = '<div class="gi-acts__knoepfe"><button class="btn btn--accent" type="button"'
+				+ ' data-handlung="verbund" data-key="' + avesmapsGaretienEscape((objekt && objekt.key) || "") + '"'
+				+ (pruefung.ok ? "" : ' disabled title="' + avesmapsGaretienEscape(pruefung.grund) + '"')
+				+ ">" + avesmapsGaretienEscape(beschriftung) + "</button></div>"
+				+ (pruefung.ok ? "" : '<p class="gi-acts__grund"><span>' + avesmapsGaretienEscape(pruefung.grund)
+					+ "</span></p>");
+		}
+
 		return '<p class="gi-sec">Verbund<span class="gi-sec__note">'
-			+ mitglieder.length + " Fragmente</span></p>" + zeilen;
+			+ (zusammen ? "zusammengelegt · " : "") + mitglieder.length + " Fragmente</span></p>" + zeilen + knopf;
+	}
+
+	/*
+	 * REIN genug: die Objekte, in denen ein Verbund seine Mitglieder sucht -- die Liste, dann die Stage,
+	 * je Schluessel einmal. Die Liste zuerst: sie traegt die Fassung des aktuellen Reiters.
+	 */
+	function garetienVerbundPool(objekte) {
+		const gesehen = new Set();
+		return (objekte || []).concat(avesmapsGaretienStageListe()).filter(function (o) {
+			if (!o) { return false; }
+			const schluessel = String(o.key);
+			if (gesehen.has(schluessel)) { return false; }
+			gesehen.add(schluessel);
+			return true;
+		});
+	}
+
+	/*
+	 * Die Fragmente, die „Auf die Stage" an diesem Objekt MITNIMMT (Aufgabe 7, Entwurf §4).
+	 *
+	 * 🔴 NUR ERZEUGENDE (Urteil neu, widerspruch, zweifel): ein `deckt_sich`-Fragment desselben Namens
+	 * ist KEIN Mitglied (Owner 09.09./2). Der Server laesst es seit Aufgabe 1 gar nicht erst Mitglied
+	 * werden; der Client prueft es trotzdem, weil ein Lauf von vor diesem Umbau alles enthalten kann.
+	 * 💣 KEIN ZUSATZ-OBJEKT: eines, dessen einziger Weg nach vorn das Zusatz-Item ist, kommt nur nach
+	 * seiner EIGENEN Rueckfrage auf die Stage (garetienStageKlick) -- mitgenommen waere es still.
+	 * ⚠️ Was schon auf der Stage liegt, zaehlt nicht: die Unterzeile sagt, was DAZUKOMMT.
+	 * ⚠️ Gesucht wird in der hereingereichten Liste (dem aktuellen Reiter) -- ein Fragment, das ein Filter
+	 * ausblendet, kommt nicht mit, und die Unterzeile zaehlt es deshalb auch nicht.
+	 */
+	const AVESMAPS_GARETIEN_VERBUND_ERZEUGEND = ["neu", "widerspruch", "zweifel"];
+
+	function garetienVerbundWeitereErzeugende(objekt, objekte) {
+		const schluessel = garetienVerbundSchluessel(objekt);
+		if (schluessel === "") { return []; }
+		const eigen = String((objekt && objekt.key) || "");
+		return garetienVerbundMitglieder(schluessel, objekte).filter(function (m) {
+			return String(m.key) !== eigen
+				&& !avesmapsGaretienStageHat(m.key)
+				&& AVESMAPS_GARETIEN_VERBUND_ERZEUGEND.indexOf(String(m.urteil || "")) !== -1
+				&& garetienStageVorhaben(m) !== "zusatz";
+		});
 	}
 
 	// 🔴 Aufgabe 2 (Entwurf §3.2): das Haekchen ist ein reiner MARKER und zeigt `zustand.auswahl`,
@@ -7329,14 +7403,17 @@
 		const o = objekt || {};
 		const aufDerStage = avesmapsGaretienStageHat(o.key);
 		const name = aufDerStage ? "entstagen" : "stage";
+		// 🔴 Aufgabe 7 (Entwurf §4): „Auf die Stage" an einem Fragment nimmt die uebrigen erzeugenden
+		// Fragmente seines Verbunds mit -- EINZELN, zusammengelegt wird dabei nichts.
+		const weitere = aufDerStage ? 0 : garetienVerbundWeitereErzeugende(o, zustand.objekte || []).length;
 		return {
 			name: name,
 			beschriftung: aufDerStage ? "Von der Stage nehmen" : "Auf die Stage",
-			// 🔴 KEINE UNTERZEILE MEHR (Owner 09.09.2026): „auf der stage ist auf der stage, erst
-			// dann entscheide ich ob es nur die quelle ergänzt“. Sie behauptete, was der Import tun
-			// wird -- das sagen jetzt die zwei Häkchen darüber, und die SIND der Schreibumfang
-			// (garetienStageItems liest dasselbe garetienEinfuegeWahl).
-			zeile2: "",
+			// 🔴 KEINE UNTERZEILE, AUSSER EIN VERBUND KOMMT MIT (Owner 09.09.2026: „auf der stage ist auf
+			// der stage, erst dann entscheide ich ob es nur die quelle ergänzt“). Was der IMPORT tut, sagt
+			// die Einstellung auf der Stage; was dieser KLICK tut, sagt die Zeile (Mockup §2).
+			zeile2: weitere === 0 ? ""
+				: "mit " + weitere + (weitere === 1 ? " weiteren Fragment" : " weiteren Fragmenten"),
 			// 🔴 AUS DER TAFEL, kein `if` — dieselbe Regel wie bei jedem anderen Knopf
 			// (AVESMAPS_GARETIEN_HANDLUNG_TON). „entstagen" steht dort nicht und ist damit neutral.
 			ton: AVESMAPS_GARETIEN_HANDLUNG_TON[name] || "",
@@ -7396,30 +7473,9 @@
 			return name === "stage" ? garetienStageKnopfBauen(o) : garetienHandlungBauen(name, o);
 		});
 
-		// Aufgabe 8: der EINE Knopf, den der Verbund der Oberflaeche hinzufuegt.
-		// 🔴 Ton `accent`, nicht gefuellt: die eine gefuellte Handlung dieses Fensters ist
-		// „Stage importieren" (AGENTS.md §12), und gefuellt-gruen waere von `.btn--done`
-		// („alles vorgemerkt") nicht zu unterscheiden.
-		// 🔴 `ids` bleibt leer und der Knopf hat KEINEN Rumpf (garetienHandlungsRumpf schliesst
-		// „verbund" aus, wie „stage"/„entstagen" -- er geht durch die EIGENE Tuer
-		// garetienVerbundKlick, nie durch die geteilte Uebernahme-Vorschau).
-		const verbundSchluessel = garetienVerbundSchluessel(o);
-		if (verbundSchluessel !== "") {
-			const n = garetienVerbundMitglieder(verbundSchluessel, zustand.objekte || []).length;
-			const zusammen = garetienVerbundIstZusammen(verbundSchluessel);
-			knoepfe.push({
-				name: "verbund",
-				beschriftung: (zusammen ? "Verbund auflösen (" : "Verbund auf die Stage (") + n + ")",
-				zeile2: "",
-				ton: "accent",
-				ids: [],
-				angehakt: 0,
-				gesamt: 0,
-				erledigt: false,
-				disabled: n < 2,
-				grund: n < 2 ? "Von diesem Verbund liegt nur ein Fragment in der Liste." : "",
-			});
-		}
+		// 🔴 Aufgabe 7 (14.09.2026): HIER STAND DER KNOPF „Verbund auf die Stage (n)" -- er legte auf
+		// „Offen" in EINEM Klick auf UND verschmolz (Widerspruch 8). Er steht jetzt in Block B
+		// (garetienVerbundBlockMarkup) und nur auf der Stage; „Auf die Stage" nimmt die Fragmente mit.
 		return knoepfe;
 	}
 
@@ -7973,8 +8029,11 @@
 			const ok = typeof fragen === "function" ? fragen(garetienZusatzRueckfrageText(objekt)) : false;
 			if (!ok) { return { handlung: "stage_abgelehnt", objekt: objekt, groesse: zustand.stage.size }; }
 		}
-		avesmapsGaretienStageHinzufuegen([objekt]);
-		return { handlung: "stage", objekt: objekt, groesse: zustand.stage.size };
+		// 🔴 Aufgabe 7: die uebrigen erzeugenden Fragmente kommen mit -- DIESELBE Liste wie die
+		// Unterzeile des Knopfs (garetienStageKnopfBauen), sonst verspraeche er etwas anderes als er tut.
+		const weitere = garetienVerbundWeitereErzeugende(objekt, objekte);
+		avesmapsGaretienStageHinzufuegen([objekt].concat(weitere));
+		return { handlung: "stage", objekt: objekt, groesse: zustand.stage.size, weitere: weitere.length };
 	}
 
 	/*
@@ -9034,15 +9093,62 @@
 	// Stage sehr wohl angelegt (Befund B3) und muss deshalb auch mitgezaehlt werden. Zaehlte der
 	// Knopf weiter ueber die Haken-Items, sagte er „0 von 1", waehrend der Vorwaertsknopf daneben
 	// „als Flussweg" verspricht -- genau der Widerspruch, den B3 beschreibt.
+	/*
+	 * REIN: was „Stage importieren" entstehen laesst (Aufgabe 7, Entwurf §6.5).
+	 *
+	 * 🔴 EIN ZUSAMMENGELEGTER VERBUND IST EIN OBJEKT -- „1 Objekt aus 4 Zeilen", nie „4 Objekte".
+	 * `zeilen` zaehlt die Stage-Objekte, die ueberhaupt etwas importieren (dieselbe Filterung wie der
+	 * Schreibumfang, garetienStageItems); ein Objekt ohne Vorschlag zaehlt nirgends.
+	 * ⚠️ Der Name eines Verbunds ist der, unter dem er importiert wird: die Handeingabe am
+	 * Verbundschluessel, sonst der Stamm (Aufgabe 2: Name = Stamm).
+	 */
+	function garetienStageZusammenfassung(stageObjekte) {
+		const liste = (stageObjekte || []).filter(function (o) {
+			return o && garetienStageItems(o).length > 0;
+		});
+		const verbuende = {};
+		const reihenfolge = [];
+		let objekte = 0;
+		liste.forEach(function (o) {
+			const schluessel = garetienVerbundSchluessel(o);
+			if (schluessel !== "" && garetienVerbundIstZusammen(schluessel)) {
+				if (!verbuende[schluessel]) {
+					verbuende[schluessel] = { name: garetienNameWahlZu(o) || String(o.verbund_stamm || ""), teile: 0 };
+					reihenfolge.push(schluessel);
+					objekte++;
+				}
+				verbuende[schluessel].teile++;
+				return;
+			}
+			objekte++;
+		});
+		return {
+			objekte: objekte,
+			zeilen: liste.length,
+			verbuende: reihenfolge.map(function (schluessel) { return verbuende[schluessel]; }),
+		};
+	}
+
 	function garetienUebernahmeKnopfZustand(stageObjekte) {
 		const liste = stageObjekte || [];
-		const mitVorschlag = liste.filter(function (o) {
-			return o && garetienStageItems(o).length > 0;
-		}).length;
+		const zusammenfassung = garetienStageZusammenfassung(liste);
+		const mitVorschlag = zusammenfassung.zeilen;
+		// 🔴 Aufgabe 7 (Entwurf §6.5): der Knopf zaehlt, was ENTSTEHT. Hier stand bis zum 14.09.2026
+		// „(n von m)" -- bei einem zusammengelegten Verbund versprach das vier Objekte fuer eines.
+		let folge;
+		if (liste.length === 0) {
+			folge = "nichts auf der Stage";
+		} else if (zusammenfassung.objekte === 0) {
+			folge = "nichts zu importieren";
+		} else {
+			folge = garetienAnzahlText(zusammenfassung.objekte, "Objekt", "Objekte")
+				+ (zusammenfassung.zeilen > zusammenfassung.objekte ? " aus " + zusammenfassung.zeilen + " Zeilen" : "");
+		}
 		return {
 			anzahl: mitVorschlag,
 			gesamt: liste.length,
-			beschriftung: "Stage importieren (" + mitVorschlag + " von " + liste.length + ")",
+			zusammenfassung: zusammenfassung,
+			beschriftung: "Stage importieren · " + folge,
 			gesperrt: mitVorschlag < 1,
 			hinweis: mitVorschlag > 0
 				? ""
@@ -9597,10 +9703,24 @@
 	// bestehenden Objekt geaendert wurde, ist weg. Genau davor warnt das Haus, und genau diese
 	// Warnung hat am 30.08.2026 gefehlt („Eine Warnung gabs nicht", Owner, nach einem Schadensfall).
 	// Ein Auftrag, der eine solche Warnung streichen will, wird gemeldet, nicht ausgefuehrt.
-	function garetienEinfuegenRueckfrageText(anzahl) {
-		return "Wirklich " + anzahl + (anzahl === 1 ? " Objekt" : " Objekte")
-			+ " von der Stage in die Karte einfügen?\n\n"
-			+ "Neu angelegte Objekte lassen sich über „Zurücknehmen“ wieder entfernen. Für "
+	// 🔴 Aufgabe 7 (Entwurf §6.5): sie nimmt die ZUSAMMENFASSUNG (garetienStageZusammenfassung), nicht
+	// mehr eine Zahl, und nennt jeden zusammengelegten Verbund beim Namen -- „1 Fläche mit 4 Teilen",
+	// nie „4 Objekte".
+	function garetienEinfuegenRueckfrageText(zusammenfassung) {
+		const z = zusammenfassung || {};
+		const objekte = Number(z.objekte) || 0;
+		const zeilen = Number(z.zeilen) || 0;
+		const verbuende = Array.isArray(z.verbuende) ? z.verbuende : [];
+		let text = "Wirklich " + garetienAnzahlText(objekte, "Objekt", "Objekte")
+			+ (zeilen > objekte ? " aus " + zeilen + " Zeilen" : "")
+			+ " von der Stage in die Karte einfügen?";
+		if (verbuende.length > 0) {
+			text += "\n\nZusammengelegt: " + verbuende.map(function (v) {
+				return "„" + String(v.name || "") + "“ mit "
+					+ garetienAnzahlText(Number(v.teile) || 0, "Teil", "Teilen");
+			}).join(", ") + ".";
+		}
+		return text + "\n\nNeu angelegte Objekte lassen sich über „Zurücknehmen“ wieder entfernen. Für "
 			+ "Änderungen an bestehenden Objekten (Name, Quelle, Geometrie) gibt es keinen Rückweg.";
 	}
 
@@ -9618,7 +9738,7 @@
 		const stageObjekte = avesmapsGaretienStageListe();
 		const stand = garetienUebernahmeKnopfZustand(stageObjekte);
 		if (stand.gesperrt) { return Promise.resolve(null); }
-		if (typeof fragen === "function" && !fragen(garetienEinfuegenRueckfrageText(stand.anzahl))) {
+		if (typeof fragen === "function" && !fragen(garetienEinfuegenRueckfrageText(stand.zusammenfassung))) {
 			return Promise.resolve(null);
 		}
 
@@ -9836,12 +9956,22 @@
 				// 🔴 `garetienFragen` reist seit dem 07.09.2026 (Fixrunde 1, B3) MIT: ein Objekt,
 				// dessen einziges Item das Zusatz-Item ist, kommt nur nach einer Rueckfrage auf die
 				// Stage -- derselbe Zug wie bei „Zurücknehmen" und beim Fussknopf.
-				if (garetienStageKlick(ereignis, zustand.objekte, garetienFragen)) {
-					garetienStageNeuZeichnen();
+				const stageErgebnis = garetienStageKlick(ereignis, zustand.objekte, garetienFragen);
+				if (stageErgebnis) {
+					const mitgenommen = Number(stageErgebnis.weitere || 0);
+					// 💣 Die Meldung steht NACH dem Neuzeichnen -- avesmapsGaretienListeRendern ruft
+					// garetienStatusRuhe und setzte sie sonst sofort zurueck (Aufgabe 7, Mockup §3).
+					Promise.resolve(garetienStageNeuZeichnen()).then(function () {
+						if (mitgenommen > 0 && stageErgebnis.objekt) {
+							garetienStatusSetzen("Auf die Stage: " + String(stageErgebnis.objekt.name || "")
+								+ " mit " + mitgenommen + (mitgenommen === 1 ? " weiteren Fragment." : " weiteren Fragmenten."),
+							"ok", null);
+						}
+					});
 					garetienDetailRendern(zustand.objekte);
 					return;
 				}
-				// Aufgabe 8: „Verbund auf die Stage“/„Verbund auflösen“ -- derselbe Zug wie der
+				// Aufgabe 7: „Zusammenlegen“/„Verbund auflösen“ in Block B -- derselbe Zug wie der
 				// Vorwärtsknopf darüber: eigene Tür, schreibt nichts, danach nur neu gezeichnet. Die
 				// Liste (Reitertitel „Stage (n)“, Verbund-Marke der Zeile) und die Einzelansicht
 				// (der Knopf selbst wechselt seine Beschriftung/seinen Stand) müssen beide neu
@@ -10360,6 +10490,9 @@
 			garetienStageEinstellungenJeItem,
 			garetienEinstellungenJeItemFuerHaeppchen,
 			garetienEinfuegenRueckfrageText,
+			// Aufgabe 7 (2026-09-14): was entsteht -- und Block B mit dem Verbund-Knopf
+			garetienStageZusammenfassung,
+			garetienVerbundBlockMarkup,
 			// Meldung B (30.08.2026): „trotzdem neu anlegen“ trotz erkannter Kollision -- seit
 			// Fixrunde 1 zu Aufgabe 9+10 ueber die Stage (garetienStageVorhaben oben)
 			garetienItemIstZusatz,

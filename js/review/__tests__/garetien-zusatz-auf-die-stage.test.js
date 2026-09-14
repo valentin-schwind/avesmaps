@@ -151,7 +151,7 @@ gleich(garetienStageKnopfBauen(nurZusatz).zeile2, "",
 // =================================================================================================
 {
 	const stand = garetienUebernahmeKnopfZustand([nurZusatz]);
-	gleich(stand.beschriftung, "Stage importieren (1 von 1)");
+	gleich(stand.beschriftung, "Stage importieren · 1 Objekt");
 	gleich(stand.gesperrt, false);
 	gleich(stand.hinweis, "", "kein Grund noetig -- es gibt etwas zu tun");
 }
@@ -159,7 +159,7 @@ gleich(garetienStageKnopfBauen(nurZusatz).zeile2, "",
 	// ⚠️ Und der GRUND, wenn wirklich nichts da ist, sagt jetzt das Richtige. Vorher stand dort
 	// „für ihre Art gibt es in diesem Lauf noch keine Zuordnung" -- fuer die 528 schlicht falsch.
 	const stand = garetienUebernahmeKnopfZustand([ohneAlles]);
-	gleich(stand.beschriftung, "Stage importieren (0 von 1)");
+	gleich(stand.beschriftung, "Stage importieren · nichts zu importieren");
 	gleich(stand.gesperrt, true);
 	wahr(stand.hinweis.indexOf("nichts gefunden") !== -1,
 		"der Grund benennt den Abgleich, nicht eine „Zuordnung fuer die Art\": " + stand.hinweis);

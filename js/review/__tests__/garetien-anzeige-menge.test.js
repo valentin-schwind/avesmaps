@@ -142,8 +142,8 @@ wahr(typeof modul.avesmapsGaretienBalanceZeileText === "undefined",
 // 🔴 7930 der 8213 Objekte haben keinen. Ein Knopf, der „244 einfuegen" verspricht und 37 einfuegt,
 // ist eine Falschaussage ueber die naechste Handlung.
 const stand = modul.garetienUebernahmeKnopfZustand([mitVorschlag, ohneVorschlag, ohneVorschlag]);
-gleich(stand.beschriftung, "Stage importieren (1 von 3)",
-	"1 von 3 -- nur `mitVorschlag` traegt ein Item");
+gleich(stand.beschriftung, "Stage importieren · 1 Objekt",
+	"1 Objekt -- nur `mitVorschlag` traegt ein Item (Aufgabe 7: gezaehlt wird, was entsteht)");
 gleich(stand.gesperrt, false, "mit mindestens einem Vorschlag ist der Knopf bedienbar");
 
 const leer = modul.garetienUebernahmeKnopfZustand([ohneVorschlag]);
@@ -153,7 +153,7 @@ gleich(leer.hinweis !== "", true,
 	+ "in Chrome keine Zeigerereignisse und zeigt seinen `title` deshalb nie");
 
 gleich(modul.garetienUebernahmeKnopfZustand([]).beschriftung,
-	"Stage importieren (0 von 0)", "die leere Anzeige nennt zwei Nullen, keine Ausnahme");
+	"Stage importieren · nichts auf der Stage", "die leere Stage sagt es in Worten, keine Ausnahme");
 
 // ---- 10b. Fix-Runde 1: ein Objekt mit NUR einem Geometrie-Item zaehlt NICHT als "mit Vorschlag" -
 //
@@ -177,9 +177,9 @@ gleich(standGeometrie.anzahl, 0,
 gleich(standGeometrie.gesperrt, true, "…und ist deshalb allein genommen gesperrt");
 
 const standGemischt = modul.garetienUebernahmeKnopfZustand([nurGeometrie, mitVorschlag]);
-gleich(standGemischt.beschriftung, "Stage importieren (1 von 2)",
+gleich(standGemischt.beschriftung, "Stage importieren · 1 Objekt",
 	"die Gegenprobe in DERSELBEN Anzeige-Menge: `mitVorschlag` (ein gewoehnliches Item) zaehlt "
-	+ "weiterhin, `nurGeometrie` weiterhin nicht -- 1 von 2, nicht 2 von 2");
+	+ "weiterhin, `nurGeometrie` weiterhin nicht -- 1 Objekt, nicht 2");
 
 // Und von der ANDEREN Seite bestaetigt: `garetienStageAnhakenIds` (die Funktion, die die
 // tatsaechlich zu sendenden ids baut) liefert fuer `nurGeometrie` NIE eine id, waehrend ein

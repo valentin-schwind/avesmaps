@@ -28,27 +28,11 @@ const objekte = [1, 2].map((i) => ({
 	verbund_stamm: "Felsried", verbund_n: 2, geometrie: [[0, 0]],
 }));
 
-// `garetienVerbundBlockMarkup` braucht `zustand.objekte` (siehe garetien-verbund-fragment-weg.
-// test.js Abschnitt F); hier reicht der isolierte Bauer per `vm`, wie schon in
-// garetien-verbund-detail.test.js -- er ist ohnehin nicht exportiert.
-const vm = require("vm");
-const quelle = fs.readFileSync(path.join(__dirname, "..", "review-garetien-importer.js"), "utf8");
-function schneide(name) {
-	const a = quelle.indexOf("function " + name);
-	assert.ok(a > -1, name + " fehlt");
-	return quelle.slice(a, quelle.indexOf("\n\t}", a) + 3);
-}
-const kontext = { avesmapsGaretienEscape: (s) => String(s) };
-vm.createContext(kontext);
-vm.runInContext(
-	schneide("garetienVerbundSchluessel") + "\n"
-	+ schneide("garetienVerbundMitglieder") + "\n"
-	+ schneide("garetienVerbundIstZusammen") + "\n"
-	+ "let _garetienVerbundZusammen = new Set();\n"
-	+ schneide("garetienVerbundBlockMarkup") + "\n"
-	+ "this.block = garetienVerbundBlockMarkup;", kontext);
-
-const markup = kontext.block(objekte[0], objekte);
+// 🔴 Aufgabe 7 (14.09.2026): der Bauer ist exportiert und liest die STAGE -- die Fragmente liegen
+// darauf, damit ihr ✕ (und damit die ganze Zeilenform) wirklich gezeichnet wird. Der `vm`-Schnitt von
+// vorher kannte die Stage nicht und fiele mit einem ReferenceError um.
+api.avesmapsGaretienStageHinzufuegen(objekte);
+const markup = api.garetienVerbundBlockMarkup(objekte[0], objekte);
 wahr(markup.indexOf('class="gi-seg gi-seg--verbund"') > -1,
 	"jede Verbund-Zeile traegt gi-seg--verbund: " + markup.slice(0, 300));
 wahr((markup.match(/class="gi-seg gi-seg--verbund"/g) || []).length === 2,
