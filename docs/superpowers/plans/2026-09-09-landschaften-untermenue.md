@@ -1521,6 +1521,14 @@ Betreff: `feat(kartenfaecher): dritte Stufe -- der Untergrund unter einer Landsc
 
 ## Aufgabe 8: Die Leiste verschwindet für Besucher
 
+> 🔴 **Stand nach dem Bau (14.09.2026, `00571b790`).** Diese Aufgabe ist gebaut — mit einer gemessenen
+> Abweichung: auch `#ecosystem-controls` verschwindet für Besucher, sobald keines seiner Kinder sichtbar ist,
+> denn die Meldung „Ebene ist abgeschaltet", wegen der die Zeilen unten den Behälter stehen lassen, gibt es
+> seit `606e40f9f` (01.08.2026) nicht mehr (Entwurf §2, Korrekturvermerk). Überholt sind damit unten: die
+> Zusicherung `controlsElement.hidden = !shouldShow`, der Kommentar „Versteckt wird die ZEILE, nicht der
+> Behälter“, Mutation 2 und die Begründung „der Fächer kostet den Editor zwei Klicks“ (die dritte Stufe ist
+> entfallen; ein Klick wählt für jeden). Die Zeilen bleiben als Bauplan von damals stehen.
+
 **Dateien:**
 - Ändern: `js/map-features/map-features-ecosystem-layer-switch.js` (`syncEcosystemControlsVisibility`)
 - ~~Ändern: `js/ui/map-layer-picker.js` (`GRUND_DECKKRAFT.ecosystem`)~~ — 🔴 **überholt am 14.09.2026 (Aufgabe 6,
@@ -1606,7 +1614,7 @@ node js/map-features/__tests__/ecosystem-frontend-profil.test.js && node js/ui/_
 
 - [ ] **Schritt 6: AGENTS.md nachziehen**
 
-Der §11-Eintrag **„Der Kartenfächer"** bekommt die dritte Stufe, die Regel „eine Zelle mit
+Der §11-Eintrag **„Der Kartenfächer"** bekommt (🔴 ohne dritte Stufe — sie ist am 14.09.2026 entfallen) die Regel „eine Zelle mit
 Untermenü öffnet es, eine ohne wählt", den Wegfall des Untergrunds unter Landschaften und den
 Wasserton. ⚠️ **Keine Zahl schreiben, die wie eine vollständige Liste liest** („zweistufig",
 „drei Untergründe") — dieses Dokument protokolliert mehrfach, was das kostet.
@@ -1626,7 +1634,7 @@ Kachelbild, fünf Ebenen im Fächer, jede mit einem Klick erreichbar. Konsole le
 Push, der die Karte berührt, wird die Live-Seite als Besucher geladen und die Konsole gelesen
 (die Lehre vom 03.09.2026, zwei Stunden ohne Beschriftungen).
 
-Dann als **Editor**: Leiste da, dritte Stufe da, Untergrund-Regler wirkt.
+Dann als **Editor**: Leiste da, Untergrund-Regler wirkt (🔴 keine dritte Stufe — entfallen am 14.09.2026).
 
 - [ ] **Schritt 8: Die zwei Prüfagenten**
 
@@ -1660,10 +1668,9 @@ Aufgabe 5 · §3.1 alles an + §3.2 Untergrund 0 % + §3.3 Nutzerwahl → Aufgab
 Fächer + Leiste verstecken → Aufgabe 8 · §4 Vektoren → Aufgabe 3 · §5 Wasserton → Aufgabe 1 ·
 §6 „nicht dazu" → nirgends gebaut · §7 Tests → je Aufgabe · §8 offene Punkte → bleiben offen.
 
-**Namensgleichheit:** `macheStufe` (3) wird in 4 und 6 mit derselben Signatur gerufen;
+**Namensgleichheit:** (🔴 `macheStufe` ist mit Aufgabe 4 entfallen) `macheStufe` (3) wird in 4 und 6 mit derselben Signatur gerufen;
 `ebenen()`/`aktiveEbene()`/`waehleEbene()` (4) werden in 5 und 6 unter genau diesen Namen benutzt;
 `stufeEbenen`/`stufeUntergrund` heißen durchgehend so; `--color-water` (1) wird in 2 gelesen.
 
-**Offen, bewusst:** ob die fünf Ebenenzellen am Telefon in eine oder zwei Reihen gehören,
-entscheidet der Blick am Gerät (Aufgabe 7, Schritt 6) — die Media Query ist vorbereitet, die Wahl
-nicht getroffen.
+**Offen, bewusst:** 🔴 überholt am 14.09.2026 — gebaut ist unter 390 px die Anordnung 3+2 ohne Aufrollen
+(Aufgabe 5); offen bleibt nur der Blick am echten Gerät (Entwurf §8).

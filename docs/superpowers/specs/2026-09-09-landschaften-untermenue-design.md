@@ -58,6 +58,11 @@ dazukommt. Daraus fällt alles Übrige ab:
 - Besucher **und Editor**: erster Klick auf „Vegetation" wählt sofort — unter der Zelle liegt nichts.
 - Telefon (kein Überfahren): erster Tipp öffnet, zweiter wählt — derselbe Weg wie am Zeiger, kein
   zweiter Bedienweg. Die Zusage aus dem Entwurf vom 26.08.2026 bleibt damit heil.
+- 🔴 Tastatur (nachgetragen 14.09.2026, beim Bau gefunden): für Besucher war die versteckte Reiterleiste der
+  Tastaturweg zu den Ebenen. Deshalb führt **Pfeil hoch** aus der Ansichtsreihe in eine offene zweite Stufe
+  (markierte, sonst erste Zelle), **links/rechts** wandern darin, **runter** zurück zur Quellzelle, Enter/Leertaste
+  wählen. Pfeiltasten im Fächer gehen nicht ans Dokument (sonst schiebt jeder Pfeil zusätzlich die Karte). Bei
+  Landschaften nennt das `aria-label` der Kachel die Ebene — die zweite Zeile steckt in einer `aria-hidden`-Zelle.
 
 **Der Editor behält seine Reiterleiste** (Owner-Auftrag vom 09.09.2026). 🔴 Bis zum 14.09.2026 stand
 hier als Begründung, sie sei sein Ein-Klick-Weg gegen die zwei Klicks der dritten Stufe. Die Stufe ist
@@ -104,6 +109,9 @@ Ebenennamen falsch, und zwar still.
 💣 **Die Staffelung der Zellen steht als `nth-child(2..4)` im CSS** — genau drei Untergründe. Mit
 fünf Ebenen fehlen zwei Stufen, und die letzten beiden Zellen blendeten ohne Versatz auf. Sie
 werden auf `nth-child(2..6)` erweitert.
+🔴 **Nachtrag 14.09.2026: und sie muss in der Kaskade GEWINNEN.** Die zweite Reihe trägt die Klassen der
+Hauptreihe mit, deren `:nth-last-child`-Staffelung spezifischer war — die eigene stand im Blatt und wirkte nie.
+Gebaut: gleich spezifisch, später im Blatt, Zelle 1 ausdrücklich 0 ms.
 
 ⚠️ **Breite:** die Hauptreihe fällt unter 390 px auf drei Spalten (`--map-layer-spalten`,
 gerechnete Grenze aus dem Entwurf vom 26.08.2026). Fünf Ebenenzellen treffen dieselbe Grenze und
@@ -135,9 +143,14 @@ an** — derselbe Weg wie beim `#mapStyleSelect`, kein zweiter. Damit laufen `se
 versteckt, nicht entfernt. Wer sie für Besucher aus dem Markup nähme, müsste den ganzen
 Ebenen-Zustand ein zweites Mal bauen.
 
-⚠️ **Versteckt wird `.ecosystem-layer-row`, NICHT `#ecosystem-controls`.** In dem Behälter sitzt
-auch die Meldung „Ebene ist abgeschaltet" (servergesteuert), und die geht den Besucher genauso an
-wie den Editor. Der Untergrund-Regler und der Stapel-Knopf darin sind bereits editor-gebunden.
+🔴 **Korrigiert 14.09.2026 (beim Bau gemessen).** Hier stand: „Versteckt wird `.ecosystem-layer-row`,
+NICHT `#ecosystem-controls` — in dem Behälter sitzt auch die Meldung ‚Ebene ist abgeschaltet', und die geht
+den Besucher genauso an.“ Die Meldung gibt es seit `606e40f9f` (01.08.2026) nicht mehr; nur ihr Kommentar in
+`index.html` stand noch da. Hätte man allein die Zeile versteckt, stünde für jeden Besucher ein leerer Kasten
+(gemessen 560×21 px mit Grund, Rahmen und Schatten) oben auf der Karte. Gebaut ist deshalb: die Zeile hängt am
+Editor (`operable` — Landschaften, `?edit=1` UND Recht), und `#ecosystem-controls` ist nur sichtbar, wenn die
+Ansicht stimmt UND mindestens ein Kind sichtbar ist — gefragt NACH dem Setzen der Kinder
+(`js/map-features/map-features-ecosystem-layer-switch.js`, `syncEcosystemControlsVisibility`).
 
 ⚠️ **Wählt der Fächer eine Ebene, wird die Ansicht mitgewählt** — wie beim Untergrund heute: eine
 Bewegung für eine Kombination. Steht die Karte noch nicht auf „Landschaften", geht der Weg über
@@ -362,6 +375,9 @@ dass die beiden Blau **verschieden** sind.
 
 ## 7 · Tests
 
+- 🔴 Stand nach dem Bau (14.09.2026): die Zusicherungen dieses und des nächsten Punktes stehen in
+  `js/ui/__tests__/landschaften-untermenue.test.js` (sie führt den Picker gegen eine DOM-Attrappe aus);
+  `map-layer-picker.test.js` blieb bei seinen eigenen.
 - `js/ui/__tests__/map-layer-picker.test.js` — erweitert: Stufe 2 ist pro Ansicht verschieden;
   keine dritte Stufe, auch nicht im Editor; die eine Regel („mit Untermenü öffnet, ohne wählt") auf
   beiden Stufen; Kachel und Landschaften-Zelle tragen Name UND Bild der gewählten Ebene;
@@ -396,6 +412,7 @@ Jeder neue Test wird gegen Mutationen gefahren, bevor er als Beleg zählt.
 
 - 🔧 Der Ablauf mit angemeldeter Sitzung: Reiterleiste und Fächer als EIN Zustand sind bis zur Abnahme
   nur am Mockup und im Browser ohne Editor-Rechte geprüft.
-- 🔧 Ob fünf Ebenenzellen am Telefon in zwei Reihen oder in einer schmalen bleiben, entscheidet
-  der Blick am Gerät — die Media Query ist vorbereitet, die Wahl nicht getroffen.
+- 🔧 Telefon: gebaut ist unter 390 px die Anordnung 3+2, und eine umbrechende Reihe rollt nicht auf
+  (dieselbe Regel wie beim Hauptraster); eine Reihe mit höchstens drei Zellen behält ihre Spaltenzahl. Der
+  Blick am echten Gerät steht aus.
 - 🔧 Ob der See dem Fluss auch im BILD gleichen soll (Deckkraft 1), ist eine Owner-Frage; §5.
