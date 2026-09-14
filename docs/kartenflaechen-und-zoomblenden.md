@@ -299,16 +299,18 @@ Schlüssel zur Diagnose — Owner: *„in der politischen ansicht faden die labe
 | `?labeltune=1` | Panel: Offset, Schriftgröße, Stützpunkt-Dichte je Zoom | — |
 | `?labelparallel=0` | Siedlungs-/Landschaftsnamen: zurück auf „erst zoomen, dann ausblenden" | Ausblenden ab t = 0 |
 | `?markerscale=0` | Ortsmarker: Größen-Gegenrechnung während des Zooms aus | an |
-| `?labelbedarf=1` | Regions-/Landschaftsnamen: rastern erst beim Sichtbarwerden | **aus** (Versuch) |
+| `?labelbedarf=0` | Regions-/Landschaftsnamen: wieder alle beim Start rastern statt beim Sichtbarwerden | **an** (seit 14.09.2026) |
 
-🔬 **`?labelbedarf=1` ist ein VERSUCH, Vorgabe AUS — über die Umstellung entscheidet der Owner.**
+✅ **Die Bedarfs-Rasterung ist seit 14.09.2026 die Vorgabe** (Owner: „aktivieren, parameter zum
+potentiellen abschalten drin lassen"). Vom 27.08. bis 14.09.2026 stand sie als Versuch hinter
+`?labelbedarf=1`; der Notausgang heißt jetzt `?labelbedarf=0`, und nur genau `0` schaltet ab.
 `prepareLabelData` rastert bei der Vorgabe jede Beschriftung sofort (eine Canvas plus ein synchrones
 `toDataURL()`) und baut im Ansichtsmodus zusätzlich jedes Popup-Markup. Mit dem Schalter bekommt eine
 Beschriftung erst einen leeren Platzhalter — dasselbe Muster, das die ~3000 Siedlungsnamen daneben
 längst fahren (`createLocationNameLabelEntry`). **Live gemessen 27.08.2026** (avesmaps.de, Ausschnitt
 1440×900, Startzoom 3):
 
-| | Vorgabe | `?labelbedarf=1` |
+| | alte Vorgabe (heute `?labelbedarf=0`) | Bedarfs-Rasterung (heute Vorgabe) |
 |---|---|---|
 | beim Start gerastert | **982** | **80** |
 | Popups im Voraus gebaut | 982 | 0 |

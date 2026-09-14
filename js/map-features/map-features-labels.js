@@ -723,7 +723,7 @@ function avesmapsLabelPlatzhalterIcon() {
 // ⭐ Der Merker ist die Antwort auf eine Frage, die es ohne die Bedarfs-Rasterung nicht gab: eine
 // Beschriftung, die beim Zoomwechsel ausserhalb des Ausschnitts lag, hat `syncLabelIcons` nie
 // angefasst -- kommt sie spaeter durch ein Verschieben herein, traegt sie das Bild der ALTEN Stufe
-// und damit die falsche Groesse. Mit `?labelbedarf=1` wird sie beim Sichtbarwerden neu gerastert.
+// und damit die falsche Groesse. Mit der Bedarfs-Rasterung (Vorgabe) wird sie beim Sichtbarwerden neu gerastert.
 function avesmapsLabelIconRastern(entry, zoomLevel) {
 	entry.marker.setIcon(createLabelIcon(entry.label));
 	entry._bedarfIconZoom = zoomLevel;
@@ -731,7 +731,7 @@ function avesmapsLabelIconRastern(entry, zoomLevel) {
 
 function createLabelMarkerEntry(label) {
 	const marker = L.marker(label.coordinates, {
-		// 🔴 PLATZHALTER STATT BILD -- nur mit `?labelbedarf=1`, Vorgabe ist das Rastern wie bisher.
+		// 🔴 PLATZHALTER STATT BILD -- Vorgabe seit 14.09.2026; `?labelbedarf=0` rastert wieder sofort.
 		// Gerastert wird dann erst, wenn die Beschriftung wirklich sichtbar wird. Begruendung, Messung
 		// und die Reihenfolge-Falle stehen in js/map-features/label-bedarf.js.
 		icon: avesmapsLabelBedarfAktiv() ? avesmapsLabelPlatzhalterIcon() : createLabelIcon(label),
@@ -834,7 +834,7 @@ function createLabelMarkerEntry(label) {
 		// Ohne labelHasWikiRegion-Gate (Spec §5.2): ein Label ohne Wiki-Zuweisung bekommt dasselbe Panel,
 		// nur ohne die Wiki-Zeilen -- Name, Typ, Kartensammlung und Abenteuer stehen auch ohne Wiki zur
 		// Verfuegung, und genau die waren bisher unerreichbar.
-		// 🪤 MIT `?labelbedarf=1` ALS FUNKTION, sonst wie bisher als fertiger Text. Dieses Markup ist
+		// 🪤 MIT DER BEDARFS-RASTERUNG (Vorgabe) ALS FUNKTION, mit `?labelbedarf=0` als fertiger Text. Dieses Markup ist
 		// der zweite Startposten neben dem Bild: es entstand fuer JEDE Beschriftung sofort, obwohl es
 		// erst beim Anklicken gebraucht wird -- und der Bearbeiten-Zweig darueber bindet seines
 		// laengst als Funktion (refreshLabelMarkerPopup). Leaflet ruft sie bei jedem Oeffnen, es zaehlt

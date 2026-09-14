@@ -3,7 +3,7 @@ const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
 
-// Die Bedarfs-Rasterung der Karten-Beschriftungen (`?labelbedarf=1`, Vorgabe AUS).
+// Die Bedarfs-Rasterung der Karten-Beschriftungen (Vorgabe AN seit 14.09.2026, `?labelbedarf=0` schaltet ab).
 //
 // 🔴 DIESER TEST FAEHRT DEN ECHTEN ABLAUF, keinen nachgebauten. `js/map-features/label-bedarf.js` und
 // `js/map-features/map-features-labels.js` werden unveraendert in einen VM-Kontext geladen und
@@ -141,11 +141,11 @@ function istPlatzhalter(marker) {
 	return String(marker?._icon?.__icon?.html ?? "?") === "";
 }
 
-// ---- 1. Die VORGABE: ohne Schalter bleibt alles, wie es war --------------------------------------
+// ---- 1. Der NOTAUSGANG: `?labelbedarf=0` stellt das alte Rastern her --------------------------------
 
 {
-	const k = baueKarte("");
-	assert.strictEqual(k.fahre("avesmapsLabelBedarfAktiv()"), false, "Vorgabe muss AUS sein");
+	const k = baueKarte("?labelbedarf=0");
+	assert.strictEqual(k.fahre("avesmapsLabelBedarfAktiv()"), false, "?labelbedarf=0 muss abschalten");
 	k.fahre("prepareLabelData(__daten)");
 	const b = k.bilanz();
 
@@ -159,11 +159,16 @@ function istPlatzhalter(marker) {
 	assert.ok(b.prepareMs >= 0, "die Dauer wird auch ohne Schalter gemessen");
 }
 
-// ---- 2. MIT Schalter: gerastert wird nur, was sichtbar ist ----------------------------------------
+// ---- 2. Die VORGABE: gerastert wird nur, was sichtbar ist -----------------------------------------
+
+// 🔴 Seit 14.09.2026 ist die Bedarfs-Rasterung die Vorgabe (Owner). Abgeschaltet wird NUR mit genau
+// `0` -- ein altes `?labelbedarf=1` aus einem geteilten Link und ein Tippfehler lassen sie stehen.
+assert.strictEqual(baueKarte("?labelbedarf=1").fahre("avesmapsLabelBedarfAktiv()"), true, "ein altes ?labelbedarf=1 laesst die Vorgabe stehen");
+assert.strictEqual(baueKarte("?labelbedarf=nein").fahre("avesmapsLabelBedarfAktiv()"), true, "nur genau 0 schaltet ab");
 
 {
-	const k = baueKarte("?labelbedarf=1");
-	assert.strictEqual(k.fahre("avesmapsLabelBedarfAktiv()"), true, "?labelbedarf=1 schaltet ein");
+	const k = baueKarte("");
+	assert.strictEqual(k.fahre("avesmapsLabelBedarfAktiv()"), true, "Vorgabe muss AN sein");
 	k.fahre("prepareLabelData(__daten)");
 	const b = k.bilanz();
 
@@ -222,9 +227,9 @@ function istPlatzhalter(marker) {
 
 {
 	const k = baueKarte("");
-	// Ein zweites `?` in der Adresse (zusammengesetzter Link) darf den Schalter nicht verschlucken.
-	const kZweifach = baueKarte("?perftrace=1?labelbedarf=1");
-	assert.strictEqual(kZweifach.fahre("avesmapsLabelBedarfAktiv()"), true, "auch hinter einem zweiten ? erkannt");
+	// Ein zweites `?` in der Adresse (zusammengesetzter Link) darf den Notausgang nicht verschlucken.
+	const kZweifach = baueKarte("?perftrace=1?labelbedarf=0");
+	assert.strictEqual(kZweifach.fahre("avesmapsLabelBedarfAktiv()"), false, "auch hinter einem zweiten ? erkannt");
 
 	k.fahre("prepareLabelData(__daten)");
 	const kopie = k.bilanz();
@@ -236,7 +241,7 @@ function istPlatzhalter(marker) {
 	assert.strictEqual(leer.gerastert, 0, "Zuruecksetzen leert den Zaehler");
 	assert.strictEqual(leer.beimStart, 0, "und den Startwert");
 	assert.strictEqual(leer.labels, 0, "und die Label-Zahl");
-	assert.strictEqual(leer.bedarf, false, "der Schalter selbst bleibt stehen -- er ist kein Zaehler");
+	assert.strictEqual(leer.bedarf, true, "der Schalter selbst bleibt stehen -- er ist kein Zaehler");
 }
 
 console.log("label-bedarf.test.js: OK");

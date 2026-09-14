@@ -1,5 +1,5 @@
 // Die Karten-Beschriftungen (Regionen, Landschaften, Meere, Gipfel) bei BEDARF rastern statt alle
-// beim Start. Vorgabe AUS; `?labelbedarf=1` schaltet ein.
+// beim Start. Vorgabe AN seit 14.09.2026; `?labelbedarf=0` schaltet ab.
 //
 // 💣 DER BEFUND. `prepareLabelData` legt beim Kaltstart fuer JEDE Beschriftung sofort ein Icon an --
 // das heisst je Beschriftung eine Canvas plus ein synchrones `toDataURL()` -- und baut im
@@ -13,13 +13,14 @@
 // `syncLocationNameLabelVisibility`, wenn ein Name wirklich sichtbar wird. Hier ist dasselbe, eine
 // Beschriftungsart weiter.
 //
-// 🔴 VORGABE AUS, UND DAS IST KEINE VORSICHT, SONDERN DIE HAUSREGEL. Dieser Umbau aendert, WAS
-// gezeichnet wird, und niemand schaut zu, waehrend er entsteht. Am 27.08.2026 sind zwei
-// Zoom-Aenderungen live gegangen, die nach der ZAHL besser und nach dem BILD schlechter waren; der
-// URL-Schalter war beide Male der Ausweg (Owner: „probiers unter neuem parameter"). Das Projekt hat
-// die Form laengst: `?crossfade=0`, `?parallelfade=0`, `?zoomlupe=N`, `?markerscale=0`,
-// `?labelparallel=0`, `?zoombuendel=0`. Ueber die Umstellung entscheidet der Owner an seinem Bild,
-// nicht diese Datei an ihrer Zahl.
+// 🔴 VORGABE AN SEIT 14.09.2026 -- ENTSCHIEDEN VOM OWNER AM BILD, NICHT VON DIESER DATEI AN IHRER ZAHL.
+// Vom 27.08. bis 14.09.2026 stand der Umbau als Versuch hinter `?labelbedarf=1`, Vorgabe AUS: er
+// aendert, WAS gezeichnet wird, und am 27.08.2026 waren zwei Zoom-Aenderungen live gegangen, die nach
+// der ZAHL besser und nach dem BILD schlechter waren. Owner am 14.09.2026: „aktivieren, parameter zum
+// potentiellen abschalten drin lassen". Der Notausgang ist deshalb `?labelbedarf=0` -- dieselbe Form
+// wie `?crossfade=0`, `?parallelfade=0`, `?markerscale=0`, `?labelparallel=0`, `?zoombuendel=0`.
+// 💣 Abgeschaltet wird NUR mit genau `0`. Jeder andere Wert (auch das alte `?labelbedarf=1` aus
+// geteilten Links) laesst die Vorgabe stehen -- ein Tippfehler darf den Notausgang nicht ausloesen.
 //
 // 🔴 DIE REIHENFOLGE IN routing.js BLEIBT UNBERUEHRT, UND SIE IST TRAGEND. `prepareLabelData` laeuft
 // VOR `preparePathData`, weil ein Weg-Popup in seinem „Verlauf" die Landschaften verlinkt, die es
@@ -37,9 +38,9 @@ const AVESMAPS_LABEL_BEDARF_AN = (() => {
 	try {
 		// Dieselbe tolerante Lesart wie beim Zeichen-Buendler: ein zweites `?` in der Adresse (aus einem
 		// zusammengesetzten Link) darf den Schalter nicht verschlucken.
-		return new URLSearchParams(String(window.location.search || "").replace(/\?/g, "&")).get("labelbedarf") === "1";
+		return new URLSearchParams(String(window.location.search || "").replace(/\?/g, "&")).get("labelbedarf") !== "0";
 	} catch (fehler) {
-		return false;   // ohne Adresszeile gilt die Vorgabe
+		return true;   // ohne Adresszeile gilt die Vorgabe
 	}
 })();
 
