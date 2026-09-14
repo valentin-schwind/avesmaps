@@ -834,13 +834,21 @@ function avesmapsGaretienFlaecheAnlegen(
     // 🔴 „für Klicks gesperrt" / „Kurvenbeschreibung" (Owner 30.08.2026) -- avesmapsGaretienRegion
     // Uebersteuerung liefert nur, was der Kasten ausdruecklich setzt; ohne Handeingabe ein leeres
     // Array, unveraendert gegenueber dem bisherigen Verhalten.
+    // 🔴 DER WIKI-SCHLUESSEL GEHOERT AUCH AN DIE REGION (Entwurf 14.09.2026, §6.6). Die Region traegt
+    // bei einem Verbund N Flaechen, und an ihr haengen Kanon und Statuskreis -- nur am Schild waere
+    // die Landschaft fuer beide unzugewiesen.
+    // 💣 GEREICHT WIRD DIE ADRESSE, NIE EIN SCHLUESSEL: avesmapsCreateEcosystemRegion leitet
+    // `wiki_region_key` selbst aus `wiki_url` ab (avesmapsEcosystemReadRegionFields), ueber die feste
+    // Faltungstafel. Ein hier gebauter Schluessel waere die zweite Faltung (AGENTS.md §5).
+    // ⚠️ Ohne Treffer bleibt das Feld WEG -- dieselbe Regel wie am Schild.
+    $wikiAdresse = trim((string) ($wikiZuweisung['wiki_url'] ?? ''));
     $region = avesmapsCreateEcosystemRegion($pdo, array_merge([
         'name' => (string) $nach['name'],
         'auto_name' => false,
         'kind' => (string) $nach['kind'],
         'region_type' => (string) $nach['subtyp'],
         'label_public_id' => $labelId,
-    ], avesmapsGaretienRegionUebersteuerung($einstellungen)), $userId);
+    ], $wikiAdresse !== '' ? ['wiki_url' => $wikiAdresse] : [], avesmapsGaretienRegionUebersteuerung($einstellungen)), $userId);
     $regionId = avesmapsGaretienPublicIdAus($region, 'Die Region');
     $flaeche = avesmapsCreateEcosystemArea($pdo, [
         'region_public_id' => $regionId,

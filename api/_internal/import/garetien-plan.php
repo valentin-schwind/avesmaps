@@ -242,6 +242,13 @@ function avesmapsGaretienRingMittelpunkt(array $ring): array
  * @param ?array $einstellungen Rumpf aus dem Kasten; `ziel`/`subtyp` sind die zwei Auswahlfelder.
  */
 /**
+ * Die Ziele, an denen ein Verbund-Stamm der Name wird -- dieselben zwei, die zusammengelegt werden
+ * duerfen (Entwurf 14.09.2026, §6.3). ⚠️ VOR der Funktion, die sie liest: PHP hebt Funktionen, aber
+ * keine Konstanten auf Dateiebene (AGENTS.md, const-vor-benutzung-test.php).
+ */
+const AVESMAPS_GARETIEN_VERBUND_NAME_ZIELE = ['region', 'path'];
+
+/**
  * Der von Hand geaenderte NAME eines Vorschlags (Owner 09.09.2026: „erlaube, dass der Name
  * veraendert werden kann (nur auf der Stage und Achte darauf, dass das label aktualisiert)").
  *
@@ -256,12 +263,27 @@ function avesmapsGaretienRingMittelpunkt(array $ring): array
  * fuer den er gedacht ist.
  * ⚠️ Leer heisst „nicht geaendert", nie „loesche den Namen": ein namenloses Kartenobjekt waere im
  * Editor nicht wiederzufinden.
+ *
+ * 🔴 UND EIN ZUSAMMENGELEGTER VERBUND HEISST WIE SEIN STAMM (Entwurf 14.09.2026, Fehler 1). Steht
+ * `verbund` im Rumpf und ist KEIN Name gewaehlt, wird der Stamm der Name -- „Silker Hain", nicht
+ * „Silker Hain 1". Der Client schickt ihn als Vorbelegung; der Server setzt ihn trotzdem selbst,
+ * denn eine Sperre nur im Browser ist keine.
+ * 💣 DARAN HAENGT MEHR ALS DIE BESCHRIFTUNG: die Wiki-Zuweisung sucht mit diesem Namen
+ * (avesmapsGaretienWikiLandschaftZuweisung fragte bis dahin `silkerhain1`), und zwei Wegabschnitte
+ * werden erst ueber denselben Namen EIN Weg (`name:<Wegart>:<Stamm>`, wpGroupKeyOf).
+ * ⚠️ Der Handname gewinnt (Verbund-Owner 09.09.2026/3: „Name danach aenderbar"), und ein Punktziel
+ * bekommt den Stamm nie -- ein Verbund wird eine Flaeche oder ein Weg
+ * (AVESMAPS_GARETIEN_VERBUND_NAME_ZIELE).
  */
 function avesmapsGaretienNameUebersteuern(array $nach, ?array $einstellungen): array
 {
     $name = avesmapsNormalizeSingleLine((string) ($einstellungen['name'] ?? ''), 190);
     if ($name === '') {
-        return $nach;
+        $stamm = avesmapsNormalizeSingleLine((string) ($einstellungen['verbund'] ?? ''), 190);
+        if ($stamm === '' || !in_array((string) ($nach['ziel'] ?? ''), AVESMAPS_GARETIEN_VERBUND_NAME_ZIELE, true)) {
+            return $nach;
+        }
+        $name = $stamm;
     }
     $nach['name'] = $name;
 
