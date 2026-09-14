@@ -23,15 +23,27 @@
 	font-size: var(--font-size-caption);
 }
 .wiki-weitere__haupt .wiki-weitere__art { color: var(--color-text); }
+/* 💣 Fund-Item 6 der ersten Pruefrunde: `.wiki-weitere__weg` (0,1,0) schlaegt zwar bereits
+   `:where(.avm-editor-body) button` (0,0,1) fuer border/background/padding -- das `:where()` traegt
+   dort ABSICHTLICH keine Spezifitaet (css/components/editor-page.css, Kommentar an der Regel). Ohne
+   eigenes `min-height`/`line-height` GEWINNT hier aber nichts: die Zeile deklariert beides nicht, also
+   greift die Seitenregel `min-height: var(--avm-control-h)` (32px) ungebremst, und die „weitere"-Zeile
+   wurde hoeher als die „Hauptzuweisung"-Zeile daneben. */
 .wiki-weitere__weg {
 	border: 0;
 	background: none;
 	color: var(--color-text-muted);
 	font: inherit;
+	min-height: 0;
+	line-height: inherit;
 	cursor: pointer;
 	padding: 0 var(--space-2);
 }
-.wiki-weitere__weg:hover { color: var(--color-text); }
+/* 💣 Und derselbe Fund beim Hover: `:where(.avm-editor-body) button:hover` ist (0,1,1) und schlaegt
+   die BASISREGEL `.wiki-weitere__weg { background: none }` (0,1,0) -- die Fuellfarbe der Seitenknoepfe
+   erschien beim Ueberfahren. `.wiki-weitere__weg:hover` selbst ist (0,2,0) und schlaegt (0,1,1) klar;
+   sie muss die Eigenschaft nur auch NENNEN. */
+.wiki-weitere__weg:hover { color: var(--color-text); background: none; }
 .wiki-weitere__titel {
 	margin: var(--space-8) 0 var(--space-2);
 	font-size: var(--font-size-caption);

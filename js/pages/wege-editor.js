@@ -920,21 +920,41 @@
 		});
 	}
 
-	function mountWikiWeitere(hostId, ways, umfang, nachSchreiben) {
+	// 🔴 `mitHaupt` gilt NUR der Weg-Ebene (Fund-Item 7 der ersten Pruefrunde): am einzelnen Abschnitt
+	// steht der Artikel schon im Kasten „Wiki-Weg" darueber -- eine zweite Zeile dafuer waere derselbe
+	// Artikel zweimal auf einer Seite. Fehlt das Argument, bleibt `opts.haupt` ganz weg (nicht nur
+	// `null`): der Kasten fragt `opts.haupt ? opts.haupt() : null` und unterscheidet „keine Angabe"
+	// nicht von „Angabe liefert nichts" -- hier ist es dieselbe Aussage, also reicht das Weglassen.
+	function mountWikiWeitere(hostId, ways, umfang, nachSchreiben, mitHaupt) {
 		var host = $(hostId);
 		if (wpWikiWeitere) { wpWikiWeitere.zerstoeren(); wpWikiWeitere = null; }
 		if (!host || typeof avesmapsWikiWeitereKastenMount !== "function") { return; }
-		wpWikiWeitere = avesmapsWikiWeitereKastenMount(host, {
+		var mountOpts = {
 			skin: "dt",
 			hauptKey: function () { return ways[0] && ways[0].wiki_path ? String(ways[0].wiki_path.wiki_key || "") : ""; },
-			haupt: function () { return ways[0] && ways[0].wiki_path ? ways[0].wiki_path : null; },
 			abschnitte: function () { return weitereAbschnitte(ways); },
 			umfangText: function () { return umfang; },
-			geschrieben: function () {
-				setStatus("Weitere Wiki-Zuweisung gespeichert.", "ok");
+			// 🔴 Fund-Item 1 der ersten Pruefrunde: „gespeichert" hiess bisher IMMER Erfolg, auch wenn
+			// der Server alle Abschnitte uebersprungen hat (applied === 0). Der Text kommt jetzt aus
+			// derselben reinen Funktion, die auch der Kasten fuer seine eigene Statuszeile nutzt --
+			// EIN Satzbauer, zwei Anzeigeorte.
+			geschrieben: function (antwort) {
+				var applied = antwort && typeof antwort.applied === "number" ? antwort.applied : 0;
+				var text = typeof avesmapsWikiWeitereErgebnisText === "function"
+					? avesmapsWikiWeitereErgebnisText(
+						antwort && antwort.action === "remove_weitere" ? "remove" : "add",
+						antwort,
+						weitereAbschnitte(ways)
+					)
+					: "Weitere Wiki-Zuweisung gespeichert.";
+				setStatus(text, applied > 0 ? "ok" : "bad");
 				return loadList().then(nachSchreiben);
 			}
-		});
+		};
+		if (mitHaupt) {
+			mountOpts.haupt = function () { return ways[0] && ways[0].wiki_path ? ways[0].wiki_path : null; };
+		}
+		wpWikiWeitere = avesmapsWikiWeitereKastenMount(host, mountOpts);
 	}
 
 	function mountWikiAssign() {
@@ -1397,7 +1417,7 @@
 		if (gruppeWeitere) {
 			mountWikiWeitere("wpGroupWikiWeitere", gruppeWeitere.segments, "die ganze Straße", function () {
 				return selectGroup(gruppeWeitere.key, true);
-			});
+			}, true);
 		}
 
 		var discard = $("wpGroupDiscard");
