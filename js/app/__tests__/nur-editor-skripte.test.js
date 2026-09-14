@@ -147,6 +147,16 @@ const ERLAUBT = {
 		"loadConflicts", "setConflictDialogMinimized", "conflictMinimized", "conflictFilter", "renderConflicts",
 		"applyWikiSyncResolvePreset", "openWikiSyncResolveWikiLink", "syncWikiSyncResolveLinkButton",
 		"handleWikiSyncResolveFormSubmit",
+		// Gebietsdialog: Formular, Regler, Elternfilter, Schliessen (Klick, Hintergrund, Escape nur bei offenem Dialog)
+		"setRegionEditDialogOpen", "handleRegionEditFormSubmit", "syncRegionOpacityOutput", "syncRegionCoatPreview",
+		"syncRegionValidToControls", "updateRegionParentFilter",
+	],
+	// assignWikiSyncTerritoryPayloadInsideLegacyEditor: bricht vorher per typeof auf
+	// ensurePoliticalTerritoryChainFromWikiPath ab (dieselbe Vorlage) -- die Zeilen danach laufen nur,
+	// wenn der Gebietsdialog geladen ist. Ausgeloest nur per Drag aus dem WikiSync-Baum (Editor).
+	"js/territory/territory-drag-assignment.js": [
+		"storeRegionAssignmentBreadcrumbCaches", "renderRegionAssignment", "activatePrimaryRegionEditTabForTerritory",
+		"ensurePoliticalTerritoryChainFromWikiPath",
 	],
 };
 

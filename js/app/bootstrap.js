@@ -915,11 +915,11 @@ $("#label-edit-delete").on("click", () => deleteActiveLabel());
 $("#label-edit-min-zoom, #label-edit-max-zoom").on("input", syncLabelZoomRangeOutputs);
 $("#label-edit-min-zoom-num, #label-edit-max-zoom-num").on("input", syncLabelZoomNumberInputs);
 $("#label-edit-priority").on("input", syncLabelPriorityOutput);
-$("#region-edit-form").on("submit", handleRegionEditFormSubmit);
+$("#region-edit-form").on("submit", function (event) { return handleRegionEditFormSubmit.call(this, event); });
 $("#region-edit-delete").on("click", () => deleteActiveRegion());
-$("#region-edit-opacity").on("input", syncRegionOpacityOutput);
-$("#region-edit-coat-url").on("input", syncRegionCoatPreview);
-$("#region-edit-valid-open").on("change", syncRegionValidToControls);
+$("#region-edit-opacity").on("input", function (event) { return syncRegionOpacityOutput.call(this, event); });
+$("#region-edit-coat-url").on("input", function (event) { return syncRegionCoatPreview.call(this, event); });
+$("#region-edit-valid-open").on("change", function (event) { return syncRegionValidToControls.call(this, event); });
 $("#region-edit-parent-filter").on("input search", function () {
     updateRegionParentFilter(this.value || "");
 });

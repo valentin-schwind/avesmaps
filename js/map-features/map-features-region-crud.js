@@ -298,7 +298,7 @@ async function deleteActiveRegion(selectedLayer = null, selectedPolygonIndex = n
 					&& (!result.territory_deleted || properties.territory_public_id !== regionEditEntry.territoryPublicId);
 			});
 			clearRegionGeometryEdit();
-			setRegionEditDialogOpen(false, { resetForm: true });
+			if (typeof setRegionEditDialogOpen === "function") setRegionEditDialogOpen(false, { resetForm: true });
 			schedulePoliticalTerritoryLayerReload({ immediate: true });
 			void loadChangeLog();
 			showFeedbackToast(result.territory_deleted ? "Letztes Polygon gelöscht, Herrschaftsgebiet entfernt." : "Polygon gelöscht.", "success");
@@ -326,7 +326,7 @@ async function deleteActiveRegion(selectedLayer = null, selectedPolygonIndex = n
 		clearRegionGeometryEdit();
 		updateRevisionFromEditResponse(result);
 		void loadChangeLog();
-		setRegionEditDialogOpen(false, { resetForm: true });
+		if (typeof setRegionEditDialogOpen === "function") setRegionEditDialogOpen(false, { resetForm: true });
 		showFeedbackToast("Region gelöscht.", "success");
 	} catch (error) {
 		setRegionEditStatus(error.message || "Region konnte nicht gelöscht werden.", "error");

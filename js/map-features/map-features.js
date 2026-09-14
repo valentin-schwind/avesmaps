@@ -911,7 +911,9 @@ const REGION_CONTEXT_ACTIONS = {
 			return;
 		}
 
-		openRegionEditDialog(regionEntry, { title: "Territoriumseditor" });
+		if (typeof openRegionEditDialog === "function") {
+			openRegionEditDialog(regionEntry, { title: "Territoriumseditor" });
+		}
 	},
 	"show-info": ({ regionEntry }) => {
 		openRegionCompactTooltip(regionEntry);
