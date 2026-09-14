@@ -502,6 +502,25 @@
 	   see (#4c89c6) and meer (#2d5f8a), and stays apart from gebirge (#7a6c5e) and hochebene (#9a9b82). */
 	--color-ecosystem-topographie-insel: #b2a273;           /* island, sandy beige-olive -- dry land ringed by water */
 
+	/* Namenstoene der Kartenbeschriftungen als TOKEN (Owner 14.09.2026: „gib ihnen passende
+	   variationen"). Berg-/Hügelkette, Hügel und Felsformation waren im Beschriftungsdialog wählbar und
+	   stehen seit dem 02.09.2026 in der Kollisionsvorgabe, hatten in css/features/map-labels.css aber
+	   KEINEN Namenston -- ihr erster Name wäre auf den Grundton gefallen und hätte sich wie „Region"
+	   gelesen.
+	   🔴 GERECHNET, NICHT GEWÄHLT: je Art der Ton, der seinem Vorbild am nächsten liegt (Kette: Mitte
+	   aus Gebirge und Hügelland · Hügel: Hügelland · Felsformation: Schlucht) und dabei zu JEDEM anderen
+	   Namenston der Karte mindestens dE00 6,5 hält. Der Bestand liegt im Median bei 5,1, am engsten
+	   Hügelland gegen Wadi mit 2,6 (gemessen 14.09.2026). Das Mockup rechnet es beim Öffnen aus dem
+	   echten Stylesheet nach und bindet diese drei Werte: docs/namensfarben-gelaende-mockup.html.
+	   💣 Wer einen Wert „nur ein bisschen" verschiebt, prüft den Abstand neu -- die Familie ist eng, und
+	   ein Ton, der einem Nachbarn zu nahe kommt, liest sich auf der Karte wie dieselbe Art.
+	   ⚠️ Kein zweiter Wert im dunklen Block: die Kartenfläche wechselt mit dem Thema nicht (Kopf dieser
+	   Datei), der Name sieht hell und dunkel gleich aus.
+	   ⚠️ Die übrigen Namenstöne stehen noch als Farbwert in map-labels.css. */
+	--color-map-label-bergkette: #cdc8b1;      /* Berg-/Hügelkette: Greige zwischen Gebirge und Hügelland */
+	--color-map-label-huegel: #ddc6ab;         /* Hügel: Lehm, wärmer und tiefer als das Hügelland */
+	--color-map-label-felsformation: #d7bfb6;  /* Felsformation: Stein im Licht mit Rosé-Stich, Verwandter der Schlucht */
+
 	/* Klimazonen (Owner 2026-08-03). Sieben Bänder von Nord nach Süd, abgeleitet aus sechs
 	   Trennlinien. Bewusst KEINE Grün-Skala: Grün gehört der Vegetation, und die beiden Ebenen müssen
 	   nebeneinander unterscheidbar bleiben. Dies ist eine reine TEMPERATURSKALA -- Eis, blass, neutral,

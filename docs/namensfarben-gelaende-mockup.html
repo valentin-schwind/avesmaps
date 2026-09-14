@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Namensfarben der Geländefamilie: Berg-/Hügelkette, Hügel, Felsformation (Entwurf, 2026-09-14)</title>
+<script>
+  /* Wie jede Editorseite: gespeicherte Wahl schlaegt OS-Schema, vor dem ersten Anstrich.
+     Zusaetzlich `?thema=hell|dunkel` -- damit diese Datei sich selbst zweimal nebeneinander
+     einbetten kann (Abschnitt 2), einmal je Thema. */
+  (function () {
+    var vorgabe = null;
+    try { vorgabe = new URLSearchParams(location.search).get("thema"); } catch (e) {}
+    function isDark() {
+      if (vorgabe === "dunkel") { return true; }
+      if (vorgabe === "hell") { return false; }
+      var s = null; try { s = localStorage.getItem("avesmaps-theme"); } catch (e) {}
+      if (s === "dark") { return true; }
+      if (s === "light") { return false; }
+      return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    }
+    if (isDark()) { document.documentElement.setAttribute("data-theme", "dark"); }
+    var teil = null;
+    try { teil = new URLSearchParams(location.search).get("teil"); } catch (e) {}
+    if (teil) { document.documentElement.setAttribute("data-teil", teil); }
+  })();
+</script>
+<!-- 🔴 RELATIVE Pfade, Absicht: eine docs/-Datei, die per file:// geoeffnet wird. Geladen wird die
+     ECHTE CSS-Kette des Landschaften-Editors -- die Namenstoene der Bestandsarten kommen also aus
+     css/features/map-labels.css, nicht aus dieser Datei. Vorbild: docs/label-kollision-matrix-mockup.html. -->
+<link rel="stylesheet" href="../css/base/fonts.css">
+<link rel="stylesheet" href="../css/base/tokens.css">
+<link rel="stylesheet" href="../css/components/editor-page.css">
+<link rel="stylesheet" href="../css/pages/landschaften-editor.css">
+<link rel="stylesheet" href="../css/features/map-labels.css">
+<style>
+/* ═══ VERTRAG: css/base/tokens.css ═══ Die drei neuen Namenstoene. Sie stehen hier, weil sie der
+   Vorschlag SIND -- nach dem Bau muessen sie in tokens.css zeichengleich stehen, sonst wird das
+   Deploy-Tor rot (tools/mockup-vertrag). Kein zweiter Wert im dunklen Block: die Kartenflaeche
+   wechselt mit dem Thema nicht (Kopf von tokens.css). */
+:root {
+	--color-map-label-bergkette: #cdc8b1;
+	--color-map-label-huegel: #ddc6ab;
+	--color-map-label-felsformation: #d7bfb6;
+}
+/* ═══ VERTRAG ENDE ═══ */
+
+/* ═══ VERTRAG: css/features/map-labels.css ═══ Die Klasse liest den Token, sonst nichts. Dieselbe
+   Sonde (getMapLabelTypeStyle) bedient den waagerechten Namen, das Kurvenlabel und das Fenster
+   „Darstellung" -- eine Zeile hier erreicht alle drei. */
+.map-label--bergkette span {
+	color: var(--color-map-label-bergkette);
+}
+.map-label--huegel span {
+	color: var(--color-map-label-huegel);
+}
+.map-label--felsformation span {
+	color: var(--color-map-label-felsformation);
+}
+/* ═══ VERTRAG ENDE ═══ */
+
+/* ═══════════════════════════════════════════════════════════════════════════════════════════
+   Ab hier nur die Bauform des Mockups. Kein hartkodierter Farbwert, kein hartkodierter Radius,
+   keine Schrift unter 11px (AGENTS.md §12). Die Tabelle erbt .dt / .fl-swatch / .fl-hex /
+   .fc-probe aus css/pages/landschaften-editor.css -- die ECHTE Bauform des Fensters.
+   ═══════════════════════════════════════════════════════════════════════════════════════════ */
+html, body { background: var(--color-panel); color: var(--color-text); }
+body { margin: 0; font-size: var(--font-size-small); }
+[data-teil] .nf-seite { display: none; }
+:root:not([data-teil]) .nf-fenster { display: none; }
+
+.nf-seite { max-width: 1180px; margin: 0 auto; padding: var(--space-24) var(--space-16); }
+.nf-h1 { margin: 0 0 var(--space-4); font-size: var(--font-size-title); }
+.nf-sub { margin: 0 0 var(--space-16); color: var(--color-text-muted); }
+.nf-seite h2 {
+	margin: var(--space-24) 0 var(--space-8);
+	padding-bottom: var(--space-4);
+	border-bottom: 1px solid var(--color-divider);
+	font-size: var(--font-size-subhead);
+}
+.nf-seite h3 { margin: var(--space-16) 0 var(--space-6); font-size: var(--font-size-small); }
+.nf-seite p, .nf-seite li { max-width: 78ch; line-height: var(--leading-snug); }
+
+.nf-rolle { overflow-x: auto; }
+.nf-karte, .nf-reihe {
+	position: relative;
+	width: 768px;
+	overflow: hidden;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+}
+.nf-karte { height: 512px; }
+.nf-reihe { height: 150px; }
+.nf-kachel { position: absolute; width: 256px; height: 256px; display: block; }
+.nf-name { position: absolute; display: block; transform: translate(-50%, -50%); }
+.nf-stern {
+	position: absolute;
+	transform: translate(-50%, -50%);
+	color: var(--color-accent-brown);
+	font-size: var(--font-size-caption);
+	font-weight: var(--font-weight-bold);
+	pointer-events: none;
+}
+.nf-legende { margin-top: var(--space-6); color: var(--color-text-muted); font-size: var(--font-size-caption); }
+
+.nf-zwei { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: var(--space-16); }
+.nf-zwei figure { margin: 0; }
+.nf-zwei figcaption { margin-bottom: var(--space-4); color: var(--color-text-muted); font-size: var(--font-size-caption); }
+.nf-zwei iframe {
+	display: block;
+	width: 100%;
+	height: 340px;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+}
+
+.nf-fenster { padding: var(--space-8); }
+.dt tr.nf-neu .dt__art::after { content: " ★"; color: var(--color-accent-brown); }
+.dt td.nf-zahl { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.dt td.nf-knapp { color: var(--color-text-muted); font-size: var(--font-size-caption); }
+</style>
+</head>
+<body>
+
+<main class="nf-seite">
+	<h1 class="nf-h1">Namensfarben der Geländefamilie — drei neue Töne</h1>
+	<p class="nf-sub">Entwurf 14.09.2026 · Owner-Entscheid: „gib ihnen passende variationen" · Berg-/Hügelkette, Hügel, Felsformation</p>
+
+	<h2>Befund</h2>
+	<p>Die drei Arten sind im Beschriftungsdialog wählbar und stehen seit dem 02.09.2026 in der Kollisionsvorgabe auf „fest" — in <code>css/features/map-labels.css</code> haben sie aber <b>keinen</b> Namenston. Die erste Beschriftung einer dieser Arten fiele auf den Grundton aller Namen zurück und läse sich wie „Region". Live gezählt am 14.09.2026: <b>0</b> Beschriftungen je Art.</p>
+	<p>Vorschlag: je ein Ton aus der Stein- und Erdfamilie (Gebirge · Berggipfel · Hügelland · Wadi · Schlucht), <b>so nah wie möglich an einem Anker</b>, aber mit mindestens <b>ΔE00 6,5</b> zu jedem anderen Namenston der Karte — gerechnet, nicht gewählt (Abschnitt 3).</p>
+	<ul>
+		<li><b>Berg-/Hügelkette</b> — Anker: die Mitte zwischen Gebirge und Hügelland. Ein Greige, eine Spur tiefer als das Gebirge.</li>
+		<li><b>Hügel</b> — Anker: Hügelland. Ein Lehmton, wärmer und tiefer als das Sandbraun des Hügellands.</li>
+		<li><b>Felsformation</b> — Anker: Schlucht. Derselbe Stein, aber im Licht und mit rosé Stich (Sandstein).</li>
+	</ul>
+
+	<h2>1 · Auf der Karte</h2>
+	<p>Kartenausschnitt Eiszinnen, Zoom 5, echte Kacheln (Untergrund „Modern"). Die sechs Bestandsnamen stehen an ihrer gespeicherten Stelle in ihrer gespeicherten Größe; die drei neuen (★) sind <b>Muster</b> an freien Stellen. Gezeichnet wird mit dem echten Renderer der Karte (<code>renderMapLabelToImage</code> samt Halo aus <code>getLabelHaloParams</code>).</p>
+	<div class="nf-rolle"><div id="nf-karte" class="nf-karte"></div></div>
+	<p class="nf-legende">★ neuer Ton · Die Kartenfläche wechselt mit dem Thema nicht — die Namen sehen hell und dunkel gleich aus.</p>
+
+	<h3>Nebeneinander, oben der Bestand, darunter der nächste Verwandte</h3>
+	<div class="nf-rolle"><div id="nf-reihe" class="nf-reihe"></div></div>
+
+	<h2>2 · Im Fenster „Darstellung" — hell und dunkel</h2>
+	<p>Die Spalte „Name" in der Tabelle des Landschaften-Editors, mit ihrer echten Bauform. Das Fenster liest die Farbe mit derselben Sonde wie die Karte; eine neue Art erscheint dort, sobald es die erste Beschriftung dieser Art gibt.</p>
+	<div class="nf-zwei" id="nf-zwei"></div>
+	<script>
+	/* 💣 Die Rahmen entstehen NUR auf der Hauptseite, per Skript. Stuenden sie im Markup, enthielte
+	   jedes eingebettete Fenster wieder zwei Rahmen, und die Seite luede sich endlos selbst -- auch
+	   unter display:none laedt ein iframe (beim Bau passiert: 372 Anfragen, dann 503).
+	   Der Hoehen-Zuhoerer steht direkt daneben: ein Rahmen kann melden, bevor das Skript am Ende der
+	   Seite geparst ist. */
+	(function () {
+		if (document.documentElement.getAttribute("data-teil")) { return; }
+		window.addEventListener("message", function (ereignis) {
+			var hoehe = ereignis.data && ereignis.data.nfHoehe;
+			if (!hoehe) { return; }
+			document.querySelectorAll(".nf-zwei iframe").forEach(function (rahmen) {
+				if (rahmen.contentWindow === ereignis.source) { rahmen.style.height = hoehe + 2 + "px"; }
+			});
+		});
+		var wirt = document.getElementById("nf-zwei");
+		[["hell", "Hell"], ["dunkel", "Dunkel"]].forEach(function (paar) {
+			var fig = document.createElement("figure");
+			var cap = document.createElement("figcaption");
+			cap.textContent = paar[1];
+			var rahmen = document.createElement("iframe");
+			rahmen.title = "Darstellung, Thema " + paar[1];
+			rahmen.src = "namensfarben-gelaende-mockup.html?teil=fenster&thema=" + paar[0];
+			fig.append(cap, rahmen);
+			wirt.appendChild(fig);
+		});
+	})();
+	</script>
+
+	<h2>3 · Gemessen</h2>
+	<p id="nf-summe">…</p>
+	<div class="nf-rolle"><table class="dt" id="nf-mess">
+		<thead><tr><th>Art</th><th class="dt-sep">Name</th><th>Farbwert</th><th>L · C · h</th><th class="dt-sep">Nächster Namenston</th><th>ΔE00</th><th>RGB</th></tr></thead>
+		<tbody></tbody>
+	</table></div>
+	<p class="nf-legende">ΔE00 = wahrgenommener Farbabstand (CIEDE2000). RGB = der Abstand, den die Hausprüfungen für Prüftöne messen; für die hellen Namenstöne ist er zu grob — im Bestand liegen Tal und Hochebene bei RGB 14,4. Alle Werte oben werden beim Öffnen aus dem echten Stylesheet gelesen.</p>
+
+	<h2>4 · Wer die Farbe liest</h2>
+	<ul>
+		<li><b>Waagerechter Name</b> — <code>getMapLabelTypeStyle</code> hängt ein <code>.map-label--&lt;art&gt;</code> ins Dokument und liest die aufgelöste Farbe. Der Token wird dort aufgelöst.</li>
+		<li><b>Kurvenlabel</b> (Canvas) — <code>kurvenlabelFarbe</code> fragt <b>dieselbe</b> Sonde. Kein zweiter Weg, also keine zweite Farbe.</li>
+		<li><b>Fenster „Darstellung"</b> — <code>ecoDisplaySonde</code>, dieselbe Bauform; die Seite lädt <code>tokens.css</code> vor <code>map-labels.css</code>.</li>
+		<li><b>SVG-Abzug</b> — malt <b>alle</b> Beschriftungen in einer Farbe (<code>labelColor</code>), er kennt keine Artfarben. Dort gibt es nichts nachzuziehen.</li>
+		<li><b>Dunkles Thema</b> — der Token steht nur im hellen Block. Die Karte ist in beiden Themen dasselbe Pergament; nur die Zeile im Fenster steht auf anderem Grund (Abschnitt 2).</li>
+	</ul>
+</main>
+
+<div class="nf-fenster" id="nf-fenster">
+	<table class="dt">
+		<thead><tr><th>Art</th><th class="dt-sep">Name</th><th>Vorschau</th></tr></thead>
+		<tbody id="nf-fenster-zeilen"></tbody>
+	</table>
+</div>
+
+<!-- 🔴 DIE ECHTE RECHENSTRECKE: runtime-state.js (avesmapsCanvasDpr), label-arten.js (die EINE Tabelle
+     der Artnamen) und map-features-labels.js (Sonde, Halo, Renderer). Nichts davon ist nachgebaut. -->
+<script src="../js/app/runtime-state.js"></script>
+<script src="../js/ui/label-arten.js"></script>
+<script src="../js/map-features/map-features-labels.js"></script>
+<script>
+"use strict";
+
+const NEU = ["bergkette", "huegel", "felsformation"];
+const FAMILIE = ["gebirge", "berggipfel", "vulkan", "huegelland", "wadi", "schlucht", "hochebene", "tal"];
+
+// ── Farbmass ────────────────────────────────────────────────────────────────────────────────
+function rgbAus(ton) {
+	const m = String(ton).match(/\d+(\.\d+)?/g) || ["0", "0", "0"];
+	return m.slice(0, 3).map(Number);
+}
+function hexAus(ton) {
+	return "#" + rgbAus(ton).map((v) => Math.round(v).toString(16).padStart(2, "0")).join("");
+}
+function lab(rgb) {
+	const [r, g, b] = rgb.map((v) => { v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+	const X = (r * 0.4124 + g * 0.3576 + b * 0.1805) / 0.95047;
+	const Y = r * 0.2126 + g * 0.7152 + b * 0.0722;
+	const Z = (r * 0.0193 + g * 0.1192 + b * 0.9505) / 1.08883;
+	const f = (t) => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116);
+	return [116 * f(Y) - 16, 500 * (f(X) - f(Y)), 200 * (f(Y) - f(Z))];
+}
+function lch(rgb) {
+	const [L, a, b] = lab(rgb);
+	return [L, Math.hypot(a, b), ((Math.atan2(b, a) * 180) / Math.PI + 360) % 360];
+}
+function de00(rgb1, rgb2) {
+	const [L1, a1, b1] = lab(rgb1), [L2, a2, b2] = lab(rgb2);
+	const rad = Math.PI / 180, C1 = Math.hypot(a1, b1), C2 = Math.hypot(a2, b2), Cb = (C1 + C2) / 2;
+	const G = 0.5 * (1 - Math.sqrt(Math.pow(Cb, 7) / (Math.pow(Cb, 7) + Math.pow(25, 7))));
+	const a1p = (1 + G) * a1, a2p = (1 + G) * a2, C1p = Math.hypot(a1p, b1), C2p = Math.hypot(a2p, b2);
+	const h1p = (Math.atan2(b1, a1p) / rad + 360) % 360, h2p = (Math.atan2(b2, a2p) / rad + 360) % 360;
+	const dL = L2 - L1, dC = C2p - C1p;
+	let dh = h2p - h1p;
+	if (C1p * C2p === 0) { dh = 0; } else if (dh > 180) { dh -= 360; } else if (dh < -180) { dh += 360; }
+	const dH = 2 * Math.sqrt(C1p * C2p) * Math.sin((dh / 2) * rad);
+	const Lb = (L1 + L2) / 2, Cbp = (C1p + C2p) / 2;
+	let hb = h1p + h2p;
+	if (C1p * C2p !== 0) { if (Math.abs(h1p - h2p) > 180) { hb += h1p + h2p < 360 ? 360 : -360; } hb /= 2; }
+	const T = 1 - 0.17 * Math.cos((hb - 30) * rad) + 0.24 * Math.cos(2 * hb * rad) + 0.32 * Math.cos((3 * hb + 6) * rad) - 0.2 * Math.cos((4 * hb - 63) * rad);
+	const SL = 1 + (0.015 * Math.pow(Lb - 50, 2)) / Math.sqrt(20 + Math.pow(Lb - 50, 2));
+	const SC = 1 + 0.045 * Cbp, SH = 1 + 0.015 * Cbp * T;
+	const RT = -2 * Math.sqrt(Math.pow(Cbp, 7) / (Math.pow(Cbp, 7) + Math.pow(25, 7))) * Math.sin(60 * Math.exp(-Math.pow((hb - 275) / 25, 2)) * rad);
+	return Math.sqrt(Math.pow(dL / SL, 2) + Math.pow(dC / SC, 2) + Math.pow(dH / SH, 2) + RT * (dC / SC) * (dH / SH));
+}
+const komma = (z, n) => z.toFixed(n).replace(".", ",");
+
+// ── Der echte Stil einer Art: Sonde + Halo, genau wie createLabelIcon ────────────────────────
+function labelStil(art) {
+	const typ = getMapLabelTypeStyle(art);
+	const halo = getLabelHaloParams(REGION_LABEL_HALO_STRENGTH, REGION_LABEL_HALO_SHARPNESS);
+	return halo.glow
+		? { ...typ, glow: halo.glow, glowBlurRatio: halo.glowBlurRatio, glowPasses: halo.glowPasses, strokeRatio: halo.strokeRatio }
+		: typ;
+}
+
+// ── Abschnitt 1: Kacheln + Namen ─────────────────────────────────────────────────────────────
+// Kachelnamen tragen ein NEGATIVES y (map_x_-y). Zoom 5: eine Karteneinheit = 32 px.
+const MOSAIK = { z: 5, xs: [82, 83, 84], ys: [-112, -111] };
+function kartenPixel(x, y) {
+	return { left: x * 32 - MOSAIK.xs[0] * 256, top: -y * 32 - MOSAIK.ys[0] * 256 };
+}
+function kachelnLegen(wirt, versatzOben) {
+	MOSAIK.ys.forEach((ty, zeile) => {
+		MOSAIK.xs.forEach((tx, spalte) => {
+			const img = document.createElement("img");
+			img.className = "nf-kachel";
+			img.alt = "";
+			img.src = `https://avesmaps.de/tiles/stylized/${MOSAIK.z}/map_${tx}_${ty}.webp`;
+			img.style.left = spalte * 256 + "px";
+			img.style.top = zeile * 256 - (versatzOben || 0) + "px";
+			wirt.appendChild(img);
+		});
+	});
+}
+function nameSetzen(wirt, text, art, groesse, left, top) {
+	const bild = renderMapLabelToImage(text, groesse, labelStil(art));
+	const img = new Image();
+	img.src = bild.url;
+	img.width = bild.w;
+	img.height = bild.h;
+	img.alt = text;
+	img.className = "nf-name";
+	img.style.left = left + "px";
+	img.style.top = top + "px";
+	wirt.appendChild(img);
+	if (NEU.includes(art)) {
+		const stern = document.createElement("span");
+		stern.className = "nf-stern";
+		stern.textContent = "★";
+		stern.style.left = left + bild.w / 2 + "px";
+		stern.style.top = top - bild.h / 4 + "px";
+		wirt.appendChild(stern);
+	}
+}
+
+// Live aus der Kartennutzlast am 14.09.2026 (Punkt, Art, gespeicherte Groesse; bei Zoom 5 = px).
+const BESTAND = [
+	{ art: "vulkan", name: "Malmarsguss", groesse: 15, x: 659.91, y: 890.78 },
+	{ art: "tal", name: "Svatkerbe", groesse: 13, x: 667.97, y: 888.41 },
+	{ art: "gebirge", name: "Eiszinnen", groesse: 20, x: 675.21, y: 886.03 },
+	{ art: "vulkan", name: "Teufelstisch", groesse: 15, x: 665.63, y: 883.94 },
+	{ art: "berggipfel", name: "Aschezinken", groesse: 18, x: 659.91, y: 883.16 },
+	{ art: "vulkan", name: "Greipnirtobel", groesse: 15, x: 673.19, y: 882.81 },
+];
+// Muster an freien Stellen (Pixel im Ausschnitt). Der Name ist die Art -- keine erfundene Beschriftung.
+const MUSTER = [
+	{ art: "bergkette", groesse: 16, left: 560, top: 110 },
+	{ art: "felsformation", groesse: 14, left: 330, top: 90 },
+	{ art: "huegel", groesse: 14, left: 400, top: 470 },
+];
+
+function karteZeichnen() {
+	const karte = document.getElementById("nf-karte");
+	kachelnLegen(karte, 0);
+	BESTAND.forEach((b) => {
+		const p = kartenPixel(b.x, b.y);
+		nameSetzen(karte, b.name, b.art, b.groesse, p.left, p.top);
+	});
+	MUSTER.forEach((m) => nameSetzen(karte, avesmapsLabelArtName(m.art), m.art, m.groesse, m.left, m.top));
+
+	const reihe = document.getElementById("nf-reihe");
+	kachelnLegen(reihe, 190);
+	[
+		["gebirge", 77, 45], ["berggipfel", 230, 45], ["huegelland", 384, 45], ["wadi", 538, 45], ["schlucht", 691, 45],
+		["bergkette", 154, 110], ["huegel", 461, 110], ["felsformation", 691, 110],
+	].forEach(([art, left, top]) => nameSetzen(reihe, avesmapsLabelArtName(art), art, 16, left, top));
+}
+
+// ── Abschnitt 2: die Spalte „Name" des Fensters ──────────────────────────────────────────────
+function fensterZeichnen() {
+	const body = document.getElementById("nf-fenster-zeilen");
+	["gebirge", "huegelland", "wadi", "schlucht"].concat(NEU).forEach((art) => {
+		const typ = getMapLabelTypeStyle(art);
+		const hex = hexAus(typ.color);
+		const tr = document.createElement("tr");
+		if (NEU.includes(art)) { tr.className = "nf-neu"; }
+
+		const tdArt = document.createElement("td");
+		tdArt.className = "dt__art";
+		const key = document.createElement("span");
+		key.className = "fl-key";
+		key.textContent = art;
+		tdArt.append(document.createTextNode(avesmapsLabelArtName(art)), key);
+
+		const tdN = document.createElement("td");
+		tdN.className = "dt-sep";
+		const sw = document.createElement("input");
+		sw.type = "color"; sw.className = "fl-swatch"; sw.value = hex; sw.disabled = true;
+		const hx = document.createElement("input");
+		hx.type = "text"; hx.className = "fl-hex"; hx.value = hex; hx.readOnly = true;
+		tdN.append(sw, hx);
+
+		const tdP = document.createElement("td");
+		const probe = document.createElement("div");
+		probe.className = "fc-probe";
+		probe.style.color = typ.color;
+		const text = avesmapsLabelArtName(art);
+		probe.textContent = typ.uppercase ? text.toUpperCase() : text;
+		tdP.appendChild(probe);
+
+		tr.append(tdArt, tdN, tdP);
+		body.appendChild(tr);
+	});
+	if (window.parent !== window) {
+		window.parent.postMessage({ nfHoehe: document.documentElement.scrollHeight }, "*");
+	}
+}
+
+// ── Abschnitt 3: Messung aus dem echten Stylesheet ───────────────────────────────────────────
+function messen() {
+	const arten = Object.keys(AVESMAPS_LABEL_ART_NAMEN);
+	const ton = {};
+	arten.forEach((art) => { ton[art] = rgbAus(getMapLabelTypeStyle(art).color); });
+	const gleich = (a, b) => ton[a].join() === ton[b].join();
+
+	function naechster(art, kreis) {
+		let best = null;
+		kreis.forEach((b) => {
+			if (b === art || gleich(art, b)) { return; }
+			const d = de00(ton[art], ton[b]);
+			if (!best || d < best.d) { best = { art: b, d, rgb: Math.hypot(...ton[art].map((v, i) => v - ton[b][i])) }; }
+		});
+		return best;
+	}
+
+	const bestand = arten.filter((a) => !NEU.includes(a));
+	const bestandNn = bestand.map((a) => naechster(a, bestand)).filter(Boolean).map((n) => n.d).sort((p, q) => p - q);
+	const median = bestandNn[Math.floor(bestandNn.length / 2)];
+	const neuNn = NEU.map((a) => naechster(a, arten).d);
+	const knappster = bestand.map((a) => ({ a, n: naechster(a, bestand) })).filter((z) => z.n).sort((p, q) => p.n.d - q.n.d)[0];
+	document.getElementById("nf-summe").textContent =
+		`Bestand (${bestand.length} Arten): nächster Namenston im Median ΔE00 ${komma(median, 2)}, am engsten `
+		+ `${avesmapsLabelArtName(knappster.a)} ↔ ${avesmapsLabelArtName(knappster.n.art)} mit ${komma(knappster.n.d, 2)}. `
+		+ `Die drei neuen: mindestens ΔE00 ${komma(Math.min(...neuNn), 2)} zu allen übrigen, auch untereinander.`;
+
+	const body = document.querySelector("#nf-mess tbody");
+	NEU.concat(FAMILIE).forEach((art) => {
+		const n = naechster(art, arten);
+		const [L, C, h] = lch(ton[art]);
+		const tr = document.createElement("tr");
+		if (NEU.includes(art)) { tr.className = "nf-neu"; }
+		const zelle = (text, klasse) => { const td = document.createElement("td"); if (klasse) { td.className = klasse; } td.textContent = text; tr.appendChild(td); return td; };
+		const tdArt = zelle(avesmapsLabelArtName(art), "dt__art");
+		const key = document.createElement("span"); key.className = "fl-key"; key.textContent = art; tdArt.appendChild(key);
+		const tdProbe = zelle("", "dt-sep");
+		const probe = document.createElement("div");
+		probe.className = "fc-probe";
+		probe.style.color = getMapLabelTypeStyle(art).color;
+		probe.textContent = getMapLabelTypeStyle(art).uppercase ? avesmapsLabelArtName(art).toUpperCase() : avesmapsLabelArtName(art);
+		tdProbe.appendChild(probe);
+		zelle(hexAus(getMapLabelTypeStyle(art).color), "nf-zahl");
+		zelle(`${komma(L, 1)} · ${komma(C, 1)} · ${Math.round(h)}°`, "nf-zahl");
+		zelle(avesmapsLabelArtName(n.art), "dt-sep");
+		zelle(komma(n.d, 2), "nf-zahl");
+		zelle(komma(n.rgb, 1), "nf-zahl nf-knapp");
+		body.appendChild(tr);
+	});
+}
+
+// Die Hausschrift muss geladen sein, bevor das Canvas zeichnet -- sonst rastert der Renderer den
+// Rueckfall und legt ihn in seinen Bildspeicher (dieselbe Falle, die map-features-labels.js am
+// Dateiende mit document.fonts.ready abfaengt).
+const schrift = document.fonts && document.fonts.load
+	? document.fonts.load('16px "Faculty Glyphic"').catch(() => null)
+	: Promise.resolve();
+schrift.then(() => {
+	if (document.documentElement.getAttribute("data-teil") === "fenster") {
+		fensterZeichnen();
+		return;
+	}
+	karteZeichnen();
+	messen();
+});
+</script>
+</body>
+</html>

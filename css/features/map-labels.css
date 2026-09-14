@@ -162,6 +162,23 @@ body.edit-mode .map-label img {
 	color: #d9d18d; /* Kulturlandschaft: helles Erntegold -- eine Spur tiefer und wärmer als das Strohgelb der Steppe */
 }
 
+/* Berg-/Hügelkette, Hügel, Felsformation -- mit TOKEN statt Farbwert (Owner 14.09.2026). Werte,
+   Vorbilder und Messung stehen an den Tokens in css/base/tokens.css. Dieselbe Sonde
+   (getMapLabelTypeStyle) bedient den waagerechten Namen, das Kurvenlabel und das Fenster
+   „Darstellung" -- eine Regel hier erreicht alle drei. Der SVG-Abzug liest KEINE Artfarbe: er
+   malt alle Beschriftungen in einer Farbe (labelColor, js/pages/svg-export-build.js), dort ist
+   nichts nachzuziehen. Gebunden per Mockup:
+   docs/namensfarben-gelaende-mockup.html. */
+.map-label--bergkette span {
+	color: var(--color-map-label-bergkette);
+}
+.map-label--huegel span {
+	color: var(--color-map-label-huegel);
+}
+.map-label--felsformation span {
+	color: var(--color-map-label-felsformation);
+}
+
 .map-label--gebirge span,
 .map-label--insel span,
 .map-label--inselgruppe span,
