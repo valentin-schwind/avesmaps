@@ -1,11 +1,14 @@
-// „Innerorts einfügen (Stadt)" -- der zweite Knopf neben „Neu einfügen" im Garetien Importer.
+// Innerorts im Garetien Importer -- Befund-Leser, Siedlungsfeld und der Weg einer Staette.
 // Entwurf: docs/superpowers/specs/2026-09-02-innerorts-import-design.md §4
+// 🔴 SEIT DEM 14.09.2026 OHNE DEN KNOPF „Innerorts einfügen (Stadt)": er schrieb ohne Rueckfrage in die
+// Karte (Befund `innerorts-sofort`). Die Staette waehlt jetzt die Zielwahl („Stätte in X",
+// docs/superpowers/specs/2026-09-14-garetien-import-vereint-design.md §5).
 //
 // Ausfuehren, vom Repo-Wurzelverzeichnis: node js/review/__tests__/garetien-innerorts-knopf.test.js
 //
 // 🔴 Geprueft werden die REINEN Haelften (Befund-Leser, Knopfleiste, Tooltip, Listenzeile, Hinweis)
-// UND der Klickverteiler garetienNeuKlick mit einer fetch-Attrappe -- gemessen am ERGEBNIS, an der
-// Folge der Anfragen, die wirklich hinausgehen (dieselbe Bauform wie garetien-handlungen.test.js).
+// UND der Weg der Wahl bis in den Anfragerumpf -- ausgefuehrt ueber garetienEingabenAendern, nicht
+// am Quelltext gelesen. Den Ablauf ueber den Fussknopf faehrt garetien-import-verdrahtung.test.js (B).
 
 "use strict";
 
@@ -28,7 +31,9 @@ function tief(ist, soll, warum) {
 	checks++;
 }
 
-["garetienInnerortsOrt", "garetienHandlungen", "garetienHandlungTitel", "garetienNeuKlick",
+["garetienInnerortsOrt", "garetienHandlungen", "garetienHandlungTitel", "garetienHandlungsRumpf",
+	"garetienZielwahlSetzen", "garetienZielwahlMarkup", "avesmapsGaretienStageHinzufuegen",
+	"avesmapsGaretienStageLeeren", "garetienZielwahlVergessen",
 	"garetienStageVorhaben", "garetienZeileMarkup", "garetienEingefuegtWirdUebernommenHinweis",
 	"garetienInnerortsKandidatenVon", "garetienInnerortsKandidatText", "garetienInnerortsWahlZu",
 	"garetienInnerortsWahlVergessen", "garetienInnerortsZeileMarkup", "garetienInnerortsZiel",
@@ -64,158 +69,18 @@ gleich(mod.garetienInnerortsOrt(null), "", "nichts: kein Ort");
 gleich(mod.garetienInnerortsOrt({ innerorts: { name: "  " } }), "", "ein leerer Name zaehlt nicht");
 
 // =================================================================================================
-// B. Die Knopfleiste
+// B. Die Knopfleiste -- „Innerorts einfügen (X)" IST GEFALLEN (14.09.2026)
 // =================================================================================================
-// 🔴 Seit dem 07.09.2026 heisst der Nachbar „stage" statt „neu" -- „Neu einfügen" ist gefallen
-// (Owner-Punkt 12), der Vorwaertsknopf legt jetzt erst auf die Stage.
-// 💣 „Innerorts einfügen" ist NICHT mitgefallen, obwohl der Brief es streichen wollte: der
-// Stage-Import schickt keine `einstellungen`, und `avesmapsGaretienInnerortsGewuenscht`
-// (garetien-uebernahme.php) entscheidet ausschliesslich daraus -- gestrichen waere die Staette
-// in einer Stadt UNERREICHBAR. Die Zeile bleibt, bis „Stätte in X" eine FORM im Kasten
-// „Wird importiert als" ist (Entwurf §5.1).
-tief(namen(mitBefund), ["stage", "innerorts", "ablehnen"],
-	"🔴 direkt NEBEN dem Vorwaertsknopf, als dessen Alternative -- nicht am Ende der Leiste");
-tief(namen(ohneBefund), ["stage", "ablehnen"],
-	"🔴 ohne Befund steht der Knopf GAR NICHT da -- kein dauerhaft ausgegrauter Zwilling");
-tief(namen(altLauf), ["stage", "ablehnen"], "ein alter Lauf: auch nicht");
-const k = knopf(mitBefund, "innerorts");
-wahr(k.beschriftung.startsWith("Innerorts einfügen (Wandleth)"),
-	"der Ortsname steht IM Knopf, nicht im Hilfetext: " + k.beschriftung);
-gleich(k.ton, "", "🔴 NEUTRAL -- gruen kodiert „legt etwas auf der Karte an\", und genau das tut er nicht");
-gleich(knopf(mitBefund, "stage").ton, "accent",
-	"(der Nachbar traegt seit dem 07.09.2026 den AKZENT -- gruen hiesse „legt auf der Karte an\")");
-gleich(k.disabled, false, "und er ist scharf");
-// ⚠️ Den Vergleichspartner „neu" gibt es nicht mehr; gemessen wird jetzt direkt gegen das
-// new-Item -- dieselbe Aussage („ein anderer ZIELORT fuer denselben Vorschlag"), nur ohne den
-// gefallenen Knopf als Zeugen.
-tief(k.ids, mitBefund.items.filter((i) => i.change_type === "new").map((i) => i.id),
-	"🔴 DIESELBE MENGE wie der Vorschlag „neu anlegen\" -- ein anderer ZIELORT, nicht ein anderer Vorschlag");
-tief(k.ids, [41], "naemlich das new-Item");
-const titel = mod.garetienHandlungTitel("innerorts", mitBefund);
-wahr(titel.includes("Wandleth") && titel.includes("OHNE Position"),
-	"der Tooltip nennt die Stadt und sagt, dass kein Kartenpunkt entsteht: " + titel);
-// Ein Ergaenzungsfall traegt zwar „neu" (trotzdem anlegen), aber der Server schickt dort keinen Befund.
-const ergaenzung = {
-	key: "e", name: "Wandlether Rahjatempel", urteil: "ergaenzung", innerorts: [],
-	abschnitte: [{ public_id: "g-1", name: "Wandlether Rahjatempel" }],
-	items: [
-		{ id: 50, anlass: "ergaenzung", felder: ["quelle"], change_type: "changed", selected: 0,
-			abschnitt: { public_id: "g-1", name: "Wandlether Rahjatempel" } },
-		{ id: 51, anlass: "zusatz", felder: [], change_type: "new", selected: 0 },
-	],
-};
-wahr(namen(ergaenzung).includes("stage") && !namen(ergaenzung).includes("innerorts"),
-	"ohne Befund kein Angebot, auch wenn ein Zusatz-Item (trotzdem anlegen) dasteht");
-
-// =================================================================================================
-// C. Der Klick: EIN Weg mit „neu", und genau EIN anderer Wert
-// =================================================================================================
-function kette(knoten) {
-	const kandidaten = knoten.map((k2) => Object.assign({
-		getAttribute(name) {
-			return Object.prototype.hasOwnProperty.call(k2.attribute || {}, name)
-				? k2.attribute[name] : null;
-		},
-	}, k2));
-	// Ehrlicher `closest`: eine Auswahl kann MEHRERE, kommagetrennte Alternativen tragen.
-	kandidaten[0].closest = function (auswahl) {
-		const teile = String(auswahl).split(",").map(function (t) { return t.trim(); });
-		for (const kand of kandidaten) {
-			for (const teil of teile) {
-				if ((kand.passt || []).indexOf(teil) !== -1) { return kand; }
-			}
-		}
-		return null;
-	};
-	return kandidaten[0];
-}
-function ziel(handlung, key, options) {
-	return kette([Object.assign({
-		passt: ['[data-handlung="' + handlung + '"]', "[data-handlung]", "[data-key]"],
-		attribute: { "data-handlung": handlung, "data-key": key },
-	}, options || {})]);
-}
-
-async function pruefeKlick() {
-	// 🔴 Aufgabe 6 (06.09.2026): der Nachlauf „garetienStageNachschlagen" fragt seither die STAGE
-	// per `keys` ab, nicht mehr den Reiter „uebernommen" -- und die Stage bleibt in dieser Datei
-	// leer, also bleibt der Nachlauf ganz aus (js/review/__tests__/garetien-stage-nachschlagen.test.js).
-	const echtesFetch = global.fetch;
-	const gestellt = [];
-	global.fetch = function (pfad, optionen) {
-		const rumpf = JSON.parse((optionen && optionen.body) || "{}");
-		gestellt.push({ pfad: String(pfad), rumpf: rumpf });
-		let roh;
-		if (rumpf.action === "apply") {
-			roh = { ok: true, done: true, applied: 1, deleted: 0, stale: 0, processed: 1,
-				remaining: 0, skipped: 0, declined: 0 };
-		} else {
-			roh = { ok: true, plan_run_id: 7, gesamt: 0, objekte: [], bilanz: {}, reiter: {}, facetten: {} };
-		}
-		return Promise.resolve({ json: () => Promise.resolve(roh) });
-	};
-	try {
-		const gefragt = [];
-		const nein = (text) => { gefragt.push(text); return false; };
-
-		const knopfDom = ziel("innerorts", mitBefund.key);
-		const lauf = mod.garetienNeuKlick({ target: knopfDom }, [mitBefund], 7, nein);
-		wahr(lauf && typeof lauf.then === "function", "der Klick wird uebernommen und wirklich ausgefuehrt");
-		gleich(knopfDom.disabled, true, "der Knopf sperrt sich sofort, synchron");
-		await lauf;
-		tief(gestellt.map((a) => a.rumpf.action), ["select", "apply", "liste"],
-			"derselbe Ablauf wie „Neu einfuegen\": anhaken, uebernehmen, Liste (die Stage ist leer, "
-			+ "der Stage-Nachlauf bleibt aus)");
-		tief(gestellt[0].rumpf.ids, [41], "mit dem new-Item");
-		tief(gestellt[1].rumpf.einstellungen,
-			{ innerorts: true, innerorts_public_id: "stadt-wandleth" },
-			"🔴 GENAU ZWEI Werte: „ja, innerorts\" und WELCHE Stadt -- nicht der Kasten „Eingefuegt wird\". "
-			+ "Die public_id kommt aus demselben Leser wie die Beschriftung des Knopfes "
-			+ "(garetienInnerortsZiel); ohne sie schickte der Knopf „(Wandleth)\" die Vorauswahl, "
-			+ "waehrend im Feld darueber eine andere Stadt steht.");
-		gleich(gefragt.length, 0, "und KEINE Rueckfrage");
-
-		// Die Rueckfrage vor „trotzdem neu anlegen" gilt NUR „neu": eine Staette kollidiert mit keinem
-		// Kartenobjekt, es gibt nichts, wovor zu warnen waere.
-		gestellt.length = 0;
-		const kollision = Object.assign({}, mitBefund, {
-			key: "koll", urteil: "ergaenzung",
-			abschnitte: [{ public_id: "g-2", name: "Nachbar" }],
-			items: [
-				{ id: 60, anlass: "ergaenzung", felder: ["quelle"], change_type: "changed", selected: 0,
-					abschnitt: { public_id: "g-2", name: "Nachbar" } },
-				{ id: 61, anlass: "zusatz", felder: [], change_type: "new", selected: 0 },
-			],
-		});
-		// 🔴 FIXRUNDE 1 (B3, 07.09.2026): `garetienNeuIstZusatz` gibt es nicht mehr. Die Frage
-		// beantwortet `garetienStageVorhaben` — und sie ist ENGER: das Zusatz-Item zählt nur, wenn
-		// das Objekt sonst NICHTS vorzuweisen hat. Diese Attrappe trägt daneben ein legitimes
-		// Ergänzungs-Item, ist also „ergaenzung“ — genau die Lage, in der ein mitlaufendes Zusatz-Item
-		// den Schadensfall vom 30.08.2026 wiederholte (Ergänzung UND Dublette in einem Import).
-		gleich(mod.garetienStageVorhaben(kollision), "ergaenzung",
-			"💣 das Zusatz-Item bleibt draußen, solange ein legitimes Item danebensteht");
-		gleich(mod.garetienStageVorhaben({ items: [{ id: 61, anlass: "zusatz", change_type: "new" }] }),
-			"zusatz", "(allein steht es sehr wohl für sich)");
-		// 🔴 Seit dem 07.09.2026 gibt es den Knopf „neu" nicht mehr (Owner-Punkt 12) -- und die TUER
-		// bleibt auch dann zu, wenn ein synthetisches Ereignis ihn von Hand anfliegt:
-		// `garetienHandlungsRumpf` findet keinen Knopf dieses Namens mehr und liefert `null`.
-		// ⚠️ Das ist die Zusicherung, die aus der alten wird („neu fragt und ein Nein zaehlt als
-		// uebernommen") -- sie prueft dieselbe Naht, nur von der anderen Seite: nichts geht hinaus.
-		gleich(mod.garetienNeuKlick({ target: ziel("neu", kollision.key) }, [kollision], 7, nein), null,
-			"„neu\" gibt es nicht mehr -- der Klick wird nicht einmal uebernommen");
-		gleich(gefragt.length, 0, "keine Rueckfrage, weil es nichts zu fragen gibt");
-		gleich(gestellt.length, 0, "nichts hinausgeschickt");
-		const laufI = mod.garetienNeuKlick({ target: ziel("innerorts", kollision.key) }, [kollision], 7, nein);
-		wahr(laufI && typeof laufI.then === "function",
-			"⚠️ „innerorts\" fragt NICHT -- es entsteht kein zweites Kartenobjekt, die Kollision kann es nicht geben");
-		await laufI;
-		gleich(gefragt.length, 0, "keine Rueckfrage -- „innerorts\" fragt ohnehin nie");
-		tief(gestellt.map((a) => a.rumpf.action), ["select", "apply", "liste"], "und der Ablauf ist derselbe");
-		gleich(gestellt[1].rumpf.einstellungen.innerorts, true, "mit innerorts");
-	} finally {
-		global.fetch = echtesFetch;
-	}
-}
+// 🔴 Er war der einzige Knopf, der ohne Rueckfrage in die Karte schrieb -- schon auf „Offen", neben
+// einem Tooltip, der verspricht, dass nichts geschrieben wird, bis „Stage importieren" gedrueckt ist.
+// Was er konnte, kann die Zielwahl („Stätte in X"), und die geht ueber die Stage -- gefahren in
+// garetien-zielwahl-ziele.test.js (C, E) und garetien-import-verdrahtung.test.js (B).
+tief(namen(mitBefund), ["stage", "ablehnen"], "🔴 auch MIT Befund steht kein Innerorts-Knopf mehr da");
+tief(namen(ohneBefund), ["stage", "ablehnen"], "ohne Befund ebenso");
+tief(namen(altLauf), ["stage", "ablehnen"], "ein alter Lauf ebenso");
+gleich(mod.garetienHandlungsRumpf("innerorts", mitBefund, 7), null,
+	"💣 und die TUER bleibt zu, auch wenn jemand „innerorts\" von Hand schickt");
+gleich(mod.garetienHandlungTitel("innerorts", mitBefund), "", "…und es gibt keinen Tooltip mehr dafuer");
 
 // =================================================================================================
 // D. „Uebernommen · innerorts" (Entwurf §4) -- die Zeile und der Hinweis sagen, WO das Objekt liegt
@@ -253,6 +118,7 @@ function pruefeUebernommen() {
 const mitListe = Object.assign({}, mitBefund, {
 	key: "ggp:Bauwerke:Tempel:Garetien:Mit Liste", name: "Wandlether Rondratempel",
 	ziel: "location", subtyp: "gebaeude", geometrie: [[100, 100]],
+	stand: "offen",
 	innerorts: {
 		public_id: "stadt-wandleth", name: "Wandleth", meilen: 0.09,
 		kandidaten: [
@@ -289,14 +155,18 @@ function pruefeAuswahlfeld() {
 		"🔴 ohne Kandidaten steht die Zeile GAR NICHT da -- kein dauerhaft leeres Auswahlfeld");
 	const zeile = mod.garetienInnerortsZeileMarkup(mitListe, false);
 	wahr(zeile.includes('data-gi-feld="innerorts"'), "das Feld traegt seinen Namen: " + zeile);
-	wahr(zeile.indexOf("— auf die Karte —") !== -1, "der erste Eintrag ist „auf die Karte\"");
-	wahr(/<option value=""[^>]* selected/.test(zeile),
-		"💣 UND ER IST VORAUSGEWAEHLT. Eine vorbelegte Stadt legte beim naechsten „Stage importieren\" "
-		+ "fuer dreihundert Objekte stillschweigend Staetten an, statt Kartenpunkte: " + zeile);
+	gleich(zeile.indexOf("— auf die Karte —"), -1,
+		"🔴 SEIT DEM 14.09.2026 KEIN „— auf die Karte —\": das entscheidet die Zielwahl, nicht dieses Feld");
+	wahr(zeile.includes('class="gi-insert__row gi-insert__row--aus">Siedlung')
+		&& /data-gi-feld="innerorts"[^>]* disabled/.test(zeile),
+		"💣 solange die Zielwahl „Auf die Karte\" ist, ist die Siedlung ABGEBLENDET -- eine vorbelegte Stadt "
+		+ "legte beim naechsten „Stage importieren\" sonst still Staetten an: " + zeile);
 	wahr(zeile.indexOf("Aue · 0,03 Meilen") < zeile.indexOf("Wandleth · 0,09 Meilen"),
 		"beide Staedte stehen drin, in der Reihenfolge des Servers");
+	wahr(/<option value="stadt-wandleth" selected>/.test(zeile),
+		"vorgewaehlt ist die Vorauswahl des Servers -- nicht die naechste Siedlung");
 	wahr(!zeile.includes("Wird als Stätte in"),
-		"...und solange nichts gewaehlt ist, behauptet nichts eine Staette");
+		"...und das Feld behauptet keine Staette -- das sagt die Zielwahl selbst");
 	wahr(mod.garetienInnerortsZeileMarkup(mitListe, true).includes(" disabled"),
 		"an einem uebernommenen Objekt ist das Feld gesperrt, wie jedes andere des Kastens");
 
@@ -314,36 +184,33 @@ function pruefeAuswahlfeld() {
 	// 🔴 AUSGEFUEHRT, NICHT GELESEN: ein Regex auf den Quelltext kennt keinen Geltungsbereich, und
 	// genau daran ist am 03.09.2026 eine Regression zwei Stunden lang unbemerkt live gestanden
 	// (AGENTS.md §11, „Die Landschaft traegt die Quellen").
+	// ⚠️ Das Objekt liegt dafuer auf der Stage: dort -- und nur dort -- ist die Einzelansicht einstellbar.
+	mod.avesmapsGaretienStageHinzufuegen([mitListe]);
 	mod.garetienDetailWaehlen(mitListe.key, [mitListe]);
-	mod.garetienEingabenAendern({
-		target: {
-			getAttribute: (name) => (name === "data-gi-feld" ? "innerorts" : null),
-			hasAttribute: (name) => name === "data-gi-feld",
-			value: "dorf-aue",
-		},
-	}, [mitListe]);
+	const feld = (name, wert) => ({ target: {
+		getAttribute: (a) => (a === "data-gi-feld" ? name : null),
+		hasAttribute: (a) => a === "data-gi-feld",
+		value: wert,
+	} });
+	mod.garetienEingabenAendern(feld("innerorts", "dorf-aue"), [mitListe]);
 	gleich(mod.garetienInnerortsWahlZu(mitListe), "dorf-aue", "die Wahl liegt neben dem DOM und haelt");
-	gleich(mod.garetienInnerortsZiel(mitListe).name, "Aue",
-		"🔴 und der Knopf nennt jetzt SIE, nicht mehr die Vorauswahl");
-	// 💣 AM KNOPF SELBST GEMESSEN, nicht nur am Leser dahinter. `garetienInnerortsZiel` richtig zu
-	// haben und ihn an der Beschriftung NICHT zu rufen ist genau der Fehler, den der Kommentar an
-	// der Handlungsleiste beschreibt: der Knopf sagte „Innerorts einfügen (Wandleth)", die Anfrage
-	// daneben schickte „dorf-aue". Eine Mutationsprobe (07.09.2026) hat diese Luecke gefunden --
-	// die Zusicherung darueber allein hat sie ueberlebt.
-	const knopfNachWahl = mod.garetienHandlungen(mitListe).filter((h) => h.name === "innerorts")[0];
-	wahr(knopfNachWahl && knopfNachWahl.beschriftung.indexOf("(Aue)") !== -1,
-		"der KNOPF traegt die gewaehlte Stadt: " + (knopfNachWahl && knopfNachWahl.beschriftung));
-	wahr(mod.garetienHandlungTitel("innerorts", mitListe).includes("Aue"),
-		"...und der Tooltip ebenso -- zwei Erzeuger, ein Leser");
+	gleich(mod.garetienInnerortsZiel(mitListe).name, "Aue", "🔴 und der Leser nennt jetzt SIE");
+	wahr(!("innerorts" in mod.garetienEingabenFuerServer(mitListe)),
+		"💣 EINE GEWAEHLTE SIEDLUNG ALLEIN IST KEINE STAETTE -- das sagt erst die Zielwahl");
+	mod.garetienEingabenAendern(feld("zielwahl", "staette"), [mitListe]);
+	// 💣 AN DER ZIELWAHL SELBST GEMESSEN, nicht nur am Leser dahinter: sagte die Zeile „Stätte in
+	// Wandleth", waehrend die Anfrage „dorf-aue" schickt, waere genau die Verwechslung zurueck, gegen die
+	// der Ortsname ueberhaupt in der Zeile steht (Mutationsprobe 07.09.2026, damals am Knopf).
+	wahr(mod.garetienZielwahlMarkup(mitListe).includes("Stätte in „Aue“"),
+		"die Zielwahl traegt die gewaehlte Siedlung: " + mod.garetienZielwahlMarkup(mitListe));
 	const mitWahl = mod.garetienEingabenFuerServer(mitListe);
 	tief(mitWahl, { innerorts: true, innerorts_public_id: "dorf-aue" },
-		"⭐ DADURCH WIRKT INNERORTS UEBER DIE STAGE -- bis zum 07.09.2026 legte „Stage importieren\" "
-		+ "nie eine Staette an, und der Einzelknopf war der einzige Weg dorthin");
+		"⭐ DADURCH WIRKT INNERORTS UEBER DIE STAGE: " + JSON.stringify(mitWahl));
 	wahr(!("ziel" in mitWahl),
 		"💣 UND KEIN `ziel`: avesmapsGaretienZielUebersteuern laeuft serverseitig VOR der "
 		+ "Innerorts-Weiche und formte die Geometrie fuer ein Ziel um, das nie gebaut wird");
-	wahr(mod.garetienInnerortsZeileMarkup(mitListe, false).includes("OHNE Position auf der Karte"),
-		"und die Zeile darunter sagt, was das heisst -- sonst behauptet der Kasten weiter „Form: Ort\"");
+	wahr(mod.garetienInnerortsZeileMarkup(mitListe, false).includes('class="gi-insert__row">Siedlung'),
+		"und mit „Stätte\" ist die Siedlung bedienbar");
 
 	// --- Eine Wahl, die es nicht (mehr) gibt -----------------------------------------------
 	mod.garetienEingabenAendern({
@@ -357,12 +224,14 @@ function pruefeAuswahlfeld() {
 		"💣 eine Stadt, die NICHT in den Kandidaten steht, zaehlt nicht -- der frische Nachschlag "
 		+ "kann die Liste unter einer stehenden Wahl austauschen. Serverseitig faengt derselbe "
 		+ "Riegel den Fall noch einmal (avesmapsGaretienInnerortsAusVorschlag)");
-	gleich(mod.garetienInnerortsZiel(mitListe).name, "Wandleth", "...und der Knopf faellt auf die Vorauswahl zurueck");
+	gleich(mod.garetienInnerortsZiel(mitListe).name, "Wandleth", "...und der Leser faellt auf die Vorauswahl zurueck");
 	mod.garetienDetailWaehlen(null, []);
 	mod.garetienInnerortsWahlVergessen();
+	mod.garetienZielwahlVergessen();
+	mod.avesmapsGaretienStageLeeren();
 }
 
-pruefeKlick().then(() => {
+Promise.resolve().then(() => {
 	pruefeUebernommen();
 	pruefeAuswahlfeld();
 	console.log("OK: " + checks + " Pruefungen");

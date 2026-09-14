@@ -208,4 +208,22 @@ tief(jsSchluessel, phpSchluessel,
 	"🔴 die sieben Formschlüssel stimmen ZEICHENGLEICH überein -- ein neuer Schlüssel auf einer "
 	+ "Seite ohne die andere wäre eine stille Lücke: " + jsSchluessel + " vs " + phpSchluessel);
 
+// =================================================================================================
+// 8. Ruling R-b (Aufgabe 9, 14.09.2026): `hinweise` werden sichtbar -- angehängt wie die übrigen
+//    Teile der Meldung, ohne `hinweise` bleibt der Text unverändert.
+// =================================================================================================
+
+m = garetienImportMeldung({
+	applied: 1, fehler: [], angelegt_je_form: { path: 0, bach: 0, region: 0, label: 0, location: 0, settlement_place: 1, quelle: 0 },
+	hinweise: ["Quelle an „Wandleth“ war schon vorhanden"],
+});
+wahr(m.text.includes("Quelle an „Wandleth“ war schon vorhanden"),
+	"der Hinweis-Satz steht in der Meldung: " + m.text);
+
+const mOhneHinweise = garetienImportMeldung({
+	applied: 1, fehler: [], angelegt_je_form: { path: 0, bach: 0, region: 0, label: 0, location: 0, settlement_place: 1, quelle: 0 },
+});
+gleich(mOhneHinweise.text, "✓ 1 Objekt importiert — 1 Stätte",
+	"ohne `hinweise` bleibt die Meldung unverändert");
+
 console.log(`garetien-import-meldung ok -- ${checks} Zusicherungen`);

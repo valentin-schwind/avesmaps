@@ -43,10 +43,13 @@ function ziel(attribute, optionen) {
 
 function fragmente(n) {
 	// Aufgabe 6: Zusammenlegen verlangt die Form Flaeche -- ohne `ziel` waere es gesperrt.
+	// 🔴 Aufgabe 9: und ein 'new'-Item, sonst ist die Zielwahl-Vorbelegung "nichts" statt "karte"
+	// (Ruling R-a) und garetienVerbundZusammenlegbar sperrt.
 	const basis = { ebene: "Waelder", typ: "Wald", verbund_stamm: "Silker Hain", verbund_n: n,
 		ziel: "region", subtyp: "wald", urteil: "neu", stand: "offen" };
 	return Array.from({ length: n }, (_, i) => Object.assign(
-		{ key: "ggp:silkerhain:" + i, name: "Silker Hain " + (i + 1) }, basis));
+		{ key: "ggp:silkerhain:" + i, name: "Silker Hain " + (i + 1),
+			items: [{ id: 300 + i, change_type: "new" }] }, basis));
 }
 
 function zuruecksetzen() {

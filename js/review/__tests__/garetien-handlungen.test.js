@@ -1205,7 +1205,7 @@ function neuZiel(key, options) {
 }
 
 // 🔴 pruefeNeuKlick IST AM 07.09.2026 ENTFALLEN -- „Neu einfügen" gibt es nicht mehr
-// (Owner-Punkt 12: angelegt wird ueber „Stage importieren"). Denselben Ablauf (select → apply → liste, mit Riegel und Knopfsperre) faehrt weiterhin garetien-innerorts-knopf.test.js ueber „Innerorts einfügen" -- den EINEN Aufrufer, der garetienNeuKlick noch hat.
+// (Owner-Punkt 12: angelegt wird ueber „Stage importieren"). Denselben Ablauf (select → apply → liste) faehrt seit dem 14.09.2026 garetien-import-verdrahtung.test.js ueber „Stätte in X" am Fußknopf -- garetienNeuKlick ist mit „Innerorts einfügen" gefallen.
 async function pruefeNeuKlick() { /* entfallen, siehe oben */ }
 
 // 🔴 Meldung B (30.08.2026, Owner): „trotzdem neu anlegen" trotz erkannter Kollision -- dieselbe

@@ -993,6 +993,43 @@ html.avesmaps-planner-collapsed .gi-win {
  * Ort/Weg (garetienEingefuegtWirdZeileMitHinweis, unverändert). */
 .gi-insert__hint { font-weight: var(--font-weight-regular); color: var(--color-warning); }
 
+/* ══ VERTRAG: css/components/garetien-importer.css ══
+   🔴 DIE ZIELWAHL (Bauplan „Garetien-Importer vereint", Aufgabe 9). Alles zwischen diesen Marken steht
+   zeichengleich in docs/garetien-import-vereint-mockup.html (tools/mockup-vertrag/__tests__/
+   mockup-vertrag.test.js, laeuft im Deploy-Tor). Wer hier einen Wert aendert, aendert ihn im Mockup mit
+   -- oder der Test wird rot.
+   ⚠️ Aufgabe 11 bindet `.gi-block` und seine Teile in einem ZWEITEN Block auf diese Datei; das Werkzeug
+   prueft jeden Block fuer sich. */
+
+/* Die Zielwahl. Eine Liste ohne Rahmen (§12): die Wahl ist die Zeile, nicht ein Kasten um sie. */
+.gi-ziel { display: flex; flex-direction: column; gap: 1px; margin: 0 0 var(--space-4); }
+.gi-ziel__option { display: grid; grid-template-columns: 18px minmax(0, 1fr); align-items: start;
+	gap: var(--space-2) var(--space-4); padding: var(--space-2) var(--space-4); border: 1px solid transparent;
+	border-radius: var(--radius-md); cursor: pointer; }
+.gi-ziel__option:hover { border-color: var(--color-border-strong); }
+.gi-ziel__option input { margin: 2px 0 0; accent-color: var(--color-accent-brown); }
+.gi-ziel__option.is-gewaehlt { background: var(--color-active-wash); border-color: var(--color-accent); }
+.gi-ziel__t1 { font-size: var(--font-size-small); font-weight: var(--font-weight-bold); color: var(--color-text-strong); }
+.gi-ziel__t2 { grid-column: 2; font-size: var(--font-size-caption); color: var(--color-text-muted); }
+.gi-ziel__option--warn .gi-ziel__t2 { color: var(--color-warning-soft-text); }
+/* 💣 Die zweite Zeile einer GEWAEHLTEN Option nimmt die volle Textfarbe: auf der Waesche erreichte das
+   gedaempfte Grau im dunklen Thema nur 3,07:1 (Warnzeile 4,40:1) -- Soll 4,5:1 bei 11px. Deshalb auch
+   KEINE Waesche beim Ueberfahren (dort 3,98:1), sondern ein kraeftigerer Rahmen. */
+.gi-ziel__option.is-gewaehlt .gi-ziel__t2 { color: var(--color-text); }
+
+/* Abgeblendet, nicht ausgeblendet: das Feld bleibt stehen, damit die Spalte nicht springt. */
+.gi-insert__row--aus { color: var(--color-disabled-text); }
+.gi-insert__row--aus > span:first-child { color: var(--color-disabled-text); }
+
+/* ══ VERTRAG ENDE ══ */
+
+/* Uebergangsort bis Aufgabe 11: die Zielwahl steht in der Handlungsleiste, und `.gi-acts` ist eine
+   umbrechende flex-ZEILE -- ohne volle Basis schrumpfte die Liste auf ihre Inhaltsbreite und zoege die
+   naechste Zeile daneben (dieselbe Regel wie `.gi-acts .gi-insert__row` weiter unten).
+   ⚠️ Ausserhalb des Vertrags: das Mockup zeigt die Liste in Block C, nicht in der Leiste.
+   🔧 Aufgabe 11 entfernt diese Regel, wenn die Zielwahl in Block C umzieht. */
+.gi-acts > .gi-ziel { flex: 1 0 100%; }
+
 /* ---- Aufgabe „Eingefügt wird -> Eingabefelder" (30.08.2026, Owner: „warum darf ich das nicht
  * verändern?") -- Größe/Priorität/Zoomband/Kurvenbeschreibung/Auf Karte anzeigen/für Klicks
  * gesperrt werden echte Eingabefelder statt reiner Anzeige. Hausform von `.gi-search` (Rahmen,
@@ -1024,29 +1061,6 @@ html.avesmaps-planner-collapsed .gi-win {
 	background: var(--color-disabled-bg);
 	border-color: var(--color-disabled-border);
 	color: var(--color-disabled-text);
-}
-
-/* „Innerorts einfügen" blendet den Kasten ab, statt ihn zu verstecken (Entwurf
- * docs/superpowers/specs/2026-09-02-innerorts-import-design.md §4).
- *
- * 🔴 ABGEBLENDET, NICHT VERSTECKT. Der Kasten beschreibt, was auf der KARTE entstünde -- Form,
- * Art, Farbe, Strömung -- und für ein innerorts eingefügtes Objekt entsteht dort nichts. Ihn
- * wegzunehmen liesse die Spalte springen, und der Editor verlöre mitten in der Entscheidung den
- * Bezug; abgeblendet sagt er dasselbe und bleibt an seinem Platz.
- *
- * 💣 ÜBER DEN GEMEINSAMEN VORFAHREN. Die Handlungsleiste steht VOR `.gi-insert`, und ein
- * Kombinator kann von dort aus nicht nach hinten greifen; `:has()` am Vorfahren ist der einzige
- * Weg, der ohne einen zweiten Zustand im JavaScript auskommt.
- * 🪴 Hier stand bis zum 09.09.2026 die Begründung „sie ist deren Geschwister,
- * `.gi-win .avm-col > .gi-acts`“. Seit die Leiste mitrollt (Owner: nicht mehr sticky), ist sie
- * ein KIND von `.gi-detail` -- die Regel selbst trägt weiter, weil `.avm-col` beide enthält.
- *
- * ⚠️ `:focus-visible` steht daneben: wer mit der Tastatur bedient, überfährt nichts.
- * ⚠️ `opacity: .5` ist die Hausform (editor-page.css), keine neue Zahl. */
-.gi-win .avm-col:has(.gi-acts [data-handlung="innerorts"]:hover) .gi-insert,
-.gi-win .avm-col:has(.gi-acts [data-handlung="innerorts"]:focus-visible) .gi-insert {
-	opacity: .5;
-	transition: opacity 120ms ease;
 }
 
 /* Das Freitextfeld der Ortsart (Owner 30.08.2026, „ja mach ort bearbeiten") -- dieselbe Optik wie

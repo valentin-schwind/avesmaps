@@ -29,9 +29,10 @@ api.avesmapsGaretienStageLeeren();
 
 // --- 1. NUR AUF DER STAGE -----------------------------------------------------------------------
 const o = objekt();
-pruefe(api.garetienEinfuegeHakenMarkup(o) === "", "vor der Stage kein Kasten und kein Namensfeld");
+// 🔴 Seit dem 14.09.2026 steht das Namensfeld unter der Zielwahl in der Handlungsleiste.
+pruefe(!api.garetienHandlungsMarkup(o).includes('data-gi-feld="einfuegeName"'), "vor der Stage kein Namensfeld");
 api.avesmapsGaretienStageHinzufuegen([o]);
-let mk = api.garetienEinfuegeHakenMarkup(o);
+let mk = api.garetienHandlungsMarkup(o);
 pruefe(mk.includes('data-gi-feld="einfuegeName"'), "auf der Stage steht das Namensfeld da");
 pruefe(mk.includes('value="Dunkelforst"'), "vorbelegt mit dem Namen des Vorschlags");
 
