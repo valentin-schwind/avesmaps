@@ -14,6 +14,11 @@
  * never re-invent focusing. If nothing matches client-side (object outside the current BF-year/zoom
  * band or not hydrated), we fall back to ONE request to our own /api/app/map-search.php.
  *
+ * ?place=<publicId> -- a settlement or landscape label by public id (the share link of one WITHOUT a
+ * wiki article, and the capital link of the Wiki-Sync monitor) -- resolves here as well
+ * (findPlaceDeeplinkSpotlightEntry) and ends in the same selectSpotlightSearchEntry: every deep link
+ * flies to its object AND opens its infobox.
+ *
  * Wired from routing.js (after applyPlaceFocusFromUrl(), i.e. after markers/regions have hydrated).
  * Plain classic script: global function declarations, no top-level execution.
  */
@@ -121,6 +126,7 @@ function wikiUrlToDeeplinkKey(wikiUrl) {
 //  - location: entry.locationEntry.location.wikiUrl
 //  - region:   entry.regionEntry.wikiUrl (synthetic backend entries have none -> matched via map-search)
 //  - path:     any grouped path feature's properties.wiki_path.wiki_url
+//  - label:    entry.labelEntry.label.wikiRegion.wiki_url
 function spotlightEntryWikiKeys(entry) {
 	const keys = [];
 	const pushKey = (wikiUrl) => {
@@ -136,7 +142,11 @@ function spotlightEntryWikiKeys(entry) {
 	} else if (entry.kind === "path") {
 		(entry.paths || []).forEach((path) => pushKey(path?.properties?.wiki_path?.wiki_url));
 	} else if (entry.kind === "label") {
-		pushKey(entry.labelEntry?.label?.wikiUrl);
+		// 💣 A label keeps its article in label.wikiRegion.wiki_url -- the label model has no wikiUrl
+		// field at all. Reading the absent one left EVERY wiki-linked landscape label unmatchable here
+		// (live 14.09.2026: 0 of 661), so each ?region=<Landschaft> waited for map-search -- about 6 s
+		// on a cold page -- and then took whichever same-named hit the server ranked first.
+		pushKey(entry.labelEntry?.label?.wikiRegion?.wiki_url);
 	}
 	return keys;
 }
@@ -346,6 +356,52 @@ function avesmapsFocusPoliticalTerritory(name, publicId) {
 			}
 		})
 		.catch(() => {});
+}
+
+// ?place=<publicId>: a settlement or landscape label by public id. Two producers: the share link of an
+// object that has NO wiki article (buildShareLinkPath in js/map-features/map-features-share-pin.js --
+// settlements and landscape labels only; ways and territories share through their wiki param or not at
+// all), and the capital link of the Wiki-Sync monitor (capChip in html/wiki-sync-monitor.html -- a
+// settlement, with or without an article). Resolves to the SAME spotlight entry
+// the search would pick, so applyPlaceFocusFromUrl (routing.js) hands it to selectSpotlightSearchEntry:
+// fly there AND open the infobox, exactly like a search hit or a ?siedlung= link.
+//
+// 💣 Until 14.09.2026 routing.js carried its own version of this focus (setView, switch the settlement
+// size on, marker.openPopup(); focusSharedLabelFromUrl for labels). In infopanel mode -- the default --
+// a marker's openPopup() shows nothing, so a ?place= link flew to its place and left the infobox shut.
+// Measured live on Gareth and on the Altenforst label.
+//
+// The keys are the search index's own (`<kind>:<publicId>`), so the selection id equals the search
+// hit's: Escape and an outside click treat a place opened by link and by search as one selection.
+// ⚠️ Crossings are not in the search index (buildSpotlightLocationEntries leaves them out), yet a ?place=
+// naming one still names a location -- hence the marker fallback, in the minimal shape
+// focusSpotlightLocation reads.
+const PLACE_DEEPLINK_KINDS = ["location", "label"];
+
+function findPlaceDeeplinkSpotlightEntry(publicId) {
+	const id = String(publicId || "").trim();
+	if (!id) {
+		return null;
+	}
+	if (typeof getSpotlightSearchLookup === "function") {
+		let byPublicId = null;
+		try {
+			byPublicId = getSpotlightSearchLookup().byPublicId;
+		} catch (error) {
+			byPublicId = null;
+		}
+		for (const kind of PLACE_DEEPLINK_KINDS) {
+			const entry = byPublicId ? byPublicId.get(`${kind}:${id}`) : null;
+			if (entry) {
+				return entry;
+			}
+		}
+	}
+	const markerEntry = typeof findLocationMarkerByPublicId === "function" ? findLocationMarkerByPublicId(id) : null;
+	if (markerEntry && markerEntry.marker) {
+		return { id: `location:${id}`, kind: "location", name: markerEntry.name, publicIds: [id], locationEntry: markerEntry };
+	}
+	return null;
 }
 
 // Entry point: called once from the load path (routing.js, after applyPlaceFocusFromUrl) once markers and

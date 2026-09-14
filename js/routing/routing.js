@@ -296,9 +296,14 @@ function loadRouteDataFromApi() {
 
 	// 🔴 OHNE EIGENE KOPFZEILEN, SOLANGE ES KEINEN TAG GIBT, UND DAS IST TRAGEND. Diese Anfrage wird
 	// im Kopf von index.html per <link rel="preload" as="fetch"> vorangemeldet; ein `Accept:
-	// application/json` hier gegen das `*/*` des Vorabrufs laesst Chrome den Vorabruf verwerfen -- und
+	// application/json` hier gegen das Accept „Stern Schraegstrich Stern" des Vorabrufs laesst Chrome den
+	// Vorabruf verwerfen -- und
 	// dann reisen die ~3 MB ZWEIMAL, also schlechter als ohne Vorabruf. Serverseitig liest den Kopf
 	// niemand (kein HTTP_ACCEPT in api/), er war reine Hoeflichkeit.
+	// 🪤 Das Accept-Muster steht hier AUSGESCHRIEBEN, nie als Zeichen: als Zeichen oeffnet es fuer die
+	// Kommentar-Entferner der Quelltext-Tests einen Blockkommentar bis zum naechsten Stern-Schraegstrich.
+	// Am 14.09.2026 reichte der bis Zeile ~1600 und schluckte den Klick-Verteiler -- sechs Tests sahen
+	// ihn nicht mehr, weil ein weiter unten geloeschter Blockkommentar ihn bis dahin zufaellig begrenzt hatte.
 	// 💣 UND GENAU DESHALB HAENGEN DIE ZWEI SEITEN ZUSAMMEN: sobald wir `If-None-Match` mitschicken,
 	// verfehlt die Anfrage den Vorabruf. Aufgeloest wird das im KOPF von index.html, nicht hier --
 	// liegt ein Tag in localStorage, meldet das Skript dort gar keinen Vorabruf an (die Anfrage wird
@@ -433,10 +438,11 @@ function startLiveMapUpdates() {
 	}, 15000);
 }
 
-// Deep-Link ?place=<public_id>: nach dem Laden zur verknuepften Siedlung springen
-// (z. B. Hauptstadt-Link aus dem Wiki-Sync-Editor). Read-only Fokus, keine Seiteneffekte.
-// Param FRUEH abfangen: der Routenplaner schreibt die URL beim Laden um (entfernt ?place),
-// daher beim Script-Load lesen (synchron, vor dem async Daten-Load) und merken.
+// Deep-Link ?place=<public_id>: nach dem Laden zum Objekt fliegen und seine Infobox oeffnen -- der
+// Teilen-Link eines Orts oder einer Beschriftung OHNE Wiki-Artikel (buildShareLinkPath,
+// map-features-share-pin.js) und der Hauptstadt-Link des Wiki-Sync-Monitors (capChip, auch MIT Artikel).
+// Param FRUEH abfangen: der Routenplaner schreibt die URL beim Laden um
+// (entfernt ?place), daher beim Script-Load lesen (synchron, vor dem async Daten-Load) und merken.
 const PLACE_FOCUS_PUBLIC_ID = (function () {
 	try {
 		return (typeof window.avesmapsSearchParams === "function" ? window.avesmapsSearchParams() : new URLSearchParams(window.location.search)).get("place") || "";
@@ -444,99 +450,36 @@ const PLACE_FOCUS_PUBLIC_ID = (function () {
 		return "";
 	}
 })();
-// Fokussiert ein geteiltes Label (Wiki-Landschaft/Region) per public_id: Ebene auf
-// Landschaften, hinfliegen, sichtbar machen und Infobox-Popup öffnen. Gibt true zurück,
-// wenn ein passendes Label gefunden wurde.
-function focusSharedLabelFromUrl(publicId) {
-	const labelEntry = typeof findLabelEntryByPublicId === "function" ? findLabelEntryByPublicId(publicId) : null;
-	if (!labelEntry || !labelEntry.marker) {
-		return false;
-	}
-	if (typeof setSelectedMapLayerMode === "function") {
-		setSelectedMapLayerMode("deregraphic");
-	}
-	const label = labelEntry.label || {};
-	const visualMax = typeof VISUAL_MAX_ZOOM_LEVEL !== "undefined" ? VISUAL_MAX_ZOOM_LEVEL : map.getMaxZoom();
-	const labelMax = Number.isFinite(Number(label.maxZoom)) ? Number(label.maxZoom) : visualMax;
-	const targetZoom = Math.max(Number(label.minZoom) || 0, Math.min(labelMax, visualMax));
-	map.setView(labelEntry.marker.getLatLng(), targetZoom, { animate: false });
-	if (typeof syncLabelVisibility === "function") {
-		syncLabelVisibility();
-	}
-	// Popup erst nach dem Sichtbar-Schalten öffnen (Marker kann gerade erst hinzugefügt werden).
-	window.setTimeout(() => {
-		try {
-			labelEntry.marker.openPopup();
-		} catch (error) {
-			/* Popup ist optional */
-		}
-	}, 0);
-	return true;
-}
 
+// 🔴 EIN TRICHTER: der Treffer geht durch selectSpotlightSearchEntry -- denselben Weg wie die Suche und
+// die Wiki-Deep-Links (?siedlung/?region/…). Hinfliegen UND Infobox oeffnen, und zwar fuer beide Arten,
+// die einen ?place=-Link bekommen (Aufloesung: findPlaceDeeplinkSpotlightEntry, js/app/wiki-deeplink.js).
+// 💣 Hier stand bis zum 14.09.2026 eine EIGENE Fassung: setView, Ortsgroesse dauerhaft einschalten,
+// `marker.openPopup()` -- und fuer Beschriftungen eine zweite (focusSharedLabelFromUrl). Im
+// Infopanel-Modus, der Vorgabe, oeffnet `openPopup()` am Marker nichts: der Link flog zur Stelle und
+// liess die Infobox zu. Live gemessen an Gareth und am Altenforst-Label (Owner 14.09.2026: „wär schön,
+// wenn das ging").
+// ⚠️ Damit gilt auch dasselbe Kartenverhalten wie bei ?siedlung=: Flug statt Sprung, Zoom aus dem
+// Zoomband, und die Ortsgroesse wird nicht mehr dauerhaft eingeschaltet -- das tut die Suche seit
+// Langem nicht mehr. Die alte Sorge „setView, sonst ueberfaehrt das Overview-fitBounds den Flug"
+// traegt nicht: focusMapOnActiveTargets bewegt die Karte nur bei Route oder Pin.
 function applyPlaceFocusFromUrl() {
 	if (!PLACE_FOCUS_PUBLIC_ID) {
 		return;
 	}
-	const entry = typeof findLocationMarkerByPublicId === "function" ? findLocationMarkerByPublicId(PLACE_FOCUS_PUBLIC_ID) : null;
-	if (!entry) {
-		// ?place= links must keep their URL exactly like the wiki deep-links (js/app/wiki-deeplink.js):
-		// suppress the next syncPlannerStateToUrl writes around the focus hand-off, whichever branch below.
-		if (typeof suppressPlannerUrlSyncForWikiDeeplink === "function") {
-			suppressPlannerUrlSyncForWikiDeeplink();
-		}
-		// Kein Ort -> Label (Landschaft/Region) versuchen: hinfliegen + Infobox öffnen.
-		if (focusSharedLabelFromUrl(PLACE_FOCUS_PUBLIC_ID)) {
-			return;
-		}
-		// Marker (noch) nicht geladen -> vorhandene Logik (zeigt ggf. Hinweis-Toast).
-		if (typeof focusRegionPlace === "function") {
-			focusRegionPlace(PLACE_FOCUS_PUBLIC_ID);
-		}
-		return;
-	}
-	// ?place= links must keep their URL exactly like the wiki deep-links (js/app/wiki-deeplink.js):
-	// suppress the syncPlannerStateToUrl call below (and any other sync a marker/category toggle triggers).
+	// ?place= links must keep their URL exactly like the wiki deep-links (js/app/wiki-deeplink.js).
 	if (typeof suppressPlannerUrlSyncForWikiDeeplink === "function") {
 		suppressPlannerUrlSyncForWikiDeeplink();
 	}
-	// setView (synchron) statt flyTo: läuft als letzte View-Operation des Ladens und wird
-	// nicht vom Overview-fitBounds überfahren. Marker einblenden + Popup öffnen.
-	const targetLatLng = entry.marker.getLatLng();
-	map.setView(targetLatLng, Math.max(map.getZoom(), 4), { animate: false });
-	// Kategorie der Ortschaft einschalten, damit der Marker DAUERHAFT sichtbar bleibt (sonst
-	// entfernt ihn der nächste Sichtbarkeits-Sync wieder). Erzwingen (kein Toggle), die
-	// Stufe + alle darunter aktivieren -- analog setVisibleLocationTypesThrough, aber ohne
-	// dessen Aus-Schalt-Eigenheit, falls die Zielstufe gerade der aktiven entspricht.
-	let categoryEnabled = false;
-	if (typeof LOCATION_TYPE_VISIBILITY_ORDER !== "undefined" && typeof getLocationToggleButton === "function") {
-		const targetIndex = LOCATION_TYPE_VISIBILITY_ORDER.indexOf(entry.locationType);
-		if (targetIndex >= 0) {
-			LOCATION_TYPE_VISIBILITY_ORDER.forEach((locationType, index) => {
-				if (index <= targetIndex) {
-					getLocationToggleButton(locationType).addClass("is-active");
-				}
-			});
-			if (typeof syncLocationMarkerVisibility === "function") {
-				syncLocationMarkerVisibility();
-			}
-			if (typeof syncPlannerStateToUrl === "function") {
-				syncPlannerStateToUrl();
-			}
-			categoryEnabled = true;
-		}
+	const entry = typeof findPlaceDeeplinkSpotlightEntry === "function" ? findPlaceDeeplinkSpotlightEntry(PLACE_FOCUS_PUBLIC_ID) : null;
+	if (entry && typeof selectSpotlightSearchEntry === "function") {
+		selectSpotlightSearchEntry(entry);
+		return;
 	}
-	if (!categoryEnabled && !map.hasLayer(entry.marker)) {
-		try {
-			map.addLayer(entry.marker);
-		} catch (error) {
-			/* Sichtbarkeit wird ohnehin per zoomend synchronisiert */
-		}
-	}
-	try {
-		entry.marker.openPopup();
-	} catch (error) {
-		/* Popup ist optional */
+	// Das Objekt ist nicht (mehr) auf der Karte: derselbe Hinweis wie in der alten Fassung (focusRegionPlace),
+	// nur mit „Objekt" statt „Ort", weil ?place= auch Beschriftungen meint.
+	if (typeof showFeedbackToast === "function") {
+		showFeedbackToast("Das verlinkte Objekt ist gerade nicht auf der Karte.", "warning");
 	}
 }
 

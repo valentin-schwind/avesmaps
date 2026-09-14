@@ -132,9 +132,12 @@ function focusSpotlightLabel(entry) {
 	spotlightFlyTo(labelEntry.marker.getLatLng(), targetZoom);
 	syncLabelVisibility();
 	// Infopanel (default): open the landscape/region label's info in the right panel too -- map-click
-	// parity via the shared buildRegionLabelViewPopupHtml. A label without a wiki region has no infobox.
-	if (typeof labelHasWikiRegion === "function" && labelHasWikiRegion(labelEntry.label)
-		&& typeof window.avesmapsShowInfopanel === "function" && typeof buildRegionLabelViewPopupHtml === "function") {
+	// parity via the shared buildRegionLabelViewPopupHtml.
+	// 🔴 No labelHasWikiRegion gate (Spec §5.2) -- the same rule as the map click in createLabelMarker:
+	// a label without a wiki article still has a name, a kind, a Kartensammlung and Literatur. The gate
+	// outlived the click's and left exactly those labels unopenable from the search and from their own
+	// ?place= share link, the only link such a label gets (buildShareLinkPath).
+	if (typeof window.avesmapsShowInfopanel === "function" && typeof buildRegionLabelViewPopupHtml === "function") {
 		// 💣 Ein BAUER, kein fertiger Text -- er ist zugleich der Anker fuer avesmapsRefreshInfopanel.
 		// Dieselbe Begruendung wie am Kartenklick (createLabelMarker, map-features-labels.js).
 		window.avesmapsShowInfopanel(() => buildRegionLabelViewPopupHtml(labelEntry.label), labelEntry.label.text || "");

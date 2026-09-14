@@ -101,9 +101,9 @@ function createRegionWikiInfoBoxMarkup(regionEntry) {
 	// nicht als Mass: sobald der Detail-Abruf `fields` mitbringt, ist das auch fuer einen eigenen
 	// Knoten true.
 	const hasWikiArticle = Boolean(regionEntry.wikiId || regionEntry.wikiName || wikiUrl);
-	// "Link teilen" nur bei vorhandenem Wiki-Artikel (kein ?place=-Fallback: focusRegionPlace loest nur
-	// Orts-public_ids auf, nicht das public_id des Gebiets/der Region selbst -- siehe
-	// js/map-features/map-features-region-tooltip-lifecycle.js focusRegionPlace). wikiParam-Diskriminator:
+	// "Link teilen" nur bei vorhandenem Wiki-Artikel (kein ?place=-Fallback: ?place= loest nur Orte und
+	// Beschriftungen auf, nicht das public_id des Gebiets/der Region selbst -- siehe
+	// findPlaceDeeplinkSpotlightEntry in js/app/wiki-deeplink.js). wikiParam-Diskriminator:
 	// regionEntry.source === "political_territory" fuer politische Territorien, sonst "map_feature" fuer
 	// Landschafts-Regionen (gesetzt in js/map-features/map-features-region-feature-normalization.js:22)
 	// -> "staat" bzw. "region" (js/app/wiki-deeplink.js). Gleiches Markup/Klick-Handling wie Orts-Popups
