@@ -13374,6 +13374,14 @@ an den Grenzen, an denen die Oberfläche einen abgenommenen Zustand zeigt:
 | **5** | Aufgabe **12** | Ziel in der Zeile, „alle n" im Listenkopf, Fußleiste ohne „Alle wählen" |
 | **6** | die Wege-Freigabe (unten, C) | Wege-Verbünde lassen sich zusammenlegen |
 
+🔧 **Die Nachbesserungswelle nach der Schlussprüfung** (Commits `11f233572`/`63179e29c`/`c6e5af4c0`)
+geht NICHT als eigener Push — jeder Commit wandert per Cherry-Pick in den Push, dessen Code er
+korrigiert: **W1** (MySQL-Syntaxfehler der Trägerabfrage, `11f233572`) und **W2** (Hinweise als
+„[object Object]", `63179e29c`) treffen Code aus Aufgabe 8/9/13 und gehen deshalb mit **Push 2**.
+**W3 + G1** (`c6e5af4c0`, ein Commit) korrigieren `garetienWikiLandschaftBeiBedarfLaden` und
+`garetienVerbundBlockMarkup` — beide Funktionen stehen schon am Ende von Aufgabe 7 (Commit
+`06307b1de`), der Commit passt also sauber auf **Push 1** und geht mit diesem.
+
 **So wird jeder Push gefahren** (AGENTS.md §9, Wegwerf-Worktree — der Hauptbaum bleibt unberührt):
 
 - [ ] `git fetch origin` · `gh run list --limit 3` lesen; ein `in_progress` und ein `pending` heißen warten.
@@ -13424,22 +13432,35 @@ Mit angemeldeter Sitzung auf der Live-Seite. ⚠️ **Jeder Import schreibt in d
 laufen an einem einzigen, gekennzeichneten Objekt und werden am Ende über „Zurücknehmen" wieder entfernt.
 Was ein Emulator nicht beantworten kann (echtes Touch-Verhalten), wird als offene Frage gemeldet.
 
-- [ ] **Push 1:** „Holen & Rechnen" → Filter „nur Verbünde" zeigt Verbünde und die Zahl stimmt mit der
-  Statuszeile → einen Flächen-Verbund auf „Offen" wählen → „Auf die Stage" nennt „mit n weiteren
-  Fragmenten" und legt alle auf → auf der Stage suchen: das Suchfeld filtert die Stage → Block B
-  „Zusammenlegen (n)" → Fußknopf „· 1 Objekt aus n Zeilen" → „Stage leeren" → **ein** Fragment einzeln
-  auflegen: es ist **nicht** zusammengelegt → erneut alle auflegen, zusammenlegen, importieren →
-  die Rückfrage nennt „1 Fläche „Stamm" mit n Teilen" → auf der Karte **eine** Beschriftung mit dem
-  Stamm, n Flächen, Wiki-Zuweisung an der Fläche → „Übernommen" zeigt **eine** Zeile → „Holen & Rechnen"
-  → immer noch eine Zeile → ↩ an einem Fragment: Region, Beschriftung und Garetien-Quelle bleiben →
-  „Ganzen Verbund zurücknehmen": nichts bleibt, auch keine leere Region.
+- [ ] **Push 1:** „Holen & Rechnen" → Filter „nur Verbünde" setzen: es bleiben nur Zeilen mit der
+  Fragment-Marke „⧉ n Fragmente" stehen, keine Einzelobjekte mehr (🔧 SCHLUSSWELLE G2, richtiggestellt:
+  die Reiter-Zahl neben „Offen" bleibt dabei der SERVER-Gesamtwert des Reiters — `a.reiter`, unabhängig
+  vom Filter — und wandert mit dem Filter NICHT mit; ein Zahlenvergleich gegen die Statuszeile
+  [`garetienStatusRuhe`, die keine Verbund-Zahl nennt] ist erst ab Push 5 möglich, wenn der Listenkopf
+  „alle n" aus Aufgabe 12 die Zahl der SICHTBAREN Zeilen zählt) → einen Flächen-Verbund auf „Offen"
+  wählen → „Auf die Stage" nennt „mit n weiteren Fragmenten" und legt alle auf → auf der Stage suchen:
+  das Suchfeld filtert die Stage → Block B „Zusammenlegen (n)" → Fußknopf „· 1 Objekt aus n Zeilen" →
+  „Stage leeren" → **ein** Fragment einzeln auflegen: es ist **nicht** zusammengelegt → erneut alle
+  auflegen, zusammenlegen, importieren → die Rückfrage nennt „1 Fläche „Stamm" mit n Teilen" → auf der
+  Karte **eine** Beschriftung mit dem Stamm, n Flächen, Wiki-Zuweisung an der Fläche → „Übernommen"
+  zeigt **eine** Zeile → „Holen & Rechnen" → immer noch eine Zeile → 🔧 SCHLUSSWELLE G3 (richtiggestellt:
+  das fragmentweise ↩ in Block B und „Ganzen Verbund zurücknehmen" in Block F entstehen erst mit
+  `a99eac27e`/Push 4, siehe dort) → zurücknehmen über den auf diesem Stand VERFÜGBAREN Weg —
+  „Zurücknehmen" in Block F an einem der Fragmente, bzw. Mengen-Rücknahme über die Auswahlleiste für
+  alle n: nichts bleibt, auch keine leere Region.
 - [ ] **Push 2:** ein Bauwerk neben einer Stadt: „Stätte in X" wählen → Fußknopf zählt es → importieren →
   die Stätte steht in der Infobox von X → zurücknehmen · „Nur Quelle + Artikel an X" → keine Stätte,
   die Quelle steht an X → zurücknehmen · ein Objekt, das sich deckt: Vorbelegung „Quelle an X ergänzen" →
-  „zusätzlich zu X" → die Rückfrage nennt beide → Abbrechen: nichts geschrieben.
+  „zusätzlich zu X" → die Rückfrage nennt beide → Abbrechen: nichts geschrieben. 🔧 SCHLUSSWELLE W1/W2:
+  eine Rücknahme an einer Siedlung (Quellen-Ergänzung, „Nur Quelle") wirft nicht mehr (der ESCAPE-
+  Syntaxfehler ist behoben) · ein „schon vorhanden"-Hinweis zeigt seinen Satz, nicht „[object Object]".
 - [ ] **Push 3:** auf „Offen" lässt sich an keinem Objekt ein Feld der rechten Spalte ändern (außer
   Block G); nach „Auf die Stage" erscheinen die Felder.
-- [ ] **Push 4:** alle Blockköpfe per `getBoundingClientRect().left` gemessen — eine Zahl.
+- [ ] **Push 4:** alle Blockköpfe per `getBoundingClientRect().left` gemessen — eine Zahl. 🔧 SCHLUSSWELLE
+  G3, hierher verschoben (entsteht erst mit `a99eac27e`): an einem übernommenen, zusammengelegten
+  Verbund ↩ an einem Fragment in Block B → Region, Beschriftung und Garetien-Quelle DIESES Fragments
+  bleiben, die übrigen Fragmente auch → „Ganzen Verbund zurücknehmen" in Block F → nichts bleibt, auch
+  keine leere Region.
 - [ ] **Push 5:** das Häkchen „alle n" wählt genau die sichtbaren Zeilen; die Fußleiste trägt drei Knöpfe.
 
 ### E · Danach

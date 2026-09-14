@@ -5940,9 +5940,12 @@
 	 * ⚠️ SEIT DEM 14.09.2026 MIT DER NÄCHSTEN SIEDLUNG ALS LETZTEM RÜCKFALL: steht die Vorauswahl nicht
 	 * (mehr) in der Liste -- der Umkreis-Spinner hat sie frisch nachgeschlagen --, stünde sonst
 	 * „Stätte in „"" ohne Namen da.
-	 * 🔧 Serverseitig fällt eine Siedlung, die NICHT in den Kandidaten des LAUFS steht, still auf dessen
-	 * Vorauswahl zurück (avesmapsGaretienInnerortsAusVorschlag) -- eine per Spinner gefundene Siedlung
-	 * erreicht den Server damit nicht. Das ist ein Befund für den Server, kein Rückfall hier.
+	 * ✅ SCHLUSSPRÜFUNG, BEFUND G4 (richtiggestellt, war seit 5397ce079/14.09.2026 falsch): serverseitig
+	 * gilt die AUSDRÜCKLICHE Wahl (`innerorts_public_id`), auch wenn die Siedlung NICHT in den
+	 * Kandidaten des Laufs steht (avesmapsGaretienInnerortsSiedlung prüft sie nur noch gegen die KARTE)
+	 * -- eine per Umkreis-Spinner gefundene Siedlung erreicht den Server damit korrekt. Eine ungültige
+	 * Wahl (nicht mehr auf der Karte, keine Siedlung) bricht das Item LAUT ab und fällt NIE mehr still
+	 * auf die Vorauswahl des Laufs zurück.
 	 */
 	function garetienInnerortsZiel(objekt) {
 		const kandidaten = garetienInnerortsKandidatenVon(objekt);
