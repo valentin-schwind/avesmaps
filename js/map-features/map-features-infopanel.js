@@ -728,6 +728,8 @@
 		if (!markup) {
 			return false;
 		}
+		// Entwurf 2026-09-14 §2.4: die Zeilen der weiteren Wiki-Zuweisungen erst beim Oeffnen.
+		if (typeof avesmapsWegWeitereFuellen === "function") { markup = avesmapsWegWeitereFuellen(markup, path); }
 		// Phase 2 (Wege): the adventures assigned to this path, appended below the path infobox. Renders only
 		// in infopanel mode (the catalog loads only there); "" until the catalog is ready or if none match.
 		if (typeof buildPathCityMapsMarkup === "function") {

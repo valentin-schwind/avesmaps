@@ -1586,6 +1586,11 @@
 	display: contents;
 }
 
+/* Die Zeilen der weiteren Wiki-Zuweisungen (weg-weitere-anzeige.js): wie der V10-Container ohne eigene Huelle. */
+.avesmaps-path-weitere {
+	display: contents;
+}
+
 
 /* Perlenkette an der Etappenliste (Owner 2026-07-30). Dieselbe Sprache wie die Wegpunkt-Zeitleiste
    oben im Planer (route-planner-waypoint-timeline.css): gepunkteter Verbinder, eine Perle je Zeile.

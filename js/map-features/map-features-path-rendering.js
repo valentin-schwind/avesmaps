@@ -68,6 +68,12 @@ function pathWikiInfoboxMarkup(path) {
 	const verlaufHtml = (linksSupported && typeof linkifyPathVerlauf === "function") ? linkifyPathVerlauf(wiki.verlauf) : "";
 	let rows = "";
 	rows += lageHtml ? rowHtml("Lage", lageHtml) : row("Lage", wiki.lage);
+	// Entwurf 2026-09-14 §2.4: „Auch Teil von" / „Verläuft auch über". Ein LEERER, markierter Platzhalter --
+	// dieses Markup entsteht fuer alle Wege beim Kartenaufbau und wird zwischengespeichert, die Zeilen haengen
+	// an der ganzen Wegeliste und an der Auswahl. avesmapsShowPathInInfopanel fuellt ihn beim Oeffnen.
+	if (typeof avesmapsWegWeiterePlatzhalter === "function") {
+		rows += avesmapsWegWeiterePlatzhalter(getPathPublicId(path));
+	}
 	rows += row("Länge", wiki.laenge);
 	// 🔴 „Eingeschränkt befahrbar" (Owner 01.09.2026) -- dieselbe Regel, die auf der Karte den Namen
 	// kursiv setzt (avesmapsWegEinschraenkungFuerPfad, gelesen in getPathLabelStyle). Zwei Anzeigen,
