@@ -419,7 +419,8 @@ jobs:
           #    (.github/workflows/server-php-inventar.yml). Alt-Tests unter _internal/**/__tests__, die
           #    Diagnose-Sonden, die Abenteuer-Endpunkte samt Bibliotheken und zurueckgebaute Laeufe --
           #    keine ruft eine Funktion, die das Repo noch braucht (per Tokenizer gegengeprueft).
-          # 💣 NIE hierher: api/config.local.php (Zugangsdaten) und api/wiki-sync.php (AGENTS.md §10).
+          # 💣 NIE hierher: api/config.local.php (Zugangsdaten). api/wiki-sync.php stand bis zum 14.09.2026
+          #    als geschuetzter „frontend fallback" in AGENTS.md §10 -- kein Frontend rief ihn mehr, Owner-GO.
           #    Und keine Datei, die im Repo liegt -- sie fehlte nach dem Deploy auf dem Server.
           #    Gewacht von tools/__tests__/retire-liste-geschuetzt.test.js.
           retire_nur_server_php=(
@@ -467,6 +468,7 @@ jobs:
             "api/edit/map/adventure-cover.php"
             "api/edit/map/adventures.php"
             "api/edit/wiki/bilder-lokalisieren.php"
+            "api/wiki-sync.php"
           )
           printf '  %s (retired: nur auf dem Server, Inventar 14.09.2026)\n' "${retire_nur_server_php[@]}"
 

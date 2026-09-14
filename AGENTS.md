@@ -419,8 +419,9 @@ is the default, English is opt-in. Therefore:
   via the deploy's "Retire orphaned remote files" step — **never `mirror --delete`**
   (its dry-run would also delete live files). **Still load-bearing on the server &
   protected:** `tiles/` (base map; tile files use NEGATIVE y, `map_x_-y`),
-  `uploads/`, `admin/phpMyAdmin`, `api/wiki-sync.php` (frontend fallback),
-  `api/app/.user.ini`, `config.local.php`. Root shims `api/{auth,bootstrap}.php`
+  `uploads/`, `admin/phpMyAdmin`, `api/app/.user.ini`, `config.local.php`
+  (`api/wiki-sync.php` stand hier bis zum 14.09.2026 als „frontend fallback" -- kein Frontend rief ihn
+  mehr; Owner-GO, seither auf der Retire-Liste). Root shims `api/{auth,bootstrap}.php`
   are kept (clean-deploy safety; the `political-territory-lib`/`wiki-sync-lib` lib
   shims were removed in M3 step 4). Directory URLs return 404 on this server
   (listing off) — not a sign of deletion.
@@ -430,10 +431,10 @@ is the default, English is opt-in. Therefore:
   Nicht-Repo-Datei die Funktionen, die sie deklariert, ruft und einbindet — nie ihr Inhalt. 🔴 Vor dem
   Loeschen einer „im Repo ungerufenen" PHP-Funktion ist DAS die Gegenprobe, nicht der Repo-Scan. Waechter:
   `tools/server-inventar/__tests__/nur-lesend.test.js` (kein Schreib-, Loesch- oder Shellgriff).
-  ✅ **Erster Lauf 14.09.2026:** 817 PHP-Dateien, 46 nur auf dem Server. 44 davon stehen seither auf der
+  ✅ **Erster Lauf 14.09.2026:** 817 PHP-Dateien, 46 nur auf dem Server. 45 davon stehen seither auf der
   Retire-Liste (Alt-Tests unter `_internal/**/__tests__`, die Diagnose-Sonden `api/app/{geo,imap}-probe.php`,
-  die Abenteuer-Endpunkte samt Bibliotheken, zurueckgebaute Laeufe); keine rief eine Funktion, die das Repo
-  noch braucht. Bewusst NICHT: `api/config.local.php` und `api/wiki-sync.php`. Mit ihnen fielen 54 PHP-Funktionen:
+  die Abenteuer-Endpunkte samt Bibliotheken, zurueckgebaute Laeufe, der alte WikiSync-Dispatcher `api/wiki-sync.php`); keine rief eine Funktion, die das Repo
+  noch braucht. Bewusst NICHT: `api/config.local.php`. Mit ihnen fielen 54 PHP-Funktionen:
   die 26 im Repo ungerufenen, das nie gerufene Pass-A-Lauf-Geruest des Dump-Lesers und alle Helfer, die nur
   an ihnen hingen. 💣 Waechter der Liste:
   `tools/__tests__/retire-liste-geschuetzt.test.js` -- keine geschuetzte Datei, keine .htaccess und keine

@@ -3,7 +3,7 @@
 #
 # Wozu: Der Deploy loescht nie (AGENTS.md §10). Auf dem Server liegen deshalb PHP-Dateien, die das Repo
 # nicht kennt, und eine Funktion, die im Repo niemand ruft, kann dort noch einen Aufrufer haben
-# (`api/wiki-sync.php` antwortet live und steht nicht im Repo). Dieses Skript listet die PHP-Dateien des
+# (`api/wiki-sync.php` antwortete bis zum 14.09.2026 live und stand nicht im Repo). Dieses Skript listet die PHP-Dateien des
 # Webroots samt Groesse und Datum, und fuer jede Datei, die NICHT im Repo steht, die Funktionen, die sie
 # deklariert, ruft und einbindet.
 #

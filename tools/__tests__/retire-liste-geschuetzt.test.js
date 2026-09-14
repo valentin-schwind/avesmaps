@@ -1,12 +1,12 @@
 // DIE RETIRE-LISTE LOESCHT NICHTS, WAS GEBRAUCHT WIRD -- der Waechter des einzigen Loeschwegs auf dem Server.
 //
 // 🔴 Der Deploy loescht nie (AGENTS.md §10); geloescht wird nur ueber den Schritt „Retire orphaned
-//    remote files" in .github/workflows/deploy-avesmaps-strato.yml. Am 14.09.2026 kamen dort 44
-//    Nur-Server-PHP-Dateien auf einmal dazu. Eine Liste dieser Laenge liest niemand mehr Zeile fuer
+//    remote files" in .github/workflows/deploy-avesmaps-strato.yml. Am 14.09.2026 kamen dort alle
+//    Nur-Server-PHP-Dateien des ersten Server-Inventars auf einmal dazu. Eine Liste dieser Laenge liest niemand mehr Zeile fuer
 //    Zeile -- also haelt dieser Test die zwei Dinge fest, die dort nie stehen duerfen:
 //
-//    1. eine GESCHUETZTE Datei (AGENTS.md §10): tiles/, uploads/, admin/, api/wiki-sync.php,
-//       api/app/.user.ini, config.local.php -- und keine .htaccess, sonst steht ein gesperrtes
+//    1. eine GESCHUETZTE Datei (AGENTS.md §10): tiles/, uploads/, admin/, api/app/.user.ini,
+//       config.local.php -- und keine .htaccess, sonst steht ein gesperrtes
 //       Verzeichnis wie api/_internal/ offen.
 //    2. eine Datei, die IM REPO liegt. Der Retire-Schritt laeuft NACH dem Hochladen; eine Repo-Datei
 //       auf der Liste waere nach jedem Deploy auf dem Server weg, waehrend Repo und Tests gruen sind.
@@ -48,7 +48,6 @@ const GESCHUETZT = [
 	[/^tiles(\/|$)/, "tiles/"],
 	[/^uploads(\/|$)/, "uploads/"],
 	[/^admin(\/|$)/, "admin/"],
-	[/^api\/wiki-sync\.php$/, "api/wiki-sync.php"],
 	[/^api\/app\/\.user\.ini$/, "api/app/.user.ini"],
 	[/(^|\/)config\.local\.php$/, "config.local.php"],
 	[/(^|\/)\.htaccess$/, ".htaccess"],
