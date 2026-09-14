@@ -243,6 +243,159 @@ function ohneKommentare(text) {
 	pruefe(hexe.length === 0, "Keine hartkodierte Farbe im Stil des Bauteils: " + hexe.join(" "));
 }
 
+// ---- 9. 💣 Das Leaflet-Transform reist nicht mit ins Bild ------------------------------------
+// Falle (5) aus karten-abzug.js, gemessen 14.09.2026: Leaflet setzt an jedes Renderer-SVG ein
+// Inline-`transform: translate3d(-160px, -110px, 0px)` (sein Polster) und dazu die passende
+// viewBox. Der Klon nahm das Transform mit, das data:-Bild wandte es ein ZWEITES Mal an, und jede
+// SVG-Ebene lag im Abzug um das Polster daneben — Greifenfurt 100 px unter der Reichsstraße.
+// ⚠️ AUSGEFÜHRT, nicht gelesen: `svgZuBild` wird aus BEIDEN Dateien ausgeschnitten und gegen
+// Attrappen gefahren; geprüft wird die data:-Adresse, die wirklich ins <img> geht. Ein Regex auf
+// `style.transform = ""` wäre auch dann grün, wenn die Zeile am ORIGINAL stünde — und dann spränge
+// die laufende Karte um das Polster.
+{
+	const vm = require("vm");
+
+	// Ein Stil, der sich wie CSSStyleDeclaration verhält, soweit es hier zählt: `style.transform = ""`
+	// und `removeProperty` löschen die Deklaration, und das style-Attribut folgt dem Objekt.
+	function falscherStil(beiAenderung) {
+		const deklarationen = new Map();
+		function setze(name, wert) {
+			if (wert === "" || wert === null || wert === undefined) deklarationen.delete(name);
+			else deklarationen.set(name, String(wert));
+			beiAenderung();
+		}
+		return {
+			get cssText() {
+				return Array.from(deklarationen, function (paar) { return paar[0] + ": " + paar[1] + ";"; }).join(" ");
+			},
+			set cssText(text) {
+				deklarationen.clear();
+				String(text).split(";").forEach(function (teil) {
+					const i = teil.indexOf(":");
+					if (i > 0 && teil.slice(i + 1).trim()) deklarationen.set(teil.slice(0, i).trim(), teil.slice(i + 1).trim());
+				});
+			},
+			getPropertyValue: function (name) { return deklarationen.get(name) || ""; },
+			setProperty: setze,
+			removeProperty: function (name) { const alt = deklarationen.get(name) || ""; setze(name, ""); return alt; },
+			get transform() { return deklarationen.get("transform") || ""; },
+			set transform(wert) { setze("transform", wert); }
+		};
+	}
+
+	function falschesElement(tag, attribute, kinder) {
+		const attrs = new Map();
+		const el = {
+			tagName: tag,
+			kinder: kinder || [],
+			style: null,
+			getAttribute: function (name) {
+				if (!attrs.has(name)) return null;
+				return name === "style" ? el.style.cssText : attrs.get(name);
+			},
+			setAttribute: function (name, wert) {
+				if (name === "style") { attrs.set("style", ""); el.style.cssText = wert; }
+				else { attrs.set(name, String(wert)); }
+			},
+			removeAttribute: function (name) {
+				if (name === "style") el.style.cssText = "";
+				attrs.delete(name);
+			},
+			attributNamen: function () { return Array.from(attrs.keys()); },
+			cloneNode: function (tief) {
+				const klon = falschesElement(tag, {}, tief ? el.kinder.map(function (k) { return k.cloneNode(true); }) : []);
+				attrs.forEach(function (wert, name) { klon.setAttribute(name, el.getAttribute(name)); });
+				return klon;
+			},
+			querySelectorAll: function () {
+				const alle = [];
+				(function lauf(knoten) {
+					knoten.kinder.forEach(function (kind) { alle.push(kind); lauf(kind); });
+				})(el);
+				return alle;
+			},
+			get viewBox() {
+				const teile = String(attrs.get("viewBox") || "").split(/\s+/).map(Number);
+				return teile.length === 4 ? { baseVal: { x: teile[0], y: teile[1], width: teile[2], height: teile[3] } } : null;
+			}
+		};
+		el.style = falscherStil(function () { if (!attrs.has("style")) attrs.set("style", ""); });
+		Object.keys(attribute).forEach(function (name) { el.setAttribute(name, attribute[name]); });
+		return el;
+	}
+
+	function serialisiere(el) {
+		const attribute = el.attributNamen().map(function (name) {
+			return " " + name + "=\"" + el.getAttribute(name) + "\"";
+		}).join("");
+		return "<" + el.tagName + attribute + ">" + el.kinder.map(serialisiere).join("") + "</" + el.tagName + ">";
+	}
+
+	// Der GANZE Rumpf, per Klammerzählung — nie ein festes Zeichenfenster, das sonst die Länge der
+	// Kommentare misst. MALSTIL kommt mit, weil `svgZuBild` es aus dem Modulbereich liest.
+	function svgZuBildAus(datei) {
+		const text = lies(datei);
+		const malstil = text.match(/var MALSTIL = \[[\s\S]*?\];/);
+		const kopf = text.indexOf("function svgZuBild(");
+		if (!malstil || kopf < 0) return null;
+		const auf = text.indexOf("{", text.indexOf(")", kopf));
+		let tiefe = 0;
+		let ende = -1;
+		for (let i = auf; i < text.length; i++) {
+			if (text[i] === "{") tiefe++;
+			else if (text[i] === "}" && --tiefe === 0) { ende = i + 1; break; }
+		}
+		if (ende < 0) return null;
+		const bilder = [];
+		const kontext = {
+			Image: function () {
+				const bild = this;
+				bilder.push(bild);
+				Object.defineProperty(bild, "src", {
+					get: function () { return bild.gesetzteQuelle; },
+					set: function (wert) { bild.gesetzteQuelle = wert; if (typeof bild.onload === "function") bild.onload(); }
+				});
+			},
+			XMLSerializer: function () { this.serializeToString = serialisiere; },
+			getComputedStyle: function (el) {
+				return { getPropertyValue: function (name) { return el.tagName === "path" && name === "fill-opacity" ? "0.72" : ""; } };
+			}
+		};
+		vm.runInNewContext(malstil[0] + "\n" + text.slice(kopf, ende), kontext);
+		return { svgZuBild: kontext.svgZuBild, bilder: bilder };
+	}
+
+	const PRAEFIX = "data:image/svg+xml;charset=utf-8,";
+	["js/ui/karten-abzug.js", "tools/layer-tiles/capture.js"].forEach(function (datei) {
+		const lauf = svgZuBildAus(datei);
+		pruefe(!!lauf && typeof lauf.svgZuBild === "function", datei + ": svgZuBild ausgeschnitten");
+		if (!lauf || typeof lauf.svgZuBild !== "function") return;
+
+		// So legt Leaflet ein Renderer-SVG an (gemessen bei 1600 × 1100, Polster 10 %).
+		const pfad = falschesElement("path", { d: "M0 0L10 10", "fill-opacity": "0.2" }, []);
+		const original = falschesElement("svg", {
+			"pointer-events": "none", width: "1920", height: "1320", viewBox: "-160 -110 1920 1320",
+			style: "transform: translate3d(-160px, -110px, 0px);"
+		}, [pfad]);
+		lauf.svgZuBild(original, 1920, 1320);
+
+		const bild = lauf.bilder[lauf.bilder.length - 1];
+		const quelle = bild && typeof bild.src === "string" && bild.src.indexOf(PRAEFIX) === 0
+			? decodeURIComponent(bild.src.slice(PRAEFIX.length)) : "";
+		pruefe(quelle !== "", datei + ": das Bild bekam eine data:-Adresse (sonst lief svgZuBild in sein catch)");
+		pruefe(quelle.indexOf("translate") === -1,
+			datei + ": 💣 das Leaflet-Transform steht NICHT im Bild — sonst liegt jede SVG-Ebene um das Polster daneben");
+		pruefe(quelle.indexOf("viewBox=\"-160 -110 1920 1320\"") >= 0,
+			datei + ": die viewBox bleibt — sie ist die andere Hälfte derselben Rechnung");
+		pruefe(quelle.indexOf("width=\"1920\"") >= 0 && quelle.indexOf("height=\"1320\"") >= 0,
+			datei + ": der Klon trägt die Bildmaße");
+		pruefe(quelle.indexOf("fill-opacity=\"0.72\"") >= 0,
+			datei + ": Falle (2) wirkt weiter — der berechnete Malstil steht im Klon");
+		pruefe(original.style.transform === "translate3d(-160px, -110px, 0px)",
+			datei + ": 🔴 das ORIGINAL behält sein Transform — geleert wird nur am Klon, sonst springt die laufende Karte");
+	});
+}
+
 if (fehler > 0) {
 	console.error(fehler + " Fehler");
 	process.exit(1);

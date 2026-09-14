@@ -23,9 +23,12 @@
  *     neue Farben mit alten Grenzen: die weissen Konturen laufen quer durch die Flaechen. Es wird
  *     gewartet, BIS SICH NICHTS MEHR AENDERT, nicht "lange genug".
  *
- * ⚠️ Und zwei kleinere: eine serialisierte SVG-Ebene traegt ihre CSS-Regeln nicht mit (die
+ * ⚠️ Und kleinere: eine serialisierte SVG-Ebene traegt ihre CSS-Regeln nicht mit (die
  *    Landschaften stehen auf fill-opacity="0.2" im Attribut, waehrend CSS 0.72 durchsetzt), und
- *    ohne viewBox zeichnet sie in ihre eigenen, weit ausserhalb liegenden Koordinaten.
+ *    ohne viewBox zeichnet sie in ihre eigenen, weit ausserhalb liegenden Koordinaten. Und Leaflet
+ *    verschiebt jedes Renderer-SVG per Inline-Transform um sein Polster: der Klon nimmt das mit, das
+ *    data:-Bild wendet es ein ZWEITES Mal an, und die Ebene liegt um genau dieses Polster daneben.
+ *    Geleert wird nur am Klon, nie am Original (js/ui/karten-abzug.js, Falle (5), 14.09.2026).
  */
 (function () {
 	"use strict";
@@ -70,6 +73,7 @@
 				var klon = svgEl.cloneNode(true);
 				klon.setAttribute("width", w);
 				klon.setAttribute("height", h);
+				klon.style.transform = "";   // Leaflet-Polster, siehe Kopf
 				if (!klon.getAttribute("viewBox")) {
 					var vb = svgEl.viewBox && svgEl.viewBox.baseVal;
 					if (vb && vb.width) {

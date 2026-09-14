@@ -55,10 +55,13 @@ Alle drei wurden beim ersten Bauen getreten und sind im Kopf von `capture.js` au
    (Owner, 11.08.2026: „die politischen Grenzen sind nicht in den Farbregionen"). `capture.js`
    wartet, **bis sich nichts mehr ändert**, und warnt in der Konsole, wenn es nicht ruhig wurde.
 
-⚠️ Zwei kleinere, ebenfalls im Code begründet: eine serialisierte SVG-Ebene trägt ihre CSS-Regeln
+⚠️ Kleinere, ebenfalls im Code begründet: eine serialisierte SVG-Ebene trägt ihre CSS-Regeln
 nicht mit (die Landschaften stehen auf `fill-opacity="0.2"` im Attribut, während CSS `0.72`
 durchsetzt — die Flächen kommen sonst blass heraus), und ohne `viewBox` zeichnet sie in ihre
-eigenen, weit außerhalb liegenden Koordinaten und das Bild bleibt leer.
+eigenen, weit außerhalb liegenden Koordinaten und das Bild bleibt leer. Und Leaflet verschiebt jedes
+Renderer-SVG per Inline-`transform` um sein Polster (−10 % der Containermaße); der Klon nimmt das
+mit, das `data:`-Bild wendet es ein zweites Mal an, und die Ebene liegt um genau dieses Polster
+daneben. `capture.js` leert es deshalb am Klon — nie am Original, sonst springt die laufende Karte.
 
 ⚠️ Fremde Bildquellen vergiften die Leinwand: nach einem einzigen `drawImage` von einer anderen
 Herkunft wirft `toDataURL()` für **alles**. `capture.js` überspringt sie deshalb.

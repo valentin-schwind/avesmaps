@@ -16,8 +16,8 @@
 	// Schicht von Hand. Genau das ist der Grund, warum der Knopf in Stufe 1 grau blieb -- der Bauplan
 	// nannte es „ein eigenes Stueck Arbeit, kein Nebeneffekt der Bild-Pipeline".
 	//
-	// 💣 VIER FALLEN, alle bereits einmal getreten -- in tools/layer-tiles/capture.js, das dieselbe
-	//    Aufnahme fuer die sechs Ansichts-Icons macht. Das Wissen stammt von dort:
+	// 💣 DIE FALLEN, jede bereits einmal getreten. (1) bis (4) zuerst in tools/layer-tiles/capture.js, das dieselbe
+	//    Aufnahme fuer die sechs Ansichts-Icons macht -- das Wissen stammt von dort; (5) erst hier:
 	//
 	// (1) EIN BILD FREMDER HERKUNFT VERGIFTET DIE LEINWAND. Sobald ein <img> von einem anderen Origin
 	//     gezeichnet wurde, wirft `toBlob` mit einem Sicherheitsfehler -- und zwar erst ganz am Ende,
@@ -36,6 +36,17 @@
 	// (4) JPEG KENNT KEINE TRANSPARENZ. Ohne ausdruecklich gefuellten Untergrund kommt ein schwarzes
 	//     Quadrat heraus (AGENTS.md §11, Social-Hub: dieselbe Falle hat die Bild-Pipeline schon
 	//     einmal getroffen). Gefuellt wird mit der Hintergrundfarbe des Kartencontainers.
+	//
+	// (5) LEAFLET VERSCHIEBT JEDES SVG PER INLINE-TRANSFORM -- UND DER KLON NIMMT ES MIT. Ein Renderer
+	//     liegt um sein Polster versetzt (`transform: translate3d(-160px, -110px, 0px)` bei 1600 x 1100,
+	//     also -10 % der Containermasse) und gleicht das mit seiner viewBox wieder aus.
+	//     `getBoundingClientRect` hat die Verschiebung schon eingerechnet; im data:-Bild wendet der
+	//     Browser das mitgeklonte Transform am Wurzelelement ein ZWEITES Mal an. Jede SVG-Ebene -- Wege
+	//     und alle Landschaftsflaechen -- lag damit um das Polster daneben, waehrend Canvas-Ebenen und
+	//     Beschriftungen stimmten: Greifenfurt 100 px unter der Reichsstrasse (gemessen 14.09.2026 gegen
+	//     einen echten Pixel-Screenshot derselben Stelle). Geleert wird NUR am Klon -- am Original
+	//     spraenge die laufende Karte --, und die viewBox bleibt: sie ist die andere Haelfte derselben
+	//     Rechnung.
 	//
 	// 🔴 UND DIE UMGEKEHRTE PANE-REGEL: capture.js nimmt eine ALLOWLIST auf, weil seine Icons anonym
 	//    sein muessen -- was nicht drinsteht, kann keinen Namen ins Bild tragen. Hier gilt das
@@ -176,6 +187,7 @@
 				var klon = svgEl.cloneNode(true);
 				klon.setAttribute("width", breite);
 				klon.setAttribute("height", hoehe);
+				klon.style.transform = "";                                            // Falle (5)
 				if (!klon.getAttribute("viewBox")) {                                  // Falle (2)
 					var box = svgEl.viewBox && svgEl.viewBox.baseVal;
 					if (box && box.width) {
