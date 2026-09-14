@@ -12,11 +12,12 @@
 // ⭐ Der Sender wird AUSGEFUEHRT, nicht gelesen. Und die zwei Rueckrufe (onApplied/onClose) werden
 // an den Anfragen gemessen, die sie ausloesen -- nicht an ihrer Identitaet.
 //
-// 🔴 STAND 29.08.2026 (Aufgabe 8): KEIN Knopf dieses Fensters oeffnet dieses Blatt mehr -- „Neu
-// einfügen" und der Fußknopf schreiben seither SELBST (garetienNeuKlick/
-// garetienFussknopfEinfuegenKlick in review-garetien-importer.js, getestet in
-// garetien-fussknopf-dom.test.js Abschnitt D und garetien-handlungen.test.js Abschnitt M). Diese
-// Datei bleibt unveraendert gueltig, weil sie garetienBlattSender/garetienUebernahmeOeffnen/
+// 🔴 STAND 29.08.2026 (Aufgabe 8): KEIN Knopf dieses Fensters oeffnet dieses Blatt mehr -- der
+// Fußknopf schreibt seither SELBST (garetienFussknopfEinfuegenKlick in
+// review-garetien-importer.js, getestet in garetien-fussknopf-dom.test.js Abschnitt D und
+// garetien-handlungen.test.js Abschnitt M). 🔴 Bis Aufgabe 9 (14.09.2026) galt dasselbe auch fuer
+// den Einzelknopf „Neu einfügen" (garetienNeuKlick), der seither gefallen ist. Diese Datei bleibt
+// unveraendert gueltig, weil sie garetienBlattSender/garetienUebernahmeOeffnen/
 // garetienUebernahmeKnopfZustand/…Setzen direkt prueft, nicht den Klick -- und genau diese
 // Funktionen bleiben laut Brief unangetastet im Code stehen ("nicht loeschen, ohne dass jemand
 // die Entscheidung dazu getroffen hat").

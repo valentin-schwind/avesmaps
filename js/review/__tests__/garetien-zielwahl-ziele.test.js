@@ -390,9 +390,13 @@ frisch();
 }
 
 // =================================================================================================
-// G2. Ruling R-a: eine Zielwahl ungleich „karte" löst einen ZUSAMMENGELEGTEN Verbund AKTIV auf --
-// dieselbe Stelle/Funktion wie das Umstellen von Ziel/Form (garetienVerbundAufloesen), kein
-// zweiter Weg. Die Schreibstelle ist garetienZielwahlSetzen selbst.
+// G2. Nachbesserung Runde 1, W1/W2: eine Einstellung, die an einem zusammengelegten Verbund
+// gesetzt wird, gilt dem GANZEN Verbund -- löst sie die Auflösung aus, ÜBERLEBT sie an jedem
+// bisherigen Mitglied (Ruling des Koordinators). 🔴 VORHER (9ed85ca80) verschluckte
+// `garetienVerbundAufloesen` den geteilten Speichereintrag im selben Zug, in dem er geschrieben
+// wurde -- „Nichts" fiel lautlos auf die Vorbelegung „karte" zurück, und aus „nur ansehen" wurde
+// ein Import (334 zusätzliche Objekte hätte diese Klasse Fehler gekostet, wäre sie am Zusatz-Item
+// aufgetreten). Geprüft wird über den ECHTEN Klickweg garetienEingabenAendern, nicht direkt am Setter.
 // =================================================================================================
 frisch();
 {
@@ -407,14 +411,77 @@ frisch();
 	api.garetienVerbundZusammenlegen(schluessel, [m1, m2]);
 	wahr(api.garetienVerbundIstZusammen(schluessel), "Testaufbau: zusammengelegt");
 	tief(api.garetienEingabenFuerServer(m1).verbund, "Silker Hain", "Testaufbau: der Rumpf trägt den Stamm");
+	api.garetienDetailWaehlen(m1.key, [m1, m2]);
 
-	api.garetienZielwahlSetzen(m1, "nichts");
+	api.garetienEingabenAendern(feldEreignis("zielwahl", "nichts"), [m1, m2]);
 	gleich(api.garetienVerbundIstZusammen(schluessel), false,
 		"🔴 „Nichts\" an einem Mitglied löst den zusammengelegten Verbund AUF -- kein zweiter Weg");
+	gleich(api.garetienZielwahlZu(m1), "nichts",
+		"💣 W1: die Wahl überlebt die Auflösung AM MITGLIED SELBST, statt auf „karte\" zurückzufallen");
+	gleich(api.garetienZielwahlZu(m2), "nichts",
+		"💣 W1: …und am ANDEREN Mitglied ebenso -- sie galt dem ganzen Verbund, nicht nur dem angeklickten Radio");
+	tief(api.garetienStageUebernahmeIds([m1, m2]), [],
+		"💣 W1: keines der beiden Fragmente steht noch im Schreibumfang -- sonst würde „Nichts\" importiert");
+	const stand = api.garetienUebernahmeKnopfZustand([m1, m2]);
+	gleich(stand.anzahl, 0, "…und der Fußknopf zählt 0");
+	gleich(stand.gesperrt, true, "…und ist gesperrt");
 	wahr(!("verbund" in (api.garetienEingabenFuerServer(m1) || {})),
 		"…und der Rumpf trägt danach KEIN `verbund` mehr: " + JSON.stringify(api.garetienEingabenFuerServer(m1)));
 	wahr(!("verbund" in (api.garetienEingabenFuerServer(m2) || {})),
 		"…am zweiten Mitglied ebenso");
+	api.garetienDetailWaehlen(null, []);
+}
+
+// ---- Dasselbe für den FORM-Zweig aus Aufgabe 6 (derselbe Fehler, dieselbe Stelle) --------------
+frisch();
+{
+	const fragment = (key, id) => ({ key: key, stand: "offen", urteil: "neu", name: key, ebene: "ggp:Waelder",
+		typ: "Wald", ziel: "region", subtyp: "wald", kind: "vegetation", verbund_stamm: "Silker Hain",
+		verbund_n: 2, geometrie: [[0, 0], [1, 0], [1, 1]], abschnitte: [],
+		items: [{ id: id, change_type: "new", anlass: "", felder: ["quelle"] }] });
+	const m1 = fragment("sh1", 31);
+	const m2 = fragment("sh2", 32);
+	api.avesmapsGaretienStageHinzufuegen([m1, m2]);
+	const schluessel = api.garetienVerbundSchluessel(m1);
+	api.garetienVerbundZusammenlegen(schluessel, [m1, m2]);
+	api.garetienDetailWaehlen(m1.key, [m1, m2]);
+
+	api.garetienEingabenAendern(feldEreignis("zielForm", "label"), [m1, m2]);
+	gleich(api.garetienVerbundIstZusammen(schluessel), false,
+		"„label\" ist weder Fläche noch Weg -- der Riegel scheitert, der Verbund löst sich auf");
+	gleich(api.garetienZielWahlZu(m1).ziel, "label",
+		"💣 W1 am FORM-Zweig: die Form überlebt AM MITGLIED, statt auf „region\" zurückzufallen "
+		+ "(Sonde des Prüfers: „ziel fällt auf region zurück\")");
+	gleich(api.garetienZielWahlZu(m2).ziel, "label", "…und am ANDEREN Mitglied ebenso");
+	api.garetienDetailWaehlen(null, []);
+}
+
+// ---- Gegenprobe: eine Wahl, die den Riegel besteht, bleibt zusammengelegt UND geteilt -----------
+frisch();
+{
+	const fragment = (key, id) => ({ key: key, stand: "offen", urteil: "neu", name: key, ebene: "ggp:Waelder",
+		typ: "Wald", ziel: "region", subtyp: "wald", kind: "vegetation", verbund_stamm: "Silker Hain",
+		verbund_n: 2, geometrie: [[0, 0], [1, 0], [1, 1]], abschnitte: [],
+		items: [{ id: id, change_type: "new", anlass: "", felder: ["quelle"] }] });
+	const m1 = fragment("sh1", 31);
+	const m2 = fragment("sh2", 32);
+	api.avesmapsGaretienStageHinzufuegen([m1, m2]);
+	const schluessel = api.garetienVerbundSchluessel(m1);
+	api.garetienVerbundZusammenlegen(schluessel, [m1, m2]);
+	api.garetienDetailWaehlen(m1.key, [m1, m2]);
+
+	// „karte" bleibt „karte" -- der Riegel besteht, nichts löst sich auf.
+	api.garetienEingabenAendern(feldEreignis("zielwahl", "karte"), [m1, m2]);
+	wahr(api.garetienVerbundIstZusammen(schluessel), "eine bestehende Wahl löst NICHTS auf");
+	gleich(api.garetienZielwahlZu(m1), "karte", "…und der Wert steht weiter -- unter dem geteilten Schlüssel");
+	gleich(api.garetienZielwahlZu(m2), "karte", "…für beide Mitglieder gleich");
+
+	// Ein Artwechsel INNERHALB von Fläche besteht den Riegel ebenso.
+	api.garetienEingabenAendern(feldEreignis("zielArt", "see"), [m1, m2]);
+	wahr(api.garetienVerbundIstZusammen(schluessel), "ein Artwechsel innerhalb von Fläche löst nicht auf");
+	gleich(api.garetienZielWahlZu(m1).subtyp, "see", "…und die Art steht -- geteilt");
+	gleich(api.garetienZielWahlZu(m2).subtyp, "see", "…für beide Mitglieder");
+	api.garetienDetailWaehlen(null, []);
 }
 
 // =================================================================================================
