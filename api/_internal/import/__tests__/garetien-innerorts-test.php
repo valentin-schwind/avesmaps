@@ -378,7 +378,7 @@ assert(str_contains($grundBauwerk, 'Bauwerk'),
     '🔴 ein Bauwerk ist kein Wirt -- dieselbe Regel wie avesmapsGaretienSiedlungsFamilie: ' . $grundBauwerk);
 $grundOhneBefund = $wirft(static fn() => avesmapsGaretienInnerortsSiedlung($pdo, ['innerorts' => []], ['innerorts' => true], 'Tempel'));
 assert(str_contains($grundOhneBefund, 'Innerorts-Befund'), 'ohne Wahl und ohne Befund: der bisherige Grund: ' . $grundOhneBefund);
-$pruefungen += 11;
+$pruefungen += 10;
 
 // =================================================================================================
 // H. Der Umkreis-Spinner (Owner 08.09.2026) -- 0 bis 20 Meilen, geprueft am SERVER

@@ -3579,8 +3579,9 @@ $nqNachtrag = array_values(array_filter($eNq['quellen_neu'],
     static fn(array $e): bool => $e['entity_type'] === 'settlement' && $e['public_id'] === 'stadt-wandleth'));
 assert(count($nqNachtrag) === 1, 'NQ: der Browser bekommt die Quellenliste der Siedlung: ' . json_encode($eNq['quellen_neu'], JSON_UNESCAPED_UNICODE));
 $itemNq = $pdoI->query('SELECT apply_state, apply_note FROM sync_plan_item WHERE id = ' . $hesindeId)->fetch(PDO::FETCH_ASSOC);
-assert($itemNq['apply_state'] === 'done' && $itemNq['apply_note'] === avesmapsGaretienNurQuelleVermerk('stadt-wandleth'),
-    '💣 NQ: der Vermerk ist NICHT die nackte public_id der Stadt -- die Ruecknahme loeschte sonst die Stadt: ' . json_encode($itemNq));
+assert($itemNq['apply_state'] === 'done' && $itemNq['apply_note'] === avesmapsGaretienNurQuelleVermerk('stadt-wandleth', true),
+    '💣 NQ: der Vermerk ist NICHT die nackte public_id der Stadt, und traegt „angelegt:1" -- die Verknuepfung entstand hier wirklich neu: '
+    . json_encode($itemNq));
 $pruefungen += 9;
 
 // --- `innerorts_nur_quelle` ALLEIN ist ebenfalls ein Innerorts-Wunsch, nie ein Rueckfall auf die Karte.
@@ -3683,8 +3684,8 @@ $eW2 = avesmapsGaretienUebernehmen($pdoI, $laufI, [$w2], ['id' => 7], null, [
 assert($eW2['fehler'] === [] && $eW2['angelegt'] === 0 && $quellenAn('stadt-rallerfurt') === 1,
     'W2: die Quelle haengt an Rallerfurt: ' . json_encode($eW2, JSON_UNESCAPED_UNICODE));
 assert($quellenAn('stadt-wandleth') === $quellenWandlethVorW, 'W2: und NICHT an Wandleth');
-assert((string) $pdoI->query('SELECT apply_note FROM sync_plan_item WHERE id = ' . $w2)->fetchColumn() === avesmapsGaretienNurQuelleVermerk('stadt-rallerfurt'),
-    'W2: der Vermerk nennt die gewaehlte Siedlung');
+assert((string) $pdoI->query('SELECT apply_note FROM sync_plan_item WHERE id = ' . $w2)->fetchColumn() === avesmapsGaretienNurQuelleVermerk('stadt-rallerfurt', true),
+    'W2: der Vermerk nennt die gewaehlte Siedlung und „angelegt:1"');
 $pruefungen += 3;
 
 // --- W3. 💣 Die gewaehlte Siedlung liegt NICHT (mehr) auf der Karte: lauter Abbruch, keine andere.
@@ -3725,5 +3726,244 @@ $sW5 = $staetteVon('Wandlether Tsatempel');
 assert($eW5['fehler'] === [] && $sW5 !== false && $sW5['settlement_public_id'] === 'stadt-wandleth',
     'W5: ohne Wahl entsteht die Staette wie bisher in der Vorauswahl: ' . json_encode([$eW5['fehler'], $sW5], JSON_UNESCAPED_UNICODE));
 $pruefungen++;
+
+// =================================================================================================
+// NACHBESSERUNG 1 (14.09.2026, Pruefer-Befund) -- W1: die Verknuepfung eines „Nur Quelle"-Items
+// gehoert der GRUPPE (Siedlung + Artikeladresse), nicht dem einzelnen Item.
+// =================================================================================================
+// --- W1a. Sonde a: zwei Bauwerke, DERSELBE Artikeladresse (ein Sammelartikel).
+$sammelUrl = 'https://www.garetien.de/index.php/Garetien:Sammelartikel-Test';
+$eintragSammelA = $baueBauwerk('Wandlether Sammelbau A', $befundWandleth);
+$eintragSammelA['after']['artikel_quelle']['url'] = $sammelUrl;
+avesmapsSyncPlanAddItem($pdoI, $laufI, $eintragSammelA);
+$sammelAId = $itemIdVon($pdoI, 'Wandlether Sammelbau A (Probe)');
+$eintragSammelB = $baueBauwerk('Wandlether Sammelbau B', $befundWandleth);
+$eintragSammelB['after']['artikel_quelle']['url'] = $sammelUrl;
+avesmapsSyncPlanAddItem($pdoI, $laufI, $eintragSammelB);
+$sammelBId = $itemIdVon($pdoI, 'Wandlether Sammelbau B (Probe)');
+$sammelVerknuepft = static fn(): int => (int) $pdoI->query(
+    "SELECT COUNT(*) FROM feature_sources fs JOIN sources s ON s.id = fs.source_id"
+    . " WHERE fs.entity_type = 'settlement' AND fs.entity_public_id = 'stadt-wandleth' AND fs.origin = 'garetien'"
+    . ' AND s.url = ' . $pdoI->quote($sammelUrl)
+)->fetchColumn();
+
+$eSammelA = avesmapsGaretienUebernehmen($pdoI, $laufI, [$sammelAId], ['id' => 7], null, [
+    $sammelAId => ['innerorts' => true, 'innerorts_nur_quelle' => true],
+]);
+assert($eSammelA['fehler'] === [] && $eSammelA['angelegt_je_form']['quelle'] === 1,
+    'W1a: A legt die Verknuepfung NEU an: ' . json_encode($eSammelA, JSON_UNESCAPED_UNICODE));
+$noteSammelA = (string) $pdoI->query('SELECT apply_note FROM sync_plan_item WHERE id = ' . $sammelAId)->fetchColumn();
+assert($noteSammelA === avesmapsGaretienNurQuelleVermerk('stadt-wandleth', true), 'W1a: A traegt angelegt:1: ' . $noteSammelA);
+assert($sammelVerknuepft() === 1, 'W1a: EINE Verknuepfung nach A');
+$eSammelB = avesmapsGaretienUebernehmen($pdoI, $laufI, [$sammelBId], ['id' => 7], null, [
+    $sammelBId => ['innerorts' => true, 'innerorts_nur_quelle' => true],
+]);
+assert($eSammelB['fehler'] === [] && $eSammelB['angelegt_je_form']['quelle'] === 0,
+    '🔴 W1a: B haengt an DERSELBEN Verknuepfung -- avesmapsGaretienQuelleAnlegen gibt zwar `true` zurueck'
+    . ' (sie gehoert schon uns), aber es ist NICHTS Neues entstanden: ' . json_encode($eSammelB, JSON_UNESCAPED_UNICODE));
+assert(count($eSammelB['hinweise']) === 1 && str_contains($eSammelB['hinweise'][0]['text'], 'war schon vorhanden'),
+    'W1a: B bekommt einen Hinweis statt einer falschen „Quelle ergaenzt"-Meldung: ' . json_encode($eSammelB['hinweise'], JSON_UNESCAPED_UNICODE));
+$noteSammelB = (string) $pdoI->query('SELECT apply_note FROM sync_plan_item WHERE id = ' . $sammelBId)->fetchColumn();
+assert($noteSammelB === avesmapsGaretienNurQuelleVermerk('stadt-wandleth', false), 'W1a: B traegt angelegt:0: ' . $noteSammelB);
+assert($sammelVerknuepft() === 1, 'W1a: immer noch EINE Verknuepfung -- B hat keine zweite angelegt');
+$pruefungen += 7;
+
+// --- Ruecknahme A zuerst: B traegt die Verknuepfung noch -- A darf sie nicht loesen.
+$rSammelA = avesmapsGaretienRuecknahmeAusfuehren($pdoI, $laufI, [$sammelAId], ['id' => 7]);
+assert($rSammelA['fehler'] === [] && $rSammelA['zurueckgenommen'] === 1, 'W1a: Ruecknahme A gelingt: ' . json_encode($rSammelA, JSON_UNESCAPED_UNICODE));
+assert($sammelVerknuepft() === 1,
+    '🔴 W1a: A darf die von B mitgetragene Verknuepfung NICHT loesen -- B ist noch done: ' . $sammelVerknuepft());
+assert($pdoI->query('SELECT apply_state FROM sync_plan_item WHERE id = ' . $sammelAId)->fetchColumn() === null, 'W1a: A ist zurueck auf offen');
+$pruefungen += 3;
+
+// --- Ruecknahme B danach: B traegt selbst angelegt:0 -- B loest NIE, unabhaengig vom Gruppenzustand.
+// 🪤 DIE MOEGLICHE WAISE (siehe Docblock avesmapsGaretienNurQuelleAndereDoneZeileVorhanden): die
+// Verknuepfung bleibt jetzt endgueltig stehen, weil A (das einzige Item, das je loesen durfte) schon
+// zurueckgenommen ist. Das ist die sichere Richtung, keine Regression -- VOR Nachbesserung 1 loeschte
+// die Ruecknahme UEBERHAUPT NICHT anhand einer Gruppe.
+$rSammelB = avesmapsGaretienRuecknahmeAusfuehren($pdoI, $laufI, [$sammelBId], ['id' => 7]);
+assert($rSammelB['fehler'] === [] && $rSammelB['zurueckgenommen'] === 1, 'W1a: Ruecknahme B gelingt: ' . json_encode($rSammelB, JSON_UNESCAPED_UNICODE));
+assert($sammelVerknuepft() === 1,
+    '🪤 W1a: die Verknuepfung bleibt als WAISE stehen -- dokumentierte, sichere Folge: ' . $sammelVerknuepft());
+$pruefungen += 2;
+
+// --- W1b. Sonde b: ein Bauwerk, dessen ARTIKEL die eigene Adresse der Stadt ist.
+$vorherQuellenWandlethB = $garetienQuellenWandleth();
+$eintragStadtverweis = $baueBauwerk('Wandlether Stadtverweis', $befundWandleth);
+$eintragStadtverweis['after']['artikel_quelle']['url'] = 'https://www.garetien.de/index.php/Garetien:Wandleth';
+avesmapsSyncPlanAddItem($pdoI, $laufI, $eintragStadtverweis);
+$stadtverweisId = $itemIdVon($pdoI, 'Wandlether Stadtverweis (Probe)');
+$eStadtverweis = avesmapsGaretienUebernehmen($pdoI, $laufI, [$stadtverweisId], ['id' => 7], null, [
+    $stadtverweisId => ['innerorts' => true, 'innerorts_nur_quelle' => true],
+]);
+assert($eStadtverweis['fehler'] === [] && $eStadtverweis['angelegt_je_form']['quelle'] === 0,
+    '🔴 W1b: die Adresse hing schon als EIGENE Quelle der Stadt -- keine neue Verknuepfung: '
+    . json_encode($eStadtverweis, JSON_UNESCAPED_UNICODE));
+assert($garetienQuellenWandleth() === $vorherQuellenWandlethB, 'W1b: die Anzahl der Quellen an Wandleth aendert sich nicht');
+$noteStadtverweis = (string) $pdoI->query('SELECT apply_note FROM sync_plan_item WHERE id = ' . $stadtverweisId)->fetchColumn();
+assert($noteStadtverweis === avesmapsGaretienNurQuelleVermerk('stadt-wandleth', false), 'W1b: der Vermerk traegt angelegt:0');
+$pruefungen += 3;
+$rStadtverweis = avesmapsGaretienRuecknahmeAusfuehren($pdoI, $laufI, [$stadtverweisId], ['id' => 7]);
+assert($rStadtverweis['fehler'] === [] && $rStadtverweis['zurueckgenommen'] === 1, 'W1b: Ruecknahme gelingt: ' . json_encode($rStadtverweis, JSON_UNESCAPED_UNICODE));
+assert($garetienQuellenWandleth() === $vorherQuellenWandlethB,
+    '🔴 W1b: die Stadt behaelt ihre eigene Quelle samt Lizenz -- nichts wurde geloest');
+$pruefungen += 2;
+
+// --- W1c. Einzelfall wie bisher: neu angelegt -> Ruecknahme loest (bereits oben abgedeckt: der
+// Hesindetempel-Fall -- angelegt:1, keine Gruppe -- lief unveraendert weiter, siehe NQ-Ruecknahme).
+
+// --- W1d. Alter Vermerk OHNE `angelegt`-Feld (Bestand VOR Nachbesserung 1) -- Ruecknahme loest NICHTS.
+$pdoI->exec("INSERT INTO map_features (public_id, feature_type, feature_subtype, name, geometry_json, properties_json, is_active)
+             VALUES ('stadt-altvermerk', 'location', 'dorf', 'Altvermerk', '{\"type\":\"Point\",\"coordinates\":[600,600]}', '{}', 1)");
+$altUrl = 'https://www.garetien.de/index.php/Garetien:Altvermerk-Quelle';
+avesmapsGaretienQuelleAnlegen($pdoI, 'settlement', 'stadt-altvermerk', [
+    'url' => $altUrl, 'label' => 'Alte Quelle', 'license' => 'cc-by-nc-sa-3.0', 'attribution' => 'VolkoV / garetien.de',
+], 7);
+$altQuelleAn = static fn(): int => (int) $pdoI->query(
+    "SELECT COUNT(*) FROM feature_sources WHERE entity_type = 'settlement' AND entity_public_id = 'stadt-altvermerk' AND origin = 'garetien'"
+)->fetchColumn();
+assert($altQuelleAn() === 1, 'W1d (Testaufbau): die Adresse haengt bereits');
+$eintragAlt = $baueBauwerk('Altvermerk Tempel', null);
+$eintragAlt['after']['artikel_quelle']['url'] = $altUrl;
+avesmapsSyncPlanAddItem($pdoI, $laufI, $eintragAlt);
+$altItemId = $itemIdVon($pdoI, 'Altvermerk Tempel (Probe)');
+// Von Hand auf den ALTEN Vermerk gesetzt -- nackt, ohne "| angelegt:N" (vor Nachbesserung 1). Live
+// gibt es davon keinen (Aufgabe 8 war nie live), die Rueckwaertskompatibilitaet bleibt trotzdem Pflicht.
+$pdoI->prepare("UPDATE sync_plan_item SET apply_state = 'done', apply_note = ? WHERE id = ?")
+    ->execute(['nur_quelle:stadt-altvermerk', $altItemId]);
+$rAlt = avesmapsGaretienRuecknahmeAusfuehren($pdoI, $laufI, [$altItemId], ['id' => 7]);
+assert($rAlt['fehler'] === [] && $rAlt['zurueckgenommen'] === 1, 'W1d: das Item geht trotzdem zurueck auf offen: ' . json_encode($rAlt, JSON_UNESCAPED_UNICODE));
+assert($altQuelleAn() === 1, '🔴 W1d: ein alter Vermerk OHNE angelegt-Feld loest NICHTS -- die sichere Richtung');
+assert($pdoI->query('SELECT apply_state FROM sync_plan_item WHERE id = ' . $altItemId)->fetchColumn() === null, 'W1d: Item ist offen');
+$pruefungen += 3;
+
+// =================================================================================================
+// NACHBESSERUNG 1 -- G2: die Siedlungsklasse wird POSITIV geprueft (avesmapsGaretienSiedlungsFamilie),
+// nicht ueber die Verneinung von avesmapsIstBauwerksklasse -- eine Kreuzung oder eine leere Klasse
+// ist WEDER Bauwerk NOCH Siedlung und darf nicht durchrutschen.
+// =================================================================================================
+$wirftFix1 = static function (callable $f): string {
+    try {
+        $f();
+    } catch (RuntimeException $e) {
+        return $e->getMessage();
+    }
+
+    return '';
+};
+$pdoI->exec("INSERT INTO map_features (public_id, feature_type, feature_subtype, name, geometry_json, properties_json, is_active) VALUES
+    ('kreuzung-g2', 'location', 'crossing', 'Kreuzung-G2', '{\"type\":\"Point\",\"coordinates\":[610,610]}', '{}', 1),
+    ('leer-g2', 'location', '', 'LeereArt-G2', '{\"type\":\"Point\",\"coordinates\":[615,615]}', '{}', 1)");
+$grundKreuzung = $wirftFix1(static fn() => avesmapsGaretienInnerortsSiedlung($pdoI, [], ['innerorts_public_id' => 'kreuzung-g2'], 'G2 Test'));
+assert(str_contains($grundKreuzung, 'keine Siedlung'), '🔴 G2: eine Kreuzungsklasse ist keine Siedlung -- lauter Abbruch: ' . $grundKreuzung);
+$grundLeer = $wirftFix1(static fn() => avesmapsGaretienInnerortsSiedlung($pdoI, [], ['innerorts_public_id' => 'leer-g2'], 'G2 Test'));
+assert(str_contains($grundLeer, 'keine Siedlung'), '🔴 G2: eine leere Klasse ist keine Siedlung -- lauter Abbruch: ' . $grundLeer);
+$pruefungen += 2;
+
+// =================================================================================================
+// NACHBESSERUNG 1 -- G3: der Innerorts-Wunsch gilt nur an einem Item, dessen eigenes Objekt ein
+// Bauwerk ist -- ein Weg-Item mit `innerorts`/`innerorts_nur_quelle` im Rumpf bricht laut ab.
+// =================================================================================================
+$eintragWegG3 = $bauePunktEintrag('path', 'Flussweg', 'Testfluss Innerorts-Sperre', 620.0, 620.0);
+avesmapsSyncPlanAddItem($pdoI, $laufI, $eintragWegG3);
+$wegG3Id = $itemIdVon($pdoI, 'Testfluss Innerorts-Sperre (Probe)');
+$vorherFeaturesG3 = (int) $pdoI->query('SELECT COUNT(*) FROM map_features')->fetchColumn();
+$vorherStaettenG3 = (int) $pdoI->query('SELECT COUNT(*) FROM settlement_place')->fetchColumn();
+$eG3 = avesmapsGaretienUebernehmen($pdoI, $laufI, [$wegG3Id], ['id' => 7], null, [
+    $wegG3Id => ['innerorts' => true, 'innerorts_public_id' => 'stadt-wandleth'],
+]);
+assert(count($eG3['fehler']) === 1 && str_contains($eG3['fehler'][0]['grund'], 'kein Bauwerk'),
+    'G3: ein Weg-Item mit Innerorts-Rumpf bricht laut ab: ' . json_encode($eG3['fehler'], JSON_UNESCAPED_UNICODE));
+assert((int) $pdoI->query('SELECT COUNT(*) FROM map_features')->fetchColumn() === $vorherFeaturesG3, 'G3: kein Kartenobjekt entstanden');
+assert((int) $pdoI->query('SELECT COUNT(*) FROM settlement_place')->fetchColumn() === $vorherStaettenG3,
+    '🔴 G3: und auch KEINE Staette -- vor der Nachbesserung entstand hier eine (der Weg wurde als Bauwerk behandelt, weil `stadt` keine Bauwerksklasse ist)');
+assert($pdoI->query('SELECT apply_state FROM sync_plan_item WHERE id = ' . $wegG3Id)->fetchColumn() === 'failed', 'G3: das Item steht auf failed');
+$pruefungen += 4;
+
+// =================================================================================================
+// NACHBESSERUNG 1 -- G6: die Naht. Ein Paar (Zusatz-Item „trotzdem neu" + Ergaenzungs-Item) mit
+// `beides:true` an BEIDEN Items laeuft durch die echte Tuer (avesmapsGaretienBeidesPruefen, dann
+// avesmapsGaretienApplyStep) -- und das Ergaenzungs-Item formt das bestehende Objekt NICHT um.
+// =================================================================================================
+$idFlussG6 = '00000000-0000-4000-8000-000000009100';
+$pdoI->prepare('INSERT INTO map_features (public_id, name, feature_type, feature_subtype, geometry_json, properties_json, geometry_type) VALUES (?,?,?,?,?,?,?)')
+    ->execute([$idFlussG6, 'Naht-Alke', 'path', 'Flussweg',
+        json_encode(['type' => 'LineString', 'coordinates' => [[30.0, 30.0], [31.0, 31.0]]]),
+        json_encode([]), 'LineString']);
+$basisG6 = 'ggp:Gewaesser:Bach:Garetien:NahtAlke!Naht-Alke';
+avesmapsSyncPlanAddItem($pdoI, $laufI, [
+    'entity_key' => $basisG6, 'entity_public_id' => null, 'change_type' => 'new',
+    'label' => 'Naht-Alke (trotzdem neu)', 'before' => [],
+    'after' => [
+        'herkunft' => 'garetien', 'wiki' => 'ggp', 'ebene' => 'Gewaesser', 'typ' => 'Bach',
+        'ziel' => 'path', 'subtyp' => 'Flussweg', 'kind' => null, 'name' => 'Naht-Alke-Zusatz',
+        'geometry' => ['type' => 'LineString', 'coordinates' => [[35.0, 35.0], [36.0, 36.0]]],
+        'quelle' => ['url' => 'https://www.garetien.de/index.php?title=Garetien:NahtAlkeZusatz',
+            'label' => 'Briefspiel (Garetien)', 'license' => 'cc-by-nc-sa-3.0', 'attribution' => 'VolkoV / garetien.de'],
+        'urteil' => 'neu', 'anlass' => null, 'nachbar' => null,
+    ],
+    'override' => [], 'selected' => 1,
+]);
+$zusatzG6 = $itemIdVon($pdoI, 'Naht-Alke (trotzdem neu)');
+avesmapsSyncPlanAddItem($pdoI, $laufI, [
+    'entity_key' => $basisG6 . '|ergaenzung|' . $idFlussG6, 'entity_public_id' => $idFlussG6, 'change_type' => 'changed',
+    'label' => 'Naht-Alke Quelle', 'before' => ['public_id' => $idFlussG6, 'name' => 'Naht-Alke'],
+    'after' => ['herkunft' => 'garetien', 'anlass' => 'ergaenzung', 'felder' => ['quelle'],
+        'ziel' => 'path', 'subtyp' => 'Flussweg', 'name' => 'Naht-Alke',
+        'abschnitt' => ['public_id' => $idFlussG6, 'name' => 'Naht-Alke', 'punkte' => 2, 'geometrie' => []],
+        'quelle' => ['url' => 'https://www.garetien.de/index.php?title=Garetien:NahtAlke',
+            'label' => 'Briefspiel (Garetien)', 'source_type' => 'briefspiel',
+            'origin' => 'garetien', 'license' => 'cc-by-nc-sa-3.0', 'attribution' => 'VolkoV / garetien.de']],
+    'override' => [], 'selected' => 1,
+]);
+$ergaenzungG6 = $itemIdVon($pdoI, 'Naht-Alke Quelle');
+
+$grundOhneBeides = avesmapsGaretienBeidesPruefen($pdoI, $laufI, [$zusatzG6, $ergaenzungG6], null);
+assert(is_string($grundOhneBeides) && str_contains($grundOhneBeides, 'Naht-Alke'),
+    'G6: ohne beides weist die Tuer (der Riegel) das Paar ab: ' . var_export($grundOhneBeides, true));
+assert($pdoI->query('SELECT apply_state FROM sync_plan_item WHERE id = ' . $zusatzG6)->fetchColumn() === null
+    && $pdoI->query('SELECT apply_state FROM sync_plan_item WHERE id = ' . $ergaenzungG6)->fetchColumn() === null,
+    'G6: nichts geschrieben, solange der Riegel abweist (die Tuer wuerde apply gar nicht erst aufrufen)');
+$pruefungen += 2;
+
+$grundMitBeides = avesmapsGaretienBeidesPruefen($pdoI, $laufI, [$zusatzG6, $ergaenzungG6], [
+    $zusatzG6 => ['beides' => true], $ergaenzungG6 => ['beides' => true],
+]);
+assert($grundMitBeides === null, 'G6: mit beiden Bestaetigungen laesst der Riegel das Paar durch');
+$pruefungen++;
+
+$vorherNameFluss = (string) $pdoI->query('SELECT name FROM map_features WHERE public_id = ' . $pdoI->quote($idFlussG6))->fetchColumn();
+$vorherGeomFluss = (string) $pdoI->query('SELECT geometry_json FROM map_features WHERE public_id = ' . $pdoI->quote($idFlussG6))->fetchColumn();
+$vorherFeaturesG6 = (int) $pdoI->query('SELECT COUNT(*) FROM map_features')->fetchColumn();
+$schrittG6 = avesmapsGaretienApplyStep($pdoI, $laufI, 7, ['id' => 7, 'username' => 'test'], null, [$zusatzG6, $ergaenzungG6], null, [
+    $zusatzG6 => ['beides' => true], $ergaenzungG6 => ['beides' => true],
+]);
+assert($schrittG6['done'] === true && $schrittG6['skipped'] === 0,
+    'G6: durch die echte Tuer (avesmapsGaretienApplyStep) laufen beide Items durch: ' . json_encode($schrittG6, JSON_UNESCAPED_UNICODE));
+assert($schrittG6['applied'] === 1, 'G6: NUR das Zusatz-Item legt ein Kartenobjekt an: ' . json_encode($schrittG6, JSON_UNESCAPED_UNICODE));
+$zustandZusatzG6 = $pdoI->query('SELECT apply_state FROM sync_plan_item WHERE id = ' . $zusatzG6)->fetchColumn();
+$zustandErgaenzungG6 = $pdoI->query('SELECT apply_state FROM sync_plan_item WHERE id = ' . $ergaenzungG6)->fetchColumn();
+assert($zustandZusatzG6 === 'done' && $zustandErgaenzungG6 === 'done',
+    'G6: beide Items stehen auf done: ' . json_encode([$zustandZusatzG6, $zustandErgaenzungG6]));
+// ⚠️ NICHT exakt +1: der Zusatz ist ein WEG, und avesmapsGaretienSetztEndkreuzungen legt an
+// beiden Enden je eine Kreuzung an (Vorgabe JA, Owner 02.09.2026) -- macht bis zu drei neue
+// Zeilen (Weg + 2 Kreuzungen). Gezaehlt wird deshalb NUR ueber `applied` (oben bereits gesichert),
+// hier lediglich, dass ueberhaupt ETWAS entstand und nicht ZWEI Objekte (kein Doppel-Anlegen durch
+// beide Items).
+assert((int) $pdoI->query('SELECT COUNT(*) FROM map_features')->fetchColumn() > $vorherFeaturesG6, 'G6: mindestens EIN neues Kartenobjekt (der Zusatz)');
+$nachherFluss = $pdoI->query('SELECT name, geometry_json FROM map_features WHERE public_id = ' . $pdoI->quote($idFlussG6))->fetch(PDO::FETCH_ASSOC);
+assert($nachherFluss['name'] === $vorherNameFluss && $nachherFluss['geometry_json'] === $vorherGeomFluss,
+    '🔴 G6: das BESTEHENDE Objekt behaelt Name und Geometrie -- `beides:true` formt es NICHT um: ' . json_encode($nachherFluss, JSON_UNESCAPED_UNICODE));
+// ⚠️ Die Adresse kommt aus dem SCHLUESSEL-Rueckfall (avesmapsGaretienArtikelNameAusSchluessel),
+// nicht aus dem hier gesetzten `after.quelle.url` -- „der Artikel schlaegt die Sammelquelle"
+// (avesmapsGaretienQuellenAdressenAus). Geprueft wird deshalb, DASS eine Verknuepfung entstand,
+// nicht ihre genaue Adressform -- die ist Sache jener Funktion, nicht dieses Tests.
+$quellenNahtAlke = $pdoI->query(
+    "SELECT s.url FROM feature_sources fs JOIN sources s ON s.id = fs.source_id"
+    . " WHERE fs.entity_type = 'path' AND fs.entity_public_id = " . $pdoI->quote($idFlussG6)
+)->fetchAll(PDO::FETCH_COLUMN);
+assert(count($quellenNahtAlke) === 1 && str_contains($quellenNahtAlke[0], 'NahtAlke'),
+    'G6: die Quelle wurde am bestehenden Fluss ergaenzt: ' . json_encode($quellenNahtAlke));
+$pruefungen += 5;
 
 echo "OK: {$pruefungen} Pruefungen\n";
