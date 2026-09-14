@@ -144,10 +144,15 @@ zuruecksetzen();
 
 // =================================================================================================
 // E. Fehler 6: die Vorbelegung kommt aus dem GROESSTEN Fragment, nie aus dem zuerst beruehrten.
+// 🔴 Nachbesserung Runde 1 (W2): `klein` traegt jetzt SELBST eine gueltige Form (region) -- sonst
+// sperrt der neue, ueber JEDES Mitglied pruefende Riegel das Zusammenlegen ueberhaupt (Ruling W2,
+// Test a -- die Kombination "eines der Mitglieder ist als Punkt eingestellt" wird eigens in
+// garetien-verbund-stage-eintrag-fix1.test.js gemessen). Die Fehler-6-Aussage bleibt dieselbe und
+// wird jetzt an der ART gemessen, nicht mehr an der FORM.
 // =================================================================================================
 zuruecksetzen();
 {
-	const klein = fragment(1, 3, { ebene: "Berge", typ: "Huegel", ziel: "label", subtyp: "berggipfel", kind: "" });
+	const klein = fragment(1, 3, { ebene: "Berge", typ: "Huegel", ziel: "region", subtyp: "wald", kind: "vegetation" });
 	const gross = fragment(2, 20, { ebene: "Berge", typ: "Huegel", ziel: "region", subtyp: "huegel", kind: "topographie" });
 	const gleichGross = fragment(0, 20, { ebene: "Berge", typ: "Huegel", ziel: "region", subtyp: "huegel", kind: "topographie" });
 	const s = api.garetienVerbundSchluessel(klein);
@@ -157,12 +162,12 @@ zuruecksetzen();
 		"Gleichstand: der kleinste Schluessel");
 	gleich(api.garetienVerbundGroesstes(s, []), null, "ohne Mitglieder: null");
 
-	gleich(api.garetienZielWahlZu(klein).ziel, "label", "Vorbedingung: das kleine Fragment allein waere ein Gipfel");
+	gleich(api.garetienZielWahlZu(klein).subtyp, "wald", "Vorbedingung: das kleine Fragment allein traegt seine eigene Art");
 	api.avesmapsGaretienStageHinzufuegen([klein, gross]);
 	gleich(api.garetienVerbundZusammenlegen(s, []), 2, "zusammengelegt");
-	gleich(api.garetienZielWahlZu(klein).ziel, "region",
-		"💣 der zusammengelegte Verbund wird eine Flaeche -- vorbelegt aus dem GROESSTEN, obwohl das kleine zuerst beruehrt wurde");
-	gleich(api.garetienZielWahlZu(klein).subtyp, "huegel", "samt Art");
+	gleich(api.garetienZielWahlZu(klein).ziel, "region", "der zusammengelegte Verbund bleibt eine Flaeche");
+	gleich(api.garetienZielWahlZu(klein).subtyp, "huegel",
+		"💣 der zusammengelegte Verbund traegt die ART des GROESSTEN Mitglieds, nicht die des zuerst beruehrten");
 }
 
 // =================================================================================================
@@ -170,7 +175,9 @@ zuruecksetzen();
 // =================================================================================================
 zuruecksetzen();
 {
-	const [f1, f2] = [fragment(1, 11), fragment(2, 6)];
+	// G8 (Nachbesserung Runde 1): kein `f2` mehr -- es war eine tote Variable (nur `void f2;` am
+	// Blockende, nie wirklich gelesen).
+	const f1 = fragment(1, 11);
 	gleich(JSON.stringify(api.garetienVerbundZusammenlegbar(f1)), JSON.stringify({ ok: true, grund: "" }),
 		"eine Flaeche ist zusammenlegbar");
 
@@ -195,7 +202,6 @@ zuruecksetzen();
 	wahr(g.grund.indexOf("Fläche oder ein Weg") !== -1 && g.grund.indexOf("berggipfel") !== -1,
 		"der Grund nennt Regel und gewaehlte Form: " + g.grund);
 	gleich(api.garetienVerbundZusammenlegbar({ key: "x", name: "Weidicht" }).ok, false, "ohne Verbund: nicht zusammenlegbar");
-	void f2;
 }
 
 // =================================================================================================
@@ -260,6 +266,9 @@ async function abschnittI() {
 	global.AVESMAPS_GARETIEN_VORSCHAU_ARTEN = vorschauRegel.AVESMAPS_GARETIEN_VORSCHAU_ARTEN;
 	let gezeichnet = null;
 	global.window.avesmapsGaretienKarteZeigen = function (menge) { gezeichnet = menge; };
+	// Nachbesserung Runde 1 (W3): garetienVorschauNachziehen malt nur bei offenem Fenster --
+	// ohne diese Zeile bliebe die entprellte Nachzieh-Zusicherung unten stumm.
+	api.__test.garetienFensterOffenSetzen(true);
 
 	zuruecksetzen();
 	{
@@ -329,6 +338,7 @@ async function abschnittI() {
 		gleich(api.garetienEingabenFuerServer(m2).curve_label, true, "und reist mit");
 		api.garetienDetailWaehlen(null, alle);
 	}
+	api.__test.garetienFensterOffenSetzen(false);
 	delete global.window.avesmapsGaretienKarteZeigen;
 }
 
