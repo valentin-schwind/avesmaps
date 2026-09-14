@@ -498,4 +498,38 @@ $echtProbe = avesmapsGaretienPasspunktNachbarprobe($echtRes, 3);
 pruefe(avesmapsGaretienPasspunktUrteil($echtProbe, count($echtRes))['stufe'] === 'zu_wenig',
     'aus fuenf echten Punkten darf kein Urteil werden');
 
+// =============================================================================================
+// §K  💣 DIE MARKE "NOCH NICHT PLATZIERT" IST KEIN ORT -- und der Riegel ist GETEILT
+// =============================================================================================
+//
+// Rund 360 Zeilen tragen `2000000 2000000`. EINE davon als Passpunkt zerreisst jede Anpassung:
+// sie liegt rund 600 Karteneinheiten neben der Karte. 🪤 Und der Median zeigt das NICHT -- er
+// ist gegen einen einzelnen Ausreisser unempfindlich. Gemessen am 14.09.2026, als der
+// Datei-Leser die Marke durchliess: Median 1,6 Meilen, MITTEL 22,0, Streuung 242.
+//
+// 🔴 Der Riegel stand bis dahin nur in der Datenbank-Tuer. Eine Regel, die einen von zwei
+// Erzeugern bindet, ist keine Regel (AGENTS.md §11) -- deshalb liegt er jetzt in der
+// Bibliothek, und BEIDE Leser fragen ihn.
+pruefe(avesmapsGaretienPasspunktIstPlatziert(0.0, 0.0) === true, 'der Nullpunkt ist platziert');
+pruefe(avesmapsGaretienPasspunktIstPlatziert(-161700.0, 51450.0) === true, 'Ferdok ist platziert');
+pruefe(avesmapsGaretienPasspunktIstPlatziert(2000000.0, 2000000.0) === false, 'die Marke ist es nicht');
+pruefe(avesmapsGaretienPasspunktIstPlatziert(2000000.0, 0.0) === false, 'eine Achse reicht');
+pruefe(avesmapsGaretienPasspunktIstPlatziert(0.0, -2000000.0) === false, 'auch negativ');
+// ⚠️ Die Schranke liegt bei 1e6 und nicht bei 2e6 -- der groesste echte Wert im Bestand liegt
+// bei rund 4e5 (Beilunk), also dazwischen ist Luft.
+pruefe(avesmapsGaretienPasspunktIstPlatziert(999999.0, 999999.0) === true, 'knapp darunter gilt');
+
+// --- K1: Und BEIDE Leser fragen ihn wirklich. Ein Quelltext-Zaehler, weil der Datei-Leser
+// ein Werkzeug ist und der andere eine Datenbank braucht -- ausfuehren geht bei keinem von
+// beiden hier.
+foreach ([__DIR__ . '/../garetien-passpunkte-lesen.php',
+          __DIR__ . '/../../../../tools/garetien/passpunkte-auswerten.php'] as $datei) {
+    $quelle = (string) file_get_contents($datei);
+    $ohneKommentar = preg_replace('~//[^\n]*~', '', $quelle) ?? $quelle;
+    pruefe(str_contains($ohneKommentar, 'avesmapsGaretienPasspunktIstPlatziert'),
+        basename($datei) . ' muss den geteilten Riegel fragen, nicht eine eigene Kopie fuehren');
+    pruefe(!preg_match('~>=\s*1000000\.0~', $ohneKommentar),
+        basename($datei) . ' darf die Schranke nicht noch einmal selbst hinschreiben');
+}
+
 echo "OK: {$pruefungen} Pruefungen\n";

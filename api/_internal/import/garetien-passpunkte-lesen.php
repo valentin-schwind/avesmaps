@@ -71,7 +71,7 @@ function avesmapsGaretienPasspunkteLesen(PDO $pdo, ?int $runId = null): array
         }
         [$gx, $gy] = $punkte[0];
         // 💣 Die Marke "existiert, aber noch nicht platziert" (2000000 2000000) ist KEIN Ort.
-        if (abs((float) $gx) >= 1000000.0 || abs((float) $gy) >= 1000000.0) {
+        if (!avesmapsGaretienPasspunktIstPlatziert((float) $gx, (float) $gy)) {
             continue;
         }
         $name = trim((string) ($zeile['anzeige'] ?? '')) ?: trim((string) ($zeile['artikel'] ?? ''));

@@ -91,6 +91,23 @@ function avesmapsGaretienPasspunktRichtung(float $dx, float $dy): string
     return ($senkrecht . $waagrecht) ?: 'kein';
 }
 
+/**
+ * Ist dieser Punkt ueberhaupt platziert?
+ *
+ * 💣 DIE MARKE "existiert, aber noch nicht auf der Karte" IST `2000000 2000000` -- rund 360
+ * Zeilen tragen sie. Als Passpunkt genommen zerreisst EINE davon jede Anpassung: sie liegt
+ * rund 600 Karteneinheiten neben der Karte, und Mittelwert wie Varianz sind danach Unsinn,
+ * waehrend der MEDIAN weiter harmlos aussieht.
+ * 🔴 Deshalb steht der Riegel HIER und nicht in jedem Leser einzeln. Am 14.09.2026 gab es
+ * ihn nur in der Datenbank-Tuer; der Datei-Leser daneben liess die Marke durch und meldete
+ * Mittel 22,0 Meilen bei Median 1,6 -- eine Regel, die einen von zwei Erzeugern bindet, ist
+ * keine Regel (AGENTS.md §11).
+ */
+function avesmapsGaretienPasspunktIstPlatziert(float $gx, float $gy): bool
+{
+    return abs($gx) < 1000000.0 && abs($gy) < 1000000.0;
+}
+
 /** Residuen einer ganzen Liste. */
 function avesmapsGaretienPasspunktResiduen(array $paare, ?array $m = null): array
 {
