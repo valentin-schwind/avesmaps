@@ -9,7 +9,9 @@ Kamm-Anwuchs-Konzept vom 03.09.2026 (nie gebaut, **durch diesen Entwurf ersetzt*
 `ecosystem-areas.php?kind=topographie` und `map-features.php`); die Variante tauscht per Naht in
 einer Kopie genau die beschriebene Stelle, Gegenprobe ohne Naht bitgleich zur Produktion ·
 **Bauplan:** folgt nach Freigabe dieses Entwurfs · **Mockup** des Dialogs: vor der ersten Zeile
-Oberflächen-Code (§5.4)
+Oberflächen-Code (§5.4) ·
+**Nachtrag 14.09.2026:** 🔴 Owner-Wahl nach Prüfung der Bilder: **„Eingeblendet, korrigiert"** statt
+der sanften Einblendung (§3, §4.3, §4.4, §4.8)
 
 > 🔴 = Owner-Entscheid oder Owner-Aussage · ⭐ = vorgeschlagene Vorgabe · 🔧 = Frage oder Handgriff
 > für den Owner · 💣 = Falle · ⚠️ = Einschränkung oder offener technischer Punkt
@@ -31,8 +33,10 @@ Die Lösung dieses Entwurfs:
 
 1. **Ein Gipfel ist ein Kegel mit Steigung.** Radius = Höhe ÷ tan(Steigung) — ein 5.000er bei 45°
    reicht 5 Meilen, bei 30° 8,7 Meilen (🔴 Owner-Idee).
-2. **Nach der Erosion eingeblendet:** zum Gipfel hin wird das Gelände immer stärker auf den Kegel
-   gezogen, am Gipfel ganz, am Kreisrand gar nicht — nach oben wie nach unten (🔴 Owner-Wahl).
+2. **Nach der Erosion eingeblendet, korrigiert:** zum Gipfel hin wird das Gelände auf den Kegel
+   gezogen, am Gipfel ganz, am Kreisrand gar nicht. Gelände **unter** dem Kegel wird sanft angehoben,
+   Gelände **über** dem Kegel kräftig, bis kurz vor den Kreisrand, herabgezogen — damit kein Gipfel
+   überwachsen bleibt (🔴 Owner-Wahl nach Prüfung der Bilder).
 3. **Am Flächenrand** läuft der Kegel mit derselben Steigung auf 0 aus.
 4. Der Regler **„Ausstrahlung der Gipfel" wird zu „Steigung der Gipfel"**; jede Gebirgsform bringt
    eine Steigung als Vorlage mit (🔴 „Steigung von sinnvollen Gebirgseinstellungen abhängig").
@@ -56,6 +60,8 @@ Die Lösung dieses Entwurfs:
 - „gibts ne mischung aus ‚Danach als Boden' und ‚Danach eingeblendet'? ansonsten machen wir
   ‚Danach eingeblendet'"
 - „ja, schreib den Entwurf"
+- Nach dem Lesen: „Eingeblendet, korrigiert scheint mir nach der prüfung der bessere weg zu sein -
+  lässt sich das noch korrigieren?, ansonsten passt der entwurf"
 
 ---
 
@@ -122,7 +128,7 @@ mit Rauschen 0,70 → mit Erosion ohne Rauschen 1,01 → beides 1,40.
 | **Immun** (Kegel vor der Erosion, im Umkreis keine Erosion) | beste Zahlen, im Bild eine glatte Scheibe mit dunklem Ring |
 | **Danach als Boden** (`max(h, Kegel)`) | heilt die Nadel, nicht das Überwachsen |
 | **Mischung** (unter dem Kegel voll anheben, darüber einblenden) | praktisch gleich „eingeblendet" (Nebelstein 3.985 gegen 3.844 bei 2 Zellen) |
-| Kräftiges Herabziehen (Gewicht 1 − u⁴) | Krater um den Aarenfels (1.393 am Gipfel, 3.662 am Kreisrand), Massiv 10 Zellen neben der Adlerspitze 900 Schritt tiefer, Flüsse als **Damm** 767 Schritt über ihrem Ufer |
+| **Eingeblendet, sanft** (nach oben und unten dasselbe Smoothstep-Gewicht) | 🔴 vom Owner nach Prüfung der Bilder zugunsten der korrigierten Fassung verworfen: überwachsenes Gelände bleibt stehen — Zellen im Gipfelkreis höher als der Gipfel 47 / 36 / 132 gegen 15 / 28 / 39 korrigiert |
 
 ---
 
@@ -148,28 +154,41 @@ Abstandsrechnung.
 ⚠️ `max` über die Gipfel, nie eine Summe: zwei Kegel addieren sich nicht. Deshalb braucht es **keine
 Kappung** mehr.
 
-### 4.3 Das Gewicht
+### 4.3 Die zwei Gewichte
 
-    u(x) = min über die Gipfel von d_p(x) / r_p
-    w(x) = 1 − u² · (3 − 2u)          (Smoothstep: 1 am Gipfel, 0 am Kreisrand)
+    u(x)    = min über die Gipfel von d_p(x) / r_p
+    wAuf(x) = 1 − u² · (3 − 2u)       (Smoothstep: sanft, 1 am Gipfel, 0 am Kreisrand)
+    wAb(x)  = 1 − u⁴                  (kräftig bis kurz vor den Kreisrand, dort 0)
 
 ### 4.4 Die Einblendung
 
-    h'(x) = h(x) + w(x) · (T(x) − h(x))
+    h'(x) = h(x) + wAuf(x) · (T(x) − h(x))     wenn h(x) < T(x)   (Gelände unter dem Kegel)
+    h'(x) = h(x) + wAb(x)  · (T(x) − h(x))     sonst              (Gelände über dem Kegel)
 
 für jede Zelle **in der Fläche**, die **kein Gipfelkern** (`kern`) und **keine Flussachse oder
 Seefläche** (`senke`) ist.
 
-- 🔴 Nach oben wie nach unten mit demselben Gewicht (Owner-Wahl „eingeblendet").
+- 🔴 „Eingeblendet, korrigiert" (Owner-Wahl): Anheben sanft, Herabziehen kräftig. Das nimmt dem
+  Überwachsen den Ring, der bei gleichem Gewicht stehen bliebe (§3).
 - ⚠️ Außerhalb aller Kreise ändert sich nichts.
+- ⚠️ Der Exponent 4 ist gemessen, nicht hergeleitet: er ist der Wert, mit dem die Bilder entstanden sind,
+  die der Owner gewählt hat. Wer ihn ändert, ändert das gewählte Bild.
 
-### 4.5 Talflanken — ⚠️ zusammen mit #109, vor dem Bau zu messen
+### 4.5 Talflanken — 💣 Pflicht vor dem Bau, zusammen mit #109
 
-An der Roten Sichel liegen Flusszellen im Gipfelkreis nach der Einblendung im Mittel **+177 Schritt**
-über ihrem Ufer (heute +125, 240 Zellen): die Flanke wird herabgezogen, die Achse nicht.
-⭐ Vorschlag: die Einblendung senkt eine Talflanke **nie unter die Sohle ihres Tals** —
-`ecosystemTalSohle(talIndex, x, y)` liefert sie bereits. Nicht gemessen; Aufgabe 1 des Bauplans, und
-die Talregel gehört Fall #109 (§7).
+Flusszellen im Gipfelkreis liegen nach der korrigierten Einblendung im Mittel deutlich **über** ihrem
+Ufer: die Flanke wird herabgezogen, die Achse nicht. Das ist ein **Damm**, kein Tal.
+
+| über dem Ufer, Mittel | heute | korrigiert |
+|---|---|---|
+| Rote Sichel (240 Zellen) | +125 | **+477** |
+| Finsterkamm (31 Zellen) | −41 | **+159** |
+
+Das kräftige Herabziehen macht es spürbar schlimmer als die sanfte Fassung (+177 / −19) — die
+korrigierte Fassung kann ohne diese Regel **nicht** live gehen.
+⭐ Regel: die Einblendung senkt eine Talflanke **nie unter die Sohle ihres Tals** —
+`ecosystemTalSohle(talIndex, x, y)` liefert sie bereits. Aufgabe 1 des Bauplans: bauen, messen (Ziel:
+nicht über heute), erst dann weiter. Die Talregel gehört Fall #109 (§7).
 
 ### 4.6 Ort in der Kette
 
@@ -194,12 +213,32 @@ Im Trichter `avesmapsGebirgsRasterBauen`:
 |---|---|---|---|
 | Gipfel zeigen ihre Höhe (größte Abweichung) | 0 | 0 | 0 |
 | Randzellen über 1.000 Schritt (ohne Kammlinie): heute → neu | 2 → 2 | 6 → 3 | 0 → 0 |
-| Zellen im Gipfelkreis höher als der Gipfel: heute → neu | 94 → 47 | 92 → 36 | 199 → 132 |
+| Zellen im Gipfelkreis höher als der Gipfel: heute → neu | 94 → **15** | 92 → **28** | 199 → **39** |
 | Nadel: Höhe 2 Zellen neben dem Gipfel (Ideal 30°) | 2.616 → 3.844 (4.134) | 4.589 → 5.575 (5.784) | — |
-| mittlere Höhe: heute → neu | 1.214 → 1.210 | 1.870 → 1.833 | 2.388 → 2.386 |
+| mittlere Höhe: heute → neu | 1.214 → 1.205 | 1.870 → **1.775** (−5 %) | 2.388 → 2.369 |
+| Flüsse im Gipfelkreis über ihrem Ufer: heute → neu | −41 → +159 | +125 → +477 | — |
 
 Flussachsen und Seen sind per Konstruktion unberührt (`senke`); die Abnahme misst trotzdem „Fluss
-fließt bergab" und „See ist eben" mit den vorhandenen Kennzahlen nach.
+fließt bergab" und „See ist eben" mit den vorhandenen Kennzahlen nach — und den Damm aus §4.5.
+
+### 4.8 Bekannte Nebenwirkungen der korrigierten Fassung (gemessen)
+
+Mittlere Höhe auf dem Zellring im Abstand 0 / 1 / 2 / 3 / 4 / 5 / 6 / 8 / 10 Zellen:
+
+| | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 8 | 10 |
+|---|---|---|---|---|---|---|---|---|---|
+| Aarenfels (2.600, Radius 6 Zellen) heute | 2.600 | 2.600 | 2.950 | 3.304 | 3.576 | 3.703 | 3.720 | 3.567 | 3.291 |
+| Aarenfels korrigiert | 2.600 | 2.600 | 1.630 | **1.393** | 1.810 | 2.938 | **3.662** | 3.516 | 3.301 |
+| Adlerspitze (6.650, Radius 15 Zellen) heute | 6.650 | 6.650 | 4.589 | 3.919 | 3.729 | 3.687 | 3.666 | 3.615 | 3.312 |
+| Adlerspitze korrigiert | 6.650 | 6.650 | 5.575 | 4.990 | 4.435 | 3.922 | 3.488 | **2.807** | **2.413** |
+
+- ⚠️ **Mulde um einen Gipfel in hohem Umland:** der Aarenfels ist jetzt der höchste Punkt seiner
+  Nähe, steht aber in einer Senke, deren Rand am Kreis 2.269 Schritt höher liegt als ihr Boden.
+  Ursache bleibt die Kammhöhe über den Gipfeln (§8).
+- ⚠️ **Das Umland großer Gipfel wird tiefer:** bei einem großen Radius (Adlerspitze 11,5 Meilen) zieht
+  der Kegel auch Gelände herab, das zum Massiv gehört — 10 Zellen neben der Adlerspitze 900 Schritt.
+  Daher die −5 % mittlere Höhe an der Roten Sichel.
+- ⚠️ In der Gesamtansicht sind die Kreise großer Gipfel als ruhigere, glatte Flächen erkennbar.
 
 ---
 
@@ -286,7 +325,7 @@ Vorschau zeigt altes Gelände:
 ### 6.1 Reisezeiten — vor dem Livegang messen
 
 Der Wege-Router liest `path_terrain`, der Querfeldein-A* das Raster, beide eingeschaltet (§2.4).
-Die Einblendung ändert die Höhen um die Gipfel (Rote Sichel: mittlere Höhe −2 %).
+Die Einblendung ändert die Höhen um die Gipfel (Rote Sichel: mittlere Höhe −5 %, §4.8).
 
 Vor dem Livegang, offline gegen die gespeicherten und die neu gerechneten Raster:
 - für jeden Weg, der eine der 71 Gebirgsflächen berührt, `avesmapsTerrainProfileForLine` und daraus
@@ -299,11 +338,10 @@ gemeinsam mit Fall #109 (§7).
 
 ### 6.2 Aussehen
 
-Im Streiflicht bleiben die Gipfel weich eingebundene Kuppen ohne Kante. Außerhalb der Kreise ändert
-die Einblendung nichts — per Konstruktion, nicht gemessen; der einzige Unterschied zu heute ist dort
-die weggefallene Ausstrahlung.
-⚠️ Ein Gipfel, dessen Umland die Kammhöhe weit über ihn legt (Aarenfels), wird besser, aber nicht
-frei (§8).
+Im Streiflicht stehen die Gipfel als Kuppen ohne Nadel, und kein Gipfel bleibt deutlich überwachsen.
+Außerhalb der Kreise ändert die Einblendung nichts — per Konstruktion, nicht gemessen; der einzige
+Unterschied zu heute ist dort die weggefallene Ausstrahlung. Die sichtbaren Nebenwirkungen stehen in
+§4.8.
 
 ---
 
@@ -328,7 +366,7 @@ Beide Arbeiten ändern dieselbe Rechnung. Stand 14.09.2026: #109 hat GO und noch
 ## 8. Nicht in diesem Entwurf (bleibt offen)
 
 - 🔧 **Darf die Kammhöhe über den Gipfeln stehen?** Schwarze Sichel: Kammhöhe 6.400, höchster
-  Gipfel 5.000 — der Aarenfels (2.600) bleibt dort in einer flachen Mulde.
+  Gipfel 5.000 — der Aarenfels (2.600) steht mit der korrigierten Einblendung in einer Mulde (§4.8).
 - **Streifen aus der Erosion:** die D8-Fließrichtung zieht auf glatten Hängen achsparallele Rinnen
   (belegt: ohne Rauschen stark, ohne Erosion keine).
 - **Kammlinie außerhalb der Fläche:** Schwarze Sichel, 5 von 32 Kurvenpunkten; 12 Randzellen stehen
@@ -344,13 +382,15 @@ Beide Arbeiten ändern dieselbe Rechnung. Stand 14.09.2026: #109 hat GO und noch
 2. Der Regler heißt „Steigung der Gipfel", steht auf 30°, zeigt die Vorgabemarke der Vorlage (Karst).
 3. Um jeden der 14 Gipfel steht ein gestrichelter Kreis.
 4. Regler auf 45° ziehen: die Kreise schrumpfen sofort, das Streiflicht rechnet neu.
-5. An der Adlerspitze steht keine Nadel mehr (Querschnitt wie in §4.7).
+5. An der Adlerspitze steht keine Nadel mehr (Querschnitt wie in §4.7); an der Schwarzen Sichel ist
+   der Aarenfels der höchste Punkt seiner Nähe (Mulde wie in §4.8, nicht tiefer).
 6. Regler auf 0: keine Kreise, keine Gipfelkegel.
 7. „Höhenfeld erzeugen": das Raster wird gespeichert, der Stempel ändert sich.
 8. Fläche ohne Gipfel (z. B. Gorische Wüste): Regler grau, Satz sichtbar.
 9. Die Karte als **Besucher** laden (ohne `edit=1`) und die Konsole lesen — dort fehlt jede Fehlermeldung.
 10. Zahlen: Gipfel exakt; Randzellen nicht über heute; Fluss bergab und See eben wie heute;
-    Reisezeitvergleich (§6.1) liegt vor.
+    Flüsse im Gipfelkreis nicht höher über ihrem Ufer als heute (§4.5); Reisezeitvergleich (§6.1)
+    liegt vor.
 
 Tests, die die Sache **ausführen**, nicht den Quelltext lesen:
 - der Trichter mit Fixture: Gipfel exakt, Nadel geheilt (Zellring 2 ≥ Schwelle), Randkeil (Randzelle
@@ -360,7 +400,8 @@ Tests, die die Sache **ausführen**, nicht den Quelltext lesen:
 - Regler ohne Wirkung ohne Gipfel.
 
 Jeder Test wird gegen Mutationen gefahren (Randkeil entfernt, `max` durch Summe ersetzt, `kern`- oder
-`senke`-Ausnahme gestrichen) — jede muss rot werden.
+`senke`-Ausnahme gestrichen, `wAb` durch `wAuf` ersetzt, Talsohlen-Riegel aus §4.5 gestrichen) — jede
+muss rot werden.
 
 ---
 
