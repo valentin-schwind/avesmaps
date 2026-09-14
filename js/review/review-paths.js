@@ -297,8 +297,11 @@ function mountPathWikiWeitere(path, pfade, ganz) {
 	pathWikiWeitereKasten = avesmapsWikiWeitereKastenMount(host, {
 		skin: "label-wiki",
 		hauptKey: () => String(path.properties?.wiki_path?.wiki_key || ""),
-		// Entwurf §3.5: die Liste nennt die Hauptzuweisung als erste Zeile (ohne ✕).
-		haupt: () => path.properties?.wiki_path || null,
+		// Fix-Runde 1, Punkt 2 (R30, dieselbe Regel wie am Weg-Ebene-Kasten des Wege-Editors, Task 7):
+		// KEIN `haupt` -- der Kasten „Wiki-Weg" (#path-wiki-assign-host) zeigt die Hauptzuweisung schon, in
+		// BEIDEN Faellen (populatePathEditFormGruppe ruft zuerst populatePathEditForm(path) auf und laesst
+		// diesen Kasten stehen). Ein zweiter Eintrag als „Hauptzuweisung"-Zeile waere derselbe Artikel
+		// zweimal auf einer Seite. `opts.haupt` fehlt deshalb ganz (nicht nur `null`).
 		// Bei JEDER Aktion frisch gelesen: nach einem Schreiben stehen die neuen Listen schon in den Kartendaten.
 		abschnitte: () => pfade.map((pfad) => ({
 			public_id: getPathPublicId(pfad),
@@ -409,6 +412,11 @@ function populatePathEditFormFromLastSettings(path) {
 		renderPathFlowSection();
 	}
 	mountPathEditFeatureSources(path);
+	// Fix-Runde 1, Punkt 1: dieselben zwei Aufrufe wie in populatePathEditForm -- sonst bleibt der Kasten
+	// „Weitere Wiki-Zuweisungen" fuer jeden frisch gezeichneten Weg eine leere, aber gerahmte Karte
+	// (#path-wiki-weitere-host traegt `class="label-edit-section"` unabhaengig vom Inhalt).
+	pathEditUmfangZeigen(path, false);
+	mountPathWikiWeitere(path, [path], false);
 }
 
 function openPathEditDialog(path, { inheritLastSettings = false, gruppe = null } = {}) {

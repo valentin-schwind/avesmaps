@@ -62,6 +62,7 @@ class El {
 	set className(text) { this.classList = new Klassen(); String(text).split(/\s+/).filter(Boolean).forEach((n) => this.classList.add(n)); }
 	get firstChild() { return this.children[0] || null; }
 	addEventListener(typ, fn) { this.zuhoerer.push([typ, fn]); }
+	removeEventListener(typ, fn) { this.zuhoerer = this.zuhoerer.filter(([t, f]) => t !== typ || f !== fn); }
 	appendChild(kind) { kind.parentElement = this; this.children.push(kind); return kind; }
 	insertBefore(kind, vor) { kind.parentElement = this; const i = this.children.indexOf(vor); this.children.splice(i < 0 ? 0 : i, 0, kind); return kind; }
 	remove() { if (this.parentElement) { const c = this.parentElement.children; c.splice(c.indexOf(this), 1); this.parentElement = null; } }
@@ -174,7 +175,10 @@ const kastenOpts = aufrufe.kasten[aufrufe.kasten.length - 1];
 assert.strictEqual(kastenOpts.skin, "label-wiki");
 assert.strictEqual(kastenOpts.umfangText(), "die ganze Straße");
 assert.strictEqual(kastenOpts.hauptKey(), "reichsstrasse-2");
-assert.strictEqual(kastenOpts.haupt().wiki_key, "reichsstrasse-2", "die Liste nennt die Hauptzuweisung zuerst (§3.5)");
+// Fix-Runde 1, Punkt 2 (R30): der Kasten „Wiki-Weg" (#path-wiki-assign-host) zeigt die Hauptzuweisung schon --
+// auch im Gruppenmodus, weil populatePathEditFormGruppe zuerst populatePathEditForm(path) ruft und ihn stehen
+// laesst. `haupt` fehlt deshalb GANZ (nicht nur `null`), sonst stuende der Artikel zweimal auf der Seite.
+assert.ok(!("haupt" in kastenOpts), "keine Hauptzuweisungs-Zeile im Gruppendialog -- der Kasten „Wiki-Weg“ zeigt sie schon");
 assert.deepStrictEqual([...kastenOpts.abschnitte().map((a) => a.public_id)], ["rs-6", "rs-7", "rs-8"]);
 assert.strictEqual(transportKasten.zuhoerer.length, 1, "der Haken-Zuhoerer haengt einmal");
 
@@ -243,5 +247,78 @@ assert.ok(i('id="path-wiki-weitere-host"') > i('id="path-wiki-assign-host"') && 
 assert.ok(i('<script src="js/ui/wiki-weitere-kasten.js"></script>') > i('<script src="js/ui/wiki-assign-weg.js"></script>'));
 assert.ok(i('<script src="js/review/path-gruppe.js"></script>') > 0 && i('<script src="js/review/path-gruppe.js"></script>') < i('<script src="js/review/review-paths.js"></script>'));
 assert.ok(/#path-edit-form\.is-gruppe \.path-season \{\s*display: none;/.test(lies("css/features/path-editor.css")), "Zeitfenster gibt es im Gruppenmodus nicht");
+
+// ---- 8. Fix-Runde 1, Punkt 1+2: ALLE DREI Oeffner montieren den Kasten wirklich, und nie mit „Hauptzuweisung" --
+// AUSGEFUEHRT gegen die ECHTE avesmapsWikiWeitereKastenMount (js/ui/wiki-weitere-kasten.js), nicht die Attrappe
+// von oben: eine leere, aber gerahmte Karte (#path-wiki-weitere-host traegt class="label-edit-section" unabhaengig
+// vom Inhalt) sieht ein Quelltext-Test nie, nur ein wirklich gezeichnetes innerHTML.
+const W = require(path.join(WURZEL, "js/ui/wiki-weitere-kasten.js"));
+
+/** Ein frischer Kontext mit einer PERSISTENTEN Element-Kartei (anders als oben: derselbe Aufruf liefert
+ * dasselbe Objekt zurueck, sonst liesse sich #path-wiki-weitere-host hinterher nicht auslesen). */
+function frischerOeffnerKontext() {
+	const elemente8 = {};
+	const holen = (id) => { if (!elemente8[id]) { elemente8[id] = new El("div", { id }); } return elemente8[id]; };
+	const dok8 = { getElementById: holen, createElement: (tag) => new El(tag), querySelectorAll: () => [] };
+	const kontext8 = vm.createContext({
+		document: dok8, window: {}, console, pathData: [], lastPathEditSettings: null,
+		getPathEditFormElement: () => holen("__form"),
+		wpGroupFieldStates: M.wpGroupFieldStates,
+		avesmapsPathGruppeZeilen: G.avesmapsPathGruppeZeilen,
+		avesmapsPathGruppeKnopfText: G.avesmapsPathGruppeKnopfText,
+		avesmapsPathGruppeTeilsText: G.avesmapsPathGruppeTeilsText,
+		getPathDisplayName: lesen.name, shouldPathNameBeDisplayed: lesen.zeigeName, getPathAllowedTransports: lesen.transporte,
+		getTransportOptionsForPathSubtype: () => SCHLUESSEL.slice(),
+		normalizePathSubtype: (wert) => String(wert || "Weg"),
+		getPathPublicId: (p) => p.properties.public_id,
+		avesmapsWegGanzeStreckeAufKarte: () => "Perz – Helmdahl",
+		avesmapsWegStreckeAufKarte: () => "Silkwiesen – Wieha",
+		avesmapsWegAbschnittLabelAufKarte: (p) => "Abschnitt " + p.properties.public_id,
+		avesmapsWegMarkierungszeileMarkup: A.avesmapsWegMarkierungszeileMarkup,
+		// Die ECHTE Umsetzung -- keine Attrappe, die nur Optionen aufzeichnet.
+		avesmapsWikiWeitereKastenMount: W.avesmapsWikiWeitereKastenMount,
+		findPathByPublicId: (id) => [t8rs6, t8rs7, t8rs8].find((p) => p.properties.public_id === id) || null,
+		refreshPathLayerPopup: () => {}, invalidateSpotlightSearchEntryCache: () => {}, pollLiveMapUpdates: () => Promise.resolve(),
+		// 💣 KEIN mountFeatureSourceEditor: der Quellenkasten ist hier nicht das Thema, und ohne ihn faellt
+		// mountPathEditFeatureSources ueber seinen eigenen typeof-Riegel fruehzeitig heraus -- sonst braeuchte
+		// dieses El auch noch cloneNode()/replaceWith(), die es nicht hat.
+	});
+	kontext8.window.avesmapsRefreshInfopanel = () => {};
+	return { kontext: kontext8, holen };
+}
+
+/** Retry-Schleife wie in quellen-im-wegedialog.test.js §4: eine ECHTE ReferenceError wird durch einen stillen
+ * Rueckfall ersetzt, damit fehlende FREMDE Funktionen (aus anderen Dateien) den Lauf nicht abbrechen. */
+function fahreOeffner(kontext, ausdruck) {
+	for (let versuch = 0; versuch < 80; versuch += 1) {
+		try { vm.runInContext(ausdruck, kontext); return; }
+		catch (fehler) {
+			const treffer = /^(\w+) is not defined$/.exec(fehler.message);
+			if (!treffer) { throw new Error(ausdruck + ": " + fehler.message); }
+			kontext[treffer[1]] = function () { return ""; };
+		}
+	}
+	throw new Error(ausdruck + " laeuft nicht durch");
+}
+
+// Frische, unabhaengige Pfade -- die von oben tragen inzwischen Mutationen aus Abschnitt 5.
+const t8rs6 = pfad("t8-6", "Reichsstrasse", true, ["caravan"]);
+const t8rs7 = pfad("t8-7", "Reichsstrasse", true, ["caravan"]);
+const t8rs8 = pfad("t8-8", "Strasse", false, ["caravan"]);
+
+[
+	["populatePathEditForm", "populatePathEditForm(" + JSON.stringify(t8rs7) + ");"],
+	["populatePathEditFormGruppe", "populatePathEditFormGruppe(" + JSON.stringify(t8rs7) + ", " + JSON.stringify([t8rs6, t8rs7, t8rs8]) + ");"],
+	["populatePathEditFormFromLastSettings", "populatePathEditFormFromLastSettings(" + JSON.stringify(t8rs7) + ");"],
+].forEach(([name, ausdruck]) => {
+	const { kontext, holen } = frischerOeffnerKontext();
+	vm.runInContext(pfadeQuelle, kontext);
+	fahreOeffner(kontext, ausdruck);
+	const host = holen("path-wiki-weitere-host");
+	assert.ok(typeof host.innerHTML === "string" && host.innerHTML.length > 0,
+		name + ": der Kasten „Weitere Wiki-Zuweisungen“ bleibt keine leere, aber gerahmte Karte (Fix-Runde 1, Punkt 1)");
+	assert.ok(!host.innerHTML.includes("Hauptzuweisung"),
+		name + ": keine zweite „Hauptzuweisung“-Zeile -- der Kasten „Wiki-Weg“ zeigt sie schon (Fix-Runde 1, Punkt 2)");
+});
 
 console.log("weg-dialog-gruppe.test.js: ok");

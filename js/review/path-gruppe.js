@@ -1,7 +1,9 @@
 // Der Dialog „Weg bearbeiten" fuer die GANZE Strasse (Entwurf 2026-09-14 §3.5) -- die reinen Teile. Die Regeln selbst
 // (was uneinig ist, was angefasst wurde, welcher Rumpf) stehen im Modell des Wege-Editors (wpGroupFieldStates,
 // wpGroupRumpf in js/pages/wege-editor-model.js); hier nur der Weg von den Kartenpfaden dorthin.
-// ⚠️ Normales Skript, NICHT in <template data-nur-editor> (nur-editor-skripte.test.js, Teil C).
+// ⚠️ Liegt in DERSELBEN <template data-nur-editor> wie js/review/review-paths.js, direkt davor (Ruling c) --
+// nur review-paths.js (selbst nur im Editor geladen) ruft diese Funktionen. Ein NORMALES Skript, das sie je
+// braucht, muss sie per `typeof` schuetzen (nur-editor-skripte.test.js, Teil C).
 
 /**
  * REIN: Kartenpfade als Zeilen fuer wpGroupFieldStates.

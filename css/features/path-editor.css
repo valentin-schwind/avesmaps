@@ -153,9 +153,10 @@
 	font-size: var(--font-size-caption);
 }
 
-/* Die Zeile oben im Dialog -- dieselbe wie in der Infobox (.info-header__markierung). */
+/* Die Zeile oben im Dialog -- dieselbe wie in der Infobox (.info-header__markierung). Kein eigener Abstand nach
+   unten: die Spalte `.location-report-form` ist ein Flex-Fluss mit `gap` -- der Takt gehoert IHR, nicht der
+   Zeile (AGENTS.md §12); ein zusaetzliches `margin-bottom` addierte sich sonst zum `gap` (20px statt 12px). */
 .path-edit-umfang {
-	margin: 0 0 var(--space-6);
 	color: var(--color-text);
 	font-size: var(--font-size-small);
 	line-height: var(--leading-snug);
