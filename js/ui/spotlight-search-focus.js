@@ -73,6 +73,13 @@ function selectSpotlightSearchEntry(entry) {
 		return;
 	}
 
+	// 💣 Ohne diesen Zweig fällt ein Landschaftstreffer durch alle Fälle und tut nichts -- bei einer
+	// Zeile, die vollkommen richtig aussieht. Dieselbe Falle wie bei "offmap" oben.
+	if (entry.kind === "landscape") {
+		focusSpotlightLandscape(entry);
+		return;
+	}
+
 	if (entry.kind === "powerline") {
 		focusSpotlightPowerline(entry);
 	}
@@ -276,6 +283,60 @@ function focusSpotlightPath(entry) {
 	if (firstPath && typeof window.avesmapsShowPathInInfopanel === "function") {
 		window.avesmapsShowPathInInfopanel(firstPath);
 	}
+}
+
+// Eine LANDSCHAFT ohne eigene Beschriftung (Entwurf
+// docs/superpowers/specs/2026-08-28-landschaften-in-der-suche-design.md §6). Nur die Umrisse warten auf
+// das Netz; alles andere steht sofort:
+//   1. Ansicht Landschaften -- und die Ebene des Treffers, wenn die Karte auf einer ANDEREN einzelnen
+//      Ebene steht. 🔴 „Alle" bleibt „Alle": dort ist jede der drei Ebenen sichtbar, und ein Wechsel nähme
+//      dem Leser die Übersicht, die er sich ausgesucht hat.
+//   2. Umrisse anfordern -- VOR dem Flug, aus demselben Grund wie bei den Vorkommen
+//      (focusSpotlightLorePlaces): wirft flyToBounds an einem entarteten Ausschnitt, risse es die Anfrage
+//      sonst mit.
+//   3. Infopanel -- dasselbe, das ein Klick auf die Fläche öffnet.
+//   4. Hinfliegen auf die Hülle, die der Server aus den bbox-Spalten ALLER Flächen gerechnet hat.
+function focusSpotlightLandscape(entry) {
+	setSelectedMapLayerMode("ecosystem");
+	const ebene = String(entry.ecosystemKind || "");
+	if (ebene
+		&& typeof isEcosystemShowAllLayers === "function" && !isEcosystemShowAllLayers()
+		&& typeof getActiveEcosystemLayerKind === "function" && getActiveEcosystemLayerKind() !== ebene
+		&& typeof setActiveEcosystemLayerKind === "function") {
+		// 💣 AUFGERUFEN, NICHT GEKLICKT. Der Kartenfächer klickt den Reiter (waehleEbene,
+		// js/ui/map-layer-picker.js) und muss dafür den Klick an der Leiste anhalten -- ein künstlicher
+		// Klick bläst bis zum Dokument, und dort löschte handleSpotlightDocumentClick genau die Auswahl, die
+		// dieser Treffer gerade gesetzt hat.
+		setActiveEcosystemLayerKind(ebene);
+	}
+
+	void highlightSpotlightLandscapeAreas(entry);
+
+	if (typeof showEcosystemAreaInfopanel === "function") {
+		showEcosystemAreaInfopanel(spotlightLandscapeArea(entry));
+	}
+
+	if (entry.bounds?.isValid?.()) {
+		focusSpotlightBounds(entry.bounds, Math.min(VISUAL_MAX_ZOOM_LEVEL, map.getMaxZoom()));
+	}
+}
+
+// Die Umrisse ALLER Regionen eines Landschaftstreffers, in der Hervorhebung der Vorkommen. Ein Fehlschlag
+// bleibt still: Flug und Infopanel stehen da schon.
+async function highlightSpotlightLandscapeAreas(entry) {
+	const regionPublicIds = (entry.publicIds || []).map(String).filter(Boolean);
+	const areasByRegion = await fetchSpotlightLandscapeAreasByRegion(regionPublicIds);
+	// Wer inzwischen etwas anderes gewählt hat, wird nicht übermalt -- derselbe Riegel wie bei den Vorkommen.
+	if (!areasByRegion || spotlightActiveSelectionId !== entry.id) {
+		return;
+	}
+
+	highlightSpotlightPlaces(
+		regionPublicIds.map((regionPublicId) => ({ regionPublicId })),
+		null,
+		areasByRegion,
+		{ pointFallback: false }
+	);
 }
 
 function getSpotlightPathZoom(entry) {

@@ -98,9 +98,24 @@ echo "empty-inputs ok\n";
 // to a city, not a map object. avesmapsSearchKindOrder lives in the endpoint (which cannot
 // be included here), so the ordering is asserted against its source instead of executed.
 $endpointSource = (string) file_get_contents(__DIR__ . '/../../../app/map-search.php');
+// 🪤 The WHOLE table is read, not one literal number. Until 14.09.2026 this pinned `'in_settlement' => 5`,
+// and the landscapes (a new map kind behind the labels) shifted every number after them: the pin failed
+// for a change that kept the rule intact -- and would have passed for one that broke it.
 assert(
-    preg_match("/'in_settlement' => 5,/", $endpointSource) === 1,
-    "in_settlement must sort after location(0)/label(1)/region(2)/path(3)/powerline(4)"
+    preg_match('/function avesmapsSearchKindOrder\(.*?\{(.*?)\n\}/s', $endpointSource, $orderMatch) === 1,
+    'avesmapsSearchKindOrder not found in the endpoint'
+);
+preg_match_all("/'([a-z_]+)' => (\\d+),/", $orderMatch[1], $orderArms, PREG_SET_ORDER);
+$orderByKind = [];
+foreach ($orderArms as [, $orderKind, $orderValue]) {
+    $orderByKind[$orderKind] = (int) $orderValue;
+}
+foreach (['location', 'label', 'region', 'path', 'powerline', 'in_settlement'] as $expectedKind) {
+    assert(isset($orderByKind[$expectedKind]), "the order table lost '$expectedKind': " . json_encode($orderByKind));
+}
+assert(
+    $orderByKind['in_settlement'] > max(array_diff_key($orderByKind, ['in_settlement' => true])),
+    'in_settlement must sort after every map object: ' . json_encode($orderByKind)
 );
 echo "sort-order ok\n";
 

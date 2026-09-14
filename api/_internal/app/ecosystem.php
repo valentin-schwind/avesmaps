@@ -44,6 +44,10 @@ require_once __DIR__ . '/ecosystem-stapel.php';
 // (see the header there). Pure functions + one reader; nothing runs on include.
 require_once __DIR__ . '/ecosystem-label-link.php';
 
+// Die BENENNUNG einer Region: Auto-Name-Merker, Rueckfall-Griff „Fläche", Artbezeichnung. Eigene Datei
+// seit 14.09.2026, weil die Kartensuche dieselben Regeln braucht und diese Datei nicht laden darf.
+require_once __DIR__ . '/ecosystem-naming.php';
+
 // 🔴 The fold table, NOT the political library. wiki_region_key has to come out of the SAME derivation
 // that keyed wiki_region_staging.wiki_key (api/_internal/wiki/regions.php:507 -> avesmapsPoliticalSlug),
 // or the join it exists for finds nothing. But the plan's global rule 1 forbids CALLING political code
@@ -1904,13 +1908,16 @@ function avesmapsEcosystemDecorateAreaRows(array $rows, array $typeLabels, array
 {
     foreach ($rows as $index => $row) {
         $regionPublicId = (string) ($row['region_public_id'] ?? '');
-        $typeKey = trim((string) ($row['region_type'] ?? ''));
         // No type is a valid state ("— keine Vegetation —"), and then there is no label either. A type
         // WITHOUT a label falls back to its own key: showing the raw key is worse than showing nothing,
         // but showing nothing where an Art exists would hide data.
-        $rows[$index]['region_type_label'] = $typeKey === ''
-            ? ''
-            : (string) ($typeLabels[((string) ($row['kind'] ?? '')) . '|' . $typeKey] ?? $typeKey);
+        // 🔴 Die Regel steht seit dem 14.09.2026 in avesmapsEcosystemRegionTypeLabel (ecosystem-naming.php):
+        // die Kartensuche nennt an ihren Landschaftstreffern dieselbe Art wie dieser Tooltip.
+        $rows[$index]['region_type_label'] = avesmapsEcosystemRegionTypeLabel(
+            $typeLabels,
+            (string) ($row['kind'] ?? ''),
+            $row['region_type'] ?? null
+        );
         $rows[$index]['region_area_count'] = (int) ($areaCounts[$regionPublicId] ?? 0);
         $rows[$index]['region_label_count'] = (int) ($labelCounts[$regionPublicId] ?? 0);
     }
@@ -2144,29 +2151,9 @@ function avesmapsEcosystemReadBoolean(mixed $value): bool
     return filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false;
 }
 
-/**
- * REIN: der gespeicherte Haken „Auto-Name" dieser Regionszeile. DREI Zustaende.
- *
- * 🔴 `null` heisst „nie angefasst" -- dann entscheidet im Browser der NAME (Altbestand und frisch
- * gezeichnete Flaechen). `true`/`false` sind ausdrueckliche Entscheidungen und schlagen den Namen.
- *
- * ⚠️ Deshalb wird hier auch `false` GESPEICHERT, statt den Schluessel zu entfernen: „entschieden:
- * nein" und „nie entschieden" sind hier NICHT bedeutungsgleich. Eine Region, die „Wald-001" heisst
- * und deren Haken jemand bewusst entfernt hat, kaeme sonst beim naechsten Oeffnen wieder angehakt
- * zurueck.
- * 🪤 Der Gegenpol dieser Regel war der Nachbar `wiki_no_article`, wo beide Faelle dasselbe hiessen
- * und `false` deshalb geloescht wurde. Er ist am 09.09.2026 global ausgebaut (Owner-Entscheid) --
- * die Regel HIER ist davon unberuehrt, nur ihr Gegenbeispiel steht nicht mehr daneben.
- */
-function avesmapsEcosystemRegionAutoName(mixed $propertiesJson): ?bool
-{
-    $properties = json_decode((string) ($propertiesJson ?? ''), true);
-    if (!is_array($properties) || !array_key_exists('auto_name', $properties)) {
-        return null;
-    }
-
-    return (bool) $properties['auto_name'];
-}
+// avesmapsEcosystemRegionAutoName (der gespeicherte Haken „Auto-Name", DREI Zustaende) wohnt seit dem
+// 14.09.2026 in ecosystem-naming.php, oben eingebunden -- die Kartensuche braucht den Merker, ohne diese
+// Datei zu laden. Unveraendert umgezogen, samt seiner Begruendung.
 
 /**
  * REIN: was `update_region` am Auto-Name-Merker zu tun hat. Leeres Ergebnis = nichts zu schreiben.

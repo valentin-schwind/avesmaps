@@ -665,6 +665,62 @@ function buildLoreSpotlightEntry(result) {
 	};
 }
 
+// Eine LANDSCHAFT ohne eigene Beschriftung (Entwurf
+// docs/superpowers/specs/2026-08-28-landschaften-in-der-suche-design.md). Sie kommt nur vom Server
+// (api/_internal/app/landscape-search.php): ihre Flächen reisen nicht in der Kartennutzlast, einen lokalen
+// Eintrag gibt es also nie.
+//
+// 🔴 DIE ZEILE SAGT ART UND EBENE -- „Wald · Vegetation" -- nach DERSELBEN Regel wie der Untertitel des
+// Flächen-Panels (ecosystemAreaUntertitelTeile, map-features-ecosystem-rendering.js). Sie ist zugleich das,
+// was die Landschaft von einer gleichnamigen Beschriftung derselben Liste unterscheidet („Blentforst · Wald").
+// ⚠️ Fehlt jene Datei, bleibt die Art des Servers stehen -- eine Zeile ohne Ebene ist besser als keine.
+//
+// 💣 [lat, lng] = [y, x]. Die bbox kommt in Kartenkoordinaten; vertauscht flöge die Karte an die Diagonale
+// gespiegelt, und bei Zielen nahe der Diagonale fiele es nicht einmal auf.
+function buildLandscapeSpotlightEntry(result) {
+	const name = String(result.name || "");
+	const publicIds = (Array.isArray(result.public_ids) ? result.public_ids : [result.public_id])
+		.map((publicId) => String(publicId || ""))
+		.filter(Boolean);
+	if (!name || !publicIds.length) {
+		return null;
+	}
+
+	const minX = Number(result.min_x);
+	const minY = Number(result.min_y);
+	const maxX = Number(result.max_x);
+	const maxY = Number(result.max_y);
+	const entry = {
+		id: `landscape:${publicIds[0]}`,
+		kind: "landscape",
+		name,
+		typeLabel: String(result.type_label || ""),
+		publicIds,
+		bounds: [minX, minY, maxX, maxY].every(Number.isFinite) ? L.latLngBounds([[minY, minX], [maxY, maxX]]) : null,
+		ecosystemKind: String(result.ecosystem_kind || ""),
+		regionType: String(result.feature_subtype || ""),
+		regionTypeLabel: String(result.type_label || ""),
+		aliases: [],
+	};
+	if (typeof ecosystemAreaUntertitelTeile === "function") {
+		entry.typeLabel = ecosystemAreaUntertitelTeile(spotlightLandscapeArea(entry)).join(" · ");
+	}
+	return entry;
+}
+
+// Ein Landschaftstreffer in der Form einer Fläche, wie die Untertitel-Regel und showEcosystemAreaInfopanel
+// sie lesen. 🔴 Ohne Label-Zeiger: den Treffer gibt es gerade, WEIL keine eigene Beschriftung da ist -- das
+// Panel antwortet also über die Fläche (ecosystemAreaInfoSource).
+function spotlightLandscapeArea(entry) {
+	return {
+		region_name: entry.name,
+		region_type: entry.regionType,
+		region_type_label: entry.regionTypeLabel,
+		kind: entry.ecosystemKind,
+		label_public_id: "",
+	};
+}
+
 function resolveBackendSpotlightEntries(backendResults, localEntries) {
 	const { byPublicId, byPathGroup } = getSpotlightSearchLookup();
 	const resolvedEntries = [];
@@ -711,6 +767,12 @@ function resolveBackendSpotlightEntries(backendResults, localEntries) {
 
 		if (!entry && kind === "lore") {
 			entry = buildLoreSpotlightEntry(result);
+		}
+
+		// Landschaft ohne eigene Beschriftung (buildLandscapeSpotlightEntry). Sie hat NIE einen lokalen
+		// Eintrag -- ihre Flächen reisen nicht in der Kartennutzlast.
+		if (!entry && kind === "landscape") {
+			entry = buildLandscapeSpotlightEntry(result);
 		}
 
 		if (entry && entry.kind === "region") {
@@ -999,6 +1061,12 @@ function spotlightEntryKanonRef(entry) {
 	}
 	if (entry.kind === "path" || entry.kind === "powerline") {
 		return spotlightEinigerKanonRef(entry.kind, entry.publicIds);
+	}
+	// Eine Landschaft trägt ihre Quellen an der FLÄCHE (`ecosystem:<region>`, Schritt 5 des
+	// Quellen-Umbaus), und ein Treffer bündelt Regionen gleichen Namens -- also dieselbe
+	// Einigkeitsprüfung wie bei den Segmenten eines Wegs.
+	if (entry.kind === "landscape") {
+		return spotlightEinigerKanonRef("ecosystem", entry.publicIds);
 	}
 	// ⚠️ Literatur, Vorkommen und Off-Map-Treffer haben keinen Kanon-Leser
 	// (AVESMAPS_MAP_FEATURES_KANON_ENTITY_TYPE_BY_FEATURE_TYPE kennt sie nicht); ein Schluessel

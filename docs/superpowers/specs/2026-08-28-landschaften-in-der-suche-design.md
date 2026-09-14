@@ -1,8 +1,10 @@
 # Landschaften in der Suche — Entwurf
 
-**Stand:** 2026-08-28 · **Status:** Entwurf, wartet auf eine Owner-Entscheidung (§3)
+**Stand:** 2026-09-14 · **Status:** entschieden und gebaut — §3: **B**, §4a: **nach Identität**, GO
+(Owner, 14.09.2026). Gemessen und gebaut am Bestand vom 14.09.2026.
 **Anlass:** Owner, wörtlich: „Ceälan die inselfläche wird nicht in der spotlightsuche gelistet.
 die fläche hat kein label, sollte aber eigentlich in der suche auftauchen."
+**Erste Fassung:** 2026-08-28. Was sich seitdem geändert hat, steht in §9.
 
 ---
 
@@ -13,158 +15,251 @@ Eine Landschaft (`ecosystem_region`) ist **nirgends** ein Suchobjekt.
 - **Client:** `buildSpotlightSearchEntries` (`js/ui/spotlight-search.js`) baut aus
   `locationMarkers`, `labelMarkers`, `regionPolygons` (Herrschaftsgebiete), Wegen und
   Kraftlinien. Keine Landschaft.
-- **Server:** `api/app/map-search.php` führt neun Quellen — Siedlung, Label,
-  Herrschaftsgebiet, Kraftlinie, Weg, Karte, Literatur, Vorkommen, „nicht auf der Karte".
-  Das Wort `ecosystem` kommt in der Datei **nicht vor**.
+- **Server:** `api/app/map-search.php` führt seine Quellen — Siedlung, Label, Herrschaftsgebiet,
+  Kraftlinie, Weg, Innerorts, Karte, Literatur, Vorkommen, „nicht auf der Karte". Das Wort
+  `ecosystem` kommt in der Datei **nicht vor**.
 
 Gefunden wird eine Landschaft deshalb ausschließlich über **ihre Beschriftung**. Ceälan hat
 keine — der eine Treffer, der kommt, ist das gleichnamige Vulkan-*Label*, ein anderes Objekt
 an einer anderen Stelle.
 
 🪤 **Und eine Kleinigkeit, die täuscht:** `ecosystem_region.label_public_id` ist bei Ceälan
-**nicht leer** — es zeigt auf ein Label, das im Kartenbestand nicht mehr existiert. Die Fläche
-behauptet also eine Beschriftung, während `region_label_count` 0 sagt. Live sind **3** Flächen
-in diesem Zustand. Das ist ein eigener, kleiner Aufräumpunkt, keine Ursache dieses Befunds.
+**nicht leer** — es zeigt auf ein Label, das im Kartenbestand nicht mehr existiert. Live sind es
+weiterhin **3** Regionen: Almada, Weiden (beide derographisch, beide tragen trotzdem eine
+Beschriftung über den Zeiger der Beschriftung selbst) und Ceälan. Eigener Aufräumpunkt, §8.
 
 ---
 
-## 2. Was gemessen wurde (live, 28.08.2026)
+## 2. Was gemessen wurde (live, 14.09.2026)
+
+Gemessen mit je **einer** Anfrage an `GET /api/app/ecosystem-areas.php` und
+`GET /api/app/map-features.php`. Die Zahlen vom 28.08. (1308 Regionen, 20 Treffer) sind überholt —
+der Bestand hat sich seither um die Hälfte vergrößert.
 
 | | Anzahl |
 |---|---|
-| Landschaftsregionen mit mindestens einer Fläche | **1308** |
-| davon mit Wiki-Schlüssel | 416 |
-| davon mit einem echten (nicht automatisch vergebenen) Namen | 645 |
-| davon ohne jede Beschriftung | 592 |
-| **davon, deren Name auf KEINER ihrer Beschriftungen steht** | **28** |
+| Landschaftsregionen mit mindestens einer Fläche | **1980** (1981 Flächen) |
+| davon ohne jede Beschriftung | 1110 |
+| davon Auto-Name nach der Browser-Regel (`<Art>-<Zahl>`) | 1112 |
+| davon **zusätzlich** `Fläche-048`-artig, obwohl sie inzwischen eine Art haben | **12** |
+| echt benannt und ohne jede Beschriftung | 89 |
+| **davon ohne Klimazonen, Name auf keiner EIGENEN Beschriftung** | **81 Regionen** |
+| … abzüglich der 3 `Fläche-0xx` (Urwald) aus der vierten Zeile | **78 Regionen → 73 Treffer** |
 
-🔴 **Die letzte Zeile ist die einzige, die zählt.** Die 592 ohne Beschriftung klingen groß, aber
-**564** davon heißen `Wald-001`, `See-047`, `Fläche-021` — automatisch vergebene Namen, genau die
-Kategorie, die der Owner bei den Wegen schon ausgeschlossen hat („Generik-Namen wie
-`Reichsstrasse-4903`"). Und die 617 übrigen echt benannten sind längst auffindbar: ihr Name steht
-auf einer ihrer Beschriftungen.
+Die 78 Regionen werden zu **73 Treffern**, weil Regionen gleichen Namens, gleicher Ebene und
+gleicher Art EIN Treffer sind (§6): „Archipel der Perlen" ist 5 Regionen, „Gorische Wüste" 2 (mit
+identischer Hüllbox — eine Dublette im Bestand, §8). „Große Öde" bleibt zwei Treffer, weil es sie
+einmal als Tiefebene (Topographie) und einmal als Steppe (Vegetation) gibt.
 
-Übrig bleiben **28 Landschaften**, davon:
+Beispiele: Tannwald · Mistelwald · Reiherforst · Schwefeltal · Wirrniswald · Königstann ·
+Seneb-See · Archipel der Perlen · Oase Keft · Terra Ferma · Mittelaventurien · **Ceälan** ·
+Finsterkamm (Derographie) · Nebelmoor (Derographie). 44 der 81 Regionen tragen einen Wiki-Artikel.
 
-- **8 Klimabänder** („Polare Zone", „Boreale Zone", „Tropische Zone", …) — abgeleitete Bänder,
-  keine gezeichneten Landschaften.
-- **20 echte Landschaften**, 7 davon mit Wiki-Artikel: Finsterkamm · Nebelmoor · **Ceälan** ·
-  Gorische Wüste · Obergorien · Fenn · Wacht · Bargenta · Mittelaventurien · …
-
-Der Befund ist also klein und scharf umrissen — er ist **kein** Massenproblem.
+🔴 **Keine einzige** echt benannte Region trägt eine Beschriftung mit ANDEREM Namen. „Name auf keiner
+eigenen Beschriftung" und „gar keine Beschriftung" sind heute dieselbe Menge — die Regel in §4 fragt
+trotzdem nach der eigenen Beschriftung, weil das die Aussage ist, die gemeint ist.
 
 ---
 
-## 3. 🔧 DIE EINE ENTSCHEIDUNG (Owner)
+## 3. ✅ ENTSCHIEDEN: B (Owner, 14.09.2026)
 
-**Was soll in der Suche auftauchen?**
+**Jede echt benannte Landschaft kommt in die Suche** — nicht nur die mit Wiki-Artikel (A), und
+**nicht** die acht Klimazonen (C). Ein Treffer fliegt zur Fläche.
 
-| | Menge | Preis |
+| | Menge (14.09.) | |
 |---|---|---|
-| **A — nur mit Wiki-Artikel** | 7 | Kein neuer Riegel nötig, exakt die Wege-Regel. Aber „Bargenta" und „Mittelaventurien" bleiben unauffindbar. |
-| **B — jede echt benannte Landschaft** ⭐ | 20 | Deckt den gemeldeten Fall und alle Geschwister. Braucht den Auto-Namen-Riegel serverseitig (§5). |
-| **C — B plus die Klimabänder** | 28 | „Polare Zone" wird suchbar. Ein Band ist aber keine Landschaft, die man anfliegt — es zieht sich über den halben Kontinent. |
-
-⭐ **Empfehlung: B.** Sie beantwortet die Meldung vollständig, ohne dass ein Klimaband als
-Suchtreffer erscheint, den niemand sinnvoll anspringen kann.
+| A — nur mit Wiki-Artikel | 44 Regionen | verworfen |
+| **B — jede echt benannte Landschaft** | **78 Regionen / 73 Treffer** | **gewählt** |
+| C — B plus die Klimabänder | + 8 | verworfen |
 
 ---
 
 ## 4. Wo es gebaut wird
 
-🔴 **Serverseitig, als achte Quelle in `api/app/map-search.php`** — nicht im Client.
+🔴 **Serverseitig in `api/app/map-search.php`** — nicht im Client. Der Grund ist unverändert:
+Landschaftsflächen reisen **nicht** in der Kartennutzlast, sie liegen hinter
+`api/app/ecosystem-areas.php` und werden nur in der Landschaften-Ansicht geladen, Ausschnitt für
+Ausschnitt. Ein Client-Bauer fände sie je nach Ansicht mal und mal nicht.
 
-Der Grund ist Daten, nicht Geschmack: Landschaftsflächen reisen **nicht** in der Kartennutzlast.
-Sie liegen hinter `api/app/ecosystem-areas.php` und werden nur geladen, wenn die Landschaften-Ebene
-aktiv ist (der Kommentar in `js/ui/spotlight-search-focus.js` sagt es zweimal). Ein Client-Bauer
-fände sie also je nach Ansicht mal und mal nicht — dieselbe Fehlerklasse wie der flackernde
-Vorkommen-Statuskreis, der genau deshalb serverseitig gerechnet wird (AGENTS.md §11).
+- Reiner Kern in einer eigenen Datei **`api/_internal/app/landscape-search.php`** (Vorbild
+  `offmap-search.php`): Riegel, Eintragsbauer und Gruppierung ohne Datenbank prüfbar, dazu EIN Leser.
+- **EINE Abfrage:** `ecosystem_region` ⋈ `ecosystem_area` mit `MIN/MAX` der bbox-Spalten je Region,
+  `is_active` auf beiden Seiten, `kind <> 'klima'`, gruppiert je Region; dazu die ~30 Zeilen von
+  `ecosystem_region_type`. Keine Geometrie wird gelesen. Eigenes `try/catch` — fehlt die Tabelle,
+  fällt nur diese Quelle aus.
+- 💣 **Welche Beschriftung zu welcher Region gehört, kommt aus dem EINEN Leser beider Richtungen**
+  (`avesmapsEcosystemLabelRegionMap`, `ecosystem-label-link.php`) — gefüttert aus den
+  `map_features`-Zeilen, die der Endpunkt **ohnehin schon geladen hat**. Keine zweite Abfrage auf
+  `map_features`, kein zweites Regelwerk für die 1:N-Bindung. Der Tote-Zeiger-Schutz ist damit
+  geschenkt: ein Zeiger auf eine gelöschte Beschriftung zählt nicht (Ceälan).
+- ⚠️ **Kein DDL** im Suchpfad — die Datei lädt `ecosystem.php` NICHT (dessen Ensure ist die Last aus
+  §10), sondern nur `ecosystem-label-link.php` (reine Funktionen plus ein Leser).
 
-Vorbild ist `offmap-search.php`: eine Datei, deren reiner Teil ohne Datenbank prüfbar ist, plus
-ein Sammler. Der Abschnitt läuft durch `avesmapsCollectSearchSection` (Kappung an einer Stelle) mit
-demselben Deckel wie die übrigen — **5**.
+### 4a. ✅ Entschieden (Owner 14.09.2026): Doppelt-Filter nach IDENTITÄT, nicht nach NAMEN
 
-**Kosten:** eine Abfrage über `ecosystem_region` (1308 Zeilen), kein Join in die Geometrie.
+Die Messung vom 14.09. (56 Regionen) hat zusätzlich alle Regionen herausgenommen, **deren Name
+irgendwo als Beschriftung existiert**. Der Entwurf vom 28.08. (§7) nahm nur heraus, was auf
+**einer ihrer eigenen** Beschriftungen steht. Am Bestand sind das **23 Regionen** Unterschied, in
+zwei Sorten:
+
+- **Das Label gehört einer anderen Ebene** (9): Finsterkamm, Nebelmoor, Obergorien, Fenn, Ebene von
+  Hardorp, Ebene der 1000 Pferde, Honinger Land, Gorische Wüste ×2 — z. B. derographischer
+  „Finsterkamm" ohne Label, das Label hängt am topographischen.
+- **Ein FREIES Label gleichen Namens** (13): Blentforst, Bodarowald, Ogerwald, Silberbuchenwald,
+  Wutzenwald, … — und **Ceälan**, dessen gleichnamiges Label ein *Vulkan* an anderer Stelle ist.
+  (Dazu Falkenforst: das Label hängt an einer zweiten Vegetationsregion desselben Namens.)
+
+⭐ **Empfehlung: nach IDENTITÄT** (78 Regionen / 73 Treffer). Ein Name ist kein Schlüssel — und die
+Namensregel schlösse **ausgerechnet Ceälan** aus, den Fall, der diesen Entwurf ausgelöst hat.
+Der Preis: bei rund 20 Namen stehen zwei Zeilen gleichen Namens in der Liste. Sie sind
+unterscheidbar, weil die Landschaftszeile ihre Ebene trägt (§6: „Blentforst · Wald · Vegetation"
+neben dem Label „Blentforst · Wald"), und die freien Labels darunter sind ohnehin Kandidaten fürs
+Binden an ihre Fläche.
 
 ---
 
-## 5. 💣 Der Auto-Namen-Riegel — die einzige echte Falle
+## 5. 💣 Der Auto-Namen-Riegel
 
-Bei Variante B muss der Server wissen, ob ein Name automatisch vergeben wurde. Der Zustand ist
-**dreiwertig** und die Hälfte davon liegt schon serverseitig:
+Der Server muss wissen, ob ein Name automatisch vergeben wurde. Der Merker ist **dreiwertig**:
 
-| Merker `properties_json.auto_name` | Bedeutung | wer weiß es heute |
+| `properties_json.auto_name` | Bedeutung | wer liest es |
 |---|---|---|
-| `true` | ausdrücklich automatisch | `avesmapsEcosystemRegionAutoName` (PHP) ✅ |
-| `false` | ausdrücklich von Hand | dieselbe Funktion ✅ |
-| fehlt (`null`) | nie entschieden → **am Namen ablesen** | **nur** `isEcosystemRegionAutoName` (JS) ❌ |
+| `true` | ausdrücklich automatisch | `avesmapsEcosystemRegionAutoName` (PHP) |
+| `false` | ausdrücklich von Hand | dieselbe Funktion |
+| fehlt | nie entschieden → am Namen ablesen | `isEcosystemRegionAutoName` (JS, nur im Browser) |
 
-Der Rückfall ist das Problem: er lebt ausschließlich im Browser
-(`js/map-features/map-features-ecosystem-naming.js`), und der Altbestand trägt den Merker
-überwiegend nicht.
+🔴 **Nicht abschreiben — ableiten.** Die JS-Regel prüft „Name == `<Artbezeichnung>-<Ziffern>`" mit
+dem Rückfall-Griff „Fläche" für eine Region ohne Art. Die Artbezeichnungen stehen dem Server in
+`ecosystem_region_type.label` zur Verfügung — der Riegel ist eine Regel über **vorhandene Daten**,
+keine importierte Wortliste.
 
-🔴 **Nicht abschreiben — ableiten.** Die JS-Regel prüft „Name == `<Artbezeichnung>-<Ziffern>`", und
-die Artbezeichnung steht dem Server als `region_type_label` bereits zur Verfügung. Der Riegel ist
-damit eine Regel über **vorhandene Daten**, keine importierte Wortliste:
+💣 **Und die Suche fragt STRENGER als der Haken — mit Absicht.** Der Haken beantwortet „ist dieser
+Name automatisch vergeben?", die Suche „würde ein Leser nach diesem Namen suchen?". Gemessen: 12
+Regionen heißen `Fläche-019` … `Fläche-064`, haben aber inzwischen eine Art (See, Urwald). Die
+Browser-Regel prüft nur gegen die AKTUELLE Art und hält sie für echte Namen — die Suche würde
+„Fläche-048 · Urwald" anbieten. Deshalb gilt in der Suche:
 
 ```
-auto  :=  auto_name === true
-       || (auto_name === null  &&  name  ~  '^' || type_label || '-[0-9]+$')
+verborgen  :=  auto_name === true
+           ||  name ~ '^(' || <Rückfall-Griff „Fläche"> || '|' || <IRGENDEINE Artbezeichnung> || ')-[0-9]+$'
 ```
 
-⚠️ **Und ein Test hält beide Seiten gegeneinander** — dieselbe Vorsichtsmaßnahme wie bei
-`avesmapsFoldToAscii` / `tools/wikidump/test-ascii-fold.php`: eine Liste von Namen, die beide
-Umsetzungen gleich beantworten müssen. Ohne den ist es die zweite Wahrheit, vor der AGENTS.md §5
-warnt.
+- **Irgendeine** Artbezeichnung, nicht nur die aktuelle: eine Region, die als „Wald-003" angelegt
+  und später zu „Urwald" wurde, trägt ihren alten Griff weiter.
+- **Der Name schlägt hier auch `auto_name === false`:** eine Region, deren Haken jemand abgenommen
+  hat, die aber noch „Wald-001" heißt, hat noch keinen Namen, nach dem jemand sucht.
+- ⚠️ **Die sichere Richtung ist „lieber verstecken":** ein fehlender Treffer ist ärgerlich,
+  1112 Zeilen `Wald-001` machen die Suche unbenutzbar.
 
-⚠️ **Die sichere Richtung ist „lieber verstecken":** im Zweifel gilt ein Name als automatisch. Ein
-fehlender Treffer ist ärgerlich, 564 Zeilen `Wald-001` in der Suche machen sie unbenutzbar.
+⚠️ **Ein Test hält beide Seiten gegeneinander** — über eine gemeinsame Fallliste
+(`api/_internal/app/__tests__/fixtures/landschaft-autonamen.json`), die der PHP-Test gegen den
+Riegel und der JS-Test gegen `isEcosystemRegionAutoName` fährt: **was der Browser für automatisch
+hält, verbirgt der Server immer** (Server ⊇ Browser). Beide Tests prüfen außerdem den Rückfall-Griff
+„Fläche" gegen die Konstante der jeweils anderen Seite.
+
+🔧 **Bekannte Grenze:** eine Artbezeichnung, die im Typkatalog UMBENANNT wurde, verliert ihren alten
+Griff. Heute ohne Fall; der Test würde es nicht sehen.
 
 ---
 
-## 6. Was ein Treffer tut
+## 6. Was ein Treffer ist und was er tut
 
-Die Maschinerie ist **schon da** und muss nicht erfunden werden:
+**Der Treffer ist ein KARTENOBJEKT, kein Abschnitt** (Abweichung von der ersten Fassung, §9). Die
+vier Abschnitte (Kartensammlung, Literatur, Vorkommen, „Nicht auf der Karte") sind Dinge *neben* der
+Karte, mit eigener Überschrift und eigenem Deckel von 5. Eine Landschaft liegt *auf* der Karte und
+fliegt an — sie steht zwischen den übrigen Kartenobjekten, nach Punktestand, direkt hinter den
+Beschriftungen (`avesmapsSearchKindOrder`: `landscape` nach `label`). Einen eigenen Deckel braucht sie
+nicht: es gibt 73 davon.
 
-- `api/app/ecosystem-areas.php` nimmt seit dem 14.08.2026 einen `?regions=`-Filter — genau für den
-  Fall „ich habe eine Regions-ID und will ihre Flächen".
-- `fetchSpotlightLandscapeAreasByRegion` und `ecosystemAreaLatLngs`
-  (`js/ui/spotlight-search-focus.js`) holen und zeichnen sie bereits.
+**Die Zeile:** `Tannwald` · `Wald · Vegetation`. Art und Ebene, jedes Wort nur einmal und keines, das
+schon im Namen steht — **dieselbe Regel, nach der das Infopanel einer Fläche seinen Untertitel baut**
+(`ecosystemAreaInfoMarkup`). Sie wird dafür als reine Funktion herausgelöst und von beiden benutzt; eine
+zweite Fassung wäre der Untertitel, der in der Liste anders heißt als im Panel. Das Kanon-Etikett folgt
+wie bei Wegen über `spotlightEinigerKanonRef("ecosystem", …)`.
 
-Ein Treffer der neuen Art (`kind: "landscape"`) bekommt also:
+**Gruppierung:** Ebene + Art + normalisierter Name → EIN Treffer mit allen Regionskennungen und der
+Hüllbox **aller** Flächen aller dieser Regionen (Archipel der Perlen: 5 Regionen, 5 Inseln, ein
+Rahmen). Dieselbe Bauart wie die Wegegruppen im selben Endpunkt.
 
-1. Fokus auf die Bounds der Flächen dieser Region (`focusSpotlightBounds`),
-2. die Hervorhebung, die die Vorkommen-Treffer schon benutzen,
-3. die Ansicht **Landschaften** — 🔴 sonst fliegt die Karte an eine Stelle, an der nichts zu sehen
-   ist: in der Standardansicht ist die Ebene aus. Dasselbe tut `focusSpotlightLabel` bereits
-   (`setSelectedMapLayerMode("deregraphic")`).
+**Der Klick** (`focusSpotlightLandscape`):
 
-⚠️ **Und die Infobox:** ein Landschafts-Treffer sollte dasselbe Panel öffnen, das ein Klick auf die
-Fläche öffnet (`avesmapsShowRegionInInfopanel` bzw. der Landschafts-Zweig). Wird das ausgelassen,
-fliegt die Suche irgendwohin und sagt nichts — der Zustand, den `focusSpotlightLabel` heute für
-Labels **ohne** Wiki-Zuweisung hat (siehe §8).
+1. **Ansicht Landschaften** (`setSelectedMapLayerMode("ecosystem")`). Steht die Karte in „Alle", ist
+   jede der drei Ebenen sichtbar und es bleibt dabei; steht sie auf einer anderen einzelnen Ebene,
+   wird auf die Ebene des Treffers gewechselt — sonst fliegt die Karte an eine Stelle, an der nichts
+   zu sehen ist.
+2. **Hinfliegen** auf die Hüllbox aus dem Treffer (`focusSpotlightBounds`) — sofort, ohne auf ein
+   Netz zu warten; die bbox kommt vom Server.
+3. **Infopanel sofort**: dasselbe Panel, das ein Klick auf die Fläche öffnet
+   (`showEcosystemAreaInfopanel`). Es braucht nur Name, Art, Ebene und keinen Label-Zeiger — genau
+   das, was der Treffer trägt.
+4. **Umrisse nachladen** über den vorhandenen `?regions=`-Filter
+   (`fetchSpotlightLandscapeAreasByRegion`) und in derselben Hervorhebung zeichnen, die die
+   Vorkommen benutzen (`highlightSpotlightPlaces`, ohne Punkt-Rückfall). Hat der Nutzer inzwischen
+   etwas anderes gewählt, wird nicht übermalt.
 
 ---
 
 ## 7. 💣 Weitere Fallen
 
-- **Die Beschriftung bleibt ihr eigener Treffer.** Ein Label und seine Region sind zwei Objekte;
-  wer sie zusammenlegt, verliert die Stelle, an der die Beschriftung steht. Doppelte Zeilen werden
-  **nicht** dadurch vermieden, dass man Labels ausblendet, sondern dadurch, dass die neue Quelle nur
-  liefert, was auf keiner ihrer Beschriftungen steht (§2, die 28).
-- **`region_label_count` ist die verlässliche Zahl, `label_public_id` nicht** — drei Flächen zeigen
-  ins Leere (§1).
-- **Kein Namensvergleich mit Klammerzusätzen.** Die Frage lautet „heißt die Region so?", nicht
-  „welcher Anflugpunkt ist gemeint?" — dieselbe Trennung wie beim Vorkommen-Statuskreis.
-- **Der Deckel gehört in die Antwort.** Wie bei `truncated` in `ecosystem-areas.php`: eine gekappte
-  Liste, die aussieht wie eine vollständige, ist schlimmer als eine kurze.
+- **Die Beschriftung bleibt ihr eigener Treffer.** Label und Region sind zwei Objekte; wer sie
+  zusammenlegt, verliert die Stelle, an der die Beschriftung steht.
+- **`label_public_id` allein ist keine Beschriftung** — drei Regionen zeigen ins Leere (§1). Deshalb
+  kommt die Bindung aus `avesmapsEcosystemLabelRegionMap`, nie aus dem Zeiger allein.
+- **Kein Namensvergleich mit Klammerzusätzen.** Die Frage lautet „heißt die Region so?".
+- **`resolveBackendSpotlightEntries` verwirft STILL, was es nicht kennt.** Ein Server, der
+  `kind: "landscape"` liefert, ohne dass der Client einen Bauer dafür hat, sähe im Endpunkt richtig
+  aus und erschiene nie im Fenster. Deshalb fährt der Client-Test die Auflösung mit einem echten
+  Serverergebnis, nicht nur den Bauer.
+- **Der Klick braucht einen Zweig in `selectSpotlightSearchEntry`** — ohne ihn fällt er durch alle
+  Fälle und tut nichts, bei einer Zeile, die vollkommen richtig aussieht (dieselbe Falle, die dort
+  für „offmap" schon kommentiert ist).
+- **Kein neuer Wert im Payload der Karte**, also kein Stempel zu heben. Die Suche hat kein ETag.
 
 ---
 
-## 8. 🚩 Nebenbefund, nicht Teil dieses Entwurfs
+## 8. 🚩 Nebenbefunde
 
-`focusSpotlightLabel` öffnet das Infopanel **nur**, wenn das Label eine Wiki-Zuweisung hat
-(`labelHasWikiRegion`). Live nachgestellt: der Suchtreffer „Ceälan · Vulkan" fliegt hin und lässt
-das Panel auf dem vorigen Inhalt stehen. Der Kartenklick hat dieses Tor seit dem
-Verborgene-Orte-Umbau nicht mehr — die beiden Wege sind auseinandergelaufen. Eigener Befund, eigene
-Entscheidung.
+1. **`focusSpotlightLabel` öffnet das Infopanel nur mit Wiki-Zuweisung** (`labelHasWikiRegion`).
+   Beide Kartenklick-Wege haben dieses Tor seit Spec §5.2 nicht mehr (`map-features-labels.js`, Lese-
+   UND Bearbeiten-Zweig, jeweils ausdrücklich kommentiert). Am 14.09. nachgelesen: weiter so. Der
+   Suchtreffer „Ceälan · Vulkan" fliegt hin und lässt das Panel auf dem vorigen Inhalt stehen.
+   → **Eigener, kleiner Schritt nach diesem**, eigener Commit, eigener Blick.
+2. **Drei tote Label-Zeiger** (Almada, Weiden, Ceälan). Datenpflege, kein Code — die Suche ist
+   dagegen gebaut (§7).
+3. **12 Regionen mit `Fläche-0xx`-Namen und inzwischen gesetzter Art** zeigen diesen Griff auch
+   öffentlich (Tooltip/Infopanel, `ecosystemRegionDisplayName` prüft nur gegen die aktuelle Art).
+   Die Suche ist dagegen gebaut (§5); die Anzeige nicht. Eigener Befund.
+4. **Doppelte Regionen:** „Gorische Wüste" (Topographie, Gebirge) zweimal mit identischer Hüllbox;
+   „Falkenforst" (Vegetation, Wald) zweimal, eine davon mit Beschriftung. Die Gruppierung (§6) macht
+   aus der ersten Dublette EINEN Treffer; die zweite erscheint als Label + Landschaft.
+
+---
+
+## 9. Was sich gegenüber dem 28.08.2026 geändert hat
+
+| | 28.08. | 14.09. |
+|---|---|---|
+| Entscheidung | offen, Empfehlung B | **B entschieden** |
+| Menge | 20 Landschaften | **78 Regionen / 73 Treffer** |
+| Auto-Namen-Riegel | nur gegen die aktuelle Art | gegen **jede** Art + „Fläche", Name schlägt `false` (12 `Fläche-0xx` gemessen) |
+| Doppelt-Filter | eigene Beschriftung | eigene Beschriftung — gegen die Namensregel der Messung verteidigt (§4a) |
+| Form | eigener Abschnitt, Deckel 5 | **Kartenobjekt** hinter den Beschriftungen, ohne Deckel |
+| Mehrere Regionen gleichen Namens | nicht bedacht | EIN Treffer, Hüllbox aller Flächen |
+| Ebene beim Klick | „Landschaften" | Landschaften + passende Einzelebene, „Alle" bleibt |
+| Infopanel | „sollte" | sofort, aus dem Treffer, derselbe Bauer wie der Flächenklick |
+| Zeile | offen | „Name · Art · Ebene", Untertitel-Regel des Panels geteilt |
+
+---
+
+## 10. Abnahme (Ablauf, nicht Maß)
+
+Auf https://avesmaps.de als **Besucher** (kein `edit=1`), Konsole offen:
+
+1. Suche „Tannwald" → Zeile „Tannwald · Wald · Vegetation" erscheint → anklicken → Ansicht springt auf
+   Landschaften, Karte fliegt hin, der Wald ist gelb umrandet, Infopanel zeigt „Tannwald".
+2. Suche „Archipel der Perlen" → EINE Zeile → anklicken → alle fünf Inseln im Rahmen und umrandet.
+3. Suche „Ceälan" → zwei Zeilen: Vulkan (Label) und Insel (Landschaft) → die Insel anklicken.
+4. Aus der Ansicht „Topographie" nach „Mistelwald" (Vegetation) suchen → Ebene wechselt.
+5. Aus „Alle" nach „Mistelwald" suchen → bleibt „Alle".
+6. Suche „Wald-001" → keine Landschaftszeile. Suche „Polare Zone" → keine Landschaftszeile.
+7. Konsole ohne Fehler; Antwortzeit der Suche gegen die Basismessung vom 14.09. (1,67–1,82 s).

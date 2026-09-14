@@ -13,6 +13,9 @@ require_once __DIR__ . '/../_internal/app/citymap-search.php';
 require_once __DIR__ . '/../_internal/app/game-literature-search.php';
 require_once __DIR__ . '/../_internal/app/lore-search.php';
 require_once __DIR__ . '/../_internal/app/offmap-search.php';
+// Landschaften ohne eigene Beschriftung. Laedt nur reine Nachbarn (Benennung, Label-Bindung) --
+// nie ecosystem.php, dessen Ensure nicht in einen Pfad gehoert, der je Tastendruck feuert.
+require_once __DIR__ . '/../_internal/app/landscape-search.php';
 // Traegt avesmapsWikiPathNameIsGeneric -- den Riegel gegen maschinelle Wegenamen (s. u.).
 // Abhaengigkeitsfrei, zieht also nichts vom Wiki-Sync-Stapel in diesen heissen Endpunkt.
 require_once __DIR__ . '/../_internal/wiki/path-naming.php';
@@ -285,6 +288,48 @@ function avesmapsBuildMapSearchResults(
         }
         $entry['score'] = $score;
         $results[] = $entry;
+    }
+
+    // Landschaften ohne eigene Beschriftung (Entwurf
+    // docs/superpowers/specs/2026-08-28-landschaften-in-der-suche-design.md, Owner-Entscheid B).
+    // 🔴 EIN KARTENOBJEKT, KEIN ABSCHNITT: sie liegt auf der Karte und fliegt an, also steht sie hier
+    // zwischen den uebrigen Kartenobjekten und nicht unter den gedeckelten Abschnitten weiter unten.
+    // Ohne $pdo bleibt die Quelle leer -- dieselbe Bauart wie $ruleData, damit die Funktion ohne
+    // Datenbank testbar bleibt.
+    // 💣 Welche Beschriftung zu welcher Region gehoert, kommt aus $rows: die map_features sind hier schon
+    // geladen, und der Label-Name ist DERSELBE, unter dem die Suche die Beschriftung fuehrt.
+    //
+    // ⭐ DIE BINDUNG KOMMT NUR, WENN ETWAS TRIFFT. Sie dekodiert alle Beschriftungen (gemessen 14.09.2026
+    // an den Live-Daten: 13,2 ms von 16 ms dieser Quelle) und kann Treffer nur WEGNEHMEN, nie hinzufuegen.
+    // Trifft schon ohne sie keine Landschaft, trifft mit ihr auch keine -- und das ist fast jede Anfrage.
+    if ($pdo !== null) {
+        $landscapeRows = avesmapsFetchLandscapeSearchRows($pdo);
+        $landscapeCandidates = $landscapeRows['regions'] === [] ? [] : avesmapsBuildLandscapeSearchEntries(
+            $landscapeRows['regions'],
+            $landscapeRows['type_labels'],
+            $landscapeRows['name_prefixes'],
+            []
+        );
+        $landscapeMatches = array_filter(
+            $landscapeCandidates,
+            static fn(array $entry): bool => avesmapsCalculateSearchScore($entry, $normalizedQuery) !== null
+        );
+        if ($landscapeMatches !== []) {
+            $landscapeEntries = avesmapsBuildLandscapeSearchEntries(
+                $landscapeRows['regions'],
+                $landscapeRows['type_labels'],
+                $landscapeRows['name_prefixes'],
+                avesmapsLandscapeSearchOwnLabelNames($rows, $landscapeRows['regions'], 'avesmapsGetSearchFeatureName')
+            );
+            foreach ($landscapeEntries as $entry) {
+                $score = avesmapsCalculateSearchScore($entry, $normalizedQuery);
+                if ($score === null) {
+                    continue;
+                }
+                $entry['score'] = $score;
+                $results[] = $entry;
+            }
+        }
     }
 
     // Der Scope-Index („liegt das in einer Stadt?") bedient ZWEI Quellen: die
@@ -575,12 +620,15 @@ function avesmapsSearchKindOrder(string $kind): int {
     return match ($kind) {
         'location' => 0,
         'label' => 1,
-        'region' => 2,
-        'path' => 3,
-        'powerline' => 4,
+        // Direkt hinter der Beschriftung: beide benennen eine Landschaft, und bei gleichem Punktestand
+        // steht das Schild, das man auf der Karte liest, vor der Flaeche ohne Schild.
+        'landscape' => 2,
+        'region' => 3,
+        'path' => 4,
+        'powerline' => 5,
         // Innerorts-Objekte ganz ans Ende: sie sind KEIN Kartenobjekt, sondern ein
         // Verweis auf die Stadt. Was wirklich auf der Karte liegt, hat Vorrang.
-        'in_settlement' => 5,
+        'in_settlement' => 6,
         default => 99,
     };
 }

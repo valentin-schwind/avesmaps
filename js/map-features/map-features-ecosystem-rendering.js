@@ -576,6 +576,20 @@ function ecosystemAreaTypeLabel(area) {
 		|| ECOSYSTEM_KIND_LABELS[area?.kind] || String(area?.kind || "").trim();
 }
 
+// Art und Ebene einer Fläche, als Teile eines Untertitels -- „Gebirge · Topographie". JEDES WORT NUR
+// EINMAL, UND KEINES, DAS SCHON IM NAMEN STEHT; warum, steht an der ersten Nutzerin (ecosystemAreaInfoMarkup).
+//
+// 🔴 ZWEI LESER, EINE REGEL (14.09.2026): das Flächen-Panel und die Suchzeile einer Landschaft
+// (buildLandscapeSpotlightEntry, js/ui/spotlight-search.js). Eine zweite Fassung wäre der Untertitel, der
+// in der Trefferliste anders heisst als im Panel, das derselbe Klick gleich danach öffnet.
+function ecosystemAreaUntertitelTeile(area) {
+	const name = ecosystemAreaDisplayName(area);
+	const kindLabel = ECOSYSTEM_KIND_LABELS[area?.kind] || "";
+	return [ecosystemAreaTypeLabel(area), kindLabel]
+		.map((wort) => String(wort || "").trim())
+		.filter((wort, index, liste) => wort !== "" && wort !== name && liste.indexOf(wort) === index);
+}
+
 function formatEcosystemAreaTooltip(area) {
 	const regionName = ecosystemAreaDisplayName(area);
 	// Die ART, und sonst die Ebene. Owner 2026-08-03: „Eisenwald (Gebirge)" reicht -- die Ebene und
@@ -686,10 +700,10 @@ function ecosystemAreaInfoMarkup(source) {
 	// „sag nichts zweimal", nicht „prüfe diese beiden Paare".
 	//
 	// ⚠️ Gefunden erst im echten Durchlauf auf der Karte -- die Unit-Tests waren dabei alle grün.
-	const kindLabel = ECOSYSTEM_KIND_LABELS[source.area?.kind] || "";
-	const untertitelTeile = [typeLabel, kindLabel]
-		.map((wort) => String(wort || "").trim())
-		.filter((wort, index, liste) => wort !== "" && wort !== name && liste.indexOf(wort) === index);
+	//
+	// 🔴 Die Regel selbst steht seit dem 14.09.2026 in ecosystemAreaUntertitelTeile: die Suchzeile einer
+	// Landschaft (buildLandscapeSpotlightEntry, js/ui/spotlight-search.js) muss dasselbe sagen.
+	const untertitelTeile = ecosystemAreaUntertitelTeile(source.area);
 	// 🔴 Das Kopfbild kommt aus der ART, auch wenn die im Untertitel weggefiltert wurde: es bebildert,
 	// WAS die Fläche ist, nicht was danebensteht.
 	const headerImg = typeof infoHeaderImageMarkup === "function" && typeof regionHeaderImageBasename === "function"

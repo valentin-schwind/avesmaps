@@ -63,8 +63,13 @@ assert.ok(/avesmapsEcosystemAutoNameAusMerker/.test(eco),
 // ── C. GESPEICHERT WIRD ER AUCH ──────────────────────────────────────────────────────────────
 assert.ok(/auto_name/.test(eco), "der Schreibweg schickt den Merker mit"); checks++;
 const php = lies("api/_internal/app/ecosystem.php");
-assert.ok(/function avesmapsEcosystemRegionAutoName\(/.test(php),
+// 🔴 Der LESER wohnt seit dem 14.09.2026 in ecosystem-naming.php: die Suche braucht ihn, ohne die
+// 6.000 Zeilen von ecosystem.php in den Tastendruck-Pfad zu ziehen. ecosystem.php laedt die Datei.
+const phpBenennung = lies("api/_internal/app/ecosystem-naming.php");
+assert.ok(/function avesmapsEcosystemRegionAutoName\(/.test(phpBenennung),
 	"der Server liest den Merker"); checks++;
+assert.ok(/require_once __DIR__ \. '\/ecosystem-naming\.php';/.test(php),
+	"…und ecosystem.php laedt den Leser"); checks++;
 assert.ok(/function avesmapsEcosystemApplyRegionAutoName\(/.test(php),
 	"…und schreibt ihn in properties_json"); checks++;
 // 💣 `properties_json` hat MEHRERE Schreiber in einer Kette. Jeder liest, was der vorige in
