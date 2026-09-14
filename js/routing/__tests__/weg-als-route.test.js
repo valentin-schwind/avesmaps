@@ -60,6 +60,21 @@ assert.deepStrictEqual(R.avesmapsWegAlsRouteOrte([
 assert.deepStrictEqual(R.avesmapsWegAlsRouteOrte([]), []);
 assert.deepStrictEqual(R.avesmapsWegAlsRouteOrte([{ public_id: "ohne" }]), [], "ohne Enden nichts");
 
+// 1b. avesmapsWegAlsRouteAuslassen: Namensindex je Kartenstand -- der ERSTE Ort mit dem Namen entscheidet, wie
+// Array.prototype.find es zuvor tat; Kreuzungen, verborgene Orte und die zwei Enden-Konstanten fallen weg.
+global.locationData = [
+	{ name: "Zwilling", coordinates: [0, 0], isHidden: true },
+	{ name: "Zwilling", coordinates: [9, 9], isHidden: false },
+	{ name: "Kreuzling", coordinates: [1, 1], kreuzung: true },
+	{ name: "Normalo", coordinates: [2, 2] },
+];
+assert.strictEqual(R.avesmapsWegAlsRouteAuslassen("Zwilling"), true, "der ERSTE Ort mit dem Namen entscheidet -- der ist verborgen");
+assert.strictEqual(R.avesmapsWegAlsRouteAuslassen("Kreuzling"), true, "eine Kreuzung faehrt nicht mit");
+assert.strictEqual(R.avesmapsWegAlsRouteAuslassen("Normalo"), false, "ein normaler Ort faehrt mit");
+assert.strictEqual(R.avesmapsWegAlsRouteAuslassen("Kreuzung"), true, "AVESMAPS_WEG_ENDE_KREUZUNG faellt immer weg");
+assert.strictEqual(R.avesmapsWegAlsRouteAuslassen("Wegende"), true, "AVESMAPS_WEG_ENDE_OFFEN faellt immer weg");
+assert.strictEqual(R.avesmapsWegAlsRouteAuslassen("Unbekannt"), false, "ein unbekannter Name faehrt mit");
+
 // 2. Gegen eine kleine Karte: der Baerenpfad laeuft ueber den Reichsstrassen-Abschnitt, der ihn als weitere Zuweisung traegt
 global.locationData = [
 	{ name: "Perz", coordinates: [0, 0] }, { name: "Silkwiesen", coordinates: [0, 1] }, { name: "Wieha", coordinates: [0, 2] },
@@ -81,7 +96,7 @@ global.pathData = [
 	weg("bp-2", [2, 0], [3, 5], BP),
 	weg("x-1", [8, 8], [9, 9], { key: "x", name: "X", seite: "X" }),
 ];
-const [rs6, rs7, rs8, bp1] = global.pathData;
+const [rs6, rs7, rs8, bp1, , x1] = global.pathData;
 assert.deepStrictEqual(R.avesmapsWegAlsRouteFuerPfad(rs6), ["Perz", "Silkwiesen", "Wieha", "Helmdahl"]);
 assert.deepStrictEqual(R.avesmapsWegAlsRouteFuerPfad(bp1), ["Rudein", "Silkwiesen", "Wieha", "Espen"], "der Baerenpfad-Fall (§6 D)");
 
@@ -100,13 +115,25 @@ global.locationData.find((o) => o.name === "Silkwiesen").kreuzung = true;
 global.mapDataSourceStatus = { revision: 2 };   // neuer Kartenstand: der Ortsindex rechnet neu
 assert.deepStrictEqual(R.avesmapsWegAlsRouteFuerPfad(rs6), ["Perz", "Helmdahl"], "eine Kreuzung heisst „Kreuzung\" und faellt weg");
 
-// 5. Die Kachel: dieselbe Bedingung wie „Anzeigen"
+// 4b. avesmapsWegAlsRouteHatZweiOrte fragt IMMER die ganze Strasse, nie die Editor-Auswahl -- sonst zeigte
+// derselbe Abschnitt Besuchern und Editoren eine unterschiedliche Anzahl Kacheln (Regel 2 des Entwurfs).
+global.pathData.push(weg("rs-9", [50, 50], [51, 51], RS));
+const rs9 = global.pathData[global.pathData.length - 1];
+global.IS_EDIT_MODE = true;
+global.avesmapsWegAuswahlFuerPfad = (p) => (p === rs9 ? { gruppe: "wiki:reichsstrasse-2", publicId: "rs-9" } : null);
+assert.deepStrictEqual(R.avesmapsWegAlsRouteFuerPfad(rs9), [], "der markierte Abschnitt allein liegt zwischen zwei unbekannten Enden");
+assert.strictEqual(R.avesmapsWegAlsRouteHatZweiOrte(rs9), true, "die Kachel bleibt bei der Antwort der GANZEN Strasse, trotz kurzer Auswahl");
+global.avesmapsWegAuswahlFuerPfad = () => null;
+global.IS_EDIT_MODE = false;
+
+// 5. Die Kachel: dieselbe Bedingung wie „Anzeigen", UND ausgeblendet unter zwei Orten (Owner 14.09.2026)
 const rendering = lies("js/map-features/map-features-path-rendering.js");
 const kachelKontext = vm.createContext({
 	popupActionButtonMarkup: (spec) => JSON.stringify(spec),
 	pathSupportsItemLinks: (p) => p.properties.feature_subtype !== "Seeweg",
 	getPathPublicId: (p) => p.properties.public_id,
 	tr: (key, fallback) => fallback,
+	avesmapsWegAlsRouteHatZweiOrte: R.avesmapsWegAlsRouteHatZweiOrte,
 });
 vm.runInContext(schneide(rendering, "function pathWegAktionErlaubt(path) {", "\n// Kopf-Icon fuer den Weg-Kopf"), kachelKontext);
 const kachelBauen = vm.runInContext("pathAlsRouteKachelMarkup", kachelKontext);
@@ -116,8 +143,48 @@ assert.ok(kachel.iconMarkup.includes('src="img/menu/waypoint-end.webp"'), kachel
 assert.deepStrictEqual(kachel.attributes, { "data-popup-action": "path-as-route", "data-public-id": "rs-6" });
 assert.strictEqual(kachelBauen({ properties: { public_id: "s", feature_subtype: "Seeweg", wiki_path: { wiki_url: url("Meer") } } }), "", "kein Seeweg");
 assert.strictEqual(kachelBauen({ properties: { public_id: "o", feature_subtype: "Weg" } }), "", "ohne Wiki-Artikel keine Kachel (§8)");
+// Owner 14.09.2026: unter zwei Orten erscheint die Kachel gar nicht -- x-1 liegt allein zwischen zwei
+// unbekannten Enden (0 Orte), waehrend rs-6 weiterhin die Kachel traegt (die RS-Strasse hat noch zwei).
+assert.strictEqual(R.avesmapsWegAlsRouteHatZweiOrte(x1), false, "die Strasse von x-1 verbindet keine zwei Orte");
+assert.strictEqual(kachelBauen(x1), "", "keine Kachel bei einer zu kurzen Strasse (Owner 14.09.2026)");
+assert.strictEqual(R.avesmapsWegAlsRouteHatZweiOrte(rs6), true, "die RS-Strasse traegt weiterhin zwei Orte");
+assert.notStrictEqual(kachelBauen(rs6), "", "die Kachel bleibt fuer eine ausreichend lange Strasse");
 const popup = schneide(rendering, "function createPathPopupMarkup(path) {", "\n// Zeichen-Reihenfolge der Wege");
 assert.ok(popup.indexOf("pathAlsRouteKachelMarkup(path)") > popup.indexOf("buildSuggestChangeButtonSpec"), "die Kachel steht nach „Änderungen vorschlagen\" (§5.1)");
+
+// 5b. Die Memoisierung: EINMAL je Strasse, neu erst nach einem Kartenstand-Sprung -- mit einem Spion um die
+// ganze-Strasse-Rechnung. Der Zwischenspeicher-Block wird dafuer aus der Quelle geschnitten und mit einer
+// Attrappe fuer avesmapsWegAlsRouteGanzeStrasse ausgefuehrt: der Aufruf innerhalb der Datei bindet direkt an den
+// Funktionsnamen (kein module.exports-Umweg), ein Spion von aussen kann ihn also nicht ueberschreiben --
+// dieselbe vm-Technik wie Abschnitt 5 fuer die Kachel.
+const quelle = lies("js/routing/weg-als-route.js");
+const memoBlock = schneide(quelle, "let avesmapsWegAlsRouteZweiOrteStand = {", "\nif (typeof module !== \"undefined\"");
+let ganzeStrasseAufrufe = 0;
+const memoKontext = vm.createContext({
+	avesmapsWegAbschnittAufKarte: (p) => (p && p.gruppe ? { gruppe: { key: p.gruppe } } : null),
+	avesmapsWegKartenStand: (daten) => String(Array.isArray(daten) ? daten.length : 0),
+	avesmapsWegAlsRouteGanzeStrasse: () => { ganzeStrasseAufrufe++; return ["A", "B"]; },
+	pathData: [1, 2, 3],
+	locationData: [1, 2],
+});
+vm.runInContext(memoBlock, memoKontext);
+const hatZweiOrteMitSpion = vm.runInContext("avesmapsWegAlsRouteHatZweiOrte", memoKontext);
+const segmentA = { gruppe: "K1" };
+const segmentB = { gruppe: "K1" };
+hatZweiOrteMitSpion(segmentA);
+hatZweiOrteMitSpion(segmentB);
+assert.strictEqual(ganzeStrasseAufrufe, 1, "dieselbe Strasse (zwei Abschnitte derselben Gruppe): nur einmal gerechnet");
+hatZweiOrteMitSpion(segmentA);
+assert.strictEqual(ganzeStrasseAufrufe, 1, "derselbe Abschnitt noch einmal: immer noch nur einmal gerechnet");
+const segmentAndereGruppe = { gruppe: "K2" };
+hatZweiOrteMitSpion(segmentAndereGruppe);
+assert.strictEqual(ganzeStrasseAufrufe, 2, "eine ANDERE Strasse im selben Kartenstand: eigene Rechnung");
+memoKontext.pathData = [1, 2, 3, 4];   // neuer Kartenstand (laengere pathData -- wie nach einem Live-Abgleich)
+hatZweiOrteMitSpion(segmentA);
+assert.strictEqual(ganzeStrasseAufrufe, 3, "neuer Kartenstand: neu gerechnet, auch fuer eine schon bekannte Gruppe");
+memoKontext.locationData = [1, 2, 3];   // Kartenstand der ORTE aendert sich ebenso
+hatZweiOrteMitSpion(segmentA);
+assert.strictEqual(ganzeStrasseAufrufe, 4, "ein neuer Ortsstand loest ebenso neu aus");
 
 // 6. Der Klickzweig: die Orte ERSETZEN die Wegpunkte (§5.2), ausgefuehrt
 const routing = lies("js/routing/routing.js");

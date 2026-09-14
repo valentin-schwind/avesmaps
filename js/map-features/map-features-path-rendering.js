@@ -172,9 +172,14 @@ function pathShowActionButtonMarkup(path) {
 }
 
 // „Weg als Route" (Entwurf 2026-09-14 §5.1): setzt die Orte des Wegs der Reihe nach in den Routenplaner. Die
-// Ziel-Nadel des Routenplaners als Symbol; sichtbar, wo „Anzeigen" sichtbar ist.
+// Ziel-Nadel des Routenplaners als Symbol; sichtbar, wo „Anzeigen" sichtbar ist -- UND nur, wenn die Strasse
+// mindestens zwei Orte verbindet (Owner 14.09.2026: „Die Kachel soll bei zu kurzen Wegen ausgeblendet werden").
+// avesmapsWegAlsRouteHatZweiOrte fragt dafuer IMMER die ganze Strasse, nie einen markierten Abschnitt.
 function pathAlsRouteKachelMarkup(path) {
 	if (!pathWegAktionErlaubt(path)) {
+		return "";
+	}
+	if (typeof avesmapsWegAlsRouteHatZweiOrte === "function" && !avesmapsWegAlsRouteHatZweiOrte(path)) {
 		return "";
 	}
 	return popupActionButtonMarkup({
