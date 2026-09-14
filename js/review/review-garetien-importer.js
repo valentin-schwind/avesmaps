@@ -8992,6 +8992,21 @@
 		const detailEl = hasDocument ? document.getElementById("garetien-detailcol") : null;
 		if (detailEl) {
 			detailEl.addEventListener("click", function (ereignis) {
+				// Ein FELD-KNOPF des Kastens „Eingefügt wird" (heute nur die Strömungsrichtung).
+				// 💣 Ein `<button>` löst kein `input` aus -- der Zuhörer unten erreicht ihn nie, und der
+				// Knopf tat vom 02.09. bis zum 14.09.2026 nichts. Er geht deshalb von HIER an
+				// denselben Schreiber; `garetienEingabenAendern` bleibt die einzige Stelle, die das
+				// Feld schreibt. 🔴 NUR `button`: Häkchen und Zahlenfelder schreibt der
+				// `input`-Zuhörer, ein zweiter Weg für sie wäre ein zweiter Schreiber.
+				const feldZiel = ereignis && ereignis.target;
+				const feldKnopf = feldZiel && typeof feldZiel.closest === "function"
+					? feldZiel.closest("button[data-gi-feld]") : null;
+				if (feldKnopf) {
+					if (!feldKnopf.disabled) {
+						garetienEingabenAendern({ target: feldKnopf }, zustand.objekte);
+					}
+					return;
+				}
 				garetienDetailKlick(ereignis, zustand.objekte);
 				// Aufgabe 15: die Abschnitts-Häkchen und die Knopfleiste. Alle drei Verteiler
 				// steigen bei einem fremden Ziel sofort aus -- kein `else if`, das beim vierten
