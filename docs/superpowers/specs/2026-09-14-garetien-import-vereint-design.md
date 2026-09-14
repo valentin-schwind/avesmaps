@@ -126,8 +126,11 @@ Gemessen, jeder mit Fundstelle im Bauplan:
    übrigen Fragmente legen eine **zweite** Region an. Nichts davon ist zurücknehmbar.
 8. **Die Faltung auf „Übernommen" verschwindet** nach jedem „Holen & Rechnen" (liest nur den
    aktuellen Lauf).
-9. **Die Rücknahme der Garetien-Quelle** löst alle Verknüpfungen der Entität — an einer Region mit
-   vier Flächen heißt das: das erste zurückgenommene Fragment nimmt allen vieren die Quelle.
+9. **Die Garetien-Quelle einer zurückgenommenen NEUEN Fläche wird nie gelöst** — sie bleibt an der
+   deaktivierten Region stehen. 🪤 Die Workflow-Befundliste las den Quellen-Zweig
+   (`avesmapsGaretienQuelleRuecknahmeLoesen`, „löst alle Verknüpfungen der Entität"); der hat aber nur einen
+   Aufrufer, den Zweig für Ergänzungs-Items. Beim Bau der Aufgabe 3 am Code nachgemessen (master und Zweig).
+   Mit dem Verbund wird die Zusage nötig, die es nie gab: die Quelle fällt mit der **letzten** Fläche.
 10. **Die Verbund-Einstellungen überleben** „Stage leeren", neue Läufe und „Verbund auflösen"; die
     sechs `…Vergessen`-Funktionen haben keinen Aufrufer.
 
@@ -162,7 +165,7 @@ Trennlinie, nie über Rahmen (AGENTS.md §12). `.gi-block.gi-acts` nimmt das Eig
 |---|---|---|---|---|
 | **A** | Auf der Karte | ✦ Zentrieren · Garetien/Avesmaps · Abschnitte + Deckung · Grund | ebenso | angelegte Objekte |
 | **B** | Verbund | nur bei Verbund: die Fragmente, **nur Anzeige** | Fragmente mit ✕ · **„Zusammenlegen (n)"** bzw. „Verbund auflösen (n)" | Fragmente mit ↩ |
-| **C** | Ziel & Identität | **Vorschlag als Text**: Ziel · Form · Art — „Erst auf der Stage einstellbar." | **Zielwahl** (§5) · Name · Form · Art | nur Anzeige |
+| **C** | Ziel & Identität | **Vorschlag als Text**: Ziel · Form · Art — „Erst auf der Stage einstellbar." | **Zielwahl** (§5) · Name · Form · Art | — (nichts mehr einzustellen; der Satz „Liegt bereits auf der Karte …" steht in A) |
 | **D** | Darstellung | — (ausgeblendet) | Fläche · Beschriftung · je Form Höhe, Flussrichtung, Endkreuzungen, Ruine, Verborgen | — |
 | **E** | Wiki & Quellen | — (ausgeblendet) | Wiki-Landschaft · Quelle · Verweise | — |
 | **F** | Handlung | „Auf die Stage" · „Ablehnen" | „Von der Stage nehmen" · „Ablehnen" | „Zurücknehmen" · „Ganzen Verbund zurücknehmen (n)" |
@@ -173,7 +176,10 @@ Trennlinie, nie über Rahmen (AGENTS.md §12). `.gi-block.gi-acts` nimmt das Eig
 - 🔴 **Auf „Offen" trägt die rechte Spalte kein Einstellfeld.** Ausgenommen ist nur G: Typ-Auswahl und
   Umkreis sind ein **Auswahl**werkzeug für die Liste, keine Eigenschaft des Objekts.
 - ⚠️ **Auf der Stage wird abgeblendet, nicht ausgeblendet**, was das gewählte Ziel nicht braucht
-  (Form und Beschriftung bei einer Stätte) — sonst springt die Spalte bei jedem Wechsel. Auf „Offen"
+  (Form, Art und der ganze Block D bei Stätte, Ergänzung, „Nur Quelle" und „Nichts") — in voller Höhe,
+  grau und gesperrt, sonst springt die Spalte bei jedem Wechsel. E bleibt immer bedienbar.
+- 🔴 **„Übernommen" zeigt A, B (nur bei einem Verbund) und F.** Ein übernommenes Objekt hat nichts mehr
+  einzustellen; C bis E und G fehlen dort (Owner 14.09.2026: der Bestand). Auf „Offen"
   bleiben D und E dagegen ganz weg (Owner 09.09.: 1388 → 786 px).
 - ⚠️ **Die Handlung eines Objekts und die Handlung einer Auswahl sind zwei Gegenstände.** F wirkt auf
   das angezeigte Objekt, die Auswahlleiste links auf die angehakten Zeilen, die Fußleiste auf die
@@ -200,7 +206,7 @@ Abgleichs:
 
 | Ziel | steht zur Wahl, wenn … | wird zu |
 |---|---|---|
-| **Auf die Karte** | **immer**, auch bei Innerorts-Befund (Owner 12.09./7) | ein neues Objekt der gewählten Form |
+| **Auf die Karte** | sobald es ein Neu- oder Zusatz-Item gibt — eine Siedlung im Umkreis nimmt es **nie** weg (Owner 12.09./7). Ohne beides (z. B. „übersprungen") stünde dort eine Wahl, die still nichts täte | ein neues Objekt der gewählten Form |
 | **Stätte in „X"** | eine Siedlung im Umkreis liegt (Bauwerke) | eine Stätte an „X", nicht auf der Karte |
 | **Nur Quelle + Artikel an „X"** | dasselbe | keine neue Zeile; Quelle und Artikel an „X" — 🔧 **neu im Server**: der Innerorts-Weg legt heute immer eine Stätte an |
 | **Quelle an „X" ergänzen** | das Objekt deckt sich mit einem, das wir haben | das Ergänzungs-Item; Geometrie und Name von „X" bleiben |
@@ -236,7 +242,7 @@ Abgleichs:
 | Regel | Stand |
 |---|---|
 | Gruppe = **Ebene + Typ + Stamm**, mindestens zwei Zeilen, mindestens eine mit Marke | gebaut |
-| **Nur erzeugende Zeilen** (Urteil `neu`/`widerspricht`/`zweifel` — nie `deckt_sich`) | 💣 **Fehler 5** — der Filter muss dort greifen, wo `urteil` gelesen wird |
+| **Nur erzeugende Zeilen** (nie `deckt_sich`, nie `uebersprungen` — das Urteil entsteht erst im Abgleich, der Planbau läuft deshalb in zwei Durchgängen) | 💣 **Fehler 5** — der Filter muss dort greifen, wo `urteil` gelesen wird |
 | Marken: Zahl · Zahl+Buchstabe · ohne Trenner · römisch I–XV · `(n)` · Himmelsrichtung kurz und ausgeschrieben, **in jeder Schreibung** | 💣 **Fehler 2** — „Süd" |
 | **Kein Einzelbuchstabe** als Marke | 💣 **Fehler 3** |
 | Ziel `location` und `label` nie | gebaut |
@@ -253,9 +259,12 @@ Abgleichs:
 - Danach: **Name = Stamm**, änderbar im Namensfeld; alle Einstellungen gelten dem Verbund
   (Block-Notiz „gilt dem ganzen Verbund").
 - 💣 **Vorbelegt wird aus dem größten Fragment**, nicht aus dem zuerst berührten (Fehler 6).
-- 💣 **Zusammenlegen geht nur, wenn das Ziel „Auf die Karte" mit Form Fläche oder Weg ist.** Sonst ist
-  der Knopf gesperrt und sagt warum („Ein Verbund wird eine Fläche oder ein Weg — gewählt ist
-  ‚Berggipfel'."). Ein Verbund, der als Punkt ankommt, ist keiner.
+- 💣 **Zusammenlegen geht nur, wenn das Ziel „Auf die Karte" mit Form Fläche oder Weg ist — an JEDEM
+  aufgelegten Mitglied.** Sonst ist der Knopf gesperrt und sagt warum, mit dem Namen des Fragments
+  („… bei „Silker Hain 2""). Ein Verbund, der als Punkt ankommt, ist keiner; und ein „Nichts" an einem
+  kleinen Fragment fiele nach dem Zusammenlegen sonst still auf „Auf die Karte" zurück.
+- 🔴 **Wege-Verbünde sind gesperrt, bis der Owner sie freigibt** (`AVESMAPS_GARETIEN_VERBUND_WEGE_FREI`,
+  eine Zeile) — erst nach seinem Blick auf die 19 Wege-Verbünde (§6.6).
 - ⚠️ Zusammengelegt heißt: **alle Fragmente auf der Stage**. Nimmt ✕ eines herunter, bleibt der Rest
   zusammen; fallen weniger als zwei, ist der Verbund aufgelöst.
 
@@ -339,9 +348,32 @@ oder einen Doppelklick desselben Editors; beide Schäden sind sichtbar und im Ha
 | **Auswahlleiste** (links, nur mit Auswahl) | die angehakten Zeilen | Offen: „Auswahl auf die Stage (n)" · „Auswahl ablehnen (n)" · „Auswahl aufheben" — Stage: „Auswahl von der Stage nehmen (n)" · „Auswahl ablehnen (n)" · „Auswahl aufheben" |
 | **Fußleiste** | die ganze Stage | „Stage leeren" · „Alle zentrieren" · **„Stage importieren"** (die einzige gefüllte Handlung) |
 
-- 💣 **„Alle wählen" wandert aus der Fußleiste** in den Listenkopf.
+- 💣 **„Alle wählen" wandert aus der Fußleiste** in den Listenkopf — als Häkchen, das auch wieder löst,
+  und je Reiter mit genau der Menge, die „Alle wählen" dort heute wählt.
+- Die Zeile auf der Stage trägt **Ziel · Urteil · Grund**; die Zahl im Listenkopf lautet auf „Offen"
+  „n von m", auf der Stage „n auf der Stage · k Objekte".
 
 ---
+
+## 7a · Der Bestand
+
+Der Importer ist live und trägt echte Fälle — übernommene, abgelehnte, offene Zeilen und übernommene Objekte
+auf der Karte. Der Verbund-Zweig war nie live.
+
+- 🔴 **Keine Migration.** `entity_key`, `sync_decision` und die `apply_note`-Vermerke bleiben, wie sie sind.
+  Übernommenes bleibt zurücknehmbar, Abgelehntes bleibt abgelehnt — auch mit den alten Vermerkformen (nackte
+  `public_id`; `area:… | region:…` ohne `verbund:`). Jede Aufgabe, die einen Lese- oder Rücknahmeweg ändert,
+  testet mit genau diesem Bestand.
+- **Ein `after_json` ohne `verbund_stamm`/`verbund_n` heißt „kein Verbund".** Marke und Filter „nur Verbünde"
+  erscheinen erst nach dem nächsten „Holen & Rechnen"; bis dahin sagt der leere Filter, warum er leer ist.
+- **Der Riegel „beides" zählt nur angehakte, noch nicht übernommene Items** — eine abgelehnte Zeile löst ihn nie aus.
+- **„Nur Quelle + Artikel" bekommt einen eigenen Vermerk** `nur_quelle:<siedlung>` und einen eigenen
+  Rücknahme-Zweig. 💣 Mit dem nackten Vermerk hätte die Rücknahme die **Siedlung** gelöscht.
+- ✅ **Wiki-Schlüssel an bestehenden Flächen nachziehen** (Owner 14.09.2026: „ja, mit Trockenlauf"): Aufgabe 13,
+  ein Admin-Lauf, Trockenlauf als Vorgabe. Neue Importe tragen den Schlüssel ab Aufgabe 2 selbst.
+- 🔧 **Verwaiste Garetien-Quellen früher zurückgenommener Flächen** (Fehler 9): jede vor dem Deploy
+  zurückgenommene neue Fläche hat ihre Quellenverknüpfung an einer deaktivierten Region behalten. Ab Aufgabe 3
+  entsteht keine neue; ob die alten aufgeräumt werden, entscheidet der Owner.
 
 ## 8 · Was dieser Plan nicht abdeckt
 
