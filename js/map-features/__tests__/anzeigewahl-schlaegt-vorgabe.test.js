@@ -335,7 +335,7 @@ assert.strictEqual(welt({ drin: false }).kontext.ecosystemAnzeigeSoll(), null,
 // ---- 8. DER UNTERGRUND DER NUTZERWAHL KOMMT AUS DEM PROFIL ----------------------------------------
 // 💣 Er stand bis zum 10.09.2026 ZWEIMAL da: als `untergrund: 0` im Profil und als abgeschriebenes
 // `untergrund: 0` in ecosystemAnzeigeLesen. Ein gekoppelter Wert an zwei Stellen, von keinem Test
-// gehalten -- und `untergrund` ist genau das Feld, das Aufgabe 8 aus dem Soll liest. Ab der ersten
+// gehalten -- und `untergrund` ist genau das Feld, das applyEcosystemUndergroundOpacity aus dem Soll liest. Ab der ersten
 // echten Hand waere ein kuenftiger Profilwert still auf 0 gefallen.
 // 🔴 Gefuellt wird er jetzt an EINER Stelle (ecosystemAnzeigeSoll), und die Nutzerwahl traegt ihn gar
 // nicht mehr -- der Besucher hat den Regler nicht und KANN ihn nicht gewaehlt haben.

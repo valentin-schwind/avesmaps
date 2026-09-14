@@ -133,12 +133,16 @@ class Ereignis {
 	constructor(type, optionen) {
 		this.type = type;
 		this.bubbles = Boolean(optionen && optionen.bubbles);
+		// ⚠️ Im Browser setzt `isTrusted` allein der Browser -- nur die Attrappe darf es vorgeben (Abschnitt V: die echte Hand).
+		this.isTrusted = Boolean(optionen && optionen.isTrusted);
+		this.key = optionen ? optionen.key : undefined;
 		this.target = null;
 		this.relatedTarget = null;
 		this.gestoppt = false;
+		this.defaultPrevented = false;
 	}
 	stopPropagation() { this.gestoppt = true; }
-	preventDefault() {}
+	preventDefault() { this.defaultPrevented = true; }
 }
 
 /** Trennt an einem Zeichen -- aber nicht in [], () oder "…". */
@@ -346,7 +350,9 @@ function baueWelt(einstellungen) {
 		ohneLeiste: false,
 		imEditor: false,
 		/** { speicher } -- laedt VOR dem Picker die ECHTE Datei der Reiterleiste mit diesem localStorage (Abschnitt J). */
-		schalter: null
+		schalter: null,
+		/** Mit `schalter`: der Picker laeuft im SELBEN Kontext wie die echte Leiste, samt Anzeige-Haken und Ortsknopf (U2, V). */
+		gemeinsam: false
 	}, einstellungen);
 
 	const dokument = new Knoten(null, "#document");
@@ -425,6 +431,8 @@ function baueWelt(einstellungen) {
 			leiste.appendChild(neu("button", attrs, r.text));
 		});
 		leiste.addEventListener("click", (ereignis) => {
+			// In der gemeinsamen Welt schaltet die ECHTE Leiste um -- dieser Nachbau schweigt dann.
+			if (o.gemeinsam) { return; }
 			const reiter = ereignis.target.closest("[data-ecosystem-show-all], [data-ecosystem-kind]");
 			if (!reiter) { return; }
 			protokoll.push("reiter:" + (reiter.hasAttribute("data-ecosystem-show-all") ? "alle" : reiter.getAttribute("data-ecosystem-kind"))
@@ -433,6 +441,18 @@ function baueWelt(einstellungen) {
 				r.setAttribute("aria-selected", r === reiter ? "true" : "false");
 			});
 		});
+	}
+
+	// Die vier Haken des Anzeige-Menues und ein Ortsklassen-Knopf -- nur fuer die gemeinsame Welt, und VOR der Leiste
+	// angelegt: sie bindet ihre Nutzerwahl beim Laden an genau diese Elemente (bindEcosystemAnzeigeWahl).
+	const haken = {};
+	let ortKnopf = null;
+	if (o.gemeinsam) {
+		["togglePaths", "toggleMapLabels", "toggleTerritoryBorders", "toggleRivers"].forEach((id) => {
+			haken[id] = body.appendChild(neu("input", { id, type: "checkbox" }));
+			haken[id].checked = false;
+		});
+		ortKnopf = body.appendChild(neu("button", { class: "location-toggle", "data-location-type": "dorf" }));
 	}
 
 	// Die Lage: Menuezellen stehen im 72er-Raster, die Huelle ist so breit wie fuenf Zellen.
@@ -492,21 +512,85 @@ function baueWelt(einstellungen) {
 			setSelectedEcosystemArea: () => schalterSpuren.push("setSelectedEcosystemArea"),
 			syncEcosystemRegionCache: () => schalterSpuren.push("syncEcosystemRegionCache")
 		};
+		if (o.gemeinsam) {
+			// ⭐ Was die Leiste beim Umschalten ruft, bis das Anzeigeprofil angewendet ist -- Attrappen OHNE Proxy, mit genau
+			// den Namen, die sie liest (dieselbe Buehne wie js/map-features/__tests__/anzeigewahl-schlaegt-vorgabe.test.js).
+			// Der Picker teilt sich `window` mit ihr, wie in index.html.
+			const ortsklassen = {};
+			Object.assign(kontext, {
+				window: Object.assign(fenster, { localStorage: kontext.window.localStorage }),
+				Event: Ereignis,
+				URLSearchParams,
+				// ⚠️ Synchron: die Nutzerwahl liest den Ortsklassen-Klick „im naechsten Takt" -- hier sofort.
+				setTimeout: (fn) => { fn(); return 0; },
+				map: { getPane: () => null },
+				MAP_TILE_STYLES: STIL_TABELLE,
+				MutationObserver: Beobachter,
+				LOCATION_TYPE_VISIBILITY_ORDER: ["metropole", "grossstadt", "stadt", "kleinstadt", "dorf", "gebaeude"],
+				getLocationToggleButton: (typ) => ({
+					hasClass: () => ortsklassen[typ] === true,
+					removeClass: () => { ortsklassen[typ] = false; },
+					toggleClass: (_klasse, an) => { ortsklassen[typ] = an === true; }
+				}),
+				syncLocationMarkerVisibility: () => {},
+				syncLocationToggleButtons: () => {},
+				syncPathVisibility: () => {},
+				getComputedStyle: () => ({ getPropertyValue: () => "" })
+			});
+		}
 		kontext.globalThis = kontext;
 		vm.createContext(kontext);
 		vm.runInContext(schalterQuelle, kontext);
 		schalterKontext = kontext;
+		if (o.gemeinsam) {
+			// Gebunden wird die Leiste beim Moduswechsel (syncEcosystemControlsVisibility) -- hier wie dort erst dann.
+			select.addEventListener("change", () => {
+				if (select.value === "ecosystem") { kontext.bindEcosystemLayerSwitch(); }
+			});
+		}
 	}
 
 	const setzerRufe = [];
-	new Function("window", "document", "Event", "MAP_TILE_STYLES", "IS_EDIT_MODE", "MutationObserver",
-		"setActiveEcosystemLayerKind", "setEcosystemShowAllLayers", pickerQuelle)(
-		fenster, dokument, Ereignis, STIL_TABELLE, o.imEditor, Beobachter,
-		(...argumente) => setzerRufe.push(["setActiveEcosystemLayerKind"].concat(argumente)),
-		(...argumente) => setzerRufe.push(["setEcosystemShowAllLayers"].concat(argumente)));
+	if (o.gemeinsam) {
+		assert.ok(schalterKontext, "die gemeinsame Welt braucht die echte Leiste (Option `schalter`)");
+		vm.runInContext(pickerQuelle, schalterKontext);
+	} else {
+		new Function("window", "document", "Event", "MAP_TILE_STYLES", "IS_EDIT_MODE", "MutationObserver",
+			"setActiveEcosystemLayerKind", "setEcosystemShowAllLayers", pickerQuelle)(
+			fenster, dokument, Ereignis, STIL_TABELLE, o.imEditor, Beobachter,
+			(...argumente) => setzerRufe.push(["setActiveEcosystemLayerKind"].concat(argumente)),
+			(...argumente) => setzerRufe.push(["setEcosystemShowAllLayers"].concat(argumente)));
+	}
 
 	return {
 		dokument, huelle, menue, kachel, select, grundSelect, leiste, protokoll, setzerRufe, beobachtungen, schalterSpuren, schalterKontext,
+		haken, ortKnopf,
+		/**
+		 * Haengt die ECHTE Besucherzaehlung an (installVisitorTrackingHooks aus js/app/visitor-tracking.js) -- mit einer
+		 * jQuery-Attrappe, die direkt gebundene Zuhoerer (`#id`) wirklich anmeldet und delegierte uebergeht. Gibt die
+		 * gezaehlten Ereignisse als „metrik:dimension" zurueck.
+		 */
+		zaehlungAnschliessen: () => {
+			assert.ok(o.gemeinsam && schalterKontext, "die Zaehlung laeuft in der gemeinsamen Welt");
+			const rumpf = lies("js", "app", "visitor-tracking.js").match(/function installVisitorTrackingHooks\b[\s\S]*?\n\}/);
+			assert.ok(rumpf, "installVisitorTrackingHooks ist in js/app/visitor-tracking.js auffindbar");
+			const gezaehlt = [];
+			schalterKontext.visitorTrackingEnabled = () => true;
+			schalterKontext.trackVisitorEvent = (metrik, dimension) => gezaehlt.push(metrik + ":" + String(dimension || ""));
+			schalterKontext.window.jQuery = (ziel) => {
+				if (typeof ziel !== "string") { return { val: () => ziel.value }; }
+				const element = /^#[\w-]+$/.test(ziel) ? dokument.getElementById(ziel.slice(1)) : null;
+				return {
+					on(namen, erstes, zweites) {
+						if (typeof zweites === "function" || !element) { return this; }
+						String(namen).split(/\s+/).forEach((name) => element.addEventListener(name, erstes));
+						return this;
+					}
+				};
+			};
+			vm.runInContext(rumpf[0] + "\ninstallVisitorTrackingHooks();", schalterKontext);
+			return gezaehlt;
+		},
 		/** Alle Reihen der zweiten Stufe -- es darf nur EINE geben. */
 		stufen: () => huelle.querySelectorAll(".map-layer-picker__grund"),
 		stufenZellen: () => huelle.querySelectorAll(".map-layer-picker__grund .map-layer-picker__cell"),
@@ -536,7 +620,7 @@ const aktive = (zellen) => zellen.filter((z) => z.classList.contains("is-active"
 
 /**
  * 🔴 A, B und D laufen fuer BEIDE Rollen. Die Owner-Regel „ein Klick auf eine Ebene waehlt -- fuer Besucher
- * wie fuer Editoren" (14.09.2026) stand bis zum Review nur als Satz da: kein Abschnitt fuhr den Editor, und
+ * wie fuer Editoren" (14.09.2026) stand zunaechst nur als Satz da: kein Abschnitt fuhr den Editor, und
  * ein `if (IS_EDIT_MODE) return;` am Anfang von waehleEbeneAusStufe blieb gruen (gemessen per Mutation).
  * ⚠️ C bleibt rollenabhaengig: es zaehlt die Untergruende, und der Editor sieht dort zusaetzlich „Old".
  */
@@ -781,8 +865,8 @@ fuerBeideRollen((rolle) => {
 }
 
 // ==== G. Die Kleinigkeiten des Oeffnens und Schliessens =========================================
-// 💣 Jede der vier Zeilen, die hier gehalten werden, liess sich im Review (14.09.2026) aus dem Picker
-// streichen, ohne dass ein Abschnitt darueber rot wurde. Sie sehen nach Beiwerk aus und tragen doch je
+// 💣 Jede der vier Zeilen, die hier gehalten werden, liess sich am 14.09.2026 aus dem Picker streichen,
+// ohne dass ein Abschnitt darueber rot wurde (per Mutation gemessen). Sie sehen nach Beiwerk aus und tragen doch je
 // ein Verhalten, das man erst beim Bedienen vermisst.
 const SCHWEBE_AUF_MS = Number((js.match(/var SCHWEBE_AUF_MS = (\d+);/) || [])[1]);
 assert.ok(SCHWEBE_AUF_MS > 0, "SCHWEBE_AUF_MS ist im Picker auffindbar (sonst prueft G3 nichts)");
@@ -1023,7 +1107,7 @@ fuerBeideRollen((rolle) => {
 }
 
 // ==== J. Die Leiste spiegelt den gemerkten Stand schon beim LADEN ==================================
-// 💣 Review Aufgabe 5: gebunden wird die Leiste erst beim Moduswechsel, und bis dahin trug sie das aria-selected aus dem
+// 💣 Befund vom 14.09.2026: gebunden wird die Leiste erst beim Moduswechsel, und bis dahin trug sie das aria-selected aus dem
 // MARKUP („Vegetation"), nicht den gemerkten Stand. Die Landschaften-Zelle ueber „Standard" haette damit eine Ebene
 // angekuendigt, die ein Klick gar nicht bringt. Hier laeuft die ECHTE Datei der Leiste, wie in index.html VOR dem Picker.
 // ⚠️ Die Speicherschluessel kommen aus der Datei selbst -- abgeschrieben liefen sie beim naechsten Umbenennen auseinander.
@@ -1088,6 +1172,231 @@ fuerBeideRollen((rolle) => {
 		"...ohne Sichtbarkeits-Pass: ausserhalb der Landschaften wird nur gestempelt");
 }
 
+// ==== T. Die Ebenen sind per Tastatur erreichbar =================================================
+// ⚠️ Knoten der Attrappe werden mit `===` verglichen, nie mit strictEqual: im Fehlerfall zeigt Node beide Objekte -- samt
+// dem ganzen verketteten Dokument, und der Lauf stirbt an "Array buffer allocation failed" statt an seiner Meldung.
+const beschreibe = (knoten) => knoten.tagName.toLowerCase() + (knoten.id ? "#" + knoten.id : "") + (knoten.klassen().length ? "." + knoten.klassen().join(".") : "");
+// 🔴 Fuer Besucher war die Reiterleiste der Tastaturweg zu den Ebenen (Pfeile, Home/End). Sie ist seit dem 14.09.2026
+// versteckt -- und die zweite Stufe war per Tastatur nicht zu erreichen: die Pfeile wanderten nur in der Ansichtsreihe,
+// und `role=radio` versprach etwas, das nicht ging. Gefahren wird hier der Weg einer Hand ohne Maus.
+// ⚠️ Enter und Leertaste loesen an einem <button> den Klick im BROWSER aus; die Attrappe kennt das nicht. Deshalb steht
+// dort `.click()` -- und geprueft wird, dass der Faecher diese Tasten nicht abfaengt.
+const taste = (knoten, key) => {
+	const ereignis = new Ereignis("keydown", { bubbles: true, key });
+	knoten.dispatchEvent(ereignis);
+	return ereignis;
+};
+{
+	// T1. Ueber „Standard": Enter auf Landschaften oeffnet die Ebenen, und der Fokus bleibt auf der Ansicht.
+	const welt = baueWelt({ ansicht: "deregraphic", ebene: "vegetation" });
+	const amDokument = [];
+	welt.dokument.addEventListener("keydown", (ereignis) => amDokument.push(ereignis.key));
+	welt.kachel.click();
+	const landschaften = welt.zelleDerAnsicht("ecosystem");
+	landschaften.focus();
+	landschaften.click();
+	welt.naechstesBild();
+	assert.deepStrictEqual(zellenWerte(welt.stufenZellen(), "ebene"), REITER_WERTE, "Enter auf Landschaften oeffnet die Ebenen (sonst prueft der Rest nichts)");
+	assert.ok(welt.dokument.activeElement === landschaften,
+		"der Fokus bleibt dabei auf der Ansichtszelle -- erst Pfeil hoch fuehrt hinein");
+
+	const hoch = taste(landschaften, "ArrowUp");
+	const zellen = welt.stufenZellen();
+	assert.ok(welt.dokument.activeElement === zellen[0],
+		"Pfeil hoch fuehrt in die zweite Stufe -- ueber „Standard\" ist keine Ebene markiert, also auf die erste Zelle");
+	assert.ok(hoch.defaultPrevented, "...und die Seite scrollt dabei nicht");
+	taste(zellen[0], "ArrowRight");
+	assert.ok(welt.dokument.activeElement === zellen[1], "Pfeil rechts wandert in der Reihe der zweiten Stufe");
+	taste(zellen[1], "ArrowLeft");
+	taste(zellen[0], "ArrowLeft");
+	const letzte = zellen[zellen.length - 1];
+	assert.ok(welt.dokument.activeElement === letzte, "Pfeil links laeuft am Anfang ans Ende um -- wie in der Ansichtsreihe");
+	taste(letzte, "ArrowUp");
+	assert.ok(welt.dokument.activeElement === letzte, "Pfeil hoch hat in der zweiten Stufe nichts ueber sich und laesst den Fokus stehen");
+	taste(letzte, "ArrowDown");
+	assert.ok(welt.dokument.activeElement === landschaften, "Pfeil runter fuehrt zurueck zur Ansicht, aus der die Stufe herausfaehrt");
+	assert.ok(!welt.stufen()[0].hidden && welt.stufen()[0].classList.contains("is-open"), "...und die Stufe bleibt dabei offen");
+	assert.deepStrictEqual(amDokument, [],
+		"💣 keine Pfeiltaste, die der Faecher bedient, erreicht das Dokument -- dort legt js/app/keyboard-shortcuts.js dieselben"
+		+ " Tasten auf das Verschieben der Karte, und ein Knopf mit Fokus haelt dessen Riegel nicht auf");
+
+	// Enter auf einer Ebene waehlt -- ueber denselben Klick-Zuhoerer wie die Maus.
+	taste(landschaften, "ArrowUp");
+	["ArrowRight", "ArrowRight", "ArrowRight"].forEach((key) => taste(welt.dokument.activeElement, key));
+	const topographie = welt.stufenZellen()[REITER_WERTE.indexOf("topographie")];
+	assert.ok(welt.dokument.activeElement === topographie, "drei Schritte nach rechts stehen auf Topographie (sonst prueft der Rest nichts)");
+	assert.strictEqual(topographie.tagName, "BUTTON", "die Ebenen sind <button> -- Enter und Leertaste loesen ihren Klick im Browser selbst aus");
+	["Enter", " "].forEach((key) => {
+		const ereignis = taste(topographie, key);
+		assert.ok(!ereignis.defaultPrevented && !ereignis.gestoppt,
+			"„" + key + "\" faengt der Faecher nicht ab -- sonst kaeme der Klick des Browsers nie an");
+	});
+	topographie.click();
+	assert.deepStrictEqual(welt.protokoll, ["ansicht:ecosystem", "reiter:topographie@ecosystem"], "...und dieser Klick waehlt die Ebene samt Ansicht");
+}
+{
+	// T2. In den Landschaften: Pfeil hoch landet auf der MARKIERTEN Ebene -- auch aus einer anderen Zelle der Reihe heraus,
+	// denn die offene Stufe steht ueber ihrer Quellzelle. Pfeil runter kehrt immer zur Quellzelle zurueck.
+	const welt = baueWelt({ ansicht: "ecosystem", ebene: "derographisch" });
+	welt.kachel.click();
+	const landschaften = welt.zelleDerAnsicht("ecosystem");
+	assert.ok(welt.dokument.activeElement === landschaften, "die Kachel fokussiert beim Oeffnen die aktive Ansicht (sonst prueft der Rest nichts)");
+	landschaften.click();
+	const derographie = () => welt.stufenZellen()[REITER_WERTE.indexOf("derographisch")];
+	taste(landschaften, "ArrowUp");
+	assert.ok(welt.dokument.activeElement === derographie(), "in den Landschaften fuehrt Pfeil hoch auf die markierte Ebene");
+	taste(derographie(), "ArrowDown");
+	taste(landschaften, "ArrowLeft");
+	const nachbar = welt.dokument.activeElement;
+	assert.ok(nachbar !== landschaften && welt.menue.contains(nachbar), "Pfeil links wandert in der Ansichtsreihe (sonst prueft der Rest nichts)");
+	taste(nachbar, "ArrowUp");
+	assert.ok(welt.dokument.activeElement === derographie(), "auch von der Nachbarzelle fuehrt Pfeil hoch in die offene Stufe");
+	taste(derographie(), "ArrowDown");
+	assert.ok(welt.dokument.activeElement === landschaften, "...und Pfeil runter zur Quellzelle, nicht zu der, von der man kam");
+}
+{
+	// T3. Die Untergruende gehen denselben Weg -- es ist dieselbe Reihe.
+	const welt = baueWelt({ ansicht: "political", untergrund: "stylized" });
+	welt.kachel.click();
+	const politisch = welt.zelleDerAnsicht("political");
+	politisch.click();
+	taste(politisch, "ArrowUp");
+	assert.strictEqual(welt.dokument.activeElement && welt.dokument.activeElement.dataset.grund, "stylized",
+		"ueber Politisch fuehrt Pfeil hoch auf den eingestellten Untergrund");
+	taste(welt.dokument.activeElement, "ArrowRight");
+	assert.strictEqual(welt.dokument.activeElement.dataset.grund, "original", "...Pfeil rechts auf den naechsten");
+	taste(welt.dokument.activeElement, "ArrowDown");
+	assert.ok(welt.dokument.activeElement === politisch, "...und Pfeil runter zurueck auf Politisch");
+}
+{
+	// T4. Ohne offene Stufe bleibt Pfeil hoch, was er war: eine Zelle zurueck.
+	const welt = baueWelt({ ansicht: "deregraphic" });
+	welt.kachel.click();
+	const zellen = welt.menue.querySelectorAll(".map-layer-picker__cell");
+	const aktiv = welt.dokument.activeElement;
+	assert.ok(welt.stufen()[0].hidden && zellen.indexOf(aktiv) > 0, "keine Stufe offen, der Fokus steht in der Reihe (sonst prueft der Rest nichts)");
+	taste(aktiv, "ArrowUp");
+	assert.ok(welt.dokument.activeElement === zellen[zellen.indexOf(aktiv) - 1], "ohne offene zweite Stufe geht Pfeil hoch eine Zelle zurueck, wie bisher");
+}
+{
+	// T5. Escape aus der zweiten Stufe schliesst wie bisher -- die Pfeil-Zuhoerer lassen die Taste durch.
+	const welt = baueWelt({ ansicht: "deregraphic" });
+	welt.kachel.click();
+	const landschaften = welt.zelleDerAnsicht("ecosystem");
+	landschaften.click();
+	taste(landschaften, "ArrowUp");
+	assert.ok(welt.stufen()[0].contains(welt.dokument.activeElement), "der Fokus steht in der zweiten Stufe (sonst prueft der Rest nichts)");
+	taste(welt.dokument.activeElement, "Escape");
+	assert.strictEqual(welt.kachel.getAttribute("aria-expanded"), "false", "Escape in der zweiten Stufe schliesst das Menue");
+	welt.zeitVergeht();
+	assert.ok(welt.dokument.activeElement === welt.kachel, "...und gibt den Fokus an die Kachel zurueck");
+}
+
+// T6. Die Ansage der Kachel nennt bei Landschaften die Ebene. Die zweite Zeile steckt in einer aria-hidden-Zelle -- ein
+// Screenreader hoerte bis dahin nur „Landschaften", waehrend das Bild „Landschaften / Derographie" zeigt.
+// ⚠️ Der Satz kommt aus dem Picker selbst (seine deutsche Vorgabe), nicht abgeschrieben.
+const ansageVorgabe = (schluessel) => {
+	const treffer = pickerQuelle.match(new RegExp("\"" + schluessel.replace(/\./g, "\\.") + "\",\\s*\"([^\"]+)\""));
+	assert.ok(treffer, schluessel + " steht mit deutscher Vorgabe im Picker");
+	return treffer[1];
+};
+const ANSAGE = ansageVorgabe("view.tile.aria");
+const ANSAGE_EBENE = ansageVorgabe("view.tile.ariaLayer");
+assert.ok(ANSAGE_EBENE.includes("{name}") && ANSAGE_EBENE.includes("{layer}"), "die Ansage mit Ebene nennt Ansicht UND Ebene");
+const ansichtName = (wert) => MARKUP.ansichten.find((o) => o.attrs.value === wert).text;
+const fuelle = (satz, werte) => satz.replace(/\{(\w+)\}/g, (_, k) => werte[k]);
+fuerBeideRollen((rolle) => {
+	REITER_WERTE.forEach((ebene, i) => {
+		const welt = baueWelt({ ansicht: "ecosystem", ebene, imEditor: rolle.imEditor });
+		assert.strictEqual(welt.kachel.getAttribute("aria-label"), fuelle(ANSAGE_EBENE, { name: ansichtName("ecosystem"), layer: REITER_NAMEN[i] }),
+			ebene + ": die Kachel sagt die Ebene mit an");
+	});
+	const welt = baueWelt({ ansicht: "political", imEditor: rolle.imEditor });
+	assert.strictEqual(welt.kachel.getAttribute("aria-label"), fuelle(ANSAGE, { name: ansichtName("political") }),
+		"jede andere Ansicht sagt, was sie sagte -- ohne Untergrund");
+});
+{
+	const welt = baueWelt({ ansicht: "ecosystem", ebene: "vegetation" });
+	welt.leiste.querySelector("[data-ecosystem-kind=\"klima\"]").click();
+	welt.mutationenZustellen();
+	assert.strictEqual(welt.kachel.getAttribute("aria-label"),
+		fuelle(ANSAGE_EBENE, { name: ansichtName("ecosystem"), layer: REITER_NAMEN[REITER_WERTE.indexOf("klima")] }),
+		"ein Wechsel ueber die Leiste zieht die Ansage mit nach -- sie haengt an derselben Zelle wie Name und Bild");
+	const ohne = baueWelt({ ansicht: "ecosystem", ohneLeiste: true });
+	assert.strictEqual(ohne.kachel.getAttribute("aria-label"), fuelle(ANSAGE, { name: ansichtName("ecosystem") }),
+		"ohne Leiste gibt es keine Ebene -- dann die Ansage ohne sie, nicht „Ebene \" mit leerem Namen");
+}
+{
+	// Unter ?lang=en stuende sonst der deutsche Satz da -- kein Fehler, keine Meldung.
+	const englisch = lies("js", "app", "i18n-en.js").match(/"view\.tile\.ariaLayer":\s*"([^"]+)"/);
+	assert.ok(englisch && englisch[1].includes("{name}") && englisch[1].includes("{layer}"),
+		"js/app/i18n-en.js fuehrt view.tile.ariaLayer mit beiden Platzhaltern");
+}
+
+// ==== U. Der Klick des Faechers auf den Reiter bleibt im Faecher ===================================
+// 💣 `click()` blubbert wie ein echter Klick bis zum Dokument, und dort hoeren Zuhoerer, fuer die ein Klick ein Klick IN DIE
+// KARTE ist: die Suche loescht ihre Markierung (js/ui/spotlight-search.js), js/routing/routing.js schliesst die
+// Kontextmenues. Jeder andere Klick im Faecher haelt an; nur dieser lief durch.
+{
+	// U1. In der einfachen Welt.
+	const welt = baueWelt({ ansicht: "deregraphic", ebene: "vegetation" });
+	const amDokument = [];
+	welt.dokument.addEventListener("click", (ereignis) => amDokument.push(beschreibe(ereignis.target)));
+	welt.kachel.click();
+	welt.zelleDerAnsicht("ecosystem").click();
+	welt.stufenZellen()[REITER_WERTE.indexOf("klima")].click();
+	assert.deepStrictEqual(welt.protokoll, ["ansicht:ecosystem", "reiter:klima@ecosystem"],
+		"die Ebene ist ueber den Reiter gewaehlt -- dessen Zuhoerer an der Leiste hat den Klick bekommen (sonst prueft der Rest nichts)");
+	assert.deepStrictEqual(amDokument, [], "💣 der kuenstliche Reiterklick des Faechers erreicht das Dokument nicht");
+	welt.leiste.querySelector("[data-ecosystem-kind=\"vegetation\"]").click();
+	assert.strictEqual(amDokument.length, 1,
+		"Gegenprobe: ein Klick direkt auf die Leiste erreicht das Dokument weiter -- angehalten wird nur der Klick des Faechers, und nur fuer ihn");
+}
+{
+	// U2. Mit der ECHTEN Leiste und der echten Besucherzaehlung: beide haengen an der Leiste selbst und zaehlen weiter.
+	const welt = baueWelt({ ansicht: "deregraphic", gemeinsam: true, schalter: { speicher: {} } });
+	const gezaehlt = welt.zaehlungAnschliessen();
+	const amDokument = [];
+	welt.dokument.addEventListener("click", (ereignis) => amDokument.push(beschreibe(ereignis.target)));
+	welt.kachel.click();
+	welt.zelleDerAnsicht("ecosystem").click();
+	welt.stufenZellen()[REITER_WERTE.indexOf("topographie")].click();
+	welt.zeitVergeht();
+	assert.deepStrictEqual(gewaehlteReiter(welt), ["topographie"], "die echte Leiste hat umgeschaltet");
+	assert.deepStrictEqual(amDokument, [], "...und der Klick hat das Dokument nicht erreicht");
+	assert.ok(gezaehlt.includes("eco_kind:topographie"),
+		"die Besucherzaehlung zaehlt die Faecher-Wahl weiter -- ihr Zuhoerer haengt an #ecosystem-layer-switch selbst: " + gezaehlt.join(", "));
+	assert.ok(gezaehlt.includes("map_mode:ecosystem"), "...und die Ansicht dazu");
+}
+
+// ==== V. Faecher und echte Leiste zusammen: eine Faecher-Wahl ist KEINE Nutzerwahl =================
+// 💣 Der Picker lief in den Abschnitten darueber OHNE die Globals der Leiste. Ein zusaetzlicher Aufruf von
+// ecosystemAnzeigeNutzerhand() in waehleEbene blieb dort gruen -- er fand die Funktion schlicht nicht (per Mutation
+// gemessen). Hier laufen beide Dateien im selben Kontext, wie in index.html.
+{
+	const welt = baueWelt({ ansicht: "deregraphic", gemeinsam: true, schalter: { speicher: {} } });
+	const leiste = welt.schalterKontext;
+	assert.strictEqual(typeof leiste.ecosystemAnzeigeNutzerhand, "function",
+		"der Picker sieht die Funktionen der Leiste -- sonst prueft dieser Abschnitt nichts");
+	assert.strictEqual(leiste.ecosystemAnzeigeWahlGesetzt(), false, "vorher gibt es keine Wahl (sonst prueft der Rest nichts)");
+	const haken = Object.keys(welt.haken);
+	assert.deepStrictEqual(haken.filter((id) => welt.haken[id].checked), [], "...und alle Haken der Anzeige sind aus");
+
+	welt.kachel.click();
+	welt.zelleDerAnsicht("ecosystem").click();
+	welt.stufenZellen()[REITER_WERTE.indexOf("topographie")].click();
+	assert.deepStrictEqual(gewaehlteReiter(welt), ["topographie"], "die Faecher-Wahl hat die echte Leiste umgeschaltet (sonst prueft der Rest nichts)");
+	assert.strictEqual(leiste.ecosystemAnzeigeWahlGesetzt(), false,
+		"🔴 eine Ebenenwahl im Faecher ist KEINE Nutzerwahl -- sonst waere das Anzeigeprofil fuer den Rest des Besuchs wirkungslos"
+		+ " (Entwurf §3.3)");
+	assert.deepStrictEqual(haken.filter((id) => !welt.haken[id].checked), [],
+		"...und das Profil ist angewendet: Wege, Beschriftungen, Grenzen und Fluesse an");
+
+	welt.ortKnopf.dispatchEvent(new Ereignis("click", { bubbles: true, isTrusted: true }));
+	assert.strictEqual(leiste.ecosystemAnzeigeWahlGesetzt(), true,
+		"Gegenprobe: ein echter Klick auf eine Ortsklasse IST eine Wahl -- die Welt sieht den Unterschied also");
+}
+
 // ==== S. Was sich nur am Quelltext beantworten laesst ============================================
 
 // S1. Keine zweite Liste: die Namen der Ebenen stehen nicht als Zeichenkette im Picker.
@@ -1117,18 +1426,303 @@ const ohneAuskunft = js.replace(schneideBlock(js, hatStufeAb), "");
 assert.ok(!/untergruende\(\)\.length/.test(ohneAuskunft),
 	"`untergruende().length` wird nirgends sonst gefragt -- waehle() und oeffneStufeZwei() fragen je Ansicht");
 
-// S5. Die Staffelung kennt die Zellen 2 bis 6, mit gleicher Schrittweite.
-// 💣 Sie stand als nth-child(2..4) da -- genau drei Untergruende. Mit fuenf Ebenen blendeten die letzten
-// ohne Versatz auf, und das sieht nicht nach einem fehlenden Wert aus, sondern nach einem ruckelnden Menue.
-const staffel = [2, 3, 4, 5, 6].map((n) => {
-	const treffer = css.match(new RegExp("\\.map-layer-picker__grund \\.map-layer-picker__cell:nth-child\\(" + n
-		+ "\\)\\s*\\{\\s*transition-delay:\\s*(\\d+)ms"));
-	assert.ok(treffer, "die Staffelung der zweiten Stufe kennt Zelle " + n);
-	return Number(treffer[1]);
-});
-const schritte = staffel.slice(1).map((ms, i) => ms - staffel[i]);
-assert.ok(schritte.every((s) => s > 0 && s === schritte[0]),
-	"...und jede Zelle beginnt um dieselbe Schrittweite spaeter (" + staffel.join(", ") + " ms)");
+// S5. Die Staffelung der zweiten Stufe GEWINNT IN DER KASKADE -- ausgerechnet, nicht gegrept.
+// 💣 Bis zum 14.09.2026 pruefte hier ein Muster, ob die Regeln fuer Zelle 2 bis 6 dastehen. Sie standen da und wirkten
+// nie: die Reihe der zweiten Stufe traegt AUCH `map-layer-picker__menu` und dasselbe `.is-open` wie die Ansichtsreihe,
+// und deren Staffelung (`.map-layer-picker__menu.is-open .map-layer-picker__cell:nth-last-child(n)`, 0,4,0) schlug die
+// Regeln der zweiten Stufe (`.map-layer-picker__grund .map-layer-picker__cell:nth-child(n)`, 0,3,0). Fuenf Ebenen
+// blendeten mit 80/60/40/20/100 ms auf statt 0/25/50/75/100 -- von hinten gezaehlt und verwuerfelt, bei den drei
+// Untergruenden schon seit dem 26.08.2026 (40/20/50 statt 0/25/50). Ein Muster sieht eine Regel, keine Kaskade.
+// ⭐ Deshalb wird hier gerechnet: Spezifitaet, Reihenfolge im Blatt und @media, fuer genau die Klassen, die die Reihen
+// wirklich tragen (zeichne() und die stufeReihe in js/ui/map-layer-picker.js). Die Rechnung kennt nur, was dieses Blatt
+// schreibt -- und wirft bei allem anderen, statt still „passt nicht" zu sagen.
+
+/** Die Regeln des Blatts in ihrer Reihenfolge, je mit ihrer @media-Bedingung ("" = keine). */
+function kaskadeRegeln(blatt) {
+	const regeln = [];
+	const lies = (text, medien) => {
+		let i = 0;
+		while (i < text.length) {
+			const auf = text.indexOf("{", i);
+			if (auf < 0) { return; }
+			const kopf = text.slice(i, auf).replace(/\s+/g, " ").trim();
+			let tiefe = 0;
+			let zu = auf;
+			for (; zu < text.length; zu += 1) {
+				if (text[zu] === "{") { tiefe += 1; } else if (text[zu] === "}") { tiefe -= 1; if (tiefe === 0) { break; } }
+			}
+			const rumpf = text.slice(auf + 1, zu);
+			if (kopf.startsWith("@media")) {
+				lies(rumpf, kopf.slice("@media".length).trim());
+			} else {
+				const deklarationen = rumpf.split(";").map((d) => d.trim()).filter(Boolean).map((d) => ({
+					eigenschaft: d.slice(0, d.indexOf(":")).trim(),
+					wert: d.slice(d.indexOf(":") + 1).replace(/\s+/g, " ").trim()
+				}));
+				regeln.push({ selektoren: teileAuf(kopf, /,/), deklarationen, medien, nr: regeln.length });
+			}
+			i = zu + 1;
+		}
+	};
+	lies(blatt, "");
+	return regeln;
+}
+
+const kaskadeIdentEnde = (text, ab) => { let i = ab; while (i < text.length && /[\w-]/.test(text[i])) { i += 1; } return i; };
+const kaskadeKlammerEnde = (text, auf) => {
+	let tiefe = 0;
+	for (let i = auf; i < text.length; i += 1) {
+		if (text[i] === "(") { tiefe += 1; } else if (text[i] === ")") { tiefe -= 1; if (tiefe === 0) { return i; } }
+	}
+	throw new Error("offene Klammer in " + text);
+};
+const kaskadeVergleiche = (a, b) => { for (let i = 0; i < a.length; i += 1) { if (a[i] !== b[i]) { return a[i] - b[i]; } } return 0; };
+
+/** Spezifitaet eines komplexen Selektors als [ids, klassen, typen]. :not/:has/:is zaehlen ihr staerkstes Argument. */
+function kaskadeSpezifitaet(selektor) {
+	const s = [0, 0, 0];
+	let i = 0;
+	while (i < selektor.length) {
+		const z = selektor[i];
+		if (z === "#") { s[0] += 1; i = kaskadeIdentEnde(selektor, i + 1); } else if (z === ".") { s[1] += 1; i = kaskadeIdentEnde(selektor, i + 1); } else if (z === "[") { s[1] += 1; i = selektor.indexOf("]", i) + 1; } else if (selektor.startsWith("::", i)) { s[2] += 1; i = kaskadeIdentEnde(selektor, i + 2); } else if (z === ":") {
+			const ende = kaskadeIdentEnde(selektor, i + 1);
+			const name = selektor.slice(i + 1, ende);
+			if (selektor[ende] === "(") {
+				const schluss = kaskadeKlammerEnde(selektor, ende);
+				if (["not", "has", "is"].includes(name)) {
+					const staerkste = teileAuf(selektor.slice(ende + 1, schluss), /,/).map(kaskadeSpezifitaet).sort(kaskadeVergleiche).pop();
+					staerkste.forEach((wert, k) => { s[k] += wert; });
+				} else if (name !== "where") {
+					s[1] += 1;
+				}
+				i = schluss + 1;
+			} else { s[1] += 1; i = ende; }
+		} else if (/[a-zA-Z]/.test(z)) { s[2] += 1; i = kaskadeIdentEnde(selektor, i); } else { i += 1; }
+	}
+	return s;
+}
+
+/** Zerlegt einen komplexen Selektor in Glieder und die Kombinatoren dazwischen (" " oder ">"). */
+function kaskadeZerlege(selektor) {
+	const glieder = [];
+	const kombinatoren = [];
+	let aktuell = "";
+	let tiefe = 0;
+	let offen = null;
+	const abschliessen = () => { if (aktuell) { glieder.push(aktuell); aktuell = ""; } };
+	for (const z of selektor.trim()) {
+		if (z === "(" || z === "[") { tiefe += 1; } else if (z === ")" || z === "]") { tiefe -= 1; }
+		if (tiefe === 0 && (z === " " || z === ">")) {
+			if (aktuell) { abschliessen(); offen = " "; }
+			if (z === ">") { offen = ">"; }
+			continue;
+		}
+		if (offen && glieder.length) { kombinatoren.push(offen); }
+		offen = null;
+		aktuell += z;
+	}
+	abschliessen();
+	return { glieder, kombinatoren };
+}
+
+function kaskadePasstGlied(knoten, glied) {
+	let i = 0;
+	while (i < glied.length) {
+		const z = glied[i];
+		if (z === "#") {
+			const ende = kaskadeIdentEnde(glied, i + 1);
+			if (knoten.id !== glied.slice(i + 1, ende)) { return false; }
+			i = ende;
+		} else if (z === ".") {
+			const ende = kaskadeIdentEnde(glied, i + 1);
+			if (!knoten.klassen.includes(glied.slice(i + 1, ende))) { return false; }
+			i = ende;
+		} else if (z === "[") {
+			const schluss = glied.indexOf("]", i);
+			const t = glied.slice(i + 1, schluss).match(/^([\w-]+)(?:="([^"]*)")?$/);
+			if (!t) { throw new Error("die Rechnung kennt dieses Attribut nicht: " + glied); }
+			if (!(t[1] in knoten.attrs) || (t[2] !== undefined && knoten.attrs[t[1]] !== t[2])) { return false; }
+			i = schluss + 1;
+		} else if (glied.startsWith("::", i)) {
+			return false;   // die Regel gilt einem Pseudo-Element, nicht der Zelle
+		} else if (z === ":") {
+			const ende = kaskadeIdentEnde(glied, i + 1);
+			const name = glied.slice(i + 1, ende);
+			let argument = null;
+			let weiter = ende;
+			if (glied[ende] === "(") {
+				const schluss = kaskadeKlammerEnde(glied, ende);
+				argument = glied.slice(ende + 1, schluss);
+				weiter = schluss + 1;
+			}
+			const geschwister = knoten.eltern ? knoten.eltern.kinder : [knoten];
+			if (name === "nth-child") {
+				if (!/^\d+$/.test(argument)) { throw new Error("nur ganze Zahlen: " + glied); }
+				if (geschwister.indexOf(knoten) + 1 !== Number(argument)) { return false; }
+			} else if (name === "nth-last-child") {
+				if (!/^\d+$/.test(argument)) { throw new Error("nur ganze Zahlen: " + glied); }
+				if (geschwister.length - geschwister.indexOf(knoten) !== Number(argument)) { return false; }
+			} else if (name === "not") {
+				if (teileAuf(argument, /,/).some((s) => kaskadePasst(knoten, s))) { return false; }
+			} else if (name === "has") {
+				const kinder = argument.trim().startsWith(">");
+				const rest = argument.trim().replace(/^>\s*/, "");
+				const kandidaten = [];
+				const sammle = (n) => n.kinder.forEach((k) => { kandidaten.push(k); if (!kinder) { sammle(k); } });
+				sammle(knoten);
+				if (!kandidaten.some((k) => kaskadePasst(k, rest))) { return false; }
+			} else if (["hover", "focus", "focus-visible", "active"].includes(name)) {
+				return false;   // Zustaende, die diese Rechnung nicht annimmt
+			} else {
+				throw new Error("die Rechnung kennt diese Pseudoklasse nicht: :" + name);
+			}
+			i = weiter;
+		} else if (/[a-zA-Z]/.test(z)) {
+			const ende = kaskadeIdentEnde(glied, i);
+			if (knoten.tag !== glied.slice(i, ende).toLowerCase()) { return false; }
+			i = ende;
+		} else {
+			throw new Error("die Rechnung kennt dieses Zeichen nicht: " + glied);
+		}
+	}
+	return true;
+}
+
+function kaskadePasst(knoten, selektor) {
+	const { glieder, kombinatoren } = kaskadeZerlege(selektor);
+	const ab = (n, k) => {
+		if (!n || !kaskadePasstGlied(n, glieder[k])) { return false; }
+		if (k === 0) { return true; }
+		if (kombinatoren[k - 1] === ">") { return ab(n.eltern, k - 1); }
+		for (let vorfahr = n.eltern; vorfahr; vorfahr = vorfahr.eltern) { if (ab(vorfahr, k - 1)) { return true; } }
+		return false;
+	};
+	return ab(knoten, glieder.length - 1);
+}
+
+const kaskadeMs = (wert) => {
+	const t = String(wert).trim().match(/^(-?[\d.]+)(ms|s)$/);
+	if (!t) { throw new Error("keine Zeitangabe: " + wert); }
+	return Number(t[1]) * (t[2] === "s" ? 1000 : 1);
+};
+const KASKADE_ZEIT = /^-?[\d.]+m?s$/;
+const KASKADE_KURVEN = ["ease", "linear", "ease-in", "ease-out", "ease-in-out", "step-start", "step-end"];
+
+/** Was `transition` fuer die beiden Langformen bedeutet: die Verzoegerung ist die ZWEITE Zeitangabe, sonst 0. */
+function kaskadeKurzform(wert) {
+	if (wert === "none") { return { verzoegerung: 0, eigenschaft: "none" }; }
+	const teile = teileAuf(wert, /,/).map((teil) => teileAuf(teil, /\s/));
+	const zeiten = teile[0].filter((t) => KASKADE_ZEIT.test(t));
+	return {
+		verzoegerung: zeiten[1] ? kaskadeMs(zeiten[1]) : 0,
+		eigenschaft: teile.map((t) => t.filter((w) => !KASKADE_ZEIT.test(w) && !w.includes("(") && !KASKADE_KURVEN.includes(w)).join(" ")).join(", ")
+	};
+}
+
+function kaskadeMedienGilt(medien, lage) {
+	if (!medien) { return true; }
+	if (medien === "(prefers-reduced-motion: reduce)") { return lage.reduziert === true; }
+	if (/^\(max-width: \d+px\)$/.test(medien)) { return lage.schmal === true; }
+	throw new Error("die Rechnung kennt diese @media-Bedingung nicht: " + medien);
+}
+
+const KASKADE_REGELN = kaskadeRegeln(css);
+
+/** Die gewinnende Verzoegerung und Uebergangs-Eigenschaft einer Zelle -- samt dem Selektor, der gewonnen hat. */
+function kaskadeWert(knoten, lage) {
+	const sieger = { verzoegerung: null, eigenschaft: null };
+	const setze = (feld, wert, rang, quelle) => {
+		if (!sieger[feld] || kaskadeVergleiche(rang, sieger[feld].rang) >= 0) { sieger[feld] = { wert, rang, quelle }; }
+	};
+	KASKADE_REGELN.forEach((regel) => {
+		if (!kaskadeMedienGilt(regel.medien, lage || {})) { return; }
+		const treffer = regel.selektoren.filter((s) => kaskadePasst(knoten, s));
+		if (!treffer.length) { return; }
+		const staerkster = treffer.map((s) => ({ s, spez: kaskadeSpezifitaet(s) })).sort((a, b) => kaskadeVergleiche(a.spez, b.spez)).pop();
+		regel.deklarationen.forEach((d, j) => {
+			const rang = staerkster.spez.concat([regel.nr, j]);
+			const quelle = staerkster.s + (regel.medien ? " @media " + regel.medien : "");
+			if (d.eigenschaft === "transition-delay") { setze("verzoegerung", kaskadeMs(d.wert), rang, quelle); }
+			if (d.eigenschaft === "transition-property") { setze("eigenschaft", d.wert, rang, quelle); }
+			if (d.eigenschaft === "transition") {
+				const kurz = kaskadeKurzform(d.wert);
+				setze("verzoegerung", kurz.verzoegerung, rang, quelle);
+				setze("eigenschaft", kurz.eigenschaft, rang, quelle);
+			}
+		});
+	});
+	return {
+		verzoegerung: sieger.verzoegerung ? sieger.verzoegerung.wert : 0,
+		eigenschaft: sieger.eigenschaft ? sieger.eigenschaft.wert : "all",
+		quelle: sieger.verzoegerung ? sieger.verzoegerung.quelle : "(keine Regel)"
+	};
+}
+
+/** Eine Reihe im Aufbau des Pickers: Huelle > Reihe > Zellen. `aktiv` ist der Index der aktiven Zelle, -1 fuer keine. */
+function kaskadeReihe(klassen, zahl, aktiv, id) {
+	const huelle = { tag: "div", id: "map-layer-picker", klassen: ["map-layer-picker"], attrs: {}, kinder: [], eltern: null };
+	const reihe = { tag: "div", id: id || "", klassen, attrs: {}, kinder: [], eltern: huelle };
+	huelle.kinder.push(reihe);
+	for (let n = 0; n < zahl; n += 1) {
+		reihe.kinder.push({ tag: "button", id: "", klassen: ["map-layer-picker__cell"].concat(n === aktiv ? ["is-active"] : []), attrs: {}, kinder: [], eltern: reihe });
+	}
+	return reihe.kinder;
+}
+
+{
+	// Die Klassen, die die Reihen im Picker wirklich tragen -- aus dem Quelltext, nicht abgeschrieben.
+	const stufenKlassen = (js.match(/stufeReihe\.className = "([^"]+)"/) || [])[1];
+	assert.strictEqual(stufenKlassen, "map-layer-picker__menu map-layer-picker__grund",
+		"die Reihe der zweiten Stufe traegt die Menue-Klasse UND ihre eigene (sonst rechnet dieser Abschnitt an ihr vorbei)");
+	const STUFE_OFFEN = stufenKlassen.split(" ").concat(["is-open"]);
+	const STUFE_ZU = stufenKlassen.split(" ");
+	const HAUPT_OFFEN = ["map-layer-picker__menu", "is-open"];
+	const verzoegerungen = (zellen, lage) => zellen.map((z) => kaskadeWert(z, lage).verzoegerung);
+	const quellen = (zellen, lage) => zellen.map((z, i) => (i + 1) + ": " + kaskadeWert(z, lage).quelle).join(" | ");
+
+	// 🔴 Die zweite Stufe faechert von der Teilungsstelle nach aussen: Zelle 1 sofort, jede weitere 25 ms spaeter.
+	// Fuer zwei Untergruende (Besucher), drei (Editor), fuenf Ebenen und eine kuenftige sechste -- am Zeiger wie am
+	// schmalen Telefon, wo die Staffelung allein traegt (dort rollt nichts auf).
+	[2, 3, 5, 6].forEach((zahl) => {
+		const erwartet = Array.from({ length: zahl }, (_, i) => i * 25);
+		[{}, { schmal: true }].forEach((lage) => {
+			const zellen = kaskadeReihe(STUFE_OFFEN, zahl, -1);
+			assert.deepStrictEqual(verzoegerungen(zellen, lage), erwartet,
+				"zweite Stufe mit " + zahl + " Zellen" + (lage.schmal ? " am schmalen Telefon" : "") + ": die Staffelung laeuft "
+				+ erwartet.join("/") + " ms -- in der Kaskade gewinnt: " + quellen(zellen, lage));
+		});
+	});
+	// Mit einer markierten Zelle (die gewaehlte Ebene in den Landschaften) bleibt die Staffelung der uebrigen, wie sie war --
+	// die markierte selbst bewegt sich nicht (die geteilte Regel der aktiven Zelle).
+	{
+		const zellen = kaskadeReihe(STUFE_OFFEN, 5, 1);
+		assert.deepStrictEqual(verzoegerungen(zellen, {}).filter((_, i) => i !== 1), [0, 50, 75, 100],
+			"zweite Stufe mit markierter zweiter Zelle: die uebrigen staffeln 0/50/75/100 ms -- " + quellen(zellen, {}));
+		assert.strictEqual(kaskadeWert(zellen[1], {}).eigenschaft, "none", "...und die markierte traegt keinen Uebergang");
+	}
+	// ⚠️ Am `.is-open`-Zweig, wie die Ansichtsreihe und wie das Mockup (Karte L): beim Zuklappen gehen alle gemeinsam.
+	assert.deepStrictEqual(verzoegerungen(kaskadeReihe(STUFE_ZU, 5, -1), {}), [0, 0, 0, 0, 0],
+		"die zugehende zweite Stufe staffelt nicht -- alle Zellen gehen gemeinsam");
+
+	// 🔴 DIE ANSICHTSREIHE BLEIBT UNBERUEHRT: von hinten gezaehlt, 20 ms Abstand, die aktive (letzte) Zelle ohne Bewegung.
+	[5, 6].forEach((zahl) => {
+		const zellen = kaskadeReihe(HAUPT_OFFEN, zahl, zahl - 1, "map-layer-menu");
+		const erwartet = Array.from({ length: zahl }, (_, i) => (zahl - 1 - i) * 20);
+		assert.deepStrictEqual(verzoegerungen(zellen, {}), erwartet,
+			"Ansichtsreihe mit " + zahl + " Zellen: " + erwartet.join("/") + " ms, wie bisher -- " + quellen(zellen, {}));
+		assert.strictEqual(kaskadeWert(zellen[zahl - 1], {}).eigenschaft, "none",
+			"...und ihre aktive Zelle, die auf dem Fleck der Kachel liegt, traegt keinen Uebergang (AGENTS.md §11)");
+	});
+
+	// 🔴 UND OHNE BEWEGUNG GEWINNT prefers-reduced-motion IN BEIDEN REIHEN: keine Zelle traegt dann einen Uebergang.
+	[kaskadeReihe(STUFE_OFFEN, 5, -1), kaskadeReihe(STUFE_OFFEN, 5, 2), kaskadeReihe(HAUPT_OFFEN, 5, 4, "map-layer-menu")].forEach((zellen) => {
+		zellen.forEach((zelle, i) => {
+			const wert = kaskadeWert(zelle, { reduziert: true });
+			assert.strictEqual(wert.eigenschaft, "none",
+				"prefers-reduced-motion: Zelle " + (i + 1) + " einer Reihe [" + zelle.eltern.klassen.join(" ") + "] traegt keinen Uebergang");
+		});
+	});
+}
 
 // S6. Am schmalen Telefon: hoechstens drei Spalten, und eine umbrechende Reihe rollt nicht auf.
 // 💣 Gemessen im Browser (14.09.2026): `repeat(3, auto)` macht die Reihe mit ZWEI Untergruenden 155 statt

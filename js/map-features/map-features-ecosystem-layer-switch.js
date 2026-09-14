@@ -207,7 +207,7 @@ function syncEcosystemPaneStates() {
 	// also weg -- sie bleibt trotzdem, und zwar nicht aus Vorsicht: der Besucher kann seinen Untergrund
 	// nicht wählen, der Editor aber seinen Regler ziehen, und BEIDE Rollen laufen bei einem Ebenenwechsel
 	// genau hier vorbei. Die Stelle zu streichen, weil fünf gleiche Zahlen dastehen, hiesse sie beim
-	// ersten je-Ebene-Wert von Aufgabe 8 neu zu finden.
+	// ersten Wert, der je Ebene verschieden ist, neu zu finden.
 	applyEcosystemUndergroundOpacity(isEcosystemLayerModeActive());
 }
 
@@ -517,7 +517,8 @@ let ecosystemAnzeigeWahlGebunden = false;
 // wählen, und was er nicht wählen kann, gehört nicht in den Satz „das hat er gewählt". Bis zum
 // 10.09.2026 stand hier ein abgeschriebenes `untergrund: 0` neben dem `untergrund: 0` des Profils:
 // derselbe Wert, zwei Schreiber, von keinem Test gehalten. Ab der ersten echten Hand hätte ein
-// künftiger Profilwert damit still auf 0 gefallen -- und genau dieses Feld liest Aufgabe 8. Gefüllt
+// künftiger Profilwert damit still auf 0 gefallen -- und genau dieses Feld liest applyEcosystemUndergroundOpacity
+// (`soll.untergrund`). Gefüllt
 // wird es jetzt an EINER Stelle, in ecosystemAnzeigeSoll, und immer aus dem Profil.
 function ecosystemAnzeigeLesen() {
 	const stand = { orte: {} };
@@ -548,7 +549,7 @@ function ecosystemAnzeigeSoll() {
 		// 🔴 DER UNTERGRUND KOMMT AUCH HIER AUS DEM PROFIL, nie aus der Wahl. Er ist das einzige Feld des
 		// Solls, für das es im Anzeige-Menü des Besuchers kein Bedienelement gibt (der Regler gehört dem
 		// Editor) -- er kann ihn also nicht gewählt haben. Ein zweiter Schreiber dafür wäre ein gekoppelter
-		// Wert an zwei Stellen, und Aufgabe 8 liest genau dieses Feld.
+		// Wert an zwei Stellen, und applyEcosystemUndergroundOpacity liest genau dieses Feld (`soll.untergrund`).
 		return Object.assign({}, ecosystemAnzeigeWahl, { untergrund: profil.untergrund });
 	}
 	// Die Vorgabe in DIE Form bringen, in der auch die Nutzerwahl steht -- eine Form, ein Leser.

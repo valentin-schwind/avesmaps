@@ -485,11 +485,31 @@
 	 * `hidden` -- der Klick wirkt also auch, wenn die Leiste fuer Besucher versteckt ist.
 	 */
 	function waehleEbene(wert) {
+		var leiste = document.getElementById("ecosystem-layer-switch");
 		var treffer = ebenenReiter().filter(function (reiter) {
 			return ebenenWert(reiter) === wert;
 		})[0];
-		if (treffer) {
+		if (!treffer || !leiste) {
+			return;
+		}
+		// 💣 DER KUENSTLICHE KLICK BLEIBT IM FAECHER (14.09.2026). `click()` blubbert wie ein echter Klick bis zum Dokument, und
+		// dort hoeren Zuhoerer, fuer die ein Klick ein Klick IN DIE KARTE ist: die Suche loescht ihre Markierung
+		// (handleSpotlightDocumentClick, js/ui/spotlight-search.js), js/routing/routing.js schliesst die Kontextmenues. Jeder
+		// andere Klick im Faecher haelt deshalb an (die Klick-Zuhoerer von menue und stufeReihe) -- nur dieser lief bis dahin durch.
+		// ⭐ ANGEHALTEN WIRD AN DER LEISTE, nicht am Reiter: die Zuhoerer, auf die es ankommt, haengen an der Leiste selbst -- ihr
+		// Klick-Zuhoerer (bindEcosystemLayerSwitch) und die Besucherzaehlung (js/app/visitor-tracking.js, per jQuery direkt an
+		// #ecosystem-layer-switch). `stopPropagation` laesst die Zuhoerer desselben Elements alle laufen und nimmt nur die
+		// Vorfahren weg; am Reiter angehalten, kaeme der Klick bei keinem der beiden an.
+		// ⚠️ Nur fuer DIESEN Klick: angemeldet, geklickt, im `finally` wieder abgemeldet. Der Klick laeuft synchron; ein echter
+		// Klick auf die Leiste (der Editor hat sie) erreicht das Dokument weiter wie jeder Klick.
+		var anhalten = function (ereignis) {
+			ereignis.stopPropagation();
+		};
+		leiste.addEventListener("click", anhalten);
+		try {
 			treffer.click();
+		} finally {
+			leiste.removeEventListener("click", anhalten);
 		}
 	}
 
@@ -610,12 +630,17 @@
 		// Zelle gleich hoch, und nur dann faellt die Kachel beim Aufklappen auf ihren eigenen Fleck.
 		// Steht die Zeile nur an der Kachel, springt das Menue um ihre Hoehe.
 		// ⚠️ Sichtbar ist sie im offenen Menue ohnehin keine: das CSS blendet sie dort aus, weil man
-		// den Untergrund dann in der zweiten Stufe waehlt und die Auskunft veraltet waere.
+		// Untergrund bzw. Ebene dann in der zweiten Stufe waehlt und die Auskunft veraltet waere.
 		var zweite = document.createElement("span");
 		zweite.className = "map-layer-picker__label map-layer-picker__label--grund";
 		// Leer bleibt sie ein geschuetztes Leerzeichen -- eine leere Zeile fiele zusammen, und die Kachel spraenge.
 		zweite.textContent = zweiteZeile || "\u00a0";
 		knopf.appendChild(zweite);
+		// Die zugeklappte Kachel sagt diese Zeile auch an (aria-label in zeichneKachel) -- ihre Zelle ist aria-hidden. Mitgegeben aus
+		// DIESER Auskunft, damit die Ansage nicht ein zweites Mal aktiveEbene() fragt. Nur an der Kachel; die Menuezellen brauchen es nicht.
+		if (!imMenue) {
+			knopf.dataset.zweiteZeile = zweiteZeile;
+		}
 		return knopf;
 	}
 
@@ -739,9 +764,10 @@
 			}
 
 			knopf.innerHTML = "";
-			knopf.appendChild(zelle(aktuelle, false, false));
+			var kachelZelle = zelle(aktuelle, false, false);
+			knopf.appendChild(kachelZelle);
 			// Die Namen der Ansichten kommen aus den <option> und sind damit schon uebersetzt.
-			// Diese beiden Saetze sind die einzigen eigenen -- sie gehoeren in die Tabelle, nicht
+			// Diese Saetze sind die einzigen eigenen -- sie gehoeren in die Tabelle, nicht
 			// aus Wortstuecken zusammengeklebt (AGENTS.md §8).
 			var uebersetze = (typeof tr === "function")
 				? tr
@@ -751,8 +777,17 @@
 					});
 				};
 			knopf.title = uebersetze("view.tile.title", "Ansicht: {name}", { name: aktuelle.name });
-			knopf.setAttribute("aria-label",
-				uebersetze("view.tile.aria", "Ansicht wählen, aktuell {name}", { name: aktuelle.name }));
+			// 🔴 BEI LANDSCHAFTEN NENNT DIE ANSAGE AUCH DIE EBENE (14.09.2026). Die zweite Zeile steckt in einer aria-hidden-Zelle --
+			// ein Screenreader hoerte nur „Landschaften", waehrend das Bild „Landschaften / Derographie" zeigt.
+			// 💣 Gelesen aus der Zelle, die zelle() gerade gebaut hat, NICHT ein zweites Mal aus aktiveEbene(): Name, Bild und Ansage
+			// kommen so aus EINER Auskunft (die Regel in zelle()). Ohne Ebene -- keine Leiste -- bleibt es die Ansage ohne sie.
+			// ⚠️ Nicht aus der Zeile selbst gelesen: deren Klasse vergibt das JS nur, mehr fasst es an ihr nicht an
+			// (map-layer-picker.test.js) -- zelle() gibt den Text deshalb als data-zweite-zeile mit.
+			// ⚠️ Nur bei Landschaften: dass die uebrigen Ansichten ihren Untergrund nicht ansagen, bleibt, wie es war.
+			var ebenenName = aktuelle.wert === EBENEN_ANSICHT ? String(kachelZelle.dataset.zweiteZeile || "") : "";
+			knopf.setAttribute("aria-label", ebenenName
+				? uebersetze("view.tile.ariaLayer", "Ansicht wählen, aktuell {name}, Ebene {layer}", { name: aktuelle.name, layer: ebenenName })
+				: uebersetze("view.tile.aria", "Ansicht wählen, aktuell {name}", { name: aktuelle.name }));
 			return { alle: alle, aktuelle: aktuelle };
 		}
 
@@ -1104,7 +1139,7 @@
 			schwebeGesperrt = true;
 			// 🔴 EIN KLICK AUF EINE ANSICHT HAELT IHRE ZWEITE STUFE OFFEN -- er waehlt sie NICHT
 			// sofort. Erst der zweite Klick auf dieselbe Ansicht waehlt sie allein, mit dem
-			// eingestellten Untergrund.
+			// eingestellten Untergrund -- bei Landschaften mit der gemerkten Ebene.
 			// ⭐ Daraus faellt das Telefon-Verhalten ab: ohne Ueberfahren ist die zweite Stufe zu,
 			// also OEFFNET der erste Tipp und der zweite waehlt -- dasselbe Modell wie am Zeiger,
 			// kein zweiter Bedienweg.
@@ -1268,6 +1303,17 @@
 		});
 
 		// Pfeiltasten wandern durch die Zellen -- eine Einfachauswahl bedient man so.
+		// 🔴 UND PFEIL HOCH FUEHRT IN DIE OFFENE ZWEITE STUFE (14.09.2026). Seit die Reiterleiste fuer Besucher versteckt ist,
+		// ist der Faecher ihr einziger Weg zu den Ebenen -- und die Leiste war mit Pfeilen bedienbar. Die Stufe liegt UEBER der
+		// Ansichtsreihe: Pfeil hoch fuehrt hinein (auf die markierte Zelle, sonst die erste), ihr eigener Zuhoerer darunter
+		// fuehrt mit Pfeil runter zurueck zur Quellzelle. Ist keine Stufe offen, bleibt Pfeil hoch, was er war: eine Zelle zurueck.
+		// ⚠️ Enter auf einer Ansicht OEFFNET ihre Stufe (waehle()) und laesst den Fokus auf der Ansichtszelle -- gewollt: erst
+		// Pfeil hoch fuehrt hinein. Sonst stuende der Fokus nach jedem Aufklappen woanders, auch bei dem, der nur blaettert.
+		// ⚠️ Von JEDER Zelle der Reihe aus, nicht nur von der Quellzelle: die offene Stufe steht sichtbar ueber ihrer Ansicht,
+		// und ein Pfeil hoch, der je nach Zelle hinein- oder eine Zelle zurueckfuehrt, waere eine Taste mit zwei Bedeutungen.
+		// 💣 DIE BEDIENTEN PFEILE GEHEN NICHT WEITER ANS DOKUMENT. Dort legt js/app/keyboard-shortcuts.js dieselben Tasten auf das
+		// Verschieben der Karte, und sein Riegel kennt Eingabefelder, Fenster und Werkzeuge -- ein Knopf mit Fokus haelt ihn
+		// nicht auf. Ohne den Stopp schoebe jeder Schritt durch das Menue die Karte darunter mit.
 		menue.addEventListener("keydown", function (ereignis) {
 			var tasten = ["ArrowRight", "ArrowLeft", "ArrowDown", "ArrowUp"];
 			if (tasten.indexOf(ereignis.key) < 0) {
@@ -1279,11 +1325,53 @@
 				return;
 			}
 			ereignis.preventDefault();
+			ereignis.stopPropagation();
+			if (ereignis.key === "ArrowUp" && stufeZweiOffen) {
+				var ziel = stufeReihe.querySelector(".map-layer-picker__cell.is-active:not([disabled])")
+					|| stufeReihe.querySelector(".map-layer-picker__cell:not([disabled])");
+				if (ziel) {
+					ziel.focus();
+					return;
+				}
+			}
 			var schritt = (ereignis.key === "ArrowRight" || ereignis.key === "ArrowDown") ? 1 : -1;
 			var naechste = zellen[(jetzt + schritt + zellen.length) % zellen.length];
 			if (naechste) {
 				naechste.focus();
 			}
+		});
+
+		// Die Pfeile der zweiten Stufe. Links und rechts wandern in ihrer Reihe (am Ende herum, wie oben), runter fuehrt zurueck
+		// zur Ansicht, aus der sie herausfaehrt -- die Stufe bleibt dabei offen, Pfeil hoch fuehrt wieder hinein. Hoch hat hier
+		// nichts ueber sich und laesst den Fokus stehen.
+		// ⭐ Enter und Leertaste waehlen, ohne dass es dafuer eine Zeile braucht: die Zellen sind <button>, und ihr Klick laeuft
+		// durch denselben Zuhoerer wie die Maus (waehleEbeneAusStufe bzw. waehleGrund). Escape geht unberuehrt ans Dokument und
+		// schliesst wie bisher.
+		// 💣 Und auch hier kein Pfeil ans Dokument -- derselbe Grund wie oben.
+		stufeReihe.addEventListener("keydown", function (ereignis) {
+			var tasten = ["ArrowRight", "ArrowLeft", "ArrowDown", "ArrowUp"];
+			if (tasten.indexOf(ereignis.key) < 0) {
+				return;
+			}
+			var zellen = Array.prototype.slice.call(stufeReihe.querySelectorAll(".map-layer-picker__cell:not([disabled])"));
+			var jetzt = zellen.indexOf(document.activeElement);
+			if (jetzt < 0) {
+				return;
+			}
+			ereignis.preventDefault();
+			ereignis.stopPropagation();
+			if (ereignis.key === "ArrowDown") {
+				var quelle = menue.querySelector('.map-layer-picker__cell[data-mode="' + stufeZwei + '"]');
+				if (quelle) {
+					quelle.focus();
+				}
+				return;
+			}
+			if (ereignis.key === "ArrowUp") {
+				return;
+			}
+			var schritt = ereignis.key === "ArrowRight" ? 1 : -1;
+			zellen[(jetzt + schritt + zellen.length) % zellen.length].focus();
 		});
 
 		document.addEventListener("keydown", function (ereignis) {

@@ -624,7 +624,10 @@ h2 { font-size: var(--font-size-subhead); margin: 0 0 4px; }
 
 /* ===== L: die Ebenen im Kartenfaecher (14.09.2026) ===== */
 /* Fuenf Ebenen statt drei Untergruende: die Staffelung reicht bis zur fuenften Zelle
-   (Entwurf §1 -- im Picker nth-child 2..6). */
+   (Entwurf §1 -- im Picker nth-child 1..6).
+   💣 Und die ERSTE Zelle ausdruecklich auf 0 (14.09.2026): die Unterreihe traegt auch die Menue-Klasse, und die Staffelung der
+   Ansichtsreihe (nth-last-child, 0,4,0) traf sonst ihre erste Zelle -- bei fuenf Ebenen 80 ms. Im Picker dieselbe Zeile. */
+.mk-unterreihe.is-open .map-layer-picker__cell:nth-child(1) { transition-delay: 0ms; }
 .mk-unterreihe.is-open .map-layer-picker__cell:nth-child(5) { transition-delay: 100ms; }
 .mk-unterreihe.is-open .map-layer-picker__cell:nth-child(6) { transition-delay: 125ms; }
 /* Die Reiterleiste des Editors -- oben in der Ecke, im Fluss (die Ecke stapelt nach unten). */

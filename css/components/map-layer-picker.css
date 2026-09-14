@@ -364,12 +364,26 @@
    💣 BIS ZUR SECHSTEN ZELLE (14.09.2026). Hier standen nur 2 bis 4 -- genau drei Untergruende. Ueber
    „Landschaften" traegt die Reihe fuenf Ebenen; ohne die zusaetzlichen Zeilen blendeten die letzten
    ohne Versatz auf, und das sieht nicht nach einem fehlenden Wert aus, sondern nach einem ruckelnden
-   Menue. Die sechste haelt eine Ebene mehr aus. */
-.map-layer-picker__grund .map-layer-picker__cell:nth-child(2) { transition-delay: 25ms; }
-.map-layer-picker__grund .map-layer-picker__cell:nth-child(3) { transition-delay: 50ms; }
-.map-layer-picker__grund .map-layer-picker__cell:nth-child(4) { transition-delay: 75ms; }
-.map-layer-picker__grund .map-layer-picker__cell:nth-child(5) { transition-delay: 100ms; }
-.map-layer-picker__grund .map-layer-picker__cell:nth-child(6) { transition-delay: 125ms; }
+   Menue. Die sechste haelt eine Ebene mehr aus.
+   💣 UND SIE MUSS IN DER KASKADE GEWINNEN -- bis zum 14.09.2026 tat sie das nie. Die Reihe traegt AUCH die
+   Klasse der Ansichtsreihe (`map-layer-picker__menu`) und dasselbe `.is-open`; deren Staffelung weiter oben
+   (`.map-layer-picker__menu.is-open … :nth-last-child(n)`, Spezifitaet 0,4,0) traf deshalb auch diese Zellen und
+   schlug die Regeln hier, die als `.map-layer-picker__grund … :nth-child(n)` nur 0,3,0 trugen. Fuenf Ebenen
+   blendeten mit 80/60/40/20/100 ms auf statt 0/25/50/75/100, drei Untergruende mit 40/20/50 statt 0/25/50 --
+   verwuerfelt, und seit dem 26.08.2026 von niemandem bemerkt, weil ein Muster eine Regel sieht und keine Kaskade.
+   Jetzt: gleich spezifisch (0,4,0) UND spaeter im Blatt -- und die ERSTE Zelle ausdruecklich auf 0, sonst behielte
+   sie das `nth-last-child` der Ansichtsreihe. Gerechnet in js/ui/__tests__/landschaften-untermenue.test.js (S5).
+   ⚠️ Am `.is-open`-Zweig, wie die Ansichtsreihe (siehe dort) und wie das Mockup (Karte L): beim Zuklappen gehen alle
+   gemeinsam. Bis dahin staffelte die zweite Stufe auch das Zuklappen -- ueber die Zeit hinaus, nach der
+   schliesseStufeZwei() sie ohnehin verbirgt (BLENDE_ZU_MS).
+   ⚠️ prefers-reduced-motion gewinnt weiter ueber die Eigenschaft, nicht ueber die Verzoegerung: der Block oben
+   setzt `transition: none`, und eine Verzoegerung ohne Uebergang bewegt nichts. */
+.map-layer-picker__grund.is-open .map-layer-picker__cell:nth-child(1) { transition-delay: 0ms; }
+.map-layer-picker__grund.is-open .map-layer-picker__cell:nth-child(2) { transition-delay: 25ms; }
+.map-layer-picker__grund.is-open .map-layer-picker__cell:nth-child(3) { transition-delay: 50ms; }
+.map-layer-picker__grund.is-open .map-layer-picker__cell:nth-child(4) { transition-delay: 75ms; }
+.map-layer-picker__grund.is-open .map-layer-picker__cell:nth-child(5) { transition-delay: 100ms; }
+.map-layer-picker__grund.is-open .map-layer-picker__cell:nth-child(6) { transition-delay: 125ms; }
 
 /* Die Vorschau ist ein Kartenausschnitt, kein Symbol -- er fuellt die Kachel. */
 .map-layer-picker__grund .map-layer-picker__thumb img {
@@ -426,8 +440,8 @@
 	margin-top: -3px;
 }
 
-/* 🔴 UND SIE BLENDET AUS, SOBALD DAS MENUE AUFKLAPPT. Im offenen Menue waehlt man den Untergrund in
-   der zweiten Stufe -- die Auskunft in der Zeile waere dort veraltet, kaum dass man hinsieht.
+/* 🔴 UND SIE BLENDET AUS, SOBALD DAS MENUE AUFKLAPPT. Im offenen Menue waehlt man den Untergrund -- bei
+   Landschaften die Ebene -- in der zweiten Stufe; die Auskunft in der Zeile waere dort veraltet, kaum dass man hinsieht.
    ⭐ Es braucht dafuer KEINEN Zustand im JS: die Zeile sitzt in den Menuezellen, und `.is-open`
    kommt erst im naechsten Bild (das Menue braucht das ohnehin fuer sein Aufrollen). Sie startet
    also bei 1 und blendet von selbst auf 0 -- der Uebergang faellt gratis ab.
@@ -442,7 +456,7 @@
 	opacity: 0;
 }
 
-/* Die zweite Stufe traegt selbst keine zweite Zeile -- sie IST der Untergrund. */
+/* Die zweite Stufe traegt selbst keine zweite Zeile -- sie IST die Wahl: der Untergrund, bei Landschaften die Ebene. */
 .map-layer-picker__grund .map-layer-picker__label--grund {
 	display: none;
 }

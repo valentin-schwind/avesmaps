@@ -282,10 +282,12 @@ window.AVESMAPS_I18N_EN = {
 	// keyed view.mode.standard. Admin-only mode (js/app/session.js).
 	"view.mode.ecosystem": "Landscapes",
 	// The view tile in the map corner (?layerPanelActive=1). Its cells take their words from the
-	// <option> above and are translated with them; only these two sentences are its own, so they
+	// <option> above and are translated with them; only these sentences are its own, so they
 	// live here instead of being glued together in JS (AGENTS.md §8).
 	"view.tile.title": "View: {name}",
 	"view.tile.aria": "Choose view, currently {name}",
+	// Landscapes name their layer too -- the tile's second line sits in an aria-hidden cell (js/ui/map-layer-picker.js).
+	"view.tile.ariaLayer": "Choose view, currently {name}, layer {layer}",
 
 	// --- the display menu (eye) in the map corner: what is drawn on the map ---
 	// The six location-class buttons inside it keep their own "layer.toggle.*" keys further down;
