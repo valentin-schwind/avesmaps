@@ -28,10 +28,23 @@ const AVESMAPS_GARETIEN_VERBUND_ROEMISCH = [
 /** Die Zielformen, die NIE einen Verbund bilden -- ein Punkt hat nichts zusammenzulegen. */
 const AVESMAPS_GARETIEN_VERBUND_ZIELE_AUS = ['location', 'label'];
 
+/**
+ * Die Urteile des Abgleichs, deren Zeile NIE Mitglied eines Verbunds ist.
+ *
+ * 🔴 NUR ERZEUGENDE ZEILEN (Verbund-Owner 09.09.2026/2): ein Fragment, das sich mit einem Objekt
+ * von uns DECKT, bleibt eine Quelle an diesem Objekt und wird nicht Teil einer neuen Flaeche.
+ * `uebersprungen` erzeugt gar nichts -- mitgezaehlt blaehte es nur `verbund_n` auf.
+ */
+const AVESMAPS_GARETIEN_VERBUND_URTEILE_AUS = ['deckt_sich', 'uebersprungen'];
+
 /** Ist dieses Zeichen-Stueck eine Ordnungsmarke, und welcher Art? */
 function avesmapsGaretienVerbundMarke(string $stueck): ?string
 {
-    $gross = strtoupper($stueck);
+    // 💣 UMLAUTFEST, OHNE mb_*. `strtoupper` kennt in PHP 8 nur ASCII: aus „Süd" wurde „SüD", die
+    // Liste fuehrt „SÜD", und „Farindel Süd" fiel aus seinem Verbund (Entwurf 14.09.2026, Fehler 2).
+    // Die drei Umlaute werden VOR dem Hochsetzen von Hand gehoben; ein `mb_strtoupper` waere ohne
+    // mbstring ein Fatal mit leerem Rumpf.
+    $gross = strtoupper(strtr($stueck, ['ü' => 'Ü', 'ö' => 'Ö', 'ä' => 'Ä']));
     if (preg_match('/^\d{1,3}$/', $stueck) === 1) {
         return 'zahl';
     }
@@ -44,9 +57,9 @@ function avesmapsGaretienVerbundMarke(string $stueck): ?string
     if (in_array($gross, AVESMAPS_GARETIEN_VERBUND_HIMMEL, true)) {
         return 'himmelsrichtung';
     }
-    if (preg_match('/^[a-zA-Z]$/', $stueck) === 1) {
-        return 'buchstabe';
-    }
+    // 🔴 KEIN EINZELBUCHSTABE (Fehler 3). „Pfad A" und „Pfad B" sind zwei Pfade, kein Verbund
+    // „Pfad" -- Verbund-Entwurf §3 schliesst genau das aus. Die Buchstaben, die eine Ordnung
+    // tragen (N, S, O, W, M, I, V, X), stehen in den zwei Listen darueber und sind dort schon gefragt.
 
     return null;
 }
@@ -89,28 +102,37 @@ function avesmapsGaretienVerbundStamm(string $name): array
 }
 
 /**
- * Welche Zeilen gehoeren zu einem Verbund?
+ * Die Mitglieder aller Verbuende -- die EINE Rechnung hinter avesmapsGaretienVerbuende und
+ * avesmapsGaretienVerbundGruppen.
  *
  * 💣 EIN FRAGMENT OHNE MARKE GEHOERT DAZU, wenn ein Geschwister eine traegt: 20 der 22
  * Wege-Verbuende sind `Alkenstieg` + `Alkenstieg 2`. Deshalb wird ZUERST nach Stamm gruppiert
  * und ERST DANN gefragt, ob die Gruppe ueberhaupt eine Marke enthaelt.
  * 💣 Doppelte Marken (`SO, SO, NW`) und Luecken (`2, 5, 7`) sind normal -- es wird NICHT
  * gezaehlt, ob 1..n vollstaendig ist.
+ * 🔴 ZWEI OEFFENTLICHE SICHTEN, EINE RECHNUNG. Der Stamm (fuer den Namen) und der Gruppenschluessel
+ * (fuer `verbund_n`) kommen aus DERSELBEN Schleife -- zwei Schleifen liefen beim naechsten Filter
+ * auseinander, und dann zaehlte `verbund_n` Zeilen, die gar nicht Mitglied sind.
  *
- * @param list<array<string,mixed>> $zeilen benannte Zeilen (avesmapsGaretienZeilenBenennen)
- * @return array<int,string> Zeilenindex => Stamm; nur Zeilen, die wirklich zu einem Verbund gehoeren
+ * @param list<array<string,mixed>> $zeilen benannte Zeilen, optional mit `urteil` (Status des Abgleichs)
+ * @return array<int,array{stamm:string,gruppe:string}>
  */
-function avesmapsGaretienVerbuende(array $zeilen): array
+function avesmapsGaretienVerbundMitglieder(array $zeilen): array
 {
     $gruppen = [];
     foreach ($zeilen as $i => $zeile) {
-        // 💣 NICHT ueber `$zeile['urteil']` filtern -- an der echten Aufrufstelle
-        // (avesmapsGaretienBaueSyncPlan, garetien-plan.php) liest der SELECT nur
-        // lodmin/lodmax/extra/geo_art/geo, NIE `urteil`. Dieser Schluessel steht dort also nie,
-        // und der Filter war an genau dieser Stelle tot. Gefragt wird stattdessen dieselbe EINE
-        // Instanz, die auch der Hauptlauf fragt (avesmapsGaretienUeberspringen) -- eine zweite
-        // Wahrheit ueber „wird uebersprungen" liefe beim naechsten Uebersprung-Grund auseinander.
+        // Dieselbe EINE Instanz, die auch der Hauptlauf fragt (avesmapsGaretienUeberspringen) --
+        // eine zweite Wahrheit ueber „wird uebersprungen" liefe beim naechsten Grund auseinander.
         if (avesmapsGaretienUeberspringGrund($zeile) !== null) {
+            continue;
+        }
+        // 🔴 NUR ERZEUGENDE ZEILEN (Entwurf 14.09.2026, Fehler 5). Das Feld `urteil` setzt die
+        // Aufrufstelle avesmapsGaretienBaueSyncPlan seit diesem Umbau AUS DEM ABGLEICH, bevor sie
+        // hierher fragt. 💣 Bis dahin las ihr SELECT die Spalte nie, und der Filter war an genau
+        // dieser Stelle tot -- wer die zwei Durchgaenge dort wieder zusammenlegt, macht ihn wieder tot.
+        // ⚠️ Eine Zeile OHNE `urteil` zaehlt mit: die reinen Faelle kennen kein Urteil, und „nicht
+        // beurteilt" ist nicht „deckt sich".
+        if (in_array((string) ($zeile['urteil'] ?? ''), AVESMAPS_GARETIEN_VERBUND_URTEILE_AUS, true)) {
             continue;
         }
         $zuordnung = avesmapsGaretienMappeTyp((string) ($zeile['typ'] ?? ''));
@@ -134,7 +156,7 @@ function avesmapsGaretienVerbuende(array $zeilen): array
     }
 
     $raus = [];
-    foreach ($gruppen as $mitglieder) {
+    foreach ($gruppen as $schluessel => $mitglieder) {
         if (count($mitglieder) < 2) {
             continue;
         }
@@ -149,10 +171,42 @@ function avesmapsGaretienVerbuende(array $zeilen): array
             continue;
         }
         foreach ($mitglieder as $m) {
-            $raus[$m['i']] = $m['stamm'];
+            $raus[$m['i']] = ['stamm' => $m['stamm'], 'gruppe' => (string) $schluessel];
         }
     }
     ksort($raus);
 
     return $raus;
+}
+
+/**
+ * Welche Zeilen gehoeren zu einem Verbund, und unter welchem Stamm?
+ *
+ * @param list<array<string,mixed>> $zeilen benannte Zeilen (avesmapsGaretienZeilenBenennen)
+ * @return array<int,string> Zeilenindex => Stamm; nur Zeilen, die wirklich zu einem Verbund gehoeren
+ */
+function avesmapsGaretienVerbuende(array $zeilen): array
+{
+    return array_map(
+        static fn(array $mitglied): string => $mitglied['stamm'],
+        avesmapsGaretienVerbundMitglieder($zeilen)
+    );
+}
+
+/**
+ * Zu welcher GRUPPE gehoert jede Verbund-Zeile? Schluessel `ebene|typ|stamm`.
+ *
+ * 🔴 `verbund_n` IST DIE GROESSE DIESER GRUPPE, NICHT DES STAMMS (Entwurf 14.09.2026, Fehler 4).
+ * Gruppiert wurde laengst nach Ebene + Typ + Stamm, gezaehlt aber nach Stamm allein -- ein Wald
+ * „Silker Hain 1..2" neben einem Huegelland „Silker Hain 1..3" trug dann „5 Fragmente".
+ *
+ * @param list<array<string,mixed>> $zeilen benannte Zeilen (avesmapsGaretienZeilenBenennen)
+ * @return array<int,string> Zeilenindex => Gruppenschluessel; nur Verbund-Mitglieder
+ */
+function avesmapsGaretienVerbundGruppen(array $zeilen): array
+{
+    return array_map(
+        static fn(array $mitglied): string => $mitglied['gruppe'],
+        avesmapsGaretienVerbundMitglieder($zeilen)
+    );
 }
