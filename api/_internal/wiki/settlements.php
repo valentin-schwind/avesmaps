@@ -22,6 +22,8 @@ declare(strict_types=1);
 // Adresse landete als <img src=""> im Markup. Ein Leser, der '' zurueckgibt, braucht auf der
 // anderen Seite einen Platzhalter -- nicht die Wiki-Adresse als Ersatz.
 require_once __DIR__ . '/../coat-url.php';
+// avesmapsIstBauwerksklasse -- der Riegel im Bauwerks-Upsert gegen eine Siedlungsklasse.
+require_once __DIR__ . '/../ortsklassen.php';
 
 // Siedlungs-WikiSync-VERBINDUNG (additiv). Verbindet ein Orts-Feature (feature_type=location)
 // mit seinem Wiki-Datensatz ({{Infobox Siedlung}}) und schreibt die Infobox-Felder als
@@ -192,7 +194,15 @@ function avesmapsWikiSettlementMatchBuildingType(array $categoryNames): string {
 // Wiki-Spiegelung ohne Editor-Eingabe, die es überschreiben könnte, und ein Umzug im Wiki soll
 // ankommen. Ein LEERER neuer Wert lässt den alten stehen — sonst löschte der Online-Crawl, der
 // das Feld gar nicht kennt, die Arbeit des Dump-Laufs wieder weg.
-function avesmapsWikiSettlementUpsertBuildingRow(PDO $pdo, string $title, string $buildingType, bool $isRuined, string $standort = ''): int {
+// $klasse: die BAUWERKSklasse der Zeile. Seit 14.09.2026 nicht mehr fest `gebaeude`: ein Stadtteil
+// aus dem Wiki traegt `stadtviertel` (stadtteil-kategorie.php). Wie die drei Felder darueber fuellt
+// sie nur eine LEERE Klasse. 💣 Eine Siedlungsklasse wird geworfen, nie geschrieben -- dieser Upsert
+// kennt weder Koordinaten noch Wappen, und eine Zeile, die er als `dorf` anlegte, saehe aus wie ein
+// Ort, den der Siedlungs-Sync nie gesehen hat.
+function avesmapsWikiSettlementUpsertBuildingRow(PDO $pdo, string $title, string $buildingType, bool $isRuined, string $standort = '', string $klasse = 'gebaeude'): int {
+    if (!avesmapsIstBauwerksklasse($klasse)) {
+        throw new InvalidArgumentException('Der Bauwerks-Upsert schreibt nur Bauwerksklassen, nicht: ' . $klasse);
+    }
     $title = trim($title);
     if ($title === '') {
         return 0;
@@ -212,8 +222,8 @@ function avesmapsWikiSettlementUpsertBuildingRow(PDO $pdo, string $title, string
         'title' => mb_substr($title, 0, 255, 'UTF-8'),
         'nk' => avesmapsWikiSyncCreateMatchKey($title),
         'url' => avesmapsWikiSyncMonitorPageUrl($title),
-        'cls' => 'gebaeude',
-        'lbl' => avesmapsWikiSettlementClassLabel('gebaeude'),
+        'cls' => $klasse,
+        'lbl' => avesmapsWikiSettlementClassLabel($klasse),
         'bt' => mb_substr($buildingType, 0, 120, 'UTF-8'),
         'ru' => $isRuined ? 1 : 0,
         'st' => mb_substr(trim($standort), 0, 1000, 'UTF-8'),

@@ -792,7 +792,10 @@ function avesmapsWikiDumpHybridUpsertParsedRow(PDO $pdo, array $parsed, ?array $
                 (string) ($record['title'] ?? ''),
                 (string) ($record['building_type'] ?? ''),
                 !empty($record['is_ruined']),
-                (string) ($record['standort'] ?? '')
+                (string) ($record['standort'] ?? ''),
+                // Die Klasse des DATENSATZES -- ein Stadtteil ist `stadtviertel`, nicht `gebaeude`
+                // (stadtteil-kategorie.php). Ohne sie legte „Syncen" jeden Stadtteil als Gebaeude an.
+                (string) (($record['settlement_class'] ?? '') ?: 'gebaeude')
             );
             break;
 

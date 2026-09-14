@@ -10,6 +10,8 @@ require_once __DIR__ . '/deities.php';
 // `sync.php` die Tabelle mitzieht -- und `api/edit/map/feature-sources.php` laedt diese Datei
 // ohne `sync.php`. Ein `require_once` kostet nichts und kann sich nicht doppeln.
 require_once __DIR__ . '/namespaces.php';
+// Die zweite dokumentierte Ausnahme von O4: Stadtteile ohne Infobox (siehe avesmapsWikiDumpClassifyPage).
+require_once __DIR__ . '/stadtteil-kategorie.php';
 
 /**
  * WikiDump migration -- Pass B: entity enumeration + entity handlers.
@@ -75,10 +77,16 @@ require_once __DIR__ . '/namespaces.php';
  *       used to *decide* the entity kind. (Category links ARE read, but only to
  *       feed the continent detector below -- the same signal the online crawler
  *       fetched via the API. They never gate classification.)
- *       ONE documented exception, in avesmapsWikiDumpClassifyPage: a {{Infobox
- *       Fluss}} page whose |Art= names a landform (Wadi) goes to the REGION
- *       handler. It reads the Art, not a category, and can only move a page the
- *       infobox already called a path -- see wiki/watercourse-landform.php.
+ *       TWO documented exceptions, both in avesmapsWikiDumpClassifyPage:
+ *       (1) a {{Infobox Fluss}} page whose |Art= names a landform (Wadi) goes to
+ *       the REGION handler. It reads the Art, not a category, and can only move a
+ *       page the infobox already called a path -- see wiki/watercourse-landform.php.
+ *       (2) seit 14.09.2026: eine Seite OHNE erkannte Infobox in `Kategorie:Stadtteil
+ *       von X` geht an den BUILDING-Handler (Klasse stadtviertel). Sie liest eine
+ *       Kategorie -- es gibt schlicht keine andere Stelle, die einen Stadtteil nennt --,
+ *       kann aber nur nehmen, was keine Infobox beansprucht hat. Siehe
+ *       wiki/stadtteil-kategorie.php; wer eine dritte Kategorieform braucht, schreibt
+ *       sie DORT dazu, nicht als Musterregel hier.
  *
  *   I1  Field mapping + key derivation are NEVER re-implemented here. The path
  *       handler CALLS the real avesmapsWikiPathParsePage() (paths.php:333),
@@ -285,6 +293,16 @@ function avesmapsWikiDumpClassifyPage(array $page): string
     // subject -- "no category scan decides the entity kind" -- is untouched.
     if ($kind === AVESMAPS_WIKI_DUMP_ENTITY_PATH && avesmapsWikiIsLandformWatercourse($wikitext)) {
         return AVESMAPS_WIKI_DUMP_ENTITY_REGION;
+    }
+
+    // Die ZWEITE dokumentierte Ausnahme von O4 (14.09.2026, Owner: „insgesamt sollten stadtteile
+    // innerorts sein"). Eine Stadtteil-Seite traegt GAR KEINE Infobox -- `Südquartier` hat nur ein
+    // nacktes {{Register Siedlung}} --, die Infobox kann sie also nicht benennen, und die einzige
+    // Stelle, die Art und Stadt nennt, ist die Kategorie `Stadtteil von Gareth`. Eng gebaut: sie kann
+    // nur eine Seite nehmen, die KEINE Infobox beansprucht hat ($kind === ''), und nur fuer diese
+    // eine Kategorieform. Begruendung und Messung stehen in stadtteil-kategorie.php.
+    if ($kind === '' && avesmapsWikiStadtteilAusKategorie($page) !== null) {
+        return AVESMAPS_WIKI_DUMP_ENTITY_BUILDING;
     }
 
     return $kind;
@@ -723,6 +741,8 @@ function avesmapsWikiDumpParseSettlementPage(array $page, array $override = []):
  * the online crawler's own derivations -- NO new mapping table is invented:
  *   - settlement_class = 'gebaeude', settlement_label = the reused
  *       avesmapsWikiSettlementClassLabel('gebaeude') ('Besondere Bauwerke/Stätten').
+ *       Ausnahme seit 14.09.2026: ein Stadtteil ohne Infobox (stadtteil-kategorie.php)
+ *       wird `stadtviertel` mit Art „Stadtteil" und Standort `[[Stadt]]` aus der Kategorie.
  *   - building_type    = avesmapsWikiSettlementMatchBuildingType($literalCategories)
  *       (settlements.php) -- the FIRST of the page's literal [[Kategorie:]] links
  *       that matches the REUSED legacy building-type list
@@ -803,7 +823,11 @@ function avesmapsWikiDumpParseBuildingPage(array $page, array $override = []): a
         || str_contains($infoboxKey, 'lehreinrichtung')
         || str_contains($infoboxKey, 'geschaft')
     );
-    if (!$isBuilding) {
+    // Ein Stadtteil ohne Infobox (stadtteil-kategorie.php). KEIN weiterer Zwilling: Klassifikator und
+    // Parser fragen DIESELBE Funktion. Gefragt wird nur ohne Bauwerks-Infobox -- eine Burg, die in
+    // `Kategorie:Stadtteil von …` steht, bleibt eine Burg.
+    $stadtteil = $isBuilding ? null : avesmapsWikiStadtteilAusKategorie($page);
+    if (!$isBuilding && $stadtteil === null) {
         return [
             'kept' => false,
             'reason' => $infoboxKey === '' ? 'kein Infobox' : ('Infobox ' . $infoboxName),
@@ -819,13 +843,19 @@ function avesmapsWikiDumpParseBuildingPage(array $page, array $override = []): a
     // building_type from the reused legacy type list matched against literal
     // categories; Art fallback via the reused settlement infobox parser (its `art`
     // reads ['siedlungsart','art','typ']). No new mapping invented (I1).
-    $buildingType = avesmapsWikiSettlementMatchBuildingType($categoryNames);
-    if ($buildingType === '') {
-        $infobox = avesmapsWikiSettlementParseInfobox($title, $wikitext, 'gebaeude');
-        $art = (string) ($infobox['art'] ?? '');
-        // ParseInfobox falls back an empty Art to the class label; suppress that so
-        // an unknown building_type stays '' rather than becoming the gebaeude label.
-        $buildingType = $art !== '' && $art !== avesmapsWikiSettlementClassLabel('gebaeude') ? $art : '';
+    // ⭐ Ein Stadtteil hat weder eine Art-Kategorie noch eine Infobox, aus der eine kaeme -- seine
+    // Art ist der Grund, warum die Seite ueberhaupt hier ist, und steht deshalb fest.
+    if ($stadtteil !== null) {
+        $buildingType = AVESMAPS_WIKI_STADTTEIL_ART;
+    } else {
+        $buildingType = avesmapsWikiSettlementMatchBuildingType($categoryNames);
+        if ($buildingType === '') {
+            $infobox = avesmapsWikiSettlementParseInfobox($title, $wikitext, 'gebaeude');
+            $art = (string) ($infobox['art'] ?? '');
+            // ParseInfobox falls back an empty Art to the class label; suppress that so
+            // an unknown building_type stays '' rather than becoming the gebaeude label.
+            $buildingType = $art !== '' && $art !== avesmapsWikiSettlementClassLabel('gebaeude') ? $art : '';
+        }
     }
 
     // Enrichment (continent + Art-based is_ruined) via the reused settlement fn.
@@ -836,7 +866,8 @@ function avesmapsWikiDumpParseBuildingPage(array $page, array $override = []): a
     // dump-only literal-category+Art derivation above (I1 -- substitute only,
     // never re-derive); applied BEFORE is_ruined below so an overridden type still
     // feeds the same type-based ruin rule the dump-only value would have.
-    if (isset($override['building_type']) && is_string($override['building_type']) && $override['building_type'] !== '') {
+    // Nicht fuer einen Stadtteil: seine Art steht fest (siehe oben).
+    if ($stadtteil === null && isset($override['building_type']) && is_string($override['building_type']) && $override['building_type'] !== '') {
         $buildingType = $override['building_type'];
     }
     // H3 hybrid override: a non-empty $override['continent'] wins over the
@@ -867,6 +898,13 @@ function avesmapsWikiDumpParseBuildingPage(array $page, array $override = []): a
     $infoboxBlock = avesmapsWikiSyncMonitorExtractInfoboxBlock($wikitext);
     $infoboxFields = avesmapsWikiSyncMonitorNormFields(avesmapsWikiSyncMonitorParseTemplateParams($infoboxBlock));
     $standort = trim(avesmapsWikiSyncMonitorField($infoboxFields, ['standort', 'lage', 'ort']));
+    // Ein Stadtteil hat in aller Regel gar kein |Standort= -- dann nennt die Kategorie die Stadt,
+    // und `[[Stadt]]` ist genau die Form, die der Scope-Klassifikator als „innerorts" liest. Ein
+    // echtes |Standort= gewinnt: es sagt mehr als die Kategorie.
+    if ($stadtteil !== null && $standort === '') {
+        $standort = '[[' . $stadtteil['stadt'] . ']]';
+    }
+    $klasse = $stadtteil !== null ? AVESMAPS_WIKI_STADTTEIL_KLASSE : 'gebaeude';
 
     // Assemble the wiki_sync_pages record. Keys/URL are the reused title-derived
     // ones (same as the online building crawler); coat_license_* = NULL (I5).
@@ -875,8 +913,8 @@ function avesmapsWikiDumpParseBuildingPage(array $page, array $override = []): a
         'normalized_key' => avesmapsWikiSyncCreateMatchKey($title),
         'wiki_key' => avesmapsPoliticalSlug(avesmapsWikiSyncMonitorNormalizeTitle($title)),
         'wiki_url' => avesmapsWikiSyncMonitorPageUrl($title),
-        'settlement_class' => 'gebaeude',
-        'settlement_label' => avesmapsWikiSettlementClassLabel('gebaeude'),
+        'settlement_class' => $klasse,
+        'settlement_label' => avesmapsWikiSettlementClassLabel($klasse),
         'building_type' => mb_substr($buildingType, 0, 120, 'UTF-8'),
         'standort' => mb_substr($standort, 0, 1000, 'UTF-8'),
         'deity' => $deity,
@@ -1612,7 +1650,8 @@ function avesmapsWikiDumpPersistBuildingRecords(PDO $pdo, iterable $pages): int
             (string) ($record['title'] ?? ''),
             (string) ($record['building_type'] ?? ''),
             !empty($record['is_ruined']),
-            (string) ($record['standort'] ?? '')
+            (string) ($record['standort'] ?? ''),
+            (string) (($record['settlement_class'] ?? '') ?: 'gebaeude')
         );
         $written++;
     }
@@ -1771,7 +1810,8 @@ function avesmapsWikiDumpRunPassBStep(PDO $pdo, string $dumpPath, int $cursor = 
                             (string) ($result['record']['title'] ?? ''),
                             (string) ($result['record']['building_type'] ?? ''),
                             !empty($result['record']['is_ruined']),
-                            (string) ($result['record']['standort'] ?? '')
+                            (string) ($result['record']['standort'] ?? ''),
+                            (string) (($result['record']['settlement_class'] ?? '') ?: 'gebaeude')
                         );
                         $buildingsWritten++;
                     }

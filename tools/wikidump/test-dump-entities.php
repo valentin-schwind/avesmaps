@@ -568,6 +568,22 @@ $check(
     'the infobox gate keeps the rule from reaching into other entity kinds'
 );
 
+// O4's SECOND documented exception (14.09.2026, stadtteil-kategorie.php): a page carrying NO
+// recognised infobox that sits in `Kategorie:Stadtteil von X` is a building (class stadtviertel).
+// Built inline like the wadi case, so the fixture tallies above stay exactly as they are.
+$check(
+    '(e6) a Stadtteil page without any infobox is routed to the BUILDING handler',
+    'building',
+    avesmapsWikiDumpClassifyPage($asDumpPage("{{Register Siedlung}}\n'''Probe''' ist ein Stadtteil von [[Gareth]].\n[[Kategorie:Stadtteil von Gareth]]")),
+    'O4 exception 2: a category -- but only for a page no infobox claimed'
+);
+$check(
+    '(e7) the same category never pulls a page away from its own infobox',
+    'region',
+    avesmapsWikiDumpClassifyPage($asDumpPage("{{Infobox Region\n|Name=Probe\n}}\n[[Kategorie:Stadtteil von Dorinthapolis]]")),
+    'Sternenpfeiler stays a region: the exception can only take what the infobox left over'
+);
+
 // ===========================================================================
 // (f) REGION handler (Task 4b): mirrors the path handler. Kept Aventurien region
 //     record via the REAL avesmapsWikiRegionParsePage() field/key mapping; the

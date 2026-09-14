@@ -2,6 +2,10 @@
 
 declare(strict_types=1);
 
+// avesmapsIstBauwerksklasse -- welche Datensaetze KEINE Siedlungen sind (gebaeude UND stadtviertel).
+// Rein, nichts laeuft beim Einbinden; dump-sync-kind.php zieht sie ueber diese Datei mit.
+require_once __DIR__ . '/../ortsklassen.php';
+
 /**
  * WikiDump migration -- SETTLEMENT-CONFLICT DRY-RUN library (READ-ONLY, no API).
  * ===========================================================================
@@ -746,7 +750,10 @@ function avesmapsWikiDumpDryRunClassifySettlements(
         if (!is_array($record)) {
             continue;
         }
-        if ((string) ($record['settlement_class'] ?? '') === 'gebaeude') {
+        // Das MERKMAL, nicht der eine Wert (Kopf von ortsklassen.php): seit 14.09.2026 kommen
+        // Stadtteile als `stadtviertel` herein, und mit `=== 'gebaeude'` wuerden sie hier zu
+        // Siedlungen -- und damit zu „Wiki-Ort fehlt auf der Karte".
+        if (avesmapsIstBauwerksklasse((string) ($record['settlement_class'] ?? ''))) {
             $gebaeudeFiltered++;
             continue;
         }

@@ -846,20 +846,11 @@ function avesmapsWikiDumpSettlementConflictsGenerate(
     $settlementRecordsAll = $settlementRecordsOverride
         ?? avesmapsWikiDumpSettlementRecordsFromSandbox($pdo, avesmapsWikiDumpSyncKindResolveDumpRunId($pdo));
 
-    // gebaeude are buildings, not settlements -- drop them so they never inflate
-    // type_conflict/unresolved (identical to the dry-run orchestration).
-    $settlementRecords = [];
-    foreach ($settlementRecordsAll as $record) {
-        if (!is_array($record)) {
-            continue;
-        }
-        if ((string) ($record['settlement_class'] ?? '') === 'gebaeude') {
-            continue;
-        }
-        $settlementRecords[] = $record;
-    }
-
-    $wikiPlaces = avesmapsWikiDumpDryRunWikiPlacesFromRecords($settlementRecords);
+    // Bauwerke (gebaeude UND stadtviertel) sind keine Siedlungen -- sie fallen heraus, damit sie
+    // type_conflict/unresolved nie aufblaehen. Gefiltert wird in DER Funktion, die auch der Stepper
+    // nimmt: hier stand dieselbe Schleife ein zweites Mal, und beim Stadtteil haette sie anders
+    // entschieden als ihr Zwilling.
+    $wikiPlaces = avesmapsWikiDumpSettlementWikiPlacesFromRecords($settlementRecordsAll);
     $matchResult = avesmapsWikiDumpDryRunMatchMapPlaces($mapPlaces, $wikiPlaces);
     $missingPlaces = avesmapsWikiDumpDryRunMissingWikiPlaces($wikiPlaces, $matchResult['matched_titles']);
     $casesByType = avesmapsWikiDumpSettlementBuildSharpCases($matchResult, $mapPlaces, $missingPlaces);
@@ -1088,7 +1079,9 @@ function avesmapsWikiDumpSettlementWikiPlacesFromRecords(array $settlementRecord
         if (!is_array($record)) {
             continue;
         }
-        if ((string) ($record['settlement_class'] ?? '') === 'gebaeude') {
+        // Das MERKMAL, nicht der eine Wert: ein Stadtteil (`stadtviertel`) ist so wenig eine
+        // Siedlung wie ein Gebaeude (Kopf von ortsklassen.php).
+        if (avesmapsIstBauwerksklasse((string) ($record['settlement_class'] ?? ''))) {
             continue;
         }
         $settlementRecords[] = $record;

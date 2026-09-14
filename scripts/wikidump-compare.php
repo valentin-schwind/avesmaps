@@ -90,8 +90,8 @@ declare(strict_types=1);
  * avesmapsWikiDumpParse*Page() functions, so they carry the SAME field names):
  *   paths       wiki_key   <-> wiki_path_staging.wiki_key       (UNIQUE)
  *   regions     wiki_key   <-> wiki_region_staging.wiki_key     (UNIQUE)
- *   settlements title      <-> wiki_sync_pages.title            (UNIQUE, class<>gebaeude)
- *   buildings   title      <-> wiki_sync_pages.title            (UNIQUE, class =gebaeude)
+ *   settlements title      <-> wiki_sync_pages.title            (UNIQUE, keine Bauwerksklasse)
+ *   buildings   title      <-> wiki_sync_pages.title            (UNIQUE, Bauwerksklasse: gebaeude/stadtviertel)
  *   territories wiki_key   <-> political_territory_wiki.wiki_key (UNIQUE; 'wiki:'+slug)
  *
  * NOTE ON DUMP PASSES (plain mode only): the collectors consume an iterable ONCE,
@@ -539,22 +539,26 @@ function avesmapsWikiDumpSelectRegions(PDO $pdo): array
     return avesmapsWikiDumpFetchKeyed($pdo, $sql, 'wiki_key');
 }
 
-/** @return array<string, array<string,mixed>> title => row (settlements, class<>gebaeude). */
+/** @return array<string, array<string,mixed>> title => row (settlements, keine Bauwerksklasse). */
 function avesmapsWikiDumpSelectSettlements(PDO $pdo): array
 {
+    // Das MERKMAL, nicht der eine Wert (Kopf von api/_internal/ortsklassen.php): seit 14.09.2026
+    // kommen Stadtteile als `stadtviertel` herein, und mit `<> 'gebaeude'` zaehlte dieser Vergleich
+    // sie als Siedlungen -- er meldete dann fehlende Bauwerke und ueberzaehlige Siedlungen, obwohl
+    // nichts falsch ist.
     $sql = "SELECT title, normalized_key, settlement_class, coordinates_json, continent,
                    coat_url, coat_license_status
             FROM " . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . "
-            WHERE settlement_class IS NULL OR settlement_class <> 'gebaeude'";
+            WHERE settlement_class IS NULL OR " . avesmapsBauwerksklassenSql('settlement_class', true);
     return avesmapsWikiDumpFetchKeyed($pdo, $sql, 'title');
 }
 
-/** @return array<string, array<string,mixed>> title => row (buildings, class=gebaeude). */
+/** @return array<string, array<string,mixed>> title => row (buildings, Bauwerksklassen). */
 function avesmapsWikiDumpSelectBuildings(PDO $pdo): array
 {
     $sql = "SELECT title, normalized_key, building_type, is_ruined
             FROM " . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . "
-            WHERE settlement_class = 'gebaeude'";
+            WHERE " . avesmapsBauwerksklassenSql('settlement_class');
     return avesmapsWikiDumpFetchKeyed($pdo, $sql, 'title');
 }
 
