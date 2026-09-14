@@ -236,7 +236,9 @@ const huegel = {
 avesmapsGaretienStageHinzufuegen([huegel]);
 const mHuegel = garetienEingefuegtWirdMarkup(huegel);
 
-wahr(mHuegel.includes("Eingefügt wird"), "die Ueberschrift fehlt");
+// 🔴 Seit dem 14.09.2026 heisst der Kasten nicht mehr „Eingefügt wird": er ist in die Bloecke C, D und E
+// der Einzelansicht zerfallen (Bauplan 2026-09-14, Aufgabe 11).
+wahr(mHuegel.includes('<span class="gi-block__zahl">C</span>Ziel &amp; Identität'), "die Ueberschrift von Block C fehlt");
 // 🔴 Fuenf-Punkte-Brief 30.08.2026, Punkt 3: „huegelland" ist seither aufgeloest -- die Kopfzeile
 // zeigt „Hügelland" (avesmapsLabelArtName, js/ui/label-arten.js), nicht mehr den rohen Schluessel.
 // 🔴 Punkt 4: diese Kopfzeile ist die EINZIGE verbliebene Stelle -- im Kopf der Einzelansicht steht
@@ -360,7 +362,7 @@ wahr(mSee.includes('style="left: ' + markeSeeAb + ';"'),
 	"'see' zeigt die Marke an SEINER eigenen Position (4 von 0..7): " + mSee);
 
 // ---- Wiki und Quellen: die Quelle zieht HIERHER (nicht mehr als eigener Abschnitt danach) ------
-wahr(mHuegel.includes("Wiki und Quellen"), "die Unterueberschrift fehlt");
+wahr(mHuegel.includes('<span class="gi-block__zahl">E</span>Wiki &amp; Quellen'), "die Ueberschrift von Block E fehlt");
 wahr(mHuegel.includes("Die Quelle, die mitreist"), "die Quelle muss weiterhin irgendwo stehen");
 wahr(mHuegel.includes("Briefspiel (Garetien)"), "die Quellen-Beschriftung fehlt");
 
@@ -493,18 +495,16 @@ avesmapsGaretienStageHinzufuegen([stadt]);
 wahr(garetienEingefuegtWirdMarkup(stadt).includes("erscheint ab Zoom 0"),
 	"'stadt' erscheint ab Zoom 0 -- eine andere Zahl als 'dorf' (2), sonst waere es Vakuum");
 
-// ---- Punkt 6a: ein UEBERNOMMENER Ort ist angelegt -- alle vier Felder gesperrt.
+// ---- Punkt 6a (Stand 14.09.2026): ein UEBERNOMMENER Ort traegt KEINEN Einstellblock mehr (Bestand,
+// Owner: an einem uebernommenen Objekt fehlen die Bloecke C bis E). Bis dahin standen hier sechs
+// gesperrte Bedienelemente; wo es liegt und ob es zurueckgeht, steht seither in Block A
+// (garetien-detailspalte-reihenfolge.test.js, Abschnitt 6).
 const ortUebernommen = Object.assign({}, ort, {
 	key: "ggp:Sonstiges:Dorf:Garetien:Testdorf-uebernommen", stand: "uebernommen",
 });
 avesmapsGaretienStageHinzufuegen([ortUebernommen]);
-const mOrtUeb = garetienEingefuegtWirdMarkup(ortUebernommen);
-// 🔴 SEIT 01.09.2026 SECHS: die vier Bedienelemente des Ortes UND die zwei Auswahlfelder der
-// Zielwahl. Ein bereits angelegtes Objekt hat nichts mehr zu entscheiden -- auch nicht, was es
-// haette werden sollen (Owner 30.08.2026, Punkt 6a: „die editoren sollen dann das objekt auf der
-// karte editieren").
-gleich((mOrtUeb.match(/disabled/g) || []).length, 6,
-	"alle sechs Bedienelemente sind gesperrt, sobald der Ort auf der Karte liegt: " + mOrtUeb);
+gleich(garetienEingefuegtWirdMarkup(ortUebernommen), "",
+	"ein uebernommener Ort traegt keinen Einstellblock, auch auf der Stage");
 
 // Keine "Vorgabe der Art"-Behauptung -- fuer diese vier Felder gibt es keine Tafel, eine erfundene
 // Empfehlung waere die zweite Wahrheit, vor der AGENTS.md warnt.
@@ -533,7 +533,7 @@ wahr(!mWeg.includes("Fläche") && !mWeg.includes("class=\"gi-insert__sub\">Besch
 	&& !mWeg.includes('class="gi-insert__sub">Ort<'),
 	"ein Weg bekommt keinen der drei ANDEREN Kartenobjekt-Unterabschnitte");
 wahr(mWeg.includes('class="gi-insert__sub">Weg<'), "die Weg-Unterueberschrift fehlt");
-wahr(mWeg.includes("Wiki und Quellen") && mWeg.includes("Die Quelle, die mitreist"),
+wahr(mWeg.includes('<span class="gi-block__zahl">E</span>Wiki &amp; Quellen') && mWeg.includes("Die Quelle, die mitreist"),
 	"Quelle bleibt fuer JEDES Ziel gueltig, auch fuer einen Weg");
 wahr(!mWeg.includes("Wiki-Landschaft"), "Wiki-Landschaft gilt nur Regionen, nicht Wegen");
 
@@ -622,19 +622,13 @@ wahr(!mWeg.includes('data-gi-feld="seasons"') && !mWeg.includes('data-gi-feld="f
 wahr(!mPfad.includes("Strömung") && !mStrasse.includes("Strömung"),
 	"ein Pfad/eine Strasse fuehrt keine Stroemung -- die Zeile darf dort gar nicht erscheinen");
 
-// ---- Punkt 6a: ein UEBERNOMMENER Weg ist angelegt -- alles gesperrt (1 Haken + 2 Verkehrsmittel).
+// ---- Punkt 6a (Stand 14.09.2026): ein UEBERNOMMENER Weg traegt KEINEN Einstellblock mehr (Bestand, Owner).
 const wegUebernommen = Object.assign({}, weg, {
 	key: "ggp:Gewaesser:Fluss:Garetien:Testfluss-uebernommen", stand: "uebernommen",
 });
 avesmapsGaretienStageHinzufuegen([wegUebernommen]);
-// 🔴 SEIT 01.09.2026 FUENF: Anzeige-Haken, beide Verkehrsmittel UND die zwei Auswahlfelder der
-// Zielwahl -- an einem angelegten Objekt ist auch die Form nicht mehr zu entscheiden.
-// 🔴 SEIT 02.09.2026 SIEBEN: dazu das Häkchen „Kreuzung an Anfang und Ende" und der
-// Strömungsknopf. An einem angelegten Weg ist auch die Strömungsrichtung nicht mehr hier zu
-// entscheiden -- dafür gibt es „Weg bearbeiten" auf der Karte (Owner 30.08.2026, Punkt 6a).
-gleich((garetienEingefuegtWirdMarkup(wegUebernommen).match(/disabled/g) || []).length, 7,
-	"beim uebernommenen Flussweg sind Anzeige-Haken, Kreuzungen, Stroemung, beide Verkehrsmittel "
-	+ "und die Zielwahl gesperrt");
+gleich(garetienEingefuegtWirdMarkup(wegUebernommen), "",
+	"ein uebernommener Weg traegt keinen Einstellblock, auch auf der Stage");
 
 // =================================================================================================
 // F2. Ein BACH (ziel='path', is_bach) -- Owner 30.08.2026: „der jetzt bäche importieren soll".
@@ -1184,8 +1178,8 @@ async function pruefeWikiLandschaftVerdrahtung() {
 }
 
 // =================================================================================================
-// M. Ein UEBERNOMMENES Objekt (Fuenf-Punkte-Brief 30.08.2026, Punkt 6) -- ALLE Felder werden reine
-//    Anzeige, UND ein Hinweis sagt, ob es sich zuruecknehmen laesst (und wenn nicht, warum).
+// M. Ein UEBERNOMMENES Objekt (Fuenf-Punkte-Brief 30.08.2026, Punkt 6; Bestand, Owner 14.09.2026) --
+//    keine Bloecke C bis E, und ein Hinweis in Block A sagt, ob es sich zuruecknehmen laesst.
 // =================================================================================================
 
 const huegelUebernommenFaehig = Object.assign({}, huegel, {
@@ -1197,49 +1191,37 @@ const huegelUebernommenFaehig = Object.assign({}, huegel, {
 });
 avesmapsGaretienStageHinzufuegen([huegelUebernommenFaehig]);
 const mHuegelFaehig = garetienEingefuegtWirdMarkup(huegelUebernommenFaehig);
+// Nur Block A der Spalte -- F traegt denselben Ruecknahme-Grund, und eine Probe ueber die ganze Spalte
+// waere durch F gruen, auch wenn A den Satz verloere.
+const nurA = (spalte) => spalte.slice(0, spalte.indexOf('<span class="gi-block__zahl">F</span>'));
 
-// ---- 6a: der Kasten zeigt weiterhin die ECHTEN Steuerelemente -- nur DEAKTIVIERT, nicht entfernt
-// (ein Editor soll sehen, was beim Einfuegen galt, auch wenn er es hier nicht mehr aendern kann).
-wahr(mHuegelFaehig.includes('type="checkbox"') && mHuegelFaehig.includes('type="number"')
-	&& mHuegelFaehig.includes('type="range"'),
-	"der Kasten muss weiterhin die echten Steuerelemente zeigen -- nur deaktiviert, nicht entfernt");
-[
-	["isLocked", "Fläche/für Klicks gesperrt"], ["isNodix", "Nodix"],
-	["curveLabel", "Kurvenbeschreibung"], ["showName", "Auf Karte anzeigen"],
-].forEach(function ([feld, name]) {
-	gleich(istDeaktiviert(mHuegelFaehig, garetienEingabeId(huegelUebernommenFaehig, feld)), true,
-		"das Häkchen „" + name + "\" muss bei einem übernommenen Objekt deaktiviert sein");
-});
-["size", "priority", "minZoom", "maxZoom"].forEach(function (feld) {
-	gleich(istDeaktiviert(mHuegelFaehig, garetienEingabeId(huegelUebernommenFaehig, feld)), true,
-		"das Zahlenfeld „" + feld + "\" muss bei einem übernommenen Objekt deaktiviert sein");
-});
+// ---- 6a: SEIT DEM 14.09.2026 KEINE BLOECKE C BIS E MEHR (Bestand, Owner). Bis dahin zeigte der Kasten
+// die echten Steuerelemente gesperrt -- sie liessen sich nirgends mehr aendern und sagten nur, was beim
+// Einfuegen galt. Geaendert wird ein angelegtes Objekt auf der Karte.
+gleich(mHuegelFaehig, "", "ein uebernommenes Objekt traegt keinen Einstellblock, auch auf der Stage: " + mHuegelFaehig);
 
-// ---- DIE DIFFERENZ, ohne die die Zusicherungen oben Vakuum waeren: DASSELBE Objekt, NICHT
-// übernommen, hat dieselben Felder BEDIENBAR.
+// ---- DIE DIFFERENZ, ohne die die Zeile darueber Vakuum waere: DASSELBE Objekt, NICHT übernommen und auf
+// der Stage, hat seine Felder BEDIENBAR.
 const huegelOffen = Object.assign({}, huegel, { key: "ggp:Berge:Huegel:Garetien:Testhuegel-offen" });
 avesmapsGaretienStageHinzufuegen([huegelOffen]);
 const mHuegelOffen = garetienEingefuegtWirdMarkup(huegelOffen);
 gleich(istDeaktiviert(mHuegelOffen, garetienEingabeId(huegelOffen, "isLocked")), false,
-	"ohne 'uebernommen' bleibt dasselbe Häkchen bedienbar -- die Zusicherungen oben prüfen wirklich etwas");
+	"ohne 'uebernommen' ist dasselbe Häkchen da und bedienbar");
 gleich(istDeaktiviert(mHuegelOffen, garetienEingabeId(huegelOffen, "size")), false,
-	"ohne 'uebernommen' bleibt dasselbe Zahlenfeld bedienbar");
+	"ohne 'uebernommen' ist dasselbe Zahlenfeld da und bedienbar");
 
-// ---- 6b: der Hinweis, RÜCKNAHMEFÄHIGER Fall -- liest DIESELBE Regel wie der Rücknahme-Knopf am
-// Fuß der Ansicht (garetienRuecknahmeBauen), formuliert sie nicht neu.
-wahr(mHuegelFaehig.includes("Liegt bereits auf der Karte."),
-	"der Hinweis muss sagen, dass es schon auf der Karte liegt");
-wahr(mHuegelFaehig.includes("Zurücknehmen"),
-	"und dass es sich zurücknehmen lässt -- derselbe Knopfname wie am Fuß der Ansicht");
+// ---- 6b: der Hinweis -- seit dem 14.09.2026 in Block A der Einzelansicht („Auf der Karte" ist genau seine
+// Frage). Er liest DIESELBE Regel wie der Rücknahme-Knopf in Block F.
+const spalteFaehig = mod.garetienDetailMarkup(huegelUebernommenFaehig, null, false);
+wahr(nurA(spalteFaehig).includes("Liegt bereits auf der Karte."),
+	"der Hinweis in Block A sagt, dass es schon auf der Karte liegt: " + spalteFaehig);
+wahr(nurA(spalteFaehig).includes("Kann mit „Zurücknehmen&quot; wieder entfernt werden."),
+	"und dass es sich zurücknehmen lässt -- derselbe Knopfname wie in Block F");
 gleich(garetienEingefuegtWirdUebernommenHinweis(huegelOffen), "",
 	"ohne 'uebernommen' gibt es keinen Hinweis -- er wäre eine Behauptung über etwas, das nicht gilt");
 
-// ---- 6b, DIE GEGENPROBE: NICHT rücknahmefähig -- WORTGLEICH zum Rücknahme-Knopf, nicht neu
-// formuliert (Owner: „Lies dieselbe Regel"). Derselbe Fall wie changedUebernommen in
-// garetien-handlungen.test.js: ein 'changed'-Item hat ein bestehendes Objekt verändert, und das
-// mitgelieferte 'new'-Zusatz-Item (Owner-Sprache: „trotzdem neu anlegen") wurde nie angewendet --
-// GENAU der Fall, der den Kasten trotzdem zeigt (er braucht nur IRGENDEIN 'new'-Item), aber keine
-// Rücknahme erlaubt.
+// ---- 6b, DIE GEGENPROBE: NICHT rücknahmefähig -- WORTGLEICH zum Rücknahme-Knopf, nicht neu formuliert.
+// Ein 'changed'-Item hat ein bestehendes Objekt verändert, das 'new'-Zusatz-Item wurde nie angewendet.
 const huegelUebernommenUnfaehig = Object.assign({}, huegel, {
 	key: "ggp:Berge:Huegel:Garetien:Testhuegel-uebernommen-unfaehig",
 	stand: "uebernommen",
@@ -1248,12 +1230,11 @@ const huegelUebernommenUnfaehig = Object.assign({}, huegel, {
 		{ id: 903, change_type: "new", anlass: "zusatz", apply_state: "offen" },
 	],
 });
-avesmapsGaretienStageHinzufuegen([huegelUebernommenUnfaehig]);
-const mHuegelUnfaehig = garetienEingefuegtWirdMarkup(huegelUebernommenUnfaehig);
-wahr(mHuegelUnfaehig.includes("Liegt bereits auf der Karte."),
-	"auch hier steht, dass es schon auf der Karte liegt");
-wahr(mHuegelUnfaehig.includes("Verändert ein bestehendes Objekt — nicht rücknehmbar."),
-	"und WARUM es sich nicht zurücknehmen lässt -- wortgleich zum Rücknahme-Knopf am Fuß");
+const spalteUnfaehig = mod.garetienDetailMarkup(huegelUebernommenUnfaehig, null, false);
+wahr(nurA(spalteUnfaehig).includes("Liegt bereits auf der Karte."),
+	"auch hier steht in A, dass es schon auf der Karte liegt");
+wahr(nurA(spalteUnfaehig).includes("Verändert ein bestehendes Objekt — nicht rücknehmbar."),
+	"und WARUM es sich nicht zurücknehmen lässt -- wortgleich zum Rücknahme-Knopf");
 gleich(
 	garetienEingefuegtWirdUebernommenHinweis(huegelUebernommenUnfaehig).includes(
 		mod.garetienRuecknahmeBauen(huegelUebernommenUnfaehig).grund
@@ -1262,10 +1243,7 @@ gleich(
 	"der Hinweis liest WIRKLICH garetienRuecknahmeBauen -- zwei Fassungen derselben Auskunft liefen "
 		+ "an diesem Fenster schon einmal auseinander"
 );
-// Die Felder bleiben deaktiviert -- die Sperre hängt am STAND ('uebernommen'), nicht daran, ob
-// sich das Objekt zurücknehmen lässt.
-gleich(istDeaktiviert(mHuegelUnfaehig, garetienEingabeId(huegelUebernommenUnfaehig, "isLocked")), true,
-	"die Felder bleiben deaktiviert, auch wenn das Objekt NICHT zurücknehmbar ist");
+gleich(garetienEingefuegtWirdMarkup(huegelUebernommenUnfaehig), "", "und auch hier kein Einstellblock");
 
 pruefeWikiLandschaftVerdrahtung().then(function () {
 	console.log("garetien-eingefuegt-wird: " + checks + " Pruefungen bestanden.");

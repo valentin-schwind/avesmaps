@@ -146,15 +146,15 @@ tief(namen(innerorts), ["stage", "ablehnen"],
 // =================================================================================================
 // 6. Die Knopfleiste sagt, FUER WEN sie gilt (Owner-Meldung „ablehnen geht generell nicht").
 // =================================================================================================
-// ⚠️ Im Markup steht „Dieses Objekt" in Satzschreibung -- die Versalien macht `.gi-sec`
-//    (text-transform: uppercase), genau wie bei „Der Grund" und „Was bei uns … liegt" darueber.
-//    Ein Test, der hier „DIESES OBJEKT" suchte, verlangte eine zweite, abweichende Schreibweise.
+// ⚠️ Im Markup steht „Handlung" in Satzschreibung -- die Versalien macht `.gi-block__kopf`
+//    (text-transform: uppercase), wie bei den uebrigen sechs Bloecken. Bis zum 14.09.2026 hiess die
+//    Ueberschrift „Dieses Objekt" (Bauplan 2026-09-14, Aufgabe 11).
 const markup = garetienHandlungsMarkup(offenMitVorschlag);
-wahr(markup.includes("Dieses Objekt"), "die Ueberschrift steht ueber der Leiste");
-wahr(markup.indexOf("Dieses Objekt") < markup.indexOf("data-handlung"),
+wahr(markup.includes('<span class="gi-block__zahl">F</span>Handlung</p>'), "die Ueberschrift steht ueber der Leiste");
+wahr(markup.indexOf("Handlung</p>") < markup.indexOf("data-handlung"),
 	"…und zwar VOR dem ersten Knopf");
-wahr(markup.includes('class="gi-sec gi-acts__titel"'),
-	"in derselben Form wie „Der Grund\" darueber");
+wahr(markup.includes('class="gi-block__kopf gi-acts__titel"'),
+	"in derselben Form wie jeder andere Blockkopf");
 
 // =================================================================================================
 // 7. 💣 DER STILLE AUSGANG MELDET SEINEN GRUND (Owner-Punkt 15, dritter Erzeuger).

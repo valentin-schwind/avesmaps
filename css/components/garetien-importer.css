@@ -804,26 +804,9 @@ html.avesmaps-planner-collapsed .gi-win {
 .leaflet-pane > svg path.leaflet-interactive.gi-map-auswahl { pointer-events: stroke; }
 
 
-.gi-sec {
-	margin: 0 0 var(--space-2);
-	max-width: none;
-	padding-top: var(--space-6);
-	border-top: 1px solid var(--color-divider);
-	font-size: var(--font-size-caption);
-	letter-spacing: .06em;
-	text-transform: uppercase;
-	font-weight: var(--font-weight-bold);
-	color: var(--color-accent-strong);
-}
-
-.gi-sec__note {
-	display: block;
-	margin-top: 1px;
-	letter-spacing: 0;
-	text-transform: none;
-	font-weight: var(--font-weight-regular);
-	color: var(--color-text-muted);
-}
+/* 🪴 `.gi-sec` ist am 14.09.2026 gefallen (Aufgabe 11): jede Ueberschrift der Einzelansicht ist
+   seither ein Blockkopf (`.gi-block__kopf`). Eine `.gi-sec` IM Block zoege eine zweite Trennlinie
+   mitten hinein. */
 
 /* Ein Abschnitt UNSERES Objekts, mit eigenem Haekchen -- der Kern von Auftrag §4.1.
  * 🔴 `.gi-seg` ist KEINE dritte Listenrezeptur (AGENTS.md §11 laesst genau zwei zu). Sie steht
@@ -1022,13 +1005,6 @@ html.avesmaps-planner-collapsed .gi-win {
 .gi-insert__row--aus > span:first-child { color: var(--color-disabled-text); }
 
 /* ══ VERTRAG ENDE ══ */
-
-/* Uebergangsort bis Aufgabe 11: die Zielwahl steht in der Handlungsleiste, und `.gi-acts` ist eine
-   umbrechende flex-ZEILE -- ohne volle Basis schrumpfte die Liste auf ihre Inhaltsbreite und zoege die
-   naechste Zeile daneben (dieselbe Regel wie `.gi-acts .gi-insert__row` weiter unten).
-   ⚠️ Ausserhalb des Vertrags: das Mockup zeigt die Liste in Block C, nicht in der Leiste.
-   🔧 Aufgabe 11 entfernt diese Regel, wenn die Zielwahl in Block C umzieht. */
-.gi-acts > .gi-ziel { flex: 1 0 100%; }
 
 /* ---- Aufgabe „Eingefügt wird -> Eingabefelder" (30.08.2026, Owner: „warum darf ich das nicht
  * verändern?") -- Größe/Priorität/Zoomband/Kurvenbeschreibung/Auf Karte anzeigen/für Klicks
@@ -1270,6 +1246,74 @@ html.avesmaps-planner-collapsed .gi-win {
 	pointer-events: none;
 }
 
+/* ══ VERTRAG: css/components/garetien-importer.css ══ gebunden von docs/garetien-import-vereint-mockup.html
+   (Aufgabe 11 des Bauplans 2026-09-14): die sieben Bloecke der Einzelansicht. Geaendert wird ein Wert IM
+   MOCKUP, der Produktivcode zieht nach -- nie umgekehrt; tools/mockup-vertrag haelt beide im Deploy-Tor
+   gegeneinander. Die Zielwahl und die abgeblendete Zeile bindet ein eigener Block (Aufgabe 9).
+   ⚠️ Das Werkzeug prueft DEKLARATIONEN, keine Spezifitaet. Zwei Regeln dieser Datei haetten die Bloecke
+   ueberstimmt und sind deshalb im selben Umbau gefallen: `.gi-detail > .gi-acts` (0,2,0 gegen `.gi-block`
+   0,1,0 -- F bekam 8 statt 12 px Aussenabstand) und `.gi-win .avm-col > .gi-naehe` (G stand ausserhalb
+   der Bildlaufrinne und damit weiter links). Gegengemessen wird im Browser (Bauplan, Aufgabe 11 Schritt 5).
+   💣 Die Zahl im Kreis steht auf `--font-size-caption` (11 px), nicht auf den 9 px des Verbund-Mockups --
+   9 px liegen unter der Untergrenze aus AGENTS.md §12. Der Kreis waechst dafuer auf 18 px.
+   💣 DIE STELLE IST TRAGEND: hinter der Zielwahl (Aufgabe 9) und unmittelbar VOR dem Abschnitt der
+   Handlungsleiste (Aufgabe 15). Gleich spezifisch gewinnt die spaetere Regel -- dahinter stehen deshalb
+   nur Regeln, die an keinem Element eines Blocks eine Eigenschaft dieses Blocks setzen (`.gi-acts`,
+   `.gi-acts__titel`, `.gi-acts__grund`, `.gi-acts__knoepfe`, `.gi-naehe`; ausgefuehrt geprueft in
+   garetien-detailspalte-reihenfolge.test.js, Abschnitt 10). Noch spaeter geht nicht:
+   garetien-handlungen.test.js haelt alles ab „Aufgabe 15" an dessen Regeln (keine px-Werte), und der
+   Kreis ist ein Pixelmass, das der Vertrag bindet. */
+.gi-block {
+	margin-top: var(--space-10);
+	padding-top: var(--space-6);
+	border-top: 1px solid var(--color-divider);
+}
+
+.gi-block--erster {
+	margin-top: 0;
+	padding-top: 0;
+	border-top: 0;
+}
+
+.gi-block.gi-acts {
+	padding-left: 0;
+	padding-right: 0;
+}
+
+.gi-block__kopf {
+	display: flex;
+	align-items: center;
+	gap: var(--space-6);
+	margin: 0 0 var(--space-4);
+	font-size: var(--font-size-caption);
+	letter-spacing: .06em;
+	text-transform: uppercase;
+	color: var(--color-accent-brown);
+	font-weight: var(--font-weight-bold);
+}
+
+.gi-block__zahl {
+	flex: none;
+	width: 18px;
+	height: 18px;
+	display: grid;
+	place-items: center;
+	border: 1px solid var(--color-accent-brown);
+	border-radius: 50%;
+	font-size: var(--font-size-caption);
+	line-height: 1;
+	letter-spacing: 0;
+}
+
+.gi-block__note {
+	margin-left: auto;
+	letter-spacing: 0;
+	text-transform: none;
+	font-weight: var(--font-weight-regular);
+	color: var(--color-text-muted);
+}
+/* ══ VERTRAG ENDE ══ */
+
 /* ---- Aufgabe 15: die Handlungsleiste ------------------------------------------------------ *
  *
  * 🔴 SIE IST ANGEHEFTET, NICHT IM FLUSS. Die Entscheidung darf nie hinter einer Bildlaufleiste
@@ -1291,17 +1335,9 @@ html.avesmaps-planner-collapsed .gi-win {
 	gap: var(--space-2);
 }
 
-/* 🔴 SEIT 09.09.2026 ROLLT SIE MIT, statt unten zu kleben (Owner: „dass dieser teil sticky
-   und nicht ueber ‚Eingefuegt wird‘ … steht“). Der Selektor traf ein DIREKTES Kind der Spalte;
-   die Leiste steht jetzt in `.gi-detail`, also greift er nicht mehr -- ohne diesen Umbau waere er
-   eine tote Regel.
-   ⚠️ Trennlinie und Polster bleiben: sie setzen den Kasten von der Begruendung darueber ab, und
-   genau das ist seine Aufgabe -- er ist die Stelle, an der man das Objekt einstellt. */
-.gi-detail > .gi-acts {
-	margin-top: var(--space-6);
-	padding-top: var(--space-6);
-	border-top: 1px solid var(--color-divider);
-}
+/* 💣 `.gi-detail > .gi-acts` IST AM 14.09.2026 GEFALLEN (Aufgabe 11). Seit die Leiste Block F ist,
+   setzt `.gi-block` sie ab -- und die alte Regel (0,2,0) schlug `.gi-block` (0,1,0): F bekam 8 statt
+   12 px Aussenabstand und stand damit enger an E als jeder andere Block an seinem Vorgaenger. */
 
 /* „Ablehnen" traegt Rot als SCHRIFT, nicht als Fuellung: ein rot gefuellter Knopf in einer
    Ansicht, deren Haupthandlung im Fuss steht, zoege den Blick auf den Ausgang statt auf die
@@ -1445,14 +1481,12 @@ html.avesmaps-planner-collapsed .gi-win {
 	border-top: 0;
 }
 
-/* Die zwei Einfuege-Haekchen und die Knopfreihe darunter (Owner 09.09.2026: „Von der Stage
-   nehmen + Ablehnen soll in eine 2. Zeile unter die checkboxen").
+/* Die Knopfreihe (Owner 09.09.2026: „Von der Stage nehmen + Ablehnen soll in eine 2. Zeile …").
    🔴 `flex: 1 0 100%` wie beim Titel darueber -- .gi-acts ist eine flex-ZEILE, dort ist die
    Basis die BREITE. (In einer flex-SPALTE waere dieselbe Zeile die Hoehe und wuerde den Kasten
    aufblasen -- die Falle, die den Routenplaner am 05.09.2026 am Telefon zerlegt hat.)
-   💣 Die Knoepfe brauchen ihre EIGENE Huelle: als Geschwister der Haekchen-Absaetze zieht der
-   Umbruch der Leiste sie neben einen Haken, sobald einer kurz ist. */
-.gi-acts .gi-insert__row { flex: 1 0 100%; }
+   🪴 `.gi-acts .gi-insert__row` und `.gi-acts > .gi-ziel` sind am 14.09.2026 gefallen (Aufgabe 11):
+   Zielwahl und Namensfeld stehen seither in Block C, in der Leiste steht keine Eingabezeile mehr. */
 
 .gi-acts__knoepfe {
 	flex: 1 0 100%;
@@ -1498,14 +1532,10 @@ html.avesmaps-planner-collapsed .gi-win {
 
 /* ---- Owner-Auftrag A (30.08.2026): "Imports in der Naehe anzeigen" ----------------------- *
  *
- * 🔴 GESCHWISTER von `.gi-acts`, aus demselben Grund: sie ist Bedienung, keine Ansicht, und darf
- *    nie unter der Handlungsleiste hinter der Bildlaufleiste von `.gi-detail` verschwinden --
- *    sie ist deshalb NIE ihr Kind, sondern steht als eigener `flex: none`-Block im Markup direkt
- *    danach ("unter den vorhandenen Knöpfen", Auftrag).
- * 🔴 EIGENE Trennlinie (`border-top`), keine Fortsetzung derselben Zeile: sie beantwortet eine
- *    ANDERE Frage als „Neu einfügen"/„Ablehnen" (nicht "was tun mit DIESEM Vorschlag", sondern
- *    "was liegt sonst noch in der Nähe") -- Gruppierung durch Trennlinie, nicht durch einen
- *    Rahmen (AGENTS.md §12).
+ * 🔴 SEIT DEM 14.09.2026 BLOCK G „Weiter importieren" (Entwurf 2026-09-14 §3) -- ein Kind von
+ *    `.gi-detail` wie die uebrigen sechs. Trennlinie und Einzug kommen vom Block, nicht von hier.
+ * 🔴 Es bleibt ein Werkzeug fuer die LISTE, keine Einstellung dieses Objekts -- deshalb als
+ *    einziger Block auch auf „Offen" bedienbar.
  */
 .gi-naehe {
 	display: flex;
@@ -1514,11 +1544,9 @@ html.avesmaps-planner-collapsed .gi-win {
 	gap: var(--space-2);
 }
 
-.gi-win .avm-col > .gi-naehe {
-	flex: none;
-	padding: var(--space-6) var(--space-12);
-	border-top: 1px solid var(--color-divider);
-}
+/* 💣 `.gi-win .avm-col > .gi-naehe` IST AM 14.09.2026 GEFALLEN (Aufgabe 11): „Weiter importieren" ist
+   Block G IN `.gi-detail`. Als Geschwister darunter lag ihr Kopf ausserhalb der Bildlaufrinne
+   (`scrollbar-gutter: stable both-edges`) und fluchtete nicht mit A bis F. */
 
 /* Aufgabe 13 (07.09.2026): der Typenfilter des Naehe-Knopfs -- ein natives `<select>`, dieselbe
  * Begruendung wie bei `.gi-zeilen` (Tastatur, Vorlesehilfe, Systemverhalten gratis). Anders als

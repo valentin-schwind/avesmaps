@@ -158,7 +158,7 @@ const objektMitHandlungen = {
 	geometrie: [[5, 5]],
 };
 const ganzesMarkup = garetienDetailMarkup(objektMitHandlungen, null, true);
-const posActs = ganzesMarkup.indexOf('class="gi-acts"');
+const posActs = ganzesMarkup.indexOf('class="gi-block gi-acts"');
 const posNaehe = ganzesMarkup.indexOf('class="gi-naehe"');
 wahr(posActs !== -1 && posNaehe !== -1, "beide Bloecke muessen im Markup vorkommen: " + ganzesMarkup);
 wahr(posNaehe > posActs, "der Naehe-Knopf steht NACH (unter) der Handlungsleiste, nicht davor");

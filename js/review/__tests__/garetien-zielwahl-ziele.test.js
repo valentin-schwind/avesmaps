@@ -313,12 +313,16 @@ frisch();
 
 	const leiste = api.garetienHandlungsMarkup(b);
 	wahr(!leiste.includes("einfuegeNeu") && !leiste.includes("einfuegeQuelle"), "🔴 die zwei Häkchen sind weg");
-	wahr(leiste.indexOf('class="gi-ziel"') !== -1 && leiste.indexOf('class="gi-ziel"') < leiste.indexOf("gi-acts__knoepfe"),
-		"die Zielwahl steht über der Knopfzeile");
+	// 🔴 SEIT AUFGABE 11 (14.09.2026) STEHEN ZIELWAHL UND NAME IN BLOCK C „Ziel & Identität", nicht mehr über
+	// der Knopfzeile: sie beantworten, was entsteht, nicht, was jetzt passiert.
+	const blockC = api.garetienIdentitaetMarkup(b);
+	wahr(blockC.indexOf('class="gi-ziel"') !== -1 && leiste.indexOf('class="gi-ziel"') === -1,
+		"die Zielwahl steht in Block C, nicht in der Leiste: " + leiste);
 	tief(api.garetienHandlungen(b).map((k) => k.name), ["entstagen", "ablehnen"],
 		"🔴 kein „Innerorts einfügen\" mehr -- auch nicht mit Befund");
 	const nameId = "gi-feld-" + b.key + "-einfuegeName";
-	wahr(leiste.includes('gi-insert__row" for="' + nameId + '"'), "bei „Stätte\" ist der Name bedienbar");
+	wahr(blockC.includes('gi-insert__row" for="' + nameId + '"') && !leiste.includes(nameId),
+		"bei „Stätte\" ist der Name bedienbar -- in Block C, nicht in der Leiste");
 
 	api.avesmapsGaretienStageHinzufuegen([b]);
 	const kasten = api.garetienEingefuegtWirdMarkup(b);
@@ -327,8 +331,10 @@ frisch();
 	wahr(/data-gi-feld="zielForm"[^>]* disabled/.test(kasten), "…und gesperrt");
 	wahr(/data-gi-feld="isRuined"[^>]* disabled/.test(kasten),
 		"⚠️ …und die Darstellung des Ortes ebenso -- eine Stätte steht nicht auf der Karte");
-	gleich(kasten.indexOf('data-gi-feld="innerorts"'), -1,
-		"💣 die Siedlung steht NICHT noch einmal im Kasten -- zwei Felder trügen dieselbe id");
+	// Seit Aufgabe 11 ist der Kasten die Blöcke C, D und E -- die Zielwahl samt Siedlung steht in C.
+	gleich((kasten.match(/data-gi-feld="innerorts"/g) || []).length, 1,
+		"💣 die Siedlung steht GENAU EINMAL im Kasten -- zwei Felder trügen dieselbe id");
+	gleich((kasten.match(/data-gi-feld="einfuegeName"/g) || []).length, 1, "💣 …und das Namensfeld ebenso");
 }
 frisch();
 {
@@ -516,9 +522,9 @@ frisch();
 	gleich(api.garetienHandlungen(uebernommen)[0].name, "ruecknahme", "…und behält seine Rücknahme");
 	wahr(api.garetienEingefuegtWirdUebernommenHinweis(uebernommen).includes("Liegt bereits auf der Karte"),
 		"…und seinen Satz");
-	const kasten = api.garetienEingefuegtWirdMarkup(uebernommen);
-	gleich(kasten.indexOf("gi-insert__row--aus"), -1, "⚠️ der Kasten bleibt gesperrt OHNE Abblend-Zeile");
-	wahr(/data-gi-feld="zielForm"[^>]* disabled/.test(kasten), "…aber gesperrt wie vorher");
+	// 🔴 Seit Aufgabe 11 (Bestand, Owner 14.09.2026) trägt ein übernommenes Objekt KEINEN Einstellblock:
+	// die Blöcke C bis E fehlen, geändert wird es auf der Karte. Der Satz steht in Block A.
+	gleich(api.garetienEingefuegtWirdMarkup(uebernommen), "", "⚠️ …und keinen Einstellblock mehr, auch nicht gesperrt");
 
 	// Eine abgelehnte Zeile -- auch wenn sie noch auf der Stage läge.
 	const abgelehnt = { key: "ggp:Waelder:Wald:Garetien:Abgewiesen!Abgewiesen", stand: "abgelehnt",

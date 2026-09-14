@@ -121,7 +121,8 @@ frisch();
 	wahr(/data-gi-feld="zielForm"/.test(mk) && !/data-gi-feld="zielForm"[^>]* disabled/.test(mk),
 		"auf der Stage ist die Form bedienbar");
 	gleich(mk.indexOf("Erst auf der Stage einstellbar."), -1, "…und der Satz ist weg");
-	wahr(mk.includes("Wiki und Quellen"), "…und Block E steht da");
+	// Seit Aufgabe 11 (14.09.2026) ist „Wiki und Quellen" der Block E „Wiki & Quellen".
+	wahr(mk.includes('<span class="gi-block__zahl">E</span>Wiki &amp; Quellen'), "…und Block E steht da");
 }
 
 // =================================================================================================
@@ -178,11 +179,13 @@ frisch();
 		name: "Alter Forst", stand: "uebernommen", innerorts_uebernommen: false,
 		items: [{ id: 81, change_type: "new", anlass: "", felder: ["quelle"], selected: 1, apply_state: "done",
 			apply_note: "Wald-1234" }] });
+	// 🔴 SEIT AUFGABE 11 (14.09.2026, Bestand, Owner): KEIN Einstellblock mehr -- die Blöcke C bis E fehlen,
+	// der Satz, wo es liegt und ob es zurückgeht, steht in Block A.
 	const mk = api.garetienEingefuegtWirdMarkup(uebernommen);
-	wahr(/data-gi-feld="zielForm"[^>]* disabled/.test(mk), "🔴 übernommen: Form gesperrt wie vorher: " + mk);
-	wahr(mk.includes("Darstellung sowie Wiki"), "…mit dem Hinweis von vorher");
-	gleich(mk.indexOf("Erst auf der Stage einstellbar."), -1, "…und NICHT als Vorschlag");
-	wahr(mk.includes("Liegt bereits auf der Karte"), "…und mit seinem Satz");
+	gleich(mk, "", "🔴 übernommen: kein Einstellblock, auch nicht gesperrt: " + mk);
+	const spalteUeb = api.garetienDetailMarkup(uebernommen, null, false);
+	gleich(spalteUeb.indexOf("Erst auf der Stage einstellbar."), -1, "…und NICHT als Vorschlag");
+	wahr(spalteUeb.includes("Liegt bereits auf der Karte"), "…und mit seinem Satz, in Block A");
 	gleich(api.garetienHandlungen(uebernommen)[0].name, "ruecknahme", "…und seiner Rücknahme");
 
 	// Eine abgelehnte Zeile: „Wieder vorschlagen" bleibt; Auswahlfelder hatte sie nie wirksam.
