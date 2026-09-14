@@ -1404,7 +1404,9 @@ html.avesmaps-phone {
 	/* 🔴 Und wo sie umbricht, rollt sie nicht auf -- dieselbe Regel wie beim Hauptraster zwei Bloecke
 	   weiter unten: der Wisch gibt eine SENKRECHTE Kante frei, bei zwei Reihen also einen Streifen ueber
 	   beide. Die Staffelung traegt allein.
-	   ⚠️ Ohne `:has` gewaenne `.map-layer-picker__grund.is-open` weiter unten (spaeter, gleich stark). */
+	   ⚠️ Gegen `.map-layer-picker__grund.is-open` weiter unten (0,2,0) gewinnt sie ueber die SPEZIFITAET,
+	   nicht ueber die Reihenfolge: `:has` zaehlt sein Argument mit und hebt die Regel auf 0,3,0 -- ueber
+	   `.is-open`, obwohl sie frueher steht. */
 	.map-layer-picker__grund:has(> .map-layer-picker__cell:nth-child(4)) {
 		clip-path: none;
 		transition: none;

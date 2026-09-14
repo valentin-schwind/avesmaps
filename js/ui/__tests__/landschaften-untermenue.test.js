@@ -436,16 +436,40 @@ function baueWelt(einstellungen) {
 				wecker.clear();
 				alle.forEach((w) => w.fn());
 			}
-		}
+		},
+		/** Die Wartezeiten der noch gestellten Wecker, in ms -- fuer „wartet das Ueberfahren?" (G3). */
+		wartendeWecker: () => Array.from(wecker.values()).map((w) => w.ms)
 	};
 }
 
 const zellenWerte = (zellen, feld) => zellen.map((z) => z.dataset[feld]);
 const aktive = (zellen) => zellen.filter((z) => z.classList.contains("is-active")).map((z) => z.dataset.ebene);
 
+/**
+ * 🔴 A, B und D laufen fuer BEIDE Rollen. Die Owner-Regel „ein Klick auf eine Ebene waehlt -- fuer Besucher
+ * wie fuer Editoren" (14.09.2026) stand bis zum Review nur als Satz da: kein Abschnitt fuhr den Editor, und
+ * ein `if (IS_EDIT_MODE) return;` am Anfang von waehleEbeneAusStufe blieb gruen (gemessen per Mutation).
+ * ⚠️ C bleibt rollenabhaengig: es zaehlt die Untergruende, und der Editor sieht dort zusaetzlich „Old".
+ */
+const ROLLEN = [{ imEditor: false, name: "Besucher" }, { imEditor: true, name: "Editor" }];
+function fuerBeideRollen(fahre) {
+	ROLLEN.forEach((rolle) => {
+		try {
+			fahre(rolle);
+		} catch (fehler) {
+			// Die Rolle gehoert in die Meldung -- sonst sagt ein roter Lauf nicht, WER nicht waehlen kann.
+			if (fehler && typeof fehler.message === "string") {
+				fehler.message = "[" + rolle.name + "] " + fehler.message;
+				fehler.stack = "[" + rolle.name + "] " + String(fehler.stack);
+			}
+			throw fehler;
+		}
+	});
+}
+
 // ==== A. Ueber Landschaften stehen die Ebenen, und ein Klick waehlt sie ueber den Reiter ==========
-{
-	const welt = baueWelt({ ansicht: "deregraphic", ebene: "vegetation" });
+fuerBeideRollen((rolle) => {
+	const welt = baueWelt({ ansicht: "deregraphic", ebene: "vegetation", imEditor: rolle.imEditor });
 	welt.kachel.click();
 	assert.ok(!welt.menue.hidden, "die Kachel oeffnet das Menue (sonst prueft der Rest nichts)");
 
@@ -510,11 +534,11 @@ const aktive = (zellen) => zellen.filter((z) => z.classList.contains("is-active"
 	assert.strictEqual(welt.leiste.querySelector("[data-ecosystem-kind=\"topographie\"]").getAttribute("aria-selected"), "true",
 		"der Reiter ist danach gewaehlt -- derselbe Zustand, den die Leiste traegt");
 	assert.strictEqual(welt.kachel.getAttribute("aria-expanded"), "false", "eine getroffene Auswahl schliesst das Menue");
-}
+});
 
 // ==== B. In den Landschaften: die gewaehlte Ebene ist markiert, „Alle" geht ueber SEINEN Reiter ====
-{
-	const welt = baueWelt({ ansicht: "ecosystem", ebene: "derographisch" });
+fuerBeideRollen((rolle) => {
+	const welt = baueWelt({ ansicht: "ecosystem", ebene: "derographisch", imEditor: rolle.imEditor });
 	welt.kachel.click();
 	welt.zelleDerAnsicht("ecosystem").click();
 	const zellen = welt.stufenZellen();
@@ -530,7 +554,7 @@ const aktive = (zellen) => zellen.filter((z) => z.classList.contains("is-active"
 		+ " kennt ihn nicht, der gemerkte Wert fiele still auf die Vorgabe). Die Ansicht galt schon und wird"
 		+ " nicht noch einmal gesetzt");
 	assert.deepStrictEqual(welt.setzerRufe, [], "...und wieder ohne eigenen Setzer-Aufruf");
-}
+});
 
 // ==== C. EINE Reihe, je Ansicht ein anderer Inhalt: gleiche Art wandert, andere Art baut neu =======
 {
@@ -594,8 +618,8 @@ const aktive = (zellen) => zellen.filter((z) => z.classList.contains("is-active"
 // ==== D. „Hat DIESE Ansicht eine zweite Stufe?" wird je Ansicht gefragt ===========================
 // 💣 Vorher fragten waehle() und oeffneStufeZwei() pauschal nach der Zahl der Untergruende. Mit nur
 // EINEM erlaubten Untergrund oeffnete Landschaften dann gar nichts -- obwohl seine Ebenen da sind.
-{
-	const welt = baueWelt({ ansicht: "deregraphic", untergruende: ["stylized"] });
+fuerBeideRollen((rolle) => {
+	const welt = baueWelt({ ansicht: "deregraphic", untergruende: ["stylized"], imEditor: rolle.imEditor });
 	welt.kachel.click();
 	welt.zelleDerAnsicht("ecosystem").click();
 	assert.deepStrictEqual(zellenWerte(welt.stufenZellen(), "ebene"), REITER_WERTE,
@@ -616,15 +640,15 @@ const aktive = (zellen) => zellen.filter((z) => z.classList.contains("is-active"
 	welt.zelleDerAnsicht("political").click();
 	assert.deepStrictEqual(welt.protokoll, ["ansicht:political"], "Politisch ohne zweite Stufe waehlt sofort");
 	assert.strictEqual(welt.kachel.getAttribute("aria-expanded"), "false", "...und schliesst");
-}
-{
-	const welt = baueWelt({ ansicht: "deregraphic", ohneLeiste: true });
+});
+fuerBeideRollen((rolle) => {
+	const welt = baueWelt({ ansicht: "deregraphic", ohneLeiste: true, imEditor: rolle.imEditor });
 	welt.kachel.click();
 	welt.zelleDerAnsicht("ecosystem").click();
 	assert.ok(welt.stufen()[0].hidden && welt.stufenZellen().length === 0,
 		"ohne Reiterleiste hat Landschaften nichts zu waehlen -- keine Reihe");
 	assert.deepStrictEqual(welt.protokoll, ["ansicht:ecosystem"], "...also waehlt der Klick die Ansicht sofort");
-}
+});
 
 // ==== E. Die Ebenen stehen nur EINMAL im Haus -- in der Reiterleiste ==============================
 // 💣 Eine zweite Liste im Faecher liefe beim naechsten Ebenentyp auseinander: die Leiste kennte ihn,
@@ -665,6 +689,91 @@ const aktive = (zellen) => zellen.filter((z) => z.classList.contains("is-active"
 	assert.ok(!welt.stufen()[0].classList.contains("is-open"), "...und faechert sie neu auf");
 	welt.naechstesBild();
 	assert.ok(welt.stufen()[0].classList.contains("is-open"), "...im naechsten Bild");
+}
+
+// ==== G. Die Kleinigkeiten des Oeffnens und Schliessens =========================================
+// 💣 Jede der vier Zeilen, die hier gehalten werden, liess sich im Review (14.09.2026) aus dem Picker
+// streichen, ohne dass ein Abschnitt darueber rot wurde. Sie sehen nach Beiwerk aus und tragen doch je
+// ein Verhalten, das man erst beim Bedienen vermisst.
+const SCHWEBE_AUF_MS = Number((js.match(/var SCHWEBE_AUF_MS = (\d+);/) || [])[1]);
+assert.ok(SCHWEBE_AUF_MS > 0, "SCHWEBE_AUF_MS ist im Picker auffindbar (sonst prueft G3 nichts)");
+
+// G1. Nach einer Ebenenwahl klappt der Zeiger ueber dem Bund das Menue NICHT sofort wieder auf -- der
+// Riegel faellt erst beim Verlassen der Huelle, wie nach waehle() und waehleGrund().
+// ⚠️ Ganz ueber das Ueberfahren geoeffnet: ein Klick auf die Ansicht liefe durch waehle(), und das setzt den
+// Riegel schon VOR der Ebenenwahl -- dann bewiese die Zusicherung nichts ueber waehleEbeneAusStufe.
+{
+	const welt = baueWelt({ ansicht: "deregraphic" });
+	welt.huelle.dispatchEvent(new Ereignis("mouseenter"));
+	welt.zeitVergeht();
+	welt.naechstesBild();
+	assert.strictEqual(welt.kachel.getAttribute("aria-expanded"), "true", "das Ueberfahren oeffnet das Menue (sonst prueft der Rest nichts)");
+	welt.zelleDerAnsicht("ecosystem").dispatchEvent(new Ereignis("mouseenter"));
+	welt.zeitVergeht();
+	welt.naechstesBild();
+	const zellen = welt.stufenZellen();
+	assert.deepStrictEqual(zellenWerte(zellen, "ebene"), REITER_WERTE, "...und das Verweilen ueber Landschaften die Ebenen");
+
+	zellen[REITER_WERTE.indexOf("klima")].click();
+	assert.deepStrictEqual(welt.protokoll, ["ansicht:ecosystem", "reiter:klima@ecosystem"], "die Ebene ist gewaehlt");
+	assert.strictEqual(welt.kachel.getAttribute("aria-expanded"), "false", "...und das Menue zu");
+	welt.huelle.dispatchEvent(new Ereignis("mouseenter"));
+	welt.zeitVergeht();
+	assert.strictEqual(welt.kachel.getAttribute("aria-expanded"), "false",
+		"der Zeiger steht nach der Wahl noch ueber dem Bund -- das Ueberfahren klappt das Menue NICHT gleich wieder auf");
+	welt.huelle.dispatchEvent(new Ereignis("mouseleave"));
+	welt.huelle.dispatchEvent(new Ereignis("mouseenter"));
+	welt.zeitVergeht();
+	assert.strictEqual(welt.kachel.getAttribute("aria-expanded"), "true",
+		"...erst nach dem Verlassen der Huelle oeffnet es wieder -- der Riegel sperrt nicht fuer immer");
+}
+
+// G2. Wer die Stufe schliesst, bevor ihr Aufklapp-Bild kommt, bekommt sie nicht nachtraeglich aufgeklappt.
+{
+	const welt = baueWelt({ ansicht: "deregraphic" });
+	welt.kachel.click();
+	welt.zelleDerAnsicht("ecosystem").click();
+	const reihe = welt.stufen()[0];
+	assert.ok(!reihe.hidden && !reihe.classList.contains("is-open"),
+		"die Stufe steht, is-open wartet aufs naechste Bild (sonst prueft der Rest nichts)");
+	welt.dokument.dispatchEvent(new Ereignis("click"));   // der Klick auf die Karte, noch im selben Bild
+	assert.strictEqual(welt.kachel.getAttribute("aria-expanded"), "false", "der Klick daneben schliesst das Menue samt Stufe");
+	welt.naechstesBild();
+	assert.ok(!reihe.classList.contains("is-open"),
+		"...und das schon bestellte Bild klappt die geschlossene Reihe NICHT auf -- sonst stuende sie offen ueber einem zugeklappten Menue");
+}
+
+// G3. Nach dem Schliessen wartet das Ueberfahren wieder SCHWEBE_AUF_MS. Ohne Warten wandert nur eine OFFENE
+// Stufe; eine geschlossene, die sich noch fuer offen hielte, risse jede Ansicht auf dem Weg sofort auf.
+{
+	const welt = baueWelt({ ansicht: "deregraphic", untergruende: ["stylized"] });
+	welt.kachel.click();
+	welt.zelleDerAnsicht("ecosystem").dispatchEvent(new Ereignis("mouseenter"));
+	welt.zeitVergeht();
+	welt.naechstesBild();
+	assert.ok(welt.stufen()[0].classList.contains("is-open"), "ueber Landschaften steht die Stufe offen (sonst prueft der Rest nichts)");
+	// Politisch hat mit nur einem Untergrund nichts zu waehlen -- das Weiterfahren dorthin SCHLIESST die Stufe.
+	welt.zelleDerAnsicht("political").dispatchEvent(new Ereignis("mouseenter"));
+	welt.zeitVergeht();
+	assert.ok(welt.stufen()[0].hidden, "ueber Politisch ist die Stufe zu");
+	assert.deepStrictEqual(welt.wartendeWecker(), [], "...und kein Wecker steht mehr (sonst prueft der Rest nichts)");
+	welt.zelleDerAnsicht("ecosystem").dispatchEvent(new Ereignis("mouseenter"));
+	assert.deepStrictEqual(welt.wartendeWecker(), [SCHWEBE_AUF_MS],
+		"das erneute Ueberfahren von Landschaften wartet " + SCHWEBE_AUF_MS + " ms -- die Stufe ist zu, nichts wandert");
+}
+
+// G4. Ein gesperrter Reiter ergibt eine gesperrte Ebenenzelle, und ihr Klick waehlt nichts.
+{
+	const welt = baueWelt({ ansicht: "deregraphic" });
+	welt.leiste.querySelector("[data-ecosystem-kind=\"klima\"]").disabled = true;
+	welt.kachel.click();
+	welt.zelleDerAnsicht("ecosystem").click();
+	const zellen = welt.stufenZellen();
+	const klima = zellen[REITER_WERTE.indexOf("klima")];
+	assert.strictEqual(klima.disabled, true, "der gesperrte Reiter „Klimazonen\" ergibt eine gesperrte Ebenenzelle");
+	assert.ok(zellen.filter((z) => z !== klima).every((z) => z.disabled === false), "...und nur diese");
+	klima.click();
+	assert.deepStrictEqual(welt.protokoll, [], "ihr Klick waehlt nichts -- weder die Ansicht noch den Reiter");
 }
 
 // ==== S. Was sich nur am Quelltext beantworten laesst ============================================

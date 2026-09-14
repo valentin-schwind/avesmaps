@@ -804,8 +804,8 @@
 				liste.forEach(function (eintrag) {
 					stufeReihe.appendChild(ebenenZelle(eintrag, eintrag.wert === gewaehlt));
 				});
-				// Die Leiste traegt ihren Namen schon uebersetzt (data-i18n-aria-label) -- ein zweites Wort
-				// dafuer hier liefe unter ?lang=en auseinander.
+				// Die Leiste traegt ihren Namen schon uebersetzt (data-i18n-aria-label) -- gelesen statt
+				// abgeschrieben, damit er unter ?lang=en mitgeht.
 				var leiste = document.getElementById("ecosystem-layer-switch");
 				stufeReihe.setAttribute("aria-label", leiste ? String(leiste.getAttribute("aria-label") || "") : "");
 			} else {
@@ -813,6 +813,8 @@
 				liste.forEach(function (eintrag) {
 					stufeReihe.appendChild(grundZelle(eintrag, Boolean(aktiv) && eintrag.wert === aktiv.wert));
 				});
+				// ⚠️ „Untergrund" steht dagegen noch FEST und bleibt unter ?lang=en deutsch. Einen Schluessel
+				// bekommt es nicht in diesem Umbau -- das gehoert in die i18n-Etappe M8 (AGENTS.md §8).
 				stufeReihe.setAttribute("aria-label", "Untergrund");
 			}
 			// 💣 Die Spaltenzahl als CSS-VARIABLE, wie beim Hauptmenue -- NICHT als Inline-Style. Der stand hier
