@@ -2530,10 +2530,19 @@ function avesmapsGaretienAndererTraegerVorhanden(PDO $pdo, string $entityType, s
     // (Nur Quelle bindet ausschliesslich an entity_type='settlement', avesmapsGaretienQuellenZiel).
     if ($entityType === 'settlement') {
         $muster = AVESMAPS_GARETIEN_NUR_QUELLE_VERMERK . avesmapsGaretienLikeEscape($entityPublicId) . '%';
+        // 🔴 SCHLUSSPRUEFUNG, BEFUND W1: HAUS-IDIOM `ESCAPE '\\\\'` (vier Backslash im PHP-
+        // Doppelstring), NICHT `'\\'`. MySQL liest zwei Backslash im SQL-Literal selbst als EIN
+        // maskiertes Backslash-Zeichen -- mit nur zwei Backslash im PHP-Quelltext kaeme dort ein
+        // Literal mit einem einzigen Backslash an, der seine eigene schliessende Anfuehrung
+        // verschluckt (unterminiertes Literal, MySQL Error 1064; jede Ruecknahme an einer Siedlung
+        // waere davon betroffen). SQLite verlangt umgekehrt genau EIN Zeichen fuer ESCAPE und wird
+        // darum in den Tests eigens auf `ESCAPE '\\'` uebersetzt (AGENTS.md §9 „Ein SQLite-Test
+        // kann eine MySQL-Regression ERZWINGEN"). Dasselbe Idiom in
+        // api/_internal/app/feature-sources.php:2657 und in dieser Datei am Verbund-Anfuehrer.
         $stmt = $pdo->prepare(
             'SELECT i.id, i.apply_note, i.after_json, i.entity_key FROM sync_plan_item i'
             . ' JOIN sync_plan_run r ON r.id = i.run_id'
-            . " WHERE r.kind = :k AND i.apply_state = 'done' AND i.apply_note LIKE :m ESCAPE '\\'"
+            . " WHERE r.kind = :k AND i.apply_state = 'done' AND i.apply_note LIKE :m ESCAPE '\\\\'"
         );
         $stmt->execute(['k' => AVESMAPS_GARETIEN_PLAN_KIND, 'm' => $muster]);
         foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $zeile) {

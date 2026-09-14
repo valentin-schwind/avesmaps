@@ -197,6 +197,13 @@ final class AvesmapsGaretienUebernahmeTestPdo extends PDO
         // MySQLs `INSERT IGNORE` heisst bei SQLite `INSERT OR IGNORE` -- dieselbe Aussage, andere
         // Schreibweise. Der Seed der Landschaftsarten laeuft vor jedem Schreibvorgang durch.
         $query = str_replace('INSERT IGNORE INTO', 'INSERT OR IGNORE INTO', $query);
+        // 🪤 SQLite verlangt fuer ESCAPE GENAU EIN Zeichen; MySQL interpretiert `'\\'` (zwei
+        // Backslash-Zeichen im SQL-Text) selbst als EIN maskiertes Backslash-Zeichen -- derselbe
+        // Dialekt-Unterschied wie CRLF/LF (AGENTS.md §9), nur eine Ebene tiefer. Ungeuebersetzt
+        // wirft SQLite "ESCAPE expression must be a single character" -- ein Fehler, der wie ein
+        // kaputtes Muster aussieht und keiner ist. Dieselbe Huelle wie
+        // garetien-verbund-uebernahme-test.php und garetien-wiki-nachzug-test.php.
+        $query = str_replace("ESCAPE '\\\\'", "ESCAPE '\\'", $query);
         // Der Einstellungsspeicher -- die Landschaften legen dort ihren Rechenstand ab.
         if (str_contains($query, 'INSERT INTO app_setting') && str_contains($query, 'ON DUPLICATE KEY UPDATE')) {
             $query = 'INSERT INTO app_setting (setting_key, setting_value) VALUES (:k, :v)
@@ -852,6 +859,28 @@ assert($wegSchreiberAnzahl === 2, 'Es gibt jetzt ' . $wegSchreiberAnzahl . ' Weg
 assert($umsetzerAnzahl >= $wegSchreiberAnzahl,
     'Ein Weg-Schreibpfad ruft den Umsetzer nicht -- der importierte Weg landet dort gespiegelt.');
 $pruefungen += 2;
+
+// --- 🔴 SCHLUSSPRUEFUNG, BEFUND W1: JEDE ESCAPE-Klausel traegt das HAUS-IDIOM.
+// PHP-Doppelstring "ESCAPE '\\\\'" (VIER Backslash-Zeichen im Quelltext) wird zur Laufzeit zu SQL-
+// Text ESCAPE '\\' (ZWEI Backslash-Zeichen) -- und MySQL liest zwei Backslashes im Literal SELBST
+// als EIN maskiertes Backslash-Zeichen: das Ergebnis ist ein Fluchtzeichen aus genau einem
+// Backslash (das Haus-Idiom, siehe api/_internal/app/feature-sources.php:2657/2658 und diese Datei
+// selbst an der Stelle des Verbund-Anfuehrers). Ein Doppelstring mit nur ZWEI Backslashes
+// ("ESCAPE '\\'", zwei Zeichen im Quelltext) wird zu SQL-Text ESCAPE '\' -- EIN Backslash im
+// Literal, der seine eigene schliessende Anfuehrung verschluckt: ein unterminiertes Literal, MySQL
+// Error 1064. Auf SQLite faellt das nicht auf (dort werden die vier Backslashes eigens auf ein
+// einzelnes Zeichen uebersetzt, siehe die prepare()-Huelle unten) -- AGENTS.md §9 „Ein SQLite-Test
+// kann eine MySQL-Regression ERZWINGEN". Gezaehlt wird im KOMMENTARFREIEN Quelltext ($nurCodeUebernahme
+// von oben), nicht per Regex ueber die Rohdatei -- ein Docblock, der die SQL-Syntax abstrakt mit
+// EINEM Backslash erklaert (wie der ueber dieser Funktion), ist kein Codebefund.
+preg_match_all("~ESCAPE '(\\\\+)'~", $nurCodeUebernahme, $escapeTreffer);
+assert($escapeTreffer[1] !== [], 'Keine ESCAPE-Klausel im Quelltext gefunden -- Test lief ins Leere.');
+foreach ($escapeTreffer[1] as $i => $backslashes) {
+    assert(strlen($backslashes) === 4,
+        "ESCAPE-Klausel #{$i} traegt " . strlen($backslashes) . ' statt 4 Backslash-Zeichen im PHP-Quelltext '
+        . "(Haus-Idiom ESCAPE '\\\\\\\\' -- MySQL braucht das, SQLite wird in den Tests uebersetzt).");
+}
+$pruefungen += count($escapeTreffer[1]);
 
 // --- 🔴 DER SCHRITT DER VORSCHAU: er arbeitet in Haeppchen und MUSS zum Ende kommen.
 // 💣 Ein abgelehntes Item ohne Vermerk bleibt „offen" -- und der Schritt laeuft, bis nichts mehr
