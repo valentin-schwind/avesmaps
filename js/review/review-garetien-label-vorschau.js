@@ -107,8 +107,10 @@
 	 * @param eingaben `garetienEingabenZustandZu(objekt)`, oder `null`, wenn der Aufrufer ihn (noch)
 	 *                 nicht anlegen darf -- dann gelten die Grundwerte des Kastens
 	 * @param gewaehlt ist die Zeile dieses Objekts offen? -- HEREINGEREICHT, nicht selbst gelesen
+	 * @param name     der Name, unter dem das Objekt angelegt wird (garetienNameFuerImport) -- HEREINGEREICHT;
+	 *                 fehlt er, gilt `objekt.name` (so rufen die Regeltests)
 	 */
-	function garetienVorschauLabelAus(objekt, wahl, eingaben, gewaehlt) {
+	function garetienVorschauLabelAus(objekt, wahl, eingaben, gewaehlt, name) {
 		if (!objekt) { return null; }
 		var ziel = String((wahl && wahl.ziel) || "");
 		var art = AVESMAPS_GARETIEN_VORSCHAU_ARTEN[ziel] || "";
@@ -116,7 +118,11 @@
 
 		// Ohne Namen gibt es nichts zu zeigen -- und ein leerer Kasten mit goldenem Rand saehe wie
 		// ein Fehler aus.
-		var text = String(objekt.name || "").trim();
+		// 🔴 Aufgabe 6 (Garetien-Importer vereint, 14.09.2026): der Text ist der Name, unter dem ANGELEGT
+		// wird -- ein Handname, bei einem zusammengelegten Verbund sonst der Stamm. Er wird hereingereicht,
+		// nicht hier gerechnet: das Fenster kennt Handname und Verbund, diese Datei soll beides nicht kennen
+		// (dieselbe Lehre wie beim Weiss, `gewaehlt`).
+		var text = String(name === undefined ? (objekt.name || "") : (name || "")).trim();
 		if (text === "") { return null; }
 
 		var punkt = garetienVorschauMittelpunkt(objekt.geometrie);

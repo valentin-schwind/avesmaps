@@ -59,8 +59,9 @@ const quelle = fs.readFileSync(
 const { api } = ladeImporter();
 
 function garetienZweiFragmente() {
+    // Aufgabe 6 (14.09.2026): Zusammenlegen verlangt die Form Flaeche -- ohne `ziel` waere es gesperrt.
     const verbund = { ebene: "region", typ: "wald", verbund_stamm: "Pruefwald-Fixrunde1",
-        verbund_n: 2 };
+        verbund_n: 2, ziel: "region", subtyp: "wald" };
     const item = [{ id: 1, change_type: "changed", anlass: "ergaenzung", felder: ["quelle"] }];
     return [
         Object.assign({ key: "ggp:pruefwald:eins", items: item }, verbund),
@@ -77,8 +78,10 @@ function garetienZweiFragmente() {
     const [m1, m2] = garetienZweiFragmente();
     const schluessel = api.garetienVerbundSchluessel(m1);
     assert.ok(schluessel !== "", "Testaufbau: die zwei Fragmente bilden einen Verbund");
+    // 🔴 Aufgabe 6: Zusammenlegen legt NICHT mehr auf -- erst auflegen, dann zusammenlegen.
+    api.avesmapsGaretienStageHinzufuegen([m1, m2]);
     assert.strictEqual(api.garetienVerbundZusammenlegen(schluessel, [m1, m2]), 2,
-        "Testaufbau: beide Fragmente liegen auf der Stage");
+        "Testaufbau: beide Fragmente liegen auf der Stage und sind zusammengelegt");
     assert.ok(api.garetienVerbundIstZusammen(schluessel),
         "Testaufbau: der Verbund gilt als zusammengelegt");
 

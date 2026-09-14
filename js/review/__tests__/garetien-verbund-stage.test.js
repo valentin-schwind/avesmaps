@@ -92,15 +92,25 @@ modul.avesmapsGaretienStageLeeren();
 gleich(modul.garetienVerbundIstZusammen(VERBUND), false,
     "vor jedem Zusammenlegen gilt kein Verbund als zusammengelegt");
 
-// ---- 2b. Zusammenlegen legt GENAU die Mitglieder auf die Stage, das fremde Objekt nicht ---------
-const n = modul.garetienVerbundZusammenlegen(VERBUND, [o1, o2, fremd]);
-gleich(n, 2, "zwei Mitglieder -- 'c' gehoert nicht zum Verbund");
-gleich(modul.avesmapsGaretienStageHat("a"), true, "erstes Mitglied liegt jetzt auf der Stage");
-gleich(modul.avesmapsGaretienStageHat("b"), true, "zweites Mitglied liegt jetzt auf der Stage");
+// 🔴 AUFGABE 6 (14.09.2026): Zusammenlegen LEGT NICHT MEHR AUF -- es markiert die Eintraege, die
+// schon auf der Stage liegen, und verlangt die Form Flaeche oder Weg. Die Fixtures tragen dafuer
+// `ziel`; die ausfuehrliche Pruefung der neuen Regel steht in garetien-verbund-stage-eintrag.test.js.
+const f1 = Object.assign({}, o1, { ziel: "region", subtyp: "wald" });
+const f2 = Object.assign({}, o2, { ziel: "region", subtyp: "wald" });
+
+// ---- 2b. Zusammenlegen markiert GENAU die Mitglieder auf der Stage, das fremde Objekt nicht -----
+modul.avesmapsGaretienStageHinzufuegen([f1, f2]);
+const n = modul.garetienVerbundZusammenlegen(VERBUND, [f1, f2, fremd]);
+gleich(n, 2, "zwei Mitglieder auf der Stage -- 'c' gehoert nicht zum Verbund");
 gleich(modul.avesmapsGaretienStageHat("c"), false,
     "das fremde Objekt (kein Mitglied des Verbunds) bleibt draussen");
 gleich(modul.garetienVerbundIstZusammen(VERBUND), true,
     "nach dem Zusammenlegen gilt der Verbund als zusammengelegt");
+modul.avesmapsGaretienStageLeeren();
+modul.avesmapsGaretienStageHinzufuegen([f1]);
+gleich(modul.garetienVerbundZusammenlegen(VERBUND, [f1, f2]), 0,
+    "💣 liegt nur EIN Mitglied auf der Stage, wird nichts zusammengelegt -- und nichts aufgelegt");
+gleich(modul.avesmapsGaretienStageHat("b"), false, "das zweite Mitglied bleibt, wo es war");
 
 // ---- 2c. Ein leerer Schluessel legt nichts zusammen und merkt nichts ----------------------------
 modul.avesmapsGaretienStageLeeren();
@@ -110,10 +120,11 @@ gleich(modul.avesmapsGaretienStageHat("a"), false, "…und legt entsprechend auc
 gleich(modul.garetienVerbundIstZusammen(""), false,
     "…und der leere Schluessel selbst gilt auch nicht als zusammengelegter Verbund");
 
-// ---- 2d. Aufloesen nimmt NUR die Merkung zurueck -- die Objekte bleiben auf der Stage ------------
-modul.garetienVerbundZusammenlegen(VERBUND, [o1, o2, fremd]);
-gleich(modul.garetienVerbundAufloesen(VERBUND), true,
-    "Aufloesen eines wirklich zusammengelegten Verbunds meldet true");
+// ---- 2d. Aufloesen nimmt NUR die Entscheidung zurueck -- die Objekte bleiben auf der Stage -------
+modul.avesmapsGaretienStageHinzufuegen([f1, f2]);
+modul.garetienVerbundZusammenlegen(VERBUND, [f1, f2, fremd]);
+gleich(modul.garetienVerbundAufloesen(VERBUND), undefined,
+    "Aufloesen gibt seit Aufgabe 6 nichts mehr zurueck (void)");
 gleich(modul.garetienVerbundIstZusammen(VERBUND), false,
     "…und danach gilt der Verbund nicht mehr als zusammengelegt");
 gleich(modul.avesmapsGaretienStageHat("a"), true,
@@ -121,15 +132,18 @@ gleich(modul.avesmapsGaretienStageHat("a"), true,
     + "zurueck, keine Rueckgaengig-Handlung der Stage");
 gleich(modul.avesmapsGaretienStageHat("b"), true, "…beide Mitglieder");
 
-// ---- 2e. Ein nie zusammengelegter Verbund meldet false beim Aufloesen ---------------------------
-gleich(modul.garetienVerbundAufloesen("verbund:nie-zusammengelegt"), false,
-    "Aufloesen eines Verbunds, der nie zusammengelegt wurde, meldet false");
+// ---- 2e. Ein nie zusammengelegter Verbund laesst sich gefahrlos aufloesen ------------------------
+gleich(modul.garetienVerbundAufloesen("verbund:nie-zusammengelegt"), undefined,
+    "Aufloesen eines Verbunds, der nie zusammengelegt wurde, wirft nicht");
 
 // ---- 2f. garetienVerbundVergessen leert die GANZE Merkung, nicht nur einen Verbund --------------
 modul.avesmapsGaretienStageLeeren();
-modul.garetienVerbundZusammenlegen(VERBUND, [o1, o2]);
 const zweiterVerbund = "verbund:Berge|Huegel|Silker Hain";
-modul.garetienVerbundZusammenlegen(zweiterVerbund, [huegel]);
+const h1 = Object.assign({}, huegel, { ziel: "region", subtyp: "huegel" });
+const h2 = Object.assign({}, h1, { key: "d2" });
+modul.avesmapsGaretienStageHinzufuegen([f1, f2, h1, h2]);
+modul.garetienVerbundZusammenlegen(VERBUND, []);
+modul.garetienVerbundZusammenlegen(zweiterVerbund, []);
 gleich(modul.garetienVerbundIstZusammen(VERBUND), true, "erster Verbund steht vor dem Vergessen");
 gleich(modul.garetienVerbundIstZusammen(zweiterVerbund), true,
     "zweiter Verbund steht ebenfalls vor dem Vergessen");
@@ -157,17 +171,16 @@ gleich(modul.garetienVerbundIstZusammen(zweiterVerbund), false, "…auch der zwe
 // hier nicht ihr Ziel ist (Verrenkung). Die Leerschluessel-Wache ist direkt messbar, gehoert
 // zum selben Schreibweg und zeigt denselben Befund: ein Aufruf, der an
 // avesmapsGaretienStageHinzufuegen vorbeigeht, gewaehrt der Stage etwas, das die Tuer verweigert.
+// 🔴 Aufgabe 6: die Rueckgabe zaehlt jetzt Stage-EINTRAEGE -- ein Mitglied mit leerem Schluessel
+// erreicht die Stage nie (Wache in avesmapsGaretienStageHinzufuegen), also bleibt nur eins, und
+// eins ist kein Verbund.
 modul.avesmapsGaretienStageLeeren();
-const leererSchluessel = Object.assign({}, o1, { key: "" });
-const nLeer = modul.garetienVerbundZusammenlegen(VERBUND, [leererSchluessel, o2]);
-gleich(nLeer, 2,
-    "die Rueckgabe zaehlt MITGLIEDER (zwei), nicht Stage-Eintraege -- der Vertrag aus Aufgabe 4 "
-    + "bleibt bestehen, auch wenn ein Mitglied die Stage nicht erreicht");
+const leererSchluessel = Object.assign({}, f1, { key: "" });
+modul.avesmapsGaretienStageHinzufuegen([leererSchluessel, f2]);
 gleich(modul.avesmapsGaretienStageHat(""), false,
-    "ein Mitglied mit leerem Schluessel landet NICHT auf der Stage -- dieselbe Wache wie in "
-    + "avesmapsGaretienStageHinzufuegen");
-gleich(modul.avesmapsGaretienStageHat("b"), true,
-    "…das zweite, gueltige Mitglied liegt trotzdem auf der Stage");
+    "ein Mitglied mit leerem Schluessel landet NICHT auf der Stage");
+gleich(modul.garetienVerbundZusammenlegen(VERBUND, [leererSchluessel, f2]), 0,
+    "und mit dem einen gueltigen Mitglied allein ist nichts zusammenzulegen");
 
 modul.avesmapsGaretienStageLeeren();
 

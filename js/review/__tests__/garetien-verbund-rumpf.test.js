@@ -23,7 +23,9 @@ function gleich(ist, soll, warum) { assert.strictEqual(ist, soll, warum || ""); 
 const { api } = ladeImporter();
 
 function fragmente() {
-	const verbund = { ebene: "Waelder", typ: "Wald", verbund_stamm: "Silker Hain", verbund_n: 2 };
+	// Aufgabe 6 (14.09.2026): Zusammenlegen verlangt die Form Flaeche -- ohne `ziel` waere es gesperrt.
+	const verbund = { ebene: "Waelder", typ: "Wald", verbund_stamm: "Silker Hain", verbund_n: 2,
+		ziel: "region", subtyp: "wald" };
 	return [
 		Object.assign({ key: "ggp:silkerhain:eins" }, verbund),
 		Object.assign({ key: "ggp:silkerhain:zwei" }, verbund),
@@ -71,6 +73,8 @@ function fragmente() {
 
 	const [m1, m2] = fragmente();
 	const schluessel = api.garetienVerbundSchluessel(m1);
+	// 🔴 Aufgabe 6: Zusammenlegen legt NICHT mehr auf -- erst auflegen, dann zusammenlegen.
+	api.avesmapsGaretienStageHinzufuegen([m1, m2]);
 	api.garetienVerbundZusammenlegen(schluessel, [m1, m2]);
 	assert.ok(api.garetienVerbundIstZusammen(schluessel), "Testaufbau: jetzt zusammengelegt");
 
@@ -98,6 +102,7 @@ function fragmente() {
 
 	const [m1, m2] = fragmente();
 	const schluessel = api.garetienVerbundSchluessel(m1);
+	api.avesmapsGaretienStageHinzufuegen([m1, m2]);
 	api.garetienVerbundZusammenlegen(schluessel, [m1, m2]);
 	api.garetienNameWahlSetzen(m1, "Silker Forst");
 

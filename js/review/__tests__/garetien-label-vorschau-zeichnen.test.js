@@ -418,9 +418,14 @@ wahr(/AVESMAPS_GARETIEN_VORSCHAU_FELDER\s*=\s*\[[^\]]*"showName"[^\]]*\]/.test(i
 	wahr(new RegExp('AVESMAPS_GARETIEN_VORSCHAU_FELDER\\s*=\\s*\\[[^\\]]*"' + feld + '"')
 		.test(importerQuelle), "„" + feld + "\" fehlt in der Liste der nachziehenden Felder");
 });
-gleich((importerQuelle.match(/garetienVorschauNachziehen\(feld\);/g) || []).length, 3,
-	"⚠️ DREI Ausgaenge von garetienEingabenAendern fuehren an beschriftungsrelevanten Feldern vorbei "
-	+ "(Formwahl, Haekchen, Zahl) -- fehlt einer, wirkt genau dieses Feld erst spaeter");
+// 🔴 Aufgabe 6 (Garetien-Importer vereint, 14.09.2026): der NAME steht in der Beschriftung und zieht
+// seither ebenfalls nach -- entprellt, im Namenszweig. Dass er es wirklich tut, faehrt
+// garetien-verbund-stage-eintrag.test.js (Abschnitt I) aus; hier bleibt nur die Zaehlung der Ausgaenge.
+gleich((importerQuelle.match(/garetienVorschauNachziehen\(feld\);/g) || []).length, 4,
+	"⚠️ VIER Ausgaenge von garetienEingabenAendern fuehren an beschriftungsrelevanten Feldern vorbei "
+	+ "(Formwahl, Haekchen, Zahl, Name) -- fehlt einer, wirkt genau dieses Feld erst spaeter");
+wahr(/AVESMAPS_GARETIEN_VORSCHAU_FELDER\s*=\s*\[[^\]]*"einfuegeName"/.test(importerQuelle),
+	"„einfuegeName\" fehlt in der Liste der nachziehenden Felder");
 
 // ---- 11. Die Datei ist eingebunden, und zwar VOR dem Importer, der sie ruft --------------------
 const indexHtml = fs.readFileSync(path.join(WURZEL, "index.html"), "utf8");
