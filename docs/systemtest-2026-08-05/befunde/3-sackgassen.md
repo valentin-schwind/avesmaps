@@ -210,6 +210,7 @@ beschreiben die Struktur von vor dem M1-Umbau.
 - **Beleg:** `css_scan.py` vergleicht alle 1.959 CSS-Klassennamen gegen die Bezeichner-Menge aller `.html/.js/.php` (ohne `docs/`, ohne `js/third-party/`). Handprobe: `grep -rn "wp-dist" js/ html/ index.html` → 0; `grep -rn "ecosystem-region-dialog" js/ html/ index.html` → 0; `grep -rn "ecosystem-draw-toggle" js/ html/ index.html` → 0; `grep -rn "legacy-leiche" .` (ohne `.claude/`) → 3 Treffer, alle in `css/features/map-labels.css`.
 - **Sicherheit:** BELEGT
 - **Aufwand:** klein
+- **Status:** ✅ **Erledigt am 14.09.2026.** Entfernt: `.wp-dist*` samt Legende und `.wp-delta--up/--down` (`css/pages/wege-editor.css`, 15 Regeln), `.ecosystem-draw-toggle` (6 Regeln) und `.ecosystem-controls__note` (2 Regeln) in `css/features/ecosystem-layer.css`, `.legacy-leiche-label`/`#legacy-leichen-toggle` (3 Regeln, `css/features/map-labels.css`). 💣 `.ecosystem-region-dialog*` war KEIN eigener Block: der Name stand als Selektor in **24 gemeinsamen Selektorlisten** mit den lebenden Eigenschaften-, Zuweisungs-, Import- und Sende-Dialogen -- gestrichen wurde je Liste nur dieser eine Selektor, keine Regel. ⚠️ `.ecosystem-draw-cursor` gleich darunter LEBT (`map-features-ecosystem-draw.js`, `keyboard-shortcuts.js`) und bleibt. Die Zeilennummern oben sind vom 05.08.; vorher per `git grep` geprueft: jeder Name nur noch in CSS, Doku und Mockups, keine zusammengesetzten Klassennamen.
 
 ### B19 Zwei Wegwerf-Prüfseiten und ihre Datendatei liegen versioniert im Repo-Wurzelverzeichnis
 - **Kategorie:** KANN

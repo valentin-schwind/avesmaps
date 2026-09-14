@@ -256,31 +256,12 @@
 /* .wp-controls*, .wp-small und .wp-chart--factor stehen jetzt in
    css/features/travel-model-curves.css -- siehe den Hinweis weiter oben. */
 
-/* Distribution: one 100 % row per way type. A SEQUENTIAL ramp (one hue, light to dark) because the
-   classes are ordered -- never the categorical palette, never a rainbow. */
-.wp-dist { display: grid; grid-template-columns: var(--avm-field-label-w) minmax(0, 1fr); gap: var(--space-2) var(--space-6); align-items: center; }
-.wp-dist__label { font-size: var(--font-size-caption); color: var(--color-text-muted); white-space: nowrap; }
-.wp-dist__bar { display: flex; gap: 2px; height: 16px; }
-.wp-dist__seg { min-width: 0; border-radius: 2px; }
-.wp-dist__seg--0 { background: var(--color-panel-muted); }
-.wp-dist__seg--1 { background: var(--color-hover-wash); }
-.wp-dist__seg--2 { background: var(--color-active-wash); }
-.wp-dist__seg--3 { background: var(--color-accent); }
-.wp-dist__seg--4 { background: var(--color-accent-strong); }
-.wp-dist__seg--5 { background: var(--color-accent-brown); }
-
-.wp-dist-key { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-8); margin-top: var(--space-6); font-size: var(--font-size-caption); color: var(--color-text-muted); }
-.wp-dist-key span { display: inline-flex; align-items: center; gap: var(--space-2); }
-.wp-dist-key i { width: 12px; height: 12px; border: 1px solid var(--color-border); border-radius: 2px; }
-
 .wp-tab-num { width: 100%; border-collapse: collapse; font-size: var(--font-size-body); }
 .wp-tab-num th, .wp-tab-num td { padding: var(--space-2) var(--space-4); text-align: right; border-bottom: 1px solid var(--color-border); }
 .wp-tab-num th:first-child, .wp-tab-num td:first-child { text-align: left; }
 .wp-tab-num th { color: var(--color-text-muted); font-size: var(--font-size-caption); font-weight: var(--font-weight-bold); white-space: nowrap; }
 .wp-tab-num td { font-variant-numeric: tabular-nums; }
 .wp-tab-num tr.is-reference td { color: var(--color-accent-strong); font-weight: var(--font-weight-bold); }
-.wp-delta--up { color: var(--color-success); }
-.wp-delta--down { color: var(--color-danger); }
 
 /* c, large, with its predecessor beside it. Trap 5 of the Auftrag („c is a silent system constant")
    is a DISPLAY obligation, not a footnote: old and new value always stand together. */

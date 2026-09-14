@@ -309,54 +309,7 @@
 	box-shadow: var(--focus-ring), var(--shadow-button-hover);
 }
 
-/* ---- draw tool (V3.2) -----------------------------------------------------------------------------
-   The one ACTION of this bar, so it is the filled one (§12 button hierarchy). The filled layer tab
-   above it encodes a selection, not an action -- two different things that happen to share a fill. */
-.ecosystem-draw-toggle {
-	appearance: none;
-	-webkit-appearance: none;
-	width: 100%;
-	padding: var(--space-6) var(--space-10);
-	border: 1px solid var(--color-button-border);
-	border-radius: var(--radius-md);
-	background: var(--color-button);
-	color: var(--color-button-text);
-	cursor: pointer;
-	font: inherit;
-	font-size: var(--font-size-body);
-	font-weight: var(--font-weight-bold);
-	line-height: var(--leading-snug);
-}
-
-.ecosystem-draw-toggle:hover {
-	background: var(--color-button-hover);
-	box-shadow: var(--shadow-button-hover-strong);
-	transform: translateY(-1px);
-}
-
-.ecosystem-draw-toggle:active {
-	background: var(--color-button-active);
-	box-shadow: inset 0 1px 3px rgb(0 0 0 / 22%);
-	transform: none;
-}
-
-.ecosystem-draw-toggle:focus-visible {
-	outline: none;
-	box-shadow: var(--focus-ring), var(--shadow-button-hover-strong);
-}
-
-/* Running: the button turns into "cancel" and drops to the soft tier -- while drawing, the action on
-   the map is the main thing, and the button is only the way out of it. */
-.ecosystem-draw-toggle.is-active {
-	border-color: var(--color-button-soft-border);
-	background: var(--color-button-soft);
-	color: var(--color-button-soft-text);
-}
-
-.ecosystem-draw-toggle.is-active:hover {
-	background: var(--color-button-soft-hover);
-}
-
+/* ---- draw tool (V3.2) ----------------------------------------------------------------------------- */
 /* Crosshair over the whole map INCLUDING the interactive paths -- otherwise the cursor would flip
    back to a hand exactly over the areas one draws across. Same shape as .path-creation-cursor. */
 .ecosystem-draw-cursor,
@@ -446,7 +399,6 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
    💣 Was BLEIBT, ist ihr Mass. Polster und Scrollen wandern in den Rumpf -- das Bauteil setzt
       `padding: 0` an der Huelle, und genau daran sind heute Nachmittag schon vier Blaetter
       auf 200px zusammengefallen. */
-.ecosystem-region-dialog,
 .ecosystem-properties-dialog,
 .ecosystem-import-dialog {
 	width: min(420px, 100%);
@@ -454,7 +406,6 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 }
 
 /* Der Rumpf: er traegt das Polster und scrollt, waehrend Kopf und Knopfleiste stehen. */
-.ecosystem-region-dialog__form,
 .ecosystem-properties-dialog__form,
 .ecosystem-import-dialog__form {
 	flex: 1 1 auto;
@@ -475,7 +426,6 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 
 
 
-.ecosystem-region-dialog__form,
 .ecosystem-properties-dialog__form,
 .ecosystem-assign-dialog__form,
 .label-assign-dialog__form,
@@ -493,7 +443,6 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 	display: none !important;
 }
 
-.ecosystem-region-dialog__field,
 .ecosystem-properties-dialog__field,
 .ecosystem-assign-dialog__field,
 .label-assign-dialog__field,
@@ -509,7 +458,6 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
    Beschriftung neben dem Kästchen steht und nicht darüber -- dieselbe Anordnung wie im Weg-Editor
    (.location-report-form__field--checkbox). Der Rückzug auf `width: auto` ist nötig, weil die
    Feldregel darunter jedem input im Dialog volle Breite gibt. */
-.ecosystem-region-dialog__checkbox,
 .ecosystem-properties-dialog__checkbox,
 .ecosystem-transfer-dialog__checkbox {
 	display: flex;
@@ -519,19 +467,16 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 	color: var(--color-text-muted);
 }
 
-.ecosystem-region-dialog__checkbox input,
 .ecosystem-properties-dialog__checkbox input,
 .ecosystem-transfer-dialog__checkbox input {
 	width: auto;
 	margin: 0;
 }
 
-.ecosystem-region-dialog__field input,
 .ecosystem-properties-dialog__field input,
 .ecosystem-assign-dialog__field input,
 .label-assign-dialog__field input,
 .ecosystem-import-dialog__field input,
-.ecosystem-region-dialog__field select,
 .ecosystem-properties-dialog__field select,
 .ecosystem-assign-dialog__field select,
 .label-assign-dialog__field select,
@@ -547,7 +492,6 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 	font-size: var(--font-size-reading);
 }
 
-.ecosystem-region-dialog__field input::placeholder,
 .ecosystem-properties-dialog__field input::placeholder,
 .ecosystem-assign-dialog__field input::placeholder,
 .label-assign-dialog__field input::placeholder,
@@ -556,12 +500,10 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 	color: var(--color-placeholder);
 }
 
-.ecosystem-region-dialog__field input:hover,
 .ecosystem-properties-dialog__field input:hover,
 .ecosystem-assign-dialog__field input:hover,
 .label-assign-dialog__field input:hover,
 .ecosystem-import-dialog__field input:hover,
-.ecosystem-region-dialog__field select:hover,
 .ecosystem-properties-dialog__field select:hover,
 .ecosystem-assign-dialog__field select:hover,
 .label-assign-dialog__field select:hover,
@@ -571,12 +513,10 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 	border-color: var(--color-border-strong);
 }
 
-.ecosystem-region-dialog__field input:focus-visible,
 .ecosystem-properties-dialog__field input:focus-visible,
 .ecosystem-assign-dialog__field input:focus-visible,
 .label-assign-dialog__field input:focus-visible,
 .ecosystem-import-dialog__field input:focus-visible,
-.ecosystem-region-dialog__field select:focus-visible,
 .ecosystem-properties-dialog__field select:focus-visible,
 .ecosystem-assign-dialog__field select:focus-visible,
 .label-assign-dialog__field select:focus-visible,
@@ -600,18 +540,16 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
    bekommt in den Browsern weiterhin :hover. Davor stehend zöge das Überfahren die Kante wieder
    kräftig -- also genau das Signal „hier kannst du etwas tun".
    ⚠️ Gemessen trifft die Regel heute GENAU EIN Feld -- die Artauswahl einer Klimazone. Alles
-   andere, was in diesen sechs Fenstern `disabled` wird, ist ein Knopf, ein Kontrollkästchen
+   andere, was in diesen fünf Fenstern `disabled` wird, ist ein Knopf, ein Kontrollkästchen
    (`__checkbox input`) oder eine einzelne `<option>`, und keines davon steht in dieser Liste.
    Die Eingabefelder stehen trotzdem mit drin, weil die Nachbarregeln oben es auch tun und ein
    gesperrtes Feld dieselbe Auskunft geben muss, egal welcher Art es ist. `readonly` fällt zu
    Recht NICHT hinein (so steht der Name bei „Auto-Name"): er ist lesbar und kopierbar.
    Kein toter Knopf. */
-.ecosystem-region-dialog__field input:disabled,
 .ecosystem-properties-dialog__field input:disabled,
 .ecosystem-assign-dialog__field input:disabled,
 .label-assign-dialog__field input:disabled,
 .ecosystem-import-dialog__field input:disabled,
-.ecosystem-region-dialog__field select:disabled,
 .ecosystem-properties-dialog__field select:disabled,
 .ecosystem-assign-dialog__field select:disabled,
 .label-assign-dialog__field select:disabled,
@@ -623,7 +561,6 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 	color: var(--color-disabled-text);
 }
 
-.ecosystem-region-dialog__error[hidden],
 .ecosystem-properties-dialog__error[hidden],
 .ecosystem-assign-dialog__error[hidden],
 .label-assign-dialog__error[hidden],
@@ -633,7 +570,6 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 	display: none !important;
 }
 
-.ecosystem-region-dialog__error,
 .ecosystem-properties-dialog__error,
 .ecosystem-assign-dialog__error,
 .label-assign-dialog__error,
@@ -656,7 +592,6 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
    ⚠️ Bei den DREI scrollt die HUELLE als Ganzes (`overflow: auto` an ihr, Polster an ihr).
       Bei den VIER umgestellten scrollt der RUMPF, und die Knopfleiste liegt bei dreien von
       ihnen INNERHALB dieser Zone -- sie muss deshalb festkleben, sonst wandert sie mit. */
-.ecosystem-region-dialog__actions,
 .ecosystem-properties-dialog__actions,
 .ecosystem-import-dialog__actions {
 	display: flex;
@@ -694,7 +629,6 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 	background: var(--color-panel);
 }
 
-.ecosystem-region-dialog__button,
 .ecosystem-properties-dialog__button,
 .ecosystem-assign-dialog__button,
 .label-assign-dialog__button,
@@ -712,7 +646,6 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 	font-size: var(--font-size-body);
 }
 
-.ecosystem-region-dialog__button:hover,
 .ecosystem-properties-dialog__button:hover,
 .ecosystem-assign-dialog__button:hover,
 .label-assign-dialog__button:hover,
@@ -721,7 +654,6 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 	background: var(--color-button-soft-hover);
 }
 
-.ecosystem-region-dialog__button:focus-visible,
 .ecosystem-properties-dialog__button:focus-visible,
 .ecosystem-assign-dialog__button:focus-visible,
 .label-assign-dialog__button:focus-visible,
@@ -742,7 +674,6 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 }
 
 /* The one main action of this dialog is filled; "Abbrechen" stays soft (§12 button hierarchy). */
-.ecosystem-region-dialog__button--primary,
 .ecosystem-properties-dialog__button--primary,
 .ecosystem-assign-dialog__button--primary,
 .label-assign-dialog__button--primary,
@@ -753,7 +684,6 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 	color: var(--color-button-text);
 }
 
-.ecosystem-region-dialog__button--primary:hover,
 .ecosystem-properties-dialog__button--primary:hover,
 .ecosystem-assign-dialog__button--primary:hover,
 .label-assign-dialog__button--primary:hover,
@@ -762,7 +692,6 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 	background: var(--color-button-hover);
 }
 
-.ecosystem-region-dialog__button:disabled,
 .ecosystem-properties-dialog__button:disabled,
 .ecosystem-assign-dialog__button:disabled,
 .label-assign-dialog__button:disabled,
@@ -916,7 +845,7 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 }
 
 /* Die Feldregel oben gibt jedem input im Dialog volle Breite -- ein Kontrollkästchen braucht das nicht.
-   Derselbe Rückzug wie bei .ecosystem-region-dialog__checkbox input. */
+   Derselbe Rückzug wie bei .ecosystem-properties-dialog__checkbox input. */
 .ecosystem-import-dialog__row input {
 	width: auto;
 	margin: 0;
@@ -1544,17 +1473,6 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 .ecosystem-properties-dialog__button--danger:hover {
 	border-color: var(--color-danger-soft-text);
 	background: var(--color-danger-soft);
-}
-
-.ecosystem-controls__note[hidden] {
-	display: none !important;
-}
-
-.ecosystem-controls__note {
-	margin: 0;
-	color: var(--color-warning-soft-text);
-	font-size: var(--font-size-small);
-	line-height: var(--leading-snug);
 }
 
 /* ---- vertex editor (V3.3) --------------------------------------------------------------------------
