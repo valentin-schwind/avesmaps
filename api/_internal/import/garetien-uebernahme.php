@@ -335,6 +335,24 @@ function avesmapsGaretienQuelleRuecknahmeLoesen(PDO $pdo, string $entityType, st
     return $geloest;
 }
 
+/**
+ * Wie viele AKTIVE Flaechen traegt diese Region noch? 0 auch dann, wenn es die Region nicht (mehr) gibt.
+ *
+ * 🔴 EINE FRAGE, ZWEI LESER: die Anfuehrer-Suche (ein Teil haengt sich nie an eine leere Region) und
+ * die Ruecknahme (die Quelle der Region faellt erst mit der letzten Flaeche). Gefragt wird die
+ * TABELLE, nie eine Rueckgabe der Kaskade -- die ist abschaltbar (AVESMAPS_ECOSYSTEM_CASCADE_ENABLED).
+ */
+function avesmapsGaretienRegionAktiveFlaechen(PDO $pdo, string $regionPublicId): int
+{
+    $stmt = $pdo->prepare(
+        'SELECT COUNT(*) FROM ecosystem_area a JOIN ecosystem_region r ON r.id = a.region_id'
+        . ' WHERE r.public_id = :p AND a.is_active = 1'
+    );
+    $stmt->execute([':p' => $regionPublicId]);
+
+    return (int) $stmt->fetchColumn();
+}
+
 // 🔴 DER Z5-INDEX -- dieselbe Stelle, an der js/map-features/ecosystem-display.js die
 // "Grundgroesse" einer Art abliest (avesmapsEcosystemDisplayBasisGroesse: "bei z5 ist der
 // Zoomfaktor der Groessenrechnung genau 1,0 ... die Grundgroesse IST also per Konstruktion der
@@ -735,6 +753,13 @@ function avesmapsGaretienVerbundRegion(PDO $pdo, string $verbund, string $kind, 
         if ((string) $zeile['kind'] !== $kind || (string) ($zeile['region_type'] ?? '') !== $regionType) {
             continue;   // Befund E: gleicher Stamm, andere Art -- kein Anfuehrer fuer DIESES Fragment.
         }
+        // 🔴 EIN TEIL HAENGT SICH NIE AN EINE REGION OHNE AKTIVE FLAECHE (Entwurf 14.09.2026, §6.6).
+        // Eine aktive, aber leere Region ist ein Rest -- ein abgebrochenes Aufraeumen oder ein
+        // Handgriff an der Datenbank. Wer sich daran haengt, macht aus dem Rest einen Verbund, den
+        // niemand gezeichnet hat; ohne Treffer wird dieses Fragment selbst Anfuehrer.
+        if (avesmapsGaretienRegionAktiveFlaechen($pdo, $region) === 0) {
+            continue;   // leer: kein Anfuehrer fuer DIESES Fragment.
+        }
 
         return $region;
     }
@@ -842,25 +867,85 @@ function avesmapsGaretienFlaecheAnlegen(
     // Faltungstafel. Ein hier gebauter Schluessel waere die zweite Faltung (AGENTS.md §5).
     // ⚠️ Ohne Treffer bleibt das Feld WEG -- dieselbe Regel wie am Schild.
     $wikiAdresse = trim((string) ($wikiZuweisung['wiki_url'] ?? ''));
-    $region = avesmapsCreateEcosystemRegion($pdo, array_merge([
-        'name' => (string) $nach['name'],
-        'auto_name' => false,
-        'kind' => (string) $nach['kind'],
-        'region_type' => (string) $nach['subtyp'],
-        'label_public_id' => $labelId,
-    ], $wikiAdresse !== '' ? ['wiki_url' => $wikiAdresse] : [], avesmapsGaretienRegionUebersteuerung($einstellungen)), $userId);
-    $regionId = avesmapsGaretienPublicIdAus($region, 'Die Region');
-    $flaeche = avesmapsCreateEcosystemArea($pdo, [
-        'region_public_id' => $regionId,
-        'geometry' => $nach['geometry'],
-    ], $userId);
+    // 💣 SCHRITT 2 UND 3 SIND ZWEI TRANSAKTIONEN, NICHT EINE (Entwurf 14.09.2026, Fehler 7). Jede
+    // Hausfunktion rollt nur SICH zurueck. Scheiterte die Flaeche, standen Beschriftung und eine
+    // LEERE Region als Waise da -- an keinem `done`-Vermerk, also von keiner Ruecknahme erreichbar,
+    // und der naechste Teil des Verbunds legte eine zweite Region desselben Namens an.
+    // 🔴 Deshalb raeumt der Anfuehrer selbst auf, ueber DIESELBEN Hausfunktionen, die jede Ruecknahme
+    // benutzt, und wirft den Fehler weiter: das Item bleibt `failed`, der Grund bleibt der echte.
+    $regionId = '';
+    try {
+        $region = avesmapsCreateEcosystemRegion($pdo, array_merge([
+            'name' => (string) $nach['name'],
+            'auto_name' => false,
+            'kind' => (string) $nach['kind'],
+            'region_type' => (string) $nach['subtyp'],
+            'label_public_id' => $labelId,
+        ], $wikiAdresse !== '' ? ['wiki_url' => $wikiAdresse] : [], avesmapsGaretienRegionUebersteuerung($einstellungen)), $userId);
+        $regionId = avesmapsGaretienPublicIdAus($region, 'Die Region');
+        $flaeche = avesmapsCreateEcosystemArea($pdo, [
+            'region_public_id' => $regionId,
+            'geometry' => $nach['geometry'],
+        ], $userId);
+        $flaecheId = avesmapsGaretienPublicIdAus($flaeche, 'Die Flaeche');
+    } catch (Throwable $abbruch) {
+        avesmapsGaretienFlaecheAufraeumen($pdo, $user, $userId, $labelId, $regionId, $abbruch);
+    }
 
     return [
         'public_id' => $regionId,
         'entity_type' => 'region',
         'label_public_id' => $labelId,
-        'area_public_id' => avesmapsGaretienPublicIdAus($flaeche, 'Die Flaeche'),
+        'area_public_id' => $flaecheId,
     ];
+}
+
+/**
+ * Was ein gescheiterter Anfuehrer schon angelegt hat, wieder wegnehmen -- und dann den Fehler werfen.
+ *
+ * 🔴 DIE HAUSFUNKTIONEN, KEIN EIGENES UPDATE. avesmapsDeleteEcosystemRegion nimmt die Region samt
+ * ihren Beschriftungen in EINER Transaktion mit (dieselbe, die die Ruecknahme einer Einzelflaeche
+ * nimmt); die Beschriftung allein -- Schritt 2 scheiterte, es gibt keine Region -- geht ueber
+ * avesmapsDeleteMapFeature. Beide schreiben ihr Protokoll, beide heben die Revision.
+ * ⚠️ Die Beschriftung wird NUR geloescht, wenn sie danach noch aktiv ist: die Regionsloeschung nimmt
+ * sie ueber die Kaskade schon mit (AVESMAPS_ECOSYSTEM_CASCADE_ENABLED), und ein zweiter Loeschversuch
+ * auf eine inaktive Zeile waere ein Fehler, der den echten Grund ueberdeckt.
+ * 💣 KEINE OFFENE TRANSAKTION: jede der zwei Hausfunktionen oeffnet ihre eigene, und die gescheiterte
+ * Anlage hat ihre bereits zurueckgerollt. Das Ensure-DDL darin laeuft deshalb ausserhalb jeder
+ * Transaktion -- auf MySQL committete es eine offene sonst implizit (AGENTS.md §11, Quellen-Umbau).
+ * 💣 Scheitert das Aufraeumen selbst, bleibt der ERSTE Fehler der Grund, und das Aufraeumen steht
+ * dahinter -- ein Editor muss erfahren, dass eine Waise geblieben ist.
+ */
+function avesmapsGaretienFlaecheAufraeumen(PDO $pdo, array $user, int $userId, string $labelId, string $regionId, Throwable $abbruch): never
+{
+    $aufraeumFehler = [];
+    if ($regionId !== '') {
+        try {
+            avesmapsDeleteEcosystemRegion($pdo, ['public_id' => $regionId], $userId);
+        } catch (Throwable $fehler) {
+            $aufraeumFehler[] = 'Region ' . $regionId . ': ' . $fehler->getMessage();
+        }
+    }
+    if ($labelId !== '') {
+        $aktiv = $pdo->prepare('SELECT is_active FROM map_features WHERE public_id = :p LIMIT 1');
+        $aktiv->execute([':p' => $labelId]);
+        if ((int) $aktiv->fetchColumn() === 1) {
+            try {
+                avesmapsDeleteMapFeature($pdo, ['public_id' => $labelId], $user);
+            } catch (Throwable $fehler) {
+                $aufraeumFehler[] = 'Beschriftung ' . $labelId . ': ' . $fehler->getMessage();
+            }
+        }
+    }
+    if ($aufraeumFehler === []) {
+        throw $abbruch;
+    }
+
+    throw new RuntimeException(
+        $abbruch->getMessage() . ' -- Aufraeumen unvollstaendig: ' . implode('; ', $aufraeumFehler),
+        0,
+        $abbruch
+    );
 }
 
 /**
@@ -2774,6 +2859,30 @@ function avesmapsGaretienRuecknahmeAusfuehren(PDO $pdo, int $runId, array $itemI
                     // (AGENTS.md §11, Konfliktzentrum, Regel label.duplicate); hier wird sie
                     // gewollt und vollstaendig ausgefuehrt.
                     avesmapsDeleteEcosystemRegion($pdo, ['public_id' => $zielId], (int) ($user['id'] ?? 0));
+                }
+                // 🔴 DIE GARETIEN-QUELLE DER REGION FAELLT ERST MIT DER LETZTEN FLAECHE (Entwurf
+                // 14.09.2026, Fehler 9). Alle Fragmente eines Verbunds haengen sie an DIESELBE Stelle
+                // (`ecosystem:<region>`) -- die Ruecknahme EINES darf sie den uebrigen nicht nehmen.
+                // Gezaehlt werden die aktiven Flaechen NACH dem Loeschen, nie der Rueckgabewert der
+                // Kaskade: die ist abschaltbar (AVESMAPS_ECOSYSTEM_CASCADE_ENABLED), die Frage nicht.
+                // ⚠️ NACH dem Loeschen, nicht davor: scheiterte das Loeschen nach dem Loesen, stuende
+                // eine sichtbare Landschaft ohne ihre Lizenzangabe da -- die teurere Richtung.
+                // ⚠️ In einem EIGENEN Fang: das Objekt ist zu diesem Zeitpunkt schon weg. Ein Fehler
+                // beim Loesen wird benannt, haelt das Item aber nicht auf „done" fest -- sonst boete
+                // die Liste eine Ruecknahme an, die nur noch an „Flaeche existiert nicht mehr" scheitert.
+                $regionDerFlaeche = avesmapsGaretienVermerkLesen($publicId)['region'];
+                try {
+                    if ($regionDerFlaeche !== '' && avesmapsGaretienRegionAktiveFlaechen($pdo, $regionDerFlaeche) === 0) {
+                        [$quellArt, $quellId] = avesmapsGaretienQuellenZiel('region', $regionDerFlaeche);
+                        avesmapsGaretienQuelleRuecknahmeLoesen($pdo, $quellArt, $quellId, (int) ($user['id'] ?? 0));
+                        $beruehrt[$quellArt . ':' . $quellId] = ['entity_type' => $quellArt, 'public_id' => $quellId];
+                    }
+                } catch (Throwable $quellFehler) {
+                    $fehler[] = [
+                        'item' => $itemId,
+                        'grund' => mb_substr('zurueckgenommen, aber die Quelle der Region blieb haengen: '
+                            . $quellFehler->getMessage(), 0, 300, 'UTF-8'),
+                    ];
                 }
             } else {
                 throw new RuntimeException('unbekanntes Ziel "' . $ziel . '" -- keine Ruecknahme moeglich');
