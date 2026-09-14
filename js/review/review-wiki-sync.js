@@ -278,8 +278,8 @@ function wikiSyncRailDateText(subjectKey) {
 	if (!raw) {
 		return "nie";
 	}
-	const parsed = new Date(String(raw).replace(" ", "T"));
-	if (Number.isNaN(parsed.getTime())) {
+	const parsed = wikiSyncStempelDatum(raw);
+	if (!parsed) {
 		return "";
 	}
 	return String(parsed.getDate()).padStart(2, "0") + "." + String(parsed.getMonth() + 1).padStart(2, "0") + ".";
@@ -877,7 +877,11 @@ async function refreshWikiSyncKindSyncedStatus() {
 		// gefunden von js/review/__tests__/sync-synced-ids.test.js. Folgenlos, weil Abenteuer
 		// daneben `game-literature-editor-synced` haben, aber genau diese Art Verweis war das eigentliche
 		// Problem: er schreibt still nirgendwohin.
-		[["wiki-sync-territory-synced", "territory"], ["game-literature-editor-synced", "adventure"], ["citymaps-editor-synced", "citymap"], ["powerline-editor-synced", "powerline"]].forEach(([id, kind]) => {
+		// 🔴 Seit 14.09.2026 auch „Vorkommen bearbeiten“: sein Datum kam bis dahin aus der Vorkommen-LISTE
+		// (renderLoreLastSynced), also aus einer zweiten Quelle -- nach einem Lauf ohne Uebernahme stand
+		// dort das alte Datum, waehrend die Leiste daneben schon das neue zeigte. Alle acht Knopfzeilen
+		// lesen jetzt diese eine Karte (js/review/__tests__/sync-datum-knopfzeilen.test.js).
+		[["wiki-sync-territory-synced", "territory"], ["game-literature-editor-synced", "adventure"], ["citymaps-editor-synced", "citymap"], ["powerline-editor-synced", "powerline"], ["wiki-sync-lore-synced", "lore"]].forEach(([id, kind]) => {
 			const el = document.getElementById(id);
 			if (!el) {
 				return;
@@ -1615,8 +1619,9 @@ if (typeof window !== "undefined") {
 // for THAT kind via the SAME one-POST-per-step client loop the dump read uses
 // (runWikiSyncDumpLoop pattern). It re-reads the newest completed dump into the
 // matching STAGING table (never map_features / live political_territory). The
-// per-tab progress bar + a "Zuletzt gesynct: <date>" line come from the sync
-// response's `run` (completed_at, falling back to updated_at).
+// per-tab progress comes from the sync response; the "Zuletzt gesynct: <date>" line
+// comes from the server card once the run is done (refreshWikiSyncKindSyncedStatus --
+// since 14.09.2026; before that from the response's `run`, a second source).
 // ===========================================================================
 
 // Static per-kind DOM wiring: button + progress + status + synced ids, and the tab's kind.
@@ -1704,15 +1709,32 @@ function setWikiSyncKindButtonsDisabled(isDisabled, activeKind = null) {
 	});
 }
 
-// "Zuletzt gesynct: <date>" from a run row (completed_at preferred, else updated_at).
-// Reuses the MySQL-DATETIME -> Date parse trick (space -> "T") used for the dump date.
+// Der EINE Datumsbauer fuer „Zuletzt gesynct“ -- Knopfzeilen, Tooltip und Kurzdatum der Leiste.
+// Die Serverkarte (avesmapsWikiDumpSyncKindLastSynced) liefert zwei Formen, beide eindeutig:
+//   „2026-09-05T13:40:26Z“  UTC-Stempel aus app_setting (Literatur, Karten, Kraftlinien, Vorkommen)
+//   „2026-09-02 02:19:00“   MySQL-DATETIME in der Zonenzeit der DB-Sitzung (Orte, Wege, Regionen, Territorien)
+// 💣 Bis zum 14.09.2026 kamen beide ohne Kennzeichnung, und jede Stelle las sie als Ortszeit -- die
+// UTC-Stempel standen im Sommer zwei Stunden zu frueh am Knopf. Das „Z“ setzt der SERVER, hier wird
+// nichts nachgerechnet: sonst gaebe es zwei Stellen, die wissen muessen, welche Art welche Uhr hat.
+// ⚠️ Ein naives DATETIME gilt als Ortszeit. Das stimmt, solange der Browser in derselben Zone steht wie
+// die DB-Sitzung (Europe/Berlin, gemessen 14.09.2026) -- fuer einen Editor im Ausland nicht.
+function wikiSyncStempelDatum(raw) {
+	const text = String(raw || "").trim();
+	if (text === "") {
+		return null;
+	}
+	const parsed = new Date(text.replace(" ", "T"));
+	return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+// "Zuletzt gesynct: <date>" aus einem Kartenwert (completed_at, sonst updated_at).
 function formatWikiSyncKindSyncedText(run) {
 	const raw = String(run?.completed_at || run?.updated_at || "").trim();
 	if (raw === "") {
 		return "Zuletzt gesynct: unbekannt";
 	}
-	const parsed = new Date(raw.replace(" ", "T"));
-	if (Number.isNaN(parsed.getTime())) {
+	const parsed = wikiSyncStempelDatum(raw);
+	if (!parsed) {
 		return `Zuletzt gesynct: ${raw}`;
 	}
 	return `Zuletzt gesynct: ${parsed.toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" })}`;
@@ -1757,10 +1779,12 @@ function renderWikiSyncKindProgress(kind, progress, done, run, phase = "staging"
 		// outside it, so a tab reads identically after a run and after a reload.
 		setWikiSyncButtonState(button, { label: "🚨 Syncen", running: false });
 		button.dataset.idleLabel = button.textContent;
-		const syncedElement = document.getElementById(ids.synced);
-		if (syncedElement) {
-			syncedElement.textContent = formatWikiSyncKindSyncedText(run);
-			syncedElement.hidden = false;
+		// 🔴 Das Datum kommt aus der SERVERKARTE, nicht aus `run` (so bis 14.09.2026). Der Lauf nennt sein
+		// eigenes Ende, die Karte bei Wegen und Regionen den Stand der Staging-Tabelle -- zwei Quellen fuer
+		// denselben Span, und nach einem Neuladen stand dort ein anderes Datum als direkt nach dem Lauf.
+		// Die Karte zieht die Leiste gleich mit, die nach einem Kind-Sync bis dahin gar nicht nachzog.
+		if (typeof refreshWikiSyncKindSyncedStatus === "function") {
+			void refreshWikiSyncKindSyncedStatus();
 		}
 		return;
 	}
@@ -3138,35 +3162,6 @@ function renderLoreList(view, data, append) {
 		var w3 = avesmapsLoreBalanceWord();
 		avesmapsListBalanceRender("lore-list-balance", w3.wort, page.loaded, page.total, w3.dativ);
 	}
-}
-
-/**
- * „Zuletzt gesynct: …" neben den Knopf schreiben -- wie bei Abenteuern und
- * Kartensammlung. Ohne die Zeile sieht ein leerer Reiter aus wie ein Fehler, statt
- * wie „noch nie gesynct", und niemand weiß, ob der Bestand von heute oder von
- * letzter Woche stammt. Der Zeitstempel kommt UTC aus app_setting und wird lokal
- * angezeigt; ein unlesbarer Wert wird roh durchgereicht statt zu „Invalid Date".
- */
-function renderLoreLastSynced(data) {
-	var syncedEl = document.getElementById("wiki-sync-lore-synced");
-	if (!syncedEl || !data || !data.ok) {
-		return;
-	}
-	var stamp = typeof data.last_synced === "string" ? data.last_synced.trim() : "";
-	if (stamp) {
-		var parsed = new Date(stamp.replace(" ", "T") + "Z");
-		// 💣 Stand als rohes toLocaleString und ergab „26.7.2026, 11:01:16" — als einziges der acht
-		// Subjekte. Die anderen sieben gehen durch formatWikiSyncKindSyncedText (dateStyle:medium +
-		// timeStyle:short) und zeigen „26.07.2026, 11:01". Derselbe Formatierer, dieselbe Angabe.
-		// ⚠️ Der Zeitstempel kommt UTC aus app_setting; das "Z" oben macht ihn lokal lesbar, und
-		// deshalb wird hier das GEPARSTE Datum weitergereicht, nicht der rohe String.
-		syncedEl.textContent = isNaN(parsed.getTime())
-			? "Zuletzt gesynct: " + stamp
-			: formatWikiSyncKindSyncedText({ completed_at: parsed.toISOString() });
-	} else {
-		syncedEl.textContent = "Noch nie gesynct";
-	}
-	syncedEl.hidden = false;
 }
 
 // Der Reiterstreifen ist GETEILT, die Listen laden aber asynchron. Eine Antwort, die eintrifft,

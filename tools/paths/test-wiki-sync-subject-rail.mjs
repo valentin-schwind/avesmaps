@@ -47,6 +47,9 @@ vm.runInContext(readFileSync(path.join(repoRoot, "js", "review", "review-subject
 vm.runInContext("let activeWikiSyncPanelTab = 'locations';", context);
 vm.runInContext("function escapeHtml(s) { return String(s == null ? '' : s); }", context);
 vm.runInContext("function setWikiSyncPanelTab(k) { activeWikiSyncPanelTab = k; }", context);
+// Der EINE Datumsbauer, den Knopfzeile und Leiste teilen (seit 14.09.2026) -- ohne ihn liefen beide
+// Ausschnitte hier in einen ReferenceError.
+vm.runInContext(sliceFunction("wikiSyncStempelDatum"), context);
 vm.runInContext(sliceFunction("formatWikiSyncKindSyncedText"), context);
 vm.runInContext(sliceFunction("wikiSyncKindSyncedLabel"), context);
 vm.runInContext("var wikiSyncKindSyncedRaw = null;", context);

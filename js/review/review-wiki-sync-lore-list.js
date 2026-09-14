@@ -150,7 +150,10 @@ function avesmapsLoreFetchList(view, append) {
 				avesmapsLoreMaybeAutoFill(view);
 				return;
 			}
-			renderLoreLastSynced(data);
+			// 🔴 Die Knopfzeile „Vorkommen bearbeiten“ schreibt diese Antwort NICHT mehr (bis 14.09.2026:
+			// renderLoreLastSynced). Sie liest die Serverkarte wie alle acht Knopfzeilen
+			// (refreshWikiSyncKindSyncedStatus) -- ein zweiter Schreiber hielt nach einem Lauf ohne
+			// Uebernahme das alte Datum am Knopf, waehrend die Leiste daneben das neue zeigte.
 			renderLoreKindToggles(data && data.ok ? data.kinds_enabled : null);
 			// Trichter-Optionen aus DIESER Antwort uebernehmen und den Trichter neu zeichnen
 			// (frische Zaehler + Aktiv-Badge). Nur beim Erst-Laden -- Scroll-Folgeseiten liefern
@@ -197,7 +200,7 @@ function avesmapsLoreFetchList(view, append) {
 				// drauf klickt kommt das datum"). Seither liefert der Server `lore` in derselben
 				// Karte wie alle anderen Arten (avesmapsWikiDumpSyncKindLastSynced), und die Leiste
 				// hat EINEN Schreiber: refreshWikiSyncKindSyncedStatus. Das Datum am Knopf darunter
-				// (renderLoreLastSynced) liest weiterhin diese Antwort -- das ist ein anderes Feld.
+				// (bis 14.09.2026 renderLoreLastSynced, aus DIESER Antwort) liest seither dieselbe Karte.
 			}
 			// Kurze Liste in hohem Container: sofort die nächste Seite, sonst gäbe es keinen
 			// Scrollbalken, mit dem man die restlichen Einträge je erreichen könnte.

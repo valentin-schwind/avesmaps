@@ -1142,10 +1142,18 @@ function avesmapsGameLiteratureLastSynced(PDO $pdo): ?string
             // fall through to the row-based estimate below
         }
     }
+    // 💣 Der Stempel darueber ist gmdate() (UTC), `synced_at` aber CURRENT_TIMESTAMP -- Sitzungszeit,
+    // auf STRATO Europe/Berlin (gemessen 14.09.2026). Die Serverkarte kennzeichnet diesen Leser als UTC
+    // (avesmapsWikiDumpSyncKindUtcStempel), also rechnet der Rueckfall selbst um: UNIX_TIMESTAMP liest in
+    // der Sitzungszone, auch ueber eine Sommerzeitgrenze, gmdate schreibt UTC. Ohne das stuende ein
+    // Berliner Datum mit einem falschen „Z“ am Knopf -- zwei Stunden zu spaet.
     try {
-        $stmt = $pdo->query("SELECT MAX(synced_at) FROM adventure WHERE origin = 'wiki'");
+        $stmt = $pdo->query("SELECT UNIX_TIMESTAMP(MAX(synced_at)) FROM adventure WHERE origin = 'wiki'");
         $value = $stmt !== false ? $stmt->fetchColumn() : false;
-        return $value !== false && $value !== null ? (string) $value : null;
+        if ($value === false || $value === null || (float) $value <= 0) {
+            return null;
+        }
+        return gmdate('Y-m-d H:i:s', (int) $value);
     } catch (Throwable) {
         return null;
     }

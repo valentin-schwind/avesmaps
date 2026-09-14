@@ -143,7 +143,10 @@ function avesmapsWikiDumpSyncKindEntityKinds(string $taskKind): array
  *                    step upserts here via avesmapsWikiSyncMonitorUpsertTestRecord).
  *
  * Never writes anything; safe to call on every panel load. Returns MySQL
- * DATETIME strings (or null per kind if that kind has never been synced).
+ * DATETIME strings in the DB session's zone for the four table-backed kinds, and
+ * gmdate() stamps MARKED as UTC ("2026-09-02T12:16:27Z", see
+ * avesmapsWikiDumpSyncKindUtcStempel) for the app_setting-backed ones -- or null
+ * per kind if that kind has never been synced.
  *
  * @return array<string, string|null> keyed by AVESMAPS_WIKI_DUMP_SYNC_KINDS
  */
@@ -175,8 +178,11 @@ function avesmapsWikiDumpSyncKindLastSynced(PDO $pdo): array
     // label reuses this same map. Fill it from the adventure reconcile timestamp
     // (avesmapsGameLiteratureLastSynced, loaded by the dump endpoint). Guarded so a context without the
     // adventure lib still returns the four real kinds unchanged.
+    // 🔴 Die vier app_setting-Leser ab hier liefern gmdate(), also UTC -- sie gehen durch
+    // avesmapsWikiDumpSyncKindUtcStempel (unter dieser Funktion). Die vier Tabellenwerte darueber sind
+    // Sitzungszeit und bleiben, wie sie sind. Wer hier einen Leser ergaenzt, entscheidet dasselbe.
     if (function_exists('avesmapsGameLiteratureLastSynced')) {
-        $result['adventure'] = avesmapsGameLiteratureLastSynced($pdo);
+        $result['adventure'] = avesmapsWikiDumpSyncKindUtcStempel(avesmapsGameLiteratureLastSynced($pdo));
     }
     // Karten are not a sync_kind either; two labels read this map and they need DIFFERENT answers:
     //   citymap        -- when "Karten syncen" last completed, whether or not it found anything. The
@@ -190,7 +196,7 @@ function avesmapsWikiDumpSyncKindLastSynced(PDO $pdo): array
     //                     anything to sync at all?", and "never synced" cannot answer that.
     // Same guard as above: a context without the citymap lib returns the other kinds unchanged.
     if (function_exists('avesmapsCitymapLastSynced')) {
-        $result['citymap'] = avesmapsCitymapLastSynced($pdo);
+        $result['citymap'] = avesmapsWikiDumpSyncKindUtcStempel(avesmapsCitymapLastSynced($pdo));
     }
     if (function_exists('avesmapsCitymapLastStaged')) {
         $result['citymap_staged'] = avesmapsCitymapLastStaged($pdo);
@@ -199,7 +205,7 @@ function avesmapsWikiDumpSyncKindLastSynced(PDO $pdo): array
     // map. Fill it from the powerline reconcile timestamp (avesmapsWikiPowerlineLastSynced, loaded by
     // the dump endpoint). Guarded so a context without the powerline lib returns the other kinds unchanged.
     if (function_exists('avesmapsWikiPowerlineLastSynced')) {
-        $result['powerline'] = avesmapsWikiPowerlineLastSynced($pdo);
+        $result['powerline'] = avesmapsWikiDumpSyncKindUtcStempel(avesmapsWikiPowerlineLastSynced($pdo));
     }
     // Vorkommen (lore) sind ebenfalls kein sync_kind; ihr Stempel liegt in app_setting
     // (AVESMAPS_LORE_LAST_SYNCED_SETTING, gelesen von avesmapsLoreLastSynced in lore-sync.php, das
@@ -210,10 +216,35 @@ function avesmapsWikiDumpSyncKindLastSynced(PDO $pdo): array
     // den drei Arten darueber; die Naht zur Client-Registry haelt
     // __tests__/vorkommen-datum-in-der-leiste-test.php (jeder syncKind hat hier einen Schluessel).
     if (function_exists('avesmapsLoreLastSynced')) {
-        $result['lore'] = avesmapsLoreLastSynced($pdo);
+        $result['lore'] = avesmapsWikiDumpSyncKindUtcStempel(avesmapsLoreLastSynced($pdo));
     }
 
     return $result;
+}
+
+/**
+ * Einen gmdate()-Stempel als UTC kennzeichnen: „2026-09-02 12:16:27“ -> „2026-09-02T12:16:27Z“.
+ *
+ * 💣 In der Karte darueber stehen ZWEI Uhren. Gemessen am Dump vom 08.09.2026, Zeile `lore_last_synced`:
+ * Wert 13:40:26, `updated_at` 15:40:26. Die app_setting-Stempel (Literatur, Karten, Kraftlinien,
+ * Vorkommen) schreiben gmdate() -- UTC; Laeufe und Staging-Tabellen schreiben CURRENT_TIMESTAMP, also
+ * die Zonenzeit der DB-Sitzung (Europe/Berlin). Der Browser liest ein naives Datum als Ortszeit, und
+ * die UTC-Stempel standen deshalb bis zum 14.09.2026 im Sommer zwei Stunden zu frueh an ihren Knoepfen.
+ * Mit „Z“ ist der Wert fuer `new Date()` eindeutig (Leser: wikiSyncStempelDatum, review-wiki-sync.js).
+ *
+ * 🔴 Er RAET nicht: nur genau die Form von gmdate('Y-m-d H:i:s') bekommt ein Z. Ein DATETIME(3) mit
+ * Millisekunden oder etwas Unbekanntes geht unveraendert durch -- ein falsches Z waere dieselbe
+ * Verschiebung in die andere Richtung.
+ */
+function avesmapsWikiDumpSyncKindUtcStempel(?string $gmdate): ?string
+{
+    if ($gmdate === null) {
+        return null;
+    }
+
+    return preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $gmdate) === 1
+        ? str_replace(' ', 'T', $gmdate) . 'Z'
+        : $gmdate;
 }
 
 // ===========================================================================

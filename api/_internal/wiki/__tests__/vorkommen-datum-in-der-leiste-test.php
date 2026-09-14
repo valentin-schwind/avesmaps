@@ -139,9 +139,11 @@ assert($karte['lore'] === null, 'vor dem ersten Lauf ist Vorkommen „nie gesync
 
 avesmapsAppSettingSet($pdo, AVESMAPS_LORE_LAST_SYNCED_SETTING, '2026-09-05 12:00:00');
 $karte = avesmapsWikiDumpSyncKindLastSynced($pdo);
+// Seit 14.09.2026 mit „Z": der Stempel ist gmdate(), also UTC -- ohne Kennzeichnung las ihn der
+// Browser als Ortszeit (Abschnitt 6).
 assert(
-    $karte['lore'] === '2026-09-05 12:00:00',
-    'die Karte liest den Stempel der Uebernahme zurueck (got ' . var_export($karte['lore'] ?? null, true) . ')'
+    $karte['lore'] === '2026-09-05T12:00:00Z',
+    'die Karte liest den Stempel der Uebernahme zurueck, als UTC gekennzeichnet (got ' . var_export($karte['lore'] ?? null, true) . ')'
 );
 
 // Die vier echten sync_kinds bleiben unberuehrt -- der neue Schluessel kommt DAZU.
@@ -250,5 +252,71 @@ foreach ($riegel as $leser) {
         "dump.php laedt {$treffer[0]} -- sonst ist {$leser} beim Aufruf der Karte nicht definiert, und sein Schluessel fehlt still"
     );
 }
+
+// ===========================================================================
+// 6. Die Karte sagt, WELCHE Uhr sie meint (14.09.2026).
+// ===========================================================================
+//
+// 💣 Zwei Uhren stehen in derselben Karte. Gemessen am Dump vom 08.09.2026, Zeile `lore_last_synced`:
+// Wert 13:40:26, `updated_at` 15:40:26.
+//   - die app_setting-Stempel (Literatur, Karten, Kraftlinien, Vorkommen) schreiben gmdate() -- UTC;
+//   - Laeufe und Staging-Tabellen (Orte, Wege, Regionen, Territorien) schreiben CURRENT_TIMESTAMP --
+//     die Zonenzeit der DB-Sitzung, Europe/Berlin.
+// Der Browser las beide als Ortszeit, die UTC-Stempel standen im Sommer zwei Stunden zu frueh am Knopf.
+// Ein UTC-Stempel traegt jetzt ein „Z" und ist damit fuer `new Date()` eindeutig; ein DATETIME bleibt,
+// wie es ist. Die Leserseite haelt js/review/__tests__/sync-datum-knopfzeilen.test.js.
+
+avesmapsAppSettingSet($pdo, AVESMAPS_GAME_LITERATURE_LAST_SYNCED_SETTING, '2026-09-02 12:16:27');
+avesmapsAppSettingSet($pdo, AVESMAPS_CITYMAP_LAST_SYNCED_SETTING, '2026-09-02 12:33:38');
+avesmapsAppSettingSet($pdo, AVESMAPS_POWERLINE_LAST_SYNCED_SETTING, '2026-09-01 07:00:00');
+$pdo->exec("INSERT INTO wiki_sync_runs (id, status, sync_type, completed_at) VALUES (1, 'completed', '"
+    . AVESMAPS_WIKI_SYNC_TYPE_LOCATION . "', '2026-09-02 02:19:00.123')");
+$pdo->exec('INSERT INTO ' . AVESMAPS_WIKI_PATH_STAGING_TABLE . " (synced_at) VALUES ('2026-09-03 10:00:00.000')");
+
+$karte = avesmapsWikiDumpSyncKindLastSynced($pdo);
+$utcSoll = [
+    'adventure' => '2026-09-02T12:16:27Z',
+    'citymap' => '2026-09-02T12:33:38Z',
+    'powerline' => '2026-09-01T07:00:00Z',
+    'lore' => '2026-09-05T12:00:00Z',
+];
+foreach ($utcSoll as $kind => $soll) {
+    assert(
+        ($karte[$kind] ?? null) === $soll,
+        "der UTC-Stempel `{$kind}` traegt ein Z (got " . var_export($karte[$kind] ?? null, true) . ')'
+    );
+}
+assert(
+    $karte['settlement'] === '2026-09-02 02:19:00.123',
+    'ein Lauf-DATETIME bleibt Sitzungszeit und unveraendert (got ' . var_export($karte['settlement'], true) . ')'
+);
+assert($karte['path'] === '2026-09-03 10:00:00.000', 'ein Staging-DATETIME bleibt Sitzungszeit und unveraendert');
+
+// Der Kennzeichner RAET nicht: nur die Form, die gmdate('Y-m-d H:i:s') schreibt, bekommt ein Z.
+assert(avesmapsWikiDumpSyncKindUtcStempel(null) === null, 'null bleibt null -- „nie gesynct"');
+assert(avesmapsWikiDumpSyncKindUtcStempel('2026-09-02 12:16:27') === '2026-09-02T12:16:27Z', 'die gmdate-Form wird gekennzeichnet');
+assert(avesmapsWikiDumpSyncKindUtcStempel('gestern') === 'gestern', 'eine unbekannte Form geht unveraendert durch');
+assert(
+    avesmapsWikiDumpSyncKindUtcStempel('2026-09-02 12:16:27.521') === '2026-09-02 12:16:27.521',
+    'ein DATETIME(3) ist KEIN gmdate-Stempel und bleibt unberuehrt'
+);
+
+// ⚠️ Der Literatur-Leser hat einen RUECKFALL ohne Stempel: MAX(synced_at) der Tabelle `adventure`, also
+// Sitzungszeit. Ungerechnet bekaeme dieser Wert in der Karte ein falsches Z. Der Rueckfall rechnet
+// deshalb selbst nach UTC (UNIX_TIMESTAMP liest in der Sitzungszone, gmdate schreibt UTC). SQLite kennt
+// UNIX_TIMESTAMP nicht -- hier steht es fuer eine Berliner Sitzung, wie auf STRATO gemessen.
+$pdo->exec("DELETE FROM app_setting WHERE setting_key = '" . AVESMAPS_GAME_LITERATURE_LAST_SYNCED_SETTING . "'");
+$pdo->exec('CREATE TABLE adventure (origin TEXT, synced_at TEXT)');
+$pdo->exec("INSERT INTO adventure (origin, synced_at) VALUES ('wiki', '2026-09-02 14:16:27.521'), ('manual', '2026-09-10 09:00:00.000')");
+$pdo->sqliteCreateFunction(
+    'UNIX_TIMESTAMP',
+    static fn ($wert) => $wert === null ? null : (new DateTimeImmutable((string) $wert, new DateTimeZone('Europe/Berlin')))->getTimestamp(),
+    1
+);
+$karte = avesmapsWikiDumpSyncKindLastSynced($pdo);
+assert(
+    $karte['adventure'] === '2026-09-02T12:16:27Z',
+    'auch der Rueckfall ohne Stempel liefert UTC (got ' . var_export($karte['adventure'], true) . ')'
+);
 
 fwrite(STDOUT, "OK vorkommen-datum-in-der-leiste-test\n");
