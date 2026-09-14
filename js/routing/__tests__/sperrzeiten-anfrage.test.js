@@ -33,6 +33,8 @@ global.syntheticPathSegments = new Map();
 global.getTransportOptionForRouteType = () => "horseCarriage";
 global.syncPlannerStateToUrl = () => {};
 global.resetRoutePresentation = () => { global.currentRouteClosures = []; global.currentRouteSeasonalWays = []; };
+// Die gedimmte vorige Route (Paket 4, 14.09.2026) -- hier nicht Gegenstand, siehe alte-route-bleibt-stehen.test.js.
+global.removeStaleRouteLine = () => {};
 let saisonalBeimZeichnen = null;
 global.collectAndValidateSelectedLocations = () => {};
 global.renderRouteWaypointMarkers = () => {};

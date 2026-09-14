@@ -566,7 +566,22 @@ async function updateMapViewServerPrimary() {
 	}
 
 	graphData = null;
-	resetRoutePresentation();
+	// Die vorige Route bleibt gedimmt stehen, bis die neue gezeichnet ist (retireCurrentRouteLineAsStale).
+	resetRoutePresentation({ keepRouteLine: true });
+	try {
+		await computeAndDrawServerPrimaryRoute(requestId, useShortest, routeOptions);
+	} finally {
+		// 🔴 EINE Regel fuer JEDEN Ausgang ohne neue Route -- Fehler, keine Route, Sperre, weniger als zwei
+		// Wegpunkte: die veraltete Linie geht. Nach drawRoute ist sie ohnehin schon weg. Als Zeile je
+		// Ausgang waere sie beim naechsten `return` vergessen.
+		// ⚠️ Nur wer UEBERHOLT wurde, laesst sie liegen: die neuere Berechnung hat sie uebernommen.
+		if (requestId === updateMapViewServerPrimary.requestId) {
+			removeStaleRouteLine();
+		}
+	}
+}
+
+async function computeAndDrawServerPrimaryRoute(requestId, useShortest, routeOptions) {
 	collectAndValidateSelectedLocations();
 
 	// Wegpunkt-Marker (Start/Zwischenziel/Ziel) statt permanent offener Infoboxen -- die Box erscheint

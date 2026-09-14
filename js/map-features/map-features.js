@@ -273,7 +273,15 @@ function resetOverview() {
 	$("#overview").empty();
 }
 
-function resetRoutePresentation() {
+// `keepRouteLine`: die gezeichnete Linie bleibt gedimmt stehen, bis die neue Route da ist -- nur der
+// Serverweg in route-engine.js setzt das, und er raeumt sie auf jedem Ausgang selbst wieder ab.
+// Ohne die Angabe geht wie bisher alles, auch eine noch stehende veraltete Linie.
+function resetRoutePresentation({ keepRouteLine = false } = {}) {
+	if (keepRouteLine) {
+		retireCurrentRouteLineAsStale();
+	} else {
+		removeStaleRouteLine();
+	}
 	if (currentRouteLayer) {
 		map.removeLayer(currentRouteLayer);
 		currentRouteLayer = null;

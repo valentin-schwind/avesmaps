@@ -46,6 +46,48 @@ function drawRoute(segments) {
 	window.avesmapsRedrawRouteSpeedArrows?.();
 }
 
+// Beim Neuberechnen bleibt die gezeichnete Route stehen -- gedimmt und nicht mehr anklickbar --, bis die
+// neue da ist (Owner 14.09.2026, Paket 4 der Performance-Analyse). Vorher raeumte resetRoutePresentation
+// sie sofort ab: live gemessen stand die Karte beim Umschalten Schnellste -> Kuerzeste 1,74 s ohne Route.
+//
+// 🔴 Die Linie wandert aus `currentRouteLayer` HERAUS, statt dort gedimmt liegen zu bleiben. Wer die
+// aktuelle Route liest -- Ausschnitt (getCurrentRouteBounds), Etappenwahl, „ist eine Route aktiv?" in
+// map-features-location-lookup.js --, sieht waehrend der Berechnung KEINE, genau wie vorher. Die
+// veraltete Linie ist nur noch ein Bild.
+// 💣 Und sie nimmt keine Klicks mehr: ihr Klick waehlte eine Etappe aus einem Plan, den es nicht mehr gibt.
+function retireCurrentRouteLineAsStale() {
+	if (!currentRouteLayer) {
+		return;
+	}
+	removeStaleRouteLine();
+	currentRouteLayer.eachLayer((layer) => {
+		if (typeof layer.setStyle === "function") {
+			const opacity = Number(layer.options?.opacity);
+			layer.setStyle({ opacity: (Number.isFinite(opacity) ? opacity : 1) * ROUTE_STALE_OPACITY_FACTOR });
+		}
+		if (layer.options) {
+			layer.options.interactive = false;
+		}
+		if (typeof layer.off === "function") {
+			layer.off("click");
+		}
+		// Im SVG-Renderer entscheidet die Klasse, ob der Pfad Zeiger bekommt (leaflet.css).
+		const element = typeof layer.getElement === "function" ? layer.getElement() : null;
+		if (element && element.classList) {
+			element.classList.remove("leaflet-interactive");
+		}
+	});
+	staleRouteLayer = currentRouteLayer;
+	currentRouteLayer = null;
+}
+
+function removeStaleRouteLine() {
+	if (staleRouteLayer) {
+		map.removeLayer(staleRouteLayer);
+		staleRouteLayer = null;
+	}
+}
+
 function logRoutePoints(segments) {
 	const points = segments.flatMap((segment) => segment.geometry.coordinates.map(([x, y]) => ({ x, y })));
 	console.log("Route points:", points);

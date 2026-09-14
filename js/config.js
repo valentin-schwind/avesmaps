@@ -55,6 +55,10 @@ const MAP_SCALE_BAND_MILES_BY_ZOOM = [100, 100, 100, 100, 10, 10, 10];
 
 const ROUTE_STYLE = { pane: "routePane", color: "#1452F7", weight: 7, opacity: 1, interactive: true, lineCap: "round", lineJoin: "round" };
 const ROUTE_SELECTED_STYLE = { color: "#ffd54a", weight: ROUTE_STYLE.weight, opacity: 1 };
+// So weit wird die VORIGE Route abgeblendet, solange die neue berechnet wird (Owner 14.09.2026: „gedimmt"
+// statt weg). Ein Faktor auf die eigene Deckkraft jeder Linie, damit eine Querfeldein-Etappe (0.7) im
+// selben Verhaeltnis zurücktritt wie eine Strasse (1).
+const ROUTE_STALE_OPACITY_FACTOR = 0.4;
 // White casing under the route line so it reads against dark forest and bright desert alike. Drawn as a
 // wider white line in its OWN pane below routePane -- a per-segment outline in the same pane would let
 // the next segment's casing overlap the previous segment's colour at the joins.
