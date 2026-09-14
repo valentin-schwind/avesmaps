@@ -340,6 +340,24 @@
 		ecosystem: 0.25
 	};
 
+	/**
+	 * Welcher Vektor aus OVERLAYS zu welcher Landschafts-Ebene gehoert -- eine EIGENSCHAFTS-Tabelle, keine
+	 * Liste der Ebenen: die kommen aus der Reiterleiste (ebenen() unten), und eine Ebene ohne Eintrag hier
+	 * bekommt ihre Zelle trotzdem, nur ohne Bild.
+	 * 🔴 „Alle" nimmt den Landschafts-Vektor selbst -- er IST Derographie + Vegetation + Topographie
+	 * (Owner 14.09.2026, festgehalten in tools/__tests__/ansicht-untergrund-vektoren-zwilling.test.js).
+	 */
+	var EBENEN_VEKTOR = {
+		alle: "ecosystem",
+		derographisch: "eco_derographisch",
+		vegetation: "eco_vegetation",
+		topographie: "eco_topographie",
+		klima: "eco_klima"
+	};
+
+	/** Die Ansicht, ueber der die zweite Stufe die Ebenen zeigt -- ihr Wert im <select>. */
+	var EBENEN_ANSICHT = "ecosystem";
+
 	function ansichten() {
 		// 💣 Die EINZIGE Quelle ist das <select>. Eine zweite Liste hier waere die Divergenz, die
 		// beim naechsten neuen Modus zuschlaegt: die Auswahlbox kennte ihn, die Kacheln nicht.
@@ -409,6 +427,105 @@
 		return treffer || liste[0] || null;
 	}
 
+	/**
+	 * Die Landschafts-Ebenen -- der Inhalt der zweiten Stufe ueber „Landschaften" (Owner 14.09.2026,
+	 * Entwurf docs/superpowers/specs/2026-09-09-landschaften-untermenue-design.md §1/§2).
+	 *
+	 * 💣 DIESELBE REGEL WIE BEI ANSICHTEN UND UNTERGRUENDEN: die EINZIGE Quelle ist die Reiterleiste
+	 * `#ecosystem-layer-switch`. Sie IST der Zustand -- ihr Klick-Zuhoerer setzt Ebene und „Alle", merkt
+	 * beides im localStorage und stempelt aria-selected (js/map-features/map-features-ecosystem-layer-switch.js).
+	 * Eine zweite Liste hier liefe beim naechsten Ebenentyp auseinander: die Leiste kennte ihn, der
+	 * Faecher nicht.
+	 * 🔴 „Alle" traegt KEIN data-ecosystem-kind, sondern data-ecosystem-show-all -- isKnownEcosystemKind
+	 * kennt „alle" nicht, ein gemerkter Wert fiele still auf die Vorgabe zurueck (index.html erklaert es an
+	 * der Leiste). Der Wert "alle" ist deshalb nur der Name dieses einen Reiters hier im Faecher.
+	 * ⚠️ Die Leiste bleibt im DOM, auch wenn der Besucher sie nicht sieht (Entwurf §2) -- sonst gaebe es
+	 * hier nichts zu lesen.
+	 */
+	function ebenenReiter() {
+		var leiste = document.getElementById("ecosystem-layer-switch");
+		if (!leiste) {
+			return [];
+		}
+		return Array.prototype.slice.call(leiste.querySelectorAll("[data-ecosystem-show-all], [data-ecosystem-kind]"));
+	}
+
+	function ebenenWert(reiter) {
+		return reiter.hasAttribute("data-ecosystem-show-all")
+			? "alle"
+			: String(reiter.getAttribute("data-ecosystem-kind") || "");
+	}
+
+	function ebenen() {
+		return ebenenReiter().map(function (reiter) {
+			return {
+				wert: ebenenWert(reiter),
+				name: (reiter.textContent || "").trim(),
+				gesperrt: Boolean(reiter.disabled)
+			};
+		}).filter(function (eintrag) {
+			return eintrag.wert !== "";
+		});
+	}
+
+	/** Die Ebene, die die Leiste als gewaehlt stempelt -- "" ohne Leiste. */
+	function aktiveEbene() {
+		var treffer = ebenenReiter().filter(function (reiter) {
+			return reiter.getAttribute("aria-selected") === "true";
+		})[0];
+		return treffer ? ebenenWert(treffer) : "";
+	}
+
+	/**
+	 * 💣 GEKLICKT, NICHT GESETZT -- derselbe Weg wie beim <select>, kein zweiter. Am Reiterklick haengen
+	 * das Setzen von Ebene bzw. „Alle" in der richtigen Reihenfolge, das Merken im localStorage, die
+	 * aria-Zustaende und die Besucherzaehlung (js/app/visitor-tracking.js horcht auf diese Leiste). Ein
+	 * eigener Aufruf hier umginge alle auf einmal.
+	 * ⚠️ Der Zuhoerer prueft weder Modus noch Recht, und `click()` haelt nur `disabled` auf, nicht
+	 * `hidden` -- der Klick wirkt also auch, wenn die Leiste fuer Besucher versteckt ist.
+	 */
+	function waehleEbene(wert) {
+		var treffer = ebenenReiter().filter(function (reiter) {
+			return ebenenWert(reiter) === wert;
+		})[0];
+		if (treffer) {
+			treffer.click();
+		}
+	}
+
+	/** Welche Art die zweite Stufe ueber einer Ansicht traegt: "ebenen" oder "grund". */
+	function stufeZweiArtVon(modus) {
+		return modus === EBENEN_ANSICHT ? "ebenen" : "grund";
+	}
+
+	/**
+	 * 🔴 HAT DIESE ANSICHT EINE ZWEITE STUFE? -- je Ansicht gefragt, nie pauschal (Owner 14.09.2026: die
+	 * Stufe zeigt, was DIESE Ansicht zu waehlen hat). Bis dahin fragten waehle() und oeffneStufeZwei() nach
+	 * der Zahl der Untergruende: mit nur einem erlaubten Untergrund oeffnete Landschaften dann gar nichts,
+	 * obwohl seine Ebenen da sind -- und ueber Landschaften oeffneten Untergruende, wo Ebenen hingehoeren.
+	 * ⚠️ Untergruende sind erst ab ZWEI eine Wahl (einer ist ohnehin eingestellt); eine Ebene ist schon
+	 * allein das, was der Klick waehlt.
+	 */
+	function hatStufeZwei(modus) {
+		if (!modus) {
+			return false;
+		}
+		if (stufeZweiArtVon(modus) === "ebenen") {
+			return ebenen().length > 0;
+		}
+		return untergruende().length > 1;
+	}
+
+	/** Die Vektorschicht einer Zelle -- EINE Bauform fuer beide Stufen. */
+	function vektorSchicht(zeichnung) {
+		var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+		svg.setAttribute("viewBox", "0 0 48 48");
+		svg.setAttribute("class", "map-layer-picker__vektor");
+		svg.setAttribute("aria-hidden", "true");
+		svg.innerHTML = zeichnung;
+		return svg;
+	}
+
 	function zelle(ansicht, istAktiv, imMenue) {
 		var knopf = document.createElement("button");
 		knopf.type = "button";
@@ -451,12 +568,7 @@
 		}
 		huelle.appendChild(bild);
 		if (OVERLAYS[ansicht.wert]) {
-			var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-			svg.setAttribute("viewBox", "0 0 48 48");
-			svg.setAttribute("class", "map-layer-picker__vektor");
-			svg.setAttribute("aria-hidden", "true");
-			svg.innerHTML = OVERLAYS[ansicht.wert];
-			huelle.appendChild(svg);
+			huelle.appendChild(vektorSchicht(OVERLAYS[ansicht.wert]));
 		}
 
 		var name = document.createElement("span");
@@ -514,6 +626,37 @@
 		return knopf;
 	}
 
+	/**
+	 * Eine Zelle der zweiten Stufe ueber „Landschaften": die Ebene als Vektor. Wie grundZelle traegt sie
+	 * keine zweite Zeile -- sie IST die Wahl.
+	 * 🔴 KEIN <img>: in den Landschaften ist der Untergrund fuer Besucher ganz aus (Owner 14.09.2026,
+	 * Entwurf §0 Punkt 2). Die Huelle traegt stattdessen den Ausblendton, wie im Mockup (Karte „L").
+	 */
+	function ebenenZelle(eintrag, istAktiv) {
+		var knopf = document.createElement("button");
+		knopf.type = "button";
+		knopf.className = "map-layer-picker__cell" + (istAktiv ? " is-active" : "");
+		knopf.dataset.ebene = eintrag.wert;
+		knopf.setAttribute("role", "radio");
+		knopf.setAttribute("aria-checked", istAktiv ? "true" : "false");
+		knopf.disabled = eintrag.gesperrt;
+
+		var huelle = document.createElement("span");
+		huelle.className = "map-layer-picker__thumb";
+		huelle.style.background = "var(--color-ecosystem-underground)";
+		if (EBENEN_VEKTOR[eintrag.wert] && OVERLAYS[EBENEN_VEKTOR[eintrag.wert]]) {
+			huelle.appendChild(vektorSchicht(OVERLAYS[EBENEN_VEKTOR[eintrag.wert]]));
+		}
+
+		var name = document.createElement("span");
+		name.className = "map-layer-picker__label";
+		name.textContent = eintrag.name;
+
+		knopf.appendChild(huelle);
+		knopf.appendChild(name);
+		return knopf;
+	}
+
 	function start() {
 		var huelle = document.getElementById("map-layer-picker");
 		var knopf = document.getElementById("map-layer-button");
@@ -525,21 +668,26 @@
 		}
 
 		/**
-		 * DIE ZWEITE STUFE -- die Untergrund-Reihe (26.08.2026, Entwurf:
-		 * docs/superpowers/specs/2026-08-26-ansicht-untergrund-kreuzen-design.md).
+		 * DIE ZWEITE STUFE -- EINE Reihe, die je Ansicht einen anderen Inhalt baut: die Untergruende
+		 * (26.08.2026, Entwurf: docs/superpowers/specs/2026-08-26-ansicht-untergrund-kreuzen-design.md) und
+		 * ueber „Landschaften" die Ebenen (14.09.2026, Entwurf:
+		 * docs/superpowers/specs/2026-09-09-landschaften-untermenue-design.md §1).
+		 * 🔴 Keine zweite Reihe und keine dritte Stufe -- fuer niemanden (Owner 14.09.2026). Die Reihe heisst
+		 * deshalb nach der Stufe, nicht nach ihrem Inhalt (`stufeReihe`, bis dahin `grundReihe`).
+		 * ⚠️ Die CSS-Klasse `map-layer-picker__grund` traegt noch den alten Namen; das Blatt und
+		 * map-layer-picker.test.js haengen an ihr.
 		 *
 		 * ⚠️ Sie wird HIER erzeugt und steht nicht im Markup: index.html ist eine vielbefahrene
 		 * Datei, und der Picker baut seinen Inhalt ohnehin selbst. Ein Element mehr im Markup waere
 		 * ein Stueck Zustand, das zwei Dateien teilen muessten.
 		 */
-		var grundReihe = document.createElement("div");
-		grundReihe.className = "map-layer-picker__menu map-layer-picker__grund";
-		grundReihe.setAttribute("role", "radiogroup");
-		grundReihe.setAttribute("aria-label", "Untergrund");
-		grundReihe.hidden = true;
-		huelle.insertBefore(grundReihe, menue);
+		var stufeReihe = document.createElement("div");
+		stufeReihe.className = "map-layer-picker__menu map-layer-picker__grund";
+		stufeReihe.setAttribute("role", "radiogroup");
+		stufeReihe.hidden = true;
+		huelle.insertBefore(stufeReihe, menue);
 
-		// Welche Ansicht zeigt gerade ihre Untergruende? `null` heisst: die zweite Stufe ist zu.
+		// Ueber welcher Ansicht steht die zweite Stufe gerade? `null` heisst: sie ist zu.
 		var stufeZwei = null;
 		var stufeTimer = null;
 		var stufeAufTimer = null;
@@ -552,6 +700,8 @@
 		 * ⚠️ Sie wird zusammen mit `hidden` gesetzt, nie danach.
 		 */
 		var stufeZweiOffen = false;
+		/** Die Art der offenen Reihe: "grund" oder "ebenen" -- "" solange sie zu ist. */
+		var stufeZweiArt = "";
 
 		function zeichne() {
 			var aktiv = aktiveAnsicht();
@@ -596,7 +746,7 @@
 		}
 
 		/**
-		 * Das Ueberfahren einer Ansicht oeffnet ihre Untergruende. 💣 Es wird NICHT neu gezeichnet:
+		 * Das Ueberfahren einer Ansicht oeffnet ihre zweite Stufe. 💣 Es wird NICHT neu gezeichnet:
 		 * neue Zellen starten bei opacity 0, ein zeichne() im mouseenter liesse bei JEDER
 		 * Mausbewegung die ganze Reihe samt Staffelung erneut aufblenden. Umgehaengt wird nur die
 		 * Marke.
@@ -637,16 +787,38 @@
 			});
 		}
 
-		function zeichneGrundReihe() {
-			var liste = untergruende();
-			var aktiv = aktiverUntergrund();
-			grundReihe.innerHTML = "";
+		/**
+		 * Baut den Inhalt der zweiten Stufe -- nach der Art der Ansicht, ueber der sie steht (14.09.2026):
+		 * ueber „Landschaften" die Ebenen, sonst die Untergruende.
+		 */
+		function zeichneStufeZwei() {
+			var mitEbenen = stufeZweiArt === "ebenen";
+			var liste = mitEbenen ? ebenen() : untergruende();
+			stufeReihe.innerHTML = "";
 			// ⚠️ Ohne „aktiv zuletzt": die zweite Stufe hat keine zugeklappte Kachel, auf deren Fleck
 			// etwas liegen muesste -- die Regel der ersten Stufe gilt hier nicht.
-			liste.forEach(function (eintrag) {
-				grundReihe.appendChild(grundZelle(eintrag, Boolean(aktiv) && eintrag.wert === aktiv.wert));
-			});
-			grundReihe.style.gridTemplateColumns = "repeat(" + liste.length + ", auto)";
+			if (mitEbenen) {
+				// Markiert ist eine Ebene nur, wenn die KARTE sie zeigt -- ueber einer anderen Ansicht ist
+				// sie gemerkt, aber nicht gewaehlt (Mockup Karte „L").
+				var gewaehlt = aktiveAnsicht() === EBENEN_ANSICHT ? aktiveEbene() : "";
+				liste.forEach(function (eintrag) {
+					stufeReihe.appendChild(ebenenZelle(eintrag, eintrag.wert === gewaehlt));
+				});
+				// Die Leiste traegt ihren Namen schon uebersetzt (data-i18n-aria-label) -- ein zweites Wort
+				// dafuer hier liefe unter ?lang=en auseinander.
+				var leiste = document.getElementById("ecosystem-layer-switch");
+				stufeReihe.setAttribute("aria-label", leiste ? String(leiste.getAttribute("aria-label") || "") : "");
+			} else {
+				var aktiv = aktiverUntergrund();
+				liste.forEach(function (eintrag) {
+					stufeReihe.appendChild(grundZelle(eintrag, Boolean(aktiv) && eintrag.wert === aktiv.wert));
+				});
+				stufeReihe.setAttribute("aria-label", "Untergrund");
+			}
+			// 💣 Die Spaltenzahl als CSS-VARIABLE, wie beim Hauptmenue -- NICHT als Inline-Style. Der stand hier
+			// bis zum 14.09.2026 und haette die Media Query fuer schmale Telefone geschlagen: fuenf Ebenen passten
+			// dort nicht in eine Reihe. Wie viele Spalten es am Telefon hoechstens werden, entscheidet das CSS.
+			stufeReihe.style.setProperty("--map-layer-spalten", String(liste.length));
 		}
 
 		/** Legt die Reihe ueber die Quellzelle -- und klemmt sie am Rand des Bundes. */
@@ -658,33 +830,52 @@
 			var rH = huelle.getBoundingClientRect();
 			var rQ = quelle.getBoundingClientRect();
 			var mitte = rQ.left + rQ.width / 2 - rH.left;
-			var breite = grundReihe.offsetWidth;
+			var breite = stufeReihe.offsetWidth;
 			var links = Math.max(0, Math.min(mitte - breite / 2, rH.width - breite));
-			grundReihe.style.left = Math.round(links) + "px";
+			stufeReihe.style.left = Math.round(links) + "px";
 			// 💣 Die Teilung beginnt an der QUELLZELLE, nicht in der Mitte der Reihe: das Untermenue
 			// faehrt sichtbar aus DIESER Ansicht heraus, und genau das sagt, wozu es gehoert.
-			grundReihe.style.setProperty("--map-layer-spalt", Math.round(mitte - links) + "px");
+			stufeReihe.style.setProperty("--map-layer-spalt", Math.round(mitte - links) + "px");
 		}
 
 		/** Faehrt die zweite Stufe heraus -- oder laesst eine offene zur neuen Ansicht hinueberwandern. */
 		function oeffneStufeZwei() {
-			if (!stufeZwei || untergruende().length < 2) {
+			// Ueber dieser Ansicht liegt nichts zu waehlen. Eine noch offene Reihe gehoert dann zu einer
+			// ANDEREN Ansicht und geht -- sonst stuende sie ueber einer Zelle, zu der sie nicht gehoert, und
+			// ein Klick darin waehlte eine Kombination, die es nicht gibt.
+			if (!hatStufeZwei(stufeZwei)) {
+				schliesseStufeZwei();
 				return;
 			}
 			window.clearTimeout(stufeTimer);
-			// 💣 Eine bereits offene Reihe wird NICHT geschlossen und neu aufgefaechert -- sie wandert.
+			var art = stufeZweiArtVon(stufeZwei);
+			// 💣 Eine offene Reihe DERSELBEN Art wird NICHT geschlossen und neu aufgefaechert -- sie wandert.
 			// Neu aufklappen sah bei jedem Zellenwechsel aus, als sei etwas kaputt.
 			if (stufeZweiOffen) {
-				positioniereStufeZwei();
-				return;
+				if (art === stufeZweiArt) {
+					positioniereStufeZwei();
+					return;
+				}
+				// 🔴 WECHSELT DIE ART (Untergruende <-> Ebenen), wird neu gebaut UND neu aufgefaechert -- nur zu wandern
+				// hiesse, dass mitten in der offenen Reihe der Inhalt wechselt.
+				// 💣 Erst HART zu: hidden plus eine erzwungene Stilberechnung. Nur is-open zu nehmen und wieder zu setzen
+				// faechert NICHT neu auf -- gemessen im Browser (14.09.2026, getAnimations, im selben Takt): danach laeuft
+				// gar kein Uebergang, der Wert springt zurueck auf offen. Aus display:none heraus hat die Reihe keinen
+				// Ausgangsstil, und das Aufklappen laeuft wieder volle 190 ms von der geschlossenen Kante an.
+				stufeReihe.hidden = true;
+				void stufeReihe.offsetWidth;
 			}
-			zeichneGrundReihe();
-			grundReihe.hidden = false;
+			stufeZweiArt = art;
+			zeichneStufeZwei();
+			stufeReihe.hidden = false;
 			stufeZweiOffen = true;
-			grundReihe.classList.remove("is-open");
+			stufeReihe.classList.remove("is-open");
 			positioniereStufeZwei();
 			window.requestAnimationFrame(function () {
-				grundReihe.classList.add("is-open");
+				// Wer die Reihe inzwischen wieder geschlossen hat, bekommt sie nicht nachtraeglich aufgeklappt.
+				if (stufeZweiOffen) {
+					stufeReihe.classList.add("is-open");
+				}
 			});
 		}
 
@@ -695,11 +886,12 @@
 			window.clearTimeout(stufeAufTimer);
 			stufeZwei = null;
 			stufeZweiOffen = false;
+			stufeZweiArt = "";
 			markiereQuelle();
-			grundReihe.classList.remove("is-open");
+			stufeReihe.classList.remove("is-open");
 			window.setTimeout(function () {
 				if (!stufeZwei) {
-					grundReihe.hidden = true;
+					stufeReihe.hidden = true;
 				}
 			}, BLENDE_ZU_MS);
 		}
@@ -840,6 +1032,33 @@
 			schliesse();
 		}
 
+		/**
+		 * Ein Klick auf eine EBENE waehlt beides zugleich -- die Landschaften und die Ebene. Dieselbe
+		 * Bewegung wie beim Untergrund: eine Wahl fuer eine Kombination, danach geht das Menue zu.
+		 *
+		 * 🔴 ERST DIE ANSICHT, DANN DER REITER -- die Reihenfolge ist nachgelesen, nicht geschmacklich:
+		 *  - Der Klick-Zuhoerer der Reiterleiste wird NICHT beim Laden der Datei gebunden, sondern in
+		 *    syncEcosystemControlsVisibility (bindEcosystemLayerSwitch), und die laeuft ueber
+		 *    setSelectedMapLayerMode -> syncEcosystemVisibility, also beim Moduswechsel. Erst das <select>,
+		 *    dann trifft der Reiterklick auf einen gebundenen Zuhoerer.
+		 *    Gemessen am 14.09.2026 (lokal, als Besucher): auf einer frisch geladenen Seite in „Standard"
+		 *    aendert ein Reiterklick nichts -- in umgekehrter Reihenfolge klickte der Faecher dort ins Leere.
+		 *  - Das Betreten der Landschaften setzt die Ebene NICHT zurueck: syncEcosystemLayerSwitchControls
+		 *    stempelt nur, was schon gilt, und keiner der Moduswege setzt Ebene oder „Alle". Der Reiterklick
+		 *    danach gewinnt also.
+		 * 💣 Beide Schritte gehen den Weg ihres Bedienelements -- das <select> und der Reiter. Kein eigener
+		 * Aufruf daneben.
+		 */
+		function waehleEbeneAusStufe(wert) {
+			schwebeGesperrt = true;
+			if (aktiveAnsicht() !== EBENEN_ANSICHT) {
+				select.value = EBENEN_ANSICHT;
+				select.dispatchEvent(new Event("change", { bubbles: true }));
+			}
+			waehleEbene(wert);
+			schliesse();
+		}
+
 		function waehle(modus) {
 			// Nach einer Auswahl steht der Zeiger noch ueber dem Bund. Ohne diesen Riegel klappte
 			// das Menue sofort wieder auf -- er faellt erst, wenn der Zeiger die Huelle verlaesst.
@@ -850,7 +1069,7 @@
 			// ⭐ Daraus faellt das Telefon-Verhalten ab: ohne Ueberfahren ist die zweite Stufe zu,
 			// also OEFFNET der erste Tipp und der zweite waehlt -- dasselbe Modell wie am Zeiger,
 			// kein zweiter Bedienweg.
-			if (modus && modus !== stufeZwei && untergruende().length > 1) {
+			if (modus && modus !== stufeZwei && hatStufeZwei(modus)) {
 				festgehalten = true;
 				stufeZwei = modus;
 				markiereQuelle();
@@ -973,12 +1192,16 @@
 			waehle(ziel.dataset.mode);
 		});
 
-		grundReihe.addEventListener("click", function (ereignis) {
+		stufeReihe.addEventListener("click", function (ereignis) {
 			var ziel = ereignis.target.closest(".map-layer-picker__cell");
 			if (!ziel || ziel.disabled) {
 				return;
 			}
 			ereignis.stopPropagation();
+			if (ziel.dataset.ebene) {
+				waehleEbeneAusStufe(ziel.dataset.ebene);
+				return;
+			}
 			waehleGrund(ziel.dataset.grund);
 		});
 
@@ -986,7 +1209,7 @@
 		// geht nach oben in sie hinein. Der Nachlauf (stufeZweiSpaeterSchliessen) und die Bruecke im
 		// CSS tragen zusammen den Weg ueber die Luecke.
 		menue.addEventListener("mouseleave", function (ereignis) {
-			if (grundReihe.contains(ereignis.relatedTarget)) {
+			if (stufeReihe.contains(ereignis.relatedTarget)) {
 				return;
 			}
 			stufeZweiSpaeterSchliessen();
@@ -994,11 +1217,11 @@
 		menue.addEventListener("mouseenter", function () {
 			window.clearTimeout(stufeTimer);
 		});
-		grundReihe.addEventListener("mouseenter", function () {
+		stufeReihe.addEventListener("mouseenter", function () {
 			window.clearTimeout(stufeTimer);
 			window.clearTimeout(schwebeTimer);
 		});
-		grundReihe.addEventListener("mouseleave", function (ereignis) {
+		stufeReihe.addEventListener("mouseleave", function (ereignis) {
 			if (menue.contains(ereignis.relatedTarget)) {
 				return;
 			}

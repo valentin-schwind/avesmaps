@@ -187,6 +187,22 @@
 	.map-layer-picker__menu {
 		grid-template-columns: repeat(3, auto);
 	}
+	/* 💣 HOECHSTENS drei Spalten, nicht immer drei -- fuer die zweite Stufe. Sie nennt ihre Spaltenzahl
+	   seit dem 14.09.2026 als Variable statt als Inline-Style (der haette die Regel darueber geschlagen, und
+	   fuenf Ebenen passten hier nicht in eine Reihe). Damit griffe `repeat(3, auto)` aber auch bei den ZWEI
+	   Untergruenden eines Besuchers: gemessen 155 statt 149px, eine leere dritte Spur samt Spalt, als Luft
+	   rechts in der Reihe. Wer drei oder weniger Zellen traegt, behaelt deshalb seine echte Anzahl. */
+	.map-layer-picker__grund:not(:has(> .map-layer-picker__cell:nth-child(4))) {
+		grid-template-columns: repeat(var(--map-layer-spalten, 3), auto);
+	}
+	/* 🔴 Und wo sie umbricht, rollt sie nicht auf -- dieselbe Regel wie beim Hauptraster zwei Bloecke
+	   weiter unten: der Wisch gibt eine SENKRECHTE Kante frei, bei zwei Reihen also einen Streifen ueber
+	   beide. Die Staffelung traegt allein.
+	   ⚠️ Ohne `:has` gewaenne `.map-layer-picker__grund.is-open` weiter unten (spaeter, gleich stark). */
+	.map-layer-picker__grund:has(> .map-layer-picker__cell:nth-child(4)) {
+		clip-path: none;
+		transition: none;
+	}
 	/* 💣 KEIN Aufrollen am Telefon. Der Wisch gibt eine SENKRECHTE Kante frei -- bei EINER Reihe
 	   ist das genau die Kachelsilhouette, bei 2x3 waere es ein Streifen ueber die volle Hoehe,
 	   also beide Zellen der rechten Spalte auf einmal. Er begaenne dann nicht auf der Kachel,
@@ -285,6 +301,11 @@
 /* ===== DIE ZWEITE STUFE: die Untergrund-Reihe (26.08.2026) =====================================
    Entwurf: docs/superpowers/specs/2026-08-26-ansicht-untergrund-kreuzen-design.md
 
+   🔴 Seit 14.09.2026 traegt DIESELBE Reihe ueber „Landschaften" die Ebenen (Entwurf
+   docs/superpowers/specs/2026-09-09-landschaften-untermenue-design.md §1). Die Regeln hier gelten
+   beiden Inhalten -- Bruecke, Aufrollen, Blende --, darum steht keine davon doppelt. Die Klasse heisst
+   noch nach den Untergruenden.
+
    Sie schwebt UEBER der Ansichtsreihe. Das ist kein Widerspruch zu 'im Fluss, nicht schwebend'
    weiter oben: jene Regel gilt dem Aufklappen nach UNTEN, wo das Raster die Zoom-Knoepfe verdeckte.
    Nach oben liegt nur Karte, und das Anzeige-Menue nebenan geht mit `bottom: 100%` denselben Weg. */
@@ -337,10 +358,16 @@
 
 /* Die Zellen der zweiten Stufe blenden von der Teilungsstelle nach aussen auf. Anders als beim
    Hauptraster wird von VORN gezaehlt: hier gibt es keine aktive Zelle, die auf dem Fleck der
-   zugeklappten Kachel liegen muesste. */
+   zugeklappten Kachel liegen muesste.
+   💣 BIS ZUR SECHSTEN ZELLE (14.09.2026). Hier standen nur 2 bis 4 -- genau drei Untergruende. Ueber
+   „Landschaften" traegt die Reihe fuenf Ebenen; ohne die zusaetzlichen Zeilen blendeten die letzten
+   ohne Versatz auf, und das sieht nicht nach einem fehlenden Wert aus, sondern nach einem ruckelnden
+   Menue. Die sechste haelt eine Ebene mehr aus. */
 .map-layer-picker__grund .map-layer-picker__cell:nth-child(2) { transition-delay: 25ms; }
 .map-layer-picker__grund .map-layer-picker__cell:nth-child(3) { transition-delay: 50ms; }
 .map-layer-picker__grund .map-layer-picker__cell:nth-child(4) { transition-delay: 75ms; }
+.map-layer-picker__grund .map-layer-picker__cell:nth-child(5) { transition-delay: 100ms; }
+.map-layer-picker__grund .map-layer-picker__cell:nth-child(6) { transition-delay: 125ms; }
 
 /* Die Vorschau ist ein Kartenausschnitt, kein Symbol -- er fuellt die Kachel. */
 .map-layer-picker__grund .map-layer-picker__thumb img {
