@@ -211,19 +211,54 @@ tief(jsSchluessel, phpSchluessel,
 // =================================================================================================
 // 8. Ruling R-b (Aufgabe 9, 14.09.2026): `hinweise` werden sichtbar -- angehängt wie die übrigen
 //    Teile der Meldung, ohne `hinweise` bleibt der Text unverändert.
+// 🔴 SCHLUSSPRUEFUNG, BEFUND W2: der Server liefert `hinweise` als Liste von OBJEKTEN
+// `{item, text}` (api/_internal/import/garetien-uebernahme.php:2177 -- `['hinweise'][0]['text']`
+// steht auch im PHP-Test garetien-uebernahme-test.php, Sonde „W1a: B bekommt einen Hinweis"),
+// NIE als Liste von Zeichenketten. Die Fixture unten traegt deshalb die SERVERFORM; eine blosse
+// Zeichenkette bleibt als Rueckfall lesbar.
 // =================================================================================================
 
 m = garetienImportMeldung({
 	applied: 1, fehler: [], angelegt_je_form: { path: 0, bach: 0, region: 0, label: 0, location: 0, settlement_place: 1, quelle: 0 },
-	hinweise: ["Quelle an „Wandleth“ war schon vorhanden"],
+	hinweise: [{ item: 11, text: "Quelle an „Wandleth“ war schon vorhanden" }],
 });
 wahr(m.text.includes("Quelle an „Wandleth“ war schon vorhanden"),
 	"der Hinweis-Satz steht in der Meldung: " + m.text);
+wahr(!m.text.includes("[object Object]"),
+	'🔴 kein „[object Object]" in der Meldung -- der Server liefert {item, text}, kein Text: ' + m.text);
+
+// Rueckfall: eine blosse Zeichenkette bleibt lesbar (die aeltere/vorsichtigere Form).
+m = garetienImportMeldung({
+	applied: 1, fehler: [], angelegt_je_form: { path: 0, bach: 0, region: 0, label: 0, location: 0, settlement_place: 1, quelle: 0 },
+	hinweise: ["Ein reiner Zeichenketten-Hinweis"],
+});
+wahr(m.text.includes("Ein reiner Zeichenketten-Hinweis"),
+	"eine blosse Zeichenkette bleibt als Rueckfall lesbar: " + m.text);
+
+// Doppelte Saetze -- z. B. zwei Bauwerke, die an derselben schon vorhandenen Quelle haengen --
+// stehen EINMAL in der Meldung, nicht zweimal hintereinander.
+m = garetienImportMeldung({
+	applied: 1, fehler: [], angelegt_je_form: { path: 0, bach: 0, region: 0, label: 0, location: 0, settlement_place: 1, quelle: 0 },
+	hinweise: [
+		{ item: 11, text: "Quelle an „Wandleth“ war schon vorhanden" },
+		{ item: 12, text: "Quelle an „Wandleth“ war schon vorhanden" },
+	],
+});
+const wandlethTreffer = m.text.split("Quelle an „Wandleth“ war schon vorhanden").length - 1;
+gleich(wandlethTreffer, 1, "derselbe Hinweis-Satz steht nur einmal in der Meldung: " + m.text);
 
 const mOhneHinweise = garetienImportMeldung({
 	applied: 1, fehler: [], angelegt_je_form: { path: 0, bach: 0, region: 0, label: 0, location: 0, settlement_place: 1, quelle: 0 },
 });
 gleich(mOhneHinweise.text, "✓ 1 Objekt importiert — 1 Stätte",
 	"ohne `hinweise` bleibt die Meldung unverändert");
+
+// --- Naht-Zusicherung (wie Abschnitt 7 oben): der PRODUKTIONSCODE, der `hinweise[]` befuellt,
+// traegt die Schluessel `item` und `text` -- dieselben, die `garetienImportMeldung` hier liest.
+// Benennt der Server einen der beiden um, ohne den Client mitzuziehen, wird DIESE Zusicherung rot,
+// statt dass die Divergenz erst als „[object Object]" auf der Live-Seite auffaellt.
+wahr(uebernahmePhp.includes("'item' => (int) $item['id']") && uebernahmePhp.includes("'text' =>"),
+	"garetien-uebernahme.php befuellt `hinweise[]` nicht mehr mit den Schluesseln item/text -- "
+	+ "Naht zu garetienImportMeldung geprueft?");
 
 console.log(`garetien-import-meldung ok -- ${checks} Zusicherungen`);
