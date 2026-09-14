@@ -314,6 +314,17 @@ function avesmapsGaretienQuellenAnlegen(
  * ⚠️ KEIN FEHLER, WENN NICHTS DA IST: eine bereits entfernte Verknuepfung macht die
  * Ruecknahme nicht ungueltig -- das Item faellt trotzdem zurueck nach 'offen'.
  *
+ * 🔴 NACHBESSERUNG 2 (Ruling 5, repoweit gesucht -- `grep -rn avesmapsGaretienQuelleRuecknahmeLoesen`):
+ * DER `changed`-QUELLE-RUECKWEG RUFT SIE NICHT MEHR (er loescht seither adressgenau ueber
+ * avesmapsGaretienQuelleRuecknahmeLoesenFuerAdresse + avesmapsGaretienAndererTraegerVorhanden,
+ * siehe dort). Der EINZIGE verbleibende Aufrufer ist der Flaechen-Zweig von
+ * avesmapsGaretienRuecknahmeAusfuehren ('region'-Ziel, ~:3395): der loest an `entity_type='ecosystem'`
+ * -- einem Zielraum, an dem NIEMALS eine „Nur Quelle"-Verknuepfung haengen kann (die bindet
+ * ausschliesslich an `entity_type='settlement'`, avesmapsGaretienQuellenZiel). Eine fremde
+ * Verknuepfung kann an dieser Stelle also nicht liegen; die eigene Absicherung dort
+ * (avesmapsGaretienRegionAktiveFlaechen -- geloest wird erst, wenn keine Flaeche der Region mehr
+ * aktiv ist) bleibt unveraendert und ausreichend fuer ihren eigenen Zweck.
+ *
  * @return int Anzahl der geloesten Verknuepfungen (0 oder mehr).
  */
 function avesmapsGaretienQuelleRuecknahmeLoesen(PDO $pdo, string $entityType, string $entityPublicId, int $userId): int
@@ -2454,52 +2465,138 @@ function avesmapsGaretienQuelleHaengtSchonAn(PDO $pdo, string $entityType, strin
 }
 
 /**
- * Traegt noch ein ANDERES `done`-Item DERSELBEN GRUPPE (gleiche Siedlung, gleiche Artikeladresse,
- * LAUFUEBERGREIFEND) dieselbe Verknuepfung? Wenn ja, darf die Ruecknahme des AUSGENOMMENEN Items
- * sie nicht loesen -- der andere Traeger hat noch Anspruch darauf.
+ * Ein Wert, SQL-sicher fuer eine LIKE-Anfrage escaped (`\`, `%`, `_`). REIN.
  *
- * 🔴 NACHBESSERUNG 1 (W1.3). Die GRUPPE ist nicht der Lauf: zwei „Nur Quelle"-Items VERSCHIEDENER
- * Laeufe (ein spaeterer Import desselben Sammelartikels) haengen an derselben Verknuepfung genauso.
- * 💣 DIE GRUPPE UEBERLEBT EINE RUECKNAHME NICHT. avesmapsGaretienItemZurueckAufOffen setzt
- * `apply_state = NULL, apply_note = NULL` -- ein zurueckgenommenes Item traegt seinen Vermerk
- * (und damit `angelegt:1`) danach nicht mehr. Deshalb kann diese Funktion nur ZUM ZEITPUNKT EINER
- * EINZELNEN Ruecknahme entscheiden, nie rueckwirkend. Zusammen mit der Regel in
- * avesmapsGaretienRuecknahmeAusfuehren (geloest wird NUR bei der Ruecknahme des `angelegt:1`-Items,
- * und nur, wenn zu DIESEM Zeitpunkt kein anderes `done`-Geschwister bleibt) folgt daraus eine
- * MOEGLICHE WAISE: wird das `angelegt:1`-Item zuerst zurueckgenommen, waehrend ein Geschwister noch
- * `done` ist, bleibt die Verknuepfung (richtig) stehen -- nimmt danach aber NIEMAND mehr das
- * Geschwister zurueck, geht sie nie mehr weg (ein `angelegt:0`-Item loest laut Regel NIE). Das ist
- * die sichere Richtung (eine stehengebliebene Quelle kostet eine Handloeschung, eine faelschlich
- * geloeschte kostet lautlos Daten samt Lizenzangabe) und keine Regression: VOR Nachbesserung 1
- * loeschte die Ruecknahme GARNICHTS anhand einer Gruppe -- sie kannte nur ein einzelnes Item.
- *
- * ⚠️ KEINE DOPPELTEN PLATZHALTER (MySQL, ATTR_EMULATE_PREPARES=false): `:k` und `:ausgenommen`
- * kommen je genau einmal vor; die Gruppenzugehoerigkeit (Siedlung, Artikeladresse) wird in PHP
- * geprueft, nicht per LIKE auf einen zusammengesetzten Vermerk.
+ * 🔴 NACHBESSERUNG 2 (G-Perf): eine public_id ist nicht garantiert frei von `%`/`_` -- ungeschuetzt
+ * wuerden diese Zeichen als LIKE-Platzhalter gelesen und das Muster koennte fremde Zeilen treffen.
+ * `ESCAPE '\'` an der Aufrufstelle macht `\` zum Fluchtzeichen, ein vorhandenes `\` muss deshalb
+ * zuerst selbst escaped werden -- sonst entkommt das naechste Zeichen versehentlich mit.
  */
-function avesmapsGaretienNurQuelleAndereDoneZeileVorhanden(PDO $pdo, string $siedlungPublicId, string $artikelUrl, int $ausgenommenItemId): bool
+function avesmapsGaretienLikeEscape(string $wert): string
 {
-    $siedlungPublicId = trim($siedlungPublicId);
-    $artikelUrl = trim($artikelUrl);
-    if ($siedlungPublicId === '' || $artikelUrl === '') {
+    return str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $wert);
+}
+
+/**
+ * Traegt DIESE sync_plan_item-Zeile (aus einer Traeger-Abfrage, mit `after_json`+`entity_key`)
+ * die genannte Adresse? REIN.
+ *
+ * 🔴 NACHBESSERUNG 2 (Ruling 4): „UNBEKANNTE ADRESSE = TRAEGER" -- kann die Adresse dieser Zeile
+ * NICHT bestimmt werden (kein lesbares `after_json`, oder avesmapsGaretienQuellenAdressenAus
+ * liefert nichts), zaehlt sie als Traeger JEDER Adresse an dieser Entitaet: geloest wird dann
+ * nichts, was sie tragen koennte. Nur eine ERFOLGREICH bestimmte, ANDERE Adresse gilt als „kein
+ * Traeger dieser Adresse".
+ * ⭐ DIESELBE ADRESSRECHNUNG WIE BEIM SCHREIBEN (avesmapsGaretienQuellenAnlegen via
+ * avesmapsGaretienQuellenAdressenAus): der Artikel schlaegt die Sammelquelle, nie beide
+ * gleichzeitig -- ein Item traegt hoechstens EINE Adresse.
+ */
+function avesmapsGaretienItemTraegtAdresse(array $zeile, string $url): bool
+{
+    $nach = json_decode((string) ($zeile['after_json'] ?? ''), true);
+    if (!is_array($nach)) {
+        return true; // unbekannt -- sichere Richtung
+    }
+    $wirt = (array) ($nach['quelle'] ?? []);
+    $artikel = avesmapsGaretienArtikelQuelleAusItem($nach, (string) ($zeile['entity_key'] ?? ''));
+    $adressen = avesmapsGaretienQuellenAdressenAus((string) ($wirt['url'] ?? ''), $artikel);
+    if ($adressen === []) {
+        return true; // unbekannt -- sichere Richtung
+    }
+
+    return in_array($url, $adressen, true);
+}
+
+/**
+ * Traegt noch ein ANDERES `done`-Item DIESELBE ADRESSE AN DERSELBEN ENTITAET? Vereinigt BEIDE
+ * Rueckwege, die eine garetien-Verknuepfung teilen koennen (Nachbesserung 2, Pruefer-Befund gegen
+ * `5397ce079`):
+ *   · „Nur Quelle"-Geschwister (Vermerk `nur_quelle:<siedlung>`, immer entity_type='settlement')
+ *   · eigene `changed`-Quelle-Items DERSELBEN Entitaet (die die Quelle an SICH SELBST ergaenzt
+ *     haben -- `change_type='changed'`, `after.felder === ['quelle']`)
+ *
+ * 🔴 EINE Traegerfunktion, ZWEI Aufrufer -- keine zweite Fassung (avesmapsGaretienRuecknahmeAusfuehren,
+ * `new`-Zweig fuer „Nur Quelle" UND `changed`-Zweig fuer die eigene Ergaenzung). Eine Siedlung ist
+ * seit „Nur Quelle" KEIN alleiniger Besitzer ihrer garetien-Verknuepfungen mehr: sie teilt sie mit
+ * jedem Bauwerk, das per „Nur Quelle" an sie gehaengt hat -- und umgekehrt kann ihr eigenes
+ * `changed`-Quelle-Item dieselbe Adresse tragen wie ein Bauwerk. Vorher kannte die Nur-Quelle-Suche
+ * nur Nur-Quelle-Geschwister: die Ruecknahme von Wandlethes EIGENEM `changed`-Quelle-Item loeschte
+ * darum jede Bauwerks-Verknuepfung mit (der alte, blinde `avesmapsGaretienQuelleRuecknahmeLoesen`),
+ * und umgekehrt sah die Bauwerks-Ruecknahme Wandlethes eigenes Item nicht als Traeger.
+ *
+ * 💣 DIE GRUPPE UEBERLEBT EINE RUECKNAHME NICHT (avesmapsGaretienItemZurueckAufOffen loescht
+ * `apply_note`) -- diese Funktion entscheidet deshalb nur ZUM ZEITPUNKT der Anfrage, nie rueckwirkend.
+ *
+ * 🔴 REIHENFOLGE-UNABHAENGIG INNERHALB EINES MENGENAUFRUFS: `$ausgenommeneItemIds` nimmt die GANZE
+ * angefragte id-Liste (nicht nur das eine gerade gepruefte Item). Ohne das saehe ein spaeter in
+ * DERSELBEN Schleife verarbeitetes Geschwister das FRUEHER schon zurueckgenommene (und damit nicht
+ * mehr `done`) nicht mehr als Traeger -- das Ergebnis haenge dann von der zufaelligen `id`-Reihenfolge
+ * der Batch-Verarbeitung ab, nicht vom tatsaechlichen Bestand vor dem Aufruf.
+ *
+ * ⚠️ SQL-EINGRENZUNG AUF DIE ENTITAET (G-Perf): Gruppe 1 filtert per `LIKE` (escaped,
+ * `ESCAPE '\'`) auf den Vermerk-Praefix DIESER Siedlung, Gruppe 2 per Gleichheit auf
+ * `entity_public_id` -- dekodiert wird nur, was danach uebrig bleibt, nicht mehr JEDES `done`-Item
+ * des ganzen Imports ueber alle Laeufe.
+ * ⚠️ KEINE DOPPELTEN PLATZHALTER (MySQL, ATTR_EMULATE_PREPARES=false).
+ *
+ * @param list<int> $ausgenommeneItemIds
+ */
+function avesmapsGaretienAndererTraegerVorhanden(PDO $pdo, string $entityType, string $entityPublicId, string $url, array $ausgenommeneItemIds): bool
+{
+    $entityPublicId = trim($entityPublicId);
+    $url = trim($url);
+    if ($entityPublicId === '' || $url === '') {
         return false;
     }
+    $ausschluss = array_map('intval', $ausgenommeneItemIds);
+
+    // Gruppe 1: „Nur Quelle"-Geschwister -- nur relevant, wenn diese Entitaet eine Siedlung ist
+    // (Nur Quelle bindet ausschliesslich an entity_type='settlement', avesmapsGaretienQuellenZiel).
+    if ($entityType === 'settlement') {
+        $muster = AVESMAPS_GARETIEN_NUR_QUELLE_VERMERK . avesmapsGaretienLikeEscape($entityPublicId) . '%';
+        $stmt = $pdo->prepare(
+            'SELECT i.id, i.apply_note, i.after_json, i.entity_key FROM sync_plan_item i'
+            . ' JOIN sync_plan_run r ON r.id = i.run_id'
+            . " WHERE r.kind = :k AND i.apply_state = 'done' AND i.apply_note LIKE :m ESCAPE '\\'"
+        );
+        $stmt->execute(['k' => AVESMAPS_GARETIEN_PLAN_KIND, 'm' => $muster]);
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $zeile) {
+            if (in_array((int) $zeile['id'], $ausschluss, true)) {
+                continue;
+            }
+            if (avesmapsGaretienNurQuelleAusVermerk((string) ($zeile['apply_note'] ?? '')) !== $entityPublicId) {
+                continue; // ein LIKE-Treffer, der nach dem Dekodieren doch eine ANDERE Siedlung meint
+            }
+            if (avesmapsGaretienItemTraegtAdresse($zeile, $url)) {
+                return true;
+            }
+        }
+    }
+
+    // Gruppe 2: eigene `changed`-Quelle-Items DERSELBEN Entitaet.
     $stmt = $pdo->prepare(
-        'SELECT i.apply_note, i.after_json, i.entity_key FROM sync_plan_item i'
+        'SELECT i.id, i.after_json, i.entity_key FROM sync_plan_item i'
         . ' JOIN sync_plan_run r ON r.id = i.run_id'
-        . " WHERE r.kind = :k AND i.apply_state = 'done' AND i.id != :ausgenommen"
+        . " WHERE r.kind = :k AND i.apply_state = 'done' AND i.change_type = 'changed'"
+        . ' AND i.entity_public_id = :e'
     );
-    $stmt->execute(['k' => AVESMAPS_GARETIEN_PLAN_KIND, 'ausgenommen' => $ausgenommenItemId]);
+    $stmt->execute(['k' => AVESMAPS_GARETIEN_PLAN_KIND, 'e' => $entityPublicId]);
     foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $zeile) {
-        if (avesmapsGaretienNurQuelleAusVermerk((string) ($zeile['apply_note'] ?? '')) !== $siedlungPublicId) {
+        if (in_array((int) $zeile['id'], $ausschluss, true)) {
             continue;
         }
         $nach = json_decode((string) ($zeile['after_json'] ?? ''), true);
         if (!is_array($nach)) {
-            continue;
+            return true; // unbekannt -- sichere Richtung
         }
-        $artikel = avesmapsGaretienArtikelQuelleAusItem($nach, (string) ($zeile['entity_key'] ?? ''));
-        if ($artikel !== null && trim((string) ($artikel['url'] ?? '')) === $artikelUrl) {
+        $felder = (array) ($nach['felder'] ?? []);
+        if (count($felder) !== 1 || $felder[0] !== 'quelle') {
+            continue; // kein reines Quelle-Ergaenzungsitem -- betrifft diese Frage nicht
+        }
+        [$rowEntityType] = avesmapsGaretienQuellenZiel((string) ($nach['ziel'] ?? ''), $entityPublicId);
+        if ($rowEntityType !== $entityType) {
+            continue; // Gleichstand der rohen id, aber ein anderer Zielraum -- kein echter Treffer
+        }
+        if (avesmapsGaretienItemTraegtAdresse($zeile, $url)) {
             return true;
         }
     }
@@ -3164,8 +3261,28 @@ function avesmapsGaretienRuecknahmeAusfuehren(PDO $pdo, int $runId, array $itemI
                 if ($quellePublicId === '') {
                     throw new RuntimeException('keine Beschriftung fuer die Quellen-Verknuepfung gefunden');
                 }
-                avesmapsGaretienQuelleRuecknahmeLoesen($pdo, $entityType, $quellePublicId, (int) ($user['id'] ?? 0));
-                $beruehrt[$entityType . ':' . $quellePublicId] = ['entity_type' => $entityType, 'public_id' => $quellePublicId];
+                // 🔴 NACHBESSERUNG 2 (W1b, Ruling 3): NICHT MEHR BLIND ALLES MIT origin='garetien'.
+                // Diese Entitaet ist seit „Nur Quelle" kein alleiniger Besitzer ihrer garetien-
+                // Verknuepfungen mehr -- an ihr kann auch die Quelle eines Bauwerks haengen.
+                // Geloest wird deshalb nur die EINE Adresse, die DIESES Item selbst getragen hat
+                // (dieselbe Rechnung wie beim Schreiben, avesmapsGaretienQuellenAdressenAus -- der
+                // Artikel schlaegt die Sammelquelle, hoechstens eine Adresse je Item), und auch die
+                // nur, wenn kein anderer `done`-Traeger derselben Entitaet (Nur-Quelle-Geschwister
+                // ODER ein weiteres eigenes changed-Quelle-Item) sie noch braucht.
+                $wirt = is_array($nach) ? (array) ($nach['quelle'] ?? []) : [];
+                $artikel = is_array($nach) ? avesmapsGaretienArtikelQuelleAusItem($nach, (string) $item['entity_key']) : null;
+                $eigeneAdresse = avesmapsGaretienQuellenAdressenAus((string) ($wirt['url'] ?? ''), $artikel)[0] ?? '';
+                if ($eigeneAdresse !== '') {
+                    $andereTragenSieNoch = avesmapsGaretienAndererTraegerVorhanden(
+                        $pdo, $entityType, $quellePublicId, $eigeneAdresse, $itemIds
+                    );
+                    if (!$andereTragenSieNoch) {
+                        avesmapsGaretienQuelleRuecknahmeLoesenFuerAdresse($pdo, $entityType, $quellePublicId, $eigeneAdresse, (int) ($user['id'] ?? 0));
+                        $beruehrt[$entityType . ':' . $quellePublicId] = ['entity_type' => $entityType, 'public_id' => $quellePublicId];
+                    }
+                }
+                // 💣 KEINE ADRESSE BESTIMMBAR: nichts wird geloest -- die sichere Richtung (siehe
+                // avesmapsGaretienItemTraegtAdresse); das Item geht trotzdem zurueck auf 'offen'.
 
                 // Zurueck auf 'offen' -- derselbe Riegel wie im 'new'-Zweig unten (dieselbe
                 // Bedeutung von "Ruecknahme": zurueck in GENAU den Stand vor der Uebernahme).
@@ -3294,18 +3411,20 @@ function avesmapsGaretienRuecknahmeAusfuehren(PDO $pdo, int $runId, array $itemI
                 // 💣 `avesmapsGaretienItemZurueckAufOffen` LOESCHT `apply_note` bei jeder
                 // Ruecknahme -- der Vermerk „angelegt:1" ueberlebt eine Ruecknahme also NICHT.
                 // Beide Pruefungen muessen deshalb VOR diesem Aufruf laufen, mit dem Vermerk, den
-                // das Item JETZT noch traegt (siehe avesmapsGaretienNurQuelleAndereDoneZeileVorhanden
+                // das Item JETZT noch traegt (siehe avesmapsGaretienAndererTraegerVorhanden
                 // fuer die daraus folgende moegliche Waise).
+                // 🔴 NACHBESSERUNG 2: DIE TRAEGERMENGE IST JETZT DIE GANZE, nicht nur Nur-Quelle-
+                // Geschwister -- Wandlethes eigenes `changed`-Quelle-Item zaehlt seither mit.
                 $nurQuelleWarNeu = avesmapsGaretienNurQuelleAngelegtAusVermerk($publicId);
                 if ($nurQuelleWarNeu === true) {
                     $artikel = avesmapsGaretienArtikelQuelleAusItem(is_array($nach) ? $nach : [], (string) $item['entity_key']);
                     if ($artikel !== null) {
                         $nurQuelleArtikelUrl = trim((string) ($artikel['url'] ?? ''));
-                        $andereTragenSieNoch = avesmapsGaretienNurQuelleAndereDoneZeileVorhanden(
-                            $pdo, $nurQuelleSiedlung, $nurQuelleArtikelUrl, $itemId
+                        [$quellArt, $quellId] = avesmapsGaretienQuellenZiel('location', $nurQuelleSiedlung);
+                        $andereTragenSieNoch = avesmapsGaretienAndererTraegerVorhanden(
+                            $pdo, $quellArt, $quellId, $nurQuelleArtikelUrl, $itemIds
                         );
                         if (!$andereTragenSieNoch) {
-                            [$quellArt, $quellId] = avesmapsGaretienQuellenZiel('location', $nurQuelleSiedlung);
                             avesmapsGaretienQuelleRuecknahmeLoesenFuerAdresse($pdo, $quellArt, $quellId, $nurQuelleArtikelUrl, (int) ($user['id'] ?? 0));
                             $beruehrt[$quellArt . ':' . $quellId] = ['entity_type' => $quellArt, 'public_id' => $quellId];
                         }
