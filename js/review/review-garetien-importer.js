@@ -9663,8 +9663,23 @@
 		// 🔴 Ruling R-b (14.09.2026): `hinweise` werden sichtbar -- je ein Satz aus der apply-Antwort
 		// (Aufgabe 8, z. B. „Quelle an „Wandleth“ war schon vorhanden“), angehängt wie die übrigen
 		// Teile. Ohne `hinweise` bleibt die Meldung unverändert.
-		const hinweise = Array.isArray(s.hinweise) ? s.hinweise.filter(function (h) { return String(h || "") !== ""; }) : [];
-		hinweise.forEach(function (h) { teile.push(String(h)); });
+		// 🔴 SCHLUSSPRUEFUNG, BEFUND W2: der Server liefert je Hinweis ein OBJEKT `{item, text}`
+		// (garetien-uebernahme.php:2177), nie eine blosse Zeichenkette -- `String(h)` machte daraus
+		// "[object Object]". Gelesen wird `h.text`; eine Zeichenkette bleibt als Rückfall lesbar
+		// (ältere/vorsichtigere Form). Doppelte Sätze -- zwei Bauwerke an derselben schon
+		// vorhandenen Quelle -- werden einmal gezeigt, nicht je Item wiederholt.
+		const hinweisText = function (h) {
+			return String((h && typeof h === "object" ? h.text : h) || "");
+		};
+		const hinweise = Array.isArray(s.hinweise) ? s.hinweise.filter(function (h) { return hinweisText(h) !== ""; }) : [];
+		const hinweisTexteGezeigt = [];
+		hinweise.forEach(function (h) {
+			const text = hinweisText(h);
+			if (hinweisTexteGezeigt.indexOf(text) === -1) {
+				hinweisTexteGezeigt.push(text);
+				teile.push(text);
+			}
+		});
 		return { text: teile.join(" · "), ton: fehler.length > 0 ? "bad" : (angelegt + quellen > 0 ? "ok" : "") };
 	}
 
