@@ -224,7 +224,8 @@ gleich(garetienAbschnittsGruppen([]).gesamt, 0, "keine Abschnitte, keine Gruppen
 
 wahr(/<h4 class="gi-detail__name">Natter<\/h4>/.test(markup), "der Name steht im Kopf");
 // 🔴 Fuenf-Punkte-Brief 30.08.2026, Punkt 4: die Typ-Zuordnung steht NICHT mehr im Kopf -- sie
-// steht weiterhin, wortgleich, im Kasten „Eingefügt wird" (siehe garetien-eingefuegt-wird.test.js).
+// steht weiterhin, wortgleich, in Block C „Ziel & Identität" (seit Aufgabe 11, 14.09.2026; siehe
+// garetien-eingefuegt-wird.test.js).
 wahr(!markup.includes("gi-detail__kind"), "die Typ-Zuordnung ist aus dem Kopf entfernt, keine leere Huelle");
 wahr(markup.includes("LOD 5–14"), "die LOD-Spanne steht in der Metazeile");
 wahr(markup.includes("ggp / Gewaesser"), "Wiki und Ebene stehen in der Metazeile");
@@ -348,8 +349,9 @@ const voll = {
 		{ id: 12, anlass: "zusatz", change_type: "new", selected: 0 },
 	],
 };
-// Aufgabe 9 (09.09.2026, geteilter Baum): Darstellung sowie Wiki & Quellen -- und mit ihnen der
-// ganze Kasten "Eingefügt wird", den dieser Abschnitt prueft -- erscheinen erst auf der Stage.
+// Aufgabe 9 (09.09.2026, geteilter Baum) / Aufgabe 11 (14.09.2026): Darstellung sowie Wiki &
+// Quellen -- seither die Bloecke D und E, die dieser Abschnitt prueft -- erscheinen erst auf der
+// Stage.
 // `voll` traegt ein 'new'-Zusatz-Item und muss deshalb dort liegen; die Fixture bedient
 // `avesmapsGaretienStageHat`, statt die neue Bedingung zu unterlaufen.
 mod.avesmapsGaretienStageHinzufuegen([voll]);

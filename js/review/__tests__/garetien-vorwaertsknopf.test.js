@@ -91,7 +91,8 @@ tief(namen({ key: "d", stand: "abgelehnt", items: [{ id: 9, change_type: "new" }
 
 // Die zweite Zeile sagt, was auf der Stage laege bzw. dass es nur Ansicht ist.
 // ⚠️ Sie liest die GEWAEHLTE Form (garetienUnserBeschriftung), nicht den rohen Vorschlag --
-//    sonst versprach der Knopf etwas anderes als der Kasten „Eingefügt wird" darueber.
+//    sonst versprach der Knopf etwas anderes als Block C „Ziel & Identität" (seit Aufgabe 11,
+//    14.09.2026) in derselben Spalte.
 const wegObjekt = {
 	key: "w", stand: "offen", urteil: "neu", name: "Schattenbach",
 	ziel: "path", subtyp: "Flussweg", is_bach: true,

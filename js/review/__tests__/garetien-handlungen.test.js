@@ -927,9 +927,11 @@ wahr(!/data-handlung="ruecknahme_ablehnen"/.test(markupChangedZwei)
 	&& !/data-handlung="ruecknahme"/.test(markupChangedZwei),
 	"ein 'changed'-Objekt bekommt weder einen Ruecknahme- noch einen Ablehnen-Knopf: "
 	+ markupChangedZwei);
-gleich((markupChangedZwei.match(/gi-acts__grund/g) || []).length, 1, "und den Grund genau EINMAL");
-gleich((markupChangedZwei.match(/nicht rücknehmbar/g) || []).length, 1,
-	"🩤 wirklich einmal, nicht zweimal derselbe Satz: " + markupChangedZwei);
+// 🔴 NACHBESSERUNG RUNDE 1 (G, 14.09.2026): DER GRUND STEHT NUR NOCH IN BLOCK A -- F zeigt hier
+// weder Knopf noch Grund-Zeile mehr (der Satz stünde sonst zweimal auf dem Bildschirm).
+gleich((markupChangedZwei.match(/gi-acts__grund/g) || []).length, 0, "kein Grund mehr IN F");
+gleich((markupChangedZwei.match(/nicht rücknehmbar/g) || []).length, 0,
+	"🩤 und der Satz steht hier gar nicht mehr: " + markupChangedZwei);
 
 // --- Der Klickverteiler nimmt BEIDE Verben, und nur „Ablehnen" reicht die Ablehn-Menge weiter.
 ruecknahmeGesendet = []; gefragt = [];
@@ -1309,8 +1311,12 @@ wahr(!/data-handlung="ruecknahme"/.test(markupChanged),
 // dieses Objekt gar keinen Ausgang, und genau das war die Meldung des Owners.
 wahr(/data-handlung="zurueck_offen"/.test(markupChanged),
 	"und „Zurück nach Offen\" als echter Knopf daneben: " + markupChanged);
-wahr(/gi-acts__grund/.test(markupChanged) && /nicht rücknehmbar/.test(markupChanged),
-	"und der Grund steht trotzdem sichtbar da, nicht nur als Behauptung");
+// 🔴 NACHBESSERUNG RUNDE 1 (G, 14.09.2026): DER GRUND STEHT NICHT MEHR ZUSAETZLICH IN F -- er
+// steht bereits in Block A (garetienEingefuegtWirdUebernommenHinweis, garetienDetailMarkup);
+// zweimal auf dem Bildschirm wäre dieselbe Auskunft doppelt. Der Beleg für „steht in A" liegt in
+// garetien-detailspalte-reihenfolge.test.js (Abschnitt 6).
+wahr(!/nicht rücknehmbar/.test(markupChanged),
+	"und der Grund steht NICHT mehr zusätzlich in F: " + markupChanged);
 
 // ---- N.3 Die Rückfrage nennt die Folge beim Namen (Owner-Entscheid 2) ----------------------------
 const frageWeg = garetienRuecknahmeRueckfrageText(wegUebernommen);

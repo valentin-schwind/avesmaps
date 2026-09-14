@@ -65,8 +65,9 @@ const {
 	garetienWikiLandschaftBeiBedarfLaden,
 	garetienEingefuegtWirdMarkup,
 	garetienWikiLandschaftPlatzhalterId,
-	// Aufgabe 9 (09.09.2026, geteilter Baum): Darstellung sowie Wiki & Quellen -- und mit ihnen
-	// der versteckte Suche-Host -- erscheinen erst auf der Stage.
+	// Aufgabe 9 (09.09.2026, geteilter Baum) / Aufgabe 11 (14.09.2026): Darstellung sowie Wiki &
+	// Quellen -- seither die Bloecke D und E, mit ihnen der versteckte Suche-Host in Block E --
+	// erscheinen erst auf der Stage.
 	avesmapsGaretienStageHinzufuegen,
 } = mod;
 
