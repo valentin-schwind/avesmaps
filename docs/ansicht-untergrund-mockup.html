@@ -1901,6 +1901,17 @@ h2 { font-size: var(--font-size-subhead); margin: 0 0 4px; }
 .mk-ebenen { display: flex; gap: var(--mk-spalt); flex-wrap: wrap; margin-top: 12px; align-items: flex-start; }
 .mk-ebenen .map-layer-picker__thumb { background: var(--color-ecosystem-underground); }
 .mk-ebenen .map-layer-picker__cell { cursor: default; }
+
+/* ===== L: die Ebenen im Kartenfaecher (14.09.2026) ===== */
+/* Fuenf Ebenen statt drei Untergruende: die Staffelung reicht bis zur fuenften Zelle
+   (Entwurf §1 -- im Picker nth-child 2..6). */
+.mk-unterreihe.is-open .map-layer-picker__cell:nth-child(5) { transition-delay: 100ms; }
+.mk-unterreihe.is-open .map-layer-picker__cell:nth-child(6) { transition-delay: 125ms; }
+/* Die Reiterleiste des Editors -- oben in der Ecke, im Fluss (die Ecke stapelt nach unten). */
+.mk-reiter { margin-bottom: auto; display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; align-items: center; max-width: 100%; }
+.mk-reiter[hidden] { display: none; }
+.mk-reiter .mk-btn { padding: 3px 9px; }
+.mk-reiter .mk-dim { margin-right: 4px; background: var(--color-panel-translucent); padding: 2px 6px; border-radius: var(--radius-sm); }
 </style>
 </head>
 <body>
@@ -1908,7 +1919,7 @@ h2 { font-size: var(--font-size-subhead); margin: 0 0 4px; }
 <div class="mk-kopf">
 	<h1>Ansicht × Untergrund — wie es sich anfühlt</h1>
 	<p class="mk-lead">Der Bund hängt <b>unten rechts</b> und wächst nach oben, wie in der echten
-	Kartenecke. Beide Menüs sind bedienbar und benutzen die Zeiten des heutigen Pickers:
+	Kartenecke. Alle Menüs sind bedienbar und benutzen die Zeiten des heutigen Pickers:
 	140 ms bis zum Aufklappen beim Überfahren, 260 ms Nachlauf,
 	Aufrollen per <code>clip-path</code>. <b>Mit der Maus hinfahren</b> — nicht klicken.</p>
 	<div class="mk-bar">
@@ -1921,6 +1932,22 @@ h2 { font-size: var(--font-size-subhead); margin: 0 0 4px; }
 </div>
 
 <div class="mk-karten">
+	<section class="mk-karte" id="mk-l">
+		<div class="mk-karte__kopf"><h2>L — Landschaften: die Ebenen im Kartenfächer</h2><span class="mk-tag mk-tag--idee">Stand 14.09.2026</span></div>
+		<p class="mk-lead">Überfahren öffnet die Ansichten. Über <b>Landschaften</b> fährt die zweite Stufe
+		mit den fünf Ebenen heraus, über jeder anderen Ansicht wie bisher der Untergrund.
+		<b>Ein Klick auf eine Ebene wählt sie</b> — die Kachel zeigt danach ihren Namen <b>und ihr Bild</b>.</p>
+		<p class="mk-lead mk-dim">In den Landschaften gibt es keinen Untergrund zu wählen: für Besucher ist er
+		dort aus, weil Wege, Flüsse und Grenzen die Konturen tragen. Oben die Rolle umschalten: der Editor
+		behält seine Reiterleiste, die hier mitläuft.</p>
+		<div class="mk-ecke" data-ecke="l"><div class="mk-reiter" hidden></div></div>
+		<p class="mk-gut">Eine Regel für beide Stufen: eine Zelle mit Untermenü öffnet es, eine ohne wählt. Am Telefon öffnet der erste Tipp, der zweite wählt.</p>
+		<p class="mk-gut">Zugeklappt sagt die Kachel, was gilt — „Landschaften“, darunter die Ebene, und das Bild dieser Ebene.</p>
+		<p class="mk-gut">„Alle“ ist Derographie, Vegetation und Topographie übereinander.</p>
+		<p class="mk-gut">Die Landschaften-Zelle trägt beim Aufklappen dasselbe Bild wie die Kachel — auf ihrem Fleck springt nichts.</p>
+		<div class="mk-stand" data-stand="l"></div>
+	</section>
+
 
 	<section class="mk-karte" id="mk-e">
 		<div class="mk-karte__kopf"><h2>E — Untermenü fährt nach oben heraus und teilt sich</h2><span class="mk-tag mk-tag--idee">deine Idee</span></div>
@@ -2328,7 +2355,271 @@ function baueDemo(art) {
 	return zeichneAlles;
 }
 
-const demos = ["e", "a"].map(baueDemo);
+// ---- L: Landschaften -- die Ebenen im Kartenfaecher (Stand 14.09.2026) --------------------------
+// 🔴 Bildet den Entwurf docs/superpowers/specs/2026-09-09-landschaften-untermenue-design.md §1 nach:
+// Stufe 2 ist PRO ANSICHT verschieden -- ueber Landschaften die fuenf Ebenen, ueber jeder anderen
+// Ansicht die Untergruende.
+// 🔴 KEINE DRITTE STUFE (Owner 14.09.2026): in den Landschaften ist der Untergrund fuer Besucher ganz
+// aus, weil Wege, Fluesse und Grenzen die Konturen ansichtsuebergreifend tragen; der Editor stellt
+// seinen Untergrund ueber seinen eigenen Regler. Ein Klick auf eine Ebene WAEHLT -- fuer beide Rollen.
+// 🔴 DIE KACHEL ZEIGT DIE GEWAEHLTE EBENE (Owner 14.09.2026: „steht Landschaften Derographie dran,
+// aber nicht das icon"): Name UND Bild. Die Landschaften-Zelle der ersten Stufe traegt dasselbe Bild,
+// sonst wechselt es beim Aufklappen auf dem Fleck der Kachel.
+function baueFaecher() {
+	const ecke = document.querySelector('[data-ecke="l"]');
+	const stand = document.querySelector('[data-stand="l"]');
+	const reiter = ecke.querySelector(".mk-reiter");
+	const zustand = { ansicht: "ecosystem", grund: "stylized", ebene: "alle" };
+	let offen = false, festgehalten = false, schwebeTimer = null, blendeTimer = null;
+
+	const huelle = document.createElement("div");
+	huelle.className = "map-layer-picker";
+	const stufen = document.createElement("div");
+	stufen.className = "mk-stufen";
+	const menue = document.createElement("div");
+	menue.className = "map-layer-picker__menu";
+	menue.hidden = true;
+	const kachel = document.createElement("button");
+	kachel.type = "button";
+	kachel.className = "map-layer-picker__tile";
+	stufen.appendChild(menue);
+	huelle.appendChild(stufen);
+	huelle.appendChild(kachel);
+	const hinweis = document.createElement("p");
+	hinweis.className = "mk-ecke__hinweis";
+	const verweise = document.createElement("div");
+	verweise.className = "mk-ecke__verweise";
+	verweise.innerHTML = "<span>Neuigkeiten</span><span>Hinweise</span>";
+	ecke.appendChild(hinweis);
+	ecke.appendChild(huelle);
+	ecke.appendChild(verweise);
+
+	/**
+	 * Die zweite Stufe: eine Reihe ueber der Quellzelle, die sich aus einer Kachelbreite auffaechert.
+	 * 💣 Der Offen-Zustand steht in 'stufe.quelle' (einer VARIABLEN), nie in is-open oder hidden -- die
+	 * Klasse kommt erst im naechsten Bild, hidden erst nach dem Zuklappen (Entwurf §1).
+	 */
+	const reihe = document.createElement("div");
+	reihe.className = "map-layer-picker__menu mk-unterreihe";
+	reihe.hidden = true;
+	stufen.appendChild(reihe);
+	const stufe = { quelle: null, art: "" };
+
+	function positioniere(quellZelle) {
+		const rS = stufen.getBoundingClientRect(), rQ = quellZelle.getBoundingClientRect();
+		const mitte = rQ.left + rQ.width / 2 - rS.left;
+		const breite = reihe.offsetWidth;
+		// 💣 Ist die Reihe breiter als der Bund (Telefon), haengt sie nach LINKS hinaus, nie nach rechts
+		// aus der Ecke.
+		const rechtsBuendig = rS.width - breite;
+		const links = Math.min(Math.max(mitte - breite / 2, Math.min(0, rechtsBuendig)), Math.max(0, rechtsBuendig));
+		reihe.style.left = Math.round(links) + "px";
+		reihe.style.right = "auto";
+		reihe.style.setProperty("--mk-spalt", Math.round(mitte - links) + "px");
+	}
+
+	function zeigeStufe(wert, art, quellZelle, baue) {
+		const warOffen = stufe.quelle !== null && reihe.classList.contains("is-open");
+		if (warOffen && stufe.quelle === wert) { return; }
+		stufe.quelle = wert;
+		// 💣 Gleiche Art (die Untergruende ueber Standard und ueber Politisch): die offene Reihe WANDERT
+		// nur. Neu aufgefaechert sah das Wandern kaputt aus (E-Demo, 26.08.2026).
+		if (warOffen && stufe.art === art) { positioniere(quellZelle); return; }
+		stufe.art = art;
+		reihe.classList.remove("is-open");
+		baue();
+		reihe.hidden = false;
+		positioniere(quellZelle);
+		// Zwei Bilder: erst muss der zugeklappte Stand gezeichnet sein, sonst rollt nichts auf.
+		window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+			if (stufe.quelle === wert) { reihe.classList.add("is-open"); }
+		}));
+	}
+
+	function schliesseStufe() {
+		if (stufe.quelle === null) { return; }
+		stufe.quelle = null;
+		reihe.classList.remove("is-open");
+		window.setTimeout(() => { if (stufe.quelle === null) { reihe.hidden = true; } }, DATEN.zeiten.blende * zeitlupe);
+	}
+
+	const grundJetzt = () => untergruende().find((g) => g.wert === zustand.grund) || untergruende()[0];
+	const ebeneJetzt = () => DATEN.ebenen.find((e) => e.kind === zustand.ebene) || DATEN.ebenen[0];
+	/** Die zweite Zeile der Kachel: bei Landschaften die Ebene, sonst der Untergrund (Entwurf §1). */
+	const zweiteZeile = () => (zustand.ansicht === "ecosystem" ? ebeneJetzt().name : grundJetzt().name);
+	/** Ohne Kachelbild traegt die Huelle den Ausblendton der Ebene -- der Untergrund ist dort aus. */
+	const ohneUntergrund = (z) => {
+		z.querySelector(".map-layer-picker__thumb").style.background = "var(--color-ecosystem-underground)";
+		return z;
+	};
+
+	function ansichtsZelle(a, aktiv) {
+		if (a.wert === "ecosystem") {
+			// 🔴 Das Bild ist das der GEWAEHLTEN Ebene, nicht immer das von „Alle". Auch wenn gerade eine
+			// andere Ansicht gilt: die Zelle zeigt, was ein Klick auf Landschaften bringt -- die Ebene
+			// bleibt gemerkt.
+			return ohneUntergrund(zelle(Object.assign({}, a, { bild: "", grundDeckkraft: 0, overlay: ebeneJetzt().overlay }), aktiv, ""));
+		}
+		return zelle(a, aktiv, grundJetzt().bild);
+	}
+
+	function waehle(neu) {
+		Object.assign(zustand, neu);
+		zeichneKachel();
+		zeichneReiter();
+		schliesse();
+	}
+
+	function markiereQuelle() {
+		menue.querySelectorAll(".map-layer-picker__cell").forEach((z) => {
+			z.classList.toggle("mk-quelle", z.dataset.wert === stufe.quelle);
+		});
+	}
+
+	function baueEbenen() {
+		reihe.innerHTML = "";
+		// ⚠️ Am Telefon drei Spalten -- dieselbe Grenze wie die Hauptreihe (Entwurf §1, Breite).
+		reihe.style.gridTemplateColumns = "repeat(" + (amTelefon ? 3 : DATEN.ebenen.length) + ", auto)";
+		DATEN.ebenen.forEach((e) => {
+			const aktiv = zustand.ansicht === "ecosystem" && zustand.ebene === e.kind;
+			const k = ohneUntergrund(zelle({ name: e.name, wert: e.kind, overlay: e.overlay, bild: "" }, aktiv, ""));
+			// 🔴 Unter einer Ebene liegt nichts -- der erste Klick WAEHLT, fuer Besucher wie fuer Editoren.
+			k.addEventListener("click", () => waehle({ ansicht: "ecosystem", ebene: e.kind }));
+			reihe.appendChild(k);
+		});
+	}
+
+	function baueUntergruende() {
+		const liste = untergruende();
+		reihe.innerHTML = "";
+		reihe.style.gridTemplateColumns = "repeat(" + liste.length + ", auto)";
+		liste.forEach((g) => {
+			const k = zelle(g, g.wert === zustand.grund);
+			// Ein Klick waehlt BEIDES: die Ansicht, ueber der die Reihe steht, und den Untergrund.
+			k.addEventListener("click", () => waehle({ ansicht: stufe.quelle, grund: g.wert }));
+			reihe.appendChild(k);
+		});
+	}
+
+	function oeffneStufe(wert, quellZelle) {
+		if (wert === "ecosystem") { zeigeStufe(wert, "ebenen", quellZelle, baueEbenen); }
+		else { zeigeStufe(wert, "grund", quellZelle, baueUntergruende); }
+		markiereQuelle();
+	}
+
+	function zeichneMenue() {
+		menue.innerHTML = "";
+		menue.style.gridTemplateColumns = "repeat(" + (amTelefon ? 3 : DATEN.ansichten.length) + ", auto)";
+		aktivZuletzt(DATEN.ansichten, zustand.ansicht).forEach((a) => {
+			const aktiv = a.wert === zustand.ansicht;
+			const k = ansichtsZelle(a, aktiv);
+			const zweite = document.createElement("span");
+			zweite.className = "map-layer-picker__label mk-zweite-zeile";
+			if (aktiv) { zweite.textContent = zweiteZeile(); } else { zweite.innerHTML = "&nbsp;"; }
+			k.appendChild(zweite);
+			k.addEventListener("mouseenter", () => { if (!amTelefon) { oeffneStufe(a.wert, k); } });
+			k.addEventListener("click", () => {
+				festgehalten = true;
+				// Eine Zelle mit Untermenue OEFFNET es; ist es schon offen, WAEHLT der Klick die Ansicht allein.
+				if (stufe.quelle === a.wert) { waehle({ ansicht: a.wert }); return; }
+				oeffneStufe(a.wert, k);
+			});
+			menue.appendChild(k);
+		});
+	}
+
+	function oeffne() {
+		window.clearTimeout(blendeTimer);
+		zeichneMenue();
+		offen = true;
+		menue.hidden = false;
+		kachel.hidden = true;
+		window.requestAnimationFrame(() => menue.classList.add("is-open"));
+		zeigeStand();
+	}
+
+	function schliesse() {
+		if (!offen) { return; }
+		offen = false; festgehalten = false;
+		schliesseStufe();
+		menue.classList.remove("is-open");
+		window.clearTimeout(blendeTimer);
+		blendeTimer = window.setTimeout(() => { menue.hidden = true; kachel.hidden = false; }, DATEN.zeiten.blende * zeitlupe);
+		zeigeStand();
+	}
+
+	huelle.addEventListener("mouseenter", () => {
+		window.clearTimeout(schwebeTimer);
+		if (amTelefon || offen) { return; }
+		schwebeTimer = window.setTimeout(() => { if (!offen) { oeffne(); } }, DATEN.zeiten.auf * zeitlupe);
+	});
+	// ⚠️ Die Reihe ist ein KIND der Huelle, auch wenn sie ueber ihr schwebt -- wer hochfaehrt, verlaesst
+	// die Huelle also nicht. Die 6px dazwischen ueberbrueckt '.mk-unterreihe::after'.
+	huelle.addEventListener("mouseleave", () => {
+		window.clearTimeout(schwebeTimer);
+		if (amTelefon || festgehalten || !offen) { return; }
+		schwebeTimer = window.setTimeout(() => { if (offen) { schliesse(); } }, DATEN.zeiten.zu * zeitlupe);
+	});
+	kachel.addEventListener("click", () => { oeffne(); festgehalten = true; });
+	// Ein Klick daneben schliesst ein festgehaltenes Menue.
+	document.addEventListener("click", (e) => { if (offen && !huelle.contains(e.target)) { schliesse(); } });
+
+	function zeichneKachel() {
+		const a = DATEN.ansichten.find((x) => x.wert === zustand.ansicht);
+		kachel.innerHTML = "";
+		const z = ansichtsZelle(a, false);
+		z.tabIndex = -1;
+		const zwei = document.createElement("span");
+		zwei.className = "map-layer-picker__label mk-zweite-zeile";
+		zwei.textContent = zweiteZeile();
+		z.appendChild(zwei);
+		kachel.appendChild(z);
+	}
+
+	// 🔴 Die Reiterleiste bleibt dem Editor (Entwurf §1/§2) und ist DERSELBE Zustand wie der Faecher --
+	// im echten Picker klickt der Faecher den passenden Reiter an, einen zweiten Ebenen-Zustand gibt es
+	// nicht. Sichtbar nur in der Ansicht Landschaften, wie auf der Karte.
+	function zeichneReiter() {
+		reiter.hidden = !(istEditor && zustand.ansicht === "ecosystem");
+		reiter.innerHTML = '<span class="mk-dim">Reiterleiste · nur Editor</span>';
+		DATEN.ebenen.forEach((e) => {
+			const b = document.createElement("button");
+			b.type = "button";
+			b.className = "mk-btn";
+			b.textContent = e.name;
+			b.setAttribute("aria-pressed", zustand.ebene === e.kind ? "true" : "false");
+			b.addEventListener("click", () => { zustand.ebene = e.kind; zeichneKachel(); zeichneReiter(); zeigeStand(); });
+			reiter.appendChild(b);
+		});
+	}
+
+	function zeigeStand() {
+		const a = DATEN.ansichten.find((x) => x.wert === zustand.ansicht);
+		let text = "Gewählt: <b>" + a.name + "</b>";
+		if (a.wert === "ecosystem") {
+			text += " · Ebene <b>" + ebeneJetzt().name + "</b> · Untergrund <b>" + (istEditor ? "über den Editor-Regler" : "aus") + "</b>";
+		} else {
+			text += " auf <b>" + grundJetzt().name + "</b>";
+		}
+		stand.innerHTML = text + " &nbsp;·&nbsp; " + (offen ? "offen" : "zugeklappt");
+		hinweis.textContent = !offen
+			? "Mit der Maus auf die Kachel unten rechts fahren."
+			: "Ein Klick auf eine Ebene wählt sie — die Kachel zeigt danach ihren Namen und ihr Bild.";
+	}
+
+	function zeichneAlles() {
+		if (!untergruende().some((g) => g.wert === zustand.grund)) { zustand.grund = untergruende()[0].wert; }
+		if (offen) { schliesse(); }
+		zeichneKachel();
+		zeichneReiter();
+		zeigeStand();
+	}
+
+	zeichneAlles();
+	return zeichneAlles;
+}
+
+const demos = ["e", "a"].map(baueDemo).concat([baueFaecher()]);
 
 function zeichneProben() {
 	const proben = document.getElementById("mk-proben");

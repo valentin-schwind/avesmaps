@@ -19,6 +19,22 @@ Quelltext und gegen ausgeführte Funktionen. Keine neuen Abhängigkeiten.
 **Entwurf:** `docs/superpowers/specs/2026-09-09-landschaften-untermenue-design.md` — der Plan
 argumentiert aus ihm, beide werden zusammen gelesen.
 
+## 🔴 Nachtrag vom 14.09.2026 — zwei Owner-Entscheide ändern den Plan
+
+1. **Keine dritte Stufe, für niemanden** („es braucht also bei landschaften kein 3. untermenü (Old Original Modern)"; Entwurf §0 Punkt 2).
+   **Aufgabe 7 entfällt.** **Aufgabe 4 entfällt ebenfalls:** das Bauteil `macheStufe` war nur wegen der
+   zweiten Montage begründet; die Stufe bleibt EINE Instanz, die je Ansicht einen anderen Inhalt baut.
+   Aufgabe 5 baut die Ebenen deshalb in die BESTEHENDE Stufe — wo sie `macheStufe` verbraucht, gilt die
+   vorhandene Stufe aus `start()`. Die Absätze über „Bauform: zweimal montiert" oben sind damit überholt.
+2. **Die Kachel zeigt Name UND Bild der gewählten Ebene** („wenn ich auf ein element draufklick z.B. derographie steht ‚Landschaften Derographie' dran, aber nicht das icon (das ist von ‚alle')"; Entwurf §1).
+   **Aufgabe 6 bekommt das Bild dazu:** `zelle()` legt für die Ansicht `ecosystem` den Vektor aus
+   `aktiveEbene()` ein (`OVERLAYS.ecosystem` nur bei „Alle"), für die zugeklappte Kachel UND die
+   Landschaften-Zelle der ersten Stufe; derselbe Zuhörer, der die zweite Zeile nachzieht, zieht das Bild
+   nach.
+
+Die Push-Punkte bleiben: nach Aufgabe 3 (Icons + Mockup) und nach Aufgabe 8 (der Fächer als Ganzes);
+dazwischen liegen jetzt die Aufgaben 5 und 6.
+
 ## Globale Vorgaben
 
 - **Kommentare, Commit-Nachrichten und Doku auf DEUTSCH** (AGENTS.md §8), passend zur Datei, in der
@@ -936,7 +952,7 @@ Betreff: `ui(kartenfaecher): vier Vektoren fuer die Landschafts-Ebenen -- im Moc
 
 ---
 
-## Aufgabe 4: Die Stufe wird ein Bauteil (reiner Innenumbau)
+## Aufgabe 4: Die Stufe wird ein Bauteil (reiner Innenumbau) — 🔴 ENTFÄLLT (Nachtrag 14.09.2026)
 
 **Dateien:**
 - Ändern: `js/ui/map-layer-picker.js` (`start()`)
@@ -1390,7 +1406,7 @@ Betreff: `feat(kartenfaecher): die Kachel nennt bei Landschaften die Ebene statt
 
 ---
 
-## Aufgabe 7: Die dritte Stufe — der Untergrund für Editoren
+## Aufgabe 7: Die dritte Stufe — der Untergrund für Editoren — 🔴 ENTFÄLLT (Nachtrag 14.09.2026)
 
 **Dateien:**
 - Ändern: `js/ui/map-layer-picker.js`
@@ -1636,7 +1652,7 @@ es schlimmer (steht als Warnung in genau dieser Datei, `map-layer-picker.js`, zw
 
 ## Selbstprüfung des Plans
 
-**Entwurfsabdeckung:** §1 Stufen → Aufgaben 4–7 · §1 zweite Zeile → Aufgabe 6 · §2 Zustand →
+**Entwurfsabdeckung** (🔴 Stand 14.09.2026: Aufgaben 4 und 7 entfallen, siehe Nachtrag oben)**:** §1 Stufen → Aufgaben 5–6 · §1 zweite Zeile + Bild → Aufgabe 6 · §2 Zustand →
 Aufgabe 5 · §3.1 alles an + §3.2 Untergrund 0 % + §3.3 Nutzerwahl → Aufgabe 2 · §3.2 Vorschau im
 Fächer + Leiste verstecken → Aufgabe 8 · §4 Vektoren → Aufgabe 3 · §5 Wasserton → Aufgabe 1 ·
 §6 „nicht dazu" → nirgends gebaut · §7 Tests → je Aufgabe · §8 offene Punkte → bleiben offen.

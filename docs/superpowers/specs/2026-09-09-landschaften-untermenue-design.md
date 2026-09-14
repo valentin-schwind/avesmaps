@@ -3,8 +3,8 @@
 **Owner-Auftrag vom 09.09.2026.** Die Toggle-Leiste über der Karte („Alle · Derographie ·
 Vegetation · Topographie · Klimazonen") verschwindet für Besucher und wird zum Untermenü von
 „Landschaften" im Kartenfächer. Die drei Untergründe fallen dort weg, weil der Untergrund in den
-Landschaften ohnehin auf 0 % steht. Editoren behalten die Leiste **und** bekommen den erweiterten
-Fächer. Dazu: Flüsse und Seen tragen denselben Wasserton, den der SVG-Abzug längst führt.
+Landschaften ohnehin auf 0 % steht. Editoren behalten die Leiste **und** bekommen denselben Fächer (bis zum 14.09.2026 stand hier
+„den erweiterten" — die dritte Stufe ist gefallen, §0 Punkt 2). Dazu: Flüsse und Seen tragen denselben Wasserton, den der SVG-Abzug längst führt.
 
 **Nachtrag vom selben Tag:** Orte, Wege, Labels, Grenzen und Gewässer sind in allen fünf Ebenen
 an — und die eigene Wahl des Besuchers schlägt diese Vorgabe (§3). Damit fällt die „ruhige
@@ -19,7 +19,11 @@ Mockup: `docs/ansicht-untergrund-mockup.html` — **Build-Produkt** aus
 ## 0 · Die Owner-Entscheide dieses Tages
 
 1. Untergrund im Frontend: **alle fünf Ebenen auf 0 %** (heute nur „Alle"; die vier anderen 25 %).
-2. Der Untergrund bleibt für Editoren erreichbar — als **dritte Stufe** im Fächer.
+2. 🔴 **Überholt am 14.09.2026.** Hier stand: „Der Untergrund bleibt für Editoren erreichbar — als
+   dritte Stufe im Fächer." Der Owner hat sie gestrichen, „es braucht also bei landschaften kein 3. untermenü (Old Original Modern)": in den
+   Landschaften ist der Untergrund für Besucher ganz aus, weil Wege, Flüsse und Grenzen die Konturen
+   ansichtsübergreifend tragen; der Editor stellt seinen Untergrund über den Regler in
+   `#ecosystem-controls`. **Es gibt keine dritte Stufe — für niemanden.**
 3. Der Wasserton **#4c89c6 gilt in allen Ansichten**, nicht nur in den Landschaften.
 4. „Fluss als Kontur" heißt: **#4c89c6 ist die Linienfarbe des Flusses**; die weiße Umrandung
    bleibt im Bearbeiten-Modus zusätzlich darum, samt Strömungspfeilen.
@@ -27,44 +31,49 @@ Mockup: `docs/ansicht-untergrund-mockup.html` — **Build-Produkt** aus
 6. **Orte, Wege, Labels, Grenzen und Gewässer sind in allen fünf Ebenen an** (§3) —
 7. **…und die eigene Wahl des Besuchers schlägt diese Vorgabe, für den ganzen Besuch** (§3.3).
 8. Der **Editor** behält in den Landschaften seine leere Zeichenfläche (§3.3).
+9. **Die zugeklappte Kachel zeigt das BILD der gewählten Ebene**, nicht immer das von „Alle" (§1,
+   Nachtrag vom 14.09.2026).
 
 ⚠️ Hier steht bewusst keine Zahl im Titel. Die Liste ist an einem Tag von vier auf acht gewachsen,
 und eine Zahl in einer Überschrift liest sich wie eine vollständige Liste — dieses Repo protokolliert
 mehrfach, was das kostet.
 
-## 1 · Drei Stufen, eine Regel
+## 1 · Zwei Stufen, eine Regel
 
 Stufe 1 ist unverändert (Standard · Politisch · Kraftlinien · Landschaften · Nur Karte).
 
 🔴 **Stufe 2 ist ab jetzt pro Ansicht verschieden** — das ist der Umbau. Bis heute war sie
 ausnahmslos „der Untergrund"; künftig zeigt sie, *was diese Ansicht zu wählen hat*:
 
-| Ansicht | Stufe 2 | Stufe 3 |
-|---|---|---|
-| Landschaften | Alle · Derographie · Vegetation · Topographie · Klimazonen | die drei Untergründe, **nur im Editor** |
-| alle anderen | Original · Modern (· Old nur im Editor) | — |
+| Ansicht | Stufe 2 |
+|---|---|
+| Landschaften | Alle · Derographie · Vegetation · Topographie · Klimazonen |
+| alle anderen | Original · Modern (· Old nur im Editor) |
 
-🔴 **DIE EINE REGEL, DIE ALLE DREI STUFEN TRÄGT: eine Zelle mit Untermenü ÖFFNET es, eine ohne
+🔴 **DIE EINE REGEL, DIE BEIDE STUFEN TRÄGT: eine Zelle mit Untermenü ÖFFNET es, eine ohne
 WÄHLT.** Das ist heute schon die Regel zwischen Stufe 1 und 2 (`waehle()`: „ein Klick auf eine
 Ansicht hält ihre zweite Stufe offen"); sie greift eine Etage tiefer, ohne dass eine zweite Regel
 dazukommt. Daraus fällt alles Übrige ab:
 
-- Besucher: erster Klick auf „Vegetation" wählt sofort — unter der Zelle liegt nichts.
-- Editor: erster Klick öffnet Stufe 3, zweiter wählt „Landschaften + Vegetation" mit dem
-  eingestellten Untergrund.
+- Besucher **und Editor**: erster Klick auf „Vegetation" wählt sofort — unter der Zelle liegt nichts.
 - Telefon (kein Überfahren): erster Tipp öffnet, zweiter wählt — derselbe Weg wie am Zeiger, kein
   zweiter Bedienweg. Die Zusage aus dem Entwurf vom 26.08.2026 bleibt damit heil.
 
-⭐ **Und das ist die Begründung dafür, dass der Editor seine Reiterleiste behält** — sie ist sein
-Ein-Klick-Weg zur Ebene, während der Fächer ihm zwei Klicks abverlangt. Die Leiste ist keine
-Altlast, sondern die Gegenleistung für die dritte Stufe.
+**Der Editor behält seine Reiterleiste** (Owner-Auftrag vom 09.09.2026). 🔴 Bis zum 14.09.2026 stand
+hier als Begründung, sie sei sein Ein-Klick-Weg gegen die zwei Klicks der dritten Stufe. Die Stufe ist
+gefallen, die Leiste bleibt — als Owner-Entscheid, nicht als Ausgleich; sie ist derselbe Zustand wie
+der Fächer (§2).
 
-🔴 **Keine dritte Stufe für Besucher.** Ihr Untergrund steht auf 0 %; ein Menü, das etwas
-Unsichtbares wählt, ist kein Menü. Der Riegel ist `IS_EDIT_MODE`, gelesen an derselben Stelle, an
-der heute „Old" gefiltert wird — und er fällt **geschlossen** aus: ohne die Auskunft keine dritte
-Stufe.
+🔴 **Keine dritte Stufe — für niemanden** (Owner 14.09.2026, §0 Punkt 2). Hier stand bis dahin „keine
+dritte Stufe für Besucher" samt einem `IS_EDIT_MODE`-Riegel für die des Editors; beides entfällt.
+Ein Menü, das in den Landschaften einen Untergrund wählt, der für Besucher ohnehin aus ist, ist kein
+Menü — und der Editor hat seinen Regler.
 
-💣 **Die Stufe wird ein BAUTEIL, das zweimal montiert wird.** Heute steckt sie als eine einzige
+🔴 **Überholt am 14.09.2026 — die zweite Montage ist entfallen.** Die Stufe bleibt EINE Instanz, die je
+Ansicht einen anderen Inhalt baut (Ebenen über Landschaften, Untergründe sonst); ein Bauteil mit einem
+einzigen Aufrufer wäre Umbau ohne Gewinn. Stehen bleibt der Hinweis auf die Namen: sie sind auf
+„Untergrund" gemünzt, und wer sie anfasst, benennt sie nach der Stufe, nicht nach ihrem Inhalt.
+Der Absatz von vorher, zum Nachlesen: **Die Stufe wird ein BAUTEIL, das zweimal montiert wird.** Heute steckt sie als eine einzige
 fest verdrahtete Instanz in `start()`: `grundReihe`, `stufeZwei`, `stufeZweiOffen`, `stufeTimer`,
 `stufeAufTimer`, `zeichneGrundReihe`, `positioniereStufeZwei`, `oeffneStufeZwei`,
 `schliesseStufeZwei`, `stufeZweiSpaeterSchliessen`, `verdrahteStufeZwei`, `markiereQuelle` — zwölf
@@ -77,13 +86,14 @@ Stufe 3 sind zwei Aufrufe davon. Die Zeitkonstanten (`SCHWEBE_AUF_MS`, `SCHWEBE_
 💣 **Der Offen-Zustand jeder Stufe steht in einer VARIABLEN**, nie in `is-open` und nie in
 `hidden` — die Klasse kommt erst im nächsten Bild, `hidden` erst nach dem Zuklappen. Der Fehler ist
 in diesem Menü schon zweimal bezahlt worden (15.08.2026, und beim Anzeige-Menü daneben am
-12.08.2026); mit einer dritten Stufe gäbe es ihn dreifach.
+12.08.2026).
 
 💣 **Zwischen den Stufen liegen 6 px, und die brauchen ZWEI Riegel** — die unsichtbare Brücke im
 CSS (`::after`, `bottom: -10px`, innerhalb des `clip-path`-Überhangs) und den Nachlauf im JS. Das
-gilt für jede Grenze, also künftig für zwei. Eine Brücke ohne die andere ist ein Menü, das beim
+gilt für die Grenze zwischen Stufe 1 und Stufe 2. Eine Brücke ohne die andere ist ein Menü, das beim
 Hochfahren zuklappt.
 
+🔴 **Entfallen mit der dritten Stufe (14.09.2026)** — und gilt wieder, falls je eine kommt:
 💣 **Stufe 3 wird GEMESSEN positioniert, nicht gerechnet.** Stufe 2 sitzt auf
 `bottom: calc(100% + 6px)` der Hülle; Stufe 3 müsste also `100% + 6px + Höhe(Stufe 2) + 6px`
 tragen. Die Höhe der zweiten Reihe hängt an ihrer Beschriftung und ist keine Konstante — sie wird
@@ -102,6 +112,15 @@ folgen derselben Media Query; die Spaltenzahl ist die tatsächliche Anzahl, kein
 **Zweite Zeile der zugeklappten Kachel:** sie nennt heute den Untergrund. Künftig nennt sie *das,
 was die zweite Stufe dieser Ansicht wählt* — bei Landschaften also die Ebene („Landschaften /
 Vegetation"). Der Untergrund gehört dort nicht hin: er sagt nichts mehr aus.
+
+🔴 **Und das BILD folgt ebenso** (Owner 14.09.2026, „wenn ich auf ein element draufklick z.B. derographie steht ‚Landschaften Derographie' dran, aber nicht das icon (das ist von ‚alle')"):
+die zugeklappte Kachel und die Landschaften-Zelle der ersten Stufe tragen den Vektor der GEWÄHLTEN
+Ebene — `OVERLAYS.ecosystem` nur, wenn „Alle" gewählt ist. Die Zelle trägt ihn auch, wenn gerade eine
+andere Ansicht gilt: sie zeigt, was ein Klick auf Landschaften bringt, denn die Ebene bleibt gemerkt.
+💣 **Name und Bild kommen aus EINER Auskunft** (`aktiveEbene()`) — zwei getrennte Leser sind genau der
+gemeldete Fehler: „Derographie" als Name, das Bild von „Alle" daneben.
+⚠️ Die aktive Zelle liegt beim Aufklappen auf dem Fleck der Kachel; trüge sie ein anderes Bild, wechselte
+es dort sichtbar.
 
 ## 2 · Der Zustand bleibt die Reiterleiste
 
@@ -337,7 +356,8 @@ dass die beiden Blau **verschieden** sind.
 ## 7 · Tests
 
 - `js/ui/__tests__/map-layer-picker.test.js` — erweitert: Stufe 2 ist pro Ansicht verschieden;
-  Stufe 3 nur im Editor; die eine Regel („mit Untermenü öffnet, ohne wählt") auf allen drei Stufen;
+  keine dritte Stufe, auch nicht im Editor; die eine Regel („mit Untermenü öffnet, ohne wählt") auf
+  beiden Stufen; Kachel und Landschaften-Zelle tragen Name UND Bild der gewählten Ebene;
   `nth-child`-Staffelung deckt fünf Zellen; die CSS-Zuklappzeit und `BLENDE_ZU_MS` bleiben gekoppelt.
 - **Neu** `js/ui/__tests__/landschaften-untermenue.test.js` — der Fächer schreibt den Ebenenzustand
   ausschließlich über die Reiter (Spion auf `#ecosystem-layer-switch`), nie über eine eigene
@@ -367,8 +387,8 @@ Jeder neue Test wird gegen Mutationen gefahren, bevor er als Beleg zählt.
 
 ## 8 · Offene Punkte
 
-- 🔧 Der Ablauf mit angemeldeter Sitzung: die dritte Stufe ist bis zur Abnahme nur am Mockup und im
-  Browser ohne Editor-Rechte geprüft.
+- 🔧 Der Ablauf mit angemeldeter Sitzung: Reiterleiste und Fächer als EIN Zustand sind bis zur Abnahme
+  nur am Mockup und im Browser ohne Editor-Rechte geprüft.
 - 🔧 Ob fünf Ebenenzellen am Telefon in zwei Reihen oder in einer schmalen bleiben, entscheidet
   der Blick am Gerät — die Media Query ist vorbereitet, die Wahl nicht getroffen.
 - 🔧 Ob der See dem Fluss auch im BILD gleichen soll (Deckkraft 1), ist eine Owner-Frage; §5.
