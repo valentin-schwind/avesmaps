@@ -113,12 +113,16 @@ gleich(avesmapsGaretienStageHat(huegel.key), false,
 const mOffen = garetienEingefuegtWirdMarkup(huegel);
 
 wahr(mOffen.includes("Eingefügt wird"), "die Ueberschrift fehlt");
-wahr(mOffen.includes('data-gi-feld="zielForm"') && mOffen.includes('data-gi-feld="zielArt"'),
-	"Form und Art muessen auch auf 'Offen' stehen -- sie beantworten 'ueberhaupt?' und 'als was?': "
+// 🔴 SEIT DEM 14.09.2026 (Aufgabe 10, „Garetien-Importer vereint") stehen Form und Art auf „Offen" als
+// TEXT, nicht als Auswahl (Owner 12.09.2026: „der Vorschlag ist sichtbar, geändert wird er erst auf
+// der Stage").
+wahr(mOffen.includes('<span>Form</span><span class="gi-insert__val">Fläche</span>')
+	&& mOffen.includes('<span>Art</span><span class="gi-insert__val">'),
+	"Form und Art stehen auch auf 'Offen' -- sie beantworten 'ueberhaupt?' und 'als was?', als Text: "
 	+ mOffen);
-wahr(mOffen.includes("Darstellung sowie Wiki") && mOffen.includes("erscheinen, sobald das")
-	&& mOffen.includes("Objekt auf der Stage liegt"),
-	"der erklaerende Hinweistext fehlt auf 'Offen': " + mOffen);
+wahr(!/data-gi-feld=/.test(mOffen), "…und kein einziges Einstellfeld: " + mOffen);
+wahr(mOffen.includes("Erst auf der Stage einstellbar."),
+	"der erklaerende Satz steht auf 'Offen': " + mOffen);
 
 // Block D (Darstellung): die Flaechen-Unterueberschrift und ihr Haekchen duerfen nicht erscheinen.
 wahr(!mOffen.includes('class="gi-insert__sub">Fläche<'),
@@ -146,8 +150,8 @@ const mStage = garetienEingefuegtWirdMarkup(huegel);
 
 wahr(mStage.includes('data-gi-feld="zielForm"') && mStage.includes('data-gi-feld="zielArt"'),
 	"Form und Art bleiben stehen, wenn das Objekt auf die Stage kommt: " + mStage);
-wahr(!mStage.includes("erscheinen, sobald das Objekt auf der Stage liegt"),
-	"der Hinweistext darf auf der Stage nicht mehr stehen: " + mStage);
+wahr(!mStage.includes("Erst auf der Stage einstellbar."),
+	"der Satz darf auf der Stage nicht mehr stehen: " + mStage);
 wahr(mStage.includes('class="gi-insert__sub">Fläche<') && mStage.includes("für Klicks gesperrt"),
 	"Block D (Flaeche) muss auf der Stage erscheinen: " + mStage);
 wahr(mStage.includes("Wiki und Quellen") && mStage.includes("Wiki-Landschaft"),
