@@ -627,6 +627,7 @@ function avesmapsWikiDumpHybridParseUpsertStep(
         // Guard the enrichment/schema columns exactly as Pass B does before its
         // settlement/building upserts (idempotent).
         avesmapsWikiSettlementEnsureSchema($pdo);
+        avesmapsWikiStadtteilWeiterleitungEnsureTable($pdo);
     } else {
         avesmapsWikiDumpHybridEnsureStateTable($pdo);
     }
@@ -787,6 +788,18 @@ function avesmapsWikiDumpHybridUpsertParsedRow(PDO $pdo, array $parsed, ?array $
             break;
 
         case AVESMAPS_WIKI_DUMP_ENTITY_BUILDING:
+            // 💣 Eine Stadtteilweiterleitung ist KEIN Artikel: sie geht in ihre eigene Tabelle und
+            // nie nach wiki_sync_pages, wo die Orts-Zuweisung sie sonst als Seite anboete und ueber
+            // redirects=1 die Infobox der STADT holte (stadtteil-weiterleitung.php).
+            if (!empty($record['stadtteil_weiterleitung'])) {
+                avesmapsWikiStadtteilWeiterleitungUpsert(
+                    $pdo,
+                    (string) ($record['title'] ?? ''),
+                    (string) ($record['standort'] ?? ''),
+                    (string) ($record['wiki_url'] ?? '')
+                );
+                break;
+            }
             avesmapsWikiSettlementUpsertBuildingRow(
                 $pdo,
                 (string) ($record['title'] ?? ''),

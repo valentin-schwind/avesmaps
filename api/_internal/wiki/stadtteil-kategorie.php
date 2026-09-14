@@ -9,10 +9,16 @@ declare(strict_types=1);
  * stadtviertel durch zoom auf die stadt auffindbar machen". Frueher schon: „wichtig ist, dass alle
  * stadtviertel in der suche auftauchen".
  *
- * 💣 DER SCAN ERKENNT EIN OBJEKT NUR AN SEINER INFOBOX (O4) -- UND EINE STADTTEIL-SEITE HAT KEINE.
- * `Südquartier` traegt nur `{{Register Siedlung}}` ohne Parameter, also auch kein `|Standort=`. Die
- * EINZIGE Stelle, die Art UND Stadt nennt, ist die Kategorie `Stadtteil von Gareth`. Deshalb liest
- * diese Ausnahme -- anders als die Wadi-Ausnahme, die bei der Art bleibt -- eine Kategorie.
+ * 💣 DER SCAN ERKENNT EIN OBJEKT NUR AN SEINER INFOBOX (O4) -- UND EIN STADTTEIL HAT KEINE. Die
+ * einzige Stelle, die Art UND Stadt nennt, ist eine Kategorie. Deshalb liest diese Ausnahme --
+ * anders als die Wadi-Ausnahme, die bei der Art bleibt -- eine Kategorie. Es gibt ZWEI Formen:
+ *
+ *   (1) `Kategorie:Stadtteil von X` an einer Seite OHNE erkannte Infobox -> Stadt X.
+ *       `Südquartier` traegt nur ein nacktes `{{Register Siedlung}}`, also auch kein |Standort=.
+ *   (2) `Kategorie:Stadtteilweiterleitung` an einer WEITERLEITUNG -> die Stadt ist ihr Ziel
+ *       (`Yol-Fessar` -> `Fasar`). Das ist die EINZIGE Weiterleitung, die ein Objekt wird; jede
+ *       andere bleibt ein Alias. Pass A sammelt auch diese weiter als Alias -- beide Rollen
+ *       schliessen sich nicht aus.
  *
  * 🔴 SIE BLEIBT ENG UND BENANNT. Keine allgemeine Musterregel „Kategorie:X von Y": der naechste
  * Schritt waere ein Baukasten, und dann entscheiden Kategorien, was ein Objekt ist -- genau das,
@@ -21,10 +27,21 @@ declare(strict_types=1);
  * Gemessen am Septemberdump (01.09.2026, 252.902 Seiten, gegen `dump_categorylinks` gehalten --
  * jede dieser Kategorien steht LITERAL im Wikitext, keine kommt nur ueber eine Vorlage, und nur den
  * Wikitext sieht der Scan):
- *   13 Seiten in `Stadtteil von …` (Gareth 6, Dorinthapolis 5, Kuslik 1, Yol-Ghurmak 1)
- *   -> 10 aufgenommen. Zwei tragen schon eine Region-Infobox (Sternenpfeiler, Krater der Kristalle)
- *      und gehoeren ihrem Handler; eine ist `Sandkasten/Brigonis`, die Spielwiese eines Benutzers.
- *   -> 6 davon (Gareth) erscheinen in der Suche; Dorinthapolis liegt nicht auf der Karte.
+ *   (1) 13 Seiten in `Stadtteil von …` (Gareth 6, Dorinthapolis 5, Kuslik 1, Yol-Ghurmak 1)
+ *       -> 10 aufgenommen. Zwei tragen schon eine Region-Infobox (Sternenpfeiler, Krater der
+ *       Kristalle) und gehoeren ihrem Handler; eine ist `Sandkasten/Brigonis`, die Spielwiese eines
+ *       Benutzers. -> 6 davon (Gareth) erscheinen in der Suche; Dorinthapolis liegt nicht auf der Karte.
+ *   (2) 294 Weiterleitungen, alle mit Ziel, keine Unterseite -> 294 aufgenommen -> 249 landen
+ *       eindeutig in einer Stadt auf der Karte (Fasar 17, Vinsalt 14, Kuslik 10, Punin 10 …). Die
+ *       uebrigen 45 zeigen auf Staedte, die nicht auf der Karte liegen (Eshbathmar 15, Porto
+ *       Velvenya 10, Balan Osrhotania 4, Sidor Ethilia 4, Arivor (historisch) 3, Keft, Askja,
+ *       Nahambath je 1), oder auf einen Stadtteil (Alt-Gareth 5, Neu-Gareth 1).
+ *       ⚠️ Die Kette Weiterleitung -> Stadtteil -> Stadt wird bewusst NICHT verfolgt: dafuer muesste
+ *       diese Funktion eine zweite Seite kennen, und sie sieht immer nur eine.
+ *
+ * 🔴 FORM (2) LANDET NICHT IN wiki_sync_pages, sondern in ihrer eigenen Staging-Tabelle
+ * (stadtteil-weiterleitung.php): eine Weiterleitung ist kein Artikel, und jeder Leser von
+ * wiki_sync_pages nimmt eine Zeile als Artikel -- die Begruendung steht dort.
  *
  * ⚠️ WAS DARAUS WIRD, entscheidet nicht diese Datei: der Bauwerks-Parser macht daraus eine Zeile der
  * Klasse `stadtviertel` mit Art „Stadtteil" und Standort `[[Stadt]]`, und ob sie in der Suche
@@ -52,7 +69,7 @@ const AVESMAPS_WIKI_STADTTEIL_KLASSE = 'stadtviertel';
  * einen Zwilling der Klassifikator-Weiche; fuer Stadtteile gibt es keinen, beide fragen hier.
  *
  * @param array{title?:string, ns?:int, redirect?:?string, wikitext?:string} $page
- * @return array{stadt:string}|null
+ * @return array{stadt:string, weiterleitung?:bool}|null  weiterleitung=true nur fuer Form (2)
  */
 function avesmapsWikiStadtteilAusKategorie(array $page): ?array
 {
@@ -60,7 +77,8 @@ function avesmapsWikiStadtteilAusKategorie(array $page): ?array
     $wikitext = (string) ($page['wikitext'] ?? '');
 
     // Die Bremse fuer die rund 250.000 Seiten, die am Tor vorbeikommen: ohne das Wort gibt es
-    // nichts zu pruefen, und die Infobox-Frage darunter ist die teure.
+    // nichts zu pruefen (es steckt auch in „Stadtteilweiterleitung"), und die Infobox-Frage unten
+    // ist die teure.
     if ($title === '' || mb_stripos($wikitext, 'stadtteil') === false) {
         return null;
     }
@@ -71,7 +89,24 @@ function avesmapsWikiStadtteilAusKategorie(array $page): ?array
         return null;
     }
 
-    // Eine Seite mit erkannter Infobox gehoert ihrem Handler (Sternenpfeiler bleibt eine Region).
+    // FORM (2): die Weiterleitung. Sie traegt nie eine Infobox, also kommt die Infobox-Frage erst
+    // danach -- und eine Weiterleitung OHNE die Kategorie bleibt, was sie ist: ein Alias.
+    $ziel = avesmapsWikiStadtteilWeiterleitungsziel($page);
+    if ($ziel !== null) {
+        if (!in_array('Stadtteilweiterleitung', avesmapsWikiStadtteilKategorien($wikitext), true)) {
+            return null;
+        }
+        // Der Abschnitt (`Porto Velvenya (Siedlung)#Hafenviertel`) gehoert nicht zur Stadt.
+        $stadt = trim((string) preg_replace('/[\s_]+/u', ' ', explode('#', $ziel, 2)[0]));
+        $stadt = ltrim($stadt, ': ');
+        if ($stadt === '' || str_contains($stadt, '/')) {
+            return null;
+        }
+
+        return ['stadt' => $stadt, 'weiterleitung' => true];
+    }
+
+    // FORM (1). Eine Seite mit erkannter Infobox gehoert ihrem Handler (Sternenpfeiler bleibt Region).
     if (avesmapsWikiDumpClassifyEntityKind(avesmapsWikiSyncMonitorInfoboxName($wikitext)) !== '') {
         return null;
     }
@@ -90,6 +125,32 @@ function avesmapsWikiStadtteilAusKategorie(array $page): ?array
     }
 
     return ['stadt' => (string) array_key_first($staedte)];
+}
+
+/**
+ * Das Ziel einer Weiterleitung, oder null.
+ *
+ * 💣 ZWEI QUELLEN, und die zweite ist der scharfe Weg. Der Dump-Leser gibt das Ziel als
+ * `redirect` mit (das `<redirect title>`-Attribut). Der hybride Rekonstrukteur, ueber den „Syncen"
+ * den Zwischenstand liest (avesmapsWikiDumpHybridPageFromRow), setzt `redirect` aber auf null --
+ * dort steht die Weiterleitung nur noch im Wikitext. Wer nur das Feld liest, nimmt den Stadtteil
+ * beim Sammeln auf und verwirft ihn beim Schreiben, ohne jede Meldung.
+ *
+ * @param array{redirect?:?string, wikitext?:string} $page
+ */
+function avesmapsWikiStadtteilWeiterleitungsziel(array $page): ?string
+{
+    $ziel = $page['redirect'] ?? null;
+    if (is_string($ziel) && trim($ziel) !== '') {
+        return trim($ziel);
+    }
+
+    $wikitext = (string) ($page['wikitext'] ?? '');
+    if (preg_match('/^\s*#\s*(?:WEITERLEITUNG|REDIRECT)\s*:?\s*\[\[\s*([^\]|]+?)\s*(?:\|[^\]]*)?\]\]/iu', $wikitext, $treffer) === 1) {
+        return trim($treffer[1]);
+    }
+
+    return null;
 }
 
 /**

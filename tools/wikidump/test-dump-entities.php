@@ -583,6 +583,18 @@ $check(
     avesmapsWikiDumpClassifyPage($asDumpPage("{{Infobox Region\n|Name=Probe\n}}\n[[Kategorie:Stadtteil von Dorinthapolis]]")),
     'Sternenpfeiler stays a region: the exception can only take what the infobox left over'
 );
+$check(
+    '(e8) a redirect in Kategorie:Stadtteilweiterleitung is routed to the BUILDING handler',
+    'building',
+    avesmapsWikiDumpClassifyPage(['title' => 'Yol-Fessar', 'ns' => 0, 'redirect' => 'Fasar', 'wikitext' => "#WEITERLEITUNG [[Fasar]]\n[[Kategorie:Stadtteilweiterleitung]]"]),
+    'O4 exception 2, second form: the one kind of redirect that names a city quarter'
+);
+$check(
+    '(e9) every other redirect stays an alias, never an entity',
+    '',
+    avesmapsWikiDumpClassifyPage(['title' => 'Probe', 'ns' => 0, 'redirect' => 'Gareth', 'wikitext' => "#WEITERLEITUNG [[Gareth]]"]),
+    'Pass A keeps it; the exception reaches no redirect outside its category'
+);
 
 // ===========================================================================
 // (f) REGION handler (Task 4b): mirrors the path handler. Kept Aventurien region

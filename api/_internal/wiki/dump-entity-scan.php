@@ -12,6 +12,8 @@ require_once __DIR__ . '/deities.php';
 require_once __DIR__ . '/namespaces.php';
 // Die zweite dokumentierte Ausnahme von O4: Stadtteile ohne Infobox (siehe avesmapsWikiDumpClassifyPage).
 require_once __DIR__ . '/stadtteil-kategorie.php';
+// ... und ihre Ablage: Stadtteilweiterleitungen gehen NICHT nach wiki_sync_pages (siehe dort).
+require_once __DIR__ . '/stadtteil-weiterleitung.php';
 
 /**
  * WikiDump migration -- Pass B: entity enumeration + entity handlers.
@@ -81,12 +83,15 @@ require_once __DIR__ . '/stadtteil-kategorie.php';
  *       (1) a {{Infobox Fluss}} page whose |Art= names a landform (Wadi) goes to
  *       the REGION handler. It reads the Art, not a category, and can only move a
  *       page the infobox already called a path -- see wiki/watercourse-landform.php.
- *       (2) seit 14.09.2026: eine Seite OHNE erkannte Infobox in `Kategorie:Stadtteil
- *       von X` geht an den BUILDING-Handler (Klasse stadtviertel). Sie liest eine
- *       Kategorie -- es gibt schlicht keine andere Stelle, die einen Stadtteil nennt --,
- *       kann aber nur nehmen, was keine Infobox beansprucht hat. Siehe
- *       wiki/stadtteil-kategorie.php; wer eine dritte Kategorieform braucht, schreibt
- *       sie DORT dazu, nicht als Musterregel hier.
+ *       (2) seit 14.09.2026: STADTTEILE gehen an den BUILDING-Handler (Klasse
+ *       stadtviertel), in zwei Formen -- eine Seite OHNE erkannte Infobox in
+ *       `Kategorie:Stadtteil von X`, und eine WEITERLEITUNG in
+ *       `Kategorie:Stadtteilweiterleitung` (die Stadt ist ihr Ziel; die einzige
+ *       Weiterleitung, die ein Objekt wird -- Pass A sammelt sie trotzdem als Alias).
+ *       Sie liest eine Kategorie -- es gibt schlicht keine andere Stelle, die einen
+ *       Stadtteil nennt --, kann aber nur nehmen, was keine Infobox beansprucht hat.
+ *       Siehe wiki/stadtteil-kategorie.php; wer eine dritte Kategorieform braucht,
+ *       schreibt sie DORT dazu, nicht als Musterregel hier.
  *
  *   I1  Field mapping + key derivation are NEVER re-implemented here. The path
  *       handler CALLS the real avesmapsWikiPathParsePage() (paths.php:333),
@@ -279,7 +284,12 @@ function avesmapsWikiDumpClassifyPage(array $page): string
     }
     $redirect = $page['redirect'] ?? null;
     if (is_string($redirect) && $redirect !== '') {
-        return ''; // a redirect page is an alias (Pass A), never an entity
+        // A redirect page is an alias (Pass A), never an entity -- mit EINER Ausnahme: eine
+        // Weiterleitung in `Kategorie:Stadtteilweiterleitung` IST ein Stadtteil und zeigt auf seine
+        // Stadt (stadtteil-kategorie.php, Form 2). Pass A sammelt sie trotzdem weiter als Alias.
+        // ⚠️ Der hybride Rekonstrukteur setzt redirect=null und kommt deshalb gar nicht hier an,
+        // sondern unten ueber $kind === '' in dieselbe Funktion -- die liest das Ziel dann aus dem Text.
+        return avesmapsWikiStadtteilAusKategorie($page) !== null ? AVESMAPS_WIKI_DUMP_ENTITY_BUILDING : '';
     }
 
     $wikitext = (string) ($page['wikitext'] ?? '');
@@ -917,6 +927,9 @@ function avesmapsWikiDumpParseBuildingPage(array $page, array $override = []): a
         'settlement_label' => avesmapsWikiSettlementClassLabel($klasse),
         'building_type' => mb_substr($buildingType, 0, 120, 'UTF-8'),
         'standort' => mb_substr($standort, 0, 1000, 'UTF-8'),
+        // Die Weiche fuer ALLE Schreiber: eine Stadtteilweiterleitung ist kein Artikel und geht in
+        // ihre eigene Tabelle (stadtteil-weiterleitung.php), nie nach wiki_sync_pages.
+        'stadtteil_weiterleitung' => $stadtteil !== null && !empty($stadtteil['weiterleitung']),
         'deity' => $deity,
         'categories_json' => $categoryNames,
         'continent' => mb_substr($continent, 0, 120, 'UTF-8'),
@@ -1632,6 +1645,7 @@ function avesmapsWikiDumpPersistSettlementRecords(PDO $pdo, iterable $pages): in
 function avesmapsWikiDumpPersistBuildingRecords(PDO $pdo, iterable $pages): int
 {
     avesmapsWikiSettlementEnsureSchema($pdo); // guard: building_type / is_ruined columns exist
+    avesmapsWikiStadtteilWeiterleitungEnsureTable($pdo);
 
     $written = 0;
     foreach ($pages as $page) {
@@ -1643,6 +1657,11 @@ function avesmapsWikiDumpPersistBuildingRecords(PDO $pdo, iterable $pages): int
             continue;
         }
         $record = $result['record'];
+        if (!empty($record['stadtteil_weiterleitung'])) {
+            avesmapsWikiStadtteilWeiterleitungUpsert($pdo, (string) ($record['title'] ?? ''), (string) ($record['standort'] ?? ''), (string) ($record['wiki_url'] ?? ''));
+            $written++;
+            continue;
+        }
         // Reused online building-row upsert (gebaeude class/label/type + is_ruined),
         // plus the dump-only raw |Standort= that drives innerorts/ausserorts.
         avesmapsWikiSettlementUpsertBuildingRow(
@@ -1743,6 +1762,7 @@ function avesmapsWikiDumpRunPassBStep(PDO $pdo, string $dumpPath, int $cursor = 
     $deadline = microtime(true) + AVESMAPS_WIKI_DUMP_STEP_SECONDS;
 
     avesmapsWikiSettlementEnsureSchema($pdo); // guard: settlement enrichment columns exist
+    avesmapsWikiStadtteilWeiterleitungEnsureTable($pdo);
     $settlementEnrich = $pdo->prepare(
         'UPDATE ' . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . ' SET
             continent = :continent, is_ruined = :is_ruined, coat_url = :coat_url,
@@ -1803,6 +1823,11 @@ function avesmapsWikiDumpRunPassBStep(PDO $pdo, string $dumpPath, int $cursor = 
                 case AVESMAPS_WIKI_DUMP_ENTITY_BUILDING:
                     $result = avesmapsWikiDumpParseBuildingPage($page);
                     if ($result['kept'] && is_array($result['record'])) {
+                        if (!empty($result['record']['stadtteil_weiterleitung'])) {
+                            avesmapsWikiStadtteilWeiterleitungUpsert($pdo, (string) ($result['record']['title'] ?? ''), (string) ($result['record']['standort'] ?? ''), (string) ($result['record']['wiki_url'] ?? ''));
+                            $buildingsWritten++;
+                            break;
+                        }
                         // Reused online building-row upsert (gebaeude class/label/type +
                         // is_ruined). Registry only -- no case flow (I2).
                         avesmapsWikiSettlementUpsertBuildingRow(

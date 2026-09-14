@@ -271,7 +271,8 @@ if ($hybridMode) {
     $pathDump = avesmapsWikiDumpIndexRecordsByKey($hybridByKind[AVESMAPS_WIKI_DUMP_ENTITY_PATH], 'wiki_key');
     $regionDump = avesmapsWikiDumpIndexRecordsByKey($hybridByKind[AVESMAPS_WIKI_DUMP_ENTITY_REGION], 'wiki_key');
     $settlementDump = avesmapsWikiDumpIndexRecordsByKey($hybridByKind[AVESMAPS_WIKI_DUMP_ENTITY_SETTLEMENT], 'title');
-    $buildingDump = avesmapsWikiDumpIndexRecordsByKey($hybridByKind[AVESMAPS_WIKI_DUMP_ENTITY_BUILDING], 'title');
+    // Ohne Stadtteilweiterleitungen: sie stehen nicht in wiki_sync_pages (stadtteil-weiterleitung.php).
+    $buildingDump = avesmapsWikiDumpIndexRecordsByKey(avesmapsWikiStadtteilWeiterleitungenAussortieren($hybridByKind[AVESMAPS_WIKI_DUMP_ENTITY_BUILDING]), 'title');
     $territoryDump = avesmapsWikiDumpIndexRecordsByKey($hybridByKind[AVESMAPS_WIKI_DUMP_ENTITY_TERRITORY], 'wiki_key');
 
     // A2 needs a redirect alias map + territory parent-NAME candidates. The
@@ -316,7 +317,8 @@ if ($hybridMode) {
     $pathRecords = avesmapsWikiDumpCollectPathRecords(avesmapsWikiDumpStreamPages($dumpPath));
     $regionRecords = avesmapsWikiDumpCollectRegionRecords(avesmapsWikiDumpStreamPages($dumpPath));
     $settlementRecords = avesmapsWikiDumpCollectSettlementRecords(avesmapsWikiDumpStreamPages($dumpPath));
-    $buildingRecords = avesmapsWikiDumpCollectBuildingRecords(avesmapsWikiDumpStreamPages($dumpPath));
+    // Ohne Stadtteilweiterleitungen: sie stehen nicht in wiki_sync_pages (stadtteil-weiterleitung.php).
+    $buildingRecords = avesmapsWikiStadtteilWeiterleitungenAussortieren(avesmapsWikiDumpCollectBuildingRecords(avesmapsWikiDumpStreamPages($dumpPath)));
     $territoryRecords = avesmapsWikiDumpCollectTerritoryRecords(avesmapsWikiDumpStreamPages($dumpPath));
 
     // One CollectEntities pass for the A6 non-Aventurien filter count (tagged by kind).

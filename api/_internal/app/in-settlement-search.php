@@ -32,6 +32,8 @@ require_once __DIR__ . '/../wiki/deities.php';
 // Die Sitze der Handelsorganisationen (Handelshaeuser Teil B). Sie liefern Zeilen in
 // DERSELBEN Form wie ein Bauwerk -- deshalb braucht der reine Teil unten keinen Sonderfall.
 require_once __DIR__ . '/../wiki/organisation-sync.php';
+// Die Stadtteilweiterleitungen (Yol-Fessar -> Fasar). Eigene Tabelle, dieselbe Zeilenform.
+require_once __DIR__ . '/../wiki/stadtteil-weiterleitung.php';
 
 /**
  * Registry-Zeilen mit Ortsbezug: Bauwerke (wiki_sync_pages.standort) + Wege
@@ -115,6 +117,13 @@ function avesmapsFetchInSettlementSearchRows(PDO $pdo): array
     // Ausfall der uebrigen Innerorts-Objekte (die Lehre vom 15.08.2026).
     foreach (avesmapsOrgSeatFetchInSettlementRows($pdo) as $sitz) {
         $rows[] = $sitz;
+    }
+
+    // Die Stadtteilweiterleitungen. Sie stehen NICHT in wiki_sync_pages, weil dort jeder Leser eine
+    // Zeile als Artikel nimmt (stadtteil-weiterleitung.php) -- diese Liste ist ihr einziger Leser.
+    // ⚠️ Fehlt die Tabelle, kommt nichts, und die uebrigen Innerorts-Objekte bleiben vollstaendig.
+    foreach (avesmapsWikiStadtteilWeiterleitungFetchInSettlementRows($pdo) as $stadtteil) {
+        $rows[] = $stadtteil;
     }
 
     return $rows;

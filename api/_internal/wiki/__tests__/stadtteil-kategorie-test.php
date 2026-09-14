@@ -148,12 +148,15 @@ final class StadtteilAttrappePdo extends PDO
 {
     /** @var list<array<string,mixed>> */
     public array $ausgefuehrt = [];
+    /** @var list<string> das vorbereitete SQL -- daran sieht der Test, in WELCHE Tabelle geschrieben wird */
+    public array $vorbereitet = [];
 
     public function __construct() {}
 
     #[\ReturnTypeWillChange]
     public function prepare($query, $options = [])
     {
+        $this->vorbereitet[] = (string) $query;
         return new StadtteilAttrappeStmt($this);
     }
 }
@@ -237,5 +240,91 @@ assert($eintraege[0]['public_id'] === 'pid-gareth', 'der Treffer springt auf Gar
 $staetten = avesmapsBuildInSettlementPlaceList($registry, $scope);
 assert(array_column($staetten, 'settlement') === ['Gareth'], 'in der Staettenliste steht es bei Gareth');
 $pruefungen += 6;
+
+// ---- 7. Die zweite Form: Stadtteilweiterleitungen -------------------------------------------------
+// 294 Weiterleitungen des Septemberdumps stehen in `Kategorie:Stadtteilweiterleitung` und zeigen auf
+// ihre Stadt (`Yol-Fessar` -> Fasar). Sie sind der weitaus groesste Teil aller Stadtteile.
+$yolFessar = ['title' => 'Yol-Fessar', 'ns' => 0, 'id' => 2, 'redirect' => 'Fasar',
+    'wikitext' => "#WEITERLEITUNG [[Fasar]]\n[[Kategorie:Stadtteilweiterleitung]]"];
+$gewoehnlich = ['title' => 'Reichsstadt Gareth', 'ns' => 0, 'id' => 3, 'redirect' => 'Gareth',
+    'wikitext' => "#WEITERLEITUNG [[Gareth]]"];
+
+assert((avesmapsWikiStadtteilAusKategorie($yolFessar)['stadt'] ?? '') === 'Fasar', 'die Weiterleitung nennt die Stadt');
+assert(avesmapsWikiDumpClassifyPage($yolFessar) === AVESMAPS_WIKI_DUMP_ENTITY_BUILDING, 'eine Stadtteilweiterleitung ist ein Objekt');
+assert(avesmapsWikiDumpClassifyPage($gewoehnlich) === '', 'eine gewoehnliche Weiterleitung bleibt ein Alias -- nie ein Objekt');
+$nurImText = $gewoehnlich;
+$nurImText['wikitext'] = "#WEITERLEITUNG [[Gareth]]\n'''Stadtteil''' steht hier nur im Text";
+assert(avesmapsWikiDumpClassifyPage($nurImText) === '', 'das Wort allein macht keinen Stadtteil -- nur die Kategorie');
+
+$yf = avesmapsWikiDumpParseBuildingPage($yolFessar)['record'] ?? [];
+assert(($yf['settlement_class'] ?? '') === 'stadtviertel' && ($yf['building_type'] ?? '') === 'Stadtteil' && ($yf['standort'] ?? '') === '[[Fasar]]',
+    'Yol-Fessar wird ein Stadtteil in Fasar: ' . json_encode($yf, JSON_UNESCAPED_UNICODE));
+assert(($yf['wiki_url'] ?? '') === avesmapsWikiSyncMonitorPageUrl('Yol-Fessar'), 'der Link fuehrt ueber die Weiterleitung zur Stadt');
+
+// Der scharfe Weg: der Rekonstrukteur setzt redirect=null, die Weiterleitung steht nur noch im Text.
+$hybrid = avesmapsWikiDumpHybridParseRow(['normalized_title' => 'Yol-Fessar', 'wikitext' => $yolFessar['wikitext']]);
+assert($hybrid['kind'] === AVESMAPS_WIKI_DUMP_ENTITY_BUILDING && ($hybrid['record']['standort'] ?? '') === '[[Fasar]]',
+    'ohne redirect-Feld liest die Ausnahme das Ziel aus dem Wikitext: ' . json_encode($hybrid['record'], JSON_UNESCAPED_UNICODE));
+assert(avesmapsWikiDumpHybridParseRow(['normalized_title' => 'Reichsstadt Gareth', 'wikitext' => $gewoehnlich['wikitext']])['kept'] === false,
+    'und eine gewoehnliche Weiterleitung bleibt auch dort draussen');
+
+// Abschnitt, Unterstrich, englisches Schluesselwort, Unterseite als Ziel.
+$form2 = static fn(string $text): ?array => avesmapsWikiStadtteilAusKategorie(
+    ['title' => 'Probe', 'ns' => 0, 'redirect' => null, 'wikitext' => $text . "\n[[Kategorie:Stadtteilweiterleitung]]"]
+);
+assert(($form2('#WEITERLEITUNG [[Porto_Velvenya (Siedlung)#Hafenviertel]]')['stadt'] ?? '') === 'Porto Velvenya (Siedlung)',
+    'der Abschnitt gehoert nicht zur Stadt, Unterstriche sind Leerzeichen');
+assert(($form2('#REDIRECT [[Fasar]]')['stadt'] ?? '') === 'Fasar', 'auch das englische Schluesselwort');
+assert($form2('#WEITERLEITUNG [[Königreich Brabak/Herrscher]]') === null, 'eine Unterseite ist keine Stadt');
+
+// Pass A sammelt sie weiter als Alias -- beide Rollen schliessen sich nicht aus.
+assert(avesmapsWikiDumpCollectRedirectAliases([$yolFessar]) !== [], 'die Stadtteilweiterleitung bleibt auch ein Alias');
+$pruefungen += 12;
+
+// ---- 8. Eine Weiterleitung ist KEIN Artikel: eigene Tabelle, nie wiki_sync_pages ----------------
+// Gegenpruefung vor dem Push: in wiki_sync_pages boete die Orts-Zuweisung „Yol-Fessar" als Seite an
+// und holte ueber redirects=1 die Infobox von FASAR; das Konfliktzentrum und die Kartenartikel-Suche
+// hielten sie ebenfalls fuer Artikel. Deshalb traegt der Datensatz eine Weiche, und ALLE Schreiber
+// folgen ihr.
+assert(($yf['stadtteil_weiterleitung'] ?? null) === true, 'die Weiterleitung traegt die Weiche');
+assert(($rec['stadtteil_weiterleitung'] ?? null) === false, 'ein Stadtteil-ARTIKEL traegt sie nicht -- er ist ein Artikel');
+
+$attrappe = new StadtteilAttrappePdo();
+avesmapsWikiDumpHybridUpsertParsedRow($attrappe, $hybrid);
+$sql = implode("\n", $attrappe->vorbereitet);
+assert(str_contains($sql, AVESMAPS_WIKI_STADTTEIL_WEITERLEITUNG_TABLE),
+    '„Syncen" schreibt die Weiterleitung in ihre eigene Tabelle: ' . $sql);
+assert(!str_contains($sql, AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE),
+    'und NICHT nach wiki_sync_pages -- dort nimmt jeder Leser eine Zeile als Artikel');
+assert(($attrappe->ausgefuehrt[0]['standort'] ?? '') === '[[Fasar]]' && ($attrappe->ausgefuehrt[0]['title'] ?? '') === 'Yol-Fessar',
+    'mit Titel und Standort: ' . json_encode($attrappe->ausgefuehrt, JSON_UNESCAPED_UNICODE));
+
+$attrappe = new StadtteilAttrappePdo();
+avesmapsWikiDumpHybridUpsertParsedRow($attrappe, $zeile);
+assert(str_contains(implode("\n", $attrappe->vorbereitet), AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE),
+    'ein Stadtteil-ARTIKEL (Südquartier) bleibt in wiki_sync_pages');
+
+// Der Vergleich gegen wiki_sync_pages sortiert sie aus, sonst meldete er sie als fehlende Bauwerke.
+$aussortiert = avesmapsWikiStadtteilWeiterleitungenAussortieren([$rec, $yf, $burg['record']]);
+assert(array_column($aussortiert, 'title') === ['Südquartier', 'Burg Wallenstein'], 'nur die Weiterleitung faellt heraus');
+
+// Fehlt die Tabelle, bleibt die Innerorts-Liste vollstaendig.
+$ohneTabelle = avesmapsFetchInSettlementSearchRows($sqlite);
+assert(in_array('Südquartier', array_column($ohneTabelle, 'title'), true), 'eine fehlende Tabelle nimmt den anderen nichts weg');
+assert(avesmapsWikiStadtteilWeiterleitungFetchInSettlementRows($sqlite) === [], 'und liefert selbst nichts');
+
+// Bis in die Suche -- aus der eigenen Tabelle.
+$sqlite->exec('CREATE TABLE ' . AVESMAPS_WIKI_STADTTEIL_WEITERLEITUNG_TABLE . ' (title TEXT PRIMARY KEY, standort TEXT, wiki_url TEXT, synced_at TEXT)');
+$sqlite->exec('INSERT INTO ' . AVESMAPS_WIKI_STADTTEIL_WEITERLEITUNG_TABLE . " VALUES ('Yol-Fessar', '[[Fasar]]', 'https://de.wiki-aventurica.de/wiki/Yol-Fessar', NULL)");
+$karte[] = ['feature_type' => 'location', 'feature_subtype' => 'grossstadt', 'name' => 'Fasar', 'public_id' => 'pid-fasar', 'min_x' => 50.0, 'min_y' => 60.0, 'max_x' => 50.0, 'max_y' => 60.0];
+$scope['settlements'] = avesmapsPlaceScopeBuildNameSet(['Gareth', 'Fasar']);
+$fasarTreffer = array_values(array_filter(
+    avesmapsBuildInSettlementSearchEntries(avesmapsFetchInSettlementSearchRows($sqlite), avesmapsBuildSettlementLocationIndex($karte), $scope),
+    static fn(array $eintrag): bool => $eintrag['name'] === 'Yol-Fessar'
+));
+assert(count($fasarTreffer) === 1 && $fasarTreffer[0]['type_label'] === 'Stadtteil in Fasar' && $fasarTreffer[0]['public_id'] === 'pid-fasar',
+    'Yol-Fessar findet die Suche, und der Treffer springt auf Fasar');
+assert($fasarTreffer[0]['wiki_url'] === 'https://de.wiki-aventurica.de/wiki/Yol-Fessar', 'mit dem Link, der ueber die Weiterleitung zur Stadt fuehrt');
+$pruefungen += 11;
 
 echo "stadtteil-kategorie-test.php: {$pruefungen} Pruefungen erfuellt\n";

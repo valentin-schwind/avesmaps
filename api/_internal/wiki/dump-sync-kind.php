@@ -460,6 +460,9 @@ function avesmapsWikiDumpSyncKindStep(
     // does before its settlement/building upserts (idempotent, harmless for the
     // other kinds -- the same call the sharp parse_and_upsert makes).
     avesmapsWikiSettlementEnsureSchema($pdo);
+    // Die Ablage der Stadtteilweiterleitungen -- hier, vor der Schleife und ausserhalb jeder
+    // Transaktion (DDL committet in MySQL implizit).
+    avesmapsWikiStadtteilWeiterleitungEnsureTable($pdo);
 
     $rows = $rowFetcher !== null
         ? $rowFetcher($pdo, $runId, $entityKinds, $cursor, $budget)
