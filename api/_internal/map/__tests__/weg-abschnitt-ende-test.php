@@ -36,9 +36,15 @@ $st->execute(['Kreuzung', 'crossing', 'crossing', '{"type":"Point","coordinates"
 $st->execute(['', 'junction', 'crossing', '{"type":"Point","coordinates":[103,53]}', 1]);
 $st->execute(['Alt', 'location', 'dorf', '{"type":"Point","coordinates":[1,1]}', 0]);
 $st->execute(['Reichsstraße 2', 'path', 'Reichsstrasse', '{"type":"LineString","coordinates":[[0,0],[1,1]]}', 1]);
+// Der Namens-Rueckfall (Schritt 3): eine Altzeile ohne Subtyp heisst weiterhin Kreuzung, eine bekannte
+// Ortsklasse (Schritt 2) schlaegt den Namen davor -- genau die Reihenfolge von resolveLocationTypeFromFeature.
+$st->execute(['Kreuzung-auto-5', 'location', '', '{"type":"Point","coordinates":[110,70]}', 1]);
+$st->execute(['Kreuzung Nord', 'location', 'dorf', '{"type":"Point","coordinates":[111,71]}', 1]);
 $orte = avesmapsWegOrteLesen($pdo);
-assert(count($orte) === 3, json_encode($orte));
+assert(count($orte) === 5, json_encode($orte));
 assert($orte[0] === ['name' => 'Silkwiesen', 'x' => 100.0, 'y' => 50.0, 'kreuzung' => false]);
 assert($orte[1]['kreuzung'] === true && $orte[2]['kreuzung'] === true);
+assert($orte[3]['name'] === 'Kreuzung-auto-5' && $orte[3]['kreuzung'] === true, 'Namens-Rueckfall ohne Subtyp: ' . json_encode($orte[3]));
+assert($orte[4]['name'] === 'Kreuzung Nord' && $orte[4]['kreuzung'] === false, 'bekannte Ortsklasse schlaegt den Namen: ' . json_encode($orte[4]));
 
 echo "weg-abschnitt-ende-test.php: ok\n";

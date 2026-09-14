@@ -6,6 +6,8 @@ declare(strict_types=1);
 // js/map-features/weg-abschnitte.js: der Wege-Editor ist eine eigene Seite ohne Orte, also nennt der
 // SERVER dort die Enden. Beide Tests lesen tools/paths/fixtures/weg-abschnitt-enden.json.
 
+require_once __DIR__ . '/../ortsklassen.php';
+
 const AVESMAPS_WEG_ENDE_KREUZUNG = 'Kreuzung';
 const AVESMAPS_WEG_ENDE_OFFEN = 'Wegende';
 const AVESMAPS_WEG_ENDE_ZELLE = 0.5;
@@ -80,10 +82,26 @@ function avesmapsWegOrteLesen(PDO $pdo): array {
             continue;
         }
         $name = (string) ($zeile['name'] ?? '');
-        // Dieselbe Erkennung wie resolveLocationTypeFromFeature/isCrossingName (map-features-location-lookup.js).
-        $kreuzung = in_array((string) $zeile['feature_type'], ['crossing', 'junction'], true)
-            || (string) $zeile['feature_subtype'] === 'crossing'
-            || preg_match('/^Kreuzung(?:-\d+)?$/i', $name) === 1;
+        $featureType = strtolower((string) ($zeile['feature_type'] ?? ''));
+        $subtype = strtolower((string) ($zeile['feature_subtype'] ?? ''));
+        // ZWILLING von resolveLocationTypeFromFeature (js/map-features/map-features-location-lookup.js),
+        // in DERSELBEN Reihenfolge -- eine Karte und ein Wege-Editor mit zwei verschiedenen Regeln
+        // benennen dasselbe Ende verschieden (Entwurf 2026-09-14 §4):
+        // 1. Subtyp „crossing" oder Feature-Typ junction/crossing entscheidet zuerst -- das ist die
+        //    SERVER-Wahrheit, unabhaengig vom Namen (vier lebende Kraftlinien heissen „Kreuzung - <Ort>",
+        //    ein Name darf hier nicht fuehren).
+        // 2. Erst danach eine bekannte ORTSKLASSE (AVESMAPS_ORTSKLASSEN, api/_internal/ortsklassen.php,
+        //    NIE eine eigene Kopie): ein Dorf, das zufaellig „Kreuzung ..." heisst, bleibt ein Dorf.
+        // 3. Der Name ist der LETZTE Rueckfall, GENAU wie im Browser (`name.startsWith("Kreuzung")`,
+        //    gross-/kleinschreibungsempfindlich) -- fuer die rund 200 Altzeilen „Kreuzung-auto-<n>"
+        //    ohne Subtyp, die das striktere Muster (`^Kreuzung(?:-\d+)?$`) nicht mehr traf.
+        if ($subtype === 'crossing' || in_array($featureType, ['junction', 'crossing'], true)) {
+            $kreuzung = true;
+        } elseif (in_array($subtype, AVESMAPS_ORTSKLASSEN, true)) {
+            $kreuzung = false;
+        } else {
+            $kreuzung = str_starts_with($name, 'Kreuzung');
+        }
         $orte[] = ['name' => $name, 'x' => (float) $punkt[0], 'y' => (float) $punkt[1], 'kreuzung' => $kreuzung];
     }
     return $orte;
