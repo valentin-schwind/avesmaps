@@ -920,7 +920,7 @@ async function deletePowerlineFeature(powerline) {
 		powerlineData = powerlineData.filter((entry) => entry !== powerline);
 		locationConnectivityIndex = null;
 		updateRevisionFromEditResponse(result);
-		void loadChangeLog();
+		if (typeof loadChangeLog === "function") void loadChangeLog();
 		if (typeof setPowerlineEditDialogOpen === "function") setPowerlineEditDialogOpen(false, { resetForm: true });
 		showFeedbackToast("Kraftlinie gelöscht.", "success");
 	} catch (error) {

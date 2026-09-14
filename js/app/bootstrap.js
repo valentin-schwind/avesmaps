@@ -682,7 +682,7 @@ if (IS_EDIT_MODE) {
 
 // UI-Interaktionen und Events
 
-$("#review-panel-toggle").on("click", toggleReviewPanel);
+$("#review-panel-toggle").on("click", function (event) { return toggleReviewPanel.call(this, event); });
 window.addEventListener("beforeunload", () => {
     activeFeatureLocks.forEach((timerId) => window.clearInterval(timerId));
     if (editorPresenceTimerId) {
@@ -1007,7 +1007,7 @@ $(document).on("keydown", (event) => {
             return;
         }
 
-        if (clearChangeLogFocusMarker()) {
+        if (typeof clearChangeLogFocusMarker === "function" && clearChangeLogFocusMarker()) {
             return;
         }
 
@@ -1159,7 +1159,7 @@ map.on("contextmenu", (event) => {
 });
 map.on("click", closeMapContextMenu);
 map.on("click", closeRegionContextMenu);
-map.on("click", clearChangeLogFocusMarker);
+map.on("click", (event) => { if (typeof clearChangeLogFocusMarker === "function") clearChangeLogFocusMarker(event); });
 map.on("movestart", closeMapContextMenu);
 window.addEventListener("resize", closeMapContextMenu);
 map.getContainer().addEventListener("click", handleDistanceMeasurementContainerClick, true);

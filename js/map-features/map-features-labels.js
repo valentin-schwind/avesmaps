@@ -1800,7 +1800,7 @@ async function saveLabelPosition(entry) {
 		});
 		applyLabelFeatureResponse(entry, result.feature);
 		updateRevisionFromEditResponse(result);
-		void loadChangeLog();
+		if (typeof loadChangeLog === "function") void loadChangeLog();
 		showFeedbackToast("Labelposition gespeichert.", "success");
 	} catch (error) {
 		console.error("Label konnte nicht verschoben werden:", error);
@@ -1859,7 +1859,7 @@ async function deleteLabelEntry(entry, { closeDialog = false } = {}) {
 		});
 		removeLabelEntryLocally(entry);
 		updateRevisionFromEditResponse(result);
-		void loadChangeLog();
+		if (typeof loadChangeLog === "function") void loadChangeLog();
 		if (closeDialog) {
 			if (typeof setLabelEditDialogOpen === "function") setLabelEditDialogOpen(false, { resetForm: true });
 		}
@@ -2230,7 +2230,7 @@ async function duplicateLabelEntry(entry) {
 		});
 		const duplicatedLabelEntry = addCreatedLabelFeature(result.feature);
 		updateRevisionFromEditResponse(result);
-		void loadChangeLog();
+		if (typeof loadChangeLog === "function") void loadChangeLog();
 		entry.marker.closePopup();
 		pendingLabelMoveAfterEditEntry = duplicatedLabelEntry;
 		if (typeof openLabelEditDialog === "function") openLabelEditDialog({ labelEntry: duplicatedLabelEntry });

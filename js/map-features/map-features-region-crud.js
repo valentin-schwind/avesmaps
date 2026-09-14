@@ -99,7 +99,7 @@ async function saveRegionGeometry(regionEntry) {
 	try {
 		const result = await submitMapFeatureEdit({ action: "update_region_geometry", public_id: regionEntry.publicId, coordinates });
 		updateRevisionFromEditResponse(result);
-		void loadChangeLog();
+		if (typeof loadChangeLog === "function") void loadChangeLog();
 		showFeedbackToast("Regionsgrenze gespeichert.", "success");
 	} catch (error) {
 		showFeedbackToast(error.message || "Regionsgrenze konnte nicht gespeichert werden.", "warning");
@@ -108,7 +108,7 @@ async function saveRegionGeometry(regionEntry) {
 
 async function updatePoliticalRegionGeometry(regionEntry, geometryGeoJson) {
 	const result = await politicalTerritoryRepository.updateGeometry(regionEntry, geometryGeoJson);
-	void loadChangeLog();
+	if (typeof loadChangeLog === "function") void loadChangeLog();
 	return result;
 }
 
@@ -263,7 +263,7 @@ async function createRegionAt(latlng) {
 		}
 		startRegionGeometryEdit(regionEntry);
 		updateRevisionFromEditResponse(result);
-		void loadChangeLog();
+		if (typeof loadChangeLog === "function") void loadChangeLog();
 	} catch (error) {
 		showFeedbackToast(error.message || "Region konnte nicht erstellt werden.", "warning");
 	}
@@ -300,7 +300,7 @@ async function deleteActiveRegion(selectedLayer = null, selectedPolygonIndex = n
 			clearRegionGeometryEdit();
 			if (typeof setRegionEditDialogOpen === "function") setRegionEditDialogOpen(false, { resetForm: true });
 			schedulePoliticalTerritoryLayerReload({ immediate: true });
-			void loadChangeLog();
+			if (typeof loadChangeLog === "function") void loadChangeLog();
 			showFeedbackToast(result.territory_deleted ? "Letztes Polygon gelöscht, Herrschaftsgebiet entfernt." : "Polygon gelöscht.", "success");
 		} catch (error) {
 			console.error("Polygon konnte nicht gelöscht werden:", error);
@@ -325,7 +325,7 @@ async function deleteActiveRegion(selectedLayer = null, selectedPolygonIndex = n
 		regionPolygons = regionPolygons.filter((polygon) => polygon !== regionEditEntry.layer);
 		clearRegionGeometryEdit();
 		updateRevisionFromEditResponse(result);
-		void loadChangeLog();
+		if (typeof loadChangeLog === "function") void loadChangeLog();
 		if (typeof setRegionEditDialogOpen === "function") setRegionEditDialogOpen(false, { resetForm: true });
 		showFeedbackToast("Region gelöscht.", "success");
 	} catch (error) {
@@ -394,7 +394,7 @@ async function deleteRegionGeometryPart(regionEntry, selectedLayer) {
 		}
 		clearRegionGeometryEdit();
 		schedulePoliticalTerritoryLayerReload({ immediate: true });
-		void loadChangeLog();
+		if (typeof loadChangeLog === "function") void loadChangeLog();
 		return;
 	}
 

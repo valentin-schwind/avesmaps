@@ -125,7 +125,7 @@ async function deleteDerivedRegionGeometry(regionEntry) {
 		});
 		clearRegionGeometryEdit();
 		schedulePoliticalTerritoryLayerReload({ immediate: true });
-		void loadChangeLog();
+		if (typeof loadChangeLog === "function") void loadChangeLog();
 		// 🔴 `affected` zaehlt Zeilen (hart geloescht + deaktiviert zusammen), `hard_deleted` nur die
 		// Territorien mit einer wirklich entfernten Huelle -- die Weiche sitzt serverseitig
 		// (avesmapsPoliticalDeleteDerivedGeometryForTerritory), der Toast muss ihr Ergebnis nur lesen.

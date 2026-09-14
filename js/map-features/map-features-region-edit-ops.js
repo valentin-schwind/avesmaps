@@ -191,7 +191,7 @@ async function completePendingRegionSplit(operationState) {
 
 		cancelPendingRegionOperation();
 		schedulePoliticalTerritoryLayerReload({ immediate: true });
-		void loadChangeLog();
+		if (typeof loadChangeLog === "function") void loadChangeLog();
 		showFeedbackToast("Gebiet zerschnitten.", "success");
 	} catch (error) {
 		console.error("Gebiet konnte nicht zerschnitten werden:", error);

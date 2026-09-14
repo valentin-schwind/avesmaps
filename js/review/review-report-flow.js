@@ -192,9 +192,9 @@ function hideLocationEditChangeRequest() {
 async function createCitymapFromReport(report) {
 	try {
 		const result = await createCitymapFromReviewReport(Number(report.id));
-		clearReviewReportMarker();
+		if (typeof clearReviewReportMarker === "function") clearReviewReportMarker();
 		showFeedbackToast(result.message || "Die Karte wurde angelegt.", "success");
-		await loadReviewReports();
+		if (typeof loadReviewReports === "function") await loadReviewReports();
 		if (typeof openAvesmapsCitymapEditorOverlay === "function" && result.public_id) {
 			openAvesmapsCitymapEditorOverlay(result.public_id);
 		}
@@ -211,9 +211,9 @@ async function createCitymapFromReport(report) {
 async function addCitymapLinksFromReport(report) {
 	try {
 		const result = await addCitymapLinksFromReviewReport(Number(report.id));
-		clearReviewReportMarker();
+		if (typeof clearReviewReportMarker === "function") clearReviewReportMarker();
 		showFeedbackToast(result.message || "Die Fundorte wurden ergänzt.", "success");
-		await loadReviewReports();
+		if (typeof loadReviewReports === "function") await loadReviewReports();
 		if (typeof openAvesmapsCitymapEditorOverlay === "function" && result.public_id) {
 			openAvesmapsCitymapEditorOverlay(result.public_id);
 		}
@@ -236,9 +236,9 @@ async function rejectReviewReport(report) {
 			setLocationEditDialogOpen(false, { resetForm: true });
 			if (typeof setLabelEditDialogOpen === "function") setLabelEditDialogOpen(false, { resetForm: true });
 		}
-		clearReviewReportMarker();
+		if (typeof clearReviewReportMarker === "function") clearReviewReportMarker();
 		showFeedbackToast("Meldung verworfen.", "success");
-		await loadReviewReports();
+		if (typeof loadReviewReports === "function") await loadReviewReports();
 	} catch (error) {
 		console.error("Meldung konnte nicht verworfen werden:", error);
 		showFeedbackToast(error.message || "Meldung konnte nicht verworfen werden.", "warning");

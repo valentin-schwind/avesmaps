@@ -156,6 +156,17 @@ const ERLAUBT = {
 		"handleLocationEditFormSubmit", "handlePathEditFormSubmit", "handlePowerlineEditFormSubmit",
 		"handleLabelEditFormSubmit", "syncLabelZoomRangeOutputs", "syncLabelZoomNumberInputs",
 		"syncLabelPriorityOutput", "syncPathAutoNameControls", "syncPathTransportOptions",
+		// Seitenleiste: IS_EDIT_MODE-Zweig des Starts und ihre eigenen Knoepfe (nur im Editor sichtbar)
+		"restoreReviewPanelState", "loadReviewReports", "loadChangeLog", "sendEditorPresenceHeartbeat",
+		"startEditorPresenceHeartbeat", "startReviewReportsPolling", "refreshActiveEditorPanel",
+		"avesmapsForceTerritoryClaim", "setEditorPanelTab", "toggleReviewPanel",
+	],
+	// Zuhoerer auf Knoepfen, die NUR die Seitenleiste erzeugt (Meldungskarten, Bewertungsliste,
+	// Aenderungsverlauf in review-panels.js / review-panels-change-log.js) -- ein Besucher hat sie nie im DOM.
+	"js/routing/routing.js": [
+		"findReviewReportFromElement", "focusReviewReport", "focusReviewRatingLocation", "moderateReviewRating",
+		"focusChangeLogEntry", "undoChangeLogEntry", "isCommentReport", "clearReviewReportMarker",
+		"loadReviewReports", "isLocationReport", "isCitymapReport", "isCitymapLinkReport",
 	],
 	// assignWikiSyncTerritoryPayloadInsideLegacyEditor: bricht vorher per typeof auf
 	// ensurePoliticalTerritoryChainFromWikiPath ab (dieselbe Vorlage) -- die Zeilen danach laufen nur,

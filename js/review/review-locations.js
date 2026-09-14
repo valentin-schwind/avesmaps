@@ -228,22 +228,22 @@ function syncLocationReportTypeFields() {
 	const sizeFieldElement = document.getElementById("location-report-size-field");
 	const sizeSelectElement = document.getElementById("location-report-size");
 	const sourceInputElement = document.getElementById("location-report-source");
-	const isLocationReport = reportType === "location";
-	const isCommentReport = reportType === "comment";
+	const istOrtsmeldung = reportType === "location";
+	const istKommentar = reportType === "comment";
 	if (sizeFieldElement) {
-		sizeFieldElement.hidden = !isLocationReport;
+		sizeFieldElement.hidden = !istOrtsmeldung;
 	}
 	if (sizeSelectElement) {
-		sizeSelectElement.required = isLocationReport;
+		sizeSelectElement.required = istOrtsmeldung;
 		// Kontext-Sperre, kein Absende-Zustand: sie muss einen Fehlschlag überleben (review-pending.js).
-		setFieldContextLocked(sizeSelectElement, !isLocationReport);
-		if (!isLocationReport) {
+		setFieldContextLocked(sizeSelectElement, !istOrtsmeldung);
+		if (!istOrtsmeldung) {
 			sizeSelectElement.value = "dorf";
 		}
 	}
 	if (sourceInputElement) {
-		sourceInputElement.required = !isCommentReport;
-		sourceInputElement.closest(".location-report-form__field").querySelector("span").textContent = isCommentReport
+		sourceInputElement.required = !istKommentar;
+		sourceInputElement.closest(".location-report-form__field").querySelector("span").textContent = istKommentar
 			? tr("report.sourceLabelOptional", "Quelle (optional)")
 			: tr("report.sourceLabel", "Quelle (Abenteuer, Regionalband, etc.) *");
 	}

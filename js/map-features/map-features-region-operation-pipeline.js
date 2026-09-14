@@ -93,7 +93,7 @@ async function persistRegionOperationResult(context, result) {
 function finishPendingRegionOperation() {
 	cancelPendingRegionOperation();
 	schedulePoliticalTerritoryLayerReload({ immediate: true });
-	void loadChangeLog();
+	if (typeof loadChangeLog === "function") void loadChangeLog();
 	showFeedbackToast("Geometrieoperation gespeichert.", "success");
 }
 

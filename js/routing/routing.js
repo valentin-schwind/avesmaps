@@ -413,7 +413,7 @@ async function pollLiveMapUpdates() {
 		if (features.length > 0) {
 			features.forEach(applyLiveMapFeatureUpdate);
 			refreshPlannerAfterFeatureChange({ updateRoute: true });
-			void loadChangeLog();
+			if (typeof loadChangeLog === "function") void loadChangeLog();
 			showFeedbackToast(`${features.length} Kartenänderung(en) aktualisiert.`, "info");
 		}
 

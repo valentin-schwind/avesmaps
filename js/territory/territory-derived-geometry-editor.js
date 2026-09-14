@@ -482,7 +482,7 @@ async function generateOrUpdateDerivedBoundaryForTerritory(territoryPublicId, op
 			setDerivedGeometryEditorStatus(`Außengrenze gespeichert; ${cascadeSaved} Übergebiet(e) automatisch aktualisiert.`, "success");
 		}
 		schedulePoliticalTerritoryLayerReload({ immediate: true });
-		void loadChangeLog();
+		if (typeof loadChangeLog === "function") void loadChangeLog();
 		showFeedbackToast("Außengrenze erzeugt/aktualisiert.", "success");
 		return saved;
 	} catch (error) {
