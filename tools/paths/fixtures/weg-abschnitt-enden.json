@@ -1,0 +1,28 @@
+{
+  "_zweck": "Gemeinsame Faelle fuer avesmapsWegEndeName in js/map-features/weg-abschnitte.js und api/_internal/map/weg-abschnitt-ende.php (Entwurf 2026-09-14 §4). Wer einen Fall aendert, aendert ihn fuer beide Seiten.",
+  "toleranz": 0.01,
+  "orte": [
+    { "name": "Silkwiesen", "x": 100.0, "y": 50.0, "kreuzung": false },
+    { "name": "Wieha", "x": 101.0, "y": 51.0, "kreuzung": false },
+    { "name": "Kreuzung-7", "x": 102.0, "y": 52.0, "kreuzung": true },
+    { "name": "Dorf am Kreuz", "x": 103.0, "y": 53.0, "kreuzung": false },
+    { "name": "Kreuzung-8", "x": 103.004, "y": 53.0, "kreuzung": true },
+    { "name": "Burg", "x": 104.3, "y": 54.0, "kreuzung": false },
+    { "name": "Verborgenes Kloster", "x": 105.0, "y": 55.0, "kreuzung": false },
+    { "name": "Grenzort", "x": 106.5, "y": 60.0, "kreuzung": false },
+    { "name": "Nah", "x": 107.004, "y": 61.0, "kreuzung": false },
+    { "name": "Naeher", "x": 107.002, "y": 61.0, "kreuzung": false }
+  ],
+  "faelle": [
+    { "punkt": [100.0, 50.0], "erwartet": "Silkwiesen", "warum": "exakt auf dem Ort" },
+    { "punkt": [101.009, 51.0], "erwartet": "Wieha", "warum": "knapp innerhalb der Toleranz" },
+    { "punkt": [101.02, 51.0], "erwartet": "Wegende", "warum": "0,02 daneben ist kein Treffer" },
+    { "punkt": [102.0, 52.0], "erwartet": "Kreuzung", "warum": "Kreuzung ohne Nummer" },
+    { "punkt": [103.002, 53.0], "erwartet": "Dorf am Kreuz", "warum": "ein Ort schlaegt eine Kreuzung" },
+    { "punkt": [104.0, 54.0], "erwartet": "Wegende", "warum": "kein Kastentreffer wie getLocationAtPathEndpoint: 0,3 daneben zaehlt nicht" },
+    { "punkt": [105.0, 55.0], "erwartet": "Verborgenes Kloster", "warum": "ein verborgener Ort heisst wie der Ort (Owner 14.09.2026)" },
+    { "punkt": [106.495, 60.0], "erwartet": "Grenzort", "warum": "der Ort liegt in der Nachbarzelle" },
+    { "punkt": [107.0, 61.0], "erwartet": "Naeher", "warum": "der naechste Ort gewinnt" },
+    { "punkt": ["x", 1], "erwartet": "Wegende", "warum": "kaputter Punkt" }
+  ]
+}

@@ -698,6 +698,34 @@ function wpChainSegments(segmente) {
 }
 
 /**
+ * REIN: der Name eines Abschnitts (Entwurf 2026-09-14 §4). Langform „Abschnitt N: Von – Bis"; ein Weg aus
+ * nur einem Abschnitt traegt keine Nummer; ohne bekannte Enden bleibt nur „Abschnitt N".
+ */
+function wpAbschnittLabel(way, nummer) {
+	var enden = way && way.enden;
+	var strecke = enden ? String(enden.von) + " – " + String(enden.bis) : "";
+	if (!nummer) { return strecke; }
+	return "Abschnitt " + nummer + (strecke ? ": " + strecke : "");
+}
+
+/**
+ * REIN: „Von – Bis" der ganzen Strasse -- die aeusseren Enden der LAENGSTEN Kette (wpChainSegments).
+ * "" wenn es keine Kette oder keine Enden gibt. ⚠️ `gedreht` heisst: das Stueck wird vom `to` zum `from`
+ * durchlaufen (siehe laufe() in wpChainSegments).
+ */
+function wpGanzeStrecke(segmente) {
+	var ketten = wpChainSegments(segmente);
+	if (!ketten.length) { return ""; }
+	var kette = ketten[0];
+	var erstes = segmente[kette[0].index];
+	var letztes = segmente[kette[kette.length - 1].index];
+	if (!erstes || !letztes || !erstes.enden || !letztes.enden) { return ""; }
+	var von = kette[0].gedreht ? erstes.enden.bis : erstes.enden.von;
+	var bis = kette[kette.length - 1].gedreht ? letztes.enden.von : letztes.enden.bis;
+	return String(von) + " – " + String(bis);
+}
+
+/**
  * REIN: die Hoehenkurve einer KETTE -- Stuetzpunkte {x: Meilen ab Anfang, y: Schritt ueber Start}.
  *
  * ⚠️ Abschnitte OHNE Profil unterbrechen die Kurve nicht, sie werden UEBERSPRUNGEN: ihre Laenge
@@ -760,6 +788,8 @@ if (typeof module !== "undefined" && module.exports) {
 		wpReverseProfile: wpReverseProfile,
 		wpChainSegments: wpChainSegments,
 		wpChainCurve: wpChainCurve,
-		wpRoughMiles: wpRoughMiles
+		wpRoughMiles: wpRoughMiles,
+		wpAbschnittLabel: wpAbschnittLabel,
+		wpGanzeStrecke: wpGanzeStrecke
 	};
 }
