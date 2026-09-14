@@ -661,31 +661,6 @@ function avesmapsPoliticalBuildAssignmentChainFromTerritoryPublicIds(PDO $pdo, a
     return $chain;
 }
 
-function avesmapsPoliticalAssignGeometryToTerritory(PDO $pdo, array $payload): array {
-    $geometry = avesmapsPoliticalFetchGeometryByPublicId($pdo, avesmapsPoliticalReadPublicId($payload['geometry_public_id'] ?? $payload['public_id'] ?? ''));
-    $territory = avesmapsPoliticalFetchTerritoryByPublicId($pdo, avesmapsPoliticalReadPublicId($payload['territory_public_id'] ?? ''));
-    $style = avesmapsPoliticalDecodeJson($geometry['style_json'] ?? null);
-    $style['fill'] = (string) ($territory['color'] ?? '#888888');
-    $style['stroke'] = (string) ($territory['color'] ?? '#888888');
-    $style['fillOpacity'] = (float) ($territory['opacity'] ?? 0.33);
-
-    $statement = $pdo->prepare(
-        'UPDATE political_territory_geometry
-        SET territory_id = :territory_id,
-            min_zoom = NULL,
-            max_zoom = NULL,
-            style_json = :style_json
-        WHERE id = :id'
-    );
-    $statement->execute([
-        'id' => (int) $geometry['id'],
-        'territory_id' => (int) $territory['id'],
-        'style_json' => avesmapsPoliticalEncodeJsonOrNull($style),
-    ]);
-
-    return avesmapsPoliticalResponseForGeometry($pdo, (string) $geometry['public_id']);
-}
-
 function avesmapsPoliticalUnassignGeometry(PDO $pdo, array $payload): array {
     $geometry = avesmapsPoliticalFetchGeometryByPublicId(
         $pdo,

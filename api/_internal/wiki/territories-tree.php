@@ -502,32 +502,6 @@ function avesmapsWikiSyncCanonicalPoliticalPathPart(array $row, string $fallback
     return $canonicalName !== '' ? $canonicalName : $fallback;
 } 
 
-function avesmapsWikiSyncCanonicalizePoliticalTerritoryPath(array $path, array $rowIndex): array {
-    $canonicalPath = [];
-    $seenKeys = [];
-
-    foreach ($path as $part) {
-        $canonicalPart = avesmapsWikiSyncResolvePoliticalPathPart($rowIndex, (string) $part);
-        if ($canonicalPart === '') {
-            continue;
-        }
-
-        $canonicalKey = avesmapsWikiSyncMakePoliticalTreeKey($canonicalPart);
-        if ($canonicalKey === '') {
-            continue;
-        }
-
-        if (isset($seenKeys[$canonicalKey])) {
-            continue;
-        }
-
-        $seenKeys[$canonicalKey] = true;
-        $canonicalPath[] = $canonicalPart;
-    }
-
-    return $canonicalPath;
-}
-
 function avesmapsWikiSyncBuildPoliticalTerritoryRowIndex(array $rows): array {
     $index = [];
     foreach ($rows as $row) {

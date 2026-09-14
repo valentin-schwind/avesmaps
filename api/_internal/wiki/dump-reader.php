@@ -20,9 +20,9 @@ declare(strict_types=1);
  *   3. A page-counter "skip-to-cursor" for resume (XMLReader is not seekable and
  *      bz2 is not byte-seekable -> reopen-from-start + skip N pages is the
  *      intended resume shape).
- *   4. Pass A -- redirect alias extraction, split into a PURE collect step and a
- *      THIN persistence step. The pure step derives `alias_slug` +
- *      `canonical_wiki_key` via the EXISTING real functions (invariants I1/I7):
+ *   4. Pass A -- redirect alias extraction as a PURE collect step. It derives
+ *      `alias_slug` + `canonical_wiki_key` via the EXISTING real functions
+ *      (invariants I1/I7):
  *        - alias_slug        = avesmapsPoliticalSlug(avesmapsWikiSyncMonitorNormalizeTitle($title))
  *                              (the exact composition avesmapsWikiSyncMonitorStoreAlias() uses)
  *        - canonical_wiki_key = avesmapsPoliticalBuildWikiKey(<page-url(target)>, target)
@@ -31,19 +31,17 @@ declare(strict_types=1);
  *          and that avesmapsWikiSyncMonitorResolveParentKey() expects
  *          (it strips a leading 'wiki:'). This library NEVER re-implements slug
  *          or normalization -- it calls the real code so behavior is bit-identical.
- *      The THIN persistence step reuses avesmapsWikiSyncMonitorStoreAlias()
- *      verbatim -- it writes no new upsert of its own.
- *   5. A THIN resume/read_step scaffold over the existing `wiki_sync_runs` table
- *      (new sync_type 'dump_read'; cursor in stats_json), reusing the existing
- *      run-lifecycle helpers. This layer needs a DB and is therefore NOT covered
- *      by the local fixture test; its live verification is deferred to the
- *      controlled rollout / compare-test. It must not auto-run anywhere yet.
+ *      Persisting the aliases is the hybrid driver's job (dump-hybrid-driver.php,
+ *      redirect_aliases phase), not this file's.
+ *
+ * 🔴 14.09.2026: the THIN persistence step, the run creator and the single-phase
+ *    Pass-A step runner that stood here were never called -- the hybrid driver
+ *    replaced them -- and are gone. This file touches no database any more.
  *
  * PURITY CONTRACT: side-effect-free on include (only `const` + `function`
  * definitions -- no top-level executable code, no DB connect, no headers), so a
- * test can `require` it with no MySQL and no STRATO. The reader CORE
- * (open + iterate + Pass A collect) is entirely DB-free; every DB touch lives in
- * a clearly separated function that takes a PDO.
+ * test can `require` it with no MySQL and no STRATO. The reader
+ * (open + iterate + Pass A collect) is entirely DB-free.
  *
  * STREAMING ONLY: XMLReader (pull parser), never SimpleXML/DOM. The 315 MB
  * document must never be materialised in RAM.
@@ -53,7 +51,7 @@ declare(strict_types=1);
  * `php -d extension=php_mbstring.dll`). This file requires nothing on include;
  * the caller is responsible for having loaded the derivation libraries
  * (political/territory.php + wiki/sync.php + wiki/sync-monitor.php) before
- * invoking Pass A / persistence.
+ * invoking Pass A.
  */
 
 // ---------------------------------------------------------------------------
@@ -110,8 +108,8 @@ const AVESMAPS_WIKI_DUMP_STEP_SECONDS = 28;
  * Unterschied zwischen 1.500 Schritten und rund 27 ausmachen.
  *
  * 🔴 SIE LIEGT BEWUSST UNTER DEM SEITENBUDGET (500 gegen 2.000), UND DAS IST DER GANZE UNTERSCHIED
- * ZWISCHEN EINEM RIEGEL UND EINEM ZWEITEN FEHLER. Zwei der fuenf Schleifen fuehren beide Grenzen
- * (Pass A und Pass B). Waere die Untergrenze GLEICH dem Budget, faenden beide Bedingungen zur
+ * ZWISCHEN EINEM RIEGEL UND EINEM ZWEITEN FEHLER. Pass B fuehrt beide Grenzen
+ * (bis zum 14.09.2026 auch Pass A). Waere die Untergrenze GLEICH dem Budget, faenden beide Bedingungen zur
  * selben Seitenzahl statt -- die Zeitpruefung waere wirkungslos, und ein Schritt liefe IMMER bis
  * 2.000 Seiten, egal wie lange er dazu braucht. Genau das Sicherheitsventil, das die 28 Sekunden
  * sein sollen, waere damit ausgebaut: ein ueberzogener Schritt laeuft auf STRATO in
@@ -126,11 +124,11 @@ const AVESMAPS_WIKI_DUMP_STEP_MIN_PAGES = 500;
 /**
  * Darf ein Dump-Schritt jetzt aufhoeren? Zeit ist um UND die Untergrenze ist erreicht.
  *
- * 💣 SIE STEHT HIER UND WIRD VON FUENF SCHLEIFEN GERUFEN, statt fuenfmal abgeschrieben zu werden:
+ * 💣 SIE STEHT HIER UND WIRD VON JEDER DUMP-SCHLEIFE GERUFEN, statt je Schleife abgeschrieben zu werden:
  * dump-hybrid-read.php (Sammelphase), dump-hybrid-driver.php (Weiterleitungen), citymap-sync.php
- * (Kartenindex), dump-entity-scan.php (Pass B) und dump-reader.php selbst. Alle fuenf ziehen den
- * Dump per Seiten-Cursor neu auf und trugen denselben Stillstand. Eine Regel, die einen von fuenf
- * Erzeugern bindet, ist in diesem Haus keine Regel.
+ * (Kartenindex) und dump-entity-scan.php (Pass B); bis zum 14.09.2026 auch der nie gerufene
+ * Pass-A-Lauf in dieser Datei. Alle ziehen den Dump per Seiten-Cursor neu auf und trugen denselben
+ * Stillstand. Eine Regel, die einen von mehreren Erzeugern bindet, ist in diesem Haus keine Regel.
  *
  * ⚠️ Die OBERgrenze bleibt Sache des Aufrufers -- wer ein Seitenbudget fuehrt, prueft es weiterhin
  * selbst und VOR dieser Funktion. Sie beantwortet nur „ist der Schritt weit genug gekommen, um
@@ -140,12 +138,6 @@ function avesmapsWikiDumpStepDarfAnhalten(int $verarbeitet, float $frist): bool
 {
     return $verarbeitet >= AVESMAPS_WIKI_DUMP_STEP_MIN_PAGES && microtime(true) >= $frist;
 }
-
-/**
- * Rough page-count estimate for progress display (the dump has ~223,583 pages).
- * Refined from the actual stream when known; only used to seed progress_total.
- */
-const AVESMAPS_WIKI_DUMP_ESTIMATED_PAGE_COUNT = 223583;
 
 // ===========================================================================
 // 1. Reader opener -- stream-wrapper selection by extension + availability.
@@ -496,7 +488,7 @@ function avesmapsWikiDumpPageRedirectTarget(array $page): ?string
 }
 
 // ===========================================================================
-// 4. Pass A -- redirect alias extraction (PURE collect + THIN persist).
+// 4. Pass A -- redirect alias extraction (PURE collect).
 // ===========================================================================
 
 /**
@@ -568,206 +560,4 @@ function avesmapsWikiDumpCanonicalWikiKeyForTitle(string $title): string
     $pageUrl = avesmapsWikiSyncPageUrl($title);
 
     return avesmapsPoliticalBuildWikiKey($pageUrl, $title);
-}
-
-/**
- * THIN persistence for Pass A: upsert an alias_slug => canonical_wiki_key map
- * into `wiki_redirect_alias` by REUSING the existing
- * avesmapsWikiSyncMonitorStoreAlias() (no new upsert here).
- *
- * StoreAlias() re-derives the alias_slug from the given titles via
- * avesmapsPoliticalSlug(avesmapsWikiSyncMonitorNormalizeTitle(...)) -- the same
- * derivation the pure collector used. To make the round-trip lossless we group
- * the map by canonical_wiki_key and, for each group, hand StoreAlias() the set
- * of redirect page TITLES so it reproduces the identical alias_slug keys.
- *
- * Because StoreAlias() needs the source titles (not slugs), callers pass the
- * original page rows here; this function re-runs the same pure derivation to
- * bucket titles by canonical key. This is the ONLY function in Pass A that
- * touches a DB.
- *
- * NB: requires a DB -> NOT exercised by the local fixture test; live-verified in
- * the controlled rollout.
- *
- * @param iterable<array{title:string, ns:int, redirect:?string, wikitext:string}> $pages
- * @return int number of distinct canonical keys written (StoreAlias calls made)
- */
-function avesmapsWikiDumpPersistRedirectAliases(PDO $pdo, iterable $pages): int
-{
-    // canonical_wiki_key => list of redirect page titles that alias to it.
-    $titlesByCanonical = [];
-
-    foreach ($pages as $page) {
-        $target = avesmapsWikiDumpPageRedirectTarget($page);
-        if ($target === null) {
-            continue;
-        }
-        $title = (string) ($page['title'] ?? '');
-        if (trim($title) === '') {
-            continue;
-        }
-        $canonical = avesmapsWikiDumpCanonicalWikiKeyForTitle($target);
-        if ($canonical === '') {
-            continue;
-        }
-        $titlesByCanonical[$canonical][] = $title;
-    }
-
-    $written = 0;
-    foreach ($titlesByCanonical as $canonicalWikiKey => $titles) {
-        // Reuse the real upsert verbatim (it recomputes the alias_slug itself).
-        avesmapsWikiSyncMonitorStoreAlias($pdo, $titles, (string) $canonicalWikiKey);
-        $written++;
-    }
-
-    return $written;
-}
-
-// ===========================================================================
-// 5. Resume / progress wiring (THIN, DB-backed -- deferred live verification).
-// ===========================================================================
-
-/**
- * Read the dump-read cursor (page counter) from a run's stats_json.
- * Pure array access -- no DB.
- *
- * @param array<string, mixed> $run a `wiki_sync_runs` row.
- */
-function avesmapsWikiDumpReadCursor(array $run): int
-{
-    $stats = avesmapsWikiSyncDecodeJson($run['stats_json'] ?? null);
-    $cursor = $stats['dump_cursor'] ?? 0;
-
-    return is_int($cursor) ? max(0, $cursor) : max(0, (int) $cursor);
-}
-
-/**
- * Create a new dump-read run in `wiki_sync_runs` (sync_type 'dump_read'),
- * seeding the cursor at 0 and progress_total at the page-count estimate. Returns
- * the run's public_id.
- *
- * DB-backed -> not covered by the fixture test; live-verified in rollout.
- */
-function avesmapsWikiDumpCreateRun(PDO $pdo, ?int $createdBy = null): string
-{
-    avesmapsWikiSyncEnsureCoreTables($pdo);
-
-    $publicId = avesmapsPoliticalUuidV4();
-    $stats = ['dump_cursor' => 0, 'pages_processed' => 0, 'aliases_written' => 0];
-
-    $statement = $pdo->prepare(
-        'INSERT INTO wiki_sync_runs
-            (public_id, sync_type, status, phase, progress_current, progress_total, message, stats_json, created_by)
-        VALUES
-            (:public_id, :sync_type, :status, :phase, :progress_current, :progress_total, :message, :stats_json, :created_by)'
-    );
-    $statement->execute([
-        'public_id' => $publicId,
-        'sync_type' => AVESMAPS_WIKI_DUMP_SYNC_TYPE,
-        'status' => 'running',
-        'phase' => 'pass_a_redirects',
-        'progress_current' => 0,
-        'progress_total' => AVESMAPS_WIKI_DUMP_ESTIMATED_PAGE_COUNT,
-        'message' => 'Dump-Read gestartet.',
-        'stats_json' => avesmapsWikiSyncEncodeJson($stats),
-        'created_by' => $createdBy,
-    ]);
-
-    return $publicId;
-}
-
-/**
- * Process ONE bounded dump-read step for Pass A (redirect alias extraction),
- * resuming from the run's page-counter cursor:
- *
- *   1. reopen the dump from the start and skip `cursor` pages,
- *   2. process up to AVESMAPS_WIKI_DUMP_STEP_PAGE_BUDGET pages (or until the
- *      ~28 s wall-clock budget is hit), collecting + persisting redirect aliases,
- *   3. advance the cursor in stats_json and update progress_current,
- *   4. mark the run 'completed' when the stream is exhausted, else leave it
- *      'running' for the next step.
- *
- * This mirrors the sync-monitor step discipline (bounded batch + set_time_limit)
- * and reuses the existing run-lifecycle helpers
- * (avesmapsWikiSyncFetchRunByPublicId / avesmapsWikiSyncUpdateRun). It does NOT
- * use the online crawler's 4-phase location state machine or its frontend
- * 8-step limit -- this is a single-phase, cursor-advancing loop.
- *
- * DB- AND dump-backed -> NOT exercised by the local fixture test. Its live
- * verification is deferred to the controlled rollout / compare-test; nothing
- * calls it automatically yet.
- *
- * @return array{ok:bool, done:bool, cursor:int, processed_this_step:int, aliases_written:int}
- */
-function avesmapsWikiDumpRunPassAStep(PDO $pdo, string $dumpPath, string $runPublicId): array
-{
-    @set_time_limit(AVESMAPS_WIKI_DUMP_STEP_SECONDS + 15);
-    $deadline = microtime(true) + AVESMAPS_WIKI_DUMP_STEP_SECONDS;
-
-    $run = avesmapsWikiSyncFetchRunByPublicId($pdo, $runPublicId);
-    $runId = (int) $run['id'];
-    $cursor = avesmapsWikiDumpReadCursor($run);
-    $stats = avesmapsWikiSyncDecodeJson($run['stats_json'] ?? null);
-
-    $reader = avesmapsWikiDumpOpenReader($dumpPath);
-
-    $processedThisStep = 0;
-    $aliasesWritten = 0;
-    $batchTitlesByCanonical = [];
-    $done = false;
-
-    try {
-        foreach (avesmapsWikiDumpIteratePages($reader, $cursor) as $page) {
-            $processedThisStep++;
-
-            $target = avesmapsWikiDumpPageRedirectTarget($page);
-            if ($target !== null && trim((string) ($page['title'] ?? '')) !== '') {
-                $canonical = avesmapsWikiDumpCanonicalWikiKeyForTitle($target);
-                if ($canonical !== '') {
-                    $batchTitlesByCanonical[$canonical][] = (string) $page['title'];
-                }
-            }
-
-            // ⚠️ Die OBERgrenze zuerst, die Untergrenze danach: sie darf ein Budget nie ueberziehen.
-            if ($processedThisStep >= AVESMAPS_WIKI_DUMP_STEP_PAGE_BUDGET
-                || avesmapsWikiDumpStepDarfAnhalten($processedThisStep, $deadline)) {
-                break;
-            }
-        }
-        // If the iterator ran dry before hitting the budget, the stream is done.
-        if ($processedThisStep < AVESMAPS_WIKI_DUMP_STEP_PAGE_BUDGET && microtime(true) < $deadline) {
-            $done = true;
-        }
-    } finally {
-        $reader->close();
-    }
-
-    // Persist this batch's aliases via the reused real upsert.
-    foreach ($batchTitlesByCanonical as $canonicalWikiKey => $titles) {
-        avesmapsWikiSyncMonitorStoreAlias($pdo, $titles, (string) $canonicalWikiKey);
-        $aliasesWritten++;
-    }
-
-    $cursor += $processedThisStep;
-    $stats['dump_cursor'] = $cursor;
-    $stats['pages_processed'] = (int) ($stats['pages_processed'] ?? 0) + $processedThisStep;
-    $stats['aliases_written'] = (int) ($stats['aliases_written'] ?? 0) + $aliasesWritten;
-
-    avesmapsWikiSyncUpdateRun(
-        $pdo,
-        $runId,
-        $done ? 'completed' : 'running',
-        'pass_a_redirects',
-        $cursor,
-        $done ? 'Pass A abgeschlossen.' : ('Pass A laeuft (Cursor ' . $cursor . ').'),
-        $stats
-    );
-
-    return [
-        'ok' => true,
-        'done' => $done,
-        'cursor' => $cursor,
-        'processed_this_step' => $processedThisStep,
-        'aliases_written' => $aliasesWritten,
-    ];
 }

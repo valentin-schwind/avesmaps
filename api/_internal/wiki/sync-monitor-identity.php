@@ -482,22 +482,6 @@ function avesmapsWikiSyncMonitorUploadCoat(PDO $pdo, string $wikiKey, string $so
     return ['ok' => true, 'wiki_key' => $wikiKey, 'local_url' => $localUrl, 'bytes' => strlen($bytes), 'license' => $license];
 }
 
-// Liest die Override-Map (wiki_key -> {field_key: value}) aus dem Modell. Fuer model_tree.
-function avesmapsWikiSyncMonitorReadOverridesMap(PDO $pdo): array {
-    $map = [];
-    $rows = $pdo->query(
-        'SELECT wiki_key, metadata_overrides_json FROM ' . AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE
-        . ' WHERE metadata_overrides_json IS NOT NULL'
-    ) ?: [];
-    foreach ($rows as $row) {
-        $decoded = json_decode((string) ($row['metadata_overrides_json'] ?? ''), true);
-        if (is_array($decoded) && $decoded !== []) {
-            $map[(string) $row['wiki_key']] = $decoded;
-        }
-    }
-    return $map;
-}
-
 // Manuellen Override fuer EIN Feld setzen (value darf '' sein = bewusst geleert). Nur Sandbox-
 // Modelltabelle. field_key muss in der Allowlist stehen. Legt die Modellzeile bei Bedarf an.
 function avesmapsWikiSyncMonitorSetFieldOverride(PDO $pdo, string $wikiKey, string $fieldKey, ?string $value): array {

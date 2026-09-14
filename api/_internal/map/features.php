@@ -290,20 +290,6 @@ function avesmapsAllowedTransportOptionsForDomain(string $domain): array {
     };
 }
 
-function avesmapsAllowedTransportOptionsForPathSubtype(string $subtype): array {
-    $options = avesmapsAllowedTransportOptionsForDomain(avesmapsDefaultTransportDomainForPathSubtype($subtype));
-    if ($subtype === 'Wuestenpfad') {
-        return array_values(array_filter($options, static fn(string $option): bool => $option !== 'horseCarriage'));
-    }
-
-    return $options;
-}
-
-function avesmapsReadTransportDomain(mixed $value, string $subtype): string {
-    $domain = avesmapsNormalizeSingleLine((string) ($value ?: avesmapsDefaultTransportDomainForPathSubtype($subtype)), 20);
-    return in_array($domain, ['land', 'river', 'sea', 'none'], true) ? $domain : avesmapsDefaultTransportDomainForPathSubtype($subtype);
-}
-
 function avesmapsReadAllowedTransports(mixed $value, string $domain, ?string $subtype = null): array {
     $compatibleOptions = avesmapsAllowedTransportOptionsForDomain($domain);
     if ($subtype === 'Wuestenpfad') {

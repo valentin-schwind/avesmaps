@@ -511,12 +511,6 @@ function avesmapsCitymapsEnsureColorModeBackfill(PDO $pdo): void
     );
 }
 
-function avesmapsCitymapsCount(PDO $pdo): int
-{
-    avesmapsCitymapsEnsureTables($pdo);
-    return (int) $pdo->query('SELECT COUNT(*) FROM citymap')->fetchColumn();
-}
-
 // ---- kill switch (Spec §3.3) -------------------------------------------------------------------------
 // Owner "emergency off": hides the whole Kartensammlung on the PUBLIC frontend while the rows stay put and
 // the capability-gated editor keeps working. Backed by the generic app_setting store, NOT by a

@@ -78,15 +78,16 @@ require_once __DIR__ . '/organisation-sync.php';
  * with the state table. The multi-step wikitext_collect phase loads it fresh
  * each step (bounded SELECT) and passes it to H4b as $titleAliasMap.
  *
- * WHY NOT avesmapsWikiDumpRunPassAStep VERBATIM for phase 4: that function
- * (dump-reader.php:556) is a self-contained SINGLE-phase runner -- it OWNS the
- * run row's phase (`pass_a_redirects`) and status (flips to `completed` when the
- * dump stream ends). Calling it inside this multi-phase machine would hijack the
- * orchestrator's own phase/status columns. So the redirect_aliases phase reuses
+ * WHY THIS DRIVER RUNS PHASE 4 ITSELF: dump-reader.php once carried a
+ * self-contained SINGLE-phase Pass-A runner that OWNED the run row's phase
+ * (`pass_a_redirects`) and status (flipped to `completed` when the dump stream
+ * ended). Calling it inside this multi-phase machine would have hijacked the
+ * orchestrator's own phase/status columns; it was never called and was removed on
+ * 2026-09-14. So the redirect_aliases phase reuses
  * the same reader primitives (avesmapsWikiDumpOpenReader / -IteratePages), the
  * same slug-keyed alias upsert (avesmapsWikiSyncMonitorStoreAlias), and H4a's
- * title-keyed extractor VERBATIM -- but this driver, not Pass A, owns the run
- * row. The reopen+skip+cursor+time-budget discipline is identical to Pass A.
+ * title-keyed extractor VERBATIM -- but this driver owns the run row. The
+ * reopen+skip+cursor+time-budget discipline is the same as in every dump step.
  *
  * PURE CORE / DB-DISPATCH SPLIT (so the phase-transition + alias-persist logic
  * is unit-testable with injected fake step fns, no DB/dump -- like H4a/H4b):

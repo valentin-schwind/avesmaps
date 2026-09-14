@@ -276,15 +276,6 @@ function avesmapsGameLiteratureLoadCandidates(PDO $pdo): array
     return $candidates;
 }
 
-// Single-place resolve (editor / ad-hoc). Loads candidates every call -> use avesmapsGameLiteratureResolveAll
-// for bulk work.
-function avesmapsGameLiteratureResolvePlace(PDO $pdo, string $rawName): array
-{
-    $candidates = avesmapsGameLiteratureLoadCandidates($pdo);
-    $canonical = avesmapsGameLiteratureResolveRedirect($pdo, $rawName);
-    return avesmapsGameLiteratureMatchCandidates($rawName, $candidates, $canonical);
-}
-
 // ---- Phase 2: territory ancestor path (for client-side subtree aggregation) ----------------------
 
 // Territory parent tree from wiki_territory_model (the canonical parent_wiki_key map). Ancestors are

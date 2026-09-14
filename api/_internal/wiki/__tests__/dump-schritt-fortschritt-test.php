@@ -56,21 +56,22 @@ $pruefe(
     'Untergrenze weit ueberschritten, aber Zeit noch da -> weitermachen'
 );
 
-// 🔴 DIE UNTERGRENZE MUSS UNTER DEM SEITENBUDGET LIEGEN -- und das ist keine Kosmetik. Zwei der
-// fuenf Schleifen fuehren beide Grenzen. Waeren sie gleich, faenden beide Bedingungen zur selben
+// 🔴 DIE UNTERGRENZE MUSS UNTER DEM SEITENBUDGET LIEGEN -- und das ist keine Kosmetik. Pass B
+// fuehrt beide Grenzen. Waeren sie gleich, faenden beide Bedingungen zur selben
 // Seitenzahl statt: die Zeitpruefung waere wirkungslos, ein Schritt liefe IMMER bis zum Budget, und
 // das 28-Sekunden-Ventil waere ausgebaut. Aus dem Stillstand wuerde ein harter Abbruch in
 // max_execution_time -- schlimmer, weil der Cursor danach da steht, wo er vorher stand.
 $pruefe(
     AVESMAPS_WIKI_DUMP_STEP_MIN_PAGES < AVESMAPS_WIKI_DUMP_STEP_PAGE_BUDGET,
-    'Untergrenze < Seitenbudget (sonst ist die Zeitpruefung in Pass A/B wirkungslos)'
+    'Untergrenze < Seitenbudget (sonst ist die Zeitpruefung in Pass B wirkungslos)'
 );
 // ⚠️ Und sie muss deutlich ueber 1 liegen -- sonst ist sie der alte Stillstand mit neuem Namen.
 $pruefe(AVESMAPS_WIKI_DUMP_STEP_MIN_PAGES >= 100, 'die Untergrenze traegt wirklich (>= 100 Seiten)');
 
-// --- B. Die Verdrahtung: ALLE FUENF Dump-Schleifen -----------------------------------------------
-// 💣 Eine Regel, die einen von fuenf Erzeugern bindet, ist in diesem Haus keine Regel. Alle fuenf
-// ziehen den Dump per Seiten-Cursor neu auf und trugen denselben Stillstand.
+// --- B. Die Verdrahtung: ALLE Dump-Schleifen -----------------------------------------------------
+// 💣 Eine Regel, die einen von mehreren Erzeugern bindet, ist in diesem Haus keine Regel. Alle
+// ziehen den Dump per Seiten-Cursor neu auf und trugen denselben Stillstand. (Pass A im Leser selbst
+// stand bis zum 14.09.2026 hier -- nie gerufen, mit seinem Lauf-Geruest gefallen.)
 //
 // 🔴 GEPRUEFT WIRD JE SCHLEIFE, NICHT JE DATEI -- und das hat dieser Test sich selbst beigebracht.
 // Die erste Fassung suchte den blanken Frist-Abbruch in der GANZEN Datei und schlug bei
@@ -82,7 +83,6 @@ $schleifen = [
     ['dump-hybrid-driver.php', 'avesmapsWikiDumpHybridRedirectAliasStep',   'die Weiterleitungs-Phase'],
     ['citymap-sync.php',       'avesmapsCitymapBuildCatalogStep',           'der Kartenindex-Scan'],
     ['dump-entity-scan.php',   'avesmapsWikiDumpRunPassBStep',              'Pass B'],
-    ['dump-reader.php',        'avesmapsWikiDumpRunPassAStep',              'Pass A im Leser selbst'],
 ];
 
 // 🪤 KOMMENTARE RAUS, BEVOR GEMESSEN WIRD. Der Name der Funktion steht in mehreren Begruendungen;

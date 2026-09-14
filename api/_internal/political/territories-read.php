@@ -1349,10 +1349,6 @@ function avesmapsPoliticalFetchTerritoryById(PDO $pdo, int $territoryId): array 
     return $territory;
 }
 
-function avesmapsPoliticalFetchTerritoryPublicIdById(PDO $pdo, int $territoryId): string {
-    return (string) avesmapsPoliticalFetchTerritoryById($pdo, $territoryId)['public_id'];
-}
-
 function avesmapsPoliticalFetchWikiById(PDO $pdo, int $wikiId): array {
     $statement = $pdo->prepare('SELECT * FROM political_territory_wiki WHERE id = :id LIMIT 1');
     $statement->execute(['id' => $wikiId]);

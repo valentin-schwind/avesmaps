@@ -139,12 +139,6 @@ function avesmapsWikiSettlementCoatLocalizeCounts(PDO $pdo): array
     return $counts;
 }
 
-/** How many coats still want fetching -- the client's loop condition. */
-function avesmapsWikiSettlementPendingLocalizeCoats(PDO $pdo): int
-{
-    return (int) (avesmapsWikiSettlementCoatLocalizeCounts($pdo)['due'] ?? 0);
-}
-
 /**
  * ONE bounded step: fetch up to $limit due coats, store them under /uploads/wappen/wiki and point the
  * place at the local copy. Resumable -- the client repeats until remaining=0, exactly like the

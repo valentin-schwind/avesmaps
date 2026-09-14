@@ -2,15 +2,6 @@
 
 declare(strict_types=1);
 
-function avesmapsPoliticalDebugExceptionPayload(Throwable $exception): array {
-    return [
-        'type' => $exception::class,
-        'message' => $exception->getMessage(),
-        'file' => basename((string) $exception->getFile()),
-        'line' => $exception->getLine(),
-    ];
-}
-
 function avesmapsPoliticalReadDebug(PDO $pdo, array $query): array {
     $yearBf = avesmapsPoliticalReadOptionalInt($query['year_bf'] ?? null) ?? AVESMAPS_POLITICAL_DEFAULT_YEAR_BF;
     $zoomFrom = avesmapsPoliticalReadOptionalZoom($query['zoom_from'] ?? null) ?? 0;

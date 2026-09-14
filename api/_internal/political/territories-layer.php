@@ -607,41 +607,6 @@ function avesmapsPoliticalIsGenericLayerParentTerritory(array $territory): bool 
     return false;
 }
 
-function avesmapsPoliticalLayerTerritoryAliases(array $territory): array {
-    $aliases = avesmapsPoliticalExpandTerritoryAliases([
-        (string) ($territory['name'] ?? ''),
-        (string) ($territory['short_name'] ?? ''),
-        (string) ($territory['wiki_name'] ?? ''),
-    ]);
-    $name = mb_strtolower(implode(' ', $aliases));
-    if (str_contains($name, 'heiliges neues kaiserreich vom greifenthron')) {
-        $aliases[] = 'Mittelreich';
-    }
-
-    return array_values(array_filter(array_map('trim', $aliases)));
-}
-
-function avesmapsPoliticalInferLayerParentName(array $territory): string {
-    $path = avesmapsPoliticalDecodeJson($territory['affiliation_path_json'] ?? null);
-    if (is_array($path) && $path !== []) {
-        $parentName = (string) end($path);
-        if (avesmapsPoliticalSlug($parentName) === avesmapsPoliticalSlug((string) ($territory['name'] ?? ''))) {
-            $parentName = count($path) > 1 ? (string) $path[count($path) - 2] : '';
-        }
-        if (trim($parentName) !== '') {
-            return trim($parentName);
-        }
-    }
-
-    $affiliation = trim((string) ($territory['affiliation_raw'] ?? ''));
-    if ($affiliation === '' || avesmapsPoliticalIsGenericHierarchyRootName($affiliation)) {
-        return '';
-    }
-
-    $parts = preg_split('/\s*[:;]\s*/u', $affiliation) ?: [];
-    return trim((string) end($parts));
-}
-
 function avesmapsPoliticalBuildResolvedLayerFeatures(array $geometryRows, array $territories, array $parentIds, int $yearBf, int $zoom): array {
     $featuresByTerritory = [];
     foreach ($geometryRows as $geometryRow) {

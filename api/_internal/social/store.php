@@ -509,26 +509,6 @@ function avesmapsSocialTokenExpiryMap(PDO $pdo): array
     return $map;
 }
 
-/** @return array{access_token: string, expires_at: ?string, refreshed_at: ?string}|null */
-function avesmapsSocialTokenGet(PDO $pdo, string $channelKey): ?array
-{
-    avesmapsSocialEnsureTables($pdo);
-    $statement = $pdo->prepare(
-        'SELECT access_token, expires_at, refreshed_at FROM social_token WHERE channel_key = :key LIMIT 1'
-    );
-    $statement->execute(['key' => $channelKey]);
-    $row = $statement->fetch(PDO::FETCH_ASSOC);
-    if (!is_array($row)) {
-        return null;
-    }
-
-    return [
-        'access_token' => (string) $row['access_token'],
-        'expires_at' => $row['expires_at'] === null ? null : (string) $row['expires_at'],
-        'refreshed_at' => $row['refreshed_at'] === null ? null : (string) $row['refreshed_at'],
-    ];
-}
-
 function avesmapsSocialTokenSet(PDO $pdo, string $channelKey, string $token, ?string $expiresAt): void
 {
     avesmapsSocialEnsureTables($pdo);

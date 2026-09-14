@@ -57,54 +57,6 @@ function avesmapsRouteErrorResponse(int $statusCode, string $code, string $messa
 	avesmapsJsonResponse($statusCode, $payload);
 }
 
-function avesmapsBuildRouteEdgeDiagnosticSegments(array $graph, array $edgeIds): array {
-	$edgesById = [];
-	foreach (is_array($graph['edges'] ?? null) ? $graph['edges'] : [] as $edge) {
-		if (!is_array($edge)) {
-			continue;
-		}
-
-		$edgeId = (string) ($edge['id'] ?? '');
-		if ($edgeId === '') {
-			continue;
-		}
-
-		$edgesById[$edgeId] = $edge;
-	}
-
-	$segments = [];
-	foreach ($edgeIds as $index => $edgeId) {
-		$normalizedEdgeId = (string) $edgeId;
-		$edge = $edgesById[$normalizedEdgeId] ?? null;
-		if (!is_array($edge)) {
-			$segments[] = [
-				'index' => (int) $index,
-				'edge_id' => $normalizedEdgeId,
-				'found' => false,
-			];
-			continue;
-		}
-
-		$geometry = is_array($edge['geometry'] ?? null) ? $edge['geometry'] : [];
-		$coordinates = is_array($geometry['coordinates'] ?? null) ? $geometry['coordinates'] : [];
-		$segments[] = [
-			'index' => (int) $index,
-			'edge_id' => $normalizedEdgeId,
-			'found' => true,
-			'path_id' => (string) ($edge['path_id'] ?? ''),
-			'from_node' => (string) ($edge['from'] ?? ''),
-			'to_node' => (string) ($edge['to'] ?? ''),
-			'subtype' => (string) ($edge['subtype'] ?? ''),
-			'transport_type' => (string) ($edge['transport_type'] ?? ''),
-			'distance_units' => (float) ($edge['distance_units'] ?? 0.0),
-			'cost_units' => (float) ($edge['cost_units'] ?? $edge['weight'] ?? 0.0),
-			'coordinate_count' => count($coordinates),
-		];
-	}
-
-	return $segments;
-}
-
 function avesmapsAnalyzeClientRouteOnServerGraph(array $clientGraph, array $request, array $serverRoute): array {
 	$clientRoute = is_array($request['client_route'] ?? null) ? $request['client_route'] : [];
 	$graph = is_array($clientGraph['graph'] ?? null) ? $clientGraph['graph'] : [];

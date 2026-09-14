@@ -175,12 +175,6 @@ function avesmapsGameLiteratureNormalizeRole(string $role): string
     return in_array($role, AVESMAPS_GAME_LITERATURE_ROLES, true) ? $role : 'play';
 }
 
-function avesmapsGameLiteratureCount(PDO $pdo): int
-{
-    avesmapsGameLiteratureEnsureTables($pdo);
-    return (int) $pdo->query('SELECT COUNT(*) FROM adventure')->fetchColumn();
-}
-
 // ---- cover kill switch -------------------------------------------------------------------------------
 // An owner "emergency off" that hides ALL adventure covers on the PUBLIC frontend (placeholder shown
 // instead) while the images stay stored internally. Only the public render honors it; the
