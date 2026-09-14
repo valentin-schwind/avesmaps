@@ -1128,7 +1128,7 @@ async function undoChangeLogEntry(entry) {
 		}
 		await loadChangeLog();
 		void loadReviewReports();
-		void loadWikiSyncCases();
+		if (typeof loadWikiSyncCases === "function") void loadWikiSyncCases();
 		showFeedbackToast(`${undoneLabel} ${isRedo ? "wiederhergestellt" : "rückgängig gemacht"}.`, "success");
 	} catch (error) {
 		console.error("Änderung konnte nicht rückgängig gemacht werden:", error);

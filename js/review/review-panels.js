@@ -54,7 +54,7 @@ function setEditorPanelTab(tabName) {
 		if (typeof ensureStatusSubtabLoaded === "function") {
 			ensureStatusSubtabLoaded();
 		}
-	} else if (activeEditorPanelTab === "wiki-sync") {
+	} else if (activeEditorPanelTab === "wiki-sync" && typeof refreshActiveWikiSyncPanel === "function") {
 		refreshActiveWikiSyncPanel();
 	}
 }
@@ -68,7 +68,7 @@ function refreshActiveEditorPanel() {
 		return sendEditorPresenceHeartbeat();
 	}
 
-	if (activeEditorPanelTab === "wiki-sync") {
+	if (activeEditorPanelTab === "wiki-sync" && typeof refreshActiveWikiSyncPanel === "function") {
 		return refreshActiveWikiSyncPanel();
 	}
 

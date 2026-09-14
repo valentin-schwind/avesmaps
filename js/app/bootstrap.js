@@ -866,7 +866,7 @@ $("#wiki-sync-view-tabs").on("click", "[data-territory-mapstatus]", function () 
 // anklickbar, ohne Wirkung. Aufgefallen ist es dem Owner an "Anzeigen"/"Position waehlen"
 // (2026-07-21); betroffen waren alle zwoelf Fallarten. Ein Container-Wirt macht die Bindung von
 // der DOM-Lage abhaengig, und die aendert sich wieder -- der Selektor ist eindeutig genug.
-$(document).on("click", "[data-wiki-sync-action]", handleWikiSyncCaseActionClick);
+$(document).on("click", "[data-wiki-sync-action]", function (event) { return handleWikiSyncCaseActionClick.call(this, event); });
 $("#wiki-sync-conflicts-open").on("click", () => setWikiSyncConflictsDialogOpen(true));
 $("#wiki-sync-powerlines-sync").on("click", () => startWikiSyncPowerlines());
 $("#conflict-rescan").on("click", () => loadConflicts({ rescan: true }));
@@ -906,7 +906,7 @@ $("#report-source-ref, #report-source-pages, #report-source-title, #report-sourc
 	}
 });
 $("#location-edit-form").on("submit", handleLocationEditFormSubmit);
-$("#wiki-sync-resolve-form").on("submit", handleWikiSyncResolveFormSubmit);
+$("#wiki-sync-resolve-form").on("submit", function (event) { return handleWikiSyncResolveFormSubmit.call(this, event); });
 $("#path-edit-form").on("submit", handlePathEditFormSubmit);
 $("#powerline-edit-form").on("submit", handlePowerlineEditFormSubmit);
 $("#label-edit-form").on("submit", handleLabelEditFormSubmit);

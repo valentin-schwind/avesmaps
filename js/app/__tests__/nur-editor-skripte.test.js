@@ -3,14 +3,15 @@
 // Drei Dinge werden festgehalten:
 //   A. der Lader setzt die Vorlage NUR im Editor ein -- und faellt offen aus, nie geschlossen;
 //   B. jede Vorlage steht so da, dass der Lader sie findet, und keine Datei wird doppelt geladen;
-//   C. KEIN Skript ausserhalb der Vorlagen nennt einen Namen aus einer Vorlage -- auch keins unter
-//      js/review/.
+//   C. ruft ein Skript, das JEDER laedt, einen Namen aus einer Vorlage, dann ist die Stelle entweder
+//      per `typeof` geschuetzt oder unten in ERLAUBT beim Namen freigegeben -- und nie als Wert
+//      durchgereicht (`.on("submit", name)` wertet den Namen schon beim Laden aus).
 //
-// 💣 WARUM C SO STRENG IST: der erste Bau (14.09.2026) nahm js/review/ aus der Pruefung, weil „die
+// 💣 WARUM C SO GENAU HINSIEHT: der erste Bau (14.09.2026) liess js/review/ aus der Pruefung, weil „die
 // review-Dateien nur im Editor laufen". Live warf daraufhin JEDER Besucherstart: preparePowerlineData
-// (Hydrierung der Kartendaten, fuer alle) ruft renderPowerlineSyncList (review-powerline-list.js, weiter
-// fuer alle geladen) und die rief avesmapsListBalanceRender aus einer Vorlage. Eine review-Datei, die fuer
-// alle geladen wird, ist Besucher-Code -- wer sie ruft, sieht man ihr nicht an.
+// (Kartendaten, fuer alle) -> renderPowerlineSyncList (review-powerline-list.js, damals fuer alle
+// geladen) -> avesmapsListBalanceRender (aus einer Vorlage). Eine review-Datei, die jeder laedt, ist
+// Besucher-Code -- wer sie ruft, sieht man ihr nicht an.
 const assert = require("assert");
 const fs = require("fs");
 const path = require("path");
@@ -115,28 +116,51 @@ for (const datei of nurEditor) {
 	assert.ok(fs.existsSync(path.join(WURZEL, datei)), datei + " gibt es nicht");
 }
 
-// Die review-Dateien des Besucher-Ablaufs „Ort melden" beim Namen. Teil C faengt sie ohnehin, sobald
-// jemand sie ruft -- diese Zeile sagt beim Fehlschlag, WAS dann kaputt waere.
+// Die review-Dateien des Besucher-Ablaufs „Ort melden" beim Namen -- beim Fehlschlag sagt diese Zeile,
+// WAS dann kaputt waere.
 for (const besucher of ["js/review/review-pending.js", "js/review/review-report-flow.js", "js/review/review-locations.js",
-	"js/review/meldung-quellen.js", "js/review/review-core.js", "js/review/review-feature-sources.js",
-	"js/review/review-list-balance.js", "js/review/review-powerline-list.js"]) {
-	assert.ok(!nurEditor.includes(besucher), besucher + " laeuft beim Besucher (Ort melden, Kartendaten laden) -- es darf in keiner Vorlage stehen");
+	"js/review/meldung-quellen.js", "js/review/review-core.js", "js/review/review-status.js"]) {
+	assert.ok(!nurEditor.includes(besucher), besucher + " laeuft beim Besucher (Ort melden) -- es darf in keiner Vorlage stehen");
 }
 
 // ---------------------------------------------------------------------------------------------
-// C. Kein Skript ausserhalb der Vorlagen nennt einen Namen aus einer Vorlage.
+// C. Aufrufe von aussen in Vorlagen-Namen.
 // ---------------------------------------------------------------------------------------------
+// ERLAUBT: Stellen, die NUR im Editor laufen, von Hand geprueft. Ein Name steht hier nur, wenn jede
+// seiner Nennungen in der Datei erst beim Ereignis ausgewertet wird (Pfeil-/Funktionshuelle an einem
+// Element, das nur der Editor sieht, oder im IS_EDIT_MODE-Zweig).
+const ERLAUBT = {
+	"js/app/bootstrap.js": [
+		// IS_EDIT_MODE-Zweig des Starts
+		"loadWikiSyncCases",
+		// Hintergrundklick-Tafel: Schliesser fuer Overlays, die nur der Editor oeffnet
+		"setWikiSyncResolveDialogOpen", "closeWikiSyncDumpCredentialsPrompt", "setWikiSyncConflictsDialogOpen",
+		"setWikiSyncLoreDialogOpen",
+		// Knoepfe des WikiSync-Panels und der Editorfenster (Panel nur im Editor sichtbar)
+		"startWikiSyncTerritoryRun", "openAvesmapsSettlementEditorOverlay", "openAvesmapsGameLiteratureEditorOverlay",
+		"openAvesmapsCitymapEditorOverlay", "openAvesmapsPowerlineEditorOverlay", "openAvesmapsEcosystemEditorOverlay",
+		"openAvesmapsPathEditorOverlay", "startWikiSyncDumpRead", "startWikiSyncKindSync", "startWikiSyncGameLiteratureSync",
+		"startWikiSyncLoreSync", "submitWikiSyncDumpCredentials", "setWikiSyncPanelTab", "setWikiSyncFilterQuery",
+		"setWikiSyncTerritoryFilterQuery", "setWikiSyncTerritoryMapStatus", "handleWikiSyncCaseActionClick",
+		"startWikiSyncPowerlines",
+		// Konfliktzentrum und Aufloesen-Dialog
+		"loadConflicts", "setConflictDialogMinimized", "conflictMinimized", "conflictFilter", "renderConflicts",
+		"applyWikiSyncResolvePreset", "openWikiSyncResolveWikiLink", "syncWikiSyncResolveLinkButton",
+		"handleWikiSyncResolveFormSubmit",
+	],
+};
+
 function ohneJsKommentare(text) {
-	return text.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/(^|[^:"'`\\])\/\/[^\n]*/g, "$1");
+	return text
+		.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "))
+		.replace(/(^|[^:"'`\\])\/\/[^\n]*/g, "$1");
 }
-function bezeichner(text) {
-	return new Set(text.match(/[A-Za-z_$][\w$]*/g) || []);
-}
+const esc = (n) => n.replace(/\$/g, "\\$");
 
 const namen = new Map(); // Name -> Datei
 for (const datei of nurEditor) {
 	const text = ohneJsKommentare(lies(datei));
-	const re = /^(?:async\s+)?function\s*\*?\s*([A-Za-z_$][\w$]*)|^(?:const|let|var)\s+([A-Za-z_$][\w$]*)|(?:window|globalThis)\.([A-Za-z_$][\w$]*)\s*=(?!=)/gm;
+	const re = /^(?:async\s+)?function\s*\*?\s*([A-Za-z_$][\w$]*)|^(?:const|let|var|class)\s+([A-Za-z_$][\w$]*)|(?:window|globalThis)\.([A-Za-z_$][\w$]*)\s*=(?!=)/gm;
 	for (const m of text.matchAll(re)) {
 		const name = m[1] || m[2] || m[3];
 		if (name.length > 3) namen.set(name, datei);
@@ -160,21 +184,51 @@ function jsDateien(verzeichnis, aus = []) {
 const quellen = jsDateien("js")
 	.filter((rel) => rel !== "js/app/nur-editor.js" && !nurEditor.includes(rel))
 	.map((rel) => [rel, ohneJsKommentare(lies(rel))]);
-quellen.push(["index.html (ausserhalb der Vorlagen)", ausserhalb]);
-for (const pflicht of ["js/app/bootstrap.js", "js/map-features/map-features-powerlines.js", "js/review/review-powerline-list.js"]) {
+quellen.push(["index.html", ausserhalb]);
+for (const pflicht of ["js/app/bootstrap.js", "js/map-features/map-features-powerlines.js", "js/routing/routing.js"]) {
 	assert.ok(quellen.some(([rel]) => rel === pflicht), pflicht + " muss unter den geprueften Dateien sein");
 }
 
-const funde = [];
+const namensRe = new RegExp("(^|[^\\w$.])(" + [...namen.keys()].map(esc).join("|") + ")(?![\\w$])", "g");
+const fensterRe = new RegExp("(?:window|globalThis)\\.(" + [...namen.keys()].map(esc).join("|") + ")(?![\\w$])(\\s*\\()?", "g");
+
+const verstoesse = [];
+const genutzteFreigaben = new Set();
 for (const [rel, text] of quellen) {
-	const ids = bezeichner(text);
-	for (const [name, datei] of namen) {
-		if (ids.has(name)) funde.push(rel + " nennt " + name + " (" + datei + ")");
+	const zeilen = text.split(/\r?\n/);
+	for (let i = 0; i < zeilen.length; i++) {
+		const z = zeilen[i];
+		const umgebung = zeilen.slice(Math.max(0, i - 2), i + 1).join("\n");
+		const geschuetzt = (n) => new RegExp("typeof\\s+(?:(?:window|globalThis)\\.)?" + esc(n) + "(?![\\w$])").test(umgebung);
+		// window.X lesen wirft nie; window.X = ... ist eine Definition. Nur window.X(...) braucht Schutz.
+		for (const m of z.matchAll(fensterRe)) {
+			if (m[2] && !geschuetzt(m[1]) && !(ERLAUBT[rel] || []).includes(m[1])) {
+				verstoesse.push(rel + ":" + (i + 1) + " ruft window." + m[1] + "() ungeschuetzt (" + namen.get(m[1]) + ")");
+			}
+		}
+		for (const m of z.matchAll(namensRe)) {
+			const n = m[2];
+			if (geschuetzt(n)) continue;
+			if (new RegExp("[(,]\\s*" + esc(n) + "\\s*[,)]").test(z)) {
+				verstoesse.push(rel + ":" + (i + 1) + " reicht " + n + " als WERT durch -- das wertet den Namen beim Laden aus (" + namen.get(n) + ")");
+				continue;
+			}
+			if ((ERLAUBT[rel] || []).includes(n)) {
+				genutzteFreigaben.add(rel + " " + n);
+				continue;
+			}
+			verstoesse.push(rel + ":" + (i + 1) + " nennt " + n + " ungeschuetzt (" + namen.get(n) + ")");
+		}
 	}
 }
-assert.deepStrictEqual(funde, [],
-	"Diese Namen gibt es nur im Editor. Nennt sie ein Skript, das jeder laedt -- auch eines unter js/review/ --, "
-	+ "wirft es beim Besucher, sobald die Stelle laeuft. Die Datei gehoert dann nicht in eine Vorlage. "
-	+ "(Die Editorfenster unter html/ duerfen per window.parent rufen: sie laufen nur im Editor.)");
+assert.deepStrictEqual(verstoesse, [],
+	"Diese Namen gibt es nur im Editor. Ein Skript, das jeder laedt, darf sie nur per `typeof`-Schutz rufen oder "
+	+ "an einer Stelle, die nachweislich nur im Editor laeuft -- dann gehoert der Name in ERLAUBT.");
 
-console.log("nur-editor-skripte: ok (" + vorlagen.length + " Vorlagen, " + nurEditor.length + " Dateien, " + namen.size + " Namen, " + quellen.length + " Skripte geprueft)");
+const verwaist = [];
+for (const [rel, liste] of Object.entries(ERLAUBT)) {
+	for (const n of liste) if (!genutzteFreigaben.has(rel + " " + n)) verwaist.push(rel + " " + n);
+}
+assert.deepStrictEqual(verwaist, [], "Diese Freigaben gelten nichts mehr (Name nicht mehr in einer Vorlage oder nicht mehr genannt) -- streichen");
+
+console.log("nur-editor-skripte: ok (" + vorlagen.length + " Vorlagen, " + nurEditor.length + " Dateien, " + namen.size + " Namen, " + quellen.length + " Skripte geprueft, " + genutzteFreigaben.size + " Freigaben)");

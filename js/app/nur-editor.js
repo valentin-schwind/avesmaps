@@ -17,12 +17,15 @@
 // ohne Ansehen des Zusammenhangs, also auch das im <template>. `innerHTML` traegt den gestempelten `?v=`
 // weiter -- ein Tag von Hand darf hier so wenig stehen wie anderswo (AGENTS.md §7).
 //
-// 🔴 WAS HINEIN DARF: nur eine Datei, deren Namen KEIN Skript nennt, das jeder laedt -- auch keins unter
-// js/review/. Die Editorfenster unter html/ duerfen per `window.parent.*` rufen, sie laufen nur im Editor.
+// 🔴 WAS HINEIN DARF: eine Datei, deren Namen ein Skript, das JEDER laedt -- auch eines unter js/review/ --,
+// nur per `typeof`-Schutz ruft oder an einer Stelle, die nachweislich nur im Editor laeuft (dann steht der
+// Name in ERLAUBT des Tests). Nie als Wert durchgereicht: `.on("submit", name)` wertet den Namen schon
+// beim Laden aus -- dort gehoert eine Huelle hin (`function (e) { return name.call(this, e); }`).
+// Die Editorfenster unter html/ duerfen per `window.parent.*` rufen, sie laufen nur im Editor.
 // 💣 Der erste Bau (14.09.2026) liess js/review/ aus und brach live: preparePowerlineData (Kartendaten,
-// fuer jeden) -> renderPowerlineSyncList (review-powerline-list.js, fuer jeden geladen) ->
+// fuer jeden) -> renderPowerlineSyncList (review-powerline-list.js, damals fuer jeden geladen) ->
 // avesmapsListBalanceRender (aus einer Vorlage) -> ReferenceError beim Besucherstart.
-// `js/app/__tests__/nur-editor-skripte.test.js` haelt die strenge Fassung fest.
+// `js/app/__tests__/nur-editor-skripte.test.js` haelt das fest.
 
 function avesmapsNurEditorIstEditor() {
 	// Faellt OFFEN aus: ist IS_EDIT_MODE nicht da (js/config.js fehlt), wird geladen. Ein Besucher mit
