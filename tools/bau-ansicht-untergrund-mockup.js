@@ -230,10 +230,9 @@ const OVERLAYS = {
 	// or a ridge" -- die Strichelung gehoert zur ART der Ebene, nicht zu einem Zustand, und bleibt
 	// darum in jedem Zustand gestrichelt. Der gebaute Vektor zog sie zuvor DURCHGEHEND -- falsch.
 	// ⚠️ Die drei zarten Fuellungen machen den Behaelter auf 48 px erst LESBAR (ungefuellt las sich
-	// die Zelle als „nicht geladen"), ohne die Zelle zu einer Landschaftsebene zu machen -- die
-	// Flaeche selbst bleibt auf der Karte ungefuellt.
-	// ⚠️ Die kleine gefuellte Ellipse ist eine INSEL -- das eine derographische Objekt, das
-	// gefuellt liegt; ohne sie liest sich die Zelle als leeres Gitter.
+	// die Zelle als „nicht geladen"), ohne die Zelle zu einer Landschaftsebene zu machen. Auf der
+	// Karte gilt dasselbe: in ihrer EIGENEN Ansicht fuellt die Flaeche ebenso (--eco-fill: 0.16,
+	// css/features/ecosystem-layer.css); ungefuellt (0) bleibt sie nur in „Alle".
 	eco_derographisch:
 		'<g fill="#575757" fill-opacity=".13">' +
 		'<path d="M-2 9 C6 6.5 12 10.5 18 9.5 17.2 17 20.4 22.5 18.6 29.5 16.8 36.5 19.6 42 17.8 50 H-2 Z"/>' +
@@ -682,12 +681,13 @@ h2 { font-size: var(--font-size-subhead); margin: 0 0 4px; }
 		<b>„Alle“ hat keinen eigenen Vektor</b>: es nimmt den der Ansicht, denn „Alle“ <i>ist</i> alle
 		Ebenen übereinander — zwei getrennte Zeichnungen liefen beim nächsten Umton auseinander.</p>
 		<div class="mk-ebenen" id="mk-ebenen"></div>
-		<p class="mk-gut">Derographie zieht eine <b>gestrichelte</b> Kontur — genau so zeichnet die
-		Karte sie: die Kante eines Behälters ist eine Konvention, kein Waldrand zum Anfassen.</p>
+		<p class="mk-gut">Derographie zieht eine <b>gestrichelte</b> Kontur — das ist die Konvention der
+		Ebene: die Kante eines Behälters ist eine Konvention, kein Waldrand zum Anfassen. Sichtbar wird
+		sie auf der Karte nur im <b>Bearbeiten-Modus</b> — ein Besucher sieht sie nie.</p>
 		<p class="mk-gut">Ihre drei Füllungen bleiben <b>zart</b>. Sie machen den Behälter auf 48 px
 		erst lesbar — ungefüllt las sich die Zelle als „nicht geladen“ —, ohne die Zelle zu einer
-		Landschaftsebene zu machen; auf der Karte bleibt die Fläche ungefüllt. Die kleine gefüllte
-		Ellipse ist eine Insel, das eine derographische Objekt, das gefüllt liegt.</p>
+		Landschaftsebene zu machen; in ihrer <b>eigenen</b> Ansicht füllt die Fläche auf der Karte
+		ebenso (0,16), ungefüllt bleibt sie nur in „Alle“.</p>
 		<p class="mk-gut">Der See trägt den Wasserton, das Meer sein eigenes Dunkelblau — auf der Karte
 		sind die beiden verschieden, in der Zelle auch.</p>
 		<p class="mk-gut">Die Klimazonen haben bewegte Kanten: die Ebene wird aus Trennlinien abgeleitet,

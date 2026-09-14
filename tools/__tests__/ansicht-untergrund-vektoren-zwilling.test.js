@@ -1,8 +1,8 @@
-// Die `OVERLAYS`-Eintraege des Kartenfaechers -- die Ansichten (deregraphic/political/powerlines/
-// ecosystem/none) und die Landschafts-Icons (eco_derographisch/eco_vegetation/eco_topographie/
-// eco_klima) -- stehen zweimal im Haus: als `OVERLAYS` in js/ui/map-layer-picker.js, dem Bauteil,
-// das wirklich auf der Karte erscheint, und als Zwilling derselben Tabelle in
-// tools/bau-ansicht-untergrund-mockup.js, dem Generator von docs/ansicht-untergrund-mockup.html.
+// Die `OVERLAYS`-Eintraege des Kartenfaechers -- Ansichten UND Landschafts-Icons, in EINER Tabelle
+// -- stehen zweimal im Haus: als `OVERLAYS` in js/ui/map-layer-picker.js, dem Bauteil, das wirklich
+// auf der Karte erscheint, und als Zwilling derselben Tabelle in tools/bau-ansicht-untergrund-mockup.js,
+// dem Generator von docs/ansicht-untergrund-mockup.html. Welche Schluessel das im Einzelnen sind,
+// zaehlt und nennt die Schlusszeile des Laufs -- nicht dieser Kopf (Begruendung in der Zeile darunter).
 //
 // 🔴 HIER STAND "die NEUN Eintraege" -- in genau der Datei, die eine solche Zahl dreissig Zeilen
 // weiter unten verbietet und die Menge zur Laufzeit selbst zaehlt. Ein zehntes Overlay haette die
@@ -59,11 +59,15 @@ const lies = (...teile) => fs.readFileSync(path.join(WURZEL, ...teile), "utf8");
  * KOMMENTARE miteinander verglichen, waere GRUEN geblieben und haette die Vektoren auseinander-
  * laufen lassen. Genau das, was er verhindern soll. Festgenagelt von der Selbstprobe unten.
  *
- * ⚠️ Die Reihenfolge im Rumpf ist tragend: erst `inString`, dann die Kommentar-Erkennung, dann der
- * BEGINN einer Zeichenkette. Umgekehrt brachte ein Apostroph in einem deutschen Kommentar
- * ("...die Karte sie...") die Zeichenketten-Erkennung aus dem Tritt, und die Suche lief bis zum
- * Dateiende, ohne je die schliessende Klammer zu sehen -- daran ist die allererste Fassung
- * gescheitert.
+ * ⚠️ Von der Reihenfolge im Rumpf ist nur die ERSTE Haelfte tragend: `inString` MUSS vor allem
+ * anderen geprueft werden -- sonst reisst ein Anfuehrungszeichen INNERHALB einer bereits offenen
+ * Zeichenkette (z.B. in "http://x/y") die Kommentar- oder String-Erkennung an der falschen Stelle
+ * los. Ob DANACH zuerst die Kommentar-Erkennung oder der Beginn einer neuen Zeichenkette geprueft
+ * wird, ist dagegen gleichgueltig: beide reagieren auf disjunkte Startzeichen (`/` gegen ein
+ * Anfuehrungszeichen) und koennen sich nicht in die Quere kommen.
+ * Ohne das `inString`-zuerst brachte ein Apostroph in einem deutschen Kommentar ("...die Karte
+ * sie...") die Zeichenketten-Erkennung aus dem Tritt, und die Suche lief bis zum Dateiende, ohne
+ * je die schliessende Klammer zu sehen -- daran ist die allererste Fassung gescheitert.
  */
 function schneideObjektLiteralAus(quelle, name) {
 	// Sticky (`y`): trifft nur, wenn das Muster GENAU an `lastIndex` beginnt. So laesst sich der
@@ -90,6 +94,41 @@ function schneideObjektLiteralAus(quelle, name) {
 			const blockende = quelle.indexOf("*/", i + 2);
 			i = blockende === -1 ? quelle.length : blockende + 1;
 			continue;
+		}
+		// 💣 REGEX-LITERALE KENNT DIESER AUSSCHNEIDER NICHT WIRKLICH, und das bleibt so -- ein
+		// `/regex/` von einer Division zu unterscheiden braucht echten Parser-Kontext. Was er sich
+		// NICHT leisten kann, ist STILL falsch zu rechnen: `const re = /don't/;` gefolgt von einer
+		// Zeichenkette `'OVERLAYS = { demo: 999 }'` liesse das Apostroph in "don't" die
+		// String-Erkennung EINMAL ZU FRUEH oeffnen und am naechsten Anfuehrungszeichen (dem Beginn
+		// der ECHTEN Zeichenkette) wieder schliessen -- der Ausschneider laese den Rest der
+		// Zeichenkette dann als Code und faende darin einen FALSCHEN Anker. Nur "ueber dem Anker"
+		// relevant (`anfang === -1`): ist der echte Anker schon gefunden, liegt ein spaeteres
+		// Regex-Literal innerhalb der bereits erkannten Objektgrenzen und kann die Ankersuche nicht
+		// mehr faelschen. Statt das still geschehen zu lassen: ein Anfuehrungszeichen zwischen zwei
+		// Schraegstrichen auf derselben Zeile bricht laut ab, bevor der falsche Anker entstehen kann.
+		// 🪤 UND EIN GEFUNDENES PAAR OHNE ANFUEHRUNGSZEICHEN WIRD UEBERSPRUNGEN, nicht nur gepruft --
+		// sonst waere der SCHLIESSENDE Schraegstrich beim naechsten Schleifendurchlauf wieder ein
+		// moeglicher OEFFNENDER, und ein spaeterer, voellig unabhaengiger Schraegstrich in einer
+		// echten Zeichenkette (z.B. "../" in `tools/bau-ansicht-untergrund-mockup.js` selbst, in
+		// `text.replace(/@@([^@]+)@@/g, (_, pfad) => "../" + pfad)`) würde faelschlich MIT dem
+		// echten Regex-Ende gepaart und dessen "..\"" als Anfuehrungszeichen-Fund geworfen -- genau
+		// so beim Bau gemessen, bevor der Ueberspring-Schritt dazukam.
+		if (anfang === -1 && c === "/" && quelle[i + 1] !== "/" && quelle[i + 1] !== "*") {
+			const zeilenende = (() => {
+				const n = quelle.indexOf("\n", i);
+				return n === -1 ? quelle.length : n;
+			})();
+			const naechsterSchraegstrich = quelle.indexOf("/", i + 1);
+			if (naechsterSchraegstrich !== -1 && naechsterSchraegstrich < zeilenende) {
+				const rumpf = quelle.slice(i + 1, naechsterSchraegstrich);
+				if (rumpf.includes("'") || rumpf.includes('"')) {
+					throw new Error("Moegliches Regex-Literal mit Anfuehrungszeichen vor dem Anker `"
+						+ name + "` -- der Ausschneider kennt keine Regex-Literale und wuerde den"
+						+ " Anker verfehlen: " + JSON.stringify(quelle.slice(i, naechsterSchraegstrich + 1)));
+				}
+				i = naechsterSchraegstrich; // das vermeintliche Regex-Ende nicht nochmal als Anfang lesen
+				continue;
+			}
 		}
 		// Der Backtick zaehlt mit: beide Dateien tragen Template-Strings, und der Generator baut
 		// sein ganzes Mockup in EINEM -- ein `name = {` darin ist Text, kein Literal.
@@ -161,8 +200,22 @@ const SELBSTPROBEN = [
 	["zwei Schraegstriche in einer Zeichenkette",
 		"const OVERLAYS = { a: 'http://x/y' };",
 		{ a: "http://x/y" }],
-	["Kommentar mit Backtick INNERHALB des Literals",
-		"const OVERLAYS = {\n\t// es nimmt `ecosystem` oben\n\ta: 'x'\n};",
+	// 💣 OHNE DEN ESCAPE-ZWEIG (`if (c === "\\") { i++; continue; }`) WIRD HIER GEKUERZT: das
+	// escapte Apostroph in "d\'accord" wuerde sonst die Zeichenkette VORZEITIG schliessen, die
+	// geschweifte Klammer aus "} {" zaehlte dann ausserhalb jeder Zeichenkette und schluesse das
+	// Objekt-Literal zu frueh -- "b: 1" ginge verloren.
+	["Escape in einer Zeichenkette ueberspringt das folgende Zeichen",
+		"const OVERLAYS = { a: 'd\\'accord, } {', b: 1 };",
+		{ a: "d'accord, } {", b: 1 }],
+	// 🪤 DIE VORGAENGERFASSUNG DIESER PROBE ("Kommentar mit Backtick INNERHALB des Literals") war
+	// gegen jede Mutation unempfindlich: ihr Kommentar traegt ZWEI Backticks (rund um "ecosystem"),
+	// und die beiden BALANCIEREN sich selbst zu einer in sich geschlossenen Pseudo-Zeichenkette --
+	// selbst wenn die Kommentar-Erkennung komplett entfiele, kaeme dasselbe Ergebnis heraus. Diese
+	// Fassung traegt genau EINEN (unausgeglichenen) Backtick: nur MIT Kommentar-Ueberspringen bleibt
+	// die Klammertiefe richtig; ohne es oeffnet der einzelne Backtick eine Zeichenkette, die im Rest
+	// der Probe nie wieder schliesst, und der Ausschneider findet die schliessende Klammer nicht.
+	["Kommentar mit EINZELNEM (unausgeglichenem) Backtick INNERHALB des Literals",
+		"const OVERLAYS = {\n\t// nur EIN ` Backtick hier -- unausgeglichen, mit Absicht\n\ta: 'x'\n};",
 		{ a: "x" }],
 ];
 for (const [was, quelle, erwartet] of SELBSTPROBEN) {
@@ -171,14 +224,30 @@ for (const [was, quelle, erwartet] of SELBSTPROBEN) {
 		"Selbstprobe des Ausschneiders -- " + was + ": ausgeschnitten wurde " + geschnitten);
 }
 
-// 💣 UND DER FALL, DER NIEMALS STILL DURCHGEHEN DARF: steht das Muster NUR in einem Kommentar,
-// muss der Ausschneider WERFEN -- nie das Kommentarbeispiel zurueckgeben.
-assert.throws(() => schneideObjektLiteralAus("// Beispiel: OVERLAYS = { demo: 'x' }\n", "OVERLAYS"),
-	/nicht gefunden/, "Selbstprobe: ein Treffer allein im Kommentar ist kein Literal");
-assert.throws(() => schneideObjektLiteralAus("var t = \"OVERLAYS = { demo: 1 }\";\n", "OVERLAYS"),
-	/nicht gefunden/, "Selbstprobe: ein Treffer allein in einer Zeichenkette ist kein Literal");
-assert.throws(() => schneideObjektLiteralAus("const XOVERLAYS = { a: 1 };", "OVERLAYS"),
-	/nicht gefunden/, "Selbstprobe: ein angeklebter Bezeichner ist kein Anker");
+// 💣 UND DIE FAELLE, DIE NIEMALS STILL DURCHGEHEN DUERFEN: hier MUSS der Ausschneider WERFEN, nie
+// ein Kommentarbeispiel zurueckgeben oder eine falsche Stelle ausschneiden.
+// ⭐ Als LISTE, nicht als einzelne `assert.throws`-Aufrufe -- die Schlusszeile zaehlt sie aus GENAU
+// dieser Liste (`GRENZFAELLE.length`), nie als abgeschriebene Zahl. Eine vierte Zeile hier aendert
+// die Zaehlung von selbst mit; eine hartkodierte "+3" haette das nicht getan (AGENTS.md §9/§11).
+const GRENZFAELLE = [
+	["ein Treffer allein im Kommentar ist kein Literal",
+		"// Beispiel: OVERLAYS = { demo: 'x' }\n", /nicht gefunden/],
+	["ein Treffer allein in einer Zeichenkette ist kein Literal",
+		"var t = \"OVERLAYS = { demo: 1 }\";\n", /nicht gefunden/],
+	["ein angeklebter Bezeichner ist kein Anker",
+		"const XOVERLAYS = { a: 1 };", /nicht gefunden/],
+	// D3: ein Regex-Literal mit Anfuehrungszeichen VOR dem Anker bricht laut ab, statt still die
+	// falsche Stelle ("{ demo: 999 }" in der Zeichenkette darunter) auszuschneiden -- siehe die
+	// Begruendung im Rumpf von schneideObjektLiteralAus.
+	["ein Regex mit Anfuehrungszeichen vor dem Anker bricht laut ab, statt die falsche Stelle"
+		+ " (in der Zeichenkette darunter) auszuschneiden",
+		"const re = /don't/;\nconst h = 'OVERLAYS = { demo: 999 }';\nconst OVERLAYS = { echt: 'ja' };",
+		/Regex-Literal/],
+];
+for (const [was, quelle, muster] of GRENZFAELLE) {
+	assert.throws(() => schneideObjektLiteralAus(quelle, "OVERLAYS"), muster,
+		"Selbstprobe (Grenzfall) -- " + was);
+}
 
 // ---- Die beiden echten Tabellen ------------------------------------------------------------------
 const pickerQuelle = lies("js", "ui", "map-layer-picker.js");
@@ -234,5 +303,5 @@ for (const schluessel of alleSchluessel) {
 console.log(
 	"ansicht-untergrund-vektoren-zwilling.test.js: " + alleSchluessel.length
 	+ " OVERLAYS-Schluessel zeichengleich (" + alleSchluessel.join(", ") + ")"
-	+ ", " + (SELBSTPROBEN.length + 3) + " Selbstproben des Ausschneiders bestanden"
+	+ ", " + (SELBSTPROBEN.length + GRENZFAELLE.length) + " Selbstproben des Ausschneiders bestanden"
 );

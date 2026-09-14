@@ -239,10 +239,9 @@
 		// or a ridge" -- die Strichelung gehoert zur ART der Ebene, nicht zu einem Zustand, und bleibt
 		// darum in jedem Zustand gestrichelt. Der gebaute Vektor zog sie zuvor DURCHGEHEND -- falsch.
 		// ⚠️ Die drei zarten Fuellungen machen den Behaelter auf 48 px erst LESBAR (ungefuellt las sich
-		// die Zelle als „nicht geladen"), ohne die Zelle zu einer Landschaftsebene zu machen -- die
-		// Flaeche selbst bleibt auf der Karte ungefuellt.
-		// ⚠️ Die kleine gefuellte Ellipse ist eine INSEL -- das eine derographische Objekt, das
-		// gefuellt liegt; ohne sie liest sich die Zelle als leeres Gitter.
+		// die Zelle als „nicht geladen"), ohne die Zelle zu einer Landschaftsebene zu machen. Auf der
+		// Karte gilt dasselbe: in ihrer EIGENEN Ansicht fuellt die Flaeche ebenso (--eco-fill: 0.16,
+		// css/features/ecosystem-layer.css); ungefuellt (0) bleibt sie nur in „Alle".
 		eco_derographisch:
 			'<g fill="#575757" fill-opacity=".13">' +
 			'<path d="M-2 9 C6 6.5 12 10.5 18 9.5 17.2 17 20.4 22.5 18.6 29.5 16.8 36.5 19.6 42 17.8 50 H-2 Z"/>' +
