@@ -3539,4 +3539,191 @@ assert(count($staetteWieder) === 1 && (int) $staetteWieder[0]['is_active'] === 1
     'dieselbe Zeile lebt wieder: ' . json_encode($staetteWieder));
 $pruefungen += 6;
 
+// =================================================================================================
+// „NUR QUELLE + ARTIKEL AN X" -- keine Staette, nur die Quelle an der Siedlung
+// (Entwurf docs/superpowers/specs/2026-09-14-garetien-import-vereint-design.md §5, 🔧 „neu im Server")
+// =================================================================================================
+// 🔴 Die kleinere Antwort auf denselben Innerorts-Befund (Workflow-Owner 12.09.2026/7). Die
+// Garetien-Quelle und der Artikel haengen an der SIEDLUNG (`settlement`, dieselbe Weiche wie ein
+// Ort, avesmapsGaretienQuellenZiel), und es entsteht keine Zeile -- weder in `settlement_place`
+// noch in `map_features`.
+$pdoI->exec("INSERT INTO map_features (public_id, feature_type, feature_subtype, name, geometry_json, properties_json, is_active)
+             VALUES ('stadt-wandleth', 'location', 'stadt', 'Wandleth', '{\"type\":\"Point\",\"coordinates\":[520,520]}', '{}', 1)");
+// Die Stadt traegt schon ihre EIGENE Garetien-Quelle -- sie darf die Ruecknahme unten ueberleben.
+avesmapsGaretienQuelleAnlegen($pdoI, 'settlement', 'stadt-wandleth', [
+    'url' => 'https://www.garetien.de/index.php/Garetien:Wandleth', 'label' => 'Wandleth auf garetien.de',
+    'license' => 'cc-by-nc-sa-3.0', 'attribution' => 'VolkoV / garetien.de',
+], 7);
+$garetienQuellenWandleth = static fn(): int => (int) $pdoI->query(
+    "SELECT COUNT(*) FROM feature_sources WHERE entity_type = 'settlement' AND entity_public_id = 'stadt-wandleth' AND origin = 'garetien'"
+)->fetchColumn();
+assert($garetienQuellenWandleth() === 1, 'NQ (Testaufbau): Wandleth traegt seine eigene Quelle');
+$featuresVorNq = (int) $pdoI->query('SELECT COUNT(*) FROM map_features')->fetchColumn();
+$staettenVorNq = (int) $pdoI->query('SELECT COUNT(*) FROM settlement_place')->fetchColumn();
+
+avesmapsSyncPlanAddItem($pdoI, $laufI, $baueBauwerk('Wandlether Hesindetempel', $befundWandleth));
+$hesindeId = $itemIdVon($pdoI, 'Wandlether Hesindetempel (Probe)');
+$eNq = avesmapsGaretienUebernehmen($pdoI, $laufI, [$hesindeId], ['id' => 7], null, [
+    $hesindeId => ['innerorts' => true, 'innerorts_nur_quelle' => true],
+]);
+assert($eNq['fehler'] === [], 'NQ: ohne Fehler: ' . json_encode($eNq['fehler'], JSON_UNESCAPED_UNICODE));
+assert($eNq['angelegt'] === 0, '🔴 NQ: es wird NICHTS angelegt -- „N Objekte importiert" waere eine Falschaussage: ' . $eNq['angelegt']);
+assert($eNq['angelegt_je_form']['quelle'] === 1 && $eNq['angelegt_je_form']['settlement_place'] === 0,
+    'NQ: gezaehlt als Quelle, nicht als Staette: ' . json_encode($eNq['angelegt_je_form']));
+assert((int) $pdoI->query('SELECT COUNT(*) FROM settlement_place')->fetchColumn() === $staettenVorNq,
+    'NQ: KEINE Staette');
+assert((int) $pdoI->query('SELECT COUNT(*) FROM map_features')->fetchColumn() === $featuresVorNq,
+    'NQ: und kein Kartenobjekt -- auch kein stiller Rueckfall auf die Karte');
+assert($garetienQuellenWandleth() === 2, 'NQ: Wandleth traegt jetzt AUCH den Artikel des Tempels: ' . $garetienQuellenWandleth());
+$nqNachtrag = array_values(array_filter($eNq['quellen_neu'],
+    static fn(array $e): bool => $e['entity_type'] === 'settlement' && $e['public_id'] === 'stadt-wandleth'));
+assert(count($nqNachtrag) === 1, 'NQ: der Browser bekommt die Quellenliste der Siedlung: ' . json_encode($eNq['quellen_neu'], JSON_UNESCAPED_UNICODE));
+$itemNq = $pdoI->query('SELECT apply_state, apply_note FROM sync_plan_item WHERE id = ' . $hesindeId)->fetch(PDO::FETCH_ASSOC);
+assert($itemNq['apply_state'] === 'done' && $itemNq['apply_note'] === avesmapsGaretienNurQuelleVermerk('stadt-wandleth'),
+    '💣 NQ: der Vermerk ist NICHT die nackte public_id der Stadt -- die Ruecknahme loeschte sonst die Stadt: ' . json_encode($itemNq));
+$pruefungen += 9;
+
+// --- `innerorts_nur_quelle` ALLEIN ist ebenfalls ein Innerorts-Wunsch, nie ein Rueckfall auf die Karte.
+avesmapsSyncPlanAddItem($pdoI, $laufI, $baueBauwerk('Wandlether Phextempel', $befundWandleth));
+$phexId = $itemIdVon($pdoI, 'Wandlether Phextempel (Probe)');
+$ePhex = avesmapsGaretienUebernehmen($pdoI, $laufI, [$phexId], ['id' => 7], null, [
+    $phexId => ['innerorts_nur_quelle' => true],
+]);
+assert($ePhex['fehler'] === [] && $ePhex['angelegt'] === 0 && $ePhex['angelegt_je_form']['quelle'] === 1,
+    'NQ: nur_quelle ohne `innerorts` haengt ebenso nur die Quelle an: ' . json_encode($ePhex, JSON_UNESCAPED_UNICODE));
+assert((int) $pdoI->query('SELECT COUNT(*) FROM map_features')->fetchColumn() === $featuresVorNq,
+    'NQ: und legt ebenso kein Kartenobjekt an');
+$pruefungen += 2;
+
+// --- 💣 Eine Siedlung, die es nicht mehr gibt, bekommt keine Quelle -- das Item scheitert laut.
+avesmapsSyncPlanAddItem($pdoI, $laufI, $baueBauwerk('Verlorener Tempel', ['public_id' => 'stadt-verschwunden', 'name' => 'Verschwunden', 'meilen' => 0.1]));
+$verlorenId = $itemIdVon($pdoI, 'Verlorener Tempel (Probe)');
+$eVerloren = avesmapsGaretienUebernehmen($pdoI, $laufI, [$verlorenId], ['id' => 7], null, [
+    $verlorenId => ['innerorts' => true, 'innerorts_nur_quelle' => true],
+]);
+assert(count($eVerloren['fehler']) === 1 && str_contains($eVerloren['fehler'][0]['grund'], 'Verschwunden'),
+    'NQ: eine verschwundene Siedlung wird beim Namen genannt: ' . json_encode($eVerloren['fehler'], JSON_UNESCAPED_UNICODE));
+assert((int) $pdoI->query("SELECT COUNT(*) FROM feature_sources WHERE entity_public_id = 'stadt-verschwunden'")->fetchColumn() === 0,
+    'NQ: und bekommt keine Verknuepfung');
+$pruefungen += 2;
+
+// --- Die Ruecknahme loest NUR die Quelle DIESES Tempels -- und loescht die Stadt NICHT.
+$rNq = avesmapsGaretienRuecknahmeAusfuehren($pdoI, $laufI, [$hesindeId], ['id' => 7]);
+assert($rNq['fehler'] === [] && $rNq['zurueckgenommen'] === 1,
+    'NQ-Ruecknahme: gelingt: ' . json_encode($rNq, JSON_UNESCAPED_UNICODE));
+assert((int) $pdoI->query("SELECT is_active FROM map_features WHERE public_id = 'stadt-wandleth'")->fetchColumn() === 1,
+    '💣 NQ-Ruecknahme: die STADT steht noch');
+$verbleibend = $pdoI->query(
+    "SELECT s.url FROM feature_sources fs JOIN sources s ON s.id = fs.source_id
+      WHERE fs.entity_type = 'settlement' AND fs.entity_public_id = 'stadt-wandleth' AND fs.origin = 'garetien' ORDER BY s.url"
+)->fetchAll(PDO::FETCH_COLUMN);
+assert($verbleibend === [
+    'https://www.garetien.de/index.php/Garetien:Wandleth',
+    'https://www.garetien.de/index.php/Garetien:Wandlether%20Phextempel',
+], '🔴 NQ-Ruecknahme: die eigene Quelle der Stadt und die des Phextempels bleiben, nur die des Hesindetempels faellt: '
+    . json_encode($verbleibend));
+assert($pdoI->query('SELECT apply_state FROM sync_plan_item WHERE id = ' . $hesindeId)->fetchColumn() === null,
+    'NQ-Ruecknahme: das Item ist zurueck auf offen');
+$pruefungen += 4;
+
+// --- DER BESTAND (Owner 14.09.2026): ein Kartenobjekt mit NACKTEM Vermerk bleibt zuruecknehmbar wie vorher.
+// Der Praiostempel oben wurde ohne Einstellungen auf die Karte uebernommen -- sein Vermerk ist die
+// nackte public_id, genau wie jedes vor diesem Deploy uebernommene Objekt. Die neue Weiche fuer
+// „Nur Quelle" darf ihn nicht abfangen.
+$notePraios = (string) $pdoI->query('SELECT apply_note FROM sync_plan_item WHERE id = ' . $praiosId)->fetchColumn();
+assert($notePraios !== '' && !str_contains($notePraios, ':') && avesmapsGaretienNurQuelleAusVermerk($notePraios) === '',
+    'Bestand (Testaufbau): der Praiostempel traegt einen nackten Vermerk: ' . $notePraios);
+$rPraios = avesmapsGaretienRuecknahmeAusfuehren($pdoI, $laufI, [$praiosId], ['id' => 7]);
+assert($rPraios['fehler'] === [] && $rPraios['zurueckgenommen'] === 1,
+    'Bestand: das Kartenobjekt mit altem Vermerk laesst sich zuruecknehmen: ' . json_encode($rPraios, JSON_UNESCAPED_UNICODE));
+assert((int) $pdoI->query("SELECT is_active FROM map_features WHERE public_id = '" . $notePraios . "'")->fetchColumn() === 0,
+    'Bestand: und es ist von der Karte -- ueber denselben Loeschweg wie vorher');
+assert((int) $pdoI->query("SELECT is_active FROM map_features WHERE public_id = 'stadt-wandleth'")->fetchColumn() === 1,
+    'Bestand: die Stadt daneben bleibt stehen');
+$pruefungen += 4;
+
+// =================================================================================================
+// EINE AUSDRUECKLICH GEWAEHLTE SIEDLUNG GILT -- oder das Item bricht LAUT ab (Entwurf 14.09.2026, §5)
+// =================================================================================================
+// 💣 Bis zum 14.09.2026 fiel eine gewaehlte Siedlung, die nicht in `kandidaten` des Laufs stand, STILL
+// auf die Vorauswahl zurueck -- genau der Fall einer Siedlung, die erst der Umkreis-Spinner gefunden
+// hat. Die Zielwahl haette „Staette in Rallerfurt" gezeigt, angelegt worden waere sie in Wandleth.
+// `$befundWandleth` traegt gar keine `kandidaten`: jede Wahl hier liegt AUSSERHALB der Liste des Laufs.
+$pdoI->exec("INSERT INTO map_features (public_id, feature_type, feature_subtype, name, geometry_json, properties_json, is_active) VALUES
+    ('stadt-rallerfurt', 'location', 'kleinstadt', 'Rallerfurt', '{\"type\":\"Point\",\"coordinates\":[540,540]}', '{}', 1),
+    ('stadt-abgerissen', 'location', 'dorf', 'Abgerissen', '{\"type\":\"Point\",\"coordinates\":[560,560]}', '{}', 0),
+    ('geb-wachturm', 'location', 'gebaeude', 'Wachturm', '{\"type\":\"Point\",\"coordinates\":[545,545]}', '{}', 1)");
+$staetteVon = static fn(string $name): array|false => $pdoI->query(
+    'SELECT settlement_public_id, settlement_name FROM settlement_place WHERE name = ' . $pdoI->quote($name)
+)->fetch(PDO::FETCH_ASSOC);
+$quellenAn = static fn(string $siedlung): int => (int) $pdoI->query(
+    "SELECT COUNT(*) FROM feature_sources WHERE entity_type = 'settlement' AND origin = 'garetien' AND entity_public_id = " . $pdoI->quote($siedlung)
+)->fetchColumn();
+$quellenWandlethVorW = $quellenAn('stadt-wandleth');
+
+// --- W1. Staette in der GEWAEHLTEN Siedlung.
+avesmapsSyncPlanAddItem($pdoI, $laufI, $baueBauwerk('Rallerfurter Traviatempel', $befundWandleth));
+$w1 = $itemIdVon($pdoI, 'Rallerfurter Traviatempel (Probe)');
+$eW1 = avesmapsGaretienUebernehmen($pdoI, $laufI, [$w1], ['id' => 7], null, [
+    $w1 => ['innerorts' => true, 'innerorts_public_id' => 'stadt-rallerfurt'],
+]);
+assert($eW1['fehler'] === [] && $eW1['angelegt_je_form']['settlement_place'] === 1,
+    'W1: die Staette entsteht: ' . json_encode($eW1, JSON_UNESCAPED_UNICODE));
+$sW1 = $staetteVon('Rallerfurter Traviatempel');
+assert($sW1 !== false && $sW1['settlement_public_id'] === 'stadt-rallerfurt' && $sW1['settlement_name'] === 'Rallerfurt',
+    '🔴 W1: sie haengt an der GEWAEHLTEN Siedlung, nicht an der Vorauswahl Wandleth: ' . json_encode($sW1));
+$pruefungen += 2;
+
+// --- W2. Nur Quelle an der GEWAEHLTEN Siedlung.
+avesmapsSyncPlanAddItem($pdoI, $laufI, $baueBauwerk('Rallerfurter Efferdtempel', $befundWandleth));
+$w2 = $itemIdVon($pdoI, 'Rallerfurter Efferdtempel (Probe)');
+$eW2 = avesmapsGaretienUebernehmen($pdoI, $laufI, [$w2], ['id' => 7], null, [
+    $w2 => ['innerorts' => true, 'innerorts_nur_quelle' => true, 'innerorts_public_id' => 'stadt-rallerfurt'],
+]);
+assert($eW2['fehler'] === [] && $eW2['angelegt'] === 0 && $quellenAn('stadt-rallerfurt') === 1,
+    'W2: die Quelle haengt an Rallerfurt: ' . json_encode($eW2, JSON_UNESCAPED_UNICODE));
+assert($quellenAn('stadt-wandleth') === $quellenWandlethVorW, 'W2: und NICHT an Wandleth');
+assert((string) $pdoI->query('SELECT apply_note FROM sync_plan_item WHERE id = ' . $w2)->fetchColumn() === avesmapsGaretienNurQuelleVermerk('stadt-rallerfurt'),
+    'W2: der Vermerk nennt die gewaehlte Siedlung');
+$pruefungen += 3;
+
+// --- W3. 💣 Die gewaehlte Siedlung liegt NICHT (mehr) auf der Karte: lauter Abbruch, keine andere.
+foreach ([
+    'Tempel am Abriss' => ['innerorts' => true, 'innerorts_public_id' => 'stadt-abgerissen'],
+    'Quelle am Abriss' => ['innerorts' => true, 'innerorts_nur_quelle' => true, 'innerorts_public_id' => 'stadt-abgerissen'],
+] as $nameW3 => $rumpfW3) {
+    avesmapsSyncPlanAddItem($pdoI, $laufI, $baueBauwerk($nameW3, $befundWandleth));
+    $w3 = $itemIdVon($pdoI, $nameW3 . ' (Probe)');
+    $eW3 = avesmapsGaretienUebernehmen($pdoI, $laufI, [$w3], ['id' => 7], null, [$w3 => $rumpfW3]);
+    assert(count($eW3['fehler']) === 1 && str_contains($eW3['fehler'][0]['grund'], 'Abgerissen')
+        && str_contains($eW3['fehler'][0]['grund'], 'keine andere'),
+        'W3 (' . $nameW3 . '): der Grund nennt die gewaehlte Siedlung und sagt, dass nicht ausgewichen wird: '
+        . json_encode($eW3['fehler'], JSON_UNESCAPED_UNICODE));
+    assert($pdoI->query('SELECT apply_state FROM sync_plan_item WHERE id = ' . $w3)->fetchColumn() === 'failed',
+        'W3 (' . $nameW3 . '): das Item steht auf failed');
+    assert($staetteVon($nameW3) === false, 'W3 (' . $nameW3 . '): KEINE Staette -- auch nicht in Wandleth');
+    assert($quellenAn('stadt-abgerissen') === 0 && $quellenAn('stadt-wandleth') === $quellenWandlethVorW,
+        'W3 (' . $nameW3 . '): und keine Quelle, weder an der gewaehlten noch an der Vorauswahl');
+    $pruefungen += 4;
+}
+
+// --- W4. Ein Bauwerk ist keine Siedlung -- auch nicht, wenn es ausdruecklich gewaehlt wurde.
+avesmapsSyncPlanAddItem($pdoI, $laufI, $baueBauwerk('Turmkapelle', $befundWandleth));
+$w4 = $itemIdVon($pdoI, 'Turmkapelle (Probe)');
+$eW4 = avesmapsGaretienUebernehmen($pdoI, $laufI, [$w4], ['id' => 7], null, [
+    $w4 => ['innerorts' => true, 'innerorts_public_id' => 'geb-wachturm'],
+]);
+assert(count($eW4['fehler']) === 1 && str_contains($eW4['fehler'][0]['grund'], 'Bauwerk') && $staetteVon('Turmkapelle') === false,
+    'W4: ein Bauwerk als Wirt wird laut abgewiesen: ' . json_encode($eW4['fehler'], JSON_UNESCAPED_UNICODE));
+$pruefungen++;
+
+// --- W5. BESTAND: ohne `innerorts_public_id` (alter Client) gilt weiter die Vorauswahl des Laufs.
+avesmapsSyncPlanAddItem($pdoI, $laufI, $baueBauwerk('Wandlether Tsatempel', $befundWandleth));
+$w5 = $itemIdVon($pdoI, 'Wandlether Tsatempel (Probe)');
+$eW5 = avesmapsGaretienUebernehmen($pdoI, $laufI, [$w5], ['id' => 7], ['innerorts' => true]);
+$sW5 = $staetteVon('Wandlether Tsatempel');
+assert($eW5['fehler'] === [] && $sW5 !== false && $sW5['settlement_public_id'] === 'stadt-wandleth',
+    'W5: ohne Wahl entsteht die Staette wie bisher in der Vorauswahl: ' . json_encode([$eW5['fehler'], $sW5], JSON_UNESCAPED_UNICODE));
+$pruefungen++;
+
 echo "OK: {$pruefungen} Pruefungen\n";

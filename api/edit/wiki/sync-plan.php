@@ -270,6 +270,17 @@ try {
                 }
                 $garetienEinstellungen = avesmapsGaretienEinstellungenAusRumpf($payload);
                 $garetienJeItem = avesmapsGaretienEinstellungenJeItemAusRumpf($payload);
+                // 🔴 DER RIEGEL „BEIDES" (Entwurf 2026-09-14-garetien-import-vereint-design.md §5).
+                // Ein Neu-Item UND ein Ergaenzungs-Item DESSELBEN Objekts in einem `apply` legen eine
+                // Dublette an und haengen die Quelle zugleich an den Bestand -- das geschieht nur auf
+                // die ausdrueckliche Wahl „Auf die Karte -- zusaetzlich zu X" (`beides: true` an jedem
+                // beteiligten Item). Eine Sperre nur im Browser ist keine.
+                // ⚠️ VOR der Pipeline-Sperre: eine Absage darf sie nicht halten. Und NACH dem Lesen der
+                // Handeingaben, sonst prueft der Riegel gegen null.
+                $garetienBeidesGrund = avesmapsGaretienBeidesPruefen($pdo, $runId, $garetienItemIds, $garetienJeItem);
+                if ($garetienBeidesGrund !== null) {
+                    avesmapsErrorResponse(422, 'garetien_beides_unbestaetigt', $garetienBeidesGrund);
+                }
             }
 
             // 🔴 THE SECOND CONFIRMATION IS A SERVER RULE, NOT A DISABLED BUTTON. A greyed-out button is

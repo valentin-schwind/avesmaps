@@ -340,21 +340,45 @@ $pruefungen += 5;
 // =================================================================================================
 require_once __DIR__ . '/../garetien-uebernahme.php';
 $nachMitListe = $rondraNach;
+// 🔴 UMBAU 14.09.2026 (Entwurf 2026-09-14-garetien-import-vereint-design.md §5): die Wahl wird nicht
+// mehr gegen `kandidaten` des LAUFS geprueft, sondern gegen die KARTE. Bis dahin fiel eine gewaehlte
+// Siedlung, die der Umkreis-Spinner erst nach dem Planbau gefunden hatte, STILL auf die Vorauswahl
+// zurueck -- die Zielwahl sagte „Staette in Rallerfurt", angelegt wurde sie woanders.
+// avesmapsGaretienInnerortsAusVorschlag ist seither NUR die Vorauswahl des Laufs.
 assert((avesmapsGaretienInnerortsAusVorschlag($nachMitListe)['public_id'] ?? null) === 'stadt-wandleth',
     'ohne Wahl gilt die Vorauswahl -- wie vor dem 07.09.2026');
-assert((avesmapsGaretienInnerortsAusVorschlag($nachMitListe, ['innerorts_public_id' => 'dorf-aue'])['name'] ?? null) === 'Aue',
+assert(avesmapsGaretienInnerortsAusVorschlag(['innerorts' => []]) === null, 'und ohne Befund gibt es keine');
+assert((avesmapsGaretienInnerortsSiedlung($pdo, $nachMitListe, ['innerorts_public_id' => 'dorf-aue'], 'Wandlether Rondratempel')['name'] ?? null) === 'Aue',
     'eine Wahl aus der Liste gilt: der Editor entscheidet sich fuer das naehere Dorf');
-// 💣 DER RIEGEL. Ohne ihn bände ein beliebiger Anfragerumpf eine Staette an eine beliebige
-// public_id -- und weil settlement_place weich schreibt und die Staetten-Zeile nur einen Namen
-// zeigt, faellt eine falsche Bindung niemandem auf.
-assert((avesmapsGaretienInnerortsAusVorschlag($nachMitListe, ['innerorts_public_id' => 'stadt-erfunden'])['public_id'] ?? null) === 'stadt-wandleth',
-    '💣 eine Stadt, die NICHT in den Kandidaten steht, faellt auf die Vorauswahl zurueck -- nie durch');
+assert((avesmapsGaretienInnerortsSiedlung($pdo, $nachMitListe, ['innerorts_public_id' => 'stadt-neuling'], 'Wandlether Rondratempel')['name'] ?? null) === 'Neuling',
+    '🔴 eine Wahl AUSSERHALB der Kandidaten des Laufs gilt, wenn die Siedlung aktiv auf der Karte liegt (Umkreis-Spinner, frischer Nachschlag)');
 $ohneListe = ['innerorts' => ['public_id' => 'stadt-wandleth', 'name' => 'Wandleth', 'meilen' => 0.09]];
-assert((avesmapsGaretienInnerortsAusVorschlag($ohneListe, ['innerorts_public_id' => 'dorf-aue'])['public_id'] ?? null) === 'stadt-wandleth',
-    '🪤 ein Lauf VOR dem 07.09.2026 traegt keine `kandidaten` -- dort kann keine Wahl gelten');
-assert(avesmapsGaretienInnerortsAusVorschlag(['innerorts' => []], ['innerorts_public_id' => 'dorf-aue']) === null,
-    'und ohne Befund gibt es nichts zu waehlen');
-$pruefungen += 5;
+assert((avesmapsGaretienInnerortsSiedlung($pdo, $ohneListe, ['innerorts_public_id' => 'dorf-aue'], 'Tempel')['public_id'] ?? null) === 'dorf-aue',
+    'auch an einem Lauf VOR dem 07.09.2026 (ohne `kandidaten`) gilt die ausdrueckliche Wahl');
+assert((avesmapsGaretienInnerortsSiedlung($pdo, ['innerorts' => []], ['innerorts_public_id' => 'dorf-aue'], 'Tempel')['public_id'] ?? null) === 'dorf-aue',
+    'und ohne jeden Befund des Planbaus ebenso -- genau der Fall des Umkreis-Spinners');
+assert((avesmapsGaretienInnerortsSiedlung($pdo, $nachMitListe, ['innerorts' => true], 'Tempel')['public_id'] ?? null) === 'stadt-wandleth',
+    'BESTAND: ohne `innerorts_public_id` bleibt die Vorauswahl des Laufs');
+// 💣 DER RIEGEL WIRFT, ER WEICHT NIE AUS. Ohne ihn bände ein beliebiger Anfragerumpf eine Staette an
+// eine beliebige public_id; mit Rueckfall landete sie still in einer Siedlung, die niemand gewaehlt hat.
+$wirft = static function (callable $f): string {
+    try {
+        $f();
+    } catch (RuntimeException $e) {
+        return $e->getMessage();
+    }
+
+    return '';
+};
+$grundErfunden = $wirft(static fn() => avesmapsGaretienInnerortsSiedlung($pdo, $nachMitListe, ['innerorts_public_id' => 'stadt-erfunden'], 'Wandlether Rondratempel'));
+assert(str_contains($grundErfunden, 'nicht') && str_contains($grundErfunden, 'Wandlether Rondratempel'),
+    '💣 eine Siedlung, die es nicht gibt, bricht LAUT ab -- kein Rueckfall auf die Vorauswahl: ' . $grundErfunden);
+$grundBauwerk = $wirft(static fn() => avesmapsGaretienInnerortsSiedlung($pdo, $nachMitListe, ['innerorts_public_id' => 'geb-rahja'], 'Wandlether Rondratempel'));
+assert(str_contains($grundBauwerk, 'Bauwerk'),
+    '🔴 ein Bauwerk ist kein Wirt -- dieselbe Regel wie avesmapsGaretienSiedlungsFamilie: ' . $grundBauwerk);
+$grundOhneBefund = $wirft(static fn() => avesmapsGaretienInnerortsSiedlung($pdo, ['innerorts' => []], ['innerorts' => true], 'Tempel'));
+assert(str_contains($grundOhneBefund, 'Innerorts-Befund'), 'ohne Wahl und ohne Befund: der bisherige Grund: ' . $grundOhneBefund);
+$pruefungen += 11;
 
 // =================================================================================================
 // H. Der Umkreis-Spinner (Owner 08.09.2026) -- 0 bis 20 Meilen, geprueft am SERVER

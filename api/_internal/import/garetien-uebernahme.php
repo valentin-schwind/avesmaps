@@ -1944,17 +1944,16 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
             // unterscheiden -- und das Objekt laege danach an einer Stelle, an die es niemand
             // gesetzt hat. Fehlt der Befund, bricht das Item ab und sagt warum.
             $innerortsOrt = null;
+            // 🔴 „NUR QUELLE + ARTIKEL AN X" (Entwurf 14.09.2026, §5): derselbe Befund, die kleinere
+            // Antwort -- keine Staette, keine neue Zeile, nur die Quelle an der Siedlung.
+            $nurQuelle = false;
             if (avesmapsGaretienInnerortsGewuenscht($rumpfDesItems)) {
-                $innerortsOrt = avesmapsGaretienInnerortsAusVorschlag($nach, $rumpfDesItems);
-                if ($innerortsOrt === null) {
-                    throw new RuntimeException(
-                        'Fuer "' . $item['label'] . '" gibt es keinen Innerorts-Befund'
-                        . ' -- der Vorschlag stammt aus einem Lauf vor dem 02.09.2026 oder es liegt'
-                        . ' keine Ortschaft innerhalb von '
-                        . rtrim(rtrim(number_format(AVESMAPS_GARETIEN_INNERORTS_MEILEN, 1, ',', ''), '0'), ',')
-                        . ' Meilen. Ein "Holen & Rechnen" rechnet den Befund neu.'
-                    );
-                }
+                $nurQuelle = avesmapsGaretienInnerortsNurQuelle($rumpfDesItems);
+                // 🔴 WELCHE SIEDLUNG, ENTSCHEIDET EINE STELLE (avesmapsGaretienInnerortsSiedlung): die
+                // ausdrueckliche Wahl, wenn es eine gibt -- sonst die Vorauswahl des Laufs. Sie WIRFT,
+                // statt auf eine andere Siedlung auszuweichen. „Nur Quelle" verlangt zusaetzlich, dass
+                // auch die Vorauswahl noch auf der Karte liegt (die Quelle haette sonst kein Ziel).
+                $innerortsOrt = avesmapsGaretienInnerortsSiedlung($pdo, $nach, $rumpfDesItems, (string) $item['label'], $nurQuelle);
             }
             // 🔴 ZWEI PUBLIC-IDS, NICHT EINE. $publicId ist das angelegte Objekt (steht als
             // Vermerk im Item, und bei einer Flaeche ist das die REGION -- die Ruecknahme loescht
@@ -1964,7 +1963,17 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
             // nicht der Region) -- fuer Weg/Ort/Gipfel sind beide gleich, nur bei der Flaeche
             // (See/Meer/Sumpf/…) laufen sie auseinander.
             $quellePublicId = null;
-            if ($innerortsOrt !== null) {
+            if ($nurQuelle) {
+                // 🔴 „NUR QUELLE + ARTIKEL AN X": die Quelle geht an die SIEDLUNG, ueber dieselbe
+                // Weiche wie bei einem Ort (avesmapsGaretienQuellenZiel, `settlement`), und es
+                // entsteht KEINE Zeile. Die Siedlung kommt aus DERSELBEN Pruefung wie bei der Staette
+                // (avesmapsGaretienInnerortsSiedlung, oben): aktiv auf der Karte, eine Siedlung -- bei
+                // „Nur Quelle" auch dann, wenn es die Vorauswahl des Laufs ist.
+                [$entityType, $quellePublicId] = avesmapsGaretienQuellenZiel('location', (string) $innerortsOrt['public_id']);
+                $publicId = $quellePublicId;
+                // 💣 NIE die nackte public_id als Vermerk -- die Ruecknahme loeschte sonst die Stadt.
+                $vermerk = avesmapsGaretienNurQuelleVermerk($quellePublicId);
+            } elseif ($innerortsOrt !== null) {
                 // 🔴 DER TYP IST IHR QUELLTYP, nicht unser Subtyp. Die Staetten-Zeile der Infobox
                 // gruppiert nach dem Vokabular des Wikis („Tempel", „Gasthaus", „Burg") -- unser
                 // `gebaeude` waere dort eine Gruppe, in der alles liegt. `typ` steht seit dem
@@ -2119,10 +2128,17 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
                     $verbund
                 );
             }
-            $angelegt++;
+            // 🔴 „NUR QUELLE" LEGT NICHTS AN -- es zaehlt wie eine Ergaenzung: als `quelle`, nie als
+            // `applied`. „1 Objekt importiert" behauptete sonst ein Kartenobjekt, das es nicht gibt.
+            if (!$nurQuelle) {
+                $angelegt++;
+            }
             $neueQuellen = avesmapsGaretienQuellenAnlegen(
                 $pdo, $entityType, $quellePublicId, $nach, $userId, (string) $item['entity_key']
             );
+            if ($nurQuelle && $neueQuellen > 0) {
+                $jeForm['quelle']++;
+            }
             if ($neueQuellen > 0) {
                 $quellen += $neueQuellen;
                 $quellenNeu[$entityType . ':' . $quellePublicId] = [
@@ -2211,7 +2227,197 @@ function avesmapsGaretienInnerortsGewuenscht(?array $einstellungen): bool
     // Einstellungen -- ein Sammellauf legt also NIE eine Staette an, sondern immer das, was er
     // bisher angelegt hat. Der Knopf „Innerorts einfuegen (X)" ist eine Einzelhandlung, und das
     // ist der Owner-Entscheid: der Importer schlaegt vor, er entscheidet nicht.
-    return is_array($einstellungen) && ($einstellungen['innerorts'] ?? false) === true;
+    // 🔴 „NUR QUELLE + ARTIKEL AN X" IST EBENFALLS EIN INNERORTS-WUNSCH (Entwurf 14.09.2026, §5).
+    // Stuende `innerorts_nur_quelle` allein im Rumpf und zaehlte hier nicht, fiele das Objekt still
+    // auf die KARTE zurueck -- genau der Rueckfall, den der Innerorts-Zweig ausdruecklich verbietet.
+    return is_array($einstellungen)
+        && (($einstellungen['innerorts'] ?? false) === true || ($einstellungen['innerorts_nur_quelle'] ?? false) === true);
+}
+
+/**
+ * Soll der Innerorts-Befund NUR Quelle und Artikel an die Siedlung haengen -- ohne Staette? REIN.
+ *
+ * 🔴 Die kleinere Antwort auf denselben Befund (Workflow-Owner 12.09.2026/7): keine neue Zeile,
+ * weder in `settlement_place` noch in `map_features`. ⚠️ Nur ein echtes `true` zaehlt.
+ */
+function avesmapsGaretienInnerortsNurQuelle(?array $einstellungen): bool
+{
+    return is_array($einstellungen) && ($einstellungen['innerorts_nur_quelle'] ?? false) === true;
+}
+
+/**
+ * Der Vermerk eines „Nur Quelle"-Items. 💣 NIE DIE NACKTE public_id DER SIEDLUNG: die Ruecknahme
+ * eines 'new'-Items mit Ziel `location` loescht die public_id aus dem Vermerk ueber
+ * avesmapsDeleteMapFeature -- sie naehme die STADT von der Karte, an die nur eine Quelle gehaengt
+ * wurde. Das Praefix macht den Vermerk fuer jeden Loeschweg unverwechselbar.
+ * ⚠️ avesmapsGaretienVermerkLesen liest ihn als „kein Verbund, keine Region" (unbekanntes Feld) --
+ * der Artikel-Nachzug und der Verbund-Leser gehen damit an ihm vorbei, wie gewollt.
+ */
+const AVESMAPS_GARETIEN_NUR_QUELLE_VERMERK = 'nur_quelle:';
+
+function avesmapsGaretienNurQuelleVermerk(string $siedlungPublicId): string
+{
+    return AVESMAPS_GARETIEN_NUR_QUELLE_VERMERK . $siedlungPublicId;
+}
+
+/** Die Siedlung aus einem „Nur Quelle"-Vermerk, sonst ''. REIN. */
+function avesmapsGaretienNurQuelleAusVermerk(string $note): string
+{
+    $n = trim($note);
+
+    return str_starts_with($n, AVESMAPS_GARETIEN_NUR_QUELLE_VERMERK)
+        ? trim(substr($n, strlen(AVESMAPS_GARETIEN_NUR_QUELLE_VERMERK)))
+        : '';
+}
+
+/**
+ * Ein Ort der Karte, so wie er JETZT dasteht -- oder null, wenn es ihn nicht gibt.
+ *
+ * 💣 Der Innerorts-Befund ist ein SCHNAPPSCHUSS des Planbaus. Eine seither geloeschte Stadt bekaeme
+ * sonst eine Staette oder eine Verknuepfung, die kein Leser je findet -- und die Quelle mit ihrer
+ * Lizenzangabe waere verloren, ohne dass es jemand merkt.
+ * ⚠️ Gelesen wird OHNE `is_active`-Filter: ein geloeschter Ort soll im Abbruchgrund beim NAMEN
+ * genannt werden, nicht als nackte public_id.
+ *
+ * @return ?array{name:string, klasse:string, aktiv:bool}
+ */
+function avesmapsGaretienSiedlungLesen(PDO $pdo, string $publicId): ?array
+{
+    $stmt = $pdo->prepare(
+        "SELECT name, feature_subtype, is_active FROM map_features WHERE public_id = :p AND feature_type = 'location' LIMIT 1"
+    );
+    $stmt->execute([':p' => $publicId]);
+    $zeile = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!is_array($zeile)) {
+        return null;
+    }
+
+    return [
+        'name' => (string) ($zeile['name'] ?? ''),
+        'klasse' => (string) ($zeile['feature_subtype'] ?? ''),
+        'aktiv' => (int) ($zeile['is_active'] ?? 0) === 1,
+    ];
+}
+
+/**
+ * Die Garetien-Verknuepfung EINER Adresse an EINEM Objekt loesen -- nicht alle des Objekts.
+ *
+ * 🔴 AN EINER SIEDLUNG HAENGEN MEHRERE GARETIEN-QUELLEN: ihre eigene und die jedes Bauwerks, das
+ * „Nur Quelle + Artikel" an sie gehaengt hat. avesmapsGaretienQuelleRuecknahmeLoesen loest ALLE mit
+ * `origin = 'garetien'` -- die Ruecknahme EINES Tempels naehme der Stadt so ihre eigene Quelle und
+ * die aller anderen Tempel (dieselbe Klasse wie Fehler 9 des Entwurfs vom 14.09.2026).
+ * ⚠️ Verglichen wird ueber `url_hash` (avesmapsFeatureSourceHash), dieselbe Kennung, unter der der
+ * Katalog die Adresse beim Anlegen abgelegt hat. NUR die Verknuepfung faellt, nie die `sources`-Zeile.
+ *
+ * @return int Zahl der geloesten Verknuepfungen
+ */
+function avesmapsGaretienQuelleRuecknahmeLoesenFuerAdresse(PDO $pdo, string $entityType, string $entityPublicId, string $url, int $userId): int
+{
+    $url = trim($url);
+    if ($url === '') {
+        return 0;
+    }
+    avesmapsEnsureFeatureSourceTables($pdo);
+
+    $stmt = $pdo->prepare(
+        'SELECT fs.source_id FROM feature_sources fs JOIN sources s ON s.id = fs.source_id'
+        . ' WHERE fs.entity_type = :t AND fs.entity_public_id = :id AND fs.origin = :o AND s.url_hash = :h'
+    );
+    $stmt->execute([
+        't' => $entityType,
+        'id' => $entityPublicId,
+        'o' => AVESMAPS_GARETIEN_SOURCE_ORIGIN,
+        'h' => avesmapsFeatureSourceHash($url),
+    ]);
+
+    $geloest = 0;
+    foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $sourceId) {
+        avesmapsRemoveFeatureSource($pdo, $entityType, $entityPublicId, (int) $sourceId, $userId);
+        $geloest++;
+    }
+
+    return $geloest;
+}
+
+/**
+ * DER RIEGEL „BEIDES" -- REIN (Entwurf 2026-09-14-garetien-import-vereint-design.md §5).
+ *
+ * 💣 Ein `apply` mit einem Neu-Item (`change_type = 'new'`, auch das Zusatz-Item „trotzdem neu") UND
+ * einem Ergaenzungs-Item (`changed`) DESSELBEN Objekts legt eine Dublette an UND haengt die
+ * Garetien-Quelle an den Bestand (K6: „Neu einfuegen" schaltete `quelle` zwangsweise mit an). Das ist
+ * nur als ausdrueckliche Wahl „Auf die Karte -- zusaetzlich zu X" erlaubt, und die steht als
+ * `beides: true` im Rumpf JEDES beteiligten Items.
+ * ⚠️ Ohne die Ausnahme wiese der Riegel genau die Wahl ab, die ihn braucht.
+ * 🔴 „Dasselbe Objekt" ist die Objektbasis (avesmapsGaretienObjektSchluessel) -- dieselbe Formel, an
+ * der Arbeitsliste und Rueckfall-Suche ein Objekt erkennen, keine zweite.
+ * ⚠️ Nur ein echtes `true` bestaetigt: "true" oder 1 kommen nicht aus der Zielwahl.
+ *
+ * @param list<array{id:int|string, entity_key:string, change_type:string, label?:string}> $items
+ * @param array<int, array> $jeItem die Handeingaben je Item (avesmapsGaretienEinstellungenJeItemAusRumpf)
+ * @return ?string der Grund der Absage, oder null
+ */
+function avesmapsGaretienBeidesRiegel(array $items, array $jeItem): ?string
+{
+    $jeBasis = [];
+    foreach ($items as $item) {
+        $basis = avesmapsGaretienObjektSchluessel((string) ($item['entity_key'] ?? ''));
+        $jeBasis[$basis]['arten'][(string) ($item['change_type'] ?? '')] = true;
+        $jeBasis[$basis]['ids'][] = (int) ($item['id'] ?? 0);
+        if (!isset($jeBasis[$basis]['label'])) {
+            $jeBasis[$basis]['label'] = (string) ($item['label'] ?? '');
+        }
+    }
+    foreach ($jeBasis as $basis => $gruppe) {
+        if (!isset($gruppe['arten']['new'], $gruppe['arten']['changed'])) {
+            continue;
+        }
+        foreach ($gruppe['ids'] as $id) {
+            if ((($jeItem[$id] ?? [])['beides'] ?? null) === true) {
+                continue;
+            }
+            $name = avesmapsGaretienAnzeigeNameAusSchluessel((string) $basis);
+            if ($name === '') {
+                $name = $gruppe['label'] !== '' ? $gruppe['label'] : (string) $basis;
+            }
+
+            return 'Fuer "' . $name . '" stehen ein neues Objekt UND eine Quelle am bestehenden im selben Import'
+                . ' -- das braucht die ausdrueckliche Wahl "Auf die Karte -- zusaetzlich" (beides).';
+        }
+    }
+
+    return null;
+}
+
+/**
+ * Der Riegel „beides" an der Tuer: die Zeilen dieses Laufs selbst lesen, dann rein pruefen.
+ *
+ * 🔴 GEZAEHLT WIRD NUR, WAS DIESES `apply` SCHREIBEN WUERDE -- dieselbe Menge wie
+ * avesmapsGaretienPendingItemsScoped (`selected = 1 AND apply_state IS NULL`). Eine ABGELEHNTE Zeile
+ * (die Tuer 'decline' hakt sie ab) bleibt abgelehnt und macht kein Paar; ein in einem frueheren
+ * Haeppchen schon uebernommenes Item ebenso wenig.
+ * 💣 Gefiltert wird auf den LAUF -- eine fremde id koennte sonst ein Paar vortaeuschen.
+ * ⚠️ KEIN DDL: die Tuer hat den Lauf gerade gelesen, die Tabelle steht.
+ *
+ * @param list<int> $itemIds
+ * @param ?array<int, array> $jeItem
+ */
+function avesmapsGaretienBeidesPruefen(PDO $pdo, int $runId, array $itemIds, ?array $jeItem): ?string
+{
+    $itemIds = array_values(array_unique(array_filter(
+        array_map('intval', $itemIds),
+        static fn(int $id): bool => $id > 0
+    )));
+    if ($runId <= 0 || $itemIds === []) {
+        return null;
+    }
+    $platzhalter = implode(',', array_fill(0, count($itemIds), '?'));
+    $stmt = $pdo->prepare(
+        'SELECT id, entity_key, change_type, label FROM sync_plan_item'
+        . ' WHERE run_id = ? AND id IN (' . $platzhalter . ') AND selected = 1 AND apply_state IS NULL'
+    );
+    $stmt->execute(array_merge([$runId], $itemIds));
+
+    return avesmapsGaretienBeidesRiegel($stmt->fetchAll(PDO::FETCH_ASSOC) ?: [], $jeItem ?? []);
 }
 
 /**
@@ -2225,49 +2431,91 @@ function avesmapsGaretienInnerortsGewuenscht(?array $einstellungen): bool
  *
  * ⚠️ Beides muss da sein: ohne `public_id` gaebe es keine Bindung, ohne Namen keine Anzeige.
  *
- * 🔴 UND SEIT DEM 07.09.2026 DARF DER EDITOR WAEHLEN (Owner: „sind in der Naehe mehrere soll ein
- * dropdown Menue sortiert nach entfernung zur auswahl stehen"). Seine Wahl steht als
- * `innerorts_public_id` in der Handeingabe DIESES Items.
- *
- * 💣 SIE WIRD GEPRUEFT, NICHT GEGLAUBT: sie gilt nur, wenn sie in den `kandidaten` DIESES
- * Vorschlags steht. Ohne den Riegel bände ein beliebiger Anfragerumpf eine Staette an eine
- * beliebige `public_id` -- und weil `settlement_place` weich schreibt und die Staetten-Zeile nur
- * einen Namen zeigt, faellt eine falsche Bindung niemandem auf. Denselben Weg geht
- * `avesmapsGaretienZielUebersteuern` fuer die Form: der Client waehlt, der Server prueft gegen das,
- * was er selbst angeboten hat.
- * ⚠️ EINE UNBEKANNTE WAHL FAELLT AUF DIE VORAUSWAHL ZURUECK, statt zu werfen -- der einzige Weg,
- * auf dem sie entsteht, ist ein Lauf, dessen Kandidatenliste sich seit dem Klick geaendert hat
- * (ein zweites „Holen & Rechnen" in einem anderen Tab). Dann ist die Vorauswahl die richtige
- * Antwort, und der Abbruchriegel weiter unten faengt den Fall, dass es gar keine gibt.
- * 🪤 Ein Lauf VOR dem 07.09.2026 traegt gar keine `kandidaten` -- dort kann keine Wahl gelten, und
- * die Vorauswahl ist ohnehin die einzige Stadt, die je angeboten wurde.
+ * 🔴 SEIT DEM 14.09.2026 IST DAS NUR NOCH DIE VORAUSWAHL DES LAUFS. Die Wahl des Editors
+ * (`innerorts_public_id`) prueft avesmapsGaretienInnerortsSiedlung gegen die KARTE, nicht mehr
+ * gegen die `kandidaten` dieses Vorschlags -- siehe die Begruendung dort.
  *
  * @return array{public_id:string, name:string}|null
  */
-function avesmapsGaretienInnerortsAusVorschlag(array $nach, ?array $einstellungen = null): ?array
+function avesmapsGaretienInnerortsAusVorschlag(array $nach): ?array
 {
     $befund = $nach['innerorts'] ?? null;
     if (!is_array($befund)) {
         return null;
     }
 
-    $gewaehlt = trim((string) ($einstellungen['innerorts_public_id'] ?? ''));
-    if ($gewaehlt !== '') {
-        foreach ((array) ($befund['kandidaten'] ?? []) as $kandidat) {
-            if (!is_array($kandidat) || trim((string) ($kandidat['public_id'] ?? '')) !== $gewaehlt) {
-                continue;
-            }
-            $name = trim((string) ($kandidat['name'] ?? ''));
-            if ($name !== '') {
-                return ['public_id' => $gewaehlt, 'name' => $name];
-            }
-        }
-    }
-
     $publicId = trim((string) ($befund['public_id'] ?? ''));
     $name = trim((string) ($befund['name'] ?? ''));
 
     return ($publicId !== '' && $name !== '') ? ['public_id' => $publicId, 'name' => $name] : null;
+}
+
+/**
+ * IN WELCHE SIEDLUNG gehoert die Staette bzw. die Quelle? Die EINE Stelle, die das entscheidet.
+ *
+ * 🔴 EINE AUSDRUECKLICHE WAHL GILT (Entwurf 2026-09-14-garetien-import-vereint-design.md §5). Steht
+ * `innerorts_public_id` im Rumpf, wird GENAU diese Siedlung genommen -- auch wenn sie nicht in den
+ * `kandidaten` des Laufs steht. Das ist der Normalfall des Umkreis-Spinners: er findet Siedlungen,
+ * die der Planbau (5 Meilen) nie gesehen hat, und die frische Kandidatenliste
+ * (avesmapsGaretienInnerortsKandidatenFrisch) kennt Siedlungen, die es beim Planbau noch nicht gab.
+ * 💣 BIS ZUM 14.09.2026 FIEL EINE SOLCHE WAHL STILL AUF DIE VORAUSWAHL ZURUECK. Die Zielwahl haette
+ * „Staette in Rallerfurt" gezeigt, angelegt worden waere sie in Wandleth -- eine Handlung, die etwas
+ * anderes tut, als sie sagt.
+ * 💣 GEPRUEFT WIRD SIE TROTZDEM, NUR AN DER KARTE: der Ort muss existieren, AKTIV sein und eine
+ * SIEDLUNG (kein Bauwerk, avesmapsIstBauwerksklasse -- dieselbe Regel wie
+ * avesmapsGaretienSiedlungsFamilie). Sonst bricht das Item LAUT ab, mit einem Satz, der die Wahl
+ * beim Namen nennt -- und es wird NIE eine andere Siedlung genommen.
+ * ⚠️ OHNE WAHL (alter Client, Bestand, Sammellauf) gilt die Vorauswahl des Laufs wie bisher. Sie wird
+ * nur bei „Nur Quelle" an der Karte geprueft (`$mussAufDerKarteLiegen`): eine Staette legt
+ * avesmapsSettlementPlaceAdd seit jeher auch an einer Vorauswahl an, und das bleibt fuer den Bestand
+ * so.
+ *
+ * @return array{public_id:string, name:string}
+ * @throws RuntimeException wenn es keine gueltige Siedlung gibt
+ */
+function avesmapsGaretienInnerortsSiedlung(PDO $pdo, array $nach, ?array $einstellungen, string $label, bool $mussAufDerKarteLiegen = false): array
+{
+    $gewaehlt = trim((string) ($einstellungen['innerorts_public_id'] ?? ''));
+    if ($gewaehlt !== '') {
+        $siedlung = avesmapsGaretienSiedlungLesen($pdo, $gewaehlt);
+        $genannt = ($siedlung !== null && $siedlung['name'] !== '') ? $siedlung['name'] : $gewaehlt;
+        if ($siedlung === null || !$siedlung['aktiv']) {
+            throw new RuntimeException(
+                'Die gewaehlte Siedlung "' . $genannt . '" fuer "' . $label . '" liegt nicht (mehr) auf der Karte'
+                . ' -- es wird keine andere genommen. Die Zielwahl muss neu gesetzt werden.'
+            );
+        }
+        if (avesmapsIstBauwerksklasse($siedlung['klasse'])) {
+            throw new RuntimeException(
+                'Die gewaehlte Siedlung "' . $genannt . '" fuer "' . $label . '" ist ein Bauwerk, keine Siedlung'
+                . ' -- es wird keine andere genommen. Die Zielwahl muss neu gesetzt werden.'
+            );
+        }
+
+        return ['public_id' => $gewaehlt, 'name' => $siedlung['name']];
+    }
+
+    $vorauswahl = avesmapsGaretienInnerortsAusVorschlag($nach);
+    if ($vorauswahl === null) {
+        throw new RuntimeException(
+            'Fuer "' . $label . '" gibt es keinen Innerorts-Befund'
+            . ' -- der Vorschlag stammt aus einem Lauf vor dem 02.09.2026 oder es liegt'
+            . ' keine Ortschaft innerhalb von '
+            . rtrim(rtrim(number_format(AVESMAPS_GARETIEN_INNERORTS_MEILEN, 1, ',', ''), '0'), ',')
+            . ' Meilen. Ein "Holen & Rechnen" rechnet den Befund neu.'
+        );
+    }
+    if ($mussAufDerKarteLiegen) {
+        $siedlung = avesmapsGaretienSiedlungLesen($pdo, $vorauswahl['public_id']);
+        if ($siedlung === null || !$siedlung['aktiv']) {
+            throw new RuntimeException(
+                'Die Siedlung "' . $vorauswahl['name'] . '" liegt nicht mehr auf der Karte'
+                . ' -- die Quelle von "' . $label . '" haette kein Ziel.'
+            );
+        }
+    }
+
+    return $vorauswahl;
 }
 
 /**
@@ -2798,7 +3046,23 @@ function avesmapsGaretienRuecknahmeAusfuehren(PDO $pdo, int $runId, array $itemI
             // 'region'-Item den ganzen Vermerkstring als vermeintliche public_id -- er trifft nie
             // (kein Staetten-Datensatz traegt Pipe- und Doppelpunkt-Zeichen als id), aber die
             // Abfrage misst dann etwas, das nie eine public_id war.
-            if ($ziel !== 'region' && avesmapsSettlementPlaceExists($pdo, $publicId)) {
+            // 🔴 „NUR QUELLE + ARTIKEL AN X" ZUERST (Entwurf 14.09.2026, §5). Der Vermerk nennt die
+            // SIEDLUNG, an die nur eine Quelle gehaengt wurde -- sie darf von keinem Loeschweg
+            // darunter erreicht werden (`location` fuehrte sonst zu avesmapsDeleteMapFeature).
+            // 🔴 GELOEST WIRD NUR DER ARTIKEL DIESES OBJEKTS (avesmapsGaretienQuelleRuecknahmeLoesenFuerAdresse):
+            // an der Stadt haengen auch ihre eigene Quelle und die anderer Bauwerke.
+            // ⚠️ Ohne eigenen Artikel hing die Sammelquelle des Wirts -- dieselbe Adresse, die die Stadt
+            // selbst tragen kann. Sie bleibt stehen: lieber eine Quelle zu viel als die Lizenzangabe
+            // der Stadt genommen.
+            $nurQuelleSiedlung = avesmapsGaretienNurQuelleAusVermerk($publicId);
+            if ($nurQuelleSiedlung !== '') {
+                $artikel = avesmapsGaretienArtikelQuelleAusItem(is_array($nach) ? $nach : [], (string) $item['entity_key']);
+                if ($artikel !== null) {
+                    [$quellArt, $quellId] = avesmapsGaretienQuellenZiel('location', $nurQuelleSiedlung);
+                    avesmapsGaretienQuelleRuecknahmeLoesenFuerAdresse($pdo, $quellArt, $quellId, (string) $artikel['url'], (int) ($user['id'] ?? 0));
+                    $beruehrt[$quellArt . ':' . $quellId] = ['entity_type' => $quellArt, 'public_id' => $quellId];
+                }
+            } elseif ($ziel !== 'region' && avesmapsSettlementPlaceExists($pdo, $publicId)) {
                 avesmapsSettlementPlaceDeactivate($pdo, $publicId, (int) ($user['id'] ?? 0));
             } elseif ($ziel === 'path' || $ziel === 'location' || $ziel === 'label') {
                 // Strom/Fluss/Bach, Reichsstrasse/Strasse/Weg/Pfad, Ortschaften, Berggipfel: je
