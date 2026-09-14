@@ -1,7 +1,8 @@
 # Passpunkte für den Garetien-Import — trägt eine Korrektur aus Fixpunkten?
 
-> Stand: 13.09.2026. Entwurf **und** Messbericht. Der Bauteil-Teil ist gebaut und getestet;
-> der Mess-Teil ist **offen**, weil die Sitzung keinen Zugang zu avesmaps.de hatte (§7).
+> Stand: 14.09.2026. Entwurf **und** Messbericht. Der Bauteil-Teil ist gebaut und getestet;
+> der Mess-Teil ist **gelaufen** (Lauf 20 gegen die Live-Datenbank, §3.1): **keine**
+> Korrekturmatrix — die ausgelieferte hat den systematischen Fehler schon aufgenommen.
 
 ## 1. Der Auftrag
 
@@ -93,6 +94,139 @@ Drei Dinge stehen darin:
 
 ⚠️ **Fünf Punkte sind kein Beleg**, und das Werkzeug sagt das auch: unter 20 Passpunkten gibt
 `avesmapsGaretienPasspunktUrteil` grundsätzlich *kein* Urteil ab.
+
+### 3.1 🚩 Der Messlauf vom 14.09.2026 — 205 echte Paare, und die Antwort ist nein
+
+Gefahren in der Editor-Sitzung des Owners: EIN Aufruf `action=passpunkte` gegen **Lauf 20**
+(Handgriff §6), danach das **unveränderte** `tools/garetien/passpunkte-auswerten.php`. Die
+Rohpaare liegen bewusst **nicht** im Repo (`docs/repository-data-policy.md`) — hier stehen nur
+Kennzahlen.
+
+Bericht des Endpunkts: 1.990 ihrer und 3.011 unserer Ortspunkte, **204 Paare**, 36 Namen als
+mehrdeutig verworfen, 1.750 nur bei ihnen.
+
+🔴 **Vorzeichen in diesem Abschnitt: Änderung, + = steigt (schlechter).** Das Werkzeug druckt
+umgekehrt den *Gewinn* `(vorher − nachher) / vorher`, ebenso die Simulationstabelle der Übergabe
+(§4 dort) — dort heißt ein Minus „wird schlechter".
+
+#### Zuerst die Selbstprüfung — und sie hat NICHT gereicht
+
+| | Median | Mittel | p90 | Summe | größtes Residuum |
+|---|---|---|---|---|---|
+| alle 204 Paare | 1,99 mi | **77,2 mi** | **382,7 mi** | 15.753 mi | 1.468 mi |
+| nach dem Schnitt ≤ 25 mi (168 Paare) | **1,33 mi** | 2,97 mi | 8,03 mi | 498 mi | 21,6 mi |
+
+💣 **Die Selbstprüfung des Endpunkts meldete „ok"** — sie prüft nur den Median, und der lag mit
+1,99 Meilen unauffällig. Das Mittel lag **39-mal** darüber. Ursache waren nicht die Achsen (die
+echten Paare liegen im Meilenbereich, Greifenfurt trifft die Tabelle oben auf die Hundertstel),
+sondern **37 Paare über 25 Meilen**, 31 davon über 200: gleichnamige, aber verschiedene Orte, die
+auf jeder Karte nur EINMAL vorkommen und darum am Mehrdeutigkeitsfilter vorbeikommen. Beispiele:
+„Dreiwegen" liegt bei uns im hohen Norden, „Weidensee" und „Waldheim" Hunderte Meilen im Osten,
+und „Weißenstein" wie „Burg Weißenstein" hängen bei Garetien an derselben Koordinate, bei uns an
+zwei verschiedenen Stellen. ⚠️ Die sechs zwischen 34 und 153 Meilen sind nicht einzeln geprüft.
+⭐ **Die Verteilung trennt sie sauber:** das größte Residuum darunter liegt bei **21,6 Meilen**,
+das nächste bei **33,9**. Geschnitten wird deshalb bei 25 Meilen gegen die eingefrorene Matrix.
+Das kann keinen systematischen Fehler wegschneiden — jeder in der Übergabe simulierte macht über
+Garetien höchstens ein paar Meilen aus —, und die Schlussfolgerung hängt nicht am Schnitt
+(Tabelle unten, 10 und 50 Meilen). Der Median danach, 1,33, passt zu den 1,24 aus §2.1.
+🚩 **Ohne den Schnitt wäre das Ergebnis Unsinn gewesen, und zwar überzeugender Unsinn.** Der
+Endpunkt meldete einen West-Süd-Trend von **−40,9 Meilen je 100 Meilen bei p = 0,0005** und einen
+globalen Versatz von dx −11,7 / dy −22,8 Meilen — beides allein aus den Falschpaaren. Die
+Kalibrierprobe über alle 204 Paare lag bei ±0,5 %, weil 15.000 Meilen Falschpaar-Summe jede
+Korrektur verschlucken. Der Median zeigt von alldem nichts.
+
+#### Die Kalibrierorte
+
+**8 der 11** genannten sind dabei. **Eslamsroden** fiel beim Endpunkt als mehrdeutig heraus:
+Garetien führt es als Burg UND als Reichsstadt, 0,85 Meilen auseinander, also derselbe Ort. Die
+Reichsstadt wurde von Hand gepaart (Lage aus `action=liste`, über die exakte Inverse der
+ausgelieferten Matrix auf Wagenhalt zurückgerechnet, Rundlauf 0). **Fürstenhort** hat bei
+Garetien keinen platzierten Ortspunkt (nur Grenzen und einen Tempel ohne Koordinate).
+**Rockenwald** und **Rhondur** gibt es auf unserer Karte unter diesem Namen nicht.
+
+| Ort | gemeldet | dx | dy | Betrag (mi) | gemessen |
+|---|---|---|---|---|---|
+| Waldrast | Nord | +3,53 | +3,89 | 5,25 | Nordost |
+| Hesindelburg | Süd | +0,04 | −3,78 | 3,78 | Süd |
+| Perricum | Nordost | +2,75 | +2,08 | 3,45 | Nordost |
+| Greifenfurt | Südost | +1,32 | −1,06 | 1,69 | Südost |
+| Eslamsroden | kein | +0,73 | −1,41 | 1,59 | Südost |
+| Koschtal | kein | −0,56 | −1,25 | 1,38 | Südwest |
+| Gareth | — | −1,04 | −0,76 | 1,29 | Südwest |
+| Drift | kein | −0,07 | +0,92 | 0,92 | Nord |
+
+✅ **Die Editoren sehen richtig** — alle vier genannten Richtungen stimmen, und die drei „kein"
+liegen unter 1,6 Meilen. 🚩 **Aber die vier Richtungen zeigen in vier verschiedene
+Himmelsrichtungen.** Das ist die Signatur einzelner Versätze, nicht einer gemeinsamen Abbildung.
+⚠️ Und die Auswahl ist nicht neutral: genannt wurde, was auffiel. Median der acht **1,64 Meilen**
+gegen **1,25** bei den übrigen — wer an ihnen kalibriert, holt sich genau ihr Einzelrauschen.
+
+#### Das Experiment: kalibrieren an den genannten, messen an allen anderen
+
+168 Paare ≤ 25 Meilen (einschließlich Eslamsroden). Die Prüfmenge enthält keinen Kalibrierort.
+
+| Lauf | kalibriert → Korrektur | gemessen | Summe | Varianz | Median | besser |
+|---|---|---|---|---|---|---|
+| **1 Feld** | 8 → affin | 160 | 478,8 → 571,9 mi, **+19,5 %** | 19,01 → 19,66, **+3,4 %** | 1,25 → 2,01 | 31 % |
+| **4 Felder** | 8 → Verschiebung 4 / – / 2 / 2 | 160 | 478,8 → 543,9 mi, **+13,6 %** | 19,01 → 19,77, **+4,0 %** | 1,25 → 1,69 | 23 % |
+| 1 Feld, `--ohne=metropole,stadt` | 5 → Verschiebung | 144 | 459,1 → 562,8 mi, **+22,6 %** | 20,38 → 19,41, −4,8 % | 1,35 → 2,17 | 22 % |
+| 4 Felder, `--ohne=metropole,stadt` | 5 → Verschiebung 2 / 1 / 1 / 1 | 144 | 459,1 → 684,3 mi, **+49,1 %** | 20,38 → 21,99, **+7,9 %** | 1,35 → 3,36 | 22 % |
+
+🔴 **Summe und Varianz sinken in KEINEM Lauf gemeinsam.** Die Summe steigt immer, zwischen
+13,6 und 49,1 %; die Varianz bewegt sich um ±8 %. Nach der Regel der Übergabe (§4 dort) ist damit
+kein systematischer Fehler getroffen.
+❌ **`--ohne=metropole,stadt` ist nicht der größte Hebel, sondern der größte Schaden** — simuliert
+war „aus +31 % werden +60 %". Der Grund ist banal: der Schalter nimmt Gareth, Koschtal und
+Eslamsroden aus der Kalibrierung, fünf Orte bleiben, und unter acht fällt jede Abbildung auf eine
+Verschiebung zurück. Streng „nur Dörfer und Bauwerke" (alle vier Stadtklassen raus) bleiben zwei
+Kalibrierorte: Summe +26,2 % (1 Feld) bzw. +32,3 % (4 Felder).
+⚠️ `--ohne=metropole,stadt` lässt die `grossstadt` drin — Greifenfurt und Perricum kalibrieren
+weiter mit. „Städte raus" meint mehr, als dieser Schalter tut.
+
+**Der Schnitt ändert das Bild nicht** (Änderung Summe / Varianz):
+
+| Schnitt | Paare | 1 Feld | 4 Felder |
+|---|---|---|---|
+| ≤ 10 mi | 154 | +32,0 % / +3,3 % | +21,8 % / +3,6 % |
+| ≤ 25 mi | 168 | +19,5 % / +3,4 % | +13,6 % / +4,0 % |
+| ≤ 50 mi | 169 | +17,9 % / −0,4 % | +12,4 % / +0,3 % |
+
+#### Warum: die ausgelieferte Matrix HAT den systematischen Fehler schon
+
+Ob es an den acht Orten liegt oder ob gar nichts mehr zu holen ist, beantwortet eine
+**Obergrenze**: an einer zufälligen HÄLFTE aller Paare kalibrieren (~84 Orte, genug für vier
+echte Quadranten-Matrizen), an der anderen Hälfte messen, 200 Läufe. Median über die Läufe, in
+Klammern das 10.–90. Perzentil:
+
+| Obergrenze (≤ 25 mi) | Summe | Varianz |
+|---|---|---|
+| 1 Feld, kleinste Quadrate | +10,4 % [+3,4 … +26,4] | −10,7 % [−16,4 … −2,7] |
+| 4 Felder, kleinste Quadrate | +18,2 % [+7,1 … +39,2] | −16,0 % [−25,8 … +14,2] |
+| 1 Feld, **robust** (wie der Fit vom 26.08.) | +1,8 % [−0,4 … +5,2] | +1,1 % [−1,3 … +4,8] |
+| 4 Felder, **robust** | +4,6 % [+0,1 … +21,7] | −5,2 % [−8,9 … +2,9] |
+
+*(Die robusten Zeilen auf 167 Paaren ohne Eslamsroden, `avesmapsGaretienPasspunktRobustFit`.)*
+
+Selbst mit 84 Kalibrierorten sinkt die Summe nicht nennenswert — im besten Zehntel der Läufe um
+höchstens 0,4 %. Ein robuster Fit über **alle** 167 Paare, also in-sample und damit geschönt,
+bewegt den Median nur von 1,320 auf 1,297 Meilen und die Summe von 496,5 auf 500,0. **Die
+ausgelieferte Matrix ist bereits das affine Optimum dieser Daten**; der Fit vom 26.08.2026 über
+148 Paare hat den systematischen Anteil aufgenommen. Übrig ist Rauschen.
+⚠️ Kleinste Quadrate zeigen das Spiegelbild des Rauschmusters — Summe steigt, Varianz sinkt: sie
+ziehen die großen Einzelversätze heran und bezahlen es an den vielen kleinen.
+
+**Die übrigen Behauptungen, nach dem Schnitt (168 Paare):**
+
+- ❌ **„Alle liegen südlich" (§3, Punkt 2) verallgemeinert nicht:** mittlerer Versatz dx −0,38 /
+  dy **−0,27 Meilen**, ein Fünftel des Medians. Kreuzvalidiert abgezogen wird der Median
+  schlechter (1,33 → 1,51).
+- ❌ **„Je weiter Westen, desto weiter Süden":** +0,05 Meilen je 100 Meilen, **p = 0,78**.
+- ❌ **Örtliche Struktur** (Nachbarprobe k = 5 — eine andere Frage, §4): 1,33 → 2,16 Meilen,
+  Einigkeit 0,14.
+
+🔴 **Ergebnis:** eine oder vier affine Abbildungen aus den genannten Orten **verschlechtern** den
+Import an allen anderen Orten. Die Versätze, die die Editoren sehen, sind echt und richtig
+beobachtet, aber einzeln — sie werden **von Hand an der Karte** korrigiert (§6, „trägt nicht").
 
 ---
 
@@ -219,23 +353,30 @@ nie einen schweren Endpunkt in der Schleife fahren — eine Anfrage, dann lesen.
 
 ## 7. 🔧 Offen — was diese Sitzung NICHT konnte
 
-- **Die Messung selbst ist nicht gelaufen.** Diese Sitzung hatte keinen Zugang zu avesmaps.de
-  (Netzregel der Umgebung: `CONNECT` auf `avesmaps.de:443` wird mit 403 abgewiesen) und auch
-  nicht zu garetien.de/koschwiki.de — am 13.09.2026 zweimal nachgemessen, über HTTP wie über
-  HTTPS; selbst `www.google.com` wird abgewiesen, es ist also die Umgebung und nicht die Seite.
-  ⚠️ Und selbst mit Netz fehlte die **Sitzung**: der Endpunkt verlangt `edit`, und
-  `api/config.local.php` ist gitignored. Ein GitHub-Actions-Lauf käme zwar ans Netz, hätte aber
-  dasselbe Problem — für ihn bräuchte es erst einen eigenen Token wie bei `svg_export.token`.
-  Deshalb der Handgriff in §6: der Browser des Owners **hat** die Sitzung bereits. Alles in §5 ist gegen SQLite-Attrappen und im Browser
-  gefahren, nichts gegen die echte Datenbank. **Die Zahlen in §3 stammen aus fünf Fixtures im
-  Repo, sonst nichts.**
-- **Neun der elf gemeldeten Orte lassen sich hier gar nicht nachrechnen** — Hesindelburg,
-  Waldrast, Koschtal, Rockenwald, Perricum, Eslamsroden, Drift, Fürstenhort, Rhondur stehen mit
-  Koordinaten nirgends im Repo. Genau dafür ist der Handgriff in §6 da.
-- **Eine kuratierte Passpunktliste gibt es nicht.** Die von den Editoren bestätigten Paare sind
-  die einzigen, bei denen ein Mensch „das ist derselbe Ort" gesagt hat — sie wären der
-  belastbarste Datensatz überhaupt und haben heute keine Ablage. Wenn die automatische Paarung
-  in §6 zu dünn ausfällt, ist das der nächste Schritt.
+- ✅ **Die Messung ist gelaufen** — am 14.09.2026, Lauf 20, in der Editor-Sitzung des Owners
+  über den Browser (§6). Ergebnis in §3.1. Die Rohpaare liegen nur im Scratchpad der messenden
+  Sitzung, nicht im Repo.
+  *(Bis dahin stand hier, warum die Cloud-Sitzung vom 13.09.2026 sie nicht fahren konnte: kein
+  Netz — `CONNECT` auf `avesmaps.de:443` mit 403 abgewiesen — und keine Editor-Sitzung.)*
+- 🔧 **Der Messlauf hat keinen Riegel gegen Falschpaare** (§3.1). `action=passpunkte`, seine
+  Selbstprüfung und `tools/garetien/passpunkte-auswerten.php` rechnen alle Paare mit; die
+  Selbstprüfung sieht nur den Median und meldete „ok" bei p90 = 382 Meilen. Für §3.1 wurde der
+  Schnitt ≤ 25 Meilen von Hand vorgeschaltet. Solange der Riegel fehlt, sind `west_sued_trend`,
+  `globaler_versatz`, die Nachbarprobe und jede Kalibrierprobe aus der rohen Antwort **wertlos** —
+  und zwar überzeugend wertlos (p = 0,0005 für einen Trend, den es nicht gibt).
+- 🔧 **Drei der elf gemeldeten Orte ließen sich nicht paaren**: Rockenwald und Rhondur gibt es auf
+  unserer Karte unter diesem Namen nicht, Fürstenhort hat bei Garetien keinen platzierten
+  Ortspunkt. Und der Mehrdeutigkeitsfilter verwirft gutartige Doppelungen — Eslamsroden steht
+  dort als Burg und als Reichsstadt 0,85 Meilen auseinander und musste von Hand gepaart werden.
+  🚩 **Eine kuratierte Passpunktliste änderte am Ergebnis nichts**: selbst ~84 Kalibrierorte
+  schlagen die ausgelieferte Matrix nicht (§3.1, Obergrenze).
+- 🔧 **Der Befund gehört noch in §2.2 des Kartenimport-Entwurfs** (§6, „trägt nicht") — mit der
+  Zahl, dass die ausgelieferte Matrix das affine Optimum dieser Daten ist.
+- 🔎 **Fünf Orte südlich von Greifenfurt** (Gramstein, Dohlentrutz, Nimmerwacht, Orkentrutz,
+  Herdalsruh) liegen gemeinsam 15–20 Meilen nordwestlich — die einzige gleichgerichtete Gruppe
+  über dem Rauschen. Radulfshausen mitten dazwischen liegt aber unter 4 Meilen; das sieht eher
+  nach einzeln verschobenen Orten aus als nach einer verschobenen Fläche. Kandidat für die
+  Handkorrektur, nicht für eine Matrix.
 - **Nur Ortspunkte.** Wege, Flüsse und Flächen tragen ihre eigenen Versätze; die Nachbarprobe
   könnte sie mitnehmen, tut es aber nicht.
 - **Der Vorschlag „Kanonorte nehmen" ist ungeprüft.** Ob kanonische Orte systematisch genauer

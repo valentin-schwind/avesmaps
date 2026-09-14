@@ -1,7 +1,8 @@
 # Übergabe — Garetien-Passpunkte: der systematische Fehler
 
-> Stand 14.09.2026, `master`. Gebaut, getestet, ausgeliefert. **Offen ist nur der Messlauf
-> gegen die echte Datenbank** — die bauende Sitzung lief in der Cloud ohne Netzzugang.
+> Stand 14.09.2026, `master`. Gebaut, getestet, ausgeliefert — **und am selben Tag gegen die
+> echte Datenbank gemessen (§8). Die Antwort ist nein:** eine oder vier affine Abbildungen aus
+> den genannten Orten machen den Import an allen anderen Orten schlechter.
 
 ---
 
@@ -38,7 +39,7 @@ vier Nullen auf fünf Stellen (`garetien-passpunkte-test.php` §D).
 gegen 1,24 Meilen, out-of-sample). §2.2 ist entsprechend korrigiert, der alte Wortlaut steht
 zitiert daneben.
 
-**Folge:** die Frage der Editoren ist offen, nicht beantwortet.
+**Folge:** die Frage der Editoren war offen, nicht beantwortet. ➡️ Beantwortet in §8.
 
 ---
 
@@ -67,6 +68,9 @@ Matrixzahlen haben überlebt. Residuen gegen die **ausgelieferte** Matrix:
 5. ❌ **Keine saubere Drehung**: der tangentiale Anteil wechselt zwischen West und Ost das
    Vorzeichen. Das ist die Signatur einer gleichmäßigen **Süd-Verschiebung**, nicht einer Drehung.
 
+➡️ **An 168 echten Paaren gemessen (§8): Punkt 2 und 3 verallgemeinern nicht.** Der mittlere
+Süd-Versatz ist −0,27 Meilen, ein Fünftel des Medians.
+
 ---
 
 ## 4. Die Antwort auf „wieviel %" — simuliert
@@ -81,6 +85,8 @@ Kompass, **gemessen an den 137 anderen**:
 | Skalenfehler 0,5 % | **+8,6 % / +14,2 %** | −29,7 % / −58,5 % |
 | *keiner* | −8,4 % / −52,3 % | −49,0 % / −174 % |
 
+⚠️ **Vorzeichen dieser Tabelle: Gewinn, + = sinkt.** §8 schreibt die Änderung (+ = steigt).
+
 🔴 **Vier Quadranten fallen mit 11 Punkten immer aus.** Eine affine Abbildung hat sechs
 Parameter; drei Punkte legen sie exakt fest und lassen keinen Freiheitsgrad. Auf vier Felder
 verteilt erreicht keines acht Punkte, jedes fällt auf eine Verschiebung zurück, eines wird aus
@@ -94,6 +100,8 @@ Rauschfall: Summe −8 %, Varianz −52 %.
 ⭐ **Alriks Punkt (Städte raus, nur Dörfer) ist der größte Hebel**: aus +31 % werden +60 %. Grund:
 Gareth und Perricum sind so groß, dass ihre Mitte 2–3 Meilen Spielraum hat, und dieses Rauschen
 geht ungewichtet in die Anpassung ein.
+❌ **Gemessen das Gegenteil (§8):** mit `--ohne=metropole,stadt` bleiben fünf Kalibrierorte, und
+die Summe steigt um 22,6 bzw. 49,1 %.
 
 ---
 
@@ -109,7 +117,7 @@ geht ungewichtet in die Anpassung ein.
 | `tools/garetien/passpunkte-messen.js` | Messlauf zum Einfügen in die Browserkonsole. |
 | `docs/garetien-passpunkte-mockup.html` | Ist der Versatz überhaupt korrigierbar? Zwei Vergleichsbilder. |
 | `docs/garetien-kalibrierung-mockup.html` | Kalibrieren an wenigen, messen an allen anderen. Quadrantenkarte. |
-| `docs/superpowers/specs/2026-09-13-garetien-passpunkte-design.md` | Der Entwurf. |
+| `docs/superpowers/specs/2026-09-13-garetien-passpunkte-design.md` | Der Entwurf. §3.1 ist der Messbericht. |
 
 Tests: 90 + 29 + 28 + 178 Zusicherungen, gegen 28 Mutationen gefahren, alle gefangen.
 
@@ -123,6 +131,17 @@ Tests: 90 + 29 + 28 + 178 Zusicherungen, gegen 28 Mutationen gefahren, alle gefa
   `avesmapsGaretienPasspunktIstPlatziert`, geteilt von beiden Lesern.
 - **Mehrdeutige Namen**: 70 von 219 namensgleichen Orten waren verschiedene Orte. Ein Name, der
   auf **einer** Karte doppelt vorkommt, ist als Passpunkt unbrauchbar.
+- 💣 **Und ein Name, der auf JEDER Karte nur einmal vorkommt, ist trotzdem kein Beleg** (14.09.2026):
+  37 von 204 Paaren des echten Laufs waren gleichnamige, aber verschiedene Orte, 31 davon über
+  200 Meilen daneben. Der Mehrdeutigkeitsfilter sieht sie nicht, und **es gibt dafür heute keinen
+  Riegel** — weder im Endpunkt noch im Auswertungswerkzeug. Ungefiltert meldete der Endpunkt einen
+  West-Süd-Trend von −40,9 Meilen/100 bei **p = 0,0005**, der nach dem Schnitt verschwindet.
+- 💣 **Die Selbstprüfung sieht nur den Median** und meldete bei genau diesem Lauf „ok" (Median
+  1,99) — bei p90 = 382 Meilen. Zuerst Mittel und p90 lesen, nicht nur `selbstpruefung.ok`.
+- ⚠️ **Der Mehrdeutigkeitsfilter verwirft auch Gutartiges**: Eslamsroden steht bei Garetien als
+  Burg UND als Reichsstadt, 0,85 Meilen auseinander — ein genannter Kalibrierort weniger.
+- ⚠️ **`action=liste` liefert die Geometrie schon umgerechnet** (Karteneinheiten, `[x, y]`), nicht
+  roh in Wagenhalt. Für einen Passpunkt zurück über die Inverse der ausgelieferten Matrix.
 - **Kalibrierpunkte müssen aus der Prüfmenge raus.** Eine Anpassung trifft ihre eigenen
   Stützpunkte immer.
 - **Achsen**: GeoJSON `coordinates` ist `[x, y]`. Vertauscht liefert das lauter große,
@@ -134,19 +153,76 @@ Tests: 90 + 29 + 28 + 178 Zusicherungen, gegen 28 Mutationen gefahren, alle gefa
 - 🔴 **Nachbarprobe ≠ Kalibrierprobe.** Jene misst **örtliche** Verzerrung, diese eine **globale**
   Matrix. Ein globaler Fehler ist für die Nachbarprobe fast unsichtbar. Für „eine oder vier
   affine Abbildungen" gilt **nur** die Kalibrierprobe.
+- ⚠️ **Vorzeichen**: das Werkzeug druckt den *Gewinn* (+ = sinkt). „Summe −19,5 %" in seiner
+  Ausgabe heißt: die Summe **steigt** um 19,5 %.
 
 ---
 
 ## 7. 🔧 Was offen ist
 
-- **Der Messlauf gegen die echte Datenbank.** Alles in §4 ist **simuliert**; die echten Prozente
-  stehen aus.
+- ✅ ~~Der Messlauf gegen die echte Datenbank.~~ **Gelaufen am 14.09.2026 (§8).**
+- 🔧 **Ein Riegel gegen Falschpaare** im Endpunkt und im Auswertungswerkzeug, samt einer
+  Selbstprüfung, die auch Mittel/p90 ansieht. Für §8 wurde der Schnitt ≤ 25 Meilen von Hand
+  vorgeschaltet. Solange er fehlt, sind `west_sued_trend`, `globaler_versatz` und jede
+  Kalibrierprobe aus der rohen Antwort wertlos.
+- 🔧 **Der Befund gehört noch in §2.2 des Kartenimport-Entwurfs** — mit der Zahl, dass die
+  ausgelieferte Matrix das affine Optimum ist (Entwurf §6, „trägt nicht").
 - **Die Datenbank steht auf `127.0.0.1`** (STRATO-Shared-Hosting) — von außen für niemanden
   erreichbar. Nur zwei Türen: der PHP-Endpunkt (braucht Editor-Sitzung) oder phpMyAdmin.
-- **Neun der elf genannten Orte** stehen mit Koordinaten nirgends im Repo.
-- **Eine kuratierte Passpunktliste** gibt es nicht. Die von Editoren bestätigten Paare wären der
-  belastbarste Datensatz und haben heute keine Ablage.
+- **Drei der elf genannten Orte ließen sich nicht paaren**: Rockenwald und Rhondur gibt es auf
+  unserer Karte unter diesem Namen nicht, Fürstenhort hat bei Garetien keinen platzierten Punkt.
+  🚩 Eine kuratierte Passpunktliste änderte am Ergebnis nichts — selbst ~84 Kalibrierorte schlagen
+  die ausgelieferte Matrix nicht.
 - **Nur Ortspunkte.** Wege, Flüsse und Flächen tragen eigene Versätze.
 - **Der Osten**: *„bei den Inseln im Osten war die Abweichung ziemlich stark"* — Beilunk zeigt
-  3,17 Meilen, der größte der fünf. Küstenlinien, nicht Ortspunkte. Die einzige Beobachtung über
-  dem Rauschen.
+  3,17 Meilen, der größte der fünf Repo-Punkte. Küstenlinien, nicht Ortspunkte — mit diesem
+  Messlauf nicht geprüft.
+- 🔎 **Fünf Orte südlich von Greifenfurt** (Gramstein, Dohlentrutz, Nimmerwacht, Orkentrutz,
+  Herdalsruh) liegen gemeinsam 15–20 Meilen nordwestlich — die einzige gleichgerichtete Gruppe
+  über dem Rauschen. Radulfshausen mitten dazwischen liegt aber unter 4 Meilen; das sieht eher
+  nach einzeln verschobenen Orten aus als nach einer verschobenen Fläche. Kandidat für die
+  Handkorrektur, nicht für eine Matrix.
+
+---
+
+## 8. ✅ Der Messlauf vom 14.09.2026 — die Antwort ist nein
+
+Gefahren in der Editor-Sitzung des Owners: EIN Aufruf `action=passpunkte` gegen Lauf 20, danach
+das **unveränderte** `passpunkte-auswerten.php`. Alle Tabellen und Gegenproben: **Entwurf §3.1**.
+Die Rohpaare liegen **nicht** im Repo.
+
+**Selbstprüfung zuerst — und sie war verdächtig.** 204 Paare, Median 1,99 Meilen, aber **Mittel
+77,2 und p90 382,7**. Ursache: 37 Paare über 25 Meilen, gleichnamige, aber verschiedene Orte
+(§6). Die Verteilung hat eine Lücke zwischen 21,6 und 33,9 Meilen → Schnitt bei 25. Danach
+**168 Paare, Median 1,33, Mittel 2,97** — plausibel gegen 1,24.
+
+**Kalibrierorte: 8 von 11** (Eslamsroden von Hand gepaart; Fürstenhort, Rockenwald, Rhondur
+fehlen, §7).
+
+⚠️ **Vorzeichen hier: Änderung, + = steigt (schlechter).**
+
+| an den genannten kalibriert, an den übrigen gemessen | Summe | Varianz |
+|---|---|---|
+| **1 Feld** (8 Orte → affin) | 478,8 → 571,9 mi, **+19,5 %** | **+3,4 %** |
+| **4 Felder** (8 Orte → Verschiebungen 4 / – / 2 / 2) | 478,8 → 543,9 mi, **+13,6 %** | **+4,0 %** |
+| 1 Feld, `--ohne=metropole,stadt` (5 Orte → Verschiebung) | 459,1 → 562,8 mi, **+22,6 %** | −4,8 % |
+| 4 Felder, `--ohne=metropole,stadt` (5 Orte → Verschiebungen) | 459,1 → 684,3 mi, **+49,1 %** | **+7,9 %** |
+
+🔴 **Summe und Varianz sinken in keinem Lauf gemeinsam — die Summe steigt immer.** Das hängt nicht
+am Schnitt: bei 10 / 25 / 50 Meilen steigt sie für 1 Feld um 32,0 / 19,5 / 17,9 %.
+❌ **`--ohne=metropole,stadt` ist der größte Schaden, nicht der größte Hebel**: es nimmt drei der
+acht Kalibrierorte weg, und unter acht fällt jede Abbildung auf eine Verschiebung zurück.
+
+**Warum — die ausgelieferte Matrix hat den systematischen Fehler schon.** Kalibriert an einer
+zufälligen Hälfte aller Paare (~84 Orte), gemessen an der anderen, 200 Läufe: die Summe steigt
+auch dann (kleinste Quadrate +10,4 %, robust +1,8 %). Ein robuster Fit über alle 167, in-sample
+und damit geschönt, bewegt den Median nur von 1,320 auf 1,297 Meilen. Der Süd-Versatz verallgemeinert
+nicht (dy −0,27 Meilen), der West-Süd-Trend ist +0,05 Meilen/100 bei p = 0,78.
+
+✅ **Die Editoren sehen richtig** — Waldrast, Hesindelburg, Perricum und Greifenfurt weisen genau
+wie gemeldet. Aber in **vier verschiedene** Richtungen: einzelne Versätze, keine gemeinsame
+Abbildung. Und genannt wurde, was auffiel (Median der acht 1,64 gegen 1,25 Meilen) — wer daran
+kalibriert, holt sich ihr Einzelrauschen.
+
+**Folge:** keine Korrekturmatrix, weder eine noch vier. Einzelne Versätze werden von Hand an der
+Karte korrigiert (Entwurf §6, „trägt nicht").
