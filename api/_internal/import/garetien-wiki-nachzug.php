@@ -30,10 +30,13 @@ declare(strict_types=1);
 // ⚠️ KEIN EIGENER STEMPEL, AUCH NICHT AM ENDE. Der Hausschreiber hebt je Region `ecosystem_revision`
 // Zeile 1 UND 2 (avesmapsNextEcosystemRevision, `$mapPayloadChanged = true`); Zeile 2 steckt ueber
 // avesmapsClimateReadStamp im ETag der Kartennutzlast (api/app/map-features.php), Zeile 1 im ETag der
-// Flaechen (api/app/ecosystem-areas.php). `map_revision` hebt er NICHT, und das mit Absicht (Kopf von
-// avesmapsAssignEcosystemWikiRegion: „must never reach avesmapsNextMapRevision()") -- nur der Durchtrag
-// tut es, und nur, wenn er wirklich eine Beschriftung schreibt. Ein zusaetzlicher map_revision-Stempel
-// hier waere ein Stempel ohne Schreibvorgang auf map_features und entwertete die ~21 MB fuer nichts.
+// Flaechen (api/app/ecosystem-areas.php). `map_revision` hebt er EINMAL je Region, deren
+// `wiki_region_key` wirklich wechselt (avesmapsEcosystemBumpMapRevisionBeiWikiWechsel, master 10.09.2026,
+// Owner: „aktualisierungen sollen gleich sichtbar sein") -- das Kanon-Etikett haengt an
+// `ecosystem_region.wiki_url`, eine Zuweisung aendert also die Kartennutzlast. 🔴 Hier stand bis zum
+// 15.09.2026 „`map_revision` hebt er NICHT"; der Zweig war vor dieser Regel gebaut. Ein ZUSAETZLICHER
+// Stempel in dieser Datei bleibt trotzdem falsch: er kaeme zu dem des Hausschreibers dazu, ohne dass
+// etwas zusaetzlich geschrieben wurde.
 //
 // 🔴 DER IMPORTER IST EIN GERUEST (Abbau-Vertrag, garetien-abbau-waechter-test.php). Diese Datei liegt
 // deshalb unter api/_internal/import/ und verschwindet mit ihm. Sie liest sync_plan_*, ecosystem_region

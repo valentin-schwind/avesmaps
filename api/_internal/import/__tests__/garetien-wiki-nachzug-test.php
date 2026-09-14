@@ -464,9 +464,20 @@ $s4 = avesmapsGaretienWikiNachzug($pdo, $admin, false);
 assert($s4['gesetzt'] === 0 && $s4['cursor'] === null && $s4['remaining'] === 0, 'E: ein scharfer Lauf ohne Kandidaten tut nichts');
 assert(avesmapsGaretienWikiNachzugTestStand($pdo) === $standLeer, 'E: ... und schreibt nichts, auch keinen Stempel');
 
+// 🔴 GENAU EIN Kartenstempel je Region, deren Schluessel WIRKLICH gewechselt hat -- nicht keiner.
+// Hier stand bis zum 15.09.2026 „KEIN Stempel auf die Kartenrevision". Das galt, bis master am
+// 10.09.2026 (c43492837, Owner: „aktualisierungen sollen gleich sichtbar sein") dem Hausschreiber
+// avesmapsEcosystemBumpMapRevisionBeiWikiWechsel gab: seit das Kanon-Etikett an
+// `ecosystem_region.wiki_url` haengt, aendert eine Wiki-Zuweisung die Kartennutzlast, auch wenn die
+// Beschriftung den Schluessel schon traegt -- und genau das ist der Fall dieses Laufs. Ohne den Stempel
+// erfuehre ein warmer Browser nie davon. Die Bibliothek setzt weiterhin KEINEN eigenen (Abschnitt G);
+// die gescheiterte Region zaehlt nicht, ihre Transaktion samt Stempel ist zurueckgerollt.
+$gesetztGesamt = $s1['gesetzt'] + $s2['gesetzt'] + $s3['gesetzt'];
+assert($gesetztGesamt === 4, 'E: vier Regionen haben ihren Schluessel bekommen: ' . $gesetztGesamt);
+assert(avesmapsGaretienWikiNachzugTestZahl($pdo, 'SELECT revision FROM map_revision WHERE id = 1') === $mapRevisionVorher + $gesetztGesamt,
+    'E: 🔴 ein Kartenstempel je gesetzter Region, keiner mehr -- der Hausschreiber stempelt, die Beschriftungen bleiben unberuehrt');
+
 // Was der ganze Lauf NICHT angefasst hat.
-assert(avesmapsGaretienWikiNachzugTestZahl($pdo, 'SELECT revision FROM map_revision WHERE id = 1') === $mapRevisionVorher,
-    'E: 🔴 KEIN Stempel auf die Kartenrevision -- die Beschriftungen trugen ihren Schluessel schon, der Durchtrag schrieb nichts');
 foreach (['a' => $a, 'b' => $b, 'c' => $c, 'v' => $v1, 'f' => $f] as $k => $objekt) {
     assert(avesmapsGaretienWikiNachzugTestLabelJson($pdo, $objekt['label']) === $labelsVorher[$k],
         "E: die Beschriftung ({$k}) bleibt Byte fuer Byte, wie sie war");
