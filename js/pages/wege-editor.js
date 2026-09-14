@@ -286,7 +286,9 @@
 				return segmentRow(group.segments[0], null, group);
 			}
 
+			var strecke = wpGanzeStrecke(group.segments);
 			var second = '<div class="avm-row__l2">' + group.segments.length + " Abschnitte · "
+				+ (strecke ? escapeHtml(strecke) + " · " : "")
 				+ (withProfile === group.segments.length
 					? "alle mit Profil"
 					: withProfile + " mit Profil")
@@ -352,7 +354,7 @@
 				+ avesmapsStatuskreisWeg(group.segments)
 				+ '<span class="avm-row__kind' + subtypeClass(way.feature_subtype) + '">'
 				+ escapeHtml(subtypeLabel(way.feature_subtype)) + "</span>"
-			: '<span class="avm-row__name">Abschnitt ' + index + "</span>";
+			: '<span class="avm-row__name">' + escapeHtml(wpAbschnittLabel(way, index)) + "</span>";
 
 		// 🔴 Die Aufklapp-Spalte gehoert der LISTE, nicht der Zeile -- JEDE Zeile reserviert sie,
 		// auch die ohne Aufklapp-Geste. Ohne Platzhalter beginnt der Name eines einteiligen Weges
@@ -663,7 +665,8 @@
 		var eigenerWeg = null;
 		state.ways.forEach(function (w) { if (w.public_id === state.selected) { eigenerWeg = w; } });
 		if (eigenerWeg) {
-			mountWikiWeitere("wpWikiWeitere", [eigenerWeg], "diesen Abschnitt", function () { return selectWay(state.selected, true); });
+			var umfangAbschnitt = weitereAbschnitte([eigenerWeg])[0].label;
+			mountWikiWeitere("wpWikiWeitere", [eigenerWeg], umfangAbschnitt, function () { return selectWay(state.selected, true); });
 		}
 		// ⚠️ NACH dem Mounten: der Kasten und die Wegtyp-Zeile darueber sollen denselben Stand
 		// zeigen. Das Bauteil ruft `laden` selbst, aber sein Ergebnis erreicht diesen Zeichner nicht
@@ -914,7 +917,7 @@
 			var nummer = gruppe && gruppe.segments.length > 1 ? gruppe.segments.indexOf(way) + 1 : null;
 			return {
 				public_id: way.public_id,
-				label: nummer ? "Abschnitt " + nummer : "dieser Abschnitt",
+				label: wpAbschnittLabel(way, nummer) || "dieser Abschnitt",
 				wiki_path_weitere: way.wiki_path_weitere || []
 			};
 		});
@@ -1353,7 +1356,7 @@
 		html += '<div class="dt-grp">Die Abschnitte</div>';
 		gruppe.segments.forEach(function (segment, index) {
 			html += '<div class="wp-share" data-jump="' + escapeHtml(segment.public_id) + '" role="button" tabindex="0">'
-				+ '<span class="wp-share__name">Abschnitt ' + (index + 1) + "</span>"
+				+ '<span class="wp-share__name">' + escapeHtml(wpAbschnittLabel(segment, index + 1)) + "</span>"
 				+ '<span class="wp-share__kind">' + escapeHtml(subtypeLabel(segment.feature_subtype)) + "</span>"
 				+ '<span class="wp-share__value">' + (roughMiles(segment) === null ? "" : "≈ " + num(roughMiles(segment), 1) + " Meilen")
 				+ "</span></div>";
