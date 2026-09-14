@@ -83,8 +83,8 @@
           <button type="button" class="rb-menu__sw" id="ecoRaycast" data-i18n-title="ecosystem.editor.raycast.title" title="Rechnet, welche Flächen ineinander liegen, in welchem Territorium sie liegen und welche Wege durch sie führen — und speichert das Ergebnis. Gezählt ab 10 % der kleineren der beiden Flächen; gespeichert wird je Richtung der eigene Anteil.">starten</button>
         </div>
         <div class="rb-menu__row">
-          <div class="rb-menu__txt"><b>Höhenraster</b><span id="ecoHeightmapInfo">im Flächendialog speichern</span></div>
-          <button type="button" class="rb-menu__sw" id="ecoHeightmap" disabled data-stillgelegt title="Stillgelegt seit dem 04.09.2026: dieser Sammellauf rechnet noch die alte Bergsumme und würde jedes Höhenfeld der lokalen Gebirgssimulation damit überschreiben. Ein Gebirge bekommt sein Raster, wenn man es im Flächendialog speichert.">stillgelegt</button>
+          <div class="rb-menu__txt"><b>Höhenraster</b><span id="ecoHeightmapInfo">noch nicht gerechnet</span></div>
+          <button type="button" class="rb-menu__sw" id="ecoHeightmap" title="Rechnet für jedes Gebirge sein Höhenfeld mit der Gebirgssimulation der Karte — derselbe Weg wie „Speichern“ im Flächendialog — und legt es für die Wegfindung ab. Dauert einige Minuten; der Fortschritt steht in dieser Zeile.">starten</button>
         </div>
         <div class="rb-menu__row">
           <div class="rb-menu__txt"><b>Wegprofile</b><span id="ecoProfilesInfo">noch nicht gerechnet</span></div>
@@ -834,23 +834,12 @@ let pathAssignments = null;      // { rows, stats } des letzten Laufs
 let assignmentStamp = null;      // was der Server über den letzten gespeicherten Lauf sagt
 
 // ---- V11: Höhenraster ---------------------------------------------------------------------
-const PEAKS_API = "/api/edit/map/peaks-geometry.php";
-let allPeaks = null;             // null = in dieser Sitzung noch nicht geholt
 let heightmapStatus = null;      // was der Server über die gespeicherten Raster sagt
-// Was der LETZTE Lauf in DIESER Sitzung gesehen hat: „3 mit Vorgabe · 1 flach". Der Server weiss das
+// Was der LETZTE Lauf in DIESER Sitzung gesehen hat: „2 flach · 1 gescheitert". Der Server weiss das
 // nicht -- er kennt nur, ob ein Raster daliegt, nicht woraus es gerechnet wurde. Nach einem Neuladen
 // ist die Notiz leer, und dann behauptet die Kachel sie auch nicht.
 let heightmapRunNote = "";
 let terrainProfileStatus = null; // was der Server über die gespeicherten Wegprofile sagt
-
-async function loadPeaks() {
-	const response = await fetch(PEAKS_API, { credentials: "same-origin", headers: { Accept: "application/json" } });
-	const data = await response.json();
-	if (!response.ok || data.ok !== true) {
-		throw new Error((data.error && data.error.message) || "Gipfel konnten nicht geladen werden.");
-	}
-	return data.peaks || [];
-}
 
 function boundsOverlap(a, b) {
 	return !(a.max_x < b.min_x || b.max_x < a.min_x || a.max_y < b.min_y || b.max_y < a.min_y);
@@ -1355,139 +1344,136 @@ function renderAssignmentTile() {
 		+ (stamp.duration_ms / 1000).toFixed(1).replace(".", ",") + " s";
 }
 
-// 🔴 EINE ANFRAGE JE FLÄCHE (Spec §3.3). 78 Flächen wären 5,25 MB roh und 7,0 MB base64 -- über
-// dem üblichen `post_max_size` von 8 MB. Je Fläche sind es höchstens 286 KB roh. Und ein Abbruch
-// entwertet dann nicht den ganzen Bestand, sondern lässt die schon geschriebenen Flächen stehen.
-// 🔴 STILLGELEGT AM 04.09.2026 -- ER IST DER ZWEITE ERZEUGER, UND ER RECHNET DIE ALTE RECHNUNG.
+// ---- Der Sammellauf „Höhenraster" ------------------------------------------------------------
+// 🔴 ER RECHNET NICHT SELBST, UND ER SCHREIBT NICHT SELBST. Je Gebirge ruft er den Speicherweg des
+// Hauptfensters (`AvesmapsEcosystemHeightRender.hochladen`, map-features-ecosystem-height-render.js)
+// -- denselben, den der Flächendialog beim Speichern nimmt. Dort stehen der V12-Trichter und seine
+// Eingaben: Gipfel und Kammlinie aus den Beschriftungen, Flüsse aus der Kartennutzlast. Diese Seite
+// hat die Hälfte davon gar nicht (`paths-geometry.php` liefert bewusst keine `properties`, die
+// Beschriftungen lädt sie nicht) -- und ein zweiter Eingabebauer hier wäre der zweite Erzeuger, an
+// dem der Lauf vom 04.09. bis 14.09.2026 stillgelegt war: er rechnete damals noch die alte
+// Bergsumme und hätte mit einem eigenen `heightmap_put` jedes V12-Raster überschrieben.
 //
-// Seit V12 entsteht das Hoehenfeld eines Gebirges in `avesmapsGebirgsRasterBauen`
-// (`js/map-features/map-features-ecosystem-hydrologie.js`): Randwertaufgabe aus Gipfeln, Kamm,
-// Fluessen und Seen, danach hydraulische Erosion. Dieser Lauf hier taste noch
-// `sampleEcosystemHeightField` ab -- die ueberlagerten Buckel der Bergsumme. Beide schreiben in
-// dieselbe Tabelle, und dieser hier wuerde beim naechsten Klick jedes V12-Raster ueberschreiben:
-// still, ohne Fehlermeldung, und der Unterschied faellt erst in der Wegfindung auf.
-// ⚠️ Das ist genau die Falle, die dieses Projekt bei der Verkehrsmittel-Sperre und beim
-// Querfeldein-Ausstieg schon zweimal bezahlt hat -- eine Regel, die einen von zwei Erzeugern
-// bindet, ist keine Regel.
+// 💣 DEN BESTAND REICHT ER HEREIN. Die Karte lädt Landschaftsflächen nur für ihren Ausschnitt; ohne
+// `bestand` fehlten einem Gebirge ausserhalb des Bildes seine Seen, und sein Raster trüge eine
+// Wasserfläche als Hang. `loadAreas()` holt hier ohne bbox den ganzen Bestand -- aus demselben
+// Endpunkt wie die Karte, also in derselben Zeilenform, samt aller Regler und der Kammlinie.
 //
-// 🔧 WAS ER ZUM WEITERLEBEN BRAUCHT, und warum es nicht nebenbei ging: dem Editor fehlen drei
-// Eingaben des Trichters. `paths-geometry.php` liefert bewusst KEINE `properties` (1,5 MB statt
-// 17,79 MB, so steht es in seinem Kopf) -- also weder `feature_subtype`, noch die Fliessrichtung
-// `flow.dir`, noch `is_bach`; und die Kammlinie (`curve_label_line`) haengt am LABEL, das diese
-// Seite gar nicht laedt. Das ist ein eigenes Stueck Arbeit an drei Stellen, kein Nebeneffekt.
+// 💣 UND DER BESTAND WIRD FRISCH GELADEN UND NACH DEM LAUF NOCH EINMAL VERGLICHEN. Der Server stempelt
+// jedes Raster mit den Reglern, die BEIM SCHREIBEN in der Datenbank stehen
+// (`avesmapsTerrainAreaFingerprint`). Rechnete der Lauf mit einem älteren Stand -- `allAreas` vom
+// Sitzungsbeginn, oder ein Regler, den jemand während der Minuten des Laufs verstellt --, trüge das
+// Raster das alte Gelände unter einem aktuellen Stempel: die Kachel sagte „aktuell", die Wegfindung
+// rechnete mit dem Alten, und nichts meldete einen Fehler. Ein geändertes oder neues Gebirge wird
+// deshalb EINMAL mit dem neuen Stand nachgerechnet; ändert es sich auch dabei, wird es genannt --
+// nicht endlos wiederholt.
+// ⚠️ Verglichen wird die GANZE Zeile, bewusst keine Liste der Regler: die stünde neben dem
+// Fingerabdruck als zweite, und ein neuer Regler fiele genau hier still heraus. Eine unnötige
+// Nachrechnung kostet Sekunden, ein vergessener Regler ein falsches Gelände.
 //
-// Bis dahin: ein Gebirge bekommt sein Raster, wenn man es im Flaechendialog der Karte speichert
-// (`gebirgsRasterHochladen`, height-render.js). Der Weg ist derselbe Endpunkt, dieselbe Kodierung.
-const HOEHENRASTER_SAMMELLAUF_STILLGELEGT = true;
-
+// ⚠️ Nacheinander, nie parallel: `hochladen` bricht eine laufende Berechnung ab, bevor es eine neue
+// startet -- auch die eines offenen Flächendialogs, und umgekehrt. Ein Gebirge, das scheitert, hält
+// den Lauf nicht an; es wird am Ende beim Namen genannt.
+// ⚠️ Rund vier Minuten für alle Gebirge (gemessen 04.09.2026, das Eherne Schwert allein 149 s) --
+// deshalb steht der Fortschritt in der Zeile, und `disabled` am Knopf trägt „Höhenraster rechnet …"
+// in die Unterzeile des Sammelknopfs.
 async function runHeightmaps() {
 	const tile = $("ecoHeightmap");
 	const info = $("ecoHeightmapInfo");
-	if (HOEHENRASTER_SAMMELLAUF_STILLGELEGT) {
-		// 💣 Der Riegel steht IM LAUF, nicht nur am `disabled` des Knopfes: ein `disabled` faellt bei
-		// jedem Neuaufbau des Menuebands, und die Funktion ist ueber die Konsole erreichbar.
-		info.textContent = "im Flächendialog speichern";
-		flashStatus("Der Sammellauf rechnet noch die alte Bergsumme und ist deshalb stillgelegt. "
-			// 🪤 "bad", nicht "warn": `setStatus` kennt genau zwei Toene (ok/bad) und laesst jeden
-			// dritten wirkungslos durchgehen -- die Meldung staende dann unauffaellig grau da.
-			+ "Ein Gebirge bekommt sein Höhenfeld, wenn du es im Flächendialog speicherst.", "bad");
-
+	// 💣 VOR dem Aufräumen gefragt: `heightmap_cleanup` löscht, und gelöscht wird nur, wenn danach
+	// auch geschrieben werden kann.
+	let parentWindow;
+	try { parentWindow = window.parent; } catch (error) { parentWindow = null; }
+	const render = parentWindow && parentWindow !== window ? parentWindow.AvesmapsEcosystemHeightRender : null;
+	if (!render || typeof render.hochladen !== "function") {
+		flashStatus("Höhenraster: das Kartenfenster fehlt. Der Lauf rechnet mit der Gebirgssimulation der "
+			+ "Karte und geht nur, wenn dieser Editor über ihr geöffnet ist.", "bad");
 		return;
 	}
 	tile.disabled = true;
 	const started = Date.now();
+	// Die Gebirgsflächen -- dieselbe Weiche wie `topographyAreas` im Render-Modul und wie
+	// terrain-store.php.
+	const istGebirge = (area) => Boolean(area) && area.kind === "topographie"
+		&& String(area.region_type || "") === "gebirge";
+	const zeilenVon = (stand) => new Map(stand.filter(istGebirge)
+		.map((area) => [String(area.public_id), JSON.stringify(area)]));
 	try {
 		setStatus("Flächen werden geladen …");
-		if (allAreas === null) { allAreas = await loadAreas(); }
-		if (allPeaks === null) {
-			setStatus("Gipfel werden geladen …");
-			allPeaks = await loadPeaks();
-		}
-
-		// Die Gebirgsflächen -- dieselbe Weiche wie in map-features-ecosystem-height-render.js.
-		// 💣 Sie steht damit an drei Stellen (Karte, Editor, terrain-store.php). Das ist der Preis
-		// dafür, dass die Karte kein Editor-Modul lädt; wer `huegelland` aufmacht, macht es dreimal.
-		const gebirge = (allAreas || []).filter((area) =>
-			area && area.kind === "topographie" && String(area.region_type || "") === "gebirge");
+		let bestand = await loadAreas();
+		allAreas = bestand;
+		const gebirge = bestand.filter(istGebirge);
 		if (gebirge.length === 0) {
 			info.textContent = "keine Gebirgsfläche vorhanden";
 			flashStatus("Es gibt keine Gebirgsfläche — nichts zu rastern.", "ok");
 			return;
 		}
 
-		// 🔴 EIN Fenster über ALLE Gipfel ALLER Flächen, und die Zuteilung je kleinster enthaltender
-		// Fläche -- genau der Stapel, den die Karte baut. Ein je Fläche gebautes Fenster wäre wertlos,
-		// weil der Nachbargipfel dann nicht mitzählte.
-		const stack = buildEcosystemHeightStack(gebirge, (allPeaks || []).map((peak) => ({
-			publicId: peak.public_id, x: peak.x, y: peak.y, height: peak.height_schritt,
-		})));
-
 		await ecoPost("heightmap_cleanup", {});
 
-		let written = 0;
-		let skipped = 0;
-		let bytes = 0;
-		for (let index = 0; index < stack.fields.length; index++) {
-			const field = stack.fields[index];
-			const areaId = stack.areaIdsByField[index];
-			const area = gebirge.find((candidate) => String(candidate.public_id) === areaId);
-			if (!area || !area.bounds) { continue; }
-			const label = (area.region_name || areaId);
-			const grid = ecosystemHeightmapGrid(area.bounds, 0.25);
-			// 💣 Der Fortschritt steht IM KNOPF, und der Haupt-Thread wird je Zeilenband freigegeben.
-			// Hochgerechnet aus der V8-Messung (203.520 Rasterpunkte = 249 ms): 529.531 Pixel bei 15
-			// Flächen, 1,4 Mio bei 40 -- ohne Freigabe sind das mehrere Sekunden eingefrorener Tab.
-			const samples = await rasterizeEcosystemHeightField(field, stack.peakWindow, grid, {
-				onRowBand: (done, total) => {
-					info.textContent = "Raster " + (index + 1) + "/" + stack.fields.length
-						+ " · " + label + " · " + done + "/" + total;
-				},
-			});
-			const result = await ecoPost("heightmap_put", {
-				area: areaId,
-				cell_size: grid.cellSize,
-				origin_x: grid.originX,
-				origin_y: grid.originY,
-				width: grid.width,
-				height: grid.height,
-				samples: ecosystemHeightmapToBase64(samples),
-			});
-			written += Number(result.written || 0);
-			skipped += Number(result.skipped || 0);
-			bytes += Number(result.stored_bytes || 0);
+		// Je Fläche das LETZTE Ergebnis -- eine Nachrechnung ersetzt das der ersten Runde.
+		const ergebnisse = new Map();
+		const rechne = async (liste, stand, runde) => {
+			for (let index = 0; index < liste.length; index++) {
+				const area = liste[index];
+				const name = area.region_name || area.public_id;
+				info.textContent = runde + " " + (index + 1) + "/" + liste.length + " · " + name;
+				let eintrag;
+				try {
+					const ergebnis = await render.hochladen(area, { bestand: stand });
+					eintrag = ergebnis && ergebnis.hochgeladen
+						? { name, gespeichert: true, flach: ergebnis.flach === true, bytes: Number(ergebnis.bytes || 0) }
+						: { name, gespeichert: false, grund: (ergebnis && ergebnis.grund) || "nicht gespeichert" };
+				} catch (error) {
+					eintrag = { name, gespeichert: false, grund: error && error.message ? error.message : String(error) };
+				}
+				ergebnisse.set(String(area.public_id), eintrag);
+			}
+		};
+		await rechne(gebirge, bestand, "Raster");
+
+		let unruhig = [];
+		const ersterStand = zeilenVon(bestand);
+		bestand = await loadAreas();
+		allAreas = bestand;
+		const nachrechnen = bestand.filter((area) => istGebirge(area)
+			&& ersterStand.get(String(area.public_id)) !== JSON.stringify(area));
+		if (nachrechnen.length > 0) {
+			await rechne(nachrechnen, bestand, "Nachrechnen");
+			const zweiterStand = zeilenVon(bestand);
+			const nachgerechnet = new Set(nachrechnen.map((area) => String(area.public_id)));
+			bestand = await loadAreas();
+			allAreas = bestand;
+			unruhig = bestand
+				.filter((area) => nachgerechnet.has(String(area.public_id))
+					&& zweiterStand.get(String(area.public_id)) !== JSON.stringify(area))
+				.map((area) => area.region_name || area.public_id);
 		}
 
-		// 🔴 SAGEN, WORAN ES LIEGT (Owner 2026-07-30). Vorher stand im Knopf nur „n fehlen" -- eine Zahl,
-		// die nach einem Fehlschlag aussah und nicht verriet, dass eine Maximalhöhe der Ausweg ist. Beide
-		// Listen liegen hier schon: was die Vorgabe benutzt hat, sagt das Feld selbst; was gar kein Feld
-		// hat, ist die Differenz zu `areaIdsByField`.
-		const nameOf = (areaId) => {
-			const treffer = gebirge.find((kandidat) => String(kandidat.public_id) === String(areaId));
-			return treffer ? (treffer.region_name || areaId) : areaId;
-		};
-		const abgeleitet = stack.fields
-			.map((feld, i) => (feld && feld.usedDefaultHeight ? nameOf(stack.areaIdsByField[i]) : null))
-			.filter(Boolean);
-		// Nach der Ableitung bleibt hier nur noch, wer eine ausdrückliche Maximalhöhe 0 trägt -- eine
-		// Entscheidung, kein Versehen. Trotzdem benannt: sonst ist „fehlt" wieder eine stumme Zahl.
-		const flach = gebirge
-			.filter((flaeche) => !stack.areaIdsByField.includes(String(flaeche.public_id)))
-			.map((flaeche) => flaeche.region_name || flaeche.public_id);
+		const alle = [...ergebnisse.values()];
+		const gespeichert = alle.filter((eintrag) => eintrag.gespeichert);
+		const flach = gespeichert.filter((eintrag) => eintrag.flach).map((eintrag) => eintrag.name);
+		const gescheitert = alle.filter((eintrag) => !eintrag.gespeichert)
+			.map((eintrag) => eintrag.name + " (" + eintrag.grund + ")");
+		const bytes = gespeichert.reduce((summe, eintrag) => summe + eintrag.bytes, 0);
 
 		heightmapStatus = await ecoPost("heightmap_status", {});
 		heightmapRunNote = [
-			abgeleitet.length ? abgeleitet.length + " mit Vorgabe" : "",
 			flach.length ? flach.length + " flach" : "",
+			gescheitert.length ? gescheitert.length + " gescheitert" : "",
+			unruhig.length ? unruhig.length + " während des Laufs geändert" : "",
 		].filter(Boolean).join(" · ");
 		renderHeightmapTile();
 		const seconds = ((Date.now() - started) / 1000).toFixed(1).replace(".", ",");
-		flashStatus(written + " Raster gespeichert (" + Math.round(bytes / 1024) + " KB) in " + seconds + " s"
-			+ (skipped > 0 ? " · " + skipped + " Fläche(n) verschwunden" : "")
-			// Namentlich, nicht als Zahl: nur so weiss der Redakteur, wo er eine Höhe nachtragen kann.
-			+ (abgeleitet.length ? " · Höhe abgeleitet bei " + abgeleitet.join(", ")
-				+ " (keine Maximalhöhe eingetragen, kein Gipfel)" : "")
-			+ (flach.length ? " · flach geblieben: " + flach.join(", ") + " (Maximalhöhe steht auf 0)" : ""),
-			"ok");
+		// 🔴 SAGEN, WORAN ES LIEGT (Owner 2026-07-30) -- namentlich, nicht als Zahl: nur so weiss der
+		// Redakteur, wo er eine Höhe nachtragen oder was er noch einmal anstossen muss.
+		flashStatus(gespeichert.length + " von " + alle.length + " Rastern gespeichert ("
+			+ Math.round(bytes / 1024) + " KB) in " + seconds + " s"
+			+ (flach.length ? " · flach geblieben: " + flach.join(", ") + " (kein Gipfel, keine Maximalhöhe)" : "")
+			+ (gescheitert.length ? " · nicht gespeichert: " + gescheitert.join(", ") : "")
+			+ (unruhig.length ? " · während des Laufs erneut geändert, bitte noch einmal starten: "
+				+ unruhig.join(", ") : ""),
+			gescheitert.length || unruhig.length ? "bad" : "ok");
 	} catch (error) {
 		info.textContent = "fehlgeschlagen";
 		// 🪤 `"bad"`, nicht `"error"`. setStatus kennt genau zwei Töne, `ok` und `bad`; alles andere

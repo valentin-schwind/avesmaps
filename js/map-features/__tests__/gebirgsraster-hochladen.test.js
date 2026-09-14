@@ -371,6 +371,81 @@ pruefe("die beiden Spalten haengen NICHT mehr aneinander", async () => {
 		"bei gleichen Detailstufen aendert die Erosion nichts -- die alte Kopplung steht wieder");
 });
 
+/* ══════════════════════════════════════════════════════════════════════════════════════════════
+   5. DER SAMMELLAUF DES EDITORS -- dieselbe Rechnung, aber mit dem GANZEN Bestand
+   ══════════════════════════════════════════════════════════════════════════════════════════════ */
+
+// 💣 Die Karte lädt Landschaftsflächen nur für ihren Ausschnitt (`?bbox=` im Loader). Für die
+// angeklickte Fläche reicht das. Der Sammellauf „Höhenraster" des Landschaften-Editors rechnet aber
+// JEDES Gebirge, auch das weit ausserhalb des Bildes -- dessen Seen stünden nicht in
+// `ecosystemLayers`, und sein Raster trüge eine Wasserfläche als Hang, ohne Fehlermeldung.
+// Deshalb reicht der Lauf seinen Bestand herein (`hochladen(area, { bestand })`).
+// ⭐ Vorab gemessen (14.09.2026), damit diese Zusicherungen kein Vakuum sind: der See unten verändert
+// in dieser Fixture 5.306 von 6.561 Zellen, um bis zu 1.801 Schritt.
+
+// Die Zeilenform des Endpunkts (`api/app/ecosystem-areas.php`): `geometry`, nicht `geometry_geojson`.
+const SEE = {
+	public_id: "see-1",
+	kind: "topographie",
+	region_type: "see",
+	region_name: "Probesee",
+	geometry: { type: "Polygon", coordinates: [[[14, 2], [18, 2], [18, 6], [14, 6], [14, 2]]] },
+	bounds: { min_x: 14, min_y: 2, max_x: 18, max_y: 6 },
+};
+
+async function probenMit(umgebung, optionen) {
+	const { sandkasten, gerufen } = ladeRenderModul(() => Promise.resolve({ written: 1 }),
+		Object.assign({}, UMGEBUNG, { labelData: MIT_GIPFELN }, umgebung));
+	const ergebnis = await sandkasten.AvesmapsEcosystemHeightRender.hochladen(FLAECHE, optionen);
+
+	return { ergebnis, samples: gerufen[0].rumpf.samples };
+}
+
+const alsWerte = (samples) => {
+	const roh = Buffer.from(samples, "base64");
+
+	return new Uint16Array(roh.buffer, roh.byteOffset, roh.length / 2);
+};
+
+pruefe("der See aus dem BESTAND formt das Raster, auch wenn die Karte ihn nicht geladen hat", async () => {
+	const ohne = await probenMit({});
+	const mitBestand = await probenMit({}, { bestand: [FLAECHE, SEE] });
+	assert.ok(groessteAbweichung(alsWerte(ohne.samples), alsWerte(mitBestand.samples)) > 1,
+		"der See im übergebenen Bestand bewegt das Raster nicht -- der Sammellauf rechnete jedes "
+		+ "Gebirge ausserhalb des Kartenausschnitts ohne seine Seen");
+});
+
+pruefe("Bestand und geladener Ausschnitt geben DIESELBE Antwort -- eine Regel, zwei Quellen", async () => {
+	// 🔴 Der Flächendialog nimmt die geladenen Flächen, der Sammellauf den Bestand. Liegt der See in
+	// beiden, muss Byte für Byte dasselbe Raster herauskommen -- sonst hinge das gespeicherte Gelände
+	// daran, WER gespeichert hat.
+	const geladen = await probenMit({ ecosystemLayers: new Map([["see-1", { _ecosystemArea: SEE }]]) });
+	const bestand = await probenMit({}, { bestand: [FLAECHE, SEE] });
+	assert.ok(bestand.samples === geladen.samples,
+		"der Sammellauf rechnet mit dem Bestand ein anderes Raster als der Flächendialog mit der Karte");
+});
+
+pruefe("ein Bestand ERSETZT die geladenen Flächen, er ergänzt sie nicht", async () => {
+	// 💣 Zwei Quellen für dieselbe Frage wären die zweite Wahrheit: welcher See zählt, hinge dann an
+	// der Kartenposition des Editors. Wer den Bestand reicht, sagt damit, welche Flächen es gibt.
+	const ohne = await probenMit({});
+	const nurBestand = await probenMit(
+		{ ecosystemLayers: new Map([["see-1", { _ecosystemArea: SEE }]]) },
+		{ bestand: [FLAECHE] });
+	assert.ok(nurBestand.samples === ohne.samples,
+		"ein See, der nur im Kartenausschnitt liegt, floss trotz übergebenem Bestand in das Raster ein");
+});
+
+pruefe("das Ergebnis sagt, ob das Gebirge FLACH geblieben ist", async () => {
+	// Der Sammellauf nennt diese Flächen beim Namen -- nur so weiss ein Redakteur, wo er eine Höhe
+	// nachtragen kann. Flach bleibt ein Gebirge ohne Gipfel und ohne Maximalhöhe
+	// (`avesmapsGebirgeBleibtFlach`).
+	const mitGipfeln = await probenMit({});
+	assert.strictEqual(mitGipfeln.ergebnis.flach, false, "ein Gebirge mit Gipfeln wird als flach gemeldet");
+	const ohneGipfel = await probenMit({ labelData: [] });
+	assert.strictEqual(ohneGipfel.ergebnis.flach, true, "ein Gebirge ohne Gipfel und Höhe wird nicht als flach gemeldet");
+});
+
 Promise.allSettled(offen).then(() => {
 	if (!process.exitCode) {
 		console.log("\n" + bestanden + " Zusicherungen gehalten.");
