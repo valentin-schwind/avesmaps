@@ -13379,8 +13379,11 @@ geht NICHT als eigener Push — jeder Commit wandert per Cherry-Pick in den Push
 korrigiert: **W1** (MySQL-Syntaxfehler der Trägerabfrage, `11f233572`) und **W2** (Hinweise als
 „[object Object]", `63179e29c`) treffen Code aus Aufgabe 8/9/13 und gehen deshalb mit **Push 2**.
 **W3 + G1** (`c6e5af4c0`, ein Commit) korrigieren `garetienWikiLandschaftBeiBedarfLaden` und
-`garetienVerbundBlockMarkup` — beide Funktionen stehen schon am Ende von Aufgabe 7 (Commit
-`06307b1de`), der Commit passt also sauber auf **Push 1** und geht mit diesem.
+`garetienVerbundBlockMarkup` und gehen mit **Push 4**, NICHT mit Push 1. 🔴 Hier stand „passt sauber
+auf Push 1", weil beide Funktionen schon am Ende von Aufgabe 7 stehen — gemessen stimmt das nicht:
+`git merge-tree` meldet für `c6e5af4c0` auf `06307b1de` (Ende Push 1) einen Konflikt in
+`js/review/review-garetien-importer.js`, auf `a99eac27e` (Ende Push 4) setzt er sauber auf. Dass eine
+Funktion schon existiert, heißt nicht, dass ein späterer Commit auf ihren frühen Stand passt.
 
 **So wird jeder Push gefahren** (AGENTS.md §9, Wegwerf-Worktree — der Hauptbaum bleibt unberührt):
 
