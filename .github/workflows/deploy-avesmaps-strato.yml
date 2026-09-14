@@ -413,7 +413,7 @@ jobs:
           # in Unterordner). Im Repo existieren sie nicht und keine Seite referenziert sie mehr.
           # Chirurgisches, idempotentes rm -f statt eines gefaehrlichen globalen --delete.
           echo "Retiring orphaned remote files:"
-          printf '  %s\n' "css/leaflet.css" "css/political-territory-wiki-tree.css" "icons/small_webp/ (retired: flattened into icons/)" "js/map-features/map-features-questroute.js (retired: adventures questroute dropped)" "css/features/questroute.css (retired: adventures questroute dropped)" "api/discord/sapi-probe.php (retired: temporaere Messung zur aufgeschobenen Antwort, 24.08.2026)" "css/components/editor-spalten-reiter.css (retired: Telefon-Reiter des Territorien-Editors, zurueckgebaut 13.09.2026)" "js/ui/editor-spalten-reiter.js (retired: dito)" "api/edit/admin/wiki-merker-bereinigung.php (retired: einmalige Bestandsreparatur, gefahren 14.09.2026)" "api/_internal/map/wiki-merker-bereinigung.php (retired: dito)" "js/review/review-other-source.js (retired: Andere Quelle ausgebaut, Altquellen im Katalog)" "js/territory/territory-editor-preview.js (retired: tote Datei, P-026)"
+          printf '  %s\n' "css/leaflet.css" "css/political-territory-wiki-tree.css" "icons/small_webp/ (retired: flattened into icons/)" "js/map-features/map-features-questroute.js (retired: adventures questroute dropped)" "css/features/questroute.css (retired: adventures questroute dropped)" "api/discord/sapi-probe.php (retired: temporaere Messung zur aufgeschobenen Antwort, 24.08.2026)" "css/components/editor-spalten-reiter.css (retired: Telefon-Reiter des Territorien-Editors, zurueckgebaut 13.09.2026)" "js/ui/editor-spalten-reiter.js (retired: dito)" "api/edit/admin/wiki-merker-bereinigung.php (retired: einmalige Bestandsreparatur, gefahren 14.09.2026)" "api/_internal/map/wiki-merker-bereinigung.php (retired: dito)"
 
           # 🔴 14.09.2026: die Nur-Server-PHP-Dateien aus dem ersten Server-Inventar
           #    (.github/workflows/server-php-inventar.yml). Alt-Tests unter _internal/**/__tests__, die
@@ -491,8 +491,6 @@ jobs:
           rm -f "api/edit/admin/wiki-merker-bereinigung.php"
           rm -f "api/_internal/map/wiki-merker-bereinigung.php"
           $(printf 'rm -f "%s"\n' "${retire_nur_server_php[@]}")
-          rm -f "js/review/review-other-source.js"
-          rm -f "js/territory/territory-editor-preview.js"
           bye
           EOF
 
