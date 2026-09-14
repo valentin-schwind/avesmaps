@@ -47,10 +47,12 @@ vm.runInContext(
     + "this.schluessel = garetienVerbundSchluessel; this.mitglieder = garetienVerbundMitglieder;",
     kontext);
 
+// 🔴 Aufgabe 9 (14.09.2026): ein zusammenlegbares Fragment braucht ein 'new'-Item, sonst ist seine
+// Zielwahl-Vorbelegung "nichts" statt "karte", und garetienVerbundZusammenlegbar sperrt (Ruling R-a).
 const o1 = { key: "a", name: "Silker Hain 1", ebene: "Waelder", typ: "Wald",
-             verbund_stamm: "Silker Hain", verbund_n: 4 };
+             verbund_stamm: "Silker Hain", verbund_n: 4, items: [{ id: 101, change_type: "new" }] };
 const o2 = { key: "b", name: "Silker Hain 2", ebene: "Waelder", typ: "Wald",
-             verbund_stamm: "Silker Hain", verbund_n: 4 };
+             verbund_stamm: "Silker Hain", verbund_n: 4, items: [{ id: 102, change_type: "new" }] };
 const fremd = { key: "c", name: "Weidicht", ebene: "Waelder", typ: "Wald" };
 
 assert.strictEqual(kontext.schluessel(o1), "verbund:Waelder|Wald|Silker Hain");

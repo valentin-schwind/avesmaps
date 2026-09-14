@@ -128,22 +128,21 @@ gleich(garetienStagePlan({ key: "z2", items: [{ id: 62, anlass: "zusatz", change
 gleich(garetienStagePlan(ohneAlles), null, "ohne Items gibt es keinen Plan");
 
 // =================================================================================================
-// 3. DER KNOPF SAGT JETZT DIE WAHRHEIT -- vier Lagen, vier zweite Zeilen.
+// 3. DIE ZIEL-MARKE SAGT, WAS DER IMPORT TUT -- seit dem 14.09.2026 aus der ZIELWAHL.
 // =================================================================================================
-gleich(garetienStageZeile2(echtNeu, false), "als suempfe_moore");
-gleich(garetienStageZeile2(nurZusatz, false), "zusätzlich als Flussweg",
-	"🔴 „zusätzlich\" IST die Aussage -- der Abgleich hat etwas gefunden, und es kommt trotzdem dazu");
-gleich(garetienStageZeile2(nurZusatz, true), "liegt zusätzlich als Flussweg");
-gleich(garetienStageZeile2(gemischt, false), "ergänzt nur die Quelle",
+// 🔴 garetienStageZeile2 liest garetienZielwahlZu -- dieselbe Weiche wie garetienStageItems. „liegt als …"
+// ist gefallen: der Text haengt nicht mehr daran, ob das Objekt aufliegt.
+gleich(garetienStageZeile2(echtNeu, false), "als Fläche · suempfe_moore");
+gleich(garetienStageZeile2(nurZusatz, false), "als Weg · Flussweg",
+	"🔴 das Zusatz-Objekt OHNE Ergaenzung: Vorbelegung „Auf die Karte\" -- „zusätzlich\" ist seit dem "
+	+ "14.09.2026 eine eigene WAHL, und die gibt es nur neben einer Ergaenzung (garetien-zielwahl-ziele.test.js)");
+gleich(garetienStageZeile2(nurZusatz, true), "als Weg · Flussweg", "…auf und neben der Stage derselbe Text");
+gleich(garetienStageZeile2(gemischt, false), "Quelle am bestehenden Objekt",
 	"💣 die gemischte Lage legt NICHTS an -- „als Fläche\" waere die Beschreibung einer anderen Handlung");
-gleich(garetienStageZeile2(nurErgaenzung, false), "ergänzt nur die Quelle");
-gleich(garetienStageZeile2(nurErgaenzung, true), "liegt für die Quelle");
+gleich(garetienStageZeile2(nurErgaenzung, false), "Quelle am bestehenden Objekt");
 gleich(garetienStageZeile2(ohneAlles, false), "nur Ansicht");
-// 🔴 SEIT 09.09.2026 REICHT DER BAUER SIE NICHT MEHR DURCH (Owner: „auf der stage ist auf
-// der stage, erst dann entscheide ich ob es nur die quelle ergaenzt“). Die Rechnung darueber
-// bleibt als Auskunft bestehen und ist hier weiter festgenagelt; der KNOPF behauptet nichts mehr.
 gleich(garetienStageKnopfBauen(nurZusatz).zeile2, "",
-	"…und der Bauer reicht sie NICHT mehr durch -- das sagen die Haekchen");
+	"…und der Knopf reicht sie NICHT durch -- das sagt die Zielwahl");
 
 // =================================================================================================
 // 4. DER FUSSKNOPF ZAEHLT DAS ZUSATZ-OBJEKT MIT -- sonst stuende „0 von 1" neben einem Knopf,

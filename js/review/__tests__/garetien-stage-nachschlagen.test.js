@@ -257,13 +257,14 @@ function pruefeAlteBereinigungWeg() {
 	gleich(quelle.includes("avesmapsGaretienStageNachEinfuegenBereinigen"), false,
 		"die abgeloeste Bereinigung darf im kommentarfreien Quelltext nicht mehr vorkommen -- "
 		+ "weder als Definition noch an einer ihrer drei Stellen (zwei Import-Ketten, ein Export)");
-	// Und die Nachfolgerin steht wirklich an allen fuenf erwarteten Stellen: Definition, Export,
-	// und den drei Aufrufen (garetienLaufStarten, garetienNeuKlick, garetienFussknopfEinfuegenKlick).
-	// Faellt eine davon auf die alte Bereinigung zurueck, sinkt die Zaehlung unter 5.
+	// Und die Nachfolgerin steht wirklich an allen VIER erwarteten Stellen: Definition, Export und den
+	// zwei Aufrufen (garetienLaufStarten, garetienFussknopfEinfuegenKlick). 🔴 Bis zum 14.09.2026 waren es
+	// fuenf -- der dritte Aufruf stand in garetienNeuKlick und ist mit „Innerorts einfügen" gefallen.
+	// Faellt eine davon auf die alte Bereinigung zurueck, sinkt die Zaehlung unter 4.
 	const vorkommen = quelle.split("garetienStageNachschlagen").length - 1;
-	wahr(vorkommen >= 5,
-		"garetienStageNachschlagen sollte an mindestens 5 Stellen stehen (Definition, Export, "
-		+ "drei Aufrufe) -- gefunden: " + vorkommen);
+	wahr(vorkommen >= 4,
+		"garetienStageNachschlagen sollte an mindestens 4 Stellen stehen (Definition, Export, "
+		+ "zwei Aufrufe) -- gefunden: " + vorkommen);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -348,22 +349,12 @@ async function pruefeAnschlussLaufStarten(api, dom) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// D. Fixrunde 2 (07.09.2026), D2+D3: dieselbe Endezu-Ende-Probe wie Abschnitt C, jetzt an den
-//    ZWEI EINFUEGE-Aufrufstellen (garetienNeuKlick/„innerorts", garetienFussknopfEinfuegenKlick).
-//    Vorher hatte NUR garetienLaufStarten (Abschnitt C) eine Zusicherung auf den resultierenden
-//    Statustext -- ein vertauschtes Trennzeichen oder eine falsche Variable an den anderen beiden
-//    fiel keinem Test auf (D3). Zugleich die END-TO-END-Probe des D2-Fixes: eine erfolgreiche
-//    Einfuege-Handlung darf sich nicht selbst als „bereits uebernommen oder abgelehnt" melden --
-//    der HAEUFIGSTE Fall, gemessen am ausgefuehrten Modul (D2-Brief).
-//
-// ⚠️ ABWEICHUNG, GEMESSEN: Zusicherung 2 des Briefs ("ein FREMDES Objekt bleibt gemeldet") wird
-//    hier nur an EINER Stelle (garetienNeuKlick/„innerorts") end-to-end nachgestellt. Am
-//    Fussknopf verarbeitet `garetienFussknopfEinfuegenKlick` per Definition die GANZE aktuelle
-//    Stage (`avesmapsGaretienStageListe()`) -- ein "fremdes" Objekt DANEBEN gaebe es dort nur
-//    ueber eine Wettlaufbedingung (die Stage aendert sich WAEHREND der laufenden Kette), und das
-//    waere ein Test einer anderen, ungebauten Sache. Die Filterung selbst ist an beliebigen
-//    Schluesselmengen bereits rein getestet (Abschnitt A2); hier zaehlt fuer den Fussknopf nur
-//    Zusicherung 1.
+// D. Fixrunde 2 (07.09.2026), D2+D3: dieselbe Endezu-Ende-Probe wie Abschnitt C, an der
+//    EINFUEGE-Aufrufstelle garetienFussknopfEinfuegenKlick.
+//    🔴 14.09.2026: die zweite Aufrufstelle (garetienNeuKlick/„innerorts") ist mit „Innerorts einfügen"
+//    gefallen -- und mit ihr die einzige Ende-zu-Ende-Probe der Zusicherung „ein FREMDES fertiges Objekt
+//    bleibt gemeldet". Am Fussknopf laesst sie sich nicht nachstellen (er verarbeitet per Definition die
+//    GANZE Stage); die Filterung selbst bleibt an beliebigen Schluesselmengen rein getestet (Abschnitt A2).
 // ---------------------------------------------------------------------------------------------
 
 /** Ein `fetch`, das select/apply/liste(+keys)/liste unterscheidet -- dieselbe Form wie `machFetch`
@@ -385,74 +376,6 @@ function fetchFuerEinfuegen(nachschlagAntwort) {
 		}
 		return Promise.resolve({ json: function () { return Promise.resolve(daten); } });
 	};
-}
-
-// Ein Klick-Ereignis fuer garetienNeuKlick("innerorts") -- derselbe minimalistische Aufbau wie in
-// garetien-innerorts-knopf.test.js, hier nur fuer den EINEN gebrauchten Knopfnamen.
-function ereignisInnerorts(schluessel) {
-	const knopf = {
-		disabled: false,
-		textContent: "",
-		getAttribute: function (name) {
-			if (name === "data-handlung") { return "innerorts"; }
-			if (name === "data-key") { return schluessel; }
-			return null;
-		},
-		closest: function (auswahl) {
-			return auswahl === '[data-handlung="innerorts"]' ? knopf : null;
-		},
-	};
-	return { target: knopf };
-}
-
-const OBJEKT_INNERORTS = {
-	key: "ggp:Bauwerke:Tempel:1", name: "Wandlether Tempel", urteil: "neu",
-	innerorts: { public_id: "stadt-wandleth", name: "Wandleth", meilen: 0.09 },
-	items: [{ id: 900, change_type: "new" }],
-};
-
-async function pruefeAnschlussNeuKlick(api, dom) {
-	const echtesFetch = global.fetch;
-	try {
-		// 1. Der NORMALFALL: „Innerorts einfügen" bearbeitet GENAU dieses eine Objekt -- der
-		//    Nachschlag findet es folgerichtig als „fertig" wieder, und die Meldung darf das
-		//    NICHT ein zweites Mal aussprechen.
-		api.avesmapsGaretienStageLeeren();
-		api.avesmapsGaretienStageHinzufuegen([OBJEKT_INNERORTS]);
-		global.fetch = fetchFuerEinfuegen({
-			objekte: [Object.assign({}, OBJEKT_INNERORTS, { stand: "uebernommen" })],
-		});
-		await api.garetienNeuKlick(ereignisInnerorts(OBJEKT_INNERORTS.key), [OBJEKT_INNERORTS], 7, null);
-		const text1 = dom.text("#garetien-status-text");
-		wahr(text1.indexOf("importiert") !== -1, "die Erfolgsmeldung steht -- gelesen: " + text1);
-		gleich(text1.indexOf("bereits uebernommen oder abgelehnt"), -1,
-			'🔴 D2: das soeben eingefuegte Objekt darf sich nicht selbst als "fertig" melden -- gelesen: "'
-			+ text1 + '"');
-
-		// 2. Liegt DANEBEN ein FREMDES Objekt, das der Nachschlag ALS FERTIG meldet, bleibt es
-		//    genannt -- der Filter trifft nur den einen soeben bearbeiteten Schluessel.
-		api.avesmapsGaretienStageLeeren();
-		api.avesmapsGaretienStageHinzufuegen([OBJEKT_INNERORTS, { key: "fremd:1", items: [{ id: 1 }] }]);
-		global.fetch = fetchFuerEinfuegen({
-			objekte: [
-				Object.assign({}, OBJEKT_INNERORTS, { stand: "uebernommen" }),
-				{ key: "fremd:1", items: [{ id: 1 }], stand: "abgelehnt" },
-			],
-		});
-		await api.garetienNeuKlick(ereignisInnerorts(OBJEKT_INNERORTS.key), [OBJEKT_INNERORTS], 7, null);
-		const text2 = dom.text("#garetien-status-text");
-		// 🔴 SAMMELFIXRUNDE 07.09.2026 (Befund D2): DER VOLLSTAENDIGE SATZ, nicht zwei Teilstuecke.
-		// Mit `indexOf` gemessen ueberlebte die Mutation „Trennzeichen ` · ` an beiden Stellen
-		// vertauschen" -- beide Teilstuecke standen ja weiter da, nur in der falschen Reihenfolge.
-		// Genau diese Mutation nannte der eigene Auftrag als Beispiel, und genau sie lief durch.
-		gleich(text2,
-			"✓ 1 Objekt importiert · 1 Objekt auf der Stage ist bereits uebernommen oder abgelehnt "
-			+ "und hat die Stage verlassen.",
-			'ein FREMDES fertiges Objekt bleibt genannt, und der GANZE Satz stimmt -- gelesen: "'
-			+ text2 + '"');
-	} finally {
-		global.fetch = echtesFetch;
-	}
 }
 
 async function pruefeAnschlussFussknopf(api, dom) {
@@ -552,7 +475,6 @@ pruefeReineMechanik(api)
 	.then(function () { return pruefeFertigeStaende(api); })
 	.then(function () { pruefeAlteBereinigungWeg(); })
 	.then(function () { return pruefeAnschlussLaufStarten(api, dom); })
-	.then(function () { return pruefeAnschlussNeuKlick(api, dom); })
 	.then(function () { return pruefeAnschlussFussknopf(api, dom); })
 	.then(function () { return pruefeRunIdImRumpf(api); })
 	.then(function () {

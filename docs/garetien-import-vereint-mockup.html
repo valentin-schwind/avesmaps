@@ -19,8 +19,8 @@
    🪤 Der Vorläufer dieses Mockups trug ein Token für den Untergrund der Bühne, das css/, js/ und
       index.html gar nicht kennen. Ein erfundener Tokenname fällt erst im Produktivcode auf; die
       Bühne nimmt jetzt --color-panel-muted.
-   ⚠️ ENTWURF ZUR ABNAHME. Trägt bewusst KEINE bindende Marke für tools/mockup-vertrag — gebunden
-      wird, was der Owner freigibt, und erst dann.
+   ⚠️ FREIGEGEBEN 14.09.2026. Bindend (tools/mockup-vertrag, Deploy-Tor) sind nur die Regeln zwischen
+      den Vertragsmarken im Abschnitt „NEU" — jede kam im Commit, der sie gebaut hat.
    🔴 Blau kommt nur in der KARTE vor (Seefarbe): Daten, nicht Chrome (AGENTS.md §12). */
 @font-face {
 	font-family: "Faculty Glyphic";
@@ -399,8 +399,9 @@ td.num { text-align: right; font-variant-numeric: tabular-nums; }
    Gegengeprüft am Zweig (df8d9ec4c): `.gi-block*`, `.gi-listkopf`, `.gi-ziel*`, `.gi-ziel-marke`,
    `.gi-insert__row--aus` kommen in css/components/garetien-importer.css nicht vor. Die übrigen
    Klassen oben stehen dort (bis auf die markierten Mockup-Hilfen) — Liste im Abschnitt 8.
-   🔴 Keine VERTRAG-Marke, solange der Owner nicht abgenommen hat: eine Marke auf ungebautes CSS
-      macht tools/mockup-vertrag im Deploy-Tor rot. Gebunden wird im Commit, der die Regel baut.
+   🔴 Eine Vertragsmarke auf ungebautes CSS macht tools/mockup-vertrag im Deploy-Tor rot. Gebunden
+      wird deshalb im Commit, der die Regel baut: Aufgabe 9 die Zielwahl und die abgeblendete Zeile,
+      Aufgabe 11 die Blöcke, Aufgabe 12 Ziel-Marke und Listenkopf.
    ══════════════════════════════════════════════════════════════════════════════════════════════ */
 
 /* Die Blöcke A–G. 💣 Die Zahl im Kreis steht auf 11 px, nicht auf den 9 px des Verbund-Mockups —
@@ -416,6 +417,9 @@ td.num { text-align: right; font-variant-numeric: tabular-nums; }
 	line-height: 1; letter-spacing: 0; }
 .gi-block__note { margin-left: auto; letter-spacing: 0; text-transform: none;
 	font-weight: var(--font-weight-regular); color: var(--color-text-muted); }
+
+/* ══ VERTRAG: css/components/garetien-importer.css ══ Die Zielwahl (Aufgabe 9, 14.09.2026).
+   Jede Eigenschaft bis zur Endmarke steht zeichengleich in der Produktionsdatei (tools/mockup-vertrag). */
 
 /* Die Zielwahl. Eine Liste ohne Rahmen (§12): die Wahl ist die Zeile, nicht ein Kasten um sie. */
 .gi-ziel { display: flex; flex-direction: column; gap: 1px; margin: 0 0 var(--space-4); }
@@ -437,6 +441,8 @@ td.num { text-align: right; font-variant-numeric: tabular-nums; }
 /* Abgeblendet, nicht ausgeblendet: das Feld bleibt stehen, damit die Spalte nicht springt. */
 .gi-insert__row--aus { color: var(--color-disabled-text); }
 .gi-insert__row--aus > span:first-child { color: var(--color-disabled-text); }
+
+/* ══ VERTRAG ENDE ══ */
 
 /* Das Ziel in der Listenzeile — der Text kommt aus garetienStageZeile2 (heute ohne Aufrufer). */
 .gi-ziel-marke { color: var(--color-accent-brown); font-weight: var(--font-weight-bold); }

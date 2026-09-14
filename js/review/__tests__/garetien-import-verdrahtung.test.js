@@ -9,8 +9,9 @@
 // hätte VIER echte Verdrahtungsfehler grün durchgelassen: die Meldung landet VOR statt NACH
 // avesmapsGaretienListeHolen() (genau die Falle, die beim Bau gefunden und "behoben" wurde, aber
 // nie an der ECHTEN Kette geprüft war), die Meldung wird gar nicht gesetzt, der `change_type`-Filter
-// fehlt, oder der Fehlschlag-Filter fehlt. Diese Datei führt BEIDE Klickverteiler
-// (garetienFussknopfEinfuegenKlick, garetienNeuKlick) mit einer `fetch`-Attrappe wirklich aus, wie
+// fehlt, oder der Fehlschlag-Filter fehlt. Diese Datei führt den Klickverteiler
+// garetienFussknopfEinfuegenKlick mit einer `fetch`-Attrappe wirklich aus -- seit dem 14.09.2026 auch
+// für „Stätte in X" (garetienNeuKlick ist mit „Innerorts einfügen" gefallen) --, wie
 // js/review/__tests__/garetien-fussknopf-dom.test.js es für den reinen Schreibweg schon tut.
 //
 // ⭐ Gemessen wird an der ECHTEN Kette: eine Fixture mit einem neu angelegten Objekt (801), einem
@@ -151,49 +152,29 @@ async function pruefeFussknopf() {
 }
 
 // =================================================================================================
-// B. „Neu einfügen": derselbe Mechanismus am ANDEREN Klickverteiler
+// B. „Stätte in X" über den Fußknopf -- derselbe Mechanismus, seit dem 14.09.2026 über die Zielwahl
 // =================================================================================================
-
-function kette(knoten) {
-	const kandidaten = knoten.map(function (k2) {
-		return Object.assign({
-			getAttribute(name) {
-				return Object.prototype.hasOwnProperty.call(k2.attribute || {}, name)
-					? k2.attribute[name] : null;
-			},
-		}, k2);
-	});
-	kandidaten[0].closest = function (auswahl) {
-		const teile = String(auswahl).split(",").map(function (t) { return t.trim(); });
-		for (const kand of kandidaten) {
-			for (const teil of teile) {
-				if ((kand.passt || []).indexOf(teil) !== -1) { return kand; }
-			}
-		}
-		return null;
+// 🔴 BIS ZUM 14.09.2026 FUHR DIESER ABSCHNITT DEN EINZELKNOPF „Innerorts einfügen" (garetienNeuKlick).
+// Der Knopf ist gefallen (er schrieb ohne Rückfrage in die Karte); die Stätte geht jetzt über den EINEN
+// Schreibweg „Stage importieren" -- und genau das wird hier gemessen: select → apply → Meldung → Rückgängig.
+// 💣 Das Objekt trägt einen Innerorts-Befund UND die Bauwerks-Form -- ohne beides steht „Stätte" gar nicht
+// zur Wahl, und die Zielwahl fiele still auf „Auf die Karte" zurück.
+function staetteObjekt(key, itemId) {
+	return {
+		key: key, stand: "offen", urteil: "neu", name: "Tempel " + itemId, typ: "Tempel",
+		ziel: "location", subtyp: "gebaeude", geometrie: [[1, 1]], abschnitte: [],
+		innerorts: { name: "Wandleth", public_id: "Ort-9", meilen: 0.4,
+			kandidaten: [{ name: "Wandleth", public_id: "Ort-9", meilen: 0.4, nennt_name: true }] },
+		items: [{ id: itemId, change_type: "new", selected: 0 }],
 	};
-	return kandidaten[0];
-}
-// 🔴 SEIT 07.09.2026 FAEHRT DIESE DATEI DEN EINZELKNOPF UEBER „Innerorts einfügen".
-// „Neu einfügen" ist gefallen (Owner-Punkt 12: angelegt wird ueber „Stage importieren"), und
-// `garetienNeuKlick` hat damit nur noch EINEN Aufrufer -- eben jenen. Geprueft wird derselbe
-// Ablauf wie zuvor (select → apply → Meldung → Rückgängig); nur der Knopfname wechselt.
-// 💣 Die Objekte dieser Datei tragen deshalb einen `innerorts`-Befund -- ohne ihn baut
-// `garetienHandlungen` den Knopf GAR NICHT, und `garetienHandlungsRumpf` liefert null.
-function neuZiel(key) {
-	return kette([{
-		passt: ['[data-handlung="innerorts"]', "[data-handlung]", "[data-key]"],
-		attribute: { "data-handlung": "innerorts", "data-key": key }, disabled: false, textContent: "",
-	}]);
 }
 
-async function pruefeNeuKlickErfolg() {
+async function pruefeStaetteErfolg() {
 	const { api, dom } = ladeImporter(EXTRA_IDS);
-	const objekt = {
-		key: "neu:1", urteil: "neu", abschnitte: [],
-		innerorts: { name: "Wandleth", public_id: "Ort-9" },
-		items: [{ id: 901, change_type: "new", selected: 0 }],
-	};
+	const objekt = staetteObjekt("neu:1", 901);
+	api.avesmapsGaretienStageLeeren();
+	api.avesmapsGaretienStageHinzufuegen([objekt]);
+	api.garetienZielwahlSetzen(objekt, "staette");
 
 	const f = machFetch(function (rumpf) {
 		if (rumpf.action === "select") { return { ok: true }; }
@@ -201,7 +182,7 @@ async function pruefeNeuKlickErfolg() {
 			return {
 				ok: true, done: true, applied: 1, deleted: 0, stale: 0, processed: 1, remaining: 0,
 				skipped: 0, declined: 0, fehler: [],
-				angelegt_je_form: { path: 1, bach: 0, region: 0, label: 0, location: 0, settlement_place: 0, quelle: 0 },
+				angelegt_je_form: { path: 0, bach: 0, region: 0, label: 0, location: 0, settlement_place: 1, quelle: 0 },
 			};
 		}
 		if (rumpf.action === "liste" && rumpf.stand === "uebernommen") { return { ok: true, objekte: [] }; }
@@ -212,10 +193,14 @@ async function pruefeNeuKlickErfolg() {
 	const echtesFetch = global.fetch;
 	global.fetch = f.fn;
 
-	await api.garetienNeuKlick({ target: neuZiel(objekt.key) }, [objekt], 4711, function () { return true; });
+	await api.garetienFussknopfEinfuegenKlick(4711, function () { return true; });
 
+	const apply = f.angefragt.filter(function (a) { return a.rumpf.action === "apply"; });
+	gleich(apply.length, 1, "genau ein apply");
+	tief(apply[0].rumpf.einstellungen_je_item, { "901": { innerorts: true, innerorts_public_id: "Ort-9" } },
+		"💣 „Stätte in X\" erreicht den Server -- bis zum 14.09.2026 sprang der Fußknopf hier auf „0 von 1\"");
 	const text1 = dom.text("#garetien-status-text");
-	wahr(text1.includes("1 Objekt importiert"), 'auch „Neu einfügen" meldet ueber garetienImportMeldung: ' + text1);
+	wahr(text1.includes("importiert"), "die Stätte meldet über garetienImportMeldung: " + text1);
 	wahr(!text1.includes("mit Vorschlag"), "…und nicht die Ruhe-Bilanz: " + text1);
 	gleich(dom.text("#garetien-status-aktion"), "Rückgängig", "und bietet Rückgängig an");
 
@@ -229,13 +214,12 @@ async function pruefeNeuKlickErfolg() {
 	global.fetch = echtesFetch;
 }
 
-async function pruefeNeuKlickScheitert() {
+async function pruefeStaetteScheitert() {
 	const { api, dom, ELEMENTE } = ladeImporter(EXTRA_IDS);
-	const objekt = {
-		key: "neu:2", urteil: "neu", abschnitte: [],
-		innerorts: { name: "Wandleth", public_id: "Ort-9" },
-		items: [{ id: 902, change_type: "new", selected: 0 }],
-	};
+	const objekt = staetteObjekt("neu:2", 902);
+	api.avesmapsGaretienStageLeeren();
+	api.avesmapsGaretienStageHinzufuegen([objekt]);
+	api.garetienZielwahlSetzen(objekt, "staette");
 
 	const f = machFetch(function (rumpf) {
 		if (rumpf.action === "select") { return { ok: true }; }
@@ -253,13 +237,11 @@ async function pruefeNeuKlickScheitert() {
 	const echtesFetch = global.fetch;
 	global.fetch = f.fn;
 
-	await api.garetienNeuKlick({ target: neuZiel(objekt.key) }, [objekt], 4711, function () { return true; });
+	await api.garetienFussknopfEinfuegenKlick(4711, function () { return true; });
 
 	const text1 = dom.text("#garetien-status-text");
-	wahr(text1.includes("0 von 1 nicht importiert") || text1.includes("nicht importiert"),
-		"der Fehlschlag steht in der Meldung: " + text1);
-	// 🔴 Befund 3: das EINZIGE Item ist gescheitert -- KEIN "Rückgängig" anbieten (es gibt nichts
-	// zurückzunehmen).
+	wahr(text1.includes("nicht importiert"), "der Fehlschlag steht in der Meldung: " + text1);
+	// 🔴 Befund 3: das EINZIGE Item ist gescheitert -- KEIN "Rückgängig" anbieten.
 	gleich(ELEMENTE["garetien-status-aktion"].hidden, true, "kein Link, wenn alles gescheitert ist");
 	gleich(dom.text("#garetien-status-aktion"), "", "…und ohne Beschriftung");
 
@@ -268,8 +250,8 @@ async function pruefeNeuKlickScheitert() {
 
 // =================================================================================================
 // C. Prüfrunde 06.09.2026, Befund 5: Import gelingt, der FOLGENDE Listenabruf lehnt ab -- die
-// Meldung darf NICHT verschluckt werden. Beide Klickverteiler, sonst bindet die Regel nur einen
-// von zwei Erzeugern.
+// Meldung darf NICHT verschluckt werden. Seit dem 14.09.2026 gibt es nur noch EINEN Erzeuger (den
+// Fußknopf) -- die Probe am gefallenen garetienNeuKlick ist mit ihm entfallen.
 // =================================================================================================
 
 async function pruefeFussknopfListenfehler() {
@@ -311,47 +293,10 @@ async function pruefeFussknopfListenfehler() {
 	global.fetch = echtesFetch;
 }
 
-async function pruefeNeuKlickListenfehler() {
-	const { api, dom, ELEMENTE } = ladeImporter(EXTRA_IDS);
-	const objekt = {
-		key: "neu:lf", urteil: "neu", abschnitte: [],
-		innerorts: { name: "Wandleth", public_id: "Ort-9" },
-		items: [{ id: 912, change_type: "new", selected: 0 }],
-	};
-
-	const f = machFetch(function (rumpf) {
-		if (rumpf.action === "select") { return { ok: true }; }
-		if (rumpf.action === "apply") {
-			return {
-				ok: true, done: true, applied: 1, deleted: 0, stale: 0, processed: 1, remaining: 0,
-				skipped: 0, declined: 0, fehler: [],
-				angelegt_je_form: { path: 1, bach: 0, region: 0, label: 0, location: 0, settlement_place: 0, quelle: 0 },
-			};
-		}
-		if (rumpf.action === "liste" && rumpf.stand === "uebernommen") { return { ok: true, objekte: [] }; }
-		if (rumpf.action === "liste") { return { ok: false, error: { message: "dump_locked" } }; }
-		throw new Error("unerwartet: " + rumpf.action);
-	});
-	const echtesFetch = global.fetch;
-	global.fetch = f.fn;
-
-	await api.garetienNeuKlick({ target: neuZiel(objekt.key) }, [objekt], 4711, function () { return true; });
-
-	const text1 = dom.text("#garetien-status-text");
-	wahr(text1.includes("1 Objekt importiert"), "auch hier bleibt sichtbar, was angelegt wurde: " + text1);
-	wahr(text1.includes("dump_locked"), "…mit dem Listenfehler: " + text1);
-	wahr(dom.klassen("#garetien-status-text").includes("bad"), "Ton bad");
-	gleich(dom.text("#garetien-status-aktion"), "Rückgängig", "Rückgängig bleibt angeboten");
-	gleich(ELEMENTE["garetien-status-aktion"].hidden, false, "…sichtbar");
-
-	global.fetch = echtesFetch;
-}
-
 pruefeFussknopf()
-	.then(pruefeNeuKlickErfolg)
-	.then(pruefeNeuKlickScheitert)
+	.then(pruefeStaetteErfolg)
+	.then(pruefeStaetteScheitert)
 	.then(pruefeFussknopfListenfehler)
-	.then(pruefeNeuKlickListenfehler)
 	.then(function () {
 		console.log(`garetien-import-verdrahtung ok -- ${checks} Zusicherungen`);
 	})

@@ -24,11 +24,13 @@ const { api } = ladeImporter();
 
 function fragmente() {
 	// Aufgabe 6 (14.09.2026): Zusammenlegen verlangt die Form Flaeche -- ohne `ziel` waere es gesperrt.
+	// 🔴 Aufgabe 9: und ein 'new'-Item, sonst ist die Zielwahl-Vorbelegung "nichts" statt "karte"
+	// (Ruling R-a) und garetienVerbundZusammenlegbar sperrt.
 	const verbund = { ebene: "Waelder", typ: "Wald", verbund_stamm: "Silker Hain", verbund_n: 2,
 		ziel: "region", subtyp: "wald" };
 	return [
-		Object.assign({ key: "ggp:silkerhain:eins" }, verbund),
-		Object.assign({ key: "ggp:silkerhain:zwei" }, verbund),
+		Object.assign({ key: "ggp:silkerhain:eins", items: [{ id: 401, change_type: "new" }] }, verbund),
+		Object.assign({ key: "ggp:silkerhain:zwei", items: [{ id: 402, change_type: "new" }] }, verbund),
 	];
 }
 

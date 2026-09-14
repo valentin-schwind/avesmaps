@@ -252,7 +252,8 @@ function eingabeEreignis(feld, werte) {
 		hasAttribute: (n) => n === "data-gi-feld",
 	}, werte) };
 }
-const namensfeld = (o) => feldWert(api.garetienEinfuegeHakenMarkup(o), "einfuegeName");
+// 🔴 Aufgabe 9 (14.09.2026): das Namensfeld steht unter der Zielwahl, nicht mehr im Haekchen-Kasten.
+const namensfeld = (o) => feldWert(api.garetienZielNameZeile(o), "einfuegeName");
 // Die Vorschau: die REINE Regel wird geladen wie in index.html (vor dem Zeichnen), der Stempel laeuft im Fenster.
 const vorschauRegel = require("../review-garetien-label-vorschau.js");
 const VORSCHAU = api.AVESMAPS_GARETIEN_FELD_VORSCHAU_LABEL;
@@ -352,14 +353,16 @@ function einstellungenSetzen(o) {
 	api.garetienUmkreisSetzen("naehe", 12);
 	api.garetienZielWahlZu(o).subtyp = "sumpf";
 	api.garetienInnerortsWahlSetzen(o, "stadt-1");
-	api.garetienEinfuegeWahlSetzen(o, "quelle", false);
+	// 🔴 Aufgabe 9 (14.09.2026): die zwei Häkchen sind eine Zielwahl geworden -- eine von der
+	// Vorbelegung ("ergaenzen", `einzeln` traegt nur ein Ergaenzungs-Item) abweichende Wahl.
+	api.garetienZielwahlSetzen(o, "nichts");
 }
 function einstellungenSindVergessen(o, wo) {
 	gleich(api.garetienNameWahlZu(o), "", wo + ": Name vergessen");
 	gleich(api.garetienUmkreisZu("naehe"), 12, wo + ": 🔴 der Umkreis gehoert dem FENSTER und bleibt stehen");
-	gleich(api.garetienZielWahlZu(o).subtyp, "wald", wo + ": Zielwahl vergessen");
+	gleich(api.garetienZielWahlZu(o).subtyp, "wald", wo + ": Zielwahl (Form/Art) vergessen");
 	gleich(api.garetienInnerortsWahlZu(o), "", wo + ": Innerorts-Wahl vergessen");
-	gleich(api.garetienEinfuegeWahl(o).quelle, true, wo + ": Haekchen-Wahl vergessen");
+	gleich(api.garetienZielwahlZu(o), "ergaenzen", wo + ": Zielwahl (frueher Haekchen) vergessen -- Vorbelegung");
 }
 const einzeln = {
 	key: "ggp:weidicht", name: "Weidicht", ebene: "Waelder", typ: "Wald", ziel: "region", subtyp: "wald",
@@ -370,7 +373,7 @@ zuruecksetzen();
 einstellungenSetzen(einzeln);
 gleich(api.garetienNameWahlZu(einzeln), "Handname", "Vorbedingung: gesetzt");
 gleich(api.garetienInnerortsWahlZu(einzeln), "stadt-1", "Vorbedingung: Innerorts gesetzt");
-gleich(api.garetienEinfuegeWahl(einzeln).quelle, false, "Vorbedingung: Haekchen gesetzt");
+gleich(api.garetienZielwahlZu(einzeln), "nichts", "Vorbedingung: Zielwahl gesetzt");
 api.avesmapsGaretienStageLeeren();
 einstellungenSindVergessen(einzeln, "Stage leeren");
 

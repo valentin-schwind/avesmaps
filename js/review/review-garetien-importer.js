@@ -492,7 +492,7 @@
 	// zaehlten sie also **immer** als „fertig", nie nur bei einer echten Nebenwirkung, und „bereits"
 	// behauptete einen frueheren, unabhaengigen Zustand, den es nie gab -- der Normalfall eines
 	// gewoehnlichen, erfolgreichen Imports zeigte dann zwei Meldungen fuer dieselbe Sache.
-	// 🔴 Nur an den ZWEI Einfuege-Aufrufstellen (garetienNeuKlick/innerorts, garetienFussknopfEinfuegenKlick)
+	// 🔴 Nur an der Einfuege-Aufrufstelle (garetienFussknopfEinfuegenKlick; „Innerorts einfügen“ fiel am 14.09.2026)
 	// -- `garetienLaufStarten` meldet weiterhin ungefiltert, denn dort ist „fertig" wirklich eine
 	// fremde, aeltere Stage-Leiche (Zusicherung 3 des Briefs).
 	// REIN: kein DOM, kein Modulzustand. Liefert bei leerer `eigeneSchluessel`-Menge dasselbe Objekt
@@ -1609,7 +1609,7 @@
 	function garetienVerbundEinstellungenVergessen(schluessel) {
 		const s = String(schluessel || "");
 		if (s === "") { return; }
-		[_garetienZielWahl, _garetienNameWahl, _garetienEingabenZustand, _garetienEinfuegeWahl].forEach(function (speicher) {
+		[_garetienZielWahl, _garetienNameWahl, _garetienEingabenZustand, _garetienZielwahl].forEach(function (speicher) {
 			delete speicher[s];
 		});
 	}
@@ -1627,7 +1627,7 @@
 	 */
 	function garetienVerbundVergessen() {
 		zustand.stage.forEach(function (eintrag) { eintrag.zusammen = false; });
-		[_garetienZielWahl, _garetienNameWahl, _garetienEingabenZustand, _garetienEinfuegeWahl].forEach(function (speicher) {
+		[_garetienZielWahl, _garetienNameWahl, _garetienEingabenZustand, _garetienZielwahl].forEach(function (speicher) {
 			Object.keys(speicher).forEach(function (key) {
 				if (key.indexOf("verbund:") === 0) { delete speicher[key]; }
 			});
@@ -1662,7 +1662,7 @@
 		garetienNameWahlVergessen();
 		garetienInnerortsWahlVergessen();
 		garetienZielWahlVergessen();
-		garetienEinfuegeWahlVergessen();
+		garetienZielwahlVergessen();
 	}
 
 	/*
@@ -1715,12 +1715,28 @@
 	 * ⚠️ LIEGT NOCH NICHTS AUF DER STAGE (der Knopf wird VOR dem ersten Auflegen gefragt, oder ein
 	 * Test prueft ein einzelnes, noch nicht aufgelegtes Objekt), faellt die Pruefung auf das
 	 * UEBERGEBENE Objekt allein zurueck -- dieselbe Regel wie vorher ueber den `|| objekt`-Rueckfall.
-	 * 🔧 BIS AUFGABE 9 gibt es keine Zielwahl „karte": geprueft wird die Form (`.ziel`).
-	 * Aufgabe 9 erweitert die Bedingung um `garetienZielwahlZu(objekt) === "karte"`.
+	 * 🔴 AUFGABE 9 (14.09.2026): VOR der Form steht die Zielwahl -- an JEDEM aufgelegten Mitglied muss
+	 * „Auf die Karte" gewählt sein (Begründung am Block im Rumpf).
 	 */
 	function garetienVerbundZusammenlegbar(objekt) {
 		const schluessel = garetienVerbundSchluessel(objekt);
 		if (schluessel === "") { return { ok: false, grund: "Dieses Objekt gehört zu keinem Verbund." }; }
+		// 🔴 AUFGABE 9: ERST DIE ZIELWAHL -- an JEDEM aufgelegten Mitglied. Ein Verbund wird eine Fläche
+		// oder ein Weg AUF DER KARTE (Entwurf §6.3); „Stätte", eine Ergänzung oder „Nichts" legen keine
+		// Region an, in die mehrere Teile gehören.
+		// 💣 JEDES Mitglied, nicht nur das größte: nach dem Zusammenlegen liest die Zielwahl am
+		// Verbundschlüssel, und ein „Nichts" an einem kleineren Fragment fiele dabei STILL auf „Auf die
+		// Karte" zurück. Der Grund nennt deshalb auch das Fragment, an dem es hängt.
+		const ohneKarte = garetienVerbundStageEintraege(schluessel)
+			.map(function (eintrag) { return eintrag.objekt; })
+			.filter(function (m) { return garetienZielwahlZu(m) !== "karte"; })[0] || null;
+		if (ohneKarte) {
+			const gewaehltZiel = garetienZielwahlTexte(ohneKarte, garetienZielwahlZu(ohneKarte)).t1;
+			const beiFragment = String(ohneKarte.key) === String((objekt || {}).key)
+				? "" : " bei „" + String(ohneKarte.name || ohneKarte.key || "") + "“";
+			return { ok: false, grund: "Ein Verbund wird eine Fläche oder ein Weg auf der Karte — gewählt ist „"
+				+ gewaehltZiel + "“" + beiFragment + "." };
+		}
 		let mitglieder = garetienVerbundMitglieder(schluessel, avesmapsGaretienStageListe());
 		if (mitglieder.length === 0) { mitglieder = [objekt]; }
 		for (let i = 0; i < mitglieder.length; i++) {
@@ -2592,14 +2608,15 @@
 	 * Region an, alle weiteren haengen nur ihre Flaeche daran (avesmapsGaretienVerbundRegion). Die
 	 * Beschriftung sitzt deshalb auf dem Mittelpunkt DIESES Fragments (Entwurf §10), und die Vorschau zeigt
 	 * sie genau dort -- EINE, nicht eine je Fragment.
-	 * ⚠️ Gezaehlt werden die Neu-Items (garetienNeuItems); ein Mitglied ohne Item-Nummer kommt nach allen
-	 * anderen, bei Gleichstand entscheidet der kleinste Schluessel.
+	 * ⚠️ Gezaehlt werden die Neu-Items (garetienZielKarteItems, Aufgabe 9: die echten Neu-Items, sonst das
+	 * Zusatz-Item); ein Mitglied ohne Item-Nummer kommt nach allen anderen, bei Gleichstand entscheidet
+	 * der kleinste Schluessel.
 	 */
 	function garetienVerbundAnfuehrer(schluessel) {
 		let bester = null;
 		let besteId = Infinity;
 		garetienVerbundStageEintraege(schluessel).forEach(function (eintrag) {
-			const ids = garetienNeuItems(eintrag.objekt).map(function (item) { return Number(item && item.id); })
+			const ids = garetienZielKarteItems(eintrag.objekt).map(function (item) { return Number(item && item.id); })
 				.filter(function (id) { return id > 0; });
 			const id = ids.length > 0 ? Math.min.apply(null, ids) : Infinity;
 			if (bester === null || id < besteId
@@ -4263,9 +4280,11 @@
 	// (avesmapsNormalizePlaceKind) -- ein Wort daneben wird verworfen, nicht falsch gespeichert.
 	// 🔧 Wenn der Owner die Vorschlagsliste hier haben will, ist das der Ort, an dem das Bauteil
 	// eingehängt wird -- nicht der Ort, an dem eine zweite entsteht.
-	function garetienEingefuegtWirdTextZeile(objekt, beschriftung, feld, wert, platzhalter, deaktiviert) {
+	function garetienEingefuegtWirdTextZeile(objekt, beschriftung, feld, wert, platzhalter, deaktiviert, aus) {
 		const id = garetienEingabeId(objekt, feld);
-		return '<label class="location-report-form__field location-report-form__field--zeile gi-insert__row" for="'
+		// ⚠️ `aus` (14.09.2026): abgeblendet statt ausgeblendet -- siehe garetienZielNameZeile.
+		return '<label class="location-report-form__field location-report-form__field--zeile gi-insert__row'
+			+ (aus ? " gi-insert__row--aus" : "") + '" for="'
 			+ id + '"><span>' + avesmapsGaretienEscape(beschriftung) + "</span>"
 			+ '<input type="text" class="gi-insert__input gi-insert__input--text" id="' + id + '" '
 			+ 'data-gi-feld="' + feld + '" maxlength="120" autocomplete="off" '
@@ -4526,12 +4545,16 @@
 			garetienDetailRendern(objekte || zustand.objekte || []);
 			return;
 		}
-		// 🔴 DIE INNERORTS-WAHL BAUT DIE SPALTE NEU, wie die Zielwahl darunter -- sie entscheidet,
-		// ob der Kasten überhaupt noch von einem Kartenobjekt spricht (der Satz unter dem Feld) und
-		// welche Stadt im Knopf „Innerorts einfügen (X)" steht.
-		// 🔴 Die zwei Einfüge-Häkchen. Sie bauen die Spalte neu, weil sie einander bedingen:
-		// „Neu einfügen“ sperrt „Als Quelle einfügen“ (garetienEinfuegeWahl), und das sieht man nur
-		// am neu gezeichneten Kasten.
+		// 🔴 DIE ZIELWAHL BAUT DIE SPALTE NEU: sie entscheidet, welche Felder darunter gelten (abgeblendet
+		// oder nicht) und welche Items der Import schreibt -- und der Fußknopf zählt danach neu, sonst
+		// stünde dort „0 von 1" neben einem Objekt, das „Stätte in X" gewählt hat.
+		// ⚠️ Ein Radio meldet `input` nur beim Einschalten -- `value` ist also immer die neue Wahl.
+		if (feld === "zielwahl") {
+			garetienZielwahlSetzen(objekt, ziel.value);
+			garetienDetailRendern(objekte || zustand.objekte || []);
+			garetienUebernahmeKnopfSetzen(avesmapsGaretienStageListe());
+			return;
+		}
 		// Der von Hand geaenderte Name. ⚠️ KEIN Neuzeichnen: der Kasten wuerde beim Tippen unter dem
 		// Zeiger neu gebaut und der Fokus waere nach dem ersten Buchstaben weg.
 		if (feld === "einfuegeName") {
@@ -4546,12 +4569,8 @@
 			}, 250);
 			return;
 		}
-		if (feld === "einfuegeQuelle" || feld === "einfuegeNeu") {
-			garetienEinfuegeWahlSetzen(objekt, feld === "einfuegeNeu" ? "neu" : "quelle",
-				Boolean(ziel.checked));
-			garetienDetailRendern(objekte || zustand.objekte || []);
-			return;
-		}
+		// Die Siedlung für „Stätte in X" / „Nur Quelle + Artikel an X". Neu gezeichnet wird, weil ihr
+		// Name in der Zielwahl steht.
 		if (feld === "innerorts") {
 			const key = String(objekt.key || "");
 			if (key !== "") { garetienInnerortsWahlSetzen(objekt, ziel.value); }
@@ -4684,7 +4703,9 @@
 	 */
 	function garetienEingabenFuerServer(objekt) {
 		const rumpf = garetienEingabenFuerServerOhneName(objekt);
-		const name = garetienNameWahlZu(objekt);
+		// ⚠️ „Nur Quelle + Artikel" legt kein Objekt an -- ein Name, der dort aus einer früheren Wahl
+		// liegengeblieben ist, reist nicht mit.
+		const name = garetienZielwahlZu(objekt) === "nur_quelle" ? "" : garetienNameWahlZu(objekt);
 		const mitName = name === "" ? rumpf : Object.assign({}, rumpf || {}, { name: name });
 		const verbund = garetienVerbundSchluessel(objekt);
 		if (verbund !== "" && garetienVerbundIstZusammen(verbund)) {
@@ -4699,20 +4720,22 @@
 
 		// 🔴 DIE GEWÄHLTE Form entscheidet, WELCHE Felder mitreisen -- ein zum Gipfel gewechselter
 		// Sumpf schickt die Label-Felder, nicht die der Fläche.
-		// 🔴 EINE GEWÄHLTE STADT SCHLÄGT ALLES ANDERE -- und deshalb steht sie VOR der Zielwahl.
-		// Ein innerorts eingefügtes Objekt entsteht auf der Karte gar nicht; Form, Art, Nodix und
-		// Strömung beschreiben ein Kartenobjekt, das es nicht geben wird.
-		// 💣 UND ES REIST KEIN `ziel` MIT. `avesmapsGaretienZielUebersteuern` läuft serverseitig VOR
-		// der Innerorts-Weiche (garetien-uebernahme.php) und formte die Geometrie für ein Ziel um,
-		// das nie gebaut wird -- dieselbe Begründung, aus der der Einzelknopf „Innerorts einfügen"
-		// den Kasten „Eingefügt wird" ebenfalls nicht mitschickt.
-		// ⭐ HIERDURCH WIRKT INNERORTS ÜBER DIE STAGE. `garetienStageEinstellungenJeItem` heftet
-		// genau diesen Rumpf an die 'new'-Items, und `avesmapsGaretienInnerortsGewuenscht` liest ihn
-		// -- bis zum 07.09.2026 legte „Stage importieren" nie eine Stätte an, und der Einzelknopf
-		// war der einzige Weg dorthin.
-		const innerorts = garetienInnerortsWahlZu(objekt);
-		if (innerorts !== "") {
-			return { innerorts: true, innerorts_public_id: innerorts };
+		// 🔴 „STÄTTE IN X" UND „NUR QUELLE + ARTIKEL AN X" SCHLAGEN ALLES ANDERE -- und deshalb stehen sie
+		// VOR der Formwahl. Eine Stätte entsteht auf der Karte gar nicht; Form, Art, Nodix und Strömung
+		// beschreiben ein Kartenobjekt, das es nicht geben wird.
+		// 💣 UND ES REIST KEIN `ziel` MIT. `avesmapsGaretienZielUebersteuern` läuft serverseitig VOR der
+		// Innerorts-Weiche (garetien-uebernahme.php) und formte die Geometrie für ein Ziel um, das nie
+		// gebaut wird.
+		// ⭐ SEIT DEM 14.09.2026 ENTSCHEIDET DIE ZIELWAHL, nicht mehr das Siedlungsfeld. Bis dahin hieß
+		// eine gewählte Stadt „innerorts" -- und der Fußknopf sprang dabei auf „0 von 1", weil
+		// `garetienNeuMoeglich` das Neu-Item wegnahm (Befund `stadt-unimportierbar`).
+		const zielwahl = garetienZielwahlZu(objekt);
+		if (zielwahl === "staette" || zielwahl === "nur_quelle") {
+			const innerortsRumpf = { innerorts: true, innerorts_public_id: garetienInnerortsZiel(objekt).public_id };
+			// 🔴 „Nur Quelle + Artikel": der Server hängt Quelle und Artikel an die Siedlung und legt
+			// KEINE Stätte an (Aufgabe 8, `innerorts_nur_quelle`).
+			if (zielwahl === "nur_quelle") { innerortsRumpf.innerorts_nur_quelle = true; }
+			return innerortsRumpf;
 		}
 		const wahl = garetienZielWahlZu(objekt);
 		const ziel = String(wahl.ziel || "");
@@ -5612,53 +5635,56 @@
 	}
 
 	/*
-	 * REIN: die Stadt, die eine Innerorts-Übernahme JETZT träfe -- die gewählte, sonst die
-	 * Vorauswahl des Servers. `""`, wenn es gar keinen Befund gibt.
+	 * REIN: die Siedlung, an die eine Innerorts-Übernahme JETZT ginge -- die gewählte, sonst die
+	 * Vorauswahl des Servers, sonst die nächste Siedlung der Liste. `{public_id:"", name:""}`, wenn es
+	 * keine gibt.
 	 *
-	 * 💣 EIN Leser für Knopfbeschriftung, Hilfetext und Anfragerumpf. Stünde die Auflösung an jeder
-	 * dieser Stellen einzeln, sagte der Knopf „Innerorts einfügen (Wandleth)", während die Anfrage
-	 * „Aue" mitschickt -- und das ist genau die Verwechslung, gegen die der Ortsname überhaupt IM
-	 * Knopf steht (Entwurf §4: „wenn der Ort falsch ist, sieht er es, bevor er drückt").
+	 * 💣 EIN Leser für die Zielwahl-Zeile („Stätte in X"), die Ziel-Marke und den Anfragerumpf. Stünde
+	 * die Auflösung an jeder dieser Stellen einzeln, sagte die Zeile „Stätte in Wandleth", während die
+	 * Anfrage „Aue" mitschickt.
+	 * ⚠️ SEIT DEM 14.09.2026 MIT DER NÄCHSTEN SIEDLUNG ALS LETZTEM RÜCKFALL: steht die Vorauswahl nicht
+	 * (mehr) in der Liste -- der Umkreis-Spinner hat sie frisch nachgeschlagen --, stünde sonst
+	 * „Stätte in „"" ohne Namen da.
+	 * 🔧 Serverseitig fällt eine Siedlung, die NICHT in den Kandidaten des LAUFS steht, still auf dessen
+	 * Vorauswahl zurück (avesmapsGaretienInnerortsAusVorschlag) -- eine per Spinner gefundene Siedlung
+	 * erreicht den Server damit nicht. Das ist ein Befund für den Server, kein Rückfall hier.
 	 */
 	function garetienInnerortsZiel(objekt) {
+		const kandidaten = garetienInnerortsKandidatenVon(objekt);
+		const finde = function (publicId) {
+			return kandidaten.filter(function (k) { return String(k.public_id || "") === publicId; })[0] || null;
+		};
 		const wahl = garetienInnerortsWahlZu(objekt);
 		if (wahl !== "") {
-			const treffer = garetienInnerortsKandidatenVon(objekt).filter(function (k) {
-				return String(k.public_id || "") === wahl;
-			})[0];
+			const treffer = finde(wahl);
 			if (treffer) { return { public_id: wahl, name: String(treffer.name || "") }; }
 		}
 		const befund = (objekt && objekt.innerorts) || null;
-		const name = befund && typeof befund === "object" ? String(befund.name || "").trim() : "";
-		return name === ""
-			? { public_id: "", name: "" }
-			: { public_id: String(befund.public_id || ""), name: name };
+		const befundId = befund && typeof befund === "object" ? String(befund.public_id || "").trim() : "";
+		const befundName = befund && typeof befund === "object" ? String(befund.name || "").trim() : "";
+		if (befundName !== "" && finde(befundId)) { return { public_id: befundId, name: befundName }; }
+		if (kandidaten.length > 0) {
+			return { public_id: String(kandidaten[0].public_id || ""), name: String(kandidaten[0].name || "") };
+		}
+		return { public_id: "", name: "" };
 	}
 
 	/*
-	 * REIN: die Zeile „Innerorts" im Kasten „Eingefügt wird" -- oder "", wenn keine Stadt in
-	 * Reichweite liegt.
+	 * REIN: Siedlung und Umkreis unter der Zielwahl -- oder "", wenn das Objekt keine Innerorts-Frage
+	 * hat (garetienInnerortsMoeglich: Ort + Bauwerksklasse).
 	 *
-	 * 🔴 DER ERSTE EINTRAG IST „auf die Karte", UND ER IST VORAUSGEWÄHLT. Die Begründung steht an
-	 * `_garetienInnerortsWahl`: eine vorbelegte Stadt legte beim nächsten „Stage importieren" für
-	 * dreihundert Objekte stillschweigend Stätten an.
-	 * ⚠️ Der Vorschlag des Servers geht damit nicht verloren -- er steht in der Liste, und der Knopf
-	 * „Innerorts einfügen (X)" nennt ihn beim Namen.
-	 *
-	 * 🔴 IST EINE STADT GEWÄHLT, SAGT DIE ZEILE DARUNTER, WAS DAS HEISST: kein Kartenpunkt, und Form
-	 * und Art gelten nicht mehr. Ohne den Satz behauptet der Kasten weiter „Form: Ort · Art:
-	 * Bauwerk" für ein Objekt, das auf der Karte gar nicht entsteht -- der Widerspruch, den Entwurf
-	 * §4 mit dem Abblenden beim Überfahren des Knopfes meint, nur dass die Wahl hier BLEIBT.
+	 * 🔴 SEIT DEM 14.09.2026 GIBT ES „— auf die Karte —" HIER NICHT MEHR. „Auf die Karte" ist eine
+	 * Zielwahl, und eine zweite Stelle, die dasselbe entscheidet, wäre genau die Divergenz, an der die
+	 * Häkchen gescheitert sind. Das Feld wählt nur noch, WELCHE Siedlung.
+	 * ⚠️ ABGEBLENDET, solange das Ziel keine Siedlung braucht („Auf die Karte", „Nichts") -- nicht
+	 * ausgeblendet, sonst springt die Spalte beim Umschalten.
+	 * 🔴 DER SPINNER STEHT BEI JEDEM BAUWERK, auch ohne Treffer: fände die Suche bei 5 Meilen nichts,
+	 * wäre sonst auch das Feld weg, mit dem man sie auf 12 stellt.
 	 */
 	function garetienInnerortsZeileMarkup(objekt, deaktiviert) {
-		// 🔴 DIE FRAGE GEHÖRT DEM BAUWERK, nicht dem Treffer. Bis zum 08.09.2026 hing die ganze
-		// Zeile am Befund -- mit dem Spinner geht das nicht mehr: fände die Suche bei 5 Meilen
-		// nichts, wäre auch das Feld weg, mit dem man sie auf 12 stellen würde. Ein Bedienelement,
-		// das nur erscheint, wenn man es nicht mehr braucht, ist keines.
 		if (!garetienInnerortsMoeglich(objekt)) { return ""; }
 		const kandidaten = garetienInnerortsKandidatenVon(objekt);
-		// ⚠️ An einem übernommenen Objekt ist nichts mehr zu suchen -- dort steht die Wahl als reine
-		// Anzeige, ohne Spinner (er wäre ein Regler ohne Wirkung).
+		// ⚠️ An einem übernommenen Objekt ist nichts mehr zu suchen -- dort kein Spinner.
 		const spinner = deaktiviert ? "" : '<p class="gi-insert__row">'
 			+ garetienUmkreisSpinnerMarkup("innerorts", "Umkreis") + "</p>";
 		if (kandidaten.length === 0) {
@@ -5666,22 +5692,19 @@
 				+ "keine Siedlung innerhalb von " + garetienZahlText(garetienUmkreisZu("innerorts"))
 				+ " Meilen</span></p>" + spinner;
 		}
-		const wahl = garetienInnerortsWahlZu(objekt);
-		const optionen = ['<option value=""' + (wahl === "" ? " selected" : "") + '>— auf die Karte —</option>']
-			.concat(kandidaten.map(function (k) {
-				const pid = String(k.public_id || "");
-				return '<option value="' + avesmapsGaretienEscape(pid) + '"'
-					+ (pid === wahl ? " selected" : "") + ">"
-					+ avesmapsGaretienEscape(garetienInnerortsKandidatText(k)) + "</option>";
-			}));
-		return '<p class="gi-insert__row">Innerorts <span class="gi-insert__val">'
-			+ '<select class="gi-insert__select" data-gi-feld="innerorts" id="'
-			+ garetienEingabeId(objekt, "innerorts") + '"' + (deaktiviert ? " disabled" : "") + ">"
+		const zielwahl = garetienZielwahlZu(objekt);
+		const aktiv = !deaktiviert && (zielwahl === "staette" || zielwahl === "nur_quelle");
+		const gewaehlt = garetienInnerortsZiel(objekt).public_id;
+		const optionen = kandidaten.map(function (k) {
+			const pid = String(k.public_id || "");
+			return '<option value="' + avesmapsGaretienEscape(pid) + '"'
+				+ (pid === gewaehlt ? " selected" : "") + ">"
+				+ avesmapsGaretienEscape(garetienInnerortsKandidatText(k)) + "</option>";
+		});
+		return '<p class="gi-insert__row' + (aktiv ? "" : " gi-insert__row--aus") + '">Siedlung '
+			+ '<span class="gi-insert__val"><select class="gi-insert__select" data-gi-feld="innerorts" id="'
+			+ garetienEingabeId(objekt, "innerorts") + '"' + (aktiv ? "" : " disabled") + ">"
 			+ optionen.join("") + "</select></span></p>"
-			+ (wahl === "" ? "" : '<p class="gi-insert__row"><span class="gi-insert__hint">'
-				+ "Wird als Stätte in „" + avesmapsGaretienEscape(garetienInnerortsZiel(objekt).name)
-				+ "“ angelegt — OHNE Position auf der Karte. Form und Art gelten dafür nicht."
-				+ "</span></p>")
 			+ spinner;
 	}
 
@@ -5778,7 +5801,10 @@
 
 	// REIN: die zwei Auswahlfelder. `deaktiviert` sperrt sie an einem bereits übernommenen Objekt --
 	// dieselbe Regel wie für jedes andere Feld dieses Kastens (Owner 30.08.2026, Punkt 6a).
-	function garetienZielWahlMarkup(objekt, deaktiviert) {
+	// 🔴 `ausGrund` (14.09.2026): nicht "" heißt, das gewählte ZIEL braucht keine Form („Stätte in X",
+	// eine Ergänzung, „Nichts"). Die Zeilen werden dann ABGEBLENDET (`gi-insert__row--aus`, gesperrt,
+	// mit Grund) statt ausgeblendet -- sonst springt die Spalte bei jedem Wechsel (Mockup §5).
+	function garetienZielWahlMarkup(objekt, deaktiviert, ausGrund) {
 		const wahl = garetienZielWahlZu(objekt);
 		const formen = garetienMoeglicheFormen(objekt);
 		// ⚠️ Eine Form, die die Geometrie nicht hergibt, steht nicht in der Liste -- die gewählte
@@ -5790,7 +5816,9 @@
 		const artListe = arten.some(function (a) { return a.key === wahl.subtyp; })
 			? arten
 			: arten.concat([{ key: wahl.subtyp, label: wahl.subtyp, kind: wahl.kind }]);
-		const gesperrt = deaktiviert ? " disabled" : "";
+		const grund = String(ausGrund || "");
+		const gesperrt = (deaktiviert || grund !== "") ? " disabled" : "";
+		const zeile = grund !== "" ? "gi-insert__row gi-insert__row--aus" : "gi-insert__row";
 		const bauen = function (feld, liste, gewaehlt) {
 			return '<select class="gi-insert__select" data-gi-feld="' + feld + '"'
 				+ ' id="' + garetienEingabeId(objekt, feld) + '"' + gesperrt + ">"
@@ -5800,9 +5828,11 @@
 						+ avesmapsGaretienEscape(e.label) + "</option>";
 				}).join("") + "</select>";
 		};
-		return '<p class="gi-insert__row">Form <span class="gi-insert__val">'
-			+ bauen("zielForm", formListe, wahl.ziel) + "</span></p>"
-			+ '<p class="gi-insert__row">Art <span class="gi-insert__val">'
+		return '<p class="' + zeile + '">Form <span class="gi-insert__val">'
+			+ bauen("zielForm", formListe, wahl.ziel) + "</span>"
+			+ (grund !== "" ? '<span class="gi-insert__unit">' + avesmapsGaretienEscape(grund) + "</span>" : "")
+			+ "</p>"
+			+ '<p class="' + zeile + '">Art <span class="gi-insert__val">'
 			+ bauen("zielArt", artListe, wahl.subtyp) + "</span></p>";
 	}
 
@@ -5818,10 +5848,16 @@
 		// entscheiden, und die Felder werden reine Anzeige (Owner: „die editoren sollen dann das
 		// objekt auf der karte editieren").
 		const uebernommen = String(objekt.stand || "") === "uebernommen";
+		// 🔴 AUF DER STAGE ENTSCHEIDET DIE ZIELWAHL, OB DIE FELDER GELTEN (14.09.2026). Eine Stätte, eine
+		// Ergänzung oder „Nichts" legt kein Kartenobjekt an -- Form, Art und Darstellung werden dann
+		// abgeblendet, nicht ausgeblendet. ⚠️ Ein übernommenes Objekt bleibt, wie es war: gesperrt, ohne
+		// Grund-Zeile (Bestand, Owner 14.09.2026).
+		const ausGrund = (!uebernommen && avesmapsGaretienStageHat(objekt.key)) ? garetienZielwahlAusGrund(objekt) : "";
+		const gesperrt = uebernommen || ausGrund !== "";
 		let markup = '<p class="gi-sec">Eingefügt wird</p>'
 			+ '<p class="gi-why gi-insert__kopf">' + avesmapsGaretienEscape(garetienTypText(objekt)) + "</p>"
 			+ garetienEingefuegtWirdUebernommenHinweis(objekt)
-			+ garetienZielWahlMarkup(objekt, uebernommen);
+			+ garetienZielWahlMarkup(objekt, uebernommen, ausGrund);
 		// 🔴 SOLANGE „OFFEN", BLEIBEN DARSTELLUNG UND WIKI & QUELLEN AUSGEBLENDET (Owner
 		// 09.09.2026: „die sind alle auf der stage erst wichtig"). Auf dem Reiter Offen
 		// entscheidet ein Editor zwei Dinge -- ueberhaupt? und als was? Groesse, Prioritaet,
@@ -5836,21 +5872,19 @@
 				+ '<p class="gi-why">Darstellung sowie Wiki &amp; Quellen erscheinen, sobald das'
 				+ " Objekt auf der Stage liegt.</p></div>";
 		}
-		// 🔴 DIREKT UNTER FORM UND ART, weil sie dieselbe Frage beantwortet („was entsteht?")
-		// und die zwei darüber überstimmt, sobald eine Stadt gewählt ist. Weiter unten, zwischen
-		// den Feldern der Form, wäre sie eine Eigenschaft des Kartenobjekts -- und genau das ist
-		// sie nicht (Owner 07.09.2026: „nicht zwischen die felder reinpfrimeln", zur selben
-		// Frage bei den Quellen).
-		markup += garetienInnerortsZeileMarkup(objekt, uebernommen);
+		// ⚠️ SIEDLUNG UND UMKREIS STEHEN SEIT DEM 14.09.2026 UNTER DER ZIELWAHL (garetienZielwahlMarkup),
+		// nicht mehr hier: sie geben „Stätte in X" ihr X, und zweimal gezeichnet trügen zwei Felder
+		// dieselbe `id`. An einem ÜBERNOMMENEN Bauwerk fällt die gesperrte Zeile ersatzlos weg -- wo es
+		// liegt, sagt weiter der Satz darüber (garetienEingefuegtWirdUebernommenHinweis).
 		if (ziel === "region") {
-			markup += garetienEingefuegtWirdFlaecheMarkup(objekt, uebernommen);
-			markup += garetienEingefuegtWirdBeschriftungMarkup(objekt, subtyp, true, uebernommen);
+			markup += garetienEingefuegtWirdFlaecheMarkup(objekt, gesperrt);
+			markup += garetienEingefuegtWirdBeschriftungMarkup(objekt, subtyp, true, gesperrt);
 		} else if (ziel === "label") {
-			markup += garetienEingefuegtWirdBeschriftungMarkup(objekt, subtyp, false, uebernommen);
+			markup += garetienEingefuegtWirdBeschriftungMarkup(objekt, subtyp, false, gesperrt);
 		} else if (ziel === "location") {
-			markup += garetienEingefuegtWirdOrtMarkup(objekt, subtyp, uebernommen);
+			markup += garetienEingefuegtWirdOrtMarkup(objekt, subtyp, gesperrt);
 		} else if (ziel === "path") {
-			markup += garetienEingefuegtWirdWegMarkup(objekt, subtyp, uebernommen);
+			markup += garetienEingefuegtWirdWegMarkup(objekt, subtyp, gesperrt);
 		}
 		markup += garetienEingefuegtWirdUeberschrift("Wiki und Quellen");
 		markup += garetienQuellenMarkup(objekt);
@@ -6585,9 +6619,6 @@
 
 	const AVESMAPS_GARETIEN_HANDLUNG_BESCHRIFTUNG = {
 		neu: "Neu einfügen",
-		// ⚠️ Die Stadt fehlt hier mit Absicht: sie hängt am OBJEKT, nicht an der Handlung, und
-		// wird in garetienHandlungBauen angehängt -- dieselbe Bauform wie „Bei „Rakula" …".
-		innerorts: "Innerorts einfügen",
 		name: "Namen ersetzen",
 		quelle: "Quelle + Artikel einfügen",
 		geometrie: "Ausgewählte Segmente ersetzen",
@@ -6624,11 +6655,6 @@
 		// wird hervorgehoben, sonst tragen zwei Knöpfe derselben Leiste dieselbe Betonung.
 		stage: "accent",
 		ablehnen: "danger",
-		// 🔴 „Innerorts einfügen" steht NEUTRAL daneben (Entwurf §4). Grün kodiert in diesem
-		// Fenster „legt etwas auf der Karte an" -- und genau das tut diese Handlung NICHT: sie
-		// legt eine Stätte in einer Stadt an, ohne Kartenposition. Zwei grüne Knöpfe
-		// nebeneinander behaupteten außerdem, es gebe zwei gleichrangige Hauptwege; es gibt einen
-		// Hauptweg und eine begründete Alternative.
 	};
 
 	// Die Knöpfe, die ihre Zahl im Namen tragen. 🔴 „(n)" ist die Zahl der schon ANGEHAKTEN
@@ -6759,125 +6785,175 @@
 		return ((objekt && objekt.items) || []).some(garetienItemIstZusatz) ? "zusatz" : "nichts";
 	}
 
-	// ---- Die zwei Häkchen: „Als Quelle einfügen" und „Neu einfügen" (Owner 09.09.2026) ------------
+	// ---- Die Zielwahl: EINE Wahl statt zwei Häkchen (Entwurf 2026-09-14 §5) ----------------------
 	//
-	// Owner, wörtlich: „auf der stage ist auf der stage, erst dann entscheide ich ob es nur die
-	// quelle ergänzt […] man will unterscheiden als ‚Als Quelle einfügen' oder ‚Neu einfügen' und
-	// damit es keine verwirrtung mit dem button ‚Stage importieren' gibt, sollten das häkchen sein."
+	// 🔴 DIE HÄKCHEN „Als Quelle einfügen" / „Neu einfügen" (09.09.2026) SIND GEFALLEN -- als
+	// Häkchen. Ihre Werte sind jetzt Werte EINER Liste. Gemessen am 14.09.2026 (Widerspruch 4 des
+	// Entwurfs): „Neu einfügen" schaltete die Quelle ZWANGSWEISE mit an -- ein Klick legte die
+	// Dublette an UND hängte garetien.de an unser bestehendes Objekt, bei 334 Objekten des Laufs 73,
+	// ohne Rückfrage und ohne Riegel im Server.
+	// 🔴 „Zusätzlich zu X" ist seither eine EIGENE, benannte Wahl -- mit Rückfrage vor dem Import
+	// (garetienZusaetzlichRueckfrageText) und dem Riegel `beides` im Server
+	// (avesmapsGaretienBeidesRiegel, Aufgabe 8).
 	//
-	// 🔴 DIE STAGE IST DAMIT NEUTRAL. Bis hierher LEITETE `garetienStageVorhaben` ab, was beim
-	// Import passiert, und der Knopf trug die Ableitung als Unterzeile. Jetzt sagen es zwei Häkchen,
-	// und `garetienStageItems` folgt IHNEN. Die Ableitung bleibt -- als VORBELEGUNG, damit wer
-	// nichts anhakt genau das bekommt, was er vor dem 09.09.2026 bekommen hätte.
+	// 💣 ZWEI NAMEN, DIE SICH NUR IM „w" UNTERSCHEIDEN. `garetienZielWahlZu` (großes W) ist die FORM
+	// samt Art und liefert ein Objekt `{ziel, subtyp, kind}`; `garetienZielwahlZu` (kleines w) ist
+	// das ZIEL und liefert eine Zeichenkette aus AVESMAPS_GARETIEN_ZIELE. Beide Namen stehen so im
+	// Schnittstellen-Vertrag des Bauplans vom 14.09.2026. Wer sucht, sucht mit Groß-/Kleinschreibung.
+	//
+	// ⚠️ DIE WAHL ÜBERLEBT DAS HERUNTERNEHMEN (sie hängt am Einstellungsschlüssel, nicht am Markup) --
+	// aber nicht „Stage leeren" und keinen neuen Lauf: garetienZielwahlVergessen gehört zu den
+	// `…Vergessen`-Funktionen, die dort gerufen werden (Entwurf §6.4).
+	const AVESMAPS_GARETIEN_ZIELE = ["karte", "staette", "nur_quelle", "ergaenzen", "zusaetzlich", "nichts"];
 
-	let _garetienEinfuegeWahl = {};
+	let _garetienZielwahl = {};
 
-	function garetienEinfuegeWahlVergessen() { _garetienEinfuegeWahl = {}; }
+	function garetienZielwahlVergessen() { _garetienZielwahl = {}; }
 
-	// REIN: die Items, die „Neu einfügen" schreibt -- alles mit `change_type: 'new'`, das
-	// Zusatz-Item eingeschlossen.
-	// 🔴 DAS ZUSATZ-ITEM IST HIER KEIN SONDERFALL MEHR, und das ist der Kern des Umbaus: „trotzdem
-	// neu anlegen" IST „Neu einfügen" an einem Objekt, das sich deckt. Sein alter Riegel („kommt nur
-	// mit, wenn das Objekt sonst nichts hat", Schadensfall 30.08.2026) lebt weiter -- aber als
-	// VORBELEGUNG (ungehakt), nicht als Zwang. Genau darum ging es dem Owner.
-	// ⚠️ Das Geometrie-Item bleibt draussen (eigener Knopf mit Rückfrage).
-	function garetienNeuItems(objekt) {
+	// REIN: die ECHTEN Neu-Items -- `change_type: 'new'`, ohne Geometrie-Item und ohne Zusatz-Item.
+	// ⚠️ Das Geometrie-Item bleibt draußen (kein Ersetzen, Owner 31.08.2026).
+	function garetienZielNeuItems(objekt) {
 		return ((objekt && objekt.items) || []).filter(function (item) {
 			return String((item && item.change_type) || "") === "new"
-				&& garetienItemAnlass(item) !== "geometrie";
+				&& garetienItemAnlass(item) !== "geometrie"
+				&& !garetienItemIstZusatz(item);
 		});
 	}
 
-	// REIN: die Items, die „Als Quelle einfügen" schreibt -- die Ergänzung an einem BESTEHENDEN
-	// Objekt (AVESMAPS_GARETIEN_ERGAENZUNG_FELDER ist genau `['quelle']`).
+	// REIN: die Zusatz-Items („trotzdem neu anlegen" -- garetien-plan.php hängt eines an jedes
+	// Objekt, das sich deckt).
+	function garetienZielZusatzItems(objekt) {
+		return ((objekt && objekt.items) || []).filter(garetienItemIstZusatz);
+	}
+
+	// REIN: die Ergänzung an einem BESTEHENDEN Objekt (AVESMAPS_GARETIEN_ERGAENZUNG_FELDER ist genau
+	// `['quelle']`) -- das Ergänzungs-Item.
 	function garetienQuelleItems(objekt) {
 		return garetienHakenItems(objekt).filter(function (item) {
 			return String((item && item.change_type) || "") !== "new";
 		});
 	}
 
-	/*
-	 * REIN: Kann dieses Objekt NEU angelegt werden?
-	 *
-	 * 🔴 EINE GEWÄHLTE STADT NIMMT DEN HAKEN WEG. `innerorts` und `neu` sind dieselbe Item-Menge,
-	 * nur ein anderer Zielort (AVESMAPS_GARETIEN_ITEMS_JE_HANDLUNG: „innerorts ist kein anderer
-	 * Vorschlag, sondern ein anderer ZIELORT für denselben"). Beides zugleich gibt es nicht -- der
-	 * Haken verschwindet, statt eine Wahl anzubieten, die es nicht gibt.
-	 */
-	function garetienNeuMoeglich(objekt) {
-		return garetienInnerortsWahlZu(objekt) === "" && garetienNeuItems(objekt).length > 0;
+	// REIN: die Items, die ein NEUES Objekt anlegen -- die echten Neu-Items, und NUR wenn es keine
+	// gibt, das Zusatz-Item.
+	// 🔴 DER RIEGEL VOM 30.08.2026 STEHT DAMIT AN EINER STELLE: ein Objekt, das sich deckt, legt über
+	// „Auf die Karte" sein Zusatz-Item an -- und NIE zugleich das Ergänzungs-Item. Beides zusammen
+	// gibt es nur über „zusätzlich", und das ist eine eigene Wahl.
+	function garetienZielKarteItems(objekt) {
+		const neu = garetienZielNeuItems(objekt);
+		return neu.length > 0 ? neu : garetienZielZusatzItems(objekt);
 	}
 
-	function garetienQuelleMoeglich(objekt) { return garetienQuelleItems(objekt).length > 0; }
+	// REIN: welche Ziele es für dieses Objekt GIBT -- in der Reihenfolge von AVESMAPS_GARETIEN_ZIELE.
+	// 🔴 „Auf die Karte" steht nur da, wenn es etwas anzulegen gibt. Der Entwurf sagt „immer, auch bei
+	// Innerorts-Befund" -- gemeint ist: eine gefundene Stadt nimmt es nie weg (Owner 12.09./7). Ein
+	// Objekt ganz ohne Neu- oder Zusatz-Item hätte sonst eine Wahl, die still nichts täte.
+	// ⚠️ „Stätte" und „Nur Quelle + Artikel" hängen an der GEWÄHLTEN Form (garetienInnerortsMoeglich:
+	// Ort + Bauwerksklasse) und an mindestens einer Siedlung im Umkreis.
+	function garetienZieleMoeglichMenge(objekt) {
+		const karte = garetienZielKarteItems(objekt).length > 0;
+		const ergaenzung = garetienQuelleItems(objekt).length > 0;
+		const innerorts = karte && garetienInnerortsMoeglich(objekt)
+			&& garetienInnerortsKandidatenVon(objekt).length > 0;
+		const gibt = {
+			karte: karte,
+			staette: innerorts,
+			nur_quelle: innerorts,
+			ergaenzen: ergaenzung,
+			zusaetzlich: karte && ergaenzung,
+			nichts: true,
+		};
+		return AVESMAPS_GARETIEN_ZIELE.filter(function (wert) { return gibt[wert] === true; });
+	}
 
-	/*
-	 * REIN: die Wahl dieses Objekts -- `{ quelle, neu }`.
-	 *
-	 * 💣 EIN UNMÖGLICHER HAKEN ZÄHLT NIE. Wer „Neu einfügen" setzt und danach eine Stadt wählt,
-	 * hätte sonst einen gesetzten Haken, den niemand mehr sieht -- und der Import legte doch ein
-	 * Kartenobjekt an. Deshalb wird die Möglichkeit HIER geprüft, nicht nur beim Zeichnen.
-	 * 🔴 „Neu einfügen" zieht die Quelle mit (Owner: „importiert dabei immer die quelle mit").
-	 */
-	function garetienEinfuegeWahl(objekt) {
-		// 🔴 Fixrunde 1 (Pruefbefund an Aufgabe 5): der Schluessel gehoert jetzt dem Verbund, wenn
-		// zusammengelegt (Aufgabe-5-Helfer eine Bildschirmseite weiter oben). `neuGeht`/`quelleGeht`
-		// bleiben bewusst am OBJEKT geklemmt: die Moeglichkeit ist eine Eigenschaft SEINER Items,
-		// nicht des Verbunds -- ein Fragment ohne Quellen-Item bekommt den Haken auch mit geteilter
-		// Wahl nicht.
-		const key = garetienEinstellungsSchluessel(objekt);
-		const neuGeht = garetienNeuMoeglich(objekt);
-		const quelleGeht = garetienQuelleMoeglich(objekt);
-		const gespeichert = key !== "" ? _garetienEinfuegeWahl[key] : null;
-		let neu;
-		let quelle;
-		if (gespeichert) {
-			neu = Boolean(gespeichert.neu);
-			quelle = Boolean(gespeichert.quelle);
-		} else {
-			// Die Vorbelegung IST das Verhalten von vor dem 09.09.2026.
-			const vorhaben = garetienStageVorhaben(objekt);
-			neu = vorhaben === "neu" || vorhaben === "zusatz";
-			quelle = neu || vorhaben === "ergaenzung";
+	// REIN: die Vorbelegung -- „Quelle an X ergänzen", wenn sich das Objekt deckt (ein Ergänzungs-Item
+	// und kein echtes Neu-Item), sonst „Auf die Karte". Das ist die Vorbelegung der Häkchen vom
+	// 09.09.2026, nur ohne den stillen Zusatz.
+	// ⚠️ Eine gefundene Stadt ist KEINE Vorbelegung: „Keine Automatik. Der Importer schlägt vor, er
+	// entscheidet nicht." -- rund 350 Objekte tragen einen Innerorts-Befund.
+	function garetienZielwahlVorbelegung(objekt) {
+		const menge = garetienZieleMoeglichMenge(objekt);
+		if (menge.indexOf("ergaenzen") !== -1 && garetienZielNeuItems(objekt).length === 0) {
+			return "ergaenzen";
 		}
-		neu = neu && neuGeht;
-		// 🔴 „Neu einfügen“ setzt die Quelle IMMER, auch ohne eigenes Quellen-Item: bei einem
-		// Neuzugang reist sie im `new`-Item selbst mit (`felder: ['quelle']`). Der Haken ist dann
-		// eine wahre Aussage über das, was passiert -- und gebunden, nicht abwählbar.
-		// ⚠️ Ohne „Neu einfügen“ gilt er nur, wenn es wirklich etwas zu ergänzen gibt.
-		return { neu: neu, quelle: neu || (quelle && quelleGeht) };
+		return menge.indexOf("karte") !== -1 ? "karte" : "nichts";
 	}
 
-	/* Eine Häkchen-Wahl setzen. „Neu einfügen" bindet die Quelle -- siehe garetienEinfuegeWahl. */
-	function garetienEinfuegeWahlSetzen(objekt, feld, wert) {
+	// REIN: die Werte, die zur Wahl stehen -- die Vorbelegung zuerst, dann die übrigen in der
+	// Reihenfolge der Konstante. So stehen die drei Szenen des Mockups genau so da, wie sie gezeichnet
+	// sind (Silker Hain: Karte · Nichts; Burg Finster: Karte · Stätte · Nur Quelle · Nichts; Natter:
+	// Ergänzen · Karte · Zusätzlich · Nichts).
+	function garetienZieleMoeglich(objekt) {
+		const menge = garetienZieleMoeglichMenge(objekt);
+		const vorne = garetienZielwahlVorbelegung(objekt);
+		return [vorne].concat(menge.filter(function (wert) { return wert !== vorne; }));
+	}
+
+	// REIN: die gespeicherte Wahl -- sonst die Vorbelegung.
+	// 💣 EINE UNMÖGLICHE WAHL ZÄHLT NIE. Wer „Stätte" wählt und danach die Form auf Fläche stellt,
+	// hätte sonst eine Wahl, die niemand mehr sieht -- und der Import legte trotzdem eine Stätte an.
+	// Deshalb wird die Möglichkeit HIER geprüft, nicht nur beim Zeichnen.
+	// ⚠️ Die Vorbelegung wird NICHT abgelegt: dieselbe Funktion beantwortet auch „Offen", und dort
+	// darf das bloße Ansehen keinen Zustand erzeugen.
+	function garetienZielwahlZu(objekt) {
 		const key = garetienEinstellungsSchluessel(objekt);
-		if (key === "") { return; }
-		const jetzt = garetienEinfuegeWahl(objekt);
-		const naechste = { quelle: jetzt.quelle, neu: jetzt.neu };
-		naechste[feld === "neu" ? "neu" : "quelle"] = Boolean(wert);
-		if (naechste.neu) { naechste.quelle = true; }
-		_garetienEinfuegeWahl[key] = naechste;
+		const gespeichert = key !== "" ? String(_garetienZielwahl[key] || "") : "";
+		if (gespeichert !== "" && garetienZieleMoeglichMenge(objekt).indexOf(gespeichert) !== -1) {
+			return gespeichert;
+		}
+		return garetienZielwahlVorbelegung(objekt);
+	}
+
+	// Die Zielwahl setzen -- der EINE Schreiber von `_garetienZielwahl`. Ein unbekannter Wert wird
+	// verworfen, statt als Wahl liegenzubleiben.
+	// 🔴 RULING R-a (Koordinator, 14.09.2026): eine Zielwahl ungleich „karte" -- oder eine, an der
+	// der Riegel danach scheitert -- löst einen ZUSAMMENGELEGTEN Verbund auf. Dieselbe Funktion wie
+	// beim Umstellen von Ziel/Form (garetienEingabenAendern, Zweig zielForm/zielArt), kein zweiter
+	// Weg: ohne das trüge der Rumpf `verbund` weiter für eine Wahl, die am Server nie eine
+	// gemeinsame Region oder einen gemeinsamen Weg ergeben dürfte.
+	function garetienZielwahlSetzen(objekt, wert) {
+		const key = garetienEinstellungsSchluessel(objekt);
+		const w = String(wert || "");
+		if (key === "" || AVESMAPS_GARETIEN_ZIELE.indexOf(w) === -1) { return; }
+		_garetienZielwahl[key] = w;
+		const geaenderterVerbund = garetienVerbundSchluessel(objekt);
+		if (geaenderterVerbund !== "" && garetienVerbundIstZusammen(geaenderterVerbund)
+			&& !garetienVerbundZusammenlegbar(objekt).ok) {
+			garetienVerbundAufloesen(geaenderterVerbund);
+		}
 	}
 
 	/*
 	 * Die Innerorts-Wahl setzen -- der EINE Schreiber von `_garetienInnerortsWahl`.
 	 *
-	 * ⚠️ Er stand bis zum 09.09.2026 nur inline im `change`-Handler. Er bekommt einen Namen, weil
-	 * die Häkchen an ihm hängen (garetienNeuMoeglich): eine zweite Schreibstelle liesse den Haken
-	 * „Neu einfügen" stehen, während der Kasten längst eine Stadt nennt.
+	 * ⚠️ SEIT DEM 14.09.2026 WÄHLT SIE NUR NOCH DIE SIEDLUNG, nicht mehr „innerorts ja/nein": das sagt
+	 * die Zielwahl („Stätte in X", „Nur Quelle + Artikel an X"). "" heißt „die Vorauswahl".
 	 */
 	function garetienInnerortsWahlSetzen(objekt, publicId) {
 		const key = String((objekt && objekt.key) || "");
 		if (key !== "") { _garetienInnerortsWahl[key] = String(publicId || ""); }
 	}
 
-	// REIN: die Items, die die STAGE fuer dieses Objekt uebernimmt -- jetzt aus den zwei Häkchen.
-	// 💣 SIE SIND DIE EINE QUELLE. Anzeige (die Häkchen) und Schreibumfang (diese Funktion) lesen
-	// dasselbe `garetienEinfuegeWahl` -- genau die Trennung, an der Befund B3 (07.09.2026)
-	// gescheitert war, als zwei Leser dieselbe Frage verschieden beantworteten.
+	// REIN: die Items, die die STAGE für dieses Objekt übernimmt -- aus der Zielwahl.
+	// 💣 SIE IST DIE EINE QUELLE. Anzeige (Zielwahl, garetienStageZeile2), Zählung
+	// (garetienUebernahmeKnopfZustand) und Schreibumfang (garetienStageUebernahmeIds) lesen dieselbe
+	// Funktion -- genau die Trennung, an der Befund B3 (07.09.2026) gescheitert war.
+	// 🔴 „Stätte" und „Nur Quelle + Artikel" nehmen DIESELBEN Items wie „Auf die Karte": sie sind ein
+	// anderer Zielort für denselben Vorschlag. Was daraus wird, sagt der Rumpf je Item
+	// (garetienEingabenFuerServerOhneName).
 	function garetienStageItems(objekt) {
-		const wahl = garetienEinfuegeWahl(objekt);
-		return (wahl.neu ? garetienNeuItems(objekt) : [])
-			.concat(wahl.quelle ? garetienQuelleItems(objekt) : []);
+		switch (garetienZielwahlZu(objekt)) {
+		case "karte":
+		case "staette":
+		case "nur_quelle":
+			return garetienZielKarteItems(objekt);
+		case "ergaenzen":
+			return garetienQuelleItems(objekt);
+		case "zusaetzlich":
+			return garetienZielKarteItems(objekt).concat(garetienQuelleItems(objekt));
+		default:
+			return [];
+		}
 	}
 
 	// Welche Items gehören zu welchem Knopf?
@@ -6894,10 +6970,6 @@
 	// Richtung.
 	const AVESMAPS_GARETIEN_ITEMS_JE_HANDLUNG = {
 		neu: function (item) { return String((item && item.change_type) || "") === "new"; },
-		// 🔴 DIESELBE MENGE WIE „neu", und deshalb dasselbe Prädikat statt einer zweiten Kopie:
-		// „innerorts" ist kein anderer Vorschlag, sondern ein anderer ZIELORT für denselben. Zwei
-		// wortgleiche Bedingungen liefen beim ersten Zusatz auseinander.
-		innerorts: function (item) { return String((item && item.change_type) || "") === "new"; },
 		name: function (item) { return garetienItemSchreibt(item, "name"); },
 		quelle: function (item) {
 			return garetienItemSchreibt(item, "quelle") && !garetienItemSchreibt(item, "name");
@@ -7009,10 +7081,6 @@
 		case "entstagen":
 			return "Nimmt " + benannt + " wieder von der Stage — es wird dann nicht mehr "
 				+ "vorgeschaut und von „Stage importieren\" nicht angelegt. Der Vorschlag bleibt.";
-		case "innerorts":
-			return "Legt " + benannt + " als besondere Stätte in „" + garetienInnerortsZiel(o).name
-				+ "\" an — OHNE Position auf der Karte. Es erscheint dort in der Infobox der Stadt "
-				+ "und in der Suche, nicht als eigener Punkt.";
 		case "quelle":
 			return "Trägt bei " + ziel + " nur die Quellen nach: " + quellenSatz
 				+ ". Name, Verlauf und alle übrigen Felder bleiben unverändert.";
@@ -7059,7 +7127,7 @@
 				: "";
 		}
 		if (items.length > 0) { return ""; }
-		if (name === "neu" || name === "innerorts") {
+		if (name === "neu") {
 			return "dieser Lauf trägt für dieses Objekt keinen Vorschlag „neu anlegen\"";
 		}
 		if (name === "name") {
@@ -7098,12 +7166,6 @@
 		// dort ist Platz für den vollen Satz.
 		const zielText = name === "quelle" ? garetienQuelleZielText(items) : "";
 		let beschriftung = AVESMAPS_GARETIEN_HANDLUNG_BESCHRIFTUNG[name] || name;
-		// 🔴 DER ORTSNAME STEHT IM KNOPF, nicht im Hilfetext (Entwurf §4). Der Editor entscheidet
-		// nicht „innerorts ja/nein", sondern „innerorts IN WANDLETH" -- und wenn die Stadt falsch
-		// ist, sieht er es, bevor er drückt. Das ist der einzige Riegel, den diese Handlung hat.
-		if (name === "innerorts") {
-			beschriftung += " (" + garetienInnerortsZiel(objekt).name + ")";
-		}
 		if (zielText !== "") {
 			// „Bei „Rakula" Quelle + Artikel einfügen" -- der Owner-Wortlaut. Das „Bei …" steht
 			// VORNE, damit die Zahl am Ende bleibt, wo sie bei jedem anderen Knopf auch steht.
@@ -7304,99 +7366,183 @@
 	 * ⚠️ NIE GESPERRT -- ansehen darf man jedes Objekt, auch eines ohne Vorschlag. Was dann passiert,
 	 * sagt die zweite Zeile („nur Ansicht"), nicht ein grauer Knopf.
 	 */
-	// 🔴 FIXRUNDE 1, BEFUND B3: DIESE ZEILE FRAGT `garetienStageVorhaben`, NICHT MEHR
-	// `garetienEingefuegtWirdHatVorschlag`. Jene Frage lautet „gäbe es hier etwas ANZULEGEN" und
-	// zaehlt das Zusatz-Item mit -- gemessen am Lauf 73 versprach der Knopf damit 528 Objekten
-	// „als Flussweg", waehrend der Import bei 194 davon gar nichts tat und bei 334 nur eine Quelle
-	// ergaenzte. Vier Faelle, vier Saetze, und alle vier sagen, was „Stage importieren" wirklich tut.
-	function garetienStageZeile2(objekt, aufDerStage) {
-		const vorhaben = garetienStageVorhaben(objekt);
-		if (vorhaben === "nichts") {
-			return aufDerStage ? "liegt nur zur Ansicht" : "nur Ansicht";
+	// REIN: WORAN eine Ergänzung hängt -- der Name unseres getroffenen Objekts (nur, wenn alle
+	// getroffenen Abschnitte gleich heißen) und die Zahl der Abschnitte.
+	// ⭐ „Die Zeile nennt Ziel und Zahl" (Entwurf §5): „Quelle an „Natter" (6 Abschnitte)", nie
+	// „Als Quelle einfügen" -- das Häkchen vom 09.09.2026 nannte weder das eine noch das andere
+	// (Befund `quelle-ohne-ziel`).
+	// ⚠️ Der Name kommt vom Abschnitt am Item, sonst aus `objekt.abschnitte` -- manche Antworten tragen
+	// am Item nur die `public_id`.
+	function garetienErgaenzungZiel(objekt) {
+		const o = objekt || {};
+		const namenJeId = {};
+		(o.abschnitte || []).forEach(function (a) {
+			const pid = String((a && a.public_id) || "");
+			if (pid !== "") { namenJeId[pid] = String((a && a.name) || "").trim(); }
+		});
+		const ids = [];
+		const namen = [];
+		garetienQuelleItems(o).forEach(function (item) {
+			const a = (item && item.abschnitt) || null;
+			const pid = String((a && a.public_id) || "");
+			if (pid === "" || ids.indexOf(pid) !== -1) { return; }
+			ids.push(pid);
+			const name = String((a && a.name) || namenJeId[pid] || "").trim();
+			if (name !== "" && namen.indexOf(name) === -1) { namen.push(name); }
+		});
+		return { name: namen.length === 1 ? namen[0] : "", abschnitte: ids.length };
+	}
+
+	// REIN: die zwei Zeilen EINER Zielwahl-Option -- `{ t1, t2, warn }` (Mockup §3–§5).
+	// 🔴 „Zusätzlich" trägt `warn`: es ist die eine Wahl, nach der zwei Objekte gleichen Namens auf der
+	// Karte stehen.
+	function garetienZielwahlTexte(objekt, wert) {
+		const o = objekt || {};
+		const ziel = garetienErgaenzungZiel(o);
+		const bestand = ziel.name !== "" ? "„" + ziel.name + "“" : "";
+		const stadt = garetienInnerortsZiel(o);
+		switch (wert) {
+		case "karte":
+			return {
+				t1: "Auf die Karte",
+				t2: garetienZieleMoeglichMenge(o).indexOf("ergaenzen") !== -1
+					? "Statt der Ergänzung ein eigenes neues Objekt; "
+						+ (bestand !== "" ? bestand : "das bestehende Objekt") + " bleibt unberührt."
+					: "Ein neues Objekt der gewählten Form.",
+				warn: false,
+			};
+		case "staette": {
+			const kandidat = garetienInnerortsKandidatenVon(o).filter(function (k) {
+				return String(k.public_id || "") === stadt.public_id;
+			})[0];
+			const meilen = kandidat ? Number(kandidat.meilen) : NaN;
+			return {
+				t1: "Stätte in „" + stadt.name + "“",
+				t2: (Number.isFinite(meilen) ? garetienZahlText(meilen) + " Meilen · " : "")
+					+ "nicht auf der Karte, gelistet in der Infobox des Ortes.",
+				warn: false,
+			};
 		}
-		// ⚠️ Eine ERGAENZUNG legt nichts an -- sie haengt die Quelle an ein BESTEHENDES Objekt
-		// (AVESMAPS_GARETIEN_ERGAENZUNG_FELDER ist genau `['quelle']`). „als Fluss" waere hier die
-		// Beschreibung einer anderen Handlung.
-		if (vorhaben === "ergaenzung") {
-			return aufDerStage ? "liegt für die Quelle" : "ergänzt nur die Quelle";
+		case "nur_quelle":
+			return {
+				t1: "Nur Quelle + Artikel an „" + stadt.name + "“",
+				t2: "Kein Objekt. Quelle und Artikel an den bestehenden Ort.",
+				warn: false,
+			};
+		case "ergaenzen":
+			return {
+				t1: bestand !== "" ? "Quelle an " + bestand + " ergänzen" : "Quelle am bestehenden Objekt ergänzen",
+				t2: (ziel.abschnitte > 0
+					? "An " + garetienAnzahlText(ziel.abschnitte, "Abschnitt", "Abschnitte") + ". " : "")
+					+ "Unser Objekt bleibt, wie es ist.",
+				warn: false,
+			};
+		case "zusaetzlich":
+			return {
+				t1: "Auf die Karte — zusätzlich zu " + (bestand !== "" ? bestand : "dem bestehenden Objekt"),
+				t2: "⚠️ Beides: neues Objekt UND Quelle an " + (bestand !== "" ? bestand : "das bestehende Objekt")
+					+ ". Nur, wenn es wirklich zwei sind — mit Rückfrage.",
+				warn: true,
+			};
+		default:
+			return {
+				t1: "Nichts — nur ansehen",
+				t2: "Bleibt auf der Stage, wird nicht importiert und nicht gezählt.",
+				warn: false,
+			};
 		}
-		// ⚠️ Die GEWAEHLTE Form, nicht der rohe Vorschlag (garetienUnserBeschriftung liest
-		// `garetienZielWahlZu`) -- sonst verspraeche der Knopf „als Fläche", waehrend der Kasten
-		// darueber „Berggipfel" zeigt. Ohne gewaehlte Art bleibt der ehrliche Rueckfall.
-		const art = garetienUnserBeschriftung(objekt) || "Vorschlag dieses Laufs";
-		// 🔴 „zusätzlich" IST DIE AUSSAGE: der Abgleich hat etwas gefunden, und dieses Objekt kommt
-		// TROTZDEM als eigenes dazu. Ohne das Wort liest sich der Knopf wie jeder Neuzugang, und
-		// genau davor warnt die Rueckfrage (garetienZusatzRueckfrageText).
-		if (vorhaben === "zusatz") {
-			return (aufDerStage ? "liegt zusätzlich als " : "zusätzlich als ") + art;
+	}
+
+	// REIN: warum Name, Form, Art und Darstellung für DIESES Ziel nicht gelten -- "" heißt „sie
+	// gelten". ⚠️ ABGEBLENDET, NICHT AUSGEBLENDET (Entwurf §3): sonst springt die Spalte bei jedem
+	// Wechsel der Zielwahl.
+	function garetienZielwahlAusGrund(objekt) {
+		switch (garetienZielwahlZu(objekt)) {
+		case "karte":
+		case "zusaetzlich":
+			return "";
+		case "staette":
+			return "gilt nicht für eine Stätte";
+		case "nur_quelle":
+			return "gilt nicht für „Nur Quelle + Artikel“";
+		case "ergaenzen":
+			return "gilt nicht für eine Ergänzung";
+		default:
+			return "wird nicht importiert";
 		}
-		return (aufDerStage ? "liegt als " : "als ") + art;
+	}
+
+	// REIN: die Zielwahl als Radio-Liste `.gi-ziel` (Mockup §3–§5) -- oder "", solange das Objekt
+	// nicht auf der Stage liegt.
+	// 🔴 ERST AUF DER STAGE (Owner 09.09.2026 und 12.09.2026/2): auf „Offen" steht der Vorschlag als
+	// Text, geändert wird er erst hier.
+	// ⚠️ Siedlung und Umkreis stehen DIREKT darunter (garetienInnerortsZeileMarkup): sie geben „Stätte
+	// in X" und „Nur Quelle + Artikel an X" ihr X, und der Umkreis-Spinner steht bei jedem Bauwerk,
+	// auch ohne Treffer (Entwurf §5).
+	// 💣 Der Radio-`name` ist JE OBJEKT verschieden (garetienEingabeId): zwei Radio-Gruppen mit
+	// demselben Namen in einem Dokument sind EINE Gruppe, und ein Klick nähme der anderen ihre Wahl.
+	function garetienZielwahlMarkup(objekt) {
+		const o = objekt || {};
+		if (String(o.stand || "") !== "offen") { return ""; }
+		if (!avesmapsGaretienStageHat(o.key)) { return ""; }
+		const gewaehlt = garetienZielwahlZu(o);
+		const gruppe = garetienEingabeId(o, "zielwahl");
+		const optionen = garetienZieleMoeglich(o).map(function (wert) {
+			const text = garetienZielwahlTexte(o, wert);
+			const an = wert === gewaehlt;
+			return '<label class="gi-ziel__option' + (text.warn ? " gi-ziel__option--warn" : "")
+				+ (an ? " is-gewaehlt" : "") + '">'
+				+ '<input type="radio" name="' + gruppe + '" value="' + avesmapsGaretienEscape(wert) + '"'
+				+ ' data-gi-feld="zielwahl"' + (an ? " checked" : "") + ">"
+				+ '<span class="gi-ziel__t1">' + avesmapsGaretienEscape(text.t1) + "</span>"
+				+ '<span class="gi-ziel__t2">' + avesmapsGaretienEscape(text.t2) + "</span></label>";
+		}).join("");
+		return '<div class="gi-ziel" role="radiogroup" aria-label="Was daraus wird">' + optionen + "</div>"
+			+ garetienInnerortsZeileMarkup(o, false);
+	}
+
+	// REIN: das Namensfeld unter der Zielwahl -- oder "", wenn es gar nichts anzulegen gibt.
+	// ⚠️ ABGEBLENDET, NICHT AUSGEBLENDET, wenn das gewählte Ziel keinen Namen braucht (eine Ergänzung,
+	// „Nur Quelle + Artikel", „Nichts"): so springt die Spalte beim Umschalten nicht (Mockup §5, Natter).
+	function garetienZielNameZeile(objekt) {
+		const o = objekt || {};
+		if (String(o.stand || "") !== "offen" || !avesmapsGaretienStageHat(o.key)) { return ""; }
+		if (garetienZieleMoeglichMenge(o).length === 1) { return ""; }
+		const zielwahl = garetienZielwahlZu(o);
+		const aus = !(zielwahl === "karte" || zielwahl === "zusaetzlich" || zielwahl === "staette");
+		return garetienEingefuegtWirdTextZeile(o, "Name", "einfuegeName", garetienNameFuerImport(o), "", aus, aus);
 	}
 
 	/*
-	 * REIN: die zwei Häkchen über der Knopfleiste (Owner 09.09.2026).
+	 * REIN: was die Stage mit diesem Objekt vorhat, in einer Zeile -- der Text der Ziel-Marke
+	 * (Aufgabe 12 setzt ihn in die Listenzeile).
 	 *
-	 * 🔴 SIE STEHEN ÜBER „Auf die Stage“, nicht darunter: sie entscheiden, WAS die Stage
-	 * mitnimmt, und werden deshalb vor ihr gelesen. Der Knopf selbst behauptet seit diesem Tag
-	 * nichts mehr (garetienStageKnopfBauen, `zeile2: ""`).
-	 *
-	 * ⚠️ Gebaut mit garetienEingefuegtWirdHakenZeile -- derselben Zeile wie die Häkchen im Kasten
-	 * „Eingefügt wird“ darüber. Eine zweite Bauform für dieselbe Sache wäre die Doppelung, vor der
-	 * AGENTS.md §11 bei den Listenzeilen warnt (dort waren es sieben Rezepturen).
-	 *
-	 * 🔴 „Neu einfügen“ FEHLT GANZ, wenn es nicht möglich ist -- ein ausgegrauter Haken für einen
-	 * Zielort, den es nicht gibt, wäre eine Frage ohne Antwort (Owner: „verschwindet und ist nicht
-	 * möglich, wenn der ort innerorts ist“). „Als Quelle einfügen“ ist gesperrt, solange „Neu
-	 * einfügen“ steht: es gilt dann zwingend.
+	 * 🔴 SEIT DEM 14.09.2026 LIEST SIE DIE ZIELWAHL, nicht mehr `garetienStageVorhaben`: was die Zeile
+	 * sagt und was der Import tut, kommen damit aus derselben Weiche (garetienStageItems).
+	 * ⚠️ `aufDerStage` bleibt als Parameter stehen, ändert den Text aber nicht mehr -- „liegt als …"
+	 * war die Unterzeile eines Knopfes, der seit dem 09.09.2026 keine mehr trägt.
+	 * ⚠️ Die GEWÄHLTE Form und Art (garetienZielWahlZu, garetienUnserBeschriftung), nicht der rohe
+	 * Vorschlag -- sonst sagte die Zeile „als Fläche", während der Kasten „Berggipfel" zeigt.
 	 */
-	function garetienEinfuegeHakenMarkup(objekt) {
-		const o = objekt || {};
-		if (String(o.stand || "") !== "offen") { return ""; }
-		// 🔴 ERST AUF DER STAGE (Owner 09.09.2026: „sollen erst kommen wenn es auf der stage
-		// ist"). Das ist die Reihenfolge seiner eigenen Begruendung -- „auf der stage ist auf der
-		// stage, ERST DANN entscheide ich, ob es nur die quelle ergaenzt". Davor waeren es zwei
-		// Entscheidungen nebeneinander, von denen die zweite noch gar nichts betrifft.
-		// ⚠️ Die WAHL ueberlebt das Herunternehmen (sie haengt am Objektschluessel, nicht am
-		// Markup): wer ein Objekt wieder auflegt, findet seine Haken so vor, wie er sie gesetzt hat.
-		if (!avesmapsGaretienStageHat(o.key)) { return ""; }
-		const wahl = garetienEinfuegeWahl(o);
-		const neuGeht = garetienNeuMoeglich(o);
-		// 🔴 DAS NAMENSFELD STEHT OBEN, vor den Haekchen: es sagt, WAS eingefuegt wird, die Haekchen
-		// sagen WIE. Und nur, wenn ueberhaupt etwas ANGELEGT werden kann -- an einer reinen
-		// Quellen-Ergaenzung gibt es kein eigenes Objekt, dessen Name zu aendern waere.
-		// ⭐ Die BESTEHENDE Textzeile des Kastens „Eingefügt wird“ (garetienEingefuegtWirdTextZeile),
-		// nicht eine eigene Bauform: dieselbe Begründung wie bei den Häkchen darunter. Eine eigene
-		// Klasse wäre hier zusätzlich TOT gewesen -- `gi-insert__text` steht in keinem Blatt.
-		const namensfeld = neuGeht
-			? garetienEingefuegtWirdTextZeile(o, "Name", "einfuegeName",
-				garetienNameFuerImport(o), "", false)
-			: "";
-
-		const quelleGeht = garetienQuelleMoeglich(o);
-		// 🔴 „NUR ANSICHT“ BLEIBT GESAGT. Der Satz stand bis zum 09.09.2026 als zweite Zeile am
-		// Knopf; faellt er ersatzlos weg, sieht ein Objekt ohne Vorschlag genauso aus wie eines mit
-		// -- nur ohne Haekchen, und das liest sich wie ein Fehler. Er wandert also mit.
-		if (!neuGeht && !quelleGeht) {
-			return '<p class="gi-acts__grund"><span>Nichts einzufügen — nur Ansicht.</span></p>';
+	function garetienStageZeile2(objekt, aufDerStage) {
+		void aufDerStage;
+		const zielwahl = garetienZielwahlZu(objekt);
+		if (zielwahl === "nichts") { return "nur Ansicht"; }
+		if (zielwahl === "staette") { return "Stätte in „" + garetienInnerortsZiel(objekt).name + "“"; }
+		if (zielwahl === "nur_quelle") { return "nur Quelle an „" + garetienInnerortsZiel(objekt).name + "“"; }
+		if (zielwahl === "ergaenzen") {
+			const ziel = garetienErgaenzungZiel(objekt);
+			const zahl = ziel.abschnitte > 0 ? garetienAnzahlText(ziel.abschnitte, "Abschnitt", "Abschnitte") : "";
+			if (ziel.name !== "") { return "Quelle an „" + ziel.name + "“" + (zahl !== "" ? " (" + zahl + ")" : ""); }
+			return zahl !== "" ? "Quelle an " + zahl : "Quelle am bestehenden Objekt";
 		}
-		let raus = namensfeld;
-		// 💣 DAS QUELLEN-HAEKCHEN VERSCHWINDET NIE, SOLANGE ES DAS ANDERE GIBT (Owner-Meldung
-		// 09.09.2026: „‚Neu einfügen‘ abhäkeln sorgt übrigens dafür, dass ‚Als Quelle einfügen‘
-		// verschwindet … das gibt keinen sinn“). Bei einem REINEN Neuzugang gibt es kein eigenes
-		// Quellen-Item -- die Quelle reist im `new`-Item mit --, also war `quelleGeht` dort false
-		// und die Zeile hing allein am gesetzten Haken. Sie fiel damit im selben Klick weg, der
-		// sie freigeben sollte.
-		// 🔴 SICHTBAR heisst nicht WAEHLBAR: gesperrt ist sie, solange „Neu einfügen“ steht (dann
-		// gilt sie zwingend) UND wenn es gar nichts zu ergänzen gibt (dann waere sie ein Haken ohne
-		// Wirkung). Ein Neuzugang ohne „Neu einfügen“ hat kein Ziel, an das eine Quelle könnte.
-		if (quelleGeht || neuGeht) {
-			raus += garetienEingefuegtWirdHakenZeile(o, "Als Quelle einfügen", "einfuegeQuelle",
-				wahl.quelle, wahl.neu || !quelleGeht);
-		}
-		if (neuGeht) {
-			raus += garetienEingefuegtWirdHakenZeile(o, "Neu einfügen", "einfuegeNeu", wahl.neu, false);
-		}
-		return raus;
+		const formKey = String(garetienZielWahlZu(objekt).ziel || "");
+		const form = (AVESMAPS_GARETIEN_FORMEN.filter(function (f) { return f.key === formKey; })[0] || {}).label || "";
+		const art = garetienUnserBeschriftung(objekt);
+		const teile = [form];
+		if (art !== "" && art !== form) { teile.push(art); }
+		const als = teile.filter(function (t) { return t !== ""; }).join(" · ") || "Vorschlag dieses Laufs";
+		return (zielwahl === "zusaetzlich" ? "zusätzlich als " : "als ") + als;
 	}
 
 	function garetienStageKnopfBauen(objekt) {
@@ -7444,28 +7590,10 @@
 			].filter(Boolean);
 		}
 		const namen = (AVESMAPS_GARETIEN_HANDLUNGEN_JE_URTEIL[String(o.urteil || "")] || ["ablehnen"]).slice();
-		// 🔴 „Innerorts einfügen" HÄNGT AM OBJEKT, NICHT AM URTEIL -- und steht deshalb nicht in
-		// AVESMAPS_GARETIEN_HANDLUNGEN_JE_URTEIL. Er erscheint nur, wenn der Server einen Befund
-		// mitgeschickt hat (Abstand UND Namenstreffer, avesmapsGaretienInnerortsBefund); sonst
-		// steht er GAR NICHT da. Ein dauerhaft ausgegrauter Knopf behauptet eine Möglichkeit, die
-		// es nicht gibt -- dieselbe Owner-Regel wie bei „Zurücknehmen" (30.08.2026).
-		//
-		// 💣 ER STEHT AM 07.09.2026 NOCH DA, OBWOHL DER BRIEF IHN STREICHEN WOLLTE -- und das ist
-		// eine GEMESSENE Abweichung, keine Nachlässigkeit. Der Stage-Import
-		// (`garetienFussknopfKlick` → `garetienEinfuegenAusfuehren`) schickt KEINE `einstellungen`,
-		// und `avesmapsGaretienInnerortsGewuenscht` (garetien-uebernahme.php) entscheidet
-		// ausschliesslich daraus: „Alle angezeigten einfuegen schickt gar keine Einstellungen --
-		// ein Sammellauf legt also NIE eine Staette an", steht dort wörtlich. Gestrichen wäre die
-		// Stätte in einer Stadt damit UNERREICHBAR gewesen -- genau der Schaden, den dieser Schritt
-		// beseitigen soll. Er fällt, sobald „Stätte in X" eine FORM im Kasten „Wird importiert als"
-		// ist und `einstellungen_je_item` den Import erreicht (Entwurf §5.1).
-		// ⚠️ Direkt NEBEN dem Vorwärtsknopf, nicht am Ende: er ist dessen Alternative, keine
-		// Nachbemerkung.
-		const stadt = garetienInnerortsOrt(o);
-		const stelle = namen.indexOf("stage");
-		if (stadt !== "" && stelle !== -1) {
-			namen.splice(stelle + 1, 0, "innerorts");
-		}
+		// 🔴 „Innerorts einfügen (X)" IST AM 14.09.2026 GEFALLEN. Er war der einzige Knopf, der ohne
+		// Rückfrage in die Karte schrieb -- schon auf „Offen", neben einem Tooltip, der verspricht, dass
+		// nichts geschrieben wird, bis „Stage importieren" gedrückt ist (Befund `innerorts-sofort`).
+		// Was er konnte, kann die Zielwahl („Stätte in X"), und die geht über die Stage.
 		const knoepfe = namen.map(function (name) {
 			// 🔴 Der Vorwärtsknopf hat seinen EIGENEN Bauer: er trägt keine Items, keinen Rumpf und
 			// keine Zahl -- durch `garetienHandlungBauen` gereicht bekäme er einen leeren
@@ -7693,11 +7821,11 @@
 		// jeder Zeile laenger und in keiner klarer. Dieselbe Form wie „DER GRUND" und „WAS BEI UNS
 		// AN DERSELBEN STELLE LIEGT" darueber -- eine Zeile im Vokabular, das dort ohnehin steht.
 		return '<div class="gi-acts"><p class="gi-sec gi-acts__titel">Dieses Objekt</p>'
-			// 🔴 ZWEI ZEILEN, UND DIE HAEKCHEN STEHEN OBEN (Owner 09.09.2026: „Von der Stage
-			// nehmen + Ablehnen soll in eine 2. Zeile unter die checkboxen"). Die Knoepfe bekommen
-			// dafuer eine eigene Huelle -- ohne sie stehen sie als Geschwister der Haekchen-Absaetze
-			// da, und der Flex-Umbruch der Leiste kann sie neben einen Haken ziehen.
-			+ garetienEinfuegeHakenMarkup(objekt)
+			// 🔴 ZWEI ZEILEN, UND DIE ZIELWAHL STEHT OBEN (Owner 09.09.2026: „Von der Stage nehmen +
+			// Ablehnen soll in eine 2. Zeile unter die checkboxen" -- die Häkchen sind seit dem 14.09.2026
+			// die Zielwahl). Die Knoepfe bekommen dafuer eine eigene Huelle -- ohne sie stuenden sie als
+			// Geschwister der Optionen da, und der Flex-Umbruch der Leiste zoege sie daneben.
+			+ garetienZielwahlMarkup(objekt) + garetienZielNameZeile(objekt)
 			+ '<div class="gi-acts__knoepfe">' + knopfMarkup + "</div>" + grundZeile + "</div>";
 	}
 
@@ -8373,108 +8501,6 @@
 			+ "(" + namen + rest + "). Die bestehenden Objekte bleiben unberührt.\n\n"
 			+ "Mit „OK\" kommen sie mit auf die Stage. Mit „Abbrechen\" bleiben nur sie liegen — "
 			+ "der Rest der Auswahl kommt trotzdem darauf.";
-	}
-
-	function garetienNeuKlick(ereignis, objekte, runId, fragen) {
-		const ziel = ereignis && ereignis.target;
-		if (!ziel || typeof ziel.closest !== "function") { return null; }
-		// 🔴 SEIT DEM 07.09.2026 IST HIER NUR NOCH EIN KNOPF. „Neu einfügen" (`data-handlung="neu"`)
-		// ist mit Owner-Punkt 12 gefallen -- angelegt wird über „Stage importieren". Geblieben ist
-		// „Innerorts einfügen (Stadt)", und das ist eine GEMESSENE Ausnahme (siehe garetienHandlungen):
-		// der Stage-Import schickt keine `einstellungen`, und `avesmapsGaretienInnerortsGewuenscht`
-		// entscheidet ausschliesslich daraus.
-		// ⚠️ Der Name der Funktion bleibt -- eine Umbenennung waere eine Aenderung ohne Wirkung an
-		// acht Stellen; die Verdrahtung nennt sie an genau einer.
-		// ⚠️ Die Zusatz-Rueckfrage steht NICHT mehr hier, sondern an garetienStageKlick: „trotzdem
-		// neu anlegen" laeuft seither ueber die Stage. „Innerorts einfügen" legt gar kein
-		// Kartenobjekt an, die Kollision kann es hier nicht geben.
-		const knopf = ziel.closest('[data-handlung="innerorts"]');
-		if (!knopf || knopf.disabled) { return null; }
-		const handlung = String(knopf.getAttribute("data-handlung") || "innerorts");
-		const objekt = garetienObjektNach(knopf.getAttribute("data-key"), objekte);
-		if (!objekt) { return null; }
-		const rumpf = garetienHandlungsRumpf(handlung, objekt, runId);
-		if (!rumpf) { return null; }
-		// ⚠️ `fragen` reist weiter mit, obwohl hier heute nichts mehr gefragt wird -- dieselbe
-		// Bauform wie `void stand` in garetienAlleWaehlenZustand: die Verdrahtung reicht es herein,
-		// und ein weggelassener Parameter waere beim naechsten rueckfragepflichtigen Gedanken still
-		// verschwunden. Er wird bewusst NICHT gelesen; die Zusatz-Rueckfrage sitzt an der Stage.
-		void fragen;
-		if (garetienEinfuegenLaeuft) { return Promise.resolve(null); }
-
-		garetienEinfuegenLaeuft = true;
-		knopf.disabled = true;
-		knopf.textContent = "Fügt ein …";
-
-		// Der Kasten „Eingefügt wird" (Owner 30.08.2026) -- NUR dieser Einzelknopf liest ihn und
-		// reicht ihn weiter; siehe die Begründung an garetienEinfuegenAusfuehren.
-		// 🔴 UND „innerorts" SCHICKT IHN NICHT MIT. Der Kasten beschreibt, was auf der KARTE
-		// entstünde (Form, Art, Farbe, Strömung); ein innerorts eingefügtes Objekt entsteht dort
-		// nicht. Mitgeschickt würde die Zielwahl serverseitig noch einmal auf die Geometrie
-		// angewandt -- eine Umformung für ein Objekt, das keine Geometrie bekommt.
-		// 🔴 UND ER NENNT DIE STADT, DIE IM KNOPF STEHT. `garetienInnerortsZiel` ist derselbe Leser,
-		// aus dem die Beschriftung kommt -- ohne ihn schickte der Knopf „Innerorts einfügen
-		// (Wandleth)" die Vorauswahl mit, während der Editor im Feld darüber „Aue" gewählt hat.
-		const einstellungen = handlung === "innerorts"
-			? { innerorts: true, innerorts_public_id: garetienInnerortsZiel(objekt).public_id }
-			: garetienEingabenFuerServer(objekt);
-
-		// `rumpf.ids` ist bereits der VOLLE Umfang (garetienHandlungsRumpf/garetienHandlungBauen
-		// filtern nie nach Tick-Zustand) -- Anhaken und Übernehmen decken hier dieselbe Menge ab.
-		return garetienEinfuegenAusfuehren(rumpf.ids, rumpf.ids, runId, avesmapsGaretienRufe, null, einstellungen)
-			// Aufgabe 3 (06.09.2026), Prüfrunde: die Meldung MUSS nach avesmapsGaretienListeHolen()
-			// stehen (dessen avesmapsGaretienListeRendern ruft garetienStatusRuhe, das die
-			// Statuszeile sonst sofort wieder überschriebe) -- UND sie darf nicht verloren gehen,
-			// wenn GENAU DIESER Nachlauf scheitert: was `summe` meldet, liegt schon auf der Karte.
-			// 🔴 `rumpf.ids` ist hier bereits die reine 'new'-Menge (siehe
-			// AVESMAPS_GARETIEN_ITEMS_JE_HANDLUNG.neu/innerorts) -- anders als beim Fussknopf
-			// braucht es hier kein garetienStageNeuIds.
-			.then(function (summe) {
-				const meldung = garetienImportMeldung(summe);
-				const neuIds = garetienOhneFehlgeschlagene(rumpf.ids, summe && summe.fehler);
-				const aktion = garetienRueckgaengigNachEinfuegenAktion(neuIds, runId, fragen);
-				// Aufgabe 6: der Nachlauf schlaegt die GANZE Stage am geltenden Lauf nach (statt nur
-				// den Reiter „uebernommen" abzufragen) -- eine ausgeschiedene Nachbarzeile wird in
-				// dieselbe Meldung gehaengt, statt lautlos zu verschwinden.
-				return garetienStageNachschlagen(avesmapsGaretienRufe)
-					.then(function (nachschlag) {
-						return avesmapsGaretienListeHolen().then(function (ergebnis) {
-							return { ergebnis: ergebnis, nachschlag: nachschlag };
-						});
-					})
-					.then(function (paar) {
-						// Fixrunde 2 (07.09.2026), D2: dieses Objekt wurde soeben selbst eingefuegt --
-						// sein Schluessel taucht im Nachschlag zwangslaeufig als "fertig" auf und wird
-						// herausgerechnet, bevor der Satz entsteht (garetienStageNachschlagOhneEigene).
-						const nachschlag = garetienStageNachschlagOhneEigene(paar.nachschlag, [objekt.key]);
-						// Fixrunde 1: verschwunden und fertig getrennt genannt, nie zusammengeworfen.
-						const nachschlagSatz = garetienStageNachschlagSatz(nachschlag);
-						const text = nachschlagSatz
-							? meldung.text + " · " + nachschlagSatz
-							: meldung.text;
-						garetienStatusSetzen(text, meldung.ton, aktion);
-						return paar.ergebnis;
-					})
-					.catch(function (nachlaufFehler) {
-						const satz = (nachlaufFehler && nachlaufFehler.message)
-							|| "Die Anfrage ist fehlgeschlagen.";
-						garetienStatusSetzen(
-							meldung.text + " · ✕ Liste konnte nicht aktualisiert werden: " + satz,
-							"bad", aktion
-						);
-						return null;
-					});
-			})
-			.then(function (ergebnis) {
-				garetienEinfuegenLaeuft = false;
-				return ergebnis;
-			})
-			.catch(function (fehler) {
-				garetienEinfuegenLaeuft = false;
-				garetienListeFehlerZeigen(fehler);
-				garetienDetailRendern(zustand.objekte);
-				return null;
-			});
 	}
 
 	// ---- Aufgabe 9: „Zurücknehmen" -- der EINE Löschweg dieses Fensters, EINE eigene Tür ----------
@@ -9308,12 +9334,25 @@
 		(objekte || []).forEach(function (objekt) {
 			if (!objekt) { return; }
 			const rumpf = garetienEingabenFuerServer(objekt);
-			if (!rumpf) { return; }
+			// 🔴 „ZUSÄTZLICH" BESTÄTIGT SICH AN BEIDEN ITEMS (Entwurf §5, Aufgabe 8). Der Server weist ein
+			// `apply` ab, das für dasselbe Objekt ein Neu- und ein Ergänzungs-Item trägt -- außer BEIDE
+			// tragen `beides: true` (avesmapsGaretienBeidesRiegel). Ohne diese Ausnahme wiese der Riegel
+			// genau die Wahl ab, die ihn braucht.
+			const beides = garetienZielwahlZu(objekt) === "zusaetzlich";
 			garetienStageItems(objekt).forEach(function (item) {
-				// 🔴 DAS HAUS-PRAEDIKAT, keine vierte Abschrift von `change_type === 'new'`.
-				if (!AVESMAPS_GARETIEN_ITEMS_JE_HANDLUNG.neu(item)) { return; }
 				const id = Number(item && item.id);
-				if (id > 0) { raus[String(id)] = rumpf; }
+				if (!(id > 0)) { return; }
+				// 🔴 DAS HAUS-PRAEDIKAT, keine vierte Abschrift von `change_type === 'new'`.
+				if (AVESMAPS_GARETIEN_ITEMS_JE_HANDLUNG.neu(item)) {
+					if (rumpf || beides) {
+						raus[String(id)] = beides ? Object.assign({}, rumpf || {}, { beides: true }) : rumpf;
+					}
+					return;
+				}
+				// 💣 DAS ERGÄNZUNGS-ITEM BEKOMMT NUR DEN RIEGEL, NIE DEN RUMPF: mit `ziel` formte
+				// `avesmapsGaretienZielUebersteuern` die Geometrie eines BESTEHENDEN Objekts um (siehe die
+				// Verengung oben). `{beides: true}` trägt weder `ziel` noch `name`.
+				if (beides) { raus[String(id)] = { beides: true }; }
 			});
 		});
 		return raus;
@@ -9406,9 +9445,9 @@
 	// 🔴 ZWEI HANDEINGABE-PARAMETER, UND SIE MEINEN VERSCHIEDENES.
 	//
 	// `einstellungen` (Owner 30.08.2026, Kasten „Wird eingefügt") gilt ALLEN Items eines Aufrufs und
-	// ist deshalb nur dort erlaubt, wo der Aufruf auf GENAU EIN Objekt skopiert ist: heute
-	// ausschließlich `garetienNeuKlick` („Innerorts einfügen", das damit `{innerorts: true}`
-	// schickt -- `avesmapsGaretienInnerortsGewuenscht` entscheidet ausschließlich daraus).
+	// ist deshalb nur dort erlaubt, wo der Aufruf auf GENAU EIN Objekt skopiert ist. 🔴 Seit dem
+	// 14.09.2026 hat er KEINEN Aufrufer mehr: der letzte, „Innerorts einfügen", ist gefallen, und eine
+	// Stätte reist über `einstellungenJeItem` (garetienEingabenFuerServerOhneName).
 	//
 	// `einstellungenJeItem` (Sammelfixrunde 07.09.2026, Befund A) ist der Weg für eine MENGE: ein
 	// eigener Rumpf je Item, gebaut von `garetienStageEinstellungenJeItem`. Ihn schickt der Fußknopf
@@ -9571,6 +9610,11 @@
 				+ String(fehler[0].grund || "unbekannter Grund") + rest);
 		}
 		if (teile.length === 0) { teile.push("Es war nichts zu importieren."); }
+		// 🔴 Ruling R-b (14.09.2026): `hinweise` werden sichtbar -- je ein Satz aus der apply-Antwort
+		// (Aufgabe 8, z. B. „Quelle an „Wandleth“ war schon vorhanden“), angehängt wie die übrigen
+		// Teile. Ohne `hinweise` bleibt die Meldung unverändert.
+		const hinweise = Array.isArray(s.hinweise) ? s.hinweise.filter(function (h) { return String(h || "") !== ""; }) : [];
+		hinweise.forEach(function (h) { teile.push(String(h)); });
 		return { text: teile.join(" · "), ton: fehler.length > 0 ? "bad" : (angelegt + quellen > 0 ? "ok" : "") };
 	}
 
@@ -9596,7 +9640,10 @@
 		// selbst (sonst schriebe der Lauf in sie hinein und der nächste Aufruf begänne nicht bei 0).
 		const summe = {
 			applied: 0, deleted: 0, stale: 0, skipped: 0, declined: 0,
-			fehler: [], angelegt_je_form: Object.assign({}, AVESMAPS_GARETIEN_JE_FORM_LEER),
+			// 🔴 Aufgabe 8/Ruling R-b (14.09.2026): `hinweise` reist wie `fehler`/`angelegt_je_form`
+			// je Häppchen mit -- die apply-Antwort trägt seither Sätze wie „Quelle an „X“ war schon
+			// vorhanden“, und die duerfen nicht im Trichter verschwinden.
+			fehler: [], hinweise: [], angelegt_je_form: Object.assign({}, AVESMAPS_GARETIEN_JE_FORM_LEER),
 		};
 		let verarbeitet = 0;
 		let iterationen = 0;
@@ -9645,6 +9692,11 @@
 						// den GANZEN Lauf (mehrere Häppchen bei > GARETIEN_ANHAKEN_HAEPPCHEN ids).
 						if (Array.isArray(antwort && antwort.fehler)) {
 							summe.fehler = summe.fehler.concat(antwort.fehler);
+						}
+						// 🔴 Ruling R-b: dieselbe Sammelstelle wie `fehler` -- `hinweise` ist optional,
+						// ein Häppchen ohne das Feld traegt nichts bei.
+						if (Array.isArray(antwort && antwort.hinweise)) {
+							summe.hinweise = summe.hinweise.concat(antwort.hinweise);
 						}
 						const jeFormAntwort = (antwort && antwort.angelegt_je_form) || {};
 						Object.keys(summe.angelegt_je_form).forEach(function (schluessel) {
@@ -9724,6 +9776,38 @@
 			+ "Änderungen an bestehenden Objekten (Name, Quelle, Geometrie) gibt es keinen Rückweg.";
 	}
 
+	// REIN: die Objekte der Stage, deren Zielwahl „zusätzlich" ist.
+	function garetienZusaetzlichObjekte(objekte) {
+		return (objekte || []).filter(function (o) { return o && garetienZielwahlZu(o) === "zusaetzlich"; });
+	}
+
+	/*
+	 * REIN: die Rückfrage vor einem Import mit mindestens einem „zusätzlich" -- sie NENNT JEDES solche
+	 * Objekt beim Namen (Entwurf §5: „Neues Objekt „Natter" anlegen UND die Garetien-Quelle an das
+	 * bestehende „Natter" hängen?").
+	 *
+	 * 💣 „ZUSÄTZLICH ZU X" IST NIE MEHR STILL. Bis zum 14.09.2026 war es die Folge eines Häkchens, und
+	 * ein Klick legte bei 334 Objekten die Dublette an UND ergänzte das bestehende Objekt.
+	 * ⚠️ Ein „Abbrechen" importiert NICHTS -- anders als die Mengen-Rückfrage beim Auflegen, die nur die
+	 * betroffenen Objekte liegen lässt: hier ist der Fehler mit einem Klick auf der Stage behoben, ein
+	 * halber Import dagegen nicht mehr mit einem Klick.
+	 */
+	function garetienZusaetzlichRueckfrageText(objekte) {
+		const liste = objekte || [];
+		const zeilen = liste.map(function (o) {
+			const neu = garetienNameFuerImport(o).trim() || "(ohne Namen)";
+			const ziel = garetienErgaenzungZiel(o);
+			const bestand = ziel.name !== "" ? "„" + ziel.name + "“" : "das bestehende Objekt";
+			const zahl = ziel.abschnitte > 1
+				? " (" + garetienAnzahlText(ziel.abschnitte, "Abschnitt", "Abschnitte") + ")" : "";
+			return "• Neues Objekt „" + neu + "“ anlegen UND die Garetien-Quelle an " + bestand + zahl + " hängen.";
+		});
+		return (liste.length === 1 ? "Zusätzlich anlegen?" : liste.length + " Objekte zusätzlich anlegen?")
+			+ "\n\n" + zeilen.join("\n") + "\n\n"
+			+ "Danach steht jeweils ein zweites Objekt gleichen Namens auf der Karte. "
+			+ "Mit „Abbrechen“ wird nichts importiert — das Ziel lässt sich auf der Stage umstellen.";
+	}
+
 	// Die DOM-Hälfte des Fußknopfs: fragt nach, sperrt sich, trägt seinen Stand IN der
 	// Beschriftung, und bereinigt danach die Anzeige (Aufgabe 8) -- außerhalb der reinen Kette
 	// oben, weil sie echtes DOM und den Modulzustand (`zustand`, `garetienEinfuegenLaeuft`)
@@ -9738,6 +9822,13 @@
 		const stageObjekte = avesmapsGaretienStageListe();
 		const stand = garetienUebernahmeKnopfZustand(stageObjekte);
 		if (stand.gesperrt) { return Promise.resolve(null); }
+		// 💣 „ZUSÄTZLICH" FRAGT ZUERST, und OHNE `fragen` wird nicht importiert: es ist die eine Wahl,
+		// nach der zwei Objekte gleichen Namens auf der Karte stehen (Entwurf §5).
+		const zusaetzlich = garetienZusaetzlichObjekte(stageObjekte);
+		if (zusaetzlich.length > 0
+			&& (typeof fragen !== "function" || !fragen(garetienZusaetzlichRueckfrageText(zusaetzlich)))) {
+			return Promise.resolve(null);
+		}
 		if (typeof fragen === "function" && !fragen(garetienEinfuegenRueckfrageText(stand.zusammenfassung))) {
 			return Promise.resolve(null);
 		}
@@ -9924,14 +10015,6 @@
 				// Bedienelement stillschweigend das dritte verdeckt.
 				garetienHakenKlick(ereignis, zustand.objekte, zustand.planRunId,
 					avesmapsGaretienHandlungSenden);
-				// Aufgabe 8: „Neu einfügen“ schreibt wirklich (garetienNeuKlick). Er steht VOR
-				// garetienHandlungKlick und meldet per Rückgabewert, ob er den Klick übernommen hat --
-				// dann bleibt garetienHandlungKlick für dasselbe Ereignis aus, sonst hätte derselbe
-				// Knopf zwei Erzeuger (AGENTS.md §11).
-				// 🔴 Meldung B (30.08.2026): `garetienFragen` reist seither MIT -- „trotzdem neu
-				// anlegen“ (Zusatz-Item) braucht eine Rückfrage, der normale Neuzugang weiterhin
-				// keine.
-				if (garetienNeuKlick(ereignis, zustand.objekte, zustand.planRunId, garetienFragen)) { return; }
 				// Aufgabe 9+10 (07.09.2026): der Vorwärtsknopf „Auf die Stage"/„Von der Stage
 				// nehmen". Derselbe Zug wie die Verteiler darüber -- er schreibt aber NICHTS: die
 				// Stage ist client-seitig, danach wird nur neu gezeichnet.
@@ -10419,15 +10502,21 @@
 			// und Schreibumfang gemeinsam lesen
 			garetienStageVorhaben,
 			garetienStageItems,
-			garetienEinfuegeWahl,
-			garetienEinfuegeWahlSetzen,
-			garetienEinfuegeWahlVergessen,
-			garetienNeuMoeglich,
-			garetienQuelleMoeglich,
-			garetienNeuItems,
+			// 14.09.2026 (Bauplan „Garetien-Importer vereint", Aufgabe 9): die Zielwahl -- EINE Wahl
+			// statt der zwei Häkchen.
+			AVESMAPS_GARETIEN_ZIELE,
+			garetienZieleMoeglich,
+			garetienZielwahlZu,
+			garetienZielwahlSetzen,
+			garetienZielwahlVergessen,
+			garetienZielwahlMarkup,
+			garetienZielwahlTexte,
+			garetienZielwahlAusGrund,
+			garetienZielNameZeile,
+			garetienZielKarteItems,
+			garetienErgaenzungZiel,
 			garetienQuelleItems,
 			garetienInnerortsWahlSetzen,
-			garetienEinfuegeHakenMarkup,
 			garetienNameWahlZu,
 			garetienNameWahlSetzen,
 			garetienNameWahlVergessen,
@@ -10465,7 +10554,6 @@
 			// `fertig` herausgerechnet, bevor der Satz entsteht.
 			garetienStageNachschlagOhneEigene,
 			garetienEinfuegenAusfuehren,
-			garetienNeuKlick,
 			garetienFussknopfEinfuegenKlick,
 			// Schadensfall 30.08.2026: der volle Schreibumfang fuer `apply`, ANDERS als
 			// garetienStageAnhakenIds (siehe deren Kommentare)
@@ -10475,6 +10563,9 @@
 			garetienStageEinstellungenJeItem,
 			garetienEinstellungenJeItemFuerHaeppchen,
 			garetienEinfuegenRueckfrageText,
+			// 14.09.2026: die Rückfrage vor „zusätzlich"
+			garetienZusaetzlichObjekte,
+			garetienZusaetzlichRueckfrageText,
 			// Aufgabe 7 (2026-09-14): was entsteht -- und Block B mit dem Verbund-Knopf
 			garetienStageZusammenfassung,
 			garetienVerbundBlockMarkup,

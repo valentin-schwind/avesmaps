@@ -52,11 +52,8 @@ const ergaenzung = {
 	gleich(namen(o).includes("neu"), false, "kein „neu\" bei " + o.urteil);
 	gleich(ohneKommentare(garetienHandlungsMarkup(o)).includes('data-handlung="neu"'), false,
 		"kein neu-Knopf im Markup bei " + o.urteil);
-	// 🔴 SEIT 09.09.2026 STEHT „Neu einfügen“ WIEDER IM MARKUP -- aber als HAEKCHEN, nicht
-	// als Knopf (Owner: „sollten das häkchen sein“). Der Unterschied ist der ganze Grund, warum
-	// der Knopf am 07.09.2026 fiel: er legte SOFORT an und umging die Stage. Das Häkchen
-	// entscheidet nur, was die Stage mitnimmt -- der Weg ueber „Stage importieren“ bleibt
-	// erzwungen. ⚠️ Geprueft wird deshalb das HANDLUNGSATTRIBUT, nicht mehr die Zeichenkette.
+	// 🔴 SEIT 14.09.2026 GIBT ES AUCH DIE HAEKCHEN NICHT MEHR -- „Neu einfügen" ist ein Wert der
+	// Zielwahl („Auf die Karte"). Geprueft wird weiter das HANDLUNGSATTRIBUT: kein Knopf umgeht die Stage.
 	gleich(ohneKommentare(garetienHandlungsMarkup(o)).includes('data-handlung="neu"'), false,
 		"und kein Knopf mit dieser Handlung (" + o.urteil + ")");
 });
@@ -101,21 +98,19 @@ const wegObjekt = {
 	items: [{ id: 4, change_type: "new" }],
 };
 // 🔴 SEIT 09.09.2026 OHNE ZWEITE ZEILE. Form und Art stehen im Kasten „Eingefuegt wird“
-// darueber, und WAS der Import tut, sagen die zwei Haekchen -- der Knopf behauptet nichts mehr.
+// darueber, und WAS der Import tut, sagt die Zielwahl -- der Knopf behauptet nichts mehr.
 gleich(knopf(wegObjekt, "stage").zeile2, "",
 	"der Knopf traegt keine zweite Zeile mehr");
 gleich(/\d/.test(knopf(wegObjekt, "stage").beschriftung), false,
 	"und die erste traegt keine Zahl");
-// 🔴 SEIT 09.09.2026 SAGT ES DER KASTEN, NICHT DER KNOPF (garetienEinfuegeHakenMarkup).
-// Der Satz durfte nicht ersatzlos fallen: ohne ihn sieht ein Objekt ohne Vorschlag aus wie eines
-// mit, nur ohne Haekchen -- und das liest sich wie ein Fehler.
-// 🔴 UND ERST AUF DER STAGE (Owner 09.09.2026). Davor steht im Kasten gar nichts: die Frage
-// „was soll eingefuegt werden" stellt sich erst, wenn das Objekt aufliegt.
-wahr(api.garetienEinfuegeHakenMarkup(offenOhneVorschlag) === "",
-	"vor der Stage zeigt der Kasten nichts");
+// 🔴 SEIT 14.09.2026 SAGT ES DIE ZIELWAHL (garetienZielwahlMarkup), NICHT MEHR EIN HAEKCHEN-KASTEN.
+// Der Satz durfte nicht ersatzlos fallen: ohne ihn sieht ein Objekt ohne Vorschlag aus wie eines mit.
+// 🔴 UND ERST AUF DER STAGE (Owner 09.09.2026).
+wahr(api.garetienZielwahlMarkup(offenOhneVorschlag) === "",
+	"vor der Stage zeigt die Zielwahl nichts");
 api.avesmapsGaretienStageHinzufuegen([offenOhneVorschlag]);
-wahr(api.garetienEinfuegeHakenMarkup(offenOhneVorschlag).includes("nur Ansicht"),
-	"auf der Stage sagt der Kasten „nur Ansicht\"");
+wahr(api.garetienZielwahlMarkup(offenOhneVorschlag).includes("Nichts — nur ansehen"),
+	"auf der Stage sagt die Zielwahl „Nichts — nur ansehen\"");
 api.avesmapsGaretienStageLeeren();
 gleich(knopf(offenOhneVorschlag, "stage").disabled, false,
 	"…und der Knopf geht trotzdem: ansehen darf man alles");
@@ -129,7 +124,7 @@ wahr(knopf(offenOhneVorschlag, "ablehnen").grund !== "", "und der Grund steht da
 api.avesmapsGaretienStageHinzufuegen([offenMitVorschlag]);
 tief(namen(offenMitVorschlag), ["entstagen", "ablehnen"], "auf der Stage: der Rueckweg");
 // ⚠️ AUCH HIER OHNE ZWEITE ZEILE (09.09.2026). „Von der Stage nehmen“ sagt schon alles; was
-// dort liegt, sagen die Haekchen darueber.
+// dort liegt, sagt die Zielwahl darueber.
 gleich(knopf(offenMitVorschlag, "entstagen").beschriftung, "Von der Stage nehmen",
 	"auf der Stage kehrt sich der Knopf um");
 gleich(knopf(offenMitVorschlag, "entstagen").zeile2, "", "und traegt keine zweite Zeile");
@@ -137,20 +132,16 @@ api.avesmapsGaretienStageLeeren();
 tief(namen(offenMitVorschlag), ["stage", "ablehnen"], "und wieder zurueck");
 
 // =================================================================================================
-// 5. 🔴 „Innerorts einfügen (Stadt)" BLEIBT -- und das ist eine gemessene Abweichung vom Brief.
-//    Der Stage-Import schickt KEINE `einstellungen`; `avesmapsGaretienInnerortsGewuenscht`
-//    (garetien-uebernahme.php) entscheidet ausschliesslich daraus. Gestrichen waere die Staette
-//    unerreichbar -- genau der Schaden, den dieser Schritt beseitigen soll.
+// 5. 🔴 „Innerorts einfügen (Stadt)" IST GEFALLEN (14.09.2026) -- die Zielwahl „Stätte in X" traegt
+//    die Staette ueber die Stage (Entwurf 2026-09-14 §2, Befund `innerorts-sofort`).
 // =================================================================================================
 const innerorts = {
 	key: "e", stand: "offen", urteil: "neu", name: "Tempel des Praios",
 	innerorts: { name: "Wandleth", public_id: "Ort-9" },
 	items: [{ id: 3, change_type: "new" }],
 };
-tief(namen(innerorts), ["stage", "innerorts", "ablehnen"],
-	"„Innerorts einfügen\" steht NEBEN dem Vorwaertsknopf, nicht statt seiner");
-wahr(knopf(innerorts, "innerorts").beschriftung.includes("Wandleth"),
-	"und nennt die Stadt weiterhin im Knopf");
+tief(namen(innerorts), ["stage", "ablehnen"],
+	"🔴 auch MIT Befund nur der Vorwaertsknopf -- kein Einzel-Schreibweg an der Stage vorbei");
 
 // =================================================================================================
 // 6. Die Knopfleiste sagt, FUER WEN sie gilt (Owner-Meldung „ablehnen geht generell nicht").
