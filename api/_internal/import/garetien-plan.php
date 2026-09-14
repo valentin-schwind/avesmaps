@@ -1600,13 +1600,16 @@ function avesmapsGaretienBaueSyncPlan(PDO $pdo, int $importRunId, int $userId = 
     // avesmapsGaretienNameDerZeile: der Abgleich, der Innerorts-Befund, `after.name` und die
     // Beschriftung. Der Sammelartikel-Zaehler laeuft dabei EINMAL je Lauf.
     $benannt = avesmapsGaretienZeilenBenennen($pdo, $importRunId, $stmt->fetchAll(PDO::FETCH_ASSOC));
-    // 🔴 EINMAL je Lauf ueber ALLE Zeilen -- die Gruppe entsteht nur im Ganzen, eine Zeile fuer
-    // sich kann nicht wissen, ob sie Geschwister hat.
-    $verbuende = avesmapsGaretienVerbuende($benannt);
-    $verbundGroesse = array_count_values($verbuende);
 
+    // 🔴 ZWEI DURCHGAENGE, UND DIE TRENNUNG IST TRAGEND (Entwurf 14.09.2026, Fehler 5). Der Verbund
+    // darf nur ERZEUGENDE Zeilen zaehlen -- ein Fragment, das sich mit einem Objekt von uns deckt,
+    // bleibt eine Quelle daran (Verbund-Owner 09.09.2026/2). Ob eine Zeile sich deckt, weiss erst
+    // der Abgleich. Bis zu diesem Umbau lief die Erkennung VOR dem Abgleich ueber Zeilen, deren
+    // SELECT `urteil` nie las, und ihr Filter war tot. Deshalb: erst jede Zeile beurteilen (und das
+    // Urteil schreiben), dann die Verbuende erkennen, dann die Items bauen.
     $anzahl = 0;
     $uebersprungen = [];
+    $urteile = [];
     foreach ($benannt as $index => $zeile) {
         $grund = avesmapsGaretienUeberspringGrund($zeile);
         if ($grund !== null) {
@@ -1645,9 +1648,26 @@ function avesmapsGaretienBaueSyncPlan(PDO $pdo, int $importRunId, int $userId = 
             ) : [],
             $nenntTreffer && $urteil['abstand'] !== null ? (float) $urteil['abstand'] : null
         );
+        // Das Urteil reist an der Zeile zur Verbund-Erkennung -- dieselbe Bedeutung wie die Spalte
+        // `garetien_import_row.urteil`, die gerade geschrieben wurde.
+        $benannt[$index]['urteil'] = (string) $urteil['status'];
         if ($urteil['status'] === 'uebersprungen') {
             continue;
         }
+        $urteile[$index] = ['ziel' => $ziel, 'urteil' => $urteil];
+    }
+
+    // 🔴 EINMAL je Lauf ueber ALLE Zeilen -- die Gruppe entsteht nur im Ganzen, eine Zeile fuer
+    // sich kann nicht wissen, ob sie Geschwister hat.
+    $verbuende = avesmapsGaretienVerbuende($benannt);
+    // 🔴 GEZAEHLT WIRD JE GRUPPE (ebene|typ|stamm), NICHT JE STAMM -- Fehler 4 des Entwurfs.
+    $verbundGruppen = avesmapsGaretienVerbundGruppen($benannt);
+    $verbundGroesse = array_count_values($verbundGruppen);
+
+    foreach ($urteile as $index => $beurteilt) {
+        $zeile = $benannt[$index];
+        $ziel = $beurteilt['ziel'];
+        $urteil = $beurteilt['urteil'];
         // 🔴 DER VIERTE AUSGANG. `deckt_sich` erzeugte bis zum 27.08.2026 gar nichts -- und genau
         // dabei gingen ihr Name, ihr Wiki-Artikel und ihre Quelle verloren. 25 von 76
         // Geometrietreffern trugen bei uns keinen Namen.
@@ -1657,8 +1677,8 @@ function avesmapsGaretienBaueSyncPlan(PDO $pdo, int $importRunId, int $userId = 
         // 🔴 DER INNERORTS-BEFUND ENTSTEHT HIER, EINMAL JE ZEILE. Ihn im Lesepfad zu rechnen waere
         // eine zweite Wahrheit ueber „gehoert das in eine Stadt?" -- und sie liefe je Zeile der
         // Arbeitsliste, ueber alle Ortschaften unseres Bestands.
-        $verbund = isset($verbuende[$index])
-            ? ['stamm' => $verbuende[$index], 'n' => $verbundGroesse[$verbuende[$index]]]
+        $verbund = isset($verbuende[$index], $verbundGruppen[$index])
+            ? ['stamm' => $verbuende[$index], 'n' => $verbundGroesse[$verbundGruppen[$index]]]
             : null;
         $eintraege = avesmapsGaretienEintraegeFuerUrteil(
             $zeile, $ziel, $urteil, $quellenBestand,
