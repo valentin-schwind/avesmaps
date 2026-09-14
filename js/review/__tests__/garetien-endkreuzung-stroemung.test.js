@@ -63,8 +63,8 @@ const pfad = (key) => Object.assign({}, fluss(key), { typ: "Pfad", subtyp: "Pfad
 // 🔴 Ohne Endknoten hängt ein importierter Weg im Routennetz an nichts: der Graphbau verwirft jeden
 // Weg, dessen Endpunkt auf keinem bekannten Ort und keiner Kreuzung liegt — gezeichnet und
 // trotzdem unbefahrbar. Deshalb ist die Vorgabe AN und nicht aus.
-// Aufgabe 9 (09.09.2026): Darstellung sowie Wiki & Quellen -- und mit ihnen dieser ganze
-// Weg-Kasten -- erscheinen erst auf der Stage.
+// Aufgabe 9 (09.09.2026) / Aufgabe 11 (14.09.2026): Darstellung sowie Wiki & Quellen -- seither
+// die Bloecke D und E, mit ihnen dieser ganze Weg-Kasten -- erscheinen erst auf der Stage.
 const wegP1 = pfad("p1");
 fenster.avesmapsGaretienStageHinzufuegen([wegP1]);
 const mPfad = fenster.garetienEingefuegtWirdMarkup(wegP1);

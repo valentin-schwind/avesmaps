@@ -1316,14 +1316,14 @@ html.avesmaps-planner-collapsed .gi-win {
 
 /* ---- Aufgabe 15: die Handlungsleiste ------------------------------------------------------ *
  *
- * 🔴 SIE IST ANGEHEFTET, NICHT IM FLUSS. Die Entscheidung darf nie hinter einer Bildlaufleiste
- *    liegen -- bei 13 Abschnitten waere sie es. Getragen wird das nicht von `position: sticky`,
- *    sondern von der Bauform daneben: `.avm-col` ist eine Flexspalte mit `overflow: hidden`
- *    (editor-body.css), `.gi-detail` darin ist `flex: 1 1 auto; overflow: auto`, und diese Leiste
- *    ist ihr GESCHWISTER mit `flex: none`. Sie steht damit fest am Fuss der Spalte, ohne einen
- *    deckenden Grund, ohne blutende Kanten und ohne die Falle des verschobenen Klebepunkts.
- * 💣 Deshalb darf sie im Markup NIE ein Kind von `.gi-detail` werden -- dann rollt sie mit, und
- *    zwar unsichtbar richtig aussehend: bei kurzen Objekten faellt es gar nicht auf.
+ * 🪴 RUECKBLICK (bis zum 09.09.2026 galt): SIE WAR ANGEHEFTET, NICHT IM FLUSS -- ein GESCHWISTER
+ *    von `.gi-detail` mit `flex: none`, damit die Entscheidung nie hinter einer Bildlaufleiste
+ *    liegt. Seit dem 09.09.2026 rollt sie MIT (Owner: „was mich auch stoert ist, dass dieser teil
+ *    sticky und nicht ueber 'Eingefuegt wird' steht"), und seit Aufgabe 11 (14.09.2026) ist sie
+ *    Block F -- ein DIREKTES Kind von `.gi-detail`, genau das, was diese Zeile hier einst
+ *    verbot. Getragen wird die Trennung von der Bauform daneben: `.avm-col` ist eine Flexspalte
+ *    mit `overflow: hidden` (editor-body.css), `.gi-detail` darin ist `flex: 1 1 auto; overflow:
+ *    auto` und rollt als Ganzes -- Block F rollt seither MIT den uebrigen Bloecken.
  * 🔴 WEICH/OUTLINE, ALLE. Die EINE gefuellte Handlung des Fensters heisst „Angehakte uebernehmen"
  *    und steht im Fuss; eine Zeilenhandlung ist nie die Haupthandlung der Seite (AGENTS.md §12).
  *    `.gi-win .btn` (weiter oben) traegt die weiche Form schon -- hier stehen nur die zwei
@@ -1470,15 +1470,15 @@ html.avesmaps-planner-collapsed .gi-win {
 /* 💣 DIE LEISTE SAGT, FUER WEN SIE GILT (Owner-Meldung 07.09.2026: „ablehnen geht generell nicht").
    Sie gehoert dem Objekt der EINZELANSICHT -- ein Klick auf ein Listenhaekchen wechselt die nicht,
    und der Owner hat deshalb ein anderes Objekt abgelehnt als das, das er angehakt hatte.
-   Die Ueberschrift steht in derselben Form wie „DER GRUND" und „WAS BEI UNS AN DERSELBEN STELLE
-   LIEGT" darueber (`.gi-sec` traegt Versalien, Sperrung und Farbe).
-   ⚠️ Ohne die eigene Trennlinie von `.gi-sec`: die Leiste hat als `flex: none`-Geschwister von
-   `.gi-detail` schon ihren eigenen `border-top`, und zwei Linien uebereinander lesen sich wie ein
-   leerer Abschnitt dazwischen. Und ohne dessen `padding-top`, aus demselben Grund. */
+   Die Ueberschrift steht in derselben Form wie jeder andere Blockkopf (`.gi-block__kopf`).
+   🪴 NACHBESSERUNG RUNDE 1 (G, 14.09.2026): `padding-top: 0; border-top: 0;` sind gefallen -- sie
+   neutralisierten `.gi-sec`s eigenen `padding-top`/`border-top`; seit `.gi-sec` durch den
+   Blockkopf ersetzt ist (Aufgabe 11), setzt `.gi-block__kopf` keins von beiden, es gibt also
+   nichts mehr zu neutralisieren (keine andere Regel dieser Datei setzt sie an `.gi-block__kopf`
+   oder `.gi-acts__titel`). `flex: 1 0 100%` bleibt -- sie ist nicht tot, sie bringt den Kopf in
+   der flex-ZEILE `.gi-acts` auf volle Breite. */
 .gi-acts__titel {
 	flex: 1 0 100%;
-	padding-top: 0;
-	border-top: 0;
 }
 
 /* Die Knopfreihe (Owner 09.09.2026: „Von der Stage nehmen + Ablehnen soll in eine 2. Zeile …").

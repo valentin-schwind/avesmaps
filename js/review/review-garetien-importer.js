@@ -1849,15 +1849,26 @@
 		if (schluessel === "") { return ""; }
 		const mitglieder = garetienVerbundMitglieder(schluessel, garetienVerbundPool(objekte));
 		if (mitglieder.length < 2) { return ""; }
+		// 🔴 NACHBESSERUNG RUNDE 1 (W-b, 14.09.2026): EIN UEBERNOMMENES OBJEKT ZEIGT JE FRAGMENT EIN
+		// ↩ STATT DES ✕ (Entwurf §3, Mockup §6) -- dieselbe Einzel-Ruecknahme wie „Zurücknehmen" an
+		// einem Objekt (`data-handlung="ruecknahme"`, `garetienRuecknahmeKlick`), nur fuer GENAU
+		// dieses Fragment. Kein neuer Klick-Handler: der bestehende Verteiler matcht die Attribute
+		// unabhaengig davon, wo der Knopf im Markup steht.
+		const objektIstUebernommen = String((objekt && objekt.stand) || "") === "uebernommen";
 		const zeilen = mitglieder.map(function (m) {
 			const liegt = avesmapsGaretienStageHat(m.key);
+			let rechts = "<span></span>";
+			if (liegt) {
+				rechts = '<button class="btn gi-seg__weg" type="button" data-verbund-weg="'
+					+ avesmapsGaretienEscape(m.key || "") + '" title="Von der Stage nehmen">✕</button>';
+			} else if (objektIstUebernommen && garetienRuecknahmeItems(m).length > 0) {
+				rechts = '<button class="btn gi-seg__weg" type="button" data-handlung="ruecknahme" data-key="'
+					+ avesmapsGaretienEscape(m.key || "") + '" title="Nur dieses Fragment zurücknehmen">↩</button>';
+			}
 			return '<div class="gi-seg gi-seg--verbund"><span></span>'
 				+ '<span class="gi-seg__name">' + avesmapsGaretienEscape(m.name || "")
 				+ '<span class="gi-seg__zahl">' + ((m.geometrie || []).length) + " Punkte</span></span>"
-				+ (liegt
-					? '<button class="btn gi-seg__weg" type="button" data-verbund-weg="'
-						+ avesmapsGaretienEscape(m.key || "") + '" title="Von der Stage nehmen">✕</button>'
-					: "<span></span>")
+				+ rechts
 				+ "</div>";
 		}).join("");
 
@@ -1875,11 +1886,17 @@
 					+ "</span></p>");
 		}
 
+		// 🔴 „JEDE FLAECHE EINZELN RUECKNEHMBAR" ERSETZT DIE FRAGMENTZAHL AUF „UEBERNOMMEN" (Mockup
+		// §6, Nachbesserung Runde 1/W-b): die Zahl steht dort schon in Block F ("Ganzen Verbund
+		// zurücknehmen (n)"), und diese Notiz sagt, was der neue ↩-Knopf hier bedeutet.
+		const notiz = objektIstUebernommen
+			? "jede Fläche einzeln rücknehmbar"
+			: (zusammen ? "zusammengelegt · " : "") + mitglieder.length + " Fragmente";
+
 		// 🔴 SEIT DEM 14.09.2026 BLOCK B „Verbund" (Entwurf 2026-09-14 §3). Kein `erster`: vor ihm
 		// steht immer Block A. Was hinter der Ueberschrift verkettet wird -- die Zeilen, der Knopf und
 		// seine Grundzeile aus Aufgabe 7 --, ist sein Inhalt.
-		return garetienBlockMarkup("B", "Verbund", zeilen + knopf,
-			(zusammen ? "zusammengelegt · " : "") + mitglieder.length + " Fragmente", false);
+		return garetienBlockMarkup("B", "Verbund", zeilen + knopf, notiz, false);
 	}
 
 	/*
@@ -3788,23 +3805,25 @@
 	// Bericht), steht der SCHLÜSSEL da, nie ein erfundener Name (Owner: „zeig den Schlüssel").
 	// ⚠️ Ohne `ziel` (ältere Läufe, reine Fixtures) bleibt der Schlüssel unangetastet -- dieselbe
 	// zurückhaltende Richtung.
-	function garetienUnserBeschriftung(objekt) {
-		// 🔴 Über die WAHL, nicht über den rohen Vorschlag (01.09.2026) -- solange niemand etwas
-		// anderes gewählt hat, ist beides dasselbe.
-		const wahl = garetienZielWahlZu(objekt);
-		const subtyp = String(wahl.subtyp || "").trim();
-		if (subtyp === "") { return subtyp; }
-		const ziel = String(wahl.ziel || "").trim();
-		if (ziel === "location") {
-			const eintrag = (typeof LOCATION_TYPE_CONFIG !== "undefined") ? LOCATION_TYPE_CONFIG[subtyp] : null;
-			return (eintrag && eintrag.singularLabel) || subtyp;
+	// REIN: übersetzt eine FORM+ART in ihre deutsche Beschriftung -- dieselbe Tafel-Wahl wie unten,
+	// nur mit `ziel`/`subtyp` als PARAMETER statt aus der heutigen Wahl gelesen (Nachbesserung
+	// Runde 1, W-a, 14.09.2026): ein übernommenes Objekt braucht die ECHTEN, angewendeten Werte
+	// (`objekt.ziel`/`objekt.subtyp`), nicht `garetienZielWahlZu` -- die ist die Stage-Vorbelegung
+	// von HEUTE. Extrahiert, damit es dafür KEINE zweite Tafel braucht (AGENTS.md §5/§11).
+	function garetienArtBeschriftung(ziel, subtyp, objekt) {
+		const z = String(ziel || "").trim();
+		const s = String(subtyp || "").trim();
+		if (s === "") { return s; }
+		if (z === "location") {
+			const eintrag = (typeof LOCATION_TYPE_CONFIG !== "undefined") ? LOCATION_TYPE_CONFIG[s] : null;
+			return (eintrag && eintrag.singularLabel) || s;
 		}
-		if (ziel === "region" || ziel === "label") {
-			const name = (typeof avesmapsLabelArtName === "function") ? avesmapsLabelArtName(subtyp) : "";
-			return name || subtyp;
+		if (z === "region" || z === "label") {
+			const name = (typeof avesmapsLabelArtName === "function") ? avesmapsLabelArtName(s) : "";
+			return name || s;
 		}
-		if (ziel === "path") {
-			const art = (typeof getPathTypeLabel === "function") ? getPathTypeLabel(subtyp) : subtyp;
+		if (z === "path") {
+			const art = (typeof getPathTypeLabel === "function") ? getPathTypeLabel(s) : s;
 			// 🔴 „Flussweg (Bach)" -- der Owner hat diese Schreibweise am 30.08.2026 wörtlich
 			// bestellt, und sie sagt genau das Richtige: angelegt wird ein FLUSSWEG, und er trägt
 			// das Häkchen „Bach". Nur „Bach" verschwiege den Wegtyp, unter dem das Objekt in der
@@ -3812,7 +3831,14 @@
 			// jede Befahrbarkeit nimmt.
 			return objekt && objekt.is_bach === true ? art + " (Bach)" : art;
 		}
-		return subtyp;
+		return s;
+	}
+
+	function garetienUnserBeschriftung(objekt) {
+		// 🔴 Über die WAHL, nicht über den rohen Vorschlag (01.09.2026) -- solange niemand etwas
+		// anderes gewählt hat, ist beides dasselbe.
+		const wahl = garetienZielWahlZu(objekt);
+		return garetienArtBeschriftung(wahl.ziel, wahl.subtyp, objekt);
 	}
 
 	// REIN: der Kopf-Zusatz „Gebirge (garetien.de) → Gebirge (Avesmaps)" -- IHR Typ samt IHRER
@@ -3932,14 +3958,49 @@
 			+ "</" + tag + ">";
 	}
 
-	// REIN: die Metazeile. Wiki-Artikel (auswärts) · LOD · Wiki/Ebene · `extra`.
+	// REIN: die Form, ALS DIE ein übernommenes Objekt TATSÄCHLICH angelegt wurde -- der Zusatz
+	// „Verbund aus n Fragmenten · als <Form> übernommen" der Metazeile (Entwurf §3, Mockup §6;
+	// Nachbesserung Runde 1, W-a, 14.09.2026). "" ohne `new`-Vermerk oder ohne Formangabe.
+	// 🔴 GELESEN WIRD `objekt.ziel`, NICHT `garetienZielWahlZu(objekt)`: das Feld kommt
+	// DURCHGEREICHT aus dem angewendeten Item (garetien-liste.php sagt es selbst: „DURCHGEREICHT,
+	// NICHT HERGELEITET") -- die Wahl ist die STAGE-Vorbelegung von HEUTE und sagt nichts über das,
+	// was tatsächlich angelegt wurde.
+	// ⚠️ OHNE DATUM: der Client erhält keinen Zeitstempel der Übernahme -- garetien-liste.php reicht
+	// je Item nur die BOOLESCHEN Vermerke `apply_state`/`applied` durch, keinen `applied_at`-Wert
+	// und kein `apply_note`. Erfunden wird hier nichts (Ruling: „was die Daten nicht tragen, wird
+	// nicht erfunden").
+	function garetienUebernommenMetaText(objekt, objekte) {
+		const o = objekt || {};
+		if (String(o.stand || "") !== "uebernommen") { return ""; }
+		if (!garetienEingefuegtWirdHatVorschlag(o)) { return ""; }
+		const ziel = String(o.ziel || "").trim();
+		if (ziel === "") { return ""; }
+		const formEintrag = AVESMAPS_GARETIEN_FORMEN.filter(function (f) { return f.key === ziel; })[0];
+		const form = formEintrag ? formEintrag.label : ziel;
+		const schluessel = garetienVerbundSchluessel(o);
+		let vorn = "";
+		if (schluessel !== "") {
+			const mitglieder = garetienVerbundMitglieder(schluessel, garetienVerbundPool(objekte || []));
+			// ⚠️ „Einzelobjekt entsprechend ohne den Verbund-Teil" (Ruling): dieselbe Untergrenze
+			// wie Block B -- unter zwei Mitgliedern ist es kein Verbund mehr.
+			if (mitglieder.length >= 2) {
+				vorn = "Verbund aus " + mitglieder.length + " Fragmenten · ";
+			}
+		}
+		return vorn + "als " + form + " übernommen";
+	}
+
+	// REIN: die Metazeile. Auf „Übernommen" ZUERST, ALS WAS angelegt wurde (garetienUebernommenMetaText,
+	// Nachbesserung Runde 1/W-a) -- danach wie gehabt Wiki-Artikel (auswärts) · LOD · Wiki/Ebene · `extra`.
 	// ⚠️ Das ↗ steht NICHT hier, sondern in der CSS-Regel `.gi-detail a[target="_blank"]::after`
 	// -- dieselbe Bauform wie in den Fenstern „Hinweise" und „Neuigkeiten". Von Hand getippt
 	// stünde es doppelt da, sobald jemand die Regel ergänzt.
 	// ⚠️ Die kurzen Codes ggp/kosch stehen hier mit Absicht (so das Mockup): in einer 11px-Zeile
 	// ist kein Platz für „garetien.de", und der Filtertrichter trägt die lange Form.
-	function garetienDetailMetaMarkup(objekt) {
+	function garetienDetailMetaMarkup(objekt, objekte) {
 		const teile = [];
+		const uebernommenText = garetienUebernommenMetaText(objekt, objekte);
+		if (uebernommenText !== "") { teile.push(uebernommenText); }
 		const url = String(objekt.wiki_url || "").trim();
 		if (url !== "") {
 			// 🔴 Der Linktext ist der ARTIKELNAME („Garetien:Natter"), nicht das Wort
@@ -5347,6 +5408,29 @@
 	// 🔴 „Die Quelle, die mitreist" zieht HIERHER, in „Wiki und Quellen" -- die leere Fläche
 	// darunter war der vom Owner benannte Platz für diesen Kasten, und dieselbe Angabe zweimal
 	// auf dem Bildschirm wäre die Duplikation, vor der AGENTS.md §5 warnt.
+	// REIN: die Zeile in Block A, die sagt, ALS WAS ein übernommenes Objekt tatsächlich angelegt
+	// wurde -- aus denselben echten Werten wie die Metazeile (`objekt.ziel`/`objekt.subtyp`), nie
+	// aus der Stage-Wahl (Nachbesserung Runde 1, W-a, 14.09.2026; Entwurf §3: Block A nennt „die
+	// angelegten Objekte").
+	// ⚠️ "" ohne `new`-Vermerk: ein rein ÄNDERNDES Objekt hat nichts angelegt, und diese Zeile
+	// behauptete sonst etwas, das nicht geschah.
+	// 🔴 WAS DIE DATEN NICHT TRAGEN, WIRD BENANNT, NICHT ERFUNDEN: ein `new`-Vermerk ohne
+	// `objekt.ziel` (ein Lauf von vor dem Nachzug) bekommt den Satz, dass die Form nicht mehr
+	// bekannt ist, statt stillschweigend nichts zu zeigen.
+	function garetienUebernommenArtZeile(objekt) {
+		const o = objekt || {};
+		if (String(o.stand || "") !== "uebernommen" || !garetienEingefuegtWirdHatVorschlag(o)) { return ""; }
+		const ziel = String(o.ziel || "").trim();
+		if (ziel === "") {
+			return '<p class="gi-why">Als was das angelegt wurde, ist aus diesem Lauf nicht mehr bekannt.</p>';
+		}
+		const formEintrag = AVESMAPS_GARETIEN_FORMEN.filter(function (f) { return f.key === ziel; })[0];
+		const form = formEintrag ? formEintrag.label : ziel;
+		const art = garetienArtBeschriftung(ziel, String(o.subtyp || "").trim(), o);
+		return '<p class="gi-why">Angelegt als <b>' + avesmapsGaretienEscape(form) + "</b>"
+			+ (art !== "" && art !== form ? " · " + avesmapsGaretienEscape(art) : "") + "</p>";
+	}
+
 	// REIN: der Hinweis fuer ein bereits UEBERNOMMENES Objekt (Fuenf-Punkte-Brief 30.08.2026, Punkt
 	// 6b) -- ob es sich zuruecknehmen laesst, und wenn nicht, warum. ⭐ Liest DIESELBE Regel wie der
 	// Ruecknahme-Knopf am Fuss der Ansicht (garetienRuecknahmeBauen), formuliert sie nicht neu:
@@ -6642,7 +6726,7 @@
 		// Bildschirm waere die Duplikation aus AGENTS.md §5).
 		const kopf = '<div class="gi-detail__head">'
 			+ '<h4 class="gi-detail__name">' + avesmapsGaretienEscape(objekt.name || "") + "</h4>"
-			+ "</div>" + garetienDetailMetaMarkup(objekt);
+			+ "</div>" + garetienDetailMetaMarkup(objekt, zustand.objekte || []);
 
 		// ---- A · Auf der Karte ---------------------------------------------------------------------
 		// ⚠️ Ohne Geometrie gaebe es nichts anzufliegen -- dann stehen weder „✦ Zentrieren" noch die
@@ -6682,6 +6766,10 @@
 		if (grund !== "") {
 			aufDerKarte += '<p class="gi-why"><b>Der Grund:</b> ' + avesmapsGaretienEscape(grund) + "</p>";
 		}
+		// 🔴 NACHBESSERUNG RUNDE 1 (W-a, 14.09.2026): ALS WAS ES UEBERNOMMEN WURDE, steht ebenfalls
+		// hier -- dieselbe Frage wie der Satz direkt darunter ("liegt es schon da"), nur eine Stufe
+		// davor ("was liegt da"). "" fuer jeden anderen Stand.
+		aufDerKarte += garetienUebernommenArtZeile(objekt);
 		// 🔴 EIN UEBERNOMMENES OBJEKT SAGT HIER, WO ES LIEGT UND OB ES ZURUECKGEHT (Punkt 6b, Owner
 		// 30.08.2026). Der Satz stand bis zum 14.09.2026 im Kasten „Eingefügt wird"; der faellt fuer ein
 		// uebernommenes Objekt ganz weg (Bestand, Owner 14.09.2026: C bis E fehlen), und „Auf der Karte"
@@ -6710,7 +6798,7 @@
 			+ garetienBlockMarkup("A", "Auf der Karte", aufDerKarte, notiz, true)
 			+ garetienVerbundBlockMarkup(objekt, zustand.objekte || [])
 			+ garetienEingefuegtWirdMarkup(objekt)
-			+ garetienHandlungsMarkup(objekt)
+			+ garetienHandlungsMarkup(objekt, zustand.objekte || [])
 			+ weiter
 			+ "</div>";
 	}
@@ -7293,6 +7381,10 @@
 		case "zurueck_offen":
 			return "Setzt den Vermerk „übernommen\" zurück, damit " + benannt + " wieder im "
 				+ "Arbeitsvorrat steht. Auf der Karte wird nichts geändert.";
+		// Nachbesserung Runde 1 (W-b, 14.09.2026): "Ganzen Verbund zurücknehmen".
+		case "verbund_ruecknahme":
+			return "Löscht wieder von der Karte, was beim Übernehmen für ALLE Fragmente dieses "
+				+ "Verbunds angelegt wurde. Nicht mit einem Knopf umkehrbar.";
 		default:
 			return "";
 		}
@@ -7503,6 +7595,42 @@
 			ids: items.map(function (item) { return item.id; }),
 			ablehnenIds: alle,
 			angehakt: 0, gesamt: items.length, erledigt: false, disabled: false, grund: "",
+		};
+	}
+
+	/*
+	 * Nachbesserung Runde 1 (W-b, 14.09.2026): „Ganzen Verbund zurücknehmen (n)" in Block F
+	 * (Entwurf §3, Mockup §6) -- die Fragmente EINES Verbunds, die sich zurücknehmen lassen.
+	 *
+	 * 🔴 DIESELBE MITGLIEDER-LISTE WIE BLOCK B (garetienVerbundMitglieder ueber garetienVerbundPool),
+	 * gefiltert auf die tatsaechlich ruecknehmbaren (garetienRuecknahmeItems, dieselbe Pruefung wie
+	 * an einem einzelnen Fragment). Eine zweite Rechnung hier liefe bei der naechsten Aenderung an
+	 * Block B auseinander.
+	 * ⚠️ [] ohne Verbund oder mit weniger als zwei Mitgliedern -- dieselbe Untergrenze wie Block B
+	 * (< 2 Mitglieder sind kein Verbund mehr).
+	 */
+	function garetienVerbundRuecknahmeFragmente(objekt, objekte) {
+		const schluessel = garetienVerbundSchluessel(objekt);
+		if (schluessel === "") { return []; }
+		const mitglieder = garetienVerbundMitglieder(schluessel, garetienVerbundPool(objekte || []));
+		if (mitglieder.length < 2) { return []; }
+		return mitglieder.filter(function (m) { return garetienRuecknahmeItems(m).length > 0; });
+	}
+
+	// REIN: der Knopf „Ganzen Verbund zurücknehmen (n)" -- `null` ohne rücknehmbare Fragmente
+	// (Einzelobjekt oder ein Verbund, dessen Fragmente alle nur bestehende Objekte verändert haben).
+	// 🔴 „n" ZAEHLT FRAGMENTE, NICHT ITEMS -- dieselbe Groesse wie Block B ("jede Fläche einzeln
+	// rücknehmbar" zeigt N Zeilen); ein Fragment mit zwei rücknehmbaren Items zaehlt einmal.
+	function garetienVerbundRuecknahmeBauen(objekt, objekte) {
+		const fragmente = garetienVerbundRuecknahmeFragmente(objekt, objekte);
+		if (fragmente.length === 0) { return null; }
+		const ids = fragmente.reduce(function (acc, m) {
+			return acc.concat(garetienRuecknahmeItems(m).map(function (item) { return item.id; }));
+		}, []);
+		return {
+			name: "verbund_ruecknahme", beschriftung: "Ganzen Verbund zurücknehmen (" + fragmente.length + ")",
+			ton: "danger", titel: garetienHandlungTitel("verbund_ruecknahme", objekt, ""),
+			ids: ids, angehakt: 0, gesamt: fragmente.length, erledigt: false, disabled: false, grund: "",
 		};
 	}
 
@@ -7766,8 +7894,10 @@
 		};
 	}
 
-	// REIN: die ganze Knopfleiste EINES Objekts.
-	function garetienHandlungen(objekt) {
+	// REIN: die ganze Knopfleiste EINES Objekts. `objekte` (optional, Nachbesserung Runde 1/W-b) ist
+	// der Pool, in dem "Ganzen Verbund zurücknehmen" seine Fragmente sucht -- dieselbe Liste, die
+	// garetienVerbundBlockMarkup schon fuer Block B braucht.
+	function garetienHandlungen(objekt, objekte) {
 		const o = objekt || {};
 		// 🔴 Eine abgelehnte Zeile hat GENAU EINEN Ausgang zurück. Alles andere daneben zu zeigen
 		// hieße, an einem Objekt weiterzuarbeiten, das aus dem Arbeitsvorrat heraus ist -- und eine
@@ -7780,9 +7910,11 @@
 		// nur den Grund (garetienRuecknahmeBauen).
 		if (String(o.stand || "") === "uebernommen") {
 			// ⚠️ `filter(Boolean)`: „Ablehnen" und „Zurück nach Offen" fallen ganz weg, wenn sie
-			// nichts können -- kein ausgegrauter Knopf neben dem Grund (Owner-Entscheid 1).
+			// nichts können -- kein ausgegrauter Knopf neben dem Grund (Owner-Entscheid 1). Dieselbe
+			// Regel gilt seit der Nachbesserung Runde 1 (W-b) fuer "Ganzen Verbund zurücknehmen".
 			return [
 				garetienRuecknahmeBauen(o),
+				garetienVerbundRuecknahmeBauen(o, objekte),
 				garetienRuecknahmeAblehnenBauen(o),
 				garetienZurueckOffenBauen(o),
 			].filter(Boolean);
@@ -7875,8 +8007,11 @@
 		// 🔴 Aufgabe 8: „verbund" steht aus demselben Grund daneben. Er ist eine reine
 		// Client-Handlung (Zusammenlegen/Aufloesen ueber garetienVerbundKlick) -- dieselbe
 		// Begruendung wie beim Vorwaertsknopf, nur fuer den Verbund-Knopf statt fuer die Stage.
+		// 🔴 Nachbesserung Runde 1 (W-b, 14.09.2026): „verbund_ruecknahme" ebenso -- er geht ueber
+		// den bestehenden MENGEN-Weg (garetienRuecknahmeMengeAusfuehren, eigene Tuer), nie ueber
+		// diese geteilte.
 		if (name === "ruecknahme" || name === "ruecknahme_ablehnen" || name === "zurueck_offen"
-			|| name === "stage" || name === "entstagen" || name === "verbund") {
+			|| name === "stage" || name === "entstagen" || name === "verbund" || name === "verbund_ruecknahme") {
 			return null;
 		}
 		const knopf = garetienHandlungen(objekt).filter(function (h) { return h.name === name; })[0];
@@ -7951,8 +8086,8 @@
 	// so hängt sie als `flex: none` am Fuß der Spalte, während die Ansicht darüber rollt.
 	// 🔴 ANGEHEFTET, NICHT IM FLUSS: bei 13 Abschnitten läge die Entscheidung sonst hinter der
 	// Bildlaufleiste.
-	function garetienHandlungsMarkup(objekt) {
-		const knoepfe = garetienHandlungen(objekt);
+	function garetienHandlungsMarkup(objekt, objekte) {
+		const knoepfe = garetienHandlungen(objekt, objekte);
 		if (knoepfe.length === 0) { return ""; }
 		const schluessel = avesmapsGaretienEscape((objekt && objekt.key) || "");
 		const gruende = [];
@@ -7961,8 +8096,10 @@
 			// KEINEN Knopf, nur den sichtbaren Grund -- anders als bei den übrigen Handlungen, deren
 			// Sperre nur den AKTUELLEN Zustand betrifft (ein ausgegrauter Knopf würde hier eine
 			// grundsätzliche Möglichkeit behaupten, die es für dieses Objekt nicht gibt).
+			// 🔴 NACHBESSERUNG RUNDE 1 (G, 14.09.2026): DER GRUND WIRD HIER NICHT MEHR GESAMMELT --
+			// er steht bereits in Block A (garetienEingefuegtWirdUebernommenHinweis); zweimal auf
+			// dem Bildschirm wäre dieselbe Auskunft doppelt.
 			if (k.name === "ruecknahme" && k.disabled) {
-				gruende.push(k.grund);
 				return "";
 			}
 			let klasse = "btn";
@@ -8018,7 +8155,7 @@
 		// 🔴 SEIT DEM 14.09.2026 IST SIE BLOCK F „Handlung" (Entwurf §3; hiess „Dieses Objekt", im
 		// Verbund-Entwurf „Einfügen"). Zielwahl und Namensfeld, die Aufgabe 9 hier ueber die Knoepfe
 		// gesetzt hatte, stehen seither in Block C (garetienIdentitaetMarkup): F traegt nur noch, was
-		// JETZT passiert. 💣 Hier ein zweites Mal gezeichnet, trueged zwei Felder dieselbe id.
+		// JETZT passiert. 💣 Hier ein zweites Mal gezeichnet, trügen zwei Felder dieselbe id.
 		// 💣 `gi-acts` SITZT AM BLOCK SELBST: die Flexreihe (Titel, Knoepfe, Grund je auf eigener
 		// Zeile) haengt an ihr. `.gi-block.gi-acts` nimmt ein Eigenpolster zurueck, das `.gi-acts`
 		// tragen kann (im Mockup `--avm-ribbon-pad`) -- sonst rueckte der Buchstabe F ein.
@@ -9057,6 +9194,67 @@
 				: "Nimmt zurück …", "", null);
 		}
 		return garetienRuecknahmeMengeAusfuehren(stand.ids, runId, avesmapsGaretienRufe, fortschritt)
+			.then(function () { return avesmapsGaretienListeHolen(); })
+			.then(function (ergebnis) {
+				garetienRuecknahmeMengeLaeuft = false;
+				return ergebnis;
+			})
+			.catch(function (fehler) {
+				garetienRuecknahmeMengeLaeuft = false;
+				garetienListeFehlerZeigen(fehler);
+				return null;
+			});
+	}
+
+	/*
+	 * Nachbesserung Runde 1 (W-b, 14.09.2026): der Klick auf „Ganzen Verbund zurücknehmen (n)" in
+	 * Block F -- dieselbe MENGEN-Rücknahme wie „Import zurücknehmen" in der Auswahlleiste
+	 * (garetienRuecknahmeMengeAusfuehren), nur über die Fragmente EINES Verbunds statt über die
+	 * Auswahl (Entwurf §3, Mockup §6).
+	 *
+	 * 🔴 EIGENER VERTEILER, WEIL DIE MENGE ANDERS ENTSTEHT: garetienRuecknahmeKlick nimmt genau
+	 * DIESES Objekt, garetienRuecknahmeMengeKlick die Auswahl -- hier sind es die Fragmente des
+	 * Verbunds DIESES Objekts. Ein gemeinsamer Verteiler mit einem Modus-Feld wäre dieselbe Falle
+	 * wie bei garetienZurueckOffenKlick (eigener Verteiler statt gemeinsamer Tür mit Modus).
+	 * ⚠️ DIESELBE RÜCKFRAGE WIE DIE MENGEN-RÜCKNAHME (garetienRuecknahmeMengeRueckfrageText), über
+	 * die Fragment-Objekte -- kein zweiter Wortlaut für dieselbe Folge.
+	 * 🔴 KEIN NEUER KLICK-HANDLER: dieselbe Bauform wie garetienZurueckOffenKlick -- Ereignis,
+	 * Objektliste, Lauf-Nummer UND die Werkzeuge kommen HEREIN, verdrahtet wird sie im bestehenden
+	 * Zuhörer auf `#garetien-detailcol` (siehe dort).
+	 */
+	function garetienVerbundRuecknahmeKlick(ereignis, objekte, runId, senden, fragen) {
+		const ziel = ereignis && ereignis.target;
+		if (!ziel || typeof ziel.closest !== "function") { return null; }
+		const knopf = ziel.closest('[data-handlung="verbund_ruecknahme"]');
+		if (!knopf || knopf.disabled) { return null; }
+		if (garetienRuecknahmeMengeLaeuft) { return true; }
+		const objekt = garetienObjektNach(knopf.getAttribute("data-key"), objekte);
+		if (!objekt) { return null; }
+		const fragmente = garetienVerbundRuecknahmeFragmente(objekt, objekte);
+		if (fragmente.length === 0) { return null; }
+		if (typeof fragen === "function" && !fragen(garetienRuecknahmeMengeRueckfrageText(fragmente))) {
+			return true;
+		}
+
+		garetienRuecknahmeMengeLaeuft = true;
+		knopf.disabled = true;
+		knopf.textContent = "Nimmt zurück …";
+		const ids = fragmente.reduce(function (acc, m) {
+			return acc.concat(garetienRuecknahmeItems(m).map(function (item) { return item.id; }));
+		}, []);
+		function fortschritt(fertig, gesamt) {
+			garetienStatusSetzen(gesamt > 0
+				? "Nimmt zurück … " + fertig + " von " + gesamt
+				: "Nimmt zurück …", "", null);
+		}
+		return senden(ids, runId, fortschritt);
+	}
+
+	// Der Sender dazu -- derselbe MENGEN-Weg wie „Import zurücknehmen"
+	// (garetienRuecknahmeMengeAusfuehren), derselbe Riegel (garetienRuecknahmeMengeLaeuft): kein
+	// neuer Endpunkt, kein neuer Rücknahmeweg (Ruling, Nachbesserung Runde 1/W-b).
+	function garetienVerbundRuecknahmeSenden(ids, runId, fortschritt) {
+		return garetienRuecknahmeMengeAusfuehren(ids, runId, avesmapsGaretienRufe, fortschritt)
 			.then(function () { return avesmapsGaretienListeHolen(); })
 			.then(function (ergebnis) {
 				garetienRuecknahmeMengeLaeuft = false;
@@ -10265,6 +10463,11 @@
 				// Begründung an garetienRuecknahmeSenden).
 				if (garetienRuecknahmeKlick(ereignis, zustand.objekte, zustand.planRunId,
 					garetienRuecknahmeSenden, garetienFragen)) { return; }
+				// Nachbesserung Runde 1 (W-b, 14.09.2026): „Ganzen Verbund zurücknehmen“ -- derselbe
+				// Zug wie „Zurücknehmen“ darüber, nur über die Fragmente des Verbunds statt über
+				// dieses eine Objekt (siehe die Begründung an garetienVerbundRuecknahmeKlick).
+				if (garetienVerbundRuecknahmeKlick(ereignis, zustand.objekte, zustand.planRunId,
+					garetienVerbundRuecknahmeSenden, garetienFragen)) { return; }
 				// Owner 31.08.2026: „wir wollen aber 'Übernommen' zurück nach 'Offen' verschieben
 				// können." Eigener Verteiler, eigene Tür -- siehe die Begründung an seiner
 				// Definition.
@@ -10599,6 +10802,9 @@
 			garetienTypText,
 			// Fuenf-Punkte-Brief 30.08.2026, Punkt 3: unsere Bezeichnung aufloesen
 			garetienUnserBeschriftung,
+			// Nachbesserung Runde 1 (W-a, 14.09.2026): dieselbe Tafel-Wahl, aus Parametern statt
+			// aus der Stage-Wahl -- fuer ein bereits UEBERNOMMENES Objekt.
+			garetienArtBeschriftung,
 			garetienPunkteText,
 			garetienQuellenMarkup,
 			// Aufgabe „Eingefügt wird" (30.08.2026)
@@ -10615,6 +10821,11 @@
 			garetienZielWahlMarkup,
 			// Fuenf-Punkte-Brief 30.08.2026, Punkt 6b
 			garetienEingefuegtWirdUebernommenHinweis,
+			// Nachbesserung Runde 1 (W-a, 14.09.2026): als WAS ein uebernommenes Objekt tatsaechlich
+			// angelegt wurde -- Metazeile und Block A.
+			garetienDetailMetaMarkup,
+			garetienUebernommenMetaText,
+			garetienUebernommenArtZeile,
 			// 02.09.2026: „Innerorts einfügen" -- der Befund-Leser (Ortsname aus dem Server-Befund).
 			garetienInnerortsOrt,
 			// Owner-Nachtrag 30.08.2026: die Weg-/Ort-Einstellungen ("vergiss nicht die andern
@@ -10779,6 +10990,13 @@
 			// Aufgabe 7 (2026-09-14): was entsteht -- und Block B mit dem Verbund-Knopf
 			garetienStageZusammenfassung,
 			garetienVerbundBlockMarkup,
+			garetienVerbundPool,
+			// Nachbesserung Runde 1 (W-b, 14.09.2026): „Ganzen Verbund zurücknehmen (n)" in Block F,
+			// über den bestehenden Mengen-Weg -- kein neuer Endpunkt, kein neuer Rücknahmeweg.
+			garetienVerbundRuecknahmeFragmente,
+			garetienVerbundRuecknahmeBauen,
+			garetienVerbundRuecknahmeKlick,
+			garetienVerbundRuecknahmeSenden,
 			// Meldung B (30.08.2026): „trotzdem neu anlegen“ trotz erkannter Kollision -- seit
 			// Fixrunde 1 zu Aufgabe 9+10 ueber die Stage (garetienStageVorhaben oben)
 			garetienItemIstZusatz,
