@@ -244,16 +244,18 @@
 		// 🔴 GESTRICHELT, weil die KARTE sie gestrichelt zeichnet (Owner 26.07.2026, Begruendung in
 		// css/features/ecosystem-layer.css): eine derographische Flaeche ist ein Verwaltungsbehaelter,
 		// und „a container's edge is a convention, not a thing you could walk up to like a forest edge
-		// or a ridge" -- die Strichelung gehoert zur ART der Ebene, nicht zu einem Zustand, und bleibt
-		// darum in jedem Zustand gestrichelt. Der gebaute Vektor zog sie zuvor DURCHGEHEND -- falsch.
+		// or a ridge" -- die Strichelung gehoert zur ART der Ebene: WENN die Karte die Kontur zeichnet,
+		// dann gestrichelt, nie durchgezogen. ⚠️ Zu sehen ist sie auf der Karte aber NUR im Bearbeiten-Modus
+		// und nur in einer einzelnen Ebene, nie in „Alle" (--eco-contour in css/features/ecosystem-layer.css).
+		// Der gebaute Vektor zog sie zuvor DURCHGEHEND -- falsch.
 		// ⚠️ Die drei zarten Fuellungen machen den Behaelter auf 48 px erst LESBAR (ungefuellt las sich
 		// die Zelle als „nicht geladen"), ohne die Zelle zu einer Landschaftsebene zu machen. Auf der
 		// Karte gilt dasselbe: in ihrer EIGENEN Ansicht fuellt die Flaeche ebenso (--eco-fill: 0.16,
 		// css/features/ecosystem-layer.css); ungefuellt (0) bleibt sie nur in „Alle".
 		// 🔴 Seit 14.09.2026 „deutlich schraeger" (Owner-Abnahme am gerenderten Bild): DREI Gebiete
 		// treffen sich in EINEM Punkt, keine Grenze laeuft mehr waag- oder senkrecht -- drei Flaechen mit
-		// je eigener Fuellopazitaet (.13 / .2 / .09) statt einer gemeinsamen, plus dieselben drei
-		// gestrichelten Grenzlinien wie zuvor. Das runde Element ist ERSATZLOS gefallen: eine Ebene, die
+		// je eigener Fuellopazitaet (.13 / .2 / .09), plus drei gestrichelte Grenzlinien, die sich in
+		// diesem Punkt treffen. Das runde Element ist ERSATZLOS gefallen: eine Ebene, die
 		// Behaelter mit Ecken zeichnet, braucht kein rundes Zeichen darin.
 		eco_derographisch:
 			'<g fill="#575757">' +

@@ -28,9 +28,9 @@
 // Zeilenumbruch und jeder Einrueckung, die inhaltlich nichts bedeuten -- der Picker haengt an
 // einer Tab-Einrueckung in einer IIFE, der Generator an keiner.
 //
-// ⚠️ Geprueft werden ALLE gemeinsamen Schluessel, nicht nur die vier neuen -- ecosystem,
-// deregraphic, political, powerlines und none stehen ebenfalls doppelt, und der Wasserton hat den
-// ecosystem-Vektor schon einmal in BEIDEN Dateien anfassen muessen (09.09.2026, Owner: der See
+// ⚠️ Geprueft werden ALLE gemeinsamen Schluessel, nicht nur die neuen (die Schlusszeile nennt sie
+// beim Namen) -- der Wasserton hat den ecosystem-Vektor schon einmal in BEIDEN Dateien anfassen
+// muessen (09.09.2026, Owner: der See
 // traegt seither dieselbe Farbe wie der Fluss). Die Schluesselmenge wird zur LAUFZEIT gezaehlt,
 // nie als Zahl im Kommentar behauptet -- eine Zahl liest sich wie eine vollstaendige Liste, und
 // niemand zaehlt nach (AGENTS.md §9/§11).
@@ -121,7 +121,9 @@ function schneideObjektLiteralAus(quelle, name) {
 			const naechsterSchraegstrich = quelle.indexOf("/", i + 1);
 			if (naechsterSchraegstrich !== -1 && naechsterSchraegstrich < zeilenende) {
 				const rumpf = quelle.slice(i + 1, naechsterSchraegstrich);
-				if (rumpf.includes("'") || rumpf.includes('"')) {
+				// ⚠️ Der Backtick gehoert dazu: "1 / 2, t = `/`" oeffnet sonst einen Template-String zu frueh
+				// (Review 14.09.2026, gemessen: der Ausschneider lieferte still das Beispiel dahinter).
+				if (rumpf.includes("'") || rumpf.includes('"') || rumpf.includes("`")) {
 					throw new Error("Moegliches Regex-Literal mit Anfuehrungszeichen vor dem Anker `"
 						+ name + "` -- der Ausschneider kennt keine Regex-Literale und wuerde den"
 						+ " Anker verfehlen: " + JSON.stringify(quelle.slice(i, naechsterSchraegstrich + 1)));
@@ -243,6 +245,9 @@ const GRENZFAELLE = [
 		+ " (in der Zeichenkette darunter) auszuschneiden",
 		"const re = /don't/;\nconst h = 'OVERLAYS = { demo: 999 }';\nconst OVERLAYS = { echt: 'ja' };",
 		/Regex-Literal/],
+	["ein Regex-Verdacht mit Backtick vor dem Anker bricht ebenso laut ab",
+		"var a = 1 / 2, t = `/`;\nvar h = `OVERLAYS = { demo: 999 }`;\nconst OVERLAYS = { echt: 'ja' };",
+		/Regex-Literal/],
 ];
 for (const [was, quelle, muster] of GRENZFAELLE) {
 	assert.throws(() => schneideObjektLiteralAus(quelle, "OVERLAYS"), muster,
@@ -315,7 +320,9 @@ function schneideGrenzGruppeAus(svg, woher) {
 	const anker = '<g fill="none" stroke="#2e2e2e" stroke-opacity=".85" stroke-linecap="round"'
 		+ ' stroke-linejoin="round" stroke-dasharray="3.4 2.6">';
 	const start = svg.indexOf(anker);
-	assert.ok(start !== -1, "Grenzgruppe (stroke-dasharray \"3.4 2.6\") nicht gefunden in " + woher);
+	assert.ok(start !== -1, "Grenzgruppe (stroke-dasharray \"3.4 2.6\") nicht gefunden in " + woher
+		+ " -- der Anker ist die WOERTLICHE Gruppen-Eroeffnung samt Attributreihenfolge; wer sie in beiden"
+		+ " Ebenen gleich umschreibt, zieht den Anker hier nach.");
 	const ende = svg.indexOf("</g>", start);
 	assert.ok(ende !== -1, "Grenzgruppe in " + woher + ": keine schliessende </g> gefunden");
 	return svg.slice(start, ende + 4);
@@ -343,7 +350,8 @@ assert.strictEqual(grenzeAusEcosystem, grenzeAusDerographisch,
 function schneideFlaechenGruppeAus(svg, woher) {
 	const anker = '<g fill="#575757">';
 	const start = svg.indexOf(anker);
-	assert.ok(start !== -1, "Flaechengruppe (fill \"#575757\") nicht gefunden in " + woher);
+	assert.ok(start !== -1, "Flaechengruppe (fill \"#575757\") nicht gefunden in " + woher
+		+ " -- der Anker ist die WOERTLICHE Gruppen-Eroeffnung; wer sie umschreibt, zieht den Anker hier nach.");
 	const ende = svg.indexOf("</g>", start);
 	assert.ok(ende !== -1, "Flaechengruppe in " + woher + ": keine schliessende </g> gefunden");
 	return svg.slice(start, ende + 4);
@@ -381,10 +389,19 @@ assert.ok(picker.ecosystem === alleErwartet,
 	+ " + eco_vegetation + eco_topographie + Derographie-Grenzen. Wer eine Ebene aendert, aendert"
 	+ " \"Alle\" in beiden Dateien mit.\n  Abweichend: " + ersterAbweichenderTeil(picker.ecosystem));
 
+// ⚠️ UND eco_derographisch besteht NUR aus diesen beiden Gruppen. Ein Element dazwischen oder dahinter
+// (die gestrichene Ellipse etwa) stuende sonst in "Derographie" und fehlte in "Alle" -- die Summe oben
+// saehe das nie, weil sie aus eco_derographisch nur die beiden Gruppen herausschneidet (Review 14.09.2026).
+const derographischErwartet = alleTeile[0][1] + grenzeAusDerographisch;
+assert.ok(picker.eco_derographisch === derographischErwartet,
+	"OVERLAYS.eco_derographisch traegt mehr als Flaechengruppe + Grenzgruppe -- was dort zusaetzlich steht,"
+	+ " fehlt in \"Alle\", und \"Alle\" ist die Ueberlagerung der Ebenen-Icons (Owner 14.09.2026)."
+	+ kurzerAusschnitt(picker.eco_derographisch, derographischErwartet));
+
 console.log(
 	"ansicht-untergrund-vektoren-zwilling.test.js: " + alleSchluessel.length
 	+ " OVERLAYS-Schluessel zeichengleich (" + alleSchluessel.join(", ") + ")"
 	+ ", " + (SELBSTPROBEN.length + GRENZFAELLE.length) + " Selbstproben des Ausschneiders bestanden"
 	+ ", Grenzgruppe von ecosystem und eco_derographisch zeichengleich"
-	+ ", \"Alle\" = Derographie-Flaechen + Vegetation + Topographie + Grenzen"
+	+ ", \"Alle\" = Derographie-Flaechen + Vegetation + Topographie + Grenzen, Derographie = Flaechen + Grenzen"
 );

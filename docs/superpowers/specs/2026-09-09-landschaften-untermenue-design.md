@@ -277,7 +277,7 @@ und nennt den Teil, der abweicht.
 | Zelle | Was der Ausschnitt zeigt | Töne |
 |---|---|---|
 | Alle | = die Landschaften-Kachel: Derographie-Flächen, Vegetation, Topographie, zuoberst die Derographie-Grenzen | die Töne der drei Ebenen |
-| Derographie | Drei Gebiete treffen sich in einem Punkt, Kontur gestrichelt als Konvention der Ebene, drei zarte Füllungen | `#575757`, Kontur `#2e2e2e` |
+| Derographie | Drei Gebiete treffen sich in einem Punkt, Kontur gestrichelt als Konvention der Ebene (auf der Karte nur im Bearbeiten-Modus zu sehen), drei zarte Füllungen | `#575757`, Kontur `#2e2e2e` |
 | Vegetation | Grasland und Wald, zufällig-eckig aus einem Rauschfeld (Samen 101), vom Owner aus Vorschauen gewählt | `#5f7d33` `#3f6b2c` |
 | Topographie | Drei große Gebirgsflecken über den Rand, ein unregelmäßiger See mit dünnem, geschlängeltem Fluss, der unten aus der Kachel läuft (See und Fluss ein Pfad) — aus Rauschfeldern erzeugt | `#7a6c5e` `#4c89c6` |
 | Klimazonen | waagerechte Bänder, kalt oben nach warm unten | `#cfe0eb` … `#c65e2e` |
@@ -291,8 +291,10 @@ die drei Flächen der Derographie-Zelle je eine eigene, zarte Füllopazität (.1
 Behälter auf 48 px lesbar bleibt (ungefüllt läse sich die Zelle als „nicht geladen"). Und seit
 demselben Tag trägt auch die Zelle „Alle" dieselbe gestrichelte Grenzlinien-Gruppe, weil sie alle
 Ebenen zeigt. Was bleibt: **nur** die derographische Fläche wird per Konvention gestrichelt
-gezeichnet, nie durchgezogen — auf der KARTE gilt weiterhin: in ihrer eigenen Ansicht füllt die
-Fläche mit 0,16, ungefüllt (0) bleibt sie nur in „Alle".
+gezeichnet, nie durchgezogen — ⚠️ zu sehen ist die Kontur auf der Karte aber nur im Bearbeiten-Modus
+und nur in einer einzelnen Ebene, nie in „Alle" (`--eco-contour`, `css/features/ecosystem-layer.css`).
+Für die Füllung gilt auf der KARTE: in ihrer eigenen Ansicht füllt die Fläche mit 0,16, ungefüllt (0)
+bleibt sie nur in „Alle".
 
 ## 5 · Ein Wasserton: #4c89c6
 
