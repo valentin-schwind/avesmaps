@@ -82,7 +82,13 @@ function avesmapsWegGruppenSchluessel(pfad) {
 		return "wiki:" + wikiKey;
 	}
 	// 🔴 Der Name ist kein Schlüssel -- er ist hier nur der Rückfall, exakt wie im Wege-Editor.
-	return "name:" + String(p.feature_subtype || "") + ":" + String(p.name || "");
+	// 💣 UND ES MUSS DER ECHTE NAME SEIN. `properties.name` ist im Browser der MASCHINENNAME:
+	// normalizeRoutePathFeature (map-features-path-prepare.js) schreibt `<Wegart>-<n>` hinein und legt
+	// den echten nach display_name/original_name. Mit `name` bildete hier jeder unzugewiesene Abschnitt
+	// seine eigene Gruppe -- kursive Schrift und „alle N Abschnitte" im Quellenkasten des Kartendialogs
+	// griffen nie (gefunden 14.09.2026). paths-editor.php schickt display_name als `name`.
+	const echterName = p.display_name || p.original_name || p.name || "";
+	return "name:" + String(p.feature_subtype || "") + ":" + String(echterName);
 }
 
 function avesmapsWegIstLandweg(properties) {
