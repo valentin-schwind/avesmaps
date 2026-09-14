@@ -492,10 +492,46 @@ echo "OK -- garetien-wiki-nachzug: wiederholbar\n";
 // =================================================================================================
 // F. R-r (Zusatz des Koordinators) -- SCHARF NUR MIT DEM ECHTEN BOOLEAN true
 // =================================================================================================
-// Derselbe Ausdruck wie im Endpunkt-Zweig (Schritt 3b, von Abschnitt G am Quelltext verankert):
-// `($payload['apply'] ?? false) === true`. Hier wird er WIRKLICH ausgewertet -- fuer die Werte, die
-// ein Client statt des echten Booleans schicken koennte. "true" (Zeichenkette), 1 und "1" bleiben
-// Trockenlauf; nur der Boolean `true` selbst ist scharf.
+// 🔴 W2 (Nachbesserung Runde 1, 14.09.2026): dieser Abschnitt wertete bis dahin eine im TEST
+// ABGESCHRIEBENE KOPIE des `apply`-Ausdrucks aus, nicht den ENDPUNKT -- eine Tautologie, die gruen
+// blieb, egal was der Endpunkt wirklich tat. Jetzt wird der ECHTE Ausdruck aus dem Zweig
+// `wiki_nachzug` per Tokenizer ausgeschnitten und ALS PHP-CODE ausgefuehrt (per `eval` in einer
+// Closure) -- eine Mutation des Endpunkts (`=== true` -> `== true`) macht diesen Abschnitt jetzt rot
+// (Beleg im Bericht). Dieselbe Kommentar-freie Quelltextform wie Abschnitt G darunter, absichtlich
+// EIGENSTAENDIG aufgebaut (nicht von G's spaeteren Variablen abhaengig -- Reihenfolge-Unabhaengigkeit).
+$nurCodeF = static function (string $php): string {
+    $stuecke = [];
+    foreach (token_get_all($php) as $token) {
+        if (is_array($token)) {
+            if (!in_array($token[0], [T_COMMENT, T_DOC_COMMENT], true)) {
+                $stuecke[] = $token[1];
+            }
+            continue;
+        }
+        $stuecke[] = $token;
+    }
+
+    return implode('', $stuecke);
+};
+$endpunktF = $nurCodeF(str_replace("\r\n", "\n", (string) file_get_contents(__DIR__ . '/../../../edit/map/garetien-import.php')));
+$zweigAbF = strpos($endpunktF, "\$action === 'wiki_nachzug'");
+assert($zweigAbF !== false, 'F: der Endpunkt hat den Zweig `wiki_nachzug`');
+$naechsterZweigF = strpos($endpunktF, "\$action === ", $zweigAbF + 20);
+$zweigF = substr($endpunktF, $zweigAbF, $naechsterZweigF === false ? null : $naechsterZweigF - $zweigAbF);
+assert(preg_match('~\$scharf\s*=\s*(.+?);~', $zweigF, $scharfTreffer) === 1,
+    'F: der Zweig bildet `$scharf` -- ohne diese Zeile kann dieser Abschnitt nichts pruefen');
+$scharfAusdruck = trim($scharfTreffer[1]);
+
+// Der ECHTE, gerade aus dem Endpunkt geschnittene Ausdruck -- als Closure ausgefuehrt, kein
+// abgeschriebener Vergleich mehr.
+// ⚠️ `eval()` ist hier bewusst und ungefaehrlich: der ausgewertete Text ist keine Nutzereingabe,
+// sondern der lokale Quelltext DIESES Repos (api/edit/map/garetien-import.php, per Tokenizer
+// ausgeschnitten), gelesen von der Festplatte im selben Testlauf, der ohnehin schon PHP-Code aus
+// diesem Baum ausfuehrt (require_once auf die Bibliothek). Genau das ist der Zweck dieses
+// Abschnitts (W2): den ECHTEN Ausdruck auszufuehren statt eine Kopie davon zu behaupten.
+$pruefeScharf = eval('return static function (array $payload): bool { return ' . $scharfAusdruck . '; };');
+assert($pruefeScharf instanceof Closure, 'F: der ausgeschnittene Ausdruck ergibt gueltigen, ausfuehrbaren PHP-Code');
+
 $faelleApply = [
     'true (bool)' => ['wert' => true, 'scharf' => true],
     '"true" (string)' => ['wert' => 'true', 'scharf' => false],
@@ -506,13 +542,98 @@ $faelleApply = [
 ];
 foreach ($faelleApply as $bezeichnung => $fall) {
     $payload = $fall['wert'] === null ? [] : ['apply' => $fall['wert']];
-    $scharf = ($payload['apply'] ?? false) === true;
+    $scharf = $pruefeScharf($payload);
     assert($scharf === $fall['scharf'],
         "F: apply={$bezeichnung} muss scharf=" . var_export($fall['scharf'], true)
         . ' ergeben, bekommen: ' . var_export($scharf, true));
 }
 
-echo "OK -- garetien-wiki-nachzug: R-r, nur der echte Boolean true ist scharf\n";
+echo "OK -- garetien-wiki-nachzug: R-r, nur der echte Boolean true ist scharf (Endpunkt wirklich ausgefuehrt)\n";
+
+// =================================================================================================
+// H. W1 (Nachbesserung Runde 1, 14.09.2026) -- EINE ZWEITE GEBUNDENE BESCHRIFTUNG MIT ABWEICHENDEM
+//    SCHLUESSEL WIRD NIE STILL UEBERSCHRIEBEN
+// =================================================================================================
+// Eigener, ISOLIERTER Bestand -- eine zweite gebundene Beschriftung veraendert, wer als Kandidat
+// zaehlt, und haette damit ALLE Zahlen der Abschnitte B-E oben verschoben (vermerke, andere_ziele,
+// wuerde_setzen, Stichprobe, Revisionsstempel, Protokollzeilen). Der Fall wird deshalb GETRENNT
+// aufgebaut -- dieselbe Strategie wie die Sonde des Pruefers (sonde-zweitlabel.php), die ebenfalls nur
+// Abschnitt A isoliert nachbaut.
+$pdoH = avesmapsGaretienWikiNachzugTestPdo();
+$runH = avesmapsSyncPlanStartRun($pdoH, AVESMAPS_GARETIEN_PLAN_KIND, 7, 'w1');
+avesmapsGaretienWikiNachzugTestArtikel($pdoH, 'Muehlwald');
+$mw = avesmapsGaretienWikiNachzugTestImport($pdoH, $runH, 'Muehlwald', 1);
+// Stand VOR Aufgabe 2, wie in Abschnitt A: Region leer, PRIMAERE Beschriftung traegt ihr Nest weiter.
+$pdoH->prepare('UPDATE ecosystem_region SET wiki_url = NULL, wiki_region_key = NULL WHERE public_id = ?')
+    ->execute([$mw['region']]);
+
+// Eine ZWEITE, per Zeiger (`ecosystem_region_public_id`) gebundene Beschriftung mit einem NICHT-
+// LEEREN, ABWEICHENDEN Schluessel -- genau der Fall aus der Sonde des Pruefers. Derselbe Leser, den
+// der Durchtrag benutzt (avesmapsEcosystemRegionLabelPublicIds), findet sie ZUSAETZLICH zur primaeren.
+$zweitProps = [
+    'ecosystem_region_public_id' => $mw['region'],
+    'wiki_region' => ['wiki_key' => 'fremder-forst', 'wiki_url' => 'https://de.wiki-aventurica.de/wiki/Fremder_Forst'],
+];
+$pdoH->prepare("INSERT INTO map_features (public_id, feature_type, feature_subtype, name, geometry_type, geometry_json, properties_json, style_json, is_active)
+               VALUES ('probe-zweitlabel-h', 'label', 'wald', 'Muehlwald Zwei', 'Point', '{\"type\":\"Point\",\"coordinates\":[1,1]}', ?, '{}', 1)")
+    ->execute([json_encode($zweitProps, JSON_UNESCAPED_SLASHES)]);
+$mapRevVorH = avesmapsGaretienWikiNachzugTestZahl($pdoH, 'SELECT revision FROM map_revision WHERE id = 1');
+
+$tH = avesmapsGaretienWikiNachzug($pdoH, $admin);
+assert($tH['wuerde_setzen'] === 0,
+    'H(a): die Region ist KEIN Kandidat mehr -- die zweite Beschriftung widerspricht, bekommen: ' . $tH['wuerde_setzen']);
+assert(count($tH['widersprueche']) === 1 && $tH['widersprueche'][0]['name'] === 'Muehlwald',
+    'H(a): der Widerspruch wird BENANNT, nicht nur gezaehlt: ' . json_encode($tH['widersprueche'], JSON_UNESCAPED_UNICODE));
+assert($tH['uebersprungen']['anderer_schluessel'] === 1,
+    'H(a): ... und als anderer_schluessel gezaehlt: ' . json_encode($tH['uebersprungen']));
+
+$sH = avesmapsGaretienWikiNachzug($pdoH, $admin, false);
+assert($sH['gesetzt'] === 0 && $sH['fehler'] === [], 'H(a): der scharfe Lauf setzt nichts: ' . json_encode($sH, JSON_UNESCAPED_UNICODE));
+assert(avesmapsGaretienWikiNachzugTestRegion($pdoH, $mw['region'])['wiki_region_key'] === null,
+    'H(a): die Region bleibt ohne Schluessel -- zur Handentscheidung liegen, statt geraten');
+$zweitNachher = json_decode(
+    (string) $pdoH->query("SELECT properties_json FROM map_features WHERE public_id = 'probe-zweitlabel-h'")->fetchColumn(),
+    true
+);
+assert(($zweitNachher['wiki_region']['wiki_key'] ?? '') === 'fremder-forst',
+    'H(a): 🔴 die zweite Beschriftung behaelt IHREN Schluessel -- keine stille Umzuweisung ueber den Durchtrag: '
+    . json_encode($zweitNachher, JSON_UNESCAPED_UNICODE));
+assert(avesmapsGaretienWikiNachzugTestZahl($pdoH, 'SELECT revision FROM map_revision WHERE id = 1') === $mapRevVorH,
+    'H(a): kein map_revision-Stempel -- es wurde keine Beschriftung geschrieben');
+assert(avesmapsGaretienWikiNachzugTestZahl($pdoH, "SELECT COUNT(*) FROM map_audit_log WHERE action = 'update_label'") === 0,
+    'H(a): keine update_label-Protokollzeile fuer diese Region');
+
+echo "OK -- garetien-wiki-nachzug: W1(a), zweite gebundene Beschriftung nie still ueberschrieben\n";
+
+// H(b) GEGENPROBE (Ruling Punkt 3): eine zweite gebundene Beschriftung OHNE Schluessel blockiert
+// NICHT -- sie erbt weiter, wie es die Hausregel (AGENTS.md §11) vorsieht.
+$pdoHb = avesmapsGaretienWikiNachzugTestPdo();
+$runHb = avesmapsSyncPlanStartRun($pdoHb, AVESMAPS_GARETIEN_PLAN_KIND, 7, 'w1b');
+avesmapsGaretienWikiNachzugTestArtikel($pdoHb, 'Muehlwald');
+$mwb = avesmapsGaretienWikiNachzugTestImport($pdoHb, $runHb, 'Muehlwald', 1);
+$pdoHb->prepare('UPDATE ecosystem_region SET wiki_url = NULL, wiki_region_key = NULL WHERE public_id = ?')
+    ->execute([$mwb['region']]);
+$zweitPropsOhne = ['ecosystem_region_public_id' => $mwb['region']]; // KEIN `wiki_region` -- kein Schluessel.
+$pdoHb->prepare("INSERT INTO map_features (public_id, feature_type, feature_subtype, name, geometry_type, geometry_json, properties_json, style_json, is_active)
+               VALUES ('probe-zweitlabel-hb', 'label', 'wald', 'Muehlwald Zwei', 'Point', '{\"type\":\"Point\",\"coordinates\":[1,1]}', ?, '{}', 1)")
+    ->execute([json_encode($zweitPropsOhne, JSON_UNESCAPED_SLASHES)]);
+
+$tHb = avesmapsGaretienWikiNachzug($pdoHb, $admin);
+assert($tHb['wuerde_setzen'] === 1 && $tHb['widersprueche'] === [],
+    'H(b): eine zweite Beschriftung OHNE Schluessel blockiert NICHT: ' . json_encode($tHb, JSON_UNESCAPED_UNICODE));
+$sHb = avesmapsGaretienWikiNachzug($pdoHb, $admin, false);
+assert($sHb['gesetzt'] === 1, 'H(b): scharf setzt die Region: ' . json_encode($sHb, JSON_UNESCAPED_UNICODE));
+assert(avesmapsGaretienWikiNachzugTestRegion($pdoHb, $mwb['region'])['wiki_region_key'] === 'muehlwald',
+    'H(b): die Region traegt jetzt den Schluessel');
+$zweitNachherB = json_decode(
+    (string) $pdoHb->query("SELECT properties_json FROM map_features WHERE public_id = 'probe-zweitlabel-hb'")->fetchColumn(),
+    true
+);
+assert(($zweitNachherB['wiki_region']['wiki_key'] ?? '') === 'muehlwald',
+    'H(b): die zweite Beschriftung ERBT den neuen Schluessel (Hausregel, AGENTS.md §11 „Die Beschriftung '
+    . 'erbt die Wiki-Landschaft ihrer Flaeche"): ' . json_encode($zweitNachherB, JSON_UNESCAPED_UNICODE));
+
+echo "OK -- garetien-wiki-nachzug: W1(b) Gegenprobe, Beschriftung ohne Schluessel erbt weiter\n";
 
 // =================================================================================================
 // G. AM QUELLTEXT -- was SQLite nicht zeigen kann, und die Tuer

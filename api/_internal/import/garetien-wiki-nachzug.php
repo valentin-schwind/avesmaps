@@ -83,11 +83,28 @@ const AVESMAPS_GARETIEN_WIKI_NACHZUG_GRUENDE = [
  * Region gar nicht erst angeboten (`adresse_passt_nicht`), ebenso eine Adresse, die der Hausschreiber
  * ablehnen wuerde (avesmapsNormalizeOptionalUrl: nur http/https).
  *
+ * 🔴 W1 (Nachbesserung Runde 1, 14.09.2026): DER DURCHTRAG DES HAUSSCHREIBERS ERREICHT ALLE AN DIE
+ * REGION GEBUNDENEN BESCHRIFTUNGEN, NICHT NUR DIE PRIMAERE. `avesmapsEcosystemPushWikiRegionToLabels`
+ * (ueber `avesmapsEcosystemRegionLabelPublicIds`, ecosystem.php:3649/:3788) schreibt JEDE aktive,
+ * per Zeiger (`ecosystem_region_public_id`) ODER primaer (`ecosystem_region.label_public_id`)
+ * gebundene Beschriftung um, deren Schluessel vom neuen abweicht (ecosystem.php:3812) -- eine ZWEITE
+ * Beschriftung mit einem ABWEICHENDEN, von Hand gesetzten Schluessel wuerde so STILL umgewiesen. Das
+ * Urteil bezieht deshalb ALLE aktiven gebundenen Beschriftungen ein: `$andereLabels` sind die WEITEREN
+ * (ausser der primaeren), ueber DENSELBEN Leser wie der Durchtrag ermittelt (den ruft der Aufrufer,
+ * nicht diese reine Funktion -- siehe die Aufrufstelle in avesmapsGaretienWikiNachzug). Traegt eine
+ * davon einen NICHT-LEEREN, abweichenden Schluessel, wird die Region `anderer_schluessel` -- wie beim
+ * Widerspruch zwischen Region und primaerer Beschriftung, nur eine Ebene weiter. Eine Beschriftung
+ * OHNE Schluessel bleibt unproblematisch: sie erbt weiter (Hausregel, AGENTS.md §11 „Die Beschriftung
+ * erbt die Wiki-Landschaft ihrer Flaeche").
+ *
  * @param array $region Zeile aus ecosystem_region (mindestens is_active, wiki_region_key).
- * @param ?array $label Die gebundene Beschriftung (map_features-Zeile) oder null.
+ * @param ?array $label Die PRIMAERE gebundene Beschriftung (ecosystem_region.label_public_id) oder null.
+ * @param list<array> $andereLabels Die WEITEREN aktiven, an die Region gebundenen Beschriftungen (ohne
+ *   die primaere) -- Vorgabe `[]`, damit ein Aufruf ohne diese Kenntnis (z. B. ein reiner Grenzfalltest)
+ *   sich wie zuvor verhaelt, solange es keine zweite Beschriftung gibt.
  * @return array{grund:string, wiki_key:string, wiki_url:string}
  */
-function avesmapsGaretienWikiNachzugUrteil(array $region, ?array $label): array
+function avesmapsGaretienWikiNachzugUrteil(array $region, ?array $label, array $andereLabels = []): array
 {
     $raus = ['grund' => '', 'wiki_key' => '', 'wiki_url' => ''];
     if ((int) ($region['is_active'] ?? 0) !== 1) {
@@ -129,6 +146,24 @@ function avesmapsGaretienWikiNachzugUrteil(array $region, ?array $label): array
     if ($adresse === '' || avesmapsEcosystemWikiRegionKey($adresse) !== $labelSchluessel) {
         $raus['grund'] = 'adresse_passt_nicht';
         return $raus;
+    }
+
+    // W1: eine WEITERE gebundene Beschriftung mit einem NICHT-LEEREN, ABWEICHENDEN Schluessel blockt --
+    // sonst ueberschriebe sie der Durchtrag des Hausschreibers gleich mit, sobald diese Region gesetzt
+    // wird. `wiki_key` bleibt bewusst der der PRIMAEREN Beschriftung (unveraendert gegenueber oben) --
+    // dieser Zweig aendert nur `grund`, keine zweite Bedeutung desselben Feldes.
+    foreach ($andereLabels as $andere) {
+        if ((int) ($andere['is_active'] ?? 0) !== 1 || (string) ($andere['feature_type'] ?? '') !== 'label') {
+            continue;
+        }
+        $andereProperties = json_decode((string) ($andere['properties_json'] ?? ''), true);
+        $andereNest = is_array($andereProperties) && is_array($andereProperties['wiki_region'] ?? null)
+            ? $andereProperties['wiki_region'] : [];
+        $andererSchluessel = trim((string) ($andereNest['wiki_key'] ?? ''));
+        if ($andererSchluessel !== '' && $andererSchluessel !== $labelSchluessel) {
+            $raus['grund'] = 'anderer_schluessel';
+            return $raus;
+        }
     }
 
     $raus['grund'] = 'setzen';
@@ -178,8 +213,17 @@ function avesmapsGaretienWikiNachzugVermerkRegionen(PDO $pdo): array
  * Zeilen je public_id, in IN-Bloecken.
  *
  * ⚠️ `{ids}` ist KEIN PDO-Platzhalter, sondern die Stelle, an der die `?`-Liste eingesetzt wird.
- * 💣 Die Schluessel werden ausdruecklich zu Strings: eine public_id aus Ziffern wuerde als Array-Schluessel
- * sonst zur Zahl, und ein `===` gegen den Vermerk fiele durch.
+ * 🪤 RICHTIGGESTELLT (G, Nachbesserung Runde 1, 14.09.2026): `(string) $zeile['public_id']` VERHINDERT
+ * NICHT, dass PHP eine kanonische Ziffernkette als Array-Schluessel zu `int` macht -- das tut PHP bei
+ * JEDEM Array-Schluessel, gecastet oder nicht (`$a["123"] = 1;` liegt intern unter dem Schluessel `123`,
+ * nicht `"123"`). Der Cast schadet trotzdem nicht: SCHREIBEN hier und LESEN an jeder Aufrufstelle
+ * (`isset($regionen[$regionId])`, `$labels[...] ?? null`) laufen beide ueber denselben Array-Zugriff
+ * und werden von PHP GLEICH normalisiert -- eine numerische public_id findet sich so oder so wieder.
+ * Tragend ist der Cast dort, wo wirklich zwei WERTE verglichen werden statt ein Array-Schluessel
+ * nachgeschlagen wird -- etwa der `array_diff(avesmapsEcosystemRegionLabelPublicIds(...), [(string)
+ * ($label['public_id'] ?? '')])` in avesmapsGaretienWikiNachzug (W1): `array_diff` vergleicht seine
+ * Elemente als STRINGS, ohne PHPs Array-Schluessel-Umwandlung -- dort muss die primaere id also
+ * wirklich als String vorliegen, sonst bliebe sie faelschlich in der Diff-Menge stehen.
  *
  * @param list<string> $ids
  * @return array<string, array>
@@ -262,6 +306,26 @@ function avesmapsGaretienWikiNachzug(
     foreach ($regionen as $region) {
         $label = $labels[(string) ($region['label_public_id'] ?? '')] ?? null;
         $urteil = avesmapsGaretienWikiNachzugUrteil($region, $label);
+        if ($urteil['grund'] === 'setzen') {
+            // W1 (Nachbesserung Runde 1, 14.09.2026): NUR wenn die primaere Beschriftung allein schon
+            // "setzen" ergeben haette, lohnt der zusaetzliche Lese-Aufwand -- "mindestens je Kandidat,
+            // der sonst wuerde_setzen waere" (Ruling). DENSELBEN Leser wie der Durchtrag
+            // (avesmapsEcosystemRegionLabelPublicIds, ecosystem.php:3649), mit denselben Parametern --
+            // keine eigene Abfrage. Die primaere eigene id wird abgezogen, der Rest gebuendelt gelesen.
+            $andereIds = array_values(array_diff(
+                avesmapsEcosystemRegionLabelPublicIds($pdo, (string) $region['public_id'], (string) ($region['label_public_id'] ?? '')),
+                [(string) ($label['public_id'] ?? '')]
+            ));
+            if ($andereIds !== []) {
+                $andereLabels = avesmapsGaretienWikiNachzugZeilenJe(
+                    $pdo,
+                    "SELECT public_id, feature_type, is_active, properties_json
+                       FROM map_features WHERE public_id IN ({ids})",
+                    $andereIds
+                );
+                $urteil = avesmapsGaretienWikiNachzugUrteil($region, $label, array_values($andereLabels));
+            }
+        }
         if ($urteil['grund'] === 'setzen') {
             $kandidaten[] = [
                 'region_id' => (int) $region['id'],

@@ -90,9 +90,10 @@ assert($actionPos !== false && $ersteWeichePos !== false,
     'die $action-Zuweisung oder die erste Aktionsweiche wurden nicht gefunden -- hat sich ihre Form geaendert?');
 assert($riegelPos !== false && $riegelPos > $actionPos && $riegelPos < $ersteWeichePos,
     'der engere Riegel braucht $action, muss also NACH ihr und VOR der ersten Aktionsweiche stehen');
-// Genau die fuenf Aktionen, die von aussen holen (fetch/upload/probe) oder rechnen (plan) bzw. die
-// interne Zielliste zeigen (ebenen) -- NICHT `runs` (das braucht auch ein Editor beim Oeffnen des
-// Fensters) und NICHT liste/wiki_landschaft/ruecknahme (die Pruef-/Entscheidwege des Fensters).
+// Genau die sechs Aktionen, die von aussen holen (fetch/upload/probe), rechnen (plan) bzw. den
+// ganzen Bestand anfassen (wiki_nachzug, Aufgabe 13, 14.09.2026) oder die interne Zielliste zeigen
+// (ebenen) -- NICHT `runs` (das braucht auch ein Editor beim Oeffnen des Fensters) und NICHT
+// liste/wiki_landschaft/ruecknahme (die Pruef-/Entscheidwege des Fensters).
 foreach (['ebenen', 'probe', 'fetch', 'upload', 'plan'] as $art) {
     assert(
         preg_match("~in_array\\(\\\$action,\\s*\\[[^\\]]*'{$art}'[^\\]]*\\],\\s*true\\)~", $quelle) === 1,
@@ -521,7 +522,7 @@ foreach (['innerorts_kandidaten', 'naehe'] as $aktion) {
         'die Aktion `' . $aktion . '` liest `meilen` aus dem Rumpf und schickt es durch den Pruefer');
 }
 
-// 💣 SIE IST EIN LESEWEG UND DARF KEIN ADMIN SEIN -- der Riegel darueber nennt genau fuenf
+// 💣 SIE IST EIN LESEWEG UND DARF KEIN ADMIN SEIN -- der Riegel darueber nennt die admin-only
 // Aktionen, und ein Editor muss die Staedte sehen koennen, ohne rechnen zu duerfen (dieselbe
 // Begruendung wie bei `naehe`, `liste` und `ruecknahme`).
 $adminZeile = [];
