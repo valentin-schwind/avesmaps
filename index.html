@@ -3678,6 +3678,10 @@
 		     „Zoombaender" -- das Verfahren gibt es genau einmal. -->
 		<script src="js/map-features/label-placement.js"></script>
 		<script src="js/config.js"></script>
+		<!-- Editor-Code nur fuer Editoren: jedes <template data-nur-editor> weiter unten wird nur bei ?edit=1
+		     an seiner Stelle eingesetzt. Besucher laden diese Skripte nie. Nach config.js (IS_EDIT_MODE),
+		     vor der ersten Vorlage. Regel und Fallen im Kopf von js/app/nur-editor.js. -->
+		<script src="js/app/nur-editor.js"></script>
 		<!-- Bauwerk oder Siedlung? EINE Frage, und sie muss VOR ihren Lesern stehen:
 		     map-features-location-marker-rendering.js, -location-canvas-layer.js und
 		     review-settlement-list.js fragen sie. Reine Daten, haengt von nichts ab. -->
@@ -3859,9 +3863,11 @@
 		<script src="js/review/review-lore-regeln.js"></script>
 		<script src="js/review/review-wiki-sync.js"></script>
 		<script src="js/review/review-wiki-sync-lore-list.js"></script>
-		<script src="js/review/review-link-check.js"></script>
-		<script src="js/review/review-citymap-autoget.js"></script>
-		<script src="js/review/review-game-literature-cover-autoget.js"></script>
+		<template data-nur-editor>
+			<script src="js/review/review-link-check.js"></script>
+			<script src="js/review/review-citymap-autoget.js"></script>
+			<script src="js/review/review-game-literature-cover-autoget.js"></script>
+		</template><script>avesmapsNurEditorSkripte()</script>
 		<script src="js/review/review-wiki-sync-cases.js"></script>
 		<script src="js/review/review-conflicts.js"></script>
 		<script src="js/review/review-wiki-sync-resolve.js"></script>
@@ -4135,7 +4141,7 @@
 		     den +/- Knoepfen sitzt. -->
 		<script src="js/ui/zoomstufe-anzeige.js"></script>
 		<script src="js/app/bootstrap.js"></script>
-		<script src="js/review/review-mail.js"></script>
+		<template data-nur-editor><script src="js/review/review-mail.js"></script></template><script>avesmapsNurEditorSkripte()</script>
 		<!-- Der Kartenausschnitt fuer den Hub. 💣 MUSS VOR review-social.js stehen: jenes greift beim
 		     Klick auf window.avesmapsKartenAbzug zu und faellt sonst in seinen Fehlerzweig -- dieselbe
 		     Reihenfolgezusage wie bei feature-source-markup.js (AGENTS.md §11, Quellenliste). -->
@@ -4150,7 +4156,7 @@
 		<!-- Social-Media-Hub. Haengt zur Laufzeit an window.AvesmapsSession (js/app/session.js) fuer den
 		     Rechte-Riegel, sonst an nichts -- die Ladereihenfolge hier ist deshalb unkritisch, weil der
 		     Riegel lazy ueber .load() geht und bis dahin geschlossen bleibt. -->
-		<script src="js/review/review-social.js"></script>
+		<template data-nur-editor><script src="js/review/review-social.js"></script></template><script>avesmapsNurEditorSkripte()</script>
 		<!-- Das Fenster „Garetien Importer" (Aufgabe 10). Haengt zur Laufzeit an window.AvesmapsSession
 		     (js/app/session.js) fuer den Rechte-Riegel, sonst an nichts -- die Ladereihenfolge hier ist
 		     deshalb unkritisch, weil der Riegel lazy ueber .load() geht und bis dahin geschlossen bleibt.
@@ -4163,13 +4169,15 @@
 		     (map-features-labels.js, map-features-location-name-labels.js) ruft der ZEICHNER darunter,
 		     und der steht ohnehin weit hinter ihnen.
 		     🔴 Auch diese Datei verschwindet beim Abbau des Importers restlos (Auftrag §5.5). -->
-		<script src="js/review/review-garetien-label-vorschau.js"></script>
-		<script src="js/review/review-garetien-importer.js"></script>
+		<template data-nur-editor>
+			<script src="js/review/review-garetien-label-vorschau.js"></script>
+			<script src="js/review/review-garetien-importer.js"></script>
+		</template><script>avesmapsNurEditorSkripte()</script>
 		<!-- Der goldgelbe Schein des Importers auf der Karte (Aufgabe 14): was angehakt ist, leuchtet.
 		     Die Ladereihenfolge zu review-garetien-importer.js ist unkritisch -- jenes fragt bei JEDEM
 		     Aufruf `typeof window.avesmapsGaretienKarteZeigen === "function"` ab, nicht einmal beim Laden.
 		     🔴 Auch diese Datei verschwindet beim Abbau des Importers restlos (Auftrag §5.5). -->
-		<script src="js/review/review-garetien-karte.js"></script>
+		<template data-nur-editor><script src="js/review/review-garetien-karte.js"></script></template><script>avesmapsNurEditorSkripte()</script>
 		<script src="js/app/perf-trace.js"></script>
 		<script src="js/ui/route-planner-toggle.js"></script>
 		<script src="js/map-features/map-features-infopanel.js"></script>
