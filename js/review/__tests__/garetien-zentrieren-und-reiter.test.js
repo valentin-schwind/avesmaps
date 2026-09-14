@@ -49,7 +49,7 @@ function macheElement(id) {
 const ELEMENTE = {};
 [
 	"garetien-apply", "garetien-apply-hint", "garetien-listcol", "garetien-list", "garetien-sheet",
-	"garetien-mark-all", "garetien-anzeige-clear",
+	"garetien-anzeige-clear",
 	"garetien-zentrieren-alle", "garetien-detailcol", "garetien-tabs",
 ].forEach((id) => { ELEMENTE[id] = macheElement(id); });
 

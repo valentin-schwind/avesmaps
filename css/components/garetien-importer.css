@@ -1314,6 +1314,59 @@ html.avesmaps-planner-collapsed .gi-win {
 }
 /* ══ VERTRAG ENDE ══ */
 
+/* ══ VERTRAG: css/components/garetien-importer.css ══ gebunden von docs/garetien-import-vereint-mockup.html
+   (Aufgabe 12 des Bauplans 2026-09-14): die Ziel-Marke der Listenzeile und der Listenkopf „alle n".
+   ⚠️ Er steht VOR dem Abschnitt der Handlungsleiste, nicht am Dateiende -- aus demselben Grund wie der
+   Block der Aufgabe 11 darueber. */
+.gi-ziel-marke {
+	color: var(--color-accent-brown);
+	font-weight: var(--font-weight-bold);
+}
+
+.gi-listkopf {
+	display: flex;
+	align-items: center;
+	gap: var(--space-6);
+	padding: var(--space-2) var(--space-4) var(--space-4);
+	font-size: var(--font-size-caption);
+	color: var(--color-text-muted);
+	border-bottom: 1px solid var(--color-divider);
+	margin-bottom: var(--space-2);
+}
+
+.gi-listkopf label {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-4);
+}
+
+.gi-listkopf__zahl { margin-left: auto; }
+/* ══ VERTRAG ENDE ══ */
+
+/* Frei, nicht im Vertrag (er ist eine Untergrenze): der Listenkopf FLUCHTET mit den Zeilen darunter.
+   💣 Das Mockup legt die Zeilen direkt in die Spalte; hier stehen sie in `.avm-scroll` (editor-body.css:
+   1 px Rahmen, `--space-2` Polster) und tragen selbst 1 px Rahmen (editor-row.css). Ohne Ausgleich sass
+   das Haekchen „alle n" 9,33 px links der Zeilenhaekchen (Messseite 14.09.2026, Geraetepixel 1,5).
+   Ausgeglichen wird mit Aussenabstand und durchsichtigem Rahmen -- das Polster gehoert dem Vertrag.
+   ⚠️ Die 2 px sind die zwei Rahmen (Liste + Zeile), keine freie Zahl: wer einen davon aendert, zieht
+   diese Zeile mit. */
+.gi-listkopf {
+	margin-left: var(--space-2);
+	margin-right: var(--space-2);
+	border-left: 2px solid transparent;
+	border-right: 2px solid transparent;
+}
+
+/* Das Haekchen traegt die Masse der Zeilenhaekchen (`.gi-win .avm-row > input[type="checkbox"]`),
+   auch deren Browser-Aussenabstand -- ohne die Regel stuende ein Systemhaekchen in Systemfarbe ueber
+   einer Spalte aus 14-px-Haekchen in der Akzentfarbe. */
+.gi-listkopf input[type="checkbox"] {
+	flex: none;
+	width: 14px;
+	height: 14px;
+	accent-color: var(--color-check-accent);
+}
+
 /* ---- Aufgabe 15: die Handlungsleiste ------------------------------------------------------ *
  *
  * 🪴 RUECKBLICK (bis zum 09.09.2026 galt): SIE WAR ANGEHEFTET, NICHT IM FLUSS -- ein GESCHWISTER

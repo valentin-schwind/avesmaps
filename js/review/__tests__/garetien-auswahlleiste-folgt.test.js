@@ -76,7 +76,9 @@ pruefe(namen.indexOf("auswahl_aufheben") !== -1, "sowie „“");
 const fs = require("fs");
 const quelle = fs.readFileSync(require("path").join(__dirname, "..", "review-garetien-importer.js"), "utf8");
 const rufe = (quelle.match(/garetienAuswahlleisteAuffrischen\(\);/g) || []).length;
-pruefe(rufe === 5,
-	"fünf Aufrufe -- zwei Ausgänge des Umschalters, alle wählen, aufheben, Verbund-Umschalter: " + rufe);
+// 🔴 6, seit dem 14.09.2026 (Bauplan 2026-09-14, Aufgabe 12): „alle n" im Listenkopf LOEST die Auswahl
+// auch wieder (avesmapsGaretienAlleAbwaehlen) -- ein Aenderer mehr, derselbe Auffrischer.
+pruefe(rufe === 6,
+	"sechs Aufrufe -- zwei Ausgänge des Umschalters, alle wählen, alle abwählen, aufheben, Verbund-Umschalter: " + rufe);
 
 console.log("OK -- " + n + " Zusicherungen");

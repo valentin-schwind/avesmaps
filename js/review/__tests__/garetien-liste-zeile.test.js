@@ -262,10 +262,14 @@ const oben = obersteEbene(skelett);
 // 🔴 Seit dem 07.09.2026 (Aufgabe 9+10) kommt die Auswahlleiste als SIEBTES Geschwister dazu --
 // UNTER der Liste und AUSSERHALB ihres Rollkastens: laege sie darin, stuende die Handlung bei 500
 // Zeilen hinter der Bildlaufleiste (dieselbe Begruendung wie bei `.gi-acts` in der Detailspalte).
+// 🔴 Seit dem 14.09.2026 (Bauplan 2026-09-14, Aufgabe 12) steht der Listenkopf `.gi-listkopf` („alle n")
+// unmittelbar UEBER der Liste -- ein Geschwister, kein Kind: im Rollkasten rollte er bei 500 Zeilen weg.
 gleich(oben.join(","),
-	"avm-tabs,gi-searchrow,gi-anzeigehinweis,gi-chips,gi-neutral-hinweis,avm-scroll,gi-auswahlleiste",
-	"die linke Spalte hat SIEBEN Geschwister in dieser Reihenfolge -- stehen Chips, Neutral-Hinweis "
+	"avm-tabs,gi-searchrow,gi-anzeigehinweis,gi-chips,gi-neutral-hinweis,gi-listkopf,avm-scroll,gi-auswahlleiste",
+	"die linke Spalte hat ACHT Geschwister in dieser Reihenfolge -- stehen Chips, Neutral-Hinweis "
 	+ "oder Liste IN der `.gi-searchrow`, legt deren `display: flex` sie nebeneinander");
+checks++;
+wahr(oben.indexOf("gi-listkopf") === oben.indexOf("avm-scroll") - 1, "der Listenkopf steht direkt ueber der Liste");
 checks++;
 // ⚠️ Und die Auswahlleiste steht NACH der Liste, nicht davor: sie ist die Folge einer Auswahl,
 // die man in der Liste trifft.

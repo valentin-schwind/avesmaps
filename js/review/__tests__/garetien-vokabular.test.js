@@ -326,12 +326,13 @@ wahr(!/\bzustand\.markiert\b/i.test(quelle), "zustand.markiert darf nicht mehr v
 // verlassen; ihre Handlungen stehen in der AUSWAHLLEISTE, die ihre Knoepfe zur Laufzeit baut und
 // gar keine Kennungen vergibt (`data-auswahl` statt `id`). Der Plan hatte ihren Wegfall schon fuer
 // Aufgabe 9 vorgesehen -- er kam eine Fixrunde spaeter.
-// ⚠️ Geblieben ist `garetien-mark-all`: die Leiste erscheint erst, wenn schon etwas gewaehlt ist,
-// und kann den Knopf, der die ERSTE Auswahl macht, deshalb nicht tragen.
+// 🔴 Und seit dem 14.09.2026 auch `garetien-mark-all`: „Alle wählen" ist als Haekchen „alle n" in den
+// Listenkopf gewandert (Bauplan 2026-09-14, Aufgabe 12) -- dort steht es VOR der ersten Auswahl, was die
+// Auswahlleiste nicht konnte. Das Haekchen hat eine eigene Kennung (`garetien-alle`) im Skelett.
 // =================================================================================================
 ["garetien-mark-all"].forEach((id) => {
-	wahr(garetienHtmlTeil.includes('id="' + id + '"'),
-		"die Kennung " + id + " muss weiterhin im Markup des Garetien-Fensters stehen");
+	wahr(!garetienHtmlTeil.includes('id="' + id + '"'),
+		"die Kennung " + id + " ist mit dem Umzug in den Listenkopf gefallen");
 });
 ["garetien-mark-none", "garetien-mark-show", "garetien-ruecknahme-markierte"].forEach((id) => {
 	wahr(!garetienHtmlTeil.includes('id="' + id + '"'),
@@ -352,8 +353,9 @@ wahr(!/\bzustand\.markiert\b/i.test(quelle), "zustand.markiert darf nicht mehr v
 	let treffer = muster.exec(fuss);
 	while (treffer) { knopfTexte.push(treffer[1].trim()); treffer = muster.exec(fuss); }
 	assert.deepStrictEqual(knopfTexte,
-		["Alle wählen", "Stage leeren", "Alle zentrieren", "Stage importieren · nichts auf der Stage"],
-		"der Fuss traegt genau die vier Knoepfe der GANZEN STAGE, in dieser Reihenfolge");
+		["Stage leeren", "Alle zentrieren", "Stage importieren · nichts auf der Stage"],
+		"der Fuss traegt genau die drei Knoepfe der GANZEN STAGE, in dieser Reihenfolge -- „Alle wählen\" "
+		+ "steht seit dem 14.09.2026 als Haekchen im Listenkopf");
 	checks++;
 }
 
