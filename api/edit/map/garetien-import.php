@@ -285,8 +285,8 @@ try {
     // avesmapsGaretienInnerortsKandidatenFrisch: bis zu 10000 Objekte je `liste`-Abruf).
     //
     // ⚠️ LESEWEG, also kein Admin-Riegel -- wie `naehe`, `liste` und `ruecknahme`. Er rechnet und
-    // schreibt nichts; die Wahl, die daraus folgt, geht durch `apply` und wird DORT noch einmal
-    // gegen die Kandidaten des Vorschlags geprueft (avesmapsGaretienInnerortsAusVorschlag).
+    // schreibt nichts; die Wahl, die daraus folgt, geht durch `apply` und wird DORT gegen die Karte
+    // geprueft (avesmapsGaretienInnerortsSiedlung: aktiv, eine Siedlung, sonst lauter Abbruch).
     if ($action === 'innerorts_kandidaten') {
         $importRun = (int) ($payload['run_id'] ?? 0);
         if ($importRun <= 0) {
