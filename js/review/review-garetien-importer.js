@@ -1961,12 +1961,28 @@
 	function garetienUebernommenFalten(objekte) {
 		const gesehen = new Set();
 		return (objekte || []).filter(function (o) {
-			const stamm = String((o && o.verbund_angelegt) || "");
-			if (stamm === "") { return true; }
-			if (gesehen.has(stamm)) { return false; }
-			gesehen.add(stamm);
+			const schluessel = garetienUebernommenFaltSchluessel(o);
+			if (schluessel === "") { return true; }
+			if (gesehen.has(schluessel)) { return false; }
+			gesehen.add(schluessel);
 			return true;
 		});
+	}
+
+	/*
+	 * REIN: unter welchem Schluessel faltet „Uebernommen" dieses Objekt -- "" ohne Vermerk.
+	 *
+	 * 💣 DER VERMERK TRAEGT NUR DEN STAMM, UND SEIT AUFGABE 4 (14.09.2026) KOMMT ER AUS ALLEN
+	 * LAEUFEN. Ein Wald und ein Huegel gleichen Stammes fielen mit dem Stamm allein zu EINER Zeile
+	 * zusammen, und ihr Haekchen waehlte beide. Ebene und Typ gehoeren deshalb hinein -- dieselbe
+	 * Regel und dieselbe Begruendung wie beim Verbundschluessel (garetienVerbundSchluessel).
+	 * 🔴 EIN Schluessel fuer beide Leser: garetienUebernommenFalten UND garetienUebernommenMitglieder.
+	 */
+	function garetienUebernommenFaltSchluessel(objekt) {
+		const o = objekt || {};
+		const stamm = String(o.verbund_angelegt || "");
+		if (stamm === "") { return ""; }
+		return String(o.ebene || "") + "|" + String(o.typ || "") + "|" + stamm;
 	}
 
 	/*
@@ -1990,10 +2006,10 @@
 	 */
 	function garetienUebernommenMitglieder(objekt, objekte) {
 		if (!objekt) { return []; }
-		const stamm = String(objekt.verbund_angelegt || "");
-		if (stamm === "") { return [objekt]; }
+		const schluessel = garetienUebernommenFaltSchluessel(objekt);
+		if (schluessel === "") { return [objekt]; }
 		return (objekte || []).filter(function (o) {
-			return String((o && o.verbund_angelegt) || "") === stamm;
+			return garetienUebernommenFaltSchluessel(o) === schluessel;
 		});
 	}
 

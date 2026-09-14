@@ -417,6 +417,82 @@ function avesmapsGaretienVerbundAngelegt(array $item): string
 }
 
 /**
+ * Der angelegte Verbund eines Objekts, LAUFUEBERGREIFEND. REIN -- kein I/O.
+ *
+ * 💣 FEHLER 8 (Entwurf 2026-09-14 §1): `apply_state = 'done'` stirbt mit dem Lauf. Nach jedem
+ * „Holen & Rechnen" stehen die frischen Items auf `null`, und der Reiter „Uebernommen" las nur
+ * sie -- die Faltung eines Verbunds verschwand, obwohl er genau so auf der Karte liegt.
+ * 🔴 DER LAUFENDE LAUF ENTSCHEIDET, SOBALD ER EIN UEBERNOMMENES ITEM TRAEGT -- auch wenn dessen
+ * Vermerk KEINEN Verbund nennt. Ein zurueckgenommenes und danach einzeln uebernommenes Fragment
+ * ist kein Verbund mehr; der alte Vermerk wuerde es sonst weiter mit seinen Geschwistern falten.
+ * Erst ohne jedes uebernommene Item gilt `$frueher` (avesmapsGaretienVerbundVermerkeFruehererLaeufe).
+ * ⚠️ Innerhalb des laufenden Laufs gewinnt weiter der ERSTE Vermerk -- dieselbe Regel wie bisher.
+ *
+ * @param list<array{apply_state:?string, apply_note:string}> $items
+ */
+function avesmapsGaretienVerbundAngelegtLaufuebergreifend(array $items, string $frueher): string
+{
+    $hatUebernommenes = false;
+    foreach ($items as $item) {
+        if ((string) ($item['apply_state'] ?? '') !== 'done') {
+            continue;
+        }
+        $hatUebernommenes = true;
+        $stamm = avesmapsGaretienVerbundAngelegt($item);
+        if ($stamm !== '') {
+            return $stamm;
+        }
+    }
+
+    return $hatUebernommenes ? '' : $frueher;
+}
+
+/**
+ * Die Verbund-Vermerke aller FRUEHEREN Laeufe dieser Art: Objektschluessel => Stamm (oder '').
+ *
+ * 🔴 JE OBJEKT ENTSCHEIDET DER JUENGSTE FRUEHERE LAUF, der es uebernommen hat -- sortiert wird
+ * deshalb nach `run_id DESC`, und sobald ein Objekt einem Lauf zugeordnet ist, zaehlen aeltere
+ * Laeufe nicht mehr. Innerhalb dieses Laufs gewinnt der erste Vermerk mit Verbund (`id ASC`).
+ * ⚠️ Ein zurueckgenommenes Item traegt keinen Vermerk mehr (die Ruecknahme setzt
+ * `apply_state = NULL, apply_note = NULL`), faellt also von selbst heraus -- dann rueckt der
+ * naechstaeltere Lauf nach.
+ * ⚠️ `avesmapsSyncPlanAufraeumen` loescht nur Items mit `apply_state IS NULL`; uebernommene
+ * Items ueberholter Laeufe bleiben stehen, und genau von ihnen lebt diese Abfrage.
+ * ⚠️ EINE Abfrage je Listenabruf, ueber `idx_sync_plan_run_kind_state` und
+ * `idx_sync_plan_item_apply` -- keine Schleife je Objekt (AGENTS.md §10, STRATO).
+ *
+ * @return array<string, string>
+ */
+function avesmapsGaretienVerbundVermerkeFruehererLaeufe(PDO $pdo, int $planRunId): array
+{
+    $stmt = $pdo->prepare(
+        "SELECT i.run_id, i.entity_key, i.apply_note FROM sync_plan_item i"
+        . " JOIN sync_plan_run r ON r.id = i.run_id"
+        . " WHERE r.kind = :k AND i.run_id <> :aktuell AND i.apply_state = 'done'"
+        . " AND i.apply_note IS NOT NULL AND i.apply_note <> ''"
+        . " ORDER BY i.run_id DESC, i.id ASC"
+    );
+    $stmt->execute([':k' => AVESMAPS_GARETIEN_PLAN_KIND, ':aktuell' => $planRunId]);
+
+    $laufJeObjekt = [];
+    $raus = [];
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $zeile) {
+        $schluessel = avesmapsGaretienObjektSchluessel((string) $zeile['entity_key']);
+        $lauf = (int) $zeile['run_id'];
+        if (!array_key_exists($schluessel, $laufJeObjekt)) {
+            $laufJeObjekt[$schluessel] = $lauf;
+            $raus[$schluessel] = '';
+        }
+        if ($laufJeObjekt[$schluessel] !== $lauf || $raus[$schluessel] !== '') {
+            continue;
+        }
+        $raus[$schluessel] = avesmapsGaretienVermerkLesen((string) $zeile['apply_note'])['verbund'];
+    }
+
+    return $raus;
+}
+
+/**
  * Traegt irgendein Item dieses Objekts ein Haekchen (`selected === 1`)? REIN -- kein I/O.
  *
  * 🔴 RULING R1 (Aufgabe 1, 29.08.2026): die Fusszeile zaehlt weiterhin „N vorgemerkt" -- diese
@@ -628,6 +704,9 @@ function avesmapsGaretienArbeitslisteObjekte(PDO $pdo, int $importRunId): array
         $zeilenNachSchluessel[avesmapsGaretienObjektSchluesselAusZeile($zeile)] = $zeile;
     }
 
+    // 🔴 Aufgabe 4 (2026-09-14): die Verbund-Vermerke der FRUEHEREN Laeufe, EINMAL je Listenbau.
+    $fruehereVerbuende = avesmapsGaretienVerbundVermerkeFruehererLaeufe($pdo, $planRunId);
+
     // 4. Objekte MIT Item bauen -- Name/Typ/Wiki/Ebene/Geometrie/Wiki-Link aus dem after des
     // ERSTEN Items, das sie traegt; ihre Staging-Zeile liefert nur urteil/grund UND die Felder,
     // die kein `after` kennt (lodmin/lodmax/extra), nach.
@@ -827,15 +906,12 @@ function avesmapsGaretienArbeitslisteObjekte(PDO $pdo, int $importRunId): array
             // Entwurf §7: „Uebernommen" zeigt einen Verbund als EINE Zeile. Der ERSTE Vermerk
             // gewinnt -- alle Fragmente eines Verbunds tragen denselben Stamm, und der Reiter
             // braucht nur einen.
-            'verbund_angelegt' => (static function (array $items): string {
-                foreach ($items as $i) {
-                    $stamm = avesmapsGaretienVerbundAngelegt($i);
-                    if ($stamm !== '') {
-                        return $stamm;
-                    }
-                }
-                return '';
-            })($items),
+            // 🔴 LAUFUEBERGREIFEND (Aufgabe 4, 2026-09-14, Fehler 8): ohne uebernommenes Item im
+            // laufenden Lauf gilt der Vermerk des juengsten frueheren Laufs.
+            'verbund_angelegt' => avesmapsGaretienVerbundAngelegtLaufuebergreifend(
+                $items,
+                $fruehereVerbuende[$key] ?? ''
+            ),
             // 🔴 DURCHGEREICHT, NICHT HERGELEITET: `after.verbund_stamm`/`after.verbund_n`
             // entstehen EINMAL je Planlauf in avesmapsGaretienVerbuende (garetien-plan.php) --
             // eine zweite Gruppierung im Lesepfad liefe ueber alle Zeilen des Laufs. Objekte OHNE
