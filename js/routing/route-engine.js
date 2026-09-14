@@ -470,17 +470,28 @@ async function buildRouteResultFromSelectedLocationsServer(useShortest) {
 	const departure = typeof routePlanDepartureFromPanel === "function" ? routePlanDepartureFromPanel() : null;
 	let elapsedHours = 0;
 
-	for (let index = 0; index < selectedLocations.length - 1; index += 1) {
-		const start = selectedLocations[index].name;
-		const end = selectedLocations[index + 1].name;
-		const clientRoute = shouldProbeServerRouting() ? calculateRouteClientLegacy(start, end, useShortest) : [];
+	// Entwurf 2026-09-14 §5.3: aufeinanderfolgende Wegpunkte reisen GEBUENDELT als `via` -- eine Anfrage je Buendel
+	// statt je Paar. 💣 Ohne das waere „Weg als Route" auf der Reichsstrasse 2 eine Serie von 39 schweren Anfragen.
+	// ⚠️ Fehlt route-buendel.js (mehrere Tests laden nur diese Datei), faellt es auf Paare zurueck: die alte, richtige,
+	// nur teurere Form. index.html laedt es davor (route-buendel.test.js).
+	const buendel = typeof avesmapsRouteBuendel === "function"
+		? avesmapsRouteBuendel(selectedLocations, AVESMAPS_ROUTE_MAX_VIA)
+		: selectedLocations.slice(1).map((_, index) => ({ von: index, bis: index + 1 }));
+
+	for (const { von, bis } of buendel) {
+		const start = selectedLocations[von].name;
+		const end = selectedLocations[bis].name;
+		const via = selectedLocations.slice(von + 1, bis).map((location) => location.name);
+		// Die Client-Probe vergleicht EIN Paar -- mit Zwischenhalten gibt es nichts Vergleichbares.
+		const clientRoute = shouldProbeServerRouting() && via.length === 0 ? calculateRouteClientLegacy(start, end, useShortest) : [];
 		const pairDeparture = departure ? { monthKey: departure.monthKey, day: departure.day, elapsedHours } : null;
 		const serverRouteRequest = buildServerRouteProbeRequest(start, end, useShortest, clientRoute, pairDeparture);
+		serverRouteRequest.via = via;
 		// „Hierher reisen": ist einer der beiden Enden ein angeklickter Kartenpunkt, reist seine
 		// KOORDINATE mit. `from`/`to` bleiben die Beschriftung -- der Server kennt keinen Ort dieses
-		// Namens und wuerde sonst `location_not_found` antworten.
+		// Namens und wuerde sonst `location_not_found` antworten. Im Inneren eines Buendels steht nie einer.
 		if (typeof applyMapPointRouteEndpoints === "function") {
-			applyMapPointRouteEndpoints(serverRouteRequest, selectedLocations[index], selectedLocations[index + 1]);
+			applyMapPointRouteEndpoints(serverRouteRequest, selectedLocations[von], selectedLocations[bis]);
 		}
 		const serverRouteResult = await calculateRouteServer(serverRouteRequest);
 		logServerRouteProbeResult(start, end, clientRoute, serverRouteRequest, serverRouteResult);
@@ -491,8 +502,11 @@ async function buildRouteResultFromSelectedLocationsServer(useShortest) {
 			// (Owner 14.09.2026). Jede andere Absage bleibt, wie sie ist.
 			const blocked = pairClosures.find((report) => report && report.blocked === true);
 			if (blocked) {
-				return { refusal: { start, end, report: blocked } };
+				// `leg_index` zaehlt die Etappe INNERHALB dieser Anfrage (closures.php) -- die Absage nennt die Etappe.
+				const etappe = Math.min(Math.max(0, Number(blocked.leg_index) || 0), bis - von - 1);
+				return { refusal: { start: selectedLocations[von + etappe].name, end: selectedLocations[von + etappe + 1].name, report: blocked } };
 			}
+			// ⚠️ Ohne Sperrbericht nennt der Server die gescheiterte Etappe nicht: die Meldung nennt das Buendel.
 			showRouteNotice(tr("routing.alert.noRouteFound", "Keine Route zwischen {start} und {end} gefunden.", { start, end }));
 			return null;
 		}

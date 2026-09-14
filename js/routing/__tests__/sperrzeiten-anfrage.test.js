@@ -54,6 +54,7 @@ const load = (relative) => {
 	const absolute = path.join(__dirname, relative);
 	vm.runInThisContext(fs.readFileSync(absolute, "utf8"), { filename: absolute });
 };
+load("../route-buendel.js");
 load("../route-engine.js");
 
 // ---- Die Attrappe des Servers -------------------------------------------------------------------------
@@ -77,7 +78,8 @@ const bericht = (kante, extra = {}) => ({
 });
 
 (async () => {
-	global.selectedLocations = [{ name: "Yrramis" }, { name: "Mühlingen" }, { name: "Greifenfurt" }];
+	// Muehlingen als Kartenpunkt: Buendelgrenze -- die Abschnitte 1 bis 6 pruefen weiter ZWEI Anfragen je Reise.
+	global.selectedLocations = [{ name: "Yrramis" }, { name: "Mühlingen", isMapPoint: true }, { name: "Greifenfurt" }];
 
 	// ---- 1. Mit Reisebeginn: Paar 2 beginnt nach der Kalenderzeit von Paar 1 --------------------------
 	global.routePlanDepartureFromPanel = () => ({ monthKey: "firun", day: 3 });
@@ -141,7 +143,8 @@ const bericht = (kante, extra = {}) => ({
 
 	// ---- 6. Reisebeginn unbekannt: die Wege mit Sperrzeit werden gesammelt und liegen beim Zeichnen bereit
 	global.routePlanDepartureFromPanel = () => null;
-	global.selectedLocations = [{ name: "Yrramis" }, { name: "Mühlingen" }, { name: "Greifenfurt" }];
+	// Muehlingen als Kartenpunkt: Buendelgrenze -- die Abschnitte 1 bis 6 pruefen weiter ZWEI Anfragen je Reise.
+	global.selectedLocations = [{ name: "Yrramis" }, { name: "Mühlingen", isMapPoint: true }, { name: "Greifenfurt" }];
 	const weg = { path_name: "Saljethweg", public_ids: ["pub-P"], open_from: { month: "peraine", day: 15 }, open_to: { month: "efferd", day: 30 } };
 	antworten = [
 		{ found: true, segments: [etappe("e1", "Yrramis", "Mühlingen")], duration: { travel_days: 2 }, seasonal_ways: [weg] },
@@ -156,6 +159,28 @@ const bericht = (kante, extra = {}) => ({
 	await updateMapViewServerPrimary();
 	assert.ok(Array.isArray(saisonalBeimZeichnen) && saisonalBeimZeichnen.length === 1,
 		"showRoutePlan sieht sie: " + JSON.stringify(saisonalBeimZeichnen));
+
+	// ---- 7. Buendel (Entwurf 2026-09-14 §5.3): drei Orte ohne Kartenpunkt sind EINE Anfrage mit `via` -----
+	global.routePlanDepartureFromPanel = () => null;
+	global.selectedLocations = [{ name: "Yrramis" }, { name: "Mühlingen" }, { name: "Greifenfurt" }];
+	anfragen = [];
+	antworten = [{ found: true, segments: [etappe("e1", "Yrramis", "Mühlingen"), etappe("e2", "Mühlingen", "Greifenfurt")],
+		duration: { travel_days: 3 }, closures: [bericht("e2", { leg_index: 1 })] }];
+	const gebuendelt = await buildRouteResultFromSelectedLocationsServer(false);
+	assert.strictEqual(anfragen.length, 1, "eine Anfrage: " + JSON.stringify(anfragen.map((a) => [a.from, a.via, a.to])));
+	assert.deepStrictEqual([anfragen[0].from, anfragen[0].via, anfragen[0].to], ["Yrramis", ["Mühlingen"], "Greifenfurt"]);
+	assert.strictEqual(gebuendelt.segments.length, 2);
+	assert.strictEqual(gebuendelt.closures[0].segmentOffset, 0, "der Versatz gilt dem Buendel");
+	assert.strictEqual(gebuendelt.closures[0].segmentCount, 2, "und die Zahl seiner Segmente");
+	// Die Absage nennt die ETAPPE aus leg_index, nicht das Buendel
+	antworten = [{ found: false, segments: [], duration: {}, closures: [bericht("", { leg_index: 1, blocked: true, actual: null })] }];
+	const buendelAbsage = await buildRouteResultFromSelectedLocationsServer(false);
+	assert.deepStrictEqual([buendelAbsage.refusal.start, buendelAbsage.refusal.end], ["Mühlingen", "Greifenfurt"]);
+	// Eine Absage ohne Sperrbericht nennt Anfang und Ende des Buendels
+	alerts.length = 0;
+	antworten = [{ found: false, segments: [], duration: {}, closures: [] }];
+	assert.strictEqual(await buildRouteResultFromSelectedLocationsServer(false), null);
+	assert.ok(alerts[0].includes("Yrramis") && alerts[0].includes("Greifenfurt"), alerts[0]);
 
 	console.log("sperrzeiten-anfrage.test.js: all assertions passed");
 })().catch((error) => {
