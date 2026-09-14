@@ -589,3 +589,222 @@ function avesmapsGaretienPasspunktUrteil(array $probe, int $anzahl): array
         ),
     ];
 }
+
+// ---------------------------------------------------------------------------------------------
+// DER SYSTEMATISCHE FEHLER -- kalibrieren auf wenige, messen an allen anderen
+// ---------------------------------------------------------------------------------------------
+//
+// Owner 14.09.2026, sinngemaess: Garetien ist auf Grundlage einer verschobenen Karte gezeichnet
+// worden, mit individuellen Anpassungen. Es gibt also einen SYSTEMATISCHEN Fehler und Rauschen,
+// und diese Sitzung interessiert sich einzig fuer den systematischen. Am Ende soll EINE oder
+// VIER affine Abbildungen (je Quadrant) auf ALLES aus Garetien angewandt werden -- kalibriert
+// an den Ortspaaren, die die Editoren genannt haben.
+//
+// 🔴 GEMESSEN WIRD AN DEN ORTEN, DIE NICHT KALIBRIERT HABEN. Alles andere waere Selbstbetrug:
+// eine Anpassung trifft ihre eigenen Stuetzpunkte immer besser.
+
+/** Quadrant eines Punktes um eine Mitte: 0=NW 1=NO 2=SW 3=SO. */
+function avesmapsGaretienPasspunktQuadrant(float $ax, float $ay, float $cx, float $cy): int
+{
+    $ost  = $ax >= $cx ? 1 : 0;
+    $nord = $ay >= $cy ? 0 : 2;
+
+    return $nord + $ost;
+}
+
+/**
+ * Wieviele Punkte ein Feld braucht, bevor es eine volle affine Abbildung tragen darf.
+ *
+ * 💣 EINE AFFINE ABBILDUNG HAT SECHS PARAMETER -- drei Punkte legen sie EXAKT fest, und damit
+ * ist sie eine Interpolation ohne jeden Freiheitsgrad: sie trifft ihre drei Stuetzpunkte
+ * perfekt und schleudert alles dazwischen irgendwohin. Bei vier Quadranten und elf genannten
+ * Orten sind das rund drei Punkte je Feld, also genau dieser Fall. Deshalb faellt ein duennes
+ * Feld auf eine reine VERSCHIEBUNG zurueck (zwei Parameter), und ein leeres laesst alles, wie
+ * es ist.
+ * 🔴 UND DAS WIRD BERICHTET, nicht verschwiegen: sonst heisst es "vier affine Abbildungen",
+ * waehrend in Wahrheit vier Verschiebungen laufen, und niemand weiss es.
+ */
+const AVESMAPS_GARETIEN_PASSPUNKT_AFFIN_AB = 8;
+
+/**
+ * Eine Korrektur aus einer Kalibriermenge -- entweder EINE ueber alles oder VIER je Quadrant.
+ *
+ * @param array $kalibrier Passpunkte, an denen kalibriert wird
+ * @param int   $felder    1 oder 4
+ * @param array $mitte     [cx, cy] fuer die Quadranten
+ * @return array{felder:int,mitte:array,korrekturen:array}
+ */
+function avesmapsGaretienPasspunktKorrekturBauen(array $kalibrier, int $felder, array $mitte): array
+{
+    $gruppen = $felder === 4 ? [0 => [], 1 => [], 2 => [], 3 => []] : [0 => []];
+    foreach ($kalibrier as $p) {
+        $q = $felder === 4
+            ? avesmapsGaretienPasspunktQuadrant((float) $p['ax'], (float) $p['ay'], $mitte[0], $mitte[1])
+            : 0;
+        $gruppen[$q][] = $p;
+    }
+
+    $korrekturen = [];
+    foreach ($gruppen as $q => $punkte) {
+        $n = count($punkte);
+        if ($n >= AVESMAPS_GARETIEN_PASSPUNKT_AFFIN_AB) {
+            $korrekturen[$q] = ['art' => 'affin', 'n' => $n,
+                                'matrix' => avesmapsGaretienPasspunktAffinFit($punkte)];
+            continue;
+        }
+        if ($n >= 1) {
+            // Reine Verschiebung: das Mittel der Residuen gegen die eingefrorene Matrix.
+            $res = avesmapsGaretienPasspunktResiduen($punkte);
+            $dx  = array_sum(array_column($res, 'dx')) / $n / AVESMAPS_GARETIEN_PASSPUNKT_MEILEN_PER_EINHEIT;
+            $dy  = array_sum(array_column($res, 'dy')) / $n / AVESMAPS_GARETIEN_PASSPUNKT_MEILEN_PER_EINHEIT;
+            $korrekturen[$q] = ['art' => 'verschiebung', 'n' => $n, 'versatz' => [$dx, $dy]];
+            continue;
+        }
+        $korrekturen[$q] = ['art' => 'keine', 'n' => 0];
+    }
+
+    return ['felder' => $felder, 'mitte' => $mitte, 'korrekturen' => $korrekturen];
+}
+
+/** Wendet eine gebaute Korrektur auf EINEN Passpunkt an und gibt die Kartenlage zurueck. */
+function avesmapsGaretienPasspunktKorrekturAnwenden(array $korrektur, array $punkt): array
+{
+    $q = $korrektur['felder'] === 4
+        ? avesmapsGaretienPasspunktQuadrant((float) $punkt['ax'], (float) $punkt['ay'],
+                                            $korrektur['mitte'][0], $korrektur['mitte'][1])
+        : 0;
+    $k = $korrektur['korrekturen'][$q] ?? ['art' => 'keine'];
+
+    [$fx, $fy] = avesmapsGaretienNachAvesmaps((float) $punkt['gx'], (float) $punkt['gy']);
+
+    if ($k['art'] === 'affin') {
+        $m = $k['matrix'];
+        return [$m[0] * $punkt['gx'] + $m[1] * $punkt['gy'] + $m[2],
+                $m[3] * $punkt['gx'] + $m[4] * $punkt['gy'] + $m[5]];
+    }
+    if ($k['art'] === 'verschiebung') {
+        // 💣 MINUS: das Residuum sagt, wohin der Import zu weit legt -- korrigiert wird dagegen.
+        return [$fx - $k['versatz'][0], $fy - $k['versatz'][1]];
+    }
+
+    return [$fx, $fy];
+}
+
+/** Kennzahlen einer Abstandsliste in Meilen. */
+function avesmapsGaretienPasspunktKennzahlen(array $abstaende): array
+{
+    $n = count($abstaende);
+    if ($n === 0) {
+        return ['n' => 0, 'summe' => 0.0, 'mittel' => 0.0, 'streuung' => 0.0,
+                'varianz' => 0.0, 'median' => 0.0, 'p90' => 0.0, 'max' => 0.0];
+    }
+    $summe  = array_sum($abstaende);
+    $mittel = $summe / $n;
+    $qs = 0.0;
+    foreach ($abstaende as $d) {
+        $qs += ($d - $mittel) ** 2;
+    }
+    // ⚠️ Stichprobenvarianz (n-1): wir schaetzen die Streuung einer Grundgesamtheit aus einer
+    // Auswahl, nicht die einer vollstaendig bekannten Menge. Bei n=1 gibt es keine.
+    $varianz = $n > 1 ? $qs / ($n - 1) : 0.0;
+
+    return [
+        'n'        => $n,
+        'summe'    => $summe,
+        'mittel'   => $mittel,
+        'varianz'  => $varianz,
+        'streuung' => sqrt($varianz),
+        'median'   => avesmapsGaretienPasspunktMedian($abstaende),
+        'p90'      => avesmapsGaretienPasspunktQuantil($abstaende, 0.9),
+        'max'      => max($abstaende),
+    ];
+}
+
+/**
+ * DAS EXPERIMENT: an wenigen kalibrieren, an allen anderen messen.
+ *
+ * 🔴 Die Kalibrierpunkte werden aus der Pruefmenge ENTFERNT, ueber ihren Namen. Bliebe auch nur
+ * einer drin, schoente er das Ergebnis -- eine Anpassung trifft ihre eigenen Stuetzpunkte immer.
+ *
+ * @param array $alle      alle Passpunkte
+ * @param array $namen     die Namen der Kalibrierorte (die der Editoren)
+ * @param int   $felder    1 = eine Abbildung, 4 = eine je Quadrant
+ * @return array
+ */
+function avesmapsGaretienPasspunktKalibrierProbe(array $alle, array $namen, int $felder = 1): array
+{
+    $gesucht = [];
+    foreach ($namen as $name) {
+        $gesucht[mb_strtolower(trim((string) $name), 'UTF-8')] = true;
+    }
+
+    $kalibrier = [];
+    $pruef     = [];
+    foreach ($alle as $p) {
+        $k = mb_strtolower(trim((string) ($p['name'] ?? '')), 'UTF-8');
+        if (isset($gesucht[$k])) {
+            $kalibrier[] = $p;
+        } else {
+            $pruef[] = $p;
+        }
+    }
+
+    if (count($kalibrier) === 0 || count($pruef) === 0) {
+        return ['fehler' => 'Kalibrier- oder Pruefmenge leer',
+                'kalibriert' => count($kalibrier), 'geprueft' => count($pruef)];
+    }
+
+    // Die Mitte fuer die Quadranten ist der Schwerpunkt ALLER Punkte, nicht der Kalibrierten --
+    // sonst wandert die Quadrantengrenze mit der Auswahl, und zwei Laeufe sind nicht vergleichbar.
+    $mitte = [
+        array_sum(array_map(static fn(array $p): float => (float) $p['ax'], $alle)) / count($alle),
+        array_sum(array_map(static fn(array $p): float => (float) $p['ay'], $alle)) / count($alle),
+    ];
+
+    $korrektur = avesmapsGaretienPasspunktKorrekturBauen($kalibrier, $felder, $mitte);
+
+    $k = AVESMAPS_GARETIEN_PASSPUNKT_MEILEN_PER_EINHEIT;
+    $vorher = $nachher = [];
+    $je     = [];
+    foreach ($pruef as $p) {
+        [$fx, $fy] = avesmapsGaretienNachAvesmaps((float) $p['gx'], (float) $p['gy']);
+        $v = sqrt((($fx - $p['ax']) * $k) ** 2 + (($fy - $p['ay']) * $k) ** 2);
+
+        [$nx, $ny] = avesmapsGaretienPasspunktKorrekturAnwenden($korrektur, $p);
+        $n = sqrt((($nx - $p['ax']) * $k) ** 2 + (($ny - $p['ay']) * $k) ** 2);
+
+        $vorher[]  = $v;
+        $nachher[] = $n;
+        $je[] = ['name' => $p['name'] ?? '', 'ax' => $p['ax'], 'ay' => $p['ay'],
+                 'vorher' => $v, 'nachher' => $n];
+    }
+
+    $kv = avesmapsGaretienPasspunktKennzahlen($vorher);
+    $kn = avesmapsGaretienPasspunktKennzahlen($nachher);
+    $besser = 0;
+    foreach ($je as $z) {
+        if ($z['nachher'] < $z['vorher']) {
+            $besser++;
+        }
+    }
+
+    return [
+        'felder'          => $felder,
+        'mitte'           => $mitte,
+        'kalibriert'      => count($kalibrier),
+        'kalibriernamen'  => array_map(static fn(array $p): string => (string) ($p['name'] ?? ''), $kalibrier),
+        // 🔴 Welches Feld welche Art bekommen hat -- "vier affine Abbildungen" darf nicht
+        // stillschweigend zu "vier Verschiebungen" werden.
+        'korrekturarten'  => array_map(
+            static fn(array $x): array => ['art' => $x['art'], 'n' => $x['n']],
+            $korrektur['korrekturen']
+        ),
+        'vorher'          => $kv,
+        'nachher'         => $kn,
+        'summe_prozent'   => $kv['summe']   > 0 ? ($kv['summe']   - $kn['summe'])   / $kv['summe']   * 100 : 0.0,
+        'varianz_prozent' => $kv['varianz'] > 0 ? ($kv['varianz'] - $kn['varianz']) / $kv['varianz'] * 100 : 0.0,
+        'mittel_prozent'  => $kv['mittel']  > 0 ? ($kv['mittel']  - $kn['mittel'])  / $kv['mittel']  * 100 : 0.0,
+        'anteil_besser'   => count($je) > 0 ? $besser / count($je) : 0.0,
+        'punkte'          => $je,
+    ];
+}
