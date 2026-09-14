@@ -3966,4 +3966,148 @@ assert(count($quellenNahtAlke) === 1 && str_contains($quellenNahtAlke[0], 'NahtA
     'G6: die Quelle wurde am bestehenden Fluss ergaenzt: ' . json_encode($quellenNahtAlke));
 $pruefungen += 5;
 
+// =================================================================================================
+// NACHBESSERUNG 2 (14.09.2026, Pruefer-Befund gegen 5397ce079) -- W1b: der Schwester-Rueckweg
+// (changed-Quelle-Item EINER Siedlung) und der Nur-Quelle-Rueckweg (Bauwerk EINER Siedlung) teilen
+// sich jetzt EINE Traegerfunktion (avesmapsGaretienAndererTraegerVorhanden).
+// =================================================================================================
+$traegtAdresseAn = static fn(string $url): int => (int) $pdoI->query(
+    "SELECT COUNT(*) FROM feature_sources fs JOIN sources s ON s.id = fs.source_id"
+    . " WHERE fs.entity_type = 'settlement' AND fs.entity_public_id = 'stadt-wandleth' AND fs.origin = 'garetien'"
+    . ' AND s.url = ' . $pdoI->quote($url)
+)->fetchColumn();
+
+// --- (e) Bauwerk „Nur Quelle" (X) + Wandlethes EIGENES changed-Quelle-Item (Y, ANDERE Adresse).
+// Ruecknahme von Y darf X nicht anfassen, Y selbst verschwindet, das Bauwerk-Item bleibt done.
+$eintragEBauwerk = $baueBauwerk('Wandlether ScenarioE-Bauwerk', $befundWandleth);
+avesmapsSyncPlanAddItem($pdoI, $laufI, $eintragEBauwerk);
+$eBauwerkId = $itemIdVon($pdoI, 'Wandlether ScenarioE-Bauwerk (Probe)');
+$eEBauwerk = avesmapsGaretienUebernehmen($pdoI, $laufI, [$eBauwerkId], ['id' => 7], null, [
+    $eBauwerkId => ['innerorts' => true, 'innerorts_nur_quelle' => true],
+]);
+assert($eEBauwerk['fehler'] === [], 'e (Testaufbau): das Bauwerk wird als Nur-Quelle uebernommen: ' . json_encode($eEBauwerk, JSON_UNESCAPED_UNICODE));
+$adresseEX = 'https://www.garetien.de/index.php/Garetien:Wandlether%20ScenarioE-Bauwerk';
+assert($traegtAdresseAn($adresseEX) === 1, 'e (Testaufbau): X haengt');
+
+avesmapsSyncPlanAddItem($pdoI, $laufI, [
+    'entity_key' => 'ggp:Probe:location:WandlethScenarioEY', 'entity_public_id' => 'stadt-wandleth', 'change_type' => 'changed',
+    'label' => 'Wandleth ScenarioE-Y', 'before' => ['public_id' => 'stadt-wandleth', 'name' => 'Wandleth'],
+    'after' => [
+        'herkunft' => 'garetien', 'anlass' => 'ergaenzung', 'felder' => ['quelle'],
+        'ziel' => 'location', 'subtyp' => 'stadt', 'name' => 'Wandleth',
+        'quelle' => ['url' => 'https://www.garetien.de/index.php?title=Garetien:WandlethScenarioEY',
+            'label' => 'Briefspiel (Garetien)', 'source_type' => 'briefspiel',
+            'origin' => 'garetien', 'license' => 'cc-by-nc-sa-3.0', 'attribution' => 'VolkoV / garetien.de'],
+        'artikel_quelle' => ['url' => 'https://www.garetien.de/index.php/Garetien:WandlethScenarioEY',
+            'label' => 'Wandleth ScenarioE-Y', 'license' => 'cc-by-nc-sa-3.0', 'attribution' => 'VolkoV / garetien.de'],
+    ],
+    'override' => [], 'selected' => 1,
+]);
+$eYId = $itemIdVon($pdoI, 'Wandleth ScenarioE-Y');
+$eEY = avesmapsGaretienUebernehmen($pdoI, $laufI, [$eYId], ['id' => 7]);
+assert($eEY['fehler'] === [], 'e (Testaufbau): Y wird ergaenzt: ' . json_encode($eEY, JSON_UNESCAPED_UNICODE));
+$adresseEY = 'https://www.garetien.de/index.php/Garetien:WandlethScenarioEY';
+assert($traegtAdresseAn($adresseEY) === 1, 'e (Testaufbau): Y haengt');
+$pruefungen += 4;
+
+$rEY = avesmapsGaretienRuecknahmeAusfuehren($pdoI, $laufI, [$eYId], ['id' => 7]);
+assert($rEY['fehler'] === [] && $rEY['zurueckgenommen'] === 1, 'e: Ruecknahme von Y gelingt: ' . json_encode($rEY, JSON_UNESCAPED_UNICODE));
+assert($traegtAdresseAn($adresseEY) === 0, '🔴 e: Y ist weg');
+assert($traegtAdresseAn($adresseEX) === 1, '🔴 e: X BLEIBT -- der Schwester-Rueckweg darf das Bauwerk nicht anfassen');
+assert($pdoI->query('SELECT apply_state FROM sync_plan_item WHERE id = ' . $eBauwerkId)->fetchColumn() === 'done',
+    'e: das Bauwerk-Item steht unveraendert auf done');
+$pruefungen += 4;
+
+// --- (f) Bauwerk legt X neu an (angelegt:1), Wandlethes EIGENES changed-Quelle-Item ergaenzt
+// DIESELBE Adresse (haengt schon) -- Ruecknahme des Bauwerks darf X nicht loesen, Wandlethes
+// Item braucht sie noch.
+$eintragFBauwerk = $baueBauwerk('Wandlether ScenarioF-Bauwerk', $befundWandleth);
+avesmapsSyncPlanAddItem($pdoI, $laufI, $eintragFBauwerk);
+$fBauwerkId = $itemIdVon($pdoI, 'Wandlether ScenarioF-Bauwerk (Probe)');
+$eFBauwerk = avesmapsGaretienUebernehmen($pdoI, $laufI, [$fBauwerkId], ['id' => 7], null, [
+    $fBauwerkId => ['innerorts' => true, 'innerorts_nur_quelle' => true],
+]);
+assert($eFBauwerk['fehler'] === [] && $eFBauwerk['angelegt_je_form']['quelle'] === 1,
+    'f (Testaufbau): das Bauwerk legt X neu an: ' . json_encode($eFBauwerk, JSON_UNESCAPED_UNICODE));
+$adresseF = 'https://www.garetien.de/index.php/Garetien:Wandlether%20ScenarioF-Bauwerk';
+assert($traegtAdresseAn($adresseF) === 1, 'f (Testaufbau): X haengt');
+
+avesmapsSyncPlanAddItem($pdoI, $laufI, [
+    'entity_key' => 'ggp:Probe:location:WandlethScenarioFY', 'entity_public_id' => 'stadt-wandleth', 'change_type' => 'changed',
+    'label' => 'Wandleth ScenarioF-Y', 'before' => ['public_id' => 'stadt-wandleth', 'name' => 'Wandleth'],
+    'after' => [
+        'herkunft' => 'garetien', 'anlass' => 'ergaenzung', 'felder' => ['quelle'],
+        'ziel' => 'location', 'subtyp' => 'stadt', 'name' => 'Wandleth',
+        'quelle' => ['url' => $adresseF, 'label' => 'Briefspiel (Garetien)', 'source_type' => 'briefspiel',
+            'origin' => 'garetien', 'license' => 'cc-by-nc-sa-3.0', 'attribution' => 'VolkoV / garetien.de'],
+        'artikel_quelle' => ['url' => $adresseF, 'label' => 'Wandlether ScenarioF-Bauwerk',
+            'license' => 'cc-by-nc-sa-3.0', 'attribution' => 'VolkoV / garetien.de'],
+    ],
+    'override' => [], 'selected' => 1,
+]);
+$fYId = $itemIdVon($pdoI, 'Wandleth ScenarioF-Y');
+$eFY = avesmapsGaretienUebernehmen($pdoI, $laufI, [$fYId], ['id' => 7]);
+assert($eFY['fehler'] === [], 'f (Testaufbau): Y ergaenzt DIESELBE Adresse wie das Bauwerk: ' . json_encode($eFY, JSON_UNESCAPED_UNICODE));
+$pruefungen += 3;
+
+$rFBauwerk = avesmapsGaretienRuecknahmeAusfuehren($pdoI, $laufI, [$fBauwerkId], ['id' => 7]);
+assert($rFBauwerk['fehler'] === [] && $rFBauwerk['zurueckgenommen'] === 1, 'f: Ruecknahme des Bauwerks gelingt: ' . json_encode($rFBauwerk, JSON_UNESCAPED_UNICODE));
+assert($traegtAdresseAn($adresseF) === 1,
+    '🔴 f: X BLEIBT -- Wandlethes eigenes changed-Quelle-Item traegt sie noch (die Gruppenpruefung kennt seither auch changed-Geschwister)');
+$pruefungen += 2;
+
+// --- (g) Ruecknahme ZWEIER Nur-Quelle-Geschwister derselben Gruppe in EINEM Mengenaufruf --
+// unabhaengig davon, welches der beiden Items die KLEINERE id (und damit `angelegt:1`) traegt,
+// muss das Ergebnis GLEICH sein: nach dem GEMEINSAMEN Zurueeknehmen ist niemand mehr done, kein
+// AEUSSERER Traeger bleibt, die Verknuepfung wird geloest.
+// --- g1: NATUERLICHE Reihenfolge -- das ERST eingefuegte (kleinere id) wird auch ZUERST
+// verarbeitet und damit angelegt:1.
+$sammelUrlG1 = 'https://www.garetien.de/index.php/Garetien:SammelartikelG1-Test';
+$eintragG1a = $baueBauwerk('Wandlether MengeG1-A', $befundWandleth);
+$eintragG1a['after']['artikel_quelle']['url'] = $sammelUrlG1;
+avesmapsSyncPlanAddItem($pdoI, $laufI, $eintragG1a);
+$g1aId = $itemIdVon($pdoI, 'Wandlether MengeG1-A (Probe)');
+$eintragG1b = $baueBauwerk('Wandlether MengeG1-B', $befundWandleth);
+$eintragG1b['after']['artikel_quelle']['url'] = $sammelUrlG1;
+avesmapsSyncPlanAddItem($pdoI, $laufI, $eintragG1b);
+$g1bId = $itemIdVon($pdoI, 'Wandlether MengeG1-B (Probe)');
+avesmapsGaretienUebernehmen($pdoI, $laufI, [$g1aId], ['id' => 7], null, [$g1aId => ['innerorts' => true, 'innerorts_nur_quelle' => true]]);
+avesmapsGaretienUebernehmen($pdoI, $laufI, [$g1bId], ['id' => 7], null, [$g1bId => ['innerorts' => true, 'innerorts_nur_quelle' => true]]);
+assert($traegtAdresseAn($sammelUrlG1) === 1, 'g1 (Testaufbau): die Verknuepfung haengt');
+$pruefungen++;
+// EIN Mengenaufruf mit BEIDEN ids -- Reihenfolge im UEBERGEBENEN Array bewusst verkehrt herum.
+$rG1 = avesmapsGaretienRuecknahmeAusfuehren($pdoI, $laufI, [$g1bId, $g1aId], ['id' => 7]);
+assert($rG1['fehler'] === [] && $rG1['zurueckgenommen'] === 2, 'g1: beide Ruecknahmen gelingen: ' . json_encode($rG1, JSON_UNESCAPED_UNICODE));
+assert($traegtAdresseAn($sammelUrlG1) === 0,
+    '🔴 g1: nach dem GEMEINSAMEN Zuruecknehmen beider Geschwister ist die Verknuepfung weg -- keiner der beiden traegt sie mehr');
+$pruefungen += 2;
+
+// --- g2: UMGEKEHRTE Reihenfolge -- das ERST eingefuegte (kleinere id) wird SPAETER verarbeitet
+// und damit angelegt:0, das SPAETER eingefuegte (groessere id) angelegt:1. Muss dasselbe Ergebnis
+// wie g1 liefern.
+$sammelUrlG2 = 'https://www.garetien.de/index.php/Garetien:SammelartikelG2-Test';
+$eintragG2a = $baueBauwerk('Wandlether MengeG2-A', $befundWandleth); // kleinere id, aber SPAETER verarbeitet
+$eintragG2a['after']['artikel_quelle']['url'] = $sammelUrlG2;
+avesmapsSyncPlanAddItem($pdoI, $laufI, $eintragG2a);
+$g2aId = $itemIdVon($pdoI, 'Wandlether MengeG2-A (Probe)');
+$eintragG2b = $baueBauwerk('Wandlether MengeG2-B', $befundWandleth); // groessere id, aber ZUERST verarbeitet
+$eintragG2b['after']['artikel_quelle']['url'] = $sammelUrlG2;
+avesmapsSyncPlanAddItem($pdoI, $laufI, $eintragG2b);
+$g2bId = $itemIdVon($pdoI, 'Wandlether MengeG2-B (Probe)');
+avesmapsGaretienUebernehmen($pdoI, $laufI, [$g2bId], ['id' => 7], null, [$g2bId => ['innerorts' => true, 'innerorts_nur_quelle' => true]]);
+avesmapsGaretienUebernehmen($pdoI, $laufI, [$g2aId], ['id' => 7], null, [$g2aId => ['innerorts' => true, 'innerorts_nur_quelle' => true]]);
+assert($traegtAdresseAn($sammelUrlG2) === 1, 'g2 (Testaufbau): die Verknuepfung haengt');
+$noteG2a = (string) $pdoI->query('SELECT apply_note FROM sync_plan_item WHERE id = ' . $g2aId)->fetchColumn();
+$noteG2b = (string) $pdoI->query('SELECT apply_note FROM sync_plan_item WHERE id = ' . $g2bId)->fetchColumn();
+assert($g2aId < $g2bId && $noteG2a === avesmapsGaretienNurQuelleVermerk('stadt-wandleth', false)
+    && $noteG2b === avesmapsGaretienNurQuelleVermerk('stadt-wandleth', true),
+    '🔴 g2 (Testaufbau): die KLEINERE id (A) ist angelegt:0, die GROESSERE (B) angelegt:1 -- die umgekehrte Situation zu g1: '
+    . json_encode([$g2aId, $g2bId, $noteG2a, $noteG2b]));
+$pruefungen += 2;
+$rG2 = avesmapsGaretienRuecknahmeAusfuehren($pdoI, $laufI, [$g2aId, $g2bId], ['id' => 7]);
+assert($rG2['fehler'] === [] && $rG2['zurueckgenommen'] === 2, 'g2: beide Ruecknahmen gelingen: ' . json_encode($rG2, JSON_UNESCAPED_UNICODE));
+assert($traegtAdresseAn($sammelUrlG2) === 0,
+    '🔴 g2: dasselbe Ergebnis wie g1, obwohl hier die KLEINERE id angelegt:0 ist -- das Ergebnis haengt NICHT von der id-Reihenfolge ab');
+$pruefungen += 2;
+
 echo "OK: {$pruefungen} Pruefungen\n";
