@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Gebirgsformen – Beispiele von der Karte – Mockup (Abstimmung, 2026-09-14)</title>
+<script>
+  /* Wie jede Editorseite: gespeicherte Wahl schlaegt OS-Schema, vor dem ersten Anstrich. */
+  (function () {
+    function isDark() {
+      // ?theme=light|dark schlaegt alles -- fuer die Aufnahmen beider Themen ohne Umschalten.
+      var q = null; try { q = new URLSearchParams(location.search).get("theme"); } catch (e) {}
+      if (q === "dark") { return true; }
+      if (q === "light") { return false; }
+      var s = null; try { s = localStorage.getItem("avesmaps-theme"); } catch (e) {}
+      if (s === "dark") { return true; }
+      if (s === "light") { return false; }
+      return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    }
+    if (isDark()) { document.documentElement.setAttribute("data-theme", "dark"); }
+  })();
+</script>
+<!-- 🔴 RELATIVE Pfade, Absicht: eine docs/-Datei, die per file:// geoeffnet wird. Geladen wird die
+     ECHTE CSS-Kette der Karte (styles.css mit allen @import) -- Dialoghuelle, Kasten
+     „Gebirgseinstellungen", Reglerraster, Falte und Knoepfe sind also die Regeln, die live gelten.
+     Neu ist nur der markierte VORSCHLAG-Block im <style> darunter. -->
+<link rel="stylesheet" href="../css/styles.css">
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════════════════════
+   Seitengeruest des Mockups. Kein hartkodierter Farbwert, kein Radius, keine Schrift unter 11px
+   (AGENTS.md §12) -- alles Tokens aus css/base/tokens.css.
+   ═══════════════════════════════════════════════════════════════════════════════════════════ */
+html, body { height: auto; overflow: auto; }
+body { background: var(--color-page-bg); color: var(--color-text); }
+
+.proto-page { max-width: 1180px; margin: 0 auto; padding: var(--space-24) var(--space-16) 64px; }
+.proto-top { display: flex; align-items: baseline; gap: var(--space-12); flex-wrap: wrap; }
+.proto-top h1 { font-size: var(--font-size-subhead); margin: 0 0 var(--space-8); flex: 1 1 auto; }
+.proto-theme {
+	appearance: none; cursor: pointer; font: inherit; font-size: var(--font-size-small);
+	padding: var(--space-6) var(--space-12);
+	border: 1px solid var(--color-button-soft-border); border-radius: var(--radius-md);
+	background: var(--color-button-soft); color: var(--color-button-soft-text);
+}
+.proto-note {
+	margin: 0 0 var(--space-16);
+	padding: var(--space-10) var(--space-12);
+	border: 1px solid var(--color-border);
+	border-left: 3px solid var(--color-accent-brown);
+	border-radius: var(--radius-md);
+	background: var(--color-panel-soft);
+	color: var(--color-text-muted);
+	font-size: var(--font-size-small);
+	line-height: 1.55;
+}
+.proto-note strong { color: var(--color-text); }
+/* 🪤 `> h2`, nicht `h2`: sonst greift die Regel in den Dialogtitel (ebenfalls ein <h2>) und legt ihm
+   eine kurze zweite Linie unter das Wort -- im ersten Abzug gesehen (AGENTS.md §12). */
+.proto-page > h2 {
+	font-size: var(--font-size-body); margin: var(--space-24) 0 var(--space-10);
+	padding-bottom: var(--space-6); border-bottom: 1px solid var(--color-divider);
+}
+.proto-h2-hint { font-size: var(--font-size-small); color: var(--color-text-muted); font-weight: 400; margin-left: var(--space-8); }
+.proto-page p.proto-text { font-size: var(--font-size-small); line-height: 1.55; margin: 0 0 var(--space-8); max-width: 900px; }
+
+.proto-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: var(--space-16); align-items: start; }
+.proto-card { border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-panel); padding: var(--space-12); }
+.proto-card > h3 { font-size: var(--font-size-body); margin: 0 0 var(--space-4); }
+.proto-card > .proto-sub { font-size: var(--font-size-caption); color: var(--color-text-muted); margin: 0 0 var(--space-8); line-height: 1.45; }
+.proto-card p, .proto-card li { font-size: var(--font-size-small); line-height: 1.5; }
+.proto-card ul { margin: 0; padding-left: var(--space-16); }
+.proto-card--empfohlen { border-color: var(--color-accent-brown); box-shadow: inset 0 0 0 1px var(--color-accent-brown); }
+.proto-card--verworfen { opacity: 0.8; }
+.proto-badge {
+	display: inline-block; font-size: var(--font-size-caption); line-height: 1.4; padding: 1px var(--space-8);
+	border-radius: var(--radius-md); border: 1px solid var(--color-accent-brown); color: var(--color-accent-brown);
+	margin-left: var(--space-6); vertical-align: 1px; font-weight: 400;
+}
+.proto-badge--grau { border-color: var(--color-border); color: var(--color-text-muted); }
+
+.proto-table { width: 100%; border-collapse: collapse; font-size: var(--font-size-small); }
+.proto-table th, .proto-table td { text-align: left; vertical-align: top; padding: var(--space-6) var(--space-8); border-bottom: 1px solid var(--color-divider); }
+.proto-table th { color: var(--color-text-muted); font-weight: 400; font-size: var(--font-size-caption); }
+.proto-table td.proto-zahl { text-align: right; font-variant-numeric: tabular-nums; }
+.proto-scroll { overflow-x: auto; }
+
+/* Die Buehne: links der Dialog, rechts die Erklaerung zur gewaehlten Variante. */
+.proto-buehne { display: flex; gap: var(--space-24); align-items: flex-start; flex-wrap: wrap; }
+.proto-buehne__erklaerung { flex: 1 1 300px; min-width: 0; }
+.proto-varianten { display: flex; gap: var(--space-6); flex-wrap: wrap; margin: 0 0 var(--space-12); }
+.proto-varianten label {
+	display: inline-flex; gap: var(--space-4); align-items: center; cursor: pointer;
+	font-size: var(--font-size-small); padding: var(--space-4) var(--space-10);
+	border: 1px solid var(--color-button-soft-border); border-radius: var(--radius-md);
+	background: var(--color-button-soft); color: var(--color-button-soft-text);
+}
+.proto-varianten label:has(input:checked) { border-color: var(--color-accent-brown); box-shadow: inset 0 0 0 1px var(--color-accent-brown); }
+.proto-schalter { font-size: var(--font-size-small); color: var(--color-text-muted); display: inline-flex; gap: var(--space-4); align-items: center; margin-bottom: var(--space-12); }
+
+/* Mockup-Bühne: der echte Dialog steht statisch im Fluss statt über der Karte. Nur die zwei
+   Eigenschaften, die ein fixiertes Fenster braucht und eine Seite nicht. */
+.proto-buehne #landschaft-dialog { max-height: none; flex: 0 0 auto; }
+
+/* ═══════════════════════════════════════════════════════════════════════════════════════════
+   VORSCHLAG — wandert beim Bau nach css/features/ecosystem-layer.css (Variante V2/V3) bzw.
+   css/pages/landschaften-editor.css (Pflege). Nur Tokens.
+   ═══════════════════════════════════════════════════════════════════════════════════════════ */
+
+/* V1: die aufgeklappte Liste des Auswahlfelds, NACHGESTELLT. Der Browser zeichnet die echte Liste
+   selbst und laesst sich nicht per CSS oeffnen; diese Kopie zeigt nur, was darin stehen wuerde.
+   Das echte Feld darueber ist bedienbar. */
+.proto-offene-liste {
+	grid-column: 2 / -1;
+	margin-top: calc(-1 * var(--space-4));
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-sm);
+	background: var(--color-panel);
+	box-shadow: var(--shadow-dialog);
+	font-size: var(--font-size-small);
+	padding: var(--space-2) 0;
+}
+.proto-offene-liste__zeile { padding: var(--space-2) var(--space-8); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.proto-offene-liste__zeile--aktiv { background: var(--color-button-soft); }
+.proto-offene-liste__beispiel { color: var(--color-text-muted); }
+.proto-offene-liste__hinweis { grid-column: 2 / -1; font-size: var(--font-size-caption); color: var(--color-text-muted); margin: 0; }
+
+/* V2: die Tafel „Beispiele auf der Karte" in der Falte. Zwei Spalten: Form | Gebirge. */
+.gebirgsform-beispiele { display: grid; grid-template-columns: 9.5em minmax(0, 1fr); column-gap: var(--space-8); row-gap: var(--space-2); margin-top: var(--space-6); font-size: var(--font-size-small); }
+.gebirgsform-beispiele__form { color: var(--color-text-muted); }
+.gebirgsform-beispiele__leer { color: var(--color-text-muted); font-style: italic; }
+/* Ein Name ist ein KNOPF, der wie ein Link aussieht: er fuehrt nicht weg, er bewegt die Karte. */
+.gebirgsform-beispiele__ziel {
+	appearance: none; background: none; border: 0; padding: 0; margin: 0;
+	font: inherit; color: var(--color-link); cursor: pointer; text-align: left;
+}
+.gebirgsform-beispiele__ziel:hover, .gebirgsform-beispiele__ziel:focus-visible { text-decoration: underline; }
+.gebirgsform-beispiele__fuss { font-size: var(--font-size-caption); color: var(--color-text-muted); margin: var(--space-6) 0 0; line-height: 1.45; }
+
+/* Pflege: Abschnitt im Fenster „Darstellung" (Skizze in der Bauform `.dg__section`). */
+.proto-pflege { max-width: 760px; }
+.proto-pflege__kopf { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-12); margin-bottom: var(--space-8); padding-bottom: var(--space-6); border-bottom: 1px solid var(--color-divider); }
+.proto-pflege__kopf h3 { margin: 0; font-size: var(--font-size-body); }
+.proto-pflege__src { font-size: var(--font-size-caption); color: var(--color-text-muted); }
+.proto-chips { display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: center; }
+.proto-chip {
+	display: inline-flex; align-items: center; gap: var(--space-4);
+	padding: 1px var(--space-4) 1px var(--space-8);
+	border: 1px solid var(--color-button-soft-border); border-radius: var(--radius-md);
+	background: var(--color-button-soft); color: var(--color-button-soft-text); font-size: var(--font-size-small);
+}
+.proto-chip button { appearance: none; border: 0; background: none; padding: 0 var(--space-2); cursor: pointer; color: var(--color-text-muted); font: inherit; }
+.proto-chip button:hover { color: var(--color-text); }
+.proto-chip--weg { text-decoration: line-through; color: var(--color-text-muted); }
+.proto-pflege select { font-size: var(--font-size-small); max-width: 14em; }
+</style>
+</head>
+<body>
+<div class="proto-page">
+
+<div class="proto-top">
+	<h1>Gebirgsformen — Beispiele von der Karte statt irdischer Vorbilder</h1>
+	<button type="button" class="proto-theme" id="proto-theme">Hell / Dunkel</button>
+</div>
+
+<p class="proto-note">
+	<strong>Owner 14.09.2026:</strong> „Der Editor soll bei den Gebirgsformen keine Musterbeispiele sondern richtige
+	Beispiele aus der karte anzeigen". Heute zeigt das Auswahlfeld <em>Morphologie</em> nur die zehn Namen; die
+	Vorbilder (Riesengebirge, Alpen, Uluru …) stehen als Kommentar im Code und im Handbuch.
+	<br><strong>Entschieden 14.09.2026:</strong> B (gepflegte Zuordnung) und V1 (im Auswahlfeld). Die Pflege
+	ist mit drei Auswahlfeldern je Form gebaut statt mit Chips (Abschnitt 4) — das Editor-Blatt kennt keine
+	Chip-Rezeptur. V2 und V3 bleiben als verworfene Varianten zum Nachsehen stehen.
+	Entwurf: <code>docs/superpowers/specs/2026-09-14-gebirgsformen-kartenbeispiele-design.md</code>.
+</p>
+
+<!-- ═════════════════════════════════════════════════════════════════════════════════════════ -->
+<h2>1 · Was die Karte heute hergibt <span class="proto-h2-hint">live gemessen 14.09.2026, eine Abfrage <code>ecosystem-areas.php?kind=topographie</code>, Revision 58501</span></h2>
+
+<div class="proto-cards">
+	<div class="proto-card">
+		<h3>71 Gebirge, 9 mit gemerkter Vorlage</h3>
+		<p class="proto-sub">Die Vorlage ist eine Herkunftsangabe (<code>terrain_preset_morph</code>): „die Zahlen kamen von dort".</p>
+		<table class="proto-table">
+			<thead><tr><th>Vorlage</th><th class="proto-zahl">Gebirge</th></tr></thead>
+			<tbody>
+				<tr><td>— (keine)</td><td class="proto-zahl">62</td></tr>
+				<tr><td>Karst</td><td class="proto-zahl">8</td></tr>
+				<tr><td>Kuppengebirge</td><td class="proto-zahl">1</td></tr>
+				<tr><td>die übrigen acht Formen</td><td class="proto-zahl">0</td></tr>
+			</tbody>
+		</table>
+		<p>Nur <strong>2 von 10</strong> Formen hätten überhaupt ein Beispiel.</p>
+	</div>
+	<div class="proto-card">
+		<h3>Die Herkunft ist keine Einordnung</h3>
+		<p class="proto-sub">Gegenproben am selben Bestand.</p>
+		<ul>
+			<li><strong>Eiszinnen</strong> und <strong>Raschtulswall</strong> tragen „Karst" — aber <em>keinen einzigen</em> eigenen Formwert.</li>
+			<li><strong>Schwarze Sichel</strong> trägt „Karst"; ihre zehn Zahlen liegen am nächsten am <em>Rumpfgebirge</em>, Karst ist nicht einmal unter den zwei nächsten.</li>
+			<li><strong>Gorische Wüste</strong> trägt <em>keine</em> Vorlage — ihre Zahlen sind aber exakt die des <em>Plateaugebirges</em>.</li>
+		</ul>
+	</div>
+	<div class="proto-card">
+		<h3>Aus den Zahlen rechnen geht nicht</h3>
+		<p class="proto-sub">Welche Formregler eine Fläche wirklich gespeichert hat.</p>
+		<table class="proto-table">
+			<thead><tr><th>gespeichert</th><th class="proto-zahl">Gebirge</th></tr></thead>
+			<tbody>
+				<tr><td>nur die vier alten (Körnung, Feinheit, Erosion, Kammhöhe)</td><td class="proto-zahl">56</td></tr>
+				<tr><td>gar keine</td><td class="proto-zahl">6</td></tr>
+				<tr><td>alle zehn Formregler</td><td class="proto-zahl">3</td></tr>
+				<tr><td>sonstige Teilmengen</td><td class="proto-zahl">6</td></tr>
+			</tbody>
+		</table>
+		<p>„Welcher Form ähnelt es am meisten?" ließe sich für <strong>4 von 71</strong> beantworten.</p>
+	</div>
+</div>
+
+<!-- ═════════════════════════════════════════════════════════════════════════════════════════ -->
+<h2>2 · Woher die Beispiele kommen <span class="proto-h2-hint">Entscheidung 1</span></h2>
+
+<div class="proto-cards">
+	<div class="proto-card proto-card--empfohlen">
+		<h3>B · Gepflegte Zuordnung als Daten <span class="proto-badge">Empfehlung</span></h3>
+		<p class="proto-sub">Je Form bis zu drei Gebirge der Karte, von Hand zugeordnet.</p>
+		<ul>
+			<li>Liegt als Abschnitt <code>gebirgsformen</code> in der vorhandenen Darstellungstafel der Landschaften (<code>app_setting</code>) — keine neue Tabelle, kein neuer Endpunkt.</li>
+			<li>Gepflegt im Fenster <em>Darstellung</em> des Landschaften-Editors (Skizze unten, Abschnitt 4). Ansehen jeder Editor, speichern Administratoren — wie der Rest der Tafel.</li>
+			<li>Gespeichert wird die <em>Region</em>, nicht der Name: eine Umbenennung wandert mit.</li>
+			<li>Wächst nicht von selbst — aber zeigt nur, was jemand <em>behauptet</em> hat.</li>
+		</ul>
+	</div>
+	<div class="proto-card">
+		<h3>C · Einordnung am Gebirge <span class="proto-badge proto-badge--grau">Alternative</span></h3>
+		<p class="proto-sub">Neues Feld „Gebirgsform" je Fläche; Beispiele = alle so eingeordneten.</p>
+		<ul>
+			<li>Wächst mit jeder Einordnung.</li>
+			<li>Aber: ein zweites Auswahlfeld mit denselben zehn Namen direkt neben <em>Morphologie</em>, das als einziges beim Öffnen auf „—" steht. Das eine ist eine Handlung, das andere ein Zustand — derselbe Wortlaut für beides lädt zur Verwechslung ein.</li>
+			<li>Erst nach dem Einordnen vieler Gebirge erscheint überhaupt etwas.</li>
+		</ul>
+	</div>
+	<div class="proto-card proto-card--verworfen">
+		<h3>A · Aus der gemerkten Vorlage <span class="proto-badge proto-badge--grau">verworfen</span></h3>
+		<p class="proto-sub">Automatisch, ohne Pflege. Auch als „Daten zuerst, Pflege als Rückfall".</p>
+		<ul>
+			<li>Heute 2 von 10 Formen belegt.</li>
+			<li>Zeigte <em>Eiszinnen</em> und <em>Raschtulswall</em> als Karst-Beispiele — die Vorlage sagt, woher Zahlen kamen, nicht, was das Gebirge ist (Abschnitt 1).</li>
+			<li>Und „aus den Zahlen rechnen" (D) scheitert an 67 von 71.</li>
+		</ul>
+	</div>
+</div>
+
+<!-- ═════════════════════════════════════════════════════════════════════════════════════════ -->
+<h2>3 · Wo und wie im Dialog <span class="proto-h2-hint">Entscheidung 2 — Dialog „Landschaft bearbeiten", Reiter Fläche, echte CSS der Karte</span></h2>
+
+<div class="proto-varianten" role="radiogroup" aria-label="Variante">
+	<label><input type="radio" name="proto-variante" value="1" checked> V1 · Im Auswahlfeld <span class="proto-badge">Empfehlung</span></label>
+	<label><input type="radio" name="proto-variante" value="2"> V2 · Falte „Beispiele auf der Karte", klickbar</label>
+	<label><input type="radio" name="proto-variante" value="3"> V3 · beides</label>
+</div>
+<label class="proto-schalter"><input type="checkbox" id="proto-leer"> Tafel noch leer (Stand direkt nach dem Bau, vor der Pflege)</label>
+
+<div class="proto-buehne">
+	<div id="landschaft-dialog" class="location-report-dialog avm-fenster avm-fenster--blatt" role="dialog" aria-labelledby="proto-dialog-titel">
+		<div class="location-report-dialog__header avm-fenster__kopf">
+			<span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>
+			<h2 class="avm-fenster__titel" id="proto-dialog-titel">Region bearbeiten</h2>
+			<button class="avm-fenster__knopf avm-fenster__knopf--nackt" type="button" aria-label="Fenster schließen">×</button>
+		</div>
+		<div class="avm-fenster__rumpf">
+			<div class="label-edit-section landschaft-dialog__kopf">
+				<label class="location-report-form__field location-report-form__field--zeile">
+					<span>Name *</span>
+					<div class="location-edit-fieldrow"><input type="text" value="Ehernes Schwert" /></div>
+				</label>
+				<label class="location-report-form__field location-report-form__field--zeile">
+					<span>Art *</span>
+					<div class="location-edit-fieldrow"><select><option selected>Gebirge</option></select></div>
+				</label>
+			</div>
+			<div class="ecosystem-layer-switch landschaft-dialog__reiter" role="tablist" aria-label="Bereich">
+				<button class="ecosystem-layer-switch__tab" type="button" role="tab" aria-selected="true">Fläche</button>
+				<button class="ecosystem-layer-switch__tab" type="button" role="tab" aria-selected="false">Beschriftung</button>
+				<button class="ecosystem-layer-switch__tab" type="button" role="tab" aria-selected="false">Wiki &amp; Quellen</button>
+			</div>
+			<div data-landschaft-bereich="flaeche">
+				<div class="label-wiki-reference">
+					<div class="label-wiki-reference__head">
+						<span class="label-wiki-reference__title">Gebirgseinstellungen</span>
+					</div>
+					<div class="ecosystem-properties-dialog__terrain">
+						<label class="ecosystem-properties-dialog__terrainrow">
+							<span>Morphologie</span>
+							<select id="proto-morphologie" class="ecosystem-properties-dialog__terrainselect"></select>
+						</label>
+						<!-- V1/V3: die offene Liste, nachgestellt -->
+						<div class="proto-offene-liste" id="proto-offene-liste" data-zeige="1 3" aria-hidden="true"></div>
+						<p class="proto-offene-liste__hinweis" data-zeige="1 3">↑ nachgestellt: so steht es in der aufgeklappten Liste. Das Feld selbst ist bedienbar.</p>
+						<label class="ecosystem-properties-dialog__terrainrow">
+							<span>Höhenstufe</span>
+							<select class="ecosystem-properties-dialog__terrainselect">
+								<option>—</option><option>Tiefland</option><option>Hügelland</option><option>Vorgebirge</option><option>Mittelgebirge</option><option>Hochgebirge</option>
+							</select>
+						</label>
+						<!-- V2/V3: die Falte mit der Tafel. Dieselbe Rezeptur wie „Erosion und Feinabstimmung". -->
+						<details class="ecosystem-properties-dialog__terrainfold" data-zeige="2 3" open>
+							<summary><span>Beispiele auf der Karte</span></summary>
+							<div class="gebirgsform-beispiele" id="proto-tafel"></div>
+							<p class="gebirgsform-beispiele__fuss">Ein Klick fliegt zum Gebirge, der Dialog bleibt offen. Das Relief zeichnet die Karte nur für die offene Fläche — beim Beispiel siehst du Lage und Umriss.</p>
+						</details>
+						<details class="ecosystem-properties-dialog__terrainfold">
+							<summary><span>Erosion und Feinabstimmung (Letztes Preset: Kettengebirge/Hochgebirge)</span></summary>
+							<p class="ecosystem-properties-dialog__terrainhint">(elf Regler, unverändert)</p>
+						</details>
+						<div class="ecosystem-properties-dialog__terrainactions">
+							<button type="button" class="ecosystem-properties-dialog__button ecosystem-properties-dialog__button--toggle" aria-pressed="false">Graustufen</button>
+							<button type="button" class="ecosystem-properties-dialog__button">Auf Automatik zurück</button>
+							<button type="button" class="ecosystem-properties-dialog__button ecosystem-properties-dialog__button--primary">Höhenfeld erzeugen</button>
+						</div>
+						<p class="ecosystem-properties-dialog__status" id="proto-status" role="status" hidden></p>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div class="proto-buehne__erklaerung">
+		<div class="proto-card" data-zeige="1">
+			<h3>V1 · Im Auswahlfeld</h3>
+			<ul>
+				<li>Die Beispiele stehen <strong>genau dort, wo man wählt</strong>: „Kettengebirge — wie Ehernes Schwert, Raschtulswall".</li>
+				<li>Keine neue Zeile in einem Kasten, der schon elf Regler trägt.</li>
+				<li>Am Telefon zeigt der Browser seine eigene Auswahl — der ganze Text ist lesbar.</li>
+				<li>Eine Form ohne Beispiel steht da wie heute, nur mit ihrem Namen.</li>
+				<li>⚠️ Nicht klickbar — eine Zeile im Auswahlfeld kann keinen zweiten Knopf tragen.</li>
+				<li>🔴 Der <em>Wert</em> jeder Zeile bleibt der Schlüssel der Vorlage. Die Beispiele sind nur Beschriftung; wer wählt, wendet weiter genau diese Vorlage an.</li>
+			</ul>
+		</div>
+		<div class="proto-card" data-zeige="2" hidden>
+			<h3>V2 · Falte „Beispiele auf der Karte"</h3>
+			<ul>
+				<li>Eine Tafel aller zehn Formen in einer nativen Falte, standardmäßig zu — dieselbe Rezeptur wie „Erosion und Feinabstimmung".</li>
+				<li><strong>Klickbar:</strong> die Karte fliegt zum Gebirge. Das geht, weil der Dialog die Karte seit dem 04.09.2026 nicht mehr abdunkelt und sie bedienbar bleibt.</li>
+				<li>⚠️ Man sieht dort Lage und Umriss, <em>nicht</em> das Relief — das zeichnet die Karte nur für die Fläche mit offenem Dialog. Wer zurückwill, muss selbst zurückschieben.</li>
+				<li>⚠️ Beim Wählen im Auswahlfeld sieht man die Beispiele nicht; man muss die Falte vorher lesen.</li>
+			</ul>
+		</div>
+		<div class="proto-card" data-zeige="3" hidden>
+			<h3>V3 · beides</h3>
+			<ul>
+				<li>Namen im Auswahlfeld <em>und</em> die klickbare Tafel.</li>
+				<li>Dieselbe Aussage an zwei Stellen eines Kastens. Wenn Klicken wichtig ist, reicht eigentlich V2.</li>
+			</ul>
+		</div>
+		<p class="proto-note" style="margin-top: var(--space-12)">
+			<strong>Die Namen im Mockup sind Platzhalter, keine Einordnung.</strong> Drei stützen sich auf den Bestand
+			(<em>Gorische Wüste</em> = Zahlen des Plateaugebirges, <em>Beilunker Berge</em> = Zahlen des Karsts,
+			<em>Rorwhed</em> = das Bild, an dem die Karst-Vorlage am 05.09. abgenommen wurde; <em>Schwarze Sichel</em>
+			liegt rechnerisch am nächsten am Rumpfgebirge). Die übrigen sind nur nach dem <em>Namen</em> gegriffen
+			(…kuppen, …massiv, …zinnen). Die echte Zuordnung trifft der Owner beim Pflegen.
+			Kammgebirge und Schild sind absichtlich leer: so sieht eine Form ohne Beispiel aus.
+		</p>
+	</div>
+</div>
+
+<!-- ═════════════════════════════════════════════════════════════════════════════════════════ -->
+<h2>4 · Pflege der Zuordnung (für Variante B) <span class="proto-h2-hint">Skizze — gebaut in der Bauform des Fensters „Darstellung", Ebene Topographie</span></h2>
+
+<div class="proto-card proto-pflege">
+	<div class="proto-pflege__kopf">
+		<h3>Gebirgsformen — Beispiele auf der Karte</h3>
+		<span class="proto-pflege__src">Höchstens drei je Form · das Auswahlfeld „Morphologie“ im Gebirgsdialog nennt sie</span>
+	</div>
+	<div class="proto-scroll">
+		<table class="proto-table">
+			<thead><tr><th style="width: 9.5em">Form</th><th>Beispiel 1</th><th>Beispiel 2</th><th>Beispiel 3</th></tr></thead>
+			<tbody id="proto-pflege-zeilen"></tbody>
+		</table>
+	</div>
+	<p class="proto-sub" style="font-size: var(--font-size-caption); color: var(--color-text-muted); margin: var(--space-8) 0 0">
+		<strong>Gebaut: drei Auswahlfelder je Form</strong>, „—" nimmt ein Beispiel heraus — keine Chips, das
+		Editor-Blatt kennt keine Chip-Rezeptur. Die Auswahl listet die Gebirge der Karte alphabetisch.
+		⚠️ <em>Gorische Wüste</em> gibt es zweimal — die Zeile trägt dann die ersten acht Zeichen der Kennung,
+		sonst wählt man blind. Ein Gebirge, das es nicht mehr gibt, steht als „(nicht mehr auf der Karte)" da,
+		bis jemand es herausnimmt; im Dialog fällt es still weg.
+	</p>
+</div>
+
+<!-- ═════════════════════════════════════════════════════════════════════════════════════════ -->
+<h2>5 · Die irdischen Vorbilder im Code-Kommentar <span class="proto-h2-hint">Entscheidung 3</span></h2>
+
+<div class="proto-cards">
+	<div class="proto-card proto-card--empfohlen">
+		<h3>Stehen lassen <span class="proto-badge">Empfehlung</span></h3>
+		<ul>
+			<li>Sie sind keine Beschriftung, sondern die <strong>Messgrundlage</strong>: die zehn mal zehn Zahlen sind gegen Graustufen des Copernicus-DEM von Taunus, Riesengebirge, Harz, Frankenwald und Schwäbischer Alb abgeglichen (AGENTS.md §11). Ohne die Namen weiß der nächste Entwickler nicht, woran er eine Zahl nachmessen kann.</li>
+			<li>Die Oberfläche zeigt sie nirgends — auch heute nicht.</li>
+			<li>Den Satz im Handbuch („Kammgebirge wie das Riesengebirge …") zieht die Nachtroutine nach; der Commit-Betreff nennt die sichtbare Wirkung.</li>
+		</ul>
+	</div>
+	<div class="proto-card proto-card--verworfen">
+		<h3>Entfernen</h3>
+		<ul>
+			<li>Nimmt die Herkunft der Messwerte mit. Gewinn: nur, dass niemand sie für Oberflächentext hält — und das tut heute schon niemand.</li>
+		</ul>
+	</div>
+</div>
+
+</div>
+
+<script>
+(function () {
+	"use strict";
+
+	// Themenknopf, wie in den anderen Mockups.
+	document.getElementById("proto-theme").addEventListener("click", function () {
+		var root = document.documentElement;
+		var dunkel = root.getAttribute("data-theme") !== "dark";
+		if (dunkel) { root.setAttribute("data-theme", "dark"); } else { root.setAttribute("data-theme", "light"); }
+		try { localStorage.setItem("avesmaps-theme", dunkel ? "dark" : "light"); } catch (e) {}
+	});
+
+	// Die zehn Formen in der Reihenfolge von ECOSYSTEM_HYDRO_MORPHOLOGIEN. Die Beispiele sind PLATZHALTER.
+	var FORMEN = [
+		{ key: "kammgebirge", name: "Kammgebirge", bsp: [] },
+		{ key: "gratgebirge", name: "Gratgebirge", bsp: ["Trollzacken", "Nebelzinnen", "Blutzinnen"] },
+		{ key: "kettengebirge", name: "Kettengebirge", bsp: ["Ehernes Schwert", "Raschtulswall"] },
+		{ key: "kuppengebirge", name: "Kuppengebirge", bsp: ["Schwarzkuppen", "Ingrakuppen"] },
+		{ key: "massengebirge", name: "Massengebirge", bsp: ["Thalus-Massiv", "Amdeggynmassiv"] },
+		{ key: "plateaugebirge", name: "Plateaugebirge", bsp: ["Gorische Wüste"] },
+		{ key: "rumpfgebirge", name: "Rumpfgebirge", bsp: ["Schwarze Sichel"] },
+		{ key: "schild", name: "Schild", bsp: [] },
+		{ key: "inselberg", name: "Inselberg", bsp: ["Firuns Thron"] },
+		{ key: "karst", name: "Karst", bsp: ["Rorwhed", "Beilunker Berge"] },
+	];
+
+	// Die 71 Gebirge der Karte (live 14.09.2026), fuer die Pflege-Auswahl.
+	var GEBIRGE = ["Ehernes Schwert", "Regengebirge", "Raschtulswall", "Grimmfrostöde", "Finsterkamm", "Walberge",
+		"Maraskankette", "Khoramgebirge", "Große Olochtai", "Firnklippen", "Drachensteine", "Schwarze Sichel", "Cor-Berge",
+		"Hohe Eternen", "Rote Sichel", "Trollzacken", "Nebelzinnen", "Salamandersteine", "Unauer Berge", "Koschberge",
+		"Nordwalser Höhen", "Raschtulsturm", "Hjaldorberge", "Steineichenwald", "Windhagberge", "Blutzinnen",
+		"Nördlicher Steineichenwald", "Eternen", "Widderhörner", "Thasch", "Amdeggynmassiv", "Firunsfinger", "Eiszinnen",
+		"Firunswall", "Goldfelsen", "Phecanowald", "Beilunker Berge", "Farlornschwelle", "Gelbe Sichel", "Eisenwald",
+		"Schwarzkuppen", "Amboss", "Aschubim", "Ingrakuppen", "Rorwhed", "Awalakim", "Altimont", "Djerim Yaleth",
+		"Olochtai", "Thalus-Massiv", "Gebirge-001", "Ogerzähne", "Graue Berge", "Wal-el-Khômchra", "Stierbuckel",
+		"Gorische Wüste (21 × 19)", "Gorische Wüste (21 × 19, zweite)", "Donnerzacken", "Divan Bastrabun", "Manekh-Chanebi",
+		"Spinnenberge", "Rathilswall", "Dragwall", "Gebirge-003", "Salzberge", "Gebirge-002", "Tenjos", "Gangreb-Berge",
+		"Hoher Rücken", "Firuns Thron", "Vulkaninsel"].sort(function (a, b) { return a.localeCompare(b, "de"); });
+
+	var leer = document.getElementById("proto-leer");
+
+	function beispiele(form) { return leer.checked ? [] : form.bsp; }
+
+	// 🔴 DIE BESCHRIFTUNG EINER ZEILE -- beim Bau EINE Funktion, aus der Auswahlfeld und nachgestellte
+	// Liste lesen. Der Wert der Option bleibt der Schluessel.
+	function zeilentext(form) {
+		var b = beispiele(form);
+		return b.length ? form.name + " — wie " + b.join(", ") : form.name;
+	}
+
+	function fuelleAuswahl() {
+		var feld = document.getElementById("proto-morphologie");
+		feld.innerHTML = "";
+		var strich = document.createElement("option");
+		strich.value = ""; strich.textContent = "—";
+		feld.appendChild(strich);
+		FORMEN.forEach(function (form) {
+			var o = document.createElement("option");
+			o.value = form.key;
+			o.textContent = zeilentext(form);
+			feld.appendChild(o);
+		});
+		feld.value = "";
+
+		var liste = document.getElementById("proto-offene-liste");
+		liste.innerHTML = "";
+		[{ name: "—", bsp: [] }].concat(FORMEN).forEach(function (form) {
+			var z = document.createElement("div");
+			z.className = "proto-offene-liste__zeile" + (form.key === "kettengebirge" ? " proto-offene-liste__zeile--aktiv" : "");
+			z.appendChild(document.createTextNode(form.name));
+			var b = form.key ? beispiele(form) : [];
+			if (b.length) {
+				var s = document.createElement("span");
+				s.className = "proto-offene-liste__beispiel";
+				s.textContent = " — wie " + b.join(", ");
+				z.appendChild(s);
+			}
+			liste.appendChild(z);
+		});
+	}
+
+	function fuelleTafel() {
+		var tafel = document.getElementById("proto-tafel");
+		tafel.innerHTML = "";
+		FORMEN.forEach(function (form) {
+			var f = document.createElement("span");
+			f.className = "gebirgsform-beispiele__form";
+			f.textContent = form.name;
+			tafel.appendChild(f);
+			var ziel = document.createElement("span");
+			var b = beispiele(form);
+			if (!b.length) {
+				ziel.className = "gebirgsform-beispiele__leer";
+				ziel.textContent = "noch keins zugeordnet";
+			} else {
+				b.forEach(function (name, i) {
+					if (i > 0) { ziel.appendChild(document.createTextNode(" · ")); }
+					var k = document.createElement("button");
+					k.type = "button";
+					k.className = "gebirgsform-beispiele__ziel";
+					k.textContent = name;
+					k.title = "Auf der Karte zeigen — der Dialog bleibt offen";
+					k.addEventListener("click", function () {
+						var st = document.getElementById("proto-status");
+						st.hidden = false;
+						st.textContent = "(Mockup) Die Karte fliegt jetzt zu „" + name + "“.";
+					});
+					ziel.appendChild(k);
+				});
+			}
+			tafel.appendChild(ziel);
+		});
+	}
+
+	function fuellePflege() {
+		var tb = document.getElementById("proto-pflege-zeilen");
+		tb.innerHTML = "";
+		FORMEN.forEach(function (form) {
+			var tr = document.createElement("tr");
+			var td1 = document.createElement("td"); td1.textContent = form.name; tr.appendChild(td1);
+			// Gebaut: DREI Auswahlfelder je Form, „—" nimmt ein Beispiel heraus (keine Chips).
+			var b = beispiele(form);
+			for (var i = 0; i < 3; i += 1) {
+				var td = document.createElement("td");
+				var sel = document.createElement("select");
+				var strich = document.createElement("option"); strich.value = ""; strich.textContent = "—"; sel.appendChild(strich);
+				var eigen = b[i] || "";
+				// „Firuns Thron" steht hier stellvertretend fuer ein Gebirge, das es nicht mehr gibt.
+				if (eigen === "Firuns Thron") {
+					var weg = document.createElement("option"); weg.value = eigen; weg.textContent = "(nicht mehr auf der Karte)"; sel.appendChild(weg);
+				}
+				GEBIRGE.forEach(function (n) { var o = document.createElement("option"); o.value = n; o.textContent = n; sel.appendChild(o); });
+				// Erster Treffer gewinnt; „Gorische Wüste" trifft seine erste, unterschiedene Zeile.
+				for (var j = 0; j < sel.options.length; j += 1) {
+					var t = sel.options[j].value;
+					if (eigen !== "" && (t === eigen || t.indexOf(eigen + " (") === 0)) { sel.selectedIndex = j; break; }
+				}
+				td.appendChild(sel); tr.appendChild(td);
+			}
+			tb.appendChild(tr);
+		});
+	}
+
+	function zeigeVariante(v) {
+		document.querySelectorAll("[data-zeige]").forEach(function (el) {
+			el.hidden = el.getAttribute("data-zeige").split(" ").indexOf(v) === -1;
+		});
+	}
+
+	function alles() { fuelleAuswahl(); fuelleTafel(); fuellePflege(); }
+
+	document.querySelectorAll('input[name="proto-variante"]').forEach(function (r) {
+		r.addEventListener("change", function () { if (r.checked) { zeigeVariante(r.value); } });
+	});
+	leer.addEventListener("change", alles);
+
+	// ?variante=2 fuer die Aufnahmen.
+	var start = "1";
+	try { start = new URLSearchParams(location.search).get("variante") || "1"; } catch (e) {}
+	document.querySelectorAll('input[name="proto-variante"]').forEach(function (r) { r.checked = r.value === start; });
+	alles();
+	zeigeVariante(start);
+})();
+</script>
+</body>
+</html>

@@ -594,6 +594,69 @@ function avesmapsEcosystemDisplayAbstand(key) {
 	return vorgabe;
 }
 
+// ---- Gebirgsformen: Beispiele auf der Karte (Owner 14.09.2026) ---------------------------------
+//
+// Owner, woertlich: „Der Editor soll bei den Gebirgsformen keine Musterbeispiele sondern richtige
+// Beispiele aus der karte anzeigen". Entwurf:
+// docs/superpowers/specs/2026-09-14-gebirgsformen-kartenbeispiele-design.md
+//
+// 🔴 DIE ZUORDNUNG IST GEPFLEGT, NICHT ABGELEITET. Die gemerkte Vorlage einer Flaeche
+// (`terrain_preset_morph`) sagt, woher ihre ZAHLEN kamen, nicht was das Gebirge IST -- gemessen am
+// 14.09.2026 trugen Eiszinnen und Raschtulswall „Karst", ohne einen einzigen eigenen Formwert.
+// Deshalb fuehrt die Tafel je Form hoechstens drei Regionen, von Hand gewaehlt im Fenster
+// „Darstellung" des Landschaften-Editors.
+// 🔴 Gespeichert wird die REGION (`region_public_id`), nie ihr Name -- eine Umbenennung wandert mit.
+// ⚠️ Die Zahl steht ZWEIMAL: hier und in api/_internal/app/ecosystem-display.php. Der Test
+// js/map-features/__tests__/gebirgsform-beispiele.test.js haelt beide gegeneinander.
+const AVESMAPS_ECOSYSTEM_DISPLAY_GEBIRGSFORM_MAX = 3;
+
+/**
+ * Die Beispielregionen einer Form: in der gepflegten Reihenfolge, ohne Dubletten, hoechstens drei.
+ *
+ * 🔴 `teil` kommt HEREIN, statt aus dem Modulzustand gelesen zu werden: die Karte fragt die geladene
+ * Tafel, das Fenster „Darstellung" seine ARBEITStafel. Eine Regel, zwei Leser -- und keiner schiebt
+ * seinen Stand in den des anderen (dieselbe Begruendung wie bei avesmapsEcosystemKollisionAus).
+ * 💣 `uebersetze` ist avesmapsHydroMorphSchluessel. Wird eine Form je umbenannt, stehen ihre
+ * gepflegten Beispiele unter dem ALTEN Schluessel; ohne die Uebersetzung verschwaenden sie still.
+ * ⚠️ Der heutige Schluessel kommt dabei ZUERST, alte Schluessel derselben Form danach.
+ */
+function avesmapsGebirgsformBeispielIds(teil, formKey, uebersetze) {
+	const quelle = (teil && typeof teil === "object" && !Array.isArray(teil)) ? teil : {};
+	const ziel = String(formKey || "");
+	if (ziel === "") {
+		return [];
+	}
+	const heute = (k) => (typeof uebersetze === "function" ? String(uebersetze(k)) : k);
+	const schluessel = Object.keys(quelle)
+		.filter((k) => heute(k) === ziel)
+		.sort((a, b) => (a === ziel ? -1 : (b === ziel ? 1 : 0)));
+	const raus = [];
+	schluessel.forEach((k) => {
+		(Array.isArray(quelle[k]) ? quelle[k] : []).forEach((id) => {
+			if (typeof id === "string" && id !== "" && !raus.includes(id)
+				&& raus.length < AVESMAPS_ECOSYSTEM_DISPLAY_GEBIRGSFORM_MAX) {
+				raus.push(id);
+			}
+		});
+	});
+	return raus;
+}
+
+/**
+ * Die Zeile des Auswahlfelds „Morphologie": „Kettengebirge — wie Ehernes Schwert, Raschtulswall".
+ * Ohne Beispiel steht nur der Name, wie vor dem 14.09.2026.
+ *
+ * 🔴 NUR BESCHRIFTUNG. Der Wert der Option bleibt der Schluessel der Vorlage, und wendeVorlageAn
+ * liest `value`, nie den Text -- wer waehlt, wendet weiter genau diese Vorlage an.
+ */
+function avesmapsGebirgsformZeilentext(formName, beispielNamen) {
+	const namen = (Array.isArray(beispielNamen) ? beispielNamen : [])
+		.map((n) => String(n == null ? "" : n).trim())
+		.filter((n) => n !== "");
+	const name = String(formName || "");
+	return namen.length ? name + " — wie " + namen.join(", ") : name;
+}
+
 const AVESMAPS_ECOSYSTEM_DISPLAY_ENDPOINT = "api/app/ecosystem-display.php";
 
 /**
@@ -634,4 +697,5 @@ if (typeof globalThis !== "undefined") {
 	globalThis.AVESMAPS_ECOSYSTEM_DISPLAY_ABSTAND_LIMITS = AVESMAPS_ECOSYSTEM_DISPLAY_ABSTAND_LIMITS;
 	globalThis.AVESMAPS_ECOSYSTEM_DISPLAY_KOLLISION_VORGABE = AVESMAPS_ECOSYSTEM_DISPLAY_KOLLISION_VORGABE;
 	globalThis.AVESMAPS_ECOSYSTEM_DISPLAY_KOLLISION_VORGABE_JE_ART = AVESMAPS_ECOSYSTEM_DISPLAY_KOLLISION_VORGABE_JE_ART;
+	globalThis.AVESMAPS_ECOSYSTEM_DISPLAY_GEBIRGSFORM_MAX = AVESMAPS_ECOSYSTEM_DISPLAY_GEBIRGSFORM_MAX;
 }

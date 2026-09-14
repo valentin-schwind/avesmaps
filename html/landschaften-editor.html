@@ -166,6 +166,13 @@
      schreibt genau die Vorgaben, gegen die die Karte zeichnet -- eine zweite Abschrift hier
      waere die Divergenz, die dieser Umbau abbaut. -->
 <script src="/js/map-features/ecosystem-display.js"></script>
+<!-- 🔴 Die zehn Gebirgsformen (ECOSYSTEM_HYDRO_MORPHOLOGIEN) samt der Uebersetzung alter Schluessel,
+     fuer den Abschnitt „Gebirgsformen — Beispiele auf der Karte" im Fenster „Darstellung". Dieselbe
+     Datei wie auf der Karte -- keine Abschrift der Liste.
+     ⚠️ Beim Laden definiert sie nur Konstanten und Funktionen; gerechnet wird hier nichts (der
+     Rasterlauf leiht sich weiter die Karte). Gegen Namenskollisionen mit den uebrigen Skripten dieser
+     Seite wacht js/pages/__tests__/darstellung-gebirgsformen.test.js. -->
+<script src="/js/map-features/map-features-ecosystem-hydrologie.js"></script>
 <!-- 🔴 Die ECHTE Rechenstrecke der Kurvenbeschriftung. Die Vorschau im Fenster „Darstellung" ruft
      genau diese Module, nicht docs/kurvenlabel-pipeline.js -- die ist der Prototyp. Eine zweite
      Fassung zeigte etwas, das die Karte so nie zeichnet (Entwurf §7).
@@ -390,6 +397,36 @@
             freien Fläche nicht herstellt.
           </p>
         </div>
+      </div>
+      <!-- Gebirgsformen — Beispiele auf der Karte (Owner 14.09.2026: „Der Editor soll bei den
+           Gebirgsformen keine Musterbeispiele sondern richtige Beispiele aus der karte anzeigen").
+           Je Form hoechstens drei Gebirge; das Auswahlfeld „Morphologie" im Gebirgsdialog nennt sie.
+           🔴 Nur bei der Topographie -- nur dort gibt es Gebirge und das Auswahlfeld.
+           🔴 DREI AUSWAHLFELDER JE FORM, KEINE CHIPS: „—" nimmt ein Beispiel heraus. Eine Chip-Rezeptur
+           gibt es im Editor nicht, und eine neue fuer zehn Zeilen waere eine weitere Bauform.
+           Entwurf docs/superpowers/specs/2026-09-14-gebirgsformen-kartenbeispiele-design.md,
+           Mockup docs/gebirgsformen-beispiele-mockup.html. -->
+      <div class="dg__section" id="ecoDisplayGebirgsformenSection" hidden>
+        <div class="dg__head">
+          <h3>Gebirgsformen — Beispiele auf der Karte</h3>
+          <span class="dg__src">Höchstens drei je Form · das Auswahlfeld „Morphologie“ im Gebirgsdialog nennt sie</span>
+        </div>
+        <div class="dg-scroll"><table class="dt">
+          <thead>
+            <tr>
+              <th>Form</th>
+              <th class="dt-sep">Beispiel 1</th>
+              <th>Beispiel 2</th>
+              <th>Beispiel 3</th>
+            </tr>
+          </thead>
+          <tbody id="ecoDisplayGebirgsformenRows"></tbody>
+        </table></div>
+        <p class="dg-plot-caption" id="ecoDisplayGebirgsformenFoot"></p>
+        <p class="dg-plot-caption">
+          Gewählt wird die <strong>Region</strong>, nicht ihr Name — eine Umbenennung wandert mit.
+          Ein Gebirge, das es nicht mehr gibt, bleibt hier stehen, bis du es herausnimmst; im Dialog fällt es weg.
+        </p>
       </div>
       <p class="avm-modal__msg" id="ecoDisplayMsg"></p>
     </div>
@@ -2855,7 +2892,7 @@ let ecoDisplayBearbeitet = false;
 // fuenftes Mal in ecoDisplayZumSenden. Ein neuer Abschnitt musste damit fuenfmal nachgezogen werden,
 // und wer eine Stelle vergisst, bekommt einen Regler, der beim Zuruecksetzen wiederkommt oder beim
 // Speichern verschwindet -- lautlos, denn `t.abstaende || {}` fehlt einfach.
-const ECO_DISPLAY_ABSCHNITTE = ["flaeche", "deckkraft", "global", "farbe", "groesse", "vorgabe", "kurve", "abstaende", "kollision"];
+const ECO_DISPLAY_ABSCHNITTE = ["flaeche", "deckkraft", "global", "farbe", "groesse", "vorgabe", "kurve", "abstaende", "kollision", "gebirgsformen"];
 
 /** Eine Tafel aus einer Serverantwort. ⚠️ Alles, was kein Objekt ist, gilt als „nichts uebersteuert". */
 function ecoDisplayTafelAus(t) {
@@ -4357,6 +4394,124 @@ function ecoDisplayZeichneKollision() {
 		: "";
 }
 
+// ---- Gebirgsformen — Beispiele auf der Karte (Owner 14.09.2026) --------------------------------
+//
+// Owner, woertlich: „Der Editor soll bei den Gebirgsformen keine Musterbeispiele sondern richtige
+// Beispiele aus der karte anzeigen". Je Form hoechstens drei Gebirge der Karte; das Auswahlfeld
+// „Morphologie" im Gebirgsdialog nennt sie. Entwurf:
+// docs/superpowers/specs/2026-09-14-gebirgsformen-kartenbeispiele-design.md
+//
+// 🔴 Die FORMEN kommen aus ECOSYSTEM_HYDRO_MORPHOLOGIEN, die REGEL (Reihenfolge, Deckel, alte
+// Schluessel) aus avesmapsGebirgsformBeispielIds -- dieselbe, nach der der Kartendialog liest. Eine
+// eigene Auslegung hier zeigte beim naechsten Umbau etwas anderes als die Karte.
+
+/** Die Gebirge, die zur Wahl stehen: Regionen der Topographie mit der Art Gebirge, nach Namen. */
+function ecoDisplayGebirgsformRegionen(regionen) {
+	const gesehen = new Set();
+	const liste = [];
+	(Array.isArray(regionen) ? regionen : []).forEach((region) => {
+		const id = String((region && region.public_id) || "");
+		if (id === "" || gesehen.has(id) || region.kind !== "topographie"
+			|| String(region.region_type || "") !== "gebirge") {
+			return;
+		}
+		gesehen.add(id);
+		liste.push({ id, name: String(region.name || "") });
+	});
+	liste.sort((a, b) => a.name.localeCompare(b.name, "de") || a.id.localeCompare(b.id));
+	// ⚠️ ZWEI GEBIRGE KOENNEN GLEICH HEISSEN (am 14.09.2026: „Gorische Wüste" zweimal). Ohne einen
+	// Unterscheider waehlt man blind -- er steht nur an den Doppelten, damit die uebrigen lesbar bleiben.
+	const zaehler = {};
+	liste.forEach((eintrag) => { zaehler[eintrag.name] = (zaehler[eintrag.name] || 0) + 1; });
+	liste.forEach((eintrag) => {
+		eintrag.label = zaehler[eintrag.name] > 1 ? eintrag.name + " (" + eintrag.id.slice(0, 8) + ")" : eintrag.name;
+	});
+	return liste;
+}
+
+/**
+ * Die Beispiele einer Form setzen. `ids` sind die drei Felder in ihrer Reihenfolge ("" = leer).
+ * 🔴 Gespeichert wird nur, was gewaehlt ist: leere Felder und Dubletten fallen heraus, und eine Form
+ * ohne Beispiel verschwindet ganz aus der Tafel -- nie eine leere Liste als „Aussage".
+ * 💣 Ein ALTER Schluessel derselben Form (avesmapsHydroMorphSchluessel) geht dabei: sonst stuende
+ * dieselbe Form zweimal in der Tafel, und der Leser naehme die Beispiele beider zusammen.
+ */
+function ecoDisplaySetzGebirgsform(formKey, ids, uebersetze) {
+	const teil = ecoDisplayTafel.gebirgsformen;
+	Object.keys(teil).forEach((schluessel) => {
+		if (schluessel !== formKey && typeof uebersetze === "function" && uebersetze(schluessel) === formKey) {
+			delete teil[schluessel];
+		}
+	});
+	const rein = [];
+	(Array.isArray(ids) ? ids : []).forEach((id) => {
+		const kennung = String(id || "");
+		if (kennung !== "" && !rein.includes(kennung) && rein.length < AVESMAPS_ECOSYSTEM_DISPLAY_GEBIRGSFORM_MAX) {
+			rein.push(kennung);
+		}
+	});
+	if (rein.length === 0) {
+		delete teil[formKey];
+	} else {
+		teil[formKey] = rein;
+	}
+	ecoDisplayBearbeitet = true;
+}
+
+function ecoDisplayZeichneGebirgsformen() {
+	const zeigen = ecoDisplayReiter === "topographie";
+	$("ecoDisplayGebirgsformenSection").hidden = !zeigen;
+	const tb = $("ecoDisplayGebirgsformenRows");
+	tb.textContent = "";
+	if (!zeigen) {
+		return;
+	}
+	const formen = typeof ECOSYSTEM_HYDRO_MORPHOLOGIEN !== "undefined" ? ECOSYSTEM_HYDRO_MORPHOLOGIEN : [];
+	const uebersetze = typeof avesmapsHydroMorphSchluessel === "function" ? avesmapsHydroMorphSchluessel : null;
+	// Die Regionen kommen aus `list_regions` (dieselbe Antwort wie die Liste links) -- keine zweite Abfrage.
+	const gebirge = ecoDisplayGebirgsformRegionen(rows.flatMap((row) => row.regions));
+	const bekannt = new Set(gebirge.map((eintrag) => eintrag.id));
+
+	formen.forEach((form) => {
+		const ids = avesmapsGebirgsformBeispielIds(ecoDisplayTeil("gebirgsformen"), form.key, uebersetze);
+		const tr = document.createElement("tr");
+		const art = document.createElement("td");
+		art.className = "dt__art";
+		art.textContent = form.name;
+		tr.appendChild(art);
+
+		const felder = [];
+		for (let i = 0; i < AVESMAPS_ECOSYSTEM_DISPLAY_GEBIRGSFORM_MAX; i += 1) {
+			const td = document.createElement("td");
+			td.className = i === 0 ? "gf-wahl dt-sep" : "gf-wahl";
+			const auswahl = document.createElement("select");
+			auswahl.setAttribute("aria-label", form.name + ": Beispiel " + (i + 1));
+			auswahl.appendChild(new Option("—", ""));
+			const eigen = ids[i] || "";
+			// ⚠️ Ein Gebirge, das es nicht mehr gibt, bleibt SICHTBAR stehen, bis jemand es herausnimmt --
+			// still verschwunden liesse es sich nicht einmal entfernen. Im Kartendialog faellt es weg.
+			if (eigen !== "" && !bekannt.has(eigen)) {
+				auswahl.appendChild(new Option("(nicht mehr auf der Karte)", eigen));
+			}
+			gebirge.forEach((eintrag) => auswahl.appendChild(new Option(eintrag.label, eintrag.id)));
+			auswahl.value = eigen;
+			auswahl.disabled = !ecoDisplayDarfSpeichern;
+			auswahl.addEventListener("change", () => {
+				ecoDisplaySetzGebirgsform(form.key, felder.map((feld) => feld.value), uebersetze);
+				ecoDisplayZeichneGebirgsformen();
+			});
+			felder.push(auswahl);
+			td.appendChild(auswahl);
+			tr.appendChild(td);
+		}
+		tb.appendChild(tr);
+	});
+
+	$("ecoDisplayGebirgsformenFoot").textContent = gebirge.length
+		? gebirge.length + " Gebirge der Karte stehen zur Wahl."
+		: "Die Gebirge der Karte sind noch nicht geladen.";
+}
+
 function ecoDisplayZeichneKurvenwerte() {
 	const kind = ecoDisplayReiter;
 	// 🔴 Klimazonen tragen keinen Namen auf der Karte -- also auch keine Kurvenfeinheiten.
@@ -4571,6 +4726,7 @@ function ecoDisplayZeichne() {
 	ecoDisplayZeichnePlot();
 	ecoDisplayZeichneAbstaende();
 	ecoDisplayZeichneKollision();
+	ecoDisplayZeichneGebirgsformen();
 	ecoDisplayZeichneKurvenwerte();
 	ecoDisplayZeichneKurvenWahl();
 	ecoDisplayZeichneKurvenVorschau();
@@ -4726,7 +4882,12 @@ $("ecoDisplaySave").addEventListener("click", async () => {
 });
 
 $("ecoDisplayReset").addEventListener("click", async () => {
-	if (!window.confirm("Alle Einstellungen der Darstellung auf die Vorgabe zurücksetzen?")) {
+	// ⚠️ Zuruecksetzen loescht die GANZE Tafel -- auch die gepflegten Beispielgebirge der Gebirgsformen
+	// (14.09.2026). Die sind keine Darstellungsvorgabe, sondern Pflege; still verloren waeren sie genau
+	// die Nebenwirkung, die niemand erwartet. Die Rueckfrage nennt sie deshalb beim Namen.
+	const mitBeispielen = Object.keys(ecoDisplayTeil("gebirgsformen")).length > 0;
+	if (!window.confirm("Alle Einstellungen der Darstellung auf die Vorgabe zurücksetzen?"
+		+ (mitBeispielen ? " Auch die Beispielgebirge der Gebirgsformen werden entfernt." : ""))) {
 		return;
 	}
 	ecoDisplayMelde("wird zurückgesetzt …");

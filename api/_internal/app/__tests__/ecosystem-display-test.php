@@ -210,6 +210,51 @@ assert(avesmapsEcosystemDisplayValidate(['kollision' => []])['kollision'] === []
 assert(avesmapsEcosystemDisplayValidate(['kollision' => ['ebene' => ['teil' => false, 'fest' => false]]])['kollision']
     === ['ebene' => ['teil' => false, 'fest' => false]], 'false ueberlebt die Pruefung');
 
+// ---- H3. Gebirgsformen: Beispiele auf der Karte (Owner 14.09.2026) ------------------------------
+// Je Form eine LISTE von Regionskennungen, hoechstens drei, keine doppelt.
+// 🔴 Der Server fuehrt KEINE Formenliste -- er prueft die FORM. Die zehn Formen stehen im Browser.
+$a = 'e215c7d1-fca0-4c7b-9a75-c138151954b0';
+$b = '8590c0c8-98ad-4104-8a7f-03df8571189c';
+$c = '11111111-2222-4333-8444-555555555555';
+$d = '66666666-7777-4888-9999-aaaaaaaaaaaa';
+$ok = avesmapsEcosystemDisplayValidate(['gebirgsformen' => ['kettengebirge' => [$a, $b], 'karst' => [$c]]]);
+assert($ok['gebirgsformen'] === ['kettengebirge' => [$a, $b], 'karst' => [$c]],
+    'zwei Formen mit Beispielen gehen durch, in ihrer Reihenfolge');
+assert(avesmapsEcosystemDisplayValidate(['gebirgsformen' => ['karst' => [$a, $b, $c]]])['gebirgsformen']['karst']
+    === [$a, $b, $c], 'drei gehen');
+assert(AVESMAPS_ECOSYSTEM_DISPLAY_GEBIRGSFORM_MAX === 3, 'der Deckel ist drei');
+assert(avesmapsEcosystemDisplayValidate(['gebirgsformen' => ['karst' => [$a, $b, $c, $d]]]) === null,
+    'vier nicht -- der Deckel');
+// 💣 Dieselbe Region zweimal in einer Form ist kein zweites Beispiel, sondern ein Fehler des Senders.
+assert(avesmapsEcosystemDisplayValidate(['gebirgsformen' => ['karst' => [$a, $a]]]) === null,
+    'dieselbe Region zweimal nicht');
+// 💣 Gespeichert wird die REGION, nie ein Name: ein Name an ihrer Stelle kaeme sonst durch, und der
+// Browser faende zu ihm nie eine Region -- das Beispiel verschwaende lautlos.
+assert(avesmapsEcosystemDisplayValidate(['gebirgsformen' => ['karst' => ['Rorwhed']]]) === null,
+    'ein Name ist keine Kennung');
+assert(avesmapsEcosystemDisplayValidate(['gebirgsformen' => ['karst' => [strtoupper($a)]]]) === null,
+    'Grossbuchstaben nicht -- der Bestand ist klein geschrieben (790 von 790 am 14.09.2026)');
+assert(avesmapsEcosystemDisplayValidate(['gebirgsformen' => ['karst' => [42]]]) === null, 'eine Zahl nicht');
+assert(avesmapsEcosystemDisplayValidate(['gebirgsformen' => ['Karst' => [$a]]]) === null,
+    'Grossbuchstaben im Formschluessel nicht');
+assert(avesmapsEcosystemDisplayValidate(['gebirgsformen' => ['karst_x' => [$a]]]) === null,
+    'ein Formschluessel besteht nur aus Buchstaben');
+assert(avesmapsEcosystemDisplayValidate(['gebirgsformen' => ['karst' => $a]]) === null,
+    'eine Kennung allein ist keine Liste');
+assert(avesmapsEcosystemDisplayValidate(['gebirgsformen' => ['karst' => [1 => $a]]]) === null,
+    'eine Liste ohne Index 0 ist keine Liste -- der Browser zaehlt die Reihenfolge');
+assert(avesmapsEcosystemDisplayValidate(['gebirgsformen' => [$a]]) === null,
+    'der Abschnitt ist ein Objekt je Form, keine Liste');
+assert(avesmapsEcosystemDisplayValidate(['gebirgsformen' => ['karst' => []]])['gebirgsformen'] === ['karst' => []],
+    'eine leere Liste ist gueltig');
+assert(avesmapsEcosystemDisplayValidate(['gebirgsformen' => []])['gebirgsformen'] === [], 'leer ist gueltig');
+// Der Rundlauf: eine LISTE bleibt nach Schreiben und Lesen eine Liste in derselben Reihenfolge.
+$rund = new AvesmapsEcosystemDisplayTestPdo('sqlite::memory:', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+avesmapsAppSettingEnsureTable($rund);
+assert(avesmapsEcosystemDisplayWrite($rund, $ok) === true, 'die Tafel mit Beispielen wird geschrieben');
+assert(avesmapsEcosystemDisplayRead($rund)['display']['gebirgsformen'] === ['kettengebirge' => [$a, $b], 'karst' => [$c]],
+    'und kommt unveraendert zurueck');
+
 // ---- I. Deckel ----------------------------------------------------------------------------------
 $riesig = ['farbe' => []];
 for ($i = 0; $i < 6000; $i += 1) {

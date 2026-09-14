@@ -271,6 +271,10 @@
 }
 .dt td.km-count b { color: var(--color-text); font-weight: 600; }
 .dt td.km-wirkung { color: var(--color-text-muted); font-size: 11px; line-height: 1.4; }
+/* „Gebirgsformen — Beispiele auf der Karte" (14.09.2026): drei Auswahlfelder je Form in derselben
+   .dt-Tabelle. Die Felder fuellen ihre Zelle, damit drei nebeneinander passen; die Mindestbreite
+   haelt einen Gebirgsnamen lesbar, der Rollkasten `.dg-scroll` faengt den Rest. */
+.dt td.gf-wahl select { width: 100%; min-width: 9em; }
 /* Hängt die zweite Spalte am ersten Häkchen, ist sie nicht weg, sondern STUMM -- man sieht weiter,
    welcher Wert hinterlegt ist, und er kommt unverändert zurück. Wie bei `.dt tr.is-stumm` oben. */
 .dt tr.km-aus td.km-fest { opacity: 0.4; }

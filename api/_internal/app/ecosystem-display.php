@@ -54,6 +54,11 @@ const AVESMAPS_ECOSYSTEM_DISPLAY_VORGABE_LIMITS = [
     'prio' => [1, 5],
 ];
 
+// Die Beispielgebirge je Gebirgsform (Owner 14.09.2026): hoechstens so viele Regionen je Form.
+// 🔴 Muss zu AVESMAPS_ECOSYSTEM_DISPLAY_GEBIRGSFORM_MAX in js/map-features/ecosystem-display.js
+// passen -- js/map-features/__tests__/gebirgsform-beispiele.test.js haelt beide gegeneinander.
+const AVESMAPS_ECOSYSTEM_DISPLAY_GEBIRGSFORM_MAX = 3;
+
 /**
  * Ist `$x` ein JSON-OBJEKT (und keine Liste)?
  *
@@ -320,6 +325,47 @@ function avesmapsEcosystemDisplayValidate(mixed $incoming): ?array
             $rein[$k] = $reinerSatz;
         }
         $clean['kollision'] = $rein;
+    }
+
+    // ---- Gebirgsformen: Beispiele auf der Karte (Owner 14.09.2026) ------------------------------
+    // Je Form eine LISTE von Regionskennungen, hoechstens AVESMAPS_ECOSYSTEM_DISPLAY_GEBIRGSFORM_MAX,
+    // keine doppelt. Entwurf: docs/superpowers/specs/2026-09-14-gebirgsformen-kartenbeispiele-design.md
+    // 🔴 Der Server fuehrt KEINE Formenliste: die zehn Formen stehen in
+    // js/map-features/map-features-ecosystem-hydrologie.js (ECOSYSTEM_HYDRO_MORPHOLOGIEN), und eine
+    // Abschrift hier liefe beim naechsten Umbenennen auseinander. Geprueft wird die FORM.
+    // 💣 Gespeichert wird die REGION, nie ein Name -- und die Kennung muss wie eine aussehen. Ein Name
+    // an ihrer Stelle kaeme sonst durch, und der Browser faende zu ihm nie eine Region: das Beispiel
+    // verschwaende lautlos. Am Livebestand 14.09.2026 tragen 790 von 790 Regionen genau diese Form.
+    // 💣 Eine Liste ist eine LISTE (0, 1, 2 ohne Luecke) -- dieselbe Regel wie bei den Groessenzeilen.
+    if (array_key_exists('gebirgsformen', $incoming)) {
+        if (!avesmapsEcosystemDisplayIsObject($incoming['gebirgsformen'])) {
+            return null;
+        }
+        $rein = [];
+        foreach ($incoming['gebirgsformen'] as $k => $liste) {
+            if (!is_string($k) || preg_match('/^[a-z]{1,40}$/', $k) !== 1 || !is_array($liste)) {
+                return null;
+            }
+            if (count($liste) > AVESMAPS_ECOSYSTEM_DISPLAY_GEBIRGSFORM_MAX) {
+                return null;
+            }
+            $ids = [];
+            $erwartet = 0;
+            foreach ($liste as $index => $id) {
+                if ($index !== $erwartet) {
+                    return null;
+                }
+                $erwartet += 1;
+                if (!is_string($id)
+                    || preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/', $id) !== 1
+                    || in_array($id, $ids, true)) {
+                    return null;
+                }
+                $ids[] = $id;
+            }
+            $rein[$k] = $ids;
+        }
+        $clean['gebirgsformen'] = $rein;
     }
 
     // ---- Die Kurvenfeinheiten -------------------------------------------------------------------
