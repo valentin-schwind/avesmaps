@@ -1,5 +1,8 @@
 const SPOTLIGHT_SEARCH_MAX_RESULTS = 20;
 const SPOTLIGHT_SEARCH_INPUT_DEBOUNCE_MS = 140;
+// So lange darf der Server suchen, bevor „Suche läuft …" erscheint (Owner 14.09.2026: 300 ms). Sofort
+// eingeblendet blinkte der Satz bei jedem Tastendruck auf; ganz ohne stand das Fenster live 1,8 s stumm.
+const SPOTLIGHT_SEARCH_PENDING_HINT_DELAY_MS = 300;
 const SPOTLIGHT_BACKEND_MIN_QUERY_LENGTH = 2;
 const SPOTLIGHT_SEARCH_RESULT_TYPE_ORDER = {
 	location: 0,
@@ -61,6 +64,11 @@ let spotlightActiveSelectionId = "";
 let spotlightSearchRenderToken = 0;
 let spotlightBackendAbortController = null;
 let spotlightSearchInputTimeout = null;
+let spotlightSearchPendingHintTimeout = null;
+// Die `id` des Treffers, den der Besucher SELBST markiert hat (Pfeiltaste oder Maus) -- leer, solange
+// er nichts gewaehlt hat. Nur daran erkennt das Nachzeichnen, ob eine Markierung eine Wahl ist oder
+// bloss die Vorgabe „erster Treffer".
+let spotlightUserChosenEntryId = "";
 let spotlightSearchEntryCache = null;
 let spotlightSearchEntryCacheSignature = "";
 let spotlightSearchLookupCache = null;
@@ -203,6 +211,8 @@ function closeSpotlightSearch({ resetInput = false } = {}) {
 	spotlightActiveResultIndex = -1;
 	clearTimeout(spotlightSearchInputTimeout);
 	spotlightSearchInputTimeout = null;
+	clearTimeout(spotlightSearchPendingHintTimeout);
+	spotlightSearchPendingHintTimeout = null;
 	if (spotlightRegionInfoboxPollTimer) {
 		window.clearInterval(spotlightRegionInfoboxPollTimer);
 		spotlightRegionInfoboxPollTimer = null;
@@ -297,14 +307,14 @@ function handleSpotlightDocumentClick(event) {
 function handleSpotlightInputKeydown(event) {
 	if (event.key === "ArrowDown") {
 		event.preventDefault();
-		setSpotlightActiveResultIndex(Math.min(spotlightRenderedEntries.length - 1, spotlightActiveResultIndex + 1));
+		chooseSpotlightResultIndex(Math.min(spotlightRenderedEntries.length - 1, spotlightActiveResultIndex + 1));
 		return;
 	}
 
 	if (event.key === "ArrowUp") {
 		event.preventDefault();
 		const nextIndex = spotlightActiveResultIndex <= 0 ? spotlightRenderedEntries.length - 1 : spotlightActiveResultIndex - 1;
-		setSpotlightActiveResultIndex(nextIndex);
+		chooseSpotlightResultIndex(nextIndex);
 		return;
 	}
 
@@ -339,7 +349,16 @@ function handleSpotlightResultMouseMove(event) {
 		return;
 	}
 
-	setSpotlightActiveResultIndex(Number(button.dataset.spotlightResultIndex));
+	chooseSpotlightResultIndex(Number(button.dataset.spotlightResultIndex));
+}
+
+// Eine Markierung, die der BESUCHER setzt -- im Unterschied zur Vorgabe, die das Zeichnen setzt.
+// 💣 Die Wahl haengt an der `id`, nie am Index: die Serverantwort stellt die Liste um (live
+// 26.08.2026: die Plaetze 3-5 wurden komplett ersetzt), und ein gemerkter Index zeigte danach auf
+// einen fremden Treffer -- Enter waehlte etwas anderes als das, was der Besucher markiert hatte.
+function chooseSpotlightResultIndex(index) {
+	setSpotlightActiveResultIndex(index);
+	spotlightUserChosenEntryId = String(spotlightRenderedEntries[index]?.id || "");
 }
 
 function scheduleSpotlightSearchResultsUpdate() {
@@ -354,6 +373,11 @@ function updateSpotlightSearchResults() {
 	const { input } = getSpotlightSearchElements();
 	const query = input?.value || "";
 	const renderToken = ++spotlightSearchRenderToken;
+	clearTimeout(spotlightSearchPendingHintTimeout);
+	spotlightSearchPendingHintTimeout = null;
+	// Eine neue Suche ist eine neue Liste -- eine Wahl in der alten gilt darin nicht. Die Serverantwort
+	// DIESER Suche laeuft dagegen nicht hier durch, sondern im `then` unten, und findet die Wahl deshalb.
+	spotlightUserChosenEntryId = "";
 	const localEntries = searchSpotlightEntries(query);
 	const backendPending = shouldUseBackendSpotlightSearch(query);
 	// Solange der Server noch antwortet, sagt der lokale Durchgang nichts -- siehe
@@ -368,9 +392,28 @@ function updateSpotlightSearchResults() {
 		return;
 	}
 
+	// „Suche läuft …" nur, wo sonst NICHTS steht: mit lokalen Treffern sieht der Besucher eine Liste.
+	if (!localEntries.length) {
+		spotlightSearchPendingHintTimeout = setTimeout(() => {
+			spotlightSearchPendingHintTimeout = null;
+			if (renderToken !== spotlightSearchRenderToken) {
+				return;
+			}
+			renderSpotlightSearchResults(localEntries, { query, backendPending, backendSlow: true });
+		}, SPOTLIGHT_SEARCH_PENDING_HINT_DELAY_MS);
+	}
+
 	void fetchBackendSpotlightResults(query)
 		.then((backendResults) => {
-			if (renderToken !== spotlightSearchRenderToken || !backendResults) {
+			if (renderToken !== spotlightSearchRenderToken) {
+				return;
+			}
+			// 💣 Der Wecker gehoert DIESER Suche, und der Token-Riegel in ihm hilft hier nicht: antwortet
+			// der Server vor Ablauf, ist der Token noch derselbe, und „Suche läuft …" ueberschriebe nachtraeglich
+			// das Endergebnis -- ein „Nicht auf Avesmaps gefunden" stuende dann nie mehr da.
+			clearTimeout(spotlightSearchPendingHintTimeout);
+			spotlightSearchPendingHintTimeout = null;
+			if (!backendResults) {
 				return;
 			}
 
@@ -392,6 +435,8 @@ function updateSpotlightSearchResults() {
 			if (renderToken !== spotlightSearchRenderToken) {
 				return;
 			}
+			clearTimeout(spotlightSearchPendingHintTimeout);
+			spotlightSearchPendingHintTimeout = null;
 
 			renderSpotlightSearchResults(localEntries, { query, backendFailed: true });
 		});
@@ -901,8 +946,13 @@ function scoreSpotlightWord(candidate, word) {
  * laeuft, und die setzt ihren eigenen Stand.
  *
  * ⚠️ Gemessen wird das NORMALISIERTE Suchwort: „???" ist kein Suchwort, sondern nichts.
+ *
+ * 🔴 Seit 14.09.2026 ist das Schweigen beim Warten BEFRISTET: braucht der Server laenger als
+ * SPOTLIGHT_SEARCH_PENDING_HINT_DELAY_MS, sagt `backendSlow` „Suche läuft …". Das ist kein Befund ueber
+ * das Suchwort, sondern ueber den Server -- deshalb bleibt „Nicht auf Avesmaps gefunden" weiter dem
+ * Endzustand vorbehalten, und das Schweigen der ersten 300 ms bleibt die Regel gegen das Aufblinken.
  */
-function spotlightSearchStatusText({ query = "", resultCount = 0, backendPending = false, backendFailed = false } = {}) {
+function spotlightSearchStatusText({ query = "", resultCount = 0, backendPending = false, backendFailed = false, backendSlow = false } = {}) {
 	if (!normalizeSpotlightSearchText(query)) {
 		return null;
 	}
@@ -915,7 +965,7 @@ function spotlightSearchStatusText({ query = "", resultCount = 0, backendPending
 		return tr("spotlight.searchFailed", "Die Suche ist gerade nicht erreichbar.");
 	}
 	if (backendPending) {
-		return null;
+		return backendSlow ? tr("spotlight.searching", "Suche läuft …") : null;
 	}
 
 	return tr("spotlight.noResults", "Nicht auf Avesmaps gefunden.");
@@ -971,7 +1021,16 @@ function renderSpotlightSearchResults(entries, statusHinweis) {
 	const statusText = spotlightSearchStatusText({ ...(statusHinweis || {}), resultCount: entries.length });
 	status.textContent = statusText || "";
 	status.hidden = !statusText;
-	setSpotlightActiveResultIndex(entries.length ? 0 : -1);
+	// Hat der Besucher selbst einen Treffer markiert, bleibt ER markiert, wo immer die Serverantwort
+	// ihn hinschiebt (Owner 14.09.2026). Ohne eigene Wahl -- oder wenn sein Treffer verschwunden ist --
+	// rueckt die Markierung wie bisher auf den ersten.
+	const chosenIndex = spotlightUserChosenEntryId
+		? entries.findIndex((entry) => String(entry?.id || "") === spotlightUserChosenEntryId)
+		: -1;
+	if (chosenIndex < 0) {
+		spotlightUserChosenEntryId = "";
+	}
+	setSpotlightActiveResultIndex(chosenIndex >= 0 ? chosenIndex : (entries.length ? 0 : -1));
 
 	if (input) {
 		input.setAttribute("aria-expanded", entries.length ? "true" : "false");

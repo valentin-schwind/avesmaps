@@ -525,6 +525,7 @@ window.AVESMAPS_I18N_EN = {
 	// the second would turn an outage into a claim about the world.
 	"spotlight.noResults": "Not found on Avesmaps.",
 	"spotlight.searchFailed": "Search is currently unavailable.",
+	"spotlight.searching": "Searching …",
 
 	// --- toasts: find-nearest + distance measurement ---
 	"toast.findNearest.none": "No location found.",

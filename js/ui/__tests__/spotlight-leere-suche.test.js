@@ -93,6 +93,12 @@ const bauKontext = (statusFeld, eingabewert) => {
 		spotlightRenderedEntries: null,
 		spotlightSearchRenderToken: 0,
 		spotlightBackendAbortController: null,
+		// Seit 14.09.2026 (Wartezeit und stabile Auswahl). Die Uhr steht in diesem Test still --
+		// `setTimeout` oben ist ein Leerlauf --, gemessen wird hier also das Schweigen VOR Ablauf der
+		// Wartezeit. Was danach kommt, faehrt spotlight-wartezeit-und-auswahl.test.js.
+		spotlightSearchPendingHintTimeout: null,
+		spotlightUserChosenEntryId: "",
+		SPOTLIGHT_SEARCH_PENDING_HINT_DELAY_MS: 300,
 		// Die Nachbarn, gefaelscht -- geprueft wird die Statuszeile, nicht das Trefferbild.
 		SPOTLIGHT_SEARCH_SECTIONS: [],
 		getSpotlightSearchElements: () => ({
