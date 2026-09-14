@@ -300,8 +300,38 @@ for (const schluessel of alleSchluessel) {
 		+ kurzerAusschnitt(wertPicker, wertGenerator));
 }
 
+// ---- eco_derographisch und ecosystem tragen DIESELBE gestrichelte Grenzgruppe --------------------
+// 🔴 Seit 14.09.2026 steht die Grenzlinien-Gruppe (stroke-dasharray "3.4 2.6") ZWEIMAL im selben
+// Literal: einmal in `eco_derographisch` (ihrer eigenen Ebene) und ein zweites Mal am Ende von
+// `ecosystem` -- weil "Alle" alle Ebenen zeigt und die derographischen Grenzen deshalb mitgehoeren
+// (Kommentar an Ort und Stelle in beiden Dateien). Wer eine Grenze nachzeichnet -- eine Koordinate
+// verschiebt, eine Strichstaerke aendert -- und dabei nur EINE der beiden Stellen aendert, laesst
+// "Alle" und "Derographie" verschiedene Grenzen zeigen: der Owner sieht im aufgeklappten
+// "Alle"-Icon eine andere Kontur als in der Derographie-Zelle daneben, obwohl beide dieselbe Ebene
+// meinen. Diese Zusicherung faengt genau das -- anders als die Wertgleichheitsschleife oben, die
+// nur PICKER GEGEN GENERATOR je Schluessel vergleicht, nie ZWEI Schluessel INNERHALB derselben
+// Datei gegeneinander.
+function schneideGrenzGruppeAus(svg, woher) {
+	const anker = '<g fill="none" stroke="#2e2e2e" stroke-opacity=".85" stroke-linecap="round"'
+		+ ' stroke-linejoin="round" stroke-dasharray="3.4 2.6">';
+	const start = svg.indexOf(anker);
+	assert.ok(start !== -1, "Grenzgruppe (stroke-dasharray \"3.4 2.6\") nicht gefunden in " + woher);
+	const ende = svg.indexOf("</g>", start);
+	assert.ok(ende !== -1, "Grenzgruppe in " + woher + ": keine schliessende </g> gefunden");
+	return svg.slice(start, ende + 4);
+}
+
+const grenzeAusEcosystem = schneideGrenzGruppeAus(picker.ecosystem, "OVERLAYS.ecosystem");
+const grenzeAusDerographisch = schneideGrenzGruppeAus(picker.eco_derographisch, "OVERLAYS.eco_derographisch");
+assert.strictEqual(grenzeAusEcosystem, grenzeAusDerographisch,
+	"Die gestrichelte Grenzgruppe in OVERLAYS.ecosystem (\"Alle\") weicht von der in"
+	+ " OVERLAYS.eco_derographisch (\"Derographie\") ab -- beide muessen zeichengleich sein, sonst"
+	+ " zeigen \"Alle\" und \"Derographie\" verschiedene Grenzen fuer dieselbe Ebene."
+	+ kurzerAusschnitt(grenzeAusEcosystem, grenzeAusDerographisch));
+
 console.log(
 	"ansicht-untergrund-vektoren-zwilling.test.js: " + alleSchluessel.length
 	+ " OVERLAYS-Schluessel zeichengleich (" + alleSchluessel.join(", ") + ")"
 	+ ", " + (SELBSTPROBEN.length + GRENZFAELLE.length) + " Selbstproben des Ausschneiders bestanden"
+	+ ", Grenzgruppe von ecosystem und eco_derographisch zeichengleich"
 );

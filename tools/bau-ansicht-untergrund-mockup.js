@@ -213,11 +213,20 @@ const OVERLAYS = {
 		'<path d="M40 44 C43 41 46 44 48 42 V48 H38 Z" fill="#7d8f6e" fill-opacity=".78"/>' +
 		'<g fill="#4c89c6" fill-opacity=".85">' +
 		'<path d="M0 13 C6 12 10 15 16 15 24 15 32 17 48 18 V21 C32 20 24 18 16 18 10 18 6 16 0 16 Z"/>' +
-		'<ellipse cx="20" cy="6" rx="3.4" ry="2"/><ellipse cx="27" cy="9" rx="2.6" ry="1.6"/></g>',
+		'<ellipse cx="20" cy="6" rx="3.4" ry="2"/><ellipse cx="27" cy="9" rx="2.6" ry="1.6"/></g>' +
+		'<g fill="none" stroke="#2e2e2e" stroke-opacity=".85" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="3.4 2.6">' +
+		'<path d="M24 22 C22.2 17.5 21.6 13.5 19.4 10 17.4 6.8 16.2 2.6 14 -2" stroke-width="1.7"/>' +
+		'<path d="M24 22 C28.5 23.2 32.5 26.8 37 27.8 41.5 28.8 45.5 32.6 50 34" stroke-width="1.7"/>' +
+		'<path d="M24 22 C22.4 27 18.4 31 16.4 36 14.6 40.6 10.4 45 8 50" stroke-width="1.5"/>' +
+		'</g>',
 
 	// ---- Die fuenf Ebenen als zweite Stufe (09.09.2026) ---------------------------------------
 	// 🔴 „Alle" hat KEINEN eigenen Vektor -- es nimmt ecosystem oben. „Alle" ist alle Ebenen
 	// uebereinander; zwei getrennte Zeichnungen liefen beim naechsten Umton auseinander.
+	// 🔴 Seit 14.09.2026 traegt ecosystem deshalb auch die drei gestrichelten Grenzlinien der
+	// Derographie-Ebene (dieselbe Gruppe wie unten in eco_derographisch): „Alle" zeigt alle Ebenen,
+	// also gehoeren auch die derographischen Grenzen hinein. Dieselbe Zeichnung bleibt zugleich die
+	// Landschaften-Kachel der ersten Stufe (Owner-Entscheid 09.09.2026, siehe oben).
 	// 💣 Die Farben sind die ECHTEN aus css/base/tokens.css, jede aus der Stelle, die sie auf
 	// der Karte zeichnet. Wer sie „aufraeumt", macht die Zelle zu einem Symbol, das etwas
 	// anderes ankuendigt als die Karte zeigt.
@@ -233,19 +242,21 @@ const OVERLAYS = {
 	// die Zelle als „nicht geladen"), ohne die Zelle zu einer Landschaftsebene zu machen. Auf der
 	// Karte gilt dasselbe: in ihrer EIGENEN Ansicht fuellt die Flaeche ebenso (--eco-fill: 0.16,
 	// css/features/ecosystem-layer.css); ungefuellt (0) bleibt sie nur in „Alle".
+	// 🔴 Seit 14.09.2026 „deutlich schraeger" (Owner-Abnahme am gerenderten Bild): DREI Gebiete
+	// treffen sich in EINEM Punkt, keine Grenze laeuft mehr waag- oder senkrecht -- drei Flaechen mit
+	// je eigener Fuellopazitaet (.13 / .2 / .09) statt einer gemeinsamen, plus dieselben drei
+	// gestrichelten Grenzlinien wie zuvor. Das runde Element ist ERSATZLOS gefallen: eine Ebene, die
+	// Behaelter mit Ecken zeichnet, braucht kein rundes Zeichen darin.
 	eco_derographisch:
-		'<g fill="#575757" fill-opacity=".13">' +
-		'<path d="M-2 9 C6 6.5 12 10.5 18 9.5 17.2 17 20.4 22.5 18.6 29.5 16.8 36.5 19.6 42 17.8 50 H-2 Z"/>' +
-		'<path d="M18 9.5 C26 8 32 12.5 38 10.5 43 9 46 11.5 50 9.5 V28.5 C46 30.5 43 28 38 29.5 31 31.5 25 27.5 18.6 29.5 20.4 22.5 17.2 17 18 9.5 Z" fill-opacity=".2"/>' +
-		'<path d="M18.6 29.5 C25 27.5 31 31.5 38 29.5 43 28 46 30.5 50 28.5 V50 H17.8 C19.6 42 16.8 36.5 18.6 29.5 Z" fill-opacity=".09"/>' +
-		'</g>' +
+		'<g fill="#575757">' +
+		'<path d="M14 -2 C16.2 2.6 17.4 6.8 19.4 10 21.6 13.5 22.2 17.5 24 22 22.4 27 18.4 31 16.4 36 14.6 40.6 10.4 45 8 50 H-2 V-2 Z" fill-opacity=".13"/>' +
+		'<path d="M24 22 C22.2 17.5 21.6 13.5 19.4 10 17.4 6.8 16.2 2.6 14 -2 H50 V34 C45.5 32.6 41.5 28.8 37 27.8 32.5 26.8 28.5 23.2 24 22 Z" fill-opacity=".2"/>' +
+		'<path d="M24 22 C28.5 23.2 32.5 26.8 37 27.8 41.5 28.8 45.5 32.6 50 34 V50 H8 C10.4 45 14.6 40.6 16.4 36 18.4 31 22.4 27 24 22 Z" fill-opacity=".09"/></g>' +
 		'<g fill="none" stroke="#2e2e2e" stroke-opacity=".85" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="3.4 2.6">' +
-		'<path d="M-2 9 C6 6.5 12 10.5 18 9.5 26 8 32 12.5 38 10.5 43 9 46 11.5 50 9.5" stroke-width="1.7"/>' +
-		'<path d="M18 9.5 C17.2 17 20.4 22.5 18.6 29.5 16.8 36.5 19.6 42 17.8 50" stroke-width="1.7"/>' +
-		'<path d="M18.6 29.5 C25 27.5 31 31.5 38 29.5 43 28 46 30.5 50 28.5" stroke-width="1.5"/>' +
-		'</g>' +
-		'<g fill="#575757" fill-opacity=".22" stroke="#2e2e2e" stroke-opacity=".75" stroke-width="1.2" stroke-dasharray="2.6 2">' +
-		'<ellipse cx="9" cy="41" rx="5.2" ry="3.4"/></g>',
+		'<path d="M24 22 C22.2 17.5 21.6 13.5 19.4 10 17.4 6.8 16.2 2.6 14 -2" stroke-width="1.7"/>' +
+		'<path d="M24 22 C28.5 23.2 32.5 26.8 37 27.8 41.5 28.8 45.5 32.6 50 34" stroke-width="1.7"/>' +
+		'<path d="M24 22 C22.4 27 18.4 31 16.4 36 14.6 40.6 10.4 45 8 50" stroke-width="1.5"/>' +
+		'</g>',
 
 	// Grasland, Steppe, Wuestenfleck, Waldflecken.
 	eco_vegetation:
@@ -680,6 +691,9 @@ h2 { font-size: var(--font-size-subhead); margin: 0 0 4px; }
 		der Untergrund steht in den Landschaften auf 0 %, der Grund ist der Ausblendton der Ebene.
 		<b>„Alle“ hat keinen eigenen Vektor</b>: es nimmt den der Ansicht, denn „Alle“ <i>ist</i> alle
 		Ebenen übereinander — zwei getrennte Zeichnungen liefen beim nächsten Umton auseinander.</p>
+		<p class="mk-gut">Seit 14.09.2026 trägt <code>ecosystem</code> deshalb auch die drei
+		gestrichelten Grenzlinien der Derographie-Ebene — „Alle“ zeigt alle Ebenen, also gehören
+		die derographischen Grenzen mit hinein.</p>
 		<div class="mk-ebenen" id="mk-ebenen"></div>
 		<p class="mk-gut">Derographie zieht eine <b>gestrichelte</b> Kontur — das ist die Konvention der
 		Ebene: die Kante eines Behälters ist eine Konvention, kein Waldrand zum Anfassen. Sichtbar wird

@@ -248,8 +248,8 @@ Landschaften-Kachel darüber nicht abdriften.
 
 | Zelle | Was der Ausschnitt zeigt | Töne |
 |---|---|---|
-| Alle | = die Landschaften-Kachel | (unverändert) |
-| Derographie | Regionsumrisse, **ungefüllt** — die Ebene zeichnet Behälter, keine Fläche | `#575757`, Kontur `#2e2e2e` |
+| Alle | = die Landschaften-Kachel — seit 14.09.2026 samt den drei gestrichelten Grenzlinien der Derographie-Ebene | (siehe Derographie) |
+| Derographie | Drei Gebiete treffen sich in einem Punkt, Kontur gestrichelt als Konvention der Ebene, drei zarte Füllungen | `#575757`, Kontur `#2e2e2e` |
 | Vegetation | Wald, Grasland, Steppe, ein Fleck Wüste | `#3f6b2c` `#8fbf6a` `#a8bd8a` `#e0c74e` |
 | Topographie | Gebirge, Hügel, See, Meer | `#7a6c5e` `#7d8f6e` `#4c89c6` `#2d5f8a` |
 | Klimazonen | waagerechte Bänder, kalt oben nach warm unten | `#cfe0eb` … `#c65e2e` |
@@ -258,9 +258,13 @@ Landschaften-Kachel darüber nicht abdriften.
 Zusage wie bei den bestehenden Vektoren. Wer sie „aufräumt", macht die Zelle zu einem Symbol, das
 etwas anderes ankündigt als die Karte zeigt.
 
-⚠️ **Die Derographie-Zelle ist die einzige ohne Füllung**, und das ist Information: die Ebene ruht
-ungefüllt auf der Karte (`--color-ecosystem-derographisch`, „grey, and unfilled while it rests").
-Eine gefüllte graue Fläche wäre hübscher und falsch.
+🔴 **Korrigiert 14.09.2026:** Diese Zeile behauptete „die einzige ohne Füllung" — inzwischen tragen
+die drei Flächen der Derographie-Zelle je eine eigene, zarte Füllopazität (.13 / .2 / .09), damit der
+Behälter auf 48 px lesbar bleibt (ungefüllt läse sich die Zelle als „nicht geladen"). Und seit
+demselben Tag trägt auch die Zelle „Alle" dieselbe gestrichelte Grenzlinien-Gruppe, weil sie alle
+Ebenen zeigt. Was bleibt: **nur** die derographische Fläche wird per Konvention gestrichelt
+gezeichnet, nie durchgezogen — auf der KARTE gilt weiterhin: in ihrer eigenen Ansicht füllt die
+Fläche mit 0,16, ungefüllt (0) bleibt sie nur in „Alle".
 
 ## 5 · Ein Wasserton: #4c89c6
 
