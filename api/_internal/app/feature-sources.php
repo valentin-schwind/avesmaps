@@ -3287,6 +3287,133 @@ function avesmapsEcosystemRegionWikiNamespaces(PDO $pdo): array
 }
 
 /**
+ * DAS SCHILD SPRINGT EIN, WENN DIE FLAECHE SCHWEIGT.
+ *
+ * 🚩 Owner-Messung 10.09.2026, eine Stunde nach dem Dommel-Nachtrag. Von den **9**
+ * Landschaftsflaechen, die seither `{kanon: ''}` bekamen, tragen **6** einen HAUPTRAUM-Artikel an
+ * ihrer Beschriftung, waehrend `ecosystem_region.wiki_url` leer ist: Albernia, Moosgrunder Tann,
+ * Madas Auge, Charyptik, Inirk (Artikel „Sorkten") und Dirak (Artikel „Dirad"). Sie muessten
+ * „offiziell" sagen und sagten gar nichts.
+ *
+ * 💣 UND DAS WAR EINE REGRESSION DES DOMMEL-NACHTRAGS, keine alte Luecke. Vorher hatten sie
+ * Verweise (Publikationen) und KEIN Etikett aus der Ableitung -- also griff im Browser die Vorgabe
+ * „offiziell", und das war ZUFAELLIG richtig. Der ausdrueckliche Leer-Eintrag hat genau diesen
+ * Zufall beseitigt und damit sichtbar gemacht, dass der Namensraum-Leser eine Haelfte der
+ * Zuweisung nie gesehen hat. **Ein Zufall, der das Richtige tut, faellt erst auf, wenn man ihn
+ * wegnimmt.**
+ *
+ * 🔴 DIE ORDNUNG BLEIBT: DIE FLAECHE ENTSCHEIDET. `ecosystem_region.wiki_url` ist das Original,
+ * die Beschriftung traegt eine Kopie (avesmapsEcosystemPushWikiRegionToLabels, 01.09.2026). Dieser
+ * Rueckfall greift AUSSCHLIESSLICH dort, wo die Flaeche gar nichts sagt -- er ueberstimmt nie.
+ * Der Durchtrag heilt solche Paare von selbst, sobald jemand die Flaeche speichert; bis dahin
+ * liest das Etikett den Artikel, den der Quellenkasten daneben ohnehin verlinkt.
+ *
+ * 💣 UNEINIGE SCHILDER ERBEN NICHTS -- dieselbe Regel wie bei den Wegsegmenten. Flaeche→Label ist
+ * 1:N (13 von 1026 Flaechen tragen zwei oder drei Beschriftungen); tragen zwei davon verschiedene
+ * Namensraeume, ist nicht entscheidbar, welcher gilt, und „im Zweifel offiziell" waere die
+ * unsichere Richtung. Lieber kein Etikett als ein erfundenes.
+ *
+ * ⭐ ES ENTSTEHT KEINE ZUSAETZLICHE ABFRAGE. Die Namensraeume der Beschriftungen stehen bereits als
+ * `region:<label_public_id>` in derselben Karte (avesmapsMapFeaturesWikiNamespaces), und die
+ * Bindung liest die Kartennutzlast ohnehin (avesmapsEcosystemReadLabelRegionMap, beide
+ * Richtungen). Diese Funktion uebersetzt nur -- sie ist rein und faehrt deshalb im Test wirklich.
+ *
+ * @param array<string, int>    $raeume   bereits gefundene Namensraeume, "typ:public_id" => ns
+ * @param array<string, string> $byLabel  label public_id => region public_id
+ * @return array<string, int>   die ZUSAETZLICHEN "ecosystem:<region>" => Namensraum
+ */
+/**
+ * Derselbe Rueckfall fuer den SCHREIBPFAD -- er hat keine `$features` und muss die Beschriftungen
+ * selbst holen.
+ *
+ * ⭐ Er baut dafuer KEINE eigene Namensraum-Rechnung: die Rohzeilen gehen durch
+ * avesmapsMapFeaturesWikiNamespaces, also durch dieselbe Funktion wie im Lesepfad, und deren
+ * Ergebnis durch dieselbe reine Uebersetzung. Eine zweite Fassung liefe beim naechsten Riegel
+ * auseinander -- und der Kanon hat diese Divergenz schon einmal bezahlt.
+ *
+ * ⚠️ Zwei volle Lesevorgaenge (Bindung + Beschriftungszeilen), wie der Territorien-Leser daneben
+ * und aus demselben Grund vertretbar: der Aufrufer ist eine EDITOR-Schreibaktion, nie der
+ * oeffentliche Lesepfad.
+ *
+ * @param array<string, int> $flaechenRaeume was die Flaechen selbst schon gesagt haben
+ * @return array<string, int> die ZUSAETZLICHEN "ecosystem:<region>" => Namensraum
+ */
+function avesmapsEcosystemRaeumeAusBeschriftungen(PDO $pdo, array $flaechenRaeume): array
+{
+    try {
+        // ⚠️ Im RUMPF, nicht am Dateikopf: diese Datei haengt am oeffentlichen Lesepfad, und
+        // dieselbe Regel steht schon an avesmapsFeatureSourcesTakeoverLabelSources.
+        require_once __DIR__ . '/ecosystem-label-link.php';
+        $bindung = avesmapsEcosystemReadLabelRegionMap($pdo);
+        $byLabel = $bindung['by_label'] ?? [];
+        if (!is_array($byLabel) || $byLabel === []) {
+            return [];
+        }
+        $platzhalter = implode(', ', array_fill(0, count($byLabel), '?'));
+        $statement = $pdo->prepare(
+            "SELECT public_id, feature_type, name, properties_json
+               FROM map_features
+              WHERE is_active = 1 AND feature_type = 'label' AND public_id IN ($platzhalter)"
+        );
+        $statement->execute(array_map('strval', array_keys($byLabel)));
+        $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Throwable $fehler) {
+        // ⚠️ Protokolliert, nicht geschluckt -- sonst saehe ein SQL-Fehler aus wie „keine
+        // Beschriftung ist zugewiesen".
+        error_log('avesmapsEcosystemRaeumeAusBeschriftungen: ' . $fehler->getMessage());
+
+        return [];
+    }
+
+    $features = [];
+    foreach ($rows as $row) {
+        $properties = json_decode((string) ($row['properties_json'] ?? ''), true);
+        if (!is_array($properties)) {
+            $properties = [];
+        }
+        $properties['feature_type'] = (string) ($row['feature_type'] ?? '');
+        $properties['public_id'] = (string) ($row['public_id'] ?? '');
+        $features[] = ['properties' => $properties];
+    }
+
+    return avesmapsEcosystemNamespacesAusBeschriftungen(
+        avesmapsMapFeaturesWikiNamespaces($features) + $flaechenRaeume,
+        $byLabel
+    );
+}
+
+function avesmapsEcosystemNamespacesAusBeschriftungen(array $raeume, array $byLabel): array
+{
+    $jeRegion = [];
+    foreach ($byLabel as $labelId => $regionId) {
+        $labelId = trim((string) $labelId);
+        $regionId = trim((string) $regionId);
+        if ($labelId === '' || $regionId === '') {
+            continue;
+        }
+        // 🔴 Die Flaeche gewinnt: hat sie eine eigene Aussage, wird sie hier nie angefasst.
+        if (array_key_exists('ecosystem:' . $regionId, $raeume)) {
+            continue;
+        }
+        $ns = $raeume['region:' . $labelId] ?? null;
+        if ($ns === null) {
+            continue;
+        }
+        $jeRegion[$regionId][(int) $ns] = true;
+    }
+
+    $out = [];
+    foreach ($jeRegion as $regionId => $raeumeDerSchilder) {
+        if (count($raeumeDerSchilder) !== 1) {
+            continue; // uneinig -- kein Etikett ist besser als ein erfundenes
+        }
+        $out['ecosystem:' . $regionId] = (int) array_key_first($raeumeDerSchilder);
+    }
+
+    return $out;
+}
+
+/**
  * DAS KANON-ETIKETT JE OBJEKT -- abgeleitet, nie getippt.
  * ---------------------------------------------------------------------------
  * Entwurf: docs/superpowers/specs/2026-08-27-kanon-etikett-design.md
@@ -3478,6 +3605,15 @@ function avesmapsFeatureSourcesWikiNamespacesFuerKennungen(
     ];
     if (isset($tabellenLeser[$entityType])) {
         $alle = $tabellenLeser[$entityType]($pdo);
+        // 💣 DIE ZWEITE TUER BRAUCHT DENSELBEN RUECKFALL WIE DIE ERSTE. Traegt die Flaeche selbst
+        // keine Adresse, springt ihre Beschriftung ein (siehe
+        // avesmapsEcosystemNamespacesAusBeschriftungen). Ohne diesen Block saehe ein Editor sein
+        // Etikett beim Seitenladen und verloere es in dem Moment, in dem er eine Quelle speichert
+        // -- der Schwanenbruch-Fehler vom 09.09.2026, dritte Auflage. Gemessen am 10.09.2026:
+        // 6 der 9 betroffenen Flaechen haengen an genau diesem Rueckfall.
+        if ($entityType === 'ecosystem') {
+            $alle += avesmapsEcosystemRaeumeAusBeschriftungen($pdo, $alle);
+        }
         $out = [];
         foreach ($ids as $id) {
             $key = $entityType . ':' . $id;

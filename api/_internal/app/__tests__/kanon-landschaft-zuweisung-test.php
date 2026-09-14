@@ -235,10 +235,101 @@ assert(preg_match('/avesmapsMapFeaturesWikiNamespaces\(\$features\)\s*\+\s*avesm
     '6b: und zwar in DERSELBEN Summe wie die anderen beiden -- ein zweiter DeriveKanon-Aufruf '
     . 'waere eine zweite Wahrheit ueber dasselbe Etikett');
 
+// 💣 UND DER RUECKFALL MUSS IN DERSELBEN SUMME STEHEN. Ohne diese Zusicherung ueberlebt seine
+// Entfernung JEDEN Test dieses Feldes: die reine Uebersetzung bliebe gruen, die Nutzlast liesse
+// sie nur nie laufen -- und sechs Landschaftsflaechen stuenden wieder stumm da. Gefunden von der
+// Mutationsprobe, nicht vom Autor.
+assert(str_contains($nutzlast, '$kanonRaeume += avesmapsEcosystemNamespacesAusBeschriftungen($kanonRaeume, $labelRegions[\'by_label\'])'),
+    '6d: die Kartennutzlast muss den Beschriftungs-Rueckfall wirklich aufrufen -- und mit `+=`, '
+    . 'damit die Aussage der FLAECHE gewinnt');
+assert(str_contains($nutzlast, '$labelRegions = avesmapsEcosystemReadLabelRegionMap($pdo);'),
+    '6e: und die Bindung dafuer VOR der Kanon-Rechnung lesen');
+
 $lib = klzOhneKommentare(__DIR__ . '/../feature-sources.php');
 assert(str_contains($lib, "'ecosystem' => 'avesmapsEcosystemRegionWikiNamespaces'"),
     '6c: und an der zweiten Tuer (avesmapsFeatureSourcesWikiNamespacesFuerKennungen), sonst kippt '
     . 'das Etikett im Moment des Speicherns -- siehe §5');
+
+// ---- 8. DAS SCHILD SPRINGT EIN, WENN DIE FLAECHE SCHWEIGT ---------------------------------------
+//
+// 🚩 Owner-Messung 10.09.2026, eine Stunde nach dem Dommel-Nachtrag: von den 9 Flaechen mit
+// `{kanon: ''}` tragen SECHS einen Hauptraum-Artikel an ihrer Beschriftung, waehrend
+// `ecosystem_region.wiki_url` leer ist (Albernia, Moosgrunder Tann, Madas Auge, Charyptik, Inirk,
+// Dirak). Sie muessten „offiziell" sagen und sagten gar nichts.
+//
+// 💣 DAS WAR EINE REGRESSION DES DOMMEL-NACHTRAGS, keine alte Luecke: vorher griff fuer sie im
+// Browser die Vorgabe „offiziell", und die war ZUFAELLIG richtig. Der ausdrueckliche Leer-Eintrag
+// hat den Zufall beseitigt und damit sichtbar gemacht, dass der Namensraum-Leser eine Haelfte der
+// Zuweisung nie gesehen hat. **Ein Zufall, der das Richtige tut, faellt erst auf, wenn man ihn
+// wegnimmt.**
+
+$rueckfall = avesmapsEcosystemNamespacesAusBeschriftungen(
+    [
+        'region:lbl-albernia' => 0,     // Schild im Hauptraum, Flaeche schweigt
+        'region:lbl-inoff' => 222,      // Schild in ns 222, Flaeche schweigt
+        'ecosystem:eco-eigen' => 0,     // Flaeche sagt Hauptraum ...
+        'region:lbl-eigen' => 222,      // ... ihr Schild widerspricht
+    ],
+    [
+        'lbl-albernia' => 'eco-albernia',
+        'lbl-inoff' => 'eco-inoff',
+        'lbl-eigen' => 'eco-eigen',
+        'lbl-stumm' => 'eco-stumm',     // Schild ohne Namensraum
+    ]
+);
+
+assert(($rueckfall['ecosystem:eco-albernia'] ?? null) === 0,
+    '8a: DER GEMELDETE FALL -- schweigt die Flaeche, gilt der Artikel ihrer Beschriftung');
+assert(($rueckfall['ecosystem:eco-inoff'] ?? null) === 222,
+    '8b: und zwar in beide Richtungen, ns 222 genauso');
+assert(!array_key_exists('ecosystem:eco-eigen', $rueckfall),
+    '8c: 🔴 DIE FLAECHE ENTSCHEIDET. Hat sie eine eigene Adresse, wird sie NIE ueberstimmt -- die '
+    . 'Beschriftung traegt nur eine Kopie (avesmapsEcosystemPushWikiRegionToLabels)');
+assert(!array_key_exists('ecosystem:eco-stumm', $rueckfall),
+    '8d: ein Schild ohne Namensraum erfindet keinen');
+
+// 💣 UNEINIGE SCHILDER ERBEN NICHTS -- dieselbe Regel wie bei den Wegsegmenten. 13 von 1026
+// Flaechen tragen zwei oder drei Beschriftungen; tragen zwei davon verschiedene Raeume, ist nicht
+// entscheidbar, welcher gilt, und „im Zweifel offiziell" waere die unsichere Richtung.
+assert(avesmapsEcosystemNamespacesAusBeschriftungen(
+    ['region:a' => 0, 'region:b' => 222],
+    ['a' => 'eco-uneinig', 'b' => 'eco-uneinig']
+) === [], '8e: uneinige Schilder derselben Flaeche erben nichts');
+assert(avesmapsEcosystemNamespacesAusBeschriftungen(
+    ['region:a' => 0, 'region:b' => 0],
+    ['a' => 'eco-einig', 'b' => 'eco-einig']
+) === ['ecosystem:eco-einig' => 0], '8f: einige schon');
+
+// ---- 8b. Und das Etikett kommt am Ende wirklich heraus -----------------------------------------
+$mitSchild = klzGebundenesLabel('lbl-albernia', 'eco-albernia', KLZ_HAUPT);
+$raeumeGesamt = avesmapsMapFeaturesWikiNamespaces([$mitSchild]) + avesmapsEcosystemRegionWikiNamespaces($pdo);
+$raeumeGesamt += avesmapsEcosystemNamespacesAusBeschriftungen($raeumeGesamt, ['lbl-albernia' => 'eco-albernia']);
+$kanonSchild = avesmapsFeatureSourcesDeriveKanon(
+    $katalog,
+    ['ecosystem:eco-albernia' => [['source_id' => 2, 'reference_kind' => 'beschrieben']]],
+    $raeumeGesamt
+);
+assert(($kanonSchild['ecosystem:eco-albernia']['kanon'] ?? null) === 'offiziell',
+    '8g: eine Flaeche mit reiner Publikation und einem Hauptraum-Artikel AM SCHILD sagt wieder '
+    . '„offiziell" statt gar nichts -- der Fall, den der Dommel-Nachtrag stumm gemacht hatte');
+
+// ⚠️ Und die drei ohne Artikel am Schild bleiben stumm -- Rang 5 gilt fuer sie weiter.
+$kanonStumm = avesmapsFeatureSourcesDeriveKanon(
+    $katalog,
+    ['ecosystem:eco-stumm' => [['source_id' => 2, 'reference_kind' => 'beschrieben']]],
+    $raeumeGesamt
+);
+assert(!isset($kanonStumm['ecosystem:eco-stumm']),
+    '8h: ohne Artikel auf BEIDEN Seiten bleibt es bei „kein Etikett"');
+
+// 💣 UND DIE ZWEITE TUER FUEHRT DENSELBEN RUECKFALL (Quelltext, weil ihr DB-Weg zwei volle
+// Lesevorgaenge braucht, die eine SQLite-Fixture nicht nachstellt).
+$libQuelle = klzOhneKommentare(__DIR__ . '/../feature-sources.php');
+assert(str_contains($libQuelle, 'avesmapsEcosystemRaeumeAusBeschriftungen($pdo, $alle)'),
+    '8i: der Schreibpfad ruft den Rueckfall ebenfalls -- sonst kippt das Etikett im Moment des '
+    . 'Speicherns, der Schwanenbruch-Fehler in dritter Auflage');
+assert(str_contains($libQuelle, 'return avesmapsEcosystemNamespacesAusBeschriftungen('),
+    '8j: und zwar ueber DIESELBE reine Uebersetzung, nicht ueber eine zweite Fassung');
 
 // ---- 7. Der Riegel, der in diesem Projekt schon mehrfach vergessen wurde ------------------------
 //
@@ -250,10 +341,10 @@ assert(str_contains($lib, "'ecosystem' => 'avesmapsEcosystemRegionWikiNamespaces
 // ⚠️ Gemessen wird „hat diese Aenderung ueberholt", nicht der genaue Wert -- die Zahl steigt auch
 // aus fremden Gruenden, und ein fester Wert waere beim naechsten Bump einer anderen Sitzung rot.
 preg_match('/AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = (\\d+);/', $nutzlast, $fassung);
-assert(isset($fassung[1]) && (int) $fassung[1] >= 25,
-    '7a: die Nutzlastversion muss mit dieser Aenderung gestiegen sein (>= 25) -- der Fix aendert den\n    INHALT der Antwort, ohne ein Kartenobjekt anzufassen');
+assert(isset($fassung[1]) && (int) $fassung[1] >= 26,
+    '7a: die Nutzlastversion muss mit dieser Aenderung gestiegen sein (>= 26) -- der Fix aendert den\n    INHALT der Antwort, ohne ein Kartenobjekt anzufassen');
 assert(str_contains((string) file_get_contents(__DIR__ . '/../../../app/map-features.php'), '// 24 (10.09.2026)')
-    && str_contains((string) file_get_contents(__DIR__ . '/../../../app/map-features.php'), '// 25 (10.09.2026)'),
+    && str_contains((string) file_get_contents(__DIR__ . '/../../../app/map-features.php'), '// 26 (10.09.2026)'),
     '7b: und BEIDE Schritte tragen ihren Grund in der Liste ueber der Konstante -- der Altenforst-Fix\n    und der Dommel-Nachtrag gehen einzeln live und haben deshalb je einen eigenen Eintrag');
 
 echo "OK: kanon-landschaft-zuweisung-test.php\n";

@@ -453,32 +453,49 @@
 		return raus;
 	}
 
-	// Die Seen, die diese Fläche schneiden -- `topographie/see` aus den geladenen Landschaftsflächen.
-	function seenFuer(area) {
-		if (typeof ecosystemLayers === "undefined" || !(ecosystemLayers instanceof Map)) {
-			return [];
-		}
+	// Die Seen, die diese Fläche schneiden -- `topographie/see` aus den Landschaftsflächen.
+	//
+	// 🔴 WOHER DIE FLÄCHEN KOMMEN, SAGT DER AUFRUFER (`bestand`). Ohne ihn sind es die GELADENEN
+	// (`ecosystemLayers`) -- und die Karte lädt nur ihren Ausschnitt samt Rand (`?bbox=` im Loader).
+	// Für die angeklickte Fläche reicht das. Der Sammellauf „Höhenraster" des Landschaften-Editors
+	// rechnet dagegen JEDES Gebirge, auch das weit ausserhalb des Bildes; ohne seinen Bestand fehlten
+	// dort die Seen, und das Raster trüge eine Wasserfläche als Hang -- ohne Fehlermeldung.
+	// 💣 Der Bestand ERSETZT die geladenen Flächen, er ergänzt sie nicht: zwei Quellen für dieselbe
+	// Frage wären die zweite Wahrheit, und welcher See zählt, hinge an der Kartenposition.
+	function seenFuer(area, bestand) {
 		const geometry = geometrieVon(area);
 		if (!geometry) {
 			return [];
 		}
 		const raus = [];
-		ecosystemLayers.forEach((layer) => {
-			const kandidat = layer?._ecosystemArea;
-			if (!kandidat || kandidat.kind !== "topographie") { return; }
-			if (String(kandidat.region_type || "") !== "see") { return; }
+		for (const kandidat of Array.isArray(bestand) ? bestand : geladeneFlaechen()) {
+			if (!kandidat || kandidat.kind !== "topographie") { continue; }
+			if (String(kandidat.region_type || "") !== "see") { continue; }
 			const g = geometrieVon(kandidat);
-			if (!g || !g.coordinates) { return; }
+			if (!g || !g.coordinates) { continue; }
 			// bbox-Vorfilter, dann ein Eckpunkt-Test -- derselbe Weg wie beim Rasterlauf.
 			const b = kandidat.bounds;
 			const a = area.bounds;
 			if (b && a && (b.max_x < a.min_x || a.max_x < b.min_x || b.max_y < a.min_y || a.max_y < b.min_y)) {
-				return;
+				continue;
 			}
 			raus.push({ n: String(kandidat.region_name || ""), g });
-		});
+		}
 
 		return raus;
+	}
+
+	// Die Flächen, die die Karte GERADE geladen hat -- ihr Ausschnitt samt Rand.
+	function geladeneFlaechen() {
+		if (typeof ecosystemLayers === "undefined" || !(ecosystemLayers instanceof Map)) {
+			return [];
+		}
+		const flaechen = [];
+		ecosystemLayers.forEach((layer) => {
+			if (layer?._ecosystemArea) { flaechen.push(layer._ecosystemArea); }
+		});
+
+		return flaechen;
 	}
 
 	// Die Kammlinie -- die EIGENE der Flaeche zuerst, die Beschriftungskurve als Rueckfall.
@@ -599,14 +616,14 @@
 		return ueberlappen(geometry, eigen, kandidat);
 	}
 
-	function gebirgsEingabeFuer(area, deckel) {
+	function gebirgsEingabeFuer(area, deckel, bestand) {
 		return {
 			bounds: area.bounds,
 			geometry: geometrieVon(area),
 			peaks: gipfelDieserFlaeche(area),
 			kurve: kurveFuer(area),
 			fluesse: fluesseFuer(area),
-			seen: seenFuer(area),
+			seen: seenFuer(area, bestand),
 			deckel,
 			regler: reglerFuer(area),
 			saat: hydroSaatFuer(area),
@@ -985,7 +1002,9 @@
 		rasterBerechnung = null;
 	}
 
-	async function gebirgsRasterHochladen(area) {
+	// @param optionen { bestand } -- die Flächen, aus denen die Seen kommen (siehe `seenFuer`). Der
+	// Flächendialog ruft ohne; der Sammellauf des Landschaften-Editors reicht seinen ganzen Bestand.
+	async function gebirgsRasterHochladen(area, optionen) {
 		const geometry = geometrieVon(area);
 		if (!area || !geometry || !area.bounds || typeof avesmapsGebirgsRasterBauen !== "function") {
 			return { hochgeladen: false, grund: "keine Flaeche" };
@@ -1001,7 +1020,7 @@
 		try {
 			// Nur das eigene Feld speichern. Die Wegberechnung verbindet die gespeicherten
 			// Felder im tatsächlichen Polygonüberlapp per Maximum, nie per Rasterrechteck.
-			o = await avesmapsGebirgsRasterImWorker(gebirgsEingabeFuer(area), controller.signal);
+			o = await avesmapsGebirgsRasterImWorker(gebirgsEingabeFuer(area, undefined, optionen?.bestand), controller.signal);
 		} finally {
 			if (rasterBerechnung === controller) { rasterBerechnung = null; }
 		}
@@ -1043,6 +1062,9 @@
 			hochgeladen: Number(antwort?.written || 0) > 0,
 			zellen: samples.length,
 			bytes: samples.length * 2,
+			// Blieb das Gebirge flach (kein Gipfel, keine Maximalhöhe)? Der Sammellauf nennt diese
+			// Flächen beim Namen -- nur so weiss ein Redakteur, wo er eine Höhe nachtragen kann.
+			flach: o.leer === true,
 			antwort,
 		}));
 	}
