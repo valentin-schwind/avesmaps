@@ -135,7 +135,15 @@ try {
     // ein falscher Lauf sieht in diesen Zahlen wie ein gewaltiger, wunderbar zusammenhaengender
     // Versatz aus -- also genau wie das Ergebnis, das jemanden dazu braechte, eine
     // Korrekturmatrix zu bauen. Der Median MUSS in der Groessenordnung aus Entwurf §2.1 liegen
-    // (1,24 Meilen); tut er es nicht, steht die Warnung in der Antwort.
+    // (1,24 Meilen), und ein Median allein reicht nicht; tut der Satz es nicht, steht die Warnung
+    // in der Antwort.
+    //
+    // 🔴 DIE PAARE KOMMEN OHNE FALSCHPAARE AN. Die Tuer trennt gleichnamige, aber andere Orte mit
+    // dem geteilten Riegel ab (avesmapsGaretienPasspunkteFalschpaareAbtrennen) und nennt sie im
+    // Bericht. Am 14.09.2026 rechnete dieser Zweig alle 204 Paare mit und meldete einen
+    // West-Sued-Trend von -40,9 Meilen je 100 bei p = 0,0005 -- geschnitten +0,05 bei p = 0,78.
+    // Die Selbstpruefung bekommt die ZAHL der abgetrennten: nimmt der Riegel die Mehrheit, ist die
+    // Lesart kaputt (vertauschte Achsen), nicht die Karte.
     if ($action === 'passpunkte') {
         $gelesen = avesmapsGaretienPasspunkteLesen(
             $pdo,
@@ -147,7 +155,7 @@ try {
         avesmapsJsonResponse(200, [
             'ok'              => true,
             'bericht'         => $gelesen['bericht'],
-            'selbstpruefung'  => avesmapsGaretienPasspunkteSelbstpruefung($paare),
+            'selbstpruefung'  => avesmapsGaretienPasspunkteSelbstpruefung($paare, count($gelesen['falschpaare'])),
             'passpunkte'      => $paare,
             'residuen'        => $residuen,
             // Die Nachbarprobe fuer mehrere k -- der Owner soll sehen, ob das Ergebnis

@@ -37,16 +37,17 @@
 		if (antwort.status === 401 || antwort.status === 403) {
 			console.error("→ Nicht angemeldet, oder die Fähigkeit `edit` fehlt.");
 		}
-		/* 💣 `invalid_action` heisst hier fast immer: der SERVER kennt die Aktion nicht, weil
-		   der Zweig noch nicht ausgeliefert ist. Der Deploy laeuft nur auf `master`
-		   (.github/workflows/deploy-avesmaps-strato.yml), ein Feature-Branch aendert am Server
-		   nichts. Ohne diesen Satz sucht man den Fehler bei sich -- am 14.09.2026 genau so
-		   passiert, und der Handgriff im Entwurf hatte die Voraussetzung nicht genannt. */
+		/* 💣 `invalid_action` heisst hier fast immer: der SERVER kennt die Aktion nicht, weil der
+		   ausgelieferte Stand aelter ist als dieses Skript. Der Deploy laeuft nur auf `master`
+		   (.github/workflows/deploy-avesmaps-strato.yml) und braucht nach dem Push ein, zwei
+		   Minuten. Ohne diesen Satz sucht man den Fehler bei sich -- am 14.09.2026 genau so passiert.
+		   🪤 Bis dahin nannte der Satz den Feature-Zweig, auf dem die Aktion gebaut wurde. Der ist
+		   gemergt, und eine Auskunft, die auf einen toten Zweig zeigt, schickt den Leser dorthin. */
 		if (grund === "invalid_action") {
-			console.error("→ Der Server kennt die Aktion `passpunkte` nicht. Sie liegt auf dem"
-				+ " Zweig claude/garetien-coordinate-transformation-mt4ugk und ist NICHT"
-				+ " ausgeliefert — der Deploy läuft nur auf `master`.");
-			console.error("   Erst nach dem Deploy messen; vorher ändert kein Handgriff im"
+			console.error("→ Der Server kennt die Aktion `passpunkte` nicht: der ausgelieferte Stand"
+				+ " ist älter als dieses Skript. Der Deploy läuft nur auf `master` und braucht nach"
+				+ " dem Push ein, zwei Minuten.");
+			console.error("   Erst messen, wenn der Deploy durch ist; vorher ändert kein Handgriff im"
 				+ " Browser etwas daran.");
 		}
 		return;
@@ -65,8 +66,11 @@
 		console.warn("⚠️ SELBSTPRÜFUNG: " + sp.warnung);
 		console.warn("   Nichts deuten, bevor das geklärt ist.");
 	} else {
-		console.log("✓ Selbstprüfung bestanden — Median " + zahl(sp.median)
-			+ " Meilen, p90 " + zahl(sp.p90) + " (Entwurf §2.1 belegt 1,24).");
+		/* 💣 Der Median ALLEIN hat am 14.09.2026 "bestanden" gesagt, bei Mittel 77 und p90 382
+		   Meilen. Das Mittel steht deshalb daneben -- liegt es weit über dem Median, sitzt ein Rand
+		   darin, den der Median nicht zeigt. */
+		console.log("✓ Selbstprüfung bestanden — Median " + zahl(sp.median) + ", Mittel " + zahl(sp.mittel)
+			+ ", p90 " + zahl(sp.p90) + " Meilen (Entwurf §2.1 belegt 1,24).");
 	}
 
 	const b = d.bericht || {};
@@ -74,6 +78,24 @@
 		+ b.ihre_ortspunkte + " ihrer und " + b.unsere_ortspunkte + " unserer Ortspunkte."
 		+ " Mehrdeutig verworfen: " + b.mehrdeutig_verworfen
 		+ ", nur bei ihnen: " + b.nur_bei_ihnen + ".");
+
+	/* 🔴 DIE FALSCHPAARE WERDEN VORGELESEN, NICHT NUR GEZÄHLT. Gleichnamige, aber andere Orte --
+	   am 14.09.2026 waren es 37 von 204, und aus ihnen allein entstand ein West-Süd-Trend mit
+	   p = 0,0005. Der Server trennt sie ab (avesmapsGaretienPasspunkteFalschpaareAbtrennen); wer
+	   sie hier sieht, kann nachsehen, ob ein echtes Paar dabei ist. */
+	const falsch = b.falschpaare || [];
+	console.log("Falschpaare abgetrennt (über " + zahl(b.falschpaar_schranke_meilen, 0)
+		+ " Meilen gegen die ausgelieferte Matrix — gleichnamig, aber ein anderer Ort): "
+		+ (b.falschpaare_verworfen ?? falsch.length));
+	if (falsch.length) {
+		console.table(falsch.map((f) => ({
+			Ort: f.name, "Betrag (mi)": Number(zahl(f.betrag, 1)), Richtung: f.richtung
+		})));
+	}
+	if ((b.doppelungen_aufgeloest || []).length) {
+		console.log("Als ein Ort gepaart (eine Siedlung und ihr Bauwerk desselben Namens): "
+			+ b.doppelungen_aufgeloest.join(", "));
+	}
 
 	/* 💣 BEI ANGESCHLAGENER SELBSTPRÜFUNG WIRD DAS URTEIL ZURÜCKGEHALTEN, nicht nur
 	   kommentiert. Die erste Fassung hat oben gewarnt und darunter trotzdem ein sattgrünes

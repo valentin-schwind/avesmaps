@@ -133,13 +133,19 @@ Tests: 90 + 29 + 28 + 178 Zusicherungen, gegen 28 Mutationen gefahren, alle gefa
   auf **einer** Karte doppelt vorkommt, ist als Passpunkt unbrauchbar.
 - 💣 **Und ein Name, der auf JEDER Karte nur einmal vorkommt, ist trotzdem kein Beleg** (14.09.2026):
   37 von 204 Paaren des echten Laufs waren gleichnamige, aber verschiedene Orte, 31 davon über
-  200 Meilen daneben. Der Mehrdeutigkeitsfilter sieht sie nicht, und **es gibt dafür heute keinen
-  Riegel** — weder im Endpunkt noch im Auswertungswerkzeug. Ungefiltert meldete der Endpunkt einen
-  West-Süd-Trend von −40,9 Meilen/100 bei **p = 0,0005**, der nach dem Schnitt verschwindet.
-- 💣 **Die Selbstprüfung sieht nur den Median** und meldete bei genau diesem Lauf „ok" (Median
-  1,99) — bei p90 = 382 Meilen. Zuerst Mittel und p90 lesen, nicht nur `selbstpruefung.ok`.
-- ⚠️ **Der Mehrdeutigkeitsfilter verwirft auch Gutartiges**: Eslamsroden steht bei Garetien als
+  200 Meilen daneben. Der Mehrdeutigkeitsfilter sieht sie nicht. Ungefiltert meldete der Endpunkt
+  einen West-Süd-Trend von −40,9 Meilen/100 bei **p = 0,0005**, der nach dem Schnitt verschwindet.
+  ✅ **Riegel seit 14.09.2026**: `avesmapsGaretienPasspunkteFalschpaareAbtrennen` (25 Meilen gegen
+  die eingefrorene Matrix), gefragt von Tür, Auswertungswerkzeug und Kalibrierprobe, jedes
+  abgetrennte Paar mit Namen berichtet.
+- 💣 **Die Selbstprüfung sah nur den Median** und meldete bei genau diesem Lauf „ok" (Median
+  1,99) — bei p90 = 382 Meilen. ✅ Seit 14.09.2026 prüft sie auch die Schranke, den Rand
+  (Mittel ≤ 3 × Median) und ob der Riegel mehr abgetrennt als behalten hat. Eine rohe Antwort von
+  vor diesem Tag bleibt verdächtig.
+- ⚠️ **Der Mehrdeutigkeitsfilter verwarf auch Gutartiges**: Eslamsroden steht bei Garetien als
   Burg UND als Reichsstadt, 0,85 Meilen auseinander — ein genannter Kalibrierort weniger.
+  ✅ Seit 14.09.2026 gilt eine Siedlung mit Bauwerken desselben Namens innerhalb 0,3 Einheiten als
+  ein Ort (`avesmapsGaretienPasspunktDoppelungAufloesen`).
 - ⚠️ **`action=liste` liefert die Geometrie schon umgerechnet** (Karteneinheiten, `[x, y]`), nicht
   roh in Wagenhalt. Für einen Passpunkt zurück über die Inverse der ausgelieferten Matrix.
 - **Kalibrierpunkte müssen aus der Prüfmenge raus.** Eine Anpassung trifft ihre eigenen
@@ -161,10 +167,10 @@ Tests: 90 + 29 + 28 + 178 Zusicherungen, gegen 28 Mutationen gefahren, alle gefa
 ## 7. 🔧 Was offen ist
 
 - ✅ ~~Der Messlauf gegen die echte Datenbank.~~ **Gelaufen am 14.09.2026 (§8).**
-- 🔧 **Ein Riegel gegen Falschpaare** im Endpunkt und im Auswertungswerkzeug, samt einer
-  Selbstprüfung, die auch Mittel/p90 ansieht. Für §8 wurde der Schnitt ≤ 25 Meilen von Hand
-  vorgeschaltet. Solange er fehlt, sind `west_sued_trend`, `globaler_versatz` und jede
-  Kalibrierprobe aus der rohen Antwort wertlos.
+- ✅ ~~Ein Riegel gegen Falschpaare im Endpunkt und im Auswertungswerkzeug, samt einer
+  Selbstprüfung, die auch Mittel/p90 ansieht.~~ **Gebaut am 14.09.2026** (§6). Für §8 war der
+  Schnitt ≤ 25 Meilen noch von Hand vorgeschaltet; eine rohe Antwort von vor diesem Tag bleibt
+  wertlos.
 - 🔧 **Der Befund gehört noch in §2.2 des Kartenimport-Entwurfs** — mit der Zahl, dass die
   ausgelieferte Matrix das affine Optimum ist (Entwurf §6, „trägt nicht").
 - **Die Datenbank steht auf `127.0.0.1`** (STRATO-Shared-Hosting) — von außen für niemanden

@@ -312,6 +312,11 @@ pruefe(avesmapsGaretienPasspunktRichtung(3.0,  3.0) === 'NordOst', 'Nordost wie 
 // selbst so ("keine nennenswerte Abweichung").
 pruefe(avesmapsGaretienPasspunktRichtung(0.2, -0.1) === 'kein', 'winzige Betraege sind kein Versatz');
 pruefe(avesmapsGaretienPasspunktRichtung(0.0,  0.0) === 'kein', 'null ist kein Versatz');
+// Die halbe Meile ist eine benannte Zahl (AVESMAPS_GARETIEN_PASSPUNKT_RAUSCHBODEN_MEILEN) mit zwei
+// Lesern -- hier und im Rand der Selbstpruefung. Beidseits festgenagelt; die Mutationsprobe vom
+// 14.09.2026 hat gezeigt, dass 0,4 statt 0,5 sonst unbemerkt bliebe.
+pruefe(avesmapsGaretienPasspunktRichtung(0.45, 0.0) === 'kein', 'knapp unter der halben Meile: kein Versatz');
+pruefe(avesmapsGaretienPasspunktRichtung(0.55, 0.0) === 'Ost', 'knapp darueber: eine Richtung');
 
 // =============================================================================================
 // §G  DER GLOBALE VERSATZ

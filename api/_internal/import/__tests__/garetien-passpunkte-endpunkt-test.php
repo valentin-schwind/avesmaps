@@ -97,6 +97,23 @@ for ($i = 0; $i < 30; $i++) {
                    ':g' => json_encode(['type' => 'Point', 'coordinates' => [$ax, $ay]])]);
 }
 
+// 💣 UND FUENF GLEICHNAMIGE, ABER ANDERE ORTE DAZWISCHEN -- die Lage des Messlaufs vom 14.09.2026
+// (Entwurf §3.1). Sie liegen alle im Westen und alle weit im Sueden, also genau so, dass sie
+// ungeschnitten einen West-Sued-Trend und einen globalen Versatz VORTAEUSCHEN. Keine Zahl unten
+// stimmt, wenn der Zweig sie mitrechnet.
+for ($i = 0; $i < 5; $i++) {
+    $name = 'Fern' . $i;
+    $ax = 470.0 + $i * 3.0;
+    $ay = 540.0 + $i * 2.0;
+    $ux = ($ax - 60.0) - AVESMAPS_GARETIEN_MATRIX_X0;     // 180 Meilen West, 360 Meilen Sued
+    $uy = ($ay - 120.0) - AVESMAPS_GARETIEN_MATRIX_Y0;
+    $gx = (AVESMAPS_GARETIEN_MATRIX_YY * $ux - AVESMAPS_GARETIEN_MATRIX_XY * $uy) / $det;
+    $gy = (AVESMAPS_GARETIEN_MATRIX_XX * $uy - AVESMAPS_GARETIEN_MATRIX_YX * $ux) / $det;
+    $zeile->execute([':n' => $name, ':n2' => $name, ':g' => "{$gx} {$gy}"]);
+    $ort->execute([':p' => 'fern' . $i, ':n' => $name,
+                   ':g' => json_encode(['type' => 'Point', 'coordinates' => [$ax, $ay]])]);
+}
+
 // ---- Und jetzt wirklich fahren ---------------------------------------------------------------
 $action  = 'passpunkte';
 $payload = ['action' => 'passpunkte'];
@@ -124,6 +141,16 @@ foreach (['bericht', 'selbstpruefung', 'passpunkte', 'residuen', 'nachbarprobe',
 
 pruefe(count($r['residuen']) === 30, '30 Passpunkte, gefunden: ' . count($r['residuen']));
 pruefe($r['bericht']['lauf'] === 3, 'der Lauf wird genannt');
+
+// --- 🔴 DER RIEGEL: die fuenf Fernen sind abgetrennt und BENANNT, nicht still verschwunden.
+pruefe(($r['bericht']['falschpaare_verworfen'] ?? null) === 5,
+    'fuenf Falschpaare abgetrennt: ' . json_encode($r['bericht']['falschpaare_verworfen'] ?? null));
+$fernNamen = array_column($r['bericht']['falschpaare'] ?? [], 'name');
+sort($fernNamen);
+pruefe($fernNamen === ['Fern0', 'Fern1', 'Fern2', 'Fern3', 'Fern4'], 'mit Namen: ' . implode(', ', $fernNamen));
+pruefe(count($r['passpunkte']) === 30, '`passpunkte` traegt sie nicht mehr: ' . count($r['passpunkte']));
+pruefe(($r['selbstpruefung']['falschpaare'] ?? null) === 5,
+    'die Selbstpruefung kennt die Zahl -- ohne sie saehe sie vertauschte Achsen nach dem Schnitt nicht');
 pruefe(count($r['nachbarprobe']) === 3, 'drei k-Werte');
 foreach ($r['nachbarprobe'] as $p) {
     pruefe(!array_key_exists('punkte', $p),
@@ -154,6 +181,12 @@ pruefe(abs($r['nachbarprobe'][1]['nachher_median']) < 0.01,
     'die Nachbarprobe muss ihn restlos wegnehmen: ' . $r['nachbarprobe'][1]['nachher_median']);
 pruefe(abs($r['nachbarprobe'][1]['uebereinstimmung'] - 1.0) < 0.01,
     'und die Nachbarn sind sich vollstaendig einig: ' . $r['nachbarprobe'][1]['uebereinstimmung']);
+
+// 🚩 Ungeschnitten zoegen die fuenf Fernen eine steile Gerade, wie am 14.09.2026 (-40,9 Meilen je
+// 100 bei p = 0,0005). Geschnitten traegt jeder Ort denselben Versatz, und die Steigung ist null.
+pruefe($r['west_sued_trend']['n'] === 30, 'der Trend rechnet ohne Falschpaare: n = ' . $r['west_sued_trend']['n']);
+pruefe(abs($r['west_sued_trend']['sued_je_100_west']) < 0.01,
+    'kein Scheintrend: ' . $r['west_sued_trend']['sued_je_100_west']);
 
 // --- Die Selbstpruefung geht durch: die Paare sind aus der ausgelieferten Matrix gebaut.
 pruefe($r['selbstpruefung']['ok'] === true,

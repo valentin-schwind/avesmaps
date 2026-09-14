@@ -30,16 +30,25 @@ require_once __DIR__ . '/garetien-passpunkte.php';
  * Passpunkt unbrauchbar -- gleichgueltig, wie nah die beiden zufaellig liegen.
  * ⚠️ Das verwirft auch echte Paare (eine Stadt, die bei uns doppelt liegt). Richtig so: ein
  * Passpunkt zu wenig kostet Genauigkeit, ein falscher kostet die Aussage.
+ * ⭐ MIT EINER ENGEN AUSNAHME: eine Siedlung und ihr Bauwerk desselben Namens an derselben Stelle
+ * sind EIN Ort (avesmapsGaretienPasspunktDoppelungAufloesen). "Eslamsroden" fehlte deshalb im
+ * Messlauf vom 14.09.2026 und musste von Hand gepaart werden.
+ *
+ * 🔴 UND DANACH DER RIEGEL GEGEN FALSCHPAARE. Ein Name, der auf jeder Karte nur EINMAL vorkommt,
+ * ist trotzdem kein Beleg: 37 von 204 Paaren desselben Laufs waren gleichnamige, aber andere Orte,
+ * 31 davon ueber 200 Meilen daneben -- und alle kamen an der Regel oben vorbei. Sie werden mit dem
+ * geteilten Riegel abgetrennt (avesmapsGaretienPasspunkteFalschpaareAbtrennen) und reisen mit
+ * Namen und Betrag zurueck, nie still.
  *
  * @param PDO      $pdo
  * @param int|null $runId  null = der juengste Lauf
- * @return array{paare:array,bericht:array}
+ * @return array{paare:array,falschpaare:array,bericht:array}
  */
 function avesmapsGaretienPasspunkteLesen(PDO $pdo, ?int $runId = null): array
 {
     $runId ??= avesmapsGaretienPasspunkteJuengsterLauf($pdo);
     if ($runId === null) {
-        return ['paare' => [], 'bericht' => ['grund' => 'kein Import-Lauf vorhanden']];
+        return ['paare' => [], 'falschpaare' => [], 'bericht' => ['grund' => 'kein Import-Lauf vorhanden']];
     }
 
     // --- Ihre Seite: alle Zeilen, die ein PUNKT sind und deren Typ bei uns ein Ort ist.
@@ -61,8 +70,9 @@ function avesmapsGaretienPasspunkteLesen(PDO $pdo, ?int $runId = null): array
     );
     $stmt->execute($werte);
 
+    // Je Name ALLE Vorkommen -- ob ein doppelter Name trotzdem ein Ort ist, entscheidet erst
+    // avesmapsGaretienPasspunktDoppelungAufloesen, und die braucht jedes davon.
     $ihre = [];
-    $ihreZahl = [];
     foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $zeile) {
         $punkte = avesmapsGaretienParseKoordinaten((string) ($zeile['geo'] ?? ''));
         // Ein Ort ist EIN Punkt. Mehrere Punkte heissen: das ist kein Ort, sondern ein Umriss.
@@ -79,8 +89,16 @@ function avesmapsGaretienPasspunkteLesen(PDO $pdo, ?int $runId = null): array
         if ($key === '') {
             continue;
         }
-        $ihreZahl[$key] = ($ihreZahl[$key] ?? 0) + 1;
-        $ihre[$key]     = ['name' => $name, 'gx' => (float) $gx, 'gy' => (float) $gy];
+        // Die Doppelungsregel misst in UNSEREN Einheiten -- dort ist die Punkt-Trefferschwelle definiert.
+        [$x, $y] = avesmapsGaretienNachAvesmaps((float) $gx, (float) $gy);
+        $ihre[$key][] = [
+            'name'   => $name,
+            'gx'     => (float) $gx,
+            'gy'     => (float) $gy,
+            'x'      => $x,
+            'y'      => $y,
+            'klasse' => (string) (AVESMAPS_GARETIEN_TYP_MAP[(string) $zeile['typ']]['subtyp'] ?? ''),
+        ];
     }
 
     // --- Unsere Seite: alle aktiven Ortspunkte.
@@ -90,7 +108,6 @@ function avesmapsGaretienPasspunkteLesen(PDO $pdo, ?int $runId = null): array
     );
 
     $unsere = [];
-    $unsereZahl = [];
     foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $zeile) {
         $geo = json_decode((string) ($zeile['geometry_json'] ?? ''), true);
         if (!is_array($geo) || ($geo['type'] ?? '') !== 'Point') {
@@ -106,30 +123,39 @@ function avesmapsGaretienPasspunkteLesen(PDO $pdo, ?int $runId = null): array
         if ($key === '') {
             continue;
         }
-        $unsereZahl[$key] = ($unsereZahl[$key] ?? 0) + 1;
-        $unsere[$key]     = [
+        $unsere[$key][] = [
             'name'      => (string) $zeile['name'],
             'public_id' => (string) $zeile['public_id'],
             'subtyp'    => (string) $zeile['feature_subtype'],
             'ax'        => (float) $ax,
             'ay'        => (float) $ay,
+            'x'         => (float) $ax,
+            'y'         => (float) $ay,
+            'klasse'    => (string) $zeile['feature_subtype'],
         ];
     }
 
-    // --- Paaren. Nur eindeutige Namen auf BEIDEN Seiten.
-    $paare        = [];
-    $mehrdeutig   = [];
-    $nurIhre      = 0;
-    foreach ($ihre as $key => $i) {
+    // --- Paaren. Nur Namen, die auf BEIDEN Seiten einen einzigen Ort bezeichnen.
+    $paare      = [];
+    $mehrdeutig = [];
+    $aufgeloest = [];
+    $nurIhre    = 0;
+    foreach ($ihre as $key => $ihrVorkommen) {
         if (!isset($unsere[$key])) {
             $nurIhre++;
             continue;
         }
-        if (($ihreZahl[$key] ?? 0) > 1 || ($unsereZahl[$key] ?? 0) > 1) {
-            $mehrdeutig[] = $i['name'];
+        $ihrIndex    = avesmapsGaretienPasspunktDoppelungAufloesen($ihrVorkommen);
+        $unserIndex  = avesmapsGaretienPasspunktDoppelungAufloesen($unsere[$key]);
+        if ($ihrIndex === null || $unserIndex === null) {
+            $mehrdeutig[] = $ihrVorkommen[0]['name'];
             continue;
         }
-        $u = $unsere[$key];
+        $i = $ihrVorkommen[$ihrIndex];
+        $u = $unsere[$key][$unserIndex];
+        if (count($ihrVorkommen) > 1 || count($unsere[$key]) > 1) {
+            $aufgeloest[] = $u['name'];
+        }
         $paare[] = [
             'name'      => $u['name'],
             'ihr_name'  => $i['name'],
@@ -142,18 +168,78 @@ function avesmapsGaretienPasspunkteLesen(PDO $pdo, ?int $runId = null): array
         ];
     }
 
+    $schnitt = avesmapsGaretienPasspunkteFalschpaareAbtrennen($paare);
+
     return [
-        'paare'   => $paare,
-        'bericht' => [
-            'lauf'                => $runId,
-            'ihre_ortspunkte'     => count($ihre),
-            'unsere_ortspunkte'   => count($unsere),
-            'paare'               => count($paare),
-            'mehrdeutig_verworfen'=> count($mehrdeutig),
-            'mehrdeutige_namen'   => array_slice($mehrdeutig, 0, 40),
-            'nur_bei_ihnen'       => $nurIhre,
+        'paare'       => $schnitt['paare'],
+        'falschpaare' => $schnitt['falschpaare'],
+        'bericht'     => [
+            'lauf'                       => $runId,
+            'ihre_ortspunkte'            => count($ihre),
+            'unsere_ortspunkte'          => count($unsere),
+            'paare'                      => count($schnitt['paare']),
+            'mehrdeutig_verworfen'       => count($mehrdeutig),
+            'mehrdeutige_namen'          => array_slice($mehrdeutig, 0, 40),
+            'doppelungen_aufgeloest'     => $aufgeloest,
+            'falschpaare_verworfen'      => count($schnitt['falschpaare']),
+            'falschpaar_schranke_meilen' => $schnitt['schranke_meilen'],
+            'falschpaare'                => $schnitt['falschpaare'],
+            'nur_bei_ihnen'              => $nurIhre,
         ],
     ];
+}
+
+/**
+ * Welches Vorkommen eines mehrfach vergebenen Namens ist der Passpunkt -- oder keines?
+ *
+ * ⭐ DIE EINE AUSNAHME VOM MEHRDEUTIGKEITSFILTER. Messlauf 14.09.2026 (Entwurf §3.1): Garetien
+ * fuehrt "Eslamsroden" als Burg UND als Reichsstadt, 0,85 Meilen auseinander -- derselbe Ort, und
+ * einer der elf von den Editoren genannten Kalibrierorte fiel deshalb heraus.
+ *
+ * 🔴 DIE AUSNAHME IST ENG, und jede ihrer Bedingungen traegt:
+ *   - GENAU EINE Siedlung. Zwei Siedlungen desselben Namens sind zwei Orte ("Waldheim"), auch
+ *     dicht beieinander; welche unsere ist, sagt keine Regel.
+ *   - alle anderen Vorkommen sind folglich Bauwerke (avesmapsIstBauwerksklasse, nie ein
+ *     Vergleich auf einen einzelnen Klassenwert).
+ *   - jedes davon liegt innerhalb der Punkt-Trefferschwelle des Importers von der Siedlung
+ *     (AVESMAPS_GARETIEN_TREFFER_EINHEITEN_PUNKT, 0,3 Einheiten = 0,9 Meilen). Bis dahin nennt der
+ *     Abgleich einen Punkt "an derselben Stelle", und dort ist sie gemessen: eine Burg und ihr Dorf
+ *     teilen sich in diesem Kartenwerk oft die Koordinate. Keine eigene Zahl.
+ * ⚠️ Eslamsroden liegt mit 0,85 Meilen knapp darunter -- gemessen ist die Regel an genau diesem
+ * einen Fall. Eine Burg eine Meile vor der Stadt bleibt mehrdeutig: ein Passpunkt zu wenig kostet
+ * Genauigkeit, ein falscher kostet die Aussage.
+ * ⚠️ Gilt BEIDEN Karten. Der Aufrufer gibt die Lage in Karteneinheiten, ihre also umgerechnet.
+ *
+ * @param list<array{x:float,y:float,klasse:string}> $vorkommen
+ * @return int|null  Index des Passpunkts; null = mehrdeutig
+ */
+function avesmapsGaretienPasspunktDoppelungAufloesen(array $vorkommen): ?int
+{
+    if (count($vorkommen) === 1) {
+        return array_key_first($vorkommen);
+    }
+
+    $siedlungen = [];
+    foreach ($vorkommen as $i => $v) {
+        if (!avesmapsIstBauwerksklasse((string) $v['klasse'])) {
+            $siedlungen[] = $i;
+        }
+    }
+    if (count($siedlungen) !== 1) {
+        return null;
+    }
+
+    $siedlung = $vorkommen[$siedlungen[0]];
+    foreach ($vorkommen as $i => $v) {
+        if ($i === $siedlungen[0]) {
+            continue;
+        }
+        if (hypot($v['x'] - $siedlung['x'], $v['y'] - $siedlung['y']) > AVESMAPS_GARETIEN_TREFFER_EINHEITEN_PUNKT) {
+            return null;
+        }
+    }
+
+    return $siedlungen[0];
 }
 
 /** Der juengste Import-Lauf, oder null. */
@@ -165,41 +251,6 @@ function avesmapsGaretienPasspunkteJuengsterLauf(PDO $pdo): ?int
     return $id === false ? null : (int) $id;
 }
 
-/**
- * Die Selbstpruefung, ohne die dieser Leser nicht benutzt werden darf.
- *
- * 💣 EINE VERTAUSCHTE ACHSE SIEHT WIE EINE VERSCHOBENE KARTE AUS. Genau diese Falle hat der
- * Import schon einmal bezahlt (avesmapsGaretienGeoJsonNachHausvertrag, Uebernahme §uebernahme):
- * `[x,y]` gegen `[y,x]` spiegelt alles an der Diagonalen, und bei Objekten nahe der Diagonalen
- * merkt man es NICHT. Hier waere die Folge schlimmer als ein schiefes Bild: der Rechner meldete
- * dann einen gewaltigen, wunderbar zusammenhaengenden "Versatz" -- also genau das Ergebnis,
- * das jemanden dazu bringt, eine Korrekturmatrix zu bauen.
- *
- * Deshalb: der Median der Residuen MUSS in der Groessenordnung liegen, die Entwurf §2.1 fuer
- * diese Matrix belegt (1,24 Meilen, p90 3,5). Liegt er darueber, ist die Lesart verdaechtig
- * und nicht die Karte.
- *
- * @return array{ok:bool,median:float,p90:float,warnung:string}
- */
-function avesmapsGaretienPasspunkteSelbstpruefung(array $paare, float $schranke = 15.0): array
-{
-    if (count($paare) < 10) {
-        return ['ok' => false, 'median' => 0.0, 'p90' => 0.0,
-                'warnung' => 'zu wenige Paare (' . count($paare) . ') fuer eine Aussage'];
-    }
-
-    $betraege = array_column(avesmapsGaretienPasspunktResiduen($paare), 'betrag');
-    $median   = avesmapsGaretienPasspunktMedian($betraege);
-    $p90      = avesmapsGaretienPasspunktQuantil($betraege, 0.9);
-
-    return [
-        'ok'      => $median <= $schranke,
-        'median'  => $median,
-        'p90'     => $p90,
-        'warnung' => $median <= $schranke ? '' : sprintf(
-            'Median %.1f Meilen -- Entwurf §2.1 belegt 1,24. Vor jeder Deutung pruefen: '
-            . 'richtiger Lauf? Achsen vertauscht? Falschpaare nicht gefiltert?',
-            $median
-        ),
-    ];
-}
+// Die Selbstpruefung, ohne die dieser Leser nicht benutzt werden darf, steht seit dem 14.09.2026 in
+// garetien-passpunkte.php (avesmapsGaretienPasspunkteSelbstpruefung): das Auswertungswerkzeug fragt
+// sie ebenso, und bis dahin fuehrte es eine eigene, abweichende Fassung.

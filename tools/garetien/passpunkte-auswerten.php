@@ -13,6 +13,12 @@ declare(strict_types=1);
 //        --kalib="A,B,C"               eigene Kalibrierorte statt der genannten
 //
 // Eine Zeile je Ort:  name|unser_x|unser_y|ortsklasse|ihre_rohkoordinate
+//
+// 🔴 DIE FALSCHPAARE FLIEGEN RAUS, BEVOR IRGENDETWAS GERECHNET WIRD -- mit dem Riegel, den auch der
+// Endpunkt fragt (avesmapsGaretienPasspunkteFalschpaareAbtrennen), und die Selbstpruefung ist
+// dieselbe wie dort. Bis zum 14.09.2026 rechnete dieses Werkzeug alle Paare mit: "unveraendert"
+// gefahren lieferte es eine Summe von 15.735 statt 479 Meilen, und jede Kalibrierung sah nach
+// +-0,5 % aus. Fuer den Messbericht (Entwurf §3.1) wurde der Schnitt damals von Hand vorgeschaltet.
 
 require_once __DIR__ . '/../../api/_internal/import/garetien-passpunkte.php';
 require_once __DIR__ . '/../../api/_internal/import/garetien-parser.php';
@@ -81,35 +87,38 @@ ksort($klassen);
 printf("Ortsklassen: %s\n\n", implode('  ', array_map(
     static fn($k, $v) => "{$k}:{$v}", array_keys($klassen), $klassen)));
 
-if (count($paare) < 10) {
-    fwrite(STDERR, "Zu wenige Paare fuer eine Aussage.\n");
-    exit(1);
+// --- Der Riegel gegen Falschpaare: gleichnamig, aber ein anderer Ort. Mit Namen, nicht still --
+//     wer die Liste liest, sieht, ob doch ein echtes Paar darunter ist.
+$schnitt = avesmapsGaretienPasspunkteFalschpaareAbtrennen($paare);
+$paare   = $schnitt['paare'];
+printf("Falschpaare (ueber %.0f Meilen gegen die ausgelieferte Matrix -- gleichnamig, aber ein anderer Ort): %d\n",
+    $schnitt['schranke_meilen'], count($schnitt['falschpaare']));
+foreach ($schnitt['falschpaare'] as $falsch) {
+    printf("  %-32s %8.1f mi  %s\n", $falsch['name'], $falsch['betrag'], $falsch['richtung']);
 }
+echo "\n";
 
 // --- Die Selbstpruefung zuerst. Eine vertauschte Achse saehe aus wie ein gewaltiger,
 //     wunderbar zusammenhaengender Versatz -- also wie das Ergebnis, das jemanden dazu
 //     braechte, eine Korrekturmatrix dagegen zu bauen.
+// 🔴 Dieselbe Funktion wie im Endpunkt, auf dem geschnittenen Satz und mit der Zahl der
+//    abgetrennten -- nimmt der Riegel die Mehrheit, stimmt die Lesart nicht, nicht die Karte.
 $res = avesmapsGaretienPasspunktResiduen($paare);
-$b   = array_map(static fn(array $r): float => $r['betrag'], $res);
-$k   = avesmapsGaretienPasspunktKennzahlen($b);
-printf("STAND HEUTE (ausgelieferte Matrix)\n");
+$k   = avesmapsGaretienPasspunktKennzahlen(array_map(static fn(array $r): float => $r['betrag'], $res));
+$sp  = avesmapsGaretienPasspunkteSelbstpruefung($paare, count($schnitt['falschpaare']));
+printf("STAND HEUTE (ausgelieferte Matrix, %d Paare ohne Falschpaare)\n", $k['n']);
 printf("  Median %.3f  p90 %.3f  Mittel %.3f  Streuung %.3f  Summe %.1f Meilen\n",
     $k['median'], $k['p90'], $k['mittel'], $k['streuung'], $k['summe']);
-// ⚠️ Liegt das Mittel weit ueber dem Median, sitzt ein Ausreisser drin, den der Median
-// nicht zeigt -- genau das Bild, das eine durchgelassene Marke erzeugt.
-if ($k['median'] > 0.0 && $k['mittel'] > 3.0 * $k['median']) {
-    printf("  ⚠️ Mittel (%.1f) weit ueber Median (%.1f): da sitzt mindestens ein Ausreisser.\n",
-        $k['mittel'], $k['median']);
-    printf("     Die groessten: ");
-    usort($res, static fn(array $a, array $b): int => $b['betrag'] <=> $a['betrag']);
-    foreach (array_slice($res, 0, 5) as $r) {
-        printf("%s (%.0f mi)  ", $r['name'], $r['betrag']);
-    }
-    echo "\n";
+if ($sp['ok']) {
+    printf("  Selbstpruefung bestanden.\n");
+} else {
+    printf("  ⚠️ SELBSTPRUEFUNG: %s\n", $sp['warnung']);
+    printf("     Nichts deuten, bevor das geklaert ist.\n");
 }
-if ($k['median'] > 15.0) {
-    printf("  ⚠️ Entwurf §2.1 belegt 1,24 Meilen. Vor jeder Deutung pruefen: richtiger Lauf?\n");
-    printf("     Achsen vertauscht? Falschpaare nicht gefiltert?\n");
+
+if (count($paare) < 10) {
+    fwrite(STDERR, "Zu wenige Paare fuer eine Aussage.\n");
+    exit(1);
 }
 
 // --- Wieviele der genannten Orte sind ueberhaupt dabei?

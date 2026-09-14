@@ -72,6 +72,14 @@ function avesmapsGaretienPasspunktResiduum(array $punkt, ?array $m = null): arra
 }
 
 /**
+ * Unter so vielen Meilen liegt ein Residuum im eigenen Rauschen der Daten (Median 1,24 Meilen,
+ * Entwurf §2.1). Zwei Leser: die Richtung heisst darunter "kein", und die Selbstpruefung misst den
+ * Rand eines Satzes nie an einem kleineren Median -- ein Median von 0,001 Meilen machte sonst aus
+ * jedem Rundungsfehler einen "schweren Rand".
+ */
+const AVESMAPS_GARETIEN_PASSPUNKT_RAUSCHBODEN_MEILEN = 0.5;
+
+/**
  * Die Himmelsrichtung eines Residuums -- in der Sprache, in der die Editoren melden.
  *
  * ⚠️ Eine Richtung ohne Betrag ist eine Behauptung: unter einer halben Meile liegt der Wert
@@ -80,7 +88,7 @@ function avesmapsGaretienPasspunktResiduum(array $punkt, ?array $m = null): arra
  */
 function avesmapsGaretienPasspunktRichtung(float $dx, float $dy): string
 {
-    if (sqrt($dx * $dx + $dy * $dy) < 0.5) {
+    if (sqrt($dx * $dx + $dy * $dy) < AVESMAPS_GARETIEN_PASSPUNKT_RAUSCHBODEN_MEILEN) {
         return 'kein';
     }
 
@@ -106,6 +114,162 @@ function avesmapsGaretienPasspunktRichtung(float $dx, float $dy): string
 function avesmapsGaretienPasspunktIstPlatziert(float $gx, float $gy): bool
 {
     return abs($gx) < 1000000.0 && abs($gy) < 1000000.0;
+}
+
+// ---------------------------------------------------------------------------------------------
+// DER RIEGEL GEGEN FALSCHPAARE -- und die Selbstpruefung, die ihn voraussetzt
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * Ueber so vielen Meilen Residuum ist ein namensgleiches Paar ein ANDERER Ort.
+ *
+ * 🚩 GEMESSEN, NICHT GEWAEHLT (Messlauf 14.09.2026, Entwurf §3.1): unter den 204 Paaren von Lauf 20
+ * liegt das groesste Residuum eines echten Paars bei 21,6 Meilen, das naechste bei 33,9 --
+ * dazwischen ist die Verteilung leer. 37 Paare lagen darueber, 31 davon ueber 200 Meilen.
+ * ⚠️ Die Schranke kann keinen systematischen Fehler wegschneiden: jeder in der Uebergabe simulierte
+ * macht ueber Garetien hoechstens ein paar Meilen aus. Und das Ergebnis des Laufs haengt nicht an
+ * ihr -- bei 10 und bei 50 Meilen kam dieselbe Antwort heraus.
+ */
+const AVESMAPS_GARETIEN_PASSPUNKT_FALSCHPAAR_MEILEN = 25.0;
+
+/**
+ * Trennt die Falschpaare ab: gleichnamige Orte, die auf jeder Karte nur EINMAL vorkommen und darum
+ * am Mehrdeutigkeitsfilter der Tuer vorbeikommen -- aber verschiedene Orte sind ("Dreiwegen" liegt
+ * bei uns 1.468 Meilen neben ihrem).
+ *
+ * 🔴 DER RIEGEL STEHT HIER UND WIRD GETEILT, wie avesmapsGaretienPasspunktIstPlatziert. Am
+ * 14.09.2026 hatte ihn keiner der Leser: der Endpunkt meldete aus den Falschpaaren einen
+ * West-Sued-Trend von -40,9 Meilen je 100 bei p = 0,0005 und einen Versatz von dx -11,7 / dy -22,8
+ * Meilen, die Selbstpruefung sagte "ok", und das Auswertungswerkzeug rechnete jede Kalibrierung auf
+ * +-0,5 % herunter, weil 15.000 Meilen Falschpaar-Summe jede Korrektur verschlucken. Geschnitten:
+ * +0,05 bei p = 0,78 und dx -0,38 / dy -0,27. Es fragen ihn die Tuer (avesmapsGaretienPasspunkteLesen),
+ * das Auswertungswerkzeug und die Kalibrierprobe.
+ *
+ * 🔴 GEGEN DIE EINGEFRORENE MATRIX, NIE GEGEN EINEN FIT. Ein Fit ueber die Paare nimmt ihren
+ * gemeinsamen Versatz in sich auf und liesse eine kaputte Lesart als sauberen Satz durch.
+ * 💣 UND NICHT DER ROBUSTE FIT (avesmapsGaretienPasspunktRobustFit). Dessen Schranke
+ * max(3 * Median, 5 Meilen) schneidet echte Paare mit 5-20 Meilen Zeichenrauschen mit ab und
+ * schoent damit genau Summe und Varianz, an denen die Kalibrierprobe entscheidet.
+ * 🔴 BERICHTET, NICHT STILL: jedes abgetrennte Paar kommt mit Namen, Betrag und Richtung zurueck,
+ * das groesste zuerst. Die behaltenen bleiben in ihrer Reihenfolge.
+ *
+ * @return array{paare:array,falschpaare:list<array{name:string,betrag:float,richtung:string,dx:float,dy:float}>,
+ *               schranke_meilen:float}
+ */
+function avesmapsGaretienPasspunkteFalschpaareAbtrennen(array $paare): array
+{
+    $behalten = [];
+    $falsch   = [];
+    foreach ($paare as $p) {
+        $r = avesmapsGaretienPasspunktResiduum($p);
+        if ($r['betrag'] > AVESMAPS_GARETIEN_PASSPUNKT_FALSCHPAAR_MEILEN) {
+            $falsch[] = ['name' => $r['name'], 'betrag' => $r['betrag'], 'richtung' => $r['richtung'],
+                         'dx' => $r['dx'], 'dy' => $r['dy']];
+            continue;
+        }
+        $behalten[] = $p;
+    }
+    usort($falsch, static fn(array $a, array $b): int => $b['betrag'] <=> $a['betrag']);
+
+    return [
+        'paare'           => $behalten,
+        'falschpaare'     => $falsch,
+        'schranke_meilen' => AVESMAPS_GARETIEN_PASSPUNKT_FALSCHPAAR_MEILEN,
+    ];
+}
+
+/**
+ * Die Selbstpruefung, ohne die kein Passpunkt-Satz gedeutet werden darf.
+ *
+ * 💣 EINE VERTAUSCHTE ACHSE SIEHT WIE EINE VERSCHOBENE KARTE AUS. Genau diese Falle hat der
+ * Import schon einmal bezahlt (avesmapsGaretienGeoJsonNachHausvertrag): `[x,y]` gegen `[y,x]`
+ * spiegelt alles an der Diagonalen, und bei Objekten nahe der Diagonalen merkt man es NICHT. Der
+ * Rechner meldete dann einen gewaltigen, wunderbar zusammenhaengenden "Versatz" -- also genau das
+ * Ergebnis, das jemanden dazu bringt, eine Korrekturmatrix zu bauen. Deshalb muss der Median in
+ * der Groessenordnung liegen, die Entwurf §2.1 fuer diese Matrix belegt (1,24 Meilen, p90 3,5).
+ *
+ * 💣 UND DER MEDIAN ALLEIN REICHT NICHT. Er sagte am 14.09.2026 "ok" (1,99 Meilen), waehrend das
+ * Mittel bei 77 und p90 bei 382 Meilen lag. Deshalb drei weitere Pruefungen:
+ *   - kein Residuum ueber der Falschpaar-Schranke. Ein Satz, der eines traegt, ist nicht
+ *     geschnitten, und dann sind Mittel, p90, Trend und Versatz wertlos -- bei harmlosem Median.
+ *   - kein schwerer Rand darunter: das Mittel hoechstens das Dreifache des Medians. Die Regel
+ *     kannte das Auswertungswerkzeug, der Endpunkt nicht.
+ *   - der Riegel hat eine MINDERHEIT abgetrennt, nicht die Mehrheit. 🔴 Das ist die
+ *     Achsen-Pruefung fuer den geschnittenen Satz: vertauschte Achsen liefern fast nur
+ *     Falschpaare, und die wenigen Paare nahe der Diagonalen, die den Schnitt ueberleben, haben
+ *     einen unauffaelligen Median.
+ *
+ * 🔴 GEPRUEFT WIRD DER SATZ, DER GEDEUTET WIRD -- der geschnittene, samt der Zahl der abgetrennten.
+ * Wer den rohen Satz uebergibt, bekommt die Warnung, nie ein falsches "ok". Sie steht in der
+ * Bibliothek, weil beide Leser sie fragen; bis zum 14.09.2026 fuehrte das Werkzeug eine eigene,
+ * abweichende Fassung.
+ *
+ * @param array $paare        die Paare, auf denen gerechnet wird
+ * @param int   $falschpaare  wie viele der Riegel davor abgetrennt hat
+ * @param float $schranke     Obergrenze fuer den Median, in Meilen
+ * @return array{ok:bool,n:int,falschpaare:int,median:float,mittel:float,p90:float,max:float,warnung:string}
+ */
+function avesmapsGaretienPasspunkteSelbstpruefung(array $paare, int $falschpaare = 0, float $schranke = 15.0): array
+{
+    $n         = count($paare);
+    $betraege  = array_column(avesmapsGaretienPasspunktResiduen($paare), 'betrag');
+    $kennzahl  = avesmapsGaretienPasspunktKennzahlen($betraege);
+    $warnungen = [];
+
+    if ($falschpaare > $n) {
+        $warnungen[] = sprintf(
+            '%d Paare lagen ueber %.0f Meilen und nur %d darunter -- der Riegel soll eine Minderheit '
+            . 'gleichnamiger, aber anderer Orte abtrennen, nicht die Mehrheit. Vor jeder Deutung '
+            . 'pruefen: Achsen vertauscht? richtiger Lauf?',
+            $falschpaare,
+            AVESMAPS_GARETIEN_PASSPUNKT_FALSCHPAAR_MEILEN,
+            $n
+        );
+    }
+
+    if ($n < 10) {
+        $warnungen[] = 'zu wenige Paare (' . $n . ') fuer eine Aussage';
+    } else {
+        if ($kennzahl['median'] > $schranke) {
+            $warnungen[] = sprintf(
+                'Median %.1f Meilen -- Entwurf §2.1 belegt 1,24. Vor jeder Deutung pruefen: '
+                . 'richtiger Lauf? Achsen vertauscht? Falschpaare nicht gefiltert?',
+                $kennzahl['median']
+            );
+        }
+        $ueber = count(array_filter(
+            $betraege,
+            static fn(float $b): bool => $b > AVESMAPS_GARETIEN_PASSPUNKT_FALSCHPAAR_MEILEN
+        ));
+        if ($ueber > 0) {
+            $warnungen[] = sprintf(
+                '%d Paare liegen ueber %.0f Meilen -- die Falschpaare sind nicht abgetrennt '
+                . '(avesmapsGaretienPasspunkteFalschpaareAbtrennen). Mittel, p90, Trend und Versatz '
+                . 'sind so wertlos, auch wenn der Median unauffaellig bleibt.',
+                $ueber,
+                AVESMAPS_GARETIEN_PASSPUNKT_FALSCHPAAR_MEILEN
+            );
+        }
+        if ($kennzahl['mittel'] > 3.0 * max($kennzahl['median'], AVESMAPS_GARETIEN_PASSPUNKT_RAUSCHBODEN_MEILEN)) {
+            $warnungen[] = sprintf(
+                'Mittel %.1f Meilen liegt weit ueber dem Median %.1f -- ein schwerer Rand, den der '
+                . 'Median nicht zeigt.',
+                $kennzahl['mittel'],
+                $kennzahl['median']
+            );
+        }
+    }
+
+    return [
+        'ok'          => $warnungen === [],
+        'n'           => $n,
+        'falschpaare' => $falschpaare,
+        'median'      => $kennzahl['median'],
+        'mittel'      => $kennzahl['mittel'],
+        'p90'         => $kennzahl['p90'],
+        'max'         => $kennzahl['max'],
+        'warnung'     => implode(' ', $warnungen),
+    ];
 }
 
 /** Residuen einer ganzen Liste. */
@@ -743,6 +907,12 @@ function avesmapsGaretienPasspunktKennzahlen(array $abstaende): array
  * 🔴 Die Kalibrierpunkte werden aus der Pruefmenge ENTFERNT, ueber ihren Namen. Bliebe auch nur
  * einer drin, schoente er das Ergebnis -- eine Anpassung trifft ihre eigenen Stuetzpunkte immer.
  *
+ * 🔴 UND DIE FALSCHPAARE FLIEGEN VORHER RAUS, mit dem geteilten Riegel. Messlauf 14.09.2026:
+ * ungeschnitten lag die Summe der Pruefmenge bei 15.735 statt 479 Meilen, und jede Kalibrierung
+ * sah nach +-0,5 % aus. Ein Falschpaar unter den KALIBRIERnamen waere schlimmer -- es zoege die
+ * Korrektur um Hunderte Meilen. Auf einem schon geschnittenen Satz schneidet der Riegel nichts;
+ * die abgetrennten stehen in `falschpaare`.
+ *
  * @param array $alle      alle Passpunkte
  * @param array $namen     die Namen der Kalibrierorte (die der Editoren)
  * @param int   $felder    1 = eine Abbildung, 4 = eine je Quadrant
@@ -750,6 +920,10 @@ function avesmapsGaretienPasspunktKennzahlen(array $abstaende): array
  */
 function avesmapsGaretienPasspunktKalibrierProbe(array $alle, array $namen, int $felder = 1): array
 {
+    // Vor allem anderen -- auch vor der Quadrantenmitte, die ein Falschpaar sonst mitzoege.
+    $schnitt = avesmapsGaretienPasspunkteFalschpaareAbtrennen($alle);
+    $alle    = $schnitt['paare'];
+
     $gesucht = [];
     foreach ($namen as $name) {
         $gesucht[mb_strtolower(trim((string) $name), 'UTF-8')] = true;
@@ -768,7 +942,8 @@ function avesmapsGaretienPasspunktKalibrierProbe(array $alle, array $namen, int 
 
     if (count($kalibrier) === 0 || count($pruef) === 0) {
         return ['fehler' => 'Kalibrier- oder Pruefmenge leer',
-                'kalibriert' => count($kalibrier), 'geprueft' => count($pruef)];
+                'kalibriert' => count($kalibrier), 'geprueft' => count($pruef),
+                'falschpaare' => $schnitt['falschpaare']];
     }
 
     // Die Mitte fuer die Quadranten ist der Schwerpunkt ALLER Punkte, nicht der Kalibrierten --
@@ -823,5 +998,6 @@ function avesmapsGaretienPasspunktKalibrierProbe(array $alle, array $namen, int 
         'mittel_prozent'  => $kv['mittel']  > 0 ? ($kv['mittel']  - $kn['mittel'])  / $kv['mittel']  * 100 : 0.0,
         'anteil_besser'   => count($je) > 0 ? $besser / count($je) : 0.0,
         'punkte'          => $je,
+        'falschpaare'     => $schnitt['falschpaare'],
     ];
 }

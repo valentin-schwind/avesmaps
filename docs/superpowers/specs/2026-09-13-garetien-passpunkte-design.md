@@ -358,16 +358,28 @@ nie einen schweren Endpunkt in der Schleife fahren — eine Anfrage, dann lesen.
   Sitzung, nicht im Repo.
   *(Bis dahin stand hier, warum die Cloud-Sitzung vom 13.09.2026 sie nicht fahren konnte: kein
   Netz — `CONNECT` auf `avesmaps.de:443` mit 403 abgewiesen — und keine Editor-Sitzung.)*
-- 🔧 **Der Messlauf hat keinen Riegel gegen Falschpaare** (§3.1). `action=passpunkte`, seine
-  Selbstprüfung und `tools/garetien/passpunkte-auswerten.php` rechnen alle Paare mit; die
-  Selbstprüfung sieht nur den Median und meldete „ok" bei p90 = 382 Meilen. Für §3.1 wurde der
-  Schnitt ≤ 25 Meilen von Hand vorgeschaltet. Solange der Riegel fehlt, sind `west_sued_trend`,
-  `globaler_versatz`, die Nachbarprobe und jede Kalibrierprobe aus der rohen Antwort **wertlos** —
-  und zwar überzeugend wertlos (p = 0,0005 für einen Trend, den es nicht gibt).
+- ✅ **Der Riegel gegen Falschpaare steht** (14.09.2026, nach §3.1). Bis dahin rechneten
+  `action=passpunkte`, seine Selbstprüfung und `tools/garetien/passpunkte-auswerten.php` alle Paare
+  mit, und die Selbstprüfung meldete „ok" bei p90 = 382 Meilen. Jetzt schneidet
+  `avesmapsGaretienPasspunkteFalschpaareAbtrennen` bei 25 Meilen gegen die **eingefrorene** Matrix —
+  nicht gegen einen Fit und nicht über den robusten Fit, dessen Schranke echtes Zeichenrauschen von
+  5–20 Meilen mit abschnitte — und nennt jedes abgetrennte Paar mit Namen, Betrag und Richtung. Es
+  fragen ihn die Tür (also `action=passpunkte`), das Auswertungswerkzeug und die Kalibrierprobe.
+  Die Selbstprüfung liegt jetzt in der Bibliothek, gilt beiden Lesern und prüft neben dem Median:
+  kein Residuum über der Schranke, Mittel ≤ 3 × Median, und dass der Riegel eine **Minderheit**
+  abgetrennt hat — nimmt er die Mehrheit, sind es vertauschte Achsen oder der falsche Lauf.
+  ⚠️ Eine vor diesem Tag gespeicherte rohe Antwort bleibt ungeschnitten und damit wertlos: neu
+  messen, nicht nachdeuten.
 - 🔧 **Drei der elf gemeldeten Orte ließen sich nicht paaren**: Rockenwald und Rhondur gibt es auf
   unserer Karte unter diesem Namen nicht, Fürstenhort hat bei Garetien keinen platzierten
-  Ortspunkt. Und der Mehrdeutigkeitsfilter verwirft gutartige Doppelungen — Eslamsroden steht
+  Ortspunkt. Und der Mehrdeutigkeitsfilter verwarf gutartige Doppelungen — Eslamsroden steht
   dort als Burg und als Reichsstadt 0,85 Meilen auseinander und musste von Hand gepaart werden.
+  ✅ Seit 14.09.2026 paart die Tür einen solchen Namen über die Siedlung
+  (`avesmapsGaretienPasspunktDoppelungAufloesen`): genau eine Siedlung, alle übrigen Vorkommen
+  Bauwerke innerhalb der Punkt-Trefferschwelle des Importers (0,3 Einheiten = 0,9 Meilen) — und
+  berichtet es als `doppelungen_aufgeloest`. ⚠️ Gemessen ist das an genau einem Fall, und
+  Eslamsroden liegt knapp unter der Schwelle. 🔧 `sql/garetien-passpunkte-ziehen.sql` kennt die
+  Ausnahme nicht; dort bleibt jeder doppelte Name draußen.
   🚩 **Eine kuratierte Passpunktliste änderte am Ergebnis nichts**: selbst ~84 Kalibrierorte
   schlagen die ausgelieferte Matrix nicht (§3.1, Obergrenze).
 - 🔧 **Der Befund gehört noch in §2.2 des Kartenimport-Entwurfs** (§6, „trägt nicht") — mit der

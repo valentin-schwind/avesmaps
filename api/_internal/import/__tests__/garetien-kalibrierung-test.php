@@ -245,4 +245,36 @@ foreach ($k4['korrekturen'] as $q => $kk) {
 }
 pruefe(count(array_unique($versaetze)) === 4, 'die vier Felder tragen vier verschiedene Versaetze');
 
+// =============================================================================================
+// §K  🔴 FALSCHPAARE FLIEGEN RAUS, BEVOR KALIBRIERT ODER GEMESSEN WIRD
+// =============================================================================================
+//
+// 🚩 Messlauf 14.09.2026 (Entwurf §3.1): ueber alle 204 Paare lag die Summe bei 15.735 statt
+// 479 Meilen, weil 37 gleichnamige, aber andere Orte mitgemessen wurden -- und jede Kalibrierung
+// sah nach +-0,5 % aus, weil die Falschpaare jede Korrektur verschlucken. Die Probe trennt sie
+// deshalb selbst ab, mit dem geteilten Riegel, und nennt sie.
+$mitFalschen = $mitFehler;
+foreach ([[900.0, 130.0], [120.0, 880.0], [700.0, 200.0], [300.0, 300.0]] as $i => [$fx, $fy]) {
+    [$gx, $gy] = $rueck(470.0 + $i * 50.0, 520.0);
+    $mitFalschen[] = ['name' => "Falschpaar{$i}", 'gx' => $gx, 'gy' => $gy, 'ax' => $fx, 'ay' => $fy];
+}
+// 💣 Und einer davon steht unter den Kalibriernamen -- ein Editor nennt einen Ort, den es bei
+// Garetien unter demselben Namen an ganz anderer Stelle gibt.
+$kf = avesmapsGaretienPasspunktKalibrierProbe($mitFalschen, array_merge($namen, ['Falschpaar0']), 1);
+pruefe($kf['kalibriert'] === 11, 'das Falschpaar kalibriert nicht mit: ' . $kf['kalibriert']);
+pruefe($kf['nachher']['n'] === 137, 'und wird nicht mitgemessen: ' . $kf['nachher']['n']);
+pruefe(abs($kf['summe_prozent'] - $e['summe_prozent']) < 1e-9,
+    'die Summe ist dieselbe wie ohne Falschpaare: ' . $kf['summe_prozent'] . ' gegen ' . $e['summe_prozent']);
+pruefe(abs($kf['varianz_prozent'] - $e['varianz_prozent']) < 1e-9, 'die Varianz auch');
+$kfNamen = array_column($kf['falschpaare'], 'name');
+sort($kfNamen);
+pruefe($kfNamen === ['Falschpaar0', 'Falschpaar1', 'Falschpaar2', 'Falschpaar3'],
+    'die abgetrennten werden BENANNT, nicht still verworfen: ' . implode(', ', $kfNamen));
+// Die Mitte der Quadranten wandert nicht mit den Falschpaaren -- sonst waeren zwei Laeufe nicht vergleichbar.
+$kf4 = avesmapsGaretienPasspunktKalibrierProbe($mitFalschen, $namen, 4);
+pruefe(abs($kf4['mitte'][0] - $v4['mitte'][0]) < 1e-9 && abs($kf4['mitte'][1] - $v4['mitte'][1]) < 1e-9,
+    'die Quadrantenmitte bleibt, wo sie ohne Falschpaare liegt');
+pruefe(count(avesmapsGaretienPasspunktKalibrierProbe($mitFalschen, ['GibtsNicht'], 1)['falschpaare'] ?? [0]) === 4,
+    'auch eine gescheiterte Probe nennt die abgetrennten');
+
 echo "OK: {$pruefungen} Pruefungen\n";
