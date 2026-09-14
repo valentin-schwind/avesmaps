@@ -47,6 +47,11 @@ foreach ($faelle as $fall) {
     if ($fall['browser_auto'] === true) {
         assert($ist === true, 'Server ⊇ Browser verletzt bei "' . $fall['name'] . '"');
     }
+    // 🔴 Server ⊇ Anzeige (14.09.2026): was Tooltip und Infopanel als Griff verbergen, darf erst recht
+    // nicht als Suchtreffer erscheinen (ecosystemRegionNameIsGriff im Browser).
+    if ($fall['anzeige_griff'] === true) {
+        assert($ist === true, 'Server ⊇ Anzeige verletzt bei "' . $fall['name'] . '"');
+    }
 }
 
 // 💣 Der Rueckfall-Griff steht in ZWEI Sprachen. Weicht er ab, vergibt der Browser „Fläche-101“ und

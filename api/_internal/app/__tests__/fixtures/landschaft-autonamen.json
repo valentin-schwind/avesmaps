@@ -1,20 +1,21 @@
 {
-	"hinweis": "EINE Fallliste fuer ZWEI Seiten (Entwurf docs/superpowers/specs/2026-08-28-landschaften-in-der-suche-design.md §5). browser_auto = was isEcosystemRegionAutoName(name, art) im Browser sagt (js/map-features/__tests__/landschaft-autonamen-zwilling.test.js prueft es). suche_verborgen = was der Such-Riegel des Servers sagt, wenn er ALLE Arten dieser Liste als Griffe kennt (api/_internal/app/__tests__/landscape-search-test.php). Regel: browser_auto => suche_verborgen. Die Suche darf strenger sein, nie grosszuegiger.",
+	"hinweis": "EINE Fallliste fuer DREI Regeln (Entwurf docs/superpowers/specs/2026-08-28-landschaften-in-der-suche-design.md §5). browser_auto = was isEcosystemRegionAutoName(name, art) im Browser sagt -- der HAKEN „Auto-Name“. anzeige_griff = was ecosystemRegionNameIsGriff(name, art) sagt -- ob ein LESER (Tooltip, Infopanel, „Was ist hier?“, „Führt durch“) statt des Namens die Art sieht; beide prueft js/map-features/__tests__/landschaft-autonamen-zwilling.test.js. suche_verborgen = was der Such-Riegel des Servers sagt, wenn er ALLE Arten dieser Liste als Griffe kennt (api/_internal/app/__tests__/landscape-search-test.php). Regel: browser_auto => anzeige_griff => suche_verborgen. Jede Stufe darf strenger sein als die vorige, nie grosszuegiger.",
 	"faelle": [
-		{ "name": "Wald-001", "art": "Wald", "browser_auto": true, "suche_verborgen": true },
-		{ "name": "Wald-7", "art": "Wald", "browser_auto": true, "suche_verborgen": true },
-		{ "name": "  Wald-002  ", "art": "Wald", "browser_auto": true, "suche_verborgen": true },
-		{ "name": "Fläche-100", "art": "", "browser_auto": true, "suche_verborgen": true },
-		{ "name": "Sümpfe und Moore-012", "art": "Sümpfe und Moore", "browser_auto": true, "suche_verborgen": true },
-		{ "name": "Fläche-048", "art": "Urwald", "browser_auto": false, "suche_verborgen": true },
-		{ "name": "Wald-003", "art": "Urwald", "browser_auto": false, "suche_verborgen": true },
-		{ "name": "wald-004", "art": "Wald", "browser_auto": false, "suche_verborgen": true },
-		{ "name": "Farindel", "art": "Wald", "browser_auto": false, "suche_verborgen": false },
-		{ "name": "Wald der Wälder-2", "art": "Wald", "browser_auto": false, "suche_verborgen": false },
-		{ "name": "Tannwald", "art": "Wald", "browser_auto": false, "suche_verborgen": false },
-		{ "name": "Wald-001a", "art": "Wald", "browser_auto": false, "suche_verborgen": false },
-		{ "name": "See bei Hammerschlag", "art": "See", "browser_auto": false, "suche_verborgen": false },
-		{ "name": "Oase Keft", "art": "Wüstenoase", "browser_auto": false, "suche_verborgen": false },
-		{ "name": "Ceälan", "art": "Insel", "browser_auto": false, "suche_verborgen": false }
+		{ "name": "Wald-001", "art": "Wald", "browser_auto": true, "anzeige_griff": true, "suche_verborgen": true },
+		{ "name": "Wald-7", "art": "Wald", "browser_auto": true, "anzeige_griff": true, "suche_verborgen": true },
+		{ "name": "  Wald-002  ", "art": "Wald", "browser_auto": true, "anzeige_griff": true, "suche_verborgen": true },
+		{ "name": "Fläche-100", "art": "", "browser_auto": true, "anzeige_griff": true, "suche_verborgen": true },
+		{ "name": "Sümpfe und Moore-012", "art": "Sümpfe und Moore", "browser_auto": true, "anzeige_griff": true, "suche_verborgen": true },
+		{ "name": "Fläche-048", "art": "Urwald", "browser_auto": false, "anzeige_griff": true, "suche_verborgen": true },
+		{ "name": "Fläche-019", "art": "See", "browser_auto": false, "anzeige_griff": true, "suche_verborgen": true },
+		{ "name": "wald-004", "art": "Wald", "browser_auto": false, "anzeige_griff": true, "suche_verborgen": true },
+		{ "name": "Wald-003", "art": "Urwald", "browser_auto": false, "anzeige_griff": false, "suche_verborgen": true },
+		{ "name": "Farindel", "art": "Wald", "browser_auto": false, "anzeige_griff": false, "suche_verborgen": false },
+		{ "name": "Wald der Wälder-2", "art": "Wald", "browser_auto": false, "anzeige_griff": false, "suche_verborgen": false },
+		{ "name": "Tannwald", "art": "Wald", "browser_auto": false, "anzeige_griff": false, "suche_verborgen": false },
+		{ "name": "Wald-001a", "art": "Wald", "browser_auto": false, "anzeige_griff": false, "suche_verborgen": false },
+		{ "name": "See bei Hammerschlag", "art": "See", "browser_auto": false, "anzeige_griff": false, "suche_verborgen": false },
+		{ "name": "Oase Keft", "art": "Wüstenoase", "browser_auto": false, "anzeige_griff": false, "suche_verborgen": false },
+		{ "name": "Ceälan", "art": "Insel", "browser_auto": false, "anzeige_griff": false, "suche_verborgen": false }
 	]
 }

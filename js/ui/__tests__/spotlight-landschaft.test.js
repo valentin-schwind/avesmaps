@@ -146,6 +146,8 @@ function createContext({ showAll = false, activeKind = "topographie" } = {}) {
 	context.avesmapsShowInfopanel = (markup, activeName) => log.panels.push({ markup, activeName });
 
 	vm.createContext(context);
+	// index.html laedt die Namensregel vor rendering.js -- der Untertitel fragt sie.
+	vm.runInContext(lies("js/map-features/map-features-ecosystem-naming.js"), context);
 	vm.runInContext(lies("js/map-features/map-features-ecosystem-rendering.js"), context);
 	vm.runInContext(lies("js/ui/spotlight-search.js"), context);
 	vm.runInContext(lies("js/ui/spotlight-search-focus.js"), context);

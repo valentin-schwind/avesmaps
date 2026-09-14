@@ -29,26 +29,24 @@ function avesmapsLandscapeNaming() {
 		return require("./map-features-ecosystem-naming.js");
 	}
 	return {
-		isEcosystemRegionAutoName: typeof isEcosystemRegionAutoName === "function" ? isEcosystemRegionAutoName : null,
-		ecosystemRegionDisplayName: typeof ecosystemRegionDisplayName === "function" ? ecosystemRegionDisplayName : null,
+		ecosystemRegionLeserName: typeof ecosystemRegionLeserName === "function" ? ecosystemRegionLeserName : null,
 	};
 }
 
 // What a reader should see -- or "" when there is nothing to print. A region with neither a name
 // nor a kind („Fläche-011") is the only case that vanishes: 395 of 3.995 measured hits, and none
 // of them has anything to say.
+//
+// 🔴 2026-09-14: this asked the CHECKBOX rule (isEcosystemRegionAutoName), which only knows the handle of
+// the CURRENT kind. „Fläche-048" was handed out before the region had a kind and is an Urwald now -- it
+// was printed verbatim (12 regions, measured live). ecosystemRegionLeserName knows both handles, and it
+// is the same rule the area tooltip, the area panel and „Was ist hier?" use.
 function avesmapsLandscapeDisplayName(entry) {
 	var naming = avesmapsLandscapeNaming();
 	var name = String((entry && entry.name) || "").trim();
 	var art = String((entry && entry.art) || "").trim();
-	var isAuto = naming.isEcosystemRegionAutoName
-		? naming.isEcosystemRegionAutoName(name, art)
-		: false;
-	if (art === "" && (name === "" || isAuto)) {
-		return "";
-	}
-	return naming.ecosystemRegionDisplayName
-		? naming.ecosystemRegionDisplayName(name, art)
+	return naming.ecosystemRegionLeserName
+		? naming.ecosystemRegionLeserName(name, art)
 		: (name || art);
 }
 

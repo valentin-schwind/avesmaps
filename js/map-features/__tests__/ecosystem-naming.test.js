@@ -68,4 +68,47 @@ assert.strictEqual(ecosystemRegionDisplayName("Farindel", "Wald"), "Farindel");
 assert.strictEqual(ecosystemRegionDisplayName("", "Wald"), "Wald", "no name at all also falls back to the Art");
 assert.strictEqual(ecosystemRegionDisplayName("Fläche-001", ""), "Fläche");
 
+// ------------------------------------------------------------- DER GRIFF, WIE EIN LESER IHN SIEHT ---
+// 🔴 14.09.2026: 1.136 von 1.980 Regionen trugen live einen Griff, und Tooltip wie Infopanel zeigten
+// ihn roh („Wald-218 (Wald)"). Zwölf davon rutschten zusätzlich durch die alte Regel: „Fläche-048" wurde
+// vergeben, als die Region noch keine Art hatte, und seit sie ein Urwald ist, sah der Haken darin einen
+// echten Namen. Die ANZEIGE kennt deshalb beide Griffe -- den der jetzigen Art und den Rückfall-Griff.
+const { ecosystemRegionNameIsGriff, ecosystemRegionLeserName } = require("../map-features-ecosystem-naming.js");
+
+assert.strictEqual(ecosystemRegionNameIsGriff("Wald-218", "Wald"), true);
+assert.strictEqual(ecosystemRegionNameIsGriff("Fläche-048", "Urwald"), true,
+	"der Griff aus der Zeit vor der Art bleibt ein Griff");
+assert.strictEqual(ecosystemRegionNameIsGriff("fläche-012", "See"), true,
+	"ohne Rücksicht auf Gross- und Kleinschreibung -- die sichere Richtung ist verbergen");
+assert.strictEqual(ecosystemRegionNameIsGriff("Sümpfe (alt)-3", "Sümpfe (alt)"), true,
+	"eine Art mit Klammer ist Inhalt, kein Muster");
+assert.strictEqual(ecosystemRegionNameIsGriff("Wald-003", "Urwald"), false,
+	"der Griff einer FREMDEN Art verbirgt erst die Suche -- die Anzeige kennt keinen Artenkatalog");
+assert.strictEqual(ecosystemRegionNameIsGriff("Wald der Wälder-2", "Wald"), false);
+assert.strictEqual(ecosystemRegionNameIsGriff("Nebelwald-001", "Wald"), false, "beidseitig verankert");
+assert.strictEqual(ecosystemRegionNameIsGriff("", "Wald"), false, "ein leerer Name ist kein Griff");
+assert.strictEqual(ecosystemRegionNameIsGriff(null, null), false);
+
+// 💣 Der HAKEN bleibt, wie er ist -- er ist eine eigene Entscheidung mit gespeichertem Merker
+// (avesmapsEcosystemAutoNameAusMerker). Wer die Anzeige an ihn koppelt, ändert, wie der Haken beim
+// Öffnen steht.
+assert.strictEqual(isEcosystemRegionAutoName("Fläche-048", "Urwald"), false, "der Haken ist unberührt");
+assert.strictEqual(isEcosystemRegionAutoName("wald-004", "Wald"), false, "auch in der Schreibweise");
+
+// Der Name, den ein Leser sieht -- oder "", wenn es weder Namen noch Art zu sagen gibt. Der Aufrufer
+// entscheidet, was dann steht („Ohne Namen" im Tooltip, gar nichts in „Führt durch").
+assert.strictEqual(ecosystemRegionLeserName("Farindel", "Wald"), "Farindel");
+assert.strictEqual(ecosystemRegionLeserName("  Farindel ", "Wald"), "Farindel");
+assert.strictEqual(ecosystemRegionLeserName("Wald-218", "Wald"), "Wald");
+assert.strictEqual(ecosystemRegionLeserName("Fläche-048", "Urwald"), "Urwald");
+assert.strictEqual(ecosystemRegionLeserName("", "Wald"), "Wald");
+assert.strictEqual(ecosystemRegionLeserName("Fläche-021", ""), "", "ein Griff ohne Art sagt nichts");
+assert.strictEqual(ecosystemRegionLeserName("", ""), "");
+assert.strictEqual(ecosystemRegionLeserName(undefined, null), "");
+
+// ecosystemRegionDisplayName folgt der Anzeige und behält seinen Rückfall „Fläche".
+assert.strictEqual(ecosystemRegionDisplayName("Fläche-048", "Urwald"), "Urwald");
+assert.strictEqual(ecosystemRegionDisplayName("wald-004", "Wald"), "Wald");
+assert.strictEqual(ecosystemRegionDisplayName("Fläche-021", ""), "Fläche");
+
 console.log("ecosystem naming tests passed");

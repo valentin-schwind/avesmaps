@@ -51,6 +51,23 @@ near(line[0].share, 0.5, "and their covered lengths add up");
 assert.deepStrictEqual(buildLandscapeLine(["p-4"], payload), [],
 	"neither a name nor a kind -- there is literally nothing to print");
 
+// 🔴 14.09.2026: a handle given BEFORE the region had a kind. „Fläche-048" became an Urwald later, and
+// the old rule (current kind only) printed it verbatim. It is a handle all the same, and it merges with
+// the region whose handle already follows the kind.
+{
+	const griffPayload = {
+		landscapes: {
+			"r-urwald-alt": { name: "Fläche-048", art: "Urwald", kind: "vegetation", wiki_key: "" },
+			"r-urwald-neu": { name: "Urwald-003", art: "Urwald", kind: "vegetation", wiki_key: "" },
+		},
+		paths: { "p-g": { length: 10, in: [["r-urwald-alt", 4], ["r-urwald-neu", 3]] } },
+	};
+	const griffLine = buildLandscapeLine(["p-g"], griffPayload);
+	assert.strictEqual(griffLine.length, 1, "both handles are ONE Urwald, not 'Fläche-048 · Urwald'");
+	assert.strictEqual(griffLine[0].name, "Urwald", "the old handle shows its kind as well");
+	near(griffLine[0].share, 0.7, "and the two covered lengths add up");
+}
+
 line = buildLandscapeLine(["p-5"], payload);
 near(line[0].share, 1, "rounding may push the sum past the length; the share is capped at 1");
 

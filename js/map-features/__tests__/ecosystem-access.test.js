@@ -431,6 +431,8 @@ function flaechenWelt({ bedienen }) {
 	};
 	context.globalThis = context;
 	vm.createContext(context);
+	// index.html laedt die Namensregel vor rendering.js -- der Schwebezettel der Flaeche fragt sie.
+	vm.runInContext(fs.readFileSync(path.join(__dirname, "..", "map-features-ecosystem-naming.js"), "utf8"), context);
 	vm.runInContext(renderQuelle, context);
 
 	// 💣 GEGENPROBE ZUR SANDKASTEN-FALLE: die geprüften Handler sind gegen fehlende Globals gehärtet

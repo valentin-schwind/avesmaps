@@ -1,14 +1,22 @@
-// Der Auto-Name einer Landschaft -- ZWEI Seiten, EINE Fallliste.
+// Der Auto-Name einer Landschaft -- DREI Regeln, EINE Fallliste.
 //
-// 🔴 Der Browser entscheidet den Haken „Auto-Name" (isEcosystemRegionAutoName), der Server entscheidet,
-// ob eine Landschaft in die Suche kommt (avesmapsLandscapeSearchNameIsMachineGiven,
-// api/_internal/app/landscape-search.php). Beide lesen dieselbe Datei
-// api/_internal/app/__tests__/fixtures/landschaft-autonamen.json -- dieser Test die Spalte
-// `browser_auto`, der PHP-Test die Spalte `suche_verborgen`.
+// 🔴 Der Browser entscheidet den Haken „Auto-Name" (isEcosystemRegionAutoName) und, strenger, ob ein
+// LESER statt des Namens die Art sieht (ecosystemRegionNameIsGriff). Der Server entscheidet, ob eine
+// Landschaft in die Suche kommt (avesmapsLandscapeSearchNameIsMachineGiven,
+// api/_internal/app/landscape-search.php). Alle drei lesen dieselbe Datei
+// api/_internal/app/__tests__/fixtures/landschaft-autonamen.json -- dieser Test die Spalten
+// `browser_auto` und `anzeige_griff`, der PHP-Test die Spalte `suche_verborgen`.
 //
-// 💣 Die Suche darf STRENGER sein als der Haken, nie grosszuegiger (Entwurf
-// docs/superpowers/specs/2026-08-28-landschaften-in-der-suche-design.md §5): ein Name, den der Browser
-// als „Wald-001" erkennt, darf nie als Suchtreffer erscheinen.
+// 💣 Jede Stufe darf STRENGER sein als die vorige, nie grosszuegiger (Entwurf
+// docs/superpowers/specs/2026-08-28-landschaften-in-der-suche-design.md §5): Haken ⊆ Anzeige ⊆ Suche.
+// Ein Name, den der Haken als „Wald-001" erkennt, darf nie in einem Tooltip stehen, und einer, den die
+// Anzeige verbirgt, nie als Suchtreffer erscheinen.
+//
+// 🔴 WARUM DIE ANZEIGE EINE EIGENE STUFE IST (14.09.2026): der Haken prueft nur gegen die AKTUELLE Art.
+// „Fläche-048" wurde vergeben, als die Region noch keine Art hatte; seit sie ein Urwald ist, hielt der
+// Haken den Griff fuer einen echten Namen -- und „Führt durch" zeigte ihn. Der Haken bleibt so, wie er
+// ist (er ist eine eigene Entscheidung mit gespeichertem Merker); nur die ANZEIGE kennt den Rueckfall-
+// Griff zusaetzlich, und das ohne Rücksicht auf Gross- und Kleinschreibung.
 //
 // Aus der Wurzel des Repos:  node js/map-features/__tests__/landschaft-autonamen-zwilling.test.js
 "use strict";
@@ -18,31 +26,46 @@ const fs = require("fs");
 const path = require("path");
 
 const wurzel = path.join(__dirname, "..", "..", "..");
-const { isEcosystemRegionAutoName, ECOSYSTEM_AUTO_NAME_FALLBACK } = require("../map-features-ecosystem-naming.js");
+const {
+	isEcosystemRegionAutoName,
+	ecosystemRegionNameIsGriff,
+	ECOSYSTEM_AUTO_NAME_FALLBACK,
+} = require("../map-features-ecosystem-naming.js");
 
 const fixture = JSON.parse(
 	fs.readFileSync(path.join(wurzel, "api", "_internal", "app", "__tests__", "fixtures", "landschaft-autonamen.json"), "utf8")
 );
 const faelle = fixture.faelle;
 assert.ok(Array.isArray(faelle) && faelle.length >= 10, "die Fallliste ist leer oder nicht gelesen");
+assert.strictEqual(typeof ecosystemRegionNameIsGriff, "function", "die Anzeigeregel ist nicht exportiert");
 
 let checks = 0;
 for (const fall of faelle) {
+	assert.strictEqual(typeof fall.anzeige_griff, "boolean", `Fall "${fall.name}" hat keine Spalte anzeige_griff`);
 	assert.strictEqual(isEcosystemRegionAutoName(fall.name, fall.art), fall.browser_auto,
-		`Browser-Regel bei "${fall.name}" (Art "${fall.art}")`);
-	checks++;
+		`Haken-Regel bei "${fall.name}" (Art "${fall.art}")`);
+	assert.strictEqual(ecosystemRegionNameIsGriff(fall.name, fall.art), fall.anzeige_griff,
+		`Anzeige-Regel bei "${fall.name}" (Art "${fall.art}")`);
+	checks += 3;
 	if (fall.browser_auto) {
+		assert.strictEqual(fall.anzeige_griff, true,
+			`💣 Anzeige ⊇ Haken: "${fall.name}" haelt der Haken fuer automatisch, der Tooltip zeigte ihn`);
+		checks++;
+	}
+	if (fall.anzeige_griff) {
 		assert.strictEqual(fall.suche_verborgen, true,
-			`💣 Server ⊇ Browser: "${fall.name}" haelt der Browser fuer automatisch, die Liste zeigt ihn in der Suche`);
+			`💣 Suche ⊇ Anzeige: "${fall.name}" verbirgt die Anzeige, die Liste zeigt ihn in der Suche`);
 		checks++;
 	}
 }
 
-// Ohne einen Fall, in dem die Suche strenger ist, beweist die Liste die Erweiterung nicht -- dann liefe
-// der Server-Test auch mit der Browser-Regel gruen.
-assert.ok(faelle.some((fall) => !fall.browser_auto && fall.suche_verborgen),
-	"die Liste braucht mindestens einen Fall, in dem die Suche strenger ist als der Haken"); checks++;
-assert.ok(faelle.some((fall) => !fall.browser_auto && !fall.suche_verborgen),
+// Ohne einen Fall je Stufe, in dem sie strenger ist, beweist die Liste die Erweiterung nicht -- dann
+// liefe jeder Test auch mit der schwaecheren Regel gruen.
+assert.ok(faelle.some((fall) => !fall.browser_auto && fall.anzeige_griff),
+	"die Liste braucht einen Fall, in dem die Anzeige strenger ist als der Haken (Fläche-048 als Urwald)"); checks++;
+assert.ok(faelle.some((fall) => !fall.anzeige_griff && fall.suche_verborgen),
+	"die Liste braucht einen Fall, in dem die Suche strenger ist als die Anzeige"); checks++;
+assert.ok(faelle.some((fall) => !fall.browser_auto && !fall.anzeige_griff && !fall.suche_verborgen),
 	"…und mindestens einen echten Namen, sonst verbirgt ein Riegel, der ALLES verbirgt, gruen"); checks++;
 
 // 💣 Der Rueckfall-Griff steht in zwei Sprachen.

@@ -42,6 +42,34 @@ function avesmapsWhatIsHereHeaderImageBasename(flaechen) {
 	return ersterBildtreffer(f.vegetation) || ersterBildtreffer(f.topographie) || "region";
 }
 
+/**
+ * Die Werte EINER Landschaftszeile -- „Dunkelwald (Wald)", „Weite See (Meer)". Rein bis auf `esc`.
+ *
+ * 🔴 EIN GRIFF IST KEIN NAME (14.09.2026). Die Zeile gab `region_name` roh aus: „Wald-218 (Wald)",
+ * „Fläche-048 (Urwald)". Ein Leser bekommt die Art, und die nur einmal. Die Regel steht in
+ * ecosystemRegionLeserName (map-features-ecosystem-naming.js) -- dieselbe wie im Schwebezettel der Fläche
+ * und in „Führt durch".
+ *
+ * ⚠️ Weder Name noch Art: der Wert faellt WEG, wie eine Zeile ohne Antwort -- ein Griff ohne Art sagt
+ * einem Leser nichts. Dieselbe Regel wie in „Führt durch" (avesmapsLandscapeDisplayName).
+ *
+ * Eigene Funktion (nicht inline in avesmapsWhatIsHereMarkup), damit sie ausgefuehrt statt nur im
+ * Quelltext gesucht geprueft werden kann (js/map-features/__tests__/what-is-here-panel.test.js).
+ */
+function avesmapsWhatIsHereLandschaftWerte(treffer, esc) {
+	const werte = [];
+	for (const t of (treffer || [])) {
+		const art = String((t && t.type_label) || "").trim();
+		const name = ecosystemRegionLeserName(t && t.region_name, art);
+		if (name === "") {
+			continue;
+		}
+		werte.push(esc(name)
+			+ (art !== "" && art !== name ? ' <span class="avesmaps-wih__type">(' + esc(art) + ")</span>" : ""));
+	}
+	return werte;
+}
+
 /** Der Zustand einer angezeigten Stelle: die Koordinate plus, sobald sie da ist, die Serverantwort. */
 function avesmapsWhatIsHereMarkup(latlng, antwort) {
 	const esc = escapeHtml;
@@ -87,8 +115,7 @@ function avesmapsWhatIsHereMarkup(latlng, antwort) {
 	// 🔴 Eine Zeile ohne Antwort faellt WEG. Am Seepunkt bleiben genau zwei uebrig, und das ist
 	// eine vollstaendige Auskunft, kein Fehler.
 	const zeile = (bezeichnung, treffer) => {
-		const werte = (treffer || []).map((t) => esc(t.region_name)
-			+ (t.type_label ? ' <span class="avesmaps-wih__type">(' + esc(t.type_label) + ")</span>" : ""));
+		const werte = avesmapsWhatIsHereLandschaftWerte(treffer, esc);
 		return werte.length
 			? '<div class="region-info-box__row"><dt>' + esc(bezeichnung) + "</dt><dd>"
 				+ werte.join(" · ") + "</dd></div>"

@@ -87,6 +87,8 @@ kontext.window = {
 };
 kontext.globalThis = kontext;
 vm.createContext(kontext);
+// index.html laedt die Namensregel vor rendering.js -- der Schwebezettel der Flaeche fragt sie.
+vm.runInContext(fs.readFileSync(path.join(wurzel, "js/map-features/map-features-ecosystem-naming.js"), "utf8"), kontext);
 vm.runInContext(
 	fs.readFileSync(path.join(wurzel, "js/map-features/map-features-ecosystem-rendering.js"), "utf8"),
 	kontext

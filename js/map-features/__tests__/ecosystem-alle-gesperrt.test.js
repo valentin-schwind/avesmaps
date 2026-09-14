@@ -137,6 +137,8 @@ function flaechenWelt({ darfBearbeiten }) {
 	};
 	context.globalThis = context;
 	vm.createContext(context);
+	// index.html laedt die Namensregel vor rendering.js -- der Schwebezettel der Flaeche fragt sie.
+	vm.runInContext(fs.readFileSync(path.join(wurzel, "js/map-features/map-features-ecosystem-naming.js"), "utf8"), context);
 	vm.runInContext(rendererQuelle, context);
 
 	const flaeche = {

@@ -21,6 +21,9 @@ const context = {
 };
 context.globalThis = context;
 vm.createContext(context);
+// Die Namensregel der Landschaften -- index.html laedt sie vor rendering.js, und ohne sie wirft der
+// Namensbauer laut, statt einen Griff roh durchzulassen.
+vm.runInContext(fs.readFileSync(path.join(__dirname, "..", "map-features-ecosystem-naming.js"), "utf8"), context);
 vm.runInContext(source, context);
 
 let failures = 0;
@@ -119,6 +122,19 @@ context.ecosystemAreaInfoMarkup(context.ecosystemAreaInfoSource(
 	{ region_name: "Caldaia", region_type_label: "Hochebene", kind: "topographie" }, []));
 assert(letzterKopf.subtitle === "Hochebene" && letzterKopf.suffix === "Topographie",
 	"zwei verschiedene Wörter bleiben beide stehen: " + JSON.stringify(letzterKopf));
+
+// 🔴 EIN GRIFF IST KEIN NAME (14.09.2026, Owner: „für Editor wie Besucher"). Live stand „Wald-218" als
+// Überschrift und „Wald · Vegetation" darunter. Die Überschrift wird die Art, und der Untertitel lässt sie
+// weg, weil er nichts zweimal sagt -- es bleibt die Ebene.
+const griffPanel = context.ecosystemAreaInfoMarkup(context.ecosystemAreaInfoSource(
+	{ region_name: "Wald-218", region_type_label: "Wald", kind: "vegetation" }, []));
+assert(griffPanel === "<area-panel>Wald|Wald</area-panel>", "der Griff steht nicht im Panel: " + griffPanel);
+assert(letzterKopf.title === "Wald" && letzterKopf.subtitle === "Vegetation" && letzterKopf.suffix === "",
+	"Überschrift Art, Untertitel Ebene: " + JSON.stringify(letzterKopf));
+// Der Griff aus der Zeit vor der Art -- die zwölf Fälle, die den Befund ausgelöst haben.
+context.ecosystemAreaInfoMarkup(context.ecosystemAreaInfoSource(
+	{ region_name: "Fläche-048", region_type_label: "Urwald", kind: "vegetation" }, []));
+assert(letzterKopf.title === "Urwald", "auch „Fläche-048“ an einem Urwald heisst Urwald: " + JSON.stringify(letzterKopf));
 
 // ---- Das Panel gilt ALLEN, das Leuchten nur dem Leser ----------------------------------------------
 //
@@ -251,6 +267,7 @@ function klickBuehne({ darfBearbeiten }) {
 	};
 	ctx.globalThis = ctx;
 	vm.createContext(ctx);
+	vm.runInContext(fs.readFileSync(path.join(__dirname, "..", "map-features-ecosystem-naming.js"), "utf8"), ctx);
 	vm.runInContext(source, ctx);
 
 	const flaeche = {

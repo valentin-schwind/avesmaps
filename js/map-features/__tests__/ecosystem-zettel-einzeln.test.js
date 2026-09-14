@@ -231,6 +231,8 @@ function welt() {
 	};
 	context.globalThis = context;
 	vm.createContext(context);
+	// index.html laedt die Namensregel vor rendering.js -- der Schwebezettel der Flaeche fragt sie.
+	vm.runInContext(fs.readFileSync(path.join(__dirname, "..", "map-features-ecosystem-naming.js"), "utf8"), context);
 	vm.runInContext(renderQuelle, context);
 
 	return { context, layers, pane, geschlossen, gesten, flaeche };

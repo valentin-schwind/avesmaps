@@ -77,6 +77,32 @@ assert.strictEqual(
 // Weder Art noch Ebene: nur der Name, ohne leere Klammer.
 assert.strictEqual(formatEcosystemAreaTooltip({ region_name: "Wald-001" }), "Wald-001");
 
+// 🔴 EIN GRIFF IST KEIN NAME (14.09.2026, Owner: „für Editor wie Besucher"). Live stand „Wald-218 (Wald)"
+// im Zettel und „Wald-218" als Überschrift im Infopanel -- 1.136 von 1.980 Regionen trugen so einen
+// Griff. Die Regel steht in ecosystemRegionNameIsGriff (map-features-ecosystem-naming.js); hier wird nur
+// geprüft, dass der Zettel sie benutzt. Der Griff bleibt im Dialog und in der Editorliste sichtbar.
+assert.strictEqual(
+	formatEcosystemAreaTooltip({ region_name: "Wald-218", kind: "vegetation", region_type: "wald", region_type_label: "Wald" }),
+	"Wald",
+	"statt „Wald-218 (Wald)“ die Art, und die nur einmal"
+);
+assert.strictEqual(
+	formatEcosystemAreaTooltip({ region_name: "Fläche-048", kind: "vegetation", region_type: "urwald", region_type_label: "Urwald" }),
+	"Urwald",
+	"der Griff aus der Zeit vor der Art"
+);
+// Ein Griff ohne Art ist wie gar kein Name.
+assert.strictEqual(
+	formatEcosystemAreaTooltip({ region_name: "Fläche-021", kind: "derographisch", region_type: "" }),
+	"Ohne Namen (Derographie)"
+);
+// 💣 Dieselbe Wiederholung bei einem ECHTEN Namen, der wie seine Art heisst -- „sag nichts zweimal",
+// dieselbe Regel wie im Untertitel des Panels (ecosystemAreaUntertitelTeile).
+assert.strictEqual(
+	formatEcosystemAreaTooltip({ region_name: "Gemäßigte Zone", kind: "klima", region_type_label: "Gemäßigte Zone" }),
+	"Gemäßigte Zone"
+);
+
 // -------------------------------------------------------------------- STAPELREIHENFOLGE ---
 // 🔴 SIE WIRD HIER NICHT MEHR GEPRUEFT. Bis zum 19.08.2026 rechnete diese Datei die Reihenfolge
 // aus der Flaechengroesse (`ecosystemStackingOrder`, gross unten, klein oben). Seither steht sie

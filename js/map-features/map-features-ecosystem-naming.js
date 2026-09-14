@@ -97,17 +97,62 @@ function avesmapsEcosystemAutoNameAusMerker(merker, name, artLabel) {
 	return isEcosystemRegionAutoName(name, artLabel);
 }
 
-// Was ein Leser sehen soll. Ein Auto-Name ist interne Buchführung und darf nie nach aussen dringen --
-// statt „Wald-001" bekommt er „Wald". Ein namenloser Datensatz ebenso.
+// Ist dieser Name ein GRIFF, den ein LESER nie zu sehen bekommt? Strenger als der Haken darüber.
+//
+// 🔴 ZWEI GRIFFE, NICHT EINER (14.09.2026). Der Haken prüft nur gegen die JETZIGE Art. „Fläche-048" wurde
+// vergeben, als die Region noch keine Art hatte -- der Zeichner schickt dabei `auto_name: false` mit, der
+// Name bleibt also stehen, wenn später eine Art dazukommt. Seit sie ein Urwald ist, hielt der Haken den
+// Griff für einen echten Namen, und „Führt durch" zeigte ihn (12 Regionen, live gemessen). Die Anzeige
+// kennt deshalb den Griff der jetzigen Art UND den Rückfall-Griff.
+//
+// 💣 DER HAKEN BLEIBT, WIE ER IST. isEcosystemRegionAutoName entscheidet, wie „Auto-Name" beim Öffnen
+// steht (avesmapsEcosystemAutoNameAusMerker) -- eine eigene Entscheidung mit gespeichertem Merker. Wer
+// die Anzeige an ihn koppelt oder ihn an die Anzeige, ändert, wie der Haken aufgeht.
+//
+// ⚠️ Ohne Rücksicht auf Gross- und Kleinschreibung: die sichere Richtung ist „verbergen".
+// ⚠️ Die SUCHE ist noch strenger -- sie kennt jede Art, auch stillgelegte
+// (avesmapsLandscapeSearchAutoNamePattern, api/_internal/app/landscape-search.php). Der Browser hat
+// keinen Artenkatalog, nur die Art der Zeile, und die geladenen Flächen hängen am Kartenausschnitt.
+// Die Reihenfolge Haken ⊆ Anzeige ⊆ Suche hält die gemeinsame Fallliste
+// (api/_internal/app/__tests__/fixtures/landschaft-autonamen.json).
+function ecosystemRegionNameIsGriff(name, artLabel) {
+	const trimmed = String(name === null || name === undefined ? "" : name).trim();
+	if (trimmed === "") {
+		return false;
+	}
+	const griffe = [ecosystemAutoNamePrefix(artLabel), ECOSYSTEM_AUTO_NAME_FALLBACK]
+		.filter((griff, index, liste) => liste.indexOf(griff) === index)
+		.map(escapeEcosystemNameForRegExp);
+	return new RegExp(`^(?:${griffe.join("|")})-\\d+$`, "iu").test(trimmed);
+}
+
+// Der Name, den ein LESER an einer Landschaft sieht -- oder "", wenn es weder einen Namen noch eine Art
+// zu sagen gibt. Ein Griff ist interne Buchführung und darf nie nach aussen dringen: statt „Wald-218"
+// steht „Wald", statt „Fläche-048" an einem Urwald „Urwald".
+//
+// 🔴 EIN LESER, VIELE FLÄCHEN (Owner 14.09.2026: für Editor wie Besucher): der Schwebezettel und das
+// Infopanel einer Fläche (ecosystemAreaDisplayName, map-features-ecosystem-rendering.js), „Was ist hier?"
+// (avesmapsWhatIsHereLandschaftWerte) und „Führt durch" (avesmapsLandscapeDisplayName). Bis zu diesem Tag
+// benutzte nur die letzte eine Namensregel; die übrigen gaben den Griff roh aus -- 1.136 von 1.980
+// Regionen trugen live einen. Den Griff sieht der Editor weiterhin im Dialog und in der Editorliste.
+//
+// ⚠️ Was bei "" steht, entscheidet der Aufrufer: der Zettel sagt „Ohne Namen", „Führt durch" und
+// „Was ist hier?" lassen den Eintrag weg.
+function ecosystemRegionLeserName(name, artLabel) {
+	const trimmed = String(name === null || name === undefined ? "" : name).trim();
+	if (trimmed !== "" && !ecosystemRegionNameIsGriff(trimmed, artLabel)) {
+		return trimmed;
+	}
+	return String(artLabel === null || artLabel === undefined ? "" : artLabel).trim();
+}
+
+// Was ein Leser sehen soll -- wie ecosystemRegionLeserName, aber nie leer: ohne Namen und ohne Art bleibt
+// der Rückfall-Griff „Fläche".
 //
 // (Der Besitzer nannte als Alternative „Unbenannter Wald". Das ist eine Zeile hier, nicht an jedem
 // Aufrufer -- deshalb steht die Entscheidung an dieser einen Stelle.)
 function ecosystemRegionDisplayName(name, artLabel) {
-	const trimmed = String(name === null || name === undefined ? "" : name).trim();
-	if (trimmed === "" || isEcosystemRegionAutoName(trimmed, artLabel)) {
-		return ecosystemAutoNamePrefix(artLabel);
-	}
-	return trimmed;
+	return ecosystemRegionLeserName(name, artLabel) || ecosystemAutoNamePrefix(artLabel);
 }
 
 if (typeof module !== "undefined" && module.exports) {
@@ -118,6 +163,8 @@ if (typeof module !== "undefined" && module.exports) {
 		nextEcosystemRegionAutoName,
 		isEcosystemRegionAutoName,
 		avesmapsEcosystemAutoNameAusMerker,
+		ecosystemRegionNameIsGriff,
+		ecosystemRegionLeserName,
 		ecosystemRegionDisplayName,
 	};
 }

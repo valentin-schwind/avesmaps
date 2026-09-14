@@ -60,6 +60,11 @@ function ladeKopfbildFunktion() {
 	vm.createContext(sandbox);
 	vm.runInContext(fs.readFileSync(path.join(ROOT, "js", "ui", "popups.js"), "utf8"),
 		sandbox, { filename: "popups.js" });
+	// Die Namensregel der Landschaften -- index.html laedt sie lange vor diesem Panel.
+	vm.runInContext(
+		fs.readFileSync(path.join(ROOT, "js", "map-features", "map-features-ecosystem-naming.js"), "utf8"),
+		sandbox, { filename: "map-features-ecosystem-naming.js" }
+	);
 	vm.runInContext(
 		fs.readFileSync(path.join(ROOT, "js", "map-features", "map-features-what-is-here.js"), "utf8"),
 		sandbox, { filename: "map-features-what-is-here.js" }
@@ -128,5 +133,40 @@ assert.strictEqual(
 assert.strictEqual(kopfbild({ vegetation: [{ type_label: "Unbekannt" }] }), "region",
 	"kein Treffer irgendwo -> der allgemeine Rueckfall \"region\"");
 assert.strictEqual(kopfbild({}), "region", "ganz ohne Landschaftsdaten -> derselbe Rueckfall");
+
+// ------------------------------------------------------------ DIE LANDSCHAFTSZEILE, AUSGEFUEHRT ------
+// 🔴 14.09.2026: die Zeile gab `region_name` roh aus -- „Wald-218 (Wald)", „Fläche-048 (Urwald)". Ein
+// Griff ist interne Buchfuehrung; ein Leser bekommt die Art, und die nur einmal. Die Regel selbst steht
+// in ecosystemRegionLeserName (map-features-ecosystem-naming.js), hier wird sie AUSGEFUEHRT.
+const landschaftWerte = kopfbildSandbox.avesmapsWhatIsHereLandschaftWerte;
+assert.strictEqual(typeof landschaftWerte, "function", "avesmapsWhatIsHereLandschaftWerte ist geladen");
+const escTest = (wert) => String(wert).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const werte = (treffer) => [...landschaftWerte(treffer, escTest)];
+
+assert.deepStrictEqual(werte([{ region_name: "Dunkelwald", type_label: "Wald" }]),
+	['Dunkelwald <span class="avesmaps-wih__type">(Wald)</span>'],
+	"ein echter Name behaelt seine Art in Klammern");
+assert.deepStrictEqual(werte([{ region_name: "Wald-218", type_label: "Wald" }]), ["Wald"],
+	"statt des Griffs die Art -- und keine zweite in Klammern");
+assert.deepStrictEqual(werte([{ region_name: "Fläche-048", type_label: "Urwald" }]), ["Urwald"],
+	"der Griff aus der Zeit vor der Art");
+assert.deepStrictEqual(werte([{ region_name: "Weiden", type_label: null }]), ["Weiden"],
+	"ein Name ohne Art steht allein");
+// 🔴 Weder Name noch Art: der Wert faellt WEG, wie eine Zeile ohne Antwort (siehe oben) -- dieselbe
+// Regel wie in „Führt durch" (avesmapsLandscapeDisplayName).
+assert.deepStrictEqual(werte([{ region_name: "Fläche-021", type_label: null }]), [],
+	"ein Griff ohne Art sagt einem Leser nichts");
+assert.deepStrictEqual(
+	werte([{ region_name: "Fläche-021", type_label: "" }, { region_name: "Weiden", type_label: "Region" }]),
+	['Weiden <span class="avesmaps-wih__type">(Region)</span>'],
+	"nur der leere Wert faellt weg, nicht die ganze Zeile");
+assert.deepStrictEqual(werte([{ region_name: "A<b>", type_label: "W&S" }]),
+	['A&lt;b&gt; <span class="avesmaps-wih__type">(W&amp;S)</span>'], "beides wird maskiert");
+assert.deepStrictEqual(werte(null), [], "keine Treffer -> keine Werte");
+
+// Und das Panel benutzt sie wirklich -- der alte Rohzugriff ist fort.
+assert.ok(/const werte = avesmapsWhatIsHereLandschaftWerte\(treffer, esc\)/.test(quelle),
+	"die Zeile baut ihre Werte ueber avesmapsWhatIsHereLandschaftWerte");
+assert.ok(!/esc\(t\.region_name\)/.test(quelle), "kein roher region_name mehr in der Zeile");
 
 console.log("what-is-here-panel: alles gruen");

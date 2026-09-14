@@ -567,8 +567,32 @@ if (typeof document !== "undefined" && !document.__avesmapsEcosystemHighlightBou
 // Name und Art einer Fläche in lesbarer Form -- EINE Stelle, mehrere Leser (Schwebezettel, Panel-
 // Rückfall). Getrennt gepflegt driften sie auseinander, und dann nennt der Zettel etwas anderes als die
 // Überschrift, die auf ihn folgt.
+//
+// 🔴 EIN GRIFF IST KEIN NAME (14.09.2026, Owner: „für Editor wie Besucher"). Hier stand bis dahin der
+// Name roh, und live las der Zettel „Wald-218 (Wald)", das Panel „Wald-218" -- 1.136 von 1.980 Regionen
+// trugen so einen Griff. Die Regel steht in map-features-ecosystem-naming.js (ecosystemRegionLeserName)
+// und wird hier nicht nachgebaut. Den Griff sieht der Editor weiterhin im Dialog und in der Editorliste.
+//
+// ⚠️ Die Art für die Griff-Frage ist die BEZEICHNUNG („Wald"), aus der der Griff gebaut wurde; fehlt sie
+// (alter Zwischenspeicher), der Schlüssel -- die Regel vergleicht ohne Gross- und Kleinschreibung.
 function ecosystemAreaDisplayName(area) {
-	return String(area?.region_name || "").trim() || "Ohne Namen";
+	const art = String(area?.region_type_label || area?.region_type || "").trim();
+	return ecosystemAreaNamensregel()(area?.region_name, art) || "Ohne Namen";
+}
+
+// Die Namensregel der Landschaften. Unter Node über require, im Browser als globale Funktion --
+// index.html lädt map-features-ecosystem-naming.js vor dieser Datei.
+//
+// 💣 KEIN STILLER RÜCKFALL AUF DEN ROHEN NAMEN: genau der war der Fehler. Fehlt die Datei, wird laut
+// geworfen, und der Test, der sie nicht lädt, fällt um, statt einen Griff grün durchzulassen.
+function ecosystemAreaNamensregel() {
+	if (typeof module !== "undefined" && module.exports && typeof require === "function") {
+		return require("./map-features-ecosystem-naming.js").ecosystemRegionLeserName;
+	}
+	if (typeof ecosystemRegionLeserName !== "function") {
+		throw new Error("ecosystemRegionLeserName fehlt -- map-features-ecosystem-naming.js muss vor map-features-ecosystem-rendering.js geladen sein");
+	}
+	return ecosystemRegionLeserName;
 }
 
 function ecosystemAreaTypeLabel(area) {
@@ -600,7 +624,9 @@ function formatEcosystemAreaTooltip(area) {
 	// Klammer.
 	const typeLabel = ecosystemAreaTypeLabel(area);
 
-	return typeLabel ? `${regionName} (${typeLabel})` : regionName;
+	// 💣 Nichts zweimal (14.09.2026): ein Griff wird zur Art („Wald-218" -> „Wald"), und „Wald (Wald)"
+	// sagte dasselbe Wort zweimal. Dieselbe Regel wie im Untertitel des Panels (ecosystemAreaUntertitelTeile).
+	return typeLabel && typeLabel !== regionName ? `${regionName} (${typeLabel})` : regionName;
 }
 
 // ---- Der Klick auf eine Fläche: wer beantwortet ihn? -----------------------------------------------
