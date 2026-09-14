@@ -149,7 +149,8 @@ function pathWegAktionErlaubt(path) {
 
 // "Anzeigen" (Owner 2026-07-17): highlights the WHOLE way and zooms to its full extent -- the same thing the
 // ?strasse=/?fluss= deep link does, through the same resolver. Filled (--accent) because it is the only tile
-// that acts on the MAP; the other two open dialogs. Gated like "Link teilen" on a linked wiki article (that
+// that moves the MAP view to the way; „Weg als Route" fills the route planner, and „Link teilen" /
+// „Änderungen vorschlagen" open dialogs. Gated like "Link teilen" on a linked wiki article (that
 // URL identifies the way), and off for sea routes like the item links.
 // The sextant is what "Anzeigen" already looks like elsewhere (the show-in-panel tile on the "nächster Ort"
 // box, js/map-features/map-features-location-marker-entry.js) -- same word, same icon, even though the
