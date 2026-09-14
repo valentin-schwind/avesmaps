@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Wege: ganze Straße oder Abschnitt · weitere Wiki-Zuweisungen – Mockup (Abstimmung, 2026-09-14)</title>
+<script>
+  /* Wie jede Editorseite: gespeicherte Wahl schlaegt OS-Schema, vor dem ersten Anstrich. */
+  (function () {
+    function isDark() {
+      var s = null; try { s = localStorage.getItem("avesmaps-theme"); } catch (e) {}
+      if (s === "dark") { return true; }
+      if (s === "light") { return false; }
+      return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    }
+    if (isDark()) { document.documentElement.setAttribute("data-theme", "dark"); }
+  })();
+</script>
+<!-- 🔴 RELATIVE Pfade, Absicht: die ECHTE CSS-Kette der Karte (styles.css) plus das Blatt des
+     Wege-Editors. Dialog, Wiki-Kasten, Infobox-Kacheln und Listenzeile sind also die Bauteile, die es
+     wirklich gibt. ⚠️ Per file:// geoeffnet laden die Blaetter je nach Browser nicht -- ueber einen
+     lokalen Server ansehen (php -S 127.0.0.1:8765 -t <repo>). -->
+<link rel="stylesheet" href="../css/styles.css">
+<link rel="stylesheet" href="../css/pages/wege-editor.css">
+<style>
+/* Kein hartkodierter Farbwert, kein Radius, keine Schrift unter 11px (AGENTS.md §12) -- mit EINER
+   benannten Ausnahme: die Markierungsfarbe. */
+:root {
+	/* 🔴 KEIN TOKEN, sondern der Wert von SPOTLIGHT_PATH_HIGHLIGHT_STYLE.color (js/ui/spotlight-search.js).
+	   Genau diese Farbe zeichnet „Anzeigen" heute um einen Weg; die Markierung soll dieselbe sein. */
+	--proto-markierung: #ffd72e;
+}
+html, body { height: auto; overflow: auto; }
+body { background: var(--color-page-bg); color: var(--color-text); font-size: var(--font-size-body); }
+.proto-page { max-width: 1180px; margin: 0 auto; padding: var(--space-24) var(--space-16) 80px; }
+.proto-page a { color: var(--color-link); }
+.proto-page h1 { font-size: var(--font-size-title); color: var(--color-text-strong); margin: 0 0 var(--space-6); }
+.proto-page h2.proto-h { font-size: var(--font-size-subhead); color: var(--color-text-strong); margin: 36px 0 var(--space-6);
+	padding-bottom: var(--space-4); border-bottom: 1px solid var(--color-divider); }
+.proto-lead, .proto-note { color: var(--color-text-muted); max-width: 820px; line-height: var(--leading-normal); margin: 0 0 var(--space-10); }
+.proto-note b, .proto-lead b { color: var(--color-text); }
+
+/* ── 1. Buehne: Karte + Infobox ─────────────────────────────────────────────────────────────── */
+.proto-buehne { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: var(--space-16); align-items: start; }
+.proto-karte { background: var(--color-panel-muted); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden; }
+.proto-karte svg { display: block; width: 100%; height: auto; cursor: pointer; }
+.proto-karte__leiste { display: flex; justify-content: space-between; align-items: center; gap: var(--space-8); padding: var(--space-6) var(--space-10);
+	border-top: 1px solid var(--color-divider); background: var(--color-panel); font-size: var(--font-size-small); color: var(--color-text-muted); }
+.proto-karte__leiste b { color: var(--color-text); }
+
+.seg-strich { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.seg-huelle { fill: none; stroke: var(--color-border-strong); stroke-width: 9; stroke-linecap: round; }
+.seg-strasse { stroke: var(--color-panel); stroke-width: 6; }
+.seg-pfad { stroke: var(--color-text-muted); stroke-width: 2.2; }
+/* Die Linie SELBST wird gelb (Owner): gleiche Breite wie der Strich darunter, keine Umrandung. */
+.seg-mark { fill: none; stroke: var(--proto-markierung); stroke-width: 6; stroke-linecap: round; opacity: 0; pointer-events: none; }
+.seg-mark--pfad { stroke-width: 4; }
+.seg-mark.is-an { opacity: 1; }
+.seg-mark.is-anzeige { opacity: 1; stroke-dasharray: 8 6; stroke-linecap: butt; }
+.seg-treffer { fill: none; stroke: transparent; stroke-width: 22; pointer-events: stroke; }
+.ort { fill: var(--color-panel); stroke: var(--color-text); stroke-width: 2.4; pointer-events: none; }
+.kreuzung { fill: var(--color-text-muted); pointer-events: none; }
+.ortsname { font-size: 11px; fill: var(--color-text); paint-order: stroke; stroke: var(--color-panel-muted); stroke-width: 3px; pointer-events: none; }
+.kartenname { font-size: 13px; fill: var(--color-text-strong); paint-order: stroke; stroke: var(--color-panel-muted); stroke-width: 4px; pointer-events: none; }
+.kartenname--pfad { fill: var(--color-link); }
+
+/* Das Panel rechts: die echte .location-popup-Huelle, nur ohne position:fixed des Infopanels. */
+.proto-panel { background: var(--color-panel); border: 1px solid var(--color-border); border-radius: var(--radius-md); box-shadow: var(--shadow-dialog); }
+.proto-panel .location-popup { max-width: none; }
+.proto-leer { padding: var(--space-16); color: var(--color-text-muted); line-height: var(--leading-normal); }
+
+/* NEU: die Zeile, die sagt, WAS markiert ist -- ohne Kasten, direkt unter der Wegart (Owner). */
+.proto-markiert { font-size: var(--font-size-small); color: var(--color-text); line-height: var(--leading-snug); margin-top: 2px; }
+
+/* Die Vorschau, was „Weg als Route" in den Routenplaner setzt. */
+.proto-spalte { display: flex; flex-direction: column; gap: var(--space-10); }
+.proto-route { background: var(--color-panel); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-10) var(--space-12); box-shadow: var(--shadow-dialog); }
+.proto-route__titel { font-size: var(--font-size-caption); letter-spacing: var(--letter-spacing-caps); text-transform: uppercase; color: var(--color-text-muted); font-weight: var(--font-weight-bold); margin-bottom: var(--space-4); }
+.proto-route__liste { margin: 0; padding-left: 22px; font-size: var(--font-size-small); line-height: var(--leading-normal); }
+.proto-route__rolle { color: var(--color-text-muted); font-size: var(--font-size-caption); }
+.proto-route__hinweis { margin: var(--space-6) 0 0; font-size: var(--font-size-caption); color: var(--color-text-muted); line-height: var(--leading-snug); }
+
+/* ── 2. Dialoge ─────────────────────────────────────────────────────────────────────────────── */
+.proto-zwei { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: var(--space-16); align-items: start; }
+.proto-dialog-kasten { display: flex; flex-direction: column; gap: var(--space-4); }
+.proto-dialog-kasten > .proto-schild { font-size: var(--font-size-caption); letter-spacing: var(--letter-spacing-caps); text-transform: uppercase;
+	color: var(--color-text-muted); font-weight: var(--font-weight-bold); }
+.proto-dialog-kasten .location-report-dialog { width: 100%; max-height: none; border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); }
+.proto-dialog-kasten.is-hervor .location-report-dialog { outline: 3px solid var(--proto-markierung); outline-offset: 2px; }
+/* Im echten Dialog stehen Titel links und Knoepfe rechts (Bildschirmfoto „Weg bearbeiten"). */
+.proto-dialog-kasten .label-wiki-reference__head { display: flex; justify-content: space-between; align-items: center; gap: var(--space-8); }
+.proto-umfang { margin: 0 0 var(--space-8); padding: var(--space-6) var(--space-8); border-radius: var(--radius-sm);
+	background: var(--color-panel-soft); border: 1px solid var(--color-border); font-size: var(--font-size-small); line-height: var(--leading-snug); }
+.proto-umfang b { color: var(--color-text-strong); }
+.proto-gesperrt { display: block; font-size: var(--font-size-caption); color: var(--color-text-muted); margin: 2px 0 var(--space-6); }
+.proto-teils { font-size: var(--font-size-caption); color: var(--color-text-muted); margin-left: var(--space-4); }
+
+/* Die Zuweisungsliste im Wiki-Kasten: eine Zeile je Zuweisung, links WO (von Ort bis Ort). */
+.proto-zuw { width: 100%; border-collapse: collapse; margin: var(--space-4) 0 var(--space-6); font-size: var(--font-size-small); }
+.proto-zuw td { padding: var(--space-4) var(--space-4); border-top: 1px solid var(--color-divider); vertical-align: baseline; }
+.proto-zuw tr:first-child td { border-top: 0; }
+.proto-zuw__wo { color: var(--color-text-muted); width: 34%; }
+.proto-zuw__schl { color: var(--color-text-muted); font-size: var(--font-size-caption); }
+.proto-zuw__rolle { font-size: var(--font-size-caption); color: var(--color-text-muted); white-space: nowrap; text-align: right; }
+.proto-zuw__x { width: 1%; text-align: right; }
+.proto-x { border: 0; background: none; color: var(--color-text-muted); font: inherit; cursor: pointer; padding: 0 var(--space-2); }
+.proto-weitere { display: flex; gap: var(--space-6); align-items: center; margin-top: var(--space-4); }
+.proto-weitere input { flex: 1 1 auto; min-width: 0; }
+.proto-weitere__titel { font-size: var(--font-size-caption); letter-spacing: var(--letter-spacing-caps); text-transform: uppercase;
+	color: var(--color-text-muted); font-weight: var(--font-weight-bold); margin: var(--space-8) 0 var(--space-2); }
+
+/* ── 3. Wege-Editor ─────────────────────────────────────────────────────────────────────────── */
+.proto-liste { width: 340px; background: var(--color-panel); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-6); }
+.proto-l3 { color: var(--color-text-muted); }
+.proto-l3 b { color: var(--color-text); font-weight: var(--font-weight-regular); }
+
+/* ── 4. Regeln ──────────────────────────────────────────────────────────────────────────────── */
+.proto-regeln { margin: var(--space-8) 0 0; padding-left: 20px; line-height: var(--leading-normal); max-width: 860px; }
+.proto-regeln li { margin-bottom: var(--space-4); }
+.proto-regeln .proto-offen { color: var(--color-link); }
+.proto-tafel { border-collapse: collapse; margin: var(--space-6) 0 var(--space-10); font-size: var(--font-size-small); max-width: 900px; }
+.proto-tafel th, .proto-tafel td { text-align: left; padding: var(--space-4) var(--space-10); border-bottom: 1px solid var(--color-divider); vertical-align: top; }
+.proto-tafel th { color: var(--color-text-muted); font-weight: var(--font-weight-bold); font-size: var(--font-size-caption);
+	letter-spacing: var(--letter-spacing-caps); text-transform: uppercase; }
+.proto-tafel td.proto-zahl { text-align: right; white-space: nowrap; }
+.proto-tafel code { font-size: var(--font-size-small); }
+
+@media (max-width: 900px) {
+	.proto-buehne { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="proto-page">
+
+<h1>Wege anklicken: ganze Straße oder Abschnitt · weitere Wiki-Zuweisungen</h1>
+<p class="proto-lead">Mockup zur Abstimmung (Idee #116). <b>Klick auf die Karte</b>: der erste Klick markiert die ganze
+Straße, der zweite nur den Abschnitt. <b>„Bearbeiten"</b> bearbeitet genau das, was markiert ist. Jeder Abschnitt sagt dazu,
+<b>von wo bis wo</b> er geht, damit man ihn einordnen kann. Das Beispiel ist erfunden: die Reichsstraße 2 in 10 Abschnitten, einer davon
+(Abschnitt 7: Silkwiesen – Wieha) gehört zusätzlich zum Bärenpfad; zwischen Puleth und Natzungen liegt eine Kreuzung.</p>
+
+<!-- ═════════════════════════════════════ 1 ═════════════════════════════════════ -->
+<h2 class="proto-h">1 · Klickfolge auf der Karte (Bearbeiten-Modus)</h2>
+<div class="proto-buehne">
+	<div class="proto-karte">
+		<svg id="karte" viewBox="0 0 700 460" role="img" aria-label="Schematische Karte mit Reichsstraße 2 und Bärenpfad">
+			<g id="huellen"></g>
+			<g id="striche"></g>
+			<g id="marks"></g>
+			<g id="knoten"></g>
+			<g id="namen"></g>
+			<text class="kartenname" x="120" y="330" transform="rotate(-38 120 330)">Reichsstraße 2</text>
+			<text class="kartenname kartenname--pfad" x="575" y="360" transform="rotate(12 575 360)">Bärenpfad</text>
+			<g id="treffer"></g>
+		</svg>
+		<div class="proto-karte__leiste">
+			<span id="leiste">Nichts markiert. Klick auf die Reichsstraße oder den Bärenpfad.</span>
+			<button type="button" class="location-report-form__button location-report-form__button--secondary" id="zuruecksetzen">Markierung aufheben</button>
+		</div>
+	</div>
+	<div class="proto-spalte"><aside class="proto-panel" id="panel" aria-live="polite"></aside><div class="proto-route" id="route" hidden></div></div>
+</div>
+<ol class="proto-regeln">
+	<li><b>1. Klick</b> auf eine Straße → die ganze Straße ist markiert (alle Abschnitte, die der Wege-Editor als <em>einen</em> Weg listet).</li>
+	<li><b>2. Klick</b> auf dieselbe Straße → nur der angeklickte Abschnitt ist markiert.</li>
+	<li>Klick auf einen <b>anderen</b> Abschnitt derselben Straße → dieser Abschnitt. Klick auf den <b>markierten</b> Abschnitt → wieder die ganze Straße.</li>
+	<li>Klick daneben → Markierung weg. Der <b>Doppelklick</b> bleibt „Verlauf bearbeiten" wie heute.</li>
+	<li>Am <b>Bärenpfad</b>: Abschnitt 7: Silkwiesen – Wieha der Reichsstraße wird gestrichelt <em>angezeigt</em>, aber nicht mitbearbeitet — er gehört als Hauptzuweisung der Reichsstraße.</li>
+</ol>
+
+<!-- ═════════════════════════════════════ 2 ═════════════════════════════════════ -->
+<h2 class="proto-h">2 · „Bearbeiten" bearbeitet das Markierte</h2>
+<p class="proto-note">Derselbe Dialog wie heute. Neu sind die Zeile oben, die sagt, <b>was</b> bearbeitet wird, und im Kasten
+„Wiki-Weg" die Liste der Zuweisungen — links jeweils, <b>von wo bis wo</b> sie gilt. Bei der ganzen Straße gilt die Regel der
+Weg-Ebene aus dem Wege-Editor: <b>geschrieben wird nur, was du änderst</b> — ein uneiniger Haken bleibt „teils".</p>
+<div class="proto-zwei">
+
+	<!-- ── Ganze Strasse ── -->
+	<div class="proto-dialog-kasten" id="dialog-ganz">
+		<div class="proto-schild">Nach dem 1. Klick · ganze Straße</div>
+		<div class="location-report-dialog avm-fenster avm-fenster--blatt" role="dialog" aria-label="Weg bearbeiten, ganze Straße">
+			<div class="location-report-dialog__header avm-fenster__kopf">
+				<span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>
+				<h2 class="avm-fenster__titel">Weg bearbeiten</h2>
+				<button class="avm-fenster__knopf avm-fenster__knopf--nackt" type="button" aria-label="Schließen">×</button>
+			</div>
+			<form class="location-report-form avm-fenster__rumpf" onsubmit="return false">
+				<p class="proto-umfang"><b>Ganze Straße:</b> Perz – Helmdahl</p>
+				<div class="label-edit-section">
+					<label class="location-report-form__field">
+						<span>Wegname *</span>
+						<div class="location-edit-fieldrow"><input type="text" value="Reichsstraße 2" disabled></div>
+						<span class="proto-gesperrt">Kommt aus der Wiki-Zuweisung.</span>
+					</label>
+					<label class="location-report-form__field">
+						<span>Wegtyp *</span>
+						<div class="location-edit-fieldrow"><select><option>Reichsstraße</option><option>— gemischt lassen —</option></select></div>
+					</label>
+					<div class="location-report-form__field">
+						<span class="path-transport-head">Erlaubte Transportmittel<em class="path-transport-head__when">gangbar</em></span>
+						<div class="path-transport-row"><label><input type="checkbox" checked> Karawane</label></div>
+						<div class="path-transport-row"><label><input type="checkbox" checked> Zu Fuss</label></div>
+						<div class="path-transport-row"><label><input type="checkbox" class="js-teils"> Kutsche</label><span class="proto-teils">teils · 7 von 10</span></div>
+						<div class="path-transport-row"><label><input type="checkbox" checked> Reiter</label></div>
+					</div>
+				</div>
+				<div class="label-wiki-reference">
+					<div class="label-wiki-reference__head">
+						<span class="label-wiki-reference__title">Wiki-Weg</span>
+						<span class="label-wiki-reference__buttons">
+							<button type="button" class="location-report-form__button location-report-form__button--secondary">Ändern</button>
+							<button type="button" class="location-report-form__button location-report-form__button--secondary">Sync</button>
+							<button type="button" class="location-report-form__button location-report-form__button--secondary">Entfernen</button>
+						</span>
+					</div>
+					<table class="proto-zuw">
+						<tr>
+							<td class="proto-zuw__wo">ganze Straße<br>Perz – Helmdahl</td>
+							<td><a href="#">Reichsstraße 2 ↗</a> <span class="proto-zuw__schl">reichsstrasse-2</span></td>
+							<td class="proto-zuw__rolle">Hauptzuweisung</td>
+							<td class="proto-zuw__x"></td>
+						</tr>
+						<tr>
+							<td class="proto-zuw__wo">Abschnitt 7: Silkwiesen – Wieha</td>
+							<td><a href="#">Bärenpfad ↗</a> <span class="proto-zuw__schl">b-renpfad</span></td>
+							<td class="proto-zuw__rolle">weitere</td>
+							<td class="proto-zuw__x"><button type="button" class="proto-x" aria-label="Weitere Zuweisung Bärenpfad entfernen">✕</button></td>
+						</tr>
+					</table>
+					<div class="proto-weitere__titel">Weitere Wiki-Zuweisung für die ganze Straße</div>
+					<div class="proto-weitere"><input type="search" placeholder="Wiki-Artikel suchen, z. B. Geronsgang …"></div>
+					<p class="label-wiki-reference__hint">Zuweisen und Entfernen wirken sofort — ohne „Speichern". Eine weitere Zuweisung ändert den Wegnamen nie.</p>
+				</div>
+				<div class="label-edit-section"><div class="label-edit-section-title">Quellen</div>
+					<p class="location-report-form__status">… wie heute, mit „alle 10 Abschnitte dieses Weges" als Vorgabe.</p>
+				</div>
+				<div class="location-report-form__actions">
+					<button class="location-report-form__button location-report-form__button--secondary" type="button">Abbrechen</button>
+					<button class="location-report-form__button location-report-form__button--primary" type="button">Speichern für 10 Abschnitte</button>
+				</div>
+			</form>
+		</div>
+	</div>
+
+	<!-- ── Ein Abschnitt ── -->
+	<div class="proto-dialog-kasten" id="dialog-abschnitt">
+		<div class="proto-schild">Nach dem 2. Klick · ein Abschnitt</div>
+		<div class="location-report-dialog avm-fenster avm-fenster--blatt" role="dialog" aria-label="Weg bearbeiten, ein Abschnitt">
+			<div class="location-report-dialog__header avm-fenster__kopf">
+				<span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>
+				<h2 class="avm-fenster__titel">Weg bearbeiten</h2>
+				<button class="avm-fenster__knopf avm-fenster__knopf--nackt" type="button" aria-label="Schließen">×</button>
+			</div>
+			<form class="location-report-form avm-fenster__rumpf" onsubmit="return false">
+				<p class="proto-umfang"><b>Abschnitt:</b> Silkwiesen – Wieha</p>
+				<div class="label-edit-section">
+					<label class="location-report-form__field">
+						<span>Wegname *</span>
+						<div class="location-edit-fieldrow"><input type="text" value="Reichsstraße 2" disabled></div>
+						<span class="proto-gesperrt">Kommt aus der Wiki-Zuweisung.</span>
+					</label>
+					<label class="location-report-form__field">
+						<span>Wegtyp *</span>
+						<div class="location-edit-fieldrow"><select><option>Reichsstraße</option></select></div>
+					</label>
+					<div class="location-report-form__field">
+						<span class="path-transport-head">Erlaubte Transportmittel<em class="path-transport-head__when">gangbar</em></span>
+						<div class="path-transport-row"><label><input type="checkbox" checked> Karawane</label></div>
+						<div class="path-transport-row"><label><input type="checkbox" checked> Zu Fuss</label></div>
+						<div class="path-transport-row"><label><input type="checkbox"> Kutsche</label></div>
+						<div class="path-transport-row"><label><input type="checkbox" checked> Reiter</label></div>
+					</div>
+				</div>
+				<div class="label-wiki-reference">
+					<div class="label-wiki-reference__head">
+						<span class="label-wiki-reference__title">Wiki-Weg</span>
+						<span class="label-wiki-reference__buttons">
+							<button type="button" class="location-report-form__button location-report-form__button--secondary">Ändern</button>
+							<button type="button" class="location-report-form__button location-report-form__button--secondary">Sync</button>
+							<button type="button" class="location-report-form__button location-report-form__button--secondary">Entfernen</button>
+						</span>
+					</div>
+					<table class="proto-zuw">
+						<tr>
+							<td class="proto-zuw__wo">ganze Straße<br>Perz – Helmdahl</td>
+							<td><a href="#">Reichsstraße 2 ↗</a> <span class="proto-zuw__schl">reichsstrasse-2</span></td>
+							<td class="proto-zuw__rolle">Hauptzuweisung</td>
+							<td class="proto-zuw__x"></td>
+						</tr>
+						<tr>
+							<td class="proto-zuw__wo">Abschnitt 7: Silkwiesen – Wieha</td>
+							<td><a href="#">Bärenpfad ↗</a> <span class="proto-zuw__schl">b-renpfad</span></td>
+							<td class="proto-zuw__rolle">weitere</td>
+							<td class="proto-zuw__x"><button type="button" class="proto-x" aria-label="Weitere Zuweisung Bärenpfad entfernen">✕</button></td>
+						</tr>
+					</table>
+					<div class="proto-weitere__titel">Weitere Wiki-Zuweisung für Abschnitt 7: Silkwiesen – Wieha</div>
+					<div class="proto-weitere"><input type="search" placeholder="Wiki-Artikel suchen, z. B. Geronsgang …"></div>
+					<p class="label-wiki-reference__hint">Zuweisen und Entfernen wirken sofort — ohne „Speichern". Eine weitere Zuweisung ändert den Wegnamen nie.</p>
+				</div>
+				<div class="label-edit-section"><div class="label-edit-section-title">Quellen</div>
+					<p class="location-report-form__status">… wie heute.</p>
+				</div>
+				<div class="location-report-form__actions">
+					<button class="location-report-form__button location-report-form__button--secondary" type="button">Abbrechen</button>
+					<button class="location-report-form__button location-report-form__button--primary" type="button">Speichern</button>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
+
+<!-- ═════════════════════════════════════ 3 ═════════════════════════════════════ -->
+<h2 class="proto-h">3 · Wege-Editor: die Abschnittszeile sagt, von wo bis wo</h2>
+<p class="proto-note">Dieselbe Benennung wie auf der Karte. Einsortiert bleibt der Abschnitt unter seiner Hauptzuweisung;
+die Suche im Wege-Editor findet ihn auch über „Bärenpfad".</p>
+<div class="proto-liste">
+	<div class="avm-row wp-group" role="button" tabindex="0" aria-expanded="true">
+		<span class="wp-group__twist">▾</span>
+		<div class="avm-row__text">
+			<div class="avm-row__l1"><span class="avm-row__name">Reichsstraße 2</span><span class="avm-row__kind">Reichsstraße</span></div>
+			<div class="avm-row__l2">10 Abschnitte · Perz – Helmdahl · 6 mit Profil</div>
+		</div>
+	</div>
+	<div class="avm-row wp-segment" role="button" tabindex="0"><span class="wp-group__twist" aria-hidden="true"></span>
+		<div class="avm-row__text"><div class="avm-row__l1"><span class="avm-row__name">Abschnitt 3: Puleth – Kreuzung</span></div>
+			<div class="avm-row__l2 ok">≈ 12,1 Meilen · Profil vorhanden</div></div></div>
+	<div class="avm-row wp-segment" role="button" tabindex="0"><span class="wp-group__twist" aria-hidden="true"></span>
+		<div class="avm-row__text"><div class="avm-row__l1"><span class="avm-row__name">Abschnitt 4: Kreuzung – Natzungen</span></div>
+			<div class="avm-row__l2 ok">≈ 9,4 Meilen · Profil vorhanden</div></div></div>
+	<div class="avm-row wp-segment is-selected" role="button" tabindex="0"><span class="wp-group__twist" aria-hidden="true"></span>
+		<div class="avm-row__text"><div class="avm-row__l1"><span class="avm-row__name">Abschnitt 7: Silkwiesen – Wieha</span></div>
+			<div class="avm-row__l2 ok">≈ 15,6 Meilen · Profil vorhanden</div>
+			<div class="avm-row__l2 proto-l3">Weitere Zuweisungen: <b>Bärenpfad</b></div></div></div>
+	<div class="avm-row wp-segment" role="button" tabindex="0"><span class="wp-group__twist" aria-hidden="true"></span>
+		<div class="avm-row__text"><div class="avm-row__l1"><span class="avm-row__name">Abschnitt 8: Wieha – Sonnenfelde</span></div>
+			<div class="avm-row__l2 ok">≈ 43,7 Meilen · Profil vorhanden</div></div></div>
+</div>
+
+<!-- ═════════════════════════════════════ 4 ═════════════════════════════════════ -->
+<h2 class="proto-h">4 · Wie ein Abschnitt heißt</h2>
+<p class="proto-note">Es geht nur darum, dass man den Abschnitt <b>einordnen</b> kann. Vorne steht die Nummer, dahinter die
+beiden Enden. Ein Ende „liegt an einem Ort", wenn es so nah daran liegt, wie der Router ein Wegende an einen Ort hängt
+(0,01 Einheiten).</p>
+<table class="proto-tafel">
+	<thead><tr><th>Das Ende liegt …</th><th>Anzeige</th></tr></thead>
+	<tbody>
+		<tr><td>an einem Ort</td><td>Abschnitt 7: Silkwiesen – Wieha</td></tr>
+		<tr><td>an einer Kreuzung (die Nummer der Kreuzung sagt Besuchern nichts)</td><td>Abschnitt 3: Puleth – Kreuzung</td></tr>
+		<tr><td>nirgends (loses Ende)</td><td>Abschnitt 12: Wegende – Kaiserhain</td></tr>
+		<tr><td>Weg aus nur einem Abschnitt</td><td>ohne Nummer: Perz – Helmdahl</td></tr>
+	</tbody>
+</table>
+
+<h2 class="proto-h">5 · Was das Mockup festlegt — bitte prüfen</h2>
+<ol class="proto-regeln">
+	<li><b>Nur im Bearbeiten-Modus.</b> Besucher klicken wie heute: die Infobox geht auf, „Anzeigen" hebt den ganzen Weg hervor. Die Infobox zeigt ihnen zusätzlich die Zeile „Auch Teil von".</li>
+	<li><b>„Ganze Straße" = die Gruppe des Wege-Editors</b>: gleicher Wiki-Schlüssel der Hauptzuweisung, ohne Wiki gleiche Wegart + gleicher Name — auch über Lücken hinweg.</li>
+	<li><b>Ein Abschnitt heißt „Abschnitt N: Anfang – Ende"</b> — auf der Karte, im Dialog und im Wege-Editor mit derselben Regel (Tafel oben). Die Nummer ist die des Wege-Editors.</li>
+	<li><b>„Verlauf bearbeiten"</b> gibt es nur am einzelnen Abschnitt — eine Linienänderung über die ganze Straße gibt es nicht.</li>
+	<li><b>Eine weitere Zuweisung für die ganze Straße</b> landet an allen markierten Abschnitten; ✕ nimmt sie von allen, die sie tragen.</li>
+	<li><b>Weitere Zuweisungen benennen nie um</b> und ändern keine Gruppe. Offiziell/inoffiziell folgt der Hauptzuweisung.</li>
+	<li><b>„Weg als Route"</b> setzt die Orte des Markierten der Reihe nach in den Routenplaner — ganze Straße oder Abschnitt; Besucher markieren nicht, bei ihnen ist es immer die ganze Straße. Kreuzungen und verborgene Orte werden übersprungen. Abschnitte, die den Artikel als <em>weitere</em> Zuweisung tragen, zählen mit (der Bärenpfad über die Reichsstraße). Der Router fährt dann von Ort zu Ort; eine günstigere Parallelstraße zwischen zwei benachbarten Orten ist möglich, aber selten.</li>
+</ol>
+
+</div>
+
+<script>
+(function () {
+	"use strict";
+	var NS = "http://www.w3.org/2000/svg";
+
+	// Knoten der Reichsstrasse 2. `name: null` = Kreuzung ohne Ort.
+	var rsKnoten = [
+		{ p: [70, 430], name: "Perz" }, { p: [120, 392], name: "Kaiserhain" }, { p: [168, 352], name: "Puleth" },
+		{ p: [215, 318], name: null }, { p: [262, 280], name: "Natzungen" }, { p: [302, 240], name: "Ginsterfeld" },
+		{ p: [352, 205], name: "Silkwiesen" }, { p: [402, 168], name: "Wieha" }, { p: [452, 132], name: "Sonnenfelde" },
+		{ p: [505, 98], name: "Wehrheim" }, { p: [560, 58], name: "Helmdahl" },
+	];
+	// Baerenpfad: vier eigene Abschnitte; zwischen Silkwiesen und Wieha laeuft er ueber die Reichsstrasse.
+	var bpKnoten = { rudein: { p: [655, 338], name: "Rudein" }, espen: { p: [522, 300], name: "Espen" },
+		laej: { p: [335, 72], name: "Läjansturm" }, donner: { p: [285, 28], name: "Donnerschalck" } };
+
+	var wege = {
+		rs: { name: "Reichsstraße 2", art: "Reichsstraße", abschnitte: [] },
+		bp: { name: "Bärenpfad", art: "Pfad", abschnitte: [] },
+	};
+	for (var i = 0; i < 10; i++) {
+		wege.rs.abschnitte.push({ nr: i + 1, von: rsKnoten[i], bis: rsKnoten[i + 1], typ: "strasse", weitere: i === 6 ? ["bp"] : [] });
+	}
+	[[bpKnoten.rudein, bpKnoten.espen], [bpKnoten.espen, rsKnoten[6]], [rsKnoten[7], bpKnoten.laej], [bpKnoten.laej, bpKnoten.donner]]
+		.forEach(function (paar, i) { wege.bp.abschnitte.push({ nr: i + 1, von: paar[0], bis: paar[1], typ: "pfad", weitere: [] }); });
+
+	// DIE BENENNUNGSREGEL (Tafel in Abschnitt 4): Nummer, dann die beiden Enden -- Ortsname, sonst
+	// „Kreuzung" (ohne Nummer), sonst „Wegende".
+	function ende(knoten) { return knoten.name || (knoten.kreuzung === false ? "Wegende" : "Kreuzung"); }
+	function benenne(weg) {
+		weg.abschnitte.forEach(function (a) {
+			a.strecke = ende(a.von) + " – " + ende(a.bis);
+			a.label = "Abschnitt " + a.nr + ": " + a.strecke;
+		});
+		var ab = weg.abschnitte;
+		weg.gesamt = ende(ab[0].von) + " – " + ende(ab[ab.length - 1].bis);
+	}
+	benenne(wege.rs);
+	benenne(wege.bp);
+	wege.bp.gesamt = "Rudein – Donnerschalck";
+
+	var auswahl = null; // { weg: "rs"|"bp", nr: null|Zahl }
+
+	function el(name, attrs) {
+		var n = document.createElementNS(NS, name);
+		Object.keys(attrs).forEach(function (k) { n.setAttribute(k, attrs[k]); });
+		return n;
+	}
+	function d(a) { return "M" + a.von.p.join(",") + " L" + a.bis.p.join(","); }
+
+	var marks = document.getElementById("marks"), huellen = document.getElementById("huellen"),
+		striche = document.getElementById("striche"), treffer = document.getElementById("treffer"),
+		knoten = document.getElementById("knoten"), namen = document.getElementById("namen");
+
+	var markEls = {}, markBase = {};
+	["rs", "bp"].forEach(function (w) {
+		wege[w].abschnitte.forEach(function (a) {
+			var id = w + a.nr;
+			markBase[id] = "seg-mark" + (a.typ === "pfad" ? " seg-mark--pfad" : "");
+			markEls[id] = marks.appendChild(el("path", { d: d(a), "class": markBase[id] }));
+			if (a.typ === "strasse") { huellen.appendChild(el("path", { d: d(a), "class": "seg-huelle" })); }
+			striche.appendChild(el("path", { d: d(a), "class": "seg-strich " + (a.typ === "strasse" ? "seg-strasse" : "seg-pfad") }));
+			var t = treffer.appendChild(el("path", { d: d(a), "class": "seg-treffer" }));
+			t.addEventListener("click", function (ev) { ev.stopPropagation(); klick(w, a.nr); });
+		});
+	});
+	var alleKnoten = rsKnoten.concat([bpKnoten.rudein, bpKnoten.espen, bpKnoten.laej, bpKnoten.donner]);
+	alleKnoten.forEach(function (k) {
+		if (k.name) {
+			knoten.appendChild(el("circle", { cx: k.p[0], cy: k.p[1], r: 4.5, "class": "ort" }));
+			var t = namen.appendChild(el("text", { x: k.p[0] + 9, y: k.p[1] + 4, "class": "ortsname" }));
+			t.textContent = k.name;
+		} else {
+			knoten.appendChild(el("circle", { cx: k.p[0], cy: k.p[1], r: 2.5, "class": "kreuzung" }));
+		}
+	});
+
+	document.getElementById("karte").addEventListener("click", function () { auswahl = null; zeichne(); });
+	document.getElementById("zuruecksetzen").addEventListener("click", function () { auswahl = null; zeichne(); });
+	Array.prototype.forEach.call(document.querySelectorAll(".js-teils"), function (c) { c.indeterminate = true; });
+
+	function klick(w, nr) {
+		if (!auswahl || auswahl.weg !== w) { auswahl = { weg: w, nr: null }; }
+		else if (auswahl.nr === null) { auswahl = { weg: w, nr: nr }; }
+		else if (auswahl.nr === nr) { auswahl = { weg: w, nr: null }; }
+		else { auswahl = { weg: w, nr: nr }; }
+		zeichne();
+	}
+
+	function zeichne() {
+		Object.keys(markEls).forEach(function (id) { markEls[id].setAttribute("class", markBase[id]); });
+		document.getElementById("route").hidden = true;
+		var leiste = document.getElementById("leiste");
+		var panel = document.getElementById("panel");
+		if (!auswahl) {
+			leiste.innerHTML = "Nichts markiert. Klick auf die Reichsstraße oder den Bärenpfad.";
+			panel.innerHTML = '<div class="proto-leer">Hier öffnet sich die Infobox des angeklickten Wegs.</div>';
+			return;
+		}
+		var weg = wege[auswahl.weg];
+		var gewaehlt = null;
+		weg.abschnitte.forEach(function (a) {
+			if (auswahl.nr === null || auswahl.nr === a.nr) { markEls[auswahl.weg + a.nr].setAttribute("class", markBase[auswahl.weg + a.nr] + " is-an"); }
+			if (auswahl.nr === a.nr) { gewaehlt = a; }
+		});
+		// Am Baerenpfad: der Abschnitt der Reichsstrasse, der ihn als WEITERE Zuweisung traegt, wird
+		// angezeigt, aber nicht mitbearbeitet.
+		var fremd = [];
+		if (auswahl.weg === "bp" && auswahl.nr === null) {
+			wege.rs.abschnitte.forEach(function (a) {
+				if (a.weitere.indexOf("bp") !== -1) { markEls["rs" + a.nr].setAttribute("class", markBase["rs" + a.nr] + " is-anzeige"); fremd.push(a); }
+			});
+		}
+
+		var anzahl = weg.abschnitte.length;
+		var markiertText = gewaehlt
+			? "<b>Abschnitt:</b> " + gewaehlt.strecke
+			: "<b>Ganze Straße:</b> " + weg.gesamt;
+		leiste.innerHTML = weg.name + " · " + markiertText;
+
+		var auchTeil = [];
+		weg.abschnitte.forEach(function (a) {
+			if (gewaehlt && a !== gewaehlt) { return; }
+			a.weitere.forEach(function (w) {
+				auchTeil.push('<a href="#">' + wege[w].name + " ↗</a>" + (gewaehlt ? "" : " (" + a.label + ")"));
+			});
+		});
+		var auchUeber = fremd.map(function (a) { return '<a href="#">Reichsstraße 2 ↗</a> (' + a.label + ")"; });
+
+		var rows = '<div class="region-info-box__row"><dt>Lage</dt><dd>Weiden, Darpatien</dd></div>'
+			+ (auchTeil.length ? '<div class="region-info-box__row"><dt>Auch Teil von</dt><dd>' + auchTeil.join("<br>") + "</dd></div>" : "")
+			+ (auchUeber.length ? '<div class="region-info-box__row"><dt>Verläuft auch über</dt><dd>' + auchUeber.join("<br>") + "</dd></div>" : "");
+
+		var kachel = function (text, akzent, attr) {
+			return '<button type="button" class="location-popup__action-button' + (akzent ? " location-popup__action-button--accent" : "") + '"' + (attr || "") + ">" + text + "</button>";
+		};
+		var editorKacheln = kachel('<span class="location-popup__action-glyph" aria-hidden="true">⚙</span>Bearbeiten', false, ' data-bearbeiten="1"')
+			+ (gewaehlt ? kachel('<span class="location-popup__action-glyph" aria-hidden="true">✎</span>Verlauf bearbeiten') : "");
+
+		panel.innerHTML = '<div class="location-popup">'
+			+ '<div class="location-popup__header"><div class="location-popup__title-group">'
+			+ '<div class="location-popup__name">' + weg.name + "</div>"
+			+ '<div class="location-popup__type">' + weg.art + "</div>"
+			+ '<div class="proto-markiert">' + markiertText + "</div></div></div>"
+			+ '<div class="location-popup__actions">'
+			+ kachel('<img class="location-popup__action-img" src="../icons/sextant.webp" alt="" width="20" height="20">Anzeigen', true)
+			+ kachel('<img class="location-popup__action-img" src="../img/menu/linkteilen.webp" alt="" width="20" height="20">Link teilen')
+			+ kachel("Änderungen vorschlagen")
+			+ kachel('<img class="location-popup__action-img" src="../img/menu/waypoint-end.webp" alt="" width="20" height="20">Weg als Route', false, ' data-als-route="1"')
+			+ "</div>"
+			+ '<div class="region-info-box region-info-box--settlement"><dl class="region-info-box__data">' + rows + "</dl></div>"
+			+ '<div class="location-popup__editor-band"><p class="location-popup__editor-band-title"><span>Bearbeiten</span><span class="avesmaps-scope-hint">nur Editoren</span></p>'
+			+ '<div class="location-popup__actions">' + editorKacheln + "</div></div>"
+			+ "</div>";
+
+		var routeKnopf = panel.querySelector("[data-als-route]");
+		if (routeKnopf) { routeKnopf.addEventListener("click", zeigeRoute); }
+		var knopf = panel.querySelector("[data-bearbeiten]");
+		if (knopf) {
+			knopf.addEventListener("click", function () {
+				var ziel = document.getElementById(gewaehlt ? "dialog-abschnitt" : "dialog-ganz");
+				Array.prototype.forEach.call(document.querySelectorAll(".proto-dialog-kasten"), function (k) { k.classList.remove("is-hervor"); });
+				ziel.classList.add("is-hervor");
+				ziel.scrollIntoView({ behavior: "smooth", block: "start" });
+			});
+		}
+	}
+
+	// „Weg als Route": die Orte des Markierten der Reihe nach, Kreuzungen uebersprungen. Am Baerenpfad
+	// laeuft die Kette ueber den Reichsstrassen-Abschnitt, der ihn als WEITERE Zuweisung traegt.
+	function zeigeRoute() {
+		if (!auswahl) { return; }
+		var weg = wege[auswahl.weg];
+		var orte = [];
+		function dazu(k) { if (k.name && orte[orte.length - 1] !== k.name) { orte.push(k.name); } }
+		weg.abschnitte.forEach(function (a) {
+			if (auswahl.nr !== null && a.nr !== auswahl.nr) { return; }
+			dazu(a.von); dazu(a.bis);
+		});
+		var hinweis = orte.length + " Wegpunkte. Kreuzungen werden übersprungen.";
+		if (auswahl.weg === "bp" && auswahl.nr === null) {
+			hinweis += " Zwischen Silkwiesen und Wieha geht es über die Reichsstraße 2 — dieser Abschnitt trägt den Bärenpfad als weitere Zuweisung.";
+		}
+		var box = document.getElementById("route");
+		box.innerHTML = '<div class="proto-route__titel">Routenplaner</div><ol class="proto-route__liste">'
+			+ orte.map(function (n, i) {
+				var rolle = i === 0 ? "Start" : (i === orte.length - 1 ? "Ziel" : "");
+				return "<li>" + n + (rolle ? ' <span class="proto-route__rolle">· ' + rolle + "</span>" : "") + "</li>";
+			}).join("")
+			+ '</ol><p class="proto-route__hinweis">' + hinweis + "</p>";
+		box.hidden = false;
+	}
+
+	// Anfangszustand aus dem Anker: #rs = ganze Reichsstrasse, #rs7 = ihr Abschnitt 7, #bp = ganzer Baerenpfad;
+	// „-route" zeigt zusaetzlich die Vorschau von „Weg als Route".
+	var anker = /^#(rs|bp)(\d+)?(-route)?$/.exec(location.hash || "");
+	if (anker) { auswahl = { weg: anker[1], nr: anker[2] ? Number(anker[2]) : null }; }
+
+	zeichne();
+	if (anker && anker[3]) { zeigeRoute(); }
+})();
+</script>
+</body>
+</html>
