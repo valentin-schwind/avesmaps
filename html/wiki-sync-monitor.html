@@ -2179,8 +2179,7 @@ document.addEventListener('keydown', (e) => {
   }
   if (e.key === 'Enter') {
     e.preventDefault();
-    const treffer = bindungTreffer[bindungAktiv];
-    if (treffer) bindungVorschauOeffnen(treffer.wiki_key);
+    bindungTrefferWaehlen(bindungAktiv);
     return;
   }
   if (e.key === 'Escape') {
@@ -2205,9 +2204,9 @@ function bindungSchliessen() {
 }
 
 /**
- * 💣 EIN PFAD FUER KLICK UND ENTER. Zwei Aufrufstellen mit je eigener Rechnung waeren genau die
- * Bauform, die dieses Haus wiederholt bezahlt hat — die Tastatur bekaeme sonst frueher oder spaeter
- * eine andere Vorschau als die Maus.
+ * 💣 EIN PFAD FUER DRUCK, KLICK UND ENTER -- alle drei kommen ueber bindungTrefferWaehlen hierher.
+ * Zwei Aufrufstellen mit je eigener Rechnung waeren genau die Bauform, die dieses Haus wiederholt
+ * bezahlt hat — die Tastatur bekaeme sonst frueher oder spaeter eine andere Vorschau als die Maus.
  */
 async function bindungVorschauOeffnen(zielKey) {
     bindungZiel = zielKey;
@@ -2247,18 +2246,56 @@ async function bindungVorschauOeffnen(zielKey) {
     }
 }
 
+/**
+ * 💣 GEWAEHLT WIRD BEIM DRUECKEN, NICHT BEIM LOSLASSEN -- dieselbe Regel wie im geteilten Bauteil
+ * (js/ui/wiki-assign.js, `aufDruck`/`aufKlick`; dort steht die ganze Messung vom 14.09.2026).
+ * Ein `click` entsteht erst beim Loslassen, und nur, wenn Druecken und Loslassen dasselbe Element
+ * treffen. Im echten Chrome gemessen geht er verloren, wenn die entprellte Suchantwort die Liste
+ * zwischen Druecken und Loslassen neu zeichnet (dann kommt GAR KEIN `click`), und wenn der Zeiger in
+ * den Spalt zwischen zwei Zeilen rutscht (der `click` faellt auf die Liste). Beides ist still: die
+ * Vorschau geht einfach nicht auf.
+ * ⭐ `preventDefault()` beim Druck haelt den Fokus im Suchfeld -- ↑ ↓ und Enter gehen danach weiter.
+ * 🔴 `mousedown`, nicht `pointerdown`: das feuert bei Beruehrung schon beim Aufsetzen des Fingers,
+ * bevor der Browser weiss, ob gewischt wird.
+ * ⚠️ Die Zuhoerer haengen am DOKUMENT, nicht am Kasten. `data-wa-treffer` traegt JEDE Trefferliste des
+ * geteilten Bauteils -- gewaehlt wird deshalb nur eine Zeile IN DIESEM Kasten, und ein Druck auf die
+ * Liste selbst (ihre Bildlaufleiste) bleibt unverhindert.
+ */
+function bindungTrefferZeile(ziel) {
+  const kasten = $('bindung-treffer');
+  const zeile = ziel && ziel.closest ? ziel.closest('[data-wa-treffer]') : null;
+  return zeile && kasten && kasten.contains(zeile) ? zeile : null;
+}
+
+// 🔴 Druck, Klick ohne Zeiger und Enter gehen durch DIESE Funktion: ein Index (`data-wa-treffer`, vom
+// geteilten Zeilenbauer), eine Vorschau.
+function bindungTrefferWaehlen(i) {
+  if (!bindungTreffer[i]) return;
+  bindungAktiv = i;
+  bindungTrefferZeichnen();
+  bindungVorschauOeffnen(bindungTreffer[i].wiki_key);
+}
+
+document.addEventListener('mousedown', (e) => {
+  if (e.button !== 0) return;
+  const zeile = bindungTrefferZeile(e.target);
+  if (!zeile) return;
+  e.preventDefault();
+  bindungTrefferWaehlen(Number(zeile.getAttribute('data-wa-treffer')));
+});
+
 document.addEventListener('click', async (e) => {
   if (e.target.id === 'bindung-abbruch') { bindungSchliessen(); return; }
 
-  // Der Klick liest DENSELBEN Index wie die Tastatur (data-wa-treffer, vom geteilten Zeilenbauer).
-  const treffer = e.target.closest('[data-wa-treffer]');
-  if (treffer && $('bindung-treffer') && $('bindung-treffer').contains(treffer)) {
-    const i = Number(treffer.getAttribute('data-wa-treffer'));
-    if (bindungTreffer[i]) {
-      bindungAktiv = i;
-      bindungTrefferZeichnen();
-      bindungVorschauOeffnen(bindungTreffer[i].wiki_key);
-    }
+  const zeile = bindungTrefferZeile(e.target);
+  if (zeile) {
+    // 🔴 Ein `click` VOM ZEIGER (`detail` >= 1) hat seinen Treffer schon beim Druecken gewaehlt und
+    // waehlt NICHT ein zweites Mal -- der Druck zeichnet die Liste neu, und ein Browser, der den
+    // `click` dann doch zustellt, schickte eine zweite Vorschau ab, deren Antwort womoeglich gewinnt.
+    // ⚠️ Ein Klick OHNE Zeiger bleibt ein Weg hinein: ein Screenreader oder `element.click()` loest
+    // ihn ohne `mousedown` aus, mit `detail === 0`.
+    if (e.detail > 0) return;
+    bindungTrefferWaehlen(Number(zeile.getAttribute('data-wa-treffer')));
     return;
   }
 

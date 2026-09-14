@@ -227,9 +227,13 @@ pruefe(!str_contains($monitorText, 'dt-bindung__suchzeile'),
 pruefe(str_contains($monitorText, "z.state === 'gleich' || !z.own"),
     'Ein gleicher Wert wird nicht als Aenderung gezeichnet.');
 
-// 🔴 EIN PFAD FUER KLICK UND ENTER. Zwei eigene Rechnungen liefen frueher oder spaeter auseinander.
-pruefe(substr_count($monitorText, 'bindungVorschauOeffnen(') === 3,
-    'Die Vorschau hat EINE Funktion und genau zwei Aufrufer (Klick und Enter).');
+// 🔴 EIN PFAD FUER DRUCK, KLICK UND ENTER. Zwei eigene Rechnungen liefen frueher oder spaeter auseinander.
+// Seit 14.09.2026 waehlt die Maus beim DRUECKEN (js/pages/__tests__/bindung-treffer-beim-druecken.test.js
+// faehrt die Ereignisfolge); alle drei Wege muenden in bindungTrefferWaehlen, und nur die ruft die Vorschau.
+pruefe(substr_count($monitorText, 'bindungVorschauOeffnen(') === 2,
+    'Die Vorschau hat EINE Funktion und genau einen Aufrufer (bindungTrefferWaehlen).');
+pruefe(substr_count($monitorText, 'bindungTrefferWaehlen(') === 4,
+    'Durch die gehen Druck, Klick ohne Zeiger und Enter -- je genau einmal.');
 pruefe(str_contains($monitorText, "data-wa-treffer"),
     'Der Klick liest denselben Index, den der geteilte Zeilenbauer hinausgibt.');
 
