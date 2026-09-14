@@ -1116,3 +1116,160 @@ assert((int) $pdoS2->query('SELECT COUNT(*) FROM ecosystem_region WHERE is_activ
     'S2: ein Bestands-Objekt ohne `verbund:` im Vermerk wird nie Anfuehrer eines spaeteren Verbunds');
 
 echo "OK -- garetien-verbund-bestand (Owner 14.09.2026)\n";
+
+// =================================================================================================
+// Q. EIN GESCHEITERTER ANFUEHRER HINTERLAESST NICHTS (Entwurf 14.09.2026, Fehler 7)
+// =================================================================================================
+//
+// 💣 Der Anfuehrer legt in DREI Hausfunktionen an (Label, Region, Flaeche), und jede hat ihre eigene
+// Transaktion. Scheiterte Schritt 3, blieben Beschriftung und eine LEERE Region als Waise stehen --
+// und weil sein Item `failed` war, fand der naechste Teil keinen Anfuehrer und legte eine ZWEITE
+// Region desselben Namens an. Nichts davon war ruecknehmbar: die Waise hing an keinem `done`-Vermerk.
+// Gemessen am Zweig (scratchpad s3-s6-ablauf.php, S6a): 2 aktive Regionen, 2 aktive Labels.
+// ⚠️ Der Abbruch wird mit einem SQLite-Trigger erzwungen -- dieselbe Stelle, an der auf MySQL eine
+// Schluesselverletzung oder ein abgebrochener Worker den Schritt beenden.
+
+/** Wie viele Zeilen sind aktiv? Region, Flaeche, Beschriftung -- die drei Dinge, die ein Anfuehrer anlegt. */
+function avesmapsGaretienVerbundTestBestand(PDO $pdo): array
+{
+    return [
+        'regionen' => (int) $pdo->query('SELECT COUNT(*) FROM ecosystem_region WHERE is_active = 1')->fetchColumn(),
+        'flaechen' => (int) $pdo->query('SELECT COUNT(*) FROM ecosystem_area WHERE is_active = 1')->fetchColumn(),
+        'labels' => (int) $pdo->query("SELECT COUNT(*) FROM map_features WHERE feature_type = 'label' AND is_active = 1")->fetchColumn(),
+        'leere_regionen' => (int) $pdo->query(
+            'SELECT COUNT(*) FROM ecosystem_region r WHERE r.is_active = 1
+               AND NOT EXISTS (SELECT 1 FROM ecosystem_area a WHERE a.region_id = r.id AND a.is_active = 1)'
+        )->fetchColumn(),
+    ];
+}
+
+// --- Q1. Schritt 3 (die Flaeche) des Anfuehrers scheitert.
+$pdoQ = avesmapsGaretienVerbundUebernahmeTestPdo();
+$pdoQ->exec("CREATE TRIGGER abbruch_schritt3 BEFORE INSERT ON ecosystem_area WHEN NEW.min_x = 100
+             BEGIN SELECT RAISE(ABORT, 'simulierter Abbruch Schritt 3'); END");
+$runQ = avesmapsSyncPlanStartRun($pdoQ, AVESMAPS_GARETIEN_PLAN_KIND, 7, 'lauf-q');
+$itemQ1 = avesmapsGaretienVerbundTestFragment($pdoQ, $runQ, 'Silker Hain 1', 1, avesmapsGaretienVerbundTestRing(100, 100));
+$itemQ2 = avesmapsGaretienVerbundTestFragment($pdoQ, $runQ, 'Silker Hain 2', 2, avesmapsGaretienVerbundTestRing(200, 200));
+$itemQ3 = avesmapsGaretienVerbundTestFragment($pdoQ, $runQ, 'Silker Hain 3', 3, avesmapsGaretienVerbundTestRing(300, 300));
+$ergebnisQ = avesmapsGaretienUebernehmen($pdoQ, $runQ, [$itemQ1, $itemQ2, $itemQ3], ['id' => 7], null, [
+    $itemQ1 => ['verbund' => 'Silker Hain'],
+    $itemQ2 => ['verbund' => 'Silker Hain'],
+    $itemQ3 => ['verbund' => 'Silker Hain'],
+]);
+assert(count($ergebnisQ['fehler']) === 1 && $ergebnisQ['fehler'][0]['item'] === $itemQ1
+    && str_contains($ergebnisQ['fehler'][0]['grund'], 'simulierter Abbruch Schritt 3'),
+    'Q1: der Anfuehrer scheitert und nennt den ECHTEN Grund: ' . json_encode($ergebnisQ['fehler'], JSON_UNESCAPED_UNICODE));
+$stateQ1 = $pdoQ->query('SELECT apply_state FROM sync_plan_item WHERE id = ' . $itemQ1)->fetchColumn();
+assert($stateQ1 === 'failed', 'Q1: sein Item steht auf failed: ' . var_export($stateQ1, true));
+$bestandQ = avesmapsGaretienVerbundTestBestand($pdoQ);
+assert($bestandQ === ['regionen' => 1, 'flaechen' => 2, 'labels' => 1, 'leere_regionen' => 0],
+    'Q1: GENAU EINE Region mit den zwei uebrigen Flaechen und EIN Label -- keine Waise des Anfuehrers: '
+    . json_encode($bestandQ));
+$noteQ2 = avesmapsGaretienVermerkLesen((string) $pdoQ->query('SELECT apply_note FROM sync_plan_item WHERE id = ' . $itemQ2)->fetchColumn());
+$noteQ3 = avesmapsGaretienVermerkLesen((string) $pdoQ->query('SELECT apply_note FROM sync_plan_item WHERE id = ' . $itemQ3)->fetchColumn());
+assert($noteQ2['region'] !== '' && $noteQ2['region'] === $noteQ3['region'],
+    'Q1: Fragment 2 wurde der neue Anfuehrer, Fragment 3 haengt an SEINER Region');
+
+// --- Q2. Schritt 2 (die Region) scheitert -- das Label ist da schon angelegt.
+$pdoQ2 = avesmapsGaretienVerbundUebernahmeTestPdo();
+$pdoQ2->exec("CREATE TRIGGER abbruch_schritt2 BEFORE INSERT ON ecosystem_region WHEN NEW.name = 'Bruchwald'
+              BEGIN SELECT RAISE(ABORT, 'simulierter Abbruch Schritt 2'); END");
+$runQ2 = avesmapsSyncPlanStartRun($pdoQ2, AVESMAPS_GARETIEN_PLAN_KIND, 7, 'lauf-q2');
+$itemQ21 = avesmapsGaretienVerbundTestFragment($pdoQ2, $runQ2, 'Bruchwald 1', 1, avesmapsGaretienVerbundTestRing(100, 100));
+$ergebnisQ2 = avesmapsGaretienUebernehmen($pdoQ2, $runQ2, [$itemQ21], ['id' => 7], null, [
+    $itemQ21 => ['verbund' => 'Bruchwald'],
+]);
+assert(count($ergebnisQ2['fehler']) === 1 && str_contains($ergebnisQ2['fehler'][0]['grund'], 'simulierter Abbruch Schritt 2'),
+    'Q2: der Schritt-2-Abbruch wird gemeldet: ' . json_encode($ergebnisQ2['fehler'], JSON_UNESCAPED_UNICODE));
+assert(avesmapsGaretienVerbundTestBestand($pdoQ2) === ['regionen' => 0, 'flaechen' => 0, 'labels' => 0, 'leere_regionen' => 0],
+    'Q2: die schon angelegte Beschriftung ist wieder weg: ' . json_encode(avesmapsGaretienVerbundTestBestand($pdoQ2)));
+
+// --- Q3. Ein Teil haengt sich NIE an eine Region ohne aktive Flaeche.
+// Der Anfuehrer ist `done`, danach verliert seine Region ihre Flaeche OHNE Kaskade (ein Abbruch
+// mitten in einem Aufraeumen, oder ein Handgriff an der Datenbank) -- die Region steht aktiv und leer.
+$pdoQ3 = avesmapsGaretienVerbundUebernahmeTestPdo();
+$runQ3 = avesmapsSyncPlanStartRun($pdoQ3, AVESMAPS_GARETIEN_PLAN_KIND, 7, 'lauf-q3');
+$itemQ31 = avesmapsGaretienVerbundTestFragment($pdoQ3, $runQ3, 'Leerwald 1', 1, avesmapsGaretienVerbundTestRing(100, 100));
+avesmapsGaretienUebernehmen($pdoQ3, $runQ3, [$itemQ31], ['id' => 7], null, [$itemQ31 => ['verbund' => 'Leerwald']]);
+$regionQ3Alt = avesmapsGaretienVermerkLesen((string) $pdoQ3->query('SELECT apply_note FROM sync_plan_item WHERE id = ' . $itemQ31)->fetchColumn())['region'];
+$pdoQ3->exec('UPDATE ecosystem_area SET is_active = 0');
+$itemQ32 = avesmapsGaretienVerbundTestFragment($pdoQ3, $runQ3, 'Leerwald 2', 2, avesmapsGaretienVerbundTestRing(200, 200));
+$ergebnisQ3 = avesmapsGaretienUebernehmen($pdoQ3, $runQ3, [$itemQ32], ['id' => 7], null, [$itemQ32 => ['verbund' => 'Leerwald']]);
+assert($ergebnisQ3['fehler'] === [], 'Q3: keine Fehler: ' . json_encode($ergebnisQ3['fehler'], JSON_UNESCAPED_UNICODE));
+$regionQ3Neu = avesmapsGaretienVermerkLesen((string) $pdoQ3->query('SELECT apply_note FROM sync_plan_item WHERE id = ' . $itemQ32)->fetchColumn())['region'];
+assert($regionQ3Neu !== '' && $regionQ3Neu !== $regionQ3Alt,
+    'Q3: Fragment 2 haengt NICHT an der leeren Region, es wird selbst Anfuehrer');
+
+echo "OK -- garetien-verbund-anfuehrer-raeumt-auf (Entwurf 14.09.2026, Fehler 7)\n";
+
+// =================================================================================================
+// R. DIE QUELLE DER REGION FAELLT ERST MIT DER LETZTEN FLAECHE (Fehler 9)
+// =================================================================================================
+//
+// 🔴 Alle Fragmente eines Verbunds haengen ihre Garetien-Quelle an DIESELBE Stelle -- die Region
+// (`ecosystem:<region_public_id>`). Die Ruecknahme EINES Fragments darf sie den uebrigen nicht
+// nehmen; die Ruecknahme des LETZTEN muss sie loesen, sonst bleibt eine Verknuepfung an einer
+// geloeschten Region zurueck, und ein erneuter Import haengt sie an eine neue.
+// Der Helfer avesmapsGaretienVerbundTestFragmentMitArtikel steht in Abschnitt S.
+
+$artikelR = 'https://www.garetien.de/index.php/Silker_Hain';
+$pdoR = avesmapsGaretienVerbundUebernahmeTestPdo();
+$runR = avesmapsSyncPlanStartRun($pdoR, AVESMAPS_GARETIEN_PLAN_KIND, 7, 'lauf-r');
+$itemR1 = avesmapsGaretienVerbundTestFragmentMitArtikel($pdoR, $runR, 'Silker Hain 1', 1, avesmapsGaretienVerbundTestRing(100, 100), $artikelR);
+$itemR2 = avesmapsGaretienVerbundTestFragmentMitArtikel($pdoR, $runR, 'Silker Hain 2', 2, avesmapsGaretienVerbundTestRing(200, 200), $artikelR);
+$ergebnisR = avesmapsGaretienUebernehmen($pdoR, $runR, [$itemR1, $itemR2], ['id' => 7], null, [
+    $itemR1 => ['verbund' => 'Silker Hain'],
+    $itemR2 => ['verbund' => 'Silker Hain'],
+]);
+assert($ergebnisR['fehler'] === [], 'R (Testaufbau): keine Fehler: ' . json_encode($ergebnisR['fehler'], JSON_UNESCAPED_UNICODE));
+$regionR = avesmapsGaretienVermerkLesen((string) $pdoR->query('SELECT apply_note FROM sync_plan_item WHERE id = ' . $itemR1)->fetchColumn())['region'];
+$verknuepfungenR = static fn(): int => (int) $pdoR->query(
+    "SELECT COUNT(*) FROM feature_sources WHERE entity_type = 'ecosystem' AND entity_public_id = '" . $regionR . "' AND origin = 'garetien'"
+)->fetchColumn();
+assert($verknuepfungenR() === 1, 'R (Testaufbau): die Region traegt die Garetien-Quelle: ' . $verknuepfungenR());
+
+$rR2 = avesmapsGaretienRuecknahmeAusfuehren($pdoR, $runR, [$itemR2], ['id' => 7]);
+assert($rR2['fehler'] === [] && $rR2['zurueckgenommen'] === 1, 'R: Fragment 2 zurueck: ' . json_encode($rR2['fehler'], JSON_UNESCAPED_UNICODE));
+assert($verknuepfungenR() === 1,
+    'R: 💣 die Region traegt noch Fragment 1 -- ihre Quelle bleibt stehen: ' . $verknuepfungenR());
+
+$rR1 = avesmapsGaretienRuecknahmeAusfuehren($pdoR, $runR, [$itemR1], ['id' => 7]);
+assert($rR1['fehler'] === [] && $rR1['zurueckgenommen'] === 1, 'R: Fragment 1 zurueck: ' . json_encode($rR1['fehler'], JSON_UNESCAPED_UNICODE));
+assert($verknuepfungenR() === 0,
+    'R: mit der LETZTEN Flaeche faellt die Quelle der Region: ' . $verknuepfungenR());
+$nachtragR = array_values(array_filter($rR1['quellen_neu'],
+    static fn(array $e): bool => $e['entity_type'] === 'ecosystem' && $e['public_id'] === $regionR));
+assert(count($nachtragR) === 1 && $nachtragR[0]['sources'] === [],
+    'R: und der Browser erfaehrt es -- die Liste der Region ist jetzt leer: ' . json_encode($rR1['quellen_neu'], JSON_UNESCAPED_UNICODE));
+$sourcesR = (int) $pdoR->query('SELECT COUNT(*) FROM sources')->fetchColumn();
+assert($sourcesR === 1, 'R: 🔴 NUR die Verknuepfung, NIE die geteilte Katalogzeile: ' . $sourcesR);
+
+// --- R2. Eine Flaeche OHNE Verbund: ihre Ruecknahme ist immer die letzte, die Quelle faellt mit.
+$pdoR2 = avesmapsGaretienVerbundUebernahmeTestPdo();
+$runR2 = avesmapsSyncPlanStartRun($pdoR2, AVESMAPS_GARETIEN_PLAN_KIND, 7, 'lauf-r2');
+$itemR21 = avesmapsGaretienVerbundTestFragmentMitArtikel($pdoR2, $runR2, 'Muehlsee', 1, avesmapsGaretienVerbundTestRing(100, 100),
+    'https://www.garetien.de/index.php/Muehlsee');
+avesmapsGaretienUebernehmen($pdoR2, $runR2, [$itemR21], ['id' => 7], null, [$itemR21 => []]);
+$regionR2 = avesmapsGaretienVermerkLesen((string) $pdoR2->query('SELECT apply_note FROM sync_plan_item WHERE id = ' . $itemR21)->fetchColumn())['region'];
+$rR21 = avesmapsGaretienRuecknahmeAusfuehren($pdoR2, $runR2, [$itemR21], ['id' => 7]);
+assert($rR21['fehler'] === [] && $rR21['zurueckgenommen'] === 1, 'R2: zurueck: ' . json_encode($rR21['fehler'], JSON_UNESCAPED_UNICODE));
+$restR2 = (int) $pdoR2->query("SELECT COUNT(*) FROM feature_sources WHERE entity_type = 'ecosystem' AND entity_public_id = '" . $regionR2 . "'")->fetchColumn();
+assert($restR2 === 0, 'R2: die Quelle der einzelnen Flaeche faellt mit ihrer Region: ' . $restR2);
+
+// --- R3. DER BESTAND (Owner 14.09.2026): ein NACKTER Vermerk, wie jeder vor dem Deploy uebernommene.
+// ⚠️ DIE EINE VERHALTENSAENDERUNG AM BESTAND: auch hier faellt die Garetien-Quelle jetzt mit. Vorher
+// blieb sie als Verknuepfung an der inaktiven Region stehen -- unsichtbar, aber ein Rest.
+$pdoR3 = avesmapsGaretienVerbundUebernahmeTestPdo();
+$runR3 = avesmapsSyncPlanStartRun($pdoR3, AVESMAPS_GARETIEN_PLAN_KIND, 7, 'lauf-r3');
+$itemR31 = avesmapsGaretienVerbundTestFragmentMitArtikel($pdoR3, $runR3, 'Altsee', 1, avesmapsGaretienVerbundTestRing(100, 100),
+    'https://www.garetien.de/index.php/Altsee');
+avesmapsGaretienUebernehmen($pdoR3, $runR3, [$itemR31], ['id' => 7]);
+$regionR3 = avesmapsGaretienVermerkLesen((string) $pdoR3->query('SELECT apply_note FROM sync_plan_item WHERE id = ' . $itemR31)->fetchColumn())['region'];
+$pdoR3->prepare('UPDATE sync_plan_item SET apply_note = ? WHERE id = ?')->execute([$regionR3, $itemR31]);
+$rR31 = avesmapsGaretienRuecknahmeAusfuehren($pdoR3, $runR3, [$itemR31], ['id' => 7]);
+assert($rR31['fehler'] === [] && $rR31['zurueckgenommen'] === 1,
+    'R3: der alte Vermerk bleibt zuruecknehmbar: ' . json_encode($rR31['fehler'], JSON_UNESCAPED_UNICODE));
+$restR3 = (int) $pdoR3->query("SELECT COUNT(*) FROM feature_sources WHERE entity_type = 'ecosystem' AND entity_public_id = '" . $regionR3 . "'")->fetchColumn();
+assert($restR3 === 0, 'R3: und seine Quelle faellt mit der Region: ' . $restR3);
+
+echo "OK -- garetien-verbund-quelle-faellt-mit-der-letzten-flaeche (Entwurf 14.09.2026, Fehler 9)\n";
