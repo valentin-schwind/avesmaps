@@ -4110,4 +4110,77 @@ assert($traegtAdresseAn($sammelUrlG2) === 0,
     '🔴 g2: dasselbe Ergebnis wie g1, obwohl hier die KLEINERE id angelegt:0 ist -- das Ergebnis haengt NICHT von der id-Reihenfolge ab');
 $pruefungen += 2;
 
+// =================================================================================================
+// NACHBESSERUNG 3 (14.09.2026, Pruefer-Befund gegen 3179938bc)
+// =================================================================================================
+// --- G-a: eine FREMDE, kaputte done-Kandidatenzeile mit unbekanntem `ziel` (leer) an DERSELBEN
+// Entitaet zaehlt als Traeger, statt die Ruecknahme eines voellig unbeteiligten Items scheitern
+// zu lassen (avesmapsGaretienQuellenZiel wirft bei leerem/unbekanntem `ziel`).
+$eintragGaBauwerk = $baueBauwerk('Wandlether ScenarioGa-Bauwerk', $befundWandleth);
+avesmapsSyncPlanAddItem($pdoI, $laufI, $eintragGaBauwerk);
+$gaBauwerkId = $itemIdVon($pdoI, 'Wandlether ScenarioGa-Bauwerk (Probe)');
+$eGaBauwerk = avesmapsGaretienUebernehmen($pdoI, $laufI, [$gaBauwerkId], ['id' => 7], null, [
+    $gaBauwerkId => ['innerorts' => true, 'innerorts_nur_quelle' => true],
+]);
+assert($eGaBauwerk['fehler'] === [], 'Ga (Testaufbau): das Bauwerk wird uebernommen: ' . json_encode($eGaBauwerk, JSON_UNESCAPED_UNICODE));
+$adresseGa = 'https://www.garetien.de/index.php/Garetien:Wandlether%20ScenarioGa-Bauwerk';
+assert($traegtAdresseAn($adresseGa) === 1, 'Ga (Testaufbau): die Adresse haengt');
+$pruefungen += 2;
+
+// Eine FREMDE, kaputte Zeile: done, changed, felder=['quelle'], aber ziel='' -- an DERSELBEN
+// Entitaet ('stadt-wandleth'). Kommt so weder aus avesmapsGaretienErgaenzungsEintraege noch aus
+// irgendeinem regulaeren Weg, sondern simuliert einen fremden, kaputten Datensatz.
+$pdoI->prepare("INSERT INTO sync_plan_item (run_id, entity_key, entity_public_id, change_type, label, after_json, selected, apply_state, apply_note)
+               VALUES (?, ?, 'stadt-wandleth', 'changed', ?, ?, 1, 'done', 'stadt-wandleth')")
+    ->execute([
+        $laufI, 'ggp:Probe:kaputt:ScenarioGa', 'Kaputte Zeile ScenarioGa',
+        json_encode(['herkunft' => 'garetien', 'anlass' => 'ergaenzung', 'felder' => ['quelle'], 'ziel' => '',
+            'quelle' => ['url' => 'https://www.garetien.de/index.php?title=Irrelevant']], JSON_UNESCAPED_UNICODE),
+    ]);
+
+$rGaBauwerk = avesmapsGaretienRuecknahmeAusfuehren($pdoI, $laufI, [$gaBauwerkId], ['id' => 7]);
+assert($rGaBauwerk['fehler'] === [] && $rGaBauwerk['zurueckgenommen'] === 1,
+    'Ga: die Ruecknahme scheitert NICHT an der kaputten Fremdzeile: ' . json_encode($rGaBauwerk, JSON_UNESCAPED_UNICODE));
+assert($traegtAdresseAn($adresseGa) === 1,
+    '🔴 Ga: und loest NICHTS -- die kaputte Zeile mit unbekanntem ziel zaehlt als Traeger (sichere Richtung), statt zu werfen');
+$pruefungen += 2;
+
+// --- G-b: LIKE-Escape -- eine Siedlung mit Unterstrich in der public_id wird nicht mit einer
+// aehnlich benannten OHNE Unterstrich verwechselt (ungeschuetzt waere `_` ein Ein-Zeichen-Joker:
+// `stadt_x%` traefe auch `stadtax...`).
+$pdoI->exec("INSERT INTO map_features (public_id, feature_type, feature_subtype, name, geometry_json, properties_json, is_active) VALUES
+    ('stadt_x', 'location', 'dorf', 'Unterstrichstadt', '{\"type\":\"Point\",\"coordinates\":[640,640]}', '{}', 1),
+    ('stadtax', 'location', 'dorf', 'Aehnlichstadt', '{\"type\":\"Point\",\"coordinates\":[645,645]}', '{}', 1)");
+$eintragGbX = $baueBauwerk('ScenarioGb-BauwerkX', ['public_id' => 'stadt_x', 'name' => 'Unterstrichstadt', 'meilen' => 0.05]);
+avesmapsSyncPlanAddItem($pdoI, $laufI, $eintragGbX);
+$gbXId = $itemIdVon($pdoI, 'ScenarioGb-BauwerkX (Probe)');
+$eGbX = avesmapsGaretienUebernehmen($pdoI, $laufI, [$gbXId], ['id' => 7], null, [$gbXId => ['innerorts' => true, 'innerorts_nur_quelle' => true]]);
+assert($eGbX['fehler'] === [], 'Gb (Testaufbau): X (stadt_x) uebernommen: ' . json_encode($eGbX, JSON_UNESCAPED_UNICODE));
+
+$eintragGbAx = $baueBauwerk('ScenarioGb-BauwerkAx', ['public_id' => 'stadtax', 'name' => 'Aehnlichstadt', 'meilen' => 0.05]);
+avesmapsSyncPlanAddItem($pdoI, $laufI, $eintragGbAx);
+$gbAxId = $itemIdVon($pdoI, 'ScenarioGb-BauwerkAx (Probe)');
+$eGbAx = avesmapsGaretienUebernehmen($pdoI, $laufI, [$gbAxId], ['id' => 7], null, [$gbAxId => ['innerorts' => true, 'innerorts_nur_quelle' => true]]);
+assert($eGbAx['fehler'] === [], 'Gb (Testaufbau): Ax (stadtax) uebernommen: ' . json_encode($eGbAx, JSON_UNESCAPED_UNICODE));
+
+$traegtAdresseAnGb = static fn(string $siedlung, string $url): int => (int) $pdoI->query(
+    "SELECT COUNT(*) FROM feature_sources fs JOIN sources s ON s.id = fs.source_id"
+    . " WHERE fs.entity_type = 'settlement' AND fs.entity_public_id = " . $pdoI->quote($siedlung) . " AND fs.origin = 'garetien'"
+    . ' AND s.url = ' . $pdoI->quote($url)
+)->fetchColumn();
+$adresseGbX = 'https://www.garetien.de/index.php/Garetien:ScenarioGb-BauwerkX';
+$adresseGbAx = 'https://www.garetien.de/index.php/Garetien:ScenarioGb-BauwerkAx';
+assert($traegtAdresseAnGb('stadt_x', $adresseGbX) === 1 && $traegtAdresseAnGb('stadtax', $adresseGbAx) === 1,
+    'Gb (Testaufbau): beide Adressen haengen an ihrer jeweils EIGENEN Siedlung');
+$pruefungen += 3;
+
+// Ruecknahme von X (stadt_x, angelegt:1, keine Geschwister DORT) muss ihre eigene Verknuepfung
+// loesen -- die aehnlich benannte Siedlung "stadtax" darf NICHT als Traeger durchgehen.
+$rGbX = avesmapsGaretienRuecknahmeAusfuehren($pdoI, $laufI, [$gbXId], ['id' => 7]);
+assert($rGbX['fehler'] === [] && $rGbX['zurueckgenommen'] === 1, 'Gb: Ruecknahme X gelingt: ' . json_encode($rGbX, JSON_UNESCAPED_UNICODE));
+assert($traegtAdresseAnGb('stadt_x', $adresseGbX) === 0,
+    '🔴 Gb: X ist geloescht -- "stadtax" wurde NICHT faelschlich als Traeger von "stadt_x" gelesen (LIKE-Escape)');
+assert($traegtAdresseAnGb('stadtax', $adresseGbAx) === 1, 'Gb: stadtax bleibt unberuehrt');
+$pruefungen += 2;
+
 echo "OK: {$pruefungen} Pruefungen\n";

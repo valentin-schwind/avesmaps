@@ -1272,4 +1272,71 @@ assert($rR31['fehler'] === [] && $rR31['zurueckgenommen'] === 1,
 $restR3 = (int) $pdoR3->query("SELECT COUNT(*) FROM feature_sources WHERE entity_type = 'ecosystem' AND entity_public_id = '" . $regionR3 . "'")->fetchColumn();
 assert($restR3 === 0, 'R3: und seine Quelle faellt mit der Region: ' . $restR3);
 
+// --- (i) NACHBESSERUNG 3 (14.09.2026): dieselbe Zusicherung wie oben in R/R2/R3 -- „ohne ein
+// eigenstaendiges Ergaenzungs-Item faellt die Verknuepfung mit der letzten Flaeche" bleibt WAHR
+// (Entwurf §6.7). R selbst IST genau dieser Fall (zwei Fragmente, kein separates changed-Quelle-
+// Item an der Region) und wurde durch den Umbau auf avesmapsGaretienAndererTraegerVorhanden nicht
+// veraendert -- $verknuepfungenR() === 0 nach der Ruecknahme BEIDER Fragmente ist oben bereits
+// gesichert. Kein neuer Testcode noetig, hier nur benannt.
+
 echo "OK -- garetien-verbund-quelle-faellt-mit-der-letzten-flaeche (Entwurf 14.09.2026, Fehler 9)\n";
+
+// =================================================================================================
+// NACHBESSERUNG 3 (14.09.2026, Pruefer-Befund gegen 3179938bc) -- W1c: der Regions-Aufrufer
+// (letzte Flaeche faellt) fragt jetzt ebenfalls avesmapsGaretienAndererTraegerVorhanden, statt
+// blind alles mit origin='garetien' zu loeschen (avesmapsGaretienQuelleRuecknahmeLoesen ist
+// entfernt, siehe garetien-uebernahme.php).
+// =================================================================================================
+// --- (h) Region aus zwei Fragment-Flaechen + ein EIGENSTAENDIGES done-changed-Quelle-Item an
+// DERSELBEN Region mit DERSELBEN Adresse (avesmapsGaretienErgaenzungsEintraege bietet genau so
+// ein Item fuer ziel='region' an, garetien-plan.php:1023) -- beide Flaechen zurueeknehmen darf
+// die Verknuepfung nicht loesen, das Ergaenzungs-Item bleibt unveraendert done.
+$artikelH = 'https://www.garetien.de/index.php/Duestertann';
+$pdoH = avesmapsGaretienVerbundUebernahmeTestPdo();
+$runH = avesmapsSyncPlanStartRun($pdoH, AVESMAPS_GARETIEN_PLAN_KIND, 7, 'lauf-h');
+$itemH1 = avesmapsGaretienVerbundTestFragmentMitArtikel($pdoH, $runH, 'Duestertann 1', 1, avesmapsGaretienVerbundTestRing(100, 100), $artikelH);
+$itemH2 = avesmapsGaretienVerbundTestFragmentMitArtikel($pdoH, $runH, 'Duestertann 2', 2, avesmapsGaretienVerbundTestRing(200, 200), $artikelH);
+$ergebnisH = avesmapsGaretienUebernehmen($pdoH, $runH, [$itemH1, $itemH2], ['id' => 7], null, [
+    $itemH1 => ['verbund' => 'Duestertann'],
+    $itemH2 => ['verbund' => 'Duestertann'],
+]);
+assert($ergebnisH['fehler'] === [], 'h (Testaufbau): keine Fehler: ' . json_encode($ergebnisH['fehler'], JSON_UNESCAPED_UNICODE));
+$regionH = avesmapsGaretienVermerkLesen((string) $pdoH->query('SELECT apply_note FROM sync_plan_item WHERE id = ' . $itemH1)->fetchColumn())['region'];
+$verknuepfungenH = static fn(): int => (int) $pdoH->query(
+    "SELECT COUNT(*) FROM feature_sources WHERE entity_type = 'ecosystem' AND entity_public_id = '" . $regionH . "' AND origin = 'garetien'"
+)->fetchColumn();
+assert($verknuepfungenH() === 1, 'h (Testaufbau): die Region traegt die Garetien-Quelle: ' . $verknuepfungenH());
+
+// Ein EIGENSTAENDIGES changed-Quelle-Item an DERSELBEN Region, DIESELBE Adresse -- so, wie
+// avesmapsGaretienErgaenzungsEintraege (garetien-plan.php:1023, ziel='region') es anbieten wuerde.
+$pdoH->prepare("INSERT INTO sync_plan_item (run_id, entity_key, entity_public_id, change_type, label, before_json, after_json, override_json, selected)
+               VALUES (?, ?, ?, 'changed', ?, NULL, ?, NULL, 1)")
+    ->execute([
+        $runH, 'ggp:Waelder:Wald:Duestertann-Ergaenzung|ergaenzung|' . $regionH, $regionH, 'Duestertann Ergaenzung',
+        json_encode([
+            'herkunft' => 'garetien', 'anlass' => 'ergaenzung', 'felder' => ['quelle'],
+            'ziel' => 'region', 'kind' => 'vegetation', 'subtyp' => 'wald', 'name' => 'Duestertann',
+            'quelle' => ['url' => $artikelH, 'label' => 'Duestertann auf garetien.de', 'source_type' => 'briefspiel',
+                'origin' => 'garetien', 'license' => 'cc-by-nc-sa-3.0', 'attribution' => 'VolkoV / garetien.de'],
+            'artikel_quelle' => ['url' => $artikelH, 'label' => 'Duestertann auf garetien.de',
+                'license' => 'cc-by-nc-sa-3.0', 'attribution' => 'VolkoV / garetien.de'],
+        ], JSON_UNESCAPED_UNICODE),
+    ]);
+$itemHY = (int) $pdoH->lastInsertId();
+$eHY = avesmapsGaretienUebernehmen($pdoH, $runH, [$itemHY], ['id' => 7]);
+assert($eHY['fehler'] === [], 'h (Testaufbau): das Ergaenzungs-Item wird uebernommen: ' . json_encode($eHY, JSON_UNESCAPED_UNICODE));
+assert($pdoH->query('SELECT apply_state FROM sync_plan_item WHERE id = ' . $itemHY)->fetchColumn() === 'done',
+    'h (Testaufbau): das Ergaenzungs-Item steht auf done');
+
+// Beide Fragment-Flaechen zurueeknehmen -- die zweite ist die LETZTE.
+$rH2 = avesmapsGaretienRuecknahmeAusfuehren($pdoH, $runH, [$itemH2], ['id' => 7]);
+assert($rH2['fehler'] === [] && $rH2['zurueckgenommen'] === 1, 'h: Fragment 2 zurueck: ' . json_encode($rH2['fehler'], JSON_UNESCAPED_UNICODE));
+$rH1 = avesmapsGaretienRuecknahmeAusfuehren($pdoH, $runH, [$itemH1], ['id' => 7]);
+assert($rH1['fehler'] === [] && $rH1['zurueckgenommen'] === 1, 'h: Fragment 1 (die letzte Flaeche) zurueck: ' . json_encode($rH1['fehler'], JSON_UNESCAPED_UNICODE));
+assert($verknuepfungenH() === 1,
+    '🔴 h: die Verknuepfung BLEIBT -- das eigenstaendige Ergaenzungs-Item traegt sie noch, obwohl die letzte Flaeche weg ist: '
+    . $verknuepfungenH());
+assert($pdoH->query('SELECT apply_state FROM sync_plan_item WHERE id = ' . $itemHY)->fetchColumn() === 'done',
+    'h: das Ergaenzungs-Item bleibt unveraendert done -- der Regions-Aufrufer hat es nicht angefasst');
+
+echo "OK -- garetien-verbund-region-traeger-ueberlebt-letzte-flaeche (Nachbesserung 3, W1c)\n";
