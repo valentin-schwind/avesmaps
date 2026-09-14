@@ -7,7 +7,7 @@ function addCreatedPathFeature(feature) {
 	avesmapsWegEinschraenkungNeuRechnen();
 	$("#togglePaths").prop("checked", true);
 	syncPathVisibility();
-	syncPathTransportOptions({ path });
+	if (typeof syncPathTransportOptions === "function") syncPathTransportOptions({ path });
 	refreshPlannerAfterFeatureChange({ updateRoute: true });
 	return path;
 }

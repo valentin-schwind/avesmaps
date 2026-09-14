@@ -905,16 +905,16 @@ $("#report-source-ref, #report-source-pages, #report-source-title, #report-sourc
 		addLocationReportSourceFromInputs();
 	}
 });
-$("#location-edit-form").on("submit", handleLocationEditFormSubmit);
+$("#location-edit-form").on("submit", function (event) { return handleLocationEditFormSubmit.call(this, event); });
 $("#wiki-sync-resolve-form").on("submit", function (event) { return handleWikiSyncResolveFormSubmit.call(this, event); });
-$("#path-edit-form").on("submit", handlePathEditFormSubmit);
-$("#powerline-edit-form").on("submit", handlePowerlineEditFormSubmit);
-$("#label-edit-form").on("submit", handleLabelEditFormSubmit);
+$("#path-edit-form").on("submit", function (event) { return handlePathEditFormSubmit.call(this, event); });
+$("#powerline-edit-form").on("submit", function (event) { return handlePowerlineEditFormSubmit.call(this, event); });
+$("#label-edit-form").on("submit", function (event) { return handleLabelEditFormSubmit.call(this, event); });
 $("#powerline-edit-delete").on("click", () => void deletePowerlineFeature(powerlineEditFeature));
 $("#label-edit-delete").on("click", () => deleteActiveLabel());
-$("#label-edit-min-zoom, #label-edit-max-zoom").on("input", syncLabelZoomRangeOutputs);
-$("#label-edit-min-zoom-num, #label-edit-max-zoom-num").on("input", syncLabelZoomNumberInputs);
-$("#label-edit-priority").on("input", syncLabelPriorityOutput);
+$("#label-edit-min-zoom, #label-edit-max-zoom").on("input", function (event) { return syncLabelZoomRangeOutputs.call(this, event); });
+$("#label-edit-min-zoom-num, #label-edit-max-zoom-num").on("input", function (event) { return syncLabelZoomNumberInputs.call(this, event); });
+$("#label-edit-priority").on("input", function (event) { return syncLabelPriorityOutput.call(this, event); });
 $("#region-edit-form").on("submit", function (event) { return handleRegionEditFormSubmit.call(this, event); });
 $("#region-edit-delete").on("click", () => deleteActiveRegion());
 $("#region-edit-opacity").on("input", function (event) { return syncRegionOpacityOutput.call(this, event); });
@@ -935,7 +935,7 @@ $("#region-operation-cancel").on("click", cancelPendingRegionOperation);
 $("#political-timeline-range, #political-timeline-year").on("input change", function () {
     setPoliticalTimelineYear(this.value);
 });
-$("#path-edit-autoname").on("change", syncPathAutoNameControls);
+$("#path-edit-autoname").on("change", function (event) { return syncPathAutoNameControls.call(this, event); });
 $("#path-edit-type").on("change", () => {
     syncPathAutoNameControls({ forceName: true });
     // 🔴 syncPathTransportOptions zieht das Bach-Häkchen mit (syncPathBachHaken) -- Wegtypwechsel

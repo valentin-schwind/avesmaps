@@ -32,14 +32,14 @@ function openLocationEditDialogFromReport(report, latlng) {
 }
 
 function openLabelEditDialogFromReport(report, latlng) {
-	openLabelEditDialog({ latlng });
+	if (typeof openLabelEditDialog === "function") openLabelEditDialog({ latlng });
 	activeReviewReportId = Number(report.id) || null;
 	activeReviewReportSource = report.report_source || "map_reports";
 	document.getElementById("label-edit-text").value = report.name || "";
 	document.getElementById("label-edit-type").value = report.report_subtype || "sonstiges";
 	document.getElementById("label-edit-size").value = report.report_subtype === "region" ? 22 : 18;
 	document.getElementById("label-edit-priority").value = report.report_subtype === "region" ? 4 : 3;
-	syncLabelPriorityOutput();
+	if (typeof syncLabelPriorityOutput === "function") syncLabelPriorityOutput();
 }
 
 // Community change report ("Änderung vorschlagen"): open the EXISTING settlement in the editor (loaded by
@@ -234,7 +234,7 @@ async function rejectReviewReport(report) {
 			activeReviewReportId = null;
 			activeReviewReportSource = null;
 			setLocationEditDialogOpen(false, { resetForm: true });
-			setLabelEditDialogOpen(false, { resetForm: true });
+			if (typeof setLabelEditDialogOpen === "function") setLabelEditDialogOpen(false, { resetForm: true });
 		}
 		clearReviewReportMarker();
 		showFeedbackToast("Meldung verworfen.", "success");

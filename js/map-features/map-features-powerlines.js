@@ -921,7 +921,7 @@ async function deletePowerlineFeature(powerline) {
 		locationConnectivityIndex = null;
 		updateRevisionFromEditResponse(result);
 		void loadChangeLog();
-		setPowerlineEditDialogOpen(false, { resetForm: true });
+		if (typeof setPowerlineEditDialogOpen === "function") setPowerlineEditDialogOpen(false, { resetForm: true });
 		showFeedbackToast("Kraftlinie gelöscht.", "success");
 	} catch (error) {
 		console.error("Kraftlinie konnte nicht gelöscht werden:", error);

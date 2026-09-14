@@ -3786,9 +3786,11 @@
 		<template data-nur-editor><script src="js/review/review-list-balance.js"></script></template><script>avesmapsNurEditorSkripte()</script>
 		<script src="js/review/review-pending.js"></script>
 		<!-- VOR review-paths.js: dessen syncPathTransportOptions ruft renderPathTransportSeasons. -->
-		<script src="js/review/review-path-seasons.js"></script>
-		<script src="js/review/review-paths.js"></script>
-		<script src="js/review/review-labels.js"></script>
+		<template data-nur-editor>
+			<script src="js/review/review-path-seasons.js"></script>
+			<script src="js/review/review-paths.js"></script>
+			<script src="js/review/review-labels.js"></script>
+		</template><script>avesmapsNurEditorSkripte()</script>
 		<script src="js/review/meldung-quellen.js"></script>
 		<script src="js/review/review-locations.js"></script>
 		<script src="js/review/review-panels.js"></script>
@@ -3836,9 +3838,11 @@
 		     map_features-Label statt an die gezeichnete Flaeche, hat deshalb eine eigene Erklaerung
 		     (`landschaftslabel`) -- und teilt sich den Datenweg mit der Zeile darueber.
 		     ⚠️ Sie stand bis zum 16.08.2026 WEITER OBEN, vor dem Bauteil; hier gehoert sie hin. -->
-		<script src="js/review/review-label-wiki.js"></script>
-		<script src="js/review/review-path-wiki.js"></script>
-		<script src="js/review/review-path-flow.js"></script>
+		<template data-nur-editor>
+			<script src="js/review/review-label-wiki.js"></script>
+			<script src="js/review/review-path-wiki.js"></script>
+			<script src="js/review/review-path-flow.js"></script>
+		</template><script>avesmapsNurEditorSkripte()</script>
 		<!-- Die Subjekt-Registry MUSS vor ihren Lesern stehen: review-settlement-list.js und review-wiki-sync.js rufen wikiSyncSubjectFacets() schon beim Auswerten auf (Beschriftungen der Listenfilter). Sie stand bis 2026-07-23 unter beiden; das Listenmodul waere beim ersten Laden mit einem ReferenceError komplett ausgefallen. Die Datei selbst haengt von nichts ab -- reine Daten. -->
 		<template data-nur-editor>
 			<script src="js/review/review-subjects.js"></script>
@@ -3895,8 +3899,10 @@
 			<script src="js/review/review-region-submit-flow.js"></script>
 			<script src="js/review/review-region-events.js"></script>
 		</template><script>avesmapsNurEditorSkripte()</script>
-		<script src="js/review/review-dialog-state.js"></script>
-		<script src="js/review/review-editor-submit.js"></script>
+		<template data-nur-editor>
+			<script src="js/review/review-dialog-state.js"></script>
+			<script src="js/review/review-editor-submit.js"></script>
+		</template><script>avesmapsNurEditorSkripte()</script>
 		<script src="js/review/review-report-flow.js"></script>
 		<script src="js/review/review-region-util.js"></script>
 		<template data-nur-editor><script src="js/review/review-visitor-analytics.js"></script></template><script>avesmapsNurEditorSkripte()</script>

@@ -150,6 +150,12 @@ const ERLAUBT = {
 		// Gebietsdialog: Formular, Regler, Elternfilter, Schliessen (Klick, Hintergrund, Escape nur bei offenem Dialog)
 		"setRegionEditDialogOpen", "handleRegionEditFormSubmit", "syncRegionOpacityOutput", "syncRegionCoatPreview",
 		"syncRegionValidToControls", "updateRegionParentFilter",
+		// Wege-, Kraftlinien-, Beschriftungs- und Ortsformular: Huellen, Regler, Schliessen (Klick,
+		// Hintergrund, Escape nur, wenn review-core den Dialog als offen meldet -- das kann nur der Editor)
+		"setPathEditDialogOpen", "setPowerlineEditDialogOpen", "setLabelEditDialogOpen",
+		"handleLocationEditFormSubmit", "handlePathEditFormSubmit", "handlePowerlineEditFormSubmit",
+		"handleLabelEditFormSubmit", "syncLabelZoomRangeOutputs", "syncLabelZoomNumberInputs",
+		"syncLabelPriorityOutput", "syncPathAutoNameControls", "syncPathTransportOptions",
 	],
 	// assignWikiSyncTerritoryPayloadInsideLegacyEditor: bricht vorher per typeof auf
 	// ensurePoliticalTerritoryChainFromWikiPath ab (dieselbe Vorlage) -- die Zeilen danach laufen nur,
@@ -208,7 +214,9 @@ for (const [rel, text] of quellen) {
 	const zeilen = text.split(/\r?\n/);
 	for (let i = 0; i < zeilen.length; i++) {
 		const z = zeilen[i];
-		const umgebung = zeilen.slice(Math.max(0, i - 2), i + 1).join("\n");
+		// Fuenf Zeilen zurueck: das Haus schuetzt auch per fruehem Ausstieg
+		// (`if (typeof x !== "function") { …; return; }` und der Aufruf drei, vier Zeilen darunter).
+		const umgebung = zeilen.slice(Math.max(0, i - 5), i + 1).join("\n");
 		const geschuetzt = (n) => new RegExp("typeof\\s+(?:(?:window|globalThis)\\.)?" + esc(n) + "(?![\\w$])").test(umgebung);
 		// window.X lesen wirft nie; window.X = ... ist eine Definition. Nur window.X(...) braucht Schutz.
 		for (const m of z.matchAll(fensterRe)) {

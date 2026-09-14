@@ -1861,7 +1861,7 @@ async function deleteLabelEntry(entry, { closeDialog = false } = {}) {
 		updateRevisionFromEditResponse(result);
 		void loadChangeLog();
 		if (closeDialog) {
-			setLabelEditDialogOpen(false, { resetForm: true });
+			if (typeof setLabelEditDialogOpen === "function") setLabelEditDialogOpen(false, { resetForm: true });
 		}
 		// 🔴 War das das letzte Label seiner Fläche, hat der Server die Region samt Flächen mitgelöscht
 		// (avesmapsEcosystemCascadeAfterRemoval). Der Editor erfährt es hier -- eine Fläche, die
@@ -2233,7 +2233,7 @@ async function duplicateLabelEntry(entry) {
 		void loadChangeLog();
 		entry.marker.closePopup();
 		pendingLabelMoveAfterEditEntry = duplicatedLabelEntry;
-		openLabelEditDialog({ labelEntry: duplicatedLabelEntry });
+		if (typeof openLabelEditDialog === "function") openLabelEditDialog({ labelEntry: duplicatedLabelEntry });
 		showFeedbackToast("Label dupliziert. Bearbeiten, danach verschieben.", "success");
 	} catch (error) {
 		console.error("Label konnte nicht dupliziert werden:", error);
@@ -2243,7 +2243,7 @@ async function duplicateLabelEntry(entry) {
 
 function createLabelAt(latlng) {
 	setSelectedMapLayerMode("deregraphic");
-	openLabelEditDialog({ latlng: L.latLng(latlng) });
+	if (typeof openLabelEditDialog === "function") openLabelEditDialog({ latlng: L.latLng(latlng) });
 }
 
 // Webfont (Faculty Glyphic) kann beim ersten Label-Render noch nicht geladen sein -> nach dem Laden die

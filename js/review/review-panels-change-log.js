@@ -968,7 +968,7 @@ function focusLabelFeature(labelEntry) {
 		syncLabelVisibility();
 	}
 	map.panTo(latlng);
-	openLabelEditDialog({ labelEntry });
+	if (typeof openLabelEditDialog === "function") openLabelEditDialog({ labelEntry });
 	return true;
 }
 

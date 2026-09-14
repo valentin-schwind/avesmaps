@@ -1268,7 +1268,7 @@ $(document).on("click", ".location-popup__action-button", function (event) {
 			return;
 		}
 
-		void submitPathFlowShortcut(path);
+		if (typeof submitPathFlowShortcut === "function") void submitPathFlowShortcut(path);
 		return;
 	}
 
@@ -1279,7 +1279,7 @@ $(document).on("click", ".location-popup__action-button", function (event) {
 			return;
 		}
 
-		openPathEditDialog(path);
+		if (typeof openPathEditDialog === "function") openPathEditDialog(path);
 		return;
 	}
 
@@ -1318,7 +1318,7 @@ $(document).on("click", ".location-popup__action-button", function (event) {
 		if (typeof openAvesmapsPowerlineEditorOverlay === "function") {
 			openAvesmapsPowerlineEditorOverlay(getPowerlineDisplayName(powerline));
 		} else {
-			openPowerlineEditDialog(powerline);
+			if (typeof openPowerlineEditDialog === "function") openPowerlineEditDialog(powerline);
 		}
 		return;
 	}
@@ -1352,7 +1352,7 @@ $(document).on("click", ".location-popup__action-button", function (event) {
 			return;
 		}
 
-		openLabelEditDialog({ labelEntry });
+		if (typeof openLabelEditDialog === "function") openLabelEditDialog({ labelEntry });
 		return;
 	}
 
