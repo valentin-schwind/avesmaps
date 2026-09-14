@@ -4,6 +4,7 @@
 const assert = require("assert");
 const fs = require("fs");
 const path = require("path");
+const vm = require("vm");
 
 const WURZEL = path.resolve(__dirname, "..", "..", "..");
 const lies = (rel) => fs.readFileSync(path.join(WURZEL, rel), "utf8").replace(/\r\n/g, "\n");
@@ -70,5 +71,110 @@ assert.ok(lage > 0 && rendering.indexOf("avesmapsWegWeiterePlatzhalter(getPathPu
 const panel = lies("js/map-features/map-features-infopanel.js");
 const zeige = panel.slice(panel.indexOf("window.avesmapsShowPathInInfopanel = function"), panel.indexOf("window.avesmapsShowInfopanel(markup);", panel.indexOf("window.avesmapsShowPathInInfopanel = function")));
 assert.ok(zeige.includes("avesmapsWegWeitereFuellen(markup, path)"), "das Infopanel fuellt den Platzhalter vor dem Anzeigen");
+
+// 5. Klick-Paritaet (Ruling R26, Task 11 Fix 1): ein Linien-Klick und ein Klick auf den WEG-NAMEN muessen
+// dieselben Zeilen zeigen -- der Platzhalter darf nicht davon abhaengen, welche der beiden Klickflaechen
+// (und welcher der beiden Zweige -- Infopanel oder schwebendes Popup) getroffen wird. Ausgefuehrt wird der
+// ECHTE, aus dem Quelltext geschnittene Zweig (nicht nur gegrept), mit der ECHTEN avesmapsWegWeitereFuellen.
+function schneide(text, start, biszu) {
+	const von = text.indexOf(start);
+	assert.ok(von > 0, "Anker nicht gefunden: " + start);
+	const bisIdx = text.indexOf(biszu, von);
+	assert.ok(bisIdx > von, "Ende-Anker nicht gefunden nach dem Start: " + biszu);
+	return { von, bis: bisIdx + biszu.length, text: text.slice(von, bisIdx + biszu.length) };
+}
+function baueHandler(parameterNamen, rumpf) {
+	const quelle = "(function(" + parameterNamen.join(", ") + ") {\n" + rumpf + "\n})";
+	return new vm.Script(quelle, { filename: "geschnittener-klick-zweig.js" }).runInNewContext({});
+}
+function lPopupSpion() {
+	const aufrufe = [];
+	const L = {
+		popup(options) {
+			const eintrag = { options, latlng: null, content: null, geoeffnet: false };
+			aufrufe.push(eintrag);
+			const kette = {
+				setLatLng(ll) { eintrag.latlng = ll; return kette; },
+				setContent(c) { eintrag.content = c; return kette; },
+				openOn(m) { eintrag.geoeffnet = true; eintrag.map = m; return kette; },
+			};
+			return kette;
+		},
+	};
+	return { L, aufrufe };
+}
+
+// -- Linien-Klick (js/map-features/map-features-path-rendering.js, line.on("click", ...)) --------------
+const renderQuelle = lies("js/map-features/map-features-path-rendering.js");
+const linienZweig = schneide(
+	renderQuelle,
+	'// Infopanel (?infopanel=true): Weg-/Fluss-Info ins rechte Panel statt ins schwebende Popup.',
+	".openOn(map);",
+);
+const linienHandler = baueHandler(["path", "event", "window", "map", "L", "avesmapsWegWeitereFuellen"], linienZweig.text + "\n}");
+
+// -- Namen-Klick (js/map-features/map-features-path-label-canvas-overlay.js, map.on("click", ...)) ------
+const overlayQuelle = lies("js/map-features/map-features-path-label-canvas-overlay.js");
+const naechsterAbschnitt = overlayQuelle.indexOf("// Cursor-Feedback (billig, throttled)");
+assert.ok(naechsterAbschnitt > 0, "Ende-Anker des Namen-Klick-Blocks nicht gefunden");
+const namenStart = overlayQuelle.indexOf("const labeledPath = findPathForWayLabelEntry(hit);");
+assert.ok(namenStart > 0 && namenStart < naechsterAbschnitt, "Start-Anker des Namen-Klick-Blocks nicht gefunden");
+const letztesOpenOn = overlayQuelle.lastIndexOf(".openOn(map);", naechsterAbschnitt);
+assert.ok(letztesOpenOn > namenStart, "kein .openOn(map) im Namen-Klick-Block gefunden");
+const namenZweig = overlayQuelle.slice(namenStart, letztesOpenOn + ".openOn(map);".length);
+const namenHandler = baueHandler(
+	["hit", "window", "map", "L", "findPathForWayLabelEntry", "createPathPopupMarkup", "wayLabelPopupMarkup", "avesmapsWegWeitereFuellen", "pathHasWiki"],
+	namenZweig,
+);
+
+// rs7 traegt eine weitere Zuweisung (Baerenpfad) -- echte, nicht-leere Zeilen beim Fuellen.
+rs7._popupMarkup = "<dl>" + A.avesmapsWegWeiterePlatzhalter(rs7.properties.public_id) + "</dl>";
+const roherPlatzhalter = rs7._popupMarkup;
+
+// A. Linien-Klick, KEIN Infopanel (schwebendes Popup) -- muss fuellen.
+{
+	const { L, aufrufe } = lPopupSpion();
+	linienHandler(rs7, { latlng: { lat: 0, lng: 0 } }, {}, {}, L, A.avesmapsWegWeitereFuellen);
+	assert.strictEqual(aufrufe.length, 1, "Linien-Klick ohne Infopanel muss den Popup oeffnen");
+	assert.ok(aufrufe[0].content.includes('data-station-ref="Baerenpfad">Bärenpfad</button>'),
+		"Linien-Klick-Popup zeigt die ungefuellten Zeilen nicht: " + aufrufe[0].content);
+	assert.notStrictEqual(aufrufe[0].content, roherPlatzhalter, "Linien-Klick-Popup blieb der rohe, ungefuellte Platzhalter");
+}
+// B. Linien-Klick MIT erfolgreichem Infopanel -- der Popup-Zweig darf gar nicht laufen (wie am echten Klick).
+{
+	const { L, aufrufe } = lPopupSpion();
+	let aufgerufenMit = null;
+	const window_ = { avesmapsShowPathInInfopanel: (p) => { aufgerufenMit = p; return true; } };
+	linienHandler(rs7, { latlng: { lat: 0, lng: 0 } }, window_, {}, L, A.avesmapsWegWeitereFuellen);
+	assert.strictEqual(aufgerufenMit, rs7, "das Infopanel muss mit demselben Pfad gerufen werden");
+	assert.strictEqual(aufrufe.length, 0, "bei erfolgreichem Infopanel darf kein Popup geoeffnet werden");
+}
+
+// C. Namen-Klick, KEIN Infopanel (schwebendes Popup) -- muss denselben Fuell-Schritt durchlaufen wie A.
+{
+	const { L, aufrufe } = lPopupSpion();
+	namenHandler(
+		{ anchorLatLng: { lat: 0, lng: 0 } }, {}, {}, L,
+		() => rs7, undefined, () => "<div>Kurzfassung</div>", A.avesmapsWegWeitereFuellen,
+		(p) => Boolean(p?.properties?.wiki_path?.wiki_key),
+	);
+	assert.strictEqual(aufrufe.length, 1, "Namen-Klick ohne Infopanel muss den Popup oeffnen");
+	assert.ok(aufrufe[0].content.includes('data-station-ref="Baerenpfad">Bärenpfad</button>'),
+		"Namen-Klick-Popup zeigt die ungefuellten Zeilen nicht (die urspruengliche Luecke, Concern 1): " + aufrufe[0].content);
+	assert.notStrictEqual(aufrufe[0].content, roherPlatzhalter, "Namen-Klick-Popup blieb der rohe, ungefuellte Platzhalter");
+}
+// D. Namen-Klick MIT erfolgreichem Infopanel -- dieselbe Route wie der Linien-Klick (B), kein eigenes Popup.
+{
+	const { L, aufrufe } = lPopupSpion();
+	let aufgerufenMit = null;
+	const window_ = { avesmapsShowPathInInfopanel: (p) => { aufgerufenMit = p; return true; } };
+	namenHandler(
+		{ anchorLatLng: { lat: 0, lng: 0 } }, window_, {}, L,
+		() => rs7, undefined, () => "<div>Kurzfassung</div>", A.avesmapsWegWeitereFuellen,
+		(p) => Boolean(p?.properties?.wiki_path?.wiki_key),
+	);
+	assert.strictEqual(aufgerufenMit, rs7, "das Infopanel muss mit demselben Pfad gerufen werden wie am Linien-Klick");
+	assert.strictEqual(aufrufe.length, 0, "bei erfolgreichem Infopanel darf der Namen-Klick keinen eigenen Popup oeffnen");
+}
 
 console.log("weg-weitere-anzeige.test.js: ok");

@@ -1316,25 +1316,37 @@
 		// auf die Weg-/Fluss-Linie -- also die volle Wiki-Infobox (Lage/Laenge/Verlauf/Beschreibung + Quellenzeile
 		// + "Link teilen"), nicht die frueher hier gebaute Kurzfassung. Wir wiederverwenden das vorgefertigte
 		// _popupMarkup/_popupOptions des repraesentativen Segments (identisch zum Linien-Klick in createPathLayer,
-		// map-features-path-rendering.js).
+		// map-features-path-rendering.js). ⭐ Seit der R26-Reparatur (Task 11 Fix 1) teilen sich beide Klicks auch
+		// den Fuell-Schritt der Zeilen "Auch Teil von"/"Verlaeuft auch ueber": die Infobox-Route laeuft ueber
+		// avesmapsShowPathInInfopanel wie beim Linien-Klick, der Popup-Fall fuellt denselben Platzhalter ueber
+		// avesmapsWegWeitereFuellen wie der Weg-Popup der Linie.
 		const labeledPath = findPathForWayLabelEntry(hit);
 		const markup = labeledPath
 			? (labeledPath._popupMarkup || (typeof createPathPopupMarkup === "function" ? createPathPopupMarkup(labeledPath) : null))
 			: null;
-		// Infopanel (?infopanel=true): Weg-Info ins rechte Panel statt ins schwebende Popup
-		// (markup, sonst die Kurzfassung).
+		// Infopanel (?infopanel=true): identisch zum Linien-Klick ueber avesmapsShowPathInInfopanel (fuellt,
+		// haengt Kartensammlung/Literatur an, merkt lastPanelRender) -- nicht mehr die schwebende Kurzfassung.
+		if (labeledPath && typeof window.avesmapsShowPathInInfopanel === "function"
+				&& window.avesmapsShowPathInInfopanel(labeledPath)) {
+			return;
+		}
+		// Nur falls avesmapsShowPathInInfopanel fehlt oder ohne Markup auskam (dann ist auch `markup` hier leer):
+		// die alte Kurzfassungs-Route bleibt als Sicherheitsnetz stehen.
 		if (typeof window.avesmapsShowInfopanel === "function") {
 			window.avesmapsShowInfopanel(markup || wayLabelPopupMarkup(hit));
 			return;
 		}
 		if (markup) {
+			const gefuelltesMarkup = typeof avesmapsWegWeitereFuellen === "function"
+				? avesmapsWegWeitereFuellen(markup, labeledPath)
+				: markup;
 			const options = labeledPath._popupOptions
 				|| (typeof pathHasWiki === "function" && pathHasWiki(labeledPath)
 					? { className: "settlement-popup", minWidth: 320, maxWidth: 400 }
 					: {});
 			L.popup(options)
 				.setLatLng(hit.anchorLatLng)
-				.setContent(markup)
+				.setContent(gefuelltesMarkup)
 				.openOn(map);
 			return;
 		}

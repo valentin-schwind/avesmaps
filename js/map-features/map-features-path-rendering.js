@@ -534,9 +534,14 @@ function createPathLayer(path) {
 			}
 			// Sonst den Weg-Popup manuell oeffnen (bindPopup-Ersatz, damit der Schiedsrichter ihn unterdruecken kann).
 			if (path._popupMarkup && typeof map !== "undefined") {
+				// R26 (Task 11 Fix 1): derselbe Fuell-Schritt wie im Infopanel-Zweig darueber -- sonst haengen
+				// "Auch Teil von"/"Verlaeuft auch ueber" davon ab, ob ?infopanel=true gesetzt ist.
+				const gefuelltesMarkup = typeof avesmapsWegWeitereFuellen === "function"
+					? avesmapsWegWeitereFuellen(path._popupMarkup, path)
+					: path._popupMarkup;
 				L.popup(path._popupOptions || {})
 					.setLatLng(event.latlng)
-					.setContent(path._popupMarkup)
+					.setContent(gefuelltesMarkup)
 					.openOn(map);
 			}
 		});
