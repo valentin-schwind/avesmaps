@@ -35,7 +35,7 @@ function &avesmapsReferenz() { static $a = []; return $a; }
 $pdo = new PDO('mysql:host=db.example', 'datenbanknutzer', 'GeheimesPasswort123');
 // avesmapsNurImKommentar($pdo);
 /* avesmapsAuchNurImKommentar(); */
-$wert = avesmapsWikiSyncSyncTerritories($pdo, 'kennwortImString');
+$wert = avesmapsBeispielAufruf($pdo, 'kennwortImString');
 $obj->avesmapsMethode();
 $obj?->avesmapsNullsicher();
 Klasse::avesmapsStatisch();
@@ -50,7 +50,7 @@ $ergebnis = avesmapsInventarBezeichner($code);
 $json = json_encode($ergebnis);
 
 // --- 1. Echte Aufrufe werden gefunden, mit Zeile ---
-pruefe(($ergebnis['aufrufe']['avesmapsWikiSyncSyncTerritories'] ?? null) === [9], 'Aufruf mit Zeile 9');
+pruefe(($ergebnis['aufrufe']['avesmapsBeispielAufruf'] ?? null) === [9], 'Aufruf mit Zeile 9');
 pruefe(isset($ergebnis['aufrufe']['avesmapsMitNamensraum']), 'voll qualifizierter Aufruf zaehlt');
 pruefe(isset($ergebnis['aufrufe']['avesmapsInDerClosure']), 'Aufruf in einer Closure zaehlt');
 
@@ -93,7 +93,7 @@ $befehl = escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg(dirname(__DIR__) . D
     . ' ' . escapeshellarg($verzeichnis);
 $ausgabe = json_decode((string) shell_exec($befehl), true);
 pruefe(is_array($ausgabe) && array_keys($ausgabe) === ['api/alt.php'], 'CLI: relativer Pfad mit /, nur .php');
-pruefe(isset($ausgabe['api/alt.php']['aufrufe']['avesmapsWikiSyncSyncTerritories']), 'CLI: Analyse je Datei');
+pruefe(isset($ausgabe['api/alt.php']['aufrufe']['avesmapsBeispielAufruf']), 'CLI: Analyse je Datei');
 unlink($verzeichnis . DIRECTORY_SEPARATOR . 'api' . DIRECTORY_SEPARATOR . 'alt.php');
 unlink($verzeichnis . DIRECTORY_SEPARATOR . 'liesmich.txt');
 rmdir($verzeichnis . DIRECTORY_SEPARATOR . 'api');
