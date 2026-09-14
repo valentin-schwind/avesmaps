@@ -16,6 +16,8 @@ require_once __DIR__ . '/water-areas.php';
 // nicht tat -- offroad-leg.php, seit der Kutschensperre am 14.08.2026 -- starb an „Undefined
 // constant". request.php ist beim Einbinden nebenwirkungsfrei (nur Konstanten und Funktionen).
 require_once __DIR__ . '/request.php';
+// Die Zeitfenster der Wege (Entwurf 2026-09-14). Reine Rechnung, keine Nebenwirkung beim Laden.
+require_once __DIR__ . '/transport-season.php';
 
 const AVESMAPS_ROUTE_CLIENT_ENDPOINT_THRESHOLD = 0.5;
 // 💣 How close a way end must sit to a location to count as LYING ON it. The threshold above only
@@ -184,10 +186,14 @@ function avesmapsBuildClientCompatibleRouteGraph(array $networkData, array $requ
     $locationCellIndex = avesmapsBuildClientLocationCellIndex($locations);
 
     $pathIndex = 0;
+    // 🔴 DIE NEBENLISTE: Land-Kanten, die nur eine Reisemittel-Sperre verhindert. Kein Erzeuger unten
+    // liest sie -- Bruecken, Anker und Ausstiege sehen den Graphen genau wie bisher. Gelesen wird sie
+    // ausschliesslich vom Vergleichslauf des Sperrberichts (closures.php).
+    $gesperrt = [];
     foreach (is_array($networkData['paths'] ?? null) ? $networkData['paths'] : [] as $path) {
         if (!is_array($path)) continue;
         $pathIndex++;
-        avesmapsAddClientCompatiblePathConnection($graph, $locations, $locationCoordinateIndex, $locationCellIndex, $path, $pathIndex, $request, $terrain, $passNormalizer);
+        avesmapsAddClientCompatiblePathConnection($graph, $locations, $locationCoordinateIndex, $locationCellIndex, $path, $pathIndex, $request, $terrain, $passNormalizer, $gesperrt);
     }
 
     // Sea-bound location names come from the RAW paths (before the domain filter drops Seewege), so a
@@ -208,6 +214,7 @@ function avesmapsBuildClientCompatibleRouteGraph(array $networkData, array $requ
         // fehlen darin, ausser diese Anfrage nennt sie ausdruecklich. Wer eine Ortsliste fuer einen
         // neuen Erzeuger braucht, nimmt DIESE.
         'candidate_locations' => $candidateLocations,
+        'gesperrt' => $gesperrt,
         'statistics' => [
             'node_count' => count($graph),
             // ⭐ Wie viele Ortsknoten ueberhaupt keine Landwegkante tragen -- nur per Boot oder Schiff
@@ -224,7 +231,7 @@ function avesmapsBuildClientCompatibleRouteGraph(array $networkData, array $requ
     ];
 }
 
-function avesmapsAddClientCompatiblePathConnection(array &$graph, array $locations, array $locationCoordinateIndex, array $locationCellIndex, array $path, int $pathIndex, array $request, array $terrain = [], float $passNormalizer = 1.0): void {
+function avesmapsAddClientCompatiblePathConnection(array &$graph, array $locations, array $locationCoordinateIndex, array $locationCellIndex, array $path, int $pathIndex, array $request, array $terrain = [], float $passNormalizer = 1.0, ?array &$gesperrtGraph = null): void {
     $coordinates = avesmapsReadRoutePathLineCoordinates($path['geometry'] ?? null);
     if ($coordinates === []) return;
 
@@ -238,7 +245,19 @@ function avesmapsAddClientCompatiblePathConnection(array &$graph, array $locatio
     // Routenplaner abgeschaltet hat (allowRiver/allowSea = false).
     if (!avesmapsIsClientRouteDomainEnabled($routeType, $request)) return;
     $transportOption = avesmapsResolveClientRouteTransportOption($routeType, $request);
-    if ($transportOption === null || !avesmapsIsClientTransportAllowedForPath($routeType, $transportOption, $path)) return;
+    if ($transportOption === null) return;
+    // 🔴 DIE REISEMITTEL-SPERRE WIRKT WIE BISHER: die Kante entsteht im Graphen nicht. Neu ist nur, dass
+    // eine LAND-Sperre (die Wegart truege das Mittel, der Weg verbietet es) zusaetzlich in die
+    // Nebenliste gebaut wird. Stuende sie markiert im Graphen, saehen Komponentensuche, Anker und
+    // Ausstiegskandidaten sie als offen -- heute gebaute Bruecken fielen weg, und Kutschenrouten
+    // wuerden ungefunden (Entwurf 2026-09-14 §4.2).
+    $zielGraph = &$graph;
+    $sperre = null;
+    if (!avesmapsIsClientTransportAllowedForPath($routeType, $transportOption, $path)) {
+        if ($gesperrtGraph === null || !avesmapsClientPathTransportLocked($routeType, $transportOption, $path)) return;
+        $zielGraph = &$gesperrtGraph;
+        $sperre = ['kind' => 'transport', 'allowed' => avesmapsResolveClientRoutePathAllowedTransports($routeType, $path)];
+    }
 
     // Aus dem Tempo-Speicher DIESER Anfrage; ungefuellt ist das die Konstante (travel-values.php).
     $speed = avesmapsTravelValuesSpeed($transportOption, $routeType);
@@ -276,7 +295,7 @@ function avesmapsAddClientCompatiblePathConnection(array &$graph, array $locatio
 
     // No interior node -> single edge over the whole path (unchanged behaviour, no regression).
     if (count($nodeVertices) <= 2) {
-        avesmapsAddClientCompatiblePathSliceConnection($graph, $startNode, $endNode, $coordinates, $routeType, $transportOption, (float) $speed, $clientPathId, $path, $pathTerrain, 0, $coordinateCount - 1, $passNormalizer);
+        avesmapsAddClientCompatiblePathSliceConnection($zielGraph, $startNode, $endNode, $coordinates, $routeType, $transportOption, (float) $speed, $clientPathId, $path, $pathTerrain, 0, $coordinateCount - 1, $passNormalizer, $sperre);
         return;
     }
 
@@ -289,7 +308,7 @@ function avesmapsAddClientCompatiblePathConnection(array &$graph, array $locatio
         if ((string) $fromVertex['location']['name'] === (string) $toVertex['location']['name']) continue;
         $sliceCoordinates = array_slice($coordinates, $fromVertex['index'], $toVertex['index'] - $fromVertex['index'] + 1);
         if (count($sliceCoordinates) < 2) continue;
-        avesmapsAddClientCompatiblePathSliceConnection($graph, $fromVertex['location'], $toVertex['location'], $sliceCoordinates, $routeType, $transportOption, (float) $speed, $clientPathId . '#' . $segmentIndex, $path, $pathTerrain, (int) $fromVertex['index'], (int) $toVertex['index'], $passNormalizer);
+        avesmapsAddClientCompatiblePathSliceConnection($zielGraph, $fromVertex['location'], $toVertex['location'], $sliceCoordinates, $routeType, $transportOption, (float) $speed, $clientPathId . '#' . $segmentIndex, $path, $pathTerrain, (int) $fromVertex['index'], (int) $toVertex['index'], $passNormalizer, $sperre);
     }
 }
 
@@ -487,7 +506,7 @@ function avesmapsRouteSplitTerrainProfile(?array $profile, int $segmentIndex, fl
     return [$first === [] ? null : $first, $second === [] ? null : $second];
 }
 
-function avesmapsAddClientCompatiblePathSliceConnection(array &$graph, array $fromNode, array $toNode, array $coordinates, string $routeType, string $transportOption, float $speed, string $connectionId, array $path, ?array $pathTerrain = null, int $fromVertexIndex = 0, int $toVertexIndex = 0, float $passNormalizer = 1.0): void {
+function avesmapsAddClientCompatiblePathSliceConnection(array &$graph, array $fromNode, array $toNode, array $coordinates, string $routeType, string $transportOption, float $speed, string $connectionId, array $path, ?array $pathTerrain = null, int $fromVertexIndex = 0, int $toVertexIndex = 0, float $passNormalizer = 1.0, ?array $sperre = null): void {
     $distance = avesmapsCalculateClientRouteCoordinateDistance($coordinates);
     // V11: the slice's OWN climb and fall, summed from ITS segments of profile_json -- never the
     // parent way's average. `profile_json` holds one [ascent, descent] pair per stored segment of
@@ -511,6 +530,22 @@ function avesmapsAddClientCompatiblePathSliceConnection(array &$graph, array $fr
         'geometry' => ['type' => 'LineString', 'coordinates' => $coordinates],
         'synthetic' => false,
     ];
+
+    // ---- Entwurf 2026-09-14: Zeitfenster und Sperre ---------------------------------------------
+    // 🔴 HIER, AM GRUNDOBJEKT, VOR DEN VARIANTEN: Gelaende und Stroemung kopieren dieses Objekt, also
+    // tragen Hin- und Rueckrichtung beide, was hier steht. Ein Weg ohne Fenster und ohne Sperre
+    // bekommt KEINEN Schluessel -- der Zweig „ohne Gelaende, ohne Stroemung" darunter bleibt damit
+    // Byte fuer Byte der von heute.
+    $fenster = avesmapsRouteSeasonWindowForTransport($path, $transportOption);
+    if ($fenster !== null) {
+        $connection['season_window'] = $fenster;
+    }
+    if ($fenster !== null || $sperre !== null) {
+        $connection['sperr_weg'] = avesmapsRouteClosureWay($path, $routeType);
+    }
+    if ($sperre !== null) {
+        $connection['sperre'] = $sperre;
+    }
 
     // ---- V11: the slope ------------------------------------------------------------------------
     // 💣 The direction rule is the SAME as the river's (:218-219): from/to keep the STORED
@@ -1379,6 +1414,15 @@ function avesmapsBuildClientRouteSubPathConnection(array $original, string $from
         'geometry' => ['type' => 'LineString', 'coordinates' => $coordinates],
         'synthetic' => false,
     ];
+    // 💣 DIE FESTE FELDLISTE DARUEBER VERLIERT ALLES, WAS SIE NICHT NENNT. Ein am Wegpunkt-Anker oder
+    // Ausstieg geteilter Pass fuhr sonst mit zwei fensterlosen Haelften durch den Winter, und kein Test
+    // ohne Teilung saehe es (Entwurf 2026-09-14 §4.1). Beide Teiler (Anker und Mehrfachteiler) gehen
+    // durch diese Funktion; die Rueckrichtung kopiert das ganze Objekt.
+    foreach (['season_window', 'sperr_weg', 'sperre'] as $erbe) {
+        if (array_key_exists($erbe, $original)) {
+            $connection[$erbe] = $original[$erbe];
+        }
+    }
     // Only when there IS terrain -- otherwise the object stays exactly what it is today.
     if ($ascent !== null) {
         $connection['terrain_time_factor'] = $factor;
@@ -1715,6 +1759,48 @@ function avesmapsResolveClientRoutePathAllowedTransports(string $routeType, arra
     return array_values(array_filter($stored, static fn(string $option): bool => in_array($option, $offered, true)));
 }
 
+/**
+ * Ist das eine REISEMITTEL-SPERRE im Sinn des Sperrberichts? Dieselbe Regel wie die Kursivschrift der
+ * Karte (js/map-features/path-einschraenkung.js): nur LAND-Wege, und nur was die Wegart von Hause aus
+ * truege und der Weg verbietet (`Vorgabe \ erlaubt`).
+ *
+ * 🔴 Eine Erweiterung ist keine Sperre, und ein Wasserweg ist keine: dort ist die Sperre der Normalfall
+ * (600 Abschnitte, gemessen 08.09.2026). Beide wirken trotzdem -- nur einen Hinweis erzeugen sie nicht.
+ */
+function avesmapsClientPathTransportLocked(string $routeType, string $transportOption, array $path): bool {
+    if (!in_array($routeType, AVESMAPS_ROUTE_CLIENT_LAND_PATH_TYPES, true)) {
+        return false;
+    }
+    if (!in_array($transportOption, avesmapsClientRouteDefaultAllowedTransports($routeType), true)) {
+        return false;
+    }
+
+    return !avesmapsIsClientTransportAllowedForPath($routeType, $transportOption, $path);
+}
+
+/**
+ * Zu welchem WEG gehoert eine gesperrte Kante? Schluessel und Name fuer den Sperrbericht.
+ *
+ * ⭐ Der Schluessel ist dieselbe Bauform wie der Gruppenschluessel der Karte (`wiki:<key>`, sonst
+ * `name:<Wegart>:<Name>`), damit zwei Abschnitte desselben Passes EINE Zeile im Bericht werden.
+ * ⚠️ Der NAME ist leer bei einem Auto-Namen („Pfad-5372", „Meer-892") -- der Client beschreibt so einen
+ * Weg selbst; ein Maschinenname im Hinweis waere eine Zahl, die niemand kennt.
+ */
+function avesmapsRouteClosureWay(array $path, string $routeType): array {
+    $properties = is_array($path['properties'] ?? null) ? $path['properties'] : [];
+    $wiki = is_array($properties['wiki_path'] ?? null) ? $properties['wiki_path'] : [];
+    $wikiKey = trim((string) ($wiki['wiki_key'] ?? ''));
+    $wikiName = trim((string) ($wiki['name'] ?? ''));
+    $anzeige = trim((string) ($path['display_name'] ?? ''));
+    $istAutoName = $anzeige === '' || preg_match('/^\p{L}+-\d+$/u', $anzeige) === 1;
+
+    return [
+        'key' => $wikiKey !== '' ? 'wiki:' . $wikiKey : 'name:' . $routeType . ':' . $anzeige,
+        'name' => $wikiName !== '' ? $wikiName : ($istAutoName ? '' : $anzeige),
+        'subtype' => $routeType,
+    ];
+}
+
 function avesmapsIsClientTransportAllowedForPath(string $routeType, string $transportOption, array $path = []): bool {
     return in_array($transportOption, avesmapsResolveClientRoutePathAllowedTransports($routeType, $path), true);
 }
@@ -1752,10 +1838,66 @@ function avesmapsCalculateClientRouteCoordinateDistance(array $coordinates): flo
     return $distance;
 }
 
-function avesmapsFindClientCompatibleRoute(array $clientGraph, string $startName, string $endName, array $request): array {
+/**
+ * PUR: `cost_units` (= die `time` einer Kante) in Reisestunden. ZWEI Umrechnungen, nicht eine: mal
+ * drei (Meilen je Karteneinheit) und mal AVESMAPS_TRAVEL_TIME_SCALE -- die Begruendung samt Meldung #101
+ * steht an avesmapsRouteDurationFromSegments (response.php), die dieselbe Funktion ruft.
+ */
+function avesmapsRouteTravelHoursFromCostUnits(float $costUnits): float {
+    return $costUnits * AVESMAPS_TERRAIN_MEILEN_PER_MAPUNIT * AVESMAPS_TRAVEL_TIME_SCALE;
+}
+
+/**
+ * Die KALENDERstunden, die eine Kante verbraucht -- die Uhr des Dijkstra (Entwurf 2026-09-14 §4.1).
+ *
+ * 🔴 Reisestunden mal `24 / Reisetag` des Reisemittels: dieselbe anteilige Rechnung wie
+ * `duration.travel_days`. Der Reiseplan im Browser bucht die Rast in ganzen Portionen; an einer
+ * Fenstergrenze koennen die zwei Uhren um bis zu einen Tag auseinanderliegen -- benannt im Entwurf.
+ *
+ * 💣 `cost_factor` wird HERAUSGERECHNET: eine Querfeldein-Notbruecke traegt den x25-Aufschlag in
+ * ihrer `time`, und die Uhr soll die Reise messen, nicht die Abschreckung.
+ */
+function avesmapsRouteConnectionCalendarHours(array $connection): float {
+    $costFactor = (float) ($connection['cost_factor'] ?? 1.0);
+    if ($costFactor <= 0.0) {
+        $costFactor = 1.0;
+    }
+    $travelHours = avesmapsRouteTravelHoursFromCostUnits((float) ($connection['time'] ?? 0.0) / $costFactor);
+    $hoursPerDay = avesmapsTravelValuesHoursFor((string) ($connection['transport_option'] ?? ''));
+
+    return $hoursPerDay > 0.0 ? $travelHours * AVESMAPS_TRAVEL_CALENDAR_HOURS_PER_DAY / $hoursPerDay : $travelHours;
+}
+
+/** Der Jahrestag, an dem die Uhr nach `$hours` Kalenderstunden steht -- ueber den Jahreswechsel hinweg. */
+function avesmapsRouteClockDayOfYear(int $departureDay, float $hours): int {
+    $tage = (int) floor(max(0.0, $hours) / AVESMAPS_TRAVEL_CALENDAR_HOURS_PER_DAY);
+
+    return (int) avesmapsTravelCalendarFromDayOfYear($departureDay + $tage)['day_of_year'];
+}
+
+/**
+ * Der Dijkstra einer Etappe.
+ *
+ * Optionen (Entwurf 2026-09-14):
+ *   - `start_hours`     Kalenderstunden seit Reisebeginn beim Aufbruch dieser Etappe (Vorgabe:
+ *                       `departure.elapsed_hours`, sonst 0)
+ *   - `ignore_closures` der VERGLEICHSLAUF: Zeitfenster aus, die Nebenliste `gesperrt` dazu
+ *
+ * Rueckgabe zusaetzlich `end_hours` (die Uhr am Ziel) und `touched`: hat ein GESETZTER Knoten eine
+ * gesperrte Kante gehabt? Nur dann kann eine Sperre die Route veraendert haben -- jede billigere Route
+ * ueber eine Sperre beginnt an einem Knoten, der vor dem Ziel gesetzt wurde (Beweis im Entwurf §5.1).
+ */
+function avesmapsFindClientCompatibleRoute(array $clientGraph, string $startName, string $endName, array $request, array $options = []): array {
     $graph = is_array($clientGraph['graph'] ?? null) ? $clientGraph['graph'] : [];
+    $gesperrt = is_array($clientGraph['gesperrt'] ?? null) ? $clientGraph['gesperrt'] : [];
+    $ignoreClosures = !empty($options['ignore_closures']);
+    $departure = is_array($request['departure'] ?? null) ? $request['departure'] : null;
+    $startHours = max(0.0, (float) ($options['start_hours'] ?? ($departure['elapsed_hours'] ?? 0.0)));
+    // 0 heisst „kein Fenster fragen": ohne Reisebeginn, und im Vergleichslauf.
+    $departureDay = ($departure !== null && !$ignoreClosures) ? (int) ($departure['day_of_year'] ?? 0) : 0;
+    $touched = false;
     if (!isset($graph[$startName]) || !isset($graph[$endName])) {
-        return ['found' => false, 'cost' => 0.0, 'node_ids' => [], 'edge_ids' => [], 'edge_count' => 0, 'segments' => []];
+        return ['found' => false, 'cost' => 0.0, 'node_ids' => [], 'edge_ids' => [], 'edge_count' => 0, 'segments' => [], 'end_hours' => $startHours, 'touched' => false];
     }
 
     $useShortestPath = (string) ($request['optimize'] ?? 'fastest') === 'shortest';
@@ -1763,6 +1905,9 @@ function avesmapsFindClientCompatibleRoute(array $clientGraph, string $startName
     $distances = [];
     foreach (array_keys($graph) as $nodeName) $distances[$nodeName] = INF;
     $distances[$startName] = 0.0;
+    // Die Uhr je Label, parallel zu $distances und immer mit ihm geschrieben -- sie gehoert zu genau der
+    // Vorgaengerkette, die $previousNodes festhaelt.
+    $hours = [$startName => $startHours];
     $previousNodes = [];
     $connectionUsed = [];
 
@@ -1805,10 +1950,33 @@ function avesmapsFindClientCompatibleRoute(array $clientGraph, string $startName
         if (isset($settled[$settledKey]) && $settled[$settledKey] <= $currentDistance) continue;
         $settled[$settledKey] = $currentDistance;
 
-        foreach (is_array($graph[$currentNode] ?? null) ? $graph[$currentNode] : [] as $neighbor => $connections) {
+        $currentHours = $hours[$currentNode] ?? $startHours;
+        $nachbarn = is_array($graph[$currentNode] ?? null) ? $graph[$currentNode] : [];
+        if (isset($gesperrt[$currentNode])) {
+            if ($ignoreClosures) {
+                // Der Vergleichslauf: die Reisemittel-Sperren sind offen, als gaebe es sie nicht.
+                foreach ($gesperrt[$currentNode] as $neighbor => $connections) {
+                    foreach (is_array($connections) ? $connections : [] as $connection) {
+                        $nachbarn[$neighbor][] = $connection;
+                    }
+                }
+            } else {
+                $touched = true;
+            }
+        }
+
+        foreach ($nachbarn as $neighbor => $connections) {
             foreach (is_array($connections) ? $connections : [] as $connection) {
                 $transport = (string) ($connection['transport_option'] ?? '');
                 if ($transport === '') continue;
+                // 🔴 DAS ZEITFENSTER, gegen den Tag, an dem der Reisende HIER ankommt -- nicht gegen den
+                // Aufbruchstag (Owner 03.08.2026: „exakt je Kante"). Ohne Reisebeginn ist $departureDay 0,
+                // und die Frage wird nicht gestellt.
+                if ($departureDay > 0 && isset($connection['season_window'])
+                    && !avesmapsSeasonWindowContainsDay($connection['season_window'], avesmapsRouteClockDayOfYear($departureDay, $currentHours))) {
+                    $touched = true;
+                    continue;
+                }
                 // 💣 DAS GEWICHT IST KALENDERZEIT, die gemeldete `time` bleibt die reine Reisestunde
                 // (avesmapsTravelValuesWeightFactor, travel-values.php). Ohne den Faktor gewaenne seit
                 // dem 8-Stunden-Reisetag an Land eine Landetappe gegen eine Wasseretappe, die FRUEHER
@@ -1822,6 +1990,7 @@ function avesmapsFindClientCompatibleRoute(array $clientGraph, string $startName
                     $distances[$neighbor] = $alternative;
                     $previousNodes[$neighbor] = $currentNode;
                     $connectionUsed[$neighbor] = $connection;
+                    $hours[$neighbor] = $currentHours + avesmapsRouteConnectionCalendarHours($connection);
                     $queue->insert(['node' => $neighbor, 'transport' => $transport], -$alternative);
                 }
             }
@@ -1829,7 +1998,7 @@ function avesmapsFindClientCompatibleRoute(array $clientGraph, string $startName
     }
 
     if (!isset($previousNodes[$endName]) && $startName !== $endName) {
-        return ['found' => false, 'cost' => 0.0, 'node_ids' => [], 'edge_ids' => [], 'edge_count' => 0, 'segments' => []];
+        return ['found' => false, 'cost' => 0.0, 'node_ids' => [], 'edge_ids' => [], 'edge_count' => 0, 'segments' => [], 'end_hours' => $startHours, 'touched' => $touched];
     }
 
     $nodeIds = [$endName];
@@ -1847,6 +2016,8 @@ function avesmapsFindClientCompatibleRoute(array $clientGraph, string $startName
     $edgeIds = array_map(static fn(array $segment): string => (string) ($segment['id'] ?? ''), $segments);
     return [
         'found' => count($segments) > 0 || $startName === $endName,
+        'end_hours' => (float) ($hours[$endName] ?? $startHours),
+        'touched' => $touched,
         'cost' => (float) ($distances[$endName] ?? 0.0),
         'node_ids' => $nodeIds,
         'edge_ids' => $edgeIds,
@@ -1881,22 +2052,30 @@ function avesmapsFindClientCompatibleRoute(array $clientGraph, string $startName
  * ⚠️ `minimize_transfers` wirkt INNERHALB einer Etappe. Ein Umstieg genau an einer vorgeschriebenen
  * Station kostet keinen Zuschlag -- dort steigt man ohnehin aus. Im Vertrag dokumentiert.
  */
-function avesmapsFindClientCompatibleRouteLegs(array $clientGraph, array $stations, array $request): array {
+function avesmapsFindClientCompatibleRouteLegs(array $clientGraph, array $stations, array $request, array $options = []): array {
     $stations = array_values(array_filter(array_map('strval', $stations), static fn(string $s): bool => $s !== ''));
     $leer = ['found' => false, 'cost' => 0.0, 'node_ids' => [], 'edge_ids' => [], 'edge_count' => 0, 'segments' => []];
     if (count($stations) < 2) {
-        return $leer;
+        return $leer + ['legs' => [], 'failed_leg_index' => null];
     }
 
+    // Entwurf 2026-09-14: die Uhr laeuft ueber die Stationen hinweg weiter. `legs` traegt je Etappe ihr
+    // eigenes Ergebnis samt Startuhr -- der Sperrbericht (closures.php) rechnet je Etappe nach und
+    // braucht dafuer genau diese zwei Dinge.
+    $departure = is_array($request['departure'] ?? null) ? $request['departure'] : null;
+    $stunden = (float) ($options['start_hours'] ?? ($departure['elapsed_hours'] ?? 0.0));
+    $legs = [];
     $nodeIds = [];
     $edgeIds = [];
     $segments = [];
     $cost = 0.0;
     for ($i = 0, $n = count($stations) - 1; $i < $n; $i++) {
-        $leg = avesmapsFindClientCompatibleRoute($clientGraph, $stations[$i], $stations[$i + 1], $request);
+        $leg = avesmapsFindClientCompatibleRoute($clientGraph, $stations[$i], $stations[$i + 1], $request, ['start_hours' => $stunden] + $options);
+        $legs[] = ['from' => $stations[$i], 'to' => $stations[$i + 1], 'found' => !empty($leg['found']), 'start_hours' => $stunden, 'result' => $leg];
         if (empty($leg['found'])) {
-            return $leer;
+            return $leer + ['legs' => $legs, 'failed_leg_index' => $i];
         }
+        $stunden = (float) ($leg['end_hours'] ?? $stunden);
 
         $legNodes = is_array($leg['node_ids'] ?? null) ? array_values($leg['node_ids']) : [];
         // Die Naht: ab der zweiten Etappe faellt der erste Knoten weg -- er ist der letzte der
@@ -1914,6 +2093,8 @@ function avesmapsFindClientCompatibleRouteLegs(array $clientGraph, array $statio
         'edge_ids' => $edgeIds,
         'edge_count' => count($edgeIds),
         'segments' => $segments,
+        'legs' => $legs,
+        'failed_leg_index' => null,
     ];
 }
 

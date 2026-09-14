@@ -20,10 +20,14 @@ require_once __DIR__ . '/offroad-data.php';
 require_once __DIR__ . '/offroad-leg.php';
 require_once __DIR__ . '/detour.php';
 require_once __DIR__ . '/synthetic-refine.php';
+// Entwurf 2026-09-14: der Sperrbericht. Er ruft avesmapsRouteDurationFromSegments aus DIESER Datei.
+require_once __DIR__ . '/closures.php';
 
 // 15: a route endpoint may be a map point (`from_point`/`to_point`), and a leg may be an A*-computed
 // cross-country way with a real point sequence instead of a straight line.
-const AVESMAPS_ROUTE_API_CODE_REVISION = 15;
+// 16: `departure` in der Anfrage (Zeitfenster je Kante gegen die mitlaufende Uhr), `closures` in der
+// Antwort (Entwurf 2026-09-14).
+const AVESMAPS_ROUTE_API_CODE_REVISION = 16;
 
 class AvesmapsRouteLocationNotFoundException extends RuntimeException {}
 
@@ -393,6 +397,13 @@ function avesmapsBuildMinimalRouteResultFromRequest(array $request, array $confi
 		$routeDijkstraResult = $fahreRoute();
 	}
 
+	// Entwurf 2026-09-14 §5: der Sperrbericht.
+	// 🔴 NACH der Sehnen-Verfeinerung, und NICHT ueber den Bauplan der drei Rechenstellen darueber (ein
+	// Quelltexttest zaehlt dessen Aufrufe, via-etappen-test.php §9): er vergleicht die GEFUNDENE Route mit
+	// einem Lauf ohne Sperren auf DEMSELBEN Graphen. Vorher gerechnet, verglich er einen Graphen, den es
+	// danach nicht mehr gibt. Nur Etappen, deren Suche eine Sperre beruehrt hat, kosten einen zweiten Lauf.
+	$sperrbericht = avesmapsRouteClosureReports($clientGraph, $routeDijkstraResult, $request);
+
 	$edgeIds = is_array($routeDijkstraResult['edge_ids'] ?? null) ? $routeDijkstraResult['edge_ids'] : [];
 	$nodeIds = is_array($routeDijkstraResult['node_ids'] ?? null) ? $routeDijkstraResult['node_ids'] : [];
 	// 🔴 MIT der Knotenliste: sie IST die Durchlaufrichtung, und ohne sie meldet jede Etappe die
@@ -471,6 +482,8 @@ function avesmapsBuildMinimalRouteResultFromRequest(array $request, array $confi
 				static fn(array $segment): float => (float) ($segment['distance_units'] ?? 0.0),
 				$routeSegments
 			)),
+			// Entwurf 2026-09-14: die umgangenen Sperren je Etappe -- leer, wenn nichts umgangen wurde.
+			'closures' => $sperrbericht['reports'],
 			'debug_context' => [
 				'api_code_revision' => AVESMAPS_ROUTE_API_CODE_REVISION,
 				'map_revision' => (int) ($routeMapData['revision'] ?? 0),
@@ -521,6 +534,9 @@ function avesmapsBuildMinimalRouteResultFromRequest(array $request, array $confi
 				// die Zahl, an der sich die Kostenfrage entscheidet, und sie gehoert deshalb in die
 				// Antwort und nicht in eine einmalige Messung.
 				'refine' => $refine,
+				// Entwurf 2026-09-14: `touched`/`compared` beantworten „warum kam kein Hinweis?", `ms` die
+				// Kostenfrage des Vergleichslaufs -- beides ohne Nachbauen.
+				'closures' => $sperrbericht['stats'],
 			],
 		],
 	];
@@ -578,9 +594,10 @@ function avesmapsRouteDurationFromSegments(array $segments): array {
 		// der Server legt zusaetzlich die eingestellten Tempowerte darueber (app_setting).
 		// 🪤 Und die Einheitenfalle (1) allein hat am 30.07.2026 schon einmal einen falschen
 		// Infobox-Text oeffentlich gemacht (der 💣 an AVESMAPS_TERRAIN_SCHRITT_PER_MAPUNIT_ROUTE).
-		$hours = (float) ($segment['cost_units'] ?? 0.0)
-			* AVESMAPS_TERRAIN_MEILEN_PER_MAPUNIT
-			* AVESMAPS_TRAVEL_TIME_SCALE;
+		// ⭐ Seit 14.09.2026 EINE Funktion fuer beide Leser: diese Dauer und die Kalenderuhr des Dijkstra
+		// (client-graph.php). Zwei abgeschriebene Formeln waeren die Stelle, an der Uhr und gemeldete
+		// Reisezeit beim naechsten Umbau still auseinanderlaufen.
+		$hours = avesmapsRouteTravelHoursFromCostUnits((float) ($segment['cost_units'] ?? 0.0));
 		$travelHours += $hours;
 		$hoursPerDay = avesmapsTravelValuesHoursFor((string) ($segment['transport_type'] ?? ''));
 		if ($hoursPerDay > 0.0) {
@@ -663,6 +680,19 @@ function avesmapsBuildMinimalRouteResponse(array $route, array $request = []): a
 	// als eine zu kurze Luftlinie, die wie eine Messung aussieht.
 	if ($will('include_air_distance') && ($route['air_distance_units'] ?? null) !== null) {
 		$response['air_distance_units'] = (float) $route['air_distance_units'];
+	}
+
+	// Entwurf 2026-09-14: beide NUR, wenn es etwas zu sagen gibt. Ohne Reisebeginn und ohne Umweg bleibt
+	// die Antwort Zeichen fuer Zeichen die alte -- ein zwischengespeicherter Client sieht nichts Neues.
+	if (is_array($request['departure'] ?? null)) {
+		$response['departure'] = [
+			'month' => (string) ($request['departure']['month'] ?? ''),
+			'day' => (int) ($request['departure']['day'] ?? 1),
+			'elapsed_hours' => (float) ($request['departure']['elapsed_hours'] ?? 0.0),
+		];
+	}
+	if (is_array($route['closures'] ?? null) && $route['closures'] !== []) {
+		$response['closures'] = array_values($route['closures']);
 	}
 
 	if ($will('debug')) {

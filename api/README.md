@@ -236,6 +236,69 @@ notice. Send `"debug": false` for a compact production answer; everything a clie
 render a route — including `node_ids` and `edge_ids` — is available on the route object
 itself.
 
+#### Travel date and closures (`departure`)
+
+Some ways are only passable in a season window (a mountain pass from Peraine to Efferd, the
+northern sea lanes from Peraine to Boron), and some refuse a vehicle (a pass that carries walkers
+only). Send a departure date and the route respects the windows:
+
+```json
+{ "from": "Yrramis", "to": "Greifenfurt", "departure": { "month": "firun", "day": 3 } }
+```
+
+- `month` is one of the twelve Aventurian months (`praios` … `rahja`); anything else is
+  `400 invalid_request`. `day` is clamped to 1…30. The five Nameless Days are not a departure.
+- `elapsed_hours` (optional, ≥ 0) says the journey started on that date this many calendar hours
+  ago. A client that asks for one leg per request passes the calendar time of the earlier legs
+  here, so every date in the answer stays a real travel date.
+- **Without `departure` no window is consulted** and the answer is exactly what it was before.
+- A window is checked **against the day the traveller reaches the way**, not against the day of
+  departure. The clock counts calendar hours like `duration.travel_days` (travel hours times
+  `24 / travel day`); it can differ by up to a day from a plan that books rests in whole portions.
+- Nobody waits in front of a closed pass. Where no open way exists, the answer is `found: false`
+  — never a cross-country shortcut over the pass.
+- Vehicle restrictions apply with or without `departure`, as they always did.
+
+If a closure changed the route, the answer names it:
+
+```json
+"departure": { "month": "firun", "day": 3, "elapsed_hours": 0 },
+"closures": [
+  {
+    "leg_index": 0,
+    "blocked": false,
+    "diverges_at_node": "Yrramis",
+    "diverges_at_edge_id": "path-4127",
+    "avoided": [
+      {
+        "kind": "season",
+        "path_name": "Saljethweg",
+        "public_ids": ["298d65bf-01a2-5ede-ade0-11ce11dd0d8f"],
+        "subtype": "Gebirgspass",
+        "transport": "groupFoot",
+        "from_node": "Yrramis",
+        "reached_on": { "month": "firun", "day": 3, "nameless": false },
+        "open_from": { "month": "peraine", "day": 15 },
+        "open_to": { "month": "efferd", "day": 30 }
+      }
+    ],
+    "actual": { "distance_units": 980.9, "travel_hours": 375.4, "travel_days": 36.43 },
+    "unrestricted": { "distance_units": 94.9, "travel_hours": 115.6, "travel_days": 14.45 }
+  }
+]
+```
+
+- `closures` is **absent** when nothing was avoided. It is computed only when the search actually
+  touched a closed way, so an ordinary route pays nothing for it.
+- `blocked: true` means there is no open route at all, only a closed one; `actual` is then `null`
+  and `diverges_at_edge_id` empty.
+- `kind` is `season` (a window) or `transport` (the way refuses this vehicle; `allowed` lists what
+  it carries instead). Vehicle restrictions on rivers and seas are not reported — there they are
+  the normal case — but they still apply.
+- `path_name` is empty for ways without a real name; `public_ids` identifies them either way.
+- `diverges_at_edge_id` is the first edge of the actual route that differs from the unrestricted
+  one — match it against `segments[].edge_id`.
+
 Supported methods:
 
 ```text

@@ -268,6 +268,10 @@ function avesmapsBuildRoutePathData(array $feature, string $clientPathId = ''): 
 		'revision' => (int) ($properties['revision'] ?? 0),
 		'client_path_id' => $clientPathId,
 		'name' => $routeSubtype,
+		// 🔴 Der ANZEIGEname des Weges (Spalte `name`). `name` darueber ist -- historisch -- der Subtyp,
+		// und die Spalte ging hier bis zum 14.09.2026 verloren. Gebraucht wird sie nur fuer den
+		// Sperrbericht: ein gesperrter Weg ohne Wiki-Zuweisung soll trotzdem seinen Namen tragen.
+		'display_name' => trim((string) ($properties['name'] ?? '')),
 		'subtype' => $routeSubtype,
 		'geometry' => is_array($feature['geometry'] ?? null) ? $feature['geometry'] : [],
 		'properties' => $nestedProperties,

@@ -2,6 +2,10 @@
 
 declare(strict_types=1);
 
+// Der Reisebeginn (`departure`) wird gegen den Kalender geprueft. Die Datei ist reine Rechnung ohne
+// Nebenwirkung, darf also hier stehen, wo nur Konstanten und Funktionen stehen.
+require_once __DIR__ . '/travel-calendar.php';
+
 const AVESMAPS_ROUTE_DEFAULT_REQUEST = [
 	'optimize' => 'fastest',
 	'include_air_distance' => true,
@@ -60,6 +64,9 @@ function avesmapsNormalizeRouteRequest(array $payload): array {
 	$toPoint = avesmapsRouteNormalizeOptionalPoint($payload['to_point'] ?? null, 'to_point');
 	// V11 §8.3: this may only switch terrain OFF. Default true means „follow the global switch".
 	$terrain = avesmapsRouteNormalizeBoolean($payload['terrain'] ?? true, 'terrain');
+	// Entwurf 2026-09-14: der Reisebeginn. Fehlt er, fragt der Router keine Zeitfenster -- die Antwort
+	// bleibt Zeichen fuer Zeichen die alte (stabiler Vertrag).
+	$departure = avesmapsRouteNormalizeDeparture($payload['departure'] ?? null);
 
 	return [
 		'from' => $from,
@@ -79,6 +86,7 @@ function avesmapsNormalizeRouteRequest(array $payload): array {
 		'terrain' => $terrain,
 		'from_point' => $fromPoint,
 		'to_point' => $toPoint,
+		'departure' => $departure,
 	];
 }
 
@@ -107,6 +115,54 @@ function avesmapsRouteNormalizeOptionalPoint(mixed $value, string $field): ?arra
 	}
 
 	return ['x' => (float) $x, 'y' => (float) $y];
+}
+
+// Zehn Jahre Reise sind der Deckel fuer die aufgelaufene Uhr eines Wegpunktpaares -- genug fuer jede
+// echte Reise, und eine Zahl, die kein Fliesskomma-Unsinn mehr durch den Kalender schiebt.
+const AVESMAPS_ROUTE_DEPARTURE_MAX_ELAPSED_HOURS = 87600.0;
+
+/**
+ * Der Reisebeginn: `{"month": "firun", "day": 3, "elapsed_hours": 0}`, oder nichts.
+ *
+ * ⭐ `elapsed_hours` ist die Antwort auf „die Karte fragt je Wegpunktpaar": das zweite Paar schickt
+ * DENSELBEN Reisebeginn plus die Kalenderstunden, die das erste gedauert hat. So bleibt jedes Datum
+ * im Bericht ein echtes Reisedatum, und ein Paar, das in den Namenlosen Tagen beginnt, braucht keinen
+ * Monat, den es nicht gibt.
+ *
+ * ⚠️ Der Tag wird geklemmt wie im Kalender (`avesmapsTravelCalendarDayOfYear`): ein Link mit
+ * „31. Firun" reist am 30. Ein unbekannter Monat ist dagegen ein Fehler -- er ist keine Tippgrenze,
+ * sondern eine Aussage, die der Router nicht versteht.
+ */
+function avesmapsRouteNormalizeDeparture(mixed $value): ?array {
+	if ($value === null) {
+		return null;
+	}
+	if (!is_array($value)) {
+		throw new InvalidArgumentException('Invalid field: departure must be an object with month and day.');
+	}
+
+	$month = strtolower(trim((string) ($value['month'] ?? '')));
+	if (avesmapsTravelCalendarMonthIndex($month) === null) {
+		throw new InvalidArgumentException('Invalid field: departure.month must be one of the twelve Aventurian months.');
+	}
+
+	$day = filter_var($value['day'] ?? 1, FILTER_VALIDATE_INT);
+	if ($day === false) {
+		throw new InvalidArgumentException('Invalid field: departure.day must be a whole number.');
+	}
+	$day = max(1, min(AVESMAPS_TRAVEL_CALENDAR_DAYS_PER_MONTH, (int) $day));
+
+	$elapsed = filter_var($value['elapsed_hours'] ?? 0, FILTER_VALIDATE_FLOAT);
+	if ($elapsed === false || !is_finite((float) $elapsed) || (float) $elapsed < 0.0 || (float) $elapsed > AVESMAPS_ROUTE_DEPARTURE_MAX_ELAPSED_HOURS) {
+		throw new InvalidArgumentException('Invalid field: departure.elapsed_hours must be a number of hours between 0 and 87600.');
+	}
+
+	return [
+		'month' => $month,
+		'day' => $day,
+		'elapsed_hours' => (float) $elapsed,
+		'day_of_year' => (int) avesmapsTravelCalendarDayOfYear($month, $day),
+	];
 }
 
 // Welche Transport-Domaenen erlaubt sind (land/river/sea). Fehlt das Feld -> alle erlaubt

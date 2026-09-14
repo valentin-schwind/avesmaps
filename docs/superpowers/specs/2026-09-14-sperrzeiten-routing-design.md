@@ -324,9 +324,14 @@ Die Uhr in §4.1 teilt heraus; ob `duration` es auch soll, ist ein eigener Befun
 
 ---
 
-## 12. Offen für den Owner
+## 12. Entschieden (Owner 14.09.2026: „go, C und Absage im Panel")
 
-1. **Wo steht der Hinweis?** Mockup Varianten A (nur am Anfang), B (nur am Abzweig), C (beides mit
-   verteilten Rollen). **Empfehlung C.**
-2. **Absage im Panel statt Popup-Alert** für den Fall „nur wegen einer Sperrung keine Route".
-   **Empfehlung ja.**
+1. **Der Hinweis steht an beiden Stellen, mit verteilten Rollen** (Variante C): oben *dass* und *wie
+   viel länger*, am Abzweig *welcher Weg* und *warum*.
+2. **Die Absage steht im Panel**, nicht im Popup — nur für den Fall „nur wegen einer Sperrung keine
+   Route"; die übrigen Absagen bleiben, wie sie sind.
+
+⚠️ **Wortlaut beim Bau nachgeschärft:** die Tafel im Mockup schrieb „Umweg um den Saljethweg". Der
+Artikel hängt am Geschlecht des Namens („um die Eisenstraße", „um den Rabenpass"), und die Namen
+kommen aus den Daten — gebaut ist deshalb die artikelfreie Form **„Gesperrt: Saljethweg — am 3. Firun,
+befahrbar vom 15. Peraine bis zum 30. Efferd."**

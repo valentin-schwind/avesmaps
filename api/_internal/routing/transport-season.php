@@ -121,6 +121,22 @@ function avesmapsTransportOpenOn(array $allowedTransports, array $windows, strin
 }
 
 /**
+ * Das Fenster, das EINE Kante traegt: das des Reisemittels, mit dem sie befahren wird -- oder null.
+ *
+ * ⭐ Gelesen wird aus dem Routenweg (`$path['properties']` = properties_json), gerufen einmal je
+ * Kante im Graphbau (client-graph.php). Ein Fenster fuer ein ANDERES Mittel gilt dieser Kante nicht.
+ *
+ * @return array{from_month: string, from_day: int, to_month: string, to_day: int, from_day_of_year: int, to_day_of_year: int}|null
+ */
+function avesmapsRouteSeasonWindowForTransport(array $path, string $transport): ?array
+{
+    $properties = is_array($path['properties'] ?? null) ? $path['properties'] : [];
+    $windows = avesmapsSeasonWindowsFromProperties($properties['transport_seasons'] ?? null);
+
+    return $windows[$transport] ?? null;
+}
+
+/**
  * The WRITE side: what an editor submitted, reduced to what may be stored.
  *
  * Two rules, both deliberate:
