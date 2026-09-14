@@ -202,9 +202,16 @@ try {
     //
     // ⭐ Der Normalfall kostet genau diese eine billige Abfrage: gerechnet wird nur, was sich wirklich
     // geaendert hat -- bei einer gezogenen Ecke eine Region, sonst keine.
-    if (array_key_exists('revision', $result)) {
-        avesmapsCurveRefreshStale($pdo);
-    }
+    //
+    // 💣 UND DIE KURVE MUSS AUF DIE KARTE (14.09.2026). Nachgerechnet wurde seit dem 07.09. richtig, nur
+    // trug die Antwort die Linie nicht mit -- die Karte zeichnete nach einem Eckzug die ALTE Kurve weiter,
+    // bis jemand neu lud. Jetzt reist sie als `curve_labels` mit, und der Stempel wird danach noch einmal
+    // gehoben. Beides, samt dem Riegel an der `revision`, steht in avesmapsCurveNachSchreibvorgang.
+    $result = avesmapsCurveNachSchreibvorgang(
+        $pdo,
+        $result,
+        static fn (): int => avesmapsNextEcosystemRevision($pdo)
+    );
 
     avesmapsJsonResponse(200, ['ok' => true] + $result);
 } catch (InvalidArgumentException $exception) {

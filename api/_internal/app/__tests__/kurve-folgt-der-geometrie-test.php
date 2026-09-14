@@ -241,25 +241,30 @@ function fixture(): PDO
 // ---- 7. UND DIE VERDRAHTUNG: der Landschafts-Endpunkt ruft ihn -------------------------------------
 // 💣 Ohne diese Zusicherung sind die sechs oben gruen und die Kurve springt trotzdem weiter zurueck.
 {
+    // ⚠️ Seit dem 14.09.2026 ruft der Endpunkt ihn nicht mehr selbst, sondern ueber
+    // avesmapsCurveNachSchreibvorgang, der die nachgerechneten Kurven zusaetzlich in die Antwort legt
+    // (vorher rechnete der Server richtig, und die Karte zeigte die alte Kurve bis zum Neuladen).
+    // Den Riegel an der `revision`, die Reihenfolge und die Verdrahtung im Endpunkt FUEHRT
+    // kurve-reist-zur-karte-test.php aus; hier steht nur, dass die Kette bis zu dieser Funktion reicht.
     $endpunkt = (string) file_get_contents(__DIR__ . '/../../../edit/map/ecosystem.php');
-    pruefe(str_contains($endpunkt, 'avesmapsCurveRefreshStale('),
+    pruefe(str_contains($endpunkt, 'avesmapsCurveNachSchreibvorgang('),
         'der Landschafts-Endpunkt rechnet die Kurve nach einer Geometrieaenderung nicht nach');
     pruefe(str_contains($endpunkt, "curve-label-store.php"),
         'der Endpunkt bindet die Kurven-Bibliothek nicht ein');
     // 🔴 NACH dem Handler, nie darin: die Handler committen selbst, und avesmapsCurveRefreshCacheForRegion
     // schreibt in app_setting -- das gehoert nicht in eine offene Transaktion auf ecosystem_region.
     $posMatch = strpos($endpunkt, 'default => avesmapsErrorResponse(400');
-    $posRuf = strpos($endpunkt, 'avesmapsCurveRefreshStale(');
+    $posRuf = strpos($endpunkt, 'avesmapsCurveNachSchreibvorgang(');
     pruefe($posMatch !== false && $posRuf !== false && $posRuf > $posMatch,
         'das Nachrechnen steht nicht NACH dem Handler -- es liefe in dessen Transaktion');
 
-    // ⚠️ UND NUR NACH EINEM SCHREIBVORGANG. Ohne den Riegel zahlte jede Statusabfrage die
-    // Aggregatabfrage mit -- `assignment_status`, `list_changes` und der 45-s-Takt laufen ueber
-    // denselben Endpunkt. Erkannt wird der Schreibvorgang an der `revision` in der Antwort: die setzt
-    // jeder Schreibweg ueber avesmapsNextEcosystemRevision, und kein Lesepfad.
-    $ab = substr($endpunkt, (int) $posMatch, max(0, (int) $posRuf - (int) $posMatch) + 200);
-    pruefe((bool) preg_match('/if \(\s*array_key_exists\(\s*[\'"]revision[\'"]\s*,\s*\$result\s*\)\s*\)\s*\{\s*\R?\s*avesmapsCurveRefreshStale\(/u', $ab),
-        'das Nachrechnen haengt nicht an der `revision` -- es liefe auch bei jeder Leseaktion');
+    // Und die Funktion selbst geht durch avesmapsCurveRefreshStale -- keine zweite Fassung der Frage
+    // „welche Region ist veraltet".
+    $store = (string) file_get_contents(__DIR__ . '/../curve-label-store.php');
+    $von = strpos($store, 'function avesmapsCurveNachSchreibvorgang(');
+    $rumpf = $von === false ? '' : substr($store, $von, (int) strpos($store, "\n}", $von) - $von);
+    pruefe(str_contains($rumpf, 'avesmapsCurveRefreshStale($pdo)'),
+        'avesmapsCurveNachSchreibvorgang fragt nicht avesmapsCurveRefreshStale');
 }
 
 echo "kurve-folgt-der-geometrie: {$checks} checks passed\n";

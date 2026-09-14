@@ -79,6 +79,37 @@ function ecosystemOperationPayload() {
 	return { operation_id: ecosystemCurrentOperation.id, operation_label: ecosystemCurrentOperation.label };
 }
 
+// ---- die Beschriftungskurven, die der Server nach einem Schreibvorgang nachgerechnet hat -----------
+//
+// 🔴 WARUM HIER (14.09.2026, Owner: „ja" auf die Rückfrage der Handbuch-Routine). Nach einem Eckzug --
+// ebenso nach Anlegen, Löschen, Pinsel, Vereinfachen, Verrechnen, Rückgängig -- rechnet der Endpunkt die
+// Kurve jeder Region nach, deren Flächen-Fingerabdruck sich geändert hat, und gibt sie als
+// `curve_labels` mit (avesmapsCurveNachSchreibvorgang, api/_internal/app/curve-label-store.php). Ohne
+// diese Übernahme zeichnete die Karte die ALTE Kurve weiter, bis jemand neu lud: `label.curveLine`
+// entsteht nur beim Laden der Nutzlast. Live gemessen an „Thasch": Server neue Linie, Karte alte.
+//
+// 💣 EINE STELLE FÜR ALLE SCHREIBER. Jeder Landschafts-Schreibvorgang geht durch postEcosystemEdit, auch
+// der Landschaften-Editor (er ruft ihn über das Elternfenster). Eine Übernahme je Aufrufer wäre wieder
+// die Liste von Schreibern, die der Server am 07.09.2026 abgeschafft hat -- und der nächste fehlte darin.
+//
+// ⭐ Der SAMMELWEG, nicht der Einzelweg: dieselbe Form wie die Leseaktion `baselines`, und EIN
+// Nachzeichnen, auch wenn ein Verschmelzen zwei Regionen berührt.
+//
+// ⚠️ Er fällt WEICH aus. Der Schreibvorgang IST gelungen; ein Wurf beim Nachzeichnen darf daraus keinen
+// Fehlschlag machen, sonst hielte der Editor seine Änderung für verloren.
+function avesmapsEcosystemKurvenAusAntwortAnwenden(result) {
+	const kurven = result && result.curve_labels;
+	if (!kurven || typeof kurven !== "object" || typeof avesmapsCurveBaselinesAufLabelsAnwenden !== "function") {
+		return 0;
+	}
+	try {
+		return avesmapsCurveBaselinesAufLabelsAnwenden(kurven);
+	} catch (fehler) {
+		console.warn("Beschriftungskurven nach dem Speichern:", fehler);
+		return 0;
+	}
+}
+
 async function postEcosystemEdit(action, payload = {}) {
 	if (!ECOSYSTEM_EDIT_API_URL) {
 		throw new Error("Der Landschaften-Editor ist auf diesem Host nicht erreichbar.");
@@ -107,6 +138,8 @@ async function postEcosystemEdit(action, payload = {}) {
 		error.status = response.status;
 		throw error;
 	}
+
+	avesmapsEcosystemKurvenAusAntwortAnwenden(result);
 
 	return result;
 }

@@ -594,10 +594,16 @@ function avesmapsCurveRebuildCache(PDO $pdo): array
 // 🔴 NIE INNERHALB EINER TRANSAKTION rufen: er schreibt in `app_setting` und rechnet dabei Geometrie.
 // Die Handler des Endpunkts committen selbst, der Aufruf steht NACH ihnen.
 //
-// @return array{gerechnet:list<string>, offen:int, fehler:string}
+// ⭐ `linien` TRAEGT DIE FRISCH GERECHNETEN KURVEN MIT (14.09.2026) -- in DERSELBEN Form wie die
+// Leseaktion `baselines` (curve-labels-run.php): je Region `{line: [[x, y], ...], max}`, Kartenkoordinaten
+// ungedreht. Ohne sie rechnet der Server nach und die Karte erfaehrt es nie (avesmapsCurveNachSchreibvorgang).
+// ⚠️ Nur, was wirklich in der Ablage LIEGT (`ok`): eine Linie, deren Zuruecklesen scheiterte, zeigte die
+// Karte bis zum Neuladen -- und danach nicht mehr.
+//
+// @return array{gerechnet:list<string>, linien:array<string, array{line:array, max:int}>, offen:int, fehler:string}
 function avesmapsCurveRefreshStale(PDO $pdo, int $deckel = 3): array
 {
-    $raus = ['gerechnet' => [], 'offen' => 0, 'fehler' => ''];
+    $raus = ['gerechnet' => [], 'linien' => [], 'offen' => 0, 'fehler' => ''];
     try {
         // Dieselbe Abfrage wie im Leser -- die Aggregation in einer Ableitungstabelle, damit die
         // aeussere ohne GROUP BY ueber eine JSON-Spalte auskommt (siehe avesmapsCurveReadBaselines).
@@ -642,6 +648,9 @@ function avesmapsCurveRefreshStale(PDO $pdo, int $deckel = 3): array
             $ergebnis = avesmapsCurveRefreshCacheForRegion($pdo, $id);
             if ($ergebnis['gerechnet']) {
                 $raus['gerechnet'][] = $id;
+                if ($ergebnis['ok'] && is_array($ergebnis['line']) && count($ergebnis['line']) >= 2) {
+                    $raus['linien'][$id] = ['line' => $ergebnis['line'], 'max' => (int) $ergebnis['max']];
+                }
             }
         }
     } catch (Throwable $e) {
@@ -651,4 +660,59 @@ function avesmapsCurveRefreshStale(PDO $pdo, int $deckel = 3): array
     }
 
     return $raus;
+}
+
+// Nach JEDEM Schreibvorgang des Landschafts-Endpunkts: veraltete Kurven nachrechnen UND sie der Karte
+// mitgeben.
+//
+// 🔴 WARUM ES DAS GIBT (14.09.2026, Rueckfrage der Handbuch-Routine, Owner: „ja"). Seit dem 07.09.2026
+// rechnete der Server die Kurve nach einem Eckzug richtig nach -- live gemessen an „Thasch": Ecke gezogen,
+// danach trug die Ablage die neue Linie mit passendem Fingerabdruck. Die KARTE zeichnete trotzdem die
+// ALTE Kurve weiter, bis jemand die Seite neu lud: die Antwort trug die Linie nicht mit, und
+// `label.curveLine` setzt der Browser nur beim Laden der Nutzlast. Fuer den Editor sah das aus wie „die
+// Kurve rechnet sich nach dem Verschieben nicht von selbst neu" -- und so stand es im Handbuch.
+//
+// 💣 DIE LINIEN REISEN IN DER ANTWORT (`curve_labels`), in der Form der Leseaktion `baselines`, und der
+// Browser nimmt sie an EINER Stelle an: in `postEcosystemEdit`, durch den jeder Landschafts-Schreiber
+// geht. Eine Uebernahme je Aufrufer waere wieder die Liste von Schreibern, die avesmapsCurveRefreshStale
+// abgeschafft hat.
+//
+// 💣 UND DANACH DER STEMPEL, NOCH EINMAL. Der Handler hebt `ecosystem_revision` VOR dieser Rechnung (sie
+// steckt ueber avesmapsClimateReadStamp im ETag der Kartennutzlast), die Kurve landet aber 165-796 ms
+// SPAETER in der Ablage. Wer genau dazwischen die Karte laedt, bekommt das Label OHNE Kurve unter dem
+// NEUEN ETag -- im Vorrat des Servers wie im IndexedDB des Besuchers, und danach 304 bis zur naechsten
+// Aenderung. Ein zweiter Hub NACH dem Schreiben schliesst das Fenster. Gehoben wird nur, wenn wirklich
+// eine Kurve dazukam; dieselbe Regel wie bei `refresh_curve`.
+//
+// ⚠️ Der Stempel wird HEREINGEREICHT, nicht hier gerufen: avesmapsNextEcosystemRevision steht in
+// ecosystem.php und spricht MySQL (INSERT IGNORE, ON DUPLICATE KEY). So laesst sich diese Funktion gegen
+// SQLite AUSFUEHREN statt nur lesen.
+//
+// ⚠️ SIE FAELLT WEICH AUS, wie avesmapsCurveRefreshStale: ein Wurf beim Stempel machte aus einem
+// gelungenen Speichern einen Fehlschlag. Die Kurve reist dann trotzdem mit, nur die Revision bleibt.
+//
+// 🔴 NUR NACH EINEM SCHREIBVORGANG, erkannt an der `revision` in der Antwort: die setzt jeder Schreibweg
+// ueber avesmapsNextEcosystemRevision, und kein Lesepfad. Ohne diesen Riegel zahlte jede Statusabfrage
+// (`assignment_status`, `list_changes`, der 45-s-Takt) die Aggregatabfrage mit.
+//
+// @param callable():int $revisionHeben
+function avesmapsCurveNachSchreibvorgang(PDO $pdo, array $result, callable $revisionHeben): array
+{
+    if (!array_key_exists('revision', $result)) {
+        return $result;
+    }
+
+    $kurven = avesmapsCurveRefreshStale($pdo);
+    if ($kurven['linien'] === []) {
+        return $result;
+    }
+
+    $result['curve_labels'] = $kurven['linien'];
+    try {
+        $result['revision'] = (int) $revisionHeben();
+    } catch (Throwable $e) {
+        error_log('avesmapsCurveNachSchreibvorgang: ' . $e->getMessage());
+    }
+
+    return $result;
 }
