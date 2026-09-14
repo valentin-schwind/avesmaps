@@ -140,7 +140,21 @@ function spotlightEntryWikiKeys(entry) {
 	} else if (entry.kind === "region") {
 		pushKey(entry.regionEntry?.wikiUrl);
 	} else if (entry.kind === "path") {
-		(entry.paths || []).forEach((path) => pushKey(path?.properties?.wiki_path?.wiki_url));
+		// Entwurf 2026-09-14 §2.4: ein Wegeintrag nennt nur SEINEN Artikel. Ein Traeger-Abschnitt steht mit
+		// seiner Hauptzuweisung (einem ANDEREN Artikel) in entry.paths -- dessen Adresse zu nennen liesse
+		// ?strasse=Reichsstraße_2 den Baerenpfad-Eintrag treffen.
+		const eigenerKey = String(entry.id || "").startsWith("path:wiki:") ? String(entry.id).slice("path:wiki:".length) : "";
+		(entry.paths || []).forEach((path) => {
+			if (!eigenerKey || path?.properties?.wiki_path?.wiki_key === eigenerKey) {
+				pushKey(path?.properties?.wiki_path?.wiki_url);
+				return;
+			}
+			const weiterer = (Array.isArray(path?.properties?.wiki_path_weitere) ? path.properties.wiki_path_weitere : [])
+				.find((eintrag) => eintrag?.wiki_key === eigenerKey);
+			if (weiterer) {
+				pushKey(weiterer.wiki_url);
+			}
+		});
 	} else if (entry.kind === "label") {
 		// 💣 A label keeps its article in label.wikiRegion.wiki_url -- the label model has no wikiUrl
 		// field at all. Reading the absent one left EVERY wiki-linked landscape label unmatchable here
@@ -191,15 +205,37 @@ function pathMatchesDeeplinkTarget(path, targetKey, anchorSubtype) {
 	if (wikiUrlToDeeplinkKey(path?.properties?.wiki_path?.wiki_url) === targetKey) {
 		return true;
 	}
+	// Entwurf 2026-09-14 §2.4: eine WEITERE Zuweisung ist ebenfalls Weg-Identitaet des Artikels.
+	if ((Array.isArray(path?.properties?.wiki_path_weitere) ? path.properties.wiki_path_weitere : [])
+		.some((eintrag) => wikiUrlToDeeplinkKey(eintrag?.wiki_url) === targetKey)) {
+		return true;
+	}
 	return subtypeOfPath(path) === anchorSubtype && exactPathNameKey(path) === targetKey;
+}
+
+// Der erste Abschnitt, der den Artikel als WEITERE Zuweisung traegt (Entwurf 2026-09-14 §2.4) -- fuer Artikel,
+// die nur so auf der Karte liegen (ein Pilgerweg ganz ueber fremden Strassen).
+function deeplinkWeitererTreffer(targetKey) {
+	for (const path of pathData) {
+		const eintrag = (Array.isArray(path?.properties?.wiki_path_weitere) ? path.properties.wiki_path_weitere : [])
+			.find((kandidat) => wikiUrlToDeeplinkKey(kandidat?.wiki_url) === targetKey);
+		if (eintrag) {
+			return { path, eintrag };
+		}
+	}
+	return null;
 }
 
 function focusWholeWikiDeeplinkPath(targetKey) {
 	if (!targetKey || typeof pathData === "undefined" || !Array.isArray(pathData) || !pathData.length) {
 		return false;
 	}
-	// Anchor: prefer a wiki_url hit (most reliable), else the first exact-name hit -- both number-sensitive.
-	const anchor = pathData.find((path) => wikiUrlToDeeplinkKey(path?.properties?.wiki_path?.wiki_url) === targetKey)
+	// Anchor: prefer a wiki_url hit (most reliable), then a WEITERE assignment (Entwurf 2026-09-14 §2.4),
+	// else the first exact-name hit -- all number-sensitive.
+	const hauptAnker = pathData.find((path) => wikiUrlToDeeplinkKey(path?.properties?.wiki_path?.wiki_url) === targetKey) || null;
+	const weitererTreffer = hauptAnker ? null : deeplinkWeitererTreffer(targetKey);
+	const anchor = hauptAnker
+		|| (weitererTreffer && weitererTreffer.path)
 		|| pathData.find((path) => exactPathNameKey(path) === targetKey)
 		|| null;
 	if (!anchor) {
@@ -223,9 +259,10 @@ function focusWholeWikiDeeplinkPath(targetKey) {
 	// The id is what lets Escape / an outside click drop the highlight again (both only check that a
 	// selection is registered). Coin it through the spotlight's own key helper, so a way shown via
 	// "Anzeigen"/?strasse= and the same way picked in the search are ONE selection, not two.
-	const groupKey = typeof getSpotlightPathGroupKeyForPath === "function"
-		? getSpotlightPathGroupKeyForPath(anchor, matchedSubtype)
-		: "";
+	// Ein Artikel NUR aus weiteren Zuweisungen heisst nach sich selbst, nicht nach der Strasse, die ihn traegt.
+	const groupKey = weitererTreffer
+		? `wiki:${weitererTreffer.eintrag.wiki_key}`
+		: (typeof getSpotlightPathGroupKeyForPath === "function" ? getSpotlightPathGroupKeyForPath(anchor, matchedSubtype) : "");
 	suppressPlannerUrlSyncForWikiDeeplink();
 	focusSpotlightPath({
 		kind: "path",

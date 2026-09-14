@@ -768,7 +768,7 @@ function spotlightLandscapeArea(entry) {
 }
 
 function resolveBackendSpotlightEntries(backendResults, localEntries) {
-	const { byPublicId, byPathGroup } = getSpotlightSearchLookup();
+	const { byPublicId, byPathGroup, byPathWikiKey } = getSpotlightSearchLookup();
 	const resolvedEntries = [];
 	const seenEntryIds = new Set();
 
@@ -779,10 +779,17 @@ function resolveBackendSpotlightEntries(backendResults, localEntries) {
 			? result.public_ids
 			: [result.public_id].filter(Boolean);
 
-		for (const publicId of publicIds) {
-			entry = byPublicId.get(`${kind}:${publicId}`);
-			if (entry) {
-				break;
+		// Entwurf 2026-09-14 §2.4: ein Wegtreffer nennt seinen Artikel -- das ist eindeutiger als eine Kennung,
+		// denn ein Abschnitt kann zu mehreren Artikeln gehoeren.
+		if (kind === "path" && result.wiki_key && byPathWikiKey) {
+			entry = byPathWikiKey.get(String(result.wiki_key)) || null;
+		}
+		if (!entry) {
+			for (const publicId of publicIds) {
+				entry = byPublicId.get(`${kind}:${publicId}`);
+				if (entry) {
+					break;
+				}
 			}
 		}
 
@@ -1289,6 +1296,7 @@ function getSpotlightSearchLookup() {
 
 	const byPublicId = new Map();
 	const byPathGroup = new Map();
+	const byPathWikiKey = new Map();
 	getSpotlightSearchEntries().forEach((entry) => {
 		spotlightEntryLookupPublicIds(entry).forEach((publicId) => {
 			// First writer wins: a territory drawn as several region entries would otherwise have its
@@ -1299,6 +1307,10 @@ function getSpotlightSearchLookup() {
 		});
 		if (entry.kind === "path") {
 			byPathGroup.set(getSpotlightPathGroupKey(entry.name, entry.subtype), entry);
+			// Entwurf 2026-09-14 §2.4: Servertreffer tragen wiki_key und finden ihren Eintrag daran.
+			if (String(entry.id || "").startsWith("path:wiki:")) {
+				byPathWikiKey.set(String(entry.id).slice("path:wiki:".length), entry);
+			}
 		}
 	});
 
@@ -1330,7 +1342,7 @@ function getSpotlightSearchLookup() {
 		});
 	});
 
-	spotlightSearchLookupCache = { byPublicId, byPathGroup, byLorePlace };
+	spotlightSearchLookupCache = { byPublicId, byPathGroup, byPathWikiKey, byLorePlace };
 	return spotlightSearchLookupCache;
 }
 
@@ -1529,6 +1541,43 @@ function buildSpotlightPathEntries() {
 			group.publicIds.push(getPathPublicId(path));
 		}
 		group.bounds = extendSpotlightBounds(group.bounds, getSpotlightPathBounds(path));
+	});
+
+	// Entwurf 2026-09-14 §2.4: ein Abschnitt gehoert AUCH zu jedem Artikel seiner weiteren Wiki-Zuweisungen.
+	// ZWEITER Durchgang, damit eine Gruppe mit eigenen Abschnitten Name und Wegtyp von DENEN bekommt.
+	// 💣 Die Traeger landen in `paths`, NICHT in `publicIds`: getSpotlightSearchLookup registriert Kennungen
+	// nach „first writer wins", und ein Reichsstrassen-Abschnitt beim Baerenpfad-Eintrag liesse den
+	// Servertreffer „Reichsstraße 2" den Baerenpfad oeffnen.
+	pathData.forEach((path) => {
+		const weitere = Array.isArray(path?.properties?.wiki_path_weitere) ? path.properties.wiki_path_weitere : [];
+		if (!weitere.length) {
+			return;
+		}
+		const subtype = normalizePathSubtype(path.properties?.feature_subtype || path.properties?.name);
+		weitere.forEach((eintrag) => {
+			const key = String(eintrag?.wiki_key || "").trim();
+			const name = String(eintrag?.name || "").trim();
+			if (!key || !name) {
+				return;
+			}
+			const groupKey = `wiki:${key}`;
+			if (!pathGroups.has(groupKey)) {
+				pathGroups.set(groupKey, {
+					id: `path:${groupKey}`,
+					kind: "path",
+					name,
+					typeLabel: getSpotlightPathTypeLabel(path, subtype),
+					subtype,
+					publicIds: [],
+					paths: [],
+					bounds: null,
+					aliases: [subtype, eintrag.wiki_url],
+				});
+			}
+			const group = pathGroups.get(groupKey);
+			group.paths.push(path);
+			group.bounds = extendSpotlightBounds(group.bounds, getSpotlightPathBounds(path));
+		});
 	});
 
 	return Array.from(pathGroups.values());

@@ -249,6 +249,14 @@ function avesmapsBuildMapSearchResults(
     // Landschaft sie vertritt, entscheidet die Bindung weiter unten; die braucht die Regionen.
     $unsichtbareLabelTreffer = [];
     foreach ($rows as $row) {
+        // Entwurf 2026-09-14 §2.4: auch unter jedem Artikel seiner weiteren Wiki-Zuweisungen auffindbar.
+        foreach (avesmapsBuildSearchWeitereEntries($row) as $weiterer) {
+            $weitererScore = avesmapsCalculateSearchScore($weiterer, $normalizedQuery);
+            if ($weitererScore !== null) {
+                avesmapsSearchMergePathEntry($pathGroups, $weiterer, $weitererScore);
+            }
+        }
+
         $entry = avesmapsBuildSearchEntry($row);
         if ($entry === null) {
             continue;
@@ -260,20 +268,9 @@ function avesmapsBuildMapSearchResults(
         }
 
         if ($entry['kind'] === 'path') {
-            $pathKey = (string) ($entry['group_key'] ?? '');
-            if ($pathKey === '') {
-                continue;
+            if ((string) ($entry['group_key'] ?? '') !== '') {
+                avesmapsSearchMergePathEntry($pathGroups, $entry, $score);
             }
-
-            if (!isset($pathGroups[$pathKey])) {
-                $entry['score'] = $score;
-                $pathGroups[$pathKey] = $entry;
-                continue;
-            }
-
-            $pathGroups[$pathKey]['public_ids'][] = (string) $entry['public_id'];
-            $pathGroups[$pathKey]['score'] = min((int) $pathGroups[$pathKey]['score'], $score);
-            $pathGroups[$pathKey] = avesmapsExtendSearchResultBounds($pathGroups[$pathKey], $entry);
             continue;
         }
 
@@ -602,12 +599,62 @@ function avesmapsBuildSearchEntry(array $row): ?array {
             'feature_subtype' => $featureSubtype,
             'public_ids' => [(string) $row['public_id']],
             'group_key' => avesmapsNormalizePathSearchGroupKey($displayName, $featureSubtype),
+            // Entwurf 2026-09-14 §2.4: der Browser loest Wegtreffer zuerst ueber den Artikel auf.
+            'wiki_key' => (string) ($wikiPath['wiki_key'] ?? ''),
             'search_texts' => [$displayName, $featureSubtype],
             'show_label' => true,
         ]);
     }
 
     return null;
+}
+
+/**
+ * Treffer aus den WEITEREN Wiki-Zuweisungen eines Wegabschnitts (Entwurf 2026-09-14 §2.4): ein Abschnitt der
+ * Reichsstrasse, der auch zum Baerenpfad gehoert, wird unter „Bärenpfad" gefunden.
+ * ⚠️ Eigener Gruppenschluessel `weitere:<key>`: der Haupttreffer gruppiert nach Wegtyp+Name, und der Abschnitt
+ * traegt den Wegtyp der Reichsstrasse. Der Browser fuehrt beide ueber `wiki_key` zu EINEM Eintrag zusammen.
+ * @return list<array>
+ */
+function avesmapsBuildSearchWeitereEntries(array $row): array {
+    if ((string) ($row['feature_type'] ?? '') !== 'path' || !str_contains((string) ($row['properties_json'] ?? ''), 'wiki_path_weitere')) {
+        return [];
+    }
+    $properties = avesmapsDecodeJsonColumnForSearch($row['properties_json'] ?? null);
+    $featureSubtype = (string) ($row['feature_subtype'] ?? '');
+    $treffer = [];
+    foreach ((is_array($properties['wiki_path_weitere'] ?? null) ? $properties['wiki_path_weitere'] : []) as $eintrag) {
+        $key = is_array($eintrag) ? trim((string) ($eintrag['wiki_key'] ?? '')) : '';
+        $name = is_array($eintrag) ? avesmapsNormalizeSingleLine((string) ($eintrag['name'] ?? ''), 160) : '';
+        if ($key === '' || $name === '') {
+            continue;
+        }
+        $treffer[] = avesmapsBuildSearchResult($row, [
+            'kind' => 'path',
+            'name' => $name,
+            'type_label' => avesmapsPathSearchTypeLabel($featureSubtype),
+            'feature_subtype' => $featureSubtype,
+            'public_ids' => [(string) ($row['public_id'] ?? '')],
+            'group_key' => 'weitere:' . $key,
+            'wiki_key' => $key,
+            'search_texts' => [$name, $featureSubtype],
+            'show_label' => true,
+        ]);
+    }
+    return $treffer;
+}
+
+/** Wegtreffer derselben Gruppe zusammenfuehren: Kennungen sammeln, bester Score, Huellbox erweitern. */
+function avesmapsSearchMergePathEntry(array &$pathGroups, array $entry, int $score): void {
+    $pathKey = (string) ($entry['group_key'] ?? '');
+    if (!isset($pathGroups[$pathKey])) {
+        $entry['score'] = $score;
+        $pathGroups[$pathKey] = $entry;
+        return;
+    }
+    $pathGroups[$pathKey]['public_ids'][] = (string) $entry['public_id'];
+    $pathGroups[$pathKey]['score'] = min((int) $pathGroups[$pathKey]['score'], $score);
+    $pathGroups[$pathKey] = avesmapsExtendSearchResultBounds($pathGroups[$pathKey], $entry);
 }
 
 function avesmapsBuildSearchResult(array $row, array $fields): array {
@@ -626,7 +673,7 @@ function avesmapsBuildSearchResult(array $row, array $fields): array {
         'search_texts' => $fields['search_texts'] ?? [],
     ];
 
-    foreach (['min_zoom', 'max_zoom', 'show_label', 'group_key'] as $optionalField) {
+    foreach (['min_zoom', 'max_zoom', 'show_label', 'group_key', 'wiki_key'] as $optionalField) {
         if (array_key_exists($optionalField, $fields)) {
             $result[$optionalField] = $fields[$optionalField];
         }
