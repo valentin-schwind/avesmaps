@@ -243,16 +243,63 @@ function avesmapsWikiAssignWegHerkunft(herkunft) {
 	return (wert === "manual" || wert === "wiki") ? { feature_subtype: wert } : {};
 }
 
-/** REIN: der Rumpf der Zuweisung. Beide Oberflaechen schicken denselben -- mit `dry_run:false` UND
- *  `confirm:"apply"`, weil der Endpunkt sonst nur probeweise rechnet (api/edit/wiki/paths.php). */
-function avesmapsWikiAssignWegZuweisungsKoerper(wikiKey, publicId) {
-	return {
+/**
+ * REIN: der Rumpf der Zuweisung. Beide Oberflaechen schicken denselben -- mit `dry_run:false` UND
+ * `confirm:"apply"`, weil der Endpunkt sonst nur probeweise rechnet (api/edit/wiki/paths.php).
+ * 🔴 MIT `publicIds` (mehr als ein Abschnitt) gilt die Zuweisung GENAU diesen Abschnitten -- Weg-Ebene und Gruppendialog
+ * (Nachtrag 2026-09-14-wege-mehrfachzuweisung-design.md §9.6). Ohne bleibt es beim Namens-Match des Servers.
+ */
+function avesmapsWikiAssignWegZuweisungsKoerper(wikiKey, publicId, publicIds) {
+	const koerper = {
 		action: "assign_to",
 		wiki_key: avesmapsWikiAssignWegText(wikiKey),
 		public_id: avesmapsWikiAssignWegText(publicId),
 		dry_run: false,
 		confirm: "apply",
 	};
+	const ids = avesmapsWikiAssignWegGruppenIds(publicId, publicIds);
+	if (ids) {
+		koerper.public_ids = ids;
+	}
+	return koerper;
+}
+
+/** REIN: die Kennungen fuer `public_ids` -- der Anker vorn, getrimmt, ohne Dubletten; `null` bei hoechstens einem Abschnitt. */
+function avesmapsWikiAssignWegGruppenIds(publicId, publicIds) {
+	if (!Array.isArray(publicIds)) {
+		return null;
+	}
+	const ids = [];
+	[publicId].concat(publicIds).forEach((id) => {
+		const text = avesmapsWikiAssignWegText(id);
+		if (text !== "" && ids.indexOf(text) === -1) {
+			ids.push(text);
+		}
+	});
+	return ids.length > 1 ? ids : null;
+}
+
+/**
+ * REIN: der Rumpf, der die Zuweisung von GENAU diesen Abschnitten loest (Nachtrag §9.6). Keine Rueckfrage „nur dieser
+ * Abschnitt?" -- markiert ist die ganze Strasse. ⚠️ Nie zusammen mit `single_segment`: der Server lehnt beides zugleich ab.
+ */
+function avesmapsWikiAssignWegLoesenKoerper(publicId, publicIds) {
+	return {
+		action: "clear_assign",
+		public_id: avesmapsWikiAssignWegText(publicId),
+		public_ids: avesmapsWikiAssignWegGruppenIds(publicId, publicIds) || [avesmapsWikiAssignWegText(publicId)],
+		dry_run: false,
+		confirm: "apply",
+	};
+}
+
+/**
+ * REIN: die EINE Bestaetigung vor dem Loesen einer ganzen Strasse. Sie nennt die Folge (R2: jeder Abschnitt einen eigenen
+ * generischen Namen) -- die Owner-Regel vom 05.07.2026 („nie ungefragt den ganzen Weg") bleibt damit erfuellt.
+ */
+function avesmapsWikiAssignWegGruppeLoesenFrage(name, anzahl) {
+	return "Die Wiki-Zuordnung „" + avesmapsWikiAssignWegText(name) + "“ von allen " + (Number(anzahl) || 0)
+		+ " Abschnitten dieser Straße lösen?\n\nJeder Abschnitt bekommt einen eigenen generischen Namen — die Straße zerfällt in einzelne Wege.";
 }
 
 /**
@@ -308,6 +355,9 @@ if (typeof module !== "undefined" && module.exports) {
 		avesmapsWikiAssignWegZustand: avesmapsWikiAssignWegZustand,
 		avesmapsWikiAssignWegHerkunft: avesmapsWikiAssignWegHerkunft,
 		avesmapsWikiAssignWegZuweisungsKoerper: avesmapsWikiAssignWegZuweisungsKoerper,
+		avesmapsWikiAssignWegGruppenIds: avesmapsWikiAssignWegGruppenIds,
+		avesmapsWikiAssignWegLoesenKoerper: avesmapsWikiAssignWegLoesenKoerper,
+		avesmapsWikiAssignWegGruppeLoesenFrage: avesmapsWikiAssignWegGruppeLoesenFrage,
 		avesmapsWikiAssignWegAntwortPruefen: avesmapsWikiAssignWegAntwortPruefen,
 		avesmapsWikiAssignWegSyncWegtyp: avesmapsWikiAssignWegSyncWegtyp,
 	};
