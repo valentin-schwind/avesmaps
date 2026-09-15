@@ -378,6 +378,20 @@ is the default, English is opt-in. Therefore:
   ⚠️ Bei einem **unerwarteten** Roten seriell nachfahren, bevor man ihn glaubt: nur der serielle
   Lauf schliesst aus, dass zwei Tests sich eine Fixture oder einen Port teilen.
   ⚠️ Und bei einem **unerwarteten GRUENEN** ebenso: erst die Dateizahl nachzaehlen, dann glauben.
+  ✅ **Seit 15.09.2026 faehrt das DEPLOY-TOR selbst parallel** (vorher Datei fuer Datei, rund 4 von 5
+  Minuten eines Deploys): `.github/scripts/run-tests-parallel.sh` nimmt die NUL-getrennte Liste beider
+  Muster, gibt **jedem Test ein eigenes Temp-Verzeichnis** (`TMPDIR`, dazu `TMP`/`TEMP` fuer Windows) und
+  faehrt einen roten Test **einmal allein nach** -- allein gruen wird ein `::warning` mit Namen, kein
+  Abbruch. Die zwei Muster stehen weiter im Workflow. Lokal derselbe Lauf (Git Bash, Repo-Wurzel):
+  `{ find api tools \( \( … \) -o \( … \) \) -print0; find js tools \( \( … \) -o \( … \) \) -print0; } | AVESMAPS_TEST_PHP_ARGS="-d extension=php_mbstring.dll -d extension=php_pdo_sqlite.dll -d extension=php_gd.dll" bash .github/scripts/run-tests-parallel.sh`
+  💣 **Ein Test, der eine GEMEINSAME Datei anfasst, wackelt im Parallellauf.** Gefunden beim Umbau:
+  `map-features-cache-test.php` raeumt im Cache der Kartennutzlast unter `/tmp` auf (geloest durch das
+  eigene `TMPDIR`), und `tools/scope_editor_css.js` schrieb die erzeugte CSS bei JEDEM Lauf neu, auch
+  unveraendert -- ein Nachbartest konnte sie in dem Moment leer lesen; er schreibt jetzt nur bei
+  Aenderung. 💣 Und ein Test, der ab der Repo-WURZEL durch den Baum laeuft, liest lokal die
+  Kachelpyramide und `.claude/worktrees` mit: `field-origins-test.php` lief ueber 246.355 Dateien und zaehlte
+  25 Schreibwege aus fremden Worktrees mit, im Parallellauf 93 s statt 2 s. Versteckte Verzeichnisse und
+  die Datenablagen (`tiles`, `uploads`, `node_modules`) gehoeren ausgelassen.
   ⚠️ **Und danach: der Fehlschlag vergiftet den `?v=`-Stempel.** Der nächste grüne Lauf
   hält die nie hochgeladenen Dateien für aktuell — live standen zwei davon auf HTTP 404
   und sechs in alter Fassung, während `index.html` schon die neue anforderte. Nur eine

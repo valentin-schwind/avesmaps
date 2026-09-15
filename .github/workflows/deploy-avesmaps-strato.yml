@@ -59,26 +59,29 @@ jobs:
       # month. A gate nobody watches is not a gate. This step is the gate.
       #
       # ⚠️ WHAT IT DOES NOT COVER, so nobody reads "the gate" as "everything":
-      #   * 21 *.mjs tests under tools/ -- SIX of them are red as of 2026-08-05 and would block
-      #     every deploy. They need fixing before they can be added; see the system test report.
       #   * .github/scripts/__tests__/*.test.py -- the asset-stamping chain (AGENTS.md §7), which
       #     this very workflow depends on. Needs a python step.
-      # Adding either is a separate change with its own verification.
+      #   * tools/svg-export/__tests__/*.js that do not end in .test.js -- the endpoint runs start a
+      #     real server and stay out ON PURPOSE, so a port problem cannot hold up a deploy (AGENTS.md §9).
+      # 🪤 Hier stand bis zum 15.09.2026 auch „21 *.mjs tests under tools/ -- SIX of them are red and
+      #    would block every deploy". Das Tor faehrt sie seit dem 24.08.2026, und sie sind gruen.
       #
       # ⚠️ It runs BEFORE the secret check on purpose: a fork push or a workflow_dispatch should
       # fail on broken tests rather than on a missing secret. (There is no pull_request trigger,
       # so it does not fire on PRs at all -- an earlier version of this comment claimed it did.)
-      - name: Run the unit tests
+      - name: Install PHP and SFTP client
         shell: bash
         run: |
           set -uo pipefail
 
-          # zend.assertions=1 is not optional: without it assert() is a no-op and every test
-          # reports green while proving nothing. The tests carry their own guard against that and
-          # abort loudly, which is why a missing extension shows up as FATAL rather than a pass.
+          # The tests carry their own guard against a missing extension and abort loudly, which is
+          # why a missing package shows up as FATAL rather than a pass.
+          # ⭐ lftp kommt seit dem 15.09.2026 HIER mit, nicht mehr in einem eigenen Schritt vor dem
+          #    Upload: das war ein zweites `apt-get update` je Lauf. Und der Aufraeumschritt braucht lftp
+          #    auch in einem Lauf, der nichts hochlaedt (siehe „Retire orphaned remote files").
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends \
-            php-cli php-mbstring php-curl php-sqlite3 php-gd > /dev/null
+            php-cli php-mbstring php-curl php-sqlite3 php-gd lftp > /dev/null
 
           # 💣 Diese Zeile steht bewusst EINZELN und mit `|| true`. Am 25.08.2026 stand `php-sodium`
           # in der Pflichtliste darueber -- das Paket gibt es auf ubuntu-24.04 nicht ("E: Unable to
@@ -92,55 +95,42 @@ jobs:
           php -v | head -1
           echo "node $(node -v)"
 
-          failed=0
-          php_ok=0
-          js_ok=0
+      - name: Run the unit tests
+        shell: bash
+        run: |
+          set -uo pipefail
 
+          # ⭐ PARALLEL seit dem 15.09.2026. Vorher lief die Liste Datei fuer Datei -- rund vier der fuenf
+          #    Minuten eines Deploys, auf einem Runner mit vier Kernen. .github/scripts/run-tests-parallel.sh
+          #    faehrt sie auf allen Kernen, gibt jedem Test ein EIGENES Temp-Verzeichnis und faehrt einen
+          #    roten Test einmal allein nach (allein gruen = ::warning mit Namen, kein Abbruch). Es setzt
+          #    auch zend.assertions=1 -- ohne das ist assert() ein No-op und jeder Test gruen.
+          #    Die Muster stehen bewusst weiter HIER: das ist die Stelle, an der man nachsieht (AGENTS.md §9).
+          #
           # Two conventions, both real: __tests__/*.php under api/ and tools/, and test-*.php
           # directly under tools/{paths,routing,wikidump}. The second set was invisible to the
           # first version of this gate -- 30 files, among them the wiki_key folding guard that
           # AGENTS.md §5 names by hand.
-          echo "--- PHP ---"
+          # Dieselbe Zweigleisigkeit bei JS -- und aus demselben Grund uebersehen: neben den
+          # __tests__/*.test.js liegen 21 test-*.mjs unter tools/{paths,routing}, die in KEINEM Tor
+          # liefen. Am 24.08.2026 waren sieben davon rot, und in KEINEM Fall war der Code kaputt: sie
+          # hielten Literale fest, die das Projekt bewusst geaendert hatte (Flussfaktor 1.5 -> 2.0,
+          # Stunden mit einer statt zwei Nachkommastellen, aus einer IIFE herausgeloeste Funktionen, ein
+          # umbenannter Knopf). Ein Test ausserhalb des Tors misst nicht die Software, er verrottet --
+          # und meldet dann Fehler, die es nicht gibt.
+          #
           # ⚠️ The parentheses are load-bearing: -o binds looser than the implicit -a, so without
           # them the second branch swallows the first one's -name and the whole thing silently
           # returns only the __tests__ set. Shipped wrong once (2026-08-05) -- 88 instead of 118,
-          # and the gate looked like it had grown when it had not. If you touch this line, count.
-          for test in $(find api tools \( -path '*__tests__*' -name '*.php' \) -o \( -name 'test-*.php' -not -path '*__tests__*' \) | sort); do
-            if output="$(php -d zend.assertions=1 -d assert.exception=1 "$test" 2>&1)"; then
-              php_ok=$((php_ok + 1))
-            else
-              failed=1
-              echo "::error file=${test}::PHP test failed"
-              echo "$output" | tail -20
-            fi
-          done
-
-          echo "--- JS ---"
-          # Dieselbe Zweigleisigkeit wie oben bei PHP -- und aus demselben Grund uebersehen:
-          # neben den __tests__/*.test.js liegen 21 test-*.mjs unter tools/{paths,routing}, die
-          # in KEINEM Tor liefen. Am 24.08.2026 waren sieben davon rot, und in KEINEM Fall war
-          # der Code kaputt: sie hielten Literale fest, die das Projekt bewusst geaendert hatte
-          # (Flussfaktor 1.5 -> 2.0, Stunden mit einer statt zwei Nachkommastellen, aus einer
-          # IIFE herausgeloeste Funktionen, ein umbenannter Knopf). Ein Test ausserhalb des Tors
-          # misst nicht die Software, er verrottet -- und meldet dann Fehler, die es nicht gibt.
-          # ⚠️ Die Klammern sind hier genauso tragend wie oben: ohne sie frisst der zweite Zweig
-          # das -name des ersten, und das Tor schrumpft still auf die 21 zusammen.
-          for test in $(find js tools \( -path '*__tests__*' -name '*.test.js' \) -o \( -name 'test-*.mjs' -not -path '*__tests__*' \) | sort); do
-            if output="$(node "$test" 2>&1)"; then
-              js_ok=$((js_ok + 1))
-            else
-              failed=1
-              echo "::error file=${test}::JS test failed"
-              echo "$output" | tail -20
-            fi
-          done
-
-          echo "PHP ${php_ok} green, JS ${js_ok} green."
-
-          if [[ "$failed" -ne 0 ]]; then
-            echo "::error title=Tests failed::Nothing was uploaded. Fix the tests, then push again."
-            exit 1
-          fi
+          # and the gate looked like it had grown when it had not. If you touch these lines, count.
+          # 💣 UND MIT -print0 BRAUCHT ES EINE KLAMMER MEHR, UM BEIDE GRUPPEN: ohne sie bindet -print0
+          #    nur an die zweite, und das Tor faehrt 21 von 312 Dateien mit „null rot" (AGENTS.md §9).
+          #    Das Skript nennt die Dateizahl im Protokoll, und tools/__tests__/tor-parallel.test.js haelt
+          #    die Ausgabe dieser zwei Zeilen gegen eine Zaehlung, die find nicht benutzt.
+          {
+            find api tools \( \( -path '*__tests__*' -name '*.php' \) -o \( -name 'test-*.php' -not -path '*__tests__*' \) \) -print0
+            find js tools \( \( -path '*__tests__*' -name '*.test.js' \) -o \( -name 'test-*.mjs' -not -path '*__tests__*' \) \) -print0
+          } | bash .github/scripts/run-tests-parallel.sh
 
       - name: Validate deployment secrets
         shell: bash
@@ -235,10 +225,19 @@ jobs:
             return 1
           }
 
+          # ⭐ Der Aufraeumschritt („Retire orphaned remote files") laeuft nur, wenn seine Liste NEU sein
+          #    kann: bei jedem vollen Paket und wenn dieser Workflow im Push steckt. Begruendung dort.
+          # 🔴 Bewusst NICHT an SKIP_DEPLOY gekoppelt -- ein Push, der nur die Liste aendert, laedt nichts
+          #    hoch und soll trotzdem raeumen.
+          retire_vormerken() {
+            echo "RETIRE_ORPHANS=true" >> "$GITHUB_ENV"
+          }
+
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             echo "Preparing full deploy package."
 
             copy_full_deploy_package
+            retire_vormerken
 
             if [[ "${{ inputs.upload_tiles }}" == "true" && -e "tiles" ]]; then
               copy_item "tiles"
@@ -253,12 +252,19 @@ jobs:
               echo "No usable base SHA found; preparing full deploy package instead."
 
               copy_full_deploy_package
+              retire_vormerken
             else
               if ! git cat-file -e "$base_sha^{commit}" 2>/dev/null; then
                 echo "Base commit $base_sha is not available locally; preparing full deploy package instead."
                 copy_full_deploy_package
+                retire_vormerken
               else
                 changed_files=$(git diff --name-only --diff-filter=ACMRT "$base_sha" "$head_sha")
+
+                if grep -qxF ".github/workflows/deploy-avesmaps-strato.yml" <<< "$changed_files"; then
+                  echo "Dieser Workflow steckt im Push -- verwaiste Server-Dateien werden geraeumt."
+                  retire_vormerken
+                fi
 
                 if [[ -z "$changed_files" ]]; then
                   echo "No changed deployable files found."
@@ -358,14 +364,6 @@ jobs:
           grep -oE '(src|href)="(js|css)/[^"]+"' "$DEPLOY_DIR/index.html" | head -n 5 || true
           grep -oE '@import url\("[^"]+"\)' "$DEPLOY_DIR/css/styles.css" | head -n 3 || true
 
-      - name: Install SFTP client
-        if: env.SKIP_DEPLOY != 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install --yes lftp
-
       - name: Deploy package
         if: env.SKIP_DEPLOY != 'true'
         shell: bash
@@ -398,8 +396,17 @@ jobs:
           bye
           EOF
 
+      # ⭐ SEIT DEM 15.09.2026 NUR, WENN DIE LISTE NEU SEIN KANN: bei jedem vollen Paket und wenn dieser
+      #    Workflow im Push steckt (RETIRE_ORPHANS, gesetzt in „Prepare deploy package"). Vorher lief der
+      #    Schritt bei JEDEM Upload -- eine eigene SFTP-Verbindung und rund 10 s, um Dateien zu loeschen,
+      #    die seit dem ersten Lauf nicht mehr da sind. Und umgekehrt lief er NICHT, wenn ein Push nur
+      #    diese Liste aenderte (SKIP_DEPLOY); auch das ist damit behoben.
+      # ⚠️ Die Luecke, die bleibt: wird der Lauf, der die Liste aendert, abgebrochen oder von einem
+      #    wartenden ersetzt (AGENTS.md §9), rechnet der naechste ab dem abgebrochenen Commit und raeumt
+      #    nicht. Dann den Workflow mit dem naechsten Commit noch einmal anfassen -- eine Kommentarzeile
+      #    genuegt.
       - name: Retire orphaned remote files
-        if: env.SKIP_DEPLOY != 'true'
+        if: env.RETIRE_ORPHANS == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -423,9 +430,9 @@ jobs:
           #    als geschuetzter „frontend fallback" in AGENTS.md §10 -- kein Frontend rief ihn mehr, Owner-GO.
           #    Und keine Datei, die im Repo liegt -- sie fehlte nach dem Deploy auf dem Server.
           #    Gewacht von tools/__tests__/retire-liste-geschuetzt.test.js.
-          # ⚠️ Dieser Schritt faellt mit SKIP_DEPLOY aus: ein Commit, der nur diese Liste (oder .github/,
-          #    Doku, Tests) aendert, raeumt nichts. Geraeumt wird beim naechsten Push, der wirklich
-          #    etwas hochlaedt -- gemessen an api/wiki-sync.php, 14.09.2026.
+          # 🪤 Hier stand bis zum 15.09.2026: „Dieser Schritt faellt mit SKIP_DEPLOY aus: ein Commit, der nur
+          #    diese Liste aendert, raeumt nichts" (gemessen an api/wiki-sync.php, 14.09.2026). Seither haengt
+          #    der Schritt an RETIRE_ORPHANS statt an SKIP_DEPLOY -- siehe den Kommentar ueber dem Schritt.
           retire_nur_server_php=(
             "api/_internal/app/__tests__/adventure-cover-autoget-test.php"
             "api/_internal/app/__tests__/adventure-links-test.php"
@@ -520,8 +527,11 @@ jobs:
           set -uo pipefail
 
           ziel="https://avesmaps.de/api/app/map-features.php"
-          # Kurz warten: der Upload ist eben erst durch, und PHP mag einen Moment brauchen.
-          sleep 20
+          # Kurz warten: der Upload ist eben erst durch.
+          # ⚠️ NICHT laenger, das kostet nur Zeit. STRATOs OPcache uebernimmt eine GEAENDERTE PHP-Datei ohnehin
+          #    erst mit 2-4 Minuten Verzug (api/_internal/bootstrap.php) -- auch 20 s Warten liessen die Probe
+          #    geaenderten Code nicht sehen. Bis zum 15.09.2026 stand hier `sleep 20`.
+          sleep 5
 
           # Wie oft der Server ueberhaupt GEANTWORTET hat. Null heisst: wir haben ihn nie erreicht --
           # das sagt nichts ueber den Deploy und darf deshalb nicht wie ein toter Deploy klingen.
@@ -539,8 +549,9 @@ jobs:
             #     Genau so geschah es am 24.08.2026 ZWEIMAL bei kerngesunder Karte (HTTP 200, 19,9 MB) --
             #     beide Laeufe exakt 20,2 s lang, also das `sleep 20` und sonst nichts.
             # ⚠️ Wer hier eine weitere Zeile einfuegt, die fehlschlagen darf, braucht denselben Schutz:
-            #    ein `|| …`, ein `if …; then`, oder ein `|| true`. Der Nachbarschritt „Run the unit tests"
-            #    macht es mit `if output="$(…)"; then` -- das ist die Hausform.
+            #    ein `|| …`, ein `if …; then`, oder ein `|| true`. Das Tor-Skript des Schritts „Run the unit
+            #    tests" (.github/scripts/run-tests-parallel.sh) macht es mit `if fahre_einen …; then` -- das
+            #    ist die Hausform.
             # Gewacht von tools/__tests__/deploy-kartenprobe.test.js.
             rc=0
             kopf="$(curl -s -o /tmp/karte.probe -D - -w '%{http_code}' --max-time 180 "$ziel" | tail -1)" || rc=$?

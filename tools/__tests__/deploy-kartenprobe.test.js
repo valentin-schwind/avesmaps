@@ -19,9 +19,10 @@ const path = require("path");
 // 💣 Deshalb faehrt dieser Test den Schritt unter GENAU der Zeile, mit der GitHub ihn startet. Ein
 // Lauf ohne `-e` ist gruen und beweist nichts -- er misst eine Umgebung, die es nicht gibt.
 //
-// ⚠️ Der Nachbarschritt „Run the unit tests" schreibt dasselbe `set -uo pipefail` und ist trotzdem
-// heil: dort steht jeder fehlbare Aufruf in einer `if`-Bedingung, und darin greift `-e` nicht. Das
-// ist die Bauform, an der man sich hier orientiert -- kein Zufall, sondern der Hausweg.
+// ⚠️ Das Tor-Skript des Nachbarschritts „Run the unit tests" (.github/scripts/run-tests-parallel.sh)
+// schreibt dasselbe `set -uo pipefail` und ist trotzdem heil: dort steht jeder fehlbare Aufruf in
+// einer `if`-Bedingung, und darin greift `-e` nicht. Das ist die Bauform, an der man sich hier
+// orientiert -- kein Zufall, sondern der Hausweg.
 //
 // Aus der Wurzel des Repos:  node tools/__tests__/deploy-kartenprobe.test.js
 

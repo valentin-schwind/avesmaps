@@ -188,7 +188,15 @@ for (const src of SOURCES) {
 // foreign line endings would otherwise mix them back into the product.
 combined = combined.replace(/\r\n|\r|\n/g, NL);
 
-fs.writeFileSync(path.join(REPO, OUT), combined, "utf8");
+// Only write when something changed. tools/__tests__/scope-editor-css.test.js runs this generator
+// against the REAL file, and since 2026-09-15 the deploy gate runs its tests in parallel:
+// writeFileSync truncates first, so a neighbouring test that reads the stylesheet at that moment
+// (several do) would find it empty and fail for no reason.
+const outPath = path.join(REPO, OUT);
+const unchanged = fs.existsSync(outPath) && fs.readFileSync(outPath, "utf8") === combined;
+if (!unchanged) {
+	fs.writeFileSync(outPath, combined, "utf8");
+}
 
 // Safety verification: re-tokenize OUTPUT at top level; every style rule selector
 // (outside @keyframes) must reference ROOT. Report any leak.
@@ -210,6 +218,6 @@ function verify(tokens, insideKeyframes) {
 }
 verify(tokenize(combined), false);
 
-console.log("WROTE " + OUT + " (" + combined.length + " bytes)");
+console.log((unchanged ? "UNCHANGED " : "WROTE ") + OUT + " (" + combined.length + " bytes)");
 console.log("LEAKING_SELECTORS=" + leaks.length);
 if (leaks.length) { console.log(leaks.slice(0, 40).join("\n")); process.exitCode = 2; }

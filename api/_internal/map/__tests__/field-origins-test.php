@@ -95,7 +95,7 @@ $pruefe($geleert === ['oberhaupt' => 'manual'],
 // ══ 9) 💣 DIE VERDRAHTUNG -- ZUR LAUFZEIT GEZAEHLT, OHNE ZAHL IM KOMMENTAR ═════════════════════
 // Die Falle vom 14.08.2026 (Verkehrsmittel-Sperre in zwei von vier Erzeugern) und ihre Lehre: „die
 // ZAHL im Kommentar war das Problem" -- sie liest sich wie eine vollstaendige Liste, also sucht
-// niemand weiter. Hier steht deshalb KEINE Zahl. Gesucht wird jede Funktion im api/-Baum, die
+// niemand weiter. Hier steht deshalb KEINE Zahl. Gesucht wird jede Funktion im ganzen Projekt, die
 // avesmapsApplyPointWikiFields ruft (die EINZIGE Stelle, die die Wiki-Textfelder eines Ortes
 // kennt); jede von ihnen muss auch stempeln.
 //
@@ -103,8 +103,22 @@ $pruefe($geleert === ['oberhaupt' => 'manual'],
 // Verhalten -- ein Aufruf in einem `try { … } catch { }` erfuellt sie und tut nichts. Was sie
 // wirklich faengt, ist der Fall, um den es geht: ein NEUER Schreibweg, der den Stempel schlicht
 // vergisst. Das Verhalten selbst haengt am Ablauf in der Oberflaeche (Abnahmeschritt 4 im Entwurf).
+//
+// 💣 Der Lauf laesst Verzeichnisse aus, die keine Quelle sind -- und das ist keine Kosmetik. Bis zum
+//    15.09.2026 lief er ueber den GANZEN Baum: lokal rund 246.000 Dateien, darunter die Kachelpyramide
+//    (174.737, nicht im Repo) und .claude/worktrees mit 19.576 PHP-KOPIEN fremder Sitzungen, deren
+//    Schreibwege er gleich mitzaehlte. Allein brauchte er 2 s, im parallelen Testlauf 93 s -- und war
+//    damit die Untergrenze des ganzen Tors. Ausgelassen werden versteckte Verzeichnisse (.git,
+//    .claude, .github) und die drei Datenablagen. ⚠️ Bewusst eine SPERRliste und keine Positivliste
+//    wie „nur api/": ein Verzeichnis, das hier fehlt, macht den Lauf langsamer, nie blind -- ein
+//    Schreibweg unter edit/ oder tools/ wird weiter gefunden.
 $wurzel = dirname(__DIR__, 4);
-$dateien = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($wurzel, FilesystemIterator::SKIP_DOTS));
+$keineQuelle = ['tiles', 'uploads', 'node_modules'];
+$dateien = new RecursiveIteratorIterator(new RecursiveCallbackFilterIterator(
+    new RecursiveDirectoryIterator($wurzel, FilesystemIterator::SKIP_DOTS),
+    static fn (SplFileInfo $eintrag): bool => !$eintrag->isDir()
+        || !(str_starts_with($eintrag->getFilename(), '.') || in_array($eintrag->getFilename(), $keineQuelle, true))
+));
 $schreibwege = [];
 foreach ($dateien as $datei) {
     if ($datei->getExtension() !== 'php' || str_contains($datei->getPathname(), '__tests__')) {

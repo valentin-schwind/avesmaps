@@ -20,6 +20,11 @@
 # Windows-only tooling keeps CRLF.
 *.ps1  text eol=crlf
 
+# Shell scripts are LF everywhere: bash reads a CR as part of the command ("$'\r': command not
+# found"), and with core.autocrlf=true a Windows checkout would break the deploy-gate script
+# (.github/scripts/run-tests-parallel.sh) for everyone running it locally from Git Bash.
+*.sh   text eol=lf
+
 # Binary assets: never touch line endings or diff as text.
 *.png  binary
 *.jpg  binary
