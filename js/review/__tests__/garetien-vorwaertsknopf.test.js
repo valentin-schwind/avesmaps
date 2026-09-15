@@ -115,9 +115,15 @@ wahr(api.garetienZielwahlMarkup(offenOhneVorschlag).includes("Nichts — nur ans
 api.avesmapsGaretienStageLeeren();
 gleich(knopf(offenOhneVorschlag, "stage").disabled, false,
 	"…und der Knopf geht trotzdem: ansehen darf man alles");
-wahr(knopf(offenOhneVorschlag, "ablehnen").disabled,
-	"„Ablehnen\" ohne Item bleibt gesperrt -- mit Grund");
-wahr(knopf(offenOhneVorschlag, "ablehnen").grund !== "", "und der Grund steht da");
+// 🔴 SEIT 15.09.2026 GEHT „Ablehnen" AUCH OHNE ITEM (Owner: „die editoren wollen alle objekte in 'Offen'
+// auch ablehnen dürfen auch wenn sie nicht übernommen werden können und nichts tragen"). Hier stand bis
+// dahin: „bleibt gesperrt -- mit Grund". Gesperrt bleibt nur ein Eintrag OHNE Objektschluessel.
+gleich(knopf(offenOhneVorschlag, "ablehnen").disabled, false,
+	"🔴 „Ablehnen\" ohne Item geht -- die Ablehnung haengt am Objektschluessel");
+gleich(knopf(offenOhneVorschlag, "ablehnen").grund, "", "und nennt keinen Grund dagegen");
+const ohneObjektSchluessel = Object.assign({}, offenOhneVorschlag, { key: "b|zusatz|w-1" });
+wahr(knopf(ohneObjektSchluessel, "ablehnen").disabled, "ein Eintrag ohne Objektschluessel bleibt gesperrt");
+wahr(knopf(ohneObjektSchluessel, "ablehnen").grund !== "", "…mit Grund");
 
 // =================================================================================================
 // 4. Auf der Stage kehrt sich der Vorwaertsknopf um.
@@ -175,15 +181,25 @@ const ereignis = (name, key) => ({
 	},
 });
 
+// ⚠️ Seit 15.09.2026 hat „Ablehnen" am Objekt ohne Vorschlag keinen stillen Ausgang mehr -- gemessen wird
+// der Ausgang deshalb an einem Eintrag OHNE Objektschluessel (er wird ueber data-key gefunden).
 garetienStatusSetzen("Ruhe", "", null);
-const ergebnis = garetienHandlungKlick(ereignis("ablehnen", "b"), [offenOhneVorschlag], 5, senden, () => true);
+const ergebnis = garetienHandlungKlick(ereignis("ablehnen", ohneObjektSchluessel.key), [ohneObjektSchluessel], 5,
+	senden, () => true);
 gleich(gesendet, 0, "es geht nichts hinaus");
 gleich(ergebnis, null, "und der Verteiler meldet „nicht uebernommen\"");
 wahr(dom.text("#garetien-status-text").includes("Perz"),
 	"aber die Statuszeile nennt das Objekt: " + dom.text("#garetien-status-text"));
-wahr(dom.text("#garetien-status-text").includes("keinen Vorschlag"),
-	"und den Grund des Knopfes");
+wahr(dom.text("#garetien-status-text").includes("Schlüssel"),
+	"und den Grund des Knopfes: " + dom.text("#garetien-status-text"));
 wahr(dom.klassen("#garetien-status-text").includes("bad"), "im Ton „bad\"");
+// 🔴 Und die Gegenprobe: dasselbe Objekt MIT Schluessel geht hinaus, ohne Fehlermeldung.
+garetienStatusSetzen("Ruhe", "", null);
+gleich(garetienHandlungKlick(ereignis("ablehnen", "b"), [offenOhneVorschlag], 5, senden, () => true) !== null, true,
+	"🔴 „Ablehnen\" an „Perz\" (ohne Vorschlag) geht seit dem 15.09.2026 hinaus");
+gleich(gesendet, 1, "…genau einmal");
+wahr(!dom.klassen("#garetien-status-text").includes("bad"), "…und ohne Fehlermeldung");
+gesendet = 0;
 
 // Gegenprobe: mit Item geht es hinaus, OHNE Statusmeldung an dieser Stelle (die kommt erst
 // nach dem Listenlauf).

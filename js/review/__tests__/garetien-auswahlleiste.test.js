@@ -90,15 +90,32 @@ const markupOffen = garetienAuswahlleisteMarkup(offen);
 gleich(markupOffen.includes("btn--main"), false, "kein btn--main im Markup der Leiste");
 
 // =================================================================================================
-// 5. „Auswahl ablehnen" zaehlt nur, was ein Item traegt -- und sperrt sich, wenn keines dabei ist.
-//    ⚠️ Ein Objekt ohne Item traegt nichts bei; es still mitzuzaehlen waere eine Falschaussage.
+// 5. „Auswahl ablehnen" zaehlt JEDES Objekt mit Vorschlag ODER Objektschluessel.
+//    🔴 SEIT 15.09.2026 (Owner: „die editoren wollen alle objekte in 'Offen' auch ablehnen dürfen auch
+//    wenn sie nicht übernommen werden können und nichts tragen"). Bis dahin zaehlte nur, was ein Item
+//    traegt, und der Knopf sperrte sich ohne eines.
+//    ⚠️ Gesperrt bleibt er nur noch fuer Eintraege OHNE Objektschluessel -- und dann mit Grund.
 // =================================================================================================
+const ohneSchluessel = { key: "", stand: "offen", urteil: "uebersprungen", items: [] };
 const ablehnen = (n, o) => garetienAuswahlleisteZustand("offen", n, o).knoepfe[1];
-gleich(ablehnen(3, [mitItem, ohneItem, mitItem]).t2, "2 Objekte",
-	"nur die zwei mit Vorschlag zaehlen");
+gleich(ablehnen(3, [mitItem, ohneItem, mitItem]).t2, "3 Objekte",
+	"🔴 auch das Objekt ohne Vorschlag zaehlt -- es wird wirklich abgelehnt");
 gleich(ablehnen(3, [mitItem, ohneItem, mitItem]).gesperrt, false);
-gleich(ablehnen(1, [ohneItem]).gesperrt, true, "ohne ein einziges Item gesperrt");
-gleich(ablehnen(2, [mitItem, ohneItem]).t2, "1 Objekt", "Einzahl auch hier");
+gleich(ablehnen(1, [ohneItem]).gesperrt, false, "🔴 ein Objekt ohne ein einziges Item laesst sich ablehnen");
+gleich(ablehnen(1, [ohneItem]).t2, "1 Objekt", "Einzahl auch hier");
+gleich(ablehnen(1, [ohneSchluessel]).gesperrt, true, "nur ein Eintrag ohne Schluessel sperrt");
+gleich(ablehnen(2, [mitItem, ohneSchluessel]).t2, "1 Objekt", "…und zaehlt nicht mit");
+gleich(ablehnen(1, [{ key: "a|zusatz|w-1", items: [] }]).gesperrt, true,
+	"💣 ein Item-Schluessel ist kein Objektschluessel");
+{
+	const { garetienAuswahlOhneVorschlagSchluessel, garetienAuswahlAblehnenMengen } = api;
+	tief(garetienAuswahlOhneVorschlagSchluessel([
+		mitItem, ohneItem, ohneItem, ohneSchluessel, { key: " e ", items: [] }, { key: "x|y", items: [] },
+	]), ["b", "e"],
+		"die zweite Menge: nur Objekte OHNE Item, entdoppelt, getrimmt, ohne Item-Schluessel");
+	tief(garetienAuswahlAblehnenMengen([mitItem, ohneItem, ohneSchluessel]), { abgelehnt: 2, uebersprungen: 1 },
+		"die Mengen zaehlen beide Arten -- uebersprungen wird nur der Eintrag ohne Schluessel");
+}
 
 // =================================================================================================
 // 6. Das Markup: zwei Zeilen je Knopf, der Name als data-auswahl, gesperrt als `disabled`.
@@ -107,7 +124,7 @@ wahr(markupOffen.includes('data-auswahl="auswahl_stage"'), "der Name reist im da
 wahr(markupOffen.includes("gi-auswahl__t1"), "Zeile 1 hat ihre eigene Huelle");
 wahr(markupOffen.includes("gi-auswahl__t2"), "Zeile 2 auch");
 wahr(markupOffen.includes("Auswahl auf die Stage"), "und der Text steht drin");
-wahr(garetienAuswahlleisteMarkup(garetienAuswahlleisteZustand("offen", 1, [ohneItem]))
+wahr(garetienAuswahlleisteMarkup(garetienAuswahlleisteZustand("offen", 1, [ohneSchluessel]))
 	.includes("disabled"), "ein gesperrter Knopf traegt disabled");
 gleich(garetienAuswahlleisteMarkup(garetienAuswahlleisteZustand("offen", 0, [])), "",
 	"unsichtbar heisst LEER, nicht eine leere Huelle");
@@ -179,11 +196,18 @@ avesmapsGaretienAuswahlUmschalten("a");
 
 let gesendet = [];
 let gefragt = [];
+// 🔴 Seit 15.09.2026 ist die Meldung der Auswahlleiste eine FUNKTION der vom Server NICHT entschiedenen
+// Objekte -- gelesen wird sie hier fuer den Normalfall „alles entschieden".
+const meldungVon = (g) => (typeof g.meldung === "function" ? String(g.meldung(0)) : String(g.meldung));
 const werkzeuge = {
 	// 🔴 FIXRUNDE 1 (C1, 07.09.2026): der Verteiler reicht die ids GETRENNT heraus, weil der
 	// Sender sie in Haeppchen zerlegt -- `api/edit/wiki/sync-plan.php` kappt eine laengere Liste
 	// stillschweigend bei 200, und die Leiste meldete trotzdem die volle Zahl.
-	sendenMenge: (rumpf, ids, meldung) => { gesendet.push({ rumpf, ids, meldung }); return "gesendet"; },
+	// 🔴 15.09.2026: das vierte Argument ist die zweite Menge -- die Schluessel der Objekte OHNE Vorschlag.
+	sendenMenge: (rumpf, ids, meldung, objektRumpf) => {
+		gesendet.push({ rumpf, ids, meldung, objektRumpf });
+		return "gesendet";
+	},
 	fragen: (text) => { gefragt.push(text); return true; },
 };
 
@@ -195,8 +219,9 @@ tief(gesendet[0].ids, [1],
 gleich(gesendet[0].rumpf.action, "decline", "als Ablehnung");
 gleich(gefragt.length, 1, "und vorher wird gefragt");
 wahr(gefragt[0].includes("1 Objekt"), "die Rueckfrage nennt die Menge: " + gefragt[0]);
-wahr(String(gesendet[0].meldung).includes("1 Objekt abgelehnt"),
-	"und die Meldung reist MIT durch die Tuer: " + gesendet[0].meldung);
+wahr(meldungVon(gesendet[0]).includes("1 Objekt abgelehnt"),
+	"und die Meldung reist MIT durch die Tuer: " + meldungVon(gesendet[0]));
+gleich(gesendet[0].objektRumpf, null, "ohne ein Objekt OHNE Vorschlag gibt es keine zweite Menge");
 
 // „Nein" schickt nichts.
 gesendet = []; gefragt = [];
@@ -204,14 +229,35 @@ gleich(garetienAuswahlleisteKlick(leistenEreignis("auswahl_ablehnen"), alle, 7,
 	{ sendenMenge: werkzeuge.sendenMenge, fragen: () => false }), null, "ein „Nein\" schickt nichts");
 gleich(gesendet.length, 0, "wirklich nichts");
 
-// ⚠️ Objekte OHNE Item tragen nichts bei -- sie werden UEBERSPRUNGEN und in der Meldung GENANNT.
+// 🔴 SEIT 15.09.2026: ein Objekt OHNE Item traegt keine id bei -- aber seinen SCHLUESSEL, als zweite
+// Menge an die eigene Tuer. Bis dahin wurde es uebersprungen und in der Meldung genannt.
 avesmapsGaretienAuswahlUmschalten("c");   // jetzt a + c gewaehlt
 gesendet = []; gefragt = [];
 garetienAuswahlleisteKlick(leistenEreignis("auswahl_ablehnen"), alle, 7, werkzeuge);
 tief(gesendet[0].ids, [1], "das Objekt ohne Item traegt keine id bei");
-wahr(String(gesendet[0].meldung).includes("1 ohne Vorschlag übersprungen"),
-	"…und wird in der Rueckmeldung GENANNT, nie stillschweigend weggelassen: " + gesendet[0].meldung);
-wahr(gefragt[0].includes("unberührt"), "auch die Rueckfrage sagt es: " + gefragt[0]);
+tief(gesendet[0].objektRumpf, { action: "objekte_ablehnen", run_id: 7, keys: ["c"] },
+	"🔴 …aber seinen Schluessel, an `objekte_ablehnen`: " + JSON.stringify(gesendet[0].objektRumpf));
+wahr(meldungVon(gesendet[0]).includes("2 Objekte abgelehnt"), "die Meldung zaehlt beide: " + meldungVon(gesendet[0]));
+wahr(!meldungVon(gesendet[0]).includes("übersprungen"), "…und ueberspringt keines: " + meldungVon(gesendet[0]));
+gleich(gesendet[0].meldung(1), "1 Objekt abgelehnt.",
+	"🔴 lehnt der Server eines NICHT ab, zieht die Kopfzahl es ab -- der Nachsatz sagt dann, warum");
+wahr(gefragt[0].includes("2 Objekte"), "auch die Rueckfrage nennt beide: " + gefragt[0]);
+wahr(!gefragt[0].includes("unberührt"), "…und behauptet nicht mehr, eines bleibe unberuehrt: " + gefragt[0]);
+// 💣 Nur Objekte OHNE Vorschlag gewaehlt: der Klick geht trotzdem hinaus -- bis dahin war das still().
+avesmapsGaretienAuswahlUmschalten("a");   // jetzt nur c gewaehlt
+gesendet = []; gefragt = [];
+gleich(garetienAuswahlleisteKlick(leistenEreignis("auswahl_ablehnen"), alle, 7, werkzeuge), "gesendet",
+	"💣 nur ein Objekt ohne Vorschlag gewaehlt -- der Klick geht trotzdem hinaus");
+tief(gesendet[0].ids, [], "ohne id");
+tief(gesendet[0].objektRumpf.keys, ["c"], "mit Schluessel");
+// „Auswahl wieder vorschlagen" nimmt denselben Weg zurueck -- und fragt niemanden.
+gesendet = []; gefragt = [];
+garetienAuswahlleisteKlick(leistenEreignis("auswahl_wieder"), alle, 7, werkzeuge);
+gleich(gesendet[0].rumpf.action, "undecline", "die Item-Menge: undecline");
+gleich(gesendet[0].objektRumpf.action, "objekte_wieder", "die Schluessel-Menge: objekte_wieder");
+wahr(meldungVon(gesendet[0]).includes("1 Objekt wieder vorgeschlagen"), "Meldung: " + meldungVon(gesendet[0]));
+gleich(gefragt.length, 0, "„Wieder vorschlagen\" fragt niemanden");
+avesmapsGaretienAuswahlUmschalten("a");   // wieder a + c, wie der Abschnitt danach es erwartet
 
 // Der Weg auf die Stage und zurueck -- beide client-seitig, beide messbar am ERGEBNIS.
 avesmapsGaretienStageLeeren();
@@ -334,7 +380,7 @@ gleich(garetienAuswahlleisteZustand("offen", 2, [mitItem, ohneItem]).knoepfe[0].
 	wahr(markup.indexOf("data-grund=") !== -1,
 		"💣 …und AM KNOPF, damit der Klickweg dieselbe Zeichenkette liest wie die Anzeige");
 	// ⚠️ Entdoppelt: „Ablehnen" und „Wieder vorschlagen" teilen sich ihren Grund.
-	const doppelt = garetienAuswahlleisteMarkup(garetienAuswahlleisteZustand("offen", 1, [ohneItem]));
+	const doppelt = garetienAuswahlleisteMarkup(garetienAuswahlleisteZustand("offen", 1, [ohneSchluessel]));
 	const treffer = doppelt.split('class="gi-auswahlleiste__grund"').length - 1;
 	gleich(treffer, 1, "hoechstens EIN Grund-Absatz je Leiste");
 	// Ein bedienbarer Knopf traegt gar kein data-grund.
@@ -370,9 +416,13 @@ gleich(garetienAuswahlStillerAusgangText(null), "", "und ohne Knopf erst recht n
 // ⚠️ Derselbe Riegel gilt seit jeher im anderen Klickweg -- er war bis zur Fixrunde 1 UNGEPRUEFT.
 gleich(garetienStillerAusgangText("stage", { key: "x", name: "X", urteil: "neu", items: [] }), "",
 	"🔴 auch dort: ein Knopf ohne Grund (der Vorwaertsknopf ist nie gesperrt) meldet nichts");
-wahr(garetienStillerAusgangText("ablehnen", { key: "x", name: "X", urteil: "neu", items: [] })
+// ⚠️ Seit 15.09.2026 hat „Ablehnen" an einem Objekt MIT Schluessel keinen Grund mehr -- gemessen wird
+// deshalb an einem Eintrag OHNE Schluessel.
+wahr(garetienStillerAusgangText("ablehnen", { key: "", name: "X", urteil: "neu", items: [] })
 	.indexOf("geht nicht") !== -1,
 	"…und einer MIT Grund meldet ihn -- sonst waere die Zeile darueber Vakuum");
+gleich(garetienStillerAusgangText("ablehnen", { key: "x", name: "X", urteil: "neu", items: [] }), "",
+	"🔴 ein Objekt OHNE Vorschlag, aber MIT Schluessel, hat keinen Grund mehr dagegen");
 
 // Der ECHTE Klickweg schreibt ihn in die Statuszeile.
 {
@@ -438,10 +488,13 @@ const GRUND_NICHTS_BRAUCHBARES = "die Auswahl trägt gerade nichts, was sich auf
 	gleich(garetienAuswahlleisteZustand("stage", 1, [mitItem]).knoepfe[0].grund, "");
 
 	// ---- Und die vier alten, wortgenau. -----------------------------------------------------------
-	gleich(garetienAuswahlleisteZustand("offen", 1, [ohneItem]).knoepfe[1].grund,
-		"keines der gewählten Objekte trägt einen Vorschlag", "auswahl_ablehnen");
-	gleich(garetienAuswahlleisteZustand("abgelehnt", 1, [ohneItem]).knoepfe[0].grund,
-		"keines der gewählten Objekte trägt einen Vorschlag", "auswahl_wieder");
+	gleich(garetienAuswahlleisteZustand("offen", 1, [ohneSchluessel]).knoepfe[1].grund,
+		"keines der gewählten Objekte lässt sich ablehnen", "auswahl_ablehnen");
+	gleich(garetienAuswahlleisteZustand("abgelehnt", 1, [ohneSchluessel]).knoepfe[0].grund,
+		"keines der gewählten Objekte lässt sich wieder vorschlagen", "auswahl_wieder");
+	// 🔴 Die Gegenprobe seit 15.09.2026: ohne Vorschlag, aber MIT Schluessel, sperrt keiner der beiden.
+	gleich(garetienAuswahlleisteZustand("offen", 1, [ohneItem]).knoepfe[1].grund, "", "auswahl_ablehnen geht");
+	gleich(garetienAuswahlleisteZustand("abgelehnt", 1, [ohneItem]).knoepfe[0].grund, "", "auswahl_wieder geht");
 	gleich(garetienAuswahlleisteZustand("uebernommen", 3, [uebernommenOhneRuecknahme]).knoepfe[0].grund,
 		"keines der gewählten Objekte lässt sich zurücknehmen — sie haben ein bestehendes Objekt "
 		+ "verändert", "auswahl_ruecknahme");
@@ -514,8 +567,8 @@ const GRUND_NICHTS_BRAUCHBARES = "die Auswahl trägt gerade nichts, was sich auf
 	gleich(geschickt.length, 1, "EIN Aufruf -- das Zerlegen macht der Sender, nicht der Verteiler");
 	gleich(geschickt[0].ids.length, 250,
 		"💣 ALLE 250 ids gehen hinaus -- vorher waren es 200, und gemeldet wurden trotzdem 250");
-	wahr(String(geschickt[0].meldung).indexOf("250 Objekte abgelehnt") !== -1,
-		"…und die Meldung stimmt damit wieder: " + geschickt[0].meldung);
+	wahr(meldungVon(geschickt[0]).indexOf("250 Objekte abgelehnt") !== -1,
+		"…und die Meldung stimmt damit wieder: " + meldungVon(geschickt[0]));
 	avesmapsGaretienAuswahlAufheben();
 }
 // Und der SENDER zerlegt wirklich -- ausgefuehrt, nicht gelesen.
@@ -543,6 +596,74 @@ const GRUND_NICHTS_BRAUCHBARES = "die Auswahl trägt gerade nichts, was sich auf
 	gleich(rufe[0].action, "decline", "die uebrigen Felder des Rumpfes reisen unveraendert mit");
 	gleich(dom.text("#garetien-status-text"), "450 Objekte abgelehnt.",
 		"💣 die Meldung steht NACH dem Listenlauf -- davor setzte der Renderer sie sofort zurueck");
+
+	// 🔴 15.09.2026: DIE ZWEITE MENGE -- die Schluessel der Objekte OHNE Vorschlag, in eigenen Haeppchen, an
+	// ihre eigene Tuer. Liste und Meldung kommen trotzdem EINMAL, fuer beide Mengen zusammen.
+	{
+		const { garetienTuerFuer, garetienObjektEntscheidungNachsatz } = api;
+		gleich(garetienTuerFuer({ action: "objekte_ablehnen" }), "/api/edit/map/garetien-import.php");
+		gleich(garetienTuerFuer({ action: "objekte_wieder" }), "/api/edit/map/garetien-import.php");
+		gleich(garetienTuerFuer({ action: "decline" }), "/api/edit/wiki/sync-plan.php", "decline bleibt, wo es war");
+		gleich(garetienTuerFuer({ action: "undecline" }), "/api/edit/wiki/sync-plan.php");
+		gleich(garetienTuerFuer(null), "/api/edit/wiki/sync-plan.php", "ohne Rumpf die Uebernahme-Tuer, wie bisher");
+		gleich(garetienObjektEntscheidungNachsatz({ abgelehnt: 3, mit_vorschlag: 0 }, "objekte_ablehnen"), "",
+			"alles abgelehnt: kein Nachsatz");
+		gleich(garetienObjektEntscheidungNachsatz({ mit_vorschlag: 2, ungueltig: 1, gekappt: 1 }, "objekte_ablehnen"),
+			" Nicht abgelehnt: 2 Objekte tragen inzwischen einen Vorschlag, 2 Einträge ohne gültigen Schlüssel.");
+		gleich(garetienObjektEntscheidungNachsatz({ ungueltig: 1 }, "objekte_wieder"),
+			" Nicht wieder vorgeschlagen: 1 Eintrag ohne gültigen Schlüssel.");
+
+		const rufe2 = [];
+		let listenLaeufe = 0;
+		const schluessel = [];
+		for (let i = 0; i < 2500; i++) { schluessel.push("s" + i); }
+		dom.el("#garetien-status-text").textContent = "";
+		await garetienMengeSendenMitMeldung(
+			{ action: "decline", kind: "garetien", run_id: 7 }, [1, 2], (n) => (2502 - n) + " Objekte abgelehnt.",
+			function (rumpf) {
+				rufe2.push(rumpf);
+				// Das erste Schluessel-Haeppchen meldet EIN Objekt, das inzwischen einen Vorschlag traegt.
+				return Promise.resolve(rumpf.action === "objekte_ablehnen"
+					? { ok: true, abgelehnt: 0, mit_vorschlag: rufe2.length === 2 ? 1 : 0, ungueltig: 0, gekappt: 0 }
+					: { ok: true });
+			},
+			function () { listenLaeufe++; dom.el("#garetien-status-text").textContent = ""; return Promise.resolve(null); },
+			{ action: "objekte_ablehnen", run_id: 7, keys: schluessel }
+		);
+		tief(rufe2.map((r) => r.action), ["decline", "objekte_ablehnen", "objekte_ablehnen"],
+			"erst die ids, dann die Schluessel -- beide hinaus: " + JSON.stringify(rufe2.map((r) => r.action)));
+		gleich(rufe2[1].keys.length, 2000, "💣 2500 Schluessel in Haeppchen zu hoechstens 2000 -- dem Deckel des Servers");
+		gleich(rufe2[2].keys.length, 500);
+		gleich(rufe2[1].run_id, 7, "die uebrigen Felder des Objekt-Rumpfs reisen mit");
+		gleich(rufe2[1].ids, undefined, "und er traegt keine ids");
+		gleich(listenLaeufe, 1, "die Liste wird EINMAL geholt, fuer beide Mengen");
+		gleich(dom.text("#garetien-status-text"),
+			"2501 Objekte abgelehnt. Nicht abgelehnt: 1 Objekt trägt inzwischen einen Vorschlag.",
+			"🔴 die Kopfzahl zieht ab, was der Server nicht abgelehnt hat, und der Nachsatz sagt warum -- "
+			+ "„2502 abgelehnt. Nicht abgelehnt: 1 …“ widerspraeche sich im selben Satz (Konsistenzpruefung 15.09.2026)");
+
+		// Ohne zweite Menge verhaelt sich der Sender zeichengleich wie vorher -- kein zusaetzlicher Ruf.
+		const rufe3 = [];
+		await garetienMengeSendenMitMeldung({ action: "decline", kind: "garetien", run_id: 7 }, [9], "1 Objekt abgelehnt.",
+			function (rumpf) { rufe3.push(rumpf); return Promise.resolve({ ok: true }); },
+			function () { return Promise.resolve(null); });
+		gleich(rufe3.length, 1, "ohne Schluessel genau der eine decline");
+		gleich(dom.text("#garetien-status-text"), "1 Objekt abgelehnt.", "und kein Nachsatz");
+
+		// 🔴 Der EINZELknopf: hat der Server das eine Objekt NICHT abgelehnt, steht NUR der Nachsatz da.
+		const { garetienHandlungSendenMitMeldung } = api;
+		await garetienHandlungSendenMitMeldung({ action: "objekte_ablehnen", run_id: 7, keys: ["c"] }, "„Perz\" abgelehnt.",
+			function () { return Promise.resolve({ ok: true, abgelehnt: 0, mit_vorschlag: 1, ungueltig: 0, gekappt: 0 }); },
+			function () { dom.el("#garetien-status-text").textContent = ""; return Promise.resolve(null); });
+		gleich(dom.text("#garetien-status-text"), "Nicht abgelehnt: 1 Objekt trägt inzwischen einen Vorschlag.",
+			"💣 kein Erfolgssatz vor einem Satz, der ihn dementiert");
+		wahr(dom.klassen("#garetien-status-text").includes("bad"), "…im Ton bad: " + dom.klassen("#garetien-status-text"));
+		await garetienHandlungSendenMitMeldung({ action: "objekte_ablehnen", run_id: 7, keys: ["c"] }, "„Perz\" abgelehnt.",
+			function () { return Promise.resolve({ ok: true, abgelehnt: 1, mit_vorschlag: 0, ungueltig: 0, gekappt: 0 }); },
+			function () { return Promise.resolve(null); });
+		gleich(dom.text("#garetien-status-text"), "„Perz\" abgelehnt.", "die Gegenprobe: abgelehnt heisst abgelehnt");
+		wahr(dom.klassen("#garetien-status-text").includes("ok"), "…im Ton ok");
+	}
 
 	// ===============================================================================================
 	// 14. FIXRUNDE 1 / C3: DIE AUSWAHL UEBERLEBT DEN REITERWECHSEL NICHT -- am ECHTEN Zuhoerer.

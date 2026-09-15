@@ -45,6 +45,15 @@
 	// serverseitig heißt sie AVESMAPS_GARETIEN_PLAN_KIND.
 	const GARETIEN_PLAN_ART = "garetien";
 
+	// Die zwei Verben fuer Objekte OHNE Vorschlag (Owner 15.09.2026). Sie gehen an GARETIEN_ENDPUNKT, jede
+	// uebrige Entscheidung an GARETIEN_PLAN_ENDPUNKT -- garetienTuerFuer ist die EINE Weiche dafuer.
+	const GARETIEN_OBJEKT_AKTIONEN = ["objekte_ablehnen", "objekte_wieder"];
+
+	// Je Anfrage hoechstens so viele Objektschluessel. 🔴 Dieselbe Zahl wie
+	// AVESMAPS_GARETIEN_OBJEKT_ENTSCHEIDUNG_DECKEL (api/_internal/import/garetien-liste.php) -- groesser
+	// gewaehlt, meldete der Server den Rest als `gekappt`.
+	const GARETIEN_OBJEKT_HAEPPCHEN = 2000;
+
 	// ---- der Rechte-Riegel (unter Test in js/review/__tests__/garetien-fenster-huelle.test.js) ---
 	//
 	// 🔴 Fällt GESCHLOSSEN aus: bis die Auskunft da ist — und für immer, wenn sie nie kommt —
@@ -902,8 +911,10 @@
 		// gezaehlt wird deshalb schlicht, was gewaehlt und sichtbar ist. (Der Reiter ist der
 		// einzige, auf dem dieser Knopf steht.)
 		auswahl_entstagen: function (objekte) { return objekte.length; },
-		auswahl_ablehnen: function (objekte) { return objekte.filter(garetienHatItem).length; },
-		auswahl_wieder: function (objekte) { return objekte.filter(garetienHatItem).length; },
+		// 🔴 SEIT 15.09.2026 ZAEHLT AUCH EIN OBJEKT OHNE VORSCHLAG (Owner: „die editoren wollen alle
+		// objekte in 'Offen' auch ablehnen dürfen"). Seine Ablehnung haengt am Objektschluessel.
+		auswahl_ablehnen: function (objekte) { return objekte.filter(garetienLaesstSichEntscheiden).length; },
+		auswahl_wieder: function (objekte) { return objekte.filter(garetienLaesstSichEntscheiden).length; },
 		// 🔴 `garetienRuecknahmeItems` ist die EINZIGE Pruefung fuer „laesst sich zuruecknehmen" --
 		// dieselbe, die der Einzelknopf und garetienRuecknahmeMengeZustand fragen.
 		auswahl_ruecknahme: function (objekte) {
@@ -946,18 +957,43 @@
 		// ohne Grund schlimmer ist als einer mit einem seltenen.
 		auswahl_stage: "die Auswahl trägt gerade nichts, was sich auf die Stage legen lässt",
 		auswahl_entstagen: "die Auswahl trägt gerade nichts, was auf der Stage liegt",
-		auswahl_ablehnen: "keines der gewählten Objekte trägt einen Vorschlag",
-		auswahl_wieder: "keines der gewählten Objekte trägt einen Vorschlag",
+		// ⚠️ Seit 15.09.2026 nur noch ueber Eintraege ohne Objektschluessel erreichbar -- der Satz bleibt,
+		// weil ein gesperrter Knopf ohne Grund schlimmer ist als einer mit einem seltenen.
+		auswahl_ablehnen: "keines der gewählten Objekte lässt sich ablehnen",
+		auswahl_wieder: "keines der gewählten Objekte lässt sich wieder vorschlagen",
 		auswahl_ruecknahme: "keines der gewählten Objekte lässt sich zurücknehmen — sie haben ein "
 			+ "bestehendes Objekt verändert",
 		auswahl_zurueck_offen: "keines der gewählten Objekte wurde übernommen",
 	};
 
-	// REIN: traegt dieses Objekt ueberhaupt ein Item? Ein Objekt ohne Vorschlag traegt zu
-	// „ablehnen"/„wieder vorschlagen" nichts bei (garetien-liste.php gibt solchen Zeilen fest
-	// 'offen'); es mitzuzaehlen waere eine Falschaussage.
+	// REIN: traegt dieses Objekt ueberhaupt ein Item?
 	function garetienHatItem(objekt) {
 		return ((objekt && objekt.items) || []).length > 0;
+	}
+
+	// REIN: der Objektschluessel -- "" heisst „keiner". Ein Wert mit `|` ist der Schluessel eines ITEMS, nie
+	// der eines Objekts; der Server sortiert ihn genauso aus (avesmapsGaretienObjektSchluesselSaeubern).
+	function garetienObjektSchluesselVon(objekt) {
+		const roh = objekt && objekt.key;
+		if (roh === null || roh === undefined) { return ""; }
+		const schluessel = String(roh).trim();
+		return schluessel.indexOf("|") === -1 ? schluessel : "";
+	}
+
+	/*
+	 * REIN: laesst sich ueber dieses Objekt entscheiden -- ablehnen, wieder vorschlagen?
+	 *
+	 * 🔴 SEIT 15.09.2026 AUCH OHNE VORSCHLAG. Owner, woertlich: „ich würde gerne dinge - auch wenn ich sie
+	 * keinen vorschlag tragen - auch ablehnen können, sodass sie aus 'Offen' verschwinden" und „ich glaub sie
+	 * wollen einfach ihren fortschritt sehen". Bis dahin trug ein solches Objekt nichts bei, weil eine
+	 * Ablehnung an einem ITEM haengt und es keins hat (Ruling R10, „Offen kann nie 0 werden"). Jetzt haengt
+	 * sie am Objektschluessel (AVESMAPS_GARETIEN_OBJEKT_ENTSCHEIDUNG, garetien-liste.php).
+	 * 💣 ZWEI MENGEN, ZWEI TUEREN: Item-ids gehen an `decline`/`undecline` (sync-plan.php), Schluessel an
+	 * `objekte_ablehnen`/`objekte_wieder` (garetien-import.php). Ein Objekt MIT Vorschlag reist nur als ids --
+	 * eine Objekt-Zeile daneben lehnte der Server ab.
+	 */
+	function garetienLaesstSichEntscheiden(objekt) {
+		return garetienHatItem(objekt) || garetienObjektSchluesselVon(objekt) !== "";
 	}
 
 	// EINE Tafel, kein `if` -- dieselbe Bauform wie AVESMAPS_GARETIEN_HANDLUNG_TON daneben.
@@ -7347,7 +7383,8 @@
 		widerspruch: ["stage", "ablehnen"],
 		deckt_sich: ["stage", "ablehnen"],
 		// ⚠️ Auch eine Zeile OHNE Vorschlag darf auf die Stage -- dort wird sie gezeichnet, nie
-		// importiert („nur Ansicht", Entwurf §4). „Ablehnen" graut sich hier mit Grund aus.
+		// importiert („nur Ansicht", Entwurf §4). „Ablehnen" geht seit dem 15.09.2026 auch hier -- am
+		// Objektschluessel (garetienLaesstSichEntscheiden).
 		uebersprungen: ["stage", "ablehnen"],
 	};
 
@@ -7945,13 +7982,15 @@
 		if (name === "quelle") {
 			return "kein Abschnitt, an dem sich Quelle und Artikel OHNE den Namen ergänzen ließen";
 		}
-		// 🔧 „Ablehnen" ohne ein einziges Item: „deckt sich" und „übersprungen" erzeugen keinen
-		// sync_plan_item, und ohne Item gibt es nichts, worauf eine Ablehnung zeigen könnte -- der
-		// Bearbeitungsstand solcher Zeilen kommt gar nicht aus `sync_decision`
-		// (garetien-liste.php gibt ihnen fest `'offen'`). Ein Knopf, der schreibt und nichts
-		// bewirkt, ist schlimmer als ein ausgegrauter, der sagt warum. Das ist die andere Hälfte
-		// von Ruling R10 („Offen kann nie 0 werden"); sie ist eine Entscheidung des Owners und
-		// steht offen -- hier wird deshalb nichts erfunden, sondern benannt.
+		// ✅ „Ablehnen"/„Wieder vorschlagen" OHNE ein einziges Item gehen seit dem 15.09.2026 (Owner: „die
+		// editoren wollen alle objekte in 'Offen' auch ablehnen dürfen auch wenn sie nicht übernommen werden
+		// können und nichts tragen"). Hier stand die offene Hälfte von Ruling R10: ohne Item gab es nichts,
+		// worauf eine Ablehnung zeigen konnte, und der Knopf graute sich aus. Jetzt zeigt sie auf den
+		// Objektschlüssel -- gesperrt bleibt nur ein Eintrag, der keinen trägt.
+		if (name === "ablehnen" || name === "wieder") {
+			return garetienObjektSchluesselVon(objekt) !== "" ? ""
+				: "dieses Objekt trägt keinen Schlüssel, an dem eine Entscheidung hängen könnte";
+		}
 		return "dieses Objekt hat gar keinen Vorschlag — es steht in der Liste, damit die Zahl "
 			+ "nachprüfbar bleibt";
 	}
@@ -8005,6 +8044,10 @@
 				&& items.length > 0 && angehakt === items.length,
 			disabled: grund !== "",
 			grund: grund,
+			// 🔴 15.09.2026: ohne Item traegt „Ablehnen"/„Wieder vorschlagen" den Objektschluessel -- die
+			// zweite Menge neben `ids` (garetienHandlungsRumpf). Jeder andere Knopf traegt keinen.
+			keys: (name === "ablehnen" || name === "wieder") && items.length === 0 && grund === ""
+				? [garetienObjektSchluesselVon(objekt)] : [],
 		};
 	}
 
@@ -8569,7 +8612,17 @@
 			return null;
 		}
 		const knopf = garetienHandlungen(objekt).filter(function (h) { return h.name === name; })[0];
-		if (!knopf || knopf.disabled || knopf.ids.length === 0) { return null; }
+		if (!knopf || knopf.disabled) { return null; }
+		// 🔴 15.09.2026: ein Objekt OHNE Vorschlag hat keine Item-ids, aber einen Schluessel. Seine
+		// Entscheidung geht an GARETIEN_ENDPUNKT (garetienTuerFuer), nicht an die Uebernahme-Tuer.
+		if ((name === "ablehnen" || name === "wieder") && knopf.ids.length === 0 && (knopf.keys || []).length > 0) {
+			return {
+				action: name === "ablehnen" ? "objekte_ablehnen" : "objekte_wieder",
+				run_id: runId,
+				keys: knopf.keys.slice(),
+			};
+		}
+		if (knopf.ids.length === 0) { return null; }
 		if (name === "ablehnen" || name === "wieder") {
 			return {
 				action: name === "ablehnen" ? "decline" : "undecline",
@@ -8967,9 +9020,9 @@
 	 * 🔴 EIN `decline` MIT DEN ITEM-IDS ALLER ANGEHAKTEN OBJEKTE, gedeckelt wie das Sammel-Anhaken
 	 * (GARETIEN_ANHAKEN_HAEPPCHEN). Kein zweiter Endpunkt, kein zweites Verb -- dasselbe `decline`,
 	 * das der Einzelknopf schickt.
-	 * ⚠️ Objekte OHNE Item tragen nichts bei. Sie werden übersprungen und in der Rückmeldung
-	 * GENANNT, nie stillschweigend weggelassen: „3 abgelehnt, 2 ohne Vorschlag übersprungen" sagt
-	 * dem Editor, dass die Zahl im Knopf und das Ergebnis auseinandergehen -- und warum.
+	 * 🔴 SEIT 15.09.2026 TRAGEN AUCH OBJEKTE OHNE ITEM BEI -- nicht hier, sondern als zweite Menge
+	 * (garetienAuswahlOhneVorschlagSchluessel, an `objekte_ablehnen`). Hier stand: „Sie werden übersprungen
+	 * und in der Rückmeldung GENANNT" -- richtig, solange sie sich gar nicht ablehnen liessen.
 	 */
 	function garetienAuswahlAblehnenIds(objekte) {
 		const ids = [];
@@ -8986,8 +9039,25 @@
 	// nur mitgewählt waren.
 	function garetienAuswahlAblehnenMengen(objekte) {
 		const liste = objekte || [];
-		const mit = liste.filter(function (o) { return ((o && o.items) || []).length > 0; });
-		return { abgelehnt: mit.length, uebersprungen: liste.length - mit.length };
+		// 🔴 Seit 15.09.2026 zaehlt auch, was keinen Vorschlag traegt (garetienLaesstSichEntscheiden).
+		// Uebersprungen wird nur noch ein Eintrag ohne Objektschluessel.
+		const geht = liste.filter(garetienLaesstSichEntscheiden);
+		return { abgelehnt: geht.length, uebersprungen: liste.length - geht.length };
+	}
+
+	// REIN: die Schluessel der gewaehlten Objekte OHNE Vorschlag -- die zweite Menge neben den Item-ids.
+	// ⚠️ Entdoppelt, und ueber ein Objekt statt `indexOf`: eine Auswahl ueber „alle" traegt 8.000 Objekte.
+	function garetienAuswahlOhneVorschlagSchluessel(objekte) {
+		const gesehen = Object.create(null);
+		const schluessel = [];
+		(objekte || []).forEach(function (o) {
+			if (garetienHatItem(o)) { return; }
+			const s = garetienObjektSchluesselVon(o);
+			if (s === "" || gesehen[s]) { return; }
+			gesehen[s] = true;
+			schluessel.push(s);
+		});
+		return schluessel;
 	}
 
 	// REIN: die Rückfrage. Sie NENNT DIE FOLGE, statt „Sind Sie sicher?" zu fragen -- dieselbe
@@ -8997,7 +9067,7 @@
 		const zusatz = mengen.uebersprungen === 0 ? ""
 			: "\n\n" + garetienAnzahlText(mengen.uebersprungen, "Objekt", "Objekte")
 				+ " der Auswahl " + (mengen.uebersprungen === 1 ? "trägt" : "tragen")
-				+ " gar keinen Vorschlag und " + (mengen.uebersprungen === 1 ? "bleibt" : "bleiben")
+				+ " keinen Objektschlüssel und " + (mengen.uebersprungen === 1 ? "bleibt" : "bleiben")
 				+ " unberührt.";
 		return "Wirklich " + garetienAnzahlText(mengen.abgelehnt, "Objekt", "Objekte")
 			+ " ablehnen?\n\nSie verschwinden aus dem Arbeitsvorrat; auf der Karte wird nichts "
@@ -9005,12 +9075,15 @@
 	}
 
 	// REIN: was danach in der Statuszeile steht.
-	function garetienAuswahlAblehnenMeldung(objekte) {
+	// ⚠️ `nichtEntschieden` (15.09.2026): so viele Objekte OHNE Vorschlag hat der Server NICHT abgelehnt. Die
+	// Kopfzahl nennt, was wirklich geschah; das Warum steht im Nachsatz (garetienObjektEntscheidungNachsatz).
+	function garetienAuswahlAblehnenMeldung(objekte, nichtEntschieden) {
 		const mengen = garetienAuswahlAblehnenMengen(objekte);
-		const satz = garetienAnzahlText(mengen.abgelehnt, "Objekt", "Objekte") + " abgelehnt";
+		const abzug = Math.max(0, Number(nichtEntschieden) || 0);
+		const satz = garetienAnzahlText(Math.max(0, mengen.abgelehnt - abzug), "Objekt", "Objekte") + " abgelehnt";
 		return mengen.uebersprungen === 0
 			? satz + "."
-			: satz + ", " + mengen.uebersprungen + " ohne Vorschlag übersprungen.";
+			: satz + ", " + mengen.uebersprungen + " ohne Objektschlüssel übersprungen.";
 	}
 
 	/*
@@ -9232,17 +9305,24 @@
 		}
 		if (name === "auswahl_ablehnen" || name === "auswahl_wieder") {
 			const ids = garetienAuswahlAblehnenIds(gewaehlte);
-			if (ids.length === 0) { return still(); }
+			// 🔴 15.09.2026: die Objekte OHNE Vorschlag reisen als zweite Menge -- ihre Schluessel.
+			const schluessel = garetienAuswahlOhneVorschlagSchluessel(gewaehlte);
+			if (ids.length === 0 && schluessel.length === 0) { return still(); }
 			// ⚠️ Gefragt wird NUR beim Ablehnen. „Wieder vorschlagen" ist die aufbauende Richtung
 			// und fragt niemanden -- dieselbe Regel wie beim Einzelknopf.
 			if (name === "auswahl_ablehnen" && typeof w.fragen === "function"
 				&& !w.fragen(garetienAuswahlAblehnenRueckfrageText(gewaehlte))) {
 				return null;
 			}
-			const meldung = name === "auswahl_ablehnen"
-				? garetienAuswahlAblehnenMeldung(gewaehlte)
-				: garetienAnzahlText(garetienAuswahlAblehnenMengen(gewaehlte).abgelehnt,
-					"Objekt", "Objekte") + " wieder vorgeschlagen.";
+			// 🔴 Die Meldung ist eine FUNKTION (15.09.2026): der Sender reicht herein, wie viele Objekte ohne
+			// Vorschlag der Server NICHT entschieden hat, und die Kopfzahl zieht sie ab.
+			const meldung = function (nichtEntschieden) {
+				const abzug = Math.max(0, Number(nichtEntschieden) || 0);
+				return name === "auswahl_ablehnen"
+					? garetienAuswahlAblehnenMeldung(gewaehlte, abzug)
+					: garetienAnzahlText(Math.max(0, garetienAuswahlAblehnenMengen(gewaehlte).abgelehnt - abzug),
+						"Objekt", "Objekte") + " wieder vorgeschlagen.";
+			};
 			// 💣 FIXRUNDE 1 (C1): GEDECKELT WAR DIE ANFRAGE, NICHT DIE HANDLUNG. `ids.slice(0, 200)`
 			// warf den Rest weg und meldete trotzdem die volle Zahl. Jetzt gehen ALLE ids hinaus,
 			// in Haeppchen -- derselbe Weg wie beim Stage-Import.
@@ -9250,7 +9330,11 @@
 				action: name === "auswahl_ablehnen" ? "decline" : "undecline",
 				kind: GARETIEN_PLAN_ART,
 				run_id: runId,
-			}, ids, meldung);
+			}, ids, meldung, schluessel.length === 0 ? null : {
+				action: name === "auswahl_ablehnen" ? "objekte_ablehnen" : "objekte_wieder",
+				run_id: runId,
+				keys: schluessel,
+			});
 		}
 		if (name === "auswahl_ruecknahme") {
 			// ⚠️ Gezaehlt wird HIER mit derselben Tafel wie in der Anzeige, statt sich auf den
@@ -9967,17 +10051,67 @@
 	 * eine Zusicherung, die bloß behauptet, im Quelltext stehe das eine `then` nach dem anderen,
 	 * wäre Vakuum.
 	 */
+	// REIN: an welche Tuer ein Rumpf geht. 🔴 EINE Weiche fuer beide Sender (Einzelknopf und
+	// Auswahlleiste) -- die zwei Verben fuer Objekte OHNE Vorschlag gehen an GARETIEN_ENDPUNKT, alles
+	// andere wie bisher an die Uebernahme-Tuer.
+	function garetienTuerFuer(rumpf) {
+		const aktion = String((rumpf && rumpf.action) || "");
+		return GARETIEN_OBJEKT_AKTIONEN.indexOf(aktion) !== -1 ? GARETIEN_ENDPUNKT : GARETIEN_PLAN_ENDPUNKT;
+	}
+
+	/*
+	 * REIN: der Nachsatz zur Meldung, wenn der Server einen Teil der Objekte OHNE Vorschlag NICHT
+	 * entschieden hat -- oder "".
+	 *
+	 * 💣 Eine Meldung, die mehr behauptet als geschehen ist, gibt es in diesem Fenster nicht mehr (Fixrunde
+	 * 1, C1). `mit_vorschlag` heisst: seit dem Laden der Liste hat ein neuer Lauf dem Objekt einen Vorschlag
+	 * gegeben -- abgelehnt wird es dann ueber seine Items, und die zeigt die frisch geholte Liste.
+	 * ⚠️ `ungueltig`/`gekappt` erreicht dieser Browser nie (er schickt nur gueltige Schluessel, in Haeppchen
+	 * unter dem Deckel). Gezaehlt werden sie trotzdem -- ein stiller Rest waere genau der Fehler von C1.
+	 */
+	function garetienObjektEntscheidungNachsatz(antwort, aktion) {
+		const a = antwort || {};
+		const mitVorschlag = Number(a.mit_vorschlag || 0);
+		const ohne = Number(a.ungueltig || 0) + Number(a.gekappt || 0);
+		const teile = [];
+		if (mitVorschlag > 0) {
+			teile.push(garetienAnzahlText(mitVorschlag, "Objekt", "Objekte") + " "
+				+ (mitVorschlag === 1 ? "trägt" : "tragen") + " inzwischen einen Vorschlag");
+		}
+		if (ohne > 0) {
+			teile.push(garetienAnzahlText(ohne, "Eintrag", "Einträge") + " ohne gültigen Schlüssel");
+		}
+		if (teile.length === 0) { return ""; }
+		return " Nicht " + (aktion === "objekte_ablehnen" ? "abgelehnt" : "wieder vorgeschlagen") + ": "
+			+ teile.join(", ") + ".";
+	}
+
 	function garetienHandlungSendenMitMeldung(rumpf, meldung, rufe, listeHolen) {
+		// 🔴 Die Tuer kommt aus garetienTuerFuer (15.09.2026): „Ablehnen" an einem Objekt OHNE Vorschlag
+		// geht an GARETIEN_ENDPUNKT, alles andere wie bisher an die Uebernahme-Tuer.
 		const tuer = typeof rufe === "function"
 			? rufe
-			: function (r) { return avesmapsGaretienRufe(GARETIEN_PLAN_ENDPUNKT, r); };
+			: function (r) { return avesmapsGaretienRufe(garetienTuerFuer(r), r); };
 		const liste = typeof listeHolen === "function" ? listeHolen : avesmapsGaretienListeHolen;
+		const aktion = String((rumpf && rumpf.action) || "");
+		let nachsatz = "";
+		// 🔴 Hat der Server GAR NICHTS entschieden (das eine Objekt traegt inzwischen einen Vorschlag), steht
+		// NUR der Nachsatz da -- „„X" abgelehnt. Nicht abgelehnt: …" widerspraeche sich ueber dasselbe Objekt.
+		let nichtsEntschieden = false;
 		return tuer(rumpf)
-			.then(function () { return liste(); })
+			.then(function (antwort) {
+				if (GARETIEN_OBJEKT_AKTIONEN.indexOf(aktion) !== -1) {
+					nachsatz = garetienObjektEntscheidungNachsatz(antwort, aktion);
+					const feld = aktion === "objekte_ablehnen" ? "abgelehnt" : "wieder";
+					nichtsEntschieden = nachsatz !== "" && Number((antwort && antwort[feld]) || 0) === 0;
+				}
+				return liste();
+			})
 			.then(function () {
+				if (nichtsEntschieden) { return garetienStatusSetzen(nachsatz.trim(), "bad", null); }
 				return String(meldung || "") === ""
 					? null
-					: garetienStatusSetzen(String(meldung), "ok", null);
+					: garetienStatusSetzen(String(meldung) + nachsatz, "ok", null);
 			})
 			.catch(function (fehler) { garetienListeFehlerZeigen(fehler); return null; });
 	}
@@ -10003,12 +10137,21 @@
 	 * ganze Laufinventar neu ein, und eine Schleife darauf ist genau die Last, vor der AGENTS.md
 	 * warnt.
 	 */
-	function garetienMengeSendenMitMeldung(rumpf, ids, meldung, rufe, listeHolen) {
+	function garetienMengeSendenMitMeldung(rumpf, ids, meldung, rufe, listeHolen, objektRumpf) {
 		const tuer = typeof rufe === "function"
 			? rufe
-			: function (r) { return avesmapsGaretienRufe(GARETIEN_PLAN_ENDPUNKT, r); };
+			: function (r) { return avesmapsGaretienRufe(garetienTuerFuer(r), r); };
 		const liste = typeof listeHolen === "function" ? listeHolen : avesmapsGaretienListeHolen;
 		const haeppchen = garetienIdsInHaeppchen((ids || []).slice());
+		// 🔴 15.09.2026: die Objekte OHNE Vorschlag reisen als ZWEITE Menge -- ihre Schluessel, in eigenen
+		// Haeppchen (GARETIEN_OBJEKT_HAEPPCHEN), an ihre eigene Tuer. Liste und Meldung kommen trotzdem
+		// EINMAL, ganz am Ende, fuer beide Mengen zusammen.
+		const objektSchluessel = (objektRumpf && Array.isArray(objektRumpf.keys)) ? objektRumpf.keys.slice() : [];
+		const objektHaeppchen = [];
+		for (let i = 0; i < objektSchluessel.length; i += GARETIEN_OBJEKT_HAEPPCHEN) {
+			objektHaeppchen.push(objektSchluessel.slice(i, i + GARETIEN_OBJEKT_HAEPPCHEN));
+		}
+		const objektSumme = { mit_vorschlag: 0, ungueltig: 0, gekappt: 0 };
 		// 🔴 DER NACHTRAG GILT AUCH RUECKWAERTS (Owner-Meldung 09.09.2026, „Burg Mardershoeh“):
 		// eine RUECKNAHME entfernt Quellen, und ohne diesen Aufruf zeigt die Infobox sie weiter, bis
 		// jemand neu laedt. Serverseitig war alles sauber -- es fehlte nur die Gegenrichtung.
@@ -10034,17 +10177,35 @@
 				}
 				return letzte;
 			})
+			.then(function () {
+				return garetienKetteAbarbeiten(objektHaeppchen, function (teil) {
+					return tuer(Object.assign({}, objektRumpf, { keys: teil })).then(function (antwort) {
+						["mit_vorschlag", "ungueltig", "gekappt"].forEach(function (feld) {
+							objektSumme[feld] += Number((antwort && antwort[feld]) || 0);
+						});
+						return antwort;
+					});
+				});
+			})
 			.then(function () { return liste(); })
 			.then(function () {
-				return String(meldung || "") === ""
+				const nachsatz = objektHaeppchen.length === 0 ? ""
+					: garetienObjektEntscheidungNachsatz(objektSumme, String(objektRumpf.action || ""));
+				// 🔴 DIE KOPFZAHL ZIEHT AB, WAS DER SERVER NICHT ENTSCHIEDEN HAT (Konsistenzpruefung 15.09.2026):
+				// „2502 Objekte abgelehnt. Nicht abgelehnt: 1 …" widerspraeche sich im selben Satz. Eine Meldung als
+				// FUNKTION bekommt diese Zahl herein; eine Zeichenkette bleibt, wie sie ist.
+				const nichtEntschieden = objektSumme.mit_vorschlag + objektSumme.ungueltig + objektSumme.gekappt;
+				const text = typeof meldung === "function" ? String(meldung(nichtEntschieden) || "") : String(meldung || "");
+				return text === ""
 					? null
-					: garetienStatusSetzen(String(meldung), "ok", null);
+					: garetienStatusSetzen(text + nachsatz, "ok", null);
 			})
 			.catch(function (fehler) { garetienListeFehlerZeigen(fehler); return null; });
 	}
 
-	function avesmapsGaretienMengeSenden(rumpf, ids, meldung) {
-		return garetienMengeSendenMitMeldung(rumpf, ids, meldung, null, null);
+	// ⚠️ `objektRumpf` (optional, 15.09.2026): die Objekte OHNE Vorschlag als `{action, run_id, keys}`.
+	function avesmapsGaretienMengeSenden(rumpf, ids, meldung, objektRumpf) {
+		return garetienMengeSendenMitMeldung(rumpf, ids, meldung, null, null, objektRumpf);
 	}
 
 	function garetienFragen(text) {
@@ -11680,6 +11841,13 @@
 			garetienReiterSetzen,
 			garetienHandlungMeldung,
 			garetienHandlungSendenMitMeldung,
+			// 15.09.2026: Ablehnen ohne Vorschlag
+			garetienLaesstSichEntscheiden,
+			garetienObjektSchluesselVon,
+			garetienAuswahlOhneVorschlagSchluessel,
+			garetienAuswahlAblehnenMengen,
+			garetienTuerFuer,
+			garetienObjektEntscheidungNachsatz,
 			avesmapsGaretienStageEntfernen,
 			garetienAlleZentrierenZustand,
 			garetienKeySelektor,

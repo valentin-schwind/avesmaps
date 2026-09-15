@@ -394,6 +394,184 @@ function avesmapsGaretienListeObjektStand(array $items): string
 }
 
 /**
+ * DIE ABLEHNUNG EINES OBJEKTS OHNE VORSCHLAG (Owner 15.09.2026).
+ *
+ * Owner, woertlich: „ich würde gerne dinge - auch wenn ich sie keinen vorschlag tragen - auch
+ * ablehnen können, sodass sie aus 'Offen' verschwinden" und „die editoren wollen alle objekte in
+ * 'Offen' auch ablehnen dürfen auch wenn sie nicht übernommen werden können und nichts tragen (ich
+ * glaub sie wollen einfach ihren fortschritt sehen)".
+ *
+ * 🔴 BIS HIERHER WAR DAS ABSICHTLICH GESPERRT, UND DIE SPERRE HATTE EINEN GRUND: eine Ablehnung haengt
+ * in `sync_decision` an (entity_key, change_type) EINES ITEMS, und ein Objekt ohne Vorschlag hat keins.
+ * Die andere Haelfte von Ruling R10 („Offen kann nie 0 werden") stand ausdruecklich als offene
+ * Entscheidung des Owners da. Sie ist gefallen: die Ablehnung eines solchen Objekts haengt am
+ * OBJEKTSCHLUESSEL, unter dem eigenen `change_type` 'objekt'.
+ *
+ * 💣 KEIN ZWEITES SPEICHERSYSTEM: dieselbe Tabelle, dieselbe Lebensdauer (sie ueberlebt „Holen &
+ * Rechnen", weil der Objektschluessel aus der Zeile gebildet wird, nie aus einer Lauf-Nummer) und
+ * derselbe Primaerschluessel (kind, entity_key, change_type). 'objekt' kollidiert mit keinem Item --
+ * deren change_type ist 'new'/'changed', auch beim Neuzugang, dessen entity_key der blosse
+ * Objektschluessel ist. ⚠️ Und 'objekt' passt in `change_type VARCHAR(8)`.
+ * ⚠️ NUR FUER OBJEKTE OHNE ITEM. Traegt ein Objekt Items, entscheidet allein deren Ablehnung
+ * (avesmapsGaretienListeObjektStand); eine 'objekt'-Zeile daneben wird dort nicht gelesen. Bekommt ein
+ * abgelehntes Objekt in einem spaeteren Lauf einen Vorschlag, steht es deshalb wieder in „Offen" -- ein
+ * neuer Vorschlag ist neue Arbeit. Verliert es ihn wieder, gilt die alte Ablehnung erneut.
+ */
+const AVESMAPS_GARETIEN_OBJEKT_ENTSCHEIDUNG = 'objekt';
+
+/**
+ * Hoechstens so viele Objektschluessel je Anfrage. Der Browser zerlegt eine groessere Auswahl in
+ * Haeppchen genau dieser Groesse (GARETIEN_OBJEKT_HAEPPCHEN, js/review/review-garetien-importer.js).
+ * 💣 Gekappt wird NICHT still: was darueber hinausgeht, steht als `gekappt` in der Antwort -- die
+ * 200er-Kappung von sync-plan.php hat genau so einmal „250 Objekte abgelehnt" behaupten lassen.
+ */
+const AVESMAPS_GARETIEN_OBJEKT_ENTSCHEIDUNG_DECKEL = 2000;
+
+/**
+ * Der Stand eines Objekts OHNE Item. REIN -- kein I/O.
+ *
+ * @param array<string, array<string, mixed>> $entscheidungen  wie avesmapsSyncPlanDecisions sie liefert
+ */
+function avesmapsGaretienListeObjektStandOhneItem(array $entscheidungen, string $objektSchluessel): string
+{
+    $eintrag = $entscheidungen[avesmapsSyncPlanDecisionKey($objektSchluessel, AVESMAPS_GARETIEN_OBJEKT_ENTSCHEIDUNG)] ?? null;
+
+    return is_array($eintrag) && ($eintrag['declined_at'] ?? null) !== null ? 'abgelehnt' : 'offen';
+}
+
+/**
+ * Die Objektschluessel einer Anfrage, gesaeubert. REIN -- kein I/O.
+ *
+ * 💣 `sync_decision.entity_key` ist VARCHAR(190). Ein laengerer Schluessel liesse MySQL im strikten
+ * Modus werfen -- mitten in der Transaktion, und die ganze Anfrage waere verloren. Er wird deshalb VORHER
+ * aussortiert und GEZAEHLT, nie gekuerzt: ein gekuerzter Schluessel waere die Ablehnung eines anderen
+ * Objekts oder keines. ⚠️ Gemessen in ZEICHEN, wie utf8mb4 ein VARCHAR misst.
+ * 💣 Ein `|` gehoert zu einem ITEM-Schluessel (`<objekt>|<anlass>|<public_id>`), nie zu einem
+ * Objektschluessel (avesmapsGaretienObjektSchluessel schneidet dort ab) -- ein solcher Wert ist also
+ * sicher kein Objekt.
+ *
+ * @return array{keys:list<string>, ungueltig:int, gekappt:int}
+ */
+function avesmapsGaretienObjektSchluesselSaeubern(array $roh): array
+{
+    $eindeutig = [];
+    $ungueltig = 0;
+    foreach ($roh as $wert) {
+        if (!is_string($wert)) {
+            $ungueltig++;
+            continue;
+        }
+        $schluessel = trim($wert);
+        if ($schluessel === '' || mb_strlen($schluessel, 'UTF-8') > 190 || str_contains($schluessel, '|')) {
+            $ungueltig++;
+            continue;
+        }
+        $eindeutig[$schluessel] = true;
+    }
+    // ⚠️ `array_keys` macht aus "123" die ZAHL 123 -- `strval` holt die Zeichenkette zurueck.
+    $alle = array_map('strval', array_keys($eindeutig));
+
+    return [
+        'keys' => array_slice($alle, 0, AVESMAPS_GARETIEN_OBJEKT_ENTSCHEIDUNG_DECKEL),
+        'ungueltig' => $ungueltig,
+        'gekappt' => max(0, count($alle) - AVESMAPS_GARETIEN_OBJEKT_ENTSCHEIDUNG_DECKEL),
+    ];
+}
+
+/**
+ * „Ablehnen" fuer Objekte OHNE Vorschlag -- die Schreibhaelfte.
+ *
+ * 🔴 GESCHRIEBEN WIRD NUR, WAS IM OFFENEN LAUF WIRKLICH KEIN ITEM TRAEGT. Hat das Objekt inzwischen einen
+ * Vorschlag (ein neuer Lauf, seit die Liste geladen wurde), wird es als `mit_vorschlag` gemeldet und NICHT
+ * geschrieben: seine Ablehnung gehoert an die Items (`decline`, api/edit/wiki/sync-plan.php), und eine
+ * 'objekt'-Zeile daneben stuende wirkungslos herum -- der Knopf haette „abgelehnt" gesagt, und das Objekt
+ * stuende weiter in „Offen".
+ * ⚠️ Ob der Schluessel zu einer Staging-Zeile gehoert, wird NICHT geprueft: das kostete je Anfrage den
+ * ganzen Listenaufbau. Ein erfundener Schluessel legt eine Zeile an, die niemand liest; der Endpunkt steht
+ * hinter dem `edit`-Riegel.
+ *
+ * 💣 DER SCHREIBER IST DER DES HAUSES (avesmapsSyncPlanRecordDecline) und wird nur fuer den Test
+ * hereingereicht: er ist MySQL-Syntax (ON DUPLICATE KEY, UTC_TIMESTAMP), und die Produktionsform fuer
+ * SQLite zu verbiegen ist die Falle aus AGENTS.md §9.
+ * 💣 DAS ENSURE STEHT VOR DER TRANSAKTION -- DDL committet in MySQL implizit, und `commit()` wuerfe danach
+ * „There is no active transaction", obwohl alles geschrieben ist.
+ *
+ * @param null|callable(PDO, string, string, int, string): void $schreiber
+ * @return array{abgelehnt:int, mit_vorschlag:int, ungueltig:int, gekappt:int}
+ */
+function avesmapsGaretienObjekteAblehnen(
+    PDO $pdo,
+    int $planRunId,
+    array $rohSchluessel,
+    int $userId,
+    ?callable $schreiber = null
+): array {
+    $gesaeubert = avesmapsGaretienObjektSchluesselSaeubern($rohSchluessel);
+    $ergebnis = [
+        'abgelehnt' => 0,
+        'mit_vorschlag' => 0,
+        'ungueltig' => $gesaeubert['ungueltig'],
+        'gekappt' => $gesaeubert['gekappt'],
+    ];
+    if ($gesaeubert['keys'] === []) {
+        return $ergebnis;
+    }
+
+    avesmapsEnsureSyncPlanTables($pdo);
+    $stmt = $pdo->prepare('SELECT DISTINCT entity_key FROM sync_plan_item WHERE run_id = :r');
+    $stmt->execute([':r' => $planRunId]);
+    $mitItem = [];
+    foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) ?: [] as $entityKey) {
+        $mitItem[avesmapsGaretienObjektSchluessel((string) $entityKey)] = true;
+    }
+
+    $schreib = $schreiber ?? 'avesmapsSyncPlanRecordDecline';
+    $pdo->beginTransaction();
+    try {
+        foreach ($gesaeubert['keys'] as $schluessel) {
+            if (isset($mitItem[$schluessel])) {
+                $ergebnis['mit_vorschlag']++;
+                continue;
+            }
+            $schreib($pdo, AVESMAPS_GARETIEN_PLAN_KIND, $schluessel, $userId, AVESMAPS_GARETIEN_OBJEKT_ENTSCHEIDUNG);
+            $ergebnis['abgelehnt']++;
+        }
+        $pdo->commit();
+    } catch (Throwable $fehler) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        throw $fehler;
+    }
+
+    return $ergebnis;
+}
+
+/**
+ * „Wieder vorschlagen" fuer Objekte OHNE Vorschlag. Loescht NUR die 'objekt'-Zeilen -- eine
+ * Item-Ablehnung am selben Objekt bleibt unberuehrt (die nimmt `undecline` mit den Item-ids zurueck).
+ * ⚠️ Kein Lauf-Riegel in der Bibliothek: der Endpunkt prueft ihn, wie bei `decline`.
+ *
+ * @return array{wieder:int, ungueltig:int, gekappt:int}
+ */
+function avesmapsGaretienObjekteWiederVorschlagen(PDO $pdo, array $rohSchluessel): array
+{
+    $gesaeubert = avesmapsGaretienObjektSchluesselSaeubern($rohSchluessel);
+    $wieder = 0;
+    if ($gesaeubert['keys'] !== []) {
+        avesmapsEnsureSyncPlanTables($pdo);
+        $wieder = avesmapsSyncPlanUndecline(
+            $pdo,
+            AVESMAPS_GARETIEN_PLAN_KIND,
+            $gesaeubert['keys'],
+            AVESMAPS_GARETIEN_OBJEKT_ENTSCHEIDUNG
+        );
+    }
+
+    return ['wieder' => $wieder, 'ungueltig' => $gesaeubert['ungueltig'], 'gekappt' => $gesaeubert['gekappt']];
+}
+
+/**
  * Zu welchem angelegten Verbund gehoert dieses Item? "" = zu keinem.
  *
  * Entwurf §7: der Reiter „Uebernommen" zeigt einen Verbund als EINE Zeile -- der Editor hat eine
@@ -1019,7 +1197,11 @@ function avesmapsGaretienArbeitslisteObjekte(PDO $pdo, int $importRunId): array
             'lodmax' => (string) ($zeile['lodmax'] ?? ''),
             'extra' => (string) ($zeile['extra'] ?? ''),
             'items' => [],
-            'stand' => 'offen',
+            // 🔴 SEIT 15.09.2026 NICHT MEHR FEST 'offen' (Owner: „die editoren wollen alle objekte in
+            // 'Offen' auch ablehnen dürfen auch wenn sie nicht übernommen werden können und nichts
+            // tragen"). Ohne Item gibt es keine Item-Entscheidung -- die Ablehnung haengt hier am
+            // OBJEKTSCHLUESSEL (avesmapsGaretienListeObjektStandOhneItem).
+            'stand' => avesmapsGaretienListeObjektStandOhneItem($entscheidungen, (string) $key),
             // Ohne Item kein Vermerk, also kein angelegter Verbund -- und das Feld steht trotzdem
             // da (zweiter Erzeuger, siehe innerorts_uebernommen oben).
             'verbund_angelegt' => '',

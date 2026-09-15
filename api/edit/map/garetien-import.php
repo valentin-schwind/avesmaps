@@ -396,6 +396,33 @@ try {
         ]);
     }
 
+    // --- „Ablehnen" und „Wieder vorschlagen" fuer Objekte OHNE Vorschlag (Owner 15.09.2026: „die
+    // editoren wollen alle objekte in 'Offen' auch ablehnen dürfen auch wenn sie nicht übernommen
+    // werden können und nichts tragen").
+    // 🔴 HIER und nicht an sync-plan.php: jene Tuer spricht Item-ids, und der OBJEKTSCHLUESSEL ist ein
+    // Begriff dieses Imports (avesmapsGaretienObjektSchluesselAusZeile) -- dieselbe Begruendung wie bei
+    // `liste`, und er verschwindet mit dem Importer (Auftrag §5.5). Objekte MIT Vorschlag lehnt weiter
+    // `decline` ab; der Browser schickt beide Mengen getrennt.
+    // ⚠️ Kein Admin-Riegel: ablehnen darf jeder Editor, wie `decline`. Derselbe Lauf-Riegel wie dort --
+    // die Entscheidungen eines uebernommenen Laufs sind Geschichte, kein Bedienelement.
+    if ($action === 'objekte_ablehnen' || $action === 'objekte_wieder') {
+        $planRunId = (int) ($payload['run_id'] ?? 0);
+        $lauf = $planRunId > 0 ? avesmapsSyncPlanRunById($pdo, $planRunId) : null;
+        if ($lauf === null || (string) $lauf['kind'] !== AVESMAPS_GARETIEN_PLAN_KIND) {
+            avesmapsErrorResponse(404, 'not_found', 'Dieser Vorschau-Lauf existiert nicht.');
+        }
+        if ((string) $lauf['state'] !== 'open') {
+            avesmapsErrorResponse(409, 'plan_not_open', 'Dieser Lauf laesst sich nicht mehr aendern.');
+        }
+        $schluessel = (array) ($payload['keys'] ?? []);
+        if ($schluessel === []) {
+            avesmapsErrorResponse(400, 'no_keys', 'Es wurde kein Objekt genannt.');
+        }
+        avesmapsJsonResponse(200, ['ok' => true] + ($action === 'objekte_ablehnen'
+            ? avesmapsGaretienObjekteAblehnen($pdo, $planRunId, $schluessel, (int) ($user['id'] ?? 0))
+            : avesmapsGaretienObjekteWiederVorschlagen($pdo, $schluessel)));
+    }
+
     // 🔴 EIN `apply` GIBT ES HIER NICHT, und das ist Absicht. Uebernommen wird ueber die
     // vorhandene Vorschau (api/edit/wiki/sync-plan.php, Art 'garetien') -- dort haengen der
     // Einzelflug-Riegel, die zweite Bestaetigung fuer Loeschungen, das Protokoll und der

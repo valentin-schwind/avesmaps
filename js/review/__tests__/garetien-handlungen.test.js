@@ -251,12 +251,22 @@ tief(garetienHandlungsRumpf("wieder", abgelehnt, 7),
 	"„Wieder vorschlagen\" nimmt die Ablehnung zurueck -- eine Ablehnung ohne Rueckweg waere ein "
 	+ "schwarzes Loch");
 
-// Ein Objekt OHNE Item kann nicht abgelehnt werden -- und der Knopf sagt es.
+// 🔴 SEIT 15.09.2026 LAESST SICH EIN OBJEKT OHNE ITEM ABLEHNEN (Owner: „die editoren wollen alle objekte
+// in 'Offen' auch ablehnen dürfen auch wenn sie nicht übernommen werden können und nichts tragen").
+// Hier stand bis dahin das Gegenteil: gesperrt, „ohne Vorschlag gibt es nichts, worauf eine Ablehnung
+// zeigen koennte". Die Ablehnung zeigt jetzt auf den OBJEKTSCHLUESSEL.
 const deckt = { key: "d", urteil: "deckt_sich", abschnitte: [], items: [] };
-gleich(knopf(deckt, "ablehnen").disabled, true,
-	"ohne Vorschlag gibt es nichts, worauf eine Ablehnung zeigen koennte");
-wahr(/keinen Vorschlag/.test(knopf(deckt, "ablehnen").grund), "und der Grund sagt genau das");
-gleich(garetienHandlungsRumpf("ablehnen", deckt, 7), null, "es geht also auch nichts hinaus");
+gleich(knopf(deckt, "ablehnen").disabled, false, "🔴 ohne Vorschlag laesst es sich ablehnen");
+gleich(knopf(deckt, "ablehnen").grund, "", "…und nennt keinen Grund dagegen");
+tief(garetienHandlungsRumpf("ablehnen", deckt, 7), { action: "objekte_ablehnen", run_id: 7, keys: ["d"] },
+	"💣 der Rumpf traegt den SCHLUESSEL, keine ids -- und geht an die eigene Tuer (garetienTuerFuer)");
+const ohneObjektSchluessel = { key: "", urteil: "deckt_sich", abschnitte: [], items: [] };
+gleich(knopf(ohneObjektSchluessel, "ablehnen").disabled, true, "gesperrt bleibt nur ein Eintrag OHNE Schluessel");
+wahr(/Schlüssel/.test(knopf(ohneObjektSchluessel, "ablehnen").grund), "und der Grund sagt genau das");
+gleich(garetienHandlungsRumpf("ablehnen", ohneObjektSchluessel, 7), null, "es geht also nichts hinaus");
+tief(garetienHandlungsRumpf("wieder", Object.assign({}, deckt, { stand: "abgelehnt" }), 7),
+	{ action: "objekte_wieder", run_id: 7, keys: ["d"] }, "„Wieder vorschlagen\" nimmt denselben Weg zurueck");
+tief(knopf(einer, "ablehnen").keys, [], "ein Objekt MIT Items traegt keine Schluessel-Menge -- dort bleibt es bei den ids");
 
 // 🔴 HIER STAND DIE UMSCHALT-REGEL DER GEOMETRIE („nur sie schaltet um, sonst gaebe es keinen
 // Rueckweg"). Ihr Knopf ist weg, die Regel damit gegenstandslos.
@@ -411,7 +421,10 @@ function kette(knoten) {
 	return kandidaten[0];
 }
 
-const objekte = [einer, strasse, zufluss, deckt];
+// ⚠️ `kaputt` traegt einen ITEM-Schluessel: er wird gefunden (data-key), hat aber keinen Objektschluessel --
+// seit 15.09.2026 der einzige Weg, an einem gefundenen Objekt ein gesperrtes „Ablehnen" zu erzeugen.
+const kaputt = { key: "d|zusatz|w-9", urteil: "deckt_sich", abschnitte: [], items: [] };
+const objekte = [einer, strasse, zufluss, deckt, kaputt];
 let gesendet = [];
 const senden = (rumpf) => { gesendet.push(rumpf); return "gesendet"; };
 let gefragt = [];
@@ -449,13 +462,18 @@ gleich(gefragt.length, 0, "und gefragt wird auch nichts mehr");
 
 // Ein ausgegrauter Knopf schickt nichts -- der Riegel steht ZWEIMAL (Anzeige und Rechnung).
 gesendet = [];
-gleich(garetienHandlungKlick({ target: handlungsZiel("ablehnen", deckt.key, { disabled: true }) },
+gleich(garetienHandlungKlick({ target: handlungsZiel("ablehnen", kaputt.key, { disabled: true }) },
 	objekte, 7, senden, jaSagen), null, "ein ausgegrauter Knopf schickt nichts");
 gleich(gesendet.length, 0, "wirklich nichts");
 // Und auch OHNE das `disabled`-Attribut nicht -- „disabled\" ist die Anzeige, nicht der Riegel.
-gleich(garetienHandlungKlick({ target: handlungsZiel("ablehnen", deckt.key) }, objekte, 7, senden, jaSagen),
+gleich(garetienHandlungKlick({ target: handlungsZiel("ablehnen", kaputt.key) }, objekte, 7, senden, jaSagen),
 	null, "💣 auch ein Klick am `disabled` vorbei schickt nichts -- der Riegel steht in der Rechnung");
 gleich(gesendet.length, 0, "und wirklich nichts");
+// 🔴 Seit 15.09.2026 schickt „Ablehnen" an einem Objekt OHNE Vorschlag -- mit seinem Schluessel.
+gleich(garetienHandlungKlick({ target: handlungsZiel("ablehnen", deckt.key) }, objekte, 7, senden, jaSagen)
+	!== null, true, "🔴 „Ablehnen\" an einem Objekt ohne Vorschlag geht hinaus");
+tief(gesendet[0], { action: "objekte_ablehnen", run_id: 7, keys: ["d"] }, "…als Objekt-Ablehnung mit Schluessel");
+gesendet = [];
 
 // Ein Klick daneben loest gar nichts aus.
 gleich(garetienHandlungKlick({ target: kette([{ passt: [], attribute: {} }]) }, objekte, 7, senden, jaSagen),
@@ -614,13 +632,17 @@ wahr(leiste.indexOf('>Auf die Stage<') !== -1,
 // 14.09.2026 die Zielwahl ersetzt haben.
 wahr(leiste.indexOf('<span class="gi-act__t2">') === -1, "und keine zweite Zeile mehr");
 
-// 🔴 Ein ausgegrauter Knopf traegt seinen Grund im title -- gemessen am Objekt OHNE Vorschlag,
-// dem einzigen, das noch einen gesperrten Knopf erzeugt („Ablehnen" ohne Item).
-const leisteAus = garetienHandlungsMarkup(deckt);
-wahr(/disabled title="[^"]*keinen Vorschlag/.test(leisteAus),
+// 🔴 Ein ausgegrauter Knopf traegt seinen Grund im title. Gemessen wurde das bis zum 15.09.2026 am
+// Objekt OHNE Vorschlag -- das laesst sich seither ablehnen. Der einzige Eintrag, der „Ablehnen" noch
+// sperrt, ist einer ohne Objektschluessel (`kaputt`, oben).
+const leisteAus = garetienHandlungsMarkup(kaputt);
+wahr(/disabled title="[^"]*Schlüssel/.test(leisteAus),
 	"ein ausgegrauter Knopf traegt seinen Grund im title: " + leisteAus);
-wahr(/gi-acts__grund/.test(leisteAus) && />Ablehnen: [^<]*keinen Vorschlag/.test(leisteAus),
+wahr(/gi-acts__grund/.test(leisteAus) && />Ablehnen: [^<]*Schlüssel/.test(leisteAus),
 	"💣 und SICHTBAR daneben -- ein title erscheint nur beim Verweilen, am Telefon nie: " + leisteAus);
+// Die Gegenprobe: das Objekt ohne Vorschlag, aber mit Schluessel, traegt keinen gesperrten Knopf mehr.
+wahr(garetienHandlungsMarkup(deckt).indexOf("disabled") === -1,
+	"🔴 ein Objekt ohne Vorschlag traegt seit dem 15.09.2026 keinen gesperrten „Ablehnen\"-Knopf mehr");
 // ⚠️ Hier stand bis zum 31.08.2026 die Probe an „Ausgewählte Segmente ersetzen" samt der Regel,
 // dass der sichtbare Grund die Auslassungspunkte des Knopfes NICHT mitträgt. Beides ging mit dem
 // Knopf; die Regel selbst lebt in AVESMAPS_GARETIEN_HANDLUNG_MIT_RUECKFRAGE weiter und hat heute
@@ -886,6 +908,22 @@ laufMitGefaelschtemFetch(() => mod.avesmapsGaretienListeHolen()).then(function (
 	gleich(a.gestellt.length, 1,
 		"nach einem gescheiterten Schreibvorgang wird die Liste NICHT nachgeladen");
 	gleich(a.wert, null, "und der Sender loest mit null auf, statt die Ablehnung weiterzureichen");
+
+	// --- 🔴 15.09.2026: „Ablehnen" an einem Objekt OHNE Vorschlag geht an die EIGENE Tuer ---------------
+	return laufMitGefaelschtemFetch(() => mod.avesmapsGaretienHandlungSenden(
+		{ action: "objekte_ablehnen", run_id: 4711, keys: ["d"] }, "„D\" abgelehnt."
+	));
+}).then(function (a) {
+	tief(a.gestellt.map((r) => r.pfad), ["/api/edit/map/garetien-import.php", "/api/edit/map/garetien-import.php"],
+		"💣 geschrieben UND gelesen ueber den Import-Endpunkt -- an sync-plan.php kennte niemand `objekte_ablehnen`");
+	tief(a.gestellt.map((r) => r.rumpf.action), ["objekte_ablehnen", "liste"], "erst schreiben, dann lesen");
+	tief(a.gestellt[0].rumpf.keys, ["d"], "mit dem Schluessel");
+	// Die Gegenprobe: `decline` bleibt an der Uebernahme-Tuer.
+	return laufMitGefaelschtemFetch(() => mod.avesmapsGaretienHandlungSenden(
+		{ action: "decline", kind: "garetien", run_id: 4711, ids: [5] }
+	));
+}).then(function (a) {
+	gleich(a.gestellt[0].pfad, "/api/edit/wiki/sync-plan.php", "`decline` geht weiter durch die Uebernahme-Tuer");
 
 	return pruefeNeuKlick();
 }).then(function () {
@@ -1189,9 +1227,10 @@ const leisteNeu = garetienHandlungsMarkup(Object.assign({}, eineFlaeche, {
 wahr(/data-handlung="stage"[^>]*title="Legt „Rakula/.test(leisteNeu),
 	"„Auf die Stage\" traegt seine Erklaerung: " + leisteNeu);
 // 🔴 Beim gesperrten schlaegt der Grund die Erklaerung: „warum kann ich das gerade nicht" ist die
-// Frage, die dort ansteht. (`deckt` ist das Objekt ohne jeden Vorschlag.)
-const leisteGesperrt = garetienHandlungsMarkup(deckt);
-wahr(/disabled title="[^"]*keinen Vorschlag/.test(leisteGesperrt),
+// Frage, die dort ansteht. (`kaputt` traegt keinen Objektschluessel -- seit 15.09.2026 der einzige
+// Eintrag mit gesperrtem „Ablehnen"; `deckt`, ohne jeden Vorschlag, laesst sich inzwischen ablehnen.)
+const leisteGesperrt = garetienHandlungsMarkup(kaputt);
+wahr(/disabled title="[^"]*Schlüssel/.test(leisteGesperrt),
 	"der gesperrte Knopf traegt weiter seinen GRUND im title: " + leisteGesperrt);
 wahr(!/disabled title="Nimmt /.test(leisteGesperrt),
 	"und NICHT die Erklaerung -- sie wuerde den Grund verdraengen: " + leisteGesperrt);
