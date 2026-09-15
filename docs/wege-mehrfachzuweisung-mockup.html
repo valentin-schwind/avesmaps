@@ -24,12 +24,11 @@
 <link rel="stylesheet" href="../css/styles.css">
 <link rel="stylesheet" href="../css/pages/wege-editor.css">
 <style>
-/* Kein hartkodierter Farbwert, kein Radius, keine Schrift unter 11px (AGENTS.md §12) -- mit EINER
-   benannten Ausnahme: die Markierungsfarbe. */
+/* Kein hartkodierter Farbwert, kein Radius, keine Schrift unter 11px (AGENTS.md §12). */
 :root {
-	/* 🔴 KEIN TOKEN, sondern der Wert von SPOTLIGHT_PATH_HIGHLIGHT_STYLE.color (js/ui/spotlight-search.js).
-	   Genau diese Farbe zeichnet „Anzeigen" heute um einen Weg; die Markierung soll dieselbe sein. */
-	--proto-markierung: #ffd72e;
+	/* 🔴 Seit dem Nachtrag 15.09.2026 (§9.1 des Entwurfs) die Farbe markierter Orte -- „Anzeigen" aus der Suche
+	   bleibt das Gelb von SPOTLIGHT_PATH_HIGHLIGHT_STYLE und ist damit von der Auswahl zu unterscheiden. */
+	--proto-markierung: var(--color-marker-active);
 }
 html, body { height: auto; overflow: auto; }
 body { background: var(--color-page-bg); color: var(--color-text); font-size: var(--font-size-body); }

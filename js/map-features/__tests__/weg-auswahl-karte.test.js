@@ -16,6 +16,8 @@ const schneide = (text, anfang, ende) => {
 	assert.ok(a >= 0 && e > a, "Ausschnitt nicht gefunden: " + anfang);
 	return text.slice(a, e);
 };
+// Nachtrag 15.09.2026 §9.1: die Auswahl traegt die Farbe markierter Orte (--color-marker-active), nicht das Gelb der Suche.
+const GOLD = "#f0b429";
 
 const M = require(path.join(WURZEL, "js/pages/wege-editor-model.js"));
 Object.assign(global, {
@@ -30,6 +32,7 @@ Object.assign(global, {
 	mapDataSourceStatus: { revision: 1 },
 	IS_EDIT_MODE: true,
 	SPOTLIGHT_PATH_HIGHLIGHT_STYLE: { color: "#ffd72e" },
+	getLocationMarkerActiveColor: () => GOLD,
 	getPathStyleColors: () => ({ outline: "#rand", outlineWeight: 4, outlineOpacity: 1, center: "#mitte", centerWeight: 2 }),
 	refreshPathLayerText: () => {},
 	window: {},
@@ -74,7 +77,7 @@ assert.strictEqual(farbe(rs7), "#mitte");
 
 // 1. Erster Klick: die ganze Strasse gelb, der fremde Weg nicht, die Aussenlinie unveraendert
 assert.deepStrictEqual(K.avesmapsWegAuswahlKlick(rs7), { gruppe: "wiki:reichsstrasse-2", publicId: null });
-assert.deepStrictEqual([rs6, rs7, rs8].map(farbe), ["#ffd72e", "#ffd72e", "#ffd72e"]);
+assert.deepStrictEqual([rs6, rs7, rs8].map(farbe), [GOLD, GOLD, GOLD]);
 assert.strictEqual(farbe(bp1), "#mitte");
 assert.strictEqual(rs7._pathLines[0].options.color, "#rand", "keine Umrandung: die Aussenlinie bleibt");
 assert.deepStrictEqual(K.avesmapsWegAuswahlFuerPfad(rs6), { gruppe: "wiki:reichsstrasse-2", publicId: null });
@@ -84,22 +87,22 @@ assert.ok(neuGebaut.includes("rs-7"), "das Markup des geklickten Wegs wird neu g
 // 2. Zweiter Klick: nur der Abschnitt
 neuGebaut.length = 0;
 assert.deepStrictEqual(K.avesmapsWegAuswahlKlick(rs7), { gruppe: "wiki:reichsstrasse-2", publicId: "rs-7" });
-assert.deepStrictEqual([rs6, rs7, rs8].map(farbe), ["#mitte", "#ffd72e", "#mitte"]);
+assert.deepStrictEqual([rs6, rs7, rs8].map(farbe), ["#mitte", GOLD, "#mitte"]);
 assert.strictEqual(K.avesmapsWegAuswahlFuerPfad(rs6), null, "ein abgewaehlter Abschnitt meldet keine Auswahl");
 assert.ok(neuGebaut.includes("rs-6") && neuGebaut.includes("rs-8"), "die abgewaehlten Abschnitte bekommen ihr Markup zurueck");
 
 // 3. Der Baerenpfad: seine ganze Strasse gelb, der Reichsstrassen-Abschnitt mit ihm als weiterer Zuweisung gestrichelt
 K.avesmapsWegAuswahlKlick(bp1);
-assert.strictEqual(farbe(bp1), "#ffd72e");
+assert.strictEqual(farbe(bp1), GOLD);
 assert.strictEqual(strich(bp1), null);
-assert.strictEqual(farbe(rs7), "#ffd72e");
+assert.strictEqual(farbe(rs7), GOLD);
 assert.strictEqual(strich(rs7), "8 8", "fremder Traeger: gestrichelt");
 assert.strictEqual(K.avesmapsWegAuswahlFuerPfad(rs7), null, "ein Traeger ist angezeigt, nicht markiert");
 
 // 4. Neufaerben (Live-Abgleich, Pruefhaken) laesst die Markierung stehen
 updatePathLayerStyle(bp1);
 updatePathLayerStyle(rs7);
-assert.strictEqual(farbe(bp1), "#ffd72e");
+assert.strictEqual(farbe(bp1), GOLD);
 assert.strictEqual(strich(rs7), "8 8");
 
 // 5. Ein Klick daneben hebt alles auf -- auch den Strich; einmal verdrahtet
@@ -184,5 +187,21 @@ const seite = lies("index.html").replace(/<!--[\s\S]*?-->/g, "");
 const regelTag = seite.indexOf('<script src="js/map-features/weg-auswahl.js"></script>');
 const karteTag = seite.indexOf('<script src="js/map-features/map-features-weg-auswahl.js"></script>');
 assert.ok(regelTag > 0 && karteTag > regelTag, "index.html laedt erst die Regel, dann den Kartenteil");
+
+// 11. Nachtrag 15.09.2026 §9.1: Gold statt Gelb -- und ohne Markierung KEIN getComputedStyle
+let farbLesungen = 0;
+global.getLocationMarkerActiveColor = () => { farbLesungen += 1; return GOLD; };
+K.avesmapsWegAuswahlAufheben();
+farbLesungen = 0;
+global.pathData.forEach((p) => updatePathLayerStyle(p));
+assert.strictEqual(farbLesungen, 0, "ohne Markierung liest das Neufaerben keine Farbe -- syncPathRendering faehrt alle ~6.000 Wege je Zoomschritt");
+K.avesmapsWegAuswahlKlick(rs7);
+assert.strictEqual(farbe(rs7), GOLD);
+assert.ok(farbLesungen > 0 && farbLesungen <= 4, "gelesen wird nur fuer markierte Abschnitte: " + farbLesungen);
+assert.notStrictEqual(farbe(rs7), global.SPOTLIGHT_PATH_HIGHLIGHT_STYLE.color, "die Auswahl ist nicht mehr das Gelb von „Anzeigen“");
+const auswahlQuelle = lies("js/map-features/map-features-weg-auswahl.js").replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+assert.ok(!auswahlQuelle.includes("SPOTLIGHT_PATH_HIGHLIGHT_STYLE"), "die Auswahl liest die Suchfarbe nicht mehr");
+assert.ok(/color:\s*"#ffd72e"/.test(lies("js/ui/spotlight-search.js")), "„Anzeigen“ bleibt gelb (Owner 15.09.2026)");
+K.avesmapsWegAuswahlAufheben();
 
 console.log("weg-auswahl-karte.test.js: ok");

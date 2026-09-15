@@ -12,26 +12,31 @@ let avesmapsWegAuswahlMarkiert = new Set();   // public_ids mit gelber Linie
 let avesmapsWegAuswahlTraeger = new Set();    // fremde Abschnitte mit dem Artikel als weiterer Zuweisung
 let avesmapsWegAuswahlVerdrahtet = false;
 
-// 💣 Gelesen, nie abgeschrieben: dieselbe Farbe wie die Hervorhebung der Suche (Entwurf §3.3).
+// 🔴 DIE FARBE MARKIERTER ORTE (Owner 15.09.2026, Nachtrag 2026-09-14-wege-mehrfachzuweisung-design.md §9.1):
+// `--color-marker-active`, gelesen ueber getLocationMarkerActiveColor (map-features-location-canvas-layer.js, normales
+// Skript, laedt davor). „Anzeigen" aus der Suche bleibt gelb (SPOTLIGHT_PATH_HIGHLIGHT_STYLE) -- die zwei sollen sich
+// unterscheiden. ⚠️ Kein Farbwert hier; der Rueckfall in jener Funktion ist die Notbremse ohne Token.
 function avesmapsWegAuswahlFarbe() {
-	return typeof SPOTLIGHT_PATH_HIGHLIGHT_STYLE !== "undefined" && SPOTLIGHT_PATH_HIGHLIGHT_STYLE
-		? SPOTLIGHT_PATH_HIGHLIGHT_STYLE.color || null
-		: null;
+	return typeof getLocationMarkerActiveColor === "function" ? (getLocationMarkerActiveColor() || null) : null;
 }
 
 /**
  * Die Mittellinie nach dem Zustand faerben. Gerufen am ENDE von updatePathLayerStyle -- damit ueberlebt die
  * Markierung jedes Neufaerben, ohne dass ein Neufaerber sie kennen muss.
  * 💣 updatePathLayerStyle setzt `dashArray` nie zurueck: der Strich eines ehemaligen Traegers wird HIER entfernt.
+ * 💣 ERST DIE MITGLIEDSCHAFT, DANN DIE FARBE: syncPathRendering ruft das bei jedem Zoomschritt fuer alle rund 6.000
+ * Wege, und die Farbe kostet ein getComputedStyle. Ohne Markierung wird sie gar nicht gelesen.
  */
 function avesmapsWegAuswahlStilNachziehen(path) {
 	const mitte = path && Array.isArray(path._pathLines) ? path._pathLines[1] : null;
 	if (!mitte || typeof mitte.setStyle !== "function") { return; }
 	const id = typeof getPathPublicId === "function" ? getPathPublicId(path) : "";
-	const farbe = avesmapsWegAuswahlFarbe();
-	if (farbe && avesmapsWegAuswahlMarkiert.has(id)) {
+	const markiert = avesmapsWegAuswahlMarkiert.has(id);
+	const traeger = !markiert && avesmapsWegAuswahlTraeger.has(id);
+	const farbe = markiert || traeger ? avesmapsWegAuswahlFarbe() : null;
+	if (farbe && markiert) {
 		mitte.setStyle({ color: farbe, dashArray: null });
-	} else if (farbe && avesmapsWegAuswahlTraeger.has(id)) {
+	} else if (farbe && traeger) {
 		mitte.setStyle({ color: farbe, dashArray: AVESMAPS_WEG_AUSWAHL_STRICH });
 	} else if (mitte.options && mitte.options.dashArray) {
 		mitte.setStyle({ dashArray: null });
