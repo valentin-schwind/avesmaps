@@ -34,7 +34,7 @@ assert.strictEqual(M.wpAbschnittLabel({ enden: { von: "Perz", bis: "Kreuzung" } 
 // Die Woerter sind DIESELBEN wie im JS/PHP-Zwilling
 assert.strictEqual(M.WP_ENDE_KREUZUNG, W.AVESMAPS_WEG_ENDE_KREUZUNG);
 assert.strictEqual(M.WP_ENDE_OFFEN, W.AVESMAPS_WEG_ENDE_OFFEN);
-const php = fs.readFileSync(path.join(WURZEL, "api/_internal/map/weg-abschnitt-ende.php"), "utf8");
+const php = fs.readFileSync(path.join(WURZEL, "api/_internal/map/weg-abschnitt-ende.php"), "utf8").replace(/\r\n/g, "\n");
 assert.ok(php.includes("const AVESMAPS_WEG_ENDE_KREUZUNG = '" + M.WP_ENDE_KREUZUNG + "';"), "PHP-Zwilling: Kreuzung");
 assert.ok(php.includes("const AVESMAPS_WEG_ENDE_OFFEN = '" + M.WP_ENDE_OFFEN + "';"), "PHP-Zwilling: Wegende");
 
