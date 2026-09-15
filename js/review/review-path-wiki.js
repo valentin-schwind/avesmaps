@@ -247,6 +247,24 @@ function pathWikiSyncNachbarn() {
 	}
 }
 
+/** Die Abschnitte der ganzen Strasse, wenn der Dialog im Gruppenmodus steht (Nachtrag §9.6) -- sonst null. Der Anker vorn. */
+function pathWikiGruppenIds(publicId) {
+	if (typeof pathEditGruppe === "undefined" || !pathEditGruppe || !Array.isArray(pathEditGruppe.pfade) || pathEditGruppe.pfade.length < 2) {
+		return null;
+	}
+	return avesmapsWikiAssignWegGruppenIds(publicId, pathEditGruppe.pfade.map((pfad) => getPathPublicId(pfad)));
+}
+
+/** Nach einem Gruppenschreiben: Vergleichsstand neu (review-paths.js), dann der Live-Abgleich (Gruppen haengen an der Revision). */
+function pathWikiNachGruppenSchreiben() {
+	if (typeof pathEditGruppeNachWikiSchreiben === "function") {
+		pathEditGruppeNachWikiSchreiben();
+	}
+	if (typeof pollLiveMapUpdates === "function") {
+		void pollLiveMapUpdates();
+	}
+}
+
 async function pathWikiZuweisen(treffer) {
 	const publicId = pathWikiCurrentFeaturePublicId();
 	if (!publicId) {
@@ -255,7 +273,8 @@ async function pathWikiZuweisen(treffer) {
 	}
 	let result;
 	try {
-		result = await pathWikiPost(avesmapsWikiAssignWegZuweisungsKoerper(treffer.wiki_key, publicId));
+		// Nachtrag §9.6: im Gruppendialog GENAU die Abschnitte der ganzen Strasse, am Abschnitt der Namens-Match wie bisher.
+		result = await pathWikiPost(avesmapsWikiAssignWegZuweisungsKoerper(treffer.wiki_key, publicId, pathWikiGruppenIds(publicId)));
 		// 🔴 Wirft bei jedem Nein -- auch bei `type_ok:false`, das mit HTTP 200 kommt.
 		avesmapsWikiAssignWegAntwortPruefen(result);
 	} catch (error) {
@@ -269,6 +288,9 @@ async function pathWikiZuweisen(treffer) {
 		// Rueckfall fuer einen alten Server ohne segments_updated: wenigstens das oertliche Nest.
 		pathEditFeature.properties.wiki_path = treffer.roh || null;
 	}
+	if (pathWikiGruppenIds(publicId)) {
+		pathWikiNachGruppenSchreiben();
+	}
 	showFeedbackToast?.(`„${result.wiki_name}" verknüpft (${result.applied} Abschnitte).`, "success");
 	pathWikiSyncNachbarn();
 	if (typeof renderPathFlowSection === "function") {
@@ -280,6 +302,29 @@ async function pathWikiLoesen() {
 	const publicId = pathWikiCurrentFeaturePublicId();
 	if (!publicId) {
 		throw new Error("Kein Weg ausgewählt.");
+	}
+	// 🔴 Nachtrag §9.6: im Gruppendialog EINE Frage, dann GENAU die Abschnitte -- „nur dieses Segment?" gibt es dort nicht,
+	// markiert ist die ganze Strasse. Die Owner-Regel vom 05.07.2026 („nie ungefragt den ganzen Weg") bleibt erfuellt.
+	const gruppenIds = pathWikiGruppenIds(publicId);
+	if (gruppenIds) {
+		const wiki = pathWikiCurrentAssignment();
+		if (!window.confirm(avesmapsWikiAssignWegGruppeLoesenFrage(wiki ? wiki.name : "", gruppenIds.length))) {
+			// 🔴 ABGEBROCHEN IST ABGELEHNT -- das Bauteil laesst die Zuweisung stehen.
+			throw new Error("Abgebrochen.");
+		}
+		let gruppenErgebnis;
+		try {
+			gruppenErgebnis = await pathWikiPost(avesmapsWikiAssignWegLoesenKoerper(publicId, gruppenIds));
+			avesmapsWikiAssignWegAntwortPruefen(gruppenErgebnis);
+		} catch (error) {
+			showFeedbackToast?.("Fehler: " + (error.message || error), "error");
+			throw error;
+		}
+		applyWikiPathSegmentsUpdate(gruppenErgebnis.segments_updated);
+		pathWikiSyncNachbarn();
+		pathWikiNachGruppenSchreiben();
+		showFeedbackToast?.(`Wiki-Zuordnung von ${gruppenErgebnis.segments} Abschnitten entfernt — jeder heißt jetzt einzeln.`, "info");
+		return;
 	}
 	// Owner rule (2026-07-05): Entfernen must NEVER strip the whole way unasked. Probe the
 	// blast radius first; with more than one segment the default answer is the surgical
@@ -383,6 +428,8 @@ function renderPathWikiReference() {
 		zuweisen: pathWikiZuweisen,
 		loesen: pathWikiLoesen,
 		syncUebernehmen: pathWikiSyncUebernehmen,
+		// Nachtrag §9.5: EIN Kasten -- die weiteren Zuweisungen haengen darin (review-paths.js, pathWikiWeitereAnhang).
+		anhang: typeof pathWikiWeitereAnhang === "function" ? pathWikiWeitereAnhang() : null,
 	});
 	// ⚠️ NACH dem Mounten: der Kasten und die Feldzeile darueber sollen denselben Stand zeigen.
 	// Das Bauteil ruft `laden` selbst, aber sein Ergebnis erreicht diesen Zeichner nicht -- er liest

@@ -100,6 +100,10 @@ function mountPathEditFeatureSources(path, festeIds = null) {
 // den Hauptschluessel ohnehin fuer alle Abschnitte.
 let pathEditGruppe = null;          // { pfade: path[], stand } oder null (= Abschnitt, der Dialog wie bisher)
 let pathWikiWeitereKasten = null;   // der Kasten „Weitere Wiki-Zuweisungen" im Dialog
+// 🔴 Nachtrag 15.09.2026 §9.5: EIN Element fuer die Lebenszeit der Seite, eingehaengt in den Kasten „Wiki-Weg"
+// (renderPathWikiReference, review-path-wiki.js). Der Kasten darin wird bei jedem Oeffnen neu montiert; das Bauteil haengt
+// dasselbe Element nach jedem Neuzeichnen wieder ein -- deshalb traegt es beide Reihenfolgen der drei Befueller.
+let pathWikiWeitereAnhangElement = null;
 let pathGruppeVerdrahtet = false;
 const PATH_GRUPPE_GEMISCHT = "— gemischt lassen —";
 
@@ -283,13 +287,21 @@ function readPathGruppeEntwurf() {
 	};
 }
 
-/** Der Kasten „Weitere Wiki-Zuweisungen" im Dialog -- fuer den Abschnitt oder fuer die ganze Strasse (§3.5). */
+/** Das Element mit den weiteren Zuweisungen im Kasten „Wiki-Weg" (Nachtrag §9.5). Einmal gebaut, dann immer dasselbe. */
+function pathWikiWeitereAnhang() {
+	if (!pathWikiWeitereAnhangElement && typeof document !== "undefined" && typeof document.createElement === "function") {
+		pathWikiWeitereAnhangElement = document.createElement("div");
+	}
+	return pathWikiWeitereAnhangElement;
+}
+
+/** Der Kasten „Weitere Wiki-Zuweisungen" im Dialog -- fuer den Abschnitt oder fuer die ganze Strasse (§3.5, Nachtrag §9.5). */
 function mountPathWikiWeitere(path, pfade, ganz) {
 	if (pathWikiWeitereKasten) {
 		pathWikiWeitereKasten.zerstoeren();
 		pathWikiWeitereKasten = null;
 	}
-	const host = document.getElementById("path-wiki-weitere-host");
+	const host = pathWikiWeitereAnhang();
 	if (!host || typeof avesmapsWikiWeitereKastenMount !== "function") {
 		return;
 	}
@@ -297,11 +309,7 @@ function mountPathWikiWeitere(path, pfade, ganz) {
 	pathWikiWeitereKasten = avesmapsWikiWeitereKastenMount(host, {
 		skin: "label-wiki",
 		hauptKey: () => String(path.properties?.wiki_path?.wiki_key || ""),
-		// Fix-Runde 1, Punkt 2 (R30, dieselbe Regel wie am Weg-Ebene-Kasten des Wege-Editors, Task 7):
-		// KEIN `haupt` -- der Kasten „Wiki-Weg" (#path-wiki-assign-host) zeigt die Hauptzuweisung schon, in
-		// BEIDEN Faellen (populatePathEditFormGruppe ruft zuerst populatePathEditForm(path) auf und laesst
-		// diesen Kasten stehen). Ein zweiter Eintrag als „Hauptzuweisung"-Zeile waere derselbe Artikel
-		// zweimal auf einer Seite. `opts.haupt` fehlt deshalb ganz (nicht nur `null`).
+		// Keine Zeile „Hauptzuweisung": der Kasten „Wiki-Weg", in dem dieser haengt, zeigt sie schon.
 		// Bei JEDER Aktion frisch gelesen: nach einem Schreiben stehen die neuen Listen schon in den Kartendaten.
 		abschnitte: () => pfade.map((pfad) => ({
 			public_id: getPathPublicId(pfad),
@@ -325,6 +333,34 @@ function mountPathWikiWeitere(path, pfade, ganz) {
 			}
 		},
 	});
+}
+
+/**
+ * Nach Zuweisen/Entfernen im Gruppendialog (Nachtrag 15.09.2026 §9.6): R1 bzw. R2 haben die Namen der Abschnitte geaendert,
+ * der Vergleichsstand vom Oeffnen stimmt nicht mehr.
+ * 💣 Ohne Neurechnen stuende nach „Entfernen" der alte gemeinsame Name als Stand da, das Namensfeld zeigte ihn weiter -- und
+ * das naechste „Speichern fuer N Abschnitte" schriebe einen Namen auf alle, die gerade eigene bekommen haben.
+ */
+function pathEditGruppeNachWikiSchreiben() {
+	if (!pathEditGruppe) {
+		return;
+	}
+	pathEditGruppe.stand = wpGroupFieldStates(avesmapsPathGruppeZeilen(pathEditGruppe.pfade, {
+		name: getPathDisplayName,
+		zeigeName: shouldPathNameBeDisplayed,
+		transporte: getPathAllowedTransports,
+	}), pathEditTransportSchluessel());
+	const name = document.getElementById("path-edit-name");
+	if (name) {
+		name.value = pathEditGruppe.stand.name.gleich ? (pathEditGruppe.stand.name.wert || "") : "";
+	}
+	syncPathAutoNameControls();
+	if (typeof pathEditFeature !== "undefined" && pathEditFeature) {
+		pathEditUmfangZeigen(pathEditFeature, true);
+	}
+	if (pathWikiWeitereKasten) {
+		pathWikiWeitereKasten.neuZeichnen();
+	}
 }
 
 // Die Antwort von add_weitere/remove_weitere traegt je Abschnitt die neue Liste (Task 3). Sie wird sofort in die
@@ -410,9 +446,8 @@ function populatePathEditFormFromLastSettings(path) {
 		renderPathFlowSection();
 	}
 	mountPathEditFeatureSources(path);
-	// Fix-Runde 1, Punkt 1: dieselben zwei Aufrufe wie in populatePathEditForm -- sonst bleibt der Kasten
-	// „Weitere Wiki-Zuweisungen" fuer jeden frisch gezeichneten Weg eine leere, aber gerahmte Karte
-	// (#path-wiki-weitere-host traegt `class="label-edit-section"` unabhaengig vom Inhalt).
+	// Fix-Runde 1, Punkt 1: dieselben zwei Aufrufe wie in populatePathEditForm -- sonst traegt der Anhang des Kastens
+	// „Wiki-Weg" den Kasten des zuletzt geoeffneten Wegs weiter (Nachtrag §9.5: alle drei Befueller montieren).
 	pathEditUmfangZeigen(path, false);
 	mountPathWikiWeitere(path, [path], false);
 }

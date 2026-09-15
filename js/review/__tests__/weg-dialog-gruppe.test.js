@@ -98,7 +98,6 @@ SCHLUESSEL.forEach((k) => {
 	haken[k] = label.appendChild(new El("input", { name: "allowed_transport", value: k }));
 });
 const umfang = formular.appendChild(mit(new El("p", { id: "path-edit-umfang", hidden: true })));
-formular.appendChild(mit(new El("div", { id: "path-wiki-weitere-host" })));
 const knopf = formular.appendChild(mit(new El("button", { id: "path-edit-submit", textContent: "Speichern" })));
 const dokument = {
 	getElementById: (id) => elemente[id] || null,
@@ -144,7 +143,7 @@ const kopfAnfang = pfadeQuelle.indexOf("// ── Der Dialog fuer die GANZE Stra
 assert.ok(kopfAnfang >= 0, "der Block fuer die ganze Strasse fehlt in review-paths.js");
 const kopf = pfadeQuelle.slice(kopfAnfang, pfadeQuelle.indexOf("function pathEditTransportSchluessel("));
 const NAMEN = ["pathEditTransportSchluessel", "pathEditSpeicherText", "pathEditUmfangZeigen", "pathEditGruppenModus",
-	"populatePathEditFormGruppe", "pathGruppeHakenGeaendert", "readPathGruppeEntwurf", "mountPathWikiWeitere",
+	"populatePathEditFormGruppe", "pathGruppeHakenGeaendert", "readPathGruppeEntwurf", "mountPathWikiWeitere", "pathWikiWeitereAnhang", "pathEditGruppeNachWikiSchreiben",
 	"pathWikiWeitereUebernehmen", "pathEditGruppenModusBeenden"];
 vm.runInContext(kopf + NAMEN.map((name) => funktion(pfadeQuelle, name)).join("\n"), kontext);
 const rufe = (name) => vm.runInContext(name, kontext);
@@ -205,6 +204,20 @@ assert.deepStrictEqual(aufrufe.popups, ["rs-7", "rs-6"]);
 assert.strictEqual(aufrufe.suche, 1, "die Suche vergisst ihren Zwischenspeicher");
 assert.strictEqual(aufrufe.panel, 1, "das Infopanel zieht nach");
 
+// ---- 5b. Nachtrag 15.09.2026 §9.6: nach Zuweisen/Entfernen im Gruppendialog rechnet der Vergleichsstand neu ------------
+// R2 hat jedem Abschnitt einen eigenen generischen Namen gegeben. Ohne Neurechnen stuende der alte gemeinsame Name als Stand
+// da, und das naechste „Speichern fuer N Abschnitte“ schriebe einen Namen auf alle.
+kontext.pathEditFeature = rs7;
+rs6.properties.display_name = "Strasse-11";
+rs7.properties.display_name = "Strasse-12";
+rs8.properties.display_name = "Strasse-13";
+rufe("pathEditGruppeNachWikiSchreiben")();
+assert.strictEqual(rufe("pathEditGruppe").stand.name.gleich, false, "die Namen sind jetzt uneins");
+assert.strictEqual(nameFeld.value, "", "das Namensfeld zeigt „gemischt“ statt des alten Namens");
+const nachLoesen = M.wpGroupRumpf(rufe("pathEditGruppe").stand, rufe("readPathGruppeEntwurf")(), ["rs-6", "rs-7", "rs-8"]);
+assert.ok(!nachLoesen || !nachLoesen.fields.includes("name"), "das Sammel-Speichern schreibt keinen Namen auf alle");
+assert.strictEqual(umfang.innerHTML, "<b>Ganze Straße:</b> Perz – Helmdahl", "die Zeile oben bleibt die der ganzen Strasse");
+
 // ---- 6. Schliessen beendet den Gruppenmodus; der Abschnitt zeigt seine eigene Zeile ---------------------------
 rufe("pathEditGruppenModusBeenden")();
 assert.strictEqual(rufe("pathEditGruppe"), null);
@@ -243,7 +256,8 @@ assert.ok(lies("js/pages/wege-editor.js").includes("wpGroupRumpf(state.groupStan
 const seite = lies("index.html").replace(/<!--[\s\S]*?-->/g, "");
 const i = (text) => seite.indexOf(text);
 assert.ok(i('id="path-edit-umfang"') > i('id="path-edit-public-id"') && i('id="path-edit-umfang"') < i('id="path-edit-name"'), "die Zeile steht oben im Dialog");
-assert.ok(i('id="path-wiki-weitere-host"') > i('id="path-wiki-assign-host"') && i('id="path-wiki-weitere-host"') < i('id="path-edit-feature-sources"'), "der Kasten steht unter der Wiki-Zuweisung und ueber den Quellen");
+assert.ok(i('id="path-wiki-weitere-host"') < 0, "der zweite Kasten ist gefallen -- die weiteren Zuweisungen haengen im Kasten „Wiki-Weg“ (Nachtrag §9.5)");
+assert.ok(i('id="path-wiki-assign-host"') > 0 && i('id="path-wiki-assign-host"') < i('id="path-edit-feature-sources"'), "der Kasten „Wiki-Weg“ steht ueber den Quellen");
 assert.ok(i('<script src="js/ui/wiki-weitere-kasten.js"></script>') > i('<script src="js/ui/wiki-assign-weg.js"></script>'));
 assert.ok(i('<script src="js/review/path-gruppe.js"></script>') > 0 && i('<script src="js/review/path-gruppe.js"></script>') < i('<script src="js/review/review-paths.js"></script>'));
 assert.ok(/#path-edit-form\.is-gruppe \.path-season \{\s*display: none;/.test(lies("css/features/path-editor.css")), "Zeitfenster gibt es im Gruppenmodus nicht");
@@ -314,7 +328,7 @@ const t8rs8 = pfad("t8-8", "Strasse", false, ["caravan"]);
 	const { kontext, holen } = frischerOeffnerKontext();
 	vm.runInContext(pfadeQuelle, kontext);
 	fahreOeffner(kontext, ausdruck);
-	const host = holen("path-wiki-weitere-host");
+	const host = vm.runInContext("pathWikiWeitereAnhang()", kontext);
 	assert.ok(typeof host.innerHTML === "string" && host.innerHTML.length > 0,
 		name + ": der Kasten „Weitere Wiki-Zuweisungen“ bleibt keine leere, aber gerahmte Karte (Fix-Runde 1, Punkt 1)");
 	assert.ok(!host.innerHTML.includes("Hauptzuweisung"),

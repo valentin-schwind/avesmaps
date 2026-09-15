@@ -186,6 +186,12 @@ async function handlePathGroupEditSubmit() {
 		setPathEditStatus("Nichts geändert.");
 		return;
 	}
+	// Nachtrag 15.09.2026 §9.5: was der Kasten „Wiki-Weg" per Sync ins Formular geholt hat, reist mit -- der Server liest
+	// `wiki_uebernommen` im Sammel-Speichern seit jeher (avesmapsUpdatePathGroupDetails), wpGroupRumpf schickte es nie.
+	const uebernommen = typeof getPathWikiUebernommenPayload === "function" ? getPathWikiUebernommenPayload() : [];
+	if (uebernommen.length) {
+		rumpf.wiki_uebernommen = uebernommen;
+	}
 	setPathEditStatus(`Wird für ${gruppe.pfade.length} Abschnitte gespeichert …`, "pending");
 	setPathEditSubmitPending(true);
 	try {
