@@ -1003,9 +1003,17 @@ let avesmapsWikiAssignZaehler = 0;
  * REIN: kommt ein Ereignis aus dem Anhang des Wirts? Dann gehoert es nicht dem Bauteil (Nachtrag §9.5).
  * 💣 Ueber `closest`, NICHT ueber `contains`: die Attrappen der bestehenden Tests antworten auf `contains` immer mit ja und
  * liessen damit jeden Klick verschwinden.
+ * 🔴 Mit `behaelter` zaehlt nur ein Platz IM EIGENEN Behaelter. `closest` laeuft ueber den Behaelter hinaus: haengt das
+ * Bauteil selbst in einem fremden Anhang, faende es dessen Platz und hielte jedes eigene Ereignis fuer fremd. `contains`
+ * fragt hier nach dem gefundenen PLATZ, nie nach dem Ziel -- die Attrappen mit ihrem Dauer-Ja bleiben damit richtig.
+ * ⚠️ Ohne `contains` am Behaelter bleibt es beim closest-Befund.
  */
-function avesmapsWikiAssignAusAnhang(ziel) {
-	return Boolean(ziel && typeof ziel.closest === "function" && ziel.closest("[data-wa-anhang]"));
+function avesmapsWikiAssignAusAnhang(ziel, behaelter) {
+	const platz = ziel && typeof ziel.closest === "function" ? ziel.closest("[data-wa-anhang]") : null;
+	if (!platz) {
+		return false;
+	}
+	return behaelter && typeof behaelter.contains === "function" ? Boolean(behaelter.contains(platz)) : true;
 }
 
 /**
@@ -1154,7 +1162,6 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 	function zeichne() {
 		const modell = modellJetzt();
 		behaelter.innerHTML = avesmapsWikiAssignMarkup(modell, skin);
-		anhangEinhaengen();
 		const feld = behaelter.querySelector("[data-wa-suche]");
 		if (feld) {
 			feld.focus();
@@ -1162,6 +1169,10 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 			// wird es gar nicht erst ersetzt (zeichneTreffer), dort bleibt er, wo er ist.
 			try { feld.setSelectionRange(feld.value.length, feld.value.length); } catch (fehler) { /* type=search ohne Auswahl */ }
 		}
+		// 🔴 Erst NACH dem Fokusblock: davor saehe `querySelector("[data-wa-suche]")` auch ein Suchfeld IM Anhang und naehme
+		// dem Wirt den Fokus. In Suche und Sync steht ohnehin kein Platz, dort ist das Einhaengen ein Leerlauf -- die
+		// Reihenfolge aendert also nur, was der Fokusblock sieht.
+		anhangEinhaengen();
 	}
 
 	/**
@@ -1548,7 +1559,7 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 	function aufKlick(ereignis) {
 		const ziel = ereignis.target;
 		// Nachtrag §9.5: Ereignisse aus dem Anhang des Wirts blubbern hierher, gehoeren aber ihm.
-		if (avesmapsWikiAssignAusAnhang(ziel)) {
+		if (avesmapsWikiAssignAusAnhang(ziel, behaelter)) {
 			return;
 		}
 		if (!ziel || !ziel.closest) {
@@ -1608,7 +1619,7 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 	function aufDruck(ereignis) {
 		const ziel = ereignis.target;
 		// Nachtrag §9.5: Ereignisse aus dem Anhang des Wirts blubbern hierher, gehoeren aber ihm.
-		if (avesmapsWikiAssignAusAnhang(ziel)) {
+		if (avesmapsWikiAssignAusAnhang(ziel, behaelter)) {
 			return;
 		}
 		if (ereignis.button !== 0 || !ziel || !ziel.closest) {
@@ -1625,7 +1636,7 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 	function aufEingabe(ereignis) {
 		const ziel = ereignis.target;
 		// Nachtrag §9.5: Ereignisse aus dem Anhang des Wirts blubbern hierher, gehoeren aber ihm.
-		if (avesmapsWikiAssignAusAnhang(ziel)) {
+		if (avesmapsWikiAssignAusAnhang(ziel, behaelter)) {
 			return;
 		}
 		if (!ziel) {
@@ -1640,7 +1651,7 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 	function aufAenderung(ereignis) {
 		const ziel = ereignis.target;
 		// Nachtrag §9.5: Ereignisse aus dem Anhang des Wirts blubbern hierher, gehoeren aber ihm.
-		if (avesmapsWikiAssignAusAnhang(ziel)) {
+		if (avesmapsWikiAssignAusAnhang(ziel, behaelter)) {
 			return;
 		}
 		if (!ziel || !ziel.hasAttribute) {
@@ -1660,7 +1671,7 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 	function aufTaste(ereignis) {
 		const ziel = ereignis.target;
 		// Nachtrag §9.5: Ereignisse aus dem Anhang des Wirts blubbern hierher, gehoeren aber ihm.
-		if (avesmapsWikiAssignAusAnhang(ziel)) {
+		if (avesmapsWikiAssignAusAnhang(ziel, behaelter)) {
 			return;
 		}
 		if (!ziel || !ziel.hasAttribute || !ziel.hasAttribute("data-wa-suche")) {
