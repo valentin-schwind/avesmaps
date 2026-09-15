@@ -1,0 +1,529 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wiki-Orte ohne Kartenpunkt überschreiben (Mockup)</title>
+<style>
+/* Werte 1:1 aus css/base/tokens.css (hell :root, dunkel ab Zeile ~1024) und aus den ECHTEN Klassen
+   der Editorfenster: .dt-grp / .dt-grid / .dt-grid--wiki / .k.ovr / .dt-old / .dt-reset aus
+   css/components/editor-page.css und css/components/wiki-override.css. Nichts davon ist neu erfunden;
+   neu ist nur, WO die Zeilen stehen. --page ist reiner Mockup-Hintergrund. */
+:root {
+	--page: #f1ece2;
+	--color-panel: #fffdf9;
+	--color-panel-soft: #faf6ee;
+	--color-text: #2e271e;
+	--color-text-strong: #3c3327;
+	--color-text-muted: #706557;
+	--color-border: #ddd3c3;
+	--color-divider: rgba(125, 115, 96, 0.30);
+	--color-button: #5b5548;
+	--color-button-text: #f6efe1;
+	--color-button-soft: #efe9db;
+	--color-button-soft-text: #564b3b;
+	--color-button-soft-border: #cdbda0;
+	--color-link: #79611b;
+	--color-accent-brown: #7a5a3a;
+	--color-danger: #9d3a2e;
+
+	--font-size-caption: 11px;
+	--font-size-small: 12px;
+	--font-size-body: 13px;
+	--font-weight-bold: 700;
+	--space-2: 4px; --space-4: 6px; --space-6: 8px; --space-8: 10px;
+	--radius-sm: 5px; --radius-md: 8px;
+	--avm-field-label-w: 130px;
+	--avm-control-h: 30px;
+}
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme="light"]) {
+		--page: #2a2721;
+		--color-panel: #312e26; --color-panel-soft: #37342b;
+		--color-text: #eee7da; --color-text-strong: #f5f0e4; --color-text-muted: #b4a895;
+		--color-border: #514a3c; --color-divider: rgba(207, 197, 171, 0.24);
+		--color-button: #6b6456; --color-button-text: #f5ebd7;
+		--color-button-soft: #3a362c; --color-button-soft-text: #eae1cf; --color-button-soft-border: #585142;
+		--color-link: #d7c38b; --color-accent-brown: #c9a97e; --color-danger: #d27566;
+	}
+}
+:root[data-theme="dark"] {
+	--page: #2a2721;
+	--color-panel: #312e26; --color-panel-soft: #37342b;
+	--color-text: #eee7da; --color-text-strong: #f5f0e4; --color-text-muted: #b4a895;
+	--color-border: #514a3c; --color-divider: rgba(207, 197, 171, 0.24);
+	--color-button: #6b6456; --color-button-text: #f5ebd7;
+	--color-button-soft: #3a362c; --color-button-soft-text: #eae1cf; --color-button-soft-border: #585142;
+	--color-link: #d7c38b; --color-accent-brown: #c9a97e; --color-danger: #d27566;
+}
+
+* { box-sizing: border-box; }
+body {
+	margin: 0; padding-block: 26px 70px; padding-inline: 22px;
+	background: var(--page); color: var(--color-text);
+	font: var(--font-size-body)/1.5 "Segoe UI", system-ui, sans-serif;
+}
+main { max-width: 1440px; margin: 0 auto; }
+h1 { font-size: 20px; color: var(--color-text-strong); margin: 0 0 4px; }
+h2 {
+	font-size: 16px; color: var(--color-accent-brown); margin: 36px 0 4px;
+	border-bottom: 1px solid var(--color-divider); padding-bottom: var(--space-4);
+}
+p.lede { color: var(--color-text-muted); max-width: 96ch; margin: 0 0 var(--space-6); }
+p.note, ul.note { color: var(--color-text-muted); font-size: var(--font-size-small); max-width: 100ch; margin: var(--space-8) 0 0; }
+ul.note { padding-left: 18px; }
+ul.note li { margin: 2px 0; }
+.note b, .lede b { color: var(--color-text-strong); }
+code { background: var(--color-panel); border: 1px solid var(--color-border); border-radius: 3px; padding: 0 4px; font-size: var(--font-size-caption); }
+
+.grid { display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-start; margin-top: var(--space-8); }
+/* 452px = eine der drei Editorspalten bei 1400px Fenster, abzüglich Polster (wie im Override-Mockup
+   vom 17.08.2026). Ein breiteres Mockup verspräche Platz, den es live nicht gibt. */
+.col { flex: 0 1 452px; min-width: 0; max-width: 100%; }
+.cap {
+	font-size: var(--font-size-caption); font-weight: var(--font-weight-bold); color: var(--color-text-muted);
+	margin: 0 0 var(--space-4); text-transform: uppercase; letter-spacing: .04em;
+}
+.cap .neu {
+	color: var(--color-accent-brown); border: 1px solid var(--color-accent-brown); border-radius: 3px;
+	padding: 0 4px; margin-left: 4px; letter-spacing: 0;
+}
+.card {
+	background: var(--color-panel); border: 1px solid var(--color-border); border-radius: var(--radius-md);
+	padding: var(--space-8) 12px;
+}
+
+/* ---- Die echten Feldklassen (editor-page.css / wiki-override.css) --------------------------- */
+.dt-grp {
+	display: flex; align-items: center; gap: var(--space-4);
+	margin-top: var(--space-8); padding-top: var(--space-4); border-top: 1px solid var(--color-divider);
+	font-size: var(--font-size-caption); font-weight: var(--font-weight-bold); color: var(--color-text-muted);
+}
+.dt-grp:first-child { margin-top: 0; padding-top: 0; border-top: none; }
+.dt-grid {
+	display: grid; grid-template-columns: var(--avm-field-label-w) minmax(0, 1fr);
+	margin-top: var(--space-2); font-size: var(--font-size-body); align-items: center;
+}
+.dt-grid .k {
+	padding: var(--space-2) var(--space-4) var(--space-2) 0; white-space: nowrap;
+	font-weight: var(--font-weight-bold); color: var(--color-text-muted);
+}
+.dt-grid > div:not(.k) { padding: 3px 0; min-width: 0; overflow-wrap: anywhere; }
+.dt-grid.dt-grid--wiki { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: var(--space-4); }
+.dt-grid.dt-grid--wiki .k { display: flex; align-items: baseline; gap: var(--space-2); min-width: 0; white-space: normal; }
+.dt-grid .k.ovr { color: var(--color-accent-brown); }
+.dt-grid input[type=text], .dt-grid select {
+	width: 100%; height: var(--avm-control-h); padding: 0 var(--space-4);
+	background: var(--color-panel); color: var(--color-text);
+	border: 1px solid var(--color-button-soft-border); border-radius: var(--radius-sm); font: inherit;
+}
+.dt-grid input:disabled, .dt-grid select:disabled { opacity: .55; }
+.wiki-alt { display: inline-flex; align-items: baseline; gap: var(--space-2); min-width: 0; font-weight: normal; font-size: var(--font-size-caption); }
+.dt-old { color: var(--color-danger); text-decoration: line-through; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dt-old--leer { text-decoration: none; font-style: italic; }
+.dt-reset {
+	flex: 0 0 auto; cursor: pointer; color: var(--color-text-muted); font-size: var(--font-size-caption);
+	text-decoration: underline; background: none; border: 0; padding: 0; line-height: 1; font-family: inherit;
+}
+.dt-reset:hover { color: var(--color-text-strong); }
+.dt-link { color: var(--color-link); text-decoration: none; }
+.dt-sub { color: var(--color-text-muted); font-size: var(--font-size-small); }
+.chk { display: inline-flex; align-items: center; gap: var(--space-4); }
+.dt-edit-checkrow { display: inline-flex; align-items: center; gap: var(--space-4); }
+.badge {
+	display: inline-block; padding: 1px 7px; border-radius: var(--radius-sm);
+	background: var(--color-button-soft); border: 1px solid var(--color-button-soft-border);
+	color: var(--color-button-soft-text); font-size: var(--font-size-small);
+}
+.pick { display: flex; gap: var(--space-4); align-items: center; }
+.pick input { flex: 1 1 auto; }
+.sofort { font-size: var(--font-size-caption); color: var(--color-text-muted); font-weight: normal; margin-left: auto; }
+
+.avm-savebar {
+	display: flex; align-items: center; gap: var(--space-6);
+	padding: var(--space-6) 12px; margin: var(--space-8) -12px var(--space-6);
+	background: var(--color-panel-soft); border-top: 1px solid var(--color-divider); border-bottom: 1px solid var(--color-divider);
+}
+.avm-savebar__msg { flex: 1 1 auto; min-width: 0; font-size: var(--font-size-caption); color: var(--color-text-muted); }
+button.is-primary {
+	height: 30px; padding: 0 14px; border-radius: var(--radius-md); font: inherit; font-weight: var(--font-weight-bold);
+	background: var(--color-button); color: var(--color-button-text); border: 1px solid var(--color-button); cursor: pointer;
+}
+
+/* ---- Listenzeile (.avm-row, stark verkürzt) -------------------------------------------------- */
+.row {
+	display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: var(--space-4) var(--space-6);
+	align-items: start; padding: var(--space-6) var(--space-8);
+	border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-panel);
+}
+.row + .row { margin-top: var(--space-4); }
+.row__thumb { width: 26px; height: 26px; border-radius: var(--radius-sm); background: var(--color-panel-soft); border: 1px solid var(--color-border); }
+.row__name { font-weight: var(--font-weight-bold); color: var(--color-text-strong); }
+.row__l2 { font-size: var(--font-size-small); color: var(--color-text-muted); }
+.row__type { font-size: var(--font-size-small); color: var(--color-text-muted); white-space: nowrap; }
+.kreis { display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 2px solid #6b8a4a; vertical-align: -1px; margin-left: 4px; }
+
+table.tbl { border-collapse: collapse; margin-top: var(--space-8); font-size: var(--font-size-small); background: var(--color-panel); }
+table.tbl th, table.tbl td { border: 1px solid var(--color-border); padding: 4px 9px; text-align: left; vertical-align: top; }
+table.tbl th { color: var(--color-text-muted); background: var(--color-panel-soft); }
+.tbl-wrap { overflow-x: auto; max-width: 100%; }
+td.ja { color: #4f7a3a; font-weight: var(--font-weight-bold); }
+td.nein { color: var(--color-text-muted); }
+td.neu { color: var(--color-accent-brown); font-weight: var(--font-weight-bold); }
+
+.optionen { display: flex; flex-wrap: wrap; gap: 18px; margin-top: var(--space-8); }
+.option { flex: 1 1 380px; max-width: 640px; }
+.option h3 { margin: 0 0 var(--space-4); font-size: 14px; color: var(--color-text-strong); }
+.option.empfohlen { border-color: var(--color-accent-brown); }
+.option.empfohlen h3::after { content: " · empfohlen"; color: var(--color-accent-brown); font-size: var(--font-size-small); }
+.frage { margin-top: var(--space-8); }
+.frage b { color: var(--color-text-strong); }
+</style>
+</head>
+<body>
+<main>
+
+<h1>Wiki-Orte ohne Kartenpunkt: Eigenschaften überschreiben</h1>
+<p class="lede">
+	Heute ist ein Ort aus dem Reiter <b>„Fehlt"</b> im Orts-Editor nur lesbar. Dieser Entwurf macht
+	<b>Typ, Ruine, Verborgen</b> und — neu sichtbar — <b>Innerorts</b> und <b>„Gehört zu"</b>
+	überschreibbar, für platzierte <b>und</b> nicht platzierte Orte, mit derselben Override-Anzeige wie
+	überall (braune Beschriftung, durchgestrichener Wiki-Stand, <b>↺</b>).
+</p>
+
+<!-- ============================================================================================ -->
+<h2>0 · Warum heute „Zum Bearbeiten zuerst auf der Karte platzieren"</h2>
+<div class="grid">
+	<div class="col">
+		<div class="card">
+			<div class="dt-grp">Was eine „Fehlt"-Zeile ist</div>
+			<ul class="note" style="margin-top:4px">
+				<li>Eine Zeile aus <code>wiki_sync_pages</code> — das ist der <b>Abzug des Wikis</b>. Jeder Sync schreibt sie neu; was man dort ablegt, wäre beim nächsten Lauf weg.</li>
+				<li>Sie hat <b>keine eigene Zeile</b> in <code>map_features</code> und damit <b>keine <code>public_id</code></b>.</li>
+				<li>Jeder Schreibweg des Editors hängt an dieser <code>public_id</code>: Speichern, Wappen, Bilder, Quellen, Territorium.</li>
+				<li>Einziger Schlüssel ist der <b>Wiki-Titel</b>. Wird die Seite im Wiki umbenannt, ist es für uns eine neue Zeile.</li>
+			</ul>
+			<p class="note">Die Sperre war also keine Absicht, sondern die Folge von „es gibt nichts, wohin man schreiben könnte".</p>
+		</div>
+	</div>
+	<div class="col">
+		<div class="card">
+			<div class="dt-grp">Gemessen am 15.09.2026 (live)</div>
+			<div class="tbl-wrap">
+			<table class="tbl">
+				<tr><th>Nicht platzierte Bauwerke</th><td>3.653</td></tr>
+				<tr><th>davon innerorts</th><td>2.657 <span class="dt-sub">(Gareth 294, Punin 142, Al'Anfa 112 …)</span></td></tr>
+				<tr><th>davon außerorts</th><td>989</td></tr>
+				<tr><th>davon unklar</th><td>7 <span class="dt-sub">(z. B. „Ordenshaus der Rohalswächter bei Angbar")</span></td></tr>
+				<tr><th>Platzierte Bauwerke innerorts</th><td>9 <span class="dt-sub">(z. B. „Gut Menzheim → Menzheim")</span></td></tr>
+			</table>
+			</div>
+			<p class="note">
+				💣 <b>Nebenbefund:</b> Die Orts-Editor-Liste rechnet das Urteil für „Fehlt"-Zeilen aus und gibt es
+				<b>nicht mit heraus</b> (<code>$regScope</code> in <code>avesmapsWikiSettlementEditorList</code>).
+				Alle 3.653 gelten dort als „außerorts" — der Filter „Lage" greift auf dem Reiter „Fehlt" nicht.
+				Die Panel-Liste daneben hat das Feld.
+			</p>
+		</div>
+	</div>
+</div>
+
+<!-- ============================================================================================ -->
+<h2>1 · Nicht platzierter Ort — heute und neu</h2>
+<p class="note">Rechte Spalte des Orts-Editors. Neu ist dieselbe Gliederung wie beim platzierten Ort: oben das Formular mit Speicherleiste, darunter „Lage &amp; Zugehörigkeit".</p>
+<div class="grid">
+
+	<div class="col">
+		<p class="cap">Heute · Akademie Schwert und Stab</p>
+		<div class="card">
+			<div class="dt-grp">Identität</div>
+			<div class="dt-grid">
+				<div class="k">Name</div><div>Akademie Schwert und Stab</div>
+				<div class="k">Typ</div><div>Besondere Bauwerke/Stätten</div>
+				<div class="k">Kontinent</div><div>Aventurien</div>
+				<div class="k">Wiki-Link</div><div><a class="dt-link" href="#">Akademie Schwert und Stab ↗</a></div>
+			</div>
+			<div class="dt-grp">Eigenschaften</div>
+			<div class="dt-grid">
+				<div class="k">Ruine</div><div>Nein</div>
+				<div class="k">Verborgen</div><div>Nein</div>
+			</div>
+			<p class="dt-sub" style="margin-top:10px">Nur im Wiki — noch nicht auf der Karte platziert. Zum Bearbeiten zuerst auf der Karte platzieren.</p>
+		</div>
+	</div>
+
+	<div class="col">
+		<p class="cap">Neu · unberührt<span class="neu">neu</span></p>
+		<div class="card">
+			<div class="dt-grp">Identität</div>
+			<div class="dt-grid dt-grid--wiki">
+				<div class="k">Name</div><div><input type="text" value="Akademie Schwert und Stab"></div>
+				<div class="k">Typ</div><div><select><option>Besondere Bauwerke/Stätten</option></select></div>
+				<div class="k">Kontinent</div><div>Aventurien</div>
+				<div class="k">Wiki-Link</div><div><a class="dt-link" href="#">Akademie Schwert und Stab ↗</a></div>
+			</div>
+			<div class="dt-grp">Eigenschaften</div>
+			<div class="dt-grid dt-grid--wiki">
+				<div class="k">Ruine</div><div><label class="chk"><input type="checkbox"> ja</label></div>
+				<div class="k">Verborgen</div><div><label class="chk"><input type="checkbox"> ja</label></div>
+			</div>
+			<div class="avm-savebar">
+				<span class="avm-savebar__msg">Keine ungespeicherten Änderungen.</span>
+				<button type="button" class="is-primary">Speichern</button>
+			</div>
+			<div class="dt-grp">Lage &amp; Zugehörigkeit <span class="sofort">Speichert sofort</span></div>
+			<div class="dt-grid dt-grid--wiki">
+				<div class="k">Innerorts</div><div><select><option>innerorts</option><option>außerorts</option></select></div>
+				<div class="k">Gehört zu</div><div class="pick"><input type="text" value="Gareth"></div>
+			</div>
+			<p class="dt-sub" style="margin-top:10px">Nur im Wiki — noch nicht auf der Karte. Was du hier änderst, gilt für Liste, Suche und die Stätten der Stadt und wandert beim Platzieren mit.</p>
+		</div>
+	</div>
+
+	<div class="col">
+		<p class="cap">Neu · überschrieben<span class="neu">neu</span></p>
+		<div class="card">
+			<div class="dt-grp">Identität</div>
+			<div class="dt-grid dt-grid--wiki">
+				<div class="k ovr">Name <span class="wiki-alt"><span class="dt-old" title="Von uns gesetzt. Wiki-Titel: Ordenshaus der Rohalswächter bei Angbar">Ordenshaus der Rohalswächter bei Angbar</span><button class="dt-reset" title="Auf Wiki-Titel zurücksetzen">↺</button></span></div>
+				<div><input type="text" value="Ordenshaus der Rohalswächter"></div>
+				<div class="k">Typ</div><div><select><option>Besondere Bauwerke/Stätten</option></select></div>
+				<div class="k">Kontinent</div><div>Aventurien</div>
+				<div class="k">Wiki-Link</div><div><a class="dt-link" href="#">Ordenshaus der Rohalswächter … ↗</a></div>
+			</div>
+			<div class="dt-grp">Eigenschaften</div>
+			<div class="dt-grid dt-grid--wiki">
+				<div class="k ovr">Ruine <span class="wiki-alt"><span class="dt-old" title="Von uns gesetzt. Wiki-Stand: nein">nein</span><button class="dt-reset" title="Auf Wiki-Stand zurücksetzen">↺</button></span></div>
+				<div><label class="chk"><input type="checkbox" checked> ja</label></div>
+				<div class="k">Verborgen</div><div><label class="chk"><input type="checkbox"> ja</label></div>
+			</div>
+			<div class="avm-savebar">
+				<span class="avm-savebar__msg">Keine ungespeicherten Änderungen.</span>
+				<button type="button" class="is-primary">Speichern</button>
+			</div>
+			<div class="dt-grp">Lage &amp; Zugehörigkeit <span class="sofort">Speichert sofort</span></div>
+			<div class="dt-grid dt-grid--wiki">
+				<div class="k ovr">Innerorts <span class="wiki-alt"><span class="dt-old" title="Von uns gesetzt. Wiki-Stand: unklar (Angbar)">unklar (Angbar)</span><button class="dt-reset" title="Auf Wiki-Stand zurücksetzen — nimmt auch „Gehört zu" zurück">↺</button></span></div>
+				<div><select><option>innerorts</option><option selected>außerorts</option></select></div>
+				<div class="k">Gehört zu</div><div class="pick"><input type="text" value="— nur bei innerorts —" disabled></div>
+			</div>
+			<p class="dt-sub" style="margin-top:10px">Nur im Wiki — noch nicht auf der Karte. Was du hier änderst, gilt für Liste, Suche und die Stätten der Stadt und wandert beim Platzieren mit.</p>
+		</div>
+	</div>
+</div>
+<ul class="note">
+	<li><b>Name ist ein Anzeige-Override</b>: Liste, Stätten-Zeile und Suchtreffer zeigen ihn. <b>Der Wiki-Titel bleibt der Schlüssel</b> — alles, was intern über den Titel läuft (Doppelungsschutz, „liegt schon auf der Karte?", die Override-Zeile selbst), rechnet weiter mit dem Titel, und die Suche findet beide Namen.</li>
+	<li><b>„Gehört zu"</b> sucht nur unter Orten, die <b>auf der Karte</b> liegen, und merkt sich deren <code>public_id</code>, nicht den Namen — sonst verlöre eine umbenannte Stadt still alle ihre Stätten (dieselbe Regel wie in <code>settlement_place</code>).</li>
+	<li><b>„unklar"</b> kann man nicht wählen, es ist die Abwesenheit einer Entscheidung. Es steht nur als Wiki-Stand da.</li>
+	<li>Wählt man wieder genau den Wiki-Stand, <b>fällt der Override weg</b> — wie beim Territorium (<code>clear_field_override</code>). Es bleibt nichts Braunes stehen, das dasselbe sagt wie das Wiki.</li>
+	<li>Wappen, Bilder und Quellen bleiben bei nicht platzierten Orten weiterhin weg — die hängen an der Kartenzeile und sind nicht Teil dieses Umbaus.</li>
+</ul>
+
+<!-- ============================================================================================ -->
+<h2>2 · Platzierter Ort — die zwei neuen Zeilen</h2>
+<p class="note">Innerorts ist auch bei platzierten Orten heute unsichtbar. Beispiel aus den 9 Fällen: „Gut Menzheim" ist laut Standort-Feld innerorts in Menzheim — ein Gut liegt aber vor dem Ort.</p>
+<div class="grid">
+	<div class="col">
+		<p class="cap">Heute · Gut Menzheim (Ausschnitt)</p>
+		<div class="card">
+			<div class="dt-grp">Eigenschaften</div>
+			<div class="dt-grid">
+				<div class="k"></div><div><label class="dt-edit-checkrow"><input type="checkbox"> Ort ist ein Nodix</label></div>
+				<div class="k"></div><div><label class="dt-edit-checkrow"><input type="checkbox"> Ruine / zerstört</label></div>
+				<div class="k"></div><div><label class="dt-edit-checkrow"><input type="checkbox"> Verborgen</label></div>
+			</div>
+			<div class="avm-savebar">
+				<span class="avm-savebar__msg">Keine ungespeicherten Änderungen.</span>
+				<button type="button" class="is-primary">Speichern</button>
+			</div>
+			<div class="dt-grp">Lage &amp; Zugehörigkeit</div>
+			<div class="dt-grid">
+				<div class="k">Territorium</div><div><span class="badge">(Territorium wie heute)</span> <span class="dt-sub">Ray-Cast · tiefste Ebene</span></div>
+			</div>
+		</div>
+	</div>
+	<div class="col">
+		<p class="cap">Neu · Gut Menzheim, überschrieben<span class="neu">neu</span></p>
+		<div class="card">
+			<div class="dt-grp">Eigenschaften</div>
+			<div class="dt-grid dt-grid--wiki">
+				<div class="k">Nodix</div><div><label class="chk"><input type="checkbox"> ja</label></div>
+				<div class="k">Ruine</div><div><label class="chk"><input type="checkbox"> ja</label></div>
+				<div class="k">Verborgen</div><div><label class="chk"><input type="checkbox"> ja</label></div>
+			</div>
+			<div class="avm-savebar">
+				<span class="avm-savebar__msg">Keine ungespeicherten Änderungen.</span>
+				<button type="button" class="is-primary">Speichern</button>
+			</div>
+			<div class="dt-grp">Lage &amp; Zugehörigkeit</div>
+			<div class="dt-grid dt-grid--wiki">
+				<div class="k">Territorium</div><div><span class="badge">(Territorium wie heute)</span></div>
+				<div class="k ovr">Innerorts <span class="wiki-alt"><span class="dt-old" title="Von uns gesetzt. Wiki-Stand: innerorts (Menzheim)">innerorts (Menzheim)</span><button class="dt-reset" title="Auf Wiki-Stand zurücksetzen">↺</button></span></div>
+				<div><select><option>innerorts</option><option selected>außerorts</option></select></div>
+				<div class="k">Gehört zu</div><div class="pick"><input type="text" value="— nur bei innerorts —" disabled></div>
+			</div>
+		</div>
+	</div>
+</div>
+<ul class="note">
+	<li>⚠️ <b>Sichtbare Änderung am bestehenden Formular:</b> die drei Haken bekommen ihre Beschriftung links, wie jede andere Zeile. Nötig, weil der durchgestrichene Wiki-Stand in der linken Hälfte steht (Owner-Regel „50 % | 50 %").</li>
+	<li>Ohne zugewiesenen Wiki-Artikel gibt es kein Standort-Feld und damit keine zwei neuen Zeilen.</li>
+</ul>
+
+<!-- ============================================================================================ -->
+<h2>3 · Der Kasten „Wiki-Ort" — bei platzierten Orten ja, bei nicht platzierten nein</h2>
+<div class="grid">
+	<div class="col">
+		<p class="cap">Platziert · Adler von Gevinsbar — Kasten bleibt</p>
+		<div class="card">
+			<div class="dt-grp">Was an der Zuweisung hängt</div>
+			<ul class="note" style="margin-top:4px">
+				<li><b>Die Liste „Fehlt"</b>: ohne Zuweisung taucht die Wiki-Seite zusätzlich als „nur Wiki" auf, sobald der Kartenname vom Titel abweicht.</li>
+				<li><b>Innerorts</b>: das Urteil liest den Standort des <b>zugewiesenen</b> Artikels.</li>
+				<li><b>Etikett „offiziell"</b>, die feste Quelle „Wiki Aventurica" und der Prüfhaken „Keine Wiki-Zuweisung".</li>
+			</ul>
+			<div class="dt-grp">Die drei Knöpfe</div>
+			<div class="dt-grid">
+				<div class="k">Ändern</div><div>sinnvoll — wenn die falsche Seite zugeordnet ist</div>
+				<div class="k">Entfernen</div><div>sinnvoll — das Bauwerk hat gar keinen Artikel</div>
+				<div class="k">Sync</div><div>dünn, aber richtig — bei Bauwerken bleiben praktisch nur <b>Name und Typ</b>; Einwohner, Lage und Herrscher sind in Bauwerks-Infoboxen leer (gemessen an Acheburg)</div>
+			</div>
+			<p class="note">⚠️ Kein eigener Bauwerks-Kasten: es bleibt EIN Bauteil für alle Ortsklassen. Bauwerksfelder wie Standort oder Gottheit wären höchstens später weitere Anzeigezeilen.</p>
+		</div>
+	</div>
+	<div class="col">
+		<p class="cap">Nicht platziert — kein Kasten</p>
+		<div class="card">
+			<ul class="note" style="margin-top:0">
+				<li>Die Zeile <b>ist</b> der Artikel. „Ändern" und „Entfernen" hätten keinen Gegenstand — die Zeile gäbe es danach nicht mehr bzw. als etwas anderes.</li>
+				<li>„Sync" ist hier eingebaut: die Anzeige ist immer <b>Override, sonst Wiki</b>. Das <b>↺ je Feld</b> übernimmt seine Rolle.</li>
+				<li>Es bleibt die Zeile <b>Wiki-Link</b> wie heute.</li>
+				<li>Beim Platzieren entsteht der Kasten mit dieser Seite schon zugewiesen.</li>
+			</ul>
+			<p class="note">🪤 <b>Nebenbefund aus deinem Bild:</b> im Kasten steht „Ortsgröße <b>gebaeude</b>" — der rohe Schlüssel. Das Formular darüber übersetzt ihn („Besondere Bauwerke/Stätten"), der Kasten nicht.</p>
+		</div>
+	</div>
+</div>
+
+<!-- ============================================================================================ -->
+<h2>4 · Das ↺ — warum es so selten erscheint, und was sich ändert</h2>
+<p class="note">
+	Das ↺ ist <b>nicht kaputt</b> (Tests grün, Herkunft wird beim Speichern gestempelt). Seine Regel ist aber eng:
+	es erscheint nur an <b>fünf Feldern</b>, und nur wenn das Wiki dort <b>einen Wert hat</b> und er <b>abweicht</b>.
+	Bei Acheburg (dein zweites Bild) ist nichts überschrieben und nichts abweichend — dort ist „kein ↺" richtig.
+</p>
+<div class="tbl-wrap">
+<table class="tbl">
+	<tr><th>Feld</th><th>Wiki-Quelle</th><th>↺ heute</th><th>↺ neu</th></tr>
+	<tr><td>Name · Typ · Einwohner · Lage · Herrscher</td><td>Infobox</td><td class="ja">ja, wenn Wiki ≠ leer und abweichend</td><td class="neu">zusätzlich: „von uns gesetzt, Wiki leer" (siehe B) · Name und Typ auch bei nicht platzierten Orten</td></tr>
+	<tr><td>Ruine</td><td>Wiki-Registry <code>is_ruined</code></td><td class="nein">nein</td><td class="neu">ja</td></tr>
+	<tr><td>Innerorts · Gehört zu</td><td>Infobox „Standort", berechnet</td><td class="nein">— unsichtbar</td><td class="neu">ja</td></tr>
+	<tr><td>Nodix · Verborgen</td><td>nicht aus dem Wiki</td><td class="nein">nein</td><td class="nein">nein — es gibt keinen Wiki-Stand, auf den man zurückkönnte</td></tr>
+	<tr><td>Beschreibung · Wiki-URL · Wappen</td><td>— / eigener Weg</td><td class="nein">nein</td><td class="nein">unverändert</td></tr>
+</table>
+</div>
+
+<div class="grid">
+	<div class="col">
+		<p class="cap">A · Wiki weicht ab — heute schon so</p>
+		<div class="card">
+			<div class="dt-grid dt-grid--wiki">
+				<div class="k ovr">Einwohner <span class="wiki-alt"><span class="dt-old" title="Von uns gesetzt. Wiki-Stand: 5.900">5.900</span><button class="dt-reset">↺</button></span></div>
+				<div><input type="text" value="6.200"></div>
+			</div>
+		</div>
+	</div>
+	<div class="col">
+		<p class="cap">B · Von uns gesetzt, Wiki leer<span class="neu">neu</span></p>
+		<div class="card">
+			<div class="dt-grid dt-grid--wiki">
+				<div class="k ovr">Herrscher <span class="wiki-alt"><span class="dt-old dt-old--leer" title="Das Wiki nennt hier nichts — ↺ leert das Feld">(leer)</span><button class="dt-reset" title="Auf Wiki-Stand zurücksetzen: Feld leeren">↺</button></span></div>
+				<div><input type="text" value="(Beispielname)"></div>
+			</div>
+			<p class="note" style="margin-top:6px">Heute: brauner Name, aber <b>kein ↺</b> — man kommt nicht auf den Wiki-Stand zurück.</p>
+		</div>
+	</div>
+	<div class="col">
+		<p class="cap">C · Herkunft unbekannt, Wiki leer — bleibt still</p>
+		<div class="card">
+			<div class="dt-grid dt-grid--wiki">
+				<div class="k">Herrscher</div>
+				<div><input type="text" value="(Beispielname)"></div>
+			</div>
+			<p class="note" style="margin-top:6px">Werte von vor dem 17.08.2026 haben keine gespeicherte Herkunft. Ein ↺ dort würde fremde Handarbeit mit einem Klick leeren.</p>
+		</div>
+	</div>
+</div>
+
+<!-- ============================================================================================ -->
+<h2>5 · Die Liste in der Mitte</h2>
+<div class="grid">
+	<div class="col">
+		<p class="cap">Heute</p>
+		<div class="row"><div class="row__thumb"></div><div><div class="row__name">Akademie Schwert und Stab <span class="kreis"></span></div><div class="row__l2">○ nur Wiki (nicht platziert)</div></div><div class="row__type">Besondere Bauwerke/Stätten</div></div>
+		<div class="row"><div class="row__thumb"></div><div><div class="row__name">Ordenshaus der Rohalswächter bei Angbar <span class="kreis"></span></div><div class="row__l2">○ nur Wiki (nicht platziert)</div></div><div class="row__type">Besondere Bauwerke/Stätten</div></div>
+	</div>
+	<div class="col">
+		<p class="cap">Neu<span class="neu">neu</span></p>
+		<div class="row"><div class="row__thumb"></div><div><div class="row__name">Akademie Schwert und Stab <span class="kreis"></span></div><div class="row__l2">○ nur Wiki · innerorts in Gareth</div></div><div class="row__type">Besondere Bauwerke/Stätten</div></div>
+		<div class="row"><div class="row__thumb"></div><div><div class="row__name">Ordenshaus der Rohalswächter bei Angbar <span class="kreis"></span></div><div class="row__l2">○ nur Wiki · außerorts</div></div><div class="row__type">Besondere Bauwerke/Stätten</div></div>
+	</div>
+</div>
+<p class="note">Und der Filter „Lage" (vorbelegt: außerorts + unklar) greift endlich auch auf dem Reiter „Fehlt" — heute zeigt er dort alle 2.657 Innerorts-Bauwerke mit.</p>
+
+<!-- ============================================================================================ -->
+<h2>6 · Wo die Entscheidung ankommen muss</h2>
+<p class="note">Das Innerorts-Urteil wird heute an <b>sieben</b> Stellen je für sich gerechnet. Ein Override, der nur einen Teil erreicht, ist schlimmer als keiner — deshalb EIN Eingang, den alle rufen.</p>
+<div class="tbl-wrap">
+<table class="tbl">
+	<tr><th>Leser</th><th>Stelle</th><th>Was der Override dort bewirkt</th></tr>
+	<tr><td>Orts-Editor-Liste</td><td><code>avesmapsWikiSettlementEditorList</code></td><td>Zeile „innerorts in X", Filter „Lage" (und der Nebenbefund aus §0)</td></tr>
+	<tr><td>Panel-Liste (WikiSync → Orte)</td><td><code>avesmapsWikiSettlementListLocations</code></td><td>derselbe Filter — beide Fenster müssen dieselbe Antwort geben</td></tr>
+	<tr><td>Kartensuche „X in Stadt"</td><td><code>avesmapsBuildInSettlementSearchEntries</code></td><td>Treffer springt zur richtigen Stadt, oder entfällt bei „außerorts"</td></tr>
+	<tr><td>Zeile „Stätten" in der Stadt-Infobox</td><td><code>avesmapsBuildInSettlementPlaceList</code></td><td>Stätte erscheint bei der richtigen Stadt</td></tr>
+	<tr><td>Suche „nicht auf der Karte"</td><td><code>avesmapsBuildOffmapSearchEntries</code></td><td>ein auf „außerorts" gesetztes Bauwerk erscheint dort statt als Innerorts-Treffer</td></tr>
+	<tr><td>Wege</td><td><code>paths.php</code></td><td><b>bleibt außen vor</b> — nicht bestellt</td></tr>
+</table>
+</div>
+<ul class="note">
+	<li>💣 <b>Karten-ETag:</b> die Stätten-Zeile reist in der Kartennutzlast. Ein Override bewegt kein Kartenobjekt — ohne eigenen Stempel bekäme jeder warme Browser sein 304 und sähe die Änderung nie (dieselbe Falle wie bei <code>settlement_place</code>).</li>
+	<li>⚠️ Die Suche liest die gespeicherten Stätten aus <code>settlement_place</code> heute gar nicht — nur die Infobox tut es. Fällt beim Bau mit auf.</li>
+	<li>💣 <b>Ein Name-Override geht an dieselben Leser</b> (Liste, Stätten-Zeile, Suchtreffer) — aber nur als <b>Anzeige</b>. Doppelungsschutz und „liegt schon auf der Karte?" rechnen mit dem Wiki-Titel; rechneten sie mit dem Override, erschiene die Seite nach einer Umbenennung ein zweites Mal.</li>
+</ul>
+
+<!-- ============================================================================================ -->
+<h2>7 · Wohin gespeichert wird</h2>
+<div class="optionen">
+	<div class="card option empfohlen">
+		<h3>B · Eine Override-Zeile je Wiki-Seite</h3>
+		<ul class="note" style="margin-top:0">
+			<li>Neue kleine Tabelle, Schlüssel ist der <code>wiki_key</code> der Seite, darin die gesetzten Felder als JSON — genau das Muster von <code>metadata_overrides_json</code> beim Territorium.</li>
+			<li>Anzeige = Override, sonst Wiki. <b>↺ = Eintrag weg.</b> Speichern des Wiki-Stands = Eintrag weg.</li>
+			<li><b>Innerorts / Gehört zu</b> bleiben immer an der Wiki-Seite — auch nach dem Platzieren. Sie beschreiben das Standort-Feld dieser Seite, und alle Leser gehen ohnehin über den Wiki-Titel.</li>
+			<li><b>Typ / Ruine / Verborgen</b> wandern beim Platzieren in die Kartenzeile (Herkunft „von uns") und verschwinden aus der Override-Zeile — sonst gäbe es zwei Ablagen für denselben Ort.</li>
+			<li>⚠️ Wird die Seite im Wiki umbenannt, verwaist der Eintrag (dieselbe Eigenschaft wie beim Territorium).</li>
+		</ul>
+	</div>
+	<div class="card option">
+		<h3>A · <code>settlement_place</code> mitbenutzen</h3>
+		<ul class="note" style="margin-top:0">
+			<li>Die Tabelle ist schon „Objekt ohne Kartenpunkt, gehört zu Stadt X" und schlägt in der Infobox die Ableitung.</li>
+			<li>Aber sie kann nur <b>„liegt in X"</b> sagen, nie <b>„liegt nirgends"</b> — „außerorts" bräuchte eine Grabstein-Spalte.</li>
+			<li>Schlüssel ist (Stadt, Name), nicht die Wiki-Seite; <b>Ruine, Typ, Verborgen</b> haben dort keinen Platz.</li>
+			<li>Heute schreibt nur der Garetien-Import hinein.</li>
+		</ul>
+	</div>
+</div>
+
+<!-- ============================================================================================ -->
+<h2>8 · Was du entscheidest</h2>
+<div class="card">
+	<p class="frage"><b>1 ·</b> ↺ auch bei „von uns gesetzt, Wiki leer" (Fall B) — ↺ leert dann das Feld? <span class="dt-sub">Vorschlag: ja.</span></p>
+	<p class="frage"><b>2 ·</b> Eine <b>verborgene</b> Stätte, die nicht auf der Karte liegt: soll sie auch aus der Zeile „Stätten" der Stadt verschwinden? Per Name in der Suche bleibt sie findbar. <span class="dt-sub">Vorschlag: ja — „wer nur über die Karte scrollt, findet sie nicht".</span></p>
+	<p class="frage"><b>3 ·</b> Innerorts und „Gehört zu" speichern <b>sofort</b> wie das Territorium daneben — oder über „Speichern"? <span class="dt-sub">Vorschlag: sofort, weil der Abschnitt schon so arbeitet.</span></p>
+	<p class="frage"><b>4 ·</b> Kasten „Wiki-Ort" nur bei platzierten Orten, bei nicht platzierten nur die Zeile Wiki-Link? <span class="dt-sub">Vorschlag: ja (§3).</span></p>
+</div>
+
+</main>
+</body>
+</html>
