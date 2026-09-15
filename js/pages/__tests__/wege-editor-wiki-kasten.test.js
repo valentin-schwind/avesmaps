@@ -1,0 +1,208 @@
+"use strict";
+// Wege-Editor: EIN Kasten „Wiki-Weg" am Abschnitt und auf der Weg-Ebene (Nachtrag 2026-09-14-wege-mehrfachzuweisung-design.md
+// §9.5, §9.6). AUSGEFUEHRT: die echte Seite in einem Sandkasten (dieselbe Bauform wie js/ui/__tests__/wiki-assign-weg.test.js).
+// Aus der Wurzel: node js/pages/__tests__/wege-editor-wiki-kasten.test.js
+const assert = require("assert");
+const fs = require("fs");
+const path = require("path");
+const vm = require("vm");
+
+const WURZEL = path.resolve(__dirname, "..", "..", "..");
+const ruhe = () => new Promise((fertig) => setTimeout(fertig, 20));
+
+function attrappe(name) {
+	return {
+		id: name, tagName: "DIV", value: "", checked: false, disabled: false, hidden: false,
+		textContent: "", innerHTML: "", className: "", dataset: {}, style: {}, options: [],
+		classList: { add() {}, remove() {}, toggle() {}, contains() { return false; } },
+		zuhoerer: {},
+		addEventListener(typ, fn) { this.zuhoerer[typ] = fn; },
+		removeEventListener() {},
+		appendChild() {}, remove() {}, setAttribute() {}, getAttribute() { return null; },
+		hasAttribute() { return false; },
+		closest() { return null; },
+		querySelector() { return attrappe("q"); },
+		querySelectorAll() { return []; },
+		getBoundingClientRect() { return { width: 100, height: 20, top: 0, left: 0 }; },
+		focus() {}, dispatchEvent() { return true; }, contains() { return true; },
+	};
+}
+
+const WEGE = [
+	{ public_id: "p-1", name: "Alte Straße", feature_subtype: "Strasse", show_label: true, allowed_transports: ["caravan"],
+		transport_seasons: {}, wiki_path: { wiki_key: "alte-strasse", name: "Alte Straße", wiki_url: "https://x/Alte" },
+		wiki_path_weitere: [], flow_direction: "", has_profile: true, bbox: [0, 0, 1, 0] },
+	{ public_id: "p-2", name: "Alte Straße", feature_subtype: "Strasse", show_label: true, allowed_transports: ["caravan"],
+		transport_seasons: {}, wiki_path: { wiki_key: "alte-strasse", name: "Alte Straße", wiki_url: "https://x/Alte" },
+		wiki_path_weitere: [], flow_direction: "", has_profile: true, bbox: [1, 0, 2, 0] },
+	// R22: ein Abschnitt OHNE Hauptzuweisung, der noch eine weitere traegt (§9.5: die Zeile bleibt mit ✕ stehen).
+	{ public_id: "p-3", name: "Einsamer Pfad", feature_subtype: "Pfad", show_label: true, allowed_transports: ["lightWalker"],
+		transport_seasons: {}, wiki_path: null,
+		wiki_path_weitere: [{ wiki_key: "b-renpfad", name: "Bärenpfad", wiki_url: "https://x/B" }],
+		flow_direction: "", has_profile: false, bbox: [5, 5, 6, 5] },
+];
+
+function sandkasten() {
+	const elemente = {};
+	const gesendet = [];
+	const fragen = [];
+	const dokument = {
+		readyState: "complete",
+		getElementById(id) { if (!elemente[id]) { elemente[id] = attrappe(id); } return elemente[id]; },
+		querySelector() { return attrappe("q"); },
+		querySelectorAll() { return []; },
+		createElement(t) { return attrappe(t); },
+		addEventListener() {},
+		body: attrappe("body"), documentElement: attrappe("html"),
+	};
+	const kasten = {
+		console, setTimeout, clearTimeout, setInterval, clearInterval, JSON, Math, Date, Number,
+		String, Array, Object, Boolean, RegExp, Error, isFinite, isNaN, parseInt, parseFloat, Set, Map,
+		encodeURIComponent, decodeURIComponent, Promise, Event: function () {},
+		document: dokument,
+		localStorage: { getItem() { return null; }, setItem() {} },
+		matchMedia: () => ({ matches: false, addEventListener() {}, addListener() {} }),
+		confirm: (text) => { fragen.push(String(text)); return true; },
+		fetch(url, opt) {
+			const rumpf = opt && opt.body ? JSON.parse(opt.body) : null;
+			gesendet.push({ url: String(url), rumpf });
+			let antwort = { ok: true };
+			if (String(url).indexOf("action=list") !== -1) { antwort = { ok: true, ways: WEGE, summary: { total: 2 }, calibration: null }; }
+			else if (String(url).indexOf("action=detail") !== -1) { antwort = { ok: true, length_units: 10, terrain: null, landscapes: [] }; }
+			else if (rumpf && rumpf.action === "assign_to") { antwort = { ok: true, type_ok: true, applied: 2, wiki_name: "Alte Straße", segments_updated: [] }; }
+			else if (rumpf && rumpf.action === "clear_assign") { antwort = { ok: true, applied: 2, segments: 2, segments_updated: [] }; }
+			else if (rumpf && rumpf.action === "update_path_group_details") { antwort = { ok: true, written: 2 }; }
+			else if (rumpf && rumpf.action === "remove_weitere") { antwort = { ok: true, applied: 1, skipped: [] }; }
+			return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(antwort) });
+		},
+		gemounted: [],
+		weitereMounts: [],
+	};
+	kasten.window = kasten;
+	kasten.globalThis = kasten;
+	vm.createContext(kasten);
+	["js/ui/filter-menu.js", "js/routing/travel-calendar.js", "js/pages/wege-editor-model.js", "js/ui/listen-statuskreis.js",
+		"js/ui/wiki-assign-registry.js", "js/ui/wiki-assign-diff.js", "js/ui/wiki-assign.js", "js/ui/wiki-assign-weg.js",
+		"js/ui/wiki-weitere-kasten.js"].forEach((datei) => {
+		vm.runInContext(fs.readFileSync(path.join(WURZEL, datei), "utf8"), kasten, { filename: datei });
+	});
+	vm.runInContext("var echterMount = avesmapsWikiAssignMount;"
+		+ "avesmapsWikiAssignMount = function (b, o) { gemounted.push({ host: b, opts: o }); return echterMount(b, o); };"
+		+ "var echterWeitere = avesmapsWikiWeitereKastenMount;"
+		+ "avesmapsWikiWeitereKastenMount = function (h, o) { weitereMounts.push({ host: h, opts: o }); return echterWeitere(h, o); };", kasten);
+	vm.runInContext(fs.readFileSync(path.join(WURZEL, "js/pages/wege-editor.js"), "utf8"), kasten, { filename: "wege-editor.js" });
+	return { kasten, elemente, gesendet, fragen };
+}
+
+const zeile = (attribute) => {
+	const ziel = attrappe("row");
+	ziel.closest = (sel) => (sel === ".avm-row" ? ziel : null);
+	ziel.getAttribute = (n) => (Object.prototype.hasOwnProperty.call(attribute, n) ? attribute[n] : null);
+	return ziel;
+};
+
+(async () => {
+	const s = sandkasten();
+	await ruhe();
+
+	// ---- 1. Abschnitt: EIN Kasten, die weiteren Zuweisungen in seinem Anhang -------------------------------------
+	s.elemente.wpList.zuhoerer.click({ target: zeile({ "data-id": "p-1" }), preventDefault() {} });
+	await ruhe();
+	assert.ok(!s.elemente.wpDetail.innerHTML.includes('id="wpWikiWeitere"'), "der zweite Kasten am Abschnitt ist gefallen");
+	const abschnitt = s.kasten.gemounted[s.kasten.gemounted.length - 1];
+	assert.strictEqual(abschnitt.host, s.elemente.wpWikiAssign);
+	assert.ok(abschnitt.opts.anhang, "der Kasten „Wiki-Weg“ bekommt einen Anhang");
+	const weitereAbschnitt = s.kasten.weitereMounts[s.kasten.weitereMounts.length - 1];
+	assert.strictEqual(weitereAbschnitt.host, abschnitt.opts.anhang, "die weiteren Zuweisungen haengen GENAU in diesem Anhang");
+	assert.ok(!("haupt" in weitereAbschnitt.opts), "keine Hauptzeile");
+	assert.ok(!("wpWikiWeitere" in s.elemente), "niemand fragt mehr nach #wpWikiWeitere");
+
+	// ---- 2. Weg-Ebene: ein EIGENER Kasten „Wiki-Weg“ mit Anhang ---------------------------------------------------
+	s.elemente.wpList.zuhoerer.click({ target: zeile({ "data-group": "wiki:alte-strasse" }), preventDefault() {} });
+	await ruhe();
+	assert.ok(s.elemente.wpDetail.innerHTML.includes('id="wpGroupWikiAssign"'), "die Weg-Ebene traegt den Kasten „Wiki-Weg“");
+	assert.ok(!s.elemente.wpDetail.innerHTML.includes('id="wpGroupWikiWeitere"'), "der alte Einzelkasten ist gefallen");
+	const gruppe = s.kasten.gemounted[s.kasten.gemounted.length - 1];
+	assert.strictEqual(gruppe.host, s.elemente.wpGroupWikiAssign);
+	assert.strictEqual(gruppe.opts.subject, "weg");
+	const weitereGruppe = s.kasten.weitereMounts[s.kasten.weitereMounts.length - 1];
+	assert.strictEqual(weitereGruppe.host, gruppe.opts.anhang);
+	assert.strictEqual(weitereGruppe.opts.umfangText(), "die ganze Straße");
+	// R22: auch auf der Weg-Ebene reist das abgeschaffte `haupt` nicht mehr mit.
+	assert.ok(!("haupt" in weitereGruppe.opts), "keine Hauptzeile auf der Weg-Ebene");
+	assert.deepStrictEqual([...weitereGruppe.opts.abschnitte().map((a) => a.public_id)], ["p-1", "p-2"]);
+	const zustand = gruppe.opts.laden();
+	assert.strictEqual(zustand.artikel.wiki_key, "alte-strasse", "der Stand der Gruppe");
+
+	// ---- 3. Zuweisen auf der Weg-Ebene: genau ihre Abschnitte -------------------------------------------------------
+	s.gesendet.length = 0;
+	await gruppe.opts.zuweisen({ wiki_key: "alte-strasse", name: "Alte Straße", werte: {} });
+	await ruhe();
+	const zuweisung = s.gesendet.find((g) => g.rumpf && g.rumpf.action === "assign_to");
+	assert.ok(zuweisung, JSON.stringify(s.gesendet.map((g) => g.url)));
+	assert.deepStrictEqual([...zuweisung.rumpf.public_ids], ["p-1", "p-2"], "Zuweisen gilt GENAU den Abschnitten der Gruppe (§9.6)");
+	assert.strictEqual(zuweisung.rumpf.public_id, "p-1");
+
+	// ---- 4. Entfernen auf der Weg-Ebene: EINE Frage, dann public_ids, dann der Ankerabschnitt ----------------------
+	s.elemente.wpList.zuhoerer.click({ target: zeile({ "data-group": "wiki:alte-strasse" }), preventDefault() {} });
+	await ruhe();
+	const gruppe2 = s.kasten.gemounted[s.kasten.gemounted.length - 1];
+	s.gesendet.length = 0;
+	s.fragen.length = 0;
+	await gruppe2.opts.loesen();
+	await ruhe();
+	assert.strictEqual(s.fragen.length, 1, "genau eine Rueckfrage");
+	assert.ok(s.fragen[0].includes("allen 2 Abschnitten") && s.fragen[0].includes("zerfällt"), s.fragen[0]);
+	const loesen = s.gesendet.filter((g) => g.rumpf && g.rumpf.action === "clear_assign");
+	assert.strictEqual(loesen.length, 1, "kein Trockenlauf mit „nur dieser Abschnitt?“ auf der Weg-Ebene");
+	assert.deepStrictEqual([...loesen[0].rumpf.public_ids], ["p-1", "p-2"]);
+	assert.ok(s.gesendet.some((g) => g.url.indexOf("action=detail") !== -1), "danach ist der Ankerabschnitt gewaehlt -- die Gruppe ist zerfallen");
+
+	// ---- 5. Sync auf der Weg-Ebene: das Sammel-Speichern schickt wiki_uebernommen ---------------------------------
+	s.elemente.wpList.zuhoerer.click({ target: zeile({ "data-group": "wiki:alte-strasse" }), preventDefault() {} });
+	await ruhe();
+	const gruppe3 = s.kasten.gemounted[s.kasten.gemounted.length - 1];
+	gruppe3.opts.syncUebernehmen([{ karte: "feature_subtype", neu: "Reichsstrasse" }]);
+	s.gesendet.length = 0;
+	s.elemente.wpGroupSave.zuhoerer.click({ target: s.elemente.wpGroupSave, preventDefault() {} });
+	await ruhe();
+	const sammel = s.gesendet.find((g) => g.rumpf && g.rumpf.action === "update_path_group_details");
+	assert.ok(sammel, JSON.stringify(s.gesendet.map((g) => g.rumpf)));
+	assert.deepStrictEqual([...sammel.rumpf.fields], ["feature_subtype"]);
+	assert.deepStrictEqual([...(sammel.rumpf.wiki_uebernommen || [])], ["feature_subtype"],
+		"ohne wiki_uebernommen stempelte der Server die Uebernahme als „von uns“ (§9.5)");
+
+	// ---- 6. Ungespeicherte Weg-Ebene-Eingaben werden benannt, nicht still verworfen ------------------------------------
+	s.elemente.wpList.zuhoerer.click({ target: zeile({ "data-group": "wiki:alte-strasse" }), preventDefault() {} });
+	await ruhe();
+	const gruppe4 = s.kasten.gemounted[s.kasten.gemounted.length - 1];
+	gruppe4.opts.syncUebernehmen([{ karte: "feature_subtype", neu: "Reichsstrasse" }]);
+	s.kasten.confirm = (text) => { s.fragen.push(String(text)); return false; };
+	s.fragen.length = 0;
+	s.gesendet.length = 0;
+	let abgelehnt = false;
+	await gruppe4.opts.zuweisen({ wiki_key: "alte-strasse", name: "Alte Straße", werte: {} }).catch(() => { abgelehnt = true; });
+	assert.ok(abgelehnt && s.fragen.length === 1 && s.fragen[0].includes("ungespeicherte"), "gefragt und abgelehnt: " + JSON.stringify(s.fragen));
+	assert.ok(!s.gesendet.some((g) => g.rumpf && g.rumpf.action === "assign_to"), "abgelehnt heisst: nichts geschickt");
+
+	// ---- 7. R22: ✕ an einer weiteren Zuweisung OHNE Hauptzuweisung schreibt „remove_weitere“ ---------------------------
+	// §9.5: die weiteren Zuweisungen bleiben stehen, wenn die Hauptzuweisung geht -- sonst waeren sie nicht mehr zu entfernen.
+	s.elemente.wpList.zuhoerer.click({ target: zeile({ "data-id": "p-3" }), preventDefault() {} });
+	await ruhe();
+	const einsam = s.kasten.gemounted[s.kasten.gemounted.length - 1];
+	const weitereEinsam = s.kasten.weitereMounts[s.kasten.weitereMounts.length - 1];
+	assert.strictEqual(weitereEinsam.host, einsam.opts.anhang, "auch ohne Hauptzuweisung haengt der Kasten im Anhang");
+	assert.ok(weitereEinsam.host.innerHTML.includes('data-weitere-weg="b-renpfad"'),
+		"die weitere Zuweisung steht mit ✕ da, obwohl der Abschnitt keine Hauptzuweisung hat: " + weitereEinsam.host.innerHTML);
+	assert.ok(!weitereEinsam.host.innerHTML.includes("data-weitere-suche"), "ohne Hauptzuweisung kein Suchfeld (§2.2 Nr. 1)");
+	s.gesendet.length = 0;
+	const kreuz = { dataset: { weitereWeg: "b-renpfad" } };
+	weitereEinsam.host.zuhoerer.click({ target: { closest: (sel) => (sel === "[data-weitere-weg]" ? kreuz : null) }, preventDefault() {} });
+	await ruhe();
+	const entfernt = s.gesendet.find((g) => g.rumpf && g.rumpf.action === "remove_weitere");
+	assert.ok(entfernt, "das ✕ loest den Entfernen-Schreibweg aus: " + JSON.stringify(s.gesendet.map((g) => g.rumpf || g.url)));
+	assert.strictEqual(entfernt.rumpf.wiki_key, "b-renpfad");
+	assert.deepStrictEqual([...entfernt.rumpf.public_ids], ["p-3"]);
+
+	console.log("wege-editor-wiki-kasten.test.js: ok");
+})().catch((fehler) => { console.error(fehler); process.exit(1); });

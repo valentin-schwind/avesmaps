@@ -33,8 +33,8 @@
    `:where(.avm-editor-body) button` (0,0,1) fuer border/background/padding -- das `:where()` traegt
    dort ABSICHTLICH keine Spezifitaet (css/components/editor-page.css, Kommentar an der Regel). Ohne
    eigenes `min-height`/`line-height` GEWINNT hier aber nichts: die Zeile deklariert beides nicht, also
-   greift die Seitenregel `min-height: var(--avm-control-h)` (32px) ungebremst, und die „weitere"-Zeile
-   wurde hoeher als die „Hauptzuweisung"-Zeile daneben. */
+   greift die Seitenregel `min-height: var(--avm-control-h)` (32px) ungebremst, und jede Zeile mit ✕
+   wurde auf Knopfhoehe aufgeblaeht -- hoeher als ihr Text. */
 .wiki-weitere__weg {
 	border: 0;
 	background: none;

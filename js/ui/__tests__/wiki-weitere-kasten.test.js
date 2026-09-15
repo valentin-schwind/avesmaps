@@ -7,7 +7,8 @@
 // 2) Suchantworten koennen die Reihenfolge tauschen, 3) ein Doppelklick loeste zwei Schreibvorgaenge
 // aus, 4) die Trennlinie ueber dem Kasten fehlte, 5) Treffer waren <button> statt Listenzeilen,
 // 6) das ✕ erbte die Seiten-Knopfhoehe (reine CSS-Frage, siehe css/components/wiki-weitere-kasten.css),
-// 7) nur die Weg-Ebene darf die Hauptzuweisung zeigen (siehe js/pages/wege-editor.js). Die Abschnitte
+// 7) die Hauptzuweisung stand doppelt da -- seit dem Nachtrag §9.5 zeigt sie nur noch der Kasten „Wiki-Weg"
+// darueber, am Abschnitt wie auf der Weg-Ebene; dieser Kasten hat keine Hauptzeile mehr. Die Abschnitte
 // 7-13 unten decken 1, 2, 3, 4, 5.
 const assert = require("assert");
 const fs = require("fs");

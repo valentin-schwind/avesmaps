@@ -489,7 +489,6 @@
 		// sich in wireDetail() hinein (dort steht auch der Gruppenkopf-Hinweis dazu).
 		// ⚠️ Ein blankes div -- die Huelle erzeugt das Bauteil selbst.
 		html += '<div id="wpWikiAssign"></div>';
-		html += '<div id="wpWikiWeitere"></div>';
 
 		// 🔴 QUELLEN ALS LETZTER BLOCK (Owner 03.09.2026: „generell koennen quellen immer unten/als
 		// letztes in den listen auftauchen"). Das EINE Quellen-Bauteil haengt sich in wireDetail() an
@@ -661,13 +660,21 @@
 		var save = $("wpSave");
 		if (save) { save.addEventListener("click", saveDraft); }
 
-		mountWikiAssign();
+		// 🔴 Nachtrag 15.09.2026 §9.5: EIN Kasten „Wiki-Weg" -- die weiteren Zuweisungen haengen in seiner Einhaengestelle.
+		// Das Element entsteht je Aufbau neu: renderDetail() baut die ganze Spalte, und mit ihr beide Bauteile.
+		var anhang = document.createElement("div");
 		var eigenerWeg = null;
 		state.ways.forEach(function (w) { if (w.public_id === state.selected) { eigenerWeg = w; } });
 		if (eigenerWeg) {
 			var umfangAbschnitt = weitereAbschnitte([eigenerWeg])[0].label;
-			mountWikiWeitere("wpWikiWeitere", [eigenerWeg], umfangAbschnitt, function () { return selectWay(state.selected, true); });
+			mountWikiWeitere(anhang, [eigenerWeg], umfangAbschnitt, function () { return selectWay(state.selected, true); });
 		}
+		mountWikiAssign("wpWikiAssign", {
+			laden: wikiAssignZustand,
+			zuweisen: wikiAssignZuweisen,
+			loesen: wikiAssignLoesen,
+			syncUebernehmen: wikiAssignSyncUebernehmen
+		}, anhang);
 		// ⚠️ NACH dem Mounten: der Kasten und die Wegtyp-Zeile darueber sollen denselben Stand
 		// zeigen. Das Bauteil ruft `laden` selbst, aber sein Ergebnis erreicht diesen Zeichner nicht
 		// -- er liest die Zuweisung direkt aus dem Entwurf.
@@ -899,6 +906,97 @@
 		}
 	}
 
+	// ── Wiki-Weg auf der Weg-Ebene (Nachtrag 15.09.2026 §9.5, §9.6) ─────────────────────────────────────────────────
+	// 🔴 Welche Felder die Weg-Ebene seit dem Oeffnen aus dem Wiki uebernommen hat. Das Sammel-Speichern schickt sie als
+	// `wiki_uebernommen` -- avesmapsUpdatePathGroupDetails liest das seit jeher, wpGroupRumpf hat es nie geschickt.
+	var wpGruppeWikiUebernommen = new Set();
+
+	function wikiAssignGruppe() {
+		var gruppe = findGroup(state.selectedGroup);
+		if (!gruppe || !state.groupDraft) { throw new Error("Kein Weg gewählt."); }
+		return gruppe;
+	}
+
+	/** 🔴 WIRFT ohne Gruppe -- der Vertrag aus dem Kopf von js/ui/wiki-assign.js. */
+	function wikiAssignGruppeZustand() {
+		var gruppe = wikiAssignGruppe();
+		return avesmapsWikiAssignWegZustand({
+			wiki_path: gruppe.wiki_path,
+			// Eine LESEFUNKTION: „— gemischt lassen —" ist `null` und liest sich als "" -- die Vorschau bietet dann den Wegtyp an.
+			feature_subtype: function () { return state.groupDraft && state.groupDraft.feature_subtype ? state.groupDraft.feature_subtype : ""; },
+			// ⚠️ Keine Feldherkunft: sie steht je Abschnitt und kann in einer Gruppe verschieden sein.
+			field_origins: null
+		});
+	}
+
+	/** 💣 Ungespeicherte Eingaben der Weg-Ebene gingen beim Neuwaehlen verloren -- das wird GEFRAGT, nicht still getan. */
+	function wikiAssignGruppeEntwurfFreigeben() {
+		if (!state.groupDraft || !state.groupDraft.dirty) { return true; }
+		return window.confirm("Die Weg-Ebene hat ungespeicherte Änderungen. Sie gehen beim Zuweisen oder Entfernen verloren.\n\nTrotzdem fortfahren?");
+	}
+
+	function wikiAssignGruppeZuweisen(treffer) {
+		var gruppe;
+		try { gruppe = wikiAssignGruppe(); } catch (fehler) { return Promise.reject(fehler); }
+		if (!wikiAssignGruppeEntwurfFreigeben()) {
+			setStatus("Zuweisen abgebrochen.", "");
+			return Promise.reject(new Error("Abgebrochen."));
+		}
+		var ids = gruppe.segments.map(function (s) { return s.public_id; });
+		return postJson("/api/edit/wiki/paths.php", avesmapsWikiAssignWegZuweisungsKoerper(treffer.wiki_key, ids[0], ids))
+			.then(function (antwort) {
+				// 🔴 Wirft bei jedem Nein -- auch bei `type_ok:false` (ein Abschnitt passt nicht, §9.6).
+				avesmapsWikiAssignWegAntwortPruefen(antwort);
+				setStatus("„" + (antwort.wiki_name || "") + "“ an " + (antwort.applied || 0) + " Abschnitten verknüpft.", "ok");
+				// R1 benennt alle Abschnitte um -- der Gruppenschluessel heisst jetzt wiki:<key>.
+				return loadList().then(function () { return selectGroup("wiki:" + treffer.wiki_key, true); });
+			})
+			.catch(function (fehler) {
+				setStatus("Zuweisen fehlgeschlagen: " + (fehler && fehler.message ? fehler.message : fehler), "bad");
+				// 💣 Weiterwerfen, NICHT schlucken: das Bauteil malte sonst eine Zuweisung, die es auf dem Server nicht gibt.
+				throw fehler;
+			});
+	}
+
+	function wikiAssignGruppeLoesen() {
+		var gruppe;
+		try { gruppe = wikiAssignGruppe(); } catch (fehler) { return Promise.reject(fehler); }
+		var ids = gruppe.segments.map(function (s) { return s.public_id; });
+		// 🔴 EINE Frage statt „nur dieser Abschnitt?" -- markiert ist die ganze Strasse; die Frage nennt die Folge.
+		if (!window.confirm(avesmapsWikiAssignWegGruppeLoesenFrage(gruppe.wiki_path ? gruppe.wiki_path.name : "", ids.length))
+			|| !wikiAssignGruppeEntwurfFreigeben()) {
+			setStatus("Entfernen abgebrochen.", "");
+			// 🔴 ABGEBROCHEN IST ABGELEHNT -- das Bauteil laesst die Zuweisung stehen.
+			return Promise.reject(new Error("Abgebrochen."));
+		}
+		return postJson("/api/edit/wiki/paths.php", avesmapsWikiAssignWegLoesenKoerper(ids[0], ids))
+			.then(function (antwort) {
+				avesmapsWikiAssignWegAntwortPruefen(antwort);
+				setStatus("Wiki-Zuordnung von " + (antwort.segments || ids.length) + " Abschnitten entfernt.", "ok");
+				// 💣 R2: jeder Abschnitt hat jetzt einen EIGENEN Namen, die Gruppe gibt es nicht mehr -- also der Ankerabschnitt.
+				return loadList().then(function () { return selectWay(ids[0], true); });
+			})
+			.catch(function (fehler) {
+				setStatus("Entfernen fehlgeschlagen: " + (fehler && fehler.message ? fehler.message : fehler), "bad");
+				throw fehler;
+			});
+	}
+
+	/** ⚠️ ÜBERNEHMEN FÜLLT NUR DEN ENTWURF -- gespeichert wird mit „Speichern für N Abschnitte". */
+	function wikiAssignGruppeSyncUebernehmen(zeilen) {
+		var wegtyp = avesmapsWikiAssignWegSyncWegtyp(zeilen);
+		if (wegtyp === null || !state.groupDraft) { throw new Error("Keine übernehmbare Angabe angehakt."); }
+		state.groupDraft.feature_subtype = wegtyp;
+		wpGruppeWikiUebernommen.add("feature_subtype");
+		markGroupDirty();
+		renderDetail();
+		var message = $("wpSaveMsg");
+		if (message) {
+			message.textContent = "Aus dem Wiki übernommen — noch nicht gespeichert.";
+			message.className = "avm-savebar__msg";
+		}
+	}
+
 	// 🔴 HIER STAND wikiAssignKeinArtikelGeaendert -- gefallen am 16.08.2026 mit dem Haekchen „Kein
 	// Wiki-Artikel vorhanden" (Owner-Entscheid, vier Oberflaechen). Es war reines Zubehoer des
 	// Haekchens: Statuszeile plus `markDirty()`.
@@ -923,24 +1021,18 @@
 		});
 	}
 
-	// 🔴 `mitHaupt` gilt NUR der Weg-Ebene (Fund-Item 7 der ersten Pruefrunde): am einzelnen Abschnitt
-	// steht der Artikel schon im Kasten „Wiki-Weg" darueber -- eine zweite Zeile dafuer waere derselbe
-	// Artikel zweimal auf einer Seite. Fehlt das Argument, bleibt `opts.haupt` ganz weg (nicht nur
-	// `null`): der Kasten fragt `opts.haupt ? opts.haupt() : null` und unterscheidet „keine Angabe"
-	// nicht von „Angabe liefert nichts" -- hier ist es dieselbe Aussage, also reicht das Weglassen.
-	function mountWikiWeitere(hostId, ways, umfang, nachSchreiben, mitHaupt) {
-		var host = $(hostId);
+	// 🔴 Nachtrag 15.09.2026 §9.5: der Kasten haengt in der Einhaengestelle des Kastens „Wiki-Weg" -- `host` ist das Element,
+	// das der Wirt dort einhaengt. Keine Zeile „Hauptzuweisung": die zeigt der Kasten darueber, am Abschnitt wie auf der Weg-Ebene.
+	function mountWikiWeitere(host, ways, umfang, nachSchreiben) {
 		if (wpWikiWeitere) { wpWikiWeitere.zerstoeren(); wpWikiWeitere = null; }
 		if (!host || typeof avesmapsWikiWeitereKastenMount !== "function") { return; }
-		var mountOpts = {
+		wpWikiWeitere = avesmapsWikiWeitereKastenMount(host, {
 			skin: "dt",
 			hauptKey: function () { return ways[0] && ways[0].wiki_path ? String(ways[0].wiki_path.wiki_key || "") : ""; },
 			abschnitte: function () { return weitereAbschnitte(ways); },
 			umfangText: function () { return umfang; },
-			// 🔴 Fund-Item 1 der ersten Pruefrunde: „gespeichert" hiess bisher IMMER Erfolg, auch wenn
-			// der Server alle Abschnitte uebersprungen hat (applied === 0). Der Text kommt jetzt aus
-			// derselben reinen Funktion, die auch der Kasten fuer seine eigene Statuszeile nutzt --
-			// EIN Satzbauer, zwei Anzeigeorte.
+			// 🔴 Fund-Item 1 der ersten Pruefrunde: „gespeichert" hiess bisher IMMER Erfolg, auch wenn der Server alle
+			// Abschnitte uebersprungen hat (applied === 0). EIN Satzbauer, zwei Anzeigeorte.
 			geschrieben: function (antwort) {
 				var applied = antwort && typeof antwort.applied === "number" ? antwort.applied : 0;
 				var text = typeof avesmapsWikiWeitereErgebnisText === "function"
@@ -953,27 +1045,26 @@
 				setStatus(text, applied > 0 ? "ok" : "bad");
 				return loadList().then(nachSchreiben);
 			}
-		};
-		if (mitHaupt) {
-			mountOpts.haupt = function () { return ways[0] && ways[0].wiki_path ? ways[0].wiki_path : null; };
-		}
-		wpWikiWeitere = avesmapsWikiWeitereKastenMount(host, mountOpts);
+		});
 	}
 
-	function mountWikiAssign() {
-		var host = $("wpWikiAssign");
+	// Der Kasten „Wiki-Weg" -- am Abschnitt und auf der Weg-Ebene (Nachtrag §9.5). `datenweg` traegt laden/zuweisen/loesen/
+	// syncUebernehmen der jeweiligen Ebene, `anhang` das Element mit den weiteren Zuweisungen.
+	function mountWikiAssign(hostId, datenweg, anhang) {
+		var host = $(hostId);
 		if (!host) { return; }
 		if (wpWikiAssign) { wpWikiAssign.zerstoeren(); wpWikiAssign = null; }
 		wpWikiAssign = avesmapsWikiAssignMount(host, {
 			subject: "weg",
 			skin: "dt",
-			laden: wikiAssignZustand,
-			// Die Suche antwortet mit FLACHEN Zeilen; erst hier entsteht daraus ein Treffer samt
-			// der Abbildung Wiki-Art -> Wegtyp-Schluessel (js/ui/wiki-assign-weg.js).
+			laden: datenweg.laden,
+			// Die Suche antwortet mit FLACHEN Zeilen; erst hier entsteht daraus ein Treffer samt der
+			// Abbildung Wiki-Art -> Wegtyp-Schluessel (js/ui/wiki-assign-weg.js).
 			trefferAufbereiten: avesmapsWikiAssignWegTreffer,
-			zuweisen: wikiAssignZuweisen,
-			loesen: wikiAssignLoesen,
-			syncUebernehmen: wikiAssignSyncUebernehmen
+			zuweisen: datenweg.zuweisen,
+			loesen: datenweg.loesen,
+			syncUebernehmen: datenweg.syncUebernehmen,
+			anhang: anhang || null
 		});
 	}
 
@@ -1190,6 +1281,8 @@
 		state.detail = null;
 		state.draft = null;
 		state.selectedGroup = key;
+		// Eine frisch gewaehlte (oder nach dem Speichern neu gewaehlte) Gruppe hat nichts aus dem Wiki uebernommen.
+		wpGruppeWikiUebernommen = new Set();
 		state.groupDetail = null;
 
 		// 💣 DER VERGLEICHSSTAND WIRD BEIM OEFFNEN FESTGEHALTEN. Ohne ihn liesse sich hinterher
@@ -1337,7 +1430,8 @@
 				+ "Abschnitt — sie gilt dort ohnehin schon für den ganzen Wiki-Weg.</div>";
 		}
 
-		html += '<div id="wpGroupWikiWeitere"></div>';
+		// 🔴 Nachtrag 15.09.2026 §9.5: der EIGENE Kasten „Wiki-Weg" der Weg-Ebene, mit den weiteren Zuweisungen darin.
+		html += '<div id="wpGroupWikiAssign"></div>';
 
 		// 🔴 QUELLEN ALS LETZTER BLOCK, auch auf der Weg-Ebene. Das Bauteil haengt sich in
 		// wireGroupDetail() an diesen Host -- FEST: alles gilt allen Abschnitten, und ✕ nimmt eine
@@ -1416,11 +1510,19 @@
 			});
 		}
 
-		var gruppeWeitere = findGroup(state.selectedGroup);
-		if (gruppeWeitere) {
-			mountWikiWeitere("wpGroupWikiWeitere", gruppeWeitere.segments, "die ganze Straße", function () {
-				return selectGroup(gruppeWeitere.key, true);
-			}, true);
+		// 🔴 Nachtrag 15.09.2026 §9.5/§9.6: Zuweisen und Entfernen gelten GENAU den Abschnitten dieser Gruppe (`public_ids`).
+		var gruppeWiki = findGroup(state.selectedGroup);
+		if (gruppeWiki) {
+			var gruppenAnhang = document.createElement("div");
+			mountWikiWeitere(gruppenAnhang, gruppeWiki.segments, "die ganze Straße", function () {
+				return selectGroup(gruppeWiki.key, true);
+			});
+			mountWikiAssign("wpGroupWikiAssign", {
+				laden: wikiAssignGruppeZustand,
+				zuweisen: wikiAssignGruppeZuweisen,
+				loesen: wikiAssignGruppeLoesen,
+				syncUebernehmen: wikiAssignGruppeSyncUebernehmen
+			}, gruppenAnhang);
 		}
 
 		var discard = $("wpGroupDiscard");
@@ -1456,6 +1558,11 @@
 
 		// Entwurf 2026-09-14 §3.5: EIN Rumpf-Bauer fuer Wege-Editor und Kartendialog (wpGroupRumpf im Modell).
 		var rumpf = wpGroupRumpf(state.groupStand, state.groupDraft, gruppe.segments.map(function (s) { return s.public_id; }));
+		// Nachtrag 15.09.2026 §9.5: was die Weg-Ebene aus dem Wiki uebernommen hat, reist mit -- sonst stempelt der Server den
+		// Wegtyp als „von uns" (avesmapsFieldOriginsAusWikiLesen in avesmapsUpdatePathGroupDetails).
+		if (rumpf && wpGruppeWikiUebernommen.size > 0) {
+			rumpf.wiki_uebernommen = Array.from(wpGruppeWikiUebernommen);
+		}
 
 		var key = state.selectedGroup;
 		postJson(FEATURES_URL, rumpf).then(function (response) {
