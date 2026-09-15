@@ -80,11 +80,11 @@ frisch();
 {
 	const o = wald();
 	const mk = api.garetienEingefuegtWirdMarkup(o);
-	wahr(mk.includes('<p class="gi-insert__row"><span>Ziel</span><span class="gi-insert__val">Auf die Karte</span></p>'),
+	wahr(mk.includes('<p class="gi-insert__row"><span>Ziel:</span> <span class="gi-insert__val">Auf die Karte</span></p>'),
 		"Ziel als Text: " + mk);
-	wahr(mk.includes('<p class="gi-insert__row"><span>Form</span><span class="gi-insert__val">Fläche</span></p>'),
+	wahr(mk.includes('<p class="gi-insert__row"><span>Form:</span> <span class="gi-insert__val">Fläche</span></p>'),
 		"Form als Text");
-	wahr(mk.includes('<p class="gi-insert__row"><span>Art</span><span class="gi-insert__val">Wald</span> '
+	wahr(mk.includes('<p class="gi-insert__row"><span>Art:</span> <span class="gi-insert__val">Wald</span> '
 		+ '<span class="gi-insert__hint">aus „Wald“ (garetien.de)</span></p>'),
 		"Art als Text, mit ihrer Herkunft (Mockup §2)");
 	wahr(mk.includes('<p class="gi-why">Erst auf der Stage einstellbar.</p>'), "…und der Satz, wo man es ändert");
@@ -102,11 +102,11 @@ frisch();
 frisch();
 {
 	const mk = api.garetienEingefuegtWirdMarkup(natter());
-	wahr(mk.includes('<span>Ziel</span><span class="gi-insert__val">Quelle an „Natter“ ergänzen</span>'),
+	wahr(mk.includes('<span>Ziel:</span> <span class="gi-insert__val">Quelle an „Natter“ ergänzen</span>'),
 		"eine Ergänzung nennt ihr Ziel -- auch ohne Neu-Item steht der Kasten da: " + mk);
-	gleich(mk.indexOf("<span>Form</span>"), -1, "⚠️ …ohne Form: eine Ergänzung baut kein Objekt");
+	gleich(mk.indexOf("<span>Form:</span>"), -1, "⚠️ …ohne Form: eine Ergänzung baut kein Objekt");
 	const mp = api.garetienEingefuegtWirdMarkup(perz());
-	wahr(mp.includes('<span>Ziel</span><span class="gi-insert__val">Nichts — nur ansehen</span>'),
+	wahr(mp.includes('<span>Ziel:</span> <span class="gi-insert__val">Nichts — nur ansehen</span>'),
 		"ohne Vorschlag: „Nichts — nur ansehen\"");
 }
 

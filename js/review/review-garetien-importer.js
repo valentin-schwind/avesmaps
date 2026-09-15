@@ -6150,8 +6150,10 @@
 	function garetienVorschlagMarkup(objekt) {
 		const o = objekt || {};
 		const zielwahl = garetienZielwahlZu(o);
+		// 🔴 Owner 15.09.2026: „Doppelpunkte zwischen Label und Wert". Vorher klebten beide Spannen ohne
+		// Trenner aneinander und lasen sich als ein Wort („ZielAuf die Karte").
 		const zeile = function (beschriftung, wert, hinweis) {
-			return '<p class="gi-insert__row"><span>' + avesmapsGaretienEscape(beschriftung) + "</span>"
+			return '<p class="gi-insert__row"><span>' + avesmapsGaretienEscape(beschriftung) + ":</span> "
 				+ '<span class="gi-insert__val">' + avesmapsGaretienEscape(wert) + "</span>"
 				+ (hinweis !== "" ? ' <span class="gi-insert__hint">' + avesmapsGaretienEscape(hinweis) + "</span>" : "")
 				+ "</p>";
