@@ -997,13 +997,18 @@ function avesmapsWikiPathAssign(PDO $pdo, string $wikiKey, bool $dryRun, int $us
 // Alt-Buendel mit uneinheitlichen Namen muss zuerst per Entfernen aufgeloest werden (das raeumt
 // auch wiki_key-Geister). Mit Typ-Pruefung (Fluss <-> Strasse/Weg). Gated.
 // Mit single_segment:true wird NUR das Ziel-Segment erfasst (kein Namens-Gruppen-Match).
-function avesmapsWikiPathAssignTo(PDO $pdo, string $wikiKey, string $publicId, bool $dryRun, int $userId = 0, bool $singleSegment = false, array $assignMeta = []): array {
+function avesmapsWikiPathAssignTo(PDO $pdo, string $wikiKey, string $publicId, bool $dryRun, int $userId = 0, bool $singleSegment = false, array $assignMeta = [], ?array $publicIds = null): array {
     avesmapsWikiPathEnsureTables($pdo);
     $wikiKey = trim($wikiKey);
     $publicId = trim($publicId);
     if ($wikiKey === '' || $publicId === '') {
         throw new RuntimeException('wiki_key/public_id fehlt.');
     }
+    // Nachtrag 15.09.2026 §9.6: mit `public_ids` sind die Ziele GENAU diese Abschnitte (Weg-Ebene, Gruppendialog) --
+    // nicht die Namens-Menge. Der Client nennt sie, der Server bildet keine Gruppe nach. Riegel und Abfrage stehen
+    // EINMAL fuer beide Schreiber in avesmapsWikiPathGruppenZeilen; gerufen VOR jedem Nachschlagen, damit eine
+    // widerspruechliche Anfrage abgelehnt wird, bevor eine andere Antwort (etwa type_ok:false) sie verdeckt.
+    $gruppenZeilen = $publicIds === null ? null : avesmapsWikiPathGruppenZeilen($pdo, $publicIds, $publicId, $singleSegment);
     $statement = $pdo->prepare('SELECT * FROM ' . AVESMAPS_WIKI_PATH_STAGING_TABLE . ' WHERE wiki_key = :k LIMIT 1');
     $statement->execute(['k' => $wikiKey]);
     $row = $statement->fetch(PDO::FETCH_ASSOC);
@@ -1038,7 +1043,25 @@ function avesmapsWikiPathAssignTo(PDO $pdo, string $wikiKey, string $publicId, b
     $canonicalName = avesmapsWikiPathCanonicalName($assignObject);
     // Fast path (perf, behavior-preserving): single_segment only ever touches the target row (the
     // loop skips every other public_id), so fetch just that row instead of scanning all paths.
-    if ($singleSegment) {
+    if ($gruppenZeilen !== null) {
+        $paths = $gruppenZeilen;
+        // 💣 JEDER Zielweg durch den Typriegel, nicht nur der Anker: eine Gruppe darf keinen Strassen-Artikel an einem
+        // Flussstueck bekommen, nur weil der angeklickte Abschnitt eine Strasse ist. Passt einer nicht, wird nichts geschrieben.
+        foreach ($paths as $p) {
+            $subtype = strtolower((string) ($p['feature_subtype'] ?? ''));
+            if (($subtype === 'flussweg' || $subtype === 'seeweg') !== $wikiIsRiver) {
+                return [
+                    'ok' => true,
+                    'type_ok' => false,
+                    'message' => '„' . (string) $row['name'] . '" passt nicht zu jedem Abschnitt: „' . (string) $p['name'] . '" ist '
+                        . ($wikiIsRiver ? 'kein Fluss' : 'ein Fluss') . '.',
+                    'dry_run' => $dryRun,
+                    'applied' => 0,
+                    'segments_updated' => [],
+                ];
+            }
+        }
+    } elseif ($singleSegment) {
         $single = $pdo->prepare("SELECT id, public_id, name, properties_json FROM map_features WHERE public_id = :p AND is_active = 1 AND feature_type = 'path' AND name <> '' LIMIT 1");
         $single->execute(['p' => $publicId]);
         $paths = $single->fetchAll(PDO::FETCH_ASSOC);
@@ -1056,7 +1079,8 @@ function avesmapsWikiPathAssignTo(PDO $pdo, string $wikiKey, string $publicId, b
         if ($singleSegment && (string) $p['public_id'] !== $publicId) {
             continue;
         }
-        if (avesmapsWikiSyncCreateMatchKey((string) $p['name']) !== $targetKey) {
+        // Mit public_ids entscheidet die Liste, nicht der Name (die Abfrage oben hat schon gefiltert).
+        if ($publicIds === null && avesmapsWikiSyncCreateMatchKey((string) $p['name']) !== $targetKey) {
             continue;
         }
         $segments++;
@@ -1184,12 +1208,15 @@ function avesmapsWikiPathAssignAll(PDO $pdo, string $continentFilter, bool $dryR
 // EIN gemeinsamer Name klebte vormals distinkte Segmente aneinander -- ein spaeteres Zuweisen auf
 // eines von ihnen riss dann alle mit hinein). Die Gruppe loest sich beim Entfernen also bewusst auf.
 // Mit single_segment:true wird NUR das Ziel-Segment geloest (eigener generischer Name, Rest des Wegs bleibt).
-function avesmapsWikiPathClearAssign(PDO $pdo, string $publicId, bool $dryRun, int $userId = 0, bool $singleSegment = false): array {
+function avesmapsWikiPathClearAssign(PDO $pdo, string $publicId, bool $dryRun, int $userId = 0, bool $singleSegment = false, ?array $publicIds = null): array {
     avesmapsWikiPathEnsureTables($pdo);
     $publicId = trim($publicId);
     if ($publicId === '') {
         throw new RuntimeException('public_id fehlt.');
     }
+    // Nachtrag 15.09.2026 §9.6: mit `public_ids` werden GENAU diese Abschnitte geloest -- nicht Namens-Key UNION wiki_key.
+    // Riegel und Abfrage teilt sich diese Funktion mit avesmapsWikiPathAssignTo (avesmapsWikiPathGruppenZeilen).
+    $gruppenZeilen = $publicIds === null ? null : avesmapsWikiPathGruppenZeilen($pdo, $publicIds, $publicId, $singleSegment);
     $statement = $pdo->prepare("SELECT name, feature_subtype, properties_json FROM map_features WHERE public_id = :pid AND feature_type = 'path' LIMIT 1");
     $statement->execute(['pid' => $publicId]);
     $target = $statement->fetch(PDO::FETCH_ASSOC);
@@ -1205,11 +1232,13 @@ function avesmapsWikiPathClearAssign(PDO $pdo, string $publicId, bool $dryRun, i
     // skips every other public_id), so fetch just that row. The generic-name pool still needs ALL
     // path names (avesmapsWikiPathNextGenericName must not collide with an existing name), so pull a
     // names-only pool separately instead of deriving it from the (now single-row) $paths list.
-    if ($singleSegment) {
+    $namePool = null;
+    if ($gruppenZeilen !== null) {
+        $paths = $gruppenZeilen;
+    } elseif ($singleSegment) {
         $single = $pdo->prepare("SELECT id, public_id, name, feature_subtype, properties_json FROM map_features WHERE public_id = :p AND is_active = 1 AND feature_type = 'path' AND name <> '' LIMIT 1");
         $single->execute(['p' => $publicId]);
         $paths = $single->fetchAll(PDO::FETCH_ASSOC);
-        $namePool = array_map(static fn(array $r): string => (string) $r['name'], $pdo->query("SELECT name FROM map_features WHERE is_active = 1 AND feature_type = 'path' AND name <> ''")->fetchAll(PDO::FETCH_ASSOC));
     } else {
         $paths = $pdo->query("SELECT id, public_id, name, feature_subtype, properties_json FROM map_features WHERE is_active = 1 AND feature_type = 'path' AND name <> ''")->fetchAll(PDO::FETCH_ASSOC);
         // R2: JEDES Segment bekommt einen EIGENEN generischen Namen (Phase-1-Schema) -- die
@@ -1217,6 +1246,9 @@ function avesmapsWikiPathClearAssign(PDO $pdo, string $publicId, bool $dryRun, i
         // Der Pool waechst pro vergebenem Namen mit (kollisionsfrei ueber alle Subtypen).
         $namePool = array_map(static fn(array $p): string => (string) $p['name'], $paths);
     }
+    // Eine Teilmenge der Wege (single_segment, und seit Nachtrag §9.6 auch `public_ids`) braucht trotzdem den Pool
+    // ALLER Wegnamen, sonst kollidiert ein generischer Name mit einem vorhandenen. Ein Leser fuer beide Zweige.
+    $namePool ??= array_map(static fn(array $r): string => (string) $r['name'], $pdo->query("SELECT name FROM map_features WHERE is_active = 1 AND feature_type = 'path' AND name <> ''")->fetchAll(PDO::FETCH_ASSOC));
     $applied = 0;
     $matchCount = 0;
     $revision = null;
@@ -1228,7 +1260,8 @@ function avesmapsWikiPathClearAssign(PDO $pdo, string $publicId, bool $dryRun, i
         if ($singleSegment && (string) $p['public_id'] !== $publicId) {
             continue;
         }
-        if (!avesmapsWikiPathRowMatchesWay((string) $p['name'], $p['properties_json'] ?? null, $targetKey, $targetWikiKey)) {
+        // Mit public_ids entscheidet die Liste, nicht Namens-Key UNION wiki_key (die Abfrage oben hat schon gefiltert).
+        if ($publicIds === null && !avesmapsWikiPathRowMatchesWay((string) $p['name'], $p['properties_json'] ?? null, $targetKey, $targetWikiKey)) {
             continue;
         }
         $matchCount++;

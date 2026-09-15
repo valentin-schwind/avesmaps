@@ -67,7 +67,9 @@ try {
                 (string) ($payload['public_id'] ?? ''),
                 !(($payload['dry_run'] ?? true) === false && (string) ($payload['confirm'] ?? '') === 'apply'),
                 (int) ($user['id'] ?? 0),
-                ($payload['single_segment'] ?? false) === true
+                ($payload['single_segment'] ?? false) === true,
+                // Nachtrag 15.09.2026 §9.6: die Abschnitte der ganzen Strasse (Weg-Ebene, Gruppendialog), sonst null.
+                avesmapsWikiPathGruppenIdsAusRumpf($payload)
             ),
             'assign_all' => avesmapsWikiPathAssignAll(
                 $pdo,
@@ -82,7 +84,8 @@ try {
                 !(($payload['dry_run'] ?? true) === false && (string) ($payload['confirm'] ?? '') === 'apply'),
                 (int) ($user['id'] ?? 0),
                 ($payload['single_segment'] ?? false) === true,
-                $assignMeta
+                $assignMeta,
+                avesmapsWikiPathGruppenIdsAusRumpf($payload)
             ),
             'backfill_verlauf_source' => avesmapsWikiPathVerlaufBackfillSource(
                 $pdo,

@@ -143,6 +143,18 @@ function avesmapsWikiPathWeitereIds(mixed $roh, int $deckel): array {
 }
 
 /**
+ * Die Abschnitte der ganzen Strasse aus dem Rumpf von `assign_to`/`clear_assign` (Nachtrag 15.09.2026 §9.6).
+ * `null`, wenn der Rumpf keine nennt -- dann gilt das bisherige Verhalten (Namens-Match). Sonst dieselbe
+ * Normalisierung und derselbe Deckel wie bei den weiteren Zuweisungen; ungueltig wirft RuntimeException (-> 400).
+ */
+function avesmapsWikiPathGruppenIdsAusRumpf(array $payload): ?array {
+    if (!array_key_exists('public_ids', $payload)) {
+        return null;
+    }
+    return avesmapsWikiPathWeitereIds($payload['public_ids'], AVESMAPS_WIKI_PATH_WEITERE_MAX_SEGMENTE);
+}
+
+/**
  * Weitere Zuweisung an Abschnitte haengen oder von ihnen nehmen (Entwurf §2.3).
  *
  * 🔴 DIE ABSCHNITTE NENNT DER CLIENT; hier wird keine Gruppe nachgebildet (dieselbe Regel wie
@@ -247,4 +259,35 @@ function avesmapsWikiPathWeitereSchreiben(PDO $pdo, string $modus, string $wikiK
     }
 
     return $antwort;
+}
+
+/**
+ * Die Zielzeilen der ganzen Strasse fuer `assign_to`/`clear_assign` mit `public_ids` (Nachtrag 15.09.2026 §9.6).
+ *
+ * 🔴 EINE STELLE FUER BEIDE SCHREIBER (avesmapsWikiPathAssignTo, avesmapsWikiPathClearAssign): Riegel und Abfrage
+ * standen im Bauplan wortgleich in beiden, und die zweite Fassung liefe beim ersten Nachziehen auseinander.
+ * Die Kennungen werden hier selbst normalisiert -- ein PHP-Aufrufer muss nicht durch den Rumpf-Leser, und eine leere
+ * Liste ergaebe sonst ein `IN ()`, das in keinem der beiden Dialekte gueltig ist.
+ * `single_segment` und `public_ids` schliessen sich aus. Der Anker muss in der Liste stehen: er traegt Typpruefung
+ * und Rueckmeldung (`target_name`, `generic_name`) -- sonst bezoege sich die Antwort auf einen Abschnitt, der gar
+ * nicht geschrieben wird.
+ * Geliefert werden nur aktive, benannte Wege, mit den Spalten, die beide Schreiber lesen.
+ * 💣 Positionsplatzhalter, keine benannten: `ATTR_EMULATE_PREPARES` ist aus, und dieselbe Form laeuft unveraendert
+ * auf MariaDB und SQLite (AGENTS.md §9).
+ */
+function avesmapsWikiPathGruppenZeilen(PDO $pdo, array $publicIds, string $ankerId, bool $singleSegment): array {
+    if ($singleSegment) {
+        throw new RuntimeException('single_segment and public_ids exclude each other.');
+    }
+    $ids = avesmapsWikiPathWeitereIds($publicIds, AVESMAPS_WIKI_PATH_WEITERE_MAX_SEGMENTE);
+    if (!in_array(trim($ankerId), $ids, true)) {
+        throw new RuntimeException('public_id must be one of public_ids.');
+    }
+    $platzhalter = implode(',', array_fill(0, count($ids), '?'));
+    $statement = $pdo->prepare(
+        "SELECT id, public_id, name, feature_subtype, properties_json FROM map_features
+          WHERE is_active = 1 AND feature_type = 'path' AND name <> '' AND public_id IN ($platzhalter)"
+    );
+    $statement->execute($ids);
+    return $statement->fetchAll(PDO::FETCH_ASSOC);
 }
