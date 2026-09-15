@@ -949,7 +949,16 @@
 				avesmapsWikiAssignWegAntwortPruefen(antwort);
 				setStatus("„" + (antwort.wiki_name || "") + "“ an " + (antwort.applied || 0) + " Abschnitten verknüpft.", "ok");
 				// R1 benennt alle Abschnitte um -- der Gruppenschluessel heisst jetzt wiki:<key>.
-				return loadList().then(function () { return selectGroup("wiki:" + treffer.wiki_key, true); });
+				// 💣 findGroup ist GEFILTERT (Reiter, Suche, Filtermenue): im Reiter „Fehlt" faellt die frisch zugewiesene Gruppe
+				// heraus, ebenso unter einer Suche nach dem alten Namen. selectGroup kehrte dann STILL zurueck, und die Spalte
+				// stand mit einem Entwurf da, dessen Gruppe es nicht mehr gab („Speichern" tat nichts, „Entfernen" meldete
+				// „Kein Weg gewählt."). Dann -- wie beim Entfernen -- der Ankerabschnitt: selectWay sucht in ALLEN Wegen.
+				return loadList().then(function () {
+					var neuerSchluessel = "wiki:" + treffer.wiki_key;
+					var neueGruppe = findGroup(neuerSchluessel);
+					if (neueGruppe && neueGruppe.segments.length > 1) { return selectGroup(neuerSchluessel, true); }
+					return selectWay(ids[0], true);
+				});
 			})
 			.catch(function (fehler) {
 				setStatus("Zuweisen fehlgeschlagen: " + (fehler && fehler.message ? fehler.message : fehler), "bad");

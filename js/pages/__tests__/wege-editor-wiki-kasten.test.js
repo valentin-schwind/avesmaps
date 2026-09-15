@@ -40,12 +40,22 @@ const WEGE = [
 		transport_seasons: {}, wiki_path: null,
 		wiki_path_weitere: [{ wiki_key: "b-renpfad", name: "Bärenpfad", wiki_url: "https://x/B" }],
 		flow_direction: "", has_profile: false, bbox: [5, 5, 6, 5] },
+	// Fixrunde: ein zweiteiliger Weg OHNE Wiki-Zuweisung -- im Reiter „Fehlt" sichtbar, bis er einen Artikel bekommt.
+	{ public_id: "p-4", name: "Neuer Weg", feature_subtype: "Weg", show_label: true, allowed_transports: ["caravan"],
+		transport_seasons: {}, wiki_path: null, wiki_path_weitere: [], flow_direction: "", has_profile: true, bbox: [8, 0, 9, 0] },
+	{ public_id: "p-5", name: "Neuer Weg", feature_subtype: "Weg", show_label: true, allowed_transports: ["caravan"],
+		transport_seasons: {}, wiki_path: null, wiki_path_weitere: [], flow_direction: "", has_profile: true, bbox: [9, 0, 10, 0] },
 ];
+
+// Die kanonischen Namen, die `assign_to` den Abschnitten gibt (R1).
+const WIKI_NAMEN = { "alte-strasse": "Alte Straße", baerenstieg: "Bärenstieg" };
 
 function sandkasten() {
 	const elemente = {};
 	const gesendet = [];
 	const fragen = [];
+	// Je Sandkasten ein eigener Bestand: `assign_to` schreibt ihn wie der Server (R1 benennt um, wiki_path wird gesetzt).
+	const wege = JSON.parse(JSON.stringify(WEGE));
 	const dokument = {
 		readyState: "complete",
 		getElementById(id) { if (!elemente[id]) { elemente[id] = attrappe(id); } return elemente[id]; },
@@ -67,9 +77,18 @@ function sandkasten() {
 			const rumpf = opt && opt.body ? JSON.parse(opt.body) : null;
 			gesendet.push({ url: String(url), rumpf });
 			let antwort = { ok: true };
-			if (String(url).indexOf("action=list") !== -1) { antwort = { ok: true, ways: WEGE, summary: { total: 2 }, calibration: null }; }
+			if (String(url).indexOf("action=list") !== -1) { antwort = { ok: true, ways: JSON.parse(JSON.stringify(wege)), summary: { total: wege.length }, calibration: null }; }
 			else if (String(url).indexOf("action=detail") !== -1) { antwort = { ok: true, length_units: 10, terrain: null, landscapes: [] }; }
-			else if (rumpf && rumpf.action === "assign_to") { antwort = { ok: true, type_ok: true, applied: 2, wiki_name: "Alte Straße", segments_updated: [] }; }
+			else if (rumpf && rumpf.action === "assign_to") {
+				const name = WIKI_NAMEN[rumpf.wiki_key] || rumpf.wiki_key;
+				const ziele = Array.isArray(rumpf.public_ids) ? rumpf.public_ids : [rumpf.public_id];
+				wege.forEach((w) => {
+					if (ziele.indexOf(w.public_id) === -1 || (w.wiki_path && w.wiki_path.wiki_key === rumpf.wiki_key)) { return; }
+					w.wiki_path = { wiki_key: rumpf.wiki_key, name, wiki_url: "https://x/" + rumpf.wiki_key };
+					w.name = name;
+				});
+				antwort = { ok: true, type_ok: true, applied: ziele.length, wiki_name: name, segments_updated: [] };
+			}
 			else if (rumpf && rumpf.action === "clear_assign") { antwort = { ok: true, applied: 2, segments: 2, segments_updated: [] }; }
 			else if (rumpf && rumpf.action === "update_path_group_details") { antwort = { ok: true, written: 2 }; }
 			else if (rumpf && rumpf.action === "remove_weitere") { antwort = { ok: true, applied: 1, skipped: [] }; }
@@ -100,6 +119,35 @@ const zeile = (attribute) => {
 	ziel.getAttribute = (n) => (Object.prototype.hasOwnProperty.call(attribute, n) ? attribute[n] : null);
 	return ziel;
 };
+
+/** Fixrunde: den zweiteiligen „Neuer Weg" auf der Weg-Ebene waehlen -- nach `einrichten` (Reiter, Suche) -- und zuweisen. */
+async function neuenWegZuweisen(einrichten) {
+	const f = sandkasten();
+	await ruhe();
+	einrichten(f);
+	f.elemente.wpList.zuhoerer.click({ target: zeile({ "data-group": "name:Weg:Neuer Weg" }), preventDefault() {} });
+	await ruhe();
+	const g = f.kasten.gemounted[f.kasten.gemounted.length - 1];
+	assert.strictEqual(g.host, f.elemente.wpGroupWikiAssign, "Vorbedingung: die Weg-Ebene von „Neuer Weg“ ist gewaehlt");
+	f.gesendet.length = 0;
+	await g.opts.zuweisen({ wiki_key: "baerenstieg", name: "Bärenstieg", werte: {} });
+	await ruhe();
+	const zuweisung = f.gesendet.find((x) => x.rumpf && x.rumpf.action === "assign_to");
+	assert.ok(zuweisung, "Vorbedingung: zugewiesen");
+	assert.deepStrictEqual([...zuweisung.rumpf.public_ids], ["p-4", "p-5"]);
+	return f;
+}
+
+/** Fixrunde: nach dem Zuweisen darf die Spalte nie mit einer Gruppe stehen bleiben, die es in der Liste nicht mehr gibt. */
+function pruefeRueckfallAufAnker(f, wo) {
+	assert.ok(f.gesendet.some((x) => x.url.indexOf("action=detail&public_id=p-4") !== -1),
+		wo + ": die neue Gruppe ist ausgeblendet -- dann faellt die Auswahl auf den Ankerabschnitt, wie beim Entfernen: "
+		+ JSON.stringify(f.gesendet.map((x) => x.url)));
+	const danach = f.kasten.gemounted[f.kasten.gemounted.length - 1];
+	assert.strictEqual(danach.host, f.elemente.wpWikiAssign, wo + ": danach steht der Kasten des Abschnitts, nicht der tote der Weg-Ebene");
+	assert.strictEqual(danach.opts.laden().artikel.wiki_key, "baerenstieg", wo + ": und er kennt die neue Zuweisung (kein „Kein Weg gewählt.“)");
+	assert.ok(!f.elemente.wpDetail.innerHTML.includes("Ganzer Weg"), wo + ": die Maske der Weg-Ebene ist abgeraeumt");
+}
 
 (async () => {
 	const s = sandkasten();
@@ -203,6 +251,30 @@ const zeile = (attribute) => {
 	assert.ok(entfernt, "das ✕ loest den Entfernen-Schreibweg aus: " + JSON.stringify(s.gesendet.map((g) => g.rumpf || g.url)));
 	assert.strictEqual(entfernt.rumpf.wiki_key, "b-renpfad");
 	assert.deepStrictEqual([...entfernt.rumpf.public_ids], ["p-3"]);
+
+	// ---- 8. Fixrunde: Zuweisen im Reiter „Fehlt“ -- die neue Gruppe ist ausgeblendet ------------------------------------
+	// 💣 findGroup ist GEFILTERT: nach der Zuweisung faellt „wiki:baerenstieg“ aus dem Reiter „Fehlt“. Bis zur Fixrunde kehrte
+	// selectGroup still zurueck, und die Spalte stand mit einem Entwurf da, dessen Gruppe es nicht mehr gab.
+	const fehlt = await neuenWegZuweisen((f) => {
+		f.elemente.wpTabs.children = [];
+		const reiter = attrappe("tab");
+		reiter.getAttribute = (n) => (n === "data-view" ? "missing" : null);
+		f.elemente.wpTabs.zuhoerer.click({ target: { closest: (sel) => (sel === ".avm-tab" ? reiter : null) }, preventDefault() {} });
+	});
+	pruefeRueckfallAufAnker(fehlt, "Reiter „Fehlt“");
+
+	// ---- 9. Fixrunde: dasselbe, wenn eine SUCHE die umbenannte Gruppe verbirgt -----------------------------------------
+	const gesucht = await neuenWegZuweisen((f) => {
+		f.elemente.wpSearch.zuhoerer.input({ target: { value: "Neuer" } });
+	});
+	pruefeRueckfallAufAnker(gesucht, "Suche „Neuer“");
+
+	// ---- 10. Fixrunde, Gegenprobe: ohne Filter wird die neue Gruppe gewaehlt, nicht der Anker --------------------------
+	const offen = await neuenWegZuweisen(() => {});
+	const offenDanach = offen.kasten.gemounted[offen.kasten.gemounted.length - 1];
+	assert.strictEqual(offenDanach.host, offen.elemente.wpGroupWikiAssign, "ohne Filter bleibt die Weg-Ebene gewaehlt -- jetzt als wiki:baerenstieg");
+	assert.strictEqual(offenDanach.opts.laden().artikel.wiki_key, "baerenstieg");
+	assert.ok(!offen.gesendet.some((x) => x.url.indexOf("action=detail") !== -1), "kein Rueckfall, wenn die Gruppe sichtbar ist");
 
 	console.log("wege-editor-wiki-kasten.test.js: ok");
 })().catch((fehler) => { console.error(fehler); process.exit(1); });

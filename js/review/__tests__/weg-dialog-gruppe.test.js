@@ -264,12 +264,12 @@ assert.ok(/#path-edit-form\.is-gruppe \.path-season \{\s*display: none;/.test(li
 
 // ---- 8. Fix-Runde 1, Punkt 1+2: ALLE DREI Oeffner montieren den Kasten wirklich, und nie mit „Hauptzuweisung" --
 // AUSGEFUEHRT gegen die ECHTE avesmapsWikiWeitereKastenMount (js/ui/wiki-weitere-kasten.js), nicht die Attrappe
-// von oben: eine leere, aber gerahmte Karte (#path-wiki-weitere-host traegt class="label-edit-section" unabhaengig
+// von oben: eine leere, aber gerahmte Karte (der Kasten „Wiki-Weg“ um den Anhang pathWikiWeitereAnhang() steht unabhaengig
 // vom Inhalt) sieht ein Quelltext-Test nie, nur ein wirklich gezeichnetes innerHTML.
 const W = require(path.join(WURZEL, "js/ui/wiki-weitere-kasten.js"));
 
 /** Ein frischer Kontext mit einer PERSISTENTEN Element-Kartei (anders als oben: derselbe Aufruf liefert
- * dasselbe Objekt zurueck, sonst liesse sich #path-wiki-weitere-host hinterher nicht auslesen). */
+ * dasselbe Objekt zurueck, sonst faenden die Oeffner ihre Hosts nicht wieder; der Anhang selbst kommt aus pathWikiWeitereAnhang()). */
 function frischerOeffnerKontext() {
 	const elemente8 = {};
 	const holen = (id) => { if (!elemente8[id]) { elemente8[id] = new El("div", { id }); } return elemente8[id]; };
