@@ -761,9 +761,21 @@ function wpAbschnittLabel(way, nummer) {
 }
 
 /**
+ * Die Woerter, mit denen der Namensbauer ein Ende OHNE Ort benennt -- dieselben Zeichenketten wie
+ * AVESMAPS_WEG_ENDE_KREUZUNG/_OFFEN im JS/PHP-Zwilling (js/map-features/weg-abschnitte.js,
+ * api/_internal/map/weg-abschnitt-ende.php). ⚠️ Eigene Konstanten, weil dieses Modell im Editorfenster ohne jene Datei
+ * laeuft; js/pages/__tests__/wege-ganze-strecke-nur-orte.test.js haelt sie gegen beide Zwillinge.
+ */
+var WP_ENDE_KREUZUNG = "Kreuzung";
+var WP_ENDE_OFFEN = "Wegende";
+
+/**
  * REIN: „Von – Bis" der ganzen Strasse -- die aeusseren Enden der LAENGSTEN Kette (wpChainSegments).
  * "" wenn es keine Kette oder keine Enden gibt. ⚠️ `gedreht` heisst: das Stueck wird vom `to` zum `from`
  * durchlaufen (siehe laufe() in wpChainSegments).
+ * 🔴 NUR, WENN BEIDE ENDEN ORTE SIND (Nachtrag 2026-09-14-wege-mehrfachzuweisung-design.md §9.3, Auslegung von §4:
+ * „fehlt dort ein Ortsname, steht nur ‚Ganze Straße'"). Ein einziges „Kreuzung" oder „Wegende" aussen genuegt fuer "".
+ * Die Regel gilt damit zugleich fuer Infobox-Zeile, Dialog-Zeile, „ganze Straße · …" und den Gruppenkopf der Liste.
  */
 function wpGanzeStrecke(segmente) {
 	var ketten = wpChainSegments(segmente);
@@ -772,9 +784,11 @@ function wpGanzeStrecke(segmente) {
 	var erstes = segmente[kette[0].index];
 	var letztes = segmente[kette[kette.length - 1].index];
 	if (!erstes || !letztes || !erstes.enden || !letztes.enden) { return ""; }
-	var von = kette[0].gedreht ? erstes.enden.bis : erstes.enden.von;
-	var bis = kette[kette.length - 1].gedreht ? letztes.enden.von : letztes.enden.bis;
-	return String(von) + " – " + String(bis);
+	var von = String(kette[0].gedreht ? erstes.enden.bis : erstes.enden.von);
+	var bis = String(kette[kette.length - 1].gedreht ? letztes.enden.von : letztes.enden.bis);
+	var keinOrt = function (ende) { return ende === "" || ende === WP_ENDE_KREUZUNG || ende === WP_ENDE_OFFEN; };
+	if (keinOrt(von) || keinOrt(bis)) { return ""; }
+	return von + " – " + bis;
 }
 
 /**
@@ -846,6 +860,8 @@ if (typeof module !== "undefined" && module.exports) {
 		wpChainCurve: wpChainCurve,
 		wpRoughMiles: wpRoughMiles,
 		wpAbschnittLabel: wpAbschnittLabel,
-		wpGanzeStrecke: wpGanzeStrecke
+		wpGanzeStrecke: wpGanzeStrecke,
+		WP_ENDE_KREUZUNG: WP_ENDE_KREUZUNG,
+		WP_ENDE_OFFEN: WP_ENDE_OFFEN
 	};
 }
