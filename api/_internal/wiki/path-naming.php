@@ -129,3 +129,35 @@ function avesmapsWikiPathNameIsGeneric(string $name, ?array $subtypes = null): b
     // getippt hat, und bleibt einer.
     return preg_match('/^\S+-\d+$/u', $name) === 1;
 }
+
+// Der ECHTE Name eines Wegabschnitts -- der, den ein Mensch ihm gegeben hat; '' fuer einen Maschinennamen oder gar keinen.
+//
+// 🔴 DIE PHP-FASSUNG VON getPathTitleName (js/map-features/map-features-path-domain.js), Feld fuer Feld: erst der Name der
+// Wiki-Zuweisung (R1 -- ein Altsegment kann noch „Reichsstrasse-16" heissen, die Infobox nennt es trotzdem „Reichsstraße 2"),
+// sonst der eigene Name, aber nur, wenn er kein maschineller ist. „Eigener Name" ist, was normalizeRoutePathFeature
+// (js/map-features/map-features-path-prepare.js) im Browser daraus macht: display_name, sonst original_name, sonst die Spalte.
+// 💣 DARAN HAENGT „GANZE STRASSE" (Owner 15.09.2026: „die selektion soll ausdrücklich über den namen - nicht über die
+// wiki-zuweisung erfolgen"). Die Wege-Editor-Liste gruppiert mit DIESEM Namen, die Karte mit dem des Browsers (wpGroupKeyOf,
+// js/pages/wege-editor-model.js) -- laufen die zwei auseinander, traegt derselbe Abschnitt auf der Karte eine andere Nummer als
+// im Editor, und niemand sieht warum. js/pages/__tests__/wege-gruppe-gleicher-name.test.js faehrt beide gegen eine Tafel.
+// ⚠️ Gegen die EIGENE Wegart geprueft, bei unbekannter gegen alle acht -- dieselbe Wahl wie api/app/map-search.php.
+function avesmapsWikiPathEchterName(array $properties, string $rowName, string $featureSubtype): string {
+    $wikiPath = is_array($properties['wiki_path'] ?? null) ? $properties['wiki_path'] : [];
+    $wikiName = trim(is_scalar($wikiPath['name'] ?? null) ? (string) $wikiPath['name'] : '');
+    if ($wikiName !== '') {
+        return $wikiName;
+    }
+
+    // Wie `||` im Browser: das erste NICHT LEERE Feld gewinnt -- auch eines aus Leerzeichen, das dann eben keinen Namen traegt.
+    $eigener = '';
+    foreach ([$properties['display_name'] ?? null, $properties['original_name'] ?? null, $rowName] as $feld) {
+        $text = is_scalar($feld) ? (string) $feld : '';
+        if ($text !== '') {
+            $eigener = trim($text);
+            break;
+        }
+    }
+    $subtypes = in_array($featureSubtype, AVESMAPS_PATH_SUBTYPE_KEYS, true) ? [$featureSubtype] : AVESMAPS_PATH_SUBTYPE_KEYS;
+
+    return ($eigener !== '' && !avesmapsWikiPathNameIsGeneric($eigener, $subtypes)) ? $eigener : '';
+}

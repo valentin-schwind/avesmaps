@@ -10,7 +10,7 @@ const WURZEL = path.resolve(__dirname, "..", "..", "..");
 const lies = (rel) => fs.readFileSync(path.join(WURZEL, rel), "utf8").replace(/\r\n/g, "\n");
 
 // 1. Sortierung: Rundungsrauschen kippt keinen Gleichstand, die Kennung entscheidet.
-const zeile = (id, x, y) => ({ public_id: id, name: "Reichsstraße 2", feature_subtype: "Reichsstrasse", bbox: [x, y, 0, 0] });
+const zeile = (id, x, y) => ({ public_id: id, name: "Reichsstraße 2", echter_name: "Reichsstraße 2", feature_subtype: "Reichsstrasse", bbox: [x, y, 0, 0] });
 const reihenfolge = (ways) => M.wpGroupWays(ways)[0].segments.map((s) => s.public_id);
 assert.deepStrictEqual(reihenfolge([zeile("b", 10.0004, 5), zeile("a", 10.0001, 5)]), ["a", "b"]);
 assert.deepStrictEqual(reihenfolge([zeile("b", 10.0001, 5), zeile("a", 10.0004, 5)]), ["a", "b"],

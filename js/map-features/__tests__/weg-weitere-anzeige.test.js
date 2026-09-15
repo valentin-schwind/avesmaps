@@ -11,7 +11,9 @@ const lies = (rel) => fs.readFileSync(path.join(WURZEL, rel), "utf8").replace(/\
 const M = require(path.join(WURZEL, "js/pages/wege-editor-model.js"));
 Object.assign(global, {
 	wpGroupWays: M.wpGroupWays, wpGroupKeyOf: M.wpGroupKeyOf, wpChainSegments: M.wpChainSegments,
-	wpAbschnittLabel: M.wpAbschnittLabel, wpGanzeStrecke: M.wpGanzeStrecke,
+	wpAbschnittLabel: M.wpAbschnittLabel, wpGanzeStrecke: M.wpGanzeStrecke, wpGruppeHauptzuweisungen: M.wpGruppeHauptzuweisungen,
+	// Der echte Name (map-features-path-domain.js) -- daran haengt die Strasse; die Fixtures tragen ihn in display_name.
+	getPathTitleName: (p) => p.properties.display_name,
 	escapeHtml: (w) => String(w).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"),
 	pathItemStationLinkMarkup: (text, treffer) => `<button data-station-kind="${treffer.kind}" data-station-ref="${treffer.ref}">${text}</button>`,
 	wikiUrlToDeeplinkKey: (url) => String(url || "").split("/wiki/")[1] || "",
@@ -59,6 +61,17 @@ assert.ok(vomBaerenpfad.includes("<dt>Verläuft auch über</dt>"), vomBaerenpfad
 assert.ok(vomBaerenpfad.includes('data-station-ref="Reichsstrasse_2">Reichsstraße 2</button> (Abschnitt 2: Silkwiesen – Wieha)'), vomBaerenpfad);
 const ganz = A.avesmapsWegWeitereZeilenMarkup(rs6, { gruppe: "wiki:reichsstrasse-2", publicId: null });
 assert.ok(ganz.includes("Bärenpfad</button> (Abschnitt 2: Silkwiesen – Wieha)"), "ganze Strasse: mit dem Abschnitt, der ihn traegt: " + ganz);
+// Owner 15.09.2026: die Strasse ist der NAME. Ein gleichnamiger Abschnitt OHNE Zuweisung gehoert dazu, und „Verläuft auch über"
+// kommt an der ganzen Strasse aus ALLEN ihren Artikeln -- gleich, welchen Abschnitt man angeklickt hat.
+const bpOhneWiki = weg("bp-2", [6, 6], [7, 7], bp);
+bpOhneWiki.properties.wiki_path = null;
+global.pathData.push(bpOhneWiki);
+global.mapDataSourceStatus = { revision: 2 };
+const ganzOhneWiki = A.avesmapsWegWeitereZeilenMarkup(bpOhneWiki, { gruppe: "name:Bärenpfad", publicId: null });
+assert.ok(ganzOhneWiki.includes("<dt>Verläuft auch über</dt>") && ganzOhneWiki.includes("Reichsstraße 2</button> (Abschnitt 2: Silkwiesen – Wieha)"), ganzOhneWiki);
+assert.strictEqual(A.avesmapsWegWeitereZeilenMarkup(bpOhneWiki, null), "", "am Abschnitt ohne Zuweisung nur sein eigener Artikel -- keiner");
+global.pathData.pop();
+global.mapDataSourceStatus = { revision: 3 };
 
 // 3. Fuellen ersetzt genau den Platzhalter
 const markup = "<dl>" + A.avesmapsWegWeiterePlatzhalter("rs-7") + "</dl>";

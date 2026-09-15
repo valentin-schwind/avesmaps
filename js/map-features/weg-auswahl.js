@@ -22,10 +22,16 @@ function avesmapsWegAuswahlIds(auswahl, gruppenIds) {
 	return (Array.isArray(gruppenIds) ? gruppenIds : []).map(String);
 }
 
-/** REIN: „Ganze Straße: A – B" bzw. „Abschnitt: A – B"; ohne Enden nur das Wort (Entwurf §4). */
-function avesmapsWegMarkierungszeile(auswahl, strecke) {
+/**
+ * REIN: „Ganze Straße: A – B" bzw. „Abschnitt N: A – B"; ohne Enden nur das Wort (Entwurf §4).
+ * 🔴 Owner 15.09.2026: nach dem zweiten Klick steht „Abschnitt N: … – …" und NIEMALS ein Text der ganzen Strasse. `nummer` ist
+ * die Abschnittsnummer (wpGroupWays); ein einteiliger Weg hat keine (wpAbschnittLabel) und heisst nur „Abschnitt". Die ganze
+ * Strasse traegt nie eine Nummer, auch wenn eine hereinkommt.
+ */
+function avesmapsWegMarkierungszeile(auswahl, strecke, nummer) {
 	if (!auswahl) { return ""; }
-	const wort = auswahl.publicId === null || auswahl.publicId === undefined ? "Ganze Straße" : "Abschnitt";
+	const ganz = auswahl.publicId === null || auswahl.publicId === undefined;
+	const wort = ganz ? "Ganze Straße" : (nummer ? "Abschnitt " + nummer : "Abschnitt");
 	const text = String(strecke || "").trim();
 	return text ? wort + ": " + text : wort;
 }
@@ -36,8 +42,8 @@ function avesmapsWegAuswahlEsc(wert) {
 }
 
 /** REIN: dieselbe Zeile als HTML, das Wort fett (wie im Mockup). */
-function avesmapsWegMarkierungszeileMarkup(auswahl, strecke) {
-	const text = avesmapsWegMarkierungszeile(auswahl, strecke);
+function avesmapsWegMarkierungszeileMarkup(auswahl, strecke, nummer) {
+	const text = avesmapsWegMarkierungszeile(auswahl, strecke, nummer);
 	if (!text) { return ""; }
 	const trenner = text.indexOf(": ");
 	return trenner === -1

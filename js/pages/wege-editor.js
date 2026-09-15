@@ -342,11 +342,10 @@
 		// Ein Abschnitt trägt den Namen NICHT noch einmal -- er steht in der Gruppenzeile darüber.
 		//
 		// 🔴 UND EIN ABSCHNITT TRÄGT AUCH KEINEN STATUSKREIS. Der Kreis gehört dem WEG, und ein
-		// Weg ist die Namensgruppe; `wpGroupWays` schlüsselt zugewiesene Segmente über ihren
-		// `wiki_key` und unzugewiesene über Art+Name -- eine Gruppe kann also gar nicht mischen.
-		// Jeder Abschnitt hätte damit zwingend denselben Kreis wie sein Gruppenkopf: N
-		// Wiederholungen derselben Aussage in einer schmalen Spalte, und das ist die
-		// Vervielfachung, vor der AGENTS.md §12 warnt.
+		// Weg ist die Namensgruppe (`wpGroupWays`). Seit 15.09.2026 ist das der ECHTE NAME, gleich
+		// welche Wiki-Zuweisung (Owner: „ausdrücklich über den namen") -- eine Gruppe KANN also
+		// mischen, und ihr Kopf zeigt dann den halben Kreis. Ein Kreis je Abschnitt wäre trotzdem
+		// die Vervielfachung, vor der AGENTS.md §12 warnt: N Kreise in einer schmalen Spalte.
 		// ⚠️ Ist `index === null`, IST diese Zeile der Weg (einteilige Gruppe, kein Kopf darüber)
 		// -- dann bekommt sie ihn.
 		var title = index === null
@@ -938,24 +937,34 @@
 	function wikiAssignGruppeZuweisen(treffer) {
 		var gruppe;
 		try { gruppe = wikiAssignGruppe(); } catch (fehler) { return Promise.reject(fehler); }
+		var ids = gruppe.segments.map(function (s) { return s.public_id; });
+		// 🔴 Seit die Strasse der NAME ist (Owner 15.09.2026), kann sie gemischte Hauptzuweisungen tragen. Dann schreibt Zuweisen nur
+		// nach ausdruecklicher Rueckfrage auf alle N Abschnitte -- wie Entfernen. Eine einige Strasse fragt wie bisher nicht.
+		if (wpGruppeHauptzuweisungen(gruppe.segments).length > 1
+			&& !window.confirm(avesmapsWikiAssignWegGruppeZuweisenFrage(treffer && treffer.name, ids.length))) {
+			setStatus("Zuweisen abgebrochen.", "");
+			return Promise.reject(new Error("Abgebrochen."));
+		}
 		if (!wikiAssignGruppeEntwurfFreigeben()) {
 			setStatus("Zuweisen abgebrochen.", "");
 			return Promise.reject(new Error("Abgebrochen."));
 		}
-		var ids = gruppe.segments.map(function (s) { return s.public_id; });
 		return postJson("/api/edit/wiki/paths.php", avesmapsWikiAssignWegZuweisungsKoerper(treffer.wiki_key, ids[0], ids))
 			.then(function (antwort) {
 				// 🔴 Wirft bei jedem Nein -- auch bei `type_ok:false` (ein Abschnitt passt nicht, §9.6).
 				avesmapsWikiAssignWegAntwortPruefen(antwort);
 				setStatus("„" + (antwort.wiki_name || "") + "“ an " + (antwort.applied || 0) + " Abschnitten verknüpft.", "ok");
-				// R1 benennt alle Abschnitte um -- der Gruppenschluessel heisst jetzt wiki:<key>.
+				// R1 benennt alle Abschnitte nach dem Artikel um -- die Strasse heisst jetzt so, wie ihr Anker heisst (wpGroupKeyOf).
 				// 💣 findGroup ist GEFILTERT (Reiter, Suche, Filtermenue): im Reiter „Fehlt" faellt die frisch zugewiesene Gruppe
 				// heraus, ebenso unter einer Suche nach dem alten Namen. selectGroup kehrte dann STILL zurueck, und die Spalte
 				// stand mit einem Entwurf da, dessen Gruppe es nicht mehr gab („Speichern" tat nichts, „Entfernen" meldete
 				// „Kein Weg gewählt."). Dann -- wie beim Entfernen -- der Ankerabschnitt: selectWay sucht in ALLEN Wegen.
 				return loadList().then(function () {
-					var neuerSchluessel = "wiki:" + treffer.wiki_key;
-					var neueGruppe = findGroup(neuerSchluessel);
+					// 💣 Nie ein nachgebauter Schluessel: der des Ankers NACH dem Laden, ueber die eine Regel.
+					var anker = null;
+					state.ways.forEach(function (w) { if (w.public_id === ids[0]) { anker = w; } });
+					var neuerSchluessel = anker ? wpGroupKeyOf(anker) : "";
+					var neueGruppe = neuerSchluessel ? findGroup(neuerSchluessel) : null;
 					if (neueGruppe && neueGruppe.segments.length > 1) { return selectGroup(neuerSchluessel, true); }
 					return selectWay(ids[0], true);
 				});

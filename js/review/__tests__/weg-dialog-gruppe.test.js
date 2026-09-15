@@ -116,9 +116,11 @@ const kontext = vm.createContext({
 	avesmapsPathGruppeZeilen: G.avesmapsPathGruppeZeilen,
 	avesmapsPathGruppeKnopfText: G.avesmapsPathGruppeKnopfText,
 	avesmapsPathGruppeTeilsText: G.avesmapsPathGruppeTeilsText,
-	avesmapsWegMarkierungszeileMarkup: A.avesmapsWegMarkierungszeileMarkup,
+	// Der EINE Leser der Markierungszeile (weg-abschnitte.js), hier mit der echten Regel (weg-auswahl.js) und festen Enden --
+	// gegen eine Karte gefahren wird er in js/map-features/__tests__/weg-auswahl-karte.test.js. Die Nummer ist die der Kennung.
+	avesmapsWegMarkierungszeileAufKarte: (p, auswahl) => A.avesmapsWegMarkierungszeileMarkup(auswahl,
+		auswahl.publicId === null ? "Perz – Helmdahl" : "Silkwiesen – Wieha", Number(p.properties.public_id.slice(3))),
 	avesmapsWegGanzeStreckeAufKarte: () => "Perz – Helmdahl",
-	avesmapsWegStreckeAufKarte: () => "Silkwiesen – Wieha",
 	avesmapsWegAbschnittLabelAufKarte: (p) => "Abschnitt " + p.properties.public_id.slice(3) + ": X – Y",
 	getPathPublicId: (p) => p.properties.public_id,
 	getPathDisplayName: lesen.name,
@@ -232,7 +234,8 @@ assert.strictEqual(umfang.hidden, true);
 assert.strictEqual(autoLabel.hidden, false);
 assert.strictEqual(aufrufe.zerstoert, 1, "der Kasten wird abgebaut");
 rufe("pathEditUmfangZeigen")(rs7, false);
-assert.strictEqual(umfang.innerHTML, "<b>Abschnitt:</b> Silkwiesen – Wieha");
+// Owner 15.09.2026: am Abschnitt „Abschnitt N: …" -- und nie ein Text der ganzen Strasse.
+assert.strictEqual(umfang.innerHTML, "<b>Abschnitt 7:</b> Silkwiesen – Wieha");
 
 // ---- 7. Verdrahtung ---------------------------------------------------------------------------------------------
 const routing = lies("js/routing/routing.js");

@@ -245,10 +245,10 @@ function createPathPopupMarkup(path) {
 	// Entwurf 2026-09-14 §3.4: im Bearbeiten-Modus sagt eine Zeile unter der Wegart, WAS markiert ist -- ohne
 	// Kasten, im Titelblock. Ohne Markierung (Besucher, Suche, Deeplink) keine Zeile.
 	const wegAuswahl = IS_EDIT_MODE && typeof avesmapsWegAuswahlFuerPfad === "function" ? avesmapsWegAuswahlFuerPfad(path) : null;
-	const markierungZeile = wegAuswahl && typeof avesmapsWegMarkierungszeileMarkup === "function"
-		? avesmapsWegMarkierungszeileMarkup(wegAuswahl, wegAuswahl.publicId === null
-			? avesmapsWegGanzeStreckeAufKarte(path)
-			: avesmapsWegStreckeAufKarte(path))
+	// 🔴 Ein Leser fuer Infobox und Dialog (avesmapsWegMarkierungszeileAufKarte): am Abschnitt „Abschnitt N: …", nie ein Text
+	// der ganzen Strasse (Owner 15.09.2026).
+	const markierungZeile = wegAuswahl && typeof avesmapsWegMarkierungszeileAufKarte === "function"
+		? avesmapsWegMarkierungszeileAufKarte(path, wegAuswahl)
 		: "";
 	const markierungMarkup = markierungZeile ? `<div class="info-header__markierung">${markierungZeile}</div>` : "";
 	const headerImg = typeof infoHeaderImageMarkup === "function"

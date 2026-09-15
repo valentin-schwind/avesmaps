@@ -303,6 +303,18 @@ function avesmapsWikiAssignWegGruppeLoesenFrage(name, anzahl) {
 }
 
 /**
+ * REIN: die Rueckfrage vor „Zuweisen" auf einer ganzen Strasse mit GEMISCHTEN Hauptzuweisungen (wpGruppeHauptzuweisungen).
+ * 🔴 Die Strasse ist seit dem 15.09.2026 der NAME, nicht die Zuweisung (Owner: „ausdrücklich über den namen") -- live trugen
+ * 49 von 67 Abschnitten der Reichsstraße 2 den Artikel, 18 keinen. Zuweisen schreibt auf ALLE; das geschieht bei einer
+ * gemischten Strasse nur nach dieser Frage, wie Entfernen (avesmapsWikiAssignWegGruppeLoesenFrage). Eine einige fragt nicht.
+ */
+function avesmapsWikiAssignWegGruppeZuweisenFrage(name, anzahl) {
+	const n = Number(anzahl) || 0;
+	return "Die " + n + " Abschnitte dieser Straße tragen verschiedene Wiki-Zuordnungen.\n\n„" + avesmapsWikiAssignWegText(name)
+		+ "“ allen " + n + " Abschnitten zuweisen? Jeder Abschnitt trägt danach diesen Artikel und heißt wie er.";
+}
+
+/**
  * 🔴 WIRFT BEI JEDEM NEIN DES SERVERS -- und `type_ok === false` IST ein Nein.
  *
  * 💣 Der Typriegel ist die Falle, die man nur einmal uebersieht: `assign_to` antwortet auf einen
@@ -356,6 +368,7 @@ if (typeof module !== "undefined" && module.exports) {
 		avesmapsWikiAssignWegHerkunft: avesmapsWikiAssignWegHerkunft,
 		avesmapsWikiAssignWegZuweisungsKoerper: avesmapsWikiAssignWegZuweisungsKoerper,
 		avesmapsWikiAssignWegGruppenIds: avesmapsWikiAssignWegGruppenIds,
+		avesmapsWikiAssignWegGruppeZuweisenFrage: avesmapsWikiAssignWegGruppeZuweisenFrage,
 		avesmapsWikiAssignWegLoesenKoerper: avesmapsWikiAssignWegLoesenKoerper,
 		avesmapsWikiAssignWegGruppeLoesenFrage: avesmapsWikiAssignWegGruppeLoesenFrage,
 		avesmapsWikiAssignWegAntwortPruefen: avesmapsWikiAssignWegAntwortPruefen,

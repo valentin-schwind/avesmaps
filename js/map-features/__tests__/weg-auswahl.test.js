@@ -6,8 +6,9 @@ const fs = require("fs");
 const path = require("path");
 const A = require(path.join(__dirname, "..", "weg-auswahl.js"));
 
-const RS = "wiki:reichsstrasse-2";
-const BP = "wiki:b-renpfad";
+// Die Gruppe ist fuer diese Regel ein undurchsichtiger Schluessel -- seit 15.09.2026 der NAME (wpGroupKeyOf).
+const RS = "name:Reichsstraße 2";
+const BP = "name:Bärenpfad";
 const klick = A.avesmapsWegAuswahlNachKlick;
 
 // §3.1
@@ -36,14 +37,21 @@ assert.deepStrictEqual(A.avesmapsWegAuswahlIds({ gruppe: RS, publicId: null }, [
 assert.deepStrictEqual(A.avesmapsWegAuswahlIds({ gruppe: RS, publicId: "rs-2" }, ["rs-1", "rs-2"]), ["rs-2"]);
 assert.deepStrictEqual(A.avesmapsWegAuswahlIds(null, ["rs-1"]), []);
 
-// Die Markierungszeile (Kurzform §4)
+// Die Markierungszeile (§4). Owner 15.09.2026: nach dem zweiten Klick „Abschnitt N: … – …", NIEMALS „Ganze Straße".
 assert.strictEqual(A.avesmapsWegMarkierungszeile({ gruppe: RS, publicId: null }, "Perz – Helmdahl"), "Ganze Straße: Perz – Helmdahl");
-assert.strictEqual(A.avesmapsWegMarkierungszeile({ gruppe: RS, publicId: "rs-7" }, "Silkwiesen – Wieha"), "Abschnitt: Silkwiesen – Wieha");
+assert.strictEqual(A.avesmapsWegMarkierungszeile({ gruppe: RS, publicId: null }, "Perz – Helmdahl", 7), "Ganze Straße: Perz – Helmdahl",
+	"die ganze Strasse traegt keine Nummer, auch wenn eine hereinkommt");
+assert.strictEqual(A.avesmapsWegMarkierungszeile({ gruppe: RS, publicId: "rs-7" }, "Silkwiesen – Wieha", 7), "Abschnitt 7: Silkwiesen – Wieha");
+assert.strictEqual(A.avesmapsWegMarkierungszeile({ gruppe: RS, publicId: "rs-7" }, "", 7), "Abschnitt 7", "ohne Enden nur Wort und Nummer");
+assert.strictEqual(A.avesmapsWegMarkierungszeile({ gruppe: RS, publicId: "rs-7" }, "Silkwiesen – Wieha"), "Abschnitt: Silkwiesen – Wieha",
+	"ein einteiliger Weg traegt keine Nummer (wpAbschnittLabel)");
 assert.strictEqual(A.avesmapsWegMarkierungszeile({ gruppe: RS, publicId: null }, ""), "Ganze Straße", "ohne Enden nur das Wort (§4)");
 assert.strictEqual(A.avesmapsWegMarkierungszeile(null, "Perz – Helmdahl"), "");
 assert.strictEqual(A.avesmapsWegMarkierungszeileMarkup({ gruppe: RS, publicId: null }, "Perz – Helmdahl"), "<b>Ganze Straße:</b> Perz – Helmdahl");
 assert.strictEqual(A.avesmapsWegMarkierungszeileMarkup({ gruppe: RS, publicId: null }, ""), "<b>Ganze Straße</b>");
 assert.strictEqual(A.avesmapsWegMarkierungszeileMarkup({ gruppe: RS, publicId: "x" }, "A<b> – B"), "<b>Abschnitt:</b> A&lt;b&gt; – B");
+assert.strictEqual(A.avesmapsWegMarkierungszeileMarkup({ gruppe: RS, publicId: "x" }, "A – B", 12), "<b>Abschnitt 12:</b> A – B");
+assert.strictEqual(A.avesmapsWegMarkierungszeileMarkup({ gruppe: RS, publicId: "x" }, "", 12), "<b>Abschnitt 12</b>");
 assert.strictEqual(A.avesmapsWegMarkierungszeileMarkup(null, "A – B"), "");
 
 // „Verlauf bearbeiten" nur am Abschnitt (§3.4); ohne Markierung (Suche, Deeplink) wie bisher

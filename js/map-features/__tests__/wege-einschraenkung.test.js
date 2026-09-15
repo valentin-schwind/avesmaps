@@ -45,6 +45,8 @@ vm.runInContext(stueck("const PATH_SUBTYPE_KEYS"), ctx);
 vm.runInContext(stueck("const TRANSPORT_DOMAIN_OPTIONS"), ctx);
 vm.runInContext('const SYNTHETIC_ROUTE_TYPE = "Querfeldein";', ctx);
 vm.runInContext(lies("js", "map-features", "map-features-path-domain.js"), ctx);
+// Der Gruppenschluessel ist die Regel des Wege-Editors (wpGroupKeyOf) -- das Modell kommt mit.
+vm.runInContext(lies("js", "pages", "wege-editor-model.js"), ctx);
 vm.runInContext(lies("js", "map-features", "path-einschraenkung.js"), ctx);
 
 ctx.__arg = null;
@@ -208,15 +210,15 @@ landMittel.forEach((mittel) => {
 // =================================================================================================
 // 6. Der Gruppenschlüssel -- welche Abschnitte sind derselbe Weg?
 // =================================================================================================
-// Dieselbe Bauform wie wpGroupWays (js/pages/wege-editor-model.js): die Wiki-Zuweisung ist die
-// Identität eines Weges, der Name nur der Rückfall. „Ein Name ist kein Schlüssel."
+// DIE Regel des Wege-Editors (wpGroupKeyOf, js/pages/wege-editor-model.js): gleicher ECHTER Name ist derselbe Weg, gleich welche
+// Wiki-Zuweisung und Wegart (Owner 15.09.2026: „die selektion soll ausdrücklich über den namen - nicht über die wiki-zuweisung
+// erfolgen"). Bis dahin trennte der wiki_key: zwei Schattenbachpass-Abschnitte ohne Zuweisung standen aufrecht neben dem kursiven Rest.
 const schluessel = (p) => rufe("avesmapsWegGruppenSchluessel(__arg)", p);
-gleich(schluessel(abschnitt("Pfad", { wiki_path: { wiki_key: "saljethweg" } })), "wiki:saljethweg",
-	"mit Wiki-Zuweisung entscheidet der wiki_key");
-gleich(schluessel(abschnitt("Pfad", { name: "Schattenbachpass" })), "name:Pfad:Schattenbachpass",
-	"ohne Zuweisung der Rückfall aus wpGroupWays -- Wegart UND Name");
-wahr(schluessel(abschnitt("Pfad", { wiki_path: { wiki_key: "x" }, name: "A" }))
-	!== schluessel(abschnitt("Pfad", { name: "A" })),
-	"ein zugewiesener und ein nicht zugewiesener Abschnitt sind NICHT dieselbe Gruppe");
+const benannt = (subtype, name, extra) => abschnitt(subtype, Object.assign({ public_id: "id-" + name + "-" + subtype, display_name: name }, extra || {}));
+gleich(schluessel(benannt("Gebirgspass", "Schattenbachpass", { wiki_path: { wiki_key: "schattenbachpass", name: "Schattenbachpass" } })),
+	schluessel(benannt("Gebirgspass", "Schattenbachpass")),
+	"ein zugewiesener und ein nicht zugewiesener Abschnitt gleichen Namens SIND derselbe Weg");
+gleich(schluessel(benannt("Pfad", "Schattenbachpass")), "name:Schattenbachpass", "der Schluessel ist der Name -- ohne Wegart");
+wahr(schluessel(benannt("Pfad", "A")) !== schluessel(benannt("Pfad", "B")), "zwei Namen, zwei Wege");
 
 console.log(`wege-einschraenkung.test.js: ${checks} Zusicherungen bestanden`);

@@ -10,7 +10,9 @@ const lies = (rel) => fs.readFileSync(path.join(WURZEL, rel), "utf8");
 const M = require(path.join(WURZEL, "js/pages/wege-editor-model.js"));
 // Die Kartenleser rufen die Modellfunktionen global, wie im Browser.
 Object.assign(global, { wpGroupWays: M.wpGroupWays, wpGroupKeyOf: M.wpGroupKeyOf, wpChainSegments: M.wpChainSegments,
-	wpAbschnittLabel: M.wpAbschnittLabel, wpGanzeStrecke: M.wpGanzeStrecke });
+	wpAbschnittLabel: M.wpAbschnittLabel, wpGanzeStrecke: M.wpGanzeStrecke,
+	// Der echte Name (map-features-path-domain.js) -- daran haengt die Gruppe; die Fixtures tragen ihn in display_name.
+	getPathTitleName: (p) => p.properties.display_name });
 const W = require(path.join(WURZEL, "js/map-features/weg-abschnitte.js"));
 
 // 1. Die gemeinsamen Faelle

@@ -29,33 +29,33 @@ function attrappe(name) {
 }
 
 const WEGE = [
-	{ public_id: "p-1", name: "Alte Straße", feature_subtype: "Strasse", show_label: true, allowed_transports: ["caravan"],
+	{ public_id: "p-1", name: "Alte Straße", echter_name: "Alte Straße", feature_subtype: "Strasse", show_label: true, allowed_transports: ["caravan"],
 		transport_seasons: {}, wiki_path: { wiki_key: "alte-strasse", name: "Alte Straße", wiki_url: "https://x/Alte" },
 		wiki_path_weitere: [], flow_direction: "", has_profile: true, bbox: [0, 0, 1, 0] },
-	{ public_id: "p-2", name: "Alte Straße", feature_subtype: "Strasse", show_label: true, allowed_transports: ["caravan"],
+	{ public_id: "p-2", name: "Alte Straße", echter_name: "Alte Straße", feature_subtype: "Strasse", show_label: true, allowed_transports: ["caravan"],
 		transport_seasons: {}, wiki_path: { wiki_key: "alte-strasse", name: "Alte Straße", wiki_url: "https://x/Alte" },
 		wiki_path_weitere: [], flow_direction: "", has_profile: true, bbox: [1, 0, 2, 0] },
 	// R22: ein Abschnitt OHNE Hauptzuweisung, der noch eine weitere traegt (§9.5: die Zeile bleibt mit ✕ stehen).
-	{ public_id: "p-3", name: "Einsamer Pfad", feature_subtype: "Pfad", show_label: true, allowed_transports: ["lightWalker"],
+	{ public_id: "p-3", name: "Einsamer Pfad", echter_name: "Einsamer Pfad", feature_subtype: "Pfad", show_label: true, allowed_transports: ["lightWalker"],
 		transport_seasons: {}, wiki_path: null,
 		wiki_path_weitere: [{ wiki_key: "b-renpfad", name: "Bärenpfad", wiki_url: "https://x/B" }],
 		flow_direction: "", has_profile: false, bbox: [5, 5, 6, 5] },
 	// Fixrunde: ein zweiteiliger Weg OHNE Wiki-Zuweisung -- im Reiter „Fehlt" sichtbar, bis er einen Artikel bekommt.
-	{ public_id: "p-4", name: "Neuer Weg", feature_subtype: "Weg", show_label: true, allowed_transports: ["caravan"],
+	{ public_id: "p-4", name: "Neuer Weg", echter_name: "Neuer Weg", feature_subtype: "Weg", show_label: true, allowed_transports: ["caravan"],
 		transport_seasons: {}, wiki_path: null, wiki_path_weitere: [], flow_direction: "", has_profile: true, bbox: [8, 0, 9, 0] },
-	{ public_id: "p-5", name: "Neuer Weg", feature_subtype: "Weg", show_label: true, allowed_transports: ["caravan"],
+	{ public_id: "p-5", name: "Neuer Weg", echter_name: "Neuer Weg", feature_subtype: "Weg", show_label: true, allowed_transports: ["caravan"],
 		transport_seasons: {}, wiki_path: null, wiki_path_weitere: [], flow_direction: "", has_profile: true, bbox: [9, 0, 10, 0] },
 ];
 
 // Die kanonischen Namen, die `assign_to` den Abschnitten gibt (R1).
 const WIKI_NAMEN = { "alte-strasse": "Alte Straße", baerenstieg: "Bärenstieg" };
 
-function sandkasten() {
+function sandkasten(weitereWege) {
 	const elemente = {};
 	const gesendet = [];
 	const fragen = [];
 	// Je Sandkasten ein eigener Bestand: `assign_to` schreibt ihn wie der Server (R1 benennt um, wiki_path wird gesetzt).
-	const wege = JSON.parse(JSON.stringify(WEGE));
+	const wege = JSON.parse(JSON.stringify(WEGE.concat(weitereWege || [])));
 	const dokument = {
 		readyState: "complete",
 		getElementById(id) { if (!elemente[id]) { elemente[id] = attrappe(id); } return elemente[id]; },
@@ -86,6 +86,8 @@ function sandkasten() {
 					if (ziele.indexOf(w.public_id) === -1 || (w.wiki_path && w.wiki_path.wiki_key === rumpf.wiki_key)) { return; }
 					w.wiki_path = { wiki_key: rumpf.wiki_key, name, wiki_url: "https://x/" + rumpf.wiki_key };
 					w.name = name;
+					// Der Server liefert den echten Namen mit (avesmapsWikiPathEchterName): nach R1 der des Artikels.
+					w.echter_name = name;
 				});
 				antwort = { ok: true, type_ok: true, applied: ziele.length, wiki_name: name, segments_updated: [] };
 			}
@@ -125,7 +127,7 @@ async function neuenWegZuweisen(einrichten) {
 	const f = sandkasten();
 	await ruhe();
 	einrichten(f);
-	f.elemente.wpList.zuhoerer.click({ target: zeile({ "data-group": "name:Weg:Neuer Weg" }), preventDefault() {} });
+	f.elemente.wpList.zuhoerer.click({ target: zeile({ "data-group": "name:Neuer Weg" }), preventDefault() {} });
 	await ruhe();
 	const g = f.kasten.gemounted[f.kasten.gemounted.length - 1];
 	assert.strictEqual(g.host, f.elemente.wpGroupWikiAssign, "Vorbedingung: die Weg-Ebene von „Neuer Weg“ ist gewaehlt");
@@ -166,7 +168,7 @@ function pruefeRueckfallAufAnker(f, wo) {
 	assert.ok(!("wpWikiWeitere" in s.elemente), "niemand fragt mehr nach #wpWikiWeitere");
 
 	// ---- 2. Weg-Ebene: ein EIGENER Kasten „Wiki-Weg“ mit Anhang ---------------------------------------------------
-	s.elemente.wpList.zuhoerer.click({ target: zeile({ "data-group": "wiki:alte-strasse" }), preventDefault() {} });
+	s.elemente.wpList.zuhoerer.click({ target: zeile({ "data-group": "name:Alte Straße" }), preventDefault() {} });
 	await ruhe();
 	assert.ok(s.elemente.wpDetail.innerHTML.includes('id="wpGroupWikiAssign"'), "die Weg-Ebene traegt den Kasten „Wiki-Weg“");
 	assert.ok(!s.elemente.wpDetail.innerHTML.includes('id="wpGroupWikiWeitere"'), "der alte Einzelkasten ist gefallen");
@@ -192,7 +194,7 @@ function pruefeRueckfallAufAnker(f, wo) {
 	assert.strictEqual(zuweisung.rumpf.public_id, "p-1");
 
 	// ---- 4. Entfernen auf der Weg-Ebene: EINE Frage, dann public_ids, dann der Ankerabschnitt ----------------------
-	s.elemente.wpList.zuhoerer.click({ target: zeile({ "data-group": "wiki:alte-strasse" }), preventDefault() {} });
+	s.elemente.wpList.zuhoerer.click({ target: zeile({ "data-group": "name:Alte Straße" }), preventDefault() {} });
 	await ruhe();
 	const gruppe2 = s.kasten.gemounted[s.kasten.gemounted.length - 1];
 	s.gesendet.length = 0;
@@ -207,7 +209,7 @@ function pruefeRueckfallAufAnker(f, wo) {
 	assert.ok(s.gesendet.some((g) => g.url.indexOf("action=detail") !== -1), "danach ist der Ankerabschnitt gewaehlt -- die Gruppe ist zerfallen");
 
 	// ---- 5. Sync auf der Weg-Ebene: das Sammel-Speichern schickt wiki_uebernommen ---------------------------------
-	s.elemente.wpList.zuhoerer.click({ target: zeile({ "data-group": "wiki:alte-strasse" }), preventDefault() {} });
+	s.elemente.wpList.zuhoerer.click({ target: zeile({ "data-group": "name:Alte Straße" }), preventDefault() {} });
 	await ruhe();
 	const gruppe3 = s.kasten.gemounted[s.kasten.gemounted.length - 1];
 	gruppe3.opts.syncUebernehmen([{ karte: "feature_subtype", neu: "Reichsstrasse" }]);
@@ -221,7 +223,7 @@ function pruefeRueckfallAufAnker(f, wo) {
 		"ohne wiki_uebernommen stempelte der Server die Uebernahme als „von uns“ (§9.5)");
 
 	// ---- 6. Ungespeicherte Weg-Ebene-Eingaben werden benannt, nicht still verworfen ------------------------------------
-	s.elemente.wpList.zuhoerer.click({ target: zeile({ "data-group": "wiki:alte-strasse" }), preventDefault() {} });
+	s.elemente.wpList.zuhoerer.click({ target: zeile({ "data-group": "name:Alte Straße" }), preventDefault() {} });
 	await ruhe();
 	const gruppe4 = s.kasten.gemounted[s.kasten.gemounted.length - 1];
 	gruppe4.opts.syncUebernehmen([{ karte: "feature_subtype", neu: "Reichsstrasse" }]);
@@ -253,7 +255,7 @@ function pruefeRueckfallAufAnker(f, wo) {
 	assert.deepStrictEqual([...entfernt.rumpf.public_ids], ["p-3"]);
 
 	// ---- 8. Fixrunde: Zuweisen im Reiter „Fehlt“ -- die neue Gruppe ist ausgeblendet ------------------------------------
-	// 💣 findGroup ist GEFILTERT: nach der Zuweisung faellt „wiki:baerenstieg“ aus dem Reiter „Fehlt“. Bis zur Fixrunde kehrte
+	// 💣 findGroup ist GEFILTERT: nach der Zuweisung faellt „name:Bärenstieg“ aus dem Reiter „Fehlt“. Bis zur Fixrunde kehrte
 	// selectGroup still zurueck, und die Spalte stand mit einem Entwurf da, dessen Gruppe es nicht mehr gab.
 	const fehlt = await neuenWegZuweisen((f) => {
 		f.elemente.wpTabs.children = [];
@@ -272,9 +274,39 @@ function pruefeRueckfallAufAnker(f, wo) {
 	// ---- 10. Fixrunde, Gegenprobe: ohne Filter wird die neue Gruppe gewaehlt, nicht der Anker --------------------------
 	const offen = await neuenWegZuweisen(() => {});
 	const offenDanach = offen.kasten.gemounted[offen.kasten.gemounted.length - 1];
-	assert.strictEqual(offenDanach.host, offen.elemente.wpGroupWikiAssign, "ohne Filter bleibt die Weg-Ebene gewaehlt -- jetzt als wiki:baerenstieg");
+	assert.strictEqual(offenDanach.host, offen.elemente.wpGroupWikiAssign, "ohne Filter bleibt die Weg-Ebene gewaehlt -- jetzt als name:Bärenstieg");
 	assert.strictEqual(offenDanach.opts.laden().artikel.wiki_key, "baerenstieg");
 	assert.ok(!offen.gesendet.some((x) => x.url.indexOf("action=detail") !== -1), "kein Rueckfall, wenn die Gruppe sichtbar ist");
+
+	// ---- 11. Owner 15.09.2026: die Strasse ist der NAME und kann GEMISCHT sein -- Zuweisen fragt dann, ein Nein schreibt nichts ----
+	// „Alte Straße" bekommt einen dritten Abschnitt OHNE Zuweisung und mit anderer Wegart.
+	const gemischt = sandkasten([{ public_id: "p-6", name: "Alte Straße", echter_name: "Alte Straße", feature_subtype: "Weg", show_label: true,
+		allowed_transports: ["caravan"], transport_seasons: {}, wiki_path: null, wiki_path_weitere: [], flow_direction: "", has_profile: true,
+		bbox: [3, 0, 4, 0] }]);
+	await ruhe();
+	gemischt.elemente.wpList.zuhoerer.click({ target: zeile({ "data-group": "name:Alte Straße" }), preventDefault() {} });
+	await ruhe();
+	const gGemischt = gemischt.kasten.gemounted[gemischt.kasten.gemounted.length - 1];
+	assert.strictEqual(gGemischt.host, gemischt.elemente.wpGroupWikiAssign, "Vorbedingung: die gemischte Strasse steht auf der Weg-Ebene");
+	assert.deepStrictEqual([...gemischt.kasten.weitereMounts[gemischt.kasten.weitereMounts.length - 1].opts.abschnitte().map((a) => a.public_id)],
+		["p-1", "p-2", "p-6"], "die Strasse umfasst den Abschnitt ohne Zuweisung und mit anderer Wegart");
+	assert.strictEqual(gGemischt.opts.laden().artikel.wiki_key, "alte-strasse", "der Kasten nennt die Zuweisung, die in der Strasse steht");
+	gemischt.kasten.confirm = (text) => { gemischt.fragen.push(String(text)); return false; };
+	gemischt.fragen.length = 0;
+	gemischt.gesendet.length = 0;
+	let nein = false;
+	await gGemischt.opts.zuweisen({ wiki_key: "alte-strasse", name: "Alte Straße", werte: {} }).catch(() => { nein = true; });
+	assert.ok(nein, "abgebrochen ist abgelehnt");
+	assert.strictEqual(gemischt.fragen.length, 1, "genau eine Rueckfrage");
+	assert.ok(gemischt.fragen[0].includes("verschiedene Wiki-Zuordnungen") && gemischt.fragen[0].includes("allen 3 Abschnitten"), gemischt.fragen[0]);
+	assert.ok(!gemischt.gesendet.some((x) => x.rumpf && x.rumpf.action === "assign_to"), "ein Nein schreibt nichts");
+	gemischt.kasten.confirm = (text) => { gemischt.fragen.push(String(text)); return true; };
+	await gGemischt.opts.zuweisen({ wiki_key: "alte-strasse", name: "Alte Straße", werte: {} });
+	await ruhe();
+	const ja = gemischt.gesendet.find((x) => x.rumpf && x.rumpf.action === "assign_to");
+	assert.ok(ja, "ein Ja schreibt");
+	assert.deepStrictEqual([...ja.rumpf.public_ids], ["p-1", "p-2", "p-6"], "... auf alle Abschnitte der Strasse");
+	// Gegenprobe: die einige Strasse (Abschnitt 3) fragte nicht -- s.fragen blieb dort leer bis zum Entfernen.
 
 	console.log("wege-editor-wiki-kasten.test.js: ok");
 })().catch((fehler) => { console.error(fehler); process.exit(1); });

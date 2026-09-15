@@ -61,18 +61,26 @@ function avesmapsWegWeitereZeilenMarkup(path, auswahl) {
 		});
 	});
 
-	// „Verläuft auch über": fremde Traeger des eigenen Hauptartikels, je fremdem Weg einmal.
-	const hauptKey = String(path?.properties?.wiki_path?.wiki_key || "").trim();
-	const eigeneIds = new Set(avesmapsWegGruppeAufKarte(path).map((way) => way.public_id));
+	// „Verläuft auch über": fremde Traeger der eigenen Hauptartikel, je fremdem Weg einmal. 🔴 An der GANZEN Strasse alle Artikel,
+	// die in ihr stehen -- seit die Strasse der Name ist (Owner 15.09.2026), kann sie gemischt sein, und die Zeile darf nicht davon
+	// abhaengen, welchen Abschnitt man angeklickt hat. Am Abschnitt nur sein eigener.
+	const eigeneWays = avesmapsWegGruppeAufKarte(path);
+	const eigeneIds = new Set(eigeneWays.map((way) => way.public_id));
+	const hauptKeys = ganz
+		? wpGruppeHauptzuweisungen(eigeneWays).filter(Boolean)
+		: [String(path?.properties?.wiki_path?.wiki_key || "").trim()].filter(Boolean);
 	const ueber = new Map();
-	(hauptKey ? (avesmapsWegTraegerIndex().get(hauptKey) || []) : []).forEach((traeger) => {
-		const way = avesmapsWegAlsWay(traeger);
-		if (eigeneIds.has(way.public_id)) { return; }
-		const fremderKey = String(way.wiki_path?.wiki_key || way.name);
-		if (!ueber.has(fremderKey)) {
-			ueber.set(fremderKey, { name: String(way.wiki_path?.name || way.name), ref: wikiUrlToDeeplinkKey(way.wiki_path?.wiki_url), labels: [] });
-		}
-		ueber.get(fremderKey).labels.push(avesmapsWegWeitereLabel(way));
+	hauptKeys.forEach((hauptKey) => {
+		(avesmapsWegTraegerIndex().get(hauptKey) || []).forEach((traeger) => {
+			const way = avesmapsWegAlsWay(traeger);
+			if (eigeneIds.has(way.public_id)) { return; }
+			const fremderKey = String(way.wiki_path?.wiki_key || way.name);
+			if (!ueber.has(fremderKey)) {
+				ueber.set(fremderKey, { name: String(way.wiki_path?.name || way.name), ref: wikiUrlToDeeplinkKey(way.wiki_path?.wiki_url), labels: [] });
+			}
+			const label = avesmapsWegWeitereLabel(way);
+			if (ueber.get(fremderKey).labels.indexOf(label) === -1) { ueber.get(fremderKey).labels.push(label); }
+		});
 	});
 
 	const alsEintraege = (karte, gesamt) => Array.from(karte.values()).map((e) => ({

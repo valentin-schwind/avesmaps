@@ -62,12 +62,19 @@ function avesmapsWegAuswahlSetzen(stand, abschnitt) {
 	if (stand && abschnitt) {
 		const gruppenIds = abschnitt.gruppe.segments.map((way) => way.public_id);
 		avesmapsWegAuswahlMarkiert = new Set(avesmapsWegAuswahlIds(stand, gruppenIds));
-		// Fremde Traeger nur bei der GANZEN Strasse eines ARTIKELS -- eine Namensgruppe hat keinen Schluessel.
-		const key = stand.publicId === null && stand.gruppe.indexOf("wiki:") === 0 ? stand.gruppe.slice(5) : "";
-		if (key && typeof avesmapsWegTraegerIndex === "function") {
-			(avesmapsWegTraegerIndex().get(key) || []).forEach((traeger) => {
-				const id = getPathPublicId(traeger);
-				if (!avesmapsWegAuswahlMarkiert.has(id)) { avesmapsWegAuswahlTraeger.add(id); }
+		// Fremde Traeger nur bei der GANZEN Strasse -- und zwar aller Artikel, die IN ihr stehen. 🔴 Seit die Strasse der Name
+		// ist (Owner 15.09.2026), sagt der Gruppenschluessel nichts mehr ueber einen Artikel, und der angeklickte Abschnitt kann
+		// selbst keinen tragen, waehrend seine Nachbarn ihn tragen.
+		// ⚠️ Ohne typeof-Wache: das Modell laedt fuer jeden (wie wpGroupWays in weg-abschnitte.js). Eine Wache liesse die
+		// gestrichelten Traeger bei fehlendem Modell STILL wegfallen -- genau so ist es beim Bau im Test aufgefallen.
+		const keys = stand.publicId === null ? wpGruppeHauptzuweisungen(abschnitt.gruppe.segments).filter(Boolean) : [];
+		if (keys.length && typeof avesmapsWegTraegerIndex === "function") {
+			const index = avesmapsWegTraegerIndex();
+			keys.forEach((key) => {
+				(index.get(key) || []).forEach((traeger) => {
+					const id = getPathPublicId(traeger);
+					if (!avesmapsWegAuswahlMarkiert.has(id)) { avesmapsWegAuswahlTraeger.add(id); }
+				});
 			});
 		}
 	}
@@ -134,8 +141,13 @@ function avesmapsWegNamenKlickZiel(event) {
 	if (avesmapsWegWerkzeugLaeuft(avesmapsWegMenueBeimDruecken)) { return null; }
 	const treffer = window.avesmapsWegNamenTreffer(event.containerPoint);
 	const wikiKey = treffer && treffer.wikiKey ? String(treffer.wikiKey) : "";
-	if (!wikiKey || typeof avesmapsWegGruppenAufKarte !== "function" || typeof findPathByPublicId !== "function") { return null; }
-	const gruppe = avesmapsWegGruppenAufKarte().nachKey.get("wiki:" + wikiKey);
+	if (!wikiKey || typeof avesmapsWegAbschnittAufKarte !== "function" || typeof findPathByPublicId !== "function"
+		|| typeof pathData === "undefined" || !Array.isArray(pathData)) { return null; }
+	// 🔴 Die Strasse ist der NAME (Owner 15.09.2026), kein `wiki:<key>`-Schluessel mehr. Das Register kennt nur den Artikel des
+	// gezeichneten Namens -- also ein Abschnitt, der ihn traegt, und DESSEN Gruppe (wpGroupKeyOf). Gleichnamige Abschnitte ohne
+	// Zuweisung gehoeren damit zu den Kandidaten; der naechste zum Klickpunkt bekommt den Linien-Klick.
+	const traeger = pathData.find((pfad) => String(pfad?.properties?.wiki_path?.wiki_key || "") === wikiKey);
+	const gruppe = traeger ? ((avesmapsWegAbschnittAufKarte(traeger) || {}).gruppe || null) : null;
 	if (!gruppe) { return null; }
 	const abschnitte = gruppe.segments.map((way) => {
 		const pfad = findPathByPublicId(way.public_id);

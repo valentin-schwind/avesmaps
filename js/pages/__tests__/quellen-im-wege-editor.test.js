@@ -100,18 +100,18 @@ const modell = ohneKommentare(lies("js/pages/wege-editor-model.js"));
 	vm.createContext(context);
 	vm.runInContext(lies("js/pages/wege-editor-model.js"), context);
 	const segmente = [
-		{ public_id: "a", name: "Schattenbachpass", feature_subtype: "Gebirgspass", show_label: false, allowed_transports: ["lightWalker"] },
-		{ public_id: "b", name: "Schattenbachpass", feature_subtype: "Gebirgspass", show_label: false, allowed_transports: ["lightWalker"] },
+		{ public_id: "a", name: "Schattenbachpass", echter_name: "Schattenbachpass", feature_subtype: "Gebirgspass", show_label: false, allowed_transports: ["lightWalker"] },
+		{ public_id: "b", name: "Schattenbachpass", echter_name: "Schattenbachpass", feature_subtype: "Gebirgspass", show_label: false, allowed_transports: ["lightWalker"] },
 	];
 	const stand = context.wpGroupFieldStates(segmente, ["lightWalker", "horseCarriage"]);
 	assert.ok(!("other_source" in stand), "der Feldstand kennt other_source nicht mehr");
 	const felder = context.wpGroupChangedFields(stand, { name: "Schattenbachpass", show_label: false, feature_subtype: "Gebirgspass", transports: { lightWalker: "an", horseCarriage: "aus" } });
 	assert.deepStrictEqual([...felder], [], "nichts angefasst, nichts geaendert -- und kein Phantomfeld other_source");
-	assert.strictEqual(context.wpGroupKeyOf({ name: "Schattenbachpass", feature_subtype: "Gebirgspass", wiki_path: null }), "name:Gebirgspass:Schattenbachpass", "wpGroupKeyOf: der Namensschluessel");
-	assert.strictEqual(context.wpGroupKeyOf({ name: "x", feature_subtype: "Weg", wiki_path: { wiki_key: "reichsstrasse-2" } }), "wiki:reichsstrasse-2", "wpGroupKeyOf: der Wiki-Schluessel gewinnt");
+	assert.strictEqual(context.wpGroupKeyOf({ name: "Schattenbachpass", echter_name: "Schattenbachpass", feature_subtype: "Gebirgspass", wiki_path: null }), "name:Schattenbachpass", "wpGroupKeyOf: der echte Name");
+	assert.strictEqual(context.wpGroupKeyOf({ public_id: "w", name: "x", echter_name: "Reichsstraße 2", feature_subtype: "Weg", wiki_path: { wiki_key: "reichsstrasse-2" } }), "name:Reichsstraße 2", "wpGroupKeyOf: die Wiki-Zuweisung trennt nicht mehr (Owner 15.09.2026)");
 	assert.strictEqual(context.wpGroupWays(segmente)[0].key, context.wpGroupKeyOf(segmente[0]), "wpGroupWays gruppiert ueber DENSELBEN Schluessel -- keine zweite Rechnung");
-	const mitWiki = { public_id: "w", name: "x", feature_subtype: "Weg", wiki_path: { wiki_key: "reichsstrasse-2" } };
-	assert.strictEqual(context.wpGroupWays([mitWiki])[0].key, "wiki:reichsstrasse-2", "… auch beim Wiki-Schluessel, wo eine Namensrechnung still etwas anderes ergaebe");
+	const mitWiki = { public_id: "w", name: "x", echter_name: "Reichsstraße 2", feature_subtype: "Weg", wiki_path: { wiki_key: "reichsstrasse-2" } };
+	assert.strictEqual(context.wpGroupWays([mitWiki])[0].key, context.wpGroupKeyOf(mitWiki), "… auch mit Wiki-Zuweisung derselbe Schluessel");
 }
 
 console.log("quellen-im-wege-editor: alle Zusicherungen erfuellt");

@@ -91,15 +91,22 @@ function avesmapsWegAlsRouteGanzeStrasse(path) {
 	const abschnitt = typeof avesmapsWegAbschnittAufKarte === "function" ? avesmapsWegAbschnittAufKarte(path) : null;
 	if (!abschnitt) { return []; }
 	const ways = abschnitt.gruppe.segments.slice();
-	const key = String((path && path.properties && path.properties.wiki_path && path.properties.wiki_path.wiki_key) || "");
-	if (key && typeof avesmapsWegTraegerIndex === "function") {
+	// 🔴 Die Traeger ALLER Artikel der Strasse, nicht nur des angeklickten Abschnitts: seit die Strasse der Name ist (Owner
+	// 15.09.2026), kann ein Abschnitt ohne Zuweisung zwischen zugewiesenen liegen -- und die Route darf nicht davon abhaengen,
+	// welchen man anklickt. avesmapsWegAlsRouteHatZweiOrte merkt sich die Antwort ohnehin je Strasse.
+	// ⚠️ Ohne typeof-Wache, wie wpChainSegments unten: eine Wache liesse die Traeger bei fehlendem Modell STILL wegfallen.
+	const keys = wpGruppeHauptzuweisungen(ways).filter(Boolean);
+	if (keys.length && typeof avesmapsWegTraegerIndex === "function") {
 		const ids = new Set(ways.map((way) => way.public_id));
-		(avesmapsWegTraegerIndex().get(key) || []).forEach((traeger) => {
-			const way = avesmapsWegAlsWay(traeger);
-			if (!ids.has(way.public_id)) {
-				ids.add(way.public_id);
-				ways.push(way);
-			}
+		const index = avesmapsWegTraegerIndex();
+		keys.forEach((key) => {
+			(index.get(key) || []).forEach((traeger) => {
+				const way = avesmapsWegAlsWay(traeger);
+				if (!ids.has(way.public_id)) {
+					ids.add(way.public_id);
+					ways.push(way);
+				}
+			});
 		});
 	}
 	return avesmapsWegAlsRouteOrte(ways, avesmapsWegAlsRouteAuslassen);

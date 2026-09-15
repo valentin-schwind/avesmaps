@@ -46,8 +46,8 @@ function populatePathEditForm(path) {
  *
  * 🔴 Der Getter liest `#path-edit-public-id` bei JEDER Anfrage, und die Gruppe wird bei jeder Anfrage aus
  * dem AKTUELLEN Bestand gebildet: alle Abschnitte mit demselben Gruppenschluessel wie dieser Weg
- * (`avesmapsWegGruppenSchluessel` -- `wiki:<key>`, sonst `name:<Wegart>:<Name>`; derselbe Schluessel wie
- * `wpGroupWays` im Wege-Editor, kein zweiter). Am Abschnitt ist nichts fest: die Eingabezeile bietet
+ * (`avesmapsWegGruppenSchluessel` -- seit 15.09.2026 der echte Name, gleich welche Wiki-Zuweisung und Wegart; derselbe
+ * Schluessel wie `wpGroupWays` im Wege-Editor, kein zweiter). Am Abschnitt ist nichts fest: die Eingabezeile bietet
  * „alle N Abschnitte dieses Weges" (Vorgabe) oder „nur dieser Abschnitt", ✕ und ✎ gelten dem Abschnitt.
  * Entwurf: docs/superpowers/specs/2026-09-03-quellen-wege-design.md §3.3.
  * 💣 Kein Stapeln: der Host wird durch einen Klon ersetzt und die Vorschlagsliste des vorigen Mounts
@@ -115,17 +115,17 @@ function pathEditSpeicherText() {
 	return pathEditGruppe ? avesmapsPathGruppeKnopfText(pathEditGruppe.pfade.length) : "Speichern";
 }
 
-/** Die kurze Zeile oben im Dialog -- dieselbe wie in der Infobox (§3.5). */
+/**
+ * Die kurze Zeile oben im Dialog -- dieselbe wie in der Infobox (§3.5), ueber DENSELBEN Leser
+ * (avesmapsWegMarkierungszeileAufKarte): am Abschnitt „Abschnitt N: …", nie ein Text der ganzen Strasse (Owner 15.09.2026).
+ */
 function pathEditUmfangZeigen(path, ganz) {
 	const zeile = document.getElementById("path-edit-umfang");
 	if (!zeile) {
 		return;
 	}
-	const strecke = ganz
-		? (typeof avesmapsWegGanzeStreckeAufKarte === "function" ? avesmapsWegGanzeStreckeAufKarte(path) : "")
-		: (typeof avesmapsWegStreckeAufKarte === "function" ? avesmapsWegStreckeAufKarte(path) : "");
-	const markup = typeof avesmapsWegMarkierungszeileMarkup === "function"
-		? avesmapsWegMarkierungszeileMarkup({ gruppe: "", publicId: ganz ? null : getPathPublicId(path) }, strecke)
+	const markup = typeof avesmapsWegMarkierungszeileAufKarte === "function"
+		? avesmapsWegMarkierungszeileAufKarte(path, { gruppe: "", publicId: ganz ? null : getPathPublicId(path) })
 		: "";
 	zeile.innerHTML = markup;
 	zeile.hidden = markup === "";

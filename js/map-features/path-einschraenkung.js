@@ -74,21 +74,19 @@ const AVESMAPS_WEG_MITTEL_FAMILIEN = [
 	{ wort: "zu Pferd", mitglieder: ["groupHorse", "lightRider"] },
 ];
 
-/** Welche Abschnitte sind DERSELBE Weg? Dieselbe Bauform wie wpGroupWays (wege-editor-model.js). */
+/**
+ * Welche Abschnitte sind DERSELBE Weg? Die EINE Regel des Wege-Editors (wpGroupKeyOf, js/pages/wege-editor-model.js):
+ * gleicher echter Name, gleich welche Wiki-Zuweisung und Wegart (Owner 15.09.2026: „die selektion soll ausdrücklich über
+ * den namen - nicht über die wiki-zuweisung erfolgen"). Bis dahin trennte der Wiki-Schlüssel -- zwei Schattenbachpass-
+ * Abschnitte ohne Zuweisung standen hier als eigener Weg aufrecht neben dem kursiven Rest.
+ * 💣 DER ECHTE NAME KOMMT VON getPathTitleName (map-features-path-domain.js), nie aus `properties.name`: das ist im Browser
+ * der MASCHINENNAME, normalizeRoutePathFeature (map-features-path-prepare.js) schreibt `<Wegart>-<n>` hinein. Mit `name`
+ * bildete hier jeder unzugewiesene Abschnitt seine eigene Gruppe -- kursive Schrift und „alle N Abschnitte" im Quellenkasten
+ * des Kartendialogs griffen nie (gefunden 14.09.2026).
+ */
 function avesmapsWegGruppenSchluessel(pfad) {
 	const p = (pfad && pfad.properties) || {};
-	const wikiKey = p.wiki_path && p.wiki_path.wiki_key ? String(p.wiki_path.wiki_key).trim() : "";
-	if (wikiKey !== "") {
-		return "wiki:" + wikiKey;
-	}
-	// 🔴 Der Name ist kein Schlüssel -- er ist hier nur der Rückfall, exakt wie im Wege-Editor.
-	// 💣 UND ES MUSS DER ECHTE NAME SEIN. `properties.name` ist im Browser der MASCHINENNAME:
-	// normalizeRoutePathFeature (map-features-path-prepare.js) schreibt `<Wegart>-<n>` hinein und legt
-	// den echten nach display_name/original_name. Mit `name` bildete hier jeder unzugewiesene Abschnitt
-	// seine eigene Gruppe -- kursive Schrift und „alle N Abschnitte" im Quellenkasten des Kartendialogs
-	// griffen nie (gefunden 14.09.2026). paths-editor.php schickt display_name als `name`.
-	const echterName = p.display_name || p.original_name || p.name || "";
-	return "name:" + String(p.feature_subtype || "") + ":" + String(echterName);
+	return wpGroupKeyOf({ public_id: String(p.public_id || ""), echter_name: getPathTitleName(pfad) });
 }
 
 function avesmapsWegIstLandweg(properties) {

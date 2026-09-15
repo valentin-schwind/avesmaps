@@ -49,6 +49,8 @@ function kontextBauen() {
 		avesmapsWikiAssignWegGruppenIds: W.avesmapsWikiAssignWegGruppenIds,
 		avesmapsWikiAssignWegLoesenKoerper: W.avesmapsWikiAssignWegLoesenKoerper,
 		avesmapsWikiAssignWegGruppeLoesenFrage: W.avesmapsWikiAssignWegGruppeLoesenFrage,
+		avesmapsWikiAssignWegGruppeZuweisenFrage: W.avesmapsWikiAssignWegGruppeZuweisenFrage,
+		wpGruppeHauptzuweisungen: M.wpGruppeHauptzuweisungen,
 		pathWikiWeitereAnhang: () => anhang,
 		pathEditGruppeNachWikiSchreiben: () => { log.nachGruppe += 1; },
 		pollLiveMapUpdates: () => { log.poll += 1; return Promise.resolve(); },
@@ -88,6 +90,27 @@ function kontextBauen() {
 		assert.deepStrictEqual([...k.log.post[0].public_ids], ["rs-7", "rs-6", "rs-8"], "der geklickte Abschnitt vorn");
 		assert.strictEqual(k.log.nachGruppe, 1, "der Vergleichsstand wird neu gerechnet");
 		assert.strictEqual(k.log.poll, 1, "Gruppen und Traeger-Index haengen an der Kartenrevision");
+		assert.strictEqual(k.log.fragen.length, 0, "eine einige Strasse fragt vor dem Zuweisen nicht");
+	}
+
+	// ---- 3b. Owner 15.09.2026: die Strasse ist der NAME und kann GEMISCHT sein -- dann fragt Zuweisen, ein Nein schreibt nichts --
+	{
+		const ohne = { properties: { public_id: "rs-9", wiki_path: null } };
+		const k = kontextBauen();
+		k.kontext.pathEditGruppe = { pfade: [rs6, rs7, rs8, ohne], stand: {} };
+		k.log.antwort = false;
+		let abgelehnt = null;
+		await k.rufe("pathWikiZuweisen")({ wiki_key: "reichsstrasse-2", name: "Reichsstraße 2" }).catch((fehler) => { abgelehnt = fehler; });
+		assert.strictEqual(k.log.fragen.length, 1, "eine gemischte Strasse fragt vor dem Zuweisen");
+		assert.ok(k.log.fragen[0].includes("verschiedene Wiki-Zuordnungen") && k.log.fragen[0].includes("allen 4 Abschnitten"), k.log.fragen[0]);
+		assert.ok(abgelehnt && abgelehnt.message === "Abgebrochen.", "abgebrochen ist abgelehnt");
+		assert.strictEqual(k.log.post.length, 0, "ein Nein schreibt nichts");
+
+		const k2 = kontextBauen();
+		k2.kontext.pathEditGruppe = { pfade: [rs6, rs7, rs8, ohne], stand: {} };
+		await k2.rufe("pathWikiZuweisen")({ wiki_key: "reichsstrasse-2", name: "Reichsstraße 2" });
+		assert.strictEqual(k2.log.fragen.length, 1);
+		assert.deepStrictEqual([...k2.log.post[0].public_ids], ["rs-7", "rs-6", "rs-8", "rs-9"], "ein Ja schreibt auf alle Abschnitte");
 	}
 
 	// ---- 4. Gruppendialog: Entfernen mit EINER Frage, ohne Trockenlauf, abbrechbar ------------------------------------

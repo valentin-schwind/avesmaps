@@ -21,13 +21,15 @@ const M = require(path.join(WURZEL, "js/pages/wege-editor-model.js"));
 const menue = { hidden: true };
 Object.assign(global, {
 	wpGroupWays: M.wpGroupWays, wpGroupKeyOf: M.wpGroupKeyOf, wpChainSegments: M.wpChainSegments,
-	wpAbschnittLabel: M.wpAbschnittLabel, wpGanzeStrecke: M.wpGanzeStrecke,
+	wpAbschnittLabel: M.wpAbschnittLabel, wpGanzeStrecke: M.wpGanzeStrecke, wpGruppeHauptzuweisungen: M.wpGruppeHauptzuweisungen,
 	getPathPublicId: (p) => p.properties.public_id,
 	LOCATION_ENDPOINT_EXACT_HIT: 0.01,
 	isCrossingLocation: () => false,
 	mapDataSourceStatus: { revision: 1 },
 	IS_EDIT_MODE: true,
 	activePathGeometryEdit: null,
+	// Der echte Name (map-features-path-domain.js) -- daran haengt die Strasse; die Fixtures tragen ihn in display_name.
+	getPathTitleName: (p) => p.properties.display_name,
 	locationData: [],
 	document: { getElementById: (id) => (id === "map-context-menu" ? menue : null) },
 	window: {},
@@ -64,11 +66,11 @@ assert.strictEqual(gefeuert.length, 1);
 assert.strictEqual(gefeuert[0][0], "rs-8", "der Abschnitt, der dem Klickpunkt am naechsten liegt -- latlng wird zu [x, y] gedreht");
 assert.strictEqual(gefeuert[0][1], "click");
 assert.deepStrictEqual(gefeuert[0][2].latlng, { lat: 2, lng: 27 });
-assert.deepStrictEqual(K.avesmapsWegAuswahlFuerPfad(rs6), { gruppe: "wiki:reichsstrasse-2", publicId: null }, "erster Klick: ganze Strasse");
+assert.deepStrictEqual(K.avesmapsWegAuswahlFuerPfad(rs6), { gruppe: "name:Reichsstraße 2", publicId: null }, "erster Klick: ganze Strasse");
 
 // ---- 2. EIN Zuhoerer: der zweite Namensklick markiert den Abschnitt, derselbe Klick hebt nichts auf --------------
 K.avesmapsWegKartenKlick(klick(27, 2));
-assert.deepStrictEqual(K.avesmapsWegAuswahlFuerPfad(rs8), { gruppe: "wiki:reichsstrasse-2", publicId: "rs-8" },
+assert.deepStrictEqual(K.avesmapsWegAuswahlFuerPfad(rs8), { gruppe: "name:Reichsstraße 2", publicId: "rs-8" },
 	"zweiter Klick: der Abschnitt -- mit zwei getrennten Zuhoerern haette das Aufheben ihn wieder auf „ganze Strasse“ geworfen");
 
 // ---- 3. Kein Treffer: der Klick hebt auf -----------------------------------------------------------------------
@@ -205,5 +207,23 @@ zeigerZuhoerer({ containerPoint: { x: 50, y: 10 } });
 assert.strictEqual(werkzeugFragen, fragenImZoom, "ohne stehende Hand fragt der Zoom-Zweig nicht");
 zc.cssZoomActive = false;
 werkzeugZeiger = false;
+
+// ---- 8. Owner 15.09.2026: die Strasse ist der NAME -- ein gleichnamiger Abschnitt OHNE Zuweisung gehoert zu den Kandidaten ----
+K.avesmapsWegAuswahlAufheben();
+const ohneWiki = weg("rs-9", [[30, 0], [40, 0]]);
+ohneWiki.properties.wiki_path = null;
+global.pathData.push(ohneWiki);
+global.mapDataSourceStatus = { revision: 2 };
+treffer = { wikiKey: "reichsstrasse-2", name: "Reichsstraße 2" };
+gefeuert.length = 0;
+K.avesmapsWegKartenKlick(klick(38, 1));
+assert.strictEqual(gefeuert.length, 1);
+assert.strictEqual(gefeuert[0][0], "rs-9", "der naechste Abschnitt des NAMENS bekommt den Klick -- auch ohne Zuweisung");
+assert.deepStrictEqual(K.avesmapsWegAuswahlFuerPfad(rs6), { gruppe: "name:Reichsstraße 2", publicId: null }, "die ganze Strasse umfasst beide");
+assert.deepStrictEqual(K.avesmapsWegAuswahlFuerPfad(ohneWiki), { gruppe: "name:Reichsstraße 2", publicId: null });
+treffer = { wikiKey: "unbekannt" };
+gefeuert.length = 0;
+K.avesmapsWegKartenKlick(klick(38, 1));
+assert.strictEqual(gefeuert.length, 0, "ein Artikel, den kein Abschnitt traegt, findet keine Strasse");
 
 console.log("weg-namensklick.test.js: ok");

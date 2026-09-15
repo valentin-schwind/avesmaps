@@ -171,15 +171,15 @@ checks += 3;
 	const r1 = [];
 	for (let i = 0; i < 26; i++) {
 		r1.push({
-			public_id: "r1-" + i, name: "Reichsstraße 1", feature_subtype: "Reichsstrasse",
+			public_id: "r1-" + i, name: "Reichsstraße 1", echter_name: "Reichsstraße 1", feature_subtype: "Reichsstrasse",
 			// Absichtlich RÜCKWÄRTS eingespeist: die Sortierung muss sie ordnen, nicht die Eingabe.
 			wiki_path: { wiki_key: "wiki:reichsstrasse-1" }, bbox: [100 - i, 50, 104 - i, 55]
 		});
 	}
 	const rest = [
-		{ public_id: "pf-1", name: "Pfad-0148", feature_subtype: "Pfad", wiki_path: null, bbox: [10, 10, 13, 14] },
-		{ public_id: "gp-1", name: "Koschberge-Pass", feature_subtype: "Gebirgspass", wiki_path: null, bbox: [200, 80, 203, 84] },
-		{ public_id: "gp-2", name: "Koschberge-Pass", feature_subtype: "Gebirgspass", wiki_path: null, bbox: [198, 80, 201, 84] }
+		{ public_id: "pf-1", name: "Pfad-0148", echter_name: "", feature_subtype: "Pfad", wiki_path: null, bbox: [10, 10, 13, 14] },
+		{ public_id: "gp-1", name: "Koschberge-Pass", echter_name: "Koschberge-Pass", feature_subtype: "Gebirgspass", wiki_path: null, bbox: [200, 80, 203, 84] },
+		{ public_id: "gp-2", name: "Koschberge-Pass", echter_name: "Koschberge-Pass", feature_subtype: "Gebirgspass", wiki_path: null, bbox: [198, 80, 201, 84] }
 	];
 
 	const groups = M.wpGroupWays(r1.concat(rest));
@@ -188,7 +188,7 @@ checks += 3;
 
 	const strasse = groups.find(g => g.name === "Reichsstraße 1");
 	assert.strictEqual(strasse.segments.length, 26, "alle 26 Segmente unter EINEM Eintrag");
-	assert.strictEqual(strasse.key, "wiki:wiki:reichsstrasse-1", "mit Wiki-Weg wird danach gruppiert");
+	assert.strictEqual(strasse.key, "name:Reichsstraße 1", "der echte Name traegt die Gruppe, nicht die Wiki-Zuweisung (Owner 15.09.2026)");
 	checks += 2;
 
 	// ⭐ Geografisch geordnet, nicht in Eingabereihenfolge -- sonst bedeutet „Abschnitt 3" nichts.
@@ -197,19 +197,20 @@ checks += 3;
 	assert.strictEqual(strasse.segments[0].public_id, "r1-25", "das westlichste zuerst");
 	checks += 2;
 
-	// Ohne Wiki-Weg trägt Name+Typ die Gruppe.
+	// Ohne Wiki-Weg genauso: der Name traegt die Gruppe.
 	const pass = groups.find(g => g.name === "Koschberge-Pass");
 	assert.strictEqual(pass.segments.length, 2, "gleichnamige Wege ohne Wiki-Bezug bilden auch eine Gruppe");
-	assert.strictEqual(pass.key, "name:Gebirgspass:Koschberge-Pass", "Schlüssel aus Typ UND Name");
+	assert.strictEqual(pass.key, "name:Koschberge-Pass", "Schlüssel aus dem Namen -- ohne Wegart");
 	assert.strictEqual(pass.segments[0].public_id, "gp-2", "auch hier geografisch sortiert");
 	checks += 3;
 
-	// 💣 Gleicher Name, ANDERER Typ = NICHT derselbe Weg.
+	// 🔴 Gleicher Name, ANDERER Typ = DERSELBE Weg (Owner 15.09.2026: „ausdrücklich über den namen"; gewollt: Fluss und
+	// Strasse gleichen Namens sind eine Gruppe). Bis dahin blieb das getrennt.
 	const gemischt = M.wpGroupWays([
-		{ public_id: "a", name: "Alte Straße", feature_subtype: "Strasse", wiki_path: null, bbox: [0,0,1,1] },
-		{ public_id: "b", name: "Alte Straße", feature_subtype: "Pfad", wiki_path: null, bbox: [0,0,1,1] }
+		{ public_id: "a", name: "Alte Straße", echter_name: "Alte Straße", feature_subtype: "Strasse", wiki_path: null, bbox: [0,0,1,1] },
+		{ public_id: "b", name: "Alte Straße", echter_name: "Alte Straße", feature_subtype: "Pfad", wiki_path: null, bbox: [0,0,1,1] }
 	]);
-	assert.strictEqual(gemischt.length, 2, "gleicher Name bei verschiedenem Typ bleibt getrennt");
+	assert.strictEqual(gemischt.length, 1, "gleicher Name bei verschiedenem Typ ist eine Strasse");
 	checks++;
 
 	// Ein einzelner Weg ist eine Gruppe mit einem Segment -- die Anzeige macht daraus eine Zeile.

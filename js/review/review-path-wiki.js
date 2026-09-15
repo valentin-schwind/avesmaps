@@ -271,10 +271,19 @@ async function pathWikiZuweisen(treffer) {
 		showFeedbackToast?.("Kein Weg ausgewählt.", "error");
 		throw new Error("Kein Weg ausgewählt.");
 	}
+	// 🔴 Die Strasse ist seit dem 15.09.2026 der NAME (Owner) und kann gemischte Hauptzuweisungen tragen: dann schreibt Zuweisen im
+	// Gruppendialog nur nach ausdruecklicher Rueckfrage auf alle N Abschnitte -- wie Entfernen. Eine einige Strasse fragt nicht.
+	const gruppenIds = pathWikiGruppenIds(publicId);
+	if (gruppenIds
+		&& wpGruppeHauptzuweisungen(pathEditGruppe.pfade.map((pfad) => ({ wiki_path: (pfad && pfad.properties && pfad.properties.wiki_path) || null }))).length > 1
+		&& !window.confirm(avesmapsWikiAssignWegGruppeZuweisenFrage(treffer && treffer.name, gruppenIds.length))) {
+		// 🔴 ABGEBROCHEN IST ABGELEHNT -- das Bauteil laesst den Kasten stehen.
+		throw new Error("Abgebrochen.");
+	}
 	let result;
 	try {
 		// Nachtrag §9.6: im Gruppendialog GENAU die Abschnitte der ganzen Strasse, am Abschnitt der Namens-Match wie bisher.
-		result = await pathWikiPost(avesmapsWikiAssignWegZuweisungsKoerper(treffer.wiki_key, publicId, pathWikiGruppenIds(publicId)));
+		result = await pathWikiPost(avesmapsWikiAssignWegZuweisungsKoerper(treffer.wiki_key, publicId, gruppenIds));
 		// 🔴 Wirft bei jedem Nein -- auch bei `type_ok:false`, das mit HTTP 200 kommt.
 		avesmapsWikiAssignWegAntwortPruefen(result);
 	} catch (error) {

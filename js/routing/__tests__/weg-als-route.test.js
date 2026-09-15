@@ -19,7 +19,9 @@ const schneide = (text, anfang, ende) => {
 const M = require(path.join(WURZEL, "js/pages/wege-editor-model.js"));
 Object.assign(global, {
 	wpGroupWays: M.wpGroupWays, wpGroupKeyOf: M.wpGroupKeyOf, wpChainSegments: M.wpChainSegments,
-	wpAbschnittLabel: M.wpAbschnittLabel, wpGanzeStrecke: M.wpGanzeStrecke,
+	wpAbschnittLabel: M.wpAbschnittLabel, wpGanzeStrecke: M.wpGanzeStrecke, wpGruppeHauptzuweisungen: M.wpGruppeHauptzuweisungen,
+	// Der echte Name (map-features-path-domain.js) -- daran haengt die Strasse; die Fixtures tragen ihn in display_name.
+	getPathTitleName: (p) => p.properties.display_name,
 	escapeHtml: (w) => String(w),
 	getPathPublicId: (p) => p.properties.public_id,
 	LOCATION_ENDPOINT_EXACT_HIT: 0.01,
@@ -99,6 +101,24 @@ global.pathData = [
 const [rs6, rs7, rs8, bp1, , x1] = global.pathData;
 assert.deepStrictEqual(R.avesmapsWegAlsRouteFuerPfad(rs6), ["Perz", "Silkwiesen", "Wieha", "Helmdahl"]);
 assert.deepStrictEqual(R.avesmapsWegAlsRouteFuerPfad(bp1), ["Rudein", "Silkwiesen", "Wieha", "Espen"], "der Baerenpfad-Fall (§6 D)");
+// 2b. Owner 15.09.2026: die Strasse ist der NAME. Vom gleichnamigen Abschnitt OHNE Zuweisung dieselbe Route -- die Traeger kommen
+// aus allen Artikeln der Strasse, nicht aus dem des angeklickten Abschnitts.
+// ⚠️ Eine eigene kleine Strasse: beim Baerenpfad schliesst der Lueckensprung die Traeger-Luecke zufaellig selbst (Silkwiesen und
+// Wieha sind auch Enden seiner eigenen Abschnitte) -- dort faellt ein fehlender Traeger nicht auf. Hier liefert NUR der Traeger
+// „Suedhain".
+const GP = { key: "graupfad", name: "Graupfad", seite: "Graupfad" };
+const QW = { key: "querweg", name: "Querweg", seite: "Querweg" };
+const gp1 = weg("gp-1", [30, 0], [31, 0], GP);
+const querweg = weg("qw-1", [31, 0], [32, 0], QW, [{ wiki_key: GP.key, name: GP.name, wiki_url: url(GP.seite) }]);
+const gpOhneWiki = weg("gp-2", [40, 40], [41, 41], GP);
+gpOhneWiki.properties.wiki_path = null;
+global.pathData.push(gp1, querweg, gpOhneWiki);
+global.locationData.push({ name: "Nordhain", coordinates: [0, 30] }, { name: "Suedhain", coordinates: [0, 32] });
+assert.deepStrictEqual(R.avesmapsWegAlsRouteFuerPfad(gp1), ["Nordhain", "Suedhain"], "Voraussetzung: vom zugewiesenen Abschnitt ueber den Traeger");
+assert.deepStrictEqual(R.avesmapsWegAlsRouteFuerPfad(gpOhneWiki), ["Nordhain", "Suedhain"],
+	"vom gleichnamigen Abschnitt OHNE Zuweisung dieselbe Route -- der Traeger kommt aus dem Artikel der Strasse");
+global.pathData.splice(global.pathData.length - 3, 3);
+global.locationData.splice(global.locationData.length - 2, 2);
 
 // 3. Editoren: das Markierte -- am Abschnitt nur er
 global.IS_EDIT_MODE = true;

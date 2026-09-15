@@ -173,6 +173,9 @@ function avesmapsPathEditorList(PDO $pdo): array
         $ways[] = [
             'public_id' => (string) $row['public_id'],
             'name' => (string) ($properties['display_name'] ?? $row['name'] ?? ''),
+            // 🔴 Der ECHTE Name -- daran haengt „ganze Straße" (wpGroupKeyOf, Owner 15.09.2026: „ausdrücklich über den namen").
+            // `name` bleibt, was die Zeile zeigt; '' heisst Maschinenname, und der Abschnitt gehoert zu keiner Strasse.
+            'echter_name' => avesmapsWikiPathEchterName($properties, (string) ($row['name'] ?? ''), $subtype),
             'feature_subtype' => $subtype,
             'revision' => (int) $row['revision'],
             'show_label' => ($properties['show_label'] ?? false) === true,

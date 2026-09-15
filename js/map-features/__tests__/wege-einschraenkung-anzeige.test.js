@@ -51,6 +51,8 @@ vm.runInContext('const SYNTHETIC_ROUTE_TYPE = "Querfeldein";', ctx);
 // ⚠️ BACH_LABEL_SIZE_DELTA deklariert path-labels.js selbst -- ein eigener const hier wäre eine
 // doppelte Deklaration im selben Kontext und damit ein SyntaxError.
 vm.runInContext(lies("js", "map-features", "map-features-path-domain.js"), ctx);
+// Der Gruppenschluessel ist die Regel des Wege-Editors (wpGroupKeyOf) -- das Modell kommt mit.
+vm.runInContext(lies("js", "pages", "wege-editor-model.js"), ctx);
 vm.runInContext(lies("js", "map-features", "path-einschraenkung.js"), ctx);
 vm.runInContext(lies("js", "map-features", "map-features-path-labels.js"), ctx);
 
@@ -79,14 +81,16 @@ const FENSTER = { from_month: "peraine", from_day: 15, to_month: "efferd", to_da
 // =================================================================================================
 // 1. Der Index -- alle Abschnitte EINES Weges bekommen dasselbe Urteil
 // =================================================================================================
-// Der Saljethweg: fünf Abschnitte mit Fenster, zwei ohne (Altbestand). Alle sieben sind derselbe Weg.
+// Der Saljethweg: fünf Abschnitte mit Fenster, zwei ohne (Altbestand). Alle sieben sind derselbe Weg -- ueber den NAMEN
+// (Owner 15.09.2026: „ausdrücklich über den namen"), deshalb gehoert auch der Abschnitt OHNE Zuweisung dazu.
+// Die Abschnitte tragen display_name, wie normalizeRoutePathFeature ihn im Browser immer setzt.
 const saljethweg = [
-	abschnitt("Pfad", { wiki_path: { wiki_key: "saljethweg" }, transport_seasons: { groupFoot: FENSTER } }),
-	abschnitt("Pfad", { wiki_path: { wiki_key: "saljethweg" } }),
-	abschnitt("Strasse", { wiki_path: { wiki_key: "saljethweg" } }),
+	abschnitt("Pfad", { public_id: "s-1", display_name: "Saljethweg", wiki_path: { wiki_key: "saljethweg" }, transport_seasons: { groupFoot: FENSTER } }),
+	abschnitt("Pfad", { public_id: "s-2", display_name: "Saljethweg", wiki_path: { wiki_key: "saljethweg" } }),
+	abschnitt("Strasse", { public_id: "s-3", display_name: "Saljethweg" }),
 ];
 // Eine gewöhnliche Straße daneben, die NICHT mitgerissen werden darf.
-const fremd = abschnitt("Strasse", { wiki_path: { wiki_key: "reichsstrasse-2" } });
+const fremd = abschnitt("Strasse", { public_id: "r-1", display_name: "Reichsstraße 2", wiki_path: { wiki_key: "reichsstrasse-2" } });
 
 ctx.pathData = saljethweg.concat([fremd]);
 vm.runInContext("avesmapsWegEinschraenkungNeuRechnen();", ctx);

@@ -194,23 +194,35 @@ function wpProfileCurve(profile, pieceLengths) {
  * ungrouped they were 26 rows with the same name, the same type and the same second line -- there
  * was no way to tell which one you were editing. That is what this function exists to prevent.
  *
- * Grouped by the WIKI WAY where there is one, otherwise by name+subtype: two segments of the same
- * wiki way are certainly the same road, two same-named ways without a wiki link are not necessarily.
+ * 🔴 GROUPED BY THE HUMAN-GIVEN NAME, and by nothing else (Owner 15.09.2026: „die selektion soll
+ * ausdrücklich über den namen - nicht über die wiki-zuweisung erfolgen"). Neither the wiki assignment
+ * nor the way type splits a road any more: live, 49 of the 67 „Reichsstraße 2" sections carried the
+ * article and 18 did not, and the old key (`wiki:<key>`, else `name:<type>:<name>`) made them two roads.
+ * Wanted consequence: a river and a road of the same name are ONE group.
  *
  * ⭐ Segments are ordered GEOGRAPHICALLY (min_x, then min_y), not by whatever order the database
  * returned -- so „Abschnitt 3" lies between 2 and 4 and the number means something.
  */
 /**
- * REIN: der Gruppenschluessel eines Weges -- `wiki:<key>`, sonst `name:<Wegart>:<Name>`.
+ * REIN: der Gruppenschluessel eines Weges -- `name:<echter Name>`, ohne echten Namen `abschnitt:<public_id>`.
  *
- * 🔴 EINE Rechnung fuer die Gruppierung der Liste (wpGroupWays) UND fuer den Quellen-Verteiler am
- * Abschnitt („alle N Abschnitte dieses Weges"). Der Kartendialog rechnet denselben Schluessel aus den
- * Karteneigenschaften (avesmapsWegGruppenSchluessel, js/map-features/path-einschraenkung.js).
+ * 🔴 EINE Rechnung fuer alles, was „ganze Straße" meint: Liste und Weg-Ebene des Wege-Editors (wpGroupWays), den
+ * Quellen-Verteiler am Abschnitt, Klickfolge, Markierung und Abschnittsnummern auf der Karte (weg-abschnitte.js) und die
+ * Kursivschrift (avesmapsWegGruppenSchluessel, js/map-features/path-einschraenkung.js).
+ * 💣 `echter_name` BRINGT DER ERZEUGER MIT. Dieses Modell weiss nicht, was ein Maschinenname ist, und bildet die Regel nicht
+ * ein viertes Mal nach: die Karte nimmt getPathTitleName (js/map-features/map-features-path-domain.js), die Wege-Editor-Liste
+ * bekommt ihn vom Server (avesmapsWikiPathEchterName, api/_internal/wiki/path-naming.php). Beide werden gegeneinander
+ * gefahren (js/pages/__tests__/wege-gruppe-gleicher-name.test.js).
+ * 💣 KEIN RUECKFALL AUF `name`: im Browser traegt er den Maschinennamen `<Wegart>-<n>`, und zwei nackte „Flussweg" waeren
+ * sonst eine Strasse. Ohne echten Namen gehoert ein Abschnitt zu keiner Strasse -- er bildet seine eigene Gruppe.
+ * ⚠️ Verglichen wird exakt nach trim(), ohne Umlautfaltung und mit Gross-/Kleinschreibung: dieselbe Zeichenkette, die die
+ * Infobox als Titel zeigt. „Reichsstrasse 2" und „Reichsstraße 2" sind zwei Namen -- und auf der Karte zwei Titel.
  */
 function wpGroupKeyOf(way) {
-	return way && way.wiki_path && way.wiki_path.wiki_key
-		? "wiki:" + way.wiki_path.wiki_key
-		: "name:" + (way ? way.feature_subtype : "") + ":" + (way ? way.name : "");
+	var name = way && typeof way.echter_name === "string" ? way.echter_name.trim() : "";
+	return name !== ""
+		? "name:" + name
+		: "abschnitt:" + String((way && way.public_id) || "");
 }
 
 /** Sortierwert einer Huellbox-Koordinate: auf zwei Nachkommastellen gerundet (siehe wpGroupWays). */
@@ -243,9 +255,10 @@ function wpGroupWays(ways) {
 		if (!byKey[key]) {
 			byKey[key] = {
 				key: key,
-				name: way.name,
+				// Der ECHTE Name, nicht der des ersten Abschnitts: ein Altsegment kann noch „Reichsstrasse-16" heissen.
+				name: key.indexOf("name:") === 0 ? key.slice(5) : way.name,
 				feature_subtype: way.feature_subtype,
-				wiki_path: way.wiki_path || null,
+				wiki_path: null,
 				segments: []
 			};
 			groups.push(byKey[key]);
@@ -268,8 +281,30 @@ function wpGroupWays(ways) {
 			var pb = String(b.public_id || "");
 			return pa < pb ? -1 : (pa > pb ? 1 : 0);
 		});
+		// ⚠️ Eine Namensgruppe kann GEMISCHTE Hauptzuweisungen tragen (live: Reichsstraße 2, 49 mit, 18 ohne). Die Gruppe nennt die
+		// erste, die in ihr steht -- nicht „keine", nur weil der westlichste Abschnitt keine traegt: daran haengen die Namenssperre
+		// der Weg-Ebene (R1) und der Kasten „Wiki-Weg". Welche es alle sind, sagt wpGruppeHauptzuweisungen.
+		for (var i = 0; i < group.segments.length; i++) {
+			if (group.segments[i].wiki_path) { group.wiki_path = group.segments[i].wiki_path; break; }
+		}
 	});
 	return groups;
+}
+
+/**
+ * REIN: welche Hauptzuweisungen tragen die Abschnitte einer Strasse? Jeder `wiki_key` einmal, „keine" als "" -- in der
+ * Reihenfolge der Abschnitte. Mehr als ein Eintrag heisst: die Namensgruppe ist GEMISCHT.
+ * 🔴 Das gibt es, seit die Strasse der Name ist (Owner 15.09.2026). Zwei Leser haengen daran: „Zuweisen" auf der ganzen Strasse
+ * fragt dann nach (avesmapsWikiAssignWegGruppeZuweisenFrage), und die fremden Traeger kommen aus ALLEN Artikeln der Strasse,
+ * nicht aus dem des angeklickten Abschnitts (map-features-weg-auswahl.js, weg-als-route.js, weg-weitere-anzeige.js).
+ */
+function wpGruppeHauptzuweisungen(segmente) {
+	var schluessel = [];
+	(Array.isArray(segmente) ? segmente : []).forEach(function (segment) {
+		var key = segment && segment.wiki_path ? String(segment.wiki_path.wiki_key || "").trim() : "";
+		if (schluessel.indexOf(key) === -1) { schluessel.push(key); }
+	});
+	return schluessel;
 }
 
 /**
@@ -676,31 +711,9 @@ function wpChainNodeResolver(punkte) {
  */
 function wpChainSegments(segmente) {
 	var liste = Array.isArray(segmente) ? segmente : [];
-	var knoten = {};   // knotenSchluessel -> [Segmentindex]
-	var enden = [];    // Segmentindex -> [vonSchluessel, nachSchluessel]
-
-	// Erst alle Endpunkte sammeln, dann zu Knoten zusammenfassen -- die Zusammenfassung braucht
-	// die ganze Menge, ein Punkt allein kennt seine Nachbarn nicht.
-	var alleEnden = [];
-	liste.forEach(function (segment) {
-		var ends = segment && segment.ends;
-		if (!ends) { return; }
-		alleEnden.push(ends.from);
-		alleEnden.push(ends.to);
-	});
-	var knotenVon = wpChainNodeResolver(alleEnden);
-
-	liste.forEach(function (segment, index) {
-		var ends = segment && segment.ends;
-		var von = ends ? knotenVon(ends.from) : null;
-		var nach = ends ? knotenVon(ends.to) : null;
-		enden[index] = [von, nach];
-		[von, nach].forEach(function (schluessel) {
-			if (schluessel === null) { return; }
-			if (!knoten[schluessel]) { knoten[schluessel] = []; }
-			knoten[schluessel].push(index);
-		});
-	});
+	var graph = wpChainGraph(liste);
+	var knoten = graph.knoten;   // knotenSchluessel -> [Segmentindex]
+	var enden = graph.enden;     // Segmentindex -> [vonSchluessel, nachSchluessel]
 
 	var benutzt = {};
 	var ketten = [];
@@ -750,6 +763,42 @@ function wpChainSegments(segmente) {
 }
 
 /**
+ * REIN: der Graph der Abschnitte -- Knoten sind die (per Toleranz zusammengefassten) Endpunkte, Kanten die Abschnitte.
+ * `knoten`: Knotenschluessel -> [Segmentindex]; `enden`: Segmentindex -> [vonSchluessel, nachSchluessel] (null ohne Endpunkt).
+ * ⭐ EIN Graph fuer die Ketten (wpChainSegments) UND die offenen Enden der ganzen Strasse (wpGanzeStrecke): ein Knoten mit
+ * genau einer Kante ist fuer beide dasselbe Ende.
+ */
+function wpChainGraph(segmente) {
+	var liste = Array.isArray(segmente) ? segmente : [];
+	var knoten = {};
+	var enden = [];
+
+	// Erst alle Endpunkte sammeln, dann zu Knoten zusammenfassen -- die Zusammenfassung braucht
+	// die ganze Menge, ein Punkt allein kennt seine Nachbarn nicht.
+	var alleEnden = [];
+	liste.forEach(function (segment) {
+		var ends = segment && segment.ends;
+		if (!ends) { return; }
+		alleEnden.push(ends.from);
+		alleEnden.push(ends.to);
+	});
+	var knotenVon = wpChainNodeResolver(alleEnden);
+
+	liste.forEach(function (segment, index) {
+		var ends = segment && segment.ends;
+		var von = ends ? knotenVon(ends.from) : null;
+		var nach = ends ? knotenVon(ends.to) : null;
+		enden[index] = [von, nach];
+		[von, nach].forEach(function (schluessel) {
+			if (schluessel === null) { return; }
+			if (!knoten[schluessel]) { knoten[schluessel] = []; }
+			knoten[schluessel].push(index);
+		});
+	});
+	return { knoten: knoten, enden: enden };
+}
+
+/**
  * REIN: der Name eines Abschnitts (Entwurf 2026-09-14 §4). Langform „Abschnitt N: Von – Bis"; ein Weg aus
  * nur einem Abschnitt traegt keine Nummer; ohne bekannte Enden bleibt nur „Abschnitt N".
  */
@@ -770,25 +819,52 @@ var WP_ENDE_KREUZUNG = "Kreuzung";
 var WP_ENDE_OFFEN = "Wegende";
 
 /**
- * REIN: „Von – Bis" der ganzen Strasse -- die aeusseren Enden der LAENGSTEN Kette (wpChainSegments).
- * "" wenn es keine Kette oder keine Enden gibt. ⚠️ `gedreht` heisst: das Stueck wird vom `to` zum `from`
- * durchlaufen (siehe laufe() in wpChainSegments).
- * 🔴 NUR, WENN BEIDE ENDEN ORTE SIND (Nachtrag 2026-09-14-wege-mehrfachzuweisung-design.md §9.3, Auslegung von §4:
- * „fehlt dort ein Ortsname, steht nur ‚Ganze Straße'"). Ein einziges „Kreuzung" oder „Wegende" aussen genuegt fuer "".
- * Die Regel gilt damit zugleich fuer Infobox-Zeile, Dialog-Zeile, „ganze Straße · …" und den Gruppenkopf der Liste.
+ * REIN: „Von – Bis" der ganzen Strasse -- die zwei am weitesten auseinanderliegenden ORTE unter ihren offenen Enden.
+ *
+ * 🔴 Owner 15.09.2026: „was auf keinen fall sein darf: ich klick auf ein segment und da steht "Ganze Straße: Punin – Neil"
+ * obwohl ich nur von Kreuzung A zu Kreuzung B markiert habe." Bis dahin nannte die Zeile die aeusseren Enden der LAENGSTEN
+ * Kette (wpChainSegments) -- live bei Reichsstraße 1 „Greifenfurt – Berler", markiert war sie bis Warunk. Eine Strasse zerfaellt
+ * im Normalfall in mehrere Ketten (Luecken, Abzweige); die Zeile muss umfassen, was markiert ist, nicht was am laengsten ist.
+ *
+ * Ein offenes Ende ist ein Knoten mit genau EINER Kante ueber alle Abschnitte (wpChainGraph -- derselbe Graph wie die Ketten),
+ * ein Ort ein Ende, das weder „Kreuzung" noch „Wegende" noch leer heisst. Unter ihnen gewinnt das Paar mit dem groessten
+ * Luftlinienabstand; zwei Enden gleichen Namens sind kein Paar.
+ * ⚠️ Gleichstand: alphabetisch nach dem Namenspaar -- deterministisch, gleich in welcher Reihenfolge die Abschnitte kommen.
+ * ⚠️ Vorn steht das westlichere Ende (kleineres x, dann kleineres y): dieselbe Leserichtung wie die Abschnittsnummern.
+ * "" bei weniger als zwei Orten -- die Zeile heisst dann nur „Ganze Straße" (Nachtrag 2026-09-14-wege-mehrfachzuweisung-design.md
+ * §9.3). Die Regel gilt fuer Infobox-Zeile, Dialog-Zeile, „ganze Straße · …" und den Gruppenkopf der Liste.
  */
 function wpGanzeStrecke(segmente) {
-	var ketten = wpChainSegments(segmente);
-	if (!ketten.length) { return ""; }
-	var kette = ketten[0];
-	var erstes = segmente[kette[0].index];
-	var letztes = segmente[kette[kette.length - 1].index];
-	if (!erstes || !letztes || !erstes.enden || !letztes.enden) { return ""; }
-	var von = String(kette[0].gedreht ? erstes.enden.bis : erstes.enden.von);
-	var bis = String(kette[kette.length - 1].gedreht ? letztes.enden.von : letztes.enden.bis);
-	var keinOrt = function (ende) { return ende === "" || ende === WP_ENDE_KREUZUNG || ende === WP_ENDE_OFFEN; };
-	if (keinOrt(von) || keinOrt(bis)) { return ""; }
-	return von + " – " + bis;
+	var liste = Array.isArray(segmente) ? segmente : [];
+	var graph = wpChainGraph(liste);
+	var istOrt = function (name) { return name !== "" && name !== WP_ENDE_KREUZUNG && name !== WP_ENDE_OFFEN; };
+	var orte = [];
+	liste.forEach(function (segment, index) {
+		if (!segment || !segment.ends || !segment.enden) { return; }
+		[[graph.enden[index][0], segment.ends.from, segment.enden.von], [graph.enden[index][1], segment.ends.to, segment.enden.bis]]
+			.forEach(function (ende) {
+				var name = ende[2] === null || ende[2] === undefined ? "" : String(ende[2]);
+				if (ende[0] === null || (graph.knoten[ende[0]] || []).length !== 1 || !istOrt(name)) { return; }
+				orte.push({ name: name, x: Number(ende[1][0]), y: Number(ende[1][1]) });
+			});
+	});
+	var bestes = null;
+	for (var i = 0; i < orte.length; i++) {
+		for (var j = i + 1; j < orte.length; j++) {
+			var a = orte[i];
+			var b = orte[j];
+			if (a.name === b.name) { continue; }
+			var abstand = Math.hypot(a.x - b.x, a.y - b.y);
+			var paar = a.name < b.name ? a.name + "\u0000" + b.name : b.name + "\u0000" + a.name;
+			if (!bestes || abstand > bestes.abstand || (abstand === bestes.abstand && paar < bestes.paar)) {
+				bestes = { abstand: abstand, paar: paar, a: a, b: b };
+			}
+		}
+	}
+	if (!bestes) { return ""; }
+	var aVorn = bestes.a.x < bestes.b.x
+		|| (bestes.a.x === bestes.b.x && (bestes.a.y < bestes.b.y || (bestes.a.y === bestes.b.y && bestes.a.name < bestes.b.name)));
+	return aVorn ? bestes.a.name + " – " + bestes.b.name : bestes.b.name + " – " + bestes.a.name;
 }
 
 /**
@@ -847,6 +923,7 @@ if (typeof module !== "undefined" && module.exports) {
 		wpPieceLengths: wpPieceLengths,
 		wpGroupWays: wpGroupWays,
 		wpGroupKeyOf: wpGroupKeyOf,
+		wpGruppeHauptzuweisungen: wpGruppeHauptzuweisungen,
 		wpSortWert: wpSortWert,
 		wpWeitereNamen: wpWeitereNamen,
 		wpWegPasstZurSuche: wpWegPasstZurSuche,

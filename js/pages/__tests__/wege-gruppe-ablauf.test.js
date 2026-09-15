@@ -111,7 +111,7 @@ function sandkasten(fetchAntwort) {
 /** Drei Abschnitte EINES Weges -- zwei Gebirgspass, einer Pfad, die Kutsche nur bei einem. */
 function wegeAntwort() {
 	const segment = (id, subtype, transporte) => ({
-		public_id: id, name: "Schattenbachpass", feature_subtype: subtype,
+		public_id: id, name: "Schattenbachpass", echter_name: "Schattenbachpass", feature_subtype: subtype,
 		show_label: false, allowed_transports: transporte, transport_seasons: {},
 		wiki_path: { wiki_key: "wiki:schattenbachpass", wiki_url: "https://example.invalid", name: "Schattenbachpass", art: "Pass" },
 		flow_direction: "", has_profile: true,
@@ -176,7 +176,7 @@ const ruhe = () => new Promise((fertig) => setTimeout(fertig, 20));
 	// Die Zeile, wie sie im Dokument stuende: sie traegt `data-group`, aber der Klick liegt NICHT
 	// auf dem Aufklapp-Pfeil.
 	const gruppenZeile = attrappe("row");
-	gruppenZeile.getAttribute = (n) => (n === "data-group" ? "wiki:wiki:schattenbachpass" : null);
+	gruppenZeile.getAttribute = (n) => (n === "data-group" ? "name:Schattenbachpass" : null);
 	const zielZeile = { closest: (sel) => (sel === ".avm-row" ? gruppenZeile : null) };
 	liste.zuhoerer.click({ target: zielZeile, preventDefault() {} });
 	await ruhe();

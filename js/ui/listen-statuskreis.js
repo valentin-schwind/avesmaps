@@ -138,11 +138,11 @@ function avesmapsStatuskreisLandschaft(hatZugewiesenesLabel, hatZugewieseneFlaec
 //    Karte" sein. (Die Panel-Liste daneben ist eine WIKI-Liste und kennt den Zustand deshalb sehr
 //    wohl -- sie führt Artikel, nicht Segmente. Verschiedene Grundmengen, nicht verschiedene Regeln.)
 // ⚠️ Gemessen am Livebestand 18.08.2026: von 4160 Namensgruppen sind 410 voll und 3750 halb --
-//    und NULL echt gemischt. Das ist kein Fehler der Regel, sondern eine Folge der Gruppierung
-//    (wpGroupWays, js/pages/wege-editor-model.js schlüsselt zugewiesene Segmente über ihren
-//    `wiki_key` und unzugewiesene über Art+Name, mischen kann eine Gruppe also nicht). `every`
-//    steht trotzdem hier: es ist die Regel, und sie überlebt eine geänderte Gruppierung. Aber
-//    NIEMAND darf behaupten, sie mache den Halb-Zustand sichtbar -- das tut sie hier nicht.
+//    und NULL echt gemischt. Das war damals eine Folge der Gruppierung (zugewiesene Segmente über
+//    ihren `wiki_key`, unzugewiesene über Art+Name). 🔴 Seit 15.09.2026 gruppiert wpGroupWays
+//    (js/pages/wege-editor-model.js) über den ECHTEN NAMEN (Owner: „ausdrücklich über den namen"),
+//    und jetzt MISCHT eine Gruppe: live 21 Namen, darunter Reichsstraße 2 mit 49 zugewiesenen und
+//    18 unzugewiesenen Abschnitten. Genau dafür steht `every` hier -- der Kreis ist dort halb.
 // ⚠️ UND 61 % DER ZEILEN TRAGEN DENSELBEN HALBEN KREIS: 2552 der 4157 Editorzeilen sind
 //    maschinell benannt (`Pfad-1`, `Pfad-2`, …) und alle unzugewiesen. Das ist wahr und in Kauf
 //    genommen, kein Fehler zum „Reparieren": sie auszuschließen bräuchte einen JS-Zwilling von

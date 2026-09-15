@@ -99,6 +99,9 @@ function avesmapsWegAlsWay(path) {
 		public_id: typeof getPathPublicId === "function" ? getPathPublicId(path) : String(p.public_id || ""),
 		// 💣 Der ECHTE Name (siehe avesmapsWegGruppenSchluessel): properties.name ist der Maschinenname.
 		name: String(p.display_name || p.original_name || p.name || ""),
+		// 🔴 Daran haengt „ganze Straße" (wpGroupKeyOf, Owner 15.09.2026: „ausdrücklich über den namen"): der Name, den die
+		// Infobox als Titel zeigt -- "" fuer einen Maschinennamen. Dieselbe Frage wie avesmapsWegGruppenSchluessel.
+		echter_name: getPathTitleName(path),
 		feature_subtype: String(p.feature_subtype || ""),
 		wiki_path: p.wiki_path || null,
 		wiki_path_weitere: Array.isArray(p.wiki_path_weitere) ? p.wiki_path_weitere : [],
@@ -152,11 +155,27 @@ function avesmapsWegGruppeAufKarte(path) {
 	return abschnitt ? abschnitt.gruppe.segments : [];
 }
 
+/**
+ * Die Markierungszeile (Markup) fuer diesen Kartenweg und diese Auswahl -- EIN Leser fuer die Infobox
+ * (createPathPopupMarkup) und die Zeile oben im Dialog (pathEditUmfangZeigen, review-paths.js).
+ * 🔴 Owner 15.09.2026: „was auf keinen fall sein darf: ich klick auf ein segment und da steht "Ganze Straße: Punin – Neil"
+ * obwohl ich nur von Kreuzung A zu Kreuzung B markiert habe." Am Abschnitt steht deshalb seine Kurzform MIT Nummer
+ * („Abschnitt 4: Helmdahl – Rudein"), an der ganzen Strasse die zwei entferntesten Orte (wpGanzeStrecke). Vorher standen die zwei
+ * Faelle in beiden Aufrufern je einmal ausgeschrieben, und der Abschnitt trug keine Nummer.
+ */
+function avesmapsWegMarkierungszeileAufKarte(path, auswahl) {
+	if (!auswahl) { return ""; }
+	const abschnitt = avesmapsWegAbschnittAufKarte(path);
+	const ganz = auswahl.publicId === null || auswahl.publicId === undefined;
+	const strecke = !abschnitt ? "" : (ganz ? wpGanzeStrecke(abschnitt.gruppe.segments) : wpAbschnittLabel(abschnitt.way, null));
+	return avesmapsWegMarkierungszeileMarkup(auswahl, strecke, ganz || !abschnitt ? null : abschnitt.nummer);
+}
+
 if (typeof module !== "undefined" && module.exports) {
 	module.exports = {
 		AVESMAPS_WEG_ENDE_KREUZUNG, AVESMAPS_WEG_ENDE_OFFEN,
 		avesmapsWegOrtIndex, avesmapsWegEndeName, avesmapsWegAlsWay, avesmapsWegKartenStand, avesmapsWegGruppenAufKarte,
 		avesmapsWegAbschnittAufKarte, avesmapsWegAbschnittLabelAufKarte, avesmapsWegStreckeAufKarte,
-		avesmapsWegGanzeStreckeAufKarte, avesmapsWegGruppeAufKarte,
+		avesmapsWegGanzeStreckeAufKarte, avesmapsWegGruppeAufKarte, avesmapsWegMarkierungszeileAufKarte,
 	};
 }

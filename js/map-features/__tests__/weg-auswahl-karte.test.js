@@ -22,11 +22,13 @@ const GOLD = "#f0b429";
 const M = require(path.join(WURZEL, "js/pages/wege-editor-model.js"));
 Object.assign(global, {
 	wpGroupWays: M.wpGroupWays, wpGroupKeyOf: M.wpGroupKeyOf, wpChainSegments: M.wpChainSegments,
-	wpAbschnittLabel: M.wpAbschnittLabel, wpGanzeStrecke: M.wpGanzeStrecke,
+	wpAbschnittLabel: M.wpAbschnittLabel, wpGanzeStrecke: M.wpGanzeStrecke, wpGruppeHauptzuweisungen: M.wpGruppeHauptzuweisungen,
 	escapeHtml: (w) => String(w).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"),
 	pathItemStationLinkMarkup: (text) => text,
 	wikiUrlToDeeplinkKey: (url) => String(url || "").split("/wiki/")[1] || "",
 	getPathPublicId: (p) => p.properties.public_id,
+	// Der echte Name (map-features-path-domain.js); die Fixtures tragen ihn in display_name.
+	getPathTitleName: (p) => p.properties.display_name,
 	LOCATION_ENDPOINT_EXACT_HIT: 0.01,
 	isCrossingLocation: () => false,
 	mapDataSourceStatus: { revision: 1 },
@@ -76,17 +78,17 @@ global.pathData.forEach((p) => updatePathLayerStyle(p));
 assert.strictEqual(farbe(rs7), "#mitte");
 
 // 1. Erster Klick: die ganze Strasse gelb, der fremde Weg nicht, die Aussenlinie unveraendert
-assert.deepStrictEqual(K.avesmapsWegAuswahlKlick(rs7), { gruppe: "wiki:reichsstrasse-2", publicId: null });
+assert.deepStrictEqual(K.avesmapsWegAuswahlKlick(rs7), { gruppe: "name:Reichsstraße 2", publicId: null });
 assert.deepStrictEqual([rs6, rs7, rs8].map(farbe), [GOLD, GOLD, GOLD]);
 assert.strictEqual(farbe(bp1), "#mitte");
 assert.strictEqual(rs7._pathLines[0].options.color, "#rand", "keine Umrandung: die Aussenlinie bleibt");
-assert.deepStrictEqual(K.avesmapsWegAuswahlFuerPfad(rs6), { gruppe: "wiki:reichsstrasse-2", publicId: null });
+assert.deepStrictEqual(K.avesmapsWegAuswahlFuerPfad(rs6), { gruppe: "name:Reichsstraße 2", publicId: null });
 assert.strictEqual(K.avesmapsWegAuswahlFuerPfad(bp1), null);
 assert.ok(neuGebaut.includes("rs-7"), "das Markup des geklickten Wegs wird neu gebaut");
 
 // 2. Zweiter Klick: nur der Abschnitt
 neuGebaut.length = 0;
-assert.deepStrictEqual(K.avesmapsWegAuswahlKlick(rs7), { gruppe: "wiki:reichsstrasse-2", publicId: "rs-7" });
+assert.deepStrictEqual(K.avesmapsWegAuswahlKlick(rs7), { gruppe: "name:Reichsstraße 2", publicId: "rs-7" });
 assert.deepStrictEqual([rs6, rs7, rs8].map(farbe), ["#mitte", GOLD, "#mitte"]);
 assert.strictEqual(K.avesmapsWegAuswahlFuerPfad(rs6), null, "ein abgewaehlter Abschnitt meldet keine Auswahl");
 assert.ok(neuGebaut.includes("rs-6") && neuGebaut.includes("rs-8"), "die abgewaehlten Abschnitte bekommen ihr Markup zurueck");
@@ -165,7 +167,9 @@ assert.ok(!ganz.includes("<Verlauf bearbeiten"), "Verlauf bearbeiten nur am Absc
 
 K.avesmapsWegAuswahlKlick(rs7);
 const teil = createPathPopupMarkup(rs7);
-assert.ok(teil.startsWith('KOPF[<div class="info-header__markierung"><b>Abschnitt:</b> Silkwiesen – Wieha</div>]'), teil);
+// Owner 15.09.2026: nach dem zweiten Klick „Abschnitt N: … – …" -- und KEIN Text der ganzen Strasse.
+assert.ok(teil.startsWith('KOPF[<div class="info-header__markierung"><b>Abschnitt 2:</b> Silkwiesen – Wieha</div>]'), teil);
+assert.ok(!teil.includes("Ganze Straße"), "nach dem zweiten Klick nie „Ganze Straße“: " + teil);
 assert.ok(teil.includes('"data-weg-umfang":"abschnitt"') && teil.includes("<Verlauf bearbeiten"), teil);
 
 global.IS_EDIT_MODE = false;
@@ -203,6 +207,30 @@ assert.notStrictEqual(farbe(rs7), global.SPOTLIGHT_PATH_HIGHLIGHT_STYLE.color, "
 const auswahlQuelle = lies("js/map-features/map-features-weg-auswahl.js").replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
 assert.ok(!auswahlQuelle.includes("SPOTLIGHT_PATH_HIGHLIGHT_STYLE"), "die Auswahl liest die Suchfarbe nicht mehr");
 assert.ok(/color:\s*"#ffd72e"/.test(lies("js/ui/spotlight-search.js")), "„Anzeigen“ bleibt gelb (Owner 15.09.2026)");
+K.avesmapsWegAuswahlAufheben();
+
+// 12. Owner 15.09.2026: „ganze Straße" ist der NAME, nicht die Wiki-Zuweisung. Ein Abschnitt OHNE Zuweisung (und mit anderer
+// Wegart) gehoert dazu; der erste Klick auf IHN markiert alles, die fremden Traeger kommen trotzdem gestrichelt, und die Zeile
+// nennt die entferntesten Orte.
+const ohneWiki = {
+	properties: { public_id: "rs-9", feature_subtype: "Strasse", name: "Strasse-rs-9", display_name: RS.name, wiki_path: null, wiki_path_weitere: [] },
+	geometry: { coordinates: [[3, 0], [4, 0]] },
+	_pathLines: [linie(), linie()],
+};
+global.pathData.push(ohneWiki);
+global.locationData.push({ name: "Rudein", coordinates: [0, 4] });
+bp1.properties.wiki_path_weitere = [{ wiki_key: RS.key, name: RS.name, wiki_url: url(RS.seite) }];
+global.mapDataSourceStatus = { revision: 2 };
+assert.deepStrictEqual(K.avesmapsWegAuswahlKlick(ohneWiki), { gruppe: "name:Reichsstraße 2", publicId: null });
+assert.deepStrictEqual([rs6, rs7, rs8, ohneWiki].map(farbe), [GOLD, GOLD, GOLD, GOLD], "alles, was den Namen traegt -- mit und ohne Zuweisung");
+assert.strictEqual(strich(bp1), "8 8", "der fremde Traeger des Artikels, obwohl der geklickte Abschnitt selbst keinen traegt");
+const ganzOhne = createPathPopupMarkup(ohneWiki);
+assert.ok(ganzOhne.startsWith('KOPF[<div class="info-header__markierung"><b>Ganze Straße:</b> Perz – Rudein</div>]'), ganzOhne);
+K.avesmapsWegAuswahlKlick(ohneWiki);
+assert.deepStrictEqual([rs6, rs7, rs8, ohneWiki].map(farbe), ["#mitte", "#mitte", "#mitte", GOLD], "zweiter Klick: nur dieser Abschnitt golden");
+const teilOhne = createPathPopupMarkup(ohneWiki);
+assert.ok(teilOhne.startsWith('KOPF[<div class="info-header__markierung"><b>Abschnitt 4:</b> Helmdahl – Rudein</div>]'), teilOhne);
+assert.ok(!teilOhne.includes("Ganze Straße"), teilOhne);
 K.avesmapsWegAuswahlAufheben();
 
 console.log("weg-auswahl-karte.test.js: ok");
