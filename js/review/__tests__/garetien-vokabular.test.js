@@ -171,8 +171,8 @@ const AUSNAHMEN_KONTEXTE = [
 			+ "zu tun.",
 	},
 	{
-		kontext: "Weg anzeigen (Name auf der Karte)",
-		grund: "dasselbe Häkchen für Wege, andere Beschriftung.",
+		kontext: "Wegname anzeigen",
+		grund: "dasselbe Häkchen für Wege, andere Beschriftung (seit 15.09.2026 wortgleich zum Dialog „Weg bearbeiten“).",
 	},
 	{
 		kontext: "Angezeigte Zeilen",

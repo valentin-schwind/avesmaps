@@ -373,6 +373,33 @@ function buildWayLabelGapFillerIndex(paths, nameOf) {
 	return index;
 }
 
+// REIN: die Gruppen des Kanals A -- welche Abschnitte werden als EIN Weg beschriftet, und unter welchem Namen?
+// 🔴 ARTIKEL UND TITEL, nicht der Artikel allein -- seit 15.09.2026 gehoert der Wegname dem Editor (R1 umgekehrt, Kopf von
+// api/_internal/wiki/path-naming.php). Der Name ist der TITEL des Abschnitts (titelVon, im Browser getPathTitleName: eigener Name,
+// sonst Wiki-Name), nie `wiki_path.name`. Benennt jemand einen Teil der Strasse um, traegt dieser Teil seinen Namen, statt vom
+// Artikelnamen der Nachbarn uebermalt zu werden; solange alle Abschnitte eines Artikels gleich heissen -- der Normalfall, Zuweisen
+// schreibt den Artikelnamen --, bleibt es EINE Gruppe je Artikel wie vorher.
+// istZulaessig(path) entscheidet, ob ein Abschnitt ueberhaupt mitmacht (Tor und Bildausschnitt); ohne `wiki_path.wiki_key` macht
+// keiner mit -- das ist Kanal B. Ausgabe: Map<Schluessel, { wikiKey, name, wikiUrl, pathsById: Map<public_id, path> }>, wikiUrl vom
+// ERSTEN Abschnitt der Gruppe (Grundlage des Klick-Popup-Links). Pur -- keine Globals, kein DOM.
+function buildWayLabelGroups(paths, istZulaessig, titelVon) {
+	const gruppen = new Map();
+	(Array.isArray(paths) ? paths : []).forEach((path) => {
+		const wiki = path?.properties?.wiki_path;
+		const wikiKey = String(wiki?.wiki_key || "");
+		if (wikiKey === "" || (typeof istZulaessig === "function" && !istZulaessig(path))) {
+			return;
+		}
+		const titel = String((typeof titelVon === "function" ? titelVon(path) : "") || "").trim();
+		const schluessel = wikiKey + "\u0000" + titel;
+		if (!gruppen.has(schluessel)) {
+			gruppen.set(schluessel, { wikiKey, name: titel, wikiUrl: String(wiki.wiki_url || "").trim(), pathsById: new Map() });
+		}
+		gruppen.get(schluessel).pathsById.set(path.properties.public_id || path.id, path);
+	});
+	return gruppen;
+}
+
 // Berechnet Mittelpunkt-Offsets (px entlang der Kette) für wiederholte Label-Platzierungen im
 // festen Bildschirm-Intervall. totalLenPx = Gesamtlänge der Kette in Bildschirm-Pixeln, intervalPx
 // = Ziel-Abstand zwischen Label-Mitten, textLenPx = gemessene Breite des Namens (px). Regeln:

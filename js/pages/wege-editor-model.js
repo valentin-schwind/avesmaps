@@ -282,8 +282,9 @@ function wpGroupWays(ways) {
 			return pa < pb ? -1 : (pa > pb ? 1 : 0);
 		});
 		// ⚠️ Eine Namensgruppe kann GEMISCHTE Hauptzuweisungen tragen (live: Reichsstraße 2, 49 mit, 18 ohne). Die Gruppe nennt die
-		// erste, die in ihr steht -- nicht „keine", nur weil der westlichste Abschnitt keine traegt: daran haengen die Namenssperre
-		// der Weg-Ebene (R1) und der Kasten „Wiki-Weg". Welche es alle sind, sagt wpGruppeHauptzuweisungen.
+		// erste, die in ihr steht -- nicht „keine", nur weil der westlichste Abschnitt keine traegt: daran haengt der Kasten
+		// „Wiki-Weg". Welche es alle sind, sagt wpGruppeHauptzuweisungen. (Die Namenssperre der Weg-Ebene, die hier auch hing, ist
+		// am 15.09.2026 mit der Umkehr von R1 gefallen -- der Wegname gehoert dem Editor.)
 		for (var i = 0; i < group.segments.length; i++) {
 			if (group.segments[i].wiki_path) { group.wiki_path = group.segments[i].wiki_path; break; }
 		}
@@ -294,10 +295,11 @@ function wpGroupWays(ways) {
 /**
  * REIN: welche Hauptzuweisungen tragen die Abschnitte einer Strasse? Jeder `wiki_key` einmal, „keine" als "" -- in der
  * Reihenfolge der Abschnitte. Mehr als ein Eintrag heisst: die Namensgruppe ist GEMISCHT.
- * 🔴 Das gibt es, seit die Strasse der Name ist (Owner 15.09.2026). Zwei Leser haengen daran: die Namenssperre der ganzen Strasse
- * im Kartendialog (gesperrt, sobald ein Eintrag nicht "" ist -- syncPathAutoNameControls, review-paths.js), und die fremden Traeger
- * kommen aus ALLEN Artikeln der Strasse, nicht aus dem des angeklickten Abschnitts (map-features-weg-auswahl.js, weg-als-route.js,
- * weg-weitere-anzeige.js). WELCHE Abschnitte zu welcher Zuweisung gehoeren, sagt wpGruppeZuweisungsZeilen.
+ * 🔴 Das gibt es, seit die Strasse der Name ist (Owner 15.09.2026). Daran haengt: die fremden Traeger kommen aus ALLEN Artikeln
+ * der Strasse, nicht aus dem des angeklickten Abschnitts (map-features-weg-auswahl.js, weg-als-route.js, weg-weitere-anzeige.js).
+ * WELCHE Abschnitte zu welcher Zuweisung gehoeren, sagt wpGruppeZuweisungsZeilen.
+ * ⚠️ Hier stand ein zweiter Leser: die Namenssperre der ganzen Strasse im Kartendialog (syncPathAutoNameControls). Sie ist am
+ * 15.09.2026 mit der Umkehr von R1 gefallen -- der Wegname gehoert dem Editor, auch an einer gemischten Strasse.
  */
 function wpGruppeHauptzuweisungen(segmente) {
 	var schluessel = [];

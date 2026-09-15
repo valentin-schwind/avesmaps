@@ -913,6 +913,10 @@ function avesmapsWikiPathRowMatchesWay(string $rowName, ?string $rowPropertiesJs
 // Heftet einen Wiki-Weg an ALLE aktiven Path-Features mit gleichem (normalisiertem) Namen ODER
 // bereits bestehender Zuordnung zu diesem Wiki-Weg (Weg-Identitaet, s.o.).
 // Gated: dry_run zaehlt nur; Schreiben nur bei dry_run:false. map_features-Write (Produktion).
+// ⚠️ SCHREIBT DEN WIKI-NAMEN AUCH AN SCHON ZUGEWIESENE Abschnitte -- und das bleibt nach der Umkehr von R1 (15.09.2026)
+// so: der einzige Aufrufer ist der Knopf „Namen vereinheitlichen" im WikiSync-Panel (assignPathWiki,
+// js/review/review-path-sync.js), mit Vorschau und Rueckfrage „alle N Segmente auf diesen Wiki-Namen vereinheitlichen?".
+// Eine ausdrueckliche Uebernahme auf Knopfdruck, kein Abgleich, der einen Editor-Namen still zurueckdreht.
 function avesmapsWikiPathAssign(PDO $pdo, string $wikiKey, bool $dryRun, int $userId = 0, array $assignMeta = []): array {
     avesmapsWikiPathEnsureTables($pdo);
     $wikiKey = trim($wikiKey);
@@ -1039,7 +1043,9 @@ function avesmapsWikiPathAssignTo(PDO $pdo, string $wikiKey, string $publicId, b
 
     $targetKey = avesmapsWikiSyncCreateMatchKey((string) $target['name']);
     $assignObject = avesmapsWikiPathBuildAssignObject($row, $assignMeta);
-    // R1: the assigned wiki way names the way. '' (unusable staging row) keeps existing names.
+    // ZUWEISEN SETZT DEN WIKI-NAMEN -- auch nach der Umkehr von R1 am 15.09.2026 (Kopf von path-naming.php): „Zuweisen setzt den
+    // Wiki-Namen wie heute; danach übernimmt ihn nur noch Sync auf Knopfdruck". Danach gehoert der Name dem Editor.
+    // '' (unusable staging row) keeps existing names.
     $canonicalName = avesmapsWikiPathCanonicalName($assignObject);
     // Fast path (perf, behavior-preserving): single_segment only ever touches the target row (the
     // loop skips every other public_id), so fetch just that row instead of scanning all paths.
@@ -1141,8 +1147,10 @@ function avesmapsWikiPathAssignTo(PDO $pdo, string $wikiKey, string $publicId, b
 
 // Bulk: verknuepft in EINEM Durchlauf alle Karten-Wege, deren Name zu einem Staging-Weg passt
 // (= matched + ambiguous; missing haben kein Segment). Gated wie assign.
-// NICHT auf R1-Umbenennung umgestellt: Bulk ueber tausende Zeilen (STRATO). Namen konvergieren
-// beim naechsten assign_to/Details-Save (R1 wird dort server-seitig erzwungen).
+// BENENNT NICHT UM: Bulk ueber tausende Zeilen (STRATO). Hier stand „Namen konvergieren beim naechsten
+// assign_to/Details-Save (R1 wird dort server-seitig erzwungen)" -- das Details-Speichern erzwingt seit der
+// Umkehr von R1 (15.09.2026, path-naming.php) nichts mehr; den Wiki-Namen setzen nur noch assign/assign_to
+// und „Sync" im Kasten „Wiki-Weg".
 function avesmapsWikiPathAssignAll(PDO $pdo, string $continentFilter, bool $dryRun, array $assignMeta = []): array {
     avesmapsWikiPathEnsureTables($pdo);
     $continentFilter = trim($continentFilter);

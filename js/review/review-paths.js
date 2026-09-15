@@ -9,19 +9,17 @@ function populatePathEditForm(path, { ganzeStrasse = false } = {}) {
 	pathEditFeature = path;
 	document.getElementById("path-edit-public-id").value = path.properties.public_id || path.id || "";
 	void acquireFeatureSoftLock(document.getElementById("path-edit-public-id").value);
-	document.getElementById("path-edit-name").value = getPathDisplayName(path);
+	document.getElementById("path-edit-name").value = pathEditNameVorbelegung(path);
 	document.getElementById("path-edit-type").value = pathSubtype;
 	document.getElementById("path-edit-autoname").checked = true;
 	document.getElementById("path-edit-autoname").disabled = false;
+	// 🔴 „Wegname anzeigen" steht seit 15.09.2026 auch an einem Wiki-Weg da (Owner: „mit "Wegname anzeigen" die kontrolle haben,
+	// ob der name auf der karte angezeigt werden soll"). Hier blendete bis dahin eine Zeile die Beschriftung an zugewiesenen Wegen
+	// aus, weil die Karte sie ohnehin als Ganzes beschriftete und das Haekchen dort nicht las.
 	document.getElementById("path-edit-show-label").checked = shouldPathNameBeDisplayed(path);
 	// Der gespeicherte Stand des Häkchens -- VOR syncPathTransportOptions, das ihn ausliest.
 	const bachHaken = document.getElementById("path-edit-is-bach");
 	if (bachHaken) { bachHaken.checked = typeof pathIstBach === "function" && pathIstBach(path); }
-	const showLabelField = document.getElementById("path-edit-show-label")?.closest("label");
-	if (showLabelField) {
-		const hasWikiWay = typeof pathWikiCurrentAssignment === "function" && Boolean(pathWikiCurrentAssignment());
-		showLabelField.hidden = hasWikiWay; // Way-Labels beschriften zugewiesene Wege automatisch
-	}
 	syncPathTransportOptions({ path });
 	syncPathAutoNameControls();
 	// 🔴 EIN FRISCH GEOEFFNETER DIALOG HAT NICHTS UEBERNOMMEN. Ohne das Leeren trüge die Merkliste
@@ -36,8 +34,9 @@ function populatePathEditForm(path, { ganzeStrasse = false } = {}) {
 		// laedt trotzdem -- und genau diese Fortsetzung zeichnete am 15.09.2026 den alten Kasten ueber die Zeilen (live, Reichsstraße 2).
 		// Die Wurzel ist im Bauteil behoben (js/ui/wiki-assign.js, `zerstoert`); hier faellt der ueberfluessige Aufbau weg.
 		// ⚠️ Was renderPathWikiReference sonst noch tat, bleibt: die Abweichungszeile am Wegtyp (fuer den angeklickten Abschnitt, wie
-		// bisher). pathWikiSyncNachbarn ist hier doppelt -- „Weg anzeigen“ und die Namenssperre stehen schon oben, und die Zeilen rufen
-		// es selbst. Den Vorgaenger baut renderPathWikiGruppenZeilen ab; dazwischen laeuft nichts Asynchrones.
+		// bisher). pathWikiSyncNachbarn ist hier doppelt -- der Auto-Name steht schon oben (die Namenssperre und das Ausblenden von
+		// „Wegname anzeigen" sind am 15.09.2026 gefallen), und die Zeilen rufen es selbst. Den Vorgaenger baut renderPathWikiGruppenZeilen
+		// ab; dazwischen laeuft nichts Asynchrones.
 		if (typeof pathWikiZeichneAbweichungen === "function") {
 			pathWikiZeichneAbweichungen();
 		}
@@ -51,6 +50,18 @@ function populatePathEditForm(path, { ganzeStrasse = false } = {}) {
 	// Entwurf 2026-09-14 §3.5: oben die Zeile „Abschnitt: A – B", unter der Wiki-Zuweisung die weiteren Zuweisungen.
 	pathEditUmfangZeigen(path, false);
 	mountPathWikiWeitere(path, [path], false);
+}
+
+/**
+ * Was im Namensfeld steht, wenn der Dialog einen Abschnitt oeffnet: der Name, den Karte, Infobox und Suche zeigen
+ * (getPathTitleName -- eigener Name, sonst der Wiki-Name), sonst der Anzeigename.
+ * ⚠️ Der Unterschied zu getPathDisplayName trifft nur ALTSEGMENTE mit Maschinennamen trotz Zuweisung ("Reichsstrasse-16"):
+ * bis zum 15.09.2026 schrieb die Namenssperre dort den Artikelnamen ins Feld. Das Feld ist seither frei (R1 umgekehrt), und
+ * ohne diese Vorbelegung stuende darin eine Nummer, die niemand auf der Karte sieht.
+ */
+function pathEditNameVorbelegung(path) {
+	const titel = typeof getPathTitleName === "function" ? getPathTitleName(path) : "";
+	return titel || getPathDisplayName(path);
 }
 
 /**
@@ -106,7 +117,7 @@ function mountPathEditFeatureSources(path, festeIds = null) {
 }
 
 // ── Der Dialog fuer die GANZE Strasse (Entwurf 2026-09-14 §3.5) ─────────────────────────────────────────────────
-// Die Felder der Weg-Ebene des Wege-Editors ueber `update_path_group_details`: Wegname, „Weg anzeigen", Wegtyp,
+// Die Felder der Weg-Ebene des Wege-Editors ueber `update_path_group_details`: Wegname, „Wegname anzeigen", Wegtyp,
 // Transportmittel. 💣 Geschrieben wird nur, was angefasst wurde (wpGroupRumpf); ein uneiniges Feld zeigt
 // „— gemischt lassen —" bzw. einen halben Haken. Bach und Stroemung bleiben am Abschnitt; Zeitfenster wirken ueber
 // den Hauptschluessel ohnehin fuer alle Abschnitte.
@@ -213,7 +224,8 @@ function populatePathEditFormGruppe(path, pfade) {
 	if (name) {
 		name.value = stand.name.gleich ? stand.name.wert : "";
 	}
-	// R1: ein zugewiesener Wiki-Weg besitzt den Namen -- dieselbe Sperre wie am Abschnitt.
+	// 🔴 Der Name ist auch an einer Strasse mit Wiki-Zuweisung frei (R1 seit 15.09.2026 umgekehrt): ein Umbenennen gilt beim
+	// „Speichern für N Abschnitte" fuer alle. syncPathAutoNameControls nimmt nur noch den Auto-Name weg.
 	syncPathAutoNameControls();
 
 	const zeige = document.getElementById("path-edit-show-label");
@@ -372,8 +384,8 @@ function mountPathWikiWeitere(path, pfade, ganz) {
 }
 
 /**
- * Nach Zuweisen/Entfernen im Gruppendialog (Nachtrag 15.09.2026 §9.6): R1 bzw. R2 haben die Namen der Abschnitte geaendert,
- * der Vergleichsstand vom Oeffnen stimmt nicht mehr.
+ * Nach Zuweisen/Entfernen im Gruppendialog (Nachtrag 15.09.2026 §9.6): Zuweisen (Artikelname) bzw. R2 (generische Namen) haben die
+ * Namen der Abschnitte geaendert, der Vergleichsstand vom Oeffnen stimmt nicht mehr.
  * 💣 Ohne Neurechnen stuende nach „Entfernen" der alte gemeinsame Name als Stand da, das Namensfeld zeigte ihn weiter -- und
  * das naechste „Speichern fuer N Abschnitte" schriebe einen Namen auf alle, die gerade eigene bekommen haben.
  */
@@ -382,7 +394,7 @@ function pathEditGruppeNachWikiSchreiben() {
 		return;
 	}
 	// 🔴 Fixrunde Lieferung 2: DIE STRASSE IST DER NAME, und ein Wiki-Schreiben kann Abschnitte aus ihr herausnehmen -- R2 (Entfernen)
-	// benennt generisch um, R1 (Zuweisen eines anderen Artikels) nach dem Artikel. Ohne Eingrenzen bildete der Dialog seine Zeilen weiter
+	// benennt generisch um, Zuweisen eines anderen Artikels nach dem Artikel. Ohne Eingrenzen bildete der Dialog seine Zeilen weiter
 	// aus den Pfaden vom Oeffnen (Reichsstraße 2: nach „Entfernen" der 49 stand „keine · 67"), und das naechste Zuweisen bzw. „Speichern
 	// für 67" schrieb auf ausgetretene Abschnitte. Dieselbe Regel wie auf der Karte (avesmapsWegGruppenSchluessel -> wpGroupKeyOf); die
 	// Weg-Ebene des Wege-Editors laedt nach dem Namen neu (wpNachZeilenSchreiben).
@@ -479,10 +491,6 @@ function populatePathEditFormFromLastSettings(path) {
 	document.getElementById("path-edit-autoname").checked = autoNameEnabled;
 	document.getElementById("path-edit-autoname").disabled = false;
 	document.getElementById("path-edit-show-label").checked = showLabelEnabled;
-	const showLabelFieldFromLastSettings = document.getElementById("path-edit-show-label")?.closest("label");
-	if (showLabelFieldFromLastSettings) {
-		showLabelFieldFromLastSettings.hidden = false; // neuer Pfad -- noch keine Wiki-Zuweisung
-	}
 	syncPathTransportOptions({
 		path: {
 			properties: {
@@ -572,15 +580,13 @@ function buildPathEditPayload(formElement) {
 	const formData = new FormData(formElement);
 	const featureSubtype = String(formData.get("feature_subtype") || "").trim();
 	const isAutoNameEnabled = formData.get("autoname") === "on";
-	// R1 defense in depth (the server enforces it too): with a wiki way assigned, the
-	// submitted name IS the wiki way name, whatever the input field claims.
-	const wiki = typeof pathWikiCurrentAssignment === "function" ? pathWikiCurrentAssignment() : null;
-	const wikiName = wiki && typeof pathWikiCanonicalName === "function" ? pathWikiCanonicalName(wiki) : "";
-	const submittedName = wikiName !== ""
-		? wikiName
-		: (isAutoNameEnabled
-			? String(formData.get("name") || "").trim()
-			: getPathDisplayNameOrGenerated(formData.get("name"), featureSubtype, { excludePath: pathEditFeature }));
+	// 🔴 GESPEICHERT WIRD, WAS IM FELD STEHT -- auch an einem Wiki-Weg (R1 seit 15.09.2026 umgekehrt, Kopf von
+	// api/_internal/wiki/path-naming.php). Hier stand die „R1 defense in depth": mit Zuweisung schickte der Rumpf den
+	// Artikelnamen, egal was im Feld stand. ⚠️ Am Wiki-Weg ist „Auto-Name" gesperrt (syncPathAutoNameControls), und ein
+	// gesperrtes Haekchen reist in FormData nicht mit -- also der zweite Zweig: der getippte Name, bei leerem Feld ein erzeugter.
+	const submittedName = isAutoNameEnabled
+		? String(formData.get("name") || "").trim()
+		: getPathDisplayNameOrGenerated(formData.get("name"), featureSubtype, { excludePath: pathEditFeature });
 	const allowedTransports = Array.from(formElement.querySelectorAll('input[name="allowed_transport"]:checked')).map((input) => input.value);
 	// 🔴 KEIN `wiki_no_article` MEHR. Am 16.08.2026 fiel das HÄKCHEN (Owner-Entscheid): gesetzt wurde
 	// der Merker seither nur noch im Konfliktzentrum, wo die Entscheidung hingehört -- beim Weg wirkt
@@ -702,32 +708,28 @@ function syncPathAutoNameControls({ forceName = false } = {}) {
 		return;
 	}
 
-	// 🔴 IM GRUPPENMODUS GEHOERT DIE SPERRE DER STRASSE, nicht dem angeklickten Abschnitt (Fixrunde Lieferung 1, 15.09.2026):
-	// gesperrt, sobald IRGENDEIN Abschnitt eine Hauptzuweisung traegt -- dieselbe Regel wie auf der Weg-Ebene des Wege-Editors
-	// (renderGroupDetail, js/pages/wege-editor.js). Seit die Strasse der Name ist, kann sie gemischt sein: ein Klick auf einen der
-	// 18 unzugewiesenen Abschnitte der Reichsstraße 2 liess das Feld offen, ein Umbenennen haette nur die 18 umbenannt (die 49
-	// zugewiesenen behaelt der Server nach R1), und die Strasse waere ohne Rueckfrage zerfallen.
-	// ⚠️ Der Wert bleibt, was populatePathEditFormGruppe hineinschrieb (gemeinsamer Name oder leer = gemischt): ein Artikelname
-	// hier waere eine Aenderung, die niemand angefasst hat, und das Sammel-Speichern schriebe sie auf alle Abschnitte.
+	// 🔴 DER WEGNAME GEHOERT DEM EDITOR -- R1 ist seit 15.09.2026 umgekehrt (Owner am Gruppendialog „Bärenpfad": „der wegname lässt
+	// sich nicht ändern. wenn ich umbenenne, soll das beim speichern für alle abschnitte gelten"). Hier stand die NAMENSSPERRE: am
+	// Abschnitt mit Zuweisung schrieb diese Funktion den Artikelnamen ins Feld und machte es readOnly, im Gruppenmodus sperrte sie,
+	// sobald irgendein Abschnitt eine Hauptzuweisung trug (Fixrunde Lieferung 1). Beides ist gefallen: das Feld ist nie mehr gesperrt,
+	// und sein Wert bleibt, was der Befueller hineinschrieb -- ein Artikelname hier waere eine Aenderung, die niemand angefasst hat.
+	// Zuweisen setzt den Artikelnamen (pathWikiZuweisen schreibt ihn danach ins Feld), sonst holt ihn nur „Sync".
+	// Zwilling: renderDetail / renderGroupDetail im Wege-Editor (js/pages/wege-editor.js).
+	// ⚠️ Im Gruppenmodus gibt es keinen Auto-Name (pathEditGruppenModus blendet die Zeile aus).
 	if (pathEditGruppe && Array.isArray(pathEditGruppe.pfade)) {
-		const gesperrt = wpGruppeHauptzuweisungen(pathEditGruppe.pfade.map((pfad) => ({
-			wiki_path: (pfad && pfad.properties && pfad.properties.wiki_path) || null,
-		}))).some(Boolean);
 		autoNameElement.checked = false;
-		autoNameElement.disabled = gesperrt;
-		nameInputElement.readOnly = gesperrt;
+		autoNameElement.disabled = true;
+		nameInputElement.readOnly = false;
 		return;
 	}
 
-	// R1: an assigned wiki way owns the name -- no auto-name, no manual override. The
-	// checkbox is disabled (not just unchecked) so the lock is visible in the form.
+	// ⚠️ Am Wiki-Weg bleibt NUR der Auto-Name aus: er erzeugte einen Maschinennamen (<Wegart>-<n>), und der gehoert zu keiner
+	// Strasse (wpGroupKeyOf). Gesperrt statt nur abgehakt, damit man sieht, warum er fehlt.
 	const wiki = typeof pathWikiCurrentAssignment === "function" ? pathWikiCurrentAssignment() : null;
-	const wikiName = wiki && typeof pathWikiCanonicalName === "function" ? pathWikiCanonicalName(wiki) : "";
-	autoNameElement.disabled = wikiName !== "";
-	if (wikiName !== "") {
+	autoNameElement.disabled = Boolean(wiki);
+	nameInputElement.readOnly = false;
+	if (wiki) {
 		autoNameElement.checked = false;
-		nameInputElement.value = wikiName;
-		nameInputElement.readOnly = true;
 		return;
 	}
 

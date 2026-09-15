@@ -429,7 +429,7 @@ const ort = {
 };
 avesmapsGaretienStageHinzufuegen([ort]);
 const mOrt = garetienEingefuegtWirdMarkup(ort);
-wahr(!mOrt.includes("Fläche") && !mOrt.includes("class=\"gi-insert__sub\">Beschriftung<") && !mOrt.includes("Weg anzeigen"),
+wahr(!mOrt.includes("Fläche") && !mOrt.includes("class=\"gi-insert__sub\">Beschriftung<") && !mOrt.includes("Wegname anzeigen"),
 	"ein Ort hat weder Flaechen- noch Beschriftungs- noch Weg-Einstellwerte");
 wahr(mOrt.includes("Ort"), "die Ort-Unterueberschrift fehlt");
 
@@ -550,9 +550,11 @@ wahr(mWeg.includes('<span class="gi-block__zahl">E</span>Wiki &amp; Quellen') &&
 	"Quelle bleibt fuer JEDES Ziel gueltig, auch fuer einen Weg");
 wahr(!mWeg.includes("Wiki-Landschaft"), "Wiki-Landschaft gilt nur Regionen, nicht Wegen");
 
-// ---- "Weg anzeigen" (show_label) ist jetzt ein Haken.
+// ---- "Wegname anzeigen" (show_label) ist jetzt ein Haken.
+// 🔴 Seit 15.09.2026 heisst das Haekchen im echten Dialog „Wegname anzeigen" (index.html, Wege-Editor) -- hier stand
+// „Weg anzeigen (Name auf der Karte)"; der Klammerzusatz sagte, was der neue Name selbst sagt.
 wahr(/data-gi-feld="showLabel"/.test(mWeg), "show_label ist ein Haekchen: " + mWeg);
-wahr(mWeg.includes("Weg anzeigen (Name auf der Karte)"), "und traegt die Beschriftung des echten Dialogs");
+wahr(mWeg.includes("Wegname anzeigen"), "und traegt die Beschriftung des echten Dialogs");
 
 // ---- "Verkehrsmittel": EIN Haken je ANGEBOTENEM Mittel, vorgehakt nach der Vorauswahl der Wegart.
 // 🔴 Beides kommt aus der geteilten Regel (map-features-path-domain.js), nicht aus abgeschriebenen

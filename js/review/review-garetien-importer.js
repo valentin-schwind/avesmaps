@@ -5407,7 +5407,7 @@
 			? getTransportOptionsForPathSubtype(subtyp)
 			: null;
 		let markup = garetienEingefuegtWirdUeberschrift("Weg")
-			+ garetienEingefuegtWirdHakenZeile(objekt, "Weg anzeigen (Name auf der Karte)",
+			+ garetienEingefuegtWirdHakenZeile(objekt, "Wegname anzeigen",
 				"showLabel", eingaben.showLabel, deaktiviert)
 			// 🔴 VORGABE AN (Owner 02.09.2026). Ohne Endknoten hängt der Weg im Routennetz an
 			// nichts: der Graphbau verwirft jeden Weg, dessen Endpunkt auf keinem bekannten Ort

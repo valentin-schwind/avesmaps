@@ -187,8 +187,9 @@ function avesmapsPathEditorList(PDO $pdo): array
             'transport_seasons' => is_array($properties['transport_seasons'] ?? null)
                 ? $properties['transport_seasons']
                 : new stdClass(),
-            // The wiki way OWNS the name when it is set (R1) -- the client needs to know, because
-            // that is what locks the name field and hides „Weg anzeigen".
+            // Die Zuweisung reist mit: der Wege-Editor baut daraus den Kasten „Wiki-Weg" und schaltet „Auto-Name" ab (er erzeugte
+            // an einem Wiki-Weg einen Maschinennamen). 🔴 Den NAMEN besitzt sie seit 15.09.2026 nicht mehr (R1 umgekehrt,
+            // api/_internal/wiki/path-naming.php): Namensfeld und „Wegname anzeigen" sind auch an Wiki-Wegen frei.
             'wiki_path' => $wikiPath === null ? null : [
                 'wiki_key' => (string) ($wikiPath['wiki_key'] ?? ''),
                 'wiki_url' => (string) ($wikiPath['wiki_url'] ?? ''),

@@ -53,20 +53,33 @@ vm.runInContext(extractFunction(domainSource, "getUnnamedPathTitle"), sandbox);
 
 const way = (props) => ({ properties: { feature_subtype: "Strasse", ...props } });
 
-// --- getPathTitleName: the wiki name is the identity ------------------------------------------------------
+// --- getPathTitleName: der eigene Name zuerst, der Wiki-Name als Rueckfall --------------------------------
 
-// THE bug this fixes: 12 legacy segments violate R1 (assigned but kept a stale name). The spotlight has
-// always shown the wiki name, the infobox showed display_name -- so search said "Reichsstraße 2" and the
-// box said "Reichsstrasse-16". Going through the wiki name heals the display without touching data.
+// 🔴 SEIT 15.09.2026 IN DIESER REIHENFOLGE: der Wegname gehoert dem Editor (R1 umgekehrt, Kopf von
+// api/_internal/wiki/path-naming.php). Bis dahin stand hier „the wiki name is the identity" und die zweite
+// Zusicherung „the wiki name also wins over an ss/ß spelling variant" -- umgestellt, nicht geloescht: derselbe
+// Fall sagt jetzt das Gegenteil, weil ein von Hand geschriebenes „Reichsstrasse 2" eine Entscheidung ist.
+// Der ALTE Anlass bleibt wahr und steht als erste Zusicherung: 12 Altsegmente tragen trotz Zuweisung einen
+// Maschinennamen ("Reichsstrasse-16") -- ein Maschinenname ist kein Name, also heilt der Wiki-Rueckfall die Anzeige.
 assert.strictEqual(
 	sandbox.getPathTitleName(way({ display_name: "Reichsstrasse-16", wiki_path: { name: "Reichsstraße 2" } })),
 	"Reichsstraße 2",
-	"the wiki name wins over a stale generic display_name"
+	"the wiki name is the fallback for a stale generic display_name"
 );
 assert.strictEqual(
 	sandbox.getPathTitleName(way({ display_name: "Reichsstrasse 2", wiki_path: { name: "Reichsstraße 2" } })),
-	"Reichsstraße 2",
-	"the wiki name also wins over an ss/ß spelling variant"
+	"Reichsstrasse 2",
+	"ein echter eigener Name schlaegt den Wiki-Namen -- auch eine andere Schreibweise ist eine Entscheidung des Editors"
+);
+assert.strictEqual(
+	sandbox.getPathTitleName(way({ display_name: "Alter Bärenpfad", wiki_path: { name: "Bärenpfad" } })),
+	"Alter Bärenpfad",
+	"ein umbenannter zugewiesener Weg heisst so, wie der Editor ihn nannte"
+);
+assert.strictEqual(
+	sandbox.getPathTitleName(way({ display_name: "Strasse", wiki_path: { name: "Bärenpfad" } })),
+	"Bärenpfad",
+	"der nackte Wegtyp ist kein Name -- auch dann gilt der Wiki-Rueckfall"
 );
 
 // No wiki: a real display_name still counts.

@@ -124,7 +124,7 @@ function sandkasten(weitereWege) {
 					if (ziele.indexOf(w.public_id) === -1 || (w.wiki_path && w.wiki_path.wiki_key === rumpf.wiki_key)) { return; }
 					w.wiki_path = { wiki_key: rumpf.wiki_key, name, wiki_url: "https://x/" + rumpf.wiki_key };
 					w.name = name;
-					// Der Server liefert den echten Namen mit (avesmapsWikiPathEchterName): nach R1 der des Artikels.
+					// Der Server liefert den echten Namen mit (avesmapsWikiPathEchterName): nach dem Zuweisen der des Artikels.
 					w.echter_name = name;
 				});
 				antwort = { ok: true, type_ok: true, applied: ziele.length, wiki_name: name, segments_updated: [] };
@@ -225,6 +225,14 @@ function pruefeRueckfallAufAnker(f, wo) {
 	assert.notStrictEqual(weitereAbschnitt.opts.liste, false, "am Abschnitt bleibt die Liste mit ✕ im Anhang");
 	assert.ok(!("wpWikiWeitere" in s.elemente), "niemand fragt mehr nach #wpWikiWeitere");
 	assert.strictEqual(s.kasten.zeilenMounts.length, 0, "am Abschnitt keine Zeilenliste");
+	// 🔴 SEIT 15.09.2026 (R1 umgekehrt, der Wegname gehoert dem Editor): am zugewiesenen Abschnitt ist der Name frei und „Wegname
+	// anzeigen" steht da; nur der Auto-Name bleibt aus (er erzeugte einen Maschinennamen). Hier stand bis dahin die Sperre samt Hinweis
+	// „„Weg anzeigen“ entfällt: die Beschriftung übernimmt das Way-Label des zugewiesenen Wiki-Weges.“
+	const abschnittHtml = s.elemente.wpDetail.innerHTML;
+	assert.ok(/id="wpName"/.test(abschnittHtml) && !/id="wpName"[^>]*readonly/.test(abschnittHtml), "der Abschnitt sperrt den Namen wieder");
+	assert.ok(/id="wpShowLabel"/.test(abschnittHtml) && abschnittHtml.includes("Wegname anzeigen"), "„Wegname anzeigen“ fehlt am Wiki-Weg");
+	assert.ok(/id="wpAutoName"[^>]*disabled/.test(abschnittHtml), "der Auto-Name ist am Wiki-Weg waehlbar -- er schriebe einen Maschinennamen");
+	assert.ok(!abschnittHtml.includes("entfällt"), "der alte Hinweis „… entfällt“ steht noch da");
 
 	// ---- 2. Weg-Ebene einer EINIGEN Strasse: EINE Zeile, aufgeklappt, darin das geteilte Bauteil ------------------------------
 	s.elemente.wpList.zuhoerer.click({ target: zeile({ "data-group": "name:Alte Straße" }), preventDefault() {} });
@@ -277,6 +285,22 @@ function pruefeRueckfallAufAnker(f, wo) {
 	assert.deepStrictEqual([...sammel.rumpf.fields], ["feature_subtype"]);
 	assert.deepStrictEqual([...(sammel.rumpf.wiki_uebernommen || [])], ["feature_subtype"],
 		"ohne wiki_uebernommen stempelte der Server die Uebernahme als „von uns“ (§9.5)");
+
+	// ---- 5b. Sync holt den NAMEN in die Weg-Ebene (seit 15.09.2026) -- und das Sammel-Speichern schreibt ihn auf alle -----------
+	// Owner: „Zuweisen setzt den Wiki-Namen wie heute; danach übernimmt ihn nur noch „Sync“ auf Knopfdruck.“
+	s.elemente.wpList.zuhoerer.click({ target: zeile({ "data-group": "name:Alte Straße" }), preventDefault() {} });
+	await ruhe();
+	letztes(s.kasten.gemounted).opts.syncUebernehmen([{ karte: "name", neu: "Alte Reichsstraße" }]);
+	assert.ok(/id="wpGroupName"[^>]*value="Alte Reichsstraße"/.test(s.elemente.wpDetail.innerHTML),
+		"nach Sync zeigt das Namensfeld wieder den Vergleichsstand statt des Entwurfs: " + s.elemente.wpDetail.innerHTML.slice(0, 800));
+	s.gesendet.length = 0;
+	s.elemente.wpGroupSave.zuhoerer.click({ target: s.elemente.wpGroupSave, preventDefault() {} });
+	await ruhe();
+	const sammelName = s.gesendet.find((g) => g.rumpf && g.rumpf.action === "update_path_group_details");
+	assert.ok(sammelName, JSON.stringify(s.gesendet.map((g) => g.rumpf)));
+	assert.deepStrictEqual([...sammelName.rumpf.fields], ["name"], "der geholte Name wird nicht als angefasstes Feld geschrieben");
+	assert.strictEqual(sammelName.rumpf.name, "Alte Reichsstraße");
+	assert.deepStrictEqual([...(sammelName.rumpf.wiki_uebernommen || [])], ["name"], "der geholte Name reist nicht als Wiki-Uebernahme");
 
 	// ---- 6. Ungespeicherte Weg-Ebene-Eingaben werden benannt, nicht still verworfen ------------------------------------
 	s.elemente.wpList.zuhoerer.click({ target: zeile({ "data-group": "name:Alte Straße" }), preventDefault() {} });
@@ -374,7 +398,13 @@ function pruefeRueckfallAufAnker(f, wo) {
 		assert.ok(gKasten.innerHTML.includes("Alte Straße ↗</a>") && gKasten.innerHTML.includes("2 Abschnitte · Abschnitt 1–2"), gKasten.innerHTML);
 		assert.ok(gKasten.innerHTML.includes(">keine<") && gKasten.innerHTML.includes("2 Abschnitte · Abschnitt 3–4"), "„keine“ zuletzt, mit ihren Nummern");
 		assert.ok(gKasten.innerHTML.includes("Bärenpfad auf 1"), "die weiteren Zuweisungen dieser Abschnitte mit „auf K“");
-		assert.ok(/id="wpGroupName"[^>]*readonly/.test(g.elemente.wpDetail.innerHTML), "die Namenssperre bleibt: eine Zeile traegt eine Zuweisung");
+		// 🔴 SEIT 15.09.2026 KEINE NAMENSSPERRE MEHR (R1 umgekehrt, Owner am Gruppendialog „Bärenpfad": „der wegname lässt sich nicht
+		// ändern. wenn ich umbenenne, soll das beim speichern für alle abschnitte gelten"). Hier stand „die Namenssperre bleibt: eine
+		// Zeile traegt eine Zuweisung" -- umgestellt, nicht geloescht: dieselbe Strasse, dieselbe Zuweisung, die Gegenaussage.
+		assert.ok(/id="wpGroupName"/.test(g.elemente.wpDetail.innerHTML) && !/id="wpGroupName"[^>]*readonly/.test(g.elemente.wpDetail.innerHTML),
+			"die Weg-Ebene sperrt den Namen wieder, obwohl er dem Editor gehoert");
+		assert.ok(/id="wpGroupShowLabel"/.test(g.elemente.wpDetail.innerHTML) && g.elemente.wpDetail.innerHTML.includes("Wegname anzeigen"),
+			"„Wegname anzeigen“ fehlt an einer Strasse mit Zuweisung -- der Editor haette keine Kontrolle ueber die Kartenschrift");
 		assert.deepStrictEqual([...letztes(g.kasten.weitereMounts).opts.abschnitte().map((a) => a.public_id)], ["p-1", "p-2", "p-6", "p-7"],
 			"der Kasten der weiteren Zuweisungen gilt der ganzen Strasse");
 		assert.strictEqual(letztes(g.kasten.weitereMounts).opts.hauptKey(), "alte-strasse",

@@ -395,12 +395,13 @@
 		}
 
 		var way = state.draft;
-		// 💣 R1: EIN ZUGEWIESENER WIKI-WEG BESITZT DEN NAMEN. Feld gesperrt, „Auto-Name“ gesperrt
-		// (nicht bloß leer -- die Sperre soll sichtbar sein), und „Weg anzeigen“ verschwindet ganz,
-		// weil die Way-Labels zugewiesene Wege ohnehin beschriften. Genau so verhält sich
-		// syncPathAutoNameControls im Kartendialog.
-		var wikiName = way.wiki_path && way.wiki_path.wiki_key ? String(way.wiki_path.name || "") : "";
-		var locked = wikiName !== "";
+		// 🔴 DER WEGNAME GEHOERT DEM EDITOR -- R1 ist seit 15.09.2026 umgekehrt (Kopf von api/_internal/wiki/path-naming.php; Owner:
+		// „der wegname lässt sich nicht ändern"). Hier stand die Sperre: Feld readonly, „Auto-Name" gesperrt, und „Weg anzeigen"
+		// verschwand, weil die Karte zugewiesene Wege ohnehin als Ganzes beschriftete. Jetzt ist das Feld frei, und „Wegname anzeigen"
+		// steht immer da (Owner: „mit "Wegname anzeigen" die kontrolle haben, ob der name auf der karte angezeigt werden soll").
+		// ⚠️ NUR „Auto-Name" bleibt am Wiki-Weg gesperrt: er erzeugte einen Maschinennamen (<Wegart>-<n>), der zu keiner Strasse
+		// gehoert. Zwilling: syncPathAutoNameControls im Kartendialog (js/review/review-paths.js).
+		var hatWikiWeg = Boolean(way.wiki_path && way.wiki_path.wiki_key);
 
 		var html = "";
 		html += '<div class="dt-grp">Identität</div>';
@@ -412,18 +413,12 @@
 		// die Eingabefelder untereinander an zwei verschiedenen Stellen. Genau daran ist der
 		// Literatur-Editor am 17.08.2026 aufgefallen.
 		html += '<div class="dt-grid dt-grid--wiki"><div class="k">Wegname</div><div>'
-			+ '<input type="text" id="wpName" maxlength="160" value="' + escapeHtml(way.name) + '"'
-			+ (locked ? " readonly" : "") + "></div></div>";
+			+ '<input type="text" id="wpName" maxlength="160" value="' + escapeHtml(way.name) + '"></div></div>';
 		html += '<div class="dt-check"><input type="checkbox" id="wpAutoName"'
-			+ (way.autoname ? " checked" : "") + (locked ? " disabled" : "") + "> <span>Auto-Name"
-			+ (locked ? ' <span class="avm-pill">vom Wiki-Weg gesetzt</span>' : "") + "</span></div>";
-		if (!locked) {
-			html += '<div class="dt-check"><input type="checkbox" id="wpShowLabel"'
-				+ (way.show_label ? " checked" : "") + "> <span>Weg anzeigen</span></div>";
-		} else {
-			html += '<div class="pl-hint">„Weg anzeigen“ entfällt: die Beschriftung übernimmt das '
-				+ "Way-Label des zugewiesenen Wiki-Weges.</div>";
-		}
+			+ (way.autoname && !hatWikiWeg ? " checked" : "") + (hatWikiWeg ? " disabled" : "") + "> <span>Auto-Name"
+			+ (hatWikiWeg ? ' <span class="avm-pill">nicht am Wiki-Weg</span>' : "") + "</span></div>";
+		html += '<div class="dt-check"><input type="checkbox" id="wpShowLabel"'
+			+ (way.show_label ? " checked" : "") + "> <span>Wegname anzeigen</span></div>";
 		// 💣 Die Zelle ist LEER und bleibt es, bis `wpZeichneWikiAbweichungen` sie fuellt -- der
 		// Kasten wird als Zeichenkette gebaut, der Wiki-Stand steht erst nach dem Ladelauf fest.
 		html += '<div class="dt-grid dt-grid--wiki"><div class="k">Wegtyp'
@@ -696,9 +691,9 @@
 	// Felder in Ruhe, die er selbst gefuellt hat.
 	// 💣 ZWEI OBERFLAECHEN, ZWEI MERKLISTEN, EINE REGEL: der Kartendialog `#path-edit-*`
 	// (js/review/review-path-wiki.js) fuehrt seine eigene -- anderes Dokument, eigenes `window`.
-	// 🔴 `name` STEHT NICHT DRIN, und das ist kein Vergessen: den Namen schreibt `assign_to`
-	// serverseitig auf den ganzen Namensverbund; das Formular kann ihn gar nicht gegen das Wiki
-	// setzen. Die Serverliste AVESMAPS_PATH_WIKI_ORIGIN_FIELDS fuehrt ihn aus demselben Grund nicht.
+	// 🔴 `name` STEHT SEIT 15.09.2026 DRIN, wenn „Sync" ihn geholt hat: der Wegname gehoert dem Editor (R1 umgekehrt, Kopf von
+	// api/_internal/wiki/path-naming.php), und die Serverliste AVESMAPS_PATH_WIKI_ORIGIN_FIELDS fuehrt ihn seither mit. Bis dahin
+	// stand hier „kein Vergessen: den Namen schreibt assign_to, das Formular kann ihn gar nicht gegen das Wiki setzen".
 	var wpWikiUebernommen = new Set();
 
 	/**
@@ -715,6 +710,9 @@
 			// schreibt seit dem 16.08.2026 in den Entwurf, OHNE die Spalte neu zu bauen. Eingefroren
 			// verglichen boete die Sync-Vorschau einen Wechsel an, den die Auswahl daneben schon zeigt.
 			feature_subtype: function () { return state.draft ? state.draft.feature_subtype : ""; },
+			// 🔴 Der NAME ebenso -- seit 15.09.2026 gehoert er dem Editor (R1 umgekehrt), und „Sync" vergleicht den Wiki-Namen mit
+			// dem, was jetzt im Feld steht.
+			name: function () { return state.draft ? state.draft.name : ""; },
 			// 🔴 Die Feldherkunft. Sie kommt aus der Liste (`?action=list`, weisse Liste in
 			// api/edit/map/paths-editor.php). Ohne sie wuesste weder das Vorhaekeln der
 			// Sync-Vorschau noch die braune Beschriftung, wer den Wegtyp gesetzt hat.
@@ -821,8 +819,8 @@
 			if (antwort.wiki_display_name) { state.draft.name = antwort.wiki_display_name; }
 			setStatus("„" + (antwort.wiki_name || "") + "“ verknüpft ("
 				+ (antwort.applied || 0) + " Abschnitte).", "ok");
-			// Die Eigenschaften-Spalte wird neu gezeichnet, weil Name und Namenssperre daran haengen
-			// (R1). 💣 Das ersetzt auch DIESES Bauteil durch ein frisches mit demselben Stand; der
+			// Die Eigenschaften-Spalte wird neu gezeichnet, weil der Name daran haengt (Zuweisen setzt den Artikelnamen) und
+			// „Auto-Name" am Wiki-Weg ausgeht. 💣 Das ersetzt auch DIESES Bauteil durch ein frisches mit demselben Stand; der
 			// Neuzeichen-Aufruf, den das alte gleich noch macht, trifft dann einen abgehaengten
 			// Knoten und bleibt unsichtbar.
 			renderDetail();
@@ -889,12 +887,22 @@
 		// Editor haette den Eindruck, sein Haken sei in den Entwurf gewandert. Praktisch
 		// unerreichbar (ohne Haken ist der Knopf ausgegraut) -- aber ein Vertrag, der nur an zwei
 		// von drei Stellen gilt, ist keiner.
-		var wegtyp = avesmapsWikiAssignWegSyncWegtyp(zeilen);
-		if (wegtyp === null || !state.draft) { throw new Error("Keine übernehmbare Angabe angehakt."); }
-		state.draft.feature_subtype = wegtyp;
-		state.draft.dirty = true;
+		// 🔴 SEIT 15.09.2026 ZWEI ANGABEN: Wegtyp UND Name (R1 umgekehrt -- Zuweisen setzt den Artikelnamen, danach holt ihn
+		// nur noch „Sync"). Zwilling: pathWikiSyncUebernehmen im Kartendialog (js/review/review-path-wiki.js).
+		var werte = avesmapsWikiAssignWegSyncWerte(zeilen);
+		if (!state.draft || (werte.feature_subtype === null && werte.name === null)) {
+			throw new Error("Keine übernehmbare Angabe angehakt.");
+		}
 		// 🔴 ZWEITE HAELFTE DER UEBERNAHME: merken, WELCHES Feld aus dem Wiki kam.
-		wpWikiUebernommen.add("feature_subtype");
+		if (werte.name !== null) {
+			state.draft.name = werte.name;
+			wpWikiUebernommen.add("name");
+		}
+		if (werte.feature_subtype !== null) {
+			state.draft.feature_subtype = werte.feature_subtype;
+			wpWikiUebernommen.add("feature_subtype");
+		}
+		state.draft.dirty = true;
 		// Der Wegtyp entscheidet, welche Transportmittel ueberhaupt angeboten werden -- also neu
 		// zeichnen, nicht nur den Wert merken (dieselbe Regel wie beim Auswahlfeld daneben).
 		renderDetail();
@@ -937,6 +945,8 @@
 			wiki_path: erster.wiki_path || null,
 			// Eine LESEFUNKTION: „— gemischt lassen —" ist `null` und liest sich als "" -- die Vorschau bietet dann den Wegtyp an.
 			feature_subtype: function () { return state.groupDraft && state.groupDraft.feature_subtype ? state.groupDraft.feature_subtype : ""; },
+			// Der Name ebenso -- er gilt beim „Speichern für N Abschnitte" fuer die ganze Strasse.
+			name: function () { return state.groupDraft && state.groupDraft.name ? state.groupDraft.name : ""; },
 			// ⚠️ Keine Feldherkunft: sie steht je Abschnitt und kann in einer Gruppe verschieden sein.
 			field_origins: null
 		});
@@ -1040,10 +1050,18 @@
 
 	/** ⚠️ ÜBERNEHMEN FÜLLT NUR DEN ENTWURF -- gespeichert wird mit „Speichern für N Abschnitte". */
 	function wikiAssignGruppeSyncUebernehmen(zeilen) {
-		var wegtyp = avesmapsWikiAssignWegSyncWegtyp(zeilen);
-		if (wegtyp === null || !state.groupDraft) { throw new Error("Keine übernehmbare Angabe angehakt."); }
-		state.groupDraft.feature_subtype = wegtyp;
-		wpGruppeWikiUebernommen.add("feature_subtype");
+		var werte = avesmapsWikiAssignWegSyncWerte(zeilen);
+		if (!state.groupDraft || (werte.feature_subtype === null && werte.name === null)) {
+			throw new Error("Keine übernehmbare Angabe angehakt.");
+		}
+		if (werte.name !== null) {
+			state.groupDraft.name = werte.name;
+			wpGruppeWikiUebernommen.add("name");
+		}
+		if (werte.feature_subtype !== null) {
+			state.groupDraft.feature_subtype = werte.feature_subtype;
+			wpGruppeWikiUebernommen.add("feature_subtype");
+		}
 		markGroupDirty();
 		renderDetail();
 		var message = $("wpSaveMsg");
@@ -1463,8 +1481,6 @@
 		var stand = state.groupStand;
 		var entwurf = state.groupDraft;
 		var anzahl = gruppe.segments.length;
-		var wikiName = gruppe.wiki_path && gruppe.wiki_path.wiki_key ? String(gruppe.wiki_path.name || "") : "";
-		var locked = wikiName !== "";
 
 		var html = '<div class="wp-scope">'
 			+ '<div class="wp-scope__title">Ganzer Weg — <b>' + escapeHtml(gruppe.name) + "</b></div>"
@@ -1473,21 +1489,22 @@
 			+ "</div>";
 
 		html += '<div class="dt-grp">Identität</div>';
+		// 🔴 DER NAME IST AUCH AN EINER STRASSE MIT WIKI-ZUWEISUNG FREI (R1 seit 15.09.2026 umgekehrt; Owner am Gruppendialog
+		// „Bärenpfad": „wenn ich umbenenne, soll das beim speichern für alle abschnitte gelten"). Hier stand die Sperre „Der Name
+		// gehört dem zugewiesenen Wiki-Weg", und „Weg anzeigen" fehlte an jeder solchen Strasse.
+		// ⚠️ Der Wert kommt aus dem ENTWURF, nicht aus dem Vergleichsstand: „Sync" schreibt den Artikelnamen in den Entwurf und
+		// zeichnet die Spalte neu -- aus dem Stand gelesen stuende danach wieder der alte Name da, und ein Wegtyp-Wechsel warf
+		// einen getippten Namen genauso weg.
 		html += '<div class="dt-grid"><div class="k">Wegname</div><div>'
 			+ '<input type="text" id="wpGroupName" maxlength="160" value="'
-			+ escapeHtml(stand.name.gleich ? (stand.name.wert || "") : "") + '"'
+			+ escapeHtml(entwurf.name !== null && entwurf.name !== undefined ? entwurf.name : "") + '"'
 			+ (stand.name.gleich ? "" : ' placeholder="gemischt"')
-			+ (locked ? " readonly" : "") + "></div></div>";
-		if (locked) {
-			html += '<div class="pl-hint">Der Name gehört dem zugewiesenen Wiki-Weg '
-				+ '<span class="avm-pill">' + escapeHtml(wikiName) + "</span> — er gilt ohnehin für alle Abschnitte.</div>";
-		} else {
-			html += '<div class="dt-check"><input type="checkbox" id="wpGroupShowLabel"'
-				+ (entwurf.show_label === true ? " checked" : "") + "> <span>Weg anzeigen</span></div>";
-			if (!stand.show_label.gleich) {
-				html += '<div class="dt-hint">Die Abschnitte sind hier uneins — ein Klick setzt alle '
-					+ anzahl + " gleich.</div>";
-			}
+			+ "></div></div>";
+		html += '<div class="dt-check"><input type="checkbox" id="wpGroupShowLabel"'
+			+ (entwurf.show_label === true ? " checked" : "") + "> <span>Wegname anzeigen</span></div>";
+		if (!stand.show_label.gleich) {
+			html += '<div class="dt-hint">Die Abschnitte sind hier uneins — ein Klick setzt alle '
+				+ anzahl + " gleich.</div>";
 		}
 
 		// 💣 „— gemischt lassen —" ist bei einer uneinigen Gruppe VORAUSGEWAEHLT und keine Wahl:
@@ -1580,7 +1597,10 @@
 		var name = $("wpGroupName");
 		if (name) {
 			name.addEventListener("input", function () {
-				state.groupDraft.name = name.value;
+				// Ein LEERES Feld heisst „gemischt lassen" (null), nie „leeren": der Server lehnt einen leeren Wegnamen ab, und das
+				// Sammel-Speichern schriebe ihn auf alle Abschnitte. Dieselbe Regel wie readPathGruppeEntwurf im Kartendialog.
+				var wert = String(name.value || "").trim();
+				state.groupDraft.name = wert === "" ? null : wert;
 				markGroupDirty();
 			});
 		}
@@ -1694,7 +1714,11 @@
 			// ueberlebt sein Schliessen. Ohne das zeigt ein Wiedereroeffnen den alten Stand.
 			// ⚠️ Und der Vergleichsstand muss mit -- sonst gilt beim naechsten Speichern noch der
 			// von vorhin, und dieselbe Aenderung ginge ein zweites Mal raus.
-			return loadList().then(function () { return selectGroup(key, true); });
+			// 💣 NACH EINEM UMBENENNEN GIBT ES DEN ALTEN SCHLUESSEL NICHT MEHR: die Strasse ist der Name (wpGroupKeyOf), und seit
+			// dem 15.09.2026 laesst sich auch eine Strasse mit Wiki-Zuweisung umbenennen. selectGroup(key) kehrte dann still zurueck,
+			// und die Spalte stand mit dem alten Entwurf da. wpNachZeilenSchreiben laedt und waehlt die Strasse, in die der erste
+			// Abschnitt gewandert ist.
+			return wpNachZeilenSchreiben(key, gruppe.segments[0] ? gruppe.segments[0].public_id : "");
 		}).catch(function (error) {
 			var spaeter = $("wpSaveMsg");
 			if (spaeter) {

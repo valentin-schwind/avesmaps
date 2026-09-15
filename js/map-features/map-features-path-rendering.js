@@ -224,9 +224,10 @@ function createPathPopupMarkup(path) {
 	const pathType = (typeof pathIstBach === "function" && pathIstBach(path)) ? "Bach" : speicherTyp;
 	// Titel wie in der Routen-Etappe (Owner): echter Name -> Name im Titel, Typ als Untertitel; kein Name
 	// -> "Unbenannte Straße" tritt an die Titelstelle und der Untertitel entfaellt (stuende sonst doppelt).
-	// getPathTitleName nimmt den WIKI-Namen zuerst -- genau wie die Spotlight-Suche. Vorher stand hier roh
-	// getPathDisplayName, deshalb zeigte die Infobox als EINZIGE Flaeche "Reichsstrasse-16", waehrend die
-	// Suche "Reichsstraße 2" sagte (12 Altsegmente verletzen R1; die Anzeige heilt das jetzt von selbst).
+	// getPathTitleName -- dieselbe Regel wie die Spotlight-Suche: der eigene Name zuerst (seit 15.09.2026, der Wegname
+	// gehoert dem Editor), der Wiki-Name als Rueckfall. Vorher stand hier roh getPathDisplayName, deshalb zeigte die
+	// Infobox als EINZIGE Flaeche "Reichsstrasse-16", waehrend die Suche "Reichsstraße 2" sagte (12 Altsegmente mit
+	// Maschinennamen trotz Zuweisung; der Rueckfall heilt die Anzeige).
 	const realName = typeof getPathTitleName === "function" ? getPathTitleName(path) : getPathDisplayName(path);
 	const typeLabel = getPathTypeLabel(pathType);
 	const pathName = realName || (typeof getUnnamedPathTitle === "function" ? getUnnamedPathTitle(pathType) : typeLabel);

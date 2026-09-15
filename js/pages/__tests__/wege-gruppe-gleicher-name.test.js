@@ -113,7 +113,11 @@ assert.strictEqual(schluessel(kartenweg("k3", { name: "Inoscha", feature_subtype
 assert.strictEqual(schluessel(kartenweg("k5", { name: "Strasse-17", feature_subtype: "Strasse" })), "abschnitt:k5", "Karte: Maschinenname");
 assert.strictEqual(schluessel(kartenweg("k6", { feature_subtype: "Flussweg" })), "abschnitt:k6", "Karte: gar kein Name (display_name faellt auf die Wegart)");
 assert.strictEqual(schluessel(kartenweg("k7", { name: "Reichsstrasse-16", feature_subtype: "Reichsstrasse", wiki_path: RS2 })), "name:Reichsstraße 2",
-	"Karte: ein Altsegment, das R1 verletzt, heisst so, wie die Infobox es nennt (getPathTitleName: der Wiki-Name zuerst)");
+	"Karte: ein Altsegment mit Maschinennamen trotz Zuweisung heisst so, wie die Infobox es nennt (getPathTitleName: Rueckfall auf den Wiki-Namen)");
+// 🔴 Seit 15.09.2026 gehoert der Wegname dem Editor (R1 umgekehrt): ein UMBENANNTER zugewiesener Abschnitt verlaesst die Strasse seines
+// Artikels und gehoert zu seinem neuen Namen -- genau die Regel „ganze Straße = gleicher Name".
+assert.strictEqual(schluessel(kartenweg("k8", { name: "Alter Bärenpfad", feature_subtype: "Pfad", wiki_path: RS2 })), "name:Alter Bärenpfad",
+	"Karte: der eigene Name eines zugewiesenen Abschnitts bildet den Schluessel, nicht der Artikel");
 assert.strictEqual(schluessel(mitWiki), M.wpGroupKeyOf({ public_id: "k1", echter_name: "Reichsstraße 2" }),
 	"Karte und Wege-Editor-Liste bilden DENSELBEN Schluessel");
 
@@ -157,6 +161,13 @@ const tafel = [
 	[{ wiki_path: { name: "  " }, display_name: "Yasamirer Stieg" }, "Pfad-3", "Pfad", "Yasamirer Stieg"],
 	[{ display_name: " Reichsstraße 2 " }, "Reichsstrasse-8", "Reichsstrasse", "Reichsstraße 2"],
 	[{ display_name: "Weg-17 nach Gareth" }, "Weg-17 nach Gareth", "Weg", "Weg-17 nach Gareth"],
+	// 🔴 Seit 15.09.2026 (R1 umgekehrt, der Wegname gehoert dem Editor): der eigene echte Name schlaegt den Artikelnamen ...
+	[{ wiki_path: { name: "Reichsstraße 2" }, display_name: "Alte Reichsstraße" }, "Alte Reichsstraße", "Reichsstrasse", "Alte Reichsstraße"],
+	[{ wiki_path: { name: "Reichsstraße 2" }, display_name: "Reichsstrasse 2" }, "Reichsstrasse 2", "Reichsstrasse", "Reichsstrasse 2"],
+	[{ wiki_path: { name: "Bärenpfad" }, original_name: "Oberer Bärenpfad" }, "Pfad-9", "Pfad", "Oberer Bärenpfad"],
+	// ... der nackte Wegtyp und <wort>-<zahl> sind keiner, dann gilt der Artikel
+	[{ wiki_path: { name: "Bärenpfad" }, display_name: "Pfad" }, "Pfad", "Pfad", "Bärenpfad"],
+	[{ wiki_path: { name: "Inoscha" }, display_name: "Meer-12" }, "Meer-12", "Flussweg", "Inoscha"],
 ];
 const jsUrteil = tafel.map(([properties, spalte, wegart]) => rufe("getPathTitleName(__arg)",
 	kartenweg("t", Object.assign({}, properties, { name: spalte, feature_subtype: wegart }))));

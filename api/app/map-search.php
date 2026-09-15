@@ -564,29 +564,29 @@ function avesmapsBuildSearchEntry(array $row): ?array {
         // (map-features.php) und steht NICHT im rohen properties_json -> nicht darauf pruefen.
         $wikiPath = is_array($properties['wiki_path'] ?? null) ? $properties['wiki_path'] : [];
 
-        // R1: der Wiki-Weg benennt den Weg. Altbestaende koennen noch Random-Segmentnamen tragen
-        // (z.B. "Reichsstrasse-16" -> Wiki "Reichsstraße 2"); Anzeige + Gruppierung nutzen daher
-        // den Wiki-Namen, damit alle Segmente eines Wegs EINE Suchgruppe mit echtem Namen bilden.
-        $displayName = avesmapsNormalizeSingleLine((string) ($wikiPath['name'] ?? ''), 160);
+        // 🔴 ZUERST DER EIGENE NAME, DER WIKI-NAME NUR ALS RUECKFALL -- seit 15.09.2026 (R1 umgekehrt, Kopf von
+        // api/_internal/wiki/path-naming.php: der Wegname gehoert dem Editor). Hier stand „R1: der Wiki-Weg benennt den Weg",
+        // und ein umbenannter zugewiesener Weg hiesse in der Suche wie sein Artikel, auf der Karte wie ihn der Editor nannte.
+        // Der Rueckfall bleibt noetig: Altbestaende koennen noch Random-Segmentnamen tragen ("Reichsstrasse-16" -> Wiki
+        // "Reichsstraße 2").
+        // 💣 ZEICHENGLEICH ZU getPathTitleName (js/map-features/map-features-path-domain.js):
+        // dieselben Felder in derselben Reihenfolge, derselbe Muell-Test. Der Browser
+        // baut seinen Spotlight-Index mit JENER Funktion, und was er dort nicht findet, verwirft
+        // resolveBackendSpotlightEntries STILL -- ein grosszuegigerer Server liefert dann Treffer,
+        // die im Fenster nie erscheinen. Wer hier ein drittes Feld ergaenzt, ergaenzt es dort mit.
+        $ownName = avesmapsNormalizeSingleLine((string) ($properties['display_name'] ?? $properties['original_name'] ?? ''), 160);
+        // 💣 GEMESSEN WIRD GEGEN DIE EIGENE WEGART, nicht gegen alle acht -- sonst faellt ein
+        // Pfad namens „Weg" hier heraus, waehrend die Karte ihn zeichnet und der Browser ihn
+        // indiziert (normalizePathSubtype nimmt in shouldShowRoutePathDisplayName die Wegart DIESES
+        // Wegs). Der Unterschied ist genau ein Wort und war beim Bauen schon einmal falsch.
+        // ⚠️ Bei unbekannter oder leerer Wegart die volle Liste: der Browser leitet sie
+        // dann aus dem NAMEN ab, und die volle Liste trifft dieselben Faelle.
+        $nameSubtypes = in_array($featureSubtype, AVESMAPS_PATH_SUBTYPE_KEYS, true)
+            ? [$featureSubtype]
+            : AVESMAPS_PATH_SUBTYPE_KEYS;
+        $displayName = ($ownName !== '' && !avesmapsWikiPathNameIsGeneric($ownName, $nameSubtypes)) ? $ownName : '';
         if ($displayName === '') {
-            // 💣 ZEICHENGLEICH ZU getPathTitleName (js/map-features/map-features-path-domain.js):
-            // dieselben zwei Felder in derselben Reihenfolge, danach derselbe Muell-Test. Der Browser
-            // baut seinen Spotlight-Index mit JENER Funktion, und was er dort nicht findet, verwirft
-            // resolveBackendSpotlightEntries STILL -- ein grosszuegigerer Server liefert dann Treffer,
-            // die im Fenster nie erscheinen. Wer hier ein drittes Feld ergaenzt, ergaenzt es dort mit.
-            $ownName = avesmapsNormalizeSingleLine((string) ($properties['display_name'] ?? $properties['original_name'] ?? ''), 160);
-            // 💣 GEMESSEN WIRD GEGEN DIE EIGENE WEGART, nicht gegen alle acht -- sonst faellt ein
-            // Pfad namens „Weg" hier heraus, waehrend die Karte ihn zeichnet und der Browser ihn
-            // indiziert (normalizePathSubtype nimmt in shouldShowRoutePathDisplayName die Wegart DIESES
-            // Wegs). Der Unterschied ist genau ein Wort und war beim Bauen schon einmal falsch.
-            // ⚠️ Bei unbekannter oder leerer Wegart die volle Liste: der Browser leitet sie
-            // dann aus dem NAMEN ab, und die volle Liste trifft dieselben Faelle.
-            $nameSubtypes = in_array($featureSubtype, AVESMAPS_PATH_SUBTYPE_KEYS, true)
-                ? [$featureSubtype]
-                : AVESMAPS_PATH_SUBTYPE_KEYS;
-            if ($ownName !== '' && !avesmapsWikiPathNameIsGeneric($ownName, $nameSubtypes)) {
-                $displayName = $ownName;
-            }
+            $displayName = avesmapsNormalizeSingleLine((string) ($wikiPath['name'] ?? ''), 160);
         }
         if ($displayName === '') {
             return null;

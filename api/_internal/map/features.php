@@ -1451,21 +1451,22 @@ const AVESMAPS_POINT_WIKI_ORIGIN_FIELDS = ['name', 'feature_subtype', 'einwohner
 const AVESMAPS_LABEL_WIKI_ORIGIN_FIELDS = ['text', 'feature_subtype'];
 
 /**
- * Dasselbe fuer einen WEG -- und es ist genau EIN Feld.
+ * Dasselbe fuer einen WEG -- Name und Wegtyp.
  *
- * 🔴 `name` STEHT ABSICHTLICH NICHT HIER, obwohl der Weg einen Namen hat und das Wiki ihn liefert.
- * Den Namen schreibt `assign_to` serverseitig auf den ganzen Namensverbund
- * (avesmapsWikiPathEffectiveEditName: „ein zugewiesener Wiki-Weg BESITZT den Namen"), das Formular
- * kann ihn also gar nicht gegen das Wiki setzen. Eine Herkunft dafuer gehoert an die ZUWEISUNG,
- * nicht an dieses Speichern -- und sie hier zu fuehren hiesse, bei jedem Speichern eines
- * zugewiesenen Weges `manual` auf einen Wert zu stempeln, den der Server selbst gerade
- * durchgesetzt hat.
+ * 🔴 `name` STEHT SEIT 15.09.2026 HIER. Bis dahin stand er ausdruecklich NICHT darin: R1 liess das
+ * Speichern den Namen eines zugewiesenen Weges gar nicht gegen das Wiki setzen
+ * (avesmapsWikiPathEffectiveEditName), und eine Herkunft haette nur einen Wert gestempelt, den der
+ * Server selbst durchgesetzt hatte. Mit der Umkehr von R1 (Kopf von api/_internal/wiki/path-naming.php:
+ * der Wegname gehoert dem Editor, Zuweisen setzt ihn, danach nur noch „Sync") IST der Name ein Feld, das
+ * das Formular gegen das Wiki setzt -- und die Sync-Vorschau braucht seine Herkunft, um ein von Hand
+ * gesetztes „Reichsstraße 2 (alt)" nicht vorzuhaken („von Hand gesetzt — würde zurückgedreht").
  *
- * ⚠️ Das Feldregister (js/ui/wiki-assign-registry.js, Objektart `weg`) fuehrt genau ein
- * Kartenziel: `wegtyp` -> `feature_subtype`. Die drei uebrigen Zeilen (art, lage, laenge) sind
- * Anzeige ohne Kartenziel; die Laenge entsteht aus der Geometrie und wird nicht gepflegt.
+ * ⚠️ Das Feldregister (js/ui/wiki-assign-registry.js, Objektart `weg`) fuehrt dieselben zwei Kartenziele in
+ * derselben Reihenfolge: `name` -> `name`, `wegtyp` -> `feature_subtype`. Die drei uebrigen Zeilen (art,
+ * lage, laenge) sind Anzeige ohne Kartenziel; die Laenge entsteht aus der Geometrie und wird nicht
+ * gepflegt. Gegeneinander gehalten von api/_internal/map/__tests__/weg-feld-herkunft-test.php.
  */
-const AVESMAPS_PATH_WIKI_ORIGIN_FIELDS = ['feature_subtype'];
+const AVESMAPS_PATH_WIKI_ORIGIN_FIELDS = ['name', 'feature_subtype'];
 
 /**
  * REIN: die Wiki-Angaben eines Ortes in seine Eigenschaften schreiben -- der Merker „kein Artikel"
@@ -1924,6 +1925,108 @@ function avesmapsRepairCrossingFeatureType(PDO $pdo, array $user, bool $trockenl
         'repariert' => $repariert,
         'revision' => $revision,
         'stichprobe' => array_slice($stichprobe, 0, 25),
+    ];
+}
+
+// 🔴 „WEGNAME ANZEIGEN" IM BESTAND DER WIKI-WEGE (Owner-Entscheid „Bestand bleibt", 15.09.2026). Bis dahin beschriftete die Karte
+// JEDEN Wiki-Weg als Ganzes (Kanal A, js/map-features/map-features-path-label-canvas-overlay.js) und las `show_label` dort gar
+// nicht -- live trugen von 1.949 zugewiesenen Abschnitten nur 540 das Haekchen. Sobald das Haekchen auch an Wiki-Wegen wirkt,
+// verloeren die uebrigen rund 1.400 ihren Namen auf der Karte. Dieser Lauf haekelt sie EINMAL an; danach geht aus, wer abhakt.
+// 💣 ERST DER LAUF, DANN DAS TOR: die Karte fragt das Haekchen an Wiki-Wegen erst im Folgeschritt (isWayLabelEligible,
+// js/map-features/map-features-way-labels.js). In umgekehrter Reihenfolge verschwaenden die Namen fuer jeden Besucher bis zum Lauf.
+// 🔴 TROCKENLAUF IST DIE VORGABE, scharf erst mit `apply: true` -- dieselbe Bauform wie `repair_crossing_type` direkt darueber.
+// ⚠️ Nur AKTIVE Abschnitte mit einem `wiki_path.wiki_key`. Gesetzt wird `show_label = true`, wo es nicht schon streng `true` ist --
+// ein altes `1`/`"1"` wird dabei zu `true` (die Karte liest beides als an, shouldPathNameBeDisplayed).
+// 💣 EINE TRANSAKTION, UND DIE REVISION DARIN: gehoben wird sie genau einmal, und sichtbar wird sie erst mit dem Commit -- zusammen
+// mit allen Zeilen. Ohne Transaktion saehe ein Browser, der mitten im Lauf nachfragt, schon die neue Revision (neues ETag) mit einem
+// halben Bestand und fragte danach nie wieder: die restlichen Zeilen tragen ja dieselbe Revision.
+// 💣 KEIN PROTOKOLLEINTRAG JE ZEILE -- gemessen, nicht geschont: avesmapsWriteMapAuditLog kappt die Zeilen der PERSON auf
+// AVESMAPS_AUDIT_KEEP_PER_ACTOR (200, api/_internal/audit-prune.php), und zwar ueber alle drei Protokolle. 1.400 Eintraege eines
+// Laufs loeschten die gesamte echte Aenderungsgeschichte dessen, der ihn ausloest. Die Antwort nennt Zahl und Stichprobe;
+// `updated_at` und `updated_by` bleiben unangetastet -- der Lauf aendert nichts, was ein Besucher sieht.
+// ⚠️ Gedeckelt je Lauf (Vorgabe 500, hoechstens AVESMAPS_WEGNAME_ANZEIGEN_BESTAND_DECKEL); `verbleibend` sagt, ob noch ein Lauf
+// noetig ist. Wiederholbar: was schon `true` traegt, faellt aus der Auswahl.
+const AVESMAPS_WEGNAME_ANZEIGEN_BESTAND_DECKEL = 2000;
+
+/** REIN: braucht dieser Abschnitt das Haekchen? Aktiv prueft der Aufrufer; hier nur Zuweisung und Haekchen. */
+function avesmapsWegnameAnzeigenBestandBetrifft(array $properties): bool {
+    $wiki = $properties['wiki_path'] ?? null;
+    if (!is_array($wiki) || !is_scalar($wiki['wiki_key'] ?? null) || trim((string) $wiki['wiki_key']) === '') {
+        return false;
+    }
+
+    return ($properties['show_label'] ?? null) !== true;
+}
+
+function avesmapsWegnameAnzeigenBestand(PDO $pdo, bool $trockenlauf = true, int $limit = 500): array {
+    $limit = max(1, min($limit, AVESMAPS_WEGNAME_ANZEIGEN_BESTAND_DECKEL));
+
+    // ⚠️ Das LIKE ist nur ein Vorfilter (ein Drittel der Wegzeilen); entschieden wird am dekodierten Nest.
+    $lesen = $pdo->query(
+        "SELECT id, public_id, name, properties_json
+        FROM map_features
+        WHERE feature_type = 'path' AND is_active = 1 AND properties_json LIKE '%wiki_key%'
+        ORDER BY id ASC"
+    );
+    $ziele = [];
+    $strassen = [];
+    foreach ($lesen->fetchAll(PDO::FETCH_ASSOC) as $zeile) {
+        $nest = avesmapsDecodeJsonColumnForEdit($zeile['properties_json'] ?? null);
+        if (!avesmapsWegnameAnzeigenBestandBetrifft($nest)) {
+            continue;
+        }
+        $zeile['nest'] = $nest;
+        $ziele[] = $zeile;
+        $strassen[trim((string) $nest['wiki_path']['wiki_key'])] = true;
+    }
+
+    $stichprobe = array_map(static fn(array $zeile): array => [
+        'public_id' => (string) $zeile['public_id'],
+        'name' => (string) ($zeile['name'] ?? ''),
+        'wiki_key' => trim((string) $zeile['nest']['wiki_path']['wiki_key']),
+        'show_label_vorher' => $zeile['nest']['show_label'] ?? null,
+    ], array_slice($ziele, 0, 25));
+
+    $gesetzt = 0;
+    $revision = 0;
+    $block = $trockenlauf ? [] : array_slice($ziele, 0, $limit);
+    if ($block !== []) {
+        $pdo->beginTransaction();
+        try {
+            $revision = avesmapsNextMapRevision($pdo);
+            $schreiben = $pdo->prepare(
+                'UPDATE map_features
+                SET properties_json = :properties_json,
+                    revision = :revision,
+                    updated_at = updated_at
+                WHERE id = :id'
+            );
+            foreach ($block as $zeile) {
+                $nest = $zeile['nest'];
+                $nest['show_label'] = true;
+                $schreiben->execute([
+                    'id' => (int) $zeile['id'],
+                    'properties_json' => avesmapsEncodeJson($nest),
+                    'revision' => $revision,
+                ]);
+                $gesetzt++;
+            }
+            $pdo->commit();
+        } catch (Throwable $exception) {
+            avesmapsRollbackAndRethrow($pdo, $exception);
+        }
+    }
+
+    return [
+        'ok' => true,
+        'dry_run' => $trockenlauf,
+        'gefunden' => count($ziele),
+        'strassen' => count($strassen),
+        'gesetzt' => $gesetzt,
+        'verbleibend' => count($ziele) - $gesetzt,
+        'deckel' => $limit,
+        'revision' => $revision,
+        'stichprobe' => $stichprobe,
     ];
 }
 
@@ -2790,10 +2893,14 @@ function avesmapsUpdatePathFeatureDetails(PDO $pdo, array $payload, array $user)
         // 🔴 DER STAND VOR DEM SPEICHERN -- hier und nirgends spaeter, denn die naechsten Zeilen
         // ueberschreiben genau dieses Feld. Aus der SPALTE gelesen, nicht aus dem Nest: die Kopie
         // im properties_json ist ein Abbild, massgeblich ist, was die Karte laedt.
-        $herkunftVorher = ['feature_subtype' => (string) ($feature['feature_subtype'] ?? '')];
-        // R1: an assigned wiki way (properties.wiki_path) always names the way -- the typed or
-        // auto-generated form name must not override it. show_label stays form-controlled (R3).
-        $name = avesmapsWikiPathEffectiveEditName($name, $properties);
+        $herkunftVorher = [
+            'name' => (string) ($feature['name'] ?? ''),
+            'feature_subtype' => (string) ($feature['feature_subtype'] ?? ''),
+        ];
+        // 🔴 R1 IST SEIT 15.09.2026 UMGEKEHRT (Kopf von api/_internal/wiki/path-naming.php): der eingegebene Name gewinnt, auch an
+        // einem zugewiesenen Wiki-Weg. Zuweisen setzt den Wiki-Namen, danach uebernimmt ihn nur noch „Sync" auf Knopfdruck. Hier
+        // stand `avesmapsWikiPathEffectiveEditName($name, $properties)`, und er schrieb lautlos den Artikelnamen statt des getippten.
+        // show_label bleibt Formularsache (R3) -- und wirkt seit demselben Tag auch an Wiki-Wegen.
         $properties['name'] = $name;
         $properties['display_name'] = $name;
         $properties['feature_type'] = 'path';
@@ -2817,7 +2924,7 @@ function avesmapsUpdatePathFeatureDetails(PDO $pdo, array $payload, array $user)
         } else {
             $properties['transport_seasons'] = $transportSeasons;
         }
-        // Die Feldherkunft fortschreiben: hat sich der Wegtyp geaendert, und kam er aus dem Wiki?
+        // Die Feldherkunft fortschreiben: haben sich Name oder Wegtyp geaendert, und kamen sie aus dem Wiki?
         // 💣 EINER VON ZWEI SCHREIBWEGEN. Der andere ist avesmapsUpdatePathGroupDetails (die
         // Weg-Ebene, 19.08.2026), und der schreibt `feature_subtype` in einer Schleife ueber ALLE
         // Abschnitte einer Namensgruppe. Eine Regel, die nur hier stuende, waere keine -- genau
@@ -2830,7 +2937,7 @@ function avesmapsUpdatePathFeatureDetails(PDO $pdo, array $payload, array $user)
         $herkunft = avesmapsFieldOriginsStempeln(
             is_array($properties['field_origins'] ?? null) ? $properties['field_origins'] : [],
             $herkunftVorher,
-            ['feature_subtype' => $subtype],
+            ['name' => $name, 'feature_subtype' => $subtype],
             avesmapsFieldOriginsAusWikiLesen($payload, AVESMAPS_PATH_WIKI_ORIGIN_FIELDS)
         );
         if ($herkunft === []) {
@@ -2919,8 +3026,8 @@ const AVESMAPS_PATH_GROUP_FIELDS = ['name', 'show_label', 'feature_subtype', 'al
  * `manual`, und die Spalte sah danach gepflegt aus, ohne etwas auszusagen.
  *
  * 💣 DER AUFRUFER SCHICKT DIE `public_ids`, DIESE FUNKTION BILDET DIE GRUPPE NICHT NACH. Die
- * Gruppierungsregel steht in `wpGroupWays` (js/pages/wege-editor-model.js): `wiki_key`, sonst
- * Art+Name. Sie hier zu wiederholen waere die zweite Wahrheit aus AGENTS.md §5 -- und sie liefe
+ * Gruppierungsregel steht in `wpGroupKeyOf` (js/pages/wege-editor-model.js): seit 15.09.2026 der gleiche
+ * echte Name. Sie hier zu wiederholen waere die zweite Wahrheit aus AGENTS.md §5 -- und sie liefe
  * beim ersten geaenderten Namen auseinander.
  * ⚠️ Der Preis: eine Liste kann veralten. Deshalb wird still uebersprungen, was kein aktiver Weg
  * mehr ist, und die Antwort nennt die Zahl der wirklich geschriebenen Abschnitte.
@@ -3028,11 +3135,26 @@ function avesmapsUpdatePathGroupDetails(PDO $pdo, array $payload, array $user): 
 
             $name = $nameVorher;
             if ($wantsName) {
-                // R1: ein zugewiesener Wiki-Weg BESITZT den Namen -- je Abschnitt entschieden,
-                // weil in einer ueber Art+Name gebildeten Gruppe nicht jeder einen tragen muss.
-                $name = avesmapsWikiPathEffectiveEditName($newName, $properties);
+                // 🔴 R1 IST SEIT 15.09.2026 UMGEKEHRT: der eingegebene Name gilt fuer JEDEN genannten Abschnitt, auch fuer einen
+                // mit Wiki-Zuweisung (Owner: „wenn ich umbenenne, soll das beim speichern für alle abschnitte gelten"). Hier stand
+                // `avesmapsWikiPathEffectiveEditName` -- er liess die zugewiesenen Abschnitte ihren Artikelnamen behalten, und die
+                // Strasse zerfiel still in zwei Namen.
+                $name = $newName;
                 $properties['name'] = $name;
                 $properties['display_name'] = $name;
+                // Die Herkunft des NAMENS, je Abschnitt wie beim Wegtyp darunter: ein Abschnitt, der schon so heisst, bleibt
+                // unangetastet („unveraendert heisst unangetastet", avesmapsFieldOriginsStempeln).
+                $herkunftName = avesmapsFieldOriginsStempeln(
+                    is_array($properties['field_origins'] ?? null) ? $properties['field_origins'] : [],
+                    ['name' => $nameVorher],
+                    ['name' => $name],
+                    avesmapsFieldOriginsAusWikiLesen($payload, AVESMAPS_PATH_WIKI_ORIGIN_FIELDS)
+                );
+                if ($herkunftName === []) {
+                    unset($properties['field_origins']);
+                } else {
+                    $properties['field_origins'] = $herkunftName;
+                }
             }
 
             $subtype = $wantsSubtype ? $newSubtype : $subtypeVorher;

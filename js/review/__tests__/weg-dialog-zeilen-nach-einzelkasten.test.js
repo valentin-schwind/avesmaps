@@ -153,7 +153,9 @@ function kontext(pfade) {
 		"pathWikiGruppenZeilen", "pathWikiZeileZustand", "pathWikiGruppenZeilenNeuZeichnen", "pathWikiNachZeilenSchreiben", "pathWikiZeileZuweisen",
 		"pathWikiZeileLoesen", "pathWikiZeileWeitereEntfernen", "renderPathWikiGruppenZeilen", "renderPathWikiReference"]
 		.map((name) => funktion(QUELLE, name)).join("\n")
-		+ funktion(PFADE_QUELLE, "populatePathEditForm") + funktion(PFADE_QUELLE, "populatePathEditFormGruppe"), k);
+		+ funktion(PFADE_QUELLE, "populatePathEditForm") + funktion(PFADE_QUELLE, "populatePathEditFormGruppe")
+		// Seit 15.09.2026 belegt populatePathEditForm das Namensfeld ueber diesen Helfer vor (der Titel der Karte statt einer Nummer).
+		+ funktion(PFADE_QUELLE, "pathEditNameVorbelegung"), k);
 	// Das echte `laden` des Abschnitts, gezaehlt -- und auf Wunsch zurueckgehalten, bis der Test es freigibt.
 	const echtesLaden = k.pathWikiZustand;
 	const zaehlend = (verzoegert) => {

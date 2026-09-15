@@ -41,13 +41,10 @@ function pathWikiCurrentAssignment() {
 	return wiki && wiki.wiki_key ? wiki : null;
 }
 
-// 🔴 EINE Umsetzung, zwei Aufrufer: js/review/review-paths.js:148/224 nennt den Weg beim Namen,
-// den der SERVER ihm gibt. Die Rechnung selbst steht seit dem 16.08.2026 in
-// js/ui/wiki-assign-weg.js, weil sie auch das Editorfenster braucht -- hier bleibt nur der Name,
-// unter dem die zwei Aufrufer sie kennen.
-function pathWikiCanonicalName(wiki) {
-	return avesmapsWikiAssignWegKanonischerName(wiki);
-}
+// 🔴 HIER STAND `pathWikiCanonicalName` -- der Name, unter dem die Namenssperre (syncPathAutoNameControls) und der R1-Rumpf
+// (buildPathEditPayload, beide js/review/review-paths.js) den Artikelnamen holten. Beide Aufrufer sind am 15.09.2026 mit der
+// Umkehr von R1 gefallen (der Wegname gehoert dem Editor). Die Rechnung selbst lebt weiter in js/ui/wiki-assign-weg.js
+// (avesmapsWikiAssignWegKanonischerName) -- dort liefert sie jetzt den Wert, den „Sync" ins Namensfeld holt.
 
 // Applies the segments_updated payload of assign_to/clear_assign to the local pathData:
 // fresh revision (the 409 fix -- expected_revision must match the server again), the
@@ -106,6 +103,9 @@ function pathWikiZustand() {
 		// Vorschau dann einen Wechsel an, den die Auswahl daneben laengst zeigt.
 		feature_subtype: () => pathWikiElement("path-edit-type")?.value
 			|| (pathEditFeature && pathEditFeature.properties ? pathEditFeature.properties.feature_subtype : "") || "",
+		// 🔴 Der NAME ebenso, und aus demselben Grund als Lesefunktion: seit 15.09.2026 gehoert er dem Editor (R1 umgekehrt), und
+		// „Sync" vergleicht den Wiki-Namen mit dem, was jetzt im Feld steht -- nicht mit dem Stand beim Oeffnen.
+		name: () => String(pathWikiElement("path-edit-name")?.value || ""),
 		// 🔴 Die Feldherkunft -- aus demselben Kartenpayload wie der dritte Zustand darueber: der
 		// reicht ALLE Eigenschaften durch, und `update_path_details` schreibt sie seit dem
 		// 22.08.2026 zurueck. Ohne sie bliebe die Beschriftung fuer immer grau, und das Vorhaekeln
@@ -232,16 +232,13 @@ function pathWikiFeldZuruecksetzen(wikiWert) {
 // seither ueber den ganzen Baum in
 // api/_internal/conflicts/__tests__/kein-wiki-eintrag-ist-weg-test.php, Abschnitt 6.
 
-// Was neben dem Zuweisungskasten am Zustand haengt: die Namenssperre (R1) und die Zeile „Weg
-// anzeigen" (Way-Labels beschriften zugewiesene Wege selbst).
+// Was neben dem Zuweisungskasten am Zustand haengt: der Auto-Name (am Wiki-Weg aus, syncPathAutoNameControls).
+// 🔴 SEIT 15.09.2026 NICHT MEHR: die Namenssperre (R1 umgekehrt, der Wegname gehoert dem Editor) und das Ausblenden von
+// „Wegname anzeigen" (Owner: „mit "Wegname anzeigen" die kontrolle haben, ob der name auf der karte angezeigt werden soll").
+// Bis dahin verschwand die Zeile an jedem Wiki-Weg, weil die Karte ihn ohnehin als Ganzes beschriftete.
 // 🔴 „Andere Quelle" haengt NICHT mehr daran (Owner 31.08.2026): der Abschnitt steht immer, ein
 // Objekt darf beliebig viele Quellen tragen. Siehe den Kopf von js/review/review-other-source.js.
 function pathWikiSyncNachbarn() {
-	const hasWikiPath = Boolean(pathWikiCurrentAssignment());
-	const showLabelField = pathWikiElement("path-edit-show-label")?.closest("label");
-	if (showLabelField) {
-		showLabelField.hidden = hasWikiPath;
-	}
 	if (typeof syncPathAutoNameControls === "function") {
 		syncPathAutoNameControls();
 	}
@@ -283,6 +280,8 @@ function pathWikiZeileZustand(zeile) {
 		wiki_path: pfad.properties.wiki_path || null,
 		// 💣 Eine LESEFUNKTION: der Wegtyp steht im Formular darueber und kann sich bis zum Druck auf „Sync" geaendert haben.
 		feature_subtype: () => pathWikiElement("path-edit-type")?.value || "",
+		// Der Name ebenso -- er gilt beim „Speichern für N Abschnitte" fuer die ganze Strasse.
+		name: () => String(pathWikiElement("path-edit-name")?.value || ""),
 		// ⚠️ Keine Feldherkunft: sie steht je Abschnitt und kann in einer Strasse verschieden sein (wie auf der Weg-Ebene).
 		field_origins: null,
 	});
@@ -452,6 +451,14 @@ async function pathWikiZuweisen(treffer) {
 		// Rueckfall fuer einen alten Server ohne segments_updated: wenigstens das oertliche Nest.
 		pathEditFeature.properties.wiki_path = treffer.roh || null;
 	}
+	// 🔴 ZUWEISEN SETZT DEN ARTIKELNAMEN -- also steht er danach auch im Feld. Bis zum 15.09.2026 tat das die Namenssperre
+	// (syncPathAutoNameControls schrieb ihn bei jedem Aufruf hinein); seit das Feld frei ist, stuende sonst der alte Name darin, und
+	// das naechste „Speichern" drehte die Zuweisung still zurueck. Dieselbe Zeile wie beim Entfernen unten (generic_name).
+	const neuerName = String(result.wiki_display_name || "").trim();
+	const nameInput = pathWikiElement("path-edit-name");
+	if (nameInput && neuerName !== "") {
+		nameInput.value = neuerName;
+	}
 	showFeedbackToast?.(`„${result.wiki_name}" verknüpft (${result.applied} Abschnitte).`, "success");
 	pathWikiSyncNachbarn();
 	if (typeof renderPathFlowSection === "function") {
@@ -522,21 +529,36 @@ function pathWikiSyncUebernehmen(zeilen) {
 	// (der Knopf ist ohne Haken ausgegraut, und der Wegtyp steht in beiden Oberflaechen als
 	// `<option>` bereit) -- aber ein Vertrag, der nur an zwei von drei Stellen gilt, ist die
 	// Fehlerklasse aus AGENTS.md §11 („eine Regel, die einen von vier Erzeugern bindet").
-	const wegtyp = avesmapsWikiAssignWegSyncWegtyp(zeilen);
-	if (wegtyp === null) {
+	// 🔴 SEIT 15.09.2026 ZWEI ANGABEN: Wegtyp UND Name. Der Wegname gehoert dem Editor (R1 umgekehrt), Zuweisen setzt den
+	// Artikelnamen -- und danach holt ihn NUR noch dieser Knopf (Owner: „danach übernimmt ihn nur noch Sync auf Knopfdruck").
+	const werte = avesmapsWikiAssignWegSyncWerte(zeilen);
+	if (werte.feature_subtype === null && werte.name === null) {
 		throw new Error("Keine übernehmbare Angabe angehakt.");
 	}
+	// 💣 ERST ALLES PRUEFEN, DANN SCHREIBEN: eine Absage nach dem Namen liesse eine halbe Uebernahme im Formular stehen,
+	// waehrend das Bauteil die Vorschau als „nicht uebernommen" offen haelt.
 	const select = pathWikiElement("path-edit-type");
-	if (!select || !Array.from(select.options).some((option) => option.value === wegtyp)) {
-		throw new Error("Der Wegtyp „" + wegtyp + "“ steht in der Auswahl nicht zur Verfügung.");
+	if (werte.feature_subtype !== null
+		&& (!select || !Array.from(select.options).some((option) => option.value === werte.feature_subtype))) {
+		throw new Error("Der Wegtyp „" + werte.feature_subtype + "“ steht in der Auswahl nicht zur Verfügung.");
 	}
-	select.value = wegtyp;
+	const nameInput = pathWikiElement("path-edit-name");
+	if (werte.name !== null && !nameInput) {
+		throw new Error("Das Namensfeld fehlt.");
+	}
 	// 🔴 ZWEITE HAELFTE DER UEBERNAHME: merken, WELCHES Feld aus dem Wiki kam. Ohne sie stempelt der
 	// Server es als „von uns", und der naechste Abgleich liesse genau dieses Feld in Ruhe.
-	pathWikiUebernommen.add("feature_subtype");
-	// Der Wegtyp entscheidet, welche Transportmittel ueberhaupt angeboten werden -- die Weiche
-	// haengt am `change`-Ereignis (js/app/bootstrap.js), also wird es echt ausgeloest.
-	select.dispatchEvent(new Event("change", { bubbles: true }));
+	if (werte.name !== null) {
+		nameInput.value = werte.name;
+		pathWikiUebernommen.add("name");
+	}
+	if (werte.feature_subtype !== null) {
+		select.value = werte.feature_subtype;
+		pathWikiUebernommen.add("feature_subtype");
+		// Der Wegtyp entscheidet, welche Transportmittel ueberhaupt angeboten werden -- die Weiche
+		// haengt am `change`-Ereignis (js/app/bootstrap.js), also wird es echt ausgeloest.
+		select.dispatchEvent(new Event("change", { bubbles: true }));
+	}
 	pathWikiZeichneAbweichungen();
 	if (typeof setPathEditStatus === "function") {
 		setPathEditStatus("Aus dem Wiki übernommen — noch nicht gespeichert.");

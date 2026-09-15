@@ -7,7 +7,7 @@ declare(strict_types=1);
  * Pure functions, no DB, no mbstring needed. Run:
  *     php tools/paths/test-path-wiki-naming.php
  */
-// 22 checks total: canonical name (7) + R1 effective edit name (5) + R2 next generic name
+// 20 checks total: canonical name (7) + R1 umgekehrt (3) + R2 next generic name
 // (6) + R2 generic name SEQUENCE (4, owner blast-radius fix 2026-07-05 -- each cleared
 // segment gets its OWN generic name instead of one shared name for the whole group).
 
@@ -35,12 +35,14 @@ check('canonical: url without /wiki/ uses last path segment', avesmapsWikiPathCa
 check('canonical: empty object -> empty string', avesmapsWikiPathCanonicalName([]), '');
 check('canonical: unusable url -> empty string', avesmapsWikiPathCanonicalName(['name' => '', 'wiki_url' => '   ']), '');
 
-// --- avesmapsWikiPathEffectiveEditName (R1) ---
-check('R1: no wiki_path -> submitted name', avesmapsWikiPathEffectiveEditName('Mein Name', []), 'Mein Name');
-check('R1: wiki_path not an array -> submitted name', avesmapsWikiPathEffectiveEditName('Mein Name', ['wiki_path' => 'kaputt']), 'Mein Name');
-check('R1: assigned wiki way overrides typed name', avesmapsWikiPathEffectiveEditName('Eigener Name', ['wiki_path' => ['name' => 'Reichsstraße 1']]), 'Reichsstraße 1');
-check('R1: assigned wiki way overrides generated name', avesmapsWikiPathEffectiveEditName('Reichsstrasse-2715', ['wiki_path' => ['name' => '', 'wiki_url' => 'https://de.wiki-aventurica.de/wiki/Reichsstra%C3%9Fe_1']]), 'Reichsstraße 1');
-check('R1: unusable wiki_path -> submitted name survives', avesmapsWikiPathEffectiveEditName('Mein Name', ['wiki_path' => ['name' => '', 'wiki_url' => '']]), 'Mein Name');
+// --- R1 UMGEKEHRT (15.09.2026): der Wegname gehoert dem Editor ---
+// 🔴 Hier standen fuenf Checks auf avesmapsWikiPathEffectiveEditName („assigned wiki way overrides typed name"). Die Funktion ist mit
+// der Umkehr gefallen; die Checks sind UMGESTELLT, nicht geloescht: sie sagen jetzt, dass es sie nicht mehr gibt, und dass der echte
+// Name eines Abschnitts (avesmapsWikiPathEchterName) den getippten Namen vor dem Artikelnamen nimmt. Das Schreiben selbst faehrt
+// api/_internal/map/__tests__/wegname-gehoert-dem-editor-test.php gegen SQLite.
+check('R1 umgekehrt: avesmapsWikiPathEffectiveEditName gibt es nicht mehr', function_exists('avesmapsWikiPathEffectiveEditName'), false);
+check('R1 umgekehrt: der eigene Name schlaegt den Artikelnamen', avesmapsWikiPathEchterName(['display_name' => 'Eigener Name', 'wiki_path' => ['name' => 'Reichsstraße 1']], 'Eigener Name', 'Reichsstrasse'), 'Eigener Name');
+check('R1 umgekehrt: ein Maschinenname faellt auf den Artikelnamen zurueck', avesmapsWikiPathEchterName(['display_name' => 'Reichsstrasse-2715', 'wiki_path' => ['name' => 'Reichsstraße 1']], 'Reichsstrasse-2715', 'Reichsstrasse'), 'Reichsstraße 1');
 
 // --- avesmapsWikiPathNextGenericName (R2) ---
 check('R2: empty pool -> <subtype>-1', avesmapsWikiPathNextGenericName('Reichsstrasse', []), 'Reichsstrasse-1');

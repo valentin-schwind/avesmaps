@@ -936,6 +936,7 @@
 		// hier bewusst ignoriert (siehe Kanal-B-Skip oben). Escape: ?waylabels=0.
 		if (wayLabelsEnabled
 			&& typeof isWayLabelEligible === "function"
+			&& typeof buildWayLabelGroups === "function"
 			&& typeof buildWayLabelChains === "function"
 			&& typeof computeWayLabelIntervalOffsets === "function"
 			&& typeof getPathGeomBounds === "function") {
@@ -944,30 +945,18 @@
 			const wayLabelEligibilityCtx = typeof buildWayLabelEligibilityContext === "function"
 				? buildWayLabelEligibilityContext()
 				: {};
-			const wayGroups = new Map(); // wiki_key -> { name, wikiUrl, pathsById: Map<public_id, path> }
-			pathData.forEach((path) => {
+			// 🔴 DIE GRUPPEN BAUT buildWayLabelGroups (map-features-way-labels.js): Artikel UND Titel, der Name ist der TITEL des
+			// Abschnitts (getPathTitleName: eigener Name, sonst Wiki-Name) -- seit 15.09.2026 gehoert der Wegname dem Editor
+			// (R1 umgekehrt). Vorher stand hier eine Gruppe je wiki_key mit `wiki_path.name` als Beschriftung.
+			// ⚠️ Der ECHTE Artikel-Schluessel reist in der Gruppe mit (`wikiKey`): der Klick-Eintrag unten braucht ihn.
+			const wegTitel = (p) => (typeof getPathTitleName === "function" ? getPathTitleName(p) : "") || getPathDisplayName(p);
+			const wayGroups = buildWayLabelGroups(pathData, (path) => {
 				if (!isWayLabelEligible(path, wayLabelEligibilityCtx)) {
-					return;
+					return false;
 				}
 				const geomBounds = getPathGeomBounds(path);
-				if (!geomBounds || !viewportBounds.intersects(geomBounds)) {
-					return;
-				}
-				const wikiKey = path.properties.wiki_path.wiki_key;
-				if (!wayGroups.has(wikiKey)) {
-					const wikiName = String(path.properties.wiki_path.name || "").trim();
-					// wiki_url kommt vom ERSTEN Segment der Gruppe (alle Segmente DESSELBEN Wegs teilen
-					// denselben wiki_path -> beliebiges Segment reicht) -- Grundlage fuer den Klick-Popup-
-					// Link (Task 16, "Link teilen" + "Wiki ↗").
-					wayGroups.set(wikiKey, {
-						name: wikiName || getPathDisplayName(path),
-						wikiUrl: String(path.properties.wiki_path.wiki_url || "").trim(),
-						pathsById: new Map(),
-					});
-				}
-				const publicId = path.properties?.public_id || path.id;
-				wayGroups.get(wikiKey).pathsById.set(publicId, path);
-			});
+				return Boolean(geomBounds && viewportBounds.intersects(geomBounds));
+			}, wegTitel);
 
 			// 💣 Ein Zwischenraum, in dem ein namensgleiches Segment OHNE Wiki-Zuweisung liegt, ist KEINE
 			// Lücke -- dort geht der Weg weiter, nur unbeschriftet, und Kanal B setzt seinen Namen darauf.
@@ -983,13 +972,15 @@
 			const acceptedWayLabelBoxes = []; // Selbstkollision: {x1,y1,x2,y2} bereits platzierter Way-Labels
 			const boxesOverlap = (a, b) => a.x1 < b.x2 && a.x2 > b.x1 && a.y1 < b.y2 && a.y2 > b.y1;
 
-			wayGroups.forEach((group, wikiKey) => {
+			wayGroups.forEach((group) => {
+				const wikiKey = group.wikiKey;
 				const segments = Array.from(group.pathsById.values()).map((p) => ({
 					id: p.properties?.public_id || p.id,
 					coordinates: p.geometry.coordinates,
 				}));
-				// ⚠️ Der Index steht unter properties.name, die Gruppe unter ihrem Wiki-Namen. Weichen die
-				// beiden ab, findet sich kein Füller -- die sichere Richtung (es bleibt beim alten Verhalten).
+				// ⚠️ Der Index steht unter dem Anzeigenamen (getPathDisplayName), die Gruppe unter ihrem Titel (getPathTitleName).
+				// Fuer einen echten Namen ist das dasselbe; weichen die beiden ab, findet sich kein Füller -- die sichere Richtung
+				// (es bleibt beim alten Verhalten).
 				const gapFillers = gapFillerIndex.get(group.name) || [];
 				const chains = buildWayLabelChains(segments, undefined, gapFillers);
 				chains.forEach((chain) => {

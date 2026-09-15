@@ -37,6 +37,8 @@ const {
 	avesmapsWikiAssignWegZuweisungsKoerper,
 	avesmapsWikiAssignWegAntwortPruefen,
 	avesmapsWikiAssignWegSyncWegtyp,
+	avesmapsWikiAssignWegSyncWerte,
+	avesmapsWikiAssignWegHerkunft,
 } = require("../wiki-assign-weg.js");
 
 // Im Browser sind das Globale, die die drei `<script>`-Zeilen anlegen; `avesmapsWikiAssignMount`
@@ -151,7 +153,9 @@ const zeile = {
 const treffer = avesmapsWikiAssignWegTreffer(zeile);
 assert.strictEqual(treffer.name, "Kosch-Reichsstraße");
 assert.strictEqual(treffer.wiki_key, "wiki:reichsstrasse-kosch");
-assert.deepStrictEqual(Object.keys(treffer.werte).sort(), ["art", "kind", "laenge", "lage", "wegtyp"]);
+// 🔴 `name` seit 15.09.2026: der Wert, den „Sync" ins Namensfeld holt (R1 umgekehrt -- der Wegname gehoert dem Editor).
+assert.deepStrictEqual(Object.keys(treffer.werte).sort(), ["art", "kind", "laenge", "lage", "name", "wegtyp"]);
+assert.strictEqual(treffer.werte.name, "Kosch-Reichsstraße", "der Name ist der, den Zuweisen schreiben wuerde (kanonisch)");
 assert.strictEqual(treffer.werte.wegtyp, "Reichsstrasse");
 assert.strictEqual(treffer.werte.kind, "Straße/Weg");
 assert.strictEqual(treffer.roh, zeile, "die rohe Zeile reist nicht mit -- `zuweisen` braucht sie fuer das oertliche Nest");
@@ -177,9 +181,10 @@ const zugewiesen = avesmapsWikiAssignModell(weg, { artikel: avesmapsWikiAssignWe
 	art: "Reichsstraße", lage: "Kosch", laenge: "180 Meilen", wiki_url: "https://wiki/wiki/X",
 }) }, {});
 assert.deepStrictEqual(zugewiesen.knoepfe.map((k) => k.aktion), ["aendern", "sync", "entfernen"],
-	"der Weg hat ein Kartenziel (feature_subtype) -- also gehoert ein Sync-Knopf dazu");
+	"der Weg hat Kartenziele (name, feature_subtype) -- also gehoert ein Sync-Knopf dazu");
+// 🔴 „Wegname" seit 15.09.2026 -- dieselbe Zeile, die Ort, Landschaftslabel und Territorium seit jeher tragen.
 assert.deepStrictEqual(zugewiesen.felder.map((f) => f.label),
-	["Artikel", "Schlüssel", "Art", "Wegtyp", "Lage", "Länge"]);
+	["Artikel", "Schlüssel", "Wegname", "Art", "Wegtyp", "Lage", "Länge"]);
 zaehl(); zaehl();
 
 // 💣 LEERE FELDER FALLEN WEG: ein Wiki-Weg ohne Laenge zeigt keine leere Zeile „Länge".
@@ -187,7 +192,7 @@ const duenn = avesmapsWikiAssignModell(weg, { artikel: avesmapsWikiAssignWegArti
 	wiki_key: "k", name: "Namenloser Pfad", kind: "strasse", art: "", lage: "", laenge: "",
 	wiki_url: "https://wiki/wiki/Y",
 }) }, {});
-assert.deepStrictEqual(duenn.felder.map((f) => f.label), ["Artikel", "Schlüssel"]);
+assert.deepStrictEqual(duenn.felder.map((f) => f.label), ["Artikel", "Schlüssel", "Wegname"]);
 zaehl();
 
 // ── 6b) DER DRITTE ZUSTAND STEHT IN DER ERKLAERUNG UND IN BEIDEN HUELLEN (Aufgabe 5c) ─────────
@@ -243,7 +248,9 @@ zaehl(); zaehl(); zaehl();
 // wuerde -- sonst meldete die Vorschau „Strasse → Reichsstraße" (mit ß) und schriebe freien Text
 // in ein Schluesselfeld.
 const wikiWerte = avesmapsWikiAssignWegTreffer(zeile).werte;
-const diffAnders = avesmapsWikiAssignDiff(weg.felder, { feature_subtype: "Strasse" }, wikiWerte, []);
+// ⚠️ Der Name steht in diesen Proben GLEICH dem Artikel -- sie gelten dem Wegtyp; der Name hat seinen eigenen Abschnitt 7c.
+const NAME = "Kosch-Reichsstraße";
+const diffAnders = avesmapsWikiAssignDiff(weg.felder, { name: NAME, feature_subtype: "Strasse" }, wikiWerte, []);
 assert.strictEqual(diffAnders.length, 1, "genau eine Angabe ist veraenderbar: " + JSON.stringify(diffAnders));
 assert.strictEqual(diffAnders[0].karte, "feature_subtype");
 assert.strictEqual(diffAnders[0].alt, "Strasse");
@@ -257,30 +264,31 @@ assert.strictEqual(diffAnders[0].gehakt, false,
 assert.strictEqual(diffAnders[0].grund, "auf der Karte steht bereits ein Wert", diffAnders[0].grund);
 // ⭐ Und die Gegenprobe, die die Regel von „gar nichts ist mehr gehakt" unterscheidet: ein LEERER
 // Kartenwert (ein frisch gezeichneter Weg ohne Art) bleibt vorangehakt.
-const diffLuecke = avesmapsWikiAssignDiff(weg.felder, { feature_subtype: "" }, wikiWerte, []);
+const diffLuecke = avesmapsWikiAssignDiff(weg.felder, { name: NAME, feature_subtype: "" }, wikiWerte, []);
 assert.strictEqual(diffLuecke.length, 1);
 assert.strictEqual(diffLuecke[0].gehakt, true, "das Fuellen einer Luecke ist nicht mehr vorangehakt");
 assert.strictEqual(diffLuecke[0].grund, "");
 zaehl(); zaehl(); zaehl(); zaehl(); zaehl(); zaehl(); zaehl(); zaehl(); zaehl();
 
 // Stimmt der Typ ueberein, steht GAR NICHTS in der Liste.
-assert.deepStrictEqual(avesmapsWikiAssignDiff(weg.felder, { feature_subtype: "Reichsstrasse" }, wikiWerte, []), []);
+assert.deepStrictEqual(avesmapsWikiAssignDiff(weg.felder, { name: NAME, feature_subtype: "Reichsstrasse" }, wikiWerte, []), []);
 zaehl();
 
 // 🔴 Sagt das Wiki nichts (unbekannte Art), ist die Zeile gelistet, aber NIE vorangehakt.
-const stumm = avesmapsWikiAssignWegTreffer({ art: "Handelsweg", kind: "strasse" }).werte;
-const diffLeer = avesmapsWikiAssignDiff(weg.felder, { feature_subtype: "Reichsstrasse" }, stumm, []);
+const stumm = avesmapsWikiAssignWegTreffer({ name: NAME, art: "Handelsweg", kind: "strasse" }).werte;
+const diffLeer = avesmapsWikiAssignDiff(weg.felder, { name: NAME, feature_subtype: "Reichsstrasse" }, stumm, []);
 assert.strictEqual(diffLeer.length, 1);
 assert.strictEqual(diffLeer[0].gehakt, false,
 	"eine leerende Angabe ist vorangehakt -- ein unbedachter Klick stufte die Reichsstrasse herunter");
 assert.ok(/Wiki sagt nichts/.test(diffLeer[0].grund), diffLeer[0].grund);
 zaehl(); zaehl(); zaehl();
 
-// ⚠️ ZWEI Mehrzahlen in einem Satz, und sie haengen an VERSCHIEDENEN Zahlen. Der Weg ist die
-// erste Objektart, die den Satz ueberhaupt zu sehen bekommt -- mit seiner EINEN veraenderbaren
+// ⚠️ ZWEI Mehrzahlen in einem Satz, und sie haengen an VERSCHIEDENEN Zahlen. Der Weg war die
+// erste Objektart, die den Satz ueberhaupt zu sehen bekam -- mit seiner damals EINEN veraenderbaren
 // Angabe stand dort „1 von 1 Angaben würden sich ändern“. Gefunden im Ablauf, nicht im Test.
+// 🔴 Seit 15.09.2026 hat der Weg ZWEI veraenderbare Angaben (Name und Wegtyp) -- die Zahl danach wandert mit.
 const satzEins = avesmapsWikiAssignModell(weg, {}, { modus: "sync", syncZeilen: diffAnders });
-assert.ok(/1 von 1 Angabe würde sich ändern/.test(satzEins.hinweis), satzEins.hinweis);
+assert.ok(/1 von 2 Angaben würde sich ändern/.test(satzEins.hinweis), satzEins.hinweis);
 const vieleFelder = { felder: [
 	{ wiki: "a", karte: "a" }, { wiki: "b", karte: "b" }, { wiki: "c", karte: "c" },
 	{ wiki: "d", karte: "d" }, { wiki: "e", karte: "e" }, { wiki: "f", karte: "f" },
@@ -304,7 +312,7 @@ zaehl(); zaehl(); zaehl();
 // verglichen boete die Vorschau „Strasse → Reichsstrasse“ an, waehrend dort laengst
 // „Reichsstrasse“ steht. Eine Eigenschaft mit Lesefunktion loest das, ohne das Bauteil anzufassen.
 let formularWert = "Strasse";
-const beweglich = avesmapsWikiAssignWegZustand({ wiki_path: null, feature_subtype: () => formularWert });
+const beweglich = avesmapsWikiAssignWegZustand({ wiki_path: null, feature_subtype: () => formularWert, name: NAME });
 assert.strictEqual(beweglich.kartenwerte.feature_subtype, "Strasse");
 formularWert = "Reichsstrasse";
 assert.strictEqual(beweglich.kartenwerte.feature_subtype, "Reichsstrasse",
@@ -325,8 +333,56 @@ zaehl(); zaehl(); zaehl(); zaehl();
 		: fs.readFileSync(path.join(wurzel, "js", "review", datei), "utf8");
 	assert.ok(/feature_subtype:\s*(\(\)\s*=>|function\s*\(\))/.test(text),
 		name + ": reicht den Wegtyp als festen Wert statt als Lesefunktion weiter");
-	zaehl();
+	// 🔴 Und den NAMEN (seit 15.09.2026): fehlt der Leser, gilt der Artikelname (keine Zeile) -- „Sync" koennte den Namen dann nie holen.
+	assert.ok(/\bname:\s*(\(\)\s*=>|function\s*\(\))/.test(text),
+		name + ": reicht den Wegnamen nicht als Lesefunktion weiter -- „Sync“ saehe nie, was im Namensfeld steht");
+	zaehl(); zaehl();
 });
+
+// ── 7c) DER NAME -- SEIT 15.09.2026 EIN KARTENZIEL (R1 umgekehrt, der Wegname gehoert dem Editor) ─────────────
+// Owner: „Zuweisen setzt den Wiki-Namen wie heute; danach übernimmt ihn nur noch „Sync" auf Knopfdruck." Ohne diese Zeile gaebe es
+// den Knopf dafuer nicht.
+// (a) Ein gefuellter, anderer Name ist gelistet und UNGEHAKT -- ueberschreiben ist eine Entscheidung.
+const diffName = avesmapsWikiAssignDiff(weg.felder, { name: "Alte Kosch-Straße", feature_subtype: "Reichsstrasse" }, wikiWerte, {});
+assert.strictEqual(diffName.length, 1, JSON.stringify(diffName));
+assert.strictEqual(diffName[0].karte, "name");
+assert.strictEqual(diffName[0].alt, "Alte Kosch-Straße");
+assert.strictEqual(diffName[0].neu, NAME);
+assert.strictEqual(diffName[0].gehakt, false, "ein gepflegter Wegname wird zum Ueberschreiben vorangehakt");
+zaehl(); zaehl(); zaehl(); zaehl(); zaehl();
+// (b) Von Hand gesetzt: der genauere Grund -- dafuer fuehrt die Herkunft seit heute den Namen.
+const diffNameHand = avesmapsWikiAssignDiff(weg.felder, { name: "Alte Kosch-Straße", feature_subtype: "Reichsstrasse" }, wikiWerte,
+	avesmapsWikiAssignWegHerkunft({ name: "manual" }));
+assert.ok(/von Hand/.test(diffNameHand[0].grund), diffNameHand[0].grund);
+assert.deepStrictEqual(avesmapsWikiAssignWegHerkunft({ name: "manual", feature_subtype: "wiki", geometry: "manual", laenge: "wiki" }),
+	{ name: "manual", feature_subtype: "wiki" }, "die Herkunft laesst Name und Wegtyp durch, sonst nichts");
+assert.deepStrictEqual(avesmapsWikiAssignWegHerkunft({ name: "geraten" }), {}, "eine unbekannte Herkunft faellt heraus");
+zaehl(); zaehl(); zaehl();
+// (c) 💣 OHNE NAMENSLESER KEINE ZEILE: ein fehlender Kartenwert hiesse fuer die Diff-Rechnung "" -- eine Luecke, VORANGEHAKT.
+const BAERENPFAD = { wiki_key: "baerenpfad", name: "Bärenpfad", kind: "strasse", art: "Pfad", wiki_url: "https://w/wiki/B%C3%A4renpfad" };
+const ohneLeser = avesmapsWikiAssignWegZustand({ wiki_path: BAERENPFAD, feature_subtype: "Pfad" });
+assert.strictEqual(ohneLeser.kartenwerte.name, "Bärenpfad", "ohne Leser gilt der Artikelname");
+assert.deepStrictEqual(avesmapsWikiAssignDiff(weg.felder, ohneLeser.kartenwerte, ohneLeser.artikel.werte, {}), [],
+	"ein Aufrufer ohne Namensleser liesse „Sync“ einen gepflegten Namen vorangehakt ueberschreiben");
+let namensFeld = "Alter Bärenpfad";
+const mitLeser = avesmapsWikiAssignWegZustand({ wiki_path: BAERENPFAD, feature_subtype: "Pfad", name: () => namensFeld });
+assert.strictEqual(mitLeser.kartenwerte.name, "Alter Bärenpfad");
+namensFeld = "Bärenpfad";
+assert.strictEqual(mitLeser.kartenwerte.name, "Bärenpfad", "der Name ist eingefroren -- die Vorschau vergliche gegen einen alten Stand");
+assert.strictEqual(avesmapsWikiAssignWegZustand({ wiki_path: null, feature_subtype: "Pfad" }).kartenwerte.name, "",
+	"ohne Artikel und ohne Leser ist der Name leer -- ohne Artikel gibt es auch keine Sync-Vorschau");
+zaehl(); zaehl(); zaehl(); zaehl(); zaehl();
+// (d) Was die Oberflaechen aus den angehakten Zeilen lesen: BEIDE Angaben, je fuer sich.
+assert.deepStrictEqual(avesmapsWikiAssignWegSyncWerte([{ karte: "name", neu: "Bärenpfad" }, { karte: "feature_subtype", neu: "Pfad" }]),
+	{ name: "Bärenpfad", feature_subtype: "Pfad" });
+assert.deepStrictEqual(avesmapsWikiAssignWegSyncWerte([{ karte: "name", neu: "Bärenpfad" }]), { name: "Bärenpfad", feature_subtype: null },
+	"nur der Name angehakt: der Wegtyp bleibt unberuehrt");
+assert.deepStrictEqual(avesmapsWikiAssignWegSyncWerte([{ karte: "name", neu: "  " }]), { name: null, feature_subtype: null },
+	"eine leerende Namenszeile setzt den Namen auf nichts");
+assert.deepStrictEqual(avesmapsWikiAssignWegSyncWerte([{ karte: "art", neu: "Pfad" }, { karte: "name", neu: "A" }, { karte: "name", neu: "B" }]),
+	{ name: "A", feature_subtype: null }, "eine Anzeige-Zeile setzt nichts, und die erste Zeile je Feld gilt");
+assert.strictEqual(avesmapsWikiAssignWegSyncWegtyp([{ karte: "name", neu: "Bärenpfad" }]), null, "der Wegtyp-Leser liest keinen Namen");
+zaehl(); zaehl(); zaehl(); zaehl(); zaehl();
 
 // 🔴 UND DER WEGTYP-WECHSEL IM EDITORFENSTER WIRFT DEN KASTEN NICHT MEHR WEG ───────────
 // 💣 `renderDetail()` baut die ganze Eigenschaften-Spalte per innerHTML neu und zerstoert dabei

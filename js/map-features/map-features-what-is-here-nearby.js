@@ -17,8 +17,8 @@ const WIH_WEG_SCHRANKE = 1.5;
 
 // 💣 Die Namens- und Typregel fuer Wege gibt es bereits -- NICHT neu erfinden:
 //   - getPathTitleName(path)      (js/map-features/map-features-path-domain.js) liest ZUERST
-//     wiki_path.name (die Weg-IDENTITAET), erst danach display_name/original_name, gefiltert
-//     durch shouldShowRoutePathDisplayName (js/routing/route-node.js) -- die kennt alle drei
+//     display_name/original_name (seit 15.09.2026, der Wegname gehoert dem Editor), sonst
+//     wiki_path.name; der eigene Name gefiltert durch shouldShowRoutePathDisplayName (js/routing/route-node.js) -- die kennt alle drei
 //     Muell-Muster: den nackten Subtyp, "<Subtyp>-<n>" UND generisch "<Wort>-<Zahl>" ("Meer-835").
 //     Ein eigener Regex hier haette den Wiki-Namen-Kanal ignoriert und genau den Fehler wiederholt,
 //     den path-domain.js:29-33 als bereits einmal passiert beschreibt.

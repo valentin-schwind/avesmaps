@@ -1245,10 +1245,15 @@ function avesmapsGaretienLabelZeileLesen(PDO $pdo, string $publicId): ?array
  * Die Namens-Ergaenzung PRUEFEN und vorbereiten -- ohne einen einzigen Schreibvorgang.
  *
  * 🔴 ALLES, WAS VORHERSEHBAR SCHEITERT, SCHEITERT HIER: das Ziel ist kein Weg und keine Landschaft, der
- * Name fehlt oder ist zu lang, das Objekt ist weg, sein Name ist kein Platzhalter (mehr), der Weg traegt
- * einen Wiki-Artikel, dessen Name jeden getippten schlaegt (avesmapsWikiPathEffectiveEditName), oder der
+ * Name fehlt oder ist zu lang, das Objekt ist weg, sein Name ist kein Platzhalter (mehr), oder der
  * Vermerk passt nicht in die Spalte. Was danach beim Schreiben noch scheitert, gibt
  * avesmapsGaretienNameErgaenzenAufraeumen zurueck.
+ * ⚠️ Bis zum 15.09.2026 scheiterte hier auch ein Weg MIT Wiki-Artikel: R1 liess dessen Namen jeden getippten
+ * schlagen (avesmapsWikiPathEffectiveEditName), das Schreiben waere still verworfen worden. Seit der Umkehr von
+ * R1 (Kopf von api/_internal/wiki/path-naming.php: der Wegname gehoert dem Editor) kommt der Name an -- und
+ * „Quelle und Namen ergaenzen" ist genau so eine ausdrueckliche Entscheidung je Item wie ein Umbenennen im Dialog.
+ * Der Riegel oben bleibt: nur ein PLATZHALTER wird ersetzt, ein zugewiesener Weg traegt nach dem Zuweisen den
+ * Artikelnamen und ist damit keiner.
  * 🔴 DIE BESCHRIFTUNGEN EINER LANDSCHAFT WERDEN HIER AUSGEWAEHLT -- nur die, deren Text GLEICH dem alten
  * Namen ist. Ein Schild mit eigenem Text („Alter Forst") hat jemand beschriftet; der Flaechendialog im
  * Browser zoege es mit (applyRegionToLabels), der Import nicht (Owner 31.08.2026: kein Ersetzen).
@@ -1295,15 +1300,6 @@ function avesmapsGaretienNameErgaenzenVorbereiten(PDO $pdo, array $nach, string 
         return null;
     }
     if ($ziel === 'path') {
-        $props = json_decode((string) ($zeile['properties_json'] ?? ''), true);
-        $wirksam = avesmapsWikiPathEffectiveEditName($neu, is_array($props) ? $props : []);
-        if ($wirksam !== $neu) {
-            throw new RuntimeException(
-                'Der Weg ' . $publicId . ' traegt einen zugewiesenen Wiki-Artikel und behielte dessen Namen "'
-                . $wirksam . '" -- geschrieben wurde nichts.'
-            );
-        }
-
         return [
             'ziel' => 'path', 'public_id' => $publicId, 'alt' => $alt, 'neu' => $neu, 'zeile' => $zeile,
             'labels' => [],
@@ -1487,8 +1483,10 @@ function avesmapsGaretienNameZuruecksetzen(PDO $pdo, string $ziel, string $publi
  * dem Import vergeben hat, ist Handarbeit -- ihn auf „Wald-190" zurueckzudrehen waere genau das
  * Ueberschreiben, das der Owner am 31.08.2026 abgeschaltet hat. Die Quelle laesst sich dann im
  * Quellenkasten loesen.
- * 💣 Und ein Weg, dem seither ein Wiki-Artikel zugewiesen wurde, nimmt den Platzhalter gar nicht mehr an
- * (avesmapsWikiPathEffectiveEditName) -- auch das wird VORHER gefragt, nicht erst am Ruecklesen.
+ * ⚠️ Hier stand bis zum 15.09.2026 ein zweiter Riegel: ein Weg, dem seither ein Wiki-Artikel zugewiesen wurde,
+ * nahm den Platzhalter nicht mehr an (avesmapsWikiPathEffectiveEditName). Mit der Umkehr von R1 kommt der
+ * Platzhalter an -- und die Pruefung darueber faengt den Normalfall ohnehin: das Zuweisen schreibt den
+ * Artikelnamen, und dann heisst der Weg nicht mehr so, wie der Import ihn benannt hat.
  */
 function avesmapsGaretienNameRuecknahmePruefen(PDO $pdo, string $ziel, string $publicId, array $vermerk): void
 {
@@ -1505,17 +1503,6 @@ function avesmapsGaretienNameRuecknahmePruefen(PDO $pdo, string $ziel, string $p
             '"' . $ist . '" heisst inzwischen anders, als der Import es benannt hat -- der Name bleibt, und'
             . ' zurueckgenommen wurde nichts, auch die Quelle nicht. Sie laesst sich im Quellenkasten loesen.'
         );
-    }
-    if ($ziel === 'path') {
-        $alt = (string) ($vermerk['alt'] ?? '');
-        $props = json_decode((string) ($zeile['properties_json'] ?? ''), true);
-        $wirksam = avesmapsWikiPathEffectiveEditName($alt, is_array($props) ? $props : []);
-        if ($wirksam !== $alt) {
-            throw new RuntimeException(
-                'Der Weg ' . $publicId . ' traegt inzwischen einen Wiki-Artikel ("' . $wirksam . '") -- "' . $alt
-                . '" laesst sich nicht zurueckschreiben, zurueckgenommen wurde nichts.'
-            );
-        }
     }
 }
 
@@ -1644,19 +1631,18 @@ function avesmapsGaretienErgaenzungAnwenden(PDO $pdo, array $nach, string $publi
             // 🔴 RUECKLESEN, BEVOR DER SCHREIBVORGANG ALS ERLEDIGT GILT -- dieselbe Regel wie an
             // der stillen MySQL-Kuerzung von `app_setting.setting_value` (AGENTS.md §10): "ein
             // Schreiber, dessen Wert zaehlt, muss ihn ZURUECKLESEN, bevor er den Schreibvorgang
-            // als erledigt behandelt." `avesmapsUpdatePathFeatureDetails` schiebt den Namen durch
-            // `avesmapsWikiPathEffectiveEditName`: traegt der Weg ein `properties.wiki_path` mit
-            // kanonischem Namen, wird der Garetien-Name VERWORFEN und der Wiki-Name geschrieben --
-            // lautlos, mit gueltiger Antwort. Ohne diese Pruefung waere das Item 'done' und nie
-            // wiederholbar.
+            // als erledigt behandelt." Bis zum 15.09.2026 schob `avesmapsUpdatePathFeatureDetails` den Namen
+            // durch `avesmapsWikiPathEffectiveEditName` (R1) und verwarf ihn an einem Weg mit Wiki-Artikel --
+            // lautlos, mit gueltiger Antwort. R1 ist umgekehrt (der Wegname gehoert dem Editor), der Anlass
+            // ist weg; das Ruecklesen bleibt, weil die Regel nicht an R1 hing: ohne diese Pruefung waere ein
+            // still verworfener Name 'done' und nie wiederholbar.
             $tatsaechlich = $pdo->prepare('SELECT name FROM map_features WHERE public_id = :p');
             $tatsaechlich->execute([':p' => $publicId]);
             $geschriebenerName = (string) $tatsaechlich->fetchColumn();
             if ($geschriebenerName !== $gewuenschterName) {
                 throw new RuntimeException(
                     'Der Name "' . $gewuenschterName . '" wurde nicht uebernommen -- der Weg '
-                    . $publicId . ' traegt einen zugewiesenen Wiki-Artikel und behaelt dessen '
-                    . 'Namen "' . $geschriebenerName . '".'
+                    . $publicId . ' heisst nach dem Speichern "' . $geschriebenerName . '".'
                 );
             }
             $geschrieben++;

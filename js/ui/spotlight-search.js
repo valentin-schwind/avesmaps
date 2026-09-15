@@ -1501,14 +1501,16 @@ function buildSpotlightPathEntries() {
 	// 💣 DER TEST IST getPathTitleName (js/map-features/map-features-path-domain.js), und zwar GENAU
 	// DER, mit dem die Karte den Namen eines Wegs schon ZEICHNET (map-features-path-rendering.js) und
 	// ihn in „Was ist hier?" nennt. Die Suche ist damit keine eigene Regel mehr, sondern dieselbe:
-	// was auf der Karte einen Namen traegt, ist auffindbar. Er liest zuerst den Wiki-Namen und faellt
-	// sonst auf display_name/original_name zurueck -- aber nur, wenn shouldShowRoutePathDisplayName
-	// den Namen fuer echt haelt (nackter Wegtyp, `<Wegtyp>-<n>` und `<wort>-<zahl>` sind keiner).
+	// was auf der Karte einen Namen traegt, ist auffindbar. Er liest zuerst display_name/original_name --
+	// aber nur, wenn shouldShowRoutePathDisplayName den Namen fuer echt haelt (nackter Wegtyp,
+	// `<Wegtyp>-<n>` und `<wort>-<zahl>` sind keiner) -- und faellt sonst auf den Wiki-Namen zurueck
+	// (seit 15.09.2026 in dieser Reihenfolge: der Wegname gehoert dem Editor).
 	// ⚠️ Serverseitig gespiegelt in api/app/map-search.php (avesmapsWikiPathNameIsGeneric). Beide
 	// Seiten muessen dasselbe sagen: was der Server anbietet und dieser Index nicht kennt, verwirft
 	// resolveBackendSpotlightEntries STILL -- der Treffer erschiene nie im Fenster.
-	// Gruppiert wird ueber die Weg-Identitaet wiki_key mit dem Wiki-Namen als Anzeige
-	// (Altbestaende koennen noch Random-Segmentnamen tragen), und die Gruppe enthaelt ALLE
+	// Gruppiert wird ueber die Weg-Identitaet wiki_key mit dem Titel des ersten Abschnitts als Anzeige
+	// (getPathTitleName: eigener Name, sonst Wiki-Name -- Altbestaende koennen noch Random-Segmentnamen
+	// tragen), und die Gruppe enthaelt ALLE
 	// Segmente des Wegs -- Auswahl highlightet/zoomt damit den ganzen Weg, nicht nur die
 	// gelabelten Teilstuecke.
 	const pathGroups = new Map();

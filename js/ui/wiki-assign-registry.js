@@ -81,23 +81,25 @@ const AVESMAPS_WIKI_ASSIGN_REGISTRY = {
 		// Oberflaeche rechnet es. Pruefung 2 aus §3b sieht das nicht (sie prueft nur die andere
 		// Richtung: geliefert, aber nicht erklaert) -- deshalb steht es hier ausdruecklich.
 		//
-		// 🔴 KEINE Zeile fuer `name`. Das Mockup schreibt „Name→name" (docs/wiki-zuweisung-
-		// mockup.html:262), aber ein zugewiesener Wiki-Weg BESITZT den Namen: `assign_to` schreibt
-		// den kanonischen Namen serverseitig auf alle getroffenen Segmente (R1,
-		// api/_internal/wiki/paths.php:1057), und beide Oberflaechen sperren das Namensfeld
-		// daraufhin. Eine Sync-Zeile dafuer koennte nur etwas anbieten, was der Server ohnehin
-		// schon getan hat.
+		// 🔴 EINE ZEILE FUER `name` -- SEIT 15.09.2026. Bis dahin stand hier „KEINE Zeile fuer name": ein zugewiesener
+		// Wiki-Weg BESASS den Namen (R1), beide Oberflaechen sperrten das Feld, und eine Sync-Zeile haette nur angeboten,
+		// was der Server ohnehin durchsetzte. R1 ist umgekehrt (Kopf von api/_internal/wiki/path-naming.php): der Wegname
+		// gehoert dem Editor, Zuweisen setzt den Artikelnamen, „danach übernimmt ihn nur noch Sync auf Knopfdruck"
+		// (Owner). Ohne diese Zeile gaebe es den Knopf dafuer nicht. Der Wert ist der Name, den Zuweisen schreiben wuerde
+		// (avesmapsWikiAssignWegKanonischerName), das Ziel heisst wie beim Ort `name`; die Herkunft pflegt der Server
+		// (AVESMAPS_PATH_WIKI_ORIGIN_FIELDS, dieselben zwei Felder in derselben Reihenfolge).
 		// 🔴 KEIN Kartenziel fuer `laenge`. Das Mockup schreibt „Länge→laenge" -- ein solches Feld
 		// gibt es nicht: die Laenge eines Weges entsteht aus seiner Geometrie
 		// (`detail.length_units`, js/pages/wege-editor.js:791/794), sie wird nicht gepflegt. Die Zeile
 		// bleibt Anzeige.
 		felder: [
+			{ wiki: "name", karte: "name", label: "Wegname" },
 			{ wiki: "art", karte: "", label: "Art" },
 			{ wiki: "wegtyp", karte: "feature_subtype", label: "Wegtyp" },
 			{ wiki: "lage", karte: "", label: "Lage" },
 			{ wiki: "laenge", karte: "", label: "Länge" },
 		],
-		sync: true, // ein Kartenziel (feature_subtype) -- also ein Knopf
+		sync: true, // zwei Kartenziele (name, feature_subtype) -- also ein Knopf
 		// 🔴 SOFORT, in BEIDEN Oberflaechen -- gemessen am 17.08.2026.
 		// `wikiAssignZuweisen` (js/pages/wege-editor.js) und `pathWikiZuweisen`
 		// (js/review/review-path-wiki.js) fahren `assign_to` bzw. `clear_assign` gegen

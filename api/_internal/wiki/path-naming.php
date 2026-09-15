@@ -4,12 +4,16 @@ declare(strict_types=1);
 
 // Way-naming rules for wiki-linked path features (R1/R2 rework 2026-07, see
 // docs/refactoring-strassen-wiki-zuweisung.md):
-//   R1  A segment with an assigned wiki way (properties.wiki_path) ALWAYS carries the
-//       wiki way name -- neither the auto-name nor a manually typed name overrides it
-//       while the assignment exists.
+//   R1  🔴 SEIT 15.09.2026 UMGEKEHRT: DER WEGNAME GEHOERT DEM EDITOR (Owner, am Gruppendialog „Bärenpfad":
+//       „der wegname lässt sich nicht ändern. wenn ich umbenenne, soll das beim speichern für alle abschnitte
+//       gelten"). ZUWEISEN (assign_to, avesmapsWikiPathAssignTo) setzt den Wiki-Namen wie bisher; danach
+//       uebernimmt ihn nur noch „Sync" im Kasten „Wiki-Weg" auf Knopfdruck. Jedes Speichern -- Abschnitt
+//       wie ganze Strasse -- schreibt den eingegebenen Namen, auch an einem zugewiesenen Abschnitt.
+//       Bis dahin stand hier: „A segment with an assigned wiki way ALWAYS carries the wiki way name";
+//       durchgesetzt hat das avesmapsWikiPathEffectiveEditName (gefallen, siehe unten).
 //   R2  Clearing the assignment hands EACH segment its OWN fresh generic <Subtype>-<n>
 //       name (amended 2026-07-05: one shared name glued cleared groups together and a
-//       later assign dragged the whole bundle back in).
+//       later assign dragged the whole bundle back in). -- unveraendert.
 // Deliberately dependency-free: required by BOTH api/_internal/wiki/paths.php and
 // api/_internal/map/features.php (the map lib must not pull the wiki-sync stack).
 
@@ -38,17 +42,13 @@ function avesmapsWikiPathCanonicalName(array $wikiPath): string {
     return trim(str_replace('_', ' ', rawurldecode($pageSegment)));
 }
 
-// R1 gate for the details-save: keep the submitted name unless the feature carries a
-// usable wiki assignment -- then the wiki way name wins unconditionally.
-function avesmapsWikiPathEffectiveEditName(string $submittedName, array $properties): string {
-    $wikiPath = $properties['wiki_path'] ?? null;
-    if (!is_array($wikiPath)) {
-        return $submittedName;
-    }
-    $canonicalName = avesmapsWikiPathCanonicalName($wikiPath);
-
-    return $canonicalName !== '' ? $canonicalName : $submittedName;
-}
+// 🔴 HIER STAND `avesmapsWikiPathEffectiveEditName` -- der R1-Riegel des Speicherns: „traegt der Weg eine
+// Zuweisung, gewinnt der Wiki-Name bedingungslos". Gefallen am 15.09.2026 mit der Umkehr von R1 (Kopf dieser
+// Datei). Seine Aufrufer waren die zwei Weg-Schreiber (avesmapsUpdatePathFeatureDetails,
+// avesmapsUpdatePathGroupDetails) und zwei Vorabpruefungen des Garetien-Imports; alle vier sind mitgezogen.
+// 💣 WER IHN ZURUECKHOLT, SPERRT DAS NAMENSFELD WIEDER -- und zwar lautlos: das Formular zeigt den getippten
+// Namen, der Server schreibt den Wiki-Namen, die Antwort ist gueltig. Genau das war der Owner-Befund.
+// Gewacht von api/_internal/map/__tests__/wegname-gehoert-dem-editor-test.php.
 
 // R2 generic name: next free `<subtype>-<n>` over the supplied existing names (callers
 // pass the DB `name` column of all active paths). Number-sensitive: only exact
@@ -132,22 +132,18 @@ function avesmapsWikiPathNameIsGeneric(string $name, ?array $subtypes = null): b
 
 // Der ECHTE Name eines Wegabschnitts -- der, den ein Mensch ihm gegeben hat; '' fuer einen Maschinennamen oder gar keinen.
 //
-// 🔴 DIE PHP-FASSUNG VON getPathTitleName (js/map-features/map-features-path-domain.js), Feld fuer Feld: erst der Name der
-// Wiki-Zuweisung (R1 -- ein Altsegment kann noch „Reichsstrasse-16" heissen, die Infobox nennt es trotzdem „Reichsstraße 2"),
-// sonst der eigene Name, aber nur, wenn er kein maschineller ist. „Eigener Name" ist, was normalizeRoutePathFeature
+// 🔴 DIE PHP-FASSUNG VON getPathTitleName (js/map-features/map-features-path-domain.js), Feld fuer Feld: ERST der eigene Name,
+// aber nur, wenn er kein maschineller ist; SONST der Name der Wiki-Zuweisung. „Eigener Name" ist, was normalizeRoutePathFeature
 // (js/map-features/map-features-path-prepare.js) im Browser daraus macht: display_name, sonst original_name, sonst die Spalte.
+// 🔴 Die Reihenfolge ist seit 15.09.2026 UMGEKEHRT (R1, Kopf dieser Datei: der Wegname gehoert dem Editor). Vorher gewann der
+// Wiki-Name, und ein umbenannter zugewiesener Abschnitt hiesse auf Karte, Infobox und Suche weiter wie sein Artikel. Der Wiki-Name
+// bleibt RUECKFALL: ein Altsegment, das noch „Reichsstrasse-16" heisst, zeigt weiter „Reichsstraße 2".
 // 💣 DARAN HAENGT „GANZE STRASSE" (Owner 15.09.2026: „die selektion soll ausdrücklich über den namen - nicht über die
 // wiki-zuweisung erfolgen"). Die Wege-Editor-Liste gruppiert mit DIESEM Namen, die Karte mit dem des Browsers (wpGroupKeyOf,
 // js/pages/wege-editor-model.js) -- laufen die zwei auseinander, traegt derselbe Abschnitt auf der Karte eine andere Nummer als
 // im Editor, und niemand sieht warum. js/pages/__tests__/wege-gruppe-gleicher-name.test.js faehrt beide gegen eine Tafel.
 // ⚠️ Gegen die EIGENE Wegart geprueft, bei unbekannter gegen alle acht -- dieselbe Wahl wie api/app/map-search.php.
 function avesmapsWikiPathEchterName(array $properties, string $rowName, string $featureSubtype): string {
-    $wikiPath = is_array($properties['wiki_path'] ?? null) ? $properties['wiki_path'] : [];
-    $wikiName = trim(is_scalar($wikiPath['name'] ?? null) ? (string) $wikiPath['name'] : '');
-    if ($wikiName !== '') {
-        return $wikiName;
-    }
-
     // Wie `||` im Browser: das erste NICHT LEERE Feld gewinnt -- auch eines aus Leerzeichen, das dann eben keinen Namen traegt.
     $eigener = '';
     foreach ([$properties['display_name'] ?? null, $properties['original_name'] ?? null, $rowName] as $feld) {
@@ -158,6 +154,11 @@ function avesmapsWikiPathEchterName(array $properties, string $rowName, string $
         }
     }
     $subtypes = in_array($featureSubtype, AVESMAPS_PATH_SUBTYPE_KEYS, true) ? [$featureSubtype] : AVESMAPS_PATH_SUBTYPE_KEYS;
+    if ($eigener !== '' && !avesmapsWikiPathNameIsGeneric($eigener, $subtypes)) {
+        return $eigener;
+    }
 
-    return ($eigener !== '' && !avesmapsWikiPathNameIsGeneric($eigener, $subtypes)) ? $eigener : '';
+    $wikiPath = is_array($properties['wiki_path'] ?? null) ? $properties['wiki_path'] : [];
+
+    return trim(is_scalar($wikiPath['name'] ?? null) ? (string) $wikiPath['name'] : '');
 }

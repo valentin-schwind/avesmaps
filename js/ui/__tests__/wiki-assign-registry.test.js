@@ -91,12 +91,13 @@ const WIRKLICHKEIT = {
 		// Dieselben drei reisen im Nest properties.wiki_path mit
 		// (avesmapsWikiPathBuildAssignObject, :874-876) und stehen in den Suchspalten (:711-712).
 		wiki: ["art", "lage", "laenge"],
-		// Das EINZIGE bearbeitbare Kartenfeld, das eine Wiki-Angabe fuellen kann. Gemessen an
-		// beiden Speicherwegen: js/pages/wege-editor.js:717 schickt `feature_subtype` an
-		// update_path_details, und der Kartendialog liest denselben Wert aus #path-edit-type
-		// (js/review/review-paths.js:193). `name` steht bewusst NICHT hier -- der Server setzt ihn
-		// bei der Zuweisung selbst (R1); ein Kartenziel „Laenge" gibt es nicht.
-		karte: ["feature_subtype"],
+		// Die bearbeitbaren Kartenfelder, die eine Wiki-Angabe fuellen kann. Gemessen an beiden Speicherwegen:
+		// js/pages/wege-editor.js (saveDraft) schickt `name` und `feature_subtype` an update_path_details, der Kartendialog
+		// liest dieselben Werte aus #path-edit-name und #path-edit-type (buildPathEditPayload, js/review/review-paths.js).
+		// 🔴 `name` STEHT SEIT 15.09.2026 HIER. Bis dahin ausdruecklich nicht: der Server setzte ihn bei jedem Speichern
+		// eines zugewiesenen Weges selbst (R1). R1 ist umgekehrt -- der Wegname gehoert dem Editor, „Sync" holt den
+		// Artikelnamen ins Feld. Ein Kartenziel „Laenge" gibt es weiterhin nicht.
+		karte: ["name", "feature_subtype"],
 	},
 	ort: {
 		// Der Siedlungs-Parser liest genau NEUN Infobox-Wertfelder ausser dem Namen

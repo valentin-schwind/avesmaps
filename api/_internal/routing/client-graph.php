@@ -1796,7 +1796,10 @@ function avesmapsRouteClosureWay(array $path, string $routeType): array {
 
     return [
         'key' => $wikiKey !== '' ? 'wiki:' . $wikiKey : 'name:' . $routeType . ':' . $anzeige,
-        'name' => $wikiName !== '' ? $wikiName : ($istAutoName ? '' : $anzeige),
+        // 🔴 Der eigene Name zuerst, der Wiki-Name als Rueckfall -- dieselbe Reihenfolge wie getPathTitleName, mit dem der Browser
+        // den Hinweis zuerst benennt (js/routing/route-closures.js). Seit 15.09.2026 gehoert der Wegname dem Editor (R1 umgekehrt,
+        // api/_internal/wiki/path-naming.php); vorher gewann hier der Artikelname.
+        'name' => !$istAutoName ? $anzeige : $wikiName,
         'subtype' => $routeType,
     ];
 }

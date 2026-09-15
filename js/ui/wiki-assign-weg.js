@@ -122,6 +122,9 @@ function avesmapsWikiAssignWegKanonischerName(wiki) {
 function avesmapsWikiAssignWegWerte(zeile) {
 	const z = zeile || {};
 	return {
+		// 🔴 Der Name, den ZUWEISEN schreiben wuerde (avesmapsWikiPathCanonicalName) -- und damit der Wert, den „Sync" seit dem
+		// 15.09.2026 ins Namensfeld holt (R1 umgekehrt: der Wegname gehoert dem Editor, danach holt ihn nur noch Sync).
+		name: avesmapsWikiAssignWegKanonischerName(z),
 		kind: avesmapsWikiAssignWegKindLabel(z.kind),
 		art: avesmapsWikiAssignWegText(z.art),
 		wegtyp: avesmapsWikiAssignWegWegtyp(z.art, z.kind),
@@ -204,16 +207,26 @@ function avesmapsWikiAssignWegZustand(quelle) {
 	// Eine Eigenschaft mit Lesefunktion loest das ohne jede Aenderung am Bauteil: die Diff-Rechnung
 	// liest `kartenwerte[feld.karte]` ganz normal.
 	const kartenwerte = {};
-	if (typeof quelle.feature_subtype === "function") {
-		Object.defineProperty(kartenwerte, "feature_subtype", {
-			enumerable: true,
-			get: () => avesmapsWikiAssignWegText(quelle.feature_subtype()),
-		});
-	} else {
-		kartenwerte.feature_subtype = avesmapsWikiAssignWegText(quelle.feature_subtype);
-	}
+	const artikel = avesmapsWikiAssignWegArtikel(quelle.wiki_path);
+	["name", "feature_subtype"].forEach((feld) => {
+		let wert = quelle[feld];
+		// 💣 EIN FEHLENDER NAME IST KEINE LUECKE. Die Diff-Rechnung liest einen fehlenden Kartenwert als "", und "" gegen den
+		// Artikelnamen hiesse „Luecke fuellen" -- VORANGEHAKT. Ein Aufrufer, der den Namen (noch) nicht reicht, liesse „Sync"
+		// damit still einen gepflegten Wegnamen ueberschreiben. Ohne Leser gilt deshalb der Artikelname selbst: keine Zeile.
+		if (feld === "name" && wert === undefined) {
+			wert = artikel ? artikel.name : "";
+		}
+		if (typeof wert === "function") {
+			Object.defineProperty(kartenwerte, feld, {
+				enumerable: true,
+				get: () => avesmapsWikiAssignWegText(wert()),
+			});
+		} else {
+			kartenwerte[feld] = avesmapsWikiAssignWegText(wert);
+		}
+	});
 	return {
-		artikel: avesmapsWikiAssignWegArtikel(quelle.wiki_path),
+		artikel: artikel,
 		// 🔴 HIER STAND `keinArtikel` -- der dritte Zustand, gefallen am 09.09.2026 mit dem
 		// Merker `properties.wiki_no_article` (Owner-Entscheid). Aequivalent ist die Zuweisung.
 		kartenwerte: kartenwerte,
@@ -222,25 +235,31 @@ function avesmapsWikiAssignWegZustand(quelle) {
 }
 
 /**
- * REIN: `properties.field_origins` -> die Herkunftskarte, gefiltert auf das EINE Kartenfeld des
- * Weges. Wortgleich zu den Fassungen bei Ort, Landschaft und Literatur -- und aus demselben Grund
- * gefiltert: ein Eintrag fuer ein Feld ohne Zeile waere Ballast in einer Karte, die ueber das
+ * REIN: `properties.field_origins` -> die Herkunftskarte, gefiltert auf die ZWEI Kartenfelder des
+ * Weges (Name, Wegtyp). Wortgleich zu den Fassungen bei Ort, Landschaft und Literatur -- und aus demselben
+ * Grund gefiltert: ein Eintrag fuer ein Feld ohne Zeile waere Ballast in einer Karte, die ueber das
  * Vorhaekeln entscheidet.
  *
- * 🔴 `name` KOMMT HIER NICHT VOR, obwohl das Wiki einen Namen liefert. Den schreibt `assign_to`
- * serverseitig auf den ganzen Namensverbund -- das Formular kann ihn gar nicht gegen das Wiki
- * setzen, und eine Herkunft dafuer gehoert an die Zuweisung, nicht an das Speichern. Die
- * Serverliste AVESMAPS_PATH_WIKI_ORIGIN_FIELDS fuehrt ihn aus demselben Grund nicht; die zwei
- * muessen uebereinstimmen, sonst zeigt der Editor eine Zeile, deren Herkunft niemand fortschreibt.
+ * 🔴 `name` KOMMT SEIT 15.09.2026 VOR. Bis dahin ausdruecklich nicht: R1 liess das Formular den Namen eines
+ * zugewiesenen Weges gar nicht gegen das Wiki setzen. Seit der Umkehr gehoert der Name dem Editor, „Sync" holt
+ * den Artikelnamen ins Feld, und ein von Hand gesetzter Name muss dort UNGEHAKT starten („von Hand gesetzt —
+ * würde zurückgedreht"). Die Serverliste AVESMAPS_PATH_WIKI_ORIGIN_FIELDS fuehrt dieselben zwei; die zwei muessen
+ * uebereinstimmen, sonst zeigt der Editor eine Zeile, deren Herkunft niemand fortschreibt.
  *
  * ⚠️ Alles ausser `'manual'`/`'wiki'` faellt heraus. Eine kuenftige dritte Herkunft darf weder die
  * Beschriftung faerben noch vorhaken, sondern muss auf „nicht bekannt" zurueckfallen.
  */
 function avesmapsWikiAssignWegHerkunft(herkunft) {
 	const h = (herkunft && typeof herkunft === "object" && !Array.isArray(herkunft)) ? herkunft : {};
-	const wert = avesmapsWikiAssignWegText(h.feature_subtype);
+	const karte = {};
+	["name", "feature_subtype"].forEach((feld) => {
+		const wert = avesmapsWikiAssignWegText(h[feld]);
+		if (wert === "manual" || wert === "wiki") {
+			karte[feld] = wert;
+		}
+	});
 
-	return (wert === "manual" || wert === "wiki") ? { feature_subtype: wert } : {};
+	return karte;
 }
 
 /**
@@ -382,22 +401,32 @@ function avesmapsWikiAssignWegAntwortPruefen(antwort) {
 }
 
 /**
- * REIN: welchen Wegtyp die angehakten Sync-Zeilen setzen wollen -- oder `null`.
+ * REIN: was die angehakten Sync-Zeilen setzen wollen -- `{ name, feature_subtype }`, je Feld der Wert oder `null`.
  *
- * ⚠️ Es kann nur diese eine Zeile geben: `feature_subtype` ist das einzige Kartenziel der
- * Erklaerung `weg` (js/ui/wiki-assign-registry.js). Der Wert stammt aus
- * avesmapsWikiAssignWegWegtyp und ist damit per Konstruktion einer der fuenf Strassen-Schluessel
+ * 🔴 ZWEI KARTENZIELE SEIT 15.09.2026: der Name kam dazu (R1 umgekehrt -- der Wegname gehoert dem Editor, Zuweisen setzt
+ * ihn, danach holt ihn nur noch „Sync"). Bis dahin war `feature_subtype` das einzige Ziel der Erklaerung `weg`.
+ * ⚠️ Der Wegtyp stammt aus avesmapsWikiAssignWegWegtyp und ist damit per Konstruktion einer der fuenf Strassen-Schluessel
  * -- eine sechste Liste zulaessiger Werte waere eine weitere Abschrift von PATH_SUBTYPE_KEYS.
+ * ⚠️ Eine LEERENDE Zeile (das Wiki sagt nichts) setzt nichts: `null`, nie "". Sie ist ohnehin nie vorangehakt.
  */
-function avesmapsWikiAssignWegSyncWegtyp(zeilen) {
-	const liste = Array.isArray(zeilen) ? zeilen : [];
-	for (let i = 0; i < liste.length; i++) {
-		if (liste[i] && liste[i].karte === "feature_subtype") {
-			const wert = avesmapsWikiAssignWegText(liste[i].neu);
-			return wert === "" ? null : wert;
+function avesmapsWikiAssignWegSyncWerte(zeilen) {
+	const werte = { name: null, feature_subtype: null };
+	const gesehen = {};
+	(Array.isArray(zeilen) ? zeilen : []).forEach((zeile) => {
+		const feld = zeile ? zeile.karte : "";
+		if ((feld !== "name" && feld !== "feature_subtype") || gesehen[feld]) {
+			return;
 		}
-	}
-	return null;
+		gesehen[feld] = true;
+		const wert = avesmapsWikiAssignWegText(zeile.neu);
+		werte[feld] = wert === "" ? null : wert;
+	});
+	return werte;
+}
+
+/** REIN: nur der Wegtyp aus avesmapsWikiAssignWegSyncWerte -- oder `null`. */
+function avesmapsWikiAssignWegSyncWegtyp(zeilen) {
+	return avesmapsWikiAssignWegSyncWerte(zeilen).feature_subtype;
 }
 
 if (typeof module !== "undefined" && module.exports) {
@@ -410,6 +439,7 @@ if (typeof module !== "undefined" && module.exports) {
 		avesmapsWikiAssignWegTreffer: avesmapsWikiAssignWegTreffer,
 		avesmapsWikiAssignWegArtikel: avesmapsWikiAssignWegArtikel,
 		avesmapsWikiAssignWegZustand: avesmapsWikiAssignWegZustand,
+		avesmapsWikiAssignWegSyncWerte: avesmapsWikiAssignWegSyncWerte,
 		avesmapsWikiAssignWegHerkunft: avesmapsWikiAssignWegHerkunft,
 		avesmapsWikiAssignWegZuweisungsKoerper: avesmapsWikiAssignWegZuweisungsKoerper,
 		avesmapsWikiAssignWegGruppenIds: avesmapsWikiAssignWegGruppenIds,

@@ -113,9 +113,10 @@ assert.deepStrictEqual(Array.from(goblin[0].publicIds), ["weg-1"], "ohne public_
 	assert.strictEqual(treffer.length, 0, `maschineller Name im Index gelandet: ${JSON.stringify(muell)}`);
 });
 
-// ---- 3. Der Wiki-Weg bleibt unveraendert vorn ---------------------------------------------------
-// R1: die Zuweisung benennt den Weg, auch wenn das Segment noch einen Alt-Namen traegt. Diese
-// Zusicherung ist AELTER als die Oeffnung und darf von ihr nicht angefasst worden sein.
+// ---- 3. Der Wiki-Weg: der Artikelname als Rueckfall, der eigene Name zuerst -------------------------
+// Ein Altsegment mit Maschinennamen trotz Zuweisung wird unter dem Artikelnamen gefunden. Diese Zusicherung ist AELTER
+// als die Oeffnung und darf von ihr nicht angefasst worden sein. 🔴 Seit 15.09.2026 steht sie unter „Rueckfall": der
+// Wegname gehoert dem Editor (R1 umgekehrt), ein ECHTER eigener Name schlaegt den Artikel -- in der Suche wie auf der Karte.
 const wiki = index([weg({
 	name: "Reichsstrasse-16",
 	display_name: "Reichsstrasse-16",
@@ -123,7 +124,15 @@ const wiki = index([weg({
 	wiki_path: { name: "Reichsstraße 2", wiki_key: "wiki:reichsstrasse-2", wiki_url: "https://w/Reichsstrasse_2" },
 })]);
 assert.strictEqual(wiki.length, 1, "ein wiki-zugewiesener Weg muss im Index bleiben");
-assert.strictEqual(wiki[0].name, "Reichsstraße 2", "der Wiki-Name schlaegt den Alt-Namen des Segments");
+assert.strictEqual(wiki[0].name, "Reichsstraße 2", "der Wiki-Name ist der Rueckfall fuer den Maschinennamen des Segments");
+const umbenannt = index([weg({
+	name: "Alter Bärenpfad",
+	display_name: "Alter Bärenpfad",
+	feature_subtype: "Pfad",
+	wiki_path: { name: "Bärenpfad", wiki_key: "wiki:baerenpfad", wiki_url: "https://w/Baerenpfad" },
+})]);
+assert.strictEqual(umbenannt.length, 1, "ein umbenannter wiki-zugewiesener Weg muss im Index bleiben");
+assert.strictEqual(umbenannt[0].name, "Alter Bärenpfad", "der eigene Name eines zugewiesenen Weges schlaegt den Artikelnamen");
 
 // ---- 4. Alle Abschnitte eines Wegs bilden EINEN Eintrag -----------------------------------------
 // Sonst steht der Goblinpfad so oft in der Liste, wie er Abschnitte hat -- und die Auswahl zoomt

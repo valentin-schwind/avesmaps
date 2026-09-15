@@ -50,21 +50,19 @@ $rumpfVon = static function (string $quelle, string $funktion): string {
     return $bis === false ? $rest : substr($rest, 0, $bis);
 };
 
-// ══ 1) DIE FELDLISTE: EIN Feld, und `name` steht bewusst nicht darin ═══════════════════════════
-// 🔴 Den Namen schreibt `assign_to` serverseitig auf den ganzen Namensverbund
-// (avesmapsWikiPathEffectiveEditName: „ein zugewiesener Wiki-Weg BESITZT den Namen"). Das Formular
-// kann ihn gar nicht gegen das Wiki setzen -- eine Herkunft dafuer gehoert an die ZUWEISUNG, und
-// sie hier zu fuehren hiesse, bei jedem Speichern eines zugewiesenen Weges `manual` auf einen Wert
-// zu stempeln, den der Server selbst gerade durchgesetzt hat.
+// ══ 1) DIE FELDLISTE: ZWEI Felder, Name und Wegtyp ═════════════════════════════════════════════
+// 🔴 SEIT 15.09.2026 STEHT `name` DARIN -- umgestellt, nicht geloescht. Hier stand „EIN Feld, und `name` steht bewusst
+// nicht darin": den Namen schrieb `assign_to`, und das Speichern setzte ihn nach R1 selbst durch
+// (avesmapsWikiPathEffectiveEditName), eine Herkunft haette nur einen vom Server erzwungenen Wert gestempelt. R1 ist umgekehrt
+// (Kopf von api/_internal/wiki/path-naming.php): der Wegname gehoert dem Editor, „Sync" holt den Artikelnamen ins Feld, und die
+// Sync-Vorschau braucht die Herkunft, um einen von Hand gesetzten Namen nicht vorzuhaken.
 $serverFelder = [];
 if (preg_match('/const AVESMAPS_PATH_WIKI_ORIGIN_FIELDS\s*=\s*\[(.*?)\];/s', $features, $treffer) === 1) {
     preg_match_all('/[\'"]([a-z_]+)[\'"]/', $treffer[1], $namen);
     $serverFelder = $namen[1];
 }
-$pruefe($serverFelder === ['feature_subtype'],
-    'die Feldliste des Weges ist nicht mehr genau [feature_subtype]: ' . json_encode($serverFelder));
-$pruefe(!in_array('name', $serverFelder, true),
-    '`name` steht in der Feldliste des Weges -- er gehoert an `assign_to`, nicht an das Speichern');
+$pruefe($serverFelder === ['name', 'feature_subtype'],
+    'die Feldliste des Weges ist nicht mehr genau [name, feature_subtype]: ' . json_encode($serverFelder));
 
 // Und sie deckt sich mit dem, was der Browser als Kartenziel fuehrt.
 // ⚠️ Vom Beginn der Objektart bis zur naechsten geschnitten. Ein Muster mit fester Einrueckung war
@@ -138,6 +136,22 @@ $pruefe($schleifeVon !== false && $stempelVon !== false && $stempelVon > $schlei
 // woanders kommt.
 $pruefe(preg_match('/if \(\$wantsSubtype\) \{[^{}]*avesmapsFieldOriginsStempeln\(/s', $gruppe) === 1,
     'der Stempel der Weg-Ebene laeuft auch, wenn `feature_subtype` gar nicht angefasst wurde');
+// 🔴 Und der NAME (seit 15.09.2026): gestempelt nur, wenn `name` in `fields` stand -- sonst bekaeme jeder Abschnitt einer Strasse,
+// deren Wegtyp jemand setzt, eine Herkunft fuer einen Namen, den niemand angefasst hat. Und erst NACH der Zuweisung des neuen Namens.
+$pruefe(preg_match('/if \(\$wantsName\) \{[^{}]*\$name = \$newName;[^{}]*avesmapsFieldOriginsStempeln\(/s', $gruppe) === 1,
+    'der Namens-Stempel der Weg-Ebene haengt nicht an `$wantsName` oder steht vor der Zuweisung des Namens');
+// 💣 Und die Zeile, die R1 durchsetzte, ist WEG -- in beiden Schreibwegen (der Einzelweg hat keinen eigenen Rumpf-Namen dafuer).
+// ⚠️ OHNE KOMMENTARE gelesen (Tokenizer): die Kommentare an beiden Stellen nennen den gefallenen Aufruf ausdruecklich, damit ihn
+// niemand zurueckholt -- ein Test, der sie mitliest, schluege genau an dieser Warnung an.
+$featuresOhneKommentare = '';
+foreach (token_get_all($features) as $token) {
+    if (is_array($token) && in_array($token[0], [T_COMMENT, T_DOC_COMMENT], true)) {
+        continue;
+    }
+    $featuresOhneKommentare .= is_array($token) ? $token[1] : $token;
+}
+$pruefe(!str_contains($featuresOhneKommentare, 'avesmapsWikiPathEffectiveEditName('),
+    'avesmapsWikiPathEffectiveEditName wird wieder gerufen -- das Namensfeld waere lautlos gesperrt (Owner-Befund 15.09.2026)');
 
 // ══ 4) DIE RECHNUNG SELBST, an den Faellen, die der Weg wirklich kennt ═════════════════════════
 // (a) Ein gemischter Verbund: der Abschnitt, der den Typ schon traegt, wird NICHT angefasst.
@@ -170,15 +184,16 @@ $ausWiki = avesmapsFieldOriginsStempeln(
 $pruefe($ausWiki === ['feature_subtype' => 'wiki'],
     'das ↺ befreit den handgesetzten Wegtyp nicht: ' . json_encode($ausWiki));
 
-// (d) 💣 Ein Client, der `name` als Wiki-Uebernahme NENNT, bekommt dafuer keine Herkunft: die
-// Filterung laesst nur die erlaubten Felder durch, und `name` ist beim Weg keines. Ohne diesen
-// Riegel legte ein Client eine Herkunft fuer ein Feld an, das niemand fortschreibt.
+// (d) 💣 Ein Client, der ein FREMDES Feld als Wiki-Uebernahme nennt, bekommt dafuer keine Herkunft: die
+// Filterung laesst nur die erlaubten Felder durch. Ohne diesen Riegel legte ein Client eine Herkunft fuer
+// ein Feld an, das niemand fortschreibt. 🔴 Hier war bis zum 15.09.2026 `name` das fremde Feld -- seither
+// gehoert es dazu (Abschnitt 1), und die Probe nimmt die ECHTE Feldliste statt einer abgeschriebenen.
 $mitName = avesmapsFieldOriginsAusWikiLesen(
     ['wiki_uebernommen' => ['name', 'feature_subtype', 'geometry']],
-    ['feature_subtype']
+    $serverFelder   // aus dem Quelltext gelesen (Abschnitt 1) -- dieser Test laedt features.php nicht
 );
-$pruefe($mitName === ['feature_subtype'],
-    'die Filterung laesst fremde Felder durch: ' . json_encode($mitName));
+$pruefe($mitName === ['name', 'feature_subtype'],
+    'die Filterung laesst fremde Felder durch oder verliert den Namen: ' . json_encode($mitName));
 
 // ══ 5) 🔴 UND DER LESEWEG GIBT SIE AUCH HERAUS ════════════════════════════════════════════════
 // Die Projektion des Wege-Editors ist eine WEISSE LISTE (der Kommentar dort sagt es). Ohne diese

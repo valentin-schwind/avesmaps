@@ -25,24 +25,26 @@ function getPathDisplayName(path) {
 // Titel eines Wegs, wie ihn ein Mensch lesen soll -- "" wenn der Weg schlicht keinen Namen hat.
 //
 // Zwei Kanäle, in DIESER Reihenfolge:
-//  1. wiki_path.name -- die Weg-Identität. Genau das tut die Spotlight-Suche seit jeher
-//     (buildSpotlightPathEntries: "mit dem Wiki-Namen als Anzeige, Altbestaende koennen noch
-//     Random-Segmentnamen tragen"), und darum sieht die Suche richtig aus, während die Infobox
-//     "Reichsstrasse-16" zeigte: sie war die EINZIGE Stelle, die roh auf display_name griff.
-//     Regel R1 (zugewiesen ⇒ kanonischer Name) ist auf 12 Altsegmenten verletzt; über den
-//     Wiki-Namen zu gehen heilt die Anzeige, ohne die Daten anzufassen.
-//  2. display_name -- aber nur, wenn es ein ECHTER Name ist. shouldShowRoutePathDisplayName
-//     (js/routing/route-node.js) ist der erprobte Test dafür und kennt alle Müll-Muster: den
-//     nackten Subtyp, "<Subtyp>-<n>" und generisch "<wort>-<zahl>" ("Meer-835").
+//  1. display_name (sonst original_name) -- der Name, den ein Editor dem Weg gegeben hat, aber nur, wenn es
+//     ein ECHTER Name ist. shouldShowRoutePathDisplayName (js/routing/route-node.js) ist der erprobte Test
+//     dafür und kennt alle Müll-Muster: den nackten Subtyp, "<Subtyp>-<n>" und generisch "<wort>-<zahl>"
+//     ("Meer-835").
+//  2. wiki_path.name -- nur noch als RÜCKFALL. 12 Altsegmente tragen trotz Zuweisung einen Maschinennamen
+//     ("Reichsstrasse-16"); über den Wiki-Namen heilt die Anzeige, ohne die Daten anzufassen.
+// 🔴 DIE REIHENFOLGE IST SEIT 15.09.2026 UMGEKEHRT (Owner: der Wegname gehört dem Editor, R1 im Kopf von
+// api/_internal/wiki/path-naming.php). Bis dahin gewann der Wiki-Name, und ein umbenannter zugewiesener Weg hieß auf
+// Karte, Infobox und Suche weiter wie sein Artikel. Zuweisen schreibt den Artikelnamen in display_name -- für einen
+// frisch zugewiesenen Weg ist das Ergebnis also dasselbe.
+// 💣 ZWILLING: avesmapsWikiPathEchterName (PHP, derselbe Kopf) und die Suche (api/app/map-search.php). Gegeneinander
+// gefahren von js/pages/__tests__/wege-gruppe-gleicher-name.test.js und den zwei wege-suche-manueller-name-Tests.
 function getPathTitleName(path) {
-	const wikiName = String(path?.properties?.wiki_path?.name || "").trim();
-	if (wikiName !== "") {
-		return wikiName;
+	const eigener = typeof shouldShowRoutePathDisplayName === "function" && !shouldShowRoutePathDisplayName(path)
+		? ""
+		: String(path?.properties?.display_name || path?.properties?.original_name || "").trim();
+	if (eigener !== "") {
+		return eigener;
 	}
-	if (typeof shouldShowRoutePathDisplayName === "function" && !shouldShowRoutePathDisplayName(path)) {
-		return "";
-	}
-	return String(path?.properties?.display_name || path?.properties?.original_name || "").trim();
+	return String(path?.properties?.wiki_path?.name || "").trim();
 }
 
 // Wegtyp, ausgeschrieben für Menschen. EIGENER Schlüsselraum `path.type.*`, NICHT `spotlight.pathType.*`:

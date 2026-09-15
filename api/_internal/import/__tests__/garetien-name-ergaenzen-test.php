@@ -69,6 +69,9 @@ final class AvesmapsGaretienNameErgaenzenTestPdo extends PDO
         }
         $query = str_replace('FOR UPDATE', '', $query);
         $query = str_replace('NOW(3)', "datetime('now')", $query);
+        // Seit Abschnitt L (15.09.2026) erreicht ein Weg MIT Wiki-Artikel avesmapsApplyTransportSeasonsToWikiSiblings, und das sucht
+        // ueber JSON_UNQUOTE(JSON_EXTRACT(...)). SQLites json_extract liefert Text schon ohne Anfuehrungszeichen.
+        $query = str_replace('JSON_UNQUOTE(', '(', $query);
         $query = str_replace('INSERT IGNORE INTO', 'INSERT OR IGNORE INTO', $query);
         $query = str_replace("ESCAPE '\\\\'", "ESCAPE '\\'", $query);
         if (str_contains($query, 'INSERT INTO app_setting') && str_contains($query, 'ON DUPLICATE KEY UPDATE')) {
@@ -544,6 +547,27 @@ assert($rNeu['zurueckgenommen'] === 1, 'K: das frische Item nimmt zurueck: ' . j
 assert($regionZeile($pdo, $r9)['name'] === 'Wald-777', 'K: 🔴 der Name kommt ueber den Vermerk des ALTEN Items zurueck');
 assert($garetienLinks($pdo, 'ecosystem', $r9) === 0, 'K: die Quelle ist geloest -- das alte Item zaehlt nicht als anderer Traeger');
 assert($itemZeile($pdo, $iAlt)['apply_state'] === null, 'K: ⚠️ und das alte Item ist mit zurueckgesetzt');
+$pruefungen += 5;
+
+// =================================================================================================
+// L. WEG MIT WIKI-ARTIKEL UND PLATZHALTER -- seit 15.09.2026 nimmt er den Namen an
+// =================================================================================================
+// Bis dahin wies avesmapsGaretienNameErgaenzenVorbereiten ihn ab: R1 liess den Artikelnamen jeden getippten schlagen
+// (avesmapsWikiPathEffectiveEditName), das Schreiben waere still verworfen worden. R1 ist umgekehrt (Kopf von
+// api/_internal/wiki/path-naming.php: der Wegname gehoert dem Editor) -- und „Quelle und Namen ergaenzen" ist eine ausdrueckliche
+// Entscheidung je Item wie ein Umbenennen im Dialog. Der Platzhalter-Riegel bleibt: ein Echtname wird weiter abgewiesen (F).
+$laufW = avesmapsSyncPlanStartRun($pdo, AVESMAPS_GARETIEN_PLAN_KIND, 1, 'wiki-weg');
+$pW = $uuid(5373);
+$wegAnlegen($pdo, $pW, 'Pfad-5373', ['wiki_path' => ['wiki_key' => 'alkenweg', 'name' => 'Alkenweg'], 'allowed_transports' => [], 'show_label' => false]);
+$iW = $itemAnlegen($pdo, $laufW, 'Alkenweg', 'path', $pW, 'Pfad-5373');
+$eW = avesmapsGaretienUebernehmen($pdo, $laufW, [$iW], $user, null, $mitName($iW, 'Garetischer Alkenweg'));
+assert($eW['fehler'] === [], 'L: ein Weg mit Wiki-Artikel weist den Namen wieder ab: ' . json_encode($eW['fehler'], JSON_UNESCAPED_UNICODE));
+assert($mapZeile($pdo, $pW)['name'] === 'Garetischer Alkenweg', 'L: der Weg heisst wie im Namensfeld, nicht wie sein Artikel');
+assert(($mapZeile($pdo, $pW)['props']['wiki_path']['wiki_key'] ?? '') === 'alkenweg', 'L: die Zuweisung selbst bleibt');
+// ↩ gibt den Platzhalter zurueck -- auch das wies der zweite Riegel bis dahin ab.
+$rW = avesmapsGaretienRuecknahmeAusfuehren($pdo, $laufW, [$iW], $user);
+assert($rW['zurueckgenommen'] === 1, 'L: die Ruecknahme am Wiki-Weg scheitert: ' . json_encode($rW['fehler'], JSON_UNESCAPED_UNICODE));
+assert($mapZeile($pdo, $pW)['name'] === 'Pfad-5373', 'L: und der Platzhalter ist zurueck');
 $pruefungen += 5;
 
 echo 'OK: garetien-name-ergaenzen, ' . $pruefungen . ' Pruefungen.' . PHP_EOL;

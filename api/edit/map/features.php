@@ -79,6 +79,18 @@ try {
 
             return avesmapsRepairCrossingFeatureType($pdo, $user, !$scharf, $limit > 0 ? $limit : 500);
         })(),
+        // „Wegname anzeigen" im Bestand der Wiki-Wege anhaken (Owner-Entscheid „Bestand bleibt", 15.09.2026, siehe
+        // avesmapsWegnameAnzeigenBestand). NUR Admins; Trockenlauf ist die Vorgabe, scharf erst mit `apply: true` -- dieselbe
+        // Bauform wie `repair_crossing_type` darueber.
+        'wegname_anzeigen_bestand' => (static function () use ($pdo, $payload, $user): array {
+            if (!avesmapsUserCan($user, 'admin')) {
+                avesmapsErrorResponse(403, 'forbidden', 'Das Anhaken von „Wegname anzeigen" im Bestand ist Admins vorbehalten.');
+            }
+            $scharf = ($payload['apply'] ?? false) === true;
+            $limit = (int) ($payload['limit'] ?? 500);
+
+            return avesmapsWegnameAnzeigenBestand($pdo, !$scharf, $limit > 0 ? $limit : 500);
+        })(),
         default => throw new InvalidArgumentException('Die Edit-Aktion ist unbekannt.'),
     };
 

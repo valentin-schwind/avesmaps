@@ -121,9 +121,10 @@ assert(avesmapsBuildSearchEntry(wegZeile([
     'feature_subtype' => 'Weg',
 ], 'Weg')) === null, 'ein Weg ohne display_name/original_name hat keinen lesbaren Namen');
 
-// ---- 4. Der Wiki-Weg bleibt unveraendert vorn ---------------------------------------------------
-// R1: die Zuweisung benennt den Weg, auch wenn das Segment noch einen Alt-Namen traegt. Diese
-// Zusicherung ist AELTER als die Oeffnung und darf von ihr nicht angefasst worden sein.
+// ---- 4. Der Wiki-Weg: der Artikelname als Rueckfall, der eigene Name zuerst -------------------------
+// Ein Altsegment mit Maschinennamen trotz Zuweisung wird unter dem Artikelnamen gefunden. Diese Zusicherung ist AELTER
+// als die Oeffnung und darf von ihr nicht angefasst worden sein. 🔴 Seit 15.09.2026 steht sie unter „Rueckfall": der
+// Wegname gehoert dem Editor (R1 umgekehrt), ein ECHTER eigener Name schlaegt den Artikel -- ZEICHENGLEICH zum Browser.
 $wikiWeg = avesmapsBuildSearchEntry(wegZeile([
     'name' => 'Reichsstrasse-16',
     'display_name' => 'Reichsstrasse-16',
@@ -132,7 +133,17 @@ $wikiWeg = avesmapsBuildSearchEntry(wegZeile([
     'wiki_path' => ['name' => 'Reichsstraße 2', 'wiki_key' => 'wiki:reichsstrasse-2'],
 ], 'Reichsstrasse'));
 assert($wikiWeg !== null, 'ein wiki-zugewiesener Weg muss suchbar bleiben');
-assert($wikiWeg['name'] === 'Reichsstraße 2', 'der Wiki-Name schlaegt den Alt-Namen des Segments');
+assert($wikiWeg['name'] === 'Reichsstraße 2', 'der Wiki-Name ist der Rueckfall fuer den Maschinennamen des Segments');
+$umbenannterWikiWeg = avesmapsBuildSearchEntry(wegZeile([
+    'name' => 'Alter Bärenpfad',
+    'display_name' => 'Alter Bärenpfad',
+    'feature_type' => 'path',
+    'feature_subtype' => 'Pfad',
+    'wiki_path' => ['name' => 'Bärenpfad', 'wiki_key' => 'wiki:baerenpfad'],
+], 'Pfad'));
+assert($umbenannterWikiWeg !== null, 'ein umbenannter wiki-zugewiesener Weg muss suchbar bleiben');
+assert($umbenannterWikiWeg['name'] === 'Alter Bärenpfad', 'der eigene Name eines zugewiesenen Weges schlaegt den Artikelnamen');
+assert(($umbenannterWikiWeg['wiki_key'] ?? '') === 'wiki:baerenpfad', 'der Artikel reist trotzdem mit -- der Browser loest ueber ihn auf');
 
 // ---- 5. Gruppiert wird ueber Name + Wegart, nicht ueber das Segment -----------------------------
 // Zwei Abschnitte desselben Wegs muessen EINEN Treffer ergeben -- sonst steht der Goblinpfad

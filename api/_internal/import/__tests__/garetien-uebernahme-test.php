@@ -1085,12 +1085,14 @@ assert($zweiter4['remaining'] === 0, 'und es gilt als erledigt');
 $pruefungen += 2;
 
 // =================================================================================================
-// 🔴 REVIEW I4: EIN ZUGEWIESENER WIKI-NAME DARF DIE UEBERNAHME NICHT STILL GEWINNEN LASSEN.
-// avesmapsUpdatePathFeatureDetails schiebt den Namen durch avesmapsWikiPathEffectiveEditName:
-// traegt der Weg ein properties.wiki_path mit kanonischem Namen, wird der Garetien-Name VERWORFEN
-// und der Wiki-Name geschrieben -- lautlos, mit gueltiger Antwort. Ohne die Ruecklese-Pruefe waere
-// das Item 'done' und nie wiederholbar (AGENTS.md §10: "ein Schreiber, dessen Wert zaehlt, muss
-// ihn ZURUECKLESEN").
+// 🔴 REVIEW I4, SEIT 15.09.2026 UMGESTELLT: EIN ZUGEWIESENER WIKI-WEG NIMMT DEN NAMEN AN.
+// Bis dahin schob avesmapsUpdatePathFeatureDetails den Namen durch avesmapsWikiPathEffectiveEditName (R1):
+// traegt der Weg ein properties.wiki_path mit kanonischem Namen, wurde der Garetien-Name VERWORFEN, und
+// diese Probe verlangte, dass das Item daran als 'failed' scheitert, statt still 'done' zu werden. R1 ist
+// umgekehrt (Kopf von api/_internal/wiki/path-naming.php: der Wegname gehoert dem Editor), der Name kommt
+// an -- also dieselbe Anordnung, die Gegenaussage: 'done', und der Weg heisst so, wie das Item es sagt.
+// ⚠️ Das Ruecklesen im Code bleibt (AGENTS.md §10: "ein Schreiber, dessen Wert zaehlt, muss ihn
+// ZURUECKLESEN") -- hier greift es nur nicht mehr, weil nichts mehr verworfen wird.
 $idWikiWeg = '00000000-0000-4000-8000-000000009999';
 $pdo3->prepare('INSERT INTO map_features (public_id, name, feature_type, feature_subtype, geometry_json, properties_json, geometry_type) VALUES (?,?,?,?,?,?,?)')
     ->execute([$idWikiWeg, '', 'path', 'Flussweg',
@@ -1110,14 +1112,15 @@ avesmapsSyncPlanAddItem($pdo3, $runId8, [
 ]);
 
 $schritt8 = avesmapsGaretienApplyStep($pdo3, $runId8, 1, ['id' => 1, 'username' => 'test']);
-assert($schritt8['applied'] === 0,
-    'ein wiki-zugewiesener Weg darf den Garetien-Namen nicht still gewinnen lassen: ' . json_encode($schritt8));
-assert($schritt8['skipped'] === 1, 'und der Fehlschlag muss gezaehlt werden: ' . json_encode($schritt8));
+assert($schritt8['applied'] === 1,
+    'ein wiki-zugewiesener Weg verwirft den Garetien-Namen wieder (R1 zurueck?): ' . json_encode($schritt8));
+assert($schritt8['skipped'] === 0, 'und nichts wird als Fehlschlag gezaehlt: ' . json_encode($schritt8));
 $vermerk8 = $pdo3->query("SELECT apply_state, apply_note FROM sync_plan_item WHERE run_id = {$runId8}")->fetch(PDO::FETCH_ASSOC);
-assert($vermerk8['apply_state'] === 'failed', 'das Item landet als failed, nicht als done: ' . var_export($vermerk8['apply_state'], true));
-assert(str_contains((string) $vermerk8['apply_note'], 'Kanonische'), 'der Vermerk nennt den Wiki-Namen: ' . $vermerk8['apply_note']);
-$nameBleibt = $pdo3->query('SELECT name FROM map_features WHERE public_id = ' . $pdo3->quote($idWikiWeg))->fetchColumn();
-assert($nameBleibt === 'Der Kanonische Name', 'der Name des Weges bleibt der zugewiesene: ' . var_export($nameBleibt, true));
+assert($vermerk8['apply_state'] === 'done', 'das Item landet als done: ' . var_export($vermerk8['apply_state'], true));
+$nameNeu = $pdo3->query('SELECT name FROM map_features WHERE public_id = ' . $pdo3->quote($idWikiWeg))->fetchColumn();
+assert($nameNeu === 'Anderer Bach', 'der Weg heisst, wie das Item es sagt, nicht wie sein Artikel: ' . var_export($nameNeu, true));
+$propsNeu = json_decode((string) $pdo3->query('SELECT properties_json FROM map_features WHERE public_id = ' . $pdo3->quote($idWikiWeg))->fetchColumn(), true);
+assert(($propsNeu['wiki_path']['name'] ?? '') === 'Der Kanonische Name', 'die Zuweisung selbst bleibt unberuehrt: ' . json_encode($propsNeu, JSON_UNESCAPED_UNICODE));
 $pruefungen += 5;
 
 // =================================================================================================

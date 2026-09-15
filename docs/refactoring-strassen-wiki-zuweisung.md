@@ -95,6 +95,14 @@ zugewiesenen Wiki-Namen. Gewünschtes Verhalten (Owner-Regeln):
 - **R3 (Constraint):** **„Weg anzeigen"** (`show_label`) bleibt **unabhängig** vom Namen
   weiter **im Editor steuerbar**. Der Namens-Umbau darf `show_label` nicht ankoppeln/brechen.
 
+> **Nachtrag 15.09.2026 — R1 ist umgekehrt.** Owner: „der wegname lässt sich nicht ändern. wenn ich
+> umbenenne, soll das beim speichern für alle abschnitte gelten." Gewählt „Editor bestimmt": **Zuweisen
+> setzt den Wiki-Namen, danach übernimmt ihn nur noch „Sync" auf Knopfdruck**; jedes Speichern schreibt
+> den eingegebenen Namen, auch an einem zugewiesenen Abschnitt. `avesmapsWikiPathEffectiveEditName` ist
+> gefallen, die Anzeige nimmt den eigenen Namen vor dem Artikelnamen. R2 bleibt unverändert. Das
+> Häkchen heißt seither **„Wegname anzeigen"** und wirkt auch an Wiki-Wegen (R3 gilt damit wörtlich).
+> Stand und Tests: AGENTS.md §11, Eintrag „Weitere Wiki-Zuweisungen an Wegen".
+
 **Wichtige Namens-Falle (aus Deep-Link-Bug bestätigt):**
 `getPathDisplayName` (`js/map-features/map-features-path-domain.js` ~:22) hat einen Fallback
 `name.replace(/-\d+$/,"")`, der die **Endziffer strippt** → „Reichsstrasse-1" und „…-2"
