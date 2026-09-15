@@ -52,7 +52,8 @@ body { background: var(--color-page-bg); color: var(--color-text); font-size: va
 .seg-huelle { fill: none; stroke: var(--color-border-strong); stroke-width: 9; stroke-linecap: round; }
 .seg-strasse { stroke: var(--color-panel); stroke-width: 6; }
 .seg-pfad { stroke: var(--color-text-muted); stroke-width: 2.2; }
-/* Die Linie SELBST wird gelb (Owner): gleiche Breite wie der Strich darunter, keine Umrandung. */
+/* Die Linie SELBST leuchtet in der Farbe markierter Orte (--color-marker-active, Gold -- seit dem Nachtrag §9.1,
+   siehe die Erklaerung bei --proto-markierung oben): gleiche Breite wie der Strich darunter, keine Umrandung. */
 .seg-mark { fill: none; stroke: var(--proto-markierung); stroke-width: 6; stroke-linecap: round; opacity: 0; pointer-events: none; }
 .seg-mark--pfad { stroke-width: 4; }
 .seg-mark.is-an { opacity: 1; }
