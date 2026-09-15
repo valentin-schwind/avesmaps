@@ -4561,8 +4561,9 @@
 	// Listenzeilen (sieben Rezepturen) und der Wiki-Zuweisung (sechs Fassungen) schon zweimal
 	// bezahlt hat. Der Server rastet den getippten Wert ohnehin auf den Katalog ein
 	// (avesmapsNormalizePlaceKind) -- ein Wort daneben wird verworfen, nicht falsch gespeichert.
-	// 🔧 Wenn der Owner die Vorschlagsliste hier haben will, ist das der Ort, an dem das Bauteil
-	// eingehängt wird -- nicht der Ort, an dem eine zweite entsteht.
+	// ✅ Seit dem 15.09.2026 hängt sie am Feld (Owner: „wär es gut, wenn man was eintippen kann und er
+	// automatisch vorschläge macht") -- DAS geteilte Bauteil, eingehängt nach jedem Zeichnen der Spalte
+	// (garetienOrtsartVorschlaegeEinhaengen). Diese Zeile selbst bleibt reines Markup.
 	function garetienEingefuegtWirdTextZeile(objekt, beschriftung, feld, wert, platzhalter, deaktiviert, aus) {
 		const id = garetienEingabeId(objekt, feld);
 		// ⚠️ `aus` (14.09.2026): abgeblendet statt ausgeblendet -- siehe garetienZielNameZeile.
@@ -5051,7 +5052,11 @@
 			const ortEingaben = garetienEingabenZustandZu(objekt);
 			return Object.assign({}, zielRumpf, {
 				is_nodix: ortEingaben.isNodix, is_ruined: ortEingaben.isRuined,
-				is_hidden: ortEingaben.isHidden, place_kind: ortEingaben.placeKind,
+				is_hidden: ortEingaben.isHidden,
+				// ⚠️ Die Art nur, wo sie gilt (garetienOrtsartGilt): eine vor dem Umstellen auf „Dorf" getippte Art
+				// bliebe sonst im Zustand liegen und reiste mit, obwohl das Feld nicht mehr dasteht. "" heißt „keine
+				// Art" -- dasselbe, was der Dialog bei gesperrtem Feld schickt.
+				place_kind: garetienOrtsartGilt(String(wahl.subtyp || "")) ? ortEingaben.placeKind : "",
 			});
 		}
 		// 🔴 Der WEG ebenso, seit dem 30.08.2026 -- und `allowed_transports` reist NUR mit, wenn
@@ -5140,8 +5145,12 @@
 			// Beschriftung und Platzhalter wortgleich zum echten Dialog (index.html
 			// #location-edit-place-kind) -- ein Editor, der beide Oberflächen kennt, lernt keine
 			// zweite Aussage.
-			+ garetienEingefuegtWirdTextZeile(objekt, "Art", "placeKind", eingaben.placeKind,
-				"z. B. Brücke – leer lassen, wenn unbekannt", deaktiviert)
+			// 🔴 NUR, WO DIE ART GILT (Owner 15.09.2026: „das feld braucht nicht erscheinen, wenn die Art keinen
+			// effekt hat") -- an „Besondere Bauwerke/Stätten", dieselbe Regel wie im Dialog (garetienOrtsartGilt).
+			+ (garetienOrtsartGilt(subtyp)
+				? garetienEingefuegtWirdTextZeile(objekt, "Art", "placeKind", eingaben.placeKind,
+					"z. B. Brücke – leer lassen, wenn unbekannt", deaktiviert)
+				: "")
 			+ garetienEingefuegtWirdHakenZeile(objekt, "Ort ist ein Nodix", "isNodix",
 				eingaben.isNodix, deaktiviert)
 			+ garetienEingefuegtWirdHakenZeile(objekt, "Ruine/zerstört", "isRuined",
@@ -5151,6 +5160,42 @@
 			+ garetienEingefuegtWirdZeileMitHinweis("Einwohner · Lage · Herrscher", "keine Angabe",
 				"füllt sich nur über die Wiki-Zuweisung, nicht über diesen Import — hier nicht "
 				+ "einstellbar, weil der Anleger diese drei gar nicht aus der Anfrage liest");
+	}
+
+	// REIN: Gilt die Ortsart für diese Ortsklasse? Owner 03.08.2026: sie gehört zur Ortsgröße „Besondere
+	// Bauwerke/Stätten" -- der Dialog „Ort bearbeiten" sperrt das Feld bei jeder anderen
+	// (js/review/review-locations.js, LOCATION_EDIT_PLACE_KIND_SIZE).
+	// 🔴 GELESEN WIRD DESSEN KONSTANTE -- im Browser steht sie im selben globalen Raum. ⚠️ Der Rückfall auf
+	// "gebaeude" greift nur, wo jene Datei gar nicht geladen ist (Node); er ist ihr Wert, keine eigene Regel,
+	// und garetien-ortsart-vorschlaege.test.js hält beide gegeneinander.
+	// ⚠️ Das Stadtviertel ist AUCH eine Bauwerksklasse (avesmapsIstBauwerksklasse), bekommt die Art aber nicht
+	// -- genau wie im Dialog. Das ist dessen Regel, keine des Importers.
+	function garetienOrtsartGilt(subtyp) {
+		const klasse = (typeof LOCATION_EDIT_PLACE_KIND_SIZE === "string") ? LOCATION_EDIT_PLACE_KIND_SIZE : "gebaeude";
+		return String(subtyp || "") === klasse;
+	}
+
+	// Die Vorschlagsliste am Feld „Art" (Owner 15.09.2026) -- DAS geteilte Bauteil
+	// (js/ui/place-kind-autocomplete.js), dasselbe wie im Dialog „Ort bearbeiten": alphabetisch, mit Zahl.
+	// 💣 VOR JEDEM EINHÄNGEN WIRD DAS VORIGE ABGEHÄNGT. Die Spalte wird bei jedem Klick neu gebaut, und
+	// attachTypeahead hängt je Aufruf einen eigenen Kasten an `body` -- nach zehn Zeilenklicks stünden sonst
+	// zehn Kästen und zehn Zuhörer da (dieselbe Regel wie mountLocationEditPlaceKindAutocomplete).
+	// 🔴 DIE WAHL GEHT DURCH garetienEingabenAendern, denselben Weg wie das Tippen: das Bauteil setzt nur
+	// `value`, und ein Wert im Feld, der nicht im Zustand liegt, reiste nie an den Server.
+	// Rückgabe: true, wenn eingehängt wurde.
+	let _garetienOrtsartAbhaengen = null;
+
+	function garetienOrtsartVorschlaegeEinhaengen(spalte, objekte) {
+		if (typeof _garetienOrtsartAbhaengen === "function") { _garetienOrtsartAbhaengen(); }
+		_garetienOrtsartAbhaengen = null;
+		const einhaengen = (typeof window !== "undefined") ? window.attachPlaceKindAutocomplete : undefined;
+		if (!spalte || typeof spalte.querySelector !== "function" || typeof einhaengen !== "function") { return false; }
+		const feld = spalte.querySelector('input[data-gi-feld="placeKind"]');
+		if (!feld || feld.disabled) { return false; }
+		_garetienOrtsartAbhaengen = einhaengen(feld, {
+			onPick: function () { garetienEingabenAendern({ target: feld }, objekte); },
+		});
+		return true;
 	}
 
 	// REIN: „Weg" -- Name-Anzeige, Verkehrsmittel, Jahreszeiten und (nur bei einem Flussweg) die
@@ -8594,6 +8639,8 @@
 		// leeren" ändern diese Menge, ohne das angeklickte Objekt zu wechseln.
 		const unsereVorhanden = garetienUnsereVorhanden(avesmapsGaretienAufDerKarte(objekte));
 		spalte.innerHTML = garetienDetailMarkup(gewaehlt, sicht, unsereVorhanden);
+		// Die Vorschlagsliste am Feld „Art" -- NACH dem Einfügen, denn sie hängt an einem Knoten.
+		garetienOrtsartVorschlaegeEinhaengen(spalte, liste);
 		// „Eingefügt wird" > „Wiki-Landschaft" braucht den Server (Aktion 'wiki_landschaft') --
 		// der Platzhalter steht schon im Markup, dies trägt ihn nach.
 		garetienWikiLandschaftBeiBedarfLaden(gewaehlt);
@@ -11309,8 +11356,10 @@
 			garetienZielImportwert,
 			garetienZuruecksetzen,
 			garetienZuruecksetzenKlick,
-			// 15.09.2026: der Namensvorschlag (Präfix weg, Ruine)
+			// 15.09.2026: der Namensvorschlag (Präfix weg, Ruine) und die Vorschlagsliste am Feld „Art"
 			garetienNameVorschlag,
+			garetienOrtsartGilt,
+			garetienOrtsartVorschlaegeEinhaengen,
 			// KORREKTUR B (30.08.2026): die manuelle Wiki-Suche, wenn der automatische Treffer leer bleibt
 			garetienWikiSucheHostId,
 			garetienWikiSucheBeiBedarfZeigen,

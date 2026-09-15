@@ -438,16 +438,25 @@ wahr(mOrt.includes("Ort"), "die Ort-Unterueberschrift fehlt");
 	wahr(mOrt.includes('type="checkbox"') && mOrt.includes('data-gi-feld="' + feld + '"'),
 		"der Ort braucht ein Haekchen fuer " + feld + ": " + mOrt);
 });
-// ---- Und die Art ist ein Textfeld, kein Haken und keine Zahl.
-wahr(/<input type="text"[^>]*data-gi-feld="placeKind"/.test(mOrt),
-	"place_kind ist ein Textfeld (der echte Dialog hat dort ein Freitextfeld mit Katalog-Vorschlaegen): " + mOrt);
+// ---- Die Art gibt es an einem DORF gar nicht (Owner 15.09.2026: „das feld braucht nicht erscheinen, wenn
+// die Art keinen effekt hat") -- nur an „Besondere Bauwerke/Stätten", wie im Dialog „Ort bearbeiten".
+wahr(!mOrt.includes('data-gi-feld="placeKind"'), "ein Dorf zeigt kein Feld „Art“: " + mOrt);
+const bauwerk = {
+	key: "ggp:Sonstiges:Turm:Garetien:Testturm", name: "Testturm", typ: "Turm",
+	subtyp: "gebaeude", kind: "", ziel: "location", wiki: "ggp", abschnitte: [],
+	items: [{ id: 4, change_type: "new" }],
+};
+const mBau = mod.garetienEingefuegtWirdOrtMarkup(bauwerk, "gebaeude", false);
+// ---- Dort ist die Art ein Textfeld, kein Haken und keine Zahl.
+wahr(/<input type="text"[^>]*data-gi-feld="placeKind"/.test(mBau),
+	"place_kind ist ein Textfeld (der echte Dialog hat dort ein Freitextfeld mit Katalog-Vorschlaegen): " + mBau);
 
 // 💣 UND SEINE BREITE HAENGT AN EINER EIGENEN REGEL. `.gi-insert__input` steht auf `width: 4.5em`
 // -- fuer eine Zahl richtig, fuer ein Freitextfeld mit dem Platzhalter „z. B. Brücke – leer
 // lassen, wenn unbekannt" unbrauchbar. Der Modifier im Markup und die Regel im CSS sind ein
 // gekoppelter Wert in ZWEI Dateien; faellt eine Haelfte weg, schrumpft das Feld lautlos auf
 // Zahlenbreite und niemand merkt es an einem gruenen Test.
-wahr(mOrt.includes("gi-insert__input--text"), "das Textfeld traegt seinen Modifier: " + mOrt);
+wahr(mBau.includes("gi-insert__input--text"), "das Textfeld traegt seinen Modifier: " + mBau);
 const importerCss = fs.readFileSync(path.join(WURZEL, "css/components/garetien-importer.css"), "utf8");
 wahr(/\.gi-insert__input\.gi-insert__input--text\s*\{/.test(importerCss),
 	"und die CSS-Regel dazu gibt es wirklich -- mit ZWEI Klassen, damit sie die 4.5em sicher schlaegt");
@@ -471,8 +480,12 @@ gleich(rausOrt.place_kind, "", "Grundwert: keine Art");
 garetienEingabenZustandZu(ort).isRuined = true;
 garetienEingabenZustandZu(ort).placeKind = "Brücke";
 gleich(garetienEingabenFuerServer(ort).is_ruined, true, "ein gesetzter Haken reist mit");
-gleich(garetienEingabenFuerServer(ort).place_kind, "Brücke", "eine getippte Art reist mit");
-wahr(garetienEingefuegtWirdMarkup(ort).includes('value="Brücke"'),
+// ⚠️ …aber nicht die Art eines DORFES: eine liegengebliebene (etwa vor dem Umstellen der Ortsklasse
+// getippt) reist als "" -- „keine Art", wie der Dialog es bei gesperrtem Feld schickt.
+gleich(garetienEingabenFuerServer(ort).place_kind, "", "am Dorf reist keine Art mit");
+garetienEingabenZustandZu(bauwerk).placeKind = "Brücke";
+gleich(garetienEingabenFuerServer(bauwerk).place_kind, "Brücke", "am Bauwerk reist die getippte Art mit");
+wahr(mod.garetienEingefuegtWirdOrtMarkup(bauwerk, "gebaeude", false).includes('value="Brücke"'),
 	"und sie steht beim naechsten Rendern wieder im Feld -- der Zustand liegt im Modul, nicht im DOM");
 garetienEingabenZustandZu(ort).isRuined = false;
 garetienEingabenZustandZu(ort).placeKind = ""; // aufräumen -- der Rest der Datei erwartet die Grundwerte
@@ -909,17 +922,21 @@ global.fetch = echtesFetchJ;
 
 // Ort: seit dem 30.08.2026 die VIER Felder, die avesmapsCreatePointFeature wirklich schreibt --
 // unter den Schlüsseln des ANLEGERS, nicht denen des Fensters (isNodix -> is_nodix).
-const kOrt = { key: "k1", ziel: "location", subtyp: "dorf" };
+// ⚠️ Seit dem 15.09.2026 ein BAUWERK: nur dort gilt die Art (garetienOrtsartGilt), das Dorf steht darunter.
+const kOrt = { key: "k1", ziel: "location", subtyp: "gebaeude" };
 garetienEingabenZustandZu(kOrt).isNodix = true;
 garetienEingabenZustandZu(kOrt).isHidden = true;
 garetienEingabenZustandZu(kOrt).placeKind = "Turm";
 // 🔴 SEIT 01.09.2026 KOMMT DIE ZIELWAHL DAZU (`ziel`/`subtyp`/`kind`). Sie reist bei JEDER Form
 // mit; der Server vergleicht sie gegen den Vorschlag und formt nur um, wenn sie abweicht.
 assert.deepStrictEqual(garetienEingabenFuerServer(kOrt), {
-	ziel: "location", subtyp: "dorf", kind: "",
+	ziel: "location", subtyp: "gebaeude", kind: "",
 	is_nodix: true, is_ruined: false, is_hidden: true, place_kind: "Turm",
 }, "ein Ort liefert die vier Karteifelder und die Zielwahl, keine Label-/Region-Felder");
 checks++;
+const kDorf = { key: "k1d", ziel: "location", subtyp: "dorf" };
+garetienEingabenZustandZu(kDorf).placeKind = "Turm";
+gleich(garetienEingabenFuerServer(kDorf).place_kind, "", "…ein Dorf dagegen schickt keine Art: das Feld steht dort gar nicht");
 // Weg: seit dem 30.08.2026 die ZWEI Felder, die avesmapsCreatePathFeature wirklich liest.
 // 🔴 UNANGETASTET ohne `allowed_transports` -- dann waehlt der Server dieselbe Vorauswahl der
 // Wegart wie bisher, und der Anlegeaufruf bleibt zeichengleich zu dem von vorher.
