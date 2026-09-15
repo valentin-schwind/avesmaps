@@ -168,6 +168,8 @@ const ERLAUBT = {
 		"avesmapsWikiAssignLandschaftAntwortPruefen", "avesmapsWikiAssignLandschaftZustand",
 		"avesmapsWikiAssignLandschaftArtikel", "avesmapsWikiAssignLandschaftSyncWerte",
 		"avesmapsWikiAssignLandschaftSyncLeer", "avesmapsWikiAssignMount", "avesmapsWikiAssignLandschaftTreffer",
+		// angezeigteWikiRegion hat genau einen Aufrufer: wikiAssignZustand, das `laden` des Wiki-Kastens im Editordialog
+		"avesmapsWikiAssignLandschaftGespeichert",
 		"mountFeatureSourceEditor",
 		// ecosystemZeichneWikiAbweichungen steigt vorher per typeof auf beide aus (mehr als fuenf Zeilen darueber)
 		"avesmapsWikiFeldStand", "avesmapsWikiAssignSubject",

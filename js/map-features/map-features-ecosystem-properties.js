@@ -252,6 +252,9 @@
 	// Formular (currentLabelWikiRegion) und liesse sich nicht teilen, ohne beide zu verkoppeln.
 
 	// Was im Feld steht: die frisch gewählte, sonst die gespeicherte der Fläche.
+	// ⚠️ Das lesen die SCHREIBWEGE (Label-Nachzug renameLinkedEcosystemLabel, Schnappschuss für eine neue
+	// Beschriftung currentRegionWikiSnapshot) -- dort zählt nur, was die FLÄCHE trägt. Was der Dialog
+	// ANZEIGT (Kasten, Sperre des Auto-Namen-Hakens), liest angezeigteWikiRegion darunter.
 	function effectiveWikiRegion() {
 		if (pendingWikiRegion !== undefined) {
 			return pendingWikiRegion;
@@ -262,6 +265,33 @@
 		}
 
 		return { wiki_key: area.wiki_region_key || "", name: area.region_name || "", wiki_url: area.wiki_url || "" };
+	}
+
+	// Was der Kasten ZEIGT: dasselbe -- aber schweigt die Fläche, springt die Zuweisung ihrer
+	// Beschriftungen ein (avesmapsWikiAssignLandschaftGespeichert).
+	//
+	// 🚩 Owner 15.09.2026, „Blauer See" in Garetien: der Garetien-Import schrieb den Artikel bis zum
+	// 15.09.2026 nur an die BESCHRIFTUNG. Der Kasten las nur die Fläche, zeigte „— keine —" und bot
+	// deshalb kein „Lösen" an -- die Beschriftung trug den Nivesenland-Artikel samt „offiziell", und
+	// keine Oberfläche konnte ihn ihr nehmen (der eigene Kasten der Beschriftung ist ausgeblendet,
+	// sobald eine Fläche da ist: avesmapsLandschaftDialogWikiKasten). Live 4 Flächen am 15.09.2026.
+	// 🔴 NUR DER KASTEN liest den Rückfall, kein Schreibweg: sonst trüge ein bloßes Umbenennen die
+	// Zuweisung einer Beschriftung still an ihre Geschwister weiter.
+	// ⭐ „Lösen" + „Speichern" braucht serverseitig nichts Neues: der Rumpf trägt `wiki_url: ""`, und
+	// update_region nimmt ALLEN Beschriftungen der Fläche die Kopie
+	// (avesmapsEcosystemClearWikiRegionFromLabels) -- auch wenn die Fläche selbst schon leer war.
+	function angezeigteWikiRegion() {
+		// ⚠️ Heute nie wahr, wenn der Kasten lädt: das Bauteil ruft `laden` nur beim Montieren und nach
+		// „Verwerfen" -- beide Male ist der Entwurf `undefined`. Die Zeile bleibt, damit Kasten und
+		// Speichern nie auseinanderlaufen, falls ein Wirt je neu lädt, während ein Entwurf offen ist.
+		if (pendingWikiRegion !== undefined) {
+			return pendingWikiRegion;
+		}
+		const area = currentPropertiesArea();
+		return avesmapsWikiAssignLandschaftGespeichert(
+			area,
+			beschriftungenDerRegion(area).map((eintrag) => eintrag?.label?.wikiRegion)
+		);
 	}
 
 	// „Keine Art" heisst je Ebene etwas anderes (Owner 2026-07-28). „— ohne Art —" war eine Formel für
@@ -346,7 +376,9 @@
 		if (!area) {
 			throw new Error("Wiki-Landschaft: keine Fläche gewählt — der Stand ist unbekannt.");
 		}
-		const wiki = effectiveWikiRegion();
+		// 🔴 angezeigteWikiRegion, NICHT effectiveWikiRegion: nur so steht eine Zuweisung, die allein an
+		// der Beschriftung hängt, im Kasten -- und nur was dasteht, lässt sich lösen.
+		const wiki = angezeigteWikiRegion();
 		const schluessel = String(wiki?.wiki_key || "").trim();
 		// Nach einer Wahl im Kasten liegt die Staging-Zeile schon vor (der Treffer IST sie) -- dann
 		// wird nicht noch einmal geholt.
@@ -688,7 +720,9 @@
 			return;
 		}
 
-		const wiki = effectiveWikiRegion();
+		// 🔴 angezeigteWikiRegion wie der Kasten: sagt der Kasten „zugewiesen", ist der Haken gesperrt --
+		// auch wenn der Artikel nur an der Beschriftung hängt (Blauer See, 15.09.2026).
+		const wiki = angezeigteWikiRegion();
 		const wikiName = String(wiki?.name || "").trim();
 		autoNameBox.disabled = wikiName !== "";
 		if (wikiName !== "") {

@@ -296,6 +296,64 @@ function avesmapsWikiAssignLandschaftArtikel(gespeichert, schnappschuss, arten) 
 }
 
 /**
+ * REIN: welche Wiki-Landschaft fuer eine Flaeche DASTEHT -- die der Flaeche, und schweigt die, die
+ * ihrer Beschriftungen. `null` heisst „nichts zugewiesen".
+ *
+ * 🚩 Owner 15.09.2026: „wir können die zuweisung nicht aufheben" (Blauer See in Garetien). Der
+ * Garetien-Import schrieb den Artikel bis zum 15.09.2026 nur an die BESCHRIFTUNG, die Flaeche blieb
+ * leer. Der Kasten der Flaeche zeigte deshalb „— keine —" und bot kein „Lösen" an, waehrend die
+ * Beschriftung den Nivesenland-Artikel samt „offiziell" trug.
+ *
+ * 🔴 DIE ORDNUNG IST DIE DES KANON-ETIKETTS (avesmapsEcosystemNamespacesAusBeschriftungen,
+ * api/_internal/app/feature-sources.php): die Flaeche gewinnt, und nur wo sie GAR NICHTS sagt, springen
+ * die Beschriftungen ein. Die Anzeige sagt damit dasselbe wie der Kopf der Infobox -- vorher stand dort
+ * „offiziell", und der Kasten behauptete, es gebe keine Zuweisung.
+ * 💣 UNEINIGE BESCHRIFTUNGEN ERGEBEN NICHTS -- dieselbe Regel wie dort, nur an der Artikel-IDENTITAET
+ * gemessen (Schluessel, sonst Adresse), nicht am Namensraum: der Kasten zeigt EINEN Artikel, und zwei
+ * verschiedene Artikel im selben Raum sind trotzdem zwei.
+ * ⚠️ Der Name kommt dann aus dem NEST der Beschriftung, nicht aus `region_name` -- er ist der Name des
+ * Artikels, und genau so zeigt ihn die Infobox der Beschriftung.
+ *
+ * @param {Object|null} flaeche die Flaechenzeile (`wiki_region_key`, `wiki_url`, `region_name`)
+ * @param {Array} beschriftungsNester `properties.wiki_region` je Beschriftung der Flaeche (auch null)
+ * @returns {{wiki_key:string, wiki_url:string, name:string, nur_beschriftung:boolean}|null}
+ */
+function avesmapsWikiAssignLandschaftGespeichert(flaeche, beschriftungsNester) {
+	const f = (flaeche && typeof flaeche === "object") ? flaeche : {};
+	const schluessel = avesmapsWikiAssignLandschaftText(f.wiki_region_key);
+	const adresse = avesmapsWikiAssignLandschaftText(f.wiki_url);
+	if (schluessel !== "" || adresse !== "") {
+		return {
+			wiki_key: schluessel,
+			wiki_url: adresse,
+			name: avesmapsWikiAssignLandschaftText(f.region_name),
+			nur_beschriftung: false,
+		};
+	}
+
+	const nester = (Array.isArray(beschriftungsNester) ? beschriftungsNester : [])
+		.filter((nest) => nest && typeof nest === "object" && !Array.isArray(nest))
+		.filter((nest) => avesmapsWikiAssignLandschaftText(nest.wiki_key) !== ""
+			|| avesmapsWikiAssignLandschaftText(nest.wiki_url) !== "");
+	if (nester.length === 0) {
+		return null;
+	}
+	const artikel = new Set(nester.map((nest) => avesmapsWikiAssignLandschaftText(nest.wiki_key)
+		|| avesmapsWikiAssignLandschaftText(nest.wiki_url)));
+	if (artikel.size !== 1) {
+		return null; // uneinig -- kein Artikel ist besser als ein erfundener
+	}
+
+	const nest = nester[0];
+	return {
+		wiki_key: avesmapsWikiAssignLandschaftText(nest.wiki_key),
+		wiki_url: avesmapsWikiAssignLandschaftText(nest.wiki_url),
+		name: avesmapsWikiAssignLandschaftText(nest.name),
+		nur_beschriftung: true,
+	};
+}
+
+/**
  * 🔴 DER ZUSTAND -- UND ER WIRFT, STATT ETWAS LEERES ZU LIEFERN.
  *
  * Der Vertrag aus dem Kopfkommentar von js/ui/wiki-assign.js: ein `laden`, das im Fehlerfall
@@ -515,6 +573,7 @@ if (typeof module !== "undefined" && module.exports) {
 		avesmapsWikiAssignLandschaftWerte: avesmapsWikiAssignLandschaftWerte,
 		avesmapsWikiAssignLandschaftTreffer: avesmapsWikiAssignLandschaftTreffer,
 		avesmapsWikiAssignLandschaftArtikel: avesmapsWikiAssignLandschaftArtikel,
+		avesmapsWikiAssignLandschaftGespeichert: avesmapsWikiAssignLandschaftGespeichert,
 		avesmapsWikiAssignLandschaftZustand: avesmapsWikiAssignLandschaftZustand,
 		avesmapsWikiAssignLandschaftHerkunft: avesmapsWikiAssignLandschaftHerkunft,
 		avesmapsWikiAssignLandschaftZuweisungsKoerper: avesmapsWikiAssignLandschaftZuweisungsKoerper,

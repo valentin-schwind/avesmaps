@@ -45,6 +45,7 @@ const {
 	avesmapsWikiAssignLandschaftWerte,
 	avesmapsWikiAssignLandschaftTreffer,
 	avesmapsWikiAssignLandschaftArtikel,
+	avesmapsWikiAssignLandschaftGespeichert,
 	avesmapsWikiAssignLandschaftZustand,
 	avesmapsWikiAssignLandschaftZuweisungsKoerper,
 	avesmapsWikiAssignLandschaftAntwortPruefen,
@@ -239,6 +240,57 @@ assert.ok(verwaist && verwaist.wiki_key === "wiki:weg", "ein verwaister Schluess
 assert.strictEqual(verwaist.name, "Restname", "ohne Schnappschuss traegt der Regionsname den Kasten");
 assert.strictEqual(verwaist.werte.art, "");
 zaehl(); zaehl(); zaehl(); zaehl(); zaehl(); zaehl(); zaehl(); zaehl();
+
+// ── 5b) WAS FUER EINE FLAECHE DASTEHT: DIE FLAECHE, SONST IHRE BESCHRIFTUNGEN (15.09.2026) ────────
+// 🚩 Owner: „wir können die zuweisung nicht aufheben" -- der Blaue See in Garetien trug den
+// Nivesenland-Artikel nur an seiner Beschriftung, der Kasten der Flaeche zeigte „— keine —" und bot
+// damit nichts zum Loesen an. Die Ordnung ist die des Kanon-Etiketts: die Flaeche gewinnt, und nur
+// wo sie GAR NICHTS sagt, springen die Beschriftungen ein.
+const NIVESEN = { wiki_key: "blauer-see", wiki_url: "https://de.wiki-aventurica.de/wiki/Blauer_See", name: "Blauer See" };
+const eigeneZuweisung = avesmapsWikiAssignLandschaftGespeichert(
+	{ wiki_region_key: "farindel", wiki_url: SUCHZEILE.wiki_url, region_name: "Farindel" }, [NIVESEN]);
+assert.strictEqual(eigeneZuweisung.wiki_key, "farindel", "eine abweichende Beschriftung hat die Flaeche ueberstimmt");
+assert.strictEqual(eigeneZuweisung.name, "Farindel");
+assert.strictEqual(eigeneZuweisung.nur_beschriftung, false);
+// Schon eine blosse Adresse ist eine Aussage der Flaeche.
+const nurAdresse = avesmapsWikiAssignLandschaftGespeichert({ wiki_url: SUCHZEILE.wiki_url }, [NIVESEN]);
+assert.ok(nurAdresse.wiki_url === SUCHZEILE.wiki_url && nurAdresse.nur_beschriftung === false,
+	"die Beschriftung hat eine Flaeche ueberstimmt, die nur eine Adresse traegt: " + JSON.stringify(nurAdresse));
+zaehl(); zaehl(); zaehl(); zaehl();
+
+const springtEin = avesmapsWikiAssignLandschaftGespeichert(
+	{ wiki_region_key: null, wiki_url: null, region_name: "Blauer See" }, [null, NIVESEN]);
+assert.ok(springtEin, "schweigt die Flaeche, bleibt die Zuweisung der Beschriftung unsichtbar -- und damit unloesbar");
+assert.strictEqual(springtEin.wiki_key, "blauer-see");
+assert.strictEqual(springtEin.wiki_url, NIVESEN.wiki_url);
+assert.strictEqual(springtEin.name, "Blauer See");
+assert.strictEqual(springtEin.nur_beschriftung, true, "der Rueckfall sagt nicht, dass er einer ist");
+zaehl(); zaehl(); zaehl(); zaehl(); zaehl();
+
+// Mehrere Beschriftungen mit DEMSELBEN Artikel: einer. Mit verschiedenen: keiner.
+const einig = avesmapsWikiAssignLandschaftGespeichert({},
+	[NIVESEN, Object.assign({}, NIVESEN, { name: "Ifirns Glas" })]);
+assert.strictEqual(einig.wiki_key, "blauer-see");
+// Der Name kommt von der ERSTEN Beschriftung -- beschriftungenDerRegion sortiert nach der public_id,
+// bei jedem Oeffnen steht also derselbe da.
+assert.strictEqual(einig.name, "Blauer See", "bei einigen Beschriftungen kommt der Name nicht von der ersten");
+zaehl();
+assert.strictEqual(avesmapsWikiAssignLandschaftGespeichert({},
+	[NIVESEN, { wiki_key: "erlensee", wiki_url: "https://de.wiki-aventurica.de/wiki/Erlensee" }]), null,
+	"bei uneinigen Beschriftungen steht trotzdem ein Artikel da -- welcher, waere geraten");
+// Ohne Schluessel entscheidet die Adresse ueber die Identitaet.
+assert.strictEqual(avesmapsWikiAssignLandschaftGespeichert({}, [{ wiki_url: "u1" }, { wiki_url: "u1" }]).wiki_url, "u1");
+assert.strictEqual(avesmapsWikiAssignLandschaftGespeichert({}, [{ wiki_url: "u1" }, { wiki_url: "u2" }]), null);
+zaehl(); zaehl(); zaehl(); zaehl();
+
+// Nichts da, oder nur Muell: `null`, nie ein leeres Objekt (das Bauteil laese es als Zuweisung).
+[undefined, null, [], [null, {}, [], "x", 5, { wiki_key: "  ", wiki_url: "" }]].forEach((nester) => {
+	assert.strictEqual(avesmapsWikiAssignLandschaftGespeichert({ region_name: "Blauer See" }, nester), null,
+		"aus " + JSON.stringify(nester) + " entsteht eine Zuweisung");
+	zaehl();
+});
+assert.strictEqual(avesmapsWikiAssignLandschaftGespeichert(null, null), null);
+zaehl();
 
 // ── 6) DER VERTRAG: `laden` LEHNT AB, STATT ETWAS LEERES ZU LIEFERN ───────────────────────────
 [null, undefined, [], 5, "x"].forEach((kaputt) => {
@@ -885,6 +937,127 @@ function sandkastenBauen(dateien, felder, behaelterIds, fetchAntwort, zusatz) {
 	assert.strictEqual(hostFehler.innerHTML, "",
 		"neben der Fehlermeldung steht noch ein Kasten -- welcher der zwei gilt?");
 	zaehl(); zaehl();
+
+	// ---- 🔴 DIE ZUWEISUNG HAENGT NUR AN DER BESCHRIFTUNG (Owner 15.09.2026, „Blauer See") -----------
+	// Der Garetien-Import schrieb den Artikel bis zum 15.09.2026 nur ans Schild; die Flaeche ist leer.
+	// Der Kasten zeigte „— keine —", und damit gab es NICHTS zu loesen -- der eigene Kasten der
+	// Beschriftung ist ausgeblendet, sobald eine Flaeche da ist. Gefahren wird der ganze Ablauf:
+	// sehen, blosses Speichern (schreibt nichts von der Zuweisung), Entfernen + Speichern (die leere
+	// Adresse reist, und die Beschriftung verliert ihre Kopie auch clientseitig).
+	const NIVESEN_NEST = { wiki_key: "blauer-see", name: "Blauer See", art: "See", region_parent: "Nivesenlande",
+		continent: "Aventurien", wiki_url: "https://de.wiki-aventurica.de/wiki/Blauer_See" };
+	// ⚠️ ZWEI Beschriftungen, und die PRIMAERE traegt den Artikel zuerst NICHT: nur so faellt auf, wenn ein
+	// Schreibweg den Rueckfall mitliest -- ein blosses Speichern truege den Artikel dann an sie weiter
+	// (renameLinkedEcosystemLabel liest effectiveWikiRegion). Gegen genau diese Mutation gefahren.
+	const SCHILD_OHNE = { publicId: "l4", text: "Blauer See", labelType: "see", showName: false, wikiRegion: null };
+	const SCHILD_MIT = { publicId: "l5", text: "Blauer See", labelType: "see", showName: false, wikiRegion: NIVESEN_NEST };
+	let primaerSchild = SCHILD_OHNE;
+	let schilderDerFlaeche = [SCHILD_OHNE, SCHILD_MIT];
+	const schildSchreibvorgaenge = [];
+	// 🔴 Der Auto-Name-Haken folgt dem KASTEN: sagt der „zugewiesen", ist er gesperrt (Befund der
+	// Konsistenzpruefung 15.09.2026 -- er las zuerst weiter nur die Flaeche).
+	const autoNameSchild = scheinFeld("");
+	const kSchild = sandkastenBauen(dialogSkripte,
+		{
+			"label-edit-text": scheinFeld("Blauer See"),
+			"label-edit-type": scheinFeld("see", TOPOGRAPHIE.map((typ) => typ.type_key)),
+			"ecosystem-properties-autoname": autoNameSchild,
+		},
+		["ecosystem-properties-wiki-host", "ecosystem-properties-overlay", "ecosystem-properties-form"],
+		(url) => {
+			if (url.indexOf("action=staging_sample") !== -1) { return { ok: true, rows: [NIVESEN_NEST] }; }
+			return { ok: true, count: 0, rows: [] };
+		},
+		{
+			ecosystemLayers: new Map([["a4", { _ecosystemArea: Object.assign({}, FLAECHE, {
+				public_id: "a4", region_public_id: "r4", region_name: "Blauer See", kind: "topographie",
+				region_type: "see", wiki_region_key: null, wiki_url: null, label_public_id: "l4",
+			}) }]]),
+			postEcosystemEdit: (aktion, nutzlast) => {
+				kSchild.aufrufe.push({ aktion: aktion, nutzlast: nutzlast });
+				if (aktion === "list_regions") {
+					return Promise.resolve({
+						ok: true,
+						region_types: TOPOGRAPHIE.map((typ) => Object.assign({ kind: "topographie" }, typ)),
+						regions: [{ public_id: "r4", name: "Blauer See", kind: "topographie", region_type: "see",
+							wiki_region_key: null, wiki_url: null, area_count: 1, label_public_id: "l4" }],
+					});
+				}
+				return Promise.resolve({ ok: true });
+			},
+			// Die Beschriftungen der Flaeche -- ueber BEIDE Wege, auf denen das Modul sie findet.
+			findLabelEntriesByEcosystemRegion: (regionId) => (regionId === "r4"
+				? schilderDerFlaeche.map((label) => ({ label: label })) : []),
+			findLabelEntryByPublicId: (id) => (id === "l4" ? { label: primaerSchild } : null),
+			ecosystemDialogTitle: () => "Topographie-Fläche bearbeiten",
+			formatEcosystemRegionCarryNote: () => "1 Fläche",
+			linkedEcosystemLabelEntry: () => ({ label: primaerSchild }),
+			ecosystemLabelCountOfRegion: () => 1,
+			ecosystemLabelStyleFor: () => ({}),
+			ecosystemWikiRegionSnapshot: () => Promise.resolve(null),
+			submitMapFeatureEdit: (nutzlast) => {
+				schildSchreibvorgaenge.push(nutzlast);
+				return Promise.resolve({ ok: true });
+			},
+			applyLabelFeatureLocally: () => {},
+			avesmapsComputeLabelPoint: () => ({ x: 1, y: 1 }),
+			tr: (schluessel, rueckfall) => rueckfall,
+			t: (schluessel, rueckfall) => rueckfall,
+		});
+	kSchild.aufrufe = [];
+	vm.runInContext("var ecosystemLabelsForRegion = function () { return []; };"
+		+ "var isEcosystemCascadeEnabled = function () { return false; };"
+		+ "var removeEcosystemCascadedLabels = function () {};"
+		+ "var refreshEcosystemAreas = function () { return Promise.resolve(); };", kSchild.kasten);
+	const hostSchild = kSchild.elemente["ecosystem-properties-wiki-host"];
+	const formSchild = kSchild.elemente["ecosystem-properties-form"];
+
+	await vm.runInContext("window.AvesmapsEcosystemProperties.open('a4')", kSchild.kasten);
+	await ruhe();
+	assert.ok(hostSchild.innerHTML.indexOf("Blauer See") !== -1 && hostSchild.innerHTML.indexOf("— keine —") === -1,
+		"der Kasten verschweigt die Zuweisung der Beschriftung -- dann gibt es nichts zu loesen: " + hostSchild.innerHTML);
+	assert.ok(hostSchild.innerHTML.indexOf('data-wa-aktion="entfernen"') !== -1,
+		"der Kasten bietet kein „Entfernen“ an: " + hostSchild.innerHTML);
+	assert.strictEqual(autoNameSchild.disabled, true,
+		"der Kasten sagt „zugewiesen“, der Auto-Name-Haken bleibt aber bedienbar");
+	zaehl(); zaehl(); zaehl();
+
+	// 🔴 BLOSSES SPEICHERN: der Rueckfall ist ANZEIGE. Er schreibt die Zuweisung weder an die Flaeche
+	// noch nimmt er sie der Beschriftung.
+	formSchild.feuere("submit", formSchild);
+	await ruhe();
+	const blossGespeichert = kSchild.aufrufe.filter((a) => a.aktion === "update_region")[0];
+	assert.ok(blossGespeichert, "das Speichern hat gar nichts geschrieben: " + JSON.stringify(kSchild.aufrufe));
+	assert.ok(!("wiki_url" in blossGespeichert.nutzlast),
+		"ein blosses Speichern traegt die Zuweisung der Beschriftung an die Flaeche: " + JSON.stringify(blossGespeichert.nutzlast));
+	assert.ok(!schildSchreibvorgaenge.some((n) => n.action === "update_label"),
+		"ein blosses Speichern schreibt an die primaere Beschriftung -- liest ein Schreibweg den Rueckfall mit? "
+		+ JSON.stringify(schildSchreibvorgaenge));
+	zaehl(); zaehl(); zaehl();
+
+	// ⭐ ENTFERNEN + SPEICHERN: genau der Handgriff, der am 15.09.2026 nicht moeglich war. Jetzt traegt
+	// die PRIMAERE Beschriftung den Artikel -- wie beim Blauen See selbst.
+	primaerSchild = Object.assign({}, SCHILD_MIT, { publicId: "l4" });
+	schilderDerFlaeche = [primaerSchild];
+	kSchild.aufrufe.length = 0;
+	schildSchreibvorgaenge.length = 0;
+	await vm.runInContext("window.AvesmapsEcosystemProperties.open('a4')", kSchild.kasten);
+	await ruhe();
+	hostSchild.feuere("click", scheinZiel("data-wa-aktion", "entfernen"));
+	await ruhe();
+	assert.ok(hostSchild.innerHTML.indexOf("— keine —") !== -1, "„Entfernen“ hat den Kasten nicht geleert: " + hostSchild.innerHTML);
+	assert.strictEqual(autoNameSchild.disabled, false, "nach „Entfernen“ bleibt der Auto-Name-Haken gesperrt");
+	zaehl();
+	formSchild.feuere("submit", formSchild);
+	await ruhe();
+	const flaecheGeloest = kSchild.aufrufe.filter((a) => a.aktion === "update_region")[0];
+	assert.ok(flaecheGeloest && flaecheGeloest.nutzlast.wiki_url === "",
+		"die Ruecknahme reist nicht als leere Adresse -- der Server naehme der Beschriftung nichts: "
+		+ JSON.stringify(kSchild.aufrufe));
+	const schildGeloest = schildSchreibvorgaenge.filter((n) => n.action === "update_label" && n.public_id === "l4")[0];
+	assert.ok(schildGeloest && schildGeloest.wiki_region === null,
+		"die Beschriftung behaelt clientseitig ihre Kopie: " + JSON.stringify(schildSchreibvorgaenge));
+	zaehl(); zaehl(); zaehl();
 
 	// ══ TEIL 4: DER REGIONEN-EDITOR (html/landschaften-editor.html) ═══════════════════════════
 	// Das Fenster ist eine HTML-Seite mit EINEM grossen Inline-Skript; es wird hier unveraendert aus
