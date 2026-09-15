@@ -183,7 +183,13 @@ async function handlePathGroupEditSubmit() {
 	const gruppe = pathEditGruppe;
 	const rumpf = wpGroupRumpf(gruppe.stand, readPathGruppeEntwurf(), gruppe.pfade.map((pfad) => getPathPublicId(pfad)));
 	if (!rumpf) {
-		setPathEditStatus("Nichts geändert.");
+		// 🔴 Nachtrag 15.09.2026: „Nichts geändert." landete nur in der Statuszeile des Dialogs, und die
+		// liegt unterhalb des sichtbaren Fensterbereichs (gemessen: top 917 bei innerHeight 900) -- der
+		// Editor sieht bei "Speichern für N Abschnitte" keine Reaktion, obwohl Wiki-Zuweisung und Quellen
+		// im Kasten daneben ohnehin schon sofort geschrieben haben. Der Knopf wirkt dann tot. Jetzt schliesst
+		// der Dialog wie nach einem erfolgreichen Speichern (kein Serveraufruf noetig) und sagt es per Toast.
+		setPathEditDialogOpen(false, { resetForm: true });
+		showFeedbackToast("Nichts zu speichern — Wiki-Zuweisungen und Quellen wirken sofort.", "success");
 		return;
 	}
 	// Nachtrag 15.09.2026 §9.5: was der Kasten „Wiki-Weg" per Sync ins Formular geholt hat, reist mit -- der Server liest
