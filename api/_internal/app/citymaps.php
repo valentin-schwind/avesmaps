@@ -380,7 +380,7 @@ function avesmapsCitymapsEnsureTables(PDO $pdo): void
     // Livecode gemessen (16.08.2026), damit niemand sie verwechselt oder zusammenlegt:
     //
     //   citymap.wiki_key -- ein BAUSCHLUESSEL aus vier Teilen, `index:stadt:quelle:variante`
-    //     (avesmapsCitymapWikiKey, api/_internal/wiki/citymap-sync.php:103; gebaut :584/:754/:818,
+    //     (avesmapsCitymapWikiKey, api/_internal/wiki/citymap-sync.php:103; gebaut in citymap-sync-parser.php,
     //     Spalte angelegt :1310). Er sagt, aus welcher INDEX-SEITE die Zeile stammt, und ist KEINE
     //     Seitenidentitaet. An ihm haengt der laufende Karten-Abgleich -- 🔴 unangetastet.
     //   citymap.map_url -- der Karten-Link. Bei einer Wiki-Karte baut ihn der Abgleich aus der

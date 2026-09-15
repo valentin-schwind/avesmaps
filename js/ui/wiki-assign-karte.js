@@ -14,7 +14,7 @@
 //
 //   `citymap.wiki_key`   BAUSCHLUESSEL aus vier Teilen, `index:stadt:quelle:variante`
 //                        (avesmapsCitymapWikiKey, api/_internal/wiki/citymap-sync.php:103; gebaut
-//                        :584/:754/:818). Er sagt, aus welcher INDEX-SEITE die Zeile stammt.
+//                        citymap-sync-parser.php). Er sagt, aus welcher INDEX-SEITE die Zeile stammt.
 //                        KEINE Seitenidentitaet. 🔴 Unangetastet -- daran haengt der Abgleich.
 //   `citymap.map_url`    der Karten-Link. Bei einer Wiki-Karte aus der QUELLE gebaut, also aus der
 //                        Publikation (avesmapsCitymapWikiUrlForSource, :1508): er zeigt auf das

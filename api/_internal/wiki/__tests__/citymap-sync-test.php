@@ -719,13 +719,14 @@ foreach ($chain as $relative) {
     }
 }
 
-// Every avesmaps* call in citymap-sync.php that the file does not define itself.
+// Every avesmaps* call in citymap-sync.php (and its parser half, citymap-sync-parser.php) that the two files do not define themselves.
 //
 // Comments are stripped via the TOKENIZER first, not by regex over raw text: the fix for this very bug
 // left a comment reading "NOT avesmapsUuidV4 (map/features.php)", and a plain text scan dutifully
 // reported the warning against calling it as a call to it. A test that flags its own documentation is
 // worse than no test -- it trains you to ignore it.
-$raw = (string) file_get_contents(__DIR__ . '/../citymap-sync.php');
+$raw = (string) file_get_contents(__DIR__ . '/../citymap-sync.php')
+    . '?>' . (string) file_get_contents(__DIR__ . '/../citymap-sync-parser.php'); // closing tag first, so the second file's opening tag is a real one
 $source = '';
 foreach (token_get_all($raw) as $token) {
     if (is_array($token)) {
