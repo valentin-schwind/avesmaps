@@ -472,7 +472,11 @@
 		normalizeKey: normalizeKey,
 		typingSelector: TYPING_SELECTOR,
 		activatableSelector: ACTIVATABLE_SELECTOR,
-		toolClasses: TOOL_CLASSES
+		toolClasses: TOOL_CLASSES,
+		// 🔴 Die EINE Werkzeugfrage, auch fuer andere Module: der Namensklick der Wege darf nicht wirken, solange ein
+		// Werkzeug laeuft (Nachtrag docs/superpowers/specs/2026-09-14-wege-mehrfachzuweisung-design.md §9.4). Eine
+		// zweite Klassenliste dort liefe beim naechsten Werkzeug auseinander.
+		toolActive: toolActive
 	};
 
 	if (document.readyState === "loading") {

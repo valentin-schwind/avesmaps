@@ -526,6 +526,18 @@ check("index.html laedt die Datei und haelt den Kasten fuer die Tabelle bereit",
 	assert.ok(indexSource.includes('data-i18n="legal.group.usage"'), "die Gruppe Bedienung fehlt");
 });
 
+check("toolActive ist die Werkzeugfrage fuer andere Module -- der Namensklick der Wege (Nachtrag 15.09.2026 §9.4)", () => {
+	const ohne = loadModule();
+	assert.strictEqual(typeof ohne.api.toolActive, "function", "die Frage ist nach aussen gegeben");
+	assert.strictEqual(ohne.api.toolActive(), false, "ohne Werkzeug: nein");
+	ohne.api.toolClasses.forEach((klasse) => {
+		const t = loadModule({ mapContainerClasses: [klasse] });
+		assert.strictEqual(t.api.toolActive(), true, klasse + " muss als laufendes Werkzeug gelten");
+	});
+	const pick = loadModule({ picking: makeElement([]) });
+	assert.strictEqual(pick.api.toolActive(), true, "auch ein Anklick-Modus an den Panes");
+});
+
 if (failures > 0) {
 	console.error(`\nkeyboard-shortcuts.test: ${failures} Fehlschlag/Fehlschlaege`);
 	process.exit(1);
