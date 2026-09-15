@@ -21,7 +21,16 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/garetien-parser.php';
 
-// Die 18 Exportseiten, die Volker am 26.08.2026 angelegt hat.
+// Volkers Exportseiten (angelegt 26.08.2026). Ortschaften und Detail sind FORTLAUFENDE BLOECKE zu je
+// 500 Zeilen (Volker, 15.09.2026).
+// 💣 EIN VOLLER LETZTER BLOCK HEISST: ES FEHLT EINER. Bis zum 15.09.2026 standen hier nur
+// Ortschaften_1..4, Detail_1..2 und Kosch Ortschaften_1 -- alle drei letzten Bloecke hatten genau 500
+// Zeilen, und dem Import fehlten 7,9 % der Orte (Perricum 22 %, denn die Bloecke enden mit Perricum).
+// Gegenprobe beim naechsten Block: die letzte Seite einer Reihe zaehlt weniger als 500 Zeilen.
+// ⚠️ Die Ebene steht im Objektschluessel (avesmapsGaretienObjektSchluesselAusZeile): wandert ein Ort
+// in einen anderen Block, ist er fuer den Importer ein neues Objekt.
+// ⚠️ Jeder neue Punkt-Block braucht auch seine Zeile in AVESMAPS_GARETIEN_SICHT_EBENE
+// (js/review/review-garetien-karte.js); garetien-sicht-tafel.test.js haelt beide gegeneinander.
 const AVESMAPS_GARETIEN_BASIS_GGP   = 'https://www.garetien.de/index.php?title=Benutzer:VolkoV/MapSVG/Avesmaps_';
 const AVESMAPS_GARETIEN_BASIS_KOSCH = 'https://www.koschwiki.de/index.php?title=Benutzer:VolkoV/MapSVG/Avesmaps_';
 
@@ -36,14 +45,17 @@ const AVESMAPS_GARETIEN_EBENEN = [
     ['wiki' => 'ggp',   'ebene' => 'Ortschaften_2', 'url' => AVESMAPS_GARETIEN_BASIS_GGP . 'Ortschaften_2'],
     ['wiki' => 'ggp',   'ebene' => 'Ortschaften_3', 'url' => AVESMAPS_GARETIEN_BASIS_GGP . 'Ortschaften_3'],
     ['wiki' => 'ggp',   'ebene' => 'Ortschaften_4', 'url' => AVESMAPS_GARETIEN_BASIS_GGP . 'Ortschaften_4'],
+    ['wiki' => 'ggp',   'ebene' => 'Ortschaften_5', 'url' => AVESMAPS_GARETIEN_BASIS_GGP . 'Ortschaften_5'],
     ['wiki' => 'ggp',   'ebene' => 'Detail_1',      'url' => AVESMAPS_GARETIEN_BASIS_GGP . 'Detail_1'],
     ['wiki' => 'ggp',   'ebene' => 'Detail_2',      'url' => AVESMAPS_GARETIEN_BASIS_GGP . 'Detail_2'],
+    ['wiki' => 'ggp',   'ebene' => 'Detail_3',      'url' => AVESMAPS_GARETIEN_BASIS_GGP . 'Detail_3'],
     ['wiki' => 'kosch', 'ebene' => 'Gewaesser',     'url' => AVESMAPS_GARETIEN_BASIS_KOSCH . 'Gewaesser'],
     ['wiki' => 'kosch', 'ebene' => 'Berge',         'url' => AVESMAPS_GARETIEN_BASIS_KOSCH . 'Berge'],
     ['wiki' => 'kosch', 'ebene' => 'Grenzen',       'url' => AVESMAPS_GARETIEN_BASIS_KOSCH . 'Grenzen'],
     ['wiki' => 'kosch', 'ebene' => 'Waelder',       'url' => AVESMAPS_GARETIEN_BASIS_KOSCH . 'Waelder'],
     ['wiki' => 'kosch', 'ebene' => 'Wege',          'url' => AVESMAPS_GARETIEN_BASIS_KOSCH . 'Wege'],
     ['wiki' => 'kosch', 'ebene' => 'Ortschaften_1', 'url' => AVESMAPS_GARETIEN_BASIS_KOSCH . 'Ortschaften_1'],
+    ['wiki' => 'kosch', 'ebene' => 'Ortschaften_2', 'url' => AVESMAPS_GARETIEN_BASIS_KOSCH . 'Ortschaften_2'],
 ];
 
 const AVESMAPS_GARETIEN_USER_AGENT = 'Avesmaps-Import/1.0 (+https://avesmaps.de)';

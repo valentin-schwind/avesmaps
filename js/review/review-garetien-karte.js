@@ -628,8 +628,10 @@
 		Ortschaften_2: { form: "punkt",   token: AVESMAPS_GARETIEN_TOKEN_SIEDLUNG,        breite: 3 },
 		Ortschaften_3: { form: "punkt",   token: AVESMAPS_GARETIEN_TOKEN_SIEDLUNG,        breite: 3 },
 		Ortschaften_4: { form: "punkt",   token: AVESMAPS_GARETIEN_TOKEN_SIEDLUNG,        breite: 3 },
+		Ortschaften_5: { form: "punkt",   token: AVESMAPS_GARETIEN_TOKEN_SIEDLUNG,        breite: 3 },
 		Detail_1:      { form: "punkt",   token: AVESMAPS_GARETIEN_TOKEN_SIEDLUNG,        breite: 3 },
 		Detail_2:      { form: "punkt",   token: AVESMAPS_GARETIEN_TOKEN_SIEDLUNG,        breite: 3 },
+		Detail_3:      { form: "punkt",   token: AVESMAPS_GARETIEN_TOKEN_SIEDLUNG,        breite: 3 },
 	};
 
 	// Der Rueckfall. 🔴 Er ist das BILD VOR DIESER AUFGABE -- wer die Tafel entfernt, bekommt genau
@@ -667,7 +669,7 @@
 			 * wie ein Weg-Subtyp. Ohne diese Weiche liefe „dorf" in den Weg-Zweig darunter und
 			 * ergaebe `--color-path-dorf`, ein Tokenname, den es nicht gibt -> Meldung + Gold-
 			 * Rueckfall, obwohl die Sicht-Tafel ein paar Zeilen weiter unten genau dafuer schon
-			 * `AVESMAPS_GARETIEN_TOKEN_SIEDLUNG` bereithaelt (Ortschaften_1..4/Detail_1..2). Jede
+			 * `AVESMAPS_GARETIEN_TOKEN_SIEDLUNG` bereithaelt (Ortschaften_1..5/Detail_1..3). Jede
 			 * Ortschaft/jedes Bauwerk mit einem aufgeloesten Vorschlag traf also lautlos den
 			 * Warnpfad, statt seine echte (rote) Markerfarbe zu bekommen.
 			 */

@@ -330,4 +330,25 @@ gleich(kollidiert({ urteil: "widerspricht" }), false,
 	"„widerspricht\" ist NICHT der Datenwert -- die Liste normalisiert, hier steht der normalisierte "
 	+ "Wert");
 
+// ---- Jede Ebene der Abrufliste steht in der Tafel ---------------------------------------------------
+//
+// 💣 Volker 15.09.2026: die Ortschaften- und Detail-Seiten sind fortlaufende 500er-BLOECKE, und es kamen
+// Ortschaften_5, Detail_3 und Kosch Ortschaften_2 dazu. Die Abrufliste (PHP) und diese Tafel (JS) nennen
+// die Ebenen je fuer sich -- fehlt ein neuer Block hier, faellt er WORTLOS auf den neutralen Rueckfall,
+// und ein Ort wird als LINIE gezeichnet. Deshalb wird die Liste aus der PHP-Datei gelesen, nicht
+// abgeschrieben. ⚠️ `Wege`, `Grenzen` und `Sonstiges` bleiben bewusst neutral (RULING R3, Kopf).
+const abruf = fs.readFileSync(path.join(WURZEL, "api", "_internal", "import", "garetien-abruf.php"), "utf8");
+const ebenenAusPhp = Array.from(new Set(Array.from(abruf.matchAll(/'ebene'\s*=>\s*'([^']+)'/g), (m) => m[1])));
+wahr(ebenenAusPhp.indexOf("Ortschaften_5") !== -1 && ebenenAusPhp.indexOf("Detail_3") !== -1,
+	"Zeuge: die Abrufliste traegt die Bloecke vom 15.09.2026 -- sonst prueft die Schleife nichts: "
+	+ ebenenAusPhp.join(", "));
+ebenenAusPhp.filter((e) => ["Wege", "Grenzen", "Sonstiges"].indexOf(e) === -1).forEach(function (ebene) {
+	wahr(sicht({ ebene: ebene, typ: "x", subtyp: "", geometrie_typ: "" }).neutral === false,
+		"die Ebene „" + ebene + "\" aus garetien-abruf.php hat keine Zeile in AVESMAPS_GARETIEN_SICHT_EBENE");
+});
+gleich(sicht({ ebene: "Ortschaften_5", typ: "Dorf", subtyp: "", geometrie_typ: "" }).form, "punkt",
+	"der fuenfte Ortschaften-Block ist ein Punkt wie die vier davor");
+gleich(sicht({ ebene: "Detail_3", typ: "BurgKlein", subtyp: "", geometrie_typ: "" }).form, "punkt",
+	"der dritte Detail-Block ebenso");
+
 console.log(`garetien-sicht-tafel: ${checks} Pruefungen bestanden.`);

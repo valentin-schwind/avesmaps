@@ -30,8 +30,10 @@ function wahr(bedingung, warum) {
 	checks++;
 }
 
-// Die 18 Ebenen in der Reihenfolge, in der AVESMAPS_GARETIEN_EBENEN sie liefert (gekuerzt auf die,
-// die hier gebraucht werden -- die Zahl 18 wird trotzdem echt aus der Liste gezaehlt).
+// Eine Vorlage der Ebenen in der Reihenfolge, in der AVESMAPS_GARETIEN_EBENEN sie liefert -- der Stand
+// vom 26.08.2026 mit 18 Seiten. ⚠️ Seit dem 15.09.2026 liefert der Endpunkt 21 (Folgebloecke
+// Ortschaften_5, Detail_3, Kosch Ortschaften_2); die Texte hier pruefen die RECHNUNG „n von m",
+// und die Zahl wird aus dieser Vorlage gezaehlt, nicht aus dem Endpunkt.
 const EBENEN = [
 	{ wiki: "ggp", ebene: "Gewaesser" }, { wiki: "ggp", ebene: "Berge" },
 	{ wiki: "ggp", ebene: "Grenzen" }, { wiki: "ggp", ebene: "Sonstiges" },
@@ -43,7 +45,7 @@ const EBENEN = [
 	{ wiki: "kosch", ebene: "Grenzen" }, { wiki: "kosch", ebene: "Waelder" },
 	{ wiki: "kosch", ebene: "Wege" }, { wiki: "kosch", ebene: "Ortschaften_1" },
 ];
-gleich(EBENEN.length, 18, "die Vorlage muss die 18 Ebenen des Endpunkts abbilden");
+gleich(EBENEN.length, 18, "die Vorlage traegt die 18 Ebenen vom 26.08.2026");
 
 // ---- 1. Die DREI Kacheln stehen im Menueband, in der Hausform ----------------------------------
 //

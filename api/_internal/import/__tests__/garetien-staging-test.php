@@ -72,11 +72,12 @@ assert((int) $laeufe[1]['zeilen'] === 2, 'run2 traegt seine zwei gestageten Zeil
 assert((int) $laeufe[2]['zeilen'] === 2, 'runId traegt seine zwei gestageten Zeilen');
 $pruefungen += 5;
 
-// --- Alle 18 Ebenen sind eingetragen, mit Adresse.
-assert(count(AVESMAPS_GARETIEN_EBENEN) === 18, 'Volker hat 18 Seiten angelegt');
+// --- Alle Ebenen sind eingetragen, mit Adresse. Seit dem 15.09.2026 mit den Folgebloecken Ortschaften_5,
+// Detail_3 und Kosch Ortschaften_2 (Volker: fortlaufende 500er-Bloecke).
+assert(count(AVESMAPS_GARETIEN_EBENEN) === 21, 'Volkers 18 Seiten plus die drei Folgebloecke');
 $ggp = array_filter(AVESMAPS_GARETIEN_EBENEN, static fn(array $e): bool => $e['wiki'] === 'ggp');
 $kos = array_filter(AVESMAPS_GARETIEN_EBENEN, static fn(array $e): bool => $e['wiki'] === 'kosch');
-assert(count($ggp) === 12 && count($kos) === 6);
+assert(count($ggp) === 14 && count($kos) === 7);
 foreach (AVESMAPS_GARETIEN_EBENEN as $e) {
     assert(str_starts_with($e['url'], 'https://'), 'jede Ebene braucht eine vollstaendige Adresse');
 }
@@ -132,7 +133,7 @@ assert(!str_contains($probe, 'INSERT') && !str_contains($probe, 'avesmapsGaretie
 assert(!str_contains($probe, 'avesmapsGaretienStartRun'), 'die Probe legt keinen Lauf an');
 $pruefungen += 2;
 
-// --- Die 18 Adressen zeigen auf GENAU ZWEI Wirte, und beide sind die zugesagten.
+// --- Alle Adressen zeigen auf GENAU ZWEI Wirte, und beide sind die zugesagten.
 $wirte = [];
 foreach (AVESMAPS_GARETIEN_EBENEN as $e) {
     $wirte[(string) parse_url($e['url'], PHP_URL_HOST)] = true;
