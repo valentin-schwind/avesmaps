@@ -394,7 +394,7 @@ const i18n = read("js", "app", "i18n-en.js");
 ["display.menu.title", "display.menu.aria", "display.group.places", "display.group.layers",
  "display.group.checks", "display.group.mapstyle", "ui.editorOnly",
  "display.layer.paths", "display.layer.labels", "display.layer.borders",
- "display.layer.rivers", "display.layer.seapaths",
+ "display.layer.rivers", "display.layer.riversOnly", "display.hint.lakesInTiles", "display.layer.seapaths",
  "display.disabled.borders", "display.disabled.powerlines"].forEach((key) => {
 	assert.ok(new RegExp(`"${key.replace(/\./g, "\\.")}"\\s*:`).test(i18n),
 		`der i18n-Schluessel ${key} ist auf Englisch hinterlegt`);

@@ -322,6 +322,10 @@ window.AVESMAPS_I18N_EN = {
 	"display.layer.labels": "Labels",
 	"display.layer.borders": "Borders",
 	"display.layer.rivers": "Rivers and lakes",
+	// Outside the landscape view the lakes are painted into the map tiles and cannot be hidden, so the
+	// row drops "and lakes" there and says why in its title (case #129, js/ui/map-display-menu.js).
+	"display.layer.riversOnly": "Rivers",
+	"display.hint.lakesInTiles": "In this view the lakes are part of the map artwork and cannot be hidden.",
 	"display.layer.seapaths": "Sea routes",
 	// Why a switch is greyed out. A lock without a reason reads like a bug — these two sentences
 	// are the reason, and they name the cause, not the symptom.

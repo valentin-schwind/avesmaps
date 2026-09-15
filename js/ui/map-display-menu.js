@@ -66,6 +66,56 @@
 		return (typeof tr === "function") ? tr(schluessel, vorgabe) : vorgabe;
 	}
 
+	/**
+	 * Die Flusszeile heisst nicht in jeder Ansicht gleich (Fall #129, Owner 15.09.2026).
+	 *
+	 * 🔴 EIN SEE LAESST SICH NUR AUSBLENDEN, WO ER EINE VEKTORFLAECHE IST -- und das ist er nur in den
+	 * Landschaften. Dort nimmt die Ansicht die Kacheln weg, der See ist eine Flaeche der Topographie,
+	 * und der Haken blendet sie aus (applyEcosystemGewaesserKlasse). In jeder anderen Ansicht ist der
+	 * See ins KACHELBILD gemalt und es gibt keine einzige Seeflaeche -- live gemessen in „Standard"
+	 * am 15.09.2026: 0 Flaechen, der Angbarer See steht mit Haken an und aus unveraendert da.
+	 * „Flüsse und Seen" versprach dort etwas, das kein Code halten kann; gemeldet als „die Seen werden
+	 * nicht mehr vom Auge-Button erfasst".
+	 *
+	 * ⚠️ Eine Tabelle der Ansichten, in denen der Haken Seen TRAEGT, nicht derer ohne: eine neue Ansicht
+	 * mit Kacheln heisst so von selbst „Flüsse" -- die ehrliche Richtung. Wer Seen in einer weiteren
+	 * Ansicht als Flaeche zeichnet, traegt sie hier ein.
+	 * ⚠️ Die KENNUNG bleibt `toggleRivers`, und das Markup traegt weiter „Flüsse und Seen": das ist nur
+	 * die Beschriftung, bis dieses Skript laeuft, und das Menue startet zugeklappt.
+	 */
+	var SEEN_ALS_FLAECHE = { ecosystem: true };
+
+	var FLUSS_ZEILE = {
+		mitSeen: ["display.layer.rivers", "Flüsse und Seen"],
+		ohneSeen: ["display.layer.riversOnly", "Flüsse"],
+		hinweis: ["display.hint.lakesInTiles", "Seen sind in dieser Ansicht Teil der Kartengrafik und lassen sich nicht ausblenden."]
+	};
+
+	/**
+	 * Beschriftung und Hinweis der Flusszeile nach der Ansicht -- Begruendung an SEEN_ALS_FLAECHE.
+	 * 💣 NACH der Riegel-Schleife rufen: die setzt oder loescht `title` jeder Zeile, ein Hinweis
+	 * davor waere sofort wieder weg.
+	 * 💣 Ein SPERRGRUND schlaegt den Hinweis. In „Kraftlinien" ist die Zeile gesperrt, und ihr Titel
+	 * sagt warum -- ein Seen-Hinweis ueber einem gesperrten Schalter beantwortete die falsche Frage.
+	 * 💣 `data-i18n` wandert MIT dem Text: applyI18nOverlay (js/app/i18n.js) schreibt jedes `data-i18n`
+	 * erneut, und mit dem alten Schluessel kaeme unter ?lang=en „Rivers and lakes" zurueck.
+	 */
+	function setzeFlussZeile(modus, gesperrt) {
+		var box = document.getElementById("toggleRivers");
+		var zeile = box && box.closest(".map-display-menu__row");
+		var name = zeile && zeile.querySelector(".map-display-menu__name");
+		if (!name) {
+			return;
+		}
+		var mitSeen = SEEN_ALS_FLAECHE[modus] === true;
+		var fassung = mitSeen ? FLUSS_ZEILE.mitSeen : FLUSS_ZEILE.ohneSeen;
+		name.setAttribute("data-i18n", fassung[0]);
+		name.textContent = uebersetze(fassung[0], fassung[1]);
+		if (!mitSeen && !gesperrt.toggleRivers) {
+			zeile.title = uebersetze(FLUSS_ZEILE.hinweis[0], FLUSS_ZEILE.hinweis[1]);
+		}
+	}
+
 	function start() {
 		var knopf = document.getElementById("map-display-button");
 		var menue = document.getElementById("map-display-menu");
@@ -208,6 +258,10 @@
 					zeile.removeAttribute("title");
 				}
 			});
+
+			// Erst NACH der Schleife -- sie loescht den Titel jeder unverriegelten Zeile (Begruendung an
+			// setzeFlussZeile).
+			setzeFlussZeile(modus, gesperrt);
 
 			// Die Ortsklassen sind Knoepfe, keine Haken -- gesperrt wird die ganze Gruppe auf einmal.
 			var orteGruppe = document.getElementById("display-group-places");

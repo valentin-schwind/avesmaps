@@ -308,6 +308,9 @@ function ecosystemAreaStyle(kind, regionType, area = null) {
 // ⚠️ In Ansichten ohne Landschaftsebene gibt es GAR KEINE See-Flaechen (live gemessen: 0 in
 // „Standard") -- dort wirkt der Haken wie bisher allein auf die Fluesse. Das ist keine leere Zusage,
 // sondern die Abwesenheit der Sache: wo kein See gezeichnet ist, gibt es auch keinen auszublenden.
+// 🔴 Seit 15.09.2026 sagt die Menuezeile das selbst (Fall #129): ausserhalb der Landschaften heisst sie
+// „Fluesse", und ihr Titel erklaert, dass die Seen dort im Kachelbild stehen (js/ui/map-display-menu.js,
+// SEEN_ALS_FLAECHE). Wer Seen in einer weiteren Ansicht als Flaeche zeichnet, traegt sie dort ein.
 
 // Rein, ohne DOM und ohne Modulzustand: ist das eine Flaeche, die am Fluss-Haken haengt?
 // 💣 BEIDE Felder, nicht nur die Art: `insel` kommt in zwei Ebenen vor (siehe
