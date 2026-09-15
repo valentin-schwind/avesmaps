@@ -2720,7 +2720,7 @@
 		// Aufgabe 12 haengt sich hier ein (Facetten des Filtertrichters) -- optional, damit diese
 		// Datei auch OHNE Aufgabe 12 lauffaehig bleibt (typeof wirft nie bei einem unbekannten Namen).
 		if (typeof avesmapsGaretienFilterFacettenAktualisieren === "function") {
-			avesmapsGaretienFilterFacettenAktualisieren(a.facetten || {});
+			avesmapsGaretienFilterFacettenAktualisieren(a.facetten || {}, a.facetten_gesamt || null);
 		}
 	}
 
@@ -3028,6 +3028,35 @@
 	// nicht, was der Filter gerade zeigt (avesmapsGaretienTabsMarkup liest ohnehin `zustand.stage.size`).
 	// ⚠️ Die uebrigen drei Reiterzahlen und die Bilanz des LAUFS kommen unveraendert aus der letzten
 	// echten Serverantwort.
+	/*
+	 * REIN: die Facetten des Reiters „Stage" -- gezaehlt ueber die GANZE Stage, vor Suche und Trichter.
+	 *
+	 * 🔴 Owner 15.09.2026: „dass die filter nur für die ansichten/listen gelten und mitzählen, für die sie
+	 * gerade zuständig sind". Die Stage ist eine CLIENT-Menge (RULING R5): ihre drei Nachbarreiter zaehlt der
+	 * Server (avesmapsGaretienListeFacetten), diesen hier der Browser. Er haelt jedes Objekt der Stage
+	 * vollstaendig, die Zahl ist also exakt und keine Hochrechnung aus einer Teilseite.
+	 * 🔴 DIESELBE REGEL WIE AM SERVER: jeder Wert des LAUFS bleibt stehen, zur Not mit 0 (der Wertevorrat kommt
+	 * aus `facetten_gesamt` der letzten Serverantwort), und `typ_kategorie` wird durchgereicht, nie nachgebaut.
+	 * ⚠️ Bis zum 15.09.2026 stand hier `vorher.facetten` -- also die Zahlen des Reiters, von dem man kam.
+	 */
+	function garetienStageFacetten(stage, laufFacetten) {
+		const lauf = laufFacetten || {};
+		const felder = ["ebene", "typ", "urteil", "wiki"];
+		const raus = { typ_kategorie: Object.assign({}, lauf.typ_kategorie || {}) };
+		felder.forEach(function (feld) {
+			raus[feld] = {};
+			Object.keys(lauf[feld] || {}).forEach(function (wert) { raus[feld][wert] = 0; });
+		});
+		(stage || []).forEach(function (o) {
+			if (!o) { return; }
+			felder.forEach(function (feld) {
+				const wert = String(o[feld] === null || o[feld] === undefined ? "" : o[feld]);
+				raus[feld][wert] = (raus[feld][wert] || 0) + 1;
+			});
+		});
+		return raus;
+	}
+
 	function garetienStageAntwortBauen(letzteAntwort) {
 		const stage = avesmapsGaretienStageListe();
 		const objekte = garetienStageFilterAnwenden(stage, zustand.filter);
@@ -3037,7 +3066,11 @@
 			gesamt: objekte.length,
 			bilanz: vorher.bilanz || {},
 			reiter: Object.assign({}, vorher.reiter || {}, { stage: stage.length }),
-			facetten: vorher.facetten || {},
+			// 🔴 Die Facetten zaehlen die STAGE (15.09.2026), nicht mehr den Reiter, von dem man kam; die Zahlen
+			// des Laufs reisen unveraendert mit („0/3052"). Eine Antwort ohne `facetten_gesamt` nimmt ihre Facetten
+			// als Wertevorrat.
+			facetten: garetienStageFacetten(stage, vorher.facetten_gesamt || vorher.facetten),
+			facetten_gesamt: vorher.facetten_gesamt,
 			angehakt: vorher.angehakt || {},
 			// Die Zahl des LAUFS, nicht der Stage -- sie beantwortet „kennt dieser Lauf Verbünde?"
 			// (garetienLeereListeText).
@@ -3201,12 +3234,19 @@
 	// Optionsliste fuer avmFilterMenuAttach bauen. 💣 Nimmt NUR das entgegen, was uebergeben wird
 	// -- eine Auswahl im Trichter aendert die FACETTEN nicht, sonst faellt nach dem ersten Klick
 	// jeder andere Wert auf 0 und der Trichter laesst sich nicht mehr oeffnen.
-	function garetienFacettenOptionen(facetten, feld, labelFn) {
+	// 🔴 SEIT 15.09.2026 „REITER/LAUF" (Owner: „du kannst auch Grenzen 0/3052 anzeigen 0 = aktuelle liste /
+	// 3052 = gesamte liste"): `facetten` zaehlt den Reiter (avesmapsGaretienListeFacetten), `gesamt` den Lauf.
+	// Eine 0 vorn bleibt als Option stehen -- sonst liesse sich ein gewaehlter Wert nicht mehr abwaehlen.
+	// ⚠️ Ohne `gesamt` (alter Aufrufer, alte Antwort) bleibt die Zahl die blosse Zahl.
+	function garetienFacettenOptionen(facetten, feld, labelFn, gesamt) {
 		const werte = (facetten && facetten[feld]) || {};
+		const lauf = (gesamt && gesamt[feld]) || null;
 		// Nur der Objekttyp-Abschnitt kennt eine Kategorie -- Ebene/Urteil/Wiki bleiben unberuehrt.
 		const kategorien = feld === "typ" ? ((facetten && facetten.typ_kategorie) || {}) : {};
 		return Object.keys(werte).sort().map(function (wert) {
-			const option = { value: wert, label: labelFn ? labelFn(wert) : wert, count: werte[wert] };
+			const hier = werte[wert];
+			const count = lauf ? hier + "/" + (lauf[wert] !== undefined ? lauf[wert] : hier) : hier;
+			const option = { value: wert, label: labelFn ? labelFn(wert) : wert, count: count };
 			const kategorie = kategorien[wert] || "";
 			if (kategorie !== "") {
 				option.muted = true;
@@ -3229,6 +3269,8 @@
 	}
 
 	let garetienLetzteFacetten = { ebene: {}, typ: {}, urteil: {}, wiki: {}, typ_kategorie: {} };
+	// Die Zahlen des LAUFS daneben (`facetten_gesamt`, 15.09.2026) -- `null` heisst „die Antwort kennt sie nicht".
+	let garetienLetzteFacettenGesamt = null;
 	let garetienFilterRebuild = null; // die rebuild()-Funktion, die avmFilterMenuAttach zurueckgibt
 
 	function garetienFilterSections() {
@@ -3238,19 +3280,19 @@
 				// 🔴 DIESELBE Beschriftung wie die Ebenen-Kachel im Menueband (Aufgabe 12b). Zwei
 				// Schreibweisen fuer denselben Schluessel -- „Gewaesser" hier, „Gewässer" dort --
 				// waeren in EINEM Fenster genau die Divergenz, vor der AGENTS.md §11 warnt.
-				getOptions: () => garetienFacettenOptionen(garetienLetzteFacetten, "ebene", garetienEbeneLabel),
+				getOptions: () => garetienFacettenOptionen(garetienLetzteFacetten, "ebene", garetienEbeneLabel, garetienLetzteFacettenGesamt),
 			},
 			{
 				menuId: "garetien-filter-typ-menu", kind: "multi", state: garetienFilterState.typ,
-				getOptions: () => garetienFacettenOptionen(garetienLetzteFacetten, "typ"),
+				getOptions: () => garetienFacettenOptionen(garetienLetzteFacetten, "typ", null, garetienLetzteFacettenGesamt),
 			},
 			{
 				menuId: "garetien-filter-urteil-menu", kind: "multi", state: garetienFilterState.urteil,
-				getOptions: () => garetienFacettenOptionen(garetienLetzteFacetten, "urteil", garetienUrteilFilterLabel),
+				getOptions: () => garetienFacettenOptionen(garetienLetzteFacetten, "urteil", garetienUrteilFilterLabel, garetienLetzteFacettenGesamt),
 			},
 			{
 				menuId: "garetien-filter-wiki-menu", kind: "multi", state: garetienFilterState.wiki,
-				getOptions: () => garetienFacettenOptionen(garetienLetzteFacetten, "wiki", garetienWikiLabel),
+				getOptions: () => garetienFacettenOptionen(garetienLetzteFacetten, "wiki", garetienWikiLabel, garetienLetzteFacettenGesamt),
 			},
 			{
 				menuId: "garetien-filter-nur-menu", kind: "multi", state: garetienFilterState.nur,
@@ -3364,8 +3406,9 @@
 
 	// Von Aufgabe 11 nach jeder frischen liste-Antwort gerufen (defensiv per typeof) -- aktualisiert
 	// die Facetten, die zwei dynamischen Abschnittstitel ("Ebene · 18") und die Optionslisten.
-	function avesmapsGaretienFilterFacettenAktualisieren(facetten) {
+	function avesmapsGaretienFilterFacettenAktualisieren(facetten, gesamt) {
 		garetienLetzteFacetten = facetten || { ebene: {}, typ: {}, urteil: {}, wiki: {}, typ_kategorie: {} };
+		garetienLetzteFacettenGesamt = gesamt || null;
 		if (!hasDocument) { return; }
 		if (!garetienFilterRebuild) { garetienFilterMenuVerdrahten(); }
 		const ebeneTitel = document.getElementById("garetien-filter-ebene-title");
@@ -11567,6 +11610,8 @@
 			garetienStatusSetzen,
 			garetienStatusRuhe,
 			garetienOffenAnteilText,
+			// 15.09.2026: Facetten je Reiter
+			garetienStageFacetten,
 			garetienListeFehlerZeigen,
 			// Aufgabe 13
 			garetienDetailMarkup,

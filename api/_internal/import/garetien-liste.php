@@ -1256,6 +1256,52 @@ function avesmapsGaretienFlaechenVokabular(PDO $pdo): array
     return $raus;
 }
 
+/**
+ * Die Facetten des Filtertrichters -- JE REITER gezaehlt. REIN -- kein I/O.
+ *
+ * Owner 15.09.2026, woertlich: „kannst du noch machen, dass die filter nur für die ansichten/listen gelten
+ * und mitzählen, für die sie gerade zuständig sind (ich habe gerade grenzen von offen nach abgelehnt
+ * geschoben, die liste ist unter offen jetzt leer, aber die zahl wird trotzdem noch angezeigt)" und „du
+ * kannst auch Grenzen 0/3052 anzeigen 0 = aktuelle liste / 3052 = gesamte liste".
+ * Bis hierher zaehlte der Trichter den GANZEN Lauf: „Grenzen 3052" auf „Offen", obwohl dort keine mehr lag.
+ * Seither liefert die Liste BEIDES -- `facetten` je Reiter, `facetten_gesamt` fuer den Lauf --, und der
+ * Browser zeigt „0/3052".
+ *
+ * 🔴 GEZAEHLT WIRD NUR, WAS IM REITER LIEGT (`$stand`) -- ABER JEDER WERT DES LAUFS BLEIBT STEHEN, zur Not
+ * mit 0. Zwei Gruende: ein gewaehlter Wert, der im Reiter nicht (mehr) vorkommt, liesse sich sonst im
+ * Trichter nicht mehr abwaehlen (sein Chip stuende weiter da), und „Ebene · 21" wechselte mit jedem
+ * Reiterklick die Zahl.
+ * 🔴 WEITERHIN VOR DEN UEBRIGEN FILTERN: eine Auswahl im Trichter aendert die Facetten nicht, sonst faellt
+ * nach dem ersten Klick jeder andere Wert auf 0 (die Begruendung von Aufgabe 8 gilt unveraendert).
+ * ⚠️ `$stand` leer = alle Staende -- das ist `facetten_gesamt`, und so zaehlt auch ein Aufruf ohne Reiter
+ * (Tests, der Stage-Nachschlag mit `keys`) wie bisher den ganzen Lauf.
+ * ⚠️ Bilanz und Reiterzahlen zaehlen weiter den LAUF: sie beantworten „wie weit ist der Lauf", nicht „was
+ * zeigt dieser Reiter". Die Stage zaehlt ihre Facetten im Browser (garetienStageFacetten), sie ist eine
+ * Client-Menge.
+ *
+ * @param array<string, array<string, mixed>> $objekte
+ * @return array{ebene:array<string,int>, typ:array<string,int>, urteil:array<string,int>, wiki:array<string,int>, typ_kategorie:array<string,string>}
+ */
+function avesmapsGaretienListeFacetten(array $objekte, string $stand): array
+{
+    $facetten = ['ebene' => [], 'typ' => [], 'urteil' => [], 'wiki' => [], 'typ_kategorie' => []];
+    foreach ($objekte as $objekt) {
+        $zaehlt = $stand === '' || (string) ($objekt['stand'] ?? '') === $stand;
+        foreach (['ebene', 'typ', 'urteil', 'wiki'] as $feld) {
+            $wert = (string) $objekt[$feld];
+            $facetten[$feld][$wert] = ($facetten[$feld][$wert] ?? 0) + ($zaehlt ? 1 : 0);
+        }
+        // Reine Funktion des Typs -- fuer denselben Wert immer dasselbe Ergebnis, deshalb reicht
+        // ein Eintrag je Typ (kein Zaehler wie bei den uebrigen Facetten).
+        $typWert = (string) $objekt['typ'];
+        if (!isset($facetten['typ_kategorie'][$typWert])) {
+            $facetten['typ_kategorie'][$typWert] = avesmapsGaretienTypKategorie($typWert);
+        }
+    }
+
+    return $facetten;
+}
+
 function avesmapsGaretienArbeitsliste(PDO $pdo, int $importRunId, array $filter): array
 {
     $leer = [
@@ -1266,6 +1312,8 @@ function avesmapsGaretienArbeitsliste(PDO $pdo, int $importRunId, array $filter)
         'bilanz' => ['neu' => 0, 'ergaenzung' => 0, 'zweifel' => 0, 'widerspruch' => 0, 'deckt_sich' => 0, 'uebersprungen' => 0],
         'reiter' => ['offen' => 0, 'vorgemerkt' => 0, 'abgelehnt' => 0, 'uebernommen' => 0],
         'facetten' => ['ebene' => [], 'typ' => [], 'urteil' => [], 'wiki' => [], 'typ_kategorie' => []],
+        // Dieselbe Form wie `facetten` -- ein leerer Lauf hat auch keine Gesamtzahlen.
+        'facetten_gesamt' => ['ebene' => [], 'typ' => [], 'urteil' => [], 'wiki' => [], 'typ_kategorie' => []],
         'angehakt' => ['new' => 0, 'changed' => 0],
         'verbund_objekte' => 0,
     ];
@@ -1279,15 +1327,17 @@ function avesmapsGaretienArbeitsliste(PDO $pdo, int $importRunId, array $filter)
     $angehaktNeu = $basis['angehakt']['new'];
     $angehaktGeaendert = $basis['angehakt']['changed'];
 
-    // 6. Facetten und Bilanz zaehlen den LAUF -- VOR dem Filtern. Sonst faellt nach dem ersten
-    // Klick jeder andere Wert auf 0, und der Trichter laesst sich nicht mehr oeffnen.
+    // 6. Bilanz und Reiter zaehlen den LAUF, die Facetten seit 15.09.2026 den REITER (und daneben den Lauf)
+    // -- alle VOR dem Filtern. Sonst faellt nach dem ersten Klick jeder andere Wert auf 0, und der
+    // Trichter laesst sich nicht mehr oeffnen.
     //
     // 🔴 `typ_kategorie` ist Owner-Meldung 29.08.2026: der Trichter soll Typen, aus denen ohnehin
     // nichts zu holen ist ("BurgKlein" -- Entscheidung "raus damit" -- und alles ohne Zuordnung),
     // blasser darstellen. Die Kategorie kommt aus avesmapsGaretienTypKategorie (garetien-abgleich.php)
     // -- DERSELBEN Stelle, die auch den Zeilen-Riegel (avesmapsGaretienUeberspringGrund) speist.
     // Kein Nachbau der zwei Listen im Browser (AGENTS.md §5).
-    $facetten = ['ebene' => [], 'typ' => [], 'urteil' => [], 'wiki' => [], 'typ_kategorie' => []];
+    $facetten = avesmapsGaretienListeFacetten($objekte, trim((string) ($filter['stand'] ?? '')));
+    $facettenGesamt = avesmapsGaretienListeFacetten($objekte, '');
     $bilanz = ['neu' => 0, 'ergaenzung' => 0, 'zweifel' => 0, 'widerspruch' => 0, 'deckt_sich' => 0, 'uebersprungen' => 0];
     $reiter = ['offen' => 0, 'vorgemerkt' => 0, 'abgelehnt' => 0, 'uebernommen' => 0];
     // 🔴 Aufgabe 5 (2026-09-14): wie viele Objekte DIESES LAUFS gehoeren zu einem Verbund -- VOR dem
@@ -1298,16 +1348,6 @@ function avesmapsGaretienArbeitsliste(PDO $pdo, int $importRunId, array $filter)
     foreach ($objekte as $objekt) {
         if ((int) ($objekt['verbund_n'] ?? 0) >= 2) {
             $verbundObjekte++;
-        }
-        foreach (['ebene', 'typ', 'urteil', 'wiki'] as $feld) {
-            $wert = (string) $objekt[$feld];
-            $facetten[$feld][$wert] = ($facetten[$feld][$wert] ?? 0) + 1;
-        }
-        // Reine Funktion des Typs -- fuer denselben Wert immer dasselbe Ergebnis, deshalb reicht
-        // ein Eintrag je Typ (kein Zaehler wie bei den uebrigen Facetten).
-        $typWert = (string) $objekt['typ'];
-        if (!isset($facetten['typ_kategorie'][$typWert])) {
-            $facetten['typ_kategorie'][$typWert] = avesmapsGaretienTypKategorie($typWert);
         }
         if (isset($bilanz[$objekt['urteil']])) {
             $bilanz[$objekt['urteil']]++;
@@ -1362,6 +1402,8 @@ function avesmapsGaretienArbeitsliste(PDO $pdo, int $importRunId, array $filter)
         'bilanz' => $bilanz,
         'reiter' => $reiter,
         'facetten' => $facetten,
+        // 🔴 15.09.2026: der Lauf daneben -- der Trichter zeigt „0/3052" (Reiter/Lauf), avesmapsGaretienListeFacetten.
+        'facetten_gesamt' => $facettenGesamt,
         'angehakt' => ['new' => $angehaktNeu, 'changed' => $angehaktGeaendert],
         'verbund_objekte' => $verbundObjekte,
     ];
