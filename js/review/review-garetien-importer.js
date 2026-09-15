@@ -4419,7 +4419,13 @@
 			// Ortsart keine Aussage. `placeKind` ist LEER und nicht etwa geraten -- eine erfundene
 			// Art wäre eine Behauptung, die niemand getroffen hat, und der Anleger ließe den
 			// Schlüssel bei "" ohnehin weg.
-			isRuined: false, isHidden: false, placeKind: "",
+			// 🔴 AUSSER DER RUINE (Owner 15.09.2026: „wenns kein "tag" gibt, das "Ruine" passt auch!"): der
+			// Import trägt keine Ruinen-Aussage (`extra` ist bei allen 2145 Orten leer), der NAME schon
+			// („Ruine Mühlenburg", „Burgruine Rond"). Gelesen über DIESELBE Regel wie der Namensvorschlag
+			// (garetienNameVorschlag) -- eine zweite Erkennung liefe beim nächsten Ruinenwort auseinander.
+			// ⚠️ Nur eine Vorbelegung: das Häkchen bleibt abnehmbar.
+			isRuined: garetienNameVorschlag(String((objekt && objekt.name) || "")).ruine,
+			isHidden: false, placeKind: "",
 			// 🔴 Die Hoehe eines Berggipfels -- LEER, und das ist die ganze Sicherung (Owner
 			// 31.08.2026: „die berggipfel brauchen eine höhe als eigenschaft, gib ihnen das feld
 			// mit"). Leer heisst „nicht erfasst"; avesmapsReadOptionalPeakHeight liefert dafuer
@@ -4995,7 +5001,12 @@
 		const rumpf = garetienEingabenFuerServerOhneName(objekt);
 		// ⚠️ „Nur Quelle + Artikel" legt kein Objekt an -- ein Name, der dort aus einer früheren Wahl
 		// liegengeblieben ist, reist nicht mit.
-		const name = garetienZielwahlZu(objekt) === "nur_quelle" ? "" : garetienNameWahlZu(objekt);
+		// 🔴 Seit dem 15.09.2026 reist auch der NAMENSVORSCHLAG („Tannweiler" statt „Dorf Tannweiler") -- aber
+		// nur, wenn er vom Importwert abweicht. Ein Name ohne Präfix schickt weiter nichts, und bei einem Verbund
+		// nimmt der Server dann seinen Stamm (garetienNameFuerImport).
+		const vorgabe = garetienNameFuerImport(objekt);
+		const name = garetienZielwahlZu(objekt) === "nur_quelle" ? ""
+			: (garetienNameWahlZu(objekt) || (vorgabe !== garetienNameImportwert(objekt) ? vorgabe : ""));
 		const mitName = name === "" ? rumpf : Object.assign({}, rumpf || {}, { name: name });
 		const verbund = garetienVerbundSchluessel(objekt);
 		if (verbund !== "" && garetienVerbundIstZusammen(verbund)) {
@@ -5778,24 +5789,58 @@
 	}
 
 	/*
+	 * Der NAMENSVORSCHLAG (Owner 15.09.2026: „"Dorf Tannweiler" soll bei uns "Tannweiler" heißen").
+	 *
+	 * 🔴 DIE REGEL IST DIE DER LISTE, die Owner und Editoren am 15.09.2026 durchgesehen haben (931 Objekte).
+	 * Auf unserer Karte beginnt kein Ort mit einem Siedlungswort; vorn stehen nur Bauwerk-Wörter (Burg, Gut,
+	 * Kloster, Pfalz, Reichsfeste, Schänke, Gasthaus …). Deshalb eine Liste dessen, was WEGFÄLLT, und keine
+	 * dessen, was bleibt -- ein unbekanntes Bauwerk-Wort bleibt so von selbst stehen.
+	 * - Nur das ERSTE Wort, nur die acht Siedlungswörter.
+	 * - „X in Y" wird „X (Y)" (Owner: „guter vorschlag"; so stehen Unterscheidungen bei uns: „Schwarze Feste
+	 *   (Gor)") -- aber nur, wenn ein Siedlungswort gefallen ist. „Tempel in Gareth" bleibt, wie er ist.
+	 * - Ruinen: „Ruine X" → „X", „Burgruine X" → „Burg X", „Klosterruine X" → „Kloster X", „Dorfruine X" → „X",
+	 *   jeweils mit dem Häkchen „Ruine/zerstört" (garetienEingabenGrundwerte liest `ruine`).
+	 * ⚠️ Ein Vorschlag, keine Entscheidung: der Importwert steht über dem Feld, ↺ holt ihn zurück. Und er wirkt
+	 * nur beim Import -- ein schon übernommenes Objekt benennen die Editoren von Hand um (Owner 15.09.2026).
+	 * REIN. Rückgabe { name, ruine }; trifft keine Regel, ist `name` der Eingabewert, unverändert.
+	 */
+	const AVESMAPS_GARETIEN_NAME_SIEDLUNGSWOERTER = ["Dorf", "Markt", "Stadt", "Weiler", "Reichsstadt",
+		"Königsstadt", "Kaiserstadt", "Streudorf"];
+	// Das Ruinenwort und was an seiner Stelle stehen bleibt.
+	const AVESMAPS_GARETIEN_NAME_RUINENWOERTER = { Ruine: "", Burgruine: "Burg ", Klosterruine: "Kloster ", Dorfruine: "" };
+
+	function garetienNameVorschlag(name) {
+		const roh = String(name === null || name === undefined ? "" : name);
+		const teile = roh.trim().match(/^(\S+)\s+(\S.*)$/);
+		if (!teile) { return { name: roh, ruine: false }; }
+		if (Object.prototype.hasOwnProperty.call(AVESMAPS_GARETIEN_NAME_RUINENWOERTER, teile[1])) {
+			return { name: AVESMAPS_GARETIEN_NAME_RUINENWOERTER[teile[1]] + teile[2], ruine: true };
+		}
+		if (AVESMAPS_GARETIEN_NAME_SIEDLUNGSWOERTER.indexOf(teile[1]) === -1) { return { name: roh, ruine: false }; }
+		const zusatz = teile[2].match(/^(.+?)\s+in\s+(\S.*)$/);
+		return { name: zusatz ? zusatz[1] + " (" + zusatz[2] + ")" : teile[2], ruine: false };
+	}
+
+	/*
 	 * REIN: der Name, den dieses Objekt beim Import bekommt -- Handeingabe, sonst die Vorgabe.
 	 *
 	 * 🔴 Aufgabe 6 (Entwurf §6.3, §6.6): DIE VORGABE EINES ZUSAMMENGELEGTEN VERBUNDS IST SEIN STAMM. Der
 	 * Server setzt den Stamm selbst, wenn der Rumpf einen Verbund und KEINEN Handnamen traegt (Aufgabe 2).
 	 * Zeigte das Namensfeld hier den Namen eines Fragments („Silker Hain 3"), sagte die Oberflaeche etwas
 	 * anderes, als angelegt wird.
-	 * 💣 DIE VORGABE REIST NIE ALS HANDNAME. garetienEingabenFuerServer haengt den Namen nur an, wenn
-	 * garetienNameWahlZu etwas liefert -- ein unveraendertes Feld schickt nichts, und der Server nimmt den
-	 * Stamm. Wer die Vorgabe in den Namensspeicher schriebe, naehme dem Server seine Stamm-Regel.
+	 * 🔴 SEIT DEM 15.09.2026 IST DIE VORGABE DER NAMENSVORSCHLAG (garetienNameVorschlag): „Dorf Tannweiler"
+	 * steht als „Tannweiler" im Feld, der Importwert darüber durchgestrichen, mit ↺.
+	 * 💣 DIE VORGABE LANDET NIE IM NAMENSSPEICHER. garetienEingabenFuerServer schickt sie nur, wenn sie vom
+	 * Importwert abweicht -- ein Verbund ohne Präfix schickt nichts, und der Server nimmt den Stamm. Wer die
+	 * Vorgabe in den Speicher schriebe, naehme dem Server seine Stamm-Regel und dem ↺ seinen Unterschied.
 	 * ⚠️ Nach „Verbund auflösen" faellt ein getippter Verbundname mit (garetienVerbundEinstellungenVergessen),
 	 * und jedes Fragment zeigt wieder seinen eigenen Namen.
 	 */
 	function garetienNameFuerImport(objekt) {
 		const eigen = garetienNameWahlZu(objekt);
 		if (eigen !== "") { return eigen; }
-		const verbund = garetienVerbundSchluessel(objekt);
-		if (verbund !== "" && garetienVerbundIstZusammen(verbund)) { return String(objekt.verbund_stamm || ""); }
-		return String((objekt && objekt.name) || "");
+		// Der Importwert kennt die Stamm-Regel des Verbunds schon (garetienNameImportwert) -- hier nicht ein zweites Mal.
+		return garetienNameVorschlag(garetienNameImportwert(objekt)).name;
 	}
 
 	let _garetienInnerortsWahl = {};
@@ -6167,7 +6212,7 @@
 
 	// REIN: der Name, den der IMPORT mitbringt -- ohne Handeingabe (bei einem zusammengelegten Verbund der
 	// Stamm, dieselbe Regel wie am Server). ⚠️ NICHT dasselbe wie die Vorgabe des Feldes
-	// (garetienNameFuerImport ohne Handname): schlägt der Importer eines Tages einen gekürzten Namen vor
+	// (garetienNameFuerImport ohne Handname): auch wenn der Importer einen gekürzten Namen vorschlägt (15.09.2026)
 	// („Tannweiler" statt „Dorf Tannweiler"), bleibt DIESER Wert der des Imports.
 	function garetienNameImportwert(objekt) {
 		const verbund = garetienVerbundSchluessel(objekt);
@@ -11264,6 +11309,8 @@
 			garetienZielImportwert,
 			garetienZuruecksetzen,
 			garetienZuruecksetzenKlick,
+			// 15.09.2026: der Namensvorschlag (Präfix weg, Ruine)
+			garetienNameVorschlag,
 			// KORREKTUR B (30.08.2026): die manuelle Wiki-Suche, wenn der automatische Treffer leer bleibt
 			garetienWikiSucheHostId,
 			garetienWikiSucheBeiBedarfZeigen,
