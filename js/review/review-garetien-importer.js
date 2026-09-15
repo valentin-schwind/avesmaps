@@ -4889,9 +4889,8 @@
 			// „ziel faellt auf region zurueck"). Ohne das traegt der Rumpf `verbund` weiter fuer eine
 			// Form, die am Server nie eine gemeinsame Region oder einen gemeinsamen Weg ergeben duerfte
 			// (Entwurf §6.3; Sonde probe-a6.js Teil 4).
-			// 🔴 DIES IST DIE EINE STELLE, AN DER ZIEL/FORM EINES OBJEKTS GESCHRIEBEN WIRD -- repoweit
-			// gemessen (`grep -n "neu\.ziel\s*=\|neu\.subtyp\s*="`): nur die zwei Zeilen oben, beide in
-			// diesem Zweig.
+			// 🔴 HIER UND IN garetienZuruecksetzen (↺, 15.09.2026) WIRD ZIEL/FORM EINES OBJEKTS GESCHRIEBEN --
+			// beide über garetienVerbundEinstellungSchreiben. Wer einen dritten Weg baut, nimmt denselben Helfer.
 			garetienVerbundEinstellungSchreiben(objekt, function (schluessel) {
 				_garetienZielWahl[schluessel] = Object.assign({}, neu);
 			});
@@ -6142,6 +6141,99 @@
 		return [];
 	}
 
+	// Die drei Felder, die ein ↺ tragen können (Owner 15.09.2026) -- ein unbekanntes Wort baut keinen Knopf.
+	const AVESMAPS_GARETIEN_ZURUECKSETZBAR = ["name", "form", "art"];
+
+	/*
+	 * Der ursprüngliche Wert des Imports über einer geänderten Zeile -- durchgestrichen, mit ↺.
+	 *
+	 * Owner 15.09.2026: „schön wärs außerdem, wenn man Name, Form, Art je auf die werte des Imports
+	 * zurücksetzen könnte. Wir haben das Prinzip, dass der ursprüngliche Wert über dem label steht".
+	 * 🔴 DIE BAUTEILE DES WIKI-OVERRIDES, KEINE NEUEN: `.wiki-alt`, `.dt-old`, `.dt-reset` aus
+	 * css/components/wiki-override.css („dieselbe Sache, und ein zweiter Name dafür wäre der Anfang der
+	 * Divergenz"). Die Datei kommt über css/styles.css in die App -- dieses Fenster braucht keine Zeile CSS.
+	 * ⚠️ "" ohne Abweichung: eine Zeile, die nichts zurückzunehmen hat, zeigt nichts.
+	 * ⚠️ Der Knopf schreibt nie selbst -- der Klick geht über garetienZuruecksetzen.
+	 */
+	function garetienImportwertZeile(feld, wert, abweicht, gesperrt) {
+		const text = String(wert || "");
+		if (!abweicht || text === "" || AVESMAPS_GARETIEN_ZURUECKSETZBAR.indexOf(feld) === -1) { return ""; }
+		return '<p class="gi-insert__row gi-insert__importwert"><span class="wiki-alt">'
+			+ '<span class="dt-old" title="Wert des Imports">' + avesmapsGaretienEscape(text) + "</span>"
+			+ '<button type="button" class="dt-reset" data-gi-zuruecksetzen="' + avesmapsGaretienEscape(feld) + '"'
+			+ ' title="Auf den Wert des Imports zurücksetzen" aria-label="Auf den Wert des Imports zurücksetzen"'
+			+ (gesperrt ? " disabled" : "") + ">↺</button></span></p>";
+	}
+
+	// REIN: der Name, den der IMPORT mitbringt -- ohne Handeingabe (bei einem zusammengelegten Verbund der
+	// Stamm, dieselbe Regel wie am Server). ⚠️ NICHT dasselbe wie die Vorgabe des Feldes
+	// (garetienNameFuerImport ohne Handname): schlägt der Importer eines Tages einen gekürzten Namen vor
+	// („Tannweiler" statt „Dorf Tannweiler"), bleibt DIESER Wert der des Imports.
+	function garetienNameImportwert(objekt) {
+		const verbund = garetienVerbundSchluessel(objekt);
+		if (verbund !== "" && garetienVerbundIstZusammen(verbund)) {
+			return String((objekt && objekt.verbund_stamm) || "");
+		}
+		return String((objekt && objekt.name) || "");
+	}
+
+	// REIN: Form und Art, die der IMPORT vorschlägt -- ohne Handänderung. Bei einem zusammengelegten
+	// Verbund die des größten Mitglieds, dieselbe Vorlage wie die Vorbelegung (garetienEinstellungsVorlage).
+	function garetienZielImportwert(objekt) {
+		return garetienZielVorbelegung(garetienEinstellungsVorlage(objekt));
+	}
+
+	function garetienFormLabel(key) {
+		const k = String(key || "");
+		return (AVESMAPS_GARETIEN_FORMEN.filter(function (f) { return f.key === k; })[0] || {}).label || k;
+	}
+
+	function garetienArtLabel(form, subtyp) {
+		const s = String(subtyp || "");
+		return (garetienArtenFuerForm(String(form || "")).filter(function (a) { return a.key === s; })[0] || {})
+			.label || s;
+	}
+
+	/*
+	 * ↺ an Name, Form oder Art (Owner 15.09.2026). ZUSTANDSÄNDERND, kein DOM.
+	 *
+	 * 💣 FORM UND ART GEHEN DURCH garetienVerbundEinstellungSchreiben, wie der zielForm-Zweig in
+	 * garetienEingabenAendern -- an einem zusammengelegten Verbund schreibt sie für alle Mitglieder und
+	 * löst ihn auf, wenn der Riegel nicht mehr besteht. Ein direkter Schreibgriff wäre die zweite Stelle,
+	 * an der die Form eines Objekts entsteht.
+	 * ⚠️ Der NAME wird auf den Importwert gesetzt, nicht blind geleert: leer heißt „die Vorgabe", und die
+	 * Vorgabe muss nicht der Import sein (siehe garetienNameImportwert).
+	 * 🔴 NUR AUF DER STAGE -- dieselbe Regel wie für jedes Feld dieses Kastens.
+	 */
+	function garetienZuruecksetzen(objekt, feld) {
+		if (!objekt || !avesmapsGaretienStageHat(objekt.key)) { return false; }
+		if (feld === "name") {
+			const importwert = garetienNameImportwert(objekt);
+			garetienNameWahlSetzen(objekt, "");
+			if (garetienNameFuerImport(objekt) !== importwert) { garetienNameWahlSetzen(objekt, importwert); }
+			return true;
+		}
+		if (feld === "form" || feld === "art") {
+			const imp = garetienZielImportwert(objekt);
+			garetienVerbundEinstellungSchreiben(objekt, function (schluessel) {
+				_garetienZielWahl[schluessel] = Object.assign({}, imp);
+			});
+			return true;
+		}
+		return false;
+	}
+
+	// Der Klick auf ↺ -- das Objekt ist das der offenen Einzelansicht, gesucht wie in garetienEingabenAendern.
+	function garetienZuruecksetzenKlick(feld, objekte) {
+		const objekt = (objekte || zustand.objekte || []).filter(function (o) {
+			return o && String(o.key) === String(zustand.detailKey);
+		})[0] || null;
+		if (!garetienZuruecksetzen(objekt, String(feld || ""))) { return false; }
+		garetienDetailRendern(objekte || zustand.objekte || []);
+		garetienVorschauNachziehen(feld === "name" ? "einfuegeName" : "zielForm");
+		return true;
+	}
+
 	// REIN: die zwei Auswahlfelder. `deaktiviert` sperrt sie an einem bereits übernommenen Objekt --
 	// dieselbe Regel wie für jedes andere Feld dieses Kastens (Owner 30.08.2026, Punkt 6a).
 	// 🔴 `ausGrund` (14.09.2026): nicht "" heißt, das gewählte ZIEL braucht keine Form („Stätte in X",
@@ -6171,11 +6263,23 @@
 						+ avesmapsGaretienEscape(e.label) + "</option>";
 				}).join("") + "</select>";
 		};
-		return '<p class="' + zeile + '">Form <span class="gi-insert__val">'
+		// 🔴 Der Importwert über Form und Art (Owner 15.09.2026) -- nur an einem bedienbaren Feld: an einem
+		// gesperrten oder abgeblendeten gäbe es nichts zurückzunehmen.
+		// ⚠️ Die Art nur, solange die Form stimmt: nach einem Formwechsel gibt es die Import-Art in der neuen
+		// Form nicht, und das ↺ der Form nimmt beides zurück.
+		const imp = garetienZielImportwert(objekt);
+		const bedienbar = !deaktiviert && grund === "";
+		const formAlt = bedienbar
+			? garetienImportwertZeile("form", garetienFormLabel(imp.ziel), imp.ziel !== wahl.ziel, false) : "";
+		const artAlt = bedienbar
+			? garetienImportwertZeile("art", garetienArtLabel(imp.ziel, imp.subtyp),
+				imp.ziel === wahl.ziel && imp.subtyp !== wahl.subtyp, false)
+			: "";
+		return formAlt + '<p class="' + zeile + '">Form <span class="gi-insert__val">'
 			+ bauen("zielForm", formListe, wahl.ziel) + "</span>"
 			+ (grund !== "" ? '<span class="gi-insert__unit">' + avesmapsGaretienEscape(grund) + "</span>" : "")
 			+ "</p>"
-			+ '<p class="' + zeile + '">Art <span class="gi-insert__val">'
+			+ artAlt + '<p class="' + zeile + '">Art <span class="gi-insert__val">'
 			+ bauen("zielArt", artListe, wahl.subtyp) + "</span></p>";
 	}
 
@@ -8086,7 +8190,11 @@
 		if (garetienZieleMoeglichMenge(o).length === 1) { return ""; }
 		const zielwahl = garetienZielwahlZu(o);
 		const aus = !(zielwahl === "karte" || zielwahl === "zusaetzlich" || zielwahl === "staette");
-		return garetienEingefuegtWirdTextZeile(o, "Name", "einfuegeName", garetienNameFuerImport(o), "", aus, aus);
+		const name = garetienNameFuerImport(o);
+		// 🔴 Der Importwert über der Zeile (Owner 15.09.2026) -- nur, wo das Feld überhaupt gilt.
+		const importName = garetienNameImportwert(o);
+		const importwert = aus ? "" : garetienImportwertZeile("name", importName, name !== importName, false);
+		return importwert + garetienEingefuegtWirdTextZeile(o, "Name", "einfuegeName", name, "", aus, aus);
 	}
 
 	/*
@@ -10681,6 +10789,15 @@
 				// Feld schreibt. 🔴 NUR `button`: Häkchen und Zahlenfelder schreibt der
 				// `input`-Zuhörer, ein zweiter Weg für sie wäre ein zweiter Schreiber.
 				const feldZiel = ereignis && ereignis.target;
+				// ↺ an Name, Form oder Art (15.09.2026) -- VOR dem Feld-Knopf, weil auch er ein `<button>` ist.
+				const zurueckKnopf = feldZiel && typeof feldZiel.closest === "function"
+					? feldZiel.closest("button[data-gi-zuruecksetzen]") : null;
+				if (zurueckKnopf) {
+					if (!zurueckKnopf.disabled) {
+						garetienZuruecksetzenKlick(zurueckKnopf.getAttribute("data-gi-zuruecksetzen"), zustand.objekte);
+					}
+					return;
+				}
 				const feldKnopf = feldZiel && typeof feldZiel.closest === "function"
 					? feldZiel.closest("button[data-gi-feld]") : null;
 				if (feldKnopf) {
@@ -11141,6 +11258,12 @@
 			// 15.09.2026: die Nähe-Ansicht -- „Offen" zeigt genau die Treffer
 			garetienNaeheAnsichtOeffnen,
 			garetienNaeheAnsichtKeys,
+			// 15.09.2026: der Importwert über Name, Form und Art, mit ↺
+			garetienImportwertZeile,
+			garetienNameImportwert,
+			garetienZielImportwert,
+			garetienZuruecksetzen,
+			garetienZuruecksetzenKlick,
 			// KORREKTUR B (30.08.2026): die manuelle Wiki-Suche, wenn der automatische Treffer leer bleibt
 			garetienWikiSucheHostId,
 			garetienWikiSucheBeiBedarfZeigen,
