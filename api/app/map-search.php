@@ -567,7 +567,7 @@ function avesmapsBuildSearchEntry(array $row): ?array {
         // 🔴 ZUERST DER EIGENE NAME, DER WIKI-NAME NUR ALS RUECKFALL -- seit 15.09.2026 (R1 umgekehrt, Kopf von
         // api/_internal/wiki/path-naming.php: der Wegname gehoert dem Editor). Hier stand „R1: der Wiki-Weg benennt den Weg",
         // und ein umbenannter zugewiesener Weg hiesse in der Suche wie sein Artikel, auf der Karte wie ihn der Editor nannte.
-        // Der Rueckfall bleibt noetig: Altbestaende koennen noch Random-Segmentnamen tragen ("Reichsstrasse-16" -> Wiki
+        // Der Rueckfall bleibt noetig: ein zugewiesener Abschnitt kann einen Maschinennamen tragen ("Reichsstrasse-16" -> Wiki
         // "Reichsstraße 2").
         // 💣 ZEICHENGLEICH ZU getPathTitleName (js/map-features/map-features-path-domain.js):
         // dieselben Felder in derselben Reihenfolge, derselbe Muell-Test. Der Browser

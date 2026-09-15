@@ -952,10 +952,13 @@ function avesmapsWikiPathAssign(PDO $pdo, string $wikiKey, bool $dryRun, int $us
             $auditBefore = avesmapsWikiSyncFetchAuditRow($pdo, (int) $p['id']);
             $newName = $canonicalName !== '' ? $canonicalName : (string) $p['name'];
             $props = avesmapsWikiSyncDecodeJson($p['properties_json'] ?? null);
+            $vorher = $props;
             $props['wiki_path'] = $assignObject;
             // Entwurf 2026-09-14 §2.2: stand der neue Hauptartikel schon als WEITERE Zuweisung da,
             // faellt er dort heraus -- sonst traege der Abschnitt denselben Artikel in zwei Rollen.
             $props = avesmapsWikiPathWeitereOhneHaupt($props);
+            // Review I3: eine NEUE Zuweisung haekt „Wegname anzeigen" an (avesmapsWikiPathZuweisungHaektAn, path-naming.php).
+            $props = avesmapsWikiPathZuweisungHaektAn($vorher, $props);
             // 🔴 HIER LOESCHTE EINE ZUWEISUNG DEN MERKER „kein Wiki-Artikel": wer gerade einen
             // Artikel zuweist, hat das fruehere „es gibt keinen" widerlegt, und beides zugleich war
             // der verbotene Zustand (avesmapsAssertWikiClaimNotContradictory, der geteilte Riegel).
@@ -1095,10 +1098,13 @@ function avesmapsWikiPathAssignTo(PDO $pdo, string $wikiKey, string $publicId, b
             $revision ??= avesmapsWikiSyncNextMapRevision($pdo);
             $newName = $canonicalName !== '' ? $canonicalName : (string) $p['name'];
             $props = avesmapsWikiSyncDecodeJson($p['properties_json'] ?? null);
+            $vorher = $props;
             $props['wiki_path'] = $assignObject;
             // Entwurf 2026-09-14 §2.2: stand der neue Hauptartikel schon als WEITERE Zuweisung da,
             // faellt er dort heraus -- sonst traege der Abschnitt denselben Artikel in zwei Rollen.
             $props = avesmapsWikiPathWeitereOhneHaupt($props);
+            // Review I3: eine NEUE Zuweisung haekt „Wegname anzeigen" an (avesmapsWikiPathZuweisungHaektAn, path-naming.php).
+            $props = avesmapsWikiPathZuweisungHaektAn($vorher, $props);
             // 🔴 HIER LOESCHTE EINE ZUWEISUNG DEN MERKER „kein Wiki-Artikel": wer gerade einen
             // Artikel zuweist, hat das fruehere „es gibt keinen" widerlegt, und beides zugleich war
             // der verbotene Zustand (avesmapsAssertWikiClaimNotContradictory, der geteilte Riegel).
@@ -1129,6 +1135,9 @@ function avesmapsWikiPathAssignTo(PDO $pdo, string $wikiKey, string $publicId, b
                 'name' => $newName,
                 'display_name' => $newName,
                 'wiki_path' => $assignObject,
+                // Review I3: Zuweisen haekt „Wegname anzeigen" an -- der Kartendialog uebernimmt das sofort ins Formular, sonst
+                // schriebe sein naechstes Speichern das alte `false` zurueck.
+                'show_label' => $props['show_label'] ?? false,
             ];
         }
     }
@@ -1185,10 +1194,14 @@ function avesmapsWikiPathAssignAll(PDO $pdo, string $continentFilter, bool $dryR
         if (!$dryRun) {
             $revision ??= avesmapsWikiSyncNextMapRevision($pdo);
             $props = avesmapsWikiSyncDecodeJson($p['properties_json'] ?? null);
+            $vorher = $props;
             $props['wiki_path'] = $byKey[$key];
             // Entwurf 2026-09-14 §2.2: stand der neue Hauptartikel schon als WEITERE Zuweisung da,
             // faellt er dort heraus -- sonst traege der Abschnitt denselben Artikel in zwei Rollen.
             $props = avesmapsWikiPathWeitereOhneHaupt($props);
+            // Review I3: eine NEUE Zuweisung haekt „Wegname anzeigen" an -- der Massenlauf trifft auch schon zugewiesene
+            // Abschnitte, und genau fuer die gilt die Regel „aus geht nur, wer abhakt" (avesmapsWikiPathZuweisungHaektAn).
+            $props = avesmapsWikiPathZuweisungHaektAn($vorher, $props);
             // 🔴 HIER LOESCHTE DER DRITTE ZUWEISER DEN MERKER „kein Wiki-Artikel". Er fehlte in der
             // ersten Fassung von Aufgabe 5c: ein Weg, den der Massenlauf `assign_all` verknuepft,
             // haette danach einen Artikel UND den Merker getragen und waere durch die Konfliktregel

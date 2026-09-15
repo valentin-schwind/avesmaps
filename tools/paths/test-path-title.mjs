@@ -59,8 +59,8 @@ const way = (props) => ({ properties: { feature_subtype: "Strasse", ...props } }
 // api/_internal/wiki/path-naming.php). Bis dahin stand hier „the wiki name is the identity" und die zweite
 // Zusicherung „the wiki name also wins over an ss/ß spelling variant" -- umgestellt, nicht geloescht: derselbe
 // Fall sagt jetzt das Gegenteil, weil ein von Hand geschriebenes „Reichsstrasse 2" eine Entscheidung ist.
-// Der ALTE Anlass bleibt wahr und steht als erste Zusicherung: 12 Altsegmente tragen trotz Zuweisung einen
-// Maschinennamen ("Reichsstrasse-16") -- ein Maschinenname ist kein Name, also heilt der Wiki-Rueckfall die Anzeige.
+// Der ALTE Anlass steht als erste Zusicherung: ein zugewiesener Abschnitt kann einen Maschinennamen tragen
+// ("Reichsstrasse-16") -- ein Maschinenname ist kein Name, also nennt die Anzeige den Artikel.
 assert.strictEqual(
 	sandbox.getPathTitleName(way({ display_name: "Reichsstrasse-16", wiki_path: { name: "Reichsstraße 2" } })),
 	"Reichsstraße 2",

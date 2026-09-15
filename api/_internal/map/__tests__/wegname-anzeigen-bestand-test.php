@@ -39,6 +39,23 @@ require __DIR__ . '/../features.php';
 
 final class AvesmapsWegnameBestandTestPdo extends PDO
 {
+    /** Einmaliger Zwischenruf direkt VOR dem Schreib-UPDATE des Laufs -- ein fremdes Speichern zwischen Lesen und Schreiben. */
+    public ?Closure $zwischenruf = null;
+
+    public function prepare(string $query, array $options = []): PDOStatement|false
+    {
+        // `FOR UPDATE` kennt SQLite nicht -- dieselbe Uebersetzung wie wege-gruppe-schreiben-test.php. Die Sperre selbst sichert der
+        // Quelltext-Abschnitt I unten; das Verhalten bei einem fremden Speichern der Revisionsriegel (Abschnitt H).
+        $query = str_replace('FOR UPDATE', '', $query);
+        if ($this->zwischenruf !== null && str_contains($query, 'UPDATE map_features') && str_contains($query, 'updated_at = updated_at')) {
+            $ruf = $this->zwischenruf;
+            $this->zwischenruf = null;
+            $ruf($this);
+        }
+
+        return parent::prepare($query, $options);
+    }
+
     public function exec(string $statement): int|false
     {
         if (str_contains($statement, 'ON DUPLICATE KEY UPDATE revision = revision + 1')) {
@@ -208,6 +225,67 @@ $pruefe($alleZeilen($pdo) === $vorher, 'F2: nach dem Fehlschlag steht eine Zeile
 $pruefe($kartenRevision($pdo) === 40, 'F3: und die Revision ist gehoben -- ein warmer Browser holte den halben Stand und fragte nie wieder');
 $pruefe(!$pdo->inTransaction(), 'F4: die Transaktion ist zurueckgerollt, nicht offen gelassen');
 $pdo->exec('DROP TRIGGER wegname_bestand_scheitert');
+
+// ── H) ein fremdes Speichern zwischen Lesen und Schreiben geht NICHT verloren (Review I1) ───────────────────────────
+// 🔴 Der Lauf schreibt das GANZE properties_json zurueck. Liest er einen Abschnitt, und jemand speichert ihn, bevor der Lauf schreibt,
+// ueberschriebe der Lauf das fremde Speichern mit dem alten Stand -- lautlos. Zwei Riegel: Lesen INNERHALB der Transaktion mit
+// `FOR UPDATE` (MariaDB; Abschnitt I prueft den Quelltext) und ein Revisionsriegel im UPDATE, der hier wirklich gefahren wird.
+$ids = $seed($pdo);
+$fremd = ['wiki_path' => $RS2, 'show_label' => false, 'display_name' => 'Fremd gespeichert'];
+$pdo->zwischenruf = static function (PDO $p) use ($ids, $fremd): void {
+    $s = $p->prepare('UPDATE map_features SET properties_json = :pj, revision = 77 WHERE id = :id');
+    $s->execute(['pj' => json_encode($fremd, JSON_UNESCAPED_UNICODE), 'id' => $ids['haken_false']]);
+};
+$gestoert = avesmapsWegnameAnzeigenBestand($pdo, false, 500);
+$pruefe($pdo->zwischenruf === null, 'H0: Voraussetzung -- der Zwischenruf lief vor dem Schreiben');
+$pruefe(($gestoert['gesetzt'] ?? null) === 2, 'H1: die zwei ungestoerten Ziele sind nicht gesetzt: ' . json_encode($gestoert));
+$pruefe(($gestoert['uebersprungen'] ?? null) === ['pid-haken_false'], 'H2: der fremd gespeicherte Abschnitt wird nicht als uebersprungen gemeldet: '
+    . json_encode($gestoert));
+$pruefe(($gestoert['verbleibend'] ?? null) === 1, 'H3: der uebersprungene zaehlt nicht als verbleibend');
+$zeileFremd = $zeileLesen($pdo, $ids['haken_false']);
+$pruefe(json_decode((string) $zeileFremd['properties_json'], true) === $fremd,
+    'H4: der Lauf hat das fremde Speichern ueberschrieben: ' . $zeileFremd['properties_json']);
+$pruefe((int) $zeileFremd['revision'] === 77, 'H5: und dessen Revision');
+$pruefe(json_decode((string) $zeileLesen($pdo, $ids['ohne_haken'])['properties_json'], true)['show_label'] === true, 'H6: die anderen sind gesetzt');
+// Werden ALLE Ziele fremd gespeichert, hebt der Lauf keine Revision -- er hat nichts geschrieben.
+$ids = $seed($pdo);
+$pdo->zwischenruf = static function (PDO $p): void {
+    $p->exec("UPDATE map_features SET revision = revision + 100 WHERE feature_type = 'path'");
+};
+$alleGestoert = avesmapsWegnameAnzeigenBestand($pdo, false, 500);
+$pruefe(($alleGestoert['gesetzt'] ?? null) === 0 && count($alleGestoert['uebersprungen'] ?? []) === 3, 'H7: ' . json_encode($alleGestoert));
+$pruefe(($alleGestoert['revision'] ?? null) === 0 && $kartenRevision($pdo) === 40,
+    'H8: ein Lauf, der nichts geschrieben hat, hebt trotzdem die Kartenrevision');
+
+// ── I) der Quelltext: gesperrtes Lesen in der Transaktion, der Riegel, updated_at (Review I1, M1) ────────────────────
+// Kommentarfrei gelesen (Tokenizer) -- die Kommentare nennen genau diese Zeichenketten.
+$funktionsRumpf = static function (string $quelle, string $name): string {
+    $ohne = '';
+    foreach (token_get_all($quelle) as $token) {
+        if (is_array($token) && in_array($token[0], [T_COMMENT, T_DOC_COMMENT], true)) {
+            continue;
+        }
+        $ohne .= is_array($token) ? $token[1] : $token;
+    }
+    $von = strpos($ohne, 'function ' . $name . '(');
+    if ($von === false) {
+        return '';
+    }
+    $bis = strpos($ohne, "\nfunction ", $von + 1);
+
+    return $bis === false ? substr($ohne, $von) : substr($ohne, $von, $bis - $von);
+};
+$bibliothek = str_replace("\r\n", "\n", (string) file_get_contents(__DIR__ . '/../features.php'));
+$lauf = $funktionsRumpf($bibliothek, 'avesmapsWegnameAnzeigenBestand');
+$leser = $funktionsRumpf($bibliothek, 'avesmapsWegnameAnzeigenBestandLesen');
+$pruefe($leser !== '' && str_contains($leser, 'FOR UPDATE'), 'I1: das Lesen des scharfen Laufs sperrt die Zeilen nicht (FOR UPDATE)');
+$posTransaktion = strpos($lauf, '->beginTransaction()');
+$posGesperrt = strpos($lauf, 'avesmapsWegnameAnzeigenBestandLesen($pdo, true)');
+$pruefe($posTransaktion !== false && $posGesperrt !== false && $posTransaktion < $posGesperrt,
+    'I2: der scharfe Lauf liest nicht INNERHALB der Transaktion gesperrt -- ein fremdes Speichern dazwischen ginge verloren');
+$pruefe(preg_match("/UPDATE map_features\s+SET properties_json = :properties_json,\s+revision = :revision,\s+updated_at = updated_at\s+WHERE id = :id AND revision = :gelesen/", $lauf) === 1,
+    'I3: das UPDATE traegt nicht `updated_at = updated_at` (MariaDB ON UPDATE) samt Revisionsriegel `AND revision = :gelesen`');
+$pruefe(str_contains($lauf, '->rowCount()'), 'I4: der Lauf zaehlt die getroffenen Zeilen nicht -- ein uebersprungener Abschnitt gaelte als gesetzt');
 
 // ── G) die Aktion am Endpunkt ────────────────────────────────────────────────────────────────────────────────────
 // Quelltext ohne Kommentare (Tokenizer, nicht Regex -- AGENTS.md: ein Blockkommentar-Entferner frisst sonst Code).

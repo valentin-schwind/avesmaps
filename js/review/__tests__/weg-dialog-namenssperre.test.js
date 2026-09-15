@@ -66,6 +66,9 @@ function kontext(stand) {
 		getPathDisplayNameOrGenerated: (name) => String(name || "").trim() || "Reichsstrasse-99",
 		getDefaultTransportDomainForPathSubtype: () => "land",
 		getPathDisplayName: (p) => p.properties.display_name || p.properties.original_name || "Weg",
+		getPathPublicId: (p) => p.properties.public_id,
+		findPathByPublicId: (id) => (stand.feature && stand.feature.properties.public_id === id ? stand.feature : null),
+		avesmapsWikiAssignWegZustand: W.avesmapsWikiAssignWegZustand,
 		getPathEditFormElement: () => ({}),
 		acquireFeatureSoftLock: async () => {},
 		shouldPathNameBeDisplayed: (p) => p.properties.show_label === true,
@@ -78,7 +81,11 @@ function kontext(stand) {
 		applyWikiPathSegmentsUpdate: () => {},
 		pathWikiPost: async (rumpf) => {
 			log.post.push(rumpf);
-			return { ok: true, type_ok: true, applied: 2, wiki_name: "Bärenpfad", wiki_display_name: "Bärenpfad", segments_updated: [] };
+			// Wie der Server seit Review I3: der neu zugewiesene Abschnitt ist angehakt, und die Antwort sagt es.
+			const id = String(rumpf.public_id || "");
+			return { ok: true, type_ok: true, applied: 2, wiki_name: "Bärenpfad", wiki_display_name: "Bärenpfad",
+				segments_updated: [{ public_id: id, revision: 9, name: "Bärenpfad", display_name: "Bärenpfad",
+					wiki_path: { wiki_key: "baerenpfad", name: "Bärenpfad" }, show_label: true }] };
 		},
 	};
 	vm.createContext(k);
@@ -87,6 +94,7 @@ function kontext(stand) {
 		funktion(DOMAIN, "getPathTitleName"),
 		funktion(WIKI, "pathWikiElement"), funktion(WIKI, "pathWikiCurrentFeaturePublicId"), funktion(WIKI, "pathWikiCurrentAssignment"),
 		funktion(WIKI, "pathWikiSyncNachbarn"), funktion(WIKI, "pathWikiZuweisen"), funktion(WIKI, "pathWikiSyncUebernehmen"),
+		funktion(WIKI, "applyWikiPathSegmentsUpdate"), funktion(WIKI, "pathWikiZeileZustand"),
 		funktion(PFADE, "syncPathAutoNameControls"), funktion(PFADE, "pathEditNameVorbelegung"), funktion(PFADE, "populatePathEditForm"),
 		funktion(PFADE, "buildPathEditPayload"),
 		// renderPathWikiReference ruft im Dialog pathWikiSyncNachbarn -- genau das, was hier die Beschriftung verstecken koennte.
@@ -172,6 +180,23 @@ function kontext(stand) {
 	assert.strictEqual(z.log.post.length, 1);
 	assert.strictEqual(z.elemente["path-edit-name"].value, "Bärenpfad",
 		"nach dem Zuweisen steht der alte Name im Feld -- das naechste Speichern drehte die Zuweisung still zurueck");
+	// Review I3: Zuweisen haekt „Wegname anzeigen" an -- und das Formular zeigt es, sonst schriebe das naechste Speichern `false`.
+	assert.strictEqual(z.k.pathEditFeature.properties.show_label, true, "die Antwort bringt das Haekchen nicht in die Kartendaten");
+	assert.strictEqual(z.elemente["path-edit-show-label"].checked, true,
+		"nach dem Zuweisen steht das Haekchen leer im Formular -- das naechste Speichern naehme dem Weg den Namen wieder");
+
+	// ---- 6b. „Sync" fuer die GANZE Strasse bei „— gemischt lassen —" (Review M2) -------------------------------------------------------
+	// Das leere Namensfeld heisst gemischt. Der Zustand der Zeile muss den Artikelnamen als Kartenwert liefern, sonst bietet die Vorschau
+	// einen VORANGEHAKTEN Namen an, und „Speichern für N Abschnitte" machte alle verschieden benannten Abschnitte gleich.
+	const bp1 = pfad("bp-1", BAERENPFAD, { display_name: "Bärenpfad" });
+	const bp2 = pfad("bp-2", BAERENPFAD, { display_name: "Reichsstrasse-16" });
+	const gemischt = kontext({ feature: bp1, gruppe: { pfade: [bp1, bp2] }, name: "" });
+	gemischt.k.zeileGemischt = { public_ids: ["bp-1", "bp-2"] };
+	const zustandGemischt = gemischt.rufe("pathWikiZeileZustand(zeileGemischt)");
+	assert.strictEqual(zustandGemischt.kartenwerte.name, "Bärenpfad",
+		"„— gemischt lassen —“ gilt als leerer Name -- die Sync-Vorschau hakte den Artikelnamen fuer alle Abschnitte vor");
+	gemischt.elemente["path-edit-name"].value = "Unterer Bärenpfad";
+	assert.strictEqual(zustandGemischt.kartenwerte.name, "Unterer Bärenpfad", "ein getippter gemeinsamer Name wird verglichen");
 
 	// ---- 7. „Sync" holt den Artikelnamen ins Feld -- und merkt es sich --------------------------------------------------------------
 	const s = kontext({ feature: pfad("bp-1", BAERENPFAD, { display_name: "Alter Bärenpfad" }), gruppe: null, name: "Alter Bärenpfad", typ: "Reichsstrasse" });

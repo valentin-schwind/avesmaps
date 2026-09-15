@@ -55,7 +55,7 @@ function populatePathEditForm(path, { ganzeStrasse = false } = {}) {
 /**
  * Was im Namensfeld steht, wenn der Dialog einen Abschnitt oeffnet: der Name, den Karte, Infobox und Suche zeigen
  * (getPathTitleName -- eigener Name, sonst der Wiki-Name), sonst der Anzeigename.
- * ⚠️ Der Unterschied zu getPathDisplayName trifft nur ALTSEGMENTE mit Maschinennamen trotz Zuweisung ("Reichsstrasse-16"):
+ * ⚠️ Der Unterschied zu getPathDisplayName trifft nur einen Abschnitt, der trotz Zuweisung einen Maschinennamen traegt ("Reichsstrasse-16"):
  * bis zum 15.09.2026 schrieb die Namenssperre dort den Artikelnamen ins Feld. Das Feld ist seither frei (R1 umgekehrt), und
  * ohne diese Vorbelegung stuende darin eine Nummer, die niemand auf der Karte sieht.
  */
@@ -423,6 +423,13 @@ function pathEditGruppeNachWikiSchreiben() {
 	const name = document.getElementById("path-edit-name");
 	if (name) {
 		name.value = pathEditGruppe.stand.name.gleich ? (pathEditGruppe.stand.name.wert || "") : "";
+	}
+	// 🔴 Und „Wegname anzeigen" (Review I3): Zuweisen haekt es an neu zugewiesenen Abschnitten an. Mit dem alten Haekchen im Formular hielte
+	// das Sammel-Speichern „aus" fuer eine Aenderung gegen den neuen Stand und schriebe es auf alle Abschnitte.
+	const zeige = document.getElementById("path-edit-show-label");
+	if (zeige) {
+		zeige.checked = pathEditGruppe.stand.show_label.gleich && pathEditGruppe.stand.show_label.wert === true;
+		zeige.indeterminate = !pathEditGruppe.stand.show_label.gleich;
 	}
 	syncPathAutoNameControls();
 	if (typeof pathEditFeature !== "undefined" && pathEditFeature) {

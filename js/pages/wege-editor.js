@@ -817,6 +817,13 @@
 			avesmapsWikiAssignWegAntwortPruefen(antwort);
 			state.draft.wiki_path = treffer.roh || null;
 			if (antwort.wiki_display_name) { state.draft.name = antwort.wiki_display_name; }
+			// 🔴 Review I3: Zuweisen haekt „Wegname anzeigen" an einem neu zugewiesenen Abschnitt an. Der Entwurf uebernimmt den Stand aus
+			// der Antwort -- sonst schriebe das naechste „Speichern" das alte `false` zurueck.
+			(Array.isArray(antwort.segments_updated) ? antwort.segments_updated : []).forEach(function (eintrag) {
+				if (eintrag && eintrag.public_id === publicId && Object.prototype.hasOwnProperty.call(eintrag, "show_label")) {
+					state.draft.show_label = eintrag.show_label === true;
+				}
+			});
 			setStatus("„" + (antwort.wiki_name || "") + "“ verknüpft ("
 				+ (antwort.applied || 0) + " Abschnitte).", "ok");
 			// Die Eigenschaften-Spalte wird neu gezeichnet, weil der Name daran haengt (Zuweisen setzt den Artikelnamen) und
@@ -946,7 +953,12 @@
 			// Eine LESEFUNKTION: „— gemischt lassen —" ist `null` und liest sich als "" -- die Vorschau bietet dann den Wegtyp an.
 			feature_subtype: function () { return state.groupDraft && state.groupDraft.feature_subtype ? state.groupDraft.feature_subtype : ""; },
 			// Der Name ebenso -- er gilt beim „Speichern für N Abschnitte" fuer die ganze Strasse.
-			name: function () { return state.groupDraft && state.groupDraft.name ? state.groupDraft.name : ""; },
+			// 💣 `null` heisst „— gemischt lassen —" und reist als `null`: dann vergleicht die Vorschau gegen den Artikelnamen und hakt
+			// nichts vor (Review M2, avesmapsWikiAssignWegZustand). Hier stand `|| ""` -- ein leerer Name galt als Luecke und wurde vorgehakt.
+			name: function () {
+				var entwurfName = state.groupDraft ? state.groupDraft.name : null;
+				return entwurfName === null || entwurfName === undefined || String(entwurfName).trim() === "" ? null : entwurfName;
+			},
 			// ⚠️ Keine Feldherkunft: sie steht je Abschnitt und kann in einer Gruppe verschieden sein.
 			field_origins: null
 		});

@@ -50,6 +50,28 @@ function avesmapsWikiPathCanonicalName(array $wikiPath): string {
 // Namen, der Server schreibt den Wiki-Namen, die Antwort ist gueltig. Genau das war der Owner-Befund.
 // Gewacht von api/_internal/map/__tests__/wegname-gehoert-dem-editor-test.php.
 
+// 🔴 ZUWEISEN HAEKT „WEGNAME ANZEIGEN" AN -- aber nur eine NEUE Zuweisung (Review I3, 15.09.2026). Bis dahin beschriftete die Karte jeden
+// Wiki-Weg als Ganzes, ohne `show_label` zu lesen; seit das Haekchen auch dort wirkt, stuende ein frisch zugewiesener Weg sonst namenlos
+// da. Neu heisst: der Abschnitt trug vorher KEINEN oder einen ANDEREN Artikel. Traegt er denselben schon, bleibt sein Haekchen, wie es
+// ist -- Owner-Regel „aus geht nur, wer abhakt": sonst haekten „Namen vereinheitlichen" (assign) und der Massenlauf (assign_all), die
+// schon zugewiesene Abschnitte erneut treffen, jedes bewusste „aus" bei jeder Wiederholung wieder an.
+// EINE Regel fuer alle drei Zuweiser in api/_internal/wiki/paths.php (assign, assign_to, assign_all). Entfernen (R2) ruft sie nicht.
+// @param array $vorher  properties VOR der Zuweisung
+// @param array $nachher properties MIT der neuen `wiki_path`
+function avesmapsWikiPathZuweisungHaektAn(array $vorher, array $nachher): array {
+    $alt = is_array($vorher['wiki_path'] ?? null) && is_scalar($vorher['wiki_path']['wiki_key'] ?? null)
+        ? trim((string) $vorher['wiki_path']['wiki_key'])
+        : '';
+    $neu = is_array($nachher['wiki_path'] ?? null) && is_scalar($nachher['wiki_path']['wiki_key'] ?? null)
+        ? trim((string) $nachher['wiki_path']['wiki_key'])
+        : '';
+    if ($neu !== '' && $neu !== $alt) {
+        $nachher['show_label'] = true;
+    }
+
+    return $nachher;
+}
+
 // R2 generic name: next free `<subtype>-<n>` over the supplied existing names (callers
 // pass the DB `name` column of all active paths). Number-sensitive: only exact
 // `^<subtype>-<digits>$` entries count -- no digit-strip collapsing (Reichsstrasse-1 vs -2).

@@ -372,6 +372,19 @@ assert.strictEqual(mitLeser.kartenwerte.name, "Bärenpfad", "der Name ist eingef
 assert.strictEqual(avesmapsWikiAssignWegZustand({ wiki_path: null, feature_subtype: "Pfad" }).kartenwerte.name, "",
 	"ohne Artikel und ohne Leser ist der Name leer -- ohne Artikel gibt es auch keine Sync-Vorschau");
 zaehl(); zaehl(); zaehl(); zaehl(); zaehl();
+// (c2) 💣 „GEMISCHT LASSEN" IST EBENFALLS KEINE LUECKE (Review M2): der Leser der ganzen Strasse meldet `null`, wenn das Namensfeld leer
+// ist -- dann gilt der Artikelname, und die Vorschau bietet keinen vorgehakten Namen an, der beim „Speichern für N Abschnitte" alle
+// verschieden benannten Abschnitte gleichmachte.
+let gruppenName = null;
+const gruppe = avesmapsWikiAssignWegZustand({ wiki_path: BAERENPFAD, feature_subtype: "Pfad", name: () => gruppenName });
+assert.strictEqual(gruppe.kartenwerte.name, "Bärenpfad", "ein gemischter Strassenname (null) gilt als Luecke");
+assert.deepStrictEqual(avesmapsWikiAssignDiff(weg.felder, gruppe.kartenwerte, gruppe.artikel.werte, {}), [],
+	"„— gemischt lassen —“ bekommt einen VORANGEHAKTEN Namen angeboten");
+gruppenName = "Oberer Bärenpfad";
+assert.strictEqual(gruppe.kartenwerte.name, "Oberer Bärenpfad", "ein gemeinsamer Name wird wie jeder andere verglichen");
+assert.strictEqual(avesmapsWikiAssignWegZustand({ wiki_path: BAERENPFAD, feature_subtype: "Pfad", name: () => "" }).kartenwerte.name, "",
+	"ein LEERES Feld am Abschnitt bleibt eine Luecke -- nur `null` heisst gemischt");
+zaehl(); zaehl(); zaehl(); zaehl();
 // (d) Was die Oberflaechen aus den angehakten Zeilen lesen: BEIDE Angaben, je fuer sich.
 assert.deepStrictEqual(avesmapsWikiAssignWegSyncWerte([{ karte: "name", neu: "Bärenpfad" }, { karte: "feature_subtype", neu: "Pfad" }]),
 	{ name: "Bärenpfad", feature_subtype: "Pfad" });

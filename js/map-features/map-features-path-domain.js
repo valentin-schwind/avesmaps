@@ -29,8 +29,8 @@ function getPathDisplayName(path) {
 //     ein ECHTER Name ist. shouldShowRoutePathDisplayName (js/routing/route-node.js) ist der erprobte Test
 //     dafür und kennt alle Müll-Muster: den nackten Subtyp, "<Subtyp>-<n>" und generisch "<wort>-<zahl>"
 //     ("Meer-835").
-//  2. wiki_path.name -- nur noch als RÜCKFALL. 12 Altsegmente tragen trotz Zuweisung einen Maschinennamen
-//     ("Reichsstrasse-16"); über den Wiki-Namen heilt die Anzeige, ohne die Daten anzufassen.
+//  2. wiki_path.name -- nur noch als RÜCKFALL: trägt ein zugewiesener Abschnitt einen Maschinennamen ("Reichsstrasse-16"),
+//     nennt die Anzeige den Artikel, ohne die Daten anzufassen.
 // 🔴 DIE REIHENFOLGE IST SEIT 15.09.2026 UMGEKEHRT (Owner: der Wegname gehört dem Editor, R1 im Kopf von
 // api/_internal/wiki/path-naming.php). Bis dahin gewann der Wiki-Name, und ein umbenannter zugewiesener Weg hieß auf
 // Karte, Infobox und Suche weiter wie sein Artikel. Zuweisen schreibt den Artikelnamen in display_name -- für einen

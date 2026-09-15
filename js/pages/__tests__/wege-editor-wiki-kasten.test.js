@@ -302,6 +302,17 @@ function pruefeRueckfallAufAnker(f, wo) {
 	assert.strictEqual(sammelName.rumpf.name, "Alte Reichsstraße");
 	assert.deepStrictEqual([...(sammelName.rumpf.wiki_uebernommen || [])], ["name"], "der geholte Name reist nicht als Wiki-Uebernahme");
 
+	// ---- 5c. „— gemischt lassen —“ ist keine Luecke (Review M2) -----------------------------------------------------------------------
+	// Ein leeres Namensfeld der Weg-Ebene heisst gemischt (groupDraft.name === null). Der Zustand der Zeile muss dann den Artikelnamen
+	// liefern -- sonst hakt die Sync-Vorschau den Artikelnamen fuer alle Abschnitte vor.
+	s.elemente.wpList.zuhoerer.click({ target: zeile({ "data-group": "name:Alte Straße" }), preventDefault() {} });
+	await ruhe();
+	s.elemente.wpGroupName.value = "";
+	s.elemente.wpGroupName.zuhoerer.input({ target: s.elemente.wpGroupName });
+	const zustandGemischt = letztes(s.kasten.gemounted).opts.laden();
+	assert.strictEqual(zustandGemischt.kartenwerte.name, "Alte Straße",
+		"die Weg-Ebene meldet „gemischt lassen“ als leeren Namen -- die Sync-Vorschau hakte den Artikelnamen vor");
+
 	// ---- 6. Ungespeicherte Weg-Ebene-Eingaben werden benannt, nicht still verworfen ------------------------------------
 	s.elemente.wpList.zuhoerer.click({ target: zeile({ "data-group": "name:Alte Straße" }), preventDefault() {} });
 	await ruhe();

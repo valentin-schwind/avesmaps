@@ -1946,7 +1946,40 @@ function avesmapsRepairCrossingFeatureType(PDO $pdo, array $user, bool $trockenl
 // `updated_at` und `updated_by` bleiben unangetastet -- der Lauf aendert nichts, was ein Besucher sieht.
 // ⚠️ Gedeckelt je Lauf (Vorgabe 500, hoechstens AVESMAPS_WEGNAME_ANZEIGEN_BESTAND_DECKEL); `verbleibend` sagt, ob noch ein Lauf
 // noetig ist. Wiederholbar: was schon `true` traegt, faellt aus der Auswahl.
+// 💣 DER LAUF SCHREIBT DAS GANZE properties_json ZURUECK (Review I1). Laese er ausserhalb der Transaktion, ueberschriebe er jedes Speichern,
+// das zwischen seinem Lesen und seinem Schreiben kam, mit dem alten Stand -- lautlos. Deshalb liest der scharfe Lauf INNERHALB der
+// Transaktion mit `FOR UPDATE` (avesmapsWegnameAnzeigenBestandLesen), und das UPDATE traegt zusaetzlich den Revisionsriegel
+// `AND revision = :gelesen`: ein Abschnitt, dessen Revision sich seit dem Lesen geaendert hat, wird NICHT geschrieben, sondern in
+// `uebersprungen` gemeldet (und bleibt fuer einen naechsten Lauf in der Auswahl). Schreibt der Lauf gar nichts, rollt er zurueck --
+// eine gehobene Kartenrevision ohne Aenderung schickte jedem warmen Browser die volle Nutzlast.
 const AVESMAPS_WEGNAME_ANZEIGEN_BESTAND_DECKEL = 2000;
+
+/**
+ * Die Ziele des Laufs, gelesen. Mit `$sperren` (nur der scharfe Lauf, INNERHALB seiner Transaktion) mit `FOR UPDATE`.
+ * @return list<array> Zeilen samt dekodiertem Nest unter `nest`
+ */
+function avesmapsWegnameAnzeigenBestandLesen(PDO $pdo, bool $sperren): array {
+    // ⚠️ Das LIKE ist nur ein Vorfilter (ein Drittel der Wegzeilen); entschieden wird am dekodierten Nest.
+    $lesen = $pdo->prepare(
+        "SELECT id, public_id, name, properties_json, revision
+        FROM map_features
+        WHERE feature_type = 'path' AND is_active = 1 AND properties_json LIKE '%wiki_key%'
+        ORDER BY id ASC" . ($sperren ? "
+        FOR UPDATE" : '')
+    );
+    $lesen->execute();
+    $ziele = [];
+    foreach ($lesen->fetchAll(PDO::FETCH_ASSOC) as $zeile) {
+        $nest = avesmapsDecodeJsonColumnForEdit($zeile['properties_json'] ?? null);
+        if (!avesmapsWegnameAnzeigenBestandBetrifft($nest)) {
+            continue;
+        }
+        $zeile['nest'] = $nest;
+        $ziele[] = $zeile;
+    }
+
+    return $ziele;
+}
 
 /** REIN: braucht dieser Abschnitt das Haekchen? Aktiv prueft der Aufrufer; hier nur Zuweisung und Haekchen. */
 function avesmapsWegnameAnzeigenBestandBetrifft(array $properties): bool {
@@ -1961,25 +1994,58 @@ function avesmapsWegnameAnzeigenBestandBetrifft(array $properties): bool {
 function avesmapsWegnameAnzeigenBestand(PDO $pdo, bool $trockenlauf = true, int $limit = 500): array {
     $limit = max(1, min($limit, AVESMAPS_WEGNAME_ANZEIGEN_BESTAND_DECKEL));
 
-    // ⚠️ Das LIKE ist nur ein Vorfilter (ein Drittel der Wegzeilen); entschieden wird am dekodierten Nest.
-    $lesen = $pdo->query(
-        "SELECT id, public_id, name, properties_json
-        FROM map_features
-        WHERE feature_type = 'path' AND is_active = 1 AND properties_json LIKE '%wiki_key%'
-        ORDER BY id ASC"
-    );
-    $ziele = [];
-    $strassen = [];
-    foreach ($lesen->fetchAll(PDO::FETCH_ASSOC) as $zeile) {
-        $nest = avesmapsDecodeJsonColumnForEdit($zeile['properties_json'] ?? null);
-        if (!avesmapsWegnameAnzeigenBestandBetrifft($nest)) {
-            continue;
+    $gesetzt = 0;
+    $revision = 0;
+    $uebersprungen = [];
+    if ($trockenlauf) {
+        // Der Trockenlauf schreibt nichts und sperrt nichts.
+        $ziele = avesmapsWegnameAnzeigenBestandLesen($pdo, false);
+    } else {
+        $pdo->beginTransaction();
+        try {
+            // 🔴 IN der Transaktion, gesperrt -- siehe den Kopf (Review I1).
+            $ziele = avesmapsWegnameAnzeigenBestandLesen($pdo, true);
+            $block = array_slice($ziele, 0, $limit);
+            if ($block !== []) {
+                $revision = avesmapsNextMapRevision($pdo);
+                $schreiben = $pdo->prepare(
+                    'UPDATE map_features
+                    SET properties_json = :properties_json,
+                        revision = :revision,
+                        updated_at = updated_at
+                    WHERE id = :id AND revision = :gelesen'
+                );
+                foreach ($block as $zeile) {
+                    $nest = $zeile['nest'];
+                    $nest['show_label'] = true;
+                    $schreiben->execute([
+                        'id' => (int) $zeile['id'],
+                        'properties_json' => avesmapsEncodeJson($nest),
+                        'revision' => $revision,
+                        'gelesen' => (int) $zeile['revision'],
+                    ]);
+                    if ($schreiben->rowCount() === 1) {
+                        $gesetzt++;
+                    } else {
+                        $uebersprungen[] = (string) $zeile['public_id'];
+                    }
+                }
+            }
+            if ($gesetzt === 0) {
+                $pdo->rollBack();
+                $revision = 0;
+            } else {
+                $pdo->commit();
+            }
+        } catch (Throwable $exception) {
+            avesmapsRollbackAndRethrow($pdo, $exception);
         }
-        $zeile['nest'] = $nest;
-        $ziele[] = $zeile;
-        $strassen[trim((string) $nest['wiki_path']['wiki_key'])] = true;
     }
 
+    $strassen = [];
+    foreach ($ziele as $zeile) {
+        $strassen[trim((string) $zeile['nest']['wiki_path']['wiki_key'])] = true;
+    }
     $stichprobe = array_map(static fn(array $zeile): array => [
         'public_id' => (string) $zeile['public_id'],
         'name' => (string) ($zeile['name'] ?? ''),
@@ -1987,42 +2053,15 @@ function avesmapsWegnameAnzeigenBestand(PDO $pdo, bool $trockenlauf = true, int 
         'show_label_vorher' => $zeile['nest']['show_label'] ?? null,
     ], array_slice($ziele, 0, 25));
 
-    $gesetzt = 0;
-    $revision = 0;
-    $block = $trockenlauf ? [] : array_slice($ziele, 0, $limit);
-    if ($block !== []) {
-        $pdo->beginTransaction();
-        try {
-            $revision = avesmapsNextMapRevision($pdo);
-            $schreiben = $pdo->prepare(
-                'UPDATE map_features
-                SET properties_json = :properties_json,
-                    revision = :revision,
-                    updated_at = updated_at
-                WHERE id = :id'
-            );
-            foreach ($block as $zeile) {
-                $nest = $zeile['nest'];
-                $nest['show_label'] = true;
-                $schreiben->execute([
-                    'id' => (int) $zeile['id'],
-                    'properties_json' => avesmapsEncodeJson($nest),
-                    'revision' => $revision,
-                ]);
-                $gesetzt++;
-            }
-            $pdo->commit();
-        } catch (Throwable $exception) {
-            avesmapsRollbackAndRethrow($pdo, $exception);
-        }
-    }
-
     return [
         'ok' => true,
         'dry_run' => $trockenlauf,
         'gefunden' => count($ziele),
         'strassen' => count($strassen),
         'gesetzt' => $gesetzt,
+        'uebersprungen' => $uebersprungen,
+        // Ein uebersprungener Abschnitt traegt das Haekchen weiterhin nicht und bleibt in der Auswahl -- er zaehlt als verbleibend,
+        // damit der naechste Lauf ihn nimmt.
         'verbleibend' => count($ziele) - $gesetzt,
         'deckel' => $limit,
         'revision' => $revision,

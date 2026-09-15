@@ -219,7 +219,16 @@ function avesmapsWikiAssignWegZustand(quelle) {
 		if (typeof wert === "function") {
 			Object.defineProperty(kartenwerte, feld, {
 				enumerable: true,
-				get: () => avesmapsWikiAssignWegText(wert()),
+				// 💣 „— GEMISCHT LASSEN —" IST EBENFALLS KEINE LUECKE (Review M2): der Leser der ganzen Strasse meldet `null`, wenn das
+				// Namensfeld leer ist. Dann gilt der Artikelname -- sonst hakte die Vorschau den Namen vor, und „Speichern für N
+				// Abschnitte" machte alle verschieden benannten Abschnitte gleich. Ein "" (leeres Feld am Abschnitt) bleibt eine Luecke.
+				get: () => {
+					const gelesen = wert();
+					if (feld === "name" && (gelesen === null || gelesen === undefined)) {
+						return artikel ? artikel.name : "";
+					}
+					return avesmapsWikiAssignWegText(gelesen);
+				},
 			});
 		} else {
 			kartenwerte[feld] = avesmapsWikiAssignWegText(wert);

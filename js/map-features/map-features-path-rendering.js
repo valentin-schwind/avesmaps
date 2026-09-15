@@ -226,7 +226,7 @@ function createPathPopupMarkup(path) {
 	// -> "Unbenannte Straße" tritt an die Titelstelle und der Untertitel entfaellt (stuende sonst doppelt).
 	// getPathTitleName -- dieselbe Regel wie die Spotlight-Suche: der eigene Name zuerst (seit 15.09.2026, der Wegname
 	// gehoert dem Editor), der Wiki-Name als Rueckfall. Vorher stand hier roh getPathDisplayName, deshalb zeigte die
-	// Infobox als EINZIGE Flaeche "Reichsstrasse-16", waehrend die Suche "Reichsstraße 2" sagte (12 Altsegmente mit
+	// Infobox als EINZIGE Flaeche "Reichsstrasse-16", waehrend die Suche "Reichsstraße 2" sagte (ein Abschnitt mit
 	// Maschinennamen trotz Zuweisung; der Rueckfall heilt die Anzeige).
 	const realName = typeof getPathTitleName === "function" ? getPathTitleName(path) : getPathDisplayName(path);
 	const typeLabel = getPathTypeLabel(pathType);

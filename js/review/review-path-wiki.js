@@ -48,7 +48,9 @@ function pathWikiCurrentAssignment() {
 
 // Applies the segments_updated payload of assign_to/clear_assign to the local pathData:
 // fresh revision (the 409 fix -- expected_revision must match the server again), the
-// R1/R2 name, and the wiki_path object. show_label is deliberately untouched (R3).
+// name set by Zuweisen/R2, and the wiki_path object.
+// 🔴 show_label reist seit 15.09.2026 mit (Review I3): Zuweisen haekt „Wegname anzeigen" an einem NEU zugewiesenen Abschnitt an. Fehlt
+// der Schluessel (Entfernen, alter Server), bleibt das Haekchen unberuehrt.
 function applyWikiPathSegmentsUpdate(segmentsUpdated) {
 	if (!Array.isArray(segmentsUpdated) || typeof findPathByPublicId !== "function") {
 		return;
@@ -66,6 +68,9 @@ function applyWikiPathSegmentsUpdate(segmentsUpdated) {
 			path.properties.wiki_path = segment.wiki_path;
 		} else {
 			delete path.properties.wiki_path;
+		}
+		if ("show_label" in segment) {
+			path.properties.show_label = segment.show_label;
 		}
 		if ("flow" in segment) {
 			if (segment.flow) {
@@ -281,7 +286,12 @@ function pathWikiZeileZustand(zeile) {
 		// 💣 Eine LESEFUNKTION: der Wegtyp steht im Formular darueber und kann sich bis zum Druck auf „Sync" geaendert haben.
 		feature_subtype: () => pathWikiElement("path-edit-type")?.value || "",
 		// Der Name ebenso -- er gilt beim „Speichern für N Abschnitte" fuer die ganze Strasse.
-		name: () => String(pathWikiElement("path-edit-name")?.value || ""),
+		// 💣 Ein LEERES Feld heisst hier „— gemischt lassen —" (readPathGruppeEntwurf) und wird als `null` gemeldet: dann vergleicht die
+		// Vorschau gegen den Artikelnamen und hakt nichts vor (Review M2, avesmapsWikiAssignWegZustand).
+		name: () => {
+			const wert = String(pathWikiElement("path-edit-name")?.value || "").trim();
+			return wert === "" ? null : wert;
+		},
 		// ⚠️ Keine Feldherkunft: sie steht je Abschnitt und kann in einer Strasse verschieden sein (wie auf der Weg-Ebene).
 		field_origins: null,
 	});
@@ -458,6 +468,15 @@ async function pathWikiZuweisen(treffer) {
 	const nameInput = pathWikiElement("path-edit-name");
 	if (nameInput && neuerName !== "") {
 		nameInput.value = neuerName;
+	}
+	// 🔴 Und das Haekchen (Review I3): Zuweisen haekt „Wegname anzeigen" an einem neu zugewiesenen Abschnitt an. Stuende es leer im
+	// Formular, naehme das naechste Speichern dem Weg den Namen gleich wieder. Gelesen wird der Stand, den applyWikiPathSegmentsUpdate
+	// eben aus der Antwort uebernommen hat.
+	const zeige = pathWikiElement("path-edit-show-label");
+	if (zeige && pathEditFeature && pathEditFeature.properties && Array.isArray(result.segments_updated)) {
+		zeige.checked = typeof shouldPathNameBeDisplayed === "function"
+			? shouldPathNameBeDisplayed(pathEditFeature)
+			: pathEditFeature.properties.show_label === true;
 	}
 	showFeedbackToast?.(`„${result.wiki_name}" verknüpft (${result.applied} Abschnitte).`, "success");
 	pathWikiSyncNachbarn();
