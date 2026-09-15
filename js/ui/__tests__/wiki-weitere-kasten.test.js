@@ -74,21 +74,27 @@ const warten = (ms) => new Promise((fertig) => setTimeout(fertig, ms));
 	const ohneHaupt = K.avesmapsWikiWeitereMarkup({ hauptKey: "", umfang: "diesen Abschnitt", zuordnungen: [] }, SKIN);
 	assert.ok(ohneHaupt.includes("Erst eine Wiki-Zuweisung setzen") && !ohneHaupt.includes("data-weitere-suche"),
 		"ohne Hauptzuweisung kein Suchfeld (§2.2 Nr. 1)");
+	// Nachtrag 15.09.2026 §9.5: die weiteren Zuweisungen stehen auch OHNE Hauptzuweisung da -- §2.2 Nr. 5 laesst sie stehen,
+	// und ohne Zeile waeren sie nicht mehr zu entfernen.
+	const ohneHauptMitListe = K.avesmapsWikiWeitereMarkup({ hauptKey: "", umfang: "x", zuordnungen: teil }, SKIN);
+	assert.ok(ohneHauptMitListe.includes('data-weitere-weg="b-renpfad"') && !ohneHauptMitListe.includes("data-weitere-suche"),
+		"ohne Hauptzuweisung: Zeilen mit ✕, aber kein Suchfeld");
+	assert.ok(ohneHauptMitListe.includes("data-weitere-status"), "und eine Statuszeile fuer das Entfernen");
 	const mit = K.avesmapsWikiWeitereMarkup({ hauptKey: "reichsstrasse-2", umfang: "Abschnitt 7: <b>", zuordnungen: teil }, SKIN);
 	assert.ok(mit.includes('data-weitere-weg="b-renpfad"'), "jede Zuordnung hat ihr ✕");
 	assert.ok(mit.includes("Weitere Wiki-Zuweisung für Abschnitt 7: &lt;b&gt;"), "der Umfang wird maskiert");
 	assert.ok(mit.includes("data-weitere-suche") && mit.includes("ändert den Wegnamen nie"));
+	assert.ok(!mit.includes("wirken sofort"), "„wirken sofort“ sagt die Schreibzeile des Kastens „Wiki-Weg“ einmal fuer alles (§9.5)");
+	assert.ok(!mit.includes(">Weitere Wiki-Zuweisungen</div>"), "keine eigene Ueberschrift -- der Kasten haengt im Kasten „Wiki-Weg“");
 	// Fund-Item 5 der ersten Pruefrunde: die Trefferliste ist ein role=listbox, kein nacktes <div>.
 	assert.ok(mit.includes('data-weitere-treffer role="listbox"'), "die Trefferliste traegt role=listbox");
-	// Entwurf §3.5: die Liste nennt die Hauptzuweisung zuerst (ohne ✕), dann jede weitere mit „weitere" und ✕
+	// Nachtrag 15.09.2026 §9.5: KEINE Zeile „Hauptzuweisung“ mehr -- die zeigt der Kasten „Wiki-Weg“ darueber, auch wenn ein
+	// alter Wirt `haupt` noch mitgibt.
 	const mitHaupt = K.avesmapsWikiWeitereMarkup({ hauptKey: "reichsstrasse-2", umfang: "die ganze Straße", zuordnungen: teil,
-		haupt: { wiki_key: "reichsstrasse-2", name: "Reichsstraße 2", wiki_url: "https://x/R" }, hauptWo: "ganze Straße · Perz – Helmdahl" }, SKIN);
-	const hauptStelle = mitHaupt.indexOf("Hauptzuweisung");
-	assert.ok(hauptStelle > 0 && hauptStelle < mitHaupt.indexOf('data-weitere-weg="b-renpfad"'), "die Hauptzuweisung steht vor den weiteren");
-	assert.ok(mitHaupt.includes("ganze Straße · Perz – Helmdahl") && mitHaupt.includes("reichsstrasse-2"));
-	assert.ok(!/data-weitere-weg="reichsstrasse-2"/.test(mitHaupt), "die Hauptzuweisung hat kein ✕ -- geloest wird sie im Kasten „Wiki-Weg");
-	assert.ok(/weitere\s*<button[^>]*data-weitere-weg="b-renpfad"/.test(mitHaupt), "eine weitere Zuweisung heisst „weitere");
-	assert.ok(!mit.includes("Hauptzuweisung"), "ohne `haupt` keine Hauptzeile");
+		haupt: { wiki_key: "reichsstrasse-2", name: "Reichsstraße 2", wiki_url: "https://x/R" }, hauptWo: "ganze Straße" }, SKIN);
+	assert.ok(!mitHaupt.includes("Hauptzuweisung"), "keine Hauptzeile im eingebetteten Kasten");
+	assert.ok(/weitere\s*<button[^>]*data-weitere-weg="b-renpfad"/.test(mitHaupt), "eine weitere Zuweisung heisst „weitere“");
+	assert.ok(!/data-weitere-weg="reichsstrasse-2"/.test(mitHaupt));
 	// Fund-Item 5: ein Treffer ist eine Listenzeile (role=option, tabindex=0), kein <button> mehr --
 	// js/ui/wiki-assign.js (avesmapsWikiAssignTrefferMarkup) ist die Referenzform.
 	const trefferMarkup = K.avesmapsWikiWeitereTrefferMarkup([{ wiki_key: "geronsgang", name: "Geronsgang", art: "Pilgerweg" }], SKIN);
@@ -232,15 +238,19 @@ const warten = (ms) => new Promise((fertig) => setTimeout(fertig, ms));
 		kasten11.zerstoeren();
 		assert.ok(!host11.classList.contains("wiki-weitere-kasten"), "und verliert sie wieder beim Zerstoeren");
 	}
-	// Quelltext-Gegenprobe: dieselbe Trennlinien-Regel traegt jetzt BEIDE Huellen in EINER
-	// Selektorliste -- keine zweite Regel mit abgeschriebenen Werten (die Divergenz-Falle, die dieses
-	// Haus in AGENTS.md §11/§12 mehrfach bezahlt hat).
+	// Nachtrag 15.09.2026 §9.5: die eigene Ueberschrift ist gefallen, mit ihr der zweite Selektor. Die Trennlinie zur
+	// Hauptzuweisung traegt die Huelle selbst -- mit der Linie der Tabellenzeilen, ohne feste Farbe.
 	{
 		const wurzel = path.join(__dirname, "..", "..", "..");
-		const css = fs.readFileSync(path.join(wurzel, "css", "components", "editor-page.css"), "utf8")
-			.replace(/\/\*[\s\S]*?\*\//g, "");
-		assert.ok(/\.avm-wiki-assign\s*>\s*\.dt-grp:first-child\s*,\s*\r?\n\s*\.wiki-weitere-kasten\s*>\s*\.dt-grp:first-child\s*\{/.test(css),
-			"die Trennlinien-Regel traegt beide Huellen in EINER Selektorliste, nicht als zweite Regel");
+		const lesen = (rel) => fs.readFileSync(path.join(wurzel, rel), "utf8").replace(/\r\n/g, "\n").replace(/\/\*[\s\S]*?\*\//g, "");
+		assert.ok(!/\.wiki-weitere-kasten\s*>\s*\.dt-grp/.test(lesen("css/components/editor-page.css")),
+			"der zweite Selektor fuer die eigene Ueberschrift ist mit ihr gefallen");
+		assert.ok(/\.avm-wiki-assign\s*>\s*\.dt-grp:first-child\s*\{/.test(lesen("css/components/editor-page.css")),
+			"die Regel des Zuweisungsblocks selbst bleibt");
+		const regel = /\.wiki-weitere-kasten\s*\{([^}]*)\}/.exec(lesen("css/components/wiki-weitere-kasten.css"));
+		assert.ok(regel && /border-top:\s*1px solid var\(--color-divider\)/.test(regel[1]) && !/#[0-9a-f]{3,8}\b/i.test(regel[1]),
+			"der eingehaengte Kasten trennt sich mit --color-divider ab, ohne feste Farbe");
+		assert.ok(!/\.wiki-weitere__haupt/.test(lesen("css/components/wiki-weitere-kasten.css")), "die Regel der Hauptzeile ist tot und gefallen");
 	}
 
 	// 12. Fund-Item 5: Enter/Leertaste auf einem Treffer schreiben genau wie ein Klick; Leertaste

@@ -676,12 +676,10 @@ body.avm-editor-body {
 /* Der Zuweisungsblock ist nie der Anfang eines Panels -- er folgt immer einem anderen Abschnitt
    (Identitaet, Beschreibung, Quellen). Sein Gruppenkopf traegt die Trennlinie deshalb auch dann,
    wenn er erstes Kind SEINES Behaelters ist; ohne diese Zeile verschluckt .dt-grp:first-child sie
-   genau dort, wo sie hingehoert. Derselbe Fall gilt dem Kasten „Weitere Wiki-Zuweisungen"
-   (js/ui/wiki-weitere-kasten.js): er folgt im Wege-Editor ebenfalls immer einem anderen Abschnitt
-   und traegt seine eigene Klasse an genau demselben Behaelter -- eine zweite Regel mit
-   abgeschriebenen Werten waere die Divergenz, die dieser Abschnitt sonst schon zweimal bezahlt hat. */
-.avm-wiki-assign > .dt-grp:first-child,
-.wiki-weitere-kasten > .dt-grp:first-child {
+   genau dort, wo sie hingehoert. (Der Kasten „Weitere Wiki-Zuweisungen" hatte hier bis zum Nachtrag
+   15.09.2026 einen zweiten Selektor; seit er im Kasten „Wiki-Weg" haengt, traegt er keine eigene
+   Ueberschrift mehr -- seine Trennlinie steht in css/components/wiki-weitere-kasten.css.) */
+.avm-wiki-assign > .dt-grp:first-child {
 	margin-top: var(--space-8);
 	padding-top: var(--space-4);
 	border-top: 1px solid var(--color-border);

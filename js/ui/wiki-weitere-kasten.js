@@ -1,6 +1,8 @@
 // Der Kasten „Weitere Wiki-Zuweisungen" -- EIN Bauteil fuer den Wege-Editor (Huelle „dt") und den
 // Kartendialog „Weg bearbeiten" (Huelle „label-wiki").
-// Entwurf docs/superpowers/specs/2026-09-14-wege-mehrfachzuweisung-design.md §2.3, §3.5.
+// Entwurf docs/superpowers/specs/2026-09-14-wege-mehrfachzuweisung-design.md §2.3, §3.5 und Nachtrag §9.5.
+// 🔴 SEIT DEM NACHTRAG 15.09.2026 NUR NOCH EINGEBETTET: der Kasten haengt in der Einhaengestelle `anhang` des Kastens
+// „Wiki-Weg" (js/ui/wiki-assign.js). Keine eigene Ueberschrift, keine Zeile „Hauptzuweisung".
 //
 // 🔴 Eine weitere Zuweisung benennt nie um und aendert keine Gruppe; der Server prueft das
 // (api/_internal/wiki/path-weitere.php). Der Kasten schreibt sofort, ohne „Speichern".
@@ -109,38 +111,40 @@ function avesmapsWikiWeitereErgebnisText(modus, antwort, abschnitte) {
 	return saetze.join(" ");
 }
 
-/** Die Klassen der Huelle: die der Wiki-Zuweisung plus eine Ueberschrift im Stil des Wirts. */
+/** Die Klassen der Huelle: dieselben wie die der Wiki-Zuweisung, in deren Kasten dieser haengt. */
 function avesmapsWikiWeitereSkin(name) {
-	const basis = typeof avesmapsWikiAssignSkin === "function" ? (avesmapsWikiAssignSkin(name) || {}) : {};
-	return { ...basis, titel: name === "dt" ? "dt-grp" : "label-edit-section-title" };
+	return typeof avesmapsWikiAssignSkin === "function" ? (avesmapsWikiAssignSkin(name) || {}) : {};
 }
 
-/** REIN: der Kasten als HTML. modell = {hauptKey, umfang, zuordnungen, haupt?, hauptWo?}. */
+/**
+ * REIN: der Kasten als HTML. modell = {hauptKey, umfang, zuordnungen}.
+ * 🔴 NUR DIE EINGEBETTETE FORM (Nachtrag 15.09.2026 §9.5). Keine eigene Ueberschrift, keine Zeile „Hauptzuweisung" -- die
+ * zeigt das Bauteil darueber samt Sync-Feldliste. „Zuweisen und Entfernen wirken sofort" sagt dessen Schreibzeile darunter.
+ * 🔴 Die Zeilen stehen AUCH ohne Hauptzuweisung da: §2.2 Nr. 5 laesst die weiteren stehen, wenn die Hauptzuweisung geht --
+ * ohne Zeile waeren sie nicht mehr zu entfernen. Nur das Suchfeld braucht die Hauptzuweisung (§2.2 Nr. 1).
+ */
 function avesmapsWikiWeitereMarkup(modell, skin) {
 	const esc = avesmapsWikiWeitereEsc;
-	const kopf = '<div class="' + esc(skin.titel) + '">Weitere Wiki-Zuweisungen</div>';
-	if (!modell.hauptKey) {
-		return kopf + '<div class="' + esc(skin.hinweis) + '">Erst eine Wiki-Zuweisung setzen — danach lassen sich weitere hinzufügen.</div>';
-	}
 	const artikel = (z) => (z.wiki_url
 		? '<a class="' + esc(skin.link) + '" href="' + esc(z.wiki_url) + '" target="_blank" rel="noopener">' + esc(z.name) + " ↗</a>"
 		: esc(z.name))
 		+ ' <span class="wiki-weitere__schluessel">' + esc(z.wiki_key) + "</span>";
-	// Entwurf §3.5: zuerst die Hauptzuweisung -- ohne ✕, geloest wird sie im Kasten „Wiki-Weg" darueber.
-	const haupt = modell.haupt && modell.haupt.wiki_key
-		? '<tr class="wiki-weitere__haupt"><td class="wiki-weitere__wo">' + esc(modell.hauptWo || "") + "</td><td>" + artikel(modell.haupt)
-			+ '</td><td class="wiki-weitere__art">Hauptzuweisung</td></tr>'
-		: "";
-	const zeilen = haupt + modell.zuordnungen.map((z) => '<tr><td class="wiki-weitere__wo">' + esc(z.wo) + "</td><td>" + artikel(z) + "</td>"
+	const zeilen = modell.zuordnungen.map((z) => '<tr><td class="wiki-weitere__wo">' + esc(z.wo) + "</td><td>" + artikel(z) + "</td>"
 		+ '<td class="wiki-weitere__art">weitere <button type="button" class="wiki-weitere__weg" data-weitere-weg="' + esc(z.wiki_key)
 		+ '" aria-label="Weitere Zuweisung ' + esc(z.name) + ' entfernen">✕</button></td></tr>').join("");
-	return kopf
-		+ (zeilen ? '<table class="wiki-weitere">' + zeilen + "</table>" : "")
+	const liste = zeilen ? '<table class="wiki-weitere">' + zeilen + "</table>" : "";
+	const status = '<div class="' + esc(skin.hinweis) + '" data-weitere-status role="status" aria-live="polite"></div>';
+	if (!modell.hauptKey) {
+		return liste
+			+ '<div class="' + esc(skin.hinweis) + '">Erst eine Wiki-Zuweisung setzen — danach lassen sich weitere hinzufügen.</div>'
+			+ status;
+	}
+	return liste
 		+ '<div class="wiki-weitere__titel">Weitere Wiki-Zuweisung für ' + esc(modell.umfang) + "</div>"
 		+ '<input type="search" class="wiki-weitere__suche" data-weitere-suche placeholder="Wiki-Artikel suchen …" autocomplete="off">'
 		+ '<div class="' + esc(skin.trefferListe) + '" data-weitere-treffer role="listbox" hidden></div>'
-		+ '<div class="' + esc(skin.hinweis) + '">Zuweisen und Entfernen wirken sofort — ohne „Speichern“. Eine weitere Zuweisung ändert den Wegnamen nie.</div>'
-		+ '<div class="' + esc(skin.hinweis) + '" data-weitere-status role="status" aria-live="polite"></div>';
+		+ '<div class="' + esc(skin.hinweis) + '">Eine weitere Zuweisung ändert den Wegnamen nie.</div>'
+		+ status;
 }
 
 /**
@@ -177,13 +181,9 @@ function avesmapsWikiWeitereKastenMount(host, opts) {
 	function modell() {
 		const abschnitte = (opts.abschnitte && opts.abschnitte()) || [];
 		const gesamt = opts.gesamtText ? opts.gesamtText() : "ganze Straße";
-		const umfang = String((opts.umfangText && opts.umfangText()) || "");
 		return {
 			hauptKey: String((opts.hauptKey && opts.hauptKey()) || ""),
-			haupt: opts.haupt ? opts.haupt() : null,
-			// Wo die Hauptzuweisung gilt: bei mehreren Abschnitten die ganze Strasse, sonst dieser eine Abschnitt.
-			hauptWo: abschnitte.length > 1 ? gesamt : String((abschnitte[0] && abschnitte[0].label) || umfang),
-			umfang,
+			umfang: String((opts.umfangText && opts.umfangText()) || ""),
 			zuordnungen: avesmapsWikiWeitereZuordnungen(abschnitte, gesamt),
 			abschnitte,
 		};
@@ -284,8 +284,8 @@ function avesmapsWikiWeitereKastenMount(host, opts) {
 		schreiben("add", hinzu.dataset.weitereHinzu, modell().abschnitte.map((a) => a.public_id));
 	}
 
-	// Fund-Item 4: die Huelle braucht eine Klasse, damit die Trennlinie ueber dem Kasten dieselbe
-	// Regel wie der Zuweisungsblock nutzt (editor-page.css, `.avm-wiki-assign > .dt-grp:first-child`).
+	// Die Huelle traegt ihre Klasse: an ihr haengt die Trennlinie zur Hauptzuweisung darueber
+	// (css/components/wiki-weitere-kasten.css, Nachtrag §9.5).
 	if (host.classList && typeof host.classList.add === "function") { host.classList.add("wiki-weitere-kasten"); }
 	host.addEventListener("click", klick);
 	host.addEventListener("input", tippen);

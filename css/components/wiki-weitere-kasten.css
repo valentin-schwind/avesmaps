@@ -1,6 +1,13 @@
 /* Der Kasten „Weitere Wiki-Zuweisungen" (js/ui/wiki-weitere-kasten.js).
    Entwurf docs/superpowers/specs/2026-09-14-wege-mehrfachzuweisung-design.md §3.5,
    Mockup docs/wege-mehrfachzuweisung-mockup.html. Nur Tokens (AGENTS.md §12). */
+/* 🔴 Der Kasten haengt seit dem Nachtrag 15.09.2026 (§9.5) IM Kasten „Wiki-Weg" (Einhaengestelle des Bauteils).
+   Die Linie trennt ihn von der Hauptzuweisung darueber -- dieselbe Linie wie zwischen den Tabellenzeilen darunter. */
+.wiki-weitere-kasten {
+	margin-top: var(--space-6);
+	padding-top: var(--space-4);
+	border-top: 1px solid var(--color-divider);
+}
 .wiki-weitere {
 	width: 100%;
 	border-collapse: collapse;
@@ -22,7 +29,6 @@
 	color: var(--color-text-muted);
 	font-size: var(--font-size-caption);
 }
-.wiki-weitere__haupt .wiki-weitere__art { color: var(--color-text); }
 /* 💣 Fund-Item 6 der ersten Pruefrunde: `.wiki-weitere__weg` (0,1,0) schlaegt zwar bereits
    `:where(.avm-editor-body) button` (0,0,1) fuer border/background/padding -- das `:where()` traegt
    dort ABSICHTLICH keine Spezifitaet (css/components/editor-page.css, Kommentar an der Regel). Ohne
