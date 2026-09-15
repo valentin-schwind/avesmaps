@@ -146,6 +146,15 @@
 		objekte: [],
 		stand: null,
 		filter: {},
+		// 🔴 DIE NÄHE-ANSICHT (Owner 15.09.2026: „ich will die trotzdem wählen (und dass die Treffer markiert
+		// werden und die ansicht ‚offen' diese zeigt und die option sie auf die stage zu holen angezeigt wird)").
+		// `null` heißt: die Liste zeigt, was Reiter und Filter zeigen. Sonst `{ name, keys, anzahl }` -- „Offen"
+		// zeigt dann genau diese Schlüssel (der Server-Nachschlag `keys`, der Filter und Seiten schlägt), dazu
+		// der Chip „In der Nähe von „X" (n) ✕".
+		// ⚠️ Sie endet mit JEDEM Ansichtswechsel: Reiter (garetienReiterSetzen), Filter (garetienFilterAnwenden),
+		// Suche und dem ✕ ihres Chips. Wer einen weiteren Weg baut, der die Liste umstellt, nimmt sie dort
+		// ebenfalls zurück -- sonst zeigt „Offen" nach einem Filterwechsel still weiter die alte Trefferliste.
+		naeheAnsicht: null,
 		// Aufgabe 13: der Schluessel des Objekts, dessen Einzelansicht rechts steht -- `null` heisst
 		// „nichts gewaehlt", und dann steht dort der Hinweissatz, kein leerer Kasten.
 		detailKey: null,
@@ -1101,6 +1110,11 @@
 			// Aufgabe 1: eine frische Liste aus der Stage, kein Griff auf die Map selbst --
 			// dieselbe Kopie-Zusage wie bei `objekte`/`auswahl` oben.
 			stage: avesmapsGaretienStageListe(),
+			// 15.09.2026: die Nähe-Ansicht -- ebenfalls als Kopie, die Schlüsselliste eingeschlossen.
+			naeheAnsicht: zustand.naeheAnsicht
+				? { name: zustand.naeheAnsicht.name, keys: zustand.naeheAnsicht.keys.slice(),
+					anzahl: zustand.naeheAnsicht.anzahl }
+				: null,
 		};
 	}
 
@@ -2250,12 +2264,15 @@
 	 * 3 global gewaehlt, 0 davon sichtbar -- die Leiste stand da, ihr Knopf war bedienbar, und der
 	 * Klick blieb wortlos.
 	 *
-	 * 💣 EIN TRICHTER, UND HIER STEHT KEINE ZAHL. Den Reiter wechseln der Reiterklick und „Auswahl
-	 * auf die Stage" -- eine Regel, die einen von ihnen bindet, ist keine Regel. Deshalb setzt
+	 * 💣 EIN TRICHTER, UND HIER STEHT KEINE ZAHL. Den Reiter wechseln der Reiterklick, „Auswahl
+	 * auf die Stage" und -- wieder, seit dem 15.09.2026 -- „Imports in der Nähe wählen" (auf „Offen",
+	 * garetienNaeheAnsichtOeffnen). Eine Regel, die einen von ihnen bindet, ist keine Regel. Deshalb setzt
 	 * NIEMAND mehr `zustand.stand` von Hand.
-	 * 🪤 Hier stand „DREI ERZEUGER", und der dritte war „Imports in der Nähe anzeigen" -- den gibt
-	 * es seit Aufgabe 13 (07.09.2026) nicht mehr: der Knopf waehlt nur noch und wechselt den Reiter
-	 * gar nicht. Eine Zahl liest sich wie eine vollstaendige Liste, und niemand zaehlt nach
+	 * 🔴 EIN ECHTER WECHSEL BEENDET AUCH DIE NÄHE-ANSICHT (`zustand.naeheAnsicht`): sie gehört wie die
+	 * Auswahl zur Ansicht, und auf einem anderen Reiter schränkte sie die Liste still auf Treffer ein.
+	 * 🪤 Hier stand „DREI ERZEUGER", und der dritte war „Imports in der Nähe anzeigen" -- den gab
+	 * es von Aufgabe 13 (07.09.2026) bis zum 15.09.2026 nicht: der Knopf waehlte nur und wechselte den
+	 * Reiter gar nicht. Eine Zahl liest sich wie eine vollstaendige Liste, und niemand zaehlt nach
 	 * (AGENTS.md, dieselbe Falle wie bei der Verkehrsmittel-Sperre und den Rauschfiltern des
 	 * Konfliktzentrums). Wer einen Erzeuger ergaenzt, ergaenzt ihn in DIESER Aufzaehlung.
 	 * ⚠️ Ein Wechsel auf den Reiter, auf dem man schon steht, ist keiner: dann bleibt die Auswahl.
@@ -2266,6 +2283,7 @@
 		if (s === "" || s === zustand.stand) { return false; }
 		zustand.stand = s;
 		zustand.auswahl.clear();
+		zustand.naeheAnsicht = null;
 		return true;
 	}
 
@@ -2360,6 +2378,8 @@
 			sucheEl.addEventListener("input", function () {
 				zustand.filter = zustand.filter || {};
 				zustand.filter.suche = sucheEl.value;
+				// Eine neue Suche verlässt die Nähe-Ansicht (dieselbe Regel wie beim Filterwechsel).
+				zustand.naeheAnsicht = null;
 				if (entprellTimer) { clearTimeout(entprellTimer); }
 				entprellTimer = setTimeout(function () { avesmapsGaretienListeHolen(); }, 250);
 			});
@@ -2967,6 +2987,9 @@
 		const filter = zustand.filter || {};
 		const stand = zustand.stand || "offen";
 		zustand.stand = stand;
+		// Die Chips lesen neben dem Filter auch die Nähe-Ansicht -- sie wandern mit JEDEM Listenlauf mit,
+		// sonst stünde nach einem Reiterwechsel ein Chip für eine Ansicht da, die es nicht mehr gibt.
+		garetienChipsRendern();
 
 		if (stand === "stage") {
 			const antwort = garetienStageAntwortBauen(zustand.letzteAntwort);
@@ -3003,6 +3026,12 @@
 		// zweite Wahrheit ueber die Obergrenze.
 		if (zustand.zeilenGrenze !== null) {
 			rumpf.anzahl = zustand.zeilenGrenze;
+		}
+		// 🔴 DIE NÄHE-ANSICHT reist als Nachschlag `keys` -- der Server zeigt dann genau diese Objekte, über
+		// Filter, Stand und Seitenaufteilung hinweg (avesmapsGaretienListeFilterHatKeys). Nur auf „Offen":
+		// dort legt „Auswahl auf die Stage" sie auf.
+		if (stand === "offen" && garetienNaeheAnsichtKeys().length > 0) {
+			rumpf.keys = garetienNaeheAnsichtKeys();
 		}
 		return avesmapsGaretienRufe(GARETIEN_ENDPUNKT, rumpf).then(function (antwort) {
 			zustand.objekte = antwort.objekte || [];
@@ -3185,9 +3214,17 @@
 
 	// REIN: ein Chip je AKTIVEM Abschnitt (nicht je Wert -- "Urteil: neu + Ergänzung" ist EIN
 	// Chip). Sein ✕ traegt `data-chip-feld`, damit es NUR seinen eigenen Abschnitt zurueeknimmt.
-	function garetienChipsMarkup(zustandDerAbschnitte) {
+	function garetienChipsMarkup(zustandDerAbschnitte, naeheAnsicht) {
 		const z = zustandDerAbschnitte || {};
-		return ["ebene", "typ", "urteil", "wiki", "nur"].map((feld) => {
+		// 🔴 Die Nähe-Ansicht (15.09.2026) steht als ERSTER Chip: sie schlägt jeden Filter daneben, und ihr ✕
+		// ist der sichtbare Weg zurück zur normalen Liste.
+		const n = naeheAnsicht || null;
+		const naeheChip = (n && Array.isArray(n.keys) && n.keys.length > 0)
+			? '<span class="gi-chip">In der Nähe von „' + avesmapsGaretienEscape(String(n.name || "")) + "“ ("
+				+ Number(n.anzahl || 0) + ')<button type="button" data-chip-feld="naehe" '
+				+ 'aria-label="Nähe-Ansicht verlassen">✕</button></span>'
+			: "";
+		return naeheChip + ["ebene", "typ", "urteil", "wiki", "nur"].map((feld) => {
 			const menge = z[feld];
 			if (!menge || menge.size === 0) { return ""; }
 			const werte = Array.from(menge).map((wert) => garetienChipBeschriftung(feld, wert));
@@ -3200,7 +3237,7 @@
 	function garetienChipsRendern() {
 		if (!hasDocument) { return; }
 		const el = document.getElementById("garetien-chips");
-		if (el) { el.innerHTML = garetienChipsMarkup(garetienFilterState); }
+		if (el) { el.innerHTML = garetienChipsMarkup(garetienFilterState, zustand.naeheAnsicht); }
 	}
 
 	function garetienFilterToggleAktivKlasse() {
@@ -3220,6 +3257,11 @@
 			const knopf = ereignis.target.closest ? ereignis.target.closest("[data-chip-feld]") : null;
 			if (!knopf) { return; }
 			const feld = knopf.getAttribute("data-chip-feld");
+			if (feld === "naehe") {
+				zustand.naeheAnsicht = null;
+				avesmapsGaretienListeHolen();
+				return;
+			}
 			if (garetienFilterState[feld]) { garetienFilterState[feld].clear(); }
 			if (garetienFilterRebuild) { garetienFilterRebuild(); }
 			garetienFilterAnwenden();
@@ -3237,6 +3279,9 @@
 		zustand.filter.wiki = Array.from(garetienFilterState.wiki);
 		zustand.filter.nur_mehrteilig = garetienFilterState.nur.has("mehrteilig");
 		zustand.filter.nurVerbuende = garetienFilterState.nur.has("verbuende");
+		// Ein Filterwechsel verlässt die Nähe-Ansicht -- sonst schlüge der Nachschlag `keys` jeden Filter
+		// still, und der Trichter täte sichtbar nichts.
+		zustand.naeheAnsicht = null;
 		garetienChipsRendern();
 		garetienFilterToggleAktivKlasse();
 		avesmapsGaretienListeHolen();
@@ -6463,68 +6508,80 @@
 	// Knopf folgt der Wahl, nicht der Gesamtzahl (Brief: „Imports in der Nähe wählen (2)", nicht
 	// „(24)").
 	/*
-	 * REIN: die Trefferliste am GERADE offenen Reiter teilen (Sammelfixrunde 07.09.2026, Befund C).
+	 * REIN: welche Treffer der Knopf WÄHLEN kann -- und warum die übrigen nicht (Owner 15.09.2026).
 	 *
-	 * 💣 ZWEI REGELN, JEDE FUER SICH RICHTIG, IHRE KOMBINATION EINE SACKGASSE. Seit dem 07.09.2026
-	 * leert `garetienReiterSetzen` die Auswahl beim Reiterwechsel (sie gehoert zur Ansicht), und
-	 * der Naehe-Knopf sucht ueber den GANZEN Lauf, ohne Filter auf den Bearbeitungsstand. Er waehlte
-	 * damit auch Treffer an, die auf einem ANDEREN Reiter liegen: bleibt der Editor stehen, zaehlt
-	 * die Leiste den fremden Treffer nicht mit und er ist nicht adressierbar; wechselt er hinueber,
-	 * um ihn zu sehen, LOESCHT der Wechsel die ganze Auswahl -- auch die Treffer, die vorher
-	 * bedienbar waren. Vor Aufgabe 13 konnte das nicht passieren, weil der Klick sofort stagte und
-	 * den Reiter selbst mitnahm.
+	 * 🔴 DIE REITERGRENZE IST GEFALLEN. Von der Sammelfixrunde 07.09.2026 (Befund C) bis zum 15.09.2026
+	 * wählte der Knopf nur, was auf dem GERADE offenen Reiter lag -- weil ein Reiterwechsel die Auswahl
+	 * leert und ein gewählter Treffer auf einem anderen Reiter damit unerreichbar war. Owner 15.09.2026, am
+	 * Hinweis „4 Treffer liegen auf anderen Reitern": „das ist ok, dass er das sagt, aber ich will die
+	 * trotzdem wählen (und dass die Treffer markiert werden und die ansicht ‚offen' diese zeigt und die
+	 * option sie auf die stage zu holen angezeigt wird)". Der Klick wechselt deshalb SELBST auf „Offen"
+	 * und wählt DANACH (garetienNaeheAnsichtOeffnen) -- die Sackgasse von Befund C entsteht so nicht.
+	 * 🔴 WÄHLBAR IST, WAS SICH AUF DIE STAGE LEGEN LÄSST: `stand === "offen"` und noch nicht auf der
+	 * Stage. Übernommenes und Abgelehntes wird GEFUNDEN und BENANNT, aber nicht gewählt -- „Auswahl auf
+	 * die Stage" könnte damit nichts anfangen.
+	 * ⚠️ Ein Treffer ohne Schlüssel oder ohne Stand ist nicht wählbar -- die zurückhaltende Richtung.
 	 *
-	 * 🔴 GEFUNDEN WERDEN SIE WEITERHIN ALLE -- dass in der Naehe etwas schon Uebernommenes liegt,
-	 * ist eine nuetzliche Auskunft. Nur GEWAEHLT wird es nicht, und die Zahl im Knopf wie die Zahlen
-	 * des Typenfilters folgen derselben Grenze (sonst verspraeche der Filter mehr, als der Klick tut).
-	 *
-	 * 🔴 DER REITER „Anzeigen" IST DIE CLIENT-MENGE und hat keinen `stand` -- er wird an der STAGE
-	 * gemessen, nicht an einem Serverwert (RULING R5: `stand: "stage"` liefert
-	 * `avesmapsGaretienListeObjektStand` nie).
-	 * ⚠️ Ein leerer/unbekannter Reiter laesst NICHTS durch -- die zurueckhaltende Richtung: lieber
-	 * ein Knopf, der nichts waehlt, als eine Auswahl, die niemand bedienen kann.
-	 *
-	 * @param aufDerStage Praedikat `(key) => bool` -- hereingereicht statt hier gelesen, damit die
-	 *                    Regel ohne Modulzustand pruefbar bleibt.
+	 * @param aufDerStage Prädikat `(key) => bool` -- hereingereicht statt hier gelesen, damit die
+	 *                    Regel ohne Modulzustand prüfbar bleibt.
 	 */
-	function garetienNaeheReiterTeilung(gefunden, reiter, aufDerStage) {
+	function garetienNaeheWaehlbarTeilung(gefunden, aufDerStage) {
 		const liste = Array.isArray(gefunden) ? gefunden : [];
-		const r = String(reiter || "");
 		const istAufDerStage = typeof aufDerStage === "function"
 			? aufDerStage
 			: function () { return false; };
-		const hier = [];
+		const waehlbar = [];
 		const fremd = [];
+		const nach = { stage: 0, uebernommen: 0, abgelehnt: 0, sonst: 0 };
 		liste.forEach(function (o) {
-			const passt = r === "stage"
-				? istAufDerStage(String((o && o.key) || ""))
-				: (r !== "" && String((o && o.stand) || "") === r);
-			(passt ? hier : fremd).push(o);
+			const key = String((o && o.key) || "");
+			const stand = String((o && o.stand) || "");
+			if (key !== "" && stand === "offen" && !istAufDerStage(key)) {
+				waehlbar.push(o);
+				return;
+			}
+			fremd.push(o);
+			if (key !== "" && stand === "offen") { nach.stage++; }
+			else if (stand === "uebernommen") { nach.uebernommen++; }
+			else if (stand === "abgelehnt") { nach.abgelehnt++; }
+			else { nach.sonst++; }
 		});
-		return { hier: hier, fremd: fremd };
+		return { waehlbar: waehlbar, fremd: fremd, nach: nach };
+	}
+
+	// REIN: die Summe der nicht wählbaren Treffer.
+	function garetienNaeheFremdSumme(nach) {
+		const n = nach || {};
+		return (Number(n.stage) || 0) + (Number(n.uebernommen) || 0)
+			+ (Number(n.abgelehnt) || 0) + (Number(n.sonst) || 0);
 	}
 
 	// REIN: der Satz fuer die Treffer, die dieser Klick NICHT waehlen kann -- EIN Bauer fuer den
 	// Hinweis unter dem Knopf UND die Meldung nach dem Klick. Zwei Fassungen desselben Satzes
 	// liefen beim ersten Formulierungswunsch auseinander (dieselbe Bauform wie
 	// garetienStageVerschwundenSatz).
-	function garetienNaeheFremdSatz(anzahl) {
-		const n = Number(anzahl) || 0;
-		return n === 1
-			? "1 Treffer liegt auf einem anderen Reiter."
-			: n + " Treffer liegen auf anderen Reitern.";
+	// 🔴 SEIT DEM 15.09.2026 NACH GRUND GETEILT: „auf anderen Reitern" stimmte nicht mehr, sobald ein
+	// Treffer auf dem Reiter liegt, auf dem man steht (der Stage), und es sagte nicht, warum.
+	function garetienNaeheFremdSatz(nach) {
+		const n = nach || {};
+		const teile = [];
+		if (Number(n.stage) > 0) { teile.push(n.stage + " schon auf der Stage"); }
+		if (Number(n.uebernommen) > 0) { teile.push(n.uebernommen + " übernommen"); }
+		if (Number(n.abgelehnt) > 0) { teile.push(n.abgelehnt + " abgelehnt"); }
+		if (Number(n.sonst) > 0) { teile.push(n.sonst + " ohne Stand"); }
+		return teile.length === 0 ? "" : "Nicht wählbar: " + teile.join(", ") + ".";
 	}
 
-	// REIN: Beschriftung + Sperre + Hinweis. `gefunden` ist die vom Typenfilter GEWAEHLTE Teilmenge
-	// DIESES Reiters, `fremdAnzahl` die Zahl der Treffer auf anderen Reitern (Befund C).
+	// REIN: Beschriftung + Sperre + Hinweis. `gefunden` ist die vom Typenfilter GEWAEHLTE Teilmenge der
+	// WÄHLBAREN Treffer, `fremdNach` die Aufteilung der übrigen (garetienNaeheWaehlbarTeilung).
 	// ⚠️ „Kein weiteres Import-Objekt im Umkreis gefunden." gilt nur, wenn wirklich NICHTS da ist --
-	// mit Treffern auf anderen Reitern waere der Satz eine Falschaussage.
-	function garetienNaeheKnopfZustand(gefunden, fremdAnzahl) {
+	// mit nicht wählbaren Treffern waere der Satz eine Falschaussage.
+	function garetienNaeheKnopfZustand(gefunden, fremdNach) {
 		const anzahl = Array.isArray(gefunden) ? gefunden.length : 0;
-		const fremd = Number(fremdAnzahl) || 0;
+		const fremd = garetienNaeheFremdSumme(fremdNach);
 		const teile = [];
 		if (anzahl === 0 && fremd === 0) { teile.push("Kein weiteres Import-Objekt im Umkreis gefunden."); }
-		if (fremd > 0) { teile.push(garetienNaeheFremdSatz(fremd)); }
+		if (fremd > 0) { teile.push(garetienNaeheFremdSatz(fremdNach)); }
 		return {
 			anzahl: anzahl,
 			beschriftung: "Imports in der Nähe wählen (" + anzahl + ")",
@@ -6630,29 +6687,27 @@
 	 *
 	 * ⚠️ `geladen === null` heißt „wird noch gesucht", `[]` heißt „gesucht, nichts gefunden" -- die
 	 * zwei zusammenzuwerfen ließe den Platzhalter für immer stehen.
-	 * ⚠️ Der Reiter kommt mit demselben Rückfall herein wie in `avesmapsGaretienListeHolen`
-	 * (`zustand.stand || "offen"`): beim Laden des Moduls ist er `null`, und ohne den Rückfall
-	 * fiele jeder Treffer in die Fremd-Menge.
+	 * ⚠️ Seit dem 15.09.2026 hängt die Rechnung nicht mehr am offenen Reiter (garetienNaeheWaehlbarTeilung).
 	 */
 	function garetienNaeheStandZu(objekt) {
-		const leer = { geladen: null, gruppen: [], wahl: "", menge: [], waehlbar: 0, fremd: 0 };
+		const leer = { geladen: null, gruppen: [], wahl: "", menge: [], waehlbar: 0, fremd: 0,
+			fremdNach: { stage: 0, uebernommen: 0, abgelehnt: 0, sonst: 0 } };
 		if (!objekt) { return leer; }
 		const schluessel = String(objekt.key || "");
 		const geladen = schluessel === _garetienNaeheLetzterKey ? _garetienNaeheGefunden : null;
 		if (geladen === null) { return leer; }
-		const teilung = garetienNaeheReiterTeilung(
-			geladen, zustand.stand || "offen", avesmapsGaretienStageHat
-		);
+		const teilung = garetienNaeheWaehlbarTeilung(geladen, avesmapsGaretienStageHat);
 		const eigenerTyp = String(objekt.typ || "");
-		const gruppen = garetienNaeheGruppen(teilung.hier, eigenerTyp);
+		const gruppen = garetienNaeheGruppen(teilung.waehlbar, eigenerTyp);
 		const wahl = garetienNaeheWahlAktuell(gruppen);
 		return {
 			geladen: geladen,
 			gruppen: gruppen,
 			wahl: wahl,
-			menge: garetienNaeheMenge(teilung.hier, eigenerTyp, wahl),
-			waehlbar: teilung.hier.length,
+			menge: garetienNaeheMenge(teilung.waehlbar, eigenerTyp, wahl),
+			waehlbar: teilung.waehlbar.length,
 			fremd: teilung.fremd.length,
+			fremdNach: teilung.nach,
 		};
 	}
 
@@ -6672,11 +6727,11 @@
 			return '<div class="gi-naehe"><button class="btn" type="button" id="garetien-naehe-btn" '
 				+ "data-naehe disabled>Wird ermittelt …</button>" + spinner + "</div>";
 		}
-		const knopf = garetienNaeheKnopfZustand(stand.menge, stand.fremd);
+		const knopf = garetienNaeheKnopfZustand(stand.menge, stand.fremdNach);
 		const hinweisMarkup = knopf.hinweis === "" ? ""
 			: '<span class="gi-foot__hint">' + avesmapsGaretienEscape(knopf.hinweis) + "</span>";
 		// 🔴 KEIN TYPENFILTER, WO ES NICHTS ZU FILTERN GIBT -- weder ohne Fund noch, wenn ALLE
-		// Treffer auf anderen Reitern liegen (Befund C). Ein Dropdown über eine leere Menge böte
+		// Treffer nicht wählbar sind (übernommen, abgelehnt, schon auf der Stage). Ein Dropdown über eine leere Menge böte
 		// lauter „(0)"-Zeilen an.
 		if (stand.waehlbar === 0) {
 			return '<div class="gi-naehe"><button class="btn" type="button" id="garetien-naehe-btn" '
@@ -6706,10 +6761,11 @@
 		return garetienNaeheStandZu(objekt).menge;
 	}
 
-	// REIN: wie viele Treffer der Klick NICHT wählen kann, weil sie auf einem anderen Reiter liegen
-	// -- für die Meldung nach dem Klick, aus demselben Leser wie die Menge selbst.
+	// REIN: welche Treffer der Klick NICHT wählen kann, nach Grund -- für die Meldung nach dem Klick, aus
+	// demselben Leser wie die Menge selbst. ⚠️ Seit dem 15.09.2026 ein Objekt `{stage, uebernommen,
+	// abgelehnt, sonst}`, keine Zahl mehr: der Satz braucht die Gründe (garetienNaeheFremdSatz).
 	function garetienNaeheFremdAnzahl(objekt) {
-		return garetienNaeheStandZu(objekt).fremd;
+		return garetienNaeheStandZu(objekt).fremdNach;
 	}
 
 	/*
@@ -6808,15 +6864,54 @@
 	// diesem Fenster. Auf die Stage kommen die gewählten Objekte erst über „Auswahl auf die Stage"
 	// -- diese Funktion stagt nichts mehr und setzt auch keine „nur ihre"-Marke (Begründung am Kopf
 	// dieses Abschnitts: die Marke hatte nur einen Sinn, solange dieser Klick selbst zeichnete).
-	function garetienNaeheKlick(ereignis, menge) {
+	// 🔴 SEIT DEM 15.09.2026 ÖFFNET ER DIE NÄHE-ANSICHT (garetienNaeheAnsichtOeffnen): Reiter „Offen", genau
+	// diese Treffer samt dem Ausgangsobjekt, die Treffer gewählt. `anker` ist das Objekt, dessen
+	// Einzelansicht den Knopf trägt -- es bleibt sichtbar, damit die rechte Spalte nicht leer wird.
+	function garetienNaeheKlick(ereignis, menge, anker) {
 		const ziel = ereignis && ereignis.target;
 		if (!ziel || typeof ziel.closest !== "function") { return null; }
 		const knopf = ziel.closest("[data-naehe]");
 		if (!knopf || knopf.disabled) { return null; }
 		const liste = Array.isArray(menge) ? menge : [];
 		if (liste.length === 0) { return null; }
-		avesmapsGaretienAlleWaehlen(liste);
+		garetienNaeheAnsichtOeffnen(anker || null, liste);
 		return liste.length;
+	}
+
+	/*
+	 * Die Nähe-Ansicht öffnen (Owner 15.09.2026). ZUSTANDSÄNDERND, kein DOM, kein Abruf -- geholt und
+	 * gezeichnet wird beim Aufrufer (avesmapsGaretienListeHolen), damit diese Funktion ohne Server prüfbar ist.
+	 *
+	 * 💣 DIE REIHENFOLGE IST TRAGEND: erst der Reiter, dann die Auswahl. garetienReiterSetzen LEERT bei einem
+	 * echten Wechsel die Auswahl (sie gehört der Ansicht) -- umgekehrt wählte der Klick, und der Wechsel
+	 * nähme es sofort wieder weg. Genau das war die Sackgasse von Befund C.
+	 * 🔴 Steht man schon auf „Offen", ERGÄNZT der Klick eine bestehende Auswahl, wie jeder andere Weg des Fensters.
+	 * ⚠️ Das Ausgangsobjekt steht in den Schlüsseln, aber NICHT in der Auswahl: es soll sichtbar bleiben,
+	 * nicht mit auf die Stage (es liegt meist ohnehin schon dort).
+	 */
+	function garetienNaeheAnsichtOeffnen(anker, liste) {
+		garetienReiterSetzen("offen");
+		const treffer = Array.isArray(liste) ? liste : [];
+		const keys = [];
+		const ankerKey = String((anker && anker.key) || "");
+		if (ankerKey !== "") { keys.push(ankerKey); }
+		treffer.forEach(function (o) {
+			const key = String((o && o.key) || "");
+			if (key !== "" && keys.indexOf(key) === -1) { keys.push(key); }
+		});
+		zustand.naeheAnsicht = {
+			name: String((anker && anker.name) || ""),
+			keys: keys,
+			anzahl: treffer.length,
+		};
+		avesmapsGaretienAlleWaehlen(treffer);
+		return zustand.naeheAnsicht;
+	}
+
+	// REIN: die Schlüssel der Nähe-Ansicht -- leer, wenn keine offen ist.
+	function garetienNaeheAnsichtKeys() {
+		const n = zustand.naeheAnsicht;
+		return (n && Array.isArray(n.keys)) ? n.keys : [];
 	}
 
 	/*
@@ -10669,21 +10764,22 @@
 				// wird VOR dem Klick gelesen -- er wählt, und die Auswahl kann den Stand danach
 				// verschieben.
 				const naeheFremd = garetienNaeheFremdAnzahl(naeheOffen);
-				const naeheGewaehlt = garetienNaeheKlick(ereignis, garetienNaeheAktuelleMenge(naeheOffen));
+				const naeheGewaehlt = garetienNaeheKlick(ereignis, garetienNaeheAktuelleMenge(naeheOffen), naeheOffen);
 				if (naeheGewaehlt) {
 					// 💣 DIE MELDUNG STEHT NACH DEM NEUZEICHNEN -- `avesmapsGaretienListeRendern`
 					// ruft `garetienStatusRuhe` und setzte sie sonst sofort auf die neutrale Bilanz
 					// zurück (dieselbe Reihenfolge wie bei „Auswahl auf die Stage" und beim
 					// Einfüge-Weg).
-					// 🔴 Gemeldet wird nur, wenn es wirklich etwas zu nennen gibt: der Rest, den
-					// dieser Klick NICHT wählen konnte. Ohne ihn bleibt die Bilanz stehen.
-					Promise.resolve(garetienStageNeuZeichnen()).then(function () {
-						if (naeheFremd > 0) {
-							garetienStatusSetzen(
-								naeheGewaehlt + " gewählt · " + garetienNaeheFremdSatz(naeheFremd),
-								"ok", null
-							);
-						}
+					// 🔴 SEIT DEM 15.09.2026 WIRD DIE LISTE NEU GEHOLT: der Klick hat auf „Offen" gewechselt und
+					// die Nähe-Ansicht geöffnet -- ein Neuzeichnen aus der letzten Antwort zeigte den alten Reiter.
+					// Gemeldet wird jetzt immer: die Ansicht hat sich geändert, und die Meldung sagt, wie es weitergeht.
+					Promise.resolve(avesmapsGaretienListeHolen()).then(function () {
+						const fremdSatz = garetienNaeheFremdSatz(naeheFremd);
+						garetienStatusSetzen(
+							naeheGewaehlt + " gewählt — „Auswahl auf die Stage“ legt sie auf."
+								+ (fremdSatz !== "" ? " " + fremdSatz : ""),
+							"ok", null
+						);
 					});
 					return;
 				}
@@ -11035,12 +11131,16 @@
 			garetienNaeheWahlAktuell,
 			garetienNaeheWahlSetzen,
 			garetienNaeheAktuelleMenge,
-			// Sammelfixrunde 07.09.2026, Befund C: die Reitergrenze -- REIN, plus der EINE Leser
-			// und der Satz, den Hinweis und Meldung sich teilen.
-			garetienNaeheReiterTeilung,
+			// Die Wählbarkeit der Treffer (bis 15.09.2026 die Reitergrenze aus Befund C) -- REIN, plus der
+			// EINE Leser und der Satz, den Hinweis und Meldung sich teilen.
+			garetienNaeheWaehlbarTeilung,
 			garetienNaeheStandZu,
 			garetienNaeheFremdAnzahl,
+			garetienNaeheFremdSumme,
 			garetienNaeheFremdSatz,
+			// 15.09.2026: die Nähe-Ansicht -- „Offen" zeigt genau die Treffer
+			garetienNaeheAnsichtOeffnen,
+			garetienNaeheAnsichtKeys,
 			// KORREKTUR B (30.08.2026): die manuelle Wiki-Suche, wenn der automatische Treffer leer bleibt
 			garetienWikiSucheHostId,
 			garetienWikiSucheBeiBedarfZeigen,
