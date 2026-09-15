@@ -95,6 +95,18 @@ try {
             $userId,
             avesmapsEcosystemAssignIsDryRun($payload)
         ),
+        // „Eine Quelle, die Region" (15.09.2026): der BESTAND. Zaehlt alle gebundenen Beschriftungen und
+        // listet jede Region, an der Beschriftung und Region verschiedene Wiki-Artikel tragen. Trockenlauf
+        // ist die Vorgabe; scharf nur mit dry_run=false, confirm='apply' und einer Entscheidung JE Region
+        // (region_gewinnt | heben + wiki_key | entfernen) -- welcher von zwei Artikeln gilt, entscheidet ein
+        // Mensch. 🔴 NUR Admins, auch fuer den Trockenlauf (die Funktion prueft es ein zweites Mal).
+        'landschaft_wiki_bestand' => (static function () use ($pdo, $payload, $user): array {
+            if (!avesmapsUserCan($user, 'admin')) {
+                avesmapsErrorResponse(403, 'forbidden', 'Der Abgleich von Beschriftung und Flaeche ist Administratoren vorbehalten.');
+            }
+
+            return avesmapsLandschaftWikiBestand($pdo, $user, $payload);
+        })(),
         // „Kurven aktualisieren" im Flaechenmenue (23.08.2026). EIGENE Aktion neben update_region,
         // weil sie NICHTS an der Region aendert -- sie rechnet nur die abgeleitete Kurve nach, etwa
         // nachdem jemand die Form veraendert hat. Ueber update_region zu gehen hiesse, dafuer ein

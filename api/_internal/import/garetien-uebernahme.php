@@ -818,30 +818,24 @@ function avesmapsGaretienFlaecheAnlegen(
     // sie ein leeres Array, und avesmapsCreateLabelFeature faellt auf seine eigenen Vorgaben
     // zurueck -- der bisherige Zustand bleibt fuer eine unberuehrte Art also unveraendert.
     //
-    // 🔴 UND DER IMPORT WEIST DEN WIKI-SCHLUESSEL ZU (Owner-Entscheid 30.08.2026, siehe
+    // 🔴 UND DER IMPORT WEIST DEN WIKI-ARTIKEL ZU (Owner-Entscheid 30.08.2026, siehe
     // avesmapsGaretienWikiLandschaftZuweisung): passt der Name (mit oder ohne passende Art) auf
-    // GENAU eine Wiki-Landschaft, traegt das frisch angelegte Label sie sofort -- ohne einen
-    // zweiten, spaeteren Handgriff im Editor. Name und Art bleiben die des Imports; nur der
-    // Schluessel kommt vom Wiki. Ohne sichere Zuordnung bleibt das Feld schlicht WEG (kein
-    // erfundener Schluessel).
-    // ⚠️ `array_merge` mit einem dritten, bedingt LEEREN Array haengt den Schluessel an, statt ihn
-    // auf einer eigenen Zeile zuzuweisen.
-    // 🔴 DIESE SCHREIBWEISE WAR EINMAL ERZWUNGEN, UND SIE IST ES SEIT DEM 09.09.2026 NICHT MEHR.
-    // `label-wiki-no-article-test.php` scannte den GANZEN api/-Baum nach der Form
-    // `$x['wiki_region'] = …` und verlangte daneben ein Loeschen des Merkers „kein Wiki-Artikel".
-    // Hier gab es nichts zu loeschen -- das Ergebnis dieser Suche ist die EINGABE fuer
-    // `avesmapsCreateLabelFeature()` an einem noch gar nicht existierenden Label, kein Schreibzugriff
-    // auf eine bestehende Zeile --, also wich die Form dem Scanner aus. Der Merker ist global
-    // ausgebaut (Owner-Entscheid), Scanner und Test sind gefallen.
-    // ⚠️ DIE FORM BLEIBT TROTZDEM STEHEN: sie ist an dieser Stelle die passende (ein bedingtes Feld
-    // an einem Aufrufargument), und sie umzuschreiben waere unbestellter Umbau. Wer sie kuenftig
-    // „aufraeumt", nimmt damit KEINEN Riegel mehr mit -- das ist der Unterschied zu vorher, und
-    // deshalb steht es hier.
+    // GENAU eine Wiki-Landschaft, traegt die Landschaft sie sofort. Name und Art bleiben die des
+    // Imports. Ohne sichere Zuordnung bleibt es schlicht leer (kein erfundener Schluessel).
+    //
+    // 💣 DAS LABEL WIRD OHNE NEST ANGELEGT, und das ist der Kern des Umbaus vom 15.09.2026 (Owner:
+    // „dass der garetien importer fläche und label mit dem selben wiki eintrag versorgt, eine
+    // inkonsistenz darf es hier nicht geben"). Bis dahin baute diese Stelle das Nest der Beschriftung
+    // aus dem Staging und reichte die Adresse GETRENNT an die Region -- zwei Ableitungen desselben
+    // Werts (Schluessel aus dem Seitentitel gegen Schluessel aus der Adresse), und `create_region` zog
+    // das Label nicht nach. Jetzt gibt es EINE Quelle: die Adresse geht an die Region, und
+    // avesmapsCreateEcosystemRegion gleicht die frisch gebundene Beschriftung aus der Region an
+    // (api/_internal/app/landschaft-wiki.php). Der Schluessel des Nests IST danach der der Region.
+    // ⚠️ Der Berggipfel weiter unten bleibt eine FREIE Beschriftung und traegt sein Nest selbst.
     $wikiZuweisung = avesmapsGaretienWikiLandschaftZuweisung($pdo, (string) $nach['name'], (string) $nach['subtyp']);
     $label = avesmapsCreateLabelFeature($pdo, array_merge(
         ['text' => (string) $nach['name'], 'feature_subtype' => (string) $nach['subtyp'], 'lng' => $lx, 'lat' => $ly],
-        avesmapsGaretienLabelUebersteuerung($einstellungen, avesmapsGaretienLabelVorgabeFuerArt($pdo, (string) $nach['subtyp'])),
-        $wikiZuweisung !== null ? ['wiki_region' => $wikiZuweisung] : []
+        avesmapsGaretienLabelUebersteuerung($einstellungen, avesmapsGaretienLabelVorgabeFuerArt($pdo, (string) $nach['subtyp']))
     ), $user);
     $labelId = avesmapsGaretienPublicIdAus($label, 'Das Label der Flaeche');
 
@@ -852,13 +846,14 @@ function avesmapsGaretienFlaecheAnlegen(
     // 🔴 „für Klicks gesperrt" / „Kurvenbeschreibung" (Owner 30.08.2026) -- avesmapsGaretienRegion
     // Uebersteuerung liefert nur, was der Kasten ausdruecklich setzt; ohne Handeingabe ein leeres
     // Array, unveraendert gegenueber dem bisherigen Verhalten.
-    // 🔴 DER WIKI-SCHLUESSEL GEHOERT AUCH AN DIE REGION (Entwurf 14.09.2026, §6.6). Die Region traegt
-    // bei einem Verbund N Flaechen, und an ihr haengen Kanon und Statuskreis -- nur am Schild waere
-    // die Landschaft fuer beide unzugewiesen.
+    // 🔴 DER WIKI-ARTIKEL GEHOERT AN DIE REGION, UND NUR DORTHIN (Entwurf 14.09.2026, §6.6; seit dem
+    // 15.09.2026 die EINZIGE Quelle, docs/superpowers/specs/2026-09-15-landschaft-wiki-eine-quelle-design.md).
+    // Die Region traegt bei einem Verbund N Flaechen, an ihr haengen Kanon und Statuskreis, und
+    // avesmapsCreateEcosystemRegion gibt ihn der eben angelegten Beschriftung weiter.
     // 💣 GEREICHT WIRD DIE ADRESSE, NIE EIN SCHLUESSEL: avesmapsCreateEcosystemRegion leitet
     // `wiki_region_key` selbst aus `wiki_url` ab (avesmapsEcosystemReadRegionFields), ueber die feste
     // Faltungstafel. Ein hier gebauter Schluessel waere die zweite Faltung (AGENTS.md §5).
-    // ⚠️ Ohne Treffer bleibt das Feld WEG -- dieselbe Regel wie am Schild.
+    // ⚠️ Ohne Treffer bleibt das Feld WEG -- und die Beschriftung damit ebenfalls ohne Artikel.
     $wikiAdresse = trim((string) ($wikiZuweisung['wiki_url'] ?? ''));
     // 💣 SCHRITT 2 UND 3 SIND ZWEI TRANSAKTIONEN, NICHT EINE (Entwurf 14.09.2026, Fehler 7). Jede
     // Hausfunktion rollt nur SICH zurueck. Scheiterte die Flaeche, standen Beschriftung und eine

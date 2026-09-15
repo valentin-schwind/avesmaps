@@ -836,12 +836,23 @@ function avesmapsWikiRegionAssign(PDO $pdo, string $wikiKey, bool $dryRun, int $
     }
     $assignObject = avesmapsWikiRegionBuildAssignObject($row);
 
-    $labels = $pdo->query("SELECT id, name, feature_subtype, properties_json FROM map_features WHERE is_active = 1 AND feature_type = 'label' AND name <> ''")->fetchAll(PDO::FETCH_ASSOC);
+    // 🔴 EINE BESCHRIFTUNG AN EINER FLAECHE BEKOMMT HIER NICHTS (15.09.2026). Ihr Wiki-Artikel ist der ihrer
+    // Region (api/_internal/app/landschaft-wiki.php), und ein NAMENSabgleich entscheidet nicht ueber den
+    // Artikel einer Flaeche -- dafuer gibt es „Flaeche zuweisen". Bis dahin schrieb dieser Abgleich das Nest
+    // an das Schild und liess die Region leer: genau der Zustand, der den Blauen See auf „offiziell" stellte.
+    require_once __DIR__ . '/../app/landschaft-wiki.php';
+    $gebunden = avesmapsLandschaftWikiGebundeneBeschriftungen($pdo);
+    $labels = $pdo->query("SELECT id, public_id, name, feature_subtype, properties_json FROM map_features WHERE is_active = 1 AND feature_type = 'label' AND name <> ''")->fetchAll(PDO::FETCH_ASSOC);
     $applied = 0;
     $matched = 0;
+    $gebundenUebersprungen = 0;
     $revision = null;
     foreach ($labels as $l) {
         if (avesmapsWikiSyncCreateMatchKey((string) $l['name']) !== $targetKey) {
+            continue;
+        }
+        if (isset($gebunden[(string) $l['public_id']])) {
+            $gebundenUebersprungen++;
             continue;
         }
         $matched++;
@@ -854,14 +865,14 @@ function avesmapsWikiRegionAssign(PDO $pdo, string $wikiKey, bool $dryRun, int $
             // mit dieser Zeile, gezaehlt ueber den ganzen api/-Baum. Der Merker
             // `properties.wiki_no_article` ist am 09.09.2026 global ausgebaut (Owner-Entscheid),
             // die Zaehlung damit gegenstandslos und ihr Test gefallen.
-            $props['wiki_region'] = $assignObject;
+            $props = avesmapsLandschaftWikiNestSetzen($props, $assignObject);
             $update = $pdo->prepare('UPDATE map_features SET properties_json = :pj, revision = :rev WHERE id = :id');
             $update->execute(['pj' => avesmapsWikiSyncEncodeJson($props), 'rev' => $revision, 'id' => (int) $l['id']]);
             avesmapsWikiSyncAuditFeaturePropsChange($pdo, $auditBefore, $props, $revision, $userId);
             $applied++;
         }
     }
-    return ['ok' => true, 'dry_run' => $dryRun, 'wiki_key' => $wikiKey, 'wiki_name' => (string) $row['name'], 'labels' => $matched, 'applied' => $applied];
+    return ['ok' => true, 'dry_run' => $dryRun, 'wiki_key' => $wikiKey, 'wiki_name' => (string) $row['name'], 'labels' => $matched, 'applied' => $applied, 'gebunden_uebersprungen' => $gebundenUebersprungen];
 }
 
 // ---------------------------------------------------------------------------
@@ -934,7 +945,10 @@ function avesmapsWikiRegionAssignLabelsPlan(array $labelRows, string $wikiKey): 
 }
 
 // Haengt EINE Wiki-Region an 1..n ausdruecklich benannte Labels. Gated wie der Rest des Endpunkts.
-function avesmapsWikiRegionAssignLabels(PDO $pdo, array $payload, int $userId = 0): array {
+// ⚠️ `$darfRegionSchreiben` (15.09.2026): haengt ein Ziel an einer Flaeche, schreibt diese Aktion an die REGION --
+// und die verlangt `edit`, der Regionen-Endpunkt nur `review`. Vorgabe `false`, die sichere Richtung: ein
+// Aufrufer, der das Recht nicht ausdruecklich reicht, darf keine Flaeche beschreiben.
+function avesmapsWikiRegionAssignLabels(PDO $pdo, array $payload, int $userId = 0, bool $darfRegionSchreiben = false): array {
     // Vor der Transaktion, nie darin: ensure-tables faehrt CREATE TABLE, und MySQL committet eine
     // offene Transaktion still in dem Moment, in dem es DDL sieht -- auch ein wirkungsloses
     // IF NOT EXISTS.
@@ -982,11 +996,47 @@ function avesmapsWikiRegionAssignLabels(PDO $pdo, array $payload, int $userId = 
         $targets[$publicId] = $labelRow;
     }
 
+    // 🔴 EINE BESCHRIFTUNG AN EINER FLAECHE BEKOMMT DEN ARTIKEL UEBER IHRE REGION (15.09.2026, „eine Quelle,
+    // die Region"). Ihr eigener Kasten ist im Dialog ausgeblendet („es gewinnt die Flaeche"), also schreibt
+    // eine Wahl hier an die REGION -- und alle Beschriftungen der Flaeche folgen
+    // (avesmapsLandschaftWikiRegionSetzen, api/_internal/app/landschaft-wiki.php). Freie Beschriftungen
+    // bekommen das Nest wie bisher.
+    require_once __DIR__ . '/../app/landschaft-wiki.php';
+    $regionJeLabel = [];
+    $zielRegionen = [];
+    foreach ($targets as $publicId => $labelRow) {
+        $zielRegion = avesmapsLandschaftWikiRegionDerBeschriftung(
+            $pdo,
+            (string) $publicId,
+            avesmapsWikiSyncDecodeJson($labelRow['properties_json'] ?? null)
+        );
+        if ($zielRegion !== null) {
+            $regionJeLabel[$publicId] = (string) $zielRegion['public_id'];
+            $zielRegionen[(string) $zielRegion['public_id']] = $zielRegion;
+        }
+    }
+    // 💣 Ohne Adresse laesst sich kein Regionsschluessel ableiten -- abgelehnt, BEVOR geschrieben wird.
+    $adresse = trim((string) ($region['wiki_url'] ?? ''));
+    if ($zielRegionen !== [] && $adresse === '') {
+        throw new InvalidArgumentException('Diese Wiki-Region traegt keine Adresse -- eine Beschriftung an einer Flaeche bekommt ihren Artikel ueber die Region.');
+    }
+
     // Die Vorschau, die der Editor vor dem scharfen Lauf sieht. Sie traegt je Label den aktuellen
     // Schluessel neben dem kuenftigen, weil „zuweisen" und „ist schon zugewiesen" in einer blossen
     // Zahl gleich aussehen -- und ein Massen-UPDATE teurer rueckgaengig zu machen ist als zweimal
-    // zu rechnen.
-    $plan = avesmapsWikiRegionAssignLabelsPlan(array_values($targets), $wikiKey);
+    // zu rechnen. Haengt ein Label an einer Flaeche, nennt die Vorschau sie: die Wahl wirkt dort auf
+    // die ganze Landschaft.
+    $plan = array_map(
+        static function (array $eintrag) use ($regionJeLabel, $zielRegionen): array {
+            $regionId = $regionJeLabel[$eintrag['public_id']] ?? '';
+
+            return $regionId === '' ? $eintrag : $eintrag + [
+                'region_public_id' => $regionId,
+                'region_name' => (string) ($zielRegionen[$regionId]['name'] ?? ''),
+            ];
+        },
+        avesmapsWikiRegionAssignLabelsPlan(array_values($targets), $wikiKey)
+    );
 
     if (avesmapsWikiRegionAssignLabelsIsDryRun($payload)) {
         return [
@@ -997,30 +1047,55 @@ function avesmapsWikiRegionAssignLabels(PDO $pdo, array $payload, int $userId = 
             'wiki_key' => $wikiKey,
             'wiki_name' => (string) $region['name'],
             'labels' => $plan,
+            // Schon in der Vorschau sagen, dass der scharfe Lauf abgelehnt wuerde -- nicht erst beim Klick.
+            'braucht_bearbeitungsrecht' => $zielRegionen !== [] && !$darfRegionSchreiben,
         ];
+    }
+    // 🔴 Eine Flaeche beschreibt nur, wer `edit` hat (15.09.2026, Befund des Pruefagenten): vorher entstand an
+    // einem gebundenen Label nur ein Nest, jetzt Region, Geschwister und `assign_wiki_region`.
+    if ($zielRegionen !== [] && !$darfRegionSchreiben) {
+        throw new InvalidArgumentException(
+            'Mindestens ein gewaehltes Label haengt an einer Landschaftsflaeche -- deren Wiki-Artikel darf nur aendern, wer bearbeiten darf.'
+        );
+    }
+
+    // Die Region-Schreiber brauchen die Landschaften- und Kartenbibliothek -- geladen nur, wenn es
+    // gebundene Ziele gibt, und der Ensure-Helfer VOR der Transaktion (DDL committet in MySQL implizit).
+    if ($zielRegionen !== []) {
+        require_once __DIR__ . '/../map/features.php';
+        require_once __DIR__ . '/../app/ecosystem.php';
+        avesmapsEcosystemEnsureTables($pdo);
     }
 
     $assigned = 0;
     $revision = null;
+    $landschaftGeschrieben = false;
     $pdo->beginTransaction();
     try {
         $update = $pdo->prepare('UPDATE map_features SET properties_json = :pj, revision = :rev WHERE id = :id');
-        foreach ($targets as $labelRow) {
+        foreach ($targets as $publicId => $labelRow) {
+            if (isset($regionJeLabel[$publicId])) {
+                $assigned++;
+                continue;
+            }
             $featureId = (int) $labelRow['id'];
             $auditBefore = avesmapsWikiSyncFetchAuditRow($pdo, $featureId);
             // Eine Revision fuer den ganzen Aufruf, nicht je Label: die Labels reisen gemeinsam im
             // map-features-Payload, und N Bumps wuerden ihn N-mal fuer jeden Besucher entwerten.
             $revision ??= avesmapsWikiSyncNextMapRevision($pdo);
             $props = avesmapsWikiSyncDecodeJson($labelRow['properties_json'] ?? null);
-            // 🔴 HIER LOESCHTE EINE ZUWEISUNG DEN DRITTEN ZUSTAND („kein Artikel" und „hier ist er"
-            // schlossen einander aus). Es waren FUENF Schreiber von `properties.wiki_region`, jeder
-            // mit dieser Zeile, gezaehlt ueber den ganzen api/-Baum. Der Merker
-            // `properties.wiki_no_article` ist am 09.09.2026 global ausgebaut (Owner-Entscheid),
-            // die Zaehlung damit gegenstandslos und ihr Test gefallen.
-            $props['wiki_region'] = $assignObject;
+            $props = avesmapsLandschaftWikiNestSetzen($props, $assignObject);
             $update->execute(['pj' => avesmapsWikiSyncEncodeJson($props), 'rev' => $revision, 'id' => $featureId]);
             avesmapsWikiSyncAuditFeaturePropsChange($pdo, $auditBefore, $props, $revision, $userId);
             $assigned++;
+        }
+        foreach ($zielRegionen as $zielRegion) {
+            $gesetzt = avesmapsLandschaftWikiRegionSetzen($pdo, $zielRegion, $adresse, $userId);
+            $landschaftGeschrieben = $landschaftGeschrieben || $gesetzt['geschrieben'];
+            $revision ??= $gesetzt['revision'] ?? $gesetzt['map_revision'];
+        }
+        if ($landschaftGeschrieben) {
+            avesmapsNextEcosystemRevision($pdo);
         }
         $pdo->commit();
     } catch (Throwable $exception) {
@@ -1036,6 +1111,10 @@ function avesmapsWikiRegionAssignLabels(PDO $pdo, array $payload, int $userId = 
         'wiki_name' => (string) $region['name'],
         'revision' => $revision,
         'labels' => $plan,
+        'regionen' => array_values(array_map(
+            static fn (array $zielRegion): array => ['public_id' => (string) $zielRegion['public_id'], 'name' => (string) $zielRegion['name']],
+            $zielRegionen
+        )),
     ];
 }
 
@@ -1058,7 +1137,12 @@ function avesmapsWikiRegionAssignAll(PDO $pdo, string $continentFilter, bool $dr
             $byKey[$key] = avesmapsWikiRegionBuildAssignObject($r);
         }
     }
-    $labels = $pdo->query("SELECT id, name, feature_subtype, properties_json FROM map_features WHERE is_active = 1 AND feature_type = 'label' AND name <> ''")->fetchAll(PDO::FETCH_ASSOC);
+    // 🔴 Beschriftungen an einer Flaeche ueberspringt der Namensabgleich (15.09.2026) -- ihr Artikel ist der
+    // ihrer Region, siehe avesmapsWikiRegionAssign oben. Gezaehlt und gemeldet, nicht verschwiegen.
+    require_once __DIR__ . '/../app/landschaft-wiki.php';
+    $gebunden = avesmapsLandschaftWikiGebundeneBeschriftungen($pdo);
+    $gebundenUebersprungen = 0;
+    $labels = $pdo->query("SELECT id, public_id, name, feature_subtype, properties_json FROM map_features WHERE is_active = 1 AND feature_type = 'label' AND name <> ''")->fetchAll(PDO::FETCH_ASSOC);
     $count = 0;
     $linked = [];
     $revision = null;
@@ -1066,6 +1150,10 @@ function avesmapsWikiRegionAssignAll(PDO $pdo, string $continentFilter, bool $dr
     foreach ($labels as $l) {
         $key = avesmapsWikiSyncCreateMatchKey((string) $l['name']);
         if (!isset($byKey[$key])) {
+            continue;
+        }
+        if (isset($gebunden[(string) $l['public_id']])) {
+            $gebundenUebersprungen++;
             continue;
         }
         $obj = $byKey[$key];
@@ -1092,11 +1180,11 @@ function avesmapsWikiRegionAssignAll(PDO $pdo, string $continentFilter, bool $dr
             // mit dieser Zeile, gezaehlt ueber den ganzen api/-Baum. Der Merker
             // `properties.wiki_no_article` ist am 09.09.2026 global ausgebaut (Owner-Entscheid),
             // die Zaehlung damit gegenstandslos und ihr Test gefallen.
-            $props['wiki_region'] = $obj;
+            $props = avesmapsLandschaftWikiNestSetzen($props, $obj);
             $update->execute(['pj' => avesmapsWikiSyncEncodeJson($props), 'rev' => $revision, 'id' => (int) $l['id']]);
         }
     }
-    return ['ok' => true, 'dry_run' => $dryRun, 'continent_filter' => $continentFilter, 'art_filter' => $artFilter, 'labels_affected' => $count, 'regions_linked' => count($linked), 'applied' => $dryRun ? 0 : $count];
+    return ['ok' => true, 'dry_run' => $dryRun, 'continent_filter' => $continentFilter, 'art_filter' => $artFilter, 'labels_affected' => $count, 'regions_linked' => count($linked), 'applied' => $dryRun ? 0 : $count, 'gebunden_uebersprungen' => $gebundenUebersprungen];
 }
 
 // Picker-Suche: liefert Staging-Regionen fuer den Landschafts-Picker im Label-Editor.

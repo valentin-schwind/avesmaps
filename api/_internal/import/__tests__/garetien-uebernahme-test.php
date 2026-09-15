@@ -318,8 +318,10 @@ function avesmapsGaretienUebernahmeTestPdo(): PDO
     // Anlegen den Wiki-Schluessel zu -- avesmapsGaretienWikiLandschaftZuweisung liest dieselbe
     // Tabelle wie die Einzelansicht (garetien-wiki-landschaft.php). LEER PER VORGABE: die vielen
     // bestehenden Tests dieser Datei duerfen davon unberuehrt bleiben.
+    // ⚠️ `wiki_url` gehoert dazu (15.09.2026): die Flaeche bekommt ihren Artikel seither ueber die ADRESSE an
+    // der Region, und jede echte Staging-Zeile traegt eine (gemessen: 662 von 662 Nestern der Live-Karte).
     $pdo->exec('CREATE TABLE wiki_region_staging (id INTEGER PRIMARY KEY AUTOINCREMENT, wiki_key TEXT,
-        name TEXT, match_key TEXT, art TEXT)');
+        name TEXT, match_key TEXT, art TEXT, wiki_url TEXT)');
 
     // Bestand und Staging aus dem Planbauer-Pruefstand uebernehmen.
     foreach (['garetien_import_run', 'garetien_import_row'] as $tabelle) {
@@ -346,10 +348,10 @@ function avesmapsGaretienUebernahmeTestPdo(): PDO
  * (avesmapsWikiSyncCreateMatchKey, verfuegbar ueber garetien-uebernahme.php ->
  * garetien-wiki-landschaft.php -> wiki/sync.php).
  */
-function avesmapsGaretienUebernahmeWikiRegionZeile(PDO $pdo, string $name, string $art, string $wikiKey): void
+function avesmapsGaretienUebernahmeWikiRegionZeile(PDO $pdo, string $name, string $art, string $wikiKey, string $wikiUrl = ''): void
 {
-    $pdo->prepare('INSERT INTO wiki_region_staging (wiki_key, name, match_key, art) VALUES (?, ?, ?, ?)')
-        ->execute([$wikiKey, $name, avesmapsWikiSyncCreateMatchKey($name), $art]);
+    $pdo->prepare('INSERT INTO wiki_region_staging (wiki_key, name, match_key, art, wiki_url) VALUES (?, ?, ?, ?, ?)')
+        ->execute([$wikiKey, $name, avesmapsWikiSyncCreateMatchKey($name), $art, $wikiUrl]);
 }
 
 $pdo = avesmapsGaretienUebernahmeTestPdo();
@@ -551,7 +553,11 @@ $pruefungen += 2;
 // 🔴 AUFGABE 29 (Owner-Entscheid 30.08.2026): "Mühlsee" traegt hier eine Wiki-Landschaft mit
 // PASSENDER Art (See) -- die Flaeche muss beim Anlegen den Schluessel zugewiesen bekommen, ohne
 // dass Name oder Art des Imports sich aendern.
-avesmapsGaretienUebernahmeWikiRegionZeile($pdo, 'Muehlsee', 'See', 'wiki:muehlsee');
+// 💣 Der Staging-Schluessel `wiki:muehlsee` weicht ABSICHTLICH vom Schluessel ab, den die Region aus der
+// Adresse ableitet (`muehlsee`). Genau diese zwei Ableitungen desselben Werts waren bis zum 15.09.2026 in
+// den Import eingebaut; die Zusicherung unten verlangt, dass Flaeche und Beschriftung trotzdem DENSELBEN
+// tragen -- den der Region.
+avesmapsGaretienUebernahmeWikiRegionZeile($pdo, 'Muehlsee', 'See', 'wiki:muehlsee', 'https://de.wiki-aventurica.de/wiki/Muehlsee');
 $e3 = avesmapsGaretienUebernehmen($pdo, $lauf, [$muehlsee], ['id' => 7]);
 assert($e3['angelegt'] === 1, 'die Seeflaeche wurde angelegt: ' . json_encode($e3['fehler'], JSON_UNESCAPED_UNICODE));
 $region = $pdo->query("SELECT * FROM ecosystem_region WHERE name = 'Muehlsee'")->fetch(PDO::FETCH_ASSOC);
@@ -593,8 +599,14 @@ $pruefungen += 2;
 // --- 🔴 AUFGABE 29 (Owner-Entscheid 30.08.2026): DIE ZUWEISUNG STEHT AN properties.wiki_region.wiki_key,
 // UND NAME/ART BLEIBEN DIE DES IMPORTS. "Zugewiesen wird nur der Schluessel" (Owner) -- Name und
 // Subtyp der Flaeche/des Labels sind unveraendert die des Garetien-Imports, nicht die des Wikis.
-assert(($muehlseeLabelProps['wiki_region']['wiki_key'] ?? '') === 'wiki:muehlsee',
-    'die Flaeche traegt den gefundenen Wiki-Schluessel: ' . json_encode($muehlseeLabelProps));
+// 🔴 EINE QUELLE, DIE REGION (15.09.2026): die Region leitet ihren Schluessel aus der Adresse ab, und die
+// Beschriftung traegt DENSELBEN -- nicht den abweichenden des Stagings (`wiki:muehlsee`).
+assert((string) $region['wiki_region_key'] === 'muehlsee',
+    'die Region traegt den Schluessel ihrer Adresse: ' . var_export($region['wiki_region_key'], true));
+assert(($muehlseeLabelProps['wiki_region']['wiki_key'] ?? '') === (string) $region['wiki_region_key'],
+    'die Beschriftung traegt DENSELBEN Schluessel wie ihre Region: ' . json_encode($muehlseeLabelProps));
+assert(($muehlseeLabelProps['wiki_region']['wiki_url'] ?? '') === 'https://de.wiki-aventurica.de/wiki/Muehlsee',
+    'und dieselbe Adresse: ' . json_encode($muehlseeLabelProps));
 assert($label['name'] === 'Muehlsee', 'der NAME bleibt der des Imports, nicht der des Wikis: ' . $label['name']);
 assert($region['region_type'] === 'see', 'und die ART bleibt ebenfalls die des Imports: ' . $region['region_type']);
 $pruefungen += 3;

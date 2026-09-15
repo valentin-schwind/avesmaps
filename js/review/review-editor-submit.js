@@ -278,6 +278,13 @@ async function handleLabelEditFormSubmit(event) {
 			commitLabelDisplayPreview();
 		}
 		updateRevisionFromEditResponse(result);
+		// 🔴 DIE MITGEZOGENEN GESCHWISTER (15.09.2026): hängt dieses Label an einer Fläche und hat sein
+		// Speichern die Wiki-Landschaft geändert, schreibt der Server den Artikel an die REGION, und die
+		// übrigen Beschriftungen der Fläche folgen (api/_internal/app/landschaft-wiki.php). Sie kommen als
+		// `labels` zurück und gehen SOFORT auf die Karte -- derselbe Leser wie bei der Antwort von update_region.
+		if (Array.isArray(result?.labels) && result.labels.length > 0 && typeof applyLabelFeaturesLocally === "function") {
+			applyLabelFeaturesLocally(result.labels);
+		}
 		// 🔴 Die Rückrichtung (Owner 2026-07-28): gehört dieses Label zu einer Landschaftsfläche, bekommt
 		// die Fläche Name, Art und Wiki-Zuweisung mit -- und ihre übrigen Labels gleich hinterher. Ohne
 		// das trug ein umbenanntes Label seinen neuen Namen allein, und das nächste Speichern im

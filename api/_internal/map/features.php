@@ -535,6 +535,14 @@ function avesmapsUndoAuditChange(PDO $pdo, array $payload, array $user): array {
         $afterSnapshot = avesmapsDecodeJsonColumnForEdit($auditEntry['after_json'] ?? null);
         $revision = avesmapsNextMapRevision($pdo);
         $updates = avesmapsBuildUndoFeatureUpdates($action, $featureBeforeUndo, $beforeSnapshot, $afterSnapshot, $revision, (int) $user['id']);
+        // 🔴 EINE QUELLE, DIE REGION (15.09.2026): das Rueckgaengig einer Beschriftung stellt `properties_json`
+        // samt ALTEM Wiki-Nest zurueck. Haengt sie an einer Flaeche, gewinnt deren Artikel -- sonst stuende
+        // am Schild wieder, was die Region laengst gewechselt oder verloren hat. Angeglichen wird IN den
+        // `$updates`, damit es ein Schreibvorgang und eine Protokollzeile bleibt.
+        if ((string) ($featureBeforeUndo['feature_type'] ?? '') === 'label') {
+            require_once __DIR__ . '/../app/landschaft-wiki.php';
+            $updates = avesmapsLandschaftWikiRueckgaengigAngleichen($pdo, $featureBeforeUndo, $updates, (int) $user['id']);
+        }
         // 💣 „Rueckgaengig" auf ein Anlegen setzt is_active = 0 -- dieselbe Wirkung wie Loeschen,
         // nur an dieser Funktion vorbei. Ort anlegen, Kraftlinie daran haengen, das Anlegen
         // zuruecknehmen: eine frische Waise, per Knopfdruck. avesmapsAssertUndoPatchStillCurrent
@@ -3247,11 +3255,11 @@ function avesmapsCreateLabelFeature(PDO $pdo, array $payload, array $user): arra
         'show_name' => avesmapsReadBoolean($payload['show_name'] ?? true),
     ];
 
+    // Die gewuenschte Wiki-Landschaft -- geschrieben wird sie erst unten, ueber den Trichter, sobald der
+    // Regionszeiger feststeht. `null` heisst beim Anlegen „nichts": ein neues Label hat nichts zu entfernen.
+    $wikiWunsch = false;
     if (array_key_exists('wiki_region', $payload)) {
-        $wikiRegion = avesmapsReadLabelWikiRegion($payload['wiki_region']);
-        if ($wikiRegion !== null) {
-            $properties['wiki_region'] = $wikiRegion;
-        }
+        $wikiWunsch = avesmapsReadLabelWikiRegion($payload['wiki_region']) ?? false;
     }
     // A peak may arrive with its height already known -- "Hoehenpunkt setzen" in the topography
     // layer creates the label and records the height in one gesture. Absent or unusable means the
@@ -3266,6 +3274,20 @@ function avesmapsCreateLabelFeature(PDO $pdo, array $payload, array $user): arra
     if ($ecosystemRegion !== '') {
         $properties['ecosystem_region_public_id'] = $ecosystemRegion;
     }
+    // 🔴 DIE WIKI-LANDSCHAFT ENTSCHEIDET DER TRICHTER (15.09.2026, „eine Quelle, die Region"). Zeigt das neue
+    // Label auf eine Flaeche (Duplizieren, Zeichnen), traegt es deren Artikel -- auch keinen --, und ein
+    // mitgeschicktes Nest wird verworfen: beim Duplizieren ist es die Kopie des Originals, keine
+    // Entscheidung. Ein freies Label bekommt das Nest, wie es kam.
+    require_once __DIR__ . '/../app/landschaft-wiki.php';
+    $properties = avesmapsLandschaftWikiBeschriftungFestlegen(
+        $pdo,
+        $publicId,
+        $properties,
+        '',
+        $wikiWunsch,
+        'anlegen',
+        (int) $user['id']
+    );
 
     $pdo->beginTransaction();
     try {
@@ -3338,6 +3360,11 @@ function avesmapsUpdateLabelFeature(PDO $pdo, array $payload, array $user): arra
             throw new InvalidArgumentException('Dieses Kartenobjekt ist kein Label.');
         }
         $properties = avesmapsDecodeJsonColumnForEdit($feature['properties_json'] ?? null);
+        // Die Flaeche, an der diese Beschriftung VOR dem Speichern hing (beide Zeigerrichtungen). Ohne sie
+        // laesst sich ein Umhaengen nicht von einem blossen Speichern unterscheiden -- und nur das Umhaengen
+        // darf einen Wiki-Artikel an einer leeren Flaeche wegnehmen (landschaft-wiki.php).
+        require_once __DIR__ . '/../app/landschaft-wiki.php';
+        $wikiRegionVorher = (string) (avesmapsLandschaftWikiRegionDerBeschriftung($pdo, $publicId, $properties)['public_id'] ?? '');
         // 🔴 DER STAND VOR DEM SPEICHERN -- hier und nirgends spaeter, die naechsten Zeilen
         // ueberschreiben genau diese zwei Felder. Die Wiki-Felder eines Labels sind `text` und
         // `feature_subtype` (Feldregister, Objektart `landschaftslabel`); `name` ist nur deren
@@ -3396,14 +3423,11 @@ function avesmapsUpdateLabelFeature(PDO $pdo, array $payload, array $user): arra
         if (array_key_exists('show_name', $payload)) {
             $properties['show_name'] = avesmapsReadBoolean($payload['show_name']);
         }
-        if (array_key_exists('wiki_region', $payload)) {
-            $wikiRegion = avesmapsReadLabelWikiRegion($payload['wiki_region']);
-            if ($wikiRegion !== null) {
-                $properties['wiki_region'] = $wikiRegion;
-            } else {
-                unset($properties['wiki_region']);
-            }
-        }
+        // Die gewuenschte Wiki-Landschaft: `false` = der Rumpf nennt sie nicht, `null` = entfernen. Geschrieben
+        // wird sie weiter unten ueber den Trichter, sobald der Regionszeiger dieses Speicherns feststeht.
+        $wikiWunsch = array_key_exists('wiki_region', $payload)
+            ? avesmapsReadLabelWikiRegion($payload['wiki_region'])
+            : false;
         // 🔴 HIER STAND DER DRITTE ZUSTAND AM LABEL samt dem geteilten Widerspruchsriegel. Gefallen
         // am 09.09.2026 mit `properties.wiki_no_article` (Owner-Entscheid); sein Aequivalent ist die
         // WIKI-ZUWEISUNG, die eine Zeile darueber geschrieben wird.
@@ -3440,6 +3464,19 @@ function avesmapsUpdateLabelFeature(PDO $pdo, array $payload, array $user): arra
             require_once __DIR__ . '/../app/feature-sources.php';
             avesmapsFeatureSourcesMoveLabelToRegion($pdo, $publicId, $regionNachher);
         }
+        // 🔴 DIE WIKI-LANDSCHAFT ENTSCHEIDET DER TRICHTER (15.09.2026, „eine Quelle, die Region"), NACH dem
+        // Regionszeiger. Haengt die Beschriftung an einer Flaeche, geht ein mitgeschickter Artikel an die
+        // REGION, und alle Beschriftungen der Flaeche folgen; ohne Wunsch traegt sie den Artikel der Region,
+        // und nur ein Umhaengen nimmt ihr einen weg, den die neue Flaeche nicht hat. Frei: wie mitgeschickt.
+        $properties = avesmapsLandschaftWikiBeschriftungFestlegen(
+            $pdo,
+            $publicId,
+            $properties,
+            $wikiRegionVorher,
+            $wikiWunsch,
+            'aendern',
+            (int) $user['id']
+        );
         $geometry = avesmapsDecodeJsonColumnForEdit($feature['geometry_json'] ?? null);
         $coordinates = is_array($geometry['coordinates'] ?? null) ? $geometry['coordinates'] : [0, 0];
         $revision = avesmapsNextMapRevision($pdo);

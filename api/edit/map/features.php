@@ -93,10 +93,20 @@ try {
     // kein Label ist, kommt unveraendert zurueck.
     $result = avesmapsEcosystemEnrichEditLabelFeature($pdo, $result);
 
+    // 🔴 DIE MITGEZOGENEN GESCHWISTER (15.09.2026). Aendert ein `update_label` die Wiki-Landschaft einer
+    // Beschriftung, die an einer Flaeche haengt, schreibt der Trichter den Artikel an die REGION, und alle
+    // uebrigen Beschriftungen der Flaeche folgen (api/_internal/app/landschaft-wiki.php). Der Browser holt
+    // die Kartennutzlast nach einem Speichern nicht neu -- ohne `labels` zeigte deren Infobox bis zum
+    // naechsten Live-Abgleich den alten Artikel. Die gespeicherte Beschriftung selbst steht in `feature`.
+    $mitgezogen = array_values(array_filter(
+        avesmapsLandschaftWikiMitgezogeneAbholen(),
+        static fn (array $geschwister): bool => (string) ($geschwister['id'] ?? '') !== (string) ($result['id'] ?? '')
+    ));
+
     avesmapsJsonResponse(200, [
         'ok' => true,
         'feature' => $result,
-    ]);
+    ] + ($mitgezogen === [] ? [] : ['labels' => $mitgezogen]));
 } catch (InvalidArgumentException $exception) {
     // 💣 EIN `catch`, KEIN ZWEITER DARUEBER. AvesmapsDuplicateLocationNameException erbt von
     // InvalidArgumentException; ein eigener Block muesste zwingend VOR diesem stehen, weil PHP den

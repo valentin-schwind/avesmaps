@@ -589,6 +589,10 @@ $pdoH->prepare("INSERT INTO map_features (public_id, feature_type, feature_subty
                VALUES ('probe-zweitlabel-h', 'label', 'wald', 'Muehlwald Zwei', 'Point', '{\"type\":\"Point\",\"coordinates\":[1,1]}', ?, '{}', 1)")
     ->execute([json_encode($zweitProps, JSON_UNESCAPED_SLASHES)]);
 $mapRevVorH = avesmapsGaretienWikiNachzugTestZahl($pdoH, 'SELECT revision FROM map_revision WHERE id = 1');
+// ⚠️ GEZAEHLT VOR DEM LAUF, nicht gegen 0 (15.09.2026): seit „eine Quelle, die Region" gibt der Import der
+// frisch gebundenen Beschriftung ihren Artikel ueber `create_region` -- das ist eine `update_label`-Zeile
+// AUS DEM AUFBAU. Die Aussage dieses Abschnitts ist „der Nachzug schreibt keine Beschriftung".
+$auditVorH = avesmapsGaretienWikiNachzugTestZahl($pdoH, "SELECT COUNT(*) FROM map_audit_log WHERE action = 'update_label'");
 
 $tH = avesmapsGaretienWikiNachzug($pdoH, $admin);
 assert($tH['wuerde_setzen'] === 0,
@@ -611,7 +615,7 @@ assert(($zweitNachher['wiki_region']['wiki_key'] ?? '') === 'fremder-forst',
     . json_encode($zweitNachher, JSON_UNESCAPED_UNICODE));
 assert(avesmapsGaretienWikiNachzugTestZahl($pdoH, 'SELECT revision FROM map_revision WHERE id = 1') === $mapRevVorH,
     'H(a): kein map_revision-Stempel -- es wurde keine Beschriftung geschrieben');
-assert(avesmapsGaretienWikiNachzugTestZahl($pdoH, "SELECT COUNT(*) FROM map_audit_log WHERE action = 'update_label'") === 0,
+assert(avesmapsGaretienWikiNachzugTestZahl($pdoH, "SELECT COUNT(*) FROM map_audit_log WHERE action = 'update_label'") === $auditVorH,
     'H(a): keine update_label-Protokollzeile fuer diese Region');
 
 echo "OK -- garetien-wiki-nachzug: W1(a), zweite gebundene Beschriftung nie still ueberschrieben\n";

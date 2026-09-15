@@ -687,9 +687,14 @@ assert(str_contains(durchtragRumpf('avesmapsUpdateEcosystemRegion'), 'avesmapsEc
 // Der Entferner rührt die FLÄCHE nicht an, und beide Wege bauen ihr Feature mit demselben Bauer.
 assert(!str_contains(durchtragRumpf('avesmapsEcosystemClearWikiRegionFromLabels'), 'UPDATE ecosystem_region'),
     'die Rücknahme schreibt nur Beschriftungen');
+// 🔴 Seit dem 15.09.2026 schreiben Durchtrag und Rücknahme nicht mehr selbst: beide sind Lesarten des EINEN
+// Schreibers in landschaft-wiki.php („eine Quelle, die Region"). Geprüft wird deshalb, dass sie ihn rufen --
+// und dass ER den geteilten Bauer benutzt.
 foreach (['avesmapsEcosystemPushWikiRegionToLabels', 'avesmapsEcosystemClearWikiRegionFromLabels'] as $weg) {
-    assert(str_contains(durchtragRumpf($weg), 'avesmapsEcosystemLabelFeatureNachSchreiben('),
-        $weg . ' baut sein Feature über den geteilten Bauer -- eine zweite Form wäre die zweite Wahrheit');
+    assert(str_contains(durchtragRumpf($weg), 'avesmapsLandschaftWikiBeschriftungenAngleichen('),
+        $weg . ' muss den einen Schreiber rufen -- eine eigene Schreibschleife wäre der zweite Erzeuger');
 }
+assert(str_contains(durchtragRumpf('avesmapsLandschaftWikiBeschriftungenAngleichen'), 'avesmapsEcosystemLabelFeatureNachSchreiben('),
+    'der eine Schreiber baut sein Feature über den geteilten Bauer -- eine zweite Form wäre die zweite Wahrheit');
 
 echo "OK - Durchtrag der Wiki-Landschaft an die Beschriftungen: alle Zusicherungen erfüllt.\n";
