@@ -46,8 +46,8 @@ function ziel(attribute) {
 
 ["garetienVerbundGroesstes", "garetienVerbundZusammenlegbar"].forEach((n) =>
 	wahr(typeof api[n] === "function", n + " fehlt im Export"));
-gleich(api.__test.AVESMAPS_GARETIEN_VERBUND_WEGE_FREI, false,
-	"🔴 Wege-Verbuende sind ab Werk NICHT freigegeben -- die Freigabe nach dem Owner-Blick ist genau diese Zeile");
+gleich(api.__test.AVESMAPS_GARETIEN_VERBUND_WEGE_FREI, true,
+	"🔴 Wege-Verbuende sind seit dem 15.09.2026 freigegeben (Owner: „passt“ nach dem Blick auf die 19 Verbuende)");
 
 // =================================================================================================
 // A. Zusammenlegen legt NICHT auf -- es markiert die Eintraege, die schon auf der Stage liegen.
@@ -185,8 +185,10 @@ zuruecksetzen();
 	// Schluessel der Flaeche darueber laese deren Wahl.
 	const weg = (nr) => fragment(nr, 8, { key: "ggp:weg:" + nr, ebene: "Wege", typ: "Pfad", ziel: "path", subtyp: "Pfad", kind: "" });
 	const [w1, w2] = [weg(1), weg(2)];
+	// Der Riegel selbst bleibt geprueft -- die Freigabe ist nur sein heutiger Wert.
+	api.__test.garetienVerbundWegeFreiSetzen(false);
 	const gesperrt = api.garetienVerbundZusammenlegbar(w1);
-	gleich(gesperrt.ok, false, "🔴 ein Weg ist gesperrt, solange die Konstante `false` ist");
+	gleich(gesperrt.ok, false, "🔴 ein Weg ist gesperrt, solange die Freigabe aus ist");
 	gleich(gesperrt.grund, "Wege-Verbünde sind noch nicht freigegeben.", "und sagt warum");
 	api.avesmapsGaretienStageHinzufuegen([w1, w2]);
 	gleich(api.garetienVerbundZusammenlegen(api.garetienVerbundSchluessel(w1), []), 0,

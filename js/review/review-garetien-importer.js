@@ -249,14 +249,15 @@
 	/*
 	 * Sind Wege-Verbuende freigegeben? (Aufgabe 6, Entwurf 2026-09-14 §6.6)
 	 *
-	 * 🔴 AB WERK NEIN. Zusammengelegte Wege-Abschnitte heissen nach dem Import wie ihr Stamm und
+	 * ✅ FREIGEGEBEN AM 15.09.2026 (Owner nach dem Blick auf die 19 Wege-Verbuende: „passt"). Bis dahin
+	 * stand hier `false`: zusammengelegte Wege-Abschnitte heissen nach dem Import wie ihr Stamm und
 	 * werden damit EIN Weg (`name:<Wegart>:<Stamm>`). Ob „X" und „X 2" bei Wegen wirklich derselbe
-	 * Weg sind, kann nur der Bestand sagen -- der Owner sieht die 19 Wege-Verbuende im Filter
-	 * „nur Verbünde", BEVOR das live geht. Die Freigabe ist GENAU DIESE EINE ZEILE.
+	 * Weg sind, kann nur der Bestand sagen -- deshalb der Blick im Filter „nur Verbünde" vorher.
+	 * ⚠️ Zurueckdrehen ist weiterhin GENAU DIESE EINE ZEILE.
 	 * ⚠️ Gelesen wird `_garetienVerbundWegeFrei` (darunter), damit ein Test beide Werte fahren kann,
 	 * ohne den Quelltext umzuschreiben -- der Setzer steht nur unter `__test`.
 	 */
-	const AVESMAPS_GARETIEN_VERBUND_WEGE_FREI = false;
+	const AVESMAPS_GARETIEN_VERBUND_WEGE_FREI = true;
 	let _garetienVerbundWegeFrei = AVESMAPS_GARETIEN_VERBUND_WEGE_FREI;
 
 	// ---- Die Stage --------------------------------------------------------------------------------
