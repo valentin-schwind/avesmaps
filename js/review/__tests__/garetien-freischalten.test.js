@@ -121,18 +121,18 @@ wahr(/function avesmapsGaretienFensterOeffnen\(\)[\s\S]{0,400}garetienPanelsBeis
 // =================================================================================================
 const css = lies("css", "components", "garetien-importer.css");
 const huelle = css.slice(css.indexOf(".gi-win {"), css.indexOf(".gi-win[hidden]"));
-wahr(/width: min\(855px,/.test(huelle), "das Fenster ist 855px breit (Owner-Vorgabe)");
+wahr(/width: min\(960px,/.test(huelle), "das Fenster ist 960px breit (Owner-Vorgabe)");
 wahr(/height: min\(900px,/.test(huelle), "und 900px hoch");
 // ⚠️ Die Groesse wandert, weil der Owner sie am GEBAUTEN Fenster abliest und nicht am Entwurf:
-// 800 -> 745 -> 835 breit (alle drei am 31.08.2026) -> 855 (04.09.2026), 700 -> 900 hoch. Deshalb
+// 800 -> 745 -> 835 breit (alle drei am 31.08.2026) -> 855 (04.09.2026) -> 960 (15.09.2026), 700 -> 900 hoch. Deshalb
 // wird hier festgehalten, dass keine abgeloeste Zahl irgendwo stehenblieb -- die Breite steht an
 // ZWEI Stellen (offener und eingeklappter Planer) und muesste sonst nachgezogen werden.
-// 💣 Die Zaehlung darunter genuegt dafuer NICHT: eine Datei, in der 855 zweimal steht und daneben
-// noch ein altes 835 herumliegt, zaehlt richtig und ist trotzdem falsch.
+// 💣 Die Zaehlung darunter genuegt dafuer NICHT: eine Datei, in der 960 zweimal steht und daneben
+// noch ein altes 855 herumliegt, zaehlt richtig und ist trotzdem falsch.
 wahr(!/min\(800px/.test(css) && !/min\(745px/.test(css) && !/min\(700px/.test(css)
-	&& !/min\(835px/.test(css),
+	&& !/min\(835px/.test(css) && !/min\(855px/.test(css),
 	"und keine der alten Zahlen steht mehr irgendwo");
-gleich((css.match(/min\(855px/g) || []).length, 2,
+gleich((css.match(/min\(960px/g) || []).length, 2,
 	"die Breite steht an BEIDEN Stellen -- offener und eingeklappter Planer");
 
 // 🔴 Der freigewordene Platz wird auch BENUTZT -- sonst bliebe der Importer 380px vom Rand stehen
