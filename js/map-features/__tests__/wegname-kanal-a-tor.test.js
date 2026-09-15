@@ -1,8 +1,8 @@
 "use strict";
 // „Wegname anzeigen" wirkt auch in Kanal A -- der Beschriftung der Wiki-Wege als Ganzes.
 // 🔴 Owner 15.09.2026: „mit "Wegname anzeigen" (chechbox) die kontrolle haben, ob der name auf der karte angezeigt werden soll".
-// Bis dahin fragte isWayLabelEligible das Haekchen nie; jeder Wiki-Weg stand beschriftet da. Entscheid „Bestand bleibt": zuerst hakt
-// der Bestandslauf `wegname_anzeigen_bestand` alle Wiki-Abschnitte an, dann geht dieses Tor live.
+// Bis dahin fragte isWayLabelEligible das Haekchen nie; jeder Wiki-Weg stand beschriftet da. Entscheid „Bestand bleibt": vor diesem Tor
+// hakte der Bestandslauf `wegname_anzeigen_bestand` einmal alle Wiki-Abschnitte an (15.09.2026, danach zurueckgebaut).
 // 🔴 GEMISCHTE HAEKCHEN: JE ABSCHNITT. Beschriftet werden die angehakten; ein abgehakter Abschnitt ist Lueckenfueller, damit die
 // Kettenbildung ihn nicht ueberbrueckt und den Namen doch darueber malt. „Beschriftet, wenn irgendeiner angehakt" wurde verworfen: das
 // Abhaken im Abschnittsdialog saehe wie ein Klick aus, der nichts tut.
@@ -62,7 +62,7 @@ assert.strictEqual(S.isWayLabelEligible(abschnitt("a", [0, 0], [1, 0], { wiki_pa
 assert.strictEqual(S.isWayLabelEligible(abschnitt("b", [0, 0], [1, 0], { wiki_path: RS2, show_label: false }), CTX), false,
 	"abgehakt: Kanal A beschriftet wieder, obwohl der Editor „Wegname anzeigen“ abgehakt hat");
 assert.strictEqual(S.isWayLabelEligible(abschnitt("c", [0, 0], [1, 0], { wiki_path: RS2 }), CTX), false,
-	"ohne Haekchen: unbeschriftet -- deshalb geht der Bestandslauf VOR diesem Tor live");
+	"ohne Haekchen: unbeschriftet -- deshalb lief der Bestandslauf VOR diesem Tor, und Zuweisen haekt neu zugewiesene Abschnitte an");
 assert.strictEqual(S.isWayLabelEligible(abschnitt("d", [0, 0], [1, 0], { wiki_path: RS2, show_label: 1 }), CTX), true, "ein altes 1 gilt als an");
 assert.strictEqual(S.isWayLabelEligible(abschnitt("e", [0, 0], [1, 0], { show_label: true }), CTX), false, "ohne Artikel ist es Kanal B");
 assert.strictEqual(S.isWayLabelEligible(abschnitt("f", [0, 0], [1, 0], { wiki_path: RS2, show_label: true }), Object.assign({}, CTX, { zoom: 3 })), false,

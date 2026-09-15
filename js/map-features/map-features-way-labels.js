@@ -485,8 +485,9 @@ function buildWayLabelEligibilityContext() {
 // 🔴 „WEGNAME ANZEIGEN" GILT AUCH HIER (Owner 15.09.2026: „mit "Wegname anzeigen" (chechbox) die kontrolle haben, ob der name
 // auf der karte angezeigt werden soll"). Bis dahin stand hier „OHNE die show_label-Bedingung (Kanal A ignoriert show_label
 // bewusst -- der Weg wird als Ganzes beschriftet)": das Häkchen war an Wiki-Wegen wirkungslos, und der Dialog blendete es aus.
-// 💣 ERST DER BESTANDSLAUF (`wegname_anzeigen_bestand`, api/_internal/map/features.php), DANN DIESES TOR -- von 1.949
-// Wiki-Abschnitten trugen 540 das Häkchen; ohne den Lauf verlören die übrigen ihren Namen.
+// 💣 VOR DIESEM TOR LIEF EINMAL DER BESTANDSLAUF `wegname_anzeigen_bestand` (15.09.2026, danach zurückgebaut): von 1.949
+// Wiki-Abschnitten trugen 540 das Häkchen, ohne ihn hätten die übrigen ihren Namen verloren. Ein NEU zugewiesener Abschnitt bekommt
+// das Häkchen seither beim Zuweisen (avesmapsWikiPathZuweisungHaektAn, api/_internal/wiki/path-naming.php).
 // 🔴 JE ABSCHNITT, nicht „die Straße, sobald irgendeiner angehakt ist": das Häkchen steht im Abschnittsdialog, und ein Abhaken
 // dort, das nichts bewirkt, sähe wie ein kaputter Klick aus. Die ganze Straße schaltet der Gruppendialog. Damit ein abgehakter
 // Abschnitt keine Brücke bekommt, über die der Name doch gemalt würde, ist er Lückenfüller (buildWayLabelGapFillerIndex).
