@@ -300,6 +300,13 @@ function pruefeRueckfallAufAnker(f, wo) {
 	assert.strictEqual(gemischt.fragen.length, 1, "genau eine Rueckfrage");
 	assert.ok(gemischt.fragen[0].includes("verschiedene Wiki-Zuordnungen") && gemischt.fragen[0].includes("allen 3 Abschnitten"), gemischt.fragen[0]);
 	assert.ok(!gemischt.gesendet.some((x) => x.rumpf && x.rumpf.action === "assign_to"), "ein Nein schreibt nichts");
+	// Fixrunde L1: auch Entfernen sagt bei einer gemischten Strasse, dass ein Teil gar keine Zuordnung traegt.
+	gemischt.fragen.length = 0;
+	let entfernenNein = false;
+	await gGemischt.opts.loesen().catch(() => { entfernenNein = true; });
+	assert.ok(entfernenNein && gemischt.fragen.length === 1, JSON.stringify(gemischt.fragen));
+	assert.ok(gemischt.fragen[0].includes("allen 3 Abschnitten") && gemischt.fragen[0].includes("1 davon trägt keine Zuordnung"), gemischt.fragen[0]);
+	assert.ok(!gemischt.gesendet.some((x) => x.rumpf && x.rumpf.action === "clear_assign"), "ein Nein schreibt nichts");
 	gemischt.kasten.confirm = (text) => { gemischt.fragen.push(String(text)); return true; };
 	await gGemischt.opts.zuweisen({ wiki_key: "alte-strasse", name: "Alte Straße", werte: {} });
 	await ruhe();

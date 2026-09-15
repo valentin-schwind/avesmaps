@@ -317,7 +317,11 @@ async function pathWikiLoesen() {
 	const gruppenIds = pathWikiGruppenIds(publicId);
 	if (gruppenIds) {
 		const wiki = pathWikiCurrentAssignment();
-		if (!window.confirm(avesmapsWikiAssignWegGruppeLoesenFrage(wiki ? wiki.name : "", gruppenIds.length))) {
+		// Fixrunde Lieferung 1: bei einer gemischten Strasse nennt die Frage die Abschnitte ohne Zuordnung -- auch sie werden umbenannt.
+		const ohneZuweisung = pathEditGruppe.pfade
+			.filter((pfad) => !String((pfad && pfad.properties && pfad.properties.wiki_path && pfad.properties.wiki_path.wiki_key) || "").trim())
+			.length;
+		if (!window.confirm(avesmapsWikiAssignWegGruppeLoesenFrage(wiki ? wiki.name : "", gruppenIds.length, ohneZuweisung))) {
 			// 🔴 ABGEBROCHEN IST ABGELEHNT -- das Bauteil laesst die Zuweisung stehen.
 			throw new Error("Abgebrochen.");
 		}

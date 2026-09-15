@@ -297,9 +297,17 @@ function avesmapsWikiAssignWegLoesenKoerper(publicId, publicIds) {
  * REIN: die EINE Bestaetigung vor dem Loesen einer ganzen Strasse. Sie nennt die Folge (R2: jeder Abschnitt einen eigenen
  * generischen Namen) -- die Owner-Regel vom 05.07.2026 („nie ungefragt den ganzen Weg") bleibt damit erfuellt.
  */
-function avesmapsWikiAssignWegGruppeLoesenFrage(name, anzahl) {
+function avesmapsWikiAssignWegGruppeLoesenFrage(name, anzahl, ohneZuweisung) {
+	// Fixrunde Lieferung 1: seit die Strasse der Name ist, kann ein Teil ihrer Abschnitte GAR KEINE Zuordnung tragen -- auch sie
+	// bekommen beim Loesen einen eigenen generischen Namen. Die Frage sagt es, knapp; eine einige Strasse fragt wie bisher.
+	const ohne = Number(ohneZuweisung) || 0;
 	return "Die Wiki-Zuordnung „" + avesmapsWikiAssignWegText(name) + "“ von allen " + (Number(anzahl) || 0)
-		+ " Abschnitten dieser Straße lösen?\n\nJeder Abschnitt bekommt einen eigenen generischen Namen — die Straße zerfällt in einzelne Wege.";
+		+ " Abschnitten dieser Straße lösen?\n\nJeder Abschnitt bekommt einen eigenen generischen Namen — die Straße zerfällt in einzelne Wege."
+		+ (ohne > 0
+			? "\n\n" + ohne + (ohne === 1
+				? " davon trägt keine Zuordnung, bekommt aber ebenfalls einen generischen Namen."
+				: " davon tragen keine Zuordnung, bekommen aber ebenfalls einen generischen Namen.")
+			: "");
 }
 
 /**

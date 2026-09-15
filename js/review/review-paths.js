@@ -644,6 +644,23 @@ function syncPathAutoNameControls({ forceName = false } = {}) {
 		return;
 	}
 
+	// 🔴 IM GRUPPENMODUS GEHOERT DIE SPERRE DER STRASSE, nicht dem angeklickten Abschnitt (Fixrunde Lieferung 1, 15.09.2026):
+	// gesperrt, sobald IRGENDEIN Abschnitt eine Hauptzuweisung traegt -- dieselbe Regel wie auf der Weg-Ebene des Wege-Editors
+	// (renderGroupDetail, js/pages/wege-editor.js). Seit die Strasse der Name ist, kann sie gemischt sein: ein Klick auf einen der
+	// 18 unzugewiesenen Abschnitte der Reichsstraße 2 liess das Feld offen, ein Umbenennen haette nur die 18 umbenannt (die 49
+	// zugewiesenen behaelt der Server nach R1), und die Strasse waere ohne Rueckfrage zerfallen.
+	// ⚠️ Der Wert bleibt, was populatePathEditFormGruppe hineinschrieb (gemeinsamer Name oder leer = gemischt): ein Artikelname
+	// hier waere eine Aenderung, die niemand angefasst hat, und das Sammel-Speichern schriebe sie auf alle Abschnitte.
+	if (pathEditGruppe && Array.isArray(pathEditGruppe.pfade)) {
+		const gesperrt = wpGruppeHauptzuweisungen(pathEditGruppe.pfade.map((pfad) => ({
+			wiki_path: (pfad && pfad.properties && pfad.properties.wiki_path) || null,
+		}))).some(Boolean);
+		autoNameElement.checked = false;
+		autoNameElement.disabled = gesperrt;
+		nameInputElement.readOnly = gesperrt;
+		return;
+	}
+
 	// R1: an assigned wiki way owns the name -- no auto-name, no manual override. The
 	// checkbox is disabled (not just unchecked) so the lock is visible in the form.
 	const wiki = typeof pathWikiCurrentAssignment === "function" ? pathWikiCurrentAssignment() : null;

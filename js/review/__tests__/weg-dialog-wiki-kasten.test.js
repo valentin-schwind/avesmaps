@@ -134,6 +134,18 @@ function kontextBauen() {
 		assert.strictEqual(k2.log.post.length, 0);
 	}
 
+	// ---- 4b. Fixrunde L1: Entfernen auf einer GEMISCHTEN Strasse sagt, dass ein Teil gar keine Zuordnung traegt -------------
+	{
+		const ohne = { properties: { public_id: "rs-9", wiki_path: null } };
+		const k = kontextBauen();
+		k.kontext.pathEditGruppe = { pfade: [rs6, rs7, rs8, ohne], stand: {} };
+		k.log.antwort = false;
+		await k.rufe("pathWikiLoesen")().catch(() => {});
+		assert.strictEqual(k.log.fragen.length, 1);
+		assert.ok(k.log.fragen[0].includes("allen 4 Abschnitten") && k.log.fragen[0].includes("1 davon trägt keine Zuordnung"), k.log.fragen[0]);
+		assert.strictEqual(k.log.post.length, 0, "ein Nein schreibt nichts");
+	}
+
 	// ---- 5. Das Sammel-Speichern schickt wiki_uebernommen -----------------------------------------------------------
 	{
 		const gesendet = [];

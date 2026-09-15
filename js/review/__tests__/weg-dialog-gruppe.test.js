@@ -281,6 +281,9 @@ function frischerOeffnerKontext() {
 		document: dok8, window: {}, console, pathData: [], lastPathEditSettings: null,
 		getPathEditFormElement: () => holen("__form"),
 		wpGroupFieldStates: M.wpGroupFieldStates,
+		// Die Namenssperre im Gruppenmodus fragt die Strasse (Fixrunde Lieferung 1) -- die ECHTE Regel, sonst setzte die
+		// Retry-Schleife unten eine Attrappe mit "" ein.
+		wpGruppeHauptzuweisungen: M.wpGruppeHauptzuweisungen,
 		avesmapsPathGruppeZeilen: G.avesmapsPathGruppeZeilen,
 		avesmapsPathGruppeKnopfText: G.avesmapsPathGruppeKnopfText,
 		avesmapsPathGruppeTeilsText: G.avesmapsPathGruppeTeilsText,

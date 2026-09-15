@@ -981,7 +981,8 @@
 		try { gruppe = wikiAssignGruppe(); } catch (fehler) { return Promise.reject(fehler); }
 		var ids = gruppe.segments.map(function (s) { return s.public_id; });
 		// 🔴 EINE Frage statt „nur dieser Abschnitt?" -- markiert ist die ganze Strasse; die Frage nennt die Folge.
-		if (!window.confirm(avesmapsWikiAssignWegGruppeLoesenFrage(gruppe.wiki_path ? gruppe.wiki_path.name : "", ids.length))
+		var ohneZuweisung = gruppe.segments.filter(function (s) { return !String((s.wiki_path && s.wiki_path.wiki_key) || "").trim(); }).length;
+		if (!window.confirm(avesmapsWikiAssignWegGruppeLoesenFrage(gruppe.wiki_path ? gruppe.wiki_path.name : "", ids.length, ohneZuweisung))
 			|| !wikiAssignGruppeEntwurfFreigeben()) {
 			setStatus("Entfernen abgebrochen.", "");
 			// 🔴 ABGEBROCHEN IST ABGELEHNT -- das Bauteil laesst die Zuweisung stehen.

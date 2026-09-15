@@ -26,5 +26,11 @@ assert.ok(!("single_segment" in W.avesmapsWikiAssignWegLoesenKoerper("rs-7", ["r
 // Die EINE Frage nennt Name, Zahl und Folge
 const frage = W.avesmapsWikiAssignWegGruppeLoesenFrage("Reichsstraße 2", 10);
 assert.ok(frage.includes("„Reichsstraße 2“") && frage.includes("allen 10 Abschnitten") && frage.includes("zerfällt"), frage);
+// Fixrunde L1 (15.09.2026): eine GEMISCHTE Strasse sagt, dass ein Teil gar keine Zuordnung traegt und trotzdem umbenannt wird.
+const gemischtFrage = W.avesmapsWikiAssignWegGruppeLoesenFrage("Reichsstraße 2", 67, 18);
+assert.ok(gemischtFrage.includes("allen 67 Abschnitten") && gemischtFrage.includes("18 davon tragen keine Zuordnung")
+	&& gemischtFrage.includes("ebenfalls einen generischen Namen"), gemischtFrage);
+assert.ok(W.avesmapsWikiAssignWegGruppeLoesenFrage("Reichsstraße 2", 3, 1).includes("1 davon trägt keine Zuordnung"), "Einzahl");
+assert.strictEqual(W.avesmapsWikiAssignWegGruppeLoesenFrage("Reichsstraße 2", 10, 0), frage, "eine einige Strasse: dieselbe Frage wie bisher");
 
 console.log("wiki-assign-weg-gruppe.test.js: ok");
