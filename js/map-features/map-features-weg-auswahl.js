@@ -1,5 +1,6 @@
 // Die Klickfolge auf der KARTE (Entwurf 2026-09-14 §3): der erste Klick markiert die ganze Strasse, der zweite
-// den Abschnitt. Die Regel steht rein in weg-auswahl.js; hier nur Zustand, Linienfarbe und Aufheben.
+// den Abschnitt. Die Regel steht rein in weg-auswahl.js; hier nur Zustand, Linienfarbe, Aufheben und der Klick auf
+// den NAMEN eines Wiki-Wegs (Nachtrag 2026-09-14-wege-mehrfachzuweisung-design.md §9.4).
 // 🔴 NUR IM BEARBEITEN-MODUS. Besucher klicken wie bisher (E4 gilt dem Bearbeiten).
 // ⚠️ Normales Skript, NICHT in <template data-nur-editor>: der Klick-Zuhoerer in
 // map-features-path-rendering.js nennt diese Namen, und der laedt fuer jeden (nur-editor-skripte.test.js).
@@ -90,6 +91,66 @@ function avesmapsWegAuswahlAufheben() {
 	}
 }
 
+/**
+ * Laeuft gerade etwas, das einen Karten-Klick fuer sich braucht (Nachtrag 2026-09-14-wege-mehrfachzuweisung-design.md §9.4)?
+ * 🔴 KEINE ZWEITE KLASSENLISTE: die Werkzeuge stehen in TOOL_CLASSES (js/app/keyboard-shortcuts.js, `toolActive`),
+ * dazu die drei Zustaende, die keine Klasse an den Kartencontainer haengen.
+ * ⚠️ Fehlt das Tastatur-Modul, faellt der Riegel GESCHLOSSEN aus: ein stummer Name ist der alte Zustand, ein
+ * Namensklick mitten in einem Werkzeug waere ein neuer Fehler.
+ */
+function avesmapsWegWerkzeugLaeuft() {
+	const tastatur = typeof window !== "undefined" ? window.avesmapsKeyboardShortcuts : null;
+	if (!tastatur || typeof tastatur.toolActive !== "function") { return true; }
+	if (tastatur.toolActive()) { return true; }
+	if (typeof window !== "undefined" && window.__pathAssignPending) { return true; }
+	if (typeof activePathGeometryEdit !== "undefined" && activePathGeometryEdit) { return true; }
+	const menue = typeof document !== "undefined" && typeof document.getElementById === "function"
+		? document.getElementById("map-context-menu")
+		: null;
+	return Boolean(menue && menue.hidden === false);
+}
+
+/** Welcher Abschnitt wird mit diesem Karten-Klick ueber seinen NAMEN angeklickt? Sonst null. */
+function avesmapsWegNamenKlickZiel(event) {
+	if (typeof IS_EDIT_MODE === "undefined" || !IS_EDIT_MODE || !event || !event.containerPoint || !event.latlng) { return null; }
+	if (typeof window === "undefined" || typeof window.avesmapsWegNamenTreffer !== "function") { return null; }
+	if (avesmapsWegWerkzeugLaeuft()) { return null; }
+	const treffer = window.avesmapsWegNamenTreffer(event.containerPoint);
+	const wikiKey = treffer && treffer.wikiKey ? String(treffer.wikiKey) : "";
+	if (!wikiKey || typeof avesmapsWegGruppenAufKarte !== "function" || typeof findPathByPublicId !== "function") { return null; }
+	const gruppe = avesmapsWegGruppenAufKarte().nachKey.get("wiki:" + wikiKey);
+	if (!gruppe) { return null; }
+	const abschnitte = gruppe.segments.map((way) => {
+		const pfad = findPathByPublicId(way.public_id);
+		return { public_id: way.public_id, koordinaten: pfad && pfad.geometry ? pfad.geometry.coordinates : [] };
+	});
+	// ⚠️ GeoJSON-Ordnung: Leaflets latlng ist [y, x].
+	const id = avesmapsWegNaechsterAbschnitt(abschnitte, [event.latlng.lng, event.latlng.lat]);
+	return id ? findPathByPublicId(id) : null;
+}
+
+/**
+ * 💣 DER EINE KARTEN-KLICK-ZUHOERER DER WEGE-AUSWAHL (Nachtrag §9.4). Ein Namenstreffer loest den Linien-Klick aus, sonst
+ * hebt der Klick die Markierung auf. Zwei getrennte Zuhoerer hingen an ihrer Registrierungsreihenfolge: die Markierung
+ * verschwaende im selben Klick wieder, oder der zweite Klick fiele immer auf „ganze Strasse" zurueck.
+ * ⭐ Kein zweiter Code-Pfad: `fire("click")` an der Mittellinie faehrt denselben Zuhoerer wie ein Klick auf die Linie
+ * (createPathLayer) -- Wiki-Ziel-Pick, Schiedsrichter, Auswahl, Infopanel.
+ */
+function avesmapsWegKartenKlick(event) {
+	const pfad = avesmapsWegNamenKlickZiel(event);
+	const mitte = pfad && Array.isArray(pfad._pathLines) ? pfad._pathLines[1] : null;
+	if (mitte && typeof mitte.fire === "function") {
+		mitte.fire("click", {
+			latlng: event.latlng,
+			layerPoint: event.layerPoint,
+			containerPoint: event.containerPoint,
+			originalEvent: event.originalEvent,
+		});
+		return;
+	}
+	avesmapsWegAuswahlAufheben();
+}
+
 /** Die Auswahl, wenn DIESER Pfad markiert ist (als Abschnitt oder als Teil der ganzen Strasse); sonst null. */
 function avesmapsWegAuswahlFuerPfad(path) {
 	const id = typeof getPathPublicId === "function" ? getPathPublicId(path) : "";
@@ -108,14 +169,16 @@ function avesmapsWegAuswahlVerdrahten() {
 	if (avesmapsWegAuswahlVerdrahtet || typeof IS_EDIT_MODE === "undefined" || !IS_EDIT_MODE) { return; }
 	if (typeof map === "undefined" || !map || typeof map.on !== "function") { return; }
 	avesmapsWegAuswahlVerdrahtet = true;
-	// Ein Klick daneben hebt die Markierung auf (§3.1). Ein Klick AUF einen Weg erreicht die Karte nicht:
-	// beide Linien tragen `bubblingMouseEvents: false` (createPathLayer).
-	map.on("click", avesmapsWegAuswahlAufheben);
+	// Ein Klick daneben hebt die Markierung auf (§3.1), ein Klick auf den NAMEN eines Wiki-Wegs markiert (Nachtrag §9.4) --
+	// beides in EINEM Zuhoerer. Ein Klick AUF eine Linie erreicht die Karte nicht: beide Linien tragen
+	// `bubblingMouseEvents: false` (createPathLayer).
+	map.on("click", avesmapsWegKartenKlick);
 }
 
 if (typeof module !== "undefined" && module.exports) {
 	module.exports = {
 		avesmapsWegAuswahlKlick, avesmapsWegAuswahlAufheben, avesmapsWegAuswahlFuerPfad,
 		avesmapsWegAuswahlGruppenPfade, avesmapsWegAuswahlStilNachziehen, avesmapsWegAuswahlVerdrahten,
+		avesmapsWegWerkzeugLaeuft, avesmapsWegNamenKlickZiel, avesmapsWegKartenKlick,
 	};
 }

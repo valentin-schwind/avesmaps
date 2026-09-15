@@ -1368,27 +1368,37 @@
 	let labelCursorActive = false;
 	let labelCursorLastCheck = 0;
 	map.on("mousemove", (event) => {
-		// Kein „klickbares Label"-Cursor-Feedback im Karten-Editor (siehe click-Handler oben).
-		if (typeof IS_EDIT_MODE !== "undefined" && IS_EDIT_MODE) {
-			return;
-		}
-		if (cssZoomActive) {
-			return; // Register haelt waehrend der CSS-Zoom-Animation veraltete Vor-Zoom-Container-px (redraw pausiert)
-		}
-		// ⚠️ Ein anklickbarer Name, der aussieht wie unbeweglicher Text, ist eine halbe Reparatur --
-		// das Kurvenlabel bekommt denselben Hand-Zeiger wie die Wegnamen. `?waylabels=0` schaltet
-		// deshalb nur noch die Wegnamen ab, nicht mehr den ganzen Zeiger.
-		const wegRegister = wayLabelsEnabled ? wayLabelClickRegister : [];
-		if (!wegRegister.length && !kurvenlabelClickRegister.length) {
-			// Leere Register (Zoom unter minZoom, Toggle aus, keine Daten): einen noch aktiven
-			// pointer-Cursor SOFORT zuruecksetzen statt nur frueh rauszuspringen -- sonst klebt der
-			// Finger-Cursor bis zum naechsten Treffer-Test mit wieder gefuelltem Register.
-			if (labelCursorActive) {
-				labelCursorActive = false;
-				if (map.getContainer().style.cursor === "pointer") {
-					map.getContainer().style.cursor = "";
-				}
+		// Eine noch aktive Hand zuruecknehmen -- EINE Stelle fuer beide Ausstiege darunter (Werkzeugstart, leere
+		// Register). Nur die eigene Hand: ein anderer Cursor (Leaflets grab/grabbing) bleibt stehen.
+		const handZuruecknehmen = () => {
+			if (!labelCursorActive) {
+				return;
 			}
+			labelCursorActive = false;
+			if (map.getContainer().style.cursor === "pointer") {
+				map.getContainer().style.cursor = "";
+			}
+		};
+		// 🔴 IM KARTEN-EDITOR NUR DIE WEGNAMEN (Nachtrag docs/superpowers/specs/2026-09-14-wege-mehrfachzuweisung-design.md
+		// §9.4): ein Klick auf den Namen eines Wiki-Wegs markiert dort die Strasse (map-features-weg-auswahl.js), also
+		// bekommt er die Hand. Die Kurvenlabels bleiben im Editor stumm -- der click-Handler oben tritt dort zurueck.
+		const editor = typeof IS_EDIT_MODE !== "undefined" && IS_EDIT_MODE;
+		const werkzeug = editor && (typeof avesmapsWegWerkzeugLaeuft !== "function" || avesmapsWegWerkzeugLaeuft());
+		if (cssZoomActive || werkzeug) {
+			// 💣 Eine stehengebliebene Inline-Hand schluege die Cursor-Klasse des Werkzeugs (path-creation-cursor,
+			// leaflet-crosshair) -- beim Werkzeugstart wird sie zurueckgenommen.
+			if (werkzeug) {
+				handZuruecknehmen();
+			}
+			return; // waehrend der CSS-Zoom-Animation haelt das Register veraltete Vor-Zoom-Container-px (redraw pausiert)
+		}
+		// ⚠️ Ein anklickbarer Name, der aussieht wie unbeweglicher Text, ist eine halbe Reparatur -- das Kurvenlabel
+		// bekommt fuer Besucher dieselbe Hand wie die Wegnamen. `?waylabels=0` schaltet nur die Wegnamen ab.
+		const wegRegister = wayLabelsEnabled ? wayLabelClickRegister : [];
+		const kurvenRegister = editor ? [] : kurvenlabelClickRegister;
+		if (!wegRegister.length && !kurvenRegister.length) {
+			// Leere Register: eine noch aktive Hand SOFORT zuruecksetzen, sonst klebt sie bis zum naechsten Treffer-Test.
+			handZuruecknehmen();
 			return;
 		}
 		const now = Date.now();
@@ -1397,14 +1407,12 @@
 		}
 		labelCursorLastCheck = now;
 		const over = Boolean(wayLabelHitTest(wegRegister, event.containerPoint)
-			|| wayLabelHitTest(kurvenlabelClickRegister, event.containerPoint));
+			|| wayLabelHitTest(kurvenRegister, event.containerPoint));
 		if (over === labelCursorActive) {
 			return;
 		}
 		labelCursorActive = over;
-		// Nur setzen/zuruecksetzen, wenn NICHTS anderes gerade den Cursor beansprucht (z. B. Leaflets
-		// grab/grabbing beim Draggen) -- auf "" zuruecksetzen wuerde einen aktiven Griff-Cursor sonst
-		// mitten im Drag ueberschreiben.
+		// Nur setzen/zuruecksetzen, wenn NICHTS anderes gerade den Cursor beansprucht (z. B. Leaflets grab/grabbing).
 		if (over) {
 			map.getContainer().style.cursor = "pointer";
 		} else if (map.getContainer().style.cursor === "pointer") {
@@ -1499,6 +1507,16 @@
 	map.on("zoom", function () { if (!cssZoomActive) redraw(); });
 
 	window.AvesmapsPathLabelCanvasOverlay = { redraw, paneName: PANE };
+	// Nachtrag docs/superpowers/specs/2026-09-14-wege-mehrfachzuweisung-design.md §9.4: der Namenstreffer fuer den
+	// Karten-Klick der Wege-Auswahl (js/map-features/map-features-weg-auswahl.js). NUR der Registertreffer -- welche
+	// Regel gilt (Bearbeiten-Modus, Werkzeug, Pick), entscheidet die Wege-Auswahl, nicht dieses Overlay.
+	// Waehrend der CSS-Zoom-Animation haelt das Register veraltete Pixel, mit ?waylabels=0 ist es leer.
+	window.avesmapsWegNamenTreffer = function (containerPoint) {
+		if (cssZoomActive || !wayLabelsEnabled) {
+			return null;
+		}
+		return wayLabelHitTest(wayLabelClickRegister, containerPoint);
+	};
 	// Erst-/Nachzieh-Redraws, falls die Pfad-Daten erst nach Overlay-Init geladen werden.
 	[120, 400, 1000].forEach((delay) => window.setTimeout(redraw, delay));
 	// Sobald die App-Schrift (Faculty Glyphic) geladen ist, neu zeichnen -> kein Fallback-Font beim Erst-Paint.

@@ -752,11 +752,13 @@ function baueZeiger({ kurvenRegister = [], wegRegister = [], editMode = false, w
 	const container = { style: { cursor: "" } };
 	let handler = null;
 	const map = { on: (typ, fn) => { if (typ === "mousemove") { handler = fn; } }, getContainer: () => container };
+	// ⚠️ `avesmapsWegWerkzeugLaeuft` steht bereit (kein Werkzeug): ohne sie fiele der Bearbeiten-Modus auf den
+	// geschlossenen Rueckfall „Werkzeug laeuft“, und der Fall unten pruefte nicht mehr die Kurvenlabel-Regel.
 	new Function(
 		"map", "IS_EDIT_MODE", "cssZoomActive", "wayLabelsEnabled", "wayLabelClickRegister",
-		"kurvenlabelClickRegister", "wayLabelHitTest",
+		"kurvenlabelClickRegister", "wayLabelHitTest", "avesmapsWegWerkzeugLaeuft",
 		zeigerQuelle
-	)(map, editMode, false, wegLabelsAn, wegRegister, kurvenRegister, wayLabelHitTestEcht);
+	)(map, editMode, false, wegLabelsAn, wegRegister, kurvenRegister, wayLabelHitTestEcht, () => false);
 	assert.ok(typeof handler === "function", "der Zuhoerer wurde am mousemove angemeldet");
 	return { bewege: (x, y) => handler({ containerPoint: { x, y } }), container };
 }
