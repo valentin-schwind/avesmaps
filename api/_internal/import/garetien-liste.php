@@ -641,6 +641,8 @@ function avesmapsGaretienArbeitslisteObjekte(PDO $pdo, int $importRunId): array
     $entscheidungen = avesmapsSyncPlanDecisions($pdo, AVESMAPS_GARETIEN_PLAN_KIND);
 
     $gruppen = [];              // Objektschluessel => Liste roher Items
+    // Die Artbezeichnungen der Landschaften -- erst gelesen, wenn eine Landschaft darunter ist (unten).
+    $artBezeichnungen = null;
     $angehaktNeu = 0;
     $angehaktGeaendert = 0;
     foreach ($itemStmt->fetchAll(PDO::FETCH_ASSOC) as $roh) {
@@ -649,6 +651,25 @@ function avesmapsGaretienArbeitslisteObjekte(PDO $pdo, int $importRunId): array
         $after = json_decode((string) ($roh['after_json'] ?? ''), true);
         $before = json_decode((string) ($roh['before_json'] ?? ''), true);
         $entscheidungsSchluessel = avesmapsSyncPlanDecisionKey($entityKey, $changeType);
+        // 🔴 „QUELLE UND NAMEN ERGAENZEN" (Owner 15.09.2026): TRAEGT DIESER ABSCHNITT EINEN PLATZHALTER?
+        // Im LESEPFAD gerechnet, nicht im Planbau: so gilt es auch fuer den Lauf, der schon in der
+        // Datenbank steht, und die Artbezeichnungen der Landschaften, die die Regel braucht, liegen hier und
+        // nicht im reinen Planbau. Gefragt wird DIESELBE Regel, die der Server beim Import frisch prueft
+        // (avesmapsGaretienNameIstPlatzhalter) -- der Browser liest nur das Feld und bietet danach die Wahl an.
+        // ⚠️ Gemessen am Namen des STICHTAGS (`after.abschnitt.name`). Wurde „Wald-190" seither benannt,
+        // bietet die Liste die Wahl noch an, und der Import weist sie ab -- die sichere Richtung.
+        // ⚠️ Der Katalog wird hoechstens EINMAL je Listenbau gelesen, und nur, wenn eine Landschaft darunter ist.
+        if ($changeType === 'changed' && is_array($after) && is_array($after['abschnitt'] ?? null)) {
+            $zielDesItems = (string) ($after['ziel'] ?? '');
+            if ($zielDesItems === 'region') {
+                $artBezeichnungen ??= avesmapsGaretienArtBezeichnungen($pdo);
+            }
+            $after['abschnitt']['platzhalter'] = avesmapsGaretienNameIstPlatzhalter(
+                $zielDesItems,
+                (string) ($after['abschnitt']['name'] ?? ''),
+                $artBezeichnungen ?? []
+            );
+        }
 
         $gruppen[avesmapsGaretienObjektSchluessel($entityKey)][] = [
             'id' => (int) $roh['id'],
@@ -757,6 +778,10 @@ function avesmapsGaretienArbeitslisteObjekte(PDO $pdo, int $importRunId): array
                     // avesmapsGaretienAbschnittsEintrag, garetien-plan.php). Faellt sie an EINER
                     // der beiden Stellen weg, kappt der Server still -- AGENTS.md §9.
                     'verworfene_teile' => (int) ($abschnitt['verworfene_teile'] ?? 0),
+                    // 🔴 Und der Platzhalter-Befund (15.09.2026, oben am Item gerechnet). Dieselbe Falle wie bei
+                    // `verworfene_teile`: diese Liste ist eine AUSDRUECKLICHE Abschrift, und ein Feld, das hier
+                    // fehlt, verlaesst die Tuer nicht -- der Browser boete „Quelle und Namen ergaenzen" nie an.
+                    'platzhalter' => ($abschnitt['platzhalter'] ?? false) === true,
                 ];
             }
         }
@@ -902,6 +927,13 @@ function avesmapsGaretienArbeitslisteObjekte(PDO $pdo, int $importRunId): array
                     'before_name' => $item['before']['name'] ?? null,
                     'after_name' => $item['after']['name'] ?? null,
                     'abschnitt' => $item['after']['abschnitt'] ?? null,
+                    // 🔴 „QUELLE UND NAMEN ERGAENZEN" (15.09.2026): hat DIESES Item beim Uebernehmen auch einen
+                    // Namen geschrieben? Die Rueckfrage vor ↩ muss es sagen -- „das Objekt bleibt unveraendert"
+                    // waere dort eine Falschaussage. Gelesen am Vermerk selbst, nie hergeleitet.
+                    // ⚠️ Nur fuer den LAUFENDEN Lauf ehrlich: nach „Holen & Rechnen" traegt das frische Item
+                    // keinen Vermerk. ↩ gibt den Namen trotzdem zurueck (avesmapsGaretienNameVermerkZumItem).
+                    'name_ergaenzt' => ($item['apply_state'] ?? null) === 'done'
+                        && avesmapsGaretienTraegtNameVermerk((string) ($item['apply_note'] ?? '')),
                 ];
             }, $items),
             'stand' => avesmapsGaretienListeObjektStand(array_map(static fn(array $item): array => [

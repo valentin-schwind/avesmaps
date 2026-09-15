@@ -7533,7 +7533,11 @@
 	// ⚠️ DIE WAHL ÜBERLEBT DAS HERUNTERNEHMEN (sie hängt am Einstellungsschlüssel, nicht am Markup) --
 	// aber nicht „Stage leeren" und keinen neuen Lauf: garetienZielwahlVergessen gehört zu den
 	// `…Vergessen`-Funktionen, die dort gerufen werden (Entwurf §6.4).
-	const AVESMAPS_GARETIEN_ZIELE = ["karte", "staette", "nur_quelle", "ergaenzen", "zusaetzlich", "nichts"];
+	// 🔴 „ergaenzen_name" (Owner 15.09.2026): „Quelle und Namen ergänzen" -- NUR, wenn jeder Abschnitt der
+	// Ergänzung einen PLATZHALTERNAMEN trägt (garetienErgaenzungAllePlatzhalter). Er steht direkt hinter
+	// „ergaenzen", weil er dieselben Items nimmt und nur den Namen dazulegt. Die Vorbelegung bleibt „ergaenzen":
+	// keine Automatik, der Importer schlägt vor, er entscheidet nicht.
+	const AVESMAPS_GARETIEN_ZIELE = ["karte", "staette", "nur_quelle", "ergaenzen", "ergaenzen_name", "zusaetzlich", "nichts"];
 
 	let _garetienZielwahl = {};
 
@@ -7563,6 +7567,39 @@
 		});
 	}
 
+	/*
+	 * REIN: tragen ALLE Abschnitte, an denen die Ergänzung hängt, einen PLATZHALTERNAMEN („Wald-190",
+	 * „Pfad-5372")? Nur dann gibt es „Quelle und Namen ergänzen" (Owner 15.09.2026).
+	 *
+	 * 🔴 DIE REGEL STEHT AM SERVER (avesmapsGaretienNameIstPlatzhalter, garetien-uebernahme.php): sie braucht
+	 * den Artenkatalog der Landschaften, und den hat der Browser nicht. Hier wird nur das Feld `platzhalter`
+	 * gelesen, das die Liste je Abschnitt mitschickt (garetien-liste.php). Eine Griff-Regel im Browser wäre
+	 * die dritte Fassung neben Kartensuche und Leser-Namen.
+	 * 🔴 ALLE, NICHT EINER -- dieselbe Menge wie garetienErgaenzungZiel (die Abschnitte der Ergänzungs-Items).
+	 * Ein Weg aus „Pfad-5372" und „Alkenstieg" bekommt die Wahl nicht: sie schriebe an einem echten Namen
+	 * vorbei, und der Server wiese genau dieses Item ab.
+	 * ⚠️ Nur ein echtes `true` zählt, und ein Item ohne Abschnittskennung macht die Antwort `false` -- die
+	 * sichere Richtung. Der Server prüft beim Import ohnehin frisch.
+	 * ⚠️ Der Befund am Item gewinnt vor dem am Objekt: manche Antworten tragen am Item nur die `public_id`,
+	 * dann gilt der Abschnitt aus `objekt.abschnitte` (dieselbe Ordnung wie beim Namen in garetienErgaenzungZiel).
+	 */
+	function garetienErgaenzungAllePlatzhalter(objekt) {
+		const o = objekt || {};
+		const jeId = {};
+		(o.abschnitte || []).forEach(function (a) {
+			const pid = String((a && a.public_id) || "");
+			if (pid !== "") { jeId[pid] = a.platzhalter === true; }
+		});
+		const items = garetienQuelleItems(o);
+		if (items.length === 0) { return false; }
+		return items.every(function (item) {
+			const a = (item && item.abschnitt) || null;
+			const pid = String((a && a.public_id) || "");
+			if (pid === "") { return false; }
+			return (a && typeof a.platzhalter === "boolean") ? a.platzhalter : jeId[pid] === true;
+		});
+	}
+
 	// REIN: die Items, die ein NEUES Objekt anlegen -- die echten Neu-Items, und NUR wenn es keine
 	// gibt, das Zusatz-Item.
 	// 🔴 DER RIEGEL VOM 30.08.2026 STEHT DAMIT AN EINER STELLE: ein Objekt, das sich deckt, legt über
@@ -7589,6 +7626,8 @@
 			staette: innerorts,
 			nur_quelle: innerorts,
 			ergaenzen: ergaenzung,
+			// 🔴 Nur mit Platzhaltern (15.09.2026) -- sonst schriebe die Wahl an einem echten Namen vorbei.
+			ergaenzen_name: ergaenzung && garetienErgaenzungAllePlatzhalter(objekt),
 			zusaetzlich: karte && ergaenzung,
 			nichts: true,
 		};
@@ -7615,7 +7654,13 @@
 	function garetienZieleMoeglich(objekt) {
 		const menge = garetienZieleMoeglichMenge(objekt);
 		const vorne = garetienZielwahlVorbelegung(objekt);
-		return [vorne].concat(menge.filter(function (wert) { return wert !== vorne; }));
+		const rest = menge.filter(function (wert) { return wert !== vorne; });
+		// 🔴 „Quelle und Namen ergänzen" steht DIREKT UNTER „Quelle an X ergänzen" (15.09.2026): beide nehmen
+		// dieselben Items, und „Auf die Karte" dazwischen trennte zwei Fassungen derselben Handlung.
+		if (vorne === "ergaenzen" && rest.indexOf("ergaenzen_name") !== -1) {
+			return ["ergaenzen", "ergaenzen_name"].concat(rest.filter(function (wert) { return wert !== "ergaenzen_name"; }));
+		}
+		return [vorne].concat(rest);
 	}
 
 	// REIN: die gespeicherte Wahl -- sonst die Vorbelegung.
@@ -7676,6 +7721,9 @@
 		case "nur_quelle":
 			return garetienZielKarteItems(objekt);
 		case "ergaenzen":
+		// 🔴 „Quelle und Namen ergänzen" nimmt DIESELBEN Items -- der Name reist im Rumpf je Item
+		// (garetienStageEinstellungenJeItem), nicht als eigenes Item.
+		case "ergaenzen_name":
 			return garetienQuelleItems(objekt);
 		case "zusaetzlich":
 			return garetienZielKarteItems(objekt).concat(garetienQuelleItems(objekt));
@@ -7951,6 +7999,14 @@
 		return felder.length === 1 && String(felder[0]) === "quelle";
 	}
 
+	// REIN: hat dieses Item beim Übernehmen AUCH einen Platzhalternamen ersetzt („Quelle und Namen ergänzen",
+	// 15.09.2026)? Der Server liest es am Vermerk (`name_ergaenzt`, garetien-liste.php).
+	// ⚠️ Die Felder bleiben dabei ['quelle'] -- garetienItemIstQuelleNur gilt unverändert; nur die Rückfrage vor
+	// ↩ sagt mehr.
+	function garetienItemNameErgaenzt(item) {
+		return Boolean(item) && item.name_ergaenzt === true;
+	}
+
 	// 💣 „UEBERNOMMEN" HAT ZWEI QUELLEN, UND HIER STAND NUR EINE. `apply_state === "done"`
 	// gilt nur fuer den GERADE laufenden Lauf; `applied` ist der dauerhafte Vermerk aus
 	// `sync_decision`, der ein „Holen & Rechnen" ueberlebt. Nach einem frischen Lauf stand ein
@@ -8205,6 +8261,18 @@
 					+ "Unser Objekt bleibt, wie es ist.",
 				warn: false,
 			};
+		// 🔴 „Quelle und Namen ergänzen" (Owner 15.09.2026): dieselbe Ergänzung, und der Platzhalter
+		// bekommt den Namen aus dem Namensfeld darunter.
+		case "ergaenzen_name":
+			return {
+				t1: bestand !== "" ? "Quelle und Namen an " + bestand + " ergänzen"
+					: "Quelle und Namen am bestehenden Objekt ergänzen",
+				t2: (ziel.abschnitte > 0
+					? "An " + garetienAnzahlText(ziel.abschnitte, "Abschnitt", "Abschnitte") + ". " : "")
+					+ (bestand !== "" ? bestand + " ist ein Platzhalter und heißt danach wie im Namensfeld."
+						: "Die Platzhalter heißen danach wie im Namensfeld."),
+				warn: false,
+			};
 		case "zusaetzlich":
 			return {
 				t1: "Auf die Karte — zusätzlich zu " + (bestand !== "" ? bestand : "dem bestehenden Objekt"),
@@ -8234,6 +8302,9 @@
 		case "nur_quelle":
 			return "gilt nicht für „Nur Quelle + Artikel“";
 		case "ergaenzen":
+		// ⚠️ Auch „Quelle und Namen ergänzen": Form, Art und Darstellung gehören dem bestehenden Objekt --
+		// nur das Namensfeld gilt (garetienZielNameZeile).
+		case "ergaenzen_name":
 			return "gilt nicht für eine Ergänzung";
 		default:
 			return "wird nicht importiert";
@@ -8280,7 +8351,10 @@
 		if (String(o.stand || "") !== "offen" || !avesmapsGaretienStageHat(o.key)) { return ""; }
 		if (garetienZieleMoeglichMenge(o).length === 1) { return ""; }
 		const zielwahl = garetienZielwahlZu(o);
-		const aus = !(zielwahl === "karte" || zielwahl === "zusaetzlich" || zielwahl === "staette");
+		// 🔴 „Quelle und Namen ergänzen" (15.09.2026) braucht den Namen -- dasselbe Feld samt Importwert und ↺
+		// wie bei „Auf die Karte".
+		const aus = !(zielwahl === "karte" || zielwahl === "zusaetzlich" || zielwahl === "staette"
+			|| zielwahl === "ergaenzen_name");
 		const name = garetienNameFuerImport(o);
 		// 🔴 Der Importwert über der Zeile (Owner 15.09.2026) -- nur, wo das Feld überhaupt gilt.
 		const importName = garetienNameImportwert(o);
@@ -8305,11 +8379,13 @@
 		if (zielwahl === "nichts") { return "nur Ansicht"; }
 		if (zielwahl === "staette") { return "Stätte in „" + garetienInnerortsZiel(objekt).name + "“"; }
 		if (zielwahl === "nur_quelle") { return "nur Quelle an „" + garetienInnerortsZiel(objekt).name + "“"; }
-		if (zielwahl === "ergaenzen") {
+		if (zielwahl === "ergaenzen" || zielwahl === "ergaenzen_name") {
 			const ziel = garetienErgaenzungZiel(objekt);
 			const zahl = ziel.abschnitte > 0 ? garetienAnzahlText(ziel.abschnitte, "Abschnitt", "Abschnitte") : "";
-			if (ziel.name !== "") { return "Quelle an „" + ziel.name + "“" + (zahl !== "" ? " (" + zahl + ")" : ""); }
-			return zahl !== "" ? "Quelle an " + zahl : "Quelle am bestehenden Objekt";
+			// „Quelle + Name an „Wald-190"" -- dieselbe Zeile, der Name kommt dazu (15.09.2026).
+			const was = zielwahl === "ergaenzen_name" ? "Quelle + Name" : "Quelle";
+			if (ziel.name !== "") { return was + " an „" + ziel.name + "“" + (zahl !== "" ? " (" + zahl + ")" : ""); }
+			return zahl !== "" ? was + " an " + zahl : was + " am bestehenden Objekt";
 		}
 		const formKey = String(garetienZielWahlZu(objekt).ziel || "");
 		const form = (AVESMAPS_GARETIEN_FORMEN.filter(function (f) { return f.key === formKey; })[0] || {}).label || "";
@@ -9344,6 +9420,15 @@
 			return String((item && item.change_type) || "") === "changed";
 		});
 
+		// 🔴 „QUELLE UND NAMEN ERGÄNZEN" (15.09.2026): ↩ gibt auch den Namen zurück (Owner). Ob ein Item einen
+		// Namen mitgeschrieben hat, sagt der Server am Item (garetienItemNameErgaenzt) -- „das Objekt selbst
+		// bleibt unverändert" wäre sonst die Falschaussage in genau der Rückfrage, auf die es ankommt.
+		if (nurQuelle && items.some(garetienItemNameErgaenzt)) {
+			return "Die Quellenangabe von garetien.de an „" + name + "“ wird entfernt, und der beim Import "
+				+ "ergänzte Name fällt auf den Platzhalter zurück. Heißt das Objekt inzwischen anders, wird "
+				+ "nichts zurückgenommen.\n\n"
+				+ garetienRuecknahmeZielSatz(auchAblehnen) + " Fortfahren?";
+		}
 		if (nurQuelle) {
 			return "Die Quellenangabe von garetien.de an „" + name + "“ wird entfernt — das Objekt "
 				+ "selbst bleibt unverändert auf der Karte.\n\n"
@@ -9541,7 +9626,15 @@
 		});
 		const nurQuelle = liste.filter(function (o) {
 			const items = garetienRuecknahmeItems(o);
-			return items.length > 0 && String((items[0] && items[0].change_type) || "") === "changed";
+			return items.length > 0 && String((items[0] && items[0].change_type) || "") === "changed"
+				&& !items.some(garetienItemNameErgaenzt);
+		});
+		// 🔴 „QUELLE UND NAMEN ERGÄNZEN" (15.09.2026): diese Objekte bekommen AUCH ihren Platzhalter zurück -- der
+		// Satz „die Objekte bleiben unverändert" gilt für sie nicht und wird deshalb getrennt gezählt.
+		const mitName = liste.filter(function (o) {
+			const items = garetienRuecknahmeItems(o);
+			return items.length > 0 && String((items[0] && items[0].change_type) || "") === "changed"
+				&& items.some(garetienItemNameErgaenzt);
 		});
 
 		const teile = [];
@@ -9561,6 +9654,10 @@
 		if (nurQuelle.length > 0) {
 			teile.push("bei " + garetienAnzahlText(nurQuelle.length, "Objekt", "Objekten")
 				+ " wird nur die Quellenangabe entfernt — die Objekte bleiben unverändert auf der Karte");
+		}
+		if (mitName.length > 0) {
+			teile.push("bei " + garetienAnzahlText(mitName.length, "Objekt", "Objekten")
+				+ " werden Quellenangabe und ergänzter Name zurückgenommen — sie heißen danach wieder wie ihr Platzhalter");
 		}
 		const was = teile.length > 0
 			? teile.join("; ")
@@ -10189,6 +10286,11 @@
 			// tragen `beides: true` (avesmapsGaretienBeidesRiegel). Ohne diese Ausnahme wiese der Riegel
 			// genau die Wahl ab, die ihn braucht.
 			const beides = garetienZielwahlZu(objekt) === "zusaetzlich";
+			// 🔴 „QUELLE UND NAMEN ERGÄNZEN" (15.09.2026): jedes Ergänzungs-Item trägt `name_ergaenzen` UND den Namen.
+			// 💣 DER NAME REIST IMMER, auch wenn er dem Importwert gleicht -- anders als in
+			// garetienEingabenFuerServer. Dort heißt ein fehlender Name „nimm die Vorgabe des Servers" (bei einem
+			// Verbund den Stamm); an einer Ergänzung gibt es keine Vorgabe, und der Server wiese das Item ab.
+			const nameErgaenzen = garetienZielwahlZu(objekt) === "ergaenzen_name";
 			garetienStageItems(objekt).forEach(function (item) {
 				const id = Number(item && item.id);
 				if (!(id > 0)) { return; }
@@ -10203,6 +10305,8 @@
 				// `avesmapsGaretienZielUebersteuern` die Geometrie eines BESTEHENDEN Objekts um (siehe die
 				// Verengung oben). `{beides: true}` trägt weder `ziel` noch `name`.
 				if (beides) { raus[String(id)] = { beides: true }; }
+				// 💣 Auch hier NIE `ziel`: nur der Auftrag und der Name -- den Platzhalter prüft der Server frisch.
+				if (nameErgaenzen) { raus[String(id)] = { name_ergaenzen: true, name: garetienNameFuerImport(objekt) }; }
 			});
 		});
 		return raus;
@@ -11434,6 +11538,9 @@
 			garetienZielKarteItems,
 			garetienErgaenzungZiel,
 			garetienQuelleItems,
+			// 15.09.2026: „Quelle und Namen ergänzen"
+			garetienErgaenzungAllePlatzhalter,
+			garetienItemNameErgaenzt,
 			garetienInnerortsWahlSetzen,
 			garetienNameWahlZu,
 			garetienNameWahlSetzen,

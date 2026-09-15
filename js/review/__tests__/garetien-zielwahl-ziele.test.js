@@ -90,8 +90,11 @@ function feldEreignis(feld, wert) {
 // =================================================================================================
 // A. Die Konstante, die Namen -- und was gefallen ist
 // =================================================================================================
-tief(api.AVESMAPS_GARETIEN_ZIELE, ["karte", "staette", "nur_quelle", "ergaenzen", "zusaetzlich", "nichts"],
-	"die sechs Zielwerte des Vertrags, in dieser Reihenfolge");
+// 🔴 SEIT DEM 15.09.2026 SIEBEN: „ergaenzen_name" („Quelle und Namen ergänzen", nur bei Platzhalternamen) steht
+// direkt hinter „ergaenzen". Er taucht an den drei Lagen dieser Datei nie auf -- keine trägt einen Platzhalter;
+// seine eigenen Zusicherungen stehen in garetien-name-ergaenzen.test.js.
+tief(api.AVESMAPS_GARETIEN_ZIELE, ["karte", "staette", "nur_quelle", "ergaenzen", "ergaenzen_name", "zusaetzlich", "nichts"],
+	"die sieben Zielwerte des Vertrags, in dieser Reihenfolge");
 frisch();
 gleich(typeof api.garetienZielwahlZu(natter()), "string",
 	"💣 garetienZielwahlZu (kleines w) ist das ZIEL und liefert eine Zeichenkette");

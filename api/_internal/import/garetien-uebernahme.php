@@ -24,6 +24,11 @@ require_once __DIR__ . '/../app/ecosystem-display.php';
 // `avesmapsUuidV4`, und die wohnt dort (settlement-places.php bindet sie bewusst nicht selbst ein
 // -- siehe den Kopf jener Datei). Umgedreht wirft die Staetten-Anlage beim ersten Klick.
 require_once __DIR__ . '/../app/settlement-places.php';
+// 🔴 „QUELLE UND NAMEN ERGAENZEN" (15.09.2026) fragt die Griff-Regel der Kartensuche
+// (avesmapsLandscapeSearchAutoNamePattern). Die Datei ist rein -- kein DDL, nichts laeuft beim
+// Einbinden --, und ihre drei Nachbarn holt sie selbst per require_once; ecosystem-naming.php und
+// ecosystem-label-link.php sind ueber ../app/ecosystem.php ohnehin schon geladen.
+require_once __DIR__ . '/../app/landscape-search.php';
 
 // 🔴 ES IST EIN BRIEFSPIEL, KEIN EIGENER TYP (Owner 27.08.2026: „wichtig ist auch die kategorie
 // der quelle ... beispiel Briefspiel (Weiden)"). garetien.de und koschwiki.de sind genau das --
@@ -936,6 +941,625 @@ function avesmapsGaretienFlaecheAufraeumen(PDO $pdo, array $user, int $userId, s
     );
 }
 
+// ---- „Quelle und Namen ergaenzen" (Owner 15.09.2026) ---------------------------------------------
+//
+// Owner, woertlich: „wenn ich "Quelle an „Wald-190" ergänzen" mach - ersetzt es dann auch den namen?
+// … wenn nicht, kannst du - sofern solche fälle auftreten - die Option "Quelle und Namen ergänzen"
+// machen?" Auf Rueckfrage zwei Entscheide: die Option erscheint NUR bei PLATZHALTERNAMEN, und ↩ nimmt
+// Quelle UND Namen zurueck.
+//
+// 🔴 AVESMAPS_GARETIEN_ERSETZEN_ERLAUBT BLEIBT AUS, UND DAS HIER IST KEINE AUFWEICHUNG. „es gibt neu
+// oder nix - kein verändern, kein ersetzen" (31.08.2026) galt einem ECHTEN Namen: der Abgleich hatte
+// unser Dorf „Valpolust" in „Gryffenwacht" umbenannt. Einen Griff wie „Wald-190" oder „Pfad-5372" hat
+// niemand vergeben -- er ist Buchfuehrung der Anlage, die keinem Leser gezeigt wird
+// (ecosystemRegionLeserName). Die Ausnahme ist deshalb ENG und dreifach verriegelt: `felder` ist genau
+// ['quelle'], der Rumpf des Items traegt `name_ergaenzen: true`, und der SERVER prueft den AKTUELLEN
+// Namen frisch gegen die Griff-Regel. Der Browser entscheidet nur, ob er die Wahl ANBIETET.
+//
+// ⚠️ EIN LEERER NAME IST KEIN PLATZHALTER. Das Luecken-Item fuellte ihn frueher, und genau das hat der
+// Owner abgeschaltet („DER NAME BLEIBT DRAUSSEN, AUCH WENN UNSERER LEER IST", Kopf von
+// AVESMAPS_GARETIEN_ERGAENZUNG_FELDER in garetien-plan.php). Zuruecknehmen liesse er sich ohnehin
+// nicht: avesmapsReadFeatureName wirft auf einen leeren Namen.
+
+/** Die Ziele, die einen Platzhalternamen tragen koennen -- Orte und Berggipfel haben keinen Griff. */
+const AVESMAPS_GARETIEN_NAME_ERGAENZEN_ZIELE = ['path', 'region'];
+
+/** Die Art des Vermerks in `apply_note` -- das Merkmal gegen das nackte public_id-Echo einer Ergaenzung. */
+const AVESMAPS_GARETIEN_NAME_VERMERK_ART = 'name_ergaenzt';
+
+/**
+ * 💣 `sync_plan_item.apply_note` ist VARCHAR(300), und avesmapsSyncPlanMarkItem kappt still per
+ * mb_substr. Ein gekappter JSON-Vermerk ist unlesbar -- und ohne Vermerk gibt ↩ den Namen nicht mehr
+ * zurueck. Deshalb wird VOR dem ersten Schreibvorgang gemessen, nie danach.
+ */
+const AVESMAPS_GARETIEN_VERMERK_MAX_ZEICHEN = 300;
+
+/**
+ * 🔴 Der laengste Name, den ALLE beteiligten Hausschreiber unveraendert speichern: Weg und
+ * Beschriftung kappen bei 160 (avesmapsReadFeatureName, avesmapsReadLabelText), die Landschaft erst
+ * bei 190. Ein laengerer Name kaeme gekappt an -- das Ruecklesen schluege an, aber erst NACH dem
+ * Schreiben. Also wird vorher abgewiesen.
+ */
+const AVESMAPS_GARETIEN_NAME_MAX_ZEICHEN = 160;
+
+/**
+ * REIN: ist dieser Name ein PLATZHALTER -- ein maschinell vergebener Griff statt eines Namens?
+ *
+ * 🔴 ZWEI BESTEHENDE REGELN, KEINE DRITTE.
+ *   Weg:        avesmapsWikiPathNameIsGeneric (api/_internal/wiki/path-naming.php) -- dieselbe Antwort,
+ *               die Kartensuche, Konfliktzentrum und Wiki-Abgleich geben („Pfad-5372", „Flussweg").
+ *   Landschaft: avesmapsLandscapeSearchAutoNamePattern (api/_internal/app/landscape-search.php) --
+ *               `<Artbezeichnung>-<Ziffern>` gegen JEDE Art des Katalogs, auch stillgelegte, plus den
+ *               Rueckfall-Griff „Fläche".
+ *
+ * ⚠️ WARUM DIE LANDSCHAFTS-REGEL DER SUCHE UND NICHT DIE DES BROWSERS (ecosystemRegionNameIsGriff). Der
+ * Browser kennt nur die JETZIGE Art der Zeile, weil er keinen Artenkatalog hat -- und ein Griff
+ * ueberlebt jeden Artwechsel („Wald-190" an einer inzwischen als Urwald gefuehrten Region, 12 solche
+ * am 14.09.2026 gemessen). Der Server hat den Katalog. Beide Regeln verlangen dieselbe Form
+ * `^<Griff>-<Ziffern>$`; ein Name, den ein Mensch getippt hat („Wald der Wälder-2"), faellt bei beiden
+ * heraus. Sicher ist sie, weil ein Treffer an ein ARTWORT gebunden ist -- kein Mensch nennt einen Wald
+ * „Sümpfe und Moore-12".
+ * 💣 NICHT avesmapsLandscapeSearchNameIsMachineGiven: die zaehlt einen gesetzten Auto-Name-Merker und
+ * einen LEEREN Namen als maschinell -- fuer „verbergen" die sichere Richtung, fuer „ueberschreiben" die
+ * gefaehrliche. Hier entscheidet NUR die Form des Namens.
+ * ⚠️ Leer ist KEIN Platzhalter (Kopf dieses Abschnitts), und jedes andere Ziel auch nicht.
+ *
+ * @param list<string> $artBezeichnungen ecosystem_region_type.label (avesmapsGaretienArtBezeichnungen)
+ */
+function avesmapsGaretienNameIstPlatzhalter(string $ziel, string $name, array $artBezeichnungen = []): bool
+{
+    $name = trim($name);
+    if ($name === '') {
+        return false;
+    }
+    if ($ziel === 'path') {
+        return avesmapsWikiPathNameIsGeneric($name);
+    }
+    if ($ziel === 'region') {
+        // ⚠️ `=== 1`: ein Regex-Fehler (preg_match liefert false) ist KEIN Platzhalter.
+        return preg_match(avesmapsLandscapeSearchAutoNamePattern($artBezeichnungen), $name) === 1;
+    }
+
+    return false;
+}
+
+/**
+ * Die Artbezeichnungen des Landschaftskatalogs -- ALLE, auch stillgelegte (derselbe Grund wie in
+ * avesmapsFetchLandscapeSearchRows: ein alter Griff bleibt ein Griff).
+ *
+ * ⚠️ FAELLT ENG AUS: ohne lesbaren Katalog bleibt nur der Rueckfall-Griff „Fläche", die Regel erkennt
+ * WENIGER Platzhalter. Fuer eine Frage, deren Ja einen Namen ueberschreibt, ist das die sichere Richtung.
+ * ⚠️ KEIN DDL -- die Liste ruft das bei jedem Filterklick (AGENTS.md §10).
+ *
+ * @return list<string>
+ */
+function avesmapsGaretienArtBezeichnungen(PDO $pdo): array
+{
+    try {
+        $stmt = $pdo->query('SELECT label FROM ecosystem_region_type');
+        $zeilen = $stmt !== false ? $stmt->fetchAll(PDO::FETCH_COLUMN) : [];
+    } catch (Throwable) {
+        return [];
+    }
+    $raus = [];
+    foreach ($zeilen as $label) {
+        $label = trim((string) $label);
+        if ($label !== '' && !in_array($label, $raus, true)) {
+            $raus[] = $label;
+        }
+    }
+
+    return $raus;
+}
+
+/**
+ * REIN: will der Rumpf dieses Items den Namen mitergaenzen?
+ * 🔴 Nur ein echtes `true` -- "true" oder 1 kommen nicht aus der Zielwahl (dieselbe Regel wie beim
+ * Riegel `beides`, avesmapsGaretienBeidesRiegel).
+ */
+function avesmapsGaretienNameErgaenzenGewuenscht(?array $einstellungen): bool
+{
+    return is_array($einstellungen) && ($einstellungen['name_ergaenzen'] ?? null) === true;
+}
+
+/**
+ * REIN: der Fingerabdruck eines geschriebenen Namens, fuer den Vermerk.
+ *
+ * ⚠️ EIN FINGERABDRUCK, NICHT DER NAME: der neue Name darf 160 Zeichen lang sein, der Vermerk hat 300
+ * (AVESMAPS_GARETIEN_VERMERK_MAX_ZEICHEN). Gebraucht wird nur die Frage „heisst das Objekt noch so, wie
+ * der Import es genannt hat?" -- zurueckgeschrieben wird der ALTE Name, und der steht voll im Vermerk.
+ */
+function avesmapsGaretienNameFingerabdruck(string $name): string
+{
+    return substr(sha1($name), 0, 16);
+}
+
+/**
+ * REIN: der Vermerk einer Namens-Ergaenzung, als Zeichenkette fuer `apply_note`.
+ *
+ * 🔴 JSON, UND ER BEGINNT MIT „{". Die uebrigen Leser von `apply_note` lesen dadurch nichts Falsches:
+ * avesmapsGaretienVermerkLesen findet keines seiner Felder (area/region/verbund) am Stueckanfang, der
+ * `nur_quelle:`-LIKE und der `%verbund:`-LIKE treffen nie, die Staetten-Menge der Liste kennt die
+ * Zeichenkette nicht -- und Ruecknahme wie Artikel-Nachzug lesen das ZIEL eines 'changed'-Items aus
+ * `entity_public_id`, nie aus diesem Feld.
+ * ⚠️ `auto` steht NUR bei der Landschaft, dann auch als `null` („Merker nie angefasst"): ein fehlender
+ * Schluessel und `null` sind zwei Aussagen -- avesmapsEcosystemApplyRegionAutoName liest `null` als
+ * „zuruecksetzen auf ableiten".
+ * 💣 WIRFT, wenn er nicht in die Spalte passt -- und wird deshalb VOR dem ersten Schreiben gebaut.
+ *
+ * @param list<string> $labels die Beschriftungen, deren Text mitgeschrieben wird
+ */
+function avesmapsGaretienNameVermerkBauen(string $alt, string $neu, bool $mitAuto, ?bool $auto, array $labels): string
+{
+    $daten = [
+        'art' => AVESMAPS_GARETIEN_NAME_VERMERK_ART,
+        'alt' => $alt,
+        'neu' => avesmapsGaretienNameFingerabdruck($neu),
+    ];
+    if ($mitAuto) {
+        $daten['auto'] = $auto;
+    }
+    if ($labels !== []) {
+        $daten['labels'] = array_values(array_map('strval', $labels));
+    }
+    $vermerk = json_encode($daten, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+    if (mb_strlen($vermerk, 'UTF-8') > AVESMAPS_GARETIEN_VERMERK_MAX_ZEICHEN) {
+        throw new RuntimeException(
+            'Der Vermerk fuer "' . $alt . '" passt nicht in ' . AVESMAPS_GARETIEN_VERMERK_MAX_ZEICHEN
+            . ' Zeichen (' . count($labels) . ' Beschriftungen) -- ohne ihn liesse sich der Name nicht'
+            . ' zuruecknehmen. Geschrieben wurde nichts.'
+        );
+    }
+
+    return $vermerk;
+}
+
+/**
+ * REIN: den Vermerk wieder lesen -- `null`, wenn `apply_note` gar kein Namens-Vermerk ist (das nackte
+ * public_id-Echo einer reinen Quellen-Ergaenzung).
+ *
+ * 💣 EIN KAPUTTER VERMERK WIRFT, statt `null` zu sagen. `null` hiesse fuer die Ruecknahme „kein Name
+ * zurueckzugeben" -- sie loeste die Quelle und liesse den importierten Namen stehen. Was mit „{"
+ * beginnt, ist ein Namens-Vermerk oder ein Fehler, und eine halbe Ruecknahme ist schlimmer als keine.
+ *
+ * @return ?array{alt:string, neu:string, labels:list<string>, auto?:?bool}
+ */
+function avesmapsGaretienNameVermerkLesen(string $note): ?array
+{
+    $n = trim($note);
+    if (!avesmapsGaretienTraegtNameVermerk($n)) {
+        return null;
+    }
+    $unlesbar = new RuntimeException('Der Namens-Vermerk dieses Items ist unlesbar -- zurueckgenommen wurde nichts.');
+    $daten = json_decode($n, true);
+    if (!is_array($daten) || ($daten['art'] ?? null) !== AVESMAPS_GARETIEN_NAME_VERMERK_ART) {
+        throw $unlesbar;
+    }
+    $alt = $daten['alt'] ?? null;
+    $neu = $daten['neu'] ?? null;
+    $labels = $daten['labels'] ?? [];
+    if (!is_string($alt) || trim($alt) === '' || !is_string($neu) || $neu === '' || !is_array($labels)) {
+        throw $unlesbar;
+    }
+    $raus = ['alt' => $alt, 'neu' => $neu, 'labels' => []];
+    foreach ($labels as $label) {
+        if (!is_string($label) || trim($label) === '') {
+            throw $unlesbar;
+        }
+        $raus['labels'][] = $label;
+    }
+    if (array_key_exists('auto', $daten)) {
+        if ($daten['auto'] !== null && !is_bool($daten['auto'])) {
+            throw $unlesbar;
+        }
+        $raus['auto'] = $daten['auto'];
+    }
+
+    return $raus;
+}
+
+/**
+ * REIN: traegt dieser `apply_note` einen Namens-Vermerk? Ohne zu werfen -- fuer die Liste, die dem
+ * Browser sagt, dass ↩ an diesem Item auch einen Namen zurueckgibt (die Rueckfrage nennt es).
+ */
+function avesmapsGaretienTraegtNameVermerk(string $note): bool
+{
+    return str_starts_with(ltrim($note), '{');
+}
+
+/**
+ * Der VOLLE Rumpf fuer avesmapsUpdatePathFeatureDetails -- jedes Feld mit seinem gespeicherten Wert.
+ *
+ * 💣 DIESER HAUSSCHREIBER IST KEIN TEIL-UPDATE (siehe avesmapsGaretienErgaenzungAnwenden): was im Rumpf
+ * fehlt, schreibt er mit seiner Vorgabe.
+ * 🔴 UND `is_bach` FEHLTE BIS ZUM 15.09.2026. Der Namenszweig der Ergaenzung schickte es nicht mit, und
+ * avesmapsUpdatePathFeatureDetails ENTFERNT den Merker, sobald das Feld fehlt
+ * (`$payload['is_bach'] ?? false`) -- ein umbenannter Bach waere lautlos ein Fluss geworden, samt anderer
+ * Verkehrsmittel (avesmapsPathTransportRegel). Am SQLite-Pruefstand nachgemessen, bevor diese Zeile kam.
+ * 🔴 EIN BAUER FUER ALLE DREI AUFRUFER (Ersetzen, Name ergaenzen, Name zuruecknehmen) -- der naechste
+ * fehlende Schluessel fehlt sonst an einem von dreien.
+ */
+function avesmapsGaretienWegDetailsRumpf(string $publicId, array $zeile, string $name): array
+{
+    $props = json_decode((string) ($zeile['properties_json'] ?? '{}'), true);
+    $props = is_array($props) ? $props : [];
+
+    return [
+        'public_id' => $publicId,
+        'name' => $name,
+        'feature_subtype' => (string) ($zeile['feature_subtype'] ?? 'Flussweg'),
+        'show_label' => (bool) ($props['show_label'] ?? false),
+        'is_bach' => (bool) ($props['is_bach'] ?? false),
+        'allowed_transports' => $props['allowed_transports'] ?? null,
+        'transport_seasons' => $props['transport_seasons'] ?? null,
+        'other_source' => $props['other_source'] ?? null,
+    ];
+}
+
+/**
+ * Die Zeile, deren Namen „Quelle und Namen ergaenzen" anfasst -- FRISCH gelesen; `null`, wenn es sie
+ * nicht (mehr) aktiv gibt.
+ *
+ * 💣 NIE aus `after.abschnitt.name`: der Plan ist ein Stichtag, und zwischen „Holen & Rechnen" und
+ * „Stage importieren" kann jemand „Wald-190" von Hand benannt haben. Genau DIESEN Namen darf der Import
+ * nicht ueberschreiben (Owner 31.08.2026).
+ */
+function avesmapsGaretienNameZeileLesen(PDO $pdo, string $ziel, string $publicId): ?array
+{
+    if ($ziel === 'path') {
+        $stmt = $pdo->prepare(
+            'SELECT name, feature_subtype, properties_json FROM map_features'
+            . " WHERE public_id = :p AND feature_type = 'path' AND is_active = 1"
+        );
+    } elseif ($ziel === 'region') {
+        $stmt = $pdo->prepare(
+            'SELECT name, properties_json, label_public_id FROM ecosystem_region WHERE public_id = :p AND is_active = 1'
+        );
+    } else {
+        return null;
+    }
+    $stmt->execute(['p' => $publicId]);
+    $zeile = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    return is_array($zeile) ? $zeile : null;
+}
+
+/**
+ * Eine aktive Beschriftung samt ihrem TEXT -- dieselbe Lesart wie avesmapsUpdateLabelFeature
+ * (`properties.text`, sonst die Namensspalte). `null`, wenn es sie nicht (mehr) gibt.
+ */
+function avesmapsGaretienLabelZeileLesen(PDO $pdo, string $publicId): ?array
+{
+    $stmt = $pdo->prepare(
+        'SELECT name, feature_subtype, properties_json FROM map_features'
+        . " WHERE public_id = :p AND feature_type = 'label' AND is_active = 1"
+    );
+    $stmt->execute(['p' => $publicId]);
+    $zeile = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!is_array($zeile)) {
+        return null;
+    }
+    $props = json_decode((string) ($zeile['properties_json'] ?? ''), true);
+    $text = is_array($props) && is_string($props['text'] ?? null) ? $props['text'] : (string) ($zeile['name'] ?? '');
+    $zeile['text'] = $text;
+
+    return $zeile;
+}
+
+/**
+ * Die Namens-Ergaenzung PRUEFEN und vorbereiten -- ohne einen einzigen Schreibvorgang.
+ *
+ * 🔴 ALLES, WAS VORHERSEHBAR SCHEITERT, SCHEITERT HIER: das Ziel ist kein Weg und keine Landschaft, der
+ * Name fehlt oder ist zu lang, das Objekt ist weg, sein Name ist kein Platzhalter (mehr), der Weg traegt
+ * einen Wiki-Artikel, dessen Name jeden getippten schlaegt (avesmapsWikiPathEffectiveEditName), oder der
+ * Vermerk passt nicht in die Spalte. Was danach beim Schreiben noch scheitert, gibt
+ * avesmapsGaretienNameErgaenzenAufraeumen zurueck.
+ * 🔴 DIE BESCHRIFTUNGEN EINER LANDSCHAFT WERDEN HIER AUSGEWAEHLT -- nur die, deren Text GLEICH dem alten
+ * Namen ist. Ein Schild mit eigenem Text („Alter Forst") hat jemand beschriftet; der Flaechendialog im
+ * Browser zoege es mit (applyRegionToLabels), der Import nicht (Owner 31.08.2026: kein Ersetzen).
+ * Gesucht wird ueber avesmapsEcosystemRegionLabelPublicIds -- beide Bindungsrichtungen, derselbe Leser
+ * wie beim Durchtrag der Wiki-Landschaft.
+ *
+ * @return ?array null = nichts zu schreiben (unser Objekt heisst schon so)
+ */
+function avesmapsGaretienNameErgaenzenVorbereiten(PDO $pdo, array $nach, string $publicId): ?array
+{
+    $ziel = (string) ($nach['ziel'] ?? '');
+    if (!in_array($ziel, AVESMAPS_GARETIEN_NAME_ERGAENZEN_ZIELE, true)) {
+        throw new RuntimeException(
+            '"Quelle und Namen ergaenzen" gibt es nur an Wegen und Landschaften, nicht am Ziel "' . $ziel
+            . '" -- geschrieben wurde nichts.'
+        );
+    }
+    // `$nach['name']` hat avesmapsGaretienNameUebersteuern aus dem Rumpf des Items gelegt -- DERSELBE
+    // eine Ort, an dem jeder Anleger dieses Moduls seinen Namen liest.
+    $neu = avesmapsNormalizeSingleLine((string) ($nach['name'] ?? ''), 190);
+    if ($neu === '') {
+        throw new RuntimeException('"Quelle und Namen ergaenzen" ohne Namen -- geschrieben wurde nichts.');
+    }
+    if (avesmapsNormalizeSingleLine($neu, AVESMAPS_GARETIEN_NAME_MAX_ZEICHEN) !== $neu) {
+        throw new RuntimeException(
+            'Der Name ist laenger als ' . AVESMAPS_GARETIEN_NAME_MAX_ZEICHEN . ' Zeichen und kaeme gekappt an'
+            . ' -- geschrieben wurde nichts.'
+        );
+    }
+    $zeile = avesmapsGaretienNameZeileLesen($pdo, $ziel, $publicId);
+    if ($zeile === null) {
+        throw new RuntimeException('Das Objekt ' . $publicId . ' existiert nicht mehr -- geschrieben wurde nichts.');
+    }
+    $alt = trim((string) ($zeile['name'] ?? ''));
+    $arten = $ziel === 'region' ? avesmapsGaretienArtBezeichnungen($pdo) : [];
+    if (!avesmapsGaretienNameIstPlatzhalter($ziel, $alt, $arten)) {
+        throw new RuntimeException(
+            ($alt === '' ? 'Das Objekt hat gar keinen Namen' : '"' . $alt . '" traegt inzwischen einen eigenen Namen')
+            . ' -- kein Platzhalter, also wird kein Name ergaenzt. Geschrieben wurde nichts, auch die Quelle'
+            . ' nicht; "Quelle ergaenzen" traegt sie allein nach.'
+        );
+    }
+    if ($neu === $alt) {
+        return null;
+    }
+    if ($ziel === 'path') {
+        $props = json_decode((string) ($zeile['properties_json'] ?? ''), true);
+        $wirksam = avesmapsWikiPathEffectiveEditName($neu, is_array($props) ? $props : []);
+        if ($wirksam !== $neu) {
+            throw new RuntimeException(
+                'Der Weg ' . $publicId . ' traegt einen zugewiesenen Wiki-Artikel und behielte dessen Namen "'
+                . $wirksam . '" -- geschrieben wurde nichts.'
+            );
+        }
+
+        return [
+            'ziel' => 'path', 'public_id' => $publicId, 'alt' => $alt, 'neu' => $neu, 'zeile' => $zeile,
+            'labels' => [],
+            'vermerk' => avesmapsGaretienNameVermerkBauen($alt, $neu, false, null, []),
+        ];
+    }
+
+    $labels = [];
+    foreach (avesmapsEcosystemRegionLabelPublicIds($pdo, $publicId, $zeile['label_public_id'] ?? null) as $labelId) {
+        $label = avesmapsGaretienLabelZeileLesen($pdo, (string) $labelId);
+        if ($label !== null && $label['text'] === $alt) {
+            $labels[] = (string) $labelId;
+        }
+    }
+    $auto = avesmapsEcosystemRegionAutoName($zeile['properties_json'] ?? null);
+
+    return [
+        'ziel' => 'region', 'public_id' => $publicId, 'alt' => $alt, 'neu' => $neu, 'zeile' => $zeile,
+        'labels' => $labels,
+        'vermerk' => avesmapsGaretienNameVermerkBauen($alt, $neu, true, $auto, $labels),
+    ];
+}
+
+/**
+ * Den Namen schreiben -- ueber die Hausschreiber, mit Ruecklesen, und bei einem Fehlschlag mittendrin
+ * zurueck auf den alten Stand.
+ *
+ * 🔴 KEIN EIGENES UPDATE. Weg ueber avesmapsUpdatePathFeatureDetails (voller Rumpf,
+ * avesmapsGaretienWegDetailsRumpf), Landschaft ueber avesmapsUpdateEcosystemRegion mit `auto_name: false`
+ * (ab jetzt ein gewaehlter Name -- dieselbe Form wie der Namenszweig des Ersetzens), Beschriftung ueber
+ * avesmapsUpdateLabelFeature mit `text` und unveraenderter Art (dort IST es ein Teil-Update).
+ * 🔴 DIE BESCHRIFTUNG ZIEHT DER IMPORT SELBST NACH. avesmapsUpdateEcosystemRegion traegt Wiki-Zuweisung
+ * und Art an die Labels durch, NIE den Namen -- das Umbenennen macht im Flaechendialog der Browser
+ * (applyRegionToLabels). Ohne diese Zeilen hiesse die Landschaft „Alkenwald" und ihr Schild auf der
+ * Karte weiter „Wald-190".
+ * 🔴 RUECKLESEN, BEVOR ES ALS GESCHRIEBEN GILT (AGENTS.md §10, `app_setting`): ein Hausschreiber kann
+ * einen Namen still verwerfen oder kappen.
+ * 💣 KEINE GEMEINSAME TRANSAKTION: jeder der Hausschreiber oeffnet seine eigene, und PDO kennt keine
+ * verschachtelten. Scheitert ein spaeterer Schritt, gibt avesmapsGaretienNameErgaenzenAufraeumen die
+ * frueheren zurueck -- dieselbe Bauform wie avesmapsGaretienFlaecheAufraeumen, und aus demselben Grund:
+ * ein halb umbenanntes Objekt ohne Vermerk koennte niemand mehr zuruecknehmen.
+ */
+function avesmapsGaretienNameErgaenzenSchreiben(PDO $pdo, array $vorhaben, array $user): void
+{
+    $ziel = (string) $vorhaben['ziel'];
+    $publicId = (string) $vorhaben['public_id'];
+    $neu = (string) $vorhaben['neu'];
+    try {
+        if ($ziel === 'path') {
+            avesmapsUpdatePathFeatureDetails(
+                $pdo, avesmapsGaretienWegDetailsRumpf($publicId, (array) $vorhaben['zeile'], $neu), $user
+            );
+        } else {
+            avesmapsUpdateEcosystemRegion(
+                $pdo, ['public_id' => $publicId, 'name' => $neu, 'auto_name' => false], (int) ($user['id'] ?? 0)
+            );
+        }
+        $ist = (string) ((avesmapsGaretienNameZeileLesen($pdo, $ziel, $publicId) ?? [])['name'] ?? '');
+        if ($ist !== $neu) {
+            throw new RuntimeException(
+                'Der Name "' . $neu . '" wurde nicht uebernommen -- das Objekt ' . $publicId . ' heisst "' . $ist . '".'
+            );
+        }
+        foreach ((array) ($vorhaben['labels'] ?? []) as $labelId) {
+            $label = avesmapsGaretienLabelZeileLesen($pdo, (string) $labelId);
+            if ($label === null) {
+                continue;   // inzwischen geloescht -- es gibt nichts mehr zu beschriften
+            }
+            avesmapsUpdateLabelFeature($pdo, [
+                'public_id' => (string) $labelId,
+                'text' => $neu,
+                'feature_subtype' => (string) ($label['feature_subtype'] ?? '') ?: 'region',
+            ], $user);
+            $labelIst = avesmapsGaretienLabelZeileLesen($pdo, (string) $labelId);
+            if ($labelIst === null || $labelIst['text'] !== $neu) {
+                throw new RuntimeException('Die Beschriftung ' . $labelId . ' hat den Namen "' . $neu . '" nicht uebernommen.');
+            }
+        }
+    } catch (Throwable $abbruch) {
+        avesmapsGaretienNameErgaenzenAufraeumen($pdo, $vorhaben, $user, $abbruch);
+    }
+}
+
+/**
+ * Was eine gescheiterte Namens-Ergaenzung schon geschrieben hat, zurueckgeben -- und dann den Fehler
+ * werfen. Dieselbe Bauform wie avesmapsGaretienFlaecheAufraeumen.
+ *
+ * 💣 Scheitert das Zuruecksetzen selbst, bleibt der ERSTE Fehler der Grund, und das Zuruecksetzen steht
+ * dahinter -- ein Editor muss erfahren, dass ein Name haengengeblieben ist.
+ */
+function avesmapsGaretienNameErgaenzenAufraeumen(PDO $pdo, array $vorhaben, array $user, Throwable $abbruch): never
+{
+    try {
+        avesmapsGaretienNameZuruecksetzen(
+            $pdo,
+            (string) $vorhaben['ziel'],
+            (string) $vorhaben['public_id'],
+            avesmapsGaretienNameVermerkLesen((string) $vorhaben['vermerk']) ?? [],
+            $user
+        );
+    } catch (Throwable $fehler) {
+        throw new RuntimeException(
+            $abbruch->getMessage() . ' -- Zuruecksetzen unvollstaendig: ' . $fehler->getMessage(),
+            0,
+            $abbruch
+        );
+    }
+
+    throw $abbruch;
+}
+
+/**
+ * Den Platzhalter zurueckgeben -- an genau den Stellen, die noch so heissen, wie der Import sie genannt hat.
+ *
+ * 🔴 EINE SPAETERE HANDARBEIT GEHT NIE VERLOREN. Zurueckgeschrieben wird nur, wessen Name (bzw. Text)
+ * noch den Fingerabdruck des geschriebenen traegt. Fuer das OBJEKT prueft die Ruecknahme das vorher und
+ * weist dann GANZ ab (avesmapsGaretienNameRuecknahmePruefen); eine Beschriftung, die jemand seither
+ * eigens beschriftet hat, bleibt still stehen -- die Landschaft bekommt ihren Griff zurueck, das Schild
+ * behaelt, was ein Mensch daraufgeschrieben hat.
+ * ⚠️ ZWEI AUFRUFER: die Ruecknahme (↩) und das Aufraeumen nach einem Fehlschlag mitten im Schreiben. Fuer
+ * den zweiten ist genau diese Gleichheitspruefung der Grund, warum sie ohne eigenen Zustand auskommt: was
+ * noch nicht geschrieben war, traegt den Fingerabdruck nicht und bleibt unberuehrt.
+ * ⚠️ Der Merker „Auto-Name" geht mit zurueck, auch als `null` („nie angefasst") -- sonst stuende der Haken
+ * nach ↩ auf „aus", obwohl die Landschaft wieder „Wald-190" heisst. Die Feldherkunft `name: manual`, die
+ * der Hausschreiber stempelt, bleibt: avesmapsFieldOriginsStempeln setzt nur und loescht nie -- dieselbe
+ * Lage wie nach jedem Umbenennen von Hand.
+ * ⚠️ Erst die Beschriftungen, dann das Objekt: scheitert das Objekt, findet ein zweiter Klick die Schilder
+ * schon zurueckgesetzt (Fingerabdruck passt nicht mehr) und versucht nur noch das Objekt.
+ *
+ * @return array{objekt:bool, labels:int}
+ */
+function avesmapsGaretienNameZuruecksetzen(PDO $pdo, string $ziel, string $publicId, array $vermerk, array $user): array
+{
+    $alt = (string) ($vermerk['alt'] ?? '');
+    $neu = (string) ($vermerk['neu'] ?? '');
+    $raus = ['objekt' => false, 'labels' => 0];
+    if ($alt === '' || $neu === '') {
+        return $raus;
+    }
+    foreach ((array) ($vermerk['labels'] ?? []) as $labelId) {
+        $label = avesmapsGaretienLabelZeileLesen($pdo, (string) $labelId);
+        if ($label === null || avesmapsGaretienNameFingerabdruck((string) $label['text']) !== $neu) {
+            continue;
+        }
+        avesmapsUpdateLabelFeature($pdo, [
+            'public_id' => (string) $labelId,
+            'text' => $alt,
+            'feature_subtype' => (string) ($label['feature_subtype'] ?? '') ?: 'region',
+        ], $user);
+        $raus['labels']++;
+    }
+    $zeile = avesmapsGaretienNameZeileLesen($pdo, $ziel, $publicId);
+    if ($zeile === null || avesmapsGaretienNameFingerabdruck((string) ($zeile['name'] ?? '')) !== $neu) {
+        return $raus;
+    }
+    if ($ziel === 'path') {
+        avesmapsUpdatePathFeatureDetails($pdo, avesmapsGaretienWegDetailsRumpf($publicId, $zeile, $alt), $user);
+    } else {
+        $rumpf = ['public_id' => $publicId, 'name' => $alt];
+        if (array_key_exists('auto', $vermerk)) {
+            $rumpf['auto_name'] = $vermerk['auto'];
+        }
+        avesmapsUpdateEcosystemRegion($pdo, $rumpf, (int) ($user['id'] ?? 0));
+    }
+    $ist = (string) ((avesmapsGaretienNameZeileLesen($pdo, $ziel, $publicId) ?? [])['name'] ?? '');
+    if ($ist !== $alt) {
+        throw new RuntimeException(
+            'Der Platzhalter "' . $alt . '" liess sich nicht zurueckschreiben -- das Objekt heisst "' . $ist . '".'
+        );
+    }
+    $raus['objekt'] = true;
+
+    return $raus;
+}
+
+/**
+ * Darf ↩ den Namen zurueckgeben? Wirft, wenn nicht -- und zwar BEVOR die Ruecknahme irgendetwas anfasst.
+ *
+ * 🔴 HEISST DAS OBJEKT INZWISCHEN ANDERS, BLEIBT ALLES STEHEN, auch die Quelle. Der Kopf der Ruecknahme
+ * sagt es: eine halb zurueckgenommene Uebernahme ist schlimmer als gar keine. Ein Name, den jemand nach
+ * dem Import vergeben hat, ist Handarbeit -- ihn auf „Wald-190" zurueckzudrehen waere genau das
+ * Ueberschreiben, das der Owner am 31.08.2026 abgeschaltet hat. Die Quelle laesst sich dann im
+ * Quellenkasten loesen.
+ * 💣 Und ein Weg, dem seither ein Wiki-Artikel zugewiesen wurde, nimmt den Platzhalter gar nicht mehr an
+ * (avesmapsWikiPathEffectiveEditName) -- auch das wird VORHER gefragt, nicht erst am Ruecklesen.
+ */
+function avesmapsGaretienNameRuecknahmePruefen(PDO $pdo, string $ziel, string $publicId, array $vermerk): void
+{
+    $zeile = avesmapsGaretienNameZeileLesen($pdo, $ziel, $publicId);
+    if ($zeile === null) {
+        throw new RuntimeException(
+            'Das Objekt ' . $publicId . ' existiert nicht mehr -- sein Name laesst sich nicht zurueckgeben,'
+            . ' zurueckgenommen wurde nichts.'
+        );
+    }
+    $ist = (string) ($zeile['name'] ?? '');
+    if (avesmapsGaretienNameFingerabdruck($ist) !== (string) ($vermerk['neu'] ?? '')) {
+        throw new RuntimeException(
+            '"' . $ist . '" heisst inzwischen anders, als der Import es benannt hat -- der Name bleibt, und'
+            . ' zurueckgenommen wurde nichts, auch die Quelle nicht. Sie laesst sich im Quellenkasten loesen.'
+        );
+    }
+    if ($ziel === 'path') {
+        $alt = (string) ($vermerk['alt'] ?? '');
+        $props = json_decode((string) ($zeile['properties_json'] ?? ''), true);
+        $wirksam = avesmapsWikiPathEffectiveEditName($alt, is_array($props) ? $props : []);
+        if ($wirksam !== $alt) {
+            throw new RuntimeException(
+                'Der Weg ' . $publicId . ' traegt inzwischen einen Wiki-Artikel ("' . $wirksam . '") -- "' . $alt
+                . '" laesst sich nicht zurueckschreiben, zurueckgenommen wurde nichts.'
+            );
+        }
+    }
+}
+
+/**
+ * Der Namens-Vermerk, der zu diesem Item gehoert: `[?vermerk, item_id_des_vermerks]`.
+ *
+ * 🔴 AM ITEM SELBST, SONST IM FRUEHEREN LAUF -- derselbe Rueckfall wie im 'new'-Zweig der Ruecknahme
+ * (`$altItemId`): nach „Holen & Rechnen" steht das frische Item auf `apply_state = null`, der dauerhafte
+ * Vermerk in `sync_decision` sagt trotzdem „uebernommen", und der Namens-Vermerk liegt am alten Item.
+ * Von mehreren gilt das JUENGSTE uebernommene Item desselben Schluessels.
+ * ⚠️ Traegt es KEINEN Namens-Vermerk (das public_id-Echo einer reinen Quellen-Ergaenzung), ist die
+ * Antwort `[null, 0]` -- dann gibt es keinen Namen zurueckzugeben.
+ *
+ * @return array{0:?array, 1:int}
+ */
+function avesmapsGaretienNameVermerkZumItem(PDO $pdo, array $item): array
+{
+    if ((string) ($item['apply_state'] ?? '') === 'done') {
+        $vermerk = avesmapsGaretienNameVermerkLesen((string) ($item['apply_note'] ?? ''));
+
+        return [$vermerk, $vermerk === null ? 0 : (int) $item['id']];
+    }
+    $alt = $pdo->prepare(
+        'SELECT i.id, i.apply_note FROM sync_plan_item i'
+        . ' JOIN sync_plan_run r ON r.id = i.run_id'
+        . " WHERE r.kind = :k AND i.entity_key = :e AND i.change_type = 'changed'"
+        . " AND i.apply_state = 'done' AND i.apply_note IS NOT NULL AND i.apply_note <> ''"
+        . ' ORDER BY i.id DESC LIMIT 1'
+    );
+    $alt->execute(['k' => AVESMAPS_GARETIEN_PLAN_KIND, 'e' => (string) ($item['entity_key'] ?? '')]);
+    $treffer = $alt->fetch(PDO::FETCH_ASSOC);
+    if (!is_array($treffer)) {
+        return [null, 0];
+    }
+    $vermerk = avesmapsGaretienNameVermerkLesen((string) ($treffer['apply_note'] ?? ''));
+
+    return [$vermerk, $vermerk === null ? 0 : (int) $treffer['id']];
+}
+
 /**
  * Ein vorhandenes Objekt ERGAENZEN -- und zwar nur in den Feldern, die im Vorschlag stehen.
  *
@@ -952,9 +1576,15 @@ function avesmapsGaretienFlaecheAufraeumen(PDO $pdo, array $user, int $userId, s
  * Transaktion, Revision, Sperrpruefung und Protokoll -- ein eigenes UPDATE waere der zweite
  * Erzeuger, und eine Regel, die einen von zwei Erzeugern bindet, ist keine.
  *
- * @return array{felder:int, quellen:int, objekt_felder:int}
+ * 🔴 SEIT DEM 15.09.2026 MIT EINER ENGEN AUSNAHME: `$einstellungen['name_ergaenzen'] === true` legt an einer
+ * reinen Quellen-Ergaenzung den NAMEN dazu -- nur, wenn unser Objekt JETZT einen Platzhalternamen traegt
+ * (Abschnitt „Quelle und Namen ergaenzen" oben). `vermerk` in der Antwort ist dann der Vermerk fuer
+ * `apply_note`, sonst `null`.
+ *
+ * @param ?array $einstellungen der Rumpf DIESES Items (avesmapsGaretienUebernehmen, `$rumpfDesItems`)
+ * @return array{felder:int, quellen:int, objekt_felder:int, vermerk:?string}
  */
-function avesmapsGaretienErgaenzungAnwenden(PDO $pdo, array $nach, string $publicId, array $user, string $entityKey = ''): array
+function avesmapsGaretienErgaenzungAnwenden(PDO $pdo, array $nach, string $publicId, array $user, string $entityKey = '', ?array $einstellungen = null): array
 {
     // 🔴 DER VERBINDLICHE RIEGEL (Owner 31.08.2026: „es gibt neu oder nix - kein verändern,
     // kein ersetzen"). Er steht HIER und nicht nur im Planbau: der laufende Lauf des Owners traegt
@@ -976,6 +1606,22 @@ function avesmapsGaretienErgaenzungAnwenden(PDO $pdo, array $nach, string $publi
             . 'nicht "' . implode('", "', $angefragteFelder) . '".'
         );
     }
+    // 🔴 „QUELLE UND NAMEN ERGAENZEN" (Owner 15.09.2026) -- GEPRUEFT, BEVOR IRGENDETWAS GESCHRIEBEN WIRD.
+    // Die Ausnahme steht NEBEN dem Riegel darueber, nicht an seiner Stelle: `felder` bleibt ['quelle'],
+    // der Name kommt allein ueber `name_ergaenzen` im Rumpf des Items herein, und nur, wenn der Name
+    // unseres Objekts JETZT ein Platzhalter ist (avesmapsGaretienNameErgaenzenVorbereiten).
+    // 💣 Ein Item, das ohnehin einen Namen schreibt (`felder` mit 'name' -- nur im Pruefstand der
+    // Ersetzungs-Maschinerie denkbar), bekommt die Ausnahme NICHT dazu: zwei Namensschreiber an einem Item.
+    $nameVorhaben = null;
+    if (avesmapsGaretienNameErgaenzenGewuenscht($einstellungen)) {
+        if ($angefragteFelder !== AVESMAPS_GARETIEN_ERGAENZUNG_FELDER) {
+            throw new RuntimeException(
+                '"Quelle und Namen ergaenzen" gilt nur an einer reinen Quellen-Ergaenzung, nicht an "'
+                . implode('", "', $angefragteFelder) . '" -- geschrieben wurde nichts.'
+            );
+        }
+        $nameVorhaben = avesmapsGaretienNameErgaenzenVorbereiten($pdo, $nach, $publicId);
+    }
 
     $felder = (array) ($nach['felder'] ?? []);
     $userId = (int) ($user['id'] ?? 0);
@@ -995,21 +1641,11 @@ function avesmapsGaretienErgaenzungAnwenden(PDO $pdo, array $nach, string $publi
         if ($vorher === false) {
             throw new RuntimeException('Der Abschnitt ' . $publicId . ' existiert nicht mehr.');
         }
-        $props = json_decode((string) ($vorher['properties_json'] ?? '{}'), true);
-        $props = is_array($props) ? $props : [];
-
         if (in_array('name', $felder, true)) {
             $gewuenschterName = (string) $nach['name'];
-            // ⚠️ JEDES Feld des Hausschreibers reist mit seinem ALTEN Wert mit -- siehe oben.
-            avesmapsUpdatePathFeatureDetails($pdo, [
-                'public_id' => $publicId,
-                'name' => $gewuenschterName,
-                'feature_subtype' => (string) ($vorher['feature_subtype'] ?? 'Flussweg'),
-                'show_label' => (bool) ($props['show_label'] ?? false),
-                'allowed_transports' => $props['allowed_transports'] ?? null,
-                'transport_seasons' => $props['transport_seasons'] ?? null,
-                'other_source' => $props['other_source'] ?? null,
-            ], $user);
+            // ⚠️ JEDES Feld des Hausschreibers reist mit seinem ALTEN Wert mit -- siehe oben. 🔴 Seit dem
+            // 15.09.2026 aus EINEM Bauer (avesmapsGaretienWegDetailsRumpf), samt `is_bach`, das hier fehlte.
+            avesmapsUpdatePathFeatureDetails($pdo, avesmapsGaretienWegDetailsRumpf($publicId, $vorher, $gewuenschterName), $user);
             // 🔴 RUECKLESEN, BEVOR DER SCHREIBVORGANG ALS ERLEDIGT GILT -- dieselbe Regel wie an
             // der stillen MySQL-Kuerzung von `app_setting.setting_value` (AGENTS.md §10): "ein
             // Schreiber, dessen Wert zaehlt, muss ihn ZURUECKLESEN, bevor er den Schreibvorgang
@@ -1175,6 +1811,17 @@ function avesmapsGaretienErgaenzungAnwenden(PDO $pdo, array $nach, string $publi
         }
     }
 
+    // 🔴 DER NAME VOR DER QUELLE, und das ist die sichere Reihenfolge: scheitert der Name, ist noch nichts
+    // geschrieben (avesmapsGaretienNameErgaenzenSchreiben raeumt selbst auf); scheitert danach die Quelle,
+    // gibt der Fang unten den Platzhalter zurueck. Umgekehrt stuende eine Quelle am Objekt, deren Item
+    // 'failed' ist -- ein Zustand, den keine Ruecknahme mehr erreicht.
+    $vermerk = null;
+    if ($nameVorhaben !== null) {
+        avesmapsGaretienNameErgaenzenSchreiben($pdo, $nameVorhaben, $user);
+        $vermerk = (string) $nameVorhaben['vermerk'];
+        $geschrieben++;
+    }
+
     // 🔴 EINE ANTWORT FUER ALLE VIER ZIELARTEN, und sie steht NACH der Zweigkette -- nicht in
     // ihr. Vorher setzte jeder Zweig seinen eigenen `$entityType`, und der Flaechen-Zweig
     // schlug sich zusaetzlich das Label seiner Region nach. Genau so entstehen vier
@@ -1193,7 +1840,15 @@ function avesmapsGaretienErgaenzungAnwenden(PDO $pdo, array $nach, string $publi
     // gehoert BEIDEN Wegen.
     $beruehrt = null;
     if (in_array('quelle', $felder, true)) {
-        $quellen = avesmapsGaretienQuellenAnlegen($pdo, $entityType, $quellePublicId, $nach, $userId, $entityKey);
+        try {
+            $quellen = avesmapsGaretienQuellenAnlegen($pdo, $entityType, $quellePublicId, $nach, $userId, $entityKey);
+        } catch (Throwable $abbruch) {
+            // ⚠️ Nur mit geschriebenem Namen gibt es etwas zurueckzugeben; sonst unveraendert weiter.
+            if ($nameVorhaben !== null && $vermerk !== null) {
+                avesmapsGaretienNameErgaenzenAufraeumen($pdo, $nameVorhaben, $user, $abbruch);
+            }
+            throw $abbruch;
+        }
         if ($quellen > 0) {
             $geschrieben++;
             $beruehrt = ['entity_type' => $entityType, 'public_id' => $quellePublicId];
@@ -1210,7 +1865,11 @@ function avesmapsGaretienErgaenzungAnwenden(PDO $pdo, array $nach, string $publi
     // `objekt_felder`.
     $objektGeschrieben = $geschrieben - ($quellen > 0 ? 1 : 0);
 
-    return ['felder' => $geschrieben, 'quellen' => $quellen, 'quelle_an' => $beruehrt, 'objekt_felder' => $objektGeschrieben];
+    return [
+        'felder' => $geschrieben, 'quellen' => $quellen, 'quelle_an' => $beruehrt, 'objekt_felder' => $objektGeschrieben,
+        // 🔴 Der Namens-Vermerk fuer `apply_note` -- `null` ohne Namens-Ergaenzung (dann bleibt es beim Echo).
+        'vermerk' => $vermerk,
+    ];
 }
 
 /**
@@ -1867,8 +2526,11 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
                 continue;
             }
             try {
+                // 🔴 DER RUMPF DIESES ITEMS REIST MIT (15.09.2026): an ihm haengt `name_ergaenzen`
+                // („Quelle und Namen ergaenzen"). Er ist derselbe `$rumpfDesItems`, den Ziel- und
+                // Namensuebersteuerung oben schon gelesen haben -- kein zweiter Weg zur Wahl des Editors.
                 $ergebnis = avesmapsGaretienErgaenzungAnwenden(
-                    $pdo, $nach, (string) $item['entity_public_id'], $user, (string) $item['entity_key']
+                    $pdo, $nach, (string) $item['entity_public_id'], $user, (string) $item['entity_key'], $rumpfDesItems
                 );
                 // 🔴 NUR DAS OBJEKT SELBST ZAEHLT ALS `applied` (06.09.2026, Nachtrag auf
                 // Rueckfrage): name/geometrie-Aenderungen sind ein wirklich veraendertes
@@ -1903,7 +2565,11 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
                     $quellenNeu[$ergebnis['quelle_an']['entity_type'] . ':' . $ergebnis['quelle_an']['public_id']]
                         = $ergebnis['quelle_an'];
                 }
-                avesmapsGaretienItemAbschliessen($pdo, (int) $item['id'], 'done', (string) $item['entity_public_id'], $userId);
+                // 🔴 DER VERMERK: sonst das public_id-Echo wie eh und je, mit Namens-Ergaenzung der JSON-Vermerk,
+                // aus dem ↩ den Platzhalter zurueckholt (avesmapsGaretienNameVermerkBauen).
+                avesmapsGaretienItemAbschliessen(
+                    $pdo, (int) $item['id'], 'done', (string) ($ergebnis['vermerk'] ?? $item['entity_public_id']), $userId
+                );
             } catch (Throwable $abbruch) {
                 // 🔴 GEKAPPT WIE `apply_note` -- siehe die Begruendung am ersten Fehlschlagfang
                 // dieser Funktion.
@@ -3167,6 +3833,12 @@ function avesmapsGaretienRuecknahmeWeg(string $applyNote): array
  * avesmapsGaretienAndererTraegerVorhanden), ueber dieselbe enge Zielauflösung wie beim Anlegen
  * (avesmapsGaretienQuellenZiel), NIEMALS die geteilte `sources`-Zeile selbst.
  *
+ * 🔴 „QUELLE UND NAMEN ERGAENZEN" (Owner 15.09.2026): ↩ NIMMT BEIDES ZURUECK. Traegt das Item einen
+ * Namens-Vermerk, bekommt das Objekt seinen Platzhalter zurueck (avesmapsGaretienNameZuruecksetzen) -- aber
+ * nur, wenn es noch so heisst, wie der Import es genannt hat. Sonst bleibt ALLES stehen, auch die Quelle
+ * (avesmapsGaretienNameRuecknahmePruefen): eine spaetere Handarbeit geht nie verloren. Die Felder bleiben
+ * dabei ['quelle'] -- der Riegel oben gilt unveraendert.
+ *
  * 🔴 OWNER-ENTSCHEID 2 (29.08.2026): eine nachtraegliche Bearbeitung SPERRT die Ruecknahme NICHT --
  * kein Zeitstempel-Vergleich, keine neue Zustandshaltung. Die Rueckfrage im Fenster nennt das beim
  * Namen; hier wird deshalb bewusst KEIN `expected_revision` mitgeschickt.
@@ -3259,6 +3931,13 @@ function avesmapsGaretienRuecknahmeAusfuehren(PDO $pdo, int $runId, array $itemI
                 if ($quellePublicId === '') {
                     throw new RuntimeException('keine Beschriftung fuer die Quellen-Verknuepfung gefunden');
                 }
+                // 🔴 „QUELLE UND NAMEN ERGAENZEN" (15.09.2026): der Namens-Vermerk wird VOR dem Loesen der
+                // Quelle geprueft. Heisst das Objekt inzwischen anders, wirft die Pruefung, und dieses Item
+                // bleibt unangetastet auf 'done' (Kopf dieser Funktion).
+                [$nameVermerk, $vermerkItemId] = avesmapsGaretienNameVermerkZumItem($pdo, $item);
+                if ($nameVermerk !== null) {
+                    avesmapsGaretienNameRuecknahmePruefen($pdo, $ziel, $entityPublicId, $nameVermerk);
+                }
                 // 🔴 NACHBESSERUNG 2 (W1b, Ruling 3): NICHT MEHR BLIND ALLES MIT origin='garetien'.
                 // Diese Entitaet ist seit „Nur Quelle" kein alleiniger Besitzer ihrer garetien-
                 // Verknuepfungen mehr -- an ihr kann auch die Quelle eines Bauwerks haengen.
@@ -3271,8 +3950,11 @@ function avesmapsGaretienRuecknahmeAusfuehren(PDO $pdo, int $runId, array $itemI
                 $artikel = is_array($nach) ? avesmapsGaretienArtikelQuelleAusItem($nach, (string) $item['entity_key']) : null;
                 $eigeneAdresse = avesmapsGaretienQuellenAdressenAus((string) ($wirt['url'] ?? ''), $artikel)[0] ?? '';
                 if ($eigeneAdresse !== '') {
+                    // ⚠️ Das fruehere Item, das den Namens-Vermerk traegt, ist KEIN anderer Traeger: es ist
+                    // genau die Uebernahme, die hier zurueckgeht.
                     $andereTragenSieNoch = avesmapsGaretienAndererTraegerVorhanden(
-                        $pdo, $entityType, $quellePublicId, $eigeneAdresse, $itemIds
+                        $pdo, $entityType, $quellePublicId, $eigeneAdresse,
+                        $vermerkItemId > 0 ? array_merge($itemIds, [$vermerkItemId]) : $itemIds
                     );
                     if (!$andereTragenSieNoch) {
                         avesmapsGaretienQuelleRuecknahmeLoesenFuerAdresse($pdo, $entityType, $quellePublicId, $eigeneAdresse, (int) ($user['id'] ?? 0));
@@ -3282,9 +3964,21 @@ function avesmapsGaretienRuecknahmeAusfuehren(PDO $pdo, int $runId, array $itemI
                 // 💣 KEINE ADRESSE BESTIMMBAR: nichts wird geloest -- die sichere Richtung (siehe
                 // avesmapsGaretienItemTraegtAdresse); das Item geht trotzdem zurueck auf 'offen'.
 
+                // 🔴 DER NAME NACH DER QUELLE: scheitert er, bleibt das Item auf 'done', und ein zweiter Klick
+                // findet die Quelle schon geloest und versucht nur noch den Namen.
+                if ($nameVermerk !== null) {
+                    avesmapsGaretienNameZuruecksetzen($pdo, $ziel, $entityPublicId, $nameVermerk, $user);
+                }
+
                 // Zurueck auf 'offen' -- derselbe Riegel wie im 'new'-Zweig unten (dieselbe
                 // Bedeutung von "Ruecknahme": zurueck in GENAU den Stand vor der Uebernahme).
                 avesmapsGaretienItemZurueckAufOffen($pdo, $itemId);
+                // ⚠️ UND DAS FRUEHERE ITEM MIT, wenn der Namens-Vermerk von dort kam -- sonst faende der
+                // naechste Rueckfall denselben Vermerk noch einmal (dieselbe Begruendung wie `$altItemId`
+                // im 'new'-Zweig unten).
+                if ($vermerkItemId > 0 && $vermerkItemId !== $itemId) {
+                    avesmapsGaretienItemZurueckAufOffen($pdo, $vermerkItemId);
+                }
                 $zurueckgenommen++;
             } catch (Throwable $abbruch) {
                 // 🔴 GEKAPPT WIE `apply_note` IN avesmapsGaretienUebernehmen (Ruling 13, 06.09.2026
