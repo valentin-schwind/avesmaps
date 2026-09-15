@@ -23,6 +23,8 @@
 //       syncUebernehmen: (zeilen) => {},     // NUR die angehakten Diff-Zeilen (Aufgabe 2)
 //       trefferAufbereiten: (zeile) => {},   // OPTIONAL — nur bei suche.art === "server"
 //       schreibt:        "sofort"|"speichern", // OPTIONAL — siehe die 🪤 in `mount`; EIN Aufrufer
+//       anhang:          element,            // OPTIONAL — ein Element des WIRTS, das im Kasten ueber der Schreibzeile
+//                                            // haengt (Nachtrag 2026-09-14-wege-mehrfachzuweisung-design.md §9.5)
 //   });
 //
 // 🔴 DIE SCHREIBZEILE UND IHR „Abbrechen“ (Owner-Befund 16.08.2026). Der Kasten sagt DAUERHAFT,
@@ -592,6 +594,13 @@ function avesmapsWikiAssignModell(erklaerung, daten, ui) {
 		}];
 	}
 
+	// 🔴 DIE EINHAENGESTELLE (Nachtrag 2026-09-14-wege-mehrfachzuweisung-design.md §9.5): nur in den Ruhezustaenden und nur,
+	// wenn der Wirt etwas einhaengt. Suche und Sync-Vorschau sind oben schon zurueckgekehrt -- ein zweites Suchfeld unter
+	// einer Trefferliste laese sich wie ein Teil davon.
+	// 💣 Ohne `ui.anhang` bleibt das Markup Zeichen fuer Zeichen wie vorher; js/ui/__tests__/wiki-assign-anhang.test.js haelt
+	// das per Golden-Master ueber alle acht Erklaerungen fest.
+	modell.anhang = z.anhang === true;
+
 	// 🔴 HIER STAND DER DRITTE ZUSTAND („Kein Wiki-Artikel vorhanden", `extra.keinArtikelHaken`).
 	// Gefallen am 09.09.2026 mit dem Merker `properties.wiki_no_article`, Owner-Entscheid nach
 	// Durchsicht aller 10 Traeger. Sein Aequivalent ist die WIKI-ZUWEISUNG, die dieser Kasten
@@ -828,6 +837,11 @@ function avesmapsWikiAssignMarkup(modell, skin) {
 	if (!modell.hinweisOben) {
 		teile.push(hinweisMarkup);
 	}
+	// Der Platz fuer den Anhang des Wirts -- UEBER der Schreibzeile, damit „wirkt sofort“ fuer den ganzen Kasten gilt.
+	// ⚠️ Ohne Klasse: eine neue Huellenrolle braeuchte in BEIDEN Huellen einen Namen und in beiden Blaettern eine Regel.
+	if (modell.anhang === true) {
+		teile.push("<div data-wa-anhang></div>");
+	}
 	// 🔴 GANZ UNTEN, direkt ueber dem Rand des Kastens: die Zeile beantwortet „und was passiert
 	// jetzt?“, und diese Frage stellt sich, nachdem man den Inhalt gelesen hat.
 	// ⚠️ `role="status"` UND `aria-live="polite"`: der Wechsel auf „Noch nicht gespeichert“ ist der
@@ -986,6 +1000,15 @@ function avesmapsWikiAssignListeFiltern(kandidaten, suchtext, felder, deckel) {
 let avesmapsWikiAssignZaehler = 0;
 
 /**
+ * REIN: kommt ein Ereignis aus dem Anhang des Wirts? Dann gehoert es nicht dem Bauteil (Nachtrag §9.5).
+ * 💣 Ueber `closest`, NICHT ueber `contains`: die Attrappen der bestehenden Tests antworten auf `contains` immer mit ja und
+ * liessen damit jeden Klick verschwinden.
+ */
+function avesmapsWikiAssignAusAnhang(ziel) {
+	return Boolean(ziel && typeof ziel.closest === "function" && ziel.closest("[data-wa-anhang]"));
+}
+
+/**
  * 💣 DER BLINDGAENGER, UND WARUM ER SICH ZU ERKENNEN GIBT.
  *
  * Wenn `mount` nicht arbeiten kann (fehlende Erklaerung, unbekannte Huelle, fehlende Voraussetzung),
@@ -1086,7 +1109,7 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 	 */
 	function modellJetzt() {
 		return avesmapsWikiAssignModell(erklaerung, daten,
-			Object.assign({}, ui, { ungespeichert: ungespeichert }));
+			Object.assign({}, ui, { ungespeichert: ungespeichert, anhang: Boolean(opt.anhang) }));
 	}
 
 	/**
@@ -1116,9 +1139,22 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 		}
 	}
 
+	// 🔴 Nach JEDEM vollen Zeichnen: `innerHTML` hat den Platz neu gebaut, das Element des Wirts haengt sonst in der Luft.
+	// Es ist dasselbe Element -- seine Eingaben und seine Zuhoerer ueberleben das Umhaengen.
+	function anhangEinhaengen() {
+		if (!opt.anhang) {
+			return;
+		}
+		const platz = behaelter.querySelector("[data-wa-anhang]");
+		if (platz && typeof platz.appendChild === "function") {
+			platz.appendChild(opt.anhang);
+		}
+	}
+
 	function zeichne() {
 		const modell = modellJetzt();
 		behaelter.innerHTML = avesmapsWikiAssignMarkup(modell, skin);
+		anhangEinhaengen();
 		const feld = behaelter.querySelector("[data-wa-suche]");
 		if (feld) {
 			feld.focus();
@@ -1511,6 +1547,10 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 
 	function aufKlick(ereignis) {
 		const ziel = ereignis.target;
+		// Nachtrag §9.5: Ereignisse aus dem Anhang des Wirts blubbern hierher, gehoeren aber ihm.
+		if (avesmapsWikiAssignAusAnhang(ziel)) {
+			return;
+		}
 		if (!ziel || !ziel.closest) {
 			return;
 		}
@@ -1567,6 +1607,10 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 	 */
 	function aufDruck(ereignis) {
 		const ziel = ereignis.target;
+		// Nachtrag §9.5: Ereignisse aus dem Anhang des Wirts blubbern hierher, gehoeren aber ihm.
+		if (avesmapsWikiAssignAusAnhang(ziel)) {
+			return;
+		}
 		if (ereignis.button !== 0 || !ziel || !ziel.closest) {
 			return;
 		}
@@ -1580,6 +1624,10 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 
 	function aufEingabe(ereignis) {
 		const ziel = ereignis.target;
+		// Nachtrag §9.5: Ereignisse aus dem Anhang des Wirts blubbern hierher, gehoeren aber ihm.
+		if (avesmapsWikiAssignAusAnhang(ziel)) {
+			return;
+		}
 		if (!ziel) {
 			return;
 		}
@@ -1591,6 +1639,10 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 
 	function aufAenderung(ereignis) {
 		const ziel = ereignis.target;
+		// Nachtrag §9.5: Ereignisse aus dem Anhang des Wirts blubbern hierher, gehoeren aber ihm.
+		if (avesmapsWikiAssignAusAnhang(ziel)) {
+			return;
+		}
 		if (!ziel || !ziel.hasAttribute) {
 			return;
 		}
@@ -1607,6 +1659,10 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 	// spart das jedes Mal den Griff zur Maus.
 	function aufTaste(ereignis) {
 		const ziel = ereignis.target;
+		// Nachtrag §9.5: Ereignisse aus dem Anhang des Wirts blubbern hierher, gehoeren aber ihm.
+		if (avesmapsWikiAssignAusAnhang(ziel)) {
+			return;
+		}
 		if (!ziel || !ziel.hasAttribute || !ziel.hasAttribute("data-wa-suche")) {
 			return;
 		}
@@ -1695,6 +1751,7 @@ if (typeof module !== "undefined" && module.exports) {
 		avesmapsWikiAssignSkin: avesmapsWikiAssignSkin,
 		avesmapsWikiAssignModell: avesmapsWikiAssignModell,
 		avesmapsWikiAssignMarkup: avesmapsWikiAssignMarkup,
+		avesmapsWikiAssignAusAnhang: avesmapsWikiAssignAusAnhang,
 		avesmapsWikiAssignTrefferListeInhalt: avesmapsWikiAssignTrefferListeInhalt,
 		avesmapsWikiAssignTrefferAusZeile: avesmapsWikiAssignTrefferAusZeile,
 		avesmapsWikiAssignRufen: avesmapsWikiAssignRufen,
