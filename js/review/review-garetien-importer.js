@@ -1162,6 +1162,32 @@
 	// kennt sie nicht.
 	// ⚠️ Heisst ab Aufgabe 8 `zustand.stage` -- die Umbenennung zieht diese Zeile mit (siehe die
 	// Namenstabelle am Ende des Bauplans).
+	/*
+	 * REIN: der Fortschritt der Arbeitsliste -- „Noch 8587 von 9192 Objekten (93,4%) offen" -- oder "".
+	 *
+	 * Owner 15.09.2026, wörtlich: „wär cool, wenn in der statusleiste sowas drinsteht wie … Noch 8587
+	 * von 9192 Objekten (93,4%) offen". Die Editoren wollen sehen, wie weit sie sind.
+	 * 🔴 „offen" KOMMT VOM SERVER (`reiter.offen`), gezählt über den GANZEN Lauf VOR dem Filtern --
+	 * dieselbe Zahl, die im Reiter „Offen (n)" steht. Über die geladene Seite gezählt hinge sie an Filter
+	 * und Zeilenstufe. Der Nenner ist die Objektzahl, die dieselbe Zeile schon nennt.
+	 * ⚠️ Fehlt die Zahl (kein Lauf, eine Antwort ohne Reiter), steht GAR NICHTS da -- „Noch 0 von …" wäre
+	 * eine Aussage über einen Stand, den niemand gemeldet hat. Dasselbe bei `offen > gesamt`: zwei Zahlen,
+	 * die sich widersprechen, ergeben keinen Fortschritt.
+	 * ⚠️ AUF EINE STELLE GERUNDET, ABER NIE AUF DEN RAND: „100,0%" nur, wenn wirklich alles offen ist, und
+	 * „0,0%" nur, wenn nichts mehr offen ist. Sonst meldete ein einziges verbliebenes Objekt „fertig".
+	 */
+	function garetienOffenAnteilText(offen, gesamt) {
+		if (offen === null || offen === undefined || offen === "") { return ""; }
+		const n = Number(offen);
+		const g = Number(gesamt);
+		if (!Number.isFinite(n) || !Number.isFinite(g) || g <= 0 || n < 0 || n > g) { return ""; }
+		let zehntel = Math.round((n / g) * 1000);
+		if (n > 0 && zehntel === 0) { zehntel = 1; }
+		if (n < g && zehntel === 1000) { zehntel = 999; }
+		return "Noch " + n + " von " + g + " " + (g === 1 ? "Objekt" : "Objekten")
+			+ " (" + Math.floor(zehntel / 10) + "," + (zehntel % 10) + "%) offen";
+	}
+
 	function garetienStatusRuhe(antwort) {
 		const a = antwort || zustand.letzteAntwort || {};
 		const b = a.bilanz || {};
@@ -1170,9 +1196,12 @@
 			+ zahl("widerspruch") + zahl("deckt_sich") + zahl("uebersprungen");
 		const mitVorschlag = zahl("neu") + zahl("ergaenzung") + zahl("zweifel") + zahl("widerspruch");
 		const lauf = garetienLetzterLauf ? "Lauf " + garetienLaufStempel(garetienLetzterLauf) : "Noch kein Lauf";
+		// Owner 15.09.2026: der Fortschritt steht HINTEN (garetienOffenAnteilText).
+		const anteil = garetienOffenAnteilText((a.reiter || {}).offen, gesamt);
 		return garetienStatusSetzen(
 			lauf + " · " + gesamt + " Objekte · " + mitVorschlag + " mit Vorschlag · "
-				+ zustand.stage.size + " auf der Stage",
+				+ zustand.stage.size + " auf der Stage"
+				+ (anteil === "" ? "" : " · " + anteil),
 			"", null
 		);
 	}
@@ -11376,6 +11405,7 @@
 			// Aufgabe 1 (06.09.2026): die Statuszeile -- der EINE Erzeuger jeder Rückmeldung.
 			garetienStatusSetzen,
 			garetienStatusRuhe,
+			garetienOffenAnteilText,
 			garetienListeFehlerZeigen,
 			// Aufgabe 13
 			garetienDetailMarkup,
