@@ -184,7 +184,13 @@ function populatePathEditFormGruppe(path, pfade) {
 		zeigeName: shouldPathNameBeDisplayed,
 		transporte: getPathAllowedTransports,
 	}), pathEditTransportSchluessel());
-	pathEditGruppe = { pfade: pfade.slice(), stand };
+	// `schluessel`: die Strasse, wie die Karte sie beim Oeffnen bildet -- daran grenzt pathEditGruppeNachWikiSchreiben nach einem
+	// Wiki-Schreiben ein (Fixrunde Lieferung 2).
+	pathEditGruppe = {
+		pfade: pfade.slice(),
+		stand,
+		schluessel: typeof avesmapsWegGruppenSchluessel === "function" ? avesmapsWegGruppenSchluessel(path) : "",
+	};
 	pathEditGruppenModus(true);
 
 	const autoname = document.getElementById("path-edit-autoname");
@@ -362,6 +368,28 @@ function mountPathWikiWeitere(path, pfade, ganz) {
 function pathEditGruppeNachWikiSchreiben() {
 	if (!pathEditGruppe) {
 		return;
+	}
+	// 🔴 Fixrunde Lieferung 2: DIE STRASSE IST DER NAME, und ein Wiki-Schreiben kann Abschnitte aus ihr herausnehmen -- R2 (Entfernen)
+	// benennt generisch um, R1 (Zuweisen eines anderen Artikels) nach dem Artikel. Ohne Eingrenzen bildete der Dialog seine Zeilen weiter
+	// aus den Pfaden vom Oeffnen (Reichsstraße 2: nach „Entfernen" der 49 stand „keine · 67"), und das naechste Zuweisen bzw. „Speichern
+	// für 67" schrieb auf ausgetretene Abschnitte. Dieselbe Regel wie auf der Karte (avesmapsWegGruppenSchluessel -> wpGroupKeyOf); die
+	// Weg-Ebene des Wege-Editors laedt nach dem Namen neu (wpNachZeilenSchreiben).
+	// ⭐ Geht ein Abschnitt, oeffnet der Dialog NEU: fuer die verbliebene Strasse (am angeklickten Abschnitt, sonst am ersten, der
+	// geblieben ist), unter zwei Abschnitten fuer den angeklickten allein. So ziehen Zeilen, weitere Zuweisungen, Quellen, Sperre und
+	// „Speichern für N" ueber EINEN Weg nach (populatePathEditFormGruppe) statt je einzeln.
+	if (pathEditGruppe.schluessel && typeof avesmapsWegGruppenSchluessel === "function") {
+		const bleiben = pathEditGruppe.pfade.filter((pfad) => avesmapsWegGruppenSchluessel(pfad) === pathEditGruppe.schluessel);
+		if (bleiben.length !== pathEditGruppe.pfade.length) {
+			const angeklickt = typeof pathEditFeature !== "undefined" ? pathEditFeature : null;
+			if (bleiben.length > 1) {
+				openPathEditDialog(bleiben.includes(angeklickt) ? angeklickt : bleiben[0], { gruppe: bleiben });
+			} else if (angeklickt) {
+				openPathEditDialog(angeklickt);
+			} else {
+				pathEditGruppenModusBeenden();
+			}
+			return;
+		}
 	}
 	pathEditGruppe.stand = wpGroupFieldStates(avesmapsPathGruppeZeilen(pathEditGruppe.pfade, {
 		name: getPathDisplayName,

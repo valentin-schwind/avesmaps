@@ -21,6 +21,7 @@ const funktion = (text, name) => {
 const W = require(path.join(WURZEL, "js/ui/wiki-assign-weg.js"));
 const M = require(path.join(WURZEL, "js/pages/wege-editor-model.js"));
 const QUELLE = lies("js/review/review-path-wiki.js");
+const PFADE_QUELLE = lies("js/review/review-paths.js");
 
 const pfad = (id) => ({ properties: { public_id: id, wiki_path: { wiki_key: "reichsstrasse-2", name: "Reichsstraße 2" } } });
 const rs7 = pfad("rs-7");
@@ -92,14 +93,26 @@ function zeilenHost() {
 	return b;
 }
 const aufklappen = (details) => { details.open = true; details.zuhoerer.toggle({ target: details }); };
+const ids = (liste) => (liste || []).map((p) => p.properties.public_id);
 
 const RS2 = { wiki_key: "reichsstrasse-2", name: "Reichsstraße 2", wiki_url: "https://x/RS2" };
 const BAER = { wiki_key: "b-renpfad", name: "Bärenpfad", wiki_url: "https://x/B" };
 const kartenPfad = (id, wiki, weitere) => ({ properties: { public_id: id, display_name: "Reichsstraße 2", wiki_path: wiki,
 	wiki_path_weitere: weitere || [] } });
+const SYNC = [{ karte: "feature_subtype", neu: "Reichsstrasse" }];
+
+/** „Sync" einer Zeile rufen -- ein synchroner Wurf und eine abgelehnte Zusage sind beide ein Nein. */
+async function syncRufen(opts) {
+	try {
+		await Promise.resolve(opts.syncUebernehmen(SYNC));
+		return null;
+	} catch (fehler) {
+		return fehler;
+	}
+}
 
 function zeilenKontext(pfade) {
-	const log = { post: [], fragen: [], nachGruppe: 0, poll: 0, toasts: [], uebernommen: [], antwort: true };
+	const log = { post: [], fragen: [], nachGruppe: 0, poll: 0, toasts: [], uebernommen: [], antwort: true, geoeffnet: [], sync: 0, beendet: 0 };
 	const host = zeilenHost();
 	const anhang = { name: "anhang" };
 	const finde = (id) => pfade.find((p) => p.properties.public_id === id) || null;
@@ -109,29 +122,40 @@ function zeilenKontext(pfade) {
 	k.globalThis = k;
 	vm.createContext(k);
 	["js/pages/wege-editor-model.js", "js/ui/wiki-assign-registry.js", "js/ui/wiki-assign-diff.js", "js/ui/wiki-assign.js",
-		"js/ui/wiki-assign-weg.js", "js/ui/wiki-weitere-kasten.js", "js/ui/wiki-weg-zeilen.js"].forEach((datei) => {
+		"js/ui/wiki-assign-weg.js", "js/ui/wiki-weitere-kasten.js", "js/ui/wiki-weg-zeilen.js", "js/review/path-gruppe.js"].forEach((datei) => {
 		vm.runInContext(lies(datei), k, { filename: datei });
 	});
 	vm.runInContext("var echterMount = avesmapsWikiAssignMount;"
 		+ "avesmapsWikiAssignMount = function (b, o) { gemounted.push({ host: b, opts: o }); return echterMount(b, o); };", k);
+	// Der Strassenschluessel wie auf der Karte (avesmapsWegGruppenSchluessel -> getPathTitleName -> wpGroupKeyOf): der Wiki-Name, sonst
+	// der Anzeigename -- ein Maschinenname `<Wegart>-<n>` ist keiner und gehoert zu keiner Strasse.
+	const schluesselVon = (p) => {
+		const q = p.properties;
+		const anzeige = /^[A-Za-z]+-\d+$/.test(String(q.display_name || "")) ? "" : String(q.display_name || "");
+		return k.wpGroupKeyOf({ public_id: q.public_id, echter_name: (q.wiki_path && q.wiki_path.name) || anzeige });
+	};
 	Object.assign(k, {
-		pathEditFeature: pfade[0], pathEditGruppe: { pfade, stand: {} }, pathWikiAssign: null,
+		pathEditFeature: pfade[0], pathEditGruppe: { pfade, stand: {}, schluessel: schluesselVon(pfade[0]) }, pathWikiAssign: null,
 		confirm: (text) => { log.fragen.push(String(text)); return log.antwort; },
 		pathWikiElement: (id) => (id === "path-wiki-assign-host" ? host : { value: "Reichsstrasse" }),
 		// Der Server, wie assign_to/clear_assign/remove_weitere ihn beantworten -- samt segments_updated.
 		pathWikiPost: async (rumpf) => {
 			log.post.push(rumpf);
-			const ids = Array.isArray(rumpf.public_ids) ? rumpf.public_ids : [];
+			const liste = Array.isArray(rumpf.public_ids) ? rumpf.public_ids : [];
 			if (rumpf.action === "assign_to") {
-				return { ok: true, type_ok: true, applied: ids.length, wiki_name: "Via Ferra", segments_updated: ids.map((id) => ({ public_id: id, revision: 2,
-					name: "Via Ferra", display_name: "Via Ferra", wiki_path: { wiki_key: rumpf.wiki_key, name: "Via Ferra", wiki_url: "https://x/V" } })) };
+				const name = rumpf.wiki_key === "reichsstrasse-2" ? "Reichsstraße 2" : "Via Ferra";
+				return { ok: true, type_ok: true, applied: liste.length, wiki_name: name, segments_updated: liste.map((id) => ({ public_id: id, revision: 2,
+					name, display_name: name, wiki_path: { wiki_key: rumpf.wiki_key, name, wiki_url: "https://x/" + rumpf.wiki_key } })) };
 			}
 			if (rumpf.action === "clear_assign") {
-				return { ok: true, applied: ids.length, segments: ids.length, segments_updated: ids.map((id, i) => ({ public_id: id, revision: 2,
+				return { ok: true, applied: liste.length, segments: liste.length, segments_updated: liste.map((id, i) => ({ public_id: id, revision: 2,
 					name: "Strasse-" + (90 + i), display_name: "Strasse-" + (90 + i), wiki_path: null })) };
 			}
+			if (rumpf.action === "remove_weitere" && rumpf.wiki_key === "nicht-da") {
+				return { ok: true, applied: 0, skipped: liste.map((id) => ({ public_id: id, grund: "nicht_da" })), segments_updated: [] };
+			}
 			if (rumpf.action === "remove_weitere") {
-				return { ok: true, applied: ids.length, skipped: [], segments_updated: ids.map((id) => ({ public_id: id, wiki_path_weitere: [] })) };
+				return { ok: true, applied: liste.length, skipped: [], segments_updated: liste.map((id) => ({ public_id: id, wiki_path_weitere: [] })) };
 			}
 			return { ok: true };
 		},
@@ -148,15 +172,31 @@ function zeilenKontext(pfade) {
 			(daten.segments_updated || []).forEach((e) => { const p = finde(e.public_id); if (p) { p.properties.wiki_path_weitere = e.wiki_path_weitere; } });
 		},
 		getPathPublicId: (p) => p.properties.public_id,
-		pathWikiSyncNachbarn: () => {}, pathWikiSyncUebernehmen: () => {},
+		pathWikiSyncNachbarn: () => {},
+		pathWikiSyncUebernehmen: () => { log.sync += 1; },
 		showFeedbackToast: (text) => { log.toasts.push(String(text)); },
 		pathWikiWeitereAnhang: () => anhang,
-		pathEditGruppeNachWikiSchreiben: () => { log.nachGruppe += 1; },
 		pollLiveMapUpdates: () => { log.poll += 1; return Promise.resolve(); },
+		// Fuer den ECHTEN Vergleichsstand der ganzen Strasse (pathEditGruppeNachWikiSchreiben, review-paths.js).
+		avesmapsWegGruppenSchluessel: schluesselVon,
+		avesmapsWegAbschnittLabelAufKarte: (p) => "Label " + p.properties.public_id,
+		document: { getElementById: () => null },
+		getPathDisplayName: (p) => p.properties.display_name, shouldPathNameBeDisplayed: () => true, getPathAllowedTransports: () => [],
+		pathEditTransportSchluessel: () => [], syncPathAutoNameControls: () => {}, pathWikiWeitereKasten: null,
+		pathEditUmfangZeigen: () => { log.nachGruppe += 1; },
+		pathEditGruppenModusBeenden: () => { log.beendet += 1; k.pathEditGruppe = null; },
+		// Wie openPathEditDialog: der Dialog oeffnet neu -- fuer die verbliebene Strasse (populatePathEditFormGruppe) oder den Abschnitt.
+		openPathEditDialog: (anker, optionen) => {
+			const gruppe = optionen && Array.isArray(optionen.gruppe) && optionen.gruppe.length > 1 ? optionen.gruppe : null;
+			log.geoeffnet.push([anker.properties.public_id, gruppe ? ids(gruppe) : null]);
+			k.pathEditFeature = anker;
+			k.pathEditGruppe = gruppe ? { pfade: gruppe.slice(), stand: {}, schluessel: schluesselVon(anker) } : null;
+			if (gruppe) { vm.runInContext("renderPathWikiGruppenZeilen()", k); }
+		},
 	});
 	vm.runInContext(["renderPathWikiGruppenZeilen", "pathWikiGruppenZeilenNeuZeichnen", "pathWikiGruppenZeilen", "pathWikiZeileZustand",
 		"pathWikiZeileZuweisen", "pathWikiZeileLoesen", "pathWikiZeileWeitereEntfernen", "pathWikiNachZeilenSchreiben"]
-		.map((name) => funktion(QUELLE, name)).join("\n"), k);
+		.map((name) => funktion(QUELLE, name)).join("\n") + funktion(PFADE_QUELLE, "pathEditGruppeNachWikiSchreiben"), k);
 	return { k, log, host, anhang, rufe: (name) => vm.runInContext(name, k) };
 }
 
@@ -202,6 +242,11 @@ function zeilenKontext(pfade) {
 		assert.strictEqual(z.log.uebernommen.length, 1, "die neue Liste landet in den Kartendaten");
 		assert.ok(!z.host.innerHTML.includes("Bärenpfad"), "die Zeilen sind neu gezeichnet");
 
+		// Fixrunde L2: die Meldung nach dem ✕ nennt uebersprungene Abschnitte bei ihrer Beschriftung, nicht bei der Kennung.
+		z.log.toasts.length = 0;
+		await z.rufe("pathWikiZeileWeitereEntfernen")(null, { wiki_key: "nicht-da", public_ids: ["rs-7"] });
+		assert.ok(z.log.toasts.some((t) => t.includes("Label rs-7 (steht dort nicht)")), "die Beschriftung des Abschnitts: " + JSON.stringify(z.log.toasts));
+
 		// Aufklappen der Zeile „keine" montiert das Bauteil.
 		aufklappen(z.host.details[1]);
 		assert.strictEqual(z.k.gemounted.length, 1, "Aufklappen montiert das Bauteil");
@@ -210,38 +255,72 @@ function zeilenKontext(pfade) {
 		assert.strictEqual(gk.opts.skin, "label-wiki");
 		assert.strictEqual(gk.opts.laden().artikel, null, "der Stand des ersten Abschnitts der Zeile");
 
-		// Zuweisen in „keine": GENAU rs-7, rs-9, ohne Rueckfrage.
+		// Fixrunde L2: „Sync" einer Zeile einer GEMISCHTEN Strasse lehnt ab -- das Sammel-Speichern schriebe den Wegtyp dieses Artikels samt
+		// Herkunft „wiki" auf ALLE Abschnitte, auch auf die der anderen Zeile.
+		z.log.toasts.length = 0;
+		const syncNein = await syncRufen(gk.opts);
+		assert.ok(syncNein && /gemischter Straße/.test(syncNein.message), "Sync lehnt bei mehreren Zeilen ab: " + (syncNein && syncNein.message));
+		assert.strictEqual(z.log.sync, 0, "… und fuellt das Formular nicht");
+		assert.ok(z.log.toasts.some((t) => /gemischter Straße/.test(t)), "… und sagt es dem Editor");
+
+		// Zuweisen in „keine" mit dem Artikel der Strasse: GENAU rs-7, rs-9, ohne Rueckfrage -- sie bleiben in der Strasse.
 		z.log.post.length = 0;
-		await gk.opts.zuweisen({ wiki_key: "via-ferra", name: "Via Ferra" });
+		await gk.opts.zuweisen({ wiki_key: "reichsstrasse-2", name: "Reichsstraße 2" });
 		assert.strictEqual(z.log.post.length, 1);
 		assert.strictEqual(z.log.post[0].action, "assign_to");
 		assert.deepStrictEqual([...z.log.post[0].public_ids], ["rs-7", "rs-9"], "GENAU die Abschnitte der Zeile");
 		assert.strictEqual(z.log.post[0].public_id, "rs-7", "Anker ist ihr erster");
 		assert.strictEqual(z.log.fragen.length, 0, "keine Rueckfrage „gemischte Strasse“ mehr");
-		assert.strictEqual(z.log.nachGruppe, 2, "der Vergleichsstand wird nach jedem Schreiben neu gerechnet");
+		assert.strictEqual(z.log.nachGruppe, 3, "der Vergleichsstand wird nach jedem Schreiben neu gerechnet");
 		assert.ok(z.log.poll >= 1, "Gruppen und Traeger-Index haengen an der Kartenrevision");
-		assert.strictEqual(z.host.details.length, 2, "neu gebildet");
-		assert.ok(z.host.innerHTML.includes("Via Ferra") && !z.host.innerHTML.includes(">keine<"), "die Abschnitte sind in die Zeile „Via Ferra“ gewandert");
+		assert.strictEqual(z.log.geoeffnet.length, 0, "niemand ist ausgetreten -- der Dialog bleibt, wie er ist");
+		assert.strictEqual(z.host.details.length, 1, "neu gebildet: die Abschnitte sind in die Zeile „Reichsstraße 2“ gewandert");
+		assert.ok(z.host.innerHTML.includes("4 Abschnitte"), z.host.innerHTML.slice(0, 400));
 
-		// Entfernen in der Zeile „Reichsstraße 2": fragt mit der Zahl DIESER Zeile; Nein schreibt nichts, Ja GENAU rs-6, rs-8.
-		aufklappen(z.host.details[0]);
+		// Entfernen der einzigen Zeile: fragt „von allen 4", schreibt alle -- unter zwei Abschnitten gibt es keine Strasse mehr.
 		const gr = z.k.gemounted[z.k.gemounted.length - 1];
-		assert.strictEqual(gr.opts.laden().artikel.wiki_key, "reichsstrasse-2", "Reichsstraße 2 steht vor Via Ferra (gleich viele, alphabetisch)");
 		z.log.post.length = 0;
 		z.log.antwort = false;
 		let abgelehnt = null;
 		await gr.opts.loesen().catch((fehler) => { abgelehnt = fehler; });
 		assert.ok(abgelehnt && abgelehnt.message === "Abgebrochen.", "abgebrochen ist abgelehnt -- das Bauteil laesst die Zuweisung stehen");
 		assert.strictEqual(z.log.post.length, 0, "ein Nein schreibt nichts");
-		assert.ok(z.log.fragen[0].includes("2 der 4 Abschnitte"), z.log.fragen[0]);
 		z.log.antwort = true;
 		await gr.opts.loesen();
-		assert.deepStrictEqual(z.log.post.map((r) => [r.action, [...r.public_ids]]), [["clear_assign", ["rs-6", "rs-8"]]], "GENAU die Abschnitte der Zeile");
-		assert.strictEqual(z.log.fragen.length, 2, "Entfernen fragt jedes Mal");
-		assert.ok(z.host.innerHTML.includes(">keine<") && z.host.innerHTML.includes("Via Ferra"), "neu gebildet: Via Ferra und keine");
+		assert.ok(z.log.fragen[1].includes("allen 4 Abschnitten"), z.log.fragen[1]);
+		assert.deepStrictEqual(z.log.post.map((r) => [r.action, [...r.public_ids]]), [["clear_assign", ["rs-6", "rs-7", "rs-8", "rs-9"]]]);
+		assert.deepStrictEqual(z.log.geoeffnet, [["rs-6", null]], "alle ausgetreten: der Dialog faellt auf den Abschnitt, auf dem er geoeffnet wurde");
 	}
 
-	// ---- 4. Gruppendialog, EINIGE Strasse: EINE Zeile, offen, Bauteil sofort; Entfernen „von allen N“ ------------------------------
+	// ---- 3b. Fixrunde L2, Owner-Fall Reichsstraße 2: nach „Entfernen" gehoeren die umbenannten Abschnitte NICHT mehr zur Strasse -------
+	// Bis dahin bildete der Dialog seine Zeilen weiter aus den alten Pfaden („keine · 67"), und das naechste Zuweisen bzw. „Speichern fuer
+	// 67" schrieb auf die 49 ausgetretenen Abschnitte.
+	{
+		const pfade = [kartenPfad("rs-6", RS2), kartenPfad("rs-7", null), kartenPfad("rs-8", RS2), kartenPfad("rs-9", null)];
+		const z = zeilenKontext(pfade);
+		z.rufe("renderPathWikiGruppenZeilen")();
+		aufklappen(z.host.details[0]);
+		const zeileRs2 = z.k.gemounted[z.k.gemounted.length - 1];
+		assert.strictEqual(zeileRs2.opts.laden().artikel.wiki_key, "reichsstrasse-2");
+		await zeileRs2.opts.loesen();
+		assert.ok(z.log.fragen[0].includes("2 der 4 Abschnitte"), z.log.fragen[0]);
+		assert.deepStrictEqual(z.log.post.map((r) => [r.action, [...r.public_ids]]), [["clear_assign", ["rs-6", "rs-8"]]]);
+		// Der Anker rs-6 ist mit ausgetreten: der Dialog oeffnet neu -- fuer die verbliebene Strasse, geankert an ihrem ersten Abschnitt.
+		assert.deepStrictEqual(z.log.geoeffnet, [["rs-7", ["rs-7", "rs-9"]]], "die Strasse ist auf die Abschnitte eingegrenzt, die noch ihren Namen tragen");
+		assert.deepStrictEqual(ids(z.k.pathEditGruppe.pfade), ["rs-7", "rs-9"]);
+		assert.strictEqual(z.host.details.length, 1);
+		assert.ok(z.host.innerHTML.includes("2 Abschnitte") && !z.host.innerHTML.includes("4 Abschnitte"),
+			"die Zeile „keine“ zaehlt nur die verbliebenen: " + z.host.innerHTML.slice(0, 400));
+		const keine = z.k.gemounted[z.k.gemounted.length - 1];
+		assert.strictEqual(keine.host, z.host.details[0].platz, "die einzige Zeile ist offen und traegt das Bauteil");
+		z.log.post.length = 0;
+		await keine.opts.zuweisen({ wiki_key: "via-ferra", name: "Via Ferra" });
+		assert.deepStrictEqual([...z.log.post[0].public_ids], ["rs-7", "rs-9"], "das naechste Zuweisen schreibt NICHT auf die ausgetretenen rs-6, rs-8");
+		// Via Ferra benennt beide um (R1) -- sie verlassen die Strasse; unter zwei Abschnitten faellt der Dialog auf den Anker.
+		assert.deepStrictEqual(z.log.geoeffnet[1], ["rs-7", null]);
+	}
+
+	// ---- 4. Gruppendialog, EINIGE Strasse: EINE Zeile, offen, Bauteil sofort; Sync wie bisher; Entfernen „von allen N“ --------------
 	{
 		const z = zeilenKontext([kartenPfad("rs-6", RS2), kartenPfad("rs-7", RS2), kartenPfad("rs-8", RS2)]);
 		z.rufe("renderPathWikiGruppenZeilen")();
@@ -251,6 +330,8 @@ function zeilenKontext(pfade) {
 		const g = z.k.gemounted[0];
 		assert.strictEqual(g.host, z.host.details[0].platz);
 		assert.strictEqual(g.opts.laden().artikel.wiki_key, "reichsstrasse-2");
+		assert.strictEqual(await syncRufen(g.opts), null, "bei EINER Zeile bleibt Sync, wie es war");
+		assert.strictEqual(z.log.sync, 1, "… und fuellt das Formular");
 		await g.opts.loesen();
 		assert.ok(z.log.fragen.length === 1 && z.log.fragen[0].includes("allen 3 Abschnitten") && z.log.fragen[0].includes("zerfällt"), JSON.stringify(z.log.fragen));
 		assert.deepStrictEqual(z.log.post.map((r) => [r.action, [...r.public_ids]]), [["clear_assign", ["rs-6", "rs-7", "rs-8"]]]);
@@ -291,7 +372,7 @@ function zeilenKontext(pfade) {
 	assert.ok(zeilenTag > seite.indexOf('<script src="js/ui/wiki-assign-weg.js"></script>')
 		&& zeilenTag < seite.indexOf('<script src="js/review/review-path-wiki.js"></script>'),
 		"index.html laedt js/ui/wiki-weg-zeilen.js nach dem Datenweg des Wegs und vor dem Kartendialog");
-	const populate = funktion(lies("js/review/review-paths.js"), "populatePathEditFormGruppe");
+	const populate = funktion(PFADE_QUELLE, "populatePathEditFormGruppe");
 	assert.ok(populate.indexOf("renderPathWikiGruppenZeilen()") > populate.indexOf("populatePathEditForm(path)"),
 		"der Gruppendialog ersetzt den Kasten des Abschnitts durch die Zeilen -- nach dem Grundstand");
 

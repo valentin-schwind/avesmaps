@@ -1165,8 +1165,17 @@
 					laden: function () { return wikiAssignZeileZustand(zeile); },
 					zuweisen: function (treffer) { return wikiAssignZeileZuweisen(zeile, treffer); },
 					loesen: function () { return wikiAssignZeileLoesen(zeile); },
-					// ⚠️ „Sync" fuellt den Entwurf der ganzen Strasse -- „Speichern für N Abschnitte" sagt, worauf er wirkt.
-					syncUebernehmen: wikiAssignGruppeSyncUebernehmen
+					// ⚠️ „Sync" fuellt den Entwurf der ganzen Strasse -- „Speichern für N Abschnitte" schreibt ihn auf alle Abschnitte.
+					// 🔴 Fixrunde L2: hat die Strasse mehr als EINE Zeile, LEHNT die Zeile ab (wirft). Sonst bekaemen die Abschnitte der anderen
+					// Zeilen beim Speichern einen Wegtyp samt Herkunft „wiki", den ihr Artikel nie geliefert hat. Weglassen ginge nicht: ein
+					// fehlender Rueckruf gilt im Bauteil als „uebernommen".
+					syncUebernehmen: function (syncZeilen) {
+						if (wpGruppeZuweisungsZeilen(gruppe.segments).length > 1) {
+							setStatus(AVESMAPS_WIKI_ASSIGN_WEG_SYNC_GEMISCHT, "bad");
+							throw new Error(AVESMAPS_WIKI_ASSIGN_WEG_SYNC_GEMISCHT);
+						}
+						return wikiAssignGruppeSyncUebernehmen(syncZeilen);
+					}
 				};
 			},
 			weitereEntfernen: wikiZeileWeitereEntfernen,

@@ -352,6 +352,13 @@ async function pathWikiZeileLoesen(zeile) {
 /** ✕ an einer weiteren Zuweisung einer Zeile: GENAU ihre Traeger in dieser Zeile -- der vorhandene Schreibweg `remove_weitere`. */
 async function pathWikiZeileWeitereEntfernen(zeile, eintrag) {
 	const ids = avesmapsWikiAssignWegZeilenIds(eintrag && eintrag.public_ids);
+	// Die Beschriftungen fuer die Meldung -- VOR dem Schreiben gelesen, wie auf der Weg-Ebene (weitereAbschnitte). Ohne sie nennt
+	// „Übersprungen: …" nur Kennungen.
+	const abschnitte = (typeof pathEditGruppe !== "undefined" && pathEditGruppe && Array.isArray(pathEditGruppe.pfade) ? pathEditGruppe.pfade : [])
+		.map((pfad) => ({
+			public_id: getPathPublicId(pfad),
+			label: (typeof avesmapsWegAbschnittLabelAufKarte === "function" ? avesmapsWegAbschnittLabelAufKarte(pfad) : "") || getPathPublicId(pfad),
+		}));
 	let result;
 	try {
 		result = await pathWikiPost(avesmapsWikiWeitereKoerper("remove", eintrag && eintrag.wiki_key, ids));
@@ -368,7 +375,7 @@ async function pathWikiZeileWeitereEntfernen(zeile, eintrag) {
 	}
 	pathWikiNachZeilenSchreiben();
 	// 🔴 {ok:true, applied:0} ist kein Erfolg -- derselbe Satzbauer wie im Kasten der weiteren Zuweisungen.
-	showFeedbackToast?.(avesmapsWikiWeitereErgebnisText("remove", result, []), Number(result.applied) > 0 ? "success" : "warning");
+	showFeedbackToast?.(avesmapsWikiWeitereErgebnisText("remove", result, abschnitte), Number(result.applied) > 0 ? "success" : "warning");
 }
 
 /**
@@ -396,8 +403,17 @@ function renderPathWikiGruppenZeilen() {
 			laden: () => pathWikiZeileZustand(zeile),
 			zuweisen: (treffer) => pathWikiZeileZuweisen(zeile, treffer),
 			loesen: () => pathWikiZeileLoesen(zeile),
-			// ⚠️ „Sync" fuellt das Formular der ganzen Strasse -- „Speichern für N Abschnitte" darunter sagt, worauf es wirkt.
-			syncUebernehmen: pathWikiSyncUebernehmen,
+			// ⚠️ „Sync" fuellt das Formular der ganzen Strasse -- „Speichern für N Abschnitte" schreibt es auf alle Abschnitte.
+			// 🔴 Fixrunde L2: hat die Strasse mehr als EINE Zeile, LEHNT die Zeile ab (wirft). Sonst bekaemen die Abschnitte der anderen Zeilen
+			// beim Speichern einen Wegtyp samt Herkunft „wiki", den ihr Artikel nie geliefert hat. Weglassen ginge nicht: ein fehlender
+			// Rueckruf gilt im Bauteil als „uebernommen". Dieselbe Regel auf der Weg-Ebene (mountWikiWegZeilen, js/pages/wege-editor.js).
+			syncUebernehmen: (syncZeilen) => {
+				if (pathWikiGruppenZeilen().length > 1) {
+					showFeedbackToast?.(AVESMAPS_WIKI_ASSIGN_WEG_SYNC_GEMISCHT, "warning");
+					throw new Error(AVESMAPS_WIKI_ASSIGN_WEG_SYNC_GEMISCHT);
+				}
+				return pathWikiSyncUebernehmen(syncZeilen);
+			},
 		}),
 		weitereEntfernen: pathWikiZeileWeitereEntfernen,
 		// Nachtrag §9.5: der Kasten der weiteren Zuweisungen der ganzen Strasse -- EINMAL unter den Zeilen (mountPathWikiWeitere).

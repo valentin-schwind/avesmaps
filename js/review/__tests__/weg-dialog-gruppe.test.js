@@ -115,6 +115,8 @@ const kontext = vm.createContext({
 	// Lieferung 2: die Zeilen des Kastens „Wiki-Weg“ der ganzen Strasse (review-path-wiki.js) -- hier nur, DASS sie kommen.
 	renderPathWikiGruppenZeilen: () => { aufrufe.zeilen += 1; },
 	pathWikiGruppenZeilenNeuZeichnen: () => { aufrufe.zeilenNeu += 1; },
+	// Fixrunde L2: der Strassenschluessel beim Oeffnen -- daran grenzt der Dialog nach einem Wiki-Schreiben ein.
+	avesmapsWegGruppenSchluessel: () => "name:Reichsstraße 2",
 	wpGroupFieldStates: M.wpGroupFieldStates,
 	avesmapsPathGruppeZeilen: G.avesmapsPathGruppeZeilen,
 	avesmapsPathGruppeKnopfText: G.avesmapsPathGruppeKnopfText,
@@ -185,6 +187,8 @@ assert.strictEqual(kastenOpts.hauptKey(), "reichsstrasse-2");
 // Der Kasten der weiteren Zuweisungen steht EINMAL darunter, ohne eigene Liste -- die weiteren stehen mit ✕ in ihren Zeilen.
 // `haupt` fehlt weiter GANZ (Fix-Runde 1, Punkt 2): die Hauptzuweisungen zeigen die Zeilen.
 assert.strictEqual(aufrufe.zeilen, 1, "die Zeilen des Kastens „Wiki-Weg“ werden gezeichnet -- statt EINES Bauteils");
+assert.strictEqual(rufe("pathEditGruppe").schluessel, "name:Reichsstraße 2",
+	"der Dialog merkt sich beim Oeffnen den Strassenschluessel -- daran grenzt er nach einem Wiki-Schreiben ein (Fixrunde L2)");
 assert.strictEqual(kastenOpts.liste, false, "unter den Zeilen ohne eigene Liste -- ein ✕ dort naehme vom anderen Umfang");
 assert.ok(!("haupt" in kastenOpts), "keine Hauptzuweisungs-Zeile im Gruppendialog -- die Zeilen zeigen sie");
 assert.deepStrictEqual([...kastenOpts.abschnitte().map((a) => a.public_id)], ["rs-6", "rs-7", "rs-8"]);

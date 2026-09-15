@@ -401,6 +401,17 @@ function pruefeRueckfallAufAnker(f, wo) {
 		assert.strictEqual(gKeine.host, keine.platz, "… in genau dieser Zeile");
 		assert.strictEqual(gKeine.opts.laden().artikel, null, "der Stand des ersten Abschnitts der Zeile: keine Zuweisung");
 
+		// Fixrunde L2: „Sync" in einer Zeile einer GEMISCHTEN Strasse lehnt ab -- sonst schriebe das Sammel-Speichern den Wegtyp dieses
+		// Artikels samt Herkunft „wiki" auf ALLE Abschnitte, auch auf die der anderen Zeile. Ein Nein laesst den Entwurf unberuehrt.
+		let syncNein = null;
+		try { await Promise.resolve(gKeine.opts.syncUebernehmen([{ karte: "feature_subtype", neu: "Reichsstrasse" }])); } catch (fehler) { syncNein = fehler; }
+		assert.ok(syncNein && /gemischter Straße/.test(syncNein.message), "Sync lehnt bei mehreren Zeilen ab: " + (syncNein && syncNein.message));
+		g.gesendet.length = 0;
+		g.elemente.wpGroupSave.zuhoerer.click({ target: g.elemente.wpGroupSave, preventDefault() {} });
+		await ruhe();
+		assert.ok(!g.gesendet.some((x) => x.rumpf && x.rumpf.action === "update_path_group_details"),
+			"… und nichts ist im Entwurf gelandet: " + JSON.stringify(g.gesendet.map((x) => x.rumpf || x.url)));
+
 		// Zuweisen in „keine": GENAU p-6, p-7 -- ohne die Rueckfrage „gemischte Strasse" aus Lieferung 1.
 		g.fragen.length = 0;
 		g.gesendet.length = 0;

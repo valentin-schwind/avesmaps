@@ -301,6 +301,14 @@ function avesmapsWikiAssignWegLoesenKoerper(publicId, publicIds) {
 // („gemischte Strasse -- auf alle N schreiben?" vor Zuweisen, „N davon tragen keine Zuordnung" vor Entfernen): keine Zeile schreibt
 // auf Abschnitte einer anderen.
 
+/**
+ * Die Absage von „Sync" in einer Zeile einer GEMISCHTEN Strasse (Fixrunde Lieferung 2). Sync fuellt den Wegtyp der ganzen Strasse,
+ * und das Sammel-Speichern schriebe ihn samt Herkunft „wiki" auf ALLE Abschnitte -- auch auf die anderer Zeilen, deren Artikel ihn nie
+ * geliefert hat. Bei EINER Zeile bleibt Sync, wie es war. 🔴 Die Zeile LEHNT AB (wirft), statt den Rueckruf wegzulassen: ein fehlender
+ * Rueckruf gilt im Bauteil als „uebernommen" (avesmapsWikiAssignRufen).
+ */
+const AVESMAPS_WIKI_ASSIGN_WEG_SYNC_GEMISCHT = "Bei gemischter Straße Sync am einzelnen Abschnitt übernehmen.";
+
 /** REIN: die Kennungen EINER Zeile -- getrimmt, ohne Dubletten, in ihrer Reihenfolge (der erste ist der Anker). Nie null. */
 function avesmapsWikiAssignWegZeilenIds(publicIds) {
 	const ids = [];
