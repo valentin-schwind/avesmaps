@@ -126,7 +126,9 @@ const ohneKommentare = overlayQuelle
 
 // 💣 MIT der Namensfunktion -- ohne sie liefert der Index im Browser einen LEEREN Fächer, weil
 // properties.name dort der Autoname ist. Genau diese Fassung war einmal gebaut und wirkungslos.
-const indexAufruf = ohneKommentare.indexOf("buildWayLabelGapFillerIndex(pathData, getPathDisplayName)");
+// 🔴 Seit 15.09.2026 mit DRITTEM Parameter (wer Füller ist -- auch ein abgehakter Wiki-Abschnitt, wegname-kanal-a-tor.test.js).
+// Umgestellt, nicht gelockert: die Namensquelle bleibt getPathDisplayName, und genau die wird hier weiter verlangt.
+const indexAufruf = ohneKommentare.indexOf("buildWayLabelGapFillerIndex(pathData, getPathDisplayName,");
 assert.ok(indexAufruf !== -1,
 	"der Zeichner muss den Index aus pathData UND getPathDisplayName bauen -- dieselbe Namensquelle wie group.name");
 const gruppenSchleife = ohneKommentare.indexOf("wayGroups.forEach(");

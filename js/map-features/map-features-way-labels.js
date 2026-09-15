@@ -349,15 +349,20 @@ function buildWayLabelChains(segments, eps, fillers) {
 // Quelle, aus der er auch group.name bildet; eine eigene Namensregel hier wäre eine zweite Wahrheit.
 // ⚠️ Ohne nameOf bleibt der Index LEER (= altes Verhalten). Ein Rückfall auf properties.name wäre
 // schlimmer als nichts: er sieht richtig aus und findet nie etwas.
+// 🔴 istFueller(path) -- WER ist Füller? Vorgabe: jedes Segment OHNE Wiki-Zuweisung (die Regel oben). Seit „Wegname anzeigen"
+// auch an Wiki-Wegen wirkt (isWayLabelEligible), reicht der Zeichner zusätzlich die ABGEHAKTEN Wiki-Segmente herein: auch dort geht
+// die Straße weiter, nur ohne Namen, und Phase 2 darf die Stelle nicht überbrücken und den Namen doch darübermalen. Ein
+// ANGEHAKTES Wiki-Segment bleibt draußen -- es gehört zu seiner Kette.
 // Pur -- keine Globals, kein DOM.
-function buildWayLabelGapFillerIndex(paths, nameOf) {
+function buildWayLabelGapFillerIndex(paths, nameOf, istFueller) {
 	if (typeof nameOf !== "function") {
 		return new Map();
 	}
+	const fueller = typeof istFueller === "function" ? istFueller : (path) => !path?.properties?.wiki_path?.wiki_key;
 	const index = new Map();
 	(Array.isArray(paths) ? paths : []).forEach((path) => {
 		const props = path?.properties;
-		if (!props || props.wiki_path?.wiki_key) {
+		if (!props || !fueller(path)) {
 			return;
 		}
 		const name = String(nameOf(path) || "").trim();
@@ -475,15 +480,28 @@ function buildWayLabelEligibilityContext() {
 }
 
 // Ist dieser Pfad für Kanal-A-Way-Labels zulässig? Wie isPathLabelVisibleAtCurrentZoom
-// (map-features-path-labels.js), aber OHNE die show_label-Bedingung (Kanal A ignoriert
-// show_label bewusst -- der Weg wird als Ganzes beschriftet) und ZUSÄTZLICH nur, wenn ein
-// Wiki-Weg zugewiesen ist (wiki_path.wiki_key). ctx = buildWayLabelEligibilityContext(), einmal pro
+// (map-features-path-labels.js) -- MIT der show_label-Bedingung -- und ZUSÄTZLICH nur, wenn ein
+// Wiki-Weg zugewiesen ist (wiki_path.wiki_key).
+// 🔴 „WEGNAME ANZEIGEN" GILT AUCH HIER (Owner 15.09.2026: „mit "Wegname anzeigen" (chechbox) die kontrolle haben, ob der name
+// auf der karte angezeigt werden soll"). Bis dahin stand hier „OHNE die show_label-Bedingung (Kanal A ignoriert show_label
+// bewusst -- der Weg wird als Ganzes beschriftet)": das Häkchen war an Wiki-Wegen wirkungslos, und der Dialog blendete es aus.
+// 💣 ERST DER BESTANDSLAUF (`wegname_anzeigen_bestand`, api/_internal/map/features.php), DANN DIESES TOR -- von 1.949
+// Wiki-Abschnitten trugen 540 das Häkchen; ohne den Lauf verlören die übrigen ihren Namen.
+// 🔴 JE ABSCHNITT, nicht „die Straße, sobald irgendeiner angehakt ist": das Häkchen steht im Abschnittsdialog, und ein Abhaken
+// dort, das nichts bewirkt, sähe wie ein kaputter Klick aus. Die ganze Straße schaltet der Gruppendialog. Damit ein abgehakter
+// Abschnitt keine Brücke bekommt, über die der Name doch gemalt würde, ist er Lückenfüller (buildWayLabelGapFillerIndex).
+// ctx = buildWayLabelEligibilityContext(), einmal pro
 // Redraw gebaut (siehe dort) -- hier bleiben nur die PRO-Pfad-Teile: wiki_key-Prüfung und die
 // Fluss-vs-Straße-Weiche (welcher ctx-Toggle zählt). Browser-only (map/$/Globals) -- kein reiner
 // Helfer, daher nicht Teil der extractFunction-Unit-Tests (wie isPathLabelVisibleAtCurrentZoom
 // selbst auch nicht unit-getestet ist).
 function isWayLabelEligible(path, ctx) {
 	if (!path?.properties?.wiki_path?.wiki_key) {
+		return false;
+	}
+	// ⚠️ Ohne den Leser (map-features-path-labels.js nicht geladen) bleibt es beim alten Verhalten -- lieber ein Name zu viel als
+	// jeder Wiki-Weg namenlos.
+	if (typeof shouldPathNameBeDisplayed === "function" && !shouldPathNameBeDisplayed(path)) {
 		return false;
 	}
 	// Kraftlinien-Modus: keine Wege-/Fluss-Namen (Magiersicht; nur Kraftlinien-Namen werden gezeichnet).

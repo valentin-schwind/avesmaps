@@ -849,9 +849,9 @@
 			return;
 		}
 		pathData.forEach((path) => {
-			// Kanal B: wiki-zugewiesene Wege werden jetzt als Ganzes über Kanal A beschriftet (unten) --
-			// show_label wird für sie ignoriert (kein Doppel-Label). Unzugewiesene Segmente bleiben
-			// unverändert beim bisherigen per-Segment-Verhalten.
+			// Kanal B: wiki-zugewiesene Wege werden als Ganzes über Kanal A beschriftet (unten) -- dort entscheidet ihr
+			// show_label (seit 15.09.2026, isWayLabelEligible), hier werden sie übersprungen (kein Doppel-Label). Unzugewiesene
+			// Segmente bleiben unverändert beim bisherigen per-Segment-Verhalten.
 			if (wayLabelsEnabled && path?.properties?.wiki_path?.wiki_key) {
 				return;
 			}
@@ -932,8 +932,9 @@
 		});
 
 		// Kanal A: wiki-zugewiesene Wege als GANZES beschriften (Endpunkt-Verkettung über Segmente,
-		// Label alle ~WAY_LABEL_SCREEN_INTERVAL_PX Bildschirm-Pixel entlang jeder Kette). show_label wird
-		// hier bewusst ignoriert (siehe Kanal-B-Skip oben). Escape: ?waylabels=0.
+		// Label alle ~WAY_LABEL_SCREEN_INTERVAL_PX Bildschirm-Pixel entlang jeder Kette). 🔴 show_label gilt seit 15.09.2026
+		// auch hier, je Abschnitt (isWayLabelEligible) -- vorher stand hier „show_label wird hier bewusst ignoriert".
+		// Escape: ?waylabels=0.
 		if (wayLabelsEnabled
 			&& typeof isWayLabelEligible === "function"
 			&& typeof buildWayLabelGroups === "function"
@@ -965,8 +966,12 @@
 			// ⚠️ EINMAL je Redraw, nicht je Gruppe -- sonst ~410 Gruppen x ~6000 Pfade.
 			// 💣 getPathDisplayName ist Pflicht: properties.name ist hier der Autoname ("Strasse-5854"),
 			// der Wegname steht im Anzeigenamen -- und group.name unten kommt aus derselben Quelle.
+			// 🔴 UND EIN ABGEHAKTER WIKI-ABSCHNITT IST EBENFALLS FÜLLER (seit 15.09.2026): dort geht die Straße weiter, nur ohne
+			// Namen. Ohne ihn im Index überbrückte Phase 2 die Stelle, und der Name stünde doch über dem Abschnitt, den der Editor
+			// abgehakt hat.
 			const gapFillerIndex = (typeof buildWayLabelGapFillerIndex === "function" && typeof getPathDisplayName === "function")
-				? buildWayLabelGapFillerIndex(pathData, getPathDisplayName)
+				? buildWayLabelGapFillerIndex(pathData, getPathDisplayName, (p) => !p.properties?.wiki_path?.wiki_key
+					|| (typeof shouldPathNameBeDisplayed === "function" && !shouldPathNameBeDisplayed(p)))
 				: new Map();
 
 			const acceptedWayLabelBoxes = []; // Selbstkollision: {x1,y1,x2,y2} bereits platzierter Way-Labels
