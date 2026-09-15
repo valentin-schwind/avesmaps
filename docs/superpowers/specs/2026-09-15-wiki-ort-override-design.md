@@ -81,9 +81,9 @@ settlement_wiki_override (
   id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   normalized_key  VARCHAR(255) NOT NULL UNIQUE,  -- avesmapsWikiSyncCreateMatchKey(title)
   title           VARCHAR(255) NOT NULL,          -- zur Anzeige und Diagnose
-  overrides_json  JSON NOT NULL,
+  overrides_json  TEXT NOT NULL,                  -- JSON-Text; TEXT läuft auf MySQL und SQLite gleich
   updated_by      INT NULL,
-  updated_at      DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3)
+  updated_at      DATETIME(3) NOT NULL            -- vom Schreiber gesetzt, kein ON UPDATE (portabel)
 )
 ```
 
@@ -214,9 +214,17 @@ bestehende Punkte. **Beide Schreiber des Nests** (`avesmapsWikiSettlementAssignT
 2. Danach fallen diese vier Schlüssel aus der Override-Zeile. `place_scope` und
    `place_settlement_public_id` bleiben (§2).
 
-`?action=preview` liefert die Overrides mit, damit der Anlegedialog Name, Typ, Ruine und Verborgen
-schon vorbelegt. 🔧 Im Bauplan am Anlegedialog nachmessen: welche seiner Felder die Vorschau heute
-tatsächlich übernimmt.
+🔴 **Korrigiert beim Bauplan (15.09.2026, am Code gemessen):**
+- Der Anlegedialog übernimmt aus `?action=preview` heute **weder** Name noch Typ, Ruine oder
+  Verborgen (`selectSettlementWikiResultWhileCreating`). Eine Vorbelegung aus der Vorschau gibt es
+  deshalb nicht; die Übernahme sitzt allein im Server-Helfer.
+- Der häufige Platzier-Weg ist das **Ziehen aus der Panel-Liste** (`createAndAssignDraggedSettlement`):
+  `create_point` mit Wiki-Titel und Wiki-Klasse, danach `assign_to`. Die Liste nahm dafür `item.name`
+  — mit einem Namens-Override wäre das falsch, sie nimmt künftig `wiki_title` (und `settlement_class_wiki`).
+- `assign_to` schrieb nur `properties_json`. Die Übernahme schreibt zusätzlich die Spalten
+  `name`/`feature_subtype` samt ihren Kopien, prüft den Namen mit `avesmapsAssertUniqueLocationName`
+  (Doppel → nicht übernommen, in der Antwort `abgelehnt`) und schreibt ins Protokoll den **neuen**
+  Namen (Undo-Riegel).
 
 💣 Ein Helfer, zwei Aufrufer — eine Regel, die einen von zwei Schreibern bindet, ist keine Regel.
 
@@ -267,8 +275,9 @@ Nach dem Mockup, §1 und §2:
 
 ### Der Kasten „Wiki-Ort" (Nebenbefund)
 
-Die Zeile „Ortsgröße" zeigt die Beschriftung aus der Typ-Liste statt des Schlüssels. Nur die
-Anzeige — verglichen und gesynct wird weiter der Schlüssel.
+🔴 **Ausgelagert (15.09.2026):** das geteilte Bauteil zeigt Rohwerte (`js/ui/wiki-assign.js`,
+Modellbau der Feldzeilen) und kennt keine Übersetzung; eine dritte Beschriftungsliste wäre eine
+zweite Wahrheit. Eigener Folgeauftrag, nicht Teil dieses Umbaus.
 
 ## 7 · Reihenfolge — sichtbar heißt einzeln live (AGENTS.md §9)
 
@@ -278,7 +287,7 @@ Anzeige — verglichen und gesynct wird weiter der Schlüssel.
 4. Nicht platzierter Ort: Formular, Speichern, ↺ (sichtbar).
 5. „Lage & Zugehörigkeit": Innerorts und Gehört zu, platziert und nicht platziert (sichtbar).
 6. Platzieren: Übernahme in `assign_to`/`bulk_connect`, Vorschau (unsichtbar bis zum Anlegen).
-7. Kasten „Wiki-Ort": Beschriftung der Ortsgröße (sichtbar, klein).
+7. ~~Kasten „Wiki-Ort": Beschriftung der Ortsgröße~~ — ausgelagert als eigener Folgeauftrag (§6).
 
 ## 8 · Prüfung
 
