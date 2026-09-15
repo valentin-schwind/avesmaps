@@ -589,6 +589,9 @@ routeDataRequest
 		$("#inputLocation").off("click").on("click", () => {
 			appendWaypointInput().trigger("focus");
 		});
+		// ⇅ „Route umkehren" und 🗑 „Route löschen" links und rechts davon -- VOR resetWaypointInputs,
+		// damit ihr Zeilen-Beobachter schon den ersten Aufbau der Liste sieht.
+		initializeWaypointListActions();
 		resetWaypointInputs();
 
 		const hasSharedRoute = applyPlannerStateFromUrl();

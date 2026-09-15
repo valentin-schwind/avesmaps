@@ -173,6 +173,12 @@ function clearWaypointLocationName(locationName) {
 			didClear = true;
 		}
 	});
+	// Geleert wird ohne Zeilenwechsel und ohne Neurechnen (refreshPlannerAfterFeatureChange rechnet nur,
+	// solange noch Wegpunkte stehen) -- also ⇅/🗑 selbst abgleichen (syncWaypointListActions,
+	// map-features-waypoints.js).
+	if (didClear) {
+		syncWaypointListActions();
+	}
 
 	return didClear;
 }

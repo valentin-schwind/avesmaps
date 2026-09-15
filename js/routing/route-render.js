@@ -459,6 +459,12 @@ function renderRouteWaypointMarkers() {
 	if (typeof applyActiveWaypointRow === "function") {
 		applyActiveWaypointRow();
 	}
+	// ⇅ und 🗑 neben „Ziel hinzufuegen": programmatisch gesetzte Wegpunkte (Autocomplete, „Hierher
+	// reisen", geteilter Link) aendern weder die Zeilen noch loesen sie `input` aus -- sie laufen aber
+	// alle durch dieses Neurechnen. Das ist der dritte Trichter des Abgleichs (map-features-waypoints.js).
+	if (typeof syncWaypointListActions === "function") {
+		syncWaypointListActions();
+	}
 }
 
 function removeHighlightedRouteNodes() {

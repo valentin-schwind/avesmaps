@@ -2779,8 +2779,14 @@
 
 			<!-- Waypoints -->
 			<div id="waypoints"></div>
+			<!-- 🔴 Diese Zeile steht im RASTER DER WEGPUNKTZEILE: ⇅ unter dem Wegpunkt-Symbol, „Ziel
+			     hinzufügen" unter dem Suchfeld, 🗑 unter dem ✕ (Owner 15.09.2026). Beide Symbolknöpfe
+			     starten `disabled` -- frei schaltet sie syncWaypointListActions, sobald Wegpunkte
+			     ausgefüllt sind. -->
 			<div class="input-options">
+				<button type="button" id="reverseRouteButton" class="planner-route-action" title="Route umkehren" aria-label="Route umkehren" data-i18n-title="planner.reverseRoute.title" data-i18n-aria-label="planner.reverseRoute.title" disabled><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 20V4M4 8l4-4 4 4M16 4v16M12 16l4 4 4-4"/></svg></button>
 				<button id="inputLocation" title="Reiseziel hinzufügen" data-i18n-title="planner.addDestination.title" data-i18n="planner.addDestination">Ziel hinzufügen</button>
+				<button type="button" id="clearRouteButton" class="planner-route-action" title="Route löschen" aria-label="Route löschen" data-i18n-title="planner.clearRoute.title" data-i18n-aria-label="planner.clearRoute.title" disabled><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg></button>
 			</div>
 			<!-- Einklappbare Gruppe: die Ueberschrift IST der Schalter, und eingeklappt zeigt sie in
 			     derselben Zeile, was gerade eingestellt ist (js/map-features/map-features-planner-groups.js).

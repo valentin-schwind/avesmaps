@@ -333,6 +333,8 @@ function fillLastEmptyWaypointOrAppend(locationName) {
 	const $lastEmptyInput = getLastEmptyWaypointInput();
 	if ($lastEmptyInput.length) {
 		$lastEmptyInput.val(normalizedLocationName);
+		// Eine vorhandene Zeile wird gefuellt, keine angelegt -- kein `childList`, also selbst abgleichen.
+		syncWaypointListActions();
 		return $lastEmptyInput;
 	}
 
@@ -395,12 +397,112 @@ function removeWaypointElement($waypoint, { updateRoute = true } = {}) {
 	} else {
 		syncPlannerStateToUrl();
 	}
+	// Die letzte Zeile wird nur GELEERT, nicht entfernt -- kein `childList`, und ohne updateRoute auch
+	// kein Neurechnen. Also selbst abgleichen.
+	syncWaypointListActions();
 
 	return true;
 }
 
 function removeWaypointById(waypointId, options = {}) {
 	return removeWaypointElement(getWaypointElementById(waypointId), options);
+}
+
+/*
+ * Die zwei Knoepfe neben „Ziel hinzufuegen": ⇅ dreht die Route um, 🗑 leert sie (Owner 15.09.2026).
+ * 🔴 Gezaehlt werden AUSGEFUELLTE Wegpunkte. Eine leere „Suche Ort"-Zeile ist keine Route und macht
+ * keinen der beiden Knoepfe scharf. Die Regel steht rein, damit ihr Test sie ausfuehrt.
+ */
+function waypointListActionState(filledCount) {
+	const count = Math.max(0, Number(filledCount) || 0);
+	return { canReverse: count >= 2, canClear: count >= 1 };
+}
+
+/*
+ * Die Reihenfolge nach dem Umkehren: belegte Zeilen gedreht, leere Zeilen dahinter.
+ * 💣 Umgestellt werden die ZEILEN, nie ihre Werte. Ein Kartenpunkt aus „Hierher reisen" ist zwar nur
+ * die Beschriftung in seinem Feld (mapPointWaypointLabel), aber seine ZEILE traegt die waypointId, in
+ * die das Ziehen des Markers zurueckschreibt -- und das Autocomplete haengt am Feld. Werte umzuschreiben
+ * haette die Kennungen gegen die Beschriftungen vertauscht; Zeilen verschieben nimmt beides mit.
+ */
+function reversedWaypointRowOrder(rows, isFilled) {
+	const filled = rows.filter((row) => isFilled(row));
+	const empty = rows.filter((row) => !isFilled(row));
+	return filled.reverse().concat(empty);
+}
+
+function isWaypointRowFilled(row) {
+	return Boolean(($(row).find(".waypoint-input").val() || "").trim());
+}
+
+function syncWaypointListActions() {
+	const state = waypointListActionState(getWaypointInputValues().length);
+	const reverseButton = document.getElementById("reverseRouteButton");
+	const clearButton = document.getElementById("clearRouteButton");
+	if (reverseButton) {
+		reverseButton.disabled = !state.canReverse;
+	}
+	if (clearButton) {
+		clearButton.disabled = !state.canClear;
+	}
+	return state;
+}
+
+function reverseWaypoints() {
+	if (!waypointListActionState(getWaypointInputValues().length).canReverse) {
+		return false;
+	}
+	const orderedRows = reversedWaypointRowOrder(getWaypointContainers().get(), isWaypointRowFilled);
+	// append() auf vorhandene Knoten VERSCHIEBT sie -- dasselbe, was das Ziehen am Griff tut, und
+	// danach dasselbe Neurechnen wie dort (initializeWaypointSorting, `update`).
+	$("#waypoints").append(orderedRows);
+	refreshWaypointSorting();
+	updateMapView();
+	return true;
+}
+
+function clearWaypoints() {
+	if (!waypointListActionState(getWaypointInputValues().length).canClear) {
+		return false;
+	}
+	// Derselbe Zustand wie beim Start: eine leere Zeile. Das Neurechnen raeumt Route, Etappenplan und
+	// Wegpunkt-Marker ab (resetRoutePresentation) und zoomt ohne Ziel nirgendwohin
+	// (focusMapOnActiveTargets kehrt ohne Ziel sofort zurueck).
+	resetWaypointInputs();
+	updateMapView();
+	return true;
+}
+
+/*
+ * 💣 Der Abgleich haengt an TRICHTERN, nicht an jedem Aufrufer: die Zeilen (anlegen, entfernen,
+ * sortieren, aus einem Link wiederherstellen -- alles `childList`), das Tippen (`input`) und das
+ * Neurechnen (renderRouteWaypointMarkers, js/routing/route-render.js), durch das Autocomplete und
+ * „Hierher reisen" laufen. Die drei Stellen in DIESER Datei, die einen Wert ohne Zeilenwechsel und
+ * ohne Neurechnen setzen, rufen ihn zusaetzlich selbst (removeWaypointElement,
+ * fillLastEmptyWaypointOrAppend, clearWaypointLocationName).
+ */
+function initializeWaypointListActions() {
+	if (initializeWaypointListActions.isInitialized) {
+		return;
+	}
+	const waypointsElement = document.getElementById("waypoints");
+	if (!waypointsElement) {
+		return;
+	}
+	initializeWaypointListActions.isInitialized = true;
+
+	$("#reverseRouteButton").off("click").on("click", (event) => {
+		event.preventDefault();
+		reverseWaypoints();
+	});
+	$("#clearRouteButton").off("click").on("click", (event) => {
+		event.preventDefault();
+		clearWaypoints();
+	});
+
+	new MutationObserver(() => syncWaypointListActions()).observe(waypointsElement, { childList: true });
+	waypointsElement.addEventListener("input", () => syncWaypointListActions());
+	syncWaypointListActions();
 }
 
 function initializeWaypointSorting() {

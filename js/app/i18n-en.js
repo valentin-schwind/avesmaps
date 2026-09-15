@@ -21,6 +21,8 @@ window.AVESMAPS_I18N_EN = {
 	// --- planner: static chrome (data-i18n) ---
 	"planner.addDestination": "Add destination",
 	"planner.addDestination.title": "Add destination",
+	"planner.reverseRoute.title": "Reverse route",
+	"planner.clearRoute.title": "Clear route",
 	"planner.toggle": "Route planner",
 	"planner.route.fastest": "Fastest route",
 	"planner.route.fastest.title": "Finds the fastest route",

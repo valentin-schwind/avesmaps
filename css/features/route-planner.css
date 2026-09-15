@@ -45,8 +45,11 @@
 	box-shadow: 0 10px 20px rgba(52, 41, 32, 0.2);
 }
 
+/* ⇅ und 🗑 neben „Ziel hinzufuegen" (`.planner-route-action`) haben dieselbe Form wie Griff und ✕:
+   randlos, gedaempft, Hellung beim Ueberfahren. Sie sind Zeilen-Werkzeuge, nicht die Hauptaktion. */
 .waypoint-drag-handle,
-.remove-waypoint {
+.remove-waypoint,
+.planner-route-action {
 	width: 24px;
 	height: 24px;
 	border: 0;
@@ -70,10 +73,25 @@
 .waypoint-drag-handle:hover,
 .waypoint-drag-handle:focus-visible,
 .remove-waypoint:hover,
-.remove-waypoint:focus-visible {
+.remove-waypoint:focus-visible,
+.planner-route-action:not(:disabled):hover,
+.planner-route-action:focus-visible {
 	background: var(--color-hover-wash);
 	color: var(--color-text-strong);
 	outline: none;
+}
+
+.planner-route-action {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
+/* Ausgegraut, solange es nichts umzukehren oder zu loeschen gibt -- ohne Hellung und ohne Zeigerhand,
+   sonst verspricht der Knopf eine Wirkung, die er nicht hat. */
+.planner-route-action:disabled {
+	color: var(--color-disabled-text);
+	cursor: default;
 }
 
 .waypoint-input {
@@ -110,7 +128,11 @@
 	gap: var(--space-6);
 }
 
-.input-options button {
+/* 💣 `:not(.planner-route-action)` ist tragend: die Regel stammt aus der Zeit, als „Ziel hinzufuegen"
+   der EINZIGE Knopf der Zeile war, und faerbte sonst ⇅ und 🗑 zu gefuellten Hauptknoepfen. Mit
+   (0,1,1) schluege sie ausserdem deren eigene Klassenregel (0,1,0) -- dieselbe Ausnahme steht am
+   Hover-Block weiter unten. */
+.input-options button:not(.planner-route-action) {
 	min-height: 32px;
 	border: 1px solid var(--color-button-border);
 	border-radius: 8px;
@@ -221,8 +243,8 @@
 	transform: translateY(-1px);
 }
 
-.input-options button:hover,
-.input-options button:focus-visible {
+.input-options button:not(.planner-route-action):hover,
+.input-options button:not(.planner-route-action):focus-visible {
 	background: var(--color-button-hover);
 	box-shadow: 0 5px 12px rgba(52, 41, 32, 0.22);
 	outline: none;

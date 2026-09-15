@@ -12,12 +12,23 @@
 	overflow: visible;
 }
 
+/* 🔴 EIN RASTER, ZWEI ZEILEN. Die Wegpunktzeile (Griff · Symbol · Suchfeld · ✕) und die Zeile darunter
+   (⇅ · „Ziel hinzufuegen" · 🗑) teilen sich dieselben Spalten -- nur so steht der Knopf genau unter dem
+   Suchfeld und jedes Symbol unter seinem Gegenstueck (Owner 15.09.2026). Beide lesen diese Variablen;
+   getrennt geschrieben stimmen sie heute und laufen beim naechsten Umbau still auseinander.
+   ⚠️ `left: 41px` am Wegpunkt-Symbol und `left: 39.5px` an der Punktlinie sind die Mitte der zweiten
+   Spalte (24 + 5 + 12) -- wer die Spalten aendert, rechnet sie mit. */
+#search {
+	--waypoint-row-columns: 24px 24px minmax(0, 1fr) 26px;
+	--waypoint-row-gap: 5px;
+}
+
 #waypoints .waypoint-container {
 	position: relative;
 	display: grid;
-	grid-template-columns: 24px 24px minmax(0, 1fr) 26px !important;
+	grid-template-columns: var(--waypoint-row-columns) !important;
 	align-items: center;
-	column-gap: 5px;
+	column-gap: var(--waypoint-row-gap);
 	min-height: 32px;
 	padding: 0 !important;
 	border: 0 !important;
@@ -152,15 +163,32 @@
 
 #search .input-options {
 	display: grid;
-	grid-template-columns: minmax(0, 1fr) !important;
-	column-gap: 5px;
+	grid-template-columns: var(--waypoint-row-columns) !important;
+	align-items: center;
+	column-gap: var(--waypoint-row-gap);
 }
 
+/* „Ziel hinzufuegen" in der Spalte des Suchfelds, ⇅ in der des Wegpunkt-Symbols, 🗑 in der des ✕.
+   💣 `grid-row: 1` an allen dreien: ohne feste Zeile legt der Auto-Platzierer ein Kind, dessen Spalte
+   links vom vorigen liegt, in eine NEUE Zeile -- die Reihenfolge im Markup waere dann Layout. */
 #search .input-options #inputLocation {
-	grid-column: 1;
+	grid-column: 3;
+	grid-row: 1;
 	width: 100%;
 	min-width: 0;
 	justify-self: stretch;
+}
+
+#search .input-options #reverseRouteButton {
+	grid-column: 2;
+	grid-row: 1;
+	justify-self: center;
+}
+
+#search .input-options #clearRouteButton {
+	grid-column: 4;
+	grid-row: 1;
+	justify-self: center;
 }
 
 /* Route planner waypoint width fix */
@@ -172,7 +200,7 @@
 }
 
 #waypoints .waypoint-container {
-	grid-template-columns: 24px 24px minmax(0, 1fr) 26px !important;
+	grid-template-columns: var(--waypoint-row-columns) !important;
 	justify-content: stretch;
 }
 
@@ -182,8 +210,11 @@
 	justify-self: stretch;
 }
 
+/* 💣 Dieser Block wiederholt die Spalte von „Ziel hinzufuegen" -- gleiche Spezifitaet, spaeter im
+   Blatt, er GEWINNT. Stand hier noch `grid-column: 1`, laege der Knopf unter dem Griff statt unter
+   dem Suchfeld, und die Regel weiter oben waere lautlos wirkungslos. */
 #search .input-options #inputLocation {
-	grid-column: 1;
+	grid-column: 3;
 	width: 100% !important;
 	justify-self: stretch;
 }
