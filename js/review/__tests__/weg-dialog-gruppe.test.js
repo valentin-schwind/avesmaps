@@ -200,7 +200,7 @@ rufe("pathWikiWeitereUebernehmen")({ segments_updated: [
 	{ public_id: "rs-6", wiki_path_weitere: [] },
 ] });
 assert.strictEqual(rs7.properties.wiki_path_weitere[0].wiki_key, "b-renpfad");
-assert.ok(!("wiki_path_weitere" in rs6.properties), "eine leere Liste nimmt das Feld weg");
+assert.deepStrictEqual([...rs6.properties.wiki_path_weitere], [], "eine leere Liste bleibt als [] stehen (Nachtrag §9.2)");
 assert.deepStrictEqual(aufrufe.popups, ["rs-7", "rs-6"]);
 assert.strictEqual(aufrufe.suche, 1, "die Suche vergisst ihren Zwischenspeicher");
 assert.strictEqual(aufrufe.panel, 1, "das Infopanel zieht nach");

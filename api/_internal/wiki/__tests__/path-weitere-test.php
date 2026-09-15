@@ -36,13 +36,13 @@ assert(avesmapsWikiPathWeitereHinzufuegen($mitHaupt, ['wiki_key' => '  '] + $bae
 // Entfernen
 $weg = avesmapsWikiPathWeitereEntfernen($r['properties'], 'b-renpfad');
 assert($weg['geaendert'] === true);
-assert(!array_key_exists('wiki_path_weitere', $weg['properties']), 'eine leere Liste verschwindet ganz');
+assert(($weg['properties']['wiki_path_weitere'] ?? null) === [], 'eine leer gewordene Liste bleibt als [] stehen (Nachtrag §9.2)');
 assert(avesmapsWikiPathWeitereEntfernen($mitHaupt, 'b-renpfad')['grund'] === 'nicht_da');
 
 // Neue Hauptzuweisung, die schon als weitere dastand: sie verschwindet aus der Liste
 $umgehaengt = $r['properties'];
 $umgehaengt['wiki_path'] = ['wiki_key' => 'b-renpfad', 'name' => 'Bärenpfad'];
-assert(!array_key_exists('wiki_path_weitere', avesmapsWikiPathWeitereOhneHaupt($umgehaengt)));
+assert((avesmapsWikiPathWeitereOhneHaupt($umgehaengt)['wiki_path_weitere'] ?? null) === [], 'auch ueber OhneHaupt bleibt [] stehen');
 assert(avesmapsWikiPathWeitereOhneHaupt($r['properties']) === $r['properties'], 'ohne Ueberschneidung unveraendert');
 
 // Lesen raeumt kaputte Eintraege und Dubletten weg
@@ -50,6 +50,13 @@ $kaputt = ['wiki_path_weitere' => ['x', ['wiki_key' => ''], ['wiki_key' => 'a', 
 $gelesen = avesmapsWikiPathWeitereLesen($kaputt);
 assert(count($gelesen) === 1 && $gelesen[0]['name'] === 'A');
 assert(avesmapsWikiPathWeitereLesen(['wiki_path_weitere' => 'kein array']) === []);
+
+// Nachtrag 15.09.2026 §9.2: `[]` gilt ueberall als „keine"
+$leer = ['name' => 'Reichsstraße 2', 'wiki_path' => $mitHaupt['wiki_path'], 'wiki_path_weitere' => []];
+assert(avesmapsWikiPathWeitereLesen($leer) === []);
+assert(avesmapsWikiPathWeitereOhneHaupt($leer) === $leer, 'eine leere Liste bleibt, wie sie ist');
+assert(avesmapsWikiPathWeitereEntfernen($leer, 'b-renpfad')['grund'] === 'nicht_da');
+assert(avesmapsWikiPathWeitereHinzufuegen($leer, $baerenpfad)['properties']['wiki_path_weitere'][0]['wiki_key'] === 'b-renpfad');
 
 // Kennungen
 assert(avesmapsWikiPathWeitereIds(['a', ' a ', 'b', ''], 250) === ['a', 'b']);

@@ -335,11 +335,9 @@ function pathWikiWeitereUebernehmen(daten) {
 		if (!pfad || !pfad.properties) {
 			return;
 		}
-		if (Array.isArray(eintrag.wiki_path_weitere) && eintrag.wiki_path_weitere.length) {
-			pfad.properties.wiki_path_weitere = eintrag.wiki_path_weitere;
-		} else {
-			delete pfad.properties.wiki_path_weitere;
-		}
+		// 🔴 `[]` STATT LOESCHEN, wie der Server (Nachtrag 15.09.2026 §9.2): der eigene und der fremde Browser halten
+		// denselben Stand -- beim fremden kommt die leere Liste ueber den Live-Abgleich, und nur ein `[]` ueberschreibt dort.
+		pfad.properties.wiki_path_weitere = Array.isArray(eintrag.wiki_path_weitere) ? eintrag.wiki_path_weitere : [];
 		if (typeof refreshPathLayerPopup === "function") {
 			refreshPathLayerPopup(pfad);
 		}

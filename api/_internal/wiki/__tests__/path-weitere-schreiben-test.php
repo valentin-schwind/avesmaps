@@ -121,7 +121,7 @@ assert($nochmal['applied'] === 0 && $audits() === 2);
 // 4. Entfernen von einem Abschnitt
 $entfernt = avesmapsWikiPathWeitereSchreiben($pdo, 'remove', 'b-renpfad', ['rs-7'], false, 1);
 assert($entfernt['applied'] === 1 && $entfernt['action'] === 'remove_weitere');
-assert(!array_key_exists('wiki_path_weitere', $props('rs-7')));
+assert(($props('rs-7')['wiki_path_weitere'] ?? null) === [], 'die leer gewordene Liste bleibt als [] stehen (Nachtrag §9.2)');
 assert(count($props('rs-6')['wiki_path_weitere']) === 1, 'rs-6 behaelt ihn');
 
 // 5. Ungueltiges

@@ -96,11 +96,12 @@ function avesmapsWikiPathWeitereEntfernen(array $properties, string $wikiKey): a
     if (count($rest) === count($liste)) {
         return ['properties' => $properties, 'geaendert' => false, 'grund' => 'nicht_da'];
     }
-    if ($rest === []) {
-        unset($properties[AVESMAPS_WIKI_PATH_WEITERE_FELD]);
-    } else {
-        $properties[AVESMAPS_WIKI_PATH_WEITERE_FELD] = $rest;
-    }
+    // 🔴 EINE LEER GEWORDENE LISTE BLEIBT ALS `[]` STEHEN, sie wird nicht geloescht (Nachtrag 15.09.2026 §9.2).
+    // 💣 Der Live-Abgleich anderer Editoren legt das Delta per Spread ueber den alten Stand
+    // (applyPathFeatureResponse, js/map-features/map-features-path-lifecycle.js): ein FEHLENDER Schluessel
+    // ueberschreibt dort nichts, und der entfernte Artikel stuende bis zum Neuladen weiter am Abschnitt.
+    // Welche Leser `[]` als „keine" lesen, steht in der Tafel des Nachtrags.
+    $properties[AVESMAPS_WIKI_PATH_WEITERE_FELD] = $rest;
     return ['properties' => $properties, 'geaendert' => true, 'grund' => ''];
 }
 
