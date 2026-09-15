@@ -1368,8 +1368,8 @@
 	let labelCursorActive = false;
 	let labelCursorLastCheck = 0;
 	map.on("mousemove", (event) => {
-		// Eine noch aktive Hand zuruecknehmen -- EINE Stelle fuer beide Ausstiege darunter (Werkzeugstart, leere
-		// Register). Nur die eigene Hand: ein anderer Cursor (Leaflets grab/grabbing) bleibt stehen.
+		// Eine noch aktive Hand zuruecknehmen -- EINE Stelle fuer alle Ausstiege darunter (Werkzeug, leere Register).
+		// Nur die eigene Hand: ein anderer Cursor (Leaflets grab/grabbing) bleibt stehen.
 		const handZuruecknehmen = () => {
 			if (!labelCursorActive) {
 				return;
@@ -1383,11 +1383,13 @@
 		// §9.4): ein Klick auf den Namen eines Wiki-Wegs markiert dort die Strasse (map-features-weg-auswahl.js), also
 		// bekommt er die Hand. Die Kurvenlabels bleiben im Editor stumm -- der click-Handler oben tritt dort zurueck.
 		const editor = typeof IS_EDIT_MODE !== "undefined" && IS_EDIT_MODE;
-		const werkzeug = editor && (typeof avesmapsWegWerkzeugLaeuft !== "function" || avesmapsWegWerkzeugLaeuft());
-		if (cssZoomActive || werkzeug) {
-			// 💣 Eine stehengebliebene Inline-Hand schluege die Cursor-Klasse des Werkzeugs (path-creation-cursor,
-			// leaflet-crosshair) -- beim Werkzeugstart wird sie zurueckgenommen.
-			if (werkzeug) {
+		// 💣 Eine stehengebliebene Inline-Hand schluege die Cursor-Klasse des Werkzeugs (path-creation-cursor,
+		// leaflet-crosshair) -- laeuft eines, wird sie zurueckgenommen. Die Frage liest Klassen und das DOM (toolActive)
+		// und steht deshalb HINTER der 100-ms-Drossel: die Hand geht hoechstens 100 ms nach dem Werkzeugstart. Nur im
+		// Zoom-Zweig (dort laeuft keine Drossel) wird sie direkt gestellt, und nur solange eine Hand steht.
+		const werkzeugLaeuft = () => editor && (typeof avesmapsWegWerkzeugLaeuft !== "function" || avesmapsWegWerkzeugLaeuft());
+		if (cssZoomActive) {
+			if (labelCursorActive && werkzeugLaeuft()) {
 				handZuruecknehmen();
 			}
 			return; // waehrend der CSS-Zoom-Animation haelt das Register veraltete Vor-Zoom-Container-px (redraw pausiert)
@@ -1406,6 +1408,10 @@
 			return;
 		}
 		labelCursorLastCheck = now;
+		if (werkzeugLaeuft()) {
+			handZuruecknehmen();
+			return;
+		}
 		const over = Boolean(wayLabelHitTest(wegRegister, event.containerPoint)
 			|| wayLabelHitTest(kurvenRegister, event.containerPoint));
 		if (over === labelCursorActive) {

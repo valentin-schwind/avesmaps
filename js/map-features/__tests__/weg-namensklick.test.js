@@ -99,12 +99,48 @@ assert.strictEqual(gefeuert[0][0], "rs-6", "Gegenprobe: ohne Riegel wirkt der Na
 K.avesmapsWegKartenKlick(undefined);
 assert.strictEqual(K.avesmapsWegAuswahlFuerPfad(rs6), null, "ohne Ereignis (Aufruf ohne Argument) wird nur aufgehoben");
 
-// ---- 5. Verdrahtung: EIN Zuhoerer an der Karte -------------------------------------------------------------------
+// ---- 5. Verdrahtung und die ECHTE Klickreihenfolge -----------------------------------------------------------------
+// 💣 §4 prueft den Menue-Riegel nur isoliert und war damit falsch gruen: bootstrap.js:1160 meldet `closeMapContextMenu`
+// als Karten-Klick-Zuhoerer an, lange BEVOR routing.js:611 (nach dem Datenladen) die Wege-Auswahl verdrahtet -- beim
+// Lesen ist das Menue schon zu. Nachgestellt wie Leaflets _fireDOMEvent: erst `preclick`, dann die click-Zuhoerer in
+// Anmeldereihenfolge.
 const anmeldungen = [];
 global.map = { on: (typ, fn) => { anmeldungen.push([typ, fn]); } };
 K.avesmapsWegAuswahlVerdrahten();
-assert.deepStrictEqual(anmeldungen.map((a) => a[0]), ["click"]);
-assert.strictEqual(anmeldungen[0][1], K.avesmapsWegKartenKlick, "der Karten-Klick-Zuhoerer ist avesmapsWegKartenKlick");
+const schliesseMenue = () => { menue.hidden = true; };   // closeMapContextMenu (bootstrap.js:1061)
+const zuhoerer = (typ) => anmeldungen.filter((a) => a[0] === typ).map((a) => a[1]);
+const leafletKlick = (ereignis, klickReihe) => {
+	zuhoerer("preclick").forEach((fn) => fn(ereignis));
+	klickReihe.forEach((fn) => fn(ereignis));
+};
+const frueh = () => [schliesseMenue, ...zuhoerer("click")];   // die echte Reihenfolge
+const spaet = () => [...zuhoerer("click"), schliesseMenue];   // umgekehrt: der Riegel haengt an keiner Reihenfolge
+
+K.avesmapsWegAuswahlAufheben();
+gefeuert.length = 0;
+menue.hidden = false;
+leafletKlick(klick(5, 1), frueh());
+assert.strictEqual(menue.hidden, true, "der Klick schliesst das Menue (bootstrap.js)");
+assert.strictEqual(gefeuert.length, 0, "Menue beim Druecken offen: der Klick schliesst es und markiert NICHTS -- auch wenn closeMapContextMenu vorher lief");
+assert.strictEqual(K.avesmapsWegAuswahlFuerPfad(rs6), null);
+
+menue.hidden = false;
+leafletKlick(klick(5, 1), spaet());
+assert.strictEqual(gefeuert.length, 0, "umgekehrte Anmeldereihenfolge: ebenso nichts");
+
+leafletKlick(klick(5, 1), frueh());
+assert.strictEqual(gefeuert.length, 1, "Menue zu: derselbe Klick markiert wieder");
+assert.strictEqual(gefeuert[0][0], "rs-6");
+
+menue.hidden = false;
+leafletKlick(klick(5, 1), frueh());
+gefeuert.length = 0;
+K.avesmapsWegKartenKlick(klick(5, 1));
+assert.strictEqual(gefeuert.length, 1, "der Merker gilt EINEM Klick: ein Klick ohne preclick danach sperrt nicht das alte Menue");
+
+assert.deepStrictEqual(anmeldungen.map((a) => a[0]), ["preclick", "click"]);
+assert.strictEqual(zuhoerer("preclick")[0], K.avesmapsWegKartenVorKlick, "der preclick-Zuhoerer haelt fest, ob das Menue beim Druecken offen war");
+assert.strictEqual(zuhoerer("click")[0], K.avesmapsWegKartenKlick, "der Karten-Klick-Zuhoerer ist avesmapsWegKartenKlick");
 
 // ---- 6. Der Treffer-Ausgang des Overlays -------------------------------------------------------------------------
 const overlay = lies("js/map-features/map-features-path-label-canvas-overlay.js");
@@ -148,5 +184,26 @@ werkzeugZeiger = false;
 zc.IS_EDIT_MODE = false;
 bewege(250);
 assert.strictEqual(behaelter.style.cursor, "pointer", "Besucher ueber einem Kurvenlabel: Hand wie bisher");
+
+// ---- 7b. Die Werkzeugfrage steht HINTER der 100-ms-Drossel -------------------------------------------------------
+zc.IS_EDIT_MODE = true;
+let werkzeugFragen = 0;
+zc.avesmapsWegWerkzeugLaeuft = () => { werkzeugFragen += 1; return werkzeugZeiger; };
+bewege(50);
+assert.strictEqual(werkzeugFragen, 1, "Drossel frei: einmal gefragt");
+assert.strictEqual(behaelter.style.cursor, "pointer");
+zc.labelCursorLastCheck = Date.now();
+zeigerZuhoerer({ containerPoint: { x: 50, y: 10 } });
+assert.strictEqual(werkzeugFragen, 1, "eine gedrosselte Mausbewegung fragt das Werkzeug nicht -- toolActive liest Klassen und das DOM");
+// Waehrend der CSS-Zoom-Animation laeuft keine Drossel: dort nur gefragt, solange eine Hand steht.
+zc.cssZoomActive = true;
+werkzeugZeiger = true;
+zeigerZuhoerer({ containerPoint: { x: 50, y: 10 } });
+assert.strictEqual(behaelter.style.cursor, "", "Werkzeugstart mitten im Zoom: die Hand geht trotzdem");
+const fragenImZoom = werkzeugFragen;
+zeigerZuhoerer({ containerPoint: { x: 50, y: 10 } });
+assert.strictEqual(werkzeugFragen, fragenImZoom, "ohne stehende Hand fragt der Zoom-Zweig nicht");
+zc.cssZoomActive = false;
+werkzeugZeiger = false;
 
 console.log("weg-namensklick.test.js: ok");

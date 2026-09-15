@@ -112,13 +112,14 @@ let aufgefrischt = 0;
 global.window.avesmapsRefreshInfopanel = () => { aufgefrischt += 1; };
 K.avesmapsWegAuswahlVerdrahten();
 K.avesmapsWegAuswahlVerdrahten();
-assert.strictEqual(anmeldungen.length, 1, "genau ein Zuhoerer");
-assert.strictEqual(anmeldungen[0][0], "click");
-anmeldungen[0][1]();
+// Dazu der preclick-Merker des Menue-Riegels (weg-namensklick.test.js §5); aufheben tut nur der EINE click-Zuhoerer.
+assert.deepStrictEqual(anmeldungen.map((a) => a[0]), ["preclick", "click"], "genau ein Klick-Zuhoerer, einmal verdrahtet");
+const kartenKlick = anmeldungen[1][1];
+kartenKlick();
 assert.deepStrictEqual([rs6, rs7, rs8, bp1].map(farbe), ["#mitte", "#mitte", "#mitte", "#mitte"]);
 assert.strictEqual(strich(rs7), null, "der Strich geht mit");
 assert.strictEqual(aufgefrischt, 1, "das Infopanel zieht die Zeile nach");
-anmeldungen[0][1]();
+kartenKlick();
 assert.strictEqual(aufgefrischt, 1, "ohne Markierung tut der Klick nichts");
 
 // 6. Die ganze Strasse als Pfade (fuer den Dialog)

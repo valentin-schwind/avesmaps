@@ -97,24 +97,41 @@ function avesmapsWegAuswahlAufheben() {
  * dazu die drei Zustaende, die keine Klasse an den Kartencontainer haengen.
  * ⚠️ Fehlt das Tastatur-Modul, faellt der Riegel GESCHLOSSEN aus: ein stummer Name ist der alte Zustand, ein
  * Namensklick mitten in einem Werkzeug waere ein neuer Fehler.
+ * `menueBeimDruecken`: der Klickweg reicht den Merker aus avesmapsWegKartenVorKlick herein. Der Zeigerweg (Overlay,
+ * mousemove) fragt ohne ihn und liest das Menue, wie es JETZT steht.
  */
-function avesmapsWegWerkzeugLaeuft() {
+function avesmapsWegWerkzeugLaeuft(menueBeimDruecken) {
 	const tastatur = typeof window !== "undefined" ? window.avesmapsKeyboardShortcuts : null;
 	if (!tastatur || typeof tastatur.toolActive !== "function") { return true; }
 	if (tastatur.toolActive()) { return true; }
 	if (typeof window !== "undefined" && window.__pathAssignPending) { return true; }
 	if (typeof activePathGeometryEdit !== "undefined" && activePathGeometryEdit) { return true; }
+	return menueBeimDruecken === true || avesmapsWegKontextmenueOffen();
+}
+
+function avesmapsWegKontextmenueOffen() {
 	const menue = typeof document !== "undefined" && typeof document.getElementById === "function"
 		? document.getElementById("map-context-menu")
 		: null;
 	return Boolean(menue && menue.hidden === false);
 }
 
+// 💣 WAR DAS KONTEXTMENUE BEIM DRUECKEN OFFEN? Nur so wirkt der Menue-Riegel im echten Klick: bootstrap.js:1160 meldet
+// `closeMapContextMenu` als Karten-Klick-Zuhoerer an, lange BEVOR routing.js:611 (nach dem Datenladen) die Wege-Auswahl
+// verdrahtet -- zur Klickzeit ist das Menue schon zu. Leaflet feuert `preclick` vor ALLEN click-Zuhoerern
+// (_fireDOMEvent), gleich in welcher Reihenfolge sie angemeldet sind. Der Merker gilt EINEM Klick:
+// avesmapsWegKartenKlick setzt ihn zurueck.
+let avesmapsWegMenueBeimDruecken = false;
+
+function avesmapsWegKartenVorKlick() {
+	avesmapsWegMenueBeimDruecken = avesmapsWegKontextmenueOffen();
+}
+
 /** Welcher Abschnitt wird mit diesem Karten-Klick ueber seinen NAMEN angeklickt? Sonst null. */
 function avesmapsWegNamenKlickZiel(event) {
 	if (typeof IS_EDIT_MODE === "undefined" || !IS_EDIT_MODE || !event || !event.containerPoint || !event.latlng) { return null; }
 	if (typeof window === "undefined" || typeof window.avesmapsWegNamenTreffer !== "function") { return null; }
-	if (avesmapsWegWerkzeugLaeuft()) { return null; }
+	if (avesmapsWegWerkzeugLaeuft(avesmapsWegMenueBeimDruecken)) { return null; }
 	const treffer = window.avesmapsWegNamenTreffer(event.containerPoint);
 	const wikiKey = treffer && treffer.wikiKey ? String(treffer.wikiKey) : "";
 	if (!wikiKey || typeof avesmapsWegGruppenAufKarte !== "function" || typeof findPathByPublicId !== "function") { return null; }
@@ -138,6 +155,7 @@ function avesmapsWegNamenKlickZiel(event) {
  */
 function avesmapsWegKartenKlick(event) {
 	const pfad = avesmapsWegNamenKlickZiel(event);
+	avesmapsWegMenueBeimDruecken = false;   // der Merker gilt diesem Klick, keinem spaeteren ohne preclick
 	const mitte = pfad && Array.isArray(pfad._pathLines) ? pfad._pathLines[1] : null;
 	if (mitte && typeof mitte.fire === "function") {
 		mitte.fire("click", {
@@ -172,6 +190,9 @@ function avesmapsWegAuswahlVerdrahten() {
 	// Ein Klick daneben hebt die Markierung auf (§3.1), ein Klick auf den NAMEN eines Wiki-Wegs markiert (Nachtrag §9.4) --
 	// beides in EINEM Zuhoerer. Ein Klick AUF eine Linie erreicht die Karte nicht: beide Linien tragen
 	// `bubblingMouseEvents: false` (createPathLayer).
+	// 💣 VOR dem Klick der Merker, ob das Kontextmenue beim Druecken offen war (avesmapsWegKartenVorKlick): Leaflet feuert
+	// `preclick` vor jedem click-Zuhoerer, auch vor dem frueher angemeldeten closeMapContextMenu (bootstrap.js).
+	map.on("preclick", avesmapsWegKartenVorKlick);
 	map.on("click", avesmapsWegKartenKlick);
 }
 
@@ -179,6 +200,6 @@ if (typeof module !== "undefined" && module.exports) {
 	module.exports = {
 		avesmapsWegAuswahlKlick, avesmapsWegAuswahlAufheben, avesmapsWegAuswahlFuerPfad,
 		avesmapsWegAuswahlGruppenPfade, avesmapsWegAuswahlStilNachziehen, avesmapsWegAuswahlVerdrahten,
-		avesmapsWegWerkzeugLaeuft, avesmapsWegNamenKlickZiel, avesmapsWegKartenKlick,
+		avesmapsWegWerkzeugLaeuft, avesmapsWegNamenKlickZiel, avesmapsWegKartenKlick, avesmapsWegKartenVorKlick,
 	};
 }
