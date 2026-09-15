@@ -57,9 +57,51 @@ function avesmapsWegTraegtWeiteren(way, wikiKey) {
 		.some((eintrag) => String((eintrag && eintrag.wiki_key) || "") === key);
 }
 
+/** REIN: kleinster Abstand des Punkts [x, y] zu einer Linie aus [x, y]-Punkten, in Karteneinheiten. Infinity ohne Linie. */
+function avesmapsWegAbstandZurLinie(punkt, koordinaten) {
+	const px = Number(punkt && punkt[0]);
+	const py = Number(punkt && punkt[1]);
+	const liste = Array.isArray(koordinaten) ? koordinaten : [];
+	if (!Number.isFinite(px) || !Number.isFinite(py) || liste.length === 0) { return Infinity; }
+	let bester = Infinity;
+	for (let i = 0; i < liste.length; i++) {
+		const a = liste[i];
+		const b = liste[Math.min(i + 1, liste.length - 1)];
+		const ax = Number(a[0]); const ay = Number(a[1]);
+		const dx = Number(b[0]) - ax; const dy = Number(b[1]) - ay;
+		const laenge2 = dx * dx + dy * dy;
+		const t = laenge2 > 0 ? Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / laenge2)) : 0;
+		const abstand = Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
+		if (abstand < bester) { bester = abstand; }
+	}
+	return bester;
+}
+
+/**
+ * REIN: welcher Abschnitt eines Namens liegt dem Klickpunkt am naechsten (Nachtrag 2026-09-14-wege-mehrfachzuweisung-
+ * design.md §9.4)? Das Namensregister des Overlays kennt nur den Wiki-Schluessel, keine `public_id`.
+ * @param {Array<{public_id: string, koordinaten: Array}>} abschnitte  in der Nummernfolge des Wege-Editors
+ * @param {Array<number>} punkt  [x, y] -- ⚠️ GeoJSON-Ordnung, der Aufrufer dreht Leaflets latlng
+ * @return {string|null}  bei Gleichstand der erste
+ */
+function avesmapsWegNaechsterAbschnitt(abschnitte, punkt) {
+	let bester = null;
+	let besterAbstand = Infinity;
+	(Array.isArray(abschnitte) ? abschnitte : []).forEach((abschnitt) => {
+		if (!abschnitt || !abschnitt.public_id) { return; }
+		const abstand = avesmapsWegAbstandZurLinie(punkt, abschnitt.koordinaten);
+		if (abstand < besterAbstand) {
+			bester = String(abschnitt.public_id);
+			besterAbstand = abstand;
+		}
+	});
+	return bester;
+}
+
 if (typeof module !== "undefined" && module.exports) {
 	module.exports = {
 		avesmapsWegAuswahlNachKlick, avesmapsWegAuswahlIds, avesmapsWegMarkierungszeile,
 		avesmapsWegMarkierungszeileMarkup, avesmapsWegVerlaufKachelErlaubt, avesmapsWegTraegtWeiteren,
+		avesmapsWegAbstandZurLinie, avesmapsWegNaechsterAbschnitt,
 	};
 }
