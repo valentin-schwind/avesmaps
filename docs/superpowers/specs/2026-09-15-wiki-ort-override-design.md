@@ -26,7 +26,12 @@ Override-Anzeige samt ↺), die Stadtteil-Einträge vom 14.09.2026 (AGENTS.md §
 7. Der **Name** eines nicht platzierten Ortes ist ein **Anzeige-Override**; der Wiki-Titel bleibt
    der Schlüssel.
 
-⚠️ Keine Zahl im Titel dieses Abschnitts — die Liste ist im Gespräch von vier auf sieben gewachsen.
+8. Das **↺ bei leerem Wiki gilt überall**, wo die Override-Anzeige steht — Ort, Literatur,
+   Landschaft, Beschriftung, Weg —, nicht nur beim Ort (Owner: „wär schön, wenn das immer gelten
+   würde").
+9. Auch **verborgene platzierte** Bauwerke fehlen in der Zeile „Stätten".
+
+⚠️ Keine Zahl im Titel dieses Abschnitts — die Liste ist im Gespräch von vier auf neun gewachsen.
 
 ## 1 · Ausgangslage, gemessen
 
@@ -151,18 +156,24 @@ Die Leser, die ihn rufen:
 | Orts-Editor-Liste | `avesmapsWikiSettlementEditorList` | Zeile, Filter „Lage", Formularwerte (behebt den Nebenbefund) |
 | Panel-Liste | `avesmapsWikiSettlementListLocations` | derselbe Filter — beide Fenster geben dieselbe Antwort |
 | Kartensuche „X in Stadt" | `avesmapsBuildInSettlementSearchEntries` | Treffer springt zur richtigen Stadt oder entfällt; sucht Override-Name **und** Wiki-Titel |
-| Zeile „Stätten" der Stadt | `avesmapsBuildInSettlementPlaceList` | richtige Stadt, angezeigter Name; **verborgene nicht platzierte Stätte fehlt** (Entscheid 4) |
+| Zeile „Stätten" der Stadt | `avesmapsBuildInSettlementPlaceList` | richtige Stadt, angezeigter Name; **verborgene Stätte fehlt, platziert oder nicht** (Entscheide 4, 9) |
 | Suche „nicht auf der Karte" | `avesmapsBuildOffmapSearchEntries` | ein auf „außerorts" gesetztes Bauwerk erscheint dort statt als Innerorts-Treffer |
 
 🔴 **Bewusst außen vor:** Wege (`paths.php`) — nicht bestellt. Die Stadtteil-Weiterleitungen
 (`wiki_stadtteil_weiterleitung_staging`) — sie stehen nicht in `wiki_sync_pages`, also nicht im
-Editor, und sollen dort auch nicht hin (Stand 14.09.2026). Verborgene **platzierte** Bauwerke in
-der Stätten-Zeile — Entscheid 4 galt den nicht platzierten.
+Editor, und sollen dort auch nicht hin (Stand 14.09.2026).
 
 💣 **Karten-ETag.** Die Stätten-Zeile reist in der Kartennutzlast, und ein Override bewegt kein
 Kartenobjekt. Ohne eigenen Stempel bekäme jeder warme Browser sein 304. Der Stempel
 (`COUNT|MAX(updated_at)` der Tabelle) wird an den bestehenden `$placesStamp` gehängt; ein leerer
 Stempel lässt den Keim zeichengleich (dieselbe Zurückhaltung wie dort).
+
+💣 **Verborgene PLATZIERTE Bauwerke (Entscheid 9) kommen aus einer eigenen schmalen Abfrage**, nicht
+aus den Kartenzeilen, die `api/app/map-features.php` ohnehin geladen hat: eine Anfrage mit `bbox`
+lädt dort nur einen Ausschnitt, und ein verborgenes Bauwerk außerhalb davon stünde wieder in der
+Stätten-Zeile. Gefragt wird nach dem Titel des zugewiesenen Artikels (`wiki_settlement.title`), und
+nur aktive Orte mit `is_hidden`. Ein Stempel ist dafür nicht nötig: „Verborgen" speichert über
+`update_point`, und das hebt `map_revision`.
 
 ⚠️ Kosten: eine zusätzliche Abfrage je Listen-, Such- und Nutzlastaufbau, nie je Zeile (AGENTS.md
 §9). Die `public_id → Name`-Tafel entsteht aus den `map_features`-Zeilen, die jeder dieser Leser
@@ -231,16 +242,23 @@ Nach dem Mockup, §1 und §2:
 
 ### Das ↺ (Entscheid 3)
 
-- `avesmapsWikiFeldStand` bekommt eine optionale Liste **`leerbar`**: für diese Felder gilt
-  zusätzlich `neu === "" && alt !== "" && herkunft === "manual"` als Abweichung, das ↺ leert dann
-  das Feld. Die Anzeige des Wiki-Stands ist dort „(leer)".
-- Der Ort übergibt `einwohner`, `lage`, `oberhaupt`. **Nie** Name (Pflichtfeld) und **nie** eine
-  Auswahl (Typ) — ein leerer Schlüssel ist kein gültiger Wert.
+- 🔴 **Die Regel steht an EINER Stelle und gilt überall** (Entscheid 8): in `avesmapsWikiFeldStand`
+  gilt zusätzlich `neu === "" && alt !== "" && herkunft === "manual"` als Abweichung, und das ↺ leert
+  dann das Feld. Die Anzeige des Wiki-Stands ist dort „(leer)". Alle Oberflächen mit
+  Override-Anzeige rufen diese eine Funktion mit den Feldern aus dem Feldregister
+  (`avesmapsWikiAssignSubject(<art>).felder`) — Ort (zwei Oberflächen), Literatur, Landschaft (zwei),
+  Beschriftung, Weg (zwei). Das Territorium hat eine eigene ↺-Logik und ist nicht betroffen.
+- 🔴 **Ausnahmen stehen im Feldregister, je Feld `leerbar: false`**: jedes **Pflichtfeld** (Name,
+  Titel, Beschriftungstext) und jedes **Auswahlfeld** (Ortsgröße, Wegtyp, Landschaftsart, Kategorie
+  und die Literaturfelder, die der Editor als Auswahl baut) — ein leerer Schlüssel ist kein gültiger
+  Wert, und ein leerer Name lässt sich nicht speichern. Die genaue Liste zählt der Bauplan am Code
+  aus; ein Test hält sie gegen die Oberflächen (baut eine Oberfläche ein Feld als Auswahl, muss es
+  `leerbar: false` tragen).
 - 🔴 **Herkunft unbekannt + Wiki leer bleibt still.** Werte von vor dem 17.08.2026 tragen keine
   Herkunft; ein ↺ dort leerte fremde Handarbeit mit einem Klick.
-- 🔴 **Ohne `leerbar` ändert sich nichts** — Literatur, Landschaft, Beschriftung und Weg rufen
-  dieselbe Funktion und bleiben, wie sie sind. Sie einzuschalten ist je eine Zeile; bestellt ist es
-  für den Ort.
+- ⚠️ Jede Oberfläche hat ihren **eigenen Rücksetzer** (`…WikiFeldZuruecksetzen`, sieben Stück). Jeder
+  muss einen leeren Wert wirklich ins Feld schreiben und die Übernahme merken — der Bauplan fährt
+  jeden einzeln.
 - **Ruine** läuft durch dieselbe Funktion mit eigener Feldliste; Werte als `"ja"`/`"nein"`, damit
   „nein" ein Wert ist und nicht als leer gilt. Wiki-Stand ist `wiki_sync_pages.is_ruined`, von der
   Liste mitgeliefert (keine Anfrage je Klick).
@@ -255,7 +273,7 @@ Anzeige — verglichen und gesynct wird weiter der Schlüssel.
 ## 7 · Reihenfolge — sichtbar heißt einzeln live (AGENTS.md §9)
 
 1. Liste: Innerorts-Urteil für „Fehlt"-Zeilen herausgeben, zweite Zeile, Filter „Lage" (sichtbar).
-2. ↺ mit `leerbar` am Ort (sichtbar).
+2. ↺ bei leerem Wiki, alle Objektarten mit Override-Anzeige (sichtbar).
 3. Ablage + Eingang + Leser + ETag-Stempel (unsichtbar, vollständig getestet).
 4. Nicht platzierter Ort: Formular, Speichern, ↺ (sichtbar).
 5. „Lage & Zugehörigkeit": Innerorts und Gehört zu, platziert und nicht platziert (sichtbar).
@@ -271,8 +289,13 @@ Anzeige — verglichen und gesynct wird weiter der Schlüssel.
 - Schreibwege gegen SQLite; kein Upsert-Syntax, der nur auf einer Datenbank läuft.
 - Übernahme beim Platzieren für **beide** Schreiber.
 - ETag: ändert sich mit einer Override-Zeile, bleibt bei leerem Stempel zeichengleich.
-- `avesmapsWikiFeldStand`: `leerbar` greift nur bei `manual`; ohne `leerbar` bytegleiches Ergebnis
-  für alle bestehenden Aufrufer.
+- `avesmapsWikiFeldStand`: „Wiki leer" greift nur bei `manual` und nie bei `leerbar: false`; alle
+  übrigen Fälle liefern bytegleich dasselbe wie heute.
+- Feldregister gegen Oberflächen: jedes Feld, das eine Oberfläche als Auswahl baut, trägt
+  `leerbar: false`.
+- Jeder der sieben Rücksetzer wird mit einem leeren Wiki-Stand **ausgeführt** und muss das Feld leeren.
+- Zeile „Stätten": ein verborgenes platziertes und ein verborgenes nicht platziertes Bauwerk fehlen;
+  eine Anfrage mit `bbox` ändert daran nichts.
 - Mutationsproben gegen die tragenden Zeilen, dann das **ganze** Testfeld nach dem Muster des
   Workflows.
 
@@ -281,13 +304,13 @@ Namen · ↺ am Namen, speichern, alter Name zurück · Innerorts auf „außero
 Stätte ist weg, Suche findet sie ohne „in Stadt" · „Gehört zu" auf eine andere Stadt, Suchtreffer
 springt dorthin · Verborgen an, Stätten-Zeile ohne sie, Suche per Name mit ihr · Ort platzieren,
 Name und Typ kommen mit, Innerorts bleibt · an einem platzierten Ort Herrscher selbst setzen, Wiki
-leer, ↺ erscheint und leert.
+leer, ↺ erscheint und leert · dasselbe im Literatur-Editor an „Serie / Reihe" und im Wege-Editor
+prüfen, dass am Wegtyp **kein** solches ↺ erscheint · ein platziertes Bauwerk auf „Verborgen",
+Stadt-Infobox öffnen, Stätte ist weg.
 
 ## 9 · Offen, bewusst nicht in diesem Umbau
 
 - Innerorts-Override für **Wege**.
-- „Wiki leer"-↺ für Literatur, Landschaft, Beschriftung, Weg (je eine Zeile, nicht bestellt).
 - **Protokoll** der Override-Änderungen im Fenster „Änderungen" — die Objektart gibt es dort nicht.
 - Waisenbericht für Override-Zeilen, deren Wiki-Seite umbenannt wurde.
 - Kartensuche liest `settlement_place` nicht (Nebenbefund).
-- Verborgene **platzierte** Bauwerke in der Stätten-Zeile.
