@@ -13,30 +13,42 @@ let avesmapsWegAuswahlMarkiert = new Set();   // public_ids mit gelber Linie
 let avesmapsWegAuswahlTraeger = new Set();    // fremde Abschnitte mit dem Artikel als weiterer Zuweisung
 let avesmapsWegAuswahlVerdrahtet = false;
 
-// 🔴 DIE FARBE MARKIERTER ORTE (Owner 15.09.2026, Nachtrag 2026-09-14-wege-mehrfachzuweisung-design.md §9.1):
-// `--color-marker-active`, gelesen ueber getLocationMarkerActiveColor (map-features-location-canvas-layer.js, normales
-// Skript, laedt davor). „Anzeigen" aus der Suche bleibt gelb (SPOTLIGHT_PATH_HIGHLIGHT_STYLE) -- die zwei sollen sich
-// unterscheiden. ⚠️ Kein Farbwert hier; der Rueckfall in jener Funktion ist die Notbremse ohne Token.
+// 🔴 DAS GELB DER SUCHE (Owner 15.09.2026 abends: „dasselbe gelb wie bei der spotlight suche"; ersetzt das Gold markierter
+// Orte aus Nachtrag §9.1): gelesen aus SPOTLIGHT_PATH_HIGHLIGHT_STYLE (js/ui/spotlight-search.js, normales Skript, erst
+// zur Klickzeit gelesen) -- so ist es dasselbe Gelb und kein zweiter Farbwert. „Anzeigen" unterscheidet sich weiter durch
+// Breite 12 und Leuchtschatten.
 function avesmapsWegAuswahlFarbe() {
-	return typeof getLocationMarkerActiveColor === "function" ? (getLocationMarkerActiveColor() || null) : null;
+	return typeof SPOTLIGHT_PATH_HIGHLIGHT_STYLE === "object" && SPOTLIGHT_PATH_HIGHLIGHT_STYLE
+		? (SPOTLIGHT_PATH_HIGHLIGHT_STYLE.color || null) : null;
 }
 
 /**
- * Die Mittellinie nach dem Zustand faerben. Gerufen am ENDE von updatePathLayerStyle -- damit ueberlebt die
- * Markierung jedes Neufaerben, ohne dass ein Neufaerber sie kennen muss.
+ * Kontur und Mittellinie nach dem Zustand faerben. Gerufen am ENDE von updatePathLayerStyle -- damit ueberlebt die
+ * Markierung jedes Neufaerben, ohne dass ein Neufaerber sie kennen muss; und weil updatePathLayerStyle Kontur und Mitte
+ * vorher auf ihre eigenen Farben setzt, kommt beim Aufheben beides von selbst zurueck.
+ * 🔴 Die KONTUR wird mit gelb (Owner 15.09.2026: „bei den wegen wo die kontur anders ist als der pfad auch gelb") --
+ * sonst liest sich eine breite Strasse mit weisser Kontur nicht als markiert.
+ * 💣 Ein fremder Traeger behaelt die EIGENE Farbe seiner Mitte und bekommt nur den Strich: Gelb auf gelber Kontur
+ * gestrichelt saehe durchgezogen aus. In den Luecken scheint die gelbe Kontur durch. Ist die Kontur unsichtbar
+ * (Deckkraft 0: Zoom <= 2, Fluss im Landschaftsmodus), traegt die Mitte den gelben Strich wie bisher.
  * 💣 updatePathLayerStyle setzt `dashArray` nie zurueck: der Strich eines ehemaligen Traegers wird HIER entfernt.
  * 💣 ERST DIE MITGLIEDSCHAFT, DANN DIE FARBE: syncPathRendering ruft das bei jedem Zoomschritt fuer alle rund 6.000
- * Wege, und die Farbe kostet ein getComputedStyle. Ohne Markierung wird sie gar nicht gelesen.
+ * Wege. Ohne Markierung wird die Farbe gar nicht gelesen.
  */
 function avesmapsWegAuswahlStilNachziehen(path) {
 	const mitte = path && Array.isArray(path._pathLines) ? path._pathLines[1] : null;
 	if (!mitte || typeof mitte.setStyle !== "function") { return; }
+	const rand = path._pathLines[0] && typeof path._pathLines[0].setStyle === "function" ? path._pathLines[0] : null;
 	const id = typeof getPathPublicId === "function" ? getPathPublicId(path) : "";
 	const markiert = avesmapsWegAuswahlMarkiert.has(id);
 	const traeger = !markiert && avesmapsWegAuswahlTraeger.has(id);
 	const farbe = markiert || traeger ? avesmapsWegAuswahlFarbe() : null;
+	const randSichtbar = Boolean(rand) && Number(rand.options && rand.options.opacity !== undefined ? rand.options.opacity : 1) > 0;
+	if (farbe && rand) { rand.setStyle({ color: farbe }); }
 	if (farbe && markiert) {
 		mitte.setStyle({ color: farbe, dashArray: null });
+	} else if (farbe && traeger && randSichtbar) {
+		mitte.setStyle({ dashArray: AVESMAPS_WEG_AUSWAHL_STRICH });
 	} else if (farbe && traeger) {
 		mitte.setStyle({ color: farbe, dashArray: AVESMAPS_WEG_AUSWAHL_STRICH });
 	} else if (mitte.options && mitte.options.dashArray) {

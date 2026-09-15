@@ -308,6 +308,13 @@ Dieser Nachtrag entscheidet, was §3.3, §3.5 und §4 offen ließen oder anders 
 
 ### 9.1 Auswahl in Gold (E11) — ersetzt den ersten Punkt von §3.3
 
+> 🔴 **Überholt am 15.09.2026 abends** (Owner mit Bild: „kannst du bei den wegen wo die kontur anders ist als der
+> pfad auch gelb für die markierung nehmen. außerdem wärs schön dieses gelb zu haben (dasselbe gelb wie bei der
+> spotlight suche)"). Die Auswahl liest jetzt `SPOTLIGHT_PATH_HIGHLIGHT_STYLE.color` und färbt **Kontur und Mitte**;
+> ein fremder Träger behält die eigene Farbe seiner Mitte mit Strich über gelber Kontur (ohne sichtbare Kontur: gelber
+> Strich wie bisher). Die Punkte unten beschreiben den Stand davor; die Regel „erst die Mitgliedschaft" gilt weiter.
+> Das Mockup zeigt noch Gold.
+
 - 🔴 Die Mittellinie markierter Abschnitte (durchgezogen) und fremder Träger (gestrichelt) liest das Token
   `--color-marker-active` (`css/base/tokens.css`, `#f0b429`, in hell und dunkel gleich) — die Farbe, die ein
   angeklickter Ort trägt. Gelesen über `getLocationMarkerActiveColor`
