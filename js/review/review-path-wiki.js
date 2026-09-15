@@ -247,22 +247,162 @@ function pathWikiSyncNachbarn() {
 	}
 }
 
-/** Die Abschnitte der ganzen Strasse, wenn der Dialog im Gruppenmodus steht (Nachtrag §9.6) -- sonst null. Der Anker vorn. */
-function pathWikiGruppenIds(publicId) {
-	if (typeof pathEditGruppe === "undefined" || !pathEditGruppe || !Array.isArray(pathEditGruppe.pfade) || pathEditGruppe.pfade.length < 2) {
-		return null;
+// ── Der Kasten „Wiki-Weg" der GANZEN Strasse im Gruppendialog (Lieferung 2, Owner 15.09.2026) ──────────────────────────────────
+// „Gleiche zusammenfassen" + „Je Zeile bearbeitbar": eine Zeile je Hauptzuweisung (wpGruppeZuweisungsZeilen), in jeder das geteilte
+// Bauteil (js/ui/wiki-weg-zeilen.js). Zwilling: die Weg-Ebene des Wege-Editors (js/pages/wege-editor.js) -- dieselbe Regel, derselbe
+// Zeilen-Bauer, nur die Huelle („label-wiki") ist eine andere. 🔴 Jede Zeile schreibt GENAU ihre Abschnitte (`public_ids`, Anker der
+// erste); die Rueckfragen „gemischte Strasse" aus Lieferung 1 sind damit gefallen, mit ihnen pathWikiGruppenIds und die Gruppenzweige
+// in pathWikiZuweisen/pathWikiLoesen. Am einzelnen Abschnitt bleibt alles, wie es war.
+
+/** Die Zeilen der ganzen Strasse -- bei JEDEM Zeichnen frisch aus den Kartendaten. */
+function pathWikiGruppenZeilen() {
+	if (typeof pathEditGruppe === "undefined" || !pathEditGruppe || !Array.isArray(pathEditGruppe.pfade)) {
+		return [];
 	}
-	return avesmapsWikiAssignWegGruppenIds(publicId, pathEditGruppe.pfade.map((pfad) => getPathPublicId(pfad)));
+	// ⚠️ Die Reihenfolge der Pfade IST die der Karte (avesmapsWegAuswahlGruppenPfade -> wpGroupWays), die Stelle also die Abschnittsnummer.
+	return wpGruppeZuweisungsZeilen(pathEditGruppe.pfade.map((pfad) => {
+		const p = (pfad && pfad.properties) || {};
+		return {
+			public_id: getPathPublicId(pfad),
+			wiki_path: p.wiki_path || null,
+			wiki_path_weitere: Array.isArray(p.wiki_path_weitere) ? p.wiki_path_weitere : [],
+		};
+	}));
 }
 
-/** Nach einem Gruppenschreiben: Vergleichsstand neu (review-paths.js), dann der Live-Abgleich (Gruppen haengen an der Revision). */
-function pathWikiNachGruppenSchreiben() {
+/** 🔴 WIRFT ohne Gruppendialog oder ohne den Abschnitt -- der Vertrag aus dem Kopf von js/ui/wiki-assign.js. Stand = erster Abschnitt der Zeile. */
+function pathWikiZeileZustand(zeile) {
+	const anker = zeile && Array.isArray(zeile.public_ids) ? zeile.public_ids[0] : "";
+	const pfad = typeof pathEditGruppe !== "undefined" && pathEditGruppe && Array.isArray(pathEditGruppe.pfade)
+		? pathEditGruppe.pfade.find((kandidat) => getPathPublicId(kandidat) === anker)
+		: null;
+	if (!pfad || !pfad.properties) {
+		throw new Error("Kein Weg im Dialog.");
+	}
+	return avesmapsWikiAssignWegZustand({
+		wiki_path: pfad.properties.wiki_path || null,
+		// 💣 Eine LESEFUNKTION: der Wegtyp steht im Formular darueber und kann sich bis zum Druck auf „Sync" geaendert haben.
+		feature_subtype: () => pathWikiElement("path-edit-type")?.value || "",
+		// ⚠️ Keine Feldherkunft: sie steht je Abschnitt und kann in einer Strasse verschieden sein (wie auf der Weg-Ebene).
+		field_origins: null,
+	});
+}
+
+/** Die Zeilen neu bilden -- nach einem Schreiben aus den Zeilen oder aus dem Kasten der weiteren Zuweisungen (review-paths.js). */
+function pathWikiGruppenZeilenNeuZeichnen() {
+	if (pathWikiAssign && typeof pathWikiAssign.neuZeichnen === "function") {
+		pathWikiAssign.neuZeichnen();
+	}
+}
+
+/**
+ * Nach jedem Schreiben aus den Zeilen: Vergleichsstand neu (review-paths.js -- R1/R2 haben Namen geaendert), Zeilen neu bilden
+ * (Abschnitte wandern zwischen ihnen), dann der Live-Abgleich (Gruppen und Traeger-Index haengen an der Kartenrevision).
+ */
+function pathWikiNachZeilenSchreiben() {
 	if (typeof pathEditGruppeNachWikiSchreiben === "function") {
 		pathEditGruppeNachWikiSchreiben();
 	}
+	pathWikiSyncNachbarn();
+	pathWikiGruppenZeilenNeuZeichnen();
 	if (typeof pollLiveMapUpdates === "function") {
 		void pollLiveMapUpdates();
 	}
+}
+
+/** Zuweisen in EINER Zeile: GENAU ihre Abschnitte (`public_ids`, Anker der erste), ohne Rueckfrage. */
+async function pathWikiZeileZuweisen(zeile, treffer) {
+	const ids = avesmapsWikiAssignWegZeilenIds(zeile && zeile.public_ids);
+	let result;
+	try {
+		result = await pathWikiPost(avesmapsWikiAssignWegZeileZuweisungsKoerper(treffer && treffer.wiki_key, ids));
+		// 🔴 Wirft bei jedem Nein -- auch bei `type_ok:false`, das mit HTTP 200 kommt.
+		avesmapsWikiAssignWegAntwortPruefen(result);
+	} catch (error) {
+		showFeedbackToast?.("Zuweisen fehlgeschlagen: " + (error.message || error), "error");
+		// 💣 Weiterwerfen, NICHT schlucken: das Bauteil malte sonst eine Zuweisung, die es auf dem Server nicht gibt.
+		throw error;
+	}
+	applyWikiPathSegmentsUpdate(result.segments_updated);
+	pathWikiNachZeilenSchreiben();
+	showFeedbackToast?.(`„${result.wiki_name}" verknüpft (${result.applied} Abschnitte).`, "success");
+}
+
+/** Entfernen in EINER Zeile: fragt immer und nennt die Zahl ihrer Abschnitte, schreibt GENAU diese. */
+async function pathWikiZeileLoesen(zeile) {
+	const ids = avesmapsWikiAssignWegZeilenIds(zeile && zeile.public_ids);
+	const gesamt = typeof pathEditGruppe !== "undefined" && pathEditGruppe && Array.isArray(pathEditGruppe.pfade) ? pathEditGruppe.pfade.length : ids.length;
+	if (!window.confirm(avesmapsWikiAssignWegZeileLoesenFrage(zeile && zeile.name, ids.length, gesamt))) {
+		// 🔴 ABGEBROCHEN IST ABGELEHNT -- das Bauteil laesst die Zuweisung stehen.
+		throw new Error("Abgebrochen.");
+	}
+	let result;
+	try {
+		result = await pathWikiPost(avesmapsWikiAssignWegZeileLoesenKoerper(ids));
+		avesmapsWikiAssignWegAntwortPruefen(result);
+	} catch (error) {
+		showFeedbackToast?.("Fehler: " + (error.message || error), "error");
+		throw error;
+	}
+	applyWikiPathSegmentsUpdate(result.segments_updated);
+	pathWikiNachZeilenSchreiben();
+	showFeedbackToast?.(`Wiki-Zuordnung von ${result.segments} Abschnitten entfernt — jeder heißt jetzt einzeln.`, "info");
+}
+
+/** ✕ an einer weiteren Zuweisung einer Zeile: GENAU ihre Traeger in dieser Zeile -- der vorhandene Schreibweg `remove_weitere`. */
+async function pathWikiZeileWeitereEntfernen(zeile, eintrag) {
+	const ids = avesmapsWikiAssignWegZeilenIds(eintrag && eintrag.public_ids);
+	let result;
+	try {
+		result = await pathWikiPost(avesmapsWikiWeitereKoerper("remove", eintrag && eintrag.wiki_key, ids));
+		if (!result || result.ok !== true) {
+			throw new Error(String((result && result.error && (result.error.message || result.error)) || "Unerwartete Antwort"));
+		}
+	} catch (error) {
+		showFeedbackToast?.("Entfernen fehlgeschlagen: " + (error.message || error), "error");
+		throw error;
+	}
+	// Die neuen Listen je Abschnitt sofort in die Kartendaten (review-paths.js) -- Kasten, Infobox und Suche lesen dort.
+	if (typeof pathWikiWeitereUebernehmen === "function") {
+		pathWikiWeitereUebernehmen(result);
+	}
+	pathWikiNachZeilenSchreiben();
+	// 🔴 {ok:true, applied:0} ist kein Erfolg -- derselbe Satzbauer wie im Kasten der weiteren Zuweisungen.
+	showFeedbackToast?.(avesmapsWikiWeitereErgebnisText("remove", result, []), Number(result.applied) > 0 ? "success" : "warning");
+}
+
+/**
+ * Baut den Kasten der GANZEN Strasse auf: statt EINES Bauteils die Zeilenliste. Gerufen von populatePathEditFormGruppe
+ * (review-paths.js) NACH dem Grundstand des angeklickten Abschnitts -- dessen Kasten (renderPathWikiReference) wird hier abgebaut.
+ */
+function renderPathWikiGruppenZeilen() {
+	const host = pathWikiElement("path-wiki-assign-host");
+	if (!host) {
+		return;
+	}
+	if (pathWikiAssign) {
+		pathWikiAssign.zerstoeren();
+		pathWikiAssign = null;
+	}
+	pathWikiSyncNachbarn();
+	if (typeof avesmapsWikiWegZeilenMount !== "function") {
+		host.textContent = "Wiki-Weg: js/ui/wiki-weg-zeilen.js ist nicht geladen.";
+		return;
+	}
+	pathWikiAssign = avesmapsWikiWegZeilenMount(host, {
+		skin: "label-wiki",
+		zeilen: pathWikiGruppenZeilen,
+		datenweg: (zeile) => ({
+			laden: () => pathWikiZeileZustand(zeile),
+			zuweisen: (treffer) => pathWikiZeileZuweisen(zeile, treffer),
+			loesen: () => pathWikiZeileLoesen(zeile),
+			// ⚠️ „Sync" fuellt das Formular der ganzen Strasse -- „Speichern für N Abschnitte" darunter sagt, worauf es wirkt.
+			syncUebernehmen: pathWikiSyncUebernehmen,
+		}),
+		weitereEntfernen: pathWikiZeileWeitereEntfernen,
+		// Nachtrag §9.5: der Kasten der weiteren Zuweisungen der ganzen Strasse -- EINMAL unter den Zeilen (mountPathWikiWeitere).
+		anhang: typeof pathWikiWeitereAnhang === "function" ? pathWikiWeitereAnhang() : null,
+	});
 }
 
 async function pathWikiZuweisen(treffer) {
@@ -271,19 +411,10 @@ async function pathWikiZuweisen(treffer) {
 		showFeedbackToast?.("Kein Weg ausgewählt.", "error");
 		throw new Error("Kein Weg ausgewählt.");
 	}
-	// 🔴 Die Strasse ist seit dem 15.09.2026 der NAME (Owner) und kann gemischte Hauptzuweisungen tragen: dann schreibt Zuweisen im
-	// Gruppendialog nur nach ausdruecklicher Rueckfrage auf alle N Abschnitte -- wie Entfernen. Eine einige Strasse fragt nicht.
-	const gruppenIds = pathWikiGruppenIds(publicId);
-	if (gruppenIds
-		&& wpGruppeHauptzuweisungen(pathEditGruppe.pfade.map((pfad) => ({ wiki_path: (pfad && pfad.properties && pfad.properties.wiki_path) || null }))).length > 1
-		&& !window.confirm(avesmapsWikiAssignWegGruppeZuweisenFrage(treffer && treffer.name, gruppenIds.length))) {
-		// 🔴 ABGEBROCHEN IST ABGELEHNT -- das Bauteil laesst den Kasten stehen.
-		throw new Error("Abgebrochen.");
-	}
 	let result;
 	try {
-		// Nachtrag §9.6: im Gruppendialog GENAU die Abschnitte der ganzen Strasse, am Abschnitt der Namens-Match wie bisher.
-		result = await pathWikiPost(avesmapsWikiAssignWegZuweisungsKoerper(treffer.wiki_key, publicId, gruppenIds));
+		// Am Abschnitt der Namens-Match des Servers wie seit jeher. Die ganze Strasse schreibt ueber ihre Zeilen (pathWikiZeileZuweisen).
+		result = await pathWikiPost(avesmapsWikiAssignWegZuweisungsKoerper(treffer.wiki_key, publicId));
 		// 🔴 Wirft bei jedem Nein -- auch bei `type_ok:false`, das mit HTTP 200 kommt.
 		avesmapsWikiAssignWegAntwortPruefen(result);
 	} catch (error) {
@@ -297,9 +428,6 @@ async function pathWikiZuweisen(treffer) {
 		// Rueckfall fuer einen alten Server ohne segments_updated: wenigstens das oertliche Nest.
 		pathEditFeature.properties.wiki_path = treffer.roh || null;
 	}
-	if (pathWikiGruppenIds(publicId)) {
-		pathWikiNachGruppenSchreiben();
-	}
 	showFeedbackToast?.(`„${result.wiki_name}" verknüpft (${result.applied} Abschnitte).`, "success");
 	pathWikiSyncNachbarn();
 	if (typeof renderPathFlowSection === "function") {
@@ -312,33 +440,7 @@ async function pathWikiLoesen() {
 	if (!publicId) {
 		throw new Error("Kein Weg ausgewählt.");
 	}
-	// 🔴 Nachtrag §9.6: im Gruppendialog EINE Frage, dann GENAU die Abschnitte -- „nur dieses Segment?" gibt es dort nicht,
-	// markiert ist die ganze Strasse. Die Owner-Regel vom 05.07.2026 („nie ungefragt den ganzen Weg") bleibt erfuellt.
-	const gruppenIds = pathWikiGruppenIds(publicId);
-	if (gruppenIds) {
-		const wiki = pathWikiCurrentAssignment();
-		// Fixrunde Lieferung 1: bei einer gemischten Strasse nennt die Frage die Abschnitte ohne Zuordnung -- auch sie werden umbenannt.
-		const ohneZuweisung = pathEditGruppe.pfade
-			.filter((pfad) => !String((pfad && pfad.properties && pfad.properties.wiki_path && pfad.properties.wiki_path.wiki_key) || "").trim())
-			.length;
-		if (!window.confirm(avesmapsWikiAssignWegGruppeLoesenFrage(wiki ? wiki.name : "", gruppenIds.length, ohneZuweisung))) {
-			// 🔴 ABGEBROCHEN IST ABGELEHNT -- das Bauteil laesst die Zuweisung stehen.
-			throw new Error("Abgebrochen.");
-		}
-		let gruppenErgebnis;
-		try {
-			gruppenErgebnis = await pathWikiPost(avesmapsWikiAssignWegLoesenKoerper(publicId, gruppenIds));
-			avesmapsWikiAssignWegAntwortPruefen(gruppenErgebnis);
-		} catch (error) {
-			showFeedbackToast?.("Fehler: " + (error.message || error), "error");
-			throw error;
-		}
-		applyWikiPathSegmentsUpdate(gruppenErgebnis.segments_updated);
-		pathWikiSyncNachbarn();
-		pathWikiNachGruppenSchreiben();
-		showFeedbackToast?.(`Wiki-Zuordnung von ${gruppenErgebnis.segments} Abschnitten entfernt — jeder heißt jetzt einzeln.`, "info");
-		return;
-	}
+	// Die ganze Strasse loest ueber ihre Zeilen (pathWikiZeileLoesen, Lieferung 2) -- hier nur der einzelne Abschnitt.
 	// Owner rule (2026-07-05): Entfernen must NEVER strip the whole way unasked. Probe the
 	// blast radius first; with more than one segment the default answer is the surgical
 	// single-segment clear, and the way-wide clear needs its own explicit confirmation.

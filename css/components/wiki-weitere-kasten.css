@@ -59,3 +59,59 @@
 	color: var(--color-text-muted);
 }
 .wiki-weitere__suche { width: 100%; box-sizing: border-box; }
+
+/* ── Der Kasten „Wiki-Weg" der GANZEN Strasse (js/ui/wiki-weg-zeilen.js, Lieferung 2 vom 15.09.2026) ──────────────────────────
+   Owner: „Gleiche zusammenfassen" + „Je Zeile bearbeitbar" -- eine Zeile je Hauptzuweisung als natives <details>. Die Zeilen trennt
+   dieselbe Linie wie die Tabellenzeilen der weiteren Zuweisungen. Weg-Ebene (Huelle „dt") und Gruppendialog („label-wiki") teilen
+   diese Regeln; die Huelle selbst bringt ihr Blatt mit. */
+.wiki-weg-zeile {
+	border-top: 1px solid var(--color-divider);
+}
+.wiki-weg-zeile__kopf {
+	padding: var(--space-4) 0;
+	cursor: pointer;
+	font-size: var(--font-size-small);
+}
+.wiki-weg-zeile__keine,
+.wiki-weg-zeile__umfang,
+.wiki-weg-zeile__weitere {
+	color: var(--color-text-muted);
+}
+.wiki-weg-zeile__umfang,
+.wiki-weg-zeile__weitere {
+	font-size: var(--font-size-caption);
+}
+.wiki-weg-zeile__weitere {
+	display: block;
+	padding-left: var(--space-12);
+}
+.wiki-weg-zeile__koerper {
+	padding: 0 0 var(--space-6) var(--space-12);
+}
+/* 🔴 Das Bauteil je Zeile zeichnet seinen eigenen Kasten samt Ueberschrift. In der Zeile steht beides schon: der Rahmen ist der
+   Kasten der ganzen Strasse, der Titel ist die Zusammenfassung. Ohne diese Regeln stuende ein Rahmen im Rahmen (Owner 31.08.2026:
+   „in einem doppelten rahmen") und „Wiki-Weg" in jeder aufgeklappten Zeile ein zweites Mal. Die Knoepfe bleiben stehen. */
+.wiki-weg-zeile__koerper .label-wiki-reference {
+	border: 0;
+	background: none;
+	padding: 0;
+}
+.wiki-weg-zeile__koerper .label-wiki-reference__title,
+.wiki-weg-zeile__koerper .avm-wiki-assign > .dt-grp:first-child > span:not([data-wa-knoepfe]) {
+	display: none;
+}
+.wiki-weg-zeile__koerper .avm-wiki-assign > .dt-grp:first-child {
+	margin-top: 0;
+	padding-top: 0;
+	border-top: 0;
+}
+/* 💣 `.avm-wiki-assign button` (0,1,1, css/components/editor-page.css) macht in der Huelle „dt" JEDEN Knopf zum vollen Formularknopf --
+   auch das ✕ einer Zeile, das in derselben Huelle steht. (0,2,0) schlaegt das, der Hover braucht (0,3,0) gegen (0,2,1). */
+.wiki-weg-zeilen .wiki-weitere__weg {
+	border: 0;
+	background: none;
+	min-height: 0;
+	padding: 0 var(--space-2);
+	color: var(--color-text-muted);
+}
+.wiki-weg-zeilen .wiki-weitere__weg:hover { color: var(--color-text); background: none; }

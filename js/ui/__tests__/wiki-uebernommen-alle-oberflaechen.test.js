@@ -121,6 +121,15 @@ const RUMPF_WOANDERS = {
 	},
 };
 
+// 🪤 EIN WEITERREICHER IST KEINE OBERFLAECHE (Lieferung 2, 15.09.2026). js/ui/wiki-weg-zeilen.js mountet das Bauteil je Zeile des
+// Kastens „Wiki-Weg" der ganzen Strasse, holt aber selbst nichts ins Formular: `syncUebernehmen` bringt der Wirt je Zeile mit
+// (opts.datenweg), und dessen Merkliste prueft dieser Test beim WIRT. Die Ausnahme gilt nur, solange (a) der Weiterreicher den Rueckruf
+// des Wirts UNVERAENDERT durchreicht und (b) jeder Wirt, der ihn montiert, selbst als Oberflaeche derselben Objektart geprueft wird --
+// sonst hielte ein Weiterreicher mit eigener Uebernahme die Regel still offen.
+const WEITERREICHER = {
+	"js/ui/wiki-weg-zeilen.js": { art: "weg", mount: "avesmapsWikiWegZeilenMount(" },
+};
+
 // ---- Die Zusicherungen je Oberflaeche --------------------------------------------------------
 
 for (const art of zuPruefen) {
@@ -133,6 +142,21 @@ for (const art of zuPruefen) {
 
 	for (const datei of oberflaechen) {
 		const quelle = inhalt.get(datei);
+		const weiter = WEITERREICHER[datei];
+		if (weiter) {
+			assert.strictEqual(weiter.art, art, datei + " ist als Weiterreicher fuer „" + weiter.art + "“ eingetragen, mountet aber „" + art + "“");
+			assert.ok(/syncUebernehmen:\s*datenweg\.syncUebernehmen\b/.test(quelle),
+				datei + " reicht `syncUebernehmen` des Wirts nicht unveraendert durch -- dann ist es eine Oberflaeche mit eigener Uebernahme "
+				+ "und braucht eine eigene Merkliste");
+			const wirte = quellen.filter((kandidat) => kandidat !== datei && inhalt.get(kandidat).includes(weiter.mount));
+			assert.ok(wirte.length > 0, datei + ": niemand montiert den Weiterreicher -- die Ausnahme ist tot und gehoert gestrichen");
+			wirte.forEach((wirt) => {
+				assert.ok(oberflaechen.includes(wirt), wirt + " montiert " + datei + ", ist aber selbst keine geprueft Oberflaeche der Objektart „"
+					+ art + "“ -- seine Uebernahmen erreichten den Server dann ungeprueft");
+			});
+			checks += 3 + wirte.length;
+			continue;
+		}
 		const bezeichner = merklistenBezeichner(quelle);
 
 		// (1) Es gibt eine Merkliste, und sie wird beim Uebernehmen GEFUELLT. Eine Liste, die immer

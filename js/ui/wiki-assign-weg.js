@@ -246,8 +246,9 @@ function avesmapsWikiAssignWegHerkunft(herkunft) {
 /**
  * REIN: der Rumpf der Zuweisung. Beide Oberflaechen schicken denselben -- mit `dry_run:false` UND
  * `confirm:"apply"`, weil der Endpunkt sonst nur probeweise rechnet (api/edit/wiki/paths.php).
- * 🔴 MIT `publicIds` (mehr als ein Abschnitt) gilt die Zuweisung GENAU diesen Abschnitten -- Weg-Ebene und Gruppendialog
- * (Nachtrag 2026-09-14-wege-mehrfachzuweisung-design.md §9.6). Ohne bleibt es beim Namens-Match des Servers.
+ * 🔴 MIT `publicIds` (mehr als ein Abschnitt) gilt die Zuweisung GENAU diesen Abschnitten (Nachtrag 2026-09-14-wege-mehrfachzuweisung-
+ * design.md §9.6) -- seit Lieferung 2 ueber die Zeilen des Kastens der ganzen Strasse (avesmapsWikiAssignWegZeileZuweisungsKoerper).
+ * Ohne bleibt es beim Namens-Match des Servers.
  */
 function avesmapsWikiAssignWegZuweisungsKoerper(wikiKey, publicId, publicIds) {
 	const koerper = {
@@ -293,33 +294,61 @@ function avesmapsWikiAssignWegLoesenKoerper(publicId, publicIds) {
 	};
 }
 
-/**
- * REIN: die EINE Bestaetigung vor dem Loesen einer ganzen Strasse. Sie nennt die Folge (R2: jeder Abschnitt einen eigenen
- * generischen Namen) -- die Owner-Regel vom 05.07.2026 („nie ungefragt den ganzen Weg") bleibt damit erfuellt.
- */
-function avesmapsWikiAssignWegGruppeLoesenFrage(name, anzahl, ohneZuweisung) {
-	// Fixrunde Lieferung 1: seit die Strasse der Name ist, kann ein Teil ihrer Abschnitte GAR KEINE Zuordnung tragen -- auch sie
-	// bekommen beim Loesen einen eigenen generischen Namen. Die Frage sagt es, knapp; eine einige Strasse fragt wie bisher.
-	const ohne = Number(ohneZuweisung) || 0;
-	return "Die Wiki-Zuordnung „" + avesmapsWikiAssignWegText(name) + "“ von allen " + (Number(anzahl) || 0)
-		+ " Abschnitten dieser Straße lösen?\n\nJeder Abschnitt bekommt einen eigenen generischen Namen — die Straße zerfällt in einzelne Wege."
-		+ (ohne > 0
-			? "\n\n" + ohne + (ohne === 1
-				? " davon trägt keine Zuordnung, bekommt aber ebenfalls einen generischen Namen."
-				: " davon tragen keine Zuordnung, bekommen aber ebenfalls einen generischen Namen.")
-			: "");
+// ── EINE Zeile des Kastens „Wiki-Weg" der ganzen Strasse (Lieferung 2, Owner 15.09.2026) ─────────────────────────────────────
+// Die Strasse ist der NAME und kann gemischte Hauptzuweisungen tragen (live Reichsstraße 2: 49 Abschnitte mit Artikel, 18 ohne).
+// Der Kasten zeigt deshalb eine Zeile je Zuweisung (wpGruppeZuweisungsZeilen, js/pages/wege-editor-model.js), und jede Zeile
+// schreibt GENAU ihre Abschnitte (js/ui/wiki-weg-zeilen.js). 🔴 Damit sind die zwei Rueckfragen aus Lieferung 1 gefallen
+// („gemischte Strasse -- auf alle N schreiben?" vor Zuweisen, „N davon tragen keine Zuordnung" vor Entfernen): keine Zeile schreibt
+// auf Abschnitte einer anderen.
+
+/** REIN: die Kennungen EINER Zeile -- getrimmt, ohne Dubletten, in ihrer Reihenfolge (der erste ist der Anker). Nie null. */
+function avesmapsWikiAssignWegZeilenIds(publicIds) {
+	const ids = [];
+	(Array.isArray(publicIds) ? publicIds : []).forEach((id) => {
+		const text = avesmapsWikiAssignWegText(id);
+		if (text !== "" && ids.indexOf(text) === -1) {
+			ids.push(text);
+		}
+	});
+	return ids;
 }
 
 /**
- * REIN: die Rueckfrage vor „Zuweisen" auf einer ganzen Strasse mit GEMISCHTEN Hauptzuweisungen (wpGruppeHauptzuweisungen).
- * 🔴 Die Strasse ist seit dem 15.09.2026 der NAME, nicht die Zuweisung (Owner: „ausdrücklich über den namen") -- live trugen
- * 49 von 67 Abschnitten der Reichsstraße 2 den Artikel, 18 keinen. Zuweisen schreibt auf ALLE; das geschieht bei einer
- * gemischten Strasse nur nach dieser Frage, wie Entfernen (avesmapsWikiAssignWegGruppeLoesenFrage). Eine einige fragt nicht.
+ * REIN: Zuweisen fuer GENAU die Abschnitte einer Zeile.
+ * 💣 `public_ids` AUCH BEI EINEM ABSCHNITT. Ohne die Liste gilt der Namens-Match des Servers (avesmapsWikiPathAssignTo), und der
+ * traefe jeden gleichnamigen Abschnitt der Strasse -- also genau die Abschnitte der ANDEREN Zeilen. Der Gruppenrumpf darunter laesst
+ * die Liste bei einem Abschnitt weg (dort ist er der Abschnitt selbst); deshalb wird sie hier ausdruecklich gesetzt.
  */
-function avesmapsWikiAssignWegGruppeZuweisenFrage(name, anzahl) {
+function avesmapsWikiAssignWegZeileZuweisungsKoerper(wikiKey, publicIds) {
+	const ids = avesmapsWikiAssignWegZeilenIds(publicIds);
+	return Object.assign(avesmapsWikiAssignWegZuweisungsKoerper(wikiKey, ids[0], ids), { public_ids: ids });
+}
+
+/** REIN: Loesen fuer GENAU die Abschnitte einer Zeile -- der Rumpf der ganzen Strasse traegt die Liste immer, der Anker vorn. */
+function avesmapsWikiAssignWegZeileLoesenKoerper(publicIds) {
+	const ids = avesmapsWikiAssignWegZeilenIds(publicIds);
+	return avesmapsWikiAssignWegLoesenKoerper(ids[0], ids);
+}
+
+/**
+ * REIN: die Frage vor „Entfernen" in einer Zeile (Entfernen fragt immer). Sie nennt die Zahl der Abschnitte DIESER Zeile und die
+ * Folge (R2: jeder bekommt einen eigenen generischen Namen) -- die Owner-Regel vom 05.07.2026 („nie ungefragt den ganzen Weg")
+ * bleibt damit erfuellt.
+ * ⚠️ Umfasst die Zeile die ganze Strasse (oder fehlt die Gesamtzahl), zerfaellt die Strasse -- derselbe Satz wie in Lieferung 1.
+ * Sonst verlassen nur diese Abschnitte die Strasse: ihr generischer Name ist ein Maschinenname, und der gehoert zu keiner (wpGroupKeyOf).
+ */
+function avesmapsWikiAssignWegZeileLoesenFrage(name, anzahl, gesamt) {
 	const n = Number(anzahl) || 0;
-	return "Die " + n + " Abschnitte dieser Straße tragen verschiedene Wiki-Zuordnungen.\n\n„" + avesmapsWikiAssignWegText(name)
-		+ "“ allen " + n + " Abschnitten zuweisen? Jeder Abschnitt trägt danach diesen Artikel und heißt wie er.";
+	const alle = Number(gesamt) || 0;
+	const kopf = "Die Wiki-Zuordnung „" + avesmapsWikiAssignWegText(name) + "“ ";
+	if (alle <= n) {
+		return kopf + "von allen " + n + " Abschnitten dieser Straße lösen?\n\n"
+			+ "Jeder Abschnitt bekommt einen eigenen generischen Namen — die Straße zerfällt in einzelne Wege.";
+	}
+	return kopf + "von " + n + " der " + alle + " Abschnitte dieser Straße lösen?\n\n"
+		+ (n === 1
+			? "Dieser Abschnitt bekommt einen eigenen generischen Namen und gehört danach nicht mehr zur Straße."
+			: "Diese " + n + " Abschnitte bekommen je einen eigenen generischen Namen und gehören danach nicht mehr zur Straße.");
 }
 
 /**
@@ -376,9 +405,11 @@ if (typeof module !== "undefined" && module.exports) {
 		avesmapsWikiAssignWegHerkunft: avesmapsWikiAssignWegHerkunft,
 		avesmapsWikiAssignWegZuweisungsKoerper: avesmapsWikiAssignWegZuweisungsKoerper,
 		avesmapsWikiAssignWegGruppenIds: avesmapsWikiAssignWegGruppenIds,
-		avesmapsWikiAssignWegGruppeZuweisenFrage: avesmapsWikiAssignWegGruppeZuweisenFrage,
 		avesmapsWikiAssignWegLoesenKoerper: avesmapsWikiAssignWegLoesenKoerper,
-		avesmapsWikiAssignWegGruppeLoesenFrage: avesmapsWikiAssignWegGruppeLoesenFrage,
+		avesmapsWikiAssignWegZeilenIds: avesmapsWikiAssignWegZeilenIds,
+		avesmapsWikiAssignWegZeileZuweisungsKoerper: avesmapsWikiAssignWegZeileZuweisungsKoerper,
+		avesmapsWikiAssignWegZeileLoesenKoerper: avesmapsWikiAssignWegZeileLoesenKoerper,
+		avesmapsWikiAssignWegZeileLoesenFrage: avesmapsWikiAssignWegZeileLoesenFrage,
 		avesmapsWikiAssignWegAntwortPruefen: avesmapsWikiAssignWegAntwortPruefen,
 		avesmapsWikiAssignWegSyncWegtyp: avesmapsWikiAssignWegSyncWegtyp,
 	};

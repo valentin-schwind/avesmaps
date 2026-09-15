@@ -109,9 +109,12 @@ const dokument = {
 	},
 };
 
-const aufrufe = { einzel: 0, quellen: [], kasten: [], zerstoert: 0, popups: [], suche: 0, panel: 0 };
+const aufrufe = { einzel: 0, quellen: [], kasten: [], zerstoert: 0, popups: [], suche: 0, panel: 0, zeilen: 0, zeilenNeu: 0 };
 const kontext = vm.createContext({
 	document: dokument, window: {}, console,
+	// Lieferung 2: die Zeilen des Kastens „Wiki-Weg“ der ganzen Strasse (review-path-wiki.js) -- hier nur, DASS sie kommen.
+	renderPathWikiGruppenZeilen: () => { aufrufe.zeilen += 1; },
+	pathWikiGruppenZeilenNeuZeichnen: () => { aufrufe.zeilenNeu += 1; },
 	wpGroupFieldStates: M.wpGroupFieldStates,
 	avesmapsPathGruppeZeilen: G.avesmapsPathGruppeZeilen,
 	avesmapsPathGruppeKnopfText: G.avesmapsPathGruppeKnopfText,
@@ -176,11 +179,25 @@ const kastenOpts = aufrufe.kasten[aufrufe.kasten.length - 1];
 assert.strictEqual(kastenOpts.skin, "label-wiki");
 assert.strictEqual(kastenOpts.umfangText(), "die ganze Straße");
 assert.strictEqual(kastenOpts.hauptKey(), "reichsstrasse-2");
-// Fix-Runde 1, Punkt 2 (R30): der Kasten „Wiki-Weg" (#path-wiki-assign-host) zeigt die Hauptzuweisung schon --
-// auch im Gruppenmodus, weil populatePathEditFormGruppe zuerst populatePathEditForm(path) ruft und ihn stehen
-// laesst. `haupt` fehlt deshalb GANZ (nicht nur `null`), sonst stuende der Artikel zweimal auf der Seite.
-assert.ok(!("haupt" in kastenOpts), "keine Hauptzuweisungs-Zeile im Gruppendialog -- der Kasten „Wiki-Weg“ zeigt sie schon");
+// Lieferung 2 (Owner 15.09.2026, „Gleiche zusammenfassen" + „Je Zeile bearbeitbar"): im Gruppendialog ersetzt die Zeilenliste
+// (eine Zeile je Hauptzuweisung, renderPathWikiGruppenZeilen in review-path-wiki.js) den Kasten des Abschnitts, den
+// populatePathEditForm(path) zuerst gezeichnet hat. Bis dahin blieb hier EIN Bauteil mit der Zuweisung des angeklickten Abschnitts.
+// Der Kasten der weiteren Zuweisungen steht EINMAL darunter, ohne eigene Liste -- die weiteren stehen mit ✕ in ihren Zeilen.
+// `haupt` fehlt weiter GANZ (Fix-Runde 1, Punkt 2): die Hauptzuweisungen zeigen die Zeilen.
+assert.strictEqual(aufrufe.zeilen, 1, "die Zeilen des Kastens „Wiki-Weg“ werden gezeichnet -- statt EINES Bauteils");
+assert.strictEqual(kastenOpts.liste, false, "unter den Zeilen ohne eigene Liste -- ein ✕ dort naehme vom anderen Umfang");
+assert.ok(!("haupt" in kastenOpts), "keine Hauptzuweisungs-Zeile im Gruppendialog -- die Zeilen zeigen sie");
 assert.deepStrictEqual([...kastenOpts.abschnitte().map((a) => a.public_id)], ["rs-6", "rs-7", "rs-8"]);
+// Die Suche steht, sobald IRGENDEIN Abschnitt eine Hauptzuweisung traegt -- nicht nur der angeklickte.
+const rs6Wiki = rs6.properties.wiki_path;
+rs6.properties.wiki_path = null;
+assert.strictEqual(kastenOpts.hauptKey(), "reichsstrasse-2", "der erste Abschnitt ohne Zuweisung nimmt der Strasse die Suche nicht");
+rs6.properties.wiki_path = rs6Wiki;
+// Nach einem Schreiben im Kasten der weiteren Zuweisungen ziehen die Zeilen nach (sie nennen die weiteren je Zeile).
+kastenOpts.geschrieben({ segments_updated: [] });
+assert.strictEqual(aufrufe.zeilenNeu, 1, "die Zeilen werden nach add_weitere neu gezeichnet");
+aufrufe.suche = 0;
+aufrufe.panel = 0;
 assert.strictEqual(transportKasten.zuhoerer.length, 1, "der Haken-Zuhoerer haengt einmal");
 
 // ---- 4. Lesen: unberuehrt -> kein Rumpf; angefasst -> nur das Angefasste ------------------------------------

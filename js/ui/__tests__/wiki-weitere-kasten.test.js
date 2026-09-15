@@ -281,5 +281,23 @@ const warten = (ms) => new Promise((fertig) => setTimeout(fertig, ms));
 		kasten12.zerstoeren();
 	}
 
+	// 13. Lieferung 2 (Owner 15.09.2026): unter den Zeilen der ganzen Strasse steht der Kasten EINMAL -- nur das Suchfeld. Die weiteren
+	// Zuweisungen samt ✕ stehen in den Zeilen (js/ui/wiki-weg-zeilen.js); eine zweite Liste darunter entfernte vom anderen Umfang.
+	{
+		const ohneListe = K.avesmapsWikiWeitereMarkup({ hauptKey: "reichsstrasse-2", umfang: "die ganze Straße", zuordnungen: teil, ohneListe: true }, SKIN);
+		assert.ok(!ohneListe.includes("data-weitere-weg") && ohneListe.includes("data-weitere-suche") && ohneListe.includes("data-weitere-status"),
+			"ohne Liste: Suchfeld und Statuszeile, kein ✕: " + ohneListe);
+		const host13 = neuerHost();
+		const kasten13 = K.avesmapsWikiWeitereKastenMount(host13, {
+			skin: SKIN, liste: false, hauptKey: () => "reichsstrasse-2", abschnitte: () => abschnitte, umfangText: () => "die ganze Straße",
+		});
+		assert.ok(!host13.innerHTML.includes("data-weitere-weg") && host13.innerHTML.includes("data-weitere-suche"), "`liste: false` am Mount");
+		kasten13.zerstoeren();
+		const host13b = neuerHost();
+		const kasten13b = K.avesmapsWikiWeitereKastenMount(host13b, { skin: SKIN, hauptKey: () => "reichsstrasse-2", abschnitte: () => abschnitte, umfangText: () => "x" });
+		assert.ok(host13b.innerHTML.includes('data-weitere-weg="b-renpfad"'), "ohne die Option bleibt die Liste -- am Abschnitt unveraendert");
+		kasten13b.zerstoeren();
+	}
+
 	console.log("wiki-weitere-kasten.test.js: ok");
 })().catch((fehler) => { console.error(fehler); process.exit(1); });

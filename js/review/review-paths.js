@@ -101,7 +101,8 @@ function mountPathEditFeatureSources(path, festeIds = null) {
 let pathEditGruppe = null;          // { pfade: path[], stand } oder null (= Abschnitt, der Dialog wie bisher)
 let pathWikiWeitereKasten = null;   // der Kasten „Weitere Wiki-Zuweisungen" im Dialog
 // 🔴 Nachtrag 15.09.2026 §9.5: EIN Element fuer die Lebenszeit der Seite, eingehaengt in den Kasten „Wiki-Weg"
-// (renderPathWikiReference, review-path-wiki.js). Der Kasten darin wird bei jedem Oeffnen neu montiert; das Bauteil haengt
+// (renderPathWikiReference am Abschnitt; fuer die ganze Strasse seit Lieferung 2 unter ihren Zeilen, renderPathWikiGruppenZeilen --
+// beide review-path-wiki.js). Der Kasten darin wird bei jedem Oeffnen neu montiert; das Bauteil haengt
 // dasselbe Element nach jedem Neuzeichnen wieder ein -- deshalb traegt es beide Reihenfolgen der drei Befueller.
 let pathWikiWeitereAnhangElement = null;
 let pathGruppeVerdrahtet = false;
@@ -250,6 +251,12 @@ function populatePathEditFormGruppe(path, pfade) {
 
 	pathEditUmfangZeigen(path, true);
 	mountPathWikiWeitere(path, pfade, true);
+	// Lieferung 2 (Owner 15.09.2026, „Gleiche zusammenfassen" + „Je Zeile bearbeitbar"): statt EINES Bauteils mit der Zuweisung des
+	// angeklickten Abschnitts eine Zeile je Hauptzuweisung der ganzen Strasse (review-path-wiki.js). Sie ersetzt den Kasten, den
+	// populatePathEditForm(path) oben gezeichnet hat; der Kasten der weiteren Zuweisungen haengt EINMAL darunter.
+	if (typeof renderPathWikiGruppenZeilen === "function") {
+		renderPathWikiGruppenZeilen();
+	}
 	const eigene = getPathPublicId(path);
 	mountPathEditFeatureSources(path, [eigene].concat(pfade.map((anderer) => getPathPublicId(anderer)).filter((id) => id !== eigene)));
 }
@@ -308,7 +315,14 @@ function mountPathWikiWeitere(path, pfade, ganz) {
 	const label = (pfad) => (typeof avesmapsWegAbschnittLabelAufKarte === "function" ? avesmapsWegAbschnittLabelAufKarte(pfad) : "");
 	pathWikiWeitereKasten = avesmapsWikiWeitereKastenMount(host, {
 		skin: "label-wiki",
-		hauptKey: () => String(path.properties?.wiki_path?.wiki_key || ""),
+		// Lieferung 2: fuer die ganze Strasse ohne eigene Liste -- die weiteren Zuweisungen stehen samt ✕ in den Zeilen darueber
+		// (renderPathWikiGruppenZeilen), und ein ✕ hier naehme vom anderen Umfang.
+		liste: !ganz,
+		// Fuer die ganze Strasse steht die Suche, sobald IRGENDEIN Abschnitt eine Hauptzuweisung traegt -- nicht nur der angeklickte.
+		hauptKey: () => {
+			const traeger = ganz ? pfade.find((pfad) => String(pfad?.properties?.wiki_path?.wiki_key || "").trim() !== "") : path;
+			return String(traeger?.properties?.wiki_path?.wiki_key || "").trim();
+		},
 		// Keine Zeile „Hauptzuweisung": der Kasten „Wiki-Weg", in dem dieser haengt, zeigt sie schon.
 		// Bei JEDER Aktion frisch gelesen: nach einem Schreiben stehen die neuen Listen schon in den Kartendaten.
 		abschnitte: () => pfade.map((pfad) => ({
@@ -330,6 +344,10 @@ function mountPathWikiWeitere(path, pfade, ganz) {
 			}
 			if (pathWikiWeitereKasten) {
 				pathWikiWeitereKasten.neuZeichnen();
+			}
+			// Lieferung 2: die Zeilen der ganzen Strasse nennen die weiteren Zuweisungen je Zeile -- sie ziehen nach.
+			if (ganz && typeof pathWikiGruppenZeilenNeuZeichnen === "function") {
+				pathWikiGruppenZeilenNeuZeichnen();
 			}
 		},
 	});

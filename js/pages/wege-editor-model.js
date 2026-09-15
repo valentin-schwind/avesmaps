@@ -294,9 +294,10 @@ function wpGroupWays(ways) {
 /**
  * REIN: welche Hauptzuweisungen tragen die Abschnitte einer Strasse? Jeder `wiki_key` einmal, „keine" als "" -- in der
  * Reihenfolge der Abschnitte. Mehr als ein Eintrag heisst: die Namensgruppe ist GEMISCHT.
- * 🔴 Das gibt es, seit die Strasse der Name ist (Owner 15.09.2026). Zwei Leser haengen daran: „Zuweisen" auf der ganzen Strasse
- * fragt dann nach (avesmapsWikiAssignWegGruppeZuweisenFrage), und die fremden Traeger kommen aus ALLEN Artikeln der Strasse,
- * nicht aus dem des angeklickten Abschnitts (map-features-weg-auswahl.js, weg-als-route.js, weg-weitere-anzeige.js).
+ * 🔴 Das gibt es, seit die Strasse der Name ist (Owner 15.09.2026). Zwei Leser haengen daran: die Namenssperre der ganzen Strasse
+ * im Kartendialog (gesperrt, sobald ein Eintrag nicht "" ist -- syncPathAutoNameControls, review-paths.js), und die fremden Traeger
+ * kommen aus ALLEN Artikeln der Strasse, nicht aus dem des angeklickten Abschnitts (map-features-weg-auswahl.js, weg-als-route.js,
+ * weg-weitere-anzeige.js). WELCHE Abschnitte zu welcher Zuweisung gehoeren, sagt wpGruppeZuweisungsZeilen.
  */
 function wpGruppeHauptzuweisungen(segmente) {
 	var schluessel = [];
@@ -305,6 +306,103 @@ function wpGruppeHauptzuweisungen(segmente) {
 		if (schluessel.indexOf(key) === -1) { schluessel.push(key); }
 	});
 	return schluessel;
+}
+
+// Wie viele Bereiche die Nummernzeile zeigt, bevor sie mit „…" kappt (wpAbschnittNummernText).
+var WP_NUMMERN_BEREICHE_MAX = 8;
+
+/**
+ * REIN: Abschnittsnummern kompakt als Text -- „Abschnitt 1–17, 19, 22–30". "" ohne Nummern.
+ * Aufeinanderfolgende Nummern werden ein Bereich, alles aufsteigend; Dubletten und alles ausser ganzen Zahlen ab 1 fallen heraus.
+ * ⚠️ Nach WP_NUMMERN_BEREICHE_MAX Bereichen wird mit „…" gekappt: die Zeile steht in der Zusammenfassung einer Zeile des Kastens
+ * „Wiki-Weg" und muss auch bei einer zerrissenen Strasse (Reichsstraße 2: 67 Abschnitte, zwei Zuweisungen) EINE Zeile bleiben.
+ */
+function wpAbschnittNummernText(nummern) {
+	var zahlen = [];
+	(Array.isArray(nummern) ? nummern : []).forEach(function (wert) {
+		if (typeof wert === "number" && isFinite(wert) && wert >= 1 && Math.floor(wert) === wert && zahlen.indexOf(wert) === -1) {
+			zahlen.push(wert);
+		}
+	});
+	if (zahlen.length === 0) { return ""; }
+	zahlen.sort(function (a, b) { return a - b; });
+	var bereiche = [];
+	zahlen.forEach(function (zahl) {
+		var letzter = bereiche[bereiche.length - 1];
+		if (letzter && zahl === letzter[1] + 1) { letzter[1] = zahl; } else { bereiche.push([zahl, zahl]); }
+	});
+	var teile = bereiche.slice(0, WP_NUMMERN_BEREICHE_MAX).map(function (bereich) {
+		return bereich[0] === bereich[1] ? String(bereich[0]) : bereich[0] + "–" + bereich[1];
+	});
+	if (bereiche.length > WP_NUMMERN_BEREICHE_MAX) { teile.push("…"); }
+	return "Abschnitt " + teile.join(", ");
+}
+
+/**
+ * REIN: die Abschnitte einer Strasse nach ihrer HAUPTzuweisung zusammengefasst -- die Zeilen des Kastens „Wiki-Weg" der ganzen
+ * Strasse. Owner 15.09.2026: „bearbeiten der ganzen straße: zeigt mir wiki-zuweisungen per segmente an", gewaehlt „Gleiche
+ * zusammenfassen" (eine Zeile je Zuweisung mit ihren Abschnitten) und „Je Zeile bearbeitbar" (js/ui/wiki-weg-zeilen.js).
+ * 🔴 EINE Regel fuer die Weg-Ebene des Wege-Editors UND den Gruppendialog der Karte -- keine zweite Fassung. Vorher zeigte der
+ * Kasten die erste gefundene Zuweisung (wpGroupWays) und schrieb auf alle Abschnitte: bei Reichsstraße 2 je nach Klick „keine"
+ * oder „Reichsstraße 2", beides falsch.
+ * Zeile: { wiki_key ("" = keine), name (Artikelname, ohne ihn der Schluessel; "" bei keine), wiki_url, public_ids, nummern,
+ *          weitere: [{ name, wiki_key, wiki_url, anzahl, public_ids }] } -- die weiteren Zuweisungen DIESER Abschnitte; `anzahl`
+ *          sagt, wie viele davon sie tragen (eine Dublette am selben Abschnitt zaehlt einmal), `public_ids` welche.
+ * Reihenfolge: Zeilen mit Zuweisung nach Anzahl absteigend, dann alphabetisch; „keine" zuletzt, gleich wie gross. Innerhalb einer
+ * Zeile bleibt die Reihenfolge der Strasse -- der erste Abschnitt ist der Anker ihrer Schreibvorgaenge.
+ * @param {Array} segmente  die Abschnitte der Strasse, geordnet wie wpGroupWays ({public_id, wiki_path, wiki_path_weitere})
+ * @param {function(Object, number): number} [nummerVon]  die Abschnittsnummer; ohne: die Stelle in `segmente` + 1
+ */
+function wpGruppeZuweisungsZeilen(segmente, nummerVon) {
+	var zeilen = [];
+	var nachKey = {};
+	(Array.isArray(segmente) ? segmente : []).forEach(function (segment, index) {
+		if (!segment) { return; }
+		var wiki = segment.wiki_path || null;
+		var key = wiki ? String(wiki.wiki_key || "").trim() : "";
+		if (!Object.prototype.hasOwnProperty.call(nachKey, key)) {
+			nachKey[key] = {
+				wiki_key: key,
+				name: key === "" ? "" : (String(wiki.name || "").trim() || key),
+				wiki_url: key === "" ? "" : String(wiki.wiki_url || "").trim(),
+				public_ids: [],
+				nummern: [],
+				weitere: []
+			};
+			zeilen.push(nachKey[key]);
+		}
+		var zeile = nachKey[key];
+		var publicId = String(segment.public_id || "");
+		zeile.public_ids.push(publicId);
+		zeile.nummern.push(typeof nummerVon === "function" ? nummerVon(segment, index) : index + 1);
+		var gesehen = [];
+		(Array.isArray(segment.wiki_path_weitere) ? segment.wiki_path_weitere : []).forEach(function (eintrag) {
+			var weiterKey = eintrag ? String(eintrag.wiki_key || "").trim() : "";
+			if (weiterKey === "" || gesehen.indexOf(weiterKey) !== -1) { return; }
+			gesehen.push(weiterKey);
+			var weiter = null;
+			zeile.weitere.forEach(function (vorhanden) { if (vorhanden.wiki_key === weiterKey) { weiter = vorhanden; } });
+			if (!weiter) {
+				weiter = { name: String(eintrag.name || "").trim() || weiterKey, wiki_key: weiterKey,
+					wiki_url: String(eintrag.wiki_url || "").trim(), anzahl: 0, public_ids: [] };
+				zeile.weitere.push(weiter);
+			}
+			weiter.anzahl += 1;
+			weiter.public_ids.push(publicId);
+		});
+	});
+	var alphabetisch = function (a, b) {
+		var vergleich = a.name.localeCompare(b.name, "de");
+		if (vergleich !== 0) { return vergleich; }
+		return a.wiki_key < b.wiki_key ? -1 : (a.wiki_key > b.wiki_key ? 1 : 0);
+	};
+	zeilen.forEach(function (zeile) {
+		zeile.weitere.sort(function (a, b) { return (b.anzahl - a.anzahl) || alphabetisch(a, b); });
+	});
+	return zeilen.sort(function (a, b) {
+		if ((a.wiki_key === "") !== (b.wiki_key === "")) { return a.wiki_key === "" ? 1 : -1; }
+		return (b.public_ids.length - a.public_ids.length) || alphabetisch(a, b);
+	});
 }
 
 /**
@@ -924,6 +1022,9 @@ if (typeof module !== "undefined" && module.exports) {
 		wpGroupWays: wpGroupWays,
 		wpGroupKeyOf: wpGroupKeyOf,
 		wpGruppeHauptzuweisungen: wpGruppeHauptzuweisungen,
+		wpGruppeZuweisungsZeilen: wpGruppeZuweisungsZeilen,
+		wpAbschnittNummernText: wpAbschnittNummernText,
+		WP_NUMMERN_BEREICHE_MAX: WP_NUMMERN_BEREICHE_MAX,
 		wpSortWert: wpSortWert,
 		wpWeitereNamen: wpWeitereNamen,
 		wpWegPasstZurSuche: wpWegPasstZurSuche,

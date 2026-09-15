@@ -916,11 +916,25 @@
 		return gruppe;
 	}
 
-	/** 🔴 WIRFT ohne Gruppe -- der Vertrag aus dem Kopf von js/ui/wiki-assign.js. */
-	function wikiAssignGruppeZustand() {
-		var gruppe = wikiAssignGruppe();
+	// 🔴 Lieferung 2 (Owner 15.09.2026, „Gleiche zusammenfassen" + „Je Zeile bearbeitbar"): der Kasten „Wiki-Weg" der Weg-Ebene zeigt
+	// eine Zeile je Hauptzuweisung (wpGruppeZuweisungsZeilen, js/ui/wiki-weg-zeilen.js). Die Rueckruf-Fabriken unten bekommen die ZEILE;
+	// jede schreibt GENAU deren Abschnitte. Vorher stand hier EIN Datenweg fuer die ganze Strasse mit der ersten gefundenen Zuweisung
+	// und zwei Rueckfragen „gemischte Strasse -- auf alle N schreiben?" -- beide sind mit den Zeilen gefallen.
+
+	/** Ein Abschnitt aus ALLEN Wegen (state.ways) -- nie aus der gefilterten Liste. */
+	function wpWegNachId(publicId) {
+		var treffer = null;
+		state.ways.forEach(function (w) { if (w.public_id === publicId) { treffer = w; } });
+		return treffer;
+	}
+
+	/** 🔴 WIRFT ohne Gruppe oder ohne den Abschnitt -- der Vertrag aus dem Kopf von js/ui/wiki-assign.js. Stand = erster Abschnitt der Zeile. */
+	function wikiAssignZeileZustand(zeile) {
+		wikiAssignGruppe();
+		var erster = wpWegNachId(zeile && zeile.public_ids ? zeile.public_ids[0] : "");
+		if (!erster) { throw new Error("Kein Weg gewählt."); }
 		return avesmapsWikiAssignWegZustand({
-			wiki_path: gruppe.wiki_path,
+			wiki_path: erster.wiki_path || null,
 			// Eine LESEFUNKTION: „— gemischt lassen —" ist `null` und liest sich als "" -- die Vorschau bietet dann den Wegtyp an.
 			feature_subtype: function () { return state.groupDraft && state.groupDraft.feature_subtype ? state.groupDraft.feature_subtype : ""; },
 			// ⚠️ Keine Feldherkunft: sie steht je Abschnitt und kann in einer Gruppe verschieden sein.
@@ -934,40 +948,43 @@
 		return window.confirm("Die Weg-Ebene hat ungespeicherte Änderungen. Sie gehen beim Zuweisen oder Entfernen verloren.\n\nTrotzdem fortfahren?");
 	}
 
-	function wikiAssignGruppeZuweisen(treffer) {
+	/**
+	 * Nach jedem Schreiben aus dem Kasten der ganzen Strasse: die Liste neu laden -- die Zeilen bilden sich dabei neu, Abschnitte
+	 * wandern zwischen ihnen -- und die AUSWAHL auf der Strasse lassen (Lieferung 2).
+	 * 💣 findGroup ist GEFILTERT (Reiter, Suche, Filtermenue): im Reiter „Fehlt" faellt eine frisch zugewiesene Strasse heraus, ebenso
+	 * unter einer Suche nach dem alten Namen. selectGroup kehrte dann STILL zurueck, und die Spalte stand mit einem Entwurf da, dessen
+	 * Gruppe es nicht mehr gab („Speichern" tat nichts, „Entfernen" meldete „Kein Weg gewählt."). Gibt es die Strasse nicht mehr (R2 hat
+	 * alle ihre Abschnitte umbenannt) oder ist sie ausgeblendet: die Gruppe, in die der Anker gewandert ist (R1), sonst der Anker selbst --
+	 * selectWay sucht in ALLEN Wegen.
+	 */
+	function wpNachZeilenSchreiben(strassenKey, ankerId) {
+		return loadList().then(function () {
+			var strasse = findGroup(strassenKey);
+			if (strasse && strasse.segments.length > 1) { return selectGroup(strassenKey, true); }
+			// 💣 Nie ein nachgebauter Schluessel: der des Ankers NACH dem Laden, ueber die eine Regel.
+			var anker = wpWegNachId(ankerId);
+			var neuerSchluessel = anker ? wpGroupKeyOf(anker) : "";
+			var neueGruppe = neuerSchluessel ? findGroup(neuerSchluessel) : null;
+			if (neueGruppe && neueGruppe.segments.length > 1) { return selectGroup(neuerSchluessel, true); }
+			return selectWay(ankerId, true);
+		});
+	}
+
+	/** Zuweisen in EINER Zeile: GENAU ihre Abschnitte (`public_ids`, Anker der erste), ohne Rueckfrage -- keine Zeile schreibt auf eine andere. */
+	function wikiAssignZeileZuweisen(zeile, treffer) {
 		var gruppe;
 		try { gruppe = wikiAssignGruppe(); } catch (fehler) { return Promise.reject(fehler); }
-		var ids = gruppe.segments.map(function (s) { return s.public_id; });
-		// 🔴 Seit die Strasse der NAME ist (Owner 15.09.2026), kann sie gemischte Hauptzuweisungen tragen. Dann schreibt Zuweisen nur
-		// nach ausdruecklicher Rueckfrage auf alle N Abschnitte -- wie Entfernen. Eine einige Strasse fragt wie bisher nicht.
-		if (wpGruppeHauptzuweisungen(gruppe.segments).length > 1
-			&& !window.confirm(avesmapsWikiAssignWegGruppeZuweisenFrage(treffer && treffer.name, ids.length))) {
-			setStatus("Zuweisen abgebrochen.", "");
-			return Promise.reject(new Error("Abgebrochen."));
-		}
+		var ids = avesmapsWikiAssignWegZeilenIds(zeile && zeile.public_ids);
 		if (!wikiAssignGruppeEntwurfFreigeben()) {
 			setStatus("Zuweisen abgebrochen.", "");
 			return Promise.reject(new Error("Abgebrochen."));
 		}
-		return postJson("/api/edit/wiki/paths.php", avesmapsWikiAssignWegZuweisungsKoerper(treffer.wiki_key, ids[0], ids))
+		return postJson("/api/edit/wiki/paths.php", avesmapsWikiAssignWegZeileZuweisungsKoerper(treffer.wiki_key, ids))
 			.then(function (antwort) {
 				// 🔴 Wirft bei jedem Nein -- auch bei `type_ok:false` (ein Abschnitt passt nicht, §9.6).
 				avesmapsWikiAssignWegAntwortPruefen(antwort);
 				setStatus("„" + (antwort.wiki_name || "") + "“ an " + (antwort.applied || 0) + " Abschnitten verknüpft.", "ok");
-				// R1 benennt alle Abschnitte nach dem Artikel um -- die Strasse heisst jetzt so, wie ihr Anker heisst (wpGroupKeyOf).
-				// 💣 findGroup ist GEFILTERT (Reiter, Suche, Filtermenue): im Reiter „Fehlt" faellt die frisch zugewiesene Gruppe
-				// heraus, ebenso unter einer Suche nach dem alten Namen. selectGroup kehrte dann STILL zurueck, und die Spalte
-				// stand mit einem Entwurf da, dessen Gruppe es nicht mehr gab („Speichern" tat nichts, „Entfernen" meldete
-				// „Kein Weg gewählt."). Dann -- wie beim Entfernen -- der Ankerabschnitt: selectWay sucht in ALLEN Wegen.
-				return loadList().then(function () {
-					// 💣 Nie ein nachgebauter Schluessel: der des Ankers NACH dem Laden, ueber die eine Regel.
-					var anker = null;
-					state.ways.forEach(function (w) { if (w.public_id === ids[0]) { anker = w; } });
-					var neuerSchluessel = anker ? wpGroupKeyOf(anker) : "";
-					var neueGruppe = neuerSchluessel ? findGroup(neuerSchluessel) : null;
-					if (neueGruppe && neueGruppe.segments.length > 1) { return selectGroup(neuerSchluessel, true); }
-					return selectWay(ids[0], true);
-				});
+				return wpNachZeilenSchreiben(gruppe.key, ids[0]);
 			})
 			.catch(function (fehler) {
 				setStatus("Zuweisen fehlgeschlagen: " + (fehler && fehler.message ? fehler.message : fehler), "bad");
@@ -976,24 +993,44 @@
 			});
 	}
 
-	function wikiAssignGruppeLoesen() {
+	/** Entfernen in EINER Zeile: fragt immer und nennt die Zahl ihrer Abschnitte (avesmapsWikiAssignWegZeileLoesenFrage), schreibt GENAU diese. */
+	function wikiAssignZeileLoesen(zeile) {
 		var gruppe;
 		try { gruppe = wikiAssignGruppe(); } catch (fehler) { return Promise.reject(fehler); }
-		var ids = gruppe.segments.map(function (s) { return s.public_id; });
-		// 🔴 EINE Frage statt „nur dieser Abschnitt?" -- markiert ist die ganze Strasse; die Frage nennt die Folge.
-		var ohneZuweisung = gruppe.segments.filter(function (s) { return !String((s.wiki_path && s.wiki_path.wiki_key) || "").trim(); }).length;
-		if (!window.confirm(avesmapsWikiAssignWegGruppeLoesenFrage(gruppe.wiki_path ? gruppe.wiki_path.name : "", ids.length, ohneZuweisung))
+		var ids = avesmapsWikiAssignWegZeilenIds(zeile && zeile.public_ids);
+		if (!window.confirm(avesmapsWikiAssignWegZeileLoesenFrage(zeile && zeile.name, ids.length, gruppe.segments.length))
 			|| !wikiAssignGruppeEntwurfFreigeben()) {
 			setStatus("Entfernen abgebrochen.", "");
 			// 🔴 ABGEBROCHEN IST ABGELEHNT -- das Bauteil laesst die Zuweisung stehen.
 			return Promise.reject(new Error("Abgebrochen."));
 		}
-		return postJson("/api/edit/wiki/paths.php", avesmapsWikiAssignWegLoesenKoerper(ids[0], ids))
+		return postJson("/api/edit/wiki/paths.php", avesmapsWikiAssignWegZeileLoesenKoerper(ids))
 			.then(function (antwort) {
 				avesmapsWikiAssignWegAntwortPruefen(antwort);
 				setStatus("Wiki-Zuordnung von " + (antwort.segments || ids.length) + " Abschnitten entfernt.", "ok");
-				// 💣 R2: jeder Abschnitt hat jetzt einen EIGENEN Namen, die Gruppe gibt es nicht mehr -- also der Ankerabschnitt.
-				return loadList().then(function () { return selectWay(ids[0], true); });
+				// 💣 R2: jeder dieser Abschnitte hat jetzt einen EIGENEN Namen und gehoert zu keiner Strasse mehr.
+				return wpNachZeilenSchreiben(gruppe.key, ids[0]);
+			})
+			.catch(function (fehler) {
+				setStatus("Entfernen fehlgeschlagen: " + (fehler && fehler.message ? fehler.message : fehler), "bad");
+				throw fehler;
+			});
+	}
+
+	/** ✕ an einer weiteren Zuweisung einer Zeile: GENAU ihre Traeger in dieser Zeile -- der vorhandene Schreibweg `remove_weitere`. */
+	function wikiZeileWeitereEntfernen(zeile, eintrag) {
+		var gruppe;
+		try { gruppe = wikiAssignGruppe(); } catch (fehler) { return Promise.reject(fehler); }
+		var ids = avesmapsWikiAssignWegZeilenIds(eintrag && eintrag.public_ids);
+		return postJson("/api/edit/wiki/paths.php", avesmapsWikiWeitereKoerper("remove", eintrag.wiki_key, ids))
+			.then(function (antwort) {
+				if (!antwort || antwort.ok !== true) {
+					throw new Error(String((antwort && antwort.error && (antwort.error.message || antwort.error)) || "Unerwartete Antwort"));
+				}
+				var applied = typeof antwort.applied === "number" ? antwort.applied : 0;
+				// 🔴 {ok:true, applied:0} ist kein Erfolg -- derselbe Satzbauer wie im Kasten der weiteren Zuweisungen.
+				setStatus(avesmapsWikiWeitereErgebnisText("remove", antwort, weitereAbschnitte(gruppe.segments)), applied > 0 ? "ok" : "bad");
+				return wpNachZeilenSchreiben(gruppe.key, ids[0] || gruppe.segments[0].public_id);
 			})
 			.catch(function (fehler) {
 				setStatus("Entfernen fehlgeschlagen: " + (fehler && fehler.message ? fehler.message : fehler), "bad");
@@ -1042,12 +1079,20 @@
 
 	// 🔴 Nachtrag 15.09.2026 §9.5: der Kasten haengt in der Einhaengestelle des Kastens „Wiki-Weg" -- `host` ist das Element,
 	// das der Wirt dort einhaengt. Keine Zeile „Hauptzuweisung": die zeigt der Kasten darueber, am Abschnitt wie auf der Weg-Ebene.
-	function mountWikiWeitere(host, ways, umfang, nachSchreiben) {
+	// Lieferung 2: `ohneListe` auf der Weg-Ebene -- dort stehen die weiteren Zuweisungen samt ✕ in ihren Zeilen (js/ui/wiki-weg-zeilen.js),
+	// und der Kasten darunter traegt nur das Suchfeld fuer die ganze Strasse.
+	function mountWikiWeitere(host, ways, umfang, nachSchreiben, ohneListe) {
 		if (wpWikiWeitere) { wpWikiWeitere.zerstoeren(); wpWikiWeitere = null; }
 		if (!host || typeof avesmapsWikiWeitereKastenMount !== "function") { return; }
 		wpWikiWeitere = avesmapsWikiWeitereKastenMount(host, {
 			skin: "dt",
-			hauptKey: function () { return ways[0] && ways[0].wiki_path ? String(ways[0].wiki_path.wiki_key || "") : ""; },
+			liste: ohneListe !== true,
+			// Die Suche steht, sobald IRGENDEIN Abschnitt eine Hauptzuweisung traegt -- bei einer gemischten Strasse nicht nur, wenn es
+			// ausgerechnet der westlichste ist. Abschnitte ohne ueberspringt der Server (`ohne_hauptzuweisung`), und die Statuszeile sagt es.
+			hauptKey: function () {
+				var mit = ways.filter(function (w) { return w && w.wiki_path && String(w.wiki_path.wiki_key || "").trim() !== ""; })[0];
+				return mit ? String(mit.wiki_path.wiki_key).trim() : "";
+			},
 			abschnitte: function () { return weitereAbschnitte(ways); },
 			umfangText: function () { return umfang; },
 			// 🔴 Fund-Item 1 der ersten Pruefrunde: „gespeichert" hiess bisher IMMER Erfolg, auch wenn der Server alle
@@ -1083,6 +1128,49 @@
 			zuweisen: datenweg.zuweisen,
 			loesen: datenweg.loesen,
 			syncUebernehmen: datenweg.syncUebernehmen,
+			anhang: anhang || null
+		});
+	}
+
+	// 🔴 Lieferung 2 (Owner 15.09.2026): der Kasten „Wiki-Weg" der WEG-EBENE -- eine Zeile je Hauptzuweisung (wpGruppeZuweisungsZeilen),
+	// in jeder das geteilte Bauteil fuer GENAU ihre Abschnitte (js/ui/wiki-weg-zeilen.js). Zwilling: renderPathWikiGruppenZeilen im
+	// Kartendialog (js/review/review-path-wiki.js) -- dieselbe Regel, derselbe Zeilen-Bauer, Huelle „dt" statt „label-wiki".
+	// `gruppe` ist die ANGEZEIGTE Strasse (findGroup), dieselbe, fuer die „Speichern fuer N Abschnitte" gilt. Die Abschnittsnummern kommen
+	// aus ALLEN Wegen -- ein Filter darf sie nicht verschieben (dieselbe Regel wie weitereAbschnitte).
+	function mountWikiWegZeilen(hostId, gruppe, anhang) {
+		var host = $(hostId);
+		if (!host) { return; }
+		if (wpWikiAssign) { wpWikiAssign.zerstoeren(); wpWikiAssign = null; }
+		if (typeof avesmapsWikiWegZeilenMount !== "function") {
+			// Kein stiller Leerlauf: ein leerer Fleck saehe aus wie „diese Strasse hat keine Zuweisung".
+			host.textContent = "Wiki-Weg: js/ui/wiki-weg-zeilen.js ist nicht geladen.";
+			return;
+		}
+		wpWikiAssign = avesmapsWikiWegZeilenMount(host, {
+			skin: "dt",
+			zeilen: function () {
+				var nummern = {};
+				wpGroupWays(state.ways).forEach(function (strasse) {
+					strasse.segments.forEach(function (segment, index) {
+						nummern[segment.public_id] = strasse.segments.length > 1 ? index + 1 : null;
+					});
+				});
+				return wpGruppeZuweisungsZeilen(gruppe.segments, function (segment, index) {
+					var nummer = nummern[segment.public_id];
+					return typeof nummer === "number" ? nummer : index + 1;
+				});
+			},
+			datenweg: function (zeile) {
+				return {
+					laden: function () { return wikiAssignZeileZustand(zeile); },
+					zuweisen: function (treffer) { return wikiAssignZeileZuweisen(zeile, treffer); },
+					loesen: function () { return wikiAssignZeileLoesen(zeile); },
+					// ⚠️ „Sync" fuellt den Entwurf der ganzen Strasse -- „Speichern für N Abschnitte" sagt, worauf er wirkt.
+					syncUebernehmen: wikiAssignGruppeSyncUebernehmen
+				};
+			},
+			weitereEntfernen: wikiZeileWeitereEntfernen,
+			// Der Kasten „weitere Wiki-Zuweisung fuer die ganze Straße" -- EINMAL unter den Zeilen.
 			anhang: anhang || null
 		});
 	}
@@ -1529,19 +1617,15 @@
 			});
 		}
 
-		// 🔴 Nachtrag 15.09.2026 §9.5/§9.6: Zuweisen und Entfernen gelten GENAU den Abschnitten dieser Gruppe (`public_ids`).
+		// 🔴 Lieferung 2 (Owner 15.09.2026, „Gleiche zusammenfassen" + „Je Zeile bearbeitbar"): eine Zeile je Hauptzuweisung, jede schreibt
+		// GENAU ihre Abschnitte (`public_ids`). Darunter EINMAL der Kasten der weiteren Zuweisungen fuer die ganze Strasse -- ohne Liste.
 		var gruppeWiki = findGroup(state.selectedGroup);
 		if (gruppeWiki) {
 			var gruppenAnhang = document.createElement("div");
 			mountWikiWeitere(gruppenAnhang, gruppeWiki.segments, "die ganze Straße", function () {
 				return selectGroup(gruppeWiki.key, true);
-			});
-			mountWikiAssign("wpGroupWikiAssign", {
-				laden: wikiAssignGruppeZustand,
-				zuweisen: wikiAssignGruppeZuweisen,
-				loesen: wikiAssignGruppeLoesen,
-				syncUebernehmen: wikiAssignGruppeSyncUebernehmen
-			}, gruppenAnhang);
+			}, true);
+			mountWikiWegZeilen("wpGroupWikiAssign", gruppeWiki, gruppenAnhang);
 		}
 
 		var discard = $("wpGroupDiscard");

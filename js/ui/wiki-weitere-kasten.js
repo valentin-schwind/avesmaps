@@ -132,7 +132,9 @@ function avesmapsWikiWeitereMarkup(modell, skin) {
 	const zeilen = modell.zuordnungen.map((z) => '<tr><td class="wiki-weitere__wo">' + esc(z.wo) + "</td><td>" + artikel(z) + "</td>"
 		+ '<td class="wiki-weitere__art">weitere <button type="button" class="wiki-weitere__weg" data-weitere-weg="' + esc(z.wiki_key)
 		+ '" aria-label="Weitere Zuweisung ' + esc(z.name) + ' entfernen">✕</button></td></tr>').join("");
-	const liste = zeilen ? '<table class="wiki-weitere">' + zeilen + "</table>" : "";
+	// Lieferung 2 (Owner 15.09.2026): unter den Zeilen der ganzen Strasse steht der Kasten EINMAL, ohne Liste -- die weiteren
+	// Zuweisungen samt ✕ stehen dort in ihrer Zeile (js/ui/wiki-weg-zeilen.js), und ein ✕ hier naehme vom anderen Umfang.
+	const liste = zeilen && modell.ohneListe !== true ? '<table class="wiki-weitere">' + zeilen + "</table>" : "";
 	const status = '<div class="' + esc(skin.hinweis) + '" data-weitere-status role="status" aria-live="polite"></div>';
 	if (!modell.hauptKey) {
 		return liste
@@ -185,6 +187,7 @@ function avesmapsWikiWeitereKastenMount(host, opts) {
 			hauptKey: String((opts.hauptKey && opts.hauptKey()) || ""),
 			umfang: String((opts.umfangText && opts.umfangText()) || ""),
 			zuordnungen: avesmapsWikiWeitereZuordnungen(abschnitte, gesamt),
+			ohneListe: opts.liste === false,
 			abschnitte,
 		};
 	}
