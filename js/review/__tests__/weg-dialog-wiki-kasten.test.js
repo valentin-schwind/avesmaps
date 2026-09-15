@@ -373,8 +373,10 @@ function zeilenKontext(pfade) {
 		&& zeilenTag < seite.indexOf('<script src="js/review/review-path-wiki.js"></script>'),
 		"index.html laedt js/ui/wiki-weg-zeilen.js nach dem Datenweg des Wegs und vor dem Kartendialog");
 	const populate = funktion(PFADE_QUELLE, "populatePathEditFormGruppe");
-	assert.ok(populate.indexOf("renderPathWikiGruppenZeilen()") > populate.indexOf("populatePathEditForm(path)"),
-		"der Gruppendialog ersetzt den Kasten des Abschnitts durch die Zeilen -- nach dem Grundstand");
+	// Seit dem 15.09.2026 ohne den Kasten des Abschnitts (`ganzeStrasse`) -- ausgefuehrt in weg-dialog-zeilen-nach-einzelkasten.test.js.
+	const grundstand = populate.indexOf("populatePathEditForm(path, { ganzeStrasse: true })");
+	assert.ok(grundstand > 0 && populate.indexOf("renderPathWikiGruppenZeilen()") > grundstand,
+		"der Gruppendialog zeichnet die Zeilen -- nach dem Grundstand, der fuer die ganze Strasse keinen Kasten des Abschnitts montiert");
 
 	console.log("weg-dialog-wiki-kasten.test.js: ok");
 })().catch((fehler) => { console.error(fehler); process.exit(1); });

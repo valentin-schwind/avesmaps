@@ -305,6 +305,14 @@ function pathWikiNachZeilenSchreiben() {
 	}
 	pathWikiSyncNachbarn();
 	pathWikiGruppenZeilenNeuZeichnen();
+	// 🔴 DIE INFOBOX ZIEHT HIER NACH, nicht im Bauteil der Zeile. Das Neuzeichnen darueber baut genau das Bauteil ab, dessen
+	// `zuweisen`/`loesen` gerade laeuft -- und ein abgebautes Bauteil zeichnet und schreibt nie mehr, auch die Infobox nicht
+	// (js/ui/wiki-assign.js, `zerstoert`). Ohne diese Zeile stuende nach einer Zuweisung in einer Zeile wieder „erst nach F5“
+	// (Owner 02.09.2026). ⚠️ Das ✕ einer weiteren Zuweisung zieht sie in pathWikiWeitereUebernehmen schon einmal nach -- doppelt ist
+	// harmlos, das Panel zeichnet nur seinen letzten Inhalt neu.
+	if (typeof window !== "undefined" && typeof window.avesmapsRefreshInfopanel === "function") {
+		window.avesmapsRefreshInfopanel();
+	}
 	if (typeof pollLiveMapUpdates === "function") {
 		void pollLiveMapUpdates();
 	}

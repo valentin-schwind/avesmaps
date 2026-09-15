@@ -1105,6 +1105,18 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 	// `trefferWaehlen`). Er gehoert HIERHER und nicht in eine Oberflaeche: acht Objektarten in elf
 	// Oberflaechen waehlen ueber dieselbe Funktion, und je Mount gibt es genau einen Kasten.
 	let laeuftZuweisung = false;
+	// 🔴 ABGEBAUT? Gesetzt von `zerstoeren`, nie zurueckgesetzt: ein abgebautes Bauteil zeichnet und schreibt NIE MEHR. Jede
+	// asynchrone Fortsetzung -- Ladelauf, Suche, zuweisen, loesen, verwerfen, syncUebernehmen -- kehrt als ERSTES still zurueck,
+	// bevor sie zeichnet, Zustand aendert, die Infobox anstoesst oder einen Rueckruf des Wirts ausloest. Die Tipp-Uhr raeumt
+	// `zerstoeren` selbst ab.
+	// 💣 WARUM (live gemessen 15.09.2026, Reichsstraße 2, 67 Abschnitte): `neuLaden` setzt IMMER in einer Zusage fort, auch bei
+	// einem synchronen `laden`. Der Kartendialog der ganzen Strasse montierte erst den Kasten des angeklickten Abschnitts und baute
+	// ihn im selben Zug wieder ab, um die Zeilen je Zuweisung in DENSELBEN Behaelter zu zeichnen -- die Fortsetzung kam danach und
+	// zeichnete den alten Kasten darueber. `removeEventListener` und `innerHTML = ""` erreichen keine Zusage, die schon unterwegs ist.
+	// ⚠️ Auch die Infobox: wer das Bauteil WAEHREND seines eigenen Schreibens abbaut (die Zeilen der ganzen Strasse zeichnen sich in
+	// ihrem `zuweisen` neu), zieht sie selbst nach -- pathWikiNachZeilenSchreiben in js/review/review-path-wiki.js.
+	// Test: js/ui/__tests__/wiki-assign-nach-dem-abbau.test.js.
+	let zerstoert = false;
 
 	function neuerZustand(modus) {
 		return { modus: modus, suchtext: "", treffer: [], aktiv: 0, syncZeilen: [], suchFehler: "", listenId: listenId };
@@ -1255,6 +1267,10 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 	}
 
 	function neuLaden() {
+		// Abgebaut: kein `laden` mehr -- ein Rueckruf des Wirts, dessen Ergebnis niemand mehr zeichnen darf.
+		if (zerstoert) {
+			return Promise.resolve();
+		}
 		let roh = null;
 		try {
 			roh = typeof opt.laden === "function" ? opt.laden() : null;
@@ -1264,6 +1280,10 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 			return Promise.resolve();
 		}
 		return Promise.resolve(roh).then((wert) => {
+			// 🔴 Abgebaut, waehrend `laden` unterwegs war: weder zeichnen noch `geladen` setzen -- auch keine Fehlermeldung.
+			if (zerstoert) {
+				return;
+			}
 			// 💣 FEHLERART 3, DER ZWILLING DER ZWEITEN -- und der stillere von beiden. Eine Zusage,
 			// die mit NICHTS aufloest, ist kein Fehler im Sinne von `catch`: `undefined`, `null`,
 			// eine Zahl, eine Liste. `zustandUebernehmen` machte daraus wortlos „keine Zuweisung"
@@ -1292,6 +1312,9 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 			ui = neuerZustand(daten.artikel ? "zugewiesen" : "offen");
 			zeichne();
 		}, () => {
+			if (zerstoert) {
+				return;
+			}
 			// Fehlerart 2: `laden` gibt eine ZUSAGE zurueck, die abgelehnt wird. Die erste Objektart
 			// mit Server-`laden` (Aufgabe 4) faellt genau hier hin.
 			ladenGescheitert();
@@ -1352,8 +1375,8 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 		const suchtext = ui.suchtext;
 		const meine = ++laufendeSuche;
 		const los = () => trefferHolen(suchtext).then((treffer) => {
-			// Eine ueberholte Antwort darf die neuere nicht ueberschreiben.
-			if (meine !== laufendeSuche || ui.modus !== "suche") {
+			// Eine ueberholte Antwort darf die neuere nicht ueberschreiben -- und die eines abgebauten Bauteils gar nichts.
+			if (zerstoert || meine !== laufendeSuche || ui.modus !== "suche") {
 				return;
 			}
 			ui.treffer = treffer;
@@ -1366,7 +1389,7 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 			// `.catch(() => [])` und war von „es gibt keinen solchen Artikel" nicht zu
 			// unterscheiden -- das Bauteil hat hier keinen Schreibzugriff, aber eine falsche
 			// Auskunft schickt den Editor ins Wiki statt in die Anmeldung.
-			if (meine !== laufendeSuche || ui.modus !== "suche") {
+			if (zerstoert || meine !== laufendeSuche || ui.modus !== "suche") {
 				return;
 			}
 			ui.treffer = [];
@@ -1408,6 +1431,10 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 		// ⏱️ Der Anfang der Messung -- siehe den Ablehnungszweig unten.
 		const begonnen = Date.now();
 		avesmapsWikiAssignRufen(opt.zuweisen, treffer).then(() => {
+			// 🔴 Abgebaut, waehrend `zuweisen` lief -- bei den Zeilen der ganzen Strasse der Normalfall: ihr `zuweisen` zeichnet sie neu.
+			if (zerstoert) {
+				return;
+			}
 			laeuftZuweisung = false;
 			// 🔴 Das Bauteil uebernimmt den Treffer SELBST in seinen Zustand, statt neu zu laden:
 			// eine Oberflaeche, die erst beim „Speichern“ schreibt (Kraftlinien), haette sonst
@@ -1423,6 +1450,9 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 			ui = neuerZustand("zugewiesen");
 			zeichne();
 		}, (fehler) => {
+			if (zerstoert) {
+				return;
+			}
 			laeuftZuweisung = false;
 			// 🔴 DER SERVER HAT NEIN GESAGT -- also wird NICHTS gemalt. Bis zum 16.08.2026 gab es
 			// hier gar keinen zweiten Zweig: eine abgelehnte Zusage aus `zuweisen` blieb eine
@@ -1510,6 +1540,9 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 		// ⚠️ Lehnt `verwerfen` ab, bleibt ALLES stehen -- dieselbe Regel wie bei `zuweisen`/`loesen`.
 		if (aktion === "verwerfen") {
 			avesmapsWikiAssignRufen(opt.verwerfen).then(() => {
+				if (zerstoert) {
+					return;
+				}
 				// Vor `neuLaden`, damit die Zeile auch dann stimmt, wenn der Ladelauf scheitert.
 				ungespeichert = false;
 				neuLaden();
@@ -1520,6 +1553,9 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 		}
 		if (aktion === "entfernen") {
 			avesmapsWikiAssignRufen(opt.loesen).then(() => {
+				if (zerstoert) {
+					return;
+				}
 				daten.artikel = null;
 				ungespeichert = true;
 				infoboxNachziehen();
@@ -1546,6 +1582,9 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 		if (aktion === "sync-uebernehmen") {
 			const gehakt = ui.syncZeilen.filter((zeile) => zeile.gehakt);
 			avesmapsWikiAssignRufen(opt.syncUebernehmen, gehakt).then(() => {
+				if (zerstoert) {
+					return;
+				}
 				infoboxNachziehen();
 				ui = neuerZustand("zugewiesen");
 				zeichne();
@@ -1741,6 +1780,8 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 		},
 		neuLaden: neuLaden,
 		zerstoeren: function () {
+			// 🔴 ZUERST der Merker: jede Zusage, die jetzt noch unterwegs ist, kehrt daran still zurueck (siehe `zerstoert` oben).
+			zerstoert = true;
 			if (tippUhr) {
 				clearTimeout(tippUhr);
 				tippUhr = null;

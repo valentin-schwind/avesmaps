@@ -1,4 +1,5 @@
-function populatePathEditForm(path) {
+// `ganzeStrasse`: nur populatePathEditFormGruppe setzt es -- dann ohne den Wiki-Kasten des Abschnitts (siehe dort unten).
+function populatePathEditForm(path, { ganzeStrasse = false } = {}) {
 	const formElement = getPathEditFormElement();
 	if (!formElement) {
 		return;
@@ -29,7 +30,18 @@ function populatePathEditForm(path) {
 	if (typeof resetPathWikiUebernommen === "function") {
 		resetPathWikiUebernommen();
 	}
-	if (typeof renderPathWikiReference === "function") {
+	if (ganzeStrasse) {
+		// 🔴 Fuer die GANZE Strasse KEIN Kasten des Abschnitts: populatePathEditFormGruppe zeichnet danach die Zeilen je Zuweisung in
+		// denselben Behaelter (renderPathWikiGruppenZeilen). Ein Kasten, der dort nur montiert wird, um sofort wieder abgebaut zu werden,
+		// laedt trotzdem -- und genau diese Fortsetzung zeichnete am 15.09.2026 den alten Kasten ueber die Zeilen (live, Reichsstraße 2).
+		// Die Wurzel ist im Bauteil behoben (js/ui/wiki-assign.js, `zerstoert`); hier faellt der ueberfluessige Aufbau weg.
+		// ⚠️ Was renderPathWikiReference sonst noch tat, bleibt: die Abweichungszeile am Wegtyp (fuer den angeklickten Abschnitt, wie
+		// bisher). pathWikiSyncNachbarn ist hier doppelt -- „Weg anzeigen“ und die Namenssperre stehen schon oben, und die Zeilen rufen
+		// es selbst. Den Vorgaenger baut renderPathWikiGruppenZeilen ab; dazwischen laeuft nichts Asynchrones.
+		if (typeof pathWikiZeichneAbweichungen === "function") {
+			pathWikiZeichneAbweichungen();
+		}
+	} else if (typeof renderPathWikiReference === "function") {
 		renderPathWikiReference();
 	}
 	if (typeof renderPathFlowSection === "function") {
@@ -176,9 +188,9 @@ function pathEditGruppenModus(an) {
 }
 
 function populatePathEditFormGruppe(path, pfade) {
-	// Erst der Grundstand des geklickten Abschnitts: Sperre, Wiki-Zuweisung, Abweichungszeile. Dann ueberschreibt die
-	// ganze Strasse, was sie anders zeigt.
-	populatePathEditForm(path);
+	// Erst der Grundstand des geklickten Abschnitts: Sperre, Abweichungszeile. Dann ueberschreibt die ganze Strasse, was sie
+	// anders zeigt. 🔴 OHNE den Wiki-Kasten des Abschnitts (`ganzeStrasse`): unten kommen die Zeilen je Zuweisung in denselben Behaelter.
+	populatePathEditForm(path, { ganzeStrasse: true });
 	const stand = wpGroupFieldStates(avesmapsPathGruppeZeilen(pfade, {
 		name: getPathDisplayName,
 		zeigeName: shouldPathNameBeDisplayed,
@@ -258,8 +270,8 @@ function populatePathEditFormGruppe(path, pfade) {
 	pathEditUmfangZeigen(path, true);
 	mountPathWikiWeitere(path, pfade, true);
 	// Lieferung 2 (Owner 15.09.2026, „Gleiche zusammenfassen" + „Je Zeile bearbeitbar"): statt EINES Bauteils mit der Zuweisung des
-	// angeklickten Abschnitts eine Zeile je Hauptzuweisung der ganzen Strasse (review-path-wiki.js). Sie ersetzt den Kasten, den
-	// populatePathEditForm(path) oben gezeichnet hat; der Kasten der weiteren Zuweisungen haengt EINMAL darunter.
+	// angeklickten Abschnitts eine Zeile je Hauptzuweisung der ganzen Strasse (review-path-wiki.js). populatePathEditForm hat dafuer oben
+	// keinen Kasten gezeichnet (`ganzeStrasse`); der Kasten der weiteren Zuweisungen haengt EINMAL darunter.
 	if (typeof renderPathWikiGruppenZeilen === "function") {
 		renderPathWikiGruppenZeilen();
 	}
