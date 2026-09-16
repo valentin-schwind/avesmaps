@@ -551,22 +551,27 @@ async function apply(pairs, { confirm } = {}) {
 
   while (offset < (pairs?.length || 0)) {
     const batch = pairs.slice(offset, offset + SETTLEMENT_ASSIGN_APPLY_CHUNK_LIMIT);
-    const response = await fetch(url.toString(), {
-      method: "POST",
-      credentials: "same-origin",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({
-        action: "bulk_assign_territories",
-        pairs: batch,
-        confirm: "apply",
-        dry_run: false,
-        limit: SETTLEMENT_ASSIGN_APPLY_CHUNK_LIMIT,
-      }),
-    });
+    let response;
+    try {
+      response = await fetch(url.toString(), {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({
+          action: "bulk_assign_territories",
+          pairs: batch,
+          confirm: "apply",
+          dry_run: false,
+          limit: SETTLEMENT_ASSIGN_APPLY_CHUNK_LIMIT,
+        }),
+      });
+    } catch (error) {
+      throw new Error(`Ortszuweisung unterbrochen. Bereits abgeschlossen: ${applied} Zuordnungen. Die Serverantwort fehlt; den Stand des aktuellen Pakets bitte im Änderungsverlauf prüfen.`);
+    }
     const body = await response.json().catch(() => null);
     if (!response.ok || !body || body.ok === false) {
       const message = body?.error?.message || body?.error || `HTTP ${response.status}`;
-      throw new Error(`settlement-assign apply failed at offset ${offset}: ${message}`);
+      throw new Error(`Ortszuweisung unterbrochen. Bereits abgeschlossen: ${applied} Zuordnungen. Den Stand des aktuellen Pakets bitte im Änderungsverlauf prüfen. ${message}`);
     }
     applied += Number(body.applied || 0);
     offset += batch.length;

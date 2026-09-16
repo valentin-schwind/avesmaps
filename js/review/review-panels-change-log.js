@@ -360,6 +360,9 @@ function changeLogFilterEntries(entries, selected) {
 
 function formatChangeAction(action) {
 	const groupActions = {
+		set_territory_location_group: "Herrschaftsgebiete für Orte zugewiesen",
+		undo_set_territory_location_group: "Ortszuweisungen zurückgenommen",
+		undo_undo_set_territory_location_group: "Ortszuweisungen wiederhergestellt",
 		bulk_assign_wiki_path_group: "Wiki-Massenlauf: Teilpaket zugewiesen",
 		undo_bulk_assign_wiki_path_group: "Wiki-Teilpaket zurückgenommen",
 		undo_undo_bulk_assign_wiki_path_group: "Wiki-Teilpaket wiederhergestellt",
@@ -864,7 +867,7 @@ function changeLogEntryRow(entry) {
 		undoButtonElement.textContent = istWiederherstellen ? "↷" : "↶";
 		undoButtonElement.title = istWiederherstellen ? "Wiederherstellen" : "Rückgängig";
 		if (Number(entry.member_count) > 0) {
-			undoButtonElement.title = `${entry.member_count} ${entry.member_count === 1 ? "Abschnitt" : "Abschnitte gemeinsam"} ${istWiederherstellen ? "wiederherstellen" : "rückgängig machen"}`;
+			undoButtonElement.title = `${entry.member_count} ${entry.feature_type === "location" ? (entry.member_count === 1 ? "Ort" : "Orte gemeinsam") : (entry.member_count === 1 ? "Abschnitt" : "Abschnitte gemeinsam")} ${istWiederherstellen ? "wiederherstellen" : "rückgängig machen"}`;
 		}
 		undoButtonElement.setAttribute("aria-label", undoButtonElement.title);
 		actionsElement.appendChild(undoButtonElement);
@@ -1125,6 +1128,60 @@ function isUndoChangeLogEntry(entry) {
 // another editor's, server-side and without a dialog. The audit log records the central steps (created,
 // edited, deleted, moved), anyone may undo them, but only by clicking "Rückgängig" on the named entry.
 // Ctrl+Z belongs to local geometry editing only, where a miss costs nothing.
+// Die politische Infobox wird im öffentlichen Lesepfad aus der aktuellen Hierarchie
+// abgeleitet. Ein einzelner Deltaabruf erneuert alle betroffenen Orte nach dem Commit.
+async function applyTerritoryLocationGroupAuditResponse(group) {
+	const url = new URL(MAP_FEATURES_API_URL, window.location.href);
+	url.searchParams.set("since_revision", String(Math.max(0, Number(group.revision) - 1)));
+	url.searchParams.set("edit_mode", "1");
+	let data;
+	try {
+		const response = await fetch(url.toString(), { credentials: "same-origin", headers: { Accept: "application/json" } });
+		data = await response.json();
+		if (!response.ok || data?.ok !== true) throw new Error("Kartenabruf fehlgeschlagen");
+	} catch (error) {
+		throw new Error("Die Änderung wurde gespeichert. Die Kartenanzeige konnte nicht aktualisiert werden; bitte die Karte neu laden.");
+	}
+	const features = new Map((data.features || []).map(feature => [feature.properties?.public_id || feature.id, feature]));
+	if (group.features.some(member => !features.has(member.public_id))) {
+		throw new Error("Die Änderung wurde gespeichert. Nicht alle Orte konnten neu geladen werden; bitte die Karte neu laden.");
+	}
+	// Nur politische Felder werden übernommen. Ein frischer Revisionstoken auf ansonsten
+	// alten Ortsdetails würde eine spätere Bearbeitung fälschlich als aktuell ausgeben.
+	if (group.features.some(member => Number(features.get(member.public_id).properties?.revision) !== Number(member.revision))) {
+		throw new Error("Die Änderung wurde gespeichert. Ein Ort wurde danach erneut geändert; bitte die Karte neu laden.");
+	}
+	const markers = [];
+	for (const member of group.features) {
+		const feature = features.get(member.public_id);
+		if (feature.properties?.deleted) {
+			removeLiveFeature(member.public_id);
+			continue;
+		}
+		const marker = findLocationMarkerByPublicId(member.public_id);
+		const location = marker?.location || locationData.find(item => item.publicId === member.public_id);
+		if (!location) continue;
+		const properties = feature.properties || {};
+		Object.assign(location, {
+			territoryWikiKey: properties.territory_wiki_key || null,
+			territoryPublicId: properties.territory_public_id || null,
+			territorySource: properties.territory_source || null,
+			political: properties.political || null,
+			revision: member.revision,
+		});
+		if (marker) markers.push(marker);
+	}
+	for (const marker of markers) {
+		const open = marker.marker.isPopupOpen();
+		refreshLocationMarkerPopup(marker);
+		if (open) marker.marker.openPopup();
+	}
+	if (typeof window.avesmapsRefreshInfopanel === "function") window.avesmapsRefreshInfopanel();
+	if (typeof loadSettlementList === "function" && typeof settlementListItems !== "undefined" && settlementListItems.length > 0) {
+		void loadSettlementList();
+	}
+}
+
 async function undoChangeLogEntry(entry) {
 	if (isChangeUndoPending) {
 		return;
@@ -1154,7 +1211,9 @@ async function undoChangeLogEntry(entry) {
 		} else {
 			const result = await undoMapAuditChange(Number(entry.id));
 			const members = result?.feature?.features;
-			if (Array.isArray(members) && result.feature.feature_type === "powerline") {
+			if (Array.isArray(members) && result.feature.feature_type === "location") {
+				await applyTerritoryLocationGroupAuditResponse(result.feature);
+			} else if (Array.isArray(members) && result.feature.feature_type === "powerline") {
 				applyPowerlineGroupAuditResponse(members, result.feature.source_payload);
 			} else if (Array.isArray(members)) {
 				applyPathGroupAuditResponse(members, result.feature.kanon_je_kennung);

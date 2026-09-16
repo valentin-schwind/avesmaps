@@ -74,6 +74,8 @@ $erwarteteKetten = [
         'PDOException $error',
         'AvesmapsWikiBelegtException $error',
         'AvesmapsWikiUnreachableException $error',
+        'AvesmapsConflictException $error',
+        'InvalidArgumentException $error',
         'RuntimeException $error',
         'Throwable $error',
     ],

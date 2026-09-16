@@ -111,7 +111,8 @@ try {
                 is_array($payload['pairs'] ?? null) ? $payload['pairs'] : [],
                 (bool) ($payload['force'] ?? false),
                 !$isApply(),
-                (int) ($payload['limit'] ?? 200)
+                (int) ($payload['limit'] ?? 200),
+                (int) ($user['id'] ?? 0)
             ),
             'clear_territory' => avesmapsWikiSettlementClearTerritory($pdo, (string) ($payload['public_id'] ?? ''), !$isApply(), (int) ($user['id'] ?? 0)),
             // Global settlement-image kill switch (ribbon toggle). No public_id / dry_run -- always a real write.
@@ -129,7 +130,7 @@ try {
         };
 
         // map_features-Cache invalidieren, wenn echt geschrieben wurde.
-        if (in_array($action, ['assign_to', 'clear_assign', 'bulk_connect', 'bulk_record_ruins', 'bulk_record_coats', 'set_coat', 'clear_coat', 'assign_territory', 'bulk_assign_territories', 'clear_territory'], true) && is_array($response) && ($response['dry_run'] ?? true) === false) {
+        if (in_array($action, ['assign_to', 'clear_assign', 'bulk_connect', 'bulk_record_ruins', 'bulk_record_coats', 'set_coat', 'clear_coat', 'assign_territory', 'clear_territory'], true) && is_array($response) && ($response['dry_run'] ?? true) === false) {
             avesmapsWikiSyncNextMapRevision($pdo);
         }
         // The image kill switch flips what map-features emits -> always bump so cached clients revalidate.
@@ -214,6 +215,10 @@ try {
     // traegt keine Interna -- nur den Satz, eine deutsche Kurzfassung und die Technikmeldung.
     // 503 statt 400: die Ursache liegt DRAUSSEN, und ein spaeterer Versuch kann gelingen.
     avesmapsErrorResponse(503, 'wiki_unreachable', $error->getMessage());
+} catch (AvesmapsConflictException $error) {
+    avesmapsErrorResponse(409, 'edit_conflict', $error->getMessage());
+} catch (InvalidArgumentException $error) {
+    avesmapsErrorResponse(400, 'invalid_request', $error->getMessage());
 } catch (RuntimeException $error) {
     // 💣 EINE ABSAGE MUSS IHREN GRUND NENNEN. Bis zum 20.08.2026 fing hier ein einziges
     // catch (Throwable) auch die EIGENEN, handgeschriebenen Absagen dieses Endpunkts ab

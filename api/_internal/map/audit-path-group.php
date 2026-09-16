@@ -6,6 +6,7 @@ require_once __DIR__ . '/../audit-focus.php';
 
 // Ein Request, eine Transaktion, ein unteilbarer Beleg. Keine Gruppierung nach Uhrzeit.
 const AVESMAPS_MAP_GROUP_AUDIT_ACTIONS = [
+    'set_territory_location_group', 'undo_set_territory_location_group', 'undo_undo_set_territory_location_group',
     'bulk_assign_wiki_path_group', 'undo_bulk_assign_wiki_path_group', 'undo_undo_bulk_assign_wiki_path_group',
     'assign_wiki_path_group', 'undo_assign_wiki_path_group', 'undo_undo_assign_wiki_path_group',
     'clear_wiki_path_group', 'undo_clear_wiki_path_group', 'undo_undo_clear_wiki_path_group',
@@ -139,9 +140,10 @@ function avesmapsMapGroupAuditMembers(array $snapshot, string $featureType = 'pa
 function avesmapsUndoMapGroupAudit(PDO $pdo, array $entry, array $user): array {
     $before = avesmapsDecodeJsonColumnForEdit($entry['before_json']);
     $after = avesmapsDecodeJsonColumnForEdit($entry['after_json']);
-    $featureType = str_contains($entry['action'], 'powerline_group') ? 'powerline' : 'path';
+    $locationGroup = str_contains($entry['action'], 'territory_location_group');
+    $featureType = $locationGroup ? 'location' : (str_contains($entry['action'], 'powerline_group') ? 'powerline' : 'path');
     $full = str_contains($entry['action'], 'reorder_powerline_group');
-    $columns = ['name', 'feature_subtype', 'properties_json'];
+    $columns = $locationGroup ? ['properties_json'] : ['name', 'feature_subtype', 'properties_json'];
     if ($full) {
         $columns = array_merge($columns, ['is_active'], AVESMAPS_POWERLINE_GROUP_FULL_COLUMNS);
     }
@@ -196,7 +198,7 @@ function avesmapsUndoMapGroupAudit(PDO $pdo, array $entry, array $user): array {
 }
 
 function avesmapsMapGroupAuditDetail(array $snapshot): string {
-    $labels = ['wiki_path_assignment' => 'Wiki-Zuordnung', 'wiki_path' => 'Wiki-Zuordnung und Wegname', 'name' => 'Name', 'feature_subtype' => 'Wegart', 'show_label' => 'Beschriftung', 'allowed_transports' => 'Verkehrsmittel',
+    $labels = ['territory_assignment' => 'Herrschaftsgebiet-Zuordnung', 'wiki_path_assignment' => 'Wiki-Zuordnung', 'wiki_path' => 'Wiki-Zuordnung und Wegname', 'name' => 'Name', 'feature_subtype' => 'Wegart', 'show_label' => 'Beschriftung', 'allowed_transports' => 'Verkehrsmittel',
         'details' => 'Abschnittsdetails', 'transport_seasons' => 'Saisonfenster',
         'powerline_details' => 'Name, Darstellung und Beschreibung', 'rewire' => 'Verbindungen und Quellenzuordnung'];
     $fields = [];
@@ -207,7 +209,9 @@ function avesmapsMapGroupAuditDetail(array $snapshot): string {
     }
 
     $count = (int) ($snapshot['count'] ?? 0);
-    return $count . ($count === 1 ? ' Abschnitt · ' : ' Abschnitte gemeinsam · ') . implode(', ', $fields);
+    $noun = ($snapshot['feature_type'] ?? '') === 'location' ? ($count === 1 ? ' Ort · ' : ' Orte gemeinsam · ')
+        : ($count === 1 ? ' Abschnitt · ' : ' Abschnitte gemeinsam · ');
+    return $count . $noun . implode(', ', $fields);
 }
 
 // JSON-Objekte sind ungeordnet; Listen behalten dagegen ihre Reihenfolge und Skalare ihren Typ.

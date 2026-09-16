@@ -75,6 +75,20 @@ Der Listenabruf sortiert zuerst nur die jüngsten 200 IDs mit unverändertem Per
 
 Weiter offen bleiben vollständige Wegverlauf-Sync-Aufträge, Wiki-Regionen/Siedlungen, Landschaftshärtung und domänenübergreifende Importe. Dieser Ausbau schließt diese eigenständigen Schreibwege nicht mit ab.
 
+## Sechster Ausbau: Ortszuweisung zu Herrschaftsgebieten
+
+`bulk_assign_territories` schreibt pro bestehendem 200er-Paket einen atomaren Sammelbeleg mit angemeldetem Akteur. Die Planung wird unter Objektsperren gegen Revision und Eigenschaften geprüft; fehlende oder doppelte Ziele, fremde Editorsperren und ein Fehler beim letzten Write verhindern sämtliche Änderungen dieses Pakets. Manuelle Zuordnungen bleiben ohne ausdrückliches Überschreiben geschützt. Unveränderte Pakete erzeugen weder Revision noch Beleg. Die bisherigen Bytequoten und die spätere begrenzte Aufbewahrung gelten weiter.
+
+Undo und Redo stellen die Eigenschaften gemeinsam wieder her. Später geänderte Namen und Koordinaten bleiben erhalten; spätere Änderungen der Eigenschaften verhindern die Rücknahme. Der Client lädt die politische Hierarchie über einen gemeinsamen Karten-Deltaabruf nach, übernimmt alle Zuordnungen vor der Popup-Aktualisierung und erneuert das offene Infopanel einmal. Fehlende Mitglieder, ein Abruffehler oder inzwischen höhere Ortsrevisionen führen zu einer verständlichen Neulademeldung, ohne lokale Teilaktualisierung oder vorgezogenen Revisionstoken. Der Aktionsname bleibt einschließlich zweier Undo-Präfixe innerhalb der 40-Zeichen-Spaltengrenze; der Test prüft auch den gespeicherten Redo-Namen.
+
+Mehrere Pakete sind kein gemeinsamer atomarer Auftrag. Bei HTTP- oder Netzfehlern endet der Lauf; die Meldung nennt die bereits abgeschlossenen Zuordnungen und verweist für den möglicherweise gespeicherten letzten Teil auf den Verlauf. Die Antwortzählung umfasst wie bisher auch unveränderte Kandidaten. Weitere erfolgreiche Requests können ältere Belege entsprechend der normalen Aufbewahrung verdrängen.
+
+Abnahme: 1/27/200 Orte, 201 Kandidaten mit Rest, Vorschau, No-op, manuelle Zuordnung und ausdrückliches Überschreiben, fehlende/doppelte/ungültige Ziele, veraltete Planung, letzte Schreiboperation mit Fehler, Sperre und spätere Änderungen. Echte MySQL-8-Tests mit JSON-Spalten bestehen; ein konkurrierender Prozess kann einen unbeteiligten Ort bearbeiten, während eine beim Warten neu gesetzte Sperre am letzten Ziel das ganze Paket verhindert. JavaScript-Tests prüfen Delta-Vollständigkeit, Revisionen, Infopanel-Aktualisierung und Abbruch nach teilweise erfolgreichem Massenlauf.
+
+Die lokale Browserprobe speicherte 27 Ortszuweisungen, klappte den originalen Verlauf auf und nahm das Paket zurück beziehungsweise stellte es wieder her. Das offen gebliebene originale Infopanel wechselte dabei unmittelbar zwischen altem und neuem Herrschaftsgebiet. Helle und dunkle Darstellung wurden geprüft. Anmeldung, Kartenrahmen und Endpunktrouting der Fixture sind vereinfacht; die politische Hierarchie berechnet der originale Resolver. Es wurden keine Produktionszuordnungen geändert. Das vollständige Linux-/LF-Testfeld umfasst 451 PHP- und 638 JavaScript-Dateien; lokal bleibt der bekannte externe DNS-Test rot.
+
+Offen bleiben andere Wiki-Siedlungsschreiber (Verknüpfen, Ruinen, Wappen), Wiki-Regionen, vollständige Wegverlauf-Sync-Aufträge, Landschaftshärtung und domänenübergreifende Importe. Dieser Schritt stellt keine gemeinsame Rücknahme dieser anderen Vorgänge bereit.
+
 ## Ergebnis
 
 Sammel-Undos sind machbar. Der erste geeignete Anwendungsfall ist die Bearbeitung einer Wegegruppe. Eine reine Zusammenfassung der Anzeige reicht nicht: Gruppenzugehörigkeit, Vollständigkeit, Konfliktprüfung und Aufbewahrung müssen gemeinsam umgesetzt werden. Die Einzeländerungen bleiben als Belege erhalten; eine Operation verbindet sie.

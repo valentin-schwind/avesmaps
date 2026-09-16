@@ -2077,7 +2077,8 @@ function avesmapsWikiSettlementAssignTerritory(PDO $pdo, string $publicId, strin
 // territory_public_id, territory_source='raycast'). Chunked analog zu bulk_connect: Frontend ruft
 // wiederholt auf, bis remaining=0. Orte mit territory_source='manual' werden übersprungen, außer
 // force=true (Owner-Entscheid: manuelle Zuweisungen nicht versehentlich überschreiben).
-function avesmapsWikiSettlementBulkAssignTerritories(PDO $pdo, array $pairs, bool $force, bool $dryRun, int $limit = 200): array {
+function avesmapsWikiSettlementBulkAssignTerritories(PDO $pdo, array $pairs, bool $force, bool $dryRun, int $limit = 200, int $userId = 0): array {
+    require_once __DIR__ . '/settlement-territory-audit.php';
     avesmapsWikiSettlementEnsureSchema($pdo);
     $limit = max(1, min(200, $limit));
     $batch = array_slice($pairs, 0, $limit);
@@ -2087,27 +2088,34 @@ function avesmapsWikiSettlementBulkAssignTerritories(PDO $pdo, array $pairs, boo
         return ['ok' => true, 'dry_run' => true, 'applied' => 0, 'skipped_manual' => 0, 'remaining' => $remaining];
     }
 
-    $revision = null;
+    $updates = [];
+    $seen = [];
     $select = $pdo->prepare(
-        "SELECT id, properties_json FROM map_features
+        "SELECT id, public_id, revision, properties_json FROM map_features
          WHERE public_id = :p AND feature_type = 'location' AND is_active = 1 LIMIT 1"
     );
-    $update = $pdo->prepare('UPDATE map_features SET properties_json = :pj, revision = :rev WHERE id = :id');
 
     $applied = 0;
     $skippedManual = 0;
     foreach ($batch as $pair) {
+        if (!is_array($pair)) {
+            throw new InvalidArgumentException('Ein Zuweisungspaar ist ungültig.');
+        }
         $publicId = trim((string) ($pair['public_id'] ?? ''));
         $wikiKey = trim((string) ($pair['wiki_key'] ?? ''));
         $territoryPublicId = trim((string) ($pair['territory_public_id'] ?? ''));
         if ($publicId === '' || $wikiKey === '') {
-            continue;
+            throw new InvalidArgumentException('Ein Zuweisungspaar enthält keinen Ort oder Wiki-Schlüssel.');
         }
+        if (isset($seen[$publicId])) {
+            throw new InvalidArgumentException('Ein Ort kommt im Zuweisungspaket mehrfach vor.');
+        }
+        $seen[$publicId] = true;
 
         $select->execute(['p' => $publicId]);
         $target = $select->fetch(PDO::FETCH_ASSOC);
         if (!$target) {
-            continue;
+            throw new AvesmapsConflictException('Ein Ort des Zuweisungspakets ist nicht mehr aktiv. Bitte neu berechnen.');
         }
 
         $props = avesmapsWikiSyncDecodeJson($target['properties_json'] ?? null);
@@ -2119,10 +2127,11 @@ function avesmapsWikiSettlementBulkAssignTerritories(PDO $pdo, array $pairs, boo
         $props['territory_wiki_key'] = $wikiKey;
         $props['territory_public_id'] = $territoryPublicId !== '' ? $territoryPublicId : null;
         $props['territory_source'] = 'raycast';
-        $revision ??= avesmapsWikiSyncNextMapRevision($pdo);
-        $update->execute(['pj' => avesmapsWikiSyncEncodeJson($props), 'rev' => $revision, 'id' => (int) $target['id']]);
+        $updates[] = ['before' => $target, 'properties_json' => $props];
         $applied++;
     }
+
+    avesmapsWikiSettlementCommitTerritoryGroup($pdo, $updates, $userId);
 
     return [
         'ok' => true,
