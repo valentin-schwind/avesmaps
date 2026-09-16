@@ -202,7 +202,7 @@
 <body>
 	<div class="hb-topbar">
 		<span class="hb-topbar__title">Avesmaps · Editor-Handbuch</span>
-		<span class="hb-topbar__meta">Stand: 15.09.2026</span>
+		<span class="hb-topbar__meta">Stand: 17.09.2026</span>
 		<div class="hb-topbar__actions">
 			<button type="button" class="theme-toggle-btn" aria-label="Auf dunkles Design umschalten" title="Design umschalten (hell/dunkel)">
 				<svg class="theme-toggle-ico theme-toggle-ico--sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2" /><g stroke-width="1.9" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="4.4" /><line x1="12" y1="19.6" x2="12" y2="22" /><line x1="2" y1="12" x2="4.4" y2="12" /><line x1="19.6" y1="12" x2="22" y2="12" /><line x1="4.9" y1="4.9" x2="6.6" y2="6.6" /><line x1="17.4" y1="17.4" x2="19.1" y2="19.1" /><line x1="4.9" y1="19.1" x2="6.6" y2="17.4" /><line x1="17.4" y1="6.6" x2="19.1" y2="4.9" /></g></svg>
@@ -451,11 +451,11 @@
 				<p>Im Reiter <strong>WikiSync</strong> stehen über den Sorten-Reitern zwei Aktionen, die für alle Sorten dasselbe bedeuten:</p>
 				<ul class="hb-steps">
 					<li><strong>„📥 Dump holen"</strong> — lädt den aktuellen Wiki-Dump und liest ihn in eine Sandbox ein. <em>Schreibt noch nichts Scharfes.</em> Das Wiki erzeugt den Dump <strong>einmal im Monat, am Ersten</strong> — öfter zu holen bringt nichts Neues. Sein letzter Schritt (4/4) gleicht die <strong>Publikationsquellen</strong> ab und endet in der <a href="#uebernahme">Übernahme-Vorschau</a> — dass dort am Ende ein Blatt aufgeht, ist also kein Fehler. Was der Lauf gefunden hat, bleibt danach als <strong>„Letzter Dump-Lauf"</strong> ganz oben in <a href="#konflikte">⚖️ Konflikte</a> nachlesbar.</li>
-					<li><strong>„🚨 Syncen"</strong> — gleicht die Objekte der gewählten Sorte gegen den Dump ab. Bei Orten, Kraftlinien, Literatur, Karten und Vorkommen sitzt dieser Knopf nicht im Reiter, sondern im jeweiligen Editorfenster. Bei <strong>Karten</strong>, <strong>Literatur</strong> und <strong>Vorkommen</strong> schreibt er von sich aus nichts mehr: er rechnet nur und legt dir die <a href="#uebernahme">Übernahme-Vorschau</a> vor.</li>
+					<li><strong>„🚨 Syncen"</strong> — gleicht die Objekte der gewählten Sorte gegen den Dump ab. Bei Orten, Kraftlinien, Literatur, Karten und Vorkommen sitzt dieser Knopf nicht im Reiter, sondern im jeweiligen Editorfenster. Bei <strong>Karten</strong>, <strong>Literatur</strong> und <strong>Vorkommen</strong> schreibt er von sich aus nichts: er rechnet nur und legt dir die <a href="#uebernahme">Übernahme-Vorschau</a> vor.</li>
 				</ul>
 				<div class="hb-note hb-warn"><strong>Beides löst der Betreiber aus, nicht du.</strong> Ein Dump-Lauf zieht den ganzen Wiki-Bestand durch und belastet den Server erheblich. Wenn dir auffällt, dass ein Sync nötig wäre, sag Bescheid — klick ihn nicht selbst an, und niemals mehrfach hintereinander.</div>
 				<h4 id="uebernahme">Die Übernahme-Vorschau: erst zeigen, dann schreiben</h4>
-				<p>Seit dem 06.08.2026 schreibt ein Abgleich nicht mehr einfach los. Er rechnet zuerst, was er tun <em>würde</em>, und legt dir das Ergebnis als Blatt vor: <strong>geschrieben wird nur, was angehäkelt ist</strong>. Die Zeilen stehen immer in denselben drei Gruppen.</p>
+				<p>Ein Abgleich schreibt nicht einfach los. Er rechnet zuerst, was er tun <em>würde</em>, und legt dir das Ergebnis als Blatt vor: <strong>geschrieben wird nur, was angehäkelt ist</strong>. Die Zeilen stehen immer in denselben drei Gruppen.</p>
 				<table class="hb-table">
 					<tr><th>Gruppe</th><th>Was darin steht</th><th>Häkchen</th></tr>
 					<tr><td><strong>Neu</strong></td><td>Im Wiki dazugekommen.</td><td>alle vorangehäkelt</td></tr>
@@ -465,12 +465,12 @@
 				<p>Über „Neu" und „Geändert" stehen <strong>„alle"</strong> und <strong>„keine"</strong>. Über „Gelöscht" bewusst nicht — die häkelst du einzeln an, mit Blick auf das, was mit jeder verschwände. Unten schreibt <strong>„Übernehmen"</strong>. Ist eine Löschung dabei, heißt der Knopf <strong>„Übernehmen und 3 löschen"</strong> und bleibt gesperrt, bis du den Satz darüber ausdrücklich bestätigt hast — solange der fehlt, geht auch der harmlose Rest nicht durch.</p>
 				<div class="hb-note hb-warn"><strong>Ein Häkchen wegzunehmen bedeutet zweierlei — je nach Gruppe.</strong> Eine übersprungene <em>Änderung</em> kommt beim nächsten Lauf wieder und trägt dann die Marke <em>„⤴ 3× übersprungen"</em>. Eine abgelehnte <em>Löschung</em> wird <strong>nie wieder</strong> vorgeschlagen. Weggeworfen ist damit nichts: die Zeile bleibt ein Wiki-Eintrag und läuft weiter mit, kommt der Artikel zurück. Über <strong>„… früher abgelehnte Löschungen anzeigen"</strong> und <strong>„Wieder vorschlagen"</strong> holst du die Entscheidung zurück.</div>
 				<div class="hb-note hb-tip"><strong>Zwei Dinge, die man in der Vorschau sucht.</strong> Was du von Hand gesetzt hast, steht als <em>„bleibt …"</em> da — der Abgleich fasst es nicht an. Und was eine Einheit nur an <em>Kindzeilen</em> verliert, steht in Warnfarbe in ihrer <strong>Geändert</strong>-Zeile („Quellenverweise entfallen: 3 · Alte Quelle, Bote 12"), nicht unter „Gelöscht" — dort steht ausschließlich, was als Ganzes verschwindet. Findet ein Lauf keinen einzigen Unterschied, geht gar kein Blatt auf.</div>
-				<p>So arbeiten heute vier Abgleiche: <strong>Karten</strong>, <strong>Literatur</strong>, <strong>Vorkommen</strong> und die <strong>Publikationsquellen</strong> am Ende von „Dump holen". Zwei Eigenheiten solltest du kennen:</p>
+				<p>So arbeiten die Abgleiche für <strong>Karten</strong>, <strong>Literatur</strong>, <strong>Vorkommen</strong> und <strong>Territorien</strong> sowie die <strong>Publikationsquellen</strong> am Ende von „Dump holen". Zwei Eigenheiten solltest du kennen:</p>
 				<ul class="hb-steps">
 					<li>Bei <strong>Literatur</strong> und <strong>Publikationsquellen</strong> bleibt die dritte Gruppe immer leer — diese beiden Abgleiche löschen grundsätzlich nichts, und die Gruppe sagt das auch selbst.</li>
 					<li>Bei den <strong>Vorkommen</strong> heißt die dritte Gruppe nicht „löschen", sondern <strong>„stilllegen"</strong>: der Eintrag verschwindet aus den Listen, behält aber seine Vorkommen und seine Quellen — und nennt das Wiki ihn wieder, wird er ohne dein Zutun wieder aktiv.</li>
 				</ul>
-				<p>Die übrigen Abgleiche behalten ihre Form: <strong>Orte</strong>, <strong>Wege</strong> und die <a href="#konflikte">Konflikte</a> haben ihre eigenen Falllisten, in denen du jeden Fall einzeln entscheidest. Sie sehen der Vorschau seit dem 06.08.2026 sehr ähnlich, arbeiten aber weiter mit ihren eigenen Knöpfen. Bei den <strong>Regionen</strong> und den <strong>Territorien</strong> ändert sich vorerst nichts.</p>
+				<p><strong>Orte</strong>, <strong>Wege</strong> und die <a href="#konflikte">Konflikte</a> haben eigene Falllisten, in denen du jeden Fall einzeln entscheidest. Die <strong>Regionen</strong> haben keine Vorschau.</p>
 				<p>Jede Sorten-Liste hat oben dieselben Ansichten: <strong>Alle</strong>, <strong>Platziert</strong> und <strong>Fehlt</strong> — mit der Anzahl in Klammern. „Fehlt" ist deine Arbeitsliste: Dinge, die das Wiki kennt und die Karte noch nicht.</p>
 
 				<h3 id="kreise" class="hb-sub">Der Kreis neben dem Namen</h3>
@@ -521,30 +521,74 @@
 				<div class="hb-note hb-tip"><strong>Im Territorien-Baum</strong> kannst du mit der Maus über dem Kreis stehen bleiben, dann erscheint die Bedeutung im Klartext. In den übrigen Listen gibt es diesen Hinweis nicht — dafür ist diese Tabelle da.</div>
 
 				<h3 id="wege" class="hb-sub">Wege</h3>
-				<p class="hb-path"><strong>Auf der Karte:</strong> Linksklick auf den Weg → „Bearbeiten" / „Verlauf bearbeiten" &nbsp;·&nbsp; <strong>Anlegen:</strong> Rechtsklick → „Hier hinzufügen" → „Neuer Weg" &nbsp;·&nbsp; <strong>Liste:</strong> Editor → WikiSync → Wege &nbsp;·&nbsp; <strong>Editor:</strong> ebendort → „Wege bearbeiten"</p>
+				<p class="hb-path"><strong>Auf der Karte:</strong> Klick auf den Weg → „Bearbeiten" &nbsp;·&nbsp; <strong>Anlegen:</strong> Rechtsklick → „Hier hinzufügen" → „Neuer Weg" &nbsp;·&nbsp; <strong>Liste:</strong> Editor → WikiSync → Wege &nbsp;·&nbsp; <strong>Editor:</strong> ebendort → „Wege bearbeiten"</p>
 				<p>Straßen, Pfade, Flüsse und Seewege. Sie tragen die Reiseplanung — deshalb ist hier Sorgfalt wichtiger als anderswo.</p>
+
+				<h4>Ganze Straße oder Abschnitt</h4>
+				<p>Ein Weg liegt auf der Karte in <strong>Abschnitten</strong>. Alle Abschnitte mit demselben Namen bilden eine <strong>Straße</strong>, auch über Lücken hinweg. Im Bearbeiten-Modus wählst du per Klick, woran du arbeitest:</p>
+				<table class="hb-table">
+					<tr><th>Klick</th><th>Gelb markiert ist</th></tr>
+					<tr><td>Erster Klick auf eine Linie</td><td>die <strong>ganze Straße</strong></td></tr>
+					<tr><td>Zweiter Klick auf einen ihrer Abschnitte</td><td>nur <strong>dieser Abschnitt</strong></td></tr>
+					<tr><td>Noch ein Klick auf denselben Abschnitt</td><td>wieder die ganze Straße</td></tr>
+					<tr><td>Klick auf den Namen eines Wiki-Wegs</td><td>wie ein Klick auf die Linie</td></tr>
+					<tr><td>Klick daneben auf die Karte</td><td>Markierung aufgehoben</td></tr>
+				</table>
+				<p>Die Infobox nennt unter der Wegart, was markiert ist: <em>„Ganze Straße: Ort – Ort"</em> oder <em>„Abschnitt 3: Ort – Kreuzung"</em>. <strong>„Bearbeiten"</strong> bearbeitet das Markierte. <strong>„Verlauf bearbeiten"</strong> fehlt, solange die ganze Straße markiert ist. Gestrichelt erscheinen Abschnitte anderer Straßen, die diese Straße als <a href="#wege-wiki">weitere Zuweisung</a> tragen.</p>
 
 				<h4>Der Dialog „Weg bearbeiten"</h4>
 				<ul class="hb-steps">
-					<li><strong>Wegname</strong>, <strong>„Auto-Name"</strong> und <strong>„Weg anzeigen"</strong> (blendet den Namen an der Linie ein).</li>
-					<li><strong>Wegtyp</strong> — acht Sorten von Reichsstraße bis Seeweg, mit <strong>↻</strong> aus dem Wiki.</li>
-					<li><strong>Bach</strong> (nur bei Flusswegen) — ein Häkchen unter dem Wegtyp. Ein Bach bleibt ein Flussweg, ist aber <strong>nicht befahrbar</strong>: Sobald du es setzt, werden die Transportmittel darunter grau und leer. Auf der Karte behält er Farbe und Strich des Flusses, die Infobox nennt ihn „Bach".</li>
-					<li><strong>Erlaubte Transportmittel</strong> — steuert direkt das Routing: Was hier nicht angehakt ist, kann diesen Weg nicht befahren. Rechts daneben steht unter <em>„gangbar"</em> je Fahrtyp ein Zeitfenster: Der Haken sagt <strong>ob</strong>, das Fenster sagt <strong>wann</strong>.</li>
-					<li><strong>Wiki-Weg</strong> — der <a href="#v-wiki">Zuweisungskasten</a>, mit „Sync" für den Wegtyp.</li>
-					<li><strong>Quellen</strong> — ganz unten, derselbe Block wie bei Orten und Landschaften. Eine Quelle hängt am <strong>Abschnitt</strong>; eingetragen wird sie aber standardmäßig an <em>alle</em> Abschnitte dieses Weges — die Wahl steht in der Eingabezeile. Löschen und Bearbeiten gelten immer nur dem einen Abschnitt.</li>
-					<li><strong>Strömung</strong> (nur bei Flusswegen) — „Richtung festlegen", „Richtung vervollständigen" und der Strömungsfaktor für die Fahrt flussaufwärts. Für den schnellen Fall gibt es <strong>„Strömung umkehren"</strong> direkt beim Weg, ohne Dialog.</li>
+					<li><strong>Wegname</strong>, <strong>„Auto-Name"</strong> und <strong>„Wegname anzeigen"</strong>. Der Haken blendet den Namen an diesem Abschnitt ein oder aus, auch bei Wiki-Wegen.</li>
+					<li><strong>Wegtyp</strong> — acht Sorten von Reichsstraße bis Seeweg. Weicht er vom Wiki ab, steht der Wiki-Wert durchgestrichen daneben; <strong>↺</strong> holt ihn zurück.</li>
+					<li><strong>Bach</strong> (nur bei Flusswegen) — ein Bach bleibt ein Flussweg, ist aber <strong>nicht befahrbar</strong>. Mit dem Haken werden die Transportmittel grau und leer. Die Infobox nennt ihn „Bach".</li>
+					<li><strong>Erlaubte Transportmittel</strong> — steuern direkt das Routing. Daneben steht unter <em>„gangbar"</em> je Fahrtyp ein <a href="#wege-gangbar">Zeitfenster</a>.</li>
+					<li><strong>Wiki-Weg</strong> — der <a href="#wege-wiki">Zuweisungskasten</a>, darin auch die weiteren Zuweisungen.</li>
+					<li><strong>Strömung</strong> (nur bei Flusswegen) — „Richtung festlegen", „Richtung vervollständigen" und der Strömungsfaktor flussaufwärts. <strong>„Strömung umkehren"</strong> steht auch direkt in der Infobox.</li>
+					<li><strong>Quellen</strong> — ganz unten, wie bei Orten und Landschaften. Eine Quelle hängt am <strong>Abschnitt</strong>. Eingetragen wird sie standardmäßig an <em>alle</em> Abschnitte des Weges; die Wahl steht in der Eingabezeile. Löschen und Bearbeiten gelten nur dem einen Abschnitt.</li>
 				</ul>
-				<div class="hb-note hb-tip"><strong>Gangbar von – bis: jeder Fahrtyp hat sein eigenes Fenster.</strong> Die Zeitspalte steht an <em>jedem</em> Weg, nicht nur an Gebirgspässen. Drei Fälle, mehr gibt es nicht: <strong>kein Haken</strong> = dieser Fahrtyp kommt hier nie durch · <strong>Haken + „ganzjährig"</strong> = immer · <strong>Haken + Monat</strong> = nur in diesem Fenster. Ein Feld, das grau ist, kann gerade nichts bedeuten — ohne Haken alle vier, bei „ganzjährig" die drei dahinter. Eine Reichsstraße sagt darum sechsmal „ganzjährig", und das ist richtig so: <em>gespeichert wird dadurch nichts</em>, denn „ganzjährig" ist schlicht die Abwesenheit eines Fensters.</div>
-				<div class="hb-note hb-warn"><strong>Ein Fenster gilt für alle Abschnitte desselben Wiki-Weges.</strong> Ein Pass ist bei uns eine <em>Kette</em> — der Schattenpass besteht aus zwölf Stücken, die Kabashpforte aus elf. Trügst du das Fenster nur an einem ein, bliebe daneben ein Loch, durch das die Reiseplanung im Winter einfach hindurchfährt. Der Editor nimmt dir das ab und trägt es beim Speichern auf alle Abschnitte — je Abschnitt aber nur auf die Fahrtypen, die <em>dort</em> überhaupt angehakt sind.</div>
-				<p><strong>Ein eingeschränkter Weg trägt seinen Namen auf der Karte kursiv</strong> und in der Infobox die Zeile <em>„Einschränkungen"</em> — „Nur zu Fuß." oder „Nur vom 15. Peraine bis zum 30. Efferd befahrbar, sonst gesperrt.". Beide Fälle von oben lösen das aus. <strong>Nur was fehlt, zählt:</strong> Hakst du an einem Pfad zusätzlich die Kutsche an, ist das keine Einschränkung. Die Schrift gilt dem <em>ganzen</em> Weg — zerfällt er in zwei Namensgruppen, bleibt die zweite aufrecht. Bei <strong>Flüssen und Seewegen</strong> gibt es sie nicht: Dort ist eine Sperre der Normalfall.</p>
-				<div class="hb-note hb-tip"><strong>Namensregel:</strong> Ein Wiki-Weg zuzuweisen setzt den exakten Wiki-Namen für die <em>ganze Namensgruppe</em>, nicht nur für das eine Segment. „Entfernen" wirkt ebenfalls weg-weit. Wenn du einen Weg <em>teilst</em>, behalten beide Hälften den Namen.</div>
+
+				<h4 id="wege-gruppe">Die ganze Straße bearbeiten</h4>
+				<p>Ist die ganze Straße markiert, gilt der Dialog allen ihren Abschnitten. Der Knopf sagt es: <strong>„Speichern für 8 Abschnitte"</strong>.</p>
+				<ul class="hb-steps">
+					<li><strong>Geschrieben wird nur, was du anfasst.</strong> Uneinige Felder stehen auf <em>„— gemischt lassen —"</em> oder als halber Haken mit Zähler („2 von 8"). Lässt du sie so, bleibt jeder Abschnitt, wie er ist.</li>
+					<li><strong>Ein neuer Name gilt für alle Abschnitte</strong>, auch bei einem Wiki-Weg.</li>
+					<li><strong>Auto-Name, Bach und Strömung</strong> gibt es nur am einzelnen Abschnitt.</li>
+					<li>Der <strong>Kasten „Wiki-Weg"</strong> zeigt eine Zeile je Wiki-Zuweisung. Klapp eine Zeile auf: Zuweisen und Entfernen gelten nur ihren Abschnitten.</li>
+				</ul>
+
+				<h4 id="wege-gangbar">Gangbar: wer wann durchkommt</h4>
+				<p>Jeder Fahrtyp hat an jedem Weg sein eigenes Zeitfenster. Der Haken sagt <strong>ob</strong>, das Fenster sagt <strong>wann</strong>:</p>
+				<table class="hb-table">
+					<tr><th>Einstellung</th><th>Bedeutung</th></tr>
+					<tr><td>kein Haken</td><td>Dieser Fahrtyp kommt hier nie durch.</td></tr>
+					<tr><td>Haken + „ganzjährig"</td><td>Er kommt immer durch. Gespeichert wird dabei nichts.</td></tr>
+					<tr><td>Haken + Monat</td><td>Er kommt nur in diesem Fenster durch.</td></tr>
+				</table>
+				<div class="hb-note hb-warn"><strong>Ein Fenster gilt für alle Abschnitte desselben Wiki-Weges.</strong> Der Editor trägt es beim Speichern überall ein, je Abschnitt nur für die dort angehakten Fahrtypen. Sonst fährt die Reiseplanung im Winter durch die Lücke.</div>
+				<p><strong>Ein eingeschränkter Weg steht auf der Karte kursiv.</strong> Die Infobox zeigt dann die Zeile <em>„Einschränkungen"</em>, etwa „Nur zu Fuß.". Das passiert bei einem Zeitfenster oder wenn ein übliches Transportmittel fehlt. Zusätzlich erlaubte Transportmittel zählen nicht. Die Schrift gilt der ganzen Straße. Flüsse und Seewege bekommen sie nie.</p>
+
+				<h4 id="wege-wiki">Der Kasten „Wiki-Weg"</h4>
+				<p>Er steht im Dialog „Weg bearbeiten" und im Wege-Editor und verbindet den Weg mit seinem Wiki-Artikel.</p>
+				<ul class="hb-steps">
+					<li><strong>Zuweisen</strong> setzt den Wiki-Namen an allen Abschnitten mit demselben Namen und hakt „Wegname anzeigen" an.</li>
+					<li><strong>Danach gehört der Name dir.</strong> Es gilt, was du speicherst. „Sync" holt Wegname und Wegtyp aus dem Wiki ins Formular.</li>
+					<li><strong>Entfernen</strong> fragt nach: nur dieser Abschnitt (empfohlen) oder der ganze Weg. Gelöste Abschnitte bekommen einen eigenen, generischen Namen.</li>
+				</ul>
+				<h5>Weitere Wiki-Zuweisungen</h5>
+				<p>Ein Abschnitt kann zu mehreren Wiki-Wegen gehören, etwa wo zwei Straßen ein Stück gemeinsam laufen. Die Zuweisung oben bleibt die Hauptzuweisung. Weitere Artikel trägst du im selben Kasten darunter ein.</p>
+				<ul class="hb-steps">
+					<li>Such den Artikel und klick den Treffer an. <strong>✕</strong> nimmt ihn wieder weg.</li>
+					<li>Beides wirkt <strong>sofort</strong>, ohne „Speichern". Der Wegname ändert sich dabei nie.</li>
+					<li>Am Abschnitt gilt es diesem Abschnitt, an der ganzen Straße allen. Abschnitte ohne Hauptzuweisung werden übersprungen.</li>
+					<li>Die Infobox zeigt <em>„Auch Teil von"</em>, beim anderen Weg <em>„Verläuft auch über"</em>.</li>
+				</ul>
 
 				<h4>Verlauf bearbeiten</h4>
-				<p>Die Geometrie änderst du nicht im Dialog, sondern über <strong>„Verlauf bearbeiten"</strong>:</p>
+				<p>Die Linie änderst du über <strong>„Verlauf bearbeiten"</strong> am markierten Abschnitt:</p>
 				<ul class="hb-steps">
 					<li>Knoten <strong>ziehen</strong> verschiebt sie.</li>
 					<li><strong>Doppelklick auf die Linie</strong> fügt einen Knoten hinzu, <strong>Doppelklick auf einen Knoten</strong> löscht ihn.</li>
-					<li><strong>Rechtsklick auf einen Zwischenknoten → „Neue Kreuzung und Weg teilen"</strong> — der Ein-Klick-Befehl für Regel 1 weiter unten. Genau dafür ist er da.</li>
+					<li><strong>Rechtsklick auf einen Zwischenknoten → „Neue Kreuzung und Weg teilen"</strong> — der Ein-Klick-Befehl für Regel 1 weiter unten. Beide Hälften behalten Name, Bach, Strömung und Quellen.</li>
 				</ul>
 				<figure class="hb-shot">
 					<img src="screenshots/04-verlaufeditieren.png" alt="Ausgewaehlter Weg Reichsstrasse 1 mit sichtbaren Knotenpunkten und dem Popup mit Bearbeiten, Verlauf bearbeiten, Weg loeschen" />
@@ -722,15 +766,18 @@
 				<div class="hb-note hb-tip"><strong>Im Filter der Wege-Liste steht „Lage" schon auf „außerorts" und „unklar".</strong> Stadtgassen und Wege <em>innerhalb</em> eines Ortes sind damit von Anfang an ausgeblendet — sie sind für die Reiseplanung ohne Belang und würden die Liste vollschütten. Willst du an einem davon arbeiten, hak <strong>„innerorts"</strong> dazu. Der Knopf weist die Vorbelegung als gesetzten Filter aus, sie versteckt sich also nicht.</div>
 
 				<h4>Der Wege-Editor</h4>
-				<p>Im Reiter <strong>Editor → WikiSync → Wege</strong> steht der Knopf <strong>„Wege bearbeiten"</strong>. Er öffnet den achten <a href="#n-editoren">Sync-Editor</a>. Dort arbeitest du der Reihe nach durch, statt jeden Weg einzeln auf der Karte zu suchen.</p>
+				<p>Im Reiter <strong>Editor → WikiSync → Wege</strong> steht der Knopf <strong>„Wege bearbeiten"</strong>. Er öffnet den achten <a href="#n-editoren">Sync-Editor</a>. Dort arbeitest du der Reihe nach durch, statt jeden Weg auf der Karte zu suchen.</p>
 				<ul class="hb-steps">
 					<li>Links die <strong>Wegeliste</strong>, in der Mitte die <strong>Eigenschaften</strong>, rechts das <strong>Höhenprofil</strong>.</li>
-					<li>Die Eigenschaften sind dieselben wie im Dialog „Weg bearbeiten" auf der Karte: Name, „Auto-Name", „Weg anzeigen", Wegtyp, erlaubte Transportmittel und die Quellen. Nur hier gibt es den Kasten „Weitere Wiki-Zuweisungen" (siehe unten).</li>
-					<li>Über dem Höhenprofil schaltet ein Dreier um, wie weit die Kurve reicht: <strong>Ganzer Weg · je Abschnitt · je Wegstück</strong>.</li>
-					<li>Beim <strong>ganzen Weg</strong> laufen alle Abschnitte in <em>einer</em> Kurve, ihre Grenzen als gestrichelte Marken. Darunter steht der <em>Höchste Punkt über Start</em> — die Zahl, die man bei einem Pass sucht.</li>
-					<li>Hängen die Abschnitte nicht lückenlos aneinander, bekommt jedes Teilstück seine eigene Kurve. <strong>Überbrückt wird nichts.</strong></li>
+					<li>Die Eigenschaften sind dieselben wie im Dialog „Weg bearbeiten", samt <a href="#wege-wiki">Kasten „Wiki-Weg"</a>.</li>
+					<li><strong>Eine Zeile ist eine ganze Straße</strong> und klappt auf ihre Abschnitte auf. Die Zusammenfassung nennt beides: „3 Wege · 28 Abschnitte".</li>
+					<li>Ein Klick auf die <em>Zeile</em> wählt die ganze Straße, ein Klick auf den <em>Pfeil</em> klappt nur auf. Bearbeitet wird sie <a href="#wege-gruppe">wie auf der Karte</a>.</li>
+					<li>Die Liste nennt Abschnitte „Abschnitt 3: Ort – Ort" und zeigt weitere Zuweisungen in einer eigenen Zeile. Die Suche findet einen Abschnitt auch darüber.</li>
 				</ul>
-				<p>Das <strong>„🚨 Wege syncen"</strong> steht im Menüband des Editors, genau wie bei Orten, Kraftlinien und Regionen. Daneben stehen <em>„Wegprofile rechnen"</em>, <em>„Tempowerte"</em>, <em>„Wegprofile kalibrieren"</em> und <em>„Funktionen anzeigen"</em> — das letzte zeigt das Reisemodell als Kurven.</p>
+				<p>Über dem Höhenprofil schaltet ein Dreier um: <strong>Ganzer Weg · je Abschnitt · je Wegstück</strong>. Beim ganzen Weg laufen alle Abschnitte in <em>einer</em> Kurve, ihre Grenzen gestrichelt. Darunter steht der <em>Höchste Punkt über Start</em> — die Zahl, die man bei einem Pass sucht. Hängen die Abschnitte nicht lückenlos aneinander, bekommt jedes Teilstück eine eigene Kurve.</p>
+				<p>Im Menüband stehen <strong>„🚨 Wege syncen"</strong>, <em>„Wegprofile rechnen"</em>, <em>„Tempowerte"</em>, <em>„Wegprofile kalibrieren"</em> und <em>„Funktionen anzeigen"</em>. Das letzte zeigt das Reisemodell als Kurven.</p>
+				<div class="hb-note hb-tip"><strong>Zwei Wege-Listen, zwei Aufgaben.</strong> Die Liste im Reiter ordnet <strong>Wiki-Artikel</strong> zu; dort stehen „Konflikte", „Ausreißer" und „Flussrichtung unbekannt". Der Editor arbeitet an <strong>Kartenabschnitten</strong>, sein Reiter „Konflikte" bleibt deshalb leer.</div>
+				<p>Die <strong>Zugehörigkeit</strong> („führt durch") steht im Editor nur zum <em>Lesen</em>. Gerechnet wird sie im <a href="#regionen">Landschaften</a>-Editor unter <em>„Rechnen ▾"</em> → <em>Zugehörigkeit</em>.</p>
 
 				<h4>„Tempowerte" — die Zahlen hinter jeder Reisezeit</h4>
 				<p>Die Kachel <strong>„Tempowerte"</strong> öffnet das Fenster <strong>„Tempowerte — die Zahlen der Geographia Aventurica"</strong>. Darin stehen die Werte, aus denen die Reiseplanung <em>jede</em> Dauer rechnet: die Tagesleistung je Reisemittel, der Geländefaktor je Wegtyp, das Tempo querfeldein je Landschaft, die Bodenabzüge nach Jahreszeit. Sie sind einstellbar, und neben deinem Wert steht der <strong>Wert der Quelle</strong>, damit sichtbar bleibt, wo jemand bewusst abgewichen ist. Steht dort ein <strong>„—"</strong>, kennt die <em>Geographia Aventurica</em> zu dieser Zeile überhaupt keinen Wert — dann ist es unsere eigene Regel und es gibt nichts zu vergleichen.</p>
@@ -743,21 +790,7 @@
 					<li><strong>„auf unseren Wegen"</strong> ist die gemessene Gegenprobe: was auf den tatsächlich gezeichneten Wegen dieser Art herauskommt. <em>„nicht vermessen"</em> heißt, dass dort kein Höhenprofil vorliegt — es heißt <strong>nicht</strong> „ebenes Gelände".</li>
 					<li><strong>Der kleine ↩ steht nur an einer geänderten Zeile</strong> und nimmt deine eigene Eingabe zurück, ohne etwas zu schreiben. Die größeren Rücksetzer am Fuß eines Abschnitts ziehen dagegen auf die Quellenwerte und <strong>schreiben sofort</strong>; was sie bewegt haben, steht danach als <em>„war 3,45"</em> hinter jedem betroffenen Feld.</li>
 				</ul>
-				<div class="hb-note hb-tip"><strong>Du kannst den ganzen Weg bearbeiten oder einen Abschnitt.</strong> Eine Zeile ist ein <em>ganzer</em> Weg und klappt auf seine Abschnitte auf — die „Reichsstraße 1" besteht aus 26 davon; deshalb nennt die Zusammenfassung beide Zahlen („3 Wege · 28 Abschnitte"). Ein Klick auf die <em>Zeile</em> wählt den ganzen Weg, ein Klick auf den <em>Pfeil</em> klappt nur auf. So trägst du ein Fenster oder einen Wegtyp einmal ein statt achtmal.</div>
-				<div class="hb-note hb-warn"><strong>Auf der Weg-Ebene wird nur geschrieben, was du angefasst hast.</strong> Sind sich die Abschnitte über ein Feld nicht einig, trägt es keinen Wert: Der Wegtyp steht auf <em>„— gemischt lassen —"</em>, ein Fahrtyp auf einem halb gefüllten Haken samt Zähler („2 von 8"). Lässt du das so stehen, bleibt jeder Abschnitt, wie er ist — ein Klick macht ihn für alle gleich. Der Knopf sagt, worauf er zielt: <strong>„Speichern für 8 Abschnitte"</strong>.</div>
-				<div class="hb-note hb-tip"><strong>Zwei Wege-Listen mit zwei Aufgaben.</strong> Die Liste im Reiter ordnet <strong>Wiki-Artikel</strong> zu — dorthin gehören „Konflikte", „Ausreißer" und „Flussrichtung unbekannt". Der Editor arbeitet an den <strong>Kartenabschnitten</strong>. Sein Reiter „Konflikte" bleibt darum leer und sagt dir das auch: Verlauf-Fälle hängen am Wiki-Weg, nicht am einzelnen Abschnitt.</div>
-				<p>Die <strong>Zugehörigkeit</strong> („führt durch") steht im Editor nur zum <em>Lesen</em>. Gerechnet wird sie im <a href="#regionen">Landschaften</a>-Editor, dort unter <em>„Rechnen ▾"</em> → <em>Zugehörigkeit</em>; der Wege-Editor verlinkt hinüber.</p>
 
-				<h4>Weitere Wiki-Zuweisungen</h4>
-				<p>Ein Wegstück kann zu mehreren Wiki-Wegen gehören, etwa wo zwei Straßen ein Stück gemeinsam laufen. Die Zuweisung im Kasten „Wiki-Weg" bleibt die Hauptzuweisung und gibt den Namen. Weitere Artikel trägst du im Wege-Editor im Kasten <strong>„Weitere Wiki-Zuweisungen"</strong> darunter ein.</p>
-				<ul class="hb-steps">
-					<li><strong>Am Abschnitt</strong> gilt der Kasten diesem einen Abschnitt, <strong>auf der Weg-Ebene</strong> der ganzen Straße.</li>
-					<li>Such den Artikel und klick den Treffer an. <strong>✕</strong> nimmt eine weitere Zuweisung wieder weg.</li>
-					<li>Beides wirkt <strong>sofort</strong>, ohne „Speichern". Der Wegname ändert sich dabei nie.</li>
-					<li>Ohne Hauptzuweisung geht es nicht. Setz erst den Wiki-Weg.</li>
-				</ul>
-				<p>Die Liste des Editors nennt die Abschnitte „Abschnitt 3: Ort – Ort" und zeigt weitere Zuweisungen in einer eigenen Zeile. Die Suche findet einen Abschnitt auch über sie. In der Infobox steht dann <em>„Auch Teil von"</em>, beim anderen Weg <em>„Verläuft auch über"</em>.</p>
-				
 				<h4>Kleinigkeiten, die Zeit sparen</h4>
 				<ul class="hb-steps">
 					<li><strong>Beschriftungen sind im Bearbeiten-Modus klickdurchlässig.</strong> Liegt ein Weg- oder Flussname über der Linie, geht der Doppelklick hindurch und setzt den Stützpunkt, wo du hinzeigst.</li>
@@ -954,12 +987,12 @@
 					<li><strong>Kopf</strong> — <em>Name</em> und <em>Art</em>, beide mit <strong>↻</strong> zum Übernehmen aus dem Wiki. Die Art ist nicht auf „Region" beschränkt — die vollständige Liste steht unter <a href="#n-listen">Die Auswahllisten</a>. Der Haken <em>Nodix</em> steht im Reiter <em>Beschriftung</em>.</li>
 					<li><strong>Höhe (Schritt)</strong> — steht unten im selben Block und erscheint nur, wenn die Art <em>Berggipfel</em> oder <em>Vulkan</em> ist: ein Zahlenfeld mit Schieberegler (0–20.000). Ein leeres Feld füllt sich dabei mit <strong>5.000</strong> — der Wert, mit dem die Karte für einen Gipfel ohne erfasste Höhe ohnehin rechnet. Eine <em>bereits erfasste</em> Höhe bleibt unangetastet, auch wenn du den Dialog nur öffnest.</li>
 					<li><strong>Darstellung</strong> — Größe, <em>Kurvenbeschriftung</em>, <em>Anzahl Kurvenlabel</em> (erscheint erst mit dem Haken), „Sichtbar ab/bis Zoom", Priorität. Damit steuerst du, wann und wie prominent die Beschriftung erscheint. An Größen- und Zoomreglern steht als Marke, was die Tafel <a href="#landschaften">„Darstellung"</a> für diese Art vorschlägt — du darfst davon abweichen. <strong>Größe und Priorität wirken sofort auf der Karte</strong>, während du am Regler ziehst. Schließt du den Dialog <em>ohne</em> zu speichern („Abbrechen", ×, ESC), geht die Beschriftung auf ihren alten Stand zurück. Bei einer <em>neuen</em> Beschriftung gibt es noch keinen Marker, an dem sich das zeigen könnte.</li>
-					<li><strong>Wiki-Landschaft</strong> — der <a href="#v-wiki">Zuweisungskasten</a>.</li>
+					<li><strong>Wiki-Landschaft</strong> — der <a href="#v-wiki">Zuweisungskasten</a>. Liegt eine Fläche darunter, gehört der Artikel der Fläche: Fläche und alle ihre Beschriftungen tragen immer denselben. Änderst du ihn hier, ziehen beim Speichern die übrigen Beschriftungen mit.</li>
 						<li><strong>Quellen</strong> — derselbe Block wie bei Orten und Wegen, über den gemeinsamen Quellenkatalog. <strong>Die Quellen gehören der Fläche</strong>, nicht der Beschriftung: liegt eine Fläche darunter, siehst und änderst du hier deren Liste. Eine eigene hat nur eine <em>freie</em> Beschriftung ohne Fläche.</li>
 				</ul>
 				<div class="hb-note hb-tip"><strong>Der Name läuft auf der Mittelachse seiner Fläche.</strong> Dafür gibt es zwei Bedienelemente: den Haken <em>Kurvenbeschriftung</em> und <em>Anzahl Kurvenlabel</em> (1–3), also wie viele Namen die Fläche tragen darf. Beide gehören der <strong>Region</strong>, nicht der einzelnen Beschriftung, und stehen genau einmal im Reiter <em>Beschriftung</em>. <strong>Ohne Fläche gibt es keine Mittelachse</strong>: bei Meeren, Inseln und Gipfeln stehen beide verriegelt da und nennen den Grund.</div>
 				<p>Im Reiter <strong>Editor → WikiSync → Regionen</strong> steht der Knopf <strong>„Landschaften bearbeiten"</strong>. Er öffnet ein eigenes Fenster — den siebten <a href="#n-editoren">Sync-Editor</a> — mit der Regionenliste links, den <em>Eigenschaften</em> in der Mitte und <em>„Vorschau &amp; Vorkommen"</em> rechts. Das <strong>„🚨 Syncen"</strong> steht im Menüband, genau wie bei Orten und Kraftlinien — nicht im Reiter. Daneben stehen drei Kacheln, alle für die <a href="#landschaften">Landschaften-Ebene</a>: <strong>„Rechnen ▾"</strong> mit den Läufen <em>Zugehörigkeit</em>, <em>Höhenraster</em>, <em>Wegprofile</em>, <em>Kurven</em> und <em>„Wiki &amp; Art"</em> — der letzte trägt Wiki-Landschaft und Art einer Fläche an ihre Beschriftungen nach; die Unterzeile des Knopfes sagt, welcher gerade läuft —, dazu <em>„Geländeabhängiges Reisen"</em> und <em>„Darstellung"</em>. Für die Beschriftungsarbeit brauchst du davon nur die letzte.</p>
-				<p>Für viele Beschriftungen auf einmal führt der Weg weiterhin über die Liste im Reiter: dort trägt jede Zeile den Knopf <strong>„Label zuweisen"</strong>. Er stellt <em>alle</em> Beschriftungen der Karte zur Auswahl — nicht nur die namensgleichen —, hakt die bereits verknüpften vor und sagt bei einer Beschriftung, die an einer <em>anderen</em> Wiki-Landschaft hängt, dazu, dass das Zuweisen sie umhängt. Erst <strong>„Vorschau"</strong> (ein Trockenlauf, der nichts schreibt), dann <strong>„Zuweisen"</strong>; änderst du zwischendurch die Auswahl, verfällt die Vorschau. <em>Lösen</em> lässt sich eine Verknüpfung hier nicht — das bleibt Sache des Label-Dialogs oben.</p>
+				<p>Für viele Beschriftungen auf einmal führt der Weg weiterhin über die Liste im Reiter: dort trägt jede Zeile den Knopf <strong>„Label zuweisen"</strong>. Er stellt <em>alle</em> Beschriftungen der Karte zur Auswahl — nicht nur die namensgleichen —, hakt die bereits verknüpften vor und sagt bei einer Beschriftung, die an einer <em>anderen</em> Wiki-Landschaft hängt, dazu, dass das Zuweisen sie umhängt. Hängt eine Beschriftung an einer Fläche, bekommt die ganze Fläche den Artikel. Erst <strong>„Vorschau"</strong> (ein Trockenlauf, der nichts schreibt), dann <strong>„Zuweisen"</strong>; änderst du zwischendurch die Auswahl, verfällt die Vorschau. <em>Lösen</em> lässt sich eine Verknüpfung hier nicht — das bleibt Sache des Label-Dialogs oben.</p>
 				<p>Der Linksklick auf eine Beschriftung bietet außerdem <strong>„Label verschieben"</strong>, <strong>„Position zurücksetzen"</strong>, <strong>„Label duplizieren"</strong> und <strong>„Label löschen"</strong> — sowie <strong>„Neue Kraftlinie"</strong>. <strong>„Position zurücksetzen"</strong> holt die Beschriftung auf den Punkt zurück, den das Anlegen einer Fläche vergibt, und steht nur dort, wo eine Fläche darunter liegt; trägt die Fläche mehrere Beschriftungen, fragt sie vorher nach. Kraftlinien sind ein eigener Objekttyp, unabhängig vom Wegenetz — siehe unten.</p>
 
 				<h3 id="landschaften" class="hb-sub">Landschaften</h3>
@@ -1084,7 +1117,7 @@
 						<tr><th>Reiter</th><th>Was darin steht</th></tr>
 						<tr><td><strong>Fläche</strong></td><td>Die <strong>Gebirgseinstellungen</strong> und die <strong>Höhenskala</strong> (siehe unten), dazu die Haken <em>Auf der Karte anzeigen</em> und <em>Für Klicks gesperrt</em> (siehe <a href="#landschaften">Reihenfolge und Sperren</a>).</td></tr>
 						<tr><td><strong>Beschriftung</strong></td><td><em>Höhe (Schritt)</em>, <em>Nodix</em>, <em>Größe</em>, <em>Priorität</em>, „Sichtbar ab/bis Zoom", <em>Kurvenbeschriftung</em> und <em>Anzahl Kurvenlabel</em> (siehe <a href="#regionen">Regionen</a>). Trägt die Fläche mehrere Beschriftungen, wählst du oben im Reiter, welche.</td></tr>
-						<tr><td><strong>Wiki &amp; Quellen</strong></td><td>Der <a href="#v-wiki">Zuweisungskasten</a> und die <strong>Quellen</strong>. Quellen wirken <strong>sofort</strong>, ohne „Speichern". Sie gehören der Fläche: Liegt eine Fläche unter der Beschriftung, gilt die Liste für beide.</td></tr>
+						<tr><td><strong>Wiki &amp; Quellen</strong></td><td>Der <a href="#v-wiki">Zuweisungskasten</a> und die <strong>Quellen</strong>. Quellen wirken <strong>sofort</strong>, ohne „Speichern". Artikel und Quellen gehören der Fläche und gelten für jede Beschriftung darauf.</td></tr>
 					</table>
 					<figure class="hb-shot">
 						<img src="screenshots/18-landschaft-wiki-quellen.png" width="420" alt="Das Fenster Vegetation bearbeiten fuer das Lilienmoor mit den drei Reitern Flaeche, Beschriftung und Wiki und Quellen; im offenen dritten Reiter der Kasten Wiki-Landschaft ohne Zuordnung und darunter der Kasten Quellen mit einer Quelle des Garetien-Wikis" />
@@ -1441,7 +1474,8 @@
 					<li>Reiter <strong>Offen</strong> wählen. Links die Liste, rechts das ausgewählte Objekt.</li>
 					<li>Ein Objekt anklicken und rechts prüfen: Name, Art, Geometrie, Quelle.</li>
 					<li>Passt es, <strong>„Auf die Stage"</strong> drücken. Es liegt dann zur Ansicht auf der Karte — geschrieben ist noch nichts.</li>
-					<li>Passt es nicht, <strong>„Ablehnen"</strong>.</li>
+					<li>Passt es nicht, <strong>„Ablehnen"</strong>. Das geht auch bei Objekten ohne Vorschlag.</li>
+					<li>Auf der Stage wählst du je Objekt das <a href="#garetien-ziel">Ziel</a>: neu auf die Karte, nur die Quelle ergänzen oder nichts.</li>
 					<li>Ist die Stage voll, unten rechts <strong>„Stage importieren"</strong> drücken. Es kommt erst die Übernahme-Vorschau — geschrieben wird nur, was dort angehakt bleibt.</li>
 					<li>Die <strong>Statuszeile</strong> meldet danach, was angelegt wurde.</li>
 				</ul>
@@ -1449,35 +1483,57 @@
 				<table class="hb-table">
 					<tr><th>Reiter</th><th>Was darin steht</th></tr>
 					<tr><td><strong>Offen</strong></td><td>Noch nicht entschieden.</td></tr>
-					<tr><td><strong>Stage</strong></td><td>Was auf der Karte liegt und beim Importieren geschrieben wird. Diese Menge lebt nur in deinem Browser. <strong>Suche und Filter wirken hier nicht.</strong></td></tr>
+					<tr><td><strong>Stage</strong></td><td>Was auf der Karte liegt und beim Importieren geschrieben wird. Diese Menge lebt nur in deinem Browser.</td></tr>
 					<tr><td><strong>Abgelehnt</strong></td><td>Von dir verworfen. Wird nicht wieder vorgeschlagen.</td></tr>
 					<tr><td><strong>Übernommen</strong></td><td>Steht auf der Karte.</td></tr>
 				</table>
-				<h4>Die Knöpfe am einzelnen Objekt</h4>
-				<p>Rechts am gewählten Objekt steht, was sich damit tun lässt. Welche Knöpfe erscheinen, hängt vom Zustand des Objekts ab.</p>
+				<h4>Die Einzelansicht</h4>
+				<p>Rechts steht das gewählte Objekt, gegliedert in Blöcke. Was das gewählte Ziel nicht braucht, steht grau da.</p>
+				<table class="hb-table">
+					<tr><th>Block</th><th>Was darin steht</th></tr>
+					<tr><td><strong>A · Auf der Karte</strong></td><td>Unsere Abschnitte an dieser Stelle und der Grund des Vorschlags.</td></tr>
+					<tr><td><strong>B · Verbund</strong></td><td>Nur bei Fragmenten, siehe <a href="#garetien-verbund">Verbünde</a>.</td></tr>
+					<tr><td><strong>C · Ziel &amp; Identität</strong></td><td>Ziel, Name, Form und Art. Auf <em>Offen</em> nur als Text.</td></tr>
+					<tr><td><strong>D · Darstellung</strong></td><td>Nur auf der Stage.</td></tr>
+					<tr><td><strong>E · Wiki &amp; Quellen</strong></td><td>Nur auf der Stage.</td></tr>
+					<tr><td><strong>F · Handlung</strong></td><td>Die Knöpfe für dieses Objekt.</td></tr>
+					<tr><td><strong>G · Weiter importieren</strong></td><td>„Imports in der Nähe wählen", siehe unten.</td></tr>
+				</table>
+				<p>Ein übernommenes Objekt zeigt nur A und F. Block A sagt dann, wo es liegt und ob es zurückgeht.</p>
+				<h4>Die Knöpfe in Block F</h4>
 				<table class="hb-table">
 					<tr><th>Knopf</th><th>Was er tut</th></tr>
-					<tr><td><strong>Auf die Stage</strong></td><td>Legt das Objekt zur Ansicht auf die Karte. Schreibt nichts.</td></tr>
-					<tr><td><strong>Von der Stage nehmen</strong></td><td>Nimmt es wieder herunter — in der Knopfzeile unter den Häkchen.</td></tr>
-					<tr><td><strong>Innerorts einfügen (Stadt)</strong></td><td>Schnellweg: legt es <strong>sofort</strong> als Stätte <em>in</em> der Stadt an, die im Knopf steht — ohne eigene Kartenposition.</td></tr>
-					<tr><td><strong>Ablehnen</strong></td><td>Verwirft das Objekt. Als einziger <strong>rot</strong>.</td></tr>
+					<tr><td><strong>Auf die Stage</strong></td><td>Legt das Objekt zur Ansicht auf die Karte. Schreibt nichts. An einem Fragment kommen die übrigen Fragmente mit.</td></tr>
+					<tr><td><strong>Von der Stage nehmen</strong></td><td>Nimmt es wieder herunter.</td></tr>
+					<tr><td><strong>Ablehnen</strong></td><td>Verwirft das Objekt, auch eines ohne Vorschlag. Der Knopf ist rot.</td></tr>
 					<tr><td><strong>Wieder vorschlagen</strong></td><td>Holt ein abgelehntes Objekt zurück nach <em>Offen</em>.</td></tr>
 				</table>
-				<p>Ein <strong>übernommenes</strong> Objekt zeigt statt dieser Knöpfe drei andere: <strong>„Zurücknehmen"</strong> holt es von der Karte zurück, <strong>„Ablehnen"</strong> nimmt es zurück <em>und</em> legt es nach <em>Abgelehnt</em>, <strong>„Zurück nach Offen"</strong> stellt es wieder zur Entscheidung.</p>
-				<h4>Was eingefügt wird: die zwei Häkchen</h4>
-				<p>Sie stehen <strong>erst, wenn das Objekt auf der Stage liegt</strong> — vorher gibt es nichts zu entscheiden. Darüber das Feld <strong>Name</strong>: es sagt, <em>was</em> angelegt wird, die Häkchen sagen <em>wie</em>. Leer heißt „unverändert".</p>
+				<p>Ein <strong>übernommenes</strong> Objekt zeigt andere Knöpfe: <strong>„Zurücknehmen"</strong> holt es von der Karte zurück, <strong>„Ganzen Verbund zurücknehmen"</strong> alle seine Fragmente. <strong>„Ablehnen"</strong> nimmt es zurück <em>und</em> legt es nach <em>Abgelehnt</em>. <strong>„Zurück nach Offen"</strong> stellt es wieder zur Entscheidung.</p>
+				<h4 id="garetien-ziel">Das Ziel: was beim Import passiert</h4>
+				<p>Liegt ein Objekt auf der Stage, wählst du in Block C <strong>ein</strong> Ziel. Es stehen nur die Ziele da, die für dieses Objekt gehen.</p>
 				<table class="hb-table">
-					<tr><th>Häkchen</th><th>Was es bewirkt</th></tr>
-					<tr><td><strong>Als Quelle einfügen</strong></td><td>Hängt Quelle und Artikel an ein <em>bestehendes</em> Objekt.</td></tr>
-					<tr><td><strong>Neu einfügen</strong></td><td>Legt ein neues Objekt an. Die Quelle kommt dabei immer mit.</td></tr>
+					<tr><th>Ziel</th><th>Was beim Import passiert</th></tr>
+					<tr><td><strong>Auf die Karte</strong></td><td>Ein neues Objekt der gewählten Form.</td></tr>
+					<tr><td><strong>Stätte in „X"</strong></td><td>Ein Bauwerk als Stätte im Ort X — ohne Kartenpunkt, gelistet in der Infobox des Ortes.</td></tr>
+					<tr><td><strong>Nur Quelle + Artikel an „X"</strong></td><td>Kein Objekt. Quelle und Artikel kommen an den Ort X.</td></tr>
+					<tr><td><strong>Quelle an „X" ergänzen</strong></td><td>Die Quelle kommt an unser bestehendes Objekt. Sonst bleibt es, wie es ist.</td></tr>
+					<tr><td><strong>Quelle und Namen an „X" ergänzen</strong></td><td>Dasselbe, und der Platzhalter (etwa „Wald-190") bekommt den Namen aus dem Namensfeld. Nur bei Platzhalternamen.</td></tr>
+					<tr><td><strong>Auf die Karte — zusätzlich zu „X"</strong></td><td>Beides: neues Objekt <em>und</em> Quelle an X. Fragt vor dem Import nach.</td></tr>
+					<tr><td><strong>Nichts — nur ansehen</strong></td><td>Bleibt auf der Stage, wird nicht importiert.</td></tr>
 				</table>
-				<p>Deine Wahl bleibt am Objekt hängen: nimmst du es von der Stage und legst es wieder auf, stehen die Häkchen so, wie du sie gesetzt hast.</p>
-				<div class="hb-note hb-tip"><strong>Steht <em>„Nichts einzufügen — nur Ansicht."</em>, ist das kein Fehler.</strong> Dieses Objekt hat nichts anzulegen; du siehst es nur. Und ist im Feld <strong>„Innerorts"</strong> eine Stadt gewählt, fällt <em>„Neu einfügen"</em> ganz weg — die Stadt <em>ist</em> dann der Zielort.</div>
+				<p>Vorgewählt ist „Quelle an X ergänzen", wenn sich das Objekt mit unserem deckt, sonst „Auf die Karte". Weichen Name, Form oder Art vom Import ab, steht der Importwert durchgestrichen darüber; <strong>↺</strong> holt ihn zurück. Deine Einstellungen bleiben am Objekt, auch wenn du es herunter- und wieder auflegst. „Stage leeren" vergisst sie.</p>
 				<div class="hb-note hb-warn"><strong>Bei der Lage gewinnt die Karte.</strong> Steht der Ort schon auf ihr, verschieb ihn nicht — auch wenn die Quelle ihn zehn Meilen weiter setzt. Warum, und die eine Ausnahme: <a href="#v-karte">Die Originalkarte ist unsere Datengrundlage</a>.</div>
-				<h4>Innerorts statt auf die Karte</h4>
-				<p>Ein Bauwerk kann als <strong>Stätte in einer Stadt</strong> landen statt als eigener Punkt. Im Kasten <strong>„Eingefügt wird"</strong> steht dafür die Zeile <strong>„Innerorts"</strong> mit allen Städten in Reichweite, nach Entfernung sortiert. Vorgewählt ist <strong>„— auf die Karte —"</strong>; wählst du eine Stadt, sagt die Zeile darunter, was das heißt — kein Kartenpunkt, und Form und Art gelten dafür nicht.</p>
-				<p>Die Wahl gilt für <strong>beide Wege</strong>: für „Stage importieren" ebenso wie für den Schnellknopf, der die gewählte Stadt beim Namen nennt. Der <strong>Umkreis</strong> darunter steuert, wie weit gesucht wird — <strong>0 bis 20 Meilen</strong>, Vorgabe 5. Er steht auch da, wenn nichts gefunden wurde; dann dreh ihn hoch.</p>
-				<div class="hb-note hb-warn"><strong>Die Vorauswahl ist mit Absicht „auf die Karte".</strong> Der Vorschlag des Servers steht in der Liste, angehakt ist er nicht. Sonst legte ein „Stage importieren" für hunderte Objekte stillschweigend Stätten an — und ein falsch einsortiertes Objekt ist von außen nicht von einem fehlenden zu unterscheiden.</div>
+				<h4>Stätte in einem Ort</h4>
+				<p>Bei einem Bauwerk stehen unter der Zielwahl die Felder <strong>Siedlung</strong> und <strong>Umkreis</strong>. Die Siedlung nennt die Orte in Reichweite, nach Entfernung sortiert; bedienbar ist sie bei „Stätte in X" und „Nur Quelle + Artikel an X". Der Umkreis reicht von <strong>0 bis 20 Meilen</strong>, Vorgabe 5. Findet er nichts, dreh ihn hoch.</p>
+				<div class="hb-note hb-warn"><strong>Eine gefundene Siedlung wählt nichts vor.</strong> Das Ziel bleibt „Auf die Karte", bis du „Stätte in X" wählst. Sonst legte ein Import für hunderte Objekte still Stätten an.</div>
+				<h4 id="garetien-verbund">Verbünde</h4>
+				<p>Manche Objekte liegen in der Quelle in Stücken vor, etwa „Silker Hain 1" bis „4". Der Importer erkennt sie als <strong>Verbund</strong>; die Zeile trägt „⧉ 4 Fragmente". Der Filter <em>„Nur zeigen → nur Verbünde"</em> listet sie.</p>
+				<ul class="hb-steps">
+					<li>„Auf die Stage" an einem Fragment nimmt die übrigen mit.</li>
+					<li>Liegen zwei Fragmente auf der Stage, steht in Block B <strong>„Zusammenlegen"</strong>. Daraus wird <em>ein</em> Objekt mit dem Namen des Stamms.</li>
+					<li><strong>„Verbund auflösen"</strong> macht wieder einzelne Objekte daraus.</li>
+					<li>Der Fußknopf zählt, was entsteht: „Stage importieren · 1 Objekt aus 4 Zeilen".</li>
+				</ul>
 				<h4>Mehrere auf einmal: die Auswahlleiste</h4>
 				<p>Sobald du eine Zeile ankreuzt, erscheint unter der Liste eine Leiste. Jeder ihrer Knöpfe trägt das Wort <strong>Auswahl</strong> und wirkt auf die Häkchen — nie auf das Objekt rechts. Welche Knöpfe kommen, hängt vom Reiter ab:</p>
 				<table class="hb-table">
@@ -1489,19 +1545,19 @@
 				</table>
 				<div class="hb-note hb-warn"><strong>„Auswahl aufheben" und „Auswahl aus der Karte zurücknehmen" stehen nebeneinander und tun völlig Verschiedenes.</strong> Der eine räumt nur Häkchen ab, der andere nimmt einen ausgeführten Import von der Karte zurück.</div>
 				<div class="hb-note hb-tip"><strong>Die Zahl im Knopf zählt, was er wirklich bewegen kann</strong> — nicht, wie viel du angehakt hast. Kann er nichts ausrichten, ist er grau und nennt den Grund. <strong>Ein Reiterwechsel räumt die Häkchen ab:</strong> die Auswahl gehört der Ansicht, in der du sie gesetzt hast.</div>
-				<h4>Die Knopfleiste ganz unten</h4>
-				<p>Was hier steht, gilt der ganzen Liste oder der ganzen Stage:</p>
+				<h4>Listenkopf und Fußleiste</h4>
 				<ul>
-					<li><strong>Alle wählen</strong> kreuzt jede Zeile der angezeigten Liste an.</li>
+					<li>Das Häkchen <strong>„alle n"</strong> über der Liste kreuzt jede angezeigte Zeile an. Ein zweiter Klick löst sie wieder. Daneben steht „n von m", auf der Stage „n auf der Stage · k Objekte".</li>
 					<li><strong>Stage leeren</strong> nimmt alles wieder von der Karte herunter.</li>
 					<li><strong>Alle zentrieren</strong> zoomt auf alles, was gerade angezeigt ist.</li>
 					<li><strong>Stage importieren</strong> ist die Haupthandlung des Fensters — der einzige gefüllte Knopf.</li>
 				</ul>
+				<p>Suche und Filter wirken auf jedem Reiter, auch auf der Stage. Der Filtertrichter zählt je Reiter: „Grenzen 0/3052" heißt 0 in dieser Liste, 3052 im ganzen Lauf.</p>
 				<h4>Nachbarn mitnehmen</h4>
-				<p>Unter dem gewählten Objekt steht <strong>„Imports in der Nähe wählen"</strong>. Er kreuzt an, was in der Umgebung liegt — mehr nicht; auf die Stage kommen die Treffer über die Auswahlleiste. Das Feld daneben grenzt ein: <em>gleicher Typ</em> (Vorgabe), ein einzelner Typ oder <em>alle Typen</em>. <strong>„Umkreis +"</strong> stellt die Weite, <strong>0 bis 20 Meilen</strong>, Vorgabe 3. Die Zahl im Knopf folgt beidem.</p>
+				<p>In Block G steht <strong>„Imports in der Nähe wählen"</strong>. Er wechselt auf <em>Offen</em>, zeigt die offenen Treffer samt Ausgangsobjekt und kreuzt sie an. Auf die Stage kommen sie über „Auswahl auf die Stage". Das Feld daneben grenzt ein: <em>gleicher Typ</em> (Vorgabe), ein einzelner Typ oder <em>alle Typen</em>. <strong>„Umkreis +"</strong> stellt die Weite, <strong>0 bis 20 Meilen</strong>, Vorgabe 3. Das ✕ am Hinweis „In der Nähe von …" führt zur normalen Liste zurück.</p>
 				<div class="hb-note hb-tip"><strong>„Umkreis +" ist ein Zuschlag, kein Radius.</strong> Gemessen wird ab dem <em>Rand</em> des gewählten Objekts. Eine große Waldfläche ist sonst breiter als ihr eigener Suchkreis und fände nichts.</div>
 				<h4>Die Statuszeile</h4>
-				<p>Unter dem Menüband läuft eine Zeile mit, die jede Rückmeldung des Fensters trägt. In Ruhe steht dort die Bilanz des Laufs: <em>„Lauf … · 4.312 Objekte · 900 mit Vorschlag · 12 auf der Stage"</em>. Nach einem Import steht dort, was entstanden ist — <em>„✓ 4 Objekte importiert — 3 Wege (2 Bäche), 1 Fläche"</em> — und daneben ein <strong>„Rückgängig"</strong>-Link, der die eben angelegten Objekte wieder entfernt.</p>
+				<p>Unter dem Menüband läuft eine Zeile mit, die jede Rückmeldung des Fensters trägt. In Ruhe steht dort die Bilanz des Laufs samt Fortschritt: <em>„Lauf … · 4312 Objekte · 900 mit Vorschlag · 12 auf der Stage · Noch 3906 von 4312 Objekten (90,6%) offen"</em>. Nach einem Import steht dort, was entstanden ist — <em>„✓ 4 Objekte importiert — 3 Wege (2 Bäche), 1 Fläche"</em> — und daneben ein <strong>„Rückgängig"</strong>-Link, der die eben angelegten Objekte wieder entfernt.</p>
 				<div class="hb-note hb-tip"><strong>Ging etwas schief, wird die Zeile rot und nennt den Grund des Servers</strong> — <em>„✕ 1 von 4 nicht importiert: …"</em>. Die Liste bleibt dabei stehen, wie sie war; du verlierst deine Auswahl nicht.</div>
 				<h4>Das Menüband</h4>
 				<p>Drei Kacheln. <strong>„Holen &amp; Rechnen"</strong> und <strong>„Ebenen"</strong> gehören dem Betreiber — sie rufen die fremden Server ab und rechnen den Abgleich neu. <strong>„Angezeigte Zeilen"</strong> stellst du selbst: 1000, 2000, 4000 oder alle. Die Vorgabe ist 1000, weil ein paar tausend Zeilen langsame Rechner ausbremsen.</p>
@@ -1620,10 +1676,11 @@
 				<div class="hb-note hb-warn"><strong>Ein Entwurf geht an die Kanäle, die beim Anlegen angehakt waren</strong> — nicht an die, die gerade daneben stehen. Zum Ändern nimm „Bearbeiten".</div>
 				<h3 id="aenderungen" class="hb-sub">Änderungen</h3>
 				<p class="hb-path"><strong>Editor → Änderungen</strong></p>
-				<p>Das Protokoll aller Editor-Änderungen: wer, was, wann. Deine erste Anlaufstelle, um eine Änderung nachzuvollziehen <em>oder rückgängig zu machen</em>. Aufgeräumt wird <em>je Person</em>: jeder behält seine letzten <strong>200</strong> Einträge.</p>
+				<p>Das Protokoll aller Editor-Änderungen: wer, was, wann. Deine erste Anlaufstelle, um eine Änderung nachzuvollziehen <em>oder rückgängig zu machen</em>. Aufgeräumt wird <em>je Person</em>: jeder behält bis zu <strong>200</strong> Einträge.</p>
 				<p>Über der Liste stehen <strong>„Meine"</strong> und <strong>„Alle"</strong>, daneben ein <strong>Suchfeld</strong> und <strong>„Filter ▾"</strong> mit einem Häkchen je Editor. Ohne Auswahl zeigt die Liste die jüngsten 200 Einträge von allen, mit Auswahl die jüngsten 200 <em>der Ausgewählten</em>. Gesucht wird in dem, was in der Zeile steht — Objekt, Aktion, Erklärzeile, Urheber — und nur im Geladenen, nicht in der ganzen Historie.</p>
 				<p>Hier steht auch, wie über <a href="#meldungen">Meldungen</a> entschieden wurde: <strong>„Meldung angenommen"</strong>, <strong>„Meldung verworfen"</strong> und <strong>„Meldung zurückgestellt"</strong>, mit Namen und Begründung. Diese drei tragen <em>keinen</em> „Rückgängig"-Knopf. Was eine Annahme <em>erzeugt</em> hat (einen Ort, eine Karte), schreibt seinen eigenen Eintrag, und der ist der rücknehmbare.</p>
 				<p><strong>Jede Zeile ist ein Bündel</strong> und klappt über ihr Dreieck auf — auch eine mit nur einer Änderung. Zusammengezogen wird, was <em>dieselbe Person</em> am <em>selben Objekt</em> innerhalb einer Viertelstunde getan hat. Der Knopf zum Zurücknehmen steht <em>in der aufgeklappten Zeile</em>, nicht in der Kopfzeile: <strong>↶</strong> nimmt zurück, <strong>↷</strong> stellt wieder her. Danach steht in der Zeile <em>„Rückgängig gemacht"</em>, und oben entsteht ein <em>neuer</em> Eintrag <em>„Rückgängig: …"</em> — der lässt sich ebenfalls zurücknehmen.</p>
+				<p><strong>Ein Sammelvorgang ist ein Eintrag.</strong> Speichern für eine ganze Straße, Wiki-Zuweisungen an Wegen, eine Kraftlinie samt Umordnung oder Wiki-Übernahmen für viele Orte stehen je als eine Zeile da. <strong>↶</strong> nimmt alles darin gemeinsam zurück; der Tooltip nennt die Zahl.</p>
 				<p><strong>Ein Klick auf die Zeile springt auf der Karte zur Stelle.</strong> Ob das geht, sagt das Zeichen <strong>⊕</strong> am rechten Rand der Zeile: steht es da, gibt es einen Punkt zum Anfliegen. Zeilen ohne das Zeichen — etwa eine Entscheidung über eine Meldung — haben keine Stelle auf der Karte.</p>
 				<div class="hb-note hb-tip"><strong>Strg+Z wirkt hier nicht.</strong> Zurückgenommen wird nur mit einem Klick auf den benannten Eintrag. Die Tastenkombination gehört allein dem Zeichnen von Grenzen (siehe <a href="#territorien">Territorien</a>).</div>
 
@@ -1903,7 +1960,7 @@
 				<p>Das Menü hat <strong>fünf Gruppen</strong>, und der Unterschied ist der Blick. <strong>„Orte"</strong> (die sechs Ortsklassen als Bildknöpfe) und <strong>„Ebenen"</strong> sagen, was die Karte <em>zeigt</em> — die beiden sieht jeder Besucher. <strong>„Prüfen"</strong> zeigt in zwei Spalten, was an der Karte <em>nicht stimmt</em>, <strong>„Mapstil"</strong> wechselt den Kartengrund, und <strong>„Freie Labels markieren"</strong> leuchtet eine Beschriftungsart an. Die letzten drei tragen neben der Überschrift den Zusatz <em>„nur Editoren"</em> und stehen erst im Bearbeiten-Modus da.</p>
 				<table class="hb-table">
 					<tr><th>Häkchen</th><th>Zeigt</th></tr>
-					<tr><td><strong>Wege</strong> / <strong>Flüsse und Seen</strong> / <strong>Seewege</strong></td><td>Die Linien der jeweiligen Sorte. <strong>Flüsse und Seen</strong> nimmt die Seeflächen mit, aber nicht die Seenamen — die hängen an <em>Beschriftungen</em>. <strong>Seewege</strong> ist als einzige Zeile der Gruppe „Ebenen" auf den Bearbeiten-Modus beschränkt — außerhalb wäre der Haken wirkungslos.</td></tr>
+					<tr><td><strong>Wege</strong> / <strong>Flüsse</strong> / <strong>Seewege</strong></td><td>Die Linien der jeweiligen Sorte. In den <em>Landschaften</em> heißt die Flusszeile <strong>„Flüsse und Seen"</strong> und blendet auch die Seeflächen aus, aber nicht die Seenamen — die hängen an <em>Beschriftungen</em>. In den anderen Ansichten sind Seen Teil der Kartengrafik. <strong>Seewege</strong> ist als einzige Zeile der Gruppe „Ebenen" auf den Bearbeiten-Modus beschränkt — außerhalb wäre der Haken wirkungslos.</td></tr>
 					<tr><td><strong>Labels</strong></td><td>Die Beschriftungen der Karte. <em>Übersteuert den Kartenmodus in beide Richtungen:</em> abgehakt sind sie weg, wo der Modus sie zeigen würde — angehakt da, wo er sie unterdrückt.</td></tr>
 					<tr><td><strong>Grenzen</strong></td><td>Die Territoriengrenzen, ebenfalls als Übersteuerung des Modus. Beide Haken gibt es, weil Beschriftungen und Grenzen beim Zeichnen im Weg stehen.</td></tr>
 					<tr><td><strong>Kreuzungen</strong></td><td>Alle Knotenpunkte des Wegenetzes.</td></tr>
@@ -1922,7 +1979,7 @@
 				<div class="hb-note hb-tip"><strong>Ein markierter Name wird auf jeder Zoomstufe gezeichnet</strong> — auch unterhalb der Stufe, ab der er sonst erscheint. Nur das Zoomband fällt weg: der Haken „Labels" und die gewählte Ansicht gelten weiter. Treffen violetter und karminroter Kasten denselben Namen, gewinnt der violette.</div>
 				<div class="hb-note hb-tip"><strong>Die Prüf-Häkchen holen ihre Funde hervor, statt sie nur zu markieren.</strong> <em>„Unverbunden"</em>, <em>„Kreuzungen mit 2 Wegen"</em>, <em>„Kreuzungen"</em> und <em>„Offene Wegenden"</em> zeigen ihre Funde unabhängig davon, welche Ortsgrößen an sind und wie weit du herausgezoomt hast. Der Bildausschnitt gilt weiterhin. Im Menü tragen ihre Zeilen <strong>den Marker selbst als Zeichen</strong> — dunkler Kern, farbiger Ring —, die Farbe steht also schon in der Zeile.</div>
 				<div class="hb-note hb-tip"><strong>Einen türkisen Fund kannst du melden, statt ihn selbst aufzulösen.</strong> Ein Klick auf die Kreuzung öffnet ihr Popup; darin steht neben „Zu Ort konvertieren" und „Kreuzung verschieben" die Kachel <strong>„Kreuzung melden"</strong>. Sie legt eine Zeile in die Zwischenablage — die Wegart und ein Link direkt auf die Stelle. <strong>Nicht die Nummer melden:</strong> „Kreuzung-2090" ist ein Zähler deines Browsers und rutscht, sobald jemand eine Kreuzung früher einsortiert — am nächsten Tag wäre sie falsch, der Link nicht.</div>
-				<div class="hb-note hb-tip"><strong>Ein ausgegrauter Schalter ist nicht kaputt.</strong> Manche Ansichten sperren einen Schalter ohnehin — dann ist seine Zeile grau und nennt im Titel den Grund. <strong>Kraftlinien</strong> sperrt Wege, Flüsse und Seen, Seewege, „Offene Wegenden", Grenzen und die Ortsklassen (dort zeichnet die „Magiersicht" nichts davon), <strong>Nur Karte</strong> sperrt die Grenzen, weil in dieser Ansicht gar keine Gebietsdaten geladen werden. Sein Zustand bleibt dabei unangetastet: Zurück in einer Ansicht, in der er wirkt, steht er wieder so, wie du ihn gelassen hast.</div>
+				<div class="hb-note hb-tip"><strong>Ein ausgegrauter Schalter ist nicht kaputt.</strong> Manche Ansichten sperren einen Schalter ohnehin — dann ist seine Zeile grau und nennt im Titel den Grund. <strong>Kraftlinien</strong> sperrt Wege, Flüsse, Seewege, „Offene Wegenden", Grenzen und die Ortsklassen (dort zeichnet die „Magiersicht" nichts davon), <strong>Nur Karte</strong> sperrt die Grenzen, weil in dieser Ansicht gar keine Gebietsdaten geladen werden. Sein Zustand bleibt dabei unangetastet: Zurück in einer Ansicht, in der er wirkt, steht er wieder so, wie du ihn gelassen hast.</div>
 				<div class="hb-note hb-tip"><strong>„Labels" und „Grenzen" halten nicht über einen Moduswechsel hinweg.</strong> Bei jedem Wechsel des Kartenmodus springen beide auf das zurück, was der neue Modus von sich aus zeigt. Sie sind eine Abweichung <em>nach</em> dem Wechsel, kein Dauerzustand.</div>
 
 				<h3 id="n-menues" class="hb-sub">Die beiden Kontextmenüs</h3>
@@ -2014,7 +2071,7 @@
 					<tr><td><strong>Dump</strong></td><td>Eine vollständige Kopie des Wikis, die wir am Stück einlesen — schonender als Seite-für-Seite-Abrufe.</td></tr>
 					<tr><td><strong>Kraftlinie</strong></td><td>Ein eigener Linientyp auf der Karte, unabhängig vom Wegenetz.</td></tr>
 					<tr><td><strong>Kreuzung</strong></td><td>Ein Knotenpunkt im Wegenetz ohne eigenen Ort. Sinnvoll erst ab drei zusammentreffenden Wegen.</td></tr>
-					<tr><td><strong>Namensgruppe</strong></td><td>Alle Segmente, die zusammen <em>eine</em> Straße oder einen Fluss bilden. Der Wiki-Name gilt für die ganze Gruppe.</td></tr>
+					<tr><td><strong>Namensgruppe</strong></td><td>Alle Abschnitte mit demselben Namen. Sie bilden zusammen <em>eine</em> Straße oder einen Fluss, auch über Lücken.</td></tr>
 					<tr><td><strong>Nodix</strong></td><td>Ein Kraftlinien-Knotenpunkt; als Option an Orten und Beschriftungen setzbar.</td></tr>
 					<tr><td><strong>Querfeldein</strong></td><td>Der Umweg quer durchs Gelände, den die Routenberechnung nimmt, wenn kein Weg hinführt.</td></tr>
 					<tr><td><strong>Schraffur</strong></td><td>Die diagonale Musterung umstrittener Gebiete.</td></tr>
