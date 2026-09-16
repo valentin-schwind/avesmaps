@@ -19,6 +19,18 @@ Abnahmepunkte aus dem Entwurf: Gruppenvollständigkeit, Grenzen, Konflikte, fest
 
 Auslieferungsprüfung: Der Pilot wurde isoliert auf `801493bd2` übernommen. Dort wurden alle 446 PHP- und 635 JavaScript-Testdateien unter Linux mit LF ausgeführt; einzig der bekannte externe DNS-Test blieb rot. Ein inzwischen ergänzter Clienttest musste seinen Funktionsausschnitt unabhängig von der erweiterten Parameterliste finden; seine fachlichen Assertions bleiben unverändert. Auch auf diesem Stand bestanden die echten MySQL-Abläufe mit 1/27/250 Mitgliedern und dem gesperrten letzten Abschnitt. Hell-/Dunkelansicht, Wiederherstellung und Kartensprung aus dem Sammelbeleg wurden in der lokalen Browser-Fixture geprüft.
 
+## Zweiter Ausbau: Saisonweitergabe
+
+Die Saisonweitergabe aus dem Abschnittsdialog nutzt denselben vollständigen Sammelbeleg wie der Wege-Pilot. Ausgangsabschnitt und tatsächlich geänderte Wiki-Geschwister werden zusammen erfasst; gleichzeitig gespeicherte Abschnittsdetails gehören ausdrücklich zur Rücknahme. Die Darstellung nennt deshalb „Abschnittsdetails, Saisonfenster“. Ohne veränderte Geschwister bleibt der bestehende Einzelbeleg erhalten. Historische Belege werden nicht nachträglich gruppiert.
+
+Die Kandidaten werden vor der Transaktion gelesen, anschließend werden Ausgangsabschnitt und aktive Geschwister einzeln nach aufsteigender interner ID gesperrt. Der JSON-Scan selbst sperrt keine Kartenzeilen und erzeugt keinen alten Lesesnapshot innerhalb der Transaktion. Eine inzwischen geänderte Zuordnung bricht ab. Maximal 250 Abschnitte werden zugelassen; auch eine reine Detailänderung an einem größeren Wiki-Verbund wird abgelehnt, weil dieser Schreibweg die Saisonweitergabe bisher bei jedem Speichern ausführt. Die Snapshot- und Aufbewahrungsgrenzen des Piloten gelten unverändert. Jede tatsächlich geschriebene Geschwisteränderung prüft jetzt auch die Bearbeitungssperre.
+
+Abnahme: 1/27/250 Abschnitte, eigener Ausgangsabschnitt am Ende der ID-Reihenfolge, unterschiedliche Verkehrsmittel, Entfernen und Wiederherstellen der Fenster, unveränderte Geschwister, fehlende Wiki-Zuordnung, Grenze 251, fremde Sperre und Fehler am letzten Update, späterer Konflikt beim Undo. Gleichzeitige Namensänderungen am Ausgangsabschnitt müssen mit zurückgenommen werden. Der gesamte Vorgang bleibt in einer Transaktion; Strg-Z und die Reichweite über `wiki_path.wiki_key` bleiben unverändert.
+
+Prüfergebnis des zweiten Ausbaus: Die MySQL-8-Abläufe mit 1/27/250 Abschnitten bestehen (250er-Speichern lokal rund 208 ms, Listenantwort 534 Bytes). Eine unbeteiligte Kartenzeile bleibt während der Gruppensperren aus einer zweiten Verbindung schreibbar. Ein separater Prozess hielt den letzten Abschnitt gesperrt und setzte vor Freigabe eine fremde Editorsperre: Der wartende Speichervorgang erkannte sie und brach ohne Änderungen oder Auditbeleg ab.
+
+Der vollständige Linux-/LF-Lauf umfasst nun 447 PHP- und 635 JavaScript-Dateien; nur der bekannte externe DNS-Test blieb lokal rot. Die lokale Browser-Fixture mit Original-Verlaufs- und Rücknahmefunktionen zeigte nach Speichern 27 Saisonfenster, nach Undo null und nach Redo wieder 27; die gleichzeitig geänderten Abschnittsdetails wurden mit zurückgenommen. Helle und dunkle Darstellung wurden geprüft. Wie beim Piloten ersetzt diese Fixture Anmeldung und Teile der Kartenumgebung.
+
 ## Ergebnis
 
 Sammel-Undos sind machbar. Der erste geeignete Anwendungsfall ist die Bearbeitung einer Wegegruppe. Eine reine Zusammenfassung der Anzeige reicht nicht: Gruppenzugehörigkeit, Vollständigkeit, Konfliktprüfung und Aufbewahrung müssen gemeinsam umgesetzt werden. Die Einzeländerungen bleiben als Belege erhalten; eine Operation verbindet sie.

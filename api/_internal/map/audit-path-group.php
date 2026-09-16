@@ -162,7 +162,8 @@ function avesmapsUndoPathGroupAudit(PDO $pdo, array $entry, array $user): array 
 }
 
 function avesmapsPathGroupAuditDetail(array $snapshot): string {
-    $labels = ['name' => 'Name', 'feature_subtype' => 'Wegart', 'show_label' => 'Beschriftung', 'allowed_transports' => 'Verkehrsmittel'];
+    $labels = ['name' => 'Name', 'feature_subtype' => 'Wegart', 'show_label' => 'Beschriftung', 'allowed_transports' => 'Verkehrsmittel',
+        'details' => 'Abschnittsdetails', 'transport_seasons' => 'Saisonfenster'];
     $fields = [];
     foreach (is_array($snapshot['fields'] ?? null) ? $snapshot['fields'] : [] as $field) {
         if (is_string($field) && isset($labels[$field])) {
