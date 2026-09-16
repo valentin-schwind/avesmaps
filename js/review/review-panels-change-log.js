@@ -359,7 +359,13 @@ function changeLogFilterEntries(entries, selected) {
 }
 
 function formatChangeAction(action) {
-	const powerlineGroups = {
+	const groupActions = {
+		assign_wiki_path_group: "Wiki-Wege zugewiesen",
+		clear_wiki_path_group: "Wiki-Zuordnung gelöst",
+		undo_assign_wiki_path_group: "Wiki-Zuweisung zurückgenommen",
+		undo_clear_wiki_path_group: "Lösen der Wiki-Zuordnung zurückgenommen",
+		undo_undo_assign_wiki_path_group: "Wiki-Zuweisung wiederhergestellt",
+		undo_undo_clear_wiki_path_group: "Lösen der Wiki-Zuordnung wiederhergestellt",
 		update_powerline_group: "Kraftlinie geändert",
 		reorder_powerline_group: "Kraftlinie umgeordnet",
 		undo_update_powerline_group: "Kraftlinie zurückgenommen",
@@ -367,8 +373,8 @@ function formatChangeAction(action) {
 		undo_undo_update_powerline_group: "Kraftlinie wiederhergestellt",
 		undo_undo_reorder_powerline_group: "Umordnung wiederhergestellt",
 	};
-	if (Object.hasOwn(powerlineGroups, action)) {
-		return powerlineGroups[action];
+	if (Object.hasOwn(groupActions, action)) {
+		return groupActions[action];
 	}
 	if (action === "undo_update_path_group_details") {
 		return "Wegegruppe zurückgenommen";
@@ -1148,7 +1154,7 @@ async function undoChangeLogEntry(entry) {
 			if (Array.isArray(members) && result.feature.feature_type === "powerline") {
 				applyPowerlineGroupAuditResponse(members, result.feature.source_payload);
 			} else if (Array.isArray(members)) {
-				applyPathGroupAuditResponse(members);
+				applyPathGroupAuditResponse(members, result.feature.kanon_je_kennung);
 			} else {
 				applyMapFeatureEditResult(result);
 			}

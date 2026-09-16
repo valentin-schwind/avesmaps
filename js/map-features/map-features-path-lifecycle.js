@@ -80,7 +80,10 @@ function applyPathFeatureResponse(path, feature, { deferRefresh = false } = {}) 
 }
 
 // Erst den ganzen Bestand übernehmen, danach Darstellung und Planer einmal aktualisieren.
-function applyPathGroupAuditResponse(features) {
+function applyPathGroupAuditResponse(features, kanonJeKennung) {
+	if (kanonJeKennung && typeof window.avesmapsKanonTafelNachtragen === "function") {
+		window.avesmapsKanonTafelNachtragen("path", kanonJeKennung);
+	}
 	const changed = [];
 	for (const feature of features) {
 		const path = findPathByPublicId(feature.id);
@@ -101,6 +104,15 @@ function applyPathGroupAuditResponse(features) {
 			updatePathLayerGeometry(path);
 			updatePathLayerStyle(path);
 			refreshPathLayerPopup(path);
+		}
+	}
+	const changedIds = new Set(features.map((feature) => feature.id));
+	for (const publicId of Object.keys(kanonJeKennung || {})) {
+		if (!changedIds.has(publicId)) {
+			const neighbor = findPathByPublicId(publicId);
+			if (neighbor) {
+				refreshPathLayerPopup(neighbor);
+			}
 		}
 	}
 	syncPathVisibility();

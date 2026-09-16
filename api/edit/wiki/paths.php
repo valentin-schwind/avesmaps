@@ -255,6 +255,10 @@ try {
     // Satz ohne Interna, 503 weil die Ursache draussen liegt. Begruendung samt Reihenfolge-Falle:
     // api/edit/wiki/settlements.php.
     avesmapsErrorResponse(503, 'wiki_unreachable', $error->getMessage());
+} catch (AvesmapsConflictException $error) {
+    avesmapsErrorResponse(409, 'edit_conflict', $error->getMessage());
+} catch (InvalidArgumentException $error) {
+    avesmapsErrorResponse(400, 'invalid_request', $error->getMessage());
 } catch (RuntimeException $error) {
     // Deliberate hand-written validation messages (English, no internals) -- surface them so
     // editors see WHY an action was refused instead of a masked 500 (M3 envelope direction).

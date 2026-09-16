@@ -8,9 +8,14 @@ let index = 0;
 let rendered = 0;
 const paths = Array.from({ length: 249 }, (_, i) => ({
     id: String(i), geometry: { type: "LineString", coordinates: [[1, 2], [3, 4]] },
-    properties: { public_id: String(i), id: `path-${i}`, name: "Neu", show_label: true, allowed_transports: ["groupFoot"] },
+    properties: { public_id: String(i), id: `path-${i}`, name: "Neu", show_label: true, wiki_path: { wiki_key: "neu" }, wiki_path_weitere: [{ wiki_key: "weiter" }], allowed_transports: ["groupFoot"] },
 }));
 const sandbox = {
+    window: { avesmapsKanonTafelNachtragen: (type, values) => {
+        assert.strictEqual(type, "path");
+        assert.strictEqual(values["0"].kanon, "inoffiziell");
+        sandbox.kanonUpdated = true;
+    } },
     pathData: paths, pathLayers: [],
     getPathPublicId: (p) => p.id,
     getPathDisplayName: (p) => p.properties.name,
@@ -33,14 +38,15 @@ for (const file of ["map-features-path-prepare.js", "map-features-path-lifecycle
 const features = Array.from({ length: 250 }, (_, i) => ({
     type: "Feature", id: String(i), geometry: { type: "LineString", coordinates: [[5, 6], [7, 8]] },
     properties: { public_id: String(i), name: "Alt", feature_subtype: "Weg", revision: 99 },
-    removed_properties: ["show_label", "allowed_transports"],
+    removed_properties: ["show_label", "allowed_transports", "wiki_path", "wiki_path_weitere"],
 }));
 // Der letzte Abschnitt fehlt lokal und wird aus der Serverantwort ergänzt.
 sandbox.refreshPathLayerPopup = () => {
+    assert.strictEqual(sandbox.kanonUpdated, true, "Kanon steht vor dem ersten Popup bereit");
     assert(paths.slice(0, 249).every((p) => p.properties.name === "Alt"));
     assert(paths.length === 250);
 };
-sandbox.applyPathGroupAuditResponse(features);
+sandbox.applyPathGroupAuditResponse(features, { "0": { kanon: "inoffiziell" } });
 assert.strictEqual(planner, 1);
 assert.strictEqual(index, 1);
 assert.strictEqual(rendered, 249);
@@ -48,8 +54,16 @@ assert.strictEqual(paths.length, 250);
 for (const p of paths) {
     assert.strictEqual(Object.hasOwn(p.properties, "show_label"), false);
     assert.strictEqual(Object.hasOwn(p.properties, "allowed_transports"), false);
+    assert.strictEqual(Object.hasOwn(p.properties, "wiki_path"), false);
+    assert.strictEqual(Object.hasOwn(p.properties, "wiki_path_weitere"), false);
     assert.strictEqual(p.properties.display_name, "Alt");
 }
 assert.strictEqual(paths[0].properties.id, "path-0", "lokale Routing-Kennung bleibt erhalten");
 assert.strictEqual(sandbox.pathLayers.length, 1);
 console.log("OK: entfernte Eigenschaften verschwinden, 250 Abschnitte aktualisieren den Planer einmal.");
+
+const refreshed = [];
+sandbox.refreshPathLayerPopup = (entry) => refreshed.push(entry.id);
+sandbox.applyPathGroupAuditResponse([features[0]], { "0": { kanon: "inoffiziell" }, "1": null });
+assert.deepStrictEqual(refreshed, ["0", "1"], "unveränderte Kanonnachbarn erneuern ihr Popup genau einmal");
+assert.strictEqual(planner, 2, "auch mit Nachbarn nur eine weitere Planeraktualisierung");

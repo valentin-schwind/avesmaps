@@ -73,6 +73,7 @@ $pdo->exec('CREATE TABLE map_features (
     is_active INTEGER DEFAULT 1, revision INTEGER DEFAULT 0, sort_order INTEGER DEFAULT 1,
     updated_by INTEGER NULL, min_x REAL, min_y REAL, max_x REAL, max_y REAL)');
 $pdo->exec('CREATE TABLE map_revision (id INTEGER PRIMARY KEY, revision INTEGER)');
+$pdo->exec('CREATE TABLE map_feature_locks (public_id TEXT PRIMARY KEY, user_id INTEGER, username TEXT, locked_until TEXT)');
 $pdo->exec('CREATE TABLE map_audit_log (id INTEGER PRIMARY KEY AUTOINCREMENT, feature_id INTEGER NULL, action TEXT,
     actor_user_id INTEGER, before_json TEXT, after_json TEXT, created_at TEXT NULL)');
 $pdo->exec('CREATE TABLE wiki_path_staging (id INTEGER PRIMARY KEY AUTOINCREMENT, wiki_key TEXT, name TEXT, kind TEXT, art TEXT,
@@ -85,7 +86,7 @@ $pdo->exec("INSERT INTO wiki_path_staging (wiki_key, name, kind, art, continent,
 
 $weg = static function (string $publicId, string $name, array $properties) use ($pdo): void {
     $st = $pdo->prepare("INSERT INTO map_features (public_id, name, feature_type, feature_subtype, geometry_type, geometry_json, properties_json)
-                         VALUES (:id, :name, 'path', 'Strasse', 'LineString', '{}', :p)");
+                         VALUES (:id, :name, 'path', 'Strasse', 'LineString', '{\"type\":\"LineString\",\"coordinates\":[[1,2],[3,4]]}', :p)");
     $st->execute(['id' => $publicId, 'name' => $name, 'p' => json_encode($properties, JSON_UNESCAPED_UNICODE)]);
 };
 $haken = static function (string $publicId) use ($pdo) {

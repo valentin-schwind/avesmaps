@@ -52,6 +52,7 @@ $pdo->exec('CREATE TABLE map_features (
     is_active INTEGER DEFAULT 1, revision INTEGER DEFAULT 0, sort_order INTEGER DEFAULT 1,
     updated_by INTEGER NULL, min_x REAL, min_y REAL, max_x REAL, max_y REAL)');
 $pdo->exec('CREATE TABLE map_revision (id INTEGER PRIMARY KEY, revision INTEGER)');
+$pdo->exec('CREATE TABLE map_feature_locks (public_id TEXT PRIMARY KEY, user_id INTEGER, username TEXT, locked_until TEXT)');
 $pdo->exec('CREATE TABLE map_audit_log (id INTEGER PRIMARY KEY AUTOINCREMENT, feature_id INTEGER NULL, action TEXT,
     actor_user_id INTEGER, before_json TEXT, after_json TEXT, created_at TEXT NULL)');
 $pdo->exec('CREATE TABLE wiki_path_staging (id INTEGER PRIMARY KEY AUTOINCREMENT, wiki_key TEXT, name TEXT, kind TEXT, art TEXT,
@@ -61,7 +62,7 @@ $pdo->exec("INSERT INTO wiki_path_staging (wiki_key, name, kind, art, wiki_url, 
             VALUES ('b-renpfad', 'Bärenpfad', 'strasse', 'Pilgerweg', 'https://de.wiki-aventurica.de/wiki/B%C3%A4renpfad', '')");
 
 $pdo->exec("INSERT INTO map_features (public_id, name, feature_type, feature_subtype, geometry_type, geometry_json, properties_json)
-            VALUES ('rs-7', 'Reichsstraße 2', 'path', 'Reichsstrasse', 'LineString', '{}',
+            VALUES ('rs-7', 'Reichsstraße 2', 'path', 'Reichsstrasse', 'LineString', '{\"type\":\"LineString\",\"coordinates\":[[1,2],[3,4]]}',
             '" . json_encode([
                 'name' => 'Reichsstraße 2',
                 'wiki_path' => ['wiki_key' => 'reichsstrasse-2', 'name' => 'Reichsstraße 2'],

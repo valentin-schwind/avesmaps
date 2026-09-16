@@ -160,6 +160,18 @@ function avesmapsPowerlineGroupSourcePayload(PDO $pdo, array $snapshot): array {
             'pages' => (string) ($link['pages'] ?? ''), 'reference_kind' => (string) ($link['reference_kind'] ?? ''),
             'note' => (string) ($link['note'] ?? '')];
     }
+    [$catalog, $editorSources] = avesmapsMapGroupSourceCatalog($pdo, $sourceIds);
+    $refs = [];
+    foreach ($byEntity as $id => $links) {
+        $refs['powerline:' . $id] = $links;
+    }
+
+    return ['anchor' => $ids[0], 'sources' => $editorSources, 'by_entity' => $byEntity,
+        'kanon_je_kennung' => avesmapsFeatureSourcesKanonAusEingaben('powerline', $ids, $catalog, $refs, $namespaces)];
+}
+
+// Gemeinsamer begrenzter Katalogleser für Quellen- und Kanonnachträge; ohne DDL.
+function avesmapsMapGroupSourceCatalog(PDO $pdo, array $sourceIds): array {
     $catalog = [];
     $editorSources = [];
     if ($sourceIds !== []) {
@@ -187,11 +199,5 @@ function avesmapsPowerlineGroupSourcePayload(PDO $pdo, array $snapshot): array {
             $editorSources[] = $entry + ['source_id' => (int) $row['id'], 'corpus' => $corpora[$key] ?? null];
         }
     }
-    $refs = [];
-    foreach ($byEntity as $id => $links) {
-        $refs['powerline:' . $id] = $links;
-    }
-
-    return ['anchor' => $ids[0], 'sources' => $editorSources, 'by_entity' => $byEntity,
-        'kanon_je_kennung' => avesmapsFeatureSourcesKanonAusEingaben('powerline', $ids, $catalog, $refs, $namespaces)];
+    return [$catalog, $editorSources];
 }

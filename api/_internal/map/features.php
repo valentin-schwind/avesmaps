@@ -24,6 +24,7 @@ require_once __DIR__ . '/field-origins.php';
 require_once __DIR__ . '/../audit-prune.php';
 require_once __DIR__ . '/audit-path-group.php';
 require_once __DIR__ . '/audit-powerline-group.php';
+require_once __DIR__ . '/audit-wiki-path-group.php';
 require_once __DIR__ . '/path-seasons-edit.php';
 require_once __DIR__ . '/../schema-ensure-once.php';
 

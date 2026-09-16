@@ -20,6 +20,7 @@ require_once __DIR__ . '/../paths.php';
 final class AvesmapsGruppeIdsTestPdo extends PDO {
     public function prepare(string $query, array $options = []): PDOStatement|false {
         $query = str_replace('FOR UPDATE', '', $query);
+        $query = str_replace('CURRENT_TIMESTAMP(3)', 'CURRENT_TIMESTAMP', $query);
         $query = str_replace('NOW(3)', "datetime('now')", $query);
         if (stripos($query, 'information_schema') !== false) {
             return parent::prepare('SELECT 1');
@@ -27,6 +28,9 @@ final class AvesmapsGruppeIdsTestPdo extends PDO {
         return parent::prepare($query, $options);
     }
     public function query(string $query, ?int $fetchMode = null, mixed ...$fetchModeArgs): PDOStatement|false {
+        if (str_starts_with($query, 'SHOW COLUMNS FROM ')) {
+            $query = "SELECT name AS Field FROM pragma_table_info('map_audit_log')";
+        }
         if (stripos($query, 'information_schema') !== false) {
             return parent::query('SELECT 1');
         }
@@ -51,6 +55,7 @@ $pdo->exec('CREATE TABLE map_features (
     is_active INTEGER DEFAULT 1, revision INTEGER DEFAULT 0, sort_order INTEGER DEFAULT 1,
     updated_by INTEGER NULL, min_x REAL, min_y REAL, max_x REAL, max_y REAL)');
 $pdo->exec('CREATE TABLE map_revision (id INTEGER PRIMARY KEY, revision INTEGER)');
+$pdo->exec('CREATE TABLE map_feature_locks (public_id TEXT PRIMARY KEY, user_id INTEGER, username TEXT, locked_until TEXT)');
 $pdo->exec('CREATE TABLE map_audit_log (id INTEGER PRIMARY KEY AUTOINCREMENT, feature_id INTEGER NULL, action TEXT,
     actor_user_id INTEGER, before_json TEXT, after_json TEXT, created_at TEXT NULL)');
 $pdo->exec('CREATE TABLE wiki_path_staging (id INTEGER PRIMARY KEY AUTOINCREMENT, wiki_key TEXT, name TEXT, kind TEXT, art TEXT,
@@ -61,7 +66,7 @@ $pdo->exec("INSERT INTO wiki_path_staging (wiki_key, name, kind, art, wiki_url, 
 
 $weg = static function (string $publicId, string $name, string $subtype, array $properties) use ($pdo): void {
     $st = $pdo->prepare("INSERT INTO map_features (public_id, name, feature_type, feature_subtype, geometry_type, geometry_json, properties_json)
-                         VALUES (:id, :name, 'path', :sub, 'LineString', '{}', :p)");
+                         VALUES (:id, :name, 'path', :sub, 'LineString', '{\"type\":\"LineString\",\"coordinates\":[[1,2],[3,4]]}', :p)");
     $st->execute(['id' => $publicId, 'name' => $name, 'sub' => $subtype, 'p' => json_encode($properties, JSON_UNESCAPED_UNICODE)]);
 };
 $props = static function (string $publicId) use ($pdo): array {
@@ -159,12 +164,12 @@ assert(str_contains($endpunkt, "avesmapsRequireUserWithCapability('review')"), '
 // 8. Der geteilte Leser beider Funktionen: Riegel und IN-Abfrage stehen an EINER Stelle, nicht je Funktion.
 // Er normalisiert selbst (ein PHP-Aufrufer muss nicht durch den Rumpf-Leser) und liefert nur aktive, benannte Wege.
 $pdo->exec("INSERT INTO map_features (public_id, name, feature_type, feature_subtype, geometry_type, geometry_json, properties_json, is_active)
-            VALUES ('alt', 'Alte Straße', 'path', 'Strasse', 'LineString', '{}', '{}', 0)");
+            VALUES ('alt', 'Alte Straße', 'path', 'Strasse', 'LineString', '{\"type\":\"LineString\",\"coordinates\":[[1,2],[3,4]]}', '{}', 0)");
 $pdo->exec("INSERT INTO map_features (public_id, name, feature_type, feature_subtype, geometry_type, geometry_json, properties_json)
-            VALUES ('ohne-name', '', 'path', 'Strasse', 'LineString', '{}', '{}')");
+            VALUES ('ohne-name', '', 'path', 'Strasse', 'LineString', '{\"type\":\"LineString\",\"coordinates\":[[1,2],[3,4]]}', '{}')");
 $pdo->exec("INSERT INTO map_features (public_id, name, feature_type, feature_subtype, geometry_type, geometry_json, properties_json)
             VALUES ('ort', 'Alte Straße', 'location', 'dorf', 'Point', '{}', '{}')");
-$zeilen = avesmapsWikiPathGruppenZeilen($pdo, [' g-2 ', 'g-1', 'g-2', 'alt', 'ohne-name', 'ort', 'fehlt'], 'g-1', false);
+$zeilen = avesmapsWikiPathGruppenZeilen($pdo, [' g-2 ', 'g-1', 'g-2'], 'g-1', false);
 $gelesen = array_column($zeilen, 'public_id');
 sort($gelesen);
 assert($gelesen === ['g-1', 'g-2'], 'normalisiert, nur aktive benannte Wege: ' . json_encode($gelesen));
@@ -172,6 +177,7 @@ foreach (['id', 'public_id', 'name', 'feature_subtype', 'properties_json'] as $s
     assert(array_key_exists($spalte, $zeilen[0]), "beide Aufrufer brauchen die Spalte $spalte");
 }
 foreach ([
+    'unvollständige Gruppe' => static fn() => avesmapsWikiPathGruppenZeilen($pdo, ['g-1', 'alt', 'ohne-name', 'ort', 'fehlt'], 'g-1', false),
     'single_segment' => static fn() => avesmapsWikiPathGruppenZeilen($pdo, ['g-1'], 'g-1', true),
     'Anker nicht in der Liste' => static fn() => avesmapsWikiPathGruppenZeilen($pdo, ['g-2'], 'g-1', false),
     'leere Liste' => static fn() => avesmapsWikiPathGruppenZeilen($pdo, [], 'g-1', false),

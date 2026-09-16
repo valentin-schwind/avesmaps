@@ -6,6 +6,8 @@ require_once __DIR__ . '/../audit-focus.php';
 
 // Ein Request, eine Transaktion, ein unteilbarer Beleg. Keine Gruppierung nach Uhrzeit.
 const AVESMAPS_MAP_GROUP_AUDIT_ACTIONS = [
+    'assign_wiki_path_group', 'undo_assign_wiki_path_group', 'undo_undo_assign_wiki_path_group',
+    'clear_wiki_path_group', 'undo_clear_wiki_path_group', 'undo_undo_clear_wiki_path_group',
     'update_path_group_details',
     'undo_update_path_group_details',
     'undo_undo_update_path_group_details',
@@ -64,13 +66,16 @@ function avesmapsPruneMapGroupAuditBytes(PDO $pdo, int $actorId): void {
     foreach ([true, false] as $actorOnly) {
         $where = 'action IN (' . $actions . ')' . ($actorOnly ? ' AND actor_user_id = :actor' : '');
         $parameters = $actorOnly ? ['actor' => $actorId] : [];
-        $read = $pdo->prepare('SELECT id, LENGTH(before_json) + LENGTH(after_json) AS bytes FROM map_audit_log WHERE '
-            . $where . ' ORDER BY id DESC');
+        // MySQL kann beim Filesort auch die großen JSON-Werte materialisieren. Deshalb nur die
+        // begrenzte Liste aus IDs und Bytezahlen nach dem Lesen sortieren.
+        $read = $pdo->prepare('SELECT id, LENGTH(before_json) + LENGTH(after_json) AS bytes FROM map_audit_log WHERE ' . $where);
         $read->execute($parameters);
         $budget = $actorOnly ? AVESMAPS_MAP_GROUP_AUDIT_ACTOR_BYTES : AVESMAPS_MAP_GROUP_AUDIT_GLOBAL_BYTES;
         $used = 0;
         $cutoff = null;
-        foreach ($read->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $rows = $read->fetchAll(PDO::FETCH_ASSOC);
+        usort($rows, static fn(array $left, array $right): int => (int) $right['id'] <=> (int) $left['id']);
+        foreach ($rows as $row) {
             $used += (int) $row['bytes'];
             if ($used > $budget) {
                 $cutoff = (int) $row['id'];
@@ -184,11 +189,13 @@ function avesmapsUndoMapGroupAudit(PDO $pdo, array $entry, array $user): array {
     avesmapsMarkAuditEntryUndone($pdo, (int) $entry['id'], (int) $user['id'], $undoId);
 
     return ['revision' => $revision, 'features' => $responses, 'steps' => count($responses), 'feature_type' => $featureType,
-        'source_payload' => $full ? avesmapsPowerlineGroupSourcePayload($pdo, $before) : null];
+        'source_payload' => $full ? avesmapsPowerlineGroupSourcePayload($pdo, $before) : null,
+        'kanon_je_kennung' => str_contains($entry['action'], 'wiki_path_group')
+            ? avesmapsWikiPathGroupKanon($pdo, $before, $after) : null];
 }
 
 function avesmapsMapGroupAuditDetail(array $snapshot): string {
-    $labels = ['name' => 'Name', 'feature_subtype' => 'Wegart', 'show_label' => 'Beschriftung', 'allowed_transports' => 'Verkehrsmittel',
+    $labels = ['wiki_path' => 'Wiki-Zuordnung und Wegname', 'name' => 'Name', 'feature_subtype' => 'Wegart', 'show_label' => 'Beschriftung', 'allowed_transports' => 'Verkehrsmittel',
         'details' => 'Abschnittsdetails', 'transport_seasons' => 'Saisonfenster',
         'powerline_details' => 'Name, Darstellung und Beschreibung', 'rewire' => 'Verbindungen und Quellenzuordnung'];
     $fields = [];
@@ -199,4 +206,21 @@ function avesmapsMapGroupAuditDetail(array $snapshot): string {
     }
 
     return (int) ($snapshot['count'] ?? 0) . ' Abschnitte gemeinsam · ' . implode(', ', $fields);
+}
+
+// JSON-Objekte sind ungeordnet; Listen behalten dagegen ihre Reihenfolge und Skalare ihren Typ.
+function avesmapsMapGroupNormalizeJson(mixed $value, int $depth = 0): mixed {
+    if (!is_array($value)) {
+        return $value;
+    }
+    if ($depth > 64) {
+        throw new InvalidArgumentException('Die Eigenschaften sind zu tief verschachtelt.');
+    }
+    if (!array_is_list($value)) {
+        ksort($value, SORT_STRING);
+    }
+    foreach ($value as $key => $entry) {
+        $value[$key] = avesmapsMapGroupNormalizeJson($entry, $depth + 1);
+    }
+    return $value;
 }

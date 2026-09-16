@@ -87,6 +87,8 @@ $erwarteteKetten = [
     'paths.php' => [
         'PDOException $error',
         'AvesmapsWikiUnreachableException $error',
+        'AvesmapsConflictException $error',
+        'InvalidArgumentException $error',
         'RuntimeException $error',
         'Throwable $error',
     ],
@@ -122,6 +124,10 @@ foreach ($erwarteteKetten as $dateiname => $erwartet) {
     $unerreichbar = $zweig('AvesmapsWikiUnreachableException $error');
     $laufzeit = $zweig('RuntimeException $error');
     $rest = $zweig('Throwable $error');
+    if ($dateiname === 'paths.php') {
+        assert(str_contains($zweig('AvesmapsConflictException $error')['rumpf'], "409, 'edit_conflict'"));
+        assert(str_contains($zweig('InvalidArgumentException $error')['rumpf'], "400, 'invalid_request'"));
+    }
 
     // Der belegte Platz: eigener Code, damit die Oberflaeche „gleich noch einmal" von „das Wiki
     // ist weg" unterscheiden kann -- und sein fertiger Satz reist durch.

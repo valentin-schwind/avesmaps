@@ -285,9 +285,13 @@ function avesmapsWikiPathGruppenZeilen(PDO $pdo, array $publicIds, string $anker
     }
     $platzhalter = implode(',', array_fill(0, count($ids), '?'));
     $statement = $pdo->prepare(
-        "SELECT id, public_id, name, feature_subtype, properties_json FROM map_features
+        "SELECT id, public_id, name, feature_subtype, revision, properties_json FROM map_features
           WHERE is_active = 1 AND feature_type = 'path' AND name <> '' AND public_id IN ($platzhalter)"
     );
     $statement->execute($ids);
-    return $statement->fetchAll(PDO::FETCH_ASSOC);
+    $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
+    if (count($rows) !== count($ids)) {
+        throw new RuntimeException('Die Wegegruppe ist unvollständig. Bitte neu laden.');
+    }
+    return $rows;
 }
