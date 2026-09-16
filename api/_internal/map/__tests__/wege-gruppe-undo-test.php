@@ -156,3 +156,20 @@ foreach ($result['features'] as $feature) {
 }
 
 echo "OK: Wegegruppen speichern, vollständig zurücknehmen, wiederherstellen und begrenzen.\n";
+
+// Die zweistufige Liste behält Zeit-/ID-Reihenfolge, Grenze und Personenfilter.
+$pdo->exec('DELETE FROM map_audit_log');
+$insert = $pdo->prepare('INSERT INTO map_audit_log (action, actor_user_id, before_json, after_json, created_at) VALUES (?, ?, ?, ?, ?)');
+$snapshot = json_encode(['version' => 1, 'name' => 'Großes Paket', 'feature_type' => 'path', 'count' => 250,
+    'fields' => ['wiki_path_assignment'], 'members' => array_fill(0, 250, ['description' => str_repeat('a', 500)])]);
+for ($i = 0; $i < 205; $i++) {
+    $insert->execute(['bulk_assign_wiki_path_group', $i % 2 === 0 ? 5 : 6, $snapshot, $snapshot,
+        $i % 3 === 0 ? '2026-09-15 10:00:00' : '2026-09-16 10:00:00']);
+}
+foreach ([[], ['Ersteller'], ['Prüfer']] as $names) {
+    $where = $names === [] ? '' : ' WHERE actor_user_id = ' . ($names[0] === 'Ersteller' ? 5 : 6);
+    $expected = array_map('intval', $pdo->query('SELECT id FROM map_audit_log' . $where . ' ORDER BY created_at DESC, id DESC LIMIT 200')->fetchAll(PDO::FETCH_COLUMN));
+    $list = avesmapsListMapAuditLog($pdo, true, $names);
+    assert(array_column($list['changes'], 'id') === $expected);
+    assert(strlen(json_encode($list)) < 200000, 'Große Mitgliedersnapshots verlassen die Datenbank nicht.');
+}

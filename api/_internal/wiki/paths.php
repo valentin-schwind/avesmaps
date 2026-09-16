@@ -1163,7 +1163,7 @@ function avesmapsWikiPathAssignTo(PDO $pdo, string $wikiKey, string $publicId, b
 // assign_to/Details-Save (R1 wird dort server-seitig erzwungen)" -- das Details-Speichern erzwingt seit der
 // Umkehr von R1 (15.09.2026, path-naming.php) nichts mehr; den Wiki-Namen setzen nur noch assign/assign_to
 // und „Sync" im Kasten „Wiki-Weg".
-function avesmapsWikiPathAssignAll(PDO $pdo, string $continentFilter, bool $dryRun, array $assignMeta = []): array {
+function avesmapsWikiPathAssignAll(PDO $pdo, string $continentFilter, bool $dryRun, array $assignMeta = [], int $userId = 0): array {
     avesmapsWikiPathEnsureTables($pdo);
     $continentFilter = trim($continentFilter);
 
@@ -1182,46 +1182,53 @@ function avesmapsWikiPathAssignAll(PDO $pdo, string $continentFilter, bool $dryR
         }
     }
 
-    $paths = $pdo->query("SELECT id, name, properties_json FROM map_features WHERE is_active = 1 AND feature_type = 'path' AND name <> ''")->fetchAll(PDO::FETCH_ASSOC);
-    $segments = 0;
+    $paths = $pdo->query("SELECT id, public_id, name, feature_subtype, properties_json, revision FROM map_features WHERE is_active = 1 AND feature_type = 'path' AND name <> '' ORDER BY id")->fetchAll(PDO::FETCH_ASSOC);
     $wikiLinked = [];
-    $revision = null;
-    $update = $pdo->prepare('UPDATE map_features SET properties_json = :pj, revision = :rev WHERE id = :id');
-    foreach ($paths as $p) {
-        $key = avesmapsWikiSyncCreateMatchKey((string) $p['name']);
+    $updates = [];
+    foreach ($paths as $path) {
+        $key = avesmapsWikiSyncCreateMatchKey((string) $path['name']);
         if (!isset($byKey[$key])) {
             continue;
         }
-        $segments++;
         $wikiLinked[$byKey[$key]['wiki_key']] = true;
-        if (!$dryRun) {
-            $revision ??= avesmapsWikiSyncNextMapRevision($pdo);
-            $props = avesmapsWikiSyncDecodeJson($p['properties_json'] ?? null);
-            $vorher = $props;
-            $props['wiki_path'] = $byKey[$key];
-            // Entwurf 2026-09-14 §2.2: stand der neue Hauptartikel schon als WEITERE Zuweisung da,
-            // faellt er dort heraus -- sonst traege der Abschnitt denselben Artikel in zwei Rollen.
-            $props = avesmapsWikiPathWeitereOhneHaupt($props);
-            // Review I3: eine NEUE Zuweisung haekt „Wegname anzeigen" an -- der Massenlauf trifft auch schon zugewiesene
-            // Abschnitte, und genau fuer die gilt die Regel „aus geht nur, wer abhakt" (avesmapsWikiPathZuweisungHaektAn).
-            $props = avesmapsWikiPathZuweisungHaektAn($vorher, $props);
-            // 🔴 HIER LOESCHTE DER DRITTE ZUWEISER DEN MERKER „kein Wiki-Artikel". Er fehlte in der
-            // ersten Fassung von Aufgabe 5c: ein Weg, den der Massenlauf `assign_all` verknuepft,
-            // haette danach einen Artikel UND den Merker getragen und waere durch die Konfliktregel
-            // still aus der Beobachtungsliste gefallen. Gefallen am 09.09.2026 mit
-            // `properties.wiki_no_article` (Owner-Entscheid).
-            $update->execute(['pj' => avesmapsWikiSyncEncodeJson($props), 'rev' => $revision, 'id' => (int) $p['id']]);
-        }
+        $before = avesmapsWikiSyncDecodeJson($path['properties_json'] ?? null);
+        $props = $before;
+        $props['wiki_path'] = $byKey[$key];
+        $props = avesmapsWikiPathWeitereOhneHaupt($props);
+        $props = avesmapsWikiPathZuweisungHaektAn($before, $props);
+        $updates[] = ['before' => $path, 'name' => $path['name'], 'properties_json' => $props];
     }
 
-    return [
-        'ok' => true,
-        'dry_run' => $dryRun,
-        'continent_filter' => $continentFilter,
-        'segments_affected' => $segments,
-        'wiki_paths_linked' => count($wikiLinked),
-        'applied' => $dryRun ? 0 : $segments,
-    ];
+    $result = ['ok' => true, 'dry_run' => $dryRun, 'continent_filter' => $continentFilter,
+        'segments_affected' => count($updates), 'wiki_paths_linked' => count($wikiLinked),
+        'applied' => 0, 'completed_batches' => 0, 'complete' => $dryRun];
+    if ($dryRun) {
+        return $result;
+    }
+    // Große Erstbefüllungen sind bewusst mehrere Vorgänge. Jedes Paket ist atomar und
+    // einzeln rücknehmbar; ein Fehler darf vorherige Pakete nicht als ungespeichert ausgeben.
+    $retainedAuditIds = [];
+    foreach (array_chunk($updates, AVESMAPS_PATH_GROUP_MAX_SEGMENTS) as $batch) {
+        try {
+            avesmapsWikiPathCommitGroup($pdo, $batch, $userId, 'bulk_assign_wiki_path_group', $retainedAuditIds);
+        } catch (Throwable $error) {
+            $result['ok'] = false;
+            $result['partial'] = $result['applied'] > 0;
+            $result['error'] = [
+                'code' => $error instanceof AvesmapsConflictException ? 'edit_conflict' : 'wiki_batch_failed',
+                'message' => 'Wiki-Massenlauf abgebrochen. Bereits abgeschlossen: ' . $result['applied']
+                    . ' von ' . count($updates) . ' Abschnitten in ' . $result['completed_batches']
+                    . ' Paketen. Das fehlgeschlagene Paket wurde vollständig zurückgesetzt. '
+                    . 'Gespeicherte Änderungen können im Verlauf paketweise zurückgenommen werden.'
+                    . ($error instanceof AvesmapsConflictException ? ' ' . $error->getMessage() : ''),
+            ];
+            return $result;
+        }
+        $result['applied'] += count($batch);
+        $result['completed_batches']++;
+    }
+    $result['complete'] = true;
+    return $result;
 }
 
 // Entfernt die Wiki-Zuordnung vom ganzen Weg (Namens-Key ODER bereits zugeordneter wiki_key des

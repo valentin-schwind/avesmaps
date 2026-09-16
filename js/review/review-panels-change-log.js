@@ -360,6 +360,9 @@ function changeLogFilterEntries(entries, selected) {
 
 function formatChangeAction(action) {
 	const groupActions = {
+		bulk_assign_wiki_path_group: "Wiki-Massenlauf: Teilpaket zugewiesen",
+		undo_bulk_assign_wiki_path_group: "Wiki-Teilpaket zurückgenommen",
+		undo_undo_bulk_assign_wiki_path_group: "Wiki-Teilpaket wiederhergestellt",
 		assign_wiki_path_group: "Wiki-Wege zugewiesen",
 		clear_wiki_path_group: "Wiki-Zuordnung gelöst",
 		undo_assign_wiki_path_group: "Wiki-Zuweisung zurückgenommen",
@@ -861,7 +864,7 @@ function changeLogEntryRow(entry) {
 		undoButtonElement.textContent = istWiederherstellen ? "↷" : "↶";
 		undoButtonElement.title = istWiederherstellen ? "Wiederherstellen" : "Rückgängig";
 		if (Number(entry.member_count) > 0) {
-			undoButtonElement.title = `${entry.member_count} Abschnitte gemeinsam ${istWiederherstellen ? "wiederherstellen" : "rückgängig machen"}`;
+			undoButtonElement.title = `${entry.member_count} ${entry.member_count === 1 ? "Abschnitt" : "Abschnitte gemeinsam"} ${istWiederherstellen ? "wiederherstellen" : "rückgängig machen"}`;
 		}
 		undoButtonElement.setAttribute("aria-label", undoButtonElement.title);
 		actionsElement.appendChild(undoButtonElement);

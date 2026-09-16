@@ -6,6 +6,7 @@ require_once __DIR__ . '/../audit-focus.php';
 
 // Ein Request, eine Transaktion, ein unteilbarer Beleg. Keine Gruppierung nach Uhrzeit.
 const AVESMAPS_MAP_GROUP_AUDIT_ACTIONS = [
+    'bulk_assign_wiki_path_group', 'undo_bulk_assign_wiki_path_group', 'undo_undo_bulk_assign_wiki_path_group',
     'assign_wiki_path_group', 'undo_assign_wiki_path_group', 'undo_undo_assign_wiki_path_group',
     'clear_wiki_path_group', 'undo_clear_wiki_path_group', 'undo_undo_clear_wiki_path_group',
     'update_path_group_details',
@@ -195,7 +196,7 @@ function avesmapsUndoMapGroupAudit(PDO $pdo, array $entry, array $user): array {
 }
 
 function avesmapsMapGroupAuditDetail(array $snapshot): string {
-    $labels = ['wiki_path' => 'Wiki-Zuordnung und Wegname', 'name' => 'Name', 'feature_subtype' => 'Wegart', 'show_label' => 'Beschriftung', 'allowed_transports' => 'Verkehrsmittel',
+    $labels = ['wiki_path_assignment' => 'Wiki-Zuordnung', 'wiki_path' => 'Wiki-Zuordnung und Wegname', 'name' => 'Name', 'feature_subtype' => 'Wegart', 'show_label' => 'Beschriftung', 'allowed_transports' => 'Verkehrsmittel',
         'details' => 'Abschnittsdetails', 'transport_seasons' => 'Saisonfenster',
         'powerline_details' => 'Name, Darstellung und Beschreibung', 'rewire' => 'Verbindungen und Quellenzuordnung'];
     $fields = [];
@@ -205,7 +206,8 @@ function avesmapsMapGroupAuditDetail(array $snapshot): string {
         }
     }
 
-    return (int) ($snapshot['count'] ?? 0) . ' Abschnitte gemeinsam · ' . implode(', ', $fields);
+    $count = (int) ($snapshot['count'] ?? 0);
+    return $count . ($count === 1 ? ' Abschnitt · ' : ' Abschnitte gemeinsam · ') . implode(', ', $fields);
 }
 
 // JSON-Objekte sind ungeordnet; Listen behalten dagegen ihre Reihenfolge und Skalare ihren Typ.

@@ -75,7 +75,8 @@ try {
                 $pdo,
                 array_key_exists('continent', $payload) ? (string) $payload['continent'] : 'Aventurien',
                 !(($payload['dry_run'] ?? true) === false && (string) ($payload['confirm'] ?? '') === 'apply'),
-                $assignMeta
+                $assignMeta,
+                (int) ($user['id'] ?? 0)
             ),
             'assign_to' => avesmapsWikiPathAssignTo(
                 $pdo,
@@ -201,7 +202,7 @@ try {
         };
 
         // map_features-Cache invalidieren, wenn echt geschrieben wurde (Clients sehen die Zuordnung).
-        if (in_array($action, ['assign', 'clear_assign', 'assign_all', 'assign_to', 'backfill_verlauf_source', 'apply_verlauf_case', 'apply_verlauf_cases_clean', 'derive_flow', 'derive_flow_all', 'set_flow', 'add_weitere', 'remove_weitere'], true) && is_array($response) && ($response['dry_run'] ?? true) === false) {
+        if (in_array($action, ['backfill_verlauf_source', 'apply_verlauf_case', 'apply_verlauf_cases_clean', 'derive_flow', 'derive_flow_all', 'set_flow', 'add_weitere', 'remove_weitere'], true) && is_array($response) && ($response['dry_run'] ?? true) === false) {
             avesmapsWikiSyncNextMapRevision($pdo);
         }
 
@@ -209,7 +210,7 @@ try {
             avesmapsErrorResponse(400, 'invalid_request', 'Unbekannte Wege-Sync-POST-Action: ' . $action);
         }
 
-        avesmapsJsonResponse(200, $response);
+        avesmapsJsonResponse(($response['ok'] ?? true) === false ? 409 : 200, $response);
     }
 
     if ($requestMethod !== 'GET') {

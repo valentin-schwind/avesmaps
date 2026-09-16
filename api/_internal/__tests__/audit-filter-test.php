@@ -159,7 +159,7 @@ foreach (['Karte' => $karte, 'Herrschaftsgebiete' => $politik, 'Landschaften' =>
         $name . ': der Lesepfad gibt die Namensliste heraus'
     );
     assert(
-        str_contains($quelle, 'WHERE \' . $wo . \''),
+        str_contains($quelle, 'WHERE \' . $wo'),
         $name . ': die Bedingung steht wirklich im SQL'
     );
 }

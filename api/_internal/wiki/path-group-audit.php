@@ -5,11 +5,11 @@ declare(strict_types=1);
 require_once __DIR__ . '/../map/features.php';
 
 // Planung und DDL liegen vor der Transaktion. Alle Kandidaten werden vor dem ersten Write gesperrt.
-function avesmapsWikiPathCommitGroup(PDO $pdo, array $updates, int $userId, string $action): array {
+function avesmapsWikiPathCommitGroup(PDO $pdo, array $updates, int $userId, string $action, ?array &$retainedAuditIds = null): array {
     if ($updates === []) {
         return [];
     }
-    if (!in_array($action, ['assign_wiki_path_group', 'clear_wiki_path_group'], true)
+    if (!in_array($action, ['assign_wiki_path_group', 'clear_wiki_path_group', 'bulk_assign_wiki_path_group'], true)
         || count($updates) > AVESMAPS_PATH_GROUP_MAX_SEGMENTS) {
         throw new InvalidArgumentException('Höchstens 250 Abschnitte können gemeinsam einem Wiki-Weg zugewiesen oder davon gelöst werden.');
     }
@@ -81,10 +81,29 @@ function avesmapsWikiPathCommitGroup(PDO $pdo, array $updates, int $userId, stri
         }
         $focus = avesmapsAuditFocusFromBounds(min(array_column($bounds, 'min_x')), min(array_column($bounds, 'min_y')),
             max(array_column($bounds, 'max_x')), max(array_column($bounds, 'max_y')));
-        avesmapsWriteMapGroupAudit($pdo, $action, $userId,
-            avesmapsMapGroupAuditSnapshot($beforeMembers, ['wiki_path'], $focus),
-            avesmapsMapGroupAuditSnapshot($afterMembers, ['wiki_path'], $focus));
+        if ($action === 'bulk_assign_wiki_path_group') {
+            // Die Rücknahme muss auch bei großen Namensnachbarschaften innerhalb ihrer Grenzen bleiben.
+            avesmapsWikiPathGroupKanon($pdo, ['members' => $beforeMembers], ['members' => $afterMembers]);
+        }
+        $fields = [$action === 'bulk_assign_wiki_path_group' ? 'wiki_path_assignment' : 'wiki_path'];
+        $auditId = avesmapsWriteMapGroupAudit($pdo, $action, $userId,
+            avesmapsMapGroupAuditSnapshot($beforeMembers, $fields, $focus),
+            avesmapsMapGroupAuditSnapshot($afterMembers, $fields, $focus));
+        if ($retainedAuditIds !== null) {
+            $requiredIds = array_merge($retainedAuditIds, [$auditId]);
+            $slots = implode(',', array_fill(0, count($requiredIds), '?'));
+            $retained = $pdo->prepare("SELECT COUNT(*) FROM map_audit_log WHERE id IN ($slots)");
+            $retained->execute($requiredIds);
+            if ((int) $retained->fetchColumn() !== count($requiredIds)) {
+                // Auch das Aufräumen liegt in dieser Transaktion: Rollback holt verdrängte
+                // Belege zurück und verhindert, dass der Lauf seine ersten Pakete verliert.
+                throw new AvesmapsConflictException('Die Aufbewahrungsgrenze für diesen Massenlauf ist erreicht.');
+            }
+        }
         $pdo->commit();
+        if ($retainedAuditIds !== null) {
+            $retainedAuditIds[] = $auditId;
+        }
         return $revisions;
     } catch (Throwable $error) {
         avesmapsRollbackAndRethrow($pdo, $error);

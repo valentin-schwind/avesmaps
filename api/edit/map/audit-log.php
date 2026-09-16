@@ -62,6 +62,16 @@ function avesmapsListMapAuditLog(PDO $pdo, bool $canUndoChanges, array $editorNa
     );
     // ⚠️ prepare/execute statt query(), seit die Bedingung Parameter tragen kann. Ohne Auswahl ist
     // sie „1 = 1" und die Abfrage genau die von vorher.
+    // Erst nur IDs sortieren. MySQL kann sonst trotz JSON_REMOVE die großen
+    // Original-Snapshots im Filesort halten und schon bei wenigen Gruppen abbrechen.
+    $selection = $pdo->prepare('SELECT audit.id FROM map_audit_log audit WHERE ' . $wo
+        . ' ORDER BY audit.created_at DESC, audit.id DESC LIMIT 200');
+    $selection->execute($parameter);
+    $ids = $selection->fetchAll(PDO::FETCH_COLUMN);
+    if ($ids === []) {
+        return ['ok' => true, 'actors' => avesmapsAuditActorRoster($pdo, 'map_audit_log'), 'changes' => []];
+    }
+    $slots = implode(',', array_fill(0, count($ids), '?'));
     $groupActions = "'" . implode("', '", AVESMAPS_MAP_GROUP_AUDIT_ACTIONS) . "'";
     $statement = $pdo->prepare(
         'SELECT
@@ -91,12 +101,12 @@ function avesmapsListMapAuditLog(PDO $pdo, bool $canUndoChanges, array $editorNa
         LEFT JOIN map_features features ON features.id = audit.feature_id
         LEFT JOIN users ON users.id = audit.actor_user_id
         LEFT JOIN users undone_users ON undone_users.id = audit.undone_by
-        WHERE ' . $wo . '
-        ORDER BY audit.created_at DESC, audit.id DESC
-        LIMIT 200'
+        WHERE audit.id IN (' . $slots . ')'
     );
-    $statement->execute($parameter);
+    $statement->execute($ids);
     $rows = $statement->fetchAll();
+    $positions = array_flip($ids);
+    usort($rows, static fn(array $left, array $right): int => $positions[$left['id']] <=> $positions[$right['id']]);
 
     return [
         'ok' => true,

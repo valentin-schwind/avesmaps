@@ -72,6 +72,7 @@ $pdo->exec('CREATE TABLE map_features (
     geometry_type TEXT, geometry_json TEXT, properties_json TEXT, style_json TEXT,
     is_active INTEGER DEFAULT 1, revision INTEGER DEFAULT 0, sort_order INTEGER DEFAULT 1,
     updated_by INTEGER NULL, min_x REAL, min_y REAL, max_x REAL, max_y REAL)');
+$pdo->exec('CREATE TABLE feature_sources (entity_type TEXT, entity_public_id TEXT, source_id INTEGER, status TEXT, reference_kind TEXT)');
 $pdo->exec('CREATE TABLE map_revision (id INTEGER PRIMARY KEY, revision INTEGER)');
 $pdo->exec('CREATE TABLE map_feature_locks (public_id TEXT PRIMARY KEY, user_id INTEGER, username TEXT, locked_until TEXT)');
 $pdo->exec('CREATE TABLE map_audit_log (id INTEGER PRIMARY KEY AUTOINCREMENT, feature_id INTEGER NULL, action TEXT,
