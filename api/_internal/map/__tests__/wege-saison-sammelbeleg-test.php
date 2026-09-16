@@ -64,7 +64,7 @@ foreach ([1, 27, 250] as $count) {
     if ($count > 1) {
         $snapshot = json_decode($entry['after_json'], true);
         assert($snapshot['count'] === $count);
-        assert(str_contains(avesmapsPathGroupAuditDetail($snapshot), 'Saisonfenster'));
+        assert(str_contains(avesmapsMapGroupAuditDetail($snapshot), 'Saisonfenster'));
     }
     avesmapsUndoAuditChange($pdo, ['audit_id' => (int) $entry['id']], ['id' => 6]);
     foreach ($state() as $index => $row) {

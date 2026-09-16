@@ -5,24 +5,26 @@ declare(strict_types=1);
 require_once __DIR__ . '/../audit-focus.php';
 
 // Ein Request, eine Transaktion, ein unteilbarer Beleg. Keine Gruppierung nach Uhrzeit.
-const AVESMAPS_PATH_GROUP_AUDIT_ACTIONS = [
+const AVESMAPS_MAP_GROUP_AUDIT_ACTIONS = [
     'update_path_group_details',
     'undo_update_path_group_details',
     'undo_undo_update_path_group_details',
+    'update_powerline_group', 'undo_update_powerline_group', 'undo_undo_update_powerline_group',
+    'reorder_powerline_group', 'undo_reorder_powerline_group', 'undo_undo_reorder_powerline_group',
 ];
-const AVESMAPS_PATH_GROUP_AUDIT_MAX_BYTES = 524288;
-const AVESMAPS_PATH_GROUP_AUDIT_ACTOR_BYTES = 8388608;
-const AVESMAPS_PATH_GROUP_AUDIT_GLOBAL_BYTES = 33554432;
+const AVESMAPS_MAP_GROUP_AUDIT_MAX_BYTES = 524288;
+const AVESMAPS_MAP_GROUP_AUDIT_ACTOR_BYTES = 8388608;
+const AVESMAPS_MAP_GROUP_AUDIT_GLOBAL_BYTES = 33554432;
 
-function avesmapsIsPathGroupAuditAction(string $action): bool {
-    return in_array($action, AVESMAPS_PATH_GROUP_AUDIT_ACTIONS, true);
+function avesmapsIsMapGroupAuditAction(string $action): bool {
+    return in_array($action, AVESMAPS_MAP_GROUP_AUDIT_ACTIONS, true);
 }
 
-function avesmapsPathGroupAuditMember(array $feature): array {
+function avesmapsMapGroupAuditMember(array $feature): array {
     return [
         'id' => (int) $feature['id'],
         'public_id' => (string) $feature['public_id'],
-        'feature_type' => 'path',
+        'feature_type' => (string) $feature['feature_type'],
         'name' => (string) $feature['name'],
         'feature_subtype' => (string) $feature['feature_subtype'],
         'properties_json' => avesmapsDecodeFeatureJsonValue($feature['properties_json']),
@@ -30,11 +32,11 @@ function avesmapsPathGroupAuditMember(array $feature): array {
     ];
 }
 
-function avesmapsPathGroupAuditSnapshot(array $members, array $fields, ?array $focus): array {
+function avesmapsMapGroupAuditSnapshot(array $members, array $fields, ?array $focus): array {
     return [
         'version' => 1,
         'name' => (string) $members[0]['name'],
-        'feature_type' => 'path',
+        'feature_type' => (string) $members[0]['feature_type'],
         'count' => count($members),
         'fields' => array_values($fields),
         'focus' => $focus,
@@ -42,30 +44,30 @@ function avesmapsPathGroupAuditSnapshot(array $members, array $fields, ?array $f
     ];
 }
 
-function avesmapsWritePathGroupAudit(PDO $pdo, string $action, int $actorId, array $before, array $after): int {
+function avesmapsWriteMapGroupAudit(PDO $pdo, string $action, int $actorId, array $before, array $after): int {
     $beforeJson = avesmapsEncodeAuditJson($before);
     $afterJson = avesmapsEncodeAuditJson($after);
-    if (strlen($beforeJson) + strlen($afterJson) > AVESMAPS_PATH_GROUP_AUDIT_MAX_BYTES) {
-        throw new InvalidArgumentException('Die Wegegruppe enthält zu viele Daten für eine sichere Sammel-Rücknahme. Bitte weniger Abschnitte gemeinsam bearbeiten.');
+    if (strlen($beforeJson) + strlen($afterJson) > AVESMAPS_MAP_GROUP_AUDIT_MAX_BYTES) {
+        throw new InvalidArgumentException('Die Gruppe enthält zu viele Daten für eine sichere Sammel-Rücknahme. Bitte weniger Abschnitte gemeinsam bearbeiten.');
     }
 
     $auditId = avesmapsWriteMapAuditLog($pdo, null, $action, $actorId, $beforeJson, $afterJson);
-    avesmapsPrunePathGroupAuditBytes($pdo, $actorId);
+    avesmapsPruneMapGroupAuditBytes($pdo, $actorId);
 
     return $auditId;
 }
 
-function avesmapsPrunePathGroupAuditBytes(PDO $pdo, int $actorId): void {
+function avesmapsPruneMapGroupAuditBytes(PDO $pdo, int $actorId): void {
     // Nur Kennung und Bytezahl verlassen die DB. LENGTH zählt in MySQL Bytes, keine Zeichen.
     // Die bestehende globale Zeilengrenze begrenzt auch diese Abfrage auf höchstens 10.000 Zeilen.
-    $actions = "'update_path_group_details', 'undo_update_path_group_details', 'undo_undo_update_path_group_details'";
+    $actions = "'" . implode("', '", AVESMAPS_MAP_GROUP_AUDIT_ACTIONS) . "'";
     foreach ([true, false] as $actorOnly) {
         $where = 'action IN (' . $actions . ')' . ($actorOnly ? ' AND actor_user_id = :actor' : '');
         $parameters = $actorOnly ? ['actor' => $actorId] : [];
         $read = $pdo->prepare('SELECT id, LENGTH(before_json) + LENGTH(after_json) AS bytes FROM map_audit_log WHERE '
             . $where . ' ORDER BY id DESC');
         $read->execute($parameters);
-        $budget = $actorOnly ? AVESMAPS_PATH_GROUP_AUDIT_ACTOR_BYTES : AVESMAPS_PATH_GROUP_AUDIT_GLOBAL_BYTES;
+        $budget = $actorOnly ? AVESMAPS_MAP_GROUP_AUDIT_ACTOR_BYTES : AVESMAPS_MAP_GROUP_AUDIT_GLOBAL_BYTES;
         $used = 0;
         $cutoff = null;
         foreach ($read->fetchAll(PDO::FETCH_ASSOC) as $row) {
@@ -82,7 +84,7 @@ function avesmapsPrunePathGroupAuditBytes(PDO $pdo, int $actorId): void {
     }
 }
 
-function avesmapsPathGroupAuditMembers(array $snapshot): array {
+function avesmapsMapGroupAuditMembers(array $snapshot, string $featureType = 'path', bool $full = false): array {
     $members = $snapshot['members'] ?? null;
     if (($snapshot['version'] ?? null) !== 1 || !is_array($members)
         || count($members) < 1 || count($members) > AVESMAPS_PATH_GROUP_MAX_SEGMENTS
@@ -104,10 +106,20 @@ function avesmapsPathGroupAuditMembers(array $snapshot): array {
         $publicId = (string) $member['public_id'];
         if ($id === false || $id < 1 || isset($result[$id]) || isset($publicIds[$publicId])
             || preg_match('/^[a-f0-9-]{36}$/i', $publicId) !== 1
-            || $member['feature_type'] !== 'path' || $member['is_active'] !== 1
+            || $member['feature_type'] !== $featureType || !in_array($member['is_active'], $full ? [0, 1] : [1], true)
             || !is_string($member['name']) || !is_string($member['feature_subtype'])
             || (!is_array($member['properties_json']) && $member['properties_json'] !== null)) {
             throw new AvesmapsConflictException('Der Sammelbeleg enthält ungültige oder doppelte Abschnitte.');
+        }
+        if ($full) {
+            foreach (AVESMAPS_POWERLINE_GROUP_FULL_COLUMNS as $column) {
+                if (!array_key_exists($column, $member)) {
+                    throw new AvesmapsConflictException('Im Sammelbeleg fehlen Geometriedaten.');
+                }
+            }
+            if ($member['geometry_type'] !== 'LineString' || !is_array($member['geometry_json'])) {
+                throw new AvesmapsConflictException('Die Geometriedaten des Sammelbelegs sind ungültig.');
+            }
         }
         $result[$id] = $member;
         $publicIds[$publicId] = true;
@@ -118,11 +130,17 @@ function avesmapsPathGroupAuditMembers(array $snapshot): array {
 }
 
 // Läuft innerhalb der Transaktion des Einzel-Undo-Einstiegs, niemals mit eigener Transaktion.
-function avesmapsUndoPathGroupAudit(PDO $pdo, array $entry, array $user): array {
+function avesmapsUndoMapGroupAudit(PDO $pdo, array $entry, array $user): array {
     $before = avesmapsDecodeJsonColumnForEdit($entry['before_json']);
     $after = avesmapsDecodeJsonColumnForEdit($entry['after_json']);
-    $beforeMembers = avesmapsPathGroupAuditMembers($before);
-    $afterMembers = avesmapsPathGroupAuditMembers($after);
+    $featureType = str_contains($entry['action'], 'powerline_group') ? 'powerline' : 'path';
+    $full = str_contains($entry['action'], 'reorder_powerline_group');
+    $columns = ['name', 'feature_subtype', 'properties_json'];
+    if ($full) {
+        $columns = array_merge($columns, ['is_active'], AVESMAPS_POWERLINE_GROUP_FULL_COLUMNS);
+    }
+    $beforeMembers = avesmapsMapGroupAuditMembers($before, $featureType, $full);
+    $afterMembers = avesmapsMapGroupAuditMembers($after, $featureType, $full);
     if (array_keys($beforeMembers) !== array_keys($afterMembers)) {
         throw new AvesmapsConflictException('Die Abschnitte des Sammelbelegs passen nicht zusammen.');
     }
@@ -131,17 +149,24 @@ function avesmapsUndoPathGroupAudit(PDO $pdo, array $entry, array $user): array 
     $patches = [];
     foreach ($beforeMembers as $id => $member) {
         $feature = avesmapsFetchFeatureByIdForUpdate($pdo, $id);
-        if ($feature['feature_type'] !== 'path' || $feature['public_id'] !== $member['public_id']
+        if ($feature['feature_type'] !== $featureType || $feature['public_id'] !== $member['public_id']
             || $afterMembers[$id]['public_id'] !== $member['public_id']) {
             throw new AvesmapsConflictException('Ein Abschnitt des Sammelbelegs gehört nicht mehr zu diesem Kartenobjekt.');
         }
+        $features[$id] = $feature;
+    }
+    foreach ($features as $id => $feature) {
+        $member = $beforeMembers[$id];
         avesmapsAssertFeatureCanBeEdited($pdo, [], $feature, $user);
         avesmapsAssertUndoPatchStillCurrent('update_path_details', $feature, $afterMembers[$id],
-            ['name', 'feature_subtype', 'properties_json', 'is_active']);
-        $features[$id] = $feature;
-        $patches[$id] = avesmapsBuildFeatureRestoreValues($member, ['name', 'feature_subtype', 'properties_json']);
+            array_unique(array_merge($columns, ['is_active'])));
+        $patches[$id] = avesmapsBuildFeatureRestoreValues($member, $columns);
     }
 
+    if ($full) {
+        avesmapsAssertPowerlineGroupDependencies($pdo, $after);
+        avesmapsRestorePowerlineGroupSources($pdo, $before, $after);
+    }
     $revision = avesmapsNextMapRevision($pdo);
     $responses = [];
     foreach ($features as $id => $feature) {
@@ -154,16 +179,18 @@ function avesmapsUndoPathGroupAudit(PDO $pdo, array $entry, array $user): array 
         ));
         $responses[] = $response;
     }
-    $undoId = avesmapsWritePathGroupAudit($pdo, avesmapsBuildUndoAuditAction($entry['action']),
+    $undoId = avesmapsWriteMapGroupAudit($pdo, avesmapsBuildUndoAuditAction($entry['action']),
         (int) $user['id'], $after, $before);
     avesmapsMarkAuditEntryUndone($pdo, (int) $entry['id'], (int) $user['id'], $undoId);
 
-    return ['revision' => $revision, 'features' => $responses, 'steps' => count($responses)];
+    return ['revision' => $revision, 'features' => $responses, 'steps' => count($responses), 'feature_type' => $featureType,
+        'source_payload' => $full ? avesmapsPowerlineGroupSourcePayload($pdo, $before) : null];
 }
 
-function avesmapsPathGroupAuditDetail(array $snapshot): string {
+function avesmapsMapGroupAuditDetail(array $snapshot): string {
     $labels = ['name' => 'Name', 'feature_subtype' => 'Wegart', 'show_label' => 'Beschriftung', 'allowed_transports' => 'Verkehrsmittel',
-        'details' => 'Abschnittsdetails', 'transport_seasons' => 'Saisonfenster'];
+        'details' => 'Abschnittsdetails', 'transport_seasons' => 'Saisonfenster',
+        'powerline_details' => 'Name, Darstellung und Beschreibung', 'rewire' => 'Verbindungen und Quellenzuordnung'];
     $fields = [];
     foreach (is_array($snapshot['fields'] ?? null) ? $snapshot['fields'] : [] as $field) {
         if (is_string($field) && isset($labels[$field])) {

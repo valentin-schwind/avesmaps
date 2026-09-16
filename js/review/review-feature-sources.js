@@ -3395,7 +3395,7 @@ function syncFeatureSourcesToClientCache(entityType, entityPublicId, editorSourc
       license: source.license || "",
       attribution: source.attribution || "",
     };
-    refs.push({ source_id: source.source_id, pages: source.pages || "", reference_kind: source.reference_kind || "" });
+    refs.push({ source_id: source.source_id, pages: source.pages || "", reference_kind: source.reference_kind || "", ...(source.note ? { note: source.note } : {}) });
   }
   // Die Kennungen, die dieser Aufruf wirklich anfasst -- einmal bestimmt, zweimal gebraucht.
   // 💣 Hier stand bis zum 09.09.2026 ein `return` in der by_entity-Weiche. Er ist gefallen, weil der
@@ -3409,7 +3409,7 @@ function syncFeatureSourcesToClientCache(entityType, entityPublicId, editorSourc
     for (const [kennung, verweise] of Object.entries(byEntity)) {
       ziel.__featureSourceRefs[`${entityType}:${kennung}`] = (Array.isArray(verweise) ? verweise : [])
         .filter((v) => v && v.source_id !== undefined && v.source_id !== null)
-        .map((v) => ({ source_id: v.source_id, pages: v.pages || "", reference_kind: v.reference_kind || "" }));
+        .map((v) => ({ source_id: v.source_id, pages: v.pages || "", reference_kind: v.reference_kind || "", ...(v.note ? { note: v.note } : {}) }));
     }
   } else {
     ziel.__featureSourceRefs[`${entityType}:${entityPublicId}`] = refs;

@@ -62,16 +62,17 @@ function avesmapsListMapAuditLog(PDO $pdo, bool $canUndoChanges, array $editorNa
     );
     // ⚠️ prepare/execute statt query(), seit die Bedingung Parameter tragen kann. Ohne Auswahl ist
     // sie „1 = 1" und die Abfrage genau die von vorher.
+    $groupActions = "'" . implode("', '", AVESMAPS_MAP_GROUP_AUDIT_ACTIONS) . "'";
     $statement = $pdo->prepare(
         'SELECT
             audit.id,
             audit.feature_id,
             audit.action,
             audit.created_at,
-            CASE WHEN audit.action IN (\'update_path_group_details\', \'undo_update_path_group_details\', \'undo_undo_update_path_group_details\')
-                THEN JSON_REMOVE(audit.after_json, \'$.members\') ELSE audit.after_json END AS after_json,
-            CASE WHEN audit.action IN (\'update_path_group_details\', \'undo_update_path_group_details\', \'undo_undo_update_path_group_details\')
-                THEN JSON_REMOVE(audit.before_json, \'$.members\') ELSE audit.before_json END AS before_json,
+            CASE WHEN audit.action IN (' . $groupActions . ')
+                THEN JSON_REMOVE(audit.after_json, \'$.members\', \'$.source_links\', \'$.dependencies\') ELSE audit.after_json END AS after_json,
+            CASE WHEN audit.action IN (' . $groupActions . ')
+                THEN JSON_REMOVE(audit.before_json, \'$.members\', \'$.source_links\', \'$.dependencies\') ELSE audit.before_json END AS before_json,
             audit.undone_at,
             audit.undo_audit_id,
             features.public_id,
@@ -118,7 +119,7 @@ function avesmapsNormalizeAuditRow(array $row, bool $canUndoChanges): array {
     return [
         'id' => (int) $row['id'],
         'action' => $action,
-        'member_count' => avesmapsIsPathGroupAuditAction($action) ? (int) ($after['count'] ?? 0) : 0,
+        'member_count' => avesmapsIsMapGroupAuditAction($action) ? (int) ($after['count'] ?? 0) : 0,
         'created_at' => (string) $row['created_at'],
         'username' => (string) ($row['username'] ?? ''),
         // 💣 WER, WENN ES KEIN MENSCH WAR (Befund A39). Die Import-Tuer moderiert mit einem Token;
@@ -140,9 +141,9 @@ function avesmapsNormalizeAuditRow(array $row, bool $canUndoChanges): array {
         'name' => (string) ($row['name'] ?? ($after['name'] ?? $before['name'] ?? '')),
         // Was der Schritt getan hat, in einem Satz -- leer, wenn sich nichts sagen laesst. Die
         // Spaltenliste kommt von der Undo-Seite, damit Zeile und Knopf dasselbe meinen.
-        'detail' => avesmapsIsPathGroupAuditAction($action) ? avesmapsPathGroupAuditDetail($after)
+        'detail' => avesmapsIsMapGroupAuditAction($action) ? avesmapsMapGroupAuditDetail($after)
             : avesmapsMapAuditDetailText($action, $before, $after, avesmapsUndoColumnsForAuditAction($action)),
-        'focus' => avesmapsIsPathGroupAuditAction($action) ? ($after['focus'] ?? null) : avesmapsBuildAuditFocusTarget($row, $before, $after),
+        'focus' => avesmapsIsMapGroupAuditAction($action) ? ($after['focus'] ?? null) : avesmapsBuildAuditFocusTarget($row, $before, $after),
     ];
 }
 

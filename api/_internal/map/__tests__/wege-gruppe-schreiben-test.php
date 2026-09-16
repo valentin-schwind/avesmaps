@@ -216,8 +216,8 @@ $eintraege = $pdo->query('SELECT feature_id, action, before_json, after_json FRO
 assert(count($eintraege) === 1, 'eine Speicherung ist ein rücknehmbarer Vorgang');
 assert($eintraege[0]['feature_id'] === null, 'die Gruppe gehört nicht nur einem Abschnitt');
 assert($eintraege[0]['action'] === 'update_path_group_details');
-$vor = avesmapsPathGroupAuditMembers(json_decode($eintraege[0]['before_json'], true));
-$nach = avesmapsPathGroupAuditMembers(json_decode($eintraege[0]['after_json'], true));
+$vor = avesmapsMapGroupAuditMembers(json_decode($eintraege[0]['before_json'], true));
+$nach = avesmapsMapGroupAuditMembers(json_decode($eintraege[0]['after_json'], true));
 assert(count($vor) === 3 && array_keys($vor) === array_keys($nach), 'alle drei Abschnitte sind vollständig belegt');
 foreach ($vor as $id => $member) {
     assert(!isset($member['properties_json']['show_label']));

@@ -31,6 +31,20 @@ Prüfergebnis des zweiten Ausbaus: Die MySQL-8-Abläufe mit 1/27/250 Abschnitten
 
 Der vollständige Linux-/LF-Lauf umfasst nun 447 PHP- und 635 JavaScript-Dateien; nur der bekannte externe DNS-Test blieb lokal rot. Die lokale Browser-Fixture mit Original-Verlaufs- und Rücknahmefunktionen zeigte nach Speichern 27 Saisonfenster, nach Undo null und nach Redo wieder 27; die gleichzeitig geänderten Abschnittsdetails wurden mit zurückgenommen. Helle und dunkle Darstellung wurden geprüft. Wie beim Piloten ersetzt diese Fixture Anmeldung und Teile der Kartenumgebung.
 
+## Dritter Ausbau: Kraftlinien
+
+Linienweite Details und Umordnungen schreiben jeweils einen atomaren Sammelbeleg. Name, Darstellung, Beschreibung und segmentweise Kurvenwerte sind gemeinsam rücknehmbar. Beim Umordnen enthält der Beleg zusätzlich alte und neue Abschnitte, Geometrien, Aktivzustände, die vollständigen Quellenverknüpfungen und die beteiligten Nodix-Punkte. Neu angelegte Abschnitte werden beim Undo deaktiviert und beim einmaligen Redo wiederhergestellt.
+
+Alle Objekte werden in fester Reihenfolge gesperrt, bevor Editorsperren gelesen werden. Der Quellenanker wird ausschließlich aus erfassten aktiven Mitgliedern bestimmt. Veränderte Quellen, verschobene oder nicht mehr geeignete Nodix-Punkte, spätere Abschnittsänderungen und fremde Sperren verhindern die ganze Rücknahme. Quellenkatalog und sonstige Quellenmetadaten werden nicht überschrieben. Der Client übernimmt alle Abschnitte, Quellenhinweise und Kanonkennzeichnungen vor einer gemeinsamen Aktualisierung.
+
+Grenzen: höchstens 250 erfasste Abschnitte einschließlich neu angelegter und entfallener Abschnitte, 512 KiB Vorher/Nachher, 2.500 Quellenverknüpfungen. Wege und Kraftlinien teilen sich die bisherigen Bytequoten. Der Listenabruf entfernt Mitglieder, Quellen und Abhängigkeiten bereits in SQL. Bestehende Einzelbelege und Strg-Z bleiben unverändert.
+
+Abnahme: Details mit 1/27/250 Mitgliedern einschließlich Kurvenwert und Namensverschmelzung; Umordnung mit Entfall, Neuanlage, Quellenwanderung und eigenen Quellen am Zielanker; Undo/Redo, spätere Quellenänderung, verschobener Nodix, verlorene Nodix-Eignung, Editorsperre und Grenze 251. Echte MySQL-8-Parallelprobe: unbeteiligte Zeile bleibt schreibbar; während des Wartens hinzugekommene Editorsperre wird erkannt und verhindert jeden Write. Die separate lokale MySQL-Fixture verwendet den Produktionsstandard `is_active = 1`; eine zusätzliche Assertion prüft die Zahl aktiver Abschnitte.
+
+Die Browser-Fixture führt die originale Verlaufsdarstellung, Rücknahme, Quellenübernahme und Datenvorbereitung aus; Anmeldung und Kartenrenderer sind vereinfacht. Umordnung speichern, Verlauf aufklappen, gemeinsam zurücknehmen und wiederherstellen wurden mit Quellenanker und Verbindungen geprüft, einschließlich heller und dunkler Darstellung. Das vollständige Workflow-Muster umfasst 448 PHP- und 636 JS-Tests; lokal bleibt allein der bekannte externe DNS-Test rot. Die Prüfagenten fanden nach den Korrekturen keine blockierenden Befunde.
+
+Weiter offen sind die unten inventarisierten Wiki-Schreibwege, Landschaftshärtung und domänenübergreifenden Importoperationen. Der Kraftlinienausbau schließt diese Punkte nicht mit ab.
+
 ## Ergebnis
 
 Sammel-Undos sind machbar. Der erste geeignete Anwendungsfall ist die Bearbeitung einer Wegegruppe. Eine reine Zusammenfassung der Anzeige reicht nicht: Gruppenzugehörigkeit, Vollständigkeit, Konfliktprüfung und Aufbewahrung müssen gemeinsam umgesetzt werden. Die Einzeländerungen bleiben als Belege erhalten; eine Operation verbindet sie.

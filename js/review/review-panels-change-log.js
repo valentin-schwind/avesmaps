@@ -359,6 +359,17 @@ function changeLogFilterEntries(entries, selected) {
 }
 
 function formatChangeAction(action) {
+	const powerlineGroups = {
+		update_powerline_group: "Kraftlinie geändert",
+		reorder_powerline_group: "Kraftlinie umgeordnet",
+		undo_update_powerline_group: "Kraftlinie zurückgenommen",
+		undo_reorder_powerline_group: "Umordnung zurückgenommen",
+		undo_undo_update_powerline_group: "Kraftlinie wiederhergestellt",
+		undo_undo_reorder_powerline_group: "Umordnung wiederhergestellt",
+	};
+	if (Object.hasOwn(powerlineGroups, action)) {
+		return powerlineGroups[action];
+	}
 	if (action === "undo_update_path_group_details") {
 		return "Wegegruppe zurückgenommen";
 	}
@@ -1134,7 +1145,9 @@ async function undoChangeLogEntry(entry) {
 		} else {
 			const result = await undoMapAuditChange(Number(entry.id));
 			const members = result?.feature?.features;
-			if (Array.isArray(members)) {
+			if (Array.isArray(members) && result.feature.feature_type === "powerline") {
+				applyPowerlineGroupAuditResponse(members, result.feature.source_payload);
+			} else if (Array.isArray(members)) {
 				applyPathGroupAuditResponse(members);
 			} else {
 				applyMapFeatureEditResult(result);

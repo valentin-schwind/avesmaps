@@ -106,7 +106,7 @@ foreach ($badSnapshots as $bad) {
 // Byteüberschreitung beim Speichern rollt sämtliche Fachänderungen zurück.
 $seed($pdo);
 $pdo->prepare('UPDATE map_features SET properties_json = ? WHERE public_id = ?')->execute([
-    json_encode(['huge' => str_repeat('x', AVESMAPS_PATH_GROUP_AUDIT_MAX_BYTES)]), $alleDrei[2],
+    json_encode(['huge' => str_repeat('x', AVESMAPS_MAP_GROUP_AUDIT_MAX_BYTES)]), $alleDrei[2],
 ]);
 $stand = $karte($pdo);
 gruppeErwartetFehler(fn() => avesmapsUpdatePathGroupDetails($pdo,
@@ -131,8 +131,8 @@ for ($i = 0; $i < 25; $i++) {
     $insert->execute([5, str_repeat('x', 400000)]);
 }
 $insert->execute([6, str_repeat('x', 400000)]);
-avesmapsPrunePathGroupAuditBytes($pdo, 5);
-assert((int) $pdo->query('SELECT SUM(LENGTH(before_json) + LENGTH(after_json)) FROM map_audit_log WHERE actor_user_id = 5')->fetchColumn() <= AVESMAPS_PATH_GROUP_AUDIT_ACTOR_BYTES);
+avesmapsPruneMapGroupAuditBytes($pdo, 5);
+assert((int) $pdo->query('SELECT SUM(LENGTH(before_json) + LENGTH(after_json)) FROM map_audit_log WHERE actor_user_id = 5')->fetchColumn() <= AVESMAPS_MAP_GROUP_AUDIT_ACTOR_BYTES);
 assert((int) $pdo->query('SELECT COUNT(*) FROM map_audit_log WHERE actor_user_id = 6')->fetchColumn() === 1);
 
 // Der globale Riegel greift über mehrere Personen hinweg und löscht die ältesten ganzen Belege.
@@ -143,8 +143,8 @@ for ($actor = 1; $actor <= 5; $actor++) {
     }
 }
 $latest = gruppeLetzterBeleg($pdo);
-avesmapsPrunePathGroupAuditBytes($pdo, 5);
-assert((int) $pdo->query('SELECT SUM(LENGTH(before_json) + LENGTH(after_json)) FROM map_audit_log')->fetchColumn() <= AVESMAPS_PATH_GROUP_AUDIT_GLOBAL_BYTES);
+avesmapsPruneMapGroupAuditBytes($pdo, 5);
+assert((int) $pdo->query('SELECT SUM(LENGTH(before_json) + LENGTH(after_json)) FROM map_audit_log')->fetchColumn() <= AVESMAPS_MAP_GROUP_AUDIT_GLOBAL_BYTES);
 assert(gruppeLetzterBeleg($pdo) === $latest);
 
 $seed($pdo);

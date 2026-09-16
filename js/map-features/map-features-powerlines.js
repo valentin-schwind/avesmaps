@@ -765,6 +765,30 @@ function getPowerlineConnectedLocationPublicIds() {
 	return publicIds;
 }
 
+// Ein vollständiger lokaler Stand, dann einmal Quellen, Ebenen, Liste und Infobox aktualisieren.
+function applyPowerlineGroupAuditResponse(features, sourcePayload) {
+	const next = new Map(powerlineData.map((line) => [(line.id || line.properties?.public_id), {
+		type: "Feature", id: (line.id || line.properties?.public_id), geometry: line.geometry, properties: line.properties,
+	}]));
+	for (const feature of features) {
+		if (feature.deleted) {
+			next.delete(feature.public_id);
+		} else {
+			next.set(feature.id, feature);
+		}
+	}
+	if (sourcePayload && typeof syncFeatureSourcesToClientCache === "function") {
+		syncFeatureSourcesToClientCache("powerline", sourcePayload.anchor, sourcePayload.sources,
+			sourcePayload.by_entity, sourcePayload.kanon_je_kennung);
+	}
+	preparePowerlineData({ features: [...next.values()] });
+	locationConnectivityIndex = null;
+	if (typeof window.avesmapsRefreshInfopanel === "function") {
+		window.avesmapsRefreshInfopanel();
+	}
+	window.AvesmapsPathLabelCanvasOverlay?.redraw();
+}
+
 function applyPowerlineFeatureResponse(powerline, feature) {
 	const updatedPowerline = normalizePowerlineFeature(feature);
 	powerline.geometry = updatedPowerline.geometry;

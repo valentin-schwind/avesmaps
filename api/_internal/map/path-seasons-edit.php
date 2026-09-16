@@ -121,8 +121,8 @@ function avesmapsApplyTransportSeasonsToWikiSiblings(
             'revision' => $revision,
             'updated_by' => $userId,
         ]);
-        $audit['before'][] = avesmapsPathGroupAuditMember($sibling);
-        $audit['after'][] = avesmapsPathGroupAuditMember(array_replace($sibling, ['properties_json' => $properties]));
+        $audit['before'][] = avesmapsMapGroupAuditMember($sibling);
+        $audit['after'][] = avesmapsMapGroupAuditMember(array_replace($sibling, ['properties_json' => $properties]));
         $audit['bounds'][] = avesmapsCalculateGeometryBounds(avesmapsReadGeometryFromColumnValue($sibling['geometry_json']));
     }
 

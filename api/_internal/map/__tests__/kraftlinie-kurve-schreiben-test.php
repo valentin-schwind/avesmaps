@@ -128,7 +128,7 @@ assert(str_contains($rumpf, "avesmapsApplyPowerlineCurve(\$properties, \$payload
 // stille Loeschung, gegen die Abschnitt 2b steht.
 assert(!str_contains($rumpf, "avesmapsReadPowerlineCurve(\$payload['curve'] ?? 0)"),
     'der Schreibweg liest curve wieder mit ?? 0 -- das loescht jede Ausnahme lautlos');
-assert(str_contains($rumpf, "'curve' => "),
+assert(str_contains($rumpf, "avesmapsPowerlineGroupSnapshot(\$afterRows, false)"),
     'curve fehlt im Audit-Eintrag -- eine Aenderung ohne Protokoll ist nicht umkehrbar');
 
 // ---- 4. Der ZWEITE Schreibweg laesst curve UNBERUEHRT ----------------------------------------
