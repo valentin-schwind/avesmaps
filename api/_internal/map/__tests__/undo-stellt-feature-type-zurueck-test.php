@@ -105,7 +105,8 @@ function avesmapsTestSammleSchreibspalten(string $quelltext, array $buchhaltung)
 }
 
 $geschrieben = [];
-foreach (['/api/_internal/map/features.php', '/api/_internal/wiki/locations.php'] as $rel) {
+// ⚠️ locations-faelle.php steht MIT in der Liste: dort sitzt seit dem 16.09.2026 avesmapsWikiSyncUpdateLocationFeature, die `wiki_sync_update_point` schreibt.
+foreach (['/api/_internal/map/features.php', '/api/_internal/wiki/locations.php', '/api/_internal/wiki/locations-faelle.php'] as $rel) {
     $quelle = file_get_contents($wurzel . $rel);
     assert(is_string($quelle) && $quelle !== '', "die Quelle {$rel} ist lesbar");
     $checks++;

@@ -196,8 +196,12 @@ assert((int) $pdo->query("SELECT revision FROM map_features WHERE public_id = 'l
 // einfachere und schaerfere Zusicherung. Gemessen wird der KOMMENTARFREIE Quelltext ueber den
 // Tokenizer -- die Begruendung hier oben nennt das Wort, das unten nicht vorkommen darf, und ein
 // Test, der Fliesstext misst, schlaegt an seiner eigenen Warnung an (AGENTS.md §11).
+// ⚠️ BEIDE HAELFTEN: avesmapsWikiSyncUpdateLocationFeature, eine der zwei Funktionen des Absatzes
+// oben, steht seit dem 16.09.2026 in locations-faelle.php -- nur die eine Datei zu lesen liesse den Waechter
+// lautlos schrumpfen. Das schliessende Tag dazwischen macht das oeffnende der zweiten Datei zu einem echten.
 $listenCode = '';
-foreach (token_get_all((string) file_get_contents(__DIR__ . '/../locations.php')) as $stueck) {
+foreach (token_get_all((string) file_get_contents(__DIR__ . '/../locations.php')
+    . '?>' . (string) file_get_contents(__DIR__ . '/../locations-faelle.php')) as $stueck) {
     if (is_array($stueck)) {
         if ($stueck[0] === T_COMMENT || $stueck[0] === T_DOC_COMMENT) {
             continue;
@@ -209,11 +213,12 @@ foreach (token_get_all((string) file_get_contents(__DIR__ . '/../locations.php')
 }
 // ⚠️ Die Gegenprobe gegen einen leeren Leser: eine leere Zeichenkette erfuellt jedes „kommt nicht
 // vor". Der Name der gemessenen Funktion MUSS darin stehen.
-assert(str_contains($listenCode, 'avesmapsWikiSyncBuildLocationProperties'),
-    'der Tokenizer liefert keinen Quelltext -- die Zusicherung darunter waere ein Vakuum');
+assert(str_contains($listenCode, 'avesmapsWikiSyncBuildLocationProperties')
+    && str_contains($listenCode, 'avesmapsWikiSyncUpdateLocationFeature'),
+    'der Tokenizer liefert eine der beiden Haelften nicht -- die Zusicherung darunter waere ein Vakuum');
 assert(
     !str_contains($listenCode, 'wiki_no_article'),
-    'locations.php fasst den ausgebauten Merker wieder an -- er ist am 09.09.2026 global gefallen '
+    'locations.php oder locations-faelle.php fasst den ausgebauten Merker wieder an -- er ist am 09.09.2026 global gefallen '
     . '(Owner-Entscheid); sein Aequivalent ist die WIKI-ZUWEISUNG.'
 );
 
