@@ -12,6 +12,7 @@ class AvesmapsConflictException extends RuntimeException {
 
 // Map-feature edit handlers live in a sibling library (M5 split).
 require_once __DIR__ . '/../../_internal/map/features.php';
+require_once __DIR__ . '/../../_internal/map/path-split.php';
 // Landscape cascade: deleting the LAST label of an area takes its region and remaining areas with it
 // (owner, 2026-07-28). avesmapsDeleteMapFeature calls into this library through a function_exists guard,
 // because the map library is also loaded by endpoints that can never delete a label. This endpoint CAN,
@@ -51,6 +52,7 @@ try {
         'update_powerline_line' => avesmapsUpdatePowerlineLine($pdo, $payload, $user),
         'reorder_powerline_line' => avesmapsReorderPowerlineLine($pdo, $payload, $user),
         'create_path' => avesmapsCreatePathFeature($pdo, $payload, $user),
+        'split_path' => avesmapsSplitPathFeature($pdo, $payload, $user),
         'update_path_details' => avesmapsUpdatePathFeatureDetails($pdo, $payload, $user),
         // Die WEG-EBENE: ein Speichern fuer alle Abschnitte eines Weges. Eigene Aktion,
         // nicht ein Zusatzfeld an `update_path_details` -- sie nimmt einen anderen Rumpf

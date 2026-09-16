@@ -133,39 +133,34 @@ async function splitPathAtNode(splitState) {
 		return;
 	}
 
-	const pathSubtype = normalizePathSubtype(path.properties?.feature_subtype || path.properties?.name);
-	// Both halves stay segments of the SAME way, so they inherit its name: a way's identity is its name
-	// group (matchKey over the name), so a fresh generic name per half would split one way into two.
-	// Ways that never had a name still fall back to a generated one.
-	const pathTitleName = getPathTitleName(path);
 	try {
-		const crossingResult = await createCrossingFeatureAt(coordinateGroups.splitLatLng);
-		addCreatedCrossingMarker(crossingResult.feature);
-		ensureCrossingsEnabled();
-
-		const firstPathResult = await submitMapFeatureEdit({
-			action: "create_path",
-			feature_subtype: pathSubtype,
-			name: getPathDisplayNameOrGenerated(pathTitleName, pathSubtype),
-			coordinates: coordinateGroups.firstCoordinates,
-		});
-		addCreatedPathFeature(firstPathResult.feature);
-
-		const secondPathResult = await submitMapFeatureEdit({
-			action: "create_path",
-			feature_subtype: pathSubtype,
-			name: getPathDisplayNameOrGenerated(pathTitleName, pathSubtype),
-			coordinates: coordinateGroups.secondCoordinates,
-		});
-		addCreatedPathFeature(secondPathResult.feature);
-
-		const deleteResult = await submitMapFeatureEdit({
-			action: "delete_feature",
+		const result = await submitMapFeatureEdit({
+			action: "split_path",
 			public_id: getPathPublicId(path),
+			node_index: splitState.nodeIndex,
+			expected_coordinates: path.geometry.coordinates,
 		});
-		clearPathGeometryEdit();
+		const split = result.feature;
+		// Quellen werden synchron aus dem Kartenbestand gelesen, auch direkt nach dem Teilen.
+		const originalKey = `path:${getPathPublicId(path)}`;
+		for (const feature of split.paths) {
+			const newKey = `path:${feature.id}`;
+			for (const cache of [window.__featureSourceRefs, window.__featureKanon?.abweichungen]) {
+				if (cache && Object.prototype.hasOwnProperty.call(cache, originalKey)) {
+					cache[newKey] = JSON.parse(JSON.stringify(cache[originalKey]));
+				}
+			}
+		}
+		if (activePathGeometryEdit?.path === path) {
+			clearPathGeometryEdit();
+		}
 		removePathFeature(path);
-		updateRevisionFromEditResponse(deleteResult);
+		addCreatedCrossingMarker(split.crossing);
+		ensureCrossingsEnabled();
+		for (const feature of split.paths) {
+			addCreatedPathFeature(feature);
+		}
+		updateRevisionFromEditResponse(result);
 		showFeedbackToast("Weg geteilt und Kreuzung erstellt.", "success");
 	} catch (error) {
 		console.error("Weg konnte nicht geteilt werden:", error);
