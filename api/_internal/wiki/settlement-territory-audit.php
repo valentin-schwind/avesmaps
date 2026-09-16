@@ -12,6 +12,7 @@ function avesmapsWikiSettlementCommitTerritoryGroup(PDO $pdo, array $updates, in
 function avesmapsWikiSettlementCommitLocationGroup(PDO $pdo, array $updates, int $userId, string $action, ?array &$retainedAuditIds = null): void {
     $fields = match ($action) {
         'set_territory_location_group' => ['territory_assignment'],
+        'set_coat_location_group', 'local_coat_location_group' => ['coat'],
         'set_ruined_location_group' => ['is_ruined'],
         'link_wiki_location_group' => ['wiki_settlement'],
         default => throw new InvalidArgumentException('Unbekannte Orts-Sammelaktion.'),

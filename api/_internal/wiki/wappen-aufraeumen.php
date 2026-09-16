@@ -79,6 +79,20 @@ function avesmapsWappenAufraeumenUrteil(array $props): array {
         return ['tun' => false, 'grund' => 'eigener Upload', 'datei' => basename($url)];
     }
 
+    // Technische lokale Dateinamen sind kein Bildtitel. Falls vorhanden zählt die Herkunft.
+    if (str_starts_with($url, '/uploads/')) {
+        $origin = trim((string) ($coat['wiki_url'] ?? ''));
+        if ($origin === '') {
+            return ['tun' => false, 'grund' => 'lokale Kopie, Ursprung nicht erkennbar', 'datei' => basename($url)];
+        }
+        $url = $origin;
+        parse_str((string) parse_url($url, PHP_URL_QUERY), $query);
+        $title = is_string($query['title'] ?? null) ? $query['title'] : '';
+        if (preg_match('~^(?:Spezial:Dateipfad|Special:FilePath)/(.+)$~i', $title, $match) === 1) {
+            $url = $match[1];
+        }
+    }
+
     $pfad = (string) parse_url($url, PHP_URL_PATH);
     $datei = rawurldecode((string) basename($pfad !== '' ? $pfad : $url));
 

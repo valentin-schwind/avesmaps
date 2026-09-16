@@ -7,6 +7,8 @@ require_once __DIR__ . '/../audit-focus.php';
 // Ein Request, eine Transaktion, ein unteilbarer Beleg. Keine Gruppierung nach Uhrzeit.
 const AVESMAPS_MAP_GROUP_AUDIT_ACTIONS = [
     'link_wiki_location_group', 'undo_link_wiki_location_group', 'undo_undo_link_wiki_location_group',
+    'local_coat_location_group', 'undo_local_coat_location_group', 'undo_undo_local_coat_location_group',
+    'set_coat_location_group', 'undo_set_coat_location_group', 'undo_undo_set_coat_location_group',
     'set_ruined_location_group', 'undo_set_ruined_location_group', 'undo_undo_set_ruined_location_group',
     'set_territory_location_group', 'undo_set_territory_location_group', 'undo_undo_set_territory_location_group',
     'bulk_assign_wiki_path_group', 'undo_bulk_assign_wiki_path_group', 'undo_undo_bulk_assign_wiki_path_group',
@@ -225,7 +227,7 @@ function avesmapsWikiLocationGroupKanon(PDO $pdo, array $ids): array {
 }
 
 function avesmapsMapGroupAuditDetail(array $snapshot): string {
-    $labels = ['wiki_settlement' => 'Wiki-Verknüpfung und Beschreibung', 'is_ruined' => 'Ruinenstatus', 'territory_assignment' => 'Herrschaftsgebiet-Zuordnung', 'wiki_path_assignment' => 'Wiki-Zuordnung', 'wiki_path' => 'Wiki-Zuordnung und Wegname', 'name' => 'Name', 'feature_subtype' => 'Wegart', 'show_label' => 'Beschriftung', 'allowed_transports' => 'Verkehrsmittel',
+    $labels = ['coat' => 'Wappen', 'wiki_settlement' => 'Wiki-Verknüpfung und Beschreibung', 'is_ruined' => 'Ruinenstatus', 'territory_assignment' => 'Herrschaftsgebiet-Zuordnung', 'wiki_path_assignment' => 'Wiki-Zuordnung', 'wiki_path' => 'Wiki-Zuordnung und Wegname', 'name' => 'Name', 'feature_subtype' => 'Wegart', 'show_label' => 'Beschriftung', 'allowed_transports' => 'Verkehrsmittel',
         'details' => 'Abschnittsdetails', 'transport_seasons' => 'Saisonfenster',
         'powerline_details' => 'Name, Darstellung und Beschreibung', 'rewire' => 'Verbindungen und Quellenzuordnung'];
     $fields = [];

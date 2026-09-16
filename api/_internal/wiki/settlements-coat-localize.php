@@ -165,20 +165,20 @@ function avesmapsWikiSettlementCoatLocalizeCounts(PDO $pdo): array
  * niemals von Hand `avesmapsWikiLokalisierungLaeuft(true)` setzen.
  * ⚠️ Die Freigabe gilt fuer die Dauer DIESES Laufs im selben Prozess, nicht darueber hinaus.
  */
-function avesmapsWikiSettlementLocalizeCoats(PDO $pdo, int $limit = 10, int $sleepMs = 150): array
+function avesmapsWikiSettlementLocalizeCoats(PDO $pdo, int $limit = 10, int $sleepMs = 150, int $userId = 0): array
 {
     return avesmapsWikiAusdruecklicherAbruf(
-        static fn(): array => avesmapsWikiSettlementLocalizeCoatsAusfuehren($pdo, $limit, $sleepMs)
+        static fn(): array => avesmapsWikiSettlementLocalizeCoatsAusfuehren($pdo, $limit, $sleepMs, $userId)
     );
 }
 
-function avesmapsWikiSettlementLocalizeCoatsAusfuehren(PDO $pdo, int $limit = 10, int $sleepMs = 150): array
+function avesmapsWikiSettlementLocalizeCoatsAusfuehren(PDO $pdo, int $limit = 10, int $sleepMs = 150, int $userId = 0, ?callable $download = null): array
 {
     $limit = max(1, min(40, $limit));
     $sleepMs = max(0, min(3000, $sleepMs));
     @set_time_limit(max(30, $limit * 4 + 20));
 
-    $rows = $pdo->query("SELECT id, public_id, properties_json FROM map_features WHERE feature_type='location' AND is_active=1")
+    $rows = $pdo->query("SELECT id, public_id, revision, properties_json FROM map_features WHERE feature_type='location' AND is_active=1 ORDER BY id ASC")
         ->fetchAll(PDO::FETCH_ASSOC);
 
     $due = [];
@@ -188,7 +188,7 @@ function avesmapsWikiSettlementLocalizeCoatsAusfuehren(PDO $pdo, int $limit = 10
         if (avesmapsWikiSettlementCoatLocalizeState($coat) !== 'due') {
             continue;
         }
-        $due[] = ['id' => (int) $row['id'], 'public_id' => (string) $row['public_id'], 'props' => $props];
+        $due[] = ['id' => (int) $row['id'], 'public_id' => (string) $row['public_id'], 'props' => $props, 'before' => $row];
     }
     $totalDue = count($due);
     $batch = array_slice($due, 0, $limit);
@@ -201,10 +201,13 @@ function avesmapsWikiSettlementLocalizeCoatsAusfuehren(PDO $pdo, int $limit = 10
     // bevor der Bildholer sie einzeln braucht. Jede Aufloesung kostet sonst einen eigenen
     // Crawl-delay, und der Lauf waere doppelt so lang. Abkuerzung, keine Regel -- die Regel
     // (nie die Spezialseite holen) steht im Bildholer und gilt auch ohne diesen Vorlauf.
-    avesmapsWikiDateiAdressenAufloesen(array_map(
-        static fn(array $eintrag): string => (string) ($eintrag['props']['coat']['url'] ?? ''),
-        $batch
-    ));
+    if ($download === null) {
+        avesmapsWikiDateiAdressenAufloesen(array_map(
+            static fn(array $eintrag): string => (string) ($eintrag['props']['coat']['url'] ?? ''),
+            $batch
+        ));
+    }
+    $download ??= 'avesmapsWikiSyncMonitorHttpGetBinary';
 
     $docroot = rtrim((string) ($_SERVER['DOCUMENT_ROOT'] ?? dirname(__DIR__, 3)), '/');
     $dir = $docroot . AVESMAPS_SETTLEMENT_COAT_LOCAL_DIR;
@@ -212,8 +215,7 @@ function avesmapsWikiSettlementLocalizeCoatsAusfuehren(PDO $pdo, int $limit = 10
         return ['ok' => false, 'error' => 'Ordner ' . AVESMAPS_SETTLEMENT_COAT_LOCAL_DIR . ' konnte nicht angelegt werden (Schreibrechte?).'];
     }
 
-    $revision = avesmapsWikiSyncNextMapRevision($pdo);
-    $update = $pdo->prepare('UPDATE map_features SET properties_json = :pj, revision = :rev WHERE id = :id');
+    $updates = [];
     $localized = 0;
     $failed = 0;
     $errors = [];
@@ -229,7 +231,7 @@ function avesmapsWikiSettlementLocalizeCoatsAusfuehren(PDO $pdo, int $limit = 10
             }
         };
 
-        $downloaded = avesmapsWikiSyncMonitorHttpGetBinary($sourceUrl);
+        $downloaded = $download($sourceUrl);
         if ($downloaded === null) {
             $fail('Wappen konnte nicht heruntergeladen werden.');
         } else {
@@ -237,9 +239,9 @@ function avesmapsWikiSettlementLocalizeCoatsAusfuehren(PDO $pdo, int $limit = 10
             if ($ext === null) {
                 $fail('Kein erlaubtes Bildformat (png/jpg/svg/gif/webp).');
             } else {
-                $filename = avesmapsWikiSettlementCoatFilename($item['public_id'], $ext);
                 $bytes = avesmapsWikiSyncMonitorDownscaleCoatBytes($downloaded['bytes'], $ext);
-                if (@file_put_contents($dir . '/' . $filename, $bytes) === false) {
+                $filename = avesmapsWikiSettlementCoatFilename($item['public_id'] . '-' . hash('sha256', $bytes), $ext);
+                if (!avesmapsWikiSettlementStoreImmutableCoat($dir . '/' . $filename, $bytes)) {
                     $fail('Wappen konnte nicht gespeichert werden (Schreibrechte?).');
                 } else {
                     // source stays 'wiki' and the licence stays public_domain -- localising changes
@@ -253,11 +255,7 @@ function avesmapsWikiSettlementLocalizeCoatsAusfuehren(PDO $pdo, int $limit = 10
                         'attribution' => (string) ($coat['attribution'] ?? ''),
                         'wiki_url' => $sourceUrl,
                     ];
-                    $update->execute([
-                        'pj' => avesmapsWikiSyncEncodeJson($props),
-                        'rev' => $revision,
-                        'id' => $item['id'],
-                    ]);
+                    $updates[] = ['before' => $item['before'], 'properties_json' => $props];
                     $localized++;
                 }
             }
@@ -266,6 +264,9 @@ function avesmapsWikiSettlementLocalizeCoatsAusfuehren(PDO $pdo, int $limit = 10
             avesmapsWikiSyncMonitorSleep($sleepMs);
         }
     }
+
+    require_once __DIR__ . '/settlement-territory-audit.php';
+    avesmapsWikiSettlementCommitLocationGroup($pdo, $updates, $userId, 'local_coat_location_group');
 
     return [
         'ok' => true,
@@ -276,4 +277,23 @@ function avesmapsWikiSettlementLocalizeCoatsAusfuehren(PDO $pdo, int $limit = 10
         'errors' => $errors,
         'counts' => avesmapsWikiSettlementCoatLocalizeCounts($pdo),
     ];
+}
+
+// Inhaltsadressierte Dateien bleiben für ältere Belege erhalten. Ein Rollback entfernt keinen Cache.
+function avesmapsWikiSettlementStoreImmutableCoat(string $path, string $bytes): bool {
+    if (is_file($path)) {
+        return hash_file('sha256', $path) === hash('sha256', $bytes);
+    }
+    $temporary = @tempnam(dirname($path), '.coat-');
+    if ($temporary === false) {
+        return false;
+    }
+    try {
+        return @file_put_contents($temporary, $bytes) === strlen($bytes)
+            && @chmod($temporary, 0644) && @rename($temporary, $path);
+    } finally {
+        if (is_file($temporary)) {
+            unlink($temporary);
+        }
+    }
 }

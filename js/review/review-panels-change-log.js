@@ -363,6 +363,12 @@ function formatChangeAction(action) {
 		link_wiki_location_group: "Orte mit Wiki-Artikeln verknüpft",
 		undo_link_wiki_location_group: "Wiki-Verknüpfungen zurückgenommen",
 		undo_undo_link_wiki_location_group: "Wiki-Verknüpfungen wiederhergestellt",
+		local_coat_location_group: "Lokale Wiki-Wappen für Orte aktiviert",
+		undo_local_coat_location_group: "Lokale Wappenübernahme zurückgenommen",
+		undo_undo_local_coat_location_group: "Lokale Wappenübernahme wiederhergestellt",
+		set_coat_location_group: "Wiki-Wappen für Orte übernommen",
+		undo_set_coat_location_group: "Wappenübernahme zurückgenommen",
+		undo_undo_set_coat_location_group: "Wappenübernahme wiederhergestellt",
 		set_ruined_location_group: "Ruinenstatus für Orte übernommen",
 		undo_set_ruined_location_group: "Ruinenübernahme zurückgenommen",
 		undo_undo_set_ruined_location_group: "Ruinenübernahme wiederhergestellt",
@@ -1191,6 +1197,7 @@ async function applyLocationGroupAuditResponse(group) {
 				coat: properties.coat || null,
 			});
 		}
+		if (group.fields?.includes("coat")) location.coat = properties.coat || null;
 		if (group.fields?.includes("is_ruined")) location.isRuined = Boolean(properties.is_ruined);
 		if (marker) markers.push(marker);
 	}
