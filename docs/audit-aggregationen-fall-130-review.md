@@ -103,6 +103,18 @@ Die lokale Bedienprobe verwendet originalen Verlauf, Gruppenrücknahme, Infopane
 
 Offen bleiben Wiki-Verknüpfungen, Wappen einschließlich ihrer nachgelagerten Lokalisierung, Wiki-Regionen, vollständige Wegverlauf-Sync-Aufträge, Landschaftshärtung und domänenübergreifende Importe. Die Wappenlokalisierung schreibt nach dem Download erneut Orts-Eigenschaften; sie muss mit der Übernahme zusammen untersucht werden, sonst wäre deren Rücknahme direkt nach dem erfolgreichen Bedienablauf durch einen Folgekonflikt blockiert.
 
+## Achter Ausbau: Wiki-Ortsverknüpfungen
+
+`bulk_connect` schreibt bis zu 200 Orte je Anfrage als einen vollständigen Sammelbeleg. Die bestehende Titelauswahl bleibt erhalten; Kreuzungen, mehrdeutige Treffer und bereits zugewiesene Orte werden nicht neu verknüpft. Artikelabrufe erfolgen vor der Schreibtransaktion in Paketen zu höchstens 50 Titeln. Fehlt ein benötigter Artikel, wird das ganze geplante Paket abgewiesen. Der authentifizierte Akteur wird am Beleg geführt.
+
+Wiki-Verknüpfung und bisherige eigene Beschreibung werden gemeinsam zurückgenommen und wiederhergestellt. Spätere Änderungen an Ortsdetails oder fremde Sperren verhindern jede Teilrücknahme; spätere Namen und Geometrien bleiben erhalten. Die Schreibseite prüft zusätzlich den ursprünglich zur Titelauswahl verwendeten Namen und Untertyp. Ein optionaler Wiki-Lesevorrat wird erst nach erfolgreichem Commit erneuert und bleibt unabhängig von der Rücknahme bestehen.
+
+Die offene Infobox übernimmt Artikel, Beschreibung, Wiki-Adresse und angereichertes Wappen aus einem gemeinsamen Deltaabruf. **Dieser Deltaabruf enthält absichtlich keinen Kanon.** Deshalb liefert die Rücknahme eine ausdrückliche Kanonantwort für sämtliche betroffenen Kennungen; fehlende Mitglieder werden vor jeder Clientänderung abgewiesen. Der begrenzte Leser verwendet die bestehende zentrale Kanonableitung. Seine Grenze von 2.500 Quellenverweisen wird auch beim ursprünglichen Schreiben geprüft, damit kein sofort unrücknehmbares Paket entsteht.
+
+Verifiziert: 1/27/200 Orte, 201 Orte in zwei getrennten Anfragen, Vorschau/No-op, fehlende Artikel und Netzfehler, Änderung während des Abrufs, Sperren, Rollback am letzten Ort, Snapshot- und Quellengrenze, Undo/Redo einschließlich ursprünglicher Beschreibung und Kanon. SQLite sowie echte MySQL-Transaktionen bestanden; zwei MySQL-Prozesse prüften eine während des Wartens hinzugekommene Sperre und die weiterhin bearbeitbare unbeteiligte Zeile. Im Browser auf lokaler MySQL-Fixture: 27 Orte speichern, Originalverlauf öffnen/aufklappen, Original-Infopanel öffnen, gemeinsam zurücknehmen und wiederherstellen; Beschreibung, Wiki-Link und Kanon wechseln ohne Neuladen in Hell/Dunkel. Die Fixture verwendet eine vereinfachte Ortsdarstellung mit originalen Kanon-, Verlauf- und Infopanel-Funktionen. Das gesamte Workflow-Muster umfasst 453 PHP- und 640 JS-Dateien; lokal bleibt allein der bekannte DNS-abhängige Linkcheck rot. Beide Prüfagenten gaben den abschließenden Diff frei.
+
+Die vorhandene API-Aktion wird abgesichert; ein stillgelegter Massenknopf wird nicht wieder eingeführt. Ein mehrteiliger Lauf bleibt ausdrücklich mehrere begrenzte Vorgänge, keine unbegrenzte Gesamtoperation oder Aufbewahrungszusage. Wappen-Massenabgleich, weitere Wiki-/Importaktionen und das domänenübergreifende Zielmodell bleiben offen. **Fall #130 ist insgesamt noch nicht abgeschlossen.**
+
 ## Ergebnis
 
 Sammel-Undos sind machbar. Der erste geeignete Anwendungsfall ist die Bearbeitung einer Wegegruppe. Eine reine Zusammenfassung der Anzeige reicht nicht: Gruppenzugehörigkeit, Vollständigkeit, Konfliktprüfung und Aufbewahrung müssen gemeinsam umgesetzt werden. Die Einzeländerungen bleiben als Belege erhalten; eine Operation verbindet sie.

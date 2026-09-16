@@ -13,6 +13,7 @@ function avesmapsWikiSettlementCommitLocationGroup(PDO $pdo, array $updates, int
     $fields = match ($action) {
         'set_territory_location_group' => ['territory_assignment'],
         'set_ruined_location_group' => ['is_ruined'],
+        'link_wiki_location_group' => ['wiki_settlement'],
         default => throw new InvalidArgumentException('Unbekannte Orts-Sammelaktion.'),
     };
     if ($updates === []) {
@@ -35,7 +36,9 @@ function avesmapsWikiSettlementCommitLocationGroup(PDO $pdo, array $updates, int
             $current = avesmapsFetchFeatureByIdForUpdate($pdo, $id);
             if ($current['public_id'] !== $before['public_id'] || $current['feature_type'] !== 'location'
                 || (int) $current['is_active'] !== 1 || (int) $current['revision'] !== (int) $before['revision']
-                || $current['properties_json'] !== $before['properties_json']) {
+                || $current['properties_json'] !== $before['properties_json']
+                || ($action === 'link_wiki_location_group'
+                    && ($current['name'] !== $before['name'] || $current['feature_subtype'] !== $before['feature_subtype']))) {
                 throw new AvesmapsConflictException('Ein Ort wurde inzwischen geändert. Bitte den Vorgang neu berechnen.');
             }
             $features[$id] = $current;
@@ -63,6 +66,9 @@ function avesmapsWikiSettlementCommitLocationGroup(PDO $pdo, array $updates, int
             $beforeMembers[] = avesmapsMapGroupAuditMember($feature);
             $afterMembers[] = avesmapsMapGroupAuditMember(array_replace($feature, $patch));
             $bounds[] = avesmapsCalculateGeometryBounds(avesmapsReadGeometryFromColumnValue($feature['geometry_json']));
+        }
+        if ($changed !== [] && $action === 'link_wiki_location_group') {
+            avesmapsWikiLocationGroupKanon($pdo, array_column($afterMembers, 'public_id'));
         }
         $auditId = null;
         if ($changed !== []) {

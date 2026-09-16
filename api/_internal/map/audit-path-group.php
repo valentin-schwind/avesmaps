@@ -6,6 +6,7 @@ require_once __DIR__ . '/../audit-focus.php';
 
 // Ein Request, eine Transaktion, ein unteilbarer Beleg. Keine Gruppierung nach Uhrzeit.
 const AVESMAPS_MAP_GROUP_AUDIT_ACTIONS = [
+    'link_wiki_location_group', 'undo_link_wiki_location_group', 'undo_undo_link_wiki_location_group',
     'set_ruined_location_group', 'undo_set_ruined_location_group', 'undo_undo_set_ruined_location_group',
     'set_territory_location_group', 'undo_set_territory_location_group', 'undo_undo_set_territory_location_group',
     'bulk_assign_wiki_path_group', 'undo_bulk_assign_wiki_path_group', 'undo_undo_bulk_assign_wiki_path_group',
@@ -195,11 +196,36 @@ function avesmapsUndoMapGroupAudit(PDO $pdo, array $entry, array $user): array {
     return ['fields' => $before['fields'] ?? [], 'revision' => $revision, 'features' => $responses, 'steps' => count($responses), 'feature_type' => $featureType,
         'source_payload' => $full ? avesmapsPowerlineGroupSourcePayload($pdo, $before) : null,
         'kanon_je_kennung' => str_contains($entry['action'], 'wiki_path_group')
-            ? avesmapsWikiPathGroupKanon($pdo, $before, $after) : null];
+            ? avesmapsWikiPathGroupKanon($pdo, $before, $after)
+            : (str_contains($entry['action'], 'link_wiki_location_group')
+                ? avesmapsWikiLocationGroupKanon($pdo, array_column($responses, 'public_id')) : null)];
+}
+
+// Der Delta-Lesepfad liefert keinen Kanon. Nur die betroffenen Orte werden hier nachgetragen.
+function avesmapsWikiLocationGroupKanon(PDO $pdo, array $ids): array {
+    require_once __DIR__ . '/../app/feature-sources.php';
+    $slots = implode(',', array_fill(0, count($ids), '?'));
+    $read = $pdo->prepare("SELECT entity_public_id, source_id, reference_kind FROM feature_sources
+        WHERE entity_type = 'settlement' AND status = 'approved' AND entity_public_id IN ($slots) LIMIT 2501");
+    $read->execute($ids);
+    $links = $read->fetchAll(PDO::FETCH_ASSOC);
+    if (count($links) > 2500) {
+        throw new InvalidArgumentException('Die betroffenen Orte haben zu viele Quellen für einen gemeinsamen Kanonnachtrag.');
+    }
+    $refs = [];
+    $sourceIds = [];
+    foreach ($links as $link) {
+        $sourceIds[(int) $link['source_id']] = true;
+        $refs['settlement:' . $link['entity_public_id']][] = ['source_id' => (int) $link['source_id'],
+            'reference_kind' => (string) ($link['reference_kind'] ?? '')];
+    }
+    [$catalog] = avesmapsMapGroupSourceCatalog($pdo, $sourceIds);
+    return avesmapsFeatureSourcesKanonAusEingaben('settlement', $ids, $catalog, $refs,
+        avesmapsFeatureSourcesWikiNamespacesFuerKennungen($pdo, 'settlement', $ids));
 }
 
 function avesmapsMapGroupAuditDetail(array $snapshot): string {
-    $labels = ['is_ruined' => 'Ruinenstatus', 'territory_assignment' => 'Herrschaftsgebiet-Zuordnung', 'wiki_path_assignment' => 'Wiki-Zuordnung', 'wiki_path' => 'Wiki-Zuordnung und Wegname', 'name' => 'Name', 'feature_subtype' => 'Wegart', 'show_label' => 'Beschriftung', 'allowed_transports' => 'Verkehrsmittel',
+    $labels = ['wiki_settlement' => 'Wiki-Verknüpfung und Beschreibung', 'is_ruined' => 'Ruinenstatus', 'territory_assignment' => 'Herrschaftsgebiet-Zuordnung', 'wiki_path_assignment' => 'Wiki-Zuordnung', 'wiki_path' => 'Wiki-Zuordnung und Wegname', 'name' => 'Name', 'feature_subtype' => 'Wegart', 'show_label' => 'Beschriftung', 'allowed_transports' => 'Verkehrsmittel',
         'details' => 'Abschnittsdetails', 'transport_seasons' => 'Saisonfenster',
         'powerline_details' => 'Name, Darstellung und Beschreibung', 'rewire' => 'Verbindungen und Quellenzuordnung'];
     $fields = [];

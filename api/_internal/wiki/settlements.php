@@ -1279,7 +1279,7 @@ function avesmapsWikiSettlementResolvePreferredTitle(array $titles): string {
 // Sammelt alle noch unverbundenen Karten-Orte (inkl. Bauwerke/gebaeude), die per Name passen.
 function avesmapsWikiSettlementCollectConnectTargets(PDO $pdo): array {
     $titleIdx = avesmapsWikiSettlementTitleIndex($pdo);
-    $rows = $pdo->query("SELECT id, public_id, name, feature_subtype, properties_json FROM map_features WHERE feature_type='location' AND is_active=1 AND name<>''")->fetchAll(PDO::FETCH_ASSOC);
+    $rows = $pdo->query("SELECT id, public_id, name, feature_subtype, revision, properties_json FROM map_features WHERE feature_type='location' AND is_active=1 AND name<>'' ORDER BY id")->fetchAll(PDO::FETCH_ASSOC);
     $targets = [];
     foreach ($rows as $r) {
         $sub = (string) ($r['feature_subtype'] ?? '');
@@ -1302,7 +1302,7 @@ function avesmapsWikiSettlementCollectConnectTargets(PDO $pdo): array {
         if ($target === '') {
             continue; // mehrdeutig (keine eindeutige "(Siedlung)"-Variante) -> nur manuell
         }
-        $targets[] = ['id' => (int) $r['id'], 'public_id' => (string) $r['public_id'], 'name' => $name, 'title' => $target, 'props' => $props];
+        $targets[] = ['id' => (int) $r['id'], 'public_id' => (string) $r['public_id'], 'name' => $name, 'title' => $target, 'props' => $props, 'before' => $r];
     }
     return $targets;
 }
@@ -1633,7 +1633,8 @@ function avesmapsWikiSettlementConnectStatus(PDO $pdo): array {
 // Verbindet eine Charge (limit) der eindeutig passenden, unverbundenen Orte: lädt die Wiki-Seiten
 // gebündelt (50/Call), parst die Infobox, schreibt properties.wiki_settlement. Gated. Chunked:
 // Frontend ruft wiederholt auf, bis remaining=0.
-function avesmapsWikiSettlementBulkConnect(PDO $pdo, int $limit, bool $dryRun): array {
+function avesmapsWikiSettlementBulkConnect(PDO $pdo, int $limit, bool $dryRun, int $userId = 0, ?callable $fetchContents = null): array {
+    require_once __DIR__ . '/settlement-territory-audit.php';
     avesmapsWikiSettlementEnsureSchema($pdo);
     if (function_exists('avesmapsWikiSyncRelaxLimits')) {
         avesmapsWikiSyncRelaxLimits();
@@ -1655,37 +1656,42 @@ function avesmapsWikiSettlementBulkConnect(PDO $pdo, int $limit, bool $dryRun): 
     foreach ($batch as $t) {
         $titles[$t['title']] = true;
     }
+    $fetchContents ??= 'avesmapsWikiSyncFetchPoliticalTerritoryPageContents';
     $contents = [];
     foreach (array_chunk(array_keys($titles), 50) as $chunk) {
-        $contents += avesmapsWikiSyncFetchPoliticalTerritoryPageContents($chunk);
+        $contents += $fetchContents($chunk);
     }
 
-    $revision = avesmapsWikiSyncNextMapRevision($pdo);
-    $update = $pdo->prepare('UPDATE map_features SET properties_json = :pj, revision = :rev WHERE id = :id');
-    $connected = 0; $failed = [];
-    foreach ($batch as $t) {
-        $wikitext = (string) ($contents[$t['title']] ?? '');
+    // Erst vollständig planen; Wiki-Abrufe und Parser laufen außerhalb jeder Schreibtransaktion.
+    $updates = [];
+    $details = [];
+    $failed = [];
+    foreach ($batch as $target) {
+        $wikitext = (string) ($contents[$target['title']] ?? '');
         if (trim($wikitext) === '') {
-            $failed[] = $t['name'];
+            $failed[] = $target['name'];
             continue;
         }
-        $reg = avesmapsWikiSettlementRegistryRow($pdo, $t['title']);
-        $settlement = avesmapsWikiSettlementParseInfobox($t['title'], $wikitext, (string) ($reg['settlement_class'] ?? ''), (string) ($reg['wiki_url'] ?? ''));
-        $props = is_array($t['props']) ? $t['props'] : [];
-        $props['wiki_settlement'] = $settlement;
-        unset($props['description']);
-        $update->execute(['pj' => avesmapsWikiSyncEncodeJson($props), 'rev' => $revision, 'id' => $t['id']]);
-        avesmapsWikiSettlementCacheDetails($pdo, $settlement['title'], $settlement);
-        $connected++;
+        $registry = avesmapsWikiSettlementRegistryRow($pdo, $target['title']);
+        $settlement = avesmapsWikiSettlementParseInfobox($target['title'], $wikitext,
+            (string) ($registry['settlement_class'] ?? ''), (string) ($registry['wiki_url'] ?? ''));
+        $properties = $target['props'];
+        $properties['wiki_settlement'] = $settlement;
+        unset($properties['description']);
+        $updates[] = ['before' => $target['before'], 'properties_json' => $properties];
+        $details[$settlement['title']] = $settlement;
     }
-
-    return [
-        'ok' => true,
-        'dry_run' => false,
-        'connected' => $connected,
-        'remaining' => max(0, $remainingBefore - $connected),
-        'failed' => $failed,
-    ];
+    if ($failed !== []) {
+        throw new AvesmapsConflictException('Wiki-Verknüpfung nicht gespeichert: Für ' . count($failed)
+            . ' Orte fehlt der Wiki-Inhalt. Das gesamte Paket bleibt unverändert. Bitte später erneut versuchen.');
+    }
+    avesmapsWikiSettlementCommitLocationGroup($pdo, $updates, $userId, 'link_wiki_location_group');
+    // Reiner Lesevorrat, keine Ortszuordnung: erst nach erfolgreichem Commit und einmal je Artikel.
+    foreach ($details as $title => $settlement) {
+        avesmapsWikiSettlementCacheDetails($pdo, $title, $settlement);
+    }
+    return ['ok' => true, 'dry_run' => false, 'connected' => count($updates),
+        'remaining' => max(0, $remainingBefore - count($updates)), 'failed' => []];
 }
 
 // ===== Siedlungseditor: Territoriums-Zuweisung (properties.territory_wiki_key etc.) =====

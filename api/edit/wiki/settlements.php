@@ -66,7 +66,8 @@ try {
             'bulk_connect' => avesmapsWikiSettlementBulkConnect(
                 $pdo,
                 (int) ($payload['limit'] ?? 100),
-                !$isApply()
+                !$isApply(),
+                (int) ($user['id'] ?? 0)
             ),
             'crawl_buildings' => avesmapsWikiSettlementCrawlBuildings($pdo),
             'crawl_building_types' => avesmapsWikiSettlementBuildingTypes($pdo),
@@ -130,7 +131,7 @@ try {
         };
 
         // map_features-Cache invalidieren, wenn echt geschrieben wurde.
-        if (in_array($action, ['assign_to', 'clear_assign', 'bulk_connect', 'bulk_record_coats', 'set_coat', 'clear_coat', 'assign_territory', 'clear_territory'], true) && is_array($response) && ($response['dry_run'] ?? true) === false) {
+        if (in_array($action, ['assign_to', 'clear_assign', 'bulk_record_coats', 'set_coat', 'clear_coat', 'assign_territory', 'clear_territory'], true) && is_array($response) && ($response['dry_run'] ?? true) === false) {
             avesmapsWikiSyncNextMapRevision($pdo);
         }
         // The image kill switch flips what map-features emits -> always bump so cached clients revalidate.

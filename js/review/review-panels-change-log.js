@@ -360,6 +360,9 @@ function changeLogFilterEntries(entries, selected) {
 
 function formatChangeAction(action) {
 	const groupActions = {
+		link_wiki_location_group: "Orte mit Wiki-Artikeln verknüpft",
+		undo_link_wiki_location_group: "Wiki-Verknüpfungen zurückgenommen",
+		undo_undo_link_wiki_location_group: "Wiki-Verknüpfungen wiederhergestellt",
 		set_ruined_location_group: "Ruinenstatus für Orte übernommen",
 		undo_set_ruined_location_group: "Ruinenübernahme zurückgenommen",
 		undo_undo_set_ruined_location_group: "Ruinenübernahme wiederhergestellt",
@@ -1149,10 +1152,18 @@ async function applyLocationGroupAuditResponse(group) {
 	if (group.features.some(member => !features.has(member.public_id))) {
 		throw new Error("Die Änderung wurde gespeichert. Nicht alle Orte konnten neu geladen werden; bitte die Karte neu laden.");
 	}
-	// Nur politische Felder werden übernommen. Ein frischer Revisionstoken auf ansonsten
+	// Nur die betroffenen Ortsfelder werden übernommen. Ein frischer Revisionstoken auf ansonsten
 	// alten Ortsdetails würde eine spätere Bearbeitung fälschlich als aktuell ausgeben.
 	if (group.features.some(member => Number(features.get(member.public_id).properties?.revision) !== Number(member.revision))) {
 		throw new Error("Die Änderung wurde gespeichert. Ein Ort wurde danach erneut geändert; bitte die Karte neu laden.");
+	}
+	const wikiGroup = group.fields?.includes("wiki_settlement");
+	if (wikiGroup) {
+		const kanon = group.kanon_je_kennung;
+		if (!kanon || group.features.some(member => !Object.hasOwn(kanon, member.public_id))) {
+			throw new Error("Die Änderung wurde gespeichert. Die Quellenhinweise fehlen; bitte die Karte neu laden.");
+		}
+		avesmapsKanonTafelNachtragen("settlement", kanon);
 	}
 	const markers = [];
 	for (const member of group.features) {
@@ -1172,6 +1183,14 @@ async function applyLocationGroupAuditResponse(group) {
 			political: properties.political || null,
 			revision: member.revision,
 		});
+		if (wikiGroup) {
+			Object.assign(location, {
+				wikiSettlement: properties.wiki_settlement || null,
+				wikiUrl: readFeatureWikiUrl(properties),
+				description: properties.description || "",
+				coat: properties.coat || null,
+			});
+		}
 		if (group.fields?.includes("is_ruined")) location.isRuined = Boolean(properties.is_ruined);
 		if (marker) markers.push(marker);
 	}
