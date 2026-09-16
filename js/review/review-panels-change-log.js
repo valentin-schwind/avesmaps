@@ -360,6 +360,9 @@ function changeLogFilterEntries(entries, selected) {
 
 function formatChangeAction(action) {
 	const groupActions = {
+		set_ruined_location_group: "Ruinenstatus für Orte übernommen",
+		undo_set_ruined_location_group: "Ruinenübernahme zurückgenommen",
+		undo_undo_set_ruined_location_group: "Ruinenübernahme wiederhergestellt",
 		set_territory_location_group: "Herrschaftsgebiete für Orte zugewiesen",
 		undo_set_territory_location_group: "Ortszuweisungen zurückgenommen",
 		undo_undo_set_territory_location_group: "Ortszuweisungen wiederhergestellt",
@@ -1130,7 +1133,7 @@ function isUndoChangeLogEntry(entry) {
 // Ctrl+Z belongs to local geometry editing only, where a miss costs nothing.
 // Die politische Infobox wird im öffentlichen Lesepfad aus der aktuellen Hierarchie
 // abgeleitet. Ein einzelner Deltaabruf erneuert alle betroffenen Orte nach dem Commit.
-async function applyTerritoryLocationGroupAuditResponse(group) {
+async function applyLocationGroupAuditResponse(group) {
 	const url = new URL(MAP_FEATURES_API_URL, window.location.href);
 	url.searchParams.set("since_revision", String(Math.max(0, Number(group.revision) - 1)));
 	url.searchParams.set("edit_mode", "1");
@@ -1169,6 +1172,7 @@ async function applyTerritoryLocationGroupAuditResponse(group) {
 			political: properties.political || null,
 			revision: member.revision,
 		});
+		if (group.fields?.includes("is_ruined")) location.isRuined = Boolean(properties.is_ruined);
 		if (marker) markers.push(marker);
 	}
 	for (const marker of markers) {
@@ -1176,6 +1180,7 @@ async function applyTerritoryLocationGroupAuditResponse(group) {
 		refreshLocationMarkerPopup(marker);
 		if (open) marker.marker.openPopup();
 	}
+	if (group.fields?.includes("is_ruined") && typeof syncLocationNameLabelVisibility === "function") syncLocationNameLabelVisibility();
 	if (typeof window.avesmapsRefreshInfopanel === "function") window.avesmapsRefreshInfopanel();
 	if (typeof loadSettlementList === "function" && typeof settlementListItems !== "undefined" && settlementListItems.length > 0) {
 		void loadSettlementList();
@@ -1212,7 +1217,7 @@ async function undoChangeLogEntry(entry) {
 			const result = await undoMapAuditChange(Number(entry.id));
 			const members = result?.feature?.features;
 			if (Array.isArray(members) && result.feature.feature_type === "location") {
-				await applyTerritoryLocationGroupAuditResponse(result.feature);
+				await applyLocationGroupAuditResponse(result.feature);
 			} else if (Array.isArray(members) && result.feature.feature_type === "powerline") {
 				applyPowerlineGroupAuditResponse(members, result.feature.source_payload);
 			} else if (Array.isArray(members)) {

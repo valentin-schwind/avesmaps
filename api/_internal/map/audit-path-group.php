@@ -6,6 +6,7 @@ require_once __DIR__ . '/../audit-focus.php';
 
 // Ein Request, eine Transaktion, ein unteilbarer Beleg. Keine Gruppierung nach Uhrzeit.
 const AVESMAPS_MAP_GROUP_AUDIT_ACTIONS = [
+    'set_ruined_location_group', 'undo_set_ruined_location_group', 'undo_undo_set_ruined_location_group',
     'set_territory_location_group', 'undo_set_territory_location_group', 'undo_undo_set_territory_location_group',
     'bulk_assign_wiki_path_group', 'undo_bulk_assign_wiki_path_group', 'undo_undo_bulk_assign_wiki_path_group',
     'assign_wiki_path_group', 'undo_assign_wiki_path_group', 'undo_undo_assign_wiki_path_group',
@@ -140,7 +141,7 @@ function avesmapsMapGroupAuditMembers(array $snapshot, string $featureType = 'pa
 function avesmapsUndoMapGroupAudit(PDO $pdo, array $entry, array $user): array {
     $before = avesmapsDecodeJsonColumnForEdit($entry['before_json']);
     $after = avesmapsDecodeJsonColumnForEdit($entry['after_json']);
-    $locationGroup = str_contains($entry['action'], 'territory_location_group');
+    $locationGroup = str_contains($entry['action'], '_location_group');
     $featureType = $locationGroup ? 'location' : (str_contains($entry['action'], 'powerline_group') ? 'powerline' : 'path');
     $full = str_contains($entry['action'], 'reorder_powerline_group');
     $columns = $locationGroup ? ['properties_json'] : ['name', 'feature_subtype', 'properties_json'];
@@ -191,14 +192,14 @@ function avesmapsUndoMapGroupAudit(PDO $pdo, array $entry, array $user): array {
         (int) $user['id'], $after, $before);
     avesmapsMarkAuditEntryUndone($pdo, (int) $entry['id'], (int) $user['id'], $undoId);
 
-    return ['revision' => $revision, 'features' => $responses, 'steps' => count($responses), 'feature_type' => $featureType,
+    return ['fields' => $before['fields'] ?? [], 'revision' => $revision, 'features' => $responses, 'steps' => count($responses), 'feature_type' => $featureType,
         'source_payload' => $full ? avesmapsPowerlineGroupSourcePayload($pdo, $before) : null,
         'kanon_je_kennung' => str_contains($entry['action'], 'wiki_path_group')
             ? avesmapsWikiPathGroupKanon($pdo, $before, $after) : null];
 }
 
 function avesmapsMapGroupAuditDetail(array $snapshot): string {
-    $labels = ['territory_assignment' => 'Herrschaftsgebiet-Zuordnung', 'wiki_path_assignment' => 'Wiki-Zuordnung', 'wiki_path' => 'Wiki-Zuordnung und Wegname', 'name' => 'Name', 'feature_subtype' => 'Wegart', 'show_label' => 'Beschriftung', 'allowed_transports' => 'Verkehrsmittel',
+    $labels = ['is_ruined' => 'Ruinenstatus', 'territory_assignment' => 'Herrschaftsgebiet-Zuordnung', 'wiki_path_assignment' => 'Wiki-Zuordnung', 'wiki_path' => 'Wiki-Zuordnung und Wegname', 'name' => 'Name', 'feature_subtype' => 'Wegart', 'show_label' => 'Beschriftung', 'allowed_transports' => 'Verkehrsmittel',
         'details' => 'Abschnittsdetails', 'transport_seasons' => 'Saisonfenster',
         'powerline_details' => 'Name, Darstellung und Beschreibung', 'rewire' => 'Verbindungen und Quellenzuordnung'];
     $fields = [];

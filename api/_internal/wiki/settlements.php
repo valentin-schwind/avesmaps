@@ -423,7 +423,8 @@ function avesmapsWikiSettlementRuinStatus(PDO $pdo): array {
 // Überträgt den Wiki-Ruine-Status (Registry is_ruined) auf die verbundenen Karten-Orte:
 // setzt properties.is_ruined = true (additiv — entfernt nie manuell gesetzte Ruinen). Dadurch
 // werden Marker-Label + Popup kursiv. Map-Write, gated über das Endpoint-Apply.
-function avesmapsWikiSettlementBulkRecordRuins(PDO $pdo, bool $dryRun): array {
+function avesmapsWikiSettlementBulkRecordRuins(PDO $pdo, bool $dryRun, int $userId = 0): array {
+    require_once __DIR__ . '/settlement-territory-audit.php';
     avesmapsWikiSettlementEnsureSchema($pdo);
 
     $ruinedTitles = [];
@@ -436,7 +437,7 @@ function avesmapsWikiSettlementBulkRecordRuins(PDO $pdo, bool $dryRun): array {
 
     $pending = [];
     if ($ruinedTitles !== []) {
-        $rows = $pdo->query("SELECT id, properties_json FROM map_features WHERE feature_type='location' AND is_active=1")->fetchAll(PDO::FETCH_ASSOC);
+        $rows = $pdo->query("SELECT id, public_id, revision, properties_json FROM map_features WHERE feature_type='location' AND is_active=1 ORDER BY id")->fetchAll(PDO::FETCH_ASSOC);
         foreach ($rows as $r) {
             $props = avesmapsWikiSyncDecodeJson($r['properties_json'] ?? null);
             $ws = $props['wiki_settlement'] ?? null;
@@ -444,25 +445,38 @@ function avesmapsWikiSettlementBulkRecordRuins(PDO $pdo, bool $dryRun): array {
             if ($title === '' || !isset($ruinedTitles[$title]) || !empty($props['is_ruined'])) {
                 continue;
             }
-            $pending[] = ['id' => (int) $r['id'], 'props' => $props];
+            $props['is_ruined'] = true;
+            $pending[] = ['before' => $r, 'properties_json' => $props];
         }
     }
 
-    if ($dryRun || $pending === []) {
-        return ['ok' => true, 'dry_run' => $dryRun, 'matched' => count($pending), 'applied' => 0];
+    $result = ['ok' => true, 'dry_run' => $dryRun, 'matched' => count($pending),
+        'applied' => 0, 'completed_batches' => 0, 'complete' => $dryRun];
+    if ($dryRun) {
+        return $result;
     }
-
-    $revision = avesmapsWikiSyncNextMapRevision($pdo);
-    $update = $pdo->prepare('UPDATE map_features SET properties_json = :pj, revision = :rev WHERE id = :id');
-    $applied = 0;
-    foreach ($pending as $p) {
-        $props = $p['props'];
-        $props['is_ruined'] = true;
-        $update->execute(['pj' => avesmapsWikiSyncEncodeJson($props), 'rev' => $revision, 'id' => $p['id']]);
-        $applied += 1;
+    $retainedAuditIds = [];
+    foreach (array_chunk($pending, 200) as $batch) {
+        try {
+            avesmapsWikiSettlementCommitLocationGroup($pdo, $batch, $userId, 'set_ruined_location_group', $retainedAuditIds);
+        } catch (Throwable $error) {
+            $result['ok'] = false;
+            $result['partial'] = $result['applied'] > 0;
+            $result['error'] = [
+                'code' => $error instanceof AvesmapsConflictException ? 'edit_conflict' : 'wiki_batch_failed',
+                'message' => 'Ruinenübernahme abgebrochen. Bereits abgeschlossen: ' . $result['applied']
+                    . ' von ' . count($pending) . ' Orten in ' . $result['completed_batches']
+                    . ' Paketen. Das fehlgeschlagene Paket wurde vollständig zurückgesetzt. '
+                    . 'Gespeicherte Änderungen können im Verlauf paketweise zurückgenommen werden.'
+                    . ($error instanceof AvesmapsConflictException ? ' ' . $error->getMessage() : ''),
+            ];
+            return $result;
+        }
+        $result['applied'] += count($batch);
+        $result['completed_batches']++;
     }
-
-    return ['ok' => true, 'dry_run' => false, 'matched' => count($pending), 'applied' => $applied];
+    $result['complete'] = true;
+    return $result;
 }
 
 // Wie viele verbundene Karten-Orte ein gemeinfreies Wiki-Wappen haben, das noch nicht

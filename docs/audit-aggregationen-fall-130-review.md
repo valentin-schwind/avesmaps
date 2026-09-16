@@ -89,6 +89,20 @@ Die lokale Browserprobe speicherte 27 Ortszuweisungen, klappte den originalen Ve
 
 Offen bleiben andere Wiki-Siedlungsschreiber (Verknüpfen, Ruinen, Wappen), Wiki-Regionen, vollständige Wegverlauf-Sync-Aufträge, Landschaftshärtung und domänenübergreifende Importe. Dieser Schritt stellt keine gemeinsame Rücknahme dieser anderen Vorgänge bereit.
 
+## Siebter Ausbau: Wiki-Ruinenstatus
+
+`bulk_record_ruins` übernimmt den Karten-Ruinenstatus in atomaren Paketen mit höchstens 200 Orten und einem Sammelbeleg je Paket. Akteur, feste Sperrreihenfolge, Planungsprüfung, Editorsperren, Bytequoten und Properties-Rücknahme verwenden den gemeinsamen Orts-Schreibweg. Bereits markierte Orte, inaktive Kartenobjekte und nicht passende Wiki-Verknüpfungen bleiben unberührt. Vorschau und unveränderter Folgelauf schreiben weder Revision noch Beleg. Die bestehende additive Bedeutung bleibt erhalten: Der Abgleich entfernt keine Ruinenmarkierungen.
+
+Ein Fehler im zweiten oder späteren Paket liefert HTTP 409 mit Teilfortschritt. Frühere vollständige Pakete bleiben gespeichert und rücknehmbar, das fehlerhafte Paket wird vollständig zurückgerollt; spätere werden nicht gestartet. Wiederholung verarbeitet die noch unmarkierten Orte. Die Aufbewahrungsprüfung innerhalb derselben Transaktion verhindert, dass dieser Request seine ersten eigenen Belege verdrängt. Normale spätere Aufbewahrung bleibt begrenzt. Ein Verbindungs- oder Prozessabbruch kann abgeschlossene Pakete hinterlassen; maßgeblich ist dann der Verlauf.
+
+Undo/Redo ändern weiterhin nur die gespeicherten Eigenschaften. Der Karten-Deltaabruf aktualisiert `isRuined` vor allen Popups, erneuert die Namensbeschriftungen einmal und zieht das offene Infopanel nach. Der bestehende Wiki-Hinweis auf eine Ruine bleibt unabhängig davon bestehen: Rücknahme entfernt die übernommene Kartenmarkierung, nicht den Wiki-Befund. Es gibt keinen neuen globalen Rücknahmeknopf und keinen neuen Übernahmeknopf.
+
+Prüfungen: 1/27/200/401 Orte, Vorschau, unveränderter Folgelauf, ausgeschlossene und bereits markierte Orte, Sperre im zweiten Paket mit Wiederholung, Fehler beim letzten Write, späterer Eigenschaften-Konflikt beim Undo und Selbstverdrängungsschutz mit 5.000 Orten. Diese Abläufe bestehen mit SQLite und echtem MySQL 8 mit JSON-Spalten. Eine Zweiprozessprobe bestätigt freie unbeteiligte Kartenzeilen sowie das vollständige Zurückrollen bei einer während des Wartens hinzugekommenen Editorsperre. Der JS-Test prüft beide Statusrichtungen sowie die Reihenfolge Daten → Popups → Namensbeschriftungen → Infopanel. Das vollständige Linux-/LF-Testfeld umfasst 452 PHP- und 639 JavaScript-Dateien; lokal bleibt allein der bekannte DNS-Test rot.
+
+Die lokale Bedienprobe verwendet originalen Verlauf, Gruppenrücknahme, Infopanel und Namenslabel-Renderer. Anmeldung, Kartenausschnitt und Datenprojektion sind vereinfacht; Produktionseinträge wurden nicht verändert. Speichern, Aufklappen, Rücknahme und Wiederherstellen wurden an 27 Testorten geprüft, einschließlich der Kursivdarstellung in heller und dunkler Ansicht.
+
+Offen bleiben Wiki-Verknüpfungen, Wappen einschließlich ihrer nachgelagerten Lokalisierung, Wiki-Regionen, vollständige Wegverlauf-Sync-Aufträge, Landschaftshärtung und domänenübergreifende Importe. Die Wappenlokalisierung schreibt nach dem Download erneut Orts-Eigenschaften; sie muss mit der Übernahme zusammen untersucht werden, sonst wäre deren Rücknahme direkt nach dem erfolgreichen Bedienablauf durch einen Folgekonflikt blockiert.
+
 ## Ergebnis
 
 Sammel-Undos sind machbar. Der erste geeignete Anwendungsfall ist die Bearbeitung einer Wegegruppe. Eine reine Zusammenfassung der Anzeige reicht nicht: Gruppenzugehörigkeit, Vollständigkeit, Konfliktprüfung und Aufbewahrung müssen gemeinsam umgesetzt werden. Die Einzeländerungen bleiben als Belege erhalten; eine Operation verbindet sie.

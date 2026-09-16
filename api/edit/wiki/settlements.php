@@ -76,7 +76,7 @@ try {
                 (int) ($payload['limit'] ?? 100),
                 !empty($payload['recheck_unknown'])
             ),
-            'bulk_record_ruins' => avesmapsWikiSettlementBulkRecordRuins($pdo, !$isApply()),
+            'bulk_record_ruins' => avesmapsWikiSettlementBulkRecordRuins($pdo, !$isApply(), (int) ($user['id'] ?? 0)),
             'bulk_record_coats' => avesmapsWikiSettlementBulkRecordCoats($pdo, !$isApply(), (int) ($payload['limit'] ?? 150)),
             // Copies the recorded public-domain coats off wiki-aventurica onto our server. No dry-run
             // pair like its neighbours: it writes files, so a "preview" would be the expensive half
@@ -130,7 +130,7 @@ try {
         };
 
         // map_features-Cache invalidieren, wenn echt geschrieben wurde.
-        if (in_array($action, ['assign_to', 'clear_assign', 'bulk_connect', 'bulk_record_ruins', 'bulk_record_coats', 'set_coat', 'clear_coat', 'assign_territory', 'clear_territory'], true) && is_array($response) && ($response['dry_run'] ?? true) === false) {
+        if (in_array($action, ['assign_to', 'clear_assign', 'bulk_connect', 'bulk_record_coats', 'set_coat', 'clear_coat', 'assign_territory', 'clear_territory'], true) && is_array($response) && ($response['dry_run'] ?? true) === false) {
             avesmapsWikiSyncNextMapRevision($pdo);
         }
         // The image kill switch flips what map-features emits -> always bump so cached clients revalidate.
@@ -143,7 +143,7 @@ try {
             avesmapsErrorResponse(400, 'invalid_request', 'Unbekannte Siedlungs-Sync-POST-Action: ' . $action);
         }
 
-        avesmapsJsonResponse(200, $response);
+        avesmapsJsonResponse($action === 'bulk_record_ruins' && ($response['ok'] ?? true) === false ? 409 : 200, $response);
     }
 
     if ($requestMethod !== 'GET') {

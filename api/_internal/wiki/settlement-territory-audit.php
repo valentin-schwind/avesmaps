@@ -6,11 +6,20 @@ require_once __DIR__ . '/../map/features.php';
 
 // Ein bereits clientseitig begrenztes Paket bleibt ein unteilbarer Vorgang.
 function avesmapsWikiSettlementCommitTerritoryGroup(PDO $pdo, array $updates, int $userId): void {
+    avesmapsWikiSettlementCommitLocationGroup($pdo, $updates, $userId, 'set_territory_location_group');
+}
+
+function avesmapsWikiSettlementCommitLocationGroup(PDO $pdo, array $updates, int $userId, string $action, ?array &$retainedAuditIds = null): void {
+    $fields = match ($action) {
+        'set_territory_location_group' => ['territory_assignment'],
+        'set_ruined_location_group' => ['is_ruined'],
+        default => throw new InvalidArgumentException('Unbekannte Orts-Sammelaktion.'),
+    };
     if ($updates === []) {
         return;
     }
     if (count($updates) > 200 || $pdo->inTransaction()) {
-        throw new InvalidArgumentException('Die Ortszuweisung benötigt ein eigenes Paket mit höchstens 200 Orten.');
+        throw new InvalidArgumentException('Die Orts-Sammelaktion benötigt ein eigenes Paket mit höchstens 200 Orten.');
     }
     avesmapsEnsureMapFeatureLocksTableEinmal($pdo);
     usort($updates, static fn(array $a, array $b): int => (int) $a['before']['id'] <=> (int) $b['before']['id']);
@@ -27,7 +36,7 @@ function avesmapsWikiSettlementCommitTerritoryGroup(PDO $pdo, array $updates, in
             if ($current['public_id'] !== $before['public_id'] || $current['feature_type'] !== 'location'
                 || (int) $current['is_active'] !== 1 || (int) $current['revision'] !== (int) $before['revision']
                 || $current['properties_json'] !== $before['properties_json']) {
-                throw new AvesmapsConflictException('Ein Ort wurde inzwischen geändert. Bitte die Zuweisung neu berechnen.');
+                throw new AvesmapsConflictException('Ein Ort wurde inzwischen geändert. Bitte den Vorgang neu berechnen.');
             }
             $features[$id] = $current;
         }
@@ -55,14 +64,27 @@ function avesmapsWikiSettlementCommitTerritoryGroup(PDO $pdo, array $updates, in
             $afterMembers[] = avesmapsMapGroupAuditMember(array_replace($feature, $patch));
             $bounds[] = avesmapsCalculateGeometryBounds(avesmapsReadGeometryFromColumnValue($feature['geometry_json']));
         }
+        $auditId = null;
         if ($changed !== []) {
             $focus = avesmapsAuditFocusFromBounds(min(array_column($bounds, 'min_x')), min(array_column($bounds, 'min_y')),
                 max(array_column($bounds, 'max_x')), max(array_column($bounds, 'max_y')));
-            avesmapsWriteMapGroupAudit($pdo, 'set_territory_location_group', $userId,
-                avesmapsMapGroupAuditSnapshot($beforeMembers, ['territory_assignment'], $focus),
-                avesmapsMapGroupAuditSnapshot($afterMembers, ['territory_assignment'], $focus));
+            $auditId = avesmapsWriteMapGroupAudit($pdo, $action, $userId,
+                avesmapsMapGroupAuditSnapshot($beforeMembers, $fields, $focus),
+                avesmapsMapGroupAuditSnapshot($afterMembers, $fields, $focus));
+        }
+        if ($retainedAuditIds !== null && $auditId !== null) {
+            $requiredIds = array_merge($retainedAuditIds, [$auditId]);
+            $slots = implode(',', array_fill(0, count($requiredIds), '?'));
+            $retained = $pdo->prepare("SELECT COUNT(*) FROM map_audit_log WHERE id IN ($slots)");
+            $retained->execute($requiredIds);
+            if ((int) $retained->fetchColumn() !== count($requiredIds)) {
+                throw new AvesmapsConflictException('Die Aufbewahrungsgrenze für diesen Massenlauf ist erreicht.');
+            }
         }
         $pdo->commit();
+        if ($retainedAuditIds !== null && $auditId !== null) {
+            $retainedAuditIds[] = $auditId;
+        }
     } catch (Throwable $error) {
         avesmapsRollbackAndRethrow($pdo, $error);
     }
